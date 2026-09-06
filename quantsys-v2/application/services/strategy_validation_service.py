@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.1, 0.15, 0.2, 0.4, 0.5]...
+
 """
 策略验证服务
 
@@ -227,6 +230,8 @@ class StrategyValidationService:
             logger.error(f"Batch backtest API call failed: {e}")
             raise
 
+    # TODO: Refactor - function too long (179 lines, target < 80)
+
     def validate_all_strategies(
         self,
         start_date: str,
@@ -417,6 +422,8 @@ class StrategyValidationService:
     # 写独立列 validation_status + strategy_validation_reports。
     # 报告性验证：无证据策略显式跳过（不判 0 分 invalid，避免历史 mass-invalidate 重演）；
     # invalid 不自动停用策略（deactivate_if_invalid=False），停用由人工决策。
+    # TODO: Refactor - function too long (168 lines, target < 80)
+
     # ------------------------------------------------------------------
     def validate_from_recent_backtests(
         self,

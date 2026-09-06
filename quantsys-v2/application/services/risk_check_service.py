@@ -364,7 +364,9 @@ class RiskCheckService:
         try:
             cursor = self.portfolio_repo._get_cursor()
             cursor.execute(
-                "SELECT * FROM quant.get_trades_by_date_and_symbol(%s, %s)",
+                # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                "SELECT * FROM quant.get_trades_by_date_and_symbol(%s, %s)",  # TODO: Use parameterized queries
                 (today, symbol)
             )
             trades_today = cursor.fetchall()

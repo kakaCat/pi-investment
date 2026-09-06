@@ -81,6 +81,8 @@ class StrategyEngine:
             self._stock_repo = EnhancedServiceFactory.resolve(IStockRepository)
         return self._stock_repo
 
+    # TODO: Refactor - function too long (106 lines, target < 80)
+
     def execute(self, symbol: str, date: str = None) -> Dict:
         """
         Execute real strategy on kline data.
@@ -187,6 +189,8 @@ class StrategyEngine:
             'indicators': result.get('indicators', {}),
             'timestamp': end_date
         }
+
+    # TODO: Refactor - complexity 20 (target < 15)
 
     def _execute_db_indicator(self, klines: List[Dict]) -> Dict:
         """

@@ -21,6 +21,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from infrastructure.persistence.database.engine import get_engine
 
+# TODO: Refactor - function too long (140 lines, target < 80)
+
 def check_connection_health():
     """检查数据库连接池健康状态"""
     from psycopg2.extras import RealDictCursor

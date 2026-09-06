@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.3, 0.5, 0.8, 5, 15]...
+
 """
 K线数据更新Job - 使用多数据源自动更新
 
@@ -24,6 +27,8 @@ from infrastructure.persistence.database.engine import get_engine
 
 logger = logging.getLogger(__name__)
 
+
+# TODO: Refactor - function too long (168 lines, target < 80)
 
 def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
     """构建选股 SQL（抽出以便单测，2026-08-02）。
@@ -195,6 +200,10 @@ def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
     )
 
 
+# TODO: Refactor - complexity 22 (target < 15)
+# TODO: Refactor - function too long (234 lines, target < 80)
+
+
 def update_gem_klines(**params):
     """
     更新K线数据
@@ -341,7 +350,9 @@ def update_gem_klines(**params):
                         float(k.amount),
                         float(k.turnover_rate),
                     ))
-                    inserted += 1
+                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                    inserted += 1  # TODO: Use parameterized queries
 
                 conn.commit()
 

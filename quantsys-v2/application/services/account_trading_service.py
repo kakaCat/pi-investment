@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-05, 0.00025, 0.0005, 0.3, 0.5]...
+
 """账户交易服务 —— 手工/代管交易的单事务执行
 
 事务流: 校验 → 委托单 → 成交+费用 → 资金流水(add_trade自动) → 持仓 → 账户 → 快照
@@ -94,6 +97,10 @@ class AccountTradingService:
                 f'单日买入金额超限: 今日已买 ¥{bought_amount:,.0f}，'
                 f'本次 ¥{trade_amount:,.0f}，'
                 f'超过总资产 {self.MAX_DAILY_BUY_AMOUNT_RATIO:.0%}', 422)
+
+    # TODO: Refactor - complexity 41 (target < 15)
+
+    # TODO: Refactor - function too long (319 lines, target < 80)
 
     def execute_trade(
         self,

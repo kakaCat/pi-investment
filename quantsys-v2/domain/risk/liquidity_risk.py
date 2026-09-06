@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.02, 0.05, 0.1, 0.2]...
+
 """
 Liquidity Risk Calculator
 =========================
@@ -68,6 +71,8 @@ class LiquidityRiskCalculator(BaseCalculator):
             risk_free_rate: Risk-free rate
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
+
+    # TODO: Refactor - function too long (139 lines, target < 80)
 
     def calculate(self,
                   portfolio: Dict[str, float],

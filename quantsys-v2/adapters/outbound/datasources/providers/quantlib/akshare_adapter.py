@@ -74,6 +74,8 @@ def _normalise_frame(df: pd.DataFrame, col_map: dict[str, str]) -> pd.DataFrame:
 # AkShareAdapter
 # ========================================================================
 
+# TODO: Refactor - class too large (22 methods, target < 15)
+
 class AkShareAdapter(BaseMarketAdapter):
     """AkShare-backed implementation of BaseMarketAdapter.
 
@@ -647,6 +649,8 @@ class AkShareAdapter(BaseMarketAdapter):
     # ------------------------------------------------------------------
     # get_market_news
     # ------------------------------------------------------------------
+
+    # TODO: Refactor - complexity 21 (target < 15)
 
     def get_market_news(self, symbol: str = "", limit: int = 20) -> list[dict]:
         """Return recent market news for *symbol*.

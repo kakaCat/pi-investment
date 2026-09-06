@@ -49,6 +49,8 @@ class MissedOpportunityService:
         self.grace_trading_days = grace_trading_days
         self.daily_cap = daily_cap
 
+    # TODO: Refactor - complexity 16 (target < 15)
+
     def capture(self, lookback_days: int = 10, today: Optional[date] = None) -> Dict[str, Any]:
         """滚动捕获最近 lookback_days 内未被行动的买入信号，返回计数汇总。"""
         today = today or date.today()

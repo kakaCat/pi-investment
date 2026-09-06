@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-06, 0.001, 0.01, 0.1, 0.25]...
+
 """
 Quantitative Data Validator Module
 ===================================
@@ -93,6 +96,8 @@ class DataQualityReport:
             for rec in self.recommendations[:3]:  # Show top 3
                 print(f"  - {rec}")
 
+
+# TODO: Refactor - class too large (21 methods, target < 15)
 
 class DataValidator:
     """

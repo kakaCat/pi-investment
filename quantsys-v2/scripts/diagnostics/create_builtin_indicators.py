@@ -11,6 +11,8 @@ import os
 from application.services.strategy_code_service import StrategyCodeService
 
 
+# TODO: Refactor - function too long (213 lines, target < 80)
+
 def create_builtin_indicators():
     """创建系统内置指标"""
     service = StrategyCodeService()

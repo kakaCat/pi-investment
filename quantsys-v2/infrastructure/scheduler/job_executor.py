@@ -20,6 +20,8 @@ from typing import Dict, Any, Optional
 logger = logging.getLogger(__name__)
 
 
+# TODO: Refactor - function too long (115 lines, target < 80)
+
 def execute_scheduled_job(task_id: int):
     """
     APScheduler 调用的任务执行入口

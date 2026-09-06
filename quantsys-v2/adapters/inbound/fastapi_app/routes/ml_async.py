@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-09, 0.2, 0.5, 0.55, 3]...
+
 """ML 引擎 API - FastAPI 版（从 Flask ml_routes.py 迁移，响应契约保持一致）
 
 复用 ml_routes.py 的模块级辅助函数（_convert_keys_to_snake/_ml_error_handler/
@@ -29,6 +32,10 @@ router = APIRouter(tags=["ML - 机器学习"])
 
 @router.post('/api/ml/train')
 @_ml_error_handler
+# TODO: Refactor - complexity 37 (target < 15)
+
+# TODO: Refactor - function too long (174 lines, target < 80)
+
 def ml_train(payload: Optional[Dict[str, Any]] = Body(None)):
     """Train an ML model (xgboost / lightgbm / randomforest)."""
     data = _convert_keys_to_snake(payload or {})
@@ -206,6 +213,10 @@ def ml_train(payload: Optional[Dict[str, Any]] = Body(None)):
 
 
 @router.post('/api/ml/predict')
+# TODO: Refactor - complexity 43 (target < 15)
+
+# TODO: Refactor - function too long (178 lines, target < 80)
+
 @_ml_error_handler
 def ml_predict(payload: Optional[Dict[str, Any]] = Body(None)):
     """Make batch predictions for given symbols."""

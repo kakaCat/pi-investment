@@ -14,6 +14,8 @@ def _safe_float(value, default=0.0, decimals=None):
         return default
 
 
+# TODO: Refactor - complexity 17 (target < 15)
+
 def sanitize_for_json(obj):
     """递归清理对象，使其可以被JSON序列化"""
     import pandas as pd

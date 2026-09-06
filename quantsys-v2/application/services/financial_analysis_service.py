@@ -118,6 +118,8 @@ class FinancialAnalysisService:
                 'data': None
             }
 
+    # TODO: Refactor - complexity 21 (target < 15)
+
     def _calculate_indicators_from_statements(
         self,
         income: Dict[str, Any],
@@ -154,6 +156,10 @@ class FinancialAnalysisService:
             self.logger.warning(f"计算财务指标失败: {e}")
 
         return indicators
+# TODO: Refactor - complexity 31 (target < 15)
+
+
+    # TODO: Refactor - function too long (135 lines, target < 80)
 
     def get_stock_valuation(self, symbol: str) -> Dict[str, Any]:
         """

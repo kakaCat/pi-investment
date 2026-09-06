@@ -68,6 +68,10 @@ class BarraRiskModelCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
+    # TODO: Refactor - complexity 16 (target < 15)
+
+    # TODO: Refactor - function too long (179 lines, target < 80)
+
     def calculate(self,
                   returns: pd.DataFrame,
                   factor_exposures: pd.DataFrame,

@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.02, 0.03, 0.1, 0.15, 0.2]...
+
 """
 风险控制模块
 
@@ -185,6 +188,10 @@ class RiskController:
 
         return target_shares
 
+
+# TODO: Refactor - complexity 17 (target < 15)
+
+# TODO: Refactor - function too long (243 lines, target < 80)
 
 def backtest_with_risk_control(trader, start_date: str, end_date: str,
                                risk_config: Dict = None) -> Dict:

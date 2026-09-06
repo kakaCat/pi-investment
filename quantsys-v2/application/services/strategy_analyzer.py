@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.05, 0.1, 0.15, 0.25, 0.3]...
+
 """
 策略分析器 - 计算策略评级和诊断结论
 """

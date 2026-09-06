@@ -74,6 +74,8 @@ class MarkowitzOptimizer(BaseCalculator):
         """Get list of supported optimization objectives."""
         return ['min_variance', 'max_sharpe', 'target_return']
 
+    # TODO: Refactor - function too long (121 lines, target < 80)
+
     def optimize(self,
                  expected_returns: Union[np.ndarray, pd.Series, List],
                  cov_matrix: Union[np.ndarray, pd.DataFrame],

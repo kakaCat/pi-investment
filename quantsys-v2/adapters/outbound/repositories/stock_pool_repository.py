@@ -87,7 +87,9 @@ class StockPoolRepository:
         from infrastructure.persistence.database.engine import db_cursor
         with db_cursor() as cursor:
             cursor.execute(
-                "SELECT * FROM quant.stock_pools WHERE id = %(id)s",
+                # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                "SELECT * FROM quant.stock_pools WHERE id = %(id)s",  # TODO: Use parameterized queries
                 {'id': pool_id}
             )
             row = cursor.fetchone()
@@ -186,7 +188,9 @@ class StockPoolRepository:
         from infrastructure.persistence.database.engine import db_cursor
         with db_cursor(commit=True) as cursor:
             cursor.execute(
-                "DELETE FROM quant.stock_pools WHERE id = %(id)s RETURNING id",
+                # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                "DELETE FROM quant.stock_pools WHERE id = %(id)s RETURNING id",  # TODO: Use parameterized queries
                 {'id': pool_id}
             )
             result = cursor.fetchone()

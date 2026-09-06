@@ -37,6 +37,10 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
+# TODO: Refactor - complexity 31 (target < 15)
+
+# TODO: Refactor - function too long (186 lines, target < 80)
+
 def main():
     parser = argparse.ArgumentParser(description="独立模型训练（对齐 /api/ml/train 数据流）")
     parser.add_argument("--model-type", default="lightgbm", choices=["xgboost", "lightgbm"])

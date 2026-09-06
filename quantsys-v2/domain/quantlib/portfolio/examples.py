@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.005, 0.01, 0.015, 0.02, 0.025]...
+
 """
 Portfolio Optimization Examples
 ================================
@@ -411,6 +414,8 @@ def example_4_efficient_frontier():
     return result
 
 
+# TODO: Refactor - function too long (113 lines, target < 80)
+
 def example_5_constrained_optimization():
     """
     Example 5: Portfolio Optimization with Constraints
@@ -524,6 +529,8 @@ def example_5_constrained_optimization():
         'bounded': result_bounded,
         'constraint_manager': constraint_mgr
     }
+
+# TODO: Refactor - function too long (118 lines, target < 80)
 
 
 def example_6_complete_workflow():

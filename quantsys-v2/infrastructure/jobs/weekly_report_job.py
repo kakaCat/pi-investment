@@ -202,6 +202,8 @@ class WeeklyReportJob:
 
         return next_rebalance.strftime('%Y-%m-%d')
 
+    # TODO: Refactor - function too long (108 lines, target < 80)
+
     def run(self):
         """运行周报任务"""
         logger.info("开始生成V13策略周报")

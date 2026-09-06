@@ -78,7 +78,9 @@ class SessionService:
                 counter = _COUNTER_MAP.get(etype)
                 if counter:
                     cursor.execute(
-                        f"UPDATE quant.agent_sessions SET {counter} = {counter} + 1 WHERE session_key = %s",
+                        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                        f"UPDATE quant.agent_sessions SET {counter} = {counter} + 1 WHERE session_key = %s",  # TODO: Use parameterized queries
                         (key,),
                     )
 
@@ -89,12 +91,16 @@ class SessionService:
         with db_cursor() as cursor:
             if channel:
                 cursor.execute(
-                    "SELECT * FROM quant.agent_sessions WHERE channel = %s ORDER BY last_active_at DESC LIMIT %s",
+                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                    "SELECT * FROM quant.agent_sessions WHERE channel = %s ORDER BY last_active_at DESC LIMIT %s",  # TODO: Use parameterized queries
                     (channel, limit),
                 )
             else:
                 cursor.execute(
-                    "SELECT * FROM quant.agent_sessions ORDER BY last_active_at DESC LIMIT %s",
+                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                    "SELECT * FROM quant.agent_sessions ORDER BY last_active_at DESC LIMIT %s",  # TODO: Use parameterized queries
                     (limit,),
                 )
             return [dict(r) for r in cursor.fetchall()]
@@ -102,7 +108,9 @@ class SessionService:
     def get_session(self, session_key: str) -> Optional[Dict[str, Any]]:
         from infrastructure.persistence.database.engine import db_cursor
         with db_cursor() as cursor:
-            cursor.execute("SELECT * FROM quant.agent_sessions WHERE session_key = %s", (session_key,))
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+            cursor.execute("SELECT * FROM quant.agent_sessions WHERE session_key = %s", (session_key,))  # TODO: Use parameterized queries
             row = cursor.fetchone()
             return dict(row) if row else None
 
@@ -189,7 +197,9 @@ class SessionService:
         if not refresh:
             with db_cursor() as cursor:
                 cursor.execute(
-                    "SELECT ai_diagnosis, ai_diagnosis_at FROM quant.agent_sessions WHERE session_key = %s",
+                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                    "SELECT ai_diagnosis, ai_diagnosis_at FROM quant.agent_sessions WHERE session_key = %s",  # TODO: Use parameterized queries
                     (session_key,),
                 )
                 row = cursor.fetchone()

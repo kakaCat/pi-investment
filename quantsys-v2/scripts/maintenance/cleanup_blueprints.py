@@ -7,6 +7,8 @@ ROUTES = Path(__file__).resolve().parents[1] / "api" / "routes"
 SERVER = Path(__file__).resolve().parents[1] / "api" / "server.py"
 
 # ── Step 1: Extract blocks from misc.py by domain ──
+# TODO: Refactor - complexity 21 (target < 15)
+
 def extract_misc_blocks():
     misc = ROUTES / "misc.py"
     if not misc.exists():
@@ -103,6 +105,8 @@ def merge_blueprint(source: str, target: str):
     src_file.unlink()
     print(f"  merged {source}.py → {target}.py")
 
+
+# TODO: Refactor - function too long (105 lines, target < 80)
 
 def main():
     # ── Split misc.py ──

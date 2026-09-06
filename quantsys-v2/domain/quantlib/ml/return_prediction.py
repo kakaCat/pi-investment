@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-10, 0.001, 0.05, 0.1, 0.2]...
+
 """
 Return Prediction Calculator
 =============================
@@ -67,6 +70,10 @@ class ReturnPredictionCalculator(BaseCalculator):
 
     @validate_inputs
     @timing_decorator
+    # TODO: Refactor - complexity 16 (target < 15)
+
+    # TODO: Refactor - function too long (116 lines, target < 80)
+
     def predict_returns(self,
                         features: pd.DataFrame,
                         target: Union[np.ndarray, pd.Series],
@@ -416,6 +423,8 @@ class ReturnPredictionCalculator(BaseCalculator):
                 importance = {k: v / max_imp for k, v in importance.items()}
 
         return model, predictions, metrics, importance
+# TODO: Refactor - function too long (129 lines, target < 80)
+
 
     def _train_lstm(self,
                     X_train: np.ndarray,

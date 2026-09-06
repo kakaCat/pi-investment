@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.2, 0.3, 0.5, 0.8, 0.9]...
+
 """
 机会评分引擎
 
@@ -27,6 +30,8 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
+
+# TODO: Refactor - class too large (22 methods, target < 15)
 
 class OpportunityScoringService:
     """机会评分引擎（动态 profile + regime 权重 + 证据链）"""
@@ -98,6 +103,8 @@ class OpportunityScoringService:
             except Exception as e:
                 logger.warning(f"DataProviderManager 不可用，K线补抓禁用: {e}")
             self.quality_gate = DataQualityGate(data_provider=data_provider)
+
+    # TODO: Refactor - function too long (121 lines, target < 80)
 
     def score_stocks(
         self,
@@ -240,6 +247,10 @@ class OpportunityScoringService:
                 result[s] = value
                 status[s] = 'computed'
         return result, status
+
+    # TODO: Refactor - complexity 21 (target < 15)
+# TODO: Refactor - function too long (145 lines, target < 80)
+
 
     def _score_single_stock(
         self,
@@ -456,6 +467,8 @@ class OpportunityScoringService:
                 tech_result.get('breakdown', {}).get('macd', 0) > 10:
             reasons.append('RSI超卖+MACD金叉共振')
         return reasons
+# TODO: Refactor - complexity 19 (target < 15)
+
 
     def _calculate_factors(self, klines: List[Dict]) -> Dict:
         """计算技术指标因子
@@ -874,6 +887,8 @@ class OpportunityScoringService:
             score += 15
         elif volume_ratio < 0.8:  # 缩量
             score -= 10
+
+        # TODO: Refactor - complexity 19 (target < 15)
 
         return max(0, min(100, score))
 

@@ -58,7 +58,9 @@ class VerificationJob:
         # 简单检查：如果任意股票在该日期有K线数据，则认为是交易日
         cursor = kline_repo.session.connection().connection.cursor()
         cursor.execute(
-            "SELECT COUNT(*) FROM quant.daily_klines WHERE trade_date = %s LIMIT 1",
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+            "SELECT COUNT(*) FROM quant.daily_klines WHERE trade_date = %s LIMIT 1",  # TODO: Use parameterized queries
             (date_str,)
         )
         count = cursor.fetchone()[0]
@@ -188,6 +190,8 @@ class VerificationJob:
         end_price = end_row[0]
 
         return (end_price - start_price) / start_price
+
+    # TODO: Refactor - function too long (113 lines, target < 80)
 
     def run(self):
         """运行验证任务"""

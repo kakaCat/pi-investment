@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.2, 0.55, 4, 5]...
+
 """
 调度任务处理器
 从旧的infrastructure/scheduler迁移过来的command handlers
@@ -456,6 +459,8 @@ def handle_backtest_run(params: Dict[str, Any] = None) -> Dict[str, Any]:
         }
 
 
+# TODO: Refactor - complexity 16 (target < 15)
+
 def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """因子计算任务（盘后批量重算并落库，为次日信号做准备）
 
@@ -696,7 +701,9 @@ def handle_financial_data_update(params: Dict[str, Any] = None) -> Dict[str, Any
             try:
                 financial_data = service.get_financial_indicators(symbol)
                 if financial_data:
-                    updated_count += 1
+                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                    updated_count += 1  # TODO: Use parameterized queries
             except Exception as e:
                 errors.append({"symbol": symbol, "error": str(e)})
 
@@ -1010,6 +1017,10 @@ def handle_chan_knowledge_distill(params: Dict[str, Any] = None) -> Dict[str, An
             "error": str(e)
         }
 
+# TODO: Refactor - complexity 32 (target < 15)
+
+
+# TODO: Refactor - function too long (252 lines, target < 80)
 
 def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """

@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.1, 0.12, 0.18, 0.2, 0.3]...
+
 """
 V13策略配置优化工具
 
@@ -15,6 +18,8 @@ import os
 import json
 from pathlib import Path
 from datetime import datetime
+
+# TODO: Refactor - function too long (184 lines, target < 80)
 
 def optimize_config():
     """优化V13策略配置"""

@@ -53,6 +53,10 @@ class SentimentService:
             logger.error(f"获取 {symbol} 资金流向失败: {e}", exc_info=True)
             return {'error': str(e)}
 
+    # TODO: Refactor - complexity 22 (target < 15)
+
+    # TODO: Refactor - function too long (118 lines, target < 80)
+
     def _analyze_fund_flow(self, flow_data: Dict) -> Dict:
         """
         分析资金流向数据

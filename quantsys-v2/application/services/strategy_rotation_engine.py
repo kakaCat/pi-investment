@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.0013, 0.02, 0.05, 0.2, 0.23]...
+
 """
 策略自适应轮动引擎 (Strategy Rotation Engine)
 
@@ -56,6 +59,8 @@ STYLE_STRATEGY_MAP = {
 # ============================================================
 # 轮动引擎
 # ============================================================
+
+# TODO: Refactor - class too large (25 methods, target < 15)
 
 class StrategyRotationEngine:
     """策略自适应轮动引擎
@@ -433,6 +438,8 @@ class StrategyRotationEngine:
 
     # ==================== Agent 工具链支持 ====================
 
+    # TODO: Refactor - function too long (106 lines, target < 80)
+
     def get_proposal_context(self) -> Dict[str, Any]:
         """获取富数据轮动方案（供 /api/agent/rotation/proposal 调用）
 
@@ -539,6 +546,8 @@ class StrategyRotationEngine:
                 '调用 market_style_detect 独立验证风格判断',
             ],
         }
+# TODO: Refactor - function too long (103 lines, target < 80)
+
 
     def simulate_rotation(self, actions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """模拟执行轮动方案（不真正执行）
@@ -643,6 +652,8 @@ class StrategyRotationEngine:
                 '如有顾虑可修改 actions 后重新模拟',
             ],
         }
+
+    # TODO: Refactor - complexity 17 (target < 15)
 
     def verify_rotation(self, rotation_date: Optional[str] = None) -> Dict[str, Any]:
         """验证轮动效果（对比预期 vs 实际）

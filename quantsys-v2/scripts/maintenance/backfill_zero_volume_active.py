@@ -102,6 +102,8 @@ def fix_symbol_volume(db: Database, fetcher: KlineFetcher, symbol: str, name: st
             'error': str(e)
         }
 
+# TODO: Refactor - function too long (153 lines, target < 80)
+
 def main():
     print("=" * 80)
     print("重新下载真实成交量数据（仅活跃股票）")
@@ -190,7 +192,9 @@ def main():
 
             if result['success']:
                 success_count += 1
-                total_updated += result['count']
+                # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                total_updated += result['count']  # TODO: Use parameterized queries
                 print(f"[{i}/{total_symbols}] ✓ {result['symbol']} {result['name']:<10} - 更新 {result['count']} 条记录")
             else:
                 fail_count += 1

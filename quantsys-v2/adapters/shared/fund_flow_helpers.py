@@ -172,6 +172,8 @@ def _fetch_financial_data(symbol: str) -> Optional[Dict[str, Any]]:
     }
 
 
+# TODO: Refactor - complexity 29 (target < 15)
+
 def _parse_financial_periods(
     income_records: List[dict],
     balance_records: List[dict],

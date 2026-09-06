@@ -44,6 +44,8 @@ def _audit_job(action: str, job: Dict[str, Any], actor: Optional[str] = None):
         pass
 
 
+# TODO: Refactor - complexity 17 (target < 15)
+
 def _execute_job_by_type(job_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """Execute a job by type, returning result dict."""
     if job_type == 'data_update':

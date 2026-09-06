@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.1, 0.5, 3, 14, 20]...
+
 """
 商品期货CTA策略
 
@@ -145,6 +148,8 @@ class TrendFollowingCTA:
             return 'downtrend'
         else:
             return None
+
+    # TODO: Refactor - function too long (119 lines, target < 80)
 
     def generate_signal(self) -> Optional[Dict]:
         """

@@ -158,6 +158,8 @@ def process_batch(stocks: List[Dict], batch_num: int, total_batches: int,
     return batch_stats
 
 
+# TODO: Refactor - function too long (107 lines, target < 80)
+
 def main():
     """主函数"""
     print("=" * 80)

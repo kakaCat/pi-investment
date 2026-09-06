@@ -22,6 +22,8 @@ def get_db_connection():
     }
     return psycopg2.connect(**db_config)
 
+# TODO: Refactor - function too long (164 lines, target < 80)
+
 def diagnose_data_loss():
     """诊断数据丢失原因"""
 

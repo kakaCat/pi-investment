@@ -31,6 +31,8 @@ class EvalContext:
     elapsed_fraction: float = 1.0        # 当日已过交易时间比例 0~1
 
 
+# TODO: Refactor - complexity 18 (target < 15)
+
 def validate_condition(cond: dict) -> None:
     """校验条件结构，非法时抛 ValueError"""
     ctype = cond.get('type')

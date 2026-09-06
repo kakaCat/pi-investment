@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-10, 1e-08, 0.1, 0.5, 0.7]...
+
 """
 Factor Mining Calculator
 =========================
@@ -85,6 +88,10 @@ class FactorMiningCalculator(BaseCalculator):
 
     @validate_inputs
     @timing_decorator
+    # TODO: Refactor - complexity 27 (target < 15)
+
+    # TODO: Refactor - function too long (153 lines, target < 80)
+
     def mine_factors(self,
                      data: pd.DataFrame,
                      target: Union[np.ndarray, pd.Series],

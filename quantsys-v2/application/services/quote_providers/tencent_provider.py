@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [3, 4, 5, 6, 7]...
+
 """
 TencentQuoteProvider - 腾讯财经实时行情数据源
 """

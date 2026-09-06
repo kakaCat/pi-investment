@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.0003, 0.001, 0.08, 0.15, 0.2]...
+
 """
 通用模拟交易引擎 (Paper Trading Engine)
 
@@ -257,6 +260,8 @@ class PaperTradingEngine:
 
         return results
 
+    # TODO: Refactor - complexity 16 (target < 15)
+
     def _filter_buy_signals(
         self,
         signals: List[Signal],
@@ -425,6 +430,8 @@ class PaperTradingEngine:
             amount=trade['amount'],
             commission=commission,
         )
+
+    # TODO: Refactor - function too long (105 lines, target < 80)
 
     def _execute_sell(self, signal: Signal, price: Optional[float]) -> TradeResult:
         """执行卖出"""

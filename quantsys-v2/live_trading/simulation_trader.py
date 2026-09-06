@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-10, 0.005, 0.01, 0.05, 0.5]...
+
 """
 V13策略模拟交易系统 - 主执行脚本（完整版）
 
@@ -86,6 +89,8 @@ def judge_trading_day(day, *, kline_exists_on_date, latest_kline_date, today):
         return (today - latest_kline_date).days <= 7
     return False
 
+
+# TODO: Refactor - class too large (28 methods, target < 15)
 
 class SimulationTrader:
     """V13策略模拟交易器（使用数据库持久化）"""
@@ -538,6 +543,8 @@ class SimulationTrader:
         finally:
             conn.close()  # 确保连接归还到池
 
+    # TODO: Refactor - function too long (109 lines, target < 80)
+
     def train_model(self, train_start='2025-06-01', train_end='2026-06-01', stock_limit=200, ic_threshold=0.005, xgb_params=None):
         """
         训练模型
@@ -860,6 +867,8 @@ class SimulationTrader:
         logger.info("触发调仓条件，开始执行...")
         self.rebalance(today)
         return {'executed': True, 'action': 'rebalance'}
+# TODO: Refactor - function too long (112 lines, target < 80)
+
 
     def rebalance(self, current_date):
         """执行调仓"""
@@ -999,6 +1008,8 @@ class SimulationTrader:
             self.portfolio[symbol]['shares'] * prices.get(symbol, self.portfolio[symbol]['avg_price'])
             for symbol in self.portfolio
         )
+
+        # TODO: Refactor - function too long (163 lines, target < 80)
 
         return self.cash + portfolio_value
 
@@ -1260,6 +1271,8 @@ class SimulationTrader:
         for stop in self.config['strategy']['drawdown_stops']:
             if drawdown <= stop['threshold']:
                 return stop['position']
+# TODO: Refactor - function too long (148 lines, target < 80)
+
 
         return 1.0
 
@@ -1471,6 +1484,8 @@ class SimulationTrader:
 
         logger.info(f"每日报告已保存到数据库和文件")
 
+
+# TODO: Refactor - complexity 18 (target < 15)
 
 def main():
     """主函数"""

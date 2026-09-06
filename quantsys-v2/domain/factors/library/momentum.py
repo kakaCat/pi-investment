@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-06, 0.01, 0.05, 0.2, 0.5]...
+
 """
 Momentum Indicators Module
 ===========================

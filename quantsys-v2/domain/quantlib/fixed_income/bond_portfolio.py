@@ -139,6 +139,8 @@ class BondPortfolioCalculator(BaseCalculator):
             }
         )
 
+    # TODO: Refactor - function too long (103 lines, target < 80)
+
     def calculate_immunization(
         self,
         liability_amount: float,

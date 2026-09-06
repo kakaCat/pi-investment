@@ -194,6 +194,8 @@ class IBKRBroker(BaseBroker):
     # Market Data
     # ========================================================================
 
+    # TODO: Refactor - complexity 16 (target < 15)
+
     def get_quotes(self, symbols: List[str]) -> ApiResponse[List[BrokerQuote]]:
         """
         Get real-time quotes using snapshot market data.
@@ -351,6 +353,8 @@ class IBKRBroker(BaseBroker):
     # ========================================================================
     # Trading
     # ========================================================================
+# TODO: Refactor - complexity 16 (target < 15)
+
 
     def place_order(
         self,

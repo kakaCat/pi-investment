@@ -20,6 +20,10 @@ class SinaWebFinancialProvider(FinancialProvider):
     def __init__(self, timeout: int = 10):
         super().__init__(name="sina_web", timeout=timeout)
 
+    # TODO: Refactor - complexity 23 (target < 15)
+
+    # TODO: Refactor - function too long (108 lines, target < 80)
+
     def get_financial_data(
         self,
         symbol: str,
@@ -128,6 +132,8 @@ class SinaWebFinancialProvider(FinancialProvider):
         except Exception as e:
             logger.error(f"[{self.name}] 获取财务数据失败 {symbol}: {e}")
             raise Exception(f"新浪财经网页查询失败: {e}") from e
+# TODO: Refactor - complexity 18 (target < 15)
+
 
     def _parse_sina_table(self, table, periods: int):
         """解析新浪财经表格

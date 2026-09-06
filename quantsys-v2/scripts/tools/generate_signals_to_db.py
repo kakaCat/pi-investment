@@ -78,6 +78,8 @@ def save_signal_to_db(signal_repo: SignalRepository, signal: Dict, stock_name: s
         return False
 
 
+# TODO: Refactor - function too long (121 lines, target < 80)
+
 def main():
     """主函数"""
     print("=" * 80)

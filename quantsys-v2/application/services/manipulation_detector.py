@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.15, 0.2, 0.5, 0.75, 0.95]...
+
 """
 操纵检测服务 - ManipulationDetector
 

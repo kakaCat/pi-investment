@@ -45,6 +45,10 @@ class SwingPointService:
         self.kline_repo = kline_repo
         self.validator = validator or StockCodeValidator()
 
+    # TODO: Refactor - complexity 21 (target < 15)
+
+    # TODO: Refactor - function too long (145 lines, target < 80)
+
     def analyze(self, params: Dict) -> Dict:
         """
         识别历史买卖点（ZigZag 算法）
@@ -192,6 +196,10 @@ class SwingPointService:
         }
 
     # ──────────────────────────────────────────────────────────
+# TODO: Refactor - complexity 27 (target < 15)
+
+# TODO: Refactor - function too long (154 lines, target < 80)
+
 
     def _zigzag(self, klines: List[Dict], threshold: float) -> List[Dict]:
         """

@@ -26,6 +26,8 @@ db_config = {
 from domain.quantlib.engine.code_validator import CodeValidator
 from domain.quantlib.engine.param_parser import ParamParser
 
+# TODO: Refactor - function too long (264 lines, target < 80)
+
 def create_builtin_indicators():
     """创建系统内置指标"""
 

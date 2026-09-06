@@ -63,6 +63,10 @@ class FeatureEngineeringCalculator(BaseCalculator):
 
     @validate_inputs
     @timing_decorator
+    # TODO: Refactor - complexity 25 (target < 15)
+
+    # TODO: Refactor - function too long (136 lines, target < 80)
+
     def generate_features(self,
                           data: pd.DataFrame,
                           feature_types: Optional[List[str]] = None,

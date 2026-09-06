@@ -70,7 +70,9 @@ with ThreadPoolExecutor(max_workers=8) as executor:
         try:
             success, error = future.result()
             if success:
-                updated += 1
+                # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                updated += 1  # TODO: Use parameterized queries
                 print(f"  ✅ {sym}: 有数据")
             elif error:
                 errors += 1
@@ -85,7 +87,9 @@ print(f"\n📊 测试结果:")
 print(f"  检查股票数: {len(test_symbols)}")
 print(f"  更新成功数: {updated}")
 print(f"  错误数: {errors}")
-print(f"  成功率: {100 * updated / len(test_symbols):.1f}%")
+# SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+print(f"  成功率: {100 * updated / len(test_symbols):.1f}%")  # TODO: Use parameterized queries
 
 if errors == 0 and updated > 0:
     print(f"\n✅ 修复成功！数据更新功能正常工作")

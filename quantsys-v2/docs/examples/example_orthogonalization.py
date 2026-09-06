@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.2, 0.3, 0.4, 0.5, 0.6]...
+
 """
 因子正交化完整示例
 

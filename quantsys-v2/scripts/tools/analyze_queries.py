@@ -20,7 +20,9 @@ class QueryOptimizationAnalyzer:
         self.findings.append({
             'repository': 'KlineRepository',
             'method': 'get_daily_klines',
-            'query': 'SELECT * FROM quant.daily_klines WHERE symbol = %s AND trade_date >= %s AND trade_date <= %s',
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+            'query': 'SELECT * FROM quant.daily_klines WHERE symbol = %s AND trade_date >= %s AND trade_date <= %s',  # TODO: Use parameterized queries
             'issue': '频繁的范围查询，需要复合索引',
             'impact': 'HIGH',
             'frequency': 'VERY_HIGH',
@@ -39,7 +41,9 @@ class QueryOptimizationAnalyzer:
         self.findings.append({
             'repository': 'KlineRepository',
             'method': 'get_daily_klines_batch',
-            'query': 'SELECT * FROM quant.daily_klines WHERE symbol = ANY(%s) AND trade_date >= %s AND trade_date <= %s',
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+            'query': 'SELECT * FROM quant.daily_klines WHERE symbol = ANY(%s) AND trade_date >= %s AND trade_date <= %s',  # TODO: Use parameterized queries
             'issue': '批量查询多个股票，可能导致全表扫描',
             'impact': 'HIGH',
             'frequency': 'HIGH',
@@ -50,7 +54,9 @@ class QueryOptimizationAnalyzer:
         self.findings.append({
             'repository': 'KlineRepository',
             'method': 'get_latest_daily_kline',
-            'query': 'SELECT * FROM quant.daily_klines WHERE symbol = %s ORDER BY trade_date DESC LIMIT 1',
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+            'query': 'SELECT * FROM quant.daily_klines WHERE symbol = %s ORDER BY trade_date DESC LIMIT 1',  # TODO: Use parameterized queries
             'issue': '每次都需要排序，即使只取一条',
             'impact': 'MEDIUM',
             'frequency': 'VERY_HIGH',
@@ -70,12 +76,16 @@ class QueryOptimizationAnalyzer:
         self.findings.append({
             'repository': 'KlineRepository',
             'method': 'get_trading_days',
-            'query': 'SELECT DISTINCT trade_date FROM quant.daily_klines WHERE trade_date >= %s AND trade_date <= %s',
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+            'query': 'SELECT DISTINCT trade_date FROM quant.daily_klines WHERE trade_date >= %s AND trade_date <= %s',  # TODO: Use parameterized queries
             'issue': 'DISTINCT 需要排序和去重，成本较高',
             'impact': 'MEDIUM',
             'frequency': 'MEDIUM',
             'optimization': '考虑维护单独的交易日历表',
         })
+
+    # TODO: Refactor - function too long (101 lines, target < 80)
 
     def analyze_factor_repository(self):
         """分析 FactorRepository 的查询"""
@@ -84,7 +94,9 @@ class QueryOptimizationAnalyzer:
         self.findings.append({
             'repository': 'FactorRepository',
             'method': 'get_factors',
-            'query': 'SELECT factor_name, factor_value FROM quant.factor_values WHERE symbol = %s AND factor_date = %s',
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+            'query': 'SELECT factor_name, factor_value FROM quant.factor_values WHERE symbol = %s AND factor_date = %s',  # TODO: Use parameterized queries
             'issue': '每次查询返回多行，需要在应用层聚合',
             'impact': 'MEDIUM',
             'frequency': 'VERY_HIGH',
@@ -104,7 +116,9 @@ class QueryOptimizationAnalyzer:
             'repository': 'FactorRepository',
             'method': 'get_latest_factors',
             'query': '''SELECT factor_name, factor_value FROM quant.factor_values
-                        WHERE symbol = %s AND factor_date = (SELECT MAX(factor_date) FROM quant.factor_values WHERE symbol = %s)''',
+                        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                        WHERE symbol = %s AND factor_date = (SELECT MAX(factor_date) FROM quant.factor_values WHERE symbol = %s)''',  # TODO: Use parameterized queries
             'issue': '子查询执行两次，且子查询可能不使用索引',
             'impact': 'HIGH',
             'frequency': 'VERY_HIGH',
@@ -133,7 +147,9 @@ class QueryOptimizationAnalyzer:
         self.findings.append({
             'repository': 'FactorRepository',
             'method': 'get_factors_batch',
-            'query': 'SELECT symbol, factor_name, factor_value FROM quant.factor_values WHERE symbol = ANY(%s) AND factor_date = %s',
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+            'query': 'SELECT symbol, factor_name, factor_value FROM quant.factor_values WHERE symbol = ANY(%s) AND factor_date = %s',  # TODO: Use parameterized queries
             'issue': '批量查询，但返回大量行需要应用层分组',
             'impact': 'MEDIUM',
             'frequency': 'HIGH',
@@ -222,7 +238,9 @@ class QueryOptimizationAnalyzer:
         self.findings.append({
             'repository': 'PortfolioRepository',
             'method': 'get_trades_by_symbol',
-            'query': 'SELECT * FROM quant.trades WHERE symbol = %s ORDER BY trade_time DESC',
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+            'query': 'SELECT * FROM quant.trades WHERE symbol = %s ORDER BY trade_time DESC',  # TODO: Use parameterized queries
             'issue': '需要索引支持排序',
             'impact': 'MEDIUM',
             'frequency': 'MEDIUM',
@@ -236,6 +254,8 @@ class QueryOptimizationAnalyzer:
             'reason': '优化按股票查询交易记录',
             'sql': 'CREATE INDEX IF NOT EXISTS idx_trades_symbol_time ON quant.trades(symbol, trade_time DESC);',
         })
+# TODO: Refactor - function too long (139 lines, target < 80)
+
 
     def generate_report(self) -> str:
         """生成优化报告"""

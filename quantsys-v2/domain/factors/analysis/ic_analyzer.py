@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.02, 0.03, 0.05, 0.2]...
+
 """
 因子IC/IR分析器
 

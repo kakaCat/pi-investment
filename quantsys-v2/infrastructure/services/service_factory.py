@@ -45,6 +45,8 @@ def _try_get_from_enhanced(service_type: Type[T]) -> Optional[T]:
     return None
 
 
+# TODO: Refactor - class too large (53 methods, target < 15)
+
 class ServiceFactory:
     """服务工厂类
 

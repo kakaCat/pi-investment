@@ -75,6 +75,8 @@ class GARCHCalculator(BaseCalculator):
 
     @validate_inputs
     @timing_decorator
+    # TODO: Refactor - function too long (165 lines, target < 80)
+
     def fit(
         self,
         returns: Union[List, np.ndarray, pd.Series],
@@ -264,6 +266,8 @@ class GARCHCalculator(BaseCalculator):
         return persistence
 
     @validate_inputs
+    # TODO: Refactor - function too long (112 lines, target < 80)
+
     @timing_decorator
     def forecast_volatility(
         self,

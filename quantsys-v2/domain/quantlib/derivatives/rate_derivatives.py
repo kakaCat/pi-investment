@@ -61,6 +61,8 @@ class RateDerivativesCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
+    # TODO: Refactor - function too long (101 lines, target < 80)
+
     def calculate(self,
                   notional: float,
                   forward_rate_or_rates: Any,

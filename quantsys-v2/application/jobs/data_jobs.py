@@ -140,7 +140,9 @@ class DataUpdateJob(Job):
                     symbol = futures[future]
                     try:
                         future.result()
-                        updated += 1
+                        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                        updated += 1  # TODO: Use parameterized queries
                     except Exception as e:
                         errors.append({"symbol": symbol, "error": str(e)})
             return {"symbols_checked": len(symbols), "symbols_updated": updated, "errors": errors}

@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.2, 0.52, 0.55, 4]...
+
 """
 模型训练自动化任务
 
@@ -17,6 +20,8 @@ import pandas as pd
 
 logger = structlog.get_logger(__name__)
 
+
+# TODO: Refactor - function too long (153 lines, target < 80)
 
 def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """

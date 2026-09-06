@@ -46,6 +46,8 @@ class SignalProcessor:
         """
         self.circuit_breaker = StrategyCircuitBreaker()
 
+    # TODO: Refactor - function too long (152 lines, target < 80)
+
     def process_signal(
         self,
         signal: Dict[str, Any],

@@ -159,7 +159,9 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
         """查询指定日期的账户资金"""
         _validate_date(balance_date)
 
-        query = "SELECT * FROM quant.account_balance WHERE balance_date = %s"
+        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+        query = "SELECT * FROM quant.account_balance WHERE balance_date = %s"  # TODO: Use parameterized queries
 
         cursor = self.db.cursor()
         try:

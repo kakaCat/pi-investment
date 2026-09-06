@@ -56,6 +56,10 @@ class BinomialTreeCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
+    # TODO: Refactor - complexity 18 (target < 15)
+
+    # TODO: Refactor - function too long (189 lines, target < 80)
+
     def calculate(self,
                   S: float,
                   K: float,

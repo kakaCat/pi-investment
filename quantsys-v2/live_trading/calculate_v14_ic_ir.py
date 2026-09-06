@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.02, 0.03, 0.05, 0.25, 0.5]...
+
 """
 计算V14模型的IC和IR指标
 
@@ -72,6 +75,10 @@ def calculate_factors(df):
     from live_trading.v13_factors import calculate_v13_factors
     print("计算因子...")
     return calculate_v13_factors(df)
+
+# TODO: Refactor - complexity 16 (target < 15)
+
+# TODO: Refactor - function too long (187 lines, target < 80)
 
 def calculate_ic_ir():
     """计算IC和IR"""

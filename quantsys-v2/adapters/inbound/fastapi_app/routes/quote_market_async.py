@@ -46,6 +46,8 @@ def _aggregate_kline_records(records, freq):
 
 
 @router.get('/api/stock/{symbol}/history')
+# TODO: Refactor - function too long (107 lines, target < 80)
+
 def get_stock_history(
     symbol: str,
     period: str = Query('daily', description='daily|weekly|monthly|1m|5m|15m|30m'),

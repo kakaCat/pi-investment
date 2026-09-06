@@ -45,6 +45,8 @@ class FactorLayeringService:
         self.stock_repo = stock_repo
         self.stock_pool_service = stock_pool_service or StockPoolService(stock_repo=self.stock_repo)
 
+    # TODO: Refactor - function too long (127 lines, target < 80)
+
     def run_layering_backtest(
         self,
         factor_name: str,

@@ -66,6 +66,8 @@ class FactorExposureCalculator(BaseCalculator):
         """
         return self.calculate_exposure(*args, **kwargs)
 
+    # TODO: Refactor - function too long (142 lines, target < 80)
+
     def calculate_exposure(self,
                            asset_returns: Union[np.ndarray, pd.Series],
                            factor_returns: pd.DataFrame,

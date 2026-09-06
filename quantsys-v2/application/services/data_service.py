@@ -164,6 +164,8 @@ class DataService:
             logger.exception(f"Unexpected error getting backtest workflow data for {symbol}: {e}")
             raise DatabaseError(f"Failed to get backtest workflow data for {symbol}") from e
 
+    # TODO: Refactor - complexity 18 (target < 15)
+
     def check_data_integrity(self, symbol: Optional[str] = None, check_type: str = 'all') -> Dict:
         """检查数据完整性
 

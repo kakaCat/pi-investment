@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.08, 0.1, 0.12, 0.15, 0.2]...
+
 """
 策略注册表
 

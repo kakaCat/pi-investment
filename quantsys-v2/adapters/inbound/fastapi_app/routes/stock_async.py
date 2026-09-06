@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [5, 6, 7, 8, 20]...
+
 """股票数据 API - FastAPI 版（从 Flask stock.py 迁移，响应契约保持一致）"""
 import uuid
 import re
@@ -18,6 +21,8 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter(tags=["Stocks - 股票数据"])
 
+
+# TODO: Refactor - complexity 17 (target < 15)
 
 def enrich_stock_data(stock) -> Dict:
     """为股票添加额外信息（价格、涨跌幅、K线天数、因子数量等）。逻辑与 Flask stock.py 一致。"""
@@ -84,6 +89,8 @@ def search_stocks(q: str = Query(''), page: int = Query(1), pageSize: int = Quer
     except Exception as e:
         return error_response({'error': str(e)}, 500)
 
+
+# TODO: Refactor - complexity 16 (target < 15)
 
 @router.get('/api/stocks/list')
 def get_stock_list(market: Optional[str] = Query(None), industry: Optional[str] = Query(None),
@@ -247,6 +254,8 @@ def get_stocks_batch(payload: Dict[str, Any] = Body(default_factory=dict)):
 
 
 # ============ K线数据（quote_market.py，P9 补 StockDetail 缺口） ============
+# TODO: Refactor - complexity 22 (target < 15)
+
 
 @router.get('/api/stock/{symbol}/klines')
 def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),

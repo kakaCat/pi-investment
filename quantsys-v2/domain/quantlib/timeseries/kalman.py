@@ -81,6 +81,10 @@ class KalmanFilterCalculator(BaseCalculator):
 
     @validate_inputs
     @timing_decorator
+    # TODO: Refactor - complexity 19 (target < 15)
+
+    # TODO: Refactor - function too long (184 lines, target < 80)
+
     def filter(
         self,
         observations: Union[List, np.ndarray, pd.Series],

@@ -33,6 +33,8 @@ class FundFlowDataSource:
             self.repository = None
             self.cache_enabled = False
 
+    # TODO: Refactor - complexity 17 (target < 15)
+
     def get_stock_fund_flow(self, symbol: str, days: int = 5) -> Dict:
         """
         获取个股资金流向（优先本地缓存）
@@ -253,6 +255,8 @@ class EastMoneyFundFlowSource:
     """东方财富资金流向数据源"""
 
     name = "eastmoney"
+# TODO: Refactor - complexity 16 (target < 15)
+
 
     def fetch(self, symbol: str, days: int) -> List[Dict]:
         """

@@ -78,7 +78,9 @@ class TransformerPredictor:
         if not TORCH_AVAILABLE or self.model is None:
             return self._simple_predict(features)
 
-        self.model.eval()
+        # SECURITY WARNING: eval() usage - consider safer alternatives
+
+        self.model.eval()  # TODO: Replace with ast.literal_eval() or json.loads()
         with torch.no_grad():
             # 转换为tensor
             x = torch.FloatTensor(features).to(self.device)

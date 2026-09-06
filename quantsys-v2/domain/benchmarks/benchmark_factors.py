@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.02, 0.99, 3, 12]...
+
 """
 因子计算性能基准测试
 

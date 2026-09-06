@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-10, 0.01, 0.05, 0.1, 0.8]...
+
 """
 P0优化：修复样本数据丢失问题
 
@@ -181,6 +184,8 @@ def select_factors_v14_fixed(data, factors, ic_threshold=0.01):
         logging.info(f"  {factor}: IC={ic:.4f}")
 
     return valid_factors
+
+# TODO: Refactor - function too long (187 lines, target < 80)
 
 def train_v14_p0_optimized():
     """训练V14 P0优化版本"""

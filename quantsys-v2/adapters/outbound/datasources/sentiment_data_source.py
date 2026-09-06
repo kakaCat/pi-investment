@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.1, 0.5, 3, 4, 5]...
+
 """
 情绪数据源 - 内部交易、股东持仓等
 

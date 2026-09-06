@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.05, 0.1, 0.8, 3]...
+
 """
 V14模型训练 - 超越V13
 
@@ -23,6 +26,8 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s'
 )
+
+# TODO: Refactor - function too long (184 lines, target < 80)
 
 def main():
     print("\n" + "="*80)

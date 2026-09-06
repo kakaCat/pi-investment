@@ -3,6 +3,8 @@ from typing import List, Dict, Any
 from datetime import datetime
 
 
+# TODO: Refactor - complexity 20 (target < 15)
+
 def _normalize_fields(items, entity_type: str, default_name: str):
     normalized = []
     for item in items:

@@ -61,6 +61,8 @@ class EfficientFrontierCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
+    # TODO: Refactor - function too long (160 lines, target < 80)
+
     def calculate(self,
                   expected_returns: Union[np.ndarray, pd.Series, List],
                   cov_matrix: Union[np.ndarray, pd.DataFrame],

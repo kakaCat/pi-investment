@@ -52,6 +52,8 @@ class CounterpartyRiskCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
+    # TODO: Refactor - function too long (160 lines, target < 80)
+
     def calculate(self,
                   exposure_profile: List[Tuple[float, float]],
                   default_probabilities: Union[List[float], float],

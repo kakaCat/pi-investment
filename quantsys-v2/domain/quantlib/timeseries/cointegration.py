@@ -69,6 +69,8 @@ class CointegrationCalculator(BaseCalculator):
 
     @validate_inputs
     @timing_decorator
+    # TODO: Refactor - function too long (140 lines, target < 80)
+
     def engle_granger_test(
         self,
         y: Union[List, np.ndarray, pd.Series],
@@ -312,6 +314,8 @@ class CointegrationCalculator(BaseCalculator):
             )
 
     @validate_inputs
+    # TODO: Refactor - function too long (106 lines, target < 80)
+
     @timing_decorator
     def estimate_ecm(
         self,

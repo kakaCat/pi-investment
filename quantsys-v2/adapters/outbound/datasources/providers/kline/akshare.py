@@ -21,6 +21,8 @@ class AkshareKlineProvider(KlineProvider):
         # 最近一次失败的具体原因，供 DataProviderManager 聚合返回给调用方
         self.last_error: Optional[str] = None
 
+    # TODO: Refactor - function too long (134 lines, target < 80)
+
     def get_klines(
         self,
         symbol: str,

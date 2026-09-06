@@ -93,6 +93,8 @@ class SignalExecutionScheduler:
             )
         return self._paper_engine
 
+    # TODO: Refactor - function too long (109 lines, target < 80)
+
     def execute_daily_signals(self) -> Dict[str, Any]:
         """
         执行每日信号处理流程（15:30定时调用）
@@ -202,6 +204,8 @@ class SignalExecutionScheduler:
                 'error': str(e),
                 'log_id': log_id
             }
+# TODO: Refactor - function too long (101 lines, target < 80)
+
 
     def _run_strategies(self, execution_date: str) -> Dict[str, Any]:
         """
@@ -490,7 +494,9 @@ class SignalExecutionScheduler:
             try:
                 self.signal_repo.update_signal(signal['id'], {
                     'status': 'approved',
-                    'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                    'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # TODO: Use parameterized queries
                 })
             except Exception as e:
                 logger.error(f"更新信号状态失败: {signal['id']} - {str(e)}")
@@ -501,7 +507,9 @@ class SignalExecutionScheduler:
                 self.signal_repo.update_signal(signal['id'], {
                     'status': 'rejected',
                     'reject_reason': signal.get('reject_reason', '未知原因'),
-                    'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                    'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # TODO: Use parameterized queries
                 })
             except Exception as e:
                 logger.error(f"更新信号状态失败: {signal['id']} - {str(e)}")

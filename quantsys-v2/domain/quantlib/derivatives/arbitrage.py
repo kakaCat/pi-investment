@@ -52,6 +52,8 @@ class ArbitrageCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
+    # TODO: Refactor - function too long (117 lines, target < 80)
+
     def calculate(self,
                   S: float,
                   K_or_strikes: Any,
@@ -246,6 +248,8 @@ class ArbitrageCalculator(BaseCalculator):
             'suggested_trade': suggested_trade,
             'parity_holds': not arbitrage_detected
         }
+# TODO: Refactor - function too long (108 lines, target < 80)
+
 
     def _analyze_box_spread(self,
                              strikes: np.ndarray,

@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.005, 0.008, 0.01, 0.012, 0.015]...
+
 """
 策略表现统计服务
 
@@ -234,6 +237,8 @@ class StrategyPerformanceStats:
         except Exception as e:
             logger.error(f"获取策略统计失败: {e}")
             return self._get_default_stats(market_regime)
+
+    # TODO: Refactor - function too long (119 lines, target < 80)
 
     def evaluate_strategy_suitability(
         self,

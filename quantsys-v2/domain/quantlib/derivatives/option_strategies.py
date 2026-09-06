@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-06, 0.04, 0.05, 0.2, 0.3]...
+
 """
 期权策略分析模块
 ================

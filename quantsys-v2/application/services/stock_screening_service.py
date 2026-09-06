@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.08, 0.1, 0.15, 0.2, 0.3]...
+
 """
 股票筛选服务
 
@@ -25,6 +28,8 @@ class StockScreeningService:
             stock_repo = ServiceFactory.get_stock_repository()
         self.stock_repo = stock_repo
         self.scoring_service = scoring_service
+
+    # TODO: Refactor - function too long (116 lines, target < 80)
 
     def screen_stocks(self, criteria: Dict) -> Dict:
         """
@@ -142,6 +147,8 @@ class StockScreeningService:
         except Exception as e:
             logger.error(f"股票筛选失败: {e}", exc_info=True)
             return {'error': str(e)}
+
+    # TODO: Refactor - complexity 24 (target < 15)
 
     def _match_basic_criteria(self, stock: Dict, criteria: Dict) -> bool:
         """

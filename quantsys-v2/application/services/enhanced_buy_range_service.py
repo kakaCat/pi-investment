@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.1, 0.15, 0.2, 0.3, 0.4]...
+
 """
 增强版买入区间分析服务
 支持：动态推荐、多时间周期、成交量分析、基本面综合评分
@@ -256,6 +259,8 @@ class EnhancedBuyRangeService:
         except Exception as e:
             self.logger.warning(f"成交量分析失败: {e}")
             return None
+
+    # TODO: Refactor - complexity 23 (target < 15)
 
     def _analyze_fundamental(self, manager, symbol: str) -> Optional[Dict[str, Any]]:
         """

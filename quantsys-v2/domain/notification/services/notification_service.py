@@ -58,6 +58,8 @@ class NotificationService:
             channels=list(self.channels.keys())
         )
 
+    # TODO: Refactor - function too long (107 lines, target < 80)
+
     def send(self, notification: Notification) -> ChannelResult:
         """发送通知（标准流程）
 

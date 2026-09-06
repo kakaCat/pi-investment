@@ -350,6 +350,8 @@ class YieldCurveCalculator(BaseCalculator):
             }
         )
 
+    # TODO: Refactor - function too long (101 lines, target < 80)
+
     def fit_svensson(
         self,
         maturities: List[float],

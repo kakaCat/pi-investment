@@ -153,6 +153,10 @@ def check_and_execute_stop_loss(trader):
 
     return to_sell
 
+# TODO: Refactor - complexity 17 (target < 15)
+
+# TODO: Refactor - function too long (198 lines, target < 80)
+
 def execute_v14_full_rebalance():
     """执行V14完整调仓（止损+调仓+实际交易）"""
     from live_trading.simulation_trader import SimulationTrader

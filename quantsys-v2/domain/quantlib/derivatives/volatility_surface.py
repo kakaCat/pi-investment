@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-08, 1e-06, 0.1, 0.5, 0.7]...
+
 """
 波动率曲面构建模块
 ==================
@@ -179,6 +182,8 @@ class VolatilitySurfaceCalculator(BaseCalculator):
         k_m = k - m
         sqrt_term = np.sqrt(k_m ** 2 + sigma_svi ** 2)
         return a + b * (rho * k_m + sqrt_term)
+
+    # TODO: Refactor - function too long (102 lines, target < 80)
 
     def _fit_svi_single_slice(self,
                                strikes: np.ndarray,

@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.005, 0.012, 0.015, 0.1, 0.2]...
+
 """
 股指期货对冲策略
 

@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.2, 0.5, 0.8, 3, 5]...
+
 """
 Advanced Indicators Module
 ===========================

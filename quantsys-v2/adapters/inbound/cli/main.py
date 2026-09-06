@@ -23,6 +23,8 @@ from adapters.inbound.cli.formatters import get_formatter
 from infrastructure.config import get_config
 
 
+# TODO: Refactor - function too long (266 lines, target < 80)
+
 def create_parser() -> argparse.ArgumentParser:
     """创建CLI参数解析器"""
     config = get_config()

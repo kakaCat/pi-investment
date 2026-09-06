@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.02, 0.2, 0.8, 1.5, 3]...
+
 """
 资金面评分器
 

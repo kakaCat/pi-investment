@@ -388,6 +388,8 @@ class FactorAnalysisService:
             logger.error(f"Failed to calculate coverage: {e}", exc_info=True)
             raise
 
+    # TODO: Refactor - function too long (113 lines, target < 80)
+
     def calculate_monotonicity(
         self,
         factor_data: pd.DataFrame,
@@ -585,6 +587,8 @@ class FactorAnalysisService:
         prices_pivot = prices_pivot.sort_index()
 
         return prices_pivot
+# TODO: Refactor - function too long (110 lines, target < 80)
+
 
     def generate_report_html(
         self,
@@ -704,6 +708,8 @@ class FactorAnalysisService:
         buffer.seek(0)
         img_str = base64.b64encode(buffer.read()).decode()
         buffer.close()
+        # TODO: Refactor - function too long (152 lines, target < 80)
+
         return img_str
 
     def _create_html_report(

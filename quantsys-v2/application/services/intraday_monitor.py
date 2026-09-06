@@ -48,6 +48,8 @@ class IntradayMonitor:
         self.config = {**MONITOR_CONFIG, **(config or {})}
         self._alert_sent_today = False  # 每日只发一次大盘异动告警
 
+    # TODO: Refactor - complexity 16 (target < 15)
+
     def check(self) -> Dict[str, Any]:
         """执行一次盘中检查
 

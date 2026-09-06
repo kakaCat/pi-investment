@@ -141,6 +141,8 @@ class MarketDataService:
                 'data': None
             }
 
+    # TODO: Refactor - function too long (107 lines, target < 80)
+
     def get_sector_fund_flow(self, period: str = "即时", limit: int = 50) -> Dict[str, Any]:
         """
         获取行业资金流向排行(直接调用第三方 API)
@@ -320,6 +322,8 @@ class MarketDataService:
             self.cache.set(cache_key, result[0])
 
         return result[0]
+# TODO: Refactor - function too long (145 lines, target < 80)
+
 
     def _fetch_north_flow_data(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, Any]:
         """

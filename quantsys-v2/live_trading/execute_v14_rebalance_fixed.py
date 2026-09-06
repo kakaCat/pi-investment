@@ -37,6 +37,8 @@ GEM_STOCK_POOL = [
     {'symbol': '300957', 'name': '贝泰妮'},
 ]
 
+# TODO: Refactor - function too long (121 lines, target < 80)
+
 def execute_v14_rebalance_with_stock_pool():
     """执行V14调仓（使用指定股票池）"""
     from live_trading.simulation_trader import SimulationTrader

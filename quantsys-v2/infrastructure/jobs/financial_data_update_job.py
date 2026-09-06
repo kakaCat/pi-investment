@@ -43,6 +43,10 @@ DEFAULT_REPORT_DATE = '20260630'
 MIN_ROWS = 100
 
 
+# TODO: Refactor - complexity 24 (target < 15)
+
+# TODO: Refactor - function too long (184 lines, target < 80)
+
 def execute(**params) -> Dict[str, Any]:
     """
     用东财业绩报表批量刷新 quant.stocks 基础财务指标列
@@ -196,7 +200,9 @@ def execute(**params) -> Dict[str, Any]:
                 f"UPDATE quant.stocks SET {set_clause}, updated_at = :updated_at "
                 f"WHERE symbol = :symbol AND market='A'"
             ), params_sql)
-            updated += 1
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+            updated += 1  # TODO: Use parameterized queries
     except Exception as e:
         session.rollback()
         logger.error(f"批量写库失败: {type(e).__name__}: {e}")

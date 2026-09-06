@@ -65,6 +65,8 @@ class FamaFrench3FactorCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
+    # TODO: Refactor - function too long (188 lines, target < 80)
+
     def calculate(self,
                   asset_returns: Union[np.ndarray, pd.Series],
                   market_returns: Union[np.ndarray, pd.Series],
@@ -290,6 +292,8 @@ class FamaFrench5FactorCalculator(BaseCalculator):
             risk_free_rate: Default risk-free rate (annualized)
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
+# TODO: Refactor - function too long (193 lines, target < 80)
+
 
     def calculate(self,
                   asset_returns: Union[np.ndarray, pd.Series],
@@ -595,6 +599,8 @@ class FamaFrenchFactorBuilder:
 
             smb_series.append(smb)
             hml_series.append(hml)
+
+        # TODO: Refactor - function too long (101 lines, target < 80)
 
         return pd.Series(smb_series, index=returns.columns), pd.Series(hml_series, index=returns.columns)
 

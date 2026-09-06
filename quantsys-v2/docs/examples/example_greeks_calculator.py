@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.03, 0.05, 0.1, 0.15]...
+
 """
 期权Greeks计算完整示例
 
@@ -223,6 +226,8 @@ def greeks_sensitivity_analysis():
                                              base_params['r'], sigma, 'call')
         print(f"{sigma:>6.1%}    {greeks['vega']:>10.4f}")
 
+
+# TODO: Refactor - function too long (101 lines, target < 80)
 
 def option_strategy_greeks():
     """期权策略Greeks"""

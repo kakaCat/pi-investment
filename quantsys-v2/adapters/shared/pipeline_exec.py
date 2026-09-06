@@ -75,6 +75,10 @@ def _execute_pipeline_stages_with_error_handling(run_id: str, symbols: List[str]
                 logger.error(f"Failed to release task lock: {release_err}")
 
 
+# TODO: Refactor - complexity 24 (target < 15)
+
+# TODO: Refactor - function too long (150 lines, target < 80)
+
 def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str], task_type: Optional[str] = None, days: int = 730):
     """执行流水线阶段 - 内部实现"""
     # 防御性解析: symbols 可能以字符串形式传入(逗号分隔)
@@ -139,7 +143,9 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
                             if klines:
                                 saved_count = kline_repo.save_klines(klines)
                                 if saved_count > 0:
-                                    updated += 1
+                                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                                    updated += 1  # TODO: Use parameterized queries
                                     logger.info(f"[DATA_UPDATE][{run_id}] Saved {saved_count} records for {sym}")
                                 else:
                                     failed_syms.append(f"{sym}(save failed)")

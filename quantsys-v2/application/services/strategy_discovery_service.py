@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1.2, 1.5, 2.5, 3, 4]...
+
 """
 策略发现引擎 (Strategy Discovery Engine)
 
@@ -404,6 +407,8 @@ class StrategyDiscoveryService:
         )
 
         return report
+
+    # TODO: Refactor - function too long (122 lines, target < 80)
 
     def _discover_single(
         self,

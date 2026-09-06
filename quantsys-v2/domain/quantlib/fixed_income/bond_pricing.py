@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-10, 0.05, 0.99, 4, 5.0]...
+
 """
 Bond Pricing Calculator
 =======================
@@ -68,6 +71,8 @@ class BondPricingCalculator(BaseCalculator):
             return self.calculate_accrued_interest(**kwargs)
         else:
             raise DataValidationError(f"Unknown method: {method}", field_name='method')
+
+    # TODO: Refactor - function too long (123 lines, target < 80)
 
     def calculate_price(
         self,

@@ -116,13 +116,17 @@ class ConfigUsageDetector(ast.NodeVisitor):
         if len(node.args) > 1:
             default_arg = node.args[1]
             if isinstance(default_arg, (ast.Constant, ast.Str, ast.Num)):
-                default_value = str(ast.literal_eval(default_arg))
+                # SECURITY WARNING: eval() usage - consider safer alternatives
+
+                default_value = str(ast.literal_eval(default_arg))  # TODO: Replace with ast.literal_eval() or json.loads()
 
         # 从关键字参数中提取 default
         for keyword in node.keywords:
             if keyword.arg == 'default':
                 if isinstance(keyword.value, (ast.Constant, ast.Str, ast.Num)):
-                    default_value = str(ast.literal_eval(keyword.value))
+                    # SECURITY WARNING: eval() usage - consider safer alternatives
+
+                    default_value = str(ast.literal_eval(keyword.value))  # TODO: Replace with ast.literal_eval() or json.loads()
 
         line_number = node.lineno
         code_snippet = self.source_lines[line_number - 1].strip()
@@ -143,7 +147,9 @@ class ConfigUsageDetector(ast.NodeVisitor):
         # 提取值
         value_str = ""
         if isinstance(node.value, (ast.Constant, ast.Num, ast.Str)):
-            value_str = str(ast.literal_eval(node.value))
+            # SECURITY WARNING: eval() usage - consider safer alternatives
+
+            value_str = str(ast.literal_eval(node.value))  # TODO: Replace with ast.literal_eval() or json.loads()
 
         line_number = node.lineno
         code_snippet = self.source_lines[line_number - 1].strip()
@@ -239,6 +245,8 @@ def scan_project(root_dir: Path) -> ConfigAnalysisResult:
 
     return result
 
+
+# TODO: Refactor - function too long (105 lines, target < 80)
 
 def print_report(result: ConfigAnalysisResult, verbose: bool = False):
     """打印分析报告"""

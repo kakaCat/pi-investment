@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-05, 0.00025, 0.0005, 0.3, 0.5]...
+
 """
 交易护栏服务 (Trade Guard Service)
 

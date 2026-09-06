@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [30, 60, 120, 163, 178]...
+
 """Register all quantsys-v2 scheduled jobs to Agent OS Scheduler.
 
 Run this script on deployment or when job definitions change.

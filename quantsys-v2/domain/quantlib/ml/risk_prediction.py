@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-06, 0.0001, 0.05, 0.08, 0.25]...
+
 """
 Risk Prediction Calculator
 ===========================

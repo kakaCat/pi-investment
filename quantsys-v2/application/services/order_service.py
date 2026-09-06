@@ -21,6 +21,10 @@ from domain.ports import (
 logger = structlog.get_logger(__name__)
 
 
+# TODO: Refactor - complexity 29 (target < 15)
+
+# TODO: Refactor - function too long (198 lines, target < 80)
+
 def create_order(
     symbol: str,
     action: str,
@@ -220,6 +224,10 @@ def create_order(
     portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
     return portfolio_repo.create_order(order_data)
 
+# TODO: Refactor - complexity 16 (target < 15)
+
+# TODO: Refactor - function too long (118 lines, target < 80)
+
 
 def fill_order(
     order_id: int,
@@ -407,6 +415,8 @@ def expire_orders(portfolio_repo: Optional[IPortfolioRepository] = None) -> int:
                 logger.error(f"过期订单失败 order_id={order['id']}: {e}")
 
     return expired_count
+# TODO: Refactor - function too long (106 lines, target < 80)
+
 
 
 def _update_position_on_buy(order: Dict, fill_price: float, fill_quantity: int, portfolio_repo: Optional[IPortfolioRepository] = None):
@@ -616,6 +626,8 @@ def _update_position_on_sell(order: Dict, fill_price: float, fill_quantity: int,
             'notes': existing.get('notes'),
         }
         portfolio_repo.add_or_update_holding(holding_data)
+        # TODO: Refactor - function too long (101 lines, target < 80)
+
         logger.info(f"持仓已减仓（legacy）: {symbol} 卖出 {fill_quantity}股，剩余 {new_qty}股")
 
 
@@ -645,7 +657,9 @@ def _update_signal_tracking(signal_id: int, action: str, fill_price: float, symb
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute(
-            f"SELECT * FROM {signal_log.TABLE_NAME} WHERE id = %s",
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+            f"SELECT * FROM {signal_log.TABLE_NAME} WHERE id = %s",  # TODO: Use parameterized queries
             (signal_id,)
         )
         signal = cursor.fetchone()
@@ -660,7 +674,9 @@ def _update_signal_tracking(signal_id: int, action: str, fill_price: float, symb
             # 买入成交：更新 entry_price（仅在首次成交时更新）
             if signal_dict.get('entry_price') is None:
                 cursor.execute(
-                    f"UPDATE {signal_log.TABLE_NAME} SET entry_price = %s, updated_at = NOW() WHERE id = %s",
+                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                    f"UPDATE {signal_log.TABLE_NAME} SET entry_price = %s, updated_at = NOW() WHERE id = %s",  # TODO: Use parameterized queries
                     (fill_price, signal_id)
                 )
                 conn.commit()
@@ -918,6 +934,8 @@ def get_state_history(order_id: str, portfolio_repo: Optional[IPortfolioReposito
             'is_terminal': order.get('status') in ('filled', 'cancelled', 'expired', 'rejected'),
         }
     ]
+# TODO: Refactor - function too long (126 lines, target < 80)
+
 
     return history
 
@@ -1045,6 +1063,8 @@ def create_bracket_order(
         f"Bracket order created: entry={entry_order_id} tp={tp_order_id} "
         f"sl={sl_order_id} for {symbol} {action} {quantity}@{entry_price} "
         f"TP@{take_profit_price} SL@{stop_loss_price}"
+    # TODO: Refactor - function too long (120 lines, target < 80)
+
     )
 
     return [entry_order_id, tp_order_id, sl_order_id]

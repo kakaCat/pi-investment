@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.0005, 0.001, 0.3, 3.0, 5]...
+
 """
 事件驱动策略
 

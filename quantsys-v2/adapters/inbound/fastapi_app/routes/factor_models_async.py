@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.0001, 0.0002, 0.0003, 0.0004, 0.0005]...
+
 """Factor Models API - FastAPI 版（从 Flask factor_models.py 迁移，响应契约保持一致）
 
 覆盖端点：
@@ -204,6 +207,8 @@ def carhart_calculate(payload: Optional[Dict[str, Any]] = Body(None)):
 
 @router.post('/api/factor-models/barra/calculate')
 @handle_api_error
+# TODO: Refactor - function too long (121 lines, target < 80)
+
 def barra_calculate(payload: Optional[Dict[str, Any]] = Body(None)):
     """Barra 风险模型分析
 

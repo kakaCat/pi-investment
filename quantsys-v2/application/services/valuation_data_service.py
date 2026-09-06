@@ -90,6 +90,8 @@ class ValuationDataService:
             'suggestion': '请检查股票代码是否正确，或稍后重试'
         }
 
+    # TODO: Refactor - complexity 19 (target < 15)
+
     def _get_from_sina(self, symbol: str) -> Dict[str, Any]:
         """
         从新浪财经获取估值数据
@@ -220,6 +222,8 @@ class ValuationDataService:
         except Exception as e:
             self.logger.debug(f"东方财富获取失败: {e}")
             return {'success': False, 'error': str(e)}
+# TODO: Refactor - complexity 20 (target < 15)
+
 
     def _get_from_akshare(self, symbol: str) -> Dict[str, Any]:
         """从 akshare 获取估值数据"""

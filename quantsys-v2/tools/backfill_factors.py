@@ -30,6 +30,10 @@ from adapters.outbound.repositories.stock_repository import StockORMRepository
 logger = structlog.get_logger(__name__)
 
 
+# TODO: Refactor - complexity 16 (target < 15)
+
+# TODO: Refactor - function too long (116 lines, target < 80)
+
 def backfill_factors(
     symbols: List[str],
     start_date: str,

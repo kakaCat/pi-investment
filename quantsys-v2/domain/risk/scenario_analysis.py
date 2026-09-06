@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-06, 0.01, 0.02, 0.03, 0.04]...
+
 """
 Scenario Analysis Calculator
 =============================
@@ -109,6 +112,8 @@ class ScenarioAnalysisCalculator(BaseCalculator):
 
         # Predefined historical scenarios
         self.historical_scenarios = self._define_historical_scenarios()
+
+    # TODO: Refactor - function too long (102 lines, target < 80)
 
     def calculate(self,
                   portfolio: Union[Dict[str, float], pd.Series],
@@ -402,6 +407,8 @@ class ScenarioAnalysisCalculator(BaseCalculator):
             )
 
         return recommendations
+# TODO: Refactor - function too long (142 lines, target < 80)
+
 
     def _define_historical_scenarios(self) -> List[MarketScenario]:
         """

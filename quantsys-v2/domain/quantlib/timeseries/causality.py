@@ -73,6 +73,8 @@ class GrangerCausalityCalculator(BaseCalculator):
 
     @validate_inputs
     @timing_decorator
+    # TODO: Refactor - function too long (136 lines, target < 80)
+
     def test(
         self,
         y: Union[List, np.ndarray, pd.Series],

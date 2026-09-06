@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.8, 1.5, 5, 15, 20]...
+
 """
 技术面评分引擎
 

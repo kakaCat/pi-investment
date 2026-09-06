@@ -106,6 +106,8 @@ def scan_todos(base_dir: Path, patterns: List[str] = None) -> List[TODOItem]:
     return todos
 
 
+# TODO: Refactor - complexity 17 (target < 15)
+
 def generate_report(todos: List[TODOItem], output_file: Path) -> None:
     """生成清理报告
 

@@ -151,9 +151,15 @@ def add_logger_import(content: str) -> str:
     
     if last_import_idx >= 0:
         # 在最后一个 import 后添加空行和 logger 定义
-        lines.insert(last_import_idx + 1, '')
-        lines.insert(last_import_idx + 2, 'import structlog')
-        lines.insert(last_import_idx + 3, 'logger = structlog.get_logger(__name__)')
+        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+        lines.insert(last_import_idx + 1, '')  # TODO: Use parameterized queries
+        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+        lines.insert(last_import_idx + 2, 'import structlog')  # TODO: Use parameterized queries
+        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+        lines.insert(last_import_idx + 3, 'logger = structlog.get_logger(__name__)')  # TODO: Use parameterized queries
     else:
         # 没有 import，在文件开头添加
         lines.insert(0, 'import structlog')

@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.001, 0.01, 0.05, 0.1, 0.25]...
+
 """
 Margin Calculator
 ==================
@@ -145,6 +148,8 @@ class MarginCalculator(BaseCalculator):
             if isinstance(e, (DataValidationError, ConfigurationError)):
                 raise
             raise CalculationError(str(e), calculation_type='Margin')
+
+    # TODO: Refactor - function too long (105 lines, target < 80)
 
     def _span_margin(self,
                      positions: Dict[str, float],

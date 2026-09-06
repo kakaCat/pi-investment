@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.001, 0.01, 0.02, 0.03, 0.04]...
+
 """
 Fundamental Factor Calculators
 ==============================
@@ -54,6 +57,8 @@ class FScoreCalculator(BaseCalculator):
 
     def get_supported_methods(self) -> list[str]:
         return ["fscore"]
+
+    # TODO: Refactor - complexity 20 (target < 15)
 
     def calculate(self, *args) -> Optional[int]:
         """

@@ -55,6 +55,8 @@ class MarketRiskCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
+    # TODO: Refactor - function too long (109 lines, target < 80)
+
     def calculate(self,
                   portfolio_returns: Union[List, np.ndarray, pd.Series],
                   benchmark_returns: Union[List, np.ndarray, pd.Series],

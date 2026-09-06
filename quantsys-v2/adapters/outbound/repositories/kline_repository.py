@@ -68,6 +68,8 @@ def _rows_to_df(rows: list, schema: dict) -> pl.DataFrame:
     return pl.DataFrame(rows, schema=sub_schema)
 
 
+# TODO: Refactor - class too large (29 methods, target < 15)
+
 class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
     """K线ORM Repository
 

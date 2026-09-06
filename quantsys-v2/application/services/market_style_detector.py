@@ -87,6 +87,8 @@ for _b in CYCLE_BOARDS:
 # 纯计算函数（无 IO，可单测；detector 与 market_style_update_job 共用）
 # ============================================================
 
+# TODO: Refactor - function too long (131 lines, target < 80)
+
 def compute_style_from_boards(boards: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     由真实行业板块涨跌幅计算当日市场风格（纯函数，不访问网络/DB）。

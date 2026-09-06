@@ -23,6 +23,8 @@ from infrastructure.quantlib.core.base_calculator import validate_inputs, timing
 from infrastructure.quantlib.core.exceptions import InsufficientDataError
 
 
+# TODO: Refactor - class too large (27 methods, target < 15)
+
 class PatternRecognitionFactors(TechnicalFactorCalculator):
     """
     Candlestick pattern recognition calculator.

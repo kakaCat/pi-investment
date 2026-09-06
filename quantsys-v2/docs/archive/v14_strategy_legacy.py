@@ -5,6 +5,9 @@
 #   - domain/strategies/xgboost_strategy.py
 #   - application/strategies/v14_use_case.py
 # Do not modify or import this file in new code.
+
+# TODO: Extract magic numbers to named constants: [0.08, 0.15, 0.2, 0.35, 0.5]...
+
 """
 V14策略实现
 

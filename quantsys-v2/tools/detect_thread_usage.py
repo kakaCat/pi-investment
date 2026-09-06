@@ -204,6 +204,8 @@ def scan_project(root_dir: Path) -> ThreadAnalysisResult:
     return result
 
 
+# TODO: Refactor - function too long (116 lines, target < 80)
+
 def print_report(result: ThreadAnalysisResult, verbose: bool = False):
     """打印分析报告"""
     print("=" * 80)

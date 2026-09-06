@@ -80,6 +80,8 @@ class SignalTrackingService:
             "message": f"Signal recorded: {symbol} grade {grade}"
         }
     
+    # TODO: Refactor - complexity 18 (target < 15)
+
     def update_performance(
         self,
         signal_date: str = None,
@@ -165,7 +167,9 @@ class SignalTrackingService:
             
             if updates:
                 repo.update_signal_performance(signal['id'], updates)
-                updated_count += 1
+                # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                updated_count += 1  # TODO: Use parameterized queries
         
         logger.info(
             "signal_performance_updated",

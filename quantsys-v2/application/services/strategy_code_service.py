@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.02, 0.2, 0.7, 0.8]...
+
 """
 策略代码服务
 
@@ -103,6 +106,8 @@ def _get_length(data) -> int:
     except:
         return 0
 
+
+# TODO: Refactor - class too large (48 methods, target < 15)
 
 class StrategyCodeService:
     """策略代码服务
@@ -357,6 +362,8 @@ class StrategyCodeService:
                 metadata = {}
         return metadata if isinstance(metadata, dict) else {}
 
+    # TODO: Refactor - complexity 19 (target < 15)
+
     def update_strategy(
         self,
         strategy_id: int,
@@ -543,6 +550,10 @@ class StrategyCodeService:
         }
 
     # ==================== 策略执行 ====================
+# TODO: Refactor - complexity 17 (target < 15)
+
+
+    # TODO: Refactor - function too long (138 lines, target < 80)
 
     def generate_signal(
         self,
@@ -679,7 +690,11 @@ class StrategyCodeService:
 
         except Exception as e:
             logger.error(f"信号生成失败: {e}", exc_info=True)
+            # TODO: Refactor - complexity 17 (target < 15)
+
             return None
+# TODO: Refactor - function too long (181 lines, target < 80)
+
 
     def run_strategy(
         self,
@@ -860,6 +875,8 @@ class StrategyCodeService:
 
         # 4. 更新最后执行时间
         self.strategy_repo.update_last_executed(strategy_id)
+
+        # TODO: Refactor - function too long (117 lines, target < 80)
 
         return response
 
@@ -1055,6 +1072,8 @@ class StrategyCodeService:
             signals_df=signals_df,
             initial_cash=initial_cash,
             period=period
+        # TODO: Refactor - function too long (123 lines, target < 80)
+
         )
         return result
 
@@ -1524,6 +1543,10 @@ class StrategyCodeService:
         for key in group[-1]:
             if key not in skip_cols:
                 result[key] = group[-1][key]
+# TODO: Refactor - complexity 20 (target < 15)
+# TODO: Refactor - function too long (103 lines, target < 80)
+
+
 
         return result
 
@@ -1711,6 +1734,10 @@ class StrategyCodeService:
             error_msg = str(e).lower()
             if 'st' in symbol.lower() or any(keyword in error_msg for keyword in ['退市', 'delisted', '暂停', '终止']):
                 logger.info(f"特殊股票跳过: {symbol} - 可能是ST股或已退市")
+            # TODO: Refactor - complexity 37 (target < 15)
+# TODO: Refactor - function too long (131 lines, target < 80)
+
+
             else:
                 logger.debug(f"东方财富获取失败: {symbol} - {e}")
             return None
@@ -1950,6 +1977,10 @@ class StrategyCodeService:
 
         # 如果是 8 位数字，转换为 YYYY-MM-DD
         if len(date_digits) == 8:
+            # TODO: Refactor - complexity 30 (target < 15)
+# TODO: Refactor - function too long (198 lines, target < 80)
+
+
             return f'{date_digits[0:4]}-{date_digits[4:6]}-{date_digits[6:8]}'
 
         # 否则返回原字符串
@@ -2622,6 +2653,8 @@ class StrategyCodeService:
                 df[col_name] = np.nan
 
         # ATR映射 (atr14 → atr)
+        # TODO: Refactor - function too long (124 lines, target < 80)
+
         if 'atr14' in df.columns and 'atr' not in df.columns:
             df['atr'] = df['atr14']
         elif 'atr' not in df.columns:

@@ -52,6 +52,8 @@ class RiskAttributionCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
+    # TODO: Refactor - function too long (121 lines, target < 80)
+
     def calculate(self,
                   returns: Union[pd.DataFrame, np.ndarray],
                   weights: Union[List, np.ndarray, pd.Series],

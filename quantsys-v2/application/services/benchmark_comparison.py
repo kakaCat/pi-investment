@@ -38,6 +38,8 @@ def _benchmark_daily_returns(klines: BenchmarkKlines) -> Dict[str, float]:
     return returns
 
 
+# TODO: Refactor - complexity 16 (target < 15)
+
 def compute_benchmark_comparison(
     account_series: AccountSeries,
     benchmark_klines: BenchmarkKlines,

@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.0001, 0.0003, 0.0007, 0.001, 0.005]...
+
 """
 Qlib Configuration Module
 ==========================
@@ -188,6 +191,10 @@ def get_default_config(
 
     return config
 
+
+# TODO: Refactor - complexity 55 (target < 15)
+
+# TODO: Refactor - function too long (157 lines, target < 80)
 
 def validate_config(config: Dict[str, Any]) -> Tuple[bool, List[str]]:
     """

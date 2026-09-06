@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.015, 0.05, 0.09, 0.1]...
+
 """
 V13策略因子计算模块
 
@@ -35,6 +38,8 @@ def calculate_macd(series, fast=12, slow=26, signal=9):
     macd_signal = macd.ewm(span=signal).mean()
     return macd, macd_signal
 
+
+# TODO: Refactor - function too long (260 lines, target < 80)
 
 def calculate_v13_factors(df):
     """

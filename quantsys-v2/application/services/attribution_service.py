@@ -31,6 +31,10 @@ class AttributionService:
         else:
             self._owns_connection = False
     
+    # TODO: Refactor - complexity 18 (target < 15)
+
+    # TODO: Refactor - function too long (200 lines, target < 80)
+
     def analyze_rule_performance(
         self,
         start_date: Optional[str] = None,

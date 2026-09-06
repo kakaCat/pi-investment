@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [5, 8, 9, 15, 16]...
+
 """
 日常投资循环编排器 (Daily Investment Orchestrator)
 
@@ -70,6 +73,8 @@ TRADING_ACCOUNT = 'agent_virtual'
 # ============================================================
 # 编排器
 # ============================================================
+
+# TODO: Refactor - class too large (24 methods, target < 15)
 
 class DailyOrchestrator:
     """日常投资循环编排器

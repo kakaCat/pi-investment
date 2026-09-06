@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.005, 0.007, 0.008, 0.01, 0.015]...
+
 """
 Regulatory Risk Calculator
 ===========================

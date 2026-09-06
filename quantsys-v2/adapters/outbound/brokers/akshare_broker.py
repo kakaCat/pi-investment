@@ -151,6 +151,8 @@ class AkshareBroker(BaseBroker):
             logger.error(f"Failed to get quotes: {e}", exc_info=True)
             return ApiResponse.fail(f"Failed to get quotes: {str(e)}")
 
+    # TODO: Refactor - function too long (126 lines, target < 80)
+
     def get_history(
         self,
         symbol: str,

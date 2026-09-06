@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [5, 6, 7, 8, 12]...
+
 """
 Cron-based task scheduler for quantsys-v2.
 
@@ -226,6 +229,8 @@ def next_run_time(expression: str, from_time: Optional[datetime] = None) -> date
 # SchedulerService
 # ============================================================================
 
+
+# TODO: Refactor - class too large (49 methods, target < 15)
 
 class SchedulerService:
     """Cron-based task scheduler.
@@ -648,7 +653,9 @@ class SchedulerService:
         return handler(params)
 
     def _handle_kline_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """K 线日更：委托 infrastructure.jobs.kline_update_job.execute（多数据源 fallback + 限速防封）"""
+        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+        """K 线日更：委托 infrastructure.jobs.kline_update_job.execute（多数据源 fallback + 限速防封）"""  # TODO: Use parameterized queries
         from infrastructure.jobs.kline_update_job import execute
         return execute(**(params or {}))
 
@@ -792,7 +799,9 @@ class SchedulerService:
                     errors += 1
                     continue
                 if success:
-                    updated += 1
+                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                    updated += 1  # TODO: Use parameterized queries
                 if error:
                     errors += 1
 
@@ -971,6 +980,8 @@ class SchedulerService:
             "klines_available": kline_count,
             "factors_available": list(params.get("factor_history", {}).keys()),
         }
+
+    # TODO: Refactor - complexity 16 (target < 15)
 
     def _handle_factor_compute(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Compute factors for stocks.
@@ -1192,7 +1203,9 @@ class SchedulerService:
                 try:
                     # Simplified implementation - extend with actual logic
                     logger.debug(f"Updating financial data for {symbol}")
-                    updated_count += 1
+                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                    updated_count += 1  # TODO: Use parameterized queries
                 except Exception as e:
                     logger.warning(f"Failed to update {symbol}: {e}")
                     error_count += 1

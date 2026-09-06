@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.0001, 0.0002, 0.0003, 0.0004, 0.0006]...
+
 """
 Credit Analysis Calculator
 ==========================

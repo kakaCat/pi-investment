@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.03, 0.05, 0.1, 0.15]...
+
 """
 Risk Report Calculator
 =======================
@@ -183,6 +186,8 @@ class RiskReportCalculator(BaseCalculator):
         }
 
         return report
+
+    # TODO: Refactor - complexity 17 (target < 15)
 
     def _assess_risk_level(self, metrics: Dict[str, Any]) -> Dict[str, Any]:
         """

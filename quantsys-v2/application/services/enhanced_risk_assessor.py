@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.15, 0.25, 0.3, 3, 5]...
+
 """
 增强型风险评估服务 - EnhancedRiskAssessor
 
@@ -40,6 +43,8 @@ class EnhancedRiskAssessor:
         self.fund_flow_repo = fund_flow_repo
         self.opponent_service = opponent_service or OpponentBehaviorService()
         self.manipulation_detector = manipulation_detector or ManipulationDetector()
+
+    # TODO: Refactor - function too long (102 lines, target < 80)
 
     def assess_pool_risk(self, pool_id: int) -> Dict[str, Any]:
         """

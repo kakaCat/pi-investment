@@ -8,6 +8,9 @@
 #   5. 连续加权评分（升级 - 从等权投票→加权连续评分）
 #   6. 波动率自适应阈值（全新 - 低波降门槛/高波升门槛）
 # ============================================================
+
+# TODO: Extract magic numbers to named constants: [1e-10, 0.03, 0.05, 0.07, 0.1]...
+
 my_indicator_name = "v15-multi-alpha"
 my_indicator_description = "多Alpha策略：ROC动量+波动率分位+量价确认+价格延伸度+加权评分+波动率自适应阈值。打破v11-v14因子同质化。"
 

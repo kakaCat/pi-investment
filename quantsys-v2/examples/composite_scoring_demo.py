@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.1, 0.2, 0.3, 0.4, 0.5]...
+
 """
 综合评分示例 - 技术面 + 基本面双维度评分
 

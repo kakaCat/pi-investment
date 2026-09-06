@@ -71,7 +71,9 @@ def add_import_if_needed(content: str) -> str:
     # 在最后一个 import 后添加
     if last_import_idx >= 0:
         import_line = 'from adapters.outbound.datasources.manager import get_data_provider_manager'
-        lines.insert(last_import_idx + 1, import_line)
+        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+        lines.insert(last_import_idx + 1, import_line)  # TODO: Use parameterized queries
         return '\n'.join(lines)
     
     return content

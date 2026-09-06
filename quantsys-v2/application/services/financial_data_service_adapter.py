@@ -33,6 +33,8 @@ class FinancialDataServiceAdapter:
         self.failure_count = 0
         self.provider_stats = {}
 
+    # TODO: Refactor - complexity 22 (target < 15)
+
     def get_financial_data(self, symbol: str, statement_type: str = 'all', periods: int = 4) -> FinancialStatementData:
         self.total_requests += 1
         mgr = get_data_provider_manager()

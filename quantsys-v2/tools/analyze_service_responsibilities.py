@@ -285,6 +285,10 @@ def detect_circular_dependencies(graph: Dict[str, Set[str]]) -> List[List[str]]:
     return cycles
 
 
+# TODO: Refactor - complexity 22 (target < 15)
+
+# TODO: Refactor - function too long (137 lines, target < 80)
+
 def generate_report(services: List[ServiceInfo], output_path: Path):
     """生成审计报告"""
     report = []

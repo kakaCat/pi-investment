@@ -73,6 +73,8 @@ class BlackLittermanOptimizer(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
+    # TODO: Refactor - function too long (105 lines, target < 80)
+
     def optimize(self,
                  market_weights: Union[np.ndarray, pd.Series, List],
                  cov_matrix: Union[np.ndarray, pd.DataFrame],

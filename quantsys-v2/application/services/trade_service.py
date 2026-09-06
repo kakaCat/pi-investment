@@ -177,6 +177,10 @@ def get_trade_stats(
     }
 
 
+# TODO: Refactor - complexity 18 (target < 15)
+
+# TODO: Refactor - function too long (110 lines, target < 80)
+
 def get_position(
     symbol: str,
     portfolio_repo: Optional[IPortfolioRepository] = None,

@@ -31,6 +31,8 @@ def _rename_column(conn, table, old, new):
         logger.info("column_renamed", table=table, old=old, new=new)
 
 
+# TODO: Refactor - function too long (140 lines, target < 80)
+
 def run_migration():
     engine = get_engine()
     # 1) 新表（ORM metadata，幂等 checkfirst）
@@ -139,7 +141,9 @@ def run_migration():
                     ), {'a': acc_name, 't': ftype, 'amt': net, 'bal': balance, 'tid': t_id})
                 # 对账：流水终值 vs 账户余额，有差额写 adjustment 流水强制不变式成立
                 cash_row = conn.execute(text(
-                    "SELECT cash_available + cash_frozen FROM quant.simulation_account "
+                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                    "SELECT cash_available + cash_frozen FROM quant.simulation_account "  # TODO: Use parameterized queries
                     "WHERE account_name=:a"
                 ), {'a': acc_name}).fetchone()
                 if cash_row is not None:
@@ -159,7 +163,9 @@ def run_migration():
             "INSERT INTO quant.simulation_equity_snapshot "
             "(account_name, snapshot_date, cash, position_value, total_value, "
             " cumulative_return, drawdown) "
-            "SELECT account_name, CURRENT_DATE, cash_available + cash_frozen, "
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+            "SELECT account_name, CURRENT_DATE, cash_available + cash_frozen, "  # TODO: Use parameterized queries
             "       position_value, total_value, cumulative_return, "
             "       CASE WHEN peak_value > 0 THEN total_value / peak_value - 1 ELSE 0 END "
             "FROM quant.simulation_account "

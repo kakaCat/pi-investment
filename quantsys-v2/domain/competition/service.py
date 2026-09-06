@@ -35,6 +35,8 @@ class CompetitionAnalysisService:
     def __init__(self, repo):
         self.repo = repo
 
+    # TODO: Refactor - function too long (114 lines, target < 80)
+
     def analyze(self, symbol: str, include_financial: bool = True) -> Dict[str, Any]:
         """竞争分析主入口
 
@@ -200,6 +202,8 @@ class CompetitionAnalysisService:
             "metrics": metrics,
             "data": data
         }
+
+    # TODO: Refactor - complexity 27 (target < 15)
 
     def _extract_competitive_edges(
         self, stock_info: dict, industry_totals: dict

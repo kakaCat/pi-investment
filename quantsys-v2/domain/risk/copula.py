@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-10, 0.01, 0.5, 0.95, 0.99]...
+
 """
 Copula Calculator
 =================
@@ -87,6 +90,8 @@ class CopulaCalculator(BaseCalculator):
             risk_free_rate: Risk-free rate
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
+
+    # TODO: Refactor - function too long (127 lines, target < 80)
 
     def calculate(self,
                   returns: Union[pd.DataFrame, np.ndarray],

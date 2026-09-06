@@ -95,6 +95,8 @@ def save_snapshot(status: Dict):
     print(f"✅ 进度快照已保存到 {PROGRESS_FILE}")
 
 
+# TODO: Refactor - complexity 16 (target < 15)
+
 def show_history():
     """显示历史进度"""
     if not PROGRESS_FILE.exists():

@@ -16,6 +16,10 @@ from psycopg2.extras import RealDictCursor
 from infrastructure.persistence.database.engine import _resolve_db_dsn
 
 
+# TODO: Refactor - complexity 16 (target < 15)
+
+# TODO: Refactor - function too long (146 lines, target < 80)
+
 def verify_schema():
     """Verify the strategy_configs table has all required fields"""
 

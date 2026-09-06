@@ -120,6 +120,10 @@ def algo_execute(payload: Optional[Dict[str, Any]] = Body(None)):
 
 @router.get('/api/trades/list')
 @handle_api_error
+# TODO: Refactor - complexity 17 (target < 15)
+
+# TODO: Refactor - function too long (109 lines, target < 80)
+
 def get_trade_history(
     account_name: Optional[str] = Query('agent_virtual'),
     order_id: Optional[str] = Query(None),

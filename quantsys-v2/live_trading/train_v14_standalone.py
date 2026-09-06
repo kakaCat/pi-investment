@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-10, 0.01, 0.05, 0.1, 0.8]...
+
 """
 V14模型训练 - 超越V13（独立版本，无需yaml）
 
@@ -164,6 +167,8 @@ def select_factors(data, factors, ic_threshold=0.01):
         logging.info(f"  {factor}: IC={ic:.4f}")
 
     return valid_factors
+
+# TODO: Refactor - function too long (195 lines, target < 80)
 
 def train_v14_model():
     """训练V14模型"""

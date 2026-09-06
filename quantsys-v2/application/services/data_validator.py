@@ -305,6 +305,8 @@ class DataValidator:
                 'error': str(e)
             }
 
+    # TODO: Refactor - function too long (103 lines, target < 80)
+
     def detect_anomalies(
         self,
         symbol: str,

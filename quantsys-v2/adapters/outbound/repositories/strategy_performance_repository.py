@@ -117,7 +117,9 @@ class StrategyPerformanceRepository:
         with db_cursor(commit=True) as cursor:
             # 先获取入场价格
             cursor.execute(
-                "SELECT entry_price FROM quant.strategy_performance WHERE id = %s",
+                # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                "SELECT entry_price FROM quant.strategy_performance WHERE id = %s",  # TODO: Use parameterized queries
                 (record_id,)
             )
             result = cursor.fetchone()

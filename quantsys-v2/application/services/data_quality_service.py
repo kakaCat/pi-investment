@@ -60,6 +60,8 @@ class DataQualityService:
         self.backfiller = backfiller or DataBackfiller(self.kline_repo)
         self.validator = validator or DataValidator(self.kline_repo)
 
+    # TODO: Refactor - function too long (163 lines, target < 80)
+
     def check_data_quality(
         self,
         symbols: Optional[List[str]] = None,
@@ -271,6 +273,8 @@ class DataQualityService:
                 'success': False,
                 'error': str(e)
             }
+# TODO: Refactor - function too long (106 lines, target < 80)
+
 
     def backfill_missing_data(
         self,

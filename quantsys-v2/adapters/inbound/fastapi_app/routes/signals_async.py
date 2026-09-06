@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.2, 0.6, 3, 4, 20]...
+
 """交易信号 API - FastAPI 版（从 Flask signals.py 迁移，响应契约保持一致）
 
 路由顺序：字面量路径（/history、/scan、/statistics、/detail/{id}、/approve/{id} 等）
@@ -124,6 +127,10 @@ def get_signal_detail(signal_id: str):
 
 
 @router.post('/api/signals/scan')
+# TODO: Refactor - complexity 30 (target < 15)
+
+# TODO: Refactor - function too long (132 lines, target < 80)
+
 def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
     data = payload or {}
     snake_data = convert_keys_to_snake(data)
@@ -398,6 +405,8 @@ def get_signal_by_id(signal_id: int):
 # ============ 列表端点（根路径）============
 
 @router.get('/api/signals')
+# TODO: Refactor - complexity 17 (target < 15)
+
 @handle_api_error
 def get_signals(request: Request):
     try:

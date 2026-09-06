@@ -105,6 +105,10 @@ def analyze_file(file_path: Path) -> Dict:
     return result
 
 
+# TODO: Refactor - complexity 38 (target < 15)
+
+# TODO: Refactor - function too long (134 lines, target < 80)
+
 def migrate_file(file_path: Path, dry_run: bool = True) -> bool:
     """迁移单个文件"""
     try:
@@ -179,7 +183,9 @@ def migrate_file(file_path: Path, dry_run: bool = True) -> bool:
             insert_idx = 0
             for i, line in enumerate(new_lines):
                 if line.strip().startswith('import ') or line.strip().startswith('from '):
-                    insert_idx = i + 1
+                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                    insert_idx = i + 1  # TODO: Use parameterized queries
                 elif insert_idx > 0 and not line.strip().startswith('import ') and not line.strip().startswith('from '):
                     break
 
@@ -190,7 +196,9 @@ def migrate_file(file_path: Path, dry_run: bool = True) -> bool:
                 imports_to_add.append(f"from domain.models.market_data import {', '.join(sorted(new_imports_models))}")
 
             if imports_to_add:
-                new_lines = new_lines[:insert_idx] + imports_to_add + new_lines[insert_idx:]
+                # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                new_lines = new_lines[:insert_idx] + imports_to_add + new_lines[insert_idx:]  # TODO: Use parameterized queries
 
             content = '\n'.join(new_lines)
             modified = True
@@ -217,7 +225,9 @@ def migrate_file(file_path: Path, dry_run: bool = True) -> bool:
                 insert_idx = 0
                 for i, line in enumerate(lines):
                     if 'from domain.ports.datasource_ports import' in line or 'from domain.models.market_data import' in line:
-                        insert_idx = i + 1
+                        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                        insert_idx = i + 1  # TODO: Use parameterized queries
 
                 if insert_idx > 0:
                     lines.insert(insert_idx, 'from adapters.outbound.datasources.manager import get_data_provider_manager')

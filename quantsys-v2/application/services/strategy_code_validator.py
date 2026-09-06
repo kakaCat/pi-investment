@@ -75,6 +75,8 @@ class StrategyCodeValidator:
                 'error': str(e)
             }
 
+    # TODO: Refactor - complexity 16 (target < 15)
+
     def _validate_indicator_code(self, code: str) -> Dict:
         """验证 Indicator 策略代码"""
         # 检查必需的函数
@@ -192,6 +194,10 @@ class StrategyCodeValidator:
             'risk_config': risk_config,
             'metadata': metadata
         }
+# TODO: Refactor - complexity 33 (target < 15)
+
+
+    # TODO: Refactor - function too long (176 lines, target < 80)
 
     def validate_custom_prices(self, signals_df: pd.DataFrame) -> Dict[str, List[str]]:
         """

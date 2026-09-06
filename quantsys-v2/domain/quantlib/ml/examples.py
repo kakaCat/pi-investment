@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-05, 0.0002, 0.0004, 0.001, 0.005]...
+
 """
 Machine Learning Module Examples
 =================================
@@ -446,6 +449,8 @@ def example_anomaly_detection():
 # Example 5: Complete ML-Enhanced Strategy
 # ==============================================================================
 
+# TODO: Refactor - function too long (109 lines, target < 80)
+
 def example_complete_strategy():
     """
     Example 5: Complete ML-Enhanced Strategy
@@ -560,6 +565,8 @@ def example_complete_strategy():
 # ==============================================================================
 # Example 6: Model Ensemble and Backtesting
 # ==============================================================================
+# TODO: Refactor - function too long (111 lines, target < 80)
+
 
 def example_ensemble_backtest():
     """

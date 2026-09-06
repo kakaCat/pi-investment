@@ -62,6 +62,8 @@ class MonteCarloCalculator(BaseCalculator):
         if seed is not None:
             np.random.seed(seed)
 
+    # TODO: Refactor - function too long (134 lines, target < 80)
+
     def calculate(self,
                   S: float,
                   K: float,
@@ -284,6 +286,8 @@ class MonteCarloCalculator(BaseCalculator):
                 'mean_average_price': np.mean(average_prices)
             }
         )
+# TODO: Refactor - function too long (103 lines, target < 80)
+
 
     def calculate_barrier(self,
                           S: float,

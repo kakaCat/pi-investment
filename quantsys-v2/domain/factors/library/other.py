@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.015, 0.5, 3.0, 6, 12]...
+
 """
 Other Technical Indicators Module
 ==================================
@@ -14,6 +17,8 @@ from domain.factors.library.base import TechnicalFactorCalculator
 from infrastructure.quantlib.core.base_calculator import validate_inputs, timing_decorator
 from infrastructure.quantlib.core.exceptions import InsufficientDataError
 
+
+# TODO: Refactor - class too large (23 methods, target < 15)
 
 class OtherFactors(TechnicalFactorCalculator):
     """

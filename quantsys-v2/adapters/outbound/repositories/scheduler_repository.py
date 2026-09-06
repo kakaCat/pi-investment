@@ -22,6 +22,8 @@ from infrastructure.scheduler.scheduler import next_run_time as _calc_next_run_t
 logger = logging.getLogger(__name__)
 
 
+# TODO: Refactor - class too large (22 methods, target < 15)
+
 class SchedulerRepository(ISchedulerRepository):
     """调度任务仓储 - SQLAlchemy ORM 实现"""
 

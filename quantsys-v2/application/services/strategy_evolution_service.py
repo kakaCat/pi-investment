@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-12, 0.05, 0.1, 0.2, 0.3]...
+
 """策略进化引擎（RFC 012 P1，2026-09-03 w-8366e526）
 
 替代链：Agent OS legacy evolution（evolution_handler.go 的 0.05×i 占位阶梯，见
@@ -106,6 +109,10 @@ class StrategyEvolutionService:
         return self._evolution_repo
 
     # ---------------- 主入口 ----------------
+
+    # TODO: Refactor - complexity 21 (target < 15)
+
+    # TODO: Refactor - function too long (174 lines, target < 80)
 
     def run(
         self,

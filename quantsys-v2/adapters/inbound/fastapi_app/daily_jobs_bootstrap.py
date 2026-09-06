@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [3, 4, 5, 6, 15]...
+
 """每日数据任务进程内宿主（2026-09-02）
 
 背景：Agent OS 调度器中核心数据任务（kline_update / factor_compute_daily /

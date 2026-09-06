@@ -33,6 +33,8 @@ from adapters.outbound.datasources.providers.hk.akshare import AkshareHKProvider
 logger = logging.getLogger(__name__)
 
 
+# TODO: Refactor - class too large (51 methods, target < 15)
+
 class DataProviderManager(IDataProviderManager):
     """Unified data provider manager
 
@@ -221,6 +223,8 @@ class DataProviderManager(IDataProviderManager):
             'attempted_sources': attempted_sources,
             'provider_errors': provider_errors,
         }
+
+    # TODO: Refactor - complexity 19 (target < 15)
 
     def _is_valid(self, data) -> bool:
         """Validate data completeness (P0 Enhanced)
@@ -715,6 +719,10 @@ class DataProviderManager(IDataProviderManager):
             except Exception:
                 pass
             return False
+# TODO: Refactor - complexity 18 (target < 15)
+
+
+    # TODO: Refactor - function too long (116 lines, target < 80)
 
     def get_data_completeness(
         self,

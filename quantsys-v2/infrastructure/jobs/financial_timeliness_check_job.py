@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [3, 4, 5, 6, 7]...
+
 """
 财报时效性检查 Job
 

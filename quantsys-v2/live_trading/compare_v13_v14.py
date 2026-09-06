@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.05, 0.08, 0.12, 0.15, 0.5]...
+
 """
 V13 vs V14 模型对比工具
 
@@ -24,6 +27,8 @@ def load_model_info(version):
 
     with open(train_info_path) as f:
         return json.load(f)
+
+# TODO: Refactor - function too long (163 lines, target < 80)
 
 def compare_models():
     """对比V13和V14模型"""

@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-06, 0.05, 0.1, 0.5, 0.85]...
+
 """
 Extreme Value Theory Calculator
 ================================

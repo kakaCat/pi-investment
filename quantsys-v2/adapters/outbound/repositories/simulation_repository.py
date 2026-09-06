@@ -38,6 +38,8 @@ __all__ = ['SimulationORMRepository', 'normalize_action']
 from infrastructure.persistence.orm.models.action_norm import normalize_action  # noqa: E402,F401
 
 
+# TODO: Refactor - class too large (37 methods, target < 15)
+
 class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationRepository):
     """模拟交易ORM Repository
 
@@ -758,6 +760,8 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             return False
 
     # ==================== 交易记录 ====================
+
+    # TODO: Refactor - function too long (110 lines, target < 80)
 
     def add_trade(
         self,

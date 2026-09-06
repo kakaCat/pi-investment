@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.05, 0.1, 0.15, 0.2, 0.25]...
+
 """
 市场环境识别器
 

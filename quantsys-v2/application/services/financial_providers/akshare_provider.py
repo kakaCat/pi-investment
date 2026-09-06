@@ -21,6 +21,10 @@ class AkshareFinancialProvider(FinancialProvider):
     def __init__(self, timeout: int = 10):
         super().__init__(name="akshare", timeout=timeout)
 
+    # TODO: Refactor - complexity 22 (target < 15)
+
+    # TODO: Refactor - function too long (101 lines, target < 80)
+
     def get_financial_data(
         self,
         symbol: str,

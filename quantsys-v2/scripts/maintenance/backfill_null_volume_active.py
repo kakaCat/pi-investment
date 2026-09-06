@@ -82,6 +82,8 @@ def fix_symbol_volume(db: Database, fetcher: KlineFetcher, symbol: str, earliest
     except Exception as e:
         return symbol, False, str(e)
 
+# TODO: Refactor - function too long (119 lines, target < 80)
+
 def main():
     print("=" * 80)
     print("智能修复volume数据（仅活跃股票）")

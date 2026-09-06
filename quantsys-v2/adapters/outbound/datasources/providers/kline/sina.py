@@ -65,6 +65,8 @@ class SinaKlineProvider(KlineProvider):
         }
         return period_map.get(period.lower(), '240')
 
+    # TODO: Refactor - function too long (112 lines, target < 80)
+
     def get_klines(
         self,
         symbol: str,

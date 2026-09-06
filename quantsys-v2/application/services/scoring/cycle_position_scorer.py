@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.1, 0.15, 0.3, 0.5, 4]...
+
 """
 周期位置评分器（仅 cyclical 股票使用）
 
@@ -24,6 +27,8 @@ class CyclePositionScorer(BaseScorer):
     QOQ_MAX = 35.0
     HIGH_MAX = 35.0
     ALIGN_MAX = 30.0
+
+    # TODO: Refactor - complexity 17 (target < 15)
 
     def score(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """

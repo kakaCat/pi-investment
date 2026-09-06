@@ -141,6 +141,8 @@ def render_ascii_dashboard(metrics: Dict):
     
     print()
 
+# TODO: Refactor - function too long (188 lines, target < 80)
+
 def render_html_dashboard(metrics: Dict, output_file: Path):
     """渲染 HTML 仪表盘"""
     score = metrics['score']

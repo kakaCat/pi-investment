@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.2, 0.3, 0.4, 0.5, 4]...
+
 """
 Regime 连续信号提供者
 

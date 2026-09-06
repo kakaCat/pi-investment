@@ -19,6 +19,8 @@ import logging
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
 
+# TODO: Refactor - function too long (120 lines, target < 80)
+
 def validate_model_ic():
     """验证模型IC指标"""
 

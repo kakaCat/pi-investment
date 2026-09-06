@@ -44,7 +44,9 @@ def get_recent_accessed_symbols(cursor, days: int = 7) -> Set[str]:
     cursor.execute("""
         SELECT DISTINCT symbol
         FROM quant.daily_klines
-        WHERE updated_at >= %s
+        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+        WHERE updated_at >= %s  # TODO: Use parameterized queries
         ORDER BY updated_at DESC
         LIMIT 500
     """, (cutoff_date,))

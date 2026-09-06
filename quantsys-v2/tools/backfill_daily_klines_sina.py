@@ -108,11 +108,15 @@ def main():
                 r,
             )
             if cur.rowcount > 0:
-                inserted += 1
+                # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                inserted += 1  # TODO: Use parameterized queries
             else:
                 skipped += 1
         conn.commit()
-        total_inserted += inserted
+        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+        total_inserted += inserted  # TODO: Use parameterized queries
         total_skipped += skipped
         print(f"[OK] {code}: 新浪拉取 {len(klines)} 条, 区间内 {len(rows)} 条, 新插入 {inserted}, 已存在跳过 {skipped}")
 

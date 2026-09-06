@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.1, 0.15, 0.2, 0.4, 0.5]...
+
 """Pool validation service - batch backtest strategies against a stock pool."""
 import structlog
 from collections import defaultdict
@@ -31,6 +34,10 @@ class PoolValidationService:
         from domain.ports import IStockPoolRepository, IStrategyRepository
         self._pool_repo = pool_repo
         self._strategy_repo = strategy_repo
+
+    # TODO: Refactor - complexity 24 (target < 15)
+
+    # TODO: Refactor - function too long (137 lines, target < 80)
 
     def validate_pool(self, pool_id: int, strategy_ids: List[int] = None,
                       start_date: str = None, end_date: str = None,

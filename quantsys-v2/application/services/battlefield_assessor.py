@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.04, 0.3, 0.5, 0.7, 0.8]...
+
 """
 战场评估服务 - BattlefieldAssessor
 
@@ -211,6 +214,10 @@ class BattlefieldAssessor:
             return self._analyze_stocks_by_kline(symbols)
 
         return stock_scores
+
+    # TODO: Refactor - complexity 28 (target < 15)
+
+    # TODO: Refactor - function too long (128 lines, target < 80)
 
     def _analyze_stocks_by_kline(self, symbols: List[str]) -> List[Dict]:
         """W2: 降级方法 - 使用K线数据分析战场（增强版）

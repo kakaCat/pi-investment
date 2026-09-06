@@ -58,6 +58,8 @@ class AgentChannel(NotificationChannel):
             token_configured=bool(token)
         )
 
+    # TODO: Refactor - function too long (105 lines, target < 80)
+
     def send(self, notification: Notification) -> ChannelResult:
         """唤醒 Agent
 

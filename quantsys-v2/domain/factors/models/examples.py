@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.001, 0.0015, 0.002, 0.003, 0.005]...
+
 """
 Factor Models Examples
 ======================

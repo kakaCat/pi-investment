@@ -190,6 +190,10 @@ def _safe_float(value) -> float | None:
 
 # ── 主流程 ────────────────────────────────────────────
 
+# TODO: Refactor - complexity 27 (target < 15)
+
+# TODO: Refactor - function too long (140 lines, target < 80)
+
 def run():
     dsn = _resolve_db_dsn()
     if not dsn:

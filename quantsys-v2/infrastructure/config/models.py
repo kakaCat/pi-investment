@@ -138,6 +138,10 @@ class ServicesConfig:
     current_environment: str = 'dev'
     env_var_overrides: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
+    # TODO: Refactor - complexity 23 (target < 15)
+
+    # TODO: Refactor - function too long (105 lines, target < 80)
+
     def get_merged_services(self) -> Dict[str, ServiceConfig]:
         """获取合并后的服务配置
 

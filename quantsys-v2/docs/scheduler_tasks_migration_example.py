@@ -110,7 +110,9 @@ def handle_concurrent_fetch_OLD():
             symbol = futures[future]
             try:
                 future.result()
-                updated += 1
+                # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                updated += 1  # TODO: Use parameterized queries
             except Exception as e:
                 # Problem: All errors treated the same, can't retry transient errors
                 errors.append({"symbol": symbol, "error": str(e)})
@@ -145,7 +147,9 @@ def handle_concurrent_fetch_NEW():
             symbol = futures[future]
             try:
                 future.result()
-                updated += 1
+                # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                updated += 1  # TODO: Use parameterized queries
 
             except StockNotFoundException as e:
                 # Permanent error - stock doesn't exist

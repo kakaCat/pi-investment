@@ -266,7 +266,9 @@ def favorite_indicator(indicator_id: int):
     if indicator.get('code_type') != 'indicator':
         return error_response({'success': False, 'error': '该策略不是指标类型'}, 400)
     current_count = indicator.get('favorite_count', 0) or 0
-    updated = strategy_service.update_strategy(strategy_id=indicator_id, favorite_count=current_count + 1)
+    # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+    updated = strategy_service.update_strategy(strategy_id=indicator_id, favorite_count=current_count + 1)  # TODO: Use parameterized queries
     return api_response({'id': indicator_id, 'favorite': True, 'favoriteCount': current_count + 1}, message='收藏成功')
 
 

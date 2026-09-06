@@ -92,7 +92,9 @@ class MemoryCacheBackend(CacheBackend):
         """删除缓存"""
         if key in self._cache:
             del self._cache[key]
-            self._stats['deletes'] += 1
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+            self._stats['deletes'] += 1  # TODO: Use parameterized queries
             return True
         return False
 
@@ -178,7 +180,9 @@ class RedisCacheBackend(CacheBackend):
         try:
             result = self._redis.delete(key)
             if result > 0:
-                self._stats['deletes'] += 1
+                # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+                self._stats['deletes'] += 1  # TODO: Use parameterized queries
             return result > 0
         except Exception as e:
             logger.error(f"Redis delete error: {e}")

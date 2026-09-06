@@ -86,6 +86,8 @@ def register_all_services(use_config: Optional[bool] = None, environment: Option
 # ========== 已弃用的硬编码注册 ==========
 # P2-3: 以下函数已弃用，保留仅供参考
 
+# TODO: Refactor - function too long (542 lines, target < 80)
+
 def _register_services_hardcoded():
     """硬编码服务注册（已弃用）
 

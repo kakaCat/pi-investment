@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [1e-12, 1e-10, 1e-06, 0.001, 0.04]...
+
 """
 随机波动率模型模块
 ==================
@@ -55,6 +58,8 @@ class StochasticVolCalculator(BaseCalculator):
             risk_free_rate: 默认无风险利率（默认: 0.0）
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
+
+    # TODO: Refactor - function too long (119 lines, target < 80)
 
     def calculate(self,
                   S: float,

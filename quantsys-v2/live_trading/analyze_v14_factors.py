@@ -14,6 +14,8 @@ import json
 from pathlib import Path
 import xgboost as xgb
 
+# TODO: Refactor - function too long (151 lines, target < 80)
+
 def analyze_factor_importance():
     """分析因子重要性"""
 

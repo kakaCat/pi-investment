@@ -65,6 +65,10 @@ def extract_fund_flow_factors_simple(klines: List[Dict]) -> Dict[str, float]:
     return factors
 
 
+# TODO: Refactor - complexity 17 (target < 15)
+
+# TODO: Refactor - function too long (106 lines, target < 80)
+
 def backfill_factors(
     symbols: List[str],
     start_date: str,

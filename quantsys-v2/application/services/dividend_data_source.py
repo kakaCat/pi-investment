@@ -45,6 +45,10 @@ class EastMoneyDividendSource(DividendDataSource):
         self.timeout = timeout
         self.base_url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
 
+    # TODO: Refactor - complexity 16 (target < 15)
+
+    # TODO: Refactor - function too long (152 lines, target < 80)
+
     def fetch_dividends(self, symbol: str) -> pd.DataFrame:
         """
         从东方财富获取分红数据

@@ -90,7 +90,9 @@ def terminate_connection(pid):
     """
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT pg_terminate_backend(%s)", (pid,))
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+            cur.execute("SELECT pg_terminate_backend(%s)", (pid,))  # TODO: Use parameterized queries
             result = cur.fetchone()[0]
             conn.commit()
             return result

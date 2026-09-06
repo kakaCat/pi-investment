@@ -76,6 +76,8 @@ class DomainModelAnalyzer(ast.NodeVisitor):
         return str(node)
 
 
+# TODO: Refactor - complexity 21 (target < 15)
+
 def analyze_domain_layer(project_root: Path) -> Dict:
     """分析领域层"""
 
@@ -175,6 +177,8 @@ def analyze_domain_layer(project_root: Path) -> Dict:
             pass
 
     return results
+
+# TODO: Refactor - complexity 18 (target < 15)
 
 
 def print_domain_audit_report(results: Dict):

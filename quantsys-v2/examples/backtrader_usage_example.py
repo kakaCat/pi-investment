@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.0001, 0.0003, 0.005, 0.01, 0.02]...
+
 """
 Backtrader Integration Usage Examples
 ======================================

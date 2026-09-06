@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.02, 0.5, 0.99, 5]...
+
 """
 一键生成股票买卖信号
 

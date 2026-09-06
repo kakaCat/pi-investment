@@ -59,6 +59,8 @@ class BaseCalculator(ABC):
         logger.setLevel(logging.INFO)
         return logger
 
+    # TODO: Refactor - complexity 20 (target < 15)
+
     def _validate_numeric_input(self, data: Any, name: str = "data") -> Union[float, np.ndarray, pd.Series]:
         """
         Validate and convert input to appropriate numeric type.

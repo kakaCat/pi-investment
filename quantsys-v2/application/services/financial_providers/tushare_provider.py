@@ -41,6 +41,10 @@ class TushareFinancialProvider(FinancialProvider):
         except Exception as e:
             raise Exception(f"Failed to initialize Tushare Pro: {e}")
 
+    # TODO: Refactor - complexity 20 (target < 15)
+
+    # TODO: Refactor - function too long (125 lines, target < 80)
+
     def get_financial_data(
         self,
         symbol: str,

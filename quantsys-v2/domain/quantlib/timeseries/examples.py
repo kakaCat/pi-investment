@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.02, 0.1, 0.25, 0.3]...
+
 """
 Time Series Modeling Examples
 ==============================

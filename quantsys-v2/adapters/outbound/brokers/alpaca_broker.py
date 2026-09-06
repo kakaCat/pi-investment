@@ -272,6 +272,10 @@ class AlpacaBroker(BaseBroker):
             logger.error(f"Failed to get Alpaca quotes: {e}", exc_info=True)
             return ApiResponse.fail(f"Failed to get quotes: {str(e)}")
 
+    # TODO: Refactor - complexity 24 (target < 15)
+
+    # TODO: Refactor - function too long (114 lines, target < 80)
+
     def get_history(
         self,
         symbol: str,
@@ -390,6 +394,10 @@ class AlpacaBroker(BaseBroker):
     # ========================================================================
     # Trading
     # ========================================================================
+# TODO: Refactor - complexity 17 (target < 15)
+
+# TODO: Refactor - function too long (103 lines, target < 80)
+
 
     def place_order(
         self,

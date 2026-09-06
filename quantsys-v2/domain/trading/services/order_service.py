@@ -193,6 +193,8 @@ class OrderService:
                 f"(order_id={order_id})"
             )
 
+    # TODO: Refactor - function too long (150 lines, target < 80)
+
     def fill_order(
         self,
         order_id: int,

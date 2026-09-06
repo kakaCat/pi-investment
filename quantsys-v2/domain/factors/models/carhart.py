@@ -68,6 +68,8 @@ class CarhartFourFactorCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
+    # TODO: Refactor - function too long (197 lines, target < 80)
+
     def calculate(self,
                   asset_returns: Union[np.ndarray, pd.Series],
                   market_returns: Union[np.ndarray, pd.Series],

@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.02, 0.025, 0.03, 0.035, 0.038]...
+
 """
 Fixed Income Analysis Examples
 ==============================

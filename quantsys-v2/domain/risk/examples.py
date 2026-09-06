@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.0003, 0.0004, 0.0005, 0.0015, 0.003]...
+
 """
 Advanced Risk Management Examples
 ==================================
@@ -372,6 +375,8 @@ def example_4_copula_modeling():
 
     print("\n" + "=" * 80 + "\n")
 
+
+# TODO: Refactor - function too long (113 lines, target < 80)
 
 def example_5_liquidity_risk():
     """

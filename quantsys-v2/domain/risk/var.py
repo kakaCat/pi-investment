@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.5, 0.9, 0.95, 0.99, 3]...
+
 """
 Value at Risk (VaR) Calculator
 ===============================

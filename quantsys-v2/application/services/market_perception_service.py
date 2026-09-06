@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.08, 0.4, 0.8, 3]...
+
 """M1 市场感知服务（RFC 007）
 
 三个能力从"即用即弃的一次性计算"变为"可查询的时间序列资产"：

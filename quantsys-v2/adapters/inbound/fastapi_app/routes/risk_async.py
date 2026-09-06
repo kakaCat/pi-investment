@@ -40,6 +40,8 @@ def _format_rule(rule):
 
 
 @router.post('/api/risk/check')
+# TODO: Refactor - complexity 40 (target < 15)
+
 def risk_check(payload: Optional[Dict[str, Any]] = Body(None)):
     """风险检查
 
@@ -331,7 +333,11 @@ def delete_stop_loss_rule(rule_id: str):
 
 @router.get('/api/risk/trade-verify')
 @router.post('/api/risk/trade-verify')
+# TODO: Refactor - complexity 26 (target < 15)
+
 @handle_api_error
+# TODO: Refactor - function too long (136 lines, target < 80)
+
 def trade_verify(
     account_name: Optional[str] = Query('agent_virtual'),
     date: Optional[str] = Query(None),

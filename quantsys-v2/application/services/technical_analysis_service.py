@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.92, 0.95, 1.05, 1.1]...
+
 """
 技术分析服务 - v2 原生实现
 提供价格行为分析、买入区间计算、退出计划、K线形态分析

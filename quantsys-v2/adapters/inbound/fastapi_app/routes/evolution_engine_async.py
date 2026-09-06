@@ -24,6 +24,8 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(tags=["Evolution - 策略进化引擎（RFC 012）"])
 
 
+# TODO: Refactor - complexity 16 (target < 15)
+
 def _to_camel_run(result: Dict[str, Any]) -> Dict[str, Any]:
     """服务 snake_case 结果 → qv2 camelCase 契约（proposals/metrics 内部键保留）。"""
     out: Dict[str, Any] = {}

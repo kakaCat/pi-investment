@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.02, 0.3, 0.4, 0.5, 0.92]...
+
 """分析 API - FastAPI 版（迁移 web 实际使用的分析端点，响应契约保持一致）
 
 覆盖：/api/backtest（backtest.py）、/api/compute/factors（jobs.py）、
@@ -26,6 +29,8 @@ router = APIRouter(tags=["Analysis - 分析"])
 # ============ /api/backtest（backtest.py） ============
 
 @router.post('/api/backtest')
+# TODO: Refactor - complexity 37 (target < 15)
+
 def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
     """运行回测 - 支持 strategy_name、strategy_id 或 indicator_id"""
     from adapters.shared.backtest_helpers import (
@@ -121,6 +126,8 @@ def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
 
 # ============ /api/compute/factors（jobs.py） ============
 
+# TODO: Refactor - complexity 17 (target < 15)
+
 @router.post('/api/compute/factors')
 def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
     """计算因子（支持单个symbol或批量symbols）"""
@@ -209,6 +216,8 @@ def get_technical_indicators(symbol: str, indicators: Optional[str] = Query(None
         return error_response({'error': str(e)}, 500)
 
 
+# TODO: Refactor - complexity 18 (target < 15)
+
 # ============ /api/stock/{symbol}/factors（analysis.py） ============
 
 def _annotate_stale_factors(symbol: str, factors: Any, max_stale_trading_days: int = 5):
@@ -276,6 +285,8 @@ def _annotate_stale_factors(symbol: str, factors: Any, max_stale_trading_days: i
     except Exception as e:
         logger.warning(f"陈旧因子标注失败({symbol}): {e}")
     return dicts, summary
+
+# TODO: Refactor - complexity 19 (target < 15)
 
 
 @router.get('/api/stock/{symbol}/factors')
@@ -819,6 +830,8 @@ def risk_stress_test():
         410)
 
 
+# TODO: Refactor - complexity 20 (target < 15)
+
 # ============ /api/risk/metrics（analysis.py） ============
 
 @router.post('/api/risk/metrics')
@@ -918,11 +931,15 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
             'error': str(e)
         }, 500)
 
+# TODO: Refactor - complexity 22 (target < 15)
+
 
 # ============ /api/portfolio/factor-analyze（analysis.py） ============
 
 @router.post('/api/portfolio/factor-analyze')
 @handle_api_error
+# TODO: Refactor - function too long (101 lines, target < 80)
+
 def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
     """因子分析 - v2 增强版（集成 alphalens）"""
     data = payload or {}
@@ -1024,11 +1041,15 @@ def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
         })
     except Exception as e:
         return error_response({'success': False, 'error': f'因子分析失败: {str(e)}'}, 500)
+# TODO: Refactor - complexity 20 (target < 15)
+
 
 
 # ============ /api/portfolio/sector-aggregate（analysis.py） ============
 
 @router.post('/api/portfolio/sector-aggregate')
+# TODO: Refactor - function too long (104 lines, target < 80)
+
 @handle_api_error
 def sector_aggregate(payload: Optional[Dict[str, Any]] = Body(None)):
     """行业聚合分析 - v2 原生实现（按行业或板块聚合估值、质量、负债率和信号数量）"""

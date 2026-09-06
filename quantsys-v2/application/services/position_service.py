@@ -304,6 +304,8 @@ def get_position_risk(
     return risk_metrics
 
 
+# TODO: Refactor - function too long (105 lines, target < 80)
+
 def rebalance_positions(
     broker_id: str,
     target_weights: Dict[str, float],

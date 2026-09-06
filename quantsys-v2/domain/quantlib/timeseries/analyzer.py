@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.05, 0.95, 1.96, 3, 4]...
+
 """
 Time Series Analysis Module
 ============================
@@ -53,6 +56,8 @@ class TimeSeriesAnalyzer(BaseCalculator):
     @validate_inputs
     @timing_decorator
     @handle_calculation_error
+    # TODO: Refactor - function too long (104 lines, target < 80)
+
     def analyze_trend(
         self,
         data: Union[List, np.ndarray, pd.Series],

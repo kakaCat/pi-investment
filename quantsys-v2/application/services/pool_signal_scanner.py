@@ -222,7 +222,9 @@ class PoolSignalScanner:
 
         # 执行策略代码（添加buy/sell列）；params 注入与 strategy_executor 契约一致
         local_vars = {'df': df, 'pd': pd, 'np': np, 'params': params}
-        exec(strategy_code, {}, local_vars)
+        # SECURITY WARNING: exec() usage - refactor to avoid dynamic execution
+
+        exec(strategy_code, {}, local_vars)  # TODO: Refactor to avoid dynamic code execution
         df = local_vars['df']
 
         # 获取最后一行（最新数据）

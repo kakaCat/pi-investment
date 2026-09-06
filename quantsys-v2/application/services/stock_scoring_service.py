@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.05, 0.1, 0.15, 0.2, 0.3]...
+
 """
 股票综合评分服务
 
@@ -110,6 +113,8 @@ class StockScoringService:
             logger.error(f"计算 {symbol} 评分失败: {e}", exc_info=True)
             return {'error': str(e)}
 
+    # TODO: Refactor - complexity 26 (target < 15)
+
     def _calculate_technical_score(self, factors: Dict) -> float:
         """
         技术面评分 (0-100)
@@ -184,6 +189,8 @@ class StockScoringService:
                 score += 5
 
         return min(100, max(0, score))
+# TODO: Refactor - complexity 22 (target < 15)
+
 
     def _calculate_fundamental_score(self, factors: Dict) -> float:
         """
@@ -248,6 +255,8 @@ class StockScoringService:
                 score += 5
             else:
                 score += 0
+
+        # TODO: Refactor - complexity 17 (target < 15)
 
         return min(100, max(0, score))
 

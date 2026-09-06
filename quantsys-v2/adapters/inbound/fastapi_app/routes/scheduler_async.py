@@ -227,6 +227,8 @@ def create_scheduler_task(payload: Optional[Dict[str, Any]] = Body(None)):
 
 @router.put('/api/scheduler/tasks/{task_id}')
 @handle_api_error
+# TODO: Refactor - complexity 16 (target < 15)
+
 def update_scheduler_task(task_id: str, payload: Optional[Dict[str, Any]] = Body(None)):
     if not payload:
         return error_response({'success': False, 'error': 'Request body is required'}, 400)

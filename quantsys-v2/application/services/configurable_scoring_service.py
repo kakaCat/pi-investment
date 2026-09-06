@@ -107,6 +107,8 @@ class ConfigurableScoringService:
             logger.error(f"计算 {symbol} 评分失败: {e}", exc_info=True)
             return {'error': str(e)}
 
+    # TODO: Refactor - complexity 25 (target < 15)
+
     def _calculate_technical_score_v2(self, factors: Dict) -> float:
         """技术面评分 - 配置驱动版本"""
         if not TECHNICAL_SCORING:
@@ -175,6 +177,8 @@ class ConfigurableScoringService:
                     break
 
         return min(100, max(0, score))
+# TODO: Refactor - complexity 21 (target < 15)
+
 
     def _calculate_fundamental_score_v2(self, factors: Dict) -> float:
         """基本面评分 - 配置驱动版本"""

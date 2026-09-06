@@ -75,6 +75,8 @@ class ExoticOptionsCalculator(BaseCalculator):
             "calculate_lookback_option, calculate_digital_option"
         )
 
+    # TODO: Refactor - function too long (108 lines, target < 80)
+
     def calculate_barrier_option(self,
                                   S: float,
                                   K: float,

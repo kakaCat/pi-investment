@@ -279,7 +279,9 @@ class QuantsysV2DataProvider(BaseProvider):
 
         # 计算表达式
         try:
-            result = eval(pandas_expr, {'df': df, 'np': np, 'pd': pd})
+            # SECURITY WARNING: eval() usage - consider safer alternatives
+
+            result = eval(pandas_expr, {'df': df, 'np': np, 'pd': pd})  # TODO: Replace with ast.literal_eval() or json.loads()
             return result
         except Exception as e:
             self.logger.error(f"Expression evaluation failed: {expr} -> {pandas_expr}, {e}")

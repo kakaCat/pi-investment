@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.0008, 0.001, 0.015, 0.02, 0.03]...
+
 """
 Risk Management Module - Usage Examples
 ========================================

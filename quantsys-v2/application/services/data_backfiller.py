@@ -76,6 +76,8 @@ class DataBackfiller:
             logger.warning(f"_is_index_symbol stocks 校验失败 {symbol}: {e}")
         return True
 
+    # TODO: Refactor - function too long (126 lines, target < 80)
+
     def backfill_symbol(
         self,
         symbol: str,
@@ -381,6 +383,8 @@ class DataBackfiller:
             max_workers=2,
             max_retries=max_retries
         )
+
+    # TODO: Refactor - complexity 24 (target < 15)
 
     def _convert_klines(self, symbol: str, raw_data: List, start_date: str, end_date: str) -> List[Dict]:
         """转换原始K线数据为标准格式

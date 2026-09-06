@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.03, 0.05, 0.1, 0.15, 0.2]...
+
 """
 公司质量评分服务
 
@@ -27,6 +30,8 @@ class QualityScoringService:
             factor_repo = factor_repo or ServiceFactory.get_factor_repository()
         self.stock_repo = stock_repo
         self.factor_repo = factor_repo
+
+    # TODO: Refactor - function too long (109 lines, target < 80)
 
     def calculate_quality_score(self, symbol: str, framework: str = 'auto') -> Dict:
         """

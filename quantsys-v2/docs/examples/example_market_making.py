@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.0001, 0.0002, 0.0005, 0.1, 0.3]...
+
 """
 做市策略完整示例
 

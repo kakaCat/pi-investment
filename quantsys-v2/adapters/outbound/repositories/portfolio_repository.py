@@ -26,6 +26,8 @@ logger = structlog.get_logger(__name__)
 __all__ = ['PortfolioORMRepository']
 
 
+# TODO: Refactor - class too large (39 methods, target < 15)
+
 class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepository):
     """持仓ORM Repository
 
@@ -764,7 +766,9 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
 
     def get_order(self, order_id: int) -> Optional[Dict]:
         """查询单条订单，不存在返回 None"""
-        query = "SELECT * FROM quant.orders WHERE id = %s"
+        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+        query = "SELECT * FROM quant.orders WHERE id = %s"  # TODO: Use parameterized queries
 
         cursor = self.db.cursor()
         try:
@@ -1022,7 +1026,9 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
 
     def get_trade(self, trade_id: int) -> Optional[Dict]:
         """查询单条交易记录，不存在返回 None"""
-        query = "SELECT * FROM quant.trades WHERE id = %s"
+        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+        query = "SELECT * FROM quant.trades WHERE id = %s"  # TODO: Use parameterized queries
 
         cursor = self.db.cursor()
         try:
@@ -1207,7 +1213,9 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         """删除持仓记录（order_service 清仓时调用）"""
         _validate_symbol(symbol)
 
-        query = "DELETE FROM quant.portfolio_holdings WHERE symbol = %s"
+        # SECURITY WARNING: Potential SQL injection - use parameterized queries
+
+        query = "DELETE FROM quant.portfolio_holdings WHERE symbol = %s"  # TODO: Use parameterized queries
 
         cursor = self.db.cursor()
         try:

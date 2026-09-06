@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.65, 0.75, 0.85, 5, 20.0]...
+
 """
 对手行为分析服务
 分析市场参与者行为，识别博弈机会

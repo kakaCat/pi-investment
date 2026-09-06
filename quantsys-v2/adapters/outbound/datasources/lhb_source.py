@@ -305,6 +305,8 @@ class LhbDataSource:
             "error": f"{date} 无龙虎榜数据或数据源暂时不可用"
         }
 
+    # TODO: Refactor - complexity 32 (target < 15)
+
     def _transform_stock_records(self, df: pd.DataFrame, days: int) -> List[Dict]:
         """转换个股龙虎榜数据为标准格式（兼容多种数据源）"""
         records = []
@@ -349,6 +351,8 @@ class LhbDataSource:
                 continue
 
         return records
+# TODO: Refactor - complexity 25 (target < 15)
+
 
     def _transform_daily_records(self, df: pd.DataFrame) -> List[Dict]:
         """转换日期汇总数据为标准格式"""

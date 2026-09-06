@@ -125,6 +125,8 @@ def simulate_data_access(cache: CacheService, with_cache: bool = True, repeat: i
     }
 
 
+# TODO: Refactor - function too long (108 lines, target < 80)
+
 def run_cache_benchmarks():
     """运行缓存基准测试"""
     print("=" * 80)

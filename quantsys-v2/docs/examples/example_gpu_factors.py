@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.01, 0.02, 0.5, 3, 12]...
+
 """
 GPU加速因子计算完整示例
 

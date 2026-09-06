@@ -71,6 +71,10 @@ class ARIMACalculator(BaseCalculator):
 
     @validate_inputs
     @timing_decorator
+    # TODO: Refactor - complexity 17 (target < 15)
+
+    # TODO: Refactor - function too long (167 lines, target < 80)
+
     def fit(
         self,
         data: Union[List, np.ndarray, pd.Series],
@@ -240,6 +244,8 @@ class ARIMACalculator(BaseCalculator):
             )
 
     @validate_inputs
+    # TODO: Refactor - function too long (114 lines, target < 80)
+
     @timing_decorator
     def forecast(
         self,

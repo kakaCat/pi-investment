@@ -1,3 +1,6 @@
+
+# TODO: Extract magic numbers to named constants: [0.2, 0.33, 0.4, 0.5, 0.6]...
+
 """
 市场情绪分析服务
 
@@ -265,6 +268,8 @@ class MarketSentimentService:
         except Exception as e:
             logger.error(f"获取新高新低比失败: {e}")
             return {'error': str(e)}
+
+    # TODO: Refactor - complexity 30 (target < 15)
 
     def _calculate_sentiment_score(self, indicators: Dict) -> float:
         """
