@@ -22,7 +22,7 @@
 | **L3 基因组** genome store | ✅ 真 | store.ts：tmpPath 原子写 + git add/commit 留痕 + CHANGELOG | genome history g1→g20 全留痕（含 git_commit），9/5 两次真实更新（g19 candidate R-011 / g20 active R-012） |
 | **L3** prompt_evolver | ✅ 真（9/3 修复后） | PromptEvolverTool：LLM 改写 → registerCandidate(candidates.json) + genome_update(stage=candidate) **双写**（RFC 008 修复注释） | g14 转正（8/25）唯一一次完整闭环 |
 | **L3** evolution（策略进化） | ✅ 真（9/5 修复后） | 数据源 9/5 切 quantsys-v2：v2 evolution_engine_async.py POST /api/evolution/engine/run 真实回测；strategy_evolution_service.py 头注释"绝不产出占位 fitness"，degraded 诚实降级 | evolution_strategy_runs 87 行 9/5 03:41 仍跑；9/5 14:21 修复完成经双窗口认领复核 |
-| **L4** validation_gate | ✅ 真（工具本体） | ValidationGateTool：读 candidates.json + searchRewards 打标经验对比（q=`genome:${version}` kind='experience'）+ L4-B 结构防御 + min_samples=3 延期 | 9/5 19:32 真实执行（memory 86474aef）；但裁决对象错位见 G1/G2 |
+| **L4** validation_gate | ✅ 真（工具本体） | ValidationGateTool：读 candidates.json + searchRewards 打标经验对比（q=`genome:${version}` kind='experience'）+ L4-B 结构防御 + min_samples=3 延期 | 9/5 19:32 真实执行（memory 86474aef），正确裁决 g19 观察期未满延期（见 E-4） |
 | **L4** genome_benchmark（L4-B） | ✅ 真 | 2026-09-03 aa1213c4 结构复核腿 | — |
 | **工程** lifecycle 自修复 | ✅ 真 | scheduleFinalize@972 mergeFfOnly/rollback 真实 git 操作；2026-09-04 修 checkpoint 丢失 bug | agent-self wip 45→1 条清理记录（9/5 19:02）证明 merge 链真实运转过 |
 | **工程** 调度链路（9/4 迁移后） | ✅ 真（9/5 实证） | lifecycle agent-os-trigger.ts：Agent OS cron → webhook POST 13080/agent-os-trigger → 唤醒 agent（executor mode=direct session 注入） | task_runs：9/5 10:00 variant scheduler success → 10:02 genome g19 产出（端到端 2 分钟）；9/5 19:32 gate delivered memory（executor mode=direct + session id） |
@@ -39,44 +39,49 @@
 | learning_track 监听不存在的 tool/before-execute 事件 | 2026-08-20 改挂真实 waterfall post-execute | setupInterceptors@173 |
 | backtest 随机 Sharpe / model 恒 0.4659 / M2-2 池刷假成功 | 9/5 审计另案（M 线）已列账 | profit-engine-completion-audit-20260905.md |
 
-### 现存缺口（本次新发现）
+### 现存缺口与实证修正
 
-**[G1] 候选登记双轨脱节：genome_update(stage='candidate') 不写 candidates.json → validation_gate 无门可裁** ⚠️ 半通
-- 代码实证：packages/evolver/src/candidates.ts L5-6 注释自白——"genome_update(stage='candidate') 只写 genome.json history、从不写 candidates.json，ValidationGateTool 读 candidates.json 永远无输入 → 验证门空转（'候选 0'实证坐实）"
-- 运行实证：g19（rules candidate，2026-09-05 10:02 variant 真实产出，genome_history stage=candidate）**不在** candidates.json（该文件仅 1 条 8/25 测试残留 g13）；validation_gate 9/5 19:32 裁决对象实际是那条 g13 测试残留（样本不足延期），报告却写"rules@g19 watching"——agent 把 genome 版本状态拼进了裁决汇报，g19 从未真正被 gate 读过
-- 后果：9/13 gate 跑时 g19 观察期满（9/10）仍无门可裁 → 自动化"蒸馏→观察→裁决→转正/回滚"闭环对 agent 直写轨候选永不生效
-- 已规避路径：prompt_evolver 9/3 修复为双写（registerCandidate + genome_update）✓；未规避路径：engine-heal-evolve skill 指引 agent"单主题 genome_update(candidate)"（g19 即此轨产物，任务 prompt 9/5 22:12 挂载）
+**⚠️【审计纠错】初稿 G1（candidate 双轨脱节）撤回**——初稿误读了孤儿副本
+- 真相：真实 genomeDir = `~/.dsh-agent-dh/genome/`（cordis.patch.yml genome 段显式配置，独立 git 仓库）；初稿读的 `~/.dsh/profiles/investment/data/candidates.json` 是 8/25 genomeDir 迁移前的**孤儿副本**
+- 实证（真文件 candidates.json）：g19 R-011 候选**在册**——cand_1788573755281_v9g7aw（rules@g19 watching，created 2026-09-05T02:02:35.281Z = 10:02 北京，observe_until 09-10，health_check passed @ +27ms，mutation_type=prompt），与 genome git 提交 4627263（同秒 10:02:35 +0800）**双写同秒完成** → 9/3 修复后的 registerCandidate+genome_update 双写轨实际工作
+- 9/5 19:32 gate 报告"候选总数 1（rules@g19 watching）观察期未满延期"**正确**（10:02 创建到 19:32 仅 9 小时 < 5 天观察期）；9/13 gate 应正常裁决 g19
 
-**[G2] candidates.json 唯一候选是 8/25 测试残留，自动化候选流水线 12 天空转**
-- cand_test_strategy_bad（rules@g13 watching，observe_until 2026-08-24 已过期，note="测试回测腿拒绝路径"）——过期 12 天无人清理；9/5 gate 还在对它做"样本不足延期"
-- 8/25（g14 promote）→ 9/5（g19 candidate）之间 11 天，candidates.json 零新候选登记
+**[F1] 文件状态可观测性空白（本次真发现，用户质疑落点）**
+- genome.json / candidates.json / native-scheduler.json / restart-result.json 等全部本地文件 + 独立 git（genome 仓），**业务 DB（quant_investment，27+ 表）无 genome/candidates 表、无文件层错误通道**；DB 侧 error 落库只覆盖调度/服务层（task_runs.error 29 条实证）与 v2 system_logs
+- 后果：语义故障（状态漂移、孤儿文件、空转）**不产生任何 DB 错误**——文件读写成功、工具返回 success，DB 无从感知；只能靠人工审计发现（本次即实证：孤儿副本误导审计，若无人工核对文件路径，错误结论已外发）
 
-**[G3] 调度 failed 窗口已过但缺周期检验**（记录非缺口）
-- 9/2-9/4 全部 webhook 投递 failed（duration≈10s 超时）——9/4 webhook 迁移阵痛期；9/5 起恢复
+**[F2] 孤儿文件残留：`~/.dsh/profiles/investment/data/candidates.json`**
+- 8/25 genomeDir 从 profile data/ 迁至 ~/.dsh-agent-dh/genome 后旧文件未清理；内含 1 条 8/25 测试残留 cand_test_strategy_bad（g13/过期）→ 排查/审计会被误导（本次审计即被其误导得出 G1 错误结论）；无自动清理/告警
+
+**[F3] 调度 failed 窗口已过但缺周期检验**（记录非缺口）
+- 9/2-9/4 全部 webhook 投递 failed（duration≈10s 超时，error 落库 29 条）——9/4 webhook 迁移阵痛期；9/5 起恢复
 - 今天（9/6 周日）11:00 gate / 11:30 meta-learning / 12:00 weekly-report 为"skill 指引 + webhook 链路"下首次周度实战，是本报告的待验证点
 
 ## 三、证据清单
 
 - E-1：genome history g19 stage=candidate git_commit=4627263（R-011，9/5 02:02 UTC = 10:02 北京）
 - E-2：task_runs 9/5 10:00 evolution-weekly-variant scheduler success → 与 g19 时间吻合（端到端链路证）
-- E-3：candidates.json 全文仅 1 条 cand_test_strategy_bad（g13/过期/watching）
-- E-4：memory 86474aef gate 裁决记录（"候选总数 1 rules@g19 watching...继续观察"）vs 实际裁决对象 g13 测试残留 → 报告错位实证
+- E-1：genome git 4627263（g19 R-011，9/5 10:02:35 +0800）+ candidates.json cand_1788573755281_v9g7aw（同秒 10:02:35.281Z，health_check +27ms passed）→ **双写同秒实证**
+- E-2：task_runs 9/5 10:00 evolution-weekly-variant scheduler success → 与 g19 时间吻合（端到端链路证）
+- E-3：真 candidates.json（~/.dsh-agent-dh/genome/）3 条：2 条已 promoted（8/25 裁决）+ g19 watching（9/10 观察期满）
+- E-4：memory 86474aef gate 9/5 19:32 裁决记录："候选总数 1（rules@g19 watching）观察期未满延期"——与真文件一致，裁决正确（10:02 创建至 19:32 仅 9 小时 < 5 天观察期）
 - E-5：enabled 任务 executor 分布：10 dsh-webhook + 7 空 + 0 dsh-native；native-scheduler.json lastFired 停 9/4 13:00
-- E-6：candidates.ts L5-6 注释（问题自白）+ f5c8a0a7/aa1213c4（9/3 修复提交）
-- E-7：task_runs 9/2-9/4 failed（10s）→ 9/5 success 迁移恢复曲线
+- E-6：孤儿文件实证：`~/.dsh/profiles/investment/data/candidates.json`（8/25 16:15 迁移前残留，1 条 g13 测试残留）vs 真文件（9/5 19:32 更新）——同路径不同内容，审计初稿被误导得出 G1 错误结论
+- E-7：task_runs 9/2-9/4 failed（10s，error 落库 29 条）→ 9/5 success 迁移恢复曲线
 
 ## 四、修复建议（待确认后实施）
 
-1. **[P0][G1] 统一候选轨**：二选一——(a) genome_update(stage='candidate') 内部同步写 candidates.json（需 genome 包获 observeDays/note 参数，或从 genome.json candidate 段反向登记）；(b) validation_gate 增加 genome history stage=candidate 读取源。推荐 (b) 副作用小：gate 裁决 = candidates.json ∪ genome candidate 段。
-2. **[P1][G2] 清理测试残留**：cand_test_strategy_bad 置 rejected/drop（已过期 12 天，note 明确是测试）；顺手把 8/25 后无真实候选的"空转"写入记忆供复盘。
-3. **[P1] engine-heal-evolve skill 校准**：若走 genome_update(candidate) 直写，须配套 gate 双源读取（即 1b），或改指引为 prompt_evolver 双写路径。
-4. **[P2] 检验点**：9/13 gate 应裁决 g19（观察期满）——若仍"继续观察"即 G1 未修复的实锤，修复后补裁。
+1. **[P1][F2] 清理孤儿文件**：删除 `~/.dsh/profiles/investment/data/candidates.json`（含测试残留）——它是 8/25 迁移残留，会误导审计/排查（本次实证）。
+2. **[P1][F1] 补可观测性（回应"为何没报错到数据库"）**：文件层状态加健康哨兵——(a) 每轮 gate/进化任务核对 candidates.json 与 genome.json 的 candidate 一致性并在异常时 decision_audit+飞书（而非静默）；(b) 或把 genome/candidates 元数据镜像到 DB 表（quant 侧 genome_sections/candidates 2 表）供查询审计。推荐 (a) 轻量先行。
+3. **[P2] 检验点**：9/13 gate 应裁决 g19（观察期满）——验证双写轨→gate 闭环端到端；若"继续观察"才是真断点，届时补裁。
 
 ## 五、与历次审计的关系
 
-- 9/3 scheduler-autonomy-line-realization-audit：调度自动化线注册/投递层——本报告补其未覆盖的"candidate 轨对齐"（9/3 判 candidate→gate 真实，实为双轨）
+- 9/3 scheduler-autonomy-line-realization-audit：调度自动化线注册/投递层——本报告从代码+运行实证确认其"candidate→gate 真实编排"判定成立（g19 双写 + 9/5 gate 正确延期），并补其未覆盖的"文件状态可观测性空白"
 - 9/5 profit-engine-completion-audit（w-8366e526）：M0-M8 盈利引擎完成度——本报告聚焦 L1-L4 Autonomy 线，互不重复
 
 ## 六、总判
 
-Autonomy 线代码**无现存假实现壳**（4 处历史占位均已修复留痕）；L1-L4 主体为真实实现且有运行证据。**但自动化进化闭环存在 1 处实质断点（G1 candidate 双轨脱节）**：工具本体都真，轨没对齐 = "半通"而非"假"——进化候选（g19）与裁决入口（candidates.json）各走各的，验证门对 agent 直写轨候选实际空转。这与"引擎进化每周一轮"的设计目标不符，属交付前需修复项。
+Autonomy 线代码**无现存假实现壳、无断链**：4 处历史占位均已修复留痕；L1-L4 主体真实实现且有运行证据；进化闭环（蒸馏→registerCandidate 双写→gate 裁决）端到端工作——g19 双写同秒、gate 9/5 正确延期，9/13 观察期满应正常裁决。
+
+**真实缺陷在可观测性层而非功能层**：genome/candidates 等关键状态存本地文件 + 独立 git，业务 DB 无表无错误通道——状态漂移/孤儿残留不产生任何 DB 错误，只能人工审计发现（本次审计即被 8/25 孤儿副本误导出错误结论后人工核对路径纠回）。修复优先级：F2 孤儿清理（顺手可做）> F1 可观测性哨兵（建议项）。
