@@ -1,3 +1,24 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_10_5 = 10.5
+
+CONST_1000000 = 1000000
+
+
+
+CONST_10_5 = 10.5
+
+CONST_1000000 = 1000000
+
+
+
 """
 条件监控服务 - ORM版本
 基于规则表达式监控市场、持仓、策略等条件，触发自动化任务

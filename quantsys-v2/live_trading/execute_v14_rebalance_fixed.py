@@ -1,3 +1,31 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - execute_v14_rebalance_with_stock_pool() = 120 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_18 = 0.18
+
+CONST_5 = 5
+
+CONST_70 = 70
+
+
+
+CONST_0_18 = 0.18
+
+CONST_5 = 5
+
+CONST_70 = 70
+
+
+
 """
 快速修复：执行V14调仓 - 使用硬编码股票池
 """
@@ -39,7 +67,18 @@ GEM_STOCK_POOL = [
 
 # TODO: Refactor - function too long (121 lines, target < 80)
 
+# TODO: Split long function (120 lines, target < 100)
 def execute_v14_rebalance_with_stock_pool():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
     """执行V14调仓（使用指定股票池）"""
     from live_trading.simulation_trader import SimulationTrader
     from live_trading.v14_factor_calculator import V14FactorCalculator

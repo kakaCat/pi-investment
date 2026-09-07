@@ -1,3 +1,27 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_0_25 = 0.25
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_5_0 = 5.0
+
+CONST_6 = 6
+
+CONST_10000_0 = 10000.0
+
+
+
 """
 利率衍生品定价模块
 ==================
@@ -64,6 +88,10 @@ class RateDerivativesCalculator(BaseCalculator):
     # TODO: Refactor - function too long (101 lines, target < 80)
 
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
                   notional: float,
                   forward_rate_or_rates: Any,
                   strike: float,

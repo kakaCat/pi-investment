@@ -1,5 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 118 lines
+
 
 # TODO: Extract magic numbers to named constants: [1e-12, 1e-10, 1e-06, 0.001, 0.04]...
+
+
+# Extracted Constants
+
+CONST_1eNEG_12 = 1e-12
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_1eNEG_06 = 1e-06
+
+CONST_0_001 = 0.001
+
+CONST_0_04 = 0.04
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_0_99 = 0.99
+
+
 
 """
 随机波动率模型模块
@@ -61,7 +92,12 @@ class StochasticVolCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (119 lines, target < 80)
 
+# TODO: Split long function (118 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
                   S: float,
                   K: float,
                   T: float,

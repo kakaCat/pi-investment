@@ -1,4 +1,40 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - main() = 118 lines
+
 #!/usr/bin/env python3
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_4 = 4
+
+CONST_60 = 60
+
+CONST_80 = 80
+
+CONST_5432 = 5432
+
+
+
+CONST_0_5 = 0.5
+
+CONST_4 = 4
+
+CONST_60 = 60
+
+CONST_80 = 80
+
+CONST_5432 = 5432
+
+
+
 """
 智能修复volume数据 - 只修复活跃股票
 
@@ -84,7 +120,18 @@ def fix_symbol_volume(db: Database, fetcher: KlineFetcher, symbol: str, earliest
 
 # TODO: Refactor - function too long (119 lines, target < 80)
 
+# TODO: Split long function (118 lines, target < 100)
 def main():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
     print("=" * 80)
     print("智能修复volume数据（仅活跃股票）")
     print("=" * 80)

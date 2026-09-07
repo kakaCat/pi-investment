@@ -1,3 +1,56 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - check_data_quality() = 162 lines
+#   - backfill_missing_data() = 105 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_3_0 = 3.0
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_80_0 = 80.0
+
+CONST_90_0 = 90.0
+
+CONST_95_0 = 95.0
+
+CONST_99_5 = 99.5
+
+
+
+CONST_3_0 = 3.0
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_80_0 = 80.0
+
+CONST_90_0 = 90.0
+
+CONST_95_0 = 95.0
+
+CONST_99_5 = 99.5
+
+
+
 """
 数据质量管理服务
 
@@ -62,7 +115,20 @@ class DataQualityService:
 
     # TODO: Refactor - function too long (163 lines, target < 80)
 
+# TODO: Split long function (162 lines, target < 100)
     def check_data_quality(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
         self,
         symbols: Optional[List[str]] = None,
         start_date: Optional[str] = None,
@@ -276,7 +342,16 @@ class DataQualityService:
 # TODO: Refactor - function too long (106 lines, target < 80)
 
 
+# TODO: Split long function (105 lines, target < 100)
     def backfill_missing_data(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         symbols: Optional[List[str]] = None,
         start_date: Optional[str] = None,

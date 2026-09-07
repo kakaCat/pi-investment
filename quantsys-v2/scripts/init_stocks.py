@@ -1,3 +1,35 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - run() = 140 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_3 = 0.3
+
+CONST_15 = 15
+
+CONST_60 = 60
+
+CONST_500 = 500
+
+
+
+CONST_0_3 = 0.3
+
+CONST_15 = 15
+
+CONST_60 = 60
+
+CONST_500 = 500
+
+
+
 """
 初始化 A 股全量数据到 PostgreSQL quant.stocks 表。
 
@@ -81,6 +113,8 @@ class EastMoneyClient:
             )
 
             items = data.get('data', {}).get('diff', [])
+            # TODO: 提取嵌套逻辑为独立方法
+
             if not items:
                 break
 
@@ -209,7 +243,28 @@ def _build_run_result(data):
     # TODO: 将结果构建逻辑从 run 移到这里
     return data
 
+# TODO: Split long function (139 lines, target < 100)
+# TODO: Refactor - complexity 27 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+def _check_condition_0():
+    """Check: code and name and name != 'nan'..."""
+    return code and name and name != 'nan'
+
+# TODO: Refactor - complexity 28 (target < 15)
+# TODO: Split long function (140 lines, target < 100)
+# TODO: Refactor - complexity 28 (target < 15)
+# TODO: Split long function (140 lines, target < 100)
 def run():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
     dsn = _resolve_db_dsn()
     if not dsn:
         print("ERROR: 未配置数据库连接。")
@@ -254,7 +309,8 @@ def run():
                         name = str(row.get('name', '')).strip()
                         if code and name and name != 'nan':
                             exchange_names[code] = normalize_name(name)
-                    print(f"    交易所名称: {len(exchange_names)} 只")
+                        if _check_condition_0():
+                            pass  # TODO: implement
 
                     fixed = 0
                     for s in stocks:

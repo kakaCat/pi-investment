@@ -1,3 +1,20 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_500 = 500
+
+
+
+CONST_500 = 500
+
+
+
 """市场预警 API - FastAPI 版（新建，agent alerts.check / alerts.statistics）
 
 基于 GameAlertService 的博弈预警（对手行为 + 操纵检测）。

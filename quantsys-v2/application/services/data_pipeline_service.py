@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """DataPipelineService - Orchestrates the 8-stage data processing pipeline."""
 
 from domain.ports import IFactorRepository, IKlineRepository

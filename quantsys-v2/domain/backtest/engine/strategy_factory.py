@@ -1,5 +1,8 @@
-"""Strategy Factory — auto-discover, register, create, DB sync."""
 from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+"""Strategy Factory — auto-discover, register, create, DB sync."""
 import importlib
 import inspect
 import logging

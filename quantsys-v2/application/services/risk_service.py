@@ -1,3 +1,52 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_02 = 0.02
+
+CONST_0_2 = 0.2
+
+CONST_0_88 = 0.88
+
+CONST_0_9 = 0.9
+
+CONST_0_92 = 0.92
+
+CONST_8_0 = 8.0
+
+CONST_999 = 999
+
+CONST_500000 = 500000
+
+CONST_1000000 = 1000000
+
+
+
+CONST_0_02 = 0.02
+
+CONST_0_2 = 0.2
+
+CONST_0_88 = 0.88
+
+CONST_0_9 = 0.9
+
+CONST_0_92 = 0.92
+
+CONST_8_0 = 8.0
+
+CONST_999 = 999
+
+CONST_500000 = 500000
+
+CONST_1000000 = 1000000
+
+
+
 """
 风控服务 - v2 原生实现
 提供交易风控检查、仓位计算、止损计算等功能

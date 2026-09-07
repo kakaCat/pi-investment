@@ -1,3 +1,13 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+
+
 """线段识别器 - 识别线段
 
 ⚠️ DEPRECATED（2026-08-05）：该"3笔交替"简化规则已证退化——笔天然交替，

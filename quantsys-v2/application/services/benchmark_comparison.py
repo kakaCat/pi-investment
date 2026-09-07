@@ -1,3 +1,33 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_252 = 252
+
+
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_252 = 252
+
+
+
 """
 基准对比计算（沪深300）
 
@@ -7,7 +37,6 @@
 单位契约：所有收益率字段均为小数比率（0.0123 = 1.23%），
 与后端 profit_total_rate / cumulative_return 口径一致；展示层负责 ×100。
 """
-from __future__ import annotations
 
 import logging
 import math
@@ -55,6 +84,9 @@ def _build_compute_benchmark_comparison_result(data):
     # TODO: 将结果构建逻辑从 compute_benchmark_comparison 移到这里
     return data
 
+# TODO: Refactor - complexity 16 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 16 (target < 15)
 def compute_benchmark_comparison(
     account_series: AccountSeries,
     benchmark_klines: BenchmarkKlines,

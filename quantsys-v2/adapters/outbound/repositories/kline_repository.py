@@ -1,3 +1,56 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_15 = 15
+
+CONST_30 = 30
+
+CONST_40 = 40
+
+CONST_120 = 120
+
+CONST_365 = 365
+
+CONST_500 = 500
+
+CONST_999 = 999
+
+
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_15 = 15
+
+CONST_30 = 30
+
+CONST_40 = 40
+
+CONST_120 = 120
+
+CONST_365 = 365
+
+CONST_500 = 500
+
+CONST_999 = 999
+
+
+
 """
 K线数据ORM Repository
 
@@ -70,6 +123,8 @@ def _rows_to_df(rows: list, schema: dict) -> pl.DataFrame:
 
 # TODO: Refactor - class too large (29 methods, target < 15)
 
+# TODO: Refactor large class (29 methods, target < 20)
+# TODO: Refactor large class (29 methods, target < 20)
 class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
     """K线ORM Repository
 

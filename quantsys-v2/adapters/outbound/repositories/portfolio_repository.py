@@ -1,3 +1,20 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_7 = 7
+
+
+
+CONST_7 = 7
+
+
+
 """
 持仓ORM Repository
 
@@ -28,6 +45,8 @@ __all__ = ['PortfolioORMRepository']
 
 # TODO: Refactor - class too large (39 methods, target < 15)
 
+# TODO: Refactor large class (39 methods, target < 20)
+# TODO: Refactor large class (39 methods, target < 20)
 class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepository):
     """持仓ORM Repository
 

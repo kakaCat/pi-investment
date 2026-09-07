@@ -1,3 +1,51 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - create_order() = 197 lines
+#   - fill_order() = 117 lines
+#   - _update_position_on_buy() = 105 lines
+#   - _update_position_on_sell() = 101 lines
+#   - create_bracket_order() = 127 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_0003 = 0.0003
+
+CONST_0_001 = 0.001
+
+CONST_4 = 4
+
+CONST_7 = 7
+
+CONST_50 = 50
+
+CONST_500000 = 500000
+
+CONST_1000000 = 1000000
+
+
+
+CONST_0_0003 = 0.0003
+
+CONST_0_001 = 0.001
+
+CONST_4 = 4
+
+CONST_7 = 7
+
+CONST_50 = 50
+
+CONST_500000 = 500000
+
+CONST_1000000 = 1000000
+
+
+
 """
 订单生命周期管理服务 [DEPRECATED - 内部实现]
 
@@ -40,7 +88,29 @@ def _build_create_order_result(data):
     # TODO: 将结果构建逻辑从 create_order 移到这里
     return data
 
+# TODO: Split long function (197 lines, target < 100)
+# TODO: Refactor - complexity 29 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 29 (target < 15)
+# TODO: Split long function (197 lines, target < 100)
+# TODO: Refactor - complexity 29 (target < 15)
+# TODO: Split long function (197 lines, target < 100)
 def create_order(
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 8 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
     symbol: str,
     action: str,
     order_type: str,
@@ -177,6 +247,8 @@ def create_order(
                 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
                 sim_repo = SimulationORMRepository()
                 position = sim_repo.get_position(account_name, symbol)
+                # TODO: 提取嵌套逻辑为独立方法
+
                 if position is not None:
                     # T+1 可卖数量：当日买入的 shares_available=0，次日才可卖
                     available_quantity = int(position.shares_available or 0)
@@ -259,7 +331,22 @@ def _build_fill_order_result(data):
     # TODO: 将结果构建逻辑从 fill_order 移到这里
     return data
 
+# TODO: Split long function (117 lines, target < 100)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 16 (target < 15)
+# TODO: Split long function (117 lines, target < 100)
+# TODO: Refactor - complexity 16 (target < 15)
+# TODO: Split long function (117 lines, target < 100)
 def fill_order(
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     order_id: int,
     fill_price: float,
     fill_quantity: int = None,
@@ -449,7 +536,16 @@ def expire_orders(portfolio_repo: Optional[IPortfolioRepository] = None) -> int:
 
 
 
+# TODO: Split long function (105 lines, target < 100)
 def _update_position_on_buy(order: Dict, fill_price: float, fill_quantity: int, portfolio_repo: Optional[IPortfolioRepository] = None):
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """
     买入成交后更新持仓（新增或加仓）
 
@@ -557,7 +653,16 @@ def _update_position_on_buy(order: Dict, fill_price: float, fill_quantity: int, 
     logger.info(f"持仓已更新（legacy）: {symbol} {'加仓' if existing else '建仓'} {fill_quantity}股 @ {fill_price}")
 
 
+# TODO: Split long function (101 lines, target < 100)
 def _update_position_on_sell(order: Dict, fill_price: float, fill_quantity: int, portfolio_repo: Optional[IPortfolioRepository] = None):
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """
     卖出成交后更新持仓（减仓或清仓）
 
@@ -662,6 +767,14 @@ def _update_position_on_sell(order: Dict, fill_price: float, fill_quantity: int,
 
 
 def _update_signal_tracking(signal_id: int, action: str, fill_price: float, symbol: str, perf_repo=None):
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """
     更新信号追踪记录（signal_test_log 和 strategy_performance）
 
@@ -970,7 +1083,18 @@ def get_state_history(order_id: str, portfolio_repo: Optional[IPortfolioReposito
     return history
 
 
+# TODO: Split long function (127 lines, target < 100)
 def create_bracket_order(
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
     symbol: str,
     action: str,
     quantity: float,
@@ -1100,7 +1224,17 @@ def create_bracket_order(
     return [entry_order_id, tp_order_id, sl_order_id]
 
 
+# TODO: Split long function (119 lines, target < 100)
 def create_order_from_signal(
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     signal: dict,
     symbol: str,
     order_type: str = 'limit',

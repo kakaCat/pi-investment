@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - compare_models() = 162 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.05, 0.08, 0.12, 0.15, 0.5]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_08 = 0.08
+
+CONST_0_12 = 0.12
+
+CONST_0_15 = 0.15
+
+CONST_0_5 = 0.5
+
+CONST_0_8 = 0.8
+
+CONST_5 = 5
+
+CONST_68 = 68
+
+CONST_80 = 80
+
+CONST_200 = 200
+
+
+
+CONST_0_05 = 0.05
+
+CONST_0_08 = 0.08
+
+CONST_0_12 = 0.12
+
+CONST_0_15 = 0.15
+
+CONST_0_5 = 0.5
+
+CONST_0_8 = 0.8
+
+CONST_5 = 5
+
+CONST_68 = 68
+
+CONST_80 = 80
+
+CONST_200 = 200
+
+
 
 """
 V13 vs V14 模型对比工具
@@ -30,7 +86,20 @@ def load_model_info(version):
 
 # TODO: Refactor - function too long (163 lines, target < 80)
 
+# TODO: Split long function (162 lines, target < 100)
 def compare_models():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
     """对比V13和V14模型"""
 
     print("\n" + "="*80)

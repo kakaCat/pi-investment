@@ -1,5 +1,33 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [1e-06, 0.04, 0.05, 0.2, 0.3]...
+
+
+# Extracted Constants
+
+CONST_1eNEG_06 = 1e-06
+
+CONST_0_04 = 0.04
+
+CONST_0_05 = 0.05
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_1_3 = 1.3
+
+CONST_1_5 = 1.5
+
+CONST_1_7 = 1.7
+
+
 
 """
 期权策略分析模块

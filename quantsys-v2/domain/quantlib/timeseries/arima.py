@@ -1,3 +1,33 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - fit() = 166 lines
+#   - forecast() = 113 lines
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_95 = 0.95
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_12 = 12
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+
+
 """
 ARIMA Time Series Modeling Module
 ==================================
@@ -105,7 +135,20 @@ class ARIMACalculator(BaseCalculator):
         # TODO: 将结果构建逻辑从 fit 移到这里
         return data
 
+# TODO: Split long function (166 lines, target < 100)
+# TODO: Refactor - complexity 17 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: Split long function (166 lines, target < 100)
+    # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: Split long function (166 lines, target < 100)
     def fit(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
         self,
         data: Union[List, np.ndarray, pd.Series],
         order: Tuple[int, int, int] = (1, 1, 1),
@@ -142,6 +185,8 @@ class ARIMACalculator(BaseCalculator):
         if isinstance(data, pd.Series):
             data_array = data.values
         elif isinstance(data, pd.DataFrame):
+            # TODO: 提取嵌套逻辑为独立方法
+
             if data.shape[1] != 1:
                 raise DataValidationError(
                     "DataFrame must have exactly one column",
@@ -277,7 +322,12 @@ class ARIMACalculator(BaseCalculator):
     # TODO: Refactor - function too long (114 lines, target < 80)
 
     @timing_decorator
+# TODO: Split long function (113 lines, target < 100)
     def forecast(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         fitted_result: Dict[str, Any],
         data: Union[List, np.ndarray, pd.Series],

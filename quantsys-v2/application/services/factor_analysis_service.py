@@ -1,3 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate_monotonicity() = 112 lines
+#   - generate_report_html() = 109 lines
+#   - _create_html_report() = 151 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_35 = 0.35
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_8 = 0.8
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_8 = 8
+
+CONST_14 = 14
+
+
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_35 = 0.35
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_8 = 0.8
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_8 = 8
+
+CONST_14 = 14
+
+
+
 """
 因子分析服务 - 基于 alphalens-reloaded
 提供专业的因子有效性分析
@@ -390,7 +448,16 @@ class FactorAnalysisService:
 
     # TODO: Refactor - function too long (113 lines, target < 80)
 
+# TODO: Split long function (112 lines, target < 100)
     def calculate_monotonicity(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         factor_data: pd.DataFrame,
         quantiles: int = 5
@@ -590,7 +657,16 @@ class FactorAnalysisService:
 # TODO: Refactor - function too long (110 lines, target < 80)
 
 
+# TODO: Split long function (109 lines, target < 100)
     def generate_report_html(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         factor_data: pd.DataFrame,
         factor_name: str = "Factor",
@@ -712,7 +788,20 @@ class FactorAnalysisService:
 
         return img_str
 
+# TODO: Split long function (151 lines, target < 100)
     def _create_html_report(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
         self,
         factor_name: str,
         figures: List[Tuple[str, str]],

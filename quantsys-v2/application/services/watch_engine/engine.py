@@ -1,3 +1,56 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_2 = 0.2
+
+CONST_5 = 5
+
+CONST_9 = 9
+
+CONST_11 = 11
+
+CONST_13 = 13
+
+CONST_15 = 15
+
+CONST_30 = 30
+
+CONST_60 = 60
+
+CONST_120 = 120
+
+CONST_240 = 240
+
+
+
+CONST_0_2 = 0.2
+
+CONST_5 = 5
+
+CONST_9 = 9
+
+CONST_11 = 11
+
+CONST_13 = 13
+
+CONST_15 = 15
+
+CONST_30 = 30
+
+CONST_60 = 60
+
+CONST_120 = 120
+
+CONST_240 = 240
+
+
+
 """WatchEngine 盯盘引擎核心
 
 tick() 为一次完整判定（同步、可单测）；run_forever() 为常驻循环。

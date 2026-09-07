@@ -1,3 +1,27 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_025 = 0.025
+
+CONST_0_03 = 0.03
+
+CONST_0_1 = 0.1
+
+CONST_0_2 = 0.2
+
+CONST_0_95 = 0.95
+
+CONST_20 = 20
+
+CONST_252 = 252
+
+CONST_1000000 = 1000000
+
+
+
 """
 风险监控服务 - Team A
 实时风险指标监控和告警

@@ -1,3 +1,32 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_65 = 0.65
+
+CONST_0_8 = 0.8
+
+
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_65 = 0.65
+
+CONST_0_8 = 0.8
+
+
+
 """
 ML置信过滤层
 

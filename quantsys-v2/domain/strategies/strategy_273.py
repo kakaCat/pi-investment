@@ -1,3 +1,29 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_1_005 = 1.005
+
+CONST_1_2 = 1.2
+
+CONST_1_5 = 1.5
+
+CONST_5 = 5
+
+CONST_50 = 50
+
+CONST_60 = 60
+
+CONST_70 = 70
+
+CONST_273 = 273
+
+
+
 """
 策略273：宽松动量策略 v1.0（规则版）
 

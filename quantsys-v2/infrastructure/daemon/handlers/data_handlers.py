@@ -1,3 +1,19 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_4 = 4
+
+CONST_6 = 6
+
+CONST_8 = 8
+
+CONST_20 = 20
+
+
+
 """L1 Data Layer handlers."""
 import json
 from typing import Any, Dict

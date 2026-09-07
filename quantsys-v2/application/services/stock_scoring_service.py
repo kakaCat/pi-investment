@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.05, 0.1, 0.15, 0.2, 0.3]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+
 
 """
 股票综合评分服务
@@ -17,6 +70,7 @@ from datetime import datetime
 logger = structlog.get_logger(__name__)
 
 
+# TODO: Refactor large class (28 methods, target < 20)
 class StockScoringService:
     """股票评分服务"""
 
@@ -59,6 +113,8 @@ class StockScoringService:
         try:
             # 1. 获取股票基本信息
             stock_info = self.stock_repo.get_by_symbol(symbol)
+            # TODO: 提取嵌套逻辑为独立方法
+
             if not stock_info:
                 return {'error': f'股票 {symbol} 不存在'}
 
@@ -145,6 +201,7 @@ class StockScoringService:
         # TODO: 将结果构建逻辑从 _calculate_technical_score 移到这里
         return data
 
+    # TODO: Refactor - complexity 26 (target < 15)
     def _calculate_technical_score(self, factors: Dict) -> float:
         """
         技术面评分 (0-100)
@@ -252,6 +309,7 @@ class StockScoringService:
         # TODO: 将结果构建逻辑从 _calculate_fundamental_score 移到这里
         return data
 
+    # TODO: Refactor - complexity 22 (target < 15)
     def _calculate_fundamental_score(self, factors: Dict) -> float:
         """
         基本面评分 (0-100)
@@ -350,6 +408,7 @@ class StockScoringService:
         # TODO: 将结果构建逻辑从 _calculate_momentum_score 移到这里
         return data
 
+    # TODO: Refactor - complexity 17 (target < 15)
     def _calculate_momentum_score(self, factors: Dict) -> float:
         """
         动量评分 (0-100)

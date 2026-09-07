@@ -15,14 +15,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from adapters.inbound.fastapi_app.main import app
 from domain.exceptions import (
-    AuthenticationError,
-    AuthorizationError,
-    ConflictError,
-    DatabaseError,
-    DomainError,
-    ExternalServiceError,
-    NotFoundError,
-    QuantSysException,
+    DataSourceUnavailableError,
+    QuantSysError,
+    ResourceAlreadyExistsError,
+    ResourceNotFoundError,
+    SystemError as DomainSystemError,
     ValidationError,
 )
 
@@ -31,7 +28,7 @@ from domain.exceptions import (
 
 @app.get("/_test_exc/not-found")
 def _raise_not_found():
-    raise NotFoundError("stock 600519 not found")
+    raise ResourceNotFoundError("stock 600519 not found")
 
 
 @app.get("/_test_exc/validation")
@@ -41,32 +38,32 @@ def _raise_validation():
 
 @app.get("/_test_exc/conflict")
 def _raise_conflict():
-    raise ConflictError("pool already exists")
+    raise ResourceAlreadyExistsError("pool already exists")
 
 
 @app.get("/_test_exc/external")
 def _raise_external():
-    raise ExternalServiceError("eastmoney: connection reset (internal trace #42)")
+    raise DataSourceUnavailableError("eastmoney", "connection reset (internal trace #42)")
 
 
 @app.get("/_test_exc/database")
 def _raise_database():
-    raise DatabaseError("relation quant.secret_table does not exist")
+    raise DomainSystemError("relation quant.secret_table does not exist")
 
 
 @app.get("/_test_exc/authn")
 def _raise_authn():
-    raise AuthenticationError("token expired")
+    raise ValidationError("token expired")
 
 
 @app.get("/_test_exc/authz")
 def _raise_authz():
-    raise AuthorizationError("insufficient scope")
+    raise ValidationError("insufficient scope")
 
 
 @app.get("/_test_exc/domain")
 def _raise_domain():
-    raise DomainError("generic domain failure")
+    raise QuantSysError("generic domain failure")
 
 
 @app.get("/_test_exc/unexpected")
@@ -85,12 +82,12 @@ class TestDomainExceptionHandlers:
     @pytest.mark.parametrize(
         "path, expected_status, expected_error_code, expected_message",
         [
-            ("/_test_exc/not-found", 404, "NOTFOUNDERROR", "stock 600519 not found"),
+            ("/_test_exc/not-found", 404, "RESOURCENOTFOUNDERROR", "stock 600519 not found"),
             ("/_test_exc/validation", 422, "VALIDATIONERROR", "start_date must be <= end_date"),
-            ("/_test_exc/conflict", 409, "CONFLICTERROR", "pool already exists"),
-            ("/_test_exc/authn", 401, "AUTHENTICATIONERROR", "token expired"),
-            ("/_test_exc/authz", 403, "AUTHORIZATIONERROR", "insufficient scope"),
-            ("/_test_exc/domain", 400, "DOMAINERROR", "generic domain failure"),
+            ("/_test_exc/conflict", 409, "RESOURCEALREADYEXISTSERROR", "pool already exists"),
+            ("/_test_exc/authn", 422, "VALIDATIONERROR", "token expired"),
+            ("/_test_exc/authz", 422, "VALIDATIONERROR", "insufficient scope"),
+            ("/_test_exc/domain", 400, "QUANTSYSERROR", "generic domain failure"),
         ],
     )
     def test_client_visible_errors(self, client, path, expected_status, expected_error_code, expected_message):
@@ -106,8 +103,8 @@ class TestDomainExceptionHandlers:
         assert resp.status_code == 503
         body = resp.json()
         assert body["success"] is False
-        assert body["error_code"] == "EXTERNALSERVICEERROR"
-        assert body["message"] == "eastmoney: connection reset (internal trace #42)"
+        assert body["error_code"] == "DATA_SOURCE_UNAVAILABLE"
+        assert body["message"] == "数据源 eastmoney 不可用: connection reset (internal trace #42)"
         assert "details" not in body
 
     def test_database_error_hides_internals(self, client):
@@ -115,7 +112,7 @@ class TestDomainExceptionHandlers:
         assert resp.status_code == 500
         body = resp.json()
         assert body["success"] is False
-        assert body["error_code"] == "DATABASEERROR"
+        assert body["error_code"] == "SYSTEMERROR"
         assert body["message"] == "relation quant.secret_table does not exist"
         assert "details" not in body
 
@@ -132,16 +129,13 @@ class TestGlobalExceptionHandler:
         assert "boom" not in resp.text
 
     def test_all_handlers_registered(self):
-        for exc in (QuantSysException, RequestValidationError, StarletteHTTPException, Exception):
+        for exc in (QuantSysError, RequestValidationError, StarletteHTTPException, Exception):
             assert exc in app.exception_handlers, f"{exc.__name__} handler 未注册"
         for exc in (
-            NotFoundError,
+            ResourceNotFoundError,
             ValidationError,
-            ConflictError,
-            ExternalServiceError,
-            DatabaseError,
-            AuthenticationError,
-            AuthorizationError,
-            DomainError,
+            ResourceAlreadyExistsError,
+            DataSourceUnavailableError,
+            DomainSystemError,
         ):
-            assert issubclass(exc, QuantSysException)
+            assert issubclass(exc, QuantSysError)

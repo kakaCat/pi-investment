@@ -1,3 +1,7 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """
 V13 strategy use case — application-level orchestration.
 
@@ -17,7 +21,6 @@ Daily workflow (:meth:`XGBoostStrategyUseCase.execute`):
     6. Persist the decision to the ``audit_log`` table (best effort).
     7. Return the result dict.
 """
-from __future__ import annotations
 
 import json
 import logging

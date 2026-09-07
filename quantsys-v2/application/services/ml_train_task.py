@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - handle_model_train_auto() = 152 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.01, 0.2, 0.52, 0.55, 4]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_0_2 = 0.2
+
+CONST_0_52 = 0.52
+
+CONST_0_55 = 0.55
+
+CONST_4 = 4
+
+CONST_7 = 7
+
+CONST_20 = 20
+
+CONST_42 = 42
+
+CONST_50 = 50
+
+CONST_350 = 350
+
+
+
+CONST_0_01 = 0.01
+
+CONST_0_2 = 0.2
+
+CONST_0_52 = 0.52
+
+CONST_0_55 = 0.55
+
+CONST_4 = 4
+
+CONST_7 = 7
+
+CONST_20 = 20
+
+CONST_42 = 42
+
+CONST_50 = 50
+
+CONST_350 = 350
+
+
 
 """
 模型训练自动化任务
@@ -23,7 +79,20 @@ logger = structlog.get_logger(__name__)
 
 # TODO: Refactor - function too long (153 lines, target < 80)
 
+# TODO: Split long function (152 lines, target < 100)
 def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
     """
     自动化模型训练任务
     

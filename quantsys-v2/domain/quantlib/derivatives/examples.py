@@ -1,3 +1,29 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_2 = 0.2
+
+CONST_10_45 = 10.45
+
+CONST_42 = 42
+
+CONST_60 = 60
+
+CONST_90 = 90
+
+CONST_200 = 200
+
+CONST_10000 = 10000
+
+CONST_50000 = 50000
+
+
+
 """
 Derivatives Pricing Module - Usage Examples
 ============================================

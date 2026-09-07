@@ -1,5 +1,23 @@
-"""Mixin providing indicator calculation via IndicatorManager."""
 from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_9 = 9
+
+CONST_12 = 12
+
+CONST_14 = 14
+
+CONST_20 = 20
+
+CONST_26 = 26
+
+
+
+"""Mixin providing indicator calculation via IndicatorManager."""
 from typing import Any
 
 from domain.backtest.engine.indicators.indicator_manager import IndicatorManager

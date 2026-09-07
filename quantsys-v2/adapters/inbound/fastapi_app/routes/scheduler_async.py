@@ -1,3 +1,52 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_12 = 12
+
+CONST_20 = 20
+
+CONST_60 = 60
+
+CONST_201 = 201
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_409 = 409
+
+CONST_500 = 500
+
+CONST_3600 = 3600
+
+
+
+CONST_12 = 12
+
+CONST_20 = 20
+
+CONST_60 = 60
+
+CONST_201 = 201
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_409 = 409
+
+CONST_500 = 500
+
+CONST_3600 = 3600
+
+
+
 """调度器 API - FastAPI 版（从 Flask scheduler.py 迁移，响应契约保持一致）
 
 复用同一 SchedulerService(ds) 单例与全部辅助函数，paginate 用 FastAPI Query 参数实现。
@@ -63,6 +112,8 @@ def _list_visible_tasks(limit: int, offset: int) -> Tuple[List[Dict[str, Any]], 
         if not batch:
             break
         for task in batch:
+            # TODO: 提取嵌套逻辑为独立方法
+
             if _is_deleted_task(task):
                 visible_total -= 1
                 continue
@@ -244,6 +295,9 @@ def _build_update_scheduler_task_result(data):
     # TODO: 将结果构建逻辑从 update_scheduler_task 移到这里
     return data
 
+# TODO: Refactor - complexity 16 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 16 (target < 15)
 def update_scheduler_task(task_id: str, payload: Optional[Dict[str, Any]] = Body(None)):
     if not payload:
         return error_response({'success': False, 'error': 'Request body is required'}, 400)

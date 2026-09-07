@@ -1,5 +1,15 @@
-"""Config-Driven Strategy — database-defined, no code file needed."""
 from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+
+
+"""Config-Driven Strategy — database-defined, no code file needed."""
 from typing import Any
 
 from domain.backtest.engine.enhanced_strategy_base import EnhancedStrategyBase

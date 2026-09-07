@@ -1,5 +1,64 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - train_model() = 108 lines
+#   - rebalance() = 111 lines
+#   - _execute_trades_with_risk_control() = 162 lines
+#   - _execute_trades() = 147 lines
+
 
 # TODO: Extract magic numbers to named constants: [1e-10, 0.005, 0.01, 0.05, 0.5]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_005 = 0.005
+
+CONST_0_01 = 0.01
+
+CONST_0_05 = 0.05
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+CONST_5 = 5
+
+CONST_7 = 7
+
+CONST_8 = 8
+
+
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_005 = 0.005
+
+CONST_0_01 = 0.01
+
+CONST_0_05 = 0.05
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+CONST_5 = 5
+
+CONST_7 = 7
+
+CONST_8 = 8
+
+
 
 """
 V13策略模拟交易系统 - 主执行脚本（完整版）
@@ -92,6 +151,8 @@ def judge_trading_day(day, *, kline_exists_on_date, latest_kline_date, today):
 
 # TODO: Refactor - class too large (28 methods, target < 15)
 
+# TODO: Refactor large class (28 methods, target < 20)
+# TODO: Refactor large class (28 methods, target < 20)
 class SimulationTrader:
     """V13策略模拟交易器（使用数据库持久化）"""
 
@@ -99,6 +160,8 @@ class SimulationTrader:
     def _sanitize_float(value):
         """清理浮点数：将 NaN/Inf 转换为 None，避免 JSON 序列化错误"""
         if isinstance(value, (int, float)):
+            # TODO: 提取嵌套逻辑为独立方法
+
             if math.isnan(value) or math.isinf(value):
                 return None
         return value
@@ -545,7 +608,16 @@ class SimulationTrader:
 
     # TODO: Refactor - function too long (109 lines, target < 80)
 
+# TODO: Split long function (108 lines, target < 100)
     def train_model(self, train_start='2025-06-01', train_end='2026-06-01', stock_limit=200, ic_threshold=0.005, xgb_params=None):
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """
         训练模型
 
@@ -870,7 +942,16 @@ class SimulationTrader:
 # TODO: Refactor - function too long (112 lines, target < 80)
 
 
+# TODO: Split long function (111 lines, target < 100)
     def rebalance(self, current_date):
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """执行调仓"""
         logger.info("\n" + "="*60)
         logger.info(f"开始调仓流程 (账户: {self.account_name})")
@@ -1013,7 +1094,20 @@ class SimulationTrader:
 
         return self.cash + portfolio_value
 
+# TODO: Split long function (162 lines, target < 100)
     def _execute_trades_with_risk_control(self, target_symbols, weights, position_scale, date):
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
         """执行交易（使用风险控制权重）"""
         target_symbols_set = set(target_symbols)
 
@@ -1276,7 +1370,19 @@ class SimulationTrader:
 
         return 1.0
 
+# TODO: Split long function (147 lines, target < 100)
     def _execute_trades(self, top5, position_scale, date):
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         """执行交易（旧方法，保留兼容性）"""
         target_symbols = set(top5['symbol'].tolist())
         target_weight = self.config['strategy']['position_weight'] * position_scale
@@ -1502,7 +1608,23 @@ def _build_main_result(data):
     # TODO: 将结果构建逻辑从 main 移到这里
     return data
 
+# TODO: Refactor - complexity 18 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 18 (target < 15)
 def main():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
     """主函数"""
     print("V13策略模拟交易系统（数据库版）")
     print("="*60)

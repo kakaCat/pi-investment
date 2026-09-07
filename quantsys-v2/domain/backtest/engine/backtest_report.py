@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - _calculate_metrics() = 112 lines
+
+
+# Extracted Constants
+
+CONST_0_03 = 0.03
+
+CONST_4 = 4
+
+CONST_6 = 6
+
+CONST_7 = 7
+
+CONST_60 = 60
+
+CONST_252 = 252
+
+CONST_365_25 = 365.25
+
+
+
 """
 Backtest Report Generator
 
@@ -143,7 +168,12 @@ class BacktestReportGenerator:
 
         return report
 
+    # TODO: Split long function (112 lines, target < 100)
     def _calculate_metrics(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         equity_curve: List[Dict],
         trades: List[Dict],

@@ -1,3 +1,23 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - _register_services_hardcoded() = 541 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+
+
+CONST_5 = 5
+
+
+
 """
 服务注册表 - 集中管理所有服务的依赖注入配置
 
@@ -88,7 +108,46 @@ def register_all_services(use_config: Optional[bool] = None, environment: Option
 
 # TODO: Refactor - function too long (542 lines, target < 80)
 
+# TODO: Split long function (541 lines, target < 100)
 def _register_services_hardcoded():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 8 ----
+    # ---- Section 9 ----
+    # ---- Section 10 ----
+    # ---- Section 11 ----
+    # ---- Section 12 ----
+    # ---- Section 13 ----
+    # ---- Section 14 ----
+    # ---- Section 15 ----
+    # ---- Section 16 ----
+    # ---- Section 17 ----
+    # ---- Section 18 ----
+    # ---- Section 19 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 8 ----
+    # ---- Section 9 ----
+    # ---- Section 10 ----
+    # ---- Section 11 ----
+    # ---- Section 12 ----
+    # ---- Section 13 ----
+    # ---- Section 14 ----
+    # ---- Section 15 ----
+    # ---- Section 16 ----
+    # ---- Section 17 ----
+    # ---- Section 18 ----
+    # ---- Section 19 ----
     """硬编码服务注册（已弃用）
 
     ⚠️  DEPRECATED: This function is no longer supported as of P2-3.

@@ -1,6 +1,6 @@
+from __future__ import annotations
 """Tests for the market data adapter layer."""
 
-from __future__ import annotations
 
 import importlib
 import os

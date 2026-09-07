@@ -1,5 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - detect_anomalies() = 103 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.05, 0.1, 0.15, 0.2, 0.3]...
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_1_5 = 1.5
+
+CONST_3_0 = 3.0
+
+CONST_5 = 5
+
+
 
 """
 Anomaly Detection Calculator
@@ -69,7 +100,12 @@ class AnomalyDetectionCalculator(BaseCalculator):
     @timing_decorator
     # TODO: Refactor - function too long (104 lines, target < 80)
 
+# TODO: Split long function (103 lines, target < 100)
     def detect_anomalies(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
                          data: Union[np.ndarray, pd.DataFrame],
                          method: str = 'isolation_forest',
                          contamination: float = 0.05,

@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 # v16-meta
 # ============================================================
 # 元策略：实时检测市场状态（强牛/弱牛/震荡/弱熊/强熊），
@@ -12,6 +15,56 @@
 # ============================================================
 
 # TODO: Extract magic numbers to named constants: [1e-10, 0.04, 0.05, 0.06, 0.07]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_04 = 0.04
+
+CONST_0_05 = 0.05
+
+CONST_0_06 = 0.06
+
+CONST_0_07 = 0.07
+
+CONST_0_08 = 0.08
+
+CONST_0_1 = 0.1
+
+CONST_0_12 = 0.12
+
+CONST_0_14 = 0.14
+
+CONST_0_15 = 0.15
+
+
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_04 = 0.04
+
+CONST_0_05 = 0.05
+
+CONST_0_06 = 0.06
+
+CONST_0_07 = 0.07
+
+CONST_0_08 = 0.08
+
+CONST_0_1 = 0.1
+
+CONST_0_12 = 0.12
+
+CONST_0_14 = 0.14
+
+CONST_0_15 = 0.15
+
+
 
 my_indicator_name = "v16-meta"
 my_indicator_description = "元策略：5状态市场识别（强牛/弱牛/震荡/弱熊/强熊）+自适应因子权重+自适应买卖阈值。牛市追趋势，熊市防御，震荡均衡。"

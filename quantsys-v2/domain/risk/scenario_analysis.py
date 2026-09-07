@@ -1,5 +1,37 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 101 lines
+#   - _define_historical_scenarios() = 141 lines
+
 
 # TODO: Extract magic numbers to named constants: [1e-06, 0.01, 0.02, 0.03, 0.04]...
+
+
+# Extracted Constants
+
+CONST_1eNEG_06 = 1e-06
+
+CONST_0_01 = 0.01
+
+CONST_0_02 = 0.02
+
+CONST_0_03 = 0.03
+
+CONST_0_04 = 0.04
+
+CONST_0_05 = 0.05
+
+CONST_0_08 = 0.08
+
+CONST_0_1 = 0.1
+
+CONST_0_12 = 0.12
+
+CONST_0_15 = 0.15
+
+
 
 """
 Scenario Analysis Calculator
@@ -115,7 +147,12 @@ class ScenarioAnalysisCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (102 lines, target < 80)
 
+# TODO: Split long function (101 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
                   portfolio: Union[Dict[str, float], pd.Series],
                   scenarios: Optional[List[MarketScenario]] = None,
                   risk_factors: Optional[Union[pd.DataFrame, np.ndarray]] = None,
@@ -410,7 +447,13 @@ class ScenarioAnalysisCalculator(BaseCalculator):
 # TODO: Refactor - function too long (142 lines, target < 80)
 
 
+# TODO: Split long function (141 lines, target < 100)
     def _define_historical_scenarios(self) -> List[MarketScenario]:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         """
         Define historical crisis scenarios.
         """

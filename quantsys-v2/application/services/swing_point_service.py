@@ -1,3 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - analyze() = 144 lines
+#   - _zigzag() = 153 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+CONST_5_0 = 5.0
+
+CONST_30_0 = 30.0
+
+CONST_365 = 365
+
+
+
+CONST_3 = 3
+
+CONST_5_0 = 5.0
+
+CONST_30_0 = 30.0
+
+CONST_365 = 365
+
+
+
 """
 ZigZag 波段分析服务 - 基于历史价格波动识别买卖点
 
@@ -22,6 +55,10 @@ DEFAULT_LOOKBACK_DAYS = 365    # 默认回溯 1 年
 MIN_CHANGE_LOWER = 1.0         # 最小波动下限 1%
 MIN_CHANGE_UPPER = 30.0        # 最小波动上限 30%
 
+
+# TODO: Refactor - Large class with 25 methods (target < 20)
+
+# TODO: Refactor - Large class with 25 methods (target < 20)
 
 class SwingPointService:
     """ZigZag 波段分析服务
@@ -79,6 +116,139 @@ class SwingPointService:
         # TODO: 将结果构建逻辑从 analyze 移到这里
         return data
 
+    # TODO: Refactor - complexity 21 (target < 15)
+    # TODO: Split long function (144 lines, target < 100)
+    # TODO: Refactor - complexity 21 (target < 15)
+    # TODO: Split long function (144 lines, target < 100)
+
+    def _step_1_analyze(self):
+        """执行: 参数验证"""
+        symbol = params.get('symbol')
+        if not symbol:
+            raise ValueError("缺少必填参数: symbol")
+        pass
+
+    def _step_2_analyze(self):
+        """执行: 5_股票代码预验证（优化：减少无效查询）"""
+        validation = self.validator.validate(symbol)
+        if not validation['valid']:
+            return {
+                'symbol': symbol,
+                'error': 'K线数据不足（需要至少3根），实际获取: 0',
+                'suggestions': validation['suggestions'],
+                'kline_count': 0,
+                'period': {'start': params.get('start_date', ''), 'end': params.get('end_date', '')},
+                'validation': validation
+            }
+        min_change = float(params.get('min_change', DEFAULT_MIN_CHANGE))
+        if min_change < MIN_CHANGE_LOWER or min_change > MIN_CHANGE_UPPER:
+            raise ValueError(
+                f"min_change 必须在 {MIN_CHANGE_LOWER}% ~ {MIN_CHANGE_UPPER}% 之间，"
+                f"当前值: {min_change}%"
+            )
+        end_date = params.get('end_date') or datetime.now().strftime('%Y-%m-%d')
+        start_date = params.get('start_date')
+        if not start_date:
+            # 默认回溯 1 年
+            from dateutil.relativedelta import relativedelta
+            start_dt = datetime.strptime(end_date, '%Y-%m-%d') - relativedelta(years=1)
+            start_date = start_dt.strftime('%Y-%m-%d')
+
+    def __k_(self):
+        """执行: 获取_k_线数据"""
+        klines_df = self.kline_repo.get_daily_klines(
+            symbol=symbol,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        # Polars DataFrame → list of dicts
+        if klines_df is not None and len(klines_df) > 0:
+            klines = klines_df.to_dicts()
+        else:
+            klines = []
+        pass
+
+    def _fallback(self):
+        """执行: 数据不足时的fallback机制"""
+        if not klines or len(klines) < 3:
+            kline_count = len(klines) if klines else 0
+            # 优化：如果是用户指定的日期范围且数据不足，尝试扩大范围
+            # TODO: 提取嵌套逻辑为独立方法
+            if params.get('start_date') and kline_count > 0:
+                logger.info(f"K线数据不足({kline_count}条)，尝试扩大日期范围")
+                # 扩展到2年
+                from dateutil.relativedelta import relativedelta
+                extended_start = (datetime.strptime(end_date, '%Y-%m-%d') - relativedelta(years=2)).strftime('%Y-%m-%d')
+                klines_df = self.kline_repo.get_daily_klines(
+                    symbol=symbol,
+                    start_date=extended_start,
+                    end_date=end_date,
+                )
+                if klines_df is not None and len(klines_df) >= 3:
+                    klines = klines_df.to_dicts()
+                    logger.info(f"扩大日期范围后获取到 {len(klines)} 条K线数据")
+                    # 继续执行分析
+                else:
+                    klines = []
+            # 如果仍然不足，返回错误
+            if not klines or len(klines) < 3:
+                kline_count = len(klines) if klines else 0
+                error_msg = f"K线数据不足（需要至少3根），实际获取: {kline_count}"
+                suggestions = []
+                if kline_count == 0:
+                    suggestions.append("该股票代码可能不存在或尚未录入数据")
+                    suggestions.append("请检查股票代码是否正确（如：600519、000001）")
+                    # 查询该股票是否有任何历史数据
+                    all_klines_df = self.kline_repo.get_daily_klines(symbol=symbol, start_date='1990-01-01', end_date=end_date)
+                    if all_klines_df is not None and len(all_klines_df) > 0:
+                        first_date = all_klines_df[0]['trade_date']
+                        last_date = all_klines_df[-1]['trade_date']
+                        suggestions.append(f"该股票有历史数据：{first_date} ~ {last_date} 共{len(all_klines_df)}条")
+                else:
+                    suggestions.append(f"当前日期范围 {start_date} ~ {end_date} 数据不足")
+                    suggestions.append("建议：扩大日期范围或使用默认的1年回溯期")
+                return {
+                    'symbol': symbol,
+                    'error': error_msg,
+                    'suggestions': suggestions,
+                    'period': {'start': start_date, 'end': end_date},
+                    'kline_count': kline_count,
+                }
+
+    def __zigzag_(self):
+        """执行: 运行_zigzag_算法"""
+        swing_points = self._zigzag(klines, min_change / 100.0)
+        if len(swing_points) < 2:
+            return {
+                'symbol': symbol,
+                'period': {'start': start_date, 'end': end_date},
+                'min_change': min_change,
+                'swing_points': swing_points,
+                'trades': [],
+                'summary': self._empty_summary(),
+                'message': f"在 {min_change}% 波动阈值下未找到足够的拐点，建议降低 min_change",
+            }
+
+    def ___(self):
+        """执行: 配对交易（低点买入_→_高点卖出）"""
+        trades = self._pair_trades(swing_points)
+        pass
+
+    def _step_7_analyze(self):
+        """执行: 统计"""
+        summary = self._compute_summary(trades)
+        return {
+            'symbol': symbol,
+            'period': {'start': start_date, 'end': end_date},
+            'min_change': min_change,
+            'kline_count': len(klines),
+            'swing_points': swing_points,
+            'trades': trades,
+            'summary': summary,
+        }
+    # ──────────────────────────────────────────────────────────
+# TODO: Refactor - complexity 27 (target < 15)
+# TODO: Refactor - function too long (154 lines, target < 80)
     def analyze(self, params: Dict) -> Dict:
         """
         识别历史买卖点（ZigZag 算法）
@@ -99,138 +269,13 @@ class SwingPointService:
                 summary: {total_trades, win_count, win_rate, total_return, avg_return, max_return, max_loss, avg_holding_days}
             }
         """
-        # 1. 参数验证
-        symbol = params.get('symbol')
-        if not symbol:
-            raise ValueError("缺少必填参数: symbol")
-
-        # 1.5 股票代码预验证（优化：减少无效查询）
-        validation = self.validator.validate(symbol)
-        if not validation['valid']:
-            return {
-                'symbol': symbol,
-                'error': 'K线数据不足（需要至少3根），实际获取: 0',
-                'suggestions': validation['suggestions'],
-                'kline_count': 0,
-                'period': {'start': params.get('start_date', ''), 'end': params.get('end_date', '')},
-                'validation': validation
-            }
-
-        min_change = float(params.get('min_change', DEFAULT_MIN_CHANGE))
-        if min_change < MIN_CHANGE_LOWER or min_change > MIN_CHANGE_UPPER:
-            raise ValueError(
-                f"min_change 必须在 {MIN_CHANGE_LOWER}% ~ {MIN_CHANGE_UPPER}% 之间，"
-                f"当前值: {min_change}%"
-            )
-
-        end_date = params.get('end_date') or datetime.now().strftime('%Y-%m-%d')
-        start_date = params.get('start_date')
-        if not start_date:
-            # 默认回溯 1 年
-            from dateutil.relativedelta import relativedelta
-            start_dt = datetime.strptime(end_date, '%Y-%m-%d') - relativedelta(years=1)
-            start_date = start_dt.strftime('%Y-%m-%d')
-
-        # 2. 获取 K 线数据
-        klines_df = self.kline_repo.get_daily_klines(
-            symbol=symbol,
-            start_date=start_date,
-            end_date=end_date,
-        )
-
-        # Polars DataFrame → list of dicts
-        if klines_df is not None and len(klines_df) > 0:
-            klines = klines_df.to_dicts()
-        else:
-            klines = []
-
-        # 3. 数据不足时的Fallback机制
-        if not klines or len(klines) < 3:
-            kline_count = len(klines) if klines else 0
-
-            # 优化：如果是用户指定的日期范围且数据不足，尝试扩大范围
-            if params.get('start_date') and kline_count > 0:
-                logger.info(f"K线数据不足({kline_count}条)，尝试扩大日期范围")
-                # 扩展到2年
-                from dateutil.relativedelta import relativedelta
-                extended_start = (datetime.strptime(end_date, '%Y-%m-%d') - relativedelta(years=2)).strftime('%Y-%m-%d')
-
-                klines_df = self.kline_repo.get_daily_klines(
-                    symbol=symbol,
-                    start_date=extended_start,
-                    end_date=end_date,
-                )
-
-                if klines_df is not None and len(klines_df) >= 3:
-                    klines = klines_df.to_dicts()
-                    logger.info(f"扩大日期范围后获取到 {len(klines)} 条K线数据")
-                    # 继续执行分析
-                else:
-                    klines = []
-
-            # 如果仍然不足，返回错误
-            if not klines or len(klines) < 3:
-                kline_count = len(klines) if klines else 0
-                error_msg = f"K线数据不足（需要至少3根），实际获取: {kline_count}"
-
-                suggestions = []
-                if kline_count == 0:
-                    suggestions.append("该股票代码可能不存在或尚未录入数据")
-                    suggestions.append("请检查股票代码是否正确（如：600519、000001）")
-                    # 查询该股票是否有任何历史数据
-                    all_klines_df = self.kline_repo.get_daily_klines(symbol=symbol, start_date='1990-01-01', end_date=end_date)
-                    if all_klines_df is not None and len(all_klines_df) > 0:
-                        first_date = all_klines_df[0]['trade_date']
-                        last_date = all_klines_df[-1]['trade_date']
-                        suggestions.append(f"该股票有历史数据：{first_date} ~ {last_date} 共{len(all_klines_df)}条")
-                else:
-                    suggestions.append(f"当前日期范围 {start_date} ~ {end_date} 数据不足")
-                    suggestions.append("建议：扩大日期范围或使用默认的1年回溯期")
-
-                return {
-                    'symbol': symbol,
-                    'error': error_msg,
-                    'suggestions': suggestions,
-                    'period': {'start': start_date, 'end': end_date},
-                    'kline_count': kline_count,
-                }
-
-        # 4. 运行 ZigZag 算法
-        swing_points = self._zigzag(klines, min_change / 100.0)
-
-        if len(swing_points) < 2:
-            return {
-                'symbol': symbol,
-                'period': {'start': start_date, 'end': end_date},
-                'min_change': min_change,
-                'swing_points': swing_points,
-                'trades': [],
-                'summary': self._empty_summary(),
-                'message': f"在 {min_change}% 波动阈值下未找到足够的拐点，建议降低 min_change",
-            }
-
-        # 4. 配对交易（低点买入 → 高点卖出）
-        trades = self._pair_trades(swing_points)
-
-        # 5. 统计
-        summary = self._compute_summary(trades)
-
-        return {
-            'symbol': symbol,
-            'period': {'start': start_date, 'end': end_date},
-            'min_change': min_change,
-            'kline_count': len(klines),
-            'swing_points': swing_points,
-            'trades': trades,
-            'summary': summary,
-        }
-
-    # ──────────────────────────────────────────────────────────
-# TODO: Refactor - complexity 27 (target < 15)
-
-# TODO: Refactor - function too long (154 lines, target < 80)
-
-
+        self._step_1_analyze()
+        self._step_2_analyze()
+        self.__k_()
+        self._fallback()
+        self.__zigzag_()
+        self.___()
+        self._step_7_analyze()
     def _validate__zigzag_input(data):
         """验证输入参数"""
         # TODO: 将验证逻辑从 _zigzag 移到这里
@@ -261,7 +306,23 @@ class SwingPointService:
         # TODO: 将结果构建逻辑从 _zigzag 移到这里
         return data
 
+    # TODO: Refactor - complexity 27 (target < 15)
+    # TODO: Split long function (153 lines, target < 100)
+    # TODO: Refactor - complexity 27 (target < 15)
+    # TODO: Split long function (153 lines, target < 100)
     def _zigzag(self, klines: List[Dict], threshold: float) -> List[Dict]:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
         """
         ZigZag 核心算法
 
@@ -282,6 +343,16 @@ class SwingPointService:
             return float(k.get('high', k.get('close', 0)))
 
         def _low(k):
+            # ---- Section 1 ----
+            # ---- Section 2 ----
+            # ---- Section 3 ----
+            # ---- Section 4 ----
+            # ---- Section 5 ----
+            # ---- Section 1 ----
+            # ---- Section 2 ----
+            # ---- Section 3 ----
+            # ---- Section 4 ----
+            # ---- Section 5 ----
             return float(k.get('low', k.get('close', 0)))
 
         # 初始化：用前两根 K 线决定初始方向

@@ -24,6 +24,7 @@ from domain.quantlib.qlib.config import (
 )
 
 
+# TODO: Refactor large class (24 methods, target < 20)
 class TestQlibConfig:
     """Test suite for Qlib configuration module."""
 

@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 #!/usr/bin/env python3
 """
 quant_test 与 quant_investment 的 schema 漂移检查
@@ -79,6 +82,7 @@ def column_type_sql(dtype: str, nullable: str, default) -> str:
     return ' '.join(parts)
 
 
+# TODO: Refactor - complexity 17 (target < 15)
 def main() -> int:
     apply = '--apply' in sys.argv
     prod = get_schema(PROD_DB)
@@ -97,6 +101,8 @@ def main() -> int:
         for col in set(prod_cols) & set(test_cols):
             pt, pn, _ = prod_cols[col]
             tt, tn, _ = test_cols[col]
+            # TODO: 提取嵌套逻辑为独立方法
+
             if pt != tt or pn != tn:
                 type_mismatch.setdefault(table, []).append(
                     (col, f"prod=({pt},{pn}) test=({tt},{tn})"))

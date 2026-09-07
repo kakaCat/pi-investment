@@ -1,3 +1,20 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 108 lines
+
+
+# Extracted Constants
+
+CONST_6 = 6
+
+CONST_60 = 60
+
+CONST_252 = 252
+
+
+
 """
 Market Risk Calculator
 ======================
@@ -57,7 +74,12 @@ class MarketRiskCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (109 lines, target < 80)
 
+# TODO: Split long function (108 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
                   portfolio_returns: Union[List, np.ndarray, pd.Series],
                   benchmark_returns: Union[List, np.ndarray, pd.Series],
                   risk_free_rate: Optional[float] = None) -> Dict[str, Any]:

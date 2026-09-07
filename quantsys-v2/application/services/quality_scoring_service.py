@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate_quality_score() = 108 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.03, 0.05, 0.1, 0.15, 0.2]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+
 
 """
 公司质量评分服务
@@ -33,7 +89,16 @@ class QualityScoringService:
 
     # TODO: Refactor - function too long (109 lines, target < 80)
 
+# TODO: Split long function (108 lines, target < 100)
     def calculate_quality_score(self, symbol: str, framework: str = 'auto') -> Dict:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """
         计算公司质量评分
 

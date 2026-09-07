@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """
 EastmoneyQuoteProvider - 东方财富实时行情数据源
 """

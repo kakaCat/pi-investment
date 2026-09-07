@@ -1,5 +1,33 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.0003, 0.0007, 0.001, 0.005, 0.2]...
+
+
+# Extracted Constants
+
+CONST_0_0003 = 0.0003
+
+CONST_0_0007 = 0.0007
+
+CONST_0_001 = 0.001
+
+CONST_0_005 = 0.005
+
+CONST_0_2 = 0.2
+
+CONST_0_95 = 0.95
+
+CONST_0_99 = 0.99
+
+CONST_5 = 5
+
+CONST_64 = 64
+
+CONST_256 = 256
+
+
 
 """
 FinRL Configuration Module

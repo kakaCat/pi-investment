@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """Quote providers for realtime stock data."""
 from adapters.outbound.datasources.providers.quote.sina import SinaQuoteProvider
 from adapters.outbound.datasources.providers.quote.eastmoney import EastmoneyQuoteProvider

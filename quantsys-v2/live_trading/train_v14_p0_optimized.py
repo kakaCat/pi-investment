@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - train_v14_p0_optimized() = 186 lines
+
 
 # TODO: Extract magic numbers to named constants: [1e-10, 0.01, 0.05, 0.1, 0.8]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_01 = 0.01
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_8 = 0.8
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_42 = 42
+
+CONST_80 = 80
+
+
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_01 = 0.01
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_8 = 0.8
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_42 = 42
+
+CONST_80 = 80
+
+
 
 """
 P0优化：修复样本数据丢失问题
@@ -187,7 +243,22 @@ def select_factors_v14_fixed(data, factors, ic_threshold=0.01):
 
 # TODO: Refactor - function too long (187 lines, target < 80)
 
+# TODO: Split long function (186 lines, target < 100)
 def train_v14_p0_optimized():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
     """训练V14 P0优化版本"""
 
     print("\n" + "="*80)

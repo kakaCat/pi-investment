@@ -1,3 +1,32 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - _run_backtest() = 158 lines
+
+
+# Extracted Constants
+
+CONST_0_0003 = 0.0003
+
+CONST_0_001 = 0.001
+
+CONST_0_95 = 0.95
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_252 = 252
+
+CONST_365 = 365
+
+CONST_1000000 = 1000000
+
+
+
 """
 Backtest Stage
 
@@ -120,7 +149,17 @@ class BacktestStage(PipelineStage):
         )
         return output
 
+    # TODO: Refactor - complexity 18 (target < 15)
+    # TODO: Split long function (158 lines, target < 100)
+    # TODO: Refactor - complexity 18 (target < 15)
+    # TODO: Split long function (158 lines, target < 100)
     def _run_backtest(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
         self,
         symbol: str,
         klines: List[Dict],
@@ -146,6 +185,8 @@ class BacktestStage(PipelineStage):
 
         for date in trading_dates:
             day_data = df[df["date"] == date]
+            # TODO: 提取嵌套逻辑为独立方法
+
             if day_data.empty:
                 continue
 

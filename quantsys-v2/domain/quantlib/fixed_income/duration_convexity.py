@@ -1,3 +1,31 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_0001 = 0.0001
+
+CONST_0_001 = 0.001
+
+CONST_0_005 = 0.005
+
+CONST_0_01 = 0.01
+
+CONST_0_05 = 0.05
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_7 = 7
+
+CONST_10000 = 10000
+
+
+
 """
 Duration and Convexity Calculator
 ==================================

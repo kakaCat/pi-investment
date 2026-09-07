@@ -1,3 +1,39 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - process_signal() = 151 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_08 = 0.08
+
+CONST_0_1 = 0.1
+
+CONST_0_25 = 0.25
+
+CONST_0_5 = 0.5
+
+CONST_1000000 = 1000000
+
+
+
+CONST_0_08 = 0.08
+
+CONST_0_1 = 0.1
+
+CONST_0_25 = 0.25
+
+CONST_0_5 = 0.5
+
+CONST_1000000 = 1000000
+
+
+
 """
 信号处理服务
 
@@ -48,7 +84,20 @@ class SignalProcessor:
 
     # TODO: Refactor - function too long (152 lines, target < 80)
 
+# TODO: Split long function (151 lines, target < 100)
     def process_signal(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
         self,
         signal: Dict[str, Any],
         symbol: str,

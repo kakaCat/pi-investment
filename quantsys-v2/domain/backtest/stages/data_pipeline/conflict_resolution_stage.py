@@ -1,3 +1,16 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - execute() = 116 lines
+
+
+# Extracted Constants
+
+CONST_1eNEG_06 = 1e-06
+
+
+
 """ConflictResolutionStage - Merge multi-source data and resolve conflicts (Priority 3).
 
 This stage merges data from multiple sources (e.g., akshare, tushare) and resolves
@@ -23,7 +36,13 @@ logger = logging.getLogger(__name__)
 class ConflictResolutionStage:
     """Merge data from multiple sources and resolve conflicts by priority."""
 
+    # TODO: Split long function (116 lines, target < 100)
     def execute(self, context: PipelineContext) -> PipelineResult:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         """
         Merge multi-source data and resolve conflicts.
 
@@ -63,6 +82,8 @@ class ConflictResolutionStage:
         warnings: List[str] = []
         available_sources = []
         for source in sources_config:
+            # TODO: 提取嵌套逻辑为独立方法
+
             if source not in data_dict:
                 warning = f"Source '{source}' in config but not in data"
                 warnings.append(warning)
@@ -141,6 +162,8 @@ class ConflictResolutionStage:
             metadata=metadata
         )
 
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 17 (target < 15)
     def _detect_conflicts(
         self,
         data_dict: Dict[str, pd.DataFrame],

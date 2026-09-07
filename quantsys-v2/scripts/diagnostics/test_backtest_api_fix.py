@@ -1,4 +1,24 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - test_create_and_backtest_indicator() = 112 lines
+
 #!/usr/bin/env python3
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_70 = 70
+
+
+
+CONST_70 = 70
+
+
+
 """
 端到端测试：验证修复后的验证器是否解决了回测 API 的问题
 
@@ -11,7 +31,16 @@ import os
 from application.services.strategy_code_service import StrategyCodeService
 
 
+# TODO: Split long function (112 lines, target < 100)
 def test_create_and_backtest_indicator():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """测试创建指标并回测"""
     print("=" * 70)
     print("端到端测试：创建指标 -> 回测")

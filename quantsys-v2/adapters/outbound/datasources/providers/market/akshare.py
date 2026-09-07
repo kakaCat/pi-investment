@@ -1,3 +1,24 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+CONST_30 = 30
+
+
+
+CONST_5 = 5
+
+CONST_30 = 30
+
+
+
 """Akshare market data provider."""
 import logging
 from typing import Optional

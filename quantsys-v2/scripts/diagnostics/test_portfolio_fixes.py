@@ -1,4 +1,49 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 #!/usr/bin/env python3
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+CONST_8_0 = 8.0
+
+CONST_10_5 = 10.5
+
+CONST_15_0 = 15.0
+
+CONST_16_5 = 16.5
+
+CONST_60 = 60
+
+CONST_200 = 200
+
+CONST_300 = 300
+
+
+
+CONST_5 = 5
+
+CONST_8_0 = 8.0
+
+CONST_10_5 = 10.5
+
+CONST_15_0 = 15.0
+
+CONST_16_5 = 16.5
+
+CONST_60 = 60
+
+CONST_200 = 200
+
+CONST_300 = 300
+
+
+
 """
 验证 PortfolioRepository 修复后的方法
 

@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """
 MLflow模型管理 - Team B
 模型版本管理、实验跟踪、模型对比

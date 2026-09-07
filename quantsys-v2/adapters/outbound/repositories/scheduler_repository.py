@@ -1,3 +1,40 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+CONST_7 = 7
+
+CONST_24 = 24
+
+CONST_50 = 50
+
+CONST_3600 = 3600
+
+
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+CONST_7 = 7
+
+CONST_24 = 24
+
+CONST_50 = 50
+
+CONST_3600 = 3600
+
+
+
 """
 调度任务Repository - 实现 ISchedulerRepository 接口
 
@@ -24,6 +61,8 @@ logger = logging.getLogger(__name__)
 
 # TODO: Refactor - class too large (22 methods, target < 15)
 
+# TODO: Refactor large class (22 methods, target < 20)
+# TODO: Refactor large class (22 methods, target < 20)
 class SchedulerRepository(ISchedulerRepository):
     """调度任务仓储 - SQLAlchemy ORM 实现"""
 

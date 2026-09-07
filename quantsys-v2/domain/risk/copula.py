@@ -1,5 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 126 lines
+
 
 # TODO: Extract magic numbers to named constants: [1e-10, 0.01, 0.5, 0.95, 0.99]...
+
+
+# Extracted Constants
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_01 = 0.01
+
+CONST_0_5 = 0.5
+
+CONST_0_95 = 0.95
+
+CONST_0_99 = 0.99
+
+CONST_1_01 = 1.01
+
+CONST_2_1 = 2.1
+
+CONST_5_0 = 5.0
+
+CONST_6 = 6
+
+CONST_30 = 30
+
+
 
 """
 Copula Calculator
@@ -93,7 +124,13 @@ class CopulaCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (127 lines, target < 80)
 
+# TODO: Split long function (126 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
                   returns: Union[pd.DataFrame, np.ndarray],
                   copula_type: str = 'gaussian',
                   marginal_dist: str = 'empirical',

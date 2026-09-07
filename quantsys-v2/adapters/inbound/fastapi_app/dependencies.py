@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """Improved ORM Session management using FastAPI dependency injection.
 
 This replaces the complex middleware + reflection-based cleanup with

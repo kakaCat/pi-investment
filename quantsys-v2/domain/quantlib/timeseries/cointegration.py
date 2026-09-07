@@ -1,3 +1,25 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - engle_granger_test() = 139 lines
+#   - estimate_ecm() = 105 lines
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_6 = 6
+
+CONST_30 = 30
+
+
+
 """
 Cointegration Testing Module
 =============================
@@ -71,7 +93,13 @@ class CointegrationCalculator(BaseCalculator):
     @timing_decorator
     # TODO: Refactor - function too long (140 lines, target < 80)
 
+# TODO: Split long function (139 lines, target < 100)
     def engle_granger_test(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         y: Union[List, np.ndarray, pd.Series],
         x: Union[List, np.ndarray, pd.Series, pd.DataFrame],
@@ -215,6 +243,10 @@ class CointegrationCalculator(BaseCalculator):
     @validate_inputs
     @timing_decorator
     def johansen_test(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         data: pd.DataFrame,
         det_order: int = 0,
@@ -317,7 +349,12 @@ class CointegrationCalculator(BaseCalculator):
     # TODO: Refactor - function too long (106 lines, target < 80)
 
     @timing_decorator
+# TODO: Split long function (105 lines, target < 100)
     def estimate_ecm(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         y: Union[List, np.ndarray, pd.Series],
         x: Union[List, np.ndarray, pd.Series],

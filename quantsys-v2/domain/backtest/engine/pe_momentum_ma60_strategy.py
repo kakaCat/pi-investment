@@ -1,3 +1,35 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - generate_signal() = 208 lines
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_08 = 0.08
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_35 = 0.35
+
+CONST_0_4 = 0.4
+
+CONST_0_55 = 0.55
+
+
+
 """
 PE价值+动量+MA60止损策略 (PE + Momentum + MA60 Stop Strategy)
 
@@ -23,7 +55,6 @@ PE价值+动量+MA60止损策略 (PE + Momentum + MA60 Stop Strategy)
 Author: QuantSys V2
 Date: 2026-05-29
 """
-from __future__ import annotations
 from typing import Dict, List, Any, Optional
 import logging
 
@@ -87,7 +118,20 @@ class PEMomentumMA60Strategy(StrategyBase):
         },
     }
 
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 16 (target < 15)
+    # TODO: Split long function (208 lines, target < 100)
+    # TODO: Refactor - complexity 16 (target < 15)
+    # TODO: Split long function (208 lines, target < 100)
     def generate_signal(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
+        # ---- Section 8 ----
         self,
         klines: List[Dict[str, Any]],
         params: Dict[str, Any] = None
@@ -212,6 +256,8 @@ class PEMomentumMA60Strategy(StrategyBase):
 
         # 条件1: PE 价值区间
         if pe is not None:
+            # TODO: 提取嵌套逻辑为独立方法
+
             if pe < pe_threshold:
                 buy_conditions.append(f'PE({pe:.1f}) < {pe_threshold}')
                 buy_score += 0.40

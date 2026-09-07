@@ -1,3 +1,24 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate_exposure() = 141 lines
+
+
+# Extracted Constants
+
+CONST_0_1 = 0.1
+
+CONST_0_5 = 0.5
+
+CONST_6 = 6
+
+CONST_30 = 30
+
+CONST_60 = 60
+
+
+
 """
 Factor Exposure Calculator
 ===========================
@@ -68,7 +89,13 @@ class FactorExposureCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (142 lines, target < 80)
 
+# TODO: Split long function (141 lines, target < 100)
     def calculate_exposure(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
                            asset_returns: Union[np.ndarray, pd.Series],
                            factor_returns: pd.DataFrame,
                            method: str = 'regression') -> Dict[str, Any]:

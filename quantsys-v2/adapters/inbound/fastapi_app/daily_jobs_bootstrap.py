@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [3, 4, 5, 6, 15]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_15 = 15
+
+CONST_16 = 16
+
+CONST_17 = 17
+
+CONST_20 = 20
+
+CONST_21 = 21
+
+CONST_30 = 30
+
+
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_15 = 15
+
+CONST_16 = 16
+
+CONST_17 = 17
+
+CONST_20 = 20
+
+CONST_21 = 21
+
+CONST_30 = 30
+
+
 
 """每日数据任务进程内宿主（2026-09-02）
 

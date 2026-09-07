@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 196 lines
+
+
+# Extracted Constants
+
+CONST_0_3 = 0.3
+
+CONST_0_7 = 0.7
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_6 = 6
+
+CONST_12 = 12
+
+CONST_30 = 30
+
+
+
 """
 Carhart Four-Factor Model
 =========================
@@ -70,7 +95,15 @@ class CarhartFourFactorCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (197 lines, target < 80)
 
+# TODO: Split long function (196 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
                   asset_returns: Union[np.ndarray, pd.Series],
                   market_returns: Union[np.ndarray, pd.Series],
                   risk_free_rate: Union[float, np.ndarray, pd.Series],

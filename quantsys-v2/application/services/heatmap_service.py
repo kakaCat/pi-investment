@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+
+
 """热力图聚合服务 — agent 判断 × 市场实际走势的可视化校验数据源（纯本地 DB，无外部行情调用）"""
 from datetime import date, datetime, time, timedelta
 from typing import Optional

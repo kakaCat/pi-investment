@@ -1,3 +1,6 @@
+# LONG FUNCTIONS TO REFACTOR:
+#   - sample_klines() = 123 lines
+
 """
 Tests for StrategyCodeService
 """
@@ -43,6 +46,7 @@ df['sell'] = df['rsi'] > 70
         }
 
     @pytest.fixture
+    # TODO: Split long function (123 lines, target < 100)
     def sample_klines(self):
         """Sample K-line data for testing"""
         return [

@@ -1,3 +1,47 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - analyze_rule_performance() = 199 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_3 = 0.3
+
+CONST_0_7 = 0.7
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_30 = 30
+
+CONST_999 = 999
+
+
+
+CONST_0_05 = 0.05
+
+CONST_0_3 = 0.3
+
+CONST_0_7 = 0.7
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_30 = 30
+
+CONST_999 = 999
+
+
+
 """M6-1 归因分析服务
 
 功能：
@@ -65,7 +109,28 @@ class AttributionService:
         # TODO: 将结果构建逻辑从 analyze_rule_performance 移到这里
         return data
 
+# TODO: Split long function (199 lines, target < 100)
+# TODO: Refactor - complexity 18 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 18 (target < 15)
+    # TODO: Split long function (199 lines, target < 100)
+    # TODO: Refactor - complexity 18 (target < 15)
+    # TODO: Split long function (199 lines, target < 100)
     def analyze_rule_performance(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
         self,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
@@ -104,6 +169,8 @@ class AttributionService:
         
         try:
             # 默认时间范围：最近30天
+            # TODO: 提取嵌套逻辑为独立方法
+
             if not start_date:
                 start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
             if not end_date:

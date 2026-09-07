@@ -1,5 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - analyze_trend() = 103 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.05, 0.95, 1.96, 3, 4]...
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_95 = 0.95
+
+CONST_1_96 = 1.96
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_12 = 12
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+
 
 """
 Time Series Analysis Module
@@ -58,7 +89,12 @@ class TimeSeriesAnalyzer(BaseCalculator):
     @handle_calculation_error
     # TODO: Refactor - function too long (104 lines, target < 80)
 
+# TODO: Split long function (103 lines, target < 100)
     def analyze_trend(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         data: Union[List, np.ndarray, pd.Series],
         trend_type: Literal['linear', 'log_linear'] = 'linear',

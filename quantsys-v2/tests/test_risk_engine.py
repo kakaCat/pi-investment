@@ -510,7 +510,7 @@ class TestPreTradeCheck:
 
         assert isinstance(result, dict)
         assert result["symbol"] == "000001.SZ"
-        assert result["action'] == 'BUY'
+        assert result["action"] == "BUY"
         assert result["passed"] is True
         assert len(result["failures"]) == 0
         assert "checks" in result

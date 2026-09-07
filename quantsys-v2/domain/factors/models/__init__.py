@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 # 因子模块
 from .fama_french import FamaFrench3FactorCalculator, FamaFrench5FactorCalculator
 from .carhart import CarhartFourFactorCalculator

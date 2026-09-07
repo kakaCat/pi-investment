@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """
 统一的环境变量加载模块
 在任何需要数据库连接的代码之前导入此模块

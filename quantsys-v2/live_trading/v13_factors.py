@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate_v13_factors() = 259 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.01, 0.015, 0.05, 0.09, 0.1]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_0_015 = 0.015
+
+CONST_0_05 = 0.05
+
+CONST_0_09 = 0.09
+
+CONST_0_1 = 0.1
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+CONST_1_2 = 1.2
+
+
+
+CONST_0_01 = 0.01
+
+CONST_0_015 = 0.015
+
+CONST_0_05 = 0.05
+
+CONST_0_09 = 0.09
+
+CONST_0_1 = 0.1
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+CONST_1_2 = 1.2
+
+
 
 """
 V13策略因子计算模块
@@ -41,7 +97,26 @@ def calculate_macd(series, fast=12, slow=26, signal=9):
 
 # TODO: Refactor - function too long (260 lines, target < 80)
 
+# TODO: Split long function (259 lines, target < 100)
 def calculate_v13_factors(df):
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 8 ----
+    # ---- Section 9 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 8 ----
+    # ---- Section 9 ----
     """
     计算V13策略的85个因子
 

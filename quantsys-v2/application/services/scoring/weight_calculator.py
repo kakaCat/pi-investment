@@ -1,3 +1,56 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_35 = 0.35
+
+CONST_0_4 = 0.4
+
+CONST_0_45 = 0.45
+
+CONST_0_5 = 0.5
+
+CONST_0_55 = 0.55
+
+CONST_0_6 = 0.6
+
+
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_35 = 0.35
+
+CONST_0_4 = 0.4
+
+CONST_0_45 = 0.45
+
+CONST_0_5 = 0.5
+
+CONST_0_55 = 0.55
+
+CONST_0_6 = 0.6
+
+
+
 """
 动态权重计算
 

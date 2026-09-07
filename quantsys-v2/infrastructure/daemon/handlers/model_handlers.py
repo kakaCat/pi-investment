@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """L3 Model Layer handlers."""
 import json
 from typing import Any, Dict

@@ -1,3 +1,31 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_2 = 0.2
+
+CONST_0_5 = 0.5
+
+CONST_0_8 = 0.8
+
+CONST_0_95 = 0.95
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_6 = 6
+
+CONST_5000 = 5000
+
+CONST_10000 = 10000
+
+
+
 """
 Statistical Analysis Module
 ===========================

@@ -1,3 +1,15 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_001 = 0.001
+
+CONST_0_03 = 0.03
+
+
+
 """
 期货定价模型 - Team C
 期货理论价格、基差、持有成本计算

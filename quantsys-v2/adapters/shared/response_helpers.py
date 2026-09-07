@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """响应数据标准化工具（框架无关）— 从 adapters/inbound/api/utils/response.py 解耦而来"""
 from typing import List, Dict, Any
 from datetime import datetime
@@ -20,6 +23,13 @@ def _build__normalize_fields_result(data):
     # TODO: 将结果构建逻辑从 _normalize_fields 移到这里
     return data
 
+# TODO: Refactor - complexity 20 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+def _check_condition_0():
+    """Check: entity_type == 'indicator' and isinstance(metadata, dict) an..."""
+    return entity_type == 'indicator' and isinstance(metadata, dict) and isinstance(metadata.get('notebook'), dict)
+
+# TODO: Refactor - complexity 21 (target < 15)
 def _normalize_fields(items, entity_type: str, default_name: str):
     normalized = []
     for item in items:
@@ -39,6 +49,8 @@ def _normalize_fields(items, entity_type: str, default_name: str):
         n.setdefault('favorite_count', 0)
         n.setdefault('use_count', 0)
         for time_field in ['created_at', 'updated_at']:
+            # TODO: 提取嵌套逻辑为独立方法
+
             if time_field in n:
                 value = n[time_field]
                 if isinstance(value, datetime):
@@ -51,7 +63,8 @@ def _normalize_fields(items, entity_type: str, default_name: str):
         metadata = n.get('metadata')
         if entity_type == 'indicator' and isinstance(metadata, dict) and isinstance(metadata.get('notebook'), dict):
             n['notebook'] = metadata['notebook']
-        strategy_profile = n.get('strategy_profile')
+        if _check_condition_0():
+            pass  # TODO: implement
         if isinstance(strategy_profile, str):
             import json
             try:

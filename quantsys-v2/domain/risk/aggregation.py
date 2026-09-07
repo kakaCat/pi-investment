@@ -1,3 +1,30 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 118 lines
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_5 = 0.5
+
+CONST_0_95 = 0.95
+
+CONST_0_975 = 0.975
+
+CONST_1_2 = 1.2
+
+CONST_1_5 = 1.5
+
+CONST_6 = 6
+
+CONST_20 = 20
+
+
+
 """
 Risk Aggregation Calculator
 ============================
@@ -59,7 +86,12 @@ class RiskAggregationCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (119 lines, target < 80)
 
+# TODO: Split long function (118 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
                   positions: Dict[str, float],
                   covariance_matrix: Union[pd.DataFrame, np.ndarray],
                   method: str = 'standard',

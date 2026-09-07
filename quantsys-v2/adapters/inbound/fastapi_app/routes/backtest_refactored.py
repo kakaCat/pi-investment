@@ -1,3 +1,24 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_400 = 400
+
+CONST_500 = 500
+
+
+
+CONST_400 = 400
+
+CONST_500 = 500
+
+
+
 """
 回测路由重构 - 降低 run_backtest 复杂度
 

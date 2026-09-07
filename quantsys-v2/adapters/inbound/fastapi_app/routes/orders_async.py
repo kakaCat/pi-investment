@@ -1,3 +1,55 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - get_trade_history() = 108 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_1_5 = 1.5
+
+CONST_3 = 3
+
+CONST_6 = 6
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_500 = 500
+
+
+
+CONST_0_5 = 0.5
+
+CONST_1_5 = 1.5
+
+CONST_3 = 3
+
+CONST_6 = 6
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_500 = 500
+
+
+
 """订单/交易/投资组合 API - FastAPI 版（从 Flask orders.py 迁移，响应契约保持一致）
 
 orders.py 同时承载 orders CRUD、trades/list 和 portfolio 端点。
@@ -139,7 +191,22 @@ def _build_get_trade_history_result(data):
     # TODO: 将结果构建逻辑从 get_trade_history 移到这里
     return data
 
+# TODO: Split long function (108 lines, target < 100)
+# TODO: Refactor - complexity 17 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 17 (target < 15)
+# TODO: Split long function (108 lines, target < 100)
+# TODO: Refactor - complexity 17 (target < 15)
+# TODO: Split long function (108 lines, target < 100)
 def get_trade_history(
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     account_name: Optional[str] = Query('agent_virtual'),
     order_id: Optional[str] = Query(None),
     symbol: Optional[str] = Query(None),

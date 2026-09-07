@@ -1,3 +1,44 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - get_sector_fund_flow() = 106 lines
+#   - _fetch_north_flow_data() = 144 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_60 = 60
+
+CONST_1800 = 1800
+
+CONST_100000000 = 100000000
+
+
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_60 = 60
+
+CONST_1800 = 1800
+
+CONST_100000000 = 100000000
+
+
+
 """
 市场数据服务 - v2 原生实现
 提供融资融券,行业资金流向等市场数据
@@ -143,7 +184,16 @@ class MarketDataService:
 
     # TODO: Refactor - function too long (107 lines, target < 80)
 
+# TODO: Split long function (106 lines, target < 100)
     def get_sector_fund_flow(self, period: str = "即时", limit: int = 50) -> Dict[str, Any]:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """
         获取行业资金流向排行(直接调用第三方 API)
 
@@ -325,7 +375,18 @@ class MarketDataService:
 # TODO: Refactor - function too long (145 lines, target < 80)
 
 
+# TODO: Split long function (144 lines, target < 100)
     def _fetch_north_flow_data(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, Any]:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         """
         北向资金估算(港交所 CCASS 持股变化法)
 

@@ -1,3 +1,9 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - main() = 104 lines
+
 #!/usr/bin/env python3
 """Split misc.py + merge tiny blueprints → final clean structure."""
 import re, shutil
@@ -24,6 +30,17 @@ def _build_extract_misc_blocks_result(data):
     # TODO: 将结果构建逻辑从 extract_misc_blocks 移到这里
     return data
 
+# TODO: Refactor - complexity 21 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+def _check_condition_0():
+    """Check: "/jobs" in path or "/data/update" in path or "/compute/facto..."""
+    return "/jobs" in path or "/data/update" in path or "/compute/factors" in path
+
+def _check_condition_0():
+    """Check: "/jobs" in path or "/data/update" in path or "/compute/facto..."""
+    return "/jobs" in path or "/data/update" in path or "/compute/factors" in path
+
+# TODO: Refactor - complexity 22 (target < 15)
 def extract_misc_blocks():
     misc = ROUTES / "misc.py"
     if not misc.exists():
@@ -45,6 +62,8 @@ def extract_misc_blocks():
 
     for i, line in enumerate(lines):
         if "@misc_bp.route(" in line:
+            # TODO: 提取嵌套逻辑为独立方法
+
             if current_block and current_path:
                 blocks.setdefault(current_path, []).extend(current_block)
             # Determine domain from path
@@ -63,7 +82,7 @@ def extract_misc_blocks():
                     current_path = "agent"
                 elif "/jobs" in path or "/data/update" in path or "/compute/factors" in path:
                     current_path = "jobs"
-                else:
+                if _check_condition_0():
                     current_path = "other"
             current_block = [line]
         else:
@@ -123,7 +142,16 @@ def merge_blueprint(source: str, target: str):
 
 # TODO: Refactor - function too long (105 lines, target < 80)
 
+# TODO: Split long function (104 lines, target < 100)
 def main():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     # ── Split misc.py ──
     print("=== Splitting misc.py ===")
     blocks = extract_misc_blocks()

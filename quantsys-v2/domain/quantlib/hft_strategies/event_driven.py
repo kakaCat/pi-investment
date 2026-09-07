@@ -1,5 +1,33 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.0005, 0.001, 0.3, 3.0, 5]...
+
+
+# Extracted Constants
+
+CONST_0_0005 = 0.0005
+
+CONST_0_001 = 0.001
+
+CONST_0_3 = 0.3
+
+CONST_3_0 = 3.0
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_42 = 42
+
+CONST_50 = 50
+
+
 
 """
 事件驱动策略

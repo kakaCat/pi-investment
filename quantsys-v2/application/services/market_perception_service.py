@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.01, 0.08, 0.4, 0.8, 3]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_0_08 = 0.08
+
+CONST_0_4 = 0.4
+
+CONST_0_8 = 0.8
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_8 = 8
+
+CONST_20 = 20
+
+
+
+CONST_0_01 = 0.01
+
+CONST_0_08 = 0.08
+
+CONST_0_4 = 0.4
+
+CONST_0_8 = 0.8
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_8 = 8
+
+CONST_20 = 20
+
+
 
 """M1 市场感知服务（RFC 007）
 

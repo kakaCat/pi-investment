@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """
 Qlib Configuration Validation Module - Refactored
 降低复杂度：从55降至<15

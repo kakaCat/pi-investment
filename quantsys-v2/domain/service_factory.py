@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 # domain/service_factory.py
 """
 领域服务工厂 - 创建和组装领域服务

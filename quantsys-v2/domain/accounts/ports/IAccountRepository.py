@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 # domain/accounts/ports/IAccountRepository.py
 from abc import ABC, abstractmethod
 from typing import Optional, List

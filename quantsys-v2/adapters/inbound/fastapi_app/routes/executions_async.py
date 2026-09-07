@@ -1,3 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_200 = 200
+
+CONST_201 = 201
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_500 = 500
+
+
+
+CONST_200 = 200
+
+CONST_201 = 201
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_500 = 500
+
+
+
 """执行记录 API - FastAPI 版（从 Flask executions.py 迁移，响应契约保持一致）
 
 字面量路由（/stats、/daily、/pending、/summary）必须先于

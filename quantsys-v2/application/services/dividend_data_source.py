@@ -1,3 +1,9 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - fetch_dividends() = 151 lines
+
 """
 分红数据源抽象层
 
@@ -46,6 +52,11 @@ class DividendDataSource(ABC):
         # TODO: 将结果构建逻辑从 fetch_dividends 移到这里
         return data
 
+# TODO: Split long function (151 lines, target < 100)
+# TODO: Refactor - complexity 16 (target < 15)
+    # TODO: Split long function (151 lines, target < 100)
+    # TODO: Refactor - complexity 16 (target < 15)
+    # TODO: Split long function (151 lines, target < 100)
     def fetch_dividends(self, symbol: str) -> pd.DataFrame:
         """
         获取股票分红数据
@@ -79,7 +90,20 @@ class EastMoneyDividendSource(DividendDataSource):
 
     # TODO: Refactor - function too long (152 lines, target < 80)
 
+    # REFACTOR: Split this function into smaller pieces
     def fetch_dividends(self, symbol: str) -> pd.DataFrame:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
         """
         从东方财富获取分红数据
 
@@ -136,6 +160,8 @@ class EastMoneyDividendSource(DividendDataSource):
             response.raise_for_status()
 
             data = response.json()
+
+            # TODO: 提取嵌套逻辑为独立方法
 
             if data.get("code") != 0:
                 raise Exception(f"API returned error code: {data.get('code')}")

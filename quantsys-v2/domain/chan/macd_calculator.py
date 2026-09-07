@@ -1,3 +1,17 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_9 = 9
+
+CONST_12 = 12
+
+CONST_26 = 26
+
+
+
 """MACD 计算器 - 使用 TA-Lib 计算真实 MACD"""
 from typing import List
 import pandas as pd

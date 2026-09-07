@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - _calculate_adx() = 114 lines
+
+
+# Extracted Constants
+
+CONST_0_015 = 0.015
+
+CONST_3_0 = 3.0
+
+CONST_9 = 9
+
+CONST_12 = 12
+
+CONST_14 = 14
+
+CONST_20 = 20
+
+CONST_26 = 26
+
+
+
 """
 自定义技术指标适配器
 
@@ -203,7 +228,16 @@ class CustomIndicatorAdapter:
 
         return atr
 
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: Split long function (114 lines, target < 100)
+    # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: Split long function (114 lines, target < 100)
     def _calculate_adx(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self, df: pd.DataFrame, indicator: str, length: int = 14, **kwargs
     ) -> pd.Series:
         """
@@ -248,6 +282,8 @@ class CustomIndicatorAdapter:
         for i in range(1, n):
             up_move = high[i] - high[i - 1]
             down_move = low[i - 1] - low[i]
+            # TODO: 提取嵌套逻辑为独立方法
+
             if up_move > down_move and up_move > 0:
                 plus_dm[i] = up_move
             else:

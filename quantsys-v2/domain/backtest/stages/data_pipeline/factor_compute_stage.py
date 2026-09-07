@@ -1,3 +1,16 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - execute() = 136 lines
+
+
+# Extracted Constants
+
+CONST_120 = 120
+
+
+
 """FactorComputeStage - Trigger factor computation on stored data (Priority 8).
 
 This stage triggers factor computation for symbols in the stored data:
@@ -61,7 +74,13 @@ class FactorComputeStage:
         self.factor_repo = factor_repo
         self.factor_stage = FactorStage(name="factors")
 
+    # TODO: Split long function (136 lines, target < 100)
     def execute(self, context: PipelineContext) -> PipelineResult:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         """
         Trigger factor computation for symbols in the data.
 

@@ -1,3 +1,44 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - backtest_indicator_strategy() = 109 lines
+#   - run_backtest_from_signals() = 267 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_99 = 0.99
+
+CONST_3 = 3
+
+CONST_252 = 252
+
+CONST_1000000 = 1000000
+
+
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_99 = 0.99
+
+CONST_3 = 3
+
+CONST_252 = 252
+
+CONST_1000000 = 1000000
+
+
+
 """
 策略回测服务
 
@@ -52,7 +93,16 @@ class StrategyBacktestService:
         self.indicator_executor = indicator_executor or IndicatorStrategyExecutor()
         self.script_executor = script_executor or ScriptStrategyExecutor()
 
+    # TODO: Split long function (109 lines, target < 100)
     def backtest_indicator_strategy(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         strategy: Dict,
         klines: List[Dict],
@@ -87,6 +137,8 @@ class StrategyBacktestService:
             signals_df = exec_result.signals
             # 检查 signals_df 是否为空（兼容 pandas 和 polars）
             is_empty = False
+            # TODO: 提取嵌套逻辑为独立方法
+
             if signals_df is None:
                 is_empty = True
             else:
@@ -242,7 +294,30 @@ class StrategyBacktestService:
 
         return df
 
+    # TODO: Refactor - complexity 30 (target < 15)
+    # TODO: Split long function (267 lines, target < 100)
+    # TODO: Refactor - complexity 30 (target < 15)
+    # TODO: Split long function (267 lines, target < 100)
     def run_backtest_from_signals(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
+        # ---- Section 8 ----
+        # ---- Section 9 ----
+        # ---- Section 10 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
+        # ---- Section 8 ----
+        # ---- Section 9 ----
         self,
         signals_df: pd.DataFrame,
         initial_cash: float = 1000000,

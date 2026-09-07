@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """笔组背驰检测器——比较进入/离开笔组的 MACD 面积"""
 from typing import List
 from .types import Bi, KLine

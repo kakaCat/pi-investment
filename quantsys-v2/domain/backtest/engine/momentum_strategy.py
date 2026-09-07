@@ -1,3 +1,34 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - generate_signal() = 145 lines
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_52 = 0.52
+
+CONST_0_6 = 0.6
+
+CONST_0_7 = 0.7
+
+CONST_0_85 = 0.85
+
+CONST_1_8 = 1.8
+
+CONST_4 = 4
+
+
+
 """
 动量策略 (Momentum Strategy)
 
@@ -20,7 +51,13 @@ class MomentumStrategy(StrategyBase):
         ma_period: 5    (ROC均线周期，用于平滑)
     """
 
+    # TODO: Split long function (145 lines, target < 100)
     def generate_signal(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         klines: List[Dict[str, Any]],
         params: Dict[str, Any] = None

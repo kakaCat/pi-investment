@@ -1,5 +1,25 @@
-"""ADX Trend Strength Strategy."""
 from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_3 = 0.3
+
+CONST_5 = 5
+
+CONST_14 = 14
+
+CONST_25 = 25
+
+CONST_50 = 50
+
+CONST_60 = 60
+
+
+
+"""ADX Trend Strength Strategy."""
 from typing import Any
 
 from domain.backtest.engine.enhanced_strategy_base import EnhancedStrategyBase

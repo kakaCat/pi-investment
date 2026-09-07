@@ -1,4 +1,33 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - run_ml_benchmarks() = 153 lines
+
 #!/usr/bin/env python3
+
+# Extracted Constants
+
+CONST_0_8 = 0.8
+
+CONST_3 = 3
+
+CONST_6 = 6
+
+CONST_30 = 30
+
+CONST_42 = 42
+
+CONST_50 = 50
+
+CONST_80 = 80
+
+CONST_10000 = 10000
+
+CONST_50000 = 50000
+
+
+
 """
 机器学习性能基准测试
 
@@ -95,7 +124,14 @@ def benchmark_model_training(
 
 # TODO: Refactor - function too long (154 lines, target < 80)
 
+# TODO: Split long function (153 lines, target < 100)
 def run_ml_benchmarks():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
     """运行机器学习基准测试"""
     print("=" * 80)
     print("机器学习性能基准测试")

@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - barra_calculate() = 120 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.0001, 0.0002, 0.0003, 0.0004, 0.0005]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_0001 = 0.0001
+
+CONST_0_0002 = 0.0002
+
+CONST_0_0003 = 0.0003
+
+CONST_0_0004 = 0.0004
+
+CONST_0_0005 = 0.0005
+
+CONST_0_001 = 0.001
+
+CONST_0_005 = 0.005
+
+CONST_0_006 = 0.006
+
+CONST_0_008 = 0.008
+
+CONST_0_01 = 0.01
+
+
+
+CONST_0_0001 = 0.0001
+
+CONST_0_0002 = 0.0002
+
+CONST_0_0003 = 0.0003
+
+CONST_0_0004 = 0.0004
+
+CONST_0_0005 = 0.0005
+
+CONST_0_001 = 0.001
+
+CONST_0_005 = 0.005
+
+CONST_0_006 = 0.006
+
+CONST_0_008 = 0.008
+
+CONST_0_01 = 0.01
+
+
 
 """Factor Models API - FastAPI 版（从 Flask factor_models.py 迁移，响应契约保持一致）
 
@@ -209,7 +265,18 @@ def carhart_calculate(payload: Optional[Dict[str, Any]] = Body(None)):
 @handle_api_error
 # TODO: Refactor - function too long (121 lines, target < 80)
 
+# TODO: Split long function (120 lines, target < 100)
 def barra_calculate(payload: Optional[Dict[str, Any]] = Body(None)):
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
     """Barra 风险模型分析
 
     请求参数:

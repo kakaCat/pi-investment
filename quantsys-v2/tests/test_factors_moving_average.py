@@ -12,6 +12,7 @@ from domain.quantlib.factors.moving_average import MovingAverageFactors
 from domain.quantlib.core.exceptions import InsufficientDataError, DataValidationError
 
 
+# TODO: Refactor large class (22 methods, target < 20)
 class TestMovingAverageFactors:
     """Test moving average factor calculations."""
 

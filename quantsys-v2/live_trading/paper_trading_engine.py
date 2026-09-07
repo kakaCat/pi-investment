@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - _execute_sell() = 104 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.0003, 0.001, 0.08, 0.15, 0.2]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_0003 = 0.0003
+
+CONST_0_001 = 0.001
+
+CONST_0_08 = 0.08
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_8 = 0.8
+
+CONST_0_95 = 0.95
+
+
+
+CONST_0_0003 = 0.0003
+
+CONST_0_001 = 0.001
+
+CONST_0_08 = 0.08
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_8 = 0.8
+
+CONST_0_95 = 0.95
+
+
 
 """
 通用模拟交易引擎 (Paper Trading Engine)
@@ -292,6 +348,9 @@ class PaperTradingEngine:
         # TODO: 将结果构建逻辑从 _filter_buy_signals 移到这里
         return data
 
+# TODO: Refactor - complexity 16 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 16 (target < 15)
     def _filter_buy_signals(
         self,
         signals: List[Signal],
@@ -319,6 +378,8 @@ class PaperTradingEngine:
 
         for signal in signals:
             # 黑名单检查
+            # TODO: 提取嵌套逻辑为独立方法
+
             if signal.symbol in self.risk_config['blacklist']:
                 logger.info(f"Signal rejected (blacklist): {signal.symbol}")
                 continue
@@ -364,6 +425,14 @@ class PaperTradingEngine:
         return approved
 
     def _execute_buy(self, signal: Signal, price: Optional[float]) -> TradeResult:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """执行买入"""
         if price is None or price <= 0:
             return TradeResult(signal=signal, success=False, error="No valid price")
@@ -463,7 +532,16 @@ class PaperTradingEngine:
 
     # TODO: Refactor - function too long (105 lines, target < 80)
 
+# TODO: Split long function (104 lines, target < 100)
     def _execute_sell(self, signal: Signal, price: Optional[float]) -> TradeResult:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """执行卖出"""
         # 查找持仓
         position = self.repo.get_position(self.account_name, signal.symbol)

@@ -1,3 +1,20 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 136 lines
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_6 = 6
+
+CONST_365 = 365
+
+
+
 """
 Greeks Calculations
 ===================
@@ -53,7 +70,13 @@ class GreeksCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (137 lines, target < 80)
 
+# TODO: Split long function (136 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
                   S: float,
                   K: float,
                   T: float,

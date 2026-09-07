@@ -1,3 +1,56 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_1_5 = 1.5
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_24 = 24
+
+CONST_30 = 30
+
+CONST_80 = 80
+
+CONST_3600 = 3600
+
+CONST_10000 = 10000
+
+
+
+CONST_0_5 = 0.5
+
+CONST_1_5 = 1.5
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_24 = 24
+
+CONST_30 = 30
+
+CONST_80 = 80
+
+CONST_3600 = 3600
+
+CONST_10000 = 10000
+
+
+
 """
 资金流向数据源
 
@@ -65,6 +118,9 @@ class FundFlowDataSource:
         # TODO: 将结果构建逻辑从 get_stock_fund_flow 移到这里
         return data
 
+# TODO: Refactor - complexity 17 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 17 (target < 15)
     def get_stock_fund_flow(self, symbol: str, days: int = 5) -> Dict:
         """
         获取个股资金流向（优先本地缓存）
@@ -91,6 +147,8 @@ class FundFlowDataSource:
         if self.cache_enabled and self.repository:
             try:
                 cached_data = self.repository.get_latest_fund_flow(clean_symbol, days)
+
+                # TODO: 提取嵌套逻辑为独立方法
 
                 if self._is_cache_valid(cached_data, days):
                     logger.info(f"命中本地缓存: {symbol}")
@@ -318,7 +376,17 @@ class EastMoneyFundFlowSource:
         # TODO: 将结果构建逻辑从 fetch 移到这里
         return data
 
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 16 (target < 15)
     def fetch(self, symbol: str, days: int) -> List[Dict]:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """
         从东方财富获取资金流向数据
 

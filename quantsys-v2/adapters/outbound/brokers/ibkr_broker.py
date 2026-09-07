@@ -1,3 +1,48 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_365 = 365
+
+CONST_7497 = 7497
+
+CONST_1000000_0 = 1000000.0
+
+
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_365 = 365
+
+CONST_7497 = 7497
+
+CONST_1000000_0 = 1000000.0
+
+
+
 """
 IBKR Broker Adapter - Interactive Brokers via ib_insync
 
@@ -43,6 +88,8 @@ except ImportError:
     IB_AVAILABLE = False
 
 
+# TODO: Refactor large class (30 methods, target < 20)
+# TODO: Refactor large class (30 methods, target < 20)
 class IBKRBroker(BaseBroker):
     """
     Interactive Brokers adapter using ib_insync.
@@ -151,6 +198,8 @@ class IBKRBroker(BaseBroker):
 
         try:
             host = credentials.additional_data.get('host', '127.0.0.1')
+            # TODO: 提取嵌套逻辑为独立方法
+
             if credentials.user_id:
                 host = credentials.user_id
             port = int(credentials.additional_data.get('port', 7497))
@@ -226,6 +275,9 @@ class IBKRBroker(BaseBroker):
         # TODO: 将结果构建逻辑从 get_quotes 移到这里
         return data
 
+# TODO: Refactor - complexity 16 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 16 (target < 15)
     def get_quotes(self, symbols: List[str]) -> ApiResponse[List[BrokerQuote]]:
         """
         Get real-time quotes using snapshot market data.
@@ -285,6 +337,14 @@ class IBKRBroker(BaseBroker):
             return ApiResponse.fail(f"Failed to get quotes: {str(e)}")
 
     def get_history(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         symbol: str,
         start_date: str,
@@ -416,6 +476,8 @@ class IBKRBroker(BaseBroker):
         # TODO: 将结果构建逻辑从 place_order 移到这里
         return data
 
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 16 (target < 15)
     def place_order(
         self,
         credentials: BrokerCredentials,

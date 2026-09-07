@@ -1,5 +1,46 @@
-"""ML 路由助手（框架无关）"""
 from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_75 = 0.75
+
+CONST_4 = 4
+
+CONST_200 = 200
+
+CONST_400 = 400
+
+CONST_500 = 500
+
+
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_75 = 0.75
+
+CONST_4 = 4
+
+CONST_200 = 200
+
+CONST_400 = 400
+
+CONST_500 = 500
+
+
+
+"""ML 路由助手（框架无关）"""
 
 import json as _json
 import logging

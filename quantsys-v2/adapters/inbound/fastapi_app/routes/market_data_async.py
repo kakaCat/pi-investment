@@ -1,3 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_100000000_0 = 100000000.0
+
+
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_100000000_0 = 100000000.0
+
+
+
 """市场/港股数据 API — migrated to DataProviderManager.
 
 Endpoints not covered by DataProviderManager (concepts, technical, analysis,

@@ -1,3 +1,40 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_20 = 20
+
+CONST_202 = 202
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_409 = 409
+
+CONST_730 = 730
+
+
+
+CONST_20 = 20
+
+CONST_202 = 202
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_409 = 409
+
+CONST_730 = 730
+
+
+
 """任务（Job）API - FastAPI 版（从 Flask jobs.py 迁移，响应契约保持一致）
 
 jobs 存储在 health.py 的模块级内存字典中（_jobs/_jobs_lock），Flask 与 FastAPI

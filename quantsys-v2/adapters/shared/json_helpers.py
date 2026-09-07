@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """JSON 序列化与命名转换工具（框架无关）— 从 adapters/inbound/api/shared.py 解耦而来"""
 import math
 from typing import Any
@@ -31,6 +34,9 @@ def _build_sanitize_for_json_result(data):
     # TODO: 将结果构建逻辑从 sanitize_for_json 移到这里
     return data
 
+# TODO: Refactor - complexity 17 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 17 (target < 15)
 def sanitize_for_json(obj):
     """递归清理对象，使其可以被JSON序列化"""
     import pandas as pd
@@ -95,6 +101,8 @@ def convert_keys_to_camel(obj: Any) -> Any:
     if isinstance(obj, dict):
         result = {}
         for k, v in obj.items():
+            # TODO: 提取嵌套逻辑为独立方法
+
             if isinstance(k, str):
                 new_key = to_camel_case(k)
             elif isinstance(k, pd.Timestamp):

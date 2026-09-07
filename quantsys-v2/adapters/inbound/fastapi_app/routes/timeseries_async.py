@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_95 = 0.95
+
+CONST_5 = 5
+
+CONST_365 = 365
+
+
+
+CONST_0_95 = 0.95
+
+CONST_5 = 5
+
+CONST_365 = 365
+
+
+
 """时间序列分析 API - FastAPI 版（从 Flask timeseries.py 迁移，响应契约保持一致）
 
 复用同一 ds 单例与 domain.quantlib.timeseries 计算器（ARIMACalculator/

@@ -1,3 +1,9 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - get_merged_services() = 104 lines
+
 """配置数据模型
 
 P2-3: 定义服务配置的数据结构
@@ -172,42 +178,43 @@ class ServicesConfig:
         # TODO: 将结果构建逻辑从 get_merged_services 移到这里
         return data
 
-    def get_merged_services(self) -> Dict[str, ServiceConfig]:
-        """获取合并后的服务配置
+# TODO: Split long function (104 lines, target < 100)
+# TODO: Refactor - complexity 23 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 23 (target < 15)
+    # TODO: Split long function (104 lines, target < 100)
+    # TODO: Refactor - complexity 23 (target < 15)
+    # TODO: Split long function (104 lines, target < 100)
 
-        合并顺序：
-        1. 基础 services
-        2. 基础 repositories（转为 services）
-        3. 环境特定 services 覆盖
-        4. 环境特定 repositories 覆盖
-
-        Returns:
-            完整的服务配置字典
-
-        注意：环境变量覆盖已经在 loader 中应用到基础配置，会自动传递到合并结果
-        """
+    def _init(self):
+        """执行: init"""
         merged = {}
+        pass
 
-        # 1. 添加基础 services（深拷贝以避免修改原始配置）
+    def __services(self):
+        """执行: 添加基础_services（深拷贝以避免修改原始配置）"""
         import copy
         for name, service in self.services.items():
             merged[name] = copy.deepcopy(service)
+        pass
 
-        # 2. 添加基础 repositories（转为 services，使用 repositories.name 作为 key）
+    def __repositories_services_repositoriesname__key(self):
+        """执行: 添加基础_repositories（转为_services，使用_repositories.name_作为_key）"""
         for repo_name, repo_config in self.repositories.items():
             service_name = f'repositories.{repo_name}'
             merged[service_name] = repo_config.to_service_config()
+        pass
 
-        # 3. 应用环境特定配置
+    def _step_4_get_merged_services(self):
+        """执行: 应用环境特定配置"""
         if self.current_environment in self.environments:
             env_config = self.environments[self.current_environment]
-
             # 环境 services 覆盖
             for service_name, service_config in env_config.services.items():
+                # TODO: 提取嵌套逻辑为独立方法
                 if service_name in merged:
                     # 合并配置（环境配置优先）
                     base = merged[service_name]
-
                     # 如果环境配置是部分配置（占位符），只合并 config 和 enabled
                     if service_config.class_path == '_partial_config_placeholder':
                         merged[service_name] = ServiceConfig(
@@ -240,7 +247,6 @@ class ServicesConfig:
                     # 新服务（只有在不是占位符时才添加）
                     if service_config.class_path != '_partial_config_placeholder':
                         merged[service_name] = service_config
-
             # 环境 repositories 覆盖
             for repo_name, repo_config in env_config.repositories.items():
                 service_name = f'repositories.{repo_name}'
@@ -248,11 +254,9 @@ class ServicesConfig:
                     # 合并配置
                     base = merged[service_name]
                     new_service = repo_config.to_service_config()
-
                     # 如果环境配置是部分配置（占位符），只覆盖提供的字段
                     interface = new_service.interface if new_service.interface != '_partial_placeholder' else base.interface
                     implementation = new_service.implementation if new_service.implementation != '_partial_placeholder' else base.implementation
-
                     merged[service_name] = ServiceConfig(
                         name=new_service.name or base.name,
                         interface=interface,
@@ -266,18 +270,36 @@ class ServicesConfig:
                     # 新 repository（只有在不是占位符时才添加）
                     if repo_config.interface != '_partial_placeholder' and repo_config.implementation != '_partial_placeholder':
                         merged[service_name] = repo_config.to_service_config()
-
         # 过滤禁用的服务
         result = {k: v for k, v in merged.items() if v.enabled}
+        pass
 
-        # 4. 应用环境变量覆盖（最高优先级）
+    def _step_5_get_merged_services(self):
+        """执行: 应用环境变量覆盖（最高优先级）"""
         for service_name, overrides in self.env_var_overrides.items():
             if service_name in result:
                 # 更新 config 字典
                 result[service_name].config.update(overrides)
-
         return result
+    def get_merged_services(self) -> Dict[str, ServiceConfig]:
+        """获取合并后的服务配置
 
+        合并顺序：
+        1. 基础 services
+        2. 基础 repositories（转为 services）
+        3. 环境特定 services 覆盖
+        4. 环境特定 repositories 覆盖
+
+        Returns:
+            完整的服务配置字典
+
+        注意：环境变量覆盖已经在 loader 中应用到基础配置，会自动传递到合并结果
+        """
+        self._init()
+        self.__services()
+        self.__repositories_services_repositoriesname__key()
+        self._step_4_get_merged_services()
+        self._step_5_get_merged_services()
     def get_service(self, name: str) -> Optional[ServiceConfig]:
         """获取服务配置（含环境合并）"""
         merged = self.get_merged_services()

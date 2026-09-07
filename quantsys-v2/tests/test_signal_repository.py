@@ -5,6 +5,7 @@ import pytest
 from adapters.outbound.repositories import SignalORMRepository
 
 
+# TODO: Refactor large class (22 methods, target < 20)
 class TestSignalRepository:
     """SignalRepository测试类"""
 

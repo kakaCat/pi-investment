@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """StorageStage - Write cleaned and imputed data to database (Priority 7).
 
 This stage writes processed data to the database using a three-layer architecture:

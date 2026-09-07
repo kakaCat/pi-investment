@@ -1,4 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - run() = 112 lines
+
 #!/usr/bin/env python
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_12 = 0.12
+
+CONST_5 = 5
+
+
+
+CONST_0_12 = 0.12
+
+CONST_5 = 5
+
+
+
 """
 V13策略预测验证任务
 
@@ -193,7 +217,16 @@ class VerificationJob:
 
     # TODO: Refactor - function too long (113 lines, target < 80)
 
+# TODO: Split long function (112 lines, target < 100)
     def run(self):
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """运行验证任务"""
         logger.info("开始运行预测验证任务")
 

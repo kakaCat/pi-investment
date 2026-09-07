@@ -1,3 +1,34 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 105 lines
+
+
+# Extracted Constants
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_08 = 0.08
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_35 = 0.35
+
+CONST_0_4 = 0.4
+
+
+
 """
 Stress Test Calculator
 =======================
@@ -81,7 +112,12 @@ class StressTestCalculator(BaseCalculator):
         # Predefined historical scenarios
         self.historical_scenarios = self._define_historical_scenarios()
 
+    # TODO: Split long function (105 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
                   returns: Union[pd.DataFrame, np.ndarray],
                   weights: Union[List, np.ndarray, pd.Series],
                   scenarios: List[Scenario],

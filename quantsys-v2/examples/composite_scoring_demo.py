@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.1, 0.2, 0.3, 0.4, 0.5]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_1 = 0.1
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+CONST_2_5 = 2.5
+
+CONST_3 = 3
+
+
+
+CONST_0_1 = 0.1
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+CONST_2_5 = 2.5
+
+CONST_3 = 3
+
+
 
 """
 综合评分示例 - 技术面 + 基本面双维度评分

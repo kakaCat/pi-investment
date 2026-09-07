@@ -1,3 +1,9 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - get_klines() = 133 lines
+
 """AkShare kline provider - fallback source"""
 import os
 import logging
@@ -23,7 +29,18 @@ class AkshareKlineProvider(KlineProvider):
 
     # TODO: Refactor - function too long (134 lines, target < 80)
 
+# TODO: Split long function (133 lines, target < 100)
     def get_klines(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         symbol: str,
         period: str,

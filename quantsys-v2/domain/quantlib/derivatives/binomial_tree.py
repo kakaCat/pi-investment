@@ -1,3 +1,22 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 188 lines
+
+
+# Extracted Constants
+
+CONST_6 = 6
+
+CONST_25 = 25
+
+CONST_50 = 50
+
+CONST_200 = 200
+
+
+
 """
 Binomial Tree Option Pricing
 =============================
@@ -90,7 +109,21 @@ class BinomialTreeCalculator(BaseCalculator):
         # TODO: 将结果构建逻辑从 calculate 移到这里
         return data
 
+# TODO: Split long function (188 lines, target < 100)
+# TODO: Refactor - complexity 18 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 18 (target < 15)
+    # TODO: Split long function (188 lines, target < 100)
+    # TODO: Refactor - complexity 18 (target < 15)
+    # TODO: Split long function (188 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
                   S: float,
                   K: float,
                   T: float,
@@ -159,6 +192,8 @@ class BinomialTreeCalculator(BaseCalculator):
             p = (np.exp((r - q) * dt) - d) / (u - d)  # Risk-neutral probability
 
             # Validate risk-neutral probability
+            # TODO: 提取嵌套逻辑为独立方法
+
             if not 0 <= p <= 1:
                 raise CalculationError(
                     f"Invalid risk-neutral probability: {p}. Check input parameters.",

@@ -1,3 +1,16 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - execute() = 117 lines
+
+
+# Extracted Constants
+
+CONST_1000000_0 = 1000000.0
+
+
+
 """
 ScriptStrategy 执行引擎
 
@@ -204,7 +217,12 @@ class ScriptStrategyExecutor:
         self.code_validator = CodeValidator()
         self.param_parser = ParamParser()
 
+    # TODO: Split long function (117 lines, target < 100)
     def execute(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         code: str,
         klines: List[Dict],

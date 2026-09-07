@@ -1,4 +1,27 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - run_cache_benchmarks() = 107 lines
+
 #!/usr/bin/env python3
+
+# Extracted Constants
+
+CONST_0_001 = 0.001
+
+CONST_3 = 3
+
+CONST_11 = 11
+
+CONST_60 = 60
+
+CONST_80 = 80
+
+CONST_300 = 300
+
+
+
 """
 缓存性能基准测试
 
@@ -127,7 +150,12 @@ def simulate_data_access(cache: CacheService, with_cache: bool = True, repeat: i
 
 # TODO: Refactor - function too long (108 lines, target < 80)
 
+# TODO: Split long function (107 lines, target < 100)
 def run_cache_benchmarks():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """运行缓存基准测试"""
     print("=" * 80)
     print("缓存性能基准测试")

@@ -1,3 +1,34 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - run_historical_replay() = 121 lines
+
+
+# Extracted Constants
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_12 = 0.12
+
+CONST_0_15 = 0.15
+
+CONST_0_18 = 0.18
+
+CONST_0_2 = 0.2
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_35 = 0.35
+
+
+
 """
 Stress Test Framework
 
@@ -241,7 +272,18 @@ class StressTestEngine:
             "summary": summary,
         }
 
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Extract 3 validation checks to _validate_run_historical_replay()
+    # TODO: Refactor - complexity 16 (target < 15)
+    # TODO: Split long function (121 lines, target < 100)
+    # TODO: Refactor - complexity 16 (target < 15)
+    # TODO: Split long function (121 lines, target < 100)
     def run_historical_replay(self, start_date: str, end_date: str, index_symbol: str = "000001.SH") -> Dict:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         """
         历史情景回放：基于历史市场数据回放组合表现
 
@@ -278,6 +320,8 @@ class StressTestEngine:
         for holding in holdings:
             symbol = holding.get("symbol")
             klines = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
+            # TODO: 提取嵌套逻辑为独立方法
+
             if klines and len(klines) >= 2:
                 holdings_history[symbol] = {
                     "klines": klines,

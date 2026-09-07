@@ -1,10 +1,22 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_3_0 = 3.0
+
+CONST_30_0 = 30.0
+
+
+
 """Ollama 本地 embedding 服务（W1.3 混合检索）
 
 设计定稿（2026-08-12）：向量用 ollama 本地 bge-m3，POST /api/embeddings。
 任何失败（不可达/超时/模型缺失）一律返回 None，绝不抛错——
 调用方据此走降级路径（参考 TencentDB-Agent-Memory store 的 isDegraded() 设计）。
 """
-from __future__ import annotations
 
 from typing import List, Optional
 

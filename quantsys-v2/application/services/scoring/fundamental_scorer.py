@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [3.0, 5.0, 6.0, 7.0, 8.0]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_3_0 = 3.0
+
+CONST_5_0 = 5.0
+
+CONST_6_0 = 6.0
+
+CONST_7_0 = 7.0
+
+CONST_8_0 = 8.0
+
+CONST_12_0 = 12.0
+
+CONST_15_0 = 15.0
+
+CONST_20_0 = 20.0
+
+CONST_25 = 25
+
+CONST_30 = 30
+
+
+
+CONST_3_0 = 3.0
+
+CONST_5_0 = 5.0
+
+CONST_6_0 = 6.0
+
+CONST_7_0 = 7.0
+
+CONST_8_0 = 8.0
+
+CONST_12_0 = 12.0
+
+CONST_15_0 = 15.0
+
+CONST_20_0 = 20.0
+
+CONST_25 = 25
+
+CONST_30 = 30
+
+
 
 """
 基本面评分器

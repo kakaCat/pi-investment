@@ -1,3 +1,20 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_1000000 = 1000000
+
+
+
+CONST_1000000 = 1000000
+
+
+
 """
 策略优化器
 使用真实回测进行参数搜索

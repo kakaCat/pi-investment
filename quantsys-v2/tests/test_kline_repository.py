@@ -10,6 +10,7 @@ import polars as pl
 from adapters.outbound.repositories import KlineORMRepository
 
 
+# TODO: Refactor large class (25 methods, target < 20)
 class TestKlineRepository:
     """KlineRepository测试类"""
 

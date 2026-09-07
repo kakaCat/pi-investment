@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """配置加载器
 
 P2-3: 从 YAML 文件加载服务配置

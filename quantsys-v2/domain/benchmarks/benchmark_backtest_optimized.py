@@ -1,4 +1,35 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - run_optimized_benchmarks() = 114 lines
+
 #!/usr/bin/env python3
+
+# Extracted Constants
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_01 = 0.01
+
+CONST_0_02 = 0.02
+
+CONST_0_99 = 0.99
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_20 = 20
+
+CONST_42 = 42
+
+
+
 """
 策略回测性能优化版本
 
@@ -344,7 +375,12 @@ def benchmark_method(
     }
 
 
+# TODO: Split long function (114 lines, target < 100)
 def run_optimized_benchmarks():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """运行优化版本的基准测试"""
     print("=" * 80)
     print("并行回测优化方案对比测试")

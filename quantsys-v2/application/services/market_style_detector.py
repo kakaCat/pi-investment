@@ -1,3 +1,35 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - compute_style_from_boards() = 130 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_3 = 0.3
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_60 = 60
+
+
+
+CONST_0_3 = 0.3
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_60 = 60
+
+
+
 """
 市场风格检测服务（2026-09-03 真实化重写，task 312）
 
@@ -89,7 +121,18 @@ for _b in CYCLE_BOARDS:
 
 # TODO: Refactor - function too long (131 lines, target < 80)
 
+# TODO: Split long function (130 lines, target < 100)
 def compute_style_from_boards(boards: List[Dict[str, Any]]) -> Dict[str, Any]:
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
     """
     由真实行业板块涨跌幅计算当日市场风格（纯函数，不访问网络/DB）。
 

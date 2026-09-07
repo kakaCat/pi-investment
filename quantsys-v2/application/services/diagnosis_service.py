@@ -1,4 +1,49 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 # services/diagnosis_service.py
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_03 = 0.03
+
+CONST_0_08 = 0.08
+
+CONST_0_1 = 0.1
+
+CONST_0_25 = 0.25
+
+CONST_0_6 = 0.6
+
+CONST_3_0 = 3.0
+
+CONST_8 = 8
+
+CONST_252_0 = 252.0
+
+
+
+CONST_0_03 = 0.03
+
+CONST_0_08 = 0.08
+
+CONST_0_1 = 0.1
+
+CONST_0_25 = 0.25
+
+CONST_0_6 = 0.6
+
+CONST_3_0 = 3.0
+
+CONST_8 = 8
+
+CONST_252_0 = 252.0
+
+
+
 """
 诊断服务 - 策略诊断主入口
 """

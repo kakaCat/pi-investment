@@ -1,5 +1,33 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.01, 0.03, 0.05, 0.1, 0.15]...
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+
 
 """
 Risk Report Calculator
@@ -102,6 +130,8 @@ class RiskReportCalculator(BaseCalculator):
             )
 
         try:
+            # TODO: 提取嵌套逻辑为独立方法
+
             if method == 'summary':
                 report = self._generate_summary_report(portfolio_data, risk_metrics)
             elif method == 'detailed':
@@ -219,6 +249,9 @@ class RiskReportCalculator(BaseCalculator):
         # TODO: 将结果构建逻辑从 _assess_risk_level 移到这里
         return data
 
+# TODO: Refactor - complexity 17 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 17 (target < 15)
     def _assess_risk_level(self, metrics: Dict[str, Any]) -> Dict[str, Any]:
         """
         Assess overall risk level based on key metrics.

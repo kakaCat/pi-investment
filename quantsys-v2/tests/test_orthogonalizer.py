@@ -59,6 +59,7 @@ def orthogonal_data():
     return pd.DataFrame(factors, columns=factor_names)
 
 
+# TODO: Refactor large class (38 methods, target < 20)
 class TestFactorOrthogonalizer:
     """Test suite for FactorOrthogonalizer"""
 

@@ -1,3 +1,24 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - test() = 135 lines
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+
+
 """
 Granger Causality Testing Module
 =================================
@@ -75,7 +96,13 @@ class GrangerCausalityCalculator(BaseCalculator):
     @timing_decorator
     # TODO: Refactor - function too long (136 lines, target < 80)
 
+# TODO: Split long function (135 lines, target < 100)
     def test(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         y: Union[List, np.ndarray, pd.Series],
         x: Union[List, np.ndarray, pd.Series],
@@ -291,6 +318,10 @@ class GrangerCausalityCalculator(BaseCalculator):
     @validate_inputs
     @timing_decorator
     def select_optimal_lag(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         y: Union[List, np.ndarray, pd.Series],
         x: Union[List, np.ndarray, pd.Series],

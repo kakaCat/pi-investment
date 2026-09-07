@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """筹码分布 Repository — quant.chip_distribution_state / quant.chip_metrics"""
 from datetime import date
 from typing import Any, Dict, List, Optional

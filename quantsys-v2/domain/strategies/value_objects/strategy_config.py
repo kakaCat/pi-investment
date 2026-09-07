@@ -1,7 +1,21 @@
 from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 from dataclasses import dataclass, field
 from typing import Any
+
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_2 = 0.2
+
 
 
 @dataclass(frozen=True)

@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.05, 0.1, 0.15, 0.25, 0.3]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_35 = 0.35
+
+CONST_0_5 = 0.5
+
+CONST_1_5 = 1.5
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_35 = 0.35
+
+CONST_0_5 = 0.5
+
+CONST_1_5 = 1.5
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+
 
 """
 策略分析器 - 计算策略评级和诊断结论

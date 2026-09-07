@@ -1,3 +1,27 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 116 lines
+#   - _analyze_box_spread() = 107 lines
+
+
+# Extracted Constants
+
+CONST_0_001 = 0.001
+
+CONST_0_002 = 0.002
+
+CONST_0_01 = 0.01
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+CONST_6 = 6
+
+
+
 """
 期权套利检测模块
 ================
@@ -54,7 +78,12 @@ class ArbitrageCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (117 lines, target < 80)
 
+# TODO: Split long function (116 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
                   S: float,
                   K_or_strikes: Any,
                   T: float,
@@ -251,7 +280,12 @@ class ArbitrageCalculator(BaseCalculator):
 # TODO: Refactor - function too long (108 lines, target < 80)
 
 
+# TODO: Split long function (107 lines, target < 100)
     def _analyze_box_spread(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
                              strikes: np.ndarray,
                              call_prices: np.ndarray,
                              put_prices: np.ndarray,

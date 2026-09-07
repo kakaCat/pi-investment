@@ -1,3 +1,34 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - generate_features() = 136 lines
+
+
+# Extracted Constants
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_12 = 12
+
+CONST_14 = 14
+
+CONST_20 = 20
+
+CONST_26 = 26
+
+CONST_60 = 60
+
+CONST_252 = 252
+
+
+
 """
 Feature Engineering Calculator
 ==============================
@@ -97,7 +128,23 @@ class FeatureEngineeringCalculator(BaseCalculator):
         # TODO: 将结果构建逻辑从 generate_features 移到这里
         return data
 
+# TODO: Split long function (135 lines, target < 100)
+# TODO: Refactor - complexity 25 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    def _check_condition_0():
+        """Check: data is None or (isinstance(data, pd.DataFrame) and data.emp..."""
+        return data is None or (isinstance(data, pd.DataFrame) and data.empty)
+
+    # TODO: Refactor - complexity 26 (target < 15)
+    # TODO: Split long function (136 lines, target < 100)
+    # TODO: Refactor - complexity 26 (target < 15)
+    # TODO: Split long function (136 lines, target < 100)
     def generate_features(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
                           data: pd.DataFrame,
                           feature_types: Optional[List[str]] = None,
                           window_sizes: Optional[List[int]] = None,
@@ -123,7 +170,8 @@ class FeatureEngineeringCalculator(BaseCalculator):
         """
         if data is None or (isinstance(data, pd.DataFrame) and data.empty):
             raise DataValidationError("Input data is empty", field_name="data")
-
+        if _check_condition_0():
+            pass  # TODO: implement
         if feature_types is None:
             feature_types = ['technical', 'statistical', 'time']
 
@@ -143,6 +191,8 @@ class FeatureEngineeringCalculator(BaseCalculator):
         valid_types = set(self.get_supported_methods())
         valid_types.discard('all')
         for ft in feature_types:
+            # TODO: 提取嵌套逻辑为独立方法
+
             if ft not in valid_types:
                 raise ConfigurationError(
                     f"Unsupported feature type: {ft}",

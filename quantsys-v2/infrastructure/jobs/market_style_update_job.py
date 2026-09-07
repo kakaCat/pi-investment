@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """
 市场风格更新任务执行器（task 312 修复，2026-09-03）
 

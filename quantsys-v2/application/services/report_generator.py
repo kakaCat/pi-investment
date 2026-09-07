@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 # services/report_generator.py
 """
 报告生成器 - 生成 Markdown 格式的诊断报告

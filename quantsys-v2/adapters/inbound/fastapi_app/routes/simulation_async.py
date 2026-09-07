@@ -1,3 +1,48 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_50 = 50
+
+CONST_201 = 201
+
+CONST_365 = 365
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_409 = 409
+
+CONST_500 = 500
+
+CONST_100000_0 = 100000.0
+
+
+
+CONST_50 = 50
+
+CONST_201 = 201
+
+CONST_365 = 365
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_409 = 409
+
+CONST_500 = 500
+
+CONST_100000_0 = 100000.0
+
+
+
 """多账户域 FastAPI 端点（与 Flask simulation.py 契约一致）
 
 注意：Flask 路由直接 jsonify 未做 camelCase 转换，此处同样返回原始 key，

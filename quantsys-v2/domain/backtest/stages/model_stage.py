@@ -1,3 +1,27 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_5 = 0.5
+
+CONST_6 = 6
+
+CONST_12 = 12
+
+CONST_24 = 24
+
+CONST_26 = 26
+
+CONST_50_0 = 50.0
+
+CONST_60 = 60
+
+
+
 """
 Model Prediction Stage
 

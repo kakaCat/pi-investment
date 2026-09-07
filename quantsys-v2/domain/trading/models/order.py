@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 # domain/trading/models/order.py
 from dataclasses import dataclass, field
 from typing import Optional

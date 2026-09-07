@@ -1,3 +1,15 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+
+
 """笔识别器 - 识别顶底分型和笔"""
 from typing import List
 from .types import KLine, FenXing, Bi

@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """Data pipeline monitoring and metrics tracking.
 
 This module provides monitoring capabilities for the data pipeline:

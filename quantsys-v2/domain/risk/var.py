@@ -1,5 +1,33 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.5, 0.9, 0.95, 0.99, 3]...
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_0_9 = 0.9
+
+CONST_0_95 = 0.95
+
+CONST_0_99 = 0.99
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_20 = 20
+
+CONST_24 = 24
+
+CONST_30 = 30
+
+
 
 """
 Value at Risk (VaR) Calculator

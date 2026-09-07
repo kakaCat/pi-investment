@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_6 = 6
+
+CONST_70 = 70
+
+CONST_80 = 80
+
+
+
+CONST_6 = 6
+
+CONST_70 = 70
+
+CONST_80 = 80
+
+
+
 """
 指数成分股更新Job
 

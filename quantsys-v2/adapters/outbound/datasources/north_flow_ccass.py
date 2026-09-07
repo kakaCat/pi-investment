@@ -1,3 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_6 = 6
+
+CONST_20 = 20
+
+CONST_40 = 40
+
+
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_6 = 6
+
+CONST_20 = 20
+
+CONST_40 = 40
+
+
+
 """
 北向持股数据源 - 港交所披露易 CCASS（官方渠道）
 

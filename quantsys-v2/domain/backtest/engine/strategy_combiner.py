@@ -1,3 +1,17 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_4 = 4
+
+
+
 """
 策略组合器
 

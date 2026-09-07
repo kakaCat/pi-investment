@@ -1,5 +1,8 @@
-"""pandas-ta indicator adapter."""
 from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+"""pandas-ta indicator adapter."""
 
 from typing import Any
 

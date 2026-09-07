@@ -1,3 +1,25 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_25 = 0.25
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_50 = 50
+
+CONST_2000 = 2000
+
+
+
 """
 Yield Curve Calculator
 ======================
@@ -250,6 +272,10 @@ class YieldCurveCalculator(BaseCalculator):
         )
 
     def fit_nelson_siegel(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         maturities: List[float],
         yields: List[float],
@@ -353,6 +379,10 @@ class YieldCurveCalculator(BaseCalculator):
     # TODO: Refactor - function too long (101 lines, target < 80)
 
     def fit_svensson(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         maturities: List[float],
         yields: List[float],

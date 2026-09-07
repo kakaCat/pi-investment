@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """策略发现结果共享存储（框架无关）— 从 adapters/inbound/api/routes/discovery.py 解耦而来
 
 Flask 与 FastAPI 两个 API 层共享同一内存结果存储（重启丢失）。

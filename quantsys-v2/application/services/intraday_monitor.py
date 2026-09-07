@@ -1,3 +1,53 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_02 = 0.02
+
+CONST_0_08 = 0.08
+
+CONST_0_15 = 0.15
+
+CONST_4 = 4
+
+CONST_9 = 9
+
+CONST_11 = 11
+
+CONST_13 = 13
+
+CONST_15 = 15
+
+CONST_30 = 30
+
+
+
+CONST_0_02 = 0.02
+
+CONST_0_08 = 0.08
+
+CONST_0_15 = 0.15
+
+CONST_4 = 4
+
+CONST_9 = 9
+
+CONST_11 = 11
+
+CONST_13 = 13
+
+CONST_15 = 15
+
+CONST_30 = 30
+
+
+
 """
 盘中监控服务 (Intraday Monitor)
 
@@ -10,7 +60,6 @@
 3. 大盘异动：指数跌超2% → 唤醒 Agent 分析
 4. 持仓超时：超过30天无盈利 → 标记复盘
 """
-from __future__ import annotations
 
 import structlog
 from typing import Dict, Any, List, Optional
@@ -80,6 +129,9 @@ class IntradayMonitor:
         # TODO: 将结果构建逻辑从 check 移到这里
         return data
 
+# TODO: Refactor - complexity 16 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 16 (target < 15)
     def check(self) -> Dict[str, Any]:
         """执行一次盘中检查
 
@@ -109,6 +161,8 @@ class IntradayMonitor:
 
             # 获取当前持仓
             positions = engine.get_current_positions()
+            # TODO: 提取嵌套逻辑为独立方法
+
             if not positions:
                 results['status'] = 'no_positions'
                 return results

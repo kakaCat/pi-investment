@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - assess_pool_risk() = 101 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.15, 0.25, 0.3, 3, 5]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_15 = 0.15
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_15 = 15
+
+CONST_20 = 20
+
+CONST_25 = 25
+
+CONST_30 = 30
+
+CONST_40 = 40
+
+
+
+CONST_0_15 = 0.15
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_15 = 15
+
+CONST_20 = 20
+
+CONST_25 = 25
+
+CONST_30 = 30
+
+CONST_40 = 40
+
+
 
 """
 增强型风险评估服务 - EnhancedRiskAssessor
@@ -46,7 +102,16 @@ class EnhancedRiskAssessor:
 
     # TODO: Refactor - function too long (102 lines, target < 80)
 
+# TODO: Split long function (101 lines, target < 100)
     def assess_pool_risk(self, pool_id: int) -> Dict[str, Any]:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """
         评估池子的综合风险
 

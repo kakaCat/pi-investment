@@ -1,3 +1,29 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_02 = 0.02
+
+CONST_0_95 = 0.95
+
+CONST_0_99 = 0.99
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_252 = 252
+
+
+
 """
 Risk Assessment Stage
 

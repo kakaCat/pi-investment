@@ -1,3 +1,27 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - get_klines() = 111 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_200 = 200
+
+CONST_300 = 300
+
+
+
+CONST_200 = 200
+
+CONST_300 = 300
+
+
+
 """新浪财经 K 线数据提供者
 
 新浪财经 K 线接口：稳定可靠，适合作为主力数据源之一
@@ -67,7 +91,16 @@ class SinaKlineProvider(KlineProvider):
 
     # TODO: Refactor - function too long (112 lines, target < 80)
 
+# TODO: Split long function (111 lines, target < 100)
     def get_klines(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         symbol: str,
         period: str,

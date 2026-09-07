@@ -1,3 +1,21 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_8 = 8
+
+
+
+CONST_8 = 8
+
+
+
 """统一线程池管理（Phase 4 任务 8）
 
 替代 API 路由中散落的 threading.Thread(target=..., daemon=True).start()
@@ -12,7 +30,6 @@
 不适用本模块——它们是无限循环，池线程永不归还，应继续用专用线程并由
 FastAPI lifespan 管理优雅停止。
 """
-from __future__ import annotations
 
 import threading
 from concurrent.futures import ThreadPoolExecutor, Future

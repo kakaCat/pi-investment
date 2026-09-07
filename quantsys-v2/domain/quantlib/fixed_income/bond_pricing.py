@@ -1,5 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate_price() = 122 lines
+
 
 # TODO: Extract magic numbers to named constants: [1e-10, 0.05, 0.99, 4, 5.0]...
+
+
+# Extracted Constants
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_05 = 0.05
+
+CONST_0_99 = 0.99
+
+CONST_4 = 4
+
+CONST_5_0 = 5.0
+
+CONST_12 = 12
+
+CONST_45 = 45
+
+CONST_360 = 360
+
+CONST_365 = 365
+
+CONST_365_25 = 365.25
+
+
 
 """
 Bond Pricing Calculator
@@ -74,7 +105,13 @@ class BondPricingCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (123 lines, target < 80)
 
+# TODO: Split long function (122 lines, target < 100)
     def calculate_price(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         face_value: float = 1000.0,
         coupon_rate: float = 0.05,

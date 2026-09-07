@@ -1,3 +1,21 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_7 = 0.7
+
+CONST_0_9 = 0.9
+
+
+
 """买卖点检测器（笔中枢版）——1/2/3 买 + 1/2/3 卖对称
 
 定义（spec: 2026-08-05-chan-bi-zhongshu-redesign.md）：

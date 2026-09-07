@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """
 Team C: 回测增强模块接口定义
 负责人: 量化研究员

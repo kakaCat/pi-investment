@@ -1,3 +1,31 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - backfill_symbol() = 125 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+
+
 """
 数据补充器
 
@@ -69,6 +97,8 @@ class DataBackfiller:
         try:
             from adapters.shared.services import get_stock_repo
             stock = get_stock_repo().get_by_symbol(symbol)
+            # TODO: 提取嵌套逻辑为独立方法
+
             if stock is not None and getattr(stock, 'list_date', None) is not None:
                 return False
         except Exception as e:
@@ -78,7 +108,18 @@ class DataBackfiller:
 
     # TODO: Refactor - function too long (126 lines, target < 80)
 
+# TODO: Split long function (125 lines, target < 100)
     def backfill_symbol(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         symbol: str,
         missing_segments: List[Dict],
@@ -416,6 +457,9 @@ class DataBackfiller:
         # TODO: 将结果构建逻辑从 _convert_klines 移到这里
         return data
 
+# TODO: Refactor - complexity 24 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 24 (target < 15)
     def _convert_klines(self, symbol: str, raw_data: List, start_date: str, end_date: str) -> List[Dict]:
         """转换原始K线数据为标准格式
 

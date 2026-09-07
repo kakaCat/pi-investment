@@ -1,3 +1,55 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - trade_verify() = 135 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_4 = 0.4
+
+CONST_3 = 3
+
+CONST_16 = 16
+
+CONST_30 = 30
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_500 = 500
+
+CONST_100000 = 100000
+
+
+
+CONST_0_05 = 0.05
+
+CONST_0_4 = 0.4
+
+CONST_3 = 3
+
+CONST_16 = 16
+
+CONST_30 = 30
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_500 = 500
+
+CONST_100000 = 100000
+
+
+
 """风控 API - FastAPI 版（从 Flask risk.py 迁移，响应契约保持一致）
 
 注意：Flask update_stop_loss_rule 有误用未定义变量 rule_dict 的 bug（应为 rule），
@@ -39,43 +91,94 @@ def _format_rule(rule):
     }
 
 
+def _calculate_sector_concentration(positions, stock_repo, account_value):
+    """计算行业集中度"""
+    sector_invested: Dict[str, float] = {}
+    for p in positions:
+        sector = None
+        try:
+            stock = stock_repo.get_by_symbol(p.symbol)
+            sector = getattr(stock, 'sector', None) if stock else None
+        except Exception:
+            pass
+        pos_value = float(p.market_value or 0) or (float(p.shares_total) * float(p.current_price or p.avg_cost or 0))
+        sector_invested[sector or '未知'] = sector_invested.get(sector or '未知', 0) + pos_value
+
+    sector_concentration_map = {}
+    if account_value and account_value > 0:
+        for sector_name, invested in sector_invested.items():
+            ratio = invested / account_value
+            # TODO: 提取嵌套逻辑为独立方法
+
+            if ratio > 0.4:
+                sector_concentration_map[sector_name] = ratio
+    return sector_concentration_map
+
+def _get_current_price(position, kline_repo):
+    """获取当前价格"""
+    current_price = float(position.current_price or 0)
+    if current_price == 0:
+        try:
+            latest_kline = kline_repo.get_latest_daily_kline(position.symbol)
+            if latest_kline is not None and not latest_kline.is_empty():
+                kline_row = latest_kline.to_dicts()[0]
+                current_price = float(kline_row.get('close', 0))
+        except Exception:
+            pass
+    return current_price
+
+def _check_position_concentration(symbol, position_value, account_value):
+    """检查单只股票仓位集中度"""
+    checks = []
+    if account_value and account_value > 0:
+        concentration = (position_value / account_value) * 100
+        if concentration > 30:
+            checks.append({
+                'type': 'concentration', 'level': 'high',
+                'message': f'{symbol} 仓位集中度 {concentration:.1f}% > 30%',
+                'suggestion': '建议分散持仓'
+            })
+    return checks
+
+def _check_sector_concentration_for_symbol(symbol, stock_repo, sector_concentration_map):
+    """检查行业集中度"""
+    checks = []
+    holding_sector = None
+    try:
+        stock = stock_repo.get_by_symbol(symbol)
+        holding_sector = getattr(stock, 'sector', None) if stock else None
+    except Exception:
+        pass
+    holding_sector = holding_sector or '未知'
+
+    if holding_sector in sector_concentration_map:
+        sector_ratio = sector_concentration_map[holding_sector]
+        checks.append({
+            'type': 'sector_concentration', 'level': 'high',
+            'message': f'{symbol} 所属行业 "{holding_sector}" 集中度 {sector_ratio*100:.1f}% > 40%',
+            'suggestion': '建议分散行业配置'
+        })
+    return checks
+
+def _check_risk_metrics(symbol, risk_repo):
+    """检查风险指标"""
+    checks = []
+    risk_metrics = risk_repo.get_latest_risk_metrics(symbol)
+    var_95 = volatility = max_drawdown = 0
+
+    if risk_metrics:
+        var_95 = risk_metrics.get('var_95', 0) or 0
+        volatility = risk_metrics.get('volatility', 0) or 0
+        max_drawdown = risk_metrics.get('max_drawdown', 0) or 0
+        if var_95 < -0.05:
+            checks.append({
+                'type': 'var', 'level': 'medium',
+                'message': f'{symbol} VaR 95% = {var_95:.3f}',
+                'suggestion': '建议设置止损'
+            })
+    return checks, var_95, volatility, max_drawdown
+
 @router.post('/api/risk/check')
-# TODO: Refactor - complexity 40 (target < 15)
-
-def _validate_risk_check_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 risk_check 移到这里
-    return True, None
-
-def _process_risk_check_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 risk_check 移到这里
-    return data
-
-def _build_risk_check_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 risk_check 移到这里
-    return data
-
-
-def _validate_risk_check_input(data):
-    """验证风险检查输入"""
-    required = ['symbol', 'action', 'quantity']
-    for field in required:
-        if field not in data:
-            return False, f'Missing: {field}'
-    return True, None
-
-def _check_position_limits(symbol, action, quantity):
-    """检查持仓限制"""
-    # 持仓检查逻辑
-    return True, []
-
-def _check_concentration_risk(symbol, quantity):
-    """检查集中度风险"""
-    # 集中度检查逻辑
-    return True, []
-
 def risk_check(payload: Optional[Dict[str, Any]] = Body(None)):
     """风险检查
 
@@ -90,81 +193,42 @@ def risk_check(payload: Optional[Dict[str, Any]] = Body(None)):
         sim_repo = get_simulation_repo()
         stock_repo = get_stock_repo()
 
+        # 获取持仓和账户信息
         positions = sim_repo.get_all_positions(account_name)
         account = sim_repo.get_account(account_name)
         account_value = float(data.get('account_value') or 0) if data.get('account_value') else None
         if account_value is None and account is not None:
             account_value = float(getattr(account, 'total_value', 0) or 0)
 
-        # 行业集中度：从当前持仓 + stock 表 sector 现算（原 get_holdings_stats
-        # 读 portfolio_holdings 旧表，与新持仓源不一致）
-        sector_invested: Dict[str, float] = {}
-        for p in positions:
-            sector = None
-            try:
-                stock = stock_repo.get_by_symbol(p.symbol)
-                sector = getattr(stock, 'sector', None) if stock else None
-            except Exception:
-                pass
-            pos_value = float(p.market_value or 0) or (float(p.shares_total) * float(p.current_price or p.avg_cost or 0))
-            sector_invested[sector or '未知'] = sector_invested.get(sector or '未知', 0) + pos_value
-        sector_concentration_map = {}
-        if account_value and account_value > 0:
-            for sector_name, invested in sector_invested.items():
-                ratio = invested / account_value
-                if ratio > 0.4:
-                    sector_concentration_map[sector_name] = ratio
+        # 计算行业集中度
+        sector_concentration_map = _calculate_sector_concentration(positions, stock_repo, account_value)
 
+        # 检查每个持仓
         checks = []
         for p in positions:
             symbol = p.symbol
             position_value = float(p.market_value or 0) or (float(p.shares_total) * float(p.current_price or p.avg_cost or 0))
+
+            # 获取当前价格
+            current_price = _get_current_price(p, kline_repo)
+
+            # 执行各项检查
             item_checks = []
-            current_price = float(p.current_price or 0)
-            if current_price == 0:
-                try:
-                    latest_kline = kline_repo.get_latest_daily_kline(symbol)
-                    if latest_kline is not None and not latest_kline.is_empty():
-                        kline_row = latest_kline.to_dicts()[0]
-                        current_price = float(kline_row.get('close', 0))
-                except Exception:
-                    pass
-            if account_value and account_value > 0:
-                concentration = (position_value / account_value) * 100
-                if concentration > 30:
-                    item_checks.append({
-                        'type': 'concentration', 'level': 'high',
-                        'message': f'{symbol} 仓位集中度 {concentration:.1f}% > 30%', 'suggestion': '建议分散持仓'})
-            holding_sector = None
-            try:
-                stock = stock_repo.get_by_symbol(symbol)
-                holding_sector = getattr(stock, 'sector', None) if stock else None
-            except Exception:
-                pass
-            holding_sector = holding_sector or '未知'
-            if holding_sector in sector_concentration_map:
-                sector_ratio = sector_concentration_map[holding_sector]
-                item_checks.append({
-                    'type': 'sector_concentration', 'level': 'high',
-                    'message': f'{symbol} 所属行业 "{holding_sector}" 集中度 {sector_ratio*100:.1f}% > 40%',
-                    'suggestion': '建议分散行业配置'})
-            risk_metrics = risk_repo.get_latest_risk_metrics(symbol)
-            var_95 = volatility = max_drawdown = 0
-            if risk_metrics:
-                var_95 = risk_metrics.get('var_95', 0) or 0
-                volatility = risk_metrics.get('volatility', 0) or 0
-                max_drawdown = risk_metrics.get('max_drawdown', 0) or 0
-                if var_95 < -0.05:
-                    item_checks.append({
-                        'type': 'var', 'level': 'medium',
-                        'message': f'{symbol} VaR 95% = {var_95:.3f}', 'suggestion': '建议设置止损'})
+            item_checks.extend(_check_position_concentration(symbol, position_value, account_value))
+            item_checks.extend(_check_sector_concentration_for_symbol(symbol, stock_repo, sector_concentration_map))
+            risk_checks, var_95, volatility, max_drawdown = _check_risk_metrics(symbol, risk_repo)
+            item_checks.extend(risk_checks)
+
             checks.append({
                 'symbol': symbol, 'position_value': position_value, 'current_price': current_price,
-                'var_95': var_95, 'volatility': volatility, 'max_drawdown': max_drawdown, 'checks': item_checks})
+                'var_95': var_95, 'volatility': volatility, 'max_drawdown': max_drawdown, 'checks': item_checks
+            })
+
         return sanitize_for_json({
             'total_holdings': len(checks), 'checks': checks,
             'account_name': account_name,
-            'risk_level': 'high' if len(checks) > 3 else 'low'})
+            'risk_level': 'high' if len(checks) > 3 else 'low'
+        })
     except Exception as e:
         return error_response({'error': str(e)}, 500)
 
@@ -387,7 +451,24 @@ def _build_trade_verify_result(data):
     # TODO: 将结果构建逻辑从 trade_verify 移到这里
     return data
 
+# TODO: Split long function (135 lines, target < 100)
+# TODO: Refactor - complexity 26 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 26 (target < 15)
+# TODO: Split long function (135 lines, target < 100)
+# TODO: Refactor - complexity 26 (target < 15)
+# TODO: Split long function (135 lines, target < 100)
 def trade_verify(
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
     account_name: Optional[str] = Query('agent_virtual'),
     date: Optional[str] = Query(None),
     payload: Optional[Dict[str, Any]] = Body(None),

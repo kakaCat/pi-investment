@@ -1,3 +1,19 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_0001 = 0.0001
+
+CONST_0_0003 = 0.0003
+
+CONST_8 = 8
+
+CONST_100000_0 = 100000.0
+
+
+
 """
 Backtrader Backtest Engine
 ===========================
@@ -69,6 +85,10 @@ class BacktraderEngine:
         self.n_workers = n_workers
     
     def backtest_single(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         symbol: str,
         df: pd.DataFrame,

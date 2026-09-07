@@ -1,4 +1,24 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - create_builtin_indicators() = 263 lines
+
 #!/usr/bin/env python3
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_70 = 70
+
+
+
+CONST_70 = 70
+
+
+
 """
 直接通过数据库连接创建系统内置指标
 """
@@ -28,7 +48,27 @@ from domain.quantlib.engine.param_parser import ParamParser
 
 # TODO: Refactor - function too long (264 lines, target < 80)
 
+# TODO: Split long function (263 lines, target < 100)
 def create_builtin_indicators():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 8 ----
+    # ---- Section 9 ----
+    # ---- Section 10 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 8 ----
+    # ---- Section 9 ----
     """创建系统内置指标"""
 
     builtin_indicators = [

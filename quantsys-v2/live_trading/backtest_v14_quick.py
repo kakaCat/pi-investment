@@ -1,3 +1,59 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - quick_backtest() = 157 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_12 = 0.12
+
+CONST_0_15 = 0.15
+
+CONST_0_18 = 0.18
+
+CONST_0_2 = 0.2
+
+CONST_0_28 = 0.28
+
+CONST_0_7 = 0.7
+
+CONST_0_9 = 0.9
+
+CONST_1_2 = 1.2
+
+CONST_5 = 5
+
+CONST_80 = 80
+
+
+
+CONST_0_12 = 0.12
+
+CONST_0_15 = 0.15
+
+CONST_0_18 = 0.18
+
+CONST_0_2 = 0.2
+
+CONST_0_28 = 0.28
+
+CONST_0_7 = 0.7
+
+CONST_0_9 = 0.9
+
+CONST_1_2 = 1.2
+
+CONST_5 = 5
+
+CONST_80 = 80
+
+
+
 """
 V14快速回测工具
 
@@ -16,7 +72,20 @@ import logging
 
 logging.basicConfig(level=logging.WARNING)
 
+# TODO: Split long function (157 lines, target < 100)
 def quick_backtest():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
     """快速回测V14模型"""
 
     print("\n" + "="*80)

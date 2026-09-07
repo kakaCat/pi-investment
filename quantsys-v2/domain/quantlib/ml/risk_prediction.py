@@ -1,5 +1,33 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [1e-06, 0.0001, 0.05, 0.08, 0.25]...
+
+
+# Extracted Constants
+
+CONST_1eNEG_06 = 1e-06
+
+CONST_0_0001 = 0.0001
+
+CONST_0_05 = 0.05
+
+CONST_0_08 = 0.08
+
+CONST_0_25 = 0.25
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_0_75 = 0.75
+
+CONST_0_8 = 0.8
+
+CONST_0_85 = 0.85
+
+
 
 """
 Risk Prediction Calculator

@@ -1,4 +1,7 @@
 from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 from dataclasses import dataclass, field
 from enum import Enum

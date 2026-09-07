@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - handle_model_train_auto() = 251 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.01, 0.2, 0.55, 4, 5]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_0_2 = 0.2
+
+CONST_0_55 = 0.55
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_7 = 7
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_42 = 42
+
+CONST_50 = 50
+
+
+
+CONST_0_01 = 0.01
+
+CONST_0_2 = 0.2
+
+CONST_0_55 = 0.55
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_7 = 7
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_42 = 42
+
+CONST_50 = 50
+
+
 
 """
 调度任务处理器
@@ -342,6 +398,8 @@ def handle_report_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
             from application.services.market_data_service import MarketDataService
             market_service = MarketDataService()
             market_summary = market_service.get_market_overview()
+            # TODO: 提取嵌套逻辑为独立方法
+
             if market_summary.get("success") and market_summary.get("data"):
                 report_content["sections"].append({
                     "title": "市场概况",
@@ -476,6 +534,9 @@ def _build_handle_factor_compute_result(data):
     # TODO: 将结果构建逻辑从 handle_factor_compute 移到这里
     return data
 
+# TODO: Refactor - complexity 16 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 16 (target < 15)
 def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """因子计算任务（盘后批量重算并落库，为次日信号做准备）
 
@@ -1052,7 +1113,33 @@ def _build_handle_model_train_auto_result(data):
     # TODO: 将结果构建逻辑从 handle_model_train_auto 移到这里
     return data
 
+# TODO: Split long function (251 lines, target < 100)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 32 (target < 15)
+# TODO: Split long function (251 lines, target < 100)
+# TODO: Refactor - complexity 32 (target < 15)
+# TODO: Split long function (251 lines, target < 100)
 def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 8 ----
+    # ---- Section 9 ----
+    # ---- Section 10 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 8 ----
+    # ---- Section 9 ----
+    # ---- Section 10 ----
     """
     自动化模型训练任务
     

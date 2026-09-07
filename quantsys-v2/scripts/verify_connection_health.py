@@ -1,4 +1,32 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - check_connection_health() = 139 lines
+
 #!/usr/bin/env python3
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_15 = 15
+
+CONST_60 = 60
+
+CONST_300 = 300
+
+
+
+CONST_15 = 15
+
+CONST_60 = 60
+
+CONST_300 = 300
+
+
+
 """
 WP-6: 生产环境连接健康验证脚本
 
@@ -23,7 +51,18 @@ from infrastructure.persistence.database.engine import get_engine
 
 # TODO: Refactor - function too long (140 lines, target < 80)
 
+# TODO: Split long function (139 lines, target < 100)
 def check_connection_health():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
     """检查数据库连接池健康状态"""
     from psycopg2.extras import RealDictCursor
     

@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.05, 0.1, 0.2, 0.5, 1.5]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_2 = 0.2
+
+CONST_0_5 = 0.5
+
+CONST_1_5 = 1.5
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+CONST_50 = 50
+
+CONST_60 = 60
+
+CONST_200 = 200
+
+
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_2 = 0.2
+
+CONST_0_5 = 0.5
+
+CONST_1_5 = 1.5
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+CONST_50 = 50
+
+CONST_60 = 60
+
+CONST_200 = 200
+
+
 
 """
 ML Pipeline Demo Script

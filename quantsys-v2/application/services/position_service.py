@@ -1,3 +1,35 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - rebalance_positions() = 104 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_02 = 0.02
+
+CONST_1_65 = 1.65
+
+CONST_4 = 4
+
+CONST_100000 = 100000
+
+
+
+CONST_0_02 = 0.02
+
+CONST_1_65 = 1.65
+
+CONST_4 = 4
+
+CONST_100000 = 100000
+
+
+
 """
 Position Service - Live Position Management
 
@@ -306,7 +338,16 @@ def get_position_risk(
 
 # TODO: Refactor - function too long (105 lines, target < 80)
 
+# TODO: Split long function (104 lines, target < 100)
 def rebalance_positions(
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     broker_id: str,
     target_weights: Dict[str, float],
 ) -> Dict[str, Any]:

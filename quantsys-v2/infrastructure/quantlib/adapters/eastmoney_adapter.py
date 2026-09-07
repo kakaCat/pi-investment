@@ -1,9 +1,21 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+
+
 """East Money (东方财富) market data adapter.
 
 Provides comprehensive market data including quotes, sectors, and fund flow.
 """
 
-from __future__ import annotations
 
 import logging
 import requests

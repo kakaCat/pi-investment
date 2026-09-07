@@ -1,3 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_50 = 50
+
+
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_50 = 50
+
+
+
 """
 任务编排器
 管理任务依赖关系和执行顺序，支持并发执行

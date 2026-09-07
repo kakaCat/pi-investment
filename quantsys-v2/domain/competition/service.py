@@ -1,3 +1,25 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - analyze() = 113 lines
+
+
+# Extracted Constants
+
+CONST_0_8 = 0.8
+
+CONST_1_2 = 1.2
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_30 = 30
+
+
+
 """竞争分析服务 - 行业竞争格局、对手对比、优劣势识别
 
 核心逻辑：
@@ -12,7 +34,6 @@
 - ROE/毛利率 = 盈利能力（护城河指标）
 - 增长率 = 扩张速度（进攻性）
 """
-from __future__ import annotations
 from typing import Any, Dict, List, Optional
 import structlog
 
@@ -37,7 +58,12 @@ class CompetitionAnalysisService:
 
     # TODO: Refactor - function too long (114 lines, target < 80)
 
+# TODO: Split long function (113 lines, target < 100)
     def analyze(self, symbol: str, include_financial: bool = True) -> Dict[str, Any]:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """竞争分析主入口
 
         Args:
@@ -80,6 +106,8 @@ class CompetitionAnalysisService:
         target_rank = None
         target_market_cap = stock_info.get("market_cap", 0)
         for idx, comp in enumerate(competitors, start=1):
+            # TODO: 提取嵌套逻辑为独立方法
+
             if comp["symbol"] == symbol:
                 target_rank = idx
                 break
@@ -235,6 +263,9 @@ class CompetitionAnalysisService:
         # TODO: 将结果构建逻辑从 _extract_competitive_edges 移到这里
         return data
 
+# TODO: Refactor - complexity 27 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 27 (target < 15)
     def _extract_competitive_edges(
         self, stock_info: dict, industry_totals: dict
     ) -> tuple[List[str], List[str]]:

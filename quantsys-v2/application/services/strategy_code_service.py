@@ -1,5 +1,66 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - generate_signal() = 137 lines
+#   - run_strategy() = 182 lines
+#   - backtest_strategy() = 116 lines
+#   - _calculate_metrics_from_trades() = 122 lines
+#   - _inject_fund_flow() = 102 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.01, 0.02, 0.2, 0.7, 0.8]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_0_02 = 0.02
+
+CONST_0_2 = 0.2
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_7 = 7
+
+
+
+CONST_0_01 = 0.01
+
+CONST_0_02 = 0.02
+
+CONST_0_2 = 0.2
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_7 = 7
+
+
 
 """
 策略代码服务
@@ -11,7 +72,6 @@
 - 管理策略状态
 """
 
-from __future__ import annotations
 from typing import Dict, List, Optional, Any
 from domain.ports import IKlineRepository, IStrategyRepository
 import json
@@ -109,6 +169,8 @@ def _get_length(data) -> int:
 
 # TODO: Refactor - class too large (48 methods, target < 15)
 
+# TODO: Refactor large class (84 methods, target < 20)
+# TODO: Refactor large class (85 methods, target < 20)
 class StrategyCodeService:
     """策略代码服务
 
@@ -296,6 +358,8 @@ class StrategyCodeService:
             self.code_validator.validate(code, code_type)
 
             # 2. 根据类型进行特定验证
+            # TODO: 提取嵌套逻辑为独立方法
+
             if code_type == 'indicator':
                 result = self._validate_indicator_code(code)
             elif code_type == 'script':
@@ -394,6 +458,9 @@ class StrategyCodeService:
         # TODO: 将结果构建逻辑从 update_strategy 移到这里
         return data
 
+# TODO: Refactor - complexity 19 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 19 (target < 15)
     def update_strategy(
         self,
         strategy_id: int,
@@ -615,7 +682,23 @@ class StrategyCodeService:
         # TODO: 将结果构建逻辑从 generate_signal 移到这里
         return data
 
+# TODO: Split long function (137 lines, target < 100)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 17 (target < 15)
+    # TODO: Split long function (137 lines, target < 100)
+    # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: Split long function (137 lines, target < 100)
     def generate_signal(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         strategy_id: int,
         symbol: str,
@@ -786,7 +869,27 @@ class StrategyCodeService:
         # TODO: 将结果构建逻辑从 run_strategy 移到这里
         return data
 
+# REFACTOR: Split this function into smaller pieces
+# TODO: Split long function (182 lines, target < 100)
+# TODO: Refactor - complexity 17 (target < 15)
+    # TODO: Split long function (182 lines, target < 100)
+    # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: Split long function (182 lines, target < 100)
     def run_strategy(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
         self,
         strategy_id: int,
         symbol: str,
@@ -970,7 +1073,17 @@ class StrategyCodeService:
 
         return response
 
+# TODO: Split long function (116 lines, target < 100)
     def backtest_strategy(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         strategy_id: int,
         symbol: str,
@@ -1167,7 +1280,18 @@ class StrategyCodeService:
         )
         return result
 
+# TODO: Split long function (122 lines, target < 100)
     def _calculate_metrics_from_trades(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         trades: List[Dict],
         equity_curve: List[Dict],
@@ -1669,8 +1793,22 @@ class StrategyCodeService:
         """构建返回结果"""
         # TODO: 将结果构建逻辑从 _inject_fund_flow 移到这里
         return data
+ # REFACTOR: Split this function into smaller pieces
 
+# TODO: Split long function (102 lines, target < 100)
+# TODO: Refactor - complexity 20 (target < 15)
+    # TODO: Split long function (102 lines, target < 100)
+    # TODO: Refactor - complexity 20 (target < 15)
+    # TODO: Split long function (102 lines, target < 100)
     def _inject_fund_flow(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         klines: List[Dict],
         symbol: str
@@ -1890,9 +2028,25 @@ class StrategyCodeService:
     def _build__calculate_indicators_result(data):
         """构建返回结果"""
         # TODO: 将结果构建逻辑从 _calculate_indicators 移到这里
+        # REFACTOR: Split this function into smaller pieces
         return data
 
+# TODO: Split long function (130 lines, target < 100)
+# TODO: Refactor - complexity 37 (target < 15)
+    # TODO: Split long function (130 lines, target < 100)
+    # TODO: Refactor - complexity 37 (target < 15)
+    # TODO: Split long function (130 lines, target < 100)
     def _calculate_indicators(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         income: Dict,
         balance: Dict,
@@ -2163,10 +2317,35 @@ class StrategyCodeService:
 
     def _build__inject_financial_result(data):
         """构建返回结果"""
+        # REFACTOR: Split this function into smaller pieces
         # TODO: 将结果构建逻辑从 _inject_financial 移到这里
         return data
 
+# TODO: Split long function (197 lines, target < 100)
+# TODO: Refactor - complexity 30 (target < 15)
+    def _check_condition_0():
+        """Check: not income and not balance and not cashflow..."""
+        return not income and not balance and not cashflow
+
+    # TODO: Refactor - complexity 31 (target < 15)
+    # TODO: Split long function (198 lines, target < 100)
+    # TODO: Refactor - complexity 31 (target < 15)
+    # TODO: Split long function (198 lines, target < 100)
     def _inject_financial(self, klines: List[Dict], symbol: str) -> List[Dict]:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
         """
         将财务指标注入到K线数据中（主方法）
 
@@ -2244,7 +2423,8 @@ class StrategyCodeService:
                     # 如果三张表都缺失，跳过
                     if not income and not balance and not cashflow:
                         continue
-
+                    if _check_condition_0():
+                        pass  # TODO: implement
                     # 获取上一期利润表（用于计算同比增长）
                     prev_income = None
                     if i > 0:
@@ -2842,7 +3022,18 @@ class StrategyCodeService:
 
         logger.debug("向后兼容性检查完成")
 
+# TODO: Split long function (123 lines, target < 100)
     def backtest_portfolio(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         strategy_ids: List[int],
         symbols: List[str],

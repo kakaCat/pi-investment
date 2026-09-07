@@ -1,5 +1,33 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [1e-05, 0.00025, 0.0005, 0.3, 0.5]...
+
+
+# Extracted Constants
+
+CONST_1eNEG_05 = 1e-05
+
+CONST_0_00025 = 0.00025
+
+CONST_0_0005 = 0.0005
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_8 = 0.8
+
+CONST_4 = 4
+
+CONST_5_0 = 5.0
+
+CONST_9 = 9
+
+CONST_11 = 11
+
+
 
 """
 交易护栏服务 (Trade Guard Service)

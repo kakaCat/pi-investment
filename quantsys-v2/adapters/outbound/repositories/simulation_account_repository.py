@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 # adapters/outbound/repositories/simulation_account_repository.py
 """
 SimulationAccountRepository - 适配 SimulationORMRepository 到 IAccountRepository 接口

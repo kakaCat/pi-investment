@@ -1,3 +1,16 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_20 = 20
+
+CONST_90 = 90
+
+
+
 """AkShare market data adapter implementation.
 
 Wraps every akshare call behind the BaseMarketAdapter interface so that
@@ -8,7 +21,6 @@ All public methods return standardised Python dicts / lists — never raw
 akshare DataFrames.
 """
 
-from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
@@ -76,6 +88,8 @@ def _normalise_frame(df: pd.DataFrame, col_map: dict[str, str]) -> pd.DataFrame:
 
 # TODO: Refactor - class too large (22 methods, target < 15)
 
+# TODO: Refactor large class (28 methods, target < 20)
+# TODO: Refactor large class (28 methods, target < 20)
 class AkShareAdapter(BaseMarketAdapter):
     """AkShare-backed implementation of BaseMarketAdapter.
 
@@ -103,6 +117,8 @@ class AkShareAdapter(BaseMarketAdapter):
 
             # East Money individual stock info
             raw = ak.stock_individual_info_em(symbol=code)
+            # TODO: 提取嵌套逻辑为独立方法
+
             if raw is None or raw.empty:
                 return {}
 
@@ -682,6 +698,9 @@ class AkShareAdapter(BaseMarketAdapter):
         # TODO: 将结果构建逻辑从 get_market_news 移到这里
         return data
 
+# TODO: Refactor - complexity 21 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 21 (target < 15)
     def get_market_news(self, symbol: str = "", limit: int = 20) -> list[dict]:
         """Return recent market news for *symbol*.
 

@@ -1,3 +1,9 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - send() = 106 lines
+
 """
 通知领域服务
 
@@ -60,7 +66,12 @@ class NotificationService:
 
     # TODO: Refactor - function too long (107 lines, target < 80)
 
+# TODO: Split long function (106 lines, target < 100)
     def send(self, notification: Notification) -> ChannelResult:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """发送通知（标准流程）
 
         流程：

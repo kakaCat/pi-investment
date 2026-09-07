@@ -12,6 +12,7 @@ from domain.quantlib.factors.momentum import MomentumFactors
 from domain.quantlib.core.exceptions import InsufficientDataError, DataValidationError
 
 
+# TODO: Refactor large class (30 methods, target < 20)
 class TestMomentumFactors:
     """Test momentum indicator calculations."""
 

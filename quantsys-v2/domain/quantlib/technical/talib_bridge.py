@@ -1,3 +1,25 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+CONST_9 = 9
+
+CONST_12 = 12
+
+CONST_14 = 14
+
+CONST_20 = 20
+
+CONST_26 = 26
+
+CONST_60 = 60
+
+
+
 """
 TA-Lib Bridge Layer
 

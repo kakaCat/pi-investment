@@ -1,3 +1,31 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_1eNEG_08 = 1e-08
+
+CONST_0_1 = 0.1
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+CONST_8 = 8
+
+CONST_20 = 20
+
+CONST_128 = 128
+
+CONST_512 = 512
+
+CONST_5000 = 5000
+
+CONST_10000_0 = 10000.0
+
+
+
 """
 Transformer预测模型 - Team B
 基于注意力机制的时序预测

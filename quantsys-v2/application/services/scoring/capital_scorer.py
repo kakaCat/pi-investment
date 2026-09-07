@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.02, 0.2, 0.8, 1.5, 3]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_02 = 0.02
+
+CONST_0_2 = 0.2
+
+CONST_0_8 = 0.8
+
+CONST_1_5 = 1.5
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_15_0 = 15.0
+
+CONST_20_0 = 20.0
+
+CONST_30_0 = 30.0
+
+CONST_50_0 = 50.0
+
+
+
+CONST_0_02 = 0.02
+
+CONST_0_2 = 0.2
+
+CONST_0_8 = 0.8
+
+CONST_1_5 = 1.5
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_15_0 = 15.0
+
+CONST_20_0 = 20.0
+
+CONST_30_0 = 30.0
+
+CONST_50_0 = 50.0
+
+
 
 """
 资金面评分器

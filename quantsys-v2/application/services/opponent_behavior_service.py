@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.65, 0.75, 0.85, 5, 20.0]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_65 = 0.65
+
+CONST_0_75 = 0.75
+
+CONST_0_85 = 0.85
+
+CONST_5 = 5
+
+CONST_20_0 = 20.0
+
+CONST_30 = 30
+
+CONST_50_0 = 50.0
+
+CONST_70 = 70
+
+CONST_80_0 = 80.0
+
+CONST_10000 = 10000
+
+
+
+CONST_0_65 = 0.65
+
+CONST_0_75 = 0.75
+
+CONST_0_85 = 0.85
+
+CONST_5 = 5
+
+CONST_20_0 = 20.0
+
+CONST_30 = 30
+
+CONST_50_0 = 50.0
+
+CONST_70 = 70
+
+CONST_80_0 = 80.0
+
+CONST_10000 = 10000
+
+
 
 """
 对手行为分析服务

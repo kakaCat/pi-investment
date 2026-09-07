@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_4 = 0.4
+
+CONST_0_7 = 0.7
+
+CONST_7 = 7
+
+
+
+CONST_0_4 = 0.4
+
+CONST_0_7 = 0.7
+
+CONST_7 = 7
+
+
+
 """
 知识管理服务 - KnowledgeService
 

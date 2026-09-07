@@ -1,3 +1,19 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_001 = 0.001
+
+CONST_3 = 3
+
+CONST_8 = 8
+
+CONST_100000 = 100000
+
+
+
 """
 Qlib Trading Environment Module
 ================================

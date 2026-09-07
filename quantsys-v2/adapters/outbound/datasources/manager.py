@@ -1,3 +1,43 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - get_data_completeness() = 115 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_2 = 0.2
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_60 = 60
+
+CONST_300 = 300
+
+
+
+CONST_0_2 = 0.2
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_60 = 60
+
+CONST_300 = 300
+
+
+
 """Unified data provider manager with automatic failover."""
 import logging
 from typing import List, Dict, Any, Optional
@@ -35,6 +75,8 @@ logger = logging.getLogger(__name__)
 
 # TODO: Refactor - class too large (51 methods, target < 15)
 
+# TODO: Refactor large class (63 methods, target < 20)
+# TODO: Refactor large class (64 methods, target < 20)
 class DataProviderManager(IDataProviderManager):
     """Unified data provider manager
 
@@ -164,6 +206,8 @@ class DataProviderManager(IDataProviderManager):
         attempted_sources: List[str] = []
 
         for provider in sorted_providers:
+            # TODO: 提取嵌套逻辑为独立方法
+
             if self._is_circuit_broken(provider.name):
                 cb = self._circuit_breakers.get(provider.name)
                 state = cb.get_state() if cb else {}
@@ -256,6 +300,13 @@ class DataProviderManager(IDataProviderManager):
         # TODO: 将结果构建逻辑从 _is_valid 移到这里
         return data
 
+# TODO: Refactor - complexity 19 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    def _check_condition_0():
+        """Check: data.price is None or (hasattr(pd, 'isna') and pd.isna(data...."""
+        return data.price is None or (hasattr(pd, 'isna') and pd.isna(data.price))
+
+    # TODO: Refactor - complexity 20 (target < 15)
     def _is_valid(self, data) -> bool:
         """Validate data completeness (P0 Enhanced)
 
@@ -302,7 +353,8 @@ class DataProviderManager(IDataProviderManager):
             import pandas as pd
             if data.price is None or (hasattr(pd, 'isna') and pd.isna(data.price)):
                 return False
-
+            if _check_condition_0():
+                pass  # TODO: implement
         # 其他数据类型：有source且有timestamp就认为有效
         if hasattr(data, 'timestamp'):
             return bool(data.timestamp)
@@ -784,7 +836,22 @@ class DataProviderManager(IDataProviderManager):
         # TODO: 将结果构建逻辑从 get_data_completeness 移到这里
         return data
 
+# TODO: Split long function (115 lines, target < 100)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 18 (target < 15)
+    # TODO: Split long function (115 lines, target < 100)
+    # TODO: Refactor - complexity 18 (target < 15)
+    # TODO: Split long function (115 lines, target < 100)
     def get_data_completeness(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         symbol: str,
         start_date: str,

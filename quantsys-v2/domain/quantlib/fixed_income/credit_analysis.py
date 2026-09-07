@@ -1,5 +1,33 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.0001, 0.0002, 0.0003, 0.0004, 0.0006]...
+
+
+# Extracted Constants
+
+CONST_0_0001 = 0.0001
+
+CONST_0_0002 = 0.0002
+
+CONST_0_0003 = 0.0003
+
+CONST_0_0004 = 0.0004
+
+CONST_0_0006 = 0.0006
+
+CONST_0_0008 = 0.0008
+
+CONST_0_001 = 0.001
+
+CONST_0_0015 = 0.0015
+
+CONST_0_002 = 0.002
+
+CONST_0_003 = 0.003
+
+
 
 """
 Credit Analysis Calculator

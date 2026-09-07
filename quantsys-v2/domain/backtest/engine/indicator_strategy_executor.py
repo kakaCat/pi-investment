@@ -1,3 +1,13 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+
+
 """
 IndicatorStrategy 执行引擎
 
@@ -32,6 +42,10 @@ class IndicatorStrategyExecutor:
         self.param_parser = ParamParser()
 
     def execute(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         code: str,
         klines: List[Dict],
@@ -73,6 +87,8 @@ class IndicatorStrategyExecutor:
         for param_def in parsed_params:
             param_name = param_def['name']
             # 优先使用用户传入的参数，否则使用默认值
+            # TODO: 提取嵌套逻辑为独立方法
+
             if params and param_name in params:
                 params_used[param_name] = params[param_name]
             else:
@@ -244,6 +260,8 @@ class IndicatorStrategyExecutor:
 
         return namespace
 
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 28 (target < 15)
     def _validate_signals(self, df: pd.DataFrame) -> None:
         """
         验证信号列存在且有效（支持分批信号）

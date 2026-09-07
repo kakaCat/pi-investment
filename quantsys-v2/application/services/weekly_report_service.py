@@ -1,3 +1,52 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_05 = 0.05
+
+CONST_0_4 = 0.4
+
+CONST_0_7 = 0.7
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_7 = 7
+
+CONST_50 = 50
+
+
+
+CONST_0_05 = 0.05
+
+CONST_0_4 = 0.4
+
+CONST_0_7 = 0.7
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_7 = 7
+
+CONST_50 = 50
+
+
+
 """M6-2 周报生成服务
 
 功能：

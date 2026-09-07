@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """行情解析与股票数据助手（框架无关）— 从 adapters/inbound/api/shared.py 解耦而来"""
 from adapters.shared.stores import _safe_float
 

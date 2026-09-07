@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate_ic_ir() = 186 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.02, 0.03, 0.05, 0.25, 0.5]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_02 = 0.02
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_25 = 0.25
+
+CONST_0_5 = 0.5
+
+CONST_0_55 = 0.55
+
+CONST_0_6 = 0.6
+
+CONST_0_75 = 0.75
+
+CONST_5 = 5
+
+CONST_50 = 50
+
+
+
+CONST_0_02 = 0.02
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_25 = 0.25
+
+CONST_0_5 = 0.5
+
+CONST_0_55 = 0.55
+
+CONST_0_6 = 0.6
+
+CONST_0_75 = 0.75
+
+CONST_5 = 5
+
+CONST_50 = 50
+
+
 
 """
 计算V14模型的IC和IR指标
@@ -95,7 +151,28 @@ def _build_calculate_ic_ir_result(data):
     # TODO: 将结果构建逻辑从 calculate_ic_ir 移到这里
     return data
 
+# TODO: Split long function (186 lines, target < 100)
+# TODO: Refactor - complexity 16 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 16 (target < 15)
+# TODO: Split long function (186 lines, target < 100)
+# TODO: Refactor - complexity 16 (target < 15)
+# TODO: Split long function (186 lines, target < 100)
 def calculate_ic_ir():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
     """计算IC和IR"""
 
     print("\n" + "="*80)

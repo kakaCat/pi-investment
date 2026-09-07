@@ -1,5 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - _fit_svi_single_slice() = 101 lines
+
 
 # TODO: Extract magic numbers to named constants: [1e-08, 1e-06, 0.1, 0.5, 0.7]...
+
+
+# Extracted Constants
+
+CONST_1eNEG_08 = 1e-08
+
+CONST_1eNEG_06 = 1e-06
+
+CONST_0_1 = 0.1
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_0_9 = 0.9
+
+CONST_0_99 = 0.99
+
+CONST_1_1 = 1.1
+
+CONST_1_3 = 1.3
+
+CONST_3 = 3
+
+
 
 """
 波动率曲面构建模块
@@ -185,7 +216,12 @@ class VolatilitySurfaceCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (102 lines, target < 80)
 
+# TODO: Split long function (101 lines, target < 100)
     def _fit_svi_single_slice(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
                                strikes: np.ndarray,
                                market_vols: np.ndarray,
                                S: float,

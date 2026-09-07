@@ -1,3 +1,26 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 178 lines
+
+
+# Extracted Constants
+
+CONST_0_0001 = 0.0001
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_12 = 12
+
+CONST_30 = 30
+
+
+
 """
 Barra Risk Model
 ================
@@ -102,7 +125,22 @@ class BarraRiskModelCalculator(BaseCalculator):
         # TODO: 将结果构建逻辑从 calculate 移到这里
         return data
 
+# TODO: Split long function (178 lines, target < 100)
+# TODO: Refactor - complexity 16 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Extract 3 validation checks to _validate_calculate()
+    # TODO: Refactor - complexity 16 (target < 15)
+    # TODO: Split long function (178 lines, target < 100)
+    # TODO: Refactor - complexity 16 (target < 15)
+    # TODO: Split long function (178 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
                   returns: pd.DataFrame,
                   factor_exposures: pd.DataFrame,
                   industry_exposures: Optional[pd.DataFrame] = None,
@@ -173,6 +211,8 @@ class BarraRiskModelCalculator(BaseCalculator):
         for col in exposures_standardized.columns:
             mean = exposures_standardized[col].mean()
             std = exposures_standardized[col].std()
+            # TODO: 提取嵌套逻辑为独立方法
+
             if std > 0:
                 exposures_standardized[col] = (exposures_standardized[col] - mean) / std
 

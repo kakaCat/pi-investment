@@ -1,4 +1,25 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 #!/usr/bin/env python3
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_60 = 60
+
+CONST_200 = 200
+
+
+
+CONST_60 = 60
+
+CONST_200 = 200
+
+
+
 """
 测试 Bug 1 修复：/api/risk/metrics 现在应该按 account_name 返回不同的指标
 """

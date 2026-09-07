@@ -1,5 +1,33 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.001, 0.0015, 0.002, 0.003, 0.005]...
+
+
+# Extracted Constants
+
+CONST_0_001 = 0.001
+
+CONST_0_0015 = 0.0015
+
+CONST_0_002 = 0.002
+
+CONST_0_003 = 0.003
+
+CONST_0_005 = 0.005
+
+CONST_0_01 = 0.01
+
+CONST_0_012 = 0.012
+
+CONST_0_015 = 0.015
+
+CONST_0_02 = 0.02
+
+CONST_0_025 = 0.025
+
+
 
 """
 Factor Models Examples

@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """Akshare 财务报表 provider（东财接口）
 
 Phase 3 数据访问治理：集中 application/services 中散落的

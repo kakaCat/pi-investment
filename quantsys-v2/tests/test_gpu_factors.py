@@ -35,6 +35,7 @@ def sample_ohlc_data():
     })
 
 
+# TODO: Refactor large class (44 methods, target < 20)
 class TestGPUFactorCalculator:
     """Test suite for GPUFactorCalculator"""
 

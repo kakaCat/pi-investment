@@ -1,4 +1,24 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - run_migration() = 139 lines
+
 #!/usr/bin/env python3
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+
+
+CONST_0_01 = 0.01
+
+
+
 """多账户域迁移（2026-07-20）—— 幂等
 
 1. 列改名/加列（account/positions/trades）
@@ -33,7 +53,18 @@ def _rename_column(conn, table, old, new):
 
 # TODO: Refactor - function too long (140 lines, target < 80)
 
+# TODO: Split long function (139 lines, target < 100)
 def run_migration():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
     engine = get_engine()
     # 1) 新表（ORM metadata，幂等 checkfirst）
     Base.metadata.create_all(engine)

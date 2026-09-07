@@ -1,3 +1,15 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_4 = 4
+
+CONST_6 = 6
+
+
+
 """纯函数校验器（自 legacy BaseRepository 抽出，无 DB 依赖）。
 
 错误消息文案与 legacy BaseRepository._validate_* 逐字一致——

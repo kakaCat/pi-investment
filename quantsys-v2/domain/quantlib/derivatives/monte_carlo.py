@@ -1,3 +1,25 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 133 lines
+#   - calculate_barrier() = 102 lines
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_1_96 = 1.96
+
+CONST_6 = 6
+
+CONST_252 = 252
+
+CONST_10000 = 10000
+
+
+
 """
 Monte Carlo Option Pricing
 ===========================
@@ -64,7 +86,13 @@ class MonteCarloCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (134 lines, target < 80)
 
+# TODO: Split long function (133 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
                   S: float,
                   K: float,
                   T: float,
@@ -289,7 +317,12 @@ class MonteCarloCalculator(BaseCalculator):
 # TODO: Refactor - function too long (103 lines, target < 80)
 
 
+# TODO: Split long function (102 lines, target < 100)
     def calculate_barrier(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
                           S: float,
                           K: float,
                           T: float,

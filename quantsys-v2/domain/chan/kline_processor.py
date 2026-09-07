@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """K线预处理器 - 处理包含关系"""
 from typing import List, Optional, Literal
 import pandas as pd

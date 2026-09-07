@@ -1,3 +1,13 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+
+
 """笔中枢识别器——连续 3+ 笔重叠构成中枢（弃用线段层后的核心结构）"""
 from typing import List
 from .types import Bi, BiZhongShu

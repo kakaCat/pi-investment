@@ -1,3 +1,7 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """
 Base strategy template built on domain value objects.
 
@@ -6,7 +10,6 @@ abstract methods. The template method :meth:`BaseStrategy.execute_daily_check`
 orchestrates the daily trading workflow and delegates decision points to
 abstract methods and hooks.
 """
-from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime

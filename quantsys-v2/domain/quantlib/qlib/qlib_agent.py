@@ -1,3 +1,17 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+CONST_6 = 6
+
+CONST_100000 = 100000
+
+
+
 """
 Qlib RL Agent Module
 ====================

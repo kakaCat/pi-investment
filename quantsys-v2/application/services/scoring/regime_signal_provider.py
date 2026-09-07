@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.2, 0.3, 0.4, 0.5, 4]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_25 = 25
+
+CONST_50_0 = 50.0
+
+CONST_120 = 120
+
+CONST_150 = 150
+
+
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_25 = 25
+
+CONST_50_0 = 50.0
+
+CONST_120 = 120
+
+CONST_150 = 150
+
+
 
 """
 Regime 连续信号提供者

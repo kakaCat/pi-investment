@@ -1,3 +1,48 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_7 = 0.7
+
+CONST_0_85 = 0.85
+
+CONST_8 = 8
+
+CONST_70 = 70
+
+
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_7 = 0.7
+
+CONST_0_85 = 0.85
+
+CONST_8 = 8
+
+CONST_70 = 70
+
+
+
 """
 新模型回测 - 计算年化收益
 

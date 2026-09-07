@@ -1,3 +1,31 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_0005 = 0.0005
+
+CONST_0_001 = 0.001
+
+CONST_0_02 = 0.02
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_1_5 = 1.5
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+
+
 """
 因子分层回测
 

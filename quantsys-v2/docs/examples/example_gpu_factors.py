@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.01, 0.02, 0.5, 3, 12]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_0_02 = 0.02
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+CONST_12 = 12
+
+CONST_14 = 14
+
+CONST_20 = 20
+
+CONST_42 = 42
+
+CONST_60 = 60
+
+CONST_1024 = 1024
+
+
+
+CONST_0_01 = 0.01
+
+CONST_0_02 = 0.02
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+CONST_12 = 12
+
+CONST_14 = 14
+
+CONST_20 = 20
+
+CONST_42 = 42
+
+CONST_60 = 60
+
+CONST_1024 = 1024
+
+
 
 """
 GPU加速因子计算完整示例

@@ -1,3 +1,24 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_300 = 300
+
+
+
+CONST_0_01 = 0.01
+
+CONST_300 = 300
+
+
+
 """WatchEngine 条件判定器 —— 纯函数，无 I/O，无外部依赖
 
 语义约定：
@@ -48,6 +69,9 @@ def _build_validate_condition_result(data):
     # TODO: 将结果构建逻辑从 validate_condition 移到这里
     return data
 
+# TODO: Refactor - complexity 18 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 18 (target < 15)
 def validate_condition(cond: dict) -> None:
     """校验条件结构，非法时抛 ValueError"""
     ctype = cond.get('type')

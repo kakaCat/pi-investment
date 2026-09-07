@@ -1,3 +1,6 @@
+# LONG FUNCTIONS TO REFACTOR:
+#   - test_execute_daily_signals_success() = 103 lines
+
 """
 测试信号执行调度器
 
@@ -79,6 +82,7 @@ class TestSignalExecutionScheduler:
         with patch('application.services.signal_execution_scheduler.create_order') as mock:
             yield mock
 
+    # TODO: Split long function (103 lines, target < 100)
     def test_execute_daily_signals_success(
         self,
         scheduler,

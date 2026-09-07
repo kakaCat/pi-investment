@@ -1,3 +1,44 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_1 = 0.1
+
+CONST_0_97 = 0.97
+
+CONST_1_08 = 1.08
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_60 = 60
+
+
+
+CONST_0_1 = 0.1
+
+CONST_0_97 = 0.97
+
+CONST_1_08 = 1.08
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_60 = 60
+
+
+
 """
 Pool Signal Scanner Service - 股票池实时信号扫描
 

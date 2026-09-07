@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_252 = 252
+
+
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_252 = 252
+
+
+
 """
 风险指标服务 - 基于empyrical-reloaded
 提供标准化的风险与收益指标计算

@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.0001, 0.0003, 0.005, 0.01, 0.02]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_0001 = 0.0001
+
+CONST_0_0003 = 0.0003
+
+CONST_0_005 = 0.005
+
+CONST_0_01 = 0.01
+
+CONST_0_02 = 0.02
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_14 = 14
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+
+
+CONST_0_0001 = 0.0001
+
+CONST_0_0003 = 0.0003
+
+CONST_0_005 = 0.005
+
+CONST_0_01 = 0.01
+
+CONST_0_02 = 0.02
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_14 = 14
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+
 
 """
 Backtrader Integration Usage Examples

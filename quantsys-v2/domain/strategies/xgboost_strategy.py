@@ -1,3 +1,14 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_1000000_0 = 1000000.0
+
+
+
 """
 XGBoost multi-factor strategy — pure algorithm implementation.
 
@@ -23,7 +34,6 @@ position_provider: ``callable(date: str) -> dict[str, dict]``
 price_provider: ``callable(symbol: str, date: str) -> float | None``
     Returns the latest tradable price for ``symbol`` on ``date``.
 """
-from __future__ import annotations
 
 import json
 import logging

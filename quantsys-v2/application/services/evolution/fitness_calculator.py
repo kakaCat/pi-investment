@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_003 = 0.003
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+
+
+CONST_0_003 = 0.003
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+
+
 """双侧捕获适应度纯计算（agent 行为进化 Phase 1 核心）
 
 fitness = up_capture − down_capture：

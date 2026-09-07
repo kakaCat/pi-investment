@@ -1,3 +1,36 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - execute_daily_signals() = 108 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_8 = 0.8
+
+CONST_0_99 = 0.99
+
+CONST_1_01 = 1.01
+
+CONST_1000000 = 1000000
+
+
+
+CONST_0_8 = 0.8
+
+CONST_0_99 = 0.99
+
+CONST_1_01 = 1.01
+
+CONST_1000000 = 1000000
+
+
+
 """
 信号执行调度器
 
@@ -11,7 +44,6 @@
 每日 15:30 由定时任务调用
 """
 
-from __future__ import annotations
 
 from typing import Dict, Any, List, Optional
 from datetime import datetime, date
@@ -95,7 +127,16 @@ class SignalExecutionScheduler:
 
     # TODO: Refactor - function too long (109 lines, target < 80)
 
+# TODO: Split long function (108 lines, target < 100)
     def execute_daily_signals(self) -> Dict[str, Any]:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """
         执行每日信号处理流程（15:30定时调用）
 
@@ -208,6 +249,14 @@ class SignalExecutionScheduler:
 
 
     def _run_strategies(self, execution_date: str) -> Dict[str, Any]:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """
         运行所有启用的策略
 

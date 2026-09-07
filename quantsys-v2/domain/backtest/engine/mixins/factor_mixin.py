@@ -1,5 +1,8 @@
-"""Mixin providing factor calculation via FactorCalculatorAdapter."""
 from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+"""Mixin providing factor calculation via FactorCalculatorAdapter."""
 
 from infrastructure.quantlib.adapters import get_factor_adapter
 

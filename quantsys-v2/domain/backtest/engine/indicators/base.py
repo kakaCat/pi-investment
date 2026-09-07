@@ -1,5 +1,8 @@
-"""Abstract base for indicator adapters."""
 from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+"""Abstract base for indicator adapters."""
 
 from abc import ABC, abstractmethod
 from typing import Any

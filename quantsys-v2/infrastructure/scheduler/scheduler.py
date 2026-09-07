@@ -1,5 +1,59 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [5, 6, 7, 8, 12]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_7 = 7
+
+CONST_8 = 8
+
+CONST_12 = 12
+
+CONST_20 = 20
+
+CONST_23 = 23
+
+CONST_30 = 30
+
+CONST_31 = 31
+
+CONST_50 = 50
+
+
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_7 = 7
+
+CONST_8 = 8
+
+CONST_12 = 12
+
+CONST_20 = 20
+
+CONST_23 = 23
+
+CONST_30 = 30
+
+CONST_31 = 31
+
+CONST_50 = 50
+
+
 
 """
 Cron-based task scheduler for quantsys-v2.
@@ -7,7 +61,6 @@ Cron-based task scheduler for quantsys-v2.
 Manages scheduled task definitions, cron parsing, task execution,
 and a blocking run loop with graceful shutdown support.
 """
-from __future__ import annotations
 
 import json
 import logging
@@ -232,6 +285,8 @@ def next_run_time(expression: str, from_time: Optional[datetime] = None) -> date
 
 # TODO: Refactor - class too large (49 methods, target < 15)
 
+# TODO: Refactor large class (55 methods, target < 20)
+# TODO: Refactor large class (55 methods, target < 20)
 class SchedulerService:
     """Cron-based task scheduler.
 
@@ -405,6 +460,8 @@ class SchedulerService:
         results: List[Dict[str, Any]] = []
 
         for task in tasks:
+            # TODO: 提取嵌套逻辑为独立方法
+
             if not self._is_due(task, now):
                 continue
 
@@ -1013,6 +1070,9 @@ class SchedulerService:
         # TODO: 将结果构建逻辑从 _handle_factor_compute 移到这里
         return data
 
+# TODO: Refactor - complexity 16 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 16 (target < 15)
     def _handle_factor_compute(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Compute factors for stocks.
 

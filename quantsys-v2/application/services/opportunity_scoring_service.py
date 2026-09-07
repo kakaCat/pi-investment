@@ -1,5 +1,62 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - score_stocks() = 120 lines
+#   - _score_single_stock() = 144 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.2, 0.3, 0.5, 0.8, 0.9]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_8 = 0.8
+
+CONST_0_9 = 0.9
+
+CONST_0_95 = 0.95
+
+CONST_1_1 = 1.1
+
+CONST_1_2 = 1.2
+
+CONST_1_5 = 1.5
+
+CONST_3 = 3
+
+
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_8 = 0.8
+
+CONST_0_9 = 0.9
+
+CONST_0_95 = 0.95
+
+CONST_1_1 = 1.1
+
+CONST_1_2 = 1.2
+
+CONST_1_5 = 1.5
+
+CONST_3 = 3
+
+
 
 """
 机会评分引擎
@@ -33,6 +90,8 @@ logger = structlog.get_logger(__name__)
 
 # TODO: Refactor - class too large (22 methods, target < 15)
 
+# TODO: Refactor large class (40 methods, target < 20)
+# TODO: Refactor large class (40 methods, target < 20)
 class OpportunityScoringService:
     """机会评分引擎（动态 profile + regime 权重 + 证据链）"""
 
@@ -106,7 +165,18 @@ class OpportunityScoringService:
 
     # TODO: Refactor - function too long (121 lines, target < 80)
 
+# TODO: Split long function (120 lines, target < 100)
     def score_stocks(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         symbols: List[str],
         filters: Dict,
@@ -201,6 +271,8 @@ class OpportunityScoringService:
             for future in as_completed(futures):
                 try:
                     result = future.result()
+                    # TODO: 提取嵌套逻辑为独立方法
+
                     if result is not None:
                         skipped = result.pop('_skipped', None)
                         if skipped == 'insufficient_klines':
@@ -282,7 +354,25 @@ class OpportunityScoringService:
         # TODO: 将结果构建逻辑从 _score_single_stock 移到这里
         return data
 
+# TODO: Split long function (144 lines, target < 100)
+# TODO: Refactor - complexity 21 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 21 (target < 15)
+    # TODO: Split long function (144 lines, target < 100)
+    # TODO: Refactor - complexity 21 (target < 15)
+    # TODO: Split long function (144 lines, target < 100)
     def _score_single_stock(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         symbol: str,
         klines: List[Dict],
@@ -530,6 +620,8 @@ class OpportunityScoringService:
         # TODO: 将结果构建逻辑从 _calculate_factors 移到这里
         return data
 
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 19 (target < 15)
     def _calculate_factors(self, klines: List[Dict]) -> Dict:
         """计算技术指标因子
 
@@ -981,7 +1073,9 @@ class OpportunityScoringService:
         """构建返回结果"""
         # TODO: 将结果构建逻辑从 _calculate_default_fundamental_score 移到这里
         return data
+ # REFACTOR: Split this function into smaller pieces
 
+# TODO: Refactor - complexity 19 (target < 15)
     def _calculate_default_fundamental_score(self, fundamental: Dict) -> float:
         """计算默认基本面评分（无筛选条件时使用）
 

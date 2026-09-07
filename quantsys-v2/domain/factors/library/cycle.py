@@ -1,3 +1,25 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_15 = 15
+
+CONST_25 = 25
+
+CONST_32 = 32
+
+CONST_63 = 63
+
+CONST_90 = 90
+
+CONST_180 = 180
+
+CONST_270 = 270
+
+
+
 """
 Cycle Indicators Module
 =======================

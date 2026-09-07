@@ -1,5 +1,33 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [1e-06, 0.001, 0.01, 0.1, 0.25]...
+
+
+# Extracted Constants
+
+CONST_1eNEG_06 = 1e-06
+
+CONST_0_001 = 0.001
+
+CONST_0_01 = 0.01
+
+CONST_0_1 = 0.1
+
+CONST_0_25 = 0.25
+
+CONST_0_45 = 0.45
+
+CONST_0_5 = 0.5
+
+CONST_0_55 = 0.55
+
+CONST_0_75 = 0.75
+
+CONST_0_8 = 0.8
+
+
 
 """
 Quantitative Data Validator Module
@@ -99,6 +127,8 @@ class DataQualityReport:
 
 # TODO: Refactor - class too large (21 methods, target < 15)
 
+# TODO: Refactor large class (21 methods, target < 20)
+# TODO: Refactor large class (21 methods, target < 20)
 class DataValidator:
     """
     Comprehensive data validation and quality control system.

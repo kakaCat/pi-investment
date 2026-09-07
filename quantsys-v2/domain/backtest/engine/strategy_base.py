@@ -1,3 +1,21 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_08 = 0.08
+
+CONST_0_25 = 0.25
+
+CONST_14 = 14
+
+CONST_20 = 20
+
+CONST_50_0 = 50.0
+
+
+
 """
 策略抽象基类
 

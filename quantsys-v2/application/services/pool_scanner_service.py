@@ -1,3 +1,60 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - scan_pool() = 105 lines
+#   - _check_signal() = 208 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_1_005 = 1.005
+
+CONST_1_01 = 1.01
+
+CONST_1_2 = 1.2
+
+CONST_1_3 = 1.3
+
+CONST_1_5 = 1.5
+
+CONST_5 = 5
+
+CONST_12 = 12
+
+CONST_14 = 14
+
+CONST_20 = 20
+
+
+
+CONST_0_5 = 0.5
+
+CONST_1_005 = 1.005
+
+CONST_1_01 = 1.01
+
+CONST_1_2 = 1.2
+
+CONST_1_3 = 1.3
+
+CONST_1_5 = 1.5
+
+CONST_5 = 5
+
+CONST_12 = 12
+
+CONST_14 = 14
+
+CONST_20 = 20
+
+
+
 """
 股票池每日扫描服务
 
@@ -30,7 +87,16 @@ class PoolScannerService:
             'min_score': 70,  # 最低评分
         }
 
+# TODO: Split long function (105 lines, target < 100)
     def scan_pool(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         pool_id: int,
         strategy_ids: Optional[List[int]] = None,
@@ -86,6 +152,8 @@ class PoolScannerService:
                     from application.services.pool_signal_scanner import PoolSignalScanner
 
                     # 获取 Repository 实例
+                    # TODO: 提取嵌套逻辑为独立方法
+
                     if self._kline_repo is None or self._strategy_repo is None:
                         from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
                         kline_repo = self._kline_repo or EnhancedServiceFactory.resolve(IKlineRepository)
@@ -167,7 +235,29 @@ class PoolScannerService:
         # TODO: 将结果构建逻辑从 _check_signal 移到这里
         return data
 
+# TODO: Split long function (208 lines, target < 100)
+# TODO: Refactor - complexity 31 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 31 (target < 15)
+    # TODO: Split long function (208 lines, target < 100)
+    # TODO: Refactor - complexity 31 (target < 15)
+    # TODO: Split long function (208 lines, target < 100)
     def _check_signal(self, symbol: str, strategy_id: int) -> Optional[Dict]:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
+        # ---- Section 8 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
         """
         检查单只股票的策略信号（重构版：策略模式）
 

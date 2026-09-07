@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 #!/usr/bin/env python3
 """进度追踪工具 - 追踪重构进度并生成报告
 
@@ -37,6 +40,8 @@ def get_current_status() -> Dict:
     
     for line in lines:
         if 'sys.path.insert' in line:
+            # TODO: 提取嵌套逻辑为独立方法
+
             if 'PASS' in line:
                 status['issues']['sys_path'] = {'status': 'pass', 'count': 0}
             elif 'FAIL' in line:
@@ -112,6 +117,9 @@ def _build_show_history_result(data):
     # TODO: 将结果构建逻辑从 show_history 移到这里
     return data
 
+# TODO: Refactor - complexity 16 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 16 (target < 15)
 def show_history():
     """显示历史进度"""
     if not PROGRESS_FILE.exists():

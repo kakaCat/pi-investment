@@ -1,3 +1,32 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+CONST_8 = 8
+
+CONST_60 = 60
+
+CONST_200 = 200
+
+
+
+CONST_3 = 3
+
+CONST_8 = 8
+
+CONST_60 = 60
+
+CONST_200 = 200
+
+
+
 """
 W1 K线历史回填脚本
 目标：

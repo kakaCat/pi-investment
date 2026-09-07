@@ -1,5 +1,23 @@
-"""Memory Service - 统一记忆服务编排层"""
 from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+
+
+"""Memory Service - 统一记忆服务编排层"""
 
 import json
 from typing import Any, Dict, List, Optional

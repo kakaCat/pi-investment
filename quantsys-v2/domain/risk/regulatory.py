@@ -1,5 +1,33 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.005, 0.007, 0.008, 0.01, 0.015]...
+
+
+# Extracted Constants
+
+CONST_0_005 = 0.005
+
+CONST_0_007 = 0.007
+
+CONST_0_008 = 0.008
+
+CONST_0_01 = 0.01
+
+CONST_0_015 = 0.015
+
+CONST_0_02 = 0.02
+
+CONST_0_03 = 0.03
+
+CONST_0_04 = 0.04
+
+CONST_0_06 = 0.06
+
+CONST_0_08 = 0.08
+
+
 
 """
 Regulatory Risk Calculator

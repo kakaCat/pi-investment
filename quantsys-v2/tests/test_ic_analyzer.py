@@ -64,6 +64,7 @@ def correlated_data():
     return factor_data, return_data
 
 
+# TODO: Refactor large class (27 methods, target < 20)
 class TestICAnalyzer:
     """Test suite for ICAnalyzer"""
 

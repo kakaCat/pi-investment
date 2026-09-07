@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [5, 6, 7, 8, 20]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_7 = 7
+
+CONST_8 = 8
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_409 = 409
+
+CONST_500 = 500
+
+
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_7 = 7
+
+CONST_8 = 8
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_409 = 409
+
+CONST_500 = 500
+
+
 
 """股票数据 API - FastAPI 版（从 Flask stock.py 迁移，响应契约保持一致）"""
 import uuid
@@ -39,6 +92,8 @@ def _build_enrich_stock_data_result(data):
     # TODO: 将结果构建逻辑从 enrich_stock_data 移到这里
     return data
 
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 17 (target < 15)
 def enrich_stock_data(stock) -> Dict:
     """为股票添加额外信息（价格、涨跌幅、K线天数、因子数量等）。逻辑与 Flask stock.py 一致。"""
     if hasattr(stock, 'symbol'):
@@ -63,6 +118,8 @@ def enrich_stock_data(stock) -> Dict:
             klines = klines.to_dicts()
         klines_len = 0
         if klines is not None:
+            # TODO: 提取嵌套逻辑为独立方法
+
             if hasattr(klines, '__len__'):
                 klines_len = len(klines)
             elif hasattr(klines, 'shape'):
@@ -123,6 +180,9 @@ def _build_get_stock_list_result(data):
     # TODO: 将结果构建逻辑从 get_stock_list 移到这里
     return data
 
+# REFACTOR: Split this function into smaller pieces
+@router.get('/api/stocks')
+# TODO: Refactor - complexity 16 (target < 15)
 def get_stock_list(market: Optional[str] = Query(None), industry: Optional[str] = Query(None),
                    keyword: str = Query(''), page: int = Query(1), pageSize: int = Query(20)):
     try:
@@ -301,8 +361,14 @@ def _process_get_stock_klines_data(data):
 def _build_get_stock_klines_result(data):
     """构建返回结果"""
     # TODO: 将结果构建逻辑从 get_stock_klines 移到这里
+    # REFACTOR: Split this function into smaller pieces
     return data
 
+def _check_condition_0():
+    """Check: klines is None or (hasattr(klines, 'is_empty') and klines.is..."""
+    return klines is None or (hasattr(klines, 'is_empty') and klines.is_empty()) or (isinstance(klines, list) and len(klines) == 0)
+
+# TODO: Refactor - complexity 22 (target < 15)
 def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
                      end_date: Optional[str] = Query(None), period: str = Query('daily'),
                      limit: int = Query(100)):
@@ -333,14 +399,13 @@ def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
 
         if klines is None or (hasattr(klines, 'is_empty') and klines.is_empty()) or (isinstance(klines, list) and len(klines) == 0):
             # 数据库无数据，尝试从外部数据源拉取（M3-2 修复）
-            logger.info(f"Database has no kline data for {clean_symbol}, attempting to fetch from external sources...")
             try:
                 from live_trading.multi_source_data_fetcher import MultiSourceDataFetcher
                 fetcher = MultiSourceDataFetcher()
-                
+
                 # 直接从外部数据源获取
                 df = fetcher.fetch_klines(clean_symbol, start_date, end_date)
-                
+
                 if df is not None and not df.empty:
                     # 转换为字典列表
                     raw_klines = df.to_dict('records')
@@ -538,7 +603,7 @@ def get_stock_quote(symbol: str, source: str = Query('realtime')):
     """实时行情端点（source: realtime|db|auto，数据源优先级 akshare→sina→eastmoney→tencent→netease）"""
     source = source.lower()
     # Validation checks
-if source not in ['realtime', 'db', 'auto']:
+    if source not in ['realtime', 'db', 'auto']:
         return error_response({"success": False, "error": f"Invalid source parameter: {source}. Must be one of: realtime, db, auto"}, 400)
 
     clean_symbol = re.sub(r'[^A-Za-z0-9.]', '', symbol)

@@ -1,3 +1,31 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_02 = 0.02
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_2 = 0.2
+
+CONST_0_25 = 0.25
+
+CONST_0_5 = 0.5
+
+CONST_6_0 = 6.0
+
+CONST_20 = 20
+
+CONST_42 = 42
+
+CONST_252 = 252
+
+
+
 """
 期权策略基类和核心策略
 

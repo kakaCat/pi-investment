@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """缠论买卖点池内扫描服务
 
 每日收盘后对全部股票池成员跑缠论分析，把最近交易日新出现的买卖点

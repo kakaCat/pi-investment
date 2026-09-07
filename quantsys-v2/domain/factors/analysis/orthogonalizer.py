@@ -1,3 +1,27 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+CONST_0_95 = 0.95
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_12 = 12
+
+CONST_42 = 42
+
+
+
 """
 因子正交化处理器
 

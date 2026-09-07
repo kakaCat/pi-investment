@@ -1,3 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+CONST_50 = 50
+
+CONST_60 = 60
+
+CONST_200 = 200
+
+
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+CONST_50 = 50
+
+CONST_60 = 60
+
+CONST_200 = 200
+
+
+
 """进化适应度排行榜 API（行为进化 Phase 1）
 
 响应契约与 Flask parity 一致：api_response 包装（success/data，camelCase 序列化）。

@@ -1,3 +1,20 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 120 lines
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_3 = 3
+
+CONST_6 = 6
+
+
+
 """
 Risk Attribution Calculator
 ============================
@@ -54,7 +71,13 @@ class RiskAttributionCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (121 lines, target < 80)
 
+# TODO: Split long function (120 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
                   returns: Union[pd.DataFrame, np.ndarray],
                   weights: Union[List, np.ndarray, pd.Series],
                   asset_names: Optional[List[str]] = None) -> Dict[str, Any]:

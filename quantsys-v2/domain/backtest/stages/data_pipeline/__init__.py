@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 # quant/stages/data/__init__.py
 """
 Data processing stages for the pipeline.

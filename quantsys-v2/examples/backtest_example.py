@@ -1,3 +1,60 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - run_simple_backtest() = 127 lines
+#   - main() = 147 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_001 = 0.001
+
+CONST_0_02 = 0.02
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_9 = 0.9
+
+CONST_0_98 = 0.98
+
+CONST_0_99 = 0.99
+
+
+
+CONST_0_001 = 0.001
+
+CONST_0_02 = 0.02
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_9 = 0.9
+
+CONST_0_98 = 0.98
+
+CONST_0_99 = 0.99
+
+
+
 """
 Backtest Example
 
@@ -76,7 +133,18 @@ def generate_sample_signals(klines: list, symbol: str) -> list:
     return signals
 
 
+# TODO: Split long function (127 lines, target < 100)
 def run_simple_backtest(
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
     klines: list,
     signals: list,
     slippage_model,
@@ -206,7 +274,20 @@ def run_simple_backtest(
     return equity_curve, trades
 
 
+# TODO: Split long function (147 lines, target < 100)
 def main():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
     """Run backtest examples"""
     print("=" * 70)
     print("Backtest Framework Example")

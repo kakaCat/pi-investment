@@ -1,3 +1,34 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - generate_signal() = 127 lines
+
+
+# Extracted Constants
+
+CONST_0_08 = 0.08
+
+CONST_0_1 = 0.1
+
+CONST_0_12 = 0.12
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_65 = 0.65
+
+CONST_0_7 = 0.7
+
+CONST_0_9 = 0.9
+
+
+
 """
 唐奇安通道突破策略 (Donchian Channel Strategy)
 
@@ -19,7 +50,13 @@ class DonchianChannelStrategy(StrategyBase):
         period: 20  (通道周期)
     """
 
+    # TODO: Split long function (127 lines, target < 100)
     def generate_signal(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         klines: List[Dict[str, Any]],
         params: Dict[str, Any] = None

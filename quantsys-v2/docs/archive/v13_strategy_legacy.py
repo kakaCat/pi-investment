@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 # LEGACY / ARCHIVED FILE
 # This file has been archived as of 2026-09-02 during the strategy refactor (Part 6.1).
 # It is retained for reference only and is no longer used in production.
@@ -5,6 +8,32 @@
 #   - domain/strategies/xgboost_strategy.py
 #   - application/strategies/v13_use_case.py
 # Do not modify or import this file in new code.
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_0_85 = 0.85
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+
+
+CONST_0_5 = 0.5
+
+CONST_0_85 = 0.85
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+
+
 """
 V13策略实现
 

@@ -1,3 +1,40 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_60 = 60
+
+CONST_70 = 70
+
+CONST_201 = 201
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_500 = 500
+
+
+
+CONST_60 = 60
+
+CONST_70 = 70
+
+CONST_201 = 201
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_500 = 500
+
+
+
 """股票池管理 API - FastAPI 版（从 Flask pools.py + pool_scan.py + pool_scan_switch.py 迁移，契约一致）
 
 路由顺序：字面量路径（/scan-and-create、/scan-all、/scan-status、/scan-results、

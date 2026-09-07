@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """走势类型分析器 - 判断上涨/下跌/盘整
 
 ⚠️ DEPRECATED（2026-08-05）：旧线段流水线组件。

@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 # domain/trading/__init__.py
 from .models.order import Order, OrderSide, OrderType, OrderStatus
 from .models.trade import Trade

@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_45 = 0.45
+
+CONST_0_6 = 0.6
+
+CONST_365 = 365
+
+
+
+CONST_0_45 = 0.45
+
+CONST_0_6 = 0.6
+
+CONST_365 = 365
+
+
+
 """缠论分析服务"""
 from domain.ports import IAgentKnowledgeRepository, IKlineRepository
 from datetime import datetime, timedelta

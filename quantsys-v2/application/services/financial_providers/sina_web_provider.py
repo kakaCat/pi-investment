@@ -1,3 +1,35 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - get_financial_data() = 107 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_200 = 200
+
+
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_200 = 200
+
+
+
 """
 新浪财经网页爬虫数据提供者
 
@@ -54,7 +86,22 @@ class SinaWebFinancialProvider(FinancialProvider):
         # TODO: 将结果构建逻辑从 get_financial_data 移到这里
         return data
 
+# TODO: Split long function (107 lines, target < 100)
+# TODO: Refactor - complexity 23 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 23 (target < 15)
+    # TODO: Split long function (107 lines, target < 100)
+    # TODO: Refactor - complexity 23 (target < 15)
+    # TODO: Split long function (107 lines, target < 100)
     def get_financial_data(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         symbol: str,
         statement_type: str = 'all',
@@ -92,6 +139,8 @@ class SinaWebFinancialProvider(FinancialProvider):
             }
 
             # 获取利润表
+            # TODO: 提取嵌套逻辑为独立方法
+
             if statement_type in ('income', 'all'):
                 try:
                     url = f"https://money.finance.sina.com.cn/corp/go.php/vFD_ProfitStatement/stockid/{short_code}/ctrl/part/displaytype/4.phtml"
@@ -195,6 +244,8 @@ class SinaWebFinancialProvider(FinancialProvider):
         # TODO: 将结果构建逻辑从 _parse_sina_table 移到这里
         return data
 
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 18 (target < 15)
     def _parse_sina_table(self, table, periods: int):
         """解析新浪财经表格
 

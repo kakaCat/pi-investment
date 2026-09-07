@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """Pipeline support components (domain layer).
 
 历史说明: 本包曾 re-export infrastructure.pipeline 的 PipelineErrorHandler /

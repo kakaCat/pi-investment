@@ -1,3 +1,44 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+CONST_7 = 7
+
+CONST_8 = 8
+
+CONST_30 = 30
+
+CONST_200 = 200
+
+CONST_400 = 400
+
+CONST_500 = 500
+
+
+
+CONST_5 = 5
+
+CONST_7 = 7
+
+CONST_8 = 8
+
+CONST_30 = 30
+
+CONST_200 = 200
+
+CONST_400 = 400
+
+CONST_500 = 500
+
+
+
 """数据质量 API - FastAPI 版（从 Flask data_quality.py 迁移，响应契约保持一致）
 
 复用 DataQualityORMRepository 与 DataQualityService。Flask 直接 jsonify(result)，故同样处理。

@@ -1,3 +1,17 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_252 = 252
+
+
+
 """
 Drawdown Analysis Calculator
 =============================

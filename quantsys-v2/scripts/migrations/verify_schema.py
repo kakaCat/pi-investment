@@ -1,4 +1,32 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - verify_schema() = 145 lines
+
 #!/usr/bin/env python3
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_25 = 25
+
+CONST_30 = 30
+
+CONST_70 = 70
+
+
+
+CONST_25 = 25
+
+CONST_30 = 30
+
+CONST_70 = 70
+
+
+
 """
 Verify strategy_configs table structure after migration
 
@@ -35,7 +63,26 @@ def _build_verify_schema_result(data):
     # TODO: 将结果构建逻辑从 verify_schema 移到这里
     return data
 
+# TODO: Split long function (145 lines, target < 100)
+# TODO: Refactor - complexity 16 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 16 (target < 15)
+# TODO: Split long function (145 lines, target < 100)
+# TODO: Refactor - complexity 16 (target < 15)
+# TODO: Split long function (145 lines, target < 100)
 def verify_schema():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
     """Verify the strategy_configs table has all required fields"""
 
     # Resolve database connection
@@ -107,6 +154,8 @@ def verify_schema():
 
             # Check if this is a new column from migration
             status = ""
+            # TODO: 提取嵌套逻辑为独立方法
+
             if col_name in expected_new_columns:
                 if data_type == expected_new_columns[col_name]:
                     status = "✅ NEW"

@@ -12,6 +12,7 @@ from domain.quantlib.factors.other import OtherFactors
 from domain.quantlib.core.exceptions import InsufficientDataError, DataValidationError
 
 
+# TODO: Refactor large class (56 methods, target < 20)
 class TestOtherFactors:
     """Test other technical indicator calculations."""
 

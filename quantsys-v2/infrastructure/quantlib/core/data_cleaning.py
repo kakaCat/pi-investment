@@ -1,3 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_0_25 = 0.25
+
+CONST_0_75 = 0.75
+
+CONST_3_0 = 3.0
+
+CONST_42 = 42
+
+
+
+CONST_0_01 = 0.01
+
+CONST_0_25 = 0.25
+
+CONST_0_75 = 0.75
+
+CONST_3_0 = 3.0
+
+CONST_42 = 42
+
+
+
 """
 数据清洗Pipeline - Team D
 数据质量保证和清洗

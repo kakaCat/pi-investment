@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """sector 板块列表 DB 快照（stale-while-error 兜底缓存）
 
 2026-09-01 (investor w-8366e526)：GET /api/market/sectors 只有 Eastmoney 单一

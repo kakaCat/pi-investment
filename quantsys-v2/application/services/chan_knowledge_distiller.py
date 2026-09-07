@@ -1,3 +1,44 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_4 = 4
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_90 = 90
+
+
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_4 = 4
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_90 = 90
+
+
+
 """缠论信号胜率蒸馏器
 
 每周运行：取 [今-lookback, 今-window] 区间内的缠论信号（留 window 日验证窗），

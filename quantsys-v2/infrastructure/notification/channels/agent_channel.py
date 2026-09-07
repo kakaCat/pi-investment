@@ -1,3 +1,20 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - send() = 104 lines
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+CONST_30 = 30
+
+CONST_200 = 200
+
+
+
 """
 Agent 唤醒渠道实现
 
@@ -60,7 +77,12 @@ class AgentChannel(NotificationChannel):
 
     # TODO: Refactor - function too long (105 lines, target < 80)
 
+# TODO: Split long function (104 lines, target < 100)
     def send(self, notification: Notification) -> ChannelResult:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """唤醒 Agent
 
         Args:

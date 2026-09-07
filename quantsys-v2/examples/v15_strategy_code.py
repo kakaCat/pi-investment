@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 # v15-multi-alpha
 # ============================================================
 # 核心创新 vs v11-v14:
@@ -10,6 +13,56 @@
 # ============================================================
 
 # TODO: Extract magic numbers to named constants: [1e-10, 0.03, 0.05, 0.07, 0.1]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_07 = 0.07
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_35 = 0.35
+
+
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_07 = 0.07
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_35 = 0.35
+
+
 
 my_indicator_name = "v15-multi-alpha"
 my_indicator_description = "多Alpha策略：ROC动量+波动率分位+量价确认+价格延伸度+加权评分+波动率自适应阈值。打破v11-v14因子同质化。"

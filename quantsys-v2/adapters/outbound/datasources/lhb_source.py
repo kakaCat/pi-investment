@@ -1,3 +1,32 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_4 = 4
+
+CONST_6 = 6
+
+CONST_8 = 8
+
+CONST_30 = 30
+
+
+
+CONST_4 = 4
+
+CONST_6 = 6
+
+CONST_8 = 8
+
+CONST_30 = 30
+
+
+
 """
 龙虎榜数据源 - 多数据源策略
 
@@ -77,6 +106,8 @@ class EastMoneyLhbSource(BaseLhbSource):
                 try:
                     # 获取当日全市场龙虎榜
                     df_daily = ak.stock_lhb_detail_daily_sina(date=date_str)
+
+                    # TODO: 提取嵌套逻辑为独立方法
 
                     if not df_daily.empty and '股票代码' in df_daily.columns:
                         # 筛选出目标股票（匹配6位代码）
@@ -337,6 +368,9 @@ class LhbDataSource:
         # TODO: 将结果构建逻辑从 _transform_stock_records 移到这里
         return data
 
+# TODO: Refactor - complexity 32 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 32 (target < 15)
     def _transform_stock_records(self, df: pd.DataFrame, days: int) -> List[Dict]:
         """转换个股龙虎榜数据为标准格式（兼容多种数据源）"""
         records = []
@@ -414,6 +448,8 @@ class LhbDataSource:
         # TODO: 将结果构建逻辑从 _transform_daily_records 移到这里
         return data
 
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 25 (target < 15)
     def _transform_daily_records(self, df: pd.DataFrame) -> List[Dict]:
         """转换日期汇总数据为标准格式"""
         stocks = []

@@ -1,3 +1,40 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_1_4 = 1.4
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_7 = 7
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+
+
+CONST_1_4 = 1.4
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_7 = 7
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+
+
 """M3-1 信号质量追踪服务
 
 功能：
@@ -112,7 +149,18 @@ class SignalTrackingService:
         # TODO: 将结果构建逻辑从 update_performance 移到这里
         return data
 
+# TODO: Refactor - complexity 18 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 18 (target < 15)
     def update_performance(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         signal_date: str = None,
         lookback_days: int = 30
@@ -150,6 +198,8 @@ class SignalTrackingService:
         for signal in signals:
             sig_date = signal['signal_date']
             # 确保是字符串格式
+            # TODO: 提取嵌套逻辑为独立方法
+
             if isinstance(sig_date, datetime):
                 sig_date = sig_date.strftime('%Y-%m-%d')
             elif hasattr(sig_date, 'isoformat'):

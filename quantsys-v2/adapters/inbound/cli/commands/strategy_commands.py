@@ -1,3 +1,24 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_1000000 = 1000000
+
+
+
+CONST_0_01 = 0.01
+
+CONST_1000000 = 1000000
+
+
+
 """
 Strategy Commands
 

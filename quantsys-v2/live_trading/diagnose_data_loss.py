@@ -1,3 +1,47 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - diagnose_data_loss() = 163 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_0_2 = 0.2
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+CONST_60 = 60
+
+CONST_80 = 80
+
+
+
+CONST_0_01 = 0.01
+
+CONST_0_2 = 0.2
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+CONST_60 = 60
+
+CONST_80 = 80
+
+
+
 """
 样本数据丢失问题诊断脚本
 
@@ -24,7 +68,20 @@ def get_db_connection():
 
 # TODO: Refactor - function too long (164 lines, target < 80)
 
+# TODO: Split long function (163 lines, target < 100)
 def diagnose_data_loss():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
     """诊断数据丢失原因"""
 
     print("\n" + "="*80)

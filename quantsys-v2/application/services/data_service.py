@@ -1,3 +1,20 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_4 = 4
+
+
+
+CONST_4 = 4
+
+
+
 """
 统一数据访问服务 (DataService) - 完全ORM版本
 
@@ -144,6 +161,8 @@ class DataService:
             financials = []
             try:
                 financials_data = self.financial_service.get_financial_data(symbol, start_date, end_date)
+                # TODO: 提取嵌套逻辑为独立方法
+
                 if financials_data and 'data' in financials_data:
                     financials = financials_data['data']
             except Exception as e:
@@ -196,6 +215,9 @@ class DataService:
         # TODO: 将结果构建逻辑从 check_data_integrity 移到这里
         return data
 
+# TODO: Refactor - complexity 18 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 18 (target < 15)
     def check_data_integrity(self, symbol: Optional[str] = None, check_type: str = 'all') -> Dict:
         """检查数据完整性
 

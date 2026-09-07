@@ -1,3 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_502 = 502
+
+
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_502 = 502
+
+
+
 """情绪/资金 API - FastAPI 版（从 Flask sentiment.py 迁移，响应契约保持一致）
 
 覆盖端点：

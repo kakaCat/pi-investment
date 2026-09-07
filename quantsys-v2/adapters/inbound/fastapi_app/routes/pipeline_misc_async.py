@@ -1,3 +1,48 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_02 = 0.02
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_20 = 20
+
+CONST_180 = 180
+
+CONST_202 = 202
+
+CONST_409 = 409
+
+CONST_500 = 500
+
+
+
+CONST_0_02 = 0.02
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_20 = 20
+
+CONST_180 = 180
+
+CONST_202 = 202
+
+CONST_409 = 409
+
+CONST_500 = 500
+
+
+
 """流水线杂项 API - FastAPI 版（从 Flask pipeline.py 迁移，响应契约保持一致）
 
 覆盖端点：

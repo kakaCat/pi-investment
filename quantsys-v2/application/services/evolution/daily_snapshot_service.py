@@ -1,3 +1,20 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_400 = 400
+
+
+
+CONST_400 = 400
+
+
+
 """每日净值快照服务（全账户稠密化地基，行为进化 Phase 1 前置）
 
 背景：simulation_equity_snapshot 此前只在交易日由 account_trading_service 写入，
@@ -43,6 +60,8 @@ class DailySnapshotService:
         result: Dict[str, Dict[str, float]] = {}
         batch = repo.batch_get_kline(symbols, start.isoformat(), end.isoformat())
         for symbol, df in batch.items():
+            # TODO: 提取嵌套逻辑为独立方法
+
             if df is None or df.is_empty():
                 continue
             rows = df.select(['trade_date', 'close']).to_dicts()
@@ -149,6 +168,9 @@ class DailySnapshotService:
         # TODO: 将结果构建逻辑从 backfill_account 移到这里
         return data
 
+# TODO: Refactor - complexity 17 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 17 (target < 15)
     def backfill_account(
         self,
         account_name: str,

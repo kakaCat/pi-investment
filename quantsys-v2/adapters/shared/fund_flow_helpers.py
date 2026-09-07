@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+
+
 """资金流助手（框架无关）— 从 adapters/inbound/api/routes/jobs.py 解耦而来
 
 注意：_inject_fund_flow_to_klines 调用的 get_stock_fund_flow 在原 Flask 代码中
@@ -47,6 +72,8 @@ def _inject_fund_flow_to_klines(klines: List[dict], symbol: str) -> List[dict]:
         # 按日期合并
         for k in klines:
             kdate = str(k.get('trade_date', k.get('date', ''))).replace('-', '')
+            # TODO: 提取嵌套逻辑为独立方法
+
             if kdate in fund_by_date:
                 frow = fund_by_date[kdate]
                 for cn_name, alias in _FUND_FLOW_COLUMN_MAP.items():
@@ -189,6 +216,9 @@ def _build__parse_financial_periods_result(data):
     # TODO: 将结果构建逻辑从 _parse_financial_periods 移到这里
     return data
 
+# TODO: Refactor - complexity 29 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 29 (target < 15)
 def _parse_financial_periods(
     income_records: List[dict],
     balance_records: List[dict],

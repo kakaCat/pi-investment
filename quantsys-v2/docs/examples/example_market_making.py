@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.0001, 0.0002, 0.0005, 0.1, 0.3]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_0001 = 0.0001
+
+CONST_0_0002 = 0.0002
+
+CONST_0_0005 = 0.0005
+
+CONST_0_1 = 0.1
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_12 = 12
+
+CONST_15 = 15
+
+
+
+CONST_0_0001 = 0.0001
+
+CONST_0_0002 = 0.0002
+
+CONST_0_0005 = 0.0005
+
+CONST_0_1 = 0.1
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_12 = 12
+
+CONST_15 = 15
+
+
 
 """
 做市策略完整示例

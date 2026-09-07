@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.15, 0.2, 0.5, 0.75, 0.95]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_5 = 0.5
+
+CONST_0_75 = 0.75
+
+CONST_0_95 = 0.95
+
+CONST_1_1 = 1.1
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_7 = 7
+
+CONST_30 = 30
+
+
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_5 = 0.5
+
+CONST_0_75 = 0.75
+
+CONST_0_95 = 0.95
+
+CONST_1_1 = 1.1
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_7 = 7
+
+CONST_30 = 30
+
+
 
 """
 操纵检测服务 - ManipulationDetector

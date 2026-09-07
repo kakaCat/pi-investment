@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """
 任务注册 - 在应用启动时调用此模块注册所有任务
 """

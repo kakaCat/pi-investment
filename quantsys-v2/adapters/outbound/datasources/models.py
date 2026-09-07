@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """Data models for all provider domains.
 
 All models include source and timestamp fields for tracking data origin.

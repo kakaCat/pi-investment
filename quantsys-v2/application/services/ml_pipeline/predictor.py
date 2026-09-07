@@ -1,10 +1,13 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """
 ML Predictor Module
 
 Handles model loading and batch prediction with confidence scores.
 """
 
-from __future__ import annotations
 
 import json
 import logging

@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """服务工厂函数
 
 P2-3: 为复杂服务提供工厂函数

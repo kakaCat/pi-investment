@@ -1,3 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_0003 = 0.0003
+
+CONST_0_001 = 0.001
+
+CONST_30 = 30
+
+CONST_50_0 = 50.0
+
+CONST_55_0 = 55.0
+
+
+
+CONST_0_0003 = 0.0003
+
+CONST_0_001 = 0.001
+
+CONST_30 = 30
+
+CONST_50_0 = 50.0
+
+CONST_55_0 = 55.0
+
+
+
 """
 模拟券商接口 - 用于模拟交易测试
 

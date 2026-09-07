@@ -1,4 +1,32 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - run() = 107 lines
+
 #!/usr/bin/env python
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_4 = 4
+
+CONST_7 = 7
+
+CONST_100000_0 = 100000.0
+
+
+
+CONST_4 = 4
+
+CONST_7 = 7
+
+CONST_100000_0 = 100000.0
+
+
+
 """
 V13策略周报任务
 
@@ -204,7 +232,16 @@ class WeeklyReportJob:
 
     # TODO: Refactor - function too long (108 lines, target < 80)
 
+# TODO: Split long function (107 lines, target < 100)
     def run(self):
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """运行周报任务"""
         logger.info("开始生成V13策略周报")
 

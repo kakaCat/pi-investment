@@ -1,3 +1,27 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_0_02 = 0.02
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_25 = 0.25
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_100000 = 100000
+
+
+
 """
 Position Sizing Strategies
 

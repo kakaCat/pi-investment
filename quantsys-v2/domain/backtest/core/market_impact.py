@@ -1,3 +1,27 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_1eNEG_06 = 1e-06
+
+CONST_0_0003 = 0.0003
+
+CONST_0_001 = 0.001
+
+CONST_0_01 = 0.01
+
+CONST_0_02 = 0.02
+
+CONST_0_1 = 0.1
+
+CONST_390 = 390
+
+CONST_10000 = 10000
+
+
+
 """
 市场冲击模型 - Team C
 Almgren-Chriss市场冲击成本模型

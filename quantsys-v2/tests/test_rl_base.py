@@ -66,6 +66,7 @@ def sample_observation_space():
     return {"type": "box", "shape": (4,), "low": 0.0, "high": 1.0}
 
 
+# TODO: Refactor large class (33 methods, target < 20)
 class TestBaseRLAgent:
     """Test suite for BaseRLAgent"""
 
@@ -487,6 +488,7 @@ def concrete_env():
     return ConcreteRLEnvironment()
 
 
+# TODO: Refactor large class (35 methods, target < 20)
 class TestBaseRLEnvironment:
     """Test suite for BaseRLEnvironment"""
 

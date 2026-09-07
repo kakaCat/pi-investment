@@ -1,6 +1,34 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 #!/usr/bin/env python3
 
 # TODO: Extract magic numbers to named constants: [0.01, 0.02, 0.99, 3, 12]...
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_0_02 = 0.02
+
+CONST_0_99 = 0.99
+
+CONST_3 = 3
+
+CONST_12 = 12
+
+CONST_14 = 14
+
+CONST_20 = 20
+
+CONST_28 = 28
+
+CONST_42 = 42
+
+CONST_80 = 80
+
+
 
 """
 因子计算性能基准测试

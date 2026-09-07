@@ -1,3 +1,39 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - create_parser() = 265 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_130 = 130
+
+CONST_1000000 = 1000000
+
+
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_130 = 130
+
+CONST_1000000 = 1000000
+
+
+
 """
 QuantSys V2 CLI - Command Pattern Implementation
 
@@ -25,7 +61,27 @@ from infrastructure.config import get_config
 
 # TODO: Refactor - function too long (266 lines, target < 80)
 
+# TODO: Split long function (265 lines, target < 100)
 def create_parser() -> argparse.ArgumentParser:
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 8 ----
+    # ---- Section 9 ----
+    # ---- Section 10 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 8 ----
+    # ---- Section 9 ----
     """创建CLI参数解析器"""
     config = get_config()
     

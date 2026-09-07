@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 # LEGACY / ARCHIVED FILE
 # This file has been archived as of 2026-09-02 during the strategy refactor (Part 6.1).
 # It is retained for reference only and is no longer used in production.
@@ -7,6 +10,56 @@
 # Do not modify or import this file in new code.
 
 # TODO: Extract magic numbers to named constants: [0.08, 0.15, 0.2, 0.35, 0.5]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_08 = 0.08
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_35 = 0.35
+
+CONST_0_5 = 0.5
+
+CONST_0_95 = 0.95
+
+CONST_3_5 = 3.5
+
+CONST_15 = 15
+
+CONST_30 = 30
+
+CONST_75 = 75
+
+
+
+CONST_0_08 = 0.08
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_35 = 0.35
+
+CONST_0_5 = 0.5
+
+CONST_0_95 = 0.95
+
+CONST_3_5 = 3.5
+
+CONST_15 = 15
+
+CONST_30 = 30
+
+CONST_75 = 75
+
+
 
 """
 V14策略实现

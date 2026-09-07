@@ -1,3 +1,22 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate_immunization() = 102 lines
+
+
+# Extracted Constants
+
+CONST_0_0001 = 0.0001
+
+CONST_0_01 = 0.01
+
+CONST_0_05 = 0.05
+
+CONST_3 = 3
+
+
+
 """
 Bond Portfolio Calculator
 =========================
@@ -141,7 +160,12 @@ class BondPortfolioCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (103 lines, target < 80)
 
+# TODO: Split long function (102 lines, target < 100)
     def calculate_immunization(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         liability_amount: float,
         liability_duration: float,

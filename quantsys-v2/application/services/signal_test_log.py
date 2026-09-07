@@ -1,3 +1,35 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - verify_pending() = 120 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+
+
+CONST_0_5 = 0.5
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+
+
 """
 信号测试表 & 回扫验证工具
 
@@ -199,7 +231,18 @@ class SignalTestLog:
     # 回扫验证
     # ═══════════════════════════════════════════════════════
 
+    # TODO: Split long function (120 lines, target < 100)
     def verify_pending(self, days_after: int = 5) -> Dict[str, Any]:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         """
         回扫所有 pending 状态的信号，用最新价格计算模拟盈亏。
 
@@ -403,6 +446,14 @@ class SignalTestLog:
         }
 
     def get_stats(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         strategy_name: str = None,
         start_date: str = None,

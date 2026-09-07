@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_100000000 = 100000000
+
+
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+CONST_100000000 = 100000000
+
+
+
 """
 估值数据服务 - 多数据源支持
 
@@ -74,6 +99,8 @@ class ValuationDataService:
                 self.logger.info(f"尝试从 {source_name} 获取 {clean_symbol} 估值数据")
                 result = fetcher(clean_symbol)
 
+                # TODO: 提取嵌套逻辑为独立方法
+
                 if result and result.get('success'):
                     self.logger.info(f"成功从 {source_name} 获取估值数据")
                     return result
@@ -122,6 +149,9 @@ class ValuationDataService:
         # TODO: 将结果构建逻辑从 _get_from_sina 移到这里
         return data
 
+# TODO: Refactor - complexity 19 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 19 (target < 15)
     def _get_from_sina(self, symbol: str) -> Dict[str, Any]:
         """
         从新浪财经获取估值数据
@@ -285,6 +315,8 @@ class ValuationDataService:
         # TODO: 将结果构建逻辑从 _get_from_akshare 移到这里
         return data
 
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 20 (target < 15)
     def _get_from_akshare(self, symbol: str) -> Dict[str, Any]:
         """从 akshare 获取估值数据"""
         try:

@@ -1,3 +1,37 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_8 = 8
+
+CONST_20 = 20
+
+
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_8 = 8
+
+CONST_20 = 20
+
+
+
 """Abstract base class for market data adapters.
 
 Every downstream data source (akshare, tushare, wind, etc.) must implement
@@ -6,7 +40,6 @@ When a source changes its API, only the adapter needs updating — the rest of
 the system is protected.
 """
 
-from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime

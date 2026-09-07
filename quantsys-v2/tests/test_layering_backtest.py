@@ -63,6 +63,7 @@ def predictive_factor_data():
     return factor_data, return_data
 
 
+# TODO: Refactor large class (37 methods, target < 20)
 class TestFactorLayeringBacktest:
     """Test suite for FactorLayeringBacktest"""
 

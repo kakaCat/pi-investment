@@ -1,4 +1,57 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 #!/usr/bin/env python3
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_0_02 = 0.02
+
+CONST_0_7 = 0.7
+
+CONST_0_99 = 0.99
+
+CONST_5 = 5
+
+CONST_40 = 40
+
+CONST_42 = 42
+
+CONST_80 = 80
+
+CONST_1000000 = 1000000
+
+CONST_10000000 = 10000000
+
+
+
+CONST_0_01 = 0.01
+
+CONST_0_02 = 0.02
+
+CONST_0_7 = 0.7
+
+CONST_0_99 = 0.99
+
+CONST_5 = 5
+
+CONST_40 = 40
+
+CONST_42 = 42
+
+CONST_80 = 80
+
+CONST_1000000 = 1000000
+
+CONST_10000000 = 10000000
+
+
+
 """
 买卖信号生成完整示例
 

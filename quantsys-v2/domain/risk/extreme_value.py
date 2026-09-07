@@ -1,5 +1,33 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [1e-06, 0.05, 0.1, 0.5, 0.85]...
+
+
+# Extracted Constants
+
+CONST_1eNEG_06 = 1e-06
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_5 = 0.5
+
+CONST_0_85 = 0.85
+
+CONST_0_9 = 0.9
+
+CONST_0_95 = 0.95
+
+CONST_0_99 = 0.99
+
+CONST_1_5 = 1.5
+
+CONST_3 = 3
+
+
 
 """
 Extreme Value Theory Calculator

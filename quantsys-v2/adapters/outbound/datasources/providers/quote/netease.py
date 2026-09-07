@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """
 NeteaseQuoteProvider - 网易财经实时行情数据源
 """

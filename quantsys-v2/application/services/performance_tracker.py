@@ -1,3 +1,49 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_4 = 4
+
+CONST_6 = 6
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_90 = 90
+
+CONST_252 = 252
+
+CONST_365 = 365
+
+
+
+CONST_0_5 = 0.5
+
+CONST_4 = 4
+
+CONST_6 = 6
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_90 = 90
+
+CONST_252 = 252
+
+CONST_365 = 365
+
+
+
 """
 全局绩效追踪服务 (Performance Tracker)
 
@@ -13,7 +59,6 @@
 - simulation_positions（当前持仓）
 - simulation_account（账户汇总）
 """
-from __future__ import annotations
 
 import structlog
 from typing import Dict, Any, List, Optional

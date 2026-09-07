@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - _analyze_stocks_by_kline() = 127 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.04, 0.3, 0.5, 0.7, 0.8]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_04 = 0.04
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+CONST_0_9 = 0.9
+
+CONST_1_2 = 1.2
+
+CONST_1_5 = 1.5
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+
+
+CONST_0_04 = 0.04
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+CONST_0_9 = 0.9
+
+CONST_1_2 = 1.2
+
+CONST_1_5 = 1.5
+
+CONST_3 = 3
+
+CONST_5 = 5
+
+
 
 """
 战场评估服务 - BattlefieldAssessor
@@ -72,6 +128,8 @@ class BattlefieldAssessor:
         try:
             # 1. 获取池子信息
             pool = self.pool_repo.get_pool(pool_id)
+            # TODO: 提取嵌套逻辑为独立方法
+
             if not pool:
                 raise ValueError(f"池子不存在: {pool_id}")
 
@@ -249,7 +307,24 @@ class BattlefieldAssessor:
         # TODO: 将结果构建逻辑从 _analyze_stocks_by_kline 移到这里
         return data
 
+# TODO: Split long function (127 lines, target < 100)
+# TODO: Refactor - complexity 28 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 28 (target < 15)
+    # TODO: Split long function (127 lines, target < 100)
+    # TODO: Refactor - complexity 28 (target < 15)
+    # TODO: Split long function (127 lines, target < 100)
     def _analyze_stocks_by_kline(self, symbols: List[str]) -> List[Dict]:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         """W2: 降级方法 - 使用K线数据分析战场（增强版）
         
         当 fund_flow_repo 不可用时，基于多维度 K线指标分析战场：

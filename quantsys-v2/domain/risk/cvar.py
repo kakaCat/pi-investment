@@ -1,3 +1,27 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_0_9 = 0.9
+
+CONST_0_95 = 0.95
+
+CONST_0_99 = 0.99
+
+CONST_6 = 6
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_10000 = 10000
+
+
+
 """
 Conditional Value at Risk (CVaR) Calculator
 ============================================

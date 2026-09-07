@@ -1,3 +1,52 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_03 = 0.03
+
+CONST_4 = 4
+
+CONST_20 = 20
+
+CONST_252 = 252
+
+CONST_365_0 = 365.0
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_500 = 500
+
+CONST_1000000 = 1000000
+
+
+
+CONST_0_03 = 0.03
+
+CONST_4 = 4
+
+CONST_20 = 20
+
+CONST_252 = 252
+
+CONST_365_0 = 365.0
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_500 = 500
+
+CONST_1000000 = 1000000
+
+
+
 """指标管理 API - FastAPI 版（从 Flask indicators.py 迁移，响应契约保持一致）
 
 复用 strategy_service（StrategyCodeService）与 normalize_indicator_fields，

@@ -1,5 +1,59 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [5, 8, 9, 15, 16]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_9 = 9
+
+CONST_15 = 15
+
+CONST_16 = 16
+
+CONST_17 = 17
+
+CONST_20 = 20
+
+CONST_23 = 23
+
+CONST_25 = 25
+
+CONST_30 = 30
+
+
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_9 = 9
+
+CONST_15 = 15
+
+CONST_16 = 16
+
+CONST_17 = 17
+
+CONST_20 = 20
+
+CONST_23 = 23
+
+CONST_25 = 25
+
+CONST_30 = 30
+
+
 
 """
 日常投资循环编排器 (Daily Investment Orchestrator)
@@ -17,7 +71,6 @@ IDLE → PRE_MARKET → MARKET_OPEN → INTRADAY → MARKET_CLOSE → POST_MARKE
     orchestrator = DailyOrchestrator()
     orchestrator.run()  # 由 APScheduler 每分钟调用，自动判断当前应执行的阶段
 """
-from __future__ import annotations
 
 import structlog
 from typing import Dict, Any, Optional, List
@@ -76,6 +129,8 @@ TRADING_ACCOUNT = 'agent_virtual'
 
 # TODO: Refactor - class too large (24 methods, target < 15)
 
+# TODO: Refactor large class (24 methods, target < 20)
+# TODO: Refactor large class (24 methods, target < 20)
 class DailyOrchestrator:
     """日常投资循环编排器
 

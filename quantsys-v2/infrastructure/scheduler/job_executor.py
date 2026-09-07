@@ -1,3 +1,24 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - execute_scheduled_job() = 114 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_6 = 6
+
+
+
+CONST_6 = 6
+
+
+
 """
 调度任务执行器
 
@@ -10,7 +31,6 @@
 
 Created: 2026-09-01
 """
-from __future__ import annotations
 
 import asyncio
 import logging
@@ -22,7 +42,16 @@ logger = logging.getLogger(__name__)
 
 # TODO: Refactor - function too long (115 lines, target < 80)
 
+# TODO: Split long function (114 lines, target < 100)
 def execute_scheduled_job(task_id: int):
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """
     APScheduler 调用的任务执行入口
 

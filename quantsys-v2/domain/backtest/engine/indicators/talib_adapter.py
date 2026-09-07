@@ -1,5 +1,21 @@
-"""TA-Lib indicator adapter (optional, requires C compilation)."""
 from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_9 = 9
+
+CONST_12 = 12
+
+CONST_14 = 14
+
+CONST_26 = 26
+
+
+
+"""TA-Lib indicator adapter (optional, requires C compilation)."""
 
 import numpy as np
 

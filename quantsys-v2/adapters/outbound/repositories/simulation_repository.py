@@ -1,3 +1,35 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - add_trade() = 109 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_01 = 0.01
+
+CONST_90 = 90
+
+CONST_500 = 500
+
+CONST_100000 = 100000
+
+
+
+CONST_0_01 = 0.01
+
+CONST_90 = 90
+
+CONST_500 = 500
+
+CONST_100000 = 100000
+
+
+
 """
 模拟交易ORM Repository
 
@@ -40,6 +72,8 @@ from infrastructure.persistence.orm.models.action_norm import normalize_action  
 
 # TODO: Refactor - class too large (37 methods, target < 15)
 
+# TODO: Refactor large class (37 methods, target < 20)
+# TODO: Refactor large class (37 methods, target < 20)
 class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationRepository):
     """模拟交易ORM Repository
 
@@ -763,7 +797,16 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
 
     # TODO: Refactor - function too long (110 lines, target < 80)
 
+# TODO: Split long function (109 lines, target < 100)
     def add_trade(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         account_name: str,
         symbol: str,

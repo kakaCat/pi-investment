@@ -1,3 +1,48 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_20 = 20
+
+CONST_50 = 50
+
+CONST_60_0 = 60.0
+
+CONST_200 = 200
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_500 = 500
+
+CONST_1000000 = 1000000
+
+
+
+CONST_20 = 20
+
+CONST_50 = 50
+
+CONST_60_0 = 60.0
+
+CONST_200 = 200
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_500 = 500
+
+CONST_1000000 = 1000000
+
+
+
 """策略管理 API - FastAPI 版（从 Flask strategies.py 迁移，响应契约保持一致）
 
 注意路由顺序：FastAPI 按注册顺序匹配，字面量路径（/list、/create 等）必须
@@ -97,7 +142,7 @@ def get_strategies_list(source: str = Query('user'), category: Optional[str] = Q
 
     code_type = codeType
     # Validation checks
-if code_type and code_type not in ('indicator', 'script', 'strategy'):
+    if code_type and code_type not in ('indicator', 'script', 'strategy'):
         return error_response({'success': False, 'error': f'无效的 code_type: {code_type}，必须是 indicator、script 或 strategy'}, 400)
 
     strategies = strategy_service.list_strategies(code_type=code_type, active_only=True)
@@ -171,7 +216,7 @@ def create_strategy(payload: Optional[Dict[str, Any]] = Body(None)):
         return error_response({'success': False, 'error': '缺少必需参数: code'}, 400)
     code_type = strategy_data.get('code_type', 'indicator')
     # Validation checks
-if code_type not in ('indicator', 'script', 'strategy'):
+    if code_type not in ('indicator', 'script', 'strategy'):
         return error_response({'success': False, 'error': f'无效的策略类型: {code_type}，必须是 indicator、script 或 strategy'}, 400)
 
     result = strategy_service.create_strategy(

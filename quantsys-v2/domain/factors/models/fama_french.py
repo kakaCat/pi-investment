@@ -1,3 +1,31 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 187 lines
+#   - calculate() = 192 lines
+
+
+# Extracted Constants
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_0_7 = 0.7
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_30 = 30
+
+
+
 """
 Fama-French Factor Models
 ==========================
@@ -67,7 +95,16 @@ class FamaFrench3FactorCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (188 lines, target < 80)
 
+# TODO: Split long function (187 lines, target < 100)
+# TODO: Split long function (192 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
                   asset_returns: Union[np.ndarray, pd.Series],
                   market_returns: Union[np.ndarray, pd.Series],
                   risk_free_rate: Union[float, np.ndarray, pd.Series],
@@ -296,6 +333,13 @@ class FamaFrench5FactorCalculator(BaseCalculator):
 
 
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
                   asset_returns: Union[np.ndarray, pd.Series],
                   market_returns: Union[np.ndarray, pd.Series],
                   risk_free_rate: Union[float, np.ndarray, pd.Series],
@@ -605,6 +649,10 @@ class FamaFrenchFactorBuilder:
         return pd.Series(smb_series, index=returns.columns), pd.Series(hml_series, index=returns.columns)
 
     def build_rmw_cma(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
                       returns: pd.DataFrame,
                       market_caps: pd.DataFrame,
                       operating_profit: pd.DataFrame,

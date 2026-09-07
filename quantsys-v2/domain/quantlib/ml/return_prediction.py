@@ -1,5 +1,37 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - predict_returns() = 116 lines
+#   - _train_lstm() = 128 lines
+
 
 # TODO: Extract magic numbers to named constants: [1e-10, 0.001, 0.05, 0.1, 0.2]...
+
+
+# Extracted Constants
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_001 = 0.001
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_2 = 0.2
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_20 = 20
+
+
 
 """
 Return Prediction Calculator
@@ -104,7 +136,22 @@ class ReturnPredictionCalculator(BaseCalculator):
         # TODO: 将结果构建逻辑从 predict_returns 移到这里
         return data
 
+# TODO: Split long function (115 lines, target < 100)
+# TODO: Refactor - complexity 16 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    def _check_condition_0():
+        """Check: features is None or (isinstance(features, pd.DataFrame) and ..."""
+        return features is None or (isinstance(features, pd.DataFrame) and features.empty)
+
+    # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: Split long function (116 lines, target < 100)
+    # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: Split long function (116 lines, target < 100)
     def predict_returns(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
                         features: pd.DataFrame,
                         target: Union[np.ndarray, pd.Series],
                         model_type: str = 'xgboost',
@@ -139,7 +186,8 @@ class ReturnPredictionCalculator(BaseCalculator):
         """
         if features is None or (isinstance(features, pd.DataFrame) and features.empty):
             raise DataValidationError("Features DataFrame is empty", field_name="features")
-
+        if _check_condition_0():
+            pass  # TODO: implement
         if not isinstance(features, pd.DataFrame):
             raise DataValidationError("features must be a pandas DataFrame", field_name="features")
 
@@ -259,6 +307,8 @@ class ReturnPredictionCalculator(BaseCalculator):
         """Select top features using correlation with target."""
         correlations = []
         for i in range(X_train.shape[1]):
+            # TODO: 提取嵌套逻辑为独立方法
+
             if np.std(X_train[:, i]) > 1e-10:
                 corr = np.corrcoef(X_train[:, i], y_train)[0, 1]
                 correlations.append((i, abs(corr) if not np.isnan(corr) else 0))
@@ -456,7 +506,13 @@ class ReturnPredictionCalculator(BaseCalculator):
 # TODO: Refactor - function too long (129 lines, target < 80)
 
 
+# TODO: Split long function (128 lines, target < 100)
     def _train_lstm(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
                     X_train: np.ndarray,
                     y_train: np.ndarray,
                     X_test: np.ndarray,

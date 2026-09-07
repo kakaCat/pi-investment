@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+CONST_3200_0 = 3200.0
+
+CONST_11000_0 = 11000.0
+
+
+
+CONST_5 = 5
+
+CONST_3200_0 = 3200.0
+
+CONST_11000_0 = 11000.0
+
+
+
 """
 QuantSys V2 WebSocket 服务 - FastAPI 版本
 替换 Flask-SocketIO，提供更好的性能和原生异步支持

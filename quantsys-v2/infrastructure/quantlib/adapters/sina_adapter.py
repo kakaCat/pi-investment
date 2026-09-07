@@ -1,9 +1,37 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_8 = 8
+
+CONST_9 = 9
+
+CONST_12 = 12
+
+CONST_13 = 13
+
+CONST_20 = 20
+
+CONST_32 = 32
+
+
+
 """Sina Finance (新浪财经) market data adapter.
 
 Provides real-time quotes and basic market data from Sina Finance API.
 """
 
-from __future__ import annotations
 
 import re
 import requests

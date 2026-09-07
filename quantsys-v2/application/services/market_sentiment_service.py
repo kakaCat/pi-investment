@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.2, 0.33, 0.4, 0.5, 0.6]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_2 = 0.2
+
+CONST_0_33 = 0.33
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_66 = 0.66
+
+CONST_0_67 = 0.67
+
+CONST_0_8 = 0.8
+
+CONST_1_2 = 1.2
+
+CONST_1_5 = 1.5
+
+
+
+CONST_0_2 = 0.2
+
+CONST_0_33 = 0.33
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_66 = 0.66
+
+CONST_0_67 = 0.67
+
+CONST_0_8 = 0.8
+
+CONST_1_2 = 1.2
+
+CONST_1_5 = 1.5
+
+
 
 """
 市场情绪分析服务
@@ -13,6 +66,8 @@ from datetime import datetime, timedelta
 logger = structlog.get_logger(__name__)
 
 
+# TODO: Refactor large class (21 methods, target < 20)
+# TODO: Refactor large class (21 methods, target < 20)
 class MarketSentimentService:
     """市场情绪分析服务"""
 
@@ -29,6 +84,14 @@ class MarketSentimentService:
         self.kline_repo = kline_repo
 
     def analyze_market_sentiment(self) -> Dict:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """
         分析市场情绪
 
@@ -82,6 +145,8 @@ class MarketSentimentService:
                 'new_high_low': new_high_low,
             }
             for name, dim in dimension_map.items():
+                # TODO: 提取嵌套逻辑为独立方法
+
                 if isinstance(dim, dict) and dim.get('error'):
                     degraded_dimensions.append({'dimension': name, 'reason': dim['error']})
 
@@ -301,6 +366,9 @@ class MarketSentimentService:
         # TODO: 将结果构建逻辑从 _calculate_sentiment_score 移到这里
         return data
 
+# TODO: Refactor - complexity 30 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 30 (target < 15)
     def _calculate_sentiment_score(self, indicators: Dict) -> float:
         """
         综合计算情绪分数 (0-100)

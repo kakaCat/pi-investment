@@ -1,3 +1,25 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_08 = 0.08
+
+CONST_0_12 = 0.12
+
+
+
+CONST_0_08 = 0.08
+
+CONST_0_12 = 0.12
+
+
+
 """Intraday risk monitoring service.
 
 Watches all open positions during trading hours (scheduled every 30 minutes
@@ -10,7 +32,6 @@ Triggered positions are sold via the injected trader and each action is
 reported to Feishu. All thresholds are configurable via the engine config's
 ``risk`` section.
 """
-from __future__ import annotations
 
 import logging
 from datetime import datetime

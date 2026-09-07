@@ -1,3 +1,30 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_02 = 0.02
+
+CONST_0_2 = 0.2
+
+CONST_14 = 14
+
+CONST_20 = 20
+
+CONST_25 = 25
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_70 = 70
+
+CONST_75 = 75
+
+
+
 """
 Trend Indicators Module
 ========================
@@ -8,7 +35,6 @@ Trend-based technical factors including ADX, DMI, CCI, Aroon, and SAR.
 Performance: TA-Lib (C implementation) vs pandas (Python) ~ 10x faster
 """
 
-from __future__ import annotations
 
 import numpy as np
 try:

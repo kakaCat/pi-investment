@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - screen_stocks() = 115 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.08, 0.1, 0.15, 0.2, 0.3]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_08 = 0.08
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_15 = 15
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+
+
+CONST_0_08 = 0.08
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_15 = 15
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+
 
 """
 股票筛选服务
@@ -31,7 +87,17 @@ class StockScreeningService:
 
     # TODO: Refactor - function too long (116 lines, target < 80)
 
+# TODO: Split long function (115 lines, target < 100)
     def screen_stocks(self, criteria: Dict) -> Dict:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """
         根据条件筛选股票
 
@@ -85,6 +151,8 @@ class StockScreeningService:
             for stock in all_stocks:
                 try:
                     # 基本条件筛选
+                    # TODO: 提取嵌套逻辑为独立方法
+
                     if not self._match_basic_criteria(stock, criteria):
                         continue
 
@@ -180,6 +248,9 @@ class StockScreeningService:
         # TODO: 将结果构建逻辑从 _match_basic_criteria 移到这里
         return data
 
+# TODO: Refactor - complexity 24 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 24 (target < 15)
     def _match_basic_criteria(self, stock: Dict, criteria: Dict) -> bool:
         """
         检查股票是否匹配基本条件

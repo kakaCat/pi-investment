@@ -1,3 +1,23 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - get_financial_data() = 124 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_4 = 4
+
+
+
+CONST_4 = 4
+
+
+
 """
 Tushare Pro 财务数据提供者
 
@@ -75,7 +95,24 @@ class TushareFinancialProvider(FinancialProvider):
         # TODO: 将结果构建逻辑从 get_financial_data 移到这里
         return data
 
+# TODO: Split long function (124 lines, target < 100)
+# TODO: Refactor - complexity 20 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 20 (target < 15)
+    # TODO: Split long function (124 lines, target < 100)
+    # TODO: Refactor - complexity 20 (target < 15)
+    # TODO: Split long function (124 lines, target < 100)
     def get_financial_data(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         symbol: str,
         statement_type: str = 'all',
@@ -112,6 +149,8 @@ class TushareFinancialProvider(FinancialProvider):
             )
 
             # 获取利润表
+            # TODO: 提取嵌套逻辑为独立方法
+
             if statement_type in ('income', 'all'):
                 try:
                     df = self.pro.income(ts_code=ts_code, fields=[

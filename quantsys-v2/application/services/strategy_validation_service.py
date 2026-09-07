@@ -1,5 +1,62 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - validate_all_strategies() = 178 lines
+#   - validate_from_recent_backtests() = 167 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.1, 0.15, 0.2, 0.4, 0.5]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_30 = 30
+
+CONST_60_0 = 60.0
+
+CONST_300 = 300
+
+
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_30 = 30
+
+CONST_60_0 = 60.0
+
+CONST_300 = 300
+
+
 
 """
 策略验证服务
@@ -232,7 +289,22 @@ class StrategyValidationService:
 
     # TODO: Refactor - function too long (179 lines, target < 80)
 
+# TODO: Split long function (178 lines, target < 100)
     def validate_all_strategies(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
         self,
         start_date: str,
         end_date: str,
@@ -425,7 +497,20 @@ class StrategyValidationService:
     # TODO: Refactor - function too long (168 lines, target < 80)
 
     # ------------------------------------------------------------------
+# TODO: Split long function (167 lines, target < 100)
     def validate_from_recent_backtests(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
         self,
         lookback_days: int = 30,
         threshold: float = 60.0,

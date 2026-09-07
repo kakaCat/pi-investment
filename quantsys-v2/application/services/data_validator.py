@@ -1,3 +1,43 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - detect_anomalies() = 102 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_2 = 0.2
+
+CONST_0_6 = 0.6
+
+CONST_3_0 = 3.0
+
+CONST_4 = 4
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+
+
+CONST_0_2 = 0.2
+
+CONST_0_6 = 0.6
+
+CONST_3_0 = 3.0
+
+CONST_4 = 4
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+
+
 """
 数据验证器
 
@@ -307,7 +347,16 @@ class DataValidator:
 
     # TODO: Refactor - function too long (103 lines, target < 80)
 
+# TODO: Split long function (102 lines, target < 100)
     def detect_anomalies(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         symbol: str,
         start_date: str,

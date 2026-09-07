@@ -1,3 +1,21 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_5 = 0.5
+
+CONST_14 = 14
+
+CONST_20 = 20
+
+CONST_21 = 21
+
+CONST_252 = 252
+
+
+
 """
 Volatility Indicators Module
 =============================

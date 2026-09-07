@@ -1,3 +1,25 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_1eNEG_06 = 1e-06
+
+CONST_0_001 = 0.001
+
+CONST_0_3 = 0.3
+
+CONST_0_5 = 0.5
+
+CONST_5_0 = 5.0
+
+CONST_6 = 6
+
+
+
 """
 Implied Volatility Calculator
 ==============================

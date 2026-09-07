@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.03, 0.05, 0.06, 0.09, 0.12]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_06 = 0.06
+
+CONST_0_09 = 0.09
+
+CONST_0_12 = 0.12
+
+CONST_0_15 = 0.15
+
+CONST_0_18 = 0.18
+
+CONST_0_25 = 0.25
+
+CONST_0_35 = 0.35
+
+CONST_0_41 = 0.41
+
+
+
+CONST_0_03 = 0.03
+
+CONST_0_05 = 0.05
+
+CONST_0_06 = 0.06
+
+CONST_0_09 = 0.09
+
+CONST_0_12 = 0.12
+
+CONST_0_15 = 0.15
+
+CONST_0_18 = 0.18
+
+CONST_0_25 = 0.25
+
+CONST_0_35 = 0.35
+
+CONST_0_41 = 0.41
+
+
 
 """
 V14 FastAPI 路由

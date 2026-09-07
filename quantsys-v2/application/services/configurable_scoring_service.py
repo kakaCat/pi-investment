@@ -1,3 +1,56 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_1 = 0.1
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_60 = 60
+
+CONST_70 = 70
+
+CONST_80 = 80
+
+CONST_90 = 90
+
+
+
+CONST_0_1 = 0.1
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_60 = 60
+
+CONST_70 = 70
+
+CONST_80 = 80
+
+CONST_90 = 90
+
+
+
 """
 改进的股票评分服务 - 配置驱动版本
 
@@ -61,6 +114,8 @@ class ConfigurableScoringService:
         try:
             # 1. 获取股票基本信息
             stock_info = self.stock_repo.get_by_symbol(symbol)
+            # TODO: 提取嵌套逻辑为独立方法
+
             if not stock_info:
                 return {'error': f'股票 {symbol} 不存在'}
 
@@ -139,6 +194,7 @@ class ConfigurableScoringService:
         # TODO: 将结果构建逻辑从 _calculate_technical_score_v2 移到这里
         return data
 
+    # TODO: Refactor - complexity 25 (target < 15)
     def _calculate_technical_score_v2(self, factors: Dict) -> float:
         """技术面评分 - 配置驱动版本"""
         if not TECHNICAL_SCORING:
@@ -240,6 +296,7 @@ class ConfigurableScoringService:
         # TODO: 将结果构建逻辑从 _calculate_fundamental_score_v2 移到这里
         return data
 
+    # TODO: Refactor - complexity 21 (target < 15)
     def _calculate_fundamental_score_v2(self, factors: Dict) -> float:
         """基本面评分 - 配置驱动版本"""
         if not FUNDAMENTAL_SCORING:

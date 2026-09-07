@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """交易/信号方向（action）的统一规范化 —— 全系统唯一事实源（2026-08-13）。
 
 契约：quant.simulation_trades / simulation_order / simulation_pending_orders /

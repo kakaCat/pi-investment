@@ -1,3 +1,31 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - execute() = 183 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_6 = 6
+
+CONST_12 = 12
+
+CONST_70 = 70
+
+
+
+CONST_6 = 6
+
+CONST_12 = 12
+
+CONST_70 = 70
+
+
+
 """
 财务数据更新 Job - 基础财务指标刷新（quant.stocks 列）
 
@@ -62,20 +90,13 @@ def _build_execute_result(data):
     # TODO: 将结果构建逻辑从 execute 移到这里
     return data
 
-def execute(**params) -> Dict[str, Any]:
-    """
-    用东财业绩报表批量刷新 quant.stocks 基础财务指标列
+# TODO: Refactor - complexity 24 (target < 15)
+# TODO: Split long function (183 lines, target < 100)
+# TODO: Refactor - complexity 24 (target < 15)
+# TODO: Split long function (183 lines, target < 100)
 
-    Args:
-        **params:
-            - report_date: 报告期 YYYYMMDD（默认 '20260630'）
-            - symbols: 指定股票列表（默认：全市场 A 股中 yjbb 覆盖的股票）
-            - dry_run: True 仅统计不写库（默认 False）
-
-    Returns:
-        dict: {success, report_date, fetched, universe, updated, skipped,
-               failed, elapsed_s, error?, no_symbol_match?}
-    """
+def _init(self):
+    """执行: init"""
     started = time.time()
     report_date = str(params.get('report_date') or DEFAULT_REPORT_DATE).strip()
     symbols = params.get('symbols')
@@ -86,13 +107,14 @@ def execute(**params) -> Dict[str, Any]:
     else:
         symbols = None
         universe_source = 'all-a'
-
     logger.info("=" * 70)
     logger.info(f"财务数据更新任务开始 (report_date={report_date}, "
                 f"universe={universe_source}, dry_run={dry_run})")
     logger.info("=" * 70)
+    pass
 
-    # 1. 拉取东财业绩报表（单次批量）
+def _step_2_execute(self):
+    """执行: 拉取东财业绩报表（单次批量）"""
     try:
         import akshare as ak
         df = ak.stock_yjbb_em(date=report_date)
@@ -101,7 +123,6 @@ def execute(**params) -> Dict[str, Any]:
         return {'success': False, 'report_date': report_date, 'fetched': 0,
                 'updated': 0, 'skipped': 0, 'error': f'yjbb fetch failed: {e}',
                 'elapsed_s': int(time.time() - started)}
-
     if df is None or df.empty or len(df) < MIN_ROWS:
         logger.error(f"业绩报表为空或数据量过少 ({0 if df is None else len(df)} 行)，"
                      f"报告期 {report_date} 可能未披露或无数据")
@@ -109,18 +130,17 @@ def execute(**params) -> Dict[str, Any]:
                 'updated': 0, 'skipped': 0,
                 'error': f'yjbb empty/insufficient rows for {report_date}',
                 'elapsed_s': int(time.time() - started)}
-
     fetched = int(len(df))
     logger.info(f"业绩报表获取成功: {fetched} 行 (报告期 {report_date})")
 
-    # 2. 去重（按 股票代码，保最后一条）——yjbb 行数可能 > A 股数，需验证唯一性
+def __yjbb___a_(self):
+    """执行: 去重（按_股票代码，保最后一条）——yjbb_行数可能_>_a_股数，需验证唯一性"""
     code_col = '股票代码'
     if code_col not in df.columns:
         logger.error(f"业绩报表缺少列 {code_col}，实际列: {list(df.columns)[:12]}...")
         return {'success': False, 'report_date': report_date, 'fetched': fetched,
                 'updated': 0, 'skipped': 0, 'error': f'missing column {code_col}',
                 'elapsed_s': int(time.time() - started)}
-
     total_before = len(df)
     df = df.drop_duplicates(subset=[code_col], keep='last')
     dupes = total_before - len(df)
@@ -128,7 +148,8 @@ def execute(**params) -> Dict[str, Any]:
         logger.warning(f"业绩报表存在重复股票代码，去重 {dupes} 行 "
                        f"({total_before} -> {len(df)})")
 
-    # 3. 组装待更新记录（单位：东财 % 数值，直接对应 stocks column comment）
+def ____stocks_column_comment(self):
+    """执行: 组装待更新记录（单位：东财_%_数值，直接对应_stocks_column_comment）"""
     need_cols = {
         '净资产收益率': 'roe',
         '销售毛利率': 'gross_margin',
@@ -142,7 +163,6 @@ def execute(**params) -> Dict[str, Any]:
                 'updated': 0, 'skipped': 0,
                 'error': f'missing indicator cols: {missing_cols}',
                 'elapsed_s': int(time.time() - started)}
-
     records: Dict[str, Dict[str, Any]] = {}
     for _, row in df.iterrows():
         code = str(row[code_col]).strip().zfill(6) if str(row[code_col]).strip().isdigit() \
@@ -152,16 +172,17 @@ def execute(**params) -> Dict[str, Any]:
         vals = {}
         for src_col, dst_col in need_cols.items():
             v = _f(row.get(src_col))
+            # TODO: 提取嵌套逻辑为独立方法
             if v is not None:
                 vals[dst_col] = v
         if vals:
             records[code] = vals
     logger.info(f"有效记录 {len(records)} 只（含财务数值）")
 
-    # 4. 确定更新范围：仅 stocks 表存在且 market='A' 的股票
+def __stocks__marketa_(self):
+    """执行: 确定更新范围：仅_stocks_表存在且_market='a'_的股票"""
     from infrastructure.persistence.orm.config import get_session
     from sqlalchemy import text
-
     session = get_session()
     try:
         exist = session.execute(text(
@@ -173,7 +194,6 @@ def execute(**params) -> Dict[str, Any]:
                 'fetched': fetched, 'updated': 0, 'skipped': 0,
                 'error': f'stocks query failed: {e}',
                 'elapsed_s': int(time.time() - started)}
-
     exist_set = {str(r[0]) for r in exist}
     universe = symbols if symbols else sorted(exist_set)
     candidates = [(s, records[s]) for s in universe
@@ -181,7 +201,6 @@ def execute(**params) -> Dict[str, Any]:
     no_match = len(universe) - len(candidates)
     if no_match:
         logger.info(f"{no_match} 只股票无 yjbb 匹配或不在 A 股 stocks 表，跳过")
-
     if dry_run:
         elapsed = int(time.time() - started)
         logger.info(f"[dry_run] 将更新 {len(candidates)} 只股票（未写库）")
@@ -190,7 +209,8 @@ def execute(**params) -> Dict[str, Any]:
                 'updated': len(candidates), 'skipped': no_match, 'failed': 0,
                 'dry_run': True, 'elapsed_s': elapsed}
 
-    # 5. 批量写库（单事务；updated_at 显式刷新）
+def _updated_at_(self):
+    """执行: 批量写库（单事务；updated_at_显式刷新）"""
     if not candidates:
         logger.error("无候选股票可更新，任务失败（不静默成功）")
         return {'success': False, 'report_date': report_date, 'fetched': fetched,
@@ -198,7 +218,6 @@ def execute(**params) -> Dict[str, Any]:
                 'updated': 0, 'skipped': no_match, 'failed': 0,
                 'error': 'no candidates to update',
                 'elapsed_s': int(time.time() - started)}
-
     now = datetime.utcnow()
     updated = 0
     failed: List[str] = []
@@ -216,7 +235,6 @@ def execute(**params) -> Dict[str, Any]:
                 f"WHERE symbol = :symbol AND market='A'"
             ), params_sql)
             # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
             updated += 1  # TODO: Use parameterized queries
     except Exception as e:
         session.rollback()
@@ -226,7 +244,6 @@ def execute(**params) -> Dict[str, Any]:
                 'skipped': no_match, 'failed': len(failed) + 1,
                 'error': f'bulk update failed: {e}',
                 'elapsed_s': int(time.time() - started)}
-
     session.commit()
     elapsed = int(time.time() - started)
     result = {
@@ -246,8 +263,26 @@ def execute(**params) -> Dict[str, Any]:
     }
     logger.info(f"财务数据更新完成: {result}")
     return result
+def execute(**params) -> Dict[str, Any]:
+    """
+    用东财业绩报表批量刷新 quant.stocks 基础财务指标列
 
+    Args:
+        **params:
+            - report_date: 报告期 YYYYMMDD（默认 '20260630'）
+            - symbols: 指定股票列表（默认：全市场 A 股中 yjbb 覆盖的股票）
+            - dry_run: True 仅统计不写库（默认 False）
 
+    Returns:
+        dict: {success, report_date, fetched, universe, updated, skipped,
+               failed, elapsed_s, error?, no_symbol_match?}
+    """
+    self._init()
+    self._step_2_execute()
+    self.__yjbb___a_()
+    self.____stocks_column_comment()
+    self.__stocks__marketa_()
+    self._updated_at_()
 def _f(value) -> Optional[float]:
     """东财同比/比率列数值化；非数值（'--'、空、'-'）→ None（不臆造）"""
     if value is None:

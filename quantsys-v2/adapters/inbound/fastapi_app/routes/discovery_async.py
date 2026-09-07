@@ -1,3 +1,20 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_404 = 404
+
+
+
+CONST_404 = 404
+
+
+
 """策略发现 API - FastAPI 版（从 Flask discovery.py 迁移，响应契约保持一致）
 
 结果存储在中立层 adapters/shared/discovery_state（Flask discovery.py 也再导出同一实例）。

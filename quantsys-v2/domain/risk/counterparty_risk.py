@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - calculate() = 159 lines
+
+
+# Extracted Constants
+
+CONST_0_4 = 0.4
+
+CONST_0_95 = 0.95
+
+CONST_0_99 = 0.99
+
+CONST_5_0 = 5.0
+
+CONST_6 = 6
+
+CONST_95 = 95
+
+CONST_99 = 99
+
+
+
 """
 Counterparty Risk Calculator
 =============================
@@ -54,7 +79,14 @@ class CounterpartyRiskCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (160 lines, target < 80)
 
+# TODO: Split long function (159 lines, target < 100)
     def calculate(self,
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
                   exposure_profile: List[Tuple[float, float]],
                   default_probabilities: Union[List[float], float],
                   recovery_rate: float = 0.4,

@@ -1,3 +1,24 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_20 = 20
+
+CONST_45 = 45
+
+
+
+CONST_20 = 20
+
+CONST_45 = 45
+
+
+
 """双侧捕获适应度装配服务：快照 + 基准 → 纯函数 → 落库（每日调度调用）"""
 from datetime import date, timedelta
 from typing import Any, Callable, Dict, Mapping, Optional

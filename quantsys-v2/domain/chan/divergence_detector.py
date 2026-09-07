@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """背驰检测器 - MACD 面积背驰
 
 ⚠️ DEPRECATED（2026-08-05）：旧线段流水线组件。

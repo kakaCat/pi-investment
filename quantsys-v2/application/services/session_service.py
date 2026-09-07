@@ -1,3 +1,40 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_8 = 0.8
+
+CONST_50 = 50
+
+CONST_200 = 200
+
+CONST_500 = 500
+
+CONST_6000 = 6000
+
+CONST_10000 = 10000
+
+
+
+CONST_0_8 = 0.8
+
+CONST_50 = 50
+
+CONST_200 = 200
+
+CONST_500 = 500
+
+CONST_6000 = 6000
+
+CONST_10000 = 10000
+
+
+
 """
 Session 服务 — agent session 事件摄入、查询与诊断
 

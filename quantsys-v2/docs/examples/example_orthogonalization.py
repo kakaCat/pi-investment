@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.2, 0.3, 0.4, 0.5, 0.6]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+CONST_0_95 = 0.95
+
+CONST_3 = 3
+
+CONST_42 = 42
+
+
+
+CONST_0_2 = 0.2
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_7 = 0.7
+
+CONST_0_8 = 0.8
+
+CONST_0_95 = 0.95
+
+CONST_3 = 3
+
+CONST_42 = 42
+
+
 
 """
 因子正交化完整示例

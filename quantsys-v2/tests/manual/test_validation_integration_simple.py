@@ -1,3 +1,6 @@
+# LONG FUNCTIONS TO REFACTOR:
+#   - test_validation_integration() = 110 lines
+
 #!/usr/bin/env python3
 """
 测试价格校验集成（简化版）
@@ -13,6 +16,7 @@ import pandas as pd
 from application.services.strategy_backtest_service import StrategyBacktestService
 
 
+# TODO: Split long function (110 lines, target < 100)
 def test_validation_integration():
     """测试：价格校验集成到回测引擎"""
 

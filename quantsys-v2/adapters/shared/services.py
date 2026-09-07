@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """共享服务访问层（框架无关）— 从 adapters/inbound/api/shared.py 解耦而来
 
 提供统一的服务访问入口，供 Flask 与 FastAPI 两个 API 层共用。

@@ -1,3 +1,20 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_8 = 0.8
+
+
+
+CONST_0_8 = 0.8
+
+
+
 """
 事件处理器 - 连接事件总线和WebSocket
 """

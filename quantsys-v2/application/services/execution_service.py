@@ -1,3 +1,56 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_0001 = 0.0001
+
+CONST_0_06 = 0.06
+
+CONST_0_07 = 0.07
+
+CONST_0_08 = 0.08
+
+CONST_0_09 = 0.09
+
+CONST_0_11 = 0.11
+
+CONST_0_12 = 0.12
+
+CONST_0_16 = 0.16
+
+CONST_0_18 = 0.18
+
+CONST_0_5 = 0.5
+
+
+
+CONST_0_0001 = 0.0001
+
+CONST_0_06 = 0.06
+
+CONST_0_07 = 0.07
+
+CONST_0_08 = 0.08
+
+CONST_0_09 = 0.09
+
+CONST_0_11 = 0.11
+
+CONST_0_12 = 0.12
+
+CONST_0_16 = 0.16
+
+CONST_0_18 = 0.18
+
+CONST_0_5 = 0.5
+
+
+
 """
 Execution Service - Algorithmic Order Execution
 

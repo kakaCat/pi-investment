@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """
 服务工厂 - 替代shared.py的全局单例模式
 
@@ -47,6 +50,8 @@ def _try_get_from_enhanced(service_type: Type[T]) -> Optional[T]:
 
 # TODO: Refactor - class too large (53 methods, target < 15)
 
+# TODO: Refactor large class (53 methods, target < 20)
+# TODO: Refactor large class (53 methods, target < 20)
 class ServiceFactory:
     """服务工厂类
 

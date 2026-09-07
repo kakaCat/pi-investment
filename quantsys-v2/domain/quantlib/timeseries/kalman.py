@@ -1,3 +1,26 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - filter() = 183 lines
+
+
+# Extracted Constants
+
+CONST_0_1 = 0.1
+
+CONST_0_5 = 0.5
+
+CONST_0_9 = 0.9
+
+CONST_4 = 4
+
+CONST_6 = 6
+
+CONST_10000000000_0 = 10000000000.0
+
+
+
 """
 Kalman Filter Module
 ====================
@@ -115,7 +138,21 @@ class KalmanFilterCalculator(BaseCalculator):
         # TODO: 将结果构建逻辑从 filter 移到这里
         return data
 
+# TODO: Split long function (183 lines, target < 100)
+# TODO: Refactor - complexity 19 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 19 (target < 15)
+    # TODO: Split long function (183 lines, target < 100)
+    # TODO: Refactor - complexity 19 (target < 15)
+    # TODO: Split long function (183 lines, target < 100)
     def filter(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
+        # ---- Section 7 ----
         self,
         observations: Union[List, np.ndarray, pd.Series],
         F: np.ndarray,
@@ -152,6 +189,8 @@ class KalmanFilterCalculator(BaseCalculator):
             obs_array = observations.values
         else:
             obs_array = np.array(observations)
+            # TODO: 提取嵌套逻辑为独立方法
+
             if obs_array.ndim == 1:
                 obs_array = obs_array.reshape(-1, 1)
 
@@ -460,6 +499,10 @@ class KalmanFilterCalculator(BaseCalculator):
     @validate_inputs
     @timing_decorator
     def fit_local_level(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         observations: Union[List, np.ndarray, pd.Series],
         initial_level: Optional[float] = None,

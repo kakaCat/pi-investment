@@ -1,5 +1,25 @@
-"""CCI Reversal Strategy — overbought/oversold mean reversion."""
 from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+CONST_50 = 50
+
+CONST_200 = 200
+
+CONST_300 = 300
+
+
+
+"""CCI Reversal Strategy — overbought/oversold mean reversion."""
 from typing import Any
 
 from domain.backtest.engine.enhanced_strategy_base import EnhancedStrategyBase

@@ -1,3 +1,6 @@
+# LONG FUNCTIONS TO REFACTOR:
+#   - test_custom_price_vs_close() = 143 lines
+
 #!/usr/bin/env python3
 """
 快速验证脚本：自定义成交价格功能
@@ -16,6 +19,7 @@ from application.services.strategy_backtest_service import StrategyBacktestServi
 from adapters.outbound.repositories import KlineORMRepository
 
 
+# TODO: Split long function (143 lines, target < 100)
 def test_custom_price_vs_close():
     """对比测试：自定义价格 vs 收盘价"""
 

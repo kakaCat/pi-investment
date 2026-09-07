@@ -1,5 +1,37 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - example_complete_strategy() = 108 lines
+#   - example_ensemble_backtest() = 110 lines
+
 
 # TODO: Extract magic numbers to named constants: [1e-05, 0.0002, 0.0004, 0.001, 0.005]...
+
+
+# Extracted Constants
+
+CONST_1eNEG_05 = 1e-05
+
+CONST_0_0002 = 0.0002
+
+CONST_0_0004 = 0.0004
+
+CONST_0_001 = 0.001
+
+CONST_0_005 = 0.005
+
+CONST_0_01 = 0.01
+
+CONST_0_02 = 0.02
+
+CONST_0_05 = 0.05
+
+CONST_0_08 = 0.08
+
+CONST_0_1 = 0.1
+
+
 
 """
 Machine Learning Module Examples
@@ -250,6 +282,10 @@ def example_return_prediction_xgboost():
 # ==============================================================================
 
 def example_risk_prediction():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """
     Example 3: Risk (Volatility/VaR) Prediction
 
@@ -352,6 +388,10 @@ def example_risk_prediction():
 # ==============================================================================
 
 def example_anomaly_detection():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """
     Example 4: Market Anomaly Detection
 
@@ -451,7 +491,12 @@ def example_anomaly_detection():
 
 # TODO: Refactor - function too long (109 lines, target < 80)
 
+# TODO: Split long function (108 lines, target < 100)
 def example_complete_strategy():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """
     Example 5: Complete ML-Enhanced Strategy
 
@@ -568,7 +613,14 @@ def example_complete_strategy():
 # TODO: Refactor - function too long (111 lines, target < 80)
 
 
+# TODO: Split long function (110 lines, target < 100)
 def example_ensemble_backtest():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
     """
     Example 6: Model Ensemble and Backtesting
 

@@ -1,3 +1,52 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_17 = 17
+
+CONST_30 = 30
+
+CONST_60 = 60
+
+CONST_930 = 930
+
+CONST_1130 = 1130
+
+CONST_1300 = 1300
+
+CONST_1500 = 1500
+
+
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_17 = 17
+
+CONST_30 = 30
+
+CONST_60 = 60
+
+CONST_930 = 930
+
+CONST_1130 = 1130
+
+CONST_1300 = 1300
+
+CONST_1500 = 1500
+
+
+
 """DailyOrchestrator / IntradayMonitor 随 FastAPI 启动的装配（2026-08-13 起唯一宿主）
 
 背景：orchestrator tick（T+1 结转/信号推送/挂单撮合）与 intraday monitor

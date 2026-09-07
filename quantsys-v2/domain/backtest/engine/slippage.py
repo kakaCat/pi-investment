@@ -1,3 +1,27 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_0_0001 = 0.0001
+
+CONST_0_0003 = 0.0003
+
+CONST_0_0005 = 0.0005
+
+CONST_0_001 = 0.001
+
+CONST_0_02 = 0.02
+
+CONST_0_05 = 0.05
+
+CONST_0_1 = 0.1
+
+CONST_0_5 = 0.5
+
+
+
 """
 Slippage Models
 

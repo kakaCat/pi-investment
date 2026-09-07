@@ -1,3 +1,52 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_65 = 0.65
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_20 = 20
+
+CONST_202 = 202
+
+CONST_365 = 365
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_409 = 409
+
+
+
+CONST_0_65 = 0.65
+
+CONST_5 = 5
+
+CONST_8 = 8
+
+CONST_20 = 20
+
+CONST_202 = 202
+
+CONST_365 = 365
+
+CONST_400 = 400
+
+CONST_404 = 404
+
+CONST_409 = 409
+
+
+
 """流水线 API - FastAPI 版（从 Flask pipeline.py 迁移，响应契约保持一致）
 
 复用 Flask shared 的 pipeline 存储助手（_load_pipeline_runs/_save_pipeline_runs/

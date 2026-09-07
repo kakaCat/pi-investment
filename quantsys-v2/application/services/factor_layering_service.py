@@ -1,3 +1,35 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - run_layering_backtest() = 126 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_20 = 20
+
+CONST_60 = 60
+
+CONST_250 = 250
+
+CONST_365 = 365
+
+
+
+CONST_20 = 20
+
+CONST_60 = 60
+
+CONST_250 = 250
+
+CONST_365 = 365
+
+
+
 """
 因子分层回测服务
 ==================
@@ -47,7 +79,18 @@ class FactorLayeringService:
 
     # TODO: Refactor - function too long (127 lines, target < 80)
 
+# TODO: Split long function (126 lines, target < 100)
     def run_layering_backtest(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         factor_name: str,
         symbols: Optional[List[str]] = None,

@@ -1,3 +1,6 @@
+# LONG FUNCTIONS TO REFACTOR:
+#   - test_full_loop() = 126 lines
+
 #!/usr/bin/env python3
 """
 P2 端到端验证脚本
@@ -22,6 +25,7 @@ def cleanup_test_data():
     cursor.close()
     conn.close()
 
+# TODO: Split long function (126 lines, target < 100)
 def test_full_loop():
     """测试完整闭环"""
     print("=" * 70)

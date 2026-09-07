@@ -1,3 +1,23 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - process() = 113 lines
+
+
+# Extracted Constants
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_20 = 20
+
+CONST_256 = 256
+
+
+
 """
 因子计算Stage
 
@@ -5,7 +25,6 @@
 提供高性能的NumPy向量化计算和丰富的元数据支持。
 """
 
-from __future__ import annotations
 
 from typing import Any
 from functools import lru_cache
@@ -151,7 +170,12 @@ class FactorStage(PipelineStage):
 
         return True
 
+    # TODO: Split long function (113 lines, target < 100)
     def process(self, data: dict[str, Any]) -> dict[str, Any]:
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         """
         计算因子
 

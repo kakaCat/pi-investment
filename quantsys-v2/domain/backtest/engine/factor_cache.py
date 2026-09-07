@@ -1,3 +1,7 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """Thread-local numpy cache for factor calculation.
 
 Pre-extracts OHLCV arrays from klines once per batch, so 64 factors
@@ -15,7 +19,6 @@ Manual::
     with FactorCache.use(cache):
         ...
 """
-from __future__ import annotations
 
 import threading
 from contextlib import contextmanager

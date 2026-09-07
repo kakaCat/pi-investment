@@ -1,3 +1,31 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - fit() = 164 lines
+#   - forecast_volatility() = 111 lines
+
+
+# Extracted Constants
+
+CONST_0_1 = 0.1
+
+CONST_0_95 = 0.95
+
+CONST_1_5 = 1.5
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_6 = 6
+
+CONST_20 = 20
+
+CONST_50 = 50
+
+
+
 """
 GARCH Volatility Modeling Module
 =================================
@@ -77,7 +105,14 @@ class GARCHCalculator(BaseCalculator):
     @timing_decorator
     # TODO: Refactor - function too long (165 lines, target < 80)
 
+# TODO: Split long function (164 lines, target < 100)
     def fit(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 6 ----
         self,
         returns: Union[List, np.ndarray, pd.Series],
         p: int = 1,
@@ -269,7 +304,12 @@ class GARCHCalculator(BaseCalculator):
     # TODO: Refactor - function too long (112 lines, target < 80)
 
     @timing_decorator
+# TODO: Split long function (111 lines, target < 100)
     def forecast_volatility(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         fitted_result: Dict[str, Any],
         returns: Union[List, np.ndarray, pd.Series],

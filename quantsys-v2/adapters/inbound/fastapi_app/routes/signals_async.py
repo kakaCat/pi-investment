@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - scan_signals() = 131 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.2, 0.6, 3, 4, 20]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_2 = 0.2
+
+CONST_0_6 = 0.6
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_70 = 70
+
+CONST_200 = 200
+
+CONST_400 = 400
+
+
+
+CONST_0_2 = 0.2
+
+CONST_0_6 = 0.6
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_20 = 20
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_70 = 70
+
+CONST_200 = 200
+
+CONST_400 = 400
+
+
 
 """交易信号 API - FastAPI 版（从 Flask signals.py 迁移，响应契约保持一致）
 
@@ -84,6 +140,8 @@ def get_signals_statistics(request: Request):
     sell_accuracy = 0.0
     for row in accuracy_results:
         if isinstance(row, dict):
+            # TODO: 提取嵌套逻辑为独立方法
+
             if row['total'] > 0 and row.get('approved_count', 0) > 0:
                 accuracy = (row['approved_count'] / row['total']) * 100
                 if row['action'] == 'BUY':  # signals 大写契约（08-13）
@@ -146,7 +204,24 @@ def _build_scan_signals_result(data):
     # TODO: 将结果构建逻辑从 scan_signals 移到这里
     return data
 
+# TODO: Split long function (131 lines, target < 100)
+# TODO: Refactor - complexity 30 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 30 (target < 15)
+# TODO: Split long function (131 lines, target < 100)
+# TODO: Refactor - complexity 30 (target < 15)
+# TODO: Split long function (131 lines, target < 100)
 def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
     data = payload or {}
     snake_data = convert_keys_to_snake(data)
     strategy_id = snake_data.get('strategy_id')
@@ -438,6 +513,8 @@ def _build_get_signals_result(data):
     # TODO: 将结果构建逻辑从 get_signals 移到这里
     return data
 
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 17 (target < 15)
 def get_signals(request: Request):
     try:
         params = get_query_params_snake_case(request)

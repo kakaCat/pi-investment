@@ -1,5 +1,36 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - example_5_liquidity_risk() = 112 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.0003, 0.0004, 0.0005, 0.0015, 0.003]...
+
+
+# Extracted Constants
+
+CONST_0_0003 = 0.0003
+
+CONST_0_0004 = 0.0004
+
+CONST_0_0005 = 0.0005
+
+CONST_0_0015 = 0.0015
+
+CONST_0_003 = 0.003
+
+CONST_0_015 = 0.015
+
+CONST_0_018 = 0.018
+
+CONST_0_02 = 0.02
+
+CONST_0_025 = 0.025
+
+CONST_0_035 = 0.035
+
+
 
 """
 Advanced Risk Management Examples
@@ -378,7 +409,12 @@ def example_4_copula_modeling():
 
 # TODO: Refactor - function too long (113 lines, target < 80)
 
+# TODO: Split long function (112 lines, target < 100)
 def example_5_liquidity_risk():
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """
     Example 5: Liquidity Risk Assessment
 

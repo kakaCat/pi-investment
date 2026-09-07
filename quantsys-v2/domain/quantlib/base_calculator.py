@@ -1,3 +1,15 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_4 = 4
+
+CONST_6 = 6
+
+
+
 """
 Quantitative Base Calculator Module
 ====================================
@@ -18,6 +30,8 @@ from datetime import datetime
 import warnings
 
 
+# TODO: Refactor large class (22 methods, target < 20)
+# TODO: Refactor large class (22 methods, target < 20)
 class BaseCalculator(ABC):
     """
     Abstract base class for all quantitative calculations.
@@ -91,6 +105,9 @@ class BaseCalculator(ABC):
         # TODO: 将结果构建逻辑从 _validate_numeric_input 移到这里
         return data
 
+# TODO: Refactor - complexity 20 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 20 (target < 15)
     def _validate_numeric_input(self, data: Any, name: str = "data") -> Union[float, np.ndarray, pd.Series]:
         """
         Validate and convert input to appropriate numeric type.
@@ -110,6 +127,8 @@ class BaseCalculator(ABC):
 
         # Handle different input types
         if isinstance(data, (int, float)):
+            # TODO: 提取嵌套逻辑为独立方法
+
             if np.isnan(data) or np.isinf(data):
                 raise ValueError(f"{name} contains invalid values (NaN or Inf)")
             return float(data)

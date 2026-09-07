@@ -12,6 +12,7 @@ from domain.quantlib.factors.trend import TrendFactors
 from domain.quantlib.core.exceptions import InsufficientDataError, DataValidationError
 
 
+# TODO: Refactor large class (49 methods, target < 20)
 class TestTrendFactors:
     """Test trend indicator calculations."""
 

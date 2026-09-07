@@ -1,4 +1,37 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 #!/usr/bin/env python3
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_8 = 0.8
+
+CONST_50 = 50
+
+CONST_60 = 60
+
+CONST_1800_0 = 1800.0
+
+CONST_1850_0 = 1850.0
+
+
+
+CONST_0_8 = 0.8
+
+CONST_50 = 50
+
+CONST_60 = 60
+
+CONST_1800_0 = 1800.0
+
+CONST_1850_0 = 1850.0
+
+
+
 """
 测试完整的买卖流程
 

@@ -1,3 +1,18 @@
+from __future__ import annotations
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_3_0 = 3.0
+
+CONST_4 = 4
+
+CONST_500 = 500
+
+
+
 """
 Technical Factor Calculator Base Class
 =======================================
@@ -5,7 +20,6 @@ Technical Factor Calculator Base Class
 Base class for all technical factor calculations.
 Inherits from BaseCalculator and provides common utilities for K-line data processing.
 """
-from __future__ import annotations
 
 
 from typing import Optional, Union

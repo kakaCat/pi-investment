@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - backtest_with_risk_control() = 242 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.02, 0.03, 0.1, 0.15, 0.2]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_02 = 0.02
+
+CONST_0_03 = 0.03
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_6 = 0.6
+
+CONST_0_8 = 0.8
+
+CONST_0_9985 = 0.9985
+
+CONST_1_0015 = 1.0015
+
+CONST_5 = 5
+
+
+
+CONST_0_02 = 0.02
+
+CONST_0_03 = 0.03
+
+CONST_0_1 = 0.1
+
+CONST_0_15 = 0.15
+
+CONST_0_2 = 0.2
+
+CONST_0_6 = 0.6
+
+CONST_0_8 = 0.8
+
+CONST_0_9985 = 0.9985
+
+CONST_1_0015 = 1.0015
+
+CONST_5 = 5
+
+
 
 """
 风险控制模块
@@ -60,6 +116,8 @@ class RiskController:
         stop_loss_symbols = []
 
         for symbol, pos in portfolio.items():
+            # TODO: 提取嵌套逻辑为独立方法
+
             if symbol not in current_prices:
                 continue
 
@@ -208,7 +266,32 @@ def _build_backtest_with_risk_control_result(data):
     # TODO: 将结果构建逻辑从 backtest_with_risk_control 移到这里
     return data
 
+# TODO: Split long function (242 lines, target < 100)
+# TODO: Refactor - complexity 17 (target < 15)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 17 (target < 15)
+# TODO: Split long function (242 lines, target < 100)
+# TODO: Refactor - complexity 17 (target < 15)
+# TODO: Split long function (242 lines, target < 100)
 def backtest_with_risk_control(trader, start_date: str, end_date: str,
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 8 ----
+    # ---- Section 9 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 5 ----
+    # ---- Section 6 ----
+    # ---- Section 7 ----
+    # ---- Section 8 ----
+    # ---- Section 9 ----
                                risk_config: Dict = None) -> Dict:
     """
     带风险控制的回测

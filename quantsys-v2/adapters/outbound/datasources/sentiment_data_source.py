@@ -1,5 +1,58 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 
 # TODO: Extract magic numbers to named constants: [0.1, 0.5, 3, 4, 5]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_1 = 0.1
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_500 = 500
+
+CONST_5000 = 5000
+
+CONST_10000 = 10000
+
+
+
+CONST_0_1 = 0.1
+
+CONST_0_5 = 0.5
+
+CONST_3 = 3
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_30 = 30
+
+CONST_50 = 50
+
+CONST_500 = 500
+
+CONST_5000 = 5000
+
+CONST_10000 = 10000
+
+
 
 """
 情绪数据源 - 内部交易、股东持仓等

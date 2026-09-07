@@ -1,3 +1,28 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_400 = 400
+
+CONST_500 = 500
+
+CONST_100000 = 100000
+
+
+
+CONST_400 = 400
+
+CONST_500 = 500
+
+CONST_100000 = 100000
+
+
+
 """策略执行 API - FastAPI 版（从 Flask strategy.py 迁移，响应契约保持一致）
 
 POST /api/strategy/run  — 执行完整流水线
@@ -35,7 +60,7 @@ def run_strategy(payload: Optional[Dict[str, Any]] = Body(None)):
         total_capital = float(data.get("total_capital", 100000))
 
         # Validation checks
-if market not in ("A", "HK"):
+        if market not in ("A", "HK"):
             return error_response({"success": False, "error": "market must be 'A' or 'HK'"}, 400)
 
         engine = _get_engine()

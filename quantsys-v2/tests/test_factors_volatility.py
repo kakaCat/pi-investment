@@ -12,6 +12,7 @@ from domain.quantlib.factors.volatility import VolatilityFactors
 from domain.quantlib.core.exceptions import InsufficientDataError, DataValidationError
 
 
+# TODO: Refactor large class (31 methods, target < 20)
 class TestVolatilityFactors:
     """Test volatility indicator calculations."""
 

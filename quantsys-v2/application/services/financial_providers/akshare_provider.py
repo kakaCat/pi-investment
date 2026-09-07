@@ -1,3 +1,20 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_4 = 4
+
+
+
+CONST_4 = 4
+
+
+
 """
 AkShare 财务数据提供者 - 参考实时行情的成功经验
 
@@ -55,7 +72,18 @@ class AkshareFinancialProvider(FinancialProvider):
         # TODO: 将结果构建逻辑从 get_financial_data 移到这里
         return data
 
+# TODO: Refactor - complexity 22 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 22 (target < 15)
     def get_financial_data(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         symbol: str,
         statement_type: str = 'all',
@@ -85,6 +113,8 @@ class AkshareFinancialProvider(FinancialProvider):
             try:
                 # 临时删除所有代理环境变量
                 for key in proxy_keys:
+                    # TODO: 提取嵌套逻辑为独立方法
+
                     if key in os.environ:
                         del os.environ[key]
                 yield

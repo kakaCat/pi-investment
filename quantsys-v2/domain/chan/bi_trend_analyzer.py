@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """走势类型分析（笔中枢版）"""
 from typing import List, Literal
 from .types import Bi, BiZhongShu

@@ -1,3 +1,6 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
 """
 Pattern Recognition Factors
 ============================
@@ -25,6 +28,8 @@ from infrastructure.quantlib.core.exceptions import InsufficientDataError
 
 # TODO: Refactor - class too large (27 methods, target < 15)
 
+# TODO: Refactor large class (27 methods, target < 20)
+# TODO: Refactor large class (27 methods, target < 20)
 class PatternRecognitionFactors(TechnicalFactorCalculator):
     """
     Candlestick pattern recognition calculator.

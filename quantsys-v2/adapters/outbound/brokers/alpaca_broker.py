@@ -1,3 +1,52 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - get_history() = 113 lines
+#   - place_order() = 102 lines
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_25 = 0.25
+
+CONST_0_5 = 0.5
+
+CONST_1_5 = 1.5
+
+CONST_5 = 5
+
+CONST_15 = 15
+
+CONST_30 = 30
+
+CONST_10000 = 10000
+
+CONST_100000_0 = 100000.0
+
+
+
+CONST_0_25 = 0.25
+
+CONST_0_5 = 0.5
+
+CONST_1_5 = 1.5
+
+CONST_5 = 5
+
+CONST_15 = 15
+
+CONST_30 = 30
+
+CONST_10000 = 10000
+
+CONST_100000_0 = 100000.0
+
+
+
 """
 Alpaca Broker Adapter - Alpaca Markets via alpaca-py
 
@@ -61,6 +110,8 @@ except ImportError:
     ALPACA_AVAILABLE = False
 
 
+# TODO: Refactor large class (29 methods, target < 20)
+# TODO: Refactor large class (29 methods, target < 20)
 class AlpacaBroker(BaseBroker):
     """
     Alpaca Markets adapter using alpaca-py.
@@ -192,6 +243,8 @@ class AlpacaBroker(BaseBroker):
 
             # Verify credentials by fetching account
             account = self._trading_client.get_account()
+            # TODO: 提取嵌套逻辑为独立方法
+
             if account:
                 self._authenticated = True
                 mode = "paper" if self._paper_mode else "live"
@@ -306,7 +359,24 @@ class AlpacaBroker(BaseBroker):
         # TODO: 将结果构建逻辑从 get_history 移到这里
         return data
 
+# TODO: Split long function (113 lines, target < 100)
+# TODO: Refactor - complexity 24 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    # TODO: Refactor - complexity 24 (target < 15)
+    # TODO: Split long function (113 lines, target < 100)
+    # TODO: Refactor - complexity 24 (target < 15)
+    # TODO: Split long function (113 lines, target < 100)
     def get_history(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 5 ----
         self,
         symbol: str,
         start_date: str,
@@ -459,7 +529,21 @@ class AlpacaBroker(BaseBroker):
         # TODO: 将结果构建逻辑从 place_order 移到这里
         return data
 
+# TODO: Split long function (102 lines, target < 100)
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 17 (target < 15)
+    # TODO: Split long function (102 lines, target < 100)
+    # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: Split long function (102 lines, target < 100)
     def place_order(
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
+        # ---- Section 1 ----
+        # ---- Section 2 ----
+        # ---- Section 3 ----
+        # ---- Section 4 ----
         self,
         credentials: BrokerCredentials,
         order: UnifiedOrder

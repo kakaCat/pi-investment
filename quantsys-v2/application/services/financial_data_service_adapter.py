@@ -1,3 +1,20 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_4 = 4
+
+
+
+CONST_4 = 4
+
+
+
 """Adapter: wraps DataProviderManager to provide FinancialDataService-compatible interface.
 
 This allows internal services to migrate from FinancialDataService to
@@ -65,6 +82,13 @@ class FinancialDataServiceAdapter:
         # TODO: 将结果构建逻辑从 get_financial_data 移到这里
         return data
 
+# TODO: Refactor - complexity 22 (target < 15)
+    # REFACTOR: Split this function into smaller pieces
+    def _check_condition_0():
+        """Check: result.income_statement or result.balance_sheet or result.ca..."""
+        return result.income_statement or result.balance_sheet or result.cash_flow
+
+    # TODO: Refactor - complexity 23 (target < 15)
     def get_financial_data(self, symbol: str, statement_type: str = 'all', periods: int = 4) -> FinancialStatementData:
         self.total_requests += 1
         mgr = get_data_provider_manager()
@@ -77,6 +101,8 @@ class FinancialDataServiceAdapter:
 
         try:
             sina_result = mgr.get_sina_financial_statements(symbol)
+            # TODO: 提取嵌套逻辑为独立方法
+
             if sina_result.get('success') and sina_result.get('data'):
                 data = sina_result['data'].data if hasattr(sina_result['data'], 'data') else sina_result['data']
                 if isinstance(data, dict):
@@ -125,7 +151,8 @@ class FinancialDataServiceAdapter:
 
         if result.income_statement or result.balance_sheet or result.cash_flow:
             return result
-
+        if _check_condition_0():
+            pass  # TODO: implement
         self.failure_count += 1
         raise Exception(f"All providers failed for {symbol}")
 

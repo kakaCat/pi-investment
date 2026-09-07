@@ -1,3 +1,21 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_1eNEG_09 = 1e-09
+
+CONST_1eNEG_08 = 1e-08
+
+CONST_6 = 6
+
+CONST_10000000000_0 = 10000000000.0
+
+
+
 """
 Risk Parity Portfolio Optimization
 ===================================

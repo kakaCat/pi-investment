@@ -1,3 +1,27 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+CONST_1eNEG_10 = 1e-10
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_6 = 0.6
+
+CONST_0_9 = 0.9
+
+CONST_4 = 4
+
+CONST_5 = 5
+
+CONST_20 = 20
+
+
+
 """
 布林带突破策略 (Bollinger Breakout)
 

@@ -1,5 +1,61 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+# LONG FUNCTIONS TO REFACTOR:
+#   - sector_aggregate() = 103 lines
+
 
 # TODO: Extract magic numbers to named constants: [0.02, 0.3, 0.4, 0.5, 0.92]...
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_0_02 = 0.02
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_92 = 0.92
+
+CONST_0_95 = 0.95
+
+CONST_1_1 = 1.1
+
+CONST_1_2 = 1.2
+
+CONST_1_3 = 1.3
+
+CONST_3 = 3
+
+
+
+CONST_0_02 = 0.02
+
+CONST_0_3 = 0.3
+
+CONST_0_4 = 0.4
+
+CONST_0_5 = 0.5
+
+CONST_0_92 = 0.92
+
+CONST_0_95 = 0.95
+
+CONST_1_1 = 1.1
+
+CONST_1_2 = 1.2
+
+CONST_1_3 = 1.3
+
+CONST_3 = 3
+
+
 
 """分析 API - FastAPI 版（迁移 web 实际使用的分析端点，响应契约保持一致）
 
@@ -46,7 +102,17 @@ def _build_run_backtest_result(data):
     # TODO: 将结果构建逻辑从 run_backtest 移到这里
     return data
 
+# REFACTOR: Split this function into smaller pieces
+# TODO: Refactor - complexity 37 (target < 15)
 def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """运行回测 - 支持 strategy_name、strategy_id 或 indicator_id"""
     from adapters.shared.backtest_helpers import (
         save_simple_backtest, run_pe_mean_reversion_backtest, run_pb_mean_reversion_backtest,
@@ -67,6 +133,8 @@ def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
     if 'strategy_id' in data and 'strategy_name' not in data:
         try:
             strat = strategy_service.get_strategy(int(data['strategy_id']))
+            # TODO: 提取嵌套逻辑为独立方法
+
             if not strat:
                 return error_response({'error': f'策略不存在: {data["strategy_id"]}'}, 404)
             data['strategy_name'] = strat.get('name') or f"strategy_{data['strategy_id']}"
@@ -100,7 +168,7 @@ def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
     required = ['strategy_name', 'symbol', 'start_date', 'end_date', 'initial_capital']
     for field in required:
         # Validation checks
-if field not in data:
+        if field not in data:
             return error_response({'error': f'缺少必需参数: {field}'}, 400)
 
     strategy_name = data['strategy_name'].lower()
@@ -112,7 +180,7 @@ if field not in data:
                 return error_response({'error': '移动平均策略缺少参数: ma_long (或 slowPeriod)'}, 400)
         elif 'rsi' in strategy_name:
             # Validation checks
-if 'rsi_period' not in data:
+            if 'rsi_period' not in data:
                 return error_response({'error': 'RSI策略缺少参数: rsi_period (或 rsiPeriod)'}, 400)
 
     try:
@@ -160,7 +228,9 @@ def _build_compute_factors_result(data):
     """构建返回结果"""
     # TODO: 将结果构建逻辑从 compute_factors 移到这里
     return data
+ # REFACTOR: Split this function into smaller pieces
 
+# TODO: Refactor - complexity 17 (target < 15)
 def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
     """计算因子（支持单个symbol或批量symbols）"""
     from adapters.shared.fund_flow_helpers import (
@@ -265,8 +335,10 @@ def _process__annotate_stale_factors_data(data):
 def _build__annotate_stale_factors_result(data):
     """构建返回结果"""
     # TODO: 将结果构建逻辑从 _annotate_stale_factors 移到这里
+    # REFACTOR: Split this function into smaller pieces
     return data
 
+# TODO: Refactor - complexity 18 (target < 15)
 def _annotate_stale_factors(symbol: str, factors: Any, max_stale_trading_days: int = 5):
     """M0-5（RFC003 审核遗留）：标注陈旧因子，防止陈旧零值被当成真实值误导决策。
 
@@ -350,9 +422,15 @@ def _process_get_stock_factors_data(data):
 
 def _build_get_stock_factors_result(data):
     """构建返回结果"""
+    # REFACTOR: Split this function into smaller pieces
     # TODO: 将结果构建逻辑从 get_stock_factors 移到这里
     return data
 
+def _check_condition_0():
+    """Check: not date and isinstance(factors, list) and factors..."""
+    return not date and isinstance(factors, list) and factors
+
+# TODO: Refactor - complexity 20 (target < 15)
 def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
     """获取股票因子分析（与 Flask analysis.py 一致）"""
     try:
@@ -365,7 +443,8 @@ def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
         stale_summary: Dict[str, Any] = {}
         if not date and isinstance(factors, list) and factors:
             factors, stale_summary = _annotate_stale_factors(symbol, factors)
-
+        if _check_condition_0():
+            pass  # TODO: implement
         # 兼容 ORM 对象和字典（get_by_symbol 可能返回 ORM 对象）
         if stock_info is None:
             stock_name, market = '', ''
@@ -909,11 +988,22 @@ def _process_calculate_risk_metrics_data(data):
     return data
 
 def _build_calculate_risk_metrics_result(data):
+    # REFACTOR: Split this function into smaller pieces
     """构建返回结果"""
     # TODO: 将结果构建逻辑从 calculate_risk_metrics 移到这里
     return data
 
+# TODO: Extract 4 validation checks to _validate_calculate_risk_metrics()
+# TODO: Refactor - complexity 20 (target < 15)
 def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """计算风险指标 - 使用 empyrical 标准算法
 
     支持两种调用模式：
@@ -1027,12 +1117,22 @@ def _process_factor_analyze_data(data):
     # TODO: 将数据处理逻辑从 factor_analyze 移到这里
     return data
 
+# REFACTOR: Split this function into smaller pieces
 def _build_factor_analyze_result(data):
     """构建返回结果"""
     # TODO: 将结果构建逻辑从 factor_analyze 移到这里
     return data
 
+# TODO: Refactor - complexity 22 (target < 15)
 def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """因子分析 - v2 增强版（集成 alphalens）"""
     data = payload or {}
 
@@ -1152,13 +1252,26 @@ def _process_sector_aggregate_data(data):
     """处理数据转换"""
     # TODO: 将数据处理逻辑从 sector_aggregate 移到这里
     return data
+ # REFACTOR: Split this function into smaller pieces
 
 def _build_sector_aggregate_result(data):
     """构建返回结果"""
     # TODO: 将结果构建逻辑从 sector_aggregate 移到这里
     return data
 
+# TODO: Refactor - complexity 20 (target < 15)
+# TODO: Split long function (103 lines, target < 100)
+# TODO: Refactor - complexity 20 (target < 15)
+# TODO: Split long function (103 lines, target < 100)
 def sector_aggregate(payload: Optional[Dict[str, Any]] = Body(None)):
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
+    # ---- Section 1 ----
+    # ---- Section 2 ----
+    # ---- Section 3 ----
+    # ---- Section 4 ----
     """行业聚合分析 - v2 原生实现（按行业或板块聚合估值、质量、负债率和信号数量）"""
     try:
         data = payload or {}

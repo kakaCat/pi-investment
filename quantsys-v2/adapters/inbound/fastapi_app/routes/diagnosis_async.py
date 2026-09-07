@@ -1,3 +1,20 @@
+# Configuration Constants (extracted from magic numbers)
+# TODO: Define constants for magic numbers found in this file
+
+
+# Extracted Constants
+
+
+# Extracted Constants
+
+CONST_400 = 400
+
+
+
+CONST_400 = 400
+
+
+
 """诊断 API - FastAPI 版（从 Flask diagnosis.py 迁移，响应契约保持一致）
 
 Flask 用 jsonify(sanitize_for_json(result)) 直接返回（非 api_response），故同样处理。
