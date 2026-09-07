@@ -95,6 +95,30 @@ class EastMoneyDividendSource(DividendDataSource):
 
     # TODO: 长函数 166行 - 建议拆分为多个小函数
 
+    def _validate_fetch_dividends_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_fetch_dividends_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_fetch_dividends_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_fetch_dividends_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_fetch_dividends_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_fetch_dividends_result(data):
+        """构建返回结果"""
+        return data
+
     def fetch_dividends(self, symbol: str) -> pd.DataFrame:
         # ---- Section 1 ----
         # ---- Section 2 ----

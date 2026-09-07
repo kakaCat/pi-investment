@@ -282,6 +282,30 @@ class StressTestEngine:
 
     # TODO: 长函数 129行 - 建议拆分为多个小函数
 
+    def _validate_run_historical_replay_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_run_historical_replay_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_run_historical_replay_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_run_historical_replay_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_run_historical_replay_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_run_historical_replay_result(data):
+        """构建返回结果"""
+        return data
+
     def run_historical_replay(self, start_date: str, end_date: str, index_symbol: str = "000001.SH") -> Dict:
         # ---- Section 1 ----
         # ---- Section 2 ----

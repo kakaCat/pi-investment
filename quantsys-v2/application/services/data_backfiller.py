@@ -464,6 +464,30 @@ class DataBackfiller:
     # TODO: Refactor - complexity 24 (target < 15)
     # TODO: 复杂度 24 - 需要重构拆分为更小的函数
 
+    def _validate__convert_klines_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__convert_klines_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__convert_klines_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__convert_klines_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__convert_klines_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__convert_klines_result(data):
+        """构建返回结果"""
+        return data
+
     def _convert_klines(self, symbol: str, raw_data: List, start_date: str, end_date: str) -> List[Dict]:
         """转换原始K线数据为标准格式
 

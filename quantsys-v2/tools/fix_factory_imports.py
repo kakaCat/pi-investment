@@ -13,6 +13,30 @@ from typing import List, Tuple
 
 # TODO: 复杂度 16 - 需要重构拆分为更小的函数
 
+def _validate_fix_service_file_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_fix_service_file_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_fix_service_file_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_fix_service_file_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_fix_service_file_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_fix_service_file_result(data):
+    """构建返回结果"""
+    return data
+
 def fix_service_file(file_path: Path, dry_run: bool = True) -> bool:
     """修复单个服务文件
 

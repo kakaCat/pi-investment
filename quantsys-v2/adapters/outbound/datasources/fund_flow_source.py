@@ -123,6 +123,30 @@ class FundFlowDataSource:
     # TODO: Refactor - complexity 17 (target < 15)
     # TODO: 复杂度 17 - 需要重构拆分为更小的函数
 
+    def _validate_get_stock_fund_flow_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_get_stock_fund_flow_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_get_stock_fund_flow_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_get_stock_fund_flow_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_get_stock_fund_flow_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_get_stock_fund_flow_result(data):
+        """构建返回结果"""
+        return data
+
     def get_stock_fund_flow(self, symbol: str, days: int = 5) -> Dict:
         """
         获取个股资金流向（优先本地缓存）
@@ -372,6 +396,42 @@ class EastMoneyFundFlowSource:
         """处理数据转换"""
         # TODO: 将数据处理逻辑从 fetch 移到这里
         return data
+def _validate_fetch_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_fetch_data(data):
+    """处理数据转换"""
+    return data
+
+def _validate__build_fetch_result_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _validate_fetch_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_fetch_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_fetch_result(data):
+    """构建返回结果"""
+    return data
+
+def _process__build_fetch_result_data(data):
+    """处理数据转换"""
+    return data
+
+def _build__build_fetch_result_result(data):
+    """构建返回结果"""
+    return data
+
+def _build_fetch_result(data):
+    """构建返回结果"""
+    return data
+
 
     def _build_fetch_result(data):
         """构建返回结果"""

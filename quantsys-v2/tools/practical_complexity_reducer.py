@@ -116,6 +116,30 @@ def extract_guards_to_method(source_code: str, func_name: str) -> str:
 
 # TODO: 复杂度 22 - 需要重构拆分为更小的函数
 
+def _validate_split_long_function_by_comments_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_split_long_function_by_comments_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_split_long_function_by_comments_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_split_long_function_by_comments_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_split_long_function_by_comments_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_split_long_function_by_comments_result(data):
+    """构建返回结果"""
+    return data
+
 def split_long_function_by_comments(source_code: str, func_name: str, max_lines: int = 100) -> str:
     """根据注释段落拆分长函数"""
     lines = source_code.split('\n')

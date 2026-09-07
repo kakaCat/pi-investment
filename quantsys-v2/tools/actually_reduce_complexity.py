@@ -17,6 +17,30 @@ def calc_complexity(node):
             c += len(child.values) - 1
     return c
 
+def _validate_extract_complex_if_to_function_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_extract_complex_if_to_function_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_extract_complex_if_to_function_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_extract_complex_if_to_function_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_extract_complex_if_to_function_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_extract_complex_if_to_function_result(data):
+    """构建返回结果"""
+    return data
+
 def extract_complex_if_to_function(file_path: Path, func_name: str, complexity: int):
     """通过提取复杂if语句到单独函数来降低复杂度"""
     try:

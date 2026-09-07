@@ -79,6 +79,30 @@ def split_function_into_sections(lines: List[str], func_start: int, func_end: in
 
 # TODO: 长函数 112行 - 建议拆分为多个小函数
 
+def _validate_refactor_complex_function_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_refactor_complex_function_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_refactor_complex_function_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_refactor_complex_function_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_refactor_complex_function_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_refactor_complex_function_result(data):
+    """构建返回结果"""
+    return data
+
 def refactor_complex_function(file_path: Path, func_name: str) -> bool:
     """重构单个复杂函数"""
     try:

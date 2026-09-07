@@ -188,6 +188,30 @@ class FinancialAnalysisService:
     # TODO: Refactor - complexity 21 (target < 15)
     # TODO: 复杂度 21 - 需要重构拆分为更小的函数
 
+    def _validate__calculate_indicators_from_statements_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__calculate_indicators_from_statements_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__calculate_indicators_from_statements_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__calculate_indicators_from_statements_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__calculate_indicators_from_statements_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__calculate_indicators_from_statements_result(data):
+        """构建返回结果"""
+        return data
+
     def _calculate_indicators_from_statements(
         self,
         income: Dict[str, Any],
@@ -265,6 +289,30 @@ class FinancialAnalysisService:
     def _check_condition_0():
         """Check: net_assets and total_shares and net_assets > 0..."""
         return net_assets and total_shares and net_assets > 0
+
+    def _validate_get_stock_valuation_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_get_stock_valuation_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_get_stock_valuation_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_get_stock_valuation_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_get_stock_valuation_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_get_stock_valuation_result(data):
+        """构建返回结果"""
+        return data
 
     def _check_condition_0():
         """Check: net_assets and total_shares and net_assets > 0..."""

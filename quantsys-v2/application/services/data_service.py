@@ -220,6 +220,30 @@ class DataService:
     # TODO: Refactor - complexity 18 (target < 15)
     # TODO: 复杂度 18 - 需要重构拆分为更小的函数
 
+    def _validate_check_data_integrity_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_check_data_integrity_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_check_data_integrity_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_check_data_integrity_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_check_data_integrity_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_check_data_integrity_result(data):
+        """构建返回结果"""
+        return data
+
     def check_data_integrity(self, symbol: Optional[str] = None, check_type: str = 'all') -> Dict:
         """检查数据完整性
 

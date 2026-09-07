@@ -156,6 +156,30 @@ class StrategyCodeValidator:
     # TODO: Refactor - complexity 17 (target < 15)
     # TODO: 复杂度 17 - 需要重构拆分为更小的函数
 
+    def _validate__validate_indicator_code_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__validate_indicator_code_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__validate_indicator_code_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__validate_indicator_code_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__validate_indicator_code_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__validate_indicator_code_result(data):
+        """构建返回结果"""
+        return data
+
     def _validate_indicator_code(self, code: str) -> Dict:
         """验证 Indicator 策略代码"""
         # 检查必需的函数

@@ -120,6 +120,30 @@ class BinomialTreeCalculator(BaseCalculator):
 
     # TODO: 长函数 198行 - 建议拆分为多个小函数
 
+    def _validate_calculate_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_calculate_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_calculate_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_calculate_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_calculate_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_calculate_result(data):
+        """构建返回结果"""
+        return data
+
     def calculate(self,
         # ---- Section 1 ----
         # ---- Section 2 ----

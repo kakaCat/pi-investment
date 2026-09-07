@@ -112,6 +112,30 @@ class BaseCalculator(ABC):
     # TODO: Refactor - complexity 20 (target < 15)
     # TODO: 复杂度 20 - 需要重构拆分为更小的函数
 
+    def _validate__validate_numeric_input_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__validate_numeric_input_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__validate_numeric_input_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__validate_numeric_input_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__validate_numeric_input_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__validate_numeric_input_result(data):
+        """构建返回结果"""
+        return data
+
     def _validate_numeric_input(self, data: Any, name: str = "data") -> Union[float, np.ndarray, pd.Series]:
         """
         Validate and convert input to appropriate numeric type.

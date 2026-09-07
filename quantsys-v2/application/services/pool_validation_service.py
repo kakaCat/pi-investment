@@ -136,6 +136,30 @@ class PoolValidationService:
 
     # TODO: 长函数 149行 - 建议拆分为多个小函数
 
+    def _validate_validate_pool_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_validate_pool_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_validate_pool_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_validate_pool_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_validate_pool_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_validate_pool_result(data):
+        """构建返回结果"""
+        return data
+
     def validate_pool(self, pool_id: int, strategy_ids: List[int] = None,
         # ---- Section 1 ----
         # ---- Section 2 ----

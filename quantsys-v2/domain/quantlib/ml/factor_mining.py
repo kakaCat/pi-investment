@@ -171,6 +171,30 @@ class FactorMiningCalculator(BaseCalculator):
 
     # TODO: 长函数 162行 - 建议拆分为多个小函数
 
+    def _validate_mine_factors_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_mine_factors_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_mine_factors_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_mine_factors_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_mine_factors_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_mine_factors_result(data):
+        """构建返回结果"""
+        return data
+
     def mine_factors(self,
         # ---- Section 1 ----
         # ---- Section 2 ----

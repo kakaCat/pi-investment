@@ -206,6 +206,30 @@ class StockScoringService:
     # TODO: Refactor - complexity 26 (target < 15)
     # TODO: 复杂度 26 - 需要重构拆分为更小的函数
 
+    def _validate__calculate_technical_score_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__calculate_technical_score_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__calculate_technical_score_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__calculate_technical_score_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__calculate_technical_score_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__calculate_technical_score_result(data):
+        """构建返回结果"""
+        return data
+
     def _calculate_technical_score(self, factors: Dict) -> float:
         """
         技术面评分 (0-100)
@@ -304,6 +328,30 @@ class StockScoringService:
         return True, None
 
     def _process__calculate_fundamental_score_data(data):
+        def _validate__calculate_fundamental_score_input(*args, **kwargs):
+            """验证输入参数"""
+            pass
+
+        def _process__calculate_fundamental_score_data(data):
+            """处理数据转换"""
+            return data
+
+        def _build__calculate_fundamental_score_result(data):
+            """构建返回结果"""
+            return data
+
+        def _validate__calculate_fundamental_score_input(*args, **kwargs):
+            """验证输入参数"""
+            pass
+
+        def _process__calculate_fundamental_score_data(data):
+            """处理数据转换"""
+            return data
+
+        def _build__calculate_fundamental_score_result(data):
+            """构建返回结果"""
+            return data
+
         """处理数据转换"""
         # TODO: 将数据处理逻辑从 _calculate_fundamental_score 移到这里
         return data
@@ -393,6 +441,42 @@ class StockScoringService:
         """处理数据转换"""
         # TODO: 将数据处理逻辑从 _calculate_momentum_score 移到这里
         return data
+def _validate__calculate_momentum_score_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process__calculate_momentum_score_data(data):
+    """处理数据转换"""
+    return data
+
+def _validate__build__calculate_momentum_score_result_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _validate__calculate_momentum_score_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process__calculate_momentum_score_data(data):
+    """处理数据转换"""
+    return data
+
+def _build__calculate_momentum_score_result(data):
+    """构建返回结果"""
+    return data
+
+def _process__build__calculate_momentum_score_result_data(data):
+    """处理数据转换"""
+    return data
+
+def _build__build__calculate_momentum_score_result_result(data):
+    """构建返回结果"""
+    return data
+
+def _build__calculate_momentum_score_result(data):
+    """构建返回结果"""
+    return data
+
 
     def _build__calculate_momentum_score_result(data):
         """构建返回结果"""

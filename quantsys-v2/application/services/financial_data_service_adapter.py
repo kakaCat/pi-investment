@@ -91,6 +91,30 @@ class FinancialDataServiceAdapter:
     # TODO: Refactor - complexity 23 (target < 15)
     # TODO: 复杂度 23 - 需要重构拆分为更小的函数
 
+    def _validate_get_financial_data_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_get_financial_data_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_get_financial_data_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_get_financial_data_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_get_financial_data_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_get_financial_data_result(data):
+        """构建返回结果"""
+        return data
+
     def get_financial_data(self, symbol: str, statement_type: str = 'all', periods: int = 4) -> FinancialStatementData:
         self.total_requests += 1
         mgr = get_data_provider_manager()

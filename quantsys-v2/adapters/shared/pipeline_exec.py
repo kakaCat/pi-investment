@@ -155,6 +155,30 @@ def _check_condition_0():
 
 # TODO: 长函数 163行 - 建议拆分为多个小函数
 
+def _validate__execute_pipeline_stages_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process__execute_pipeline_stages_data(data):
+    """处理数据转换"""
+    return data
+
+def _build__execute_pipeline_stages_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate__execute_pipeline_stages_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process__execute_pipeline_stages_data(data):
+    """处理数据转换"""
+    return data
+
+def _build__execute_pipeline_stages_result(data):
+    """构建返回结果"""
+    return data
+
 def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str], task_type: Optional[str] = None, days: int = 730):
     # ---- Section 1 ----
     # ---- Section 2 ----

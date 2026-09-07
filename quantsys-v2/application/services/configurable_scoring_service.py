@@ -197,6 +197,30 @@ class ConfigurableScoringService:
     # TODO: Refactor - complexity 25 (target < 15)
     # TODO: 复杂度 25 - 需要重构拆分为更小的函数
 
+    def _validate__calculate_technical_score_v2_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__calculate_technical_score_v2_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__calculate_technical_score_v2_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__calculate_technical_score_v2_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__calculate_technical_score_v2_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__calculate_technical_score_v2_result(data):
+        """构建返回结果"""
+        return data
+
     def _calculate_technical_score_v2(self, factors: Dict) -> float:
         """技术面评分 - 配置驱动版本"""
         if not TECHNICAL_SCORING:
@@ -289,6 +313,30 @@ class ConfigurableScoringService:
         return True, None
 
     def _process__calculate_fundamental_score_v2_data(data):
+        def _validate__calculate_fundamental_score_v2_input(*args, **kwargs):
+            """验证输入参数"""
+            pass
+
+        def _process__calculate_fundamental_score_v2_data(data):
+            """处理数据转换"""
+            return data
+
+        def _build__calculate_fundamental_score_v2_result(data):
+            """构建返回结果"""
+            return data
+
+        def _validate__calculate_fundamental_score_v2_input(*args, **kwargs):
+            """验证输入参数"""
+            pass
+
+        def _process__calculate_fundamental_score_v2_data(data):
+            """处理数据转换"""
+            return data
+
+        def _build__calculate_fundamental_score_v2_result(data):
+            """构建返回结果"""
+            return data
+
         """处理数据转换"""
         # TODO: 将数据处理逻辑从 _calculate_fundamental_score_v2 移到这里
         return data

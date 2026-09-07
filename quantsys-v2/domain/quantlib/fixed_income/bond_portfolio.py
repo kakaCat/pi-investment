@@ -78,6 +78,30 @@ class BondPortfolioCalculator(BaseCalculator):
             return self.calculate_rebalancing(**kwargs)
         raise DataValidationError(f"Unknown method: {method}", field_name='method')
 
+def _validate_calculate_portfolio_duration_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_calculate_portfolio_duration_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_calculate_portfolio_duration_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_calculate_portfolio_duration_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_calculate_portfolio_duration_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_calculate_portfolio_duration_result(data):
+    """构建返回结果"""
+    return data
+
 def calculate_portfolio_duration(
     self,
     bonds: List[Dict[str, float]],

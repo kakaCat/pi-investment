@@ -156,6 +156,30 @@ class SignalTrackingService:
 
     # TODO: 长函数 110行 - 建议拆分为多个小函数
 
+    def _validate_update_performance_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_update_performance_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_update_performance_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_update_performance_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_update_performance_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_update_performance_result(data):
+        """构建返回结果"""
+        return data
+
     def update_performance(
         # ---- Section 1 ----
         # ---- Section 2 ----

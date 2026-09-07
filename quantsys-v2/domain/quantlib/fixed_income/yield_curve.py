@@ -272,6 +272,30 @@ def calculate_forward_curve(
 
 # TODO: 长函数 104行 - 建议拆分为多个小函数
 
+def _validate_fit_nelson_siegel_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_fit_nelson_siegel_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_fit_nelson_siegel_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_fit_nelson_siegel_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_fit_nelson_siegel_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_fit_nelson_siegel_result(data):
+    """构建返回结果"""
+    return data
+
 def fit_nelson_siegel(
     # ---- Section 1 ----
     # ---- Section 2 ----

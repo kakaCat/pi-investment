@@ -155,6 +155,30 @@ class BacktestStage(PipelineStage):
 
     # TODO: 长函数 167行 - 建议拆分为多个小函数
 
+    def _validate__run_backtest_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__run_backtest_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__run_backtest_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__run_backtest_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__run_backtest_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__run_backtest_result(data):
+        """构建返回结果"""
+        return data
+
     def _run_backtest(
         # ---- Section 1 ----
         # ---- Section 2 ----

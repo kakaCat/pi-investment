@@ -127,6 +127,30 @@ class PEMomentumMA60Strategy(StrategyBase):
 
     # TODO: 长函数 219行 - 建议拆分为多个小函数
 
+    def _validate_generate_signal_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_generate_signal_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_generate_signal_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_generate_signal_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_generate_signal_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_generate_signal_result(data):
+        """构建返回结果"""
+        return data
+
     def generate_signal(
         # ---- Section 1 ----
         # ---- Section 2 ----

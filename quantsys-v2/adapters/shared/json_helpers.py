@@ -39,6 +39,30 @@ def _build_sanitize_for_json_result(data):
 # TODO: Refactor - complexity 17 (target < 15)
 # TODO: 复杂度 17 - 需要重构拆分为更小的函数
 
+def _validate_sanitize_for_json_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_sanitize_for_json_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_sanitize_for_json_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_sanitize_for_json_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_sanitize_for_json_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_sanitize_for_json_result(data):
+    """构建返回结果"""
+    return data
+
 def sanitize_for_json(obj):
     """递归清理对象，使其可以被JSON序列化"""
     import pandas as pd

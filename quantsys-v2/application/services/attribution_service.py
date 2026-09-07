@@ -120,6 +120,30 @@ class AttributionService:
 
     # TODO: 长函数 216行 - 建议拆分为多个小函数
 
+    def _validate_analyze_rule_performance_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_analyze_rule_performance_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_analyze_rule_performance_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_analyze_rule_performance_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_analyze_rule_performance_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_analyze_rule_performance_result(data):
+        """构建返回结果"""
+        return data
+
     def analyze_rule_performance(
         # ---- Section 1 ----
         # ---- Section 2 ----

@@ -73,6 +73,18 @@ import math
 
 # TODO: 长函数 239行 - 建议拆分为多个小函数
 
+def _validate_save_simple_backtest_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_save_simple_backtest_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_save_simple_backtest_result(data):
+    """构建返回结果"""
+    return data
+
 def save_simple_backtest(params, klines, initial_capital):
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -310,6 +322,18 @@ return {
     'trades': trades,
     'equityCurve': equity_curve,
     'monthlyReturns': monthly_returns_list
+def _validate_run_pe_mean_reversion_backtest_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_run_pe_mean_reversion_backtest_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_run_pe_mean_reversion_backtest_result(data):
+    """构建返回结果"""
+    return data
+
 }
 
 
@@ -661,6 +685,18 @@ return {
     'maxDrawdown': round(max_drawdown, 4),
     'sharpeRatio': round(sharpe_ratio, 4),
     'winRate': round(win_rate, 4),
+    def _validate_run_pb_mean_reversion_backtest_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_run_pb_mean_reversion_backtest_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_run_pb_mean_reversion_backtest_result(data):
+        """构建返回结果"""
+        return data
+
     'profitLossRatio': round(profit_loss_ratio, 4),
     'winTrades': win_trades,
     'lossTrades': loss_trades,

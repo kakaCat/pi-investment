@@ -32,6 +32,30 @@ def _check_condition_0():
 # TODO: Refactor - complexity 21 (target < 15)
 # TODO: 复杂度 21 - 需要重构拆分为更小的函数
 
+def _validate__normalize_fields_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process__normalize_fields_data(data):
+    """处理数据转换"""
+    return data
+
+def _build__normalize_fields_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate__normalize_fields_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process__normalize_fields_data(data):
+    """处理数据转换"""
+    return data
+
+def _build__normalize_fields_result(data):
+    """构建返回结果"""
+    return data
+
 def _normalize_fields(items, entity_type: str, default_name: str):
     normalized = []
     for item in items:

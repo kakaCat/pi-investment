@@ -151,6 +151,30 @@ class ReturnPredictionCalculator(BaseCalculator):
 
     # TODO: 长函数 121行 - 建议拆分为多个小函数
 
+    def _validate_predict_returns_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_predict_returns_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_predict_returns_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_predict_returns_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_predict_returns_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_predict_returns_result(data):
+        """构建返回结果"""
+        return data
+
     def predict_returns(self,
         # ---- Section 1 ----
         # ---- Section 2 ----

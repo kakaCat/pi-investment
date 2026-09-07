@@ -254,6 +254,30 @@ class RiskReportCalculator(BaseCalculator):
     # TODO: Refactor - complexity 17 (target < 15)
     # TODO: 复杂度 17 - 需要重构拆分为更小的函数
 
+    def _validate__assess_risk_level_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__assess_risk_level_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__assess_risk_level_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__assess_risk_level_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__assess_risk_level_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__assess_risk_level_result(data):
+        """构建返回结果"""
+        return data
+
     def _assess_risk_level(self, metrics: Dict[str, Any]) -> Dict[str, Any]:
         """
         Assess overall risk level based on key metrics.

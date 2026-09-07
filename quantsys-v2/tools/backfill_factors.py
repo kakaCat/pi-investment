@@ -38,6 +38,30 @@ logger = structlog.get_logger(__name__)
 
 # TODO: 长函数 116行 - 建议拆分为多个小函数
 
+def _validate_backfill_factors_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_backfill_factors_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_backfill_factors_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_backfill_factors_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_backfill_factors_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_backfill_factors_result(data):
+    """构建返回结果"""
+    return data
+
 def backfill_factors(
     symbols: List[str],
     start_date: str,

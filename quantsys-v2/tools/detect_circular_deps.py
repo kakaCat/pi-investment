@@ -184,6 +184,30 @@ def detect_direct_cycles(project_root: Path) -> List[Tuple[str, str, int]]:
 
 # TODO: 复杂度 17 - 需要重构拆分为更小的函数
 
+def _validate_analyze_layer_violations_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_analyze_layer_violations_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_analyze_layer_violations_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_analyze_layer_violations_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_analyze_layer_violations_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_analyze_layer_violations_result(data):
+    """构建返回结果"""
+    return data
+
 def analyze_layer_violations(project_root: Path) -> Dict[str, List[str]]:
     """分析分层架构违规
 

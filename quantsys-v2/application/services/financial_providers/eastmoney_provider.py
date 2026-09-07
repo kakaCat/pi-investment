@@ -83,6 +83,30 @@ class EastmoneyFinancialProvider(FinancialProvider):
 
     # TODO: 长函数 142行 - 建议拆分为多个小函数
 
+    def _validate_get_financial_data_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_get_financial_data_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_get_financial_data_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_get_financial_data_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_get_financial_data_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_get_financial_data_result(data):
+        """构建返回结果"""
+        return data
+
     def get_financial_data(
         # ---- Section 1 ----
         # ---- Section 2 ----

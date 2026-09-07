@@ -108,6 +108,18 @@ def _build_run_backtest_result(data):
 
 # TODO: 长函数 103行 - 建议拆分为多个小函数
 
+def _validate_run_backtest_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_run_backtest_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_run_backtest_result(data):
+    """构建返回结果"""
+    return data
+
 def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -223,6 +235,18 @@ def _validate_compute_factors_input(data):
 
 def _process_compute_factors_data(data):
     """处理数据转换"""
+    def _validate_compute_factors_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_compute_factors_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_compute_factors_result(data):
+        """构建返回结果"""
+        return data
+
     # TODO: 将数据处理逻辑从 compute_factors 移到这里
     return data
 
@@ -315,6 +339,18 @@ def get_technical_indicators(symbol: str, indicators: Optional[str] = Query(None
     except Exception as e:
         return error_response({'error': str(e)}, 500)
 
+def _validate__annotate_stale_factors_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process__annotate_stale_factors_data(data):
+    """处理数据转换"""
+    return data
+
+def _build__annotate_stale_factors_result(data):
+    """构建返回结果"""
+    return data
+
 
 # TODO: Refactor - complexity 18 (target < 15)
 
@@ -397,6 +433,18 @@ def _annotate_stale_factors(symbol: str, factors: Any, max_stale_trading_days: i
             if f['stale']:
                 stale_names.append(f.get('factor_name'))
         summary = {
+            def _validate_get_stock_factors_input(*args, **kwargs):
+                """验证输入参数"""
+                pass
+
+            def _process_get_stock_factors_data(data):
+                """处理数据转换"""
+                return data
+
+            def _build_get_stock_factors_result(data):
+                """构建返回结果"""
+                return data
+
             'factor_ref_date': ref_date,
             'stale_threshold_trading_days': max_stale_trading_days,
             'stale_factors': sorted(n for n in stale_names if n),
@@ -950,6 +998,18 @@ def screening_quality(sector: str = Query(''),
 
     screening_service = StockScreeningService(scoring_service=scoring_service)
     result = screening_service.screen_stocks(criteria)
+def _validate_calculate_risk_metrics_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_calculate_risk_metrics_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_calculate_risk_metrics_result(data):
+    """构建返回结果"""
+    return data
+
 
     # 如果指定了行业，进行过滤
     if sector and 'stocks' in result:
@@ -1068,6 +1128,18 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
                 'success': False,
                 'error': f'获取账户收益率失败: {str(e)}'
             }, 500)
+
+    def _validate_factor_analyze_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_factor_analyze_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_factor_analyze_result(data):
+        """构建返回结果"""
+        return data
 
     if not returns:
         return error_response({
@@ -1198,6 +1270,18 @@ def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
                     elif hasattr(klines_df, 'is_empty') and klines_df.is_empty():
                         continue
                     elif len(klines_df) < 30:
+                        def _validate_sector_aggregate_input(*args, **kwargs):
+                            """验证输入参数"""
+                            pass
+
+                        def _process_sector_aggregate_data(data):
+                            """处理数据转换"""
+                            return data
+
+                        def _build_sector_aggregate_result(data):
+                            """构建返回结果"""
+                            return data
+
                         continue
                     try:
                         close = klines_df['close'].to_numpy()

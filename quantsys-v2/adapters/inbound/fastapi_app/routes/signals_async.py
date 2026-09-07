@@ -215,6 +215,30 @@ def _build_scan_signals_result(data):
 
 # TODO: 长函数 142行 - 建议拆分为多个小函数
 
+def _validate_scan_signals_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_scan_signals_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_scan_signals_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_scan_signals_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_scan_signals_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_scan_signals_result(data):
+    """构建返回结果"""
+    return data
+
 def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -505,6 +529,30 @@ def _validate_get_signals_input(data):
 
 def _process_get_signals_data(data):
     """处理数据转换"""
+    def _validate_get_signals_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_get_signals_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_get_signals_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_get_signals_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_get_signals_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_get_signals_result(data):
+        """构建返回结果"""
+        return data
+
     # TODO: 将数据处理逻辑从 get_signals 移到这里
     return data
 

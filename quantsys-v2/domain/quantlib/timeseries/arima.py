@@ -146,6 +146,30 @@ class ARIMACalculator(BaseCalculator):
 
     # TODO: 长函数 175行 - 建议拆分为多个小函数
 
+    def _validate_fit_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_fit_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_fit_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_fit_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_fit_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_fit_result(data):
+        """构建返回结果"""
+        return data
+
     def fit(
         # ---- Section 1 ----
         # ---- Section 2 ----

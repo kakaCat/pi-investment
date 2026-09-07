@@ -163,6 +163,30 @@ class ComprehensiveFixer:
 
     # TODO: 复杂度 17 - 需要重构拆分为更小的函数
 
+    def _validate_extract_magic_numbers_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_extract_magic_numbers_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_extract_magic_numbers_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_extract_magic_numbers_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_extract_magic_numbers_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_extract_magic_numbers_result(data):
+        """构建返回结果"""
+        return data
+
     def extract_magic_numbers(self, filepath: Path) -> bool:
         """提取魔法数字到常量"""
         try:

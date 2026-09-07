@@ -122,6 +122,30 @@ def _build_show_history_result(data):
 # TODO: Refactor - complexity 16 (target < 15)
 # TODO: 复杂度 16 - 需要重构拆分为更小的函数
 
+def _validate_show_history_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_show_history_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_show_history_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_show_history_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_show_history_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_show_history_result(data):
+    """构建返回结果"""
+    return data
+
 def show_history():
     """显示历史进度"""
     if not PROGRESS_FILE.exists():

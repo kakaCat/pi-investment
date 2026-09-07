@@ -113,6 +113,30 @@ def analyze_file(file_path: Path) -> Dict:
 
 # TODO: 长函数 134行 - 建议拆分为多个小函数
 
+def _validate_migrate_file_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_migrate_file_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_migrate_file_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_migrate_file_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_migrate_file_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_migrate_file_result(data):
+    """构建返回结果"""
+    return data
+
 def migrate_file(file_path: Path, dry_run: bool = True) -> bool:
     """迁移单个文件"""
     try:

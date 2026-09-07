@@ -266,6 +266,30 @@ class IndicatorStrategyExecutor:
     # TODO: Refactor - complexity 28 (target < 15)
     # TODO: 复杂度 28 - 需要重构拆分为更小的函数
 
+    def _validate__validate_signals_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__validate_signals_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__validate_signals_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__validate_signals_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__validate_signals_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__validate_signals_result(data):
+        """构建返回结果"""
+        return data
+
     def _validate_signals(self, df: pd.DataFrame) -> None:
         """
         验证信号列存在且有效（支持分批信号）

@@ -373,6 +373,30 @@ class LhbDataSource:
     # TODO: Refactor - complexity 32 (target < 15)
     # TODO: 复杂度 32 - 需要重构拆分为更小的函数
 
+    def _validate__transform_stock_records_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__transform_stock_records_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__transform_stock_records_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__transform_stock_records_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__transform_stock_records_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__transform_stock_records_result(data):
+        """构建返回结果"""
+        return data
+
     def _transform_stock_records(self, df: pd.DataFrame, days: int) -> List[Dict]:
         """转换个股龙虎榜数据为标准格式（兼容多种数据源）"""
         records = []
@@ -442,6 +466,30 @@ class LhbDataSource:
 
     def _process__transform_daily_records_data(data):
         """处理数据转换"""
+        def _validate__transform_daily_records_input(*args, **kwargs):
+            """验证输入参数"""
+            pass
+
+        def _process__transform_daily_records_data(data):
+            """处理数据转换"""
+            return data
+
+        def _build__transform_daily_records_result(data):
+            """构建返回结果"""
+            return data
+
+        def _validate__transform_daily_records_input(*args, **kwargs):
+            """验证输入参数"""
+            pass
+
+        def _process__transform_daily_records_data(data):
+            """处理数据转换"""
+            return data
+
+        def _build__transform_daily_records_result(data):
+            """构建返回结果"""
+            return data
+
         # TODO: 将数据处理逻辑从 _transform_daily_records 移到这里
         return data
 

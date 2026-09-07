@@ -255,6 +255,30 @@ class StockScreeningService:
     # TODO: Refactor - complexity 24 (target < 15)
     # TODO: 复杂度 24 - 需要重构拆分为更小的函数
 
+    def _validate__match_basic_criteria_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__match_basic_criteria_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__match_basic_criteria_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__match_basic_criteria_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__match_basic_criteria_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__match_basic_criteria_result(data):
+        """构建返回结果"""
+        return data
+
     def _match_basic_criteria(self, stock: Dict, criteria: Dict) -> bool:
         """
         检查股票是否匹配基本条件

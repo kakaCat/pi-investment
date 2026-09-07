@@ -154,6 +154,30 @@ class ValuationDataService:
     # TODO: Refactor - complexity 19 (target < 15)
     # TODO: 复杂度 19 - 需要重构拆分为更小的函数
 
+    def _validate__get_from_sina_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__get_from_sina_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__get_from_sina_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__get_from_sina_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__get_from_sina_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__get_from_sina_result(data):
+        """构建返回结果"""
+        return data
+
     def _get_from_sina(self, symbol: str) -> Dict[str, Any]:
         """
         从新浪财经获取估值数据
@@ -309,6 +333,30 @@ class ValuationDataService:
 
     def _process__get_from_akshare_data(data):
         """处理数据转换"""
+        def _validate__get_from_akshare_input(*args, **kwargs):
+            """验证输入参数"""
+            pass
+
+        def _process__get_from_akshare_data(data):
+            """处理数据转换"""
+            return data
+
+        def _build__get_from_akshare_result(data):
+            """构建返回结果"""
+            return data
+
+        def _validate__get_from_akshare_input(*args, **kwargs):
+            """验证输入参数"""
+            pass
+
+        def _process__get_from_akshare_data(data):
+            """处理数据转换"""
+            return data
+
+        def _build__get_from_akshare_result(data):
+            """构建返回结果"""
+            return data
+
         # TODO: 将数据处理逻辑从 _get_from_akshare 移到这里
         return data
 

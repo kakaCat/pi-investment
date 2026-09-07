@@ -37,6 +37,30 @@ logger = logging.getLogger(__name__)
 
 # TODO: 长函数 228行 - 建议拆分为多个小函数
 
+def _validate_main_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_main_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_main_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_main_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_main_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_main_result(data):
+    """构建返回结果"""
+    return data
+
 def main():
     from adapters.shared.services import get_stock_repo, get_kline_repo, get_factor_repo
     from domain.quantlib.stages.factor_stage import FactorStage

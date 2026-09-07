@@ -168,6 +168,30 @@ class ConflictResolutionStage:
     # TODO: Refactor - complexity 17 (target < 15)
     # TODO: 复杂度 17 - 需要重构拆分为更小的函数
 
+    def _validate__detect_conflicts_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__detect_conflicts_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__detect_conflicts_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__detect_conflicts_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__detect_conflicts_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__detect_conflicts_result(data):
+        """构建返回结果"""
+        return data
+
     def _detect_conflicts(
         self,
         data_dict: Dict[str, pd.DataFrame],

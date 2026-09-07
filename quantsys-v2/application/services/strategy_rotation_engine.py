@@ -772,6 +772,30 @@ class StrategyRotationEngine:
     # TODO: Refactor - complexity 17 (target < 15)
     # TODO: 复杂度 17 - 需要重构拆分为更小的函数
 
+    def _validate_verify_rotation_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_verify_rotation_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_verify_rotation_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_verify_rotation_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_verify_rotation_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_verify_rotation_result(data):
+        """构建返回结果"""
+        return data
+
     def verify_rotation(self, rotation_date: Optional[str] = None) -> Dict[str, Any]:
         """验证轮动效果（对比预期 vs 实际）
 

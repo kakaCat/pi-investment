@@ -302,6 +302,30 @@ class StrategyBacktestService:
 # TODO: 长函数 287行 - 建议拆分为多个小函数
 
 
+    def _validate_run_backtest_from_signals_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_run_backtest_from_signals_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_run_backtest_from_signals_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_run_backtest_from_signals_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_run_backtest_from_signals_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_run_backtest_from_signals_result(data):
+        """构建返回结果"""
+        return data
+
     def run_backtest_from_signals(
         # ---- Section 1 ----
         # ---- Section 2 ----

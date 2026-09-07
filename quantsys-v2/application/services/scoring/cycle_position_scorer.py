@@ -118,6 +118,30 @@ class CyclePositionScorer(BaseScorer):
     # TODO: Refactor - complexity 17 (target < 15)
     # TODO: 复杂度 17 - 需要重构拆分为更小的函数
 
+    def _validate_score_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_score_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_score_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_score_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_score_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_score_result(data):
+        """构建返回结果"""
+        return data
+
     def score(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Args:

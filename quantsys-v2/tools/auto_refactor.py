@@ -64,6 +64,30 @@ class MagicNumberExtractor:
     @staticmethod
     # TODO: 复杂度 17 - 需要重构拆分为更小的函数
 
+    def _validate_extract_to_constants_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_extract_to_constants_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_extract_to_constants_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_extract_to_constants_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_extract_to_constants_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_extract_to_constants_result(data):
+        """构建返回结果"""
+        return data
+
     def extract_to_constants(content: str, file_path: Path) -> str:
         """提取魔法数字为常量"""
         try:

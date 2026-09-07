@@ -277,6 +277,30 @@ def _build_backtest_with_risk_control_result(data):
 
 # TODO: 长函数 261行 - 建议拆分为多个小函数
 
+def _validate_backtest_with_risk_control_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_backtest_with_risk_control_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_backtest_with_risk_control_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_backtest_with_risk_control_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_backtest_with_risk_control_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_backtest_with_risk_control_result(data):
+    """构建返回结果"""
+    return data
+
 def backtest_with_risk_control(trader, start_date: str, end_date: str,
     # ---- Section 1 ----
     # ---- Section 2 ----

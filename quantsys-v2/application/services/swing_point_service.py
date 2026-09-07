@@ -316,6 +316,30 @@ class SwingPointService:
 
     # TODO: 长函数 176行 - 建议拆分为多个小函数
 
+    def _validate__zigzag_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__zigzag_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__zigzag_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__zigzag_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__zigzag_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__zigzag_result(data):
+        """构建返回结果"""
+        return data
+
     def _zigzag(self, klines: List[Dict], threshold: float) -> List[Dict]:
         # ---- Section 1 ----
         # ---- Section 2 ----

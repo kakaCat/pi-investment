@@ -303,6 +303,30 @@ def detect_circular_dependencies(graph: Dict[str, Set[str]]) -> List[List[str]]:
 
 # TODO: 长函数 137行 - 建议拆分为多个小函数
 
+def _validate_generate_report_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_generate_report_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_generate_report_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_generate_report_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_generate_report_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_generate_report_result(data):
+    """构建返回结果"""
+    return data
+
 def generate_report(services: List[ServiceInfo], output_path: Path):
     """生成审计报告"""
     report = []

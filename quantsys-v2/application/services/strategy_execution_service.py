@@ -266,6 +266,30 @@ class StrategyEngine:
     # TODO: Refactor - complexity 20 (target < 15)
     # TODO: 复杂度 20 - 需要重构拆分为更小的函数
 
+    def _validate__execute_db_indicator_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__execute_db_indicator_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__execute_db_indicator_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__execute_db_indicator_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__execute_db_indicator_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__execute_db_indicator_result(data):
+        """构建返回结果"""
+        return data
+
     def _execute_db_indicator(self, klines: List[Dict]) -> Dict:
         """
         Execute database-stored indicator strategy.

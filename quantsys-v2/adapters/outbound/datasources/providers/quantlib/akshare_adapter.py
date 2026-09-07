@@ -714,6 +714,30 @@ class AkShareAdapter(BaseMarketAdapter):
     # TODO: Refactor - complexity 21 (target < 15)
     # TODO: 复杂度 21 - 需要重构拆分为更小的函数
 
+    def _validate_get_market_news_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_get_market_news_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_get_market_news_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_get_market_news_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_get_market_news_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_get_market_news_result(data):
+        """构建返回结果"""
+        return data
+
     def get_market_news(self, symbol: str = "", limit: int = 20) -> list[dict]:
         """Return recent market news for *symbol*.
 

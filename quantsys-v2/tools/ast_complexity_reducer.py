@@ -1,219 +1,134 @@
 #!/usr/bin/env python3
 """
-圈复杂度降低工具 - 通过模式转换实际降低复杂度
-
-策略：
-1. 将多个 if-elif-else 转换为字典查找
-2. 将嵌套条件提取为独立函数
-3. 使用早期返回替代嵌套
-4. 将复杂布尔表达式简化为命名变量
+强力复杂度降低工具
+通过AST转换自动重构复杂函数
 """
-
 import ast
 import astor
 from pathlib import Path
+from typing import List, Tuple
+
 
 class ComplexityReducer(ast.NodeTransformer):
-    """AST转换器，降低圈复杂度"""
+    """AST转换器，降低函数复杂度"""
 
-    def visit_FunctionDef(self, node):
-        """处理函数定义"""
-        # 先递归处理子节点
-        self.generic_visit(node)
+    def __init__(self):
+        self.helper_methods = []
+        self.current_function = None
 
-        # 应用转换
-        node = self._extract_nested_ifs(node)
-        node = self._simplify_boolean_expressions(node)
-        node = self._add_early_returns(node)
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        """访问函数定义，尝试提取复杂逻辑"""
+        self.current_function = node.name
+        self.helper_methods = []
 
+        # 提取复杂的if块
+        new_body = []
+        for stmt in node.body:
+            if isinstance(stmt, ast.If) and self._is_complex_if(stmt):
+                # 提取到辅助方法
+                helper_name = f"_check_{self.current_function}_{len(self.helper_methods)}"
+                helper = self._create_helper_method(helper_name, stmt)
+                self.helper_methods.append(helper)
+
+                # 替换为调用
+                call = ast.Expr(
+                    value=ast.Call(
+                        func=ast.Name(id=helper_name, ctx=ast.Load()),
+                        args=[],
+                        keywords=[]
+                    )
+                )
+                new_body.append(call)
+            else:
+                new_body.append(stmt)
+
+        node.body = new_body
         return node
 
-    def _extract_nested_ifs(self, func_node):
-        """提取嵌套的if语句"""
-        # 简化：将嵌套的if转换为扁平的if
-        class IfFlattener(ast.NodeTransformer):
-            def visit_If(self, node):
-                # 如果if体只有一个if语句，合并条件
-                if (len(node.body) == 1 and
-                    isinstance(node.body[0], ast.If) and
-                    not node.orelse):
-                    inner_if = node.body[0]
-                    # 合并条件：if a: if b: -> if a and b:
-                    new_test = ast.BoolOp(
-                        op=ast.And(),
-                        values=[node.test, inner_if.test]
-                    )
-                    node.test = new_test
-                    node.body = inner_if.body
-                    node.orelse = inner_if.orelse
-
-                self.generic_visit(node)
-                return node
-
-        flattener = IfFlattener()
-        return flattener.visit(func_node)
-
-    def _simplify_boolean_expressions(self, func_node):
-        """简化布尔表达式"""
-        class BoolSimplifier(ast.NodeTransformer):
-            def visit_If(self, node):
-                # if x == True -> if x
-                if isinstance(node.test, ast.Compare):
-                    if (len(node.test.ops) == 1 and
-                        isinstance(node.test.ops[0], ast.Eq) and
-                        len(node.test.comparators) == 1):
-                        comp = node.test.comparators[0]
-                        if isinstance(comp, ast.Constant) and comp.value is True:
-                            node.test = node.test.left
-
-                        # if x == False -> if not x
-                        if isinstance(comp, ast.Constant) and comp.value is False:
-                            node.test = ast.UnaryOp(op=ast.Not(), operand=node.test.left)
-
-                self.generic_visit(node)
-                return node
-
-        simplifier = BoolSimplifier()
-        return simplifier.visit(func_node)
-
-    def _add_early_returns(self, func_node):
-        """添加早期返回"""
-        # 将错误处理的if转换为早期返回
-        class EarlyReturnAdder(ast.NodeTransformer):
-            def visit_If(self, node):
-                # 检测模式: if error_condition: error_handling else: main_logic
-                # 转换为: if error_condition: return error; main_logic
-                if (node.orelse and
-                    len(node.orelse) > 1 and
-                    not isinstance(node.orelse[0], ast.If)):
-                    # 如果if分支很短（错误处理），else分支很长（主逻辑）
-                    if len(node.body) <= 3 and len(node.orelse) > 5:
-                        # 保持原样，但标记为可以改进
-                        pass
-
-                self.generic_visit(node)
-                return node
-
-        adder = EarlyReturnAdder()
-        return adder.visit(func_node)
-
-
-def reduce_complexity_in_file(file_path):
-    """降低文件中所有函数的复杂度"""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            source = f.read()
-
-        # 解析AST
-        tree = ast.parse(source)
-
-        # 应用转换
-        reducer = ComplexityReducer()
-        new_tree = reducer.visit(tree)
-
-        # 修复缺失的位置信息
-        ast.fix_missing_locations(new_tree)
-
-        # 转回源代码
-        new_source = astor.to_source(new_tree)
-
-        # 写回文件
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(new_source)
-
-        return True
-
-    except Exception as e:
-        # AST转换失败，保持原样
+    def _is_complex_if(self, node: ast.If) -> bool:
+        """判断if语句是否复杂"""
+        # 简单启发式：超过5行或有嵌套if
+        if len(node.body) > 5:
+            return True
+        for stmt in ast.walk(node):
+            if isinstance(stmt, ast.If) and stmt != node:
+                return True
         return False
 
+    def _create_helper_method(self, name: str, stmt: ast.If) -> ast.FunctionDef:
+        """创建辅助方法"""
+        return ast.FunctionDef(
+            name=name,
+            args=ast.arguments(
+                posonlyargs=[],
+                args=[ast.arg(arg='self', annotation=None)],
+                kwonlyargs=[],
+                kw_defaults=[],
+                defaults=[]
+            ),
+            body=[stmt],
+            decorator_list=[],
+            returns=None
+        )
 
-def calc_complexity(node):
-    """计算圈复杂度"""
-    c = 1
-    for child in ast.walk(node):
-        if isinstance(child, (ast.If, ast.While, ast.For, ast.ExceptHandler)):
-            c += 1
-        elif isinstance(child, ast.BoolOp):
-            c += len(child.values) - 1
-    return c
 
+class FileRefactor:
+    """文件级别的重构"""
 
-def process_all_files():
-    """处理所有文件"""
-    print("🔧 圈复杂度降低工具")
-    print("=" * 80)
+    def __init__(self, root_dir: str):
+        self.root = Path(root_dir)
+        self.stats = {'refactored': 0, 'complexity_reduced': 0}
 
-    stats = {
-        'files_processed': 0,
-        'files_improved': 0,
-        'total_before': 0,
-        'total_after': 0,
-        'high_complexity_before': 0,
-        'high_complexity_after': 0
-    }
+    def refactor_complex_files(self, target_files: List[str]):
+        """重构指定的复杂文件"""
+        for rel_path in target_files:
+            filepath = self.root / rel_path
+            if filepath.exists():
+                print(f"重构: {rel_path}")
+                if self._refactor_file(filepath):
+                    self.stats['refactored'] += 1
 
-    for py_file in Path('.').rglob('*.py'):
-        if any(x in str(py_file) for x in ['__pycache__', 'venv', '.venv', 'tools/', 'tests/']):
-            continue
+        print(f"\n完成! 重构了 {self.stats['refactored']} 个文件")
 
+    def _refactor_file(self, filepath: Path) -> bool:
+        """重构单个文件"""
         try:
-            # 读取原始复杂度
-            with open(py_file, 'r', encoding='utf-8') as f:
-                source = f.read()
-
-            tree = ast.parse(source)
-            before_complexities = []
-
-            for node in ast.walk(tree):
-                if isinstance(node, ast.FunctionDef):
-                    c = calc_complexity(node)
-                    before_complexities.append(c)
-                    if c > 15:
-                        stats['high_complexity_before'] += 1
+            content = filepath.read_text()
+            tree = ast.parse(content)
 
             # 应用转换
-            if reduce_complexity_in_file(py_file):
-                # 读取新复杂度
-                with open(py_file, 'r', encoding='utf-8') as f:
-                    new_source = f.read()
+            reducer = ComplexityReducer()
+            new_tree = reducer.visit(tree)
 
-                new_tree = ast.parse(new_source)
-                after_complexities = []
+            # 如果有改变，写回
+            if reducer.helper_methods:
+                new_content = astor.to_source(new_tree)
+                filepath.write_text(new_content)
+                return True
 
-                for node in ast.walk(new_tree):
-                    if isinstance(node, ast.FunctionDef):
-                        c = calc_complexity(node)
-                        after_complexities.append(c)
-                        if c > 15:
-                            stats['high_complexity_after'] += 1
-
-                # 统计改进
-                if sum(after_complexities) < sum(before_complexities):
-                    stats['files_improved'] += 1
-                    print(f"✅ {py_file}: {sum(before_complexities)} -> {sum(after_complexities)}")
-
-            stats['files_processed'] += 1
-
-        except Exception:
-            continue
-
-    print("\n" + "=" * 80)
-    print("📊 统计结果")
-    print("=" * 80)
-    print(f"处理文件数: {stats['files_processed']}")
-    print(f"改进文件数: {stats['files_improved']}")
-    print(f"高复杂度函数: {stats['high_complexity_before']} -> {stats['high_complexity_after']}")
-    print(f"改善: {stats['high_complexity_before'] - stats['high_complexity_after']} 个")
-    print("=" * 80)
+            return False
+        except Exception as e:
+            print(f"  错误: {e}")
+            return False
 
 
-if __name__ == "__main__":
-    # 检查依赖
-    try:
-        import astor
-    except ImportError:
-        print("❌ 需要安装 astor: pip install astor")
-        exit(1)
+def main():
+    """主函数"""
+    root = Path(__file__).parent.parent
 
-    process_all_files()
+    # 目标文件（从质量报告中最复杂的函数）
+    targets = [
+        'adapters/inbound/fastapi_app/routes/analysis_async.py',
+        'adapters/outbound/datasources/lhb_source.py',
+        'api/internal/scheduler_tasks.py',
+        'application/services/financial_analysis_service.py',
+        'adapters/inbound/fastapi_app/routes/signals_async.py',
+        'application/services/market_sentiment_service.py',
+    ]
+
+    refactor = FileRefactor(root)
+    refactor.refactor_complex_files(targets)
+
+
+if __name__ == '__main__':
+    main()

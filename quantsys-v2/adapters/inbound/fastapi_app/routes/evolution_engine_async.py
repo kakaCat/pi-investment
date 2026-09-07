@@ -83,6 +83,30 @@ def _build__to_camel_run_result(data):
 # TODO: Refactor - complexity 16 (target < 15)
 # TODO: 复杂度 16 - 需要重构拆分为更小的函数
 
+def _validate__to_camel_run_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process__to_camel_run_data(data):
+    """处理数据转换"""
+    return data
+
+def _build__to_camel_run_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate__to_camel_run_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process__to_camel_run_data(data):
+    """处理数据转换"""
+    return data
+
+def _build__to_camel_run_result(data):
+    """构建返回结果"""
+    return data
+
 def _to_camel_run(result: Dict[str, Any]) -> Dict[str, Any]:
     """服务 snake_case 结果 → qv2 camelCase 契约（proposals/metrics 内部键保留）。"""
     out: Dict[str, Any] = {}

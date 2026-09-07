@@ -353,6 +353,30 @@ class PaperTradingEngine:
     # TODO: Refactor - complexity 16 (target < 15)
     # TODO: 复杂度 16 - 需要重构拆分为更小的函数
 
+    def _validate__filter_buy_signals_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__filter_buy_signals_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__filter_buy_signals_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__filter_buy_signals_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__filter_buy_signals_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__filter_buy_signals_result(data):
+        """构建返回结果"""
+        return data
+
     def _filter_buy_signals(
         self,
         signals: List[Signal],

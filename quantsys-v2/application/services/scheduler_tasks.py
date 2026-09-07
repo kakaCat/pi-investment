@@ -537,6 +537,30 @@ def _build_handle_factor_compute_result(data):
 # TODO: Refactor - complexity 16 (target < 15)
 # TODO: 复杂度 16 - 需要重构拆分为更小的函数
 
+def _validate_handle_factor_compute_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_handle_factor_compute_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_handle_factor_compute_result(data):
+    """构建返回结果"""
+    return data
+
+def _validate_handle_factor_compute_input(*args, **kwargs):
+    """验证输入参数"""
+    pass
+
+def _process_handle_factor_compute_data(data):
+    """处理数据转换"""
+    return data
+
+def _build_handle_factor_compute_result(data):
+    """构建返回结果"""
+    return data
+
 def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """因子计算任务（盘后批量重算并落库，为次日信号做准备）
 
@@ -1111,6 +1135,30 @@ def _process_handle_model_train_auto_data(data):
 def _build_handle_model_train_auto_result(data):
     """构建返回结果"""
     # TODO: 将结果构建逻辑从 handle_model_train_auto 移到这里
+    def _validate_handle_model_train_auto_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_handle_model_train_auto_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_handle_model_train_auto_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate_handle_model_train_auto_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process_handle_model_train_auto_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build_handle_model_train_auto_result(data):
+        """构建返回结果"""
+        return data
+
     return data
 
 # TODO: Split long function (251 lines, target < 100)

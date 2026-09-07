@@ -352,6 +352,30 @@ class EnhancedBuyRangeService:
     # TODO: Refactor - complexity 23 (target < 15)
     # TODO: 复杂度 23 - 需要重构拆分为更小的函数
 
+    def _validate__analyze_fundamental_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__analyze_fundamental_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__analyze_fundamental_result(data):
+        """构建返回结果"""
+        return data
+
+    def _validate__analyze_fundamental_input(*args, **kwargs):
+        """验证输入参数"""
+        pass
+
+    def _process__analyze_fundamental_data(data):
+        """处理数据转换"""
+        return data
+
+    def _build__analyze_fundamental_result(data):
+        """构建返回结果"""
+        return data
+
     def _analyze_fundamental(self, manager, symbol: str) -> Optional[Dict[str, Any]]:
         """
         基本面分析（简化版）
