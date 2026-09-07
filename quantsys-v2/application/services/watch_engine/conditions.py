@@ -5,14 +5,16 @@
 - velocity 无方向，取窗口内涨跌幅绝对值
 - 百分数单位：3.0 表示 3%
 - distance_ratio: 距触发的归一化距离（0=已触达），供引擎自适应频率升档；None=无法评估
+- combined: 复合条件，支持 AND/OR 组合，最大嵌套深度 3 层
 """
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
-VALID_TYPES = {'price_break', 'pct_change', 'pnl_pct', 'velocity', 'volume_surge'}
+VALID_TYPES = {'price_break', 'pct_change', 'pnl_pct', 'velocity', 'volume_surge', 'combined'}
 
 DEFAULT_COOLDOWN_SEC = 300
+MAX_NESTING_DEPTH = 3
 
 
 @dataclass
@@ -31,13 +33,42 @@ class EvalContext:
     elapsed_fraction: float = 1.0        # 当日已过交易时间比例 0~1
 
 
-def validate_condition(cond: dict) -> None:
-    """校验条件结构，非法时抛 ValueError"""
+def validate_condition(cond: dict, depth: int = 0) -> None:
+    """校验条件结构，非法时抛 ValueError。支持递归校验 combined 类型。
+    
+    Args:
+        cond: 条件字典
+        depth: 当前嵌套深度（防止无限递归）
+    """
+    if depth > MAX_NESTING_DEPTH:
+        raise ValueError(f'条件嵌套深度超过限制（最大 {MAX_NESTING_DEPTH} 层）')
+    
     ctype = cond.get('type')
     if ctype not in VALID_TYPES:
         raise ValueError(f'未知条件类型: {ctype}，支持: {sorted(VALID_TYPES)}')
+    
     params = cond.get('params') or {}
-    if ctype == 'price_break':
+    
+    if ctype == 'combined':
+        # 复合条件校验
+        operator = params.get('operator')
+        if operator not in ('AND', 'OR'):
+            raise ValueError('combined 需要 params.operator: AND|OR')
+        
+        conditions = params.get('conditions')
+        if not isinstance(conditions, list):
+            raise ValueError('combined 需要 params.conditions 为数组')
+        if len(conditions) < 2:
+            raise ValueError('combined 的 conditions 数组至少需要 2 个条件（单条件无需 combined）')
+        
+        # 递归校验每个子条件
+        for i, subcond in enumerate(conditions):
+            try:
+                validate_condition(subcond, depth + 1)
+            except ValueError as e:
+                raise ValueError(f'combined 的第 {i+1} 个子条件无效: {e}')
+    
+    elif ctype == 'price_break':
         if 'price' not in params:
             raise ValueError('price_break 需要 params.price')
         if params['price'] <= 0:
@@ -64,7 +95,7 @@ def validate_condition(cond: dict) -> None:
 
 
 def evaluate(cond: dict, quote, ctx: EvalContext, now: Optional[datetime] = None) -> EvalResult:
-    """评估单个条件。quote 需有 .price，可选 .prev_close / .change_pct / .volume"""
+    """评估单个条件（支持递归评估 combined）。quote 需有 .price，可选 .prev_close / .change_pct / .volume"""
     ctype = cond['type']
     if ctype not in _HANDLERS:
         raise ValueError(f'未知条件类型: {ctype}')
@@ -153,10 +184,40 @@ def _eval_volume_surge(params, quote, ctx, now) -> EvalResult:
                       f'成交量为同期均量 {ratio:.2f}x（阈值 {multiple}x）')
 
 
+def _eval_combined(params, quote, ctx, now) -> EvalResult:
+    """复合条件评估器：递归评估子条件，按 operator 聚合结果"""
+    operator = params['operator']  # AND / OR
+    conditions = params['conditions']
+    
+    results = []
+    for cond in conditions:
+        result = evaluate(cond, quote, ctx, now)
+        results.append(result)
+    
+    # 聚合触发状态
+    if operator == 'AND':
+        triggered = all(r.triggered for r in results)
+        # AND: distance = 最远的子条件距离（瓶颈）
+        valid_distances = [r.distance_ratio for r in results if r.distance_ratio is not None]
+        distance = max(valid_distances) if valid_distances else None
+    else:  # OR
+        triggered = any(r.triggered for r in results)
+        # OR: distance = 最近的子条件距离（最容易达到的）
+        valid_distances = [r.distance_ratio for r in results if r.distance_ratio is not None]
+        distance = min(valid_distances) if valid_distances else None
+    
+    # 组合消息
+    sep = ' 且 ' if operator == 'AND' else ' 或 '
+    message = f'{operator} 组合：{sep.join(r.message for r in results)}'
+    
+    return EvalResult(triggered=triggered, value=None, distance_ratio=distance, message=message)
+
+
 _HANDLERS = {
     'price_break': _eval_price_break,
     'pct_change': _eval_pct_change,
     'pnl_pct': _eval_pnl_pct,
     'velocity': _eval_velocity,
     'volume_surge': _eval_volume_surge,
+    'combined': _eval_combined,
 }

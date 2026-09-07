@@ -35,7 +35,7 @@ export class WatchManageTool extends BaseTool<WatchManageParams, any> {
         };
       }
 
-      // 校验 condition 格式（2026-09-01 扩展：pnl_pct / volume_surge / velocity）
+      // 校验 condition 格式（2026-09-01 扩展：pnl_pct / volume_surge / velocity；2026-09-07 Phase 2: 支持 JSON 复合条件）
       const validConditions = [
         /^price\s*>\s*\d+(\.\d+)?$/,
         /^price\s*<\s*\d+(\.\d+)?$/,
@@ -47,12 +47,30 @@ export class WatchManageTool extends BaseTool<WatchManageParams, any> {
         /^velocity\s*>\s*\d+(\.\d+)?\s*\/\s*\d+$/,
       ];
 
-      const isValidCondition = validConditions.some(regex => regex.test(condition.trim()));
-      if (!isValidCondition) {
+      const isSimpleCondition = validConditions.some(regex => regex.test(condition.trim()));
+      
+      // JSON 复合条件格式校验：{"type":"combined",...}
+      let isJsonCondition = false;
+      if (!isSimpleCondition && condition.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(condition);
+          // 基础结构校验：type=combined + params.operator + params.conditions 数组
+          if (parsed.type === 'combined' &&
+              parsed.params?.operator &&
+              Array.isArray(parsed.params?.conditions) &&
+              parsed.params.conditions.length >= 2) {
+            isJsonCondition = true;
+          }
+        } catch {
+          // JSON 解析失败，继续后面的错误提示
+        }
+      }
+      
+      if (!isSimpleCondition && !isJsonCondition) {
         return {
           success: false,
           errorType: ErrorType.INPUT_ERROR,
-          issue: `condition 格式错误。支持：price>100、price<90、change_pct>5、change_pct<-3、pnl_pct<-8（持仓盈亏，配 cost_price 或自动取持仓成本）、pnl_pct>10、volume_surge>4（量能倍数）、velocity>2/15（15分钟窗口波动≥2%）`,
+          issue: `condition 格式错误。支持：1) 简单条件：price>100、change_pct>5、pnl_pct<-8、volume_surge>4、velocity>2/15；2) 复合条件（JSON）：{"type":"combined","params":{"operator":"AND","conditions":[...]}}`,
         };
       }
     } else if (['enable', 'disable', 'delete'].includes(action)) {

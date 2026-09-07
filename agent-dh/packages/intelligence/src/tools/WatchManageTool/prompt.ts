@@ -37,7 +37,7 @@ export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
     },
     condition: {
       type: 'string',
-      description: '触发条件表达式，create 时必填。支持：price>100（上破价格）、price<90（下破价格）、change_pct>5（涨幅超5%）、change_pct<-3（跌幅超3%）、pnl_pct<-8（持仓盈亏跌至-8%，需 cost_price 或不传自动取持仓成本）、pnl_pct>10（止盈）、volume_surge>4（成交量≥同期20日均量4倍）、velocity>2/15（15分钟内波动≥2%）',
+      description: '触发条件表达式，create 时必填。支持：1) 单一条件（简单字符串）：price>100（上破）、price<90（下破）、change_pct>5（涨幅超5%）、change_pct<-3（跌幅超3%）、pnl_pct<-8（持仓盈亏跌至-8%，需 cost_price 或自动取持仓成本）、pnl_pct>10（止盈）、volume_surge>4（成交量≥同期20日均量4倍）、velocity>2/15（15分钟内波动≥2%）；2) 复合条件（JSON 格式）：{"type":"combined","params":{"operator":"AND","conditions":[{"type":"price_break","params":{"direction":"above","price":19.85}},{"type":"volume_surge","params":{"multiple":1.5}}]}} 表示"价格上破 19.85 且 成交量放大 1.5 倍"（AND=双重确认，OR=任一触发，最大嵌套深度 3 层）',
     },
     reason: {
       type: 'string',
@@ -115,6 +115,47 @@ export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
         reason: '机器人观察池标的，放量异动评估买入',
       },
       expectedBehavior: '成交量达同期均量4倍时触发',
+    },
+    {
+      scenario: '复合条件：放量突破（AND）',
+      params: {
+        action: 'create',
+        name: '中远海能 19.85 放量突破',
+        symbol: '600026',
+        condition: JSON.stringify({
+          type: 'combined',
+          params: {
+            operator: 'AND',
+            conditions: [
+              { type: 'price_break', params: { direction: 'above', price: 19.85 } },
+              { type: 'volume_surge', params: { multiple: 1.5 } }
+            ]
+          }
+        }),
+        reason: '19.85 关键压力位，放量突破=资金真实流入',
+      },
+      expectedBehavior: '价格上破 19.85 且 成交量放大 1.5 倍时触发（双重确认）',
+    },
+    {
+      scenario: '复合条件：止损或止盈（OR）',
+      params: {
+        action: 'create',
+        name: '茅台止损或止盈',
+        symbol: '600519',
+        condition: JSON.stringify({
+          type: 'combined',
+          params: {
+            operator: 'OR',
+            conditions: [
+              { type: 'pct_change', params: { direction: 'below', pct: -8.0 } },
+              { type: 'pct_change', params: { direction: 'above', pct: 15.0 } }
+            ]
+          }
+        }),
+        account: 'agent_virtual',
+        reason: '大盘蓝筹止损-8% 或 止盈+15%',
+      },
+      expectedBehavior: '跌幅达-8% 或 涨幅达+15% 任一触发',
     },
     {
       scenario: '启用规则',
