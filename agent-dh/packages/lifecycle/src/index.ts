@@ -1182,8 +1182,9 @@ v2_event_json: ${JSON.stringify(data)}
     ctx.tools.register(defineTool(statusTool.toDSHToolDefinition()));
 
     // RFC 009: 注册公告板生命周期管理工具
-    registerBoardUpdate(this.ctx, this.aos.memory, this.cfg.agentId);
-    registerBoardRead(this.ctx, this.aos.memory, this.cfg.agentId);
-    registerBoardPost(this.ctx, this.aos.memory, this.cfg.agentId);
+    // RFC 014：公告板切换到独立存储 API（脱离 memory 复用）
+    registerBoardUpdate(this.ctx, this.aos.board, this.cfg.agentId);
+    registerBoardRead(this.ctx, this.aos.board, this.cfg.agentId);
+    registerBoardPost(this.ctx, this.aos.board, this.cfg.agentId);
   }
 }

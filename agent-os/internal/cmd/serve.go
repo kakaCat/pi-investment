@@ -204,6 +204,9 @@ var serveCmd = &cobra.Command{
 		decisionHandler := api.NewDecisionHandler(decisionRepo)
 		registryRepo := repository.NewRegistryWebRepository(db)
 		registryHandler := api.NewRegistryHandler(registryRepo)
+		// RFC 014: 公告板独立存储
+		boardRepo := repository.NewBoardWebRepository(db)
+		boardHandler := api.NewBoardHandler(boardRepo)
 
 		// RFC 010: 启动心跳监控器（60s 检查间隔，60s 超时阈值）
 		heartbeatMonitor := service.NewHeartbeatMonitor(
@@ -219,7 +222,7 @@ var serveCmd = &cobra.Command{
 		}()
 
 		// Create HTTP server
-		server := api.NewHTTPServer(svc, skillHandler, schedulerHandler, decisionHandler, memoryHandler, eventHandler, systemHandler, notificationHandler, profileHandler, registryHandler)
+		server := api.NewHTTPServer(svc, skillHandler, schedulerHandler, decisionHandler, memoryHandler, eventHandler, systemHandler, notificationHandler, profileHandler, registryHandler, boardHandler)
 
 		// Start HTTP server in goroutine
 		addr := fmt.Sprintf("%s:%d", host, port)

@@ -4,6 +4,7 @@ import { MemoryClient } from './memory-client.js';
 import { SchedulerClient } from './scheduler-client.js';
 import { NotificationClient } from './notification-client.js';
 import { EvolutionClient } from './evolution-client.js';
+import { BoardClient } from './board-client.js';
 import type { RegistryClientConfig } from './types.js';
 
 /**
@@ -23,6 +24,7 @@ export class AgentOSClient {
   public scheduler: SchedulerClient;
   public notification: NotificationClient;
   public evolution: EvolutionClient;
+  public board: BoardClient;
   public agentId: string;
 
   constructor(config?: RegistryClientConfig) {
@@ -34,6 +36,7 @@ export class AgentOSClient {
       this.scheduler = new SchedulerClient(config);
       this.notification = new NotificationClient(config);
       this.evolution = new EvolutionClient(config);
+      this.board = new BoardClient(config);
     } else {
       // Local mode: in-memory registry, no backend needed
       this.registry = new LocalRegistry();
@@ -41,6 +44,7 @@ export class AgentOSClient {
       this.scheduler = new SchedulerClient({ baseURL: 'http://localhost:8080' });
       this.notification = new NotificationClient({ baseURL: 'http://localhost:8080' });
       this.evolution = new EvolutionClient({ baseURL: 'http://localhost:8080' });
+      this.board = new BoardClient({ baseURL: 'http://localhost:8080' });
     }
   }
 }
@@ -53,3 +57,5 @@ export { MemoryClient } from './memory-client.js';
 export { SchedulerClient } from './scheduler-client.js';
 export { NotificationClient } from './notification-client.js';
 export { EvolutionClient } from './evolution-client.js';
+export { BoardClient } from './board-client.js';
+export type { BoardPost, BoardListParams, BoardCreateParams, BoardUpdateParams } from './board-client.js';

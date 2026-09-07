@@ -3,7 +3,7 @@
 // GUI 呈现由 client 半承担（package.json dsh.client + exports["./client"] → lib/client.js）。
 // /dashboard/api/bulletin/posts 的唯一所有者——execution 独占 /dashboard/api/board、
 // holdings 独占 /dashboard/api/holdings（双插件互斥路由契约）。
-// 数据源：Agent OS memory（tag office:board），与 board_post/board_read/board_update 工具同源（RFC 009）。
+// 数据源：Agent OS 公告板独立存储（/api/v1/board/posts，RFC 014），与 board_post/board_read/board_update 工具同源。
 // 模块形状与 dashboard-holdings 一致（name + apply 具名导出；路由经
 // (ctx as any).inject(['webServer']) 惰性注入 + webCtx.effect 包裹注册，disposer 自动注销）。
 //

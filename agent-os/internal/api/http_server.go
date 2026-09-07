@@ -26,8 +26,9 @@ type HTTPServer struct {
 	notificationHandler *NotificationHandler
 	profileHandler      *ProfileHandler
 	registryHandler     *RegistryHandler
+	boardHandler        *BoardHandler
 }
-func NewHTTPServer(service *service.NotificationService, skillHandler *handlers.SkillHandler, schedulerHandler *SchedulerHandler, decisionHandler *DecisionHandler, memoryHandler *MemoryHandler, eventHandler *EventHandler, systemHandler *SystemHandler, notificationHandler *NotificationHandler, profileHandler *ProfileHandler, registryHandler *RegistryHandler) *HTTPServer {
+func NewHTTPServer(service *service.NotificationService, skillHandler *handlers.SkillHandler, schedulerHandler *SchedulerHandler, decisionHandler *DecisionHandler, memoryHandler *MemoryHandler, eventHandler *EventHandler, systemHandler *SystemHandler, notificationHandler *NotificationHandler, profileHandler *ProfileHandler, registryHandler *RegistryHandler, boardHandler *BoardHandler) *HTTPServer {
 	return &HTTPServer{
 		service:          service,
 		skillHandler:     skillHandler,
@@ -39,6 +40,7 @@ func NewHTTPServer(service *service.NotificationService, skillHandler *handlers.
 		eventHandler:     eventHandler,
 		memoryHandler:    memoryHandler,
 		registryHandler:  registryHandler,
+		boardHandler:     boardHandler,
 	}
 }
 
@@ -81,6 +83,14 @@ func (s *HTTPServer) Start(addr string) error {
 		api.HandleFunc("/memory/tags", s.memoryHandler.GetTags).Methods("GET")
 		api.HandleFunc("/memory/tags", s.memoryHandler.CreateTag).Methods("POST")
 		api.HandleFunc("/memory/tags/{name}", s.memoryHandler.DeleteTag).Methods("DELETE")
+	}
+
+	// Board endpoints（RFC 014 公告板独立存储）
+	if s.boardHandler != nil {
+		api.HandleFunc("/board/posts", s.boardHandler.List).Methods("GET")
+		api.HandleFunc("/board/posts", s.boardHandler.Create).Methods("POST")
+		api.HandleFunc("/board/posts/{id}", s.boardHandler.GetByID).Methods("GET")
+		api.HandleFunc("/board/posts/{id}", s.boardHandler.Update).Methods("PATCH")
 	}
 
 	// Event endpoints

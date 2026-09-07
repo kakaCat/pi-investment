@@ -171,7 +171,7 @@ export function buildPaginationHtml(data: BulletinData): string {
 export function buildBoardHtml(data: BulletinData, vs: ViewState, expanded: ReadonlySet<string>): string {
   const banner = data.degraded
     ? '<div class="dsh-bbd-banner show">数据源（Agent OS）不可达，以下为降级空数据：' + esc(data.error ?? '') +
-      ' —— 数据来自 board_post/board_read 工具同源 memory（tag office:board）。</div>'
+      ' —— 数据来自 board_post/board_read 工具同源公告板存储（RFC 014 独立表）。</div>'
     : '<div class="dsh-bbd-banner"></div>'
 
   const statusPills = STATUS_TABS.map((t) =>
