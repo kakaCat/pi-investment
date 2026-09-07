@@ -121,6 +121,9 @@ const TASK_ZH: Record<string, string> = {
   'agent-brain-morning-analysis': '晨间账户分析', 'agent-brain-realtime-check': '账户实时检查',
   'agent-brain-daily-review': '账户日终复盘', 'agent-brain-daily-audit': '账户每日审计',
   'agent-brain-weekly-roi': '账户周度ROI', 'agent-brain-weekly-evolution': '账户周度进化', 'agent-brain-weekly-distill': '账户周度蒸馏',
+  // 补录（2026-09-08，用户：任务名全部中文）
+  'market_perception_daily': '市场感知', 'signal_generate_sell': '卖出信号生成',
+  'v2_health_check': '信号源健康检查', 'board-3341a342-verify-daily-review': '执行看板核验',
 }
 function taskZh(name: unknown): string {
   const n = String(name ?? '')
@@ -316,12 +319,13 @@ const SRC_TIP: Record<string, string> = {
 function srcChip(src: unknown): string {
   const s = String(src ?? '')
   if (s !== 'v2' && s !== 'os') return ''
-  return '<span class="exec-chip src ' + s + '" title="' + esc(SRC_TIP[s] ?? '') + '">' + s + '</span>'
+  const srcZh = s === 'v2' ? '引擎' : '系统'
+  return '<span class="exec-chip src ' + s + '" title="' + esc(SRC_TIP[s] ?? '') + '">' + srcZh + '</span>'
 }
 function agentChip(call: unknown): string {
   const a = String(call ?? '')
   if (a !== 'dh' && a !== 'ts') return ''
-  return '<span class="exec-chip ag ' + a + '" title="调用 ' + (a === 'dh' ? 'agent-dh' : 'agent-ts') + ' 智能体执行">' + a + '</span>'
+  return '<span class="exec-chip ag ' + a + '" title="调用 ' + (a === 'dh' ? 'agent-dh' : 'agent-ts') + ' 智能体执行">智能体</span>'
 }
 // ⏱ 时间口径（用户 2026-09-05 确认）：tl-tm 的 HH:mm = expectedTime（计划时刻，与任务表「计划时刻」列同源于
 //   cron，见 services/data-aggregation.buildTimeline），非实际运行时刻。计划几点就几点。
@@ -447,7 +451,7 @@ function taskDetailHtml(t: SchedulerTask): string {
   const zh = esc(taskZh(raw))
   const row = (label: string, value: string): string =>
     '<div class="tkd-i"><b>' + label + '</b><span>' + value + '</span></div>'
-  let html = row('名称', zh + (taskZh(raw) === raw ? '' : '<em class="tkd-code">' + esc(raw) + '</em>'))
+  let html = '<div class="tkd-i"><b>名称</b><span' + (taskZh(raw) === raw ? '' : ' title="系统任务名：' + esc(raw) + '"') + '>' + zh + '</span></div>'
   html += row('调度来源', t.src === 'os' ? 'Agent OS（webhook 触发）' : 'quantsys-v2 引擎')
   if (t.agentCall === 'dh' || t.agentCall === 'ts') html += row('调用 Agent', t.agentCall === 'dh' ? 'agent-dh（LLM 智能体）' : 'agent-ts（LLM 智能体）')
   html += row('状态', '<span class="tag ' + tag.cls + '">' + esc(tag.label) + '</span>')
@@ -510,7 +514,7 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
     const zh = taskZh(raw)
     // ⏱ 列时间语义：计划时刻=cron 计划（与时间轴同源）；上次运行=实际触发(lastRun.triggeredAt)，仅供参考。
     return '<tr class="dsh-exec-tr' + sel + '" data-tk="' + esc(raw) + '"' + (err ? ' title="失败原因：' + esc(err.slice(0, 300)) + '"' : '') + '>' +
-      '<td class="nm"><span class="ln-hd"><i class="dk l-' + lineOf(raw) + '"></i><span class="zh">' + esc(zh) + '</span></span>' + (zh === raw ? '' : '<span class="code">' + esc(raw) + '</span>') + '</td>' +
+      '<td class="nm"' + (zh === raw ? '' : ' title="系统任务名：' + esc(raw) + '"') + '><span class="ln-hd"><i class="dk l-' + lineOf(raw) + '"></i><span class="zh">' + esc(zh) + '</span></span></td>' +
       '<td class="cr" title="' + (t.scheduleExpr ? esc('原 cron: ' + String(t.scheduleExpr).trim()) : '') + '">' + esc(cronPlan(t.scheduleExpr)) + '</td>' +
       '<td class="st"><span class="tag ' + tag.cls + '">' + esc(tag.label) + '</span>' + srcChip(t.src) + agentChip(t.agentCall) + '</td>' +
       '<td class="tm">' + esc(last.at) + (last.st ? '<em class="ls ' + (TL_TAG[last.st] ?? 'unk') + '">' + esc(TL_ZH[last.st] ?? last.st) + '</em>' : '') + '</td>' +
