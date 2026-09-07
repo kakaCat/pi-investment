@@ -3,14 +3,15 @@ import { defineConfig } from 'tsdown'
 // Client-half bundle config: one entry (src/client/index.ts) compiled to CJS.
 // react is EXTERNAL — never bundled: the DSH web shell's module-loader seed
 // resolves require("react") at runtime (react 18.3.1 is served by the shell),
-// so bundling our own copy would duplicate React and break hooks. Everything
-// else we author is plain TS/DOM, wrapped by scripts/wrap-client.mjs.
+// so bundling our own copy would duplicate React and break hooks.
+// solve-kit/client is BUNDLED — it's a shared utility lib, not a dsh module.
 export default defineConfig({
   entry: { client: 'src/client/index.ts' },
   format: ['cjs'],
   outDir: 'lib',
   clean: false,
   sourcemap: false,
+  noExternal: [/@pi-investment\/solve-kit/],
   external: ['react', 'react/jsx-runtime'],
   target: 'chrome120',
   minify: true,
