@@ -109,6 +109,10 @@ def analyze_file(file_path: Path) -> Dict:
 
 # TODO: Refactor - function too long (134 lines, target < 80)
 
+# TODO: 复杂度 38 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 134行 - 建议拆分为多个小函数
+
 def migrate_file(file_path: Path, dry_run: bool = True) -> bool:
     """迁移单个文件"""
     try:
@@ -190,9 +194,7 @@ def migrate_file(file_path: Path, dry_run: bool = True) -> bool:
                     break
 
             imports_to_add = []
-            if new_imports_ports:
-                imports_to_add.append(f"from domain.ports.datasource_ports import {', '.join(sorted(new_imports_ports))}")
-            if new_imports_models:
+            if new_imports_ports and new_imports_models:
                 imports_to_add.append(f"from domain.models.market_data import {', '.join(sorted(new_imports_models))}")
 
             if imports_to_add:

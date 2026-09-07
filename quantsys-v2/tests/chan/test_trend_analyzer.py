@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_11_0 = 11.0
+CONST_11_5 = 11.5
+CONST_12_0 = 12.0
+CONST_12_5 = 12.5
+CONST_14_0 = 14.0
+CONST_15 = 15
+CONST_20 = 20
+CONST_25 = 25
+CONST_30 = 30
+CONST_7_0 = 7.0
+
 """走势类型分析器测试"""
 import pytest
 from domain.chan.trend_analyzer import TrendAnalyzer

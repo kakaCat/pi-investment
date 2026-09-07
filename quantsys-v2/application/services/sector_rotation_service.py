@@ -270,41 +270,40 @@ class SectorRotationService:
                 index_end = index_klines[-1].get('close', 0)
                 index_return = (index_end - index_start) / index_start if index_start > 0 else 0.0
                 logger.info(f"大盘指数收益率: {index_return:.4f}")
-            else:
-                logger.warning(f"上证指数数据不足: 仅 {len(index_klines)} 条")
-                index_return = 0.0
-        except Exception as e:
-            logger.error(f"获取上证指数数据失败: {e}")
+            logger.warning(f"上证指数数据不足: 仅 {len(index_klines)} 条")
             index_return = 0.0
+    except Exception as e:
+        logger.error(f"获取上证指数数据失败: {e}")
+        index_return = 0.0
 
-        for industry in industries:
-            try:
-                stocks = self.stock_repo.get_stocks_by_industries([industry])
-                if not stocks:
-                    strength[industry] = 0.0
-                    continue
-
-                sample_stocks = stocks[:50]
-                klines_map = self.kline_repo.batch_get_recent_klines(sample_stocks, days=20)
-
-                # 计算行业平均收益
-                total_return = 0.0
-                count = 0
-                for symbol in sample_stocks:
-                    klines = klines_map.get(symbol, [])
-                    if len(klines) >= 20:
-                        start_price = klines[0].get('close', 0)
-                        end_price = klines[-1].get('close', 0)
-                        if start_price > 0:
-                            total_return += (end_price - start_price) / start_price
-                            count += 1
-
-                industry_return = total_return / count if count > 0 else 0.0
-                # 相对强度 = 行业收益 - 大盘收益
-                strength[industry] = industry_return - index_return
-
-            except Exception as e:
-                logger.warning(f"计算行业 {industry} 相对强度失败: {e}")
+    for industry in industries:
+        try:
+            stocks = self.stock_repo.get_stocks_by_industries([industry])
+            if not stocks:
                 strength[industry] = 0.0
+                continue
 
-        return strength
+            sample_stocks = stocks[:50]
+            klines_map = self.kline_repo.batch_get_recent_klines(sample_stocks, days=20)
+
+            # 计算行业平均收益
+            total_return = 0.0
+            count = 0
+            for symbol in sample_stocks:
+                klines = klines_map.get(symbol, [])
+                if len(klines) >= 20:
+                    start_price = klines[0].get('close', 0)
+                    end_price = klines[-1].get('close', 0)
+                    if start_price > 0:
+                        total_return += (end_price - start_price) / start_price
+                        count += 1
+
+            industry_return = total_return / count if count > 0 else 0.0
+            # 相对强度 = 行业收益 - 大盘收益
+            strength[industry] = industry_return - index_return
+
+        except Exception as e:
+            logger.warning(f"计算行业 {industry} 相对强度失败: {e}")
+            strength[industry] = 0.0
+
+    return strength

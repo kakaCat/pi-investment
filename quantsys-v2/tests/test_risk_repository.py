@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000_0 = 100000.0
+CONST_105000_0 = 105000.0
+CONST_2020 = 2020
+CONST_2024 = 2024
+CONST_31 = 31
+CONST_5 = 5
+CONST_5_0 = 5.0
+CONST_500 = 500
+CONST_5000_0 = 5000.0
+CONST_50000_0 = 50000.0
+
 """
 RiskRepository单元测试
 """

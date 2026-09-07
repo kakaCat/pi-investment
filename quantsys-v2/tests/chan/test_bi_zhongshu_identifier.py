@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_4 = 10.4
+CONST_10_5 = 10.5
+CONST_10_8 = 10.8
+CONST_11_0 = 11.0
+CONST_12_0 = 12.0
+CONST_13_0 = 13.0
+CONST_14_0 = 14.0
+CONST_14_2 = 14.2
+CONST_14_4 = 14.4
+CONST_14_5 = 14.5
+
 """笔中枢识别器测试——3 笔重叠成中枢、延续、独立多中枢"""
 from datetime import datetime, timedelta
 import pytest

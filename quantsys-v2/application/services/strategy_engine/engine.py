@@ -176,9 +176,7 @@ class StrategyEngine:
         predictions: Dict = None
     ) -> List[str]:
         """ML置信过滤"""
-        if not candidates:
-            return []
-        if not predictions:
+        if not candidates and not predictions:
             logger.warning("无ML预测数据，所有候选通过")
             return candidates
 

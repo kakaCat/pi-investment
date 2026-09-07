@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_2 = 10.2
+CONST_10_5 = 10.5
+CONST_102_0 = 102.0
+CONST_105_0 = 105.0
+CONST_12 = 12
+CONST_120 = 120
+CONST_15 = 15
+CONST_2024 = 2024
+CONST_2030 = 2030
+CONST_3 = 3
+
 """
 KlineRepository单元测试
 
@@ -11,6 +25,8 @@ from adapters.outbound.repositories import KlineORMRepository
 
 
 # TODO: Refactor large class (25 methods, target < 20)
+# TODO: 大类 25个方法 - 考虑拆分为多个类或使用组合模式
+
 class TestKlineRepository:
     """KlineRepository测试类"""
 

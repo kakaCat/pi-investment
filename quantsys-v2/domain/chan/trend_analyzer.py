@@ -54,5 +54,4 @@ class TrendAnalyzer:
             return '上涨'
         elif not high_up and not low_up:
             return '下跌'
-        else:
-            return '盘整'
+        return '盘整'

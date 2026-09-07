@@ -1,3 +1,14 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_20 = 20
+CONST_2000 = 2000
+CONST_2025 = 2025
+CONST_2026 = 2026
+CONST_230 = 230
+CONST_4 = 4
+CONST_5 = 5
+
 #!/usr/bin/env python3
 """独立模型训练脚本（对齐 /api/ml/train 数据流，避免 HTTP 超时）
 
@@ -40,6 +51,10 @@ logger = structlog.get_logger(__name__)
 # TODO: Refactor - complexity 31 (target < 15)
 
 # TODO: Refactor - function too long (186 lines, target < 80)
+
+# TODO: 复杂度 31 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 186行 - 建议拆分为多个小函数
 
 def main():
     parser = argparse.ArgumentParser(description="独立模型训练（对齐 /api/ml/train 数据流）")
@@ -89,9 +104,7 @@ def main():
         futures = {executor.submit(_fetch_one_kline, s): s for s in symbols}
         for i, future in enumerate(as_completed(futures)):
             sym, rows = future.result()
-            if rows:
-                klines_dict[sym] = rows
-            if (i + 1) % 20 == 0:
+            if rows and (i + 1) % 20 == 0:
                 print(f"  K线已加载 {i + 1}/{len(symbols)}")
     print(f"成功加载 {len(klines_dict)} 只股票K线\n")
 
@@ -184,13 +197,9 @@ def main():
     # 5. 写回模型仓库（model_evaluate / /api/ml/evaluate 可读）
     def _to_native(val):
         import numpy as _np
-        if isinstance(val, dict):
-            return {k: _to_native(v) for k, v in val.items()}
-        if isinstance(val, (list, tuple)):
+        if isinstance(val, dict) and isinstance(val, (list, tuple)):
             return [_to_native(v) for v in val]
-        if isinstance(val, _np.floating):
-            return float(val)
-        if isinstance(val, _np.integer):
+        if isinstance(val, _np.floating) and isinstance(val, _np.integer):
             return int(val)
         if isinstance(val, _np.bool_):
             return bool(val)

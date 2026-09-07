@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100_5 = 100.5
+CONST_101_0 = 101.0
+CONST_102_0 = 102.0
+CONST_103_0 = 103.0
+CONST_2024 = 2024
+CONST_3 = 3
+CONST_48_0 = 48.0
+CONST_49_0 = 49.0
+CONST_50_0 = 50.0
+CONST_500000 = 500000
+
 """Tests for FactorComputeStage - Trigger factor computation on stored data."""
 
 import pytest

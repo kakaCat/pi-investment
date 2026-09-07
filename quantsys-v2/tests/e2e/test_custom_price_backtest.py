@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_2 = 10.2
+CONST_10_3 = 10.3
+CONST_10_5 = 10.5
+CONST_10_6 = 10.6
+CONST_11_0 = 11.0
+CONST_11_2 = 11.2
+CONST_11_3 = 11.3
+CONST_11_5 = 11.5
+CONST_11_6 = 11.6
+CONST_12_0 = 12.0
+
 """
 端到端测试：自定义成交价格功能
 

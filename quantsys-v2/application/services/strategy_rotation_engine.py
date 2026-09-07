@@ -121,6 +121,8 @@ STYLE_STRATEGY_MAP = {
 
 # TODO: Refactor large class (31 methods, target < 20)
 # TODO: Refactor large class (31 methods, target < 20)
+# TODO: 大类 31个方法 - 考虑拆分为多个类或使用组合模式
+
 class StrategyRotationEngine:
     """策略自适应轮动引擎
 
@@ -456,9 +458,7 @@ class StrategyRotationEngine:
         adjustments = sum(1 for a in actions if a['action'] == 'adjust_weight')
 
         parts = []
-        if activates:
-            parts.append(f"启用{activates}个")
-        if deactivates:
+        if activates and deactivates:
             parts.append(f"停用{deactivates}个")
         if adjustments:
             parts.append(f"调权{adjustments}个")
@@ -468,9 +468,7 @@ class StrategyRotationEngine:
     def _build_reason(self, style_changed: bool, underperformers: List) -> str:
         """构建轮动原因说明"""
         reasons = []
-        if style_changed:
-            reasons.append(f"市场风格切换: {self._last_market_style} → 新风格")
-        if underperformers:
+        if style_changed and underperformers:
             names = [u['strategy_name'] for u in underperformers]
             reasons.append(f"策略表现衰减: {', '.join(names)}")
         return '；'.join(reasons)
@@ -502,6 +500,8 @@ class StrategyRotationEngine:
     # TODO: Refactor - function too long (106 lines, target < 80)
 
 # TODO: Split long function (105 lines, target < 100)
+    # TODO: 长函数 114行 - 建议拆分为多个小函数
+
     def get_proposal_context(self) -> Dict[str, Any]:
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -618,6 +618,8 @@ class StrategyRotationEngine:
         }
 # TODO: Refactor - function too long (103 lines, target < 80)
 
+
+# TODO: 长函数 111行 - 建议拆分为多个小函数
 
 # TODO: Split long function (102 lines, target < 100)
     def simulate_rotation(self, actions: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -768,6 +770,8 @@ class StrategyRotationEngine:
     # REFACTOR: Split this function into smaller pieces
     # TODO: Extract 3 validation checks to _validate_verify_rotation()
     # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
     def verify_rotation(self, rotation_date: Optional[str] = None) -> Dict[str, Any]:
         """验证轮动效果（对比预期 vs 实际）
 

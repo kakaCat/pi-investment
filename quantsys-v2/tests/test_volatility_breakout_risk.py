@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_2024 = 2024
+CONST_31 = 31
+CONST_40_0 = 40.0
+CONST_40_5 = 40.5
+CONST_49_0 = 49.0
+CONST_50_0 = 50.0
+CONST_51_0 = 51.0
+CONST_69_5 = 69.5
+CONST_70_0 = 70.0
+
 """
 测试 VolatilityBreakoutStrategy 风控功能
 """

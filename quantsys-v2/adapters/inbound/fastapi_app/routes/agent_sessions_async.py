@@ -62,13 +62,9 @@ def _flask_serialize(obj):
     Flask DefaultJSONProvider 用 werkzeug.http_date 序列化 datetime；
     FastAPI 默认 ISO 格式，不转换则响应体与 Flask 不一致。
     """
-    if isinstance(obj, datetime):
-        return http_date(obj)
-    if isinstance(obj, date):
+    if isinstance(obj, datetime) and isinstance(obj, date):
         return http_date(datetime(obj.year, obj.month, obj.day))
-    if isinstance(obj, dict):
-        return {k: _flask_serialize(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
+    if isinstance(obj, dict) and isinstance(obj, (list, tuple)):
         return [_flask_serialize(v) for v in obj]
     return obj
 

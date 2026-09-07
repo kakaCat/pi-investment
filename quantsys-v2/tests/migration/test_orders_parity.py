@@ -1,3 +1,15 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_2026 = 2026
+CONST_25 = 25
+CONST_3 = 3
+CONST_30 = 30
+CONST_410 = 410
+CONST_5 = 5
+CONST_500 = 500
+CONST_999999 = 999999
+
 """orders + portfolio 域 parity 测试（P5）
 
 ⚠️ DEPRECATED（2026-08-25）:

@@ -80,9 +80,7 @@ class FeishuNotificationService:
 
         # 构建 @提及
         mentions = []
-        if mention_all:
-            mentions.append('<at user_id="all">所有人</at>')
-        if mention_users:
+        if mention_all and mention_users:
             for user_id in mention_users:
                 mentions.append(f'<at user_id="{user_id}"></at>')
 
@@ -159,9 +157,7 @@ class FeishuNotificationService:
                 }
 
                 # 添加 URL 或回调值
-                if 'url' in action:
-                    button['url'] = action['url']
-                if 'value' in action:
+                if 'url' in action and 'value' in action:
                     button['value'] = action['value']
 
                 action_elements.append(button)
@@ -398,9 +394,7 @@ class FeishuNotificationService:
             return "暂无展望"
 
         lines = []
-        if outlook.get('market_view'):
-            lines.append(f"• 市场观点: {outlook['market_view']}")
-        if outlook.get('recommendations'):
+        if outlook.get('market_view') and outlook.get('recommendations'):
             lines.append(f"• 操作建议: {outlook['recommendations']}")
         if outlook.get('focus_sectors'):
             lines.append(f"• 关注板块: {outlook['focus_sectors']}")
@@ -453,16 +447,15 @@ class FeishuNotificationService:
             if result.get('code') == 0 or result.get('StatusCode') == 0:
                 logger.info("Feishu notification sent successfully")
                 return True
-            else:
-                logger.error(f"Feishu notification failed: {result}")
-                return False
+            logger.error(f"Feishu notification failed: {result}")
+            return False
 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to send Feishu notification: {e}")
-            return False
-        except Exception as e:
-            logger.error(f"Unexpected error sending Feishu notification: {e}")
-            return False
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to send Feishu notification: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error sending Feishu notification: {e}")
+        return False
 
 
 # 全局单例
@@ -504,6 +497,5 @@ def send_feishu_notification(
         return service.send_weekly_report(**kwargs)
     elif message_type == 'premarket_report':
         return service.send_premarket_report(**kwargs)
-    else:
-        logger.error(f"Unknown message type: {message_type}")
-        return False
+    logger.error(f"Unknown message type: {message_type}")
+    return False

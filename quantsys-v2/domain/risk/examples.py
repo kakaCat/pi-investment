@@ -384,9 +384,7 @@ def example_4_copula_modeling():
                 corr = np.array(params['correlation_matrix'])
                 for i in range(len(corr)):
                     print(f"    {corr[i]}")
-            if 'theta' in params:
-                print(f"  Theta: {params['theta']:.4f}")
-            if 'degrees_of_freedom' in params:
+            if 'theta' in params and 'degrees_of_freedom' in params:
                 print(f"  Degrees of Freedom: {params['degrees_of_freedom']:.2f}")
 
             print(f"\nTail Dependence:")
@@ -410,6 +408,8 @@ def example_4_copula_modeling():
 # TODO: Refactor - function too long (113 lines, target < 80)
 
 # TODO: Split long function (112 lines, target < 100)
+# TODO: 长函数 117行 - 建议拆分为多个小函数
+
 def example_5_liquidity_risk():
     # ---- Section 1 ----
     # ---- Section 2 ----

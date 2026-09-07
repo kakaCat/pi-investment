@@ -282,6 +282,8 @@ def greeks_sensitivity_analysis():
 
 # TODO: Refactor - function too long (101 lines, target < 80)
 
+# TODO: 长函数 109行 - 建议拆分为多个小函数
+
 def option_strategy_greeks():
     # ---- Section 1 ----
     # ---- Section 2 ----

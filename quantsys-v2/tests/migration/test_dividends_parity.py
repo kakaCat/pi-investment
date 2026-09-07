@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_2026 = 2026
+CONST_3 = 3
+CONST_3_0 = 3.0
+CONST_30 = 30
+CONST_5 = 5
+CONST_601398 = 601398
+
 """dividends 域 parity 测试（agent 迁移）"""
 import pytest
 from tests.migration.parity import assert_parity, assert_structural_parity

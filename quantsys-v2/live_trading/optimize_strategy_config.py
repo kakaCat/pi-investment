@@ -78,6 +78,8 @@ from datetime import datetime
 # TODO: Refactor - function too long (184 lines, target < 80)
 
 # TODO: Split long function (183 lines, target < 100)
+# TODO: 长函数 198行 - 建议拆分为多个小函数
+
 def optimize_config():
     # ---- Section 1 ----
     # ---- Section 2 ----

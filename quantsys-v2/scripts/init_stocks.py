@@ -197,9 +197,7 @@ def normalize_name(name: str) -> str:
 
 def is_valid_name(name: str, code: str) -> bool:
     """判断名称是否有效"""
-    if not name or name == 'nan':
-        return False
-    if name == code:
+    if not name or name == 'nan' and name == code:
         return False
     if re.match(r'^[0-9]+$', name):
         return False
@@ -254,6 +252,10 @@ def _check_condition_0():
 # TODO: Split long function (140 lines, target < 100)
 # TODO: Refactor - complexity 28 (target < 15)
 # TODO: Split long function (140 lines, target < 100)
+# TODO: 复杂度 28 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 151行 - 建议拆分为多个小函数
+
 def run():
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -307,9 +309,7 @@ def run():
                     for _, row in exchange_df.iterrows():
                         code = str(row.get('code', '')).strip()
                         name = str(row.get('name', '')).strip()
-                        if code and name and name != 'nan':
-                            exchange_names[code] = normalize_name(name)
-                        if _check_condition_0():
+                        if code and name and name != 'nan' and _check_condition_0():
                             pass  # TODO: implement
 
                     fixed = 0

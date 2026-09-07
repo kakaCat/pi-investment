@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10000 = 10000
+CONST_11 = 11
+CONST_15_0 = 15.0
+CONST_15_1 = 15.1
+CONST_15_2 = 15.2
+CONST_1800_0 = 1800.0
+CONST_1810_0 = 1810.0
+CONST_1820_0 = 1820.0
+CONST_1830_0 = 1830.0
+CONST_1840_0 = 1840.0
+
 """Tests for AnomalyDetectionStage."""
 
 import pytest

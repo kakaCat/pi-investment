@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_3333 = 10.3333
+CONST_10_50 = 10.50
+CONST_10_65 = 10.65
+CONST_10000_0 = 10000.0
+CONST_10500_0 = 10500.0
+CONST_11_00 = 11.00
+CONST_12 = 12
+CONST_12_0 = 12.0
+CONST_13_0 = 13.0
+CONST_15 = 15
+
 """
 订单和交易服务测试
 

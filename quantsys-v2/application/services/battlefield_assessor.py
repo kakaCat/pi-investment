@@ -314,6 +314,10 @@ class BattlefieldAssessor:
     # TODO: Split long function (127 lines, target < 100)
     # TODO: Refactor - complexity 28 (target < 15)
     # TODO: Split long function (127 lines, target < 100)
+    # TODO: 复杂度 28 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 138行 - 建议拆分为多个小函数
+
     def _analyze_stocks_by_kline(self, symbols: List[str]) -> List[Dict]:
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -570,116 +574,115 @@ class BattlefieldAssessor:
         if market_phase == 'accumulation':
             if opponent_strength['institution_interest'] == 'high':
                 return 'early_accumulation'  # 早期吸筹
-            else:
-                return 'late_accumulation'  # 后期吸筹
+            return 'late_accumulation'  # 后期吸筹
 
-        elif market_phase == 'markup':
-            return 'rising'  # 上涨阶段
+    elif market_phase == 'markup':
+        return 'rising'  # 上涨阶段
 
-        elif market_phase == 'distribution':
-            if opponent_strength['retail_pressure'] == 'high':
-                return 'topping'  # 顶部区域
-            else:
-                return 'early_distribution'  # 早期派发
-
-        elif market_phase == 'markdown':
-            return 'declining'  # 下跌阶段
-
-        else:
-            return 'consolidation'  # 震荡整理
-
-    def _identify_pros_cons(self, stock_scores: List[Dict], opponent_behavior: Dict,
-                           opponent_strength: Dict) -> tuple:
-        """
-        识别优势和劣势
-
-        Returns:
-            (advantages, disadvantages)
-        """
-        advantages = []
-        disadvantages = []
-
-        # 优势分析
-        if opponent_strength['retail_pressure'] == 'low':
-            advantages.append('散户恐慌抛售，筹码便宜')
-
-        if opponent_strength['institution_interest'] == 'high':
-            advantages.append('机构正在悄悄建仓')
-
-        if opponent_behavior['market_phase'] == 'accumulation':
-            advantages.append('市场处于吸筹阶段（底部）')
-
-        avg_score = sum([s['score'] for s in stock_scores]) / len(stock_scores) if stock_scores else 50
-        if avg_score > 70:
-            advantages.append('池子整体战场优势明显')
-
-        # 劣势分析
+    elif market_phase == 'distribution':
         if opponent_strength['retail_pressure'] == 'high':
-            disadvantages.append('散户追涨，可能接近顶部')
-
-        if opponent_strength['institution_interest'] == 'low':
-            disadvantages.append('机构出货，风险增加')
-
-        if opponent_strength['hot_money_risk'] == 'high':
-            disadvantages.append('游资炒作，警惕拉高出货')
-
-        if not stock_scores or len(stock_scores) < 5:
-            disadvantages.append('池子成员较少，分散度不足')
-
-        return advantages, disadvantages
-
-    def _generate_recommendation(self, battlefield_score: float, game_phase: str,
-                                opponent_strength: Dict) -> tuple:
-        """
-        生成操作建议
-
-        Returns:
-            (recommendation, urgency)
-        """
-        # 推荐动作
-        if battlefield_score > 80:
-            recommendation = 'accumulate'  # 积极建仓
-            urgency = 'high'
-        elif battlefield_score > 60:
-            recommendation = 'hold'  # 持有
-            urgency = 'medium'
-        elif battlefield_score > 40:
-            recommendation = 'reduce'  # 减仓
-            urgency = 'medium'
+            return 'topping'  # 顶部区域
         else:
-            recommendation = 'exit'  # 退出
+            return 'early_distribution'  # 早期派发
+
+    elif market_phase == 'markdown':
+        return 'declining'  # 下跌阶段
+
+    else:
+        return 'consolidation'  # 震荡整理
+
+def _identify_pros_cons(self, stock_scores: List[Dict], opponent_behavior: Dict,
+                       opponent_strength: Dict) -> tuple:
+    """
+    识别优势和劣势
+
+    Returns:
+        (advantages, disadvantages)
+    """
+    advantages = []
+    disadvantages = []
+
+    # 优势分析
+    if opponent_strength['retail_pressure'] == 'low':
+        advantages.append('散户恐慌抛售，筹码便宜')
+
+    if opponent_strength['institution_interest'] == 'high':
+        advantages.append('机构正在悄悄建仓')
+
+    if opponent_behavior['market_phase'] == 'accumulation':
+        advantages.append('市场处于吸筹阶段（底部）')
+
+    avg_score = sum([s['score'] for s in stock_scores]) / len(stock_scores) if stock_scores else 50
+    if avg_score > 70:
+        advantages.append('池子整体战场优势明显')
+
+    # 劣势分析
+    if opponent_strength['retail_pressure'] == 'high':
+        disadvantages.append('散户追涨，可能接近顶部')
+
+    if opponent_strength['institution_interest'] == 'low':
+        disadvantages.append('机构出货，风险增加')
+
+    if opponent_strength['hot_money_risk'] == 'high':
+        disadvantages.append('游资炒作，警惕拉高出货')
+
+    if not stock_scores or len(stock_scores) < 5:
+        disadvantages.append('池子成员较少，分散度不足')
+
+    return advantages, disadvantages
+
+def _generate_recommendation(self, battlefield_score: float, game_phase: str,
+                            opponent_strength: Dict) -> tuple:
+    """
+    生成操作建议
+
+    Returns:
+        (recommendation, urgency)
+    """
+    # 推荐动作
+    if battlefield_score > 80:
+        recommendation = 'accumulate'  # 积极建仓
+        urgency = 'high'
+    elif battlefield_score > 60:
+        recommendation = 'hold'  # 持有
+        urgency = 'medium'
+    elif battlefield_score > 40:
+        recommendation = 'reduce'  # 减仓
+        urgency = 'medium'
+    else:
+        recommendation = 'exit'  # 退出
+        urgency = 'high'
+
+    # 特殊情况调整
+    if game_phase == 'topping' or opponent_strength['institution_interest'] == 'low':
+        if recommendation in ['accumulate', 'hold']:
+            recommendation = 'reduce'
             urgency = 'high'
 
-        # 特殊情况调整
-        if game_phase == 'topping' or opponent_strength['institution_interest'] == 'low':
-            if recommendation in ['accumulate', 'hold']:
-                recommendation = 'reduce'
-                urgency = 'high'
+    return recommendation, urgency
 
-        return recommendation, urgency
+def _calculate_confidence(self, stock_scores: List[Dict]) -> float:
+    """
+    计算置信度
 
-    def _calculate_confidence(self, stock_scores: List[Dict]) -> float:
-        """
-        计算置信度
+    基于：
+    - 样本数量（股票数量）
+    - 评分一致性（方差）
 
-        基于：
-        - 样本数量（股票数量）
-        - 评分一致性（方差）
+    Returns:
+        置信度（0-1）
+    """
+    if not stock_scores:
+        return 0.5
 
-        Returns:
-            置信度（0-1）
-        """
-        if not stock_scores:
-            return 0.5
+    # 基础置信度
+    sample_size = len(stock_scores)
+    base_confidence = min(0.7, 0.3 + sample_size * 0.04)  # 样本越多越自信
 
-        # 基础置信度
-        sample_size = len(stock_scores)
-        base_confidence = min(0.7, 0.3 + sample_size * 0.04)  # 样本越多越自信
+    # 一致性调整
+    scores = [s['score'] for s in stock_scores]
+    variance = sum([(s - sum(scores)/len(scores))**2 for s in scores]) / len(scores)
+    consistency_factor = 1.0 - min(0.3, variance / 1000)
 
-        # 一致性调整
-        scores = [s['score'] for s in stock_scores]
-        variance = sum([(s - sum(scores)/len(scores))**2 for s in scores]) / len(scores)
-        consistency_factor = 1.0 - min(0.3, variance / 1000)
-
-        confidence = base_confidence * consistency_factor
-        return round(confidence, 2)
+    confidence = base_confidence * consistency_factor
+    return round(confidence, 2)

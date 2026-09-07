@@ -1,3 +1,15 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_3 = 3
+CONST_300750 = 300750
+CONST_3601 = 3601
+CONST_4 = 4
+CONST_600036 = 600036
+CONST_688981 = 688981
+CONST_999 = 999
+CONST_999999 = 999999
+
 """
 测试 StockPoolService
 """

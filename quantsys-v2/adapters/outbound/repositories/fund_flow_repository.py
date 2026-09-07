@@ -96,9 +96,7 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
                       end_date: Optional[str] = None) -> List[Dict[str, Any]]:
         try:
             q = self.session.query(self.model)
-            if symbol:
-                q = q.filter(self.model.symbol == symbol)
-            if start_date:
+            if symbol and start_date:
                 q = q.filter(self.model.trade_date >= start_date)
             if end_date:
                 q = q.filter(self.model.trade_date <= end_date)

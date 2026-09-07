@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_3 = 3
+CONST_30 = 30
+CONST_4 = 4
+CONST_40 = 40
+CONST_42 = 42
+CONST_5 = 5
+CONST_5_0 = 5.0
+CONST_50 = 50
+CONST_6 = 6
+
 """
 组合优化服务单元测试
 """

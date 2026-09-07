@@ -60,6 +60,8 @@ MIN_CHANGE_UPPER = 30.0        # 最小波动上限 30%
 
 # TODO: Refactor - Large class with 25 methods (target < 20)
 
+# TODO: 大类 25个方法 - 考虑拆分为多个类或使用组合模式
+
 class SwingPointService:
     """ZigZag 波段分析服务
 
@@ -310,6 +312,10 @@ class SwingPointService:
     # TODO: Split long function (153 lines, target < 100)
     # TODO: Refactor - complexity 27 (target < 15)
     # TODO: Split long function (153 lines, target < 100)
+    # TODO: 复杂度 27 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 176行 - 建议拆分为多个小函数
+
     def _zigzag(self, klines: List[Dict], threshold: float) -> List[Dict]:
         # ---- Section 1 ----
         # ---- Section 2 ----

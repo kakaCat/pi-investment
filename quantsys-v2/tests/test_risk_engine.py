@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_5 = 10.5
+CONST_10000 = 10000
+CONST_100000 = 100000
+CONST_10800_0 = 10800.0
+CONST_11_0 = 11.0
+CONST_12 = 12
+CONST_12_0 = 12.0
+CONST_1200_0 = 1200.0
+CONST_12000 = 12000
+CONST_12000_0 = 12000.0
+
 """
 Risk Rule Engine and RiskService Tests
 
@@ -1666,6 +1680,8 @@ class TestRiskServiceExtendedChecks:
 # ---------------------------------------------------------------------------
 # 边界条件和异常场景测试（Edge Cases & Exception Scenarios）
 # ---------------------------------------------------------------------------
+
+# TODO: 大类 25个方法 - 考虑拆分为多个类或使用组合模式
 
 class TestRiskRulesEdgeCases:
     """风控规则边界条件和异常场景测试"""

@@ -76,91 +76,92 @@ class BondPortfolioCalculator(BaseCalculator):
             return self.calculate_risk_contribution(**kwargs)
         elif method == 'rebalance':
             return self.calculate_rebalancing(**kwargs)
-        else:
-            raise DataValidationError(f"Unknown method: {method}", field_name='method')
+        raise DataValidationError(f"Unknown method: {method}", field_name='method')
 
-    def calculate_portfolio_duration(
-        self,
-        bonds: List[Dict[str, float]],
-        **kwargs
-    ) -> Dict[str, Any]:
-        """
-        Calculate portfolio-level duration and convexity.
+def calculate_portfolio_duration(
+    self,
+    bonds: List[Dict[str, float]],
+    **kwargs
+) -> Dict[str, Any]:
+    """
+    Calculate portfolio-level duration and convexity.
 
-        Portfolio Duration = sum(w_i * D_i)
-        Portfolio Convexity = sum(w_i * C_i)
+    Portfolio Duration = sum(w_i * D_i)
+    Portfolio Convexity = sum(w_i * C_i)
 
-        Args:
-            bonds: List of bonds with keys: weight, duration, convexity, price, ytm
+    Args:
+        bonds: List of bonds with keys: weight, duration, convexity, price, ytm
 
-        Returns:
-            Dictionary with portfolio duration and convexity
-        """
-        if not bonds:
-            raise DataValidationError("Bonds list cannot be empty", field_name='bonds')
+    Returns:
+        Dictionary with portfolio duration and convexity
+    """
+    if not bonds:
+        raise DataValidationError("Bonds list cannot be empty", field_name='bonds')
 
-        # Validate weights sum to 1
-        total_weight = sum(bond.get('weight', 0) for bond in bonds)
-        if not np.isclose(total_weight, 1.0, atol=0.01):
-            raise DataValidationError(f"Weights must sum to 1.0, got {total_weight}", field_name='bonds')
+    # Validate weights sum to 1
+    total_weight = sum(bond.get('weight', 0) for bond in bonds)
+    if not np.isclose(total_weight, 1.0, atol=0.01):
+        raise DataValidationError(f"Weights must sum to 1.0, got {total_weight}", field_name='bonds')
 
-        portfolio_duration = 0
-        portfolio_convexity = 0
-        portfolio_ytm = 0
-        portfolio_price = 0
+    portfolio_duration = 0
+    portfolio_convexity = 0
+    portfolio_ytm = 0
+    portfolio_price = 0
 
-        bond_contributions = []
+    bond_contributions = []
 
-        for i, bond in enumerate(bonds):
-            weight = bond.get('weight', 0)
-            duration = bond.get('duration', 0)
-            convexity = bond.get('convexity', 0)
-            price = bond.get('price', 1000)
-            ytm = bond.get('ytm', 0.05)
+    for i, bond in enumerate(bonds):
+        weight = bond.get('weight', 0)
+        duration = bond.get('duration', 0)
+        convexity = bond.get('convexity', 0)
+        price = bond.get('price', 1000)
+        ytm = bond.get('ytm', 0.05)
 
-            # Validate
-            if weight < 0:
-                raise DataValidationError(f"Bond {i}: weight must be non-negative", field_name='bonds')
+        # Validate
+        if weight < 0:
+            raise DataValidationError(f"Bond {i}: weight must be non-negative", field_name='bonds')
 
-            # Portfolio metrics
-            portfolio_duration += weight * duration
-            portfolio_convexity += weight * convexity
-            portfolio_ytm += weight * ytm
-            portfolio_price += weight * price
+        # Portfolio metrics
+        portfolio_duration += weight * duration
+        portfolio_convexity += weight * convexity
+        portfolio_ytm += weight * ytm
+        portfolio_price += weight * price
 
-            bond_contributions.append({
-                'bond_index': i,
-                'weight': weight,
-                'duration': duration,
-                'convexity': convexity,
-                'duration_contribution': weight * duration,
-                'convexity_contribution': weight * convexity
-            })
+        bond_contributions.append({
+            'bond_index': i,
+            'weight': weight,
+            'duration': duration,
+            'convexity': convexity,
+            'duration_contribution': weight * duration,
+            'convexity_contribution': weight * convexity
+        })
 
-        # Dollar duration
-        dollar_duration = portfolio_duration * portfolio_price / 100
-        dv01 = portfolio_duration * portfolio_price * 0.0001
+    # Dollar duration
+    dollar_duration = portfolio_duration * portfolio_price / 100
+    dv01 = portfolio_duration * portfolio_price * 0.0001
 
-        return self._create_result_dict(
-            value=portfolio_duration,
-            method='portfolio_duration',
-            parameters={
-                'num_bonds': len(bonds)
-            },
-            metadata={
-                'portfolio_duration': portfolio_duration,
-                'portfolio_convexity': portfolio_convexity,
-                'portfolio_ytm': portfolio_ytm,
-                'portfolio_price': portfolio_price,
-                'dollar_duration': dollar_duration,
-                'dv01': dv01,
-                'bond_contributions': bond_contributions
-            }
-        )
+    return self._create_result_dict(
+        value=portfolio_duration,
+        method='portfolio_duration',
+        parameters={
+            'num_bonds': len(bonds)
+        },
+        metadata={
+            'portfolio_duration': portfolio_duration,
+            'portfolio_convexity': portfolio_convexity,
+            'portfolio_ytm': portfolio_ytm,
+            'portfolio_price': portfolio_price,
+            'dollar_duration': dollar_duration,
+            'dv01': dv01,
+            'bond_contributions': bond_contributions
+        }
+    )
 
-    # TODO: Refactor - function too long (103 lines, target < 80)
+# TODO: Refactor - function too long (103 lines, target < 80)
 
 # TODO: Split long function (102 lines, target < 100)
+    # TODO: 长函数 107行 - 建议拆分为多个小函数
+
     def calculate_immunization(
         # ---- Section 1 ----
         # ---- Section 2 ----

@@ -62,6 +62,8 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
 # TODO: Refactor - function too long (120 lines, target < 80)
 
 # TODO: Split long function (119 lines, target < 100)
+# TODO: 长函数 130行 - 建议拆分为多个小函数
+
 def validate_model_ic():
     # ---- Section 1 ----
     # ---- Section 2 ----

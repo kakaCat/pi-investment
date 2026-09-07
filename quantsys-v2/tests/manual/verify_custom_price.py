@@ -1,3 +1,14 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_13_2 = 13.2
+CONST_15 = 15
+CONST_20 = 20
+CONST_30 = 30
+CONST_365 = 365
+CONST_60 = 60
+CONST_70 = 70
+
 # LONG FUNCTIONS TO REFACTOR:
 #   - test_custom_price_vs_close() = 143 lines
 
@@ -20,6 +31,8 @@ from adapters.outbound.repositories import KlineORMRepository
 
 
 # TODO: Split long function (143 lines, target < 100)
+# TODO: 长函数 144行 - 建议拆分为多个小函数
+
 def test_custom_price_vs_close():
     """对比测试：自定义价格 vs 收盘价"""
 
@@ -157,13 +170,12 @@ def calc_indicator(ctx):
     elif return_custom < return_close:
         print("⚠️  自定义价格策略表现较差")
         print(f"   收益率下降：{diff_return:.2%}")
-    else:
-        print("➡️  两种策略表现相同")
+    print("➡️  两种策略表现相同")
 
-    print("\n💡 结论：自定义价格功能正常工作")
-    print("   - 策略可以指定买入/卖出价格")
-    print("   - 未指定时自动使用收盘价")
-    print("   - 价格差异影响回测结果")
+print("\n💡 结论：自定义价格功能正常工作")
+print("   - 策略可以指定买入/卖出价格")
+print("   - 未指定时自动使用收盘价")
+print("   - 价格差异影响回测结果")
 
 
 if __name__ == '__main__':

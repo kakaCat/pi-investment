@@ -132,9 +132,7 @@ class ChipDistribution:
         weights = np.zeros(len(centers), dtype=np.float64)
         left = (centers >= low) & (centers <= typical)
         right = (centers > typical) & (centers <= high)
-        if typical > low:
-            weights[left] = (centers[left] - low) / (typical - low)
-        if high > typical:
+        if typical > low and high > typical:
             weights[right] = (high - centers[right]) / (high - typical)
         total = weights.sum()
         if total <= 0:

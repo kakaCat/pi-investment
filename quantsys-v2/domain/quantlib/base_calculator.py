@@ -32,6 +32,8 @@ import warnings
 
 # TODO: Refactor large class (22 methods, target < 20)
 # TODO: Refactor large class (22 methods, target < 20)
+# TODO: 大类 22个方法 - 考虑拆分为多个类或使用组合模式
+
 class BaseCalculator(ABC):
     """
     Abstract base class for all quantitative calculations.
@@ -108,6 +110,8 @@ class BaseCalculator(ABC):
 # TODO: Refactor - complexity 20 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 20 (target < 15)
+    # TODO: 复杂度 20 - 需要重构拆分为更小的函数
+
     def _validate_numeric_input(self, data: Any, name: str = "data") -> Union[float, np.ndarray, pd.Series]:
         """
         Validate and convert input to appropriate numeric type.
@@ -143,16 +147,12 @@ class BaseCalculator(ABC):
                 raise ValueError(f"{name} cannot be converted to numeric array")
 
         elif isinstance(data, np.ndarray):
-            if not np.issubdtype(data.dtype, np.number):
-                raise ValueError(f"{name} must be numeric")
-            if np.any(np.isnan(data)) or np.any(np.isinf(data)):
+            if not np.issubdtype(data.dtype, np.number) and np.any(np.isnan(data)) or np.any(np.isinf(data)):
                 raise ValueError(f"{name} contains invalid values (NaN or Inf)")
             return data.astype(float)
 
         elif isinstance(data, pd.Series):
-            if not pd.api.types.is_numeric_dtype(data):
-                raise ValueError(f"{name} must be numeric")
-            if data.isna().any():
+            if not pd.api.types.is_numeric_dtype(data) and data.isna().any():
                 warnings.warn(f"{name} contains NaN values, they will be dropped")
                 data = data.dropna()
             return data.astype(float)
@@ -238,184 +238,183 @@ class BaseCalculator(ABC):
         elif isinstance(validated, pd.DataFrame):
             if validated.shape[1] == 1:
                 return validated.iloc[:, 0].values
-            else:
-                raise ValueError(f"{name} DataFrame must have exactly one column for return calculations")
+            raise ValueError(f"{name} DataFrame must have exactly one column for return calculations")
 
-        return np.array(validated)
+    return np.array(validated)
 
-    def _round_result(self, result: Union[float, np.ndarray, Dict]) -> Union[float, np.ndarray, Dict]:
-        """
-        Round result to specified precision.
+def _round_result(self, result: Union[float, np.ndarray, Dict]) -> Union[float, np.ndarray, Dict]:
+    """
+    Round result to specified precision.
 
-        Args:
-            result: Result to round
+    Args:
+        result: Result to round
 
-        Returns:
-            Rounded result
-        """
-        if isinstance(result, (int, float)):
-            return round(result, self.precision)
-        elif isinstance(result, np.ndarray):
-            return np.round(result, self.precision)
-        elif isinstance(result, dict):
-            return {k: self._round_result(v) if isinstance(v, (int, float, np.ndarray)) else v
-                    for k, v in result.items()}
-        else:
-            return result
-
-    def _sanitize_for_json(self, obj: Any) -> Any:
-        """
-        Recursively sanitize objects for JSON serialization.
-        Converts numpy types and Python booleans to JSON-compatible types.
-        """
-        if isinstance(obj, dict):
-            return {k: self._sanitize_for_json(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [self._sanitize_for_json(x) for x in obj]
-        elif isinstance(obj, tuple):
-            return [self._sanitize_for_json(x) for x in obj]
-        elif isinstance(obj, np.ndarray):
-            return [self._sanitize_for_json(x) for x in obj.tolist()]
-        elif isinstance(obj, np.bool_):
-            return bool(obj)
-        elif isinstance(obj, bool):
-            return obj
-        elif isinstance(obj, (np.int64, np.int32, np.int16, np.int8)):
-            return int(obj)
-        elif isinstance(obj, (np.float64, np.float32, np.float16)):
-            val = float(obj)
-            if np.isnan(val) or np.isinf(val):
-                return None
-            return val
-        elif isinstance(obj, float):
-            if np.isnan(obj) or np.isinf(obj):
-                return None
-            return obj
-        elif isinstance(obj, datetime):
-            return obj.isoformat()
-        return obj
-
-    def _create_result_dict(self,
-                            value: Union[float, np.ndarray],
-                            method: str,
-                            parameters: Dict[str, Any] = None,
-                            metadata: Dict[str, Any] = None) -> Dict[str, Any]:
-        """
-        Create standardized result dictionary.
-
-        Args:
-            value: Calculated value
-            method: Method used for calculation
-            parameters: Parameters used in calculation
-            metadata: Additional metadata
-
-        Returns:
-            Standardized result dictionary with all values sanitized for JSON
-        """
-        result = {
-            'value': self._round_result(value),
-            'method': method,
-            'timestamp': datetime.now().isoformat(),
-            'calculator': self.__class__.__name__
-        }
-
-        if parameters:
-            result['parameters'] = self._sanitize_for_json(parameters)
-
-        if metadata:
-            result['metadata'] = self._sanitize_for_json(metadata)
-
+    Returns:
+        Rounded result
+    """
+    if isinstance(result, (int, float)):
+        return round(result, self.precision)
+    elif isinstance(result, np.ndarray):
+        return np.round(result, self.precision)
+    elif isinstance(result, dict):
+        return {k: self._round_result(v) if isinstance(v, (int, float, np.ndarray)) else v
+                for k, v in result.items()}
+    else:
         return result
 
-    def _check_data_length(self, data: Union[np.ndarray, pd.Series], min_length: int = 2) -> None:
-        """
-        Check if data has sufficient length for calculations.
+def _sanitize_for_json(self, obj: Any) -> Any:
+    """
+    Recursively sanitize objects for JSON serialization.
+    Converts numpy types and Python booleans to JSON-compatible types.
+    """
+    if isinstance(obj, dict):
+        return {k: self._sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [self._sanitize_for_json(x) for x in obj]
+    elif isinstance(obj, tuple):
+        return [self._sanitize_for_json(x) for x in obj]
+    elif isinstance(obj, np.ndarray):
+        return [self._sanitize_for_json(x) for x in obj.tolist()]
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, bool):
+        return obj
+    elif isinstance(obj, (np.int64, np.int32, np.int16, np.int8)):
+        return int(obj)
+    elif isinstance(obj, (np.float64, np.float32, np.float16)):
+        val = float(obj)
+        if np.isnan(val) or np.isinf(val):
+            return None
+        return val
+    elif isinstance(obj, float):
+        if np.isnan(obj) or np.isinf(obj):
+            return None
+        return obj
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    return obj
 
-        Args:
-            data: Data to check
-            min_length: Minimum required length
+def _create_result_dict(self,
+                        value: Union[float, np.ndarray],
+                        method: str,
+                        parameters: Dict[str, Any] = None,
+                        metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+    """
+    Create standardized result dictionary.
 
-        Raises:
-            ValueError: If data length is insufficient
-        """
-        if len(data) < min_length:
-            raise ValueError(f"Insufficient data: need at least {min_length} observations, got {len(data)}")
+    Args:
+        value: Calculated value
+        method: Method used for calculation
+        parameters: Parameters used in calculation
+        metadata: Additional metadata
 
-    def _handle_missing_data(self,
-                             data: Union[np.ndarray, pd.Series],
-                             method: str = 'drop') -> Union[np.ndarray, pd.Series]:
-        """
-        Handle missing data in input.
+    Returns:
+        Standardized result dictionary with all values sanitized for JSON
+    """
+    result = {
+        'value': self._round_result(value),
+        'method': method,
+        'timestamp': datetime.now().isoformat(),
+        'calculator': self.__class__.__name__
+    }
 
-        Args:
-            data: Input data
-            method: Method to handle missing data ('drop', 'interpolate', 'forward_fill')
+    if parameters:
+        result['parameters'] = self._sanitize_for_json(parameters)
 
-        Returns:
-            Data with missing values handled
-        """
-        if isinstance(data, pd.Series):
-            if method == 'drop':
-                return data.dropna()
-            elif method == 'interpolate':
-                return data.interpolate()
-            elif method == 'forward_fill':
-                return data.fillna(method='ffill')
-            else:
-                raise ValueError(f"Unknown missing data method: {method}")
+    if metadata:
+        result['metadata'] = self._sanitize_for_json(metadata)
 
-        elif isinstance(data, np.ndarray):
-            if method == 'drop':
-                return data[~np.isnan(data)]
-            else:
-                # Convert to pandas for more sophisticated handling
-                series = pd.Series(data)
-                return self._handle_missing_data(series, method).values
+    return result
 
-        return data
+def _check_data_length(self, data: Union[np.ndarray, pd.Series], min_length: int = 2) -> None:
+    """
+    Check if data has sufficient length for calculations.
 
-    def set_precision(self, precision: int) -> None:
-        """Set calculation precision."""
-        if precision < 0:
-            raise ValueError("Precision must be non-negative")
-        self.precision = precision
+    Args:
+        data: Data to check
+        min_length: Minimum required length
 
-    def set_risk_free_rate(self, rate: float) -> None:
-        """Set default risk-free rate."""
-        self.risk_free_rate = self._validate_numeric_input(rate, "risk_free_rate")
+    Raises:
+        ValueError: If data length is insufficient
+    """
+    if len(data) < min_length:
+        raise ValueError(f"Insufficient data: need at least {min_length} observations, got {len(data)}")
 
-    @abstractmethod
-    def calculate(self, *args, **kwargs) -> Dict[str, Any]:
-        """
-        Abstract method for main calculation.
-        Must be implemented by all subclasses.
-        """
-        pass
+def _handle_missing_data(self,
+                         data: Union[np.ndarray, pd.Series],
+                         method: str = 'drop') -> Union[np.ndarray, pd.Series]:
+    """
+    Handle missing data in input.
 
-    def get_supported_methods(self) -> List[str]:
-        """
-        Get list of supported calculation methods.
-        Should be overridden by subclasses.
-        """
-        return ['default']
+    Args:
+        data: Input data
+        method: Method to handle missing data ('drop', 'interpolate', 'forward_fill')
 
-    def validate_method(self, method: str) -> str:
-        """
-        Validate that the specified method is supported.
+    Returns:
+        Data with missing values handled
+    """
+    if isinstance(data, pd.Series):
+        if method == 'drop':
+            return data.dropna()
+        elif method == 'interpolate':
+            return data.interpolate()
+        elif method == 'forward_fill':
+            return data.fillna(method='ffill')
+        else:
+            raise ValueError(f"Unknown missing data method: {method}")
 
-        Args:
-            method: Method to validate
+    elif isinstance(data, np.ndarray):
+        if method == 'drop':
+            return data[~np.isnan(data)]
+        else:
+            # Convert to pandas for more sophisticated handling
+            series = pd.Series(data)
+            return self._handle_missing_data(series, method).values
 
-        Returns:
-            Validated method name
+    return data
 
-        Raises:
-            ValueError: If method is not supported
-        """
-        supported = self.get_supported_methods()
-        if method not in supported:
-            raise ValueError(f"Method '{method}' not supported. Available methods: {supported}")
-        return method
+def set_precision(self, precision: int) -> None:
+    """Set calculation precision."""
+    if precision < 0:
+        raise ValueError("Precision must be non-negative")
+    self.precision = precision
+
+def set_risk_free_rate(self, rate: float) -> None:
+    """Set default risk-free rate."""
+    self.risk_free_rate = self._validate_numeric_input(rate, "risk_free_rate")
+
+@abstractmethod
+def calculate(self, *args, **kwargs) -> Dict[str, Any]:
+    """
+    Abstract method for main calculation.
+    Must be implemented by all subclasses.
+    """
+    pass
+
+def get_supported_methods(self) -> List[str]:
+    """
+    Get list of supported calculation methods.
+    Should be overridden by subclasses.
+    """
+    return ['default']
+
+def validate_method(self, method: str) -> str:
+    """
+    Validate that the specified method is supported.
+
+    Args:
+        method: Method to validate
+
+    Returns:
+        Validated method name
+
+    Raises:
+        ValueError: If method is not supported
+    """
+    supported = self.get_supported_methods()
+    if method not in supported:
+        raise ValueError(f"Method '{method}' not supported. Available methods: {supported}")
+    return method
 
 
 class CalculatorFactory:
@@ -486,24 +485,23 @@ class CalculationResult:
         """Convert result to DataFrame if applicable."""
         if isinstance(self.value, np.ndarray):
             return pd.DataFrame({'value': self.value})
-        else:
-            return pd.DataFrame([self._data])
+        return pd.DataFrame([self._data])
 
-    def export_json(self, filepath: str) -> None:
-        """Export result to JSON file."""
-        import json
-        with open(filepath, 'w') as f:
-            # Handle numpy arrays in JSON serialization
-            def convert_numpy(obj):
-                if isinstance(obj, np.ndarray):
-                    return obj.tolist()
-                elif isinstance(obj, np.integer):
-                    return int(obj)
-                elif isinstance(obj, np.floating):
-                    return float(obj)
-                raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+def export_json(self, filepath: str) -> None:
+    """Export result to JSON file."""
+    import json
+    with open(filepath, 'w') as f:
+        # Handle numpy arrays in JSON serialization
+        def convert_numpy(obj):
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, np.integer):
+                return int(obj)
+            elif isinstance(obj, np.floating):
+                return float(obj)
+            raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
-            json.dump(self._data, f, default=convert_numpy, indent=2)
+        json.dump(self._data, f, default=convert_numpy, indent=2)
 
 
 # Decorators for common functionality

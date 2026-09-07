@@ -98,13 +98,12 @@ def test_get_order_by_id():
             print(f"   订单信息: {order['symbol']} {order['action']} {order['quantity']}股 @ {order['price']}")
             print(f"   状态: {order['status']}")
             return True
-        else:
-            print(f"❌ get_order_by_id() 返回 None")
-            return False
-
-    except Exception as e:
-        print(f"❌ 测试失败: {str(e)}")
+        print(f"❌ get_order_by_id() 返回 None")
         return False
+
+except Exception as e:
+    print(f"❌ 测试失败: {str(e)}")
+    return False
 
 
 def test_update_order():
@@ -159,18 +158,17 @@ def test_update_order():
                 updated_order.get('notes') == '已修改'):
                 print(f"✅ 字段更新验证成功")
                 return True
-            else:
-                print(f"❌ 字段更新验证失败")
-                return False
-        else:
-            print(f"❌ update_order() 返回 False")
+            print(f"❌ 字段更新验证失败")
             return False
-
-    except Exception as e:
-        print(f"❌ 测试失败: {str(e)}")
-        import traceback
-        traceback.print_exc()
+    else:
+        print(f"❌ update_order() 返回 False")
         return False
+
+except Exception as e:
+    print(f"❌ 测试失败: {str(e)}")
+    import traceback
+    traceback.print_exc()
+    return False
 
 
 def test_get_trades():
@@ -253,16 +251,15 @@ def test_field_whitelist():
                 print(f"   quantity 已更新: {updated_order['quantity']}")
                 print(f"   symbol 未被修改: {updated_order['symbol']}")
                 return True
-            else:
-                print(f"❌ 字段白名单验证失败")
-                return False
-        else:
-            print(f"❌ update_order() 返回 False")
+            print(f"❌ 字段白名单验证失败")
             return False
-
-    except Exception as e:
-        print(f"❌ 测试失败: {str(e)}")
+    else:
+        print(f"❌ update_order() 返回 False")
         return False
+
+except Exception as e:
+    print(f"❌ 测试失败: {str(e)}")
+    return False
 
 
 def main():

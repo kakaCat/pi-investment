@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100_5 = 100.5
+CONST_10000 = 10000
+CONST_101_0 = 101.0
+CONST_101_5 = 101.5
+CONST_102_0 = 102.0
+CONST_103_0 = 103.0
+CONST_105_0 = 105.0
+CONST_119_5 = 119.5
+CONST_124_5 = 124.5
+CONST_127_0 = 127.0
+
 """测试FactorStage - 因子计算"""
 import pytest
 import pandas as pd

@@ -88,6 +88,8 @@ logger = logging.getLogger(__name__)
 # TODO: Refactor - function too long (168 lines, target < 80)
 
 # TODO: Split long function (167 lines, target < 100)
+# TODO: 长函数 180行 - 建议拆分为多个小函数
+
 def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -293,6 +295,10 @@ def _build_update_gem_klines_result(data):
 # TODO: Split long function (233 lines, target < 100)
 # TODO: Refactor - complexity 22 (target < 15)
 # TODO: Split long function (233 lines, target < 100)
+# TODO: 复杂度 22 - 需要重构拆分为更小的函数
+# TODO: 长函数 253行 - 建议拆分为多个小函数
+
+
 def update_gem_klines(**params):
     # ---- Section 1 ----
     # ---- Section 2 ----

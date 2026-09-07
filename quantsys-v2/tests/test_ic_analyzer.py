@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_11 = 11
+CONST_12 = 12
+CONST_13 = 13
+CONST_14 = 14
+CONST_15 = 15
+CONST_20 = 20
+CONST_2023 = 2023
+CONST_252 = 252
+CONST_3 = 3
+CONST_30 = 30
+
 """
 Tests for ICAnalyzer - IC/IR analysis for factor evaluation
 """
@@ -65,6 +79,8 @@ def correlated_data():
 
 
 # TODO: Refactor large class (27 methods, target < 20)
+# TODO: 大类 27个方法 - 考虑拆分为多个类或使用组合模式
+
 class TestICAnalyzer:
     """Test suite for ICAnalyzer"""
 

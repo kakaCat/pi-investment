@@ -339,6 +339,8 @@ def get_position_risk(
 # TODO: Refactor - function too long (105 lines, target < 80)
 
 # TODO: Split long function (104 lines, target < 100)
+# TODO: 长函数 113行 - 建议拆分为多个小函数
+
 def rebalance_positions(
     # ---- Section 1 ----
     # ---- Section 2 ----

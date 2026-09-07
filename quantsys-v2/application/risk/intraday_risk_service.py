@@ -300,8 +300,7 @@ class IntradayRiskService:
             if isinstance(position, dict):
                 if position.get(name) is not None:
                     return position[name]
-            else:
-                value = getattr(position, name, None)
-                if value is not None:
-                    return value
-        return None
+            value = getattr(position, name, None)
+            if value is not None:
+                return value
+    return None

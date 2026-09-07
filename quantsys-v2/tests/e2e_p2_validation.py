@@ -1,3 +1,14 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_2 = 10.2
+CONST_11_0 = 11.0
+CONST_3 = 3
+CONST_4 = 4
+CONST_5 = 5
+CONST_70 = 70
+CONST_9_0 = 9.0
+
 # LONG FUNCTIONS TO REFACTOR:
 #   - test_full_loop() = 126 lines
 
@@ -26,6 +37,8 @@ def cleanup_test_data():
     conn.close()
 
 # TODO: Split long function (126 lines, target < 100)
+# TODO: 长函数 127行 - 建议拆分为多个小函数
+
 def test_full_loop():
     """测试完整闭环"""
     print("=" * 70)

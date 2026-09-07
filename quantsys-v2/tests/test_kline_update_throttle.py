@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_1348 = 1348
+CONST_2026 = 2026
+CONST_25 = 25
+CONST_28 = 28
+CONST_3 = 3
+CONST_3000 = 3000
+CONST_300001 = 300001
+CONST_300002 = 300002
+CONST_300003 = 300003
+CONST_5 = 5
+
 """kline_update_job 限速与封禁降级检测测试
 
 背景（2026-07-28）：tencent 被封的直接诱因是回填时 5 分钟 1348 次连发请求；

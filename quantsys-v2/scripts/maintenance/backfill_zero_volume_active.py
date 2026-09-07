@@ -149,6 +149,8 @@ def fix_symbol_volume(db: Database, fetcher: KlineFetcher, symbol: str, name: st
 # TODO: Refactor - function too long (153 lines, target < 80)
 
 # TODO: Split long function (152 lines, target < 100)
+# TODO: 长函数 165行 - 建议拆分为多个小函数
+
 def main():
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -216,104 +218,103 @@ def main():
             print("已取消")
             conn.close()
             return
-    else:
-        print("\n自动确认，开始下载...")
+    print("\n自动确认，开始下载...")
 
-    # 并行修复
-    print("\n" + "=" * 80)
-    print("开始重新下载（并行8线程）")
-    print("=" * 80)
+# 并行修复
+print("\n" + "=" * 80)
+print("开始重新下载（并行8线程）")
+print("=" * 80)
 
-    success_count = 0
-    fail_count = 0
-    total_updated = 0
-    start_time = time.time()
+success_count = 0
+fail_count = 0
+total_updated = 0
+start_time = time.time()
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        # 提交所有任务
-        futures = {
-            executor.submit(
-                fix_symbol_volume,
-                db,
-                fetcher,
-                s['symbol'],
-                s['name'],
-                s['earliest_zero_date'],
-                s['latest_zero_date']
-            ): s for s in symbols_to_fix
-        }
+with ThreadPoolExecutor(max_workers=8) as executor:
+    # 提交所有任务
+    futures = {
+        executor.submit(
+            fix_symbol_volume,
+            db,
+            fetcher,
+            s['symbol'],
+            s['name'],
+            s['earliest_zero_date'],
+            s['latest_zero_date']
+        ): s for s in symbols_to_fix
+    }
 
-        # 处理完成的任务
-        for i, future in enumerate(as_completed(futures), 1):
-            result = future.result()
+    # 处理完成的任务
+    for i, future in enumerate(as_completed(futures), 1):
+        result = future.result()
 
-            if result['success']:
-                success_count += 1
-                # SECURITY WARNING: Potential SQL injection - use parameterized queries
+        if result['success']:
+            success_count += 1
+            # SECURITY WARNING: Potential SQL injection - use parameterized queries
 
-                total_updated += result['count']  # TODO: Use parameterized queries
-                print(f"[{i}/{total_symbols}] ✓ {result['symbol']} {result['name']:<10} - 更新 {result['count']} 条记录")
-            else:
-                fail_count += 1
-                error_msg = result['error'][:50] if result['error'] else 'Unknown'
-                print(f"[{i}/{total_symbols}] ✗ {result['symbol']} {result['name']:<10} - 失败: {error_msg}")
+            total_updated += result['count']  # TODO: Use parameterized queries
+            print(f"[{i}/{total_symbols}] ✓ {result['symbol']} {result['name']:<10} - 更新 {result['count']} 条记录")
+        else:
+            fail_count += 1
+            error_msg = result['error'][:50] if result['error'] else 'Unknown'
+            print(f"[{i}/{total_symbols}] ✗ {result['symbol']} {result['name']:<10} - 失败: {error_msg}")
 
-            # 每20个股票显示进度
-            if i % 20 == 0:
-                elapsed = time.time() - start_time
-                rate = i / elapsed
-                remaining = (total_symbols - i) / rate if rate > 0 else 0
-                print(f"    进度: {i}/{total_symbols} ({i/total_symbols*100:.1f}%) | "
-                      f"速度: {rate:.2f} 股票/秒 | 剩余时间: {remaining/60:.1f} 分钟")
+        # 每20个股票显示进度
+        if i % 20 == 0:
+            elapsed = time.time() - start_time
+            rate = i / elapsed
+            remaining = (total_symbols - i) / rate if rate > 0 else 0
+            print(f"    进度: {i}/{total_symbols} ({i/total_symbols*100:.1f}%) | "
+                  f"速度: {rate:.2f} 股票/秒 | 剩余时间: {remaining/60:.1f} 分钟")
 
-    elapsed_time = time.time() - start_time
+elapsed_time = time.time() - start_time
 
-    # 显示统计
-    print("\n" + "=" * 80)
-    print("下载完成")
-    print("=" * 80)
-    print(f"总耗时: {elapsed_time/60:.1f} 分钟")
-    print(f"成功: {success_count} 只股票")
-    print(f"失败: {fail_count} 只股票")
-    print(f"成功率: {success_count/total_symbols*100:.1f}%")
-    print(f"更新记录数: {total_updated:,} 条")
+# 显示统计
+print("\n" + "=" * 80)
+print("下载完成")
+print("=" * 80)
+print(f"总耗时: {elapsed_time/60:.1f} 分钟")
+print(f"成功: {success_count} 只股票")
+print(f"失败: {fail_count} 只股票")
+print(f"成功率: {success_count/total_symbols*100:.1f}%")
+print(f"更新记录数: {total_updated:,} 条")
 
-    # 验证修复结果
-    print("\n" + "=" * 80)
-    print("验证修复结果")
-    print("=" * 80)
+# 验证修复结果
+print("\n" + "=" * 80)
+print("验证修复结果")
+print("=" * 80)
 
-    # 检查volume=0的记录数变化
-    query = """
-        SELECT
-            COUNT(*) as zero_volume_count,
-            COUNT(DISTINCT symbol) as affected_symbols
-        FROM quant.daily_klines
-        WHERE volume = 0
-    """
+# 检查volume=0的记录数变化
+query = """
+    SELECT
+        COUNT(*) as zero_volume_count,
+        COUNT(DISTINCT symbol) as affected_symbols
+    FROM quant.daily_klines
+    WHERE volume = 0
+"""
 
-    cur = conn.cursor()
-    cur.execute(query)
-    result = cur.fetchone()
-    cur.close()
+cur = conn.cursor()
+cur.execute(query)
+result = cur.fetchone()
+cur.close()
 
-    remaining_zero = result[0]
-    remaining_symbols = result[1]
+remaining_zero = result[0]
+remaining_symbols = result[1]
 
-    print(f"修复前: {total_zero_records:,} 条volume=0记录（活跃股票）")
-    print(f"修复后: {remaining_zero:,} 条volume=0记录（全部股票）")
-    print(f"已修复: {total_zero_records - remaining_zero:,} 条记录")
+print(f"修复前: {total_zero_records:,} 条volume=0记录（活跃股票）")
+print(f"修复后: {remaining_zero:,} 条volume=0记录（全部股票）")
+print(f"已修复: {total_zero_records - remaining_zero:,} 条记录")
 
-    if remaining_zero > 0:
-        print(f"\n⚠️  仍有 {remaining_symbols} 只股票的 {remaining_zero:,} 条记录volume=0")
-        print("这些可能是：")
-        print("  1. 非活跃股票（最近30天无交易）")
-        print("  2. 真实停牌日期（成交量确实为0）")
-        print("  3. 数据源不再提供的退市股票")
+if remaining_zero > 0:
+    print(f"\n⚠️  仍有 {remaining_symbols} 只股票的 {remaining_zero:,} 条记录volume=0")
+    print("这些可能是：")
+    print("  1. 非活跃股票（最近30天无交易）")
+    print("  2. 真实停牌日期（成交量确实为0）")
+    print("  3. 数据源不再提供的退市股票")
 
-    # 关闭连接
-    conn.close()
-    print("\n✓ 完成")
+# 关闭连接
+conn.close()
+print("\n✓ 完成")
 
 if __name__ == '__main__':
     main()

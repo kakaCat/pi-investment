@@ -207,16 +207,12 @@ class StrategyCircuitBreaker:
 
         # ACTIVE → WARNING: 连续亏损 ≥ 5 次 或 滚动胜率 < 30%
         if current_status == CircuitBreakerState.ACTIVE:
-            if consecutive_losses >= self.config['consecutive_loss_warning']:
-                return CircuitBreakerState.WARNING
-            if rolling_win_rate is not None and rolling_win_rate < self.config['min_win_rate']:
+            if consecutive_losses >= self.config['consecutive_loss_warning'] and rolling_win_rate is not None and rolling_win_rate < self.config['min_win_rate']:
                 return CircuitBreakerState.WARNING
 
         # WARNING → ACTIVE: 连续盈利或胜率恢复
         if current_status == CircuitBreakerState.WARNING:
-            if consecutive_wins >= 2:  # 连续 2 次盈利恢复
-                return CircuitBreakerState.ACTIVE
-            if rolling_win_rate is not None and rolling_win_rate >= self.config['min_win_rate']:
+            if consecutive_wins >= 2:  # 连续 2 次盈利恢 and rolling_win_rate is not None and rolling_win_rate >= self.config['min_win_rate']:
                 return CircuitBreakerState.ACTIVE
 
         return current_status
@@ -224,9 +220,7 @@ class StrategyCircuitBreaker:
     def _get_transition_reason(self, old_status: CircuitBreakerState, new_status: CircuitBreakerState, state: Dict) -> str:
         """获取状态转换原因"""
         if new_status == CircuitBreakerState.WARNING:
-            if state['consecutive_losses'] >= self.config['consecutive_loss_warning']:
-                return f"连续亏损 {state['consecutive_losses']} 次"
-            if state['rolling_win_rate'] is not None:
+            if state['consecutive_losses'] >= self.config['consecutive_loss_warning'] and state['rolling_win_rate'] is not None:
                 return f"滚动胜率 {state['rolling_win_rate']:.1%} 低于阈值"
         elif new_status == CircuitBreakerState.SUSPENDED:
             return f"连续亏损 {state['consecutive_losses']} 次，触发熔断"
@@ -268,79 +262,78 @@ class StrategyCircuitBreaker:
             return 'avoid'
         elif state['status'] == CircuitBreakerState.WARNING:
             return 'cautious'
-        else:
-            return 'normal'
+        return 'normal'
 
-    def manual_suspend(self, strategy_name: str, reason: str) -> Dict:
-        """
-        手动暂停策略
+def manual_suspend(self, strategy_name: str, reason: str) -> Dict:
+    """
+    手动暂停策略
 
-        Args:
-            strategy_name: 策略名称
-            reason: 暂停原因
+    Args:
+        strategy_name: 策略名称
+        reason: 暂停原因
 
-        Returns:
-            更新后的状态
-        """
-        state = self.get_state(strategy_name)
-        state['status'] = CircuitBreakerState.SUSPENDED
-        state['reason'] = f"手动暂停: {reason}"
-        state['updated_at'] = datetime.now()
+    Returns:
+        更新后的状态
+    """
+    state = self.get_state(strategy_name)
+    state['status'] = CircuitBreakerState.SUSPENDED
+    state['reason'] = f"手动暂停: {reason}"
+    state['updated_at'] = datetime.now()
 
-        self.repo.save_state(state)
-        logger.info(f"策略 {strategy_name} 手动暂停: {reason}")
+    self.repo.save_state(state)
+    logger.info(f"策略 {strategy_name} 手动暂停: {reason}")
 
-        return state
+    return state
 
-    def manual_resume(self, strategy_name: str) -> Dict:
-        """
-        手动恢复策略
+def manual_resume(self, strategy_name: str) -> Dict:
+    """
+    手动恢复策略
 
-        Args:
-            strategy_name: 策略名称
+    Args:
+        strategy_name: 策略名称
 
-        Returns:
-            更新后的状态
-        """
-        state = self.get_state(strategy_name)
-        state['status'] = CircuitBreakerState.ACTIVE
-        state['consecutive_losses'] = 0
-        state['consecutive_wins'] = 0
-        state['reason'] = "手动恢复"
-        state['updated_at'] = datetime.now()
+    Returns:
+        更新后的状态
+    """
+    state = self.get_state(strategy_name)
+    state['status'] = CircuitBreakerState.ACTIVE
+    state['consecutive_losses'] = 0
+    state['consecutive_wins'] = 0
+    state['reason'] = "手动恢复"
+    state['updated_at'] = datetime.now()
 
-        self.repo.save_state(state)
-        logger.info(f"策略 {strategy_name} 手动恢复")
+    self.repo.save_state(state)
+    logger.info(f"策略 {strategy_name} 手动恢复")
 
-        return state
+    return state
 
-    def get_all_states(self) -> List[Dict]:
-        """获取所有策略的熔断状态"""
-        return self.repo.get_all_states()
+def get_all_states(self) -> List[Dict]:
+    """获取所有策略的熔断状态"""
+    return self.repo.get_all_states()
 
-    def _send_alert(
-        self,
-        strategy_name: str,
-        old_status: CircuitBreakerState,
-        new_status: CircuitBreakerState,
-        state: Dict
-    ) -> None:
-        """
-        发送状态变更告警
+def _send_alert(
+    self,
+    strategy_name: str,
+    old_status: CircuitBreakerState,
+    new_status: CircuitBreakerState,
+    state: Dict
+) -> None:
+    """
+    发送状态变更告警
 
-        Args:
-            strategy_name: 策略名称
-            old_status: 旧状态
-            new_status: 新状态
-            state: 当前状态详情
-        """
-        try:
-            circuit_breaker_alert_service.send_alert(
-                strategy_name=strategy_name,
-                old_status=old_status,
-                new_status=new_status,
-                reason=state.get('reason', '状态变更'),
-                state=state
-            )
-        except Exception as e:
-            logger.error(f"发送熔断告警失败: {e}")
+    Args:
+        strategy_name: 策略名称
+        old_status: 旧状态
+        new_status: 新状态
+        state: 当前状态详情
+    """
+    try:
+        circuit_breaker_alert_service.send_alert(
+            strategy_name=strategy_name,
+            old_status=old_status,
+            new_status=new_status,
+            reason=state.get('reason', '状态变更'),
+            state=state
+        )
+    except Exception as e:
+        logger.error(f"发送熔断告警失败: {e}")

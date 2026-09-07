@@ -79,9 +79,7 @@ def _ensure_legacy_quant_path(include_scripts: bool = True):
     历史上 _V2_ROOT 未定义导致的 latent NameError）。
     """
     quant_root = str(_V2_ROOT.parent / 'quant')
-    if quant_root not in sys.path:
-        sys.path.insert(0, quant_root)
-    if include_scripts:
+    if quant_root not in sys.path and include_scripts:
         quant_scripts = str(_V2_ROOT.parent / 'quant' / 'scripts')
         if quant_scripts not in sys.path:
             sys.path.insert(0, quant_scripts)
@@ -153,6 +151,10 @@ def _check_condition_0():
 # TODO: Split long function (148 lines, target < 100)
 # TODO: Refactor - complexity 24 (target < 15)
 # TODO: Split long function (148 lines, target < 100)
+# TODO: 复杂度 24 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 163行 - 建议拆分为多个小函数
+
 def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str], task_type: Optional[str] = None, days: int = 730):
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -168,9 +170,7 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
     # ---- Section 6 ----
     """执行流水线阶段 - 内部实现"""
     # 防御性解析: symbols 可能以字符串形式传入(逗号分隔)
-    if isinstance(symbols, str):
-        symbols = [s.strip() for s in symbols.split(',') if s.strip()]
-    if not symbols:
+    if isinstance(symbols, str) and not symbols:
         symbols = ['000001.SZ']
     start_time = datetime.now()
     stage_defs = [

@@ -160,10 +160,9 @@ def main():
         print("\nSupported exchanges: 100+ via CCXT library")
         print("Popular exchanges: Binance, Kraken, Coinbase Pro, Huobi, Bitfinex, OKX, Bybit, and more")
         return 0
-    else:
-        print("❌ FAIL: Unified Crypto Exchange Source")
-        print("\n⚠️  Crypto exchange source failed validation")
-        return 1
+    print("❌ FAIL: Unified Crypto Exchange Source")
+    print("\n⚠️  Crypto exchange source failed validation")
+    return 1
 
 
 if __name__ == "__main__":

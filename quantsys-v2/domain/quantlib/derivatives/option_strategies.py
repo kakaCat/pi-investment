@@ -77,13 +77,9 @@ class OptionLeg:
 
     def __post_init__(self):
         """验证期权腿参数。"""
-        if self.option_type not in ('call', 'put'):
-            raise ValueError(f"option_type must be 'call' or 'put', got '{self.option_type}'")
-        if self.strike <= 0:
+        if self.option_type not in ('call', 'put') and self.strike <= 0:
             raise ValueError(f"strike must be positive, got {self.strike}")
-        if self.position not in (-1, 1):
-            raise ValueError(f"position must be +1 or -1, got {self.position}")
-        if self.quantity <= 0:
+        if self.position not in (-1, 1) and self.quantity <= 0:
             raise ValueError(f"quantity must be positive, got {self.quantity}")
 
 

@@ -69,6 +69,8 @@ def get_db_connection():
 # TODO: Refactor - function too long (164 lines, target < 80)
 
 # TODO: Split long function (163 lines, target < 100)
+# TODO: 长函数 176行 - 建议拆分为多个小函数
+
 def diagnose_data_loss():
     # ---- Section 1 ----
     # ---- Section 2 ----

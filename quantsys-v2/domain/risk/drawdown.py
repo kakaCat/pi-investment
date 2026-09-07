@@ -330,9 +330,8 @@ class DrawdownCalculator(BaseCalculator):
 
         if isinstance(returns, pd.Series):
             return pd.Series(drawdown_series, index=returns.index)
-        else:
-            return pd.Series(drawdown_series)
+        return pd.Series(drawdown_series)
 
-    def get_supported_methods(self) -> List[str]:
-        """Return list of supported calculation methods."""
-        return ['drawdown_analysis', 'max_drawdown', 'calmar_ratio']
+def get_supported_methods(self) -> List[str]:
+    """Return list of supported calculation methods."""
+    return ['drawdown_analysis', 'max_drawdown', 'calmar_ratio']

@@ -87,6 +87,8 @@ class QueryOptimizationAnalyzer:
 
     # TODO: Refactor - function too long (101 lines, target < 80)
 
+    # TODO: 长函数 101行 - 建议拆分为多个小函数
+
     def analyze_factor_repository(self):
         """分析 FactorRepository 的查询"""
 
@@ -255,6 +257,8 @@ class QueryOptimizationAnalyzer:
             'sql': 'CREATE INDEX IF NOT EXISTS idx_trades_symbol_time ON quant.trades(symbol, trade_time DESC);',
         })
 # TODO: Refactor - function too long (139 lines, target < 80)
+
+# TODO: 长函数 139行 - 建议拆分为多个小函数
 
 
     def generate_report(self) -> str:

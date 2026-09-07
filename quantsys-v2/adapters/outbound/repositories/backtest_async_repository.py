@@ -85,9 +85,7 @@ class BacktestAsyncRepository(AsyncBaseORMRepository[BacktestResult]):
         try:
             stmt = select(BacktestResult)
 
-            if strategy_name:
-                stmt = stmt.where(BacktestResult.strategy_name == strategy_name)
-            if symbol:
+            if strategy_name and symbol:
                 stmt = stmt.where(BacktestResult.symbol == symbol)
 
             stmt = stmt.order_by(desc(BacktestResult.created_at)).limit(limit)

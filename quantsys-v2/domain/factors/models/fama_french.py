@@ -97,6 +97,8 @@ class FamaFrench3FactorCalculator(BaseCalculator):
 
 # TODO: Split long function (187 lines, target < 100)
 # TODO: Split long function (192 lines, target < 100)
+    # TODO: 长函数 195行 - 建议拆分为多个小函数
+
     def calculate(self,
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -330,6 +332,8 @@ class FamaFrench5FactorCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 # TODO: Refactor - function too long (193 lines, target < 80)
+
+# TODO: 长函数 200行 - 建议拆分为多个小函数
 
 
     def calculate(self,
@@ -645,6 +649,8 @@ class FamaFrenchFactorBuilder:
             hml_series.append(hml)
 
         # TODO: Refactor - function too long (101 lines, target < 80)
+
+        # TODO: 长函数 105行 - 建议拆分为多个小函数
 
         return pd.Series(smb_series, index=returns.columns), pd.Series(hml_series, index=returns.columns)
 

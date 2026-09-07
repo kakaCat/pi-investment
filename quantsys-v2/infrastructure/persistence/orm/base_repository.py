@@ -132,9 +132,7 @@ class BaseORMRepository(Generic[T]):
         """
         try:
             query = self.session.query(self.model)
-            if offset is not None:
-                query = query.offset(offset)
-            if limit is not None:
+            if offset is not None and limit is not None:
                 query = query.limit(limit)
             return query.all()
         except SQLAlchemyError as e:

@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000 = 100000
+CONST_1024 = 1024
+CONST_20 = 20
+CONST_250 = 250
+CONST_3 = 3
+CONST_42 = 42
+CONST_5_0 = 5.0
+CONST_50 = 50
+CONST_500 = 500
+CONST_60 = 60
+
 """
 Performance Benchmark Tests for Factor Migration
 =================================================

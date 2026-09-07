@@ -217,9 +217,7 @@ class MarketPerceptionService:
             return None
 
         rows = history
-        if trade_date:
-            rows = [r for r in rows if r['date'] <= trade_date]
-        if len(rows) < INDEX_MIN_HISTORY:
+        if trade_date and len(rows) < INDEX_MIN_HISTORY:
             return None
 
         closes = [r['close'] for r in rows]
@@ -274,9 +272,7 @@ class MarketPerceptionService:
         if (sentiment >= EUPHORIA_SENTIMENT and vr > EUPHORIA_VOLUME_RATIO
                 and up > EUPHORIA_UP_PCT):
             return 'euphoria'
-        if close > ma20 and ma20 > ma60 and chg5d > TREND_5D_THRESHOLD_PCT:
-            return 'trend_up'
-        if close < ma20 and ma20 < ma60 and chg5d < -TREND_5D_THRESHOLD_PCT:
+        if close > ma20 and ma20 > ma60 and chg5d > TREND_5D_THRESHOLD_PCT and close < ma20 and ma20 < ma60 and chg5d < -TREND_5D_THRESHOLD_PCT:
             return 'trend_down'
         return 'range'
 
@@ -297,9 +293,7 @@ class MarketPerceptionService:
 
     def _judge_and_store_regime(self, trade_date: Optional[str] = None) -> Dict[str, Any]:
         """读取当日情绪落库行 + 指数趋势，按规则判定 regime 并落库。"""
-        if not trade_date:
-            trade_date = self._latest_trade_date()
-        if not trade_date:
+        if not trade_date and not trade_date:
             return {'stored': False, 'error': '无交易日数据'}
 
         srow = self.sentiment_repo.get_by_date(trade_date)

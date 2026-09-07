@@ -278,6 +278,10 @@ class StressTestEngine:
     # TODO: Split long function (121 lines, target < 100)
     # TODO: Refactor - complexity 16 (target < 15)
     # TODO: Split long function (121 lines, target < 100)
+    # TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 129行 - 建议拆分为多个小函数
+
     def run_historical_replay(self, start_date: str, end_date: str, index_symbol: str = "000001.SH") -> Dict:
         # ---- Section 1 ----
         # ---- Section 2 ----

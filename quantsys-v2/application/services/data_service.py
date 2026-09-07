@@ -218,6 +218,8 @@ class DataService:
 # TODO: Refactor - complexity 18 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 18 (target < 15)
+    # TODO: 复杂度 18 - 需要重构拆分为更小的函数
+
     def check_data_integrity(self, symbol: Optional[str] = None, check_type: str = 'all') -> Dict:
         """检查数据完整性
 
@@ -326,9 +328,7 @@ class DataService:
 
             # 添加各类报表数据
             if financial_data:
-                if hasattr(financial_data, 'income_statement') and financial_data.income_statement:
-                    result['income_statement'] = financial_data.income_statement
-                if hasattr(financial_data, 'balance_sheet') and financial_data.balance_sheet:
+                if hasattr(financial_data, 'income_statement') and financial_data.income_statement and hasattr(financial_data, 'balance_sheet') and financial_data.balance_sheet:
                     result['balance_sheet'] = financial_data.balance_sheet
                 if hasattr(financial_data, 'cash_flow') and financial_data.cash_flow:
                     result['cash_flow'] = financial_data.cash_flow

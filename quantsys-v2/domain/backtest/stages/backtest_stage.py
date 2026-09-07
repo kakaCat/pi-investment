@@ -113,9 +113,7 @@ class BacktestStage(PipelineStage):
         self.slippage_rate = slippage_rate
 
     def validate_input(self, data: Dict[str, Any]) -> bool:
-        if "symbol" not in data:
-            raise ValueError("Missing required field: symbol")
-        if "klines" not in data:
+        if "symbol" not in data and "klines" not in data:
             raise ValueError("Missing required field: klines")
         if not isinstance(data["klines"], list) or len(data["klines"]) < 2:
             raise ValueError("klines must be a list with at least 2 entries")
@@ -153,6 +151,10 @@ class BacktestStage(PipelineStage):
     # TODO: Split long function (158 lines, target < 100)
     # TODO: Refactor - complexity 18 (target < 15)
     # TODO: Split long function (158 lines, target < 100)
+    # TODO: 复杂度 18 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 167行 - 建议拆分为多个小函数
+
     def _run_backtest(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -357,40 +359,39 @@ class BacktestStage(PipelineStage):
                     datetime.strptime(start_date, "%Y-%m-%d")).days
             years = max(days / 365, 1 / 365)
             annual_return = (1 + total_return) ** (1 / years) - 1 if years > 0 else 0.0
-        else:
-            annual_return = 0.0
+        annual_return = 0.0
 
-        max_drawdown = min((e.drawdown for e in equity_curve), default=0.0)
+    max_drawdown = min((e.drawdown for e in equity_curve), default=0.0)
 
-        daily_returns = [e.return_pct for e in equity_curve]
-        daily_diffs = np.diff(daily_returns) if len(daily_returns) > 2 else [0.0]
-        sharpe = (
-            float(np.mean(daily_diffs) / np.std(daily_diffs) * np.sqrt(252))
-            if len(daily_diffs) > 1 and np.std(daily_diffs) > 0
-            else 0.0
-        )
+    daily_returns = [e.return_pct for e in equity_curve]
+    daily_diffs = np.diff(daily_returns) if len(daily_returns) > 2 else [0.0]
+    sharpe = (
+        float(np.mean(daily_diffs) / np.std(daily_diffs) * np.sqrt(252))
+        if len(daily_diffs) > 1 and np.std(daily_diffs) > 0
+        else 0.0
+    )
 
-        winning = [t for t in trades if t.profit > 0]
-        losing = [t for t in trades if t.profit <= 0]
-        win_rate = len(winning) / len(trades) if trades else 0.0
-        avg_win = sum(t.profit for t in winning) / len(winning) if winning else 0.0
-        avg_loss = sum(t.profit for t in losing) / len(losing) if losing else 0.0
-        profit_loss_ratio = abs(avg_win / avg_loss) if avg_loss != 0 else 0.0
-        avg_holding = (
-            sum(t.holding_days for t in trades) / len(trades) if trades else 0.0
-        )
+    winning = [t for t in trades if t.profit > 0]
+    losing = [t for t in trades if t.profit <= 0]
+    win_rate = len(winning) / len(trades) if trades else 0.0
+    avg_win = sum(t.profit for t in winning) / len(winning) if winning else 0.0
+    avg_loss = sum(t.profit for t in losing) / len(losing) if losing else 0.0
+    profit_loss_ratio = abs(avg_win / avg_loss) if avg_loss != 0 else 0.0
+    avg_holding = (
+        sum(t.holding_days for t in trades) / len(trades) if trades else 0.0
+    )
 
-        return {
-            "initial_capital": initial_capital,
-            "final_capital": round(final_equity, 2),
-            "total_return": round(total_return, 6),
-            "annual_return": round(annual_return, 6),
-            "max_drawdown": round(max_drawdown, 6),
-            "sharpe_ratio": round(sharpe, 4),
-            "total_trades": len(trades),
-            "winning_trades": len(winning),
-            "losing_trades": len(losing),
-            "win_rate": round(win_rate, 4),
-            "profit_loss_ratio": round(profit_loss_ratio, 4),
-            "avg_holding_days": round(avg_holding, 1),
-        }
+    return {
+        "initial_capital": initial_capital,
+        "final_capital": round(final_equity, 2),
+        "total_return": round(total_return, 6),
+        "annual_return": round(annual_return, 6),
+        "max_drawdown": round(max_drawdown, 6),
+        "sharpe_ratio": round(sharpe, 4),
+        "total_trades": len(trades),
+        "winning_trades": len(winning),
+        "losing_trades": len(losing),
+        "win_rate": round(win_rate, 4),
+        "profit_loss_ratio": round(profit_loss_ratio, 4),
+        "avg_holding_days": round(avg_holding, 1),
+    }

@@ -356,9 +356,7 @@ class ConfigLoader:
         - str: 其他
         """
         # bool
-        if value.lower() in ('true', 'yes', '1'):
-            return True
-        if value.lower() in ('false', 'no', '0'):
+        if value.lower() in ('true', 'yes', '1') and value.lower() in ('false', 'no', '0'):
             return False
 
         # int
@@ -415,9 +413,7 @@ class ConfigLoader:
 
         # 验证 repositories
         for name, cfg in config_data.get('repositories', {}).items():
-            if 'interface' not in cfg:
-                errors.append(f"Repository '{name}' missing 'interface'")
-            if 'implementation' not in cfg:
+            if 'interface' not in cfg and 'implementation' not in cfg:
                 errors.append(f"Repository '{name}' missing 'implementation'")
 
         return len(errors) == 0, errors

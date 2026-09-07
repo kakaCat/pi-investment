@@ -134,9 +134,7 @@ class UnifiedEventBus:
         limit: int = 100,
     ) -> List[Dict[str, Any]]:
         items = list(self._history)
-        if event_type:
-            items = [e for e in items if e.type == event_type]
-        if source:
+        if event_type and source:
             items = [e for e in items if e.source == source]
         return [e.to_dict() for e in items[-limit:]]
 

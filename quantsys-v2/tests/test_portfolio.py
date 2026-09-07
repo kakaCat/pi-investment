@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_3 = 3
+CONST_4 = 4
+CONST_40_0 = 40.0
+CONST_6 = 6
+CONST_60_0 = 60.0
+CONST_80_0 = 80.0
+
 """
 Portfolio Optimization Test Suite (adapted for quantlib API)
 

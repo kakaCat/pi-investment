@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10000 = 10000
+CONST_1020 = 1020
+CONST_1050 = 1050
+CONST_12 = 12
+CONST_15 = 15
+CONST_180 = 180
+CONST_20 = 20
+CONST_2026 = 2026
+CONST_24 = 24
+CONST_3 = 3
+
 """
 Fixed Income Module Tests
 =========================

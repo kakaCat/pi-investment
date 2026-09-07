@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10000 = 10000
+CONST_102 = 102
+CONST_105 = 105
+CONST_2026 = 2026
+CONST_30 = 30
+CONST_5 = 5
+CONST_70 = 70
+CONST_95 = 95
+CONST_99 = 99
+
 """
 Tests for technical indicators injection in strategy code service
 """

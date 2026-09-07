@@ -44,16 +44,15 @@ def test_job():
             print(f"  持仓数量: {result.get('positions', 0)}只")
             print("\n✅ Job执行成功")
             return True
-        else:
-            print(f"  错误: {result.get('error')}")
-            print("\n❌ Job执行失败")
-            return False
-
-    except Exception as e:
-        print(f"\n❌ 测试失败: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"  错误: {result.get('error')}")
+        print("\n❌ Job执行失败")
         return False
+
+except Exception as e:
+    print(f"\n❌ 测试失败: {e}")
+    import traceback
+    traceback.print_exc()
+    return False
 
 
 def test_handler():
@@ -84,16 +83,15 @@ def test_handler():
             print(f"  持仓数量: {result.get('positions', 0)}只")
             print("\n✅ Handler执行成功")
             return True
-        else:
-            print(f"  错误: {result.get('error')}")
-            print("\n❌ Handler执行失败")
-            return False
-
-    except Exception as e:
-        print(f"\n❌ 测试失败: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"  错误: {result.get('error')}")
+        print("\n❌ Handler执行失败")
         return False
+
+except Exception as e:
+    print(f"\n❌ 测试失败: {e}")
+    import traceback
+    traceback.print_exc()
+    return False
 
 
 def test_full_task():
@@ -138,15 +136,14 @@ def test_full_task():
         if result.get('status') == 'success':
             print("\n✅ 完整任务执行成功")
             return True
-        else:
-            print(f"\n❌ 任务执行失败: {result.get('error')}")
-            return False
-
-    except Exception as e:
-        print(f"\n❌ 测试失败: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"\n❌ 任务执行失败: {result.get('error')}")
         return False
+
+except Exception as e:
+    print(f"\n❌ 测试失败: {e}")
+    import traceback
+    traceback.print_exc()
+    return False
 
 
 def main():

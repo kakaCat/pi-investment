@@ -35,9 +35,7 @@ def _extract_industries_concepts(data) -> Optional[Dict]:
     （对齐 2026-08-25 sectors 500 根因修复的模式）。
     """
     d = data
-    if not isinstance(d, dict) and hasattr(d, 'data'):
-        d = d.data
-    if not isinstance(d, dict):
+    if not isinstance(d, dict) and hasattr(d, 'data') and not isinstance(d, dict):
         return None
     industries = d.get('industries') or []
     concepts = d.get('concepts') or []

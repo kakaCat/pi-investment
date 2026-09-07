@@ -37,6 +37,8 @@ class ConflictResolutionStage:
     """Merge data from multiple sources and resolve conflicts by priority."""
 
     # TODO: Split long function (116 lines, target < 100)
+    # TODO: 长函数 124行 - 建议拆分为多个小函数
+
     def execute(self, context: PipelineContext) -> PipelineResult:
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -164,6 +166,8 @@ class ConflictResolutionStage:
 
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
     def _detect_conflicts(
         self,
         data_dict: Dict[str, pd.DataFrame],

@@ -1,3 +1,15 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000 = 100000
+CONST_105 = 105
+CONST_2024 = 2024
+CONST_2026 = 2026
+CONST_25 = 25
+CONST_42 = 42
+CONST_5 = 5
+CONST_95 = 95
+
 """
 Tests for QlibTradingEnv
 ========================
@@ -37,6 +49,8 @@ def sample_data():
 
 
 # TODO: Refactor large class (23 methods, target < 20)
+# TODO: 大类 23个方法 - 考虑拆分为多个类或使用组合模式
+
 class TestQlibTradingEnv:
     """Test suite for QlibTradingEnv."""
 

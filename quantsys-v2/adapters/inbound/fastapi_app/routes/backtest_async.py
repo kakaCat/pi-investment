@@ -253,6 +253,8 @@ def get_backtest_results(symbol: Optional[str] = Query(None),
 @flask_parity_router.post('/api/backtest/run')
 @handle_api_error
 # TODO: Split long function (145 lines, target < 100)
+# TODO: 长函数 157行 - 建议拆分为多个小函数
+
 def run_backtest_alias(payload: Optional[Dict[str, Any]] = Body(None)):
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -578,6 +580,10 @@ def combo_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
 # TODO: Split long function (113 lines, target < 100)
 # TODO: Refactor - complexity 21 (target < 15)
 # TODO: Split long function (113 lines, target < 100)
+# TODO: 复杂度 21 - 需要重构拆分为更小的函数
+# TODO: 长函数 122行 - 建议拆分为多个小函数
+
+
 def backtest_matrix(payload: Optional[Dict[str, Any]] = Body(None)):
     # ---- Section 1 ----
     # ---- Section 2 ----

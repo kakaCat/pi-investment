@@ -116,6 +116,10 @@ class BinomialTreeCalculator(BaseCalculator):
     # TODO: Split long function (188 lines, target < 100)
     # TODO: Refactor - complexity 18 (target < 15)
     # TODO: Split long function (188 lines, target < 100)
+    # TODO: 复杂度 18 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 198行 - 建议拆分为多个小函数
+
     def calculate(self,
         # ---- Section 1 ----
         # ---- Section 2 ----

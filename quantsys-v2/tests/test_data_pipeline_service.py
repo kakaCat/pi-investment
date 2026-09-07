@@ -1,3 +1,14 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_2026 = 2026
+CONST_27 = 27
+CONST_3_0 = 3.0
+CONST_4 = 4
+CONST_50 = 50
+CONST_60 = 60
+CONST_7 = 7
+
 """Tests for DataPipelineService."""
 
 import pytest

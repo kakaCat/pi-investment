@@ -79,6 +79,8 @@ class ArbitrageCalculator(BaseCalculator):
     # TODO: Refactor - function too long (117 lines, target < 80)
 
 # TODO: Split long function (116 lines, target < 100)
+    # TODO: 长函数 121行 - 建议拆分为多个小函数
+
     def calculate(self,
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -279,6 +281,8 @@ class ArbitrageCalculator(BaseCalculator):
         }
 # TODO: Refactor - function too long (108 lines, target < 80)
 
+
+# TODO: 长函数 112行 - 建议拆分为多个小函数
 
 # TODO: Split long function (107 lines, target < 100)
     def _analyze_box_spread(self,

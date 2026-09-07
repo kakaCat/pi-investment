@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_19_0 = 19.0
+CONST_20_0 = 20.0
+CONST_2026 = 2026
+CONST_21_0 = 21.0
+CONST_22_0 = 22.0
+CONST_23_0 = 23.0
+CONST_3 = 3
+CONST_3_0 = 3.0
+CONST_5_0 = 5.0
+CONST_6 = 6
+
 """ChipDistributionService 单测 — fake repository，不连数据库"""
 import pytest
 

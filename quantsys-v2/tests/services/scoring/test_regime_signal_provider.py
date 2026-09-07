@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100_5 = 100.5
+CONST_101 = 101
+CONST_150 = 150
+CONST_2026 = 2026
+CONST_28 = 28
+CONST_99 = 99
+
 """RegimeSignalProvider 单元测试"""
 import pytest
 import pandas as pd

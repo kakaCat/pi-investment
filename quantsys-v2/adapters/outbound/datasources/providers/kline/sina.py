@@ -68,30 +68,31 @@ class SinaKlineProvider(KlineProvider):
             return f'sz{symbol}'
         elif symbol.startswith(('4', '8', '92')):
             return f'bj{symbol}'
-        else:
-            return f'sz{symbol}'  # 默认深市
+        return f'sz{symbol}'  # 默认深市
 
-    @staticmethod
-    def _convert_period(period: str) -> str:
-        """转换周期参数
+@staticmethod
+def _convert_period(period: str) -> str:
+    """转换周期参数
 
-        daily -> 240 (日线)
-        weekly -> 1200 (周线)
-        monthly -> 7200 (月线)
-        """
-        period_map = {
-            'daily': '240',
-            'day': '240',
-            'weekly': '1200',
-            'week': '1200',
-            'monthly': '7200',
-            'month': '7200',
-        }
-        return period_map.get(period.lower(), '240')
+    daily -> 240 (日线)
+    weekly -> 1200 (周线)
+    monthly -> 7200 (月线)
+    """
+    period_map = {
+        'daily': '240',
+        'day': '240',
+        'weekly': '1200',
+        'week': '1200',
+        'monthly': '7200',
+        'month': '7200',
+    }
+    return period_map.get(period.lower(), '240')
 
-    # TODO: Refactor - function too long (112 lines, target < 80)
+# TODO: Refactor - function too long (112 lines, target < 80)
 
 # TODO: Split long function (111 lines, target < 100)
+    # TODO: 长函数 120行 - 建议拆分为多个小函数
+
     def get_klines(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -163,9 +164,7 @@ class SinaKlineProvider(KlineProvider):
                     date_str = item.get('day', '')
 
                     # 日期过滤
-                    if start_date and date_str < start_date:
-                        continue
-                    if end_date and date_str > end_date:
+                    if start_date and date_str < start_date and end_date and date_str > end_date:
                         continue
 
                     # volume 为成交量（手），需要转换为股（×100）

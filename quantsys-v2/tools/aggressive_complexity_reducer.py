@@ -21,6 +21,8 @@ def calc_complexity(node):
             c += len(child.values) - 1
     return c
 
+# TODO: 复杂度 24 - 需要重构拆分为更小的函数
+
 def simplify_function_aggressively(file_path: Path, func_name: str, func_line: int) -> bool:
     """激进地简化单个函数"""
     try:

@@ -78,19 +78,16 @@ def check_provider_manager_usage(file_path: Path) -> tuple[bool, str]:
         residual = []
         for line_num, line in enumerate(content.splitlines(), 1):
             stripped = line.strip()
-            if stripped.startswith('#'):  # 注释不计
-                continue
-            if '.call_akshare(' in stripped:
+            if stripped.startswith('#'):  # 注释不 and '.call_akshare(' in stripped:
                 residual.append((line_num, stripped))
 
         if not has_provider_manager:
             return False, "❌ 未使用 provider_manager"
         elif residual:
             return False, f"❌ 残留 call_akshare 调用 {len(residual)} 处（DataProviderManager 无此方法）: {residual[:3]}"
-        else:
-            return True, "✅ 已迁移到 provider_manager.get_*()，无 call_akshare 残留"
-    except Exception as e:
-        return False, f"错误: {e}"
+        return True, "✅ 已迁移到 provider_manager.get_*()，无 call_akshare 残留"
+except Exception as e:
+    return False, f"错误: {e}"
 
 def main():
     print("=" * 70)
@@ -133,9 +130,8 @@ def main():
     if all_passed:
         print("🎉 所有检查通过！迁移成功！")
         return 0
-    else:
-        print("⚠️  部分检查失败，请修复上述问题")
-        return 1
+    print("⚠️  部分检查失败，请修复上述问题")
+    return 1
 
 if __name__ == "__main__":
     sys.exit(main())

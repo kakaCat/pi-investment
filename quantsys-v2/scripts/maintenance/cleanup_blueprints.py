@@ -41,6 +41,8 @@ def _check_condition_0():
     return "/jobs" in path or "/data/update" in path or "/compute/factors" in path
 
 # TODO: Refactor - complexity 22 (target < 15)
+# TODO: 复杂度 22 - 需要重构拆分为更小的函数
+
 def extract_misc_blocks():
     misc = ROUTES / "misc.py"
     if not misc.exists():
@@ -143,6 +145,8 @@ def merge_blueprint(source: str, target: str):
 # TODO: Refactor - function too long (105 lines, target < 80)
 
 # TODO: Split long function (104 lines, target < 100)
+# TODO: 长函数 113行 - 建议拆分为多个小函数
+
 def main():
     # ---- Section 1 ----
     # ---- Section 2 ----

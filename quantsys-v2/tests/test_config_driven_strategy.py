@@ -1,3 +1,15 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10000 = 10000
+CONST_14 = 14
+CONST_20 = 20
+CONST_2024 = 2024
+CONST_30 = 30
+CONST_5 = 5
+CONST_50 = 50
+CONST_70 = 70
+
 """Tests for ConfigDrivenStrategy — database-configurable strategies."""
 import math
 import pytest

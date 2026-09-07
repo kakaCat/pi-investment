@@ -130,9 +130,7 @@ def execute_order(
         quantity = order_details.get('quantity', 0)
         price = order_details.get('price')
 
-        if not symbol:
-            return ExecutionResult(success=False, error="Missing symbol", algo=algo)
-        if quantity <= 0:
+        if not symbol and quantity <= 0:
             return ExecutionResult(success=False, error="Quantity must be positive", algo=algo)
 
         # Route to the appropriate algorithm
@@ -216,9 +214,7 @@ def execute_twap(
     action = order.get('action', 'buy')
     total_quantity = order.get('quantity', 0)
 
-    if total_quantity <= 0:
-        return ExecutionResult(success=False, error="Quantity must be positive", algo='twap')
-    if slices <= 0:
+    if total_quantity <= 0 and slices <= 0:
         return ExecutionResult(success=False, error="Slices must be positive", algo='twap')
     if duration_minutes <= 0:
         return ExecutionResult(success=False, error="Duration must be positive", algo='twap')
@@ -450,9 +446,7 @@ def execute_iceberg(
     action = order.get('action', 'buy')
     total_quantity = order.get('quantity', 0)
 
-    if total_quantity <= 0:
-        return ExecutionResult(success=False, error="Quantity must be positive", algo='iceberg')
-    if display_size <= 0:
+    if total_quantity <= 0 and display_size <= 0:
         return ExecutionResult(success=False, error="Display size must be positive", algo='iceberg')
 
     # Calculate number of slices needed

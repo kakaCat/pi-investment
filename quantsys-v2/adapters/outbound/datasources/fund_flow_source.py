@@ -121,6 +121,8 @@ class FundFlowDataSource:
 # TODO: Refactor - complexity 17 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
     def get_stock_fund_flow(self, symbol: str, days: int = 5) -> Dict:
         """
         获取个股资金流向（优先本地缓存）
@@ -376,8 +378,12 @@ class EastMoneyFundFlowSource:
         # TODO: 将结果构建逻辑从 fetch 移到这里
         return data
 
+# TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
 # REFACTOR: Split this function into smaller pieces
 # TODO: Refactor - complexity 16 (target < 15)
+    # TODO: 长函数 104行 - 建议拆分为多个小函数
+
     def fetch(self, symbol: str, days: int) -> List[Dict]:
         # ---- Section 1 ----
         # ---- Section 2 ----

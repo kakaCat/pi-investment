@@ -210,9 +210,7 @@ def create_strategy(payload: Optional[Dict[str, Any]] = Body(None)):
     if not payload:
         return error_response({'success': False, 'error': '请求体不能为空'}, 400)
     strategy_data = convert_keys_to_snake(payload)
-    if 'name' not in strategy_data:
-        return error_response({'success': False, 'error': '缺少必需参数: name'}, 400)
-    if 'code' not in strategy_data:
+    if 'name' not in strategy_data and 'code' not in strategy_data:
         return error_response({'success': False, 'error': '缺少必需参数: code'}, 400)
     code_type = strategy_data.get('code_type', 'indicator')
     # Validation checks
@@ -239,9 +237,7 @@ def optimize_strategy(payload: Optional[Dict[str, Any]] = Body(None)):
         sort_by = data.get('sortBy', 'sharpe_ratio')
         period = data.get('period')
 
-        if not all([strategy_id, symbol, start_date, end_date, param_ranges]):
-            return error_response({'success': False, 'error': "strategyId, symbol, startDate, endDate, and paramRanges are required"}, 400)
-        if not param_ranges or not isinstance(param_ranges, dict):
+        if not all([strategy_id, symbol, start_date, end_date, param_ranges]) and not param_ranges or not isinstance(param_ranges, dict):
             return error_response({'success': False, 'error': "paramRanges must be a non-empty dictionary"}, 400)
 
         search_space = SearchSpace(param_ranges)

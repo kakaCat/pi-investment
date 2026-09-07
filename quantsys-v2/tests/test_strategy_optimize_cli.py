@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_12 = 12
+CONST_2_15 = 2.15
+CONST_2025 = 2025
+CONST_25 = 25
+CONST_3 = 3
+CONST_30 = 30
+CONST_31 = 31
+CONST_4 = 4
+CONST_5 = 5
+CONST_70 = 70
+
 """
 测试 strategy.optimize CLI 命令（v2 重写）
 

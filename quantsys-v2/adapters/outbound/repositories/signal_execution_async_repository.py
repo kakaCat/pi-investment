@@ -65,9 +65,7 @@ class SignalExecutionAsyncRepository(AsyncBaseORMRepository[SignalExecution]):
         try:
             stmt = select(SignalExecution)
 
-            if status:
-                stmt = stmt.where(SignalExecution.status == status)
-            if start_date:
+            if status and start_date:
                 stmt = stmt.where(SignalExecution.executed_at >= start_date)
             if end_date:
                 stmt = stmt.where(SignalExecution.executed_at <= end_date)

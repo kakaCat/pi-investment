@@ -154,39 +154,64 @@ class SmartBacktestEngine:
             return 'serial'
         elif n_stocks < 2000:
             return 'parallel_shared'
-        else:
-            # 大规模场景，可以考虑增加workers
-            return 'parallel_shared'
+        # 大规模场景，可以考虑增加workers
+        return 'parallel_shared'
 
-    def _backtest_serial(
-        self,
-        market_data: Dict[str, pd.DataFrame],
-        strategy_func,
-        strategy_params: Dict
-    ) -> List[Dict]:
-        """串行回测"""
-        results = []
+def _backtest_serial(
+    self,
+    market_data: Dict[str, pd.DataFrame],
+    strategy_func,
+    strategy_params: Dict
+) -> List[Dict]:
+    """串行回测"""
+    results = []
+
+    for symbol, df in market_data.items():
+        result = self._backtest_single_stock(symbol, df, strategy_func, strategy_params)
+        results.append(result)
+
+    return results
+
+def _backtest_parallel_threaded(
+    self,
+    market_data: Dict[str, pd.DataFrame],
+    strategy_func,
+    strategy_params: Dict
+) -> List[Dict]:
+    """线程池并行回测"""
+    with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
+        futures = []
 
         for symbol, df in market_data.items():
-            result = self._backtest_single_stock(symbol, df, strategy_func, strategy_params)
-            results.append(result)
+            future = executor.submit(
+                self._backtest_single_stock,
+                symbol, df, strategy_func, strategy_params
+            )
+            futures.append(future)
 
-        return results
+        results = [f.result() for f in futures]
 
-    def _backtest_parallel_threaded(
-        self,
-        market_data: Dict[str, pd.DataFrame],
-        strategy_func,
-        strategy_params: Dict
-    ) -> List[Dict]:
-        """线程池并行回测"""
-        with ThreadPoolExecutor(max_workers=self.n_workers) as executor:
+    return results
+
+def _backtest_parallel_shared(
+    self,
+    market_data: Dict[str, pd.DataFrame],
+    strategy_func,
+    strategy_params: Dict
+) -> List[Dict]:
+    """共享内存并行回测"""
+    # 准备共享内存
+    shm, metadata = self._prepare_shared_memory(market_data)
+
+    try:
+        # 并行处理
+        with ProcessPoolExecutor(max_workers=self.n_workers) as executor:
             futures = []
 
-            for symbol, df in market_data.items():
+            for i in range(len(metadata['symbols'])):
                 future = executor.submit(
-                    self._backtest_single_stock,
-                    symbol, df, strategy_func, strategy_params
+                    _backtest_single_stock_shared,
+                    i, metadata, strategy_func, strategy_params
                 )
                 futures.append(future)
 
@@ -194,150 +219,124 @@ class SmartBacktestEngine:
 
         return results
 
-    def _backtest_parallel_shared(
-        self,
-        market_data: Dict[str, pd.DataFrame],
-        strategy_func,
-        strategy_params: Dict
-    ) -> List[Dict]:
-        """共享内存并行回测"""
-        # 准备共享内存
-        shm, metadata = self._prepare_shared_memory(market_data)
+    finally:
+        # 清理共享内存
+        shm.close()
+        shm.unlink()
+
+def _prepare_shared_memory(
+    self,
+    market_data: Dict[str, pd.DataFrame]
+) -> Tuple[shared_memory.SharedMemory, Dict]:
+    """准备共享内存"""
+    symbols = list(market_data.keys())
+    n_stocks = len(symbols)
+    n_days = len(next(iter(market_data.values())))
+
+    # 创建共享数组：[n_stocks, n_days, 5] (open, high, low, close, volume)
+    shape = (n_stocks, n_days, 5)
+    dtype = np.float64
+    nbytes = int(np.prod(shape) * np.dtype(dtype).itemsize)
+
+    shm = shared_memory.SharedMemory(create=True, size=nbytes)
+    shared_array = np.ndarray(shape, dtype=dtype, buffer=shm.buf)
+
+    # 填充数据
+    for i, symbol in enumerate(symbols):
+        df = market_data[symbol]
+        shared_array[i, :, 0] = df['open'].values
+        shared_array[i, :, 1] = df['high'].values
+        shared_array[i, :, 2] = df['low'].values
+        shared_array[i, :, 3] = df['close'].values
+        shared_array[i, :, 4] = df['volume'].values
+
+    # 返回共享内存和元数据
+    metadata = {
+        'shm_name': shm.name,
+        'shape': shape,
+        'dtype': 'float64',
+        'symbols': symbols
+    }
+
+    return shm, metadata
+
+def _backtest_single_stock(
+    self,
+    symbol: str,
+    df: pd.DataFrame,
+    strategy_func,
+    strategy_params: Dict
+) -> Dict:
+    """回测单只股票"""
+    result_df = strategy_func(df, **strategy_params)
+
+    # 计算指标
+    total_return = (1 + result_df['strategy_returns'].fillna(0)).prod() - 1
+    sharpe_ratio = (
+        result_df['strategy_returns'].mean() /
+        (result_df['strategy_returns'].std() + 1e-10) *
+        np.sqrt(252)
+    )
+
+    return {
+        'symbol': symbol,
+        'total_return': total_return,
+        'sharpe_ratio': sharpe_ratio,
+        'n_trades': (result_df['signal'].diff() != 0).sum()
+    }
+
+def benchmark(
+    self,
+    market_data: Dict[str, pd.DataFrame],
+    strategy_func,
+    strategy_params: Dict,
+    methods: Optional[List[str]] = None
+) -> Dict:
+    """
+    基准测试不同方法
+
+    Args:
+        market_data: 市场数据
+        strategy_func: 策略函数
+        strategy_params: 策略参数
+        methods: 要测试的方法列表，None表示测试所有
+
+    Returns:
+        性能对比结果
+    """
+    if methods is None:
+        methods = ['serial', 'parallel_threaded', 'parallel_shared']
+
+    results = {}
+
+    for method in methods:
+        logger.info(f"Benchmarking method: {method}")
 
         try:
-            # 并行处理
-            with ProcessPoolExecutor(max_workers=self.n_workers) as executor:
-                futures = []
+            start = time.perf_counter()
+            _ = self.backtest(market_data, strategy_func, strategy_params, method=method)
+            elapsed = time.perf_counter() - start
 
-                for i in range(len(metadata['symbols'])):
-                    future = executor.submit(
-                        _backtest_single_stock_shared,
-                        i, metadata, strategy_func, strategy_params
-                    )
-                    futures.append(future)
+            results[method] = {
+                'time': elapsed,
+                'throughput': len(market_data) / elapsed
+            }
 
-                results = [f.result() for f in futures]
+            logger.info(f"  {method}: {elapsed:.3f}s ({results[method]['throughput']:.1f} stocks/sec)")
 
-            return results
+        except Exception as e:
+            logger.error(f"  {method} failed: {e}")
+            results[method] = {'error': str(e)}
 
-        finally:
-            # 清理共享内存
-            shm.close()
-            shm.unlink()
+    # 计算加速比
+    if 'serial' in results and 'time' in results['serial']:
+        serial_time = results['serial']['time']
 
-    def _prepare_shared_memory(
-        self,
-        market_data: Dict[str, pd.DataFrame]
-    ) -> Tuple[shared_memory.SharedMemory, Dict]:
-        """准备共享内存"""
-        symbols = list(market_data.keys())
-        n_stocks = len(symbols)
-        n_days = len(next(iter(market_data.values())))
+        for method, result in results.items():
+            if 'time' in result:
+                result['speedup'] = serial_time / result['time']
 
-        # 创建共享数组：[n_stocks, n_days, 5] (open, high, low, close, volume)
-        shape = (n_stocks, n_days, 5)
-        dtype = np.float64
-        nbytes = int(np.prod(shape) * np.dtype(dtype).itemsize)
-
-        shm = shared_memory.SharedMemory(create=True, size=nbytes)
-        shared_array = np.ndarray(shape, dtype=dtype, buffer=shm.buf)
-
-        # 填充数据
-        for i, symbol in enumerate(symbols):
-            df = market_data[symbol]
-            shared_array[i, :, 0] = df['open'].values
-            shared_array[i, :, 1] = df['high'].values
-            shared_array[i, :, 2] = df['low'].values
-            shared_array[i, :, 3] = df['close'].values
-            shared_array[i, :, 4] = df['volume'].values
-
-        # 返回共享内存和元数据
-        metadata = {
-            'shm_name': shm.name,
-            'shape': shape,
-            'dtype': 'float64',
-            'symbols': symbols
-        }
-
-        return shm, metadata
-
-    def _backtest_single_stock(
-        self,
-        symbol: str,
-        df: pd.DataFrame,
-        strategy_func,
-        strategy_params: Dict
-    ) -> Dict:
-        """回测单只股票"""
-        result_df = strategy_func(df, **strategy_params)
-
-        # 计算指标
-        total_return = (1 + result_df['strategy_returns'].fillna(0)).prod() - 1
-        sharpe_ratio = (
-            result_df['strategy_returns'].mean() /
-            (result_df['strategy_returns'].std() + 1e-10) *
-            np.sqrt(252)
-        )
-
-        return {
-            'symbol': symbol,
-            'total_return': total_return,
-            'sharpe_ratio': sharpe_ratio,
-            'n_trades': (result_df['signal'].diff() != 0).sum()
-        }
-
-    def benchmark(
-        self,
-        market_data: Dict[str, pd.DataFrame],
-        strategy_func,
-        strategy_params: Dict,
-        methods: Optional[List[str]] = None
-    ) -> Dict:
-        """
-        基准测试不同方法
-
-        Args:
-            market_data: 市场数据
-            strategy_func: 策略函数
-            strategy_params: 策略参数
-            methods: 要测试的方法列表，None表示测试所有
-
-        Returns:
-            性能对比结果
-        """
-        if methods is None:
-            methods = ['serial', 'parallel_threaded', 'parallel_shared']
-
-        results = {}
-
-        for method in methods:
-            logger.info(f"Benchmarking method: {method}")
-
-            try:
-                start = time.perf_counter()
-                _ = self.backtest(market_data, strategy_func, strategy_params, method=method)
-                elapsed = time.perf_counter() - start
-
-                results[method] = {
-                    'time': elapsed,
-                    'throughput': len(market_data) / elapsed
-                }
-
-                logger.info(f"  {method}: {elapsed:.3f}s ({results[method]['throughput']:.1f} stocks/sec)")
-
-            except Exception as e:
-                logger.error(f"  {method} failed: {e}")
-                results[method] = {'error': str(e)}
-
-        # 计算加速比
-        if 'serial' in results and 'time' in results['serial']:
-            serial_time = results['serial']['time']
-
-            for method, result in results.items():
-                if 'time' in result:
-                    result['speedup'] = serial_time / result['time']
-
-        return results
+    return results
 
 
 # 全局函数（用于multiprocessing）

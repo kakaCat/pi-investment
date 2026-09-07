@@ -89,6 +89,8 @@ class FinancialDataServiceAdapter:
         return result.income_statement or result.balance_sheet or result.cash_flow
 
     # TODO: Refactor - complexity 23 (target < 15)
+    # TODO: 复杂度 23 - 需要重构拆分为更小的函数
+
     def get_financial_data(self, symbol: str, statement_type: str = 'all', periods: int = 4) -> FinancialStatementData:
         self.total_requests += 1
         mgr = get_data_provider_manager()
@@ -149,9 +151,7 @@ class FinancialDataServiceAdapter:
         except Exception:
             pass
 
-        if result.income_statement or result.balance_sheet or result.cash_flow:
-            return result
-        if _check_condition_0():
+        if result.income_statement or result.balance_sheet or result.cash_flow and _check_condition_0():
             pass  # TODO: implement
         self.failure_count += 1
         raise Exception(f"All providers failed for {symbol}")

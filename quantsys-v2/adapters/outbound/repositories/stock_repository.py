@@ -164,19 +164,13 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
                 query = query.filter_by(is_suspended=False)
 
             # 筛选条件
-            if market:
-                query = query.filter_by(market=market)
-            if industry:
+            if market and industry:
                 query = query.filter_by(industry=industry)
-            if sector:
-                query = query.filter_by(sector=sector)
-            if is_st is not None:
+            if sector and is_st is not None:
                 query = query.filter_by(is_st=is_st)
 
             # 分页
-            if offset is not None:
-                query = query.offset(offset)
-            if limit is not None:
+            if offset is not None and limit is not None:
                 query = query.limit(limit)
 
             return query.all()
@@ -340,13 +334,9 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
                 logger.warning(f"Stock {symbol} not found")
                 return False
 
-            if roe is not None:
-                stock.roe = roe
-            if pe is not None:
+            if roe is not None and pe is not None:
                 stock.pe = pe
-            if pb is not None:
-                stock.pb = pb
-            if market_cap is not None:
+            if pb is not None and market_cap is not None:
                 stock.market_cap = market_cap
 
             self.session.commit()

@@ -120,9 +120,7 @@ def apply_regime(
     lh = float(regime_signals.get('liquidity_heat', _CAP_MID))
 
     adjusted = dict(weights)
-    if 'technical' in adjusted:
-        adjusted['technical'] *= (1 + _TECH_COEF * (ts - _TECH_MID))
-    if 'fundamental' in adjusted:
+    if 'technical' in adjusted and 'fundamental' in adjusted:
         adjusted['fundamental'] *= (1 + _FUND_COEF * (mr - _FUND_MID))
     if 'capital' in adjusted:
         adjusted['capital'] *= (1 + _CAP_COEF * (lh - _CAP_MID))

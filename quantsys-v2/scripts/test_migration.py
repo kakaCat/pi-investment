@@ -124,9 +124,8 @@ def main():
     if all_passed:
         print("🎉 所有测试通过！迁移成功！")
         return 0
-    else:
-        print("⚠️  部分测试失败，请检查错误信息")
-        return 1
+    print("⚠️  部分测试失败，请检查错误信息")
+    return 1
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -32,18 +32,17 @@ def _validate_numeric_param(value: Any, name: str, min_val: float = None,
     if integer_only:
         if not isinstance(value, int) or value <= 0:
             return f"Invalid {name}: {value}. Must be a positive integer."
-    else:
-        if not isinstance(value, (int, float)):
-            return f"Invalid {name}: {value}. Must be a number."
+    if not isinstance(value, (int, float)):
+        return f"Invalid {name}: {value}. Must be a number."
 
-        if positive_only and value <= 0:
-            return f"Invalid {name}: {value}. Must be a positive number."
+    if positive_only and value <= 0:
+        return f"Invalid {name}: {value}. Must be a positive number."
 
-        if min_val is not None and max_val is not None:
-            if not (min_val <= value <= max_val):
-                return f"Invalid {name}: {value}. Must be in range [{min_val}, {max_val}]."
+    if min_val is not None and max_val is not None:
+        if not (min_val <= value <= max_val):
+            return f"Invalid {name}: {value}. Must be in range [{min_val}, {max_val}]."
 
-    return None
+return None
 
 
 def _validate_algorithm_params(config: Dict[str, Any], errors: List[str]) -> None:

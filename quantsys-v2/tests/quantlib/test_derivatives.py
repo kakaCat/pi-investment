@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10000 = 10000
+CONST_100000 = 100000
+CONST_105_0 = 105.0
+CONST_11_0 = 11.0
+CONST_110_0 = 110.0
+CONST_12 = 12
+CONST_200 = 200
+CONST_2026 = 2026
+CONST_24 = 24
+CONST_3 = 3
+
 """
 Test Suite for Derivatives Pricing Module
 ==========================================

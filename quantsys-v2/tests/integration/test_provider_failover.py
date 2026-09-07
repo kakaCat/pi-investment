@@ -1,3 +1,14 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_5 = 10.5
+CONST_11_0 = 11.0
+CONST_2024 = 2024
+CONST_3 = 3
+CONST_31 = 31
+CONST_5 = 5
+CONST_9_5 = 9.5
+
 """Integration tests for DataProviderManager failover logic.
 
 Tests:

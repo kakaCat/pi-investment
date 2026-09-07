@@ -294,69 +294,68 @@ class RealtimeQuoteServiceV2:
                     self.cache.set(symbol, quote)
 
                     return quote
-                else:
-                    # provider 返回 None 或无效数据
-                    logger.warning(f"{provider.name} 返回无效数据：{quote}")
-                    self.provider_stats[provider.name]['failure'] += 1
-                    self.circuit_breaker.record_failure(provider.name)
-
-            except Exception as e:
-                # provider 抛出异常
-                logger.warning(
-                    f"{provider.name} 查询失败：{type(e).__name__}: {e}"
-                )
+                # provider 返回 None 或无效数据
+                logger.warning(f"{provider.name} 返回无效数据：{quote}")
                 self.provider_stats[provider.name]['failure'] += 1
                 self.circuit_breaker.record_failure(provider.name)
 
-        # 3. 所有数据源都失败
-        logger.error(f"❌ 所有数据源都无法获取 {symbol} 的实时行情")
-        self.failure_count += 1
-        return None
+        except Exception as e:
+            # provider 抛出异常
+            logger.warning(
+                f"{provider.name} 查询失败：{type(e).__name__}: {e}"
+            )
+            self.provider_stats[provider.name]['failure'] += 1
+            self.circuit_breaker.record_failure(provider.name)
 
-    def get_browser_links(self, symbol: str) -> Dict[str, str]:
-        """
-        获取浏览器访问链接（当 API 失败时使用）
+    # 3. 所有数据源都失败
+    logger.error(f"❌ 所有数据源都无法获取 {symbol} 的实时行情")
+    self.failure_count += 1
+    return None
 
-        Args:
-            symbol: 股票代码
+def get_browser_links(self, symbol: str) -> Dict[str, str]:
+    """
+    获取浏览器访问链接（当 API 失败时使用）
 
-        Returns:
-            链接字典
-        """
-        return self._generate_browser_links(symbol)
+    Args:
+        symbol: 股票代码
 
-    def get_stats(self) -> Dict[str, Any]:
-        """获取统计信息"""
-        cache_hit_rate = (self.cache_hits / self.total_requests * 100) if self.total_requests > 0 else 0.0
-        success_rate = (self.success_count / self.total_requests * 100) if self.total_requests > 0 else 0.0
+    Returns:
+        链接字典
+    """
+    return self._generate_browser_links(symbol)
 
-        return {
-            'total_requests': self.total_requests,
-            'cache_hits': self.cache_hits,
-            'cache_hit_rate': f'{cache_hit_rate:.1f}%',
-            'success_count': self.success_count,
-            'failure_count': self.failure_count,
-            'success_rate': f'{success_rate:.1f}%',
-            'provider_stats': self.provider_stats.copy(),
-            'circuit_breaker_status': self.circuit_breaker.get_status(),
-            'cache_stats': self.cache.get_stats(),
+def get_stats(self) -> Dict[str, Any]:
+    """获取统计信息"""
+    cache_hit_rate = (self.cache_hits / self.total_requests * 100) if self.total_requests > 0 else 0.0
+    success_rate = (self.success_count / self.total_requests * 100) if self.total_requests > 0 else 0.0
+
+    return {
+        'total_requests': self.total_requests,
+        'cache_hits': self.cache_hits,
+        'cache_hit_rate': f'{cache_hit_rate:.1f}%',
+        'success_count': self.success_count,
+        'failure_count': self.failure_count,
+        'success_rate': f'{success_rate:.1f}%',
+        'provider_stats': self.provider_stats.copy(),
+        'circuit_breaker_status': self.circuit_breaker.get_status(),
+        'cache_stats': self.cache.get_stats(),
+    }
+
+def reset_stats(self):
+    """重置统计信息（保留缓存和熔断器状态）"""
+    self.total_requests = 0
+    self.cache_hits = 0
+    self.success_count = 0
+    self.failure_count = 0
+    for provider_name in self.provider_stats:
+        self.provider_stats[provider_name] = {
+            'success': 0,
+            'failure': 0,
+            'skipped': 0
         }
+    logger.info("统计信息已重置")
 
-    def reset_stats(self):
-        """重置统计信息（保留缓存和熔断器状态）"""
-        self.total_requests = 0
-        self.cache_hits = 0
-        self.success_count = 0
-        self.failure_count = 0
-        for provider_name in self.provider_stats:
-            self.provider_stats[provider_name] = {
-                'success': 0,
-                'failure': 0,
-                'skipped': 0
-            }
-        logger.info("统计信息已重置")
-
-    def clear_cache(self):
-        """清空缓存"""
-        self.cache.clear()
-        logger.info("缓存已清空")
+def clear_cache(self):
+    """清空缓存"""
+    self.cache.clear()
+    logger.info("缓存已清空")

@@ -87,6 +87,8 @@ class RateDerivativesCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (101 lines, target < 80)
 
+    # TODO: 长函数 105行 - 建议拆分为多个小函数
+
     def calculate(self,
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -234,275 +236,274 @@ class RateDerivativesCalculator(BaseCalculator):
             # 到期：立即行权
             if is_cap:
                 return notional * tau * max(forward_rate - strike, 0.0)
-            else:
-                return notional * tau * max(strike - forward_rate, 0.0)
+            return notional * tau * max(strike - forward_rate, 0.0)
 
-        if sigma <= 0 or forward_rate <= 0 or strike <= 0:
-            # 确定型支付
-            if is_cap:
-                payoff = notional * tau * max(forward_rate - strike, 0.0)
-            else:
-                payoff = notional * tau * max(strike - forward_rate, 0.0)
-            return payoff * np.exp(-r * T)
-
-        d1 = (np.log(forward_rate / strike) + 0.5 * sigma ** 2 * T) / (sigma * np.sqrt(T))
-        d2 = d1 - sigma * np.sqrt(T)
-
-        # 贴现因子
-        df = np.exp(-r * T)
-
+    if sigma <= 0 or forward_rate <= 0 or strike <= 0:
+        # 确定型支付
         if is_cap:
-            price = df * tau * notional * (forward_rate * norm.cdf(d1) - strike * norm.cdf(d2))
+            payoff = notional * tau * max(forward_rate - strike, 0.0)
         else:
-            price = df * tau * notional * (strike * norm.cdf(-d2) - forward_rate * norm.cdf(-d1))
+            payoff = notional * tau * max(strike - forward_rate, 0.0)
+        return payoff * np.exp(-r * T)
 
-        return float(price)
+    d1 = (np.log(forward_rate / strike) + 0.5 * sigma ** 2 * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
 
-    def _price_floorlet(self,
-                         notional: float,
-                         forward_rate: float,
-                         strike: float,
-                         T: float,
-                         sigma: float,
-                         r: float,
-                         tau: float,
-                         is_floor: bool = True) -> float:
-        """Floorlet定价（委托给_price_caplet）。"""
-        return self._price_caplet(notional, forward_rate, strike, T, sigma, r, tau, is_cap=False)
+    # 贴现因子
+    df = np.exp(-r * T)
 
-    def _price_cap(self,
-                    notional: float,
-                    forward_rates: np.ndarray,
-                    strike: float,
-                    T: float,
-                    sigma: float,
-                    r: float,
-                    tau: float) -> float:
-        """
-        Cap组合定价（多个Caplet的加总）。
+    if is_cap:
+        price = df * tau * notional * (forward_rate * norm.cdf(d1) - strike * norm.cdf(d2))
+    else:
+        price = df * tau * notional * (strike * norm.cdf(-d2) - forward_rate * norm.cdf(-d1))
 
-        一个Cap由多个Caplet组成，每个Caplet覆盖不同的利率重置期。
+    return float(price)
 
-        Args:
-            notional: 名义本金
-            forward_rates: 各期远期利率数组
-            strike: 执行利率
-            T: 最后一个Caplet的到期时间
-            sigma: 波动率
-            r: 贴现率
-            tau: 支付频率
+def _price_floorlet(self,
+                     notional: float,
+                     forward_rate: float,
+                     strike: float,
+                     T: float,
+                     sigma: float,
+                     r: float,
+                     tau: float,
+                     is_floor: bool = True) -> float:
+    """Floorlet定价（委托给_price_caplet）。"""
+    return self._price_caplet(notional, forward_rate, strike, T, sigma, r, tau, is_cap=False)
 
-        Returns:
-            Cap总价格
-        """
-        if isinstance(forward_rates, (float, int)):
-            forward_rates = np.array([float(forward_rates)])
+def _price_cap(self,
+                notional: float,
+                forward_rates: np.ndarray,
+                strike: float,
+                T: float,
+                sigma: float,
+                r: float,
+                tau: float) -> float:
+    """
+    Cap组合定价（多个Caplet的加总）。
 
-        forward_rates = np.atleast_1d(np.array(forward_rates, dtype=float))
-        n_periods = len(forward_rates)
+    一个Cap由多个Caplet组成，每个Caplet覆盖不同的利率重置期。
 
-        total_price = 0.0
-        for i in range(n_periods):
-            # 每个caplet的到期时间
-            Ti = T * (i + 1) / n_periods
-            caplet_price = self._price_caplet(
-                notional, forward_rates[i], strike, Ti, sigma, r, tau, is_cap=True
-            )
-            total_price += caplet_price
+    Args:
+        notional: 名义本金
+        forward_rates: 各期远期利率数组
+        strike: 执行利率
+        T: 最后一个Caplet的到期时间
+        sigma: 波动率
+        r: 贴现率
+        tau: 支付频率
 
-        return total_price
+    Returns:
+        Cap总价格
+    """
+    if isinstance(forward_rates, (float, int)):
+        forward_rates = np.array([float(forward_rates)])
 
-    def _price_floor(self,
-                      notional: float,
-                      forward_rates: np.ndarray,
-                      strike: float,
-                      T: float,
-                      sigma: float,
-                      r: float,
-                      tau: float) -> float:
-        """
-        Floor组合定价（多个Floorlet的加总）。
-        """
-        if isinstance(forward_rates, (float, int)):
-            forward_rates = np.array([float(forward_rates)])
+    forward_rates = np.atleast_1d(np.array(forward_rates, dtype=float))
+    n_periods = len(forward_rates)
 
-        forward_rates = np.atleast_1d(np.array(forward_rates, dtype=float))
-        n_periods = len(forward_rates)
-
-        total_price = 0.0
-        for i in range(n_periods):
-            Ti = T * (i + 1) / n_periods
-            floorlet_price = self._price_floorlet(
-                notional, forward_rates[i], strike, Ti, sigma, r, tau, is_floor=True
-            )
-            total_price += floorlet_price
-
-        return total_price
-
-    def _price_swaption(self,
-                         notional: float,
-                         forward_swap_rate: float,
-                         strike: float,
-                         T: float,
-                         sigma: float,
-                         r: float,
-                         freq: float) -> float:
-        """
-        使用Black-76公式为互换期权（Swaption）定价。
-
-        支付方互换期权（Payer Swaption）：
-            Swaption = A * [F*N(d1) - K*N(d2)]
-
-        其中 A 为年金因子。
-
-        Args:
-            notional: 名义本金
-            forward_swap_rate: 远期互换利率 (F)
-            strike: 执行互换利率 (K)
-            T: 期权到期时间
-            sigma: 波动率
-            r: 贴现率
-            freq: 互换支付频率
-
-        Returns:
-            Swaption价格（支付方互换期权）
-        """
-        if T <= 0:
-            return notional * max(forward_swap_rate - strike, 0.0)
-
-        # 计算年金因子
-        annuity_factor = self._calculate_annuity_factor(T, freq, r)
-
-        if sigma <= 0 or forward_swap_rate <= 0:
-            payoff = max(forward_swap_rate - strike, 0.0)
-            return notional * annuity_factor * payoff * np.exp(-r * T)
-
-        d1 = (np.log(forward_swap_rate / strike) + 0.5 * sigma ** 2 * T) / (sigma * np.sqrt(T))
-        d2 = d1 - sigma * np.sqrt(T)
-
-        df = np.exp(-r * T)
-        price = notional * annuity_factor * df * (
-            forward_swap_rate * norm.cdf(d1) - strike * norm.cdf(d2)
+    total_price = 0.0
+    for i in range(n_periods):
+        # 每个caplet的到期时间
+        Ti = T * (i + 1) / n_periods
+        caplet_price = self._price_caplet(
+            notional, forward_rates[i], strike, Ti, sigma, r, tau, is_cap=True
         )
+        total_price += caplet_price
 
-        return float(price)
+    return total_price
 
-    def _calculate_annuity_factor(self,
-                                    T: float,
-                                    freq: float,
-                                    r: float) -> float:
-        """
-        计算互换年金因子。
+def _price_floor(self,
+                  notional: float,
+                  forward_rates: np.ndarray,
+                  strike: float,
+                  T: float,
+                  sigma: float,
+                  r: float,
+                  tau: float) -> float:
+    """
+    Floor组合定价（多个Floorlet的加总）。
+    """
+    if isinstance(forward_rates, (float, int)):
+        forward_rates = np.array([float(forward_rates)])
 
-        A = sum_{i=1}^{n} freq * exp(-r * T_i)
+    forward_rates = np.atleast_1d(np.array(forward_rates, dtype=float))
+    n_periods = len(forward_rates)
 
-        其中:
-            T_i = T + i * freq  (远期开始的互换)
-            n = 总期数（假设互换期限等于一个常见期限）
+    total_price = 0.0
+    for i in range(n_periods):
+        Ti = T * (i + 1) / n_periods
+        floorlet_price = self._price_floorlet(
+            notional, forward_rates[i], strike, Ti, sigma, r, tau, is_floor=True
+        )
+        total_price += floorlet_price
 
-        Args:
-            T: 期权到期时间
-            freq: 支付频率（年化）
-            r: 贴现率
+    return total_price
 
-        Returns:
-            年金因子
-        """
-        # 标准互换：10年期（可根据需要调整）
-        swap_tenor = 10.0
-        n_periods = int(swap_tenor / freq)
+def _price_swaption(self,
+                     notional: float,
+                     forward_swap_rate: float,
+                     strike: float,
+                     T: float,
+                     sigma: float,
+                     r: float,
+                     freq: float) -> float:
+    """
+    使用Black-76公式为互换期权（Swaption）定价。
 
-        annuity = 0.0
-        for i in range(1, n_periods + 1):
-            Ti = T + i * freq
-            annuity += freq * np.exp(-r * Ti)
+    支付方互换期权（Payer Swaption）：
+        Swaption = A * [F*N(d1) - K*N(d2)]
 
-        return float(annuity)
+    其中 A 为年金因子。
 
-    def _price_cds(self,
-                    notional: float,
-                    spread_or_rates: Any,
-                    recovery: float = None,
-                    T: float = None,
-                    hazard_rate: float = None,
-                    r: float = None) -> float:
-        """
-        使用简化模型为信用违约互换（CDS）定价。
+    Args:
+        notional: 名义本金
+        forward_swap_rate: 远期互换利率 (F)
+        strike: 执行互换利率 (K)
+        T: 期权到期时间
+        sigma: 波动率
+        r: 贴现率
+        freq: 互换支付频率
 
-        Premium Leg = S * sum(DF_i * tau_i * (1 - PD_i))
-        Protection Leg = (1 - R) * sum(DF_i * PD_i_conditional)
+    Returns:
+        Swaption价格（支付方互换期权）
+    """
+    if T <= 0:
+        return notional * max(forward_swap_rate - strike, 0.0)
 
-        其中:
-            PD_i = 1 - exp(-lambda * t_i)  (累积违约概率)
-            PD_conditional_i = PD_i - PD_{i-1}  (条件违约概率)
+    # 计算年金因子
+    annuity_factor = self._calculate_annuity_factor(T, freq, r)
 
-        Args:
-            notional: 名义本金
-            spread_or_rates: CDS利差（年化bps或decimal）
-                - 如果是标量float，作为CDS利差
-                - 如果是dict，可包含 'spread', 'recovery', 'hazard_rate', 'T', 'r'
-            recovery: 回收率（如未提供，默认0.4）
-            T: CDS期限（年，如未提供，默认5年）
-            hazard_rate: 风险率（如未提供，从利差推导）
-            r: 无风险利率
+    if sigma <= 0 or forward_swap_rate <= 0:
+        payoff = max(forward_swap_rate - strike, 0.0)
+        return notional * annuity_factor * payoff * np.exp(-r * T)
 
-        Returns:
-            CDS公允价值（现值）
-        """
-        # 参数解析
-        if isinstance(spread_or_rates, dict):
-            params = spread_or_rates
-            cds_spread = params.get('spread', 0.01)
-            recovery = params.get('recovery', recovery if recovery is not None else 0.4)
-            T = params.get('T', T if T is not None else 5.0)
-            hazard_rate_input = params.get('hazard_rate', hazard_rate)
-            r = params.get('r', r if r is not None else self.risk_free_rate)
-        else:
-            cds_spread = float(spread_or_rates) if isinstance(spread_or_rates, (int, float)) else 0.01
-            recovery = recovery if recovery is not None else 0.4
-            T = T if T is not None else 5.0
-            hazard_rate_input = hazard_rate
-            r = r if r is not None else self.risk_free_rate
+    d1 = (np.log(forward_swap_rate / strike) + 0.5 * sigma ** 2 * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
 
-        # 从CDS利差近似推导风险率
-        # lambda ≈ S / (1 - R)
-        if hazard_rate_input is not None:
-            lam = hazard_rate_input
-        else:
-            lam = cds_spread / (1.0 - recovery) if recovery < 1.0 else cds_spread / 0.6
+    df = np.exp(-r * T)
+    price = notional * annuity_factor * df * (
+        forward_swap_rate * norm.cdf(d1) - strike * norm.cdf(d2)
+    )
 
-        # 支付频率：季度
-        freq = 0.25
-        n_periods = max(int(T / freq), 1)
+    return float(price)
 
-        # === Premium Leg ===
-        premium_leg = 0.0
-        for i in range(1, n_periods + 1):
-            ti = i * freq
-            df = np.exp(-r * ti)
-            survival_prob = np.exp(-lam * ti)
-            premium_leg += df * freq * survival_prob
+def _calculate_annuity_factor(self,
+                                T: float,
+                                freq: float,
+                                r: float) -> float:
+    """
+    计算互换年金因子。
 
-        premium_leg *= cds_spread * notional
+    A = sum_{i=1}^{n} freq * exp(-r * T_i)
 
-        # === Protection Leg ===
-        protection_leg = 0.0
-        prev_survival = 1.0
-        for i in range(1, n_periods + 1):
-            ti = i * freq
-            df = np.exp(-r * ti)
-            survival_prob = np.exp(-lam * ti)
-            default_prob_conditional = prev_survival - survival_prob
-            protection_leg += df * default_prob_conditional
-            prev_survival = survival_prob
+    其中:
+        T_i = T + i * freq  (远期开始的互换)
+        n = 总期数（假设互换期限等于一个常见期限）
 
-        protection_leg *= (1.0 - recovery) * notional
+    Args:
+        T: 期权到期时间
+        freq: 支付频率（年化）
+        r: 贴现率
 
-        # CDS价值 = Protection Leg - Premium Leg（对保护买方而言）
-        cds_value = protection_leg - premium_leg
+    Returns:
+        年金因子
+    """
+    # 标准互换：10年期（可根据需要调整）
+    swap_tenor = 10.0
+    n_periods = int(swap_tenor / freq)
 
-        return float(cds_value)
+    annuity = 0.0
+    for i in range(1, n_periods + 1):
+        Ti = T + i * freq
+        annuity += freq * np.exp(-r * Ti)
 
-    def get_supported_methods(self) -> list:
-        """获取支持的方法列表。"""
-        return ['caplet', 'floorlet', 'cap', 'floor', 'swaption', 'cds']
+    return float(annuity)
+
+def _price_cds(self,
+                notional: float,
+                spread_or_rates: Any,
+                recovery: float = None,
+                T: float = None,
+                hazard_rate: float = None,
+                r: float = None) -> float:
+    """
+    使用简化模型为信用违约互换（CDS）定价。
+
+    Premium Leg = S * sum(DF_i * tau_i * (1 - PD_i))
+    Protection Leg = (1 - R) * sum(DF_i * PD_i_conditional)
+
+    其中:
+        PD_i = 1 - exp(-lambda * t_i)  (累积违约概率)
+        PD_conditional_i = PD_i - PD_{i-1}  (条件违约概率)
+
+    Args:
+        notional: 名义本金
+        spread_or_rates: CDS利差（年化bps或decimal）
+            - 如果是标量float，作为CDS利差
+            - 如果是dict，可包含 'spread', 'recovery', 'hazard_rate', 'T', 'r'
+        recovery: 回收率（如未提供，默认0.4）
+        T: CDS期限（年，如未提供，默认5年）
+        hazard_rate: 风险率（如未提供，从利差推导）
+        r: 无风险利率
+
+    Returns:
+        CDS公允价值（现值）
+    """
+    # 参数解析
+    if isinstance(spread_or_rates, dict):
+        params = spread_or_rates
+        cds_spread = params.get('spread', 0.01)
+        recovery = params.get('recovery', recovery if recovery is not None else 0.4)
+        T = params.get('T', T if T is not None else 5.0)
+        hazard_rate_input = params.get('hazard_rate', hazard_rate)
+        r = params.get('r', r if r is not None else self.risk_free_rate)
+    else:
+        cds_spread = float(spread_or_rates) if isinstance(spread_or_rates, (int, float)) else 0.01
+        recovery = recovery if recovery is not None else 0.4
+        T = T if T is not None else 5.0
+        hazard_rate_input = hazard_rate
+        r = r if r is not None else self.risk_free_rate
+
+    # 从CDS利差近似推导风险率
+    # lambda ≈ S / (1 - R)
+    if hazard_rate_input is not None:
+        lam = hazard_rate_input
+    else:
+        lam = cds_spread / (1.0 - recovery) if recovery < 1.0 else cds_spread / 0.6
+
+    # 支付频率：季度
+    freq = 0.25
+    n_periods = max(int(T / freq), 1)
+
+    # === Premium Leg ===
+    premium_leg = 0.0
+    for i in range(1, n_periods + 1):
+        ti = i * freq
+        df = np.exp(-r * ti)
+        survival_prob = np.exp(-lam * ti)
+        premium_leg += df * freq * survival_prob
+
+    premium_leg *= cds_spread * notional
+
+    # === Protection Leg ===
+    protection_leg = 0.0
+    prev_survival = 1.0
+    for i in range(1, n_periods + 1):
+        ti = i * freq
+        df = np.exp(-r * ti)
+        survival_prob = np.exp(-lam * ti)
+        default_prob_conditional = prev_survival - survival_prob
+        protection_leg += df * default_prob_conditional
+        prev_survival = survival_prob
+
+    protection_leg *= (1.0 - recovery) * notional
+
+    # CDS价值 = Protection Leg - Premium Leg（对保护买方而言）
+    cds_value = protection_leg - premium_leg
+
+    return float(cds_value)
+
+def get_supported_methods(self) -> list:
+    """获取支持的方法列表。"""
+    return ['caplet', 'floorlet', 'cap', 'floor', 'swaption', 'cds']

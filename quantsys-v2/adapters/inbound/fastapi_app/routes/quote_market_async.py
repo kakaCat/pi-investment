@@ -89,6 +89,8 @@ def _aggregate_kline_records(records, freq):
 # TODO: Refactor - function too long (107 lines, target < 80)
 
 # TODO: Split long function (106 lines, target < 100)
+# TODO: 长函数 115行 - 建议拆分为多个小函数
+
 def get_stock_history(
     # ---- Section 1 ----
     # ---- Section 2 ----

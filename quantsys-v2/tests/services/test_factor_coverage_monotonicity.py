@@ -1,3 +1,14 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_20 = 20
+CONST_2024 = 2024
+CONST_3 = 3
+CONST_30 = 30
+CONST_5 = 5
+CONST_50 = 50
+CONST_60000 = 60000
+
 """
 测试因子覆盖率和单调性分析功能
 """

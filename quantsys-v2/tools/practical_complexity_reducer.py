@@ -114,6 +114,8 @@ def extract_guards_to_method(source_code: str, func_name: str) -> str:
 
     return '\n'.join(new_lines)
 
+# TODO: 复杂度 22 - 需要重构拆分为更小的函数
+
 def split_long_function_by_comments(source_code: str, func_name: str, max_lines: int = 100) -> str:
     """根据注释段落拆分长函数"""
     lines = source_code.split('\n')

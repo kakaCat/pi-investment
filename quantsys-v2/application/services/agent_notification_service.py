@@ -90,40 +90,39 @@ class AgentNotificationService:
                 if result.get('success'):
                     logger.info(f"Agent notified successfully: {event}")
                     return 'ok'
-                else:
-                    logger.warning(f"Agent notification failed: {result.get('error')}")
-                    return 'error'
-            else:
-                logger.error(f"Agent API error {response.status_code}: {response.text}")
+                logger.warning(f"Agent notification failed: {result.get('error')}")
                 return 'error'
-
-        except requests.exceptions.Timeout:
-            logger.error(f"Agent notification timeout: {event}")
-            return 'timeout'
-        except requests.exceptions.ConnectionError:
-            logger.error(f"Cannot connect to Agent at {self.agent_url}")
-            return 'error'
-        except Exception as e:
-            logger.error(f"Failed to notify Agent: {e}")
+        else:
+            logger.error(f"Agent API error {response.status_code}: {response.text}")
             return 'error'
 
-    def send_reminder(self, agent_id: str, message: str,
-                      remind_at: Optional[str] = None) -> bool:
-        """发送提醒事件给 Agent（调度任务 agent_reminder 使用）
+    except requests.exceptions.Timeout:
+        logger.error(f"Agent notification timeout: {event}")
+        return 'timeout'
+    except requests.exceptions.ConnectionError:
+        logger.error(f"Cannot connect to Agent at {self.agent_url}")
+        return 'error'
+    except Exception as e:
+        logger.error(f"Failed to notify Agent: {e}")
+        return 'error'
 
-        Args:
-            agent_id: Agent ID
-            message: 提醒消息
-            remind_at: 提醒时间（可选，仅作上下文记录）
+def send_reminder(self, agent_id: str, message: str,
+                  remind_at: Optional[str] = None) -> bool:
+    """发送提醒事件给 Agent（调度任务 agent_reminder 使用）
 
-        Returns:
-            是否成功通知
-        """
-        return self.notify_agent('agent_reminder', {
-            'agent_id': agent_id,
-            'message': message,
-            'remind_at': remind_at,
-        })
+    Args:
+        agent_id: Agent ID
+        message: 提醒消息
+        remind_at: 提醒时间（可选，仅作上下文记录）
+
+    Returns:
+        是否成功通知
+    """
+    return self.notify_agent('agent_reminder', {
+        'agent_id': agent_id,
+        'message': message,
+        'remind_at': remind_at,
+    })
 
 
 # 全局单例

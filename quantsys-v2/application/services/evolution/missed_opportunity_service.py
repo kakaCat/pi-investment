@@ -105,6 +105,8 @@ class MissedOpportunityService:
         return cur is None or (_sig_get(s, 'confidence') or 0) > (_sig_get(cur, 'confidence') or 0)
 
     # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
     def capture(self, lookback_days: int = 10, today: Optional[date] = None) -> Dict[str, Any]:
         """滚动捕获最近 lookback_days 内未被行动的买入信号，返回计数汇总。"""
         today = today or date.today()
@@ -120,15 +122,11 @@ class MissedOpportunityService:
         for s in signals or []:
             # TODO: 提取嵌套逻辑为独立方法
 
-            if str(_sig_get(s, 'action') or '').lower() != BUY_ACTION:
-                continue
-            if _sig_get(s, 'status') not in CAPTURABLE_STATUS:
+            if str(_sig_get(s, 'action') or '').lower() != BUY_ACTION and _sig_get(s, 'status') not in CAPTURABLE_STATUS:
                 continue
             key = (str(_sig_get(s, 'signal_date'))[:10], _sig_get(s, 'symbol'))
             cur = candidates.get(key)
-            if cur is None or (_sig_get(s, 'confidence') or 0) > (_sig_get(cur, 'confidence') or 0):
-                candidates[key] = s
-            if _check_condition_0():
+            if cur is None or (_sig_get(s, 'confidence') or 0) > (_sig_get(cur, 'confidence') or 0) and _check_condition_0():
                 pass  # TODO: implement
         # 每日限量：confidence 降序取前 daily_cap
         by_date: Dict[str, List[Any]] = {}

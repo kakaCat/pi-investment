@@ -239,9 +239,8 @@ def test_sell_without_position():
     if success:
         print(f"   ✗ 测试失败：应该拒绝创建执行记录，但成功了")
         return False
-    else:
-        print(f"   ✓ 正确拒绝创建执行记录: {error_msg}")
-        return True
+    print(f"   ✓ 正确拒绝创建执行记录: {error_msg}")
+    return True
 
 
 def main():

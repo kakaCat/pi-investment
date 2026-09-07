@@ -134,6 +134,8 @@ def generate_sample_signals(klines: list, symbol: str) -> list:
 
 
 # TODO: Split long function (127 lines, target < 100)
+# TODO: 长函数 138行 - 建议拆分为多个小函数
+
 def run_simple_backtest(
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -273,6 +275,8 @@ def run_simple_backtest(
 
     return equity_curve, trades
 
+
+# TODO: 长函数 160行 - 建议拆分为多个小函数
 
 # TODO: Split long function (147 lines, target < 100)
 def main():

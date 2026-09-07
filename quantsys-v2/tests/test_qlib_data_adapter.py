@@ -1,3 +1,14 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_12 = 12
+CONST_200 = 200
+CONST_2023 = 2023
+CONST_31 = 31
+CONST_5 = 5
+CONST_6 = 6
+CONST_60 = 60
+
 """
 Qlib 数据适配器测试
 

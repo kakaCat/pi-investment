@@ -94,6 +94,8 @@ class CointegrationCalculator(BaseCalculator):
     # TODO: Refactor - function too long (140 lines, target < 80)
 
 # TODO: Split long function (139 lines, target < 100)
+    # TODO: 长函数 145行 - 建议拆分为多个小函数
+
     def engle_granger_test(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -241,6 +243,8 @@ class CointegrationCalculator(BaseCalculator):
             )
 
     @validate_inputs
+    # TODO: 长函数 102行 - 建议拆分为多个小函数
+
     @timing_decorator
     def johansen_test(
         # ---- Section 1 ----
@@ -347,6 +351,8 @@ class CointegrationCalculator(BaseCalculator):
 
     @validate_inputs
     # TODO: Refactor - function too long (106 lines, target < 80)
+
+    # TODO: 长函数 110行 - 建议拆分为多个小函数
 
     @timing_decorator
 # TODO: Split long function (105 lines, target < 100)
@@ -632,15 +638,14 @@ class CointegrationCalculator(BaseCalculator):
         if len(cointegrating_vector) > 1:
             hedge_ratio = cointegrating_vector[1]
             return f"Series are cointegrated. Hedge ratio: {hedge_ratio:.4f}. Suitable for pairs trading."
-        else:
-            return "Series are cointegrated."
+        return "Series are cointegrated."
 
-    def _interpret_ecm(self, gamma: float, half_life: float) -> str:
-        """Generate interpretation of ECM results."""
-        if gamma >= 0:
-            return "Warning: Positive adjustment speed indicates divergence, not convergence."
+def _interpret_ecm(self, gamma: float, half_life: float) -> str:
+    """Generate interpretation of ECM results."""
+    if gamma >= 0:
+        return "Warning: Positive adjustment speed indicates divergence, not convergence."
 
-        if np.isinf(half_life):
-            return "Adjustment speed is very slow."
+    if np.isinf(half_life):
+        return "Adjustment speed is very slow."
 
-        return f"Spread converges to equilibrium with half-life of {half_life:.2f} periods."
+    return f"Spread converges to equilibrium with half-life of {half_life:.2f} periods."

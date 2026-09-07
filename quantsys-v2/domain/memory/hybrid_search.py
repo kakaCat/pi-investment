@@ -76,9 +76,7 @@ def doc_text(item: Dict[str, Any]) -> str:
 
 def parse_embedding(raw: Any) -> Optional[List[float]]:
     """解析 TEXT 列中的 JSON 向量，非法/为空返回 None"""
-    if not raw:
-        return None
-    if isinstance(raw, list):
+    if not raw and isinstance(raw, list):
         return raw
     try:
         vec = json.loads(raw)

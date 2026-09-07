@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000 = 100000
+CONST_2026 = 2026
+CONST_23 = 23
+CONST_23_436 = 23.436
+CONST_23_440 = 23.440
+CONST_28 = 28
+CONST_346_06 = 346.06
+CONST_4 = 4
+CONST_5_0 = 5.0
+CONST_60000 = 60000
+
 """并发交易现金一致性回归测试
 
 背景：2026-07-28 agent_virtual 两笔并发买入（10:00:23.436 / 10:00:23.440）

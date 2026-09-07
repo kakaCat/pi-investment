@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_12 = 12
+CONST_14 = 14
+CONST_16 = 16
+CONST_17 = 17
+CONST_17_0 = 17.0
+CONST_19_0 = 19.0
+CONST_2_05 = 2.05
+CONST_2_933 = 2.933
+CONST_2_94 = 2.94
+CONST_20 = 20
+
 import pytest
 import pandas as pd
 from unittest.mock import Mock

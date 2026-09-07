@@ -266,6 +266,8 @@ def carhart_calculate(payload: Optional[Dict[str, Any]] = Body(None)):
 # TODO: Refactor - function too long (121 lines, target < 80)
 
 # TODO: Split long function (120 lines, target < 100)
+# TODO: 长函数 131行 - 建议拆分为多个小函数
+
 def barra_calculate(payload: Optional[Dict[str, Any]] = Body(None)):
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -397,4 +399,3 @@ def barra_calculate(payload: Optional[Dict[str, Any]] = Body(None)):
             success=False,
             message=f"Barra calculation failed: {msg}"
         )
-

@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_15 = 15
+CONST_20 = 20
+CONST_3 = 3
+CONST_4 = 4
+CONST_8 = 8
+CONST_80 = 80
+
 #!/usr/bin/env python3
 """
 系统性重构：使用提取方法模式降低复杂度

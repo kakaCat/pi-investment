@@ -70,11 +70,10 @@ def test_risk_metrics_by_account():
         print(f"✗ Bug 仍然存在：所有账户返回相同的 maxDrawdown = {list(results.values())[0]}")
         print("  这意味着后端仍然没有按 account_name 过滤数据")
         return False
-    else:
-        print(f"✓ Bug 已修复：{len(results)} 个账户返回了 {unique_values} 个不同的 maxDrawdown 值")
-        for account, value in results.items():
-            print(f"  {account}: {value}")
-        return True
+    print(f"✓ Bug 已修复：{len(results)} 个账户返回了 {unique_values} 个不同的 maxDrawdown 值")
+    for account, value in results.items():
+        print(f"  {account}: {value}")
+    return True
 
 if __name__ == "__main__":
     try:

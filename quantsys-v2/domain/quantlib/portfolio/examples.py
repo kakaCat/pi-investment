@@ -449,6 +449,8 @@ def example_4_efficient_frontier():
 # TODO: Refactor - function too long (113 lines, target < 80)
 
 # TODO: Split long function (112 lines, target < 100)
+# TODO: 长函数 117行 - 建议拆分为多个小函数
+
 def example_5_constrained_optimization():
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -569,6 +571,8 @@ def example_5_constrained_optimization():
 
 # TODO: Refactor - function too long (118 lines, target < 80)
 
+
+# TODO: 长函数 122行 - 建议拆分为多个小函数
 
 # TODO: Split long function (117 lines, target < 100)
 def example_6_complete_workflow():

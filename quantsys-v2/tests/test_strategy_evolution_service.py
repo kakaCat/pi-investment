@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000 = 100000
+CONST_11 = 11
+CONST_12 = 12
+CONST_13 = 13
+CONST_15 = 15
+CONST_19 = 19
+CONST_2_375 = 2.375
+CONST_2_5 = 2.5
+CONST_2_625 = 2.625
+CONST_2_8 = 2.8
+
 """策略进化引擎单测（RFC 012 P1，2026-09-03 w-8366e526）
 
 覆盖：数值参数提取、确定性变体网格、批内 fitness 归一数学、run 全流程

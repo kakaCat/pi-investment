@@ -125,6 +125,8 @@ def _rows_to_df(rows: list, schema: dict) -> pl.DataFrame:
 
 # TODO: Refactor large class (29 methods, target < 20)
 # TODO: Refactor large class (29 methods, target < 20)
+# TODO: 大类 29个方法 - 考虑拆分为多个类或使用组合模式
+
 class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
     """K线ORM Repository
 
@@ -170,9 +172,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return self.get_minute_klines(symbol, start_date, end_date)
 
         # 默认返回日K线
-        if not start_date:
-            start_date = '1990-01-01'
-        if not end_date:
+        if not start_date and not end_date:
             from datetime import date
             end_date = date.today().isoformat()
 

@@ -90,6 +90,8 @@ def _normalise_frame(df: pd.DataFrame, col_map: dict[str, str]) -> pd.DataFrame:
 
 # TODO: Refactor large class (28 methods, target < 20)
 # TODO: Refactor large class (28 methods, target < 20)
+# TODO: 大类 28个方法 - 考虑拆分为多个类或使用组合模式
+
 class AkShareAdapter(BaseMarketAdapter):
     """AkShare-backed implementation of BaseMarketAdapter.
 
@@ -701,6 +703,8 @@ class AkShareAdapter(BaseMarketAdapter):
 # TODO: Refactor - complexity 21 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 21 (target < 15)
+    # TODO: 复杂度 21 - 需要重构拆分为更小的函数
+
     def get_market_news(self, symbol: str = "", limit: int = 20) -> list[dict]:
         """Return recent market news for *symbol*.
 

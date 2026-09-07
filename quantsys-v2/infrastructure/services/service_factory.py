@@ -52,6 +52,8 @@ def _try_get_from_enhanced(service_type: Type[T]) -> Optional[T]:
 
 # TODO: Refactor large class (53 methods, target < 20)
 # TODO: Refactor large class (53 methods, target < 20)
+# TODO: 大类 53个方法 - 考虑拆分为多个类或使用组合模式
+
 class ServiceFactory:
     """服务工厂类
 
@@ -755,9 +757,7 @@ class ServiceFactory:
     def get_portfolio_repository(cls):
         from domain.ports.repository_ports import IPortfolioRepository
         enhanced = _try_get_from_enhanced(IPortfolioRepository)
-        if enhanced:
-            return enhanced
-        if 'portfolio_repository' not in cls._instances:
+        if enhanced and 'portfolio_repository' not in cls._instances:
             from adapters.outbound.repositories.portfolio_repository import PortfolioORMRepository
             cls._instances['portfolio_repository'] = PortfolioORMRepository()
             logger.info("PortfolioORMRepository initialized (legacy)")
@@ -768,9 +768,7 @@ class ServiceFactory:
     def get_risk_repository(cls):
         from domain.ports.repository_ports import IRiskRepository
         enhanced = _try_get_from_enhanced(IRiskRepository)
-        if enhanced:
-            return enhanced
-        if 'risk_repository' not in cls._instances:
+        if enhanced and 'risk_repository' not in cls._instances:
             from adapters.outbound.repositories.risk_repository import RiskORMRepository
             cls._instances['risk_repository'] = RiskORMRepository()
             logger.info("RiskORMRepository initialized (legacy)")
@@ -781,9 +779,7 @@ class ServiceFactory:
     def get_factor_repository(cls):
         from domain.ports.repository_ports import IFactorRepository
         enhanced = _try_get_from_enhanced(IFactorRepository)
-        if enhanced:
-            return enhanced
-        if 'factor_repository' not in cls._instances:
+        if enhanced and 'factor_repository' not in cls._instances:
             from adapters.outbound.repositories.factor_repository import FactorORMRepository
             cls._instances['factor_repository'] = FactorORMRepository()
             logger.info("FactorORMRepository initialized (legacy)")

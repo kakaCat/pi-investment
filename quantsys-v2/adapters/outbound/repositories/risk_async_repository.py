@@ -77,13 +77,9 @@ class RiskAsyncRepository(AsyncBaseORMRepository[RiskMetric]):
         try:
             stmt = select(RiskMetric)
 
-            if symbol:
-                stmt = stmt.where(RiskMetric.symbol == symbol)
-            if metric_name:
+            if symbol and metric_name:
                 stmt = stmt.where(RiskMetric.metric_name == metric_name)
-            if start_date:
-                stmt = stmt.where(RiskMetric.metric_date >= start_date)
-            if end_date:
+            if start_date and end_date:
                 stmt = stmt.where(RiskMetric.metric_date <= end_date)
 
             stmt = stmt.order_by(desc(RiskMetric.metric_date)).limit(limit)

@@ -100,12 +100,13 @@ class BondPricingCalculator(BaseCalculator):
             return self.calculate_ytw(**kwargs)
         elif method == 'accrued':
             return self.calculate_accrued_interest(**kwargs)
-        else:
-            raise DataValidationError(f"Unknown method: {method}", field_name='method')
+        raise DataValidationError(f"Unknown method: {method}", field_name='method')
 
-    # TODO: Refactor - function too long (123 lines, target < 80)
+# TODO: Refactor - function too long (123 lines, target < 80)
 
 # TODO: Split long function (122 lines, target < 100)
+    # TODO: 长函数 128行 - 建议拆分为多个小函数
+
     def calculate_price(
         # ---- Section 1 ----
         # ---- Section 2 ----

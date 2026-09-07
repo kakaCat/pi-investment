@@ -77,6 +77,8 @@ logger = logging.getLogger(__name__)
 
 # TODO: Refactor large class (63 methods, target < 20)
 # TODO: Refactor large class (64 methods, target < 20)
+# TODO: 大类 64个方法 - 考虑拆分为多个类或使用组合模式
+
 class DataProviderManager(IDataProviderManager):
     """Unified data provider manager
 
@@ -307,6 +309,8 @@ class DataProviderManager(IDataProviderManager):
         return data.price is None or (hasattr(pd, 'isna') and pd.isna(data.price))
 
     # TODO: Refactor - complexity 20 (target < 15)
+    # TODO: 复杂度 20 - 需要重构拆分为更小的函数
+
     def _is_valid(self, data) -> bool:
         """Validate data completeness (P0 Enhanced)
 
@@ -351,9 +355,7 @@ class DataProviderManager(IDataProviderManager):
         # QuoteData检查：price必须有效
         if hasattr(data, 'price'):
             import pandas as pd
-            if data.price is None or (hasattr(pd, 'isna') and pd.isna(data.price)):
-                return False
-            if _check_condition_0():
+            if data.price is None or (hasattr(pd, 'isna') and pd.isna(data.price)) and _check_condition_0():
                 pass  # TODO: implement
         # 其他数据类型：有source且有timestamp就认为有效
         if hasattr(data, 'timestamp'):
@@ -840,8 +842,12 @@ class DataProviderManager(IDataProviderManager):
 # REFACTOR: Split this function into smaller pieces
 # TODO: Refactor - complexity 18 (target < 15)
     # TODO: Split long function (115 lines, target < 100)
+    # TODO: 复杂度 18 - 需要重构拆分为更小的函数
+
     # TODO: Refactor - complexity 18 (target < 15)
     # TODO: Split long function (115 lines, target < 100)
+    # TODO: 长函数 125行 - 建议拆分为多个小函数
+
     def get_data_completeness(
         # ---- Section 1 ----
         # ---- Section 2 ----

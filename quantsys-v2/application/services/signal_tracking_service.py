@@ -152,6 +152,10 @@ class SignalTrackingService:
 # TODO: Refactor - complexity 18 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 18 (target < 15)
+    # TODO: 复杂度 18 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 110行 - 建议拆分为多个小函数
+
     def update_performance(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -289,9 +293,7 @@ class SignalTrackingService:
         repo = SignalTrackingRepository(self.db)
         
         # 默认时间范围：最近30天
-        if not start_date:
-            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-        if not end_date:
+        if not start_date and not end_date:
             end_date = datetime.now().strftime('%Y-%m-%d')
         
         # 获取符合条件的信号

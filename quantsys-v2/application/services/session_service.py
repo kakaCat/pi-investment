@@ -301,9 +301,7 @@ class SessionService:
         if total == 0:
             return "本会话无工具调用记录。"
         parts = []
-        if success_rate is not None and success_rate < 0.8:
-            parts.append(f"工具成功率偏低（{success_rate:.0%}），建议检查失败工具的参数或数据源。")
-        if float(tool.get("max_ms") or 0) > 10000:
+        if success_rate is not None and success_rate < 0.8 and float(tool.get("max_ms") or 0) > 10000:
             parts.append(f"存在慢工具调用（最大 {int(tool['max_ms'])}ms），建议排查超时原因。")
         if errors:
             parts.append(f"最高频错误：{errors[0]['message']}（{errors[0]['cnt']} 次）。")

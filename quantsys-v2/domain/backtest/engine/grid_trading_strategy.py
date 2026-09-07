@@ -128,9 +128,7 @@ class GridTradingStrategy(EnhancedStrategyBase):
 
     @staticmethod
     def _last_valid(values) -> float | None:
-        if values is None:
-            return None
-        if hasattr(values, '__iter__') and not isinstance(values, str):
+        if values is None and hasattr(values, '__iter__') and not isinstance(values, str):
             for v in reversed(list(values)):
                 if v is not None and v == v:
                     return float(v)

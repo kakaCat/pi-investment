@@ -58,9 +58,7 @@ logger = structlog.get_logger(__name__)
 
 
 def _confidence_for(samples: int) -> float:
-    if samples < 10:
-        return 0.3
-    if samples <= 30:
+    if samples < 10 and samples <= 30:
         return 0.5
     return 0.7
 

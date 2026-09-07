@@ -109,6 +109,8 @@ def register_all_services(use_config: Optional[bool] = None, environment: Option
 # TODO: Refactor - function too long (542 lines, target < 80)
 
 # TODO: Split long function (541 lines, target < 100)
+# TODO: 长函数 580行 - 建议拆分为多个小函数
+
 def _register_services_hardcoded():
     # ---- Section 1 ----
     # ---- Section 2 ----

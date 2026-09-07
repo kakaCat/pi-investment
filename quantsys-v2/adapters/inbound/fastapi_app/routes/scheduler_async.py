@@ -81,9 +81,7 @@ def _pagination_payload(total: int, page: int, page_size: int) -> Dict[str, int]
 
 
 def _extract_params_dict(params: Any) -> Dict[str, Any]:
-    if not params:
-        return {}
-    if isinstance(params, dict):
+    if not params and isinstance(params, dict):
         return params
     if isinstance(params, str):
         try:
@@ -134,26 +132,23 @@ def _list_visible_tasks(limit: int, offset: int) -> Tuple[List[Dict[str, Any]], 
 
 def _schedule_kind_to_cron(schedule_kind: str, schedule_expr: str, every_seconds: Optional[int],
                             schedule_at: Optional[str], delay_seconds: Optional[int]) -> str:
-    if schedule_kind == 'cron' and schedule_expr:
-        return schedule_expr
-    if schedule_kind == 'every' and every_seconds:
+    if schedule_kind == 'cron' and schedule_expr and schedule_kind == 'every' and every_seconds:
         if every_seconds <= 60:
             return f'*/{every_seconds // 60 or 1} * * * *'
         elif every_seconds <= 3600:
             return f'*/{every_seconds // 60} * * * *'
-        else:
-            hours = every_seconds // 3600
-            return f'0 */{hours} * * *'
-    if schedule_kind == 'at' and schedule_at:
-        try:
-            dt = datetime.fromisoformat(schedule_at)
-            return f'{dt.minute} {dt.hour} {dt.day} {dt.month} *'
-        except (ValueError, TypeError):
-            pass
-    if schedule_kind == 'delay' and delay_seconds:
-        run_at = datetime.now() + timedelta(seconds=delay_seconds)
-        return f'{run_at.minute} {run_at.hour} {run_at.day} {run_at.month} *'
-    return '0 9 * * 1-5'
+        hours = every_seconds // 3600
+        return f'0 */{hours} * * *'
+if schedule_kind == 'at' and schedule_at:
+    try:
+        dt = datetime.fromisoformat(schedule_at)
+        return f'{dt.minute} {dt.hour} {dt.day} {dt.month} *'
+    except (ValueError, TypeError):
+        pass
+if schedule_kind == 'delay' and delay_seconds:
+    run_at = datetime.now() + timedelta(seconds=delay_seconds)
+    return f'{run_at.minute} {run_at.hour} {run_at.day} {run_at.month} *'
+return '0 9 * * 1-5'
 
 
 def _normalize_run(run: Dict[str, Any], task_name: str = None) -> Dict[str, Any]:
@@ -245,13 +240,9 @@ def create_scheduler_task(payload: Optional[Dict[str, Any]] = Body(None)):
     params = pl if isinstance(pl, dict) else {}
 
     # 保存额外参数到 params
-    if schedule_kind != 'cron':
-        params['_schedule_kind'] = schedule_kind
-    if task_data.get('delay_seconds'):
+    if schedule_kind != 'cron' and task_data.get('delay_seconds'):
         params['delay_seconds'] = task_data['delay_seconds']
-    if task_data.get('interval_seconds'):
-        params['interval_seconds'] = task_data['interval_seconds']
-    if task_data.get('run_at'):
+    if task_data.get('interval_seconds') and task_data.get('run_at'):
         params['run_at'] = task_data['run_at']
     if task_data.get('compensation_enabled'):
         params['_compensation_enabled'] = True
@@ -298,6 +289,8 @@ def _build_update_scheduler_task_result(data):
 # TODO: Refactor - complexity 16 (target < 15)
 # REFACTOR: Split this function into smaller pieces
 # TODO: Refactor - complexity 16 (target < 15)
+# TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
 def update_scheduler_task(task_id: str, payload: Optional[Dict[str, Any]] = Body(None)):
     if not payload:
         return error_response({'success': False, 'error': 'Request body is required'}, 400)
@@ -305,23 +298,17 @@ def update_scheduler_task(task_id: str, payload: Optional[Dict[str, Any]] = Body
     pl = task_data.get('payload', {})
     tid = int(task_id)
     updates: Dict[str, Any] = {}
-    if 'name' in task_data:
-        updates['name'] = task_data['name']
-    if 'cron_expression' in task_data:
+    if 'name' in task_data and 'cron_expression' in task_data:
         updates['cron_expression'] = task_data['cron_expression']
     if 'command' in task_data:
         updates['command'] = task_data['command']
     elif isinstance(pl, dict) and 'command' in pl:
         updates['command'] = pl['command']
-    if 'task_type' in task_data:
-        updates['task_type'] = task_data['task_type']
-    if isinstance(pl, dict) and pl:
+    if 'task_type' in task_data and isinstance(pl, dict) and pl:
         existing = _scheduler.get_task(tid)
         existing_params = _extract_params_dict(existing.get('params')) if existing else {}
         updates['params'] = {**existing_params, **pl}
-    if 'params' in task_data:
-        updates['params'] = task_data['params']
-    if 'is_enabled' in task_data:
+    if 'params' in task_data and 'is_enabled' in task_data:
         updates['is_enabled'] = task_data['is_enabled']
     if 'schedule_kind' in task_data or 'schedule_expr' in task_data:
         task = _scheduler.get_task(tid)
@@ -464,11 +451,10 @@ def reload_scheduler_tasks(request: Request = None):
         if scheduler_service is not None:
             scheduler_service.reload_tasks()
             return {'success': True, 'message': 'Tasks reloaded in APScheduler'}
-        else:
-            return {'success': False, 'error': 'APScheduler not available (Agent OS mode or not started)'}
-    except Exception as e:
-        logger.exception(f"Failed to reload tasks: {e}")
-        return error_response({'success': False, 'error': str(e)}, 500)
+        return {'success': False, 'error': 'APScheduler not available (Agent OS mode or not started)'}
+except Exception as e:
+    logger.exception(f"Failed to reload tasks: {e}")
+    return error_response({'success': False, 'error': str(e)}, 500)
 
 
 # ============ 运行记录 ============

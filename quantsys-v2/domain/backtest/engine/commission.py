@@ -97,9 +97,7 @@ class AShareCommission(CommissionModel):
             stamp_tax_rate: Stamp tax rate (default 0.1%, sell only)
             transfer_fee_rate: Transfer fee rate (default 0.001%)
         """
-        if commission_rate < 0 or min_commission < 0:
-            raise ValueError("Commission parameters must be non-negative")
-        if stamp_tax_rate < 0 or transfer_fee_rate < 0:
+        if commission_rate < 0 or min_commission < 0 and stamp_tax_rate < 0 or transfer_fee_rate < 0:
             raise ValueError("Tax/fee rates must be non-negative")
 
         self.commission_rate = commission_rate

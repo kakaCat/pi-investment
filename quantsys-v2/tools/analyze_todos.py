@@ -108,6 +108,8 @@ def scan_todos(base_dir: Path, patterns: List[str] = None) -> List[TODOItem]:
 
 # TODO: Refactor - complexity 17 (target < 15)
 
+# TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
 def generate_report(todos: List[TODOItem], output_file: Path) -> None:
     """生成清理报告
 

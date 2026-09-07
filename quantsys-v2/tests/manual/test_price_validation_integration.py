@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10000 = 10000
+CONST_20 = 20
+CONST_2025 = 2025
+CONST_30 = 30
+CONST_40 = 40
+CONST_5 = 5
+CONST_50 = 50
+CONST_60 = 60
+CONST_70 = 70
+
 #!/usr/bin/env python3
 """
 测试价格校验集成到回测服务
@@ -243,15 +256,14 @@ def main():
             print("   ✓ 未来信息策略被成功拦截")
             print("\n💡 价格校验已成功集成到回测服务！")
             return 0
-        else:
-            print("\n❌ 部分测试失败")
-            return 1
-
-    except Exception as e:
-        print(f"\n❌ 测试异常：{e}")
-        import traceback
-        traceback.print_exc()
+        print("\n❌ 部分测试失败")
         return 1
+
+except Exception as e:
+    print(f"\n❌ 测试异常：{e}")
+    import traceback
+    traceback.print_exc()
+    return 1
 
 
 if __name__ == '__main__':

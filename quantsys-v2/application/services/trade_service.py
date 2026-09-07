@@ -134,9 +134,7 @@ def get_trades(
     if symbol:
         trades = portfolio_repo.get_trades_by_symbol(symbol, start_date, end_date)
     else:
-        if not start_date:
-            start_date = '2000-01-01'
-        if not end_date:
+        if not start_date and not end_date:
             end_date = datetime.now().strftime('%Y-%m-%d')
         trades = portfolio_repo.get_trades_by_date(start_date, end_date)
 
@@ -231,6 +229,10 @@ def _build_get_position_result(data):
 # TODO: Split long function (109 lines, target < 100)
 # TODO: Refactor - complexity 18 (target < 15)
 # TODO: Split long function (109 lines, target < 100)
+# TODO: 复杂度 18 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 118行 - 建议拆分为多个小函数
+
 def get_position(
     # ---- Section 1 ----
     # ---- Section 2 ----

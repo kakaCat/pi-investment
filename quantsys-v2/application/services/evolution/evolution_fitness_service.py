@@ -115,9 +115,7 @@ class EvolutionFitnessService:
                 account_name=account_name, window_end=window_end,
                 window_days=window_days, **result)
             
-            if result.get('up_capture') is not None:
-                evolution_fitness_score.labels(account=account_name, type='up_capture').set(result['up_capture'])
-            if result.get('down_capture') is not None:
+            if result.get('up_capture') is not None and result.get('down_capture') is not None:
                 evolution_fitness_score.labels(account=account_name, type='down_capture').set(result['down_capture'])
             
             computed += 1

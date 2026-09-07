@@ -78,6 +78,8 @@ class DomainModelAnalyzer(ast.NodeVisitor):
 
 # TODO: Refactor - complexity 21 (target < 15)
 
+# TODO: 复杂度 21 - 需要重构拆分为更小的函数
+
 def analyze_domain_layer(project_root: Path) -> Dict:
     """分析领域层"""
 
@@ -179,6 +181,8 @@ def analyze_domain_layer(project_root: Path) -> Dict:
     return results
 
 # TODO: Refactor - complexity 18 (target < 15)
+# TODO: 复杂度 18 - 需要重构拆分为更小的函数
+
 
 
 def print_domain_audit_report(results: Dict):

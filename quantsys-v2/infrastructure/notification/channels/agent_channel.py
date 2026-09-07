@@ -78,6 +78,8 @@ class AgentChannel(NotificationChannel):
     # TODO: Refactor - function too long (105 lines, target < 80)
 
 # TODO: Split long function (104 lines, target < 100)
+    # TODO: 长函数 109行 - 建议拆分为多个小函数
+
     def send(self, notification: Notification) -> ChannelResult:
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -142,92 +144,91 @@ class AgentChannel(NotificationChannel):
                         response=result
                     )
                     return ChannelResult.error(error_msg)
-            else:
-                error_msg = f"Agent API 错误 {response.status_code}: {response.text}"
-                logger.error(
-                    error_msg,
-                    notification_id=notification.notification_id,
-                    status_code=response.status_code
-                )
-                return ChannelResult.error(error_msg)
-
-        except requests.exceptions.ConnectTimeout:
-            error_msg = "Agent 连接超时（未送达）"
+            error_msg = f"Agent API 错误 {response.status_code}: {response.text}"
             logger.error(
                 error_msg,
                 notification_id=notification.notification_id,
-                agent_url=self.agent_url
-            )
-            return ChannelResult.error(error_msg)
-
-        except requests.exceptions.ReadTimeout:
-            # 响应超时：请求可能已送达，Agent 正在处理
-            logger.warning(
-                "Agent 响应超时（可能已送达）",
-                notification_id=notification.notification_id,
-                timeout=self.timeout
-            )
-            return ChannelResult.timeout("Agent 响应超时（可能已送达）")
-
-        except requests.exceptions.ConnectionError as e:
-            error_msg = f"无法连接到 Agent: {self.agent_url}"
-            logger.error(
-                error_msg,
-                notification_id=notification.notification_id,
-                error=str(e)
-            )
-            return ChannelResult.error(error_msg)
-
-        except Exception as e:
-            error_msg = f"Agent 唤醒异常: {str(e)}"
-            logger.error(
-                error_msg,
-                notification_id=notification.notification_id,
-                error=str(e),
-                exc_info=True
-            )
-            return ChannelResult.error(error_msg)
-
-    def supports(self, notification_type: NotificationType) -> bool:
-        """Agent 支持所有类型（由 Agent 自行决定如何处理）
-
-        Args:
-            notification_type: 通知类型
-
-        Returns:
-            bool: 始终返回 True
-        """
-        return True
-
-    def get_name(self) -> str:
-        """获取渠道名称
-
-        Returns:
-            str: 'agent'
-        """
-        return "agent"
-
-    def healthcheck(self) -> bool:
-        """健康检查：尝试连接 Agent
-
-        Returns:
-            bool: Agent 是否可用
-        """
-        try:
-            response = requests.get(
-                f'{self.agent_url}/health',
-                timeout=3
-            )
-            is_healthy = response.status_code == 200
-            logger.debug(
-                "AgentChannel healthcheck",
-                is_healthy=is_healthy,
                 status_code=response.status_code
             )
-            return is_healthy
-        except Exception as e:
-            logger.debug(
-                "AgentChannel healthcheck failed",
-                error=str(e)
-            )
-            return False
+            return ChannelResult.error(error_msg)
+
+    except requests.exceptions.ConnectTimeout:
+        error_msg = "Agent 连接超时（未送达）"
+        logger.error(
+            error_msg,
+            notification_id=notification.notification_id,
+            agent_url=self.agent_url
+        )
+        return ChannelResult.error(error_msg)
+
+    except requests.exceptions.ReadTimeout:
+        # 响应超时：请求可能已送达，Agent 正在处理
+        logger.warning(
+            "Agent 响应超时（可能已送达）",
+            notification_id=notification.notification_id,
+            timeout=self.timeout
+        )
+        return ChannelResult.timeout("Agent 响应超时（可能已送达）")
+
+    except requests.exceptions.ConnectionError as e:
+        error_msg = f"无法连接到 Agent: {self.agent_url}"
+        logger.error(
+            error_msg,
+            notification_id=notification.notification_id,
+            error=str(e)
+        )
+        return ChannelResult.error(error_msg)
+
+    except Exception as e:
+        error_msg = f"Agent 唤醒异常: {str(e)}"
+        logger.error(
+            error_msg,
+            notification_id=notification.notification_id,
+            error=str(e),
+            exc_info=True
+        )
+        return ChannelResult.error(error_msg)
+
+def supports(self, notification_type: NotificationType) -> bool:
+    """Agent 支持所有类型（由 Agent 自行决定如何处理）
+
+    Args:
+        notification_type: 通知类型
+
+    Returns:
+        bool: 始终返回 True
+    """
+    return True
+
+def get_name(self) -> str:
+    """获取渠道名称
+
+    Returns:
+        str: 'agent'
+    """
+    return "agent"
+
+def healthcheck(self) -> bool:
+    """健康检查：尝试连接 Agent
+
+    Returns:
+        bool: Agent 是否可用
+    """
+    try:
+        response = requests.get(
+            f'{self.agent_url}/health',
+            timeout=3
+        )
+        is_healthy = response.status_code == 200
+        logger.debug(
+            "AgentChannel healthcheck",
+            is_healthy=is_healthy,
+            status_code=response.status_code
+        )
+        return is_healthy
+    except Exception as e:
+        logger.debug(
+            "AgentChannel healthcheck failed",
+            error=str(e)
+        )
+        return False

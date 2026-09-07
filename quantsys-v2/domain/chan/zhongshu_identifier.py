@@ -92,5 +92,4 @@ class ZhongShuIdentifier:
 
         if overlap_low < overlap_high:
             return (overlap_low, overlap_high)
-        else:
-            return None
+        return None

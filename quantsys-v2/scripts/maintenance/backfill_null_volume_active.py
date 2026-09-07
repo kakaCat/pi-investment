@@ -121,6 +121,8 @@ def fix_symbol_volume(db: Database, fetcher: KlineFetcher, symbol: str, earliest
 # TODO: Refactor - function too long (119 lines, target < 80)
 
 # TODO: Split long function (118 lines, target < 100)
+# TODO: 长函数 129行 - 建议拆分为多个小函数
+
 def main():
     # ---- Section 1 ----
     # ---- Section 2 ----

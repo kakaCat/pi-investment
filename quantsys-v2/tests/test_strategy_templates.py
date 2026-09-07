@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_14 = 14
+CONST_20 = 20
+CONST_3 = 3
+CONST_30 = 30
+CONST_5 = 5
+CONST_70 = 70
+
 """
 测试策略模板系统 - 新增 3 种用户模板
 """

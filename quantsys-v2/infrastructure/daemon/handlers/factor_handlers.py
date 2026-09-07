@@ -67,9 +67,7 @@ async def get_factor_values(params: dict) -> str:
         raise ValueError("Parameter 'symbol' is required")
 
     query_params = []
-    if params.get("start_date"):
-        query_params.append(f"start_date={params['start_date']}")
-    if params.get("end_date"):
+    if params.get("start_date") and params.get("end_date"):
         query_params.append(f"end_date={params['end_date']}")
 
     query_string = "?" + "&".join(query_params) if query_params else ""

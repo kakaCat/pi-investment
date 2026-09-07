@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_5 = 10.5
+CONST_11_0 = 11.0
+CONST_19_0 = 19.0
+CONST_1990 = 1990
+CONST_20 = 20
+CONST_20_0 = 20.0
+CONST_200_0 = 200.0
+CONST_2009 = 2009
+CONST_22_0 = 22.0
+CONST_28 = 28
+
 """HeatmapService 聚合逻辑测试（真实 quant_test DB，日期取 2009 年避免冲突）"""
 from datetime import date, datetime
 

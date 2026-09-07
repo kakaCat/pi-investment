@@ -74,6 +74,8 @@ from infrastructure.persistence.orm.models.action_norm import normalize_action  
 
 # TODO: Refactor large class (37 methods, target < 20)
 # TODO: Refactor large class (37 methods, target < 20)
+# TODO: 大类 37个方法 - 考虑拆分为多个类或使用组合模式
+
 class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationRepository):
     """模拟交易ORM Repository
 
@@ -319,9 +321,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             account.peak_value = peak_value
             account.cumulative_return = cumulative_return
             account.max_drawdown = max_drawdown
-            if position_value is not None:
-                account.position_value = position_value
-            if last_rebalance_date:
+            if position_value is not None and last_rebalance_date:
                 account.last_rebalance_date = last_rebalance_date
 
             self.session.commit()
@@ -494,9 +494,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
     ) -> List[SimulationPendingOrder]:
         """查询挂单（默认只取 pending，按 id 升序保证撮合顺序）"""
         query = self.session.query(SimulationPendingOrder)
-        if account_name:
-            query = query.filter_by(account_name=account_name)
-        if status:
+        if account_name and status:
             query = query.filter_by(status=status)
         return query.order_by(SimulationPendingOrder.id).all()
 
@@ -513,9 +511,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         if not order:
             return False
         order.status = status
-        if fail_reason is not None:
-            order.fail_reason = fail_reason
-        if executed_trade_id is not None:
+        if fail_reason is not None and executed_trade_id is not None:
             order.executed_trade_id = executed_trade_id
         order.updated_at = datetime.now()
         if commit:
@@ -798,6 +794,8 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
     # TODO: Refactor - function too long (110 lines, target < 80)
 
 # TODO: Split long function (109 lines, target < 100)
+    # TODO: 长函数 118行 - 建议拆分为多个小函数
+
     def add_trade(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -945,9 +943,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
                 account_name=account_name
             )
 
-            if start_date:
-                query = query.filter(SimulationTrade.trade_date >= start_date)
-            if end_date:
+            if start_date and end_date:
                 query = query.filter(SimulationTrade.trade_date <= end_date)
 
             return query.order_by(SimulationTrade.trade_date.desc()).all()
@@ -971,9 +967,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
                 symbol=symbol
             )
 
-            if start_date:
-                query = query.filter(SimulationTrade.trade_date >= start_date)
-            if end_date:
+            if start_date and end_date:
                 query = query.filter(SimulationTrade.trade_date <= end_date)
 
             return query.order_by(SimulationTrade.trade_date.desc()).all()

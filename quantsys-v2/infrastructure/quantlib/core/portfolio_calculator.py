@@ -189,28 +189,27 @@ class PortfolioCalculator:
             previous_assets = previous_balance['total_assets']
             daily_pnl = total_assets - previous_assets
             daily_return = (daily_pnl / previous_assets) * 100 if previous_assets > 0 else 0.0
-        else:
-            daily_pnl = 0.0
-            daily_return = 0.0
+        daily_pnl = 0.0
+        daily_return = 0.0
 
-        # 3. Calculate total P&L
-        total_pnl = total_assets - self.initial_cash
-        total_return = (total_pnl / self.initial_cash) * 100 if self.initial_cash > 0 else 0.0
+    # 3. Calculate total P&L
+    total_pnl = total_assets - self.initial_cash
+    total_return = (total_pnl / self.initial_cash) * 100 if self.initial_cash > 0 else 0.0
 
-        # 4. Get position count (as of snapshot date)
-        position_count = self.get_position_count(date_obj)
+    # 4. Get position count (as of snapshot date)
+    position_count = self.get_position_count(date_obj)
 
-        # 5. Assemble snapshot
-        snapshot = {
-            'balance_date': snapshot_date,
-            'cash': cash,
-            'market_value': market_value,
-            'total_assets': total_assets,
-            'daily_pnl': daily_pnl,
-            'daily_return': daily_return,
-            'total_pnl': total_pnl,
-            'total_return': total_return,
-            'position_count': position_count
-        }
+    # 5. Assemble snapshot
+    snapshot = {
+        'balance_date': snapshot_date,
+        'cash': cash,
+        'market_value': market_value,
+        'total_assets': total_assets,
+        'daily_pnl': daily_pnl,
+        'daily_return': daily_return,
+        'total_pnl': total_pnl,
+        'total_return': total_return,
+        'position_count': position_count
+    }
 
-        return snapshot
+    return snapshot

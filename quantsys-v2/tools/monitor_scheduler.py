@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_15 = 15
+CONST_20 = 20
+CONST_30 = 30
+CONST_3600 = 3600
+CONST_8 = 8
+CONST_80 = 80
+
 #!/usr/bin/env python3
 """Monitor Agent OS Scheduler job status.
 

@@ -183,6 +183,8 @@ class MarginCalculator(BaseCalculator):
     # TODO: Refactor - function too long (105 lines, target < 80)
 
 # TODO: Split long function (104 lines, target < 100)
+    # TODO: 长函数 109行 - 建议拆分为多个小函数
+
     def _span_margin(self,
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -527,4 +529,3 @@ class MarginCalculator(BaseCalculator):
     def get_supported_methods(self) -> List[str]:
         """Return list of supported margin calculation methods."""
         return ['span', 'var_based', 'strategy_based']
-

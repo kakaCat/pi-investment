@@ -128,23 +128,22 @@ def example_1_fama_french_3factor():
     print("-" * 80)
     if result['value']['alpha'] > 0 and result['value']['p_values']['alpha'] < 0.05:
         print("✓ Positive and significant alpha - fund generates excess returns")
-    else:
-        print("✗ Alpha not significant - no evidence of skill")
+    print("✗ Alpha not significant - no evidence of skill")
 
-    if result['value']['beta_mkt'] > 1:
-        print(f"✓ Market beta > 1 ({result['value']['beta_mkt']:.2f}) - fund is more volatile than market")
-    else:
-        print(f"✓ Market beta < 1 ({result['value']['beta_mkt']:.2f}) - fund is less volatile than market")
+if result['value']['beta_mkt'] > 1:
+    print(f"✓ Market beta > 1 ({result['value']['beta_mkt']:.2f}) - fund is more volatile than market")
+else:
+    print(f"✓ Market beta < 1 ({result['value']['beta_mkt']:.2f}) - fund is less volatile than market")
 
-    if abs(result['value']['beta_smb']) > 0.3:
-        tilt = "small-cap" if result['value']['beta_smb'] > 0 else "large-cap"
-        print(f"✓ Significant size tilt toward {tilt} stocks")
+if abs(result['value']['beta_smb']) > 0.3:
+    tilt = "small-cap" if result['value']['beta_smb'] > 0 else "large-cap"
+    print(f"✓ Significant size tilt toward {tilt} stocks")
 
-    if abs(result['value']['beta_hml']) > 0.3:
-        tilt = "value" if result['value']['beta_hml'] > 0 else "growth"
-        print(f"✓ Significant style tilt toward {tilt} stocks")
+if abs(result['value']['beta_hml']) > 0.3:
+    tilt = "value" if result['value']['beta_hml'] > 0 else "growth"
+    print(f"✓ Significant style tilt toward {tilt} stocks")
 
-    print("\n")
+print("\n")
 
 
 def example_2_fama_french_5factor():

@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_20_00 = 20.00
+CONST_2020 = 2020
+CONST_25_00 = 25.00
+CONST_30_00 = 30.00
+CONST_35_00 = 35.00
+CONST_999 = 999
+
 """
 Tests for RiskConfigORMRepository
 

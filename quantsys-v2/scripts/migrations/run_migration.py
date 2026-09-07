@@ -34,6 +34,8 @@ from psycopg2.extras import RealDictCursor
 from infrastructure.persistence.database.engine import _resolve_db_dsn
 
 
+# TODO: 长函数 103行 - 建议拆分为多个小函数
+
 def run_migration(migration_file: str):
     # ---- Section 1 ----
     # ---- Section 2 ----

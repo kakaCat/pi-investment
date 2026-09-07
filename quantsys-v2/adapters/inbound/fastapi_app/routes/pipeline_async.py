@@ -114,9 +114,7 @@ def _get_pipeline_runs_impl(page: int, page_size: int, run_id: Optional[str], st
     page = max(1, page)
     page_size = min(page_size, 100)
     runs = _load_pipeline_runs()
-    if run_id:
-        runs = [r for r in runs if r.get('runId') == run_id or r.get('run_id') == run_id]
-    if status:
+    if run_id and status:
         runs = [r for r in runs if r.get('status') == status]
     runs.sort(key=lambda x: x.get('startTime', ''), reverse=True)
     total = len(runs)
@@ -145,9 +143,7 @@ def _create_pipeline_run_impl(data: Dict[str, Any]):
     pipeline_data = convert_keys_to_snake(data)
     symbols = pipeline_data.get('symbols', [])
     stages = pipeline_data.get('stages', ['data_update', 'factors', 'signals', 'risk'])
-    if not symbols:
-        symbols = [s['symbol'] for s in stock_repo.get_all(limit=100)]
-    if not symbols:
+    if not symbols and not symbols:
         return error_response({'success': False, 'error': 'No symbols provided and no stocks in database'}, 400)
     run_id = f"#P-{str(uuid.uuid4())[:8].upper()}"
     if not acquire_task('pipeline', run_id):

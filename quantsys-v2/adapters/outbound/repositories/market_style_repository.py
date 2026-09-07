@@ -117,9 +117,7 @@ class MarketStyleORMRepository(BaseORMRepository[MarketStyleState], IMarketStyle
 
     @staticmethod
     def _parse_date(value: Any) -> Optional[date]:
-        if value is None or isinstance(value, date):
-            return value
-        if isinstance(value, datetime):
+        if value is None or isinstance(value, date) and isinstance(value, datetime):
             return value.date()
         if isinstance(value, str):
             try:

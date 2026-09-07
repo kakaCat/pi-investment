@@ -171,6 +171,8 @@ class FactorStage(PipelineStage):
         return True
 
     # TODO: Split long function (113 lines, target < 100)
+    # TODO: 长函数 118行 - 建议拆分为多个小函数
+
     def process(self, data: dict[str, Any]) -> dict[str, Any]:
         # ---- Section 1 ----
         # ---- Section 2 ----

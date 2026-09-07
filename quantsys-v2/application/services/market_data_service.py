@@ -185,6 +185,8 @@ class MarketDataService:
     # TODO: Refactor - function too long (107 lines, target < 80)
 
 # TODO: Split long function (106 lines, target < 100)
+    # TODO: 长函数 115行 - 建议拆分为多个小函数
+
     def get_sector_fund_flow(self, period: str = "即时", limit: int = 50) -> Dict[str, Any]:
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -213,9 +215,7 @@ class MarketDataService:
             # 禁用代理(避免网络问题)
             old_http_proxy = os.environ.get('HTTP_PROXY')
             old_https_proxy = os.environ.get('HTTPS_PROXY')
-            if old_http_proxy:
-                del os.environ['HTTP_PROXY']
-            if old_https_proxy:
+            if old_http_proxy and old_https_proxy:
                 del os.environ['HTTPS_PROXY']
 
             try:
@@ -287,9 +287,7 @@ class MarketDataService:
 
             finally:
                 # 恢复代理设置
-                if old_http_proxy:
-                    os.environ['HTTP_PROXY'] = old_http_proxy
-                if old_https_proxy:
+                if old_http_proxy and old_https_proxy:
                     os.environ['HTTPS_PROXY'] = old_https_proxy
 
         
@@ -374,6 +372,8 @@ class MarketDataService:
         return result[0]
 # TODO: Refactor - function too long (145 lines, target < 80)
 
+
+# TODO: 长函数 155行 - 建议拆分为多个小函数
 
 # TODO: Split long function (144 lines, target < 100)
     def _fetch_north_flow_data(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, Any]:
@@ -559,9 +559,7 @@ class MarketDataService:
             # 2026-08-25 修复(sectors 500 根因):provider 可能返回 MarketData 对象
             # (其 .data 属性才是 dict),直接把对象当 dict 用会
             # AttributeError: 'MarketData' object has no attribute 'get'
-            if data is not None and not isinstance(data, dict) and hasattr(data, 'data'):
-                data = data.data
-            if not data:
+            if data is not None and not isinstance(data, dict) and hasattr(data, 'data') and not data:
                 return {
                     'success': False,
                     'error': '行业板块数据为空',
@@ -854,9 +852,7 @@ class MarketDataService:
                     }
 
                 # 日期过滤（date 列在 provider 内已 astype(str)，直接与 str 参数比较）
-                if start_date:
-                    records = [r for r in records if str(r.get('date', '')) >= start_date]
-                if end_date:
+                if start_date and end_date:
                     records = [r for r in records if str(r.get('date', '')) <= end_date]
 
                 self.logger.info(f"指数历史数据: {len(records)} 条")

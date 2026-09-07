@@ -159,9 +159,7 @@ class BacktestRequestProcessor:
 
         # 移动平均策略
         if 'ma' in strategy_name or 'cross' in strategy_name:
-            if 'ma_short' not in self.data:
-                return '移动平均策略缺少参数: ma_short (或 fastPeriod)'
-            if 'ma_long' not in self.data:
+            if 'ma_short' not in self.data and 'ma_long' not in self.data:
                 return '移动平均策略缺少参数: ma_long (或 slowPeriod)'
 
         # RSI 策略

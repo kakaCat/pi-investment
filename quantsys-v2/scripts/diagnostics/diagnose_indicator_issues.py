@@ -61,9 +61,7 @@ def diagnose_indicator_list():
 
             # 检查字段映射问题
             print(f"\n⚠️  问题分析:")
-            if 'name' not in first and 'strategy_name' in first:
-                print(f"  - 后端返回 'strategy_name'，但前端期望 'name'")
-            if 'codeContent' not in first and 'code_content' in first:
+            if 'name' not in first and 'strategy_name' in first and 'codeContent' not in first and 'code_content' in first:
                 print(f"  - 后端返回 'code_content'，但前端期望 'codeContent'")
 
             # 检查分类过滤

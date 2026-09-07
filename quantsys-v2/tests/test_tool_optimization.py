@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_1850 = 1850
+CONST_1850_0 = 1850.0
+CONST_2020 = 2020
+CONST_2024 = 2024
+CONST_3 = 3
+CONST_60 = 60
+
 """
 测试市场环境识别器和策略表现统计系统
 
@@ -100,6 +110,8 @@ def test_strategy_performance_stats():
         print(f"  持有周期: {exec_rec['holding_period']}")
         print(f"  执行条件: {exec_rec['conditions'][0]}, {exec_rec['conditions'][1]}")
 
+
+# TODO: 长函数 101行 - 建议拆分为多个小函数
 
 def test_integrated_tool_output():
     """测试完整的工具输出格式"""

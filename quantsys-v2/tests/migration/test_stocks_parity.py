@@ -1,3 +1,15 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_200 = 200
+CONST_2026 = 2026
+CONST_3 = 3
+CONST_5 = 5
+CONST_500 = 500
+CONST_600519 = 600519
+CONST_7 = 7
+CONST_999999 = 999999
+
 """stocks + watchlist 域 parity 测试"""
 import pytest
 from tests.migration.parity import assert_parity, assert_structural_parity

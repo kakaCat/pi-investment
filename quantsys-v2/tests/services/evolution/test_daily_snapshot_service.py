@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_5 = 10.5
+CONST_10000_0 = 10000.0
+CONST_100000_0 = 100000.0
+CONST_101000_0 = 101000.0
+CONST_10500_0 = 10500.0
+CONST_105000 = 105000
+CONST_105000_0 = 105000.0
+CONST_11_0 = 11.0
+CONST_11000_0 = 11000.0
+CONST_2026 = 2026
+
 """DailySnapshotService 测试——每日净值快照（全账户稠密化地基）与历史回放回填
 
 mock 仓储与价格源，验证估值数学、日收益、幂等与回放逻辑。

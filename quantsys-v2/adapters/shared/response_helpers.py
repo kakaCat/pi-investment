@@ -30,15 +30,15 @@ def _check_condition_0():
     return entity_type == 'indicator' and isinstance(metadata, dict) and isinstance(metadata.get('notebook'), dict)
 
 # TODO: Refactor - complexity 21 (target < 15)
+# TODO: 复杂度 21 - 需要重构拆分为更小的函数
+
 def _normalize_fields(items, entity_type: str, default_name: str):
     normalized = []
     for item in items:
         if not isinstance(item, dict):
             continue
         n = item.copy()
-        if 'strategy_name' in n and 'name' not in n:
-            n['name'] = n['strategy_name']
-        if 'strategy_id' in n and 'id' not in n:
+        if 'strategy_name' in n and 'name' not in n and 'strategy_id' in n and 'id' not in n:
             n['id'] = n['strategy_id']
         n.setdefault('name', default_name)
         n.setdefault('description', '')
@@ -61,9 +61,7 @@ def _normalize_fields(items, entity_type: str, default_name: str):
             if n.get(numeric_field) is None:
                 n[numeric_field] = 0
         metadata = n.get('metadata')
-        if entity_type == 'indicator' and isinstance(metadata, dict) and isinstance(metadata.get('notebook'), dict):
-            n['notebook'] = metadata['notebook']
-        if _check_condition_0():
+        if entity_type == 'indicator' and isinstance(metadata, dict) and isinstance(metadata.get('notebook'), dict) and _check_condition_0():
             pass  # TODO: implement
         if isinstance(strategy_profile, str):
             import json

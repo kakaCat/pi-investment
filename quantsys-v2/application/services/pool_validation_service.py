@@ -132,6 +132,10 @@ class PoolValidationService:
     # TODO: Split long function (136 lines, target < 100)
     # TODO: Refactor - complexity 24 (target < 15)
     # TODO: Split long function (136 lines, target < 100)
+    # TODO: 复杂度 24 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 149行 - 建议拆分为多个小函数
+
     def validate_pool(self, pool_id: int, strategy_ids: List[int] = None,
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -189,15 +193,11 @@ class PoolValidationService:
 
         # Validate strategy dicts and log warnings for any missing fields
         for s in strategies:
-            if not s.get('id'):
-                logger.warning(f"Skipping strategy with missing id: {s}")
-            if not s.get('name'):
+            if not s.get('id') and not s.get('name'):
                 logger.warning(f"Strategy {s.get('id', 'unknown')} has no name field")
 
         # 3. Resolve date range
-        if not end_date:
-            end_date = datetime.now().strftime('%Y-%m-%d')
-        if not start_date:
+        if not end_date and not start_date:
             start_date = (datetime.now() - timedelta(days=180)).strftime('%Y-%m-%d')
 
         # 4. Build jobs: strategy × symbol cartesian product

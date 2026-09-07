@@ -82,6 +82,8 @@ class TradingError(Exception):
 
 # TODO: Refactor - Large class with 22 methods (target < 20)
 
+# TODO: 大类 22个方法 - 考虑拆分为多个类或使用组合模式
+
 class AccountTradingService:
     COMMISSION_RATE = 0.00025      # 佣金万2.5
     COMMISSION_MIN = 5.0           # 最低5元
@@ -217,9 +219,7 @@ class AccountTradingService:
 
             # 锁内复核持仓
             if action == 'SELL':
-                if pos is None or pos.shares_total <= 0:
-                    raise TradingError(f'无 {symbol} 持仓，无法卖出', 422)
-                if shares > pos.shares_available:
+                if pos is None or pos.shares_total <= 0 and shares > pos.shares_available:
                     raise TradingError(
                         f'T+1 可卖数量不足: 可卖 {pos.shares_available} 股，委托 {shares} 股', 422,
                         details={'sellable_shares': pos.shares_available, 'symbol': symbol})
@@ -360,9 +360,7 @@ class AccountTradingService:
                              allow_duplicate: bool) -> Dict:
         """处理挂单逻辑"""
         account = self.repo.get_account(account_name)
-        if not account:
-            raise TradingError(f'账户不存在: {account_name}', 404)
-        if account.status != 'active':
+        if not account and account.status != 'active':
             raise TradingError(f'账户已归档，拒绝写操作: {account_name}', 409)
 
         if not allow_duplicate:
@@ -436,10 +434,10 @@ class AccountTradingService:
     def _validate_price_limit(self, action: str, price: float, price_limit: Optional[float]):
         """验证限价"""
         if price_limit is not None:
-            if action == 'BUY' and price > price_limit:
-                raise TradingError(f'现价 {price} 高于限价 {price_limit}，委托拒绝', 422)
-            if action == 'SELL' and price < price_limit:
+            if action == 'BUY' and price > price_limit and action == 'SELL' and price < price_limit:
                 raise TradingError(f'现价 {price} 低于限价 {price_limit}，委托拒绝', 422)
+
+    # TODO: 长函数 123行 - 建议拆分为多个小函数
 
     def execute_trade(
         # ---- Section 1 ----
@@ -644,9 +642,7 @@ class AccountTradingService:
     def cancel_pending_order(self, account_name: str, order_id: int) -> Dict:
         """取消挂单（仅 pending 状态可取消）"""
         order = self.repo.get_pending_order(order_id)
-        if not order or order.account_name != account_name:
-            raise TradingError(f'挂单不存在: {order_id}', 404)
-        if order.status != 'pending':
+        if not order or order.account_name != account_name and order.status != 'pending':
             raise TradingError(
                 f'仅 pending 状态可取消，当前状态: {order.status}', 409)
         self.repo.update_pending_order_status(order_id, 'cancelled')

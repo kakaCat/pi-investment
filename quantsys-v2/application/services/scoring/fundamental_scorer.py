@@ -200,189 +200,188 @@ class FundamentalScorer(BaseScorer):
         elif pe <= 60:
             # 高估，线性递减：0 -> -10
             return 0.0 - (pe - 40) * (10.0 / 20.0)
-        else:
-            # 极度高估
-            return -20.0
+        # 极度高估
+        return -20.0
 
-    def _score_roe(self, roe: float) -> float:
-        """
-        ROE（净资产收益率）评分（±20分）
+def _score_roe(self, roe: float) -> float:
+    """
+    ROE（净资产收益率）评分（±20分）
 
-        评分逻辑：
-        - ROE < 0：亏损，-20分
-        - ROE 0-5：较差，-10分
-        - ROE 5-10：一般，线性增长到 +5分
-        - ROE 10-15：良好，线性增长到 +12分
-        - ROE 15-20：优秀，线性增长到 +18分
-        - ROE > 20：卓越，+20分
+    评分逻辑：
+    - ROE < 0：亏损，-20分
+    - ROE 0-5：较差，-10分
+    - ROE 5-10：一般，线性增长到 +5分
+    - ROE 10-15：良好，线性增长到 +12分
+    - ROE 15-20：优秀，线性增长到 +18分
+    - ROE > 20：卓越，+20分
 
-        Args:
-            roe: 净资产收益率（%）
+    Args:
+        roe: 净资产收益率（%）
 
-        Returns:
-            ROE评分（-20 到 +20）
-        """
-        if roe is None:
-            return 0.0
+    Returns:
+        ROE评分（-20 到 +20）
+    """
+    if roe is None:
+        return 0.0
 
-        if roe < 0:
-            # 亏损
-            return -20.0
-        elif roe < 5:
-            # 较差
-            return -10.0
-        elif roe <= 10:
-            # 一般，线性增长：-10 -> +5
-            return -10.0 + (roe - 5) * (15.0 / 5.0)
-        elif roe <= 15:
-            # 良好，线性增长：+5 -> +12
-            return 5.0 + (roe - 10) * (7.0 / 5.0)
-        elif roe <= 20:
-            # 优秀，线性增长：+12 -> +18
-            return 12.0 + (roe - 15) * (6.0 / 5.0)
-        else:
-            # 卓越
-            return 20.0
+    if roe < 0:
+        # 亏损
+        return -20.0
+    elif roe < 5:
+        # 较差
+        return -10.0
+    elif roe <= 10:
+        # 一般，线性增长：-10 -> +5
+        return -10.0 + (roe - 5) * (15.0 / 5.0)
+    elif roe <= 15:
+        # 良好，线性增长：+5 -> +12
+        return 5.0 + (roe - 10) * (7.0 / 5.0)
+    elif roe <= 20:
+        # 优秀，线性增长：+12 -> +18
+        return 12.0 + (roe - 15) * (6.0 / 5.0)
+    else:
+        # 卓越
+        return 20.0
 
-    def _score_gross_margin(self, gross_margin: float) -> float:
-        """
-        毛利率评分（0-15分）
+def _score_gross_margin(self, gross_margin: float) -> float:
+    """
+    毛利率评分（0-15分）
 
-        评分逻辑：
-        - 毛利率 < 10%：0分
-        - 毛利率 10-20%：线性增长到 5分
-        - 毛利率 20-30%：线性增长到 10分
-        - 毛利率 > 30%：15分
+    评分逻辑：
+    - 毛利率 < 10%：0分
+    - 毛利率 10-20%：线性增长到 5分
+    - 毛利率 20-30%：线性增长到 10分
+    - 毛利率 > 30%：15分
 
-        Args:
-            gross_margin: 毛利率（%）
+    Args:
+        gross_margin: 毛利率（%）
 
-        Returns:
-            毛利率评分（0-15）
-        """
-        if gross_margin is None:
-            return 0.0
+    Returns:
+        毛利率评分（0-15）
+    """
+    if gross_margin is None:
+        return 0.0
 
-        if gross_margin < 10:
-            return 0.0
-        elif gross_margin <= 20:
-            # 线性增长：0 -> 5
-            return (gross_margin - 10) * (5.0 / 10.0)
-        elif gross_margin <= 30:
-            # 线性增长：5 -> 10
-            return 5.0 + (gross_margin - 20) * (5.0 / 10.0)
-        else:
-            # 优秀
-            return 15.0
+    if gross_margin < 10:
+        return 0.0
+    elif gross_margin <= 20:
+        # 线性增长：0 -> 5
+        return (gross_margin - 10) * (5.0 / 10.0)
+    elif gross_margin <= 30:
+        # 线性增长：5 -> 10
+        return 5.0 + (gross_margin - 20) * (5.0 / 10.0)
+    else:
+        # 优秀
+        return 15.0
 
-    def _score_debt_ratio(self, debt_ratio: float) -> float:
-        """
-        负债率评分（0-15分）
+def _score_debt_ratio(self, debt_ratio: float) -> float:
+    """
+    负债率评分（0-15分）
 
-        评分逻辑：
-        - 负债率 < 30%：15分（低负债，财务稳健）
-        - 负债率 30-50%：线性递减到 10分
-        - 负债率 50-70%：线性递减到 5分
-        - 负债率 > 70%：0分（高负债，风险大）
+    评分逻辑：
+    - 负债率 < 30%：15分（低负债，财务稳健）
+    - 负债率 30-50%：线性递减到 10分
+    - 负债率 50-70%：线性递减到 5分
+    - 负债率 > 70%：0分（高负债，风险大）
 
-        Args:
-            debt_ratio: 负债率（%）
+    Args:
+        debt_ratio: 负债率（%）
 
-        Returns:
-            负债率评分（0-15）
-        """
-        if debt_ratio is None:
-            return 0.0
+    Returns:
+        负债率评分（0-15）
+    """
+    if debt_ratio is None:
+        return 0.0
 
-        if debt_ratio < 30:
-            # 低负债
-            return 15.0
-        elif debt_ratio <= 50:
-            # 线性递减：15 -> 10
-            return 15.0 - (debt_ratio - 30) * (5.0 / 20.0)
-        elif debt_ratio <= 70:
-            # 线性递减：10 -> 5
-            return 10.0 - (debt_ratio - 50) * (5.0 / 20.0)
-        else:
-            # 高负债
-            return 0.0
+    if debt_ratio < 30:
+        # 低负债
+        return 15.0
+    elif debt_ratio <= 50:
+        # 线性递减：15 -> 10
+        return 15.0 - (debt_ratio - 30) * (5.0 / 20.0)
+    elif debt_ratio <= 70:
+        # 线性递减：10 -> 5
+        return 10.0 - (debt_ratio - 50) * (5.0 / 20.0)
+    else:
+        # 高负债
+        return 0.0
 
-    def _score_revenue_growth(self, revenue_growth: float) -> float:
-        """
-        营收增长率评分（0-15分）
+def _score_revenue_growth(self, revenue_growth: float) -> float:
+    """
+    营收增长率评分（0-15分）
 
-        评分逻辑：
-        - 增长 < -10%：0分（严重萎缩）
-        - 增长 -10% 到 0%：线性增长到 3分
-        - 增长 0-10%：线性增长到 8分
-        - 增长 10-30%：线性增长到 13分
-        - 增长 > 30%：15分（高成长）
+    评分逻辑：
+    - 增长 < -10%：0分（严重萎缩）
+    - 增长 -10% 到 0%：线性增长到 3分
+    - 增长 0-10%：线性增长到 8分
+    - 增长 10-30%：线性增长到 13分
+    - 增长 > 30%：15分（高成长）
 
-        Args:
-            revenue_growth: 营收增长率（%）
+    Args:
+        revenue_growth: 营收增长率（%）
 
-        Returns:
-            营收增长评分（0-15）
-        """
-        if revenue_growth is None:
-            return 0.0
+    Returns:
+        营收增长评分（0-15）
+    """
+    if revenue_growth is None:
+        return 0.0
 
-        if revenue_growth < -10:
-            # 严重萎缩
-            return 0.0
-        elif revenue_growth <= 0:
-            # 线性增长：0 -> 3
-            return (revenue_growth + 10) * (3.0 / 10.0)
-        elif revenue_growth <= 10:
-            # 线性增长：3 -> 8
-            return 3.0 + revenue_growth * (5.0 / 10.0)
-        elif revenue_growth <= 30:
-            # 线性增长：8 -> 13
-            return 8.0 + (revenue_growth - 10) * (5.0 / 20.0)
-        else:
-            # 高成长
-            return 15.0
+    if revenue_growth < -10:
+        # 严重萎缩
+        return 0.0
+    elif revenue_growth <= 0:
+        # 线性增长：0 -> 3
+        return (revenue_growth + 10) * (3.0 / 10.0)
+    elif revenue_growth <= 10:
+        # 线性增长：3 -> 8
+        return 3.0 + revenue_growth * (5.0 / 10.0)
+    elif revenue_growth <= 30:
+        # 线性增长：8 -> 13
+        return 8.0 + (revenue_growth - 10) * (5.0 / 20.0)
+    else:
+        # 高成长
+        return 15.0
 
-    def _calculate_resonance(self, data: Dict[str, Any]) -> float:
-        """
-        计算财务共振加成（0-15分）
+def _calculate_resonance(self, data: Dict[str, Any]) -> float:
+    """
+    计算财务共振加成（0-15分）
 
-        共振规则：
-        1. 价值 + 高盈利：低 PE (<20) + 高 ROE (>15%) → +10分
-        2. 优质成长：高毛利 (>30%) + 高增长 (>20%) → +5分
-        3. 稳健优质：低负债 (<40%) + 高 ROE (>15%) → +5分
+    共振规则：
+    1. 价值 + 高盈利：低 PE (<20) + 高 ROE (>15%) → +10分
+    2. 优质成长：高毛利 (>30%) + 高增长 (>20%) → +5分
+    3. 稳健优质：低负债 (<40%) + 高 ROE (>15%) → +5分
 
-        Args:
-            data: 基本面数据字典
+    Args:
+        data: 基本面数据字典
 
-        Returns:
-            共振加成分（0-15）
-        """
-        resonance = 0.0
+    Returns:
+        共振加成分（0-15）
+    """
+    resonance = 0.0
 
-        # 字段可能为 None（stocks 表基本面列未填充），必须先经 _to_float
-        pe = self._to_float(data.get('pe'))
-        roe = self._to_float(data.get('roe'))
-        gross_margin = self._to_float(data.get('gross_margin'))
-        revenue_growth = self._to_float(data.get('revenue_growth'))
-        debt_ratio = self._to_float(data.get('debt_ratio'))
+    # 字段可能为 None（stocks 表基本面列未填充），必须先经 _to_float
+    pe = self._to_float(data.get('pe'))
+    roe = self._to_float(data.get('roe'))
+    gross_margin = self._to_float(data.get('gross_margin'))
+    revenue_growth = self._to_float(data.get('revenue_growth'))
+    debt_ratio = self._to_float(data.get('debt_ratio'))
 
-        pe = pe if pe is not None else float('inf')
-        roe = roe if roe is not None else 0
-        gross_margin = gross_margin if gross_margin is not None else 0
-        revenue_growth = revenue_growth if revenue_growth is not None else 0
-        debt_ratio = debt_ratio if debt_ratio is not None else 100
+    pe = pe if pe is not None else float('inf')
+    roe = roe if roe is not None else 0
+    gross_margin = gross_margin if gross_margin is not None else 0
+    revenue_growth = revenue_growth if revenue_growth is not None else 0
+    debt_ratio = debt_ratio if debt_ratio is not None else 100
 
-        # 规则1：价值 + 高盈利
-        if pe < 20 and pe > 0 and roe > 15:
-            resonance += 10.0
+    # 规则1：价值 + 高盈利
+    if pe < 20 and pe > 0 and roe > 15:
+        resonance += 10.0
 
-        # 规则2：优质成长
-        if gross_margin > 30 and revenue_growth > 20:
-            resonance += 5.0
+    # 规则2：优质成长
+    if gross_margin > 30 and revenue_growth > 20:
+        resonance += 5.0
 
-        # 规则3：稳健优质
-        if debt_ratio < 40 and roe > 15:
-            resonance += 5.0
+    # 规则3：稳健优质
+    if debt_ratio < 40 and roe > 15:
+        resonance += 5.0
 
-        return min(resonance, 15.0)
+    return min(resonance, 15.0)

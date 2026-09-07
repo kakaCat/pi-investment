@@ -110,13 +110,9 @@ class PandasTAAdapter(IndicatorAdapter):
             'close': df['close'], 'high': df['high'],
             'low': df['low'], 'open': df['open'], 'volume': df['volume'],
         }
-        if 'length' in params:
-            kwargs['length'] = params['length']
-        if 'fast' in params:
+        if 'length' in params and 'fast' in params:
             kwargs['fast'] = params['fast']
-        if 'slow' in params:
-            kwargs['slow'] = params['slow']
-        if 'signal' in params:
+        if 'slow' in params and 'signal' in params:
             kwargs['signal'] = params['signal']
         if 'std' in params:
             kwargs['std'] = params['std']

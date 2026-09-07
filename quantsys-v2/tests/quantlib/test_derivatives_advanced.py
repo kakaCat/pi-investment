@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000 = 100000
+CONST_103_0 = 103.0
+CONST_105 = 105
+CONST_110 = 110
+CONST_110_0 = 110.0
+CONST_115 = 115
+CONST_120 = 120
+CONST_14 = 14
+CONST_14_0 = 14.0
+CONST_15_0 = 15.0
+
 """
 高阶衍生品模块测试套件
 ======================

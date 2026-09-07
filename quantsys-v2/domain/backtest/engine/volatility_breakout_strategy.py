@@ -89,6 +89,8 @@ class VolatilityBreakoutStrategy(StrategyBase):
         return atr
 
     # TODO: Split long function (144 lines, target < 100)
+    # TODO: 长函数 150行 - 建议拆分为多个小函数
+
     def generate_signal(
         # ---- Section 1 ----
         # ---- Section 2 ----

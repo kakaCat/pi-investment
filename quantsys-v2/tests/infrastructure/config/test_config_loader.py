@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_120 = 120
+CONST_123 = 123
+CONST_2_5 = 2.5
+CONST_3 = 3
+CONST_3_14 = 3.14
+CONST_456 = 456
+
 """测试配置加载器
 
 P2-3: 测试 YAML 配置加载和环境变量覆盖
@@ -116,9 +126,7 @@ class TestEnvironmentVariableOverride:
                 assert data_service.config.get('cache_enabled') == False
         finally:
             # 清理环境变量
-            if 'QUANTSYS_SERVICE_data_service_cache_enabled' in os.environ:
-                del os.environ['QUANTSYS_SERVICE_data_service_cache_enabled']
-            if 'QUANTSYS_SERVICE_watch_engine_check_interval' in os.environ:
+            if 'QUANTSYS_SERVICE_data_service_cache_enabled' in os.environ and 'QUANTSYS_SERVICE_watch_engine_check_interval' in os.environ:
                 del os.environ['QUANTSYS_SERVICE_watch_engine_check_interval']
 
     def test_parse_env_value_types(self):

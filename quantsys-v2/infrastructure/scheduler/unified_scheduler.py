@@ -234,96 +234,95 @@ class UnifiedScheduler:
             return self._execute_composite(job, executor, **kwargs)
         elif exec_type == "callable":
             return self._execute_callable(job, executor, **kwargs)
+        raise ValueError(f"Unknown executor type: {exec_type}")
+
+def _execute_service(self, job: JobConfig, executor: Dict, **kwargs) -> Dict[str, Any]:
+    module_path = executor.get("module")
+    class_name = executor.get("class")
+    method_name = executor.get("method", "run")
+
+    if not module_path or not class_name:
+        raise ValueError(f"Job {job.id} executor missing 'module' or 'class'")
+
+    module = importlib.import_module(module_path)
+    cls = getattr(module, class_name)
+    instance = cls()
+    method = getattr(instance, method_name)
+
+    start_time = time.monotonic()
+    raw = method(**kwargs)
+    elapsed = time.monotonic() - start_time
+    if elapsed > job.timeout:
+        raise TimeoutError(f"Exceeded {job.timeout}s")
+
+    if isinstance(raw, dict):
+        return raw
+    return {"result": raw, "elapsed_seconds": round(elapsed, 2)}
+
+def _execute_composite(self, job: JobConfig, executor: Dict, **kwargs) -> Dict[str, Any]:
+    stages = executor.get("stages", [])
+    results = []
+    for stage in stages:
+        module_path = stage.get("service")
+        method_name = stage.get("method")
+        if not module_path or not method_name:
+            continue
+        module = importlib.import_module(module_path)
+        parts = module_path.rsplit(".", 1)
+        if len(parts) == 2:
+            cls = getattr(module, parts[1])
+            instance = cls()
         else:
-            raise ValueError(f"Unknown executor type: {exec_type}")
-
-    def _execute_service(self, job: JobConfig, executor: Dict, **kwargs) -> Dict[str, Any]:
-        module_path = executor.get("module")
-        class_name = executor.get("class")
-        method_name = executor.get("method", "run")
-
-        if not module_path or not class_name:
-            raise ValueError(f"Job {job.id} executor missing 'module' or 'class'")
-
-        module = importlib.import_module(module_path)
-        cls = getattr(module, class_name)
-        instance = cls()
+            instance = module
         method = getattr(instance, method_name)
+        stage_result = method(**kwargs)
+        results.append({"stage": f"{module_path}.{method_name}", "result": stage_result})
+    return {"stages": results}
 
-        start_time = time.monotonic()
-        raw = method(**kwargs)
-        elapsed = time.monotonic() - start_time
-        if elapsed > job.timeout:
-            raise TimeoutError(f"Exceeded {job.timeout}s")
+def _execute_callable(self, job: JobConfig, executor: Dict, **kwargs) -> Dict[str, Any]:
+    callable_path = executor.get("callable")
+    if not callable_path:
+        raise ValueError(f"Job {job.id} callable executor missing 'callable'")
+    module_path, func_name = callable_path.rsplit(".", 1)
+    module = importlib.import_module(module_path)
+    func = getattr(module, func_name)
+    try:
+        raw = func(**kwargs)
+    except TypeError as exc:
+        if "missing" in str(exc) and "required positional argument" in str(exc):
+            raw = func()
+        else:
+            raise
+    return raw if isinstance(raw, dict) else {"result": raw}
 
-        if isinstance(raw, dict):
-            return raw
-        return {"result": raw, "elapsed_seconds": round(elapsed, 2)}
+def get_history(self, job_id: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
+    items = self.job_history
+    if job_id:
+        items = [h for h in items if h.job_id == job_id]
+    items = items[-limit:]
+    return [
+        {
+            "job_id": h.job_id,
+            "status": h.status,
+            "started_at": h.started_at.isoformat() if h.started_at else None,
+            "finished_at": h.finished_at.isoformat() if h.finished_at else None,
+            "result": h.result,
+            "error": h.error,
+        }
+        for h in items
+    ]
 
-    def _execute_composite(self, job: JobConfig, executor: Dict, **kwargs) -> Dict[str, Any]:
-        stages = executor.get("stages", [])
-        results = []
-        for stage in stages:
-            module_path = stage.get("service")
-            method_name = stage.get("method")
-            if not module_path or not method_name:
-                continue
-            module = importlib.import_module(module_path)
-            parts = module_path.rsplit(".", 1)
-            if len(parts) == 2:
-                cls = getattr(module, parts[1])
-                instance = cls()
-            else:
-                instance = module
-            method = getattr(instance, method_name)
-            stage_result = method(**kwargs)
-            results.append({"stage": f"{module_path}.{method_name}", "result": stage_result})
-        return {"stages": results}
+def start(self):
+    self._running = True
+    logger.info("UnifiedScheduler started with %d jobs", len(self.jobs))
 
-    def _execute_callable(self, job: JobConfig, executor: Dict, **kwargs) -> Dict[str, Any]:
-        callable_path = executor.get("callable")
-        if not callable_path:
-            raise ValueError(f"Job {job.id} callable executor missing 'callable'")
-        module_path, func_name = callable_path.rsplit(".", 1)
-        module = importlib.import_module(module_path)
-        func = getattr(module, func_name)
-        try:
-            raw = func(**kwargs)
-        except TypeError as exc:
-            if "missing" in str(exc) and "required positional argument" in str(exc):
-                raw = func()
-            else:
-                raise
-        return raw if isinstance(raw, dict) else {"result": raw}
+def stop(self):
+    self._running = False
+    logger.info("UnifiedScheduler stopped")
 
-    def get_history(self, job_id: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
-        items = self.job_history
-        if job_id:
-            items = [h for h in items if h.job_id == job_id]
-        items = items[-limit:]
-        return [
-            {
-                "job_id": h.job_id,
-                "status": h.status,
-                "started_at": h.started_at.isoformat() if h.started_at else None,
-                "finished_at": h.finished_at.isoformat() if h.finished_at else None,
-                "result": h.result,
-                "error": h.error,
-            }
-            for h in items
-        ]
-
-    def start(self):
-        self._running = True
-        logger.info("UnifiedScheduler started with %d jobs", len(self.jobs))
-
-    def stop(self):
-        self._running = False
-        logger.info("UnifiedScheduler stopped")
-
-    @property
-    def is_running(self) -> bool:
-        return self._running
+@property
+def is_running(self) -> bool:
+    return self._running
 
 
 _scheduler_instance: Optional[UnifiedScheduler] = None

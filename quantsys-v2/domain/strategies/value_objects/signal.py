@@ -33,15 +33,9 @@ class Signal:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if not isinstance(self.symbol, str) or not self.symbol.strip():
-            raise ValueError("symbol must be a non-empty string")
-        if not isinstance(self.action, SignalAction):
+        if not isinstance(self.symbol, str) or not self.symbol.strip() and not isinstance(self.action, SignalAction):
             raise ValueError("action must be a SignalAction enum value")
-        if not isinstance(self.weight, (int, float)):
-            raise TypeError("weight must be a number")
-        if not isinstance(self.score, (int, float)):
+        if not isinstance(self.weight, (int, float)) and not isinstance(self.score, (int, float)):
             raise TypeError("score must be a number")
-        if not isinstance(self.reason, str):
-            raise TypeError("reason must be a string")
-        if not isinstance(self.metadata, dict):
+        if not isinstance(self.reason, str) and not isinstance(self.metadata, dict):
             raise TypeError("metadata must be a dict")

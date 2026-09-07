@@ -61,12 +61,11 @@ def update_symbol_fixed(symbol: str) -> Tuple[bool, bool]:
                 # Other truthy value
                 has_data = bool(latest)
             return (has_data, False)
-        else:
-            # No data available
-            return (False, False)
-    except Exception as e:
-        logger.warning(f"Failed to update {symbol}: {e}")
-        return (False, True)
+        # No data available
+        return (False, False)
+except Exception as e:
+    logger.warning(f"Failed to update {symbol}: {e}")
+    return (False, True)
 
 # 测试10个股票
 test_symbols = [

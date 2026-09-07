@@ -232,9 +232,7 @@ class NotificationFactory:
         formatters = NotificationFactory._create_formatters()
 
         channels = []
-        if feishu_webhook:
-            channels.append(FeishuChannel(feishu_webhook, formatters))
-        if agent_url:
+        if feishu_webhook and agent_url:
             channels.append(AgentChannel(agent_url))
 
         policy = NotificationPolicy()

@@ -82,9 +82,8 @@ def get_current_price(symbol):
             return float(df.iloc[-1]['close'])
         elif '收盘' in df.columns:
             return float(df.iloc[-1]['收盘'])
-        else:
-            print(f'  警告: 未找到收盘价列，可用列: {list(df.columns)}')
-    return None
+        print(f'  警告: 未找到收盘价列，可用列: {list(df.columns)}')
+return None
 
 def check_and_execute_stop_loss(trader):
     """检查并执行止损"""
@@ -207,6 +206,10 @@ def _build_execute_v14_full_rebalance_result(data):
 # TODO: Split long function (197 lines, target < 100)
 # TODO: Refactor - complexity 17 (target < 15)
 # TODO: Split long function (197 lines, target < 100)
+# TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 216行 - 建议拆分为多个小函数
+
 def execute_v14_full_rebalance():
     # ---- Section 1 ----
     # ---- Section 2 ----

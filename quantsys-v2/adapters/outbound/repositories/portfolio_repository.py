@@ -47,6 +47,8 @@ __all__ = ['PortfolioORMRepository']
 
 # TODO: Refactor large class (39 methods, target < 20)
 # TODO: Refactor large class (39 methods, target < 20)
+# TODO: 大类 39个方法 - 考虑拆分为多个类或使用组合模式
+
 class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepository):
     """持仓ORM Repository
 
@@ -130,9 +132,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
                 PortfolioHolding.portfolio_name == portfolio_name
             )
 
-            if start_date:
-                query = query.filter(PortfolioHolding.added_date >= start_date)
-            if end_date:
+            if start_date and end_date:
                 query = query.filter(PortfolioHolding.added_date <= end_date)
 
             holdings = query.all()
@@ -238,9 +238,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         try:
             query = self.session.query(PortfolioHolding)
 
-            if market:
-                query = query.filter(PortfolioHolding.market == market)
-            if sector:
+            if market and sector:
                 query = query.filter(PortfolioHolding.sector == sector)
 
             holdings = query.order_by(PortfolioHolding.total_invested.desc()).all()
@@ -1247,4 +1245,3 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             raise Exception(f"删除持仓失败: {str(e)}")
         finally:
             cursor.close()
-

@@ -70,6 +70,10 @@ def _build_verify_schema_result(data):
 # TODO: Split long function (145 lines, target < 100)
 # TODO: Refactor - complexity 16 (target < 15)
 # TODO: Split long function (145 lines, target < 100)
+# TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 160行 - 建议拆分为多个小函数
+
 def verify_schema():
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -220,16 +224,15 @@ def verify_schema():
         if not missing_columns and not missing_indexes:
             print("✅ Schema verification passed! Migration is complete.")
             return True
-        else:
-            print("⚠️  Schema verification incomplete. Migration may be needed.")
-            return False
+        print("⚠️  Schema verification incomplete. Migration may be needed.")
+        return False
 
-    except psycopg2.Error as e:
-        print(f"\n❌ Database error: {e}")
-        return False
-    except Exception as e:
-        print(f"\n❌ Unexpected error: {e}")
-        return False
+except psycopg2.Error as e:
+    print(f"\n❌ Database error: {e}")
+    return False
+except Exception as e:
+    print(f"\n❌ Unexpected error: {e}")
+    return False
 
 
 if __name__ == "__main__":

@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_200 = 200
+CONST_201 = 201
+CONST_2026 = 2026
+CONST_25 = 25
+CONST_400 = 400
+CONST_404 = 404
+CONST_409 = 409
+CONST_422 = 422
+CONST_500 = 500
+CONST_5001 = 5001
+
 """
 W3: API 端点冒烟测试
 确保重构后端点调用不 500

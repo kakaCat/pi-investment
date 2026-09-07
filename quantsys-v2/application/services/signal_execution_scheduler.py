@@ -128,6 +128,8 @@ class SignalExecutionScheduler:
     # TODO: Refactor - function too long (109 lines, target < 80)
 
 # TODO: Split long function (108 lines, target < 100)
+    # TODO: 长函数 117行 - 建议拆分为多个小函数
+
     def execute_daily_signals(self) -> Dict[str, Any]:
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -246,6 +248,8 @@ class SignalExecutionScheduler:
                 'log_id': log_id
             }
 # TODO: Refactor - function too long (101 lines, target < 80)
+
+# TODO: 长函数 109行 - 建议拆分为多个小函数
 
 
     def _run_strategies(self, execution_date: str) -> Dict[str, Any]:

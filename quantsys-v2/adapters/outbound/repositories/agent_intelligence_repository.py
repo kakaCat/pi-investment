@@ -171,9 +171,7 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
             row.evaluation_status = 'evaluated'
             row.evaluation_result = evaluation
             row.evaluation_date = datetime.now()
-            if 'success' in evaluation:
-                row.success = evaluation['success']
-            if 'learned_lesson' in evaluation:
+            if 'success' in evaluation and 'learned_lesson' in evaluation:
                 row.learned_lesson = evaluation['learned_lesson']
             if 'confidence_score' in evaluation:
                 row.confidence_score = evaluation['confidence_score']

@@ -112,5 +112,4 @@ class KLineProcessor:
         """确定初始方向"""
         if k2.high > k1.high:
             return 'up'
-        else:
-            return 'down'
+        return 'down'

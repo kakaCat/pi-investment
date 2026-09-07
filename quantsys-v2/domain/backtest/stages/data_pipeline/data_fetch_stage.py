@@ -71,9 +71,7 @@ class DataFetchStage:
         Raises:
             ValueError: If sources, symbols, or date_range are invalid
         """
-        if not sources:
-            raise ValueError("sources list cannot be empty")
-        if not symbols:
+        if not sources and not symbols:
             raise ValueError("symbols list cannot be empty")
         if not date_range or len(date_range) != 2:
             raise ValueError("date_range must be a tuple of (start_date, end_date)")

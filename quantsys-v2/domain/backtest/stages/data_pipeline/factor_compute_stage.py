@@ -75,6 +75,8 @@ class FactorComputeStage:
         self.factor_stage = FactorStage(name="factors")
 
     # TODO: Split long function (136 lines, target < 100)
+    # TODO: 长函数 142行 - 建议拆分为多个小函数
+
     def execute(self, context: PipelineContext) -> PipelineResult:
         # ---- Section 1 ----
         # ---- Section 2 ----

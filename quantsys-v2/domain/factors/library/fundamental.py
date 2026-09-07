@@ -153,9 +153,7 @@ class FScoreCalculator(BaseCalculator):
         prev_gm  = _get(previous, "gross_margin")
         prev_rev = _get(previous, "revenue")
         # ── guard: need minima ──
-        if any(v is None for v in [roa, cfo, ni, ltd, ta, cr, shares, gm, rev]):
-            return None
-        if any(v is None for v in [prev_roa, prev_ltd, prev_ta, prev_cr,
+        if any(v is None for v in [roa, cfo, ni, ltd, ta, cr, shares, gm, rev]) and any(v is None for v in [prev_roa, prev_ltd, prev_ta, prev_cr:
                                      prev_shares, prev_gm, prev_rev]):
             return None
         score = 0
@@ -311,9 +309,7 @@ class EarningsQualityCalculator(BaseCalculator):
         tl = _get("total_liabilities")
         roe_raw = _get("roe")
 
-        if any(v is None for v in [ni, cf, ta, tl, roe_raw]):
-            return None
-        if ta == 0:
+        if any(v is None for v in [ni, cf, ta, tl, roe_raw]) and ta == 0:
             return None
 
         ref = self.DEFAULT_PERCENTILES

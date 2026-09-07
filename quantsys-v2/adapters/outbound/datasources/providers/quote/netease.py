@@ -76,77 +76,76 @@ class NeteaseQuoteProvider(QuoteProvider):
             # Shenzhen: prefix with "1"
             code = symbol.split('.')[0]
             return f"1{code}"
+        # Auto-detect by code prefix
+        code = symbol.split('.')[0] if '.' in symbol else symbol
+        if code.startswith('6'):
+            return f"0{code}"
         else:
-            # Auto-detect by code prefix
-            code = symbol.split('.')[0] if '.' in symbol else symbol
-            if code.startswith('6'):
-                return f"0{code}"
-            else:
-                return f"1{code}"
+            return f"1{code}"
 
-    def _parse_quote(self, symbol: str, raw: str, netease_code: str) -> Optional[QuoteData]:
-        """
-        Parse Netease API response
+def _parse_quote(self, symbol: str, raw: str, netease_code: str) -> Optional[QuoteData]:
+    """
+    Parse Netease API response
 
-        Response format (JSONP):
-        _ntes_quote_callback({"0600519":{"code":"0600519","name":"贵州茅台","price":1295.00,...}});
+    Response format (JSONP):
+    _ntes_quote_callback({"0600519":{"code":"0600519","name":"贵州茅台","price":1295.00,...}});
 
-        Args:
-            symbol: Standard symbol
-            raw: Raw response text
-            netease_code: Netease code for extracting data
+    Args:
+        symbol: Standard symbol
+        raw: Raw response text
+        netease_code: Netease code for extracting data
 
-        Returns:
-            QuoteData object or None
-        """
-        try:
-            # Extract JSON from JSONP wrapper
-            # Pattern: _ntes_quote_callback({...});
-            match = re.search(r'_ntes_quote_callback\((.*)\)', raw)
-            if not match:
-                return None
+    Returns:
+        QuoteData object or None
+    """
+    try:
+        # Extract JSON from JSONP wrapper
+        # Pattern: _ntes_quote_callback({...});
+        match = re.search(r'_ntes_quote_callback\((.*)\)', raw)
+        if not match:
+            return None
 
-            data_str = match.group(1)
-            data = json.loads(data_str)
+        data_str = match.group(1)
+        data = json.loads(data_str)
 
-            # Extract quote data
-            if netease_code not in data:
-                return None
+        # Extract quote data
+        if netease_code not in data:
+            return None
 
-            quote = data[netease_code]
+        quote = data[netease_code]
 
-            # Extract and convert fields
-            name = quote.get('name', '')
-            price = float(quote.get('price', 0))
-            if price <= 0:
-                return None
+        # Extract and convert fields
+        name = quote.get('name', '')
+        price = float(quote.get('price', 0))
+        if price <= 0:
+            return None
 
-            open_price = float(quote.get('open', 0))
-            high = float(quote.get('high', 0))
-            low = float(quote.get('low', 0))
-            prev_close = float(quote.get('yestclose', 0))
-            volume = int(quote.get('volume', 0))
-            amount = float(quote.get('turnover', 0))
+        open_price = float(quote.get('open', 0))
+        high = float(quote.get('high', 0))
+        low = float(quote.get('low', 0))
+        prev_close = float(quote.get('yestclose', 0))
+        volume = int(quote.get('volume', 0))
+        amount = float(quote.get('turnover', 0))
 
-            # Calculate change
-            change = price - prev_close if prev_close > 0 else 0.0
-            change_pct = (change / prev_close * 100) if prev_close > 0 else 0.0
+        # Calculate change
+        change = price - prev_close if prev_close > 0 else 0.0
+        change_pct = (change / prev_close * 100) if prev_close > 0 else 0.0
 
-            return QuoteData(
-                symbol=symbol,
-                name=name,
-                price=price,
-                open=open_price,
-                high=high,
-                low=low,
-                prev_close=prev_close,
-                volume=volume,
-                amount=amount,
-                change=change,
-                change_pct=change_pct,
-                timestamp=datetime.now().isoformat(),
-                source=self.name
-            )
+        return QuoteData(
+            symbol=symbol,
+            name=name,
+            price=price,
+            open=open_price,
+            high=high,
+            low=low,
+            prev_close=prev_close,
+            volume=volume,
+            amount=amount,
+            change=change,
+            change_pct=change_pct,
+            timestamp=datetime.now().isoformat(),
+            source=self.name
+        )
 
-        except (KeyError, ValueError, TypeError, json.JSONDecodeError) as e:
-            raise Exception(f"网易财经行情解析失败: {e}") from e
+    except (KeyError, ValueError, TypeError, json.JSONDecodeError) as e:
+        raise Exception(f"网易财经行情解析失败: {e}") from e

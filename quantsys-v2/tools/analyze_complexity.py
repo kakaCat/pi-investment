@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_15 = 15
+CONST_20 = 20
+CONST_2026 = 2026
+CONST_3 = 3
+CONST_30 = 30
+CONST_400 = 400
+CONST_5 = 5
+CONST_500 = 500
+CONST_8 = 8
+
 """
 批量复杂度降低工具
 

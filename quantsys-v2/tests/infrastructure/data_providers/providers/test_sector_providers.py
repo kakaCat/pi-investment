@@ -1,3 +1,15 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_101 = 101
+CONST_14_0 = 14.0
+CONST_15_0 = 15.0
+CONST_3 = 3
+CONST_50 = 50
+CONST_600236 = 600236
+CONST_600519 = 600519
+CONST_90 = 90
+
 """Unit tests for EastmoneySectorProvider (板块成分数据源)."""
 import pytest
 from unittest.mock import patch, Mock
@@ -51,9 +63,7 @@ class TestSectorStocks:
 
         def side_effect(url, **kw):
             fs = kw['params']['fs']
-            if fs == 'm:90+t:2+f:!50':
-                return _resp(industry)
-            if fs == 'm:90+t:3+f:!50':
+            if fs == 'm:90+t:2+f:!50' and fs == 'm:90+t:3+f:!50':
                 return _resp(concept)
             return _resp(stocks)
 

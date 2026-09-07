@@ -409,5 +409,4 @@ class RiskMetricsService:
             return pd.Series(data)
         elif isinstance(data, list):
             return pd.Series(data)
-        else:
-            raise TypeError(f"不支持的数据类型: {type(data)}")
+        raise TypeError(f"不支持的数据类型: {type(data)}")

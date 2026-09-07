@@ -115,120 +115,119 @@ class SinaQuoteProvider(QuoteProvider):
             # HK stock: prefix with "hk"
             code = symbol.split('.')[0]
             return f"hk{code}"
+        # A-share: prefix with "1" (60xxxx) or "0" (00xxxx, 30xxxx)
+        code = symbol.split('.')[0]
+        if code.startswith('6'):
+            return f"1{code}"
         else:
-            # A-share: prefix with "1" (60xxxx) or "0" (00xxxx, 30xxxx)
-            code = symbol.split('.')[0]
-            if code.startswith('6'):
-                return f"1{code}"
-            else:
-                return f"0{code}"
+            return f"0{code}"
 
-    def _parse_sina_a_quote(self, symbol: str, raw: str) -> Optional[QuoteData]:
-        """
-        Parse A-share quote response
+def _parse_sina_a_quote(self, symbol: str, raw: str) -> Optional[QuoteData]:
+    """
+    Parse A-share quote response
 
-        Response format:
-        var hq_str_1600000="name,open,prev_close,price,high,low,bid,ask,volume,amount,..."
+    Response format:
+    var hq_str_1600000="name,open,prev_close,price,high,low,bid,ask,volume,amount,..."
 
-        Fields:
-        [0]=name, [1]=open, [2]=prev_close, [3]=price, [4]=high, [5]=low,
-        [8]=volume, [9]=amount
-        """
-        try:
-            # Extract data between quotes
-            parts = raw.split('"')
-            if len(parts) < 2:
-                return None
+    Fields:
+    [0]=name, [1]=open, [2]=prev_close, [3]=price, [4]=high, [5]=low,
+    [8]=volume, [9]=amount
+    """
+    try:
+        # Extract data between quotes
+        parts = raw.split('"')
+        if len(parts) < 2:
+            return None
 
-            fields = parts[1].split(',')
-            if len(fields) < 32:  # A-share response should have 32+ fields
-                return None
+        fields = parts[1].split(',')
+        if len(fields) < 32:  # A-share response should have 32+ fields
+            return None
 
-            # Extract and convert fields
-            name = fields[0]
-            open_price = float(fields[1])
-            prev_close = float(fields[2])
-            price = float(fields[3])
-            high = float(fields[4])
-            low = float(fields[5])
-            volume = int(fields[8])
-            amount = float(fields[9])
+        # Extract and convert fields
+        name = fields[0]
+        open_price = float(fields[1])
+        prev_close = float(fields[2])
+        price = float(fields[3])
+        high = float(fields[4])
+        low = float(fields[5])
+        volume = int(fields[8])
+        amount = float(fields[9])
 
-            # Calculate change
-            change = price - prev_close
-            change_pct = (change / prev_close * 100) if prev_close > 0 else 0.0
+        # Calculate change
+        change = price - prev_close
+        change_pct = (change / prev_close * 100) if prev_close > 0 else 0.0
 
-            return QuoteData(
-                symbol=symbol,
-                name=name,
-                price=price,
-                open=open_price,
-                high=high,
-                low=low,
-                prev_close=prev_close,
-                volume=volume,
-                amount=amount,
-                change=change,
-                change_pct=change_pct,
-                timestamp=datetime.now().isoformat(),
-                source=self.name
-            )
+        return QuoteData(
+            symbol=symbol,
+            name=name,
+            price=price,
+            open=open_price,
+            high=high,
+            low=low,
+            prev_close=prev_close,
+            volume=volume,
+            amount=amount,
+            change=change,
+            change_pct=change_pct,
+            timestamp=datetime.now().isoformat(),
+            source=self.name
+        )
 
-        except (IndexError, ValueError) as e:
-            raise Exception(f"A股行情解析失败: {e}") from e
+    except (IndexError, ValueError) as e:
+        raise Exception(f"A股行情解析失败: {e}") from e
 
-    def _parse_sina_hk_quote(self, symbol: str, raw: str) -> Optional[QuoteData]:
-        """
-        Parse HK stock quote response
+def _parse_sina_hk_quote(self, symbol: str, raw: str) -> Optional[QuoteData]:
+    """
+    Parse HK stock quote response
 
-        Response format:
-        var hq_str_hk00700="code,name,open,prev_close,high,low,price,..."
+    Response format:
+    var hq_str_hk00700="code,name,open,prev_close,high,low,price,..."
 
-        Fields:
-        [1]=name, [2]=open, [3]=prev_close, [4]=high, [5]=low, [6]=price
-        """
-        try:
-            # Extract data between quotes
-            parts = raw.split('"')
-            if len(parts) < 2:
-                return None
+    Fields:
+    [1]=name, [2]=open, [3]=prev_close, [4]=high, [5]=low, [6]=price
+    """
+    try:
+        # Extract data between quotes
+        parts = raw.split('"')
+        if len(parts) < 2:
+            return None
 
-            fields = parts[1].split(',')
-            if len(fields) < 7:  # HK response needs at least 7 fields for basic quote
-                return None
+        fields = parts[1].split(',')
+        if len(fields) < 7:  # HK response needs at least 7 fields for basic quote
+            return None
 
-            # Extract and convert fields
-            name = fields[1]
-            open_price = float(fields[2])
-            prev_close = float(fields[3])
-            high = float(fields[4])
-            low = float(fields[5])
-            price = float(fields[6])
+        # Extract and convert fields
+        name = fields[1]
+        open_price = float(fields[2])
+        prev_close = float(fields[3])
+        high = float(fields[4])
+        low = float(fields[5])
+        price = float(fields[6])
 
-            # HK stocks don't always have volume/amount in same position
-            # Set to 0 if not available
-            volume = 0
-            amount = 0.0
+        # HK stocks don't always have volume/amount in same position
+        # Set to 0 if not available
+        volume = 0
+        amount = 0.0
 
-            # Calculate change
-            change = price - prev_close
-            change_pct = (change / prev_close * 100) if prev_close > 0 else 0.0
+        # Calculate change
+        change = price - prev_close
+        change_pct = (change / prev_close * 100) if prev_close > 0 else 0.0
 
-            return QuoteData(
-                symbol=symbol,
-                name=name,
-                price=price,
-                open=open_price,
-                high=high,
-                low=low,
-                prev_close=prev_close,
-                volume=volume,
-                amount=amount,
-                change=change,
-                change_pct=change_pct,
-                timestamp=datetime.now().isoformat(),
-                source=self.name
-            )
+        return QuoteData(
+            symbol=symbol,
+            name=name,
+            price=price,
+            open=open_price,
+            high=high,
+            low=low,
+            prev_close=prev_close,
+            volume=volume,
+            amount=amount,
+            change=change,
+            change_pct=change_pct,
+            timestamp=datetime.now().isoformat(),
+            source=self.name
+        )
 
-        except (IndexError, ValueError) as e:
-            raise Exception(f"港股行情解析失败: {e}") from e
+    except (IndexError, ValueError) as e:
+        raise Exception(f"港股行情解析失败: {e}") from e

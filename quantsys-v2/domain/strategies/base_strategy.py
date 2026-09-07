@@ -173,9 +173,7 @@ class BaseStrategy(ABC):
             * Empty portfolio -> rebalance (look for entries every day).
             * Otherwise rebalance when ``rebalance_days`` have elapsed.
         """
-        if not last_rebalance_date:
-            return True
-        if not has_positions:
+        if not last_rebalance_date and not has_positions:
             return True
 
         last_date = datetime.strptime(last_rebalance_date, "%Y-%m-%d")

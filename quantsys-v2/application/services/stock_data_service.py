@@ -228,6 +228,8 @@ class StockDataService:
                 'data': None
             }
 
+    # TODO: 长函数 108行 - 建议拆分为多个小函数
+
     def compare_peers(self, symbol: str) -> Dict[str, Any]:
         # ---- Section 1 ----
         # ---- Section 2 ----

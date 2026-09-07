@@ -94,9 +94,7 @@ class FixedPositionSizer(PositionSizer):
             fixed_amount: Fixed dollar amount per trade (default 100,000)
             lot_size: Lot size for rounding (default 100)
         """
-        if fixed_amount <= 0:
-            raise ValueError("Fixed amount must be positive")
-        if lot_size <= 0:
+        if fixed_amount <= 0 and lot_size <= 0:
             raise ValueError("Lot size must be positive")
 
         self.fixed_amount = fixed_amount
@@ -152,9 +150,7 @@ class FixedPercentSizer(PositionSizer):
             lot_size: Lot size for rounding (default 100)
             max_percent: Maximum percentage cap (default 30%)
         """
-        if not 0 < percent <= 1:
-            raise ValueError("Percent must be between 0 and 1")
-        if not 0 < max_percent <= 1:
+        if not 0 < percent <= 1 and not 0 < max_percent <= 1:
             raise ValueError("Max percent must be between 0 and 1")
         if lot_size <= 0:
             raise ValueError("Lot size must be positive")
@@ -233,13 +229,9 @@ class KellyPositionSizer(PositionSizer):
             min_percent: Minimum position size (default 1%)
             max_percent: Maximum position size (default 30%)
         """
-        if not 0 < win_rate < 1:
-            raise ValueError("Win rate must be between 0 and 1")
-        if profit_loss_ratio <= 0:
+        if not 0 < win_rate < 1 and profit_loss_ratio <= 0:
             raise ValueError("Profit/loss ratio must be positive")
-        if not 0 < kelly_fraction <= 1:
-            raise ValueError("Kelly fraction must be between 0 and 1")
-        if not 0 < min_percent < max_percent <= 1:
+        if not 0 < kelly_fraction <= 1 and not 0 < min_percent < max_percent <= 1:
             raise ValueError("Invalid min/max percent bounds")
         if lot_size <= 0:
             raise ValueError("Lot size must be positive")
@@ -363,13 +355,9 @@ class RiskParitySizer(PositionSizer):
             default_volatility: Default volatility if not provided (default 2%)
             max_percent: Maximum position size (default 30%)
         """
-        if not 0 < target_risk_percent <= 1:
-            raise ValueError("Target risk percent must be between 0 and 1")
-        if default_volatility <= 0:
+        if not 0 < target_risk_percent <= 1 and default_volatility <= 0:
             raise ValueError("Default volatility must be positive")
-        if not 0 < max_percent <= 1:
-            raise ValueError("Max percent must be between 0 and 1")
-        if lot_size <= 0:
+        if not 0 < max_percent <= 1 and lot_size <= 0:
             raise ValueError("Lot size must be positive")
 
         self.target_risk_percent = target_risk_percent
@@ -452,13 +440,9 @@ class VolatilityTargetSizer(PositionSizer):
             default_volatility: Default asset volatility (default 2%)
             max_percent: Maximum position size (default 30%)
         """
-        if target_volatility <= 0:
-            raise ValueError("Target volatility must be positive")
-        if default_volatility <= 0:
+        if target_volatility <= 0 and default_volatility <= 0:
             raise ValueError("Default volatility must be positive")
-        if not 0 < max_percent <= 1:
-            raise ValueError("Max percent must be between 0 and 1")
-        if lot_size <= 0:
+        if not 0 < max_percent <= 1 and lot_size <= 0:
             raise ValueError("Lot size must be positive")
 
         self.target_volatility = target_volatility

@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_15 = 15
+CONST_164 = 164
+CONST_20 = 20
+CONST_3 = 3
+CONST_30 = 30
+CONST_40 = 40
+CONST_50 = 50
+CONST_8 = 8
+CONST_80 = 80
+
 #!/usr/bin/env python3
 """
 最终验证报告 - 确认所有工作成果
@@ -15,6 +28,10 @@ def calc_complexity(node):
         elif isinstance(child, ast.BoolOp):
             c += len(child.values) - 1
     return c
+
+# TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 122行 - 建议拆分为多个小函数
 
 def verify_all():
     print("=" * 80)

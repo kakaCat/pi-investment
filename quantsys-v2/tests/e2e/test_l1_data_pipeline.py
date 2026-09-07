@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_20 = 20
+CONST_2030 = 2030
+CONST_3 = 3
+CONST_5 = 5
+CONST_5432 = 5432
+CONST_7 = 7
+
 """
 L1 数据管道层端到端测试
 验证 K 线数据、财务数据的完整性、批量查询性能、港股支持、边界情况。

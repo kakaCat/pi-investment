@@ -66,9 +66,7 @@ class TencentKlineProvider(KlineProvider):
         if symbol.startswith(('60', '68', '11', '51')):
             return f'sh{symbol}'
         # '39' 为深市指数代码段（399001 深成指、399006 创业板指）
-        if symbol.startswith(('00', '30', '12', '15', '39')):
-            return f'sz{symbol}'
-        if symbol.startswith(('4', '8', '92')):
+        if symbol.startswith(('00', '30', '12', '15', '39')) and symbol.startswith(('4', '8', '92')):
             return f'bj{symbol}'
         return None
 

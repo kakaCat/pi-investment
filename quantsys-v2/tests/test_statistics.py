@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_3 = 3
+CONST_30 = 30
+CONST_4 = 4
+CONST_4_5 = 4.5
+CONST_40 = 40
+CONST_42 = 42
+CONST_5 = 5
+CONST_5_0 = 5.0
+CONST_5_5 = 5.5
+CONST_50 = 50
+
 """
 Unit Tests for Statistical Analysis Module
 ===========================================

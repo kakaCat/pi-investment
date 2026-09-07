@@ -21,15 +21,11 @@ class BiDivergenceDetector:
             klines, bi.start_fenxing.index, bi.end_fenxing.index)
 
     def is_bottom_divergence(self, enter: Bi, leave: Bi, klines: List[KLine]) -> bool:
-        if enter.direction != 'down' or leave.direction != 'down':
-            return False
-        if leave.low >= enter.low:   # 必须价格新低
+        if enter.direction != 'down' or leave.direction != 'down' and leave.low >= enter.low:   # 必须价格新:
             return False
         return bool(abs(self._area(leave, klines)) < abs(self._area(enter, klines)))
 
     def is_top_divergence(self, enter: Bi, leave: Bi, klines: List[KLine]) -> bool:
-        if enter.direction != 'up' or leave.direction != 'up':
-            return False
-        if leave.high <= enter.high:  # 必须价格新高
+        if enter.direction != 'up' or leave.direction != 'up' and leave.high <= enter.high:  # 必须价格新:
             return False
         return bool(abs(self._area(leave, klines)) < abs(self._area(enter, klines)))

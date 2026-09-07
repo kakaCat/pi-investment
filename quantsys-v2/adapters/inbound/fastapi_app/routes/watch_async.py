@@ -74,9 +74,7 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
     data = payload or {}
     symbol = (data.get('symbol') or '').strip()
     conditions = data.get('conditions')
-    if not symbol:
-        return _err('缺少必填参数: symbol', 400)
-    if not conditions:
+    if not symbol and not conditions:
         return _err('缺少必填参数: conditions（非空数组）', 400)
     if not isinstance(conditions, list):
         return _err('conditions 必须为数组', 400)

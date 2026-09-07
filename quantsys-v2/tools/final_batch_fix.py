@@ -74,6 +74,8 @@ def refactor_large_class(file_path: Path, class_name: str, method_count: int) ->
     except:
         return False
 
+# TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
 def main():
     print("🚀 终极批量修复 - 解决所有剩余问题\n")
 

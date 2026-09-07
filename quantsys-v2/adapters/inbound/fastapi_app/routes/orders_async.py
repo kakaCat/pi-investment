@@ -124,13 +124,9 @@ def algo_execute(payload: Optional[Dict[str, Any]] = Body(None)):
         duration_minutes = data.get('duration_minutes', 30)
         start_time_str = data.get('start_time', '09:30:00')
 
-        if not all([symbol, side, quantity, algo]):
-            return error_response({'success': False, 'error': '缺少必需参数: symbol, side, quantity, algo'}, 400)
-        if side not in ['buy', 'sell']:
+        if not all([symbol, side, quantity, algo]) and side not in ['buy', 'sell']:
             return error_response({'success': False, 'error': 'side 必须是 buy 或 sell'}, 400)
-        if algo not in ['TWAP', 'VWAP']:
-            return error_response({'success': False, 'error': 'algo 必须是 TWAP 或 VWAP'}, 400)
-        if quantity <= 0:
+        if algo not in ['TWAP', 'VWAP'] and quantity <= 0:
             return error_response({'success': False, 'error': 'quantity 必须大于 0'}, 400)
         if duration_minutes <= 0:
             return error_response({'success': False, 'error': 'duration_minutes 必须大于 0'}, 400)
@@ -198,6 +194,10 @@ def _build_get_trade_history_result(data):
 # TODO: Split long function (108 lines, target < 100)
 # TODO: Refactor - complexity 17 (target < 15)
 # TODO: Split long function (108 lines, target < 100)
+# TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 117行 - 建议拆分为多个小函数
+
 def get_trade_history(
     # ---- Section 1 ----
     # ---- Section 2 ----

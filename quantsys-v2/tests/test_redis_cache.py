@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100_5 = 100.5
+CONST_101_0 = 101.0
+CONST_15 = 15
+CONST_150 = 150
+CONST_2024 = 2024
+CONST_300 = 300
+CONST_3600 = 3600
+CONST_60 = 60
+CONST_6379 = 6379
+CONST_65_3 = 65.3
+
 """
 Redis缓存测试
 

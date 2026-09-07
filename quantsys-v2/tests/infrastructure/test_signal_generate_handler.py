@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_101 = 101
+CONST_13 = 13
+CONST_162 = 162
+CONST_20_0 = 20.0
+CONST_201 = 201
+CONST_2026 = 2026
+CONST_28_0 = 28.0
+CONST_300750 = 300750
+CONST_600000 = 600000
+CONST_688012 = 688012
+
 """_handle_signal_generate 重写测试（2026-08-04）
 
 桩任务 → 真实扫描落库：宇宙=非空池成员∪持仓，逐策略 PoolSignalScanner，

@@ -182,6 +182,8 @@ def detect_direct_cycles(project_root: Path) -> List[Tuple[str, str, int]]:
 
 # TODO: Refactor - complexity 17 (target < 15)
 
+# TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
 def analyze_layer_violations(project_root: Path) -> Dict[str, List[str]]:
     """分析分层架构违规
 

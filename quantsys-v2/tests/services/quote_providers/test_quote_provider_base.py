@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_2026 = 2026
+CONST_27_15 = 27.15
+CONST_27_20 = 27.20
+CONST_27_24 = 27.24
+CONST_27_45 = 27.45
+CONST_27_50 = 27.50
+CONST_30 = 30
+CONST_5 = 5
+CONST_600900 = 600900
+
 """
 测试 QuoteProvider 基础类
 """

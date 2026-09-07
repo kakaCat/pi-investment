@@ -297,6 +297,8 @@ class StrategyPerformanceStats:
     # TODO: Refactor - function too long (119 lines, target < 80)
 
 # TODO: Split long function (118 lines, target < 100)
+    # TODO: 长函数 128行 - 建议拆分为多个小函数
+
     def evaluate_strategy_suitability(
         # ---- Section 1 ----
         # ---- Section 2 ----

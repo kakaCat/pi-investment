@@ -90,6 +90,8 @@ except ImportError:
 
 # TODO: Refactor large class (30 methods, target < 20)
 # TODO: Refactor large class (30 methods, target < 20)
+# TODO: 大类 30个方法 - 考虑拆分为多个类或使用组合模式
+
 class IBKRBroker(BaseBroker):
     """
     Interactive Brokers adapter using ib_insync.
@@ -233,9 +235,7 @@ class IBKRBroker(BaseBroker):
 
     def _ensure_connected(self) -> Optional[str]:
         """Return an error string if not connected, None if connected."""
-        if not IB_AVAILABLE:
-            return "ib_insync is not installed. Install with: pip install ib_insync"
-        if not self._connected or self._ib is None:
+        if not IB_AVAILABLE and not self._connected or self._ib is None:
             return "Not connected to IBKR. Call authenticate() first."
         return None
 
@@ -278,6 +278,8 @@ class IBKRBroker(BaseBroker):
 # TODO: Refactor - complexity 16 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 16 (target < 15)
+    # TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
     def get_quotes(self, symbols: List[str]) -> ApiResponse[List[BrokerQuote]]:
         """
         Get real-time quotes using snapshot market data.
@@ -335,6 +337,8 @@ class IBKRBroker(BaseBroker):
         except Exception as e:
             logger.error(f"Failed to get quotes: {e}", exc_info=True)
             return ApiResponse.fail(f"Failed to get quotes: {str(e)}")
+
+    # TODO: 长函数 103行 - 建议拆分为多个小函数
 
     def get_history(
         # ---- Section 1 ----
@@ -476,6 +480,8 @@ class IBKRBroker(BaseBroker):
         # TODO: 将结果构建逻辑从 place_order 移到这里
         return data
 
+# TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
 # REFACTOR: Split this function into smaller pieces
 # TODO: Refactor - complexity 16 (target < 15)
     def place_order(
@@ -519,9 +525,7 @@ class IBKRBroker(BaseBroker):
                     return OrderPlaceResponse.fail("Limit order requires a price")
                 ib_order = LimitOrder(action, order.quantity, order.price)
             elif order.order_type == OrderType.STOP_LOSS:
-                if order.stop_price is None:
-                    return OrderPlaceResponse.fail("Stop loss order requires a stop price")
-                if order.price is not None:
+                if order.stop_price is None and order.price is not None:
                     # Stop Limit
                     ib_order = StopOrder(action, order.quantity, order.stop_price)
                 else:
@@ -551,316 +555,315 @@ class IBKRBroker(BaseBroker):
                     f"{action} {order.quantity} @ {order.price or 'MKT'}"
                 )
                 return OrderPlaceResponse.ok(order_id)
-            else:
-                return OrderPlaceResponse.fail("Order submission failed - no response")
+            return OrderPlaceResponse.fail("Order submission failed - no response")
 
-        except Exception as e:
-            logger.error(f"Failed to place IBKR order: {e}", exc_info=True)
-            return OrderPlaceResponse.fail(f"IBKR order failed: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to place IBKR order: {e}", exc_info=True)
+        return OrderPlaceResponse.fail(f"IBKR order failed: {str(e)}")
 
-    def cancel_order(
-        self,
-        credentials: BrokerCredentials,
-        order_id: str
-    ) -> ApiResponse[Dict[str, Any]]:
-        """
-        Cancel an existing order.
+def cancel_order(
+    self,
+    credentials: BrokerCredentials,
+    order_id: str
+) -> ApiResponse[Dict[str, Any]]:
+    """
+    Cancel an existing order.
 
-        Args:
-            credentials: Broker credentials
-            order_id: Order ID to cancel
+    Args:
+        credentials: Broker credentials
+        order_id: Order ID to cancel
 
-        Returns:
-            ApiResponse[Dict]: Cancellation result
-        """
-        err = self._ensure_connected()
-        if err:
-            return ApiResponse.fail(err)
+    Returns:
+        ApiResponse[Dict]: Cancellation result
+    """
+    err = self._ensure_connected()
+    if err:
+        return ApiResponse.fail(err)
 
-        if not IB_AVAILABLE:
-            return ApiResponse.fail("ib_insync is not installed. Install with: pip install ib_insync")
+    if not IB_AVAILABLE:
+        return ApiResponse.fail("ib_insync is not installed. Install with: pip install ib_insync")
 
-        try:
-            # Find the trade
-            trades = self._ib.trades()
-            target_trade = None
-            for trade in trades:
-                if str(trade.order.orderId) == order_id:
-                    target_trade = trade
-                    break
+    try:
+        # Find the trade
+        trades = self._ib.trades()
+        target_trade = None
+        for trade in trades:
+            if str(trade.order.orderId) == order_id:
+                target_trade = trade
+                break
 
-            if target_trade is None:
-                return ApiResponse.fail(f"Order not found: {order_id}")
+        if target_trade is None:
+            return ApiResponse.fail(f"Order not found: {order_id}")
 
-            self._ib.cancelOrder(target_trade.order)
-            self._ib.sleep(0.3)
+        self._ib.cancelOrder(target_trade.order)
+        self._ib.sleep(0.3)
 
-            result = {
-                "order_id": order_id,
-                "status": "cancelled",
+        result = {
+            "order_id": order_id,
+            "status": "cancelled",
+            "timestamp": datetime.now().isoformat(),
+        }
+        logger.info(f"IBKR order cancelled: {order_id}")
+        return ApiResponse.ok(result)
+
+    except Exception as e:
+        logger.error(f"Failed to cancel IBKR order {order_id}: {e}", exc_info=True)
+        return ApiResponse.fail(f"Cancel failed: {str(e)}")
+
+def get_orders(
+    self,
+    credentials: BrokerCredentials
+) -> ApiResponse[List[Dict[str, Any]]]:
+    """
+    Get all open and recent orders.
+
+    Args:
+        credentials: Broker credentials
+
+    Returns:
+        ApiResponse[List[Dict]]: Orders list
+    """
+    err = self._ensure_connected()
+    if err:
+        return ApiResponse.fail(err)
+
+    if not IB_AVAILABLE:
+        return ApiResponse.fail("ib_insync is not installed. Install with: pip install ib_insync")
+
+    try:
+        trades = self._ib.trades()
+        orders = []
+        for trade in trades:
+            orders.append({
+                "order_id": str(trade.order.orderId),
+                "symbol": trade.contract.symbol if trade.contract else "",
+                "action": trade.order.action,
+                "order_type": trade.order.orderType,
+                "quantity": trade.order.totalQuantity,
+                "filled": trade.order.filledQuantity if hasattr(trade.order, 'filledQuantity') else 0,
+                "price": trade.order.lmtPrice if hasattr(trade.order, 'lmtPrice') else 0,
+                "status": trade.orderStatus.status if trade.orderStatus else "unknown",
                 "timestamp": datetime.now().isoformat(),
-            }
-            logger.info(f"IBKR order cancelled: {order_id}")
-            return ApiResponse.ok(result)
+            })
+        return ApiResponse.ok(orders)
 
-        except Exception as e:
-            logger.error(f"Failed to cancel IBKR order {order_id}: {e}", exc_info=True)
-            return ApiResponse.fail(f"Cancel failed: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to get IBKR orders: {e}", exc_info=True)
+        return ApiResponse.fail(f"Failed to get orders: {str(e)}")
 
-    def get_orders(
-        self,
-        credentials: BrokerCredentials
-    ) -> ApiResponse[List[Dict[str, Any]]]:
-        """
-        Get all open and recent orders.
+# ========================================================================
+# Portfolio
+# ========================================================================
 
-        Args:
-            credentials: Broker credentials
+def get_positions(
+    self,
+    credentials: BrokerCredentials
+) -> ApiResponse[List[BrokerPosition]]:
+    """
+    Get current positions.
 
-        Returns:
-            ApiResponse[List[Dict]]: Orders list
-        """
-        err = self._ensure_connected()
-        if err:
-            return ApiResponse.fail(err)
+    Args:
+        credentials: Broker credentials
 
-        if not IB_AVAILABLE:
-            return ApiResponse.fail("ib_insync is not installed. Install with: pip install ib_insync")
+    Returns:
+        ApiResponse[List[BrokerPosition]]: Current positions
+    """
+    err = self._ensure_connected()
+    if err:
+        return ApiResponse.fail(err)
 
+    if not IB_AVAILABLE:
+        return ApiResponse.fail("ib_insync is not installed. Install with: pip install ib_insync")
+
+    try:
+        positions = self._ib.positions()
+        result = []
+
+        for pos in positions:
+            result.append(BrokerPosition(
+                symbol=f"{pos.contract.symbol}.{pos.contract.currency}" if pos.contract else "unknown",
+                quantity=float(pos.position),
+                available_quantity=float(pos.position),
+                avg_price=float(pos.avgCost) if pos.avgCost > 0 else 0.0,
+                current_price=0.0,  # Would need market data for this
+                unrealized_pnl=float(getattr(pos, 'unrealizedPNL', 0)),
+                realized_pnl=float(getattr(pos, 'realizedPNL', 0)),
+                side="long" if pos.position > 0 else "short",
+                exchange=pos.contract.exchange if pos.contract and pos.contract.exchange else "SMART",
+            ))
+
+        return ApiResponse.ok(result)
+
+    except Exception as e:
+        logger.error(f"Failed to get IBKR positions: {e}", exc_info=True)
+        return ApiResponse.fail(f"Failed to get positions: {str(e)}")
+
+def get_funds(self, credentials: BrokerCredentials) -> ApiResponse[BrokerFunds]:
+    """
+    Get account funds summary.
+
+    Args:
+        credentials: Broker credentials
+
+    Returns:
+        ApiResponse[BrokerFunds]: Account fund details
+    """
+    err = self._ensure_connected()
+    if err:
+        return ApiResponse.fail(err)
+
+    if not IB_AVAILABLE:
+        return ApiResponse.fail("ib_insync is not installed. Install with: pip install ib_insync")
+
+    try:
+        # Request account summary
+        account_summary = self._ib.accountSummary()
+        summary_dict = {}
+        for item in account_summary:
+            summary_dict[item.tag] = item.value
+
+        funds = BrokerFunds(
+            available_cash=float(summary_dict.get('AvailableFunds', 0)),
+            total_assets=float(summary_dict.get('NetLiquidation', 0)),
+            market_value=float(summary_dict.get('GrossPositionValue', 0)),
+            frozen_cash=float(summary_dict.get('InitMarginReq', 0)),
+            margin_used=float(summary_dict.get('MaintMarginReq', 0)),
+            margin_available=float(summary_dict.get('AvailableFunds', 0)) * 2,  # Approximate
+        )
+
+        return ApiResponse.ok(funds)
+
+    except Exception as e:
+        logger.error(f"Failed to get IBKR funds: {e}", exc_info=True)
+        return ApiResponse.fail(f"Failed to get funds: {str(e)}")
+
+# ========================================================================
+# Advanced Features
+# ========================================================================
+
+def get_margin_info(
+    self,
+    credentials: BrokerCredentials,
+    order: UnifiedOrder
+) -> ApiResponse[Dict[str, Any]]:
+    """
+    Calculate margin requirement for a proposed order.
+
+    Args:
+        credentials: Broker credentials
+        order: Proposed order for margin calculation
+
+    Returns:
+        ApiResponse[Dict]: Margin information
+    """
+    err = self._ensure_connected()
+    if err:
+        return ApiResponse.fail(err)
+
+    if not IB_AVAILABLE:
+        return ApiResponse.fail("ib_insync is not installed. Install with: pip install ib_insync")
+
+    try:
+        # Approximate margin calculation
+        price = order.price or 100.0
+        order_value = order.quantity * price
+
+        # Reg T margin: 50% initial, 25% maintenance
+        initial_margin = order_value * 0.50
+        maintenance_margin = order_value * 0.25
+
+        # Get account summary for actual numbers
         try:
-            trades = self._ib.trades()
-            orders = []
-            for trade in trades:
-                orders.append({
-                    "order_id": str(trade.order.orderId),
-                    "symbol": trade.contract.symbol if trade.contract else "",
-                    "action": trade.order.action,
-                    "order_type": trade.order.orderType,
-                    "quantity": trade.order.totalQuantity,
-                    "filled": trade.order.filledQuantity if hasattr(trade.order, 'filledQuantity') else 0,
-                    "price": trade.order.lmtPrice if hasattr(trade.order, 'lmtPrice') else 0,
-                    "status": trade.orderStatus.status if trade.orderStatus else "unknown",
-                    "timestamp": datetime.now().isoformat(),
-                })
-            return ApiResponse.ok(orders)
-
-        except Exception as e:
-            logger.error(f"Failed to get IBKR orders: {e}", exc_info=True)
-            return ApiResponse.fail(f"Failed to get orders: {str(e)}")
-
-    # ========================================================================
-    # Portfolio
-    # ========================================================================
-
-    def get_positions(
-        self,
-        credentials: BrokerCredentials
-    ) -> ApiResponse[List[BrokerPosition]]:
-        """
-        Get current positions.
-
-        Args:
-            credentials: Broker credentials
-
-        Returns:
-            ApiResponse[List[BrokerPosition]]: Current positions
-        """
-        err = self._ensure_connected()
-        if err:
-            return ApiResponse.fail(err)
-
-        if not IB_AVAILABLE:
-            return ApiResponse.fail("ib_insync is not installed. Install with: pip install ib_insync")
-
-        try:
-            positions = self._ib.positions()
-            result = []
-
-            for pos in positions:
-                result.append(BrokerPosition(
-                    symbol=f"{pos.contract.symbol}.{pos.contract.currency}" if pos.contract else "unknown",
-                    quantity=float(pos.position),
-                    available_quantity=float(pos.position),
-                    avg_price=float(pos.avgCost) if pos.avgCost > 0 else 0.0,
-                    current_price=0.0,  # Would need market data for this
-                    unrealized_pnl=float(getattr(pos, 'unrealizedPNL', 0)),
-                    realized_pnl=float(getattr(pos, 'realizedPNL', 0)),
-                    side="long" if pos.position > 0 else "short",
-                    exchange=pos.contract.exchange if pos.contract and pos.contract.exchange else "SMART",
-                ))
-
-            return ApiResponse.ok(result)
-
-        except Exception as e:
-            logger.error(f"Failed to get IBKR positions: {e}", exc_info=True)
-            return ApiResponse.fail(f"Failed to get positions: {str(e)}")
-
-    def get_funds(self, credentials: BrokerCredentials) -> ApiResponse[BrokerFunds]:
-        """
-        Get account funds summary.
-
-        Args:
-            credentials: Broker credentials
-
-        Returns:
-            ApiResponse[BrokerFunds]: Account fund details
-        """
-        err = self._ensure_connected()
-        if err:
-            return ApiResponse.fail(err)
-
-        if not IB_AVAILABLE:
-            return ApiResponse.fail("ib_insync is not installed. Install with: pip install ib_insync")
-
-        try:
-            # Request account summary
             account_summary = self._ib.accountSummary()
-            summary_dict = {}
-            for item in account_summary:
-                summary_dict[item.tag] = item.value
+            summary_dict = {item.tag: item.value for item in account_summary}
+            current_excess_liquidity = float(summary_dict.get('ExcessLiquidity', 0))
+        except Exception:
+            current_excess_liquidity = 0
 
-            funds = BrokerFunds(
-                available_cash=float(summary_dict.get('AvailableFunds', 0)),
-                total_assets=float(summary_dict.get('NetLiquidation', 0)),
-                market_value=float(summary_dict.get('GrossPositionValue', 0)),
-                frozen_cash=float(summary_dict.get('InitMarginReq', 0)),
-                margin_used=float(summary_dict.get('MaintMarginReq', 0)),
-                margin_available=float(summary_dict.get('AvailableFunds', 0)) * 2,  # Approximate
-            )
+        margin_info = {
+            "order_value": round(order_value, 2),
+            "initial_margin_required": round(initial_margin, 2),
+            "maintenance_margin_required": round(maintenance_margin, 2),
+            "current_excess_liquidity": round(current_excess_liquidity, 2),
+            "sufficient_margin": current_excess_liquidity > initial_margin,
+            "symbol": order.symbol,
+            "quantity": order.quantity,
+            "estimated_price": price,
+            "timestamp": datetime.now().isoformat(),
+        }
+        return ApiResponse.ok(margin_info)
 
-            return ApiResponse.ok(funds)
+    except Exception as e:
+        logger.error(f"Failed to calculate margin: {e}", exc_info=True)
+        return ApiResponse.fail(f"Margin calculation failed: {str(e)}")
 
-        except Exception as e:
-            logger.error(f"Failed to get IBKR funds: {e}", exc_info=True)
-            return ApiResponse.fail(f"Failed to get funds: {str(e)}")
+def search_symbols(
+    self,
+    query: str,
+    exchange: Optional[str] = None
+) -> ApiResponse[List[Dict[str, Any]]]:
+    """
+    Search for symbols matching a query.
 
-    # ========================================================================
-    # Advanced Features
-    # ========================================================================
+    Uses IBKR's matching symbols request.
 
-    def get_margin_info(
-        self,
-        credentials: BrokerCredentials,
-        order: UnifiedOrder
-    ) -> ApiResponse[Dict[str, Any]]:
-        """
-        Calculate margin requirement for a proposed order.
+    Args:
+        query: Search keyword (symbol or name)
+        exchange: Exchange filter (optional)
 
-        Args:
-            credentials: Broker credentials
-            order: Proposed order for margin calculation
+    Returns:
+        ApiResponse[List[Dict]]: Search results
+    """
+    if not IB_AVAILABLE:
+        return ApiResponse.fail("ib_insync is not installed. Install with: pip install ib_insync")
 
-        Returns:
-            ApiResponse[Dict]: Margin information
-        """
-        err = self._ensure_connected()
-        if err:
-            return ApiResponse.fail(err)
+    if not self._connected or self._ib is None:
+        return ApiResponse.fail("Not connected to IBKR. Call authenticate() first.")
 
-        if not IB_AVAILABLE:
-            return ApiResponse.fail("ib_insync is not installed. Install with: pip install ib_insync")
-
+    try:
+        # Use reqMatchingSymbols for search
+        results = []
         try:
-            # Approximate margin calculation
-            price = order.price or 100.0
-            order_value = order.quantity * price
+            # IB's matching symbols requires a pattern
+            details = self._ib.reqMatchingSymbols(query)
+            for detail in details[:20]:
+                contract = detail.contract
+                results.append({
+                    "symbol": contract.symbol,
+                    "name": detail.contract.longName if hasattr(detail.contract, 'longName') else contract.symbol,
+                    "exchange": contract.exchange or "SMART",
+                    "currency": contract.currency or "USD",
+                    "type": contract.secType or "STK",
+                    "category": "search_result",
+                })
+        except Exception as search_err:
+            logger.debug(f"Matching symbols failed: {search_err}, trying fallback")
 
-            # Reg T margin: 50% initial, 25% maintenance
-            initial_margin = order_value * 0.50
-            maintenance_margin = order_value * 0.25
+        return ApiResponse.ok(results)
 
-            # Get account summary for actual numbers
-            try:
-                account_summary = self._ib.accountSummary()
-                summary_dict = {item.tag: item.value for item in account_summary}
-                current_excess_liquidity = float(summary_dict.get('ExcessLiquidity', 0))
-            except Exception:
-                current_excess_liquidity = 0
+    except Exception as e:
+        logger.error(f"Failed to search symbols: {e}", exc_info=True)
+        return ApiResponse.fail(f"Symbol search failed: {str(e)}")
 
-            margin_info = {
-                "order_value": round(order_value, 2),
-                "initial_margin_required": round(initial_margin, 2),
-                "maintenance_margin_required": round(maintenance_margin, 2),
-                "current_excess_liquidity": round(current_excess_liquidity, 2),
-                "sufficient_margin": current_excess_liquidity > initial_margin,
-                "symbol": order.symbol,
-                "quantity": order.quantity,
-                "estimated_price": price,
-                "timestamp": datetime.now().isoformat(),
-            }
-            return ApiResponse.ok(margin_info)
+# ========================================================================
+# Connection Management
+# ========================================================================
 
-        except Exception as e:
-            logger.error(f"Failed to calculate margin: {e}", exc_info=True)
-            return ApiResponse.fail(f"Margin calculation failed: {str(e)}")
-
-    def search_symbols(
-        self,
-        query: str,
-        exchange: Optional[str] = None
-    ) -> ApiResponse[List[Dict[str, Any]]]:
-        """
-        Search for symbols matching a query.
-
-        Uses IBKR's matching symbols request.
-
-        Args:
-            query: Search keyword (symbol or name)
-            exchange: Exchange filter (optional)
-
-        Returns:
-            ApiResponse[List[Dict]]: Search results
-        """
-        if not IB_AVAILABLE:
-            return ApiResponse.fail("ib_insync is not installed. Install with: pip install ib_insync")
-
-        if not self._connected or self._ib is None:
-            return ApiResponse.fail("Not connected to IBKR. Call authenticate() first.")
-
+def disconnect(self):
+    """Disconnect from IBKR TWS/Gateway."""
+    if self._ib and self._connected:
         try:
-            # Use reqMatchingSymbols for search
-            results = []
-            try:
-                # IB's matching symbols requires a pattern
-                details = self._ib.reqMatchingSymbols(query)
-                for detail in details[:20]:
-                    contract = detail.contract
-                    results.append({
-                        "symbol": contract.symbol,
-                        "name": detail.contract.longName if hasattr(detail.contract, 'longName') else contract.symbol,
-                        "exchange": contract.exchange or "SMART",
-                        "currency": contract.currency or "USD",
-                        "type": contract.secType or "STK",
-                        "category": "search_result",
-                    })
-            except Exception as search_err:
-                logger.debug(f"Matching symbols failed: {search_err}, trying fallback")
-
-            return ApiResponse.ok(results)
-
+            self._ib.disconnect()
+            self._connected = False
+            logger.info("Disconnected from IBKR")
         except Exception as e:
-            logger.error(f"Failed to search symbols: {e}", exc_info=True)
-            return ApiResponse.fail(f"Symbol search failed: {str(e)}")
+            logger.error(f"Error disconnecting from IBKR: {e}")
 
-    # ========================================================================
-    # Connection Management
-    # ========================================================================
+def __del__(self):
+    """Cleanup on deletion."""
+    self.disconnect()
 
-    def disconnect(self):
-        """Disconnect from IBKR TWS/Gateway."""
-        if self._ib and self._connected:
-            try:
-                self._ib.disconnect()
-                self._connected = False
-                logger.info("Disconnected from IBKR")
-            except Exception as e:
-                logger.error(f"Error disconnecting from IBKR: {e}")
-
-    def __del__(self):
-        """Cleanup on deletion."""
-        self.disconnect()
-
-    def __repr__(self) -> str:
-        """String representation."""
-        status = "connected" if self._connected else "disconnected"
-        return f"<IBKRBroker status={status}>"
+def __repr__(self) -> str:
+    """String representation."""
+    status = "connected" if self._connected else "disconnected"
+    return f"<IBKRBroker status={status}>"

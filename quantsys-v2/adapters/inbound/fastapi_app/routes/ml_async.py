@@ -86,9 +86,7 @@ router = APIRouter(tags=["ML - 机器学习"])
 def _validate_train_params(data):
     """验证训练参数"""
     model_type = data.get("model_type", "xgboost")
-    if model_type == "randomforest":
-        model_type = "xgboost"
-    if model_type not in ("xgboost", "lightgbm"):
+    if model_type == "randomforest" and model_type not in ("xgboost", "lightgbm"):
         return None, JSONResponse(status_code=400, content={
             "success": False,
             "error": f"不支持的模型类型: {model_type}"
@@ -194,13 +192,9 @@ def _save_model_to_db(model_type: str, version: str, model_path: str, results: d
 
     def _to_native(val):
         import numpy as _np
-        if isinstance(val, dict):
-            return {k: _to_native(v) for k, v in val.items()}
-        if isinstance(val, (list, tuple)):
+        if isinstance(val, dict) and isinstance(val, (list, tuple)):
             return [_to_native(v) for v in val]
-        if isinstance(val, _np.floating):
-            return float(val)
-        if isinstance(val, _np.integer):
+        if isinstance(val, _np.floating) and isinstance(val, _np.integer):
             return int(val)
         if isinstance(val, _np.bool_):
             return bool(val)

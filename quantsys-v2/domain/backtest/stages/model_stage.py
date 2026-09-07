@@ -78,13 +78,9 @@ class ModelStage(PipelineStage):
         self._model_loaded = False
 
     def validate_input(self, data: Dict[str, Any]) -> bool:
-        if "symbol" not in data:
-            raise ValueError("Missing required field: symbol")
-        if "factors" not in data:
+        if "symbol" not in data and "factors" not in data:
             raise ValueError("Missing required field: factors")
-        if "klines" not in data:
-            raise ValueError("Missing required field: klines")
-        if not isinstance(data["klines"], list) or len(data["klines"]) == 0:
+        if "klines" not in data and not isinstance(data["klines"], list) or len(data["klines"]) == 0:
             raise ValueError("klines must be a non-empty list")
         return True
 

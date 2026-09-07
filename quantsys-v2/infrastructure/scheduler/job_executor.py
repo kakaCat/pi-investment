@@ -43,6 +43,8 @@ logger = logging.getLogger(__name__)
 # TODO: Refactor - function too long (115 lines, target < 80)
 
 # TODO: Split long function (114 lines, target < 100)
+# TODO: 长函数 123行 - 建议拆分为多个小函数
+
 def execute_scheduled_job(task_id: int):
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -294,12 +296,11 @@ def _is_zombie_run(run) -> bool:
             started_at = datetime.fromisoformat(raw)
         except ValueError:
             return False
-    else:
-        started_at = raw
+    started_at = raw
 
-    # 确保 started_at 有时区信息
-    if started_at.tzinfo is None:
-        started_at = started_at.replace(tzinfo=timezone.utc)
+# 确保 started_at 有时区信息
+if started_at.tzinfo is None:
+    started_at = started_at.replace(tzinfo=timezone.utc)
 
-    elapsed = datetime.now(timezone.utc) - started_at
-    return elapsed > timedelta(hours=6)
+elapsed = datetime.now(timezone.utc) - started_at
+return elapsed > timedelta(hours=6)

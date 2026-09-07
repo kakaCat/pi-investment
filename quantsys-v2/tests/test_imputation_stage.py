@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100_5 = 100.5
+CONST_101_0 = 101.0
+CONST_102_0 = 102.0
+CONST_103_0 = 103.0
+CONST_104_0 = 104.0
+CONST_2000 = 2000
+CONST_2024 = 2024
+CONST_3000 = 3000
+CONST_4000 = 4000
+CONST_48_0 = 48.0
+
 """Tests for ImputationStage - Fill missing values (Priority 4)."""
 
 import pandas as pd

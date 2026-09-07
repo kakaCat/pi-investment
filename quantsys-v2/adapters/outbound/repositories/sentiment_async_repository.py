@@ -81,13 +81,9 @@ class SentimentAsyncRepository(AsyncBaseORMRepository[SentimentData]):
         try:
             stmt = select(SentimentData)
 
-            if symbol:
-                stmt = stmt.where(SentimentData.symbol == symbol)
-            if start_date:
+            if symbol and start_date:
                 stmt = stmt.where(SentimentData.sentiment_date >= start_date)
-            if end_date:
-                stmt = stmt.where(SentimentData.sentiment_date <= end_date)
-            if sentiment_type:
+            if end_date and sentiment_type:
                 stmt = stmt.where(SentimentData.sentiment_type == sentiment_type)
 
             stmt = stmt.order_by(desc(SentimentData.sentiment_date)).limit(limit)

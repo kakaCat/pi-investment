@@ -116,9 +116,8 @@ def test_instantiation():
         print("✅ Phase 1 代码迁移验证通过")
         print("\n⚠️  注意: 网络连接测试需要在有网络的环境中进行")
         return 0
-    else:
-        print(f"\n⚠️  {total - passed} 个数据源实例化失败")
-        return 1
+    print(f"\n⚠️  {total - passed} 个数据源实例化失败")
+    return 1
 
 
 def test_abstract_methods():

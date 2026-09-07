@@ -1,3 +1,14 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_5 = 10.5
+CONST_11_0 = 11.0
+CONST_2024 = 2024
+CONST_30 = 30
+CONST_50 = 50
+CONST_80 = 80
+CONST_9_0 = 9.0
+
 """MACD 计算器测试"""
 import pytest
 import numpy as np

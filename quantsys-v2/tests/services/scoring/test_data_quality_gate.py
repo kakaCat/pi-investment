@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_5 = 10.5
+CONST_10500 = 10500
+CONST_11 = 11
+CONST_120 = 120
+CONST_129 = 129
+CONST_13 = 13
+CONST_130 = 130
+CONST_133 = 133
+CONST_3 = 3
+CONST_4 = 4
+
 """DataQualityGate 单元测试"""
 import pytest
 from datetime import datetime, timedelta

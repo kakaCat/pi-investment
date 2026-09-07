@@ -62,6 +62,8 @@ from infrastructure.config import get_config
 # TODO: Refactor - function too long (266 lines, target < 80)
 
 # TODO: Split long function (265 lines, target < 100)
+# TODO: 长函数 285行 - 建议拆分为多个小函数
+
 def create_parser() -> argparse.ArgumentParser:
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -406,23 +408,22 @@ def run():
             output = formatter.format(result.data)
             print(output)
             return 0
-        else:
-            print(f"错误: {result.error}", file=sys.stderr)
-            if result.warnings:
-                for warning in result.warnings:
-                    print(f"警告: {warning}", file=sys.stderr)
-            return 1
-
-    except KeyboardInterrupt:
-        print("\n已取消", file=sys.stderr)
-        return 130
-    except Exception as e:
-        print(f"错误: {str(e)}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
+        print(f"错误: {result.error}", file=sys.stderr)
+        if result.warnings:
+            for warning in result.warnings:
+                print(f"警告: {warning}", file=sys.stderr)
         return 1
-    finally:
-        client.close()
+
+except KeyboardInterrupt:
+    print("\n已取消", file=sys.stderr)
+    return 130
+except Exception as e:
+    print(f"错误: {str(e)}", file=sys.stderr)
+    import traceback
+    traceback.print_exc()
+    return 1
+finally:
+    client.close()
 
 
 if __name__ == '__main__':

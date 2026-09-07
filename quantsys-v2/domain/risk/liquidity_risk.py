@@ -106,6 +106,8 @@ class LiquidityRiskCalculator(BaseCalculator):
     # TODO: Refactor - function too long (139 lines, target < 80)
 
 # TODO: Split long function (138 lines, target < 100)
+    # TODO: 长函数 144行 - 建议拆分为多个小函数
+
     def calculate(self,
         # ---- Section 1 ----
         # ---- Section 2 ----

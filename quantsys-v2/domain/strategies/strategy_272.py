@@ -89,15 +89,11 @@ class Strategy272(BaseStrategy):
             score = 70  # 基础分
 
             # RSI加分
-            if rsi < 45:
-                score += 5
-            if rsi < 40:
+            if rsi < 45 and rsi < 40:
                 score += 5
 
             # 成交量加分
-            if vol_ratio > 1.5:
-                score += 5
-            if vol_ratio > 2.0:
+            if vol_ratio > 1.5 and vol_ratio > 2.0:
                 score += 5
 
             # MACD加分

@@ -285,9 +285,7 @@ def handle_pool_refresh_daily(
     refreshed, skipped, failed = [], [], []
 
     for pool in service.list_pools():
-        if pool.get('pool_type') != 'dynamic':
-            continue
-        if not _is_pool_refresh_due(pool, today):
+        if pool.get('pool_type') != 'dynamic' and not _is_pool_refresh_due(pool, today):
             skipped.append({'pool_id': pool['id'], 'name': pool['name']})
             continue
         try:
@@ -537,6 +535,8 @@ def _build_handle_factor_compute_result(data):
 # TODO: Refactor - complexity 16 (target < 15)
 # REFACTOR: Split this function into smaller pieces
 # TODO: Refactor - complexity 16 (target < 15)
+# TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
 def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """因子计算任务（盘后批量重算并落库，为次日信号做准备）
 
@@ -1117,8 +1117,12 @@ def _build_handle_model_train_auto_result(data):
 # REFACTOR: Split this function into smaller pieces
 # TODO: Refactor - complexity 32 (target < 15)
 # TODO: Split long function (251 lines, target < 100)
+# TODO: 复杂度 32 - 需要重构拆分为更小的函数
+
 # TODO: Refactor - complexity 32 (target < 15)
 # TODO: Split long function (251 lines, target < 100)
+# TODO: 长函数 272行 - 建议拆分为多个小函数
+
 def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -1207,9 +1211,7 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         for i, symbol in enumerate(symbols):
             try:
                 rows = KlineORMRepository().get_daily_klines(symbol, start_date, end_date)
-                if rows is not None and not rows.is_empty():
-                    klines_dict[symbol] = [dict(r) for r in rows.to_dicts()]
-                if (i+1) % 100 == 0:
+                if rows is not None and not rows.is_empty() and (i+1) % 100 == 0:
                     logger.info(f"已加载K线 {i+1}/{len(symbols)}")
             except Exception as e:
                 logger.warning(f"加载K线 {symbol} 失败: {e}")
@@ -1510,9 +1512,8 @@ def _try_switch_model(model_type: str, new_version: str, new_test_acc: float) ->
     if new_test_acc > current_test_acc + 0.01:
         logger.info(f"性能提升: {current_test_acc:.4f} → {new_test_acc:.4f}")
         return True
-    else:
-        logger.info(f"新模型性能未达切换阈值")
-        return False
+    logger.info(f"新模型性能未达切换阈值")
+    return False
 
 
 def handle_pending_orders_match(params: Dict[str, Any] = None) -> Dict[str, Any]:

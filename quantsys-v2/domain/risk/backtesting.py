@@ -279,6 +279,8 @@ class BacktestingCalculator(BaseCalculator):
         }
 
     # TODO: Split long function (102 lines, target < 100)
+    # TODO: 长函数 107行 - 建议拆分为多个小函数
+
     def _christoffersen_test(self,
         # ---- Section 1 ----
         # ---- Section 2 ----

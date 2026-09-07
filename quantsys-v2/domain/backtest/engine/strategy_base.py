@@ -76,9 +76,7 @@ class StrategyBase(ABC):
         Raises:
             ValueError: 数据不足时抛出
         """
-        if not klines:
-            raise ValueError("K线数据为空")
-        if len(klines) < min_length:
+        if not klines and len(klines) < min_length:
             raise ValueError(
                 f"K线数据不足: 需要至少 {min_length} 条，实际 {len(klines)} 条"
             )
@@ -233,9 +231,7 @@ class StrategyBase(ABC):
             止损配置字典
         """
         # Validate parameters
-        if entry_price <= 0:
-            raise ValueError("entry_price must be greater than 0")
-        if atr <= 0:
+        if entry_price <= 0 and atr <= 0:
             raise ValueError("atr must be greater than 0")
         if direction not in ['long', 'short']:
             raise ValueError("direction must be 'long' or 'short'")
@@ -273,9 +269,7 @@ class StrategyBase(ABC):
             止损配置字典
         """
         # Validate parameters
-        if entry_price <= 0:
-            raise ValueError("entry_price must be greater than 0")
-        if not (0 <= percent <= 1):
+        if entry_price <= 0 and not (0 <= percent <= 1):
             raise ValueError("percent must be between 0 and 1")
         if direction not in ['long', 'short']:
             raise ValueError("direction must be 'long' or 'short'")
@@ -316,15 +310,11 @@ class StrategyBase(ABC):
             止损配置字典
         """
         # Validate parameters
-        if entry_price <= 0:
-            raise ValueError("entry_price must be greater than 0")
-        if direction not in ['long', 'short']:
+        if entry_price <= 0 and direction not in ['long', 'short']:
             raise ValueError("direction must be 'long' or 'short'")
 
         # Validate that exactly one trailing method is specified
-        if trailing_percent is not None and trailing_atr_multiplier is not None:
-            raise ValueError("Cannot provide both trailing_percent and trailing_atr_multiplier")
-        if trailing_percent is None and trailing_atr_multiplier is None:
+        if trailing_percent is not None and trailing_atr_multiplier is not None and trailing_percent is None and trailing_atr_multiplier is None:
             raise ValueError("Must provide either trailing_percent or (trailing_atr_multiplier + atr)")
 
         params = {}
@@ -338,9 +328,7 @@ class StrategyBase(ABC):
             else:
                 stop_price = entry_price * (1 + trailing_percent)
         else:  # trailing_atr_multiplier is not None
-            if atr is None:
-                raise ValueError("atr must be provided when using trailing_atr_multiplier")
-            if atr <= 0:
+            if atr is None and atr <= 0:
                 raise ValueError("atr must be greater than 0")
             params['trailing_atr_multiplier'] = trailing_atr_multiplier
             if direction == 'long':
@@ -372,9 +360,7 @@ class StrategyBase(ABC):
             仓位配置字典
         """
         # Validate parameters
-        if not (0 <= win_rate <= 1):
-            raise ValueError("win_rate must be between 0 and 1")
-        if profit_loss_ratio <= 0:
+        if not (0 <= win_rate <= 1) and profit_loss_ratio <= 0:
             raise ValueError("profit_loss_ratio must be greater than 0")
         if not (0 <= kelly_fraction <= 1):
             raise ValueError("kelly_fraction must be between 0 and 1")

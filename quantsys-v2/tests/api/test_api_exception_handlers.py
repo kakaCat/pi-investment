@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_400 = 400
+CONST_404 = 404
+CONST_409 = 409
+CONST_42 = 42
+CONST_422 = 422
+CONST_500 = 500
+CONST_503 = 503
+CONST_600519 = 600519
+CONST_8 = 8
+
 """Phase 1 分层异常处理器契约测试
 
 验证 main.py 注册的 8 个 DomainError 处理器 + 全局兜底处理器：

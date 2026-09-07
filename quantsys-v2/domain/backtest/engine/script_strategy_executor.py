@@ -218,6 +218,8 @@ class ScriptStrategyExecutor:
         self.param_parser = ParamParser()
 
     # TODO: Split long function (117 lines, target < 100)
+    # TODO: 长函数 122行 - 建议拆分为多个小函数
+
     def execute(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -282,9 +284,7 @@ class ScriptStrategyExecutor:
         on_init = namespace.get('on_init')
         on_bar = namespace.get('on_bar')
 
-        if on_init is None:
-            raise ValueError("未找到 on_init 函数")
-        if on_bar is None:
+        if on_init is None and on_bar is None:
             raise ValueError("未找到 on_bar 函数")
 
         # 7. 执行 on_init

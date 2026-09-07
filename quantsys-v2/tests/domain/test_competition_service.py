@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10000_0 = 10000.0
+CONST_15_0 = 15.0
+CONST_15_2 = 15.2
+CONST_17732_40 = 17732.40
+CONST_1811_16 = 1811.16
+CONST_19_03 = 19.03
+CONST_20_0 = 20.0
+CONST_20000_0 = 20000.0
+CONST_25_0 = 25.0
+CONST_25000_0 = 25000.0
+
 """竞争分析服务测试"""
 import pytest
 from unittest.mock import Mock

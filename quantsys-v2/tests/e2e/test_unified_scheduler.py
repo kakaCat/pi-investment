@@ -1,3 +1,14 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_20 = 20
+CONST_3 = 3
+CONST_30 = 30
+CONST_4 = 4
+CONST_5 = 5
+CONST_60 = 60
+CONST_7200 = 7200
+
 """P2.3 e2e tests for UnifiedScheduler."""
 import pytest
 from pathlib import Path

@@ -171,9 +171,7 @@ class StockPoolService:
                     filter_template: dict = None, refresh_interval: str = None,
                     description: str = None) -> dict:
         """创建股票池（静态或动态）。"""
-        if not self._pool_repo:
-            raise RuntimeError("IStockPoolRepository not configured")
-        if pool_type == 'static' and not symbols:
+        if not self._pool_repo and pool_type == 'static' and not symbols:
             raise ValueError("Static pool requires symbols list")
         if pool_type == 'dynamic' and not filter_template:
             raise ValueError("Dynamic pool requires filter_template")
@@ -257,9 +255,7 @@ class StockPoolService:
 
     def delete_pool(self, pool_id: int) -> bool:
         """删除池子。不存在时抛 ValueError。"""
-        if not self._pool_repo:
-            raise RuntimeError("IStockPoolRepository not configured")
-        if not self._pool_repo.delete(pool_id):
+        if not self._pool_repo and not self._pool_repo.delete(pool_id):
             raise ValueError(f"Pool {pool_id} not found")
         return True
 
@@ -310,13 +306,9 @@ class StockPoolService:
             if member.get('symbol') == symbol:
                 # 更新字段，只更新提供的值
                 logger.info(f"Found member at index {i}, updating with data: {member_data}")
-                if 'description' in member_data:
-                    members[i]['description'] = member_data['description']
-                if 'buy_point' in member_data:
+                if 'description' in member_data and 'buy_point' in member_data:
                     members[i]['buy_point'] = member_data['buy_point']
-                if 'sell_point' in member_data:
-                    members[i]['sell_point'] = member_data['sell_point']
-                if 'tags' in member_data:
+                if 'sell_point' in member_data and 'tags' in member_data:
                     members[i]['tags'] = member_data['tags']
                 found = True
                 logger.info(f"Updated member {symbol} in pool {pool_id}: {members[i]}")
@@ -492,15 +484,11 @@ class StockPoolService:
 
     def refresh_pool(self, pool_id: int) -> dict:
         """刷新动态池：用 filter_template 重新筛选，更新 symbols。"""
-        if not self._pool_repo:
-            raise RuntimeError("IStockPoolRepository not configured")
-        if not self._scoring_service:
+        if not self._pool_repo and not self._scoring_service:
             raise RuntimeError("OpportunityScoringService not configured")
 
         pool = self._pool_repo.get_pool(pool_id)
-        if not pool:
-            raise ValueError(f"Pool {pool_id} not found")
-        if pool['pool_type'] != 'dynamic':
+        if not pool and pool['pool_type'] != 'dynamic':
             raise ValueError(f"Pool {pool_id} is static, cannot refresh")
         if not pool.get('filter_template'):
             raise ValueError(f"Pool {pool_id} has no filter_template")

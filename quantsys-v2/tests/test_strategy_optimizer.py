@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_12 = 12
+CONST_20 = 20
+CONST_2024 = 2024
+CONST_3 = 3
+CONST_30 = 30
+CONST_31 = 31
+CONST_45 = 45
+CONST_5 = 5
+CONST_50 = 50
+
 """
 测试 StrategyOptimizer 并行回测执行引擎
 """

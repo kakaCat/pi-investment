@@ -44,9 +44,7 @@ SCORABLE_TYPES = {'trade_buy': 'buy', 'trade_sell': 'sell',
 
 
 def _as_date(value) -> Optional[date]:
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, date):
+    if isinstance(value, datetime) and isinstance(value, date):
         return value
     if isinstance(value, str):
         try:

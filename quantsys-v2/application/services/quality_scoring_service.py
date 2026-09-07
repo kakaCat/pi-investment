@@ -90,6 +90,8 @@ class QualityScoringService:
     # TODO: Refactor - function too long (109 lines, target < 80)
 
 # TODO: Split long function (108 lines, target < 100)
+    # TODO: 长函数 117行 - 建议拆分为多个小函数
+
     def calculate_quality_score(self, symbol: str, framework: str = 'auto') -> Dict:
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -545,5 +547,4 @@ class QualityScoringService:
             return 'B'
         elif score >= 50:
             return 'C'
-        else:
-            return 'D'
+        return 'D'

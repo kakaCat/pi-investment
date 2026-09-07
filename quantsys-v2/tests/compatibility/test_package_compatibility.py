@@ -62,9 +62,8 @@ def test_package_compatibility(package_name, import_name=None):
         except ImportError as e:
             print(f"❌ 导入失败: {e}")
             return False
-    else:
-        print(f"⏭️  包未安装（稍后安装）")
-        return None
+    print(f"⏭️  包未安装（稍后安装）")
+    return None
 
 def main():
     print("="*60)
@@ -142,9 +141,8 @@ def main():
     if failed:
         print(f"\n⚠️  发现 {len(failed)} 个不兼容的包，需要进一步检查")
         return 1
-    else:
-        print(f"\n🎉 所有包与 Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} 兼容！")
-        return 0
+    print(f"\n🎉 所有包与 Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} 兼容！")
+    return 0
 
 if __name__ == "__main__":
     sys.exit(main())

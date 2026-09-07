@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_102 = 102
+CONST_103 = 103
+CONST_104 = 104
+CONST_105 = 105
+CONST_106 = 106
+CONST_107 = 107
+CONST_108 = 108
+CONST_109 = 109
+CONST_110 = 110
+CONST_111 = 111
+
 """
 Tests for FactorCalculatorAdapter
 ==================================

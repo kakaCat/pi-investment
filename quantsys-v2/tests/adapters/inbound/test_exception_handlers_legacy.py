@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_20 = 20
+CONST_400 = 400
+CONST_404 = 404
+CONST_422 = 422
+CONST_5 = 5
+CONST_5_0 = 5.0
+CONST_500 = 500
+CONST_503 = 503
+CONST_600000 = 600000
+
 """Test P0-2 fix: Structured exception handling.
 
 Verifies that:

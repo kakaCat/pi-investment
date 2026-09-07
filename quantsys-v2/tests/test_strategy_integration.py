@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_11 = 11
+CONST_15 = 15
+CONST_150 = 150
+CONST_20 = 20
+CONST_200 = 200
+CONST_25 = 25
+CONST_3 = 3
+CONST_3_0 = 3.0
+CONST_30 = 30
+CONST_300 = 300
+
 """
 集成测试：验证完整流水线在模拟数据上的表现
 """

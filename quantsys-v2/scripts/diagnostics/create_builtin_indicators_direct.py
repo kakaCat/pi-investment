@@ -49,6 +49,8 @@ from domain.quantlib.engine.param_parser import ParamParser
 # TODO: Refactor - function too long (264 lines, target < 80)
 
 # TODO: Split long function (263 lines, target < 100)
+# TODO: 长函数 283行 - 建议拆分为多个小函数
+
 def create_builtin_indicators():
     # ---- Section 1 ----
     # ---- Section 2 ----

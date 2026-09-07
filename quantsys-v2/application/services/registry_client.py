@@ -109,129 +109,128 @@ class QuantsysV2RegistryClient:
                 self.registered = True
                 self.session_id = result.get('session_id')
                 return True
-            else:
-                logger.warning(
-                    f"⚠️ Registry registration failed: "
-                    f"{response.status_code} {response.text}"
-                )
-                return False
-                
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to register with Agent OS Registry: {e}")
-            return False
-    
-    async def heartbeat(self) -> bool:
-        """Send heartbeat to Agent OS Registry.
-        
-        Returns:
-            True if heartbeat successful, False otherwise
-        """
-        if not self.registered:
-            return False
-            
-        try:
-            payload = {
-                "agent_id": self.agent_id,
-                "status": "idle",  # TODO: 根据实际状态动态设置
-                "metadata": {
-                    "timestamp": asyncio.get_event_loop().time()
-                }
-            }
-            
-            response = await self.client.post(
-                f"{self.agent_os_url}/api/v1/registry/agents/heartbeat",
-                json=payload
+            logger.warning(
+                f"⚠️ Registry registration failed: "
+                f"{response.status_code} {response.text}"
             )
-            
-            if response.status_code == 200:
-                logger.debug(f"💓 Heartbeat sent: {self.agent_id}")
-                return True
-            else:
-                logger.warning(
-                    f"⚠️ Heartbeat failed: "
-                    f"{response.status_code} {response.text}"
-                )
-                return False
-                
-        except Exception as e:
-            logger.debug(f"Heartbeat error: {e}")
             return False
+            
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to register with Agent OS Registry: {e}")
+        return False
+
+async def heartbeat(self) -> bool:
+    """Send heartbeat to Agent OS Registry.
     
-    async def unregister(self) -> bool:
-        """Unregister from Agent OS Registry.
+    Returns:
+        True if heartbeat successful, False otherwise
+    """
+    if not self.registered:
+        return False
         
-        Returns:
-            True if unregistration successful, False otherwise
-        """
-        if not self.registered:
+    try:
+        payload = {
+            "agent_id": self.agent_id,
+            "status": "idle",  # TODO: 根据实际状态动态设置
+            "metadata": {
+                "timestamp": asyncio.get_event_loop().time()
+            }
+        }
+        
+        response = await self.client.post(
+            f"{self.agent_os_url}/api/v1/registry/agents/heartbeat",
+            json=payload
+        )
+        
+        if response.status_code == 200:
+            logger.debug(f"💓 Heartbeat sent: {self.agent_id}")
             return True
-            
-        try:
-            payload = {
-                "agent_id": self.agent_id
-            }
-            
-            response = await self.client.post(
-                f"{self.agent_os_url}/api/v1/registry/agents/unregister",
-                json=payload
+        else:
+            logger.warning(
+                f"⚠️ Heartbeat failed: "
+                f"{response.status_code} {response.text}"
             )
-            
-            if response.status_code == 200:
-                logger.info(f"✅ Unregistered from Agent OS: {self.agent_id}")
-                self.registered = False
-                return True
-            else:
-                logger.warning(
-                    f"⚠️ Unregister failed: "
-                    f"{response.status_code} {response.text}"
-                )
-                return False
-                
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to unregister: {e}")
             return False
-    
-    async def start_heartbeat_loop(self, interval: int = 30):
-        """Start background heartbeat loop.
-        
-        Args:
-            interval: Heartbeat interval in seconds (default: 30)
-        """
-        if self.heartbeat_task is not None:
-            logger.warning("Heartbeat loop already running")
-            return
             
-        async def _heartbeat_loop():
-            while True:
-                try:
-                    await asyncio.sleep(interval)
-                    await self.heartbeat()
-                except asyncio.CancelledError:
-                    logger.info("Heartbeat loop cancelled")
-                    break
-                except Exception as e:
-                    logger.error(f"Heartbeat loop error: {e}")
+    except Exception as e:
+        logger.debug(f"Heartbeat error: {e}")
+        return False
+
+async def unregister(self) -> bool:
+    """Unregister from Agent OS Registry.
+    
+    Returns:
+        True if unregistration successful, False otherwise
+    """
+    if not self.registered:
+        return True
         
-        self.heartbeat_task = asyncio.create_task(_heartbeat_loop())
-        logger.info(f"🔄 Started heartbeat loop (interval={interval}s)")
+    try:
+        payload = {
+            "agent_id": self.agent_id
+        }
+        
+        response = await self.client.post(
+            f"{self.agent_os_url}/api/v1/registry/agents/unregister",
+            json=payload
+        )
+        
+        if response.status_code == 200:
+            logger.info(f"✅ Unregistered from Agent OS: {self.agent_id}")
+            self.registered = False
+            return True
+        else:
+            logger.warning(
+                f"⚠️ Unregister failed: "
+                f"{response.status_code} {response.text}"
+            )
+            return False
+            
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to unregister: {e}")
+        return False
+
+async def start_heartbeat_loop(self, interval: int = 30):
+    """Start background heartbeat loop.
     
-    async def stop_heartbeat_loop(self):
-        """Stop background heartbeat loop."""
-        if self.heartbeat_task is not None:
-            self.heartbeat_task.cancel()
+    Args:
+        interval: Heartbeat interval in seconds (default: 30)
+    """
+    if self.heartbeat_task is not None:
+        logger.warning("Heartbeat loop already running")
+        return
+        
+    async def _heartbeat_loop():
+        while True:
             try:
-                await self.heartbeat_task
+                await asyncio.sleep(interval)
+                await self.heartbeat()
             except asyncio.CancelledError:
-                pass
-            self.heartbeat_task = None
-            logger.info("⏹️ Stopped heartbeat loop")
+                logger.info("Heartbeat loop cancelled")
+                break
+            except Exception as e:
+                logger.error(f"Heartbeat loop error: {e}")
     
-    async def close(self):
-        """Close the registry client and release resources."""
-        await self.stop_heartbeat_loop()
-        await self.unregister()
-        await self.client.aclose()
-        logger.debug("QuantsysV2RegistryClient closed")
+    self.heartbeat_task = asyncio.create_task(_heartbeat_loop())
+    logger.info(f"🔄 Started heartbeat loop (interval={interval}s)")
+
+async def stop_heartbeat_loop(self):
+    """Stop background heartbeat loop."""
+    if self.heartbeat_task is not None:
+        self.heartbeat_task.cancel()
+        try:
+            await self.heartbeat_task
+        except asyncio.CancelledError:
+            pass
+        self.heartbeat_task = None
+        logger.info("⏹️ Stopped heartbeat loop")
+
+async def close(self):
+    """Close the registry client and release resources."""
+    await self.stop_heartbeat_loop()
+    await self.unregister()
+    await self.client.aclose()
+    logger.debug("QuantsysV2RegistryClient closed")
 
 
 # ==================== Global Singleton ====================

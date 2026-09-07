@@ -64,9 +64,7 @@ def check_direct_imports(root: Path) -> Tuple[bool, int]:
         try:
             content = py_file.read_text(encoding='utf-8')
             for lib in forbidden:
-                if re.search(rf'^import\s+{lib}', content, re.MULTILINE):
-                    count += 1
-                if re.search(rf'^from\s+{lib}', content, re.MULTILINE):
+                if re.search(rf'^import\s+{lib}', content, re.MULTILINE) and re.search(rf'^from\s+{lib}', content, re.MULTILINE):
                     count += 1
         except:
             pass
@@ -88,15 +86,11 @@ def check_logging_unified(root: Path) -> Tuple[bool, Dict[str, int]]:
             # 统计 print() 调试语句 (排除注释)
             for line in content.split('\n'):
                 line = line.strip()
-                if line.startswith('#'):
-                    continue
-                if re.search(r'\bprint\s*\(', line):
+                if line.startswith('#') and re.search(r'\bprint\s*\(', line):
                     stats['print'] += 1
             
             # 统计导入
-            if 'import logging' in content or 'from logging import' in content:
-                stats['logging'] += 1
-            if 'import structlog' in content or 'from structlog import' in content:
+            if 'import logging' in content or 'from logging import' in content and 'import structlog' in content or 'from structlog import' in content:
                 stats['structlog'] += 1
         except:
             pass
@@ -177,19 +171,16 @@ def verify_all(root: Path, detailed: bool = False) -> Dict:
     elif passed_count >= total * 0.7:
         print("⚠️  大部分问题已修复，仍有少量待处理")
         return_code = 1
-    else:
-        print("❌ 仍有较多问题待修复")
-        return_code = 2
-    
-    print("\n💡 下一步:")
-    if not results.get('sys_path'):
-        print("  - 运行: python scripts/refactor/remove_sys_path_hacks.py --fix")
-    if not results.get('direct_imports'):
-        print("  - 运行: python scripts/refactor/find_direct_imports.py")
-    if not results.get('pyproject'):
-        print("  - pyproject.toml 已创建，运行: pip install -e .")
-    
-    return return_code
+    print("❌ 仍有较多问题待修复")
+    return_code = 2
+
+print("\n💡 下一步:")
+if not results.get('sys_path') and not results.get('direct_imports'):
+    print("  - 运行: python scripts/refactor/find_direct_imports.py")
+if not results.get('pyproject'):
+    print("  - pyproject.toml 已创建，运行: pip install -e .")
+
+return return_code
 
 def main():
     import argparse

@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_2 = 10.2
+CONST_10_5 = 10.5
+CONST_15 = 15
+CONST_16 = 16
+CONST_2026 = 2026
+CONST_21 = 21
+CONST_28 = 28
+CONST_30 = 30
+CONST_300001 = 300001
+CONST_5 = 5
+
 # -*- coding: utf-8 -*-
 """
 回归测试：调度 job 不得调用已移除的 SimulationORMRepository.get_account_total_value

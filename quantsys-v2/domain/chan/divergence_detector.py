@@ -49,18 +49,17 @@ class DivergenceDetector:
         if divergence_type == 'bearish':
             # 顶背驰：价格新高 且 MACD面积减小
             return seg2.high > seg1.high and area2 < area1
-        else:
-            # 底背驰：价格新低 且 MACD面积增大（绝对值减小）
-            return seg2.low < seg1.low and abs(area2) < abs(area1)
+        # 底背驰：价格新低 且 MACD面积增大（绝对值减小）
+        return seg2.low < seg1.low and abs(area2) < abs(area1)
 
-    def _calculate_macd_area(self, segment: Segment, klines: List[KLine]) -> float:
-        """
-        计算线段对应的 MACD 柱面积
+def _calculate_macd_area(self, segment: Segment, klines: List[KLine]) -> float:
+    """
+    计算线段对应的 MACD 柱面积
 
-        使用真实 MACD 计算器
-        """
-        return self.macd_calculator.calculate_area(
-            klines,
-            segment.start_index,
-            segment.end_index
-        )
+    使用真实 MACD 计算器
+    """
+    return self.macd_calculator.calculate_area(
+        klines,
+        segment.start_index,
+        segment.end_index
+    )

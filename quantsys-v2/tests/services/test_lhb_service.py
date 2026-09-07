@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_20 = 10.20
+CONST_10_50 = 10.50
+CONST_12 = 12
+CONST_1800_0 = 1800.0
+CONST_2026 = 2026
+CONST_25 = 25
+CONST_30 = 30
+CONST_31 = 31
+CONST_600519 = 600519
+CONST_600737 = 600737
+
 """
 LhbService 单元测试
 """

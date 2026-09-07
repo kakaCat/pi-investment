@@ -158,52 +158,51 @@ class PoolHealthTracker:
             return 80
         elif symbol_count >= 5:
             return 60
-        else:
-            return 40
+        return 40
 
-    def _assess_stability(self, pool: Dict) -> float:
-        """评估稳定性"""
-        # 简化实现
-        return 70
+def _assess_stability(self, pool: Dict) -> float:
+    """评估稳定性"""
+    # 简化实现
+    return 70
 
-    def _assess_risk_control(self, pool: Dict) -> float:
-        """评估风险控制"""
-        try:
-            # 使用增强风险评估
-            risk_result = self.risk_assessor.assess_pool_risk(pool['id'])
-            risk_score = risk_result.get('overall_risk_score', 50)
-            # 转换：风险越低，控制越好
-            return 100 - risk_score
-        except:
-            return 50
+def _assess_risk_control(self, pool: Dict) -> float:
+    """评估风险控制"""
+    try:
+        # 使用增强风险评估
+        risk_result = self.risk_assessor.assess_pool_risk(pool['id'])
+        risk_score = risk_result.get('overall_risk_score', 50)
+        # 转换：风险越低，控制越好
+        return 100 - risk_score
+    except:
+        return 50
 
-    def _assess_performance(self, pool: Dict) -> float:
-        """评估业绩表现"""
-        # 简化实现：需要实际收益数据
-        return 75
+def _assess_performance(self, pool: Dict) -> float:
+    """评估业绩表现"""
+    # 简化实现：需要实际收益数据
+    return 75
 
-    def _determine_health_level(self, score: float) -> str:
-        """确定健康级别"""
-        if score >= 80:
-            return 'excellent'
-        elif score >= 60:
-            return 'good'
-        elif score >= 40:
-            return 'fair'
-        else:
-            return 'poor'
+def _determine_health_level(self, score: float) -> str:
+    """确定健康级别"""
+    if score >= 80:
+        return 'excellent'
+    elif score >= 60:
+        return 'good'
+    elif score >= 40:
+        return 'fair'
+    else:
+        return 'poor'
 
-    def _identify_issues(self, metrics: Dict, pool: Dict) -> List[str]:
-        """识别问题"""
-        issues = []
+def _identify_issues(self, metrics: Dict, pool: Dict) -> List[str]:
+    """识别问题"""
+    issues = []
 
-        if metrics['activity'] < 60:
-            issues.append('活跃度偏低，建议增加股票数量')
+    if metrics['activity'] < 60:
+        issues.append('活跃度偏低，建议增加股票数量')
 
-        if metrics['risk_control'] < 50:
-            issues.append('风险控制不足，建议减仓或调整持仓')
+    if metrics['risk_control'] < 50:
+        issues.append('风险控制不足，建议减仓或调整持仓')
 
-        if metrics['performance'] < 50:
-            issues.append('业绩表现不佳，建议重新评估策略')
+    if metrics['performance'] < 50:
+        issues.append('业绩表现不佳，建议重新评估策略')
 
-        return issues
+    return issues

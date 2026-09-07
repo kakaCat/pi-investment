@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_2_2 = 2.2
+CONST_2_5 = 2.5
+CONST_2_8 = 2.8
+CONST_2026 = 2026
+CONST_3 = 3
+CONST_3_0 = 3.0
+CONST_30 = 30
+CONST_49 = 49
+CONST_5_0 = 5.0
+CONST_6 = 6
+
 """
 market_style_detector 单测（2026-09-03 真实化后重写）
 

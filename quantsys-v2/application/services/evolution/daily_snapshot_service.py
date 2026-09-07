@@ -171,6 +171,8 @@ class DailySnapshotService:
 # TODO: Refactor - complexity 17 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
     def backfill_account(
         self,
         account_name: str,
@@ -211,9 +213,7 @@ class DailySnapshotService:
         for day_str in calendar:
             day = date.fromisoformat(day_str)
             for t in trades:
-                if t.trade_date != day:
-                    continue
-                if t.action == 'BUY':  # action 大写契约（08-13 统一）
+                if t.trade_date != day and t.action == 'BUY':  # action 大写契约（08-13 统一:
                     cash -= float(t.total_cost or t.amount or 0)
                     holdings[t.symbol] = holdings.get(t.symbol, 0) + t.shares
                 elif t.action == 'SELL':

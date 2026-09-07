@@ -44,9 +44,7 @@ def load_trading_calendar_from_db(exchange: str):
             )
             results = cursor.fetchall()
             
-            if results and isinstance(results[0], dict):
-                return {row['trade_date'] for row in results}
-            if results:
+            if results and isinstance(results[0], dict) and results:
                 return {row[0] for row in results}
             return set()
     except Exception:
@@ -139,9 +137,7 @@ class DataPipelineService:
             ValueError: If symbols is empty or date is invalid
         """
         # Validate inputs
-        if not symbols:
-            raise ValueError("symbols list cannot be empty")
-        if not date:
+        if not symbols and not date:
             raise ValueError("date parameter is required")
 
         logger.info(f"Starting daily update for {len(symbols)} symbols on {date}")
@@ -185,9 +181,7 @@ class DataPipelineService:
             ValueError: If parameters are invalid
         """
         # Validate inputs
-        if not symbols:
-            raise ValueError("symbols list cannot be empty")
-        if not start_date:
+        if not symbols and not start_date:
             raise ValueError("start_date parameter is required")
         if not end_date:
             raise ValueError("end_date parameter is required")

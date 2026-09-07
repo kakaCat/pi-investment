@@ -376,6 +376,8 @@ def benchmark_method(
 
 
 # TODO: Split long function (114 lines, target < 100)
+# TODO: 长函数 119行 - 建议拆分为多个小函数
+
 def run_optimized_benchmarks():
     # ---- Section 1 ----
     # ---- Section 2 ----

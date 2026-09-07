@@ -232,9 +232,8 @@ def main():
     if passed == total:
         print("\n🎉 所有测试通过！Phase 1 迁移成功！")
         return 0
-    else:
-        print(f"\n⚠️  {total - passed} 个数据源测试失败，请检查错误信息")
-        return 1
+    print(f"\n⚠️  {total - passed} 个数据源测试失败，请检查错误信息")
+    return 1
 
 
 if __name__ == "__main__":

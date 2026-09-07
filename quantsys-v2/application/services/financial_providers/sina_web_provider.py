@@ -93,6 +93,10 @@ class SinaWebFinancialProvider(FinancialProvider):
     # TODO: Split long function (107 lines, target < 100)
     # TODO: Refactor - complexity 23 (target < 15)
     # TODO: Split long function (107 lines, target < 100)
+    # TODO: 复杂度 23 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 118行 - 建议拆分为多个小函数
+
     def get_financial_data(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -243,6 +247,8 @@ class SinaWebFinancialProvider(FinancialProvider):
         """构建返回结果"""
         # TODO: 将结果构建逻辑从 _parse_sina_table 移到这里
         return data
+
+# TODO: 复杂度 18 - 需要重构拆分为更小的函数
 
 # REFACTOR: Split this function into smaller pieces
 # TODO: Refactor - complexity 18 (target < 15)

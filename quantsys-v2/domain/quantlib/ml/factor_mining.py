@@ -88,6 +88,8 @@ OPERATOR_REGISTRY = {
 
 
 # TODO: Refactor large class (21 methods, target < 20)
+# TODO: 大类 21个方法 - 考虑拆分为多个类或使用组合模式
+
 class FactorMiningCalculator(BaseCalculator):
     """
     Automated factor mining for quantitative strategy development.
@@ -165,6 +167,10 @@ class FactorMiningCalculator(BaseCalculator):
     # TODO: Split long function (153 lines, target < 100)
     # TODO: Refactor - complexity 28 (target < 15)
     # TODO: Split long function (153 lines, target < 100)
+    # TODO: 复杂度 28 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 162行 - 建议拆分为多个小函数
+
     def mine_factors(self,
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -202,9 +208,7 @@ class FactorMiningCalculator(BaseCalculator):
                 - ic: Information Coefficient for each factor
                 - formulas: Generated factor formulas (for genetic method)
         """
-        if data is None or (isinstance(data, pd.DataFrame) and data.empty):
-            raise DataValidationError("Input data is empty", field_name="data")
-        if _check_condition_0():
+        if data is None or (isinstance(data, pd.DataFrame) and data.empty) and _check_condition_0():
             pass  # TODO: implement
         if not isinstance(data, pd.DataFrame):
             raise DataValidationError("data must be a pandas DataFrame", field_name="data")
@@ -581,9 +585,7 @@ class FactorMiningCalculator(BaseCalculator):
         elif expr_type == 'unary':
             _, op, child = expr
             child_vals = self._evaluate_expression(child, data)
-            if child_vals is None:
-                return None
-            if op in OPERATOR_REGISTRY:
+            if child_vals is None and op in OPERATOR_REGISTRY:
                 result = OPERATOR_REGISTRY[op](child_vals)
                 return result if isinstance(result, np.ndarray) else np.array(result)
             return None
@@ -592,9 +594,7 @@ class FactorMiningCalculator(BaseCalculator):
             _, op, left, right = expr
             left_vals = self._evaluate_expression(left, data)
             right_vals = self._evaluate_expression(right, data)
-            if left_vals is None or right_vals is None:
-                return None
-            if op in OPERATOR_REGISTRY:
+            if left_vals is None or right_vals is None and op in OPERATOR_REGISTRY:
                 result = OPERATOR_REGISTRY[op](left_vals, right_vals)
                 return result if isinstance(result, np.ndarray) else np.array(result)
             return None

@@ -57,9 +57,7 @@ class RouteRegistrar:
             router = getattr(module, router_name)
 
             kwargs = {}
-            if prefix:
-                kwargs['prefix'] = prefix
-            if tags:
+            if prefix and tags:
                 kwargs['tags'] = tags
 
             self.app.include_router(router, **kwargs)

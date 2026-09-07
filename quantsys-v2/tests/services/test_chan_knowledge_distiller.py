@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_105_0 = 105.0
+CONST_110_0 = 110.0
+CONST_20 = 20
+CONST_2026 = 2026
+CONST_3 = 3
+CONST_30 = 30
+CONST_6 = 6
+CONST_600519 = 600519
+CONST_90 = 90
+CONST_90_0 = 90.0
+
 """ChanKnowledgeDistiller 测试——缠论信号胜率蒸馏入 agent_knowledge"""
 from datetime import date, timedelta
 from unittest.mock import MagicMock

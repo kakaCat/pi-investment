@@ -158,8 +158,7 @@ def push_weekly_report_to_feishu(
     
     if result['success']:
         return api_response(result)
-    else:
-        return error_response(
-            result['push_result'].get('error', '推送失败'),
-            status_code=500
-        )
+    return error_response(
+        result['push_result'].get('error', '推送失败'),
+        status_code=500
+    )

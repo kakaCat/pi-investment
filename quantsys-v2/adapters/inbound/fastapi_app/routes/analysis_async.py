@@ -104,6 +104,10 @@ def _build_run_backtest_result(data):
 
 # REFACTOR: Split this function into smaller pieces
 # TODO: Refactor - complexity 37 (target < 15)
+# TODO: 复杂度 37 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 103行 - 建议拆分为多个小函数
+
 def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -174,9 +178,7 @@ def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
     strategy_name = data['strategy_name'].lower()
     if 'indicator' not in strategy_name:
         if 'ma' in strategy_name or 'cross' in strategy_name:
-            if 'ma_short' not in data:
-                return error_response({'error': '移动平均策略缺少参数: ma_short (或 fastPeriod)'}, 400)
-            if 'ma_long' not in data:
+            if 'ma_short' not in data and 'ma_long' not in data:
                 return error_response({'error': '移动平均策略缺少参数: ma_long (或 slowPeriod)'}, 400)
         elif 'rsi' in strategy_name:
             # Validation checks
@@ -229,6 +231,8 @@ def _build_compute_factors_result(data):
     # TODO: 将结果构建逻辑从 compute_factors 移到这里
     return data
  # REFACTOR: Split this function into smaller pieces
+# TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
 
 # TODO: Refactor - complexity 17 (target < 15)
 def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
@@ -248,9 +252,7 @@ def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
             include_fundamental = True
 
     all_symbols = list(symbols) if symbols else []
-    if symbol and symbol not in all_symbols:
-        all_symbols.append(symbol)
-    if not all_symbols:
+    if symbol and symbol not in all_symbols and not all_symbols:
         return error_response({'error': '缺少symbol或symbols参数'}, 400)
 
     try:
@@ -271,9 +273,7 @@ def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
                 financial_data = _fetch_financial_data(sym)
             stage = FactorStage(name="factors", factor_names=requested_factors if requested_factors else None)
             stage_input = {'symbol': sym, 'klines': klines}
-            if financial_data:
-                stage_input['financial_data'] = financial_data
-            if requested_factors:
+            if financial_data and requested_factors:
                 stage_input['requested_factors'] = requested_factors
             result = stage.process(stage_input)
             factors = result.get('factors', {})
@@ -300,9 +300,7 @@ def get_technical_indicators(symbol: str, indicators: Optional[str] = Query(None
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
         klines_df = kline_repo.get_daily_klines(symbol, start_date, end_date)
-        if klines_df is None or klines_df.is_empty():
-            return error_response({'error': f'No kline data for {symbol}'}, 404)
-        if len(klines_df) < 20:
+        if klines_df is None or klines_df.is_empty() and len(klines_df) < 20:
             return error_response({
                 'error': f'Insufficient data for {symbol} (need 20+ days, got {len(klines_df)})'}, 400)
         klines = klines_df.to_dicts()
@@ -335,6 +333,8 @@ def _process__annotate_stale_factors_data(data):
 def _build__annotate_stale_factors_result(data):
     """构建返回结果"""
     # TODO: 将结果构建逻辑从 _annotate_stale_factors 移到这里
+    # TODO: 复杂度 18 - 需要重构拆分为更小的函数
+
     # REFACTOR: Split this function into smaller pieces
     return data
 
@@ -425,6 +425,8 @@ def _build_get_stock_factors_result(data):
     # REFACTOR: Split this function into smaller pieces
     # TODO: 将结果构建逻辑从 get_stock_factors 移到这里
     return data
+# TODO: 复杂度 20 - 需要重构拆分为更小的函数
+
 
 def _check_condition_0():
     """Check: not date and isinstance(factors, list) and factors..."""
@@ -441,9 +443,7 @@ def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
 
         # M0-5：仅"最新因子"路径做陈旧标注；指定日期查询是历史快照，无需标注
         stale_summary: Dict[str, Any] = {}
-        if not date and isinstance(factors, list) and factors:
-            factors, stale_summary = _annotate_stale_factors(symbol, factors)
-        if _check_condition_0():
+        if not date and isinstance(factors, list) and factors and _check_condition_0():
             pass  # TODO: implement
         # 兼容 ORM 对象和字典（get_by_symbol 可能返回 ORM 对象）
         if stock_info is None:
@@ -560,8 +560,7 @@ def _get_exit_recommendation(profit_pct):
         return {'action': '分批止盈', 'reason': '建议卖出30%锁定利润', 'urgency': 'medium'}
     elif profit_pct < 30:
         return {'action': '继续减仓', 'reason': '建议再卖出30%', 'urgency': 'medium'}
-    else:
-        return {'action': '大部止盈', 'reason': '建议卖出剩余持仓的大部分', 'urgency': 'high'}
+    return {'action': '大部止盈', 'reason': '建议卖出剩余持仓的大部分', 'urgency': 'high'}
 
 
 def _format_exit_plan(plan):
@@ -987,6 +986,8 @@ def _process_calculate_risk_metrics_data(data):
     # TODO: 将数据处理逻辑从 calculate_risk_metrics 移到这里
     return data
 
+# TODO: 复杂度 20 - 需要重构拆分为更小的函数
+
 def _build_calculate_risk_metrics_result(data):
     # REFACTOR: Split this function into smaller pieces
     """构建返回结果"""
@@ -994,6 +995,8 @@ def _build_calculate_risk_metrics_result(data):
     return data
 
 # TODO: Extract 4 validation checks to _validate_calculate_risk_metrics()
+# TODO: 长函数 102行 - 建议拆分为多个小函数
+
 # TODO: Refactor - complexity 20 (target < 15)
 def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
     # ---- Section 1 ----
@@ -1041,9 +1044,7 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
                     end_date = datetime.now().strftime('%Y-%m-%d')
                     start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
                     klines = kline_repo.get_daily_klines(symbol, start_date, end_date)
-                    if klines is not None and hasattr(klines, 'to_dicts'):
-                        klines = klines.to_dicts()
-                    if klines and len(klines) >= 2:
+                    if klines is not None and hasattr(klines, 'to_dicts') and klines and len(klines) >= 2:
                         # 计算日收益率序列
                         for i in range(1, len(klines)):
                             prev_close = float(klines[i - 1].get('close', 0))
@@ -1114,6 +1115,8 @@ def _validate_factor_analyze_input(data):
 
 def _process_factor_analyze_data(data):
     """处理数据转换"""
+    # TODO: 复杂度 22 - 需要重构拆分为更小的函数
+
     # TODO: 将数据处理逻辑从 factor_analyze 移到这里
     return data
 
@@ -1122,6 +1125,8 @@ def _build_factor_analyze_result(data):
     """构建返回结果"""
     # TODO: 将结果构建逻辑从 factor_analyze 移到这里
     return data
+# TODO: 长函数 109行 - 建议拆分为多个小函数
+
 
 # TODO: Refactor - complexity 22 (target < 15)
 def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
@@ -1184,9 +1189,7 @@ def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
                 forward_returns = []
 
                 for symbol, klines_df in klines_map.items():
-                    if klines_df is None:
-                        continue
-                    if isinstance(klines_df, (list, tuple)):
+                    if klines_df is None and isinstance(klines_df, (list, tuple)):
                         if len(klines_df) < 30:
                             continue
                         klines_df = pd.DataFrame(klines_df)
@@ -1251,6 +1254,8 @@ def _validate_sector_aggregate_input(data):
 def _process_sector_aggregate_data(data):
     """处理数据转换"""
     # TODO: 将数据处理逻辑从 sector_aggregate 移到这里
+    # TODO: 复杂度 20 - 需要重构拆分为更小的函数
+
     return data
  # REFACTOR: Split this function into smaller pieces
 
@@ -1260,6 +1265,8 @@ def _build_sector_aggregate_result(data):
     return data
 
 # TODO: Refactor - complexity 20 (target < 15)
+# TODO: 长函数 112行 - 建议拆分为多个小函数
+
 # TODO: Split long function (103 lines, target < 100)
 # TODO: Refactor - complexity 20 (target < 15)
 # TODO: Split long function (103 lines, target < 100)

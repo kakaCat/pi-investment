@@ -100,6 +100,8 @@ class MarkowitzOptimizer(BaseCalculator):
     # TODO: Refactor - function too long (121 lines, target < 80)
 
 # TODO: Split long function (120 lines, target < 100)
+    # TODO: 长函数 126行 - 建议拆分为多个小函数
+
     def optimize(self,
         # ---- Section 1 ----
         # ---- Section 2 ----

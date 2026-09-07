@@ -145,6 +145,10 @@ class KalmanFilterCalculator(BaseCalculator):
     # TODO: Split long function (183 lines, target < 100)
     # TODO: Refactor - complexity 19 (target < 15)
     # TODO: Split long function (183 lines, target < 100)
+    # TODO: 复杂度 19 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 193行 - 建议拆分为多个小函数
+
     def filter(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -497,6 +501,8 @@ class KalmanFilterCalculator(BaseCalculator):
             )
 
     @validate_inputs
+    # TODO: 长函数 104行 - 建议拆分为多个小函数
+
     @timing_decorator
     def fit_local_level(
         # ---- Section 1 ----

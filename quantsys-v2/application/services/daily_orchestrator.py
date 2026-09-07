@@ -131,6 +131,8 @@ TRADING_ACCOUNT = 'agent_virtual'
 
 # TODO: Refactor large class (24 methods, target < 20)
 # TODO: Refactor large class (24 methods, target < 20)
+# TODO: 大类 24个方法 - 考虑拆分为多个类或使用组合模式
+
 class DailyOrchestrator:
     """日常投资循环编排器
 
@@ -210,9 +212,7 @@ class DailyOrchestrator:
             # 需要推进到目标阶段（跳过中间已过的阶段）
             for i in range(current_idx + 1, target_idx + 1):
                 phase = PHASE_ORDER[i]
-                if phase == Phase.IDLE:
-                    continue
-                if not self._is_phase_completed(state, phase.value):
+                if phase == Phase.IDLE and not self._is_phase_completed(state, phase.value):
                     self._execute_phase(state, phase)
 
         # 条件委托撮合：MARKET_OPEN 窗口（9:25-9:35）内 9:31 起的每个 tick 都撮合。
@@ -732,9 +732,7 @@ class DailyOrchestrator:
         # 从当前阶段开始，补跑所有未完成且时间已过的阶段
         for i in range(current_idx, len(PHASE_ORDER)):
             phase = PHASE_ORDER[i]
-            if phase == Phase.IDLE:
-                continue
-            if not self._is_phase_completed(state, phase.value):
+            if phase == Phase.IDLE and not self._is_phase_completed(state, phase.value):
                 # 检查该阶段的时间窗口是否已过
                 phase_start, phase_end = PHASE_SCHEDULE.get(phase, (time(0, 0), time(23, 59)))
                 if now.time() >= phase_start:

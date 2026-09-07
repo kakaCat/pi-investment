@@ -116,6 +116,10 @@ class AttributionService:
     # TODO: Split long function (199 lines, target < 100)
     # TODO: Refactor - complexity 18 (target < 15)
     # TODO: Split long function (199 lines, target < 100)
+    # TODO: 复杂度 18 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 216行 - 建议拆分为多个小函数
+
     def analyze_rule_performance(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -171,9 +175,7 @@ class AttributionService:
             # 默认时间范围：最近30天
             # TODO: 提取嵌套逻辑为独立方法
 
-            if not start_date:
-                start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-            if not end_date:
+            if not start_date and not end_date:
                 end_date = datetime.now().strftime('%Y-%m-%d')
             
             # 1. 从 signal_tracking 获取信号记录

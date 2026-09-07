@@ -312,8 +312,7 @@ class ICAnalyzer:
             return '良好'
         elif score >= 5:
             return '一般'
-        else:
-            return '较差'
+        return '较差'
 
 
 # 使用示例

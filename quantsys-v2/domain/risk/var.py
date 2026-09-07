@@ -140,192 +140,191 @@ class VaRCalculator(BaseCalculator):
                 var_value = self._monte_carlo_var(returns, confidence_level, time_horizon, n_simulations)
             elif method == 'cornish_fisher':
                 var_value = self._cornish_fisher_var(returns, confidence_level, time_horizon)
-            else:
-                raise ConfigurationError(f"Unknown method: {method}", parameter='method')
+            raise ConfigurationError(f"Unknown method: {method}", parameter='method')
 
-            # Create result
-            return self._create_result_dict(
-                value=abs(var_value),  # Return as positive value
-                method=f'var_{method}',
-                parameters={
-                    'confidence_level': confidence_level,
-                    'method': method,
-                    'time_horizon': time_horizon,
-                    'n_observations': len(returns),
-                    'n_simulations': n_simulations if method == 'monte_carlo' else None
-                },
-                metadata={
-                    'interpretation': f'{confidence_level*100}% confidence that loss will not exceed this value',
-                    'percentile': (1 - confidence_level) * 100
-                }
-            )
-
-        except Exception as e:
-            if isinstance(e, (InsufficientDataError, ConfigurationError)):
-                raise
-            raise CalculationError(str(e), calculation_type='VaR')
-
-    def _historical_var(self, returns: np.ndarray, confidence_level: float, time_horizon: int) -> float:
-        """
-        Calculate VaR using historical simulation method.
-
-        This is a non-parametric method that uses the actual distribution of returns.
-        """
-        # Scale returns for time horizon
-        if time_horizon > 1:
-            returns = returns * np.sqrt(time_horizon)
-
-        # Calculate VaR as the percentile
-        var = np.percentile(returns, (1 - confidence_level) * 100)
-
-        return var
-
-    def _parametric_var(self, returns: np.ndarray, confidence_level: float, time_horizon: int) -> float:
-        """
-        Calculate VaR using parametric (variance-covariance) method.
-
-        Assumes returns are normally distributed.
-        """
-        mean = np.mean(returns)
-        std = np.std(returns, ddof=1)
-
-        # Z-score for the confidence level
-        z_score = stats.norm.ppf(1 - confidence_level)
-
-        # VaR calculation
-        var = mean + z_score * std
-
-        # Scale for time horizon
-        if time_horizon > 1:
-            var = var * np.sqrt(time_horizon)
-
-        return var
-
-    def _monte_carlo_var(self, returns: np.ndarray, confidence_level: float,
-                         time_horizon: int, n_simulations: int) -> float:
-        """
-        Calculate VaR using Monte Carlo simulation.
-
-        Simulates future returns based on historical mean and volatility.
-        """
-        mean = np.mean(returns)
-        std = np.std(returns, ddof=1)
-
-        # Generate random returns
-        simulated_returns = np.random.normal(mean, std, n_simulations)
-
-        # Scale for time horizon
-        if time_horizon > 1:
-            simulated_returns = simulated_returns * np.sqrt(time_horizon)
-
-        # Calculate VaR as percentile of simulated returns
-        var = np.percentile(simulated_returns, (1 - confidence_level) * 100)
-
-        return var
-
-    def _cornish_fisher_var(self, returns: np.ndarray, confidence_level: float, time_horizon: int) -> float:
-        """
-        Calculate VaR using Cornish-Fisher expansion.
-
-        Adjusts for skewness and kurtosis in the return distribution.
-        """
-        mean = np.mean(returns)
-        std = np.std(returns, ddof=1)
-        skew = stats.skew(returns)
-        kurt = stats.kurtosis(returns)
-
-        # Z-score for the confidence level
-        z = stats.norm.ppf(1 - confidence_level)
-
-        # Cornish-Fisher adjustment
-        z_cf = (z +
-                (z**2 - 1) * skew / 6 +
-                (z**3 - 3*z) * kurt / 24 -
-                (2*z**3 - 5*z) * skew**2 / 36)
-
-        # VaR calculation
-        var = mean + z_cf * std
-
-        # Scale for time horizon
-        if time_horizon > 1:
-            var = var * np.sqrt(time_horizon)
-
-        return var
-
-    def get_supported_methods(self) -> List[str]:
-        """Return list of supported VaR calculation methods."""
-        return ['historical', 'parametric', 'monte_carlo', 'cornish_fisher']
-
-    def calculate_multiple_confidence_levels(self,
-                                            returns: Union[List, np.ndarray, pd.Series],
-                                            confidence_levels: List[float] = [0.90, 0.95, 0.99],
-                                            method: str = 'historical') -> Dict[str, Any]:
-        """
-        Calculate VaR for multiple confidence levels.
-
-        Args:
-            returns: Historical returns data
-            confidence_levels: List of confidence levels
-            method: Calculation method
-
-        Returns:
-            Dictionary with VaR values for each confidence level
-        """
-        results = {}
-
-        for cl in confidence_levels:
-            result = self.calculate(returns, confidence_level=cl, method=method)
-            results[f'var_{int(cl*100)}'] = result['value']
-
+        # Create result
         return self._create_result_dict(
-            value=results,
-            method=f'var_{method}_multiple',
+            value=abs(var_value),  # Return as positive value
+            method=f'var_{method}',
             parameters={
-                'confidence_levels': confidence_levels,
-                'method': method
+                'confidence_level': confidence_level,
+                'method': method,
+                'time_horizon': time_horizon,
+                'n_observations': len(returns),
+                'n_simulations': n_simulations if method == 'monte_carlo' else None
+            },
+            metadata={
+                'interpretation': f'{confidence_level*100}% confidence that loss will not exceed this value',
+                'percentile': (1 - confidence_level) * 100
             }
         )
 
-    def calculate_risk_metrics(self, returns) -> Dict[str, Any]:
-        """
-        Calculate comprehensive risk metrics: VaR, CVaR, max drawdown, Sharpe.
+    except Exception as e:
+        if isinstance(e, (InsufficientDataError, ConfigurationError)):
+            raise
+        raise CalculationError(str(e), calculation_type='VaR')
 
-        Args:
-            returns: Historical returns data (list, np.ndarray, or pd.Series)
+def _historical_var(self, returns: np.ndarray, confidence_level: float, time_horizon: int) -> float:
+    """
+    Calculate VaR using historical simulation method.
 
-        Returns:
-            Dict with var_95, var_99, cvar_95, cvar_99, max_drawdown, sharpe_ratio, volatility, mean_return
-        """
-        import pandas as pd
-        if not isinstance(returns, pd.Series):
-            returns = pd.Series(returns)
+    This is a non-parametric method that uses the actual distribution of returns.
+    """
+    # Scale returns for time horizon
+    if time_horizon > 1:
+        returns = returns * np.sqrt(time_horizon)
 
-        var_95 = self.calculate(returns, confidence_level=0.95, method='historical')['value']
-        var_99 = self.calculate(returns, confidence_level=0.99, method='historical')['value']
+    # Calculate VaR as the percentile
+    var = np.percentile(returns, (1 - confidence_level) * 100)
 
-        from domain.risk.cvar import CVaRCalculator
-        cvar_calc = CVaRCalculator()
-        cvar_95 = cvar_calc.calculate(returns, confidence_level=0.95, method='historical')['value']
-        cvar_99 = cvar_calc.calculate(returns, confidence_level=0.99, method='historical')['value']
+    return var
 
-        cumulative = (1 + returns).cumprod()
-        running_max = cumulative.expanding().max()
-        drawdown = (cumulative - running_max) / running_max
-        max_dd = abs(float(drawdown.min()))
+def _parametric_var(self, returns: np.ndarray, confidence_level: float, time_horizon: int) -> float:
+    """
+    Calculate VaR using parametric (variance-covariance) method.
 
-        excess = returns - self.risk_free_rate / 252
-        sharpe = float(excess.mean() / excess.std() * np.sqrt(252)) if excess.std() > 0 else 0.0
+    Assumes returns are normally distributed.
+    """
+    mean = np.mean(returns)
+    std = np.std(returns, ddof=1)
 
-        return {
-            'var_95': var_95,
-            'var_99': var_99,
-            'cvar_95': cvar_95,
-            'cvar_99': cvar_99,
-            'max_drawdown': max_dd,
-            'sharpe_ratio': sharpe,
-            'volatility': float(returns.std()),
-            'mean_return': float(returns.mean()),
+    # Z-score for the confidence level
+    z_score = stats.norm.ppf(1 - confidence_level)
+
+    # VaR calculation
+    var = mean + z_score * std
+
+    # Scale for time horizon
+    if time_horizon > 1:
+        var = var * np.sqrt(time_horizon)
+
+    return var
+
+def _monte_carlo_var(self, returns: np.ndarray, confidence_level: float,
+                     time_horizon: int, n_simulations: int) -> float:
+    """
+    Calculate VaR using Monte Carlo simulation.
+
+    Simulates future returns based on historical mean and volatility.
+    """
+    mean = np.mean(returns)
+    std = np.std(returns, ddof=1)
+
+    # Generate random returns
+    simulated_returns = np.random.normal(mean, std, n_simulations)
+
+    # Scale for time horizon
+    if time_horizon > 1:
+        simulated_returns = simulated_returns * np.sqrt(time_horizon)
+
+    # Calculate VaR as percentile of simulated returns
+    var = np.percentile(simulated_returns, (1 - confidence_level) * 100)
+
+    return var
+
+def _cornish_fisher_var(self, returns: np.ndarray, confidence_level: float, time_horizon: int) -> float:
+    """
+    Calculate VaR using Cornish-Fisher expansion.
+
+    Adjusts for skewness and kurtosis in the return distribution.
+    """
+    mean = np.mean(returns)
+    std = np.std(returns, ddof=1)
+    skew = stats.skew(returns)
+    kurt = stats.kurtosis(returns)
+
+    # Z-score for the confidence level
+    z = stats.norm.ppf(1 - confidence_level)
+
+    # Cornish-Fisher adjustment
+    z_cf = (z +
+            (z**2 - 1) * skew / 6 +
+            (z**3 - 3*z) * kurt / 24 -
+            (2*z**3 - 5*z) * skew**2 / 36)
+
+    # VaR calculation
+    var = mean + z_cf * std
+
+    # Scale for time horizon
+    if time_horizon > 1:
+        var = var * np.sqrt(time_horizon)
+
+    return var
+
+def get_supported_methods(self) -> List[str]:
+    """Return list of supported VaR calculation methods."""
+    return ['historical', 'parametric', 'monte_carlo', 'cornish_fisher']
+
+def calculate_multiple_confidence_levels(self,
+                                        returns: Union[List, np.ndarray, pd.Series],
+                                        confidence_levels: List[float] = [0.90, 0.95, 0.99],
+                                        method: str = 'historical') -> Dict[str, Any]:
+    """
+    Calculate VaR for multiple confidence levels.
+
+    Args:
+        returns: Historical returns data
+        confidence_levels: List of confidence levels
+        method: Calculation method
+
+    Returns:
+        Dictionary with VaR values for each confidence level
+    """
+    results = {}
+
+    for cl in confidence_levels:
+        result = self.calculate(returns, confidence_level=cl, method=method)
+        results[f'var_{int(cl*100)}'] = result['value']
+
+    return self._create_result_dict(
+        value=results,
+        method=f'var_{method}_multiple',
+        parameters={
+            'confidence_levels': confidence_levels,
+            'method': method
         }
+    )
+
+def calculate_risk_metrics(self, returns) -> Dict[str, Any]:
+    """
+    Calculate comprehensive risk metrics: VaR, CVaR, max drawdown, Sharpe.
+
+    Args:
+        returns: Historical returns data (list, np.ndarray, or pd.Series)
+
+    Returns:
+        Dict with var_95, var_99, cvar_95, cvar_99, max_drawdown, sharpe_ratio, volatility, mean_return
+    """
+    import pandas as pd
+    if not isinstance(returns, pd.Series):
+        returns = pd.Series(returns)
+
+    var_95 = self.calculate(returns, confidence_level=0.95, method='historical')['value']
+    var_99 = self.calculate(returns, confidence_level=0.99, method='historical')['value']
+
+    from domain.risk.cvar import CVaRCalculator
+    cvar_calc = CVaRCalculator()
+    cvar_95 = cvar_calc.calculate(returns, confidence_level=0.95, method='historical')['value']
+    cvar_99 = cvar_calc.calculate(returns, confidence_level=0.99, method='historical')['value']
+
+    cumulative = (1 + returns).cumprod()
+    running_max = cumulative.expanding().max()
+    drawdown = (cumulative - running_max) / running_max
+    max_dd = abs(float(drawdown.min()))
+
+    excess = returns - self.risk_free_rate / 252
+    sharpe = float(excess.mean() / excess.std() * np.sqrt(252)) if excess.std() > 0 else 0.0
+
+    return {
+        'var_95': var_95,
+        'var_99': var_99,
+        'cvar_95': cvar_95,
+        'cvar_99': cvar_99,
+        'max_drawdown': max_dd,
+        'sharpe_ratio': sharpe,
+        'volatility': float(returns.std()),
+        'mean_return': float(returns.mean()),
+    }
 
 
 def quick_var(returns, confidence_level: float = 0.95, method: str = 'historical') -> float:

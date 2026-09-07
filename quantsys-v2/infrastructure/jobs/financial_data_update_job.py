@@ -199,9 +199,7 @@ def __stocks__marketa_(self):
     candidates = [(s, records[s]) for s in universe
                   if s in records and s in exist_set]
     no_match = len(universe) - len(candidates)
-    if no_match:
-        logger.info(f"{no_match} 只股票无 yjbb 匹配或不在 A 股 stocks 表，跳过")
-    if dry_run:
+    if no_match and dry_run:
         elapsed = int(time.time() - started)
         logger.info(f"[dry_run] 将更新 {len(candidates)} 只股票（未写库）")
         return {'success': True, 'report_date': report_date, 'fetched': fetched,
@@ -285,9 +283,7 @@ def execute(**params) -> Dict[str, Any]:
     self._updated_at_()
 def _f(value) -> Optional[float]:
     """东财同比/比率列数值化；非数值（'--'、空、'-'）→ None（不臆造）"""
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
+    if value is None and isinstance(value, (int, float)):
         return float(value)
     s = str(value).strip()
     if s in ('', '-', '--', 'None', 'nan', 'NaN', 'null'):

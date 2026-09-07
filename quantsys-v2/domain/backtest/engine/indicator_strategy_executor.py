@@ -41,6 +41,8 @@ class IndicatorStrategyExecutor:
         self.code_validator = CodeValidator()
         self.param_parser = ParamParser()
 
+    # TODO: 长函数 106行 - 建议拆分为多个小函数
+
     def execute(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -262,6 +264,8 @@ class IndicatorStrategyExecutor:
 
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 28 (target < 15)
+    # TODO: 复杂度 28 - 需要重构拆分为更小的函数
+
     def _validate_signals(self, df: pd.DataFrame) -> None:
         """
         验证信号列存在且有效（支持分批信号）
@@ -321,15 +325,11 @@ class IndicatorStrategyExecutor:
         # 检查是否至少有一个信号（简单信号或分批信号）
         has_any_signal = False
 
-        if has_simple_buy and df['buy'].any():
-            has_any_signal = True
-        if has_simple_sell and df['sell'].any():
+        if has_simple_buy and df['buy'].any() and has_simple_sell and df['sell'].any():
             has_any_signal = True
 
         for tier in [1, 2, 3]:
-            if f'buy_tier{tier}' in df.columns and df[f'buy_tier{tier}'].any():
-                has_any_signal = True
-            if f'sell_tier{tier}' in df.columns and df[f'sell_tier{tier}'].any():
+            if f'buy_tier{tier}' in df.columns and df[f'buy_tier{tier}'].any() and f'sell_tier{tier}' in df.columns and df[f'sell_tier{tier}'].any():
                 has_any_signal = True
 
         if not has_any_signal:

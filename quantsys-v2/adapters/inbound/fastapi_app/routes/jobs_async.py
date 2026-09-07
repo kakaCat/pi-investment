@@ -134,9 +134,7 @@ def run_job_by_type(job_type: str, payload: Optional[Dict[str, Any]] = Body(None
 def retry_job(job_id: str):
     with _jobs_lock:
         job = _jobs.get(job_id)
-    if not job:
-        return error_response({'success': False, 'error': f'Job not found: {job_id}'}, 404)
-    if job['status'] not in ('failed', 'cancelled'):
+    if not job and job['status'] not in ('failed', 'cancelled'):
         return error_response({
             'success': False,
             'error': f'Only failed or cancelled jobs can be retried. Current status: {job["status"]}'
@@ -183,9 +181,7 @@ def retry_job(job_id: str):
 def cancel_job(job_id: str):
     with _jobs_lock:
         job = _jobs.get(job_id)
-    if not job:
-        return error_response({'success': False, 'error': f'Job not found: {job_id}'}, 404)
-    if job['status'] not in ('pending', 'running', 'queued'):
+    if not job and job['status'] not in ('pending', 'running', 'queued'):
         return error_response({
             'success': False,
             'error': f'Only pending or running jobs can be cancelled. Current status: {job["status"]}'

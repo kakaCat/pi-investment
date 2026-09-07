@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000 = 100000
+CONST_18 = 18
+CONST_20 = 20
+CONST_2026 = 2026
+CONST_25 = 25
+CONST_250 = 250
+CONST_3 = 3
+CONST_30 = 30
+CONST_31 = 31
+CONST_40 = 40
+
 """OpportunityScoringService 动态评分集成测试"""
 import pytest
 from datetime import datetime, timedelta

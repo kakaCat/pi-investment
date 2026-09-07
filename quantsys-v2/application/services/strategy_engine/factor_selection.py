@@ -169,9 +169,7 @@ class FactorSelector:
     def _filter_universe(self, df: pd.DataFrame) -> pd.DataFrame:
         """过滤ST股票和次新股(上市<60天)"""
         df = df.copy()
-        if "name" in df.columns:
-            df = df[~df["name"].str.contains("ST", na=False)]
-        if "is_st" in df.columns:
+        if "name" in df.columns and "is_st" in df.columns:
             df = df[df["is_st"] == 0]
         if "days_listed" in df.columns:
             df = df[df["days_listed"] >= 60]

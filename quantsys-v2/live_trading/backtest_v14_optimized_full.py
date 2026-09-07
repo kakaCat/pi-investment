@@ -51,6 +51,8 @@ from datetime import datetime, timedelta
 logging.basicConfig(level=logging.WARNING)
 
 # TODO: Split long function (107 lines, target < 100)
+# TODO: 长函数 116行 - 建议拆分为多个小函数
+
 def backtest_v14_optimized_full():
     # ---- Section 1 ----
     # ---- Section 2 ----

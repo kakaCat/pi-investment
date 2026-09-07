@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000 = 100000
+CONST_101_0 = 101.0
+CONST_102_0 = 102.0
+CONST_14 = 14
+CONST_15 = 15
+CONST_150 = 150
+CONST_20 = 20
+CONST_3_5 = 3.5
+CONST_30 = 30
+CONST_4_5 = 4.5
+
 """
 Tests for Volatility Indicators
 ================================
@@ -13,6 +27,8 @@ from domain.quantlib.core.exceptions import InsufficientDataError, DataValidatio
 
 
 # TODO: Refactor large class (31 methods, target < 20)
+# TODO: 大类 31个方法 - 考虑拆分为多个类或使用组合模式
+
 class TestVolatilityFactors:
     """Test volatility indicator calculations."""
 

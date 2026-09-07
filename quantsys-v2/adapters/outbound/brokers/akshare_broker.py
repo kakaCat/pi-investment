@@ -194,6 +194,8 @@ class AkshareBroker(BaseBroker):
     # TODO: Refactor - function too long (126 lines, target < 80)
 
 # TODO: Split long function (125 lines, target < 100)
+    # TODO: 长函数 136行 - 建议拆分为多个小函数
+
     def get_history(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -502,5 +504,4 @@ class AkshareBroker(BaseBroker):
             return "SZSE"  # 深交所
         elif symbol.startswith('8') or symbol.startswith('4'):
             return "BSE"  # 北交所
-        else:
-            return "UNKNOWN"
+        return "UNKNOWN"

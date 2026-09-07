@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_101 = 101
+CONST_103 = 103
+CONST_104 = 104
+CONST_110 = 110
+CONST_1100 = 1100
+CONST_1200 = 1200
+CONST_1300 = 1300
+CONST_1400 = 1400
+CONST_2024 = 2024
+CONST_3 = 3
+
 """
 Unit Tests for Base Calculator and Derivatives Pricing
 =======================================================

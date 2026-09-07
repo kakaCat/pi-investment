@@ -50,9 +50,7 @@ class OllamaEmbeddingService:
         try:
             config = get_config()
             app_cfg = getattr(config, 'app', None)
-            if app_cfg is None and isinstance(config, dict):
-                app_cfg = config.get('app')
-            if app_cfg is not None:
+            if app_cfg is None and isinstance(config, dict) and app_cfg is not None:
                 if isinstance(app_cfg, dict):
                     default_base = app_cfg.get('ollama_base_url')
                     default_model = app_cfg.get('memory_embedding_model')

@@ -92,9 +92,7 @@ def event_to_dict(ev: EventCalendar) -> dict:
 
 def _parse_time(t) -> Optional[dtime]:
     """把 'HH:MM' 字符串或 None 转为 time 对象"""
-    if t is None or isinstance(t, dtime):
-        return t
-    if isinstance(t, str):
+    if t is None or isinstance(t, dtime) and isinstance(t, str):
         try:
             return datetime.strptime(t, '%H:%M').time()
         except ValueError:
@@ -128,13 +126,9 @@ class EventCalendarRepository(BaseORMRepository[EventCalendar]):
         """范围查询：按日期区间/类型/状态/标的过滤。"""
         try:
             q = self.session.query(self.model)
-            if start:
-                q = q.filter(self.model.event_date >= start)
-            if end:
+            if start and end:
                 q = q.filter(self.model.event_date <= end)
-            if event_type:
-                q = q.filter(self.model.event_type == event_type)
-            if status:
+            if event_type and status:
                 q = q.filter(self.model.status == status)
             if symbol:
                 q = q.filter(self.model.symbol == symbol)

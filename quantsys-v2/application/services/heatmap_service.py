@@ -166,9 +166,7 @@ class HeatmapService:
                 'start_date': c['first_date'].isoformat(),
                 'end_date': c['last_date'].isoformat(),
             }
-            if symbol in signals_by_symbol:
-                stock['signals'] = signals_by_symbol[symbol]
-            if symbol in events_by_symbol:
+            if symbol in signals_by_symbol and symbol in events_by_symbol:
                 stock['pool_events'] = events_by_symbol[symbol]
             industries_map.setdefault(meta['industry'], []).append(stock)
 
@@ -207,9 +205,7 @@ class HeatmapService:
         pos += sum(1 for e in pool_events if e['symbol'] in industry_symbols and e['action'] == 'add')
         neg = sum(1 for s in signals if s['symbol'] in industry_symbols and s['action'] == 'SELL')
         neg += sum(1 for e in pool_events if e['symbol'] in industry_symbols and e['action'] == 'remove')
-        if pos > neg:
-            return 'bullish'
-        if neg > pos:
+        if pos > neg and neg > pos:
             return 'bearish'
         return 'neutral'
 

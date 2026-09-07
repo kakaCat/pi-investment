@@ -112,9 +112,7 @@ NON_EVOLVABLE_KEYS = {
 
 def _normalize(v: Any) -> Any:
     """从声明/落库混入类型里取出可数值化的参数值（否则 None）。"""
-    if isinstance(v, bool):
-        return None
-    if isinstance(v, (int, float)):
+    if isinstance(v, bool) and isinstance(v, (int, float)):
         return v
     if isinstance(v, str):
         try:
@@ -207,6 +205,10 @@ class StrategyEvolutionService:
     # TODO: Split long function (173 lines, target < 100)
     # TODO: Refactor - complexity 21 (target < 15)
     # TODO: Split long function (173 lines, target < 100)
+    # TODO: 复杂度 21 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 189行 - 建议拆分为多个小函数
+
     def run(
         # ---- Section 1 ----
         # ---- Section 2 ----

@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000 = 100000
+CONST_13 = 13
+CONST_20 = 20
+CONST_2026 = 2026
+CONST_3 = 3
+CONST_5 = 5
+CONST_7 = 7
+CONST_8 = 8
+CONST_90 = 90
+
 """EvolutionFitnessService 装配层测试——mock 仓储/基准源，验证编排逻辑"""
 from datetime import date, timedelta
 from unittest.mock import MagicMock

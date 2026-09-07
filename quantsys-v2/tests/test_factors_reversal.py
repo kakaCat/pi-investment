@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_101_0 = 101.0
+CONST_102_0 = 102.0
+CONST_103_0 = 103.0
+CONST_1100 = 1100
+CONST_1200 = 1200
+CONST_3 = 3
+CONST_5 = 5
+CONST_7 = 7
+CONST_96_0 = 96.0
+CONST_97_0 = 97.0
+
 """
 Test cases for Reversal Factor Calculators
 ==========================================

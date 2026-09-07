@@ -119,21 +119,20 @@ class PositionService:
                     f"卖出 {quantity}股 @ {price}"
                 )
             return success
-        else:
-            # 减仓：保持 avg_cost 不变
-            new_available = max(0, existing.shares_available - quantity)
-            success = self.position_repo.upsert_position(
-                account_name=account_name,
-                symbol=symbol,
-                shares_total=remaining,
-                avg_cost=existing.avg_cost,
-                shares_available=new_available,
-                current_price=price,
+        # 减仓：保持 avg_cost 不变
+        new_available = max(0, existing.shares_available - quantity)
+        success = self.position_repo.upsert_position(
+            account_name=account_name,
+            symbol=symbol,
+            shares_total=remaining,
+            avg_cost=existing.avg_cost,
+            shares_available=new_available,
+            current_price=price,
+        )
+        if success:
+            logger.info(
+                f"持仓已减仓: {account_name} {symbol} "
+                f"卖出 {quantity}股 @ {price}, "
+                f"剩余 total={remaining}, available={new_available}"
             )
-            if success:
-                logger.info(
-                    f"持仓已减仓: {account_name} {symbol} "
-                    f"卖出 {quantity}股 @ {price}, "
-                    f"剩余 total={remaining}, available={new_available}"
-                )
-            return success
+        return success

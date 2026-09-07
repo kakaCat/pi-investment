@@ -436,186 +436,185 @@ class ManipulationDetector:
         if '连续' in ''.join(signals) and '涨停' in ''.join(signals):
             if '高位' in ''.join(signals):
                 return 'distribution'  # 高位涨停 = 出货
-            else:
-                return 'markup'  # 拉高阶段
+            return 'markup'  # 拉高阶段
 
-        if '放量' in ''.join(signals) and '滞涨' in ''.join(signals):
-            return 'distribution'  # 放量滞涨 = 出货
+    if '放量' in ''.join(signals) and '滞涨' in ''.join(signals):
+        return 'distribution'  # 放量滞涨 = 出货
 
-        return 'markup'  # 默认拉高阶段
+    return 'markup'  # 默认拉高阶段
 
-    def _estimate_fair_value(self, symbol: str, stock_info: Dict) -> float:
-        """
-        估算公允价值
+def _estimate_fair_value(self, symbol: str, stock_info: Dict) -> float:
+    """
+    估算公允价值
 
-        简化版：基于涨幅回撤估算
+    简化版：基于涨幅回撤估算
 
-        Args:
-            symbol: 股票代码
-            stock_info: 股票信息
+    Args:
+        symbol: 股票代码
+        stock_info: 股票信息
 
-        Returns:
-            估算的公允价值
-        """
-        current_price = stock_info.get('current_price', 0)
-        zt_count = stock_info.get('zt_count', 0)
+    Returns:
+        估算的公允价值
+    """
+    current_price = stock_info.get('current_price', 0)
+    zt_count = stock_info.get('zt_count', 0)
 
-        if current_price <= 0:
-            return 0
+    if current_price <= 0:
+        return 0
 
-        # 简化估算：假设每个涨停板10%，回撤50%是合理价值
-        if zt_count > 0:
-            total_gain = (1.1 ** zt_count) - 1
-            fair_value = current_price / (1 + total_gain * 0.5)
-            return round(fair_value, 2)
+    # 简化估算：假设每个涨停板10%，回撤50%是合理价值
+    if zt_count > 0:
+        total_gain = (1.1 ** zt_count) - 1
+        fair_value = current_price / (1 + total_gain * 0.5)
+        return round(fair_value, 2)
 
-        return current_price
+    return current_price
 
-    def _assess_risk_level(self, stage: str, deviation: float) -> str:
-        """
-        评估风险级别
+def _assess_risk_level(self, stage: str, deviation: float) -> str:
+    """
+    评估风险级别
 
-        Args:
-            stage: 操纵阶段
-            deviation: 价格偏离度
+    Args:
+        stage: 操纵阶段
+        deviation: 价格偏离度
 
-        Returns:
-            风险级别
-        """
-        if stage == 'distribution' or deviation > 50:
-            return 'extreme'
-        elif stage == 'markup' or deviation > 30:
-            return 'high'
-        else:
-            return 'medium'
+    Returns:
+        风险级别
+    """
+    if stage == 'distribution' or deviation > 50:
+        return 'extreme'
+    elif stage == 'markup' or deviation > 30:
+        return 'high'
+    else:
+        return 'medium'
 
-    def _save_manipulation_event(self, manipulation: Dict):
-        """
-        保存操纵事件到数据库
+def _save_manipulation_event(self, manipulation: Dict):
+    """
+    保存操纵事件到数据库
 
-        Args:
-            manipulation: 操纵事件数据
-        """
-        try:
-            event = {
-                'symbol': manipulation['symbol'],
-                'manipulation_type': manipulation['manipulation_type'],
-                'stage': manipulation['stage'],
-                'confidence': manipulation['confidence'],
-                'signals': manipulation['signals'],
-                'current_price': manipulation['current_price'],
-                'fair_value': manipulation['fair_value'],
-                'risk_level': manipulation['risk_level']
-            }
+    Args:
+        manipulation: 操纵事件数据
+    """
+    try:
+        event = {
+            'symbol': manipulation['symbol'],
+            'manipulation_type': manipulation['manipulation_type'],
+            'stage': manipulation['stage'],
+            'confidence': manipulation['confidence'],
+            'signals': manipulation['signals'],
+            'current_price': manipulation['current_price'],
+            'fair_value': manipulation['fair_value'],
+            'risk_level': manipulation['risk_level']
+        }
 
-            self.manipulation_repo.create_event(event)
+        self.manipulation_repo.create_event(event)
 
-        except Exception as e:
-            logger.warning(f"保存操纵事件失败: {e}")
+    except Exception as e:
+        logger.warning(f"保存操纵事件失败: {e}")
 
-    def _scan_post_manipulation_opportunities(self) -> List[Dict]:
-        """
-        扫描已崩盘的股票，寻找抄底机会
+def _scan_post_manipulation_opportunities(self) -> List[Dict]:
+    """
+    扫描已崩盘的股票，寻找抄底机会
 
-        Returns:
-            抄底机会列表
-        """
-        opportunities = []
+    Returns:
+        抄底机会列表
+    """
+    opportunities = []
 
-        try:
-            # 获取最近记录的操纵事件
-            active_events = self.manipulation_repo.get_active_events()
+    try:
+        # 获取最近记录的操纵事件
+        active_events = self.manipulation_repo.get_active_events()
 
-            for event in active_events:
-                symbol = event['symbol']
+        for event in active_events:
+            symbol = event['symbol']
 
-                # 检查是否已经崩盘完成
-                if self._check_collapse_complete(symbol, event):
-                    opportunity = {
-                        'symbol': symbol,
-                        'stage': 'collapse_complete',
-                        'collapsed_from': event.get('current_price', 0),
-                        'current_price': self._get_current_price(symbol),
-                        'fair_value': event.get('fair_value', 0),
-                        'confidence': 0.75,
-                        'action': 'bottom_fishing',
-                        'entry_trigger': '止跌企稳后介入'
-                    }
+            # 检查是否已经崩盘完成
+            if self._check_collapse_complete(symbol, event):
+                opportunity = {
+                    'symbol': symbol,
+                    'stage': 'collapse_complete',
+                    'collapsed_from': event.get('current_price', 0),
+                    'current_price': self._get_current_price(symbol),
+                    'fair_value': event.get('fair_value', 0),
+                    'confidence': 0.75,
+                    'action': 'bottom_fishing',
+                    'entry_trigger': '止跌企稳后介入'
+                }
 
-                    # 计算潜在收益
-                    if opportunity['current_price'] > 0 and opportunity['fair_value'] > 0:
-                        upside = ((opportunity['fair_value'] - opportunity['current_price']) /
-                                 opportunity['current_price']) * 100
-                        opportunity['upside'] = f"+{upside:.1f}%"
+                # 计算潜在收益
+                if opportunity['current_price'] > 0 and opportunity['fair_value'] > 0:
+                    upside = ((opportunity['fair_value'] - opportunity['current_price']) /
+                             opportunity['current_price']) * 100
+                    opportunity['upside'] = f"+{upside:.1f}%"
 
-                    opportunities.append(opportunity)
+                opportunities.append(opportunity)
 
-                    # 更新事件状态
-                    self.manipulation_repo.resolve_event(event['id'])
+                # 更新事件状态
+                self.manipulation_repo.resolve_event(event['id'])
 
-        except Exception as e:
-            logger.warning(f"扫描抄底机会失败: {e}")
+    except Exception as e:
+        logger.warning(f"扫描抄底机会失败: {e}")
 
-        return opportunities
+    return opportunities
 
-    def _check_collapse_complete(self, symbol: str, event: Dict) -> bool:
-        """
-        检查是否崩盘完成
+def _check_collapse_complete(self, symbol: str, event: Dict) -> bool:
+    """
+    检查是否崩盘完成
 
-        判断标准：
-        - 距离检测时间超过7天
-        - 当前价格接近公允价值
+    判断标准：
+    - 距离检测时间超过7天
+    - 当前价格接近公允价值
 
-        Args:
-            symbol: 股票代码
-            event: 操纵事件
+    Args:
+        symbol: 股票代码
+        event: 操纵事件
 
-        Returns:
-            是否崩盘完成
-        """
-        try:
-            # 时间判断
-            detected_time = event.get('detected_at')
-            if not detected_time:
-                return False
-
-            if isinstance(detected_time, str):
-                detected_time = datetime.fromisoformat(detected_time)
-
-            days_passed = (datetime.now() - detected_time).days
-            if days_passed < 7:
-                return False
-
-            # 价格判断
-            current_price = self._get_current_price(symbol)
-            fair_value = event.get('fair_value', 0)
-
-            if current_price <= 0 or fair_value <= 0:
-                return False
-
-            # 当前价格在公允价值±20%范围内
-            deviation = abs(current_price - fair_value) / fair_value
-            return deviation < 0.2
-
-        except Exception as e:
-            logger.debug(f"检查崩盘完成失败: {symbol} - {e}")
+    Returns:
+        是否崩盘完成
+    """
+    try:
+        # 时间判断
+        detected_time = event.get('detected_at')
+        if not detected_time:
             return False
 
-    def _get_current_price(self, symbol: str) -> float:
-        """
-        获取当前价格
+        if isinstance(detected_time, str):
+            detected_time = datetime.fromisoformat(detected_time)
 
-        Args:
-            symbol: 股票代码
+        days_passed = (datetime.now() - detected_time).days
+        if days_passed < 7:
+            return False
 
-        Returns:
-            当前价格
-        """
-        try:
-            # TODO: 获取实时价格
-            # 这里简化处理
-            return 0.0
+        # 价格判断
+        current_price = self._get_current_price(symbol)
+        fair_value = event.get('fair_value', 0)
 
-        except Exception as e:
-            logger.debug(f"获取当前价格失败: {symbol} - {e}")
-            return 0.0
+        if current_price <= 0 or fair_value <= 0:
+            return False
+
+        # 当前价格在公允价值±20%范围内
+        deviation = abs(current_price - fair_value) / fair_value
+        return deviation < 0.2
+
+    except Exception as e:
+        logger.debug(f"检查崩盘完成失败: {symbol} - {e}")
+        return False
+
+def _get_current_price(self, symbol: str) -> float:
+    """
+    获取当前价格
+
+    Args:
+        symbol: 股票代码
+
+    Returns:
+        当前价格
+    """
+    try:
+        # TODO: 获取实时价格
+        # 这里简化处理
+        return 0.0
+
+    except Exception as e:
+        logger.debug(f"获取当前价格失败: {symbol} - {e}")
+        return 0.0

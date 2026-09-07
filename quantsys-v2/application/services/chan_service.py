@@ -70,9 +70,7 @@ class ChanService:
             缠论分析结果
         """
         # 默认日期范围
-        if not end_date:
-            end_date = datetime.now().strftime('%Y-%m-%d')
-        if not start_date:
+        if not end_date and not start_date:
             start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
 
         # 获取K线数据

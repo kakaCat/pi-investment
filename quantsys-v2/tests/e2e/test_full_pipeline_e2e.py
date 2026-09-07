@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_105_0 = 105.0
+CONST_200 = 200
+CONST_3 = 3
+CONST_30 = 30
+CONST_404 = 404
+CONST_5 = 5
+CONST_5_0 = 5.0
+CONST_5001 = 5001
+CONST_5432 = 5432
+CONST_92_0 = 92.0
+
 """
 全流程集成测试 — 数据→因子→策略→信号→执行→盈亏→统计→经验
 这是量化投资完整闭环的端到端验证。

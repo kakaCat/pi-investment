@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_11 = 11
+CONST_16 = 16
+CONST_18 = 18
+CONST_19 = 19
+CONST_2_4 = 2.4
+CONST_2026 = 2026
+CONST_21 = 21
+CONST_3 = 3
+CONST_5 = 5
+CONST_6 = 6
+
 """双侧捕获适应度纯函数测试——合成行情，不碰 DB"""
 import pytest
 

@@ -135,8 +135,7 @@ def get_stock_pool(limit=500):
 
     if isinstance(rows[0], dict):
         return [{'symbol': r['symbol'], 'name': r['name']} for r in rows]
-    else:
-        return [{'symbol': r[0], 'name': r[1]} for r in rows]
+    return [{'symbol': r[0], 'name': r[1]} for r in rows]
 
 def get_historical_data(symbols, start_date, end_date):
     """获取历史K线数据"""
@@ -244,6 +243,8 @@ def select_factors_v14_fixed(data, factors, ic_threshold=0.01):
 # TODO: Refactor - function too long (187 lines, target < 80)
 
 # TODO: Split long function (186 lines, target < 100)
+# TODO: 长函数 201行 - 建议拆分为多个小函数
+
 def train_v14_p0_optimized():
     # ---- Section 1 ----
     # ---- Section 2 ----

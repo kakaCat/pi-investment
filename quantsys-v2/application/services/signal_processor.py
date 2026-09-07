@@ -85,6 +85,8 @@ class SignalProcessor:
     # TODO: Refactor - function too long (152 lines, target < 80)
 
 # TODO: Split long function (151 lines, target < 100)
+    # TODO: 长函数 164行 - 建议拆分为多个小函数
+
     def process_signal(
         # ---- Section 1 ----
         # ---- Section 2 ----

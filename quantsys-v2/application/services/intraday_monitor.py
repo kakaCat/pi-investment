@@ -132,6 +132,8 @@ class IntradayMonitor:
 # TODO: Refactor - complexity 16 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 16 (target < 15)
+    # TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
     def check(self) -> Dict[str, Any]:
         """执行一次盘中检查
 

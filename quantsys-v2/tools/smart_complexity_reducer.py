@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_15 = 15
+CONST_20 = 20
+CONST_3 = 3
+CONST_4 = 4
+CONST_8 = 8
+CONST_80 = 80
+
 #!/usr/bin/env python3
 """
 智能复杂度降低器 - 自动将复杂函数拆分为多个方法
@@ -64,6 +74,10 @@ def split_function_into_sections(lines: List[str], func_start: int, func_end: in
         sections.append((current_section_start, func_end - 1, current_section_name))
 
     return sections
+
+# TODO: 复杂度 24 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 112行 - 建议拆分为多个小函数
 
 def refactor_complex_function(file_path: Path, func_name: str) -> bool:
     """重构单个复杂函数"""

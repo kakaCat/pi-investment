@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_120 = 120
+CONST_200 = 200
+CONST_3 = 3
+CONST_30 = 30
+CONST_400 = 400
+CONST_404 = 404
+CONST_422 = 422
+CONST_5 = 5
+CONST_50 = 50
+CONST_5001 = 5001
+
 """
 L3 模型层端到端测试
 验证模型训练、预测、评估、监控的完整流程。

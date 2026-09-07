@@ -109,9 +109,7 @@ class QuantsysV2DataProvider(BaseProvider):
             instruments = [instruments]
 
         # 转换时间格式
-        if start_time:
-            start_time = pd.Timestamp(start_time).strftime('%Y-%m-%d')
-        if end_time:
+        if start_time and end_time:
             end_time = pd.Timestamp(end_time).strftime('%Y-%m-%d')
 
         self.logger.info(
@@ -168,9 +166,7 @@ class QuantsysV2DataProvider(BaseProvider):
         WHERE symbol IN ({symbols_str})
         """
 
-        if start_date:
-            query += f" AND trade_date >= '{start_date}'"
-        if end_date:
+        if start_date and end_date:
             query += f" AND trade_date <= '{end_date}'"
 
         query += " ORDER BY symbol, trade_date"

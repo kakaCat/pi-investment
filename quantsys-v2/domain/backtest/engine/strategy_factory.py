@@ -47,9 +47,7 @@ class StrategyFactory:
             try:
                 module = importlib.import_module(f'{package_path}.{module_name}')
                 for name, obj in inspect.getmembers(module, inspect.isclass):
-                    if not name.endswith('Strategy'):
-                        continue
-                    if obj in (StrategyBase, EnhancedStrategyBase):
+                    if not name.endswith('Strategy') and obj in (StrategyBase, EnhancedStrategyBase):
                         continue
                     if issubclass(obj, StrategyBase):
                         strategy_type = cls.class_name_to_type(name)
@@ -98,17 +96,11 @@ class StrategyFactory:
     @staticmethod
     def _infer_category(class_name: str) -> str:
         lower = class_name.lower()
-        if any(x in lower for x in ['trend', 'ma', 'adx', 'turtle', 'donchian']):
-            return 'trend_following'
-        if any(x in lower for x in ['reversal', 'rsi', 'cci', 'mean']):
+        if any(x in lower for x in ['trend', 'ma', 'adx', 'turtle', 'donchian']) and any(x in lower for x in ['reversal', 'rsi', 'cci', 'mean']):
             return 'mean_reversion'
-        if any(x in lower for x in ['grid']):
-            return 'arbitrage'
-        if any(x in lower for x in ['ml', 'prediction']):
+        if any(x in lower for x in ['grid']) and any(x in lower for x in ['ml', 'prediction']):
             return 'machine_learning'
-        if any(x in lower for x in ['factor', 'multi']):
-            return 'multi_factor'
-        if any(x in lower for x in ['volatility', 'breakout', 'bollinger']):
+        if any(x in lower for x in ['factor', 'multi']) and any(x in lower for x in ['volatility', 'breakout', 'bollinger']):
             return 'volatility'
         return 'other'
 

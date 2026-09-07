@@ -54,6 +54,8 @@ def _rename_column(conn, table, old, new):
 # TODO: Refactor - function too long (140 lines, target < 80)
 
 # TODO: Split long function (139 lines, target < 100)
+# TODO: 长函数 150行 - 建议拆分为多个小函数
+
 def run_migration():
     # ---- Section 1 ----
     # ---- Section 2 ----

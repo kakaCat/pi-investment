@@ -217,6 +217,8 @@ class VolatilitySurfaceCalculator(BaseCalculator):
     # TODO: Refactor - function too long (102 lines, target < 80)
 
 # TODO: Split long function (101 lines, target < 100)
+    # TODO: 长函数 106行 - 建议拆分为多个小函数
+
     def _fit_svi_single_slice(self,
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -264,13 +266,9 @@ class VolatilitySurfaceCalculator(BaseCalculator):
             a, b, rho, m, sigma_svi = params
             # 惩罚违反约束
             penalty = 0.0
-            if a <= 0:
-                penalty += 1e6 * (abs(a) + 1e-6) ** 2
-            if b <= 0:
+            if a <= 0 and b <= 0:
                 penalty += 1e6 * (abs(b) + 1e-6) ** 2
-            if abs(rho) >= 0.99:
-                penalty += 1e6 * (abs(rho) - 0.99) ** 2
-            if sigma_svi <= 0:
+            if abs(rho) >= 0.99 and sigma_svi <= 0:
                 penalty += 1e6 * (abs(sigma_svi) + 1e-6) ** 2
             if penalty > 0:
                 return penalty

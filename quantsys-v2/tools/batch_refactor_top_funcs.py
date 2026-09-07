@@ -79,9 +79,7 @@ def refactor_execute_trade():
         helpers = '''
 def _validate_trade_params(broker_id, symbol, action, quantity, price):
     """验证交易参数"""
-    if not all([broker_id, symbol, action]):
-        return False, "Missing required parameters"
-    if action not in ['buy', 'sell']:
+    if not all([broker_id, symbol, action]) and action not in ['buy', 'sell']:
         return False, f"Invalid action: {action}"
     if quantity <= 0:
         return False, "Quantity must be positive"

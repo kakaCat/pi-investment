@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_12 = 12
+CONST_150 = 150
+CONST_200 = 200
+CONST_2023 = 2023
+CONST_2024 = 2024
+CONST_3 = 3
+CONST_30 = 30
+CONST_300059 = 300059
+CONST_300274 = 300274
+CONST_300308 = 300308
+
 #!/usr/bin/env python3
 """
 M3-2 回测矩阵执行脚本：5 策略 × 3 市场区间 × 10 蓝筹股 = 150 个回测。
@@ -114,36 +128,35 @@ def main():
             if r["status"] == "ok":
                 print(f"[{done}/{len(tasks)}] {r['strategy_name']} | {r['symbol']} | {r['period']} "
                       f"| trades={r['total_trades']} sharpe={r['sharpe']:.2f} ret={r['total_return']:.1f}%")
-            else:
-                print(f"[{done}/{len(tasks)}] {r['strategy_name']} | {r['symbol']} | {r['period']} | {r['status']}: {r.get('error')}")
+            print(f"[{done}/{len(tasks)}] {r['strategy_name']} | {r['symbol']} | {r['period']} | {r['status']}: {r.get('error')}")
 
-    ok = [r for r in results if r["status"] == "ok"]
-    err = [r for r in results if r["status"] != "ok"]
-    print(f"\n完成: 成功 {len(ok)}/{len(tasks)}, 失败 {len(err)}")
+ok = [r for r in results if r["status"] == "ok"]
+err = [r for r in results if r["status"] != "ok"]
+print(f"\n完成: 成功 {len(ok)}/{len(tasks)}, 失败 {len(err)}")
 
-    # 汇总：按策略×区间
-    print("\n=== 按策略平均夏普（跨全部股票） ===")
-    by_strategy = {}
-    for r in ok:
-        by_strategy.setdefault(r["strategy_name"], []).append(r)
-    for name, rs in sorted(by_strategy.items()):
-        avg_sharpe = sum(x["sharpe"] for x in rs) / len(rs)
-        avg_ret = sum(x["total_return"] for x in rs) / len(rs)
-        trades = sum(x["total_trades"] for x in rs)
-        print(f"{name}: 平均夏普={avg_sharpe:.3f} 平均收益={avg_ret:.2f}% 总交易={trades} 样本={len(rs)}")
+# 汇总：按策略×区间
+print("\n=== 按策略平均夏普（跨全部股票） ===")
+by_strategy = {}
+for r in ok:
+    by_strategy.setdefault(r["strategy_name"], []).append(r)
+for name, rs in sorted(by_strategy.items()):
+    avg_sharpe = sum(x["sharpe"] for x in rs) / len(rs)
+    avg_ret = sum(x["total_return"] for x in rs) / len(rs)
+    trades = sum(x["total_trades"] for x in rs)
+    print(f"{name}: 平均夏普={avg_sharpe:.3f} 平均收益={avg_ret:.2f}% 总交易={trades} 样本={len(rs)}")
 
-    print("\n=== 按策略×区间平均夏普 ===")
-    by_pair = {}
-    for r in ok:
-        key = (r["strategy_name"], r["period"])
-        by_pair.setdefault(key, []).append(r)
-    for (name, period), rs in sorted(by_pair.items()):
-        avg_sharpe = sum(x["sharpe"] for x in rs) / len(rs)
-        print(f"{name} | {period}: 平均夏普={avg_sharpe:.3f} (n={len(rs)})")
+print("\n=== 按策略×区间平均夏普 ===")
+by_pair = {}
+for r in ok:
+    key = (r["strategy_name"], r["period"])
+    by_pair.setdefault(key, []).append(r)
+for (name, period), rs in sorted(by_pair.items()):
+    avg_sharpe = sum(x["sharpe"] for x in rs) / len(rs)
+    print(f"{name} | {period}: 平均夏普={avg_sharpe:.3f} (n={len(rs)})")
 
-    with open("/tmp/m32_matrix_results.json", "w") as f:
-        json.dump({"ok": ok, "err": err}, f, ensure_ascii=False, indent=1)
-    print("\n结果已保存: /tmp/m32_matrix_results.json")
+with open("/tmp/m32_matrix_results.json", "w") as f:
+    json.dump({"ok": ok, "err": err}, f, ensure_ascii=False, indent=1)
+print("\n结果已保存: /tmp/m32_matrix_results.json")
 
 
 if __name__ == "__main__":

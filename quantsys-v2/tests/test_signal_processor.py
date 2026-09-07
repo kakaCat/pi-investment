@@ -1,3 +1,14 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_15 = 15
+CONST_2_35 = 2.35
+CONST_48_12 = 48.12
+CONST_48_50 = 48.50
+CONST_500000 = 500000
+CONST_52_30 = 52.30
+CONST_8 = 8
+
 """
 测试 SignalProcessor 服务
 """

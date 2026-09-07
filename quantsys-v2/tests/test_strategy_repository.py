@@ -1,3 +1,15 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_2_1 = 2.1
+CONST_2024 = 2024
+CONST_2026 = 2026
+CONST_27 = 27
+CONST_400 = 400
+CONST_5 = 5
+CONST_75_5 = 75.5
+CONST_999999 = 999999
+
 """测试StrategyRepository"""
 import pytest
 from adapters.outbound.repositories import StrategyORMRepository

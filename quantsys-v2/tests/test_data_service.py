@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000_0 = 100000.0
+CONST_108000_0 = 108000.0
+CONST_15 = 15
+CONST_20 = 20
+CONST_2024 = 2024
+CONST_31 = 31
+CONST_5 = 5
+CONST_7 = 7
+CONST_8 = 8
+
 """
 DataService单元测试
 """

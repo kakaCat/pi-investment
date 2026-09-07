@@ -32,6 +32,8 @@ from application.services.strategy_code_service import StrategyCodeService
 
 
 # TODO: Split long function (112 lines, target < 100)
+# TODO: 长函数 121行 - 建议拆分为多个小函数
+
 def test_create_and_backtest_indicator():
     # ---- Section 1 ----
     # ---- Section 2 ----

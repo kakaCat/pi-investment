@@ -137,9 +137,7 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         """account=某账户时返回「该账户归属 + 通用观察(account IS NULL)」——
         看板按账户展示盯盘需要两组都可见；不传则返回全部。"""
         q = self.session.query(WatchRule)
-        if symbol:
-            q = q.filter(WatchRule.symbol == symbol)
-        if enabled is not None:
+        if symbol and enabled is not None:
             q = q.filter(WatchRule.enabled.is_(enabled))
         if account:
             q = q.filter(or_(WatchRule.account == account, WatchRule.account.is_(None)))

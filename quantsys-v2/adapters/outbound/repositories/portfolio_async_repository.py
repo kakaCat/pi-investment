@@ -62,9 +62,7 @@ class PortfolioAsyncRepository(AsyncBaseORMRepository[PortfolioHolding]):
         """
         try:
             conditions = {}
-            if market:
-                conditions['market'] = market
-            if sector:
+            if market and sector:
                 conditions['sector'] = sector
 
             if conditions:

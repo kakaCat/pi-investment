@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10000 = 10000
+CONST_102 = 102
+CONST_103 = 103
+CONST_15 = 15
+CONST_20 = 20
+CONST_2000 = 2000
+CONST_2024 = 2024
+CONST_3000 = 3000
+CONST_42 = 42
+CONST_5 = 5
+
 """
 数据清洗Pipeline测试 - Team D
 """

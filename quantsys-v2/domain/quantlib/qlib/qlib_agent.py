@@ -284,51 +284,50 @@ class QlibRLAgent(BaseRLAgent):
                 if len(observation.shape) == 1:
                     # Single observation
                     return np.random.randn(3)  # Example: 3 actions
-                else:
-                    # Batch observations
-                    return np.random.randn(observation.shape[0], 3)
+                # Batch observations
+                return np.random.randn(observation.shape[0], 3)
 
-            def save(self, path: str):
-                with open(path, 'wb') as f:
-                    pickle.dump(self, f)
+        def save(self, path: str):
+            with open(path, 'wb') as f:
+                pickle.dump(self, f)
 
-            @staticmethod
-            def load(path: str):
-                with open(path, 'rb') as f:
-                    return pickle.load(f)
+        @staticmethod
+        def load(path: str):
+            with open(path, 'rb') as f:
+                return pickle.load(f)
 
-        model = MockQlibModel(self.algorithm, config)
+    model = MockQlibModel(self.algorithm, config)
+    return model
+
+def _load_model(self, path: str) -> Any:
+    """
+    Load Qlib RL model from disk.
+
+    Args:
+        path: Path to model file
+
+    Returns:
+        Loaded Qlib RL model
+
+    Raises:
+        FileNotFoundError: If model file does not exist
+    """
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Model file not found: {path}")
+
+    # Try to load using pickle
+    with open(path, 'rb') as f:
+        data = pickle.load(f)
+
+    # Handle different save formats
+    if isinstance(data, dict):
+        model = data.get('model')
+        self.algorithm = data.get('algorithm', self.algorithm)
+        self.config = data.get('config')
         return model
-
-    def _load_model(self, path: str) -> Any:
-        """
-        Load Qlib RL model from disk.
-
-        Args:
-            path: Path to model file
-
-        Returns:
-            Loaded Qlib RL model
-
-        Raises:
-            FileNotFoundError: If model file does not exist
-        """
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"Model file not found: {path}")
-
-        # Try to load using pickle
-        with open(path, 'rb') as f:
-            data = pickle.load(f)
-
-        # Handle different save formats
-        if isinstance(data, dict):
-            model = data.get('model')
-            self.algorithm = data.get('algorithm', self.algorithm)
-            self.config = data.get('config')
-            return model
-        else:
-            # Assume it's the model directly
-            return data
+    else:
+        # Assume it's the model directly
+        return data
 
 
 __all__ = ['QlibRLAgent', 'QLIB_RL_AVAILABLE']

@@ -50,13 +50,9 @@ class SignalAsyncRepository(AsyncBaseORMRepository[Signal]):
         try:
             stmt = select(Signal)
 
-            if symbol:
-                stmt = stmt.where(Signal.symbol == symbol)
-            if start_date:
+            if symbol and start_date:
                 stmt = stmt.where(Signal.signal_date >= start_date)
-            if end_date:
-                stmt = stmt.where(Signal.signal_date <= end_date)
-            if signal_type:
+            if end_date and signal_type:
                 stmt = stmt.where(Signal.action == signal_type)
             if status:
                 stmt = stmt.where(Signal.status == status)
@@ -146,9 +142,7 @@ class SignalAsyncRepository(AsyncBaseORMRepository[Signal]):
         try:
             stmt = select(Signal).where(Signal.strategy_id == strategy_id)
 
-            if start_date:
-                stmt = stmt.where(Signal.signal_date >= start_date)
-            if end_date:
+            if start_date and end_date:
                 stmt = stmt.where(Signal.signal_date <= end_date)
 
             stmt = stmt.order_by(desc(Signal.signal_date))

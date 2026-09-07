@@ -1,3 +1,15 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_120 = 120
+CONST_200 = 200
+CONST_3 = 3
+CONST_365 = 365
+CONST_4 = 4
+CONST_42 = 42
+CONST_5 = 5
+CONST_60 = 60
+
 #!/usr/bin/env python3
 
 # TODO: Extract magic numbers to named constants: [0.03, 0.1, 0.5, 0.8, 3]...
@@ -20,6 +32,10 @@ logger = logging.getLogger(__name__)
 # TODO: Refactor - complexity 28 (target < 15)
 
 # TODO: Refactor - function too long (228 lines, target < 80)
+
+# TODO: 复杂度 28 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 228行 - 建议拆分为多个小函数
 
 def main():
     from adapters.shared.services import get_stock_repo, get_kline_repo, get_factor_repo

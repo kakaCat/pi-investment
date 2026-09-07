@@ -350,6 +350,8 @@ class EnhancedBuyRangeService:
 # TODO: Refactor - complexity 23 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 23 (target < 15)
+    # TODO: 复杂度 23 - 需要重构拆分为更小的函数
+
     def _analyze_fundamental(self, manager, symbol: str) -> Optional[Dict[str, Any]]:
         """
         基本面分析（简化版）

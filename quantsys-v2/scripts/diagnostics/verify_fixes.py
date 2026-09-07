@@ -57,13 +57,12 @@ def test_field_mapping():
             print(f"  后端逻辑: if 'strategy_name' in indicator: indicator['name'] = indicator['strategy_name']")
 
             return True
-        else:
-            print(f"\n⚠️  数据库中没有指标，无法测试")
-            return False
-
-    except Exception as e:
-        print(f"\n✗ 测试失败: {str(e)}")
+        print(f"\n⚠️  数据库中没有指标，无法测试")
         return False
+
+except Exception as e:
+    print(f"\n✗ 测试失败: {str(e)}")
+    return False
 
 
 def test_system_indicators():

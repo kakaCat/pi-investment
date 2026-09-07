@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100_2 = 100.2
+CONST_100_5 = 100.5
+CONST_10000 = 10000
+CONST_101 = 101
+CONST_105 = 105
+CONST_110 = 110
+CONST_115 = 115
+CONST_120 = 120
+CONST_130 = 130
+CONST_15_0 = 15.0
+
 """
 SwingPointService 单元测试
 

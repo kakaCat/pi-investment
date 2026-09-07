@@ -85,9 +85,7 @@ class FeishuFormatter(NotificationFormatter):
                 }
 
                 # 添加 URL 或回调值
-                if 'url' in action:
-                    button['url'] = action['url']
-                if 'value' in action:
+                if 'url' in action and 'value' in action:
                     button['value'] = action['value']
 
                 action_elements.append(button)

@@ -448,9 +448,7 @@ class TradeGuardService:
 
         # 2. 账户存在性和状态校验
         account = self.repo.get_account(account_name)
-        if not account:
-            raise TradingError(f'账户不存在: {account_name}', status_code=404)
-        if account.status != 'active':
+        if not account and account.status != 'active':
             raise TradingError(
                 f'账户已归档，拒绝写操作: {account_name}',
                 status_code=409

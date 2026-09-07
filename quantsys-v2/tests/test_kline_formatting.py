@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100_5 = 100.5
+CONST_101_0 = 101.0
+CONST_102_0 = 102.0
+CONST_103_0 = 103.0
+CONST_104_0 = 104.0
+CONST_105 = 105
+CONST_105_0 = 105.0
+CONST_106_0 = 106.0
+CONST_107_0 = 107.0
+CONST_2024 = 2024
+
 """
 测试 services.strategy_code_service 模块中的K线数据格式化
 """

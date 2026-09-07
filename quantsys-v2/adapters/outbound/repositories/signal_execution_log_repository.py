@@ -116,9 +116,7 @@ class SignalExecutionLogORMRepository(BaseORMRepository[SignalExecutionLog], ISi
                 return False
 
             for key, value in data.items():
-                if key not in self._UPDATABLE_FIELDS:
-                    continue
-                if key == 'execution_date':
+                if key not in self._UPDATABLE_FIELDS and key == 'execution_date':
                     value = self._parse_date(value)
                 elif key in ('start_time', 'end_time'):
                     value = self._parse_datetime(value)
@@ -147,9 +145,7 @@ class SignalExecutionLogORMRepository(BaseORMRepository[SignalExecutionLog], ISi
             start = self._parse_date(start_date)
             end = self._parse_date(end_date)
             query = self.session.query(self.model)
-            if start:
-                query = query.filter(self.model.execution_date >= start)
-            if end:
+            if start and end:
                 query = query.filter(self.model.execution_date <= end)
             rows = query.order_by(self.model.execution_date.desc(),
                                   self.model.id.desc()).all()
@@ -171,9 +167,7 @@ class SignalExecutionLogORMRepository(BaseORMRepository[SignalExecutionLog], ISi
 
     @staticmethod
     def _parse_date(value: Any) -> Optional[date]:
-        if value is None or isinstance(value, date):
-            return value
-        if isinstance(value, datetime):
+        if value is None or isinstance(value, date) and isinstance(value, datetime):
             return value.date()
         if isinstance(value, str):
             return datetime.strptime(value.strip()[:10], '%Y-%m-%d').date()
@@ -181,9 +175,7 @@ class SignalExecutionLogORMRepository(BaseORMRepository[SignalExecutionLog], ISi
 
     @staticmethod
     def _parse_datetime(value: Any) -> Optional[datetime]:
-        if value is None or isinstance(value, datetime):
-            return value
-        if isinstance(value, str):
+        if value is None or isinstance(value, datetime) and isinstance(value, str):
             value = value.strip()
             for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d'):
                 try:

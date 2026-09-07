@@ -37,9 +37,7 @@ async def model_train(params: dict) -> str:
         "target": target
     }
 
-    if params.get("train_start"):
-        request_data["train_start"] = params["train_start"]
-    if params.get("train_end"):
+    if params.get("train_start") and params.get("train_end"):
         request_data["train_end"] = params["train_end"]
     if params.get("hyperparameters"):
         request_data["hyperparameters"] = params["hyperparameters"]
@@ -78,9 +76,7 @@ async def model_evaluate(params: dict) -> str:
         raise ValueError("Parameter 'model_name' is required")
 
     request_data = {"model_name": model_name}
-    if params.get("test_start"):
-        request_data["test_start"] = params["test_start"]
-    if params.get("test_end"):
+    if params.get("test_start") and params.get("test_end"):
         request_data["test_end"] = params["test_end"]
 
     data = await call_api("POST", "/api/models/evaluate", data=request_data)
@@ -91,9 +87,7 @@ async def model_evaluate(params: dict) -> str:
 async def model_list(params: dict) -> str:
     """List available models."""
     query_params = []
-    if params.get("status"):
-        query_params.append(f"status={params['status']}")
-    if params.get("model_type"):
+    if params.get("status") and params.get("model_type"):
         query_params.append(f"model_type={params['model_type']}")
 
     query_string = "?" + "&".join(query_params) if query_params else ""
@@ -110,9 +104,7 @@ async def model_monitor(params: dict) -> str:
         raise ValueError("Parameter 'model_name' is required")
 
     query_params = []
-    if params.get("start_date"):
-        query_params.append(f"start_date={params['start_date']}")
-    if params.get("end_date"):
+    if params.get("start_date") and params.get("end_date"):
         query_params.append(f"end_date={params['end_date']}")
 
     query_string = "?" + "&".join(query_params) if query_params else ""

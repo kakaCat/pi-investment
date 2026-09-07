@@ -467,6 +467,8 @@ class StrategyDiscoveryService:
     # TODO: Refactor - function too long (122 lines, target < 80)
 
 # TODO: Split long function (121 lines, target < 100)
+    # TODO: 长函数 132行 - 建议拆分为多个小函数
+
     def _discover_single(
         # ---- Section 1 ----
         # ---- Section 2 ----

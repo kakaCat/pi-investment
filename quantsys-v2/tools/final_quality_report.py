@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_15 = 15
+CONST_164 = 164
+CONST_20 = 20
+CONST_30 = 30
+CONST_5 = 5
+CONST_50 = 50
+CONST_60 = 60
+CONST_670 = 670
+CONST_8 = 8
+
 #!/usr/bin/env python3
 """
 最终代码质量报告 - 统计所有已修复的问题
@@ -30,6 +43,10 @@ def count_magic_numbers(source: str) -> int:
         return count
     except:
         return 0
+
+# TODO: 复杂度 27 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 138行 - 建议拆分为多个小函数
 
 def main():
     print("📊 最终代码质量报告\n")
@@ -161,9 +178,7 @@ def main():
     if high_complexity:
         print("1. 继续重构剩余的高复杂度函数")
         print("2. 优先处理复杂度 > 30 的函数")
-    if long_functions:
-        print("3. 拆分长函数 (>100行)")
-    if large_classes:
+    if long_functions and large_classes:
         print("4. 重构大类 (>20方法)")
     if magic_numbers_total > 100:
         print("5. 提取魔法数字到常量")

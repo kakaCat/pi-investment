@@ -87,6 +87,8 @@ class MonteCarloCalculator(BaseCalculator):
     # TODO: Refactor - function too long (134 lines, target < 80)
 
 # TODO: Split long function (133 lines, target < 100)
+    # TODO: 长函数 139行 - 建议拆分为多个小函数
+
     def calculate(self,
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -316,6 +318,8 @@ class MonteCarloCalculator(BaseCalculator):
         )
 # TODO: Refactor - function too long (103 lines, target < 80)
 
+
+# TODO: 长函数 107行 - 建议拆分为多个小函数
 
 # TODO: Split long function (102 lines, target < 100)
     def calculate_barrier(self,

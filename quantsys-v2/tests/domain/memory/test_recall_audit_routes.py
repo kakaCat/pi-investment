@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_101 = 101
+CONST_102 = 102
+CONST_13 = 13
+CONST_14 = 14
+CONST_200 = 200
+CONST_201 = 201
+CONST_2020 = 2020
+CONST_2026 = 2026
+CONST_2027 = 2027
+CONST_3 = 3
+
 """召回审计 API 路由测试（P1-T4）
 
 契约：

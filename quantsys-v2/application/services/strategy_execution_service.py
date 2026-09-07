@@ -114,6 +114,8 @@ class StrategyEngine:
     # TODO: Refactor - function too long (106 lines, target < 80)
 
     # TODO: Split long function (105 lines, target < 100)
+    # TODO: 长函数 114行 - 建议拆分为多个小函数
+
     def execute(self, symbol: str, date: str = None) -> Dict:
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -262,6 +264,8 @@ class StrategyEngine:
         return data
 
     # TODO: Refactor - complexity 20 (target < 15)
+    # TODO: 复杂度 20 - 需要重构拆分为更小的函数
+
     def _execute_db_indicator(self, klines: List[Dict]) -> Dict:
         """
         Execute database-stored indicator strategy.

@@ -219,6 +219,8 @@ def _build__parse_financial_periods_result(data):
 # TODO: Refactor - complexity 29 (target < 15)
 # REFACTOR: Split this function into smaller pieces
 # TODO: Refactor - complexity 29 (target < 15)
+# TODO: 复杂度 29 - 需要重构拆分为更小的函数
+
 def _parse_financial_periods(
     income_records: List[dict],
     balance_records: List[dict],
@@ -271,12 +273,8 @@ def _parse_financial_periods(
                 p['total_assets']      = total_assets
                 p['total_liabilities']  = total_liabilities
                 p['long_term_debt']    = noncurrent_liab  # proxy
-                if current_assets and current_liab and current_liab != 0:
-                    p['current_ratio'] = current_assets / current_liab
-                if net_income := p.get('net_income'):
-                    if total_assets and total_assets != 0:
-                        p['roa'] = net_income / total_assets
-                    if total_equity and total_equity != 0:
+                if current_assets and current_liab and current_liab != 0 and net_income := p.get('net_income'):
+                    if total_assets and total_assets != 0 and total_equity and total_equity != 0:
                         p['roe'] = net_income / total_equity
 
     for rec in cashflow_records:

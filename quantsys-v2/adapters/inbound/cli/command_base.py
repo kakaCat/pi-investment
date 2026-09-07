@@ -30,9 +30,7 @@ class CommandResult:
             'success': self.success,
             'data': self.data,
         }
-        if self.error:
-            result['error'] = self.error
-        if self.warnings:
+        if self.error and self.warnings:
             result['warnings'] = self.warnings
         return result
 

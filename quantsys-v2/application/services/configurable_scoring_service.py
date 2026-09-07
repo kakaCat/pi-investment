@@ -195,6 +195,8 @@ class ConfigurableScoringService:
         return data
 
     # TODO: Refactor - complexity 25 (target < 15)
+    # TODO: 复杂度 25 - 需要重构拆分为更小的函数
+
     def _calculate_technical_score_v2(self, factors: Dict) -> float:
         """技术面评分 - 配置驱动版本"""
         if not TECHNICAL_SCORING:
@@ -295,6 +297,8 @@ class ConfigurableScoringService:
         """构建返回结果"""
         # TODO: 将结果构建逻辑从 _calculate_fundamental_score_v2 移到这里
         return data
+# TODO: 复杂度 21 - 需要重构拆分为更小的函数
+
 
     # TODO: Refactor - complexity 21 (target < 15)
     def _calculate_fundamental_score_v2(self, factors: Dict) -> float:

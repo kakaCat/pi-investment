@@ -187,9 +187,7 @@ class MlModelORMRepository(BaseORMRepository[MlModel], IMlModelRepository):
         """列出模型（按训练时间倒序）"""
         try:
             query = self.session.query(self.model)
-            if model_type:
-                query = query.filter(self.model.model_type == model_type)
-            if status:
+            if model_type and status:
                 query = query.filter(self.model.status == status)
             rows = query.order_by(self.model.train_date.desc()).limit(limit).all()
             return [self._to_dict(r) for r in rows]

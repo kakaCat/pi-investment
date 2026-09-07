@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_119 = 119
+CONST_15 = 15
+CONST_150 = 150
+CONST_164 = 164
+CONST_188 = 188
+CONST_20 = 20
+CONST_22 = 22
+CONST_3 = 3
+CONST_356 = 356
+CONST_70 = 70
+
 #!/usr/bin/env python3
 """
 最终修复报告生成器
@@ -15,6 +29,10 @@ def calc_complexity(node):
         elif isinstance(child, ast.BoolOp):
             c += len(child.values) - 1
     return c
+
+# TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 125行 - 建议拆分为多个小函数
 
 def generate_final_report():
     print("=" * 70)

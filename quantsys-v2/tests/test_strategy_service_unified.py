@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_13_12 = 13.12
+CONST_18_50 = 18.50
+CONST_19_75 = 19.75
+CONST_20 = 20
+CONST_2026 = 2026
+CONST_27 = 27
+CONST_28 = 28
+CONST_3_0 = 3.0
+CONST_300162 = 300162
+CONST_300432 = 300432
+
 """统一策略每日检查架构测试（StrategyService + SimulationTrader 参数化）"""
 from unittest.mock import patch, MagicMock
 

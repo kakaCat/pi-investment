@@ -1,3 +1,15 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_12 = 12
+CONST_20 = 20
+CONST_50 = 50
+CONST_500 = 500
+CONST_6 = 6
+CONST_60 = 60
+CONST_8 = 8
+CONST_80 = 80
+
 #!/usr/bin/env python3
 """
 分批次生成买卖信号并保存到数据库
@@ -159,6 +171,8 @@ def process_batch(stocks: List[Dict], batch_num: int, total_batches: int,
 
 
 # TODO: Refactor - function too long (107 lines, target < 80)
+
+# TODO: 长函数 107行 - 建议拆分为多个小函数
 
 def main():
     """主函数"""

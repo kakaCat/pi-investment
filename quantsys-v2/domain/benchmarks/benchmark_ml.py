@@ -125,6 +125,8 @@ def benchmark_model_training(
 # TODO: Refactor - function too long (154 lines, target < 80)
 
 # TODO: Split long function (153 lines, target < 100)
+# TODO: 长函数 160行 - 建议拆分为多个小函数
+
 def run_ml_benchmarks():
     # ---- Section 1 ----
     # ---- Section 2 ----

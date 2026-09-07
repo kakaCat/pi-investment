@@ -218,6 +218,8 @@ class VerificationJob:
     # TODO: Refactor - function too long (113 lines, target < 80)
 
 # TODO: Split long function (112 lines, target < 100)
+    # TODO: 长函数 121行 - 建议拆分为多个小函数
+
     def run(self):
         # ---- Section 1 ----
         # ---- Section 2 ----

@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_15 = 15
+CONST_1640_00 = 1640.00
+CONST_1645 = 1645
+CONST_1645_00 = 1645.00
+CONST_1650_00 = 1650.00
+CONST_1651_00 = 1651.00
+CONST_1652_00 = 1652.00
+CONST_1653_00 = 1653.00
+CONST_1654_00 = 1654.00
+CONST_1655 = 1655
+
 """
 Tests for SinaQuoteProvider
 """

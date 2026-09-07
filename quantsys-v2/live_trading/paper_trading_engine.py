@@ -351,6 +351,8 @@ class PaperTradingEngine:
 # TODO: Refactor - complexity 16 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 16 (target < 15)
+    # TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
     def _filter_buy_signals(
         self,
         signals: List[Signal],
@@ -423,6 +425,8 @@ class PaperTradingEngine:
         # 按信号强度排序，优先执行强信号
         approved.sort(key=lambda s: s.strength, reverse=True)
         return approved
+
+    # TODO: 长函数 105行 - 建议拆分为多个小函数
 
     def _execute_buy(self, signal: Signal, price: Optional[float]) -> TradeResult:
         # ---- Section 1 ----
@@ -531,6 +535,8 @@ class PaperTradingEngine:
         )
 
     # TODO: Refactor - function too long (105 lines, target < 80)
+
+# TODO: 长函数 113行 - 建议拆分为多个小函数
 
 # TODO: Split long function (104 lines, target < 100)
     def _execute_sell(self, signal: Signal, price: Optional[float]) -> TradeResult:
@@ -774,59 +780,58 @@ class PaperTradingEngine:
         if snapshots:
             prev_value = float(snapshots[0].total_value or 0)
             daily_return = (total_value - prev_value) / prev_value if prev_value > 0 else 0
-        else:
-            daily_return = cumulative_return
+        daily_return = cumulative_return
 
-        # 更新峰值和最大回撤
-        peak = float(account.peak_value or initial)
-        if total_value > peak:
-            peak = total_value
-        drawdown = (peak - total_value) / peak if peak > 0 else 0
+    # 更新峰值和最大回撤
+    peak = float(account.peak_value or initial)
+    if total_value > peak:
+        peak = total_value
+    drawdown = (peak - total_value) / peak if peak > 0 else 0
 
-        # 写入快照
-        self.repo.upsert_equity_snapshot(
-            account_name=self.account_name,
-            cash=cash,
-            position_value=position_value,
-            total_value=total_value,
-            daily_return=daily_return,
-            cumulative_return=cumulative_return,
-            drawdown=drawdown,
-        )
+    # 写入快照
+    self.repo.upsert_equity_snapshot(
+        account_name=self.account_name,
+        cash=cash,
+        position_value=position_value,
+        total_value=total_value,
+        daily_return=daily_return,
+        cumulative_return=cumulative_return,
+        drawdown=drawdown,
+    )
 
-        # 更新账户峰值和回撤
-        self.repo.update_account(
-            account_name=self.account_name,
-            cash_available=cash,
-            total_value=total_value,
-            peak_value=peak,
-            cumulative_return=cumulative_return,
-            max_drawdown=drawdown,
-            position_value=position_value,
-        )
+    # 更新账户峰值和回撤
+    self.repo.update_account(
+        account_name=self.account_name,
+        cash_available=cash,
+        total_value=total_value,
+        peak_value=peak,
+        cumulative_return=cumulative_return,
+        max_drawdown=drawdown,
+        position_value=position_value,
+    )
 
-        logger.info(
-            "daily_snapshot_taken",
-            account=self.account_name,
-            nav=round(total_value / initial, 4) if initial > 0 else 1.0,
-            total_value=round(total_value, 2),
-            daily_return=f"{daily_return:.4%}",
-        )
+    logger.info(
+        "daily_snapshot_taken",
+        account=self.account_name,
+        nav=round(total_value / initial, 4) if initial > 0 else 1.0,
+        total_value=round(total_value, 2),
+        daily_return=f"{daily_return:.4%}",
+    )
 
-        return {
-            'date': date.today().isoformat(),
-            'nav': round(total_value / initial, 4) if initial > 0 else 1.0,
-            'total_value': round(total_value, 2),
-            'daily_return': round(daily_return, 6),
-            'drawdown': round(drawdown, 4),
-        }
+    return {
+        'date': date.today().isoformat(),
+        'nav': round(total_value / initial, 4) if initial > 0 else 1.0,
+        'total_value': round(total_value, 2),
+        'daily_return': round(daily_return, 6),
+        'drawdown': round(drawdown, 4),
+    }
 
-    # ==================== 市场风格 ====================
+# ==================== 市场风格 ====================
 
-    def set_market_style(self, style: str):
-        """设置当前市场风格（影响仓位上限）"""
-        valid_styles = ['bull', 'bear', 'oscillation', 'default']
-        if style not in valid_styles:
-            style = 'default'
-        self.market_style = style
-        logger.info("market_style_updated", style=style)
+def set_market_style(self, style: str):
+    """设置当前市场风格（影响仓位上限）"""
+    valid_styles = ['bull', 'bear', 'oscillation', 'default']
+    if style not in valid_styles:
+        style = 'default'
+    self.market_style = style
+    logger.info("market_style_updated", style=style)

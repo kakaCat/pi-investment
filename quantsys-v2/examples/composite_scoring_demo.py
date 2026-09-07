@@ -176,41 +176,40 @@ class CompositeScorer:
             return 'B（中性）'
         elif score >= 45:
             return 'C（观望）'
-        else:
-            return 'D（回避）'
+        return 'D（回避）'
 
-    def _generate_recommendation(
-        self,
-        tech_score: float,
-        fund_score: float,
-        composite_score: float,
-        strategy: str
-    ) -> str:
-        """生成投资建议"""
-        if composite_score >= 80:
-            base = "强烈建议关注"
-        elif composite_score >= 70:
-            base = "建议关注"
-        elif composite_score >= 60:
-            base = "可以关注"
-        elif composite_score >= 50:
-            base = "中性，谨慎"
-        else:
-            base = "建议回避"
+def _generate_recommendation(
+    self,
+    tech_score: float,
+    fund_score: float,
+    composite_score: float,
+    strategy: str
+) -> str:
+    """生成投资建议"""
+    if composite_score >= 80:
+        base = "强烈建议关注"
+    elif composite_score >= 70:
+        base = "建议关注"
+    elif composite_score >= 60:
+        base = "可以关注"
+    elif composite_score >= 50:
+        base = "中性，谨慎"
+    else:
+        base = "建议回避"
 
-        # 分析技术面和基本面的协同性
-        score_diff = abs(tech_score - fund_score)
-        if score_diff <= 10:
-            synergy = "技术面和基本面高度协同"
-        elif score_diff <= 20:
-            synergy = "技术面和基本面较为协同"
+    # 分析技术面和基本面的协同性
+    score_diff = abs(tech_score - fund_score)
+    if score_diff <= 10:
+        synergy = "技术面和基本面高度协同"
+    elif score_diff <= 20:
+        synergy = "技术面和基本面较为协同"
+    else:
+        if tech_score > fund_score:
+            synergy = "技术面强于基本面，注意基本面风险"
         else:
-            if tech_score > fund_score:
-                synergy = "技术面强于基本面，注意基本面风险"
-            else:
-                synergy = "基本面强于技术面，等待技术面确认"
+            synergy = "基本面强于技术面，等待技术面确认"
 
-        return f"{base}。{synergy}。"
+    return f"{base}。{synergy}。"
 
 
 def demo_excellent_stock():

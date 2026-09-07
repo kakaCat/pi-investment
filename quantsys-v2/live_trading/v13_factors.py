@@ -98,6 +98,8 @@ def calculate_macd(series, fast=12, slow=26, signal=9):
 # TODO: Refactor - function too long (260 lines, target < 80)
 
 # TODO: Split long function (259 lines, target < 100)
+# TODO: 长函数 278行 - 建议拆分为多个小函数
+
 def calculate_v13_factors(df):
     # ---- Section 1 ----
     # ---- Section 2 ----

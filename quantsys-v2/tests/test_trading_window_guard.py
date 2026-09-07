@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000_0 = 100000.0
+CONST_12 = 12
+CONST_13 = 13
+CONST_15 = 15
+CONST_18 = 18
+CONST_2026 = 2026
+CONST_25 = 25
+CONST_26 = 26
+CONST_27 = 27
+CONST_30 = 30
+
 """交易时段护栏测试（A股规则：交易日 9:30-11:30 / 13:00-15:00 才能成交）"""
 from datetime import datetime
 from unittest.mock import MagicMock

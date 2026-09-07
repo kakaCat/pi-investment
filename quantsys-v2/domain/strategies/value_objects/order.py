@@ -49,21 +49,13 @@ class Order:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if not isinstance(self.symbol, str) or not self.symbol.strip():
-            raise ValueError("symbol must be a non-empty string")
-        if not isinstance(self.side, OrderSide):
+        if not isinstance(self.symbol, str) or not self.symbol.strip() and not isinstance(self.side, OrderSide):
             raise ValueError("side must be an OrderSide enum value")
-        if not isinstance(self.quantity, (int, float)) or self.quantity <= 0:
-            raise ValueError("quantity must be a positive number")
-        if not isinstance(self.price, (int, float)) or self.price < 0:
+        if not isinstance(self.quantity, (int, float)) or self.quantity <= 0 and not isinstance(self.price, (int, float)) or self.price < 0:
             raise ValueError("price must be a non-negative number")
-        if not isinstance(self.order_id, str):
-            raise TypeError("order_id must be a string")
-        if not isinstance(self.status, OrderStatus):
+        if not isinstance(self.order_id, str) and not isinstance(self.status, OrderStatus):
             raise ValueError("status must be an OrderStatus enum value")
-        if not isinstance(self.reason, str):
-            raise TypeError("reason must be a string")
-        if not isinstance(self.metadata, dict):
+        if not isinstance(self.reason, str) and not isinstance(self.metadata, dict):
             raise TypeError("metadata must be a dict")
 
     @property

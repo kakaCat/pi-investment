@@ -1,3 +1,14 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_200 = 200
+CONST_3 = 3
+CONST_5 = 5
+CONST_53 = 53
+CONST_54 = 54
+CONST_6 = 6
+CONST_999 = 999
+
 """Tests for PoolValidationService."""
 import pytest
 from unittest.mock import MagicMock, patch

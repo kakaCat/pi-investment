@@ -30,6 +30,8 @@ class AkshareKlineProvider(KlineProvider):
     # TODO: Refactor - function too long (134 lines, target < 80)
 
 # TODO: Split long function (133 lines, target < 100)
+    # TODO: 长函数 144行 - 建议拆分为多个小函数
+
     def get_klines(
         # ---- Section 1 ----
         # ---- Section 2 ----

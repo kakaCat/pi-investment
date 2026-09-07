@@ -83,6 +83,8 @@ class TestSignalExecutionScheduler:
             yield mock
 
     # TODO: Split long function (103 lines, target < 100)
+    # TODO: 长函数 104行 - 建议拆分为多个小函数
+
     def test_execute_daily_signals_success(
         self,
         scheduler,

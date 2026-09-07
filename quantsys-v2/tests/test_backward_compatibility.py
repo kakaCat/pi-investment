@@ -1,3 +1,14 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_2024 = 2024
+CONST_31 = 31
+CONST_49_0 = 49.0
+CONST_50_0 = 50.0
+CONST_500000 = 500000
+CONST_51_0 = 51.0
+CONST_52_30 = 52.30
+
 """
 测试向后兼容性
 

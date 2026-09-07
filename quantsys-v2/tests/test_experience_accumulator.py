@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_1700_0 = 1700.0
+CONST_1800_0 = 1800.0
+CONST_20 = 20
+CONST_3 = 3
+CONST_3_0 = 3.0
+CONST_5 = 5
+CONST_5_0 = 5.0
+CONST_60 = 60
+CONST_7 = 7
+CONST_70 = 70
+
 """
 测试经验自动积累功能
 

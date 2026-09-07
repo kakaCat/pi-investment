@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100_5 = 100.5
+CONST_10000 = 10000
+CONST_102_0 = 102.0
+CONST_12_0 = 12.0
+CONST_15_0 = 15.0
+CONST_20 = 20
+CONST_2020 = 2020
+CONST_2024 = 2024
+CONST_252 = 252
+CONST_3 = 3
+
 """
 Test data generators for polars migration
 

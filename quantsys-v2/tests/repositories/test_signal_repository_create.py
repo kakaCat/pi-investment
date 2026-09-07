@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_5 = 10.5
+CONST_162 = 162
+CONST_2026 = 2026
+CONST_28_5 = 28.5
+CONST_4 = 4
+CONST_8 = 8
+
 """SignalORMRepository.create_signal 契约修复测试（2026-08-04）
 
 根因：create_signal 按旧模型传 volume=/metadata=（两个字段在现行 Signal 模型

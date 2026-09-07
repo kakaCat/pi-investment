@@ -68,6 +68,8 @@ GEM_STOCK_POOL = [
 # TODO: Refactor - function too long (121 lines, target < 80)
 
 # TODO: Split long function (120 lines, target < 100)
+# TODO: 长函数 131行 - 建议拆分为多个小函数
+
 def execute_v14_rebalance_with_stock_pool():
     # ---- Section 1 ----
     # ---- Section 2 ----

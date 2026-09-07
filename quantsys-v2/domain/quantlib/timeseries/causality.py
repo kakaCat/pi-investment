@@ -97,6 +97,8 @@ class GrangerCausalityCalculator(BaseCalculator):
     # TODO: Refactor - function too long (136 lines, target < 80)
 
 # TODO: Split long function (135 lines, target < 100)
+    # TODO: 长函数 141行 - 建议拆分为多个小函数
+
     def test(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -316,6 +318,8 @@ class GrangerCausalityCalculator(BaseCalculator):
         )
 
     @validate_inputs
+    # TODO: 长函数 103行 - 建议拆分为多个小函数
+
     @timing_decorator
     def select_optimal_lag(
         # ---- Section 1 ----
@@ -614,15 +618,14 @@ class GrangerCausalityCalculator(BaseCalculator):
         """Generate interpretation of causality test."""
         if causes:
             return f"X Granger-causes Y at lag {lag} (p={pvalue:.4f}). X has predictive power for Y."
-        else:
-            return f"X does NOT Granger-cause Y (min p={pvalue:.4f}). X has no predictive power for Y."
+        return f"X does NOT Granger-cause Y (min p={pvalue:.4f}). X has no predictive power for Y."
 
-    def _interpret_bidirectional(self, relationship: str) -> str:
-        """Generate interpretation of bidirectional test."""
-        interpretations = {
-            'bidirectional': 'Bidirectional causality: both series predict each other',
-            'series1_causes_series2': 'Unidirectional: series1 predicts series2',
-            'series2_causes_series1': 'Unidirectional: series2 predicts series1',
-            'no_causality': 'No Granger causality in either direction'
-        }
-        return interpretations.get(relationship, 'Unknown relationship')
+def _interpret_bidirectional(self, relationship: str) -> str:
+    """Generate interpretation of bidirectional test."""
+    interpretations = {
+        'bidirectional': 'Bidirectional causality: both series predict each other',
+        'series1_causes_series2': 'Unidirectional: series1 predicts series2',
+        'series2_causes_series1': 'Unidirectional: series2 predicts series1',
+        'no_causality': 'No Granger causality in either direction'
+    }
+    return interpretations.get(relationship, 'Unknown relationship')

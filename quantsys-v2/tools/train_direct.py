@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_20 = 20
+CONST_2025 = 2025
+CONST_2026 = 2026
+CONST_600016 = 600016
+CONST_600028 = 600028
+CONST_600030 = 600030
+CONST_600036 = 600036
+CONST_600048 = 600048
+CONST_600050 = 600050
+CONST_600104 = 600104
+
 #!/usr/bin/env python3
 """直接训练（不通过HTTP，避免超时）"""
 import sys

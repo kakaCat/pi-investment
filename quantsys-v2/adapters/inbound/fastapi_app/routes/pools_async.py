@@ -73,9 +73,7 @@ def validate_filter(filter_dict):
         field = cond.get('field')
         operator = cond.get('operator')
         value = cond.get('value')
-        if field not in ALLOWED_FIELDS:
-            raise ValueError(f"Invalid field: {field}. Allowed: {', '.join(sorted(ALLOWED_FIELDS))}")
-        if operator not in ALLOWED_OPERATORS:
+        if field not in ALLOWED_FIELDS and operator not in ALLOWED_OPERATORS:
             raise ValueError(f"Invalid operator: {operator}. Allowed: {', '.join(sorted(ALLOWED_OPERATORS))}")
         if not isinstance(value, (int, float)):
             raise ValueError(f"Invalid value type for field '{field}': {type(value).__name__}. Must be number.")
@@ -99,9 +97,7 @@ def scan_and_create(payload: Optional[Dict[str, Any]] = Body(None)):
     name = data.get('name')
     pool_type = data.get('poolType') or data.get('pool_type')
     filter_params = data.get('filter') or data.get('filterTemplate') or data.get('filter_template')
-    if not name or not pool_type or not filter_params:
-        return error_response({'success': False, 'error': 'name, poolType, and filter are required'}, 400)
-    if filter_params and filter_params.get('conditions'):
+    if not name or not pool_type or not filter_params and filter_params and filter_params.get('conditions'):
         try:
             validate_filter(filter_params)
         except ValueError as e:
@@ -174,8 +170,7 @@ def manage_scan_schedule(payload: Optional[Dict[str, Any]] = Body(None)):
     elif action == 'trigger':
         pool_scan_scheduler.trigger_scan_now()
         return api_response({'status': 'triggered', 'message': '已触发立即扫描'})
-    else:
-        return error_response({'success': False, 'error': f'无效的操作: {action}，支持: start/stop/trigger'}, 400)
+    return error_response({'success': False, 'error': f'无效的操作: {action}，支持: start/stop/trigger'}, 400)
 
 
 # ============ 池子 CRUD ============

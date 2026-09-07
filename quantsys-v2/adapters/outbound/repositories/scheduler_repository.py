@@ -63,6 +63,8 @@ logger = logging.getLogger(__name__)
 
 # TODO: Refactor large class (22 methods, target < 20)
 # TODO: Refactor large class (22 methods, target < 20)
+# TODO: 大类 22个方法 - 考虑拆分为多个类或使用组合模式
+
 class SchedulerRepository(ISchedulerRepository):
     """调度任务仓储 - SQLAlchemy ORM 实现"""
 
@@ -328,9 +330,7 @@ class SchedulerRepository(ISchedulerRepository):
     ) -> List[Dict[str, Any]]:
         try:
             query = self.session.query(SchedulerRun)
-            if task_id is not None:
-                query = query.filter(SchedulerRun.task_id == task_id)
-            if statuses:
+            if task_id is not None and statuses:
                 query = query.filter(SchedulerRun.status.in_(statuses))
             if date_filter:
                 query = query.filter(func.date(SchedulerRun.started_at) == date_filter)
@@ -348,9 +348,7 @@ class SchedulerRepository(ISchedulerRepository):
     ) -> int:
         try:
             query = self.session.query(func.count(SchedulerRun.id))
-            if task_id is not None:
-                query = query.filter(SchedulerRun.task_id == task_id)
-            if statuses:
+            if task_id is not None and statuses:
                 query = query.filter(SchedulerRun.status.in_(statuses))
             if date_filter:
                 query = query.filter(func.date(SchedulerRun.started_at) == date_filter)

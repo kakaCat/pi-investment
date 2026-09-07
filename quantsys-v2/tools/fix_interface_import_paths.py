@@ -38,9 +38,8 @@ def fix_file(file_path: str):
             f.write(content)
         print(f"✅ {file_path}")
         return True
-    else:
-        print(f"⏭️  {file_path} (无需修改)")
-        return False
+    print(f"⏭️  {file_path} (无需修改)")
+    return False
 
 if __name__ == '__main__':
     print("修复接口导入路径...\n")

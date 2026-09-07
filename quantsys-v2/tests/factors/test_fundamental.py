@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_120 = 120
+CONST_150 = 150
+CONST_2_5 = 2.5
+CONST_20 = 20
+CONST_200 = 200
+CONST_400 = 400
+CONST_50 = 50
+CONST_500 = 500
+CONST_80 = 80
+CONST_9 = 9
+
 """
 Tests for fundamental factor calculators: FSCORE and Earnings Quality.
 """

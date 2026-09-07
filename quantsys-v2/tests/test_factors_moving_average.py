@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_5 = 10.5
+CONST_100000 = 100000
+CONST_11 = 11
+CONST_12 = 12
+CONST_12_0 = 12.0
+CONST_120 = 120
+CONST_13 = 13
+CONST_14 = 14
+CONST_14_0 = 14.0
+CONST_15 = 15
+
 """
 Tests for Moving Average Factors
 =================================
@@ -13,6 +27,8 @@ from domain.quantlib.core.exceptions import InsufficientDataError, DataValidatio
 
 
 # TODO: Refactor large class (22 methods, target < 20)
+# TODO: 大类 22个方法 - 考虑拆分为多个类或使用组合模式
+
 class TestMovingAverageFactors:
     """Test moving average factor calculations."""
 

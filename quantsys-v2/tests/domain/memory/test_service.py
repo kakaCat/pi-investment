@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_123 = 123
+CONST_15 = 15
+CONST_20 = 20
+CONST_25 = 25
+CONST_3 = 3
+CONST_35 = 35
+CONST_456 = 456
+CONST_5 = 5
+CONST_8 = 8
+
 """Tests for Memory Service"""
 import pytest
 from unittest.mock import Mock, MagicMock

@@ -313,9 +313,7 @@ def update_stop_loss_rule(rule_id: str, payload: Optional[Dict[str, Any]] = Body
         body = payload or {}
         repo = RiskORMRepository()
         update_params = {}
-        if 'name' in body:
-            update_params['name'] = body['name']
-        if 'stopLossType' in body:
+        if 'name' in body and 'stopLossType' in body:
             update_params['type'] = _normalize_stop_loss_type(body['stopLossType'])
         elif 'type' in body:
             update_params['type'] = _normalize_stop_loss_type(body['type'])
@@ -323,9 +321,7 @@ def update_stop_loss_rule(rule_id: str, payload: Optional[Dict[str, Any]] = Body
             update_params['stop_loss_percent'] = body['triggerPercent']
         elif 'stopLossPercent' in body:
             update_params['stop_loss_percent'] = body['stopLossPercent']
-        if 'trailingPercent' in body:
-            update_params['trailing_percent'] = body['trailingPercent']
-        if 'atrMultiplier' in body:
+        if 'trailingPercent' in body and 'atrMultiplier' in body:
             update_params['atr_multiplier'] = body['atrMultiplier']
         if 'status' in body:
             update_params['status'] = body['status']
@@ -458,6 +454,10 @@ def _build_trade_verify_result(data):
 # TODO: Split long function (135 lines, target < 100)
 # TODO: Refactor - complexity 26 (target < 15)
 # TODO: Split long function (135 lines, target < 100)
+# TODO: 复杂度 26 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 146行 - 建议拆分为多个小函数
+
 def trade_verify(
     # ---- Section 1 ----
     # ---- Section 2 ----

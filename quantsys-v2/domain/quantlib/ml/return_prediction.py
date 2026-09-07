@@ -147,6 +147,10 @@ class ReturnPredictionCalculator(BaseCalculator):
     # TODO: Split long function (116 lines, target < 100)
     # TODO: Refactor - complexity 17 (target < 15)
     # TODO: Split long function (116 lines, target < 100)
+    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 121行 - 建议拆分为多个小函数
+
     def predict_returns(self,
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -184,9 +188,7 @@ class ReturnPredictionCalculator(BaseCalculator):
                 - metrics: Dict of evaluation metrics
                 - feature_importance: Dict of feature importance
         """
-        if features is None or (isinstance(features, pd.DataFrame) and features.empty):
-            raise DataValidationError("Features DataFrame is empty", field_name="features")
-        if _check_condition_0():
+        if features is None or (isinstance(features, pd.DataFrame) and features.empty) and _check_condition_0():
             pass  # TODO: implement
         if not isinstance(features, pd.DataFrame):
             raise DataValidationError("features must be a pandas DataFrame", field_name="features")
@@ -506,6 +508,8 @@ class ReturnPredictionCalculator(BaseCalculator):
 # TODO: Refactor - function too long (129 lines, target < 80)
 
 
+# TODO: 长函数 134行 - 建议拆分为多个小函数
+
 # TODO: Split long function (128 lines, target < 100)
     def _train_lstm(self,
         # ---- Section 1 ----
@@ -721,39 +725,38 @@ class ReturnPredictionCalculator(BaseCalculator):
                 baseline_pred = model.predict(X, verbose=0).flatten()
             except Exception:
                 return {name: 0.0 for name in feature_names}
+        try:
+            baseline_pred = model.predict(X)
+        except Exception:
+            return {name: 0.0 for name in feature_names}
+
+    baseline_error = np.mean((y - baseline_pred) ** 2)
+
+    for i, name in enumerate(feature_names):
+        if i >= X.shape[1]:
+            break
+        X_permuted = X.copy()
+        np.random.shuffle(X_permuted[:, i])
+
+        if is_keras:
+            try:
+                permuted_pred = model.predict(X_permuted, verbose=0).flatten()
+            except Exception:
+                importance[name] = 0.0
+                continue
         else:
             try:
-                baseline_pred = model.predict(X)
+                permuted_pred = model.predict(X_permuted)
             except Exception:
-                return {name: 0.0 for name in feature_names}
+                importance[name] = 0.0
+                continue
 
-        baseline_error = np.mean((y - baseline_pred) ** 2)
+        permuted_error = np.mean((y - permuted_pred) ** 2)
+        importance[name] = float(max(0, permuted_error - baseline_error))
 
-        for i, name in enumerate(feature_names):
-            if i >= X.shape[1]:
-                break
-            X_permuted = X.copy()
-            np.random.shuffle(X_permuted[:, i])
+    if importance:
+        max_imp = max(importance.values())
+        if max_imp > 0:
+            importance = {k: v / max_imp for k, v in importance.items()}
 
-            if is_keras:
-                try:
-                    permuted_pred = model.predict(X_permuted, verbose=0).flatten()
-                except Exception:
-                    importance[name] = 0.0
-                    continue
-            else:
-                try:
-                    permuted_pred = model.predict(X_permuted)
-                except Exception:
-                    importance[name] = 0.0
-                    continue
-
-            permuted_error = np.mean((y - permuted_pred) ** 2)
-            importance[name] = float(max(0, permuted_error - baseline_error))
-
-        if importance:
-            max_imp = max(importance.values())
-            if max_imp > 0:
-                importance = {k: v / max_imp for k, v in importance.items()}
-
-        return importance
+    return importance

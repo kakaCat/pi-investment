@@ -290,6 +290,8 @@ class StrategyValidationService:
     # TODO: Refactor - function too long (179 lines, target < 80)
 
 # TODO: Split long function (178 lines, target < 100)
+    # TODO: 长函数 193行 - 建议拆分为多个小函数
+
     def validate_all_strategies(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -497,6 +499,8 @@ class StrategyValidationService:
     # TODO: Refactor - function too long (168 lines, target < 80)
 
     # ------------------------------------------------------------------
+# TODO: 长函数 180行 - 建议拆分为多个小函数
+
 # TODO: Split long function (167 lines, target < 100)
     def validate_from_recent_backtests(
         # ---- Section 1 ----

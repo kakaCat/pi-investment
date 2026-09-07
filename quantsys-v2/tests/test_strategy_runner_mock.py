@@ -1,3 +1,15 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_14 = 14
+CONST_20 = 20
+CONST_2024 = 2024
+CONST_3 = 3
+CONST_30 = 30
+CONST_40 = 40
+CONST_5 = 5
+CONST_999 = 999
+
 """
 StrategyRunner mock-based unit tests.
 

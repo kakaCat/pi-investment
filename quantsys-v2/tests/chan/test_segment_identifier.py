@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_11 = 11
+CONST_11_0 = 11.0
+CONST_12_0 = 12.0
+CONST_13_0 = 13.0
+CONST_15 = 15
+CONST_16 = 16
+CONST_20 = 20
+CONST_2024 = 2024
+CONST_21 = 21
+CONST_25 = 25
+
 """线段识别器测试"""
 import pytest
 from datetime import datetime

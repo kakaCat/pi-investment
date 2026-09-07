@@ -451,9 +451,7 @@ def install_sync_session_cleanup() -> None:
             if not isinstance(route, APIRoute):
                 continue
             call = route.endpoint
-            if call is None or asyncio.iscoroutinefunction(call):
-                continue
-            if getattr(call, "_orm_cleanup_wrapped", False):
+            if call is None or asyncio.iscoroutinefunction(call) and getattr(call, "_orm_cleanup_wrapped", False):
                 continue
 
             @functools.wraps(call)

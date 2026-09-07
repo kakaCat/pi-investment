@@ -90,6 +90,8 @@ class DataQualityCheckJob:
 # TODO: Refactor - function too long (145 lines, target < 80)
 
 # TODO: Split long function (144 lines, target < 100)
+# TODO: 长函数 156行 - 建议拆分为多个小函数
+
 def daily_data_quality_check(**params):
     # ---- Section 1 ----
     # ---- Section 2 ----

@@ -221,6 +221,8 @@ class OrderService:
     # TODO: Refactor - function too long (150 lines, target < 80)
 
 # TODO: Split long function (149 lines, target < 100)
+    # TODO: 长函数 155行 - 建议拆分为多个小函数
+
     def fill_order(
         # ---- Section 1 ----
         # ---- Section 2 ----

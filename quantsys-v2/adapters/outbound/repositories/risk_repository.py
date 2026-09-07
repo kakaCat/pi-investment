@@ -108,9 +108,7 @@ _STOP_LOSS_STATUSES = ('active', 'inactive', 'triggered')
 
 def _validate_symbol(symbol: str) -> bool:
     """校验股票代码格式（对齐旧 BaseRepository._validate_symbol 行为）"""
-    if not symbol:
-        raise ValueError("股票代码不能为空")
-    if not isinstance(symbol, str):
+    if not symbol and not isinstance(symbol, str):
         raise ValueError("股票代码必须是字符串")
 
     base = symbol.strip().upper()
@@ -640,15 +638,11 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
         Returns:
             止损规则列表（dict）
         """
-        if symbol:
-            _validate_symbol(symbol)
-        if status and status not in _STOP_LOSS_STATUSES:
+        if symbol and status and status not in _STOP_LOSS_STATUSES:
             raise ValueError(f"无效的状态值: {status}")
 
         query = self.session.query(StopLossRule)
-        if symbol:
-            query = query.filter(StopLossRule.symbol == symbol)
-        if status:
+        if symbol and status:
             query = query.filter(StopLossRule.status == status)
 
         rules = query.order_by(StopLossRule.created_at.desc()).all()

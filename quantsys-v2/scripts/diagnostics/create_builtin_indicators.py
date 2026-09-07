@@ -34,6 +34,8 @@ from application.services.strategy_code_service import StrategyCodeService
 # TODO: Refactor - function too long (213 lines, target < 80)
 
 # TODO: Split long function (212 lines, target < 100)
+# TODO: 长函数 229行 - 建议拆分为多个小函数
+
 def create_builtin_indicators():
     # ---- Section 1 ----
     # ---- Section 2 ----

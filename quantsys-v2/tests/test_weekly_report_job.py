@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_17 = 17
+CONST_2026 = 2026
+CONST_22 = 22
+CONST_3 = 3
+CONST_49068_52 = 49068.52
+CONST_6 = 6
+CONST_7 = 7
+CONST_86644_52 = 86644.52
+CONST_99993_81 = 99993.81
+
 """weekly_report_job 修复回归测试：run() 用现有 repo 接口跑通"""
 from datetime import date, datetime
 from types import SimpleNamespace

@@ -75,9 +75,7 @@ def record_decision(decision_data: Dict[str, Any] = Body(...)):
         related_entity_type/related_entity_id/session_key（可选）
     """
     try:
-        if not decision_data.get('decision_type'):
-            return _err(400, '缺少必需字段: decision_type')
-        if not decision_data.get('reasoning'):
+        if not decision_data.get('decision_type') and not decision_data.get('reasoning'):
             return _err(400, '缺少必需字段: reasoning')
 
         # agent 工具契约中 context/parameters 为可选，缺省 {}

@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_1235_0 = 1235.0
+CONST_1235_00 = 1235.00
+CONST_123500 = 123500
+CONST_1240_0 = 1240.0
+CONST_1240_00 = 1240.00
+CONST_124000 = 124000
+CONST_1241_0 = 1241.0
+CONST_1241_00 = 1241.00
+CONST_124100 = 124100
+CONST_1253_0 = 1253.0
+
 """Unit tests for EastMoneyAdapter quote parsing (价格单位).
 
 eastmoney `qt/stock/get` 在未传 fltt=2 时返回「分」单位整数价格

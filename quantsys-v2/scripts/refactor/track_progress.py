@@ -120,6 +120,8 @@ def _build_show_history_result(data):
 # TODO: Refactor - complexity 16 (target < 15)
 # REFACTOR: Split this function into smaller pieces
 # TODO: Refactor - complexity 16 (target < 15)
+# TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
 def show_history():
     """显示历史进度"""
     if not PROGRESS_FILE.exists():

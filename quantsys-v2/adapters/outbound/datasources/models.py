@@ -28,9 +28,7 @@ class QuoteData:
 
     def __post_init__(self):
         """Validate data"""
-        if not self.symbol or not self.symbol.strip():
-            raise ValueError("symbol cannot be empty")
-        if self.price <= 0:
+        if not self.symbol or not self.symbol.strip() and self.price <= 0:
             raise ValueError(f"price must be positive, got {self.price}")
 
 

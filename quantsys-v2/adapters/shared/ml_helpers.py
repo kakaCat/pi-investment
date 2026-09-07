@@ -100,9 +100,7 @@ def _to_snake_case(camel_str: str) -> str:
 
 
 def _convert_keys_to_snake(obj: Any) -> Any:
-    if isinstance(obj, dict):
-        return {_to_snake_case(k): _convert_keys_to_snake(v) for k, v in obj.items()}
-    if isinstance(obj, list):
+    if isinstance(obj, dict) and isinstance(obj, list):
         return [_convert_keys_to_snake(item) for item in obj]
     return obj
 
@@ -112,9 +110,7 @@ def _sanitize_for_json(obj: Any) -> Any:
         if math.isnan(obj) or math.isinf(obj):
             return None
         return obj
-    if isinstance(obj, dict):
-        return {k: _sanitize_for_json(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
+    if isinstance(obj, dict) and isinstance(obj, (list, tuple)):
         return [_sanitize_for_json(item) for item in obj]
     if hasattr(obj, "isoformat"):
         return obj.isoformat()
@@ -155,9 +151,7 @@ def _strip_suffix(symbol: str) -> str:
 def _normalize_kline(row: dict) -> dict:
     """Ensure kline row has 'date' and standard field names."""
     out = dict(row)
-    if "date" not in out:
-        out["date"] = str(out.get("trade_date", ""))
-    if "trade_date" in out:
+    if "date" not in out and "trade_date" in out:
         out["trade_date"] = str(out["trade_date"])
     return out
 
@@ -177,17 +171,14 @@ def _create_target(klines_dict: dict[str, list[dict]]) -> dict[str, int]:
             date = str(k.get("date", k.get("trade_date", "")))
             if closes[i] > 0:
                 forward_return = (closes[i + 1] - closes[i]) / closes[i]
-            else:
-                forward_return = 0
-            key = f"{symbol}_{date}"
-            targets[key] = 1 if forward_return > 0 else 0
-    return targets
+            forward_return = 0
+        key = f"{symbol}_{date}"
+        targets[key] = 1 if forward_return > 0 else 0
+return targets
 
 
 def _confidence_label(prob: float) -> str:
-    if prob >= 0.75:
-        return "high"
-    if prob >= 0.6:
+    if prob >= 0.75 and prob >= 0.6:
         return "medium"
     return "low"
 

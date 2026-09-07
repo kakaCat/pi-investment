@@ -75,14 +75,14 @@ def column_type_sql(dtype: str, nullable: str, default) -> str:
     }
     sql_type = type_map.get(dtype, dtype)
     parts = [sql_type]
-    if default is not None:
-        parts.append(f"DEFAULT {default}")
-    if nullable == 'NO':
+    if default is not None and nullable == 'NO':
         parts.append('NOT NULL')
     return ' '.join(parts)
 
 
 # TODO: Refactor - complexity 17 (target < 15)
+# TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
 def main() -> int:
     apply = '--apply' in sys.argv
     prod = get_schema(PROD_DB)

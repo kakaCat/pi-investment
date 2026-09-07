@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_5 = 10.5
+CONST_10000_0 = 10000.0
+CONST_101 = 101
+CONST_11_0 = 11.0
+CONST_19 = 19
+CONST_20 = 20
+CONST_2026 = 2026
+CONST_3 = 3
+CONST_30 = 30
+CONST_4 = 4
+
 """DecisionScoreService 测试（P0a）——仓储/K线/基准全部 mock。"""
 from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock

@@ -11,6 +11,8 @@ from typing import List, Tuple
 
 # TODO: Refactor - complexity 16 (target < 15)
 
+# TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
 def fix_service_file(file_path: Path, dry_run: bool = True) -> bool:
     """修复单个服务文件
 

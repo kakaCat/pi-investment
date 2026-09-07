@@ -327,16 +327,15 @@ class FeishuNotifier:
             if result.get('code') == 0 or result.get('StatusCode') == 0:
                 logger.info("Feishu notification sent successfully")
                 return True
-            else:
-                logger.error(f"Feishu notification failed: {result}")
-                return False
+            logger.error(f"Feishu notification failed: {result}")
+            return False
 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to send Feishu notification: {e}")
-            return False
-        except Exception as e:
-            logger.error(f"Unexpected error sending Feishu notification: {e}")
-            return False
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to send Feishu notification: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error sending Feishu notification: {e}")
+        return False
 
 
 def create_notifier_from_config(config: Dict[str, Any]) -> Optional[FeishuNotifier]:

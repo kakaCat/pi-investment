@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10000 = 10000
+CONST_252 = 252
+CONST_42 = 42
+CONST_5 = 5
+CONST_50 = 50
+CONST_99 = 99
+
 """
 VaR计算器测试套件 (adapted for quantlib API)
 

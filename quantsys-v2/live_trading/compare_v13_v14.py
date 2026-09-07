@@ -87,6 +87,8 @@ def load_model_info(version):
 # TODO: Refactor - function too long (163 lines, target < 80)
 
 # TODO: Split long function (162 lines, target < 100)
+# TODO: 长函数 175行 - 建议拆分为多个小函数
+
 def compare_models():
     # ---- Section 1 ----
     # ---- Section 2 ----

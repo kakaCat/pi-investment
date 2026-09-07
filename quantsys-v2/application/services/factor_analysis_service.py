@@ -449,6 +449,8 @@ class FactorAnalysisService:
     # TODO: Refactor - function too long (113 lines, target < 80)
 
 # TODO: Split long function (112 lines, target < 100)
+    # TODO: 长函数 121行 - 建议拆分为多个小函数
+
     def calculate_monotonicity(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -657,6 +659,8 @@ class FactorAnalysisService:
 # TODO: Refactor - function too long (110 lines, target < 80)
 
 
+# TODO: 长函数 118行 - 建议拆分为多个小函数
+
 # TODO: Split long function (109 lines, target < 100)
     def generate_report_html(
         # ---- Section 1 ----
@@ -787,6 +791,8 @@ class FactorAnalysisService:
         # TODO: Refactor - function too long (152 lines, target < 80)
 
         return img_str
+# TODO: 长函数 164行 - 建议拆分为多个小函数
+
 
 # TODO: Split long function (151 lines, target < 100)
     def _create_html_report(

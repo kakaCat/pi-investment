@@ -1,4 +1,18 @@
 
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_11 = 11
+CONST_12 = 12
+CONST_120 = 120
+CONST_13 = 13
+CONST_14 = 14
+CONST_15 = 15
+CONST_16 = 16
+CONST_163 = 163
+CONST_17 = 17
+CONST_178 = 178
+
+
 # TODO: Extract magic numbers to named constants: [30, 60, 120, 163, 178]...
 
 """Register all quantsys-v2 scheduled jobs to Agent OS Scheduler.

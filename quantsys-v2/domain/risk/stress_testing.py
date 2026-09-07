@@ -133,6 +133,8 @@ class AdvancedStressTestCalculator(BaseCalculator):
         self.predefined_scenarios = self._define_predefined_scenarios()
 
     # TODO: Split long function (110 lines, target < 100)
+    # TODO: 长函数 115行 - 建议拆分为多个小函数
+
     def calculate(self,
         # ---- Section 1 ----
         # ---- Section 2 ----

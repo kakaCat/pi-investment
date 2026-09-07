@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_5 = 10.5
+CONST_115 = 115
+CONST_120 = 120
+CONST_150 = 150
+CONST_60 = 60
+CONST_9_5 = 9.5
+
 #!/usr/bin/env python
 """
 Test MA120 fallback logic with insufficient data

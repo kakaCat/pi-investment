@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_12 = 12
+CONST_2024 = 2024
+CONST_3 = 3
+CONST_30 = 30
+CONST_31 = 31
+CONST_5 = 5
+
 """portfolio / charts / factor-models 域 parity 测试（agent 迁移）"""
 from tests.migration.parity import assert_parity, assert_structural_parity
 

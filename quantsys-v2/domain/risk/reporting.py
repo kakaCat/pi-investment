@@ -252,6 +252,8 @@ class RiskReportCalculator(BaseCalculator):
 # TODO: Refactor - complexity 17 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 17 (target < 15)
+    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
     def _assess_risk_level(self, metrics: Dict[str, Any]) -> Dict[str, Any]:
         """
         Assess overall risk level based on key metrics.

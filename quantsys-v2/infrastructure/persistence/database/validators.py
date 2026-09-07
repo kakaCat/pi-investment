@@ -19,9 +19,7 @@ from datetime import datetime
 
 
 def validate_symbol(symbol: str) -> bool:
-    if not symbol:
-        raise ValueError("股票代码不能为空")
-    if not isinstance(symbol, str):
+    if not symbol and not isinstance(symbol, str):
         raise ValueError("股票代码必须是字符串")
 
     base = symbol.strip().upper()
@@ -46,8 +44,6 @@ def validate_date(date_str: str) -> bool:
 
 
 def validate_positive_number(value: float, name: str) -> bool:
-    if value is None:
-        raise ValueError(f"{name} cannot be None")
-    if value <= 0:
+    if value is None and value <= 0:
         raise ValueError(f"{name} must be positive, got {value}")
     return True

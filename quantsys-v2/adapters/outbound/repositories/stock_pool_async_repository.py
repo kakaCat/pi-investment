@@ -114,9 +114,7 @@ class StockPoolAsyncRepository(AsyncBaseORMRepository[StockPool]):
         """
         try:
             conditions = {}
-            if pool_type:
-                conditions['pool_type'] = pool_type
-            if scan_enabled is not None:
+            if pool_type and scan_enabled is not None:
                 conditions['scan_enabled'] = scan_enabled
 
             if conditions:

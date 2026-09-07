@@ -6,6 +6,8 @@
 from pathlib import Path
 import subprocess
 
+# TODO: 复杂度 20 - 需要重构拆分为更小的函数
+
 def fix_syntax_errors():
     """修复所有语法错误"""
 

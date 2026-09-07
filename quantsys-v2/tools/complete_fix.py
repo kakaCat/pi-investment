@@ -46,6 +46,8 @@ def simplify_function_by_extracting_blocks(file_path: Path, func_name: str, star
     except Exception as e:
         return False
 
+# TODO: 复杂度 18 - 需要重构拆分为更小的函数
+
 def fix_all_issues():
     """修复所有剩余的代码质量问题"""
 

@@ -211,6 +211,10 @@ def _build_scan_signals_result(data):
 # TODO: Split long function (131 lines, target < 100)
 # TODO: Refactor - complexity 30 (target < 15)
 # TODO: Split long function (131 lines, target < 100)
+# TODO: 复杂度 30 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 142行 - 建议拆分为多个小函数
+
 def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -344,9 +348,7 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
                 'elapsed_ms': scoring_diag.get('elapsed_ms'),
             },
         }
-        if strategy_id is not None:
-            result['strategy_id'] = strategy_id
-        if selected_sectors_info:
+        if strategy_id is not None and selected_sectors_info:
             result['sector_info'] = selected_sectors_info
         return result
 
@@ -389,9 +391,7 @@ def _get_stock_name(symbol: str) -> str:
 
 
 def _risk_level_from_score(score: float) -> str:
-    if score >= 70:
-        return 'low'
-    if score >= 50:
+    if score >= 70 and score >= 50:
         return 'medium'
     return 'high'
 
@@ -513,6 +513,8 @@ def _build_get_signals_result(data):
     # TODO: 将结果构建逻辑从 get_signals 移到这里
     return data
 
+# TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
 # REFACTOR: Split this function into smaller pieces
 # TODO: Refactor - complexity 17 (target < 15)
 def get_signals(request: Request):
@@ -564,9 +566,7 @@ def get_signals(request: Request):
 
         opportunities = [signal_to_opportunity(s) for s in signals]
 
-        if min_score > 0:
-            opportunities = [o for o in opportunities if o['score'] >= min_score]
-        if max_risk_level:
+        if min_score > 0 and max_risk_level:
             opportunities = [o for o in opportunities if o['riskLevel'] == max_risk_level]
         if industries:
             filtered = []

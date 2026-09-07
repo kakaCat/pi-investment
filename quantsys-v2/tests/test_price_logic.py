@@ -1,3 +1,15 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_105_0 = 105.0
+CONST_109_0 = 109.0
+CONST_110_0 = 110.0
+CONST_111_0 = 111.0
+CONST_90_0 = 90.0
+CONST_94_0 = 94.0
+CONST_95_0 = 95.0
+CONST_96_0 = 96.0
+
 """
 测试核心价格逻辑 - 涨跌判断、价格比较
 

@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000 = 100000
+CONST_20 = 20
+CONST_200000 = 200000
+CONST_2024 = 2024
+CONST_2026 = 2026
+CONST_25 = 25
+CONST_3 = 3
+CONST_42 = 42
+CONST_5 = 5
+CONST_50000 = 50000
+
 """
 Tests for FinRL Stock Trading Environment
 ==========================================

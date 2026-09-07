@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000 = 100000
+CONST_1500 = 1500
+CONST_1500_0 = 1500.0
+CONST_180 = 180
+CONST_20 = 20
+CONST_20_0 = 20.0
+CONST_200 = 200
+CONST_200000 = 200000
+CONST_2026 = 2026
+CONST_27 = 27
+
 """
 测试风控检查服务
 """

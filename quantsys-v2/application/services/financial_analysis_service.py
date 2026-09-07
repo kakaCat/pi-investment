@@ -41,6 +41,8 @@ logger = structlog.get_logger(__name__)
 
 
 # TODO: Refactor large class (21 methods, target < 20)
+# TODO: 大类 21个方法 - 考虑拆分为多个类或使用组合模式
+
 class FinancialAnalysisService:
     """财务分析服务"""
 
@@ -184,6 +186,8 @@ class FinancialAnalysisService:
 # TODO: Refactor - complexity 21 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 21 (target < 15)
+    # TODO: 复杂度 21 - 需要重构拆分为更小的函数
+
     def _calculate_indicators_from_statements(
         self,
         income: Dict[str, Any],
@@ -268,8 +272,12 @@ class FinancialAnalysisService:
 
     # TODO: Refactor - complexity 31 (target < 15)
     # TODO: Split long function (134 lines, target < 100)
+    # TODO: 复杂度 31 - 需要重构拆分为更小的函数
+
     # TODO: Refactor - complexity 31 (target < 15)
     # TODO: Split long function (134 lines, target < 100)
+    # TODO: 长函数 145行 - 建议拆分为多个小函数
+
     def get_stock_valuation(self, symbol: str) -> Dict[str, Any]:
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -363,9 +371,7 @@ class FinancialAnalysisService:
 
                     # 尝试计算 PB (市净率 = 股价 / 每股净资产)
                     net_assets = balance.get('total_equity') or balance.get('股东权益合计') or balance.get('所有者权益合计')
-                    if net_assets and total_shares and net_assets > 0:
-                        bps = net_assets / total_shares  # 每股净资产
-                    if _check_condition_0():
+                    if net_assets and total_shares and net_assets > 0 and _check_condition_0():
                             valuation['pb'] = round(current_price / bps, 2)
 
                     if len(valuation) > 1:  # 除了 current_price 还有其他指标

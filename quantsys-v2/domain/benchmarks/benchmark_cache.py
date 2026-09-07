@@ -151,6 +151,8 @@ def simulate_data_access(cache: CacheService, with_cache: bool = True, repeat: i
 # TODO: Refactor - function too long (108 lines, target < 80)
 
 # TODO: Split long function (107 lines, target < 100)
+# TODO: 长函数 112行 - 建议拆分为多个小函数
+
 def run_cache_benchmarks():
     # ---- Section 1 ----
     # ---- Section 2 ----

@@ -94,6 +94,8 @@ def _build_enrich_stock_data_result(data):
 
 # REFACTOR: Split this function into smaller pieces
 # TODO: Refactor - complexity 17 (target < 15)
+# TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
 def enrich_stock_data(stock) -> Dict:
     """为股票添加额外信息（价格、涨跌幅、K线天数、因子数量等）。逻辑与 Flask stock.py 一致。"""
     if hasattr(stock, 'symbol'):
@@ -135,9 +137,7 @@ def enrich_stock_data(stock) -> Dict:
         if kline_stats:
             stock_data['klineDays'] = kline_stats.get('count', 0)
         available_factors = ds.factor.get_available_factors(symbol)
-        if available_factors:
-            stock_data['factorCount'] = len(available_factors)
-        if stock_data['klineDays'] > 0 and stock_data['factorCount'] > 0:
+        if available_factors and stock_data['klineDays'] > 0 and stock_data['factorCount'] > 0:
             stock_data['dataStatus'] = 'complete'
     except Exception as e:
         logger.warning(f"Failed to enrich stock {symbol}: {e}")
@@ -181,6 +181,8 @@ def _build_get_stock_list_result(data):
     return data
 
 # REFACTOR: Split this function into smaller pieces
+# TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
 @router.get('/api/stocks')
 # TODO: Refactor - complexity 16 (target < 15)
 def get_stock_list(market: Optional[str] = Query(None), industry: Optional[str] = Query(None),
@@ -191,9 +193,7 @@ def get_stock_list(market: Optional[str] = Query(None), industry: Optional[str] 
         page_size = max(1, min(pageSize, 100))
         if keyword:
             all_stocks = ds.stock.search(keyword, limit=500)
-            if market:
-                all_stocks = [s for s in all_stocks if (hasattr(s, 'market') and s.market == market) or (isinstance(s, dict) and s.get('market') == market)]
-            if industry:
+            if market and industry:
                 all_stocks = [s for s in all_stocks if (hasattr(s, 'industry') and s.industry == industry) or (isinstance(s, dict) and s.get('industry') == industry)]
             kw = keyword.lower()
             all_stocks = [s for s in all_stocks
@@ -365,6 +365,8 @@ def _build_get_stock_klines_result(data):
     return data
 
 def _check_condition_0():
+    # TODO: 复杂度 22 - 需要重构拆分为更小的函数
+
     """Check: klines is None or (hasattr(klines, 'is_empty') and klines.is..."""
     return klines is None or (hasattr(klines, 'is_empty') and klines.is_empty()) or (isinstance(klines, list) and len(klines) == 0)
 
@@ -390,9 +392,7 @@ def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
             klines = ds.kline.get_minute_klines(
                 clean_symbol, start_ts, end_ts,
                 fields=['symbol', 'trade_datetime', 'open', 'high', 'low', 'close', 'volume', 'amount'])
-            if hasattr(klines, 'to_dicts'):
-                klines = klines.to_dicts()
-            if isinstance(klines, list):
+            if hasattr(klines, 'to_dicts') and isinstance(klines, list):
                 for kline in klines:
                     if 'trade_datetime' in kline and 'trade_date' not in kline:
                         kline['trade_date'] = str(kline['trade_datetime'])
@@ -586,9 +586,7 @@ def _quote_failure_suggestion(symbol: str, provider_errors: dict) -> str:
         hints.append(
             f"疑似港股代码：本接口主要支持 6 位 A 股代码，港股请尝试 {code.zfill(5)}.HK 格式"
         )
-    if any(k in joined for k in ('timeout', 'Timeout', 'Connection', 'RemoteDisconnected', '502', 'Max retries')):
-        hints.append("存在网络型失败：数据源可能临时限流/封禁，可稍后重试")
-    if code.isdigit() and len(code) == 6:
+    if any(k in joined for k in ('timeout', 'Timeout', 'Connection', 'RemoteDisconnected', '502', 'Max retries')) and code.isdigit() and len(code) == 6:
         hints.append("请检查代码是否正确、是否已上市/已退市")
     if not hints:
         hints.append("请检查代码格式（A股为 6 位数字，可带 .SH/.SZ 后缀）")
@@ -649,4 +647,3 @@ def get_stock_quote(symbol: str, source: str = Query('realtime')):
     if db_result:
         return api_response(db_result)
     return error_response(_build_quote_failure_body(symbol, quote_result), 502)
-

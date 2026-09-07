@@ -103,6 +103,8 @@ class EnhancedRiskAssessor:
     # TODO: Refactor - function too long (102 lines, target < 80)
 
 # TODO: Split long function (101 lines, target < 100)
+    # TODO: 长函数 110行 - 建议拆分为多个小函数
+
     def assess_pool_risk(self, pool_id: int) -> Dict[str, Any]:
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -396,27 +398,26 @@ class EnhancedRiskAssessor:
             return 'high'
         elif score >= 25:
             return 'medium'
-        else:
-            return 'low'
+        return 'low'
 
-    def _generate_risk_recommendation(self, score: float, level: str) -> str:
-        """生成风险建议"""
-        if level == 'critical':
-            return '建议立即清仓或大幅减仓80%以上'
-        elif level == 'high':
-            return '建议减仓50-80%'
-        elif level == 'medium':
-            return '建议减仓20-50%或密切观察'
-        else:
-            return '风险可控，保持当前仓位'
+def _generate_risk_recommendation(self, score: float, level: str) -> str:
+    """生成风险建议"""
+    if level == 'critical':
+        return '建议立即清仓或大幅减仓80%以上'
+    elif level == 'high':
+        return '建议减仓50-80%'
+    elif level == 'medium':
+        return '建议减仓20-50%或密切观察'
+    else:
+        return '风险可控，保持当前仓位'
 
-    def _identify_warning_signs(self, risk_factors: List[Dict]) -> List[str]:
-        """识别预警信号"""
-        warning_signs = []
+def _identify_warning_signs(self, risk_factors: List[Dict]) -> List[str]:
+    """识别预警信号"""
+    warning_signs = []
 
-        # 高分风险因子 → 预警信号
-        for factor in risk_factors:
-            if factor.get('score', 0) >= 30:
-                warning_signs.append(factor.get('factor', ''))
+    # 高分风险因子 → 预警信号
+    for factor in risk_factors:
+        if factor.get('score', 0) >= 30:
+            warning_signs.append(factor.get('factor', ''))
 
-        return warning_signs
+    return warning_signs

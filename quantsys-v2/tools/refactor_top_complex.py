@@ -1,3 +1,14 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_15 = 15
+CONST_20 = 20
+CONST_5 = 5
+CONST_5_0 = 5.0
+CONST_51 = 51
+CONST_8 = 8
+CONST_80 = 80
+
 #!/usr/bin/env python3
 """
 实际重构最复杂的函数
@@ -45,6 +56,8 @@ def find_top_complex_functions(limit=20):
 
     results.sort(key=lambda x: x['complexity'], reverse=True)
     return results[:limit]
+
+# TODO: 长函数 203行 - 建议拆分为多个小函数
 
 def refactor_execute_broker_order():
     """重构 _execute_broker_order (复杂度 51)"""
@@ -96,103 +109,102 @@ def refactor_execute_broker_order():
             base_price = kline.close
             if action.upper() == 'BUY':
                 return round(base_price * 1.01, 2)
-            else:
-                return round(base_price * 0.99, 2)
-        except Exception:
-            return None
+            return round(base_price * 0.99, 2)
+    except Exception:
+        return None
 
-    def _calculate_order_cost(self, price: float, amount: int, action: str) -> dict:
-        """计算订单成本"""
-        principal = price * amount
-        commission = max(principal * 0.0003, 5.0)  # 万3，最低5元
+def _calculate_order_cost(self, price: float, amount: int, action: str) -> dict:
+    """计算订单成本"""
+    principal = price * amount
+    commission = max(principal * 0.0003, 5.0)  # 万3，最低5元
 
-        cost_dict = {
-            'principal': principal,
-            'commission': commission,
-            'stamp_duty': 0.0,
-            'total': principal + commission
-        }
+    cost_dict = {
+        'principal': principal,
+        'commission': commission,
+        'stamp_duty': 0.0,
+        'total': principal + commission
+    }
 
-        # 卖出加印花税
-        if action.upper() == 'SELL':
-            stamp_duty = principal * 0.001  # 千1
-            cost_dict['stamp_duty'] = stamp_duty
-            cost_dict['total'] += stamp_duty
+    # 卖出加印花税
+    if action.upper() == 'SELL':
+        stamp_duty = principal * 0.001  # 千1
+        cost_dict['stamp_duty'] = stamp_duty
+        cost_dict['total'] += stamp_duty
 
-        return cost_dict
+    return cost_dict
 
-    def _check_balance_for_buy(self, account_id: int, total_cost: float) -> tuple[bool, Optional[str]]:
-        """检查买入资金"""
-        balance = self.balance_repo.get_latest_balance(account_id)
-        if not balance:
-            return False, "No balance record"
+def _check_balance_for_buy(self, account_id: int, total_cost: float) -> tuple[bool, Optional[str]]:
+    """检查买入资金"""
+    balance = self.balance_repo.get_latest_balance(account_id)
+    if not balance:
+        return False, "No balance record"
 
-        if balance.cash < total_cost:
-            return False, f"Insufficient cash: have {balance.cash:.2f}, need {total_cost:.2f}"
+    if balance.cash < total_cost:
+        return False, f"Insufficient cash: have {balance.cash:.2f}, need {total_cost:.2f}"
 
-        return True, None
+    return True, None
 
-    def _create_order_record(self, account_id: int, symbol: str, action: str,
-                            amount: int, price: float, cost_dict: dict) -> int:
-        """创建订单记录"""
-        order = Order(
-            account_id=account_id,
-            symbol=symbol,
-            action=action.upper(),
-            amount=amount,
-            price=price,
-            status='FILLED',
-            commission=cost_dict['commission'],
-            stamp_duty=cost_dict['stamp_duty'],
-            created_at=datetime.now()
-        )
-        return self.order_repo.create(order)
+def _create_order_record(self, account_id: int, symbol: str, action: str,
+                        amount: int, price: float, cost_dict: dict) -> int:
+    """创建订单记录"""
+    order = Order(
+        account_id=account_id,
+        symbol=symbol,
+        action=action.upper(),
+        amount=amount,
+        price=price,
+        status='FILLED',
+        commission=cost_dict['commission'],
+        stamp_duty=cost_dict['stamp_duty'],
+        created_at=datetime.now()
+    )
+    return self.order_repo.create(order)
 
-    def _update_balance_after_order(self, account_id: int, action: str, cost_dict: dict):
-        """更新账户余额"""
-        balance = self.balance_repo.get_latest_balance(account_id)
+def _update_balance_after_order(self, account_id: int, action: str, cost_dict: dict):
+    """更新账户余额"""
+    balance = self.balance_repo.get_latest_balance(account_id)
 
-        if action.upper() == 'BUY':
-            balance.cash -= cost_dict['total']
-            balance.market_value += cost_dict['principal']
+    if action.upper() == 'BUY':
+        balance.cash -= cost_dict['total']
+        balance.market_value += cost_dict['principal']
+    else:
+        balance.cash += (cost_dict['principal'] - cost_dict['commission'] - cost_dict['stamp_duty'])
+        balance.market_value -= cost_dict['principal']
+
+    balance.total_assets = balance.cash + balance.market_value
+    self.balance_repo.update(balance)
+
+def _update_position_after_order(self, account_id: int, symbol: str, action: str,
+                                amount: int, price: float):
+    """更新持仓"""
+    if action.upper() == 'BUY':
+        holding = self.portfolio_repo.get_holding(account_id, symbol)
+        if holding:
+            # 更新持仓
+            total_cost = holding.cost_basis * holding.shares + price * amount
+            total_shares = holding.shares + amount
+            holding.shares = total_shares
+            holding.shares_available = total_shares
+            holding.cost_basis = total_cost / total_shares
+            self.portfolio_repo.update_holding(holding)
         else:
-            balance.cash += (cost_dict['principal'] - cost_dict['commission'] - cost_dict['stamp_duty'])
-            balance.market_value -= cost_dict['principal']
-
-        balance.total_assets = balance.cash + balance.market_value
-        self.balance_repo.update(balance)
-
-    def _update_position_after_order(self, account_id: int, symbol: str, action: str,
-                                    amount: int, price: float):
-        """更新持仓"""
-        if action.upper() == 'BUY':
-            holding = self.portfolio_repo.get_holding(account_id, symbol)
-            if holding:
-                # 更新持仓
-                total_cost = holding.cost_basis * holding.shares + price * amount
-                total_shares = holding.shares + amount
-                holding.shares = total_shares
-                holding.shares_available = total_shares
-                holding.cost_basis = total_cost / total_shares
-                self.portfolio_repo.update_holding(holding)
-            else:
-                # 新建持仓
-                holding = Holding(
-                    account_id=account_id,
-                    symbol=symbol,
-                    shares=amount,
-                    shares_available=amount,
-                    cost_basis=price
-                )
-                self.portfolio_repo.create_holding(holding)
+            # 新建持仓
+            holding = Holding(
+                account_id=account_id,
+                symbol=symbol,
+                shares=amount,
+                shares_available=amount,
+                cost_basis=price
+            )
+            self.portfolio_repo.create_holding(holding)
+    else:
+        holding = self.portfolio_repo.get_holding(account_id, symbol)
+        holding.shares -= amount
+        holding.shares_available -= amount
+        if holding.shares == 0:
+            self.portfolio_repo.delete_holding(holding.id)
         else:
-            holding = self.portfolio_repo.get_holding(account_id, symbol)
-            holding.shares -= amount
-            holding.shares_available -= amount
-            if holding.shares == 0:
-                self.portfolio_repo.delete_holding(holding.id)
-            else:
-                self.portfolio_repo.update_holding(holding)
+            self.portfolio_repo.update_holding(holding)
 
 '''
 

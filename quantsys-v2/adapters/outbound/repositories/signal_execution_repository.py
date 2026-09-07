@@ -297,9 +297,7 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
                 func.sum(SignalExecution.pnl)
             ).filter(SignalExecution.pnl.isnot(None))
 
-            if start_date:
-                query = query.filter(SignalExecution.close_date >= start_date)
-            if end_date:
+            if start_date and end_date:
                 query = query.filter(SignalExecution.close_date <= end_date)
 
             result = query.scalar()
@@ -329,9 +327,7 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
                 SignalExecution.pnl.isnot(None)
             )
 
-            if start_date:
-                query = query.filter(SignalExecution.close_date >= start_date)
-            if end_date:
+            if start_date and end_date:
                 query = query.filter(SignalExecution.close_date <= end_date)
 
             executions = query.all()
@@ -363,9 +359,7 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
         try:
             query = self.session.query(SignalExecution)
 
-            if start_date:
-                query = query.filter(SignalExecution.execution_date >= start_date)
-            if end_date:
+            if start_date and end_date:
                 query = query.filter(SignalExecution.execution_date <= end_date)
 
             executions = query.all()
@@ -411,9 +405,7 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
                 func.sum(SignalExecution.pnl).label('total_pnl')
             ).filter(SignalExecution.execution_date.isnot(None))
 
-            if start_date:
-                query = query.filter(SignalExecution.execution_date >= start_date)
-            if end_date:
+            if start_date and end_date:
                 query = query.filter(SignalExecution.execution_date <= end_date)
 
             query = query.group_by(SignalExecution.execution_date).order_by(

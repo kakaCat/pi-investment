@@ -133,8 +133,7 @@ elif results['annual_return'] >= 0.2:
     print(f"✅ 年化收益 {results['annual_return']:.2%} >= 20% (良好)")
 elif results['annual_return'] >= 0.1:
     print(f"⚠️  年化收益 {results['annual_return']:.2%} >= 10% (一般)")
-else:
-    print(f"❌ 年化收益 {results['annual_return']:.2%} < 10% (不达标)")
+print(f"❌ 年化收益 {results['annual_return']:.2%} < 10% (不达标)")
 
 # 评估回撤
 if results['max_drawdown'] >= -0.20:

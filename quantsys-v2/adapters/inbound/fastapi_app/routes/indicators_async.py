@@ -111,46 +111,45 @@ def calculate_backtest_summary(equity_curve, trades, start_date, end_date):
         if std_return > 0:
             daily_risk_free = 0.03 / 252
             sharpe_ratio = (avg_return - daily_risk_free) / std_return * math.sqrt(252)
-        else:
-            sharpe_ratio = 0
-    else:
         sharpe_ratio = 0
+else:
+    sharpe_ratio = 0
 
-    if trades:
-        total_trades = len(trades)
-        winning_trades = sum(1 for t in trades if t.get('pnl', 0) > 0)
-        losing_trades = sum(1 for t in trades if t.get('pnl', 0) < 0)
-        win_rate = winning_trades / total_trades if total_trades > 0 else 0
-        wins = [t['pnl'] for t in trades if t.get('pnl', 0) > 0]
-        losses = [t['pnl'] for t in trades if t.get('pnl', 0) < 0]
-        avg_win = sum(wins) / len(wins) if wins else 0
-        avg_loss = sum(losses) / len(losses) if losses else 0
-        total_win = sum(wins) if wins else 0
-        total_loss = abs(sum(losses)) if losses else 0
-        if total_loss > 0:
-            profit_factor = total_win / total_loss
-        elif total_win > 0:
-            profit_factor = float('inf')
-        else:
-            profit_factor = 0
+if trades:
+    total_trades = len(trades)
+    winning_trades = sum(1 for t in trades if t.get('pnl', 0) > 0)
+    losing_trades = sum(1 for t in trades if t.get('pnl', 0) < 0)
+    win_rate = winning_trades / total_trades if total_trades > 0 else 0
+    wins = [t['pnl'] for t in trades if t.get('pnl', 0) > 0]
+    losses = [t['pnl'] for t in trades if t.get('pnl', 0) < 0]
+    avg_win = sum(wins) / len(wins) if wins else 0
+    avg_loss = sum(losses) / len(losses) if losses else 0
+    total_win = sum(wins) if wins else 0
+    total_loss = abs(sum(losses)) if losses else 0
+    if total_loss > 0:
+        profit_factor = total_win / total_loss
+    elif total_win > 0:
+        profit_factor = float('inf')
     else:
-        total_trades = winning_trades = losing_trades = 0
-        win_rate = avg_win = avg_loss = 0
         profit_factor = 0
+else:
+    total_trades = winning_trades = losing_trades = 0
+    win_rate = avg_win = avg_loss = 0
+    profit_factor = 0
 
-    return {
-        'total_return': round(total_return, 4),
-        'annual_return': round(annual_return, 4),
-        'max_drawdown': round(max_drawdown, 4),
-        'sharpe_ratio': round(sharpe_ratio, 2) if sharpe_ratio else 0,
-        'total_trades': total_trades,
-        'winning_trades': winning_trades,
-        'losing_trades': losing_trades,
-        'win_rate': round(win_rate, 4),
-        'avg_win': round(avg_win, 2),
-        'avg_loss': round(avg_loss, 2),
-        'profit_factor': round(profit_factor, 2) if profit_factor != float('inf') else 'inf',
-    }
+return {
+    'total_return': round(total_return, 4),
+    'annual_return': round(annual_return, 4),
+    'max_drawdown': round(max_drawdown, 4),
+    'sharpe_ratio': round(sharpe_ratio, 2) if sharpe_ratio else 0,
+    'total_trades': total_trades,
+    'winning_trades': winning_trades,
+    'losing_trades': losing_trades,
+    'win_rate': round(win_rate, 4),
+    'avg_win': round(avg_win, 2),
+    'avg_loss': round(avg_loss, 2),
+    'profit_factor': round(profit_factor, 2) if profit_factor != float('inf') else 'inf',
+}
 
 
 @router.get('/api/indicators/list')
@@ -164,9 +163,7 @@ def get_indicators_list(page: int = Query(1), pageSize: int = Query(20),
         indicators = [i for i in indicators if i.get('strategy_type') == 'custom']
     elif type == 'system':
         indicators = [i for i in indicators if i.get('strategy_type') != 'custom']
-    if author:
-        indicators = [i for i in indicators if i.get('author', '') == author]
-    if category:
+    if author and category:
         indicators = [i for i in indicators if i.get('category', '') == category]
     total = len(indicators)
     offset = (page - 1) * pageSize
@@ -178,9 +175,7 @@ def get_indicators_list(page: int = Query(1), pageSize: int = Query(20),
 @handle_api_error
 def get_indicator_detail(indicator_id: int):
     indicator = strategy_service.get_strategy(indicator_id)
-    if not indicator:
-        return error_response({'success': False, 'error': '指标不存在'}, 404)
-    if indicator.get('code_type') != 'indicator':
+    if not indicator and indicator.get('code_type') != 'indicator':
         return error_response({'success': False, 'error': '该策略不是指标类型'}, 400)
     indicator = normalize_indicator_fields([indicator])[0]
     return api_response(indicator)
@@ -190,9 +185,7 @@ def get_indicator_detail(indicator_id: int):
 @handle_api_error
 def create_indicator(payload: Optional[Dict[str, Any]] = Body(None)):
     indicator_data = convert_keys_to_snake(payload or {})
-    if 'name' not in indicator_data:
-        return error_response({'success': False, 'error': '缺少name参数'}, 400)
-    if 'code' not in indicator_data:
+    if 'name' not in indicator_data and 'code' not in indicator_data:
         return error_response({'success': False, 'error': '缺少code参数'}, 400)
     desired_name = indicator_data['name']
     final_name = desired_name
@@ -212,9 +205,7 @@ def create_indicator(payload: Optional[Dict[str, Any]] = Body(None)):
 def update_indicator(indicator_id: int, payload: Optional[Dict[str, Any]] = Body(None)):
     indicator_data = convert_keys_to_snake(payload or {})
     indicator = strategy_service.get_strategy(indicator_id)
-    if not indicator:
-        return error_response({'success': False, 'error': '指标不存在'}, 404)
-    if indicator.get('code_type') != 'indicator':
+    if not indicator and indicator.get('code_type') != 'indicator':
         return error_response({'success': False, 'error': '该策略不是指标类型'}, 400)
     updated = strategy_service.update_strategy(
         strategy_id=indicator_id, code=indicator_data.get('code'), params=indicator_data.get('params'),
@@ -229,9 +220,7 @@ def update_indicator(indicator_id: int, payload: Optional[Dict[str, Any]] = Body
 @handle_api_error
 def delete_indicator(indicator_id: int):
     indicator = strategy_service.get_strategy(indicator_id)
-    if not indicator:
-        return error_response({'success': False, 'error': '指标不存在'}, 404)
-    if indicator.get('code_type') != 'indicator':
+    if not indicator and indicator.get('code_type') != 'indicator':
         return error_response({'success': False, 'error': '该策略不是指标类型'}, 400)
     success = strategy_service.delete_strategy(indicator_id)
     if not success:
@@ -247,9 +236,7 @@ def run_indicator(indicator_id: int, payload: Optional[Dict[str, Any]] = Body(No
     if not symbol:
         return error_response({'success': False, 'error': '缺少symbol参数'}, 400)
     indicator = strategy_service.get_strategy(indicator_id)
-    if not indicator:
-        return error_response({'success': False, 'error': '指标不存在'}, 404)
-    if indicator.get('code_type') != 'indicator':
+    if not indicator and indicator.get('code_type') != 'indicator':
         return error_response({'success': False, 'error': '该策略不是指标类型'}, 400)
     limit = int(indicator_data.get('limit', 100))
     chart_limit = indicator_data.get('chart_limit')
@@ -274,9 +261,7 @@ def backtest_indicator(payload: Optional[Dict[str, Any]] = Body(None)):
     except (ValueError, TypeError):
         return error_response({'success': False, 'error': f'indicator_id 必须为整数, 当前值: {indicator_id}'}, 400)
     indicator = strategy_service.get_strategy(indicator_id)
-    if not indicator:
-        return error_response({'success': False, 'error': '指标不存在'}, 404)
-    if indicator.get('code_type') != 'indicator':
+    if not indicator and indicator.get('code_type') != 'indicator':
         return error_response({'success': False, 'error': '该策略不是指标类型'}, 400)
     result = strategy_service.backtest_strategy(
         strategy_id=indicator_id, symbol=indicator_data['symbol'],
@@ -298,9 +283,7 @@ def backtest_indicator(payload: Optional[Dict[str, Any]] = Body(None)):
 @handle_api_error
 def publish_indicator(indicator_id: int):
     indicator = strategy_service.get_strategy(indicator_id)
-    if not indicator:
-        return error_response({'success': False, 'error': '指标不存在'}, 404)
-    if indicator.get('code_type') != 'indicator':
+    if not indicator and indicator.get('code_type') != 'indicator':
         return error_response({'success': False, 'error': '该策略不是指标类型'}, 400)
     updated = strategy_service.update_strategy(strategy_id=indicator_id, is_public=True)
     return api_response({'id': indicator_id, 'published': True}, message='指标发布成功')
@@ -310,9 +293,7 @@ def publish_indicator(indicator_id: int):
 @handle_api_error
 def favorite_indicator(indicator_id: int):
     indicator = strategy_service.get_strategy(indicator_id)
-    if not indicator:
-        return error_response({'success': False, 'error': '指标不存在'}, 404)
-    if indicator.get('code_type') != 'indicator':
+    if not indicator and indicator.get('code_type') != 'indicator':
         return error_response({'success': False, 'error': '该策略不是指标类型'}, 400)
     current_count = indicator.get('favorite_count', 0) or 0
     # SECURITY WARNING: Potential SQL injection - use parameterized queries
@@ -325,9 +306,7 @@ def favorite_indicator(indicator_id: int):
 @handle_api_error
 def unfavorite_indicator(indicator_id: int):
     indicator = strategy_service.get_strategy(indicator_id)
-    if not indicator:
-        return error_response({'success': False, 'error': '指标不存在'}, 404)
-    if indicator.get('code_type') != 'indicator':
+    if not indicator and indicator.get('code_type') != 'indicator':
         return error_response({'success': False, 'error': '该策略不是指标类型'}, 400)
     current_count = indicator.get('favorite_count', 0) or 0
     new_count = max(0, current_count - 1)
@@ -368,13 +347,9 @@ def compare_indicators(payload: Optional[Dict[str, Any]] = Body(None)):
 
     indicator_a = strategy_service.get_strategy(indicator_id_a)
     indicator_b = strategy_service.get_strategy(indicator_id_b)
-    if not indicator_a:
-        return error_response({'success': False, 'error': f'指标A (ID={indicator_id_a}) 不存在'}, 404)
-    if not indicator_b:
+    if not indicator_a and not indicator_b:
         return error_response({'success': False, 'error': f'指标B (ID={indicator_id_b}) 不存在'}, 404)
-    if indicator_a.get('code_type') != 'indicator':
-        return error_response({'success': False, 'error': '策略A不是指标类型'}, 400)
-    if indicator_b.get('code_type') != 'indicator':
+    if indicator_a.get('code_type') != 'indicator' and indicator_b.get('code_type') != 'indicator':
         return error_response({'success': False, 'error': '策略B不是指标类型'}, 400)
 
     result_a = strategy_service.backtest_strategy(

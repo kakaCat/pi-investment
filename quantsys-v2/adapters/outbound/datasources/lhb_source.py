@@ -371,6 +371,8 @@ class LhbDataSource:
 # TODO: Refactor - complexity 32 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 32 (target < 15)
+    # TODO: 复杂度 32 - 需要重构拆分为更小的函数
+
     def _transform_stock_records(self, df: pd.DataFrame, days: int) -> List[Dict]:
         """转换个股龙虎榜数据为标准格式（兼容多种数据源）"""
         records = []
@@ -447,6 +449,8 @@ class LhbDataSource:
         """构建返回结果"""
         # TODO: 将结果构建逻辑从 _transform_daily_records 移到这里
         return data
+
+# TODO: 复杂度 25 - 需要重构拆分为更小的函数
 
 # REFACTOR: Split this function into smaller pieces
 # TODO: Refactor - complexity 25 (target < 15)

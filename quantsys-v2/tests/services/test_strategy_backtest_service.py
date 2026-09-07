@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_5 = 10.5
+CONST_10_8 = 10.8
+CONST_10000 = 10000
+CONST_100000 = 100000
+CONST_100000_0 = 100000.0
+CONST_11_0 = 11.0
+CONST_110 = 110
+CONST_12_0 = 12.0
+CONST_120 = 120
+CONST_130 = 130
+
 """
 策略回测服务单元测试
 """

@@ -71,6 +71,8 @@ logger = structlog.get_logger(__name__)
 
 
 # TODO: Refactor large class (28 methods, target < 20)
+# TODO: 大类 28个方法 - 考虑拆分为多个类或使用组合模式
+
 class StockScoringService:
     """股票评分服务"""
 
@@ -202,6 +204,8 @@ class StockScoringService:
         return data
 
     # TODO: Refactor - complexity 26 (target < 15)
+    # TODO: 复杂度 26 - 需要重构拆分为更小的函数
+
     def _calculate_technical_score(self, factors: Dict) -> float:
         """
         技术面评分 (0-100)
@@ -308,6 +312,8 @@ class StockScoringService:
         """构建返回结果"""
         # TODO: 将结果构建逻辑从 _calculate_fundamental_score 移到这里
         return data
+# TODO: 复杂度 22 - 需要重构拆分为更小的函数
+
 
     # TODO: Refactor - complexity 22 (target < 15)
     def _calculate_fundamental_score(self, factors: Dict) -> float:
@@ -405,6 +411,8 @@ class StockScoringService:
 
     def _build__calculate_momentum_score_result(data):
         """构建返回结果"""
+        # TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
         # TODO: 将结果构建逻辑从 _calculate_momentum_score 移到这里
         return data
 
@@ -590,94 +598,93 @@ class StockScoringService:
             return 'B'
         elif score >= 50:
             return 'C'
-        else:
-            return 'D'
+        return 'D'
 
-    def _check_missing_data(self, factors: Dict) -> Dict[str, list]:
-        """
-        检查缺失的数据指标
+def _check_missing_data(self, factors: Dict) -> Dict[str, list]:
+    """
+    检查缺失的数据指标
 
-        Returns:
-            {
-                'technical': ['rsi', 'macd', ...],
-                'fundamental': ['pe', 'roe', ...],
-                'momentum': ['change_pct_5d', ...],
-                'quality': ['gross_margin', ...]
-            }
-        """
-        missing = {}
-
-        # 技术面关键指标
-        technical_keys = ['rsi', 'macd', 'macd_signal', 'close', 'ma5', 'ma20', 'ma60', 'bb_position']
-        technical_missing = [k for k in technical_keys if factors.get(k) is None]
-        if technical_missing:
-            missing['technical'] = technical_missing
-
-        # 基本面关键指标
-        fundamental_keys = ['pe', 'roe', 'debt_ratio', 'debt_to_asset_ratio', 'pb']
-        fundamental_missing = [k for k in fundamental_keys if factors.get(k) is None]
-        if fundamental_missing:
-            missing['fundamental'] = fundamental_missing
-
-        # 动量关键指标
-        momentum_keys = ['change_pct_5d', 'change_pct_20d', 'volume_ratio']
-        momentum_missing = [k for k in momentum_keys if factors.get(k) is None]
-        if momentum_missing:
-            missing['momentum'] = momentum_missing
-
-        # 质量关键指标
-        quality_keys = ['gross_margin', 'net_margin', 'operating_cashflow_ratio']
-        quality_missing = [k for k in quality_keys if factors.get(k) is None]
-        if quality_missing:
-            missing['quality'] = quality_missing
-
-        return missing
-
-    def _calculate_completeness(self, missing_data: Dict[str, list]) -> Dict[str, any]:
-        """
-        计算数据完整性百分比
-
-        Returns:
-            {
-                'overall': 0.75,  # 总体完整度
-                'technical': 0.875,
-                'fundamental': 0.6,
-                'momentum': 1.0,
-                'quality': 0.67,
-                'warning': '基本面数据不完整，评分可能不准确'
-            }
-        """
-        total_fields = {
-            'technical': 8,
-            'fundamental': 5,
-            'momentum': 3,
-            'quality': 3
+    Returns:
+        {
+            'technical': ['rsi', 'macd', ...],
+            'fundamental': ['pe', 'roe', ...],
+            'momentum': ['change_pct_5d', ...],
+            'quality': ['gross_margin', ...]
         }
+    """
+    missing = {}
 
-        completeness = {}
-        total_missing = 0
-        total_fields_count = sum(total_fields.values())
+    # 技术面关键指标
+    technical_keys = ['rsi', 'macd', 'macd_signal', 'close', 'ma5', 'ma20', 'ma60', 'bb_position']
+    technical_missing = [k for k in technical_keys if factors.get(k) is None]
+    if technical_missing:
+        missing['technical'] = technical_missing
 
-        for dimension, count in total_fields.items():
-            missing_count = len(missing_data.get(dimension, []))
-            completeness[dimension] = round((count - missing_count) / count, 2)
-            total_missing += missing_count
+    # 基本面关键指标
+    fundamental_keys = ['pe', 'roe', 'debt_ratio', 'debt_to_asset_ratio', 'pb']
+    fundamental_missing = [k for k in fundamental_keys if factors.get(k) is None]
+    if fundamental_missing:
+        missing['fundamental'] = fundamental_missing
 
-        completeness['overall'] = round((total_fields_count - total_missing) / total_fields_count, 2)
+    # 动量关键指标
+    momentum_keys = ['change_pct_5d', 'change_pct_20d', 'volume_ratio']
+    momentum_missing = [k for k in momentum_keys if factors.get(k) is None]
+    if momentum_missing:
+        missing['momentum'] = momentum_missing
 
-        # 生成警告信息
-        warnings = []
-        if completeness['overall'] < 0.5:
-            warnings.append('数据严重不完整（< 50%），评分仅供参考')
-        elif completeness['overall'] < 0.7:
-            warnings.append('数据完整度较低（< 70%），评分可能不准确')
+    # 质量关键指标
+    quality_keys = ['gross_margin', 'net_margin', 'operating_cashflow_ratio']
+    quality_missing = [k for k in quality_keys if factors.get(k) is None]
+    if quality_missing:
+        missing['quality'] = quality_missing
 
-        if completeness.get('fundamental', 1.0) < 0.5:
-            warnings.append('基本面数据严重缺失，建议补充财务数据')
-        elif completeness.get('fundamental', 1.0) < 0.8:
-            warnings.append('基本面数据不完整，估值评分可能偏低')
+    return missing
 
-        if warnings:
-            completeness['warning'] = '; '.join(warnings)
+def _calculate_completeness(self, missing_data: Dict[str, list]) -> Dict[str, any]:
+    """
+    计算数据完整性百分比
 
-        return completeness
+    Returns:
+        {
+            'overall': 0.75,  # 总体完整度
+            'technical': 0.875,
+            'fundamental': 0.6,
+            'momentum': 1.0,
+            'quality': 0.67,
+            'warning': '基本面数据不完整，评分可能不准确'
+        }
+    """
+    total_fields = {
+        'technical': 8,
+        'fundamental': 5,
+        'momentum': 3,
+        'quality': 3
+    }
+
+    completeness = {}
+    total_missing = 0
+    total_fields_count = sum(total_fields.values())
+
+    for dimension, count in total_fields.items():
+        missing_count = len(missing_data.get(dimension, []))
+        completeness[dimension] = round((count - missing_count) / count, 2)
+        total_missing += missing_count
+
+    completeness['overall'] = round((total_fields_count - total_missing) / total_fields_count, 2)
+
+    # 生成警告信息
+    warnings = []
+    if completeness['overall'] < 0.5:
+        warnings.append('数据严重不完整（< 50%），评分仅供参考')
+    elif completeness['overall'] < 0.7:
+        warnings.append('数据完整度较低（< 70%），评分可能不准确')
+
+    if completeness.get('fundamental', 1.0) < 0.5:
+        warnings.append('基本面数据严重缺失，建议补充财务数据')
+    elif completeness.get('fundamental', 1.0) < 0.8:
+        warnings.append('基本面数据不完整，估值评分可能偏低')
+
+    if warnings:
+        completeness['warning'] = '; '.join(warnings)
+
+    return completeness

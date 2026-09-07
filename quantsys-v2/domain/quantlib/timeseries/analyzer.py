@@ -90,6 +90,8 @@ class TimeSeriesAnalyzer(BaseCalculator):
     # TODO: Refactor - function too long (104 lines, target < 80)
 
 # TODO: Split long function (103 lines, target < 100)
+    # TODO: 长函数 108行 - 建议拆分为多个小函数
+
     def analyze_trend(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -421,494 +423,493 @@ class TimeSeriesAnalyzer(BaseCalculator):
             return "Data is stationary. Suitable for ARMA/ARIMA modeling."
         elif conclusion == 'non_stationary':
             return "Data is non-stationary. Consider differencing or detrending."
+        return "Results are inconclusive. Try additional tests or transformations."
+
+def _detect_period(self, data: np.ndarray) -> int:
+    """Auto-detect seasonal period using FFT."""
+    # Simple heuristic: use FFT to find dominant frequency
+    n = len(data)
+    if n < 20:
+        return 12  # Default to monthly
+
+    # Detrend data
+    detrended = data - np.linspace(data[0], data[-1], n)
+
+    # FFT
+    fft = np.fft.fft(detrended)
+    power = np.abs(fft[:n // 2]) ** 2
+
+    # Find peak (excluding DC component)
+    peak_idx = np.argmax(power[1:]) + 1
+    period = n // peak_idx
+
+    # Clamp to reasonable range
+    return max(2, min(period, n // 2))
+
+def _calculate_trend_strength(
+    self,
+    data: np.ndarray,
+    trend: np.ndarray,
+    residual: np.ndarray
+) -> float:
+    """Calculate trend strength (0-1)."""
+    var_residual = np.nanvar(residual)
+    var_detrended = np.nanvar(data - trend)
+    if var_detrended == 0:
+        return 0.0
+    return max(0, 1 - var_residual / var_detrended)
+
+def _calculate_seasonal_strength(
+    self,
+    data: np.ndarray,
+    seasonal: np.ndarray,
+    residual: np.ndarray
+) -> float:
+    """Calculate seasonal strength (0-1)."""
+    var_residual = np.nanvar(residual)
+    var_deseasoned = np.nanvar(data - seasonal)
+    if var_deseasoned == 0:
+        return 0.0
+    return max(0, 1 - var_residual / var_deseasoned)
+
+def _calculate_acf(self, data: np.ndarray, max_lag: int) -> np.ndarray:
+    """Calculate autocorrelation function."""
+    data = data - np.mean(data)
+    c0 = np.dot(data, data) / len(data)
+
+    acf = np.ones(max_lag + 1)
+    for k in range(1, max_lag + 1):
+        c_k = np.dot(data[:-k], data[k:]) / len(data)
+        acf[k] = c_k / c0
+
+    return acf
+
+def _calculate_pacf(self, data: np.ndarray, max_lag: int) -> np.ndarray:
+    """Calculate partial autocorrelation function using Yule-Walker."""
+    acf = self._calculate_acf(data, max_lag)
+    pacf = np.zeros(max_lag + 1)
+    pacf[0] = 1.0
+
+    for k in range(1, max_lag + 1):
+        # Yule-Walker equations
+        if k == 1:
+            pacf[k] = acf[1]
         else:
-            return "Results are inconclusive. Try additional tests or transformations."
+            # Solve for PACF using Levinson-Durbin recursion
+            phi = np.zeros(k)
+            phi[k-1] = (acf[k] - np.dot(acf[1:k][::-1], phi[:k-1])) / \
+                       (1 - np.dot(acf[1:k], phi[:k-1]))
+            pacf[k] = phi[k-1]
 
-    def _detect_period(self, data: np.ndarray) -> int:
-        """Auto-detect seasonal period using FFT."""
-        # Simple heuristic: use FFT to find dominant frequency
-        n = len(data)
-        if n < 20:
-            return 12  # Default to monthly
+    return pacf
 
-        # Detrend data
-        detrended = data - np.linspace(data[0], data[-1], n)
+@validate_inputs
+@timing_decorator
+@handle_calculation_error
+@require_dependency('statsmodels')
+def fit_arima(
+    self,
+    data: Union[List, np.ndarray, pd.Series],
+    order: Tuple[int, int, int] = (1, 0, 1),
+    seasonal_order: Optional[Tuple[int, int, int, int]] = None,
+    auto_select: bool = False
+) -> Dict:
+    """
+    Fit ARIMA model to time series data.
 
-        # FFT
-        fft = np.fft.fft(detrended)
-        power = np.abs(fft[:n // 2]) ** 2
+    Args:
+        data: Time series data
+        order: (p, d, q) order of ARIMA model
+        seasonal_order: (P, D, Q, s) seasonal order (optional)
+        auto_select: Use auto_arima for automatic order selection
 
-        # Find peak (excluding DC component)
-        peak_idx = np.argmax(power[1:]) + 1
-        period = n // peak_idx
+    Returns:
+        Result dict with model parameters and diagnostics
+    """
+    from statsmodels.tsa.arima.model import ARIMA
 
-        # Clamp to reasonable range
-        return max(2, min(period, n // 2))
+    # Validate
+    data = self._validate_returns(data, "data")
+    self._check_data_length(data, min_length=30)
 
-    def _calculate_trend_strength(
-        self,
-        data: np.ndarray,
-        trend: np.ndarray,
-        residual: np.ndarray
-    ) -> float:
-        """Calculate trend strength (0-1)."""
-        var_residual = np.nanvar(residual)
-        var_detrended = np.nanvar(data - trend)
-        if var_detrended == 0:
-            return 0.0
-        return max(0, 1 - var_residual / var_detrended)
-
-    def _calculate_seasonal_strength(
-        self,
-        data: np.ndarray,
-        seasonal: np.ndarray,
-        residual: np.ndarray
-    ) -> float:
-        """Calculate seasonal strength (0-1)."""
-        var_residual = np.nanvar(residual)
-        var_deseasoned = np.nanvar(data - seasonal)
-        if var_deseasoned == 0:
-            return 0.0
-        return max(0, 1 - var_residual / var_deseasoned)
-
-    def _calculate_acf(self, data: np.ndarray, max_lag: int) -> np.ndarray:
-        """Calculate autocorrelation function."""
-        data = data - np.mean(data)
-        c0 = np.dot(data, data) / len(data)
-
-        acf = np.ones(max_lag + 1)
-        for k in range(1, max_lag + 1):
-            c_k = np.dot(data[:-k], data[k:]) / len(data)
-            acf[k] = c_k / c0
-
-        return acf
-
-    def _calculate_pacf(self, data: np.ndarray, max_lag: int) -> np.ndarray:
-        """Calculate partial autocorrelation function using Yule-Walker."""
-        acf = self._calculate_acf(data, max_lag)
-        pacf = np.zeros(max_lag + 1)
-        pacf[0] = 1.0
-
-        for k in range(1, max_lag + 1):
-            # Yule-Walker equations
-            if k == 1:
-                pacf[k] = acf[1]
-            else:
-                # Solve for PACF using Levinson-Durbin recursion
-                phi = np.zeros(k)
-                phi[k-1] = (acf[k] - np.dot(acf[1:k][::-1], phi[:k-1])) / \
-                           (1 - np.dot(acf[1:k], phi[:k-1]))
-                pacf[k] = phi[k-1]
-
-        return pacf
-
-    @validate_inputs
-    @timing_decorator
-    @handle_calculation_error
-    @require_dependency('statsmodels')
-    def fit_arima(
-        self,
-        data: Union[List, np.ndarray, pd.Series],
-        order: Tuple[int, int, int] = (1, 0, 1),
-        seasonal_order: Optional[Tuple[int, int, int, int]] = None,
-        auto_select: bool = False
-    ) -> Dict:
-        """
-        Fit ARIMA model to time series data.
-
-        Args:
-            data: Time series data
-            order: (p, d, q) order of ARIMA model
-            seasonal_order: (P, D, Q, s) seasonal order (optional)
-            auto_select: Use auto_arima for automatic order selection
-
-        Returns:
-            Result dict with model parameters and diagnostics
-        """
-        from statsmodels.tsa.arima.model import ARIMA
-
-        # Validate
-        data = self._validate_returns(data, "data")
-        self._check_data_length(data, min_length=30)
-
-        try:
-            if auto_select:
-                # Use pmdarima for auto selection
-                try:
-                    import pmdarima as pm
-                    model = pm.auto_arima(
-                        data,
-                        seasonal=seasonal_order is not None,
-                        m=seasonal_order[3] if seasonal_order else 1,
-                        suppress_warnings=True,
-                        stepwise=True
-                    )
-                    order = model.order
-                    seasonal_order = model.seasonal_order
-                except ImportError:
-                    warnings.warn("pmdarima not installed, using specified order")
-                    model = ARIMA(data, order=order, seasonal_order=seasonal_order)
-                    model = model.fit()
-            else:
+    try:
+        if auto_select:
+            # Use pmdarima for auto selection
+            try:
+                import pmdarima as pm
+                model = pm.auto_arima(
+                    data,
+                    seasonal=seasonal_order is not None,
+                    m=seasonal_order[3] if seasonal_order else 1,
+                    suppress_warnings=True,
+                    stepwise=True
+                )
+                order = model.order
+                seasonal_order = model.seasonal_order
+            except ImportError:
+                warnings.warn("pmdarima not installed, using specified order")
                 model = ARIMA(data, order=order, seasonal_order=seasonal_order)
                 model = model.fit()
-
-            # Extract model information
-            aic = model.aic
-            bic = model.bic
-            # Convert params to dict (handle both Series and array)
-            if hasattr(model.params, 'to_dict'):
-                params = model.params.to_dict()
-            else:
-                params = {f'param_{i}': float(v) for i, v in enumerate(model.params)}
-
-            # Residual diagnostics
-            residuals = model.resid
-            ljung_box = model.test_serial_correlation('ljungbox')
-            # Extract p-value from ljung_box result (handle both DataFrame and array)
-            if hasattr(ljung_box, 'iloc'):
-                ljung_box_pvalue = ljung_box.iloc[0, 1]
-            elif isinstance(ljung_box, (list, tuple)):
-                ljung_box_pvalue = ljung_box[0][1] if len(ljung_box) > 0 else 0.0
-            else:
-                ljung_box_pvalue = float(ljung_box[1]) if len(ljung_box) > 1 else 0.0
-
-            return self._create_result_dict(
-                value={
-                    'order': order,
-                    'seasonal_order': seasonal_order,
-                    'aic': round(aic, self.precision),
-                    'bic': round(bic, self.precision),
-                    'parameters': {k: round(v, self.precision) for k, v in params.items()}
-                },
-                method='fit_arima',
-                parameters={
-                    'data_length': len(data),
-                    'order': order,
-                    'seasonal_order': seasonal_order,
-                    'auto_select': auto_select
-                },
-                metadata={
-                    'residual_mean': round(np.mean(residuals), self.precision),
-                    'residual_std': round(np.std(residuals), self.precision),
-                    'ljung_box_pvalue': round(ljung_box_pvalue, 4),
-                    'model_summary': str(model.summary())
-                }
-            )
-        except Exception as e:
-            raise ModelFitError("ARIMA", str(e))
-
-    @validate_inputs
-    @timing_decorator
-    @handle_calculation_error
-    @require_dependency('statsmodels')
-    def predict_arima(
-        self,
-        model_result: Dict,
-        data: Union[List, np.ndarray, pd.Series],
-        steps: int = 10,
-        confidence_level: float = 0.95
-    ) -> Dict:
-        """
-        Make predictions using fitted ARIMA model.
-
-        Args:
-            model_result: Result from fit_arima()
-            data: Original time series data
-            steps: Number of steps to forecast
-            confidence_level: Confidence level for prediction intervals
-
-        Returns:
-            Result dict with forecasts and confidence intervals
-        """
-        from statsmodels.tsa.arima.model import ARIMA
-
-        # Validate
-        data = self._validate_returns(data, "data")
-        confidence_level = self._validate_probability(confidence_level, "confidence_level")
-
-        if steps < 1:
-            raise DataValidationError("steps must be at least 1", "steps")
-
-        try:
-            # Refit model
-            order = model_result['value']['order']
-            seasonal_order = model_result['value']['seasonal_order']
-
+        else:
             model = ARIMA(data, order=order, seasonal_order=seasonal_order)
-            fitted_model = model.fit()
+            model = model.fit()
 
-            # Make forecast
-            forecast = fitted_model.forecast(steps=steps)
+        # Extract model information
+        aic = model.aic
+        bic = model.bic
+        # Convert params to dict (handle both Series and array)
+        if hasattr(model.params, 'to_dict'):
+            params = model.params.to_dict()
+        else:
+            params = {f'param_{i}': float(v) for i, v in enumerate(model.params)}
 
-            # Get prediction intervals
-            forecast_obj = fitted_model.get_forecast(steps=steps)
-            pred_int = forecast_obj.conf_int(alpha=1-confidence_level)
+        # Residual diagnostics
+        residuals = model.resid
+        ljung_box = model.test_serial_correlation('ljungbox')
+        # Extract p-value from ljung_box result (handle both DataFrame and array)
+        if hasattr(ljung_box, 'iloc'):
+            ljung_box_pvalue = ljung_box.iloc[0, 1]
+        elif isinstance(ljung_box, (list, tuple)):
+            ljung_box_pvalue = ljung_box[0][1] if len(ljung_box) > 0 else 0.0
+        else:
+            ljung_box_pvalue = float(ljung_box[1]) if len(ljung_box) > 1 else 0.0
 
-            # Handle pred_int (can be DataFrame or array)
-            if hasattr(pred_int, 'iloc'):
-                lower_bound = pred_int.iloc[:, 0]
-                upper_bound = pred_int.iloc[:, 1]
-            else:
-                lower_bound = pred_int[:, 0]
-                upper_bound = pred_int[:, 1]
+        return self._create_result_dict(
+            value={
+                'order': order,
+                'seasonal_order': seasonal_order,
+                'aic': round(aic, self.precision),
+                'bic': round(bic, self.precision),
+                'parameters': {k: round(v, self.precision) for k, v in params.items()}
+            },
+            method='fit_arima',
+            parameters={
+                'data_length': len(data),
+                'order': order,
+                'seasonal_order': seasonal_order,
+                'auto_select': auto_select
+            },
+            metadata={
+                'residual_mean': round(np.mean(residuals), self.precision),
+                'residual_std': round(np.std(residuals), self.precision),
+                'ljung_box_pvalue': round(ljung_box_pvalue, 4),
+                'model_summary': str(model.summary())
+            }
+        )
+    except Exception as e:
+        raise ModelFitError("ARIMA", str(e))
+
+@validate_inputs
+@timing_decorator
+@handle_calculation_error
+@require_dependency('statsmodels')
+def predict_arima(
+    self,
+    model_result: Dict,
+    data: Union[List, np.ndarray, pd.Series],
+    steps: int = 10,
+    confidence_level: float = 0.95
+) -> Dict:
+    """
+    Make predictions using fitted ARIMA model.
+
+    Args:
+        model_result: Result from fit_arima()
+        data: Original time series data
+        steps: Number of steps to forecast
+        confidence_level: Confidence level for prediction intervals
+
+    Returns:
+        Result dict with forecasts and confidence intervals
+    """
+    from statsmodels.tsa.arima.model import ARIMA
+
+    # Validate
+    data = self._validate_returns(data, "data")
+    confidence_level = self._validate_probability(confidence_level, "confidence_level")
+
+    if steps < 1:
+        raise DataValidationError("steps must be at least 1", "steps")
+
+    try:
+        # Refit model
+        order = model_result['value']['order']
+        seasonal_order = model_result['value']['seasonal_order']
+
+        model = ARIMA(data, order=order, seasonal_order=seasonal_order)
+        fitted_model = model.fit()
+
+        # Make forecast
+        forecast = fitted_model.forecast(steps=steps)
+
+        # Get prediction intervals
+        forecast_obj = fitted_model.get_forecast(steps=steps)
+        pred_int = forecast_obj.conf_int(alpha=1-confidence_level)
+
+        # Handle pred_int (can be DataFrame or array)
+        if hasattr(pred_int, 'iloc'):
+            lower_bound = pred_int.iloc[:, 0]
+            upper_bound = pred_int.iloc[:, 1]
+        else:
+            lower_bound = pred_int[:, 0]
+            upper_bound = pred_int[:, 1]
+
+        return self._create_result_dict(
+            value={
+                'forecast': [round(f, self.precision) for f in forecast],
+                'lower_bound': [round(l, self.precision) for l in lower_bound],
+                'upper_bound': [round(u, self.precision) for u in upper_bound]
+            },
+            method='predict_arima',
+            parameters={
+                'steps': steps,
+                'confidence_level': confidence_level,
+                'order': order
+            },
+            metadata={
+                'forecast_mean': round(np.mean(forecast), self.precision),
+                'forecast_std': round(np.std(forecast), self.precision)
+            }
+        )
+    except Exception as e:
+        raise CalculationError("predict_arima", str(e))
+
+@validate_inputs
+@timing_decorator
+@handle_calculation_error
+@require_dependency('arch')
+def fit_garch(
+    self,
+    returns: Union[List, np.ndarray, pd.Series],
+    p: int = 1,
+    q: int = 1,
+    mean_model: Literal['Constant', 'Zero', 'AR'] = 'Constant'
+) -> Dict:
+    """
+    Fit GARCH model to returns data.
+
+    Args:
+        returns: Return series
+        p: GARCH order
+        q: ARCH order
+        mean_model: Mean model specification
+
+    Returns:
+        Result dict with model parameters and volatility forecast
+    """
+    from arch import arch_model
+
+    # Validate
+    returns = self._validate_returns(returns, "returns")
+    self._check_data_length(returns, min_length=50)
+
+    # Scale returns to percentage
+    returns_pct = returns * 100
+
+    try:
+        # Fit GARCH model
+        model = arch_model(
+            returns_pct,
+            mean=mean_model,
+            vol='Garch',
+            p=p,
+            q=q
+        )
+        fitted_model = model.fit(disp='off')
+
+        # Extract parameters
+        # Convert params to dict (handle both Series and array)
+        if hasattr(fitted_model.params, 'to_dict'):
+            params = fitted_model.params.to_dict()
+        else:
+            params = {f'param_{i}': float(v) for i, v in enumerate(fitted_model.params)}
+
+        # Conditional volatility
+        cond_vol = fitted_model.conditional_volatility
+
+        # Forecast volatility
+        forecast = fitted_model.forecast(horizon=1)
+        next_vol = np.sqrt(forecast.variance.values[-1, 0])
+
+        return self._create_result_dict(
+            value={
+                'parameters': {k: round(v, self.precision) for k, v in params.items()},
+                'aic': round(fitted_model.aic, self.precision),
+                'bic': round(fitted_model.bic, self.precision),
+                'next_volatility': round(next_vol / 100, self.precision)  # Convert back to decimal
+            },
+            method='fit_garch',
+            parameters={
+                'data_length': len(returns),
+                'p': p,
+                'q': q,
+                'mean_model': mean_model
+            },
+            metadata={
+                'mean_volatility': round(np.mean(cond_vol) / 100, self.precision),
+                'max_volatility': round(np.max(cond_vol) / 100, self.precision),
+                'min_volatility': round(np.min(cond_vol) / 100, self.precision),
+                'model_summary': str(fitted_model.summary())
+            }
+        )
+    except Exception as e:
+        raise ModelFitError("GARCH", str(e))
+
+@validate_inputs
+@timing_decorator
+@handle_calculation_error
+@require_dependency('statsmodels')
+def fit_var(
+    self,
+    data: pd.DataFrame,
+    maxlags: int = 5,
+    ic: Literal['aic', 'bic', 'hqic', 'fpe'] = 'aic'
+) -> Dict:
+    """
+    Fit Vector Autoregression (VAR) model.
+
+    Args:
+        data: DataFrame with multiple time series
+        maxlags: Maximum number of lags to consider
+        ic: Information criterion for lag selection
+
+    Returns:
+        Result dict with model parameters and diagnostics
+    """
+    from statsmodels.tsa.api import VAR
+
+    # Validate
+    if not isinstance(data, pd.DataFrame):
+        raise DataValidationError(
+            "VAR requires DataFrame with multiple series",
+            "data"
+        )
+
+    if data.shape[1] < 2:
+        raise DataValidationError(
+            "VAR requires at least 2 time series",
+            "data"
+        )
+
+    if len(data) < 30:
+        raise InsufficientDataError(
+            f"VAR requires at least 30 observations, got {len(data)}",
+            "data"
+        )
+
+    try:
+        # Fit VAR model
+        model = VAR(data)
+        fitted_model = model.fit(maxlags=maxlags, ic=ic)
+
+        # Extract information
+        selected_lag = fitted_model.k_ar
+        aic = fitted_model.aic
+        bic = fitted_model.bic
+
+        # Granger causality tests
+        causality_results = {}
+        for col in data.columns:
+            try:
+                test = fitted_model.test_causality(col, data.columns.drop(col).tolist())
+                causality_results[col] = {
+                    'statistic': float(test.test_statistic),
+                    'pvalue': float(test.pvalue)
+                }
+            except:
+                pass
+
+        return self._create_result_dict(
+            value={
+                'selected_lag': selected_lag,
+                'aic': round(aic, self.precision),
+                'bic': round(bic, self.precision),
+                'n_series': data.shape[1]
+            },
+            method='fit_var',
+            parameters={
+                'data_shape': data.shape,
+                'maxlags': maxlags,
+                'ic': ic,
+                'series_names': data.columns.tolist()
+            },
+            metadata={
+                'causality_tests': causality_results,
+                'model_summary': str(fitted_model.summary())
+            }
+        )
+    except Exception as e:
+        raise ModelFitError("VAR", str(e))
+
+@validate_inputs
+@timing_decorator
+@handle_calculation_error
+@require_dependency('statsmodels')
+def cointegration_test(
+    self,
+    series1: Union[List, np.ndarray, pd.Series],
+    series2: Union[List, np.ndarray, pd.Series],
+    method: Literal['engle-granger', 'johansen'] = 'engle-granger'
+) -> Dict:
+    """
+    Test for cointegration between two time series.
+
+    Args:
+        series1: First time series
+        series2: Second time series
+        method: Test method ('engle-granger' or 'johansen')
+
+    Returns:
+        Result dict with test statistics and cointegration status
+    """
+    from statsmodels.tsa.stattools import coint
+
+    # Validate
+    series1 = self._validate_returns(series1, "series1")
+    series2 = self._validate_returns(series2, "series2")
+
+    if len(series1) != len(series2):
+        raise DataValidationError(
+            f"Series must have same length: {len(series1)} vs {len(series2)}",
+            "series_length"
+        )
+
+    self._check_data_length(series1, min_length=30)
+
+    try:
+        if method == 'engle-granger':
+            # Engle-Granger test
+            score, pvalue, crit_values = coint(series1, series2)
+
+            # Determine cointegration
+            is_cointegrated = pvalue < 0.05
 
             return self._create_result_dict(
                 value={
-                    'forecast': [round(f, self.precision) for f in forecast],
-                    'lower_bound': [round(l, self.precision) for l in lower_bound],
-                    'upper_bound': [round(u, self.precision) for u in upper_bound]
-                },
-                method='predict_arima',
-                parameters={
-                    'steps': steps,
-                    'confidence_level': confidence_level,
-                    'order': order
-                },
-                metadata={
-                    'forecast_mean': round(np.mean(forecast), self.precision),
-                    'forecast_std': round(np.std(forecast), self.precision)
-                }
-            )
-        except Exception as e:
-            raise CalculationError("predict_arima", str(e))
-
-    @validate_inputs
-    @timing_decorator
-    @handle_calculation_error
-    @require_dependency('arch')
-    def fit_garch(
-        self,
-        returns: Union[List, np.ndarray, pd.Series],
-        p: int = 1,
-        q: int = 1,
-        mean_model: Literal['Constant', 'Zero', 'AR'] = 'Constant'
-    ) -> Dict:
-        """
-        Fit GARCH model to returns data.
-
-        Args:
-            returns: Return series
-            p: GARCH order
-            q: ARCH order
-            mean_model: Mean model specification
-
-        Returns:
-            Result dict with model parameters and volatility forecast
-        """
-        from arch import arch_model
-
-        # Validate
-        returns = self._validate_returns(returns, "returns")
-        self._check_data_length(returns, min_length=50)
-
-        # Scale returns to percentage
-        returns_pct = returns * 100
-
-        try:
-            # Fit GARCH model
-            model = arch_model(
-                returns_pct,
-                mean=mean_model,
-                vol='Garch',
-                p=p,
-                q=q
-            )
-            fitted_model = model.fit(disp='off')
-
-            # Extract parameters
-            # Convert params to dict (handle both Series and array)
-            if hasattr(fitted_model.params, 'to_dict'):
-                params = fitted_model.params.to_dict()
-            else:
-                params = {f'param_{i}': float(v) for i, v in enumerate(fitted_model.params)}
-
-            # Conditional volatility
-            cond_vol = fitted_model.conditional_volatility
-
-            # Forecast volatility
-            forecast = fitted_model.forecast(horizon=1)
-            next_vol = np.sqrt(forecast.variance.values[-1, 0])
-
-            return self._create_result_dict(
-                value={
-                    'parameters': {k: round(v, self.precision) for k, v in params.items()},
-                    'aic': round(fitted_model.aic, self.precision),
-                    'bic': round(fitted_model.bic, self.precision),
-                    'next_volatility': round(next_vol / 100, self.precision)  # Convert back to decimal
-                },
-                method='fit_garch',
-                parameters={
-                    'data_length': len(returns),
-                    'p': p,
-                    'q': q,
-                    'mean_model': mean_model
-                },
-                metadata={
-                    'mean_volatility': round(np.mean(cond_vol) / 100, self.precision),
-                    'max_volatility': round(np.max(cond_vol) / 100, self.precision),
-                    'min_volatility': round(np.min(cond_vol) / 100, self.precision),
-                    'model_summary': str(fitted_model.summary())
-                }
-            )
-        except Exception as e:
-            raise ModelFitError("GARCH", str(e))
-
-    @validate_inputs
-    @timing_decorator
-    @handle_calculation_error
-    @require_dependency('statsmodels')
-    def fit_var(
-        self,
-        data: pd.DataFrame,
-        maxlags: int = 5,
-        ic: Literal['aic', 'bic', 'hqic', 'fpe'] = 'aic'
-    ) -> Dict:
-        """
-        Fit Vector Autoregression (VAR) model.
-
-        Args:
-            data: DataFrame with multiple time series
-            maxlags: Maximum number of lags to consider
-            ic: Information criterion for lag selection
-
-        Returns:
-            Result dict with model parameters and diagnostics
-        """
-        from statsmodels.tsa.api import VAR
-
-        # Validate
-        if not isinstance(data, pd.DataFrame):
-            raise DataValidationError(
-                "VAR requires DataFrame with multiple series",
-                "data"
-            )
-
-        if data.shape[1] < 2:
-            raise DataValidationError(
-                "VAR requires at least 2 time series",
-                "data"
-            )
-
-        if len(data) < 30:
-            raise InsufficientDataError(
-                f"VAR requires at least 30 observations, got {len(data)}",
-                "data"
-            )
-
-        try:
-            # Fit VAR model
-            model = VAR(data)
-            fitted_model = model.fit(maxlags=maxlags, ic=ic)
-
-            # Extract information
-            selected_lag = fitted_model.k_ar
-            aic = fitted_model.aic
-            bic = fitted_model.bic
-
-            # Granger causality tests
-            causality_results = {}
-            for col in data.columns:
-                try:
-                    test = fitted_model.test_causality(col, data.columns.drop(col).tolist())
-                    causality_results[col] = {
-                        'statistic': float(test.test_statistic),
-                        'pvalue': float(test.pvalue)
+                    'test_statistic': round(float(score), self.precision),
+                    'p_value': round(float(pvalue), 4),
+                    'critical_values': {
+                        '1%': round(float(crit_values[0]), self.precision),
+                        '5%': round(float(crit_values[1]), self.precision),
+                        '10%': round(float(crit_values[2]), self.precision)
                     }
-                except:
-                    pass
-
-            return self._create_result_dict(
-                value={
-                    'selected_lag': selected_lag,
-                    'aic': round(aic, self.precision),
-                    'bic': round(bic, self.precision),
-                    'n_series': data.shape[1]
                 },
-                method='fit_var',
+                method='cointegration_test',
                 parameters={
-                    'data_shape': data.shape,
-                    'maxlags': maxlags,
-                    'ic': ic,
-                    'series_names': data.columns.tolist()
+                    'data_length': len(series1),
+                    'method': method
                 },
                 metadata={
-                    'causality_tests': causality_results,
-                    'model_summary': str(fitted_model.summary())
+                    'is_cointegrated': is_cointegrated,
+                    'alpha': 0.05,
+                    'conclusion': 'cointegrated' if is_cointegrated else 'not_cointegrated',
+                    'recommendation': 'Series are cointegrated. Consider pairs trading strategy.' if is_cointegrated else 'Series are not cointegrated.'
                 }
             )
-        except Exception as e:
-            raise ModelFitError("VAR", str(e))
-
-    @validate_inputs
-    @timing_decorator
-    @handle_calculation_error
-    @require_dependency('statsmodels')
-    def cointegration_test(
-        self,
-        series1: Union[List, np.ndarray, pd.Series],
-        series2: Union[List, np.ndarray, pd.Series],
-        method: Literal['engle-granger', 'johansen'] = 'engle-granger'
-    ) -> Dict:
-        """
-        Test for cointegration between two time series.
-
-        Args:
-            series1: First time series
-            series2: Second time series
-            method: Test method ('engle-granger' or 'johansen')
-
-        Returns:
-            Result dict with test statistics and cointegration status
-        """
-        from statsmodels.tsa.stattools import coint
-
-        # Validate
-        series1 = self._validate_returns(series1, "series1")
-        series2 = self._validate_returns(series2, "series2")
-
-        if len(series1) != len(series2):
+        else:
             raise DataValidationError(
-                f"Series must have same length: {len(series1)} vs {len(series2)}",
-                "series_length"
+                f"Method '{method}' not yet implemented. Use 'engle-granger'.",
+                "method"
             )
-
-        self._check_data_length(series1, min_length=30)
-
-        try:
-            if method == 'engle-granger':
-                # Engle-Granger test
-                score, pvalue, crit_values = coint(series1, series2)
-
-                # Determine cointegration
-                is_cointegrated = pvalue < 0.05
-
-                return self._create_result_dict(
-                    value={
-                        'test_statistic': round(float(score), self.precision),
-                        'p_value': round(float(pvalue), 4),
-                        'critical_values': {
-                            '1%': round(float(crit_values[0]), self.precision),
-                            '5%': round(float(crit_values[1]), self.precision),
-                            '10%': round(float(crit_values[2]), self.precision)
-                        }
-                    },
-                    method='cointegration_test',
-                    parameters={
-                        'data_length': len(series1),
-                        'method': method
-                    },
-                    metadata={
-                        'is_cointegrated': is_cointegrated,
-                        'alpha': 0.05,
-                        'conclusion': 'cointegrated' if is_cointegrated else 'not_cointegrated',
-                        'recommendation': 'Series are cointegrated. Consider pairs trading strategy.' if is_cointegrated else 'Series are not cointegrated.'
-                    }
-                )
-            else:
-                raise DataValidationError(
-                    f"Method '{method}' not yet implemented. Use 'engle-granger'.",
-                    "method"
-                )
-        except Exception as e:
-            raise CalculationError("cointegration_test", str(e))
+    except Exception as e:
+        raise CalculationError("cointegration_test", str(e))

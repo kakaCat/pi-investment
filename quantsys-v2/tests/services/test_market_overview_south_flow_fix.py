@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100_21 = 100.21
+CONST_120 = 120
+CONST_2026 = 2026
+CONST_2400 = 2400
+CONST_2800 = 2800
+CONST_3 = 3
+CONST_30 = 30
+CONST_33_95 = 33.95
+CONST_4 = 4
+CONST_40_93 = 40.93
+
 """2026-09-05 两处上游 bug 修复的回归测试
 
 1. MarketDataService.get_market_overview()：report_daily 曾调用不存在的

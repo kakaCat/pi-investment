@@ -93,18 +93,19 @@ def test_ml_predict_with_short_history():
             print("✅ Prediction succeeded!")
             print(json.dumps(result, indent=2, ensure_ascii=False))
             return True
-        else:
-            print(f"⚠️ Request failed: {response.text}")
-            return False
+        print(f"⚠️ Request failed: {response.text}")
+        return False
 
-    except requests.exceptions.ConnectionError:
-        print("❌ Cannot connect to API server (is it running?)")
-        return False
-    except Exception as e:
-        print(f"❌ Unexpected error: {type(e).__name__}: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+except requests.exceptions.ConnectionError:
+    print("❌ Cannot connect to API server (is it running?)")
+    return False
+except Exception as e:
+    print(f"❌ Unexpected error: {type(e).__name__}: {e}")
+    import traceback
+    traceback.print_exc()
+    return False
+
+# TODO: 长函数 111行 - 建议拆分为多个小函数
 
 def test_feature_engineering_directly():
     # ---- Section 1 ----

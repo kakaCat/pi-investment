@@ -142,6 +142,10 @@ class ARIMACalculator(BaseCalculator):
     # TODO: Split long function (166 lines, target < 100)
     # TODO: Refactor - complexity 17 (target < 15)
     # TODO: Split long function (166 lines, target < 100)
+    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 175行 - 建议拆分为多个小函数
+
     def fit(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -322,6 +326,8 @@ class ARIMACalculator(BaseCalculator):
     # TODO: Refactor - function too long (114 lines, target < 80)
 
     @timing_decorator
+# TODO: 长函数 118行 - 建议拆分为多个小函数
+
 # TODO: Split long function (113 lines, target < 100)
     def forecast(
         # ---- Section 1 ----
@@ -706,74 +712,73 @@ class ARIMACalculator(BaseCalculator):
 
         if not issues:
             return "Model residuals pass all diagnostic tests"
-        else:
-            return "Issues found: " + "; ".join(issues)
+        return "Issues found: " + "; ".join(issues)
 
-    @validate_inputs
-    @timing_decorator
-    def compare_models(
-        self,
-        data: Union[List, np.ndarray, pd.Series],
-        orders: List[Tuple[int, int, int]]
-    ) -> Dict[str, Any]:
-        """
-        Compare multiple ARIMA models with different orders.
+@validate_inputs
+@timing_decorator
+def compare_models(
+    self,
+    data: Union[List, np.ndarray, pd.Series],
+    orders: List[Tuple[int, int, int]]
+) -> Dict[str, Any]:
+    """
+    Compare multiple ARIMA models with different orders.
 
-        Args:
-            data: Time series data
-            orders: List of (p,d,q) tuples to compare
+    Args:
+        data: Time series data
+        orders: List of (p,d,q) tuples to compare
 
-        Returns:
-            Result dict with comparison table and best model
-        """
-        data = self._validate_numeric_input(data, 'data')
-        if isinstance(data, pd.Series):
-            data_array = data.values
-        elif isinstance(data, pd.DataFrame):
-            data_array = data.iloc[:, 0].values
-        else:
-            data_array = np.array(data)
+    Returns:
+        Result dict with comparison table and best model
+    """
+    data = self._validate_numeric_input(data, 'data')
+    if isinstance(data, pd.Series):
+        data_array = data.values
+    elif isinstance(data, pd.DataFrame):
+        data_array = data.iloc[:, 0].values
+    else:
+        data_array = np.array(data)
 
-        results = []
-        best_aic = np.inf
-        best_order = None
+    results = []
+    best_aic = np.inf
+    best_order = None
 
-        for order in orders:
-            try:
-                fit_result = self.fit(data_array, order=order)
+    for order in orders:
+        try:
+            fit_result = self.fit(data_array, order=order)
 
-                results.append({
-                    'order': order,
-                    'aic': fit_result['value']['aic'],
-                    'bic': fit_result['value']['bic'],
-                    'converged': fit_result['metadata']['converged']
-                })
+            results.append({
+                'order': order,
+                'aic': fit_result['value']['aic'],
+                'bic': fit_result['value']['bic'],
+                'converged': fit_result['metadata']['converged']
+            })
 
-                if fit_result['value']['aic'] < best_aic:
-                    best_aic = fit_result['value']['aic']
-                    best_order = order
+            if fit_result['value']['aic'] < best_aic:
+                best_aic = fit_result['value']['aic']
+                best_order = order
 
-            except:
-                results.append({
-                    'order': order,
-                    'aic': None,
-                    'bic': None,
-                    'converged': False,
-                    'error': 'Failed to fit'
-                })
+        except:
+            results.append({
+                'order': order,
+                'aic': None,
+                'bic': None,
+                'converged': False,
+                'error': 'Failed to fit'
+            })
 
-        return self._create_result_dict(
-            value={
-                'comparison_table': results,
-                'best_order': best_order,
-                'best_aic': round(best_aic, self.precision) if best_aic != np.inf else None
-            },
-            method='compare_models',
-            parameters={
-                'data_length': len(data_array),
-                'n_models': len(orders)
-            },
-            metadata={
-                'orders_tested': orders
-            }
-        )
+    return self._create_result_dict(
+        value={
+            'comparison_table': results,
+            'best_order': best_order,
+            'best_aic': round(best_aic, self.precision) if best_aic != np.inf else None
+        },
+        method='compare_models',
+        parameters={
+            'data_length': len(data_array),
+            'n_models': len(orders)
+        },
+        metadata={
+            'orders_tested': orders
+        }
+    )

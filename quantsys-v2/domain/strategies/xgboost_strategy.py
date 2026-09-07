@@ -181,9 +181,7 @@ class XGBoostStrategy(BaseStrategy):
             RuntimeError: If the model or factor list is not loaded.
             ValueError: If none of the required factors are present.
         """
-        if self.model is None:
-            raise RuntimeError("XGBoostStrategy: model not loaded")
-        if not self.factors:
+        if self.model is None and not self.factors:
             raise RuntimeError("XGBoostStrategy: factor list not loaded")
         if factor_data is None or factor_data.empty:
             return pd.Series(dtype=float, name="predicted_return")

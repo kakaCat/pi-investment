@@ -205,109 +205,108 @@ class PerformanceTracker:
             start_value = float(recent_30d[-1].total_value or 0)
             end_value = float(recent_30d[0].total_value or 0)
             return_30d = (end_value - start_value) / start_value if start_value > 0 else 0
-        else:
-            return_30d = 0
+        return_30d = 0
 
-        # 最大回撤（从快照计算）
-        max_drawdown = self._calculate_max_drawdown(snapshots)
+    # 最大回撤（从快照计算）
+    max_drawdown = self._calculate_max_drawdown(snapshots)
 
-        # 日收益率序列
-        daily_returns = [float(s.daily_return or 0) for s in snapshots if s.daily_return]
+    # 日收益率序列
+    daily_returns = [float(s.daily_return or 0) for s in snapshots if s.daily_return]
 
-        # 胜率（日收益率 > 0 的比例）
-        win_days = sum(1 for r in daily_returns if r > 0)
-        win_rate = win_days / len(daily_returns) if daily_returns else 0
+    # 胜率（日收益率 > 0 的比例）
+    win_days = sum(1 for r in daily_returns if r > 0)
+    win_rate = win_days / len(daily_returns) if daily_returns else 0
 
-        # 夏普比率（简化版）
-        if daily_returns:
-            import statistics
-            avg_return = statistics.mean(daily_returns)
-            std_return = statistics.stdev(daily_returns) if len(daily_returns) > 1 else 1
-            sharpe = (avg_return / std_return) * (252 ** 0.5) if std_return > 0 else 0
-        else:
-            sharpe = 0
+    # 夏普比率（简化版）
+    if daily_returns:
+        import statistics
+        avg_return = statistics.mean(daily_returns)
+        std_return = statistics.stdev(daily_returns) if len(daily_returns) > 1 else 1
+        sharpe = (avg_return / std_return) * (252 ** 0.5) if std_return > 0 else 0
+    else:
+        sharpe = 0
 
-        return {
-            'return_30d': round(return_30d, 4),
-            'return_30d_pct': f"{return_30d:.2%}",
-            'max_drawdown': round(max_drawdown, 4),
-            'max_drawdown_pct': f"{max_drawdown:.2%}",
-            'sharpe_ratio': round(sharpe, 2),
-            'win_rate_daily': round(win_rate, 4),
-            'trading_days': len(snapshots),
-            'avg_daily_return': round(statistics.mean(daily_returns), 6) if daily_returns else 0,
-        }
+    return {
+        'return_30d': round(return_30d, 4),
+        'return_30d_pct': f"{return_30d:.2%}",
+        'max_drawdown': round(max_drawdown, 4),
+        'max_drawdown_pct': f"{max_drawdown:.2%}",
+        'sharpe_ratio': round(sharpe, 2),
+        'win_rate_daily': round(win_rate, 4),
+        'trading_days': len(snapshots),
+        'avg_daily_return': round(statistics.mean(daily_returns), 6) if daily_returns else 0,
+    }
 
-    def _calculate_max_drawdown(self, snapshots) -> float:
-        """从净值序列计算最大回撤"""
-        if not snapshots:
-            return 0
+def _calculate_max_drawdown(self, snapshots) -> float:
+    """从净值序列计算最大回撤"""
+    if not snapshots:
+        return 0
 
-        # snapshots 是按日期倒序的，需要反转
-        values = [float(s.total_value or 0) for s in reversed(snapshots)]
+    # snapshots 是按日期倒序的，需要反转
+    values = [float(s.total_value or 0) for s in reversed(snapshots)]
 
-        peak = values[0] if values else 0
-        max_dd = 0
+    peak = values[0] if values else 0
+    max_dd = 0
 
-        for value in values:
-            if value > peak:
-                peak = value
-            drawdown = (peak - value) / peak if peak > 0 else 0
-            max_dd = max(max_dd, drawdown)
+    for value in values:
+        if value > peak:
+            peak = value
+        drawdown = (peak - value) / peak if peak > 0 else 0
+        max_dd = max(max_dd, drawdown)
 
-        return max_dd
+    return max_dd
 
-    def _strategy_attribution(self) -> List[Dict[str, Any]]:
-        """策略归因（按策略统计盈亏贡献）"""
-        try:
-            trades = self.repo.get_trades_by_account(self.account_name)
+def _strategy_attribution(self) -> List[Dict[str, Any]]:
+    """策略归因（按策略统计盈亏贡献）"""
+    try:
+        trades = self.repo.get_trades_by_account(self.account_name)
 
-            # 按策略分组统计
-            strategy_stats: Dict[str, Dict] = {}
+        # 按策略分组统计
+        strategy_stats: Dict[str, Dict] = {}
 
-            for trade in trades:
-                reason = trade.reason or 'unknown'
-                # 从 reason 中提取策略名（格式: "strategy_name: detail"）
-                strategy_name = reason.split(':')[0].strip() if ':' in reason else reason
+        for trade in trades:
+            reason = trade.reason or 'unknown'
+            # 从 reason 中提取策略名（格式: "strategy_name: detail"）
+            strategy_name = reason.split(':')[0].strip() if ':' in reason else reason
 
-                if strategy_name not in strategy_stats:
-                    strategy_stats[strategy_name] = {
-                        'strategy_name': strategy_name,
-                        'total_trades': 0,
-                        'buy_count': 0,
-                        'sell_count': 0,
-                        'total_pnl': 0,
-                        'total_commission': 0,
-                    }
+            if strategy_name not in strategy_stats:
+                strategy_stats[strategy_name] = {
+                    'strategy_name': strategy_name,
+                    'total_trades': 0,
+                    'buy_count': 0,
+                    'sell_count': 0,
+                    'total_pnl': 0,
+                    'total_commission': 0,
+                }
 
-                stats = strategy_stats[strategy_name]
-                stats['total_trades'] += 1
+            stats = strategy_stats[strategy_name]
+            stats['total_trades'] += 1
 
-                if trade.action == 'BUY':  # action 大写契约（08-13 统一）
-                    stats['buy_count'] += 1
-                else:
-                    stats['sell_count'] += 1
-                    stats['total_pnl'] += float(trade.realized_pnl or 0)
+            if trade.action == 'BUY':  # action 大写契约（08-13 统一）
+                stats['buy_count'] += 1
+            else:
+                stats['sell_count'] += 1
+                stats['total_pnl'] += float(trade.realized_pnl or 0)
 
-                stats['total_commission'] += float(trade.commission or 0) + float(trade.stamp_duty or 0)
+            stats['total_commission'] += float(trade.commission or 0) + float(trade.stamp_duty or 0)
 
-            # 按盈亏排序
-            result = sorted(
-                strategy_stats.values(),
-                key=lambda x: x['total_pnl'],
-                reverse=True
-            )
+        # 按盈亏排序
+        result = sorted(
+            strategy_stats.values(),
+            key=lambda x: x['total_pnl'],
+            reverse=True
+        )
 
-            return result
+        return result
 
-        except Exception as e:
-            logger.error(f"Strategy attribution failed: {e}")
-            return []
+    except Exception as e:
+        logger.error(f"Strategy attribution failed: {e}")
+        return []
 
-    def _recent_trades(self, limit: int = 20) -> List[Dict[str, Any]]:
-        """最近交易记录"""
-        trades = self.repo.get_trades(self.account_name, limit=limit)
-        return [t.to_dict() for t in trades]
+def _recent_trades(self, limit: int = 20) -> List[Dict[str, Any]]:
+    """最近交易记录"""
+    trades = self.repo.get_trades(self.account_name, limit=limit)
+    return [t.to_dict() for t in trades]
 
 
 # ============================================================

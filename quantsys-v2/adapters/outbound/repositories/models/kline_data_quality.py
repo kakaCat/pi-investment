@@ -59,8 +59,7 @@ class QualityGrade:
             return cls.B
         elif score >= 70:
             return cls.C
-        else:
-            return cls.D
+        return cls.D
 
 
 # SQL 表创建语句

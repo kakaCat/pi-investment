@@ -1,3 +1,14 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_12_5 = 12.5
+CONST_123 = 123
+CONST_1750_0 = 1750.0
+CONST_1850_0 = 1850.0
+CONST_2050_0 = 2050.0
+CONST_3 = 3
+CONST_8_5 = 8.5
+
 """Tests for strategy execution service"""
 import pytest
 from unittest.mock import Mock, patch, MagicMock

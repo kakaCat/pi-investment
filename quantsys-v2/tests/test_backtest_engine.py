@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_5 = 10.5
+CONST_100_01 = 100.01
+CONST_100_05 = 100.05
+CONST_100_1 = 100.1
+CONST_10000 = 10000
+CONST_100000 = 100000
+CONST_101_05 = 101.05
+CONST_10100 = 10100
+CONST_102_0 = 102.0
+CONST_130_0 = 130.0
+
 """
 Tests for Backtest Engine Components
 

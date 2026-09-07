@@ -34,6 +34,10 @@ logger = structlog.get_logger(__name__)
 
 # TODO: Refactor - function too long (116 lines, target < 80)
 
+# TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 116行 - 建议拆分为多个小函数
+
 def backfill_factors(
     symbols: List[str],
     start_date: str,

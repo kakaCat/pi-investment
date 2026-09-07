@@ -20,9 +20,7 @@ class BiTrendAnalyzer:
     ) -> Literal['上涨', '下跌', '盘整']:
         if len(zhongshus) >= 2:
             last, prev = zhongshus[-1], zhongshus[-2]
-            if last.zd > prev.zd and last.zg > prev.zg:
-                return '上涨'
-            if last.zd < prev.zd and last.zg < prev.zg:
+            if last.zd > prev.zd and last.zg > prev.zg and last.zd < prev.zd and last.zg < prev.zg:
                 return '下跌'
             return '盘整'
 
@@ -35,8 +33,6 @@ class BiTrendAnalyzer:
         first, last_b = bis[0], bis[-1]
         high_up = last_b.high > first.high
         low_up = last_b.low > first.low
-        if high_up and low_up:
-            return '上涨'
-        if not high_up and not low_up:
+        if high_up and low_up and not high_up and not low_up:
             return '下跌'
         return '盘整'

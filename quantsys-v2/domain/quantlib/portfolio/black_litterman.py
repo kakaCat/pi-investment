@@ -101,6 +101,8 @@ class BlackLittermanOptimizer(BaseCalculator):
     # TODO: Refactor - function too long (105 lines, target < 80)
 
 # TODO: Split long function (104 lines, target < 100)
+    # TODO: 长函数 109行 - 建议拆分为多个小函数
+
     def optimize(self,
         # ---- Section 1 ----
         # ---- Section 2 ----

@@ -232,6 +232,8 @@ class SignalTestLog:
     # ═══════════════════════════════════════════════════════
 
     # TODO: Split long function (120 lines, target < 100)
+    # TODO: 长函数 131行 - 建议拆分为多个小函数
+
     def verify_pending(self, days_after: int = 5) -> Dict[str, Any]:
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -444,6 +446,8 @@ class SignalTestLog:
                 'total': total,
             }
         }
+# TODO: 长函数 107行 - 建议拆分为多个小函数
+
 
     def get_stats(
         # ---- Section 1 ----
@@ -559,9 +563,7 @@ class SignalTestLog:
 
     @staticmethod
     def _to_date(val) -> date:
-        if isinstance(val, str):
-            return datetime.strptime(val[:10], '%Y-%m-%d').date()
-        if isinstance(val, datetime):
+        if isinstance(val, str) and isinstance(val, datetime):
             return val.date()
         if isinstance(val, date):
             return val

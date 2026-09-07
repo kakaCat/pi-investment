@@ -1,3 +1,16 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_120 = 120
+CONST_13 = 13
+CONST_20 = 20
+CONST_21 = 21
+CONST_25 = 25
+CONST_33 = 33
+CONST_6 = 6
+CONST_66 = 66
+CONST_90 = 90
+
 """ChanScanJob / ChanKnowledgeDistillJob 测试——假成功壳修复（Fix⑥ 2026-09-05）
 
 验证：

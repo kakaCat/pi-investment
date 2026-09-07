@@ -177,12 +177,13 @@ class TrendFollowingCTA:
             return 'uptrend'
         elif fast_ma < slow_ma:
             return 'downtrend'
-        else:
-            return None
+        return None
 
-    # TODO: Refactor - function too long (119 lines, target < 80)
+# TODO: Refactor - function too long (119 lines, target < 80)
 
 # TODO: Split long function (118 lines, target < 100)
+    # TODO: 长函数 123行 - 建议拆分为多个小函数
+
     def generate_signal(self) -> Optional[Dict]:
         # ---- Section 1 ----
         # ---- Section 2 ----

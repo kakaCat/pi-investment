@@ -169,6 +169,8 @@ class BacktestReportGenerator:
         return report
 
     # TODO: Split long function (112 lines, target < 100)
+    # TODO: 长函数 117行 - 建议拆分为多个小函数
+
     def _calculate_metrics(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -306,297 +308,296 @@ class BacktestReportGenerator:
         if volatility > 0:
             excess_return = annual_return - self.risk_free_rate
             sharpe_ratio = excess_return / volatility
-        else:
-            sharpe_ratio = 0.0
+        sharpe_ratio = 0.0
 
-        # Sortino ratio
-        if downside_deviation > 0:
-            excess_return = annual_return - self.risk_free_rate
-            sortino_ratio = excess_return / downside_deviation
-        else:
-            sortino_ratio = 0.0
+    # Sortino ratio
+    if downside_deviation > 0:
+        excess_return = annual_return - self.risk_free_rate
+        sortino_ratio = excess_return / downside_deviation
+    else:
+        sortino_ratio = 0.0
 
-        # Drawdown
-        max_dd, _ = self._calculate_drawdown_metrics(equity_values)
+    # Drawdown
+    max_dd, _ = self._calculate_drawdown_metrics(equity_values)
 
-        # Calmar ratio
-        calmar_ratio = (
-            annual_return / abs(max_dd) if max_dd < 0 else 0.0
-        )
+    # Calmar ratio
+    calmar_ratio = (
+        annual_return / abs(max_dd) if max_dd < 0 else 0.0
+    )
 
-        return sharpe_ratio, sortino_ratio, calmar_ratio, max_dd
+    return sharpe_ratio, sortino_ratio, calmar_ratio, max_dd
 
-    def _calculate_monthly_returns(self, equity_curve: List[Dict]) -> List[float]:
-        """Calculate monthly returns from equity curve"""
-        if not equity_curve:
-            return []
+def _calculate_monthly_returns(self, equity_curve: List[Dict]) -> List[float]:
+    """Calculate monthly returns from equity curve"""
+    if not equity_curve:
+        return []
 
-        # Group by month
-        monthly_equity = {}
-        for entry in equity_curve:
-            date = entry['date']
-            month_key = date[:7]  # YYYY-MM
-            if month_key not in monthly_equity:
-                monthly_equity[month_key] = []
-            monthly_equity[month_key].append(entry['total_equity'])
+    # Group by month
+    monthly_equity = {}
+    for entry in equity_curve:
+        date = entry['date']
+        month_key = date[:7]  # YYYY-MM
+        if month_key not in monthly_equity:
+            monthly_equity[month_key] = []
+        monthly_equity[month_key].append(entry['total_equity'])
 
-        # Calculate monthly returns
-        monthly_returns = []
-        sorted_months = sorted(monthly_equity.keys())
+    # Calculate monthly returns
+    monthly_returns = []
+    sorted_months = sorted(monthly_equity.keys())
 
-        for i in range(1, len(sorted_months)):
-            prev_month = sorted_months[i-1]
-            curr_month = sorted_months[i]
+    for i in range(1, len(sorted_months)):
+        prev_month = sorted_months[i-1]
+        curr_month = sorted_months[i]
 
-            prev_equity = monthly_equity[prev_month][-1]
-            curr_equity = monthly_equity[curr_month][-1]
+        prev_equity = monthly_equity[prev_month][-1]
+        curr_equity = monthly_equity[curr_month][-1]
 
-            if prev_equity > 0:
-                monthly_return = (curr_equity - prev_equity) / prev_equity
-                monthly_returns.append(monthly_return)
+        if prev_equity > 0:
+            monthly_return = (curr_equity - prev_equity) / prev_equity
+            monthly_returns.append(monthly_return)
 
-        return monthly_returns
+    return monthly_returns
 
-    def _calculate_drawdown_metrics(self, equity_values: List[float]) -> tuple:
-        """Calculate maximum drawdown and duration"""
-        if not equity_values:
-            return 0.0, 0
+def _calculate_drawdown_metrics(self, equity_values: List[float]) -> tuple:
+    """Calculate maximum drawdown and duration"""
+    if not equity_values:
+        return 0.0, 0
 
-        max_dd = 0.0
-        max_dd_duration = 0
+    max_dd = 0.0
+    max_dd_duration = 0
 
-        peak = equity_values[0]
-        peak_idx = 0
+    peak = equity_values[0]
+    peak_idx = 0
 
-        for i, equity in enumerate(equity_values):
-            if equity > peak:
-                peak = equity
-                peak_idx = i
+    for i, equity in enumerate(equity_values):
+        if equity > peak:
+            peak = equity
+            peak_idx = i
 
-            drawdown = (equity - peak) / peak if peak > 0 else 0.0
+        drawdown = (equity - peak) / peak if peak > 0 else 0.0
 
-            if drawdown < max_dd:
-                max_dd = drawdown
-                max_dd_duration = i - peak_idx
+        if drawdown < max_dd:
+            max_dd = drawdown
+            max_dd_duration = i - peak_idx
 
-        return max_dd, max_dd_duration
+    return max_dd, max_dd_duration
 
-    def _calculate_trade_statistics(self, trades: List[Dict]) -> Dict[str, Any]:
-        """Calculate trade statistics"""
-        if not trades:
-            return {
-                'total_trades': 0,
-                'winning_trades': 0,
-                'losing_trades': 0,
-                'win_rate': 0.0,
-                'profit_loss_ratio': 0.0,
-                'avg_win': 0.0,
-                'avg_loss': 0.0,
-                'avg_holding_days': 0.0,
-                'max_consecutive_wins': 0,
-                'max_consecutive_losses': 0
-            }
-
-        winning_trades = [t for t in trades if t['profit'] > 0]
-        losing_trades = [t for t in trades if t['profit'] <= 0]
-
-        total_trades = len(trades)
-        win_count = len(winning_trades)
-        loss_count = len(losing_trades)
-
-        win_rate = win_count / total_trades if total_trades > 0 else 0.0
-
-        avg_win = (
-            sum(t['profit'] for t in winning_trades) / win_count
-            if win_count > 0 else 0.0
-        )
-
-        avg_loss = (
-            sum(t['profit'] for t in losing_trades) / loss_count
-            if loss_count > 0 else 0.0
-        )
-
-        profit_loss_ratio = (
-            abs(avg_win / avg_loss) if avg_loss != 0 else 0.0
-        )
-
-        avg_holding_days = (
-            sum(t['holding_days'] for t in trades) / total_trades
-            if total_trades > 0 else 0.0
-        )
-
-        # Calculate consecutive wins/losses
-        max_consecutive_wins = 0
-        max_consecutive_losses = 0
-        current_wins = 0
-        current_losses = 0
-
-        for trade in trades:
-            if trade['profit'] > 0:
-                current_wins += 1
-                current_losses = 0
-                max_consecutive_wins = max(max_consecutive_wins, current_wins)
-            else:
-                current_losses += 1
-                current_wins = 0
-                max_consecutive_losses = max(max_consecutive_losses, current_losses)
-
+def _calculate_trade_statistics(self, trades: List[Dict]) -> Dict[str, Any]:
+    """Calculate trade statistics"""
+    if not trades:
         return {
-            'total_trades': total_trades,
-            'winning_trades': win_count,
-            'losing_trades': loss_count,
-            'win_rate': win_rate,
-            'profit_loss_ratio': profit_loss_ratio,
-            'avg_win': avg_win,
-            'avg_loss': avg_loss,
-            'avg_holding_days': avg_holding_days,
-            'max_consecutive_wins': max_consecutive_wins,
-            'max_consecutive_losses': max_consecutive_losses
+            'total_trades': 0,
+            'winning_trades': 0,
+            'losing_trades': 0,
+            'win_rate': 0.0,
+            'profit_loss_ratio': 0.0,
+            'avg_win': 0.0,
+            'avg_loss': 0.0,
+            'avg_holding_days': 0.0,
+            'max_consecutive_wins': 0,
+            'max_consecutive_losses': 0
         }
 
-    def _empty_metrics(
-        self,
-        initial_capital: float,
-        start_date: str,
-        end_date: str
-    ) -> PerformanceMetrics:
-        """Return empty metrics for no-data case"""
-        return PerformanceMetrics(
-            total_return=0.0,
-            annual_return=0.0,
-            monthly_returns=[],
-            sharpe_ratio=0.0,
-            sortino_ratio=0.0,
-            calmar_ratio=0.0,
-            max_drawdown=0.0,
-            max_drawdown_duration=0,
-            volatility=0.0,
-            downside_deviation=0.0,
-            total_trades=0,
-            winning_trades=0,
-            losing_trades=0,
-            win_rate=0.0,
-            profit_loss_ratio=0.0,
-            avg_win=0.0,
-            avg_loss=0.0,
-            avg_holding_days=0.0,
-            max_consecutive_wins=0,
-            max_consecutive_losses=0,
-            initial_capital=initial_capital,
-            final_capital=initial_capital,
-            peak_capital=initial_capital,
-            start_date=start_date,
-            end_date=end_date,
-            trading_days=0
-        )
+    winning_trades = [t for t in trades if t['profit'] > 0]
+    losing_trades = [t for t in trades if t['profit'] <= 0]
 
-    def _generate_summary(self, metrics: PerformanceMetrics) -> str:
-        """Generate human-readable summary"""
-        summary_lines = [
-            f"Backtest Summary ({metrics.start_date} to {metrics.end_date})",
-            "=" * 60,
-            "",
-            "Performance:",
-            f"  Total Return: {metrics.total_return:>12.2%}",
-            f"  Annual Return: {metrics.annual_return:>11.2%}",
-            f"  Sharpe Ratio: {metrics.sharpe_ratio:>12.2f}",
-            f"  Sortino Ratio: {metrics.sortino_ratio:>11.2f}",
-            f"  Calmar Ratio: {metrics.calmar_ratio:>12.2f}",
-            "",
-            "Risk:",
-            f"  Max Drawdown: {metrics.max_drawdown:>12.2%}",
-            f"  Volatility: {metrics.volatility:>14.2%}",
-            f"  Downside Dev: {metrics.downside_deviation:>12.2%}",
-            "",
-            "Trading:",
-            f"  Total Trades: {metrics.total_trades:>12}",
-            f"  Win Rate: {metrics.win_rate:>16.2%}",
-            f"  Profit/Loss Ratio: {metrics.profit_loss_ratio:>6.2f}",
-            f"  Avg Holding Days: {metrics.avg_holding_days:>8.1f}",
-            "",
-            "Capital:",
-            f"  Initial: {metrics.initial_capital:>17,.2f}",
-            f"  Final: {metrics.final_capital:>19,.2f}",
-            f"  Peak: {metrics.peak_capital:>20,.2f}",
-        ]
+    total_trades = len(trades)
+    win_count = len(winning_trades)
+    loss_count = len(losing_trades)
 
-        return "\n".join(summary_lines)
+    win_rate = win_count / total_trades if total_trades > 0 else 0.0
 
-    def export_to_json(self, report: Dict[str, Any], filepath: str):
-        """
-        Export report to JSON file.
+    avg_win = (
+        sum(t['profit'] for t in winning_trades) / win_count
+        if win_count > 0 else 0.0
+    )
 
-        Args:
-            report: Report dictionary
-            filepath: Output file path
-        """
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(report, f, indent=2, ensure_ascii=False)
+    avg_loss = (
+        sum(t['profit'] for t in losing_trades) / loss_count
+        if loss_count > 0 else 0.0
+    )
 
-        logger.info(f"Report exported to JSON: {filepath}")
+    profit_loss_ratio = (
+        abs(avg_win / avg_loss) if avg_loss != 0 else 0.0
+    )
 
-    def export_to_markdown(self, report: Dict[str, Any], filepath: str):
-        """
-        Export report to Markdown file.
+    avg_holding_days = (
+        sum(t['holding_days'] for t in trades) / total_trades
+        if total_trades > 0 else 0.0
+    )
 
-        Args:
-            report: Report dictionary
-            filepath: Output file path
-        """
-        metrics = report['metrics']
+    # Calculate consecutive wins/losses
+    max_consecutive_wins = 0
+    max_consecutive_losses = 0
+    current_wins = 0
+    current_losses = 0
 
-        md_lines = [
-            f"# Backtest Report: {report['strategy_name']}",
-            "",
-            f"**Period:** {report['period']['start_date']} to {report['period']['end_date']}",
-            f"**Trading Days:** {report['period']['trading_days']}",
-            "",
-            "## Performance Metrics",
-            "",
-            "### Returns",
-            f"- **Total Return:** {metrics['total_return']:.2%}",
-            f"- **Annual Return:** {metrics['annual_return']:.2%}",
-            "",
-            "### Risk-Adjusted Returns",
-            f"- **Sharpe Ratio:** {metrics['sharpe_ratio']:.2f}",
-            f"- **Sortino Ratio:** {metrics['sortino_ratio']:.2f}",
-            f"- **Calmar Ratio:** {metrics['calmar_ratio']:.2f}",
-            "",
-            "### Risk Metrics",
-            f"- **Max Drawdown:** {metrics['max_drawdown']:.2%}",
-            f"- **Max DD Duration:** {metrics['max_drawdown_duration']} days",
-            f"- **Volatility:** {metrics['volatility']:.2%}",
-            f"- **Downside Deviation:** {metrics['downside_deviation']:.2%}",
-            "",
-            "## Trade Statistics",
-            "",
-            f"- **Total Trades:** {metrics['total_trades']}",
-            f"- **Winning Trades:** {metrics['winning_trades']}",
-            f"- **Losing Trades:** {metrics['losing_trades']}",
-            f"- **Win Rate:** {metrics['win_rate']:.2%}",
-            f"- **Profit/Loss Ratio:** {metrics['profit_loss_ratio']:.2f}",
-            f"- **Average Win:** {metrics['avg_win']:.2f}",
-            f"- **Average Loss:** {metrics['avg_loss']:.2f}",
-            f"- **Average Holding Days:** {metrics['avg_holding_days']:.1f}",
-            f"- **Max Consecutive Wins:** {metrics['max_consecutive_wins']}",
-            f"- **Max Consecutive Losses:** {metrics['max_consecutive_losses']}",
-            "",
-            "## Capital",
-            "",
-            f"- **Initial Capital:** {metrics['initial_capital']:,.2f}",
-            f"- **Final Capital:** {metrics['final_capital']:,.2f}",
-            f"- **Peak Capital:** {metrics['peak_capital']:,.2f}",
-            "",
-            "## Strategy Parameters",
-            "",
-            "```json",
-            json.dumps(report['parameters'], indent=2),
-            "```",
-            "",
-            f"*Report generated at: {report['generated_at']}*"
-        ]
+    for trade in trades:
+        if trade['profit'] > 0:
+            current_wins += 1
+            current_losses = 0
+            max_consecutive_wins = max(max_consecutive_wins, current_wins)
+        else:
+            current_losses += 1
+            current_wins = 0
+            max_consecutive_losses = max(max_consecutive_losses, current_losses)
 
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write("\n".join(md_lines))
+    return {
+        'total_trades': total_trades,
+        'winning_trades': win_count,
+        'losing_trades': loss_count,
+        'win_rate': win_rate,
+        'profit_loss_ratio': profit_loss_ratio,
+        'avg_win': avg_win,
+        'avg_loss': avg_loss,
+        'avg_holding_days': avg_holding_days,
+        'max_consecutive_wins': max_consecutive_wins,
+        'max_consecutive_losses': max_consecutive_losses
+    }
 
-        logger.info(f"Report exported to Markdown: {filepath}")
+def _empty_metrics(
+    self,
+    initial_capital: float,
+    start_date: str,
+    end_date: str
+) -> PerformanceMetrics:
+    """Return empty metrics for no-data case"""
+    return PerformanceMetrics(
+        total_return=0.0,
+        annual_return=0.0,
+        monthly_returns=[],
+        sharpe_ratio=0.0,
+        sortino_ratio=0.0,
+        calmar_ratio=0.0,
+        max_drawdown=0.0,
+        max_drawdown_duration=0,
+        volatility=0.0,
+        downside_deviation=0.0,
+        total_trades=0,
+        winning_trades=0,
+        losing_trades=0,
+        win_rate=0.0,
+        profit_loss_ratio=0.0,
+        avg_win=0.0,
+        avg_loss=0.0,
+        avg_holding_days=0.0,
+        max_consecutive_wins=0,
+        max_consecutive_losses=0,
+        initial_capital=initial_capital,
+        final_capital=initial_capital,
+        peak_capital=initial_capital,
+        start_date=start_date,
+        end_date=end_date,
+        trading_days=0
+    )
+
+def _generate_summary(self, metrics: PerformanceMetrics) -> str:
+    """Generate human-readable summary"""
+    summary_lines = [
+        f"Backtest Summary ({metrics.start_date} to {metrics.end_date})",
+        "=" * 60,
+        "",
+        "Performance:",
+        f"  Total Return: {metrics.total_return:>12.2%}",
+        f"  Annual Return: {metrics.annual_return:>11.2%}",
+        f"  Sharpe Ratio: {metrics.sharpe_ratio:>12.2f}",
+        f"  Sortino Ratio: {metrics.sortino_ratio:>11.2f}",
+        f"  Calmar Ratio: {metrics.calmar_ratio:>12.2f}",
+        "",
+        "Risk:",
+        f"  Max Drawdown: {metrics.max_drawdown:>12.2%}",
+        f"  Volatility: {metrics.volatility:>14.2%}",
+        f"  Downside Dev: {metrics.downside_deviation:>12.2%}",
+        "",
+        "Trading:",
+        f"  Total Trades: {metrics.total_trades:>12}",
+        f"  Win Rate: {metrics.win_rate:>16.2%}",
+        f"  Profit/Loss Ratio: {metrics.profit_loss_ratio:>6.2f}",
+        f"  Avg Holding Days: {metrics.avg_holding_days:>8.1f}",
+        "",
+        "Capital:",
+        f"  Initial: {metrics.initial_capital:>17,.2f}",
+        f"  Final: {metrics.final_capital:>19,.2f}",
+        f"  Peak: {metrics.peak_capital:>20,.2f}",
+    ]
+
+    return "\n".join(summary_lines)
+
+def export_to_json(self, report: Dict[str, Any], filepath: str):
+    """
+    Export report to JSON file.
+
+    Args:
+        report: Report dictionary
+        filepath: Output file path
+    """
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(report, f, indent=2, ensure_ascii=False)
+
+    logger.info(f"Report exported to JSON: {filepath}")
+
+def export_to_markdown(self, report: Dict[str, Any], filepath: str):
+    """
+    Export report to Markdown file.
+
+    Args:
+        report: Report dictionary
+        filepath: Output file path
+    """
+    metrics = report['metrics']
+
+    md_lines = [
+        f"# Backtest Report: {report['strategy_name']}",
+        "",
+        f"**Period:** {report['period']['start_date']} to {report['period']['end_date']}",
+        f"**Trading Days:** {report['period']['trading_days']}",
+        "",
+        "## Performance Metrics",
+        "",
+        "### Returns",
+        f"- **Total Return:** {metrics['total_return']:.2%}",
+        f"- **Annual Return:** {metrics['annual_return']:.2%}",
+        "",
+        "### Risk-Adjusted Returns",
+        f"- **Sharpe Ratio:** {metrics['sharpe_ratio']:.2f}",
+        f"- **Sortino Ratio:** {metrics['sortino_ratio']:.2f}",
+        f"- **Calmar Ratio:** {metrics['calmar_ratio']:.2f}",
+        "",
+        "### Risk Metrics",
+        f"- **Max Drawdown:** {metrics['max_drawdown']:.2%}",
+        f"- **Max DD Duration:** {metrics['max_drawdown_duration']} days",
+        f"- **Volatility:** {metrics['volatility']:.2%}",
+        f"- **Downside Deviation:** {metrics['downside_deviation']:.2%}",
+        "",
+        "## Trade Statistics",
+        "",
+        f"- **Total Trades:** {metrics['total_trades']}",
+        f"- **Winning Trades:** {metrics['winning_trades']}",
+        f"- **Losing Trades:** {metrics['losing_trades']}",
+        f"- **Win Rate:** {metrics['win_rate']:.2%}",
+        f"- **Profit/Loss Ratio:** {metrics['profit_loss_ratio']:.2f}",
+        f"- **Average Win:** {metrics['avg_win']:.2f}",
+        f"- **Average Loss:** {metrics['avg_loss']:.2f}",
+        f"- **Average Holding Days:** {metrics['avg_holding_days']:.1f}",
+        f"- **Max Consecutive Wins:** {metrics['max_consecutive_wins']}",
+        f"- **Max Consecutive Losses:** {metrics['max_consecutive_losses']}",
+        "",
+        "## Capital",
+        "",
+        f"- **Initial Capital:** {metrics['initial_capital']:,.2f}",
+        f"- **Final Capital:** {metrics['final_capital']:,.2f}",
+        f"- **Peak Capital:** {metrics['peak_capital']:,.2f}",
+        "",
+        "## Strategy Parameters",
+        "",
+        "```json",
+        json.dumps(report['parameters'], indent=2),
+        "```",
+        "",
+        f"*Report generated at: {report['generated_at']}*"
+    ]
+
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write("\n".join(md_lines))
+
+    logger.info(f"Report exported to Markdown: {filepath}")

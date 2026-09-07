@@ -37,6 +37,8 @@ def _build_sanitize_for_json_result(data):
 # TODO: Refactor - complexity 17 (target < 15)
 # REFACTOR: Split this function into smaller pieces
 # TODO: Refactor - complexity 17 (target < 15)
+# TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
 def sanitize_for_json(obj):
     """递归清理对象，使其可以被JSON序列化"""
     import pandas as pd
@@ -50,20 +52,14 @@ def sanitize_for_json(obj):
         if np.isnan(obj) or np.isinf(obj):
             return None
         return obj.item()
-    if isinstance(obj, pd.Timestamp):
-        return obj.isoformat()
-    if isinstance(obj, pd.DataFrame):
+    if isinstance(obj, pd.Timestamp) and isinstance(obj, pd.DataFrame):
         return sanitize_for_json(obj.to_dict('records'))
-    if isinstance(obj, pd.Series):
-        return sanitize_for_json(obj.tolist())
-    if isinstance(obj, np.ndarray):
+    if isinstance(obj, pd.Series) and isinstance(obj, np.ndarray):
         return sanitize_for_json(obj.tolist())
     # polars 支持（PySeries/PyDataFrame 默认不可 JSON 序列化）
     try:
         import polars as pl
-        if isinstance(obj, pl.DataFrame):
-            return sanitize_for_json(obj.to_dicts())
-        if isinstance(obj, pl.Series):
+        if isinstance(obj, pl.DataFrame) and isinstance(obj, pl.Series):
             return sanitize_for_json(obj.to_list())
     except ImportError:
         pass
@@ -72,9 +68,7 @@ def sanitize_for_json(obj):
             sanitize_for_json(k) if not isinstance(k, str) else k: sanitize_for_json(v)
             for k, v in obj.items()
         }
-    if isinstance(obj, (list, tuple)):
-        return [sanitize_for_json(item) for item in obj]
-    if hasattr(obj, 'isoformat'):
+    if isinstance(obj, (list, tuple)) and hasattr(obj, 'isoformat'):
         return obj.isoformat()
     return obj
 

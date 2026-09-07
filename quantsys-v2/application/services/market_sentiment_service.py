@@ -68,6 +68,8 @@ logger = structlog.get_logger(__name__)
 
 # TODO: Refactor large class (21 methods, target < 20)
 # TODO: Refactor large class (21 methods, target < 20)
+# TODO: 大类 21个方法 - 考虑拆分为多个类或使用组合模式
+
 class MarketSentimentService:
     """市场情绪分析服务"""
 
@@ -82,6 +84,8 @@ class MarketSentimentService:
             from infrastructure.services.service_factory import ServiceFactory
             kline_repo = ServiceFactory.get_kline_repository()
         self.kline_repo = kline_repo
+
+    # TODO: 长函数 109行 - 建议拆分为多个小函数
 
     def analyze_market_sentiment(self) -> Dict:
         # ---- Section 1 ----
@@ -369,6 +373,8 @@ class MarketSentimentService:
 # TODO: Refactor - complexity 30 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 30 (target < 15)
+    # TODO: 复杂度 30 - 需要重构拆分为更小的函数
+
     def _calculate_sentiment_score(self, indicators: Dict) -> float:
         """
         综合计算情绪分数 (0-100)
@@ -458,82 +464,81 @@ class MarketSentimentService:
             return 'neutral_negative'
         elif score >= 20:
             return 'fear'
-        else:
-            return 'extreme_fear'
+        return 'extreme_fear'
 
-    def _determine_market_phase(self, sentiment: float, volatility: Dict) -> str:
-        """判断市场阶段"""
-        vol_level = volatility.get('level', 'normal')
+def _determine_market_phase(self, sentiment: float, volatility: Dict) -> str:
+    """判断市场阶段"""
+    vol_level = volatility.get('level', 'normal')
 
-        if sentiment >= 70 and vol_level in ['low', 'normal']:
-            return 'bull_market'
-        elif sentiment >= 55:
-            return 'recovery'
-        elif sentiment <= 30 and vol_level == 'high':
-            return 'bear_market'
-        elif sentiment <= 45:
-            return 'correction'
-        else:
-            return 'consolidation'
+    if sentiment >= 70 and vol_level in ['low', 'normal']:
+        return 'bull_market'
+    elif sentiment >= 55:
+        return 'recovery'
+    elif sentiment <= 30 and vol_level == 'high':
+        return 'bear_market'
+    elif sentiment <= 45:
+        return 'correction'
+    else:
+        return 'consolidation'
 
-    def _generate_recommendation(self, sentiment_level: str, market_phase: str) -> str:
-        """生成操作建议"""
-        recommendations = {
-            'extreme_greed': '市场极度贪婪，谨慎追高，可考虑逢高减仓',
-            'greed': '市场情绪乐观，注意风险控制',
-            'neutral_positive': '市场偏乐观，可适量参与',
-            'neutral': '市场情绪中性，观望为主',
-            'neutral_negative': '市场偏悲观，谨慎操作',
-            'fear': '市场恐慌，可关注优质标的逢低布局机会',
-            'extreme_fear': '市场极度恐慌，优质标的可能出现超跌机会',
-        }
+def _generate_recommendation(self, sentiment_level: str, market_phase: str) -> str:
+    """生成操作建议"""
+    recommendations = {
+        'extreme_greed': '市场极度贪婪，谨慎追高，可考虑逢高减仓',
+        'greed': '市场情绪乐观，注意风险控制',
+        'neutral_positive': '市场偏乐观，可适量参与',
+        'neutral': '市场情绪中性，观望为主',
+        'neutral_negative': '市场偏悲观，谨慎操作',
+        'fear': '市场恐慌，可关注优质标的逢低布局机会',
+        'extreme_fear': '市场极度恐慌，优质标的可能出现超跌机会',
+    }
 
-        return recommendations.get(sentiment_level, '市场情绪中性，观望为主')
+    return recommendations.get(sentiment_level, '市场情绪中性，观望为主')
 
-    # 辅助分类函数
-    def _classify_ad_ratio(self, ratio: float) -> str:
-        if ratio > 2:
-            return 'very_strong'
-        elif ratio > 1.5:
-            return 'strong'
-        elif ratio > 1:
-            return 'positive'
-        elif ratio > 0.5:
-            return 'weak'
-        else:
-            return 'very_weak'
+# 辅助分类函数
+def _classify_ad_ratio(self, ratio: float) -> str:
+    if ratio > 2:
+        return 'very_strong'
+    elif ratio > 1.5:
+        return 'strong'
+    elif ratio > 1:
+        return 'positive'
+    elif ratio > 0.5:
+        return 'weak'
+    else:
+        return 'very_weak'
 
-    def _classify_volume(self, ratio: float) -> str:
-        if ratio > 1.5:
-            return 'high'
-        elif ratio > 1.2:
-            return 'above_normal'
-        elif ratio > 0.8:
-            return 'normal'
-        else:
-            return 'low'
+def _classify_volume(self, ratio: float) -> str:
+    if ratio > 1.5:
+        return 'high'
+    elif ratio > 1.2:
+        return 'above_normal'
+    elif ratio > 0.8:
+        return 'normal'
+    else:
+        return 'low'
 
-    def _classify_index_trend(self, positive: int, total: int) -> str:
-        if total == 0:
-            return 'neutral'
-        pct = positive / total
-        if pct >= 0.8:
-            return 'strong_up'
-        elif pct >= 0.6:
-            return 'up'
-        elif pct >= 0.4:
-            return 'neutral'
-        elif pct >= 0.2:
-            return 'down'
-        else:
-            return 'strong_down'
+def _classify_index_trend(self, positive: int, total: int) -> str:
+    if total == 0:
+        return 'neutral'
+    pct = positive / total
+    if pct >= 0.8:
+        return 'strong_up'
+    elif pct >= 0.6:
+        return 'up'
+    elif pct >= 0.4:
+        return 'neutral'
+    elif pct >= 0.2:
+        return 'down'
+    else:
+        return 'strong_down'
 
-    def _classify_volatility(self, vol: float) -> str:
-        if vol > 2.5:
-            return 'very_high'
-        elif vol > 1.5:
-            return 'high'
-        elif vol > 1.0:
-            return 'normal'
-        else:
-            return 'low'
+def _classify_volatility(self, vol: float) -> str:
+    if vol > 2.5:
+        return 'very_high'
+    elif vol > 1.5:
+        return 'high'
+    elif vol > 1.0:
+        return 'normal'
+    else:
+        return 'low'

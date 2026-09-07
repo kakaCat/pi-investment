@@ -83,9 +83,7 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
                 FactorValue.symbol == symbol
             )
 
-            if factor_names:
-                query = query.filter(FactorValue.factor_name.in_(factor_names))
-            if start_date:
+            if factor_names and start_date:
                 query = query.filter(FactorValue.factor_date >= start_date)
             if end_date:
                 query = query.filter(FactorValue.factor_date <= end_date)

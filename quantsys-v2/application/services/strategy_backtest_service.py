@@ -94,6 +94,8 @@ class StrategyBacktestService:
         self.script_executor = script_executor or ScriptStrategyExecutor()
 
     # TODO: Split long function (109 lines, target < 100)
+    # TODO: 长函数 120行 - 建议拆分为多个小函数
+
     def backtest_indicator_strategy(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -167,9 +169,7 @@ class StrategyBacktestService:
                 sell_sum = signals_df['sell'].sum()
             else:
                 for tier in [1, 2, 3]:
-                    if f'buy_tier{tier}' in signals_df.columns:
-                        buy_sum += signals_df[f'buy_tier{tier}'].sum()
-                    if f'sell_tier{tier}' in signals_df.columns:
+                    if f'buy_tier{tier}' in signals_df.columns and f'sell_tier{tier}' in signals_df.columns:
                         sell_sum += signals_df[f'sell_tier{tier}'].sum()
             logger.info(f"生成信号: {len(signals_df)} 条, buy信号: {buy_sum}, sell信号: {sell_sum}")
 
@@ -298,6 +298,10 @@ class StrategyBacktestService:
     # TODO: Split long function (267 lines, target < 100)
     # TODO: Refactor - complexity 30 (target < 15)
     # TODO: Split long function (267 lines, target < 100)
+    # TODO: 复杂度 30 - 需要重构拆分为更小的函数
+# TODO: 长函数 287行 - 建议拆分为多个小函数
+
+
     def run_backtest_from_signals(
         # ---- Section 1 ----
         # ---- Section 2 ----

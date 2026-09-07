@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_10_5 = 10.5
+CONST_10000_0 = 10000.0
+CONST_2024 = 2024
+CONST_3000_0 = 3000.0
+CONST_31 = 31
+CONST_40 = 40
+CONST_5 = 5
+CONST_50 = 50
+CONST_500 = 500
+CONST_60 = 60
+
 """
 CLI Commands Tests
 

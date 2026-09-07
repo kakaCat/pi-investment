@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_15 = 15
+CONST_16 = 16
+CONST_194854_000 = 194854.000
+CONST_2026 = 2026
+CONST_22 = 22
+CONST_23 = 23
+CONST_24 = 24
+CONST_260109_000 = 260109.000
+CONST_3_10 = 3.10
+CONST_30_940 = 30.940
+
 """
 TencentKlineProvider 测试（mock 响应，不依赖网络）。
 

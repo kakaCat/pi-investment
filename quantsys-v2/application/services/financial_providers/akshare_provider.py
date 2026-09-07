@@ -75,6 +75,10 @@ class AkshareFinancialProvider(FinancialProvider):
 # TODO: Refactor - complexity 22 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 22 (target < 15)
+    # TODO: 复杂度 22 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 111行 - 建议拆分为多个小函数
+
     def get_financial_data(
         # ---- Section 1 ----
         # ---- Section 2 ----

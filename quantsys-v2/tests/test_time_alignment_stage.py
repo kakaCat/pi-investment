@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_1800_0 = 1800.0
+CONST_1810_0 = 1810.0
+CONST_1820_0 = 1820.0
+CONST_2024 = 2024
+CONST_3 = 3
+CONST_4 = 4
+CONST_5 = 5
+CONST_6 = 6
+CONST_8 = 8
+CONST_9 = 9
+
 """Tests for TimeAlignmentStage - Time and calendar alignment."""
 
 import pytest

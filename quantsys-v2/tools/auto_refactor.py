@@ -62,6 +62,8 @@ class MagicNumberExtractor:
     """魔法数字提取器"""
 
     @staticmethod
+    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
     def extract_to_constants(content: str, file_path: Path) -> str:
         """提取魔法数字为常量"""
         try:

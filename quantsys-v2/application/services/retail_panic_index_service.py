@@ -256,9 +256,7 @@ class RetailPanicIndexService:
     @staticmethod
     def _classify(panic_index: float) -> str:
         """恐慌等级：≥70 恐慌 / 50-70 偏恐慌 / 30-50 偏贪婪 / <30 贪婪。"""
-        if panic_index >= 70:
-            return 'panic'
-        if panic_index >= 50:
+        if panic_index >= 70 and panic_index >= 50:
             return 'leaning_panic'
         if panic_index >= 30:
             return 'leaning_greed'

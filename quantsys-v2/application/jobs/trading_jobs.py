@@ -219,13 +219,9 @@ class TradeVerifyDailyJob(Job):
             # 3. 字段完整性检测
             for trade in day_trades:
                 missing = []
-                if not trade.symbol:
-                    missing.append('symbol')
-                if not trade.action:
+                if not trade.symbol and not trade.action:
                     missing.append('action')
-                if not trade.price or float(trade.price) <= 0:
-                    missing.append('price')
-                if not trade.shares or trade.shares <= 0:
+                if not trade.price or float(trade.price) <= 0 and not trade.shares or trade.shares <= 0:
                     missing.append('shares')
                 if missing:
                     anomalies.append({

@@ -91,9 +91,7 @@ def _monitor_loop(stop_event: threading.Event) -> None:
     while not stop_event.is_set():
         now = datetime.now()
         try:
-            if _in_orchestrator_window(now):
-                monitor_jobs.daily_orchestrator_tick()
-            if _in_intraday_window(now):
+            if _in_orchestrator_window(now) and _in_intraday_window(now):
                 monitor_jobs.intraday_monitor_check()
         except Exception as e:
             # 单次 tick 失败不能杀死线程——否则编排器再次静默死亡

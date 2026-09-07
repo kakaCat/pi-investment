@@ -116,6 +116,8 @@ class DataQualityService:
     # TODO: Refactor - function too long (163 lines, target < 80)
 
 # TODO: Split long function (162 lines, target < 100)
+    # TODO: 长函数 175行 - 建议拆分为多个小函数
+
     def check_data_quality(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -341,6 +343,8 @@ class DataQualityService:
             }
 # TODO: Refactor - function too long (106 lines, target < 80)
 
+
+# TODO: 长函数 114行 - 建议拆分为多个小函数
 
 # TODO: Split long function (105 lines, target < 100)
     def backfill_missing_data(
@@ -643,71 +647,70 @@ class DataQualityService:
             return 'B'
         elif score >= 80.0:
             return 'C'
+        return 'D'
+
+def _get_hot_stocks(self, limit: int = None) -> List[str]:
+    """获取股票池（默认：所有有数据的股票）
+
+    Args:
+        limit: 返回数量限制（None=全部，默认None）
+
+    Returns:
+        股票代码列表
+    """
+    try:
+        from sqlalchemy import func, desc
+        from infrastructure.persistence.orm.models import DailyKline
+
+        # 使用 ORM session 而不是 cursor
+        session = self.kline_repo.session
+
+        if limit is None:
+            # 获取所有股票
+            query = session.query(DailyKline.symbol)\
+                .distinct()\
+                .order_by(DailyKline.symbol)
         else:
-            return 'D'
+            # 获取指定数量的热门股票（按最近30天数据量排序）
+            from datetime import datetime, timedelta
+            cutoff_date = datetime.now() - timedelta(days=30)
 
-    def _get_hot_stocks(self, limit: int = None) -> List[str]:
-        """获取股票池（默认：所有有数据的股票）
+            query = session.query(
+                DailyKline.symbol,
+                func.count(DailyKline.symbol).label('cnt')
+            )\
+            .filter(DailyKline.trade_date >= cutoff_date)\
+            .group_by(DailyKline.symbol)\
+            .order_by(desc('cnt'))\
+            .limit(limit)
 
-        Args:
-            limit: 返回数量限制（None=全部，默认None）
+        results = query.all()
 
-        Returns:
-            股票代码列表
-        """
-        try:
-            from sqlalchemy import func, desc
-            from infrastructure.persistence.orm.models import DailyKline
-
-            # 使用 ORM session 而不是 cursor
-            session = self.kline_repo.session
-
-            if limit is None:
-                # 获取所有股票
-                query = session.query(DailyKline.symbol)\
-                    .distinct()\
-                    .order_by(DailyKline.symbol)
+        # 提取 symbol
+        if results:
+            if hasattr(results[0], 'symbol'):
+                symbols = [row.symbol for row in results]
             else:
-                # 获取指定数量的热门股票（按最近30天数据量排序）
-                from datetime import datetime, timedelta
-                cutoff_date = datetime.now() - timedelta(days=30)
+                symbols = [row[0] for row in results]
+        else:
+            symbols = []
 
-                query = session.query(
-                    DailyKline.symbol,
-                    func.count(DailyKline.symbol).label('cnt')
-                )\
-                .filter(DailyKline.trade_date >= cutoff_date)\
-                .group_by(DailyKline.symbol)\
-                .order_by(desc('cnt'))\
-                .limit(limit)
-
-            results = query.all()
-
-            # 提取 symbol
-            if results:
-                if hasattr(results[0], 'symbol'):
-                    symbols = [row.symbol for row in results]
-                else:
-                    symbols = [row[0] for row in results]
-            else:
-                symbols = []
-
-            # 如果数据库为空，返回示例股票
-            if not symbols:
-                symbols = [
-                    '600519', '000858', '600036', '601318', '600900',
-                    '600276', '601888', '600887', '000333', '002475'
-                ]
-                logger.warning("数据库中无K线数据，使用默认股票池")
-
-            logger.info(f"获取股票池: {len(symbols)} 只股票" +
-                       (f" (限制: {limit})" if limit else " (全部)"))
-            return symbols
-
-        except Exception as e:
-            logger.error(f"获取股票池失败: {e}", exc_info=True)
-            # 返回默认股票池而不是空列表
-            return [
+        # 如果数据库为空，返回示例股票
+        if not symbols:
+            symbols = [
                 '600519', '000858', '600036', '601318', '600900',
                 '600276', '601888', '600887', '000333', '002475'
             ]
+            logger.warning("数据库中无K线数据，使用默认股票池")
+
+        logger.info(f"获取股票池: {len(symbols)} 只股票" +
+                   (f" (限制: {limit})" if limit else " (全部)"))
+        return symbols
+
+    except Exception as e:
+        logger.error(f"获取股票池失败: {e}", exc_info=True)
+        # 返回默认股票池而不是空列表
+        return [
+            '600519', '000858', '600036', '601318', '600900',
+            '600276', '601888', '600887', '000333', '002475'
+        ]

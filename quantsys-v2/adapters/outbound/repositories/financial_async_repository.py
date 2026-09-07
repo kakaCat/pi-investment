@@ -71,9 +71,7 @@ class FinancialAsyncRepository(AsyncBaseORMRepository[Financial]):
         try:
             stmt = select(Financial)
 
-            if symbol:
-                stmt = stmt.where(Financial.symbol == symbol)
-            if start_date:
+            if symbol and start_date:
                 stmt = stmt.where(Financial.report_date >= start_date)
             if end_date:
                 stmt = stmt.where(Financial.report_date <= end_date)

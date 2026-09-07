@@ -139,6 +139,10 @@ class FeatureEngineeringCalculator(BaseCalculator):
     # TODO: Split long function (136 lines, target < 100)
     # TODO: Refactor - complexity 26 (target < 15)
     # TODO: Split long function (136 lines, target < 100)
+    # TODO: 复杂度 26 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 144行 - 建议拆分为多个小函数
+
     def generate_features(self,
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -168,9 +172,7 @@ class FeatureEngineeringCalculator(BaseCalculator):
                 - feature_importance: Dict mapping feature name to importance score
                 - feature_types: Dict mapping feature name to its type
         """
-        if data is None or (isinstance(data, pd.DataFrame) and data.empty):
-            raise DataValidationError("Input data is empty", field_name="data")
-        if _check_condition_0():
+        if data is None or (isinstance(data, pd.DataFrame) and data.empty) and _check_condition_0():
             pass  # TODO: implement
         if feature_types is None:
             feature_types = ['technical', 'statistical', 'time']

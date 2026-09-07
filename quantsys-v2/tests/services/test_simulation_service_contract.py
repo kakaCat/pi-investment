@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000 = 100000
+CONST_101_0 = 101.0
+CONST_101000_0 = 101000.0
+CONST_1500_00 = 1500.00
+CONST_1520_0 = 1520.0
+CONST_1520_00 = 1520.00
+CONST_152000_00 = 152000.00
+CONST_2000_00 = 2000.00
+CONST_2026 = 2026
+CONST_3 = 3
+
 """SimulationService 数据契约测试（A线：days_held / last_updated / price_stale）
 
 不依赖数据库：通过 __new__ 跳过 __init__，repo 用 Mock 替换。

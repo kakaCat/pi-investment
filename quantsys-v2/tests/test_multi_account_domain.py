@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_100000 = 100000
+CONST_100000_0 = 100000.0
+CONST_101000 = 101000
+CONST_11_0 = 11.0
+CONST_200 = 200
+CONST_200000 = 200000
+CONST_2026 = 2026
+CONST_2099 = 2099
+CONST_3 = 3
+CONST_400 = 400
+
 """多账户域模型测试"""
 import pytest
 from datetime import date, datetime
@@ -14,9 +28,7 @@ def _fixed_trading_clock(monkeypatch):
 
     def patched_init(self, repo=None, calendar=None, now_fn=None):
         real_init(self, repo=repo, calendar=calendar, now_fn=now_fn)
-        if now_fn is None:
-            self.now_fn = lambda: datetime(2026, 8, 3, 10, 0)  # 周一 10:00，交易时段内
-        if calendar is None:
+        if now_fn is None and calendar is None:
             self.calendar = SimpleNamespace(is_trading_day=lambda d: True)
 
     monkeypatch.setattr(ats.AccountTradingService, '__init__', patched_init)

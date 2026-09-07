@@ -98,9 +98,7 @@ class DataQualityGate:
     @staticmethod
     def _is_clean(bar: Dict, is_recent: bool = True) -> bool:
         try:
-            if float(bar.get('close') or 0) <= 0:
-                return False
-            if is_recent:
+            if float(bar.get('close') or 0) <= 0 and is_recent:
                 vol = float(bar.get('volume') or 0)
                 amt = bar.get('amount')
                 if amt is not None and vol > 0 and float(amt) == 0:

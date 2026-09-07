@@ -148,6 +148,8 @@ class ScenarioAnalysisCalculator(BaseCalculator):
     # TODO: Refactor - function too long (102 lines, target < 80)
 
 # TODO: Split long function (101 lines, target < 100)
+    # TODO: 长函数 106行 - 建议拆分为多个小函数
+
     def calculate(self,
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -446,6 +448,8 @@ class ScenarioAnalysisCalculator(BaseCalculator):
         return recommendations
 # TODO: Refactor - function too long (142 lines, target < 80)
 
+
+# TODO: 长函数 147行 - 建议拆分为多个小函数
 
 # TODO: Split long function (141 lines, target < 100)
     def _define_historical_scenarios(self) -> List[MarketScenario]:

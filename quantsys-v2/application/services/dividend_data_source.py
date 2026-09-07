@@ -91,6 +91,10 @@ class EastMoneyDividendSource(DividendDataSource):
     # TODO: Refactor - function too long (152 lines, target < 80)
 
     # REFACTOR: Split this function into smaller pieces
+    # TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 166行 - 建议拆分为多个小函数
+
     def fetch_dividends(self, symbol: str) -> pd.DataFrame:
         # ---- Section 1 ----
         # ---- Section 2 ----

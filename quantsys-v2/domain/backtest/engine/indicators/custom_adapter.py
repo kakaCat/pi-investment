@@ -233,6 +233,10 @@ class CustomIndicatorAdapter:
     # TODO: Split long function (114 lines, target < 100)
     # TODO: Refactor - complexity 17 (target < 15)
     # TODO: Split long function (114 lines, target < 100)
+    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
+    # TODO: 长函数 121行 - 建议拆分为多个小函数
+
     def _calculate_adx(
         # ---- Section 1 ----
         # ---- Section 2 ----

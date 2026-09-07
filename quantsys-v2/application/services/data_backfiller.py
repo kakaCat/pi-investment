@@ -109,6 +109,8 @@ class DataBackfiller:
     # TODO: Refactor - function too long (126 lines, target < 80)
 
 # TODO: Split long function (125 lines, target < 100)
+    # TODO: 长函数 136行 - 建议拆分为多个小函数
+
     def backfill_symbol(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -460,6 +462,8 @@ class DataBackfiller:
 # TODO: Refactor - complexity 24 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 24 (target < 15)
+    # TODO: 复杂度 24 - 需要重构拆分为更小的函数
+
     def _convert_klines(self, symbol: str, raw_data: List, start_date: str, end_date: str) -> List[Dict]:
         """转换原始K线数据为标准格式
 

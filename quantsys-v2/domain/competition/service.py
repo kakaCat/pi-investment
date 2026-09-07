@@ -59,6 +59,8 @@ class CompetitionAnalysisService:
     # TODO: Refactor - function too long (114 lines, target < 80)
 
 # TODO: Split long function (113 lines, target < 100)
+    # TODO: 长函数 120行 - 建议拆分为多个小函数
+
     def analyze(self, symbol: str, include_financial: bool = True) -> Dict[str, Any]:
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -191,81 +193,82 @@ class CompetitionAnalysisService:
             return "leader"
         elif 2 <= rank <= 5 or 5 <= market_share <= 30:
             return "second_tier"
-        else:
-            return "follower"
+        return "follower"
 
-    def _build_financial_comparison(
-        self, target_symbol: str, target_info: dict, competitors: List[dict]
-    ) -> Dict[str, Any]:
-        """构建财务对比表"""
-        metrics = ["roe", "gross_margin", "net_profit_growth", "revenue_growth"]
-        data = []
+def _build_financial_comparison(
+    self, target_symbol: str, target_info: dict, competitors: List[dict]
+) -> Dict[str, Any]:
+    """构建财务对比表"""
+    metrics = ["roe", "gross_margin", "net_profit_growth", "revenue_growth"]
+    data = []
 
-        # 添加目标公司
-        target_row = {
-            "symbol": target_symbol,
-            "name": target_info["name"],
-            "roe": target_info.get("roe"),
-            "gross_margin": target_info.get("gross_margin"),
-            "net_profit_growth": target_info.get("net_profit_growth"),
-            "revenue_growth": target_info.get("revenue_growth")
+    # 添加目标公司
+    target_row = {
+        "symbol": target_symbol,
+        "name": target_info["name"],
+        "roe": target_info.get("roe"),
+        "gross_margin": target_info.get("gross_margin"),
+        "net_profit_growth": target_info.get("net_profit_growth"),
+        "revenue_growth": target_info.get("revenue_growth")
+    }
+    data.append(target_row)
+
+    # 添加竞争对手
+    for comp in competitors:
+        if comp["symbol"] == target_symbol:
+            continue
+        comp_row = {
+            "symbol": comp["symbol"],
+            "name": comp["name"],
+            "roe": comp.get("roe"),
+            "gross_margin": comp.get("gross_margin"),
+            "net_profit_growth": comp.get("net_profit_growth"),
+            "revenue_growth": comp.get("revenue_growth")
         }
-        data.append(target_row)
+        data.append(comp_row)
 
-        # 添加竞争对手
-        for comp in competitors:
-            if comp["symbol"] == target_symbol:
-                continue
-            comp_row = {
-                "symbol": comp["symbol"],
-                "name": comp["name"],
-                "roe": comp.get("roe"),
-                "gross_margin": comp.get("gross_margin"),
-                "net_profit_growth": comp.get("net_profit_growth"),
-                "revenue_growth": comp.get("revenue_growth")
-            }
-            data.append(comp_row)
+    return {
+        "metrics": metrics,
+        "data": data
+    }
 
-        return {
-            "metrics": metrics,
-            "data": data
-        }
+# TODO: Refactor - complexity 27 (target < 15)
 
-    # TODO: Refactor - complexity 27 (target < 15)
+def _validate__extract_competitive_edges_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 _extract_competitive_edges 移到这里
+    return True, None
 
-    def _validate__extract_competitive_edges_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _extract_competitive_edges 移到这里
-        return True, None
+def _process__extract_competitive_edges_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 _extract_competitive_edges 移到这里
+    return data
 
-    def _process__extract_competitive_edges_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _extract_competitive_edges 移到这里
-        return data
+def _build__extract_competitive_edges_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 _extract_competitive_edges 移到这里
+    return data
 
-    def _build__extract_competitive_edges_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _extract_competitive_edges 移到这里
-        return data
+def _validate__extract_competitive_edges_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 _extract_competitive_edges 移到这里
+    return True, None
 
-    def _validate__extract_competitive_edges_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _extract_competitive_edges 移到这里
-        return True, None
+def _process__extract_competitive_edges_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 _extract_competitive_edges 移到这里
+    return data
 
-    def _process__extract_competitive_edges_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _extract_competitive_edges 移到这里
-        return data
-
-    def _build__extract_competitive_edges_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _extract_competitive_edges 移到这里
-        return data
+def _build__extract_competitive_edges_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 _extract_competitive_edges 移到这里
+    return data
 
 # TODO: Refactor - complexity 27 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 27 (target < 15)
+    # TODO: 复杂度 27 - 需要重构拆分为更小的函数
+
     def _extract_competitive_edges(
         self, stock_info: dict, industry_totals: dict
     ) -> tuple[List[str], List[str]]:

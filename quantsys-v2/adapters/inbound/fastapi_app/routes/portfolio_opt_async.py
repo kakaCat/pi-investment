@@ -56,8 +56,7 @@ def _convert_numpy_to_list(obj):
         return [_convert_numpy_to_list(item) for item in obj]
     elif isinstance(obj, (np.integer, np.floating)):
         return obj.item()
-    else:
-        return obj
+    return obj
 
 
 def _require_json_body(payload: Optional[Dict[str, Any]]) -> Dict[str, Any]:

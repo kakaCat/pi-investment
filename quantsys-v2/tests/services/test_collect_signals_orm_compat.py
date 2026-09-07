@@ -1,3 +1,13 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_13 = 13
+CONST_178 = 178
+CONST_179 = 179
+CONST_2026 = 2026
+CONST_600519 = 600519
+CONST_8 = 8
+
 """_collect_signals ORM/dict 兼容回归测试（2026-08-13）
 
 事故：signal_repo.get_signals_by_date 在 ORM 重构后返回 Signal 对象列表，

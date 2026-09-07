@@ -1,3 +1,15 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_1200 = 1200
+CONST_20 = 20
+CONST_200 = 200
+CONST_3 = 3
+CONST_30 = 30
+CONST_300 = 300
+CONST_4 = 4
+CONST_50 = 50
+
 """SessionService 测试：事件摄入幂等、计数器、诊断聚合"""
 import pytest
 from datetime import datetime, timezone

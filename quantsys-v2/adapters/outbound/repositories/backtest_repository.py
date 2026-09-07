@@ -221,9 +221,7 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
         try:
             query = self.session.query(BacktestResult)
 
-            if strategy_name:
-                query = query.filter(BacktestResult.strategy_name == strategy_name)
-            if symbol:
+            if strategy_name and symbol:
                 query = query.filter(BacktestResult.symbol == symbol)
 
             return query.order_by(

@@ -50,6 +50,8 @@ from infrastructure.quantlib.core.exceptions import InsufficientDataError
 
 # TODO: Refactor large class (23 methods, target < 20)
 # TODO: Refactor large class (23 methods, target < 20)
+# TODO: 大类 23个方法 - 考虑拆分为多个类或使用组合模式
+
 class OtherFactors(TechnicalFactorCalculator):
     """
     Other technical indicator calculator.

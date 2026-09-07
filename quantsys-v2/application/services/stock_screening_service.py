@@ -88,6 +88,8 @@ class StockScreeningService:
     # TODO: Refactor - function too long (116 lines, target < 80)
 
 # TODO: Split long function (115 lines, target < 100)
+    # TODO: 长函数 127行 - 建议拆分为多个小函数
+
     def screen_stocks(self, criteria: Dict) -> Dict:
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -251,6 +253,8 @@ class StockScreeningService:
 # TODO: Refactor - complexity 24 (target < 15)
     # REFACTOR: Split this function into smaller pieces
     # TODO: Refactor - complexity 24 (target < 15)
+    # TODO: 复杂度 24 - 需要重构拆分为更小的函数
+
     def _match_basic_criteria(self, stock: Dict, criteria: Dict) -> bool:
         """
         检查股票是否匹配基本条件

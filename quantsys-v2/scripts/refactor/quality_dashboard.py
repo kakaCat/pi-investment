@@ -176,6 +176,8 @@ def render_ascii_dashboard(metrics: Dict):
 # TODO: Refactor - function too long (188 lines, target < 80)
 
 # TODO: Split long function (187 lines, target < 100)
+# TODO: 长函数 202行 - 建议拆分为多个小函数
+
 def render_html_dashboard(metrics: Dict, output_file: Path):
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -349,9 +351,7 @@ def render_html_dashboard(metrics: Dict, output_file: Path):
     
     # 添加建议
     suggestions = []
-    if issues.get('sys_path', {}).get('count', 0) > 0:
-        suggestions.append("运行 <code>make fix-syspath</code> 清理 sys.path.insert")
-    if issues.get('direct_imports', {}).get('count', 0) > 0:
+    if issues.get('sys_path', {}).get('count', 0) > 0 and issues.get('direct_imports', {}).get('count', 0) > 0:
         suggestions.append("运行 <code>make scan-imports</code> 查看详细违规列表")
     if issues.get('print_debug', {}).get('count', 0) > 0:
         suggestions.append("将 <code>print()</code> 替换为 <code>logger.info()</code>")

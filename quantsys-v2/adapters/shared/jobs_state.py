@@ -105,6 +105,8 @@ def _check_condition_0():
     return klines_df is not None and not klines_df.is_empty() and len(klines_df) >= 20
 
 # TODO: Refactor - complexity 17 (target < 15)
+# TODO: 复杂度 17 - 需要重构拆分为更小的函数
+
 def _execute_job_by_type(job_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """Execute a job by type, returning result dict."""
     if job_type == 'data_update':

@@ -122,6 +122,8 @@ for _b in CYCLE_BOARDS:
 # TODO: Refactor - function too long (131 lines, target < 80)
 
 # TODO: Split long function (130 lines, target < 100)
+# TODO: 长函数 141行 - 建议拆分为多个小函数
+
 def compute_style_from_boards(boards: List[Dict[str, Any]]) -> Dict[str, Any]:
     # ---- Section 1 ----
     # ---- Section 2 ----
@@ -301,9 +303,7 @@ def fetch_sina_sector_boards() -> Optional[List[Dict[str, Any]]]:
     except Exception as e:
         logger.error(f"新浪行业数据拉取失败: {e}")
         return None
-    if df is None or df.empty:
-        return None
-    if '板块' not in df.columns or '涨跌幅' not in df.columns:
+    if df is None or df.empty and '板块' not in df.columns or '涨跌幅' not in df.columns:
         logger.error(f"新浪行业返回列异常: {list(df.columns)}")
         return None
     boards = []
@@ -413,9 +413,7 @@ class MarketStyleDetector:
 
 def _f(value: Any) -> Optional[float]:
     """宽松转 float：None/空/非数值 → None"""
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
+    if value is None and isinstance(value, (int, float)):
         return float(value)
     s = str(value).strip().replace('%', '')
     if s in ('', '-', '--', 'None', 'nan'):

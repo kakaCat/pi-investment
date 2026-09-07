@@ -63,9 +63,7 @@ class PoolSignalScanner:
         """parsed_params 归一为 {name: value}：
         dict → 原样；[{name, default, ...}] → {name: default}；
         ['a','b']（仅名字无默认值）→ {}；None/其他 → {}"""
-        if isinstance(raw, dict):
-            return raw
-        if isinstance(raw, list):
+        if isinstance(raw, dict) and isinstance(raw, list):
             out = {}
             for item in raw:
                 if isinstance(item, dict) and 'name' in item:
@@ -285,9 +283,7 @@ class PoolSignalScanner:
         if 'buy' in df.columns and last_row.get('buy', False):
             signal = 'buy'
             # 根据指标推断买入理由
-            if indicators.get('rsi14', 100) < 50:
-                reasons.append('RSI超卖区间')
-            if indicators.get('macd', 0) > 0:
+            if indicators.get('rsi14', 100) < 50 and indicators.get('macd', 0) > 0:
                 reasons.append('MACD金叉')
             if not reasons:
                 reasons.append('策略买入信号')

@@ -205,6 +205,8 @@ class ServicesConfig:
             merged[service_name] = repo_config.to_service_config()
         pass
 
+    # TODO: 复杂度 19 - 需要重构拆分为更小的函数
+
     def _step_4_get_merged_services(self):
         """执行: 应用环境特定配置"""
         if self.current_environment in self.environments:

@@ -1,3 +1,17 @@
+
+# Configuration Constants
+# TODO: Review and rename these constants to meaningful names
+CONST_120 = 120
+CONST_15 = 15
+CONST_20 = 20
+CONST_200 = 200
+CONST_3 = 3
+CONST_30 = 30
+CONST_5 = 5
+CONST_50 = 50
+CONST_5001 = 5001
+CONST_600036 = 600036
+
 """
 L2 因子工厂层端到端测试
 验证技术因子计算正确性、基本面因子、多股票对比。

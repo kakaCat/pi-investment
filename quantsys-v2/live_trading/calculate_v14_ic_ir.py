@@ -158,6 +158,10 @@ def _build_calculate_ic_ir_result(data):
 # TODO: Split long function (186 lines, target < 100)
 # TODO: Refactor - complexity 16 (target < 15)
 # TODO: Split long function (186 lines, target < 100)
+# TODO: 复杂度 16 - 需要重构拆分为更小的函数
+
+# TODO: 长函数 201行 - 建议拆分为多个小函数
+
 def calculate_ic_ir():
     # ---- Section 1 ----
     # ---- Section 2 ----

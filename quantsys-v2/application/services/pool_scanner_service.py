@@ -88,6 +88,8 @@ class PoolScannerService:
         }
 
 # TODO: Split long function (105 lines, target < 100)
+    # TODO: 长函数 116行 - 建议拆分为多个小函数
+
     def scan_pool(
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -242,6 +244,10 @@ class PoolScannerService:
     # TODO: Split long function (208 lines, target < 100)
     # TODO: Refactor - complexity 31 (target < 15)
     # TODO: Split long function (208 lines, target < 100)
+    # TODO: 复杂度 31 - 需要重构拆分为更小的函数
+# TODO: 长函数 224行 - 建议拆分为多个小函数
+
+
     def _check_signal(self, symbol: str, strategy_id: int) -> Optional[Dict]:
         # ---- Section 1 ----
         # ---- Section 2 ----
@@ -410,9 +416,7 @@ class PoolScannerService:
                 if buy_signal:
                     # 计算评分
                     score = 70
-                    if rsi < 45: score += 5
-                    if rsi < 40: score += 5
-                    if vol_ratio > 1.5: score += 5
+                    if rsi < 45: score +=  and vol_ratio > 1.5: score += :
                     if vol_ratio > 2.0: score += 5
                     if macd > 0.5: score += 5
 
