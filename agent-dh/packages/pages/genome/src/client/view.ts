@@ -242,6 +242,30 @@ function candidateCardHtml(c: CandidateInfo): string {
   }
   const note = c.note ? `<div class="dsh-gen-cand-note">${esc(c.note)}</div>` : ''
   const mut = c.mutationType ? `<span class="dsh-gen-cand-mut">${esc(c.mutationType)}</span>` : ''
+  // 具体改动：这条候选改了什么（health_check.rule_changes added/removed）
+  let changes = ''
+  const rc = c.healthCheck?.ruleChanges
+  const hasRc = rc && ((rc.added?.length ?? 0) + (rc.removed?.length ?? 0)) > 0
+  if (hasRc) {
+    const rows: string[] = []
+    for (const r of rc.added ?? []) rows.push(`<span class="dsh-gen-chg add">🆕 新增规则 ${esc(r)}</span>`)
+    for (const r of rc.removed ?? []) rows.push(`<span class="dsh-gen-chg rm">🗑 移除规则 ${esc(r)}</span>`)
+    changes = `<div class="dsh-gen-cand-chg">${rows.join('')}</div>`
+  } else if (c.healthCheck?.ruleChanges) {
+    // 有 health_check 但无规则增删（文本修正型候选，如 R-006）——点明是修正不是新增
+    changes = `<div class="dsh-gen-cand-chg"><span class="dsh-gen-chg mod">✏️ 文本修正（无规则增删，见下方理由）</span></div>`
+  }
+  // 状态解读：这条候选现在在哪一步、下一步自动发生什么
+  const hint = c.due
+    ? '观察期已满 · 下一步：validation_gate 凭观察期表现裁决 → 转正为正式版 / 回滚'
+    : c.status === 'watching'
+      ? `试运行观察中 · ${c.remainingDays ?? '?'} 天后到期自动进入 gate 裁决（转正 / 回滚），此间正式版未被改动`
+      : c.status === 'promoted'
+        ? '已转正 · 此版本内容为正式版，持续生效中'
+        : c.status === 'rejected'
+          ? '已拒绝 · 内容未转正（如需可 genome_rollback 复原）'
+          : ''
+  const step = hint ? `<div class="dsh-gen-cand-step">${esc(hint)}</div>` : ''
   return `
   <div class="dsh-gen-cand">
     <div class="dsh-gen-cand-head">
@@ -250,8 +274,10 @@ function candidateCardHtml(c: CandidateInfo): string {
       <span class="dsh-gen-cand-id"><code>${esc(c.id)}</code></span>
       ${mut}
       ${badge(status, statusCls)}
-      ${explainBtn('candidates', c.id, `这条候选（${sec} ${c.genomeVersion}）在观察什么、怎么走到这里、下一步`)}
+      ${explainBtn('candidates', c.id, `这条候选（${sec} ${c.genomeVersion}）改了什么、解决什么问题、观察进度与下一步`)}
     </div>
+    ${changes}
+    ${step}
     ${progressHtml}
     ${hc}
     ${note}

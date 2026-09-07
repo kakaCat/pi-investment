@@ -51,7 +51,7 @@ interface RawCandidate {
   observe_until?: string
   status?: string
   mutation_type?: string
-  health_check?: { passed?: boolean; checked_at?: string; issues?: string[]; size_delta?: number }
+  health_check?: { passed?: boolean; checked_at?: string; issues?: string[]; size_delta?: number; rule_changes?: { added?: string[]; removed?: string[] } }
   note?: string
 }
 
@@ -218,6 +218,7 @@ export class GenomeAggregationService {
                 checkedAt: c.health_check.checked_at,
                 issues: c.health_check.issues,
                 sizeDelta: c.health_check.size_delta,
+                ruleChanges: c.health_check.rule_changes,
               }
             : undefined,
           note: c.note,

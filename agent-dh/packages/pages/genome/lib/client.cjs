@@ -47,7 +47,7 @@ Object.defineProperty(exports,Symbol.toStringTag,{value:`Module`});const e=`data
     <div class="dsh-gen-cand-bar">
       <div class="dsh-gen-cand-bar-in" style="width:${Math.round((e.progress??0)*100)}%"></div>
     </div>
-    <div class="dsh-gen-cand-bar-meta">${l(e.createdAt)} → ${l(e.observeUntil)} · ${e.due?`已到期`:`余 ${e.remainingDays??0} 天`}</div>`:`<div class="dsh-gen-cand-bar-meta">${l(e.createdAt)}${e.observeUntil?` → ${l(e.observeUntil)}`:``}</div>`;let a=``;if(e.healthCheck){let t=e.healthCheck.passed?`✅ 结构健康`:`❌ 结构异常`,n=[];e.healthCheck.sizeDelta!==void 0&&n.push(`diff ${e.healthCheck.sizeDelta} 字符`),e.healthCheck.issues&&e.healthCheck.issues.length>0&&n.push(...e.healthCheck.issues);let r=n.length>0?`<div class="dsh-gen-cand-hc-extra">${n.map(e=>s(e)).join(`；`)}</div>`:``;a=`<div class="dsh-gen-cand-hc">${t}${e.healthCheck.checkedAt?` · ${c(e.healthCheck.checkedAt)} 核`:``}${r}</div>`}let d=e.note?`<div class="dsh-gen-cand-note">${s(e.note)}</div>`:``,f=e.mutationType?`<span class="dsh-gen-cand-mut">${s(e.mutationType)}</span>`:``;return`
+    <div class="dsh-gen-cand-bar-meta">${l(e.createdAt)} → ${l(e.observeUntil)} · ${e.due?`已到期`:`余 ${e.remainingDays??0} 天`}</div>`:`<div class="dsh-gen-cand-bar-meta">${l(e.createdAt)}${e.observeUntil?` → ${l(e.observeUntil)}`:``}</div>`;let a=``;if(e.healthCheck){let t=e.healthCheck.passed?`✅ 结构健康`:`❌ 结构异常`,n=[];e.healthCheck.sizeDelta!==void 0&&n.push(`diff ${e.healthCheck.sizeDelta} 字符`),e.healthCheck.issues&&e.healthCheck.issues.length>0&&n.push(...e.healthCheck.issues);let r=n.length>0?`<div class="dsh-gen-cand-hc-extra">${n.map(e=>s(e)).join(`；`)}</div>`:``;a=`<div class="dsh-gen-cand-hc">${t}${e.healthCheck.checkedAt?` · ${c(e.healthCheck.checkedAt)} 核`:``}${r}</div>`}let d=e.note?`<div class="dsh-gen-cand-note">${s(e.note)}</div>`:``,f=e.mutationType?`<span class="dsh-gen-cand-mut">${s(e.mutationType)}</span>`:``,p=``,g=e.healthCheck?.ruleChanges;if(g&&(g.added?.length??0)+(g.removed?.length??0)>0){let e=[];for(let t of g.added??[])e.push(`<span class="dsh-gen-chg add">🆕 新增规则 ${s(t)}</span>`);for(let t of g.removed??[])e.push(`<span class="dsh-gen-chg rm">🗑 移除规则 ${s(t)}</span>`);p=`<div class="dsh-gen-cand-chg">${e.join(``)}</div>`}else e.healthCheck?.ruleChanges&&(p=`<div class="dsh-gen-cand-chg"><span class="dsh-gen-chg mod">✏️ 文本修正（无规则增删，见下方理由）</span></div>`);let _=e.due?`观察期已满 · 下一步：validation_gate 凭观察期表现裁决 → 转正为正式版 / 回滚`:e.status===`watching`?`试运行观察中 · ${e.remainingDays??`?`} 天后到期自动进入 gate 裁决（转正 / 回滚），此间正式版未被改动`:e.status===`promoted`?`已转正 · 此版本内容为正式版，持续生效中`:e.status===`rejected`?`已拒绝 · 内容未转正（如需可 genome_rollback 复原）`:``,v=_?`<div class="dsh-gen-cand-step">${s(_)}</div>`:``;return`
   <div class="dsh-gen-cand">
     <div class="dsh-gen-cand-head">
       <span class="dsh-gen-cand-sec">${s(t)}</span>
@@ -55,8 +55,10 @@ Object.defineProperty(exports,Symbol.toStringTag,{value:`Module`});const e=`data
       <span class="dsh-gen-cand-id"><code>${s(e.id)}</code></span>
       ${f}
       ${b(n,r)}
-      ${o(`candidates`,e.id,`这条候选（${t} ${e.genomeVersion}）在观察什么、怎么走到这里、下一步`)}
+      ${o(`candidates`,e.id,`这条候选（${t} ${e.genomeVersion}）改了什么、解决什么问题、观察进度与下一步`)}
     </div>
+    ${p}
+    ${v}
     ${i}
     ${a}
     ${d}
@@ -369,6 +371,12 @@ html[data-dsh-gen-active] .dsh-gen-board code {
 .dsh-gen-cand-bar-meta { font-size: 10px; color: var(--dsw-text-3, #8a8f99); margin-top: 3px; }
 .dsh-gen-cand-hc { font-size: 11px; color: var(--dsw-text-2, #4e5969); margin-top: 6px; }
 .dsh-gen-cand-hc-extra { color: #c41d1d; font-size: 10px; }
+.dsh-gen-cand-chg { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 7px; }
+.dsh-gen-chg { font-size: 11px; border-radius: 6px; padding: 2px 8px; }
+.dsh-gen-chg.add { color: #0e8a3e; background: #e8f7ee; border: 1px solid #bfe8cd; }
+.dsh-gen-chg.rm { color: #c41d1d; background: #fdf0f0; border: 1px solid #f3c9c9; }
+.dsh-gen-chg.mod { color: #8a5a00; background: #fdf6e6; border: 1px solid #eeddb3; }
+.dsh-gen-cand-step { font-size: 10px; color: var(--dsw-text-3, #8a8f99); margin-top: 5px; }
 .dsh-gen-cand-note { font-size: 11px; color: var(--dsw-text-2, #4e5969); margin-top: 6px; word-break: break-all; }
 
 /* ===== ⑤ 时间线 ===== */

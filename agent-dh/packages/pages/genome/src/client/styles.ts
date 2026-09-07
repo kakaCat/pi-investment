@@ -299,6 +299,12 @@ html[data-dsh-gen-active] .dsh-gen-board code {
 .dsh-gen-cand-bar-meta { font-size: 10px; color: var(--dsw-text-3, #8a8f99); margin-top: 3px; }
 .dsh-gen-cand-hc { font-size: 11px; color: var(--dsw-text-2, #4e5969); margin-top: 6px; }
 .dsh-gen-cand-hc-extra { color: #c41d1d; font-size: 10px; }
+.dsh-gen-cand-chg { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 7px; }
+.dsh-gen-chg { font-size: 11px; border-radius: 6px; padding: 2px 8px; }
+.dsh-gen-chg.add { color: #0e8a3e; background: #e8f7ee; border: 1px solid #bfe8cd; }
+.dsh-gen-chg.rm { color: #c41d1d; background: #fdf0f0; border: 1px solid #f3c9c9; }
+.dsh-gen-chg.mod { color: #8a5a00; background: #fdf6e6; border: 1px solid #eeddb3; }
+.dsh-gen-cand-step { font-size: 10px; color: var(--dsw-text-3, #8a8f99); margin-top: 5px; }
 .dsh-gen-cand-note { font-size: 11px; color: var(--dsw-text-2, #4e5969); margin-top: 6px; word-break: break-all; }
 
 /* ===== ⑤ 时间线 ===== */

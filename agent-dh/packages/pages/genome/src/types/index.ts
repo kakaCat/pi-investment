@@ -43,6 +43,8 @@ export interface CandidateInfo {
     checkedAt?: string
     issues?: string[]
     sizeDelta?: number
+    /** 相对基线的规则增删（candidates.json health_check.rule_changes）——卡片「具体改了什么」数据源 */
+    ruleChanges?: { added?: string[]; removed?: string[] }
   }
   note?: string
   /** watching 且已过 observe_until → 待裁决（gate 未裁） */
