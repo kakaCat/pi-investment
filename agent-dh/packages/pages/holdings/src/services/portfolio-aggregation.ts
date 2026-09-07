@@ -252,7 +252,7 @@ export class PortfolioAggregationService {
         displayName: acct.display_name || acct.account_name || accountName,
         strategyName: key,
         engine: true,
-        tasks: bound,
+        tasks: sortBySchedule(bound),
       };
     }
     if (acct.account_type === 'agent') {
@@ -271,7 +271,7 @@ export class PortfolioAggregationService {
           displayName: acct.display_name || acct.account_name || accountName,
           strategyName: key,
           engine: false,
-          tasks: bound,
+          tasks: sortBySchedule(bound),
           executor: map.executor,
           note: map.note,
         };
@@ -383,6 +383,41 @@ function resolveLastRun(lr: unknown): { status: string; at: string | null; err: 
   const outerErr = String(o.error ?? o.message ?? '');
   const outerSt = String(o.status ?? '');
   return { status: outerSt === 'completed' ? 'success' : outerSt, at, err: outerErr };
+}
+
+/** cron 5 段（分 时 日 月 周）→ 当日首触发时刻分钟数(0-1439)，供自动化流程按时间排序。
+ * 仅用分钟/小时字段：范围(9-14)→9、列表(1,2)→1、步进 cron（每30分）→0、通配 →0；解析失败 → null（排序尾置）。
+ * 注：注释内不得含「星斜杠30」形态字面量，会提前终止块注释。 */
+function scheduleMinuteOfDay(expr: string): number | null {
+  const parts = String(expr ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return null;
+  const first = (f: string): number | null => {
+    if (!f || f === '*' || f === '?') return 0;
+    if (f.startsWith('*/')) return 0;
+    const base = f.split('-')[0].split(',')[0];
+    if (!base || base === '*' || base === '?') return 0;
+    const n = Number(base);
+    return Number.isFinite(n) ? n : null;
+  };
+  const h = first(parts[1]);
+  const m = first(parts[0]);
+  if (h === null || m === null) return null;
+  return h * 60 + m;
+}
+
+/** 自动化任务按「当日计划时刻」升序排列（账户自动化流程时间线；engine/agent 两轨统一）。
+ * 解析失败（无 cron/空）尾置并保持原相对序（Array.sort 稳定）。 */
+function sortBySchedule<T extends { scheduleExpr?: string | null }>(tasks: T[]): T[] {
+  const arr = tasks.slice();
+  arr.sort((a, b) => {
+    const ka = scheduleMinuteOfDay(String(a.scheduleExpr ?? ''));
+    const kb = scheduleMinuteOfDay(String(b.scheduleExpr ?? ''));
+    if (ka === null && kb === null) return 0;
+    if (ka === null) return 1;
+    if (kb === null) return -1;
+    return ka - kb;
+  });
+  return arr;
 }
 
 /** 任务 → 引擎策略 key：任务名/命令前缀 v13-/v13_/v14- 等；chip 任务归 chip_theme */
