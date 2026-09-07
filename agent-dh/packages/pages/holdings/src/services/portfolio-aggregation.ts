@@ -253,6 +253,7 @@ export class PortfolioAggregationService {
         strategyName: key,
         engine: true,
         tasks: sortBySchedule(bound),
+        executorCode: 'v2',
       };
     }
     if (acct.account_type === 'agent') {
@@ -273,6 +274,7 @@ export class PortfolioAggregationService {
           engine: false,
           tasks: sortBySchedule(bound),
           executor: map.executor,
+          executorCode: map.code,
           note: map.note,
         };
       }
@@ -444,6 +446,8 @@ function strategyOf(name: string, command: string, innerStrategy?: unknown): str
  * 其余 Agent OS 任务（agent-dh 引擎进化/股票池治理、quantsys-v2 内部任务、一次性核验、
  * script 巡检等）不映射到任何账户——避免把与账户执行链无关的任务伪装成账户例行。 */
 interface AgentExecutorMap {
+  /** 执行载体短码（徽标）：ts=fin-agent(agent-ts) / dh=agent-dh·investor */
+  code: string;
   executor: string;
   note: string;
   tasks: Record<string, string[]>;
@@ -451,6 +455,7 @@ interface AgentExecutorMap {
 const AGENT_EXECUTOR_BY_ACCOUNT: Record<string, AgentExecutorMap> = {
   // agent_virtual：执行载体 fin-agent（agent-ts @3002），7 个交易/复盘链任务（实证任务模板 account: agent_virtual）
   agent_virtual: {
+    code: 'ts',
     executor: 'fin-agent（AI 执行者 · agent-ts）',
     note: 'fin-agent 专属交易/复盘链任务（agent_virtual 账户决策与执行）',
     tasks: {
@@ -470,6 +475,7 @@ const AGENT_EXECUTOR_BY_ACCOUNT: Record<string, AgentExecutorMap> = {
   // 全部工具显式 account='agent_brain'）为账户自己的买卖/复盘/进化链；另 5 条系统巡检
   // （pre-market 等）作用于默认账户 agent_virtual，诚实保留展示。
   agent_brain: {
+    code: 'dh',
     executor: 'agent-dh · investor 例行',
     note: 'agent_brain 专属例行 7 条（agent-brain-* 前缀，2026-09-08 上线，交易日 9:00 起跑）+ 系统巡检 5 条（作用于默认账户 agent_virtual）',
     tasks: {

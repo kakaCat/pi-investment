@@ -523,9 +523,21 @@ function cronZh(expr: string): string {
   return w + ' ' + hm
 }
 
-/** 任务行：任务/计划/上次运行/状态（engine 任务附今日/下次运行列；agent 任务附「处理」列——
- *   failed 行给「我来解决」按钮投递 investor 窗口排查，语义同 execution 看板） */
-function autoRow(t: SchedulerTask, showTodayNext = true, showHandle = false): string {
+/** 执行载体徽标（与「智能执行」今日时间轴口径一致）：v2=quantsys-v2 引擎 / ts=fin-agent(agent-ts) / dh=agent-dh·investor */
+const EXEC_TIP: Record<string, string> = {
+  v2: 'quantsys-v2 引擎 cron 自动执行（不走 agent）',
+  ts: 'fin-agent（agent-ts）智能体执行',
+  dh: 'agent-dh · investor 例行执行',
+}
+function execChip(code: string): string {
+  if (code !== 'v2' && code !== 'ts' && code !== 'dh') return '<span class="dim">—</span>'
+  return '<span class="dsh-hld-echip ' + code + '" title="' + esc(EXEC_TIP[code] ?? '') + '">' + code + '</span>'
+}
+
+/** 任务行：任务/执行载体/计划/上次运行/状态（engine 任务附今日/下次运行列；agent 任务附「处理」列——
+ *   failed 行给「我来解决」按钮投递 investor 窗口排查，语义同 execution 看板）。
+ *   execCode=账户级执行载体短码（v2/ts/dh），行内徽标标注「由谁完成」。 */
+function autoRow(t: SchedulerTask, showTodayNext = true, showHandle = false, execCode = ''): string {
   const zh = AUTO_ZH[String(t.name)] ?? AUTO_ZH[String(t.command)] ?? String(t.name || t.command || '?')
   const plan = cronZh(t.scheduleExpr)
   const st = AUTO_TAG[String(t.lastStatus ?? '')] ?? AUTO_TAG.unknown
@@ -548,6 +560,7 @@ function autoRow(t: SchedulerTask, showTodayNext = true, showHandle = false): st
   return `<tr title="${esc(tip)}">
     <td><span class="dsh-hld-tag ${tagCls}">${tagText}</span></td>
     <td>${esc(zh)}<span class="sub dim"> ${esc(t.command)}</span></td>
+    <td class="exe">${execChip(execCode)}</td>
     <td>${esc(plan)}</td>
     <td class="dim">${lastAt}</td>
     ${tail}
@@ -572,14 +585,14 @@ function renderAutomation(data: HoldingsData): string {
   const note = auto.note ? `<div class="dsh-hld-auto-note">⚠️ ${esc(auto.note)}</div>` : ''
   const watchOwn = (data.watchRules ?? []).filter((r) => r.account === auto.accountName && isActiveRule(r)).length
   // agent 账户：末列「处理」（失败行「我来解决」→ investor 窗口）；engine 账户：今日/下次运行列
-  const rows = tasks.map((t) => (isEngine ? autoRow(t, true, false) : autoRow(t, false, true))).join('')
+  const rows = tasks.map((t) => (isEngine ? autoRow(t, true, false, auto.executorCode) : autoRow(t, false, true, auto.executorCode))).join('')
   const thTail = isEngine ? '<th class="r">今日 成/触</th><th>下次运行</th>' : '<th>处理</th>'
   return `<div class="dsh-hld-card dsh-hld-auto">
   <div class="hd"><span class="t">账户自动化流程</span>
     <span class="more">${esc(auto.displayName)}${exec} · ${tasks.length} 个${kind} · 盯盘规则 ${watchOwn} 条（见下方盯盘中心）</span></div>
   ${note}
   <div class="tblwrap"><table class="dsh-hld-autotbl">
-    <tr><th>状态</th><th>任务</th><th>计划时刻</th><th>上次运行</th>${thTail}</tr>
+    <tr><th>状态</th><th>任务</th><th class="exe">执行</th><th>计划时刻</th><th>上次运行</th>${thTail}</tr>
     ${rows}
   </table></div>
 </div>`

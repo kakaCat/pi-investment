@@ -142,8 +142,13 @@ html[data-dsh-hld-active] .dsh-hld-view { display: flex; flex-direction: column;
 .dsh-hld-wtab.act { background:#409eff; border-color:#409eff; color:#fff; font-weight:500; }
 .dsh-hld-wtab .c { font-style:normal; font-weight:600; opacity:.85; font-variant-numeric:tabular-nums; }
 .dsh-hld-wtabs + .tblwrap table { min-width:880px; }
-.dsh-hld-auto .tblwrap table { min-width:640px; }
+.dsh-hld-auto .tblwrap table { min-width:700px; }
 .dsh-hld-auto td .sub { margin-left:0; display:block; font-size:11px; }
+.dsh-hld-auto th.exe, .dsh-hld-auto td.exe { width:56px; white-space:nowrap; }
+.dsh-hld-echip { display:inline-block; font:600 9.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; padding:0 4px; border-radius:3px; white-space:nowrap; }
+.dsh-hld-echip.v2 { background:#e8f1fd; color:#3370c9; }
+.dsh-hld-echip.dh { background:#f3ecfa; color:#8b5fc8; }
+.dsh-hld-echip.ts { background:#e0f4f6; color:#1498a8; }
 .dsh-hld-auto-note { margin:2px 18px 0; padding:6px 12px; border:1px dashed #e6c36b; background:#fdf9ec; color:#8a6d1a; border-radius:6px; font-size:12px; line-height:1.5; }
 .dsh-hld-tag.oth { background:#f4f4f5; color:#606266; }
 .dsh-hld-card td.ctx { color:var(--dim); max-width:340px; }
