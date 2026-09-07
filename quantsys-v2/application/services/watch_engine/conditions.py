@@ -23,6 +23,9 @@ class EvalResult:
     value: Optional[float]
     distance_ratio: Optional[float]
     message: str
+    # 数据缺失无法评估（区别于正常未触发）。子条件 degraded 时不作为 False 阻断
+    # 组合（fail-open），但组合触发会继承 degraded 标注，供下游知悉该触发未经完整验证。
+    degraded: bool = False
 
 
 @dataclass
@@ -174,7 +177,8 @@ def _eval_velocity(params, quote, ctx, now) -> EvalResult:
 
 def _eval_volume_surge(params, quote, ctx, now) -> EvalResult:
     if not ctx.avg_volume_20d or getattr(quote, 'volume', None) is None:
-        return EvalResult(False, None, None, '无均量或成交量数据')
+        # 数据缺失：不是"未放量"，而是"无法评估" → degraded，供组合 fail-open
+        return EvalResult(False, None, None, '无均量或成交量数据，放量维度未评估', degraded=True)
     baseline = ctx.avg_volume_20d * min(1.0, max(ctx.elapsed_fraction, 0.01))
     ratio = float(quote.volume) / baseline
     multiple = float(params['multiple'])
@@ -185,7 +189,16 @@ def _eval_volume_surge(params, quote, ctx, now) -> EvalResult:
 
 
 def _eval_combined(params, quote, ctx, now) -> EvalResult:
-    """复合条件评估器：递归评估子条件，按 operator 聚合结果"""
+    """复合条件评估器：递归评估子条件，按 operator 聚合结果。
+
+    degraded 语义（数据缺失 ≠ 未触发）：
+    - 子条件因数据缺失而 degraded（如 volume_surge 无均量）时，不以 False 阻断组合；
+    - AND：至少 1 个可评估子条件且全部可评估子条件触发 → 组合触发；若存在 degraded
+      子条件则组合继承 degraded 标注（⚠️ 部分维度未验证，供下游人工核验）；
+      全部子条件都无法评估 → 不触发（不凭空报），仅标 degraded。
+    - OR：任一可评估子条件真实触发 → 组合触发（真实触发不标 degraded）；
+      无真实触发但存在 degraded 子条件 → 标 degraded（提示可能有漏判）。
+    """
     operator = params['operator']  # AND / OR
     conditions = params['conditions']
     
@@ -194,23 +207,39 @@ def _eval_combined(params, quote, ctx, now) -> EvalResult:
         result = evaluate(cond, quote, ctx, now)
         results.append(result)
     
-    # 聚合触发状态
+    # 分离可评估与数据缺失（degraded）子条件
+    evaluable = [r for r in results if not r.degraded]
+    any_degraded = len(evaluable) < len(results)
+    valid_distances = [r.distance_ratio for r in results if r.distance_ratio is not None]
+    
     if operator == 'AND':
-        triggered = all(r.triggered for r in results)
-        # AND: distance = 最远的子条件距离（瓶颈）
-        valid_distances = [r.distance_ratio for r in results if r.distance_ratio is not None]
-        distance = max(valid_distances) if valid_distances else None
+        if not evaluable:
+            # 全部子条件数据缺失：不触发，标注 degraded（防凭空误报）
+            distance = None
+            triggered = False
+            degraded = True
+        else:
+            triggered = all(r.triggered for r in evaluable)
+            # AND: distance = 最远的子条件距离（瓶颈）；degraded 子条件无距离不参与
+            distance = max(valid_distances) if valid_distances else None
+            degraded = any_degraded and triggered
     else:  # OR
-        triggered = any(r.triggered for r in results)
+        triggered = any(r.triggered for r in evaluable)
         # OR: distance = 最近的子条件距离（最容易达到的）
-        valid_distances = [r.distance_ratio for r in results if r.distance_ratio is not None]
         distance = min(valid_distances) if valid_distances else None
+        degraded = any_degraded and not triggered
     
-    # 组合消息
+    # 组合消息：标注 degraded 子条件
     sep = ' 且 ' if operator == 'AND' else ' 或 '
-    message = f'{operator} 组合：{sep.join(r.message for r in results)}'
+    parts = []
+    for r in results:
+        parts.append(r.message + ('（数据缺失，未评估）' if r.degraded else ''))
+    message = f'{operator} 组合：{sep.join(parts)}'
+    if degraded and triggered:
+        message += ' ⚠️ 部分维度数据缺失，本次触发未经完整验证，需人工核验'
     
-    return EvalResult(triggered=triggered, value=None, distance_ratio=distance, message=message)
+    return EvalResult(triggered=triggered, value=None, distance_ratio=distance,
+                      message=message, degraded=degraded)
 
 
 _HANDLERS = {

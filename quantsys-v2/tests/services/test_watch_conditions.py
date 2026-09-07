@@ -171,3 +171,100 @@ class TestVolumeSurge:
         r = evaluate({'type': 'volume_surge', 'params': {'multiple': 2.0}},
                      make_quote(volume=25_000_000), ctx)
         assert r.value == pytest.approx(2.5)  # 按 1.0 折算而非 1.5
+
+
+class TestVolumeSurgeDegraded:
+    """B2：volume_surge 数据缺失 → degraded=True（而非普通未触发）"""
+
+    def test_no_avg_volume_marks_degraded(self):
+        ctx = EvalContext(avg_volume_20d=None)
+        r = evaluate({'type': 'volume_surge', 'params': {'multiple': 2.0}},
+                     make_quote(volume=5_000_000), ctx)
+        assert r.triggered is False
+        assert r.distance_ratio is None
+        assert r.degraded is True
+
+    def test_no_quote_volume_marks_degraded(self):
+        ctx = EvalContext(avg_volume_20d=10_000_000)
+        q = make_quote(volume=None)
+        r = evaluate({'type': 'volume_surge', 'params': {'multiple': 2.0}}, q, ctx)
+        assert r.triggered is False
+        assert r.degraded is True
+
+    def test_normal_not_triggered_not_degraded(self):
+        # 有数据但量不足 → 普通未触发，不标 degraded（与 B 层硬过滤语义一致）
+        ctx = EvalContext(avg_volume_20d=10_000_000, elapsed_fraction=0.25)
+        r = evaluate({'type': 'volume_surge', 'params': {'multiple': 2.0}},
+                     make_quote(volume=2_000_000), ctx)  # 2M / (10M*0.25)=0.8x
+        assert r.triggered is False
+        assert r.degraded is False
+
+
+class TestCombined:
+    def make_price_break(self, price, direction='above'):
+        return {'type': 'price_break', 'params': {'price': price, 'direction': direction}}
+
+    def make_volume_surge(self, multiple=2.0):
+        return {'type': 'volume_surge', 'params': {'multiple': multiple}}
+
+    def combined(self, operator, *conds):
+        return {'type': 'combined', 'params': {'operator': operator,
+                                               'conditions': list(conds)}}
+
+    def test_validate_combined(self):
+        c = self.combined('AND', self.make_price_break(5.13), self.make_volume_surge())
+        validate_condition(c)
+
+    def test_and_both_triggered(self):
+        ctx = EvalContext(avg_volume_20d=10_000_000, elapsed_fraction=0.25)
+        c = self.combined('AND', self.make_price_break(5.0), self.make_volume_surge(2.0))
+        r = evaluate(c, make_quote(price=5.2, volume=6_000_000), ctx)
+        assert r.triggered is True
+        assert r.degraded is False
+
+    def test_and_price_only_not_volume(self):
+        # 上破但无量 → 不触发（B 层硬过滤核心场景）
+        ctx = EvalContext(avg_volume_20d=10_000_000, elapsed_fraction=0.25)
+        c = self.combined('AND', self.make_price_break(5.0), self.make_volume_surge(2.0))
+        r = evaluate(c, make_quote(price=5.2, volume=1_000_000), ctx)  # 0.4x
+        assert r.triggered is False
+        assert r.degraded is False
+
+    def test_and_price_triggered_volume_degraded_fail_open(self):
+        """B2 核心：价格触发 + 放量数据缺失 → 组合触发但标 degraded（防静默失明）"""
+        ctx = EvalContext(avg_volume_20d=None)  # 均量缺失
+        c = self.combined('AND', self.make_price_break(5.0), self.make_volume_surge(2.0))
+        r = evaluate(c, make_quote(price=5.2, volume=6_000_000), ctx)
+        assert r.triggered is True
+        assert r.degraded is True
+        assert '数据缺失' in r.message or '未验证' in r.message
+
+    def test_and_price_not_triggered_volume_degraded_not_triggered(self):
+        """价格本身未触发 + 放量数据缺失 → 组合仍不触发（不以 degraded 误报）"""
+        ctx = EvalContext(avg_volume_20d=None)
+        c = self.combined('AND', self.make_price_break(6.0), self.make_volume_surge(2.0))
+        r = evaluate(c, make_quote(price=5.2, volume=6_000_000), ctx)
+        assert r.triggered is False
+
+    def test_and_all_degraded_not_triggered(self):
+        """全部子条件数据缺失 → 不触发（防凭空误报），标 degraded"""
+        ctx = EvalContext(avg_volume_20d=None)
+        c = self.combined('AND', self.make_volume_surge(2.0), self.make_volume_surge(3.0))
+        # 两个 volume_surge 都无均量 → 双双无法评估
+        r = evaluate(c, make_quote(price=100.0, volume=6_000_000), ctx)
+        assert r.triggered is False
+        assert r.degraded is True
+
+    def test_or_one_real_trigger(self):
+        ctx = EvalContext(avg_volume_20d=None)
+        c = self.combined('OR', self.make_price_break(5.0), self.make_volume_surge(2.0))
+        r = evaluate(c, make_quote(price=5.2, volume=6_000_000), ctx)
+        assert r.triggered is True
+        assert r.degraded is False  # 真实触发（价格维度），不标 degraded
+
+    def test_or_none_real_trigger_with_degraded(self):
+        ctx = EvalContext(avg_volume_20d=None)
+        c = self.combined('OR', self.make_price_break(6.0), self.make_volume_surge(2.0))
+        r = evaluate(c, make_quote(price=5.2, volume=6_000_000), ctx)
+        assert r.triggered is False
+        assert r.degraded is True  # 无真实触发但存在无法评估的子条件 → 提示可能有漏判
