@@ -124,6 +124,10 @@ export interface AccountAutomation {
   /** 是否为引擎策略账户（strategy 型）；false=agent/user/legacy 无引擎任务 */
   engine: boolean;
   tasks: SchedulerTask[];
+  /** 执行载体标签（agent 类账户展示用，如 "fin-agent（AI 执行者）"/"agent-dh · investor 例行"） */
+  executor?: string;
+  /** 诚实性说明（agent 账户例行任务的性质/作用账户口径；engine 账户可不填） */
+  note?: string;
 }
 
 export interface HoldingsData {

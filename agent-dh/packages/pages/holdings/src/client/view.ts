@@ -469,12 +469,27 @@ export function buildWatchCard(watchRules: WatchRule[], ctxNames: Record<string,
 
 /* ----------------------------------------------------- account automation */
 /** 引擎任务中文名（v13/v14 定时任务，name 或 command 前缀均覆盖） */
+/** 引擎任务/执行例行任务中文名（strategy 账户按 v13/v14 前缀，agent 账户按 Agent OS 任务名） */
 const AUTO_ZH: Record<string, string> = {
   'v13-simulation-trading': '模拟交易执行', 'v13_daily_check': '模拟交易执行',
   'v13-risk-check': '风控检查', 'v13_risk_check': '风控检查',
   'v13-verification': '验证裁决', 'v13_verification': '验证裁决',
   'v13-weekly-report': '每周报告', 'v13_weekly_report': '每周报告',
   'v14-simulation-trading': '模拟交易执行', 'v14_daily_check': '模拟交易执行',
+  // fin-agent（agent_virtual 执行者）例行
+  'morning_ai_analysis': '晨间 AI 分析',
+  'realtime_quick_check': '盘中快速检查',
+  'daily_ai_review': '每日 AI 复盘',
+  'daily_recall_audit': '每日回查审计',
+  'weekly_evolution': '周度策略进化',
+  'weekly_memory_distill': '周度记忆蒸馏',
+  'weekly_tool_roi_review': '周度工具 ROI 复盘',
+  // investor / agent-dh（agent_brain 执行载体例行）
+  'pre-market-routine': '盘前例行检查',
+  'afternoon-open-check-live': '午后开盘检查',
+  'post-market-routine-live': '盘后例行复盘',
+  'm4-circuit-breaker-live': 'M4 回撤熔断巡检',
+  'weekly-report-m6': 'M6 学习飞轮周报',
 }
 const AUTO_TAG: Record<string, { cls: string; text: string }> = {
   success: { cls: 'ok', text: '成功' },
@@ -500,8 +515,8 @@ function cronZh(expr: string): string {
   return w + ' ' + hm
 }
 
-/** 单条引擎任务行：任务/计划/上次运行/状态/今日/下次 */
-function autoRow(t: SchedulerTask): string {
+/** 单条引擎任务行：任务/计划/上次运行/状态（engine 任务附今日/下次运行列） */
+function autoRow(t: SchedulerTask, showTodayNext = true): string {
   const zh = AUTO_ZH[String(t.name)] ?? AUTO_ZH[String(t.command)] ?? String(t.name || t.command || '?')
   const plan = cronZh(t.scheduleExpr)
   const st = AUTO_TAG[String(t.lastStatus ?? '')] ?? AUTO_TAG.unknown
@@ -512,35 +527,43 @@ function autoRow(t: SchedulerTask): string {
   const tagCls = enabled ? st.cls : 'off'
   const tagText = enabled ? st.text : '未启用'
   const tip = [String(t.name || ''), String(t.command || ''), t.lastError ? '最近错误: ' + String(t.lastError).slice(0, 120) : ''].filter(Boolean).join(' · ')
+  const tail = showTodayNext
+    ? `<td class="r">${today}</td><td class="dim">${nextAt}</td>`
+    : ''
   return `<tr title="${esc(tip)}">
     <td><span class="dsh-hld-tag ${tagCls}">${tagText}</span></td>
     <td>${esc(zh)}<span class="sub dim"> ${esc(t.command)}</span></td>
     <td>${esc(plan)}</td>
     <td class="dim">${lastAt}</td>
-    <td class="r">${today}</td>
-    <td class="dim">${nextAt}</td>
+    ${tail}
   </tr>`
 }
 
 /**
- * 「账户自动化流程」卡：展示当前账户归属的引擎定时任务（v13/v14 等）。
- * 仅 strategy 引擎账户渲染；agent/user/legacy 账户无 v2 引擎任务不显示块
- * （R-004 裁决：只有有任务的账户才出现 automation 块）。
- * 2026-09-05：内层状态归一（外层 lastRun 假成功 → inner details 为真相）在聚合层完成。
+ * 「账户自动化流程」卡：展示当前账户归属的自动化任务。
+ * 双轨（2026-09-08）：strategy 引擎账户 ← qv2 引擎定时任务（engine=true）；
+ * agent 账户（agent_virtual/agent_brain）← Agent OS 执行者例行任务（engine=false，executor/note 诚实标注）。
+ * 只有有任务的账户才渲染块（ruling ④）。
  */
 function renderAutomation(data: HoldingsData): string {
   const auto = data.automation
   if (!auto) return ''
-  // 非引擎账户 / 无任务：不渲染 automation 块（ruling ④：只有有任务的账户才显示）
-  if (!auto.engine || auto.tasks.length === 0) return ''
+  // 无任务：不渲染 automation 块（ruling ④：只有有任务的账户才显示）
+  if (auto.tasks.length === 0) return ''
   const tasks = auto.tasks
+  const isEngine = auto.engine === true
+  const kind = isEngine ? '引擎定时任务' : '执行例行任务'
+  const exec = auto.executor ? ' · ' + auto.executor : ''
+  const note = auto.note ? `<div class="dsh-hld-auto-note">⚠️ ${esc(auto.note)}</div>` : ''
   const watchOwn = (data.watchRules ?? []).filter((r) => r.account === auto.accountName && isActiveRule(r)).length
-  const rows = tasks.map(autoRow).join('')
+  const rows = tasks.map((t) => autoRow(t, isEngine)).join('')
+  const thTail = isEngine ? '<th class="r">今日 成/触</th><th>下次运行</th>' : ''
   return `<div class="dsh-hld-card dsh-hld-auto">
   <div class="hd"><span class="t">账户自动化流程</span>
-    <span class="more">${esc(auto.displayName)} · ${tasks.length} 个引擎定时任务 · 盯盘规则 ${watchOwn} 条（见下方盯盘中心）</span></div>
+    <span class="more">${esc(auto.displayName)}${exec} · ${tasks.length} 个${kind} · 盯盘规则 ${watchOwn} 条（见下方盯盘中心）</span></div>
+  ${note}
   <div class="tblwrap"><table class="dsh-hld-autotbl">
-    <tr><th>状态</th><th>任务</th><th>计划时刻</th><th>上次运行</th><th class="r">今日 成/触</th><th>下次运行</th></tr>
+    <tr><th>状态</th><th>任务</th><th>计划时刻</th><th>上次运行</th>${thTail}</tr>
     ${rows}
   </table></div>
 </div>`

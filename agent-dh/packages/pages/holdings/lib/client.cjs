@@ -125,19 +125,19 @@ Object.defineProperty(exports,Symbol.toStringTag,{value:`Module`});const e=`[dat
     <tr><th>股票</th><th>监控性质</th><th>触发条件</th><th>状态</th><th>归属账户</th><th>监控摘要</th></tr>
     ${x}${C}
   </table></div>
-</div>`}const D={"v13-simulation-trading":`模拟交易执行`,v13_daily_check:`模拟交易执行`,"v13-risk-check":`风控检查`,v13_risk_check:`风控检查`,"v13-verification":`验证裁决`,v13_verification:`验证裁决`,"v13-weekly-report":`每周报告`,v13_weekly_report:`每周报告`,"v14-simulation-trading":`模拟交易执行`,v14_daily_check:`模拟交易执行`},O={success:{cls:`ok`,text:`成功`},failed:{cls:`bad`,text:`失败`},skipped:{cls:`wait`,text:`跳过`},pending:{cls:`on`,text:`待执行`},unknown:{cls:`off`,text:`未知`},"":{cls:`off`,text:`从未运行`}};function k(e){let t=String(e??``).trim().split(/\s+/);if(t.length!==5)return String(e||`—`);let[,n,,,r]=t,i=(String(n).padStart(2,`0`)||`--`)+`:`+(t[0].padStart(2,`0`)||`--`),a=String(r);return!a||a===`*`?`每天 `+i:/^\d+$/.test(a)?`周`+`日一二三四五六`[Number(a)%7]+` `+i:/^1-5$/.test(a)?`工作日 `+i:/^(0|6)(,(0|6))?$/.test(a)?`周末 `+i:/^1-5$/.test(a.replace(/,/g,`-`))?`工作日 `+i:a+` `+i}function A(e){let t=D[String(e.name)]??D[String(e.command)]??String(e.name||e.command||`?`),n=k(e.scheduleExpr),r=O[String(e.lastStatus??``)]??O.unknown,i=e.lastAt?d(e.lastAt):`—`,a=e.nextRunAt?d(e.nextRunAt):`—`,s=e.todayTriggered>0?e.todaySuccess+`/`+e.todayTriggered:`—`,c=e.enabled,l=c?r.cls:`off`,u=c?r.text:`未启用`,f=[String(e.name||``),String(e.command||``),e.lastError?`最近错误: `+String(e.lastError).slice(0,120):``].filter(Boolean).join(` · `);return`<tr title="${o(f)}">
-    <td><span class="dsh-hld-tag ${l}">${u}</span></td>
-    <td>${o(t)}<span class="sub dim"> ${o(e.command)}</span></td>
-    <td>${o(n)}</td>
-    <td class="dim">${i}</td>
-    <td class="r">${s}</td>
+</div>`}const D={"v13-simulation-trading":`模拟交易执行`,v13_daily_check:`模拟交易执行`,"v13-risk-check":`风控检查`,v13_risk_check:`风控检查`,"v13-verification":`验证裁决`,v13_verification:`验证裁决`,"v13-weekly-report":`每周报告`,v13_weekly_report:`每周报告`,"v14-simulation-trading":`模拟交易执行`,v14_daily_check:`模拟交易执行`,morning_ai_analysis:`晨间 AI 分析`,realtime_quick_check:`盘中快速检查`,daily_ai_review:`每日 AI 复盘`,daily_recall_audit:`每日回查审计`,weekly_evolution:`周度策略进化`,weekly_memory_distill:`周度记忆蒸馏`,weekly_tool_roi_review:`周度工具 ROI 复盘`,"pre-market-routine":`盘前例行检查`,"afternoon-open-check-live":`午后开盘检查`,"post-market-routine-live":`盘后例行复盘`,"m4-circuit-breaker-live":`M4 回撤熔断巡检`,"weekly-report-m6":`M6 学习飞轮周报`},O={success:{cls:`ok`,text:`成功`},failed:{cls:`bad`,text:`失败`},skipped:{cls:`wait`,text:`跳过`},pending:{cls:`on`,text:`待执行`},unknown:{cls:`off`,text:`未知`},"":{cls:`off`,text:`从未运行`}};function k(e){let t=String(e??``).trim().split(/\s+/);if(t.length!==5)return String(e||`—`);let[,n,,,r]=t,i=(String(n).padStart(2,`0`)||`--`)+`:`+(t[0].padStart(2,`0`)||`--`),a=String(r);return!a||a===`*`?`每天 `+i:/^\d+$/.test(a)?`周`+`日一二三四五六`[Number(a)%7]+` `+i:/^1-5$/.test(a)?`工作日 `+i:/^(0|6)(,(0|6))?$/.test(a)?`周末 `+i:/^1-5$/.test(a.replace(/,/g,`-`))?`工作日 `+i:a+` `+i}function A(e,t=!0){let n=D[String(e.name)]??D[String(e.command)]??String(e.name||e.command||`?`),r=k(e.scheduleExpr),i=O[String(e.lastStatus??``)]??O.unknown,a=e.lastAt?d(e.lastAt):`—`,s=e.nextRunAt?d(e.nextRunAt):`—`,c=e.todayTriggered>0?e.todaySuccess+`/`+e.todayTriggered:`—`,l=e.enabled,u=l?i.cls:`off`,f=l?i.text:`未启用`,p=[String(e.name||``),String(e.command||``),e.lastError?`最近错误: `+String(e.lastError).slice(0,120):``].filter(Boolean).join(` · `),m=t?`<td class="r">${c}</td><td class="dim">${s}</td>`:``;return`<tr title="${o(p)}">
+    <td><span class="dsh-hld-tag ${u}">${f}</span></td>
+    <td>${o(n)}<span class="sub dim"> ${o(e.command)}</span></td>
+    <td>${o(r)}</td>
     <td class="dim">${a}</td>
-  </tr>`}function j(e){let t=e.automation;if(!t||!t.engine||t.tasks.length===0)return``;let n=t.tasks,r=(e.watchRules??[]).filter(e=>e.account===t.accountName&&m(e)).length,i=n.map(A).join(``);return`<div class="dsh-hld-card dsh-hld-auto">
+    ${m}
+  </tr>`}function j(e){let t=e.automation;if(!t||t.tasks.length===0)return``;let n=t.tasks,r=t.engine===!0,i=r?`引擎定时任务`:`执行例行任务`,a=t.executor?` · `+t.executor:``,s=t.note?`<div class="dsh-hld-auto-note">⚠️ ${o(t.note)}</div>`:``,c=(e.watchRules??[]).filter(e=>e.account===t.accountName&&m(e)).length,l=n.map(e=>A(e,r)).join(``),u=r?`<th class="r">今日 成/触</th><th>下次运行</th>`:``;return`<div class="dsh-hld-card dsh-hld-auto">
   <div class="hd"><span class="t">账户自动化流程</span>
-    <span class="more">${o(t.displayName)} · ${n.length} 个引擎定时任务 · 盯盘规则 ${r} 条（见下方盯盘中心）</span></div>
+    <span class="more">${o(t.displayName)}${a} · ${n.length} 个${i} · 盯盘规则 ${c} 条（见下方盯盘中心）</span></div>
+  ${s}
   <div class="tblwrap"><table class="dsh-hld-autotbl">
-    <tr><th>状态</th><th>任务</th><th>计划时刻</th><th>上次运行</th><th class="r">今日 成/触</th><th>下次运行</th></tr>
-    ${i}
+    <tr><th>状态</th><th>任务</th><th>计划时刻</th><th>上次运行</th>${u}</tr>
+    ${l}
   </table></div>
 </div>`}function M(e,t){let n=h(e.watchRules??[]);return E(e.watchRules??[],n,e.currentAccount??``,Array.isArray(e.accounts)?e.accounts:[],t)}function N(e){let t=e.params;if(e.type===`price_break`||String(e.operator||``).toLowerCase().includes(`price`)){if(t&&t.price!==void 0&&t.price!==null){let e=t.direction===`above`?`突破`:t.direction===`below`?`跌破`:`触碰`;return`<span class="cond-${t.direction===`above`?`up`:`down`}">${e}${s(t.price)}</span>`}if(e.threshold!==void 0&&e.threshold!==null)return`价格 `+e.threshold}return e.threshold!==void 0&&e.threshold!==null&&e.operator?String(e.operator||e.type).toUpperCase()+` `+e.threshold:String(e.type??e.operator??`条件`)}function P(e){return/止损|风控|破位|减仓保护/.test(e)?{cls:`warn`,text:`止损监控`}:/买入|低吸|介入|加仓|建仓|补仓/.test(e)?{cls:`buy`,text:`买入提醒`}:/卖出|止盈|减仓|高抛|目标价/.test(e)?{cls:`sell`,text:`卖出提醒`}:{cls:`on`,text:`常规监控`}}function F(){let i=!1,a=`agent_virtual`,o=`current`,s=0,c,l,u=()=>{if(!i){i=!0,console.log(`[dashboard-holdings] opening board`),document.documentElement.setAttribute(t,``);for(let e of n)document.documentElement.removeAttribute(e);window.dispatchEvent(new CustomEvent(r,{detail:`dashboard-holdings`})),h(),_(a)}},d=()=>{i&&(i=!1,console.log(`[dashboard-holdings] closing board`),document.documentElement.removeAttribute(t),g())},f=()=>{i?d():u()},p=()=>{console.log(`[dashboard-holdings] manual refresh`),_(a)},m=e=>{console.log(`[dashboard-holdings] switching account to`,e),a=e,o=`current`,s=0,_(e)},h=()=>{g(),l=window.setInterval(()=>{i&&_(a)},15e3)},g=()=>{l!==void 0&&(clearInterval(l),l=void 0)},_=async e=>{try{let t=`/dashboard/api/holdings?account=${encodeURIComponent(e)}`,n=await(await fetch(t)).json();if(!n.success)throw Error(n.error||`Unknown error`);let r=n.data;v(r)}catch(e){console.error(`[dashboard-holdings] fetch failed:`,e),b(String(e))}},v=t=>{c=t;let n=document.querySelector(e);n&&(n.innerHTML=y(t,o,s))},b=t=>{let n=document.querySelector(e);n&&(n.innerHTML=`
       <div class="dsh-hld-board">
@@ -289,6 +289,7 @@ html[data-dsh-hld-active] .dsh-hld-view { display: flex; flex-direction: column;
 .dsh-hld-wtabs + .tblwrap table { min-width:880px; }
 .dsh-hld-auto .tblwrap table { min-width:640px; }
 .dsh-hld-auto td .sub { margin-left:0; display:block; font-size:11px; }
+.dsh-hld-auto-note { margin:2px 18px 0; padding:6px 12px; border:1px dashed #e6c36b; background:#fdf9ec; color:#8a6d1a; border-radius:6px; font-size:12px; line-height:1.5; }
 .dsh-hld-tag.oth { background:#f4f4f5; color:#606266; }
 .dsh-hld-card td.ctx { color:var(--dim); max-width:340px; }
 .dsh-hld-card td.cond { color:var(--body); white-space:nowrap; }

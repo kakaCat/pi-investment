@@ -15,12 +15,15 @@ export const name = 'dashboard-holdings';
 
 interface PluginConfig {
   v2BaseURL?: string;
+  /** Agent OS 调度器地址（agent 类账户执行者任务数据源，默认 http://127.0.0.1:8080） */
+  agentOsBaseURL?: string;
   requestTimeoutMs?: number;
 }
 
 function resolveOptions(config: PluginConfig | undefined) {
   return {
     v2BaseURL: (config?.v2BaseURL || process.env.QUANTSYS_V2_API_URL || 'http://127.0.0.1:5001').replace(/\/$/, ''),
+    agentOsBaseURL: (config?.agentOsBaseURL || process.env.AGENT_OS_BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/, ''),
     requestTimeoutMs: config?.requestTimeoutMs ?? 4000,
   };
 }

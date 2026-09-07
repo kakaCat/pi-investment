@@ -144,6 +144,7 @@ html[data-dsh-hld-active] .dsh-hld-view { display: flex; flex-direction: column;
 .dsh-hld-wtabs + .tblwrap table { min-width:880px; }
 .dsh-hld-auto .tblwrap table { min-width:640px; }
 .dsh-hld-auto td .sub { margin-left:0; display:block; font-size:11px; }
+.dsh-hld-auto-note { margin:2px 18px 0; padding:6px 12px; border:1px dashed #e6c36b; background:#fdf9ec; color:#8a6d1a; border-radius:6px; font-size:12px; line-height:1.5; }
 .dsh-hld-tag.oth { background:#f4f4f5; color:#606266; }
 .dsh-hld-card td.ctx { color:var(--dim); max-width:340px; }
 .dsh-hld-card td.cond { color:var(--body); white-space:nowrap; }

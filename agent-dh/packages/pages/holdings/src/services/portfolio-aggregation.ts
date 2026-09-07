@@ -16,6 +16,8 @@ import type {
 
 export interface AggregationOptions {
   v2BaseURL: string;
+  /** Agent OS 调度器地址（agent 类账户执行者任务数据源） */
+  agentOsBaseURL: string;
   requestTimeoutMs: number;
 }
 
@@ -27,18 +29,20 @@ export class PortfolioAggregationService {
    * @param accountName - 账户名称，默认 agent_virtual
    */
   async aggregate(accountName: string = 'agent_virtual'): Promise<HoldingsData> {
-    const { v2BaseURL, requestTimeoutMs } = this.options;
+    const { v2BaseURL, requestTimeoutMs, agentOsBaseURL } = this.options;
     const timeout = { timeoutMs: requestTimeoutMs };
 
     try {
-      // 并发请求所有端点（单个失败不影响其他）
-      const [accounts, summary, positions, trades, watchRules, schedulerTasks] = await Promise.allSettled([
+      // 并发请求所有端点（单个失败不影响其他）；agentOsTasks 仅 agent 类账户展示用到，
+      // 失败容忍为空（8080 若不可用，agent 账户 automation 退化为不渲染块，strategy 账户不受影响）
+      const [accounts, summary, positions, trades, watchRules, schedulerTasks, agentOsTasks] = await Promise.allSettled([
         this.fetchAccounts(v2BaseURL, timeout),
         this.fetchSummary(v2BaseURL, accountName, timeout),
         this.fetchPositions(v2BaseURL, accountName, timeout),
         this.fetchTrades(v2BaseURL, accountName, timeout),
         this.fetchWatchRules(v2BaseURL, accountName, timeout),
         this.fetchSchedulerTasks(v2BaseURL, timeout),
+        this.fetchAgentOsTasks(agentOsBaseURL, timeout),
       ]);
 
       // 提取结果，失败的用空数组/默认值
@@ -57,10 +61,11 @@ export class PortfolioAggregationService {
       const todayTrades = tradeHistory.filter((t) => (t.trade_date ?? (t.created_at ? t.created_at.slice(0, 10) : '')) === localToday)
       const watchRulesData = watchRules.status === 'fulfilled' ? watchRules.value : [];
       const schedulerTasksData = schedulerTasks.status === 'fulfilled' ? schedulerTasks.value : [];
+      const agentOsTasksData = agentOsTasks.status === 'fulfilled' ? agentOsTasks.value : [];
 
-      // 自动化流程：找到当前账户 → 引擎策略账户才有关联任务；agent/user/legacy 无 v2 引擎任务
+      // 自动化流程：strategy 账户 ← qv2 引擎任务；agent 账户（agent_virtual/agent_brain）← Agent OS 执行者例行任务
       const currentAccountMeta = accountsData.find((a) => a.account_name === accountName);
-      const automation = this.buildAutomation(currentAccountMeta, schedulerTasksData, accountName);
+      const automation = this.buildAutomation(currentAccountMeta, schedulerTasksData, agentOsTasksData, accountName);
 
       // 计算合规指标
       const compliance = this.calculateCompliance(summaryData, positionsData);
@@ -138,6 +143,73 @@ export class PortfolioAggregationService {
     return (Array.isArray(resp.tasks) ? resp.tasks : []).map((t) => this.normalizeTask(t));
   }
 
+  /** 拉取 Agent OS 调度任务（agent 类账户执行者任务数据源）。
+   * 双端点合并（2026-09-08 实证）：/api/v1/scheduler/tasks（list）含 owner 但无运行统计；
+   * /api/v1/scheduler/tasks/stats 含运行统计但 owner 恒为空串 → 按 name 合并，owner 取 list。
+   * cron 为 6 段（含前导秒）→ 归一化为 5 段 scheduleExpr。 */
+  private async fetchAgentOsTasks(baseURL: string, timeout: { timeoutMs: number }): Promise<SchedulerTask[]> {
+    if (!baseURL) return [];
+    const t = { timeoutMs: Math.min(timeout.timeoutMs, 2500) }; // Agent OS 数据源辅助展示，超时收紧防拖慢看板
+    const [listR, statsR] = await Promise.allSettled([
+      fetchJson<{ tasks?: unknown[] }>(`${baseURL}/api/v1/scheduler/tasks`, t),
+      fetchJson<{ tasks?: unknown[] }>(`${baseURL}/api/v1/scheduler/tasks/stats`, t),
+    ]);
+    const listTasks = (listR.status === 'fulfilled' ? listR.value.tasks : undefined) ?? [];
+    const statsTasks = (statsR.status === 'fulfilled' ? statsR.value.tasks : undefined) ?? [];
+    if (listTasks.length === 0 && statsTasks.length === 0) return [];
+
+    const byName = new Map<string, Record<string, any>>();
+    for (const raw of listTasks) {
+      const o = raw as Record<string, any>;
+      const name = String(o.name ?? '');
+      if (!name) continue;
+      const merged = byName.get(name) ?? {};
+      byName.set(name, { ...o, ...merged, _owner: String(o.owner ?? '') });
+    }
+    for (const raw of statsTasks) {
+      const o = raw as Record<string, any>;
+      const name = String(o.name ?? '');
+      if (!name) continue;
+      const merged = byName.get(name) ?? {};
+      // stats owner 为空串，勿覆盖 list 的 owner
+      const owner = String((merged as any)._owner ?? o.owner ?? '');
+      byName.set(name, { ...merged, ...o, _owner: owner });
+    }
+    const out: SchedulerTask[] = [];
+    for (const o of byName.values()) {
+      const task = this.normalizeAgentOsTask(o);
+      if (task.name) out.push(task);
+    }
+    return out;
+  }
+
+  /** 归一化 Agent OS 任务 → SchedulerTask 形状。cron 6 段（秒 分 时 日 月 周）剥前导秒 → 5 段；
+   * 运行态取自 stats 的 last_run_at/last_run_status；owner 暂存扩展字段供 buildAutomation 白名单校验。 */
+  private normalizeAgentOsTask(raw: Record<string, any>): SchedulerTask & { owner?: string } {
+    const cron = String(raw.cron ?? raw.schedule ?? '').trim();
+    const parts = cron.split(/\s+/).filter(Boolean);
+    const cron5 = parts.length === 6 ? parts.slice(1).join(' ') : cron;
+    const ls = String(raw.last_run_status ?? '');
+    const known = ['success', 'failed', 'skipped', 'running', 'pending', 'unknown'];
+    const status = known.includes(ls) ? ls : ls === 'completed' ? 'success' : ls ? ls : '';
+    return {
+      id: String(raw.id ?? raw.name ?? ''),
+      name: String(raw.name ?? ''),
+      enabled: raw.enabled === true || raw.enabled === 'true' || raw.enabled === 1,
+      scheduleExpr: cron5,
+      command: '', // Agent OS 无 payload.command；展示中文名走 AUTO_ZH[name]
+      description: String(raw.description ?? ''),
+      lastStatus: status,
+      lastAt: raw.last_run_at ? String(raw.last_run_at) : null,
+      lastError: '',
+      nextRunAt: null,
+      todayTriggered: 0,
+      todaySuccess: 0,
+      strategy: '',
+      owner: String(raw._owner ?? raw.owner ?? ''),
+    };
+  }
+
   /** 归一化调度任务：status 以「内层真实执行结果」为准（外层 lastRun.status 假成功陷阱） */
   private normalizeTask(raw: unknown): SchedulerTask {
     const t = (raw ?? {}) as Record<string, any>;
@@ -162,23 +234,69 @@ export class PortfolioAggregationService {
     };
   }
 
-  /** 组装当前账户的自动化流程概览（仅 strategy 引擎账户有关联任务） */
-  private buildAutomation(acct: Account | undefined, tasks: SchedulerTask[], accountName: string): AccountAutomation {
+  /** 组装当前账户的自动化流程概览（双轨：strategy 引擎账户 ← qv2 引擎任务；agent 账户 ← Agent OS 执行者例行任务）。
+   * agent 分支映射实证（2026-09-08 Agent OS owner 分布）：
+   *  - agent_virtual ← fin-agent（TS@3002 交易/复盘链，任务模板实证 account: agent_virtual）；
+   *  - agent_brain ← investor（@13080 agent-dh 窗口账户例行：盘前/午后/盘后/熔断/周报——诚实口径：
+   *    这些是系统例行巡检性质、实际作用于默认账户 agent_virtual，非 agent_brain 专属买卖任务，配 note 说明）。 */
+  private buildAutomation(acct: Account | undefined, tasks: SchedulerTask[], agentOsTasks: SchedulerTask[], accountName: string): AccountAutomation {
     if (!acct) {
-      return { accountName, accountType: '', displayName: accountName, strategyName: '', engine: false, tasks: [] };
+      return { accountName, accountType: '', displayName: accountName, strategyName: '', engine: false, tasks: [], executor: '', note: '' };
     }
-    const isEngine = acct.account_type === 'strategy';
     const key = String(acct.strategy_name ?? '').trim();
-    const bound = isEngine && key
-      ? tasks.filter((t) => t.strategy === key)
-      : [];
+    if (acct.account_type === 'strategy') {
+      const bound = key ? tasks.filter((t) => t.strategy === key) : [];
+      return {
+        accountName: acct.account_name ?? accountName,
+        accountType: acct.account_type ?? '',
+        displayName: acct.display_name || acct.account_name || accountName,
+        strategyName: key,
+        engine: true,
+        tasks: bound,
+      };
+    }
+    if (acct.account_type === 'agent') {
+      const map = AGENT_EXECUTOR_BY_ACCOUNT[acct.account_name ?? ''];
+      if (map) {
+        const bound = agentOsTasks.filter((t) => {
+          const own = String((t as SchedulerTask & { owner?: string }).owner ?? '');
+          const names = map.tasks[own];
+          return Array.isArray(names) && names.includes(t.name);
+        });
+        // 诚实口径：白名单命中的 disabled 任务（如 agent_brain 曾 disabled 的巡检）不展示；
+        // 但保留以标注「已停用」让用户看到例行曾经存在 → 此处展示全部命中项，autoRow 已有 enabled=false → 「未启用」标注
+        return {
+          accountName: acct.account_name ?? accountName,
+          accountType: acct.account_type ?? '',
+          displayName: acct.display_name || acct.account_name || accountName,
+          strategyName: key,
+          engine: false,
+          tasks: bound,
+          executor: map.executor,
+          note: map.note,
+        };
+      }
+      return {
+        accountName: acct.account_name ?? accountName,
+        accountType: acct.account_type ?? '',
+        displayName: acct.display_name || acct.account_name || accountName,
+        strategyName: key,
+        engine: false,
+        tasks: [],
+        executor: '',
+        note: '',
+      };
+    }
+    // user/legacy：无自动化展示
     return {
       accountName: acct.account_name ?? accountName,
       accountType: acct.account_type ?? '',
       displayName: acct.display_name || acct.account_name || accountName,
       strategyName: key,
-      engine: isEngine,
-      tasks: bound,
+      engine: false,
+      tasks: [],
+      executor: '',
+      note: '',
     };
   }
 
@@ -285,3 +403,48 @@ function strategyOf(name: string, command: string, innerStrategy?: unknown): str
   if (typeof innerStrategy === 'string' && /^(v13|v14|v15|chip_theme)$/.test(innerStrategy)) return innerStrategy;
   return '';
 }
+
+/* ---------------- Agent 账户执行者例行任务白名单（2026-09-08 实证） ---------------- */
+/** agent 类账户 → Agent OS owner + 任务名白名单。仅白名单命中项展示为「自动化流程」，
+ * 其余 Agent OS 任务（agent-dh 引擎进化/股票池治理、quantsys-v2 内部任务、一次性核验、
+ * script 巡检等）不映射到任何账户——避免把与账户执行链无关的任务伪装成账户例行。 */
+interface AgentExecutorMap {
+  executor: string;
+  note: string;
+  tasks: Record<string, string[]>;
+}
+const AGENT_EXECUTOR_BY_ACCOUNT: Record<string, AgentExecutorMap> = {
+  // agent_virtual：执行载体 fin-agent（agent-ts @3002），7 个交易/复盘链任务（实证任务模板 account: agent_virtual）
+  agent_virtual: {
+    executor: 'fin-agent（AI 执行者 · agent-ts）',
+    note: 'fin-agent 专属交易/复盘链任务（agent_virtual 账户决策与执行）',
+    tasks: {
+      'fin-agent': [
+        'morning_ai_analysis',
+        'realtime_quick_check',
+        'daily_ai_review',
+        'daily_recall_audit',
+        'weekly_evolution',
+        'weekly_memory_distill',
+        'weekly_tool_roi_review',
+      ],
+    },
+  },
+  // agent_brain：执行载体 agent-dh investor 窗口（@13080）。诚实口径——这些例行属系统巡检性质，
+  // 实际作用于默认账户 agent_virtual（决策留痕实证 related_entity_id='agent_virtual'），
+  // 非 agent_brain 专属买卖任务；agent_brain 尚无专属例行（行为对齐另立范围）。仅取 enabled 账户例行。
+  agent_brain: {
+    executor: 'agent-dh · investor 例行（系统巡检/风控/报告）',
+    note: '系统例行巡检（作用于默认账户 agent_virtual）；agent_brain 暂无专属买卖例行',
+    tasks: {
+      investor: [
+        'pre-market-routine',
+        'afternoon-open-check-live',
+        'post-market-routine-live',
+        'm4-circuit-breaker-live',
+        'weekly-report-m6',
+      ],
+    },
+  },
+};
+
