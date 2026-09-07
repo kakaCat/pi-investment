@@ -430,14 +430,24 @@ const AGENT_EXECUTOR_BY_ACCOUNT: Record<string, AgentExecutorMap> = {
       ],
     },
   },
-  // agent_brain：执行载体 agent-dh investor 窗口（@13080）。诚实口径——这些例行属系统巡检性质，
-  // 实际作用于默认账户 agent_virtual（决策留痕实证 related_entity_id='agent_virtual'），
-  // 非 agent_brain 专属买卖任务；agent_brain 尚无专属例行（行为对齐另立范围）。仅取 enabled 账户例行。
+  // agent_brain：执行载体 agent-dh investor 窗口（@13080）。7 条 agent-brain-* 专属例行
+  // （2026-09-08 上线，镜像 fin-agent 作息，owner=investor、webhook :13080/agent-os-trigger、
+  // 全部工具显式 account='agent_brain'）为账户自己的买卖/复盘/进化链；另 5 条系统巡检
+  // （pre-market 等）作用于默认账户 agent_virtual，诚实保留展示。
   agent_brain: {
-    executor: 'agent-dh · investor 例行（系统巡检/风控/报告）',
-    note: '系统例行巡检（作用于默认账户 agent_virtual）；agent_brain 暂无专属买卖例行',
+    executor: 'agent-dh · investor 例行',
+    note: 'agent_brain 专属例行 7 条（agent-brain-* 前缀，2026-09-08 上线，交易日 9:00 起跑）+ 系统巡检 5 条（作用于默认账户 agent_virtual）',
     tasks: {
       investor: [
+        // agent_brain 专属买卖/复盘/进化链
+        'agent-brain-morning-analysis',
+        'agent-brain-realtime-check',
+        'agent-brain-daily-review',
+        'agent-brain-daily-audit',
+        'agent-brain-weekly-roi',
+        'agent-brain-weekly-evolution',
+        'agent-brain-weekly-distill',
+        // 系统巡检（作用于默认账户 agent_virtual，诚实保留）
         'pre-market-routine',
         'afternoon-open-check-live',
         'post-market-routine-live',

@@ -16,7 +16,8 @@
     "build:client": "node ../../../node_modules/tsdown/dist/run.mjs -c tsdown.client.config.ts && node scripts/wrap-client.mjs"
   },
   "dependencies": {
-    "@deepseek-ai/cordis": "^4.0.1"
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@pi-investment/solve-kit": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -26,7 +27,11 @@
   "dsh": {
     "client": {
       "platform": "web",
-      "inject": ["slots"]
+      "inject": [
+        "slots",
+        "sessions",
+        "workspaces"
+      ]
     }
   }
 }

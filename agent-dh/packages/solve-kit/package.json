@@ -1,0 +1,15 @@
+{
+  "name": "@pi-investment/solve-kit",
+  "version": "0.1.0",
+  "description": "「我来解决」公用能力包（2026-09-08, w-752decf5）：host 投递路由工厂 createSolveHandler + client 窗口选择器 createSolveKit —— execution/holdings 双页复用同一套「我来解决」语义（只投递不建帖）",
+  "type": "module",
+  "main": "./src/host.ts",
+  "exports": {
+    ".": { "import": "./src/host.ts", "types": "./src/host.ts" },
+    "./client": { "import": "./src/client/index.ts", "types": "./src/client/index.ts" }
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  }
+}

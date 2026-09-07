@@ -11,7 +11,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { DataAggregationService } from './services/data-aggregation.js';
 import { createBoardHandler } from './routes/dashboard-routes.js';
-import { createExecutionSolveHandler, type ActionTarget } from './routes/execution-solve-route.js';
+import { createSolveHandler, type ActionTarget } from '@pi-investment/solve-kit';
 
 export const name = 'dashboard-execution';
 
@@ -104,7 +104,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         webCtx.webServer.register({
           kind: 'exact',
           path: '/dashboard/api/board/solve',
-          handler: createExecutionSolveHandler({ resolveAgent }),
+          handler: createSolveHandler({ resolveAgent }, { panel: '执行看板', panelFull: '双线执行确认看板', plugin: 'dashboard-execution' }),
         });
 
       }, name + ': api');

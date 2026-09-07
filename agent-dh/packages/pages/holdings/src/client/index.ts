@@ -28,22 +28,45 @@
 import { createBoardController, mountBoard } from './board-mount.js'
 import { mountSidebarEntry } from './sidebar-entry.js'
 import { injectStyles } from './styles.js'
+import { injectSolveStyles } from '@pi-investment/solve-kit/client'
 
 export const name = '@pi-investment/dashboard-holdings/client'
-/** No shell services needed — the top sidebar row is plain DOM (taskboard idiom). */
-export const inject: string[] = []
+/**
+ * Shell services: sessions/workspaces feed the solve-kit window picker
+ * session candidates (2026-09-08); slots mirrors the taskboard entry idiom
+ * kept by sibling pages. Board body itself stays plain DOM.
+ */
+export const inject: string[] = ['slots', 'sessions', 'workspaces']
+
+/** apply 收到的 client ctx 极简投影（宽容读取，缺字段即降级） */
+type ApplyContext = {
+  slots?: unknown
+  sessions?: unknown
+  workspaces?: unknown
+}
 
 /** Window-scoped apply guard so HMR re-apply tears down before re-mounting. */
 declare global {
   interface Window {
     __dshHldClient?: { dispose(): void }
+    __dshHldCtx?: { sessions?: unknown; workspaces?: unknown }
+    __dshHldSessions?: unknown
+    __dshHldWorkspaces?: { list?: { getSnapshot?: () => { archivedSessionIds?: string[] } } }
   }
 }
 
 /** Client apply hook — never throws; a throw here fails the whole boot. */
-export function apply(): void {
+export function apply(ctx: ApplyContext): void {
   try {
+    // sessions/workspaces 注入缓存：board-mount 点「我来解决」时读候选（宽容降级，注入失败不阻断看板）
+    try {
+      window.__dshHldCtx = ctx
+      window.__dshHldSessions = ctx.sessions
+      window.__dshHldWorkspaces = ctx.workspaces as never
+    } catch { /* noop */ }
     injectStyles()
+    // solve 弹层/按钮/toast 样式（dsh-hld 前缀，幂等注入一次）
+    injectSolveStyles('dsh-hld')
 
     // Guard: a prior apply() (e.g. HMR re-apply) disposes its listeners and
     // board mount first, so re-entry never double-registers or double-mounts.

@@ -1,12 +1,9 @@
-// 路由：POST /dashboard/api/board/solve —— 执行看板「我来解决」（只投递，不建帖）。
-// 语义（2026-09-06 用户确认范围）：失败调度任务行 / 错误事件条的「我来解决」→
-//   把"自包含排查消息"经 ctx.agents.followup 投递给目标窗口会话，由该窗口自主排查处置并在
-//   会话内给出结论。与 bulletin 的 solve 差异：bulletin 认领会 PATCH Agent OS memory（建帖闭环），
-//   本路由**只投递不建帖**——不写 memory、不 PATCH metadata、不建公告板帖子，
-//   投递即完成，结论留在目标窗口会话（重要结论由接收方自主决定是否沉淀 memory）。
-// 路由所有权：execution 独占 /dashboard/api/board*；bulletin 独占 /dashboard/api/bulletin/*。
-// 信封：200 {success:true,data:{kind,title,target,delivered,note}} /
-//       200 {success:false,error}（用户可预期错误）/ 500 兜底。
+// @pi-investment/solve-kit · host 半：「我来解决」投递路由工厂（只投递，不建帖）。
+// 从 dashboard-execution routes/execution-solve-route.ts 抽象（2026-09-08, w-752decf5）：
+// 面板文案（panel/panelFull/plugin）参数化，供 execution（执行看板）/holdings（持仓看板）共用。
+// 语义：kind ∈ task/error 的失败快照 → 组装自包含排查消息 → ctx.agents.followup 投递目标窗口会话，
+// 由该窗口自主排查并在会话内给结论。不写 memory、不建公告板帖子，结论沉淀由接收方自主决定。
+// 信封：200 {success:true,data:{kind,title,target,delivered,note}} / 200 {success:false,error} / 500 兜底。
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { randomUUID } from 'node:crypto'
@@ -19,10 +16,19 @@ export interface ActionTarget {
   window: string
 }
 
-export interface ExecutionSolveDeps {
+export interface SolveKitHostDeps {
   /** 解析目标会话 → 在线 agent；无 to_session 时回退 from_session（默认当前窗口），
    *  再回退主 root；查无 → null。to_session 传 true=精确命中（投递指定窗口禁止回退） */
   resolveAgent: (sessionId?: string, exactOnly?: boolean) => ActionTarget | null
+}
+
+export interface SolveKitHostOptions {
+  /** 面板短名（消息标题前缀），如 '执行看板' / '持仓看板' */
+  panel: string
+  /** 面板全名（消息来源行），如 '双线执行确认看板' / '账户持仓看板' */
+  panelFull: string
+  /** source.plugin 值（消息留痕归属），如 'dashboard-execution' / 'dashboard-holdings' */
+  plugin: string
 }
 
 function json(res: ServerResponse, status: number, body: unknown): void {
@@ -66,23 +72,17 @@ function lastRunText(r: unknown): string {
   return at + '（' + zh + '）' + (o.err ? '；' + String(o.err).slice(0, 200) : '')
 }
 
-interface BuildCtx {
-  kind: 'task' | 'error'
-  title: string
-  lines: string[]
-  actorWindow: string
-}
-
 const NL = '\n'
 
-function buildSolveMessage(b: BuildCtx): any {
+function buildSolveMessage(b: { kind: 'task' | 'error'; title: string; lines: string[]; actorWindow: string; opts: SolveKitHostOptions }): any {
   const lines = [
-    b.kind === 'task' ? '【执行看板 · 失败任务排查】以下调度任务失败，请排查处置并在本会话回复结论：'
-      : '【执行看板 · 错误事件排查】以下错误事件需要定位处置，请排查并在本会话回复结论：',
+    b.kind === 'task'
+      ? '【' + b.opts.panel + ' · 失败任务排查】以下调度任务失败，请排查处置并在本会话回复结论：'
+      : '【' + b.opts.panel + ' · 错误事件排查】以下错误事件需要定位处置，请排查并在本会话回复结论：',
     '',
     ...b.lines,
     '',
-    '来源：双线执行确认看板「我来解决」投递（' + b.actorWindow + '）。',
+    '来源：' + b.opts.panelFull + '「我来解决」投递（' + b.actorWindow + '）。',
     '要求：以任务/事件属主视角调查根因并处置——可查 Agent OS 日志、重启相关服务、修正任务或代码等，自定方案。',
     '闭环方式：处置完成或给出结论后在本会话回复即可（本投递不建帖、不写 memory，由你决定是否沉淀经验/审计）。',
   ]
@@ -90,7 +90,7 @@ function buildSolveMessage(b: BuildCtx): any {
     id: randomUUID(),
     role: 'user',
     content: [{ type: 'text', text: lines.join(NL) }],
-    source: { kind: 'plugin', plugin: 'dashboard-execution' },
+    source: { kind: 'plugin', plugin: b.opts.plugin },
   }
 }
 
@@ -109,11 +109,12 @@ async function deliverMessage(target: ActionTarget | null, message: unknown): Pr
 }
 
 /** 会话 id → 窗口标签（与 lifecycle/bulletin 同口径：session- 前缀取中段 8 位） */
-function windowCode(id: string): string {
+export function windowCode(id: string): string {
   return id.startsWith('session-') ? 'w-' + id.slice(8, 16) : id
 }
 
-export function createExecutionSolveHandler(deps: ExecutionSolveDeps) {
+/** 「我来解决」投递路由工厂：deps.resolveAgent 由宿主页面提供（agents 服务注入解析）。 */
+export function createSolveHandler(deps: SolveKitHostDeps, opts: SolveKitHostOptions) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     try {
       const body: any = await readBody(req)
@@ -169,7 +170,7 @@ export function createExecutionSolveHandler(deps: ExecutionSolveDeps) {
         ]
       }
 
-      const message = buildSolveMessage({ kind, title, lines, actorWindow })
+      const message = buildSolveMessage({ kind, title, lines, actorWindow, opts })
       const delivery = await deliverMessage(target, message)
 
       return json(res, 200, {

@@ -6,6 +6,9 @@
 import { ACTIVE_ATTR, ACTIVATE_EVENT, BOARD_VIEW_SELECTOR, conversationColumn, OTHER_ACTIVE_ATTRS, PANEL_NAME } from './dom.js'
 import { buildHistoryCard, buildView, buildWatchCardHtml, HISTORY_PAGE_SIZE } from './view.js'
 import type { HoldingsData } from './types.js'
+import {
+  createSolveKit, type SolveCandidate, type SolveIdentity, type SolveKit, type SolveSnapshot,
+} from '@pi-investment/solve-kit/client'
 
 export interface BoardController {
   openBoard(): void
@@ -16,6 +19,8 @@ export interface BoardController {
   switchAccount(accountName: string): void
   watchSwitch(key: string): void
   historyPageSwitch(page: number): void
+  /** 「我来解决」：失败任务投递 investor 窗口（anchor=按钮，identity 读 data-solve-task） */
+  solveTask(btn?: HTMLElement): void
 }
 
 export function createBoardController(): BoardController {
@@ -167,6 +172,71 @@ export function createBoardController(): BoardController {
     host.replaceWith(node)
   }
 
+  /* ---- 「我来解决」：失败任务 → investor 窗口排查（solve-kit 公用包，抽象自 execution 看板）---- */
+  // 会话候选（与左栏同源）：client apply() 注入 __dshHldCtx/__dshHldSessions/__dshHldWorkspaces（归档过滤）
+  const hldCurrentSession = (): string => {
+    const w = window as any
+    try {
+      return String((w.__dshHldSessions ?? w.__dshHldCtx?.sessions)?.list?.getSnapshot?.().current ?? '')
+    } catch { return '' }
+  }
+  const hldCandidates = (): SolveCandidate[] => {
+    const w = window as any
+    const out: SolveCandidate[] = []
+    try {
+      const svc = w.__dshHldSessions ?? w.__dshHldCtx?.sessions
+      const list = svc?.list?.getSnapshot?.()
+      const items: any[] = Array.isArray(list?.items) ? list.items : (list?.ids ?? []).map((id: string) => ({ id, title: id }))
+      const archived = new Set<string>(
+        w.__dshHldWorkspaces?.list?.getSnapshot?.().archivedSessionIds ??
+        w.__dshHldCtx?.workspaces?.list?.getSnapshot?.().archivedSessionIds ?? [])
+      const cur = hldCurrentSession()
+      for (const it of items) {
+        const id = String(it?.id ?? '')
+        if (!id || archived.has(id)) continue
+        const blank = Boolean(it?.blank)
+        const origin = String(it?.origin ?? '')
+        if (blank || origin.startsWith('subagent')) continue
+        const label = String(it?.title ?? it?.displayTitle ?? '').slice(0, 42)
+        out.push({ sid: id, label: label || id, current: id === cur })
+      }
+    } catch { /* 读失败：降级空候选 → 直投当前窗口 */ }
+    return out
+  }
+  /** automation 快照 → host 期望的 task 板型（name/lastRun 对象/fetchedAt/error）；数据已刷新找不到 → null */
+  const hldSnapshotFor = (kind: 'task' | 'error', identity: SolveIdentity): SolveSnapshot | null => {
+    if (kind !== 'task') return null
+    const auto = lastData?.automation
+    if (!auto || auto.engine === true) return null
+    const t = (auto.tasks ?? []).find((x) => String(x.name) === String(identity.name ?? ''))
+    if (!t) return null
+    const fetchedAt = String(lastData?.summary?.lastUpdated ?? '')
+    return { kind: 'task', snap: {
+      name: t.name,
+      src: String(t.command || 'Agent OS 调度任务'),
+      scheduleExpr: t.scheduleExpr,
+      nextRunAt: t.nextRunAt,
+      lastRun: { status: t.lastStatus, triggeredAt: t.lastAt, finishedAt: t.lastAt, err: t.lastError },
+      todayTriggered: t.todayTriggered,
+      todaySuccess: t.todaySuccess,
+      fetchedAt,
+      error: t.lastError,
+    } as Record<string, unknown> }
+  }
+  const solveKit: SolveKit = createSolveKit({
+    endpoint: '/dashboard/api/holdings/solve',
+    prefix: 'dsh-hld',
+    candidates: hldCandidates,
+    current: hldCurrentSession,
+    resolveSnapshot: hldSnapshotFor,
+  })
+  const solveTask = (btn?: HTMLElement): void => {
+    if (!btn) return
+    const name = String(btn.dataset?.solveTask ?? '')
+    if (!name) return
+    solveKit.openPicker(btn, 'task', { name })
+  }
+
   return {
     openBoard: open,
     closeBoard: close,
@@ -176,6 +246,7 @@ export function createBoardController(): BoardController {
     switchAccount,
     watchSwitch,
     historyPageSwitch,
+    solveTask,
   }
 }
 
@@ -208,6 +279,7 @@ export function mountBoard(controller: BoardController): () => void {
   ;(window as any).__dshHldSwitchAccount = (accountName: string) => controller.switchAccount(accountName)
   ;(window as any).__dshHldWatchTab = (key: string) => controller.watchSwitch(String(key))
   ;(window as any).__dshHldHistoryPage = (page: unknown) => controller.historyPageSwitch(Number(page))
+  ;(window as any).__dshHldSolveTask = (btn?: HTMLElement) => controller.solveTask(btn)
 
   // Listen for other panels' activation to auto-close
   const onOtherActivate = (event: Event): void => {
@@ -238,6 +310,7 @@ export function mountBoard(controller: BoardController): () => void {
     delete (window as any).__dshHldSwitchAccount
     delete (window as any).__dshHldWatchTab
     delete (window as any).__dshHldHistoryPage
+    delete (window as any).__dshHldSolveTask
     console.log('[dashboard-holdings] board unmounted')
   }
 }
