@@ -95,21 +95,6 @@ def _build_calculate_ic_ir_result(data):
     # TODO: 将结果构建逻辑从 calculate_ic_ir 移到这里
     return data
 
-def _validate_calculate_ic_ir_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 calculate_ic_ir 移到这里
-    return True, None
-
-def _process_calculate_ic_ir_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 calculate_ic_ir 移到这里
-    return data
-
-def _build_calculate_ic_ir_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 calculate_ic_ir 移到这里
-    return data
-
 def calculate_ic_ir():
     """计算IC和IR"""
 

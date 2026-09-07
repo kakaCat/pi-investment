@@ -51,21 +51,6 @@ def _build_ml_train_result(data):
     # TODO: 将结果构建逻辑从 ml_train 移到这里
     return data
 
-def _validate_ml_train_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 ml_train 移到这里
-    return True, None
-
-def _process_ml_train_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 ml_train 移到这里
-    return data
-
-def _build_ml_train_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 ml_train 移到这里
-    return data
-
 def ml_train(payload: Optional[Dict[str, Any]] = Body(None)):
     """Train an ML model (xgboost / lightgbm / randomforest)."""
     data = _convert_keys_to_snake(payload or {})
@@ -263,20 +248,26 @@ def _build_ml_predict_result(data):
     # TODO: 将结果构建逻辑从 ml_predict 移到这里
     return data
 
-def _validate_ml_predict_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 ml_predict 移到这里
+def _validate_ml_predict_params(data):
+    """验证预测参数"""
+    required = ['symbol', 'model_type']
+    for field in required:
+        if field not in data:
+            return False, f'Missing required field: {field}'
     return True, None
 
-def _process_ml_predict_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 ml_predict 移到这里
-    return data
+def _load_ml_model(model_type, version):
+    """加载ML模型"""
+    model_repo = _get_model_repo()
+    model_info = model_repo.get_model(model_type, version)
+    if not model_info:
+        return None, 'Model not found'
+    return model_info, None
 
-def _build_ml_predict_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 ml_predict 移到这里
-    return data
+def _prepare_ml_features(symbol, lookback_days):
+    """准备特征数据"""
+    # 特征准备逻辑
+    return features
 
 def ml_predict(payload: Optional[Dict[str, Any]] = Body(None)):
     """Make batch predictions for given symbols."""

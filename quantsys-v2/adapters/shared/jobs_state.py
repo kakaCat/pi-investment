@@ -61,21 +61,6 @@ def _build__execute_job_by_type_result(data):
     # TODO: 将结果构建逻辑从 _execute_job_by_type 移到这里
     return data
 
-def _validate__execute_job_by_type_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _execute_job_by_type 移到这里
-    return True, None
-
-def _process__execute_job_by_type_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _execute_job_by_type 移到这里
-    return data
-
-def _build__execute_job_by_type_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _execute_job_by_type 移到这里
-    return data
-
 def _execute_job_by_type(job_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """Execute a job by type, returning result dict."""
     if job_type == 'data_update':

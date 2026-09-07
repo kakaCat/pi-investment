@@ -94,21 +94,6 @@ def _build__execute_pipeline_stages_result(data):
     # TODO: 将结果构建逻辑从 _execute_pipeline_stages 移到这里
     return data
 
-def _validate__execute_pipeline_stages_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _execute_pipeline_stages 移到这里
-    return True, None
-
-def _process__execute_pipeline_stages_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _execute_pipeline_stages 移到这里
-    return data
-
-def _build__execute_pipeline_stages_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _execute_pipeline_stages 移到这里
-    return data
-
 def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str], task_type: Optional[str] = None, days: int = 730):
     """执行流水线阶段 - 内部实现"""
     # 防御性解析: symbols 可能以字符串形式传入(逗号分隔)

@@ -39,21 +39,6 @@ def _build_enrich_stock_data_result(data):
     # TODO: 将结果构建逻辑从 enrich_stock_data 移到这里
     return data
 
-def _validate_enrich_stock_data_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 enrich_stock_data 移到这里
-    return True, None
-
-def _process_enrich_stock_data_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 enrich_stock_data 移到这里
-    return data
-
-def _build_enrich_stock_data_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 enrich_stock_data 移到这里
-    return data
-
 def enrich_stock_data(stock) -> Dict:
     """为股票添加额外信息（价格、涨跌幅、K线天数、因子数量等）。逻辑与 Flask stock.py 一致。"""
     if hasattr(stock, 'symbol'):
@@ -123,21 +108,6 @@ def search_stocks(q: str = Query(''), page: int = Query(1), pageSize: int = Quer
 # TODO: Refactor - complexity 16 (target < 15)
 
 @router.get('/api/stocks/list')
-def _validate_get_stock_list_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 get_stock_list 移到这里
-    return True, None
-
-def _process_get_stock_list_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 get_stock_list 移到这里
-    return data
-
-def _build_get_stock_list_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 get_stock_list 移到这里
-    return data
-
 def _validate_get_stock_list_input(data):
     """验证输入参数"""
     # TODO: 将验证逻辑从 get_stock_list 移到这里
@@ -318,21 +288,6 @@ def get_stocks_batch(payload: Dict[str, Any] = Body(default_factory=dict)):
 
 
 @router.get('/api/stock/{symbol}/klines')
-def _validate_get_stock_klines_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 get_stock_klines 移到这里
-    return True, None
-
-def _process_get_stock_klines_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 get_stock_klines 移到这里
-    return data
-
-def _build_get_stock_klines_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 get_stock_klines 移到这里
-    return data
-
 def _validate_get_stock_klines_input(data):
     """验证输入参数"""
     # TODO: 将验证逻辑从 get_stock_klines 移到这里

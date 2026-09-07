@@ -46,21 +46,6 @@ def _build_run_backtest_result(data):
     # TODO: 将结果构建逻辑从 run_backtest 移到这里
     return data
 
-def _validate_run_backtest_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 run_backtest 移到这里
-    return True, None
-
-def _process_run_backtest_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 run_backtest 移到这里
-    return data
-
-def _build_run_backtest_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 run_backtest 移到这里
-    return data
-
 def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
     """运行回测 - 支持 strategy_name、strategy_id 或 indicator_id"""
     from adapters.shared.backtest_helpers import (
@@ -161,21 +146,6 @@ if 'rsi_period' not in data:
 # TODO: Refactor - complexity 17 (target < 15)
 
 @router.post('/api/compute/factors')
-def _validate_compute_factors_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 compute_factors 移到这里
-    return True, None
-
-def _process_compute_factors_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 compute_factors 移到这里
-    return data
-
-def _build_compute_factors_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 compute_factors 移到这里
-    return data
-
 def _validate_compute_factors_input(data):
     """验证输入参数"""
     # TODO: 将验证逻辑从 compute_factors 移到这里
@@ -297,21 +267,6 @@ def _build__annotate_stale_factors_result(data):
     # TODO: 将结果构建逻辑从 _annotate_stale_factors 移到这里
     return data
 
-def _validate__annotate_stale_factors_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _annotate_stale_factors 移到这里
-    return True, None
-
-def _process__annotate_stale_factors_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _annotate_stale_factors 移到这里
-    return data
-
-def _build__annotate_stale_factors_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _annotate_stale_factors 移到这里
-    return data
-
 def _annotate_stale_factors(symbol: str, factors: Any, max_stale_trading_days: int = 5):
     """M0-5（RFC003 审核遗留）：标注陈旧因子，防止陈旧零值被当成真实值误导决策。
 
@@ -383,21 +338,6 @@ def _annotate_stale_factors(symbol: str, factors: Any, max_stale_trading_days: i
 
 @router.get('/api/stock/{symbol}/factors')
 @router.get('/api/stocks/{symbol}/factors')
-def _validate_get_stock_factors_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 get_stock_factors 移到这里
-    return True, None
-
-def _process_get_stock_factors_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 get_stock_factors 移到这里
-    return data
-
-def _build_get_stock_factors_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 get_stock_factors 移到这里
-    return data
-
 def _validate_get_stock_factors_input(data):
     """验证输入参数"""
     # TODO: 将验证逻辑从 get_stock_factors 移到这里
@@ -973,21 +913,6 @@ def _build_calculate_risk_metrics_result(data):
     # TODO: 将结果构建逻辑从 calculate_risk_metrics 移到这里
     return data
 
-def _validate_calculate_risk_metrics_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 calculate_risk_metrics 移到这里
-    return True, None
-
-def _process_calculate_risk_metrics_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 calculate_risk_metrics 移到这里
-    return data
-
-def _build_calculate_risk_metrics_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 calculate_risk_metrics 移到这里
-    return data
-
 def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
     """计算风险指标 - 使用 empyrical 标准算法
 
@@ -1091,21 +1016,6 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
 @router.post('/api/portfolio/factor-analyze')
 @handle_api_error
 # TODO: Refactor - function too long (101 lines, target < 80)
-
-def _validate_factor_analyze_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 factor_analyze 移到这里
-    return True, None
-
-def _process_factor_analyze_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 factor_analyze 移到这里
-    return data
-
-def _build_factor_analyze_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 factor_analyze 移到这里
-    return data
 
 def _validate_factor_analyze_input(data):
     """验证输入参数"""
@@ -1233,21 +1143,6 @@ def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
 # TODO: Refactor - function too long (104 lines, target < 80)
 
 @handle_api_error
-def _validate_sector_aggregate_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 sector_aggregate 移到这里
-    return True, None
-
-def _process_sector_aggregate_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 sector_aggregate 移到这里
-    return data
-
-def _build_sector_aggregate_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 sector_aggregate 移到这里
-    return data
-
 def _validate_sector_aggregate_input(data):
     """验证输入参数"""
     # TODO: 将验证逻辑从 sector_aggregate 移到这里

@@ -55,21 +55,6 @@ def _build_compute_benchmark_comparison_result(data):
     # TODO: 将结果构建逻辑从 compute_benchmark_comparison 移到这里
     return data
 
-def _validate_compute_benchmark_comparison_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 compute_benchmark_comparison 移到这里
-    return True, None
-
-def _process_compute_benchmark_comparison_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 compute_benchmark_comparison 移到这里
-    return data
-
-def _build_compute_benchmark_comparison_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 compute_benchmark_comparison 移到这里
-    return data
-
 def compute_benchmark_comparison(
     account_series: AccountSeries,
     benchmark_klines: BenchmarkKlines,

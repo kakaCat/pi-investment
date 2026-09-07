@@ -172,21 +172,6 @@ def _build_execute_v14_full_rebalance_result(data):
     # TODO: 将结果构建逻辑从 execute_v14_full_rebalance 移到这里
     return data
 
-def _validate_execute_v14_full_rebalance_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 execute_v14_full_rebalance 移到这里
-    return True, None
-
-def _process_execute_v14_full_rebalance_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 execute_v14_full_rebalance 移到这里
-    return data
-
-def _build_execute_v14_full_rebalance_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 execute_v14_full_rebalance 移到这里
-    return data
-
 def execute_v14_full_rebalance():
     """执行V14完整调仓（止损+调仓+实际交易）"""
     from live_trading.simulation_trader import SimulationTrader

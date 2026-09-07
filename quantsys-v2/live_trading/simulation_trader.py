@@ -1502,21 +1502,6 @@ def _build_main_result(data):
     # TODO: 将结果构建逻辑从 main 移到这里
     return data
 
-def _validate_main_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 main 移到这里
-    return True, None
-
-def _process_main_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 main 移到这里
-    return data
-
-def _build_main_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 main 移到这里
-    return data
-
 def main():
     """主函数"""
     print("V13策略模拟交易系统（数据库版）")

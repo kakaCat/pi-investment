@@ -48,21 +48,6 @@ def _build_validate_condition_result(data):
     # TODO: 将结果构建逻辑从 validate_condition 移到这里
     return data
 
-def _validate_validate_condition_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 validate_condition 移到这里
-    return True, None
-
-def _process_validate_condition_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 validate_condition 移到这里
-    return data
-
-def _build_validate_condition_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 validate_condition 移到这里
-    return data
-
 def validate_condition(cond: dict) -> None:
     """校验条件结构，非法时抛 ValueError"""
     ctype = cond.get('type')

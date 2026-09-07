@@ -31,21 +31,6 @@ def _build_sanitize_for_json_result(data):
     # TODO: 将结果构建逻辑从 sanitize_for_json 移到这里
     return data
 
-def _validate_sanitize_for_json_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 sanitize_for_json 移到这里
-    return True, None
-
-def _process_sanitize_for_json_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 sanitize_for_json 移到这里
-    return data
-
-def _build_sanitize_for_json_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 sanitize_for_json 移到这里
-    return data
-
 def sanitize_for_json(obj):
     """递归清理对象，使其可以被JSON序列化"""
     import pandas as pd

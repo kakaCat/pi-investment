@@ -132,7 +132,28 @@ class AccountTradingService:
         # TODO: 将结果构建逻辑从 execute_trade 移到这里
         return data
 
-    def execute_trade(
+    
+def _validate_trade_params(broker_id, symbol, action, quantity, price):
+    """验证交易参数"""
+    if not all([broker_id, symbol, action]):
+        return False, "Missing required parameters"
+    if action not in ['buy', 'sell']:
+        return False, f"Invalid action: {action}"
+    if quantity <= 0:
+        return False, "Quantity must be positive"
+    return True, None
+
+def _check_trade_risk(broker_id, symbol, action, quantity, price):
+    """检查交易风险"""
+    # 风险检查逻辑
+    return True, None
+
+def _execute_broker_order(broker_id, symbol, action, quantity, price):
+    """执行券商订单"""
+    # 执行逻辑
+    return order_result
+
+def execute_trade(
         self,
         account_name: str,
         action: str,
