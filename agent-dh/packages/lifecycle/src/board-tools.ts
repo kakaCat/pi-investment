@@ -211,7 +211,7 @@ export function registerBoardRead(ctx: Context, boardClient: BoardClient, _agent
 export function registerBoardPost(ctx: Context, boardClient: BoardClient, agentId: string) {
   ctx.tools.register(defineTool({
     name: 'board_post',
-    description: '发布公告板帖子（RFC 009/014）。needs_action=true进悬赏池（open状态），false纯记录（done状态）。',
+    description: '发布公告板帖子（RFC 009/014）。⚠️ 调用即向用户弹确认框，用户同意才真发——纯记录/复盘/交付说明请改用 memory_write 不要调本工具；公告板只承载悬赏/跨窗口协作/需他人行动的帖子。needs_action=true进悬赏池（open状态），false纯记录（done状态）。',
     parameters: {
       title: {
         type: 'string',
@@ -247,9 +247,35 @@ export function registerBoardPost(ctx: Context, boardClient: BoardClient, agentI
         { type: 'text', text: JSON.stringify(value, null, 2) },
       ],
     },
-    timeoutMs: 10000,
+    timeoutMs: 120000,
     execute: async (args: any) => {
       const { title, content, kind, needs_action = false } = args;
+
+      // R-014 工具级强制（2026-09-08 用户指令）：发帖前必须经用户确认。
+      // 公告板只承载悬赏/跨窗口协作帖；纯记录应走 memory_write，不上板。
+      const askTool = ctx.tools.get('ask_user_question');
+      if (!askTool) {
+        throw new Error('当前环境无法向用户确认，board_post 被拒绝：请先征得用户同意，或改用 memory_write 记录（纯记录不应上公告板）');
+      }
+      const askResult: any = await askTool.execute({
+        questions: [{
+          id: 'board_post_confirm',
+          header: '公告板发帖确认',
+          question: 'agent 请求发布公告板帖子：\n标题：' + title + '\n类型：' + kind + '｜' + (needs_action ? '悬赏（需他人行动）' : '纯记录') + '\n\n提示：纯记录建议改用 memory_write，不上公告板。',
+          options: [
+            { label: '发布', description: '确认发帖到公告板' },
+            { label: '取消', description: '不发帖；纯记录请改走 memory_write' },
+          ],
+        }],
+      });
+      const selected: string[] = askResult?.answers?.[0]?.selected || [];
+      if (!selected.some((s: string) => s.includes('发布'))) {
+        return {
+          success: false,
+          post_id: null,
+          status: 'rejected_by_user',
+        } as any;
+      }
 
       try {
         const result = await boardClient.createPost({
