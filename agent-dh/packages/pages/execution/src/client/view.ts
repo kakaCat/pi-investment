@@ -2,7 +2,8 @@
  * Board view construction + data renderers. Light monitoring theme per design
  * page2-execution-board.html: header, execution summary (今日计划/已完成/失败/待执行),
  * pipeline bands (ENGINE M0-M6 x AUTONOMY L1-L4), today timeline (HH:MM sorted),
- * scheduler tasks grouped into 6 domains (success/failure only, no technical noise).
+ * today timeline & scheduler tasks grouped by business line (engine/autonomy/account/other).
+ * 2026-09-08 user-confirmed dual-line semantics: health/timeline = 盈利引擎 + Autonomy; 账户/其它折叠.
  *
  * @module dashboard-execution/client/view
  */
@@ -115,30 +116,60 @@ const TASK_ZH: Record<string, string> = {
   'event-calendar-check': '事件日历检查', 'm4-circuit-breaker-live': '熔断回路检查', 'post-market-routine-live': '盘后例程',
   'evolution-distill-daily': '进化蒸馏', 'evolution-gate-adjudicate': '进化裁决', 'evolution-weekly-variant': '进化变体',
   'meta-learning-weekly': '元学习', 'weekly-report-m6': '学习飞轮周报', 'geer-take-profit-0901': '歌尔止盈观察',
+  // 账户定时任务（账户专属例行 / 模拟撮合）
+  'v14-simulation-trading': '模拟交易执行(v14)',
+  'agent-brain-morning-analysis': '晨间账户分析', 'agent-brain-realtime-check': '账户实时检查',
+  'agent-brain-daily-review': '账户日终复盘', 'agent-brain-daily-audit': '账户每日审计',
+  'agent-brain-weekly-roi': '账户周度ROI', 'agent-brain-weekly-evolution': '账户周度进化', 'agent-brain-weekly-distill': '账户周度蒸馏',
 }
 function taskZh(name: unknown): string {
   const n = String(name ?? '')
   return TASK_ZH[n] ?? n
 }
 
-/* 领域分组：raw name 精确匹配，兜底归入“其他任务” */
-const DOMAINS: { title: string; keys: string[] }[] = [
-  { title: '数据与行情', keys: ['每日数据更新', '每日数据质量检查', '每日财报时效性检查', '每周财务数据更新', 'fund_flow_update'] },
-  { title: '市场感知', keys: ['market_daily_snapshot', 'market-style-update', 'pre-market-scan'] },
-  { title: '信号与股票池', keys: ['每日信号生成', '每日信号执行', 'chan-scan-daily', 'daily-pool-refresh'] },
-  { title: '风控与交易', keys: ['v13-risk-check', 'daily_trade_verify', 'v13-simulation-trading'] },
-  { title: '学习与验证', keys: ['daily-strategy-validation', 'v13-verification', 'chan-knowledge-distill-weekly', 'weekly-strategy-discovery', 'signal-perf-backfill-daily'] },
-  { title: '周报与汇总', keys: ['v13-weekly-report', '每周报告生成'] },
-  { title: '自主例程', keys: [ // Agent OS 定时 → 调用 agent-dh 执行（走 Agent OS 而非 v2 引擎）
-    'pre-market-routine', 'afternoon-open-check-live', 'data-quality-monitor-daily', 'event-calendar-check',
-    'm4-circuit-breaker-live', 'post-market-routine-live', 'evolution-distill-daily', 'geer-take-profit-0901',
-    'evolution-gate-adjudicate', 'evolution-weekly-variant', 'meta-learning-weekly', 'weekly-report-m6',
-  ] },
+/* 业务线分组（用户 2026-09-08 确认口径）：任务按业务归属分线——盈利引擎线（M 系生产）/ Autonomy 线（L 系自我改进）/
+   账户定时任务（账户专属例行 + 模拟撮合）/ 临时·核验·基建（一次性或未归类，宁显不藏）。不再按动作域分类。 */
+const LINE_META: { key: string; zh: string }[] = [
+  { key: 'engine', zh: '盈利引擎线' },
+  { key: 'autonomy', zh: 'Autonomy 线' },
+  { key: 'account', zh: '账户定时任务' },
+  { key: 'other', zh: '临时/核验/其他' },
 ]
-function domainOf(name: unknown): { title: string; idx: number } | null {
+const LINE_ZH: Record<string, string> = { engine: '盈利引擎线', autonomy: 'Autonomy 线', account: '账户定时任务', other: '临时/核验/其他' }
+/* 归属表：raw name 精确匹配（兼容 v2 下划线/连字符双命名）+ 前缀兜底；未知一律 other（宁显不藏，可后续补录） */
+const ENGINE_KEYS = new Set<string>([
+  '每日数据更新', '每日数据质量检查', '每日财报时效性检查', '每周财务数据更新',
+  'market_daily_snapshot', 'chan-scan-daily', 'chan_scan_daily', 'market-style-update', 'market_style_update',
+  'fund_flow_update', 'market_perception_daily',
+  'daily-pool-refresh', 'daily_pool_refresh',
+  'pre-market-scan', 'pre_market_scan', '每日信号生成', '每日信号执行',
+  'signal-perf-backfill-daily', 'signal_perf_backfill_daily', 'signal_generate_sell',
+  'v13-risk-check', 'v13_risk_check', 'daily_trade_verify', '每日模型重训',
+  'pre-market-routine', 'afternoon-open-check-live', 'm4-circuit-breaker-live', 'post-market-routine-live',
+  'data-quality-monitor-daily', 'event-calendar-check',
+])
+const AUTONOMY_KEYS = new Set<string>([
+  'daily-strategy-validation', 'daily_strategy_validation', 'v13-verification', 'v13_verification',
+  'weekly-strategy-discovery', 'weekly_strategy_discovery',
+  'chan-knowledge-distill-weekly', 'chan_knowledge_distill_weekly',
+  'v13-weekly-report', 'v13_weekly_report', '每周报告生成',
+  'evolution-distill-daily', 'evolution-gate-adjudicate', 'evolution-weekly-variant',
+  'meta-learning-weekly', 'weekly-report-m6',
+  'weekly_evolution', 'weekly_memory_distill', 'daily_ai_review', 'daily_recall_audit', 'weekly_tool_roi_review',
+])
+const ACCOUNT_KEYS = new Set<string>(['v13-simulation-trading', 'v13_simulation_trading', 'v14-simulation-trading'])
+function lineOf(name: unknown): string {
   const n = String(name ?? '')
-  for (let i = 0; i < DOMAINS.length; i++) if (DOMAINS[i].keys.includes(n)) return { title: DOMAINS[i].title, idx: i }
-  return null
+  if (ENGINE_KEYS.has(n)) return 'engine'
+  if (AUTONOMY_KEYS.has(n)) return 'autonomy'
+  if (ACCOUNT_KEYS.has(n) || n.startsWith('agent-brain-')) return 'account'
+  if (n.startsWith('board-') || n.startsWith('geer-') || n === 'v2_health_check') return 'other'
+  return 'other'
+}
+/** 双线口径：今日执行总览 / 时间轴主视图只计这两条业务线（用户 2026-09-08） */
+function isDualLine(name: unknown): boolean {
+  const k = lineOf(String(name ?? ''))
+  return k === 'engine' || k === 'autonomy'
 }
 
 /* M0-M6 × L1-L4 模块定义（节点始终展示，状态来自该模块检查点 worst case） */
@@ -195,10 +226,10 @@ export function buildView(): ViewRefs {
     '<div class="dsh-exec-meta"><span class="dsh-exec-last" data-role="lastFetch">—</span>' +
     '<button type="button" class="dsh-exec-btn" data-role="refresh">↻ 刷新</button></div></div>')
   const banner = bd('<div class="dsh-exec-banner" data-role="banner"></div>')
-  const healthSec = sec('今日执行总览', '来自当日 cron 计划与运行结果', 'healthBox')
+  const healthSec = sec('今日执行总览', '双线口径（盈利引擎 + Autonomy）· 来自当日 cron 计划与运行结果', 'healthBox')
   const flowSec = sec('执行流水线', 'ENGINE M0–M6 × AUTONOMY L1–L4 检查点状态', 'flowBox')
-  const timelineSec = sec('今日时间轴', '分 日执行 / 周执行 · 徽标 v2/os=调度来源 dh/ts=调用 agent · 按计划时刻排序', 'timelineBox')
-  const tasksSec = sec('调度任务', '分类切换 · 徽标 v2/os=调度来源 dh/ts=调用 agent · 点击任务行查看失败原因', 'tasksBox')
+  const timelineSec = sec('今日时间轴', '按业务线分组：盈利引擎 / Autonomy 展开 · 账户与其它折叠 · 徽标 v2/os=调度来源 dh/ts=调用 agent · 按计划时刻排序', 'timelineBox')
+  const tasksSec = sec('调度任务', '按业务线分类切换（盈利引擎 / Autonomy / 账户定时 / 临时核验）· 徽标 v2/os=调度来源 dh/ts=调用 agent · 点击任务行查看失败原因', 'tasksBox')
   const errsSec = sec('错误事件', '近 10 条日志异常（系统侧）', 'errsBox')
   errsSec.style.display = 'none'
   const blockSec = sec('流水线阻断', 'failed/late 且声明阻断下游', 'blockBox')
@@ -222,7 +253,8 @@ export function buildView(): ViewRefs {
 }
 
 function renderHealth(refs: ViewRefs, data: BoardData): void {
-  const tl = (data.timeline ?? []).filter(t => t.status !== 'off_day') // 非执行日不计入今日计划/待执行
+  // 今日执行总览口径 = 双线（盈利引擎 + Autonomy）；账户/临时任务不计入（用户 2026-09-08）
+  const tl = (data.timeline ?? []).filter(t => t.status !== 'off_day' && isDualLine(t.taskName))
   const total = tl.length
   let ok = 0, fail = 0
   for (const t of tl) { if (t.status === 'success') ok++; else if (t.status === 'failed') fail++ }
@@ -304,16 +336,26 @@ function tlRow(t: TimelineEntry): string {
     '<div class="tl-st ' + (TL_TAG[st] ?? 'unk') + '">' + esc(tlStatusLabel(st)) + '</div>' +
     '<span class="tl-tags">' + srcChip(t.src) + agentChip(t.agentCall) + '</span></div></div>'
 }
+function freqNote(items: TimelineEntry[]): string {
+  const d = items.filter(t => (t.freq ?? 'daily') !== 'weekly').length
+  return '共 ' + items.length + ' 项 · 日执行 ' + d + ' / 周执行 ' + (items.length - d)
+}
 function renderTimeline(refs: ViewRefs, data: BoardData): void {
   // 非执行日（今日 cron 不排、亦无真实 run）行同样入列展示为灰态「非执行日」，与执行流水线 off_day 一致
   const tl = (data.timeline ?? []).slice().sort((a, b) => hmMin(a.expectedTime) - hmMin(b.expectedTime))
   if (tl.length === 0) { refs.timelineBox.innerHTML = '<div class="dsh-exec-empty">今日暂无计划任务</div>'; return }
-  const grp = (title: string, note: string, items: TimelineEntry[]): string =>
-    '<div class="dsh-exec-tlg"><div class="tlg-t"><span class="t">' + title + '</span><em>' + note + ' · ' + items.length + ' 项</em></div>' +
+  // 业务线分组：盈利引擎 + Autonomy 双线展开；账户 / 其它折叠进 <details>（用户 2026-09-08：时间轴=双线看板）
+  const byL: Record<string, TimelineEntry[]> = { engine: [], autonomy: [], account: [], other: [] }
+  for (const t of tl) { const k = lineOf(String(t.taskName ?? '')); (byL[k] ?? byL.other).push(t) }
+  const grp = (key: string, items: TimelineEntry[]): string =>
+    '<div class="dsh-exec-tlg t-' + key + '"><div class="tlg-t"><span class="t">' + esc(LINE_ZH[key] ?? key) + '</span><em>' + esc(freqNote(items)) + '</em></div>' +
     '<div class="dsh-exec-tl-list">' + items.map(tlRow).join('') + '</div></div>'
-  const daily = tl.filter(t => (t.freq ?? 'daily') !== 'weekly')
-  const weekly = tl.filter(t => t.freq === 'weekly')
-  const html = grp('日执行', '每日 / 交易日例行', daily) + (weekly.length > 0 ? grp('周执行', '每周固定日', weekly) : '')
+  const fold = (key: string, items: TimelineEntry[]): string =>
+    items.length === 0 ? '' :
+      '<details class="dsh-exec-tld"><summary><span class="caret">▶</span><i class="dk l-' + key + '"></i><b>' + esc(LINE_ZH[key] ?? key) + '</b>' +
+      '<em>' + esc(freqNote(items)) + '</em></summary><div class="dsh-exec-tl-list">' + items.map(tlRow).join('') + '</div></details>'
+  const html = grp('engine', byL.engine) + grp('autonomy', byL.autonomy) +
+    fold('account', byL.account) + fold('other', byL.other)
   refs.timelineBox.innerHTML = html
 }
 
@@ -396,7 +438,7 @@ function fullDT(s: unknown): string {
   return m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5]
 }
 function taskDetailHtml(t: SchedulerTask): string {
-  const d = domainOf(t.name)
+  const ln = lineOf(String(t.name ?? ''))
   const tag = taskTag(t)
   const last = runLast(t)
   const trig = Number(t.todayTriggered) || 0
@@ -409,7 +451,7 @@ function taskDetailHtml(t: SchedulerTask): string {
   html += row('调度来源', t.src === 'os' ? 'Agent OS（webhook 触发）' : 'quantsys-v2 引擎')
   if (t.agentCall === 'dh' || t.agentCall === 'ts') html += row('调用 Agent', t.agentCall === 'dh' ? 'agent-dh（LLM 智能体）' : 'agent-ts（LLM 智能体）')
   html += row('状态', '<span class="tag ' + tag.cls + '">' + esc(tag.label) + '</span>')
-  html += row('领域', esc(d ? d.title : '其他任务'))
+  html += row('业务线', esc(LINE_ZH[ln] ?? ln))
   // ⏱ 时间口径：「计划时刻」= cronPlan(cron)（与时间轴 expectedTime 同源，计划几点就几点）；
   //    「上次运行」= last.at 为实际触发时刻（lastRun.triggeredAt），仅补充参考——手动补跑/延后时 ≠ 计划时刻。
   const cronRaw = String(t.scheduleExpr ?? '').trim()
@@ -427,18 +469,13 @@ function taskDetailHtml(t: SchedulerTask): string {
 export function renderTasks(refs: ViewRefs, data: BoardData): void {
   const tasks = data.tasks ?? []
   if (tasks.length === 0) { selTaskName = null; selDom = 'all'; taskPage = 1; lastDomShown = 'all'; lastTaskShown = null; refs.tasksBox.innerHTML = '<div class="dsh-exec-empty">暂无调度任务</div>'; return }
-  const domCount = DOMAINS.map(() => 0)
-  let otherCount = 0
-  for (const t of tasks) { const d = domainOf(t.name); if (d) domCount[d.idx]++; else otherCount++ }
-  // 当前 tab 分类合法性：该分类下已无任务则回退到「全部」
-  const domOk = selDom === 'all' || (selDom === 'x' ? otherCount > 0 : domCount[Number(selDom)] > 0)
+  // 业务线 tab 计数（用户 2026-09-08：调度任务按业务线分类，替代原按动作域分类）
+  const lineCount: Record<string, number> = { engine: 0, autonomy: 0, account: 0, other: 0 }
+  for (const t of tasks) { const k = lineOf(String(t.name ?? '')); lineCount[k] = (lineCount[k] ?? 0) + 1 }
+  // 当前 tab 分类合法性：该业务线下已无任务则回退到「全部」
+  const domOk = selDom === 'all' || (lineCount[selDom] ?? 0) > 0
   if (!domOk) selDom = 'all'
-  const inDom = (raw: string): boolean => {
-    if (selDom === 'all') return true
-    const d = domainOf(raw)
-    if (selDom === 'x') return d === null
-    return d !== null && String(d.idx) === selDom
-  }
+  const inDom = (raw: string): boolean => (selDom === 'all' ? true : lineOf(raw) === selDom)
   const view = tasks.filter((t) => inDom(String(t.name ?? '')))
   // 选中任务持久化（30s 轮询重绘仍保留）；不在当前分类内则取消选中（表格下方详情随行）
   if (selTaskName !== null && !view.some((t) => String(t.name) === selTaskName)) selTaskName = null
@@ -461,8 +498,7 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
   const tab = (dom: string, label: string, count: number): string =>
     '<button type="button" class="dsh-exec-tab' + (selDom === dom ? ' act' : '') + '" data-dom="' + dom + '">' + label + cnt(count) + '</button>'
   const tabs: string[] = [tab('all', '全部', tasks.length)]
-  DOMAINS.forEach((dm, i) => { if (domCount[i] > 0) tabs.push(tab(String(i), '<i class="dk d' + i + '"></i>' + esc(dm.title), domCount[i])) })
-  if (otherCount > 0) tabs.push(tab('x', '其他任务', otherCount))
+  for (const lm of LINE_META) if ((lineCount[lm.key] ?? 0) > 0) tabs.push(tab(lm.key, '<i class="dk l-' + lm.key + '"></i>' + esc(lm.zh), lineCount[lm.key]))
   const trow = (t: SchedulerTask): string => {
     const raw = String(t.name ?? '')
     const tag = taskTag(t)
@@ -474,7 +510,7 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
     const zh = taskZh(raw)
     // ⏱ 列时间语义：计划时刻=cron 计划（与时间轴同源）；上次运行=实际触发(lastRun.triggeredAt)，仅供参考。
     return '<tr class="dsh-exec-tr' + sel + '" data-tk="' + esc(raw) + '"' + (err ? ' title="失败原因：' + esc(err.slice(0, 300)) + '"' : '') + '>' +
-      '<td class="nm"><span class="zh">' + esc(zh) + '</span>' + (zh === raw ? '' : '<span class="code">' + esc(raw) + '</span>') + '</td>' +
+      '<td class="nm"><span class="ln-hd"><i class="dk l-' + lineOf(raw) + '"></i><span class="zh">' + esc(zh) + '</span></span>' + (zh === raw ? '' : '<span class="code">' + esc(raw) + '</span>') + '</td>' +
       '<td class="cr" title="' + (t.scheduleExpr ? esc('原 cron: ' + String(t.scheduleExpr).trim()) : '') + '">' + esc(cronPlan(t.scheduleExpr)) + '</td>' +
       '<td class="st"><span class="tag ' + tag.cls + '">' + esc(tag.label) + '</span>' + srcChip(t.src) + agentChip(t.agentCall) + '</td>' +
       '<td class="tm">' + esc(last.at) + (last.st ? '<em class="ls ' + (TL_TAG[last.st] ?? 'unk') + '">' + esc(TL_ZH[last.st] ?? last.st) + '</em>' : '') + '</td>' +
@@ -482,7 +518,7 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
       '<td class="nx">' + esc(shortDT(t.nextRunAt)) + '</td>' +
       '<td class="op">' + (tag.cls === 'bad' ? '<button type="button" class="dsh-exec-solve" data-solve-task="' + esc(raw) + '" title="把该失败任务投递给窗口排查处置">我来解决</button>' : '') + '</td></tr>'
   }
-  const hint = '<div class="dsh-exec-legend dsh-exec-legend2"><span class="dsh-exec-hint">点击 tab 切换分类 · 点击任务行查看失败原因 · 失败行/错误条可点「我来解决」投递窗口排查 · 表底每页 ' + TASK_PAGE_SIZE + ' 条翻页 · <i class="dot ok"></i>成功 <i class="dot bad"></i>失败 <i class="dot wait"></i>待执行 <i class="dot off"></i>未启用</span></div>'
+  const hint = '<div class="dsh-exec-legend dsh-exec-legend2"><span class="dsh-exec-hint">按业务线点击 tab 切换 · 点击任务行查看失败原因 · 失败行/错误条可点「我来解决」投递窗口排查 · 表底每页 ' + TASK_PAGE_SIZE + ' 条翻页 · <i class="dot ok"></i>成功 <i class="dot bad"></i>失败 <i class="dot wait"></i>待执行 <i class="dot off"></i>未启用</span></div>'
   const rows = pageRows.map(trow).join('')
   const pager = view.length > TASK_PAGE_SIZE
     ? '<div class="dsh-exec-tkpg">' + pagerHtml(taskPage, totalPages, view.length) + '</div>' : ''

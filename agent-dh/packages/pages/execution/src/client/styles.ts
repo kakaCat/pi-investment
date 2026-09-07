@@ -123,6 +123,19 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-tlg + .dsh-exec-tlg .tlg-t .t::before { background:#e6a23c; }
 .dsh-exec-tlg .tlg-t em { font-style:normal; font-size:11px; color:var(--faint); margin-left:auto; }
 .dsh-exec-tlg .dsh-exec-tl-list { border:1px solid var(--line); border-radius:8px; padding:2px 12px; background:#fff; }
+/* 业务线分组着色（2026-09-08：引擎蓝 / Autonomy 紫） */
+.dsh-exec-tlg.t-engine .tlg-t .t::before { background:#409eff; }
+.dsh-exec-tlg.t-autonomy .tlg-t .t::before { background:#9c6ade; }
+/* 非双线（账户 / 其它）折叠组（2026-09-08：默认收起，展示条目计数） */
+.dsh-exec-tld { margin-top:16px; border:1px dashed var(--line); border-radius:8px; background:#fbfcfe; }
+.dsh-exec-tld + .dsh-exec-tld { margin-top:8px; }
+.dsh-exec-tld summary { display:flex; align-items:center; gap:7px; list-style:none; cursor:pointer; padding:7px 12px; font-size:12px; color:var(--dim); user-select:none; }
+.dsh-exec-tld summary::-webkit-details-marker { display:none; }
+.dsh-exec-tld summary .caret { transition:transform .12s; color:var(--faint); font-size:9px; flex:none; }
+.dsh-exec-tld[open] summary .caret { transform:rotate(90deg); }
+.dsh-exec-tld summary b { font-weight:600; font-size:12.5px; color:var(--text); }
+.dsh-exec-tld summary em { font-style:normal; font-size:11px; color:var(--faint); margin-left:auto; white-space:nowrap; }
+.dsh-exec-tld .dsh-exec-tl-list { border:none; background:transparent; padding:0 6px 4px 10px; }
 
 /* 时间轴 */
 .dsh-exec-tl-list { position:relative; }
@@ -192,6 +205,9 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dk.d3 { background:#9c6ade; } .dk.d4 { background:#26c6da; } .dk.d5 { background:#ff7a45; }
 .dk.d6 { background:#00b578; } /* 自主例程（Agent OS 调 agent） */
 .dk.dx { background:#a2a8b3; }
+/* 业务线配色（2026-09-08：tab 圆点 / 时间轴折叠组 / 任务行线标 共用） */
+.dk.l-engine { background:#409eff; } .dk.l-autonomy { background:#9c6ade; }
+.dk.l-account { background:#26c6da; } .dk.l-other { background:#a2a8b3; }
 .dsh-exec-legend { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:0 0 10px; font-size:12px; color:var(--dim); }
 .dsh-exec-legend .lg { display:inline-flex; align-items:center; gap:5px; }
 .dsh-exec-legend .lg b { color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; }
@@ -229,6 +245,8 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-tb tbody tr.sel { background:#ecf5ff; }
 .dsh-exec-tb tbody tr.sel td { color:var(--text); }
 .dsh-exec-tb tr.empty { cursor:default; text-align:center; color:var(--faint); }
+.dsh-exec-tb .nm .ln-hd { display:inline-flex; align-items:center; gap:5px; }
+.dsh-exec-tb .nm .ln-hd .dk { width:7px; height:7px; }
 .dsh-exec-tb .nm .zh { color:var(--text); font-weight:500; }
 .dsh-exec-tb .nm .code { display:block; color:var(--faint); font-size:10.5px; margin-top:1px; }
 .dsh-exec-tb .cr { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11.5px; color:var(--dim); white-space:nowrap; }
