@@ -1,25 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_60 = 60
-
-CONST_200 = 200
-
-
-
-CONST_60 = 60
-
-CONST_200 = 200
-
-
-
 """
 测试 Bug 1 修复：/api/risk/metrics 现在应该按 account_name 返回不同的指标
 """
@@ -70,10 +49,11 @@ def test_risk_metrics_by_account():
         print(f"✗ Bug 仍然存在：所有账户返回相同的 maxDrawdown = {list(results.values())[0]}")
         print("  这意味着后端仍然没有按 account_name 过滤数据")
         return False
-    print(f"✓ Bug 已修复：{len(results)} 个账户返回了 {unique_values} 个不同的 maxDrawdown 值")
-    for account, value in results.items():
-        print(f"  {account}: {value}")
-    return True
+    else:
+        print(f"✓ Bug 已修复：{len(results)} 个账户返回了 {unique_values} 个不同的 maxDrawdown 值")
+        for account, value in results.items():
+            print(f"  {account}: {value}")
+        return True
 
 if __name__ == "__main__":
     try:

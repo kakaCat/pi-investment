@@ -1,62 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - _execute_sell() = 104 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.0003, 0.001, 0.08, 0.15, 0.2]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_0003 = 0.0003
-
-CONST_0_001 = 0.001
-
-CONST_0_08 = 0.08
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_6 = 0.6
-
-CONST_0_8 = 0.8
-
-CONST_0_95 = 0.95
-
-
-
-CONST_0_0003 = 0.0003
-
-CONST_0_001 = 0.001
-
-CONST_0_08 = 0.08
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_6 = 0.6
-
-CONST_0_8 = 0.8
-
-CONST_0_95 = 0.95
-
-
-
 """
 通用模拟交易引擎 (Paper Trading Engine)
 
@@ -316,67 +257,6 @@ class PaperTradingEngine:
 
         return results
 
-    # TODO: Refactor - complexity 16 (target < 15)
-
-    def _validate__filter_buy_signals_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _filter_buy_signals 移到这里
-        return True, None
-
-    def _process__filter_buy_signals_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _filter_buy_signals 移到这里
-        return data
-
-    def _build__filter_buy_signals_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _filter_buy_signals 移到这里
-        return data
-
-    def _validate__filter_buy_signals_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _filter_buy_signals 移到这里
-        return True, None
-
-    def _process__filter_buy_signals_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _filter_buy_signals 移到这里
-        return data
-
-    def _build__filter_buy_signals_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _filter_buy_signals 移到这里
-        return data
-
-# TODO: Refactor - complexity 16 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 16 (target < 15)
-    # TODO: 复杂度 16 - 需要重构拆分为更小的函数
-
-    def _validate__filter_buy_signals_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__filter_buy_signals_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__filter_buy_signals_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate__filter_buy_signals_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__filter_buy_signals_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__filter_buy_signals_result(data):
-        """构建返回结果"""
-        return data
-
     def _filter_buy_signals(
         self,
         signals: List[Signal],
@@ -404,8 +284,6 @@ class PaperTradingEngine:
 
         for signal in signals:
             # 黑名单检查
-            # TODO: 提取嵌套逻辑为独立方法
-
             if signal.symbol in self.risk_config['blacklist']:
                 logger.info(f"Signal rejected (blacklist): {signal.symbol}")
                 continue
@@ -450,17 +328,7 @@ class PaperTradingEngine:
         approved.sort(key=lambda s: s.strength, reverse=True)
         return approved
 
-    # TODO: 长函数 105行 - 建议拆分为多个小函数
-
     def _execute_buy(self, signal: Signal, price: Optional[float]) -> TradeResult:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """执行买入"""
         if price is None or price <= 0:
             return TradeResult(signal=signal, success=False, error="No valid price")
@@ -558,20 +426,7 @@ class PaperTradingEngine:
             commission=commission,
         )
 
-    # TODO: Refactor - function too long (105 lines, target < 80)
-
-# TODO: 长函数 113行 - 建议拆分为多个小函数
-
-# TODO: Split long function (104 lines, target < 100)
     def _execute_sell(self, signal: Signal, price: Optional[float]) -> TradeResult:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """执行卖出"""
         # 查找持仓
         position = self.repo.get_position(self.account_name, signal.symbol)
@@ -804,58 +659,59 @@ class PaperTradingEngine:
         if snapshots:
             prev_value = float(snapshots[0].total_value or 0)
             daily_return = (total_value - prev_value) / prev_value if prev_value > 0 else 0
-        daily_return = cumulative_return
+        else:
+            daily_return = cumulative_return
 
-    # 更新峰值和最大回撤
-    peak = float(account.peak_value or initial)
-    if total_value > peak:
-        peak = total_value
-    drawdown = (peak - total_value) / peak if peak > 0 else 0
+        # 更新峰值和最大回撤
+        peak = float(account.peak_value or initial)
+        if total_value > peak:
+            peak = total_value
+        drawdown = (peak - total_value) / peak if peak > 0 else 0
 
-    # 写入快照
-    self.repo.upsert_equity_snapshot(
-        account_name=self.account_name,
-        cash=cash,
-        position_value=position_value,
-        total_value=total_value,
-        daily_return=daily_return,
-        cumulative_return=cumulative_return,
-        drawdown=drawdown,
-    )
+        # 写入快照
+        self.repo.upsert_equity_snapshot(
+            account_name=self.account_name,
+            cash=cash,
+            position_value=position_value,
+            total_value=total_value,
+            daily_return=daily_return,
+            cumulative_return=cumulative_return,
+            drawdown=drawdown,
+        )
 
-    # 更新账户峰值和回撤
-    self.repo.update_account(
-        account_name=self.account_name,
-        cash_available=cash,
-        total_value=total_value,
-        peak_value=peak,
-        cumulative_return=cumulative_return,
-        max_drawdown=drawdown,
-        position_value=position_value,
-    )
+        # 更新账户峰值和回撤
+        self.repo.update_account(
+            account_name=self.account_name,
+            cash_available=cash,
+            total_value=total_value,
+            peak_value=peak,
+            cumulative_return=cumulative_return,
+            max_drawdown=drawdown,
+            position_value=position_value,
+        )
 
-    logger.info(
-        "daily_snapshot_taken",
-        account=self.account_name,
-        nav=round(total_value / initial, 4) if initial > 0 else 1.0,
-        total_value=round(total_value, 2),
-        daily_return=f"{daily_return:.4%}",
-    )
+        logger.info(
+            "daily_snapshot_taken",
+            account=self.account_name,
+            nav=round(total_value / initial, 4) if initial > 0 else 1.0,
+            total_value=round(total_value, 2),
+            daily_return=f"{daily_return:.4%}",
+        )
 
-    return {
-        'date': date.today().isoformat(),
-        'nav': round(total_value / initial, 4) if initial > 0 else 1.0,
-        'total_value': round(total_value, 2),
-        'daily_return': round(daily_return, 6),
-        'drawdown': round(drawdown, 4),
-    }
+        return {
+            'date': date.today().isoformat(),
+            'nav': round(total_value / initial, 4) if initial > 0 else 1.0,
+            'total_value': round(total_value, 2),
+            'daily_return': round(daily_return, 6),
+            'drawdown': round(drawdown, 4),
+        }
 
-# ==================== 市场风格 ====================
+    # ==================== 市场风格 ====================
 
-def set_market_style(self, style: str):
-    """设置当前市场风格（影响仓位上限）"""
-    valid_styles = ['bull', 'bear', 'oscillation', 'default']
-    if style not in valid_styles:
-        style = 'default'
-    self.market_style = style
-    logger.info("market_style_updated", style=style)
+    def set_market_style(self, style: str):
+        """设置当前市场风格（影响仓位上限）"""
+        valid_styles = ['bull', 'bear', 'oscillation', 'default']
+        if style not in valid_styles:
+            style = 'default'
+        self.market_style = style
+        logger.info("market_style_updated", style=style)

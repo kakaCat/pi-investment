@@ -1,62 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - train_v14_model() = 194 lines
-
-
-# TODO: Extract magic numbers to named constants: [1e-10, 0.01, 0.05, 0.1, 0.8]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_0_01 = 0.01
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_8 = 0.8
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_42 = 42
-
-CONST_80 = 80
-
-
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_0_01 = 0.01
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_8 = 0.8
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_42 = 42
-
-CONST_80 = 80
-
-
-
 """
 V14模型训练 - 超越V13（独立版本，无需yaml）
 
@@ -132,7 +73,8 @@ def get_stock_pool(limit=500):
 
     if isinstance(rows[0], dict):
         return [{'symbol': r['symbol'], 'name': r['name']} for r in rows]
-    return [{'symbol': r[0], 'name': r[1]} for r in rows]
+    else:
+        return [{'symbol': r[0], 'name': r[1]} for r in rows]
 
 def get_historical_data(symbols, start_date, end_date):
     """获取历史K线数据"""
@@ -223,26 +165,7 @@ def select_factors(data, factors, ic_threshold=0.01):
 
     return valid_factors
 
-# TODO: Refactor - function too long (195 lines, target < 80)
-
-# TODO: Split long function (194 lines, target < 100)
-# TODO: 长函数 209行 - 建议拆分为多个小函数
-
 def train_v14_model():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
     """训练V14模型"""
 
     print("\n" + "="*80)

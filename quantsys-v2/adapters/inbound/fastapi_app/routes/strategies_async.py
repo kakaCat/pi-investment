@@ -1,48 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-CONST_60_0 = 60.0
-
-CONST_200 = 200
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-CONST_1000000 = 1000000
-
-
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-CONST_60_0 = 60.0
-
-CONST_200 = 200
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-CONST_1000000 = 1000000
-
-
-
 """策略管理 API - FastAPI 版（从 Flask strategies.py 迁移，响应契约保持一致）
 
 注意路由顺序：FastAPI 按注册顺序匹配，字面量路径（/list、/create 等）必须
@@ -141,7 +96,6 @@ def get_strategies_list(source: str = Query('user'), category: Optional[str] = Q
         return api_response({'strategies': strategies, 'total': len(strategies)})
 
     code_type = codeType
-    # Validation checks
     if code_type and code_type not in ('indicator', 'script', 'strategy'):
         return error_response({'success': False, 'error': f'无效的 code_type: {code_type}，必须是 indicator、script 或 strategy'}, 400)
 
@@ -210,10 +164,11 @@ def create_strategy(payload: Optional[Dict[str, Any]] = Body(None)):
     if not payload:
         return error_response({'success': False, 'error': '请求体不能为空'}, 400)
     strategy_data = convert_keys_to_snake(payload)
-    if 'name' not in strategy_data and 'code' not in strategy_data:
+    if 'name' not in strategy_data:
+        return error_response({'success': False, 'error': '缺少必需参数: name'}, 400)
+    if 'code' not in strategy_data:
         return error_response({'success': False, 'error': '缺少必需参数: code'}, 400)
     code_type = strategy_data.get('code_type', 'indicator')
-    # Validation checks
     if code_type not in ('indicator', 'script', 'strategy'):
         return error_response({'success': False, 'error': f'无效的策略类型: {code_type}，必须是 indicator、script 或 strategy'}, 400)
 
@@ -237,7 +192,9 @@ def optimize_strategy(payload: Optional[Dict[str, Any]] = Body(None)):
         sort_by = data.get('sortBy', 'sharpe_ratio')
         period = data.get('period')
 
-        if not all([strategy_id, symbol, start_date, end_date, param_ranges]) and not param_ranges or not isinstance(param_ranges, dict):
+        if not all([strategy_id, symbol, start_date, end_date, param_ranges]):
+            return error_response({'success': False, 'error': "strategyId, symbol, startDate, endDate, and paramRanges are required"}, 400)
+        if not param_ranges or not isinstance(param_ranges, dict):
             return error_response({'success': False, 'error': "paramRanges must be a non-empty dictionary"}, 400)
 
         search_space = SearchSpace(param_ranges)

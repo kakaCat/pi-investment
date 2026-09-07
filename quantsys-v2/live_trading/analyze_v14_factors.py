@@ -1,31 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - analyze_factor_importance() = 150 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_20 = 20
-
-CONST_80 = 80
-
-
-
-CONST_5 = 5
-
-CONST_20 = 20
-
-CONST_80 = 80
-
-
-
 """
 V14模型因子重要性分析工具
 
@@ -42,24 +14,7 @@ import json
 from pathlib import Path
 import xgboost as xgb
 
-# TODO: Refactor - function too long (151 lines, target < 80)
-
-# TODO: Split long function (150 lines, target < 100)
-# TODO: 长函数 163行 - 建议拆分为多个小函数
-
 def analyze_factor_importance():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
     """分析因子重要性"""
 
     print("\n" + "="*80)

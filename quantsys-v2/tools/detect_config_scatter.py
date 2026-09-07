@@ -1,15 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_20 = 20
-CONST_3_7 = 3.7
-CONST_3002 = 3002
-CONST_3600 = 3600
-CONST_4 = 4
-CONST_60 = 60
-CONST_8 = 8
-CONST_80 = 80
-
 """
 配置分散检测工具
 
@@ -96,7 +84,9 @@ class ConfigUsageDetector(ast.NodeVisitor):
         """判断是否是环境变量访问"""
         # os.getenv, os.environ.get, os.environ[]
         if node.attr in {'getenv', 'get'}:
-            if isinstance(node.value, ast.Name) and node.value.id == 'os' and isinstance(node.value, ast.Attribute):
+            if isinstance(node.value, ast.Name) and node.value.id == 'os':
+                return True
+            if isinstance(node.value, ast.Attribute):
                 if node.value.attr == 'environ' and isinstance(node.value.value, ast.Name):
                     if node.value.value.id == 'os':
                         return True
@@ -126,17 +116,13 @@ class ConfigUsageDetector(ast.NodeVisitor):
         if len(node.args) > 1:
             default_arg = node.args[1]
             if isinstance(default_arg, (ast.Constant, ast.Str, ast.Num)):
-                # SECURITY WARNING: eval() usage - consider safer alternatives
-
-                default_value = str(ast.literal_eval(default_arg))  # TODO: Replace with ast.literal_eval() or json.loads()
+                default_value = str(ast.literal_eval(default_arg))
 
         # 从关键字参数中提取 default
         for keyword in node.keywords:
             if keyword.arg == 'default':
                 if isinstance(keyword.value, (ast.Constant, ast.Str, ast.Num)):
-                    # SECURITY WARNING: eval() usage - consider safer alternatives
-
-                    default_value = str(ast.literal_eval(keyword.value))  # TODO: Replace with ast.literal_eval() or json.loads()
+                    default_value = str(ast.literal_eval(keyword.value))
 
         line_number = node.lineno
         code_snippet = self.source_lines[line_number - 1].strip()
@@ -157,9 +143,7 @@ class ConfigUsageDetector(ast.NodeVisitor):
         # 提取值
         value_str = ""
         if isinstance(node.value, (ast.Constant, ast.Num, ast.Str)):
-            # SECURITY WARNING: eval() usage - consider safer alternatives
-
-            value_str = str(ast.literal_eval(node.value))  # TODO: Replace with ast.literal_eval() or json.loads()
+            value_str = str(ast.literal_eval(node.value))
 
         line_number = node.lineno
         code_snippet = self.source_lines[line_number - 1].strip()
@@ -255,10 +239,6 @@ def scan_project(root_dir: Path) -> ConfigAnalysisResult:
 
     return result
 
-
-# TODO: Refactor - function too long (105 lines, target < 80)
-
-# TODO: 长函数 105行 - 建议拆分为多个小函数
 
 def print_report(result: ConfigAnalysisResult, verbose: bool = False):
     """打印分析报告"""

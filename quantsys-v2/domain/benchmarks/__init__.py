@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 Quantsys-v2 Performance Benchmark Suite
 

@@ -1,37 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - detect_anomalies() = 103 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.05, 0.1, 0.15, 0.2, 0.3]...
-
-
-# Extracted Constants
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_1_5 = 1.5
-
-CONST_3_0 = 3.0
-
-CONST_5 = 5
-
-
-
 """
 Anomaly Detection Calculator
 =============================
@@ -98,16 +64,7 @@ class AnomalyDetectionCalculator(BaseCalculator):
 
     @validate_inputs
     @timing_decorator
-    # TODO: Refactor - function too long (104 lines, target < 80)
-
-# TODO: Split long function (103 lines, target < 100)
-    # TODO: 长函数 108行 - 建议拆分为多个小函数
-
     def detect_anomalies(self,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
                          data: Union[np.ndarray, pd.DataFrame],
                          method: str = 'isolation_forest',
                          contamination: float = 0.05,
@@ -516,74 +473,75 @@ class AnomalyDetectionCalculator(BaseCalculator):
             try:
                 if method_name in ['isolation_forest', 'lof']:
                     anom, scores, thresh = func(X, contamination, threshold, return_scores)
-                anom, scores, thresh = func(X, threshold, return_scores)
+                else:
+                    anom, scores, thresh = func(X, threshold, return_scores)
 
-            combined_anomalies += weights.get(method_name, 0.1) * anom.astype(float)
-            if used_threshold == 0.0:
-                used_threshold = thresh
-        except Exception:
-            pass
+                combined_anomalies += weights.get(method_name, 0.1) * anom.astype(float)
+                if used_threshold == 0.0:
+                    used_threshold = thresh
+            except Exception:
+                pass
 
-    # Threshold for combined voting: majority
-    anomalies = combined_anomalies >= 0.5
-    scores = -combined_anomalies  # More votes = less anomalous
+        # Threshold for combined voting: majority
+        anomalies = combined_anomalies >= 0.5
+        scores = -combined_anomalies  # More votes = less anomalous
 
-    if not np.any(anomalies):
-        # Ensure at least some anomalies for very imbalanced cases
-        n_anomalies = max(1, int(len(X) * contamination))
-        top_idx = np.argsort(scores)[:n_anomalies]
-        anomalies[top_idx] = True
+        if not np.any(anomalies):
+            # Ensure at least some anomalies for very imbalanced cases
+            n_anomalies = max(1, int(len(X) * contamination))
+            top_idx = np.argsort(scores)[:n_anomalies]
+            anomalies[top_idx] = True
 
-    return anomalies, scores, used_threshold
+        return anomalies, scores, used_threshold
 
-def _generate_summary(self,
-                      anomalies: np.ndarray,
-                      scores: np.ndarray,
-                      col_names: List[str],
-                      original_data: Union[np.ndarray, pd.DataFrame]) -> Dict[str, Any]:
-    """Generate summary statistics about detected anomalies."""
-    n_total = len(anomalies)
-    n_anomaly = int(np.sum(anomalies))
-    anomaly_rate = float(n_anomaly / n_total) if n_total > 0 else 0.0
+    def _generate_summary(self,
+                          anomalies: np.ndarray,
+                          scores: np.ndarray,
+                          col_names: List[str],
+                          original_data: Union[np.ndarray, pd.DataFrame]) -> Dict[str, Any]:
+        """Generate summary statistics about detected anomalies."""
+        n_total = len(anomalies)
+        n_anomaly = int(np.sum(anomalies))
+        anomaly_rate = float(n_anomaly / n_total) if n_total > 0 else 0.0
 
-    summary = {
-        'n_total': n_total,
-        'n_anomalies': n_anomaly,
-        'anomaly_rate': anomaly_rate,
-        'anomaly_indices': np.where(anomalies)[0].tolist()[:20],  # Top 20
-    }
-
-    if scores is not None and len(scores) > 0:
-        summary['score_stats'] = {
-            'mean': float(np.mean(scores)),
-            'std': float(np.std(scores)),
-            'min': float(np.min(scores)),
-            'max': float(np.max(scores)),
-            'median': float(np.median(scores)),
+        summary = {
+            'n_total': n_total,
+            'n_anomalies': n_anomaly,
+            'anomaly_rate': anomaly_rate,
+            'anomaly_indices': np.where(anomalies)[0].tolist()[:20],  # Top 20
         }
 
-    # Feature-level contribution to anomalies
-    if isinstance(original_data, pd.DataFrame) and n_anomaly > 0:
-        feature_contributions = {}
-        normal_data = original_data.iloc[~anomalies] if isinstance(anomalies, np.ndarray) else original_data
-        anomaly_data = original_data.iloc[anomalies] if isinstance(anomalies, np.ndarray) else original_data
+        if scores is not None and len(scores) > 0:
+            summary['score_stats'] = {
+                'mean': float(np.mean(scores)),
+                'std': float(np.std(scores)),
+                'min': float(np.min(scores)),
+                'max': float(np.max(scores)),
+                'median': float(np.median(scores)),
+            }
 
-        if not normal_data.empty and not anomaly_data.empty:
-            for col in original_data.select_dtypes(include=[np.number]).columns:
-                normal_mean = normal_data[col].mean()
-                normal_std = normal_data[col].std()
-                if normal_std > 0:
-                    anomaly_deviation = np.abs(
-                        (anomaly_data[col].mean() - normal_mean) / normal_std
-                    )
-                    feature_contributions[col] = float(anomaly_deviation)
+        # Feature-level contribution to anomalies
+        if isinstance(original_data, pd.DataFrame) and n_anomaly > 0:
+            feature_contributions = {}
+            normal_data = original_data.iloc[~anomalies] if isinstance(anomalies, np.ndarray) else original_data
+            anomaly_data = original_data.iloc[anomalies] if isinstance(anomalies, np.ndarray) else original_data
 
-        # Sort by contribution
-        if feature_contributions:
-            sorted_contribs = sorted(
-                feature_contributions.items(),
-                key=lambda x: x[1], reverse=True
-            )
-            summary['feature_contributions'] = dict(sorted_contribs[:10])
+            if not normal_data.empty and not anomaly_data.empty:
+                for col in original_data.select_dtypes(include=[np.number]).columns:
+                    normal_mean = normal_data[col].mean()
+                    normal_std = normal_data[col].std()
+                    if normal_std > 0:
+                        anomaly_deviation = np.abs(
+                            (anomaly_data[col].mean() - normal_mean) / normal_std
+                        )
+                        feature_contributions[col] = float(anomaly_deviation)
 
-    return summary
+            # Sort by contribution
+            if feature_contributions:
+                sorted_contribs = sorted(
+                    feature_contributions.items(),
+                    key=lambda x: x[1], reverse=True
+                )
+                summary['feature_contributions'] = dict(sorted_contribs[:10])
+
+        return summary

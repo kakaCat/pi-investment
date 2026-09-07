@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """AnomalyDetectionStage - Data quality checks (Priority 2).
 
 This stage integrates with the existing DataValidator to detect anomalies

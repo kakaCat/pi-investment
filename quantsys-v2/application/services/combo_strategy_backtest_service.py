@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_4 = 4
-
-CONST_252 = 252
-
-
-
-CONST_0_01 = 0.01
-
-CONST_4 = 4
-
-CONST_252 = 252
-
-
-
 """Combo strategy backtest service - multi-strategy combination backtesting."""
 import structlog
 import time

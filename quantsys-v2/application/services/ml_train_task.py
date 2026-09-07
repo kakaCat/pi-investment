@@ -1,62 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - handle_model_train_auto() = 152 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.01, 0.2, 0.52, 0.55, 4]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_0_2 = 0.2
-
-CONST_0_52 = 0.52
-
-CONST_0_55 = 0.55
-
-CONST_4 = 4
-
-CONST_7 = 7
-
-CONST_20 = 20
-
-CONST_42 = 42
-
-CONST_50 = 50
-
-CONST_350 = 350
-
-
-
-CONST_0_01 = 0.01
-
-CONST_0_2 = 0.2
-
-CONST_0_52 = 0.52
-
-CONST_0_55 = 0.55
-
-CONST_4 = 4
-
-CONST_7 = 7
-
-CONST_20 = 20
-
-CONST_42 = 42
-
-CONST_50 = 50
-
-CONST_350 = 350
-
-
-
 """
 模型训练自动化任务
 
@@ -77,24 +18,7 @@ import pandas as pd
 logger = structlog.get_logger(__name__)
 
 
-# TODO: Refactor - function too long (153 lines, target < 80)
-
-# TODO: Split long function (152 lines, target < 100)
-# TODO: 长函数 165行 - 建议拆分为多个小函数
-
 def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
     """
     自动化模型训练任务
     
@@ -155,7 +79,9 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         for i, symbol in enumerate(symbols):
             try:
                 rows = kline_repo.get_daily_klines(symbol, start_date, end_date)
-                if rows is not None and not rows.is_empty() and (i+1) % 100 == 0:
+                if rows is not None and not rows.is_empty():
+                    klines_dict[symbol] = rows.to_dicts()
+                if (i+1) % 100 == 0:
                     logger.info(f"已加载 {i+1}/{len(symbols)}")
             except Exception as e:
                 logger.warning(f"加载 {symbol} 失败: {e}")
@@ -316,8 +242,9 @@ def _try_switch_model(model_type: str, new_version: str, new_test_acc: float) ->
         # 注意：当前_resolve_latest_version从文件mtime判断，需调整为DB优先
         logger.info(f"性能提升: {current_test_acc:.4f} → {new_test_acc:.4f}")
         return True
-    logger.info(f"新模型性能未达切换阈值: {current_test_acc:.4f} → {new_test_acc:.4f}")
-    return False
+    else:
+        logger.info(f"新模型性能未达切换阈值: {current_test_acc:.4f} → {new_test_acc:.4f}")
+        return False
 
 
 # ============================================================

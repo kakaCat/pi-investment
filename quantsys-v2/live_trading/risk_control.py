@@ -1,62 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - backtest_with_risk_control() = 242 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.02, 0.03, 0.1, 0.15, 0.2]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_02 = 0.02
-
-CONST_0_03 = 0.03
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_6 = 0.6
-
-CONST_0_8 = 0.8
-
-CONST_0_9985 = 0.9985
-
-CONST_1_0015 = 1.0015
-
-CONST_5 = 5
-
-
-
-CONST_0_02 = 0.02
-
-CONST_0_03 = 0.03
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_6 = 0.6
-
-CONST_0_8 = 0.8
-
-CONST_0_9985 = 0.9985
-
-CONST_1_0015 = 1.0015
-
-CONST_5 = 5
-
-
-
 """
 风险控制模块
 
@@ -116,8 +57,6 @@ class RiskController:
         stop_loss_symbols = []
 
         for symbol, pos in portfolio.items():
-            # TODO: 提取嵌套逻辑为独立方法
-
             if symbol not in current_prices:
                 continue
 
@@ -247,79 +186,7 @@ class RiskController:
         return target_shares
 
 
-# TODO: Refactor - complexity 17 (target < 15)
-
-# TODO: Refactor - function too long (243 lines, target < 80)
-
-def _validate_backtest_with_risk_control_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 backtest_with_risk_control 移到这里
-    return True, None
-
-def _process_backtest_with_risk_control_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 backtest_with_risk_control 移到这里
-    return data
-
-def _build_backtest_with_risk_control_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 backtest_with_risk_control 移到这里
-    return data
-
-# TODO: Split long function (242 lines, target < 100)
-# TODO: Refactor - complexity 17 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 17 (target < 15)
-# TODO: Split long function (242 lines, target < 100)
-# TODO: Refactor - complexity 17 (target < 15)
-# TODO: Split long function (242 lines, target < 100)
-# TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 261行 - 建议拆分为多个小函数
-
-def _validate_backtest_with_risk_control_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_backtest_with_risk_control_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_backtest_with_risk_control_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_backtest_with_risk_control_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_backtest_with_risk_control_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_backtest_with_risk_control_result(data):
-    """构建返回结果"""
-    return data
-
 def backtest_with_risk_control(trader, start_date: str, end_date: str,
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 9 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 9 ----
                                risk_config: Dict = None) -> Dict:
     """
     带风险控制的回测

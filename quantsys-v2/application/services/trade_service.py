@@ -1,31 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - get_position() = 109 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_0003 = 0.0003
-
-CONST_0_001 = 0.001
-
-CONST_4 = 4
-
-
-
-CONST_0_0003 = 0.0003
-
-CONST_0_001 = 0.001
-
-CONST_4 = 4
-
-
-
 """
 交易执行和盈亏计算服务
 
@@ -134,7 +106,9 @@ def get_trades(
     if symbol:
         trades = portfolio_repo.get_trades_by_symbol(symbol, start_date, end_date)
     else:
-        if not start_date and not end_date:
+        if not start_date:
+            start_date = '2000-01-01'
+        if not end_date:
             end_date = datetime.now().strftime('%Y-%m-%d')
         trades = portfolio_repo.get_trades_by_date(start_date, end_date)
 
@@ -203,69 +177,7 @@ def get_trade_stats(
     }
 
 
-# TODO: Refactor - complexity 18 (target < 15)
-
-# TODO: Refactor - function too long (110 lines, target < 80)
-
-def _validate_get_position_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 get_position 移到这里
-    return True, None
-
-def _process_get_position_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 get_position 移到这里
-    return data
-
-def _build_get_position_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 get_position 移到这里
-    return data
-
-# TODO: Split long function (109 lines, target < 100)
-# TODO: Refactor - complexity 18 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 18 (target < 15)
-# TODO: Split long function (109 lines, target < 100)
-# TODO: Refactor - complexity 18 (target < 15)
-# TODO: Split long function (109 lines, target < 100)
-# TODO: 复杂度 18 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 118行 - 建议拆分为多个小函数
-
-def _validate_get_position_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_get_position_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_get_position_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_get_position_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_get_position_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_get_position_result(data):
-    """构建返回结果"""
-    return data
-
 def get_position(
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     symbol: str,
     portfolio_repo: Optional[IPortfolioRepository] = None,
     kline_repo: Optional[IKlineRepository] = None,

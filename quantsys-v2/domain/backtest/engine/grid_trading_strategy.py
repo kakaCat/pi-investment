@@ -1,25 +1,5 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_2 = 0.2
-
-CONST_0_5 = 0.5
-
-CONST_0_7 = 0.7
-
-CONST_3 = 3
-
-CONST_5_0 = 5.0
-
-CONST_14 = 14
-
-
-
 """Grid Trading Strategy — range-bound market strategy."""
+from __future__ import annotations
 from typing import Any
 
 from domain.backtest.engine.enhanced_strategy_base import EnhancedStrategyBase
@@ -128,7 +108,9 @@ class GridTradingStrategy(EnhancedStrategyBase):
 
     @staticmethod
     def _last_valid(values) -> float | None:
-        if values is None and hasattr(values, '__iter__') and not isinstance(values, str):
+        if values is None:
+            return None
+        if hasattr(values, '__iter__') and not isinstance(values, str):
             for v in reversed(list(values)):
                 if v is not None and v == v:
                     return float(v)

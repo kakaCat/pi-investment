@@ -1,23 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - get_financial_data() = 121 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-
-
-CONST_4 = 4
-
-
-
 """
 东方财富财务数据提供者
 
@@ -38,86 +18,7 @@ class EastmoneyFinancialProvider(FinancialProvider):
     def __init__(self, timeout: int = 10):
         super().__init__(name="eastmoney", timeout=timeout)
 
-    # TODO: Refactor - complexity 27 (target < 15)
-
-    # TODO: Refactor - function too long (122 lines, target < 80)
-
-    def _validate_get_financial_data_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 get_financial_data 移到这里
-        return True, None
-
-    def _process_get_financial_data_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 get_financial_data 移到这里
-        return data
-
-    def _build_get_financial_data_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 get_financial_data 移到这里
-        return data
-
-    def _validate_get_financial_data_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 get_financial_data 移到这里
-        return True, None
-
-    def _process_get_financial_data_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 get_financial_data 移到这里
-        return data
-
-    def _build_get_financial_data_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 get_financial_data 移到这里
-        return data
-
-# TODO: Split long function (121 lines, target < 100)
-# TODO: Refactor - complexity 27 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 27 (target < 15)
-    # TODO: Split long function (121 lines, target < 100)
-    # TODO: Refactor - complexity 27 (target < 15)
-    # TODO: Split long function (121 lines, target < 100)
-    # TODO: 复杂度 27 - 需要重构拆分为更小的函数
-
-    # TODO: 长函数 142行 - 建议拆分为多个小函数
-
-    def _validate_get_financial_data_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_get_financial_data_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_get_financial_data_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_get_financial_data_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_get_financial_data_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_get_financial_data_result(data):
-        """构建返回结果"""
-        return data
-
     def get_financial_data(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         symbol: str,
         statement_type: str = 'all',
@@ -141,14 +42,6 @@ class EastmoneyFinancialProvider(FinancialProvider):
             import os
 
             def _disable_proxies_permanently():
-                # ---- Section 1 ----
-                # ---- Section 2 ----
-                # ---- Section 3 ----
-                # ---- Section 4 ----
-                # ---- Section 1 ----
-                # ---- Section 2 ----
-                # ---- Section 3 ----
-                # ---- Section 4 ----
                 """永久禁用代理（akshare 国内接口不需要代理）"""
                 for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']:
                     os.environ.pop(key, None)
@@ -169,8 +62,6 @@ class EastmoneyFinancialProvider(FinancialProvider):
             )
 
             # 获取利润表
-            # TODO: 提取嵌套逻辑为独立方法
-
             if statement_type in ('income', 'all'):
                 try:
                     df = ak.stock_financial_analysis_indicator(symbol=short_code)

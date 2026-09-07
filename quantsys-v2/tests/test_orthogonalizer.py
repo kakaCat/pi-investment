@@ -1,15 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_150 = 150
-CONST_20 = 20
-CONST_200 = 200
-CONST_3 = 3
-CONST_4 = 4
-CONST_42 = 42
-CONST_5 = 5
-CONST_8 = 8
-
 """
 Tests for FactorOrthogonalizer - factor orthogonalization methods
 """
@@ -70,9 +58,6 @@ def orthogonal_data():
     factor_names = [f'factor_{i+1}' for i in range(5)]
     return pd.DataFrame(factors, columns=factor_names)
 
-
-# TODO: Refactor large class (38 methods, target < 20)
-# TODO: 大类 38个方法 - 考虑拆分为多个类或使用组合模式
 
 class TestFactorOrthogonalizer:
     """Test suite for FactorOrthogonalizer"""

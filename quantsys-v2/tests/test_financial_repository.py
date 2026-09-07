@@ -1,15 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_2025 = 2025
-CONST_31 = 31
-CONST_49_5 = 49.5
-CONST_50_0 = 50.0
-CONST_73_33 = 73.33
-CONST_8 = 8
-CONST_999_0 = 999.0
-
 # tests/test_financial_repository.py
 # 2026-08-04 重写：对齐 FinancialORMRepository 当前 API
 # （upsert_income_statements/get_income_statements/get_balance_sheets/

@@ -1,15 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_50 = 10.50
-CONST_1050_00 = 1050.00
-CONST_10500_0 = 10500.0
-CONST_15 = 15
-CONST_2020 = 2020
-CONST_2024 = 2024
-CONST_31 = 31
-CONST_5_0 = 5.0
-
 """
 PortfolioRepository单元测试
 """

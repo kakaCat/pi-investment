@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3_0 = 3.0
-
-CONST_5 = 5
-
-CONST_404 = 404
-
-
-
-CONST_3_0 = 3.0
-
-CONST_5 = 5
-
-CONST_404 = 404
-
-
-
 """Unified DataProvider API — all DataProviderManager methods exposed as HTTP endpoints.
 
 This is the SINGLE source of truth for data provider HTTP APIs.

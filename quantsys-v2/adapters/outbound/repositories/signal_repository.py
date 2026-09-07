@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_10000 = 10000
-
-
-
-CONST_10000 = 10000
-
-
-
 """
 交易信号ORM Repository
 
@@ -90,9 +73,13 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
         try:
             query = self.session.query(Signal)
 
-            if symbol and start_date:
+            if symbol:
+                query = query.filter(Signal.symbol == symbol)
+            if start_date:
                 query = query.filter(Signal.signal_date >= start_date)
-            if end_date and signal_type:
+            if end_date:
+                query = query.filter(Signal.signal_date <= end_date)
+            if signal_type:
                 query = query.filter(Signal.action == signal_type)
 
             signals = query.order_by(Signal.signal_date.desc()).all()
@@ -209,7 +196,9 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
                 Signal.signal_date == signal_date
             )
 
-            if action and status:
+            if action:
+                query = query.filter(Signal.action == action)
+            if status:
                 query = query.filter(Signal.status == status)
 
             return query.order_by(Signal.created_at.desc()).all()
@@ -244,7 +233,9 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
                 Signal.signal_date <= end_date
             )
 
-            if action and status:
+            if action:
+                query = query.filter(Signal.action == action)
+            if status:
                 query = query.filter(Signal.status == status)
 
             query = query.order_by(
@@ -320,7 +311,9 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
                 Signal.strategy_id == strategy_id
             )
 
-            if start_date and end_date:
+            if start_date:
+                query = query.filter(Signal.signal_date >= start_date)
+            if end_date:
                 query = query.filter(Signal.signal_date <= end_date)
 
             return query.order_by(
@@ -426,7 +419,9 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
                 return False
 
             signal.status = status
-            if reject_reason and error_description:
+            if reject_reason:
+                signal.reject_reason = reject_reason
+            if error_description:
                 signal.error_description = error_description
 
             self.session.commit()
@@ -519,7 +514,9 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
                 func.count(Signal.id)
             )
 
-            if start_date and end_date:
+            if start_date:
+                query = query.filter(Signal.signal_date >= start_date)
+            if end_date:
                 query = query.filter(Signal.signal_date <= end_date)
 
             result = query.group_by(Signal.status).all()

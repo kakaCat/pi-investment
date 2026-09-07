@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_105 = 105
-CONST_105_0 = 105.0
-CONST_107_0 = 107.0
-CONST_12 = 12
-CONST_19 = 19
-CONST_20 = 20
-CONST_2026 = 2026
-CONST_26 = 26
-CONST_29 = 29
-CONST_3_0 = 3.0
-
 """笔组背驰检测测试——围绕中枢的进入/离开笔组 MACD 面积比较
 
 注意：MACD(12,26,9) 需 ~34 根预热，合成序列必须加 40 根前导，

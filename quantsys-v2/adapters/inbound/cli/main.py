@@ -1,39 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - create_parser() = 265 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_130 = 130
-
-CONST_1000000 = 1000000
-
-
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_130 = 130
-
-CONST_1000000 = 1000000
-
-
-
 """
 QuantSys V2 CLI - Command Pattern Implementation
 
@@ -59,31 +23,7 @@ from adapters.inbound.cli.formatters import get_formatter
 from infrastructure.config import get_config
 
 
-# TODO: Refactor - function too long (266 lines, target < 80)
-
-# TODO: Split long function (265 lines, target < 100)
-# TODO: 长函数 285行 - 建议拆分为多个小函数
-
 def create_parser() -> argparse.ArgumentParser:
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 9 ----
-    # ---- Section 10 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 9 ----
     """创建CLI参数解析器"""
     config = get_config()
     
@@ -408,22 +348,23 @@ def run():
             output = formatter.format(result.data)
             print(output)
             return 0
-        print(f"错误: {result.error}", file=sys.stderr)
-        if result.warnings:
-            for warning in result.warnings:
-                print(f"警告: {warning}", file=sys.stderr)
-        return 1
+        else:
+            print(f"错误: {result.error}", file=sys.stderr)
+            if result.warnings:
+                for warning in result.warnings:
+                    print(f"警告: {warning}", file=sys.stderr)
+            return 1
 
-except KeyboardInterrupt:
-    print("\n已取消", file=sys.stderr)
-    return 130
-except Exception as e:
-    print(f"错误: {str(e)}", file=sys.stderr)
-    import traceback
-    traceback.print_exc()
-    return 1
-finally:
-    client.close()
+    except KeyboardInterrupt:
+        print("\n已取消", file=sys.stderr)
+        return 130
+    except Exception as e:
+        print(f"错误: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return 1
+    finally:
+        client.close()
 
 
 if __name__ == '__main__':

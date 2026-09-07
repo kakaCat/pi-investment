@@ -1,29 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_0_05 = 0.05
-
-CONST_5 = 5
-
-
-
-CONST_0_01 = 0.01
-
-CONST_0_05 = 0.05
-
-CONST_5 = 5
-
-
-
 """
 Feature Engineering Module
 
@@ -31,6 +5,7 @@ Handles feature extraction, transformation, and selection
 based on the new factor calculator framework.
 """
 
+from __future__ import annotations
 
 import logging
 from typing import Any

@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-
-
-CONST_5 = 5
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-
-
 """热力图聚合服务 — agent 判断 × 市场实际走势的可视化校验数据源（纯本地 DB，无外部行情调用）"""
 from datetime import date, datetime, time, timedelta
 from typing import Optional
@@ -166,7 +141,9 @@ class HeatmapService:
                 'start_date': c['first_date'].isoformat(),
                 'end_date': c['last_date'].isoformat(),
             }
-            if symbol in signals_by_symbol and symbol in events_by_symbol:
+            if symbol in signals_by_symbol:
+                stock['signals'] = signals_by_symbol[symbol]
+            if symbol in events_by_symbol:
                 stock['pool_events'] = events_by_symbol[symbol]
             industries_map.setdefault(meta['industry'], []).append(stock)
 
@@ -205,7 +182,9 @@ class HeatmapService:
         pos += sum(1 for e in pool_events if e['symbol'] in industry_symbols and e['action'] == 'add')
         neg = sum(1 for s in signals if s['symbol'] in industry_symbols and s['action'] == 'SELL')
         neg += sum(1 for e in pool_events if e['symbol'] in industry_symbols and e['action'] == 'remove')
-        if pos > neg and neg > pos:
+        if pos > neg:
+            return 'bullish'
+        if neg > pos:
             return 'bearish'
         return 'neutral'
 

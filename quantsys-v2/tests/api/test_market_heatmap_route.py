@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_20 = 20
-CONST_200 = 200
-CONST_2026 = 2026
-CONST_23 = 23
-CONST_24 = 24
-CONST_31 = 31
-CONST_4_2 = 4.2
-CONST_5 = 5
-CONST_688981 = 688981
-CONST_7 = 7
-
 """GET /api/market/heatmap FastAPI 路由契约测试（TestClient + mock service 层）"""
 from unittest.mock import patch
 

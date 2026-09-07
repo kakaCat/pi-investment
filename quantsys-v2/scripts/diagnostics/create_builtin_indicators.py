@@ -1,24 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - create_builtin_indicators() = 212 lines
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_70 = 70
-
-
-
-CONST_70 = 70
-
-
-
 """
 创建系统内置指标
 
@@ -31,28 +11,7 @@ import os
 from application.services.strategy_code_service import StrategyCodeService
 
 
-# TODO: Refactor - function too long (213 lines, target < 80)
-
-# TODO: Split long function (212 lines, target < 100)
-# TODO: 长函数 229行 - 建议拆分为多个小函数
-
 def create_builtin_indicators():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
     """创建系统内置指标"""
     service = StrategyCodeService()
 

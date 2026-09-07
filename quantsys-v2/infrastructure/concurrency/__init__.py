@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """统一并发管理"""
 from infrastructure.concurrency.thread_manager import (
     get_thread_pool,

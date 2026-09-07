@@ -1,59 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.65, 0.75, 0.85, 5, 20.0]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_65 = 0.65
-
-CONST_0_75 = 0.75
-
-CONST_0_85 = 0.85
-
-CONST_5 = 5
-
-CONST_20_0 = 20.0
-
-CONST_30 = 30
-
-CONST_50_0 = 50.0
-
-CONST_70 = 70
-
-CONST_80_0 = 80.0
-
-CONST_10000 = 10000
-
-
-
-CONST_0_65 = 0.65
-
-CONST_0_75 = 0.75
-
-CONST_0_85 = 0.85
-
-CONST_5 = 5
-
-CONST_20_0 = 20.0
-
-CONST_30 = 30
-
-CONST_50_0 = 50.0
-
-CONST_70 = 70
-
-CONST_80_0 = 80.0
-
-CONST_10000 = 10000
-
-
-
 """
 对手行为分析服务
 分析市场参与者行为，识别博弈机会
@@ -414,172 +358,173 @@ class OpponentBehaviorService:
             return 'high'
         elif emotion_index < 30:
             return 'low'
-        return 'medium'
-
-def _generate_opportunity_map(self, retail: Dict, institution: Dict,
-                              hot_money: Dict) -> Dict[str, Any]:
-    """
-    生成博弈机会地图
-
-    根据对手行为识别可以利用的机会
-
-    Args:
-        retail: 散户行为
-        institution: 机构行为
-        hot_money: 游资行为
-
-    Returns:
-        机会地图
-    """
-    opportunities = {}
-
-    # 机会1: 收割散户恐慌
-    if retail['behavior'] == 'panic_selling' and institution['behavior'] == 'accumulating':
-        opportunities['take_from_retail'] = [{
-            'strategy': 'bottom_fishing',
-            'confidence': 0.85,
-            'expected_return': '+5% ~ +10%',
-            'time_horizon': '3-5 days',
-            'reason': '散户恐慌抛售，机构逢低吸纳，优质股被错杀',
-            'action': '创建"恐慌抄底池"，筛选基本面优质但超跌的股票'
-        }]
-
-    # 机会2: 避开机构出货陷阱
-    if institution['behavior'] == 'distributing' and retail['behavior'] == 'fomo_buying':
-        opportunities['avoid_institution'] = [{
-            'risk': 'high',
-            'reason': '机构大量出货，散户高位接盘',
-            'action': '清仓观望，或做空相关板块',
-            'urgency': 'critical'
-        }]
-
-    # 机会3: 跟随机构建仓
-    if institution['behavior'] == 'accumulating' and retail['behavior'] == 'neutral':
-        opportunities['follow_institution'] = [{
-            'strategy': 'value_investing',
-            'confidence': 0.75,
-            'expected_return': '+10% ~ +20%',
-            'time_horizon': '1-3 months',
-            'reason': '机构悄悄建仓，散户尚未察觉',
-            'action': f"关注机构建仓板块: {', '.join(institution['target_sectors'])}"
-        }]
-
-    # 机会4: 游资炒作后抄底
-    if hot_money['behavior'] == 'pump_and_dump' and hot_money['stage'] == 'collapse':
-        opportunities['post_manipulation'] = [{
-            'strategy': 'value_recovery',
-            'confidence': 0.65,
-            'expected_return': '+15% ~ +30%',
-            'time_horizon': '1-2 weeks',
-            'reason': '游资出货完毕，恐慌盘杀跌结束',
-            'action': '在游资炒作股暴跌后，筛选基本面尚可的股票抄底'
-        }]
-
-    return opportunities
-
-# ==================== 辅助方法 ====================
-
-def _calculate_retail_flow(self, start_date: datetime, end_date: datetime) -> float | None:
-    """
-    计算散户资金净流入（小单+中单）
-
-    Returns:
-        散户净流入金额（元）；无数据时返回 None（由调用方显式降级，
-        不再静默返回 0.0 伪装成"中性"）
-    """
-    try:
-        flows = self.fund_flow_repo.get_market_aggregate_flow(
-            start_date.strftime('%Y-%m-%d'),
-            end_date.strftime('%Y-%m-%d')
-        )
-
-        if not flows:
-            logger.warning("stock_fund_flow 无市场聚合资金流数据")
-            return None
-
-        # repo 返回单位万元，×1e4 转元
-        total_retail_flow = sum([
-            (row.get('total_small_flow') or 0) + (row.get('total_medium_flow') or 0)
-            for row in flows
-        ]) * 10000
-
-        logger.debug(f"散户资金流向: {total_retail_flow/100000000:.2f}亿元")
-        return float(total_retail_flow)
-
-    except Exception as e:
-        logger.error(f"计算散户资金流失败: {e}")
-        return None
-
-def _calculate_institution_flow(self, start_date: datetime, end_date: datetime) -> float | None:
-    """
-    计算机构/主力资金净流入
-
-    优先用主力净流入（total_main_flow，东财=主力合计、新浪=r0超大单）；
-    东财 4 档数据齐全时回退为超大单+大单口径。
-    无数据时返回 None。
-    """
-    try:
-        flows = self.fund_flow_repo.get_market_aggregate_flow(
-            start_date.strftime('%Y-%m-%d'),
-            end_date.strftime('%Y-%m-%d')
-        )
-
-        if not flows:
-            logger.warning("stock_fund_flow 无市场聚合资金流数据")
-            return None
-
-        # repo 返回单位万元，×1e4 转元。
-        # 优先 main（主力）口径：东财/新浪两个源都有该字段；
-        # large+big 四档口径仅东财源有，缺失时为 0 不代表无流入。
-        total_institution_flow = sum([
-            (row.get('total_main_flow') or 0)
-            or (row.get('total_large_flow') or 0) + (row.get('total_big_flow') or 0)
-            for row in flows
-        ]) * 10000
-
-        logger.debug(f"机构资金流向: {total_institution_flow/100000000:.2f}亿元")
-        return float(total_institution_flow)
-
-    except Exception as e:
-        logger.error(f"计算机构资金流失败: {e}")
-        return None
-
-def _identify_target_sectors(self, is_buying: bool) -> List[str]:
-    """
-    识别机构目标板块
-
-    基于最新交易日各行业主力净流入排序：买入取流入最多，卖出取流出最多。
-    无数据时返回空列表（调用方已在 degraded 分支处理，这里不再返回硬编码板块）。
-    """
-    try:
-        latest = self.fund_flow_repo.get_latest_trade_date()
-        if not latest:
-            return []
-
-        industry_flows = self.fund_flow_repo.get_industry_aggregate_flow(latest)
-        if not industry_flows:
-            return []
-
-        if is_buying:
-            top = industry_flows[:5]
         else:
-            top = sorted(industry_flows, key=lambda x: x['main_net_inflow'])[:5]
+            return 'medium'
 
-        # industry 形如「制造业-医药制造业」，取末级细分行业
-        return [item['industry'].split('-')[-1] for item in top]
+    def _generate_opportunity_map(self, retail: Dict, institution: Dict,
+                                  hot_money: Dict) -> Dict[str, Any]:
+        """
+        生成博弈机会地图
 
-    except Exception as e:
-        logger.error(f"识别目标板块失败: {e}")
-        return []
+        根据对手行为识别可以利用的机会
 
-def _get_behavior_description(self, behavior: str, participant: str) -> str:
-    """获取行为描述"""
-    descriptions = {
-        ('panic_selling', 'retail'): '散户正在恐慌性抛售，情绪极度悲观',
-        ('fomo_buying', 'retail'): '散户正在疯狂追涨，情绪极度乐观',
-        ('neutral', 'retail'): '散户观望为主，情绪相对平稳',
-        ('accumulating', 'institution'): '机构正在建仓，看好后市',
-        ('distributing', 'institution'): '机构正在出货，准备离场',
-        ('neutral', 'institution'): '机构维持仓位，暂无明显动向',
-    }
-    return descriptions.get((behavior, participant), '行为模式不明确')
+        Args:
+            retail: 散户行为
+            institution: 机构行为
+            hot_money: 游资行为
+
+        Returns:
+            机会地图
+        """
+        opportunities = {}
+
+        # 机会1: 收割散户恐慌
+        if retail['behavior'] == 'panic_selling' and institution['behavior'] == 'accumulating':
+            opportunities['take_from_retail'] = [{
+                'strategy': 'bottom_fishing',
+                'confidence': 0.85,
+                'expected_return': '+5% ~ +10%',
+                'time_horizon': '3-5 days',
+                'reason': '散户恐慌抛售，机构逢低吸纳，优质股被错杀',
+                'action': '创建"恐慌抄底池"，筛选基本面优质但超跌的股票'
+            }]
+
+        # 机会2: 避开机构出货陷阱
+        if institution['behavior'] == 'distributing' and retail['behavior'] == 'fomo_buying':
+            opportunities['avoid_institution'] = [{
+                'risk': 'high',
+                'reason': '机构大量出货，散户高位接盘',
+                'action': '清仓观望，或做空相关板块',
+                'urgency': 'critical'
+            }]
+
+        # 机会3: 跟随机构建仓
+        if institution['behavior'] == 'accumulating' and retail['behavior'] == 'neutral':
+            opportunities['follow_institution'] = [{
+                'strategy': 'value_investing',
+                'confidence': 0.75,
+                'expected_return': '+10% ~ +20%',
+                'time_horizon': '1-3 months',
+                'reason': '机构悄悄建仓，散户尚未察觉',
+                'action': f"关注机构建仓板块: {', '.join(institution['target_sectors'])}"
+            }]
+
+        # 机会4: 游资炒作后抄底
+        if hot_money['behavior'] == 'pump_and_dump' and hot_money['stage'] == 'collapse':
+            opportunities['post_manipulation'] = [{
+                'strategy': 'value_recovery',
+                'confidence': 0.65,
+                'expected_return': '+15% ~ +30%',
+                'time_horizon': '1-2 weeks',
+                'reason': '游资出货完毕，恐慌盘杀跌结束',
+                'action': '在游资炒作股暴跌后，筛选基本面尚可的股票抄底'
+            }]
+
+        return opportunities
+
+    # ==================== 辅助方法 ====================
+
+    def _calculate_retail_flow(self, start_date: datetime, end_date: datetime) -> float | None:
+        """
+        计算散户资金净流入（小单+中单）
+
+        Returns:
+            散户净流入金额（元）；无数据时返回 None（由调用方显式降级，
+            不再静默返回 0.0 伪装成"中性"）
+        """
+        try:
+            flows = self.fund_flow_repo.get_market_aggregate_flow(
+                start_date.strftime('%Y-%m-%d'),
+                end_date.strftime('%Y-%m-%d')
+            )
+
+            if not flows:
+                logger.warning("stock_fund_flow 无市场聚合资金流数据")
+                return None
+
+            # repo 返回单位万元，×1e4 转元
+            total_retail_flow = sum([
+                (row.get('total_small_flow') or 0) + (row.get('total_medium_flow') or 0)
+                for row in flows
+            ]) * 10000
+
+            logger.debug(f"散户资金流向: {total_retail_flow/100000000:.2f}亿元")
+            return float(total_retail_flow)
+
+        except Exception as e:
+            logger.error(f"计算散户资金流失败: {e}")
+            return None
+
+    def _calculate_institution_flow(self, start_date: datetime, end_date: datetime) -> float | None:
+        """
+        计算机构/主力资金净流入
+
+        优先用主力净流入（total_main_flow，东财=主力合计、新浪=r0超大单）；
+        东财 4 档数据齐全时回退为超大单+大单口径。
+        无数据时返回 None。
+        """
+        try:
+            flows = self.fund_flow_repo.get_market_aggregate_flow(
+                start_date.strftime('%Y-%m-%d'),
+                end_date.strftime('%Y-%m-%d')
+            )
+
+            if not flows:
+                logger.warning("stock_fund_flow 无市场聚合资金流数据")
+                return None
+
+            # repo 返回单位万元，×1e4 转元。
+            # 优先 main（主力）口径：东财/新浪两个源都有该字段；
+            # large+big 四档口径仅东财源有，缺失时为 0 不代表无流入。
+            total_institution_flow = sum([
+                (row.get('total_main_flow') or 0)
+                or (row.get('total_large_flow') or 0) + (row.get('total_big_flow') or 0)
+                for row in flows
+            ]) * 10000
+
+            logger.debug(f"机构资金流向: {total_institution_flow/100000000:.2f}亿元")
+            return float(total_institution_flow)
+
+        except Exception as e:
+            logger.error(f"计算机构资金流失败: {e}")
+            return None
+
+    def _identify_target_sectors(self, is_buying: bool) -> List[str]:
+        """
+        识别机构目标板块
+
+        基于最新交易日各行业主力净流入排序：买入取流入最多，卖出取流出最多。
+        无数据时返回空列表（调用方已在 degraded 分支处理，这里不再返回硬编码板块）。
+        """
+        try:
+            latest = self.fund_flow_repo.get_latest_trade_date()
+            if not latest:
+                return []
+
+            industry_flows = self.fund_flow_repo.get_industry_aggregate_flow(latest)
+            if not industry_flows:
+                return []
+
+            if is_buying:
+                top = industry_flows[:5]
+            else:
+                top = sorted(industry_flows, key=lambda x: x['main_net_inflow'])[:5]
+
+            # industry 形如「制造业-医药制造业」，取末级细分行业
+            return [item['industry'].split('-')[-1] for item in top]
+
+        except Exception as e:
+            logger.error(f"识别目标板块失败: {e}")
+            return []
+
+    def _get_behavior_description(self, behavior: str, participant: str) -> str:
+        """获取行为描述"""
+        descriptions = {
+            ('panic_selling', 'retail'): '散户正在恐慌性抛售，情绪极度悲观',
+            ('fomo_buying', 'retail'): '散户正在疯狂追涨，情绪极度乐观',
+            ('neutral', 'retail'): '散户观望为主，情绪相对平稳',
+            ('accumulating', 'institution'): '机构正在建仓，看好后市',
+            ('distributing', 'institution'): '机构正在出货，准备离场',
+            ('neutral', 'institution'): '机构维持仓位，暂无明显动向',
+        }
+        return descriptions.get((behavior, participant), '行为模式不明确')

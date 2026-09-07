@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """基础设施层 - 事件系统"""
 
 from .event_bus import EventBus, event_bus

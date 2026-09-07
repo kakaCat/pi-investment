@@ -1,7 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Strategy executor — entry point for scheduled strategy execution.
 
 This module orchestrates the versioned XGBoost strategies (V13/V14): it
@@ -12,6 +8,7 @@ notifier from app config, creates the matching use case via
 Scheduled tasks call :meth:`StrategyExecutor.execute` for a single version
 or :meth:`StrategyExecutor.execute_all` to run every active strategy.
 """
+from __future__ import annotations
 
 import logging
 from datetime import datetime

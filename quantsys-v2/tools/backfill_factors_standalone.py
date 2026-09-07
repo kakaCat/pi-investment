@@ -1,14 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_20 = 20
-CONST_3 = 3
-CONST_300 = 300
-CONST_350 = 350
-CONST_5 = 5
-CONST_50 = 50
-CONST_500 = 500
-
 #!/usr/bin/env python3
 """
 因子历史回填脚本（R2） - Standalone版本
@@ -46,13 +35,17 @@ def extract_fund_flow_factors_simple(klines: List[Dict]) -> Dict[str, float]:
     factors = {}
     
     # 单日净流入
-    if 'main_net_inflow' in last and 'large_net' in last:
+    if 'main_net_inflow' in last:
+        factors['main_net_inflow'] = float(last.get('main_net_inflow', 0))
+    if 'large_net' in last:
         factors['large_net'] = float(last.get('large_net', 0))
     if 'super_large_net' in last:
         factors['super_large_net'] = float(last.get('super_large_net', 0))
     
     # 百分比
-    if 'main_net_pct' in last and 'large_pct' in last:
+    if 'main_net_pct' in last:
+        factors['main_net_pct'] = float(last.get('main_net_pct', 0))
+    if 'large_pct' in last:
         factors['large_pct'] = float(last.get('large_pct', 0))
     if 'super_large_pct' in last:
         factors['super_large_pct'] = float(last.get('super_large_pct', 0))
@@ -71,38 +64,6 @@ def extract_fund_flow_factors_simple(klines: List[Dict]) -> Dict[str, float]:
     
     return factors
 
-
-# TODO: Refactor - complexity 17 (target < 15)
-
-# TODO: Refactor - function too long (106 lines, target < 80)
-
-# TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 106行 - 建议拆分为多个小函数
-
-def _validate_backfill_factors_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_backfill_factors_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_backfill_factors_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_backfill_factors_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_backfill_factors_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_backfill_factors_result(data):
-    """构建返回结果"""
-    return data
 
 def backfill_factors(
     symbols: List[str],

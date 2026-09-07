@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_60 = 60
-
-
-
-CONST_60 = 60
-
-
-
 """
 路由注册重构 - 降低圈复杂度
 
@@ -57,7 +40,9 @@ class RouteRegistrar:
             router = getattr(module, router_name)
 
             kwargs = {}
-            if prefix and tags:
+            if prefix:
+                kwargs['prefix'] = prefix
+            if tags:
                 kwargs['tags'] = tags
 
             self.app.include_router(router, **kwargs)

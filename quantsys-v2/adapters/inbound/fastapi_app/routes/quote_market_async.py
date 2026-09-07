@@ -1,43 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - get_stock_history() = 106 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_35 = 35
-
-CONST_60 = 60
-
-CONST_200 = 200
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-
-
-CONST_20 = 20
-
-CONST_35 = 35
-
-CONST_60 = 60
-
-CONST_200 = 200
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-
-
 """
 quote_market routes (FastAPI 版本)
 
@@ -86,20 +46,7 @@ def _aggregate_kline_records(records, freq):
 
 
 @router.get('/api/stock/{symbol}/history')
-# TODO: Refactor - function too long (107 lines, target < 80)
-
-# TODO: Split long function (106 lines, target < 100)
-# TODO: 长函数 115行 - 建议拆分为多个小函数
-
 def get_stock_history(
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     symbol: str,
     period: str = Query('daily', description='daily|weekly|monthly|1m|5m|15m|30m'),
     start_date: str = Query(None, description='开始日期 YYYY-MM-DD'),

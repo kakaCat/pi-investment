@@ -1,43 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - get_history() = 125 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_15 = 15
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_200 = 200
-
-CONST_1024 = 1024
-
-CONST_1000000_0 = 1000000.0
-
-
-
-CONST_15 = 15
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_200 = 200
-
-CONST_1024 = 1024
-
-CONST_1000000_0 = 1000000.0
-
-
-
 """
 AkShare Broker Adapter
 
@@ -191,22 +151,7 @@ class AkshareBroker(BaseBroker):
             logger.error(f"Failed to get quotes: {e}", exc_info=True)
             return ApiResponse.fail(f"Failed to get quotes: {str(e)}")
 
-    # TODO: Refactor - function too long (126 lines, target < 80)
-
-# TODO: Split long function (125 lines, target < 100)
-    # TODO: 长函数 136行 - 建议拆分为多个小函数
-
     def get_history(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         symbol: str,
         start_date: str,
@@ -504,4 +449,5 @@ class AkshareBroker(BaseBroker):
             return "SZSE"  # 深交所
         elif symbol.startswith('8') or symbol.startswith('4'):
             return "BSE"  # 北交所
-        return "UNKNOWN"
+        else:
+            return "UNKNOWN"

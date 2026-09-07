@@ -1,32 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - check_connection_health() = 139 lines
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_15 = 15
-
-CONST_60 = 60
-
-CONST_300 = 300
-
-
-
-CONST_15 = 15
-
-CONST_60 = 60
-
-CONST_300 = 300
-
-
-
 """
 WP-6: 生产环境连接健康验证脚本
 
@@ -49,22 +21,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from infrastructure.persistence.database.engine import get_engine
 
-# TODO: Refactor - function too long (140 lines, target < 80)
-
-# TODO: Split long function (139 lines, target < 100)
-# TODO: 长函数 150行 - 建议拆分为多个小函数
-
 def check_connection_health():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
     """检查数据库连接池健康状态"""
     from psycopg2.extras import RealDictCursor
     
@@ -102,107 +59,108 @@ def check_connection_health():
         if result['idle_in_transaction'] > 0:
             print(f"\n❌ 发现 {result['idle_in_transaction']} 个 idle in transaction 连接！")
             return False
-        print("\n✅ 无 idle in transaction 连接")
-except Exception as e:
-    print(f"❌ 检查失败: {e}")
-    return False
-
-# 2. 检查长时间 idle in transaction 连接
-print("\n2. 长时间 idle in transaction 连接（> 1分钟）")
-print("-" * 60)
-try:
-    cursor.execute("""
-        SELECT 
-            pid,
-            usename,
-            application_name,
-            state,
-            state_change,
-            now() - state_change as duration,
-            substring(query, 1, 100) as query_preview
-        FROM pg_stat_activity
-        WHERE datname = current_database()
-          AND state = 'idle in transaction'
-          AND state_change < now() - interval '1 minute'
-        ORDER BY state_change
-    """)
-    
-    idle_conns = cursor.fetchall()
-    if idle_conns:
-        print(f"❌ 发现 {len(idle_conns)} 个长时间 idle in transaction 连接：\n")
-        for conn_info in idle_conns:
-            print(f"  PID: {conn_info['pid']}")
-            print(f"  用户: {conn_info['usename']}")
-            print(f"  应用: {conn_info['application_name']}")
-            print(f"  持续时间: {conn_info['duration']}")
-            print(f"  查询预览: {conn_info['query_preview']}")
-            print()
+        else:
+            print("\n✅ 无 idle in transaction 连接")
+    except Exception as e:
+        print(f"❌ 检查失败: {e}")
         return False
-    else:
-        print("✅ 无长时间 idle in transaction 连接")
-except Exception as e:
-    print(f"❌ 检查失败: {e}")
-    return False
-
-# 3. 检查连接泄漏迹象（连接数持续增长）
-print("\n3. 连接数趋势")
-print("-" * 60)
-try:
-    cursor.execute("""
-        SELECT 
-            count(*) as current_connections,
-            max(numbackends) as max_connections_seen
-        FROM pg_stat_database
-        WHERE datname = current_database()
-    """)
-    result = cursor.fetchone()
     
-    print(f"当前连接数: {result['current_connections']}")
-    print(f"历史最大连接数: {result['max_connections_seen']}")
+    # 2. 检查长时间 idle in transaction 连接
+    print("\n2. 长时间 idle in transaction 连接（> 1分钟）")
+    print("-" * 60)
+    try:
+        cursor.execute("""
+            SELECT 
+                pid,
+                usename,
+                application_name,
+                state,
+                state_change,
+                now() - state_change as duration,
+                substring(query, 1, 100) as query_preview
+            FROM pg_stat_activity
+            WHERE datname = current_database()
+              AND state = 'idle in transaction'
+              AND state_change < now() - interval '1 minute'
+            ORDER BY state_change
+        """)
+        
+        idle_conns = cursor.fetchall()
+        if idle_conns:
+            print(f"❌ 发现 {len(idle_conns)} 个长时间 idle in transaction 连接：\n")
+            for conn_info in idle_conns:
+                print(f"  PID: {conn_info['pid']}")
+                print(f"  用户: {conn_info['usename']}")
+                print(f"  应用: {conn_info['application_name']}")
+                print(f"  持续时间: {conn_info['duration']}")
+                print(f"  查询预览: {conn_info['query_preview']}")
+                print()
+            return False
+        else:
+            print("✅ 无长时间 idle in transaction 连接")
+    except Exception as e:
+        print(f"❌ 检查失败: {e}")
+        return False
     
-    if result['current_connections'] > 15:
-        print(f"\n⚠️  连接数较高（{result['current_connections']}/20）")
-    else:
-        print("\n✅ 连接数正常")
-except Exception as e:
-    print(f"❌ 检查失败: {e}")
-
-# 4. 检查最近的慢查询
-print("\n4. 最近慢查询（> 5秒）")
-print("-" * 60)
-try:
-    cursor.execute("""
-        SELECT 
-            pid,
-            now() - query_start as duration,
-            state,
-            substring(query, 1, 100) as query_preview
-        FROM pg_stat_activity
-        WHERE datname = current_database()
-          AND state != 'idle'
-          AND query_start < now() - interval '5 seconds'
-        ORDER BY query_start
-    """)
+    # 3. 检查连接泄漏迹象（连接数持续增长）
+    print("\n3. 连接数趋势")
+    print("-" * 60)
+    try:
+        cursor.execute("""
+            SELECT 
+                count(*) as current_connections,
+                max(numbackends) as max_connections_seen
+            FROM pg_stat_database
+            WHERE datname = current_database()
+        """)
+        result = cursor.fetchone()
+        
+        print(f"当前连接数: {result['current_connections']}")
+        print(f"历史最大连接数: {result['max_connections_seen']}")
+        
+        if result['current_connections'] > 15:
+            print(f"\n⚠️  连接数较高（{result['current_connections']}/20）")
+        else:
+            print("\n✅ 连接数正常")
+    except Exception as e:
+        print(f"❌ 检查失败: {e}")
     
-    slow_queries = cursor.fetchall()
-    if slow_queries:
-        print(f"⚠️  发现 {len(slow_queries)} 个慢查询：\n")
-        for query_info in slow_queries:
-            print(f"  PID: {query_info['pid']}")
-            print(f"  持续时间: {query_info['duration']}")
-            print(f"  状态: {query_info['state']}")
-            print(f"  查询预览: {query_info['query_preview']}")
-            print()
-    else:
-        print("✅ 无慢查询")
-except Exception as e:
-    print(f"❌ 检查失败: {e}")
-
-cursor.close()
-conn.close()
-
-print(f"\n{'='*60}\n")
-return True
+    # 4. 检查最近的慢查询
+    print("\n4. 最近慢查询（> 5秒）")
+    print("-" * 60)
+    try:
+        cursor.execute("""
+            SELECT 
+                pid,
+                now() - query_start as duration,
+                state,
+                substring(query, 1, 100) as query_preview
+            FROM pg_stat_activity
+            WHERE datname = current_database()
+              AND state != 'idle'
+              AND query_start < now() - interval '5 seconds'
+            ORDER BY query_start
+        """)
+        
+        slow_queries = cursor.fetchall()
+        if slow_queries:
+            print(f"⚠️  发现 {len(slow_queries)} 个慢查询：\n")
+            for query_info in slow_queries:
+                print(f"  PID: {query_info['pid']}")
+                print(f"  持续时间: {query_info['duration']}")
+                print(f"  状态: {query_info['state']}")
+                print(f"  查询预览: {query_info['query_preview']}")
+                print()
+        else:
+            print("✅ 无慢查询")
+    except Exception as e:
+        print(f"❌ 检查失败: {e}")
+    
+    cursor.close()
+    conn.close()
+    
+    print(f"\n{'='*60}\n")
+    return True
 
 def continuous_monitor(interval_seconds=300):
     """持续监控连接健康（默认 5 分钟间隔）"""

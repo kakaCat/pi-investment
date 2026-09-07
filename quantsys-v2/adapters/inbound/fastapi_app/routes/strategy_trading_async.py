@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-
-
 """
 统一策略交易 API 路由 - FastAPI 版本
 

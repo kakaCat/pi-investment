@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - calculate() = 196 lines
-
-
-# Extracted Constants
-
-CONST_0_3 = 0.3
-
-CONST_0_7 = 0.7
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_6 = 6
-
-CONST_12 = 12
-
-CONST_30 = 30
-
-
-
 """
 Carhart Four-Factor Model
 =========================
@@ -93,19 +68,7 @@ class CarhartFourFactorCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
-    # TODO: Refactor - function too long (197 lines, target < 80)
-
-# TODO: Split long function (196 lines, target < 100)
-    # TODO: 长函数 204行 - 建议拆分为多个小函数
-
     def calculate(self,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
                   asset_returns: Union[np.ndarray, pd.Series],
                   market_returns: Union[np.ndarray, pd.Series],
                   risk_free_rate: Union[float, np.ndarray, pd.Series],
@@ -413,85 +376,86 @@ class MomentumFactorBuilder:
             if winners.sum() > 0:
                 winner_weights = mc[winners] / mc[winners].sum()
                 winner_return = (current_returns[winners] * winner_weights).sum()
-            winner_return = 0.0
-
-        if losers.sum() > 0:
-            loser_weights = mc[losers] / mc[losers].sum()
-            loser_return = (current_returns[losers] * loser_weights).sum()
-        else:
-            loser_return = 0.0
-
-        # MOM = Winners - Losers
-        mom = winner_return - loser_return
-        mom_series.append(mom)
-
-    return pd.Series(mom_series, index=returns.columns)
-
-def build_momentum_deciles(self,
-                            returns: pd.DataFrame,
-                            market_caps: pd.DataFrame,
-                            n_deciles: int = 10) -> pd.DataFrame:
-    """
-    Build momentum factor using decile portfolios.
-
-    Args:
-        returns: DataFrame of stock returns
-        market_caps: DataFrame of market capitalizations
-        n_deciles: Number of deciles to create
-
-    Returns:
-        DataFrame with decile portfolio returns
-    """
-    if returns.shape != market_caps.shape:
-        raise DataValidationError(
-            "returns and market_caps must have the same shape",
-            field_name="input_shapes"
-        )
-
-    decile_returns = {f'D{i+1}': [] for i in range(n_deciles)}
-    min_periods = self.lookback_months + self.skip_months
-
-    for i in range(len(returns.columns)):
-        if i < min_periods:
-            for d in range(n_deciles):
-                decile_returns[f'D{d+1}'].append(np.nan)
-            continue
-
-        current_col = returns.columns[i]
-        start_idx = i - self.lookback_months - self.skip_months
-        end_idx = i - self.skip_months
-
-        if start_idx < 0:
-            for d in range(n_deciles):
-                decile_returns[f'D{d+1}'].append(np.nan)
-            continue
-
-        momentum_returns = returns.iloc[:, start_idx:end_idx]
-        cum_returns = (1 + momentum_returns).prod(axis=1) - 1
-
-        mc = market_caps[current_col].dropna()
-        common_stocks = cum_returns.dropna().index.intersection(mc.index)
-
-        if len(common_stocks) < n_deciles:
-            for d in range(n_deciles):
-                decile_returns[f'D{d+1}'].append(np.nan)
-            continue
-
-        cum_returns = cum_returns[common_stocks]
-        mc = mc[common_stocks]
-        current_returns = returns[current_col][common_stocks]
-
-        # Assign stocks to deciles
-        decile_labels = pd.qcut(cum_returns, q=n_deciles, labels=False, duplicates='drop')
-
-        # Calculate value-weighted returns for each decile
-        for d in range(n_deciles):
-            decile_mask = decile_labels == d
-            if decile_mask.sum() > 0:
-                weights = mc[decile_mask] / mc[decile_mask].sum()
-                decile_ret = (current_returns[decile_mask] * weights).sum()
             else:
-                decile_ret = np.nan
-            decile_returns[f'D{d+1}'].append(decile_ret)
+                winner_return = 0.0
 
-    return pd.DataFrame(decile_returns, index=returns.columns)
+            if losers.sum() > 0:
+                loser_weights = mc[losers] / mc[losers].sum()
+                loser_return = (current_returns[losers] * loser_weights).sum()
+            else:
+                loser_return = 0.0
+
+            # MOM = Winners - Losers
+            mom = winner_return - loser_return
+            mom_series.append(mom)
+
+        return pd.Series(mom_series, index=returns.columns)
+
+    def build_momentum_deciles(self,
+                                returns: pd.DataFrame,
+                                market_caps: pd.DataFrame,
+                                n_deciles: int = 10) -> pd.DataFrame:
+        """
+        Build momentum factor using decile portfolios.
+
+        Args:
+            returns: DataFrame of stock returns
+            market_caps: DataFrame of market capitalizations
+            n_deciles: Number of deciles to create
+
+        Returns:
+            DataFrame with decile portfolio returns
+        """
+        if returns.shape != market_caps.shape:
+            raise DataValidationError(
+                "returns and market_caps must have the same shape",
+                field_name="input_shapes"
+            )
+
+        decile_returns = {f'D{i+1}': [] for i in range(n_deciles)}
+        min_periods = self.lookback_months + self.skip_months
+
+        for i in range(len(returns.columns)):
+            if i < min_periods:
+                for d in range(n_deciles):
+                    decile_returns[f'D{d+1}'].append(np.nan)
+                continue
+
+            current_col = returns.columns[i]
+            start_idx = i - self.lookback_months - self.skip_months
+            end_idx = i - self.skip_months
+
+            if start_idx < 0:
+                for d in range(n_deciles):
+                    decile_returns[f'D{d+1}'].append(np.nan)
+                continue
+
+            momentum_returns = returns.iloc[:, start_idx:end_idx]
+            cum_returns = (1 + momentum_returns).prod(axis=1) - 1
+
+            mc = market_caps[current_col].dropna()
+            common_stocks = cum_returns.dropna().index.intersection(mc.index)
+
+            if len(common_stocks) < n_deciles:
+                for d in range(n_deciles):
+                    decile_returns[f'D{d+1}'].append(np.nan)
+                continue
+
+            cum_returns = cum_returns[common_stocks]
+            mc = mc[common_stocks]
+            current_returns = returns[current_col][common_stocks]
+
+            # Assign stocks to deciles
+            decile_labels = pd.qcut(cum_returns, q=n_deciles, labels=False, duplicates='drop')
+
+            # Calculate value-weighted returns for each decile
+            for d in range(n_deciles):
+                decile_mask = decile_labels == d
+                if decile_mask.sum() > 0:
+                    weights = mc[decile_mask] / mc[decile_mask].sum()
+                    decile_ret = (current_returns[decile_mask] * weights).sum()
+                else:
+                    decile_ret = np.nan
+                decile_returns[f'D{d+1}'].append(decile_ret)
+
+        return pd.DataFrame(decile_returns, index=returns.columns)

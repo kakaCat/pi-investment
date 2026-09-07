@@ -1,52 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_35 = 0.35
-
-CONST_0_4 = 0.4
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_60 = 60
-
-
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_35 = 0.35
-
-CONST_0_4 = 0.4
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_60 = 60
-
-
-
 """
 多因子精选引擎
 
@@ -169,7 +120,9 @@ class FactorSelector:
     def _filter_universe(self, df: pd.DataFrame) -> pd.DataFrame:
         """过滤ST股票和次新股(上市<60天)"""
         df = df.copy()
-        if "name" in df.columns and "is_st" in df.columns:
+        if "name" in df.columns:
+            df = df[~df["name"].str.contains("ST", na=False)]
+        if "is_st" in df.columns:
             df = df[df["is_st"] == 0]
         if "days_listed" in df.columns:
             df = df[df["days_listed"] >= 60]

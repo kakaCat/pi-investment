@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100000_0 = 100000.0
-CONST_101_0 = 101.0
-CONST_101000_0 = 101000.0
-CONST_11 = 11
-CONST_2025 = 2025
-CONST_2026 = 2026
-CONST_3 = 3
-CONST_30 = 30
-CONST_5 = 5
-CONST_6 = 6
-
 """benchmark_comparison 纯计算测试"""
 from application.services.benchmark_comparison import compute_benchmark_comparison
 

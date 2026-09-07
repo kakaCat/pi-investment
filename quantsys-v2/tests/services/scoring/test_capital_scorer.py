@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_15 = 15
-CONST_15_0 = 15.0
-CONST_2_5 = 2.5
-CONST_20 = 20
-CONST_20_0 = 20.0
-CONST_200 = 200
-CONST_2026 = 2026
-CONST_29 = 29
-CONST_30_0 = 30.0
-CONST_4000 = 4000
-
 """CapitalScorer 单元测试
 
 注意：stock_fund_flow 金额字段单位为【万元】（见 fund_flow_repository docstring），

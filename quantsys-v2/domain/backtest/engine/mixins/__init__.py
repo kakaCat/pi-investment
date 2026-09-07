@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Strategy mixins for composable behavior."""
 from domain.backtest.engine.mixins.indicator_mixin import IndicatorMixin
 from domain.backtest.engine.mixins.factor_mixin import FactorMixin

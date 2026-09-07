@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 Backward-compatibility shim for domain.quantlib.adapters.
 

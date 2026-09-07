@@ -1,15 +1,5 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-
-
 """Config-Driven Strategy — database-defined, no code file needed."""
+from __future__ import annotations
 from typing import Any
 
 from domain.backtest.engine.enhanced_strategy_base import EnhancedStrategyBase
@@ -139,7 +129,9 @@ class ConfigDrivenStrategy(EnhancedStrategyBase):
                 left_str, right_str = condition.split(f' {op} ', 1)
                 left = self._resolve_value(left_str.strip(), values)
                 right = self._resolve_value(right_str.strip(), values)
-                if left is None or right is None and op == '>':
+                if left is None or right is None:
+                    return False
+                if op == '>':
                     return left > right
                 elif op == '>=':
                     return left >= right
@@ -173,7 +165,9 @@ class ConfigDrivenStrategy(EnhancedStrategyBase):
 
     @staticmethod
     def _extract_last(result) -> float | None:
-        if result is None and hasattr(result, '__iter__') and not isinstance(result, str):
+        if result is None:
+            return None
+        if hasattr(result, '__iter__') and not isinstance(result, str):
             for v in reversed(list(result)):
                 if v is not None and v == v:  # not NaN
                     return float(v)

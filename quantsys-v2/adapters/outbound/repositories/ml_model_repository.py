@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
-CONST_3 = 3
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
 """
 ML Model ORM Repository - 机器学习模型仓储
 
@@ -187,7 +162,9 @@ class MlModelORMRepository(BaseORMRepository[MlModel], IMlModelRepository):
         """列出模型（按训练时间倒序）"""
         try:
             query = self.session.query(self.model)
-            if model_type and status:
+            if model_type:
+                query = query.filter(self.model.model_type == model_type)
+            if status:
                 query = query.filter(self.model.status == status)
             rows = query.order_by(self.model.train_date.desc()).limit(limit).all()
             return [self._to_dict(r) for r in rows]

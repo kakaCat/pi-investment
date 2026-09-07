@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_70 = 70
-
-CONST_200 = 200
-
-CONST_240 = 240
-
-
-
-CONST_70 = 70
-
-CONST_200 = 200
-
-CONST_240 = 240
-
-
-
 """
 重新训练模型 - 扩大训练数据集
 

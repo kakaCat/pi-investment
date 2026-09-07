@@ -1,40 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-CONST_3 = 3
-
-CONST_7 = 7
-
-CONST_24 = 24
-
-CONST_50 = 50
-
-CONST_3600 = 3600
-
-
-
-CONST_0_5 = 0.5
-
-CONST_3 = 3
-
-CONST_7 = 7
-
-CONST_24 = 24
-
-CONST_50 = 50
-
-CONST_3600 = 3600
-
-
-
 """
 调度任务Repository - 实现 ISchedulerRepository 接口
 
@@ -58,12 +21,6 @@ from infrastructure.scheduler.scheduler import next_run_time as _calc_next_run_t
 
 logger = logging.getLogger(__name__)
 
-
-# TODO: Refactor - class too large (22 methods, target < 15)
-
-# TODO: Refactor large class (22 methods, target < 20)
-# TODO: Refactor large class (22 methods, target < 20)
-# TODO: 大类 22个方法 - 考虑拆分为多个类或使用组合模式
 
 class SchedulerRepository(ISchedulerRepository):
     """调度任务仓储 - SQLAlchemy ORM 实现"""
@@ -330,7 +287,9 @@ class SchedulerRepository(ISchedulerRepository):
     ) -> List[Dict[str, Any]]:
         try:
             query = self.session.query(SchedulerRun)
-            if task_id is not None and statuses:
+            if task_id is not None:
+                query = query.filter(SchedulerRun.task_id == task_id)
+            if statuses:
                 query = query.filter(SchedulerRun.status.in_(statuses))
             if date_filter:
                 query = query.filter(func.date(SchedulerRun.started_at) == date_filter)
@@ -348,7 +307,9 @@ class SchedulerRepository(ISchedulerRepository):
     ) -> int:
         try:
             query = self.session.query(func.count(SchedulerRun.id))
-            if task_id is not None and statuses:
+            if task_id is not None:
+                query = query.filter(SchedulerRun.task_id == task_id)
+            if statuses:
                 query = query.filter(SchedulerRun.status.in_(statuses))
             if date_filter:
                 query = query.filter(func.date(SchedulerRun.started_at) == date_filter)

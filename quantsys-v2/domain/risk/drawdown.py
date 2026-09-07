@@ -1,17 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_252 = 252
-
-
-
 """
 Drawdown Analysis Calculator
 =============================
@@ -330,8 +316,9 @@ class DrawdownCalculator(BaseCalculator):
 
         if isinstance(returns, pd.Series):
             return pd.Series(drawdown_series, index=returns.index)
-        return pd.Series(drawdown_series)
+        else:
+            return pd.Series(drawdown_series)
 
-def get_supported_methods(self) -> List[str]:
-    """Return list of supported calculation methods."""
-    return ['drawdown_analysis', 'max_drawdown', 'calmar_ratio']
+    def get_supported_methods(self) -> List[str]:
+        """Return list of supported calculation methods."""
+        return ['drawdown_analysis', 'max_drawdown', 'calmar_ratio']

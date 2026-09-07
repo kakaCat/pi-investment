@@ -1,36 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_50 = 50
-
-CONST_60 = 60
-
-CONST_70 = 70
-
-
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_50 = 50
-
-CONST_60 = 60
-
-CONST_70 = 70
-
-
-
 """
 经验自动积累服务
 
@@ -318,76 +285,77 @@ class ExperienceAccumulator:
             return 'moderate'
         elif win_rate >= 50 and avg_return >= 1:
             return 'cautious'
-        return 'avoid'
+        else:
+            return 'avoid'
 
-def _generate_reason(self, win_rate: float, avg_return: float, total_cases: int) -> str:
-    """生成推荐原因"""
-    return (
-        f"基于 {total_cases} 个历史案例，"
-        f"胜率 {win_rate:.1f}%，"
-        f"平均收益 {avg_return:.2f}%"
-    )
+    def _generate_reason(self, win_rate: float, avg_return: float, total_cases: int) -> str:
+        """生成推荐原因"""
+        return (
+            f"基于 {total_cases} 个历史案例，"
+            f"胜率 {win_rate:.1f}%，"
+            f"平均收益 {avg_return:.2f}%"
+        )
 
-def _get_strategy_symbol_combinations(self) -> List[tuple]:
-    """获取所有策略-标的组合"""
-    conn = self.signal_log._get_conn()
-    cursor = None
-    try:
-        cursor = conn.cursor()
+    def _get_strategy_symbol_combinations(self) -> List[tuple]:
+        """获取所有策略-标的组合"""
+        conn = self.signal_log._get_conn()
+        cursor = None
+        try:
+            cursor = conn.cursor()
 
-        query = f"""
-            SELECT DISTINCT strategy_name, symbol
-            FROM {self.signal_log.TABLE_NAME}
-            WHERE status = 'verified'
-        """
+            query = f"""
+                SELECT DISTINCT strategy_name, symbol
+                FROM {self.signal_log.TABLE_NAME}
+                WHERE status = 'verified'
+            """
 
-        cursor.execute(query)
-        results = cursor.fetchall()
-        return [(row[0], row[1]) for row in results]
-    finally:
-        if cursor:
-            cursor.close()
-        conn.close()
+            cursor.execute(query)
+            results = cursor.fetchall()
+            return [(row[0], row[1]) for row in results]
+        finally:
+            if cursor:
+                cursor.close()
+            conn.close()
 
-def _save_to_file(self, experience: Dict, output_file: str):
-    """保存单个经验到文件"""
-    file_path = Path(output_file)
+    def _save_to_file(self, experience: Dict, output_file: str):
+        """保存单个经验到文件"""
+        file_path = Path(output_file)
 
-    # 读取现有经验库
-    if file_path.exists():
-        with open(file_path, 'r') as f:
-            data = json.load(f)
-    else:
+        # 读取现有经验库
+        if file_path.exists():
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+        else:
+            data = {
+                'version': '1.0.0',
+                'last_updated': date.today().isoformat(),
+                'experiences': []
+            }
+
+        # 添加新经验
+        data['experiences'].append(experience)
+        data['last_updated'] = date.today().isoformat()
+
+        # 确保目录存在
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # 保存
+        with open(file_path, 'w') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+
+    def _save_all_to_file(self, experiences: List[Dict], output_file: str):
+        """批量保存经验到文件"""
+        file_path = Path(output_file)
+
         data = {
             'version': '1.0.0',
             'last_updated': date.today().isoformat(),
-            'experiences': []
+            'experiences': experiences
         }
 
-    # 添加新经验
-    data['experiences'].append(experience)
-    data['last_updated'] = date.today().isoformat()
+        # 确保目录存在
+        file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 确保目录存在
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # 保存
-    with open(file_path, 'w') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
-def _save_all_to_file(self, experiences: List[Dict], output_file: str):
-    """批量保存经验到文件"""
-    file_path = Path(output_file)
-
-    data = {
-        'version': '1.0.0',
-        'last_updated': date.today().isoformat(),
-        'experiences': experiences
-    }
-
-    # 确保目录存在
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # 保存
-    with open(file_path, 'w') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        # 保存
+        with open(file_path, 'w') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)

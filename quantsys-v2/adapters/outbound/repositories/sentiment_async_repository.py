@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
 """
 Sentiment 异步ORM Repository
 
@@ -81,9 +60,13 @@ class SentimentAsyncRepository(AsyncBaseORMRepository[SentimentData]):
         try:
             stmt = select(SentimentData)
 
-            if symbol and start_date:
+            if symbol:
+                stmt = stmt.where(SentimentData.symbol == symbol)
+            if start_date:
                 stmt = stmt.where(SentimentData.sentiment_date >= start_date)
-            if end_date and sentiment_type:
+            if end_date:
+                stmt = stmt.where(SentimentData.sentiment_date <= end_date)
+            if sentiment_type:
                 stmt = stmt.where(SentimentData.sentiment_type == sentiment_type)
 
             stmt = stmt.order_by(desc(SentimentData.sentiment_date)).limit(limit)

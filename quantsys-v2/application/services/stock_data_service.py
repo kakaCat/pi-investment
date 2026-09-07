@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-
-
 """
 股票数据服务 - v2 原生实现
 提供个股公告、新闻、批量行情、内幕交易、同业对比等数据
@@ -228,17 +203,7 @@ class StockDataService:
                 'data': None
             }
 
-    # TODO: 长函数 108行 - 建议拆分为多个小函数
-
     def compare_peers(self, symbol: str) -> Dict[str, Any]:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """
         同业对比分析（使用腾讯财经，避免代理问题）
 

@@ -1,40 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_50 = 50
-
-CONST_200 = 200
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_1000000 = 1000000
-
-
-
-CONST_3 = 3
-
-CONST_50 = 50
-
-CONST_200 = 200
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_1000000 = 1000000
-
-
-
 """策略进化引擎 API（RFC 012 P1，2026-09-03 w-8366e526）
 
 替代 Agent OS legacy evolution（0.05×i 占位）：qv2 真实回测参数进化。
@@ -60,52 +23,6 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter(tags=["Evolution - 策略进化引擎（RFC 012）"])
 
-
-# TODO: Refactor - complexity 16 (target < 15)
-
-def _validate__to_camel_run_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _to_camel_run 移到这里
-    return True, None
-
-def _process__to_camel_run_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _to_camel_run 移到这里
-    return data
-
-def _build__to_camel_run_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _to_camel_run 移到这里
-    return data
-
-# TODO: Refactor - complexity 16 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 16 (target < 15)
-# TODO: 复杂度 16 - 需要重构拆分为更小的函数
-
-def _validate__to_camel_run_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process__to_camel_run_data(data):
-    """处理数据转换"""
-    return data
-
-def _build__to_camel_run_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate__to_camel_run_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process__to_camel_run_data(data):
-    """处理数据转换"""
-    return data
-
-def _build__to_camel_run_result(data):
-    """构建返回结果"""
-    return data
 
 def _to_camel_run(result: Dict[str, Any]) -> Dict[str, Any]:
     """服务 snake_case 结果 → qv2 camelCase 契约（proposals/metrics 内部键保留）。"""

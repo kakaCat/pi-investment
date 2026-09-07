@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_9 = 9
-
-CONST_50 = 50
-
-
-
-CONST_9 = 9
-
-CONST_50 = 50
-
-
-
 """Memory Recall Audit Repository - quant.memory_recall_audit 数据访问层（P1-T4）"""
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -107,9 +86,13 @@ class MemoryRecallAuditRepository(BaseORMRepository[MemoryRecallAuditModel]):
             query = self.session.query(self.model)
 
             # 筛选
-            if flow and gate_result:
+            if flow:
+                query = query.filter(self.model.flow == flow)
+            if gate_result:
                 query = query.filter(self.model.gate_result == gate_result)
-            if suppressed_only and date_from:
+            if suppressed_only:
+                query = query.filter(self.model.gate_result == "suppressed")
+            if date_from:
                 dt_from = datetime.fromisoformat(date_from.replace("Z", "+00:00"))
                 query = query.filter(self.model.ts >= dt_from)
             if date_to:

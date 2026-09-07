@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100000 = 100000
-CONST_101_0 = 101.0
-CONST_102_0 = 102.0
-CONST_103_0 = 103.0
-CONST_104_0 = 104.0
-CONST_105_0 = 105.0
-CONST_110_0 = 110.0
-CONST_150 = 150
-CONST_20 = 20
-CONST_3 = 3
-
 """
 Tests for Momentum Indicators
 ==============================
@@ -25,9 +11,6 @@ import numpy as np
 from domain.quantlib.factors.momentum import MomentumFactors
 from domain.quantlib.core.exceptions import InsufficientDataError, DataValidationError
 
-
-# TODO: Refactor large class (30 methods, target < 20)
-# TODO: 大类 30个方法 - 考虑拆分为多个类或使用组合模式
 
 class TestMomentumFactors:
     """Test momentum indicator calculations."""

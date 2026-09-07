@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000_0 = 10000.0
-CONST_101 = 101
-CONST_102 = 102
-CONST_11 = 11
-CONST_200 = 200
-CONST_2026 = 2026
-CONST_24_43 = 24.43
-CONST_3 = 3
-CONST_30000 = 30000
-CONST_300255 = 300255
-
 """MissedOpportunityService 测试（P0b）——信号/决策/K线仓储全部 mock。"""
 from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock

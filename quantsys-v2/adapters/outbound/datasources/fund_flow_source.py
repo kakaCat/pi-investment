@@ -1,56 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-CONST_1_5 = 1.5
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_24 = 24
-
-CONST_30 = 30
-
-CONST_80 = 80
-
-CONST_3600 = 3600
-
-CONST_10000 = 10000
-
-
-
-CONST_0_5 = 0.5
-
-CONST_1_5 = 1.5
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_24 = 24
-
-CONST_30 = 30
-
-CONST_80 = 80
-
-CONST_3600 = 3600
-
-CONST_10000 = 10000
-
-
-
 """
 资金流向数据源
 
@@ -86,67 +33,6 @@ class FundFlowDataSource:
             self.repository = None
             self.cache_enabled = False
 
-    # TODO: Refactor - complexity 17 (target < 15)
-
-    def _validate_get_stock_fund_flow_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 get_stock_fund_flow 移到这里
-        return True, None
-
-    def _process_get_stock_fund_flow_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 get_stock_fund_flow 移到这里
-        return data
-
-    def _build_get_stock_fund_flow_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 get_stock_fund_flow 移到这里
-        return data
-
-    def _validate_get_stock_fund_flow_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 get_stock_fund_flow 移到这里
-        return True, None
-
-    def _process_get_stock_fund_flow_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 get_stock_fund_flow 移到这里
-        return data
-
-    def _build_get_stock_fund_flow_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 get_stock_fund_flow 移到这里
-        return data
-
-# TODO: Refactor - complexity 17 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 17 (target < 15)
-    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-    def _validate_get_stock_fund_flow_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_get_stock_fund_flow_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_get_stock_fund_flow_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_get_stock_fund_flow_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_get_stock_fund_flow_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_get_stock_fund_flow_result(data):
-        """构建返回结果"""
-        return data
-
     def get_stock_fund_flow(self, symbol: str, days: int = 5) -> Dict:
         """
         获取个股资金流向（优先本地缓存）
@@ -173,8 +59,6 @@ class FundFlowDataSource:
         if self.cache_enabled and self.repository:
             try:
                 cached_data = self.repository.get_latest_fund_flow(clean_symbol, days)
-
-                # TODO: 提取嵌套逻辑为独立方法
 
                 if self._is_cache_valid(cached_data, days):
                     logger.info(f"命中本地缓存: {symbol}")
@@ -369,90 +253,8 @@ class EastMoneyFundFlowSource:
     """东方财富资金流向数据源"""
 
     name = "eastmoney"
-# TODO: Refactor - complexity 16 (target < 15)
-
-
-    def _validate_fetch_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 fetch 移到这里
-        return True, None
-
-    def _process_fetch_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 fetch 移到这里
-        return data
-
-    def _build_fetch_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 fetch 移到这里
-        return data
-
-    def _validate_fetch_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 fetch 移到这里
-        return True, None
-
-    def _process_fetch_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 fetch 移到这里
-        return data
-def _validate_fetch_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_fetch_data(data):
-    """处理数据转换"""
-    return data
-
-def _validate__build_fetch_result_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _validate_fetch_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_fetch_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_fetch_result(data):
-    """构建返回结果"""
-    return data
-
-def _process__build_fetch_result_data(data):
-    """处理数据转换"""
-    return data
-
-def _build__build_fetch_result_result(data):
-    """构建返回结果"""
-    return data
-
-def _build_fetch_result(data):
-    """构建返回结果"""
-    return data
-
-
-    def _build_fetch_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 fetch 移到这里
-        return data
-
-# TODO: 复杂度 16 - 需要重构拆分为更小的函数
-
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 16 (target < 15)
-    # TODO: 长函数 104行 - 建议拆分为多个小函数
 
     def fetch(self, symbol: str, days: int) -> List[Dict]:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """
         从东方财富获取资金流向数据
 

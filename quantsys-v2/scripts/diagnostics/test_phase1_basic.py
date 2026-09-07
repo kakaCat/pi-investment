@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_60 = 60
-
-
-
-CONST_60 = 60
-
-
-
 """
 简化测试脚本 - Phase 1 基本验证
 只测试类实例化和基本方法，不进行网络请求
@@ -116,8 +99,9 @@ def test_instantiation():
         print("✅ Phase 1 代码迁移验证通过")
         print("\n⚠️  注意: 网络连接测试需要在有网络的环境中进行")
         return 0
-    print(f"\n⚠️  {total - passed} 个数据源实例化失败")
-    return 1
+    else:
+        print(f"\n⚠️  {total - passed} 个数据源实例化失败")
+        return 1
 
 
 def test_abstract_methods():

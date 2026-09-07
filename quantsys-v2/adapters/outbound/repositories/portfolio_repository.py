@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_7 = 7
-
-
-
-CONST_7 = 7
-
-
-
 """
 持仓ORM Repository
 
@@ -42,12 +25,6 @@ logger = structlog.get_logger(__name__)
 
 __all__ = ['PortfolioORMRepository']
 
-
-# TODO: Refactor - class too large (39 methods, target < 15)
-
-# TODO: Refactor large class (39 methods, target < 20)
-# TODO: Refactor large class (39 methods, target < 20)
-# TODO: 大类 39个方法 - 考虑拆分为多个类或使用组合模式
 
 class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepository):
     """持仓ORM Repository
@@ -132,7 +109,9 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
                 PortfolioHolding.portfolio_name == portfolio_name
             )
 
-            if start_date and end_date:
+            if start_date:
+                query = query.filter(PortfolioHolding.added_date >= start_date)
+            if end_date:
                 query = query.filter(PortfolioHolding.added_date <= end_date)
 
             holdings = query.all()
@@ -238,7 +217,9 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         try:
             query = self.session.query(PortfolioHolding)
 
-            if market and sector:
+            if market:
+                query = query.filter(PortfolioHolding.market == market)
+            if sector:
                 query = query.filter(PortfolioHolding.sector == sector)
 
             holdings = query.order_by(PortfolioHolding.total_invested.desc()).all()
@@ -783,9 +764,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
 
     def get_order(self, order_id: int) -> Optional[Dict]:
         """查询单条订单，不存在返回 None"""
-        # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-        query = "SELECT * FROM quant.orders WHERE id = %s"  # TODO: Use parameterized queries
+        query = "SELECT * FROM quant.orders WHERE id = %s"
 
         cursor = self.db.cursor()
         try:
@@ -1043,9 +1022,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
 
     def get_trade(self, trade_id: int) -> Optional[Dict]:
         """查询单条交易记录，不存在返回 None"""
-        # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-        query = "SELECT * FROM quant.trades WHERE id = %s"  # TODO: Use parameterized queries
+        query = "SELECT * FROM quant.trades WHERE id = %s"
 
         cursor = self.db.cursor()
         try:
@@ -1230,9 +1207,7 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         """删除持仓记录（order_service 清仓时调用）"""
         _validate_symbol(symbol)
 
-        # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-        query = "DELETE FROM quant.portfolio_holdings WHERE symbol = %s"  # TODO: Use parameterized queries
+        query = "DELETE FROM quant.portfolio_holdings WHERE symbol = %s"
 
         cursor = self.db.cursor()
         try:
@@ -1245,3 +1220,4 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             raise Exception(f"删除持仓失败: {str(e)}")
         finally:
             cursor.close()
+

@@ -1,62 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - main() = 183 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.01, 0.05, 0.1, 0.8, 3]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_8 = 0.8
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_68 = 68
-
-CONST_80 = 80
-
-CONST_200 = 200
-
-CONST_480 = 480
-
-
-
-CONST_0_01 = 0.01
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_8 = 0.8
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_68 = 68
-
-CONST_80 = 80
-
-CONST_200 = 200
-
-CONST_480 = 480
-
-
-
 """
 V14模型训练 - 超越V13
 
@@ -83,26 +24,7 @@ logging.basicConfig(
     format='%(asctime)s [%(levelname)s] %(message)s'
 )
 
-# TODO: Refactor - function too long (184 lines, target < 80)
-
-# TODO: Split long function (183 lines, target < 100)
-# TODO: 长函数 198行 - 建议拆分为多个小函数
-
 def main():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
     print("\n" + "="*80)
     print(" V14模型训练 - 超越V13 ")
     print("="*80)

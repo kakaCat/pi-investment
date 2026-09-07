@@ -1,40 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - main() = 126 lines
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-CONST_20 = 20
-
-CONST_60 = 60
-
-CONST_80 = 80
-
-CONST_5432 = 5432
-
-
-
-CONST_0_5 = 0.5
-
-CONST_20 = 20
-
-CONST_60 = 60
-
-CONST_80 = 80
-
-CONST_5432 = 5432
-
-
-
 """
 修复数据库中volume为NULL的历史数据
 
@@ -103,22 +67,7 @@ def fix_symbol_volume(db: Database, fetcher: KlineFetcher, symbol: str, earliest
     except Exception as e:
         return False, str(e)
 
-# TODO: Refactor - function too long (127 lines, target < 80)
-
-# TODO: Split long function (126 lines, target < 100)
-# TODO: 长函数 137行 - 建议拆分为多个小函数
-
 def main():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
     print("=" * 80)
     print("修复volume数据")
     print("=" * 80)

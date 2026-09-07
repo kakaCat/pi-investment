@@ -1,35 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - _analyze_fund_flow() = 117 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_5000 = 5000
-
-CONST_10000 = 10000
-
-
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_5000 = 5000
-
-CONST_10000 = 10000
-
-
-
 """
 市场情绪服务
 
@@ -85,59 +53,26 @@ class SentimentService:
             logger.error(f"获取 {symbol} 资金流向失败: {e}", exc_info=True)
             return {'error': str(e)}
 
-    # TODO: Refactor - complexity 22 (target < 15)
+    def _analyze_fund_flow(self, flow_data: Dict) -> Dict:
+        """
+        分析资金流向数据
 
-    # TODO: Refactor - function too long (118 lines, target < 80)
-
-    def _validate__analyze_fund_flow_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _analyze_fund_flow 移到这里
-        return True, None
-
-    def _process__analyze_fund_flow_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _analyze_fund_flow 移到这里
-        return data
-
-    def _build__analyze_fund_flow_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _analyze_fund_flow 移到这里
-        return data
-
-    def _validate__analyze_fund_flow_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _analyze_fund_flow 移到这里
-        return True, None
-
-    def _process__analyze_fund_flow_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _analyze_fund_flow 移到这里
-        return data
-
-    def _build__analyze_fund_flow_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _analyze_fund_flow 移到这里
-        return data
-
-# TODO: Split long function (117 lines, target < 100)
-# TODO: Refactor - complexity 22 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 22 (target < 15)
-    # TODO: Split long function (117 lines, target < 100)
-    # TODO: Refactor - complexity 22 (target < 15)
-    # TODO: Split long function (117 lines, target < 100)
-
-    def _init(self):
-        """执行: init"""
+        分析维度：
+        1. 主力行为：主力是否持续流入/流出
+        2. 资金结构：大单、中单、小单占比
+        3. 流向强度：净流入金额和比例
+        4. 趋势稳定性：流向方向的连续性
+        """
         if 'error' in flow_data or not flow_data.get('data'):
             return {'error': 'No data to analyze'}
+
         data = flow_data['data']
         summary = flow_data.get('summary', {})
 
-    def _step_2__analyze_fund_flow(self):
-        """执行: 主力行为分析"""
+        # 1. 主力行为分析
         total_main_inflow = summary.get('total_main_net_inflow', 0)
         consecutive_days = summary.get('consecutive_inflow_days', 0)
+
         if consecutive_days >= 3 and total_main_inflow > 0:
             main_behavior = '主力持续流入，看多情绪浓厚'
             main_strength = 'strong'
@@ -153,10 +88,8 @@ class SentimentService:
         else:
             main_behavior = '主力资金中性，未见明显方向'
             main_strength = 'neutral'
-        pass
 
-    def _step_3__analyze_fund_flow(self):
-        """执行: 资金结构分析"""
+        # 2. 资金结构分析
         recent_data = data[0] if data else {}
         # 2026-09-01 修复：缓存数据部分档位为 None（sina 源只落 main/small），
         # None > 0 会 TypeError。统一 None→0 再做比较。
@@ -167,6 +100,7 @@ class SentimentService:
         big_rate = _rate('big_net_inflow_rate')
         medium_rate = _rate('medium_net_inflow_rate')
         small_rate = _rate('small_net_inflow_rate')
+
         # 判断资金结构
         if large_rate > 0 and big_rate > 0:
             structure_desc = '超大单和大单同步流入，机构主导'
@@ -184,9 +118,9 @@ class SentimentService:
             structure_desc = '资金流向分散，方向不明'
             structure_type = 'mixed'
 
-    def _step_4__analyze_fund_flow(self):
-        """执行: 流向强度分析"""
+        # 3. 流向强度分析
         avg_rate = summary.get('avg_main_net_inflow_rate', 0)
+
         if abs(avg_rate) >= 10:
             intensity = 'very_high'
             intensity_desc = '资金流向强度极高'
@@ -199,10 +133,8 @@ class SentimentService:
         else:
             intensity = 'low'
             intensity_desc = '资金流向强度较低'
-        pass
 
-    def _step_5__analyze_fund_flow(self):
-        """执行: 趋势稳定性"""
+        # 4. 趋势稳定性
         trend = summary.get('trend', 'neutral')
         if consecutive_days >= 3:
             stability = 'stable'
@@ -213,6 +145,7 @@ class SentimentService:
         else:
             stability = 'unstable'
             stability_desc = '流向反复，趋势不稳'
+
         return {
             'main_behavior': {
                 'description': main_behavior,
@@ -238,21 +171,7 @@ class SentimentService:
                 'level': stability,
             }
         }
-    def _analyze_fund_flow(self, flow_data: Dict) -> Dict:
-        """
-        分析资金流向数据
 
-        分析维度：
-        1. 主力行为：主力是否持续流入/流出
-        2. 资金结构：大单、中单、小单占比
-        3. 流向强度：净流入金额和比例
-        4. 趋势稳定性：流向方向的连续性
-        """
-        self._init()
-        self._step_2__analyze_fund_flow()
-        self._step_3__analyze_fund_flow()
-        self._step_4__analyze_fund_flow()
-        self._step_5__analyze_fund_flow()
     def _generate_signals(self, flow_data: Dict, analysis: Dict) -> list:
         """生成交易信号"""
         if 'error' in flow_data or 'error' in analysis:

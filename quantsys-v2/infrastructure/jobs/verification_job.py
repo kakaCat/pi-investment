@@ -1,28 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - run() = 112 lines
-
 #!/usr/bin/env python
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_12 = 0.12
-
-CONST_5 = 5
-
-
-
-CONST_0_12 = 0.12
-
-CONST_5 = 5
-
-
-
 """
 V13策略预测验证任务
 
@@ -82,9 +58,7 @@ class VerificationJob:
         # 简单检查：如果任意股票在该日期有K线数据，则认为是交易日
         cursor = kline_repo.session.connection().connection.cursor()
         cursor.execute(
-            # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-            "SELECT COUNT(*) FROM quant.daily_klines WHERE trade_date = %s LIMIT 1",  # TODO: Use parameterized queries
+            "SELECT COUNT(*) FROM quant.daily_klines WHERE trade_date = %s LIMIT 1",
             (date_str,)
         )
         count = cursor.fetchone()[0]
@@ -215,20 +189,7 @@ class VerificationJob:
 
         return (end_price - start_price) / start_price
 
-    # TODO: Refactor - function too long (113 lines, target < 80)
-
-# TODO: Split long function (112 lines, target < 100)
-    # TODO: 长函数 121行 - 建议拆分为多个小函数
-
     def run(self):
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """运行验证任务"""
         logger.info("开始运行预测验证任务")
 

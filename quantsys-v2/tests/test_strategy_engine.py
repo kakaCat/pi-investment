@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_11_0 = 11.0
-CONST_12 = 12
-CONST_12_0 = 12.0
-CONST_14 = 14
-CONST_14_0 = 14.0
-CONST_15 = 15
-CONST_15_0 = 15.0
-CONST_16 = 16
-CONST_16_0 = 16.0
-CONST_18 = 18
-
 """
 策略引擎单元测试
 

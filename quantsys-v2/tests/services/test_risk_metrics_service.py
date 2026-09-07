@@ -1,13 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_250 = 250
-CONST_3 = 3
-CONST_42 = 42
-CONST_43 = 43
-CONST_44 = 44
-CONST_5 = 5
-
 """
 风险指标服务测试
 """

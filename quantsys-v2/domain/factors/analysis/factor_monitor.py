@@ -1,29 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_001 = 0.001
-
-CONST_0_02 = 0.02
-
-CONST_0_03 = 0.03
-
-CONST_0_05 = 0.05
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_5 = 5
-
-CONST_20 = 20
-
-CONST_60 = 60
-
-
-
 """
 因子监控系统 - Team A
 IC/IR监控、因子衰减检测、自动告警

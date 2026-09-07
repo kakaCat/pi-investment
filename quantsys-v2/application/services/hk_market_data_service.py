@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_60 = 60
-
-
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_60 = 60
-
-
-
 """
 港股市场数据服务 - v2 原生实现
 提供港股市场概览、南向资金、人气排行等数据

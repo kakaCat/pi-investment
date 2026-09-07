@@ -1,25 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_30_0 = 30.0
-
-CONST_50 = 50
-
-
-
-CONST_30_0 = 30.0
-
-CONST_50 = 50
-
-
-
 """Agent OS HTTP client for Scheduler and Skill Hub.
 
 This client provides a Python interface to the Agent OS HTTP API,
@@ -48,6 +26,7 @@ Usage:
         "output": "{\"updated\": 100}"
     })
 """
+from __future__ import annotations
 
 import logging
 from typing import Any, Dict, List, Optional

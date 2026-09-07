@@ -1,63 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - build_stock_query() = 167 lines
-#   - update_gem_klines() = 233 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.3, 0.5, 0.8, 5, 15]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_8 = 0.8
-
-CONST_5 = 5
-
-CONST_15 = 15
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_70 = 70
-
-CONST_200 = 200
-
-
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_8 = 0.8
-
-CONST_5 = 5
-
-CONST_15 = 15
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_70 = 70
-
-CONST_200 = 200
-
-
-
 """
 K线数据更新Job - 使用多数据源自动更新
 
@@ -85,24 +25,7 @@ from infrastructure.persistence.database.engine import get_engine
 logger = logging.getLogger(__name__)
 
 
-# TODO: Refactor - function too long (168 lines, target < 80)
-
-# TODO: Split long function (167 lines, target < 100)
-# TODO: 长函数 180行 - 建议拆分为多个小函数
-
 def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
     """构建选股 SQL（抽出以便单测，2026-08-02）。
 
     过滤规则：all/gem/priority/batch 范围排除退市股（is_delisted）和名称含"退"/"ST"的；
@@ -272,75 +195,7 @@ def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
     )
 
 
-# TODO: Refactor - complexity 22 (target < 15)
-# TODO: Refactor - function too long (234 lines, target < 80)
-
-
-def _validate_update_gem_klines_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 update_gem_klines 移到这里
-    return True, None
-
-def _process_update_gem_klines_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 update_gem_klines 移到这里
-    return data
-
-def _build_update_gem_klines_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 update_gem_klines 移到这里
-    return data
-
-# TODO: Refactor - complexity 22 (target < 15)
-# TODO: Split long function (233 lines, target < 100)
-# TODO: Refactor - complexity 22 (target < 15)
-# TODO: Split long function (233 lines, target < 100)
-# TODO: 复杂度 22 - 需要重构拆分为更小的函数
-# TODO: 长函数 253行 - 建议拆分为多个小函数
-
-
-def _validate_update_gem_klines_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_update_gem_klines_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_update_gem_klines_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_update_gem_klines_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_update_gem_klines_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_update_gem_klines_result(data):
-    """构建返回结果"""
-    return data
-
 def update_gem_klines(**params):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 9 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
     """
     更新K线数据
 
@@ -430,8 +285,6 @@ def update_gem_klines(**params):
 
         for i, (symbol, name) in enumerate(stocks, 1):
             # 限速：首只之前不 sleep
-            # TODO: 提取嵌套逻辑为独立方法
-
             if i > 1 and interval and interval[1] > 0:
                 time.sleep(random.uniform(*interval))
             try:
@@ -488,9 +341,7 @@ def update_gem_klines(**params):
                         float(k.amount),
                         float(k.turnover_rate),
                     ))
-                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                    inserted += 1  # TODO: Use parameterized queries
+                    inserted += 1
 
                 conn.commit()
 

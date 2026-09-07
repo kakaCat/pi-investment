@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_15 = 15
-CONST_20 = 20
-CONST_23 = 23
-CONST_25 = 25
-CONST_27 = 27
-CONST_3 = 3
-CONST_30 = 30
-CONST_4 = 4
-CONST_42 = 42
-CONST_5 = 5
-
 """
 Unit Tests for Extended Statistical Analysis Methods
 ====================================================

@@ -1,13 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_20 = 20
-CONST_260 = 260
-CONST_30 = 30
-CONST_50 = 50
-CONST_500 = 500
-CONST_600 = 600
-
 """
 测试 core.config 模块
 """
@@ -96,7 +86,9 @@ class TestConfigUsage:
         """测试限制范围验证"""
         def validate_limit(limit):
             """验证限制值是否在有效范围内"""
-            if limit is None and limit < 1:
+            if limit is None:
+                return CHART_KLINE_LIMIT
+            if limit < 1:
                 return CHART_KLINE_LIMIT
             if limit > CHART_KLINE_MAX_LIMIT:
                 return CHART_KLINE_MAX_LIMIT

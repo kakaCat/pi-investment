@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 Pattern Recognition Factors
 ============================
@@ -25,12 +22,6 @@ from domain.factors.library.base import TechnicalFactorCalculator
 from infrastructure.quantlib.core.base_calculator import validate_inputs, timing_decorator
 from infrastructure.quantlib.core.exceptions import InsufficientDataError
 
-
-# TODO: Refactor - class too large (27 methods, target < 15)
-
-# TODO: Refactor large class (27 methods, target < 20)
-# TODO: Refactor large class (27 methods, target < 20)
-# TODO: 大类 27个方法 - 考虑拆分为多个类或使用组合模式
 
 class PatternRecognitionFactors(TechnicalFactorCalculator):
     """
@@ -120,211 +111,212 @@ class PatternRecognitionFactors(TechnicalFactorCalculator):
             return 'Strong bearish signal'
         elif value < 0:
             return 'Bearish signal'
-        return 'No pattern detected'
+        else:
+            return 'No pattern detected'
 
-# =========================================================================
-# Single Candle Patterns
-# =========================================================================
+    # =========================================================================
+    # Single Candle Patterns
+    # =========================================================================
 
-@validate_inputs
-@timing_decorator
-def cdl_doji(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Doji - 十字星"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLDOJI(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_doji', 'Doji', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_doji(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Doji - 十字星"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLDOJI(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_doji', 'Doji', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_hammer(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Hammer - 锤子线"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLHAMMER(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_hammer', 'Hammer', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_hammer(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Hammer - 锤子线"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLHAMMER(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_hammer', 'Hammer', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_inverted_hammer(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Inverted Hammer - 倒锤线"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLINVERTEDHAMMER(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_inverted_hammer', 'Inverted Hammer', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_inverted_hammer(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Inverted Hammer - 倒锤线"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLINVERTEDHAMMER(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_inverted_hammer', 'Inverted Hammer', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_hanging_man(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Hanging Man - 上吊线"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLHANGINGMAN(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_hanging_man', 'Hanging Man', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_hanging_man(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Hanging Man - 上吊线"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLHANGINGMAN(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_hanging_man', 'Hanging Man', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_shooting_star(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Shooting Star - 流星线"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLSHOOTINGSTAR(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_shooting_star', 'Shooting Star', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_shooting_star(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Shooting Star - 流星线"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLSHOOTINGSTAR(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_shooting_star', 'Shooting Star', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_marubozu(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Marubozu - 光头光脚"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLMARUBOZU(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_marubozu', 'Marubozu', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_marubozu(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Marubozu - 光头光脚"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLMARUBOZU(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_marubozu', 'Marubozu', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_spinning_top(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Spinning Top - 陀螺"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLSPINNINGTOP(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_spinning_top', 'Spinning Top', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_spinning_top(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Spinning Top - 陀螺"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLSPINNINGTOP(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_spinning_top', 'Spinning Top', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_dragonfly_doji(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Dragonfly Doji - 蜻蜓十字"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLDRAGONFLYDOJI(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_dragonfly_doji', 'Dragonfly Doji', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_dragonfly_doji(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Dragonfly Doji - 蜻蜓十字"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLDRAGONFLYDOJI(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_dragonfly_doji', 'Dragonfly Doji', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_gravestone_doji(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Gravestone Doji - 墓碑十字"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLGRAVESTONEDOJI(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_gravestone_doji', 'Gravestone Doji', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_gravestone_doji(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Gravestone Doji - 墓碑十字"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLGRAVESTONEDOJI(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_gravestone_doji', 'Gravestone Doji', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_long_line(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Long Line Candle - 长线蜡烛"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLLONGLINE(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_long_line', 'Long Line', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_long_line(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Long Line Candle - 长线蜡烛"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLLONGLINE(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_long_line', 'Long Line', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_short_line(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Short Line Candle - 短线蜡烛"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLSHORTLINE(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_short_line', 'Short Line', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_short_line(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Short Line Candle - 短线蜡烛"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLSHORTLINE(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_short_line', 'Short Line', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_rickshaw_man(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Rickshaw Man - 黄包车夫"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLRICKSHAWMAN(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_rickshaw_man', 'Rickshaw Man', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_rickshaw_man(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Rickshaw Man - 黄包车夫"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLRICKSHAWMAN(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_rickshaw_man', 'Rickshaw Man', klines)
 
-# =========================================================================
-# Two Candle Patterns
-# =========================================================================
+    # =========================================================================
+    # Two Candle Patterns
+    # =========================================================================
 
-@validate_inputs
-@timing_decorator
-def cdl_engulfing(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Engulfing Pattern - 吞没形态"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLENGULFING(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_engulfing', 'Engulfing', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_engulfing(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Engulfing Pattern - 吞没形态"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLENGULFING(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_engulfing', 'Engulfing', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_harami(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Harami Pattern - 孕线形态"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLHARAMI(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_harami', 'Harami', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_harami(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Harami Pattern - 孕线形态"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLHARAMI(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_harami', 'Harami', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_harami_cross(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Harami Cross Pattern - 十字孕线"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLHARAMICROSS(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_harami_cross', 'Harami Cross', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_harami_cross(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Harami Cross Pattern - 十字孕线"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLHARAMICROSS(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_harami_cross', 'Harami Cross', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_piercing(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Piercing Pattern - 刺透形态"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLPIERCING(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_piercing', 'Piercing', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_piercing(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Piercing Pattern - 刺透形态"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLPIERCING(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_piercing', 'Piercing', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_dark_cloud_cover(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Dark Cloud Cover - 乌云盖顶"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLDARKCLOUDCOVER(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_dark_cloud_cover', 'Dark Cloud Cover', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_dark_cloud_cover(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Dark Cloud Cover - 乌云盖顶"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLDARKCLOUDCOVER(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_dark_cloud_cover', 'Dark Cloud Cover', klines)
 
-# =========================================================================
-# Three Candle Patterns
-# =========================================================================
+    # =========================================================================
+    # Three Candle Patterns
+    # =========================================================================
 
-@validate_inputs
-@timing_decorator
-def cdl_three_black_crows(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Three Black Crows - 三只黑乌鸦"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDL3BLACKCROWS(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_three_black_crows', 'Three Black Crows', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_three_black_crows(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Three Black Crows - 三只黑乌鸦"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDL3BLACKCROWS(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_three_black_crows', 'Three Black Crows', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_three_white_soldiers(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Three White Soldiers - 三白兵"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDL3WHITESOLDIERS(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_three_white_soldiers', 'Three White Soldiers', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_three_white_soldiers(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Three White Soldiers - 三白兵"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDL3WHITESOLDIERS(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_three_white_soldiers', 'Three White Soldiers', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_morning_star(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Morning Star - 早晨之星"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLMORNINGSTAR(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_morning_star', 'Morning Star', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_morning_star(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Morning Star - 早晨之星"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLMORNINGSTAR(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_morning_star', 'Morning Star', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_evening_star(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Evening Star - 黄昏之星"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLEVENINGSTAR(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_evening_star', 'Evening Star', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_evening_star(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Evening Star - 黄昏之星"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLEVENINGSTAR(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_evening_star', 'Evening Star', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_morning_doji_star(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Morning Doji Star - 早晨十字星"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLMORNINGDOJISTAR(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_morning_doji_star', 'Morning Doji Star', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_morning_doji_star(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Morning Doji Star - 早晨十字星"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLMORNINGDOJISTAR(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_morning_doji_star', 'Morning Doji Star', klines)
 
-@validate_inputs
-@timing_decorator
-def cdl_evening_doji_star(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Evening Doji Star - 黄昏十字星"""
-    opens, highs, lows, closes = self._extract_ohlc(klines)
-    pattern = talib.CDLEVENINGDOJISTAR(opens, highs, lows, closes)
-    return self._create_pattern_result(pattern, 'cdl_evening_doji_star', 'Evening Doji Star', klines)
+    @validate_inputs
+    @timing_decorator
+    def cdl_evening_doji_star(self, klines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Evening Doji Star - 黄昏十字星"""
+        opens, highs, lows, closes = self._extract_ohlc(klines)
+        pattern = talib.CDLEVENINGDOJISTAR(opens, highs, lows, closes)
+        return self._create_pattern_result(pattern, 'cdl_evening_doji_star', 'Evening Doji Star', klines)
 
-# Note: Due to length constraints, only key patterns are shown above.
-# In production, all 61 patterns would be implemented following the same pattern.
-# Additional patterns include: two_crows, three_inside, three_outside, abandoned_baby,
-# advance_block, belt_hold, breakaway, closing_marubozu, conceal_baby_swall,
-# counterattack, doji_star, gap_side_side_white, high_wave, hikkake, hikkake_mod,
-# homing_pigeon, identical_three_crows, in_neck, kicking, kicking_by_length,
-# ladder_bottom, long_legged_doji, mat_hold, matching_low, on_neck, rise_fall_three_methods,
-# separating_lines, stalled_pattern, stick_sandwich, takuri, tasuki_gap, three_line_strike,
-# three_stars_in_south, thrusting, tristar, unique_three_river, upside_gap_two_crows,
-# xside_gap_three_methods
+    # Note: Due to length constraints, only key patterns are shown above.
+    # In production, all 61 patterns would be implemented following the same pattern.
+    # Additional patterns include: two_crows, three_inside, three_outside, abandoned_baby,
+    # advance_block, belt_hold, breakaway, closing_marubozu, conceal_baby_swall,
+    # counterattack, doji_star, gap_side_side_white, high_wave, hikkake, hikkake_mod,
+    # homing_pigeon, identical_three_crows, in_neck, kicking, kicking_by_length,
+    # ladder_bottom, long_legged_doji, mat_hold, matching_low, on_neck, rise_fall_three_methods,
+    # separating_lines, stalled_pattern, stick_sandwich, takuri, tasuki_gap, three_line_strike,
+    # three_stars_in_south, thrusting, tristar, unique_three_river, upside_gap_two_crows,
+    # xside_gap_three_methods

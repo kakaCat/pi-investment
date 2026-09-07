@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - calculate() = 159 lines
-
-
-# Extracted Constants
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_1eNEG_08 = 1e-08
-
-CONST_1_5 = 1.5
-
-CONST_6 = 6
-
-CONST_50 = 50
-
-
-
 """
 Efficient Frontier Calculator
 ==============================
@@ -82,18 +61,7 @@ class EfficientFrontierCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
-    # TODO: Refactor - function too long (160 lines, target < 80)
-
-# TODO: Split long function (159 lines, target < 100)
-    # TODO: 长函数 166行 - 建议拆分为多个小函数
-
     def calculate(self,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
                   expected_returns: Union[np.ndarray, pd.Series, List],
                   cov_matrix: Union[np.ndarray, pd.DataFrame],
                   risk_free_rate: Optional[float] = None,

@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """文件存储助手（框架无关）— 从 adapters/inbound/api/shared.py 解耦而来
 
 路径常量 + pipeline 运行记录 + watchlist/groups 文件读写。

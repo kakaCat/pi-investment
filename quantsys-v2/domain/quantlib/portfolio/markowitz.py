@@ -1,26 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - optimize() = 120 lines
-
-
-# Extracted Constants
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_1eNEG_09 = 1e-09
-
-CONST_1eNEG_08 = 1e-08
-
-CONST_1eNEG_06 = 1e-06
-
-CONST_6 = 6
-
-CONST_10000000000_0 = 10000000000.0
-
-
-
 """
 Markowitz Mean-Variance Optimization
 =====================================
@@ -97,17 +74,7 @@ class MarkowitzOptimizer(BaseCalculator):
         """Get list of supported optimization objectives."""
         return ['min_variance', 'max_sharpe', 'target_return']
 
-    # TODO: Refactor - function too long (121 lines, target < 80)
-
-# TODO: Split long function (120 lines, target < 100)
-    # TODO: 长函数 126行 - 建议拆分为多个小函数
-
     def optimize(self,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
                  expected_returns: Union[np.ndarray, pd.Series, List],
                  cov_matrix: Union[np.ndarray, pd.DataFrame],
                  objective: str = 'max_sharpe',

@@ -1,15 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_1eNEG_06 = 1e-06
-
-CONST_0_95 = 0.95
-
-
-
 """
 Constraint Manager for Portfolio Optimization
 ==============================================

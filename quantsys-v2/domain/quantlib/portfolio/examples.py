@@ -1,38 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - example_5_constrained_optimization() = 112 lines
-#   - example_6_complete_workflow() = 117 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.005, 0.01, 0.015, 0.02, 0.025]...
-
-
-# Extracted Constants
-
-CONST_0_005 = 0.005
-
-CONST_0_01 = 0.01
-
-CONST_0_015 = 0.015
-
-CONST_0_02 = 0.02
-
-CONST_0_025 = 0.025
-
-CONST_0_03 = 0.03
-
-CONST_0_04 = 0.04
-
-CONST_0_05 = 0.05
-
-CONST_0_06 = 0.06
-
-CONST_0_07 = 0.07
-
-
-
 """
 Portfolio Optimization Examples
 ================================
@@ -446,16 +411,7 @@ def example_4_efficient_frontier():
     return result
 
 
-# TODO: Refactor - function too long (113 lines, target < 80)
-
-# TODO: Split long function (112 lines, target < 100)
-# TODO: 长函数 117行 - 建议拆分为多个小函数
-
 def example_5_constrained_optimization():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     """
     Example 5: Portfolio Optimization with Constraints
 
@@ -569,17 +525,8 @@ def example_5_constrained_optimization():
         'constraint_manager': constraint_mgr
     }
 
-# TODO: Refactor - function too long (118 lines, target < 80)
 
-
-# TODO: 长函数 122行 - 建议拆分为多个小函数
-
-# TODO: Split long function (117 lines, target < 100)
 def example_6_complete_workflow():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     """
     Example 6: Complete Portfolio Construction Workflow
 

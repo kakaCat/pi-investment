@@ -1,59 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [1e-09, 0.2, 0.5, 0.55, 3]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_1eNEG_09 = 1e-09
-
-CONST_0_2 = 0.2
-
-CONST_0_5 = 0.5
-
-CONST_0_55 = 0.55
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-
-
-CONST_1eNEG_09 = 1e-09
-
-CONST_0_2 = 0.2
-
-CONST_0_5 = 0.5
-
-CONST_0_55 = 0.55
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-
-
 """ML 引擎 API - FastAPI 版（从 Flask ml_routes.py 迁移，响应契约保持一致）
 
 复用 ml_routes.py 的模块级辅助函数（_convert_keys_to_snake/_ml_error_handler/
@@ -83,30 +27,32 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(tags=["ML - 机器学习"])
 
 
-def _validate_train_params(data):
-    """验证训练参数"""
+@router.post('/api/ml/train')
+@_ml_error_handler
+def ml_train(payload: Optional[Dict[str, Any]] = Body(None)):
+    """Train an ML model (xgboost / lightgbm / randomforest)."""
+    data = _convert_keys_to_snake(payload or {})
+
     model_type = data.get("model_type", "xgboost")
-    if model_type == "randomforest" and model_type not in ("xgboost", "lightgbm"):
-        return None, JSONResponse(status_code=400, content={
-            "success": False,
-            "error": f"不支持的模型类型: {model_type}"
-        })
-    return model_type, None
+    start_date = data.get("start_date", "2020-01-01")
+    end_date = data.get("end_date", datetime.now().strftime("%Y-%m-%d"))
+    test_size = float(data.get("test_size", 0.2))
+    symbols: list = [_strip_suffix(s) for s in (data.get("symbols") or [])] if data.get("symbols") else None
+    params = data.get("params", {})
 
-def _get_train_symbols(data):
-    """获取训练股票列表"""
-    symbols = data.get("symbols")
-    if symbols:
-        return [_strip_suffix(s) for s in symbols]
+    if model_type == "randomforest":
+        model_type = "xgboost"
+    if model_type not in ("xgboost", "lightgbm"):
+        return JSONResponse(status_code=400, content={"success": False, "error": f"不支持的模型类型: {model_type}"})
 
-    stocks = stock_repo.get_all(limit=50)
-    symbols = [s["symbol"] for s in stocks]
     if not symbols:
-        return None
-    return symbols
+        stocks = stock_repo.get_all(limit=50)
+        symbols = [s["symbol"] for s in stocks]
+    if not symbols:
+        return JSONResponse(status_code=400, content={"success": False, "error": "没有可用的股票数据"})
 
-def _fetch_klines_parallel(symbols: List[str], start_date: str, end_date: str):
-    """并行获取K线数据"""
+    logger.info("ML train: model=%s, symbols=%d", model_type, len(symbols))
+
     klines_dict: dict = {}
 
     def _fetch_one_kline(sym: str):
@@ -129,62 +75,80 @@ def _fetch_klines_parallel(symbols: List[str], start_date: str, end_date: str):
             sym, rows = future.result()
             if rows:
                 klines_dict[sym] = rows
-    return klines_dict
 
-def _process_factors_for_symbol(sym: str, klines_dict: dict, start_date: str, end_date: str):
-    """处理单个股票的因子数据"""
-    try:
-        factors_data = factor_repo.get_factors_range(sym, start_date, end_date)
-        if factors_data is None or factors_data.is_empty():
+    if not klines_dict:
+        return JSONResponse(status_code=400, content={"success": False, "error": "指定日期范围内没有K线数据"})
+
+    all_rows: list = []
+
+    def _process_one_symbol(sym: str):
+        try:
+            factors_data = factor_repo.get_factors_range(sym, start_date, end_date)
+            # get_factors_range 返回 polars DataFrame：bool(df) 抛 TypeError，
+            # 直接迭代产出 Series 而非 dict，必须用 is_empty + iter_rows(named=True)
+            if factors_data is None or factors_data.is_empty():
+                return []
+            by_date: dict = {}
+            for fv in factors_data.iter_rows(named=True):
+                d = str(fv.get("factor_date") or fv.get("date", ""))
+                if not d:
+                    continue
+                by_date.setdefault(d, {})[fv["factor_name"]] = float(fv.get("factor_value", 0) or 0)
+            close_map: dict = {}
+            klines = klines_dict.get(sym, [])
+            for k in klines:
+                d = str(k.get("date", k.get("trade_date", "")))
+                close_map[d] = float(k.get("close", 0))
+            rows = []
+            sorted_dates = sorted(by_date.keys())
+            for i in range(len(sorted_dates) - 1):
+                cur_date = sorted_dates[i]
+                next_date = sorted_dates[i + 1]
+                cur_close = close_map.get(cur_date, 0)
+                next_close = close_map.get(next_date, 0)
+                if cur_close <= 0:
+                    continue
+                row = dict(by_date[cur_date])
+                row["__target"] = 1 if next_close > cur_close else 0
+                row["__symbol"] = sym
+                row["__date"] = cur_date
+                rows.append(row)
+            return rows
+        except Exception:
+            logger.debug("Skip factor data for %s", sym)
             return []
 
-        by_date: dict = {}
-        for fv in factors_data.iter_rows(named=True):
-            d = str(fv.get("factor_date") or fv.get("date", ""))
-            if not d:
-                continue
-            by_date.setdefault(d, {})[fv["factor_name"]] = float(fv.get("factor_value", 0) or 0)
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(_process_one_symbol, s): s for s in symbols}
+        for future in as_completed(futures):
+            all_rows.extend(future.result())
 
-        close_map: dict = {}
-        klines = klines_dict.get(sym, [])
-        for k in klines:
-            d = str(k.get("date", k.get("trade_date", "")))
-            close_map[d] = float(k.get("close", 0))
+    time_sleep = __import__("time")
+    time_sleep.sleep(1.0)
 
-        rows = []
-        sorted_dates = sorted(by_date.keys())
-        for i in range(len(sorted_dates) - 1):
-            cur_date = sorted_dates[i]
-            next_date = sorted_dates[i + 1]
-            cur_close = close_map.get(cur_date, 0)
-            next_close = close_map.get(next_date, 0)
-            if cur_close <= 0:
-                continue
-            row = dict(by_date[cur_date])
-            row["__target"] = 1 if next_close > cur_close else 0
-            row["__symbol"] = sym
-            row["__date"] = cur_date
-            rows.append(row)
-        return rows
-    except Exception:
-        logger.debug("Skip factor data for %s", sym)
-        return []
+    if len(all_rows) < 10:
+        return JSONResponse(status_code=400, content={"success": False, "error": f"有效样本不足 (仅有{len(all_rows)}条)"})
 
-def _prepare_training_data(all_rows: list):
-    """准备训练数据"""
     X = pd.DataFrame(all_rows)
     y = X.pop("__target")
     X = X.drop(columns=["__symbol", "__date"], errors="ignore")
     X = X.fillna(X.median(numeric_only=True)).fillna(0)
-
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     X = pd.DataFrame(X_scaled, columns=X.columns)
-    return X, y
 
-def _save_model_to_db(model_type: str, version: str, model_path: str, results: dict, X: pd.DataFrame, params: dict):
-    """保存模型元数据到数据库"""
+    from application.services.ml_pipeline.trainer import MLTrainer
+    trainer = MLTrainer(model_type=model_type)
+    results = trainer.train(X, y, test_size=test_size, params=params)
+
+    version = datetime.now().strftime("%Y%m%d_%H%M%S")
+    model_path = str(MODEL_DIR / f"{model_type}_{version}.pkl")
+    try:
+        trainer.save_model(version=version)
+    except Exception as e:
+        logger.warning("Model file save skipped: %s", e)
+
     train_date = datetime.now(timezone.utc).isoformat()
     feature_importance = results.get("feature_importance", {})
     feature_names = list(X.columns)
@@ -192,18 +156,20 @@ def _save_model_to_db(model_type: str, version: str, model_path: str, results: d
 
     def _to_native(val):
         import numpy as _np
-        if isinstance(val, dict) and isinstance(val, (list, tuple)):
+        if isinstance(val, (dict,)):
+            return {k: _to_native(v) for k, v in val.items()}
+        if isinstance(val, (list, tuple)):
             return [_to_native(v) for v in val]
-        if isinstance(val, _np.floating) and isinstance(val, _np.integer):
+        if isinstance(val, (_np.floating,)):
+            return float(val)
+        if isinstance(val, (_np.integer,)):
             return int(val)
-        if isinstance(val, _np.bool_):
+        if isinstance(val, (_np.bool_,)):
             return bool(val)
         return val
 
     db_saved = False
     last_error = None
-    time_sleep = __import__("time")
-
     for retry_attempt in range(1, 4):
         try:
             _get_model_repo().save_model(_to_native({
@@ -218,275 +184,32 @@ def _save_model_to_db(model_type: str, version: str, model_path: str, results: d
             }))
             db_saved = True
             break
-        except (RuntimeError, Exception) as e:
+        except RuntimeError as e:
+            last_error = e
+        except Exception as e:
             last_error = e
         if retry_attempt < 3:
-            time_sleep.sleep(retry_attempt * 2)
+            wait = retry_attempt * 2
+            time_sleep.sleep(wait)
 
     if not db_saved:
         logger.error("Model metadata DB write FAILED after 3 retries: %s", last_error)
 
-@router.post('/api/ml/train')
-@_ml_error_handler
-def ml_train(payload: Optional[Dict[str, Any]] = Body(None)):
-    """Train an ML model (xgboost / lightgbm / randomforest)."""
-    data = _convert_keys_to_snake(payload or {})
-
-    # 验证参数
-    model_type, error_resp = _validate_train_params(data)
-    if error_resp:
-        return error_resp
-
-    start_date = data.get("start_date", "2020-01-01")
-    end_date = data.get("end_date", datetime.now().strftime("%Y-%m-%d"))
-    test_size = float(data.get("test_size", 0.2))
-    params = data.get("params", {})
-
-    # 获取股票列表
-    symbols = _get_train_symbols(data)
-    if not symbols:
-        return JSONResponse(status_code=400, content={"success": False, "error": "没有可用的股票数据"})
-
-    logger.info("ML train: model=%s, symbols=%d", model_type, len(symbols))
-
-    # 并行获取K线数据
-    klines_dict = _fetch_klines_parallel(symbols, start_date, end_date)
-    if not klines_dict:
-        return JSONResponse(status_code=400, content={"success": False, "error": "指定日期范围内没有K线数据"})
-
-    # 并行处理因子数据
-    all_rows: list = []
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = {executor.submit(_process_factors_for_symbol, s, klines_dict, start_date, end_date): s for s in symbols}
-        for future in as_completed(futures):
-            all_rows.extend(future.result())
-
-    __import__("time").sleep(1.0)
-
-    if len(all_rows) < 10:
-        return JSONResponse(status_code=400, content={"success": False, "error": f"有效样本不足 (仅有{len(all_rows)}条)"})
-
-    # 准备训练数据
-    X, y = _prepare_training_data(all_rows)
-
-    # 训练模型
-    from application.services.ml_pipeline.trainer import MLTrainer
-    trainer = MLTrainer(model_type=model_type)
-    results = trainer.train(X, y, test_size=test_size, params=params)
-
-    # 保存模型文件
-    version = datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_path = str(MODEL_DIR / f"{model_type}_{version}.pkl")
-    try:
-        trainer.save_model(version=version)
-    except Exception as e:
-        logger.warning("Model file save skipped: %s", e)
-
-    # 保存模型元数据到数据库
-    _save_model_to_db(model_type, version, model_path, results, X, params)
-
-    # 构建返回结果
-    feature_importance = results.get("feature_importance", {})
     training_results = {
         "train_accuracy": results.get("train_accuracy", 0), "test_accuracy": results.get("test_accuracy", 0),
         "precision": results.get("test_precision", 0), "recall": results.get("test_recall", 0),
         "f1_score": results.get("test_f1", 0), "feature_importance": feature_importance,
         "version": version, "model_type": model_type,
-        "train_samples": int(len(X)), "feature_count": len(X.columns),
+        "train_samples": int(len(X)), "feature_count": len(feature_names),
     }
     return {"success": True, "data": {"training_results": _sanitize_for_json(training_results)}}
 
-
-def _check_model_deprecated(model_type: str):
-    """检查模型是否已废弃"""
-    if model_type in ("xgboost", "randomforest"):
-        return JSONResponse(status_code=200, content={
-            "success": False,
-            "error": f"{model_type} 模型已下线（2026-05 旧模型，特征与 DB 因子不匹配，输出恒定不可信）。请改用 model_type='lightgbm'（每日重训、特征同源）",
-            "model_gate": {"passed": False, "level": "rejected", "reason": "deprecated_model"},
-        })
-    return None
-
-def _resolve_model_version(model_type: str, version: str):
-    """解析模型版本"""
-    if version == "latest":
-        resolved = _resolve_latest_version(model_type)
-        if not resolved:
-            return None, JSONResponse(status_code=200, content={
-                "success": False,
-                "error": f"没有可用的 {model_type} 模型，请先训练"
-            })
-        return resolved, None
-    return version, None
-
-def _load_predictor(model_type: str, version: str):
-    """加载预测器"""
-    from application.services.ml_pipeline.predictor import MLPredictor
-    predictor = MLPredictor(model_type=model_type)
-    try:
-        predictor.load_model(version=version)
-        return predictor, None
-    except FileNotFoundError:
-        return None, JSONResponse(status_code=200, content={
-            "success": False,
-            "error": f"模型未找到: {model_type}_{version}"
-        })
-    except Exception as e:
-        return None, JSONResponse(status_code=500, content={
-            "success": False,
-            "error": f"模型加载失败: {str(e)}"
-        })
-
-def _check_model_gate(predictor):
-    """检查模型质量门禁"""
-    test_accuracy = (predictor.model_info or {}).get("test_accuracy")
-    model_gate: Dict[str, Any] = {"passed": True, "level": "normal"}
-
-    if test_accuracy is None:
-        return model_gate, None
-
-    try:
-        acc = float(test_accuracy)
-        if acc < 0.50:
-            return None, JSONResponse(status_code=200, content={
-                "success": False,
-                "error": f"模型上线门禁拦截：test_accuracy={acc:.3f} 低于随机水平(0.50)，预测不可信，拒绝服务",
-                "model_gate": {"passed": False, "level": "rejected", "test_accuracy": acc},
-            })
-        elif acc < 0.55:
-            model_gate = {
-                "passed": True, "level": "degraded", "test_accuracy": acc,
-                "warning": f"test_accuracy={acc:.3f} 接近随机(0.50~0.55)，预测价值有限，谨慎使用"
-            }
-    except (TypeError, ValueError):
-        pass
-
-    return model_gate, None
-
-def _prepare_features_from_db(symbols: List[str], model_features: List[str], scaler):
-    """从数据库因子准备特征"""
-    rows = []
-    for symbol in symbols:
-        try:
-            fobjs = factor_repo.get_latest_factors(symbol)
-            fdict: dict = {}
-            fdate = ""
-            for fo in fobjs or []:
-                if isinstance(fo, dict):
-                    name, val, d = fo.get("factor_name"), fo.get("factor_value"), fo.get("factor_date")
-                else:
-                    name = getattr(fo, "factor_name", None)
-                    val = getattr(fo, "factor_value", None)
-                    d = getattr(fo, "factor_date", None)
-                if not name:
-                    continue
-                try:
-                    fdict[name] = float(val or 0)
-                except (TypeError, ValueError):
-                    fdict[name] = 0.0
-                d = str(d or "")
-                if d > fdate:
-                    fdate = d
-            rows.append({"symbol": symbol, "date": fdate,
-                         **{n: fdict.get(n, 0.0) for n in model_features}})
-        except Exception as e:
-            logger.warning("Skip %s factors: %s", symbol, str(e))
-
-    if not rows:
-        return None, None, JSONResponse(status_code=400, content={
-            "success": False,
-            "error": "没有可用的因子数据"
-        })
-
-    metadata = pd.DataFrame([{"symbol": r["symbol"], "date": r["date"]} for r in rows])
-    X_raw = pd.DataFrame(rows)[model_features]
-    X_ordered = pd.DataFrame(scaler.transform(X_raw), columns=model_features)
-    return metadata, X_ordered, None
-
-def _prepare_features_legacy(symbols: List[str], predictor):
-    """使用旧方法从K线准备特征"""
-    from application.services.ml_pipeline.feature_engineering import FeatureEngineer
-
-    end_date = datetime.now().strftime("%Y-%m-%d")
-    start_date = (datetime.now() - pd.DateOffset(days=180)).strftime("%Y-%m-%d")
-
-    klines_dict: dict = {}
-    for symbol in symbols:
-        try:
-            rows = kline_repo.get_daily_klines(symbol, start_date, end_date)
-            import polars as pl
-            if isinstance(rows, pl.DataFrame):
-                if rows.is_empty():
-                    continue
-                rows = rows.to_dicts()
-            if rows:
-                klines_dict[symbol] = [_normalize_kline(r) for r in rows]
-        except Exception as e:
-            logger.warning("Skip %s (error: %s)", symbol, str(e))
-
-    if not klines_dict:
-        return None, None, JSONResponse(status_code=400, content={
-            "success": False,
-            "error": "没有可用的K线数据"
-        })
-
-    engineer = FeatureEngineer()
-    try:
-        features_df = engineer.extract_features(klines_dict)
-    except Exception as e:
-        return None, None, JSONResponse(status_code=500, content={
-            "success": False,
-            "error": f"特征提取失败: {str(e)}"
-        })
-
-    if features_df.empty:
-        return None, None, JSONResponse(status_code=400, content={
-            "success": False,
-            "error": "无法提取特征"
-        })
-
-    try:
-        metadata, X = engineer.prepare_features(features_df, handle_missing="fill", fit_scaler=True)
-    except Exception as e:
-        return None, None, JSONResponse(status_code=500, content={
-            "success": False,
-            "error": f"特征准备失败: {str(e)}"
-        })
-
-    missing = set(predictor.feature_names) - set(X.columns)
-    if missing:
-        for col in missing:
-            X[col] = 0.0
-    X_ordered = X[predictor.feature_names]
-    return metadata, X_ordered, None
-
-def _build_predictions(metadata, preds):
-    """构建预测结果"""
-    predictions: list = []
-    for idx, row in metadata.iterrows():
-        prob_up = float(preds.iloc[idx]["prob_up"]) if "prob_up" in preds.columns else 0.5
-        pred_class = int(preds.iloc[idx]["prediction"])
-        confidence = _confidence_label(prob_up)
-        predictions.append({
-            "symbol": row.get("symbol", ""), "date": str(row.get("date", "")),
-            "predicted_class": pred_class, "probability": round(prob_up, 4), "confidence": confidence,
-        })
-
-    # 去重，保留最新日期
-    seen: set = set()
-    deduped: list = []
-    for p in sorted(predictions, key=lambda x: x["date"], reverse=True):
-        sym = p["symbol"]
-        if sym not in seen:
-            seen.add(sym)
-            deduped.append(p)
-    deduped.reverse()
-    return deduped
 
 @router.post('/api/ml/predict')
 @_ml_error_handler
 def ml_predict(payload: Optional[Dict[str, Any]] = Body(None)):
     """Make batch predictions for given symbols."""
+    start_time = time.time()
     data = _convert_keys_to_snake(payload or {})
 
     model_type = data.get("model_type", "lightgbm")
@@ -497,51 +220,165 @@ def ml_predict(payload: Optional[Dict[str, Any]] = Body(None)):
     if not symbols:
         return JSONResponse(status_code=400, content={"success": False, "error": "请指定股票代码"})
 
-    # 检查废弃模型
-    deprecated_resp = _check_model_deprecated(model_type)
-    if deprecated_resp:
-        return deprecated_resp
+    # 2026-09-02 下线死模型：xgboost/randomforest 为 2026-05 旧模型，
+    # 特征名与 DB 因子不匹配 → 输出恒定 0.4659 不可信（S1 根因）。
+    # 路由层直接拒绝并指向 lightgbm，防止任何调用方误用。
+    if model_type in ("xgboost", "randomforest"):
+        return JSONResponse(status_code=200, content={
+            "success": False,
+            "error": f"{model_type} 模型已下线（2026-05 旧模型，特征与 DB 因子不匹配，输出恒定不可信）。请改用 model_type='lightgbm'（每日重训、特征同源）",
+            "model_gate": {"passed": False, "level": "rejected", "reason": "deprecated_model"},
+        })
 
-    # 解析版本号
-    version, error_resp = _resolve_model_version(model_type, version)
-    if error_resp:
-        return error_resp
+    if version == "latest":
+        resolved = _resolve_latest_version(model_type)
+        if not resolved:
+            return JSONResponse(status_code=200, content={"success": False, "error": f"没有可用的 {model_type} 模型，请先训练"})
+        version = resolved
 
-    # 加载预测器
-    predictor, error_resp = _load_predictor(model_type, version)
-    if error_resp:
-        return error_resp
+    from application.services.ml_pipeline.feature_engineering import FeatureEngineer
+    from application.services.ml_pipeline.predictor import MLPredictor
 
-    # 检查模型质量门禁
-    model_gate, error_resp = _check_model_gate(predictor)
-    if error_resp:
-        return error_resp
+    predictor = MLPredictor(model_type=model_type)
+    try:
+        predictor.load_model(version=version)
+    except FileNotFoundError as e:
+        return JSONResponse(status_code=200, content={"success": False, "error": f"模型未找到: {model_type}_{version}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": f"模型加载失败: {str(e)}"})
 
-    # 准备特征
+    # ── M8-2 上线门禁（2026-09-01）：防止低质模型上线 ──────────────────
+    # test_accuracy < 0.50 低于随机水平（二分类掷硬币 0.5），上线有害 → 拒服
+    # 0.50 ≤ test_accuracy < 0.55 接近随机，预测价值有限 → degraded 标注
+    # 阈值参考：factor freshness 门禁同款分级（正常/warning/拒服）
+    test_accuracy = (predictor.model_info or {}).get("test_accuracy")
+    model_gate: Dict[str, Any] = {"passed": True, "level": "normal"}
+    if test_accuracy is not None:
+        try:
+            acc = float(test_accuracy)
+            if acc < 0.50:
+                return JSONResponse(status_code=200, content={
+                    "success": False,
+                    "error": f"模型上线门禁拦截：{model_type}_{version} test_accuracy={acc:.3f} 低于随机水平(0.50)，预测不可信，拒绝服务",
+                    "model_gate": {"passed": False, "level": "rejected", "test_accuracy": acc},
+                })
+            elif acc < 0.55:
+                model_gate = {"passed": True, "level": "degraded", "test_accuracy": acc,
+                              "warning": f"test_accuracy={acc:.3f} 接近随机(0.50~0.55)，预测价值有限，谨慎使用"}
+        except (TypeError, ValueError):
+            pass
+
     model_features = list(predictor.feature_names or [])
     scaler_path = predictor.model_dir / f"{model_type}_{version}_scaler.pkl"
 
     if model_features and scaler_path.exists():
+        # ── DB 因子路径（RFC003-P3，2026-08-20）──────────────────────────
+        # 预测特征必须与训练同源：新管线模型用 DB 因子（小写，如 rsi14/reversal_5d）
+        # 训练，旧的「K线→FactorRegistry 128因子」路径特征名完全不同，
+        # 缺失补零会导致恒等输出（S1 根因之一，概率恒定 0.4659）。
+        # 标准化使用训练时保存的 scaler，保证特征空间一致。
         import pickle as _pickle
         with open(scaler_path, "rb") as f:
             scaler = _pickle.load(f)
-        metadata, X_ordered, error_resp = _prepare_features_from_db(symbols, model_features, scaler)
+
+        rows = []
+        for symbol in symbols:
+            try:
+                fobjs = factor_repo.get_latest_factors(symbol)
+                fdict: dict = {}
+                fdate = ""
+                for fo in fobjs or []:
+                    if isinstance(fo, dict):
+                        name, val, d = fo.get("factor_name"), fo.get("factor_value"), fo.get("factor_date")
+                    else:
+                        name = getattr(fo, "factor_name", None)
+                        val = getattr(fo, "factor_value", None)
+                        d = getattr(fo, "factor_date", None)
+                    if not name:
+                        continue
+                    try:
+                        fdict[name] = float(val or 0)
+                    except (TypeError, ValueError):
+                        fdict[name] = 0.0
+                    d = str(d or "")
+                    if d > fdate:
+                        fdate = d
+                rows.append({"symbol": symbol, "date": fdate,
+                             **{n: fdict.get(n, 0.0) for n in model_features}})
+            except Exception as e:
+                logger.warning("Skip %s factors: %s", symbol, str(e))
+
+        if not rows:
+            return JSONResponse(status_code=400, content={"success": False, "error": "没有可用的因子数据"})
+
+        metadata = pd.DataFrame([{"symbol": r["symbol"], "date": r["date"]} for r in rows])
+        X_raw = pd.DataFrame(rows)[model_features]
+        X_ordered = pd.DataFrame(scaler.transform(X_raw), columns=model_features)
     else:
-        metadata, X_ordered, error_resp = _prepare_features_legacy(symbols, predictor)
+        # ──  legacy 路径（老模型无 scaler 存档，保持原 K线→FactorRegistry 行为）──
+        end_date = datetime.now().strftime("%Y-%m-%d")
+        start_date = (datetime.now() - pd.DateOffset(days=180)).strftime("%Y-%m-%d")
 
-    if error_resp:
-        return error_resp
+        klines_dict: dict = {}
+        for symbol in symbols:
+            try:
+                rows = kline_repo.get_daily_klines(symbol, start_date, end_date)
+                import polars as pl
+                if isinstance(rows, pl.DataFrame):
+                    if rows.is_empty():
+                        continue
+                    rows = rows.to_dicts()
+                if rows:
+                    klines_dict[symbol] = [_normalize_kline(r) for r in rows]
+            except Exception as e:
+                logger.warning("Skip %s (error: %s)", symbol, str(e))
 
-    # 执行预测
+        if not klines_dict:
+            return JSONResponse(status_code=400, content={"success": False, "error": "没有可用的K线数据"})
+
+        engineer = FeatureEngineer()
+        try:
+            features_df = engineer.extract_features(klines_dict)
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"success": False, "error": f"特征提取失败: {str(e)}"})
+        if features_df.empty:
+            return JSONResponse(status_code=400, content={"success": False, "error": "无法提取特征"})
+
+        try:
+            metadata, X = engineer.prepare_features(features_df, handle_missing="fill", fit_scaler=True)
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"success": False, "error": f"特征准备失败: {str(e)}"})
+
+        missing = set(predictor.feature_names) - set(X.columns)
+        if missing:
+            for col in missing:
+                X[col] = 0.0
+        X_ordered = X[predictor.feature_names]
+
     try:
         preds = predictor.predict(X_ordered, return_proba=True)
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "error": f"预测失败: {str(e)}"})
 
-    # 构建预测结果
-    deduped = _build_predictions(metadata, preds)
+    predictions: list = []
+    for idx, row in metadata.iterrows():
+        prob_up = float(preds.iloc[idx]["prob_up"]) if "prob_up" in preds.columns else 0.5
+        pred_class = int(preds.iloc[idx]["prediction"])
+        confidence = _confidence_label(prob_up)
+        predictions.append({
+            "symbol": row.get("symbol", ""), "date": str(row.get("date", "")),
+            "predicted_class": pred_class, "probability": round(prob_up, 4), "confidence": confidence,
+        })
 
-    # 保存预测结果
+    seen: set = set()
+    deduped: list = []
+    for p in sorted(predictions, key=lambda x: x["date"], reverse=True):
+        sym = p["symbol"]
+        if sym not in seen:
+            seen.add(sym)
+            deduped.append(p)
+    deduped.reverse()
+
     try:
         _save_ml_predictions(deduped, model_type, version)
     except Exception as e:

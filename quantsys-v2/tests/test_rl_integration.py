@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100000 = 100000
-CONST_2024 = 2024
-CONST_2026 = 2026
-CONST_25 = 25
-CONST_3 = 3
-CONST_42 = 42
-CONST_5 = 5
-CONST_50 = 50
-CONST_500 = 500
-CONST_60 = 60
-
 """
 RL Modules Integration Tests
 =============================

@@ -1,35 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - run() = 140 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_3 = 0.3
-
-CONST_15 = 15
-
-CONST_60 = 60
-
-CONST_500 = 500
-
-
-
-CONST_0_3 = 0.3
-
-CONST_15 = 15
-
-CONST_60 = 60
-
-CONST_500 = 500
-
-
-
 """
 初始化 A 股全量数据到 PostgreSQL quant.stocks 表。
 
@@ -113,8 +81,6 @@ class EastMoneyClient:
             )
 
             items = data.get('data', {}).get('diff', [])
-            # TODO: 提取嵌套逻辑为独立方法
-
             if not items:
                 break
 
@@ -197,7 +163,9 @@ def normalize_name(name: str) -> str:
 
 def is_valid_name(name: str, code: str) -> bool:
     """判断名称是否有效"""
-    if not name or name == 'nan' and name == code:
+    if not name or name == 'nan':
+        return False
+    if name == code:
         return False
     if re.match(r'^[0-9]+$', name):
         return False
@@ -222,75 +190,7 @@ def _safe_float(value) -> float | None:
 
 # ── 主流程 ────────────────────────────────────────────
 
-# TODO: Refactor - complexity 27 (target < 15)
-
-# TODO: Refactor - function too long (140 lines, target < 80)
-
-def _validate_run_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 run 移到这里
-    return True, None
-
-def _process_run_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 run 移到这里
-    return data
-
-def _build_run_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 run 移到这里
-    return data
-
-# TODO: Split long function (139 lines, target < 100)
-# TODO: Refactor - complexity 27 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-def _check_condition_0():
-    """Check: code and name and name != 'nan'..."""
-    return code and name and name != 'nan'
-
-# TODO: Refactor - complexity 28 (target < 15)
-# TODO: Split long function (140 lines, target < 100)
-# TODO: Refactor - complexity 28 (target < 15)
-# TODO: Split long function (140 lines, target < 100)
-# TODO: 复杂度 28 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 151行 - 建议拆分为多个小函数
-
-def _validate_run_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_run_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_run_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_run_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_run_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_run_result(data):
-    """构建返回结果"""
-    return data
-
 def run():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
     dsn = _resolve_db_dsn()
     if not dsn:
         print("ERROR: 未配置数据库连接。")
@@ -333,8 +233,9 @@ def run():
                     for _, row in exchange_df.iterrows():
                         code = str(row.get('code', '')).strip()
                         name = str(row.get('name', '')).strip()
-                        if code and name and name != 'nan' and _check_condition_0():
-                            pass  # TODO: implement
+                        if code and name and name != 'nan':
+                            exchange_names[code] = normalize_name(name)
+                    print(f"    交易所名称: {len(exchange_names)} 只")
 
                     fixed = 0
                     for s in stocks:

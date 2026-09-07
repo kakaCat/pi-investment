@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_2 = 10.2
-CONST_10_5 = 10.5
-CONST_101 = 101
-CONST_10200_0 = 10200.0
-CONST_105_0 = 105.0
-CONST_120 = 120
-CONST_125 = 125
-CONST_1700_0 = 1700.0
-CONST_2000 = 2000
-CONST_2026 = 2026
-
 """kline_repository rows→polars 显式 schema 测试
 
 事故根因（2026-08-04）：pl.DataFrame(rows) 默认 infer_schema_length=100，
@@ -42,7 +28,9 @@ def _daily_rows(null_column: str, late_value, n_null: int = 120, n_value: int = 
         })
     # 修正：只有目标列超过 100 行后才出现非空
     for i, r in enumerate(rows):
-        if null_column == 'turnover_rate' and null_column == 'remark':
+        if null_column == 'turnover_rate':
+            r['turnover_rate'] = None if i < n_null else late_value
+        if null_column == 'remark':
             r['remark'] = None if i < n_null else late_value
     return rows
 

@@ -1,52 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_65 = 0.65
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-CONST_20 = 20
-
-CONST_202 = 202
-
-CONST_365 = 365
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_409 = 409
-
-
-
-CONST_0_65 = 0.65
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-CONST_20 = 20
-
-CONST_202 = 202
-
-CONST_365 = 365
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_409 = 409
-
-
-
 """流水线 API - FastAPI 版（从 Flask pipeline.py 迁移，响应契约保持一致）
 
 复用 Flask shared 的 pipeline 存储助手（_load_pipeline_runs/_save_pipeline_runs/
@@ -114,7 +65,9 @@ def _get_pipeline_runs_impl(page: int, page_size: int, run_id: Optional[str], st
     page = max(1, page)
     page_size = min(page_size, 100)
     runs = _load_pipeline_runs()
-    if run_id and status:
+    if run_id:
+        runs = [r for r in runs if r.get('runId') == run_id or r.get('run_id') == run_id]
+    if status:
         runs = [r for r in runs if r.get('status') == status]
     runs.sort(key=lambda x: x.get('startTime', ''), reverse=True)
     total = len(runs)
@@ -143,7 +96,9 @@ def _create_pipeline_run_impl(data: Dict[str, Any]):
     pipeline_data = convert_keys_to_snake(data)
     symbols = pipeline_data.get('symbols', [])
     stages = pipeline_data.get('stages', ['data_update', 'factors', 'signals', 'risk'])
-    if not symbols and not symbols:
+    if not symbols:
+        symbols = [s['symbol'] for s in stock_repo.get_all(limit=100)]
+    if not symbols:
         return error_response({'success': False, 'error': 'No symbols provided and no stocks in database'}, 400)
     run_id = f"#P-{str(uuid.uuid4())[:8].upper()}"
     if not acquire_task('pipeline', run_id):

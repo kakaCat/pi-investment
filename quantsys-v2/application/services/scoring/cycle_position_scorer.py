@@ -1,59 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.1, 0.15, 0.3, 0.5, 4]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_4 = 4
-
-CONST_5_0 = 5.0
-
-CONST_15_0 = 15.0
-
-CONST_20_0 = 20.0
-
-CONST_30_0 = 30.0
-
-CONST_35_0 = 35.0
-
-
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_4 = 4
-
-CONST_5_0 = 5.0
-
-CONST_15_0 = 15.0
-
-CONST_20_0 = 20.0
-
-CONST_30_0 = 30.0
-
-CONST_35_0 = 35.0
-
-
-
 """
 周期位置评分器（仅 cyclical 股票使用）
 
@@ -81,67 +25,6 @@ class CyclePositionScorer(BaseScorer):
     HIGH_MAX = 35.0
     ALIGN_MAX = 30.0
 
-    # TODO: Refactor - complexity 17 (target < 15)
-
-    def _validate_score_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 score 移到这里
-        return True, None
-
-    def _process_score_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 score 移到这里
-        return data
-
-    def _build_score_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 score 移到这里
-        return data
-
-    def _validate_score_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 score 移到这里
-        return True, None
-
-    def _process_score_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 score 移到这里
-        return data
-
-    def _build_score_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 score 移到这里
-        return data
-
-# TODO: Refactor - complexity 17 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 17 (target < 15)
-    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-    def _validate_score_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_score_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_score_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_score_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_score_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_score_result(data):
-        """构建返回结果"""
-        return data
-
     def score(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Args:
@@ -151,8 +34,6 @@ class CyclePositionScorer(BaseScorer):
             }
         """
         margins = [m for m in (data.get('quarterly_margins') or [])
-                   # TODO: 提取嵌套逻辑为独立方法
-
                    if m.get('gross_margin') is not None]
         pct_from_high = data.get('pct_from_52w_high')
         if pct_from_high is not None:

@@ -1,21 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-
-
-CONST_20 = 20
-
-
-
 """扫描并分类 TODO/FIXME 注释
 
 Usage:

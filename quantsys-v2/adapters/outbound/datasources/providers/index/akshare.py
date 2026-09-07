@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_6 = 6
-
-CONST_80 = 80
-
-
-
-CONST_6 = 6
-
-CONST_80 = 80
-
-
-
 """Akshare 指数成分股 provider。
 
 获取逻辑来自原 infrastructure/jobs/index_constituents_update_job.py

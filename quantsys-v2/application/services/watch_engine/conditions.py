@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_300 = 300
-
-
-
-CONST_0_01 = 0.01
-
-CONST_300 = 300
-
-
-
 """WatchEngine 条件判定器 —— 纯函数，无 I/O，无外部依赖
 
 语义约定：
@@ -52,52 +31,6 @@ class EvalContext:
     elapsed_fraction: float = 1.0        # 当日已过交易时间比例 0~1
 
 
-# TODO: Refactor - complexity 18 (target < 15)
-
-def _validate_validate_condition_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 validate_condition 移到这里
-    return True, None
-
-def _process_validate_condition_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 validate_condition 移到这里
-    return data
-
-def _build_validate_condition_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 validate_condition 移到这里
-    return data
-
-# TODO: Refactor - complexity 18 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 18 (target < 15)
-# TODO: 复杂度 18 - 需要重构拆分为更小的函数
-
-def _validate_validate_condition_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_validate_condition_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_validate_condition_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_validate_condition_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_validate_condition_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_validate_condition_result(data):
-    """构建返回结果"""
-    return data
-
 def validate_condition(cond: dict) -> None:
     """校验条件结构，非法时抛 ValueError"""
     ctype = cond.get('type')
@@ -105,20 +38,28 @@ def validate_condition(cond: dict) -> None:
         raise ValueError(f'未知条件类型: {ctype}，支持: {sorted(VALID_TYPES)}')
     params = cond.get('params') or {}
     if ctype == 'price_break':
-        if 'price' not in params and params['price'] <= 0:
+        if 'price' not in params:
+            raise ValueError('price_break 需要 params.price')
+        if params['price'] <= 0:
             raise ValueError('price_break 的 price 必须为正数')
         if params.get('direction') not in ('above', 'below'):
             raise ValueError('price_break 需要 params.direction: above|below')
     elif ctype in ('pct_change', 'pnl_pct'):
-        if 'pct' not in params and params.get('direction') not in ('above', 'below'):
+        if 'pct' not in params:
+            raise ValueError(f'{ctype} 需要 params.pct')
+        if params.get('direction') not in ('above', 'below'):
             raise ValueError(f'{ctype} 需要 params.direction: above|below')
     elif ctype == 'velocity':
-        if 'pct' not in params or 'window_min' not in params and params['pct'] <= 0:
+        if 'pct' not in params or 'window_min' not in params:
+            raise ValueError('velocity 需要 params.pct 和 params.window_min')
+        if params['pct'] <= 0:
             raise ValueError('velocity 的 pct 必须为正数')
         if params['window_min'] <= 0:
             raise ValueError('velocity 的 window_min 必须为正数')
     elif ctype == 'volume_surge':
-        if 'multiple' not in params and params['multiple'] <= 0:
+        if 'multiple' not in params:
+            raise ValueError('volume_surge 需要 params.multiple')
+        if params['multiple'] <= 0:
             raise ValueError('volume_surge 的 multiple 必须为正数')
 
 

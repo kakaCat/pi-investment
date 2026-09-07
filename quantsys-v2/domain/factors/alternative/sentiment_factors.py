@@ -1,31 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_6 = 0.6
-
-CONST_1_5 = 1.5
-
-CONST_5 = 5
-
-CONST_7 = 7
-
-CONST_15 = 15
-
-CONST_50 = 50
-
-CONST_10000 = 10000
-
-
-
 """
 新闻情绪因子
 

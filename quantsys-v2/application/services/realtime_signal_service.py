@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3_0 = 3.0
-
-CONST_60 = 60
-
-
-
-CONST_3_0 = 3.0
-
-CONST_60 = 60
-
-
-
 """
 实时信号服务 - 解决信号滞后问题
 
@@ -124,92 +103,93 @@ class RealtimeSignalService:
                 elif gap < 3:
                     return 'limit_order'  # 价差1-3%，限价单等待
             return 'next_day'  # 无法确定，建议次日
-        # 隔日信号
-        gap = signal.get('price_gap_pct', 0)
-        if gap < 0:
-            return 'immediate'  # 当前价格更低，立即执行
-        elif gap < 2:
-            return 'limit_order'  # 略高，限价单
         else:
-            return 'skip'  # 价格已大幅偏离，放弃
+            # 隔日信号
+            gap = signal.get('price_gap_pct', 0)
+            if gap < 0:
+                return 'immediate'  # 当前价格更低，立即执行
+            elif gap < 2:
+                return 'limit_order'  # 略高，限价单
+            else:
+                return 'skip'  # 价格已大幅偏离，放弃
 
-def generate_t1_signals(
-    self,
-    strategy_id: str,
-    symbols: List[str],
-    execution_date: Optional[str] = None
-) -> List[Dict]:
-    """
-    生成 T+1 信号（今日收盘后生成，明日开盘执行）
+    def generate_t1_signals(
+        self,
+        strategy_id: str,
+        symbols: List[str],
+        execution_date: Optional[str] = None
+    ) -> List[Dict]:
+        """
+        生成 T+1 信号（今日收盘后生成，明日开盘执行）
 
-    Args:
-        strategy_id: 策略ID
-        symbols: 股票列表
-        execution_date: 执行日期（默认次日）
+        Args:
+            strategy_id: 策略ID
+            symbols: 股票列表
+            execution_date: 执行日期（默认次日）
 
-    Returns:
-        T+1 信号列表
-    """
-    from application.services.strategy_execution_service import StrategyExecutionService
+        Returns:
+            T+1 信号列表
+        """
+        from application.services.strategy_execution_service import StrategyExecutionService
 
-    if execution_date is None:
-        # 默认次日
-        tomorrow = datetime.now() + timedelta(days=1)
-        execution_date = tomorrow.strftime('%Y-%m-%d')
+        if execution_date is None:
+            # 默认次日
+            tomorrow = datetime.now() + timedelta(days=1)
+            execution_date = tomorrow.strftime('%Y-%m-%d')
 
-    execution_service = StrategyExecutionService()
-    signals = []
+        execution_service = StrategyExecutionService()
+        signals = []
 
-    for symbol in symbols:
-        try:
-            # 执行策略（基于今日收盘数据）
-            result = execution_service.execute_strategy(
-                action='single',
-                symbol=symbol,
-                strategy_name=strategy_id
-            )
+        for symbol in symbols:
+            try:
+                # 执行策略（基于今日收盘数据）
+                result = execution_service.execute_strategy(
+                    action='single',
+                    symbol=symbol,
+                    strategy_name=strategy_id
+                )
 
-            if result.get('success') and result['data'].get('signal_type') == 'BUY':
-                signal = result['data']
-                signal['execution_date'] = execution_date
-                signal['mode'] = 'T+1'
-                signal['generated_at'] = datetime.now().isoformat()
-                signals.append(signal)
+                if result.get('success') and result['data'].get('signal_type') == 'BUY':
+                    signal = result['data']
+                    signal['execution_date'] = execution_date
+                    signal['mode'] = 'T+1'
+                    signal['generated_at'] = datetime.now().isoformat()
+                    signals.append(signal)
 
-        except Exception as e:
-            logger.error(f"生成 {symbol} T+1 信号失败: {e}")
+            except Exception as e:
+                logger.error(f"生成 {symbol} T+1 信号失败: {e}")
 
-    return signals
+        return signals
 
-def schedule_morning_scan(
-    self,
-    strategy_ids: List[str],
-    stock_pool: List[str],
-    notification_callback: Optional[callable] = None
-):
-    """
-    定时早盘扫描（每日 9:00 执行）
+    def schedule_morning_scan(
+        self,
+        strategy_ids: List[str],
+        stock_pool: List[str],
+        notification_callback: Optional[callable] = None
+    ):
+        """
+        定时早盘扫描（每日 9:00 执行）
 
-    Args:
-        strategy_ids: 策略列表
-        stock_pool: 股票池
-        notification_callback: 通知回调函数（推送飞书/企业微信）
-    """
-    logger.info(f"开始早盘扫描，策略数: {len(strategy_ids)}, 股票数: {len(stock_pool)}")
+        Args:
+            strategy_ids: 策略列表
+            stock_pool: 股票池
+            notification_callback: 通知回调函数（推送飞书/企业微信）
+        """
+        logger.info(f"开始早盘扫描，策略数: {len(strategy_ids)}, 股票数: {len(stock_pool)}")
 
-    all_signals = []
+        all_signals = []
 
-    for strategy_id in strategy_ids:
-        signals = self.generate_t1_signals(strategy_id, stock_pool)
+        for strategy_id in strategy_ids:
+            signals = self.generate_t1_signals(strategy_id, stock_pool)
 
-        # 过滤可执行信号
-        executable_signals = self.filter_executable_signals(signals)
-        all_signals.extend(executable_signals)
+            # 过滤可执行信号
+            executable_signals = self.filter_executable_signals(signals)
+            all_signals.extend(executable_signals)
 
-    if all_signals and notification_callback:
-        notification_callback(all_signals)
+        if all_signals and notification_callback:
+            notification_callback(all_signals)
 
-    return all_signals
+        return all_signals
 
 
 class IntraDayMonitor:

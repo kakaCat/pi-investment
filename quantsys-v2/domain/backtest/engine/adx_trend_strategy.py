@@ -1,25 +1,5 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_3 = 0.3
-
-CONST_5 = 5
-
-CONST_14 = 14
-
-CONST_25 = 25
-
-CONST_50 = 50
-
-CONST_60 = 60
-
-
-
 """ADX Trend Strength Strategy."""
+from __future__ import annotations
 from typing import Any
 
 from domain.backtest.engine.enhanced_strategy_base import EnhancedStrategyBase
@@ -106,7 +86,9 @@ class ADXTrendStrategy(EnhancedStrategyBase):
 
     @staticmethod
     def _last_valid(values) -> float | None:
-        if values is None and hasattr(values, '__iter__') and not isinstance(values, str):
+        if values is None:
+            return None
+        if hasattr(values, '__iter__') and not isinstance(values, str):
             for v in reversed(list(values)):
                 if v is not None and v == v:  # not NaN
                     return float(v)

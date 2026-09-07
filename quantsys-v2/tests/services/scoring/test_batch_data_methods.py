@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100000 = 100000
-CONST_2026 = 2026
-CONST_25_0 = 25.0
-CONST_29 = 29
-CONST_3 = 3
-CONST_30_0 = 30.0
-CONST_31 = 31
-CONST_5 = 5
-CONST_7 = 7
-CONST_8 = 8
-
 """批量取数方法测试（Task 1）"""
 import pytest
 from datetime import datetime, timedelta

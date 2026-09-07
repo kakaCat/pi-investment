@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 Qlib 数据适配器
 
@@ -109,7 +106,9 @@ class QuantsysV2DataProvider(BaseProvider):
             instruments = [instruments]
 
         # 转换时间格式
-        if start_time and end_time:
+        if start_time:
+            start_time = pd.Timestamp(start_time).strftime('%Y-%m-%d')
+        if end_time:
             end_time = pd.Timestamp(end_time).strftime('%Y-%m-%d')
 
         self.logger.info(
@@ -166,7 +165,9 @@ class QuantsysV2DataProvider(BaseProvider):
         WHERE symbol IN ({symbols_str})
         """
 
-        if start_date and end_date:
+        if start_date:
+            query += f" AND trade_date >= '{start_date}'"
+        if end_date:
             query += f" AND trade_date <= '{end_date}'"
 
         query += " ORDER BY symbol, trade_date"
@@ -278,9 +279,7 @@ class QuantsysV2DataProvider(BaseProvider):
 
         # 计算表达式
         try:
-            # SECURITY WARNING: eval() usage - consider safer alternatives
-
-            result = eval(pandas_expr, {'df': df, 'np': np, 'pd': pd})  # TODO: Replace with ast.literal_eval() or json.loads()
+            result = eval(pandas_expr, {'df': df, 'np': np, 'pd': pd})
             return result
         except Exception as e:
             self.logger.error(f"Expression evaluation failed: {expr} -> {pandas_expr}, {e}")

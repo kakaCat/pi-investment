@@ -1,21 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_70 = 70
-
-
-
-CONST_70 = 70
-
-
-
 """快速验证 P1-2 迁移"""
 
 import sys
@@ -124,8 +107,9 @@ def main():
     if all_passed:
         print("🎉 所有测试通过！迁移成功！")
         return 0
-    print("⚠️  部分测试失败，请检查错误信息")
-    return 1
+    else:
+        print("⚠️  部分测试失败，请检查错误信息")
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main())

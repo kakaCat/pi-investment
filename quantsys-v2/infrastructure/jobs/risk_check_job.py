@@ -1,33 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_05 = 0.05
-
-CONST_0_3 = 0.3
-
-CONST_7 = 7
-
-CONST_21 = 21
-
-
-
-CONST_0_05 = 0.05
-
-CONST_0_3 = 0.3
-
-CONST_7 = 7
-
-CONST_21 = 21
-
-
-
 """
 V13策略风险检查任务
 

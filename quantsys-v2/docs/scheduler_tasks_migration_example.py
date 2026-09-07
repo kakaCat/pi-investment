@@ -1,32 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5_0 = 5.0
-
-CONST_8 = 8
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-
-
-CONST_5_0 = 5.0
-
-CONST_8 = 8
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-
-
 """Example: Migrating scheduler_tasks.py to use structured exceptions.
 
 This demonstrates how to replace the 42 'except Exception' blocks in scheduler_tasks.py
@@ -139,9 +110,7 @@ def handle_concurrent_fetch_OLD():
             symbol = futures[future]
             try:
                 future.result()
-                # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                updated += 1  # TODO: Use parameterized queries
+                updated += 1
             except Exception as e:
                 # Problem: All errors treated the same, can't retry transient errors
                 errors.append({"symbol": symbol, "error": str(e)})
@@ -176,9 +145,7 @@ def handle_concurrent_fetch_NEW():
             symbol = futures[future]
             try:
                 future.result()
-                # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                updated += 1  # TODO: Use parameterized queries
+                updated += 1
 
             except StockNotFoundException as e:
                 # Permanent error - stock doesn't exist

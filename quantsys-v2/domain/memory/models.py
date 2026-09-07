@@ -1,13 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_3 = 0.3
-
-
-
 """Memory domain models and types"""
 from datetime import datetime
 from enum import Enum

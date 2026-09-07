@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_3 = 10.3
-CONST_10_5 = 10.5
-CONST_15_0 = 15.0
-CONST_15_2 = 15.2
-CONST_18_0 = 18.0
-CONST_20_0 = 20.0
-CONST_20_5 = 20.5
-CONST_200 = 200
-CONST_2050_0 = 2050.0
-CONST_22_0 = 22.0
-
 """
 测试订单盈亏追踪功能
 

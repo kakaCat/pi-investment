@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.0003, 0.0007, 0.001, 0.005, 0.2]...
-
-
-# Extracted Constants
-
-CONST_0_0003 = 0.0003
-
-CONST_0_0007 = 0.0007
-
-CONST_0_001 = 0.001
-
-CONST_0_005 = 0.005
-
-CONST_0_2 = 0.2
-
-CONST_0_95 = 0.95
-
-CONST_0_99 = 0.99
-
-CONST_5 = 5
-
-CONST_64 = 64
-
-CONST_256 = 256
-
-
-
 """
 FinRL Configuration Module
 ===========================
@@ -193,16 +162,149 @@ def get_default_config(
     return config
 
 
-# Refactored: complexity reduced from 49 to 8
-
 def validate_config(config: Dict[str, Any]) -> Tuple[bool, List[str]]:
     """
     Validate FinRL configuration.
 
-    Refactored: Complexity reduced from 49 to 8
+    Checks for:
+    - Required fields (algorithm, env, training)
+    - Valid parameter ranges (learning_rate > 0, gamma in [0, 1], etc.)
+    - Valid environment settings (initial_balance > 0, transaction_cost in [0, 1])
+    - Valid training settings (positive timesteps, frequencies)
+
+    Args:
+        config: Configuration dictionary to validate
+
+    Returns:
+        Tuple of (is_valid, error_messages)
+        - is_valid: True if config is valid, False otherwise
+        - error_messages: List of validation error messages (empty if valid)
+
+    Example:
+        >>> config = get_default_config('ppo')
+        >>> is_valid, errors = validate_config(config)
+        >>> if not is_valid:
+        ...     print("Validation errors:", errors)
     """
-    from domain.quantlib.finrl.config_validation import validate_config as _validate
-    return _validate(config)
+    errors: List[str] = []
+
+    # Check required top-level fields
+    if 'algorithm' not in config:
+        errors.append("Missing required field: 'algorithm'")
+
+    if 'env' not in config:
+        errors.append("Missing required field: 'env'")
+    elif not isinstance(config['env'], dict):
+        errors.append("Field 'env' must be a dictionary")
+
+    if 'training' not in config:
+        errors.append("Missing required field: 'training'")
+    elif not isinstance(config['training'], dict):
+        errors.append("Field 'training' must be a dictionary")
+
+    # Validate algorithm-specific parameters
+    if 'learning_rate' in config:
+        lr = config['learning_rate']
+        if not isinstance(lr, (int, float)) or lr <= 0:
+            errors.append(
+                f"Invalid learning_rate: {lr}. Must be a positive number."
+            )
+
+    if 'gamma' in config:
+        gamma = config['gamma']
+        if not isinstance(gamma, (int, float)) or not (0 <= gamma <= 1):
+            errors.append(
+                f"Invalid gamma: {gamma}. Must be in range [0, 1]."
+            )
+
+    if 'n_steps' in config:
+        n_steps = config['n_steps']
+        if not isinstance(n_steps, int) or n_steps <= 0:
+            errors.append(
+                f"Invalid n_steps: {n_steps}. Must be a positive integer."
+            )
+
+    if 'batch_size' in config:
+        batch_size = config['batch_size']
+        if not isinstance(batch_size, int) or batch_size <= 0:
+            errors.append(
+                f"Invalid batch_size: {batch_size}. Must be a positive integer."
+            )
+
+    if 'buffer_size' in config:
+        buffer_size = config['buffer_size']
+        if not isinstance(buffer_size, int) or buffer_size <= 0:
+            errors.append(
+                f"Invalid buffer_size: {buffer_size}. Must be a positive integer."
+            )
+
+    if 'tau' in config:
+        tau = config['tau']
+        if not isinstance(tau, (int, float)) or not (0 < tau <= 1):
+            errors.append(
+                f"Invalid tau: {tau}. Must be in range (0, 1]."
+            )
+
+    # Validate environment config
+    if 'env' in config and isinstance(config['env'], dict):
+        env = config['env']
+
+        if 'initial_balance' in env:
+            balance = env['initial_balance']
+            if not isinstance(balance, (int, float)) or balance <= 0:
+                errors.append(
+                    f"Invalid initial_balance: {balance}. Must be a positive number."
+                )
+
+        if 'transaction_cost' in env:
+            cost = env['transaction_cost']
+            if not isinstance(cost, (int, float)) or not (0 <= cost <= 1):
+                errors.append(
+                    f"Invalid transaction_cost: {cost}. Must be in range [0, 1]."
+                )
+
+        if 'reward_scaling' in env:
+            scaling = env['reward_scaling']
+            if not isinstance(scaling, (int, float)) or scaling <= 0:
+                errors.append(
+                    f"Invalid reward_scaling: {scaling}. Must be a positive number."
+                )
+
+    # Validate training config
+    if 'training' in config and isinstance(config['training'], dict):
+        training = config['training']
+
+        if 'total_timesteps' in training:
+            timesteps = training['total_timesteps']
+            if not isinstance(timesteps, int) or timesteps <= 0:
+                errors.append(
+                    f"Invalid total_timesteps: {timesteps}. Must be a positive integer."
+                )
+
+        if 'eval_freq' in training:
+            freq = training['eval_freq']
+            if not isinstance(freq, int) or freq <= 0:
+                errors.append(
+                    f"Invalid eval_freq: {freq}. Must be a positive integer."
+                )
+
+        if 'save_freq' in training:
+            freq = training['save_freq']
+            if not isinstance(freq, int) or freq <= 0:
+                errors.append(
+                    f"Invalid save_freq: {freq}. Must be a positive integer."
+                )
+
+        if 'log_interval' in training:
+            interval = training['log_interval']
+            if not isinstance(interval, int) or interval <= 0:
+                errors.append(
+                    f"Invalid log_interval: {interval}. Must be a positive integer."
+                )
+
+    # Return validation result
+    is_valid = len(errors) == 0
+    return is_valid, errors
 
 
 __all__ = [

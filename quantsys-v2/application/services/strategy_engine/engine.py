@@ -1,36 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_15 = 0.15
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_100000 = 100000
-
-
-
-CONST_0_15 = 0.15
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_100000 = 100000
-
-
-
 """
 策略编排引擎
 
@@ -176,7 +143,9 @@ class StrategyEngine:
         predictions: Dict = None
     ) -> List[str]:
         """ML置信过滤"""
-        if not candidates and not predictions:
+        if not candidates:
+            return []
+        if not predictions:
             logger.warning("无ML预测数据，所有候选通过")
             return candidates
 

@@ -1,36 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_0_25 = 0.25
-
-CONST_0_75 = 0.75
-
-CONST_3_0 = 3.0
-
-CONST_42 = 42
-
-
-
-CONST_0_01 = 0.01
-
-CONST_0_25 = 0.25
-
-CONST_0_75 = 0.75
-
-CONST_3_0 = 3.0
-
-CONST_42 = 42
-
-
-
 """
 数据清洗Pipeline - Team D
 数据质量保证和清洗
@@ -204,79 +171,80 @@ class DataCleaningPipeline(IDataCleaner):
             return self._detect_outliers_zscore(df[numeric_cols])
         elif self.outlier_method == 'isolation_forest':
             return self._detect_outliers_isolation_forest(df[numeric_cols])
-        logger.warning(f"Unknown outlier method: {self.outlier_method}")
-        return pd.Series([False] * len(df), index=df.index)
+        else:
+            logger.warning(f"Unknown outlier method: {self.outlier_method}")
+            return pd.Series([False] * len(df), index=df.index)
 
-def _detect_outliers_iqr(self, df: pd.DataFrame) -> pd.Series:
-    """IQR方法检测异常值"""
-    outlier_mask = pd.Series([False] * len(df), index=df.index)
+    def _detect_outliers_iqr(self, df: pd.DataFrame) -> pd.Series:
+        """IQR方法检测异常值"""
+        outlier_mask = pd.Series([False] * len(df), index=df.index)
 
-    for col in df.columns:
-        Q1 = df[col].quantile(0.25)
-        Q3 = df[col].quantile(0.75)
-        IQR = Q3 - Q1
+        for col in df.columns:
+            Q1 = df[col].quantile(0.25)
+            Q3 = df[col].quantile(0.75)
+            IQR = Q3 - Q1
 
-        lower_bound = Q1 - self.outlier_threshold * IQR
-        upper_bound = Q3 + self.outlier_threshold * IQR
+            lower_bound = Q1 - self.outlier_threshold * IQR
+            upper_bound = Q3 + self.outlier_threshold * IQR
 
-        col_outliers = (df[col] < lower_bound) | (df[col] > upper_bound)
-        outlier_mask = outlier_mask | col_outliers
-
-    return outlier_mask
-
-def _detect_outliers_zscore(self, df: pd.DataFrame) -> pd.Series:
-    """Z-score方法检测异常值"""
-    outlier_mask = pd.Series([False] * len(df), index=df.index)
-
-    for col in df.columns:
-        z_scores = np.abs((df[col] - df[col].mean()) / df[col].std())
-        col_outliers = z_scores > self.outlier_threshold
-        outlier_mask = outlier_mask | col_outliers
-
-    return outlier_mask
-
-def _detect_outliers_isolation_forest(self, df: pd.DataFrame) -> pd.Series:
-    """Isolation Forest方法检测异常值"""
-    try:
-        from sklearn.ensemble import IsolationForest
-
-        clf = IsolationForest(contamination=0.01, random_state=42)
-        outlier_labels = clf.fit_predict(df)
-
-        # -1表示异常值
-        outlier_mask = pd.Series(outlier_labels == -1, index=df.index)
+            col_outliers = (df[col] < lower_bound) | (df[col] > upper_bound)
+            outlier_mask = outlier_mask | col_outliers
 
         return outlier_mask
-    except ImportError:
-        logger.warning("sklearn not available, falling back to IQR method")
-        return self._detect_outliers_iqr(df)
 
-def get_cleaning_report(self, df_before: pd.DataFrame,
-                       df_after: pd.DataFrame) -> Dict:
-    """
-    生成清洗报告
+    def _detect_outliers_zscore(self, df: pd.DataFrame) -> pd.Series:
+        """Z-score方法检测异常值"""
+        outlier_mask = pd.Series([False] * len(df), index=df.index)
 
-    Returns:
-        {
-            'rows_before': int,
-            'rows_after': int,
-            'rows_removed': int,
-            'removal_rate': float,
-            'columns': int,
-            'missing_before': int,
-            'missing_after': int
+        for col in df.columns:
+            z_scores = np.abs((df[col] - df[col].mean()) / df[col].std())
+            col_outliers = z_scores > self.outlier_threshold
+            outlier_mask = outlier_mask | col_outliers
+
+        return outlier_mask
+
+    def _detect_outliers_isolation_forest(self, df: pd.DataFrame) -> pd.Series:
+        """Isolation Forest方法检测异常值"""
+        try:
+            from sklearn.ensemble import IsolationForest
+
+            clf = IsolationForest(contamination=0.01, random_state=42)
+            outlier_labels = clf.fit_predict(df)
+
+            # -1表示异常值
+            outlier_mask = pd.Series(outlier_labels == -1, index=df.index)
+
+            return outlier_mask
+        except ImportError:
+            logger.warning("sklearn not available, falling back to IQR method")
+            return self._detect_outliers_iqr(df)
+
+    def get_cleaning_report(self, df_before: pd.DataFrame,
+                           df_after: pd.DataFrame) -> Dict:
+        """
+        生成清洗报告
+
+        Returns:
+            {
+                'rows_before': int,
+                'rows_after': int,
+                'rows_removed': int,
+                'removal_rate': float,
+                'columns': int,
+                'missing_before': int,
+                'missing_after': int
+            }
+        """
+        rows_before = len(df_before)
+        rows_after = len(df_after)
+        rows_removed = rows_before - rows_after
+
+        return {
+            'rows_before': rows_before,
+            'rows_after': rows_after,
+            'rows_removed': rows_removed,
+            'removal_rate': rows_removed / rows_before if rows_before > 0 else 0,
+            'columns': len(df_after.columns),
+            'missing_before': int(df_before.isnull().sum().sum()),
+            'missing_after': int(df_after.isnull().sum().sum())
         }
-    """
-    rows_before = len(df_before)
-    rows_after = len(df_after)
-    rows_removed = rows_before - rows_after
-
-    return {
-        'rows_before': rows_before,
-        'rows_after': rows_after,
-        'rows_removed': rows_removed,
-        'removal_rate': rows_removed / rows_before if rows_before > 0 else 0,
-        'columns': len(df_after.columns),
-        'missing_before': int(df_before.isnull().sum().sum()),
-        'missing_after': int(df_after.isnull().sum().sum())
-    }

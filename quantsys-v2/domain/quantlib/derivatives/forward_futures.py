@@ -1,15 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_6 = 6
-
-
-
 """
 远期与期货定价模块
 ==================

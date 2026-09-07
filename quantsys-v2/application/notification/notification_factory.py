@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_30 = 30
-
-
-
-CONST_30 = 30
-
-
-
 """
 通知系统工厂
 
@@ -232,7 +215,9 @@ class NotificationFactory:
         formatters = NotificationFactory._create_formatters()
 
         channels = []
-        if feishu_webhook and agent_url:
+        if feishu_webhook:
+            channels.append(FeishuChannel(feishu_webhook, formatters))
+        if agent_url:
             channels.append(AgentChannel(agent_url))
 
         policy = NotificationPolicy()

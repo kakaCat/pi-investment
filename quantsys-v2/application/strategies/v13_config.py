@@ -1,41 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 from domain.strategies.value_objects import StrategyConfig
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_08 = 0.08
-
-CONST_0_12 = 0.12
-
-CONST_0_2 = 0.2
-
-CONST_0_85 = 0.85
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-
-
-CONST_0_08 = 0.08
-
-CONST_0_12 = 0.12
-
-CONST_0_2 = 0.2
-
-CONST_0_85 = 0.85
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-
 
 V13_CONFIG = StrategyConfig(
     name="xgboost_multi_factor",

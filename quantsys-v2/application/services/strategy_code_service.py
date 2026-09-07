@@ -1,67 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - generate_signal() = 137 lines
-#   - run_strategy() = 182 lines
-#   - backtest_strategy() = 116 lines
-#   - _calculate_metrics_from_trades() = 122 lines
-#   - _inject_fund_flow() = 102 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.01, 0.02, 0.2, 0.7, 0.8]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_0_02 = 0.02
-
-CONST_0_2 = 0.2
-
-CONST_0_7 = 0.7
-
-CONST_0_8 = 0.8
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_7 = 7
-
-
-
-CONST_0_01 = 0.01
-
-CONST_0_02 = 0.02
-
-CONST_0_2 = 0.2
-
-CONST_0_7 = 0.7
-
-CONST_0_8 = 0.8
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_7 = 7
-
-
-
 """
 策略代码服务
 
@@ -72,6 +8,7 @@ CONST_7 = 7
 - 管理策略状态
 """
 
+from __future__ import annotations
 from typing import Dict, List, Optional, Any
 from domain.ports import IKlineRepository, IStrategyRepository
 import json
@@ -166,12 +103,6 @@ def _get_length(data) -> int:
     except:
         return 0
 
-
-# TODO: Refactor - class too large (48 methods, target < 15)
-
-# TODO: Refactor large class (84 methods, target < 20)
-# TODO: Refactor large class (85 methods, target < 20)
-# TODO: 大类 85个方法 - 考虑拆分为多个类或使用组合模式
 
 class StrategyCodeService:
     """策略代码服务
@@ -360,8 +291,6 @@ class StrategyCodeService:
             self.code_validator.validate(code, code_type)
 
             # 2. 根据类型进行特定验证
-            # TODO: 提取嵌套逻辑为独立方法
-
             if code_type == 'indicator':
                 result = self._validate_indicator_code(code)
             elif code_type == 'script':
@@ -428,43 +357,6 @@ class StrategyCodeService:
                 metadata = {}
         return metadata if isinstance(metadata, dict) else {}
 
-    # TODO: Refactor - complexity 19 (target < 15)
-
-    def _validate_update_strategy_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 update_strategy 移到这里
-        return True, None
-
-    def _process_update_strategy_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 update_strategy 移到这里
-        return data
-
-    def _build_update_strategy_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 update_strategy 移到这里
-        return data
-
-    def _validate_update_strategy_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 update_strategy 移到这里
-        return True, None
-
-    def _process_update_strategy_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 update_strategy 移到这里
-        return data
-
-    def _build_update_strategy_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 update_strategy 移到这里
-        return data
-
-# TODO: Refactor - complexity 19 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 19 (target < 15)
-    # TODO: 复杂度 19 - 需要重构拆分为更小的函数
-
     def update_strategy(
         self,
         strategy_id: int,
@@ -512,11 +404,17 @@ class StrategyCodeService:
             update_data['code_type'] = code_type
 
         # 更新基础字段
-        if name is not None and description is not None:
+        if name is not None:
+            update_data['strategy_name'] = name
+        if description is not None:
             update_data['description'] = description
-        if is_public is not None and category is not None:
+        if is_public is not None:
+            update_data['is_public'] = is_public
+        if category is not None:
             update_data['category'] = category
-        if favorite_count is not None and notebook is not None:
+        if favorite_count is not None:
+            update_data['favorite_count'] = favorite_count
+        if notebook is not None:
             metadata = self._coerce_metadata(strategy.get('metadata') or {})
             update_data['metadata'] = {**metadata, 'notebook': self._normalize_notebook(notebook)}
 
@@ -596,7 +494,9 @@ class StrategyCodeService:
         has_on_init = 'def on_init(ctx)' in code or 'def on_init (ctx)' in code
         has_on_bar = 'def on_bar(ctx, bar)' in code or 'def on_bar (ctx, bar)' in code
 
-        if not has_on_init and not has_on_bar:
+        if not has_on_init:
+            raise ValueError("ScriptStrategy 必须定义 on_init(ctx) 函数")
+        if not has_on_bar:
             raise ValueError("ScriptStrategy 必须定义 on_bar(ctx, bar) 函数")
 
         # 提取元数据
@@ -643,62 +543,8 @@ class StrategyCodeService:
         }
 
     # ==================== 策略执行 ====================
-# TODO: Refactor - complexity 17 (target < 15)
-
-
-    # TODO: Refactor - function too long (138 lines, target < 80)
-
-    def _validate_generate_signal_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 generate_signal 移到这里
-        return True, None
-
-    def _process_generate_signal_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 generate_signal 移到这里
-        return data
-
-    def _build_generate_signal_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 generate_signal 移到这里
-        return data
-
-    def _validate_generate_signal_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 generate_signal 移到这里
-        return True, None
-
-    def _process_generate_signal_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 generate_signal 移到这里
-        return data
-
-    def _build_generate_signal_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 generate_signal 移到这里
-        return data
-
-# TODO: Split long function (137 lines, target < 100)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 17 (target < 15)
-    # TODO: Split long function (137 lines, target < 100)
-    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-    # TODO: Refactor - complexity 17 (target < 15)
-    # TODO: Split long function (137 lines, target < 100)
-    # TODO: 长函数 148行 - 建议拆分为多个小函数
 
     def generate_signal(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         strategy_id: int,
         symbol: str,
@@ -796,103 +642,46 @@ class StrategyCodeService:
                     }
                 else:
                     return None
-            raise ValueError(f"未知的策略类型: {strategy['code_type']}")
+            else:
+                raise ValueError(f"未知的策略类型: {strategy['code_type']}")
 
-        # 5. 获取最后一行的信号（indicator 类型）
-        from infrastructure.utils.dataframe_utils import is_dataframe_empty
-        if is_dataframe_empty(df):
+            # 5. 获取最后一行的信号（indicator 类型）
+            from infrastructure.utils.dataframe_utils import is_dataframe_empty
+            if is_dataframe_empty(df):
+                return None
+
+            last_row = df.iloc[-1]
+
+            # 6. 判断信号类型
+            signal_type = 'hold'
+            confidence = 0.0
+
+            if 'buy' in df.columns and last_row.get('buy', False):
+                signal_type = 'buy'
+                confidence = last_row.get('confidence', 0.7)
+            elif 'sell' in df.columns and last_row.get('sell', False):
+                signal_type = 'sell'
+                confidence = last_row.get('confidence', 0.7)
+
+            if signal_type == 'hold':
+                return None
+
+            return {
+                'symbol': symbol,
+                'strategy_id': strategy_id,
+                'strategy_name': strategy.get('strategy_name', f'strategy_{strategy_id}'),
+                'signal_type': signal_type,
+                'confidence': float(confidence),
+                'signal_date': date,
+                'price': float(last_row.get('close', 0)),
+                'created_at': datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            logger.error(f"信号生成失败: {e}", exc_info=True)
             return None
 
-        last_row = df.iloc[-1]
-
-        # 6. 判断信号类型
-        signal_type = 'hold'
-        confidence = 0.0
-
-        if 'buy' in df.columns and last_row.get('buy', False):
-            signal_type = 'buy'
-            confidence = last_row.get('confidence', 0.7)
-        elif 'sell' in df.columns and last_row.get('sell', False):
-            signal_type = 'sell'
-            confidence = last_row.get('confidence', 0.7)
-
-        if signal_type == 'hold':
-            return None
-
-        return {
-            'symbol': symbol,
-            'strategy_id': strategy_id,
-            'strategy_name': strategy.get('strategy_name', f'strategy_{strategy_id}'),
-            'signal_type': signal_type,
-            'confidence': float(confidence),
-            'signal_date': date,
-            'price': float(last_row.get('close', 0)),
-            'created_at': datetime.now().isoformat()
-        }
-
-    except Exception as e:
-        logger.error(f"信号生成失败: {e}", exc_info=True)
-        # TODO: Refactor - complexity 17 (target < 15)
-
-        return None
-# TODO: Refactor - function too long (181 lines, target < 80)
-
-
-    def _validate_run_strategy_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 run_strategy 移到这里
-        return True, None
-
-    def _process_run_strategy_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 run_strategy 移到这里
-        return data
-
-    def _build_run_strategy_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 run_strategy 移到这里
-        return data
-
-    def _validate_run_strategy_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 run_strategy 移到这里
-        return True, None
-
-    def _process_run_strategy_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 run_strategy 移到这里
-        return data
-
-    def _build_run_strategy_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 run_strategy 移到这里
-        return data
-
-# REFACTOR: Split this function into smaller pieces
-# TODO: Split long function (182 lines, target < 100)
-# TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-# TODO: Refactor - complexity 17 (target < 15)
-    # TODO: Split long function (182 lines, target < 100)
-    # TODO: Refactor - complexity 17 (target < 15)
-    # TODO: 长函数 197行 - 建议拆分为多个小函数
-
-    # TODO: Split long function (182 lines, target < 100)
     def run_strategy(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
         self,
         strategy_id: int,
         symbol: str,
@@ -1072,23 +861,9 @@ class StrategyCodeService:
         # 4. 更新最后执行时间
         self.strategy_repo.update_last_executed(strategy_id)
 
-        # TODO: Refactor - function too long (117 lines, target < 80)
-
         return response
-# TODO: 长函数 126行 - 建议拆分为多个小函数
 
-
-# TODO: Split long function (116 lines, target < 100)
     def backtest_strategy(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         strategy_id: int,
         symbol: str,
@@ -1280,25 +1055,10 @@ class StrategyCodeService:
             signals_df=signals_df,
             initial_cash=initial_cash,
             period=period
-        # TODO: Refactor - function too long (123 lines, target < 80)
-
         )
-        # TODO: 长函数 133行 - 建议拆分为多个小函数
-
         return result
 
-# TODO: Split long function (122 lines, target < 100)
     def _calculate_metrics_from_trades(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         trades: List[Dict],
         equity_curve: List[Dict],
@@ -1645,180 +1405,129 @@ class StrategyCodeService:
 
                 logger.info(f"获取分钟K线 ({period}): {symbol}, {len(klines)} bars")
                 return klines
-            # 日K线
-            if start_date and end_date:
-                return self.kline_repo.get_range(
-                    symbol=symbol,
-                    start_date=start_date,
-                    end_date=end_date
-                )
-            elif limit:
-                return self.kline_repo.get_latest(
-                    symbol=symbol,
-                    limit=limit
-                )
             else:
-                raise ValueError("必须指定 start_date/end_date 或 limit")
-    except Exception as e:
-        logger.error(f"获取K线数据失败: {str(e)}")
-        raise
+                # 日K线
+                if start_date and end_date:
+                    return self.kline_repo.get_range(
+                        symbol=symbol,
+                        start_date=start_date,
+                        end_date=end_date
+                    )
+                elif limit:
+                    return self.kline_repo.get_latest(
+                        symbol=symbol,
+                        limit=limit
+                    )
+                else:
+                    raise ValueError("必须指定 start_date/end_date 或 limit")
+        except Exception as e:
+            logger.error(f"获取K线数据失败: {str(e)}")
+            raise
 
-def _aggregate_minute_klines(
-    self,
-    klines: List[Dict],
-    target_period: str
-) -> List[Dict]:
-    """
-    从1分钟K线聚合到5分钟/15分钟/30分钟K线
+    def _aggregate_minute_klines(
+        self,
+        klines: List[Dict],
+        target_period: str
+    ) -> List[Dict]:
+        """
+        从1分钟K线聚合到5分钟/15分钟/30分钟K线
 
-    Args:
-        klines: 1分钟K线列表（按trade_datetime升序）
-        target_period: 目标周期 '5min' / '15min' / '30min'
+        Args:
+            klines: 1分钟K线列表（按trade_datetime升序）
+            target_period: 目标周期 '5min' / '15min' / '30min'
 
-    Returns:
-        聚合后的K线列表
+        Returns:
+            聚合后的K线列表
 
-    聚合规则：
-    - 5min: 5个1min bar → 1个5min bar
-    - 15min: 15个1min bar → 1个15min bar
-    - 30min: 30个1min bar → 1个30min bar
-    - Open = 第一个bar的open, High = max of highs
-    - Low = min of lows, Close = 最后一个bar的close
-    - Volume = sum of volumes
-    - 尊重交易时段边界（午休11:30-13:00, 收盘15:00）
-    """
-    if _is_empty_df_or_list(klines):
-        return klines
+        聚合规则：
+        - 5min: 5个1min bar → 1个5min bar
+        - 15min: 15个1min bar → 1个15min bar
+        - 30min: 30个1min bar → 1个30min bar
+        - Open = 第一个bar的open, High = max of highs
+        - Low = min of lows, Close = 最后一个bar的close
+        - Volume = sum of volumes
+        - 尊重交易时段边界（午休11:30-13:00, 收盘15:00）
+        """
+        if _is_empty_df_or_list(klines):
+            return klines
 
-    period_map = {'5min': 5, '15min': 15, '30min': 30, '60min': 60}
-    bars_per_group = period_map.get(target_period, 15)
+        period_map = {'5min': 5, '15min': 15, '30min': 30, '60min': 60}
+        bars_per_group = period_map.get(target_period, 15)
 
-    result = []
-    current_group = []
+        result = []
+        current_group = []
 
-    for k in klines:
-        dt_str = k.get('trade_date', k.get('trade_datetime', ''))
+        for k in klines:
+            dt_str = k.get('trade_date', k.get('trade_datetime', ''))
 
-        # 提取时间部分用于检测交易时段边界
-        if ' ' in str(dt_str):
-            time_part = str(dt_str).split(' ')[1][:8]
-        else:
-            time_part = str(dt_str)[-8:]
+            # 提取时间部分用于检测交易时段边界
+            if ' ' in str(dt_str):
+                time_part = str(dt_str).split(' ')[1][:8]
+            else:
+                time_part = str(dt_str)[-8:]
 
-        # 检测是否应该开始新分组
-        should_flush = False
-        if current_group:
-            prev_dt = str(current_group[-1].get('trade_date', ''))
-            prev_time = prev_dt.split(' ')[1][:8] if ' ' in prev_dt else prev_dt[-8:]
+            # 检测是否应该开始新分组
+            should_flush = False
+            if current_group:
+                prev_dt = str(current_group[-1].get('trade_date', ''))
+                prev_time = prev_dt.split(' ')[1][:8] if ' ' in prev_dt else prev_dt[-8:]
 
-            # 跨午休边界（前一根在11:xx, 当前在13:xx）
-            if prev_time < '12:00:00' and time_part >= '13:00:00':
-                should_flush = True
-            # 跨交易日边界
-            elif ' ' in str(dt_str) and ' ' in prev_dt:
-                if str(dt_str).split(' ')[0] != prev_dt.split(' ')[0]:
+                # 跨午休边界（前一根在11:xx, 当前在13:xx）
+                if prev_time < '12:00:00' and time_part >= '13:00:00':
                     should_flush = True
+                # 跨交易日边界
+                elif ' ' in str(dt_str) and ' ' in prev_dt:
+                    if str(dt_str).split(' ')[0] != prev_dt.split(' ')[0]:
+                        should_flush = True
 
-        # 分组满了也flush
-        if len(current_group) >= bars_per_group:
-            should_flush = True
+            # 分组满了也flush
+            if len(current_group) >= bars_per_group:
+                should_flush = True
 
-        if should_flush and current_group:
+            if should_flush and current_group:
+                result.append(self._create_aggregated_bar(current_group, target_period))
+                current_group = []
+
+            current_group.append(k)
+
+        # 处理最后一组
+        if current_group:
             result.append(self._create_aggregated_bar(current_group, target_period))
-            current_group = []
 
-        current_group.append(k)
+        logger.debug(f"聚合 {target_period}: {len(klines)}条 1min → {len(result)}条 {target_period}")
+        return result
 
-    # 处理最后一组
-    if current_group:
-        result.append(self._create_aggregated_bar(current_group, target_period))
+    def _create_aggregated_bar(
+        self,
+        group: List[Dict],
+        period: str
+    ) -> Dict:
+        """从一组5min bar创建聚合bar"""
+        opens = [float(k.get('open') or 0) for k in group]
+        highs = [float(k.get('high') or 0) for k in group]
+        lows = [float(k.get('low') or 0) for k in group]
+        closes = [float(k.get('close') or 0) for k in group]
+        volumes = [float(k.get('volume') or 0) for k in group]
+        amounts = [float(k.get('amount') or 0) for k in group]
 
-    logger.debug(f"聚合 {target_period}: {len(klines)}条 1min → {len(result)}条 {target_period}")
-    return result
+        result = {
+            'open': opens[0],
+            'high': max(highs),
+            'low': min(lows),
+            'close': closes[-1],
+            'volume': sum(volumes),
+            'trade_date': str(group[0].get('trade_date', '')),  # 使用第一根bar的时间
+        }
 
-def _create_aggregated_bar(
-    self,
-    group: List[Dict],
-    period: str
-) -> Dict:
-    """从一组5min bar创建聚合bar"""
-    opens = [float(k.get('open') or 0) for k in group]
-    highs = [float(k.get('high') or 0) for k in group]
-    lows = [float(k.get('low') or 0) for k in group]
-    closes = [float(k.get('close') or 0) for k in group]
-    volumes = [float(k.get('volume') or 0) for k in group]
-    amounts = [float(k.get('amount') or 0) for k in group]
-
-    result = {
-        'open': opens[0],
-        'high': max(highs),
-        'low': min(lows),
-        'close': closes[-1],
-        'volume': sum(volumes),
-        'trade_date': str(group[0].get('trade_date', '')),  # 使用第一根bar的时间
-    }
-
-    # 保留额外列（资金流、财务等），使用最后一根bar的值
-    skip_cols = {'open', 'high', 'low', 'close', 'volume', 'trade_date', 'trade_datetime'}
-    for key in group[-1]:
-        if key not in skip_cols:
-            result[key] = group[-1][key]
-# TODO: Refactor - complexity 20 (target < 15)
-# TODO: Refactor - function too long (103 lines, target < 80)
-
-
+        # 保留额外列（资金流、财务等），使用最后一根bar的值
+        skip_cols = {'open', 'high', 'low', 'close', 'volume', 'trade_date', 'trade_datetime'}
+        for key in group[-1]:
+            if key not in skip_cols:
+                result[key] = group[-1][key]
 
         return result
 
-    def _validate__inject_fund_flow_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _inject_fund_flow 移到这里
-        return True, None
-
-    def _process__inject_fund_flow_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _inject_fund_flow 移到这里
-        return data
-
-    def _build__inject_fund_flow_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _inject_fund_flow 移到这里
-        return data
-
-    def _validate__inject_fund_flow_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _inject_fund_flow 移到这里
-        return True, None
-
-    def _process__inject_fund_flow_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _inject_fund_flow 移到这里
-        return data
-
-    def _build__inject_fund_flow_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _inject_fund_flow 移到这里
-        return data
- # REFACTOR: Split this function into smaller pieces
-# TODO: 复杂度 20 - 需要重构拆分为更小的函数
-
-
-# TODO: Split long function (102 lines, target < 100)
-# TODO: 长函数 111行 - 建议拆分为多个小函数
-
-# TODO: Refactor - complexity 20 (target < 15)
-    # TODO: Split long function (102 lines, target < 100)
-    # TODO: Refactor - complexity 20 (target < 15)
-    # TODO: Split long function (102 lines, target < 100)
     def _inject_fund_flow(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         klines: List[Dict],
         symbol: str
@@ -2002,65 +1711,11 @@ def _create_aggregated_bar(
             error_msg = str(e).lower()
             if 'st' in symbol.lower() or any(keyword in error_msg for keyword in ['退市', 'delisted', '暂停', '终止']):
                 logger.info(f"特殊股票跳过: {symbol} - 可能是ST股或已退市")
-            # TODO: Refactor - complexity 37 (target < 15)
-# TODO: Refactor - function too long (131 lines, target < 80)
-
-
             else:
                 logger.debug(f"东方财富获取失败: {symbol} - {e}")
             return None
 
-    def _validate__calculate_indicators_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _calculate_indicators 移到这里
-        return True, None
-
-    def _process__calculate_indicators_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _calculate_indicators 移到这里
-        return data
-
-    def _build__calculate_indicators_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _calculate_indicators 移到这里
-        return data
-
-    def _validate__calculate_indicators_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _calculate_indicators 移到这里
-        return True, None
-
-    def _process__calculate_indicators_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _calculate_indicators 移到这里
-        return data
-
-    def _build__calculate_indicators_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _calculate_indicators 移到这里
-        # TODO: 复杂度 37 - 需要重构拆分为更小的函数
-
-        # REFACTOR: Split this function into smaller pieces
-        return data
-
-# TODO: 长函数 141行 - 建议拆分为多个小函数
-
-# TODO: Split long function (130 lines, target < 100)
-# TODO: Refactor - complexity 37 (target < 15)
-    # TODO: Split long function (130 lines, target < 100)
-    # TODO: Refactor - complexity 37 (target < 15)
-    # TODO: Split long function (130 lines, target < 100)
     def _calculate_indicators(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         income: Dict,
         balance: Dict,
@@ -2295,75 +1950,12 @@ def _create_aggregated_bar(
 
         # 如果是 8 位数字，转换为 YYYY-MM-DD
         if len(date_digits) == 8:
-            # TODO: Refactor - complexity 30 (target < 15)
-# TODO: Refactor - function too long (198 lines, target < 80)
-
-
             return f'{date_digits[0:4]}-{date_digits[4:6]}-{date_digits[6:8]}'
 
         # 否则返回原字符串
         return date_str
 
-    def _validate__inject_financial_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _inject_financial 移到这里
-        return True, None
-
-    def _process__inject_financial_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _inject_financial 移到这里
-        return data
-
-    def _build__inject_financial_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _inject_financial 移到这里
-        return data
-
-    def _validate__inject_financial_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _inject_financial 移到这里
-        return True, None
-
-    def _process__inject_financial_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _inject_financial 移到这里
-        return data
-
-    def _build__inject_financial_result(data):
-        """构建返回结果"""
-        # REFACTOR: Split this function into smaller pieces
-        # TODO: 将结果构建逻辑从 _inject_financial 移到这里
-        return data
-
-# TODO: 复杂度 31 - 需要重构拆分为更小的函数
-
-# TODO: Split long function (197 lines, target < 100)
-# TODO: Refactor - complexity 30 (target < 15)
-    def _check_condition_0():
-        """Check: not income and not balance and not cashflow..."""
-        # TODO: 长函数 213行 - 建议拆分为多个小函数
-
-        return not income and not balance and not cashflow
-
-    # TODO: Refactor - complexity 31 (target < 15)
-    # TODO: Split long function (198 lines, target < 100)
-    # TODO: Refactor - complexity 31 (target < 15)
-    # TODO: Split long function (198 lines, target < 100)
     def _inject_financial(self, klines: List[Dict], symbol: str) -> List[Dict]:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
         """
         将财务指标注入到K线数据中（主方法）
 
@@ -2439,8 +2031,9 @@ def _create_aggregated_bar(
                     cashflow = cashflow_map.get(report_date)
 
                     # 如果三张表都缺失，跳过
-                    if not income and not balance and not cashflow and _check_condition_0():
-                        pass  # TODO: implement
+                    if not income and not balance and not cashflow:
+                        continue
+
                     # 获取上一期利润表（用于计算同比增长）
                     prev_income = None
                     if i > 0:
@@ -3029,29 +2622,14 @@ def _create_aggregated_bar(
                 df[col_name] = np.nan
 
         # ATR映射 (atr14 → atr)
-        # TODO: Refactor - function too long (124 lines, target < 80)
-
         if 'atr14' in df.columns and 'atr' not in df.columns:
-            # TODO: 长函数 134行 - 建议拆分为多个小函数
-
             df['atr'] = df['atr14']
         elif 'atr' not in df.columns:
             df['atr'] = np.nan
 
         logger.debug("向后兼容性检查完成")
 
-# TODO: Split long function (123 lines, target < 100)
     def backtest_portfolio(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         strategy_ids: List[int],
         symbols: List[str],
@@ -3316,7 +2894,9 @@ def _create_aggregated_bar(
             for idx, row in df.iterrows():
                 date_str = str(row.get('trade_date', row.get('date', ''))).strip()
                 date_clean = date_str.replace('-', '')[:8]
-                if len(date_clean) == 8 and date_clean in csi_close_map:
+                if len(date_clean) == 8:
+                    date_clean = f"{date_clean[:4]}-{date_clean[4:6]}-{date_clean[6:8]}"
+                if date_clean in csi_close_map:
                     df.at[idx, 'csi300_close'] = csi_close_map[date_clean]
                     matched += 1
                 if date_clean in csi_ma200_map:

@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_5 = 10.5
-CONST_11_0 = 11.0
-CONST_11_5 = 11.5
-CONST_12_0 = 12.0
-CONST_12_5 = 12.5
-CONST_13_0 = 13.0
-CONST_2024 = 2024
-CONST_3 = 3
-CONST_4 = 4
-CONST_5 = 5
-
 """Integration tests for data completeness checking"""
 import pytest
 from unittest.mock import Mock, patch

@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_1 = 10.1
-CONST_10_2 = 10.2
-CONST_10_5 = 10.5
-CONST_2026 = 2026
-CONST_25 = 25
-CONST_30 = 30
-CONST_31 = 31
-CONST_4 = 4
-CONST_5 = 5
-CONST_55_0 = 55.0
-
 """_handle_factor_compute 修复测试（2026-08-04）
 
 根因：get_daily_klines 自 ORM 重构后返回 polars DataFrame，handler 按 list-of-dicts

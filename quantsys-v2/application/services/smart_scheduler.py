@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_12 = 12
-
-CONST_300 = 300
-
-
-
-CONST_5 = 5
-
-CONST_12 = 12
-
-CONST_300 = 300
-
-
-
 """
 智能调度服务 - ORM版本
 基于 APScheduler 的增强调度器，支持动态任务管理和优先级调度

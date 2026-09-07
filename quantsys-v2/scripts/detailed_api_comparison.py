@@ -1,21 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_70 = 70
-
-
-
-CONST_70 = 70
-
-
-
 """详细对比 Flask 和 FastAPI 的 API 实现"""
 import os
 from pathlib import Path

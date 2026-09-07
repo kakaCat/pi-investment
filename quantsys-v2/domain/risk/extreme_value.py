@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [1e-06, 0.05, 0.1, 0.5, 0.85]...
-
-
-# Extracted Constants
-
-CONST_1eNEG_06 = 1e-06
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_5 = 0.5
-
-CONST_0_85 = 0.85
-
-CONST_0_9 = 0.9
-
-CONST_0_95 = 0.95
-
-CONST_0_99 = 0.99
-
-CONST_1_5 = 1.5
-
-CONST_3 = 3
-
-
-
 """
 Extreme Value Theory Calculator
 ================================
@@ -427,140 +396,141 @@ class ExtremeValueCalculator(BaseCalculator):
         if abs(xi) < 1e-6:
             # Gumbel case (ξ ≈ 0)
             return mu - sigma * np.log(-np.log(p))
-        # General case
-        return mu + (sigma / xi) * ((-np.log(p)) ** (-xi) - 1)
-
-def _gev_cvar(self, xi: float, mu: float, sigma: float, p: float) -> float:
-    """
-    Calculate CVaR from GEV parameters.
-
-    Args:
-        xi: Shape parameter
-        mu: Location parameter
-        sigma: Scale parameter
-        p: Confidence level
-
-    Returns:
-        CVaR estimate
-    """
-    var = self._gev_var(xi, mu, sigma, p)
-
-    if abs(xi) < 1e-6:
-        # Gumbel case
-        return var + sigma
-    elif xi < 1:
-        # General case (ξ < 1)
-        return var / (1 - xi) + (sigma - xi * mu) / (1 - xi)
-    else:
-        # For ξ >= 1, CVaR is infinite (use approximation)
-        return var * 1.5
-
-def mean_excess_plot(self,
-                    returns: Union[List, np.ndarray, pd.Series],
-                    thresholds: Optional[np.ndarray] = None) -> Dict[str, Any]:
-    """
-    Generate mean excess plot for threshold selection.
-
-    The mean excess plot shows mean exceedance vs threshold.
-    For GPD, this should be approximately linear above the threshold.
-
-    Args:
-        returns: Historical returns
-        thresholds: Array of thresholds to test (if None, auto-generated)
-
-    Returns:
-        Dictionary with mean excess plot data
-    """
-    returns = self._validate_returns(returns, 'returns')
-    losses = -returns
-
-    if thresholds is None:
-        # Generate thresholds from 50th to 95th percentile
-        thresholds = np.quantile(losses, np.linspace(0.50, 0.95, 20))
-
-    mean_excesses = []
-    n_exceedances = []
-
-    for threshold in thresholds:
-        exceedances = losses[losses > threshold] - threshold
-        if len(exceedances) > 0:
-            mean_excesses.append(np.mean(exceedances))
-            n_exceedances.append(len(exceedances))
         else:
-            mean_excesses.append(np.nan)
-            n_exceedances.append(0)
+            # General case
+            return mu + (sigma / xi) * ((-np.log(p)) ** (-xi) - 1)
 
-    return self._create_result_dict(
-        value={
-            'thresholds': thresholds.tolist(),
-            'mean_excesses': mean_excesses,
-            'n_exceedances': n_exceedances
-        },
-        method='mean_excess_plot',
-        parameters={'n_thresholds': len(thresholds)},
-        metadata={
-            'interpretation': 'Look for linear region to select threshold'
-        }
-    )
+    def _gev_cvar(self, xi: float, mu: float, sigma: float, p: float) -> float:
+        """
+        Calculate CVaR from GEV parameters.
 
-def hill_estimator(self,
-                  returns: Union[List, np.ndarray, pd.Series],
-                  k: Optional[int] = None) -> Dict[str, Any]:
-    """
-    Calculate Hill estimator for tail index.
+        Args:
+            xi: Shape parameter
+            mu: Location parameter
+            sigma: Scale parameter
+            p: Confidence level
 
-    The Hill estimator estimates the tail index (shape parameter) for heavy-tailed distributions.
+        Returns:
+            CVaR estimate
+        """
+        var = self._gev_var(xi, mu, sigma, p)
 
-    Args:
-        returns: Historical returns
-        k: Number of order statistics to use (if None, auto-selected)
+        if abs(xi) < 1e-6:
+            # Gumbel case
+            return var + sigma
+        elif xi < 1:
+            # General case (ξ < 1)
+            return var / (1 - xi) + (sigma - xi * mu) / (1 - xi)
+        else:
+            # For ξ >= 1, CVaR is infinite (use approximation)
+            return var * 1.5
 
-    Returns:
-        Dictionary with Hill estimator results
-    """
-    returns = self._validate_returns(returns, 'returns')
-    losses = -returns
+    def mean_excess_plot(self,
+                        returns: Union[List, np.ndarray, pd.Series],
+                        thresholds: Optional[np.ndarray] = None) -> Dict[str, Any]:
+        """
+        Generate mean excess plot for threshold selection.
 
-    # Sort losses in descending order
-    sorted_losses = np.sort(losses)[::-1]
+        The mean excess plot shows mean exceedance vs threshold.
+        For GPD, this should be approximately linear above the threshold.
 
-    if k is None:
-        # Use 5-10% of data
-        k = max(10, int(len(losses) * 0.05))
+        Args:
+            returns: Historical returns
+            thresholds: Array of thresholds to test (if None, auto-generated)
 
-    if k >= len(losses):
-        raise ConfigurationError(
-            f"k ({k}) must be less than data length ({len(losses)})",
-            parameter='k'
+        Returns:
+            Dictionary with mean excess plot data
+        """
+        returns = self._validate_returns(returns, 'returns')
+        losses = -returns
+
+        if thresholds is None:
+            # Generate thresholds from 50th to 95th percentile
+            thresholds = np.quantile(losses, np.linspace(0.50, 0.95, 20))
+
+        mean_excesses = []
+        n_exceedances = []
+
+        for threshold in thresholds:
+            exceedances = losses[losses > threshold] - threshold
+            if len(exceedances) > 0:
+                mean_excesses.append(np.mean(exceedances))
+                n_exceedances.append(len(exceedances))
+            else:
+                mean_excesses.append(np.nan)
+                n_exceedances.append(0)
+
+        return self._create_result_dict(
+            value={
+                'thresholds': thresholds.tolist(),
+                'mean_excesses': mean_excesses,
+                'n_exceedances': n_exceedances
+            },
+            method='mean_excess_plot',
+            parameters={'n_thresholds': len(thresholds)},
+            metadata={
+                'interpretation': 'Look for linear region to select threshold'
+            }
         )
 
-    # Hill estimator: (1/k) * sum(log(X_i) - log(X_{k+1}))
-    hill_estimate = np.mean(np.log(sorted_losses[:k])) - np.log(sorted_losses[k])
+    def hill_estimator(self,
+                      returns: Union[List, np.ndarray, pd.Series],
+                      k: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Calculate Hill estimator for tail index.
 
-    # Calculate Hill estimates for different k values (Hill plot)
-    k_values = range(10, min(len(losses) // 2, 200))
-    hill_estimates = []
+        The Hill estimator estimates the tail index (shape parameter) for heavy-tailed distributions.
 
-    for k_val in k_values:
-        estimate = np.mean(np.log(sorted_losses[:k_val])) - np.log(sorted_losses[k_val])
-        hill_estimates.append(estimate)
+        Args:
+            returns: Historical returns
+            k: Number of order statistics to use (if None, auto-selected)
 
-    return self._create_result_dict(
-        value={
-            'hill_estimate': float(hill_estimate),
-            'k': int(k),
-            'hill_plot': {
-                'k_values': list(k_values),
-                'estimates': hill_estimates
+        Returns:
+            Dictionary with Hill estimator results
+        """
+        returns = self._validate_returns(returns, 'returns')
+        losses = -returns
+
+        # Sort losses in descending order
+        sorted_losses = np.sort(losses)[::-1]
+
+        if k is None:
+            # Use 5-10% of data
+            k = max(10, int(len(losses) * 0.05))
+
+        if k >= len(losses):
+            raise ConfigurationError(
+                f"k ({k}) must be less than data length ({len(losses)})",
+                parameter='k'
+            )
+
+        # Hill estimator: (1/k) * sum(log(X_i) - log(X_{k+1}))
+        hill_estimate = np.mean(np.log(sorted_losses[:k])) - np.log(sorted_losses[k])
+
+        # Calculate Hill estimates for different k values (Hill plot)
+        k_values = range(10, min(len(losses) // 2, 200))
+        hill_estimates = []
+
+        for k_val in k_values:
+            estimate = np.mean(np.log(sorted_losses[:k_val])) - np.log(sorted_losses[k_val])
+            hill_estimates.append(estimate)
+
+        return self._create_result_dict(
+            value={
+                'hill_estimate': float(hill_estimate),
+                'k': int(k),
+                'hill_plot': {
+                    'k_values': list(k_values),
+                    'estimates': hill_estimates
+                }
+            },
+            method='hill_estimator',
+            parameters={'k': k},
+            metadata={
+                'interpretation': 'Higher values indicate heavier tails'
             }
-        },
-        method='hill_estimator',
-        parameters={'k': k},
-        metadata={
-            'interpretation': 'Higher values indicate heavier tails'
-        }
-    )
+        )
 
-def get_supported_methods(self) -> List[str]:
-    """Return list of supported calculation methods."""
-    return ['gev', 'gpd', 'pot', 'block_maxima']
+    def get_supported_methods(self) -> List[str]:
+        """Return list of supported calculation methods."""
+        return ['gev', 'gpd', 'pot', 'block_maxima']

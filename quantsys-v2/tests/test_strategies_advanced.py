@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_5 = 10.5
-CONST_11_0 = 11.0
-CONST_11_5 = 11.5
-CONST_12 = 12
-CONST_12_0 = 12.0
-CONST_14 = 14
-CONST_15 = 15
-CONST_15_0 = 15.0
-CONST_16_5 = 16.5
-CONST_20 = 20
-
 """
 高级策略单元测试
 

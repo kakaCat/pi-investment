@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
 """training API - FastAPI 版（从 Flask training.py 迁移，响应契约保持一致）
 
 覆盖端点：

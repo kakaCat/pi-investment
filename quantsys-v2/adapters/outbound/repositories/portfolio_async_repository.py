@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 Portfolio 异步ORM Repository
 
@@ -62,7 +59,9 @@ class PortfolioAsyncRepository(AsyncBaseORMRepository[PortfolioHolding]):
         """
         try:
             conditions = {}
-            if market and sector:
+            if market:
+                conditions['market'] = market
+            if sector:
                 conditions['sector'] = sector
 
             if conditions:

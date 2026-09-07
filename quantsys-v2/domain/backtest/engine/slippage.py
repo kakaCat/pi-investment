@@ -1,27 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_0001 = 0.0001
-
-CONST_0_0003 = 0.0003
-
-CONST_0_0005 = 0.0005
-
-CONST_0_001 = 0.001
-
-CONST_0_02 = 0.02
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_5 = 0.5
-
-
-
 """
 Slippage Models
 
@@ -84,8 +60,9 @@ class SlippageModel(ABC):
         if side == 'buy':
             # Buy at higher price (adverse)
             return price + slippage
-        # Sell at lower price (adverse)
-        return price - slippage
+        else:
+            # Sell at lower price (adverse)
+            return price - slippage
 
 
 class FixedSlippage(SlippageModel):
@@ -140,7 +117,9 @@ class ProportionalSlippage(SlippageModel):
             base_slippage_pct: Base slippage percentage (default 0.05%)
             volume_factor: Multiplier for volume impact (default 0.1)
         """
-        if base_slippage_pct < 0 and volume_factor < 0:
+        if base_slippage_pct < 0:
+            raise ValueError("Base slippage must be non-negative")
+        if volume_factor < 0:
             raise ValueError("Volume factor must be non-negative")
 
         self.base_slippage_pct = base_slippage_pct
@@ -205,7 +184,9 @@ class MarketImpactSlippage(SlippageModel):
             min_slippage_pct: Minimum slippage floor (default 0.01%)
             max_slippage_pct: Maximum slippage cap (default 2%)
         """
-        if base_slippage_pct < 0 and impact_coefficient < 0:
+        if base_slippage_pct < 0:
+            raise ValueError("Base slippage must be non-negative")
+        if impact_coefficient < 0:
             raise ValueError("Impact coefficient must be non-negative")
         if min_slippage_pct < 0 or max_slippage_pct < min_slippage_pct:
             raise ValueError("Invalid slippage bounds")

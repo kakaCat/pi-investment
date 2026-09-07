@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-
-
 """资金流助手（框架无关）— 从 adapters/inbound/api/routes/jobs.py 解耦而来
 
 注意：_inject_fund_flow_to_klines 调用的 get_stock_fund_flow 在原 Flask 代码中
@@ -72,8 +47,6 @@ def _inject_fund_flow_to_klines(klines: List[dict], symbol: str) -> List[dict]:
         # 按日期合并
         for k in klines:
             kdate = str(k.get('trade_date', k.get('date', ''))).replace('-', '')
-            # TODO: 提取嵌套逻辑为独立方法
-
             if kdate in fund_by_date:
                 frow = fund_by_date[kdate]
                 for cn_name, alias in _FUND_FLOW_COLUMN_MAP.items():
@@ -199,28 +172,6 @@ def _fetch_financial_data(symbol: str) -> Optional[Dict[str, Any]]:
     }
 
 
-# TODO: Refactor - complexity 29 (target < 15)
-
-def _validate__parse_financial_periods_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _parse_financial_periods 移到这里
-    return True, None
-
-def _process__parse_financial_periods_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _parse_financial_periods 移到这里
-    return data
-
-def _build__parse_financial_periods_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _parse_financial_periods 移到这里
-    return data
-
-# TODO: Refactor - complexity 29 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 29 (target < 15)
-# TODO: 复杂度 29 - 需要重构拆分为更小的函数
-
 def _parse_financial_periods(
     income_records: List[dict],
     balance_records: List[dict],
@@ -273,8 +224,12 @@ def _parse_financial_periods(
                 p['total_assets']      = total_assets
                 p['total_liabilities']  = total_liabilities
                 p['long_term_debt']    = noncurrent_liab  # proxy
-                if current_assets and current_liab and current_liab != 0 and net_income := p.get('net_income'):
-                    if total_assets and total_assets != 0 and total_equity and total_equity != 0:
+                if current_assets and current_liab and current_liab != 0:
+                    p['current_ratio'] = current_assets / current_liab
+                if net_income := p.get('net_income'):
+                    if total_assets and total_assets != 0:
+                        p['roa'] = net_income / total_assets
+                    if total_equity and total_equity != 0:
                         p['roe'] = net_income / total_equity
 
     for rec in cashflow_records:

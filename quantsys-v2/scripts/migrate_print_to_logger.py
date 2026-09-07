@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_60 = 60
-
-
-
-CONST_3 = 3
-
-CONST_60 = 60
-
-
-
 """批量将 print() 迁移到 structlog
 
 分析并辅助将 print() 替换为 logger 调用
@@ -56,7 +35,9 @@ EXCLUDED_PREFIXES = ('debug_', 'diagnose_', 'test_', 'fix_', 'temp_')
 def should_process(filepath: Path) -> bool:
     """判断文件是否需要处理"""
     parts = filepath.parts
-    if any(p in EXCLUDED_DIRS for p in parts) and any(filepath.name.startswith(prefix) for prefix in EXCLUDED_PREFIXES):
+    if any(p in EXCLUDED_DIRS for p in parts):
+        return False
+    if any(filepath.name.startswith(prefix) for prefix in EXCLUDED_PREFIXES):
         return False
     return filepath.suffix == '.py'
 
@@ -75,7 +56,9 @@ def analyze_print_usage(filepath: Path) -> Dict:
     
     for i, line in enumerate(lines):
         # 检查是否已有 logger 定义
-        if re.search(r'logger\s*=\s*structlog\.get_logger', line) and 'import structlog' in line or 'from structlog' in line:
+        if re.search(r'logger\s*=\s*structlog\.get_logger', line):
+            has_logger = True
+        if 'import structlog' in line or 'from structlog' in line:
             has_structlog_import = True
         
         # 匹配 print() 调用
@@ -168,15 +151,9 @@ def add_logger_import(content: str) -> str:
     
     if last_import_idx >= 0:
         # 在最后一个 import 后添加空行和 logger 定义
-        # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-        lines.insert(last_import_idx + 1, '')  # TODO: Use parameterized queries
-        # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-        lines.insert(last_import_idx + 2, 'import structlog')  # TODO: Use parameterized queries
-        # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-        lines.insert(last_import_idx + 3, 'logger = structlog.get_logger(__name__)')  # TODO: Use parameterized queries
+        lines.insert(last_import_idx + 1, '')
+        lines.insert(last_import_idx + 2, 'import structlog')
+        lines.insert(last_import_idx + 3, 'logger = structlog.get_logger(__name__)')
     else:
         # 没有 import，在文件开头添加
         lines.insert(0, 'import structlog')

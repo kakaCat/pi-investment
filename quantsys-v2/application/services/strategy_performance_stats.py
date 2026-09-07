@@ -1,62 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - evaluate_strategy_suitability() = 118 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.005, 0.008, 0.01, 0.012, 0.015]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_005 = 0.005
-
-CONST_0_008 = 0.008
-
-CONST_0_01 = 0.01
-
-CONST_0_012 = 0.012
-
-CONST_0_015 = 0.015
-
-CONST_0_018 = 0.018
-
-CONST_0_02 = 0.02
-
-CONST_0_025 = 0.025
-
-CONST_0_028 = 0.028
-
-CONST_0_03 = 0.03
-
-
-
-CONST_0_005 = 0.005
-
-CONST_0_008 = 0.008
-
-CONST_0_01 = 0.01
-
-CONST_0_012 = 0.012
-
-CONST_0_015 = 0.015
-
-CONST_0_018 = 0.018
-
-CONST_0_02 = 0.02
-
-CONST_0_025 = 0.025
-
-CONST_0_028 = 0.028
-
-CONST_0_03 = 0.03
-
-
-
 """
 策略表现统计服务
 
@@ -294,21 +235,7 @@ class StrategyPerformanceStats:
             logger.error(f"获取策略统计失败: {e}")
             return self._get_default_stats(market_regime)
 
-    # TODO: Refactor - function too long (119 lines, target < 80)
-
-# TODO: Split long function (118 lines, target < 100)
-    # TODO: 长函数 128行 - 建议拆分为多个小函数
-
     def evaluate_strategy_suitability(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         strategy_name: str,
         market_regime: str,

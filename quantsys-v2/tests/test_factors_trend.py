@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100000 = 100000
-CONST_101_0 = 101.0
-CONST_130_0 = 130.0
-CONST_14 = 14
-CONST_15 = 15
-CONST_20 = 20
-CONST_200_0 = 200.0
-CONST_25 = 25
-CONST_30 = 30
-CONST_42 = 42
-
 """
 Tests for Trend Indicators
 ===========================
@@ -25,9 +11,6 @@ import numpy as np
 from domain.quantlib.factors.trend import TrendFactors
 from domain.quantlib.core.exceptions import InsufficientDataError, DataValidationError
 
-
-# TODO: Refactor large class (49 methods, target < 20)
-# TODO: 大类 49个方法 - 考虑拆分为多个类或使用组合模式
 
 class TestTrendFactors:
     """Test trend indicator calculations."""

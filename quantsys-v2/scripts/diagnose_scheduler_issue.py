@@ -1,25 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_12 = 12
-
-CONST_70 = 70
-
-
-
-CONST_12 = 12
-
-CONST_70 = 70
-
-
-
 """
 彻底诊断 Scheduler API 问题
 找出为什么 HTTP 返回 0，但直接调用返回 6

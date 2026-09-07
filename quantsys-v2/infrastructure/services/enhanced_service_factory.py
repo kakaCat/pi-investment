@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 增强版服务工厂 - 支持依赖声明和自动解析
 
@@ -64,7 +61,9 @@ class ServiceDescriptor:
             sig = inspect.signature(self.implementation_type.__init__)
             deps = []
             for param_name, param in sig.parameters.items():
-                if param_name == 'self' and param.annotation != inspect.Parameter.empty:
+                if param_name == 'self':
+                    continue
+                if param.annotation != inspect.Parameter.empty:
                     # 跳过字符串类型注解（forward reference）
                     if isinstance(param.annotation, str):
                         logger.warning(

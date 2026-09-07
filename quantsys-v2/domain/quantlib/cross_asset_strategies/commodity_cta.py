@@ -1,37 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - generate_signal() = 118 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.1, 0.5, 3, 14, 20]...
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_0_5 = 0.5
-
-CONST_3 = 3
-
-CONST_14 = 14
-
-CONST_20 = 20
-
-CONST_42 = 42
-
-CONST_50 = 50
-
-CONST_60 = 60
-
-CONST_200 = 200
-
-CONST_4000 = 4000
-
-
-
 """
 商品期货CTA策略
 
@@ -177,18 +143,10 @@ class TrendFollowingCTA:
             return 'uptrend'
         elif fast_ma < slow_ma:
             return 'downtrend'
-        return None
-
-# TODO: Refactor - function too long (119 lines, target < 80)
-
-# TODO: Split long function (118 lines, target < 100)
-    # TODO: 长函数 123行 - 建议拆分为多个小函数
+        else:
+            return None
 
     def generate_signal(self) -> Optional[Dict]:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """
         生成交易信号
 

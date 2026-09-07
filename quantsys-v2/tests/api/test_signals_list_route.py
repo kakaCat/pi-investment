@@ -1,13 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_200 = 200
-CONST_2026 = 2026
-CONST_5 = 5
-CONST_500 = 500
-CONST_7 = 7
-
 """/api/signals 列表端点参数路径回归测试（2026-08-13）
 
 生产事故：该端点四条取数路径中三条因「路由 ↔ repository 契约漂移」损坏——

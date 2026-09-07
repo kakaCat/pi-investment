@@ -1,40 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-CONST_90 = 90
-
-CONST_120 = 120
-
-CONST_200 = 200
-
-CONST_730 = 730
-
-
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-CONST_90 = 90
-
-CONST_120 = 120
-
-CONST_200 = 200
-
-CONST_730 = 730
-
-
-
 """后台任务（Job）共享状态与执行（框架无关）— 从 adapters/inbound/api/routes/health.py 解耦而来
 
 Flask 与 FastAPI 两个 API 层共享同一内存 job 存储与执行逻辑。
@@ -81,56 +44,6 @@ def _audit_job(action: str, job: Dict[str, Any], actor: Optional[str] = None):
         pass
 
 
-# TODO: Refactor - complexity 17 (target < 15)
-
-def _validate__execute_job_by_type_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _execute_job_by_type 移到这里
-    return True, None
-
-def _process__execute_job_by_type_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _execute_job_by_type 移到这里
-    return data
-
-def _build__execute_job_by_type_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _execute_job_by_type 移到这里
-    return data
-
-# TODO: Refactor - complexity 17 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-def _check_condition_0():
-    """Check: klines_df is not None and not klines_df.is_empty() and len(k..."""
-    return klines_df is not None and not klines_df.is_empty() and len(klines_df) >= 20
-
-# TODO: Refactor - complexity 17 (target < 15)
-# TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-def _validate__execute_job_by_type_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process__execute_job_by_type_data(data):
-    """处理数据转换"""
-    return data
-
-def _build__execute_job_by_type_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate__execute_job_by_type_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process__execute_job_by_type_data(data):
-    """处理数据转换"""
-    return data
-
-def _build__execute_job_by_type_result(data):
-    """构建返回结果"""
-    return data
-
 def _execute_job_by_type(job_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """Execute a job by type, returning result dict."""
     if job_type == 'data_update':
@@ -151,10 +64,9 @@ def _execute_job_by_type(job_type: str, params: Dict[str, Any]) -> Dict[str, Any
         computed = 0
         for sym in symbols:
             klines_df = kline_repo.get_daily_klines(sym, start_date, end_date)
-            # TODO: 提取嵌套逻辑为独立方法
-
             if klines_df is not None and not klines_df.is_empty() and len(klines_df) >= 20:
                 try:
+                    klines = klines_df.to_dicts()
                     result = factor_stage.process({'symbol': sym, 'klines': klines})
                     factors = result.get('factors', {})
                     latest_date = klines[-1]['trade_date']

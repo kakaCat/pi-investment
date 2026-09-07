@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3_0 = 3.0
-
-CONST_5 = 5
-
-
-
-CONST_3_0 = 3.0
-
-CONST_5 = 5
-
-
-
 """Abstract base classes for all data providers."""
 from abc import ABC, abstractmethod
 from typing import Optional, TypeVar, Generic, List

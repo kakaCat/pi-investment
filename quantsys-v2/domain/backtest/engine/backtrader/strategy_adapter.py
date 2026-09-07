@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 Backtrader Strategy Adapters
 =============================
@@ -118,7 +115,9 @@ class IndicatorStrategyAdapter(bt.Strategy):
         current_buy = False
         current_sell = False
         
-        if 'buy' in result_df.columns and 'sell' in result_df.columns:
+        if 'buy' in result_df.columns:
+            current_buy = bool(result_df['buy'].iloc[-1])
+        if 'sell' in result_df.columns:
             current_sell = bool(result_df['sell'].iloc[-1])
         
         # Execute trading logic

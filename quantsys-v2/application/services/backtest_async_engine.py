@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_500 = 500
-
-CONST_100000_0 = 100000.0
-
-
-
-CONST_20 = 20
-
-CONST_500 = 500
-
-CONST_100000_0 = 100000.0
-
-
-
 """
 回测引擎 - 异步版本
 

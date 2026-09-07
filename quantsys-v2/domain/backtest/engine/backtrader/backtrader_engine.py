@@ -1,19 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_0001 = 0.0001
-
-CONST_0_0003 = 0.0003
-
-CONST_8 = 8
-
-CONST_100000_0 = 100000.0
-
-
-
 """
 Backtrader Backtest Engine
 ===========================
@@ -84,13 +68,7 @@ class BacktraderEngine:
         self.slippage_perc = slippage_perc
         self.n_workers = n_workers
     
-    # TODO: 长函数 104行 - 建议拆分为多个小函数
-
     def backtest_single(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         symbol: str,
         df: pd.DataFrame,
@@ -225,137 +203,138 @@ class BacktraderEngine:
                 )
                 results.append(result)
             return results
-        # Parallel execution
-        logger.info(f"Running parallel backtest for {len(symbols)} stocks "
-                   f"with {self.n_workers} workers")
-        
-        with ProcessPoolExecutor(max_workers=self.n_workers) as executor:
-            # Submit all tasks
-            future_to_symbol = {}
-            for symbol, df in market_data.items():
-                future = executor.submit(
-                    self.backtest_single,
-                    symbol, df, strategy_func, strategy_params, printlog
-                )
-                future_to_symbol[future] = symbol
+        else:
+            # Parallel execution
+            logger.info(f"Running parallel backtest for {len(symbols)} stocks "
+                       f"with {self.n_workers} workers")
             
-            # Collect results
-            results = []
-            for future in as_completed(future_to_symbol):
-                symbol = future_to_symbol[future]
-                try:
-                    result = future.result()
-                    results.append(result)
-                except Exception as e:
-                    logger.error(f"Backtest failed for {symbol}: {e}")
-                    results.append({
-                        'symbol': symbol,
-                        'error': str(e),
-                        'success': False
-                    })
-            
-            return results
-
-def backtest_with_strategy_obj(
-    self,
-    symbol: str,
-    klines: list,
-    strategy_obj,
-    strategy_params: Dict[str, Any],
-    printlog: bool = False
-) -> Dict[str, Any]:
-    """
-    Backtest with StrategyBase object.
+            with ProcessPoolExecutor(max_workers=self.n_workers) as executor:
+                # Submit all tasks
+                future_to_symbol = {}
+                for symbol, df in market_data.items():
+                    future = executor.submit(
+                        self.backtest_single,
+                        symbol, df, strategy_func, strategy_params, printlog
+                    )
+                    future_to_symbol[future] = symbol
+                
+                # Collect results
+                results = []
+                for future in as_completed(future_to_symbol):
+                    symbol = future_to_symbol[future]
+                    try:
+                        result = future.result()
+                        results.append(result)
+                    except Exception as e:
+                        logger.error(f"Backtest failed for {symbol}: {e}")
+                        results.append({
+                            'symbol': symbol,
+                            'error': str(e),
+                            'success': False
+                        })
+                
+                return results
     
-    Args:
-        symbol: Stock symbol
-        klines: List of kline dicts
-        strategy_obj: StrategyBase instance
-        strategy_params: Strategy parameters
-        printlog: Print trade logs
+    def backtest_with_strategy_obj(
+        self,
+        symbol: str,
+        klines: list,
+        strategy_obj,
+        strategy_params: Dict[str, Any],
+        printlog: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Backtest with StrategyBase object.
         
-    Returns:
-        Backtest results
-    """
-    from domain.backtest.engine.backtrader.data_feed import PandasDataFeed
-    from domain.backtest.engine.backtrader.strategy_adapter import SignalStrategyAdapter
-    
-    # Convert klines to DataFrame
-    df = pd.DataFrame(klines)
-    
-    # Create Cerebro instance
-    cerebro = bt.Cerebro()
-    
-    # Add data
-    try:
-        data = PandasDataFeed.from_dataframe(df, symbol)
-        cerebro.adddata(data)
-    except Exception as e:
-        logger.error(f"Failed to add data for {symbol}: {e}")
+        Args:
+            symbol: Stock symbol
+            klines: List of kline dicts
+            strategy_obj: StrategyBase instance
+            strategy_params: Strategy parameters
+            printlog: Print trade logs
+            
+        Returns:
+            Backtest results
+        """
+        from domain.backtest.engine.backtrader.data_feed import PandasDataFeed
+        from domain.backtest.engine.backtrader.strategy_adapter import SignalStrategyAdapter
+        
+        # Convert klines to DataFrame
+        df = pd.DataFrame(klines)
+        
+        # Create Cerebro instance
+        cerebro = bt.Cerebro()
+        
+        # Add data
+        try:
+            data = PandasDataFeed.from_dataframe(df, symbol)
+            cerebro.adddata(data)
+        except Exception as e:
+            logger.error(f"Failed to add data for {symbol}: {e}")
+            return {
+                'symbol': symbol,
+                'error': str(e),
+                'success': False
+            }
+        
+        # Add strategy
+        cerebro.addstrategy(
+            SignalStrategyAdapter,
+            strategy_obj=strategy_obj,
+            strategy_params=strategy_params,
+            printlog=printlog
+        )
+        
+        # Set broker parameters
+        cerebro.broker.setcash(self.initial_cash)
+        cerebro.broker.setcommission(commission=self.commission)
+        cerebro.broker.set_slippage_perc(self.slippage_perc)
+        
+        # Add analyzers
+        cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
+        cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
+        cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+        cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
+        
+        # Run backtest
+        try:
+            initial_value = cerebro.broker.getvalue()
+            results = cerebro.run()
+            final_value = cerebro.broker.getvalue()
+        except Exception as e:
+            logger.error(f"Backtest failed for {symbol}: {e}")
+            return {
+                'symbol': symbol,
+                'error': str(e),
+                'success': False
+            }
+        
+        # Extract results (same as backtest_single)
+        strategy = results[0]
+        sharpe_analysis = strategy.analyzers.sharpe.get_analysis()
+        drawdown_analysis = strategy.analyzers.drawdown.get_analysis()
+        trades_analysis = strategy.analyzers.trades.get_analysis()
+        
         return {
             'symbol': symbol,
-            'error': str(e),
-            'success': False
+            'success': True,
+            'initial_value': initial_value,
+            'final_value': final_value,
+            'total_return': (final_value - initial_value) / initial_value,
+            'sharpe_ratio': sharpe_analysis.get('sharperatio', None),
+            'max_drawdown': drawdown_analysis.get('max', {}).get('drawdown', 0) / 100,
+            'total_trades': trades_analysis.get('total', {}).get('total', 0),
+            'won_trades': trades_analysis.get('won', {}).get('total', 0),
+            'lost_trades': trades_analysis.get('lost', {}).get('total', 0),
+            'win_rate': self._calculate_win_rate(trades_analysis),
         }
     
-    # Add strategy
-    cerebro.addstrategy(
-        SignalStrategyAdapter,
-        strategy_obj=strategy_obj,
-        strategy_params=strategy_params,
-        printlog=printlog
-    )
-    
-    # Set broker parameters
-    cerebro.broker.setcash(self.initial_cash)
-    cerebro.broker.setcommission(commission=self.commission)
-    cerebro.broker.set_slippage_perc(self.slippage_perc)
-    
-    # Add analyzers
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
-    cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
-    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
-    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
-    
-    # Run backtest
-    try:
-        initial_value = cerebro.broker.getvalue()
-        results = cerebro.run()
-        final_value = cerebro.broker.getvalue()
-    except Exception as e:
-        logger.error(f"Backtest failed for {symbol}: {e}")
-        return {
-            'symbol': symbol,
-            'error': str(e),
-            'success': False
-        }
-    
-    # Extract results (same as backtest_single)
-    strategy = results[0]
-    sharpe_analysis = strategy.analyzers.sharpe.get_analysis()
-    drawdown_analysis = strategy.analyzers.drawdown.get_analysis()
-    trades_analysis = strategy.analyzers.trades.get_analysis()
-    
-    return {
-        'symbol': symbol,
-        'success': True,
-        'initial_value': initial_value,
-        'final_value': final_value,
-        'total_return': (final_value - initial_value) / initial_value,
-        'sharpe_ratio': sharpe_analysis.get('sharperatio', None),
-        'max_drawdown': drawdown_analysis.get('max', {}).get('drawdown', 0) / 100,
-        'total_trades': trades_analysis.get('total', {}).get('total', 0),
-        'won_trades': trades_analysis.get('won', {}).get('total', 0),
-        'lost_trades': trades_analysis.get('lost', {}).get('total', 0),
-        'win_rate': self._calculate_win_rate(trades_analysis),
-    }
-
-@staticmethod
-def _calculate_win_rate(trades_analysis: dict) -> float:
-    """Calculate win rate from trade analysis."""
-    total = trades_analysis.get('total', {}).get('total', 0)
-    if total == 0:
-        return 0.0
-    
-    won = trades_analysis.get('won', {}).get('total', 0)
-    return won / total
+    @staticmethod
+    def _calculate_win_rate(trades_analysis: dict) -> float:
+        """Calculate win rate from trade analysis."""
+        total = trades_analysis.get('total', {}).get('total', 0)
+        if total == 0:
+            return 0.0
+        
+        won = trades_analysis.get('won', {}).get('total', 0)
+        return won / total

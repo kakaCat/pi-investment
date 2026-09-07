@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_2026 = 2026
-CONST_28 = 28
-CONST_31 = 31
-CONST_5 = 5
-CONST_600000 = 600000
-CONST_600068 = 600068
-CONST_810011 = 810011
-CONST_9_4 = 9.4
-CONST_9_5 = 9.5
-CONST_9_51 = 9.51
-
 """BaostockKlineProvider 会话失效重登测试（2026-08-02）
 
 背景：回填进程跑到一半 baostock 会话被并发打断（broken pipe）后，后续几千只

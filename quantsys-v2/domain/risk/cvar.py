@@ -1,27 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-CONST_0_9 = 0.9
-
-CONST_0_95 = 0.95
-
-CONST_0_99 = 0.99
-
-CONST_6 = 6
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_10000 = 10000
-
-
-
 """
 Conditional Value at Risk (CVaR) Calculator
 ============================================
@@ -131,188 +107,189 @@ class CVaRCalculator(BaseCalculator):
                 cvar_value = self._parametric_cvar(returns, confidence_level, time_horizon)
             elif method == 'monte_carlo':
                 cvar_value = self._monte_carlo_cvar(returns, confidence_level, time_horizon, n_simulations)
-            raise ConfigurationError(f"Unknown method: {method}", parameter='method')
+            else:
+                raise ConfigurationError(f"Unknown method: {method}", parameter='method')
 
-        # Create result
+            # Create result
+            return self._create_result_dict(
+                value=abs(cvar_value),  # Return as positive value
+                method=f'cvar_{method}',
+                parameters={
+                    'confidence_level': confidence_level,
+                    'method': method,
+                    'time_horizon': time_horizon,
+                    'n_observations': len(returns),
+                    'n_simulations': n_simulations if method == 'monte_carlo' else None
+                },
+                metadata={
+                    'interpretation': f'Expected loss in the worst {(1-confidence_level)*100}% of cases',
+                    'coherent_risk_measure': True,
+                    'also_known_as': 'Expected Shortfall (ES)'
+                }
+            )
+
+        except Exception as e:
+            if isinstance(e, (InsufficientDataError, ConfigurationError)):
+                raise
+            raise CalculationError(str(e), calculation_type='CVaR')
+
+    def _historical_cvar(self, returns: np.ndarray, confidence_level: float, time_horizon: int) -> float:
+        """
+        Calculate CVaR using historical simulation method.
+
+        CVaR is the average of all losses that exceed the VaR threshold.
+        """
+        # Scale returns for time horizon
+        if time_horizon > 1:
+            returns = returns * np.sqrt(time_horizon)
+
+        # Calculate VaR threshold
+        var_threshold = np.percentile(returns, (1 - confidence_level) * 100)
+
+        # CVaR is the mean of returns below the VaR threshold
+        tail_losses = returns[returns <= var_threshold]
+
+        if len(tail_losses) == 0:
+            # If no losses exceed VaR, return VaR itself
+            return var_threshold
+
+        cvar = np.mean(tail_losses)
+
+        return cvar
+
+    def _parametric_cvar(self, returns: np.ndarray, confidence_level: float, time_horizon: int) -> float:
+        """
+        Calculate CVaR using parametric method.
+
+        Assumes returns are normally distributed.
+        For normal distribution: CVaR = μ - σ * φ(Φ^(-1)(α)) / (1-α)
+        where φ is the PDF and Φ is the CDF of standard normal.
+        """
+        mean = np.mean(returns)
+        std = np.std(returns, ddof=1)
+
+        # Z-score for the confidence level
+        z = stats.norm.ppf(1 - confidence_level)
+
+        # CVaR formula for normal distribution
+        cvar = mean - std * stats.norm.pdf(z) / (1 - confidence_level)
+
+        # Scale for time horizon
+        if time_horizon > 1:
+            cvar = cvar * np.sqrt(time_horizon)
+
+        return cvar
+
+    def _monte_carlo_cvar(self, returns: np.ndarray, confidence_level: float,
+                          time_horizon: int, n_simulations: int) -> float:
+        """
+        Calculate CVaR using Monte Carlo simulation.
+
+        Simulates future returns and calculates the average of the worst outcomes.
+        """
+        mean = np.mean(returns)
+        std = np.std(returns, ddof=1)
+
+        # Generate random returns
+        simulated_returns = np.random.normal(mean, std, n_simulations)
+
+        # Scale for time horizon
+        if time_horizon > 1:
+            simulated_returns = simulated_returns * np.sqrt(time_horizon)
+
+        # Calculate VaR threshold
+        var_threshold = np.percentile(simulated_returns, (1 - confidence_level) * 100)
+
+        # CVaR is the mean of simulated returns below VaR
+        tail_losses = simulated_returns[simulated_returns <= var_threshold]
+
+        if len(tail_losses) == 0:
+            return var_threshold
+
+        cvar = np.mean(tail_losses)
+
+        return cvar
+
+    def get_supported_methods(self) -> List[str]:
+        """Return list of supported CVaR calculation methods."""
+        return ['historical', 'parametric', 'monte_carlo']
+
+    def calculate_with_var(self,
+                          returns: Union[List, np.ndarray, pd.Series],
+                          confidence_level: float = 0.95,
+                          method: str = 'historical') -> Dict[str, Any]:
+        """
+        Calculate both VaR and CVaR together.
+
+        Args:
+            returns: Historical returns data
+            confidence_level: Confidence level
+            method: Calculation method
+
+        Returns:
+            Dictionary with both VaR and CVaR values
+        """
+        returns = self._validate_returns(returns, 'returns')
+
+        # Calculate CVaR
+        cvar_result = self.calculate(returns, confidence_level, method)
+
+        # Calculate VaR for comparison
+        if method == 'historical':
+            var_value = np.percentile(returns, (1 - confidence_level) * 100)
+        elif method == 'parametric':
+            mean = np.mean(returns)
+            std = np.std(returns, ddof=1)
+            z = stats.norm.ppf(1 - confidence_level)
+            var_value = mean + z * std
+        else:  # monte_carlo
+            mean = np.mean(returns)
+            std = np.std(returns, ddof=1)
+            simulated = np.random.normal(mean, std, 10000)
+            var_value = np.percentile(simulated, (1 - confidence_level) * 100)
+
         return self._create_result_dict(
-            value=abs(cvar_value),  # Return as positive value
-            method=f'cvar_{method}',
+            value={
+                'var': abs(var_value),
+                'cvar': cvar_result['value'],
+                'cvar_var_ratio': cvar_result['value'] / abs(var_value) if var_value != 0 else None
+            },
+            method=f'var_cvar_{method}',
             parameters={
                 'confidence_level': confidence_level,
-                'method': method,
-                'time_horizon': time_horizon,
-                'n_observations': len(returns),
-                'n_simulations': n_simulations if method == 'monte_carlo' else None
+                'method': method
             },
             metadata={
-                'interpretation': f'Expected loss in the worst {(1-confidence_level)*100}% of cases',
-                'coherent_risk_measure': True,
-                'also_known_as': 'Expected Shortfall (ES)'
+                'interpretation': 'CVaR is always >= VaR; ratio shows tail risk severity'
             }
         )
 
-    except Exception as e:
-        if isinstance(e, (InsufficientDataError, ConfigurationError)):
-            raise
-        raise CalculationError(str(e), calculation_type='CVaR')
+    def calculate_multiple_confidence_levels(self,
+                                            returns: Union[List, np.ndarray, pd.Series],
+                                            confidence_levels: List[float] = [0.90, 0.95, 0.99],
+                                            method: str = 'historical') -> Dict[str, Any]:
+        """
+        Calculate CVaR for multiple confidence levels.
 
-def _historical_cvar(self, returns: np.ndarray, confidence_level: float, time_horizon: int) -> float:
-    """
-    Calculate CVaR using historical simulation method.
+        Args:
+            returns: Historical returns data
+            confidence_levels: List of confidence levels
+            method: Calculation method
 
-    CVaR is the average of all losses that exceed the VaR threshold.
-    """
-    # Scale returns for time horizon
-    if time_horizon > 1:
-        returns = returns * np.sqrt(time_horizon)
+        Returns:
+            Dictionary with CVaR values for each confidence level
+        """
+        results = {}
 
-    # Calculate VaR threshold
-    var_threshold = np.percentile(returns, (1 - confidence_level) * 100)
+        for cl in confidence_levels:
+            result = self.calculate(returns, confidence_level=cl, method=method)
+            results[f'cvar_{int(cl*100)}'] = result['value']
 
-    # CVaR is the mean of returns below the VaR threshold
-    tail_losses = returns[returns <= var_threshold]
-
-    if len(tail_losses) == 0:
-        # If no losses exceed VaR, return VaR itself
-        return var_threshold
-
-    cvar = np.mean(tail_losses)
-
-    return cvar
-
-def _parametric_cvar(self, returns: np.ndarray, confidence_level: float, time_horizon: int) -> float:
-    """
-    Calculate CVaR using parametric method.
-
-    Assumes returns are normally distributed.
-    For normal distribution: CVaR = μ - σ * φ(Φ^(-1)(α)) / (1-α)
-    where φ is the PDF and Φ is the CDF of standard normal.
-    """
-    mean = np.mean(returns)
-    std = np.std(returns, ddof=1)
-
-    # Z-score for the confidence level
-    z = stats.norm.ppf(1 - confidence_level)
-
-    # CVaR formula for normal distribution
-    cvar = mean - std * stats.norm.pdf(z) / (1 - confidence_level)
-
-    # Scale for time horizon
-    if time_horizon > 1:
-        cvar = cvar * np.sqrt(time_horizon)
-
-    return cvar
-
-def _monte_carlo_cvar(self, returns: np.ndarray, confidence_level: float,
-                      time_horizon: int, n_simulations: int) -> float:
-    """
-    Calculate CVaR using Monte Carlo simulation.
-
-    Simulates future returns and calculates the average of the worst outcomes.
-    """
-    mean = np.mean(returns)
-    std = np.std(returns, ddof=1)
-
-    # Generate random returns
-    simulated_returns = np.random.normal(mean, std, n_simulations)
-
-    # Scale for time horizon
-    if time_horizon > 1:
-        simulated_returns = simulated_returns * np.sqrt(time_horizon)
-
-    # Calculate VaR threshold
-    var_threshold = np.percentile(simulated_returns, (1 - confidence_level) * 100)
-
-    # CVaR is the mean of simulated returns below VaR
-    tail_losses = simulated_returns[simulated_returns <= var_threshold]
-
-    if len(tail_losses) == 0:
-        return var_threshold
-
-    cvar = np.mean(tail_losses)
-
-    return cvar
-
-def get_supported_methods(self) -> List[str]:
-    """Return list of supported CVaR calculation methods."""
-    return ['historical', 'parametric', 'monte_carlo']
-
-def calculate_with_var(self,
-                      returns: Union[List, np.ndarray, pd.Series],
-                      confidence_level: float = 0.95,
-                      method: str = 'historical') -> Dict[str, Any]:
-    """
-    Calculate both VaR and CVaR together.
-
-    Args:
-        returns: Historical returns data
-        confidence_level: Confidence level
-        method: Calculation method
-
-    Returns:
-        Dictionary with both VaR and CVaR values
-    """
-    returns = self._validate_returns(returns, 'returns')
-
-    # Calculate CVaR
-    cvar_result = self.calculate(returns, confidence_level, method)
-
-    # Calculate VaR for comparison
-    if method == 'historical':
-        var_value = np.percentile(returns, (1 - confidence_level) * 100)
-    elif method == 'parametric':
-        mean = np.mean(returns)
-        std = np.std(returns, ddof=1)
-        z = stats.norm.ppf(1 - confidence_level)
-        var_value = mean + z * std
-    else:  # monte_carlo
-        mean = np.mean(returns)
-        std = np.std(returns, ddof=1)
-        simulated = np.random.normal(mean, std, 10000)
-        var_value = np.percentile(simulated, (1 - confidence_level) * 100)
-
-    return self._create_result_dict(
-        value={
-            'var': abs(var_value),
-            'cvar': cvar_result['value'],
-            'cvar_var_ratio': cvar_result['value'] / abs(var_value) if var_value != 0 else None
-        },
-        method=f'var_cvar_{method}',
-        parameters={
-            'confidence_level': confidence_level,
-            'method': method
-        },
-        metadata={
-            'interpretation': 'CVaR is always >= VaR; ratio shows tail risk severity'
-        }
-    )
-
-def calculate_multiple_confidence_levels(self,
-                                        returns: Union[List, np.ndarray, pd.Series],
-                                        confidence_levels: List[float] = [0.90, 0.95, 0.99],
-                                        method: str = 'historical') -> Dict[str, Any]:
-    """
-    Calculate CVaR for multiple confidence levels.
-
-    Args:
-        returns: Historical returns data
-        confidence_levels: List of confidence levels
-        method: Calculation method
-
-    Returns:
-        Dictionary with CVaR values for each confidence level
-    """
-    results = {}
-
-    for cl in confidence_levels:
-        result = self.calculate(returns, confidence_level=cl, method=method)
-        results[f'cvar_{int(cl*100)}'] = result['value']
-
-    return self._create_result_dict(
-        value=results,
-        method=f'cvar_{method}_multiple',
-        parameters={
-            'confidence_levels': confidence_levels,
-            'method': method
-        }
-    )
+        return self._create_result_dict(
+            value=results,
+            method=f'cvar_{method}_multiple',
+            parameters={
+                'confidence_levels': confidence_levels,
+                'method': method
+            }
+        )

@@ -1,59 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.01, 0.08, 0.4, 0.8, 3]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_0_08 = 0.08
-
-CONST_0_4 = 0.4
-
-CONST_0_8 = 0.8
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_8 = 8
-
-CONST_20 = 20
-
-
-
-CONST_0_01 = 0.01
-
-CONST_0_08 = 0.08
-
-CONST_0_4 = 0.4
-
-CONST_0_8 = 0.8
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_8 = 8
-
-CONST_20 = 20
-
-
-
 """M1 市场感知服务（RFC 007）
 
 三个能力从"即用即弃的一次性计算"变为"可查询的时间序列资产"：
@@ -217,7 +161,9 @@ class MarketPerceptionService:
             return None
 
         rows = history
-        if trade_date and len(rows) < INDEX_MIN_HISTORY:
+        if trade_date:
+            rows = [r for r in rows if r['date'] <= trade_date]
+        if len(rows) < INDEX_MIN_HISTORY:
             return None
 
         closes = [r['close'] for r in rows]
@@ -272,7 +218,9 @@ class MarketPerceptionService:
         if (sentiment >= EUPHORIA_SENTIMENT and vr > EUPHORIA_VOLUME_RATIO
                 and up > EUPHORIA_UP_PCT):
             return 'euphoria'
-        if close > ma20 and ma20 > ma60 and chg5d > TREND_5D_THRESHOLD_PCT and close < ma20 and ma20 < ma60 and chg5d < -TREND_5D_THRESHOLD_PCT:
+        if close > ma20 and ma20 > ma60 and chg5d > TREND_5D_THRESHOLD_PCT:
+            return 'trend_up'
+        if close < ma20 and ma20 < ma60 and chg5d < -TREND_5D_THRESHOLD_PCT:
             return 'trend_down'
         return 'range'
 
@@ -293,7 +241,9 @@ class MarketPerceptionService:
 
     def _judge_and_store_regime(self, trade_date: Optional[str] = None) -> Dict[str, Any]:
         """读取当日情绪落库行 + 指数趋势，按规则判定 regime 并落库。"""
-        if not trade_date and not trade_date:
+        if not trade_date:
+            trade_date = self._latest_trade_date()
+        if not trade_date:
             return {'stored': False, 'error': '无交易日数据'}
 
         srow = self.sentiment_repo.get_by_date(trade_date)

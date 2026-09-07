@@ -1,17 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-CONST_6 = 6
-
-CONST_50 = 50
-
-
-
 """
 异步数据库基础Repository
 
@@ -372,7 +358,9 @@ class AsyncBaseRepository(ABC):
 
     def _validate_symbol(self, symbol: str) -> bool:
         """验证股票代码格式"""
-        if not symbol and not isinstance(symbol, str):
+        if not symbol:
+            raise ValueError("股票代码不能为空")
+        if not isinstance(symbol, str):
             raise ValueError("股票代码必须是字符串")
 
         base = symbol.strip().upper()
@@ -397,7 +385,9 @@ class AsyncBaseRepository(ABC):
 
     def _validate_positive_number(self, value: float, name: str) -> bool:
         """验证正数"""
-        if value is None and value <= 0:
+        if value is None:
+            raise ValueError(f"{name} cannot be None")
+        if value <= 0:
             raise ValueError(f"{name} must be positive, got {value}")
         return True
 

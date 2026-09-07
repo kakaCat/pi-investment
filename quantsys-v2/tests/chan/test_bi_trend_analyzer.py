@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_5 = 10.5
-CONST_12_0 = 12.0
-CONST_13_0 = 13.0
-CONST_15 = 15
-CONST_2026 = 2026
-CONST_3 = 3
-CONST_5 = 5
-CONST_7_0 = 7.0
-CONST_9 = 9
-CONST_9_0 = 9.0
-
 """走势类型分析（笔中枢版）测试"""
 from datetime import datetime, timedelta
 import pytest

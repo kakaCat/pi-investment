@@ -1,13 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_20 = 20
-CONST_25 = 25
-CONST_6 = 6
-CONST_8 = 8
-CONST_80 = 80
-
 #!/usr/bin/env python3
 """
 生成买卖信号并保存到数据库
@@ -87,10 +77,6 @@ def save_signal_to_db(signal_repo: SignalRepository, signal: Dict, stock_name: s
         print(f"    ❌ 保存失败: {e}")
         return False
 
-
-# TODO: Refactor - function too long (121 lines, target < 80)
-
-# TODO: 长函数 121行 - 建议拆分为多个小函数
 
 def main():
     """主函数"""

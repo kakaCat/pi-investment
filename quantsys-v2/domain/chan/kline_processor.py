@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """K线预处理器 - 处理包含关系"""
 from typing import List, Optional, Literal
 import pandas as pd
@@ -112,4 +109,5 @@ class KLineProcessor:
         """确定初始方向"""
         if k2.high > k1.high:
             return 'up'
-        return 'down'
+        else:
+            return 'down'

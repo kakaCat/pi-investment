@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-
-
 """Tencent kline provider - 腾讯K线数据源（国内直连，绕代理）
 
 背景（2026-07-23）：eastmoney（akshare）K线 API push2his.eastmoney.com
@@ -66,7 +41,9 @@ class TencentKlineProvider(KlineProvider):
         if symbol.startswith(('60', '68', '11', '51')):
             return f'sh{symbol}'
         # '39' 为深市指数代码段（399001 深成指、399006 创业板指）
-        if symbol.startswith(('00', '30', '12', '15', '39')) and symbol.startswith(('4', '8', '92')):
+        if symbol.startswith(('00', '30', '12', '15', '39')):
+            return f'sz{symbol}'
+        if symbol.startswith(('4', '8', '92')):
             return f'bj{symbol}'
         return None
 

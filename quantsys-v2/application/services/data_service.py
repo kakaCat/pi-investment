@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-
-
-CONST_4 = 4
-
-
-
 """
 统一数据访问服务 (DataService) - 完全ORM版本
 
@@ -161,8 +144,6 @@ class DataService:
             financials = []
             try:
                 financials_data = self.financial_service.get_financial_data(symbol, start_date, end_date)
-                # TODO: 提取嵌套逻辑为独立方法
-
                 if financials_data and 'data' in financials_data:
                     financials = financials_data['data']
             except Exception as e:
@@ -182,67 +163,6 @@ class DataService:
         except Exception as e:
             logger.exception(f"Unexpected error getting backtest workflow data for {symbol}: {e}")
             raise DatabaseError(f"Failed to get backtest workflow data for {symbol}") from e
-
-    # TODO: Refactor - complexity 18 (target < 15)
-
-    def _validate_check_data_integrity_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 check_data_integrity 移到这里
-        return True, None
-
-    def _process_check_data_integrity_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 check_data_integrity 移到这里
-        return data
-
-    def _build_check_data_integrity_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 check_data_integrity 移到这里
-        return data
-
-    def _validate_check_data_integrity_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 check_data_integrity 移到这里
-        return True, None
-
-    def _process_check_data_integrity_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 check_data_integrity 移到这里
-        return data
-
-    def _build_check_data_integrity_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 check_data_integrity 移到这里
-        return data
-
-# TODO: Refactor - complexity 18 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 18 (target < 15)
-    # TODO: 复杂度 18 - 需要重构拆分为更小的函数
-
-    def _validate_check_data_integrity_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_check_data_integrity_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_check_data_integrity_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_check_data_integrity_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_check_data_integrity_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_check_data_integrity_result(data):
-        """构建返回结果"""
-        return data
 
     def check_data_integrity(self, symbol: Optional[str] = None, check_type: str = 'all') -> Dict:
         """检查数据完整性
@@ -352,7 +272,9 @@ class DataService:
 
             # 添加各类报表数据
             if financial_data:
-                if hasattr(financial_data, 'income_statement') and financial_data.income_statement and hasattr(financial_data, 'balance_sheet') and financial_data.balance_sheet:
+                if hasattr(financial_data, 'income_statement') and financial_data.income_statement:
+                    result['income_statement'] = financial_data.income_statement
+                if hasattr(financial_data, 'balance_sheet') and financial_data.balance_sheet:
                     result['balance_sheet'] = financial_data.balance_sheet
                 if hasattr(financial_data, 'cash_flow') and financial_data.cash_flow:
                     result['cash_flow'] = financial_data.cash_flow

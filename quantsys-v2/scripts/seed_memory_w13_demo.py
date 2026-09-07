@@ -1,21 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_40 = 40
-
-
-
-CONST_40 = 40
-
-
-
 """W1.3 检索质量验收种子（≥20 条种子记忆要求）
 
 现有 14 条（8 缠论迁移 + 6 条 v13 案例），本脚本补 7 条真实项目教训，

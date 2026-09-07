@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_50 = 50
-
-
-
-CONST_50 = 50
-
-
-
 """策略ORM Repository - 快速迁移版本"""
 from typing import List, Dict, Optional, Any
 from infrastructure.persistence.orm import BaseORMRepository, get_session

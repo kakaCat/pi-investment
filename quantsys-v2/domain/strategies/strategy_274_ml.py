@@ -1,31 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_0_2 = 0.2
-
-CONST_0_5 = 0.5
-
-CONST_0_7 = 0.7
-
-CONST_1_3 = 1.3
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_274 = 274
-
-
-
 """
 策略274：机器学习策略（示例）
 

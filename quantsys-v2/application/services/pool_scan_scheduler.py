@@ -1,36 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_16 = 16
-
-CONST_70 = 70
-
-CONST_272 = 272
-
-CONST_273 = 273
-
-
-
-CONST_5 = 5
-
-CONST_16 = 16
-
-CONST_70 = 70
-
-CONST_272 = 272
-
-CONST_273 = 273
-
-
-
 """
 定时任务：每日股票池扫描
 

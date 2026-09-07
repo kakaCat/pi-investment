@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Unified type definitions for broker abstraction layer."""
 
 from .broker_types import (

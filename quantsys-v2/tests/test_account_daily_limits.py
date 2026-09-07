@@ -1,14 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000 = 10000
-CONST_100000 = 100000
-CONST_4 = 4
-CONST_40000 = 40000
-CONST_45000 = 45000
-CONST_5 = 5
-CONST_90000 = 90000
-
 """账户级日买入限额测试（服务端硬护栏）"""
 import pytest
 from unittest.mock import MagicMock

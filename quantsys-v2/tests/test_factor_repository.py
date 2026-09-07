@@ -6,9 +6,6 @@ import math
 from adapters.outbound.repositories import FactorORMRepository
 
 
-# TODO: Refactor large class (24 methods, target < 20)
-# TODO: 大类 24个方法 - 考虑拆分为多个类或使用组合模式
-
 class TestFactorRepository:
     """FactorRepository测试类"""
 

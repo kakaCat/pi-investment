@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 Factor 异步ORM Repository
 
@@ -48,9 +45,13 @@ class FactorAsyncRepository(AsyncBaseORMRepository[FactorValue]):
         try:
             stmt = select(FactorValue)
 
-            if symbol and factor_name:
+            if symbol:
+                stmt = stmt.where(FactorValue.symbol == symbol)
+            if factor_name:
                 stmt = stmt.where(FactorValue.factor_name == factor_name)
-            if start_date and end_date:
+            if start_date:
+                stmt = stmt.where(FactorValue.factor_date >= start_date)
+            if end_date:
                 stmt = stmt.where(FactorValue.factor_date <= end_date)
 
             stmt = stmt.order_by(desc(FactorValue.factor_date)).limit(limit)

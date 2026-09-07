@@ -1,15 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000_0 = 10000.0
-CONST_12000_0 = 12000.0
-CONST_2000_0 = 2000.0
-CONST_3000_0 = 3000.0
-CONST_5000_0 = 5000.0
-CONST_7000_0 = 7000.0
-CONST_8000_0 = 8000.0
-CONST_9000_0 = 9000.0
-
 """测试资金操作事务控制"""
 import pytest
 from unittest.mock import Mock, MagicMock

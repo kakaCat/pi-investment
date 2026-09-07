@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_14 = 14
-CONST_176 = 176
-CONST_178 = 178
-CONST_193 = 193
-CONST_20 = 20
-CONST_26 = 26
-CONST_266 = 266
-CONST_30 = 30
-CONST_5 = 5
-
 #!/usr/bin/env python3
 """
 创建 M3-2 回测矩阵所需的 5 个经典 indicator 策略（对应 m3-2-backtest-matrix-execution-plan.md）。

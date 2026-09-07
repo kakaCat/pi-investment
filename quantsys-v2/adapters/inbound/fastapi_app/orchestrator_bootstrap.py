@@ -1,52 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-CONST_17 = 17
-
-CONST_30 = 30
-
-CONST_60 = 60
-
-CONST_930 = 930
-
-CONST_1130 = 1130
-
-CONST_1300 = 1300
-
-CONST_1500 = 1500
-
-
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-CONST_17 = 17
-
-CONST_30 = 30
-
-CONST_60 = 60
-
-CONST_930 = 930
-
-CONST_1130 = 1130
-
-CONST_1300 = 1300
-
-CONST_1500 = 1500
-
-
-
 """DailyOrchestrator / IntradayMonitor 随 FastAPI 启动的装配（2026-08-13 起唯一宿主）
 
 背景：orchestrator tick（T+1 结转/信号推送/挂单撮合）与 intraday monitor
@@ -91,7 +42,9 @@ def _monitor_loop(stop_event: threading.Event) -> None:
     while not stop_event.is_set():
         now = datetime.now()
         try:
-            if _in_orchestrator_window(now) and _in_intraday_window(now):
+            if _in_orchestrator_window(now):
+                monitor_jobs.daily_orchestrator_tick()
+            if _in_intraday_window(now):
                 monitor_jobs.intraday_monitor_check()
         except Exception as e:
             # 单次 tick 失败不能杀死线程——否则编排器再次静默死亡

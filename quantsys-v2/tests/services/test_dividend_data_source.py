@@ -1,15 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_15 = 15
-CONST_16 = 16
-CONST_2024 = 2024
-CONST_28 = 28
-CONST_3 = 3
-CONST_3_064 = 3.064
-CONST_4_9419 = 4.9419
-CONST_601398 = 601398
-
 import pytest
 import pandas as pd
 from unittest.mock import patch, Mock

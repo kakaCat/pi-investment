@@ -1,49 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_50 = 50
-
-CONST_365 = 365
-
-CONST_1024 = 1024
-
-CONST_2024 = 2024
-
-CONST_100000 = 100000
-
-CONST_1000000 = 1000000
-
-CONST_1500000 = 1500000
-
-
-
-CONST_0_01 = 0.01
-
-CONST_50 = 50
-
-CONST_365 = 365
-
-CONST_1024 = 1024
-
-CONST_2024 = 2024
-
-CONST_100000 = 100000
-
-CONST_1000000 = 1000000
-
-CONST_1500000 = 1500000
-
-
-
 """
 Performance benchmark: pandas vs polars
 

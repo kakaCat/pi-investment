@@ -1,16 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_101 = 101
-CONST_102 = 102
-CONST_1620_5 = 1620.5
-CONST_1621_0 = 1621.0
-CONST_20 = 20
-CONST_2026 = 2026
-CONST_300059 = 300059
-CONST_600519 = 600519
-CONST_90_0 = 90.0
-
 """ChanScanService 测试——池内股票缠论买卖点扫描落 signals 表"""
 from unittest.mock import MagicMock
 import pytest

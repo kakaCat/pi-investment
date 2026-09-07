@@ -1,14 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_3 = 3
-CONST_30 = 30
-CONST_4 = 4
-CONST_5 = 5
-CONST_5432 = 5432
-CONST_60 = 60
-CONST_600519 = 600519
-
 #!/usr/bin/env python
 """竞争分析功能端到端测试 - 简化版
 

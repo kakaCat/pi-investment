@@ -1,13 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_272 = 272
-CONST_3 = 3
-CONST_50 = 50
-CONST_60 = 60
-CONST_600000 = 600000
-CONST_90 = 90
-
 """
 测试 Polars DataFrame 修复
 """
@@ -59,14 +49,15 @@ def test_pool_scanner_handles_polars():
         if result['summary']['error'] > 0:
             print(f"  错误详情: {result['errors']}")
             return False
-        print("  ✓ 测试通过\n")
-        return True
+        else:
+            print("  ✓ 测试通过\n")
+            return True
 
-except Exception as e:
-    print(f"  ✗ 测试失败: {e}\n")
-    import traceback
-    traceback.print_exc()
-    return False
+    except Exception as e:
+        print(f"  ✗ 测试失败: {e}\n")
+        import traceback
+        traceback.print_exc()
+        return False
 
 def test_empty_dataframe_check():
     """测试空 DataFrame 的检查"""
@@ -88,8 +79,9 @@ def test_empty_dataframe_check():
         print("  新方式: 正确检测到空 DataFrame")
         print("  ✓ 测试通过\n")
         return True
-    print("  ✗ 新方式失败\n")
-    return False
+    else:
+        print("  ✗ 新方式失败\n")
+        return False
 
 if __name__ == '__main__':
     print("=" * 60)

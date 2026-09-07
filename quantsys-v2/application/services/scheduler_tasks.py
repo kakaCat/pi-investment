@@ -1,62 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - handle_model_train_auto() = 251 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.01, 0.2, 0.55, 4, 5]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_0_2 = 0.2
-
-CONST_0_55 = 0.55
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_7 = 7
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_42 = 42
-
-CONST_50 = 50
-
-
-
-CONST_0_01 = 0.01
-
-CONST_0_2 = 0.2
-
-CONST_0_55 = 0.55
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_7 = 7
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_42 = 42
-
-CONST_50 = 50
-
-
-
 """
 调度任务处理器
 从旧的infrastructure/scheduler迁移过来的command handlers
@@ -285,7 +226,9 @@ def handle_pool_refresh_daily(
     refreshed, skipped, failed = [], [], []
 
     for pool in service.list_pools():
-        if pool.get('pool_type') != 'dynamic' and not _is_pool_refresh_due(pool, today):
+        if pool.get('pool_type') != 'dynamic':
+            continue
+        if not _is_pool_refresh_due(pool, today):
             skipped.append({'pool_id': pool['id'], 'name': pool['name']})
             continue
         try:
@@ -396,8 +339,6 @@ def handle_report_daily(params: Dict[str, Any] = None) -> Dict[str, Any]:
             from application.services.market_data_service import MarketDataService
             market_service = MarketDataService()
             market_summary = market_service.get_market_overview()
-            # TODO: 提取嵌套逻辑为独立方法
-
             if market_summary.get("success") and market_summary.get("data"):
                 report_content["sections"].append({
                     "title": "市场概况",
@@ -514,52 +455,6 @@ def handle_backtest_run(params: Dict[str, Any] = None) -> Dict[str, Any]:
             "error": str(e)
         }
 
-
-# TODO: Refactor - complexity 16 (target < 15)
-
-def _validate_handle_factor_compute_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 handle_factor_compute 移到这里
-    return True, None
-
-def _process_handle_factor_compute_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 handle_factor_compute 移到这里
-    return data
-
-def _build_handle_factor_compute_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 handle_factor_compute 移到这里
-    return data
-
-# TODO: Refactor - complexity 16 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 16 (target < 15)
-# TODO: 复杂度 16 - 需要重构拆分为更小的函数
-
-def _validate_handle_factor_compute_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_handle_factor_compute_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_handle_factor_compute_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_handle_factor_compute_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_handle_factor_compute_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_handle_factor_compute_result(data):
-    """构建返回结果"""
-    return data
 
 def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """因子计算任务（盘后批量重算并落库，为次日信号做准备）
@@ -801,9 +696,7 @@ def handle_financial_data_update(params: Dict[str, Any] = None) -> Dict[str, Any
             try:
                 financial_data = service.get_financial_indicators(symbol)
                 if financial_data:
-                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                    updated_count += 1  # TODO: Use parameterized queries
+                    updated_count += 1
             except Exception as e:
                 errors.append({"symbol": symbol, "error": str(e)})
 
@@ -1117,81 +1010,8 @@ def handle_chan_knowledge_distill(params: Dict[str, Any] = None) -> Dict[str, An
             "error": str(e)
         }
 
-# TODO: Refactor - complexity 32 (target < 15)
-
-
-# TODO: Refactor - function too long (252 lines, target < 80)
-
-def _validate_handle_model_train_auto_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 handle_model_train_auto 移到这里
-    return True, None
-
-def _process_handle_model_train_auto_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 handle_model_train_auto 移到这里
-    return data
-
-def _build_handle_model_train_auto_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 handle_model_train_auto 移到这里
-    def _validate_handle_model_train_auto_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_handle_model_train_auto_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_handle_model_train_auto_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_handle_model_train_auto_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_handle_model_train_auto_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_handle_model_train_auto_result(data):
-        """构建返回结果"""
-        return data
-
-    return data
-
-# TODO: Split long function (251 lines, target < 100)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 32 (target < 15)
-# TODO: Split long function (251 lines, target < 100)
-# TODO: 复杂度 32 - 需要重构拆分为更小的函数
-
-# TODO: Refactor - complexity 32 (target < 15)
-# TODO: Split long function (251 lines, target < 100)
-# TODO: 长函数 272行 - 建议拆分为多个小函数
 
 def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 9 ----
-    # ---- Section 10 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 9 ----
-    # ---- Section 10 ----
     """
     自动化模型训练任务
     
@@ -1259,7 +1079,9 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         for i, symbol in enumerate(symbols):
             try:
                 rows = KlineORMRepository().get_daily_klines(symbol, start_date, end_date)
-                if rows is not None and not rows.is_empty() and (i+1) % 100 == 0:
+                if rows is not None and not rows.is_empty():
+                    klines_dict[symbol] = [dict(r) for r in rows.to_dicts()]
+                if (i+1) % 100 == 0:
                     logger.info(f"已加载K线 {i+1}/{len(symbols)}")
             except Exception as e:
                 logger.warning(f"加载K线 {symbol} 失败: {e}")
@@ -1560,8 +1382,9 @@ def _try_switch_model(model_type: str, new_version: str, new_test_acc: float) ->
     if new_test_acc > current_test_acc + 0.01:
         logger.info(f"性能提升: {current_test_acc:.4f} → {new_test_acc:.4f}")
         return True
-    logger.info(f"新模型性能未达切换阈值")
-    return False
+    else:
+        logger.info(f"新模型性能未达切换阈值")
+        return False
 
 
 def handle_pending_orders_match(params: Dict[str, Any] = None) -> Dict[str, Any]:

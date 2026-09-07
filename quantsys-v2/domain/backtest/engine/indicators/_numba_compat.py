@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Numba compatibility shim for Python 3.14+.
 
 Provides a no-op ``njit`` decorator when numba is not available or

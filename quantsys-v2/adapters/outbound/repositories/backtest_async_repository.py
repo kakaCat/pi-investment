@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-
-
 """
 Backtest 异步ORM Repository
 
@@ -85,7 +60,9 @@ class BacktestAsyncRepository(AsyncBaseORMRepository[BacktestResult]):
         try:
             stmt = select(BacktestResult)
 
-            if strategy_name and symbol:
+            if strategy_name:
+                stmt = stmt.where(BacktestResult.strategy_name == strategy_name)
+            if symbol:
                 stmt = stmt.where(BacktestResult.symbol == symbol)
 
             stmt = stmt.order_by(desc(BacktestResult.created_at)).limit(limit)

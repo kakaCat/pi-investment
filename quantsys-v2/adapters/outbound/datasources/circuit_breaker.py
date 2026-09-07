@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_60 = 60
-
-
-
-CONST_3 = 3
-
-CONST_60 = 60
-
-
-
 """Circuit breaker for data sources using pybreaker.
 
 Prevents continuous calls to failing data sources.

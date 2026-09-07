@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_2026 = 2026
-CONST_3 = 3
-CONST_3890 = 3890
-CONST_3900 = 3900
-CONST_3905 = 3905
-CONST_3910 = 3910
-CONST_3920 = 3920
-CONST_3925 = 3925
-CONST_3930 = 3930
-CONST_7 = 7
-
 """MarketDataService.get_index_history 回归测试
 
 akshare stock_zh_index_daily 的 date 列是 datetime.date 对象，

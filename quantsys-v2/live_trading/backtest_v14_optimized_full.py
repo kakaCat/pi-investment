@@ -1,35 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - backtest_v14_optimized_full() = 107 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_08 = 0.08
-
-CONST_0_15 = 0.15
-
-CONST_80 = 80
-
-CONST_100000 = 100000
-
-
-
-CONST_0_08 = 0.08
-
-CONST_0_15 = 0.15
-
-CONST_80 = 80
-
-CONST_100000 = 100000
-
-
-
 """
 V14参数优化版本完整回测验证
 
@@ -50,18 +18,7 @@ from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.WARNING)
 
-# TODO: Split long function (107 lines, target < 100)
-# TODO: 长函数 116行 - 建议拆分为多个小函数
-
 def backtest_v14_optimized_full():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     """V14参数优化版本完整回测"""
 
     print("\n" + "="*80)

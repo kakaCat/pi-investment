@@ -1,40 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-CONST_18 = 18
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-CONST_18 = 18
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
 """
 Fund Flow ORM Repository - 完全迁移版本
 
@@ -96,7 +59,9 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
                       end_date: Optional[str] = None) -> List[Dict[str, Any]]:
         try:
             q = self.session.query(self.model)
-            if symbol and start_date:
+            if symbol:
+                q = q.filter(self.model.symbol == symbol)
+            if start_date:
                 q = q.filter(self.model.trade_date >= start_date)
             if end_date:
                 q = q.filter(self.model.trade_date <= end_date)

@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_2026 = 2026
-CONST_3 = 3
-CONST_30 = 30
-CONST_300 = 300
-CONST_4 = 4
-CONST_5 = 5
-CONST_6 = 6
-CONST_60 = 60
-CONST_9 = 9
-CONST_999 = 999
-
 """
 APScheduler 服务单元测试
 

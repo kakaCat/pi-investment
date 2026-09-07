@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_15 = 15
-CONST_2024 = 2024
-CONST_3 = 3
-CONST_31 = 31
-CONST_5 = 5
-CONST_600000 = 600000
-CONST_600036 = 600036
-CONST_600276 = 600276
-CONST_600519 = 600519
-
 """
 测试批量查询优化
 
@@ -268,3 +254,4 @@ class TestPortfolioRepositoryOptimization:
             assert 'symbol' in holding
             assert 'quantity' in holding
             assert holding['quantity'] > 0  # 应该只返回正持仓
+

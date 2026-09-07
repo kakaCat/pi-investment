@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_13 = 13
-CONST_15 = 15
-CONST_16 = 16
-CONST_194854 = 194854
-CONST_194854_000 = 194854.000
-CONST_2_5 = 2.5
-CONST_2026 = 2026
-CONST_22 = 22
-CONST_260109 = 260109
-CONST_260109_000 = 260109.000
-
 """成交额(amount)字段修复回归测试
 
 背景：2026-07-13 起 kline_update_job 把 amount 硬编码为 0.0（KlineData 契约

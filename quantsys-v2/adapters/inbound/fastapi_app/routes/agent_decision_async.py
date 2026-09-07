@@ -1,40 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_3_0 = 3.0
-
-CONST_5 = 5
-
-
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_3_0 = 3.0
-
-CONST_5 = 5
-
-
-
 """
 Agent 决策执行 API
 
@@ -185,15 +148,6 @@ async def simulate_rotation(sim: RotationSimulate):
 
 @router.post("/rotation/execute", summary="执行策略轮动")
 async def execute_rotation(execution: RotationExecution):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     """Agent 确认并执行策略轮动 — 决策链第三步
 
     执行后返回完整状态：新策略组合、持仓变化、决策ID。

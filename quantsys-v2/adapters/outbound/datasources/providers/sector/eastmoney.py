@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-
-
-CONST_20 = 20
-
-
-
 """
 EastmoneySectorProvider - 东方财富板块成分数据源
 

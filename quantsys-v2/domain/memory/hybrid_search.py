@@ -1,20 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-CONST_3 = 3
-
-CONST_60 = 60
-
-CONST_5000 = 5000
-
-
-
 """混合检索引擎（W1.3）：BM25(jieba) + 向量余弦 + RRF 融合
 
 参照 TencentDB-Agent-Memory src/core/tools/memory-search.ts 的思想裁剪：
@@ -25,6 +8,7 @@ CONST_5000 = 5000
 设计定稿（2026-08-12）：embedding 存 memory_entries.embedding（TEXT 列 JSON 数组），
 余弦相似度在应用层算（条目量级数百，无需 pgvector）。
 """
+from __future__ import annotations
 
 import json
 import math
@@ -76,7 +60,9 @@ def doc_text(item: Dict[str, Any]) -> str:
 
 def parse_embedding(raw: Any) -> Optional[List[float]]:
     """解析 TEXT 列中的 JSON 向量，非法/为空返回 None"""
-    if not raw and isinstance(raw, list):
+    if not raw:
+        return None
+    if isinstance(raw, list):
         return raw
     try:
         vec = json.loads(raw)

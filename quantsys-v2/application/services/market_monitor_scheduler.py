@@ -1,32 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_03 = 0.03
-
-CONST_11_5 = 11.5
-
-CONST_13 = 13
-
-CONST_60_0 = 60.0
-
-
-
-CONST_0_03 = 0.03
-
-CONST_11_5 = 11.5
-
-CONST_13 = 13
-
-CONST_60_0 = 60.0
-
-
-
 """
 市场监控定时任务
 盘中每5分钟监控大盘异动，触发条件时通知 Agent

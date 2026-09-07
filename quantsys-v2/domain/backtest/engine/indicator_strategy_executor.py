@@ -1,13 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-
-
 """
 IndicatorStrategy 执行引擎
 
@@ -41,13 +31,7 @@ class IndicatorStrategyExecutor:
         self.code_validator = CodeValidator()
         self.param_parser = ParamParser()
 
-    # TODO: 长函数 106行 - 建议拆分为多个小函数
-
     def execute(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         code: str,
         klines: List[Dict],
@@ -89,8 +73,6 @@ class IndicatorStrategyExecutor:
         for param_def in parsed_params:
             param_name = param_def['name']
             # 优先使用用户传入的参数，否则使用默认值
-            # TODO: 提取嵌套逻辑为独立方法
-
             if params and param_name in params:
                 params_used[param_name] = params[param_name]
             else:
@@ -262,34 +244,6 @@ class IndicatorStrategyExecutor:
 
         return namespace
 
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 28 (target < 15)
-    # TODO: 复杂度 28 - 需要重构拆分为更小的函数
-
-    def _validate__validate_signals_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__validate_signals_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__validate_signals_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate__validate_signals_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__validate_signals_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__validate_signals_result(data):
-        """构建返回结果"""
-        return data
-
     def _validate_signals(self, df: pd.DataFrame) -> None:
         """
         验证信号列存在且有效（支持分批信号）
@@ -349,11 +303,15 @@ class IndicatorStrategyExecutor:
         # 检查是否至少有一个信号（简单信号或分批信号）
         has_any_signal = False
 
-        if has_simple_buy and df['buy'].any() and has_simple_sell and df['sell'].any():
+        if has_simple_buy and df['buy'].any():
+            has_any_signal = True
+        if has_simple_sell and df['sell'].any():
             has_any_signal = True
 
         for tier in [1, 2, 3]:
-            if f'buy_tier{tier}' in df.columns and df[f'buy_tier{tier}'].any() and f'sell_tier{tier}' in df.columns and df[f'sell_tier{tier}'].any():
+            if f'buy_tier{tier}' in df.columns and df[f'buy_tier{tier}'].any():
+                has_any_signal = True
+            if f'sell_tier{tier}' in df.columns and df[f'sell_tier{tier}'].any():
                 has_any_signal = True
 
         if not has_any_signal:

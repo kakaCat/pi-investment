@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100000 = 100000
-CONST_11 = 11
-CONST_12 = 12
-CONST_14 = 14
-CONST_15 = 15
-CONST_17 = 17
-CONST_20 = 20
-CONST_2026 = 2026
-CONST_25 = 25
-CONST_30 = 30
-
 """交易日判定与每日检查跳过可见性测试（2026-08-12）
 
 回归背景：_is_trading_day 用"当天日K已落库"判定交易日，但日K 17:40 才更新，

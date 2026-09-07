@@ -1,14 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_184_25 = 184.25
-CONST_185_64 = 185.64
-CONST_2024 = 2024
-CONST_28_5 = 28.5
-CONST_31 = 31
-CONST_4783_45 = 4783.45
-CONST_6_42 = 6.42
-
 """Tests for L1 data layer handlers."""
 import pytest
 import json

@@ -1,13 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_15 = 15
-CONST_20 = 20
-CONST_2026 = 2026
-CONST_50 = 50
-CONST_8 = 8
-CONST_80 = 80
-
 #!/usr/bin/env python3
 """
 quantsys-v2 深度审计工具
@@ -162,17 +152,9 @@ class CodeAuditor:
     def _check_security_issues(self, content: str, file_path: Path, lines: List[str]) -> None:
         """检查安全问题"""
         # 检查 eval/exec 使用
-        # SECURITY WARNING: eval() usage - consider safer alternatives
-
-        # SECURITY WARNING: exec() usage - refactor to avoid dynamic execution
-
-        if 'eval(' in content or 'exec(' in content:  # TODO: Replace with ast.literal_eval() or json.loads()  # TODO: Refactor to avoid dynamic code execution
+        if 'eval(' in content or 'exec(' in content:
             for i, line in enumerate(lines, 1):
-                # SECURITY WARNING: eval() usage - consider safer alternatives
-
-                # SECURITY WARNING: exec() usage - refactor to avoid dynamic execution
-
-                if 'eval(' in line or 'exec(' in line:  # TODO: Replace with ast.literal_eval() or json.loads()  # TODO: Refactor to avoid dynamic code execution
+                if 'eval(' in line or 'exec(' in line:
                     self.issues.append(Issue(
                         category="security",
                         severity="high",
@@ -209,9 +191,7 @@ class CodeAuditor:
         """检查 SQL 注入风险"""
         # 检查字符串拼接的 SQL
         for i, line in enumerate(lines, 1):
-            # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-            if re.search(r'(SELECT|INSERT|UPDATE|DELETE).*\+.*%', line, re.IGNORECASE):  # TODO: Use parameterized queries
+            if re.search(r'(SELECT|INSERT|UPDATE|DELETE).*\+.*%', line, re.IGNORECASE):
                 self.issues.append(Issue(
                     category="security",
                     severity="high",

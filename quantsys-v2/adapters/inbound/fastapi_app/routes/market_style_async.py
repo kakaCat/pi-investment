@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_60 = 60
-
-CONST_500 = 500
-
-
-
-CONST_60 = 60
-
-CONST_500 = 500
-
-
-
 """市场风格检测 API - FastAPI 版（从 Flask market_style.py 迁移，响应契约保持一致）"""
 from fastapi import APIRouter, Request
 import structlog

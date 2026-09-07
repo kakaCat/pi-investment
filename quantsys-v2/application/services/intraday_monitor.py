@@ -1,53 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_02 = 0.02
-
-CONST_0_08 = 0.08
-
-CONST_0_15 = 0.15
-
-CONST_4 = 4
-
-CONST_9 = 9
-
-CONST_11 = 11
-
-CONST_13 = 13
-
-CONST_15 = 15
-
-CONST_30 = 30
-
-
-
-CONST_0_02 = 0.02
-
-CONST_0_08 = 0.08
-
-CONST_0_15 = 0.15
-
-CONST_4 = 4
-
-CONST_9 = 9
-
-CONST_11 = 11
-
-CONST_13 = 13
-
-CONST_15 = 15
-
-CONST_30 = 30
-
-
-
 """
 盘中监控服务 (Intraday Monitor)
 
@@ -60,6 +10,7 @@ CONST_30 = 30
 3. 大盘异动：指数跌超2% → 唤醒 Agent 分析
 4. 持仓超时：超过30天无盈利 → 标记复盘
 """
+from __future__ import annotations
 
 import structlog
 from typing import Dict, Any, List, Optional
@@ -97,67 +48,6 @@ class IntradayMonitor:
         self.config = {**MONITOR_CONFIG, **(config or {})}
         self._alert_sent_today = False  # 每日只发一次大盘异动告警
 
-    # TODO: Refactor - complexity 16 (target < 15)
-
-    def _validate_check_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 check 移到这里
-        return True, None
-
-    def _process_check_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 check 移到这里
-        return data
-
-    def _build_check_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 check 移到这里
-        return data
-
-    def _validate_check_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 check 移到这里
-        return True, None
-
-    def _process_check_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 check 移到这里
-        return data
-
-    def _build_check_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 check 移到这里
-        return data
-
-# TODO: Refactor - complexity 16 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 16 (target < 15)
-    # TODO: 复杂度 16 - 需要重构拆分为更小的函数
-
-    def _validate_check_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_check_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_check_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_check_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_check_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_check_result(data):
-        """构建返回结果"""
-        return data
-
     def check(self) -> Dict[str, Any]:
         """执行一次盘中检查
 
@@ -187,8 +77,6 @@ class IntradayMonitor:
 
             # 获取当前持仓
             positions = engine.get_current_positions()
-            # TODO: 提取嵌套逻辑为独立方法
-
             if not positions:
                 results['status'] = 'no_positions'
                 return results

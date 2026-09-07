@@ -1,9 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - fetch_dividends() = 151 lines
-
 """
 分红数据源抽象层
 
@@ -22,41 +16,6 @@ class DividendDataSource(ABC):
     """分红数据源抽象基类"""
 
     @abstractmethod
-    def _validate_fetch_dividends_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 fetch_dividends 移到这里
-        return True, None
-
-    def _process_fetch_dividends_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 fetch_dividends 移到这里
-        return data
-
-    def _build_fetch_dividends_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 fetch_dividends 移到这里
-        return data
-
-    def _validate_fetch_dividends_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 fetch_dividends 移到这里
-        return True, None
-
-    def _process_fetch_dividends_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 fetch_dividends 移到这里
-        return data
-
-    def _build_fetch_dividends_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 fetch_dividends 移到这里
-        return data
-
-# TODO: Split long function (151 lines, target < 100)
-# TODO: Refactor - complexity 16 (target < 15)
-    # TODO: Split long function (151 lines, target < 100)
-    # TODO: Refactor - complexity 16 (target < 15)
-    # TODO: Split long function (151 lines, target < 100)
     def fetch_dividends(self, symbol: str) -> pd.DataFrame:
         """
         获取股票分红数据
@@ -86,52 +45,7 @@ class EastMoneyDividendSource(DividendDataSource):
         self.timeout = timeout
         self.base_url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
 
-    # TODO: Refactor - complexity 16 (target < 15)
-
-    # TODO: Refactor - function too long (152 lines, target < 80)
-
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: 复杂度 16 - 需要重构拆分为更小的函数
-
-    # TODO: 长函数 166行 - 建议拆分为多个小函数
-
-    def _validate_fetch_dividends_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_fetch_dividends_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_fetch_dividends_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_fetch_dividends_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_fetch_dividends_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_fetch_dividends_result(data):
-        """构建返回结果"""
-        return data
-
     def fetch_dividends(self, symbol: str) -> pd.DataFrame:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
         """
         从东方财富获取分红数据
 
@@ -188,8 +102,6 @@ class EastMoneyDividendSource(DividendDataSource):
             response.raise_for_status()
 
             data = response.json()
-
-            # TODO: 提取嵌套逻辑为独立方法
 
             if data.get("code") != 0:
                 raise Exception(f"API returned error code: {data.get('code')}")

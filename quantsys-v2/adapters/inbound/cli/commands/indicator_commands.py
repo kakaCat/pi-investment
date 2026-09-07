@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 Indicator Commands
 
@@ -72,7 +69,9 @@ class IndicatorListCommand(HTTPCommand):
 
     def prepare_request(self, **kwargs) -> Dict[str, Any]:
         params = {}
-        if kwargs.get('active') is not None and kwargs.get('page'):
+        if kwargs.get('active') is not None:
+            params['active'] = kwargs['active']
+        if kwargs.get('page'):
             params['page'] = kwargs['page']
         if kwargs.get('limit'):
             params['limit'] = kwargs['limit']
@@ -97,7 +96,9 @@ class IndicatorCreateCommand(HTTPCommand):
         return "POST"
 
     def validate_params(self, **kwargs) -> Optional[str]:
-        if not kwargs.get('name') and not kwargs.get('code'):
+        if not kwargs.get('name'):
+            return "指标名称 (name) 不能为空"
+        if not kwargs.get('code'):
             return "指标代码 (code) 不能为空"
         return None
 
@@ -114,7 +115,9 @@ class IndicatorCreateCommand(HTTPCommand):
         }
 
         # 可选参数
-        if kwargs.get('description') and kwargs.get('params'):
+        if kwargs.get('description'):
+            body['description'] = kwargs['description']
+        if kwargs.get('params'):
             # 解析 JSON 参数
             try:
                 body['params'] = json.loads(kwargs['params'])
@@ -161,7 +164,9 @@ class IndicatorUpdateCommand(HTTPCommand):
         # 构建请求体
         body = {}
 
-        if kwargs.get('name') and kwargs.get('description'):
+        if kwargs.get('name'):
+            body['name'] = kwargs['name']
+        if kwargs.get('description'):
             body['description'] = kwargs['description']
         if kwargs.get('code'):
             # 处理 code 参数：如果是 .py 文件路径，读取文件内容
@@ -258,7 +263,9 @@ class IndicatorRunCommand(HTTPCommand):
         return "POST"
 
     def validate_params(self, **kwargs) -> Optional[str]:
-        if not kwargs.get('indicator_id') and not kwargs.get('symbol'):
+        if not kwargs.get('indicator_id'):
+            return "指标ID (indicator_id) 不能为空"
+        if not kwargs.get('symbol'):
             return "股票代码 (symbol) 不能为空"
         return None
 
@@ -272,7 +279,9 @@ class IndicatorRunCommand(HTTPCommand):
         }
 
         # 可选参数
-        if kwargs.get('start_date') and kwargs.get('end_date'):
+        if kwargs.get('start_date'):
+            body['start_date'] = kwargs['start_date']
+        if kwargs.get('end_date'):
             body['end_date'] = kwargs['end_date']
         if kwargs.get('params'):
             # 解析 JSON 参数
@@ -356,7 +365,9 @@ class IndicatorBacktestCommand(HTTPCommand):
         return "POST"
 
     def validate_params(self, **kwargs) -> Optional[str]:
-        if not kwargs.get('indicator_id') and not kwargs.get('symbol'):
+        if not kwargs.get('indicator_id'):
+            return "指标ID (indicator_id) 不能为空"
+        if not kwargs.get('symbol'):
             return "股票代码 (symbol) 不能为空"
         if not kwargs.get('start_date'):
             return "开始日期 (start_date) 不能为空"
@@ -373,7 +384,9 @@ class IndicatorBacktestCommand(HTTPCommand):
         }
 
         # 可选参数
-        if kwargs.get('end_date') and kwargs.get('initial_capital'):
+        if kwargs.get('end_date'):
+            body['end_date'] = kwargs['end_date']
+        if kwargs.get('initial_capital'):
             body['initial_capital'] = float(kwargs['initial_capital'])
         if kwargs.get('params'):
             # 解析 JSON 参数

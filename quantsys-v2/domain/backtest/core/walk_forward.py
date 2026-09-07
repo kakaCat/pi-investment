@@ -1,27 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_8 = 8
-
-CONST_12 = 12
-
-CONST_21 = 21
-
-CONST_63 = 63
-
-CONST_150 = 150
-
-CONST_252 = 252
-
-
-
 """
 Walk-Forward分析 - Team C
 滚动窗口回测，避免过拟合

@@ -1,29 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_70 = 70
-
-CONST_5432 = 5432
-
-
-
-CONST_20 = 20
-
-CONST_70 = 70
-
-CONST_5432 = 5432
-
-
-
 """
 简单验证脚本：测试 APScheduler 能否加载和解析任务
 """

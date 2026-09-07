@@ -1,36 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_32600 = 32600
-
-CONST_32601 = 32601
-
-CONST_32602 = 32602
-
-CONST_32603 = 32603
-
-CONST_32700 = 32700
-
-
-
-CONST_32600 = 32600
-
-CONST_32601 = 32601
-
-CONST_32602 = 32602
-
-CONST_32603 = 32603
-
-CONST_32700 = 32700
-
-
-
 """JSON-RPC 2.0 protocol handler."""
 import json
 from typing import Any, Dict, Optional

@@ -1,13 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_2025 = 2025
-CONST_5 = 5
-CONST_500 = 500
-CONST_600519 = 600519
-CONST_7 = 7
-CONST_999999 = 999999
-
 """backtest 域 parity 测试（Flask backtest.py 迁移）
 
 覆盖端点：

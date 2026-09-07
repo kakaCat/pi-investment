@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_95 = 0.95
-
-CONST_5 = 5
-
-CONST_365 = 365
-
-
-
-CONST_0_95 = 0.95
-
-CONST_5 = 5
-
-CONST_365 = 365
-
-
-
 """时间序列分析 API - FastAPI 版（从 Flask timeseries.py 迁移，响应契约保持一致）
 
 复用同一 ds 单例与 domain.quantlib.timeseries 计算器（ARIMACalculator/
@@ -49,7 +24,9 @@ router = APIRouter(tags=["TimeSeries - 时间序列"])
 def _get_price_series(symbol: str, start_date: str = None, end_date: str = None):
     """获取股票价格序列（与 Flask timeseries.py 一致）。"""
     from datetime import datetime, timedelta
-    if not end_date and not start_date:
+    if not end_date:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+    if not start_date:
         start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
     klines_df = kline_repo.get_daily_klines(symbol, start_date, end_date)
     if klines_df is None or klines_df.is_empty():
@@ -66,8 +43,9 @@ def _compute_returns(prices: list):
     for i in range(1, len(prices)):
         if prices[i - 1] != 0:
             returns.append((prices[i] - prices[i - 1]) / prices[i - 1])
-        returns.append(0.0)
-return returns
+        else:
+            returns.append(0.0)
+    return returns
 
 
 def _symbol(payload: Dict[str, Any]):

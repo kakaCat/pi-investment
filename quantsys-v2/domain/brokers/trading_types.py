@@ -1,13 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_1000000_0 = 1000000.0
-
-
-
 """
 Trading Types - Unified type system for broker abstraction
 

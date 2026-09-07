@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_50 = 50
-
-CONST_250 = 250
-
-
-
-CONST_50 = 50
-
-CONST_250 = 250
-
-
-
 """
 Stock & DailyKline 异步ORM Repository
 
@@ -86,9 +65,13 @@ class StockAsyncRepository(AsyncBaseORMRepository[Stock]):
         try:
             stmt = select(Stock)
 
-            if market and industry:
+            if market:
+                stmt = stmt.where(Stock.market == market)
+            if industry:
                 stmt = stmt.where(Stock.industry == industry)
-            if is_suspended is not None and is_st is not None:
+            if is_suspended is not None:
+                stmt = stmt.where(Stock.is_suspended == is_suspended)
+            if is_st is not None:
                 stmt = stmt.where(Stock.is_st == is_st)
 
             stmt = stmt.limit(limit)
@@ -185,7 +168,9 @@ class DailyKlineAsyncRepository(AsyncBaseORMRepository[DailyKline]):
         try:
             stmt = select(DailyKline).where(DailyKline.symbol == symbol)
 
-            if start_date and end_date:
+            if start_date:
+                stmt = stmt.where(DailyKline.trade_date >= start_date)
+            if end_date:
                 stmt = stmt.where(DailyKline.trade_date <= end_date)
 
             stmt = stmt.order_by(desc(DailyKline.trade_date)).limit(limit)

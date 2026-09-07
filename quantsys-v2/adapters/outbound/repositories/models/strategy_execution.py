@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Strategy execution request and response models"""
 from typing import Optional, List
 from pydantic import BaseModel, Field, field_validator

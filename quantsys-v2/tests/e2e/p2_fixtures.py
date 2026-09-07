@@ -1,15 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_1650_00 = 1650.00
-CONST_20 = 20
-CONST_25 = 25
-CONST_3 = 3
-CONST_4 = 4
-CONST_5 = 5
-CONST_5432 = 5432
-CONST_6 = 6
-
 """
 P2.2 E2E 测试夹具和辅助工具
 

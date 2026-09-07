@@ -1,15 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_10000 = 10000
-
-
-
 """
 FinRL Callbacks Module
 ======================

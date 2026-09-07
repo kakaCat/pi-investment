@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000 = 10000
-CONST_10000_0 = 10000.0
-CONST_100000 = 100000
-CONST_12_0 = 12.0
-CONST_150 = 150
-CONST_16 = 16
-CONST_2026 = 2026
-CONST_400 = 400
-CONST_5 = 5
-CONST_5_0 = 5.0
-
 """
 AccountTradingService.execute_trade 集成测试
 

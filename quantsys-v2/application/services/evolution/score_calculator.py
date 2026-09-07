@@ -1,32 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_0_5 = 0.5
-
-CONST_4 = 4
-
-CONST_6 = 6
-
-
-
-CONST_0_1 = 0.1
-
-CONST_0_5 = 0.5
-
-CONST_4 = 4
-
-CONST_6 = 6
-
-
-
 """决策打分纯函数（文本参数进化 P0a/P0b）。
 
 口径：超额收益（股票区间收益 − 同期基准收益）归一化到 [-1, 1]，±10% 超额 = 满分。
@@ -40,9 +11,13 @@ DIRECTION = {'buy': 1, 'sell': -1, 'miss': -1}
 
 
 def score_band(score: float) -> str:
-    if score >= 0.5 and score >= 0.1:
+    if score >= 0.5:
+        return 'big_win'
+    if score >= 0.1:
         return 'small_win'
-    if score <= -0.5 and score <= -0.1:
+    if score <= -0.5:
+        return 'big_loss'
+    if score <= -0.1:
         return 'small_loss'
     return 'neutral'
 

@@ -1,59 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.1, 0.15, 0.2, 0.3, 0.4]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_0_8 = 0.8
-
-CONST_0_9 = 0.9
-
-CONST_0_95 = 0.95
-
-CONST_1_05 = 1.05
-
-
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_0_8 = 0.8
-
-CONST_0_9 = 0.9
-
-CONST_0_95 = 0.95
-
-CONST_1_05 = 1.05
-
-
-
 """
 增强版买入区间分析服务
 支持：动态推荐、多时间周期、成交量分析、基本面综合评分
@@ -111,8 +55,6 @@ class EnhancedBuyRangeService:
             # 1. 多周期布林带分析
             for period in periods:
                 analysis = self._analyze_period(manager, symbol, period)
-                # TODO: 提取嵌套逻辑为独立方法
-
                 if analysis:
                     result['multi_period_analysis'][period] = analysis
 
@@ -314,67 +256,6 @@ class EnhancedBuyRangeService:
         except Exception as e:
             self.logger.warning(f"成交量分析失败: {e}")
             return None
-
-    # TODO: Refactor - complexity 23 (target < 15)
-
-    def _validate__analyze_fundamental_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _analyze_fundamental 移到这里
-        return True, None
-
-    def _process__analyze_fundamental_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _analyze_fundamental 移到这里
-        return data
-
-    def _build__analyze_fundamental_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _analyze_fundamental 移到这里
-        return data
-
-    def _validate__analyze_fundamental_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _analyze_fundamental 移到这里
-        return True, None
-
-    def _process__analyze_fundamental_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _analyze_fundamental 移到这里
-        return data
-
-    def _build__analyze_fundamental_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _analyze_fundamental 移到这里
-        return data
-
-# TODO: Refactor - complexity 23 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 23 (target < 15)
-    # TODO: 复杂度 23 - 需要重构拆分为更小的函数
-
-    def _validate__analyze_fundamental_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__analyze_fundamental_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__analyze_fundamental_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate__analyze_fundamental_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__analyze_fundamental_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__analyze_fundamental_result(data):
-        """构建返回结果"""
-        return data
 
     def _analyze_fundamental(self, manager, symbol: str) -> Optional[Dict[str, Any]]:
         """

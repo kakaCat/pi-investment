@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [1e-06, 0.04, 0.05, 0.2, 0.3]...
-
-
-# Extracted Constants
-
-CONST_1eNEG_06 = 1e-06
-
-CONST_0_04 = 0.04
-
-CONST_0_05 = 0.05
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_7 = 0.7
-
-CONST_1_3 = 1.3
-
-CONST_1_5 = 1.5
-
-CONST_1_7 = 1.7
-
-
-
 """
 期权策略分析模块
 ================
@@ -77,9 +46,13 @@ class OptionLeg:
 
     def __post_init__(self):
         """验证期权腿参数。"""
-        if self.option_type not in ('call', 'put') and self.strike <= 0:
+        if self.option_type not in ('call', 'put'):
+            raise ValueError(f"option_type must be 'call' or 'put', got '{self.option_type}'")
+        if self.strike <= 0:
             raise ValueError(f"strike must be positive, got {self.strike}")
-        if self.position not in (-1, 1) and self.quantity <= 0:
+        if self.position not in (-1, 1):
+            raise ValueError(f"position must be +1 or -1, got {self.position}")
+        if self.quantity <= 0:
             raise ValueError(f"quantity must be positive, got {self.quantity}")
 
 

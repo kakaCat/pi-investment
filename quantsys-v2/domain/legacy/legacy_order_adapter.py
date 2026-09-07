@@ -1,14 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 # domain/legacy/legacy_order_adapter.py
-
-# Extracted Constants
-
-CONST_50 = 50
-
-
-
 """
 Legacy Order Adapter - 适配旧的 order_service.py 到新的 OrderService
 

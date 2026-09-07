@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_12_0 = 12.0
-CONST_13_0 = 13.0
-CONST_15 = 15
-CONST_15_0 = 15.0
-CONST_18 = 18
-CONST_20 = 20
-CONST_20_0 = 20.0
-CONST_22 = 22
-CONST_25 = 25
-
 """
 FundamentalScorer 单元测试
 """

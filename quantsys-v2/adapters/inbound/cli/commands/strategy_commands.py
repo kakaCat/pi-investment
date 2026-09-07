@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_1000000 = 1000000
-
-
-
-CONST_0_01 = 0.01
-
-CONST_1000000 = 1000000
-
-
-
 """
 Strategy Commands
 
@@ -61,7 +40,9 @@ class StrategyCreateCommand(Command):
         return "创建用户自定义策略"
 
     def validate_params(self, **kwargs) -> str:
-        if not kwargs.get('name') and not kwargs.get('code'):
+        if not kwargs.get('name'):
+            return "策略名称不能为空"
+        if not kwargs.get('code'):
             return "策略代码不能为空"
         # type 参数可选，默认为 'indicator'
         code_type = kwargs.get('type', 'indicator')
@@ -139,9 +120,13 @@ class StrategyBacktestCommand(Command):
         return "回测策略"
 
     def validate_params(self, **kwargs) -> str:
-        if not kwargs.get('strategy_id') and not kwargs.get('symbol'):
+        if not kwargs.get('strategy_id'):
+            return "策略ID不能为空"
+        if not kwargs.get('symbol'):
             return "股票代码不能为空"
-        if not kwargs.get('start') and not kwargs.get('end'):
+        if not kwargs.get('start'):
+            return "开始日期不能为空"
+        if not kwargs.get('end'):
             return "结束日期不能为空"
         return None
 
@@ -195,7 +180,9 @@ class StrategyRunCommand(Command):
         return "运行策略生成实时信号"
 
     def validate_params(self, **kwargs) -> str:
-        if not kwargs.get('strategy_id') and not kwargs.get('symbol'):
+        if not kwargs.get('strategy_id'):
+            return "策略ID不能为空"
+        if not kwargs.get('symbol'):
             return "股票代码不能为空"
         return None
 
@@ -493,9 +480,13 @@ class StrategyBacktestPortfolioCommand(Command):
         return "多资产组合回测（带风险归因）"
 
     def validate_params(self, **kwargs) -> str:
-        if not kwargs.get('strategy_ids') and not kwargs.get('symbols'):
+        if not kwargs.get('strategy_ids'):
+            return "策略ID列表不能为空"
+        if not kwargs.get('symbols'):
             return "股票代码列表不能为空"
-        if not kwargs.get('weights') and not kwargs.get('start'):
+        if not kwargs.get('weights'):
+            return "权重列表不能为空"
+        if not kwargs.get('start'):
             return "开始日期不能为空"
         if not kwargs.get('end'):
             return "结束日期不能为空"
@@ -646,21 +637,22 @@ class StrategyOptimizeCommand(Command):
 
             if response.get('success'):
                 return CommandResult(success=True, data=response.get('results'))
+            else:
+                return CommandResult(
+                    success=False,
+                    error=response.get('error', '优化失败')
+                )
+
+        except ValueError as e:
             return CommandResult(
                 success=False,
-                error=response.get('error', '优化失败')
+                error=f"参数错误: {str(e)}"
             )
-
-    except ValueError as e:
-        return CommandResult(
-            success=False,
-            error=f"参数错误: {str(e)}"
-        )
-    except Exception as e:
-        return CommandResult(
-            success=False,
-            error=f"优化失败: {str(e)}"
-        )
+        except Exception as e:
+            return CommandResult(
+                success=False,
+                error=f"优化失败: {str(e)}"
+            )
 
 
 def get_all_commands():

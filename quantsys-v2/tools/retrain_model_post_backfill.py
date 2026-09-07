@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_20 = 20
-CONST_200 = 200
-CONST_2025 = 2025
-CONST_2026 = 2026
-CONST_500 = 500
-CONST_5001 = 5001
-CONST_60 = 60
-CONST_600 = 600
-CONST_600519 = 600519
-CONST_600737 = 600737
-
 #!/usr/bin/env python3
 """
 模型重训练脚本（R2回填后 + R3修复）

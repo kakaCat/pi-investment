@@ -1,22 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - calculate_barrier_option() = 107 lines
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-CONST_6 = 6
-
-CONST_252 = 252
-
-CONST_10000 = 10000
-
-
-
 """
 Exotic Options Pricing
 =======================
@@ -94,16 +75,7 @@ class ExoticOptionsCalculator(BaseCalculator):
             "calculate_lookback_option, calculate_digital_option"
         )
 
-    # TODO: Refactor - function too long (108 lines, target < 80)
-
-# TODO: Split long function (107 lines, target < 100)
-    # TODO: 长函数 112行 - 建议拆分为多个小函数
-
     def calculate_barrier_option(self,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
                                   S: float,
                                   K: float,
                                   T: float,
@@ -297,94 +269,13 @@ class ExoticOptionsCalculator(BaseCalculator):
 
         if option_type == 'call':
             return S * np.exp(-q * T) * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
-        return K * np.exp(-r * T) * norm.cdf(-d2) - S * np.exp(-q * T) * norm.cdf(-d1)
+        else:  # put
+            return K * np.exp(-r * T) * norm.cdf(-d2) - S * np.exp(-q * T) * norm.cdf(-d1)
 
-def _barrier_monte_carlo(self, S: float, K: float, T: float, r: float, sigma: float,
-                         H: float, barrier_type: str, option_type: str, q: float,
-                         simulations: int = 10000, time_steps: int = 252) -> float:
-    """Monte Carlo pricing for barrier options."""
-    dt = T / time_steps
-    drift = (r - q - 0.5 * sigma ** 2) * dt
-    diffusion = sigma * np.sqrt(dt)
-
-    Z = np.random.standard_normal((simulations, time_steps))
-    log_returns = drift + diffusion * Z
-    price_paths = S * np.exp(np.cumsum(log_returns, axis=1))
-
-    # Check barrier conditions
-    if 'down' in barrier_type:
-        barrier_crossed = np.any(price_paths <= H, axis=1)
-    else:  # up
-        barrier_crossed = np.any(price_paths >= H, axis=1)
-
-    # Determine active paths
-    if 'out' in barrier_type:
-        active_paths = ~barrier_crossed
-    else:  # in
-        active_paths = barrier_crossed
-
-    # Calculate payoffs
-    terminal_prices = price_paths[:, -1]
-    if option_type == 'call':
-        payoffs = np.maximum(terminal_prices - K, 0)
-    else:  # put
-        payoffs = np.maximum(K - terminal_prices, 0)
-
-    # Apply barrier condition
-    payoffs = payoffs * active_paths
-
-    # Discount and return mean
-    return np.exp(-r * T) * np.mean(payoffs)
-
-def calculate_asian_option(self,
-                            S: float,
-                            K: float,
-                            T: float,
-                            r: float,
-                            sigma: float,
-                            option_type: str = 'call',
-                            q: float = 0.0,
-                            averaging_type: str = 'arithmetic',
-                            simulations: int = 10000,
-                            time_steps: int = 252) -> Dict[str, Any]:
-    """
-    Calculate Asian option price using Monte Carlo simulation.
-
-    Asian options have payoffs based on the average price of the underlying
-    over the option's life.
-
-    Args:
-        S: Spot price
-        K: Strike price
-        T: Time to maturity
-        r: Risk-free rate
-        sigma: Volatility
-        option_type: 'call' or 'put'
-        q: Dividend yield
-        averaging_type: 'arithmetic' or 'geometric'
-        simulations: Number of Monte Carlo simulations
-        time_steps: Number of time steps for averaging
-
-    Returns:
-        Dictionary with Asian option price and statistics
-    """
-    # Validate inputs
-    S = self._validate_positive(S, 'spot_price')
-    K = self._validate_positive(K, 'strike_price')
-    T = self._validate_positive(T, 'time_to_maturity')
-    r = self._validate_numeric_input(r, 'risk_free_rate')
-    sigma = self._validate_positive(sigma, 'volatility')
-    q = self._validate_numeric_input(q, 'dividend_yield')
-
-    averaging_type = averaging_type.lower()
-    if averaging_type not in ['arithmetic', 'geometric']:
-        raise DataValidationError(
-            "averaging_type must be 'arithmetic' or 'geometric'",
-            field_name='averaging_type'
-        )
-
-    try:
-        # Simulate price paths
+    def _barrier_monte_carlo(self, S: float, K: float, T: float, r: float, sigma: float,
+                             H: float, barrier_type: str, option_type: str, q: float,
+                             simulations: int = 10000, time_steps: int = 252) -> float:
+        """Monte Carlo pricing for barrier options."""
         dt = T / time_steps
         drift = (r - q - 0.5 * sigma ** 2) * dt
         diffusion = sigma * np.sqrt(dt)
@@ -393,263 +284,345 @@ def calculate_asian_option(self,
         log_returns = drift + diffusion * Z
         price_paths = S * np.exp(np.cumsum(log_returns, axis=1))
 
-        # Calculate average prices
-        if averaging_type == 'arithmetic':
-            average_prices = np.mean(price_paths, axis=1)
-        else:  # geometric
-            average_prices = np.exp(np.mean(np.log(price_paths), axis=1))
+        # Check barrier conditions
+        if 'down' in barrier_type:
+            barrier_crossed = np.any(price_paths <= H, axis=1)
+        else:  # up
+            barrier_crossed = np.any(price_paths >= H, axis=1)
+
+        # Determine active paths
+        if 'out' in barrier_type:
+            active_paths = ~barrier_crossed
+        else:  # in
+            active_paths = barrier_crossed
 
         # Calculate payoffs
+        terminal_prices = price_paths[:, -1]
         if option_type == 'call':
-            payoffs = np.maximum(average_prices - K, 0)
+            payoffs = np.maximum(terminal_prices - K, 0)
         else:  # put
-            payoffs = np.maximum(K - average_prices, 0)
+            payoffs = np.maximum(K - terminal_prices, 0)
 
-        # Discount and calculate statistics
-        discounted_payoffs = np.exp(-r * T) * payoffs
-        option_price = np.mean(discounted_payoffs)
-        std_error = np.std(discounted_payoffs, ddof=1) / np.sqrt(simulations)
+        # Apply barrier condition
+        payoffs = payoffs * active_paths
 
-        return self._create_result_dict(
-            value=option_price,
-            method='asian_monte_carlo',
-            parameters={
-                'S': S, 'K': K, 'T': T, 'r': r, 'sigma': sigma, 'q': q,
-                'option_type': option_type,
-                'averaging_type': averaging_type,
-                'simulations': simulations,
-                'time_steps': time_steps
-            },
-            metadata={
-                'std_error': std_error,
-                'mean_average_price': np.mean(average_prices),
-                'median_average_price': np.median(average_prices)
-            }
-        )
+        # Discount and return mean
+        return np.exp(-r * T) * np.mean(payoffs)
 
-    except Exception as e:
-        if isinstance(e, (DataValidationError, CalculationError)):
-            raise
-        raise CalculationError(
-            f"Asian option calculation failed: {str(e)}",
-            calculation_type='asian_option'
-        )
+    def calculate_asian_option(self,
+                                S: float,
+                                K: float,
+                                T: float,
+                                r: float,
+                                sigma: float,
+                                option_type: str = 'call',
+                                q: float = 0.0,
+                                averaging_type: str = 'arithmetic',
+                                simulations: int = 10000,
+                                time_steps: int = 252) -> Dict[str, Any]:
+        """
+        Calculate Asian option price using Monte Carlo simulation.
 
-def calculate_lookback_option(self,
-                               S: float,
-                               K: float,
-                               T: float,
-                               r: float,
-                               sigma: float,
-                               lookback_type: str = 'floating',
-                               option_type: str = 'call',
-                               q: float = 0.0,
-                               method: str = 'monte_carlo',
-                               simulations: int = 10000,
-                               time_steps: int = 252) -> Dict[str, Any]:
-    """
-    Calculate lookback option price.
+        Asian options have payoffs based on the average price of the underlying
+        over the option's life.
 
-    Lookback options have payoffs based on the maximum or minimum price
-    achieved during the option's life.
+        Args:
+            S: Spot price
+            K: Strike price
+            T: Time to maturity
+            r: Risk-free rate
+            sigma: Volatility
+            option_type: 'call' or 'put'
+            q: Dividend yield
+            averaging_type: 'arithmetic' or 'geometric'
+            simulations: Number of Monte Carlo simulations
+            time_steps: Number of time steps for averaging
 
-    Args:
-        S: Spot price
-        K: Strike price (for fixed lookback)
-        T: Time to maturity
-        r: Risk-free rate
-        sigma: Volatility
-        lookback_type: 'floating' or 'fixed'
-        option_type: 'call' or 'put'
-        q: Dividend yield
-        method: 'monte_carlo' or 'analytical' (analytical only for some cases)
-        simulations: Number of simulations (for Monte Carlo)
-        time_steps: Number of time steps (for Monte Carlo)
+        Returns:
+            Dictionary with Asian option price and statistics
+        """
+        # Validate inputs
+        S = self._validate_positive(S, 'spot_price')
+        K = self._validate_positive(K, 'strike_price')
+        T = self._validate_positive(T, 'time_to_maturity')
+        r = self._validate_numeric_input(r, 'risk_free_rate')
+        sigma = self._validate_positive(sigma, 'volatility')
+        q = self._validate_numeric_input(q, 'dividend_yield')
 
-    Returns:
-        Dictionary with lookback option price
-    """
-    # Validate inputs
-    S = self._validate_positive(S, 'spot_price')
-    K = self._validate_positive(K, 'strike_price')
-    T = self._validate_positive(T, 'time_to_maturity')
-    r = self._validate_numeric_input(r, 'risk_free_rate')
-    sigma = self._validate_positive(sigma, 'volatility')
-    q = self._validate_numeric_input(q, 'dividend_yield')
-
-    lookback_type = lookback_type.lower()
-    if lookback_type not in ['floating', 'fixed']:
-        raise DataValidationError(
-            "lookback_type must be 'floating' or 'fixed'",
-            field_name='lookback_type'
-        )
-
-    try:
-        if method == 'monte_carlo':
-            price = self._lookback_monte_carlo(
-                S, K, T, r, sigma, lookback_type, option_type, q, simulations, time_steps
-            )
-        elif method == 'analytical':
-            price = self._lookback_analytical(S, K, T, r, sigma, lookback_type, option_type, q)
-        else:
+        averaging_type = averaging_type.lower()
+        if averaging_type not in ['arithmetic', 'geometric']:
             raise DataValidationError(
-                "method must be 'monte_carlo' or 'analytical'",
-                field_name='method'
+                "averaging_type must be 'arithmetic' or 'geometric'",
+                field_name='averaging_type'
             )
 
-        return self._create_result_dict(
-            value=price,
-            method=f'lookback_{method}',
-            parameters={
-                'S': S, 'K': K, 'T': T, 'r': r, 'sigma': sigma, 'q': q,
-                'lookback_type': lookback_type,
-                'option_type': option_type
-            }
-        )
+        try:
+            # Simulate price paths
+            dt = T / time_steps
+            drift = (r - q - 0.5 * sigma ** 2) * dt
+            diffusion = sigma * np.sqrt(dt)
 
-    except Exception as e:
-        if isinstance(e, (DataValidationError, CalculationError)):
-            raise
-        raise CalculationError(
-            f"Lookback option calculation failed: {str(e)}",
-            calculation_type='lookback_option'
-        )
+            Z = np.random.standard_normal((simulations, time_steps))
+            log_returns = drift + diffusion * Z
+            price_paths = S * np.exp(np.cumsum(log_returns, axis=1))
 
-def _lookback_monte_carlo(self, S: float, K: float, T: float, r: float, sigma: float,
-                          lookback_type: str, option_type: str, q: float,
-                          simulations: int, time_steps: int) -> float:
-    """Monte Carlo pricing for lookback options."""
-    dt = T / time_steps
-    drift = (r - q - 0.5 * sigma ** 2) * dt
-    diffusion = sigma * np.sqrt(dt)
+            # Calculate average prices
+            if averaging_type == 'arithmetic':
+                average_prices = np.mean(price_paths, axis=1)
+            else:  # geometric
+                average_prices = np.exp(np.mean(np.log(price_paths), axis=1))
 
-    Z = np.random.standard_normal((simulations, time_steps))
-    log_returns = drift + diffusion * Z
-    price_paths = S * np.exp(np.cumsum(log_returns, axis=1))
+            # Calculate payoffs
+            if option_type == 'call':
+                payoffs = np.maximum(average_prices - K, 0)
+            else:  # put
+                payoffs = np.maximum(K - average_prices, 0)
 
-    # Calculate max and min prices
-    max_prices = np.max(price_paths, axis=1)
-    min_prices = np.min(price_paths, axis=1)
-    terminal_prices = price_paths[:, -1]
+            # Discount and calculate statistics
+            discounted_payoffs = np.exp(-r * T) * payoffs
+            option_price = np.mean(discounted_payoffs)
+            std_error = np.std(discounted_payoffs, ddof=1) / np.sqrt(simulations)
 
-    # Calculate payoffs
-    if lookback_type == 'floating':
+            return self._create_result_dict(
+                value=option_price,
+                method='asian_monte_carlo',
+                parameters={
+                    'S': S, 'K': K, 'T': T, 'r': r, 'sigma': sigma, 'q': q,
+                    'option_type': option_type,
+                    'averaging_type': averaging_type,
+                    'simulations': simulations,
+                    'time_steps': time_steps
+                },
+                metadata={
+                    'std_error': std_error,
+                    'mean_average_price': np.mean(average_prices),
+                    'median_average_price': np.median(average_prices)
+                }
+            )
+
+        except Exception as e:
+            if isinstance(e, (DataValidationError, CalculationError)):
+                raise
+            raise CalculationError(
+                f"Asian option calculation failed: {str(e)}",
+                calculation_type='asian_option'
+            )
+
+    def calculate_lookback_option(self,
+                                   S: float,
+                                   K: float,
+                                   T: float,
+                                   r: float,
+                                   sigma: float,
+                                   lookback_type: str = 'floating',
+                                   option_type: str = 'call',
+                                   q: float = 0.0,
+                                   method: str = 'monte_carlo',
+                                   simulations: int = 10000,
+                                   time_steps: int = 252) -> Dict[str, Any]:
+        """
+        Calculate lookback option price.
+
+        Lookback options have payoffs based on the maximum or minimum price
+        achieved during the option's life.
+
+        Args:
+            S: Spot price
+            K: Strike price (for fixed lookback)
+            T: Time to maturity
+            r: Risk-free rate
+            sigma: Volatility
+            lookback_type: 'floating' or 'fixed'
+            option_type: 'call' or 'put'
+            q: Dividend yield
+            method: 'monte_carlo' or 'analytical' (analytical only for some cases)
+            simulations: Number of simulations (for Monte Carlo)
+            time_steps: Number of time steps (for Monte Carlo)
+
+        Returns:
+            Dictionary with lookback option price
+        """
+        # Validate inputs
+        S = self._validate_positive(S, 'spot_price')
+        K = self._validate_positive(K, 'strike_price')
+        T = self._validate_positive(T, 'time_to_maturity')
+        r = self._validate_numeric_input(r, 'risk_free_rate')
+        sigma = self._validate_positive(sigma, 'volatility')
+        q = self._validate_numeric_input(q, 'dividend_yield')
+
+        lookback_type = lookback_type.lower()
+        if lookback_type not in ['floating', 'fixed']:
+            raise DataValidationError(
+                "lookback_type must be 'floating' or 'fixed'",
+                field_name='lookback_type'
+            )
+
+        try:
+            if method == 'monte_carlo':
+                price = self._lookback_monte_carlo(
+                    S, K, T, r, sigma, lookback_type, option_type, q, simulations, time_steps
+                )
+            elif method == 'analytical':
+                price = self._lookback_analytical(S, K, T, r, sigma, lookback_type, option_type, q)
+            else:
+                raise DataValidationError(
+                    "method must be 'monte_carlo' or 'analytical'",
+                    field_name='method'
+                )
+
+            return self._create_result_dict(
+                value=price,
+                method=f'lookback_{method}',
+                parameters={
+                    'S': S, 'K': K, 'T': T, 'r': r, 'sigma': sigma, 'q': q,
+                    'lookback_type': lookback_type,
+                    'option_type': option_type
+                }
+            )
+
+        except Exception as e:
+            if isinstance(e, (DataValidationError, CalculationError)):
+                raise
+            raise CalculationError(
+                f"Lookback option calculation failed: {str(e)}",
+                calculation_type='lookback_option'
+            )
+
+    def _lookback_monte_carlo(self, S: float, K: float, T: float, r: float, sigma: float,
+                              lookback_type: str, option_type: str, q: float,
+                              simulations: int, time_steps: int) -> float:
+        """Monte Carlo pricing for lookback options."""
+        dt = T / time_steps
+        drift = (r - q - 0.5 * sigma ** 2) * dt
+        diffusion = sigma * np.sqrt(dt)
+
+        Z = np.random.standard_normal((simulations, time_steps))
+        log_returns = drift + diffusion * Z
+        price_paths = S * np.exp(np.cumsum(log_returns, axis=1))
+
+        # Calculate max and min prices
+        max_prices = np.max(price_paths, axis=1)
+        min_prices = np.min(price_paths, axis=1)
+        terminal_prices = price_paths[:, -1]
+
+        # Calculate payoffs
+        if lookback_type == 'floating':
+            if option_type == 'call':
+                payoffs = terminal_prices - min_prices
+            else:  # put
+                payoffs = max_prices - terminal_prices
+        else:  # fixed
+            if option_type == 'call':
+                payoffs = np.maximum(max_prices - K, 0)
+            else:  # put
+                payoffs = np.maximum(K - min_prices, 0)
+
+        # Discount and return mean
+        return np.exp(-r * T) * np.mean(payoffs)
+
+    def _lookback_analytical(self, S: float, K: float, T: float, r: float, sigma: float,
+                             lookback_type: str, option_type: str, q: float) -> float:
+        """Analytical pricing for floating strike lookback options (Goldman-Sosin-Gatto formula)."""
+        if lookback_type != 'floating':
+            raise CalculationError(
+                "Analytical formula only available for floating strike lookback options",
+                calculation_type='lookback_analytical'
+            )
+
+        a1 = (np.log(S / S) + (r - q + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+        a2 = a1 - sigma * np.sqrt(T)
+
         if option_type == 'call':
-            payoffs = terminal_prices - min_prices
+            # Floating strike lookback call
+            term1 = S * np.exp(-q * T) * norm.cdf(a1)
+            term2 = S * np.exp(-q * T) * (sigma ** 2 / (2 * (r - q))) * \
+                    (-norm.cdf(-a1) + np.exp((r - q) * T) * norm.cdf(-a2))
+            price = term1 - term2
         else:  # put
-            payoffs = max_prices - terminal_prices
-    else:  # fixed
-        if option_type == 'call':
-            payoffs = np.maximum(max_prices - K, 0)
-        else:  # put
-            payoffs = np.maximum(K - min_prices, 0)
+            # Floating strike lookback put
+            term1 = -S * np.exp(-q * T) * norm.cdf(-a1)
+            term2 = S * np.exp(-q * T) * (sigma ** 2 / (2 * (r - q))) * \
+                    (norm.cdf(a1) - np.exp((r - q) * T) * norm.cdf(a2))
+            price = term1 + term2
 
-    # Discount and return mean
-    return np.exp(-r * T) * np.mean(payoffs)
+        return max(0, price)
 
-def _lookback_analytical(self, S: float, K: float, T: float, r: float, sigma: float,
-                         lookback_type: str, option_type: str, q: float) -> float:
-    """Analytical pricing for floating strike lookback options (Goldman-Sosin-Gatto formula)."""
-    if lookback_type != 'floating':
-        raise CalculationError(
-            "Analytical formula only available for floating strike lookback options",
-            calculation_type='lookback_analytical'
-        )
+    def calculate_digital_option(self,
+                                  S: float,
+                                  K: float,
+                                  T: float,
+                                  r: float,
+                                  sigma: float,
+                                  option_type: str = 'call',
+                                  q: float = 0.0,
+                                  payout: float = 1.0) -> Dict[str, Any]:
+        """
+        Calculate digital (binary) option price using analytical formula.
 
-    a1 = (np.log(S / S) + (r - q + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
-    a2 = a1 - sigma * np.sqrt(T)
+        Digital options pay a fixed amount if the option expires in-the-money,
+        zero otherwise.
 
-    if option_type == 'call':
-        # Floating strike lookback call
-        term1 = S * np.exp(-q * T) * norm.cdf(a1)
-        term2 = S * np.exp(-q * T) * (sigma ** 2 / (2 * (r - q))) * \
-                (-norm.cdf(-a1) + np.exp((r - q) * T) * norm.cdf(-a2))
-        price = term1 - term2
-    else:  # put
-        # Floating strike lookback put
-        term1 = -S * np.exp(-q * T) * norm.cdf(-a1)
-        term2 = S * np.exp(-q * T) * (sigma ** 2 / (2 * (r - q))) * \
-                (norm.cdf(a1) - np.exp((r - q) * T) * norm.cdf(a2))
-        price = term1 + term2
+        Args:
+            S: Spot price
+            K: Strike price
+            T: Time to maturity
+            r: Risk-free rate
+            sigma: Volatility
+            option_type: 'call' or 'put'
+            q: Dividend yield
+            payout: Fixed payout amount if option expires ITM (default: 1.0)
 
-    return max(0, price)
+        Returns:
+            Dictionary with digital option price
+        """
+        # Validate inputs
+        S = self._validate_positive(S, 'spot_price')
+        K = self._validate_positive(K, 'strike_price')
+        T = self._validate_positive(T, 'time_to_maturity')
+        r = self._validate_numeric_input(r, 'risk_free_rate')
+        sigma = self._validate_positive(sigma, 'volatility')
+        q = self._validate_numeric_input(q, 'dividend_yield')
+        payout = self._validate_positive(payout, 'payout')
 
-def calculate_digital_option(self,
-                              S: float,
-                              K: float,
-                              T: float,
-                              r: float,
-                              sigma: float,
-                              option_type: str = 'call',
-                              q: float = 0.0,
-                              payout: float = 1.0) -> Dict[str, Any]:
-    """
-    Calculate digital (binary) option price using analytical formula.
+        option_type = option_type.lower()
+        if option_type not in ['call', 'put']:
+            raise DataValidationError(
+                "option_type must be 'call' or 'put'",
+                field_name='option_type'
+            )
 
-    Digital options pay a fixed amount if the option expires in-the-money,
-    zero otherwise.
+        try:
+            # Calculate d2
+            d2 = (np.log(S / K) + (r - q - 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
 
-    Args:
-        S: Spot price
-        K: Strike price
-        T: Time to maturity
-        r: Risk-free rate
-        sigma: Volatility
-        option_type: 'call' or 'put'
-        q: Dividend yield
-        payout: Fixed payout amount if option expires ITM (default: 1.0)
+            # Digital option price
+            if option_type == 'call':
+                price = payout * np.exp(-r * T) * norm.cdf(d2)
+            else:  # put
+                price = payout * np.exp(-r * T) * norm.cdf(-d2)
 
-    Returns:
-        Dictionary with digital option price
-    """
-    # Validate inputs
-    S = self._validate_positive(S, 'spot_price')
-    K = self._validate_positive(K, 'strike_price')
-    T = self._validate_positive(T, 'time_to_maturity')
-    r = self._validate_numeric_input(r, 'risk_free_rate')
-    sigma = self._validate_positive(sigma, 'volatility')
-    q = self._validate_numeric_input(q, 'dividend_yield')
-    payout = self._validate_positive(payout, 'payout')
+            return self._create_result_dict(
+                value=price,
+                method='digital_analytical',
+                parameters={
+                    'S': S, 'K': K, 'T': T, 'r': r, 'sigma': sigma, 'q': q,
+                    'option_type': option_type,
+                    'payout': payout
+                },
+                metadata={
+                    'd2': d2,
+                    'probability_itm': norm.cdf(d2) if option_type == 'call' else norm.cdf(-d2)
+                }
+            )
 
-    option_type = option_type.lower()
-    if option_type not in ['call', 'put']:
-        raise DataValidationError(
-            "option_type must be 'call' or 'put'",
-            field_name='option_type'
-        )
+        except Exception as e:
+            if isinstance(e, (DataValidationError, CalculationError)):
+                raise
+            raise CalculationError(
+                f"Digital option calculation failed: {str(e)}",
+                calculation_type='digital_option'
+            )
 
-    try:
-        # Calculate d2
-        d2 = (np.log(S / K) + (r - q - 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
-
-        # Digital option price
-        if option_type == 'call':
-            price = payout * np.exp(-r * T) * norm.cdf(d2)
-        else:  # put
-            price = payout * np.exp(-r * T) * norm.cdf(-d2)
-
-        return self._create_result_dict(
-            value=price,
-            method='digital_analytical',
-            parameters={
-                'S': S, 'K': K, 'T': T, 'r': r, 'sigma': sigma, 'q': q,
-                'option_type': option_type,
-                'payout': payout
-            },
-            metadata={
-                'd2': d2,
-                'probability_itm': norm.cdf(d2) if option_type == 'call' else norm.cdf(-d2)
-            }
-        )
-
-    except Exception as e:
-        if isinstance(e, (DataValidationError, CalculationError)):
-            raise
-        raise CalculationError(
-            f"Digital option calculation failed: {str(e)}",
-            calculation_type='digital_option'
-        )
-
-def get_supported_methods(self) -> list:
-    """Get list of supported calculation methods."""
-    return ['barrier', 'asian', 'lookback', 'digital']
+    def get_supported_methods(self) -> list:
+        """Get list of supported calculation methods."""
+        return ['barrier', 'asian', 'lookback', 'digital']

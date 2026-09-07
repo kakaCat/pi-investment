@@ -1,60 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [5, 8, 9, 15, 16]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-CONST_9 = 9
-
-CONST_15 = 15
-
-CONST_16 = 16
-
-CONST_17 = 17
-
-CONST_20 = 20
-
-CONST_23 = 23
-
-CONST_25 = 25
-
-CONST_30 = 30
-
-
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-CONST_9 = 9
-
-CONST_15 = 15
-
-CONST_16 = 16
-
-CONST_17 = 17
-
-CONST_20 = 20
-
-CONST_23 = 23
-
-CONST_25 = 25
-
-CONST_30 = 30
-
-
-
 """
 日常投资循环编排器 (Daily Investment Orchestrator)
 
@@ -71,6 +14,7 @@ IDLE → PRE_MARKET → MARKET_OPEN → INTRADAY → MARKET_CLOSE → POST_MARKE
     orchestrator = DailyOrchestrator()
     orchestrator.run()  # 由 APScheduler 每分钟调用，自动判断当前应执行的阶段
 """
+from __future__ import annotations
 
 import structlog
 from typing import Dict, Any, Optional, List
@@ -126,12 +70,6 @@ TRADING_ACCOUNT = 'agent_virtual'
 # ============================================================
 # 编排器
 # ============================================================
-
-# TODO: Refactor - class too large (24 methods, target < 15)
-
-# TODO: Refactor large class (24 methods, target < 20)
-# TODO: Refactor large class (24 methods, target < 20)
-# TODO: 大类 24个方法 - 考虑拆分为多个类或使用组合模式
 
 class DailyOrchestrator:
     """日常投资循环编排器
@@ -212,7 +150,9 @@ class DailyOrchestrator:
             # 需要推进到目标阶段（跳过中间已过的阶段）
             for i in range(current_idx + 1, target_idx + 1):
                 phase = PHASE_ORDER[i]
-                if phase == Phase.IDLE and not self._is_phase_completed(state, phase.value):
+                if phase == Phase.IDLE:
+                    continue
+                if not self._is_phase_completed(state, phase.value):
                     self._execute_phase(state, phase)
 
         # 条件委托撮合：MARKET_OPEN 窗口（9:25-9:35）内 9:31 起的每个 tick 都撮合。
@@ -516,8 +456,11 @@ class DailyOrchestrator:
         # 1. 决策打分（20日成熟决策）
         try:
             from application.services.evolution.decision_score_service import DecisionScoreService
+            from adapters.outbound.repositories.agent_intelligence_repository import AgentIntelligenceORMRepository
+            from adapters.outbound.repositories.kline_repository import KlineORMRepository
             logger.info("review_phase: decision_score_service starting")
-            scorer = DecisionScoreService()
+            scorer = DecisionScoreService(decision_repo=AgentIntelligenceORMRepository(),
+                                          kline_repo=KlineORMRepository())
             evolution_results['decision_score'] = scorer.score_mature_decisions(pending_days=30)
             logger.info("review_phase: decision_score_service completed",
                        scored=evolution_results['decision_score'].get('scored', 0),
@@ -529,8 +472,13 @@ class DailyOrchestrator:
         # 2. 踏空捕获（5日宽限期）
         try:
             from application.services.evolution.missed_opportunity_service import MissedOpportunityService
+            from adapters.outbound.repositories.signal_repository import SignalORMRepository
+            from adapters.outbound.repositories.agent_intelligence_repository import AgentIntelligenceORMRepository
+            from adapters.outbound.repositories.kline_repository import KlineORMRepository
             logger.info("review_phase: missed_opportunity_service starting")
-            missed = MissedOpportunityService()
+            missed = MissedOpportunityService(signal_repo=SignalORMRepository(),
+                                              decision_repo=AgentIntelligenceORMRepository(),
+                                              kline_repo=KlineORMRepository())
             evolution_results['missed_opportunity'] = missed.capture(lookback_days=10)
             logger.info("review_phase: missed_opportunity_service completed",
                        captured=evolution_results['missed_opportunity'].get('captured', 0),
@@ -542,8 +490,11 @@ class DailyOrchestrator:
         # 3. 适应度计算（20日滚动窗口）
         try:
             from application.services.evolution.evolution_fitness_service import EvolutionFitnessService
+            from adapters.outbound.repositories.evolution_fitness_repository import EvolutionFitnessORMRepository
+            from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
             logger.info("review_phase: evolution_fitness_service starting")
-            fitness = EvolutionFitnessService()
+            fitness = EvolutionFitnessService(sim_repo=SimulationORMRepository(),
+                                              fitness_repo=EvolutionFitnessORMRepository())
             evolution_results['evolution_fitness'] = fitness.compute_all_accounts()
             logger.info("review_phase: evolution_fitness_service completed",
                        computed=evolution_results['evolution_fitness'].get('computed', 0))
@@ -732,7 +683,9 @@ class DailyOrchestrator:
         # 从当前阶段开始，补跑所有未完成且时间已过的阶段
         for i in range(current_idx, len(PHASE_ORDER)):
             phase = PHASE_ORDER[i]
-            if phase == Phase.IDLE and not self._is_phase_completed(state, phase.value):
+            if phase == Phase.IDLE:
+                continue
+            if not self._is_phase_completed(state, phase.value):
                 # 检查该阶段的时间窗口是否已过
                 phase_start, phase_end = PHASE_SCHEDULE.get(phase, (time(0, 0), time(23, 59)))
                 if now.time() >= phase_start:

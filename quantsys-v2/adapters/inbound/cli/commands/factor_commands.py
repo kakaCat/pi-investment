@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 Factor Commands
 
@@ -55,7 +52,9 @@ class FactorHistoryCommand(HTTPCommand):
         return "GET"
 
     def validate_params(self, **kwargs) -> str:
-        if not kwargs.get('symbol') and not kwargs.get('factor'):
+        if not kwargs.get('symbol'):
+            return "股票代码不能为空"
+        if not kwargs.get('factor'):
             return "因子名称不能为空"
         return None
 
@@ -113,7 +112,9 @@ class FactorCalculateCommand(HTTPCommand):
         return "POST"
 
     def validate_params(self, **kwargs) -> str:
-        if not kwargs.get('symbol') and not kwargs.get('factors'):
+        if not kwargs.get('symbol'):
+            return "股票代码不能为空"
+        if not kwargs.get('factors'):
             return "因子列表不能为空"
         return None
 

@@ -1,35 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - compute_style_from_boards() = 130 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_3 = 0.3
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_60 = 60
-
-
-
-CONST_0_3 = 0.3
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_60 = 60
-
-
-
 """
 市场风格检测服务（2026-09-03 真实化重写，task 312）
 
@@ -119,22 +87,7 @@ for _b in CYCLE_BOARDS:
 # 纯计算函数（无 IO，可单测；detector 与 market_style_update_job 共用）
 # ============================================================
 
-# TODO: Refactor - function too long (131 lines, target < 80)
-
-# TODO: Split long function (130 lines, target < 100)
-# TODO: 长函数 141行 - 建议拆分为多个小函数
-
 def compute_style_from_boards(boards: List[Dict[str, Any]]) -> Dict[str, Any]:
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
     """
     由真实行业板块涨跌幅计算当日市场风格（纯函数，不访问网络/DB）。
 
@@ -303,7 +256,9 @@ def fetch_sina_sector_boards() -> Optional[List[Dict[str, Any]]]:
     except Exception as e:
         logger.error(f"新浪行业数据拉取失败: {e}")
         return None
-    if df is None or df.empty and '板块' not in df.columns or '涨跌幅' not in df.columns:
+    if df is None or df.empty:
+        return None
+    if '板块' not in df.columns or '涨跌幅' not in df.columns:
         logger.error(f"新浪行业返回列异常: {list(df.columns)}")
         return None
     boards = []
@@ -413,7 +368,9 @@ class MarketStyleDetector:
 
 def _f(value: Any) -> Optional[float]:
     """宽松转 float：None/空/非数值 → None"""
-    if value is None and isinstance(value, (int, float)):
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
         return float(value)
     s = str(value).strip().replace('%', '')
     if s in ('', '-', '--', 'None', 'nan'):

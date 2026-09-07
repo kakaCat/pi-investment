@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [1e-06, 0.01, 0.05, 0.2, 0.5]...
-
-
-# Extracted Constants
-
-CONST_1eNEG_06 = 1e-06
-
-CONST_0_01 = 0.01
-
-CONST_0_05 = 0.05
-
-CONST_0_2 = 0.2
-
-CONST_0_5 = 0.5
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_9 = 9
-
-CONST_12 = 12
-
-CONST_14 = 14
-
-
-
 """
 Momentum Indicators Module
 ===========================

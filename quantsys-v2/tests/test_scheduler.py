@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_11 = 11
-CONST_12 = 12
-CONST_13 = 13
-CONST_14 = 14
-CONST_15 = 15
-CONST_16 = 16
-CONST_17 = 17
-CONST_18 = 18
-CONST_2024 = 2024
-CONST_2025 = 2025
-
 """
 Tests for the cron-based scheduler.
 

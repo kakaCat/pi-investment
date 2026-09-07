@@ -1,36 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_30 = 30
-
-CONST_200 = 200
-
-CONST_400 = 400
-
-CONST_500 = 500
-
-
-
-CONST_3 = 3
-
-CONST_30 = 30
-
-CONST_200 = 200
-
-CONST_400 = 400
-
-CONST_500 = 500
-
-
-
 """
 HTTP Client for CLI to API communication
 

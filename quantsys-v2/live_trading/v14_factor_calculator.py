@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_70 = 70
-
-
-
-CONST_3 = 3
-
-CONST_70 = 70
-
-
-
 """
 V14策略因子计算器 - 支持多数据源
 

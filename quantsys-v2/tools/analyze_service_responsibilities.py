@@ -1,13 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_20 = 20
-CONST_3 = 3
-CONST_5 = 5
-CONST_50 = 50
-CONST_8 = 8
-CONST_80 = 80
-
 #!/usr/bin/env python3
 """
 服务层职责审计工具
@@ -294,38 +284,6 @@ def detect_circular_dependencies(graph: Dict[str, Set[str]]) -> List[List[str]]:
 
     return cycles
 
-
-# TODO: Refactor - complexity 22 (target < 15)
-
-# TODO: Refactor - function too long (137 lines, target < 80)
-
-# TODO: 复杂度 22 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 137行 - 建议拆分为多个小函数
-
-def _validate_generate_report_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_generate_report_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_generate_report_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_generate_report_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_generate_report_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_generate_report_result(data):
-    """构建返回结果"""
-    return data
 
 def generate_report(services: List[ServiceInfo], output_path: Path):
     """生成审计报告"""

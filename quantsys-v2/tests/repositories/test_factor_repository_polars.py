@@ -1,13 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_2024 = 2024
-CONST_2026 = 2026
-CONST_31 = 31
-CONST_600000 = 600000
-CONST_999999 = 999999
-
 import polars as pl
 import pytest
 from adapters.outbound.repositories import FactorORMRepository

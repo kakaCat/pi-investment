@@ -1,59 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [3, 4, 5, 6, 15]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_15 = 15
-
-CONST_16 = 16
-
-CONST_17 = 17
-
-CONST_20 = 20
-
-CONST_21 = 21
-
-CONST_30 = 30
-
-
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_15 = 15
-
-CONST_16 = 16
-
-CONST_17 = 17
-
-CONST_20 = 20
-
-CONST_21 = 21
-
-CONST_30 = 30
-
-
-
 """每日数据任务进程内宿主（2026-09-02）
 
 背景：Agent OS 调度器中核心数据任务（kline_update / factor_compute_daily /
@@ -256,7 +200,9 @@ def _job_freshness_guard() -> Dict[str, Any]:
             text("SELECT max(factor_date) FROM quant.factor_values")).scalar()
 
     stale: List[str] = []
-    if not kline_latest or str(kline_latest) < expected and not factor_latest or str(factor_latest) < expected:
+    if not kline_latest or str(kline_latest) < expected:
+        stale.append(f"daily_klines 最新={kline_latest}（期望≥{expected}）")
+    if not factor_latest or str(factor_latest) < expected:
         stale.append(f"factor_values 最新={factor_latest}（期望≥{expected}）")
 
     # 任务失败巡检（独立于数据滞后——chip/financial_statements 等失败但数据新鲜时仍需告警）
@@ -361,7 +307,9 @@ def _job_event_calendar_check() -> Dict[str, Any]:
             return
         sent_ids.extend(e.id for e in items)
 
-    if high and mid and fail is None:
+    if high:
+        _send_batch('🚨 未来2日高优事件预警', 'high', high)
+    if mid and fail is None:
         _send_batch('📌 未来2日事件提醒', 'normal', mid)
 
     repo = get_event_calendar_repo()
@@ -467,9 +415,13 @@ def is_due(job: JobDef, now: datetime, last_run: Optional[Dict[str, Any]]) -> bo
     规则：今天是对应工作日 且 已过运行点 且 今天没有 success/running（未僵死）记录。
     漏跑补跑：晚间重启进程时，已过点但未跑的任务会立即补跑。
     """
-    if now.weekday() not in job.weekdays and now.time() < job.run_at:
+    if now.weekday() not in job.weekdays:
         return False
-    if last_run is None and last_run['status'] == 'success':
+    if now.time() < job.run_at:
+        return False
+    if last_run is None:
+        return True
+    if last_run['status'] == 'success':
         return False
     if last_run['status'] == 'running':
         # 僵死判定：running 超过阈值视为死亡，允许重跑

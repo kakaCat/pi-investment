@@ -84,11 +84,12 @@ def migrate_file(file_path: Path, dry_run: bool = True) -> Tuple[bool, List[str]
             if not dry_run:
                 file_path.write_text(content, encoding='utf-8')
             return True, changes
-        return False, []
+        else:
+            return False, []
 
-except Exception as e:
-    print(f"❌ 迁移 {file_path} 失败: {e}")
-    return False, []
+    except Exception as e:
+        print(f"❌ 迁移 {file_path} 失败: {e}")
+        return False, []
 
 
 def main():

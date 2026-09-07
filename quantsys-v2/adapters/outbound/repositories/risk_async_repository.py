@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
 """
 Risk 异步ORM Repository
 
@@ -77,9 +56,13 @@ class RiskAsyncRepository(AsyncBaseORMRepository[RiskMetric]):
         try:
             stmt = select(RiskMetric)
 
-            if symbol and metric_name:
+            if symbol:
+                stmt = stmt.where(RiskMetric.symbol == symbol)
+            if metric_name:
                 stmt = stmt.where(RiskMetric.metric_name == metric_name)
-            if start_date and end_date:
+            if start_date:
+                stmt = stmt.where(RiskMetric.metric_date >= start_date)
+            if end_date:
                 stmt = stmt.where(RiskMetric.metric_date <= end_date)
 
             stmt = stmt.order_by(desc(RiskMetric.metric_date)).limit(limit)

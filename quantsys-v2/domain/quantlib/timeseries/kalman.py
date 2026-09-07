@@ -1,26 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - filter() = 183 lines
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_0_5 = 0.5
-
-CONST_0_9 = 0.9
-
-CONST_4 = 4
-
-CONST_6 = 6
-
-CONST_10000000000_0 = 10000000000.0
-
-
-
 """
 Kalman Filter Module
 ====================
@@ -104,83 +81,7 @@ class KalmanFilterCalculator(BaseCalculator):
 
     @validate_inputs
     @timing_decorator
-    # TODO: Refactor - complexity 19 (target < 15)
-
-    # TODO: Refactor - function too long (184 lines, target < 80)
-
-    def _validate_filter_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 filter 移到这里
-        return True, None
-
-    def _process_filter_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 filter 移到这里
-        return data
-
-    def _build_filter_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 filter 移到这里
-        return data
-
-    def _validate_filter_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 filter 移到这里
-        return True, None
-
-    def _process_filter_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 filter 移到这里
-        return data
-
-    def _build_filter_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 filter 移到这里
-        return data
-
-# TODO: Split long function (183 lines, target < 100)
-# TODO: Refactor - complexity 19 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 19 (target < 15)
-    # TODO: Split long function (183 lines, target < 100)
-    # TODO: Refactor - complexity 19 (target < 15)
-    # TODO: Split long function (183 lines, target < 100)
-    # TODO: 复杂度 19 - 需要重构拆分为更小的函数
-
-    # TODO: 长函数 193行 - 建议拆分为多个小函数
-
-    def _validate_filter_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_filter_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_filter_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_filter_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_filter_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_filter_result(data):
-        """构建返回结果"""
-        return data
-
     def filter(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
         self,
         observations: Union[List, np.ndarray, pd.Series],
         F: np.ndarray,
@@ -217,8 +118,6 @@ class KalmanFilterCalculator(BaseCalculator):
             obs_array = observations.values
         else:
             obs_array = np.array(observations)
-            # TODO: 提取嵌套逻辑为独立方法
-
             if obs_array.ndim == 1:
                 obs_array = obs_array.reshape(-1, 1)
 
@@ -525,14 +424,8 @@ class KalmanFilterCalculator(BaseCalculator):
             )
 
     @validate_inputs
-    # TODO: 长函数 104行 - 建议拆分为多个小函数
-
     @timing_decorator
     def fit_local_level(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         observations: Union[List, np.ndarray, pd.Series],
         initial_level: Optional[float] = None,

@@ -1,20 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100000 = 100000
-CONST_102_0 = 102.0
-CONST_103_0 = 103.0
-CONST_105_0 = 105.0
-CONST_106_0 = 106.0
-CONST_108_0 = 108.0
-CONST_11 = 11
-CONST_110_0 = 110.0
-CONST_112_0 = 112.0
-CONST_113_0 = 113.0
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - sample_klines() = 123 lines
-
 """
 Tests for StrategyCodeService
 """
@@ -60,9 +43,6 @@ df['sell'] = df['rsi'] > 70
         }
 
     @pytest.fixture
-    # TODO: Split long function (123 lines, target < 100)
-    # TODO: 长函数 124行 - 建议拆分为多个小函数
-
     def sample_klines(self):
         """Sample K-line data for testing"""
         return [

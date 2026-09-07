@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """配置验证器
 
 P2-3: 验证服务配置的正确性
@@ -86,7 +83,9 @@ class ConfigValidator:
             errors.extend(self._validate_class_path(service, service.class_path))
 
         # 验证接口和实现
-        if service.interface and service.implementation:
+        if service.interface:
+            errors.extend(self._validate_class_path(service, service.interface))
+        if service.implementation:
             errors.extend(self._validate_class_path(service, service.implementation))
 
         # 验证工厂函数
@@ -236,7 +235,9 @@ class ConfigValidator:
         Returns:
             循环路径，如果没有循环则返回 None
         """
-        if visited is None and path is None:
+        if visited is None:
+            visited = set()
+        if path is None:
             path = []
 
         if start in path:

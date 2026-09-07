@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """新浪 market data provider（备用源：龙虎榜）
 
 2026-09-01 新增：东财龙虎榜接口异常时，新浪 stock_lhb_detail_daily_sina

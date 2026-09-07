@@ -1,35 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - validate_custom_prices() = 175 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_03 = 0.03
-
-CONST_0_99 = 0.99
-
-CONST_1_01 = 1.01
-
-CONST_3 = 3
-
-
-
-CONST_0_03 = 0.03
-
-CONST_0_99 = 0.99
-
-CONST_1_01 = 1.01
-
-CONST_3 = 3
-
-
-
 """
 策略代码验证器
 
@@ -45,12 +13,6 @@ from domain.backtest.engine.param_parser import ParamParser
 
 logger = structlog.get_logger(__name__)
 
-
-# TODO: Refactor - Large class with 23 methods (target < 20)
-
-# TODO: Refactor - Large class with 23 methods (target < 20)
-
-# TODO: 大类 23个方法 - 考虑拆分为多个类或使用组合模式
 
 class StrategyCodeValidator:
     """策略代码验证服务"""
@@ -93,8 +55,6 @@ class StrategyCodeValidator:
                 }
 
             # 2. 根据类型进行特定验证
-            # TODO: 提取嵌套逻辑为独立方法
-
             if code_type == 'indicator':
                 result = self._validate_indicator_code(code)
             elif code_type == 'script':
@@ -114,71 +74,6 @@ class StrategyCodeValidator:
                 'syntax_ok': False,
                 'error': str(e)
             }
-
-    # TODO: Refactor - complexity 16 (target < 15)
-
-    def _validate__validate_indicator_code_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _validate_indicator_code 移到这里
-        return True, None
-
-    def _process__validate_indicator_code_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _validate_indicator_code 移到这里
-        return data
-
-    def _build__validate_indicator_code_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _validate_indicator_code 移到这里
-        return data
-
-    def _validate__validate_indicator_code_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _validate_indicator_code 移到这里
-        return True, None
-
-    def _process__validate_indicator_code_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _validate_indicator_code 移到这里
-        return data
-
-    def _build__validate_indicator_code_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _validate_indicator_code 移到这里
-        return data
-
-# TODO: Refactor - complexity 16 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    def _check_condition_0():
-        """Check: (has_simple_buy and has_tiered_buy) or (has_simple_sell and ..."""
-        return (has_simple_buy and has_tiered_buy) or (has_simple_sell and has_tiered_sell)
-
-    # TODO: Refactor - complexity 17 (target < 15)
-    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-    def _validate__validate_indicator_code_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__validate_indicator_code_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__validate_indicator_code_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate__validate_indicator_code_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__validate_indicator_code_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__validate_indicator_code_result(data):
-        """构建返回结果"""
-        return data
 
     def _validate_indicator_code(self, code: str) -> Dict:
         """验证 Indicator 策略代码"""
@@ -210,8 +105,9 @@ class StrategyCodeValidator:
         has_simple_sell = "df['sell']" in code or 'df["sell"]' in code
 
         # 不能混合使用
-        if (has_simple_buy and has_tiered_buy) or (has_simple_sell and has_tiered_sell) and _check_condition_0():
-            pass  # TODO: implement
+        if (has_simple_buy and has_tiered_buy) or (has_simple_sell and has_tiered_sell):
+            raise ValueError("不能同时使用简单信号（buy/sell）和分批信号（buy_tier1/sell_tier1）")
+
         # 至少要有一种信号
         has_buy = has_simple_buy or has_tiered_buy
         has_sell = has_simple_sell or has_tiered_sell
@@ -232,7 +128,9 @@ class StrategyCodeValidator:
         has_on_init = 'def on_init(ctx)' in code or 'def on_init (ctx)' in code
         has_on_bar = 'def on_bar(ctx, bar)' in code or 'def on_bar (ctx, bar)' in code
 
-        if not has_on_init and not has_on_bar:
+        if not has_on_init:
+            raise ValueError("ScriptStrategy 必须定义 on_init(ctx) 函数")
+        if not has_on_bar:
             raise ValueError("ScriptStrategy 必须定义 on_bar(ctx, bar) 函数")
 
         # 解析参数和配置
@@ -294,197 +192,7 @@ class StrategyCodeValidator:
             'risk_config': risk_config,
             'metadata': metadata
         }
-# TODO: Refactor - complexity 33 (target < 15)
 
-
-    # TODO: Refactor - function too long (176 lines, target < 80)
-
-    def _validate_validate_custom_prices_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 validate_custom_prices 移到这里
-        return True, None
-
-    def _process_validate_custom_prices_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 validate_custom_prices 移到这里
-        return data
-
-    def _build_validate_custom_prices_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 validate_custom_prices 移到这里
-        return data
-
-    def _validate_validate_custom_prices_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 validate_custom_prices 移到这里
-        return True, None
-
-    def _process_validate_custom_prices_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 validate_custom_prices 移到这里
-        return data
-
-    def _build_validate_custom_prices_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 validate_custom_prices 移到这里
-        return data
-
-# TODO: Split long function (175 lines, target < 100)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 33 (target < 15)
-    # TODO: Split long function (175 lines, target < 100)
-    # TODO: Refactor - complexity 33 (target < 15)
-    # TODO: Split long function (175 lines, target < 100)
-
-    def _init(self):
-        """执行: init"""
-        warnings = []
-        errors = []
-        # 检查必需的OHLC列
-        required_cols = ['open', 'high', 'low', 'close']
-        missing_cols = [col for col in required_cols if col not in signals_df.columns]
-        if missing_cols:
-            errors.append(f"缺少必需的价格列: {', '.join(missing_cols)}")
-            return {'warnings': warnings, 'errors': errors}
-        # 检测DataFrame类型（Polars or Pandas）
-        try:
-            import polars as pl
-            is_polars = isinstance(signals_df, pl.DataFrame)
-        except ImportError:
-            is_polars = False
-
-    def _step_2_validate_custom_prices(self):
-        """执行: 规则1：价格在_o/h/l/c_范围内_(warning)"""
-        for tier in [1, 2, 3]:
-            price_col = f'buy_tier{tier}_price'
-            if price_col in signals_df.columns:
-                # 买入价不应高于最高价
-                if is_polars:
-                    invalid_high_count = signals_df.filter(pl.col(price_col) > pl.col('high')).height
-                else:
-                    invalid_high_count = len(signals_df[signals_df[price_col] > signals_df['high']])
-                if invalid_high_count > 0:
-                    warnings.append(
-                        f"buy_tier{tier}_price > high 在 {invalid_high_count} 行 "
-                        f"(可能导致限价单无法成交)"
-                    )
-                # 买入价不应低于最低价
-                if is_polars:
-                    invalid_low_count = signals_df.filter(pl.col(price_col) < pl.col('low')).height
-                else:
-                    invalid_low_count = len(signals_df[signals_df[price_col] < signals_df['low']])
-                if invalid_low_count > 0:
-                    warnings.append(
-                        f"buy_tier{tier}_price < low 在 {invalid_low_count} 行 "
-                        f"(可能是限价未成交或数据错误)"
-                    )
-        # 检查卖出价格列
-        for tier in [1, 2, 3]:
-            price_col = f'sell_tier{tier}_price'
-            if price_col in signals_df.columns:
-                # 卖出价不应高于最高价
-                if is_polars:
-                    invalid_high_count = signals_df.filter(pl.col(price_col) > pl.col('high')).height
-                else:
-                    invalid_high_count = len(signals_df[signals_df[price_col] > signals_df['high']])
-                if invalid_high_count > 0:
-                    warnings.append(
-                        f"sell_tier{tier}_price > high 在 {invalid_high_count} 行 "
-                        f"(可能是限价未成交或数据错误)"
-                    )
-                # 卖出价不应低于最低价
-                if is_polars:
-                    invalid_low_count = signals_df.filter(pl.col(price_col) < pl.col('low')).height
-                else:
-                    invalid_low_count = len(signals_df[signals_df[price_col] < signals_df['low']])
-                if invalid_low_count > 0:
-                    warnings.append(
-                        f"sell_tier{tier}_price < low 在 {invalid_low_count} 行 "
-                        f"(可能导致限价单无法成交)"
-                    )
-        pass
-
-    def _step_3_validate_custom_prices(self):
-        """执行: 规则2：价格偏离_close_超过阈值_(warning)"""
-        deviation_threshold = 0.03  # 3%
-        for tier in [1, 2, 3]:
-            buy_col = f'buy_tier{tier}_price'
-            if buy_col in signals_df.columns:
-                # 计算偏离度
-                if is_polars:
-                    deviations = ((pl.col(buy_col) - pl.col('close')).abs() / pl.col('close'))
-                    large_dev_df = signals_df.select(deviations.alias('dev')).filter(pl.col('dev') > deviation_threshold)
-                    large_dev_count = large_dev_df.height
-                    avg_deviation = large_dev_df['dev'].mean() if large_dev_count > 0 else 0
-                else:
-                    deviations = (signals_df[buy_col] - signals_df['close']).abs() / signals_df['close']
-                    large_deviations = deviations[deviations > deviation_threshold]
-                    large_dev_count = len(large_deviations)
-                    avg_deviation = large_deviations.mean() if large_dev_count > 0 else 0
-                if large_dev_count > 0:
-                    warnings.append(
-                        f"buy_tier{tier}_price 与收盘价偏离超过 {deviation_threshold*100:.0f}% 在 {large_dev_count} 行 "
-                        f"(平均偏离 {avg_deviation*100:.1f}%)，回测结果可能偏离实盘"
-                    )
-        for tier in [1, 2, 3]:
-            sell_col = f'sell_tier{tier}_price'
-            if sell_col in signals_df.columns:
-                # 计算偏离度
-                if is_polars:
-                    deviations = ((pl.col(sell_col) - pl.col('close')).abs() / pl.col('close'))
-                    large_dev_df = signals_df.select(deviations.alias('dev')).filter(pl.col('dev') > deviation_threshold)
-                    large_dev_count = large_dev_df.height
-                    avg_deviation = large_dev_df['dev'].mean() if large_dev_count > 0 else 0
-                else:
-                    deviations = (signals_df[sell_col] - signals_df['close']).abs() / signals_df['close']
-                    large_deviations = deviations[deviations > deviation_threshold]
-                    large_dev_count = len(large_deviations)
-                    avg_deviation = large_deviations.mean() if large_dev_count > 0 else 0
-                if large_dev_count > 0:
-                    warnings.append(
-                        f"sell_tier{tier}_price 与收盘价偏离超过 {deviation_threshold*100:.0f}% 在 {large_dev_count} 行 "
-                        f"(平均偏离 {avg_deviation*100:.1f}%)，回测结果可能偏离实盘"
-                    )
-        pass
-
-    def _step_4_validate_custom_prices(self):
-        """执行: 规则3：同时使用_low_买入和_high_卖出_(error)"""
-        # 检测是否同时使用接近最低价买入和接近最高价卖出
-        has_low_buy = False
-        has_high_sell = False
-        # 检查买入价是否接近最低价（low * 1.01 以内）
-        for tier in [1, 2, 3]:
-            buy_col = f'buy_tier{tier}_price'
-            if buy_col in signals_df.columns:
-                # 计算买入价与最低价的比率
-                if is_polars:
-                    near_low_count = signals_df.filter((pl.col(buy_col) / pl.col('low')) <= 1.01).height
-                else:
-                    buy_to_low_ratio = signals_df[buy_col] / signals_df['low']
-                    near_low_count = len(buy_to_low_ratio[buy_to_low_ratio <= 1.01])
-                if near_low_count > 0:
-                    has_low_buy = True
-                    break
-        # 检查卖出价是否接近最高价（high * 0.99 以上）
-        for tier in [1, 2, 3]:
-            sell_col = f'sell_tier{tier}_price'
-            if sell_col in signals_df.columns:
-                # 计算卖出价与最高价的比率
-                if is_polars:
-                    near_high_count = signals_df.filter((pl.col(sell_col) / pl.col('high')) >= 0.99).height
-                else:
-                    sell_to_high_ratio = signals_df[sell_col] / signals_df['high']
-                    near_high_count = len(sell_to_high_ratio[sell_to_high_ratio >= 0.99])
-                if near_high_count > 0:
-                    has_high_sell = True
-                    break
-        # 如果同时使用最低价买入和最高价卖出，这是严重错误
-        if has_low_buy and has_high_sell:
-            errors.append(
-                "❌ 策略同时以最低价买入和最高价卖出，使用了未来信息，回测结果不可信。"
-                "请改用 open/close 或扩大安全边际（如 low*1.03, high*0.97）"
-            )
-        return {'warnings': warnings, 'errors': errors}
     def validate_custom_prices(self, signals_df: pd.DataFrame) -> Dict[str, List[str]]:
         """
         验证自定义价格列的合理性
@@ -499,7 +207,165 @@ class StrategyCodeValidator:
                 'errors': [...]     # 错误列表（阻止策略保存）
             }
         """
-        self._init()
-        self._step_2_validate_custom_prices()
-        self._step_3_validate_custom_prices()
-        self._step_4_validate_custom_prices()
+        warnings = []
+        errors = []
+
+        # 检查必需的OHLC列
+        required_cols = ['open', 'high', 'low', 'close']
+        missing_cols = [col for col in required_cols if col not in signals_df.columns]
+        if missing_cols:
+            errors.append(f"缺少必需的价格列: {', '.join(missing_cols)}")
+            return {'warnings': warnings, 'errors': errors}
+
+        # 检测DataFrame类型（Polars or Pandas）
+        try:
+            import polars as pl
+            is_polars = isinstance(signals_df, pl.DataFrame)
+        except ImportError:
+            is_polars = False
+
+        # ========== 规则1：价格在 O/H/L/C 范围内 (WARNING) ==========
+        for tier in [1, 2, 3]:
+            price_col = f'buy_tier{tier}_price'
+            if price_col in signals_df.columns:
+                # 买入价不应高于最高价
+                if is_polars:
+                    invalid_high_count = signals_df.filter(pl.col(price_col) > pl.col('high')).height
+                else:
+                    invalid_high_count = len(signals_df[signals_df[price_col] > signals_df['high']])
+
+                if invalid_high_count > 0:
+                    warnings.append(
+                        f"buy_tier{tier}_price > high 在 {invalid_high_count} 行 "
+                        f"(可能导致限价单无法成交)"
+                    )
+
+                # 买入价不应低于最低价
+                if is_polars:
+                    invalid_low_count = signals_df.filter(pl.col(price_col) < pl.col('low')).height
+                else:
+                    invalid_low_count = len(signals_df[signals_df[price_col] < signals_df['low']])
+
+                if invalid_low_count > 0:
+                    warnings.append(
+                        f"buy_tier{tier}_price < low 在 {invalid_low_count} 行 "
+                        f"(可能是限价未成交或数据错误)"
+                    )
+
+        # 检查卖出价格列
+        for tier in [1, 2, 3]:
+            price_col = f'sell_tier{tier}_price'
+            if price_col in signals_df.columns:
+                # 卖出价不应高于最高价
+                if is_polars:
+                    invalid_high_count = signals_df.filter(pl.col(price_col) > pl.col('high')).height
+                else:
+                    invalid_high_count = len(signals_df[signals_df[price_col] > signals_df['high']])
+
+                if invalid_high_count > 0:
+                    warnings.append(
+                        f"sell_tier{tier}_price > high 在 {invalid_high_count} 行 "
+                        f"(可能是限价未成交或数据错误)"
+                    )
+
+                # 卖出价不应低于最低价
+                if is_polars:
+                    invalid_low_count = signals_df.filter(pl.col(price_col) < pl.col('low')).height
+                else:
+                    invalid_low_count = len(signals_df[signals_df[price_col] < signals_df['low']])
+
+                if invalid_low_count > 0:
+                    warnings.append(
+                        f"sell_tier{tier}_price < low 在 {invalid_low_count} 行 "
+                        f"(可能导致限价单无法成交)"
+                    )
+
+        # ========== 规则2：价格偏离 close 超过阈值 (WARNING) ==========
+        deviation_threshold = 0.03  # 3%
+
+        for tier in [1, 2, 3]:
+            buy_col = f'buy_tier{tier}_price'
+            if buy_col in signals_df.columns:
+                # 计算偏离度
+                if is_polars:
+                    deviations = ((pl.col(buy_col) - pl.col('close')).abs() / pl.col('close'))
+                    large_dev_df = signals_df.select(deviations.alias('dev')).filter(pl.col('dev') > deviation_threshold)
+                    large_dev_count = large_dev_df.height
+                    avg_deviation = large_dev_df['dev'].mean() if large_dev_count > 0 else 0
+                else:
+                    deviations = (signals_df[buy_col] - signals_df['close']).abs() / signals_df['close']
+                    large_deviations = deviations[deviations > deviation_threshold]
+                    large_dev_count = len(large_deviations)
+                    avg_deviation = large_deviations.mean() if large_dev_count > 0 else 0
+
+                if large_dev_count > 0:
+                    warnings.append(
+                        f"buy_tier{tier}_price 与收盘价偏离超过 {deviation_threshold*100:.0f}% 在 {large_dev_count} 行 "
+                        f"(平均偏离 {avg_deviation*100:.1f}%)，回测结果可能偏离实盘"
+                    )
+
+        for tier in [1, 2, 3]:
+            sell_col = f'sell_tier{tier}_price'
+            if sell_col in signals_df.columns:
+                # 计算偏离度
+                if is_polars:
+                    deviations = ((pl.col(sell_col) - pl.col('close')).abs() / pl.col('close'))
+                    large_dev_df = signals_df.select(deviations.alias('dev')).filter(pl.col('dev') > deviation_threshold)
+                    large_dev_count = large_dev_df.height
+                    avg_deviation = large_dev_df['dev'].mean() if large_dev_count > 0 else 0
+                else:
+                    deviations = (signals_df[sell_col] - signals_df['close']).abs() / signals_df['close']
+                    large_deviations = deviations[deviations > deviation_threshold]
+                    large_dev_count = len(large_deviations)
+                    avg_deviation = large_deviations.mean() if large_dev_count > 0 else 0
+
+                if large_dev_count > 0:
+                    warnings.append(
+                        f"sell_tier{tier}_price 与收盘价偏离超过 {deviation_threshold*100:.0f}% 在 {large_dev_count} 行 "
+                        f"(平均偏离 {avg_deviation*100:.1f}%)，回测结果可能偏离实盘"
+                    )
+
+        # ========== 规则3：同时使用 low 买入和 high 卖出 (ERROR) ==========
+        # 检测是否同时使用接近最低价买入和接近最高价卖出
+
+        has_low_buy = False
+        has_high_sell = False
+
+        # 检查买入价是否接近最低价（low * 1.01 以内）
+        for tier in [1, 2, 3]:
+            buy_col = f'buy_tier{tier}_price'
+            if buy_col in signals_df.columns:
+                # 计算买入价与最低价的比率
+                if is_polars:
+                    near_low_count = signals_df.filter((pl.col(buy_col) / pl.col('low')) <= 1.01).height
+                else:
+                    buy_to_low_ratio = signals_df[buy_col] / signals_df['low']
+                    near_low_count = len(buy_to_low_ratio[buy_to_low_ratio <= 1.01])
+
+                if near_low_count > 0:
+                    has_low_buy = True
+                    break
+
+        # 检查卖出价是否接近最高价（high * 0.99 以上）
+        for tier in [1, 2, 3]:
+            sell_col = f'sell_tier{tier}_price'
+            if sell_col in signals_df.columns:
+                # 计算卖出价与最高价的比率
+                if is_polars:
+                    near_high_count = signals_df.filter((pl.col(sell_col) / pl.col('high')) >= 0.99).height
+                else:
+                    sell_to_high_ratio = signals_df[sell_col] / signals_df['high']
+                    near_high_count = len(sell_to_high_ratio[sell_to_high_ratio >= 0.99])
+
+                if near_high_count > 0:
+                    has_high_sell = True
+                    break
+
+        # 如果同时使用最低价买入和最高价卖出，这是严重错误
+        if has_low_buy and has_high_sell:
+            errors.append(
+                "❌ 策略同时以最低价买入和最高价卖出，使用了未来信息，回测结果不可信。"
+                "请改用 open/close 或扩大安全边际（如 low*1.03, high*0.97）"
+            )
+
+        return {'warnings': warnings, 'errors': errors}

@@ -1,19 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-CONST_6 = 6
-
-CONST_8 = 8
-
-CONST_20 = 20
-
-
-
 """L1 Data Layer handlers."""
 import json
 from typing import Any, Dict
@@ -61,7 +45,9 @@ async def get_stock_price(params: dict) -> str:
 
     # Build query params
     query_params = []
-    if params.get("start_date") and params.get("end_date"):
+    if params.get("start_date"):
+        query_params.append(f"start_date={params['start_date']}")
+    if params.get("end_date"):
         query_params.append(f"end_date={params['end_date']}")
 
     query_string = "?" + "&".join(query_params) if query_params else ""

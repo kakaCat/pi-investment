@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000 = 10000
-CONST_11_0 = 11.0
-CONST_150 = 150
-CONST_20_0 = 20.0
-CONST_2024 = 2024
-CONST_40 = 40
-CONST_5 = 5
-CONST_60 = 60
-CONST_80 = 80
-CONST_9_0 = 9.0
-
 """Tests for the 5 new strategies."""
 import math
 import pytest

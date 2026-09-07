@@ -1,56 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_15 = 15
-
-CONST_30 = 30
-
-CONST_40 = 40
-
-CONST_120 = 120
-
-CONST_365 = 365
-
-CONST_500 = 500
-
-CONST_999 = 999
-
-
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_15 = 15
-
-CONST_30 = 30
-
-CONST_40 = 40
-
-CONST_120 = 120
-
-CONST_365 = 365
-
-CONST_500 = 500
-
-CONST_999 = 999
-
-
-
 """
 K线数据ORM Repository
 
@@ -121,12 +68,6 @@ def _rows_to_df(rows: list, schema: dict) -> pl.DataFrame:
     return pl.DataFrame(rows, schema=sub_schema)
 
 
-# TODO: Refactor - class too large (29 methods, target < 15)
-
-# TODO: Refactor large class (29 methods, target < 20)
-# TODO: Refactor large class (29 methods, target < 20)
-# TODO: 大类 29个方法 - 考虑拆分为多个类或使用组合模式
-
 class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
     """K线ORM Repository
 
@@ -172,7 +113,9 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             return self.get_minute_klines(symbol, start_date, end_date)
 
         # 默认返回日K线
-        if not start_date and not end_date:
+        if not start_date:
+            start_date = '1990-01-01'
+        if not end_date:
             from datetime import date
             end_date = date.today().isoformat()
 

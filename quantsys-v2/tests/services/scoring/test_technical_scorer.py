@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_15 = 15
-CONST_20 = 20
-CONST_25 = 25
-CONST_3_0 = 3.0
-CONST_30 = 30
-CONST_35 = 35
-CONST_40 = 40
-CONST_45 = 45
-CONST_5 = 5
-CONST_50 = 50
-
 """
 TechnicalScorer 单元测试
 """

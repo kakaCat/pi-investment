@@ -1,55 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - trade_verify() = 135 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_05 = 0.05
-
-CONST_0_4 = 0.4
-
-CONST_3 = 3
-
-CONST_16 = 16
-
-CONST_30 = 30
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-CONST_100000 = 100000
-
-
-
-CONST_0_05 = 0.05
-
-CONST_0_4 = 0.4
-
-CONST_3 = 3
-
-CONST_16 = 16
-
-CONST_30 = 30
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-CONST_100000 = 100000
-
-
-
 """风控 API - FastAPI 版（从 Flask risk.py 迁移，响应契约保持一致）
 
 注意：Flask update_stop_loss_rule 有误用未定义变量 rule_dict 的 bug（应为 rule），
@@ -91,93 +39,6 @@ def _format_rule(rule):
     }
 
 
-def _calculate_sector_concentration(positions, stock_repo, account_value):
-    """计算行业集中度"""
-    sector_invested: Dict[str, float] = {}
-    for p in positions:
-        sector = None
-        try:
-            stock = stock_repo.get_by_symbol(p.symbol)
-            sector = getattr(stock, 'sector', None) if stock else None
-        except Exception:
-            pass
-        pos_value = float(p.market_value or 0) or (float(p.shares_total) * float(p.current_price or p.avg_cost or 0))
-        sector_invested[sector or '未知'] = sector_invested.get(sector or '未知', 0) + pos_value
-
-    sector_concentration_map = {}
-    if account_value and account_value > 0:
-        for sector_name, invested in sector_invested.items():
-            ratio = invested / account_value
-            # TODO: 提取嵌套逻辑为独立方法
-
-            if ratio > 0.4:
-                sector_concentration_map[sector_name] = ratio
-    return sector_concentration_map
-
-def _get_current_price(position, kline_repo):
-    """获取当前价格"""
-    current_price = float(position.current_price or 0)
-    if current_price == 0:
-        try:
-            latest_kline = kline_repo.get_latest_daily_kline(position.symbol)
-            if latest_kline is not None and not latest_kline.is_empty():
-                kline_row = latest_kline.to_dicts()[0]
-                current_price = float(kline_row.get('close', 0))
-        except Exception:
-            pass
-    return current_price
-
-def _check_position_concentration(symbol, position_value, account_value):
-    """检查单只股票仓位集中度"""
-    checks = []
-    if account_value and account_value > 0:
-        concentration = (position_value / account_value) * 100
-        if concentration > 30:
-            checks.append({
-                'type': 'concentration', 'level': 'high',
-                'message': f'{symbol} 仓位集中度 {concentration:.1f}% > 30%',
-                'suggestion': '建议分散持仓'
-            })
-    return checks
-
-def _check_sector_concentration_for_symbol(symbol, stock_repo, sector_concentration_map):
-    """检查行业集中度"""
-    checks = []
-    holding_sector = None
-    try:
-        stock = stock_repo.get_by_symbol(symbol)
-        holding_sector = getattr(stock, 'sector', None) if stock else None
-    except Exception:
-        pass
-    holding_sector = holding_sector or '未知'
-
-    if holding_sector in sector_concentration_map:
-        sector_ratio = sector_concentration_map[holding_sector]
-        checks.append({
-            'type': 'sector_concentration', 'level': 'high',
-            'message': f'{symbol} 所属行业 "{holding_sector}" 集中度 {sector_ratio*100:.1f}% > 40%',
-            'suggestion': '建议分散行业配置'
-        })
-    return checks
-
-def _check_risk_metrics(symbol, risk_repo):
-    """检查风险指标"""
-    checks = []
-    risk_metrics = risk_repo.get_latest_risk_metrics(symbol)
-    var_95 = volatility = max_drawdown = 0
-
-    if risk_metrics:
-        var_95 = risk_metrics.get('var_95', 0) or 0
-        volatility = risk_metrics.get('volatility', 0) or 0
-        max_drawdown = risk_metrics.get('max_drawdown', 0) or 0
-        if var_95 < -0.05:
-            checks.append({
-                'type': 'var', 'level': 'medium',
-                'message': f'{symbol} VaR 95% = {var_95:.3f}',
-                'suggestion': '建议设置止损'
-            })
-    return checks, var_95, volatility, max_drawdown
-
 @router.post('/api/risk/check')
 def risk_check(payload: Optional[Dict[str, Any]] = Body(None)):
     """风险检查
@@ -193,42 +54,81 @@ def risk_check(payload: Optional[Dict[str, Any]] = Body(None)):
         sim_repo = get_simulation_repo()
         stock_repo = get_stock_repo()
 
-        # 获取持仓和账户信息
         positions = sim_repo.get_all_positions(account_name)
         account = sim_repo.get_account(account_name)
         account_value = float(data.get('account_value') or 0) if data.get('account_value') else None
         if account_value is None and account is not None:
             account_value = float(getattr(account, 'total_value', 0) or 0)
 
-        # 计算行业集中度
-        sector_concentration_map = _calculate_sector_concentration(positions, stock_repo, account_value)
+        # 行业集中度：从当前持仓 + stock 表 sector 现算（原 get_holdings_stats
+        # 读 portfolio_holdings 旧表，与新持仓源不一致）
+        sector_invested: Dict[str, float] = {}
+        for p in positions:
+            sector = None
+            try:
+                stock = stock_repo.get_by_symbol(p.symbol)
+                sector = getattr(stock, 'sector', None) if stock else None
+            except Exception:
+                pass
+            pos_value = float(p.market_value or 0) or (float(p.shares_total) * float(p.current_price or p.avg_cost or 0))
+            sector_invested[sector or '未知'] = sector_invested.get(sector or '未知', 0) + pos_value
+        sector_concentration_map = {}
+        if account_value and account_value > 0:
+            for sector_name, invested in sector_invested.items():
+                ratio = invested / account_value
+                if ratio > 0.4:
+                    sector_concentration_map[sector_name] = ratio
 
-        # 检查每个持仓
         checks = []
         for p in positions:
             symbol = p.symbol
             position_value = float(p.market_value or 0) or (float(p.shares_total) * float(p.current_price or p.avg_cost or 0))
-
-            # 获取当前价格
-            current_price = _get_current_price(p, kline_repo)
-
-            # 执行各项检查
             item_checks = []
-            item_checks.extend(_check_position_concentration(symbol, position_value, account_value))
-            item_checks.extend(_check_sector_concentration_for_symbol(symbol, stock_repo, sector_concentration_map))
-            risk_checks, var_95, volatility, max_drawdown = _check_risk_metrics(symbol, risk_repo)
-            item_checks.extend(risk_checks)
-
+            current_price = float(p.current_price or 0)
+            if current_price == 0:
+                try:
+                    latest_kline = kline_repo.get_latest_daily_kline(symbol)
+                    if latest_kline is not None and not latest_kline.is_empty():
+                        kline_row = latest_kline.to_dicts()[0]
+                        current_price = float(kline_row.get('close', 0))
+                except Exception:
+                    pass
+            if account_value and account_value > 0:
+                concentration = (position_value / account_value) * 100
+                if concentration > 30:
+                    item_checks.append({
+                        'type': 'concentration', 'level': 'high',
+                        'message': f'{symbol} 仓位集中度 {concentration:.1f}% > 30%', 'suggestion': '建议分散持仓'})
+            holding_sector = None
+            try:
+                stock = stock_repo.get_by_symbol(symbol)
+                holding_sector = getattr(stock, 'sector', None) if stock else None
+            except Exception:
+                pass
+            holding_sector = holding_sector or '未知'
+            if holding_sector in sector_concentration_map:
+                sector_ratio = sector_concentration_map[holding_sector]
+                item_checks.append({
+                    'type': 'sector_concentration', 'level': 'high',
+                    'message': f'{symbol} 所属行业 "{holding_sector}" 集中度 {sector_ratio*100:.1f}% > 40%',
+                    'suggestion': '建议分散行业配置'})
+            risk_metrics = risk_repo.get_latest_risk_metrics(symbol)
+            var_95 = volatility = max_drawdown = 0
+            if risk_metrics:
+                var_95 = risk_metrics.get('var_95', 0) or 0
+                volatility = risk_metrics.get('volatility', 0) or 0
+                max_drawdown = risk_metrics.get('max_drawdown', 0) or 0
+                if var_95 < -0.05:
+                    item_checks.append({
+                        'type': 'var', 'level': 'medium',
+                        'message': f'{symbol} VaR 95% = {var_95:.3f}', 'suggestion': '建议设置止损'})
             checks.append({
                 'symbol': symbol, 'position_value': position_value, 'current_price': current_price,
-                'var_95': var_95, 'volatility': volatility, 'max_drawdown': max_drawdown, 'checks': item_checks
-            })
-
+                'var_95': var_95, 'volatility': volatility, 'max_drawdown': max_drawdown, 'checks': item_checks})
         return sanitize_for_json({
             'total_holdings': len(checks), 'checks': checks,
             'account_name': account_name,
-            'risk_level': 'high' if len(checks) > 3 else 'low'
-        })
+            'risk_level': 'high' if len(checks) > 3 else 'low'})
     except Exception as e:
         return error_response({'error': str(e)}, 500)
 
@@ -313,7 +213,9 @@ def update_stop_loss_rule(rule_id: str, payload: Optional[Dict[str, Any]] = Body
         body = payload or {}
         repo = RiskORMRepository()
         update_params = {}
-        if 'name' in body and 'stopLossType' in body:
+        if 'name' in body:
+            update_params['name'] = body['name']
+        if 'stopLossType' in body:
             update_params['type'] = _normalize_stop_loss_type(body['stopLossType'])
         elif 'type' in body:
             update_params['type'] = _normalize_stop_loss_type(body['type'])
@@ -321,7 +223,9 @@ def update_stop_loss_rule(rule_id: str, payload: Optional[Dict[str, Any]] = Body
             update_params['stop_loss_percent'] = body['triggerPercent']
         elif 'stopLossPercent' in body:
             update_params['stop_loss_percent'] = body['stopLossPercent']
-        if 'trailingPercent' in body and 'atrMultiplier' in body:
+        if 'trailingPercent' in body:
+            update_params['trailing_percent'] = body['trailingPercent']
+        if 'atrMultiplier' in body:
             update_params['atr_multiplier'] = body['atrMultiplier']
         if 'status' in body:
             update_params['status'] = body['status']
@@ -427,72 +331,8 @@ def delete_stop_loss_rule(rule_id: str):
 
 @router.get('/api/risk/trade-verify')
 @router.post('/api/risk/trade-verify')
-# TODO: Refactor - complexity 26 (target < 15)
-
 @handle_api_error
-# TODO: Refactor - function too long (136 lines, target < 80)
-
-def _validate_trade_verify_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 trade_verify 移到这里
-    return True, None
-
-def _process_trade_verify_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 trade_verify 移到这里
-    return data
-
-def _build_trade_verify_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 trade_verify 移到这里
-    return data
-
-# TODO: Split long function (135 lines, target < 100)
-# TODO: Refactor - complexity 26 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 26 (target < 15)
-# TODO: Split long function (135 lines, target < 100)
-# TODO: Refactor - complexity 26 (target < 15)
-# TODO: Split long function (135 lines, target < 100)
-# TODO: 复杂度 26 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 146行 - 建议拆分为多个小函数
-
-def _validate_trade_verify_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_trade_verify_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_trade_verify_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_trade_verify_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_trade_verify_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_trade_verify_result(data):
-    """构建返回结果"""
-    return data
-
 def trade_verify(
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
     account_name: Optional[str] = Query('agent_virtual'),
     date: Optional[str] = Query(None),
     payload: Optional[Dict[str, Any]] = Body(None),

@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_30 = 30
-
-
-
-CONST_5 = 5
-
-CONST_30 = 30
-
-
-
 """Akshare market data provider."""
 import logging
 from typing import Optional
@@ -203,7 +182,9 @@ class AkshareMarketProvider(MarketProvider):
             import akshare as ak
 
             # 空日期默认最近 30 天（避免空字符串传给 akshare 返回全量/报错）
-            if not end_date and not start_date:
+            if not end_date:
+                end_date = datetime.now().strftime('%Y-%m-%d')
+            if not start_date:
                 start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
 
             df = ak.stock_lhb_detail_em(

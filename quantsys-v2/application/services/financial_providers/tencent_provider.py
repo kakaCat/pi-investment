@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-CONST_200 = 200
-
-
-
-CONST_4 = 4
-
-CONST_200 = 200
-
-
-
 """
 腾讯财经数据提供者
 

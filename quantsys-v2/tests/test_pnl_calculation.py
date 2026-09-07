@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100_1 = 100.1
-CONST_10000 = 10000
-CONST_11 = 11
-CONST_110_0 = 110.0
-CONST_11000 = 11000
-CONST_5 = 5
-CONST_9 = 9
-CONST_90_0 = 90.0
-CONST_9000 = 9000
-CONST_99_9 = 99.9
-
 """
 测试盈亏计算逻辑
 

@@ -1,31 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_1eNEG_05 = 1e-05
-
-CONST_2_7eNEG_05 = 2.7e-05
-
-CONST_5_65eNEG_05 = 5.65e-05
-
-CONST_0_0002 = 0.0002
-
-CONST_0_00025 = 0.00025
-
-CONST_0_0003 = 0.0003
-
-CONST_0_001 = 0.001
-
-CONST_0_0013 = 0.0013
-
-CONST_0_0025 = 0.0025
-
-CONST_5_0 = 5.0
-
-
-
 """
 Commission Models
 
@@ -97,7 +69,9 @@ class AShareCommission(CommissionModel):
             stamp_tax_rate: Stamp tax rate (default 0.1%, sell only)
             transfer_fee_rate: Transfer fee rate (default 0.001%)
         """
-        if commission_rate < 0 or min_commission < 0 and stamp_tax_rate < 0 or transfer_fee_rate < 0:
+        if commission_rate < 0 or min_commission < 0:
+            raise ValueError("Commission parameters must be non-negative")
+        if stamp_tax_rate < 0 or transfer_fee_rate < 0:
             raise ValueError("Tax/fee rates must be non-negative")
 
         self.commission_rate = commission_rate

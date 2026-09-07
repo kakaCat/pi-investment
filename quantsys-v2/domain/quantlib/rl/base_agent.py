@@ -1,14 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_6 = 6
-
-
-
 """
 Base RL Agent Module
 ====================
@@ -20,6 +9,7 @@ Author: RL Migration Team
 Date: 2026-05-25
 """
 
+from __future__ import annotations
 
 import numpy as np
 from abc import abstractmethod

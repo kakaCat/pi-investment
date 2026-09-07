@@ -1,36 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_20 = 20
-
-CONST_404 = 404
-
-CONST_429 = 429
-
-
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_20 = 20
-
-CONST_404 = 404
-
-CONST_429 = 429
-
-
-
 """Migration guide: Replacing 'except Exception' with structured exceptions.
 
 This file demonstrates best practices for exception handling in quantsys-v2.

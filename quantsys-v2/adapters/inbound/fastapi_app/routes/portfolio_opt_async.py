@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_025 = 0.025
-
-CONST_2_5 = 2.5
-
-
-
-CONST_0_025 = 0.025
-
-CONST_2_5 = 2.5
-
-
-
 """组合优化 API - FastAPI 版（从 Flask portfolio.py 迁移，响应契约保持一致）
 
 覆盖端点：
@@ -56,7 +35,8 @@ def _convert_numpy_to_list(obj):
         return [_convert_numpy_to_list(item) for item in obj]
     elif isinstance(obj, (np.integer, np.floating)):
         return obj.item()
-    return obj
+    else:
+        return obj
 
 
 def _require_json_body(payload: Optional[Dict[str, Any]]) -> Dict[str, Any]:

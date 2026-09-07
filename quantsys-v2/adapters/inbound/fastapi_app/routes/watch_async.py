@@ -1,36 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_50 = 50
-
-CONST_200 = 200
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-
-
-CONST_50 = 50
-
-CONST_200 = 200
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-
-
 """WatchEngine 盯盘规则 API - FastAPI 版（与 Flask watch.py 响应契约一致）"""
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -74,7 +41,9 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
     data = payload or {}
     symbol = (data.get('symbol') or '').strip()
     conditions = data.get('conditions')
-    if not symbol and not conditions:
+    if not symbol:
+        return _err('缺少必填参数: symbol', 400)
+    if not conditions:
         return _err('缺少必填参数: conditions（非空数组）', 400)
     if not isinstance(conditions, list):
         return _err('conditions 必须为数组', 400)

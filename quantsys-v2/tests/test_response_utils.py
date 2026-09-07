@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_2 = 10.2
-CONST_10_5 = 10.5
-CONST_11 = 11
-CONST_11_2 = 11.2
-CONST_11_5 = 11.5
-CONST_12 = 12
-CONST_12_2 = 12.2
-CONST_12_5 = 12.5
-CONST_1200 = 1200
-CONST_13 = 13
-
 """
 测试 core.response_utils 模块
 """

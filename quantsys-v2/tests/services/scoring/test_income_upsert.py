@@ -1,16 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_2025 = 2025
-CONST_2026 = 2026
-CONST_28_0 = 28.0
-CONST_30_0 = 30.0
-CONST_31 = 31
-CONST_35_5 = 35.5
-CONST_40_0 = 40.0
-CONST_400_0 = 400.0
-
 """upsert_income_statements 测试"""
 import pytest
 from adapters.outbound.repositories.financial_repository import FinancialORMRepository

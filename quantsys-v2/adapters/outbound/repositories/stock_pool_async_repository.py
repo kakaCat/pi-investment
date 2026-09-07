@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-
-
-CONST_20 = 20
-
-
-
 """
 Stock Pool 异步ORM Repository
 
@@ -114,7 +97,9 @@ class StockPoolAsyncRepository(AsyncBaseORMRepository[StockPool]):
         """
         try:
             conditions = {}
-            if pool_type and scan_enabled is not None:
+            if pool_type:
+                conditions['pool_type'] = pool_type
+            if scan_enabled is not None:
                 conditions['scan_enabled'] = scan_enabled
 
             if conditions:

@@ -1,37 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - calculate() = 138 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.01, 0.02, 0.05, 0.1, 0.2]...
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_0_02 = 0.02
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_2 = 0.2
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_6 = 0.6
-
-CONST_0_7 = 0.7
-
-
-
 """
 Liquidity Risk Calculator
 =========================
@@ -103,17 +69,7 @@ class LiquidityRiskCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
-    # TODO: Refactor - function too long (139 lines, target < 80)
-
-# TODO: Split long function (138 lines, target < 100)
-    # TODO: 长函数 144行 - 建议拆分为多个小函数
-
     def calculate(self,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
                   portfolio: Dict[str, float],
                   market_data: Dict[str, Dict[str, float]],
                   liquidation_horizon: int = 1,

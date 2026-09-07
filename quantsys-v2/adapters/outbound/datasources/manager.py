@@ -1,43 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - get_data_completeness() = 115 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_2 = 0.2
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_60 = 60
-
-CONST_300 = 300
-
-
-
-CONST_0_2 = 0.2
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_60 = 60
-
-CONST_300 = 300
-
-
-
 """Unified data provider manager with automatic failover."""
 import logging
 from typing import List, Dict, Any, Optional
@@ -72,12 +32,6 @@ from adapters.outbound.datasources.providers.hk.akshare import AkshareHKProvider
 
 logger = logging.getLogger(__name__)
 
-
-# TODO: Refactor - class too large (51 methods, target < 15)
-
-# TODO: Refactor large class (63 methods, target < 20)
-# TODO: Refactor large class (64 methods, target < 20)
-# TODO: 大类 64个方法 - 考虑拆分为多个类或使用组合模式
 
 class DataProviderManager(IDataProviderManager):
     """Unified data provider manager
@@ -208,8 +162,6 @@ class DataProviderManager(IDataProviderManager):
         attempted_sources: List[str] = []
 
         for provider in sorted_providers:
-            # TODO: 提取嵌套逻辑为独立方法
-
             if self._is_circuit_broken(provider.name):
                 cb = self._circuit_breakers.get(provider.name)
                 state = cb.get_state() if cb else {}
@@ -270,71 +222,6 @@ class DataProviderManager(IDataProviderManager):
             'provider_errors': provider_errors,
         }
 
-    # TODO: Refactor - complexity 19 (target < 15)
-
-    def _validate__is_valid_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _is_valid 移到这里
-        return True, None
-
-    def _process__is_valid_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _is_valid 移到这里
-        return data
-
-    def _build__is_valid_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _is_valid 移到这里
-        return data
-
-    def _validate__is_valid_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _is_valid 移到这里
-        return True, None
-
-    def _process__is_valid_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _is_valid 移到这里
-        return data
-
-    def _build__is_valid_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _is_valid 移到这里
-        return data
-
-# TODO: Refactor - complexity 19 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    def _check_condition_0():
-        """Check: data.price is None or (hasattr(pd, 'isna') and pd.isna(data...."""
-        return data.price is None or (hasattr(pd, 'isna') and pd.isna(data.price))
-
-    # TODO: Refactor - complexity 20 (target < 15)
-    # TODO: 复杂度 20 - 需要重构拆分为更小的函数
-
-    def _validate__is_valid_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__is_valid_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__is_valid_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate__is_valid_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__is_valid_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__is_valid_result(data):
-        """构建返回结果"""
-        return data
-
     def _is_valid(self, data) -> bool:
         """Validate data completeness (P0 Enhanced)
 
@@ -379,8 +266,9 @@ class DataProviderManager(IDataProviderManager):
         # QuoteData检查：price必须有效
         if hasattr(data, 'price'):
             import pandas as pd
-            if data.price is None or (hasattr(pd, 'isna') and pd.isna(data.price)) and _check_condition_0():
-                pass  # TODO: implement
+            if data.price is None or (hasattr(pd, 'isna') and pd.isna(data.price)):
+                return False
+
         # 其他数据类型：有source且有timestamp就认为有效
         if hasattr(data, 'timestamp'):
             return bool(data.timestamp)
@@ -827,85 +715,8 @@ class DataProviderManager(IDataProviderManager):
             except Exception:
                 pass
             return False
-# TODO: Refactor - complexity 18 (target < 15)
-
-
-    # TODO: Refactor - function too long (116 lines, target < 80)
-
-    def _validate_get_data_completeness_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 get_data_completeness 移到这里
-        return True, None
-
-    def _process_get_data_completeness_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 get_data_completeness 移到这里
-        return data
-
-    def _build_get_data_completeness_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 get_data_completeness 移到这里
-        return data
-
-    def _validate_get_data_completeness_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 get_data_completeness 移到这里
-        return True, None
-
-    def _process_get_data_completeness_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 get_data_completeness 移到这里
-        return data
-
-    def _build_get_data_completeness_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 get_data_completeness 移到这里
-        def _validate_get_data_completeness_input(*args, **kwargs):
-            """验证输入参数"""
-            pass
-
-        def _process_get_data_completeness_data(data):
-            """处理数据转换"""
-            return data
-
-        def _build_get_data_completeness_result(data):
-            """构建返回结果"""
-            return data
-
-        def _validate_get_data_completeness_input(*args, **kwargs):
-            """验证输入参数"""
-            pass
-
-        def _process_get_data_completeness_data(data):
-            """处理数据转换"""
-            return data
-
-        def _build_get_data_completeness_result(data):
-            """构建返回结果"""
-            return data
-
-        return data
-
-# TODO: Split long function (115 lines, target < 100)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 18 (target < 15)
-    # TODO: Split long function (115 lines, target < 100)
-    # TODO: 复杂度 18 - 需要重构拆分为更小的函数
-
-    # TODO: Refactor - complexity 18 (target < 15)
-    # TODO: Split long function (115 lines, target < 100)
-    # TODO: 长函数 125行 - 建议拆分为多个小函数
 
     def get_data_completeness(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         symbol: str,
         start_date: str,

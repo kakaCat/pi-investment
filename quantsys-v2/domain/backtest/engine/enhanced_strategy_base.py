@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Enhanced strategy base — StrategyBase + all mixins."""
 from domain.backtest.engine.strategy_base import StrategyBase
 from domain.backtest.engine.mixins.indicator_mixin import IndicatorMixin

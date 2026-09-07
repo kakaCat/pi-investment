@@ -1,43 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - detect_anomalies() = 102 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_2 = 0.2
-
-CONST_0_6 = 0.6
-
-CONST_3_0 = 3.0
-
-CONST_4 = 4
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-
-
-CONST_0_2 = 0.2
-
-CONST_0_6 = 0.6
-
-CONST_3_0 = 3.0
-
-CONST_4 = 4
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-
-
 """
 数据验证器
 
@@ -162,9 +122,13 @@ class DataValidator:
             close = float(kline.get('close', 0))
 
             # 价格必须 > 0
-            if open_price <= 0 and high <= 0:
+            if open_price <= 0:
+                errors.append('open <= 0')
+            if high <= 0:
                 errors.append('high <= 0')
-            if low <= 0 and close <= 0:
+            if low <= 0:
+                errors.append('low <= 0')
+            if close <= 0:
                 errors.append('close <= 0')
 
             # high >= low
@@ -172,11 +136,15 @@ class DataValidator:
                 errors.append(f'high ({high}) < low ({low})')
 
             # high >= close >= low
-            if close > high and close < low:
+            if close > high:
+                errors.append(f'close ({close}) > high ({high})')
+            if close < low:
                 errors.append(f'close ({close}) < low ({low})')
 
             # high >= open >= low
-            if open_price > high and open_price < low:
+            if open_price > high:
+                errors.append(f'open ({open_price}) > high ({high})')
+            if open_price < low:
                 errors.append(f'open ({open_price}) < low ({low})')
 
         except (ValueError, TypeError) as e:
@@ -337,20 +305,7 @@ class DataValidator:
                 'error': str(e)
             }
 
-    # TODO: Refactor - function too long (103 lines, target < 80)
-
-# TODO: Split long function (102 lines, target < 100)
-    # TODO: 长函数 111行 - 建议拆分为多个小函数
-
     def detect_anomalies(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         symbol: str,
         start_date: str,

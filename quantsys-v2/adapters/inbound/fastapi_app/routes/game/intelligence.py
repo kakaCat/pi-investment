@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_500 = 500
-
-
-
-CONST_500 = 500
-
-
-
 """
 游戏智能 API 路由 (FastAPI 版本)
 

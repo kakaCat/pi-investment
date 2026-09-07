@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_70 = 70
-
-CONST_200 = 200
-
-
-
-CONST_3 = 3
-
-CONST_70 = 70
-
-CONST_200 = 200
-
-
-
 """
 多数据源数据获取器 - 用于V14交易系统
 

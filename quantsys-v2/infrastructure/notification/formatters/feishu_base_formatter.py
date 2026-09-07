@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 飞书格式化器基类
 
@@ -85,7 +82,9 @@ class FeishuFormatter(NotificationFormatter):
                 }
 
                 # 添加 URL 或回调值
-                if 'url' in action and 'value' in action:
+                if 'url' in action:
+                    button['url'] = action['url']
+                if 'value' in action:
                     button['value'] = action['value']
 
                 action_elements.append(button)

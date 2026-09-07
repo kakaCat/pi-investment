@@ -1,15 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_15 = 15
-CONST_18 = 18
-CONST_20 = 20
-CONST_22 = 22
-CONST_25 = 25
-CONST_3 = 3
-CONST_30 = 30
-CONST_50 = 50
-
 import pytest
 from application.services.strategy_analyzer import StrategyAnalyzer
 
@@ -438,3 +426,4 @@ class TestStrategyAnalyzer:
         result = analyzer.analyze(metrics, benchmark)
         # 10 + 20 + 10 = 40 (C级)
         assert result['ratings']['overall'] == 'C'
+

@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000 = 10000
-CONST_15 = 15
-CONST_1500 = 1500
-CONST_16 = 16
-CONST_2_5 = 2.5
-CONST_20 = 20
-CONST_2000 = 2000
-CONST_2026 = 2026
-CONST_25 = 25
-CONST_2900 = 2900
-
 """
 M1 市场感知服务单元测试（RFC 007）
 

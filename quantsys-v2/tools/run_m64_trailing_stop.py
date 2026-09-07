@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_2023 = 2023
-CONST_2024 = 2024
-CONST_3 = 3
-CONST_30 = 30
-CONST_300750 = 300750
-CONST_31 = 31
-CONST_4 = 4
-CONST_600030 = 600030
-CONST_600036 = 600036
-
 """M6-4 回撤控制验证：macd 635(默认) vs 642(追踪止损)
 跳过资金流注入（macd不依赖资金流列，当前eastmoney外部源不稳定是唯一瓶颈）
 范围：8 股 × 3 时段 · 真实回测

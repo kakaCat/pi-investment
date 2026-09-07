@@ -1,15 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_200 = 200
-
-CONST_201 = 201
-
-
-
 """Shared API client for daemon handlers."""
 import aiohttp
 from typing import Any, Dict

@@ -1,22 +1,10 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_3_0 = 3.0
-
-CONST_30_0 = 30.0
-
-
-
 """Ollama 本地 embedding 服务（W1.3 混合检索）
 
 设计定稿（2026-08-12）：向量用 ollama 本地 bge-m3，POST /api/embeddings。
 任何失败（不可达/超时/模型缺失）一律返回 None，绝不抛错——
 调用方据此走降级路径（参考 TencentDB-Agent-Memory store 的 isDegraded() 设计）。
 """
+from __future__ import annotations
 
 from typing import List, Optional
 
@@ -50,7 +38,9 @@ class OllamaEmbeddingService:
         try:
             config = get_config()
             app_cfg = getattr(config, 'app', None)
-            if app_cfg is None and isinstance(config, dict) and app_cfg is not None:
+            if app_cfg is None and isinstance(config, dict):
+                app_cfg = config.get('app')
+            if app_cfg is not None:
                 if isinstance(app_cfg, dict):
                     default_base = app_cfg.get('ollama_base_url')
                     default_model = app_cfg.get('memory_embedding_model')

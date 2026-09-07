@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_102 = 102
-CONST_105 = 105
-CONST_11_11 = 11.11
-CONST_12_5 = 12.5
-CONST_15 = 15
-CONST_15_5 = 15.5
-CONST_20 = 20
-CONST_20_0 = 20.0
-CONST_2026 = 2026
-CONST_25 = 25
-
 """
 Tests for financial indicators injection in strategy code service
 """

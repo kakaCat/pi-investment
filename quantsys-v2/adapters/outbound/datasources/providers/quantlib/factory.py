@@ -1,7 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Adapter factory — single entrypoint for obtaining a market data adapter.
 
 Usage::
@@ -17,6 +13,7 @@ The factory decouples callers from concrete adapter classes so that:
     touching business logic.
 """
 
+from __future__ import annotations
 
 from typing import Optional
 

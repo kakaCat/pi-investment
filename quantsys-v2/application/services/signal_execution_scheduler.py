@@ -1,36 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - execute_daily_signals() = 108 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_8 = 0.8
-
-CONST_0_99 = 0.99
-
-CONST_1_01 = 1.01
-
-CONST_1000000 = 1000000
-
-
-
-CONST_0_8 = 0.8
-
-CONST_0_99 = 0.99
-
-CONST_1_01 = 1.01
-
-CONST_1000000 = 1000000
-
-
-
 """
 信号执行调度器
 
@@ -44,6 +11,7 @@ CONST_1000000 = 1000000
 每日 15:30 由定时任务调用
 """
 
+from __future__ import annotations
 
 from typing import Dict, Any, List, Optional
 from datetime import datetime, date
@@ -125,20 +93,7 @@ class SignalExecutionScheduler:
             )
         return self._paper_engine
 
-    # TODO: Refactor - function too long (109 lines, target < 80)
-
-# TODO: Split long function (108 lines, target < 100)
-    # TODO: 长函数 117行 - 建议拆分为多个小函数
-
     def execute_daily_signals(self) -> Dict[str, Any]:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """
         执行每日信号处理流程（15:30定时调用）
 
@@ -247,20 +202,8 @@ class SignalExecutionScheduler:
                 'error': str(e),
                 'log_id': log_id
             }
-# TODO: Refactor - function too long (101 lines, target < 80)
-
-# TODO: 长函数 109行 - 建议拆分为多个小函数
-
 
     def _run_strategies(self, execution_date: str) -> Dict[str, Any]:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """
         运行所有启用的策略
 
@@ -547,9 +490,7 @@ class SignalExecutionScheduler:
             try:
                 self.signal_repo.update_signal(signal['id'], {
                     'status': 'approved',
-                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                    'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # TODO: Use parameterized queries
+                    'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 })
             except Exception as e:
                 logger.error(f"更新信号状态失败: {signal['id']} - {str(e)}")
@@ -560,9 +501,7 @@ class SignalExecutionScheduler:
                 self.signal_repo.update_signal(signal['id'], {
                     'status': 'rejected',
                     'reject_reason': signal.get('reject_reason', '未知原因'),
-                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                    'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # TODO: Use parameterized queries
+                    'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 })
             except Exception as e:
                 logger.error(f"更新信号状态失败: {signal['id']} - {str(e)}")

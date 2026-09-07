@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """WatchEngine 随 FastAPI 启动的装配（2026-08-12 起盯盘引擎唯一宿主）
 
 背景：WatchEngine 常驻线程原仅由 scheduler_daemon.py 启动。08-02 生产切换到

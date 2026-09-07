@@ -1,56 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_0001 = 0.0001
-
-CONST_0_06 = 0.06
-
-CONST_0_07 = 0.07
-
-CONST_0_08 = 0.08
-
-CONST_0_09 = 0.09
-
-CONST_0_11 = 0.11
-
-CONST_0_12 = 0.12
-
-CONST_0_16 = 0.16
-
-CONST_0_18 = 0.18
-
-CONST_0_5 = 0.5
-
-
-
-CONST_0_0001 = 0.0001
-
-CONST_0_06 = 0.06
-
-CONST_0_07 = 0.07
-
-CONST_0_08 = 0.08
-
-CONST_0_09 = 0.09
-
-CONST_0_11 = 0.11
-
-CONST_0_12 = 0.12
-
-CONST_0_16 = 0.16
-
-CONST_0_18 = 0.18
-
-CONST_0_5 = 0.5
-
-
-
 """
 Execution Service - Algorithmic Order Execution
 
@@ -130,7 +77,9 @@ def execute_order(
         quantity = order_details.get('quantity', 0)
         price = order_details.get('price')
 
-        if not symbol and quantity <= 0:
+        if not symbol:
+            return ExecutionResult(success=False, error="Missing symbol", algo=algo)
+        if quantity <= 0:
             return ExecutionResult(success=False, error="Quantity must be positive", algo=algo)
 
         # Route to the appropriate algorithm
@@ -214,7 +163,9 @@ def execute_twap(
     action = order.get('action', 'buy')
     total_quantity = order.get('quantity', 0)
 
-    if total_quantity <= 0 and slices <= 0:
+    if total_quantity <= 0:
+        return ExecutionResult(success=False, error="Quantity must be positive", algo='twap')
+    if slices <= 0:
         return ExecutionResult(success=False, error="Slices must be positive", algo='twap')
     if duration_minutes <= 0:
         return ExecutionResult(success=False, error="Duration must be positive", algo='twap')
@@ -446,7 +397,9 @@ def execute_iceberg(
     action = order.get('action', 'buy')
     total_quantity = order.get('quantity', 0)
 
-    if total_quantity <= 0 and display_size <= 0:
+    if total_quantity <= 0:
+        return ExecutionResult(success=False, error="Quantity must be positive", algo='iceberg')
+    if display_size <= 0:
         return ExecutionResult(success=False, error="Display size must be positive", algo='iceberg')
 
     # Calculate number of slices needed
@@ -538,9 +491,9 @@ def execute_with_risk_check(
         from application.services.risk_service import live_pre_trade_check
 
         # Run live pre-trade risk check
-        risk_result = live_pre_trade_check(
-            broker_id, symbol, action, quantity, price
-        )
+            risk_result = live_pre_trade_check(
+                broker_id, symbol, action, quantity, price
+            )
 
         if not risk_result.get('passed', False):
             blocking_reasons = risk_result.get('blocking_reasons', ['Unknown risk violation'])

@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_18 = 18
-CONST_20 = 20
-CONST_25 = 25
-CONST_28 = 28
-CONST_3 = 3
-CONST_30 = 30
-CONST_40 = 40
-CONST_45 = 45
-CONST_5 = 5
-CONST_50 = 50
-
 """StockProfileClassifier 单元测试"""
 import pytest
 from application.services.scoring.stock_profile_classifier import StockProfileClassifier

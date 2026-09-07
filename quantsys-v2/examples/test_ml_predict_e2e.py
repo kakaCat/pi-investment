@@ -1,53 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_9_5 = 9.5
-
-CONST_10_5 = 10.5
-
-CONST_30 = 30
-
-CONST_60 = 60
-
-CONST_115 = 115
-
-CONST_200 = 200
-
-CONST_1000000 = 1000000
-
-CONST_10000000 = 10000000
-
-
-
-CONST_0_1 = 0.1
-
-CONST_9_5 = 9.5
-
-CONST_10_5 = 10.5
-
-CONST_30 = 30
-
-CONST_60 = 60
-
-CONST_115 = 115
-
-CONST_200 = 200
-
-CONST_1000000 = 1000000
-
-CONST_10000000 = 10000000
-
-
-
 """
 End-to-end test for model_predict fix
 Tests the full ML prediction pipeline with insufficient data scenarios
@@ -93,31 +44,20 @@ def test_ml_predict_with_short_history():
             print("✅ Prediction succeeded!")
             print(json.dumps(result, indent=2, ensure_ascii=False))
             return True
-        print(f"⚠️ Request failed: {response.text}")
+        else:
+            print(f"⚠️ Request failed: {response.text}")
+            return False
+
+    except requests.exceptions.ConnectionError:
+        print("❌ Cannot connect to API server (is it running?)")
+        return False
+    except Exception as e:
+        print(f"❌ Unexpected error: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
-except requests.exceptions.ConnectionError:
-    print("❌ Cannot connect to API server (is it running?)")
-    return False
-except Exception as e:
-    print(f"❌ Unexpected error: {type(e).__name__}: {e}")
-    import traceback
-    traceback.print_exc()
-    return False
-
-# TODO: 长函数 111行 - 建议拆分为多个小函数
-
 def test_feature_engineering_directly():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
     """
     Test feature engineering directly in Python
     """

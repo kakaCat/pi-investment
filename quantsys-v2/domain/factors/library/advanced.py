@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.2, 0.5, 0.8, 3, 5]...
-
-
-# Extracted Constants
-
-CONST_0_2 = 0.2
-
-CONST_0_5 = 0.5
-
-CONST_0_8 = 0.8
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_7 = 7
-
-CONST_12 = 12
-
-CONST_14 = 14
-
-CONST_20 = 20
-
-CONST_26 = 26
-
-
-
 """
 Advanced Indicators Module
 ===========================

@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100000 = 100000
-CONST_12 = 12
-CONST_20000 = 20000
-CONST_200000 = 200000
-CONST_2024 = 2024
-CONST_25 = 25
-CONST_25000 = 25000
-CONST_3 = 3
-CONST_300000 = 300000
-CONST_31 = 31
-
 """
 Tests for backtest summary calculation function.
 """
@@ -181,3 +167,4 @@ class TestCalculateBacktestSummary:
 
         # 夏普比率应该为正数（收益率 > 无风险利率）
         assert result['sharpe_ratio'] > 0
+

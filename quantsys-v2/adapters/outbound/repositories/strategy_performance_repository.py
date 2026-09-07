@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 Strategy Performance Repository - 策略表现记录
 
@@ -120,9 +117,7 @@ class StrategyPerformanceRepository:
         with db_cursor(commit=True) as cursor:
             # 先获取入场价格
             cursor.execute(
-                # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                "SELECT entry_price FROM quant.strategy_performance WHERE id = %s",  # TODO: Use parameterized queries
+                "SELECT entry_price FROM quant.strategy_performance WHERE id = %s",
                 (record_id,)
             )
             result = cursor.fetchone()

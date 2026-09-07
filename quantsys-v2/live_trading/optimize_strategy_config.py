@@ -1,62 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - optimize_config() = 183 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.1, 0.12, 0.18, 0.2, 0.3]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_0_12 = 0.12
-
-CONST_0_18 = 0.18
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_0_6 = 0.6
-
-CONST_0_7 = 0.7
-
-CONST_0_9 = 0.9
-
-
-
-CONST_0_1 = 0.1
-
-CONST_0_12 = 0.12
-
-CONST_0_18 = 0.18
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_0_6 = 0.6
-
-CONST_0_7 = 0.7
-
-CONST_0_9 = 0.9
-
-
-
 """
 V13策略配置优化工具
 
@@ -75,26 +16,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-# TODO: Refactor - function too long (184 lines, target < 80)
-
-# TODO: Split long function (183 lines, target < 100)
-# TODO: 长函数 198行 - 建议拆分为多个小函数
-
 def optimize_config():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
     """优化V13策略配置"""
 
     print("\n" + "="*70)

@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-
-
-CONST_5 = 5
-
-
-
 """踏空捕获服务（文本参数进化 P0b，2026-08-11）。
 
 每日调度：捕获"信号已发但 agent 未行动"的买入信号，补登为 missed_opportunity
@@ -66,71 +49,6 @@ class MissedOpportunityService:
         self.grace_trading_days = grace_trading_days
         self.daily_cap = daily_cap
 
-    # TODO: Refactor - complexity 16 (target < 15)
-
-    def _validate_capture_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 capture 移到这里
-        return True, None
-
-    def _process_capture_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 capture 移到这里
-        return data
-
-    def _build_capture_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 capture 移到这里
-        return data
-
-    def _validate_capture_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 capture 移到这里
-        return True, None
-
-    def _process_capture_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 capture 移到这里
-        return data
-
-    def _build_capture_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 capture 移到这里
-        return data
-
-# TODO: Refactor - complexity 16 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    def _check_condition_0():
-        """Check: cur is None or (_sig_get(s, 'confidence') or 0) > (_sig_get(..."""
-        return cur is None or (_sig_get(s, 'confidence') or 0) > (_sig_get(cur, 'confidence') or 0)
-
-    # TODO: Refactor - complexity 17 (target < 15)
-    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-    def _validate_capture_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_capture_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_capture_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_capture_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_capture_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_capture_result(data):
-        """构建返回结果"""
-        return data
-
     def capture(self, lookback_days: int = 10, today: Optional[date] = None) -> Dict[str, Any]:
         """滚动捕获最近 lookback_days 内未被行动的买入信号，返回计数汇总。"""
         today = today or date.today()
@@ -144,14 +62,15 @@ class MissedOpportunityService:
         # 候选：同日同 symbol 只留 confidence 最高的一条
         candidates: Dict[tuple, Any] = {}
         for s in signals or []:
-            # TODO: 提取嵌套逻辑为独立方法
-
-            if str(_sig_get(s, 'action') or '').lower() != BUY_ACTION and _sig_get(s, 'status') not in CAPTURABLE_STATUS:
+            if str(_sig_get(s, 'action') or '').lower() != BUY_ACTION:
+                continue
+            if _sig_get(s, 'status') not in CAPTURABLE_STATUS:
                 continue
             key = (str(_sig_get(s, 'signal_date'))[:10], _sig_get(s, 'symbol'))
             cur = candidates.get(key)
-            if cur is None or (_sig_get(s, 'confidence') or 0) > (_sig_get(cur, 'confidence') or 0) and _check_condition_0():
-                pass  # TODO: implement
+            if cur is None or (_sig_get(s, 'confidence') or 0) > (_sig_get(cur, 'confidence') or 0):
+                candidates[key] = s
+
         # 每日限量：confidence 降序取前 daily_cap
         by_date: Dict[str, List[Any]] = {}
         for (d, _symbol), s in candidates.items():

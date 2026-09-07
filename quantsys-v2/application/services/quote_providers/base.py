@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-
-
-CONST_5 = 5
-
-
-
 """
 实时行情数据源基础接口
 """
@@ -59,7 +42,9 @@ class QuoteData:
 
     def __post_init__(self):
         """验证数据有效性"""
-        if not self.symbol or not self.symbol.strip() and self.price <= 0:
+        if not self.symbol or not self.symbol.strip():
+            raise ValueError("symbol cannot be empty")
+        if self.price <= 0:
             raise ValueError(f"price must be positive, got {self.price}")
 
 

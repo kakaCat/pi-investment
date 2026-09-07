@@ -1,13 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_105_0 = 105.0
-CONST_2_5 = 2.5
-CONST_2000 = 2000
-CONST_3_0 = 3.0
-CONST_92_0 = 92.0
-CONST_95_0 = 95.0
-
 """
 测试 StrategyBase 风控辅助方法
 """

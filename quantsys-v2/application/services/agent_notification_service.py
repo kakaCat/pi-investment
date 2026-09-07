@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_200 = 200
-
-
-
-CONST_200 = 200
-
-
-
 """
 Agent 通知服务
 V2 任务完成后调用此服务通知 Agent
@@ -90,39 +73,40 @@ class AgentNotificationService:
                 if result.get('success'):
                     logger.info(f"Agent notified successfully: {event}")
                     return 'ok'
-                logger.warning(f"Agent notification failed: {result.get('error')}")
+                else:
+                    logger.warning(f"Agent notification failed: {result.get('error')}")
+                    return 'error'
+            else:
+                logger.error(f"Agent API error {response.status_code}: {response.text}")
                 return 'error'
-        else:
-            logger.error(f"Agent API error {response.status_code}: {response.text}")
+
+        except requests.exceptions.Timeout:
+            logger.error(f"Agent notification timeout: {event}")
+            return 'timeout'
+        except requests.exceptions.ConnectionError:
+            logger.error(f"Cannot connect to Agent at {self.agent_url}")
+            return 'error'
+        except Exception as e:
+            logger.error(f"Failed to notify Agent: {e}")
             return 'error'
 
-    except requests.exceptions.Timeout:
-        logger.error(f"Agent notification timeout: {event}")
-        return 'timeout'
-    except requests.exceptions.ConnectionError:
-        logger.error(f"Cannot connect to Agent at {self.agent_url}")
-        return 'error'
-    except Exception as e:
-        logger.error(f"Failed to notify Agent: {e}")
-        return 'error'
+    def send_reminder(self, agent_id: str, message: str,
+                      remind_at: Optional[str] = None) -> bool:
+        """发送提醒事件给 Agent（调度任务 agent_reminder 使用）
 
-def send_reminder(self, agent_id: str, message: str,
-                  remind_at: Optional[str] = None) -> bool:
-    """发送提醒事件给 Agent（调度任务 agent_reminder 使用）
+        Args:
+            agent_id: Agent ID
+            message: 提醒消息
+            remind_at: 提醒时间（可选，仅作上下文记录）
 
-    Args:
-        agent_id: Agent ID
-        message: 提醒消息
-        remind_at: 提醒时间（可选，仅作上下文记录）
-
-    Returns:
-        是否成功通知
-    """
-    return self.notify_agent('agent_reminder', {
-        'agent_id': agent_id,
-        'message': message,
-        'remind_at': remind_at,
-    })
+        Returns:
+            是否成功通知
+        """
+        return self.notify_agent('agent_reminder', {
+            'agent_id': agent_id,
+            'message': message,
+            'remind_at': remind_at,
+        })
 
 
 # 全局单例

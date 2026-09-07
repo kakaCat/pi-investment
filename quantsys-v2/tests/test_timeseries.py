@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_11 = 11
-CONST_12 = 12
-CONST_120 = 120
-CONST_20 = 20
-CONST_200 = 200
-CONST_2024 = 2024
-CONST_21 = 21
-CONST_3 = 3
-CONST_4 = 4
-CONST_42 = 42
-
 """
 Unit Tests for Time Series Analysis Module
 ===========================================

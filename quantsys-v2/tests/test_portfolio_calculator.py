@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100000_0 = 100000.0
-CONST_110_0 = 110.0
-CONST_110000_0 = 110000.0
-CONST_14_4 = 14.4
-CONST_144000 = 144000
-CONST_144000_0 = 144000.0
-CONST_152_0 = 152.0
-CONST_1680_0 = 1680.0
-CONST_2026 = 2026
-CONST_23 = 23
-
 import pytest
 from datetime import date
 from unittest.mock import Mock, patch

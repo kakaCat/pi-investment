@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_150 = 150
-CONST_200 = 200
-CONST_2026 = 2026
-CONST_25 = 25
-CONST_3 = 3
-CONST_3_0 = 3.0
-CONST_3_14 = 3.14
-CONST_3_14159265 = 3.14159265
-CONST_4 = 4
-CONST_42 = 42
-
 """
 Tests for BaseRLAgent and BaseRLEnvironment - base classes for reinforcement learning
 
@@ -79,9 +65,6 @@ def sample_observation_space():
     """Create sample observation space"""
     return {"type": "box", "shape": (4,), "low": 0.0, "high": 1.0}
 
-
-# TODO: Refactor large class (33 methods, target < 20)
-# TODO: 大类 33个方法 - 考虑拆分为多个类或使用组合模式
 
 class TestBaseRLAgent:
     """Test suite for BaseRLAgent"""
@@ -504,9 +487,6 @@ def concrete_env():
     return ConcreteRLEnvironment()
 
 
-# TODO: 大类 35个方法 - 考虑拆分为多个类或使用组合模式
-
-# TODO: Refactor large class (35 methods, target < 20)
 class TestBaseRLEnvironment:
     """Test suite for BaseRLEnvironment"""
 

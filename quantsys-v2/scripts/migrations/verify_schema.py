@@ -1,32 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - verify_schema() = 145 lines
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_25 = 25
-
-CONST_30 = 30
-
-CONST_70 = 70
-
-
-
-CONST_25 = 25
-
-CONST_30 = 30
-
-CONST_70 = 70
-
-
-
 """
 Verify strategy_configs table structure after migration
 
@@ -44,49 +16,7 @@ from psycopg2.extras import RealDictCursor
 from infrastructure.persistence.database.engine import _resolve_db_dsn
 
 
-# TODO: Refactor - complexity 16 (target < 15)
-
-# TODO: Refactor - function too long (146 lines, target < 80)
-
-def _validate_verify_schema_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 verify_schema 移到这里
-    return True, None
-
-def _process_verify_schema_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 verify_schema 移到这里
-    return data
-
-def _build_verify_schema_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 verify_schema 移到这里
-    return data
-
-# TODO: Split long function (145 lines, target < 100)
-# TODO: Refactor - complexity 16 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 16 (target < 15)
-# TODO: Split long function (145 lines, target < 100)
-# TODO: Refactor - complexity 16 (target < 15)
-# TODO: Split long function (145 lines, target < 100)
-# TODO: 复杂度 16 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 160行 - 建议拆分为多个小函数
-
 def verify_schema():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
     """Verify the strategy_configs table has all required fields"""
 
     # Resolve database connection
@@ -158,8 +88,6 @@ def verify_schema():
 
             # Check if this is a new column from migration
             status = ""
-            # TODO: 提取嵌套逻辑为独立方法
-
             if col_name in expected_new_columns:
                 if data_type == expected_new_columns[col_name]:
                     status = "✅ NEW"
@@ -224,15 +152,16 @@ def verify_schema():
         if not missing_columns and not missing_indexes:
             print("✅ Schema verification passed! Migration is complete.")
             return True
-        print("⚠️  Schema verification incomplete. Migration may be needed.")
-        return False
+        else:
+            print("⚠️  Schema verification incomplete. Migration may be needed.")
+            return False
 
-except psycopg2.Error as e:
-    print(f"\n❌ Database error: {e}")
-    return False
-except Exception as e:
-    print(f"\n❌ Unexpected error: {e}")
-    return False
+    except psycopg2.Error as e:
+        print(f"\n❌ Database error: {e}")
+        return False
+    except Exception as e:
+        print(f"\n❌ Unexpected error: {e}")
+        return False
 
 
 if __name__ == "__main__":

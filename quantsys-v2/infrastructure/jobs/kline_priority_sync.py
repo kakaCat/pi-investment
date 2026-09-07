@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_7 = 7
-
-
-
-CONST_7 = 7
-
-
-
 """K线优先级同步策略
 
 避免全市场同步（5500只）导致频繁封禁，按优先级分层同步：
@@ -61,9 +44,7 @@ def get_recent_accessed_symbols(cursor, days: int = 7) -> Set[str]:
     cursor.execute("""
         SELECT DISTINCT symbol
         FROM quant.daily_klines
-        # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-        WHERE updated_at >= %s  # TODO: Use parameterized queries
+        WHERE updated_at >= %s
         ORDER BY updated_at DESC
         LIMIT 500
     """, (cutoff_date,))

@@ -1,40 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_50 = 50
-
-CONST_200 = 200
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-CONST_503 = 503
-
-
-
-CONST_50 = 50
-
-CONST_200 = 200
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-CONST_503 = 503
-
-
-
 """Agent Session API - FastAPI 版（parity 迁移自 Flask agent_sessions.py）
 
 事件摄入（agent syncer）+ 查询/诊断（web 展示）。
@@ -62,9 +25,13 @@ def _flask_serialize(obj):
     Flask DefaultJSONProvider 用 werkzeug.http_date 序列化 datetime；
     FastAPI 默认 ISO 格式，不转换则响应体与 Flask 不一致。
     """
-    if isinstance(obj, datetime) and isinstance(obj, date):
+    if isinstance(obj, datetime):
+        return http_date(obj)
+    if isinstance(obj, date):
         return http_date(datetime(obj.year, obj.month, obj.day))
-    if isinstance(obj, dict) and isinstance(obj, (list, tuple)):
+    if isinstance(obj, dict):
+        return {k: _flask_serialize(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
         return [_flask_serialize(v) for v in obj]
     return obj
 

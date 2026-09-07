@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100000 = 100000
-CONST_12 = 12
-CONST_1500_0 = 1500.0
-CONST_2024 = 2024
-CONST_2025 = 2025
-CONST_2026 = 2026
-CONST_3 = 3
-CONST_30_5 = 30.5
-CONST_31 = 31
-CONST_40_0 = 40.0
-
 """analysis 域 parity 测试（P6）
 
 P6 首批：backtest / compute-factors / technical（见上方既有用例）。

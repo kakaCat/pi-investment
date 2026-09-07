@@ -1,29 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_0_5 = 0.5
-
-CONST_9 = 9
-
-CONST_12 = 12
-
-CONST_14 = 14
-
-CONST_20 = 20
-
-CONST_26 = 26
-
-CONST_42 = 42
-
-CONST_10000 = 10000
-
-
-
 """
 GPU加速因子计算
 
@@ -124,276 +98,277 @@ class GPUFactorCalculator:
             result[window-1:] = sma_gpu
 
             return self._to_cpu(result)
-        # CPU实现
-        return pd.Series(prices).rolling(window).mean().values
+        else:
+            # CPU实现
+            return pd.Series(prices).rolling(window).mean().values
 
-def calculate_ema(
-    self,
-    prices: np.ndarray,
-    span: int
-) -> np.ndarray:
-    """
-    计算指数移动平均（GPU加速）
+    def calculate_ema(
+        self,
+        prices: np.ndarray,
+        span: int
+    ) -> np.ndarray:
+        """
+        计算指数移动平均（GPU加速）
 
-    Args:
-        prices: 价格序列
-        span: 周期
+        Args:
+            prices: 价格序列
+            span: 周期
 
-    Returns:
-        EMA序列
-    """
-    alpha = 2.0 / (span + 1)
+        Returns:
+            EMA序列
+        """
+        alpha = 2.0 / (span + 1)
 
-    if self.use_gpu:
-        prices_gpu = self._to_gpu(prices)
-        ema_gpu = cp.zeros_like(prices_gpu)
-        ema_gpu[0] = prices_gpu[0]
+        if self.use_gpu:
+            prices_gpu = self._to_gpu(prices)
+            ema_gpu = cp.zeros_like(prices_gpu)
+            ema_gpu[0] = prices_gpu[0]
 
-        # GPU加速的EMA计算
-        for i in range(1, len(prices_gpu)):
-            ema_gpu[i] = alpha * prices_gpu[i] + (1 - alpha) * ema_gpu[i-1]
+            # GPU加速的EMA计算
+            for i in range(1, len(prices_gpu)):
+                ema_gpu[i] = alpha * prices_gpu[i] + (1 - alpha) * ema_gpu[i-1]
 
-        return self._to_cpu(ema_gpu)
-    else:
-        # CPU实现
-        return pd.Series(prices).ewm(span=span, adjust=False).mean().values
+            return self._to_cpu(ema_gpu)
+        else:
+            # CPU实现
+            return pd.Series(prices).ewm(span=span, adjust=False).mean().values
 
-def calculate_rsi(
-    self,
-    prices: np.ndarray,
-    period: int = 14
-) -> np.ndarray:
-    """
-    计算RSI（GPU加速）
+    def calculate_rsi(
+        self,
+        prices: np.ndarray,
+        period: int = 14
+    ) -> np.ndarray:
+        """
+        计算RSI（GPU加速）
 
-    Args:
-        prices: 价格序列
-        period: 周期
+        Args:
+            prices: 价格序列
+            period: 周期
 
-    Returns:
-        RSI序列
-    """
-    if self.use_gpu:
-        prices_gpu = self._to_gpu(prices)
+        Returns:
+            RSI序列
+        """
+        if self.use_gpu:
+            prices_gpu = self._to_gpu(prices)
 
-        # 计算价格变化
-        deltas = cp.diff(prices_gpu)
+            # 计算价格变化
+            deltas = cp.diff(prices_gpu)
 
-        # 分离上涨和下跌
-        gains = cp.where(deltas > 0, deltas, 0)
-        losses = cp.where(deltas < 0, -deltas, 0)
+            # 分离上涨和下跌
+            gains = cp.where(deltas > 0, deltas, 0)
+            losses = cp.where(deltas < 0, -deltas, 0)
 
-        # 计算平均涨跌幅
-        avg_gains = cp.zeros(len(prices_gpu))
-        avg_losses = cp.zeros(len(prices_gpu))
+            # 计算平均涨跌幅
+            avg_gains = cp.zeros(len(prices_gpu))
+            avg_losses = cp.zeros(len(prices_gpu))
 
-        # 初始平均值
-        avg_gains[period] = cp.mean(gains[:period])
-        avg_losses[period] = cp.mean(losses[:period])
+            # 初始平均值
+            avg_gains[period] = cp.mean(gains[:period])
+            avg_losses[period] = cp.mean(losses[:period])
 
-        # 指数移动平均
-        alpha = 1.0 / period
-        for i in range(period + 1, len(prices_gpu)):
-            avg_gains[i] = alpha * gains[i-1] + (1 - alpha) * avg_gains[i-1]
-            avg_losses[i] = alpha * losses[i-1] + (1 - alpha) * avg_losses[i-1]
+            # 指数移动平均
+            alpha = 1.0 / period
+            for i in range(period + 1, len(prices_gpu)):
+                avg_gains[i] = alpha * gains[i-1] + (1 - alpha) * avg_gains[i-1]
+                avg_losses[i] = alpha * losses[i-1] + (1 - alpha) * avg_losses[i-1]
 
-        # 计算RS和RSI
-        rs = avg_gains / (avg_losses + 1e-10)
-        rsi = 100 - (100 / (1 + rs))
+            # 计算RS和RSI
+            rs = avg_gains / (avg_losses + 1e-10)
+            rsi = 100 - (100 / (1 + rs))
 
-        return self._to_cpu(rsi)
-    else:
-        # CPU实现
-        deltas = np.diff(prices)
-        gains = np.where(deltas > 0, deltas, 0)
-        losses = np.where(deltas < 0, -deltas, 0)
+            return self._to_cpu(rsi)
+        else:
+            # CPU实现
+            deltas = np.diff(prices)
+            gains = np.where(deltas > 0, deltas, 0)
+            losses = np.where(deltas < 0, -deltas, 0)
 
-        avg_gains = pd.Series(gains).ewm(span=period, adjust=False).mean()
-        avg_losses = pd.Series(losses).ewm(span=period, adjust=False).mean()
+            avg_gains = pd.Series(gains).ewm(span=period, adjust=False).mean()
+            avg_losses = pd.Series(losses).ewm(span=period, adjust=False).mean()
 
-        rs = avg_gains / (avg_losses + 1e-10)
-        rsi = 100 - (100 / (1 + rs))
+            rs = avg_gains / (avg_losses + 1e-10)
+            rsi = 100 - (100 / (1 + rs))
 
-        return np.concatenate([[np.nan], rsi.values])
+            return np.concatenate([[np.nan], rsi.values])
 
-def calculate_macd(
-    self,
-    prices: np.ndarray,
-    fast_period: int = 12,
-    slow_period: int = 26,
-    signal_period: int = 9
-) -> Dict[str, np.ndarray]:
-    """
-    计算MACD（GPU加速）
+    def calculate_macd(
+        self,
+        prices: np.ndarray,
+        fast_period: int = 12,
+        slow_period: int = 26,
+        signal_period: int = 9
+    ) -> Dict[str, np.ndarray]:
+        """
+        计算MACD（GPU加速）
 
-    Args:
-        prices: 价格序列
-        fast_period: 快线周期
-        slow_period: 慢线周期
-        signal_period: 信号线周期
+        Args:
+            prices: 价格序列
+            fast_period: 快线周期
+            slow_period: 慢线周期
+            signal_period: 信号线周期
 
-    Returns:
-        {'macd': MACD线, 'signal': 信号线, 'histogram': 柱状图}
-    """
-    # 计算快慢EMA
-    ema_fast = self.calculate_ema(prices, fast_period)
-    ema_slow = self.calculate_ema(prices, slow_period)
+        Returns:
+            {'macd': MACD线, 'signal': 信号线, 'histogram': 柱状图}
+        """
+        # 计算快慢EMA
+        ema_fast = self.calculate_ema(prices, fast_period)
+        ema_slow = self.calculate_ema(prices, slow_period)
 
-    # MACD线
-    macd = ema_fast - ema_slow
+        # MACD线
+        macd = ema_fast - ema_slow
 
-    # 信号线
-    signal = self.calculate_ema(macd, signal_period)
+        # 信号线
+        signal = self.calculate_ema(macd, signal_period)
 
-    # 柱状图
-    histogram = macd - signal
-
-    return {
-        'macd': macd,
-        'signal': signal,
-        'histogram': histogram
-    }
-
-def calculate_bollinger_bands(
-    self,
-    prices: np.ndarray,
-    window: int = 20,
-    num_std: float = 2.0
-) -> Dict[str, np.ndarray]:
-    """
-    计算布林带（GPU加速）
-
-    Args:
-        prices: 价格序列
-        window: 窗口期
-        num_std: 标准差倍数
-
-    Returns:
-        {'middle': 中轨, 'upper': 上轨, 'lower': 下轨}
-    """
-    if self.use_gpu:
-        prices_gpu = self._to_gpu(prices)
-
-        # 中轨（移动平均）
-        middle = self.calculate_sma(prices, window)
-        middle_gpu = self._to_gpu(middle)
-
-        # 计算移动标准差
-        std_gpu = cp.zeros_like(prices_gpu)
-        for i in range(window - 1, len(prices_gpu)):
-            std_gpu[i] = cp.std(prices_gpu[i-window+1:i+1])
-
-        # 上下轨
-        upper_gpu = middle_gpu + num_std * std_gpu
-        lower_gpu = middle_gpu - num_std * std_gpu
+        # 柱状图
+        histogram = macd - signal
 
         return {
-            'middle': middle,
-            'upper': self._to_cpu(upper_gpu),
-            'lower': self._to_cpu(lower_gpu)
-        }
-    else:
-        # CPU实现
-        middle = pd.Series(prices).rolling(window).mean().values
-        std = pd.Series(prices).rolling(window).std().values
-
-        return {
-            'middle': middle,
-            'upper': middle + num_std * std,
-            'lower': middle - num_std * std
+            'macd': macd,
+            'signal': signal,
+            'histogram': histogram
         }
 
-def calculate_atr(
-    self,
-    high: np.ndarray,
-    low: np.ndarray,
-    close: np.ndarray,
-    period: int = 14
-) -> np.ndarray:
-    """
-    计算ATR（GPU加速）
+    def calculate_bollinger_bands(
+        self,
+        prices: np.ndarray,
+        window: int = 20,
+        num_std: float = 2.0
+    ) -> Dict[str, np.ndarray]:
+        """
+        计算布林带（GPU加速）
 
-    Args:
-        high: 最高价序列
-        low: 最低价序列
-        close: 收盘价序列
-        period: 周期
+        Args:
+            prices: 价格序列
+            window: 窗口期
+            num_std: 标准差倍数
 
-    Returns:
-        ATR序列
-    """
-    if self.use_gpu:
-        high_gpu = self._to_gpu(high)
-        low_gpu = self._to_gpu(low)
-        close_gpu = self._to_gpu(close)
+        Returns:
+            {'middle': 中轨, 'upper': 上轨, 'lower': 下轨}
+        """
+        if self.use_gpu:
+            prices_gpu = self._to_gpu(prices)
 
-        # 计算True Range
-        tr1 = high_gpu - low_gpu
-        tr2 = cp.abs(high_gpu - cp.roll(close_gpu, 1))
-        tr3 = cp.abs(low_gpu - cp.roll(close_gpu, 1))
+            # 中轨（移动平均）
+            middle = self.calculate_sma(prices, window)
+            middle_gpu = self._to_gpu(middle)
 
-        tr = cp.maximum(tr1, cp.maximum(tr2, tr3))
-        tr[0] = tr1[0]  # 第一个值
+            # 计算移动标准差
+            std_gpu = cp.zeros_like(prices_gpu)
+            for i in range(window - 1, len(prices_gpu)):
+                std_gpu[i] = cp.std(prices_gpu[i-window+1:i+1])
 
-        # 计算ATR（EMA）
-        atr = self.calculate_ema(self._to_cpu(tr), period)
+            # 上下轨
+            upper_gpu = middle_gpu + num_std * std_gpu
+            lower_gpu = middle_gpu - num_std * std_gpu
 
-        return atr
-    else:
-        # CPU实现
-        tr1 = high - low
-        tr2 = np.abs(high - np.roll(close, 1))
-        tr3 = np.abs(low - np.roll(close, 1))
+            return {
+                'middle': middle,
+                'upper': self._to_cpu(upper_gpu),
+                'lower': self._to_cpu(lower_gpu)
+            }
+        else:
+            # CPU实现
+            middle = pd.Series(prices).rolling(window).mean().values
+            std = pd.Series(prices).rolling(window).std().values
 
-        tr = np.maximum(tr1, np.maximum(tr2, tr3))
-        tr[0] = tr1[0]
+            return {
+                'middle': middle,
+                'upper': middle + num_std * std,
+                'lower': middle - num_std * std
+            }
 
-        return pd.Series(tr).ewm(span=period, adjust=False).mean().values
+    def calculate_atr(
+        self,
+        high: np.ndarray,
+        low: np.ndarray,
+        close: np.ndarray,
+        period: int = 14
+    ) -> np.ndarray:
+        """
+        计算ATR（GPU加速）
 
-def batch_calculate_factors(
-    self,
-    df: pd.DataFrame,
-    factors: list
-) -> pd.DataFrame:
-    """
-    批量计算因子（GPU加速）
+        Args:
+            high: 最高价序列
+            low: 最低价序列
+            close: 收盘价序列
+            period: 周期
 
-    Args:
-        df: 包含OHLC数据的DataFrame
-        factors: 要计算的因子列表
+        Returns:
+            ATR序列
+        """
+        if self.use_gpu:
+            high_gpu = self._to_gpu(high)
+            low_gpu = self._to_gpu(low)
+            close_gpu = self._to_gpu(close)
 
-    Returns:
-        添加了因子列的DataFrame
-    """
-    result = df.copy()
-    prices = df['close'].values
+            # 计算True Range
+            tr1 = high_gpu - low_gpu
+            tr2 = cp.abs(high_gpu - cp.roll(close_gpu, 1))
+            tr3 = cp.abs(low_gpu - cp.roll(close_gpu, 1))
 
-    for factor in factors:
-        if factor == 'sma_20':
-            result['sma_20'] = self.calculate_sma(prices, 20)
-        elif factor == 'ema_12':
-            result['ema_12'] = self.calculate_ema(prices, 12)
-        elif factor == 'rsi_14':
-            result['rsi_14'] = self.calculate_rsi(prices, 14)
-        elif factor == 'macd':
-            macd_result = self.calculate_macd(prices)
-            result['macd'] = macd_result['macd']
-            result['macd_signal'] = macd_result['signal']
-            result['macd_histogram'] = macd_result['histogram']
-        elif factor == 'bollinger':
-            bb_result = self.calculate_bollinger_bands(prices)
-            result['bb_middle'] = bb_result['middle']
-            result['bb_upper'] = bb_result['upper']
-            result['bb_lower'] = bb_result['lower']
-        elif factor == 'atr_14':
-            result['atr_14'] = self.calculate_atr(
-                df['high'].values,
-                df['low'].values,
-                df['close'].values,
-                14
-            )
+            tr = cp.maximum(tr1, cp.maximum(tr2, tr3))
+            tr[0] = tr1[0]  # 第一个值
 
-    return result
+            # 计算ATR（EMA）
+            atr = self.calculate_ema(self._to_cpu(tr), period)
+
+            return atr
+        else:
+            # CPU实现
+            tr1 = high - low
+            tr2 = np.abs(high - np.roll(close, 1))
+            tr3 = np.abs(low - np.roll(close, 1))
+
+            tr = np.maximum(tr1, np.maximum(tr2, tr3))
+            tr[0] = tr1[0]
+
+            return pd.Series(tr).ewm(span=period, adjust=False).mean().values
+
+    def batch_calculate_factors(
+        self,
+        df: pd.DataFrame,
+        factors: list
+    ) -> pd.DataFrame:
+        """
+        批量计算因子（GPU加速）
+
+        Args:
+            df: 包含OHLC数据的DataFrame
+            factors: 要计算的因子列表
+
+        Returns:
+            添加了因子列的DataFrame
+        """
+        result = df.copy()
+        prices = df['close'].values
+
+        for factor in factors:
+            if factor == 'sma_20':
+                result['sma_20'] = self.calculate_sma(prices, 20)
+            elif factor == 'ema_12':
+                result['ema_12'] = self.calculate_ema(prices, 12)
+            elif factor == 'rsi_14':
+                result['rsi_14'] = self.calculate_rsi(prices, 14)
+            elif factor == 'macd':
+                macd_result = self.calculate_macd(prices)
+                result['macd'] = macd_result['macd']
+                result['macd_signal'] = macd_result['signal']
+                result['macd_histogram'] = macd_result['histogram']
+            elif factor == 'bollinger':
+                bb_result = self.calculate_bollinger_bands(prices)
+                result['bb_middle'] = bb_result['middle']
+                result['bb_upper'] = bb_result['upper']
+                result['bb_lower'] = bb_result['lower']
+            elif factor == 'atr_14':
+                result['atr_14'] = self.calculate_atr(
+                    df['high'].values,
+                    df['low'].values,
+                    df['close'].values,
+                    14
+                )
+
+        return result
 
 
 def benchmark_performance():

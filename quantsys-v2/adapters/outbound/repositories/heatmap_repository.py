@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """热力图聚合查询 — 跨表只读查询的唯一出口（Task 1: 交易日与收盘价；Task 2 补充信号/池/持仓）"""
 from datetime import date, datetime
 from typing import Optional

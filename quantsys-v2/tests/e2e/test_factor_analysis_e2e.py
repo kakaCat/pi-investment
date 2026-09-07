@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_1024 = 1024
-CONST_12 = 12
-CONST_180 = 180
-CONST_2024 = 2024
-CONST_250 = 250
-CONST_3 = 3
-CONST_30 = 30
-CONST_31 = 31
-CONST_42 = 42
-CONST_50 = 50
-
 """
 端到端测试：alphalens 因子分析完整流程
 """

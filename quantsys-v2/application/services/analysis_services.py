@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 分析服务统一入口 - v2 原生实现
 整合技术分析、财务分析、风险分析、组合分析、因子分析、策略分析

@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_30 = 30
-
-
-
-CONST_5 = 5
-
-CONST_30 = 30
-
-
-
 """
 AkShare quote provider implementation
 """
@@ -69,115 +48,116 @@ class AkshareQuoteProvider(QuoteProvider):
                 # HK stock: 1-5 digits (e.g., 00700) or .HK suffix (e.g., 0700.HK)
                 if symbol.endswith('.HK') or (symbol.isdigit() and len(symbol) <= 5):
                     return self._get_hk_quote(symbol)
-                return self._get_a_quote(symbol)
-    except Exception as e:
-        raise Exception(f"akshare 查询失败: {e}") from e
+                else:
+                    return self._get_a_quote(symbol)
+        except Exception as e:
+            raise Exception(f"akshare 查询失败: {e}") from e
 
-def _get_a_quote(self, symbol: str) -> Optional[QuoteData]:
-    """
-    Get A-share quote using akshare.stock_zh_a_spot_em()
+    def _get_a_quote(self, symbol: str) -> Optional[QuoteData]:
+        """
+        Get A-share quote using akshare.stock_zh_a_spot_em()
 
-    Args:
-        symbol: 6-digit A-share code (e.g., 600000)
+        Args:
+            symbol: 6-digit A-share code (e.g., 600000)
 
-    Returns:
-        QuoteData if found, None if not found
-    """
-    # Remove any suffix for A-shares
-    clean_symbol = symbol.split('.')[0]
+        Returns:
+            QuoteData if found, None if not found
+        """
+        # Remove any suffix for A-shares
+        clean_symbol = symbol.split('.')[0]
 
-    # Get all A-share quotes
-    df = ak.stock_zh_a_spot_em()
+        # Get all A-share quotes
+        df = ak.stock_zh_a_spot_em()
 
-    # Filter by symbol
-    row = df[df['代码'] == clean_symbol]
+        # Filter by symbol
+        row = df[df['代码'] == clean_symbol]
 
-    if row.empty:
-        return None
+        if row.empty:
+            return None
 
-    # Extract data from first row
-    data = row.iloc[0]
+        # Extract data from first row
+        data = row.iloc[0]
 
-    try:
-        # 安全解析涨跌幅，处理异常值
-        raw_change_pct = data['涨跌幅']
         try:
-            change_pct = float(raw_change_pct)
-            # 验证数据合理性：A股单日涨跌幅限制约 ±20%
-            if abs(change_pct) > 30:
+            # 安全解析涨跌幅，处理异常值
+            raw_change_pct = data['涨跌幅']
+            try:
+                change_pct = float(raw_change_pct)
+                # 验证数据合理性：A股单日涨跌幅限制约 ±20%
+                if abs(change_pct) > 30:
+                    change_pct = 0.0
+            except (ValueError, TypeError):
                 change_pct = 0.0
-        except (ValueError, TypeError):
-            change_pct = 0.0
 
-        return QuoteData(
-            symbol=clean_symbol,
-            name=str(data['名称']),
-            price=float(data['最新价']),
-            open=float(data['今开']),
-            high=float(data['最高']),
-            low=float(data['最低']),
-            prev_close=float(data['昨收']),
-            volume=int(data['成交量']),
-            amount=float(data['成交额']),
-            change_pct=change_pct,
-            source=self.name,
-            timestamp=datetime.now().isoformat()
-        )
-    except KeyError as e:
-        raise Exception(f"akshare A股数据格式变化，缺少字段: {e}") from e
+            return QuoteData(
+                symbol=clean_symbol,
+                name=str(data['名称']),
+                price=float(data['最新价']),
+                open=float(data['今开']),
+                high=float(data['最高']),
+                low=float(data['最低']),
+                prev_close=float(data['昨收']),
+                volume=int(data['成交量']),
+                amount=float(data['成交额']),
+                change_pct=change_pct,
+                source=self.name,
+                timestamp=datetime.now().isoformat()
+            )
+        except KeyError as e:
+            raise Exception(f"akshare A股数据格式变化，缺少字段: {e}") from e
 
-def _get_hk_quote(self, symbol: str) -> Optional[QuoteData]:
-    """
-    Get HK stock quote using akshare.stock_hk_spot_em()
+    def _get_hk_quote(self, symbol: str) -> Optional[QuoteData]:
+        """
+        Get HK stock quote using akshare.stock_hk_spot_em()
 
-    Args:
-        symbol: HK stock code (e.g., 00700 or 0700.HK)
+        Args:
+            symbol: HK stock code (e.g., 00700 or 0700.HK)
 
-    Returns:
-        QuoteData if found, None if not found
-    """
-    # Remove .HK suffix if present
-    clean_symbol = symbol.replace('.HK', '')
+        Returns:
+            QuoteData if found, None if not found
+        """
+        # Remove .HK suffix if present
+        clean_symbol = symbol.replace('.HK', '')
 
-    # Pad to 5 digits with leading zeros
-    clean_symbol = clean_symbol.zfill(5)
+        # Pad to 5 digits with leading zeros
+        clean_symbol = clean_symbol.zfill(5)
 
-    # Get all HK stock quotes
-    df = ak.stock_hk_spot_em()
+        # Get all HK stock quotes
+        df = ak.stock_hk_spot_em()
 
-    # Filter by symbol
-    row = df[df['代码'] == clean_symbol]
+        # Filter by symbol
+        row = df[df['代码'] == clean_symbol]
 
-    if row.empty:
-        return None
+        if row.empty:
+            return None
 
-    # Extract data from first row
-    data = row.iloc[0]
+        # Extract data from first row
+        data = row.iloc[0]
 
-    try:
-        # 安全解析涨跌幅，处理异常值
-        raw_change_pct = data['涨跌幅']
         try:
-            change_pct = float(raw_change_pct)
-            # 验证数据合理性：港股涨跌幅无限制，但异常值（>1000%）视为错误
-            if abs(change_pct) > 1000:
+            # 安全解析涨跌幅，处理异常值
+            raw_change_pct = data['涨跌幅']
+            try:
+                change_pct = float(raw_change_pct)
+                # 验证数据合理性：港股涨跌幅无限制，但异常值（>1000%）视为错误
+                if abs(change_pct) > 1000:
+                    change_pct = 0.0
+            except (ValueError, TypeError):
                 change_pct = 0.0
-        except (ValueError, TypeError):
-            change_pct = 0.0
 
-        return QuoteData(
-            symbol=clean_symbol,
-            name=str(data['名称']),
-            price=float(data['最新价']),
-            open=float(data['今开']),
-            high=float(data['最高']),
-            low=float(data['最低']),
-            prev_close=float(data['昨收']),
-            volume=int(data['成交量']),
-            amount=None,  # HK data doesn't have 成交额
-            change_pct=change_pct,
-            source=self.name,
-            timestamp=datetime.now().isoformat()
-        )
-    except KeyError as e:
-        raise Exception(f"akshare 港股数据格式变化，缺少字段: {e}") from e
+            return QuoteData(
+                symbol=clean_symbol,
+                name=str(data['名称']),
+                price=float(data['最新价']),
+                open=float(data['今开']),
+                high=float(data['最高']),
+                low=float(data['最低']),
+                prev_close=float(data['昨收']),
+                volume=int(data['成交量']),
+                amount=None,  # HK data doesn't have 成交额
+                change_pct=change_pct,
+                source=self.name,
+                timestamp=datetime.now().isoformat()
+            )
+        except KeyError as e:
+            raise Exception(f"akshare 港股数据格式变化，缺少字段: {e}") from e

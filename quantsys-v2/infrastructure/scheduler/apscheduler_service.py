@@ -1,21 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_300 = 300
-
-
-
-CONST_300 = 300
-
-
-
 """
 APScheduler 封装服务
 
@@ -29,6 +11,7 @@ APScheduler 封装服务
 
 Created: 2026-09-01
 """
+from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING

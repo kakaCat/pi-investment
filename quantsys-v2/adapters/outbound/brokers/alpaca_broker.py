@@ -1,52 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - get_history() = 113 lines
-#   - place_order() = 102 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_25 = 0.25
-
-CONST_0_5 = 0.5
-
-CONST_1_5 = 1.5
-
-CONST_5 = 5
-
-CONST_15 = 15
-
-CONST_30 = 30
-
-CONST_10000 = 10000
-
-CONST_100000_0 = 100000.0
-
-
-
-CONST_0_25 = 0.25
-
-CONST_0_5 = 0.5
-
-CONST_1_5 = 1.5
-
-CONST_5 = 5
-
-CONST_15 = 15
-
-CONST_30 = 30
-
-CONST_10000 = 10000
-
-CONST_100000_0 = 100000.0
-
-
-
 """
 Alpaca Broker Adapter - Alpaca Markets via alpaca-py
 
@@ -109,10 +60,6 @@ try:
 except ImportError:
     ALPACA_AVAILABLE = False
 
-
-# TODO: Refactor large class (29 methods, target < 20)
-# TODO: Refactor large class (29 methods, target < 20)
-# TODO: 大类 29个方法 - 考虑拆分为多个类或使用组合模式
 
 class AlpacaBroker(BaseBroker):
     """
@@ -245,8 +192,6 @@ class AlpacaBroker(BaseBroker):
 
             # Verify credentials by fetching account
             account = self._trading_client.get_account()
-            # TODO: 提取嵌套逻辑为独立方法
-
             if account:
                 self._authenticated = True
                 mode = "paper" if self._paper_mode else "live"
@@ -255,131 +200,79 @@ class AlpacaBroker(BaseBroker):
                     f"Account: {account.id}, Status: {account.status}"
                 )
                 return ApiResponse.ok(True)
-            return ApiResponse.fail("Alpaca authentication failed: no account returned")
+            else:
+                return ApiResponse.fail("Alpaca authentication failed: no account returned")
 
-    except Exception as e:
-        self._authenticated = False
-        self._trading_client = None
-        self._data_client = None
-        logger.error(f"Alpaca authentication failed: {e}", exc_info=True)
-        return ApiResponse.fail(f"Alpaca authentication failed: {str(e)}")
+        except Exception as e:
+            self._authenticated = False
+            self._trading_client = None
+            self._data_client = None
+            logger.error(f"Alpaca authentication failed: {e}", exc_info=True)
+            return ApiResponse.fail(f"Alpaca authentication failed: {str(e)}")
 
-def _ensure_authenticated(self) -> Optional[str]:
-    """Return an error string if not authenticated, None if authenticated."""
-    if not ALPACA_AVAILABLE and not self._authenticated or self._trading_client is None:
-        return "Not authenticated with Alpaca. Call authenticate() first."
-    return None
+    def _ensure_authenticated(self) -> Optional[str]:
+        """Return an error string if not authenticated, None if authenticated."""
+        if not ALPACA_AVAILABLE:
+            return "alpaca-py is not installed. Install with: pip install alpaca-py"
+        if not self._authenticated or self._trading_client is None:
+            return "Not authenticated with Alpaca. Call authenticate() first."
+        return None
 
-# ========================================================================
-# Market Data
-# ========================================================================
+    # ========================================================================
+    # Market Data
+    # ========================================================================
 
-def get_quotes(self, symbols: List[str]) -> ApiResponse[List[BrokerQuote]]:
-    """
-    Get real-time quotes for symbols.
+    def get_quotes(self, symbols: List[str]) -> ApiResponse[List[BrokerQuote]]:
+        """
+        Get real-time quotes for symbols.
 
-    Args:
-        symbols: List of stock symbols
+        Args:
+            symbols: List of stock symbols
 
-    Returns:
-        ApiResponse[List[BrokerQuote]]: Quote data
-    """
-    err = self._ensure_authenticated()
-    if err:
-        return ApiResponse.fail(err)
+        Returns:
+            ApiResponse[List[BrokerQuote]]: Quote data
+        """
+        err = self._ensure_authenticated()
+        if err:
+            return ApiResponse.fail(err)
 
-    if not ALPACA_AVAILABLE:
-        return ApiResponse.fail("alpaca-py is not installed. Install with: pip install alpaca-py")
+        if not ALPACA_AVAILABLE:
+            return ApiResponse.fail("alpaca-py is not installed. Install with: pip install alpaca-py")
 
-    try:
-        # Use the latest quote endpoint
-        request = StockLatestQuoteRequest(symbol_or_symbols=symbols)
-        response = self._data_client.get_stock_latest_quote(request)
+        try:
+            # Use the latest quote endpoint
+            request = StockLatestQuoteRequest(symbol_or_symbols=symbols)
+            response = self._data_client.get_stock_latest_quote(request)
 
-        quotes = []
+            quotes = []
 
-        for symbol in symbols:
-            quote_data = response.get(symbol)
-            if quote_data is None:
-                logger.warning(f"No quote data for {symbol}")
-                continue
+            for symbol in symbols:
+                quote_data = response.get(symbol)
+                if quote_data is None:
+                    logger.warning(f"No quote data for {symbol}")
+                    continue
 
-            quote = BrokerQuote(
-                symbol=symbol,
-                last_price=float(quote_data.ask_price + quote_data.bid_price) / 2
-                if quote_data.ask_price and quote_data.bid_price else 0.0,
-                bid_price=float(quote_data.bid_price) if quote_data.bid_price else None,
-                ask_price=float(quote_data.ask_price) if quote_data.ask_price else None,
-                timestamp=datetime.fromisoformat(quote_data.timestamp.isoformat())
-                if quote_data.timestamp else datetime.now(),
-            )
-            quotes.append(quote)
+                quote = BrokerQuote(
+                    symbol=symbol,
+                    last_price=float(quote_data.ask_price + quote_data.bid_price) / 2
+                    if quote_data.ask_price and quote_data.bid_price else 0.0,
+                    bid_price=float(quote_data.bid_price) if quote_data.bid_price else None,
+                    ask_price=float(quote_data.ask_price) if quote_data.ask_price else None,
+                    timestamp=datetime.fromisoformat(quote_data.timestamp.isoformat())
+                    if quote_data.timestamp else datetime.now(),
+                )
+                quotes.append(quote)
 
-        if not quotes:
-            return ApiResponse.fail(f"No quote data available for: {symbols}")
+            if not quotes:
+                return ApiResponse.fail(f"No quote data available for: {symbols}")
 
-        return ApiResponse.ok(quotes)
+            return ApiResponse.ok(quotes)
 
-    except Exception as e:
-        logger.error(f"Failed to get Alpaca quotes: {e}", exc_info=True)
-        return ApiResponse.fail(f"Failed to get quotes: {str(e)}")
-
-# TODO: Refactor - complexity 24 (target < 15)
-
-# TODO: Refactor - function too long (114 lines, target < 80)
-
-def _validate_get_history_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 get_history 移到这里
-    return True, None
-
-def _process_get_history_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 get_history 移到这里
-    return data
-
-def _build_get_history_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 get_history 移到这里
-    return data
-
-def _validate_get_history_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 get_history 移到这里
-    return True, None
-
-def _process_get_history_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 get_history 移到这里
-    return data
-
-def _build_get_history_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 get_history 移到这里
-    return data
-
-# TODO: Split long function (113 lines, target < 100)
-# TODO: Refactor - complexity 24 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 24 (target < 15)
-    # TODO: Split long function (113 lines, target < 100)
-    # TODO: Refactor - complexity 24 (target < 15)
-    # TODO: Split long function (113 lines, target < 100)
-    # TODO: 复杂度 24 - 需要重构拆分为更小的函数
-
-    # TODO: 长函数 124行 - 建议拆分为多个小函数
+        except Exception as e:
+            logger.error(f"Failed to get Alpaca quotes: {e}", exc_info=True)
+            return ApiResponse.fail(f"Failed to get quotes: {str(e)}")
 
     def get_history(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         symbol: str,
         start_date: str,
@@ -497,60 +390,8 @@ def _build_get_history_result(data):
     # ========================================================================
     # Trading
     # ========================================================================
-# TODO: Refactor - complexity 17 (target < 15)
 
-# TODO: Refactor - function too long (103 lines, target < 80)
-
-
-    def _validate_place_order_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 place_order 移到这里
-        return True, None
-
-    def _process_place_order_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 place_order 移到这里
-        return data
-
-    def _build_place_order_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 place_order 移到这里
-        return data
-
-    def _validate_place_order_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 place_order 移到这里
-        return True, None
-
-    def _process_place_order_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 place_order 移到这里
-        return data
-
-    def _build_place_order_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 place_order 移到这里
-        return data
-
-# TODO: Split long function (102 lines, target < 100)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 17 (target < 15)
-    # TODO: Split long function (102 lines, target < 100)
-    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-    # TODO: Refactor - complexity 17 (target < 15)
-    # TODO: 长函数 111行 - 建议拆分为多个小函数
-
-    # TODO: Split long function (102 lines, target < 100)
     def place_order(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         credentials: BrokerCredentials,
         order: UnifiedOrder
@@ -614,7 +455,9 @@ def _build_get_history_result(data):
                     time_in_force=tif,
                 )
             elif order.order_type == OrderType.STOP_LOSS:
-                if order.stop_price is None and order.price is not None:
+                if order.stop_price is None:
+                    return OrderPlaceResponse.fail("Stop loss order requires a stop price")
+                if order.price is not None:
                     # Stop limit
                     request_params = StopOrderRequest(
                         symbol=order.symbol,
@@ -645,316 +488,317 @@ def _build_get_history_result(data):
                     f"{side.value} {order.quantity} @ {order.price or 'MKT'}"
                 )
                 return OrderPlaceResponse.ok(str(alpaca_order.id))
-            return OrderPlaceResponse.fail("Alpaca order submission failed - no response")
+            else:
+                return OrderPlaceResponse.fail("Alpaca order submission failed - no response")
 
-    except Exception as e:
-        logger.error(f"Failed to place Alpaca order: {e}", exc_info=True)
-        return OrderPlaceResponse.fail(f"Alpaca order failed: {str(e)}")
+        except Exception as e:
+            logger.error(f"Failed to place Alpaca order: {e}", exc_info=True)
+            return OrderPlaceResponse.fail(f"Alpaca order failed: {str(e)}")
 
-def cancel_order(
-    self,
-    credentials: BrokerCredentials,
-    order_id: str
-) -> ApiResponse[Dict[str, Any]]:
-    """
-    Cancel an existing order.
+    def cancel_order(
+        self,
+        credentials: BrokerCredentials,
+        order_id: str
+    ) -> ApiResponse[Dict[str, Any]]:
+        """
+        Cancel an existing order.
 
-    Args:
-        credentials: Broker credentials
-        order_id: Order ID to cancel
+        Args:
+            credentials: Broker credentials
+            order_id: Order ID to cancel
 
-    Returns:
-        ApiResponse[Dict]: Cancellation result
-    """
-    err = self._ensure_authenticated()
-    if err:
-        return ApiResponse.fail(err)
+        Returns:
+            ApiResponse[Dict]: Cancellation result
+        """
+        err = self._ensure_authenticated()
+        if err:
+            return ApiResponse.fail(err)
 
-    if not ALPACA_AVAILABLE:
-        return ApiResponse.fail("alpaca-py is not installed. Install with: pip install alpaca-py")
-
-    try:
-        self._trading_client.cancel_order_by_id(order_id)
-        result = {
-            "order_id": order_id,
-            "status": "cancelled",
-            "timestamp": datetime.now().isoformat(),
-        }
-        logger.info(f"Alpaca order cancelled: {order_id}")
-        return ApiResponse.ok(result)
-
-    except Exception as e:
-        logger.error(f"Failed to cancel Alpaca order {order_id}: {e}", exc_info=True)
-        return ApiResponse.fail(f"Cancel failed: {str(e)}")
-
-def get_orders(
-    self,
-    credentials: BrokerCredentials
-) -> ApiResponse[List[Dict[str, Any]]]:
-    """
-    Get all open and recent orders.
-
-    Args:
-        credentials: Broker credentials
-
-    Returns:
-        ApiResponse[List[Dict]]: Orders list
-    """
-    err = self._ensure_authenticated()
-    if err:
-        return ApiResponse.fail(err)
-
-    if not ALPACA_AVAILABLE:
-        return ApiResponse.fail("alpaca-py is not installed. Install with: pip install alpaca-py")
-
-    try:
-        orders = self._trading_client.get_orders(
-            status="all",
-            limit=100,
-        )
-
-        result = []
-        for o in orders:
-            result.append({
-                "order_id": str(o.id),
-                "symbol": o.symbol,
-                "action": o.side.value,
-                "order_type": o.type.value,
-                "quantity": float(o.qty) if o.qty else 0,
-                "filled": float(o.filled_qty) if o.filled_qty else 0,
-                "price": float(o.limit_price) if o.limit_price else 0,
-                "status": o.status.value,
-                "created_at": o.created_at.isoformat() if o.created_at else None,
-            })
-
-        return ApiResponse.ok(result)
-
-    except Exception as e:
-        logger.error(f"Failed to get Alpaca orders: {e}", exc_info=True)
-        return ApiResponse.fail(f"Failed to get orders: {str(e)}")
-
-# ========================================================================
-# Portfolio
-# ========================================================================
-
-def get_positions(
-    self,
-    credentials: BrokerCredentials
-) -> ApiResponse[List[BrokerPosition]]:
-    """
-    Get current positions.
-
-    Args:
-        credentials: Broker credentials
-
-    Returns:
-        ApiResponse[List[BrokerPosition]]: Current positions
-    """
-    err = self._ensure_authenticated()
-    if err:
-        return ApiResponse.fail(err)
-
-    if not ALPACA_AVAILABLE:
-        return ApiResponse.fail("alpaca-py is not installed. Install with: pip install alpaca-py")
-
-    try:
-        positions = self._trading_client.get_all_positions()
-        result = []
-
-        for pos in positions:
-            result.append(BrokerPosition(
-                symbol=pos.symbol,
-                quantity=float(pos.qty),
-                available_quantity=float(pos.qty_available) if pos.qty_available else float(pos.qty),
-                avg_price=float(pos.avg_entry_price),
-                current_price=float(pos.current_price) if pos.current_price else 0.0,
-                unrealized_pnl=float(pos.unrealized_pl) if pos.unrealized_pl else 0.0,
-                realized_pnl=float(pos.realized_pl) if hasattr(pos, 'realized_pl') and pos.realized_pl else 0.0,
-                side="long" if float(pos.qty) > 0 else "short",
-                exchange=pos.exchange if hasattr(pos, 'exchange') else "",
-                product_type="margin" if pos.asset_marginable else "cash",
-            ))
-
-        return ApiResponse.ok(result)
-
-    except Exception as e:
-        logger.error(f"Failed to get Alpaca positions: {e}", exc_info=True)
-        return ApiResponse.fail(f"Failed to get positions: {str(e)}")
-
-def get_funds(self, credentials: BrokerCredentials) -> ApiResponse[BrokerFunds]:
-    """
-    Get account funds summary from Alpaca.
-
-    Args:
-        credentials: Broker credentials
-
-    Returns:
-        ApiResponse[BrokerFunds]: Account fund details
-    """
-    err = self._ensure_authenticated()
-    if err:
-        return ApiResponse.fail(err)
-
-    if not ALPACA_AVAILABLE:
-        return ApiResponse.fail("alpaca-py is not installed. Install with: pip install alpaca-py")
-
-    try:
-        account = self._trading_client.get_account()
-
-        funds = BrokerFunds(
-            available_cash=float(account.cash) if account.cash else 0.0,
-            total_assets=float(account.portfolio_value) if account.portfolio_value else 0.0,
-            market_value=float(account.long_market_value) + float(account.short_market_value)
-            if account.long_market_value else 0.0,
-            frozen_cash=float(account.accrued_fees) if account.accrued_fees else 0.0,
-            margin_used=float(account.initial_margin) if account.initial_margin else 0.0,
-            margin_available=float(account.buying_power) * 0.5 if account.buying_power else 0.0,
-        )
-
-        return ApiResponse.ok(funds)
-
-    except Exception as e:
-        logger.error(f"Failed to get Alpaca funds: {e}", exc_info=True)
-        return ApiResponse.fail(f"Failed to get funds: {str(e)}")
-
-# ========================================================================
-# Advanced Features
-# ========================================================================
-
-def get_margin_info(
-    self,
-    credentials: BrokerCredentials,
-    order: UnifiedOrder
-) -> ApiResponse[Dict[str, Any]]:
-    """
-    Calculate margin requirement for a proposed order.
-
-    Args:
-        credentials: Broker credentials
-        order: Proposed order for margin calculation
-
-    Returns:
-        ApiResponse[Dict]: Margin information
-    """
-    err = self._ensure_authenticated()
-    if err:
-        return ApiResponse.fail(err)
-
-    if not ALPACA_AVAILABLE:
-        return ApiResponse.fail("alpaca-py is not installed. Install with: pip install alpaca-py")
-
-    try:
-        account = self._trading_client.get_account()
-
-        price = order.price or 100.0
-        order_value = order.quantity * price
-
-        # Reg T: 50% initial margin for long, 150% for short
-        if order.side == OrderSide.BUY:
-            initial_margin = order_value * 0.50
-        else:
-            initial_margin = order_value * 1.50  # Short selling
-
-        maintenance_margin = order_value * 0.25
-
-        buying_power = float(account.buying_power) if account.buying_power else 0
-        sufficient = buying_power > initial_margin
-
-        margin_info = {
-            "order_value": round(order_value, 2),
-            "initial_margin_required": round(initial_margin, 2),
-            "maintenance_margin_required": round(maintenance_margin, 2),
-            "current_buying_power": round(buying_power, 2),
-            "sufficient_margin": sufficient,
-            "order_side": order.side.value,
-            "symbol": order.symbol,
-            "quantity": order.quantity,
-            "estimated_price": price,
-            "timestamp": datetime.now().isoformat(),
-        }
-        return ApiResponse.ok(margin_info)
-
-    except Exception as e:
-        logger.error(f"Failed to calculate Alpaca margin: {e}", exc_info=True)
-        return ApiResponse.fail(f"Margin calculation failed: {str(e)}")
-
-def search_symbols(
-    self,
-    query: str,
-    exchange: Optional[str] = None
-) -> ApiResponse[List[Dict[str, Any]]]:
-    """
-    Search for tradable symbols on Alpaca.
-
-    Uses Alpaca asset search if available, or returns a structured
-    response indicating the query was received.
-
-    Args:
-        query: Search keyword
-        exchange: Exchange filter (optional)
-
-    Returns:
-        ApiResponse[List[Dict]]: Search results
-    """
-    if not ALPACA_AVAILABLE:
-        return ApiResponse.fail("alpaca-py is not installed. Install with: pip install alpaca-py")
-
-    if not self._authenticated:
-        return ApiResponse.fail("Not authenticated with Alpaca. Call authenticate() first.")
-
-    try:
-        # Use get_asset or search
-        query_upper = query.upper().strip()
-        results = []
+        if not ALPACA_AVAILABLE:
+            return ApiResponse.fail("alpaca-py is not installed. Install with: pip install alpaca-py")
 
         try:
-            # Try to get exact symbol match first
-            asset = self._trading_client.get_asset(query_upper)
-            if asset and asset.tradable:
-                results.append({
-                    "symbol": asset.symbol,
-                    "name": asset.name or asset.symbol,
-                    "exchange": asset.exchange or "NASDAQ",
-                    "currency": "USD",
-                    "type": asset.asset_class or "us_equity",
-                    "tradable": asset.tradable,
-                    "category": "asset",
+            self._trading_client.cancel_order_by_id(order_id)
+            result = {
+                "order_id": order_id,
+                "status": "cancelled",
+                "timestamp": datetime.now().isoformat(),
+            }
+            logger.info(f"Alpaca order cancelled: {order_id}")
+            return ApiResponse.ok(result)
+
+        except Exception as e:
+            logger.error(f"Failed to cancel Alpaca order {order_id}: {e}", exc_info=True)
+            return ApiResponse.fail(f"Cancel failed: {str(e)}")
+
+    def get_orders(
+        self,
+        credentials: BrokerCredentials
+    ) -> ApiResponse[List[Dict[str, Any]]]:
+        """
+        Get all open and recent orders.
+
+        Args:
+            credentials: Broker credentials
+
+        Returns:
+            ApiResponse[List[Dict]]: Orders list
+        """
+        err = self._ensure_authenticated()
+        if err:
+            return ApiResponse.fail(err)
+
+        if not ALPACA_AVAILABLE:
+            return ApiResponse.fail("alpaca-py is not installed. Install with: pip install alpaca-py")
+
+        try:
+            orders = self._trading_client.get_orders(
+                status="all",
+                limit=100,
+            )
+
+            result = []
+            for o in orders:
+                result.append({
+                    "order_id": str(o.id),
+                    "symbol": o.symbol,
+                    "action": o.side.value,
+                    "order_type": o.type.value,
+                    "quantity": float(o.qty) if o.qty else 0,
+                    "filled": float(o.filled_qty) if o.filled_qty else 0,
+                    "price": float(o.limit_price) if o.limit_price else 0,
+                    "status": o.status.value,
+                    "created_at": o.created_at.isoformat() if o.created_at else None,
                 })
-        except Exception:
-            pass
 
-        # For broader search, try a substring match
-        if not results:
-            results.append({
-                "symbol": query_upper,
-                "name": query_upper,
-                "exchange": exchange or "NASDAQ",
-                "currency": "USD",
-                "type": "us_equity",
-                "tradable": True,
-                "category": "search",
-                "note": "Verify exact symbol on Alpaca dashboard",
-            })
+            return ApiResponse.ok(result)
 
-        return ApiResponse.ok(results)
+        except Exception as e:
+            logger.error(f"Failed to get Alpaca orders: {e}", exc_info=True)
+            return ApiResponse.fail(f"Failed to get orders: {str(e)}")
 
-    except Exception as e:
-        logger.error(f"Failed to search Alpaca symbols: {e}", exc_info=True)
-        return ApiResponse.fail(f"Symbol search failed: {str(e)}")
+    # ========================================================================
+    # Portfolio
+    # ========================================================================
 
-# ========================================================================
-# Connection Management
-# ========================================================================
+    def get_positions(
+        self,
+        credentials: BrokerCredentials
+    ) -> ApiResponse[List[BrokerPosition]]:
+        """
+        Get current positions.
 
-def disconnect(self):
-    """Reset connection state (Alpaca is REST-based, no persistent connection)."""
-    self._trading_client = None
-    self._data_client = None
-    self._authenticated = False
-    logger.info("Alpaca connection state cleared")
+        Args:
+            credentials: Broker credentials
 
-def __repr__(self) -> str:
-    """String representation."""
-    mode = "paper" if self._paper_mode else "live"
-    status = "authenticated" if self._authenticated else "not authenticated"
-    return f"<AlpacaBroker mode={mode} status={status}>"
+        Returns:
+            ApiResponse[List[BrokerPosition]]: Current positions
+        """
+        err = self._ensure_authenticated()
+        if err:
+            return ApiResponse.fail(err)
+
+        if not ALPACA_AVAILABLE:
+            return ApiResponse.fail("alpaca-py is not installed. Install with: pip install alpaca-py")
+
+        try:
+            positions = self._trading_client.get_all_positions()
+            result = []
+
+            for pos in positions:
+                result.append(BrokerPosition(
+                    symbol=pos.symbol,
+                    quantity=float(pos.qty),
+                    available_quantity=float(pos.qty_available) if pos.qty_available else float(pos.qty),
+                    avg_price=float(pos.avg_entry_price),
+                    current_price=float(pos.current_price) if pos.current_price else 0.0,
+                    unrealized_pnl=float(pos.unrealized_pl) if pos.unrealized_pl else 0.0,
+                    realized_pnl=float(pos.realized_pl) if hasattr(pos, 'realized_pl') and pos.realized_pl else 0.0,
+                    side="long" if float(pos.qty) > 0 else "short",
+                    exchange=pos.exchange if hasattr(pos, 'exchange') else "",
+                    product_type="margin" if pos.asset_marginable else "cash",
+                ))
+
+            return ApiResponse.ok(result)
+
+        except Exception as e:
+            logger.error(f"Failed to get Alpaca positions: {e}", exc_info=True)
+            return ApiResponse.fail(f"Failed to get positions: {str(e)}")
+
+    def get_funds(self, credentials: BrokerCredentials) -> ApiResponse[BrokerFunds]:
+        """
+        Get account funds summary from Alpaca.
+
+        Args:
+            credentials: Broker credentials
+
+        Returns:
+            ApiResponse[BrokerFunds]: Account fund details
+        """
+        err = self._ensure_authenticated()
+        if err:
+            return ApiResponse.fail(err)
+
+        if not ALPACA_AVAILABLE:
+            return ApiResponse.fail("alpaca-py is not installed. Install with: pip install alpaca-py")
+
+        try:
+            account = self._trading_client.get_account()
+
+            funds = BrokerFunds(
+                available_cash=float(account.cash) if account.cash else 0.0,
+                total_assets=float(account.portfolio_value) if account.portfolio_value else 0.0,
+                market_value=float(account.long_market_value) + float(account.short_market_value)
+                if account.long_market_value else 0.0,
+                frozen_cash=float(account.accrued_fees) if account.accrued_fees else 0.0,
+                margin_used=float(account.initial_margin) if account.initial_margin else 0.0,
+                margin_available=float(account.buying_power) * 0.5 if account.buying_power else 0.0,
+            )
+
+            return ApiResponse.ok(funds)
+
+        except Exception as e:
+            logger.error(f"Failed to get Alpaca funds: {e}", exc_info=True)
+            return ApiResponse.fail(f"Failed to get funds: {str(e)}")
+
+    # ========================================================================
+    # Advanced Features
+    # ========================================================================
+
+    def get_margin_info(
+        self,
+        credentials: BrokerCredentials,
+        order: UnifiedOrder
+    ) -> ApiResponse[Dict[str, Any]]:
+        """
+        Calculate margin requirement for a proposed order.
+
+        Args:
+            credentials: Broker credentials
+            order: Proposed order for margin calculation
+
+        Returns:
+            ApiResponse[Dict]: Margin information
+        """
+        err = self._ensure_authenticated()
+        if err:
+            return ApiResponse.fail(err)
+
+        if not ALPACA_AVAILABLE:
+            return ApiResponse.fail("alpaca-py is not installed. Install with: pip install alpaca-py")
+
+        try:
+            account = self._trading_client.get_account()
+
+            price = order.price or 100.0
+            order_value = order.quantity * price
+
+            # Reg T: 50% initial margin for long, 150% for short
+            if order.side == OrderSide.BUY:
+                initial_margin = order_value * 0.50
+            else:
+                initial_margin = order_value * 1.50  # Short selling
+
+            maintenance_margin = order_value * 0.25
+
+            buying_power = float(account.buying_power) if account.buying_power else 0
+            sufficient = buying_power > initial_margin
+
+            margin_info = {
+                "order_value": round(order_value, 2),
+                "initial_margin_required": round(initial_margin, 2),
+                "maintenance_margin_required": round(maintenance_margin, 2),
+                "current_buying_power": round(buying_power, 2),
+                "sufficient_margin": sufficient,
+                "order_side": order.side.value,
+                "symbol": order.symbol,
+                "quantity": order.quantity,
+                "estimated_price": price,
+                "timestamp": datetime.now().isoformat(),
+            }
+            return ApiResponse.ok(margin_info)
+
+        except Exception as e:
+            logger.error(f"Failed to calculate Alpaca margin: {e}", exc_info=True)
+            return ApiResponse.fail(f"Margin calculation failed: {str(e)}")
+
+    def search_symbols(
+        self,
+        query: str,
+        exchange: Optional[str] = None
+    ) -> ApiResponse[List[Dict[str, Any]]]:
+        """
+        Search for tradable symbols on Alpaca.
+
+        Uses Alpaca asset search if available, or returns a structured
+        response indicating the query was received.
+
+        Args:
+            query: Search keyword
+            exchange: Exchange filter (optional)
+
+        Returns:
+            ApiResponse[List[Dict]]: Search results
+        """
+        if not ALPACA_AVAILABLE:
+            return ApiResponse.fail("alpaca-py is not installed. Install with: pip install alpaca-py")
+
+        if not self._authenticated:
+            return ApiResponse.fail("Not authenticated with Alpaca. Call authenticate() first.")
+
+        try:
+            # Use get_asset or search
+            query_upper = query.upper().strip()
+            results = []
+
+            try:
+                # Try to get exact symbol match first
+                asset = self._trading_client.get_asset(query_upper)
+                if asset and asset.tradable:
+                    results.append({
+                        "symbol": asset.symbol,
+                        "name": asset.name or asset.symbol,
+                        "exchange": asset.exchange or "NASDAQ",
+                        "currency": "USD",
+                        "type": asset.asset_class or "us_equity",
+                        "tradable": asset.tradable,
+                        "category": "asset",
+                    })
+            except Exception:
+                pass
+
+            # For broader search, try a substring match
+            if not results:
+                results.append({
+                    "symbol": query_upper,
+                    "name": query_upper,
+                    "exchange": exchange or "NASDAQ",
+                    "currency": "USD",
+                    "type": "us_equity",
+                    "tradable": True,
+                    "category": "search",
+                    "note": "Verify exact symbol on Alpaca dashboard",
+                })
+
+            return ApiResponse.ok(results)
+
+        except Exception as e:
+            logger.error(f"Failed to search Alpaca symbols: {e}", exc_info=True)
+            return ApiResponse.fail(f"Symbol search failed: {str(e)}")
+
+    # ========================================================================
+    # Connection Management
+    # ========================================================================
+
+    def disconnect(self):
+        """Reset connection state (Alpaca is REST-based, no persistent connection)."""
+        self._trading_client = None
+        self._data_client = None
+        self._authenticated = False
+        logger.info("Alpaca connection state cleared")
+
+    def __repr__(self) -> str:
+        """String representation."""
+        mode = "paper" if self._paper_mode else "live"
+        status = "authenticated" if self._authenticated else "not authenticated"
+        return f"<AlpacaBroker mode={mode} status={status}>"

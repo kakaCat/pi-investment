@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 每日信号执行任务
 运行策略 → 生成信号 → 风控检查 → 创建订单

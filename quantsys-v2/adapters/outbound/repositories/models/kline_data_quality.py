@@ -1,32 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_70 = 70
-
-CONST_80 = 80
-
-CONST_90 = 90
-
-CONST_95 = 95
-
-
-
-CONST_70 = 70
-
-CONST_80 = 80
-
-CONST_90 = 90
-
-CONST_95 = 95
-
-
-
 """
 K线数据质量记录模型
 
@@ -59,7 +30,8 @@ class QualityGrade:
             return cls.B
         elif score >= 70:
             return cls.C
-        return cls.D
+        else:
+            return cls.D
 
 
 # SQL 表创建语句

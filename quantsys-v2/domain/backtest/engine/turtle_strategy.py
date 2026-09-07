@@ -1,30 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - generate_signal() = 127 lines
-
-
-# Extracted Constants
-
-CONST_0_15 = 0.15
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_0_6 = 0.6
-
-CONST_0_85 = 0.85
-
-CONST_4 = 4
-
-CONST_14 = 14
-
-CONST_20 = 20
-
-
-
 """
 海龟交易策略 (Turtle Strategy)
 
@@ -84,15 +57,7 @@ class TurtleStrategy(StrategyBase):
 
         return atr
 
-    # TODO: Split long function (127 lines, target < 100)
-    # TODO: 长函数 133行 - 建议拆分为多个小函数
-
     def generate_signal(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         klines: List[Dict[str, Any]],
         params: Dict[str, Any] = None

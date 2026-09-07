@@ -1,27 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-CONST_1_5 = 1.5
-
-CONST_3_0 = 3.0
-
-CONST_5 = 5
-
-CONST_14 = 14
-
-CONST_20 = 20
-
-CONST_50_0 = 50.0
-
-CONST_80 = 80
-
-
-
 """
 Volume Indicators Module
 =========================

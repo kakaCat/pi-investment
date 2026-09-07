@@ -1,14 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_1000000_0 = 1000000.0
-
-
-
 """
 XGBoost multi-factor strategy — pure algorithm implementation.
 
@@ -34,6 +23,7 @@ position_provider: ``callable(date: str) -> dict[str, dict]``
 price_provider: ``callable(symbol: str, date: str) -> float | None``
     Returns the latest tradable price for ``symbol`` on ``date``.
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -181,7 +171,9 @@ class XGBoostStrategy(BaseStrategy):
             RuntimeError: If the model or factor list is not loaded.
             ValueError: If none of the required factors are present.
         """
-        if self.model is None and not self.factors:
+        if self.model is None:
+            raise RuntimeError("XGBoostStrategy: model not loaded")
+        if not self.factors:
             raise RuntimeError("XGBoostStrategy: factor list not loaded")
         if factor_data is None or factor_data.empty:
             return pd.Series(dtype=float, name="predicted_return")

@@ -1,25 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - engle_granger_test() = 139 lines
-#   - estimate_ecm() = 105 lines
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_6 = 6
-
-CONST_30 = 30
-
-
-
 """
 Cointegration Testing Module
 =============================
@@ -91,17 +69,7 @@ class CointegrationCalculator(BaseCalculator):
 
     @validate_inputs
     @timing_decorator
-    # TODO: Refactor - function too long (140 lines, target < 80)
-
-# TODO: Split long function (139 lines, target < 100)
-    # TODO: 长函数 145行 - 建议拆分为多个小函数
-
     def engle_granger_test(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         y: Union[List, np.ndarray, pd.Series],
         x: Union[List, np.ndarray, pd.Series, pd.DataFrame],
@@ -243,14 +211,8 @@ class CointegrationCalculator(BaseCalculator):
             )
 
     @validate_inputs
-    # TODO: 长函数 102行 - 建议拆分为多个小函数
-
     @timing_decorator
     def johansen_test(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         data: pd.DataFrame,
         det_order: int = 0,
@@ -350,17 +312,8 @@ class CointegrationCalculator(BaseCalculator):
             )
 
     @validate_inputs
-    # TODO: Refactor - function too long (106 lines, target < 80)
-
-    # TODO: 长函数 110行 - 建议拆分为多个小函数
-
     @timing_decorator
-# TODO: Split long function (105 lines, target < 100)
     def estimate_ecm(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         y: Union[List, np.ndarray, pd.Series],
         x: Union[List, np.ndarray, pd.Series],
@@ -638,14 +591,15 @@ class CointegrationCalculator(BaseCalculator):
         if len(cointegrating_vector) > 1:
             hedge_ratio = cointegrating_vector[1]
             return f"Series are cointegrated. Hedge ratio: {hedge_ratio:.4f}. Suitable for pairs trading."
-        return "Series are cointegrated."
+        else:
+            return "Series are cointegrated."
 
-def _interpret_ecm(self, gamma: float, half_life: float) -> str:
-    """Generate interpretation of ECM results."""
-    if gamma >= 0:
-        return "Warning: Positive adjustment speed indicates divergence, not convergence."
+    def _interpret_ecm(self, gamma: float, half_life: float) -> str:
+        """Generate interpretation of ECM results."""
+        if gamma >= 0:
+            return "Warning: Positive adjustment speed indicates divergence, not convergence."
 
-    if np.isinf(half_life):
-        return "Adjustment speed is very slow."
+        if np.isinf(half_life):
+            return "Adjustment speed is very slow."
 
-    return f"Spread converges to equilibrium with half-life of {half_life:.2f} periods."
+        return f"Spread converges to equilibrium with half-life of {half_life:.2f} periods."

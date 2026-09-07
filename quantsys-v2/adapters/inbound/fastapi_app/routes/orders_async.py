@@ -1,55 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - get_trade_history() = 108 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-CONST_1_5 = 1.5
-
-CONST_3 = 3
-
-CONST_6 = 6
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-
-
-CONST_0_5 = 0.5
-
-CONST_1_5 = 1.5
-
-CONST_3 = 3
-
-CONST_6 = 6
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_500 = 500
-
-
-
 """订单/交易/投资组合 API - FastAPI 版（从 Flask orders.py 迁移，响应契约保持一致）
 
 orders.py 同时承载 orders CRUD、trades/list 和 portfolio 端点。
@@ -124,9 +72,13 @@ def algo_execute(payload: Optional[Dict[str, Any]] = Body(None)):
         duration_minutes = data.get('duration_minutes', 30)
         start_time_str = data.get('start_time', '09:30:00')
 
-        if not all([symbol, side, quantity, algo]) and side not in ['buy', 'sell']:
+        if not all([symbol, side, quantity, algo]):
+            return error_response({'success': False, 'error': '缺少必需参数: symbol, side, quantity, algo'}, 400)
+        if side not in ['buy', 'sell']:
             return error_response({'success': False, 'error': 'side 必须是 buy 或 sell'}, 400)
-        if algo not in ['TWAP', 'VWAP'] and quantity <= 0:
+        if algo not in ['TWAP', 'VWAP']:
+            return error_response({'success': False, 'error': 'algo 必须是 TWAP 或 VWAP'}, 400)
+        if quantity <= 0:
             return error_response({'success': False, 'error': 'quantity 必须大于 0'}, 400)
         if duration_minutes <= 0:
             return error_response({'success': False, 'error': 'duration_minutes 必须大于 0'}, 400)
@@ -168,69 +120,7 @@ def algo_execute(payload: Optional[Dict[str, Any]] = Body(None)):
 
 @router.get('/api/trades/list')
 @handle_api_error
-# TODO: Refactor - complexity 17 (target < 15)
-
-# TODO: Refactor - function too long (109 lines, target < 80)
-
-def _validate_get_trade_history_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 get_trade_history 移到这里
-    return True, None
-
-def _process_get_trade_history_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 get_trade_history 移到这里
-    return data
-
-def _build_get_trade_history_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 get_trade_history 移到这里
-    return data
-
-# TODO: Split long function (108 lines, target < 100)
-# TODO: Refactor - complexity 17 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 17 (target < 15)
-# TODO: Split long function (108 lines, target < 100)
-# TODO: Refactor - complexity 17 (target < 15)
-# TODO: Split long function (108 lines, target < 100)
-# TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 117行 - 建议拆分为多个小函数
-
-def _validate_get_trade_history_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_get_trade_history_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_get_trade_history_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_get_trade_history_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_get_trade_history_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_get_trade_history_result(data):
-    """构建返回结果"""
-    return data
-
 def get_trade_history(
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     account_name: Optional[str] = Query('agent_virtual'),
     order_id: Optional[str] = Query(None),
     symbol: Optional[str] = Query(None),

@@ -1,59 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [5, 6, 7, 8, 20]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_7 = 7
-
-CONST_8 = 8
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_409 = 409
-
-CONST_500 = 500
-
-
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_7 = 7
-
-CONST_8 = 8
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_409 = 409
-
-CONST_500 = 500
-
-
-
 """股票数据 API - FastAPI 版（从 Flask stock.py 迁移，响应契约保持一致）"""
 import uuid
 import re
@@ -74,51 +18,6 @@ logger = structlog.get_logger(__name__)
 
 router = APIRouter(tags=["Stocks - 股票数据"])
 
-
-# TODO: Refactor - complexity 17 (target < 15)
-
-def _validate_enrich_stock_data_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 enrich_stock_data 移到这里
-    return True, None
-
-def _process_enrich_stock_data_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 enrich_stock_data 移到这里
-    return data
-
-def _build_enrich_stock_data_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 enrich_stock_data 移到这里
-    return data
-
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 17 (target < 15)
-# TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-def _validate_enrich_stock_data_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_enrich_stock_data_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_enrich_stock_data_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_enrich_stock_data_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_enrich_stock_data_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_enrich_stock_data_result(data):
-    """构建返回结果"""
-    return data
 
 def enrich_stock_data(stock) -> Dict:
     """为股票添加额外信息（价格、涨跌幅、K线天数、因子数量等）。逻辑与 Flask stock.py 一致。"""
@@ -144,8 +43,6 @@ def enrich_stock_data(stock) -> Dict:
             klines = klines.to_dicts()
         klines_len = 0
         if klines is not None:
-            # TODO: 提取嵌套逻辑为独立方法
-
             if hasattr(klines, '__len__'):
                 klines_len = len(klines)
             elif hasattr(klines, 'shape'):
@@ -161,7 +58,9 @@ def enrich_stock_data(stock) -> Dict:
         if kline_stats:
             stock_data['klineDays'] = kline_stats.get('count', 0)
         available_factors = ds.factor.get_available_factors(symbol)
-        if available_factors and stock_data['klineDays'] > 0 and stock_data['factorCount'] > 0:
+        if available_factors:
+            stock_data['factorCount'] = len(available_factors)
+        if stock_data['klineDays'] > 0 and stock_data['factorCount'] > 0:
             stock_data['dataStatus'] = 'complete'
     except Exception as e:
         logger.warning(f"Failed to enrich stock {symbol}: {e}")
@@ -186,29 +85,7 @@ def search_stocks(q: str = Query(''), page: int = Query(1), pageSize: int = Quer
         return error_response({'error': str(e)}, 500)
 
 
-# TODO: Refactor - complexity 16 (target < 15)
-
 @router.get('/api/stocks/list')
-def _validate_get_stock_list_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 get_stock_list 移到这里
-    return True, None
-
-def _process_get_stock_list_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 get_stock_list 移到这里
-    return data
-
-def _build_get_stock_list_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 get_stock_list 移到这里
-    return data
-
-# REFACTOR: Split this function into smaller pieces
-# TODO: 复杂度 16 - 需要重构拆分为更小的函数
-
-@router.get('/api/stocks')
-# TODO: Refactor - complexity 16 (target < 15)
 def get_stock_list(market: Optional[str] = Query(None), industry: Optional[str] = Query(None),
                    keyword: str = Query(''), page: int = Query(1), pageSize: int = Query(20)):
     try:
@@ -217,7 +94,9 @@ def get_stock_list(market: Optional[str] = Query(None), industry: Optional[str] 
         page_size = max(1, min(pageSize, 100))
         if keyword:
             all_stocks = ds.stock.search(keyword, limit=500)
-            if market and industry:
+            if market:
+                all_stocks = [s for s in all_stocks if (hasattr(s, 'market') and s.market == market) or (isinstance(s, dict) and s.get('market') == market)]
+            if industry:
                 all_stocks = [s for s in all_stocks if (hasattr(s, 'industry') and s.industry == industry) or (isinstance(s, dict) and s.get('industry') == industry)]
             kw = keyword.lower()
             all_stocks = [s for s in all_stocks
@@ -368,57 +247,8 @@ def get_stocks_batch(payload: Dict[str, Any] = Body(default_factory=dict)):
 
 
 # ============ K线数据（quote_market.py，P9 补 StockDetail 缺口） ============
-# TODO: Refactor - complexity 22 (target < 15)
-
 
 @router.get('/api/stock/{symbol}/klines')
-def _validate_get_stock_klines_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 get_stock_klines 移到这里
-    return True, None
-
-def _process_get_stock_klines_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 get_stock_klines 移到这里
-    return data
-
-def _build_get_stock_klines_result(data):
-    def _validate_get_stock_klines_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_get_stock_klines_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_get_stock_klines_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_get_stock_klines_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_get_stock_klines_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_get_stock_klines_result(data):
-        """构建返回结果"""
-        return data
-
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 get_stock_klines 移到这里
-    # REFACTOR: Split this function into smaller pieces
-    return data
-
-def _check_condition_0():
-    # TODO: 复杂度 22 - 需要重构拆分为更小的函数
-
-    """Check: klines is None or (hasattr(klines, 'is_empty') and klines.is..."""
-    return klines is None or (hasattr(klines, 'is_empty') and klines.is_empty()) or (isinstance(klines, list) and len(klines) == 0)
-
-# TODO: Refactor - complexity 22 (target < 15)
 def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
                      end_date: Optional[str] = Query(None), period: str = Query('daily'),
                      limit: int = Query(100)):
@@ -440,20 +270,23 @@ def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
             klines = ds.kline.get_minute_klines(
                 clean_symbol, start_ts, end_ts,
                 fields=['symbol', 'trade_datetime', 'open', 'high', 'low', 'close', 'volume', 'amount'])
-            if hasattr(klines, 'to_dicts') and isinstance(klines, list):
+            if hasattr(klines, 'to_dicts'):
+                klines = klines.to_dicts()
+            if isinstance(klines, list):
                 for kline in klines:
                     if 'trade_datetime' in kline and 'trade_date' not in kline:
                         kline['trade_date'] = str(kline['trade_datetime'])
 
         if klines is None or (hasattr(klines, 'is_empty') and klines.is_empty()) or (isinstance(klines, list) and len(klines) == 0):
             # 数据库无数据，尝试从外部数据源拉取（M3-2 修复）
+            logger.info(f"Database has no kline data for {clean_symbol}, attempting to fetch from external sources...")
             try:
                 from live_trading.multi_source_data_fetcher import MultiSourceDataFetcher
                 fetcher = MultiSourceDataFetcher()
-
+                
                 # 直接从外部数据源获取
                 df = fetcher.fetch_klines(clean_symbol, start_date, end_date)
-
+                
                 if df is not None and not df.empty:
                     # 转换为字典列表
                     raw_klines = df.to_dict('records')
@@ -634,7 +467,9 @@ def _quote_failure_suggestion(symbol: str, provider_errors: dict) -> str:
         hints.append(
             f"疑似港股代码：本接口主要支持 6 位 A 股代码，港股请尝试 {code.zfill(5)}.HK 格式"
         )
-    if any(k in joined for k in ('timeout', 'Timeout', 'Connection', 'RemoteDisconnected', '502', 'Max retries')) and code.isdigit() and len(code) == 6:
+    if any(k in joined for k in ('timeout', 'Timeout', 'Connection', 'RemoteDisconnected', '502', 'Max retries')):
+        hints.append("存在网络型失败：数据源可能临时限流/封禁，可稍后重试")
+    if code.isdigit() and len(code) == 6:
         hints.append("请检查代码是否正确、是否已上市/已退市")
     if not hints:
         hints.append("请检查代码格式（A股为 6 位数字，可带 .SH/.SZ 后缀）")
@@ -648,7 +483,6 @@ def _quote_failure_suggestion(symbol: str, provider_errors: dict) -> str:
 def get_stock_quote(symbol: str, source: str = Query('realtime')):
     """实时行情端点（source: realtime|db|auto，数据源优先级 akshare→sina→eastmoney→tencent→netease）"""
     source = source.lower()
-    # Validation checks
     if source not in ['realtime', 'db', 'auto']:
         return error_response({"success": False, "error": f"Invalid source parameter: {source}. Must be one of: realtime, db, auto"}, 400)
 
@@ -695,3 +529,4 @@ def get_stock_quote(symbol: str, source: str = Query('realtime')):
     if db_result:
         return api_response(db_result)
     return error_response(_build_quote_failure_body(symbol, quote_result), 502)
+

@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100000_0 = 100000.0
-CONST_13 = 13
-CONST_18 = 18
-CONST_20 = 20
-CONST_2026 = 2026
-CONST_23_6 = 23.6
-CONST_28 = 28
-CONST_300 = 300
-CONST_31 = 31
-CONST_32 = 32
-
 """条件委托（pending orders）服务层测试
 
 盘前（非交易时段）可下 execute_at='market_open' 的挂单，

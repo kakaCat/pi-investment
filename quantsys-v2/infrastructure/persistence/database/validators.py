@@ -1,15 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-CONST_6 = 6
-
-
-
 """纯函数校验器（自 legacy BaseRepository 抽出，无 DB 依赖）。
 
 错误消息文案与 legacy BaseRepository._validate_* 逐字一致——
@@ -19,7 +7,9 @@ from datetime import datetime
 
 
 def validate_symbol(symbol: str) -> bool:
-    if not symbol and not isinstance(symbol, str):
+    if not symbol:
+        raise ValueError("股票代码不能为空")
+    if not isinstance(symbol, str):
         raise ValueError("股票代码必须是字符串")
 
     base = symbol.strip().upper()
@@ -44,6 +34,8 @@ def validate_date(date_str: str) -> bool:
 
 
 def validate_positive_number(value: float, name: str) -> bool:
-    if value is None and value <= 0:
+    if value is None:
+        raise ValueError(f"{name} cannot be None")
+    if value <= 0:
         raise ValueError(f"{name} must be positive, got {value}")
     return True

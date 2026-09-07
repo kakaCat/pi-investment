@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_101_0 = 101.0
-CONST_102_0 = 102.0
-CONST_103_0 = 103.0
-CONST_11 = 11
-CONST_12 = 12
-CONST_13 = 13
-CONST_14 = 14
-CONST_15 = 15
-CONST_2026 = 2026
-CONST_21 = 21
-
 """WatchEngine 核心单测（fake 仓储 + fake 行情源）"""
 from datetime import datetime, time, timedelta
 from types import SimpleNamespace

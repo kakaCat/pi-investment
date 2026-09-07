@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_5 = 10.5
-CONST_100000 = 100000
-CONST_100000_0 = 100000.0
-CONST_101000 = 101000
-CONST_102000 = 102000
-CONST_105000_0 = 105000.0
-CONST_108000_0 = 108000.0
-CONST_11 = 11
-CONST_110000_0 = 110000.0
-CONST_20 = 20
-
 """
 BacktestRepository单元测试
 """

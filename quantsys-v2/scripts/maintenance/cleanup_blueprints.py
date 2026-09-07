@@ -1,9 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - main() = 104 lines
-
 #!/usr/bin/env python3
 """Split misc.py + merge tiny blueprints → final clean structure."""
 import re, shutil
@@ -13,60 +7,6 @@ ROUTES = Path(__file__).resolve().parents[1] / "api" / "routes"
 SERVER = Path(__file__).resolve().parents[1] / "api" / "server.py"
 
 # ── Step 1: Extract blocks from misc.py by domain ──
-# TODO: Refactor - complexity 21 (target < 15)
-
-def _validate_extract_misc_blocks_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 extract_misc_blocks 移到这里
-    return True, None
-
-def _process_extract_misc_blocks_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 extract_misc_blocks 移到这里
-    return data
-
-def _build_extract_misc_blocks_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 extract_misc_blocks 移到这里
-    return data
-
-# TODO: Refactor - complexity 21 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-def _check_condition_0():
-    """Check: "/jobs" in path or "/data/update" in path or "/compute/facto..."""
-    return "/jobs" in path or "/data/update" in path or "/compute/factors" in path
-
-def _check_condition_0():
-    """Check: "/jobs" in path or "/data/update" in path or "/compute/facto..."""
-    return "/jobs" in path or "/data/update" in path or "/compute/factors" in path
-
-# TODO: Refactor - complexity 22 (target < 15)
-# TODO: 复杂度 22 - 需要重构拆分为更小的函数
-
-def _validate_extract_misc_blocks_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_extract_misc_blocks_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_extract_misc_blocks_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_extract_misc_blocks_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_extract_misc_blocks_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_extract_misc_blocks_result(data):
-    """构建返回结果"""
-    return data
-
 def extract_misc_blocks():
     misc = ROUTES / "misc.py"
     if not misc.exists():
@@ -88,8 +28,6 @@ def extract_misc_blocks():
 
     for i, line in enumerate(lines):
         if "@misc_bp.route(" in line:
-            # TODO: 提取嵌套逻辑为独立方法
-
             if current_block and current_path:
                 blocks.setdefault(current_path, []).extend(current_block)
             # Determine domain from path
@@ -108,7 +46,7 @@ def extract_misc_blocks():
                     current_path = "agent"
                 elif "/jobs" in path or "/data/update" in path or "/compute/factors" in path:
                     current_path = "jobs"
-                if _check_condition_0():
+                else:
                     current_path = "other"
             current_block = [line]
         else:
@@ -166,20 +104,7 @@ def merge_blueprint(source: str, target: str):
     print(f"  merged {source}.py → {target}.py")
 
 
-# TODO: Refactor - function too long (105 lines, target < 80)
-
-# TODO: Split long function (104 lines, target < 100)
-# TODO: 长函数 113行 - 建议拆分为多个小函数
-
 def main():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     # ── Split misc.py ──
     print("=== Splitting misc.py ===")
     blocks = extract_misc_blocks()

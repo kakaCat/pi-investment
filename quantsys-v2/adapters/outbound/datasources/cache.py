@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_50 = 50
-
-CONST_60 = 60
-
-
-
-CONST_50 = 50
-
-CONST_60 = 60
-
-
-
 """Cache layer for data sources.
 
 Provides TTL-based caching to avoid redundant API calls.

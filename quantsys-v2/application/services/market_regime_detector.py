@@ -1,59 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.05, 0.1, 0.15, 0.2, 0.25]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_33 = 0.33
-
-CONST_0_5 = 0.5
-
-CONST_0_7 = 0.7
-
-CONST_4 = 4
-
-
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_33 = 0.33
-
-CONST_0_5 = 0.5
-
-CONST_0_7 = 0.7
-
-CONST_4 = 4
-
-
-
 """
 市场环境识别器
 
@@ -288,145 +232,146 @@ class MarketRegimeDetector:
                 return 'bullish'
             elif ma20 < ma60 < ma120:
                 return 'bearish'
+            else:
+                return 'mixed'
+
+        except Exception as e:
+            logger.error(f"均线排列分析失败: {e}")
             return 'mixed'
 
-    except Exception as e:
-        logger.error(f"均线排列分析失败: {e}")
-        return 'mixed'
+    def _calculate_volatility(self, df: pd.DataFrame, period: int = 20) -> float:
+        """计算年化波动率"""
+        try:
+            returns = df['close'].pct_change()
+            volatility = returns.rolling(period).std().iloc[-1] * np.sqrt(252)
+            return float(volatility)
+        except Exception as e:
+            logger.error(f"波动率计算失败: {e}")
+            return 0.20  # 默认20%
 
-def _calculate_volatility(self, df: pd.DataFrame, period: int = 20) -> float:
-    """计算年化波动率"""
-    try:
-        returns = df['close'].pct_change()
-        volatility = returns.rolling(period).std().iloc[-1] * np.sqrt(252)
-        return float(volatility)
-    except Exception as e:
-        logger.error(f"波动率计算失败: {e}")
-        return 0.20  # 默认20%
+    def _classify_volatility(self, volatility: float) -> str:
+        """分类波动率水平"""
+        if volatility < 0.15:
+            return 'low'
+        elif volatility < 0.25:
+            return 'medium'
+        else:
+            return 'high'
 
-def _classify_volatility(self, volatility: float) -> str:
-    """分类波动率水平"""
-    if volatility < 0.15:
-        return 'low'
-    elif volatility < 0.25:
-        return 'medium'
-    else:
-        return 'high'
+    def _determine_regime(self, signals: Dict[str, Any]) -> tuple:
+        """
+        综合判断市场环境
 
-def _determine_regime(self, signals: Dict[str, Any]) -> tuple:
-    """
-    综合判断市场环境
+        Returns:
+            (regime, confidence)
+        """
+        score_bull = 0
+        score_bear = 0
+        score_sideways = 0
 
-    Returns:
-        (regime, confidence)
-    """
-    score_bull = 0
-    score_bear = 0
-    score_sideways = 0
+        # 评分规则
 
-    # 评分规则
+        # 1. 趋势强度
+        if signals['trend_strength'] == 'strong':
+            if signals['momentum_20'] > 0.05:
+                score_bull += 2
+            elif signals['momentum_20'] < -0.05:
+                score_bear += 2
+        else:
+            score_sideways += 2
 
-    # 1. 趋势强度
-    if signals['trend_strength'] == 'strong':
-        if signals['momentum_20'] > 0.05:
+        # 2. 价格位置
+        price_pos = signals['price_position']
+        if price_pos > 0.7:
             score_bull += 2
-        elif signals['momentum_20'] < -0.05:
+        elif price_pos < 0.3:
             score_bear += 2
-    else:
-        score_sideways += 2
+        else:
+            score_sideways += 1
 
-    # 2. 价格位置
-    price_pos = signals['price_position']
-    if price_pos > 0.7:
-        score_bull += 2
-    elif price_pos < 0.3:
-        score_bear += 2
-    else:
-        score_sideways += 1
+        # 3. 均线排列
+        ma_arr = signals['ma_arrangement']
+        if ma_arr == 'bullish':
+            score_bull += 2
+        elif ma_arr == 'bearish':
+            score_bear += 2
+        else:
+            score_sideways += 2
 
-    # 3. 均线排列
-    ma_arr = signals['ma_arrangement']
-    if ma_arr == 'bullish':
-        score_bull += 2
-    elif ma_arr == 'bearish':
-        score_bear += 2
-    else:
-        score_sideways += 2
+        # 4. 动量
+        if signals['momentum_60'] > 0.10:
+            score_bull += 1
+        elif signals['momentum_60'] < -0.10:
+            score_bear += 1
 
-    # 4. 动量
-    if signals['momentum_60'] > 0.10:
-        score_bull += 1
-    elif signals['momentum_60'] < -0.10:
-        score_bear += 1
+        # 5. 波动率
+        if signals['volatility_level'] == 'high':
+            # 高波动率在熊市和震荡市更常见
+            score_bear += 0.5
+            score_sideways += 0.5
 
-    # 5. 波动率
-    if signals['volatility_level'] == 'high':
-        # 高波动率在熊市和震荡市更常见
-        score_bear += 0.5
-        score_sideways += 0.5
-
-    # 选择得分最高的
-    scores = {
-        'bull': score_bull,
-        'bear': score_bear,
-        'sideways': score_sideways
-    }
-
-    regime = max(scores, key=scores.get)
-    max_score = scores[regime]
-    total_score = sum(scores.values())
-
-    # 计算置信度
-    confidence = max_score / total_score if total_score > 0 else 0.33
-
-    return regime, confidence
-
-def _get_default_regime(self) -> Dict[str, Any]:
-    """获取默认市场环境（数据不足时）"""
-    return {
-        'regime': 'sideways',
-        'confidence': 0.50,
-        'signals': {},
-        'characteristics': self.REGIME_CHARACTERISTICS['sideways'],
-        'detected_at': datetime.now().isoformat(),
-        'note': '数据不足，使用默认判断'
-    }
-
-def get_strategy_suitability(self, strategy_type: str, current_regime: str) -> Dict[str, Any]:
-    """
-    评估策略在当前市场环境的适用性
-
-    Args:
-        strategy_type: 策略类型（如 'ma_cross', 'rsi_reversal'）
-        current_regime: 当前市场环境
-
-    Returns:
-        {
-            'suitability': 'high' | 'medium' | 'low',
-            'reason': '...',
-            'recommendation': 'use' | 'caution' | 'avoid'
+        # 选择得分最高的
+        scores = {
+            'bull': score_bull,
+            'bear': score_bear,
+            'sideways': score_sideways
         }
-    """
-    characteristics = self.REGIME_CHARACTERISTICS[current_regime]
 
-    if strategy_type in characteristics['recommended_strategies']:
+        regime = max(scores, key=scores.get)
+        max_score = scores[regime]
+        total_score = sum(scores.values())
+
+        # 计算置信度
+        confidence = max_score / total_score if total_score > 0 else 0.33
+
+        return regime, confidence
+
+    def _get_default_regime(self) -> Dict[str, Any]:
+        """获取默认市场环境（数据不足时）"""
         return {
-            'suitability': 'high',
-            'reason': f'{characteristics["name"]}环境适合该策略',
-            'recommendation': 'use'
+            'regime': 'sideways',
+            'confidence': 0.50,
+            'signals': {},
+            'characteristics': self.REGIME_CHARACTERISTICS['sideways'],
+            'detected_at': datetime.now().isoformat(),
+            'note': '数据不足，使用默认判断'
         }
-    elif strategy_type in characteristics['avoid_strategies']:
-        return {
-            'suitability': 'low',
-            'reason': f'{characteristics["name"]}环境不适合该策略，容易产生假信号',
-            'recommendation': 'avoid'
-        }
-    else:
-        return {
-            'suitability': 'medium',
-            'reason': f'{characteristics["name"]}环境可谨慎使用该策略',
-            'recommendation': 'caution'
-        }
+
+    def get_strategy_suitability(self, strategy_type: str, current_regime: str) -> Dict[str, Any]:
+        """
+        评估策略在当前市场环境的适用性
+
+        Args:
+            strategy_type: 策略类型（如 'ma_cross', 'rsi_reversal'）
+            current_regime: 当前市场环境
+
+        Returns:
+            {
+                'suitability': 'high' | 'medium' | 'low',
+                'reason': '...',
+                'recommendation': 'use' | 'caution' | 'avoid'
+            }
+        """
+        characteristics = self.REGIME_CHARACTERISTICS[current_regime]
+
+        if strategy_type in characteristics['recommended_strategies']:
+            return {
+                'suitability': 'high',
+                'reason': f'{characteristics["name"]}环境适合该策略',
+                'recommendation': 'use'
+            }
+        elif strategy_type in characteristics['avoid_strategies']:
+            return {
+                'suitability': 'low',
+                'reason': f'{characteristics["name"]}环境不适合该策略，容易产生假信号',
+                'recommendation': 'avoid'
+            }
+        else:
+            return {
+                'suitability': 'medium',
+                'reason': f'{characteristics["name"]}环境可谨慎使用该策略',
+                'recommendation': 'caution'
+            }
 
 
 # 全局单例（可选）

@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000 = 10000
-CONST_10000_0 = 10000.0
-CONST_1300_0 = 1300.0
-CONST_200_0 = 200.0
-CONST_2026 = 2026
-CONST_27 = 27
-CONST_28 = 28
-CONST_300_0 = 300.0
-CONST_30000_0 = 30000.0
-CONST_40_0 = 40.0
-
 """
 资金流 Repository 与对手行为服务测试
 

@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12_5 = 12.5
-CONST_1800_0 = 1800.0
-CONST_1805_0 = 1805.0
-CONST_1810_0 = 1810.0
-CONST_1850_0 = 1850.0
-CONST_1860_0 = 1860.0
-CONST_2024 = 2024
-CONST_25_0 = 25.0
-CONST_3 = 3
-CONST_35_0 = 35.0
-
 """Tests for ConflictResolutionStage."""
 
 import pandas as pd

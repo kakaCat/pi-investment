@@ -1,21 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_45 = 45
-
-
-
-CONST_45 = 45
-
-
-
 """测试回填脚本（3只股票，最近30天）"""
 import sys
 from pathlib import Path

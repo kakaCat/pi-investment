@@ -1,25 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_80 = 80
-
-
-
-CONST_5 = 5
-
-CONST_80 = 80
-
-
-
 """
 测试模拟交易API - 诊断为什么API返回空数据
 """

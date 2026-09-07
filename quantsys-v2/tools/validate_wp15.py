@@ -1,15 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_15 = 15
-CONST_16 = 16
-CONST_200 = 200
-CONST_3 = 3
-CONST_5_0 = 5.0
-CONST_58 = 58
-CONST_60 = 60
-CONST_8080 = 8080
-
 #!/usr/bin/env python3
 """WP-15 Pre-deployment Validation Script
 
@@ -207,13 +195,14 @@ def test_agent_os_connectivity():
         if is_healthy:
             print("✅ Agent OS is reachable at http://127.0.0.1:8080")
             return True
-        print("⚠️  Agent OS returned non-200 status")
-        return False
+        else:
+            print("⚠️  Agent OS returned non-200 status")
+            return False
 
-except Exception as e:
-    print(f"⚠️  Agent OS not reachable: {e}")
-    print("   (Service will fall back to local scheduler)")
-    return False
+    except Exception as e:
+        print(f"⚠️  Agent OS not reachable: {e}")
+        print("   (Service will fall back to local scheduler)")
+        return False
 
 
 def main():
@@ -257,9 +246,10 @@ def main():
         print("\n⚠️  Most tests passed, but some warnings exist.")
         print("   WP-15 can be deployed with fallback mode.")
         return 0
-    print("\n❌ Validation failed!")
-    print("   Please fix the issues before deployment.")
-    return 1
+    else:
+        print("\n❌ Validation failed!")
+        print("   Please fix the issues before deployment.")
+        return 1
 
 
 if __name__ == "__main__":

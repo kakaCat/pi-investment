@@ -1,21 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_1eNEG_08 = 1e-08
-
-CONST_0_2 = 0.2
-
-CONST_3 = 3
-
-CONST_20 = 20
-
-CONST_64 = 64
-
-
-
 """
 LSTM预测模型 - Team B
 时序预测的深度学习模型
@@ -90,9 +72,7 @@ class LSTMPredictor:
         if not TORCH_AVAILABLE or self.model is None:
             return self._simple_predict(features)
 
-        # SECURITY WARNING: eval() usage - consider safer alternatives
-
-        self.model.eval()  # TODO: Replace with ast.literal_eval() or json.loads()
+        self.model.eval()
         with torch.no_grad():
             # 转换为tensor
             x = torch.FloatTensor(features).to(self.device)

@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.08, 0.1, 0.12, 0.15, 0.2]...
-
-
-# Extracted Constants
-
-CONST_0_08 = 0.08
-
-CONST_0_1 = 0.1
-
-CONST_0_12 = 0.12
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_25 = 0.25
-
-CONST_0_85 = 0.85
-
-CONST_0_95 = 0.95
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-
-
 """
 策略注册表
 

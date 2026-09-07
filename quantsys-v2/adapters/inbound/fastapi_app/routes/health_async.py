@@ -1,32 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_80 = 80
-
-CONST_200 = 200
-
-CONST_503 = 503
-
-CONST_86400 = 86400
-
-
-
-CONST_80 = 80
-
-CONST_200 = 200
-
-CONST_503 = 503
-
-CONST_86400 = 86400
-
-
-
 """
 健康检查和系统状态 API - FastAPI 异步版本
 """
@@ -206,14 +177,6 @@ async def db_metrics():
 
 @router.get("/platform/status")
 async def platform_status():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     """
     平台状态检查
 

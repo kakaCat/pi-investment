@@ -1,14 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_1650_00 = 1650.00
-CONST_1700_00 = 1700.00
-CONST_200 = 200
-CONST_3 = 3
-CONST_30 = 30
-CONST_5 = 5
-CONST_5001 = 5001
-
 import pytest
 import requests
 from datetime import date, timedelta

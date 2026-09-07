@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_2 = 10.2
-CONST_10_5 = 10.5
-CONST_10_6 = 10.6
-CONST_100000 = 100000
-CONST_101_0 = 101.0
-CONST_102_0 = 102.0
-CONST_103_0 = 103.0
-CONST_104_0 = 104.0
-CONST_104_5 = 104.5
-CONST_105_0 = 105.0
-
 #!/usr/bin/env python3
 """
 简化单元测试：直接测试回测引擎的价格处理逻辑
@@ -86,8 +72,9 @@ def test_price_reading_logic():
         print(f"   ✓ 卖出价 = {trade['exit_price']:.2f} (预期 107.0)")
 
         return True
-    print("\n❌ 没有生成交易记录")
-    return False
+    else:
+        print("\n❌ 没有生成交易记录")
+        return False
 
 
 def test_default_price():
@@ -140,8 +127,9 @@ def test_default_price():
         print(f"   ✓ 卖出价 = {trade['exit_price']:.2f} (使用收盘价)")
 
         return True
-    print("\n❌ 没有生成交易记录")
-    return False
+    else:
+        print("\n❌ 没有生成交易记录")
+        return False
 
 
 def test_price_validator():
@@ -248,14 +236,15 @@ def main():
             print("   ✓ 价格校验功能正常工作")
             print("\n💡 自定义成交价格功能实现完成！")
             return 0
-        print("\n❌ 部分测试失败")
-        return 1
+        else:
+            print("\n❌ 部分测试失败")
+            return 1
 
-except Exception as e:
-    print(f"\n❌ 测试异常：{e}")
-    import traceback
-    traceback.print_exc()
-    return 1
+    except Exception as e:
+        print(f"\n❌ 测试异常：{e}")
+        import traceback
+        traceback.print_exc()
+        return 1
 
 
 if __name__ == '__main__':

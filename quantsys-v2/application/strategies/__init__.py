@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 from application.strategies.v13_config import V13_CONFIG
 from application.strategies.v14_config import V14_CONFIG
 from application.strategies.v13_use_case import V13StrategyUseCase, XGBoostStrategyUseCase

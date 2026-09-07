@@ -1,21 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_70 = 70
-
-
-
-CONST_70 = 70
-
-
-
 """
 验证所有修复是否生效
 
@@ -57,12 +40,13 @@ def test_field_mapping():
             print(f"  后端逻辑: if 'strategy_name' in indicator: indicator['name'] = indicator['strategy_name']")
 
             return True
-        print(f"\n⚠️  数据库中没有指标，无法测试")
-        return False
+        else:
+            print(f"\n⚠️  数据库中没有指标，无法测试")
+            return False
 
-except Exception as e:
-    print(f"\n✗ 测试失败: {str(e)}")
-    return False
+    except Exception as e:
+        print(f"\n✗ 测试失败: {str(e)}")
+        return False
 
 
 def test_system_indicators():

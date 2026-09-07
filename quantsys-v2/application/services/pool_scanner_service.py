@@ -1,60 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - scan_pool() = 105 lines
-#   - _check_signal() = 208 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-CONST_1_005 = 1.005
-
-CONST_1_01 = 1.01
-
-CONST_1_2 = 1.2
-
-CONST_1_3 = 1.3
-
-CONST_1_5 = 1.5
-
-CONST_5 = 5
-
-CONST_12 = 12
-
-CONST_14 = 14
-
-CONST_20 = 20
-
-
-
-CONST_0_5 = 0.5
-
-CONST_1_005 = 1.005
-
-CONST_1_01 = 1.01
-
-CONST_1_2 = 1.2
-
-CONST_1_3 = 1.3
-
-CONST_1_5 = 1.5
-
-CONST_5 = 5
-
-CONST_12 = 12
-
-CONST_14 = 14
-
-CONST_20 = 20
-
-
-
 """
 股票池每日扫描服务
 
@@ -87,18 +30,7 @@ class PoolScannerService:
             'min_score': 70,  # 最低评分
         }
 
-# TODO: Split long function (105 lines, target < 100)
-    # TODO: 长函数 116行 - 建议拆分为多个小函数
-
     def scan_pool(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         pool_id: int,
         strategy_ids: Optional[List[int]] = None,
@@ -115,7 +47,7 @@ class PoolScannerService:
         Returns:
             扫描结果字典
         """
-        from application.services.strategy_code_service import StrategyCodeService
+                from application.services.strategy_code_service import StrategyCodeService
 
         if self._pool_repo is None:
             from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
@@ -154,8 +86,6 @@ class PoolScannerService:
                     from application.services.pool_signal_scanner import PoolSignalScanner
 
                     # 获取 Repository 实例
-                    # TODO: 提取嵌套逻辑为独立方法
-
                     if self._kline_repo is None or self._strategy_repo is None:
                         from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
                         kline_repo = self._kline_repo or EnhancedServiceFactory.resolve(IKlineRepository)
@@ -207,63 +137,7 @@ class PoolScannerService:
 
         return result
 
-    def _validate__check_signal_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _check_signal 移到这里
-        return True, None
-
-    def _process__check_signal_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _check_signal 移到这里
-        return data
-
-    def _build__check_signal_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _check_signal 移到这里
-        return data
-
-    def _validate__check_signal_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _check_signal 移到这里
-        return True, None
-
-    def _process__check_signal_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _check_signal 移到这里
-        return data
-
-    def _build__check_signal_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _check_signal 移到这里
-        return data
-
-# TODO: Split long function (208 lines, target < 100)
-# TODO: Refactor - complexity 31 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 31 (target < 15)
-    # TODO: Split long function (208 lines, target < 100)
-    # TODO: Refactor - complexity 31 (target < 15)
-    # TODO: Split long function (208 lines, target < 100)
-    # TODO: 复杂度 31 - 需要重构拆分为更小的函数
-# TODO: 长函数 224行 - 建议拆分为多个小函数
-
-
     def _check_signal(self, symbol: str, strategy_id: int) -> Optional[Dict]:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
-        # ---- Section 8 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
         """
         检查单只股票的策略信号（重构版：策略模式）
 
@@ -275,7 +149,7 @@ class PoolScannerService:
             信号详情，如果无信号返回None
         """
         try:
-            from domain.strategies.strategy_factory import StrategyFactory
+                        from domain.strategies.strategy_factory import StrategyFactory
             from datetime import datetime, timedelta
 
             # 1. 获取K线数据
@@ -321,7 +195,7 @@ class PoolScannerService:
             信号详情，如果无信号返回None
         """
         try:
-            import pandas as pd
+                        import pandas as pd
             import numpy as np
             from datetime import datetime, timedelta
 
@@ -416,7 +290,9 @@ class PoolScannerService:
                 if buy_signal:
                     # 计算评分
                     score = 70
-                    if rsi < 45: score +=  and vol_ratio > 1.5: score += :
+                    if rsi < 45: score += 5
+                    if rsi < 40: score += 5
+                    if vol_ratio > 1.5: score += 5
                     if vol_ratio > 2.0: score += 5
                     if macd > 0.5: score += 5
 

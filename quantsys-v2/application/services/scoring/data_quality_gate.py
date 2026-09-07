@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-CONST_20 = 20
-
-CONST_120 = 120
-
-
-
-CONST_4 = 4
-
-CONST_20 = 20
-
-CONST_120 = 120
-
-
-
 """
 数据质量门（DataQualityGate）
 
@@ -98,7 +73,9 @@ class DataQualityGate:
     @staticmethod
     def _is_clean(bar: Dict, is_recent: bool = True) -> bool:
         try:
-            if float(bar.get('close') or 0) <= 0 and is_recent:
+            if float(bar.get('close') or 0) <= 0:
+                return False
+            if is_recent:
                 vol = float(bar.get('volume') or 0)
                 amt = bar.get('amount')
                 if amt is not None and vol > 0 and float(amt) == 0:

@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_10_5 = 10.5
-
-CONST_1000000 = 1000000
-
-
-
-CONST_10_5 = 10.5
-
-CONST_1000000 = 1000000
-
-
-
 """
 条件监控服务 - ORM版本
 基于规则表达式监控市场、持仓、策略等条件，触发自动化任务
@@ -295,48 +274,49 @@ class ConditionMonitorService:
             return actual == threshold
         elif op == '!=':
             return actual != threshold
-        return False
+        else:
+            return False
 
-def get_rule_history(self, rule_name: str, limit: int = 100) -> List[Dict]:
-    """获取规则的历史结果
+    def get_rule_history(self, rule_name: str, limit: int = 100) -> List[Dict]:
+        """获取规则的历史结果
 
-    Args:
-        rule_name: 规则名称
-        limit: 返回数量限制
+        Args:
+            rule_name: 规则名称
+            limit: 返回数量限制
 
-    Returns:
-        历史结果列表
-    """
-    try:
-        rule = self.rule_repo.get_rule_by_name(rule_name)
-        if not rule:
+        Returns:
+            历史结果列表
+        """
+        try:
+            rule = self.rule_repo.get_rule_by_name(rule_name)
+            if not rule:
+                return []
+
+            results = self.result_repo.get_results_by_rule(rule.rule_id, limit)
+            return [r.to_dict() for r in results]
+        except Exception as e:
+            logger.error(f"Error getting rule history: {e}")
             return []
 
-        results = self.result_repo.get_results_by_rule(rule.rule_id, limit)
-        return [r.to_dict() for r in results]
-    except Exception as e:
-        logger.error(f"Error getting rule history: {e}")
-        return []
+    def get_triggered_history(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        limit: int = 100
+    ) -> List[Dict]:
+        """获取触发历史
 
-def get_triggered_history(
-    self,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
-    limit: int = 100
-) -> List[Dict]:
-    """获取触发历史
+        Args:
+            start_time: 开始时间
+            end_time: 结束时间
+            limit: 返回数量限制
 
-    Args:
-        start_time: 开始时间
-        end_time: 结束时间
-        limit: 返回数量限制
-
-    Returns:
-        触发历史列表
-    """
-    try:
-        results = self.result_repo.get_triggered_results(start_time, end_time, limit)
-        return [r.to_dict() for r in results]
-    except Exception as e:
-        logger.error(f"Error getting triggered history: {e}")
-        return []
+        Returns:
+            触发历史列表
+        """
+        try:
+            results = self.result_repo.get_triggered_results(start_time, end_time, limit)
+            return [r.to_dict() for r in results]
+        except Exception as e:
+            logger.error(f"Error getting triggered history: {e}")
+            return []

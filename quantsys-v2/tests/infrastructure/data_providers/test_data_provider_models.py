@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_1200 = 1200
-CONST_15 = 15
-CONST_1850_5 = 1850.5
-CONST_20 = 20
-CONST_2026 = 2026
-CONST_25_5 = 25.5
-CONST_2500 = 2500
-CONST_30 = 30
-CONST_30_5 = 30.5
-CONST_600519 = 600519
-
 """Tests for data models."""
 import pytest
 from datetime import datetime

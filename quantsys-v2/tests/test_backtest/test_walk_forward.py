@@ -1,15 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000 = 10000
-CONST_20 = 20
-CONST_200 = 200
-CONST_2024 = 2024
-CONST_252 = 252
-CONST_30 = 30
-CONST_42 = 42
-CONST_50 = 50
-
 """
 Walk-Forward分析测试 - Team C
 """

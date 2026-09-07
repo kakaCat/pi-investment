@@ -46,9 +46,13 @@ def main():
 
     def _to_native(val):
         import numpy as _np
-        if isinstance(val, dict) and isinstance(val, (list, tuple)):
+        if isinstance(val, dict):
+            return {k: _to_native(v) for k, v in val.items()}
+        if isinstance(val, (list, tuple)):
             return [_to_native(v) for v in val]
-        if isinstance(val, _np.floating) and isinstance(val, _np.integer):
+        if isinstance(val, _np.floating):
+            return float(val)
+        if isinstance(val, _np.integer):
             return int(val)
         if isinstance(val, _np.bool_):
             return bool(val)

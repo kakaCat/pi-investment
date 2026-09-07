@@ -1,25 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_0_5 = 0.5
-
-CONST_0_9 = 0.9
-
-CONST_4 = 4
-
-CONST_14 = 14
-
-CONST_30 = 30
-
-CONST_70 = 70
-
-
-
 """
 RSI反转策略 (RSI Reversal)
 

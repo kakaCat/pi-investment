@@ -1,14 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12_0 = 12.0
-CONST_150 = 150
-CONST_200 = 200
-CONST_5_0 = 5.0
-CONST_50 = 50
-CONST_600000 = 600000
-CONST_999 = 999
-
 # tests/domain/trading/test_order_service.py
 import pytest
 from unittest.mock import Mock, MagicMock

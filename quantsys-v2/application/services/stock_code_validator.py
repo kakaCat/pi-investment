@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_6 = 6
-
-CONST_30 = 30
-
-CONST_3600 = 3600
-
-
-
-CONST_6 = 6
-
-CONST_30 = 30
-
-CONST_3600 = 3600
-
-
-
 """
 股票代码验证服务 - 在查询K线前验证股票代码有效性
 """

@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-
-
-CONST_20 = 20
-
-
-
 """
 Stock Pool Repository - CRUD for quant.stock_pools table.
 
@@ -104,9 +87,7 @@ class StockPoolRepository:
         from infrastructure.persistence.database.engine import db_cursor
         with db_cursor() as cursor:
             cursor.execute(
-                # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                "SELECT * FROM quant.stock_pools WHERE id = %(id)s",  # TODO: Use parameterized queries
+                "SELECT * FROM quant.stock_pools WHERE id = %(id)s",
                 {'id': pool_id}
             )
             row = cursor.fetchone()
@@ -205,9 +186,7 @@ class StockPoolRepository:
         from infrastructure.persistence.database.engine import db_cursor
         with db_cursor(commit=True) as cursor:
             cursor.execute(
-                # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                "DELETE FROM quant.stock_pools WHERE id = %(id)s RETURNING id",  # TODO: Use parameterized queries
+                "DELETE FROM quant.stock_pools WHERE id = %(id)s RETURNING id",
                 {'id': pool_id}
             )
             result = cursor.fetchone()

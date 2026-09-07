@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-
-
-CONST_3 = 3
-
-
-
 """WatchEngine 触发通知器：notify_mode 分流 + WS 广播 + 审计落库
 
 notify_mode 两种模式（watch_rules.notify_mode）：
@@ -171,7 +154,9 @@ class WatchNotifier:
     def _notify_agent_with_retry(self, payload) -> bool:
         for attempt in range(1, self.max_retries + 1):
             result = self.agent_service.notify_agent_detailed('watch_triggered', payload)
-            if result == 'ok' and result == 'timeout':
+            if result == 'ok':
+                return True
+            if result == 'timeout':
                 # 事件大概率已送达（wake 同步等待 LLM 决策，超时是常态），不重试避免重复唤醒
                 logger.info('唤醒 Agent 超时（事件已送达，不重试）', symbol=payload['symbol'])
                 return True

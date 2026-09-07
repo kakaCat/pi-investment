@@ -204,10 +204,6 @@ def scan_project(root_dir: Path) -> ThreadAnalysisResult:
     return result
 
 
-# TODO: Refactor - function too long (116 lines, target < 80)
-
-# TODO: 长函数 116行 - 建议拆分为多个小函数
-
 def print_report(result: ThreadAnalysisResult, verbose: bool = False):
     """打印分析报告"""
     print("=" * 80)
@@ -248,7 +244,9 @@ def print_report(result: ThreadAnalysisResult, verbose: bool = False):
             if verbose:
                 for usage in usages:
                     issues = []
-                    if not usage.has_name and not usage.has_daemon:
+                    if not usage.has_name:
+                        issues.append("缺少name")
+                    if not usage.has_daemon:
                         issues.append("未设置daemon")
                     if not usage.has_join:
                         issues.append("未调用join()")

@@ -1,25 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_60 = 60
-
-CONST_300 = 300
-
-
-
-CONST_60 = 60
-
-CONST_300 = 300
-
-
-
 """
 监控和自动终止挂起的 idle in transaction 连接
 
@@ -111,9 +90,7 @@ def terminate_connection(pid):
     """
     with get_connection() as conn:
         with conn.cursor() as cur:
-            # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-            cur.execute("SELECT pg_terminate_backend(%s)", (pid,))  # TODO: Use parameterized queries
+            cur.execute("SELECT pg_terminate_backend(%s)", (pid,))
             result = cur.fetchone()[0]
             conn.commit()
             return result

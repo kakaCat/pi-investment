@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_1600 = 1600
-CONST_200 = 200
-CONST_2022 = 2022
-CONST_240 = 240
-CONST_3 = 3
-CONST_30 = 30
-CONST_4 = 4
-CONST_5432 = 5432
-CONST_6 = 6
-CONST_600000 = 600000
-
 #!/usr/bin/env python3
 """
 从新浪源回填 daily_klines 缺失的历史K线数据（M3-2 数据地基修复）
@@ -56,7 +42,9 @@ BACKFILL_START = "2022-06-01"
 
 def sina_symbol(code: str) -> str:
     """A股代码 → 新浪带交易所前缀代码"""
-    if code.startswith(("6", "9")) and code.startswith(("0", "3")):
+    if code.startswith(("6", "9")):
+        return f"sh{code}"
+    if code.startswith(("0", "3")):
         return f"sz{code}"
     if code.startswith(("4", "8")):
         return f"bj{code}"
@@ -120,15 +108,11 @@ def main():
                 r,
             )
             if cur.rowcount > 0:
-                # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                inserted += 1  # TODO: Use parameterized queries
+                inserted += 1
             else:
                 skipped += 1
         conn.commit()
-        # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-        total_inserted += inserted  # TODO: Use parameterized queries
+        total_inserted += inserted
         total_skipped += skipped
         print(f"[OK] {code}: 新浪拉取 {len(klines)} 条, 区间内 {len(rows)} 条, 新插入 {inserted}, 已存在跳过 {skipped}")
 

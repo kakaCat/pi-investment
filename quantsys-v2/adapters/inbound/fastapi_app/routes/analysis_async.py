@@ -1,62 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - sector_aggregate() = 103 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.02, 0.3, 0.4, 0.5, 0.92]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_02 = 0.02
-
-CONST_0_3 = 0.3
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_0_92 = 0.92
-
-CONST_0_95 = 0.95
-
-CONST_1_1 = 1.1
-
-CONST_1_2 = 1.2
-
-CONST_1_3 = 1.3
-
-CONST_3 = 3
-
-
-
-CONST_0_02 = 0.02
-
-CONST_0_3 = 0.3
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_0_92 = 0.92
-
-CONST_0_95 = 0.95
-
-CONST_1_1 = 1.1
-
-CONST_1_2 = 1.2
-
-CONST_1_3 = 1.3
-
-CONST_3 = 3
-
-
-
 """分析 API - FastAPI 版（迁移 web 实际使用的分析端点，响应契约保持一致）
 
 覆盖：/api/backtest（backtest.py）、/api/compute/factors（jobs.py）、
@@ -85,50 +26,7 @@ router = APIRouter(tags=["Analysis - 分析"])
 # ============ /api/backtest（backtest.py） ============
 
 @router.post('/api/backtest')
-# TODO: Refactor - complexity 37 (target < 15)
-
-def _validate_run_backtest_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 run_backtest 移到这里
-    return True, None
-
-def _process_run_backtest_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 run_backtest 移到这里
-    return data
-
-def _build_run_backtest_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 run_backtest 移到这里
-    return data
-
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 37 (target < 15)
-# TODO: 复杂度 37 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 103行 - 建议拆分为多个小函数
-
-def _validate_run_backtest_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_run_backtest_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_run_backtest_result(data):
-    """构建返回结果"""
-    return data
-
 def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     """运行回测 - 支持 strategy_name、strategy_id 或 indicator_id"""
     from adapters.shared.backtest_helpers import (
         save_simple_backtest, run_pe_mean_reversion_backtest, run_pb_mean_reversion_backtest,
@@ -149,8 +47,6 @@ def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
     if 'strategy_id' in data and 'strategy_name' not in data:
         try:
             strat = strategy_service.get_strategy(int(data['strategy_id']))
-            # TODO: 提取嵌套逻辑为独立方法
-
             if not strat:
                 return error_response({'error': f'策略不存在: {data["strategy_id"]}'}, 404)
             data['strategy_name'] = strat.get('name') or f"strategy_{data['strategy_id']}"
@@ -183,17 +79,17 @@ def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
 
     required = ['strategy_name', 'symbol', 'start_date', 'end_date', 'initial_capital']
     for field in required:
-        # Validation checks
         if field not in data:
             return error_response({'error': f'缺少必需参数: {field}'}, 400)
 
     strategy_name = data['strategy_name'].lower()
     if 'indicator' not in strategy_name:
         if 'ma' in strategy_name or 'cross' in strategy_name:
-            if 'ma_short' not in data and 'ma_long' not in data:
+            if 'ma_short' not in data:
+                return error_response({'error': '移动平均策略缺少参数: ma_short (或 fastPeriod)'}, 400)
+            if 'ma_long' not in data:
                 return error_response({'error': '移动平均策略缺少参数: ma_long (或 slowPeriod)'}, 400)
         elif 'rsi' in strategy_name:
-            # Validation checks
             if 'rsi_period' not in data:
                 return error_response({'error': 'RSI策略缺少参数: rsi_period (或 rsiPeriod)'}, 400)
 
@@ -225,40 +121,7 @@ def run_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
 
 # ============ /api/compute/factors（jobs.py） ============
 
-# TODO: Refactor - complexity 17 (target < 15)
-
 @router.post('/api/compute/factors')
-def _validate_compute_factors_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 compute_factors 移到这里
-    return True, None
-
-def _process_compute_factors_data(data):
-    """处理数据转换"""
-    def _validate_compute_factors_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_compute_factors_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_compute_factors_result(data):
-        """构建返回结果"""
-        return data
-
-    # TODO: 将数据处理逻辑从 compute_factors 移到这里
-    return data
-
-def _build_compute_factors_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 compute_factors 移到这里
-    return data
- # REFACTOR: Split this function into smaller pieces
-# TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-
-# TODO: Refactor - complexity 17 (target < 15)
 def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
     """计算因子（支持单个symbol或批量symbols）"""
     from adapters.shared.fund_flow_helpers import (
@@ -276,7 +139,9 @@ def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
             include_fundamental = True
 
     all_symbols = list(symbols) if symbols else []
-    if symbol and symbol not in all_symbols and not all_symbols:
+    if symbol and symbol not in all_symbols:
+        all_symbols.append(symbol)
+    if not all_symbols:
         return error_response({'error': '缺少symbol或symbols参数'}, 400)
 
     try:
@@ -297,7 +162,9 @@ def compute_factors(payload: Optional[Dict[str, Any]] = Body(None)):
                 financial_data = _fetch_financial_data(sym)
             stage = FactorStage(name="factors", factor_names=requested_factors if requested_factors else None)
             stage_input = {'symbol': sym, 'klines': klines}
-            if financial_data and requested_factors:
+            if financial_data:
+                stage_input['financial_data'] = financial_data
+            if requested_factors:
                 stage_input['requested_factors'] = requested_factors
             result = stage.process(stage_input)
             factors = result.get('factors', {})
@@ -324,7 +191,9 @@ def get_technical_indicators(symbol: str, indicators: Optional[str] = Query(None
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
         klines_df = kline_repo.get_daily_klines(symbol, start_date, end_date)
-        if klines_df is None or klines_df.is_empty() and len(klines_df) < 20:
+        if klines_df is None or klines_df.is_empty():
+            return error_response({'error': f'No kline data for {symbol}'}, 404)
+        if len(klines_df) < 20:
             return error_response({
                 'error': f'Insufficient data for {symbol} (need 20+ days, got {len(klines_df)})'}, 400)
         klines = klines_df.to_dicts()
@@ -339,42 +208,9 @@ def get_technical_indicators(symbol: str, indicators: Optional[str] = Query(None
     except Exception as e:
         return error_response({'error': str(e)}, 500)
 
-def _validate__annotate_stale_factors_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process__annotate_stale_factors_data(data):
-    """处理数据转换"""
-    return data
-
-def _build__annotate_stale_factors_result(data):
-    """构建返回结果"""
-    return data
-
-
-# TODO: Refactor - complexity 18 (target < 15)
 
 # ============ /api/stock/{symbol}/factors（analysis.py） ============
 
-def _validate__annotate_stale_factors_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _annotate_stale_factors 移到这里
-    return True, None
-
-def _process__annotate_stale_factors_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _annotate_stale_factors 移到这里
-    return data
-
-def _build__annotate_stale_factors_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _annotate_stale_factors 移到这里
-    # TODO: 复杂度 18 - 需要重构拆分为更小的函数
-
-    # REFACTOR: Split this function into smaller pieces
-    return data
-
-# TODO: Refactor - complexity 18 (target < 15)
 def _annotate_stale_factors(symbol: str, factors: Any, max_stale_trading_days: int = 5):
     """M0-5（RFC003 审核遗留）：标注陈旧因子，防止陈旧零值被当成真实值误导决策。
 
@@ -433,18 +269,6 @@ def _annotate_stale_factors(symbol: str, factors: Any, max_stale_trading_days: i
             if f['stale']:
                 stale_names.append(f.get('factor_name'))
         summary = {
-            def _validate_get_stock_factors_input(*args, **kwargs):
-                """验证输入参数"""
-                pass
-
-            def _process_get_stock_factors_data(data):
-                """处理数据转换"""
-                return data
-
-            def _build_get_stock_factors_result(data):
-                """构建返回结果"""
-                return data
-
             'factor_ref_date': ref_date,
             'stale_threshold_trading_days': max_stale_trading_days,
             'stale_factors': sorted(n for n in stale_names if n),
@@ -453,34 +277,9 @@ def _annotate_stale_factors(symbol: str, factors: Any, max_stale_trading_days: i
         logger.warning(f"陈旧因子标注失败({symbol}): {e}")
     return dicts, summary
 
-# TODO: Refactor - complexity 19 (target < 15)
-
 
 @router.get('/api/stock/{symbol}/factors')
 @router.get('/api/stocks/{symbol}/factors')
-def _validate_get_stock_factors_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 get_stock_factors 移到这里
-    return True, None
-
-def _process_get_stock_factors_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 get_stock_factors 移到这里
-    return data
-
-def _build_get_stock_factors_result(data):
-    """构建返回结果"""
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: 将结果构建逻辑从 get_stock_factors 移到这里
-    return data
-# TODO: 复杂度 20 - 需要重构拆分为更小的函数
-
-
-def _check_condition_0():
-    """Check: not date and isinstance(factors, list) and factors..."""
-    return not date and isinstance(factors, list) and factors
-
-# TODO: Refactor - complexity 20 (target < 15)
 def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
     """获取股票因子分析（与 Flask analysis.py 一致）"""
     try:
@@ -491,8 +290,9 @@ def get_stock_factors(symbol: str, date: Optional[str] = Query(None)):
 
         # M0-5：仅"最新因子"路径做陈旧标注；指定日期查询是历史快照，无需标注
         stale_summary: Dict[str, Any] = {}
-        if not date and isinstance(factors, list) and factors and _check_condition_0():
-            pass  # TODO: implement
+        if not date and isinstance(factors, list) and factors:
+            factors, stale_summary = _annotate_stale_factors(symbol, factors)
+
         # 兼容 ORM 对象和字典（get_by_symbol 可能返回 ORM 对象）
         if stock_info is None:
             stock_name, market = '', ''
@@ -608,7 +408,8 @@ def _get_exit_recommendation(profit_pct):
         return {'action': '分批止盈', 'reason': '建议卖出30%锁定利润', 'urgency': 'medium'}
     elif profit_pct < 30:
         return {'action': '继续减仓', 'reason': '建议再卖出30%', 'urgency': 'medium'}
-    return {'action': '大部止盈', 'reason': '建议卖出剩余持仓的大部分', 'urgency': 'high'}
+    else:
+        return {'action': '大部止盈', 'reason': '建议卖出剩余持仓的大部分', 'urgency': 'high'}
 
 
 def _format_exit_plan(plan):
@@ -998,18 +799,6 @@ def screening_quality(sector: str = Query(''),
 
     screening_service = StockScreeningService(scoring_service=scoring_service)
     result = screening_service.screen_stocks(criteria)
-def _validate_calculate_risk_metrics_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_calculate_risk_metrics_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_calculate_risk_metrics_result(data):
-    """构建返回结果"""
-    return data
-
 
     # 如果指定了行业，进行过滤
     if sector and 'stocks' in result:
@@ -1030,43 +819,11 @@ def risk_stress_test():
         410)
 
 
-# TODO: Refactor - complexity 20 (target < 15)
-
 # ============ /api/risk/metrics（analysis.py） ============
 
 @router.post('/api/risk/metrics')
 @handle_api_error
-def _validate_calculate_risk_metrics_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 calculate_risk_metrics 移到这里
-    return True, None
-
-def _process_calculate_risk_metrics_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 calculate_risk_metrics 移到这里
-    return data
-
-# TODO: 复杂度 20 - 需要重构拆分为更小的函数
-
-def _build_calculate_risk_metrics_result(data):
-    # REFACTOR: Split this function into smaller pieces
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 calculate_risk_metrics 移到这里
-    return data
-
-# TODO: Extract 4 validation checks to _validate_calculate_risk_metrics()
-# TODO: 长函数 102行 - 建议拆分为多个小函数
-
-# TODO: Refactor - complexity 20 (target < 15)
 def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     """计算风险指标 - 使用 empyrical 标准算法
 
     支持两种调用模式：
@@ -1104,7 +861,9 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
                     end_date = datetime.now().strftime('%Y-%m-%d')
                     start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
                     klines = kline_repo.get_daily_klines(symbol, start_date, end_date)
-                    if klines is not None and hasattr(klines, 'to_dicts') and klines and len(klines) >= 2:
+                    if klines is not None and hasattr(klines, 'to_dicts'):
+                        klines = klines.to_dicts()
+                    if klines and len(klines) >= 2:
                         # 计算日收益率序列
                         for i in range(1, len(klines)):
                             prev_close = float(klines[i - 1].get('close', 0))
@@ -1128,18 +887,6 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
                 'success': False,
                 'error': f'获取账户收益率失败: {str(e)}'
             }, 500)
-
-    def _validate_factor_analyze_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_factor_analyze_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_factor_analyze_result(data):
-        """构建返回结果"""
-        return data
 
     if not returns:
         return error_response({
@@ -1171,45 +918,12 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
             'error': str(e)
         }, 500)
 
-# TODO: Refactor - complexity 22 (target < 15)
-
 
 # ============ /api/portfolio/factor-analyze（analysis.py） ============
 
 @router.post('/api/portfolio/factor-analyze')
 @handle_api_error
-# TODO: Refactor - function too long (101 lines, target < 80)
-
-def _validate_factor_analyze_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 factor_analyze 移到这里
-    return True, None
-
-def _process_factor_analyze_data(data):
-    """处理数据转换"""
-    # TODO: 复杂度 22 - 需要重构拆分为更小的函数
-
-    # TODO: 将数据处理逻辑从 factor_analyze 移到这里
-    return data
-
-# REFACTOR: Split this function into smaller pieces
-def _build_factor_analyze_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 factor_analyze 移到这里
-    return data
-# TODO: 长函数 109行 - 建议拆分为多个小函数
-
-
-# TODO: Refactor - complexity 22 (target < 15)
 def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     """因子分析 - v2 增强版（集成 alphalens）"""
     data = payload or {}
 
@@ -1261,7 +975,9 @@ def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
                 forward_returns = []
 
                 for symbol, klines_df in klines_map.items():
-                    if klines_df is None and isinstance(klines_df, (list, tuple)):
+                    if klines_df is None:
+                        continue
+                    if isinstance(klines_df, (list, tuple)):
                         if len(klines_df) < 30:
                             continue
                         klines_df = pd.DataFrame(klines_df)
@@ -1270,18 +986,6 @@ def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
                     elif hasattr(klines_df, 'is_empty') and klines_df.is_empty():
                         continue
                     elif len(klines_df) < 30:
-                        def _validate_sector_aggregate_input(*args, **kwargs):
-                            """验证输入参数"""
-                            pass
-
-                        def _process_sector_aggregate_data(data):
-                            """处理数据转换"""
-                            return data
-
-                        def _build_sector_aggregate_result(data):
-                            """构建返回结果"""
-                            return data
-
                         continue
                     try:
                         close = klines_df['close'].to_numpy()
@@ -1320,49 +1024,13 @@ def factor_analyze(payload: Optional[Dict[str, Any]] = Body(None)):
         })
     except Exception as e:
         return error_response({'success': False, 'error': f'因子分析失败: {str(e)}'}, 500)
-# TODO: Refactor - complexity 20 (target < 15)
-
 
 
 # ============ /api/portfolio/sector-aggregate（analysis.py） ============
 
 @router.post('/api/portfolio/sector-aggregate')
-# TODO: Refactor - function too long (104 lines, target < 80)
-
 @handle_api_error
-def _validate_sector_aggregate_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 sector_aggregate 移到这里
-    return True, None
-
-def _process_sector_aggregate_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 sector_aggregate 移到这里
-    # TODO: 复杂度 20 - 需要重构拆分为更小的函数
-
-    return data
- # REFACTOR: Split this function into smaller pieces
-
-def _build_sector_aggregate_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 sector_aggregate 移到这里
-    return data
-
-# TODO: Refactor - complexity 20 (target < 15)
-# TODO: 长函数 112行 - 建议拆分为多个小函数
-
-# TODO: Split long function (103 lines, target < 100)
-# TODO: Refactor - complexity 20 (target < 15)
-# TODO: Split long function (103 lines, target < 100)
 def sector_aggregate(payload: Optional[Dict[str, Any]] = Body(None)):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     """行业聚合分析 - v2 原生实现（按行业或板块聚合估值、质量、负债率和信号数量）"""
     try:
         data = payload or {}

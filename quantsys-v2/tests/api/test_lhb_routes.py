@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_50 = 10.50
-CONST_200 = 200
-CONST_2026 = 2026
-CONST_30 = 30
-CONST_31 = 31
-CONST_400 = 400
-CONST_5000_0 = 5000.0
-CONST_600737 = 600737
-CONST_8_5 = 8.5
-CONST_999999 = 999999
-
 """
 LHB API 路由集成测试
 """

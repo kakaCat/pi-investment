@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_11 = 11
-CONST_15 = 15
-CONST_20 = 20
-CONST_25 = 25
-CONST_3 = 3
-CONST_3_0 = 3.0
-CONST_30 = 30
-CONST_30_0 = 30.0
-CONST_300 = 300
-CONST_4 = 4
-
 import pytest
 import pandas as pd
 import numpy as np

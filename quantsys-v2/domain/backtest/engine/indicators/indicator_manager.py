@@ -1,8 +1,5 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Unified indicator manager with auto-fallback (Custom → TA-Lib → pandas-ta)."""
+from __future__ import annotations
 import logging
 from typing import Any
 

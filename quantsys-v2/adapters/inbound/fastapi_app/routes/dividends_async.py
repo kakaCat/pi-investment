@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3_0 = 3.0
-
-CONST_5 = 5
-
-CONST_400 = 400
-
-
-
-CONST_3_0 = 3.0
-
-CONST_5 = 5
-
-CONST_400 = 400
-
-
-
 """分红数据 API — migrated to DataProviderManager."""
 from typing import Any, Dict, Optional
 

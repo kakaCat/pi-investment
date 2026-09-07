@@ -1,29 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_70 = 70
-
-CONST_80 = 80
-
-
-
-CONST_3 = 3
-
-CONST_70 = 70
-
-CONST_80 = 80
-
-
-
 """批量重构助手 - 自动重构数据源直接导入
 
 这个工具可以自动将直接导入 akshare/tushare 的代码重构为使用 DataProviderManager
@@ -96,9 +71,7 @@ def add_import_if_needed(content: str) -> str:
     # 在最后一个 import 后添加
     if last_import_idx >= 0:
         import_line = 'from adapters.outbound.datasources.manager import get_data_provider_manager'
-        # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-        lines.insert(last_import_idx + 1, import_line)  # TODO: Use parameterized queries
+        lines.insert(last_import_idx + 1, import_line)
         return '\n'.join(lines)
     
     return content

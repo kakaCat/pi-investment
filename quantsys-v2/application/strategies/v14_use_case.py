@@ -1,7 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 V14 strategy use case — application-level orchestration.
 
@@ -10,6 +6,7 @@ Same daily workflow as V13 (:class:`XGBoostStrategyUseCase`) driven by
 business logic lives in the domain ``XGBoostStrategy``; this layer only
 wires it to infrastructure.
 """
+from __future__ import annotations
 
 from application.strategies.v13_use_case import XGBoostStrategyUseCase
 from application.strategies.v14_config import V14_CONFIG

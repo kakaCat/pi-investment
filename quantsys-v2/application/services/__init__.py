@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 # QuantSys V2 Services
 #
 # 不在此做 `from . import order_service` 等急切导入（2026-08-20 segfault 修复）：

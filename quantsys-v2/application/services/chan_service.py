@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_45 = 0.45
-
-CONST_0_6 = 0.6
-
-CONST_365 = 365
-
-
-
-CONST_0_45 = 0.45
-
-CONST_0_6 = 0.6
-
-CONST_365 = 365
-
-
-
 """缠论分析服务"""
 from domain.ports import IAgentKnowledgeRepository, IKlineRepository
 from datetime import datetime, timedelta
@@ -70,7 +45,9 @@ class ChanService:
             缠论分析结果
         """
         # 默认日期范围
-        if not end_date and not start_date:
+        if not end_date:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+        if not start_date:
             start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
 
         # 获取K线数据

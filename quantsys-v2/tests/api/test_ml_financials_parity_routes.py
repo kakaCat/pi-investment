@@ -1,16 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_11 = 11
-CONST_20 = 20
-CONST_2026 = 2026
-CONST_31 = 31
-CONST_4 = 4
-CONST_404 = 404
-CONST_5 = 5
-CONST_500 = 500
-CONST_5001 = 5001
-
 """FastAPI parity 路由测试：/api/ml/models + /api/v2/stock/{symbol}/financials
 
 回归背景（2026-08-11）：5001 切 FastAPI 后这两个端点只剩 Flask 实现，

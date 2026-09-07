@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000 = 10000
-CONST_101 = 101
-CONST_102 = 102
-CONST_103 = 103
-CONST_104 = 104
-CONST_105 = 105
-CONST_106 = 106
-CONST_107 = 107
-CONST_108 = 108
-CONST_109 = 109
-
 """
 Tests for GPUFactorCalculator - GPU-accelerated factor calculations
 """
@@ -48,9 +34,6 @@ def sample_ohlc_data():
         'volume': volume
     })
 
-
-# TODO: Refactor large class (44 methods, target < 20)
-# TODO: 大类 44个方法 - 考虑拆分为多个类或使用组合模式
 
 class TestGPUFactorCalculator:
     """Test suite for GPUFactorCalculator"""

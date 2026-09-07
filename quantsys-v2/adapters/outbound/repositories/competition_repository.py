@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """竞争分析 Repository - 行业竞争对手数据访问层
 
 职责：

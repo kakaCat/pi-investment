@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_5 = 10.5
-CONST_11_0 = 11.0
-CONST_120 = 120
-CONST_1610_0 = 1610.0
-CONST_1620_5 = 1620.5
-CONST_2026 = 2026
-CONST_23 = 23
-CONST_3 = 3
-CONST_37 = 37
-CONST_5 = 5
-
 """ChanService 格式化契约测试——防 _format_bi 字段错位复发（线上 500 根因）"""
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch

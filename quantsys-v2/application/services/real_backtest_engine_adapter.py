@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_1000000_0 = 1000000.0
-
-
-
-CONST_1000000_0 = 1000000.0
-
-
-
 """
 RealBacktestEngineAdapter — 真实回测引擎适配器（2026-09-01，E-1/E-3 修复）
 

@@ -76,22 +76,6 @@ class DomainModelAnalyzer(ast.NodeVisitor):
         return str(node)
 
 
-# TODO: Refactor - complexity 21 (target < 15)
-
-# TODO: 复杂度 21 - 需要重构拆分为更小的函数
-
-def _validate_analyze_domain_layer_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_analyze_domain_layer_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_analyze_domain_layer_result(data):
-    """构建返回结果"""
-    return data
-
 def analyze_domain_layer(project_root: Path) -> Dict:
     """分析领域层"""
 
@@ -185,28 +169,12 @@ def analyze_domain_layer(project_root: Path) -> Dict:
                             'framework': framework,
                             'import': imp,
                         })
-def _validate_print_domain_audit_report_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_print_domain_audit_report_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_print_domain_audit_report_result(data):
-    """构建返回结果"""
-    return data
-
 
         except Exception as e:
             # 跳过无法解析的文件
             pass
 
     return results
-
-# TODO: Refactor - complexity 18 (target < 15)
-# TODO: 复杂度 18 - 需要重构拆分为更小的函数
-
 
 
 def print_domain_audit_report(results: Dict):

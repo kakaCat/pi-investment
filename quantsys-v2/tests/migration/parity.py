@@ -16,7 +16,9 @@ DEFAULT_IGNORE: FrozenSet[str] = frozenset({
 
 def normalize(obj: Any, ignore_keys: FrozenSet[str] = DEFAULT_IGNORE) -> Any:
     """递归移除易变字段，返回可比较的结构。"""
-    if isinstance(obj, dict) and isinstance(obj, list):
+    if isinstance(obj, dict):
+        return {k: normalize(v, ignore_keys) for k, v in obj.items() if k not in ignore_keys}
+    if isinstance(obj, list):
         return [normalize(x, ignore_keys) for x in obj]
     return obj
 
@@ -38,9 +40,13 @@ def assert_parity(fastapi_client, method: str, path: str, *,
 
 def structure_of(obj: Any) -> Any:
     """提取 JSON 的结构"形状"（键名 + 类型 + 嵌套），忽略具体值。"""
-    if isinstance(obj, bool) and isinstance(obj, (int, float)):
+    if isinstance(obj, bool):
+        return "<bool>"
+    if isinstance(obj, (int, float)):
         return "<number>"
-    if isinstance(obj, dict) and isinstance(obj, list):
+    if isinstance(obj, dict):
+        return {k: structure_of(v) for k, v in obj.items()}
+    if isinstance(obj, list):
         if not obj:
             return ["<empty>"]
         return [structure_of(obj[0])]

@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-
-
-CONST_20 = 20
-
-
-
 """
 Financial 异步ORM Repository
 
@@ -71,7 +54,9 @@ class FinancialAsyncRepository(AsyncBaseORMRepository[Financial]):
         try:
             stmt = select(Financial)
 
-            if symbol and start_date:
+            if symbol:
+                stmt = stmt.where(Financial.symbol == symbol)
+            if start_date:
                 stmt = stmt.where(Financial.report_date >= start_date)
             if end_date:
                 stmt = stmt.where(Financial.report_date <= end_date)

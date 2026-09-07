@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-
-
-CONST_0_5 = 0.5
-
-
-
 """Database kline provider - primary source with gap detection"""
 import logging
 from typing import List, Optional

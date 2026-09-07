@@ -1,31 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_05 = 0.05
-
-CONST_0_2 = 0.2
-
-CONST_0_5 = 0.5
-
-CONST_0_8 = 0.8
-
-CONST_0_95 = 0.95
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_6 = 6
-
-CONST_5000 = 5000
-
-CONST_10000 = 10000
-
-
-
 """
 Statistical Analysis Module
 ===========================
@@ -519,426 +491,427 @@ class StatisticalAnalyzer(BaseCalculator):
             return lambda x: np.std(x, ddof=1)
         elif statistic == 'sharpe':
             return lambda x: np.mean(x) / np.std(x, ddof=1) if np.std(x, ddof=1) > 0 else 0
-        raise DataValidationError(
-            f"Unknown statistic: {statistic}",
-            "statistic"
-        )
-
-def _interpret_effect_size(self, effect_size: float) -> str:
-    """Interpret Cohen's d effect size."""
-    abs_effect = abs(effect_size)
-    if abs_effect < 0.2:
-        return 'negligible'
-    elif abs_effect < 0.5:
-        return 'small'
-    elif abs_effect < 0.8:
-        return 'medium'
-    else:
-        return 'large'
-
-def _get_normality_recommendation(self, is_normal: bool) -> str:
-    """Get recommendation based on normality test."""
-    if is_normal:
-        return "Data appears normally distributed. Parametric tests (t-test) are appropriate."
-    else:
-        return "Data may not be normally distributed. Consider non-parametric tests (Mann-Whitney, Wilcoxon)."
-
-@validate_inputs
-@timing_decorator
-@handle_calculation_error
-def wilcoxon_test(
-    self,
-    sample1: Union[List, np.ndarray, pd.Series],
-    sample2: Union[List, np.ndarray, pd.Series],
-    alternative: Literal['two-sided', 'less', 'greater'] = 'two-sided'
-) -> Dict:
-    """
-    Perform Wilcoxon signed-rank test (paired non-parametric test).
-
-    Args:
-        sample1: First sample (before)
-        sample2: Second sample (after)
-        alternative: Alternative hypothesis
-
-    Returns:
-        Result dict with test statistic and p-value
-    """
-    # Validate
-    sample1 = self._validate_returns(sample1, "sample1")
-    sample2 = self._validate_returns(sample2, "sample2")
-
-    if len(sample1) != len(sample2):
-        raise DataValidationError(
-            f"Samples must have same length: {len(sample1)} vs {len(sample2)}",
-            "sample_length"
-        )
-
-    self._check_data_length(sample1, min_length=3)
-
-    # Perform Wilcoxon signed-rank test
-    statistic, p_value = stats.wilcoxon(
-        sample1, sample2,
-        alternative=alternative
-    )
-
-    # Calculate differences
-    differences = np.array(sample2) - np.array(sample1)
-    median_diff = np.median(differences)
-
-    # Determine significance
-    alpha = 0.05
-    is_significant = p_value < alpha
-
-    # Effect size (r = Z / sqrt(N))
-    n = len(sample1)
-    z_score = stats.norm.ppf(1 - p_value / 2) if alternative == 'two-sided' else stats.norm.ppf(1 - p_value)
-    effect_size = abs(z_score) / np.sqrt(n)
-
-    return self._create_result_dict(
-        value={
-            'statistic': round(float(statistic), self.precision),
-            'p_value': round(float(p_value), self.precision)
-        },
-        method='wilcoxon_test',
-        parameters={
-            'n_pairs': n,
-            'alternative': alternative
-        },
-        metadata={
-            'is_significant': is_significant,
-            'alpha': alpha,
-            'median_difference': round(median_diff, self.precision),
-            'effect_size': round(effect_size, 4),
-            'test_type': 'non_parametric_paired'
-        }
-    )
-
-@validate_inputs
-@timing_decorator
-@handle_calculation_error
-def ks_test(
-    self,
-    data: Union[List, np.ndarray, pd.Series],
-    distribution: Literal['norm', 'uniform', 'expon'] = 'norm'
-) -> Dict:
-    """
-    Perform Kolmogorov-Smirnov test for goodness of fit.
-
-    Args:
-        data: Sample data
-        distribution: Distribution to test against ('norm', 'uniform', 'expon')
-
-    Returns:
-        Result dict with test statistic and p-value
-    """
-    # Validate
-    data = self._validate_returns(data, "data")
-    self._check_data_length(data, min_length=3)
-
-    # Perform KS test
-    if distribution == 'norm':
-        # Test against normal distribution with sample mean and std
-        statistic, p_value = stats.kstest(
-            data,
-            'norm',
-            args=(np.mean(data), np.std(data, ddof=1))
-        )
-    elif distribution == 'uniform':
-        statistic, p_value = stats.kstest(data, 'uniform')
-    elif distribution == 'expon':
-        statistic, p_value = stats.kstest(data, 'expon')
-    else:
-        raise DataValidationError(
-            f"Unknown distribution: {distribution}",
-            "distribution"
-        )
-
-    # Determine goodness of fit
-    alpha = 0.05
-    is_good_fit = p_value > alpha
-
-    return self._create_result_dict(
-        value={
-            'ks_statistic': round(float(statistic), self.precision),
-            'p_value': round(float(p_value), self.precision)
-        },
-        method='ks_test',
-        parameters={
-            'data_length': len(data),
-            'distribution': distribution
-        },
-        metadata={
-            'is_good_fit': is_good_fit,
-            'alpha': alpha,
-            'conclusion': 'good_fit' if is_good_fit else 'poor_fit',
-            'recommendation': f"Data {'fits' if is_good_fit else 'does not fit'} {distribution} distribution"
-        }
-    )
-
-@validate_inputs
-@timing_decorator
-@handle_calculation_error
-def chi_square_test(
-    self,
-    observed: Union[List, np.ndarray, pd.Series],
-    expected: Optional[Union[List, np.ndarray, pd.Series]] = None
-) -> Dict:
-    """
-    Perform chi-square goodness of fit test.
-
-    Args:
-        observed: Observed frequencies
-        expected: Expected frequencies (None for uniform distribution)
-
-    Returns:
-        Result dict with chi-square statistic and p-value
-    """
-    # Validate
-    observed = np.array(observed)
-
-    if len(observed) < 2:
-        raise DataValidationError(
-            "Need at least 2 categories",
-            "observed"
-        )
-
-    if np.any(observed < 0):
-        raise DataValidationError(
-            "Observed frequencies must be non-negative",
-            "observed"
-        )
-
-    # Set expected frequencies
-    if expected is None:
-        # Uniform distribution
-        expected = np.ones_like(observed) * np.sum(observed) / len(observed)
-    else:
-        expected = np.array(expected)
-        if len(expected) != len(observed):
+        else:
             raise DataValidationError(
-                f"Expected and observed must have same length: {len(expected)} vs {len(observed)}",
-                "expected"
+                f"Unknown statistic: {statistic}",
+                "statistic"
             )
 
-    # Perform chi-square test
-    chi2_stat, p_value = stats.chisquare(observed, expected)
+    def _interpret_effect_size(self, effect_size: float) -> str:
+        """Interpret Cohen's d effect size."""
+        abs_effect = abs(effect_size)
+        if abs_effect < 0.2:
+            return 'negligible'
+        elif abs_effect < 0.5:
+            return 'small'
+        elif abs_effect < 0.8:
+            return 'medium'
+        else:
+            return 'large'
 
-    # Degrees of freedom
-    df = len(observed) - 1
+    def _get_normality_recommendation(self, is_normal: bool) -> str:
+        """Get recommendation based on normality test."""
+        if is_normal:
+            return "Data appears normally distributed. Parametric tests (t-test) are appropriate."
+        else:
+            return "Data may not be normally distributed. Consider non-parametric tests (Mann-Whitney, Wilcoxon)."
 
-    # Determine significance
-    alpha = 0.05
-    is_significant = p_value < alpha
+    @validate_inputs
+    @timing_decorator
+    @handle_calculation_error
+    def wilcoxon_test(
+        self,
+        sample1: Union[List, np.ndarray, pd.Series],
+        sample2: Union[List, np.ndarray, pd.Series],
+        alternative: Literal['two-sided', 'less', 'greater'] = 'two-sided'
+    ) -> Dict:
+        """
+        Perform Wilcoxon signed-rank test (paired non-parametric test).
 
-    return self._create_result_dict(
-        value={
-            'chi_square_statistic': round(float(chi2_stat), self.precision),
-            'p_value': round(float(p_value), self.precision),
-            'degrees_of_freedom': int(df)
-        },
-        method='chi_square_test',
-        parameters={
-            'n_categories': len(observed),
-            'total_observations': int(np.sum(observed))
-        },
-        metadata={
-            'is_significant': is_significant,
-            'alpha': alpha,
-            'conclusion': 'reject_null' if is_significant else 'fail_to_reject',
-            'observed': observed.tolist(),
-            'expected': expected.tolist()
-        }
-    )
+        Args:
+            sample1: First sample (before)
+            sample2: Second sample (after)
+            alternative: Alternative hypothesis
 
-@validate_inputs
-@timing_decorator
-@handle_calculation_error
-def f_test(
-    self,
-    sample1: Union[List, np.ndarray, pd.Series],
-    sample2: Union[List, np.ndarray, pd.Series]
-) -> Dict:
-    """
-    Perform F-test for equality of variances.
+        Returns:
+            Result dict with test statistic and p-value
+        """
+        # Validate
+        sample1 = self._validate_returns(sample1, "sample1")
+        sample2 = self._validate_returns(sample2, "sample2")
 
-    Args:
-        sample1: First sample
-        sample2: Second sample
+        if len(sample1) != len(sample2):
+            raise DataValidationError(
+                f"Samples must have same length: {len(sample1)} vs {len(sample2)}",
+                "sample_length"
+            )
 
-    Returns:
-        Result dict with F-statistic and p-value
-    """
-    # Validate
-    sample1 = self._validate_returns(sample1, "sample1")
-    sample2 = self._validate_returns(sample2, "sample2")
-    self._check_data_length(sample1, min_length=3)
-    self._check_data_length(sample2, min_length=3)
+        self._check_data_length(sample1, min_length=3)
 
-    # Calculate variances
-    var1 = np.var(sample1, ddof=1)
-    var2 = np.var(sample2, ddof=1)
-
-    # F-statistic (larger variance / smaller variance)
-    if var1 >= var2:
-        f_stat = var1 / var2
-        df1 = len(sample1) - 1
-        df2 = len(sample2) - 1
-    else:
-        f_stat = var2 / var1
-        df1 = len(sample2) - 1
-        df2 = len(sample1) - 1
-
-    # Calculate p-value (two-tailed)
-    p_value = 2 * min(
-        stats.f.cdf(f_stat, df1, df2),
-        1 - stats.f.cdf(f_stat, df1, df2)
-    )
-
-    # Determine significance
-    alpha = 0.05
-    is_significant = p_value < alpha
-
-    return self._create_result_dict(
-        value={
-            'f_statistic': round(float(f_stat), self.precision),
-            'p_value': round(float(p_value), self.precision),
-            'df1': int(df1),
-            'df2': int(df2)
-        },
-        method='f_test',
-        parameters={
-            'sample1_size': len(sample1),
-            'sample2_size': len(sample2)
-        },
-        metadata={
-            'is_significant': is_significant,
-            'alpha': alpha,
-            'sample1_variance': round(var1, self.precision),
-            'sample2_variance': round(var2, self.precision),
-            'variance_ratio': round(max(var1, var2) / min(var1, var2), self.precision),
-            'conclusion': 'unequal_variances' if is_significant else 'equal_variances'
-        }
-    )
-
-@validate_inputs
-@timing_decorator
-@handle_calculation_error
-def kruskal_wallis_test(
-    self,
-    *samples: Union[List, np.ndarray, pd.Series]
-) -> Dict:
-    """
-    Perform Kruskal-Wallis H-test (non-parametric one-way ANOVA).
-
-    Args:
-        *samples: Multiple samples to compare
-
-    Returns:
-        Result dict with H-statistic and p-value
-    """
-    if len(samples) < 2:
-        raise DataValidationError(
-            "Need at least 2 samples",
-            "samples"
+        # Perform Wilcoxon signed-rank test
+        statistic, p_value = stats.wilcoxon(
+            sample1, sample2,
+            alternative=alternative
         )
 
-    # Validate all samples
-    validated_samples = []
-    for i, sample in enumerate(samples):
-        validated = self._validate_returns(sample, f"sample{i+1}")
-        self._check_data_length(validated, min_length=3)
-        validated_samples.append(validated)
+        # Calculate differences
+        differences = np.array(sample2) - np.array(sample1)
+        median_diff = np.median(differences)
 
-    # Perform Kruskal-Wallis test
-    h_stat, p_value = stats.kruskal(*validated_samples)
+        # Determine significance
+        alpha = 0.05
+        is_significant = p_value < alpha
 
-    # Degrees of freedom
-    df = len(samples) - 1
+        # Effect size (r = Z / sqrt(N))
+        n = len(sample1)
+        z_score = stats.norm.ppf(1 - p_value / 2) if alternative == 'two-sided' else stats.norm.ppf(1 - p_value)
+        effect_size = abs(z_score) / np.sqrt(n)
 
-    # Determine significance
-    alpha = 0.05
-    is_significant = p_value < alpha
-
-    # Calculate medians
-    medians = [np.median(s) for s in validated_samples]
-
-    return self._create_result_dict(
-        value={
-            'h_statistic': round(float(h_stat), self.precision),
-            'p_value': round(float(p_value), self.precision),
-            'degrees_of_freedom': int(df)
-        },
-        method='kruskal_wallis_test',
-        parameters={
-            'n_groups': len(samples),
-            'group_sizes': [len(s) for s in validated_samples]
-        },
-        metadata={
-            'is_significant': is_significant,
-            'alpha': alpha,
-            'group_medians': [round(m, self.precision) for m in medians],
-            'test_type': 'non_parametric_anova',
-            'conclusion': 'groups_differ' if is_significant else 'groups_similar'
-        }
-    )
-
-@validate_inputs
-@timing_decorator
-@handle_calculation_error
-def bonferroni_correction(
-    self,
-    p_values: Union[List, np.ndarray],
-    alpha: float = 0.05
-) -> Dict:
-    """
-    Apply Bonferroni correction for multiple comparisons.
-
-    Args:
-        p_values: List of p-values from multiple tests
-        alpha: Family-wise error rate
-
-    Returns:
-        Result dict with corrected alpha and significance decisions
-    """
-    p_values = np.array(p_values)
-
-    if len(p_values) < 1:
-        raise DataValidationError(
-            "Need at least 1 p-value",
-            "p_values"
+        return self._create_result_dict(
+            value={
+                'statistic': round(float(statistic), self.precision),
+                'p_value': round(float(p_value), self.precision)
+            },
+            method='wilcoxon_test',
+            parameters={
+                'n_pairs': n,
+                'alternative': alternative
+            },
+            metadata={
+                'is_significant': is_significant,
+                'alpha': alpha,
+                'median_difference': round(median_diff, self.precision),
+                'effect_size': round(effect_size, 4),
+                'test_type': 'non_parametric_paired'
+            }
         )
 
-    if np.any((p_values < 0) | (p_values > 1)):
-        raise DataValidationError(
-            "P-values must be between 0 and 1",
-            "p_values"
+    @validate_inputs
+    @timing_decorator
+    @handle_calculation_error
+    def ks_test(
+        self,
+        data: Union[List, np.ndarray, pd.Series],
+        distribution: Literal['norm', 'uniform', 'expon'] = 'norm'
+    ) -> Dict:
+        """
+        Perform Kolmogorov-Smirnov test for goodness of fit.
+
+        Args:
+            data: Sample data
+            distribution: Distribution to test against ('norm', 'uniform', 'expon')
+
+        Returns:
+            Result dict with test statistic and p-value
+        """
+        # Validate
+        data = self._validate_returns(data, "data")
+        self._check_data_length(data, min_length=3)
+
+        # Perform KS test
+        if distribution == 'norm':
+            # Test against normal distribution with sample mean and std
+            statistic, p_value = stats.kstest(
+                data,
+                'norm',
+                args=(np.mean(data), np.std(data, ddof=1))
+            )
+        elif distribution == 'uniform':
+            statistic, p_value = stats.kstest(data, 'uniform')
+        elif distribution == 'expon':
+            statistic, p_value = stats.kstest(data, 'expon')
+        else:
+            raise DataValidationError(
+                f"Unknown distribution: {distribution}",
+                "distribution"
+            )
+
+        # Determine goodness of fit
+        alpha = 0.05
+        is_good_fit = p_value > alpha
+
+        return self._create_result_dict(
+            value={
+                'ks_statistic': round(float(statistic), self.precision),
+                'p_value': round(float(p_value), self.precision)
+            },
+            method='ks_test',
+            parameters={
+                'data_length': len(data),
+                'distribution': distribution
+            },
+            metadata={
+                'is_good_fit': is_good_fit,
+                'alpha': alpha,
+                'conclusion': 'good_fit' if is_good_fit else 'poor_fit',
+                'recommendation': f"Data {'fits' if is_good_fit else 'does not fit'} {distribution} distribution"
+            }
         )
 
-    alpha = self._validate_probability(alpha, "alpha")
+    @validate_inputs
+    @timing_decorator
+    @handle_calculation_error
+    def chi_square_test(
+        self,
+        observed: Union[List, np.ndarray, pd.Series],
+        expected: Optional[Union[List, np.ndarray, pd.Series]] = None
+    ) -> Dict:
+        """
+        Perform chi-square goodness of fit test.
 
-    # Bonferroni correction
-    n_tests = len(p_values)
-    corrected_alpha = alpha / n_tests
+        Args:
+            observed: Observed frequencies
+            expected: Expected frequencies (None for uniform distribution)
 
-    # Determine significance
-    is_significant = p_values < corrected_alpha
-    n_significant = np.sum(is_significant)
+        Returns:
+            Result dict with chi-square statistic and p-value
+        """
+        # Validate
+        observed = np.array(observed)
 
-    return self._create_result_dict(
-        value={
-            'corrected_alpha': round(corrected_alpha, 6),
-            'n_significant': int(n_significant),
-            'significant_indices': np.where(is_significant)[0].tolist()
-        },
-        method='bonferroni_correction',
-        parameters={
-            'n_tests': n_tests,
-            'original_alpha': alpha
-        },
-        metadata={
-            'p_values': [round(p, 6) for p in p_values],
-            'is_significant': is_significant.tolist(),
-            'correction_factor': n_tests,
-            'recommendation': f"Use α = {corrected_alpha:.6f} for each test to maintain family-wise error rate of {alpha}"
-        }
-    )
+        if len(observed) < 2:
+            raise DataValidationError(
+                "Need at least 2 categories",
+                "observed"
+            )
+
+        if np.any(observed < 0):
+            raise DataValidationError(
+                "Observed frequencies must be non-negative",
+                "observed"
+            )
+
+        # Set expected frequencies
+        if expected is None:
+            # Uniform distribution
+            expected = np.ones_like(observed) * np.sum(observed) / len(observed)
+        else:
+            expected = np.array(expected)
+            if len(expected) != len(observed):
+                raise DataValidationError(
+                    f"Expected and observed must have same length: {len(expected)} vs {len(observed)}",
+                    "expected"
+                )
+
+        # Perform chi-square test
+        chi2_stat, p_value = stats.chisquare(observed, expected)
+
+        # Degrees of freedom
+        df = len(observed) - 1
+
+        # Determine significance
+        alpha = 0.05
+        is_significant = p_value < alpha
+
+        return self._create_result_dict(
+            value={
+                'chi_square_statistic': round(float(chi2_stat), self.precision),
+                'p_value': round(float(p_value), self.precision),
+                'degrees_of_freedom': int(df)
+            },
+            method='chi_square_test',
+            parameters={
+                'n_categories': len(observed),
+                'total_observations': int(np.sum(observed))
+            },
+            metadata={
+                'is_significant': is_significant,
+                'alpha': alpha,
+                'conclusion': 'reject_null' if is_significant else 'fail_to_reject',
+                'observed': observed.tolist(),
+                'expected': expected.tolist()
+            }
+        )
+
+    @validate_inputs
+    @timing_decorator
+    @handle_calculation_error
+    def f_test(
+        self,
+        sample1: Union[List, np.ndarray, pd.Series],
+        sample2: Union[List, np.ndarray, pd.Series]
+    ) -> Dict:
+        """
+        Perform F-test for equality of variances.
+
+        Args:
+            sample1: First sample
+            sample2: Second sample
+
+        Returns:
+            Result dict with F-statistic and p-value
+        """
+        # Validate
+        sample1 = self._validate_returns(sample1, "sample1")
+        sample2 = self._validate_returns(sample2, "sample2")
+        self._check_data_length(sample1, min_length=3)
+        self._check_data_length(sample2, min_length=3)
+
+        # Calculate variances
+        var1 = np.var(sample1, ddof=1)
+        var2 = np.var(sample2, ddof=1)
+
+        # F-statistic (larger variance / smaller variance)
+        if var1 >= var2:
+            f_stat = var1 / var2
+            df1 = len(sample1) - 1
+            df2 = len(sample2) - 1
+        else:
+            f_stat = var2 / var1
+            df1 = len(sample2) - 1
+            df2 = len(sample1) - 1
+
+        # Calculate p-value (two-tailed)
+        p_value = 2 * min(
+            stats.f.cdf(f_stat, df1, df2),
+            1 - stats.f.cdf(f_stat, df1, df2)
+        )
+
+        # Determine significance
+        alpha = 0.05
+        is_significant = p_value < alpha
+
+        return self._create_result_dict(
+            value={
+                'f_statistic': round(float(f_stat), self.precision),
+                'p_value': round(float(p_value), self.precision),
+                'df1': int(df1),
+                'df2': int(df2)
+            },
+            method='f_test',
+            parameters={
+                'sample1_size': len(sample1),
+                'sample2_size': len(sample2)
+            },
+            metadata={
+                'is_significant': is_significant,
+                'alpha': alpha,
+                'sample1_variance': round(var1, self.precision),
+                'sample2_variance': round(var2, self.precision),
+                'variance_ratio': round(max(var1, var2) / min(var1, var2), self.precision),
+                'conclusion': 'unequal_variances' if is_significant else 'equal_variances'
+            }
+        )
+
+    @validate_inputs
+    @timing_decorator
+    @handle_calculation_error
+    def kruskal_wallis_test(
+        self,
+        *samples: Union[List, np.ndarray, pd.Series]
+    ) -> Dict:
+        """
+        Perform Kruskal-Wallis H-test (non-parametric one-way ANOVA).
+
+        Args:
+            *samples: Multiple samples to compare
+
+        Returns:
+            Result dict with H-statistic and p-value
+        """
+        if len(samples) < 2:
+            raise DataValidationError(
+                "Need at least 2 samples",
+                "samples"
+            )
+
+        # Validate all samples
+        validated_samples = []
+        for i, sample in enumerate(samples):
+            validated = self._validate_returns(sample, f"sample{i+1}")
+            self._check_data_length(validated, min_length=3)
+            validated_samples.append(validated)
+
+        # Perform Kruskal-Wallis test
+        h_stat, p_value = stats.kruskal(*validated_samples)
+
+        # Degrees of freedom
+        df = len(samples) - 1
+
+        # Determine significance
+        alpha = 0.05
+        is_significant = p_value < alpha
+
+        # Calculate medians
+        medians = [np.median(s) for s in validated_samples]
+
+        return self._create_result_dict(
+            value={
+                'h_statistic': round(float(h_stat), self.precision),
+                'p_value': round(float(p_value), self.precision),
+                'degrees_of_freedom': int(df)
+            },
+            method='kruskal_wallis_test',
+            parameters={
+                'n_groups': len(samples),
+                'group_sizes': [len(s) for s in validated_samples]
+            },
+            metadata={
+                'is_significant': is_significant,
+                'alpha': alpha,
+                'group_medians': [round(m, self.precision) for m in medians],
+                'test_type': 'non_parametric_anova',
+                'conclusion': 'groups_differ' if is_significant else 'groups_similar'
+            }
+        )
+
+    @validate_inputs
+    @timing_decorator
+    @handle_calculation_error
+    def bonferroni_correction(
+        self,
+        p_values: Union[List, np.ndarray],
+        alpha: float = 0.05
+    ) -> Dict:
+        """
+        Apply Bonferroni correction for multiple comparisons.
+
+        Args:
+            p_values: List of p-values from multiple tests
+            alpha: Family-wise error rate
+
+        Returns:
+            Result dict with corrected alpha and significance decisions
+        """
+        p_values = np.array(p_values)
+
+        if len(p_values) < 1:
+            raise DataValidationError(
+                "Need at least 1 p-value",
+                "p_values"
+            )
+
+        if np.any((p_values < 0) | (p_values > 1)):
+            raise DataValidationError(
+                "P-values must be between 0 and 1",
+                "p_values"
+            )
+
+        alpha = self._validate_probability(alpha, "alpha")
+
+        # Bonferroni correction
+        n_tests = len(p_values)
+        corrected_alpha = alpha / n_tests
+
+        # Determine significance
+        is_significant = p_values < corrected_alpha
+        n_significant = np.sum(is_significant)
+
+        return self._create_result_dict(
+            value={
+                'corrected_alpha': round(corrected_alpha, 6),
+                'n_significant': int(n_significant),
+                'significant_indices': np.where(is_significant)[0].tolist()
+            },
+            method='bonferroni_correction',
+            parameters={
+                'n_tests': n_tests,
+                'original_alpha': alpha
+            },
+            metadata={
+                'p_values': [round(p, 6) for p in p_values],
+                'is_significant': is_significant.tolist(),
+                'correction_factor': n_tests,
+                'recommendation': f"Use α = {corrected_alpha:.6f} for each test to maintain family-wise error rate of {alpha}"
+            }
+        )

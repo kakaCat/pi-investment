@@ -1,20 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100000 = 100000
-CONST_101_0 = 101.0
-CONST_102_0 = 102.0
-CONST_103_0 = 103.0
-CONST_103_79 = 103.79
-CONST_104_0 = 104.0
-CONST_105_0 = 105.0
-CONST_106_0 = 106.0
-CONST_106_5 = 106.5
-CONST_107_0 = 107.0
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - test_validation_integration() = 110 lines
-
 #!/usr/bin/env python3
 """
 测试价格校验集成（简化版）
@@ -29,9 +12,6 @@ quantsys_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 import pandas as pd
 from application.services.strategy_backtest_service import StrategyBacktestService
 
-
-# TODO: Split long function (110 lines, target < 100)
-# TODO: 长函数 111行 - 建议拆分为多个小函数
 
 def test_validation_integration():
     """测试：价格校验集成到回测引擎"""

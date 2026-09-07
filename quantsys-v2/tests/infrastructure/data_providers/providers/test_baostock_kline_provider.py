@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_2026 = 2026
-CONST_27 = 27
-CONST_28 = 28
-CONST_300750 = 300750
-CONST_372_00 = 372.00
-CONST_376_43 = 376.43
-CONST_378_00 = 378.00
-CONST_382_00 = 382.00
-CONST_382_20 = 382.20
-CONST_385_00 = 385.00
-
 """BaostockKlineProvider 测试（mock baostock 模块，不依赖网络）
 
 baostock 契约：

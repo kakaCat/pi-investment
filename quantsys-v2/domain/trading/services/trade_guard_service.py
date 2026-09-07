@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [1e-05, 0.00025, 0.0005, 0.3, 0.5]...
-
-
-# Extracted Constants
-
-CONST_1eNEG_05 = 1e-05
-
-CONST_0_00025 = 0.00025
-
-CONST_0_0005 = 0.0005
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_8 = 0.8
-
-CONST_4 = 4
-
-CONST_5_0 = 5.0
-
-CONST_9 = 9
-
-CONST_11 = 11
-
-
-
 """
 交易护栏服务 (Trade Guard Service)
 
@@ -448,7 +417,9 @@ class TradeGuardService:
 
         # 2. 账户存在性和状态校验
         account = self.repo.get_account(account_name)
-        if not account and account.status != 'active':
+        if not account:
+            raise TradingError(f'账户不存在: {account_name}', status_code=404)
+        if account.status != 'active':
             raise TradingError(
                 f'账户已归档，拒绝写操作: {account_name}',
                 status_code=409

@@ -1,37 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - calculate() = 118 lines
-
-
-# TODO: Extract magic numbers to named constants: [1e-12, 1e-10, 1e-06, 0.001, 0.04]...
-
-
-# Extracted Constants
-
-CONST_1eNEG_12 = 1e-12
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_1eNEG_06 = 1e-06
-
-CONST_0_001 = 0.001
-
-CONST_0_04 = 0.04
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_7 = 0.7
-
-CONST_0_99 = 0.99
-
-
-
 """
 随机波动率模型模块
 ==================
@@ -90,16 +56,7 @@ class StochasticVolCalculator(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
-    # TODO: Refactor - function too long (119 lines, target < 80)
-
-# TODO: Split long function (118 lines, target < 100)
-    # TODO: 长函数 123行 - 建议拆分为多个小函数
-
     def calculate(self,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
                   S: float,
                   K: float,
                   T: float,
@@ -370,381 +327,390 @@ class StochasticVolCalculator(BaseCalculator):
             d2 = d1 - np.sqrt(theta * T)
             if option_type == 'call':
                 return S * np.exp(-q * T) * norm.cdf(d1) - K * np.exp(-r_adj * T) * norm.cdf(d2)
-            return K * np.exp(-r_adj * T) * norm.cdf(-d2) - S * np.exp(-q * T) * norm.cdf(-d1)
+            else:
+                return K * np.exp(-r_adj * T) * norm.cdf(-d2) - S * np.exp(-q * T) * norm.cdf(-d1)
 
-    if option_type == 'call':
-        price = S * np.exp(-q * T) * P1 - K * np.exp(-r_adj * T) * P2
-    else:
-        price = K * np.exp(-r_adj * T) * (1.0 - P2) - S * np.exp(-q * T) * (1.0 - P1)
-
-    return max(price, 0.0)
-
-def _sabr_implied_vol(self,
-                       S: float,
-                       K: float,
-                       T: float,
-                       alpha: float,
-                       beta: float,
-                       nu: float,
-                       rho: float) -> float:
-    """
-    SABR模型隐含波动率（Hagan et al. 2002公式）。
-
-    公式适用于0 < beta < 1的情况，特殊处理ATM。
-
-    Args:
-        S: 远期价格/现货
-        K: 行权价
-        T: 到期时间
-        alpha: 初始波动率水平
-        beta: CEV参数 (0 <= beta <= 1)
-        nu: vol-of-vol
-        rho: 相关性
-
-    Returns:
-        Black-76隐含波动率
-    """
-    if T <= 0:
-        return alpha
-
-    # ATM特殊情况 (S ≈ K)
-    if abs(S - K) < 1e-12:
-        term1 = (1.0 - beta) ** 2 / 24.0 * alpha ** 2 / (S ** (2.0 - 2.0 * beta))
-        term2 = rho * beta * nu * alpha / (4.0 * S ** (1.0 - beta))
-        term3 = (2.0 - 3.0 * rho ** 2) / 24.0 * nu ** 2
-        return alpha / (S ** (1.0 - beta)) * (1.0 + (term1 + term2 + term3) * T)
-
-    # 一般情况
-    F = S  # 远期 = 现货（简化）
-    z = (nu / alpha) * (F * K) ** ((1.0 - beta) / 2.0) * np.log(F / K)
-    x_z = np.log((np.sqrt(1.0 - 2.0 * rho * z + z ** 2) + z - rho) / (1.0 - rho))
-
-    # 分母
-    denom = (F * K) ** ((1.0 - beta) / 2.0)
-    denom *= (1.0 + (1.0 - beta) ** 2 / 24.0 * (np.log(F / K)) ** 2
-               + (1.0 - beta) ** 4 / 1920.0 * (np.log(F / K)) ** 4)
-
-    # 分子
-    term1 = (1.0 - beta) ** 2 / 24.0 * alpha ** 2 / ((F * K) ** (1.0 - beta))
-    term2 = rho * beta * nu * alpha / (4.0 * (F * K) ** ((1.0 - beta) / 2.0))
-    term3 = (2.0 - 3.0 * rho ** 2) / 24.0 * nu ** 2
-
-    if abs(z) < 1e-10:
-        # z→0时使用极限
-        iv = alpha * (1.0 + (term1 + term2 + term3) * T) / denom
-    else:
-        iv = alpha * (z / x_z) * (1.0 + (term1 + term2 + term3) * T) / denom
-
-    return float(iv)
-
-def _sabr_price(self,
-                 S: float,
-                 K: float,
-                 T: float,
-                 r: float,
-                 alpha: float,
-                 nu: float,
-                 rho: float,
-                 option_type: str = 'call',
-                 q: float = 0.0,
-                 beta: float = 0.5) -> float:
-    """
-    使用SABR模型定价欧式期权。
-
-    先用Hagan公式计算隐含波动率，再用Black-76公式定价。
-
-    Args:
-        S: 标的资产价格
-        K: 行权价
-        T: 到期时间
-        r: 无风险利率
-        alpha: 初始波动率水平
-        nu: vol-of-vol
-        rho: 相关性
-        option_type: 'call' 或 'put'
-        q: 股息率
-        beta: CEV参数（默认 0.5，对数正态为1）
-
-    Returns:
-        期权价格
-    """
-    # 用Black-76期货公式（无股息调整）
-    F = S * np.exp((r - q) * T)
-
-    sigma_sabr = self._sabr_implied_vol(F, K, T, alpha, beta, nu, rho)
-
-    # Black-76公式
-    if sigma_sabr <= 0 or T <= 0:
         if option_type == 'call':
-            return max(0.0, F - K) * np.exp(-r * T)
+            price = S * np.exp(-q * T) * P1 - K * np.exp(-r_adj * T) * P2
         else:
-            return max(0.0, K - F) * np.exp(-r * T)
+            price = K * np.exp(-r_adj * T) * (1.0 - P2) - S * np.exp(-q * T) * (1.0 - P1)
 
-    d1 = (np.log(F / K) + 0.5 * sigma_sabr ** 2 * T) / (sigma_sabr * np.sqrt(T))
-    d2 = d1 - sigma_sabr * np.sqrt(T)
+        return max(price, 0.0)
 
-    if option_type == 'call':
-        price = np.exp(-r * T) * (F * norm.cdf(d1) - K * norm.cdf(d2))
-    else:
-        price = np.exp(-r * T) * (K * norm.cdf(-d2) - F * norm.cdf(-d1))
+    def _sabr_implied_vol(self,
+                           S: float,
+                           K: float,
+                           T: float,
+                           alpha: float,
+                           beta: float,
+                           nu: float,
+                           rho: float) -> float:
+        """
+        SABR模型隐含波动率（Hagan et al. 2002公式）。
 
-    return max(price, 0.0)
+        公式适用于0 < beta < 1的情况，特殊处理ATM。
 
-def _implied_vol_bs(self,
-                     price: float,
+        Args:
+            S: 远期价格/现货
+            K: 行权价
+            T: 到期时间
+            alpha: 初始波动率水平
+            beta: CEV参数 (0 <= beta <= 1)
+            nu: vol-of-vol
+            rho: 相关性
+
+        Returns:
+            Black-76隐含波动率
+        """
+        if T <= 0:
+            return alpha
+
+        # ATM特殊情况 (S ≈ K)
+        if abs(S - K) < 1e-12:
+            term1 = (1.0 - beta) ** 2 / 24.0 * alpha ** 2 / (S ** (2.0 - 2.0 * beta))
+            term2 = rho * beta * nu * alpha / (4.0 * S ** (1.0 - beta))
+            term3 = (2.0 - 3.0 * rho ** 2) / 24.0 * nu ** 2
+            return alpha / (S ** (1.0 - beta)) * (1.0 + (term1 + term2 + term3) * T)
+
+        # 一般情况
+        F = S  # 远期 = 现货（简化）
+        z = (nu / alpha) * (F * K) ** ((1.0 - beta) / 2.0) * np.log(F / K)
+        x_z = np.log((np.sqrt(1.0 - 2.0 * rho * z + z ** 2) + z - rho) / (1.0 - rho))
+
+        # 分母
+        denom = (F * K) ** ((1.0 - beta) / 2.0)
+        denom *= (1.0 + (1.0 - beta) ** 2 / 24.0 * (np.log(F / K)) ** 2
+                   + (1.0 - beta) ** 4 / 1920.0 * (np.log(F / K)) ** 4)
+
+        # 分子
+        term1 = (1.0 - beta) ** 2 / 24.0 * alpha ** 2 / ((F * K) ** (1.0 - beta))
+        term2 = rho * beta * nu * alpha / (4.0 * (F * K) ** ((1.0 - beta) / 2.0))
+        term3 = (2.0 - 3.0 * rho ** 2) / 24.0 * nu ** 2
+
+        if abs(z) < 1e-10:
+            # z→0时使用极限
+            iv = alpha * (1.0 + (term1 + term2 + term3) * T) / denom
+        else:
+            iv = alpha * (z / x_z) * (1.0 + (term1 + term2 + term3) * T) / denom
+
+        return float(iv)
+
+    def _sabr_price(self,
                      S: float,
                      K: float,
                      T: float,
                      r: float,
-                     q: float,
-                     option_type: str) -> Optional[float]:
-    """
-    使用Newton-Raphson方法计算BSM隐含波动率。
+                     alpha: float,
+                     nu: float,
+                     rho: float,
+                     option_type: str = 'call',
+                     q: float = 0.0,
+                     beta: float = 0.5) -> float:
+        """
+        使用SABR模型定价欧式期权。
 
-    Args:
-        price: 期权市场价格
-        S, K, T, r, q: BSM参数
-        option_type: 'call' 或 'put'
+        先用Hagan公式计算隐含波动率，再用Black-76公式定价。
 
-    Returns:
-        隐含波动率，或None（如果计算失败）
-    """
-    if T <= 0 or price <= 0:
-        return None
+        Args:
+            S: 标的资产价格
+            K: 行权价
+            T: 到期时间
+            r: 无风险利率
+            alpha: 初始波动率水平
+            nu: vol-of-vol
+            rho: 相关性
+            option_type: 'call' 或 'put'
+            q: 股息率
+            beta: CEV参数（默认 0.5，对数正态为1）
 
-    sigma = 0.2
-    max_iter = 100
-    tol = 1e-6
+        Returns:
+            期权价格
+        """
+        # 用Black-76期货公式（无股息调整）
+        F = S * np.exp((r - q) * T)
 
-    for _ in range(max_iter):
-        if sigma <= 0 or sigma > 10.0:
-            return None
+        sigma_sabr = self._sabr_implied_vol(F, K, T, alpha, beta, nu, rho)
 
-        d1 = (np.log(S / K) + (r - q + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
-        d2 = d1 - sigma * np.sqrt(T)
+        # Black-76公式
+        if sigma_sabr <= 0 or T <= 0:
+            if option_type == 'call':
+                return max(0.0, F - K) * np.exp(-r * T)
+            else:
+                return max(0.0, K - F) * np.exp(-r * T)
+
+        d1 = (np.log(F / K) + 0.5 * sigma_sabr ** 2 * T) / (sigma_sabr * np.sqrt(T))
+        d2 = d1 - sigma_sabr * np.sqrt(T)
 
         if option_type == 'call':
-            model_price = S * np.exp(-q * T) * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
-            vega = S * np.exp(-q * T) * norm.pdf(d1) * np.sqrt(T)
+            price = np.exp(-r * T) * (F * norm.cdf(d1) - K * norm.cdf(d2))
         else:
-            model_price = K * np.exp(-r * T) * norm.cdf(-d2) - S * np.exp(-q * T) * norm.cdf(-d1)
-            vega = S * np.exp(-q * T) * norm.pdf(d1) * np.sqrt(T)
+            price = np.exp(-r * T) * (K * norm.cdf(-d2) - F * norm.cdf(-d1))
 
-        diff = model_price - price
+        return max(price, 0.0)
 
-        if abs(diff) < tol:
-            return float(sigma)
+    def _implied_vol_bs(self,
+                         price: float,
+                         S: float,
+                         K: float,
+                         T: float,
+                         r: float,
+                         q: float,
+                         option_type: str) -> Optional[float]:
+        """
+        使用Newton-Raphson方法计算BSM隐含波动率。
 
-        if vega < 1e-10:
+        Args:
+            price: 期权市场价格
+            S, K, T, r, q: BSM参数
+            option_type: 'call' 或 'put'
+
+        Returns:
+            隐含波动率，或None（如果计算失败）
+        """
+        if T <= 0 or price <= 0:
             return None
 
-        sigma = sigma - diff / vega
+        sigma = 0.2
+        max_iter = 100
+        tol = 1e-6
 
-    return None
+        for _ in range(max_iter):
+            if sigma <= 0 or sigma > 10.0:
+                return None
 
-def calibrate(self,
-              market_prices: List[float],
-              strikes: List[float],
-              maturities: List[float],
-              S: float,
-              r: float,
-              option_types: List[str] = None,
-              method: str = 'heston') -> Dict[str, Any]:
-    """
-    使用市场价格校准随机波动率模型参数。
+            d1 = (np.log(S / K) + (r - q + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+            d2 = d1 - sigma * np.sqrt(T)
 
-    Args:
-        market_prices: 市场价格列表
-        strikes: 行权价列表
-        maturities: 到期时间列表
-        S: 标的资产价格
-        r: 无风险利率
-        option_types: 期权类型列表 [n]
-        method: 'heston' 或 'sabr'
+            if option_type == 'call':
+                model_price = S * np.exp(-q * T) * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+                vega = S * np.exp(-q * T) * norm.pdf(d1) * np.sqrt(T)
+            else:
+                model_price = K * np.exp(-r * T) * norm.cdf(-d2) - S * np.exp(-q * T) * norm.cdf(-d1)
+                vega = S * np.exp(-q * T) * norm.pdf(d1) * np.sqrt(T)
 
-    Returns:
-        Dictionary containing:
-            - calibrated_params: 校准后的参数
-            - pricing_errors: 定价误差
-            - rmse: 均方根误差
+            diff = model_price - price
 
-    Raises:
-        DataValidationError: 输入无效时
-        CalculationError: 校准失败时
-    """
-    method = self.validate_method(method)
+            if abs(diff) < tol:
+                return float(sigma)
 
-    S = self._validate_positive(S, 'spot_price')
-    r = self._validate_numeric_input(r, 'risk_free_rate')
+            if vega < 1e-10:
+                return None
 
-    if option_types is None:
-        option_types = ['call'] * len(market_prices)
+            sigma = sigma - diff / vega
 
-    n = len(market_prices)
-    if len(strikes) != n or len(maturities) != n or len(option_types) != n:
-        raise DataValidationError(
-            "All input arrays must have the same length",
-            field_name='market_data'
-        )
+        return None
 
-    try:
-        if method == 'heston':
-            calibrated_params = self._calibrate_heston(
-                market_prices, strikes, maturities, S, r, option_types
+    def calibrate(self,
+                  market_prices: List[float],
+                  strikes: List[float],
+                  maturities: List[float],
+                  S: float,
+                  r: float,
+                  option_types: List[str] = None,
+                  method: str = 'heston') -> Dict[str, Any]:
+        """
+        使用市场价格校准随机波动率模型参数。
+
+        Args:
+            market_prices: 市场价格列表
+            strikes: 行权价列表
+            maturities: 到期时间列表
+            S: 标的资产价格
+            r: 无风险利率
+            option_types: 期权类型列表 [n]
+            method: 'heston' 或 'sabr'
+
+        Returns:
+            Dictionary containing:
+                - calibrated_params: 校准后的参数
+                - pricing_errors: 定价误差
+                - rmse: 均方根误差
+
+        Raises:
+            DataValidationError: 输入无效时
+            CalculationError: 校准失败时
+        """
+        method = self.validate_method(method)
+
+        S = self._validate_positive(S, 'spot_price')
+        r = self._validate_numeric_input(r, 'risk_free_rate')
+
+        if option_types is None:
+            option_types = ['call'] * len(market_prices)
+
+        n = len(market_prices)
+        if len(strikes) != n or len(maturities) != n or len(option_types) != n:
+            raise DataValidationError(
+                "All input arrays must have the same length",
+                field_name='market_data'
             )
-        elif method == 'sabr':
-            calibrated_params = self._calibrate_sabr(
-                market_prices, strikes, maturities, S, r, option_types
-            )
-        else:
-            raise ConfigurationError(f"Unknown calibration method: {method}",
-                                     parameter='method')
-    except Exception as e:
-        raise CalculationError(
-            f"Calibration failed: {e}",
-            calculation_type=f'calibrate_{method}'
-        )
 
-    # 计算定价误差
-    pricing_errors = []
-    for i in range(n):
         try:
             if method == 'heston':
-                model_price = self._heston_price(
-                    S, strikes[i], maturities[i], r,
-                    calibrated_params['sigma0'], calibrated_params['kappa'],
-                    calibrated_params['theta'], calibrated_params['xi'],
-                    calibrated_params['rho'], option_types[i]
+                calibrated_params = self._calibrate_heston(
+                    market_prices, strikes, maturities, S, r, option_types
+                )
+            elif method == 'sabr':
+                calibrated_params = self._calibrate_sabr(
+                    market_prices, strikes, maturities, S, r, option_types
                 )
             else:
-                model_price = self._sabr_price(
-                    S, strikes[i], maturities[i], r,
-                    calibrated_params['alpha'], calibrated_params['nu'],
-                    calibrated_params['rho'], option_types[i]
-                )
-            error = model_price - market_prices[i]
-            pricing_errors.append(error)
-        except Exception:
-            pricing_errors.append(0.0)
+                raise ConfigurationError(f"Unknown calibration method: {method}",
+                                         parameter='method')
+        except Exception as e:
+            raise CalculationError(
+                f"Calibration failed: {e}",
+                calculation_type=f'calibrate_{method}'
+            )
 
-    rmse = np.sqrt(np.mean(np.array(pricing_errors) ** 2))
+        # 计算定价误差
+        pricing_errors = []
+        for i in range(n):
+            try:
+                if method == 'heston':
+                    model_price = self._heston_price(
+                        S, strikes[i], maturities[i], r,
+                        calibrated_params['sigma0'], calibrated_params['kappa'],
+                        calibrated_params['theta'], calibrated_params['xi'],
+                        calibrated_params['rho'], option_types[i]
+                    )
+                else:
+                    model_price = self._sabr_price(
+                        S, strikes[i], maturities[i], r,
+                        calibrated_params['alpha'], calibrated_params['nu'],
+                        calibrated_params['rho'], option_types[i]
+                    )
+                error = model_price - market_prices[i]
+                pricing_errors.append(error)
+            except Exception:
+                pricing_errors.append(0.0)
 
-    return self._create_result_dict(
-        value=calibrated_params,
-        method=f'calibrate_{method}',
-        parameters={
-            'S': S, 'r': r, 'n_options': n
-        },
-        metadata={
-            'pricing_errors': pricing_errors,
-            'rmse': rmse
+        rmse = np.sqrt(np.mean(np.array(pricing_errors) ** 2))
+
+        return self._create_result_dict(
+            value=calibrated_params,
+            method=f'calibrate_{method}',
+            parameters={
+                'S': S, 'r': r, 'n_options': n
+            },
+            metadata={
+                'pricing_errors': pricing_errors,
+                'rmse': rmse
+            }
+        )
+
+    def _calibrate_heston(self,
+                           market_prices: List[float],
+                           strikes: List[float],
+                           maturities: List[float],
+                           S: float,
+                           r: float,
+                           option_types: List[str]) -> Dict[str, float]:
+        """校准Heston模型参数。"""
+        def objective(params):
+            sigma0, kappa, theta, xi, rho = params
+
+            # 参数约束惩罚
+            penalty = 0.0
+            if sigma0 <= 0:
+                penalty += 1e6 * (abs(sigma0) + 1e-6) ** 2
+            if kappa <= 0:
+                penalty += 1e6 * (abs(kappa) + 1e-6) ** 2
+            if theta <= 0:
+                penalty += 1e6 * (abs(theta) + 1e-6) ** 2
+            if xi <= 0:
+                penalty += 1e6 * (abs(xi) + 1e-6) ** 2
+            if abs(rho) > 1:
+                penalty += 1e6 * (abs(rho) - 0.99) ** 2
+            # Feller条件：2*kappa*theta > xi^2
+            if 2 * kappa * theta <= xi ** 2:
+                penalty += 100.0 * (xi ** 2 - 2 * kappa * theta + 1e-6)
+
+            if penalty > 0:
+                return penalty
+
+            total_error = 0.0
+            for i in range(len(market_prices)):
+                try:
+                    model_price = self._heston_price(
+                        S, strikes[i], maturities[i], r,
+                        sigma0, kappa, theta, xi, rho, option_types[i]
+                    )
+                    total_error += (model_price - market_prices[i]) ** 2
+                except Exception:
+                    total_error += 1e6
+
+            return total_error
+
+        # 初始参数猜测
+        x0 = [0.04, 2.0, 0.04, 0.3, -0.7]
+
+        result = minimize(
+            objective, x0,
+            method='Nelder-Mead',
+            options={'maxiter': 5000, 'xatol': 1e-6, 'fatol': 1e-6}
+        )
+
+        sigma0, kappa, theta, xi, rho = result.x
+
+        return {
+            'sigma0': float(sigma0),
+            'kappa': float(kappa),
+            'theta': float(theta),
+            'xi': float(xi),
+            'rho': float(rho)
         }
-    )
 
-def _calibrate_heston(self,
-                       market_prices: List[float],
-                       strikes: List[float],
-                       maturities: List[float],
-                       S: float,
-                       r: float,
-                       option_types: List[str]) -> Dict[str, float]:
-    """校准Heston模型参数。"""
-    def objective(params):
-        sigma0, kappa, theta, xi, rho = params
+    def _calibrate_sabr(self,
+                         market_prices: List[float],
+                         strikes: List[float],
+                         maturities: List[float],
+                         S: float,
+                         r: float,
+                         option_types: List[str]) -> Dict[str, float]:
+        """校准SABR模型参数（固定beta=0.5）。"""
+        def objective(params):
+            alpha, nu, rho = params
 
-        # 参数约束惩罚
-        penalty = 0.0
-        if sigma0 <= 0 and kappa <= 0:
-            penalty += 1e6 * (abs(kappa) + 1e-6) ** 2
-        if theta <= 0 and xi <= 0:
-            penalty += 1e6 * (abs(xi) + 1e-6) ** 2
-        if abs(rho) > 1:
-            penalty += 1e6 * (abs(rho) - 0.99) ** 2
-        # Feller条件：2*kappa*theta > xi^2
-        if 2 * kappa * theta <= xi ** 2:
-            penalty += 100.0 * (xi ** 2 - 2 * kappa * theta + 1e-6)
+            penalty = 0.0
+            if alpha <= 0:
+                penalty += 1e6 * (abs(alpha) + 1e-6) ** 2
+            if nu <= 0:
+                penalty += 1e6 * (abs(nu) + 1e-6) ** 2
+            if abs(rho) > 1:
+                penalty += 1e6 * (abs(rho) - 0.99) ** 2
+            if penalty > 0:
+                return penalty
 
-        if penalty > 0:
-            return penalty
+            total_error = 0.0
+            for i in range(len(market_prices)):
+                try:
+                    model_price = self._sabr_price(
+                        S, strikes[i], maturities[i], r,
+                        alpha, nu, rho, option_types[i], beta=0.5
+                    )
+                    total_error += (model_price - market_prices[i]) ** 2
+                except Exception:
+                    total_error += 1e6
 
-        total_error = 0.0
-        for i in range(len(market_prices)):
-            try:
-                model_price = self._heston_price(
-                    S, strikes[i], maturities[i], r,
-                    sigma0, kappa, theta, xi, rho, option_types[i]
-                )
-                total_error += (model_price - market_prices[i]) ** 2
-            except Exception:
-                total_error += 1e6
+            return total_error
 
-        return total_error
+        x0 = [0.2, 0.3, -0.5]
+        result = minimize(
+            objective, x0,
+            method='Nelder-Mead',
+            options={'maxiter': 5000, 'xatol': 1e-6, 'fatol': 1e-6}
+        )
 
-    # 初始参数猜测
-    x0 = [0.04, 2.0, 0.04, 0.3, -0.7]
+        alpha, nu, rho = result.x
 
-    result = minimize(
-        objective, x0,
-        method='Nelder-Mead',
-        options={'maxiter': 5000, 'xatol': 1e-6, 'fatol': 1e-6}
-    )
+        return {
+            'alpha': float(alpha),
+            'beta': 0.5,
+            'nu': float(nu),
+            'rho': float(rho)
+        }
 
-    sigma0, kappa, theta, xi, rho = result.x
-
-    return {
-        'sigma0': float(sigma0),
-        'kappa': float(kappa),
-        'theta': float(theta),
-        'xi': float(xi),
-        'rho': float(rho)
-    }
-
-def _calibrate_sabr(self,
-                     market_prices: List[float],
-                     strikes: List[float],
-                     maturities: List[float],
-                     S: float,
-                     r: float,
-                     option_types: List[str]) -> Dict[str, float]:
-    """校准SABR模型参数（固定beta=0.5）。"""
-    def objective(params):
-        alpha, nu, rho = params
-
-        penalty = 0.0
-        if alpha <= 0 and nu <= 0:
-            penalty += 1e6 * (abs(nu) + 1e-6) ** 2
-        if abs(rho) > 1 and penalty > 0:
-            return penalty
-
-        total_error = 0.0
-        for i in range(len(market_prices)):
-            try:
-                model_price = self._sabr_price(
-                    S, strikes[i], maturities[i], r,
-                    alpha, nu, rho, option_types[i], beta=0.5
-                )
-                total_error += (model_price - market_prices[i]) ** 2
-            except Exception:
-                total_error += 1e6
-
-        return total_error
-
-    x0 = [0.2, 0.3, -0.5]
-    result = minimize(
-        objective, x0,
-        method='Nelder-Mead',
-        options={'maxiter': 5000, 'xatol': 1e-6, 'fatol': 1e-6}
-    )
-
-    alpha, nu, rho = result.x
-
-    return {
-        'alpha': float(alpha),
-        'beta': 0.5,
-        'nu': float(nu),
-        'rho': float(rho)
-    }
-
-def get_supported_methods(self) -> list:
-    """获取支持的方法列表。"""
-    return ['heston', 'sabr']
+    def get_supported_methods(self) -> list:
+        """获取支持的方法列表。"""
+        return ['heston', 'sabr']

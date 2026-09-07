@@ -1,21 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_60 = 60
-
-
-
-CONST_60 = 60
-
-
-
 """
 Phase 2 Migration Basic Validation Test
 
@@ -124,8 +107,9 @@ def main():
     if passed == total:
         print("\n🎉 All Phase 2 data sources passed basic validation!")
         return 0
-    print(f"\n⚠️  {total - passed} data source(s) failed validation")
-    return 1
+    else:
+        print(f"\n⚠️  {total - passed} data source(s) failed validation")
+        return 1
 
 
 if __name__ == "__main__":

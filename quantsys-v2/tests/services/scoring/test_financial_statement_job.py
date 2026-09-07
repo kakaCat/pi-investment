@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_2025 = 2025
-CONST_2026 = 2026
-CONST_25_0 = 25.0
-CONST_28_0 = 28.0
-CONST_288 = 288
-CONST_30 = 30
-CONST_30_0 = 30.0
-CONST_31 = 31
-CONST_40 = 40
-
 """financial_statement_update_job 单元测试（映射与 universe 逻辑，不碰网络）"""
 import pytest
 from infrastructure.jobs.financial_statement_update_job import (

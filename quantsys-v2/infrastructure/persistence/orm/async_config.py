@@ -1,15 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_3600 = 3600
-
-
-
 """
 异步ORM配置模块 - 管理SQLAlchemy异步Engine和AsyncSession
 

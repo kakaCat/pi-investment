@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - generate_signal() = 144 lines
-
-
-# Extracted Constants
-
-CONST_0_2 = 0.2
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_0_55 = 0.55
-
-CONST_0_6 = 0.6
-
-CONST_0_65 = 0.65
-
-CONST_0_7 = 0.7
-
-CONST_0_85 = 0.85
-
-
-
 """
 波动率突破策略 (Volatility Breakout Strategy)
 
@@ -88,15 +57,7 @@ class VolatilityBreakoutStrategy(StrategyBase):
 
         return atr
 
-    # TODO: Split long function (144 lines, target < 100)
-    # TODO: 长函数 150行 - 建议拆分为多个小函数
-
     def generate_signal(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         klines: List[Dict[str, Any]],
         params: Dict[str, Any] = None

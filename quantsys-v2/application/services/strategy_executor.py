@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_7 = 0.7
-
-CONST_20 = 20
-
-CONST_400 = 400
-
-
-
-CONST_0_7 = 0.7
-
-CONST_20 = 20
-
-CONST_400 = 400
-
-
-
 """
 策略执行器
 

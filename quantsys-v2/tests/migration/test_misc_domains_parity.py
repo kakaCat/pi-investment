@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000 = 10000
-CONST_12 = 12
-CONST_20 = 20
-CONST_200 = 200
-CONST_200000 = 200000
-CONST_2024 = 2024
-CONST_30 = 30
-CONST_31 = 31
-CONST_60 = 60
-CONST_600519 = 600519
-
 """misc 域 parity 测试（agent 迁移批次）
 
 覆盖：

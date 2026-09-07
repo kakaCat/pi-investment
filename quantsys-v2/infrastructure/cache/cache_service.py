@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 缓存服务 (CacheService)
 
@@ -95,9 +92,7 @@ class MemoryCacheBackend(CacheBackend):
         """删除缓存"""
         if key in self._cache:
             del self._cache[key]
-            # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-            self._stats['deletes'] += 1  # TODO: Use parameterized queries
+            self._stats['deletes'] += 1
             return True
         return False
 
@@ -183,9 +178,7 @@ class RedisCacheBackend(CacheBackend):
         try:
             result = self._redis.delete(key)
             if result > 0:
-                # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                self._stats['deletes'] += 1  # TODO: Use parameterized queries
+                self._stats['deletes'] += 1
             return result > 0
         except Exception as e:
             logger.error(f"Redis delete error: {e}")

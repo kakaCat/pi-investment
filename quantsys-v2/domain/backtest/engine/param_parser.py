@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 参数解析器 (ParamParser)
 
@@ -141,39 +138,40 @@ class ParamParser:
                 return True
             elif lower_val in ('false', '0', 'no', 'off'):
                 return False
-            raise ValueError(f"无法将 '{value_str}' 转换为布尔值")
-    else:
-        raise ValueError(f"不支持的类型: {target_type}")
+            else:
+                raise ValueError(f"无法将 '{value_str}' 转换为布尔值")
+        else:
+            raise ValueError(f"不支持的类型: {target_type}")
 
-def _auto_convert_value(self, value_str: str) -> Any:
-    """
-    自动推断并转换值类型
+    def _auto_convert_value(self, value_str: str) -> Any:
+        """
+        自动推断并转换值类型
 
-    优先级: bool > int > float > str
+        优先级: bool > int > float > str
 
-    Args:
-        value_str: 值字符串
+        Args:
+            value_str: 值字符串
 
-    Returns:
-        转换后的值
-    """
-    # 尝试布尔值
-    lower_val = value_str.lower()
-    if lower_val in ('true', 'false', 'yes', 'no', 'on', 'off'):
-        return lower_val in ('true', 'yes', 'on')
+        Returns:
+            转换后的值
+        """
+        # 尝试布尔值
+        lower_val = value_str.lower()
+        if lower_val in ('true', 'false', 'yes', 'no', 'on', 'off'):
+            return lower_val in ('true', 'yes', 'on')
 
-    # 尝试整数
-    try:
-        if '.' not in value_str and 'e' not in value_str.lower():
-            return int(value_str)
-    except ValueError:
-        pass
+        # 尝试整数
+        try:
+            if '.' not in value_str and 'e' not in value_str.lower():
+                return int(value_str)
+        except ValueError:
+            pass
 
-    # 尝试浮点数
-    try:
-        return float(value_str)
-    except ValueError:
-        pass
+        # 尝试浮点数
+        try:
+            return float(value_str)
+        except ValueError:
+            pass
 
-    # 默认为字符串
-    return value_str.strip('"\'')
+        # 默认为字符串
+        return value_str.strip('"\'')

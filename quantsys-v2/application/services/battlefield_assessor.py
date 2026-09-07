@@ -1,62 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - _analyze_stocks_by_kline() = 127 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.04, 0.3, 0.5, 0.7, 0.8]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_04 = 0.04
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_7 = 0.7
-
-CONST_0_8 = 0.8
-
-CONST_0_9 = 0.9
-
-CONST_1_2 = 1.2
-
-CONST_1_5 = 1.5
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-
-
-CONST_0_04 = 0.04
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_7 = 0.7
-
-CONST_0_8 = 0.8
-
-CONST_0_9 = 0.9
-
-CONST_1_2 = 1.2
-
-CONST_1_5 = 1.5
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-
-
 """
 战场评估服务 - BattlefieldAssessor
 
@@ -128,8 +69,6 @@ class BattlefieldAssessor:
         try:
             # 1. 获取池子信息
             pool = self.pool_repo.get_pool(pool_id)
-            # TODO: 提取嵌套逻辑为独立方法
-
             if not pool:
                 raise ValueError(f"池子不存在: {pool_id}")
 
@@ -273,62 +212,7 @@ class BattlefieldAssessor:
 
         return stock_scores
 
-    # TODO: Refactor - complexity 28 (target < 15)
-
-    # TODO: Refactor - function too long (128 lines, target < 80)
-
-    def _validate__analyze_stocks_by_kline_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _analyze_stocks_by_kline 移到这里
-        return True, None
-
-    def _process__analyze_stocks_by_kline_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _analyze_stocks_by_kline 移到这里
-        return data
-
-    def _build__analyze_stocks_by_kline_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _analyze_stocks_by_kline 移到这里
-        return data
-
-    def _validate__analyze_stocks_by_kline_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _analyze_stocks_by_kline 移到这里
-        return True, None
-
-    def _process__analyze_stocks_by_kline_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _analyze_stocks_by_kline 移到这里
-        return data
-
-    def _build__analyze_stocks_by_kline_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _analyze_stocks_by_kline 移到这里
-        return data
-
-# TODO: Split long function (127 lines, target < 100)
-# TODO: Refactor - complexity 28 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 28 (target < 15)
-    # TODO: Split long function (127 lines, target < 100)
-    # TODO: Refactor - complexity 28 (target < 15)
-    # TODO: Split long function (127 lines, target < 100)
-    # TODO: 复杂度 28 - 需要重构拆分为更小的函数
-
-    # TODO: 长函数 138行 - 建议拆分为多个小函数
-
     def _analyze_stocks_by_kline(self, symbols: List[str]) -> List[Dict]:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         """W2: 降级方法 - 使用K线数据分析战场（增强版）
         
         当 fund_flow_repo 不可用时，基于多维度 K线指标分析战场：
@@ -574,115 +458,116 @@ class BattlefieldAssessor:
         if market_phase == 'accumulation':
             if opponent_strength['institution_interest'] == 'high':
                 return 'early_accumulation'  # 早期吸筹
-            return 'late_accumulation'  # 后期吸筹
+            else:
+                return 'late_accumulation'  # 后期吸筹
 
-    elif market_phase == 'markup':
-        return 'rising'  # 上涨阶段
+        elif market_phase == 'markup':
+            return 'rising'  # 上涨阶段
 
-    elif market_phase == 'distribution':
-        if opponent_strength['retail_pressure'] == 'high':
-            return 'topping'  # 顶部区域
+        elif market_phase == 'distribution':
+            if opponent_strength['retail_pressure'] == 'high':
+                return 'topping'  # 顶部区域
+            else:
+                return 'early_distribution'  # 早期派发
+
+        elif market_phase == 'markdown':
+            return 'declining'  # 下跌阶段
+
         else:
-            return 'early_distribution'  # 早期派发
+            return 'consolidation'  # 震荡整理
 
-    elif market_phase == 'markdown':
-        return 'declining'  # 下跌阶段
+    def _identify_pros_cons(self, stock_scores: List[Dict], opponent_behavior: Dict,
+                           opponent_strength: Dict) -> tuple:
+        """
+        识别优势和劣势
 
-    else:
-        return 'consolidation'  # 震荡整理
+        Returns:
+            (advantages, disadvantages)
+        """
+        advantages = []
+        disadvantages = []
 
-def _identify_pros_cons(self, stock_scores: List[Dict], opponent_behavior: Dict,
-                       opponent_strength: Dict) -> tuple:
-    """
-    识别优势和劣势
+        # 优势分析
+        if opponent_strength['retail_pressure'] == 'low':
+            advantages.append('散户恐慌抛售，筹码便宜')
 
-    Returns:
-        (advantages, disadvantages)
-    """
-    advantages = []
-    disadvantages = []
+        if opponent_strength['institution_interest'] == 'high':
+            advantages.append('机构正在悄悄建仓')
 
-    # 优势分析
-    if opponent_strength['retail_pressure'] == 'low':
-        advantages.append('散户恐慌抛售，筹码便宜')
+        if opponent_behavior['market_phase'] == 'accumulation':
+            advantages.append('市场处于吸筹阶段（底部）')
 
-    if opponent_strength['institution_interest'] == 'high':
-        advantages.append('机构正在悄悄建仓')
+        avg_score = sum([s['score'] for s in stock_scores]) / len(stock_scores) if stock_scores else 50
+        if avg_score > 70:
+            advantages.append('池子整体战场优势明显')
 
-    if opponent_behavior['market_phase'] == 'accumulation':
-        advantages.append('市场处于吸筹阶段（底部）')
+        # 劣势分析
+        if opponent_strength['retail_pressure'] == 'high':
+            disadvantages.append('散户追涨，可能接近顶部')
 
-    avg_score = sum([s['score'] for s in stock_scores]) / len(stock_scores) if stock_scores else 50
-    if avg_score > 70:
-        advantages.append('池子整体战场优势明显')
+        if opponent_strength['institution_interest'] == 'low':
+            disadvantages.append('机构出货，风险增加')
 
-    # 劣势分析
-    if opponent_strength['retail_pressure'] == 'high':
-        disadvantages.append('散户追涨，可能接近顶部')
+        if opponent_strength['hot_money_risk'] == 'high':
+            disadvantages.append('游资炒作，警惕拉高出货')
 
-    if opponent_strength['institution_interest'] == 'low':
-        disadvantages.append('机构出货，风险增加')
+        if not stock_scores or len(stock_scores) < 5:
+            disadvantages.append('池子成员较少，分散度不足')
 
-    if opponent_strength['hot_money_risk'] == 'high':
-        disadvantages.append('游资炒作，警惕拉高出货')
+        return advantages, disadvantages
 
-    if not stock_scores or len(stock_scores) < 5:
-        disadvantages.append('池子成员较少，分散度不足')
+    def _generate_recommendation(self, battlefield_score: float, game_phase: str,
+                                opponent_strength: Dict) -> tuple:
+        """
+        生成操作建议
 
-    return advantages, disadvantages
-
-def _generate_recommendation(self, battlefield_score: float, game_phase: str,
-                            opponent_strength: Dict) -> tuple:
-    """
-    生成操作建议
-
-    Returns:
-        (recommendation, urgency)
-    """
-    # 推荐动作
-    if battlefield_score > 80:
-        recommendation = 'accumulate'  # 积极建仓
-        urgency = 'high'
-    elif battlefield_score > 60:
-        recommendation = 'hold'  # 持有
-        urgency = 'medium'
-    elif battlefield_score > 40:
-        recommendation = 'reduce'  # 减仓
-        urgency = 'medium'
-    else:
-        recommendation = 'exit'  # 退出
-        urgency = 'high'
-
-    # 特殊情况调整
-    if game_phase == 'topping' or opponent_strength['institution_interest'] == 'low':
-        if recommendation in ['accumulate', 'hold']:
-            recommendation = 'reduce'
+        Returns:
+            (recommendation, urgency)
+        """
+        # 推荐动作
+        if battlefield_score > 80:
+            recommendation = 'accumulate'  # 积极建仓
+            urgency = 'high'
+        elif battlefield_score > 60:
+            recommendation = 'hold'  # 持有
+            urgency = 'medium'
+        elif battlefield_score > 40:
+            recommendation = 'reduce'  # 减仓
+            urgency = 'medium'
+        else:
+            recommendation = 'exit'  # 退出
             urgency = 'high'
 
-    return recommendation, urgency
+        # 特殊情况调整
+        if game_phase == 'topping' or opponent_strength['institution_interest'] == 'low':
+            if recommendation in ['accumulate', 'hold']:
+                recommendation = 'reduce'
+                urgency = 'high'
 
-def _calculate_confidence(self, stock_scores: List[Dict]) -> float:
-    """
-    计算置信度
+        return recommendation, urgency
 
-    基于：
-    - 样本数量（股票数量）
-    - 评分一致性（方差）
+    def _calculate_confidence(self, stock_scores: List[Dict]) -> float:
+        """
+        计算置信度
 
-    Returns:
-        置信度（0-1）
-    """
-    if not stock_scores:
-        return 0.5
+        基于：
+        - 样本数量（股票数量）
+        - 评分一致性（方差）
 
-    # 基础置信度
-    sample_size = len(stock_scores)
-    base_confidence = min(0.7, 0.3 + sample_size * 0.04)  # 样本越多越自信
+        Returns:
+            置信度（0-1）
+        """
+        if not stock_scores:
+            return 0.5
 
-    # 一致性调整
-    scores = [s['score'] for s in stock_scores]
-    variance = sum([(s - sum(scores)/len(scores))**2 for s in scores]) / len(scores)
-    consistency_factor = 1.0 - min(0.3, variance / 1000)
+        # 基础置信度
+        sample_size = len(stock_scores)
+        base_confidence = min(0.7, 0.3 + sample_size * 0.04)  # 样本越多越自信
 
-    confidence = base_confidence * consistency_factor
-    return round(confidence, 2)
+        # 一致性调整
+        scores = [s['score'] for s in stock_scores]
+        variance = sum([(s - sum(scores)/len(scores))**2 for s in scores]) / len(scores)
+        consistency_factor = 1.0 - min(0.3, variance / 1000)
+
+        confidence = base_confidence * consistency_factor
+        return round(confidence, 2)

@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 ML模型仓库适配器实现
 
@@ -205,9 +202,10 @@ class MLModelFileRepository(IMLModelRepository):
             # 检查是否存在任何版本
             versions = self.list_versions(model_type)
             return len(versions) > 0
-        # 检查特定版本
-        model_path = self._model_dir / f"{model_type}_{version}.pkl"
-        return model_path.exists()
+        else:
+            # 检查特定版本
+            model_path = self._model_dir / f"{model_type}_{version}.pkl"
+            return model_path.exists()
 
 
 class MLModelMetadataDBRepository(IMLModelMetadataRepository):

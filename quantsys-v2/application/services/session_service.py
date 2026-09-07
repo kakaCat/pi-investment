@@ -1,40 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_8 = 0.8
-
-CONST_50 = 50
-
-CONST_200 = 200
-
-CONST_500 = 500
-
-CONST_6000 = 6000
-
-CONST_10000 = 10000
-
-
-
-CONST_0_8 = 0.8
-
-CONST_50 = 50
-
-CONST_200 = 200
-
-CONST_500 = 500
-
-CONST_6000 = 6000
-
-CONST_10000 = 10000
-
-
-
 """
 Session 服务 — agent session 事件摄入、查询与诊断
 
@@ -115,9 +78,7 @@ class SessionService:
                 counter = _COUNTER_MAP.get(etype)
                 if counter:
                     cursor.execute(
-                        # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                        f"UPDATE quant.agent_sessions SET {counter} = {counter} + 1 WHERE session_key = %s",  # TODO: Use parameterized queries
+                        f"UPDATE quant.agent_sessions SET {counter} = {counter} + 1 WHERE session_key = %s",
                         (key,),
                     )
 
@@ -128,16 +89,12 @@ class SessionService:
         with db_cursor() as cursor:
             if channel:
                 cursor.execute(
-                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                    "SELECT * FROM quant.agent_sessions WHERE channel = %s ORDER BY last_active_at DESC LIMIT %s",  # TODO: Use parameterized queries
+                    "SELECT * FROM quant.agent_sessions WHERE channel = %s ORDER BY last_active_at DESC LIMIT %s",
                     (channel, limit),
                 )
             else:
                 cursor.execute(
-                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                    "SELECT * FROM quant.agent_sessions ORDER BY last_active_at DESC LIMIT %s",  # TODO: Use parameterized queries
+                    "SELECT * FROM quant.agent_sessions ORDER BY last_active_at DESC LIMIT %s",
                     (limit,),
                 )
             return [dict(r) for r in cursor.fetchall()]
@@ -145,9 +102,7 @@ class SessionService:
     def get_session(self, session_key: str) -> Optional[Dict[str, Any]]:
         from infrastructure.persistence.database.engine import db_cursor
         with db_cursor() as cursor:
-            # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-            cursor.execute("SELECT * FROM quant.agent_sessions WHERE session_key = %s", (session_key,))  # TODO: Use parameterized queries
+            cursor.execute("SELECT * FROM quant.agent_sessions WHERE session_key = %s", (session_key,))
             row = cursor.fetchone()
             return dict(row) if row else None
 
@@ -234,9 +189,7 @@ class SessionService:
         if not refresh:
             with db_cursor() as cursor:
                 cursor.execute(
-                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                    "SELECT ai_diagnosis, ai_diagnosis_at FROM quant.agent_sessions WHERE session_key = %s",  # TODO: Use parameterized queries
+                    "SELECT ai_diagnosis, ai_diagnosis_at FROM quant.agent_sessions WHERE session_key = %s",
                     (session_key,),
                 )
                 row = cursor.fetchone()
@@ -301,7 +254,9 @@ class SessionService:
         if total == 0:
             return "本会话无工具调用记录。"
         parts = []
-        if success_rate is not None and success_rate < 0.8 and float(tool.get("max_ms") or 0) > 10000:
+        if success_rate is not None and success_rate < 0.8:
+            parts.append(f"工具成功率偏低（{success_rate:.0%}），建议检查失败工具的参数或数据源。")
+        if float(tool.get("max_ms") or 0) > 10000:
             parts.append(f"存在慢工具调用（最大 {int(tool['max_ms'])}ms），建议排查超时原因。")
         if errors:
             parts.append(f"最高频错误：{errors[0]['message']}（{errors[0]['cnt']} 次）。")

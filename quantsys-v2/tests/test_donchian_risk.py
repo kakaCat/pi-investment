@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_2024 = 2024
-CONST_26 = 26
-CONST_45_0 = 45.0
-CONST_45_5 = 45.5
-CONST_46_0 = 46.0
-CONST_49_0 = 49.0
-CONST_50_0 = 50.0
-CONST_51_0 = 51.0
-CONST_74_5 = 74.5
-
 """
 测试 DonchianChannelStrategy 风控功能
 """

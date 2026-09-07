@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_400 = 400
-
-CONST_500 = 500
-
-
-
-CONST_400 = 400
-
-CONST_500 = 500
-
-
-
 """
 回测路由重构 - 降低 run_backtest 复杂度
 
@@ -159,7 +138,9 @@ class BacktestRequestProcessor:
 
         # 移动平均策略
         if 'ma' in strategy_name or 'cross' in strategy_name:
-            if 'ma_short' not in self.data and 'ma_long' not in self.data:
+            if 'ma_short' not in self.data:
+                return '移动平均策略缺少参数: ma_short (或 fastPeriod)'
+            if 'ma_long' not in self.data:
                 return '移动平均策略缺少参数: ma_long (或 slowPeriod)'
 
         # RSI 策略

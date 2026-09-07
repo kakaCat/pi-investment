@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_15 = 15
-CONST_15_0 = 15.0
-CONST_15_1 = 15.1
-CONST_15_2 = 15.2
-CONST_16 = 16
-CONST_1800_0 = 1800.0
-CONST_1805_0 = 1805.0
-CONST_2024 = 2024
-CONST_3 = 3
-CONST_30 = 30
-
 """Tests for DeduplicationStage."""
 
 import pytest

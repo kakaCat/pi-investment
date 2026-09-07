@@ -1,26 +1,9 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_3 = 10.3
-CONST_10_5 = 10.5
-CONST_12 = 12
-CONST_2024 = 2024
-CONST_2030 = 2030
-CONST_3 = 3
-CONST_30 = 30
-CONST_31 = 31
-CONST_42 = 42
-CONST_45_0 = 45.0
-
 """
 SignalRepository单元测试
 """
 import pytest
 from adapters.outbound.repositories import SignalORMRepository
 
-
-# TODO: Refactor large class (22 methods, target < 20)
-# TODO: 大类 22个方法 - 考虑拆分为多个类或使用组合模式
 
 class TestSignalRepository:
     """SignalRepository测试类"""

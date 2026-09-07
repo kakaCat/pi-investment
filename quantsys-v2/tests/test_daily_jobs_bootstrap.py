@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_15 = 15
-CONST_16 = 16
-CONST_17 = 17
-CONST_18 = 18
-CONST_20 = 20
-CONST_2026 = 2026
-CONST_3 = 3
-CONST_30 = 30
-CONST_31 = 31
-CONST_39 = 39
-
 """daily_jobs_bootstrap 调度逻辑单测
 
 覆盖（2026-09-02 工程纪律：故障路径必须故障注入实测）：
@@ -112,3 +98,4 @@ class TestStartupSafety:
         src = inspect.getsource(scheduler_tasks.handle_data_update)
         assert 'update_gem_klines' not in src, \
             'handle_data_update 不得直接调用全市场同步（会把主线程启动卡死），用 morning_topup 任务'
+

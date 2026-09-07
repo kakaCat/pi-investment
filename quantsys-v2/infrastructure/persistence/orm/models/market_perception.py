@@ -1,15 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-CONST_20 = 20
-
-
-
 """
 M1 市场感知相关 Model（RFC 007）
 

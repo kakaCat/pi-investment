@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Improved global exception handler for FastAPI.
 
 Replaces broad 'except Exception' with structured exception handling:
@@ -17,18 +14,13 @@ import os
 from typing import Union
 
 from domain.exceptions import (
-    QuantSysError,
-    ValidationError,
-    ResourceNotFoundError,
-    ResourceAlreadyExistsError,
-    DataSourceUnavailableError,
-    BusinessError,
+    QuantSysException,
+    ValidationException,
+    NotFoundException,
+    DataSourceException,
+    BusinessRuleException,
+    should_alert,
 )
-
-def should_alert(exc):
-    """判断是否需要告警"""
-    # 系统错误或数据源错误需要告警
-    return isinstance(exc, (DataSourceUnavailableError, SystemError))
 
 logger = logging.getLogger(__name__)
 
@@ -38,48 +30,26 @@ IS_DEV = os.getenv("ENVIRONMENT", "production").lower() in ("dev", "development"
 
 async def quantsys_exception_handler(
     request: Request,
-    exc: QuantSysError
+    exc: QuantSysException
 ) -> JSONResponse:
-    """Handle all QuantSysError subclasses with proper HTTP codes.
+    """Handle all QuantSysException subclasses with proper HTTP codes.
 
     Business exceptions (validation, not found, etc.) are logged at INFO level.
     System exceptions (database, config, etc.) are logged at ERROR level.
     """
-    # Map exception types to HTTP status codes
-    status_map = {
-        ValidationError: status.HTTP_422_UNPROCESSABLE_ENTITY,
-        ResourceNotFoundError: status.HTTP_404_NOT_FOUND,
-        ResourceAlreadyExistsError: status.HTTP_409_CONFLICT,
-        DataSourceUnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
-    }
-
-    # Determine HTTP status
-    http_status = status.HTTP_400_BAD_REQUEST  # Default for BusinessError
-    for exc_type, code in status_map.items():
-        if isinstance(exc, exc_type):
-            http_status = code
-            break
-
-    # Use SystemError for 500
-    if exc.__class__.__name__ == 'SystemError':
-        http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
-
     # Determine log level based on exception type
-    if isinstance(exc, (ValidationError, ResourceNotFoundError, BusinessError)):
+    if isinstance(exc, (ValidationException, NotFoundException, BusinessRuleException)):
         log_level = logging.INFO
     else:
         log_level = logging.ERROR
-
-    # Get error_code from exception (use 'code' attribute if available)
-    error_code = getattr(exc, 'code', exc.__class__.__name__.upper())
 
     # Log with full context
     logger.log(
         log_level,
         f"{exc.__class__.__name__}: {exc.message}",
         extra={
-            "error_code": error_code,
-            "http_status": http_status,
+            "error_code": exc.error_code,
+            "http_status": exc.http_status,
             "details": exc.details,
             "path": request.url.path,
             "method": request.method,
@@ -91,19 +61,16 @@ async def quantsys_exception_handler(
     if should_alert(exc):
         logger.critical(
             f"ALERT: Critical system error - {exc.__class__.__name__}",
-            extra={"error_code": error_code, "details": exc.details}
+            extra={"error_code": exc.error_code, "details": exc.details}
         )
         # TODO: Integrate with alerting system (PagerDuty, etc.)
 
     # Return structured response
-    response_dict = exc.to_dict()
     return JSONResponse(
-        status_code=http_status,
+        status_code=exc.http_status,
         content={
             "success": False,
-            "error_code": error_code,
-            "message": exc.message,
-            **({"details": exc.details} if IS_DEV and exc.details else {}),
+            **exc.to_dict(include_details=IS_DEV),  # Only expose details in dev
         },
     )
 
@@ -203,13 +170,13 @@ def register_exception_handlers(app) -> None:
     Call this from main.py after creating the app instance.
 
     Handlers are registered in order of specificity:
-    1. QuantSysError subclasses (our business exceptions)
+    1. QuantSysException subclasses (our business exceptions)
     2. FastAPI validation errors
     3. Starlette HTTP exceptions
     4. Catch-all for truly unexpected exceptions
     """
     # Register our business exception hierarchy
-    app.add_exception_handler(QuantSysError, quantsys_exception_handler)
+    app.add_exception_handler(QuantSysException, quantsys_exception_handler)
 
     # Register FastAPI/Starlette built-in exceptions
     app.add_exception_handler(RequestValidationError, validation_exception_handler)

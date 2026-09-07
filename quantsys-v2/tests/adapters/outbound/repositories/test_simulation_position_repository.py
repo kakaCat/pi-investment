@@ -1,15 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12_0 = 12.0
-CONST_1200_0 = 1200.0
-CONST_15_0 = 15.0
-CONST_16_0 = 16.0
-CONST_200 = 200
-CONST_200_0 = 200.0
-CONST_3200_0 = 3200.0
-CONST_600000 = 600000
-
 # tests/adapters/outbound/repositories/test_simulation_position_repository.py
 import pytest
 from unittest.mock import Mock

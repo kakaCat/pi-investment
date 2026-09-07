@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_11_0 = 11.0
-CONST_11_5 = 11.5
-CONST_11_8 = 11.8
-CONST_12_0 = 12.0
-CONST_12_5 = 12.5
-CONST_14_0 = 14.0
-CONST_20 = 20
-CONST_3 = 3
-CONST_30 = 30
-CONST_4 = 4
-
 """中枢识别器测试"""
 import pytest
 from datetime import datetime

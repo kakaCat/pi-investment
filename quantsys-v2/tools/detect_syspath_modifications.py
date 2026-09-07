@@ -1,13 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_3 = 3
-CONST_3_9 = 3.9
-CONST_45 = 45
-CONST_70 = 70
-CONST_8 = 8
-CONST_80 = 80
-
 """P1-3: sys.path modification detection and cleanup tool.
 
 This tool helps identify and remove unnecessary sys.path.insert() calls

@@ -1,7 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 Base strategy template built on domain value objects.
 
@@ -10,6 +6,7 @@ abstract methods. The template method :meth:`BaseStrategy.execute_daily_check`
 orchestrates the daily trading workflow and delegates decision points to
 abstract methods and hooks.
 """
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -173,7 +170,9 @@ class BaseStrategy(ABC):
             * Empty portfolio -> rebalance (look for entries every day).
             * Otherwise rebalance when ``rebalance_days`` have elapsed.
         """
-        if not last_rebalance_date and not has_positions:
+        if not last_rebalance_date:
+            return True
+        if not has_positions:
             return True
 
         last_date = datetime.strptime(last_rebalance_date, "%Y-%m-%d")

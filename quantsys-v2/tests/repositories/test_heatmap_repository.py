@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_11_0 = 11.0
-CONST_18_0 = 18.0
-CONST_20_0 = 20.0
-CONST_2009 = 2009
-CONST_4 = 4
-CONST_5 = 5
-CONST_50_0 = 50.0
-CONST_6 = 6
-CONST_7 = 7
-CONST_7_0 = 7.0
-
 """HeatmapRepository 交易日/窗口收盘价查询测试（真实 quant_test DB）"""
 from datetime import date
 

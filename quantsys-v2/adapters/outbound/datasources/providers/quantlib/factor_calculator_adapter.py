@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 Factor Calculator Adapter
 ==========================
@@ -149,175 +146,176 @@ class FactorCalculatorAdapter:
                     if isinstance(result, dict) and 'total_score' in result:
                         return float(result['total_score'])
                     return None
+                else:
+                    return None
+            else:
+                # Use klines for technical factors
+                method = getattr(calc, method_name)
+                result = method(data)
+
+            # Extract value from result dict (new format)
+            if isinstance(result, dict) and 'value' in result:
+                return float(result['value']) if result['value'] is not None else None
+            else:
+                logger.warning(f"Unexpected result format for {factor_name}: {type(result)}")
                 return None
-        else:
-            # Use klines for technical factors
-            method = getattr(calc, method_name)
-            result = method(data)
 
-        # Extract value from result dict (new format)
-        if isinstance(result, dict) and 'value' in result:
-            return float(result['value']) if result['value'] is not None else None
-        else:
-            logger.warning(f"Unexpected result format for {factor_name}: {type(result)}")
-            return None
-
-    except Exception as e:
-        logger.debug(f"Failed to calculate {factor_name}: {e}")
-        return None
-
-def calculate_batch(
-    self,
-    factor_names: List[str],
-    klines: List[Dict[str, Any]],
-    financial_data: Optional[Dict[str, Any]] = None
-) -> Dict[str, Optional[float]]:
-    """
-    Calculate multiple factors in batch (FactorRegistry-compatible interface).
-
-    Args:
-        factor_names: List of factor names to calculate
-        klines: K-line data
-        financial_data: Financial data for fundamental factors (optional)
-
-    Returns:
-        Dictionary mapping factor names to their values (or None if failed)
-    """
-    results = {}
-
-    for factor_name in factor_names:
-        try:
-            results[factor_name] = self.calculate(factor_name, klines, financial_data)
         except Exception as e:
             logger.debug(f"Failed to calculate {factor_name}: {e}")
-            results[factor_name] = None
+            return None
 
-    return results
+    def calculate_batch(
+        self,
+        factor_names: List[str],
+        klines: List[Dict[str, Any]],
+        financial_data: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Optional[float]]:
+        """
+        Calculate multiple factors in batch (FactorRegistry-compatible interface).
 
-def calculate_with_metadata(
-    self,
-    factor_name: str,
-    klines: List[Dict[str, Any]],
-    financial_data: Optional[Dict[str, Any]] = None
-) -> Optional[Dict[str, Any]]:
-    """
-    Calculate a factor and return full result with metadata (new interface).
+        Args:
+            factor_names: List of factor names to calculate
+            klines: K-line data
+            financial_data: Financial data for fundamental factors (optional)
 
-    Args:
-        factor_name: Name of the factor to calculate
-        klines: K-line data
-        financial_data: Financial data for fundamental factors (optional)
+        Returns:
+            Dictionary mapping factor names to their values (or None if failed)
+        """
+        results = {}
 
-    Returns:
-        Full result dictionary with value, metadata, timestamp, etc.
-        Returns None if calculation fails.
-    """
-    if factor_name not in self._factor_map:
-        raise ValueError(f"Factor '{factor_name}' is not registered")
+        for factor_name in factor_names:
+            try:
+                results[factor_name] = self.calculate(factor_name, klines, financial_data)
+            except Exception as e:
+                logger.debug(f"Failed to calculate {factor_name}: {e}")
+                results[factor_name] = None
 
-    calc, method_name = self._factor_map[factor_name]
+        return results
 
-    try:
-        # Check if this is a fundamental factor
-        is_fundamental = factor_name in ['fscore', 'earnings_quality']
+    def calculate_with_metadata(
+        self,
+        factor_name: str,
+        klines: List[Dict[str, Any]],
+        financial_data: Optional[Dict[str, Any]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Calculate a factor and return full result with metadata (new interface).
 
-        if is_fundamental:
-            if financial_data is None:
-                logger.debug(f"No financial data provided for fundamental factor {factor_name}")
-                return None
-            method = getattr(calc, method_name)
-            result = method(financial_data)
-            # Wrap fundamental factor results for consistent interface
-            if factor_name == 'fscore':
-                return {'value': result, 'method': 'fscore', 'metadata': {}}
-            elif factor_name == 'earnings_quality':
-                if isinstance(result, dict):
-                    wrapped = dict(result)
-                    wrapped['value'] = result.get('total_score')
-                    return wrapped
-                return None
-            else:
-                return None
-        else:
-            method = getattr(calc, method_name)
-            result = method(klines)
-        return result
-    except Exception as e:
-        logger.debug(f"Failed to calculate {factor_name} with metadata: {e}")
-        return None
+        Args:
+            factor_name: Name of the factor to calculate
+            klines: K-line data
+            financial_data: Financial data for fundamental factors (optional)
 
-def calculate_batch_with_metadata(
-    self,
-    factor_names: List[str],
-    klines: List[Dict[str, Any]],
-    financial_data: Optional[Dict[str, Any]] = None
-) -> Dict[str, Optional[Dict[str, Any]]]:
-    """
-    Calculate multiple factors with full metadata (new interface).
+        Returns:
+            Full result dictionary with value, metadata, timestamp, etc.
+            Returns None if calculation fails.
+        """
+        if factor_name not in self._factor_map:
+            raise ValueError(f"Factor '{factor_name}' is not registered")
 
-    Args:
-        factor_names: List of factor names to calculate
-        klines: K-line data
-        financial_data: Financial data for fundamental factors (optional)
+        calc, method_name = self._factor_map[factor_name]
 
-    Returns:
-        Dictionary mapping factor names to their full result dicts
-    """
-    results = {}
-
-    for factor_name in factor_names:
         try:
-            results[factor_name] = self.calculate_with_metadata(factor_name, klines, financial_data)
+            # Check if this is a fundamental factor
+            is_fundamental = factor_name in ['fscore', 'earnings_quality']
+
+            if is_fundamental:
+                if financial_data is None:
+                    logger.debug(f"No financial data provided for fundamental factor {factor_name}")
+                    return None
+                method = getattr(calc, method_name)
+                result = method(financial_data)
+                # Wrap fundamental factor results for consistent interface
+                if factor_name == 'fscore':
+                    return {'value': result, 'method': 'fscore', 'metadata': {}}
+                elif factor_name == 'earnings_quality':
+                    if isinstance(result, dict):
+                        wrapped = dict(result)
+                        wrapped['value'] = result.get('total_score')
+                        return wrapped
+                    return None
+                else:
+                    return None
+            else:
+                method = getattr(calc, method_name)
+                result = method(klines)
+            return result
         except Exception as e:
             logger.debug(f"Failed to calculate {factor_name} with metadata: {e}")
-            results[factor_name] = None
+            return None
 
-    return results
+    def calculate_batch_with_metadata(
+        self,
+        factor_names: List[str],
+        klines: List[Dict[str, Any]],
+        financial_data: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Optional[Dict[str, Any]]]:
+        """
+        Calculate multiple factors with full metadata (new interface).
 
-def get_factor_info(self, factor_name: str) -> Dict[str, Any]:
-    """
-    Get information about a factor.
+        Args:
+            factor_names: List of factor names to calculate
+            klines: K-line data
+            financial_data: Financial data for fundamental factors (optional)
 
-    Args:
-        factor_name: Name of the factor
+        Returns:
+            Dictionary mapping factor names to their full result dicts
+        """
+        results = {}
 
-    Returns:
-        Dictionary with factor information
-    """
-    if factor_name not in self._factor_map:
-        raise ValueError(f"Factor '{factor_name}' is not registered")
+        for factor_name in factor_names:
+            try:
+                results[factor_name] = self.calculate_with_metadata(factor_name, klines, financial_data)
+            except Exception as e:
+                logger.debug(f"Failed to calculate {factor_name} with metadata: {e}")
+                results[factor_name] = None
 
-    calc, method_name = self._factor_map[factor_name]
+        return results
 
-    # Determine category based on calculator type
-    calc_type = type(calc).__name__
-    category_map = {
-        'MovingAverageFactors': 'technical',
-        'MomentumFactors': 'technical',
-        'VolatilityFactors': 'technical',
-        'VolumeFactors': 'technical',
-        'TrendFactors': 'technical',
-        'OtherFactors': 'technical',
-        'FScoreCalculator': 'fundamental',
-        'EarningsQualityCalculator': 'fundamental'
-    }
+    def get_factor_info(self, factor_name: str) -> Dict[str, Any]:
+        """
+        Get information about a factor.
 
-    return {
-        'name': factor_name,
-        'category': category_map.get(calc_type, 'technical'),
-        'calculator': calc_type,
-        'method': method_name,
-        'framework': 'BaseCalculator'
-    }
+        Args:
+            factor_name: Name of the factor
 
-def get_all_factors_info(self) -> List[Dict[str, Any]]:
-    """
-    Get information about all available factors.
+        Returns:
+            Dictionary with factor information
+        """
+        if factor_name not in self._factor_map:
+            raise ValueError(f"Factor '{factor_name}' is not registered")
 
-    Returns:
-        List of factor information dictionaries
-    """
-    return [self.get_factor_info(name) for name in self.get_available_factors()]
+        calc, method_name = self._factor_map[factor_name]
+
+        # Determine category based on calculator type
+        calc_type = type(calc).__name__
+        category_map = {
+            'MovingAverageFactors': 'technical',
+            'MomentumFactors': 'technical',
+            'VolatilityFactors': 'technical',
+            'VolumeFactors': 'technical',
+            'TrendFactors': 'technical',
+            'OtherFactors': 'technical',
+            'FScoreCalculator': 'fundamental',
+            'EarningsQualityCalculator': 'fundamental'
+        }
+
+        return {
+            'name': factor_name,
+            'category': category_map.get(calc_type, 'technical'),
+            'calculator': calc_type,
+            'method': method_name,
+            'framework': 'BaseCalculator'
+        }
+
+    def get_all_factors_info(self) -> List[Dict[str, Any]]:
+        """
+        Get information about all available factors.
+
+        Returns:
+            List of factor information dictionaries
+        """
+        return [self.get_factor_info(name) for name in self.get_available_factors()]
 
 
 # Global singleton instance

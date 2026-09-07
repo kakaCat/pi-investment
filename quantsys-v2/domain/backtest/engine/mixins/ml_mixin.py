@@ -1,7 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Mixin providing ML prediction integration.
 
 DDD Architecture:
@@ -10,6 +6,7 @@ DDD Architecture:
 
 Updated 2026-06-26: 添加依赖注入支持
 """
+from __future__ import annotations
 
 import logging
 from typing import Any, Optional

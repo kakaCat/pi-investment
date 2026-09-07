@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 策略熔断告警服务
 
@@ -120,64 +117,65 @@ class CircuitBreakerAlertService:
             return 'critical'
         elif status == 'warning':
             return 'warning'
-        return 'info'
+        else:
+            return 'info'
 
-def add_handler(self, handler):
-    """
-    添加自定义告警处理器
+    def add_handler(self, handler):
+        """
+        添加自定义告警处理器
 
-    Args:
-        handler: 处理器函数，接收 CircuitBreakerAlert 参数
-    """
-    self.alert_handlers.append(handler)
+        Args:
+            handler: 处理器函数，接收 CircuitBreakerAlert 参数
+        """
+        self.alert_handlers.append(handler)
 
-def send_suspended_alert(self, strategy_name: str, state: Dict) -> None:
-    """
-    发送策略暂停告警（快捷方法）
+    def send_suspended_alert(self, strategy_name: str, state: Dict) -> None:
+        """
+        发送策略暂停告警（快捷方法）
 
-    Args:
-        strategy_name: 策略名称
-        state: 状态详情
-    """
-    self.send_alert(
-        strategy_name=strategy_name,
-        old_status=state.get('previous_status', 'unknown'),
-        new_status='suspended',
-        reason=state.get('reason', '连续亏损触发熔断'),
-        state=state
-    )
+        Args:
+            strategy_name: 策略名称
+            state: 状态详情
+        """
+        self.send_alert(
+            strategy_name=strategy_name,
+            old_status=state.get('previous_status', 'unknown'),
+            new_status='suspended',
+            reason=state.get('reason', '连续亏损触发熔断'),
+            state=state
+        )
 
-def send_warning_alert(self, strategy_name: str, state: Dict) -> None:
-    """
-    发送策略告警（快捷方法）
+    def send_warning_alert(self, strategy_name: str, state: Dict) -> None:
+        """
+        发送策略告警（快捷方法）
 
-    Args:
-        strategy_name: 策略名称
-        state: 状态详情
-    """
-    self.send_alert(
-        strategy_name=strategy_name,
-        old_status=state.get('previous_status', 'active'),
-        new_status='warning',
-        reason=state.get('reason', '策略表现异常'),
-        state=state
-    )
+        Args:
+            strategy_name: 策略名称
+            state: 状态详情
+        """
+        self.send_alert(
+            strategy_name=strategy_name,
+            old_status=state.get('previous_status', 'active'),
+            new_status='warning',
+            reason=state.get('reason', '策略表现异常'),
+            state=state
+        )
 
-def send_recovery_alert(self, strategy_name: str, state: Dict) -> None:
-    """
-    发送策略恢复告警（快捷方法）
+    def send_recovery_alert(self, strategy_name: str, state: Dict) -> None:
+        """
+        发送策略恢复告警（快捷方法）
 
-    Args:
-        strategy_name: 策略名称
-        state: 状态详情
-    """
-    self.send_alert(
-        strategy_name=strategy_name,
-        old_status='suspended',
-        new_status='active',
-        reason=state.get('reason', '策略表现恢复正常'),
-        state=state
-    )
+        Args:
+            strategy_name: 策略名称
+            state: 状态详情
+        """
+        self.send_alert(
+            strategy_name=strategy_name,
+            old_status='suspended',
+            new_status='active',
+            reason=state.get('reason', '策略表现恢复正常'),
+            state=state
+        )
 
 
 # 全局告警服务实例

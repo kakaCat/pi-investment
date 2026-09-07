@@ -1,37 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - _span_margin() = 104 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.001, 0.01, 0.05, 0.1, 0.25]...
-
-
-# Extracted Constants
-
-CONST_0_001 = 0.001
-
-CONST_0_01 = 0.01
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_99 = 0.99
-
-CONST_3_0 = 3.0
-
-CONST_6 = 6
-
-
-
 """
 Margin Calculator
 ==================
@@ -180,16 +146,7 @@ class MarginCalculator(BaseCalculator):
                 raise
             raise CalculationError(str(e), calculation_type='Margin')
 
-    # TODO: Refactor - function too long (105 lines, target < 80)
-
-# TODO: Split long function (104 lines, target < 100)
-    # TODO: 长函数 109行 - 建议拆分为多个小函数
-
     def _span_margin(self,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
                      positions: Dict[str, float],
                      prices: Dict[str, float],
                      vols: Dict[str, float],
@@ -529,3 +486,4 @@ class MarginCalculator(BaseCalculator):
     def get_supported_methods(self) -> List[str]:
         """Return list of supported margin calculation methods."""
         return ['span', 'var_based', 'strategy_based']
+

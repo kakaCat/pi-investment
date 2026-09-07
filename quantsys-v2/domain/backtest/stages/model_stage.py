@@ -1,27 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_0_5 = 0.5
-
-CONST_6 = 6
-
-CONST_12 = 12
-
-CONST_24 = 24
-
-CONST_26 = 26
-
-CONST_50_0 = 50.0
-
-CONST_60 = 60
-
-
-
 """
 Model Prediction Stage
 
@@ -78,9 +54,13 @@ class ModelStage(PipelineStage):
         self._model_loaded = False
 
     def validate_input(self, data: Dict[str, Any]) -> bool:
-        if "symbol" not in data and "factors" not in data:
+        if "symbol" not in data:
+            raise ValueError("Missing required field: symbol")
+        if "factors" not in data:
             raise ValueError("Missing required field: factors")
-        if "klines" not in data and not isinstance(data["klines"], list) or len(data["klines"]) == 0:
+        if "klines" not in data:
+            raise ValueError("Missing required field: klines")
+        if not isinstance(data["klines"], list) or len(data["klines"]) == 0:
             raise ValueError("klines must be a non-empty list")
         return True
 

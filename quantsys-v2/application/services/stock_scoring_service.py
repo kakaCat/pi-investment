@@ -1,59 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.05, 0.1, 0.15, 0.2, 0.3]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_0_6 = 0.6
-
-CONST_0_7 = 0.7
-
-CONST_0_8 = 0.8
-
-
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_0_6 = 0.6
-
-CONST_0_7 = 0.7
-
-CONST_0_8 = 0.8
-
-
-
 """
 股票综合评分服务
 
@@ -69,9 +13,6 @@ from datetime import datetime
 
 logger = structlog.get_logger(__name__)
 
-
-# TODO: Refactor large class (28 methods, target < 20)
-# TODO: 大类 28个方法 - 考虑拆分为多个类或使用组合模式
 
 class StockScoringService:
     """股票评分服务"""
@@ -115,8 +56,6 @@ class StockScoringService:
         try:
             # 1. 获取股票基本信息
             stock_info = self.stock_repo.get_by_symbol(symbol)
-            # TODO: 提取嵌套逻辑为独立方法
-
             if not stock_info:
                 return {'error': f'股票 {symbol} 不存在'}
 
@@ -170,65 +109,6 @@ class StockScoringService:
         except Exception as e:
             logger.error(f"计算 {symbol} 评分失败: {e}", exc_info=True)
             return {'error': str(e)}
-
-    # TODO: Refactor - complexity 26 (target < 15)
-
-    def _validate__calculate_technical_score_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _calculate_technical_score 移到这里
-        return True, None
-
-    def _process__calculate_technical_score_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _calculate_technical_score 移到这里
-        return data
-
-    def _build__calculate_technical_score_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _calculate_technical_score 移到这里
-        return data
-
-    def _validate__calculate_technical_score_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _calculate_technical_score 移到这里
-        return True, None
-
-    def _process__calculate_technical_score_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _calculate_technical_score 移到这里
-        return data
-
-    def _build__calculate_technical_score_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _calculate_technical_score 移到这里
-        return data
-
-    # TODO: Refactor - complexity 26 (target < 15)
-    # TODO: 复杂度 26 - 需要重构拆分为更小的函数
-
-    def _validate__calculate_technical_score_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__calculate_technical_score_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__calculate_technical_score_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate__calculate_technical_score_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__calculate_technical_score_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__calculate_technical_score_result(data):
-        """构建返回结果"""
-        return data
 
     def _calculate_technical_score(self, factors: Dict) -> float:
         """
@@ -304,66 +184,7 @@ class StockScoringService:
                 score += 5
 
         return min(100, max(0, score))
-# TODO: Refactor - complexity 22 (target < 15)
 
-
-    def _validate__calculate_fundamental_score_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _calculate_fundamental_score 移到这里
-        return True, None
-
-    def _process__calculate_fundamental_score_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _calculate_fundamental_score 移到这里
-        return data
-
-    def _build__calculate_fundamental_score_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _calculate_fundamental_score 移到这里
-        return data
-
-    def _validate__calculate_fundamental_score_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _calculate_fundamental_score 移到这里
-        return True, None
-
-    def _process__calculate_fundamental_score_data(data):
-        def _validate__calculate_fundamental_score_input(*args, **kwargs):
-            """验证输入参数"""
-            pass
-
-        def _process__calculate_fundamental_score_data(data):
-            """处理数据转换"""
-            return data
-
-        def _build__calculate_fundamental_score_result(data):
-            """构建返回结果"""
-            return data
-
-        def _validate__calculate_fundamental_score_input(*args, **kwargs):
-            """验证输入参数"""
-            pass
-
-        def _process__calculate_fundamental_score_data(data):
-            """处理数据转换"""
-            return data
-
-        def _build__calculate_fundamental_score_result(data):
-            """构建返回结果"""
-            return data
-
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _calculate_fundamental_score 移到这里
-        return data
-
-    def _build__calculate_fundamental_score_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _calculate_fundamental_score 移到这里
-        return data
-# TODO: 复杂度 22 - 需要重构拆分为更小的函数
-
-
-    # TODO: Refactor - complexity 22 (target < 15)
     def _calculate_fundamental_score(self, factors: Dict) -> float:
         """
         基本面评分 (0-100)
@@ -428,79 +249,8 @@ class StockScoringService:
             else:
                 score += 0
 
-        # TODO: Refactor - complexity 17 (target < 15)
-
         return min(100, max(0, score))
 
-    def _validate__calculate_momentum_score_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _calculate_momentum_score 移到这里
-        return True, None
-
-    def _process__calculate_momentum_score_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _calculate_momentum_score 移到这里
-        return data
-def _validate__calculate_momentum_score_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process__calculate_momentum_score_data(data):
-    """处理数据转换"""
-    return data
-
-def _validate__build__calculate_momentum_score_result_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _validate__calculate_momentum_score_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process__calculate_momentum_score_data(data):
-    """处理数据转换"""
-    return data
-
-def _build__calculate_momentum_score_result(data):
-    """构建返回结果"""
-    return data
-
-def _process__build__calculate_momentum_score_result_data(data):
-    """处理数据转换"""
-    return data
-
-def _build__build__calculate_momentum_score_result_result(data):
-    """构建返回结果"""
-    return data
-
-def _build__calculate_momentum_score_result(data):
-    """构建返回结果"""
-    return data
-
-
-    def _build__calculate_momentum_score_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _calculate_momentum_score 移到这里
-        return data
-
-    def _validate__calculate_momentum_score_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _calculate_momentum_score 移到这里
-        return True, None
-
-    def _process__calculate_momentum_score_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _calculate_momentum_score 移到这里
-        return data
-
-    def _build__calculate_momentum_score_result(data):
-        """构建返回结果"""
-        # TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-        # TODO: 将结果构建逻辑从 _calculate_momentum_score 移到这里
-        return data
-
-    # TODO: Refactor - complexity 17 (target < 15)
     def _calculate_momentum_score(self, factors: Dict) -> float:
         """
         动量评分 (0-100)
@@ -682,93 +432,94 @@ def _build__calculate_momentum_score_result(data):
             return 'B'
         elif score >= 50:
             return 'C'
-        return 'D'
+        else:
+            return 'D'
 
-def _check_missing_data(self, factors: Dict) -> Dict[str, list]:
-    """
-    检查缺失的数据指标
+    def _check_missing_data(self, factors: Dict) -> Dict[str, list]:
+        """
+        检查缺失的数据指标
 
-    Returns:
-        {
-            'technical': ['rsi', 'macd', ...],
-            'fundamental': ['pe', 'roe', ...],
-            'momentum': ['change_pct_5d', ...],
-            'quality': ['gross_margin', ...]
+        Returns:
+            {
+                'technical': ['rsi', 'macd', ...],
+                'fundamental': ['pe', 'roe', ...],
+                'momentum': ['change_pct_5d', ...],
+                'quality': ['gross_margin', ...]
+            }
+        """
+        missing = {}
+
+        # 技术面关键指标
+        technical_keys = ['rsi', 'macd', 'macd_signal', 'close', 'ma5', 'ma20', 'ma60', 'bb_position']
+        technical_missing = [k for k in technical_keys if factors.get(k) is None]
+        if technical_missing:
+            missing['technical'] = technical_missing
+
+        # 基本面关键指标
+        fundamental_keys = ['pe', 'roe', 'debt_ratio', 'debt_to_asset_ratio', 'pb']
+        fundamental_missing = [k for k in fundamental_keys if factors.get(k) is None]
+        if fundamental_missing:
+            missing['fundamental'] = fundamental_missing
+
+        # 动量关键指标
+        momentum_keys = ['change_pct_5d', 'change_pct_20d', 'volume_ratio']
+        momentum_missing = [k for k in momentum_keys if factors.get(k) is None]
+        if momentum_missing:
+            missing['momentum'] = momentum_missing
+
+        # 质量关键指标
+        quality_keys = ['gross_margin', 'net_margin', 'operating_cashflow_ratio']
+        quality_missing = [k for k in quality_keys if factors.get(k) is None]
+        if quality_missing:
+            missing['quality'] = quality_missing
+
+        return missing
+
+    def _calculate_completeness(self, missing_data: Dict[str, list]) -> Dict[str, any]:
+        """
+        计算数据完整性百分比
+
+        Returns:
+            {
+                'overall': 0.75,  # 总体完整度
+                'technical': 0.875,
+                'fundamental': 0.6,
+                'momentum': 1.0,
+                'quality': 0.67,
+                'warning': '基本面数据不完整，评分可能不准确'
+            }
+        """
+        total_fields = {
+            'technical': 8,
+            'fundamental': 5,
+            'momentum': 3,
+            'quality': 3
         }
-    """
-    missing = {}
 
-    # 技术面关键指标
-    technical_keys = ['rsi', 'macd', 'macd_signal', 'close', 'ma5', 'ma20', 'ma60', 'bb_position']
-    technical_missing = [k for k in technical_keys if factors.get(k) is None]
-    if technical_missing:
-        missing['technical'] = technical_missing
+        completeness = {}
+        total_missing = 0
+        total_fields_count = sum(total_fields.values())
 
-    # 基本面关键指标
-    fundamental_keys = ['pe', 'roe', 'debt_ratio', 'debt_to_asset_ratio', 'pb']
-    fundamental_missing = [k for k in fundamental_keys if factors.get(k) is None]
-    if fundamental_missing:
-        missing['fundamental'] = fundamental_missing
+        for dimension, count in total_fields.items():
+            missing_count = len(missing_data.get(dimension, []))
+            completeness[dimension] = round((count - missing_count) / count, 2)
+            total_missing += missing_count
 
-    # 动量关键指标
-    momentum_keys = ['change_pct_5d', 'change_pct_20d', 'volume_ratio']
-    momentum_missing = [k for k in momentum_keys if factors.get(k) is None]
-    if momentum_missing:
-        missing['momentum'] = momentum_missing
+        completeness['overall'] = round((total_fields_count - total_missing) / total_fields_count, 2)
 
-    # 质量关键指标
-    quality_keys = ['gross_margin', 'net_margin', 'operating_cashflow_ratio']
-    quality_missing = [k for k in quality_keys if factors.get(k) is None]
-    if quality_missing:
-        missing['quality'] = quality_missing
+        # 生成警告信息
+        warnings = []
+        if completeness['overall'] < 0.5:
+            warnings.append('数据严重不完整（< 50%），评分仅供参考')
+        elif completeness['overall'] < 0.7:
+            warnings.append('数据完整度较低（< 70%），评分可能不准确')
 
-    return missing
+        if completeness.get('fundamental', 1.0) < 0.5:
+            warnings.append('基本面数据严重缺失，建议补充财务数据')
+        elif completeness.get('fundamental', 1.0) < 0.8:
+            warnings.append('基本面数据不完整，估值评分可能偏低')
 
-def _calculate_completeness(self, missing_data: Dict[str, list]) -> Dict[str, any]:
-    """
-    计算数据完整性百分比
+        if warnings:
+            completeness['warning'] = '; '.join(warnings)
 
-    Returns:
-        {
-            'overall': 0.75,  # 总体完整度
-            'technical': 0.875,
-            'fundamental': 0.6,
-            'momentum': 1.0,
-            'quality': 0.67,
-            'warning': '基本面数据不完整，评分可能不准确'
-        }
-    """
-    total_fields = {
-        'technical': 8,
-        'fundamental': 5,
-        'momentum': 3,
-        'quality': 3
-    }
-
-    completeness = {}
-    total_missing = 0
-    total_fields_count = sum(total_fields.values())
-
-    for dimension, count in total_fields.items():
-        missing_count = len(missing_data.get(dimension, []))
-        completeness[dimension] = round((count - missing_count) / count, 2)
-        total_missing += missing_count
-
-    completeness['overall'] = round((total_fields_count - total_missing) / total_fields_count, 2)
-
-    # 生成警告信息
-    warnings = []
-    if completeness['overall'] < 0.5:
-        warnings.append('数据严重不完整（< 50%），评分仅供参考')
-    elif completeness['overall'] < 0.7:
-        warnings.append('数据完整度较低（< 70%），评分可能不准确')
-
-    if completeness.get('fundamental', 1.0) < 0.5:
-        warnings.append('基本面数据严重缺失，建议补充财务数据')
-    elif completeness.get('fundamental', 1.0) < 0.8:
-        warnings.append('基本面数据不完整，估值评分可能偏低')
-
-    if warnings:
-        completeness['warning'] = '; '.join(warnings)
-
-    return completeness
+        return completeness

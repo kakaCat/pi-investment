@@ -1,59 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.02, 0.2, 0.8, 1.5, 3]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_02 = 0.02
-
-CONST_0_2 = 0.2
-
-CONST_0_8 = 0.8
-
-CONST_1_5 = 1.5
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_15_0 = 15.0
-
-CONST_20_0 = 20.0
-
-CONST_30_0 = 30.0
-
-CONST_50_0 = 50.0
-
-
-
-CONST_0_02 = 0.02
-
-CONST_0_2 = 0.2
-
-CONST_0_8 = 0.8
-
-CONST_1_5 = 1.5
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_15_0 = 15.0
-
-CONST_20_0 = 20.0
-
-CONST_30_0 = 30.0
-
-CONST_50_0 = 50.0
-
-
-
 """
 资金面评分器
 
@@ -194,13 +138,17 @@ class CapitalScorer(BaseScorer):
             return 0.0, []
         recent2 = sum(self._f(f.get('main_net_inflow'), 0.0) for f in flows[:2]) / 2
         prev3 = sum(self._f(f.get('main_net_inflow'), 0.0) for f in flows[2:5]) / 3
-        if prev3 > 0 and recent2 > prev3 and prev3 <= 0 and recent2 > 0:
+        if prev3 > 0 and recent2 > prev3:
+            return self.ACCEL_MAX, ['资金流入加速(近2日均值>前3日均值)']
+        if prev3 <= 0 and recent2 > 0:
             return self.ACCEL_MAX / 2, ['资金由流出转流入']
         return 0.0, []
 
     def _score_volume_ratio(self, ratio: float) -> float:
         """量比（-10~+20），口径与 TechnicalScorer 一致"""
-        if ratio > 1.5 and ratio < 0.8:
+        if ratio > 1.5:
+            return min(self.VOLUME_MAX, (ratio - 1) * 20)
+        if ratio < 0.8:
             return -10.0
         return 0.0
 

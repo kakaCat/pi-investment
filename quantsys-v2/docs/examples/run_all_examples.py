@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_60 = 60
-
-CONST_70 = 70
-
-CONST_500 = 500
-
-
-
-CONST_60 = 60
-
-CONST_70 = 70
-
-CONST_500 = 500
-
-
-
 """
 运行所有示例代码
 
@@ -79,18 +54,19 @@ def run_example(name, filename):
                 if len(result.stdout) > 500:
                     print("... (输出已截断)")
             return True
-        print(f"❌ 失败 (返回码: {result.returncode})")
-        if result.stderr:
-            print("\n错误信息:")
-            print(result.stderr)
-        return False
+        else:
+            print(f"❌ 失败 (返回码: {result.returncode})")
+            if result.stderr:
+                print("\n错误信息:")
+                print(result.stderr)
+            return False
 
-except subprocess.TimeoutExpired:
-    print(f"❌ 超时 (>60秒)")
-    return False
-except Exception as e:
-    print(f"❌ 异常: {e}")
-    return False
+    except subprocess.TimeoutExpired:
+        print(f"❌ 超时 (>60秒)")
+        return False
+    except Exception as e:
+        print(f"❌ 异常: {e}")
+        return False
 
 
 def main():
@@ -130,8 +106,9 @@ def main():
     if success_count == total_count:
         print("\n🎉 所有示例运行成功！")
         return 0
-    print(f"\n⚠️  有 {total_count - success_count} 个示例失败")
-    return 1
+    else:
+        print(f"\n⚠️  有 {total_count - success_count} 个示例失败")
+        return 1
 
 
 if __name__ == "__main__":

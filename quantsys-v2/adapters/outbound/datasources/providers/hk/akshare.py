@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Akshare 港股市场数据 provider
 
 Phase 3 数据访问治理：集中 application/services/hk_market_data_service.py

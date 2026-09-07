@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_1 = 10.1
-CONST_10_2 = 10.2
-CONST_10_3 = 10.3
-CONST_10_5 = 10.5
-CONST_11_0 = 11.0
-CONST_11_2 = 11.2
-CONST_11_5 = 11.5
-CONST_11_7 = 11.7
-CONST_11_8 = 11.8
-CONST_11_9 = 11.9
-
 """K线预处理器测试"""
 import pytest
 from datetime import datetime, timedelta

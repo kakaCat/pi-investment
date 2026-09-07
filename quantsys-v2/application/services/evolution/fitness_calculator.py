@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_003 = 0.003
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-
-
-CONST_0_003 = 0.003
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-
-
 """双侧捕获适应度纯计算（agent 行为进化 Phase 1 核心）
 
 fitness = up_capture − down_capture：
@@ -56,7 +31,9 @@ def compute_capture(
     """
     up_acct, up_bench, down_acct, down_bench = [], [], [], []
     for date_str, bench_r in bench_returns.items():
-        if date_str not in account_returns and bench_r >= SIDEWAYS_THRESHOLD:
+        if date_str not in account_returns:
+            continue  # snapshot 缺日：跳过（样本计数随之减少）
+        if bench_r >= SIDEWAYS_THRESHOLD:
             up_bench.append(bench_r)
             up_acct.append(float(account_returns[date_str] or 0))
         elif bench_r <= -SIDEWAYS_THRESHOLD:

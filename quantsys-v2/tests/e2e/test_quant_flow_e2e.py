@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_101_0 = 101.0
-CONST_102_0 = 102.0
-CONST_103 = 103
-CONST_103_0 = 103.0
-CONST_104 = 104
-CONST_104_0 = 104.0
-CONST_105 = 105
-CONST_105_0 = 105.0
-CONST_106 = 106
-CONST_106_0 = 106.0
-
 """
 量化流程端到端测试 — 完整闭环验证
 

@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_1 = 10.1
-CONST_10_2 = 10.2
-CONST_10_4 = 10.4
-CONST_10_5 = 10.5
-CONST_10_6 = 10.6
-CONST_10_8 = 10.8
-CONST_11_0 = 11.0
-CONST_12_0 = 12.0
-CONST_12_5 = 12.5
-CONST_13_0 = 13.0
-
 """买卖点检测器（笔中枢版）测试——6 类买卖点触发与不触发"""
 from datetime import datetime, timedelta
 from unittest.mock import patch

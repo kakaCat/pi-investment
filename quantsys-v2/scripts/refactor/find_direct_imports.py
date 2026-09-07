@@ -1,21 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_30 = 30
-
-
-
-CONST_30 = 30
-
-
-
 """查找直接导入外部数据源库的代码
 
 Usage:
@@ -69,7 +52,8 @@ def classify_severity(file_path: str) -> str:
         return 'high'  # API 层不应该直接导入
     elif 'scripts/' in file_path:
         return 'medium'  # 脚本层应该避免
-    return 'medium'
+    else:
+        return 'medium'
 
 def scan_imports(root_dir: Path) -> List[ImportViolation]:
     """扫描所有 Python 文件中的禁止导入"""

@@ -1,51 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - _execute_pipeline_stages() = 148 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_02 = 0.02
-
-CONST_0_05 = 0.05
-
-CONST_5 = 5
-
-CONST_20 = 20
-
-CONST_120 = 120
-
-CONST_180 = 180
-
-CONST_500 = 500
-
-CONST_730 = 730
-
-
-
-CONST_0_02 = 0.02
-
-CONST_0_05 = 0.05
-
-CONST_5 = 5
-
-CONST_20 = 20
-
-CONST_120 = 120
-
-CONST_180 = 180
-
-CONST_500 = 500
-
-CONST_730 = 730
-
-
-
 """Pipeline 后台执行函数（框架无关）— 从 adapters/inbound/api/routes/pipeline.py 解耦而来
 
 Flask 与 FastAPI 两个 API 层共享同一实现。注意：_execute_calibration 调用的
@@ -79,7 +31,9 @@ def _ensure_legacy_quant_path(include_scripts: bool = True):
     历史上 _V2_ROOT 未定义导致的 latent NameError）。
     """
     quant_root = str(_V2_ROOT.parent / 'quant')
-    if quant_root not in sys.path and include_scripts:
+    if quant_root not in sys.path:
+        sys.path.insert(0, quant_root)
+    if include_scripts:
         quant_scripts = str(_V2_ROOT.parent / 'quant' / 'scripts')
         if quant_scripts not in sys.path:
             sys.path.insert(0, quant_scripts)
@@ -121,80 +75,12 @@ def _execute_pipeline_stages_with_error_handling(run_id: str, symbols: List[str]
                 logger.error(f"Failed to release task lock: {release_err}")
 
 
-# TODO: Refactor - complexity 24 (target < 15)
-
-# TODO: Refactor - function too long (150 lines, target < 80)
-
-def _validate__execute_pipeline_stages_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _execute_pipeline_stages 移到这里
-    return True, None
-
-def _process__execute_pipeline_stages_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _execute_pipeline_stages 移到这里
-    return data
-
-def _build__execute_pipeline_stages_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _execute_pipeline_stages 移到这里
-    return data
-
-# TODO: Split long function (149 lines, target < 100)
-# TODO: Refactor - complexity 24 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-def _check_condition_0():
-    """Check: klines_df is not None and not klines_df.is_empty() and len(k..."""
-    return klines_df is not None and not klines_df.is_empty() and len(klines_df) >= 20
-
-# TODO: Refactor - complexity 24 (target < 15)
-# TODO: Split long function (148 lines, target < 100)
-# TODO: Refactor - complexity 24 (target < 15)
-# TODO: Split long function (148 lines, target < 100)
-# TODO: 复杂度 24 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 163行 - 建议拆分为多个小函数
-
-def _validate__execute_pipeline_stages_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process__execute_pipeline_stages_data(data):
-    """处理数据转换"""
-    return data
-
-def _build__execute_pipeline_stages_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate__execute_pipeline_stages_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process__execute_pipeline_stages_data(data):
-    """处理数据转换"""
-    return data
-
-def _build__execute_pipeline_stages_result(data):
-    """构建返回结果"""
-    return data
-
 def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str], task_type: Optional[str] = None, days: int = 730):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
     """执行流水线阶段 - 内部实现"""
     # 防御性解析: symbols 可能以字符串形式传入(逗号分隔)
-    if isinstance(symbols, str) and not symbols:
+    if isinstance(symbols, str):
+        symbols = [s.strip() for s in symbols.split(',') if s.strip()]
+    if not symbols:
         symbols = ['000001.SZ']
     start_time = datetime.now()
     stage_defs = [
@@ -213,8 +99,6 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
         stage_start = datetime.now()
         logs.append(f"[{stage_start.isoformat()}] 阶段开始: {sd['name']}")
         try:
-            # TODO: 提取嵌套逻辑为独立方法
-
             if sd['key'] == 'data_update':
                 # 直接使用 AkshareBroker 从数据源获取K线数据
                 # (已迁移到 adapters.outbound.brokers，见架构审计 P0-2)
@@ -255,9 +139,7 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
                             if klines:
                                 saved_count = kline_repo.save_klines(klines)
                                 if saved_count > 0:
-                                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                                    updated += 1  # TODO: Use parameterized queries
+                                    updated += 1
                                     logger.info(f"[DATA_UPDATE][{run_id}] Saved {saved_count} records for {sym}")
                                 else:
                                     failed_syms.append(f"{sym}(save failed)")
@@ -288,6 +170,7 @@ def _execute_pipeline_stages(run_id: str, symbols: List[str], stages: List[str],
                     klines_df = kline_repo.get_daily_klines(sym, start_date, end_date)
                     if klines_df is not None and not klines_df.is_empty() and len(klines_df) >= 20:
                         try:
+                            klines = klines_df.to_dicts()
                             stage = FactorStage(name="factors")
                             result = stage.process({'symbol': sym, 'klines': klines})
                             factors = result.get('factors', {})

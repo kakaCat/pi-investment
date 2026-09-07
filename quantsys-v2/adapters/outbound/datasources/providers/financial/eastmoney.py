@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-CONST_8 = 8
-
-CONST_15 = 15
-
-
-
-CONST_4 = 4
-
-CONST_8 = 8
-
-CONST_15 = 15
-
-
-
 """Eastmoney financial data provider — wraps EastmoneyDirectProvider"""
 import logging
 from datetime import datetime

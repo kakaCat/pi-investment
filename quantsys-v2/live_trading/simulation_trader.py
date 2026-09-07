@@ -1,65 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - train_model() = 108 lines
-#   - rebalance() = 111 lines
-#   - _execute_trades_with_risk_control() = 162 lines
-#   - _execute_trades() = 147 lines
-
-
-# TODO: Extract magic numbers to named constants: [1e-10, 0.005, 0.01, 0.05, 0.5]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_0_005 = 0.005
-
-CONST_0_01 = 0.01
-
-CONST_0_05 = 0.05
-
-CONST_0_5 = 0.5
-
-CONST_0_7 = 0.7
-
-CONST_0_8 = 0.8
-
-CONST_5 = 5
-
-CONST_7 = 7
-
-CONST_8 = 8
-
-
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_0_005 = 0.005
-
-CONST_0_01 = 0.01
-
-CONST_0_05 = 0.05
-
-CONST_0_5 = 0.5
-
-CONST_0_7 = 0.7
-
-CONST_0_8 = 0.8
-
-CONST_5 = 5
-
-CONST_7 = 7
-
-CONST_8 = 8
-
-
-
 """
 V13策略模拟交易系统 - 主执行脚本（完整版）
 
@@ -136,20 +74,18 @@ def judge_trading_day(day, *, kline_exists_on_date, latest_kline_date, today):
         latest_kline_date: daily_klines 最大 trade_date（date 或 None）
         today: 今天（datetime.date）
     """
-    if day.weekday() >= 5 and day > today:
+    if day.weekday() >= 5:
         return False
-    if kline_exists_on_date and day == today:
+    if day > today:
+        return False
+    if kline_exists_on_date:
+        return True
+    if day == today:
         if latest_kline_date is None:
             return False
         return (today - latest_kline_date).days <= 7
     return False
 
-
-# TODO: Refactor - class too large (28 methods, target < 15)
-
-# TODO: Refactor large class (28 methods, target < 20)
-# TODO: Refactor large class (28 methods, target < 20)
-# TODO: 大类 28个方法 - 考虑拆分为多个类或使用组合模式
 
 class SimulationTrader:
     """V13策略模拟交易器（使用数据库持久化）"""
@@ -158,8 +94,6 @@ class SimulationTrader:
     def _sanitize_float(value):
         """清理浮点数：将 NaN/Inf 转换为 None，避免 JSON 序列化错误"""
         if isinstance(value, (int, float)):
-            # TODO: 提取嵌套逻辑为独立方法
-
             if math.isnan(value) or math.isinf(value):
                 return None
         return value
@@ -367,7 +301,9 @@ class SimulationTrader:
 
         if missing or extra:
             logger.warning(f"⚠️ 数据不一致！")
-            if missing and extra:
+            if missing:
+                logger.warning(f"   缺失持仓: {missing}")
+            if extra:
                 logger.warning(f"   多余持仓: {extra}")
             logger.warning(f"   自动修复中...")
 
@@ -533,88 +469,76 @@ class SimulationTrader:
             # 处理字典或元组返回值
             if stocks and isinstance(stocks[0], dict):
                 return [{'symbol': s['symbol'], 'name': s['name']} for s in stocks]
-            return [{'symbol': s[0], 'name': s[1]} for s in stocks]
-    finally:
-        conn.close()  # 确保连接归还到池
+            else:
+                return [{'symbol': s[0], 'name': s[1]} for s in stocks]
+        finally:
+            conn.close()  # 确保连接归还到池
 
-def _get_historical_data(self, symbols, start_date, end_date):
-    """
-    获取历史K线数据（用于模型训练）
+    def _get_historical_data(self, symbols, start_date, end_date):
+        """
+        获取历史K线数据（用于模型训练）
 
-    直接查询数据库，避免逐个调用get_latest()
+        直接查询数据库，避免逐个调用get_latest()
 
-    Args:
-        symbols: 字符串列表 ['300001', '300002'] 或字典列表 [{'symbol': '300001'}, ...]
-    """
-    import pandas as pd
+        Args:
+            symbols: 字符串列表 ['300001', '300002'] 或字典列表 [{'symbol': '300001'}, ...]
+        """
+        import pandas as pd
 
-    logger.info(f"查询 {len(symbols)} 只股票，时间范围 {start_date} -> {end_date}")
+        logger.info(f"查询 {len(symbols)} 只股票，时间范围 {start_date} -> {end_date}")
 
-    # 支持两种输入格式
-    if isinstance(symbols[0], dict):
-        symbol_list = [s['symbol'] for s in symbols]
-    else:
-        symbol_list = symbols
-
-    placeholders = ','.join(['%s'] * len(symbol_list))
-
-    # 兼容ORM和非ORM Repository
-    from infrastructure.persistence.database.engine import get_engine
-    engine = get_engine()
-    conn = engine.raw_connection()
-    try:
-        cursor = conn.cursor()
-        query = f'''
-            SELECT
-                symbol,
-                trade_date as date,
-                open,
-                high,
-                low,
-                close,
-                volume,
-                COALESCE(turnover_rate, 0) as turnover_rate
-            FROM quant.daily_klines
-            WHERE symbol IN ({placeholders})
-              AND trade_date BETWEEN %s AND %s
-            ORDER BY symbol, trade_date
-        '''
-
-        cursor.execute(query, symbol_list + [start_date, end_date])
-        rows = cursor.fetchall()
-        cursor.close()
-
-        if not rows:
-            logger.warning("未查询到任何K线数据")
-            return pd.DataFrame()
-
-        # 转换为DataFrame
-        if isinstance(rows[0], dict):
-            df = pd.DataFrame(rows)
+        # 支持两种输入格式
+        if isinstance(symbols[0], dict):
+            symbol_list = [s['symbol'] for s in symbols]
         else:
-            df = pd.DataFrame(rows, columns=['symbol', 'date', 'open', 'high', 'low', 'close', 'volume', 'turnover_rate'])
+            symbol_list = symbols
 
-        df['date'] = pd.to_datetime(df['date'])
+        placeholders = ','.join(['%s'] * len(symbol_list))
 
-        logger.info(f"获取到 {len(df)} 条K线数据，{df['symbol'].nunique()} 只股票")
-        return df
-    finally:
-        conn.close()  # 确保连接归还到池
+        # 兼容ORM和非ORM Repository
+        from infrastructure.persistence.database.engine import get_engine
+        engine = get_engine()
+        conn = engine.raw_connection()
+        try:
+            cursor = conn.cursor()
+            query = f'''
+                SELECT
+                    symbol,
+                    trade_date as date,
+                    open,
+                    high,
+                    low,
+                    close,
+                    volume,
+                    COALESCE(turnover_rate, 0) as turnover_rate
+                FROM quant.daily_klines
+                WHERE symbol IN ({placeholders})
+                  AND trade_date BETWEEN %s AND %s
+                ORDER BY symbol, trade_date
+            '''
 
-# TODO: Refactor - function too long (109 lines, target < 80)
+            cursor.execute(query, symbol_list + [start_date, end_date])
+            rows = cursor.fetchall()
+            cursor.close()
 
-# TODO: Split long function (108 lines, target < 100)
-    # TODO: 长函数 117行 - 建议拆分为多个小函数
+            if not rows:
+                logger.warning("未查询到任何K线数据")
+                return pd.DataFrame()
+
+            # 转换为DataFrame
+            if isinstance(rows[0], dict):
+                df = pd.DataFrame(rows)
+            else:
+                df = pd.DataFrame(rows, columns=['symbol', 'date', 'open', 'high', 'low', 'close', 'volume', 'turnover_rate'])
+
+            df['date'] = pd.to_datetime(df['date'])
+
+            logger.info(f"获取到 {len(df)} 条K线数据，{df['symbol'].nunique()} 只股票")
+            return df
+        finally:
+            conn.close()  # 确保连接归还到池
 
     def train_model(self, train_start='2025-06-01', train_end='2026-06-01', stock_limit=200, ic_threshold=0.005, xgb_params=None):
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """
         训练模型
 
@@ -666,7 +590,9 @@ def _get_historical_data(self, symbols, start_date, end_date):
         logger.info(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
 
         # 检查是否有无效值
-        if X_train.isnull().any().any() and y_train.isnull().any():
+        if X_train.isnull().any().any():
+            logger.warning("X_train 包含 NaN 值")
+        if y_train.isnull().any():
             logger.warning("y_train 包含 NaN 值")
 
         # 使用自定义参数或默认参数
@@ -780,7 +706,9 @@ def _get_historical_data(self, symbols, start_date, end_date):
         model_file = Path(self.model_path)
         factors_file = Path(self.factors_path)
 
-        if not model_file.exists() and not factors_file.exists():
+        if not model_file.exists():
+            raise FileNotFoundError(f"模型文件不存在: {model_file}")
+        if not factors_file.exists():
             raise FileNotFoundError(f"因子文件不存在: {factors_file}")
 
         self.model = xgb.XGBRegressor(n_jobs=1)  # 使用单线程避免段错误
@@ -932,21 +860,8 @@ def _get_historical_data(self, symbols, start_date, end_date):
         logger.info("触发调仓条件，开始执行...")
         self.rebalance(today)
         return {'executed': True, 'action': 'rebalance'}
-# TODO: Refactor - function too long (112 lines, target < 80)
 
-
-# TODO: 长函数 120行 - 建议拆分为多个小函数
-
-# TODO: Split long function (111 lines, target < 100)
     def rebalance(self, current_date):
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """执行调仓"""
         logger.info("\n" + "="*60)
         logger.info(f"开始调仓流程 (账户: {self.account_name})")
@@ -1085,26 +1000,9 @@ def _get_historical_data(self, symbols, start_date, end_date):
             for symbol in self.portfolio
         )
 
-        # TODO: Refactor - function too long (163 lines, target < 80)
-
         return self.cash + portfolio_value
-# TODO: 长函数 175行 - 建议拆分为多个小函数
 
-
-# TODO: Split long function (162 lines, target < 100)
     def _execute_trades_with_risk_control(self, target_symbols, weights, position_scale, date):
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
         """执行交易（使用风险控制权重）"""
         target_symbols_set = set(target_symbols)
 
@@ -1362,26 +1260,10 @@ def _get_historical_data(self, symbols, start_date, end_date):
         for stop in self.config['strategy']['drawdown_stops']:
             if drawdown <= stop['threshold']:
                 return stop['position']
-# TODO: Refactor - function too long (148 lines, target < 80)
-
-
-        # TODO: 长函数 159行 - 建议拆分为多个小函数
 
         return 1.0
 
-# TODO: Split long function (147 lines, target < 100)
     def _execute_trades(self, top5, position_scale, date):
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         """执行交易（旧方法，保留兼容性）"""
         target_symbols = set(top5['symbol'].tolist())
         target_weight = self.config['strategy']['position_weight'] * position_scale
@@ -1540,91 +1422,57 @@ def _get_historical_data(self, symbols, start_date, end_date):
         if previous_report:
             previous_value = float(previous_report['total_value'])
             daily_return = (total_value / previous_value - 1) if previous_value > 0 else 0
-        daily_return = (total_value / initial_capital - 1)
+        else:
+            daily_return = (total_value / initial_capital - 1)
 
-    cumulative_return = (total_value / initial_capital - 1)
-    drawdown = (total_value / self.peak_value - 1) if self.peak_value > 0 else 0
+        cumulative_return = (total_value / initial_capital - 1)
+        drawdown = (total_value / self.peak_value - 1) if self.peak_value > 0 else 0
 
-    # 计算持仓市值
-    position_value = total_value - self.cash
+        # 计算持仓市值
+        position_value = total_value - self.cash
 
-    # 获取今日交易次数
-    trade_count = self.repo.get_trade_count(account_name=self.account_name, start_date=date, end_date=date)
+        # 获取今日交易次数
+        trade_count = self.repo.get_trade_count(account_name=self.account_name, start_date=date, end_date=date)
 
-    # 保存到数据库
-    self.repo.save_daily_report(
-        report_date=date,
-        cash=self.cash,
-        position_value=position_value,
-        total_value=total_value,
-        daily_return=daily_return,
-        cumulative_return=cumulative_return,
-        peak_value=self.peak_value,
-        drawdown=drawdown,
-        position_count=len(self.portfolio),
-        trade_count=trade_count
-    )
+        # 保存到数据库
+        self.repo.save_daily_report(
+            report_date=date,
+            cash=self.cash,
+            position_value=position_value,
+            total_value=total_value,
+            daily_return=daily_return,
+            cumulative_return=cumulative_return,
+            peak_value=self.peak_value,
+            drawdown=drawdown,
+            position_count=len(self.portfolio),
+            trade_count=trade_count
+        )
 
-    # 同时保存JSON文件（兼容）
-    report_dir = Path(self.config['storage']['daily_report_file']).parent
-    report_dir.mkdir(parents=True, exist_ok=True)
+        # 同时保存JSON文件（兼容）
+        report_dir = Path(self.config['storage']['daily_report_file']).parent
+        report_dir.mkdir(parents=True, exist_ok=True)
 
-    report = {
-        'date': date,
-        'cash': self.cash,
-        'position_value': position_value,
-        'total_value': total_value,
-        'daily_return': daily_return,
-        'cumulative_return': cumulative_return,
-        'drawdown': drawdown,
-        'peak_value': self.peak_value,
-        'position_count': len(self.portfolio),
-        'trade_count': trade_count
-    }
+        report = {
+            'date': date,
+            'cash': self.cash,
+            'position_value': position_value,
+            'total_value': total_value,
+            'daily_return': daily_return,
+            'cumulative_return': cumulative_return,
+            'drawdown': drawdown,
+            'peak_value': self.peak_value,
+            'position_count': len(self.portfolio),
+            'trade_count': trade_count
+        }
 
-    report_file = report_dir / f"daily_{date}.json"
-    with open(report_file, 'w', encoding='utf-8') as f:
-        json.dump(report, f, ensure_ascii=False, indent=2)
+        report_file = report_dir / f"daily_{date}.json"
+        with open(report_file, 'w', encoding='utf-8') as f:
+            json.dump(report, f, ensure_ascii=False, indent=2)
 
-    logger.info(f"每日报告已保存到数据库和文件")
+        logger.info(f"每日报告已保存到数据库和文件")
 
-
-# TODO: Refactor - complexity 18 (target < 15)
-
-def _validate_main_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 main 移到这里
-    return True, None
-
-def _process_main_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 main 移到这里
-    return data
-
-def _build_main_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 main 移到这里
-    return data
-
-# TODO: Refactor - complexity 18 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 18 (target < 15)
-# TODO: 复杂度 18 - 需要重构拆分为更小的函数
 
 def main():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
     """主函数"""
     print("V13策略模拟交易系统（数据库版）")
     print("="*60)

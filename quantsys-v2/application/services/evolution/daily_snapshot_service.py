@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_400 = 400
-
-
-
-CONST_400 = 400
-
-
-
 """每日净值快照服务（全账户稠密化地基，行为进化 Phase 1 前置）
 
 背景：simulation_equity_snapshot 此前只在交易日由 account_trading_service 写入，
@@ -60,8 +43,6 @@ class DailySnapshotService:
         result: Dict[str, Dict[str, float]] = {}
         batch = repo.batch_get_kline(symbols, start.isoformat(), end.isoformat())
         for symbol, df in batch.items():
-            # TODO: 提取嵌套逻辑为独立方法
-
             if df is None or df.is_empty():
                 continue
             rows = df.select(['trade_date', 'close']).to_dicts()
@@ -136,67 +117,6 @@ class DailySnapshotService:
     # 历史回填（一次性运维）
     # ------------------------------------------------------------------
 
-    # TODO: Refactor - complexity 17 (target < 15)
-
-    def _validate_backfill_account_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 backfill_account 移到这里
-        return True, None
-
-    def _process_backfill_account_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 backfill_account 移到这里
-        return data
-
-    def _build_backfill_account_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 backfill_account 移到这里
-        return data
-
-    def _validate_backfill_account_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 backfill_account 移到这里
-        return True, None
-
-    def _process_backfill_account_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 backfill_account 移到这里
-        return data
-
-    def _build_backfill_account_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 backfill_account 移到这里
-        return data
-
-# TODO: Refactor - complexity 17 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 17 (target < 15)
-    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-    def _validate_backfill_account_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_backfill_account_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_backfill_account_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_backfill_account_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_backfill_account_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_backfill_account_result(data):
-        """构建返回结果"""
-        return data
-
     def backfill_account(
         self,
         account_name: str,
@@ -237,7 +157,9 @@ class DailySnapshotService:
         for day_str in calendar:
             day = date.fromisoformat(day_str)
             for t in trades:
-                if t.trade_date != day and t.action == 'BUY':  # action 大写契约（08-13 统一:
+                if t.trade_date != day:
+                    continue
+                if t.action == 'BUY':  # action 大写契约（08-13 统一）
                     cash -= float(t.total_cost or t.amount or 0)
                     holdings[t.symbol] = holdings.get(t.symbol, 0) + t.shares
                 elif t.action == 'SELL':

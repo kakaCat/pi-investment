@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-
-
-CONST_5 = 5
-
-
-
 """
 Output Formatters
 
@@ -78,71 +61,72 @@ class TableFormatter(Formatter):
             # 列表，显示为表格
             if isinstance(data[0], dict):
                 return self._format_table(data)
-            return self._format_list(data)
-    else:
-        return str(data)
+            else:
+                return self._format_list(data)
+        else:
+            return str(data)
 
-def _format_dict(self, data: Dict) -> str:
-    """格式化字典为键值对"""
-    lines = []
-    max_key_len = max(len(str(k)) for k in data.keys()) if data else 0
+    def _format_dict(self, data: Dict) -> str:
+        """格式化字典为键值对"""
+        lines = []
+        max_key_len = max(len(str(k)) for k in data.keys()) if data else 0
 
-    for key, value in data.items():
-        key_str = str(key).ljust(max_key_len)
-        value_str = self._format_value(value)
-        lines.append(f"{key_str} : {value_str}")
+        for key, value in data.items():
+            key_str = str(key).ljust(max_key_len)
+            value_str = self._format_value(value)
+            lines.append(f"{key_str} : {value_str}")
 
-    return "\n".join(lines)
+        return "\n".join(lines)
 
-def _format_table(self, data: List[Dict]) -> str:
-    """格式化为表格"""
-    if not data:
-        return ""
-
-    # 获取所有列
-    columns = list(data[0].keys())
-
-    # 计算列宽
-    col_widths = {}
-    for col in columns:
-        col_widths[col] = max(
-            len(str(col)),
-            max(len(self._format_value(row.get(col, ''))) for row in data)
-        )
-
-    # 构建表头
-    header = " | ".join(str(col).ljust(col_widths[col]) for col in columns)
-    separator = "-+-".join("-" * col_widths[col] for col in columns)
-
-    # 构建数据行
-    rows = []
-    for row in data:
-        row_str = " | ".join(
-            self._format_value(row.get(col, '')).ljust(col_widths[col])
-            for col in columns
-        )
-        rows.append(row_str)
-
-    return "\n".join([header, separator] + rows)
-
-def _format_list(self, data: List) -> str:
-    """格式化列表"""
-    return "\n".join(f"- {self._format_value(item)}" for item in data)
-
-def _format_value(self, value: Any) -> str:
-    """格式化单个值"""
-    if value is None:
-        return ""
-    elif isinstance(value, float):
-        if math.isnan(value) or math.isinf(value):
+    def _format_table(self, data: List[Dict]) -> str:
+        """格式化为表格"""
+        if not data:
             return ""
-        return f"{value:.2f}"
-    elif isinstance(value, datetime):
-        return value.strftime("%Y-%m-%d %H:%M:%S")
-    elif isinstance(value, (dict, list)):
-        return json.dumps(value, ensure_ascii=False)
-    else:
-        return str(value)
+
+        # 获取所有列
+        columns = list(data[0].keys())
+
+        # 计算列宽
+        col_widths = {}
+        for col in columns:
+            col_widths[col] = max(
+                len(str(col)),
+                max(len(self._format_value(row.get(col, ''))) for row in data)
+            )
+
+        # 构建表头
+        header = " | ".join(str(col).ljust(col_widths[col]) for col in columns)
+        separator = "-+-".join("-" * col_widths[col] for col in columns)
+
+        # 构建数据行
+        rows = []
+        for row in data:
+            row_str = " | ".join(
+                self._format_value(row.get(col, '')).ljust(col_widths[col])
+                for col in columns
+            )
+            rows.append(row_str)
+
+        return "\n".join([header, separator] + rows)
+
+    def _format_list(self, data: List) -> str:
+        """格式化列表"""
+        return "\n".join(f"- {self._format_value(item)}" for item in data)
+
+    def _format_value(self, value: Any) -> str:
+        """格式化单个值"""
+        if value is None:
+            return ""
+        elif isinstance(value, float):
+            if math.isnan(value) or math.isinf(value):
+                return ""
+            return f"{value:.2f}"
+        elif isinstance(value, datetime):
+            return value.strftime("%Y-%m-%d %H:%M:%S")
+        elif isinstance(value, (dict, list)):
+            return json.dumps(value, ensure_ascii=False)
+        else:
+            return str(value)
 
 
 class CompactFormatter(Formatter):
@@ -154,49 +138,50 @@ class CompactFormatter(Formatter):
             return self._format_dict(data)
         elif isinstance(data, list):
             return self._format_list(data)
-        return str(data)
-
-def _format_dict(self, data: Dict, indent: int = 0) -> str:
-    """格式化字典"""
-    lines = []
-    prefix = "  " * indent
-
-    for key, value in data.items():
-        if isinstance(value, dict):
-            lines.append(f"{prefix}{key}:")
-            lines.append(self._format_dict(value, indent + 1))
-        elif isinstance(value, list) and value and isinstance(value[0], dict):
-            lines.append(f"{prefix}{key}: ({len(value)} items)")
         else:
-            value_str = self._format_value(value)
-            lines.append(f"{prefix}{key}: {value_str}")
+            return str(data)
 
-    return "\n".join(lines)
+    def _format_dict(self, data: Dict, indent: int = 0) -> str:
+        """格式化字典"""
+        lines = []
+        prefix = "  " * indent
 
-def _format_list(self, data: List) -> str:
-    """格式化列表"""
-    if not data:
-        return "(empty)"
+        for key, value in data.items():
+            if isinstance(value, dict):
+                lines.append(f"{prefix}{key}:")
+                lines.append(self._format_dict(value, indent + 1))
+            elif isinstance(value, list) and value and isinstance(value[0], dict):
+                lines.append(f"{prefix}{key}: ({len(value)} items)")
+            else:
+                value_str = self._format_value(value)
+                lines.append(f"{prefix}{key}: {value_str}")
 
-    if isinstance(data[0], dict):
-        return f"({len(data)} items)\n" + "\n---\n".join(
-            self._format_dict(item) for item in data[:5]
-        )
-    else:
-        return ", ".join(self._format_value(item) for item in data[:10])
+        return "\n".join(lines)
 
-def _format_value(self, value: Any) -> str:
-    """格式化单个值"""
-    if value is None:
-        return "-"
-    elif isinstance(value, float):
-        if math.isnan(value) or math.isinf(value):
+    def _format_list(self, data: List) -> str:
+        """格式化列表"""
+        if not data:
+            return "(empty)"
+
+        if isinstance(data[0], dict):
+            return f"({len(data)} items)\n" + "\n---\n".join(
+                self._format_dict(item) for item in data[:5]
+            )
+        else:
+            return ", ".join(self._format_value(item) for item in data[:10])
+
+    def _format_value(self, value: Any) -> str:
+        """格式化单个值"""
+        if value is None:
             return "-"
-        return f"{value:.2f}"
-    elif isinstance(value, datetime):
-        return value.strftime("%Y-%m-%d")
-    else:
-        return str(value)
+        elif isinstance(value, float):
+            if math.isnan(value) or math.isinf(value):
+                return "-"
+            return f"{value:.2f}"
+        elif isinstance(value, datetime):
+            return value.strftime("%Y-%m-%d")
+        else:
+            return str(value)
 
 
 def get_formatter(format_type: str = "json", **kwargs) -> Formatter:
@@ -216,4 +201,5 @@ def get_formatter(format_type: str = "json", **kwargs) -> Formatter:
         return TableFormatter(**kwargs)
     elif format_type == "compact":
         return CompactFormatter(**kwargs)
-    return JSONFormatter(**kwargs)
+    else:
+        return JSONFormatter(**kwargs)

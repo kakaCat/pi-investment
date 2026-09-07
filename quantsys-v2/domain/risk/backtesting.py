@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - _christoffersen_test() = 102 lines
-
-
-# Extracted Constants
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_0_01 = 0.01
-
-CONST_0_4 = 0.4
-
-CONST_0_45 = 0.45
-
-CONST_0_95 = 0.95
-
-CONST_0_99 = 0.99
-
-CONST_4 = 4
-
-CONST_6 = 6
-
-CONST_9 = 9
-
-CONST_20 = 20
-
-
-
 """
 VaR Backtesting Calculator
 ===========================
@@ -278,14 +247,7 @@ class BacktestingCalculator(BaseCalculator):
             )
         }
 
-    # TODO: Split long function (102 lines, target < 100)
-    # TODO: 长函数 107行 - 建议拆分为多个小函数
-
     def _christoffersen_test(self,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
                               hit_series: np.ndarray,
                               cl: float) -> Dict[str, Any]:
         """

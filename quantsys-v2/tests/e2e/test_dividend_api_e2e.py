@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_200 = 200
-CONST_2026 = 2026
-CONST_25_0 = 25.0
-CONST_3 = 3
-CONST_3_0 = 3.0
-CONST_30 = 30
-CONST_35_0 = 35.0
-CONST_4 = 4
-CONST_400 = 400
-CONST_5 = 5
-
 """
 端到端测试：分红数据 API
 
@@ -60,8 +46,9 @@ def test_single_mode():
 
         print("✅ PASS")
         return True
-    print(f"❌ FAIL: {response.text}")
-    return False
+    else:
+        print(f"❌ FAIL: {response.text}")
+        return False
 
 
 def test_screen_mode():
@@ -110,8 +97,9 @@ def test_screen_mode():
 
         print("✅ PASS")
         return True
-    print(f"❌ FAIL: {response.text}")
-    return False
+    else:
+        print(f"❌ FAIL: {response.text}")
+        return False
 
 
 def test_calendar_mode():
@@ -158,8 +146,9 @@ def test_calendar_mode():
 
         print("✅ PASS")
         return True
-    print(f"❌ FAIL: {response.text}")
-    return False
+    else:
+        print(f"❌ FAIL: {response.text}")
+        return False
 
 
 def test_error_handling_invalid_symbol():
@@ -181,8 +170,9 @@ def test_error_handling_invalid_symbol():
 
         print("✅ PASS")
         return True
-    print(f"❌ FAIL: Unexpected status code")
-    return False
+    else:
+        print(f"❌ FAIL: Unexpected status code")
+        return False
 
 
 def test_error_handling_missing_params():
@@ -205,8 +195,9 @@ def test_error_handling_missing_params():
 
         print("✅ PASS")
         return True
-    print(f"❌ FAIL: Expected 400, got {response.status_code}")
-    return False
+    else:
+        print(f"❌ FAIL: Expected 400, got {response.status_code}")
+        return False
 
 
 def main():
@@ -241,8 +232,9 @@ def main():
     if passed == total:
         print("\n🎉 All tests passed!")
         return 0
-    print(f"\n⚠️  {total - passed} test(s) failed")
-    return 1
+    else:
+        print(f"\n⚠️  {total - passed} test(s) failed")
+        return 1
 
 
 if __name__ == "__main__":

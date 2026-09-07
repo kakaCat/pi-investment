@@ -1,52 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-CONST_200 = 200
-
-CONST_201 = 201
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_409 = 409
-
-CONST_422 = 422
-
-CONST_500 = 500
-
-
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-CONST_200 = 200
-
-CONST_201 = 201
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_409 = 409
-
-CONST_422 = 422
-
-CONST_500 = 500
-
-
-
 """Memory API - FastAPI 版（统一记忆存储服务）
 设计：docs/superpowers/plans/2026-08-12-framework-evolution-roadmap.md W1.2
 
@@ -186,7 +137,9 @@ def create_recall_audit(payload: Dict[str, Any] = Body(...)):
         # 校验必需字段
         flow = payload.get("flow", "").strip()
         gate_result = payload.get("gate_result", "").strip()
-        if not flow and not gate_result:
+        if not flow:
+            raise HTTPException(status_code=422, detail="Missing required field: flow")
+        if not gate_result:
             raise HTTPException(status_code=422, detail="Missing required field: gate_result")
 
         repo = MemoryRecallAuditRepository()
@@ -288,7 +241,9 @@ def recall_audit_feedback(
         feedback = payload.get("feedback")
         feedback_by = payload.get("feedback_by")
 
-        if not memory_id and feedback not in ("relevant", "irrelevant"):
+        if not memory_id:
+            raise HTTPException(status_code=422, detail="Missing required field: memory_id")
+        if feedback not in ("relevant", "irrelevant"):
             raise HTTPException(status_code=422, detail="feedback must be 'relevant' or 'irrelevant'")
         if feedback_by not in ("human", "agent"):
             raise HTTPException(status_code=422, detail="feedback_by must be 'human' or 'agent'")

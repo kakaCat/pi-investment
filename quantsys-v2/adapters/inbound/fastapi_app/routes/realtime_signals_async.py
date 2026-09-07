@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3_0 = 3.0
-
-CONST_20 = 20
-
-CONST_500 = 500
-
-
-
-CONST_3_0 = 3.0
-
-CONST_20 = 20
-
-CONST_500 = 500
-
-
-
 """
 实时信号 API (FastAPI 异步版本)
 迁移自 Flask adapters/inbound/api/routes/realtime_signals.py

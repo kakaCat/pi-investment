@@ -1,9 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - send() = 106 lines
-
 """
 通知领域服务
 
@@ -64,16 +58,7 @@ class NotificationService:
             channels=list(self.channels.keys())
         )
 
-    # TODO: Refactor - function too long (107 lines, target < 80)
-
-# TODO: Split long function (106 lines, target < 100)
-    # TODO: 长函数 111行 - 建议拆分为多个小函数
-
     def send(self, notification: Notification) -> ChannelResult:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """发送通知（标准流程）
 
         流程：
@@ -227,116 +212,117 @@ class NotificationService:
                     channel=primary_channel
                 )
                 return result
-            logger.warning(
-                "主渠道发送失败，降级到备用渠道",
-                notification_id=notification.notification_id,
-                primary=primary_channel,
-                fallback=fallback_channel,
-                error=result.message
-            )
+            else:
+                logger.warning(
+                    "主渠道发送失败，降级到备用渠道",
+                    notification_id=notification.notification_id,
+                    primary=primary_channel,
+                    fallback=fallback_channel,
+                    error=result.message
+                )
 
-    # 降级到备用渠道
-    fallback = self.channels.get(fallback_channel)
-    if fallback:
-        notification.mark_fallback()
-        result = self._send_via_channel(notification, fallback)
+        # 降级到备用渠道
+        fallback = self.channels.get(fallback_channel)
+        if fallback:
+            notification.mark_fallback()
+            result = self._send_via_channel(notification, fallback)
 
-        if self.repository:
-            self.repository.save(notification)
+            if self.repository:
+                self.repository.save(notification)
 
-        if result.success:
-            logger.info(
-                "降级渠道发送成功",
-                notification_id=notification.notification_id,
-                channel=fallback_channel
-            )
-        else:
-            logger.error(
-                "降级渠道也失败",
-                notification_id=notification.notification_id,
-                channel=fallback_channel,
-                error=result.message
-            )
+            if result.success:
+                logger.info(
+                    "降级渠道发送成功",
+                    notification_id=notification.notification_id,
+                    channel=fallback_channel
+                )
+            else:
+                logger.error(
+                    "降级渠道也失败",
+                    notification_id=notification.notification_id,
+                    channel=fallback_channel,
+                    error=result.message
+                )
 
-        return result
+            return result
 
-    error_msg = "主渠道和降级渠道均不可用"
-    logger.error(
-        error_msg,
-        notification_id=notification.notification_id,
-        primary=primary_channel,
-        fallback=fallback_channel
-    )
-    return ChannelResult.error(error_msg)
-
-def _send_via_channel(
-    self,
-    notification: Notification,
-    channel: NotificationChannel
-) -> ChannelResult:
-    """通过指定渠道发送
-
-    Args:
-        notification: 通知对象
-        channel: 通知渠道
-
-    Returns:
-        ChannelResult: 发送结果
-    """
-    try:
-        logger.debug(
-            "通过渠道发送通知",
-            notification_id=notification.notification_id,
-            channel=channel.get_name()
-        )
-
-        result = channel.send(notification)
-
-        logger.debug(
-            "渠道发送完成",
-            notification_id=notification.notification_id,
-            channel=channel.get_name(),
-            success=result.success,
-            message=result.message
-        )
-
-        return result
-
-    except Exception as e:
+        error_msg = "主渠道和降级渠道均不可用"
         logger.error(
-            "渠道发送异常",
+            error_msg,
             notification_id=notification.notification_id,
-            channel=channel.get_name(),
-            error=str(e),
-            exc_info=True
+            primary=primary_channel,
+            fallback=fallback_channel
         )
-        return ChannelResult.error(f"渠道异常: {str(e)}")
+        return ChannelResult.error(error_msg)
 
-def get_available_channels(self) -> List[str]:
-    """获取所有可用渠道名称
+    def _send_via_channel(
+        self,
+        notification: Notification,
+        channel: NotificationChannel
+    ) -> ChannelResult:
+        """通过指定渠道发送
 
-    Returns:
-        List[str]: 渠道名称列表
-    """
-    return list(self.channels.keys())
+        Args:
+            notification: 通知对象
+            channel: 通知渠道
 
-def healthcheck_all(self) -> Dict[str, bool]:
-    """检查所有渠道健康状态
-
-    Returns:
-        Dict[str, bool]: {channel_name: is_healthy}
-    """
-    results = {}
-    for name, channel in self.channels.items():
+        Returns:
+            ChannelResult: 发送结果
+        """
         try:
-            results[name] = channel.healthcheck()
+            logger.debug(
+                "通过渠道发送通知",
+                notification_id=notification.notification_id,
+                channel=channel.get_name()
+            )
+
+            result = channel.send(notification)
+
+            logger.debug(
+                "渠道发送完成",
+                notification_id=notification.notification_id,
+                channel=channel.get_name(),
+                success=result.success,
+                message=result.message
+            )
+
+            return result
+
         except Exception as e:
             logger.error(
-                "渠道健康检查异常",
-                channel=name,
-                error=str(e)
+                "渠道发送异常",
+                notification_id=notification.notification_id,
+                channel=channel.get_name(),
+                error=str(e),
+                exc_info=True
             )
-            results[name] = False
+            return ChannelResult.error(f"渠道异常: {str(e)}")
 
-    logger.info("渠道健康检查完成", results=results)
-    return results
+    def get_available_channels(self) -> List[str]:
+        """获取所有可用渠道名称
+
+        Returns:
+            List[str]: 渠道名称列表
+        """
+        return list(self.channels.keys())
+
+    def healthcheck_all(self) -> Dict[str, bool]:
+        """检查所有渠道健康状态
+
+        Returns:
+            Dict[str, bool]: {channel_name: is_healthy}
+        """
+        results = {}
+        for name, channel in self.channels.items():
+            try:
+                results[name] = channel.healthcheck()
+            except Exception as e:
+                logger.error(
+                    "渠道健康检查异常",
+                    channel=name,
+                    error=str(e)
+                )
+                results[name] = False
+
+        logger.info("渠道健康检查完成", results=results)
+        return results

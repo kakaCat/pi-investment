@@ -1,32 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_5 = 0.5
-
-CONST_0_85 = 0.85
-
-CONST_0_95 = 0.95
-
-CONST_1_01 = 1.01
-
-CONST_4_0 = 4.0
-
-CONST_200 = 200
-
-
-
 """筹码分布计算器 — 纯计算，无 IO
 
 模型：每只股票一个价位桶数组 counts[N_BINS]，覆盖 [price_min, price_min + N*bin_width]。
@@ -39,6 +10,7 @@ CONST_200 = 200
 
 价位近似：三角分布在桶中心采样后归一化，N=200 桶下误差可忽略。
 """
+from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
@@ -132,7 +104,9 @@ class ChipDistribution:
         weights = np.zeros(len(centers), dtype=np.float64)
         left = (centers >= low) & (centers <= typical)
         right = (centers > typical) & (centers <= high)
-        if typical > low and high > typical:
+        if typical > low:
+            weights[left] = (centers[left] - low) / (typical - low)
+        if high > typical:
             weights[right] = (high - centers[right]) / (high - typical)
         total = weights.sum()
         if total <= 0:

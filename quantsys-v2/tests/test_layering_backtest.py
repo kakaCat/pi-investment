@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_20 = 20
-CONST_2023 = 2023
-CONST_252 = 252
-CONST_3 = 3
-CONST_30 = 30
-CONST_31 = 31
-CONST_4 = 4
-CONST_4_0 = 4.0
-CONST_42 = 42
-
 """
 Tests for FactorLayeringBacktest - factor layering backtest analysis
 """
@@ -76,9 +62,6 @@ def predictive_factor_data():
 
     return factor_data, return_data
 
-
-# TODO: Refactor large class (37 methods, target < 20)
-# TODO: 大类 37个方法 - 考虑拆分为多个类或使用组合模式
 
 class TestFactorLayeringBacktest:
     """Test suite for FactorLayeringBacktest"""

@@ -1,62 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - assess_pool_risk() = 101 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.15, 0.25, 0.3, 3, 5]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_15 = 0.15
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_15 = 15
-
-CONST_20 = 20
-
-CONST_25 = 25
-
-CONST_30 = 30
-
-CONST_40 = 40
-
-
-
-CONST_0_15 = 0.15
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_15 = 15
-
-CONST_20 = 20
-
-CONST_25 = 25
-
-CONST_30 = 30
-
-CONST_40 = 40
-
-
-
 """
 增强型风险评估服务 - EnhancedRiskAssessor
 
@@ -100,20 +41,7 @@ class EnhancedRiskAssessor:
         self.opponent_service = opponent_service or OpponentBehaviorService()
         self.manipulation_detector = manipulation_detector or ManipulationDetector()
 
-    # TODO: Refactor - function too long (102 lines, target < 80)
-
-# TODO: Split long function (101 lines, target < 100)
-    # TODO: 长函数 110行 - 建议拆分为多个小函数
-
     def assess_pool_risk(self, pool_id: int) -> Dict[str, Any]:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """
         评估池子的综合风险
 
@@ -398,26 +326,27 @@ class EnhancedRiskAssessor:
             return 'high'
         elif score >= 25:
             return 'medium'
-        return 'low'
+        else:
+            return 'low'
 
-def _generate_risk_recommendation(self, score: float, level: str) -> str:
-    """生成风险建议"""
-    if level == 'critical':
-        return '建议立即清仓或大幅减仓80%以上'
-    elif level == 'high':
-        return '建议减仓50-80%'
-    elif level == 'medium':
-        return '建议减仓20-50%或密切观察'
-    else:
-        return '风险可控，保持当前仓位'
+    def _generate_risk_recommendation(self, score: float, level: str) -> str:
+        """生成风险建议"""
+        if level == 'critical':
+            return '建议立即清仓或大幅减仓80%以上'
+        elif level == 'high':
+            return '建议减仓50-80%'
+        elif level == 'medium':
+            return '建议减仓20-50%或密切观察'
+        else:
+            return '风险可控，保持当前仓位'
 
-def _identify_warning_signs(self, risk_factors: List[Dict]) -> List[str]:
-    """识别预警信号"""
-    warning_signs = []
+    def _identify_warning_signs(self, risk_factors: List[Dict]) -> List[str]:
+        """识别预警信号"""
+        warning_signs = []
 
-    # 高分风险因子 → 预警信号
-    for factor in risk_factors:
-        if factor.get('score', 0) >= 30:
-            warning_signs.append(factor.get('factor', ''))
+        # 高分风险因子 → 预警信号
+        for factor in risk_factors:
+            if factor.get('score', 0) >= 30:
+                warning_signs.append(factor.get('factor', ''))
 
-    return warning_signs
+        return warning_signs

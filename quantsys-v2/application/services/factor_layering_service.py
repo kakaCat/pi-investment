@@ -1,35 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - run_layering_backtest() = 126 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_60 = 60
-
-CONST_250 = 250
-
-CONST_365 = 365
-
-
-
-CONST_20 = 20
-
-CONST_60 = 60
-
-CONST_250 = 250
-
-CONST_365 = 365
-
-
-
 """
 因子分层回测服务
 ==================
@@ -77,22 +45,7 @@ class FactorLayeringService:
         self.stock_repo = stock_repo
         self.stock_pool_service = stock_pool_service or StockPoolService(stock_repo=self.stock_repo)
 
-    # TODO: Refactor - function too long (127 lines, target < 80)
-
-# TODO: Split long function (126 lines, target < 100)
-    # TODO: 长函数 137行 - 建议拆分为多个小函数
-
     def run_layering_backtest(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         factor_name: str,
         symbols: Optional[List[str]] = None,
@@ -141,7 +94,9 @@ class FactorLayeringService:
         return_data = self._prepare_return_data(symbols, start_date, end_date)
 
         # 验证数据
-        if factor_data.empty and return_data.empty:
+        if factor_data.empty:
+            raise ValueError(f"No factor data available for {factor_name}")
+        if return_data.empty:
             raise ValueError("No return data available")
 
         logger.info(f"Factor data shape: {factor_data.shape}, Return data shape: {return_data.shape}")
@@ -308,7 +263,9 @@ class FactorLayeringService:
         logger.info(f"Preparing factor data for {factor_name}")
 
         # 使用默认日期范围（如果未指定）
-        if not end_date and not start_date:
+        if not end_date:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+        if not start_date:
             start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
 
         # 获取因子适配器
@@ -382,7 +339,9 @@ class FactorLayeringService:
         logger.info("Preparing return data")
 
         # 使用默认日期范围
-        if not end_date and not start_date:
+        if not end_date:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+        if not start_date:
             start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
 
         return_values = {}

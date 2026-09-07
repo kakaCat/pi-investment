@@ -1,56 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_2 = 0.2
-
-CONST_5 = 5
-
-CONST_9 = 9
-
-CONST_11 = 11
-
-CONST_13 = 13
-
-CONST_15 = 15
-
-CONST_30 = 30
-
-CONST_60 = 60
-
-CONST_120 = 120
-
-CONST_240 = 240
-
-
-
-CONST_0_2 = 0.2
-
-CONST_5 = 5
-
-CONST_9 = 9
-
-CONST_11 = 11
-
-CONST_13 = 13
-
-CONST_15 = 15
-
-CONST_30 = 30
-
-CONST_60 = 60
-
-CONST_120 = 120
-
-CONST_240 = 240
-
-
-
 """WatchEngine 盯盘引擎核心
 
 tick() 为一次完整判定（同步、可单测）；run_forever() 为常驻循环。
@@ -76,7 +23,9 @@ def elapsed_trading_fraction(now: datetime) -> float:
     t = now.time()
     morning_end = time(11, 30)
     afternoon_start = time(13, 0)
-    if t <= time(9, 30) and t <= morning_end:
+    if t <= time(9, 30):
+        return 0.0
+    if t <= morning_end:
         minutes = (now - now.replace(hour=9, minute=30, second=0)).seconds / 60
     elif t < afternoon_start:
         minutes = 120
@@ -175,7 +124,9 @@ class WatchEngine:
                 except Exception as e:
                     logger.error('条件评估异常', rule_id=rule.id, cond=cond, error=str(e))
                     continue
-                if result.distance_ratio is not None and result.distance_ratio <= self.buffer_ratio and not result.triggered:
+                if result.distance_ratio is not None and result.distance_ratio <= self.buffer_ratio:
+                    fast = True
+                if not result.triggered:
                     # 条件回到未触发状态 → 解除闩锁，重新武装（允许下次穿越再报）
                     self._latched.discard((rule.id, idx))
                     continue
@@ -248,7 +199,9 @@ class WatchEngine:
         self._history[symbol] = [(t, p) for t, p in buf if t >= cutoff]
 
     def _get_avg_volume(self, symbol: str) -> Optional[float]:
-        if self.avg_volume_provider is None and symbol not in self._avg_volume_cache:
+        if self.avg_volume_provider is None:
+            return None
+        if symbol not in self._avg_volume_cache:
             try:
                 value = self.avg_volume_provider(symbol)
                 if value:

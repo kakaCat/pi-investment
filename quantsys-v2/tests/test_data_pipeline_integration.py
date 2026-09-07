@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_15_3 = 15.3
-CONST_15_5 = 15.5
-CONST_15_6 = 15.6
-CONST_15_8 = 15.8
-CONST_15_9 = 15.9
-CONST_16_0 = 16.0
-CONST_16_1 = 16.1
-CONST_16_2 = 16.2
-CONST_1790_0 = 1790.0
-CONST_1800_0 = 1800.0
-
 """Integration tests for the complete data pipeline.
 
 These tests verify the end-to-end functionality of the 8-stage data pipeline:

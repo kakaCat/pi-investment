@@ -1,16 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100_5 = 100.5
-CONST_10000 = 10000
-CONST_102_0 = 102.0
-CONST_1234 = 1234
-CONST_2026 = 2026
-CONST_3 = 3
-CONST_30 = 30
-CONST_600036 = 600036
-CONST_99_0 = 99.0
-
 """集成测试 - 端到端测试"""
 import pytest
 from domain.quantlib.core.pipeline import QuantPipeline

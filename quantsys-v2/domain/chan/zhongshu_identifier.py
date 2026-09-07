@@ -1,13 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-
-
 """中枢识别器 - 识别线段重叠形成的中枢
 
 ⚠️ DEPRECATED（2026-08-05）：旧线段流水线组件，已证实线段算法退化致中枢全灭。
@@ -92,4 +82,5 @@ class ZhongShuIdentifier:
 
         if overlap_low < overlap_high:
             return (overlap_low, overlap_high)
-        return None
+        else:
+            return None

@@ -1,31 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - execute_v14_full_rebalance() = 197 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_18 = 0.18
-
-CONST_5 = 5
-
-CONST_70 = 70
-
-
-
-CONST_0_18 = 0.18
-
-CONST_5 = 5
-
-CONST_70 = 70
-
-
-
 """
 V14完整调仓执行 - 包含止损检查、调仓决策和实际交易
 """
@@ -82,8 +54,9 @@ def get_current_price(symbol):
             return float(df.iloc[-1]['close'])
         elif '收盘' in df.columns:
             return float(df.iloc[-1]['收盘'])
-        print(f'  警告: 未找到收盘价列，可用列: {list(df.columns)}')
-return None
+        else:
+            print(f'  警告: 未找到收盘价列，可用列: {list(df.columns)}')
+    return None
 
 def check_and_execute_stop_loss(trader):
     """检查并执行止损"""
@@ -180,77 +153,7 @@ def check_and_execute_stop_loss(trader):
 
     return to_sell
 
-# TODO: Refactor - complexity 17 (target < 15)
-
-# TODO: Refactor - function too long (198 lines, target < 80)
-
-def _validate_execute_v14_full_rebalance_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 execute_v14_full_rebalance 移到这里
-    return True, None
-
-def _process_execute_v14_full_rebalance_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 execute_v14_full_rebalance 移到这里
-    return data
-
-def _build_execute_v14_full_rebalance_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 execute_v14_full_rebalance 移到这里
-    return data
-
-# TODO: Split long function (197 lines, target < 100)
-# TODO: Refactor - complexity 17 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 17 (target < 15)
-# TODO: Split long function (197 lines, target < 100)
-# TODO: Refactor - complexity 17 (target < 15)
-# TODO: Split long function (197 lines, target < 100)
-# TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 216行 - 建议拆分为多个小函数
-
-def _validate_execute_v14_full_rebalance_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_execute_v14_full_rebalance_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_execute_v14_full_rebalance_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_execute_v14_full_rebalance_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_execute_v14_full_rebalance_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_execute_v14_full_rebalance_result(data):
-    """构建返回结果"""
-    return data
-
 def execute_v14_full_rebalance():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
     """执行V14完整调仓（止损+调仓+实际交易）"""
     from live_trading.simulation_trader import SimulationTrader
     from live_trading.v14_factor_calculator import V14FactorCalculator
@@ -327,8 +230,6 @@ def execute_v14_full_rebalance():
         print(f'\n执行卖出（调仓）:')
         for symbol in to_sell:
             pos = next((p for p in current_positions if p.symbol == symbol), None)
-            # TODO: 提取嵌套逻辑为独立方法
-
             if pos and pos.shares > 0:
                 current_price = get_current_price(symbol)
                 if current_price:

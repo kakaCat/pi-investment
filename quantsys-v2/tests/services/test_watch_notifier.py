@@ -1,14 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_1700_0 = 1700.0
-CONST_1780_0 = 1780.0
-CONST_1800_0 = 1800.0
-CONST_1801_5 = 1801.5
-CONST_3 = 3
-CONST_5003 = 5003
-CONST_7 = 7
-
 """WatchNotifier 单测"""
 from types import SimpleNamespace
 from unittest.mock import patch

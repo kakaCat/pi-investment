@@ -1,21 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_8 = 8
-
-
-
-CONST_8 = 8
-
-
-
 """
 修复调度器数据更新任务的DataFrame判断问题
 """
@@ -61,11 +44,12 @@ def update_symbol_fixed(symbol: str) -> Tuple[bool, bool]:
                 # Other truthy value
                 has_data = bool(latest)
             return (has_data, False)
-        # No data available
-        return (False, False)
-except Exception as e:
-    logger.warning(f"Failed to update {symbol}: {e}")
-    return (False, True)
+        else:
+            # No data available
+            return (False, False)
+    except Exception as e:
+        logger.warning(f"Failed to update {symbol}: {e}")
+        return (False, True)
 
 # 测试10个股票
 test_symbols = [
@@ -86,9 +70,7 @@ with ThreadPoolExecutor(max_workers=8) as executor:
         try:
             success, error = future.result()
             if success:
-                # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                updated += 1  # TODO: Use parameterized queries
+                updated += 1
                 print(f"  ✅ {sym}: 有数据")
             elif error:
                 errors += 1
@@ -103,9 +85,7 @@ print(f"\n📊 测试结果:")
 print(f"  检查股票数: {len(test_symbols)}")
 print(f"  更新成功数: {updated}")
 print(f"  错误数: {errors}")
-# SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-print(f"  成功率: {100 * updated / len(test_symbols):.1f}%")  # TODO: Use parameterized queries
+print(f"  成功率: {100 * updated / len(test_symbols):.1f}%")
 
 if errors == 0 and updated > 0:
     print(f"\n✅ 修复成功！数据更新功能正常工作")

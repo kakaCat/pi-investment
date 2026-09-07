@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000 = 10000
-CONST_101 = 101
-CONST_102 = 102
-CONST_105 = 105
-CONST_12 = 12
-CONST_120 = 120
-CONST_15 = 15
-CONST_18 = 18
-CONST_2_5 = 2.5
-CONST_20 = 20
-
 """
 Tests for OpportunityScoringService
 """

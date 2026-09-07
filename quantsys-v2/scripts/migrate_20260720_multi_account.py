@@ -1,24 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - run_migration() = 139 lines
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-
-
-CONST_0_01 = 0.01
-
-
-
 """多账户域迁移（2026-07-20）—— 幂等
 
 1. 列改名/加列（account/positions/trades）
@@ -51,22 +31,7 @@ def _rename_column(conn, table, old, new):
         logger.info("column_renamed", table=table, old=old, new=new)
 
 
-# TODO: Refactor - function too long (140 lines, target < 80)
-
-# TODO: Split long function (139 lines, target < 100)
-# TODO: 长函数 150行 - 建议拆分为多个小函数
-
 def run_migration():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
     engine = get_engine()
     # 1) 新表（ORM metadata，幂等 checkfirst）
     Base.metadata.create_all(engine)
@@ -174,9 +139,7 @@ def run_migration():
                     ), {'a': acc_name, 't': ftype, 'amt': net, 'bal': balance, 'tid': t_id})
                 # 对账：流水终值 vs 账户余额，有差额写 adjustment 流水强制不变式成立
                 cash_row = conn.execute(text(
-                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                    "SELECT cash_available + cash_frozen FROM quant.simulation_account "  # TODO: Use parameterized queries
+                    "SELECT cash_available + cash_frozen FROM quant.simulation_account "
                     "WHERE account_name=:a"
                 ), {'a': acc_name}).fetchone()
                 if cash_row is not None:
@@ -196,9 +159,7 @@ def run_migration():
             "INSERT INTO quant.simulation_equity_snapshot "
             "(account_name, snapshot_date, cash, position_value, total_value, "
             " cumulative_return, drawdown) "
-            # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-            "SELECT account_name, CURRENT_DATE, cash_available + cash_frozen, "  # TODO: Use parameterized queries
+            "SELECT account_name, CURRENT_DATE, cash_available + cash_frozen, "
             "       position_value, total_value, cumulative_return, "
             "       CASE WHEN peak_value > 0 THEN total_value / peak_value - 1 ELSE 0 END "
             "FROM quant.simulation_account "

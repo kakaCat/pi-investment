@@ -1,8 +1,5 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Factory for creating versioned XGBoost strategy use cases."""
+from __future__ import annotations
 
 from typing import Any, Dict, Type
 

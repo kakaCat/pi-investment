@@ -1,63 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - score_stocks() = 120 lines
-#   - _score_single_stock() = 144 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.2, 0.3, 0.5, 0.8, 0.9]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_8 = 0.8
-
-CONST_0_9 = 0.9
-
-CONST_0_95 = 0.95
-
-CONST_1_1 = 1.1
-
-CONST_1_2 = 1.2
-
-CONST_1_5 = 1.5
-
-CONST_3 = 3
-
-
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_8 = 0.8
-
-CONST_0_9 = 0.9
-
-CONST_0_95 = 0.95
-
-CONST_1_1 = 1.1
-
-CONST_1_2 = 1.2
-
-CONST_1_5 = 1.5
-
-CONST_3 = 3
-
-
-
 """
 机会评分引擎
 
@@ -87,12 +27,6 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-
-# TODO: Refactor - class too large (22 methods, target < 15)
-
-# TODO: Refactor large class (40 methods, target < 20)
-# TODO: Refactor large class (40 methods, target < 20)
-# TODO: 大类 40个方法 - 考虑拆分为多个类或使用组合模式
 
 class OpportunityScoringService:
     """机会评分引擎（动态 profile + regime 权重 + 证据链）"""
@@ -165,22 +99,7 @@ class OpportunityScoringService:
                 logger.warning(f"DataProviderManager 不可用，K线补抓禁用: {e}")
             self.quality_gate = DataQualityGate(data_provider=data_provider)
 
-    # TODO: Refactor - function too long (121 lines, target < 80)
-
-# TODO: Split long function (120 lines, target < 100)
-    # TODO: 长函数 133行 - 建议拆分为多个小函数
-
     def score_stocks(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         symbols: List[str],
         filters: Dict,
@@ -275,8 +194,6 @@ class OpportunityScoringService:
             for future in as_completed(futures):
                 try:
                     result = future.result()
-                    # TODO: 提取嵌套逻辑为独立方法
-
                     if result is not None:
                         skipped = result.pop('_skipped', None)
                         if skipped == 'insufficient_klines':
@@ -287,7 +204,9 @@ class OpportunityScoringService:
                             diagnostics['errors'] += 1
                         else:
                             diagnostics['scored'] += 1
-                            if result.pop('_degraded_flow', False) and result.pop('_degraded_quarterly', False):
+                            if result.pop('_degraded_flow', False):
+                                diagnostics['degraded']['fund_flow_missing'] += 1
+                            if result.pop('_degraded_quarterly', False):
                                 diagnostics['degraded']['quarterly_insufficient'] += 1
                             opportunities.append(result)
                 except Exception as e:
@@ -322,63 +241,7 @@ class OpportunityScoringService:
                 status[s] = 'computed'
         return result, status
 
-    # TODO: Refactor - complexity 21 (target < 15)
-# TODO: Refactor - function too long (145 lines, target < 80)
-
-
-    def _validate__score_single_stock_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _score_single_stock 移到这里
-        return True, None
-
-    def _process__score_single_stock_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _score_single_stock 移到这里
-        return data
-
-    def _build__score_single_stock_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _score_single_stock 移到这里
-        return data
-
-    def _validate__score_single_stock_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _score_single_stock 移到这里
-        return True, None
-
-    def _process__score_single_stock_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _score_single_stock 移到这里
-        return data
-
-    def _build__score_single_stock_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _score_single_stock 移到这里
-        return data
-
-# TODO: Split long function (144 lines, target < 100)
-# TODO: Refactor - complexity 21 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 21 (target < 15)
-    # TODO: Split long function (144 lines, target < 100)
-    # TODO: Refactor - complexity 21 (target < 15)
-    # TODO: Split long function (144 lines, target < 100)
-    # TODO: 复杂度 21 - 需要重构拆分为更小的函数
-# TODO: 长函数 156行 - 建议拆分为多个小函数
-
-
     def _score_single_stock(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         symbol: str,
         klines: List[Dict],
@@ -587,47 +450,13 @@ class OpportunityScoringService:
             reasons.append(f'RSI超卖({rsi:.1f})')
         elif rsi is not None and rsi > 70:
             reasons.append(f'RSI超买({rsi:.1f})')
-        if tech_result.get('breakdown', {}).get('macd', 0) > 10 and rsi is not None and rsi < 30 and :
+        if tech_result.get('breakdown', {}).get('macd', 0) > 10:
+            reasons.append('MACD金叉')
+        if rsi is not None and rsi < 30 and \
                 tech_result.get('breakdown', {}).get('macd', 0) > 10:
             reasons.append('RSI超卖+MACD金叉共振')
         return reasons
-# TODO: Refactor - complexity 19 (target < 15)
 
-
-    def _validate__calculate_factors_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _calculate_factors 移到这里
-        return True, None
-
-    def _process__calculate_factors_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _calculate_factors 移到这里
-        return data
-
-    def _build__calculate_factors_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _calculate_factors 移到这里
-        return data
-
-    def _validate__calculate_factors_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _calculate_factors 移到这里
-        return True, None
-
-    def _process__calculate_factors_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _calculate_factors 移到这里
-        return data
-
-    def _build__calculate_factors_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _calculate_factors 移到这里
-        return data
-
-# TODO: 复杂度 19 - 需要重构拆分为更小的函数
-
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 19 (target < 15)
     def _calculate_factors(self, klines: List[Dict]) -> Dict:
         """计算技术指标因子
 
@@ -877,212 +706,177 @@ class OpportunityScoringService:
         if weights is None:
             # 默认固定权重：技术面×0.5 + 基本面×0.3 + 资金面×0.2
             return tech_score * 0.5 + fund_score * 0.3 + capital_score * 0.2
-        # 使用动态权重
-        w_tech = weights.get('technical', 0.5)
-        w_fund = weights.get('fundamental', 0.3)
-        w_capital = weights.get('capital', 0.2)
-        return tech_score * w_tech + fund_score * w_fund + capital_score * w_capital
-
-def _calculate_risk_level(self, score: float) -> str:
-    """计算风险等级
-
-    Args:
-        score: 综合评分
-
-    Returns:
-        风险等级: 'low', 'medium', 'high'
-    """
-    if score >= 70:
-        return 'low'
-    elif score >= 50:
-        return 'medium'
-    else:
-        return 'high'
-
-def _evaluate_conditions(
-    self,
-    conditions: List[Dict],
-    logic: str,
-    stock_data: Dict,
-    factors: Dict
-) -> bool:
-    """
-    评估筛选条件
-
-    Args:
-        conditions: 条件列表 [{"field": "roe", "operator": ">=", "value": 15}, ...]
-        logic: 逻辑关系 "AND" 或 "OR"
-        stock_data: 基本面数据（来自 stocks 表）
-        factors: 技术指标数据（从 klines 计算）
-
-    Returns:
-        是否满足条件
-    """
-    if not conditions:
-        return True
-
-    results = []
-    for cond in conditions:
-        field = cond.get('field')
-        operator = cond.get('operator')
-        threshold = cond.get('value')
-
-        # 从 stock_data 或 factors 中获取字段值
-        value = stock_data.get(field) if stock_data else None
-        if value is None:
-            value = factors.get(field)
-
-        if value is None:
-            results.append(False)
-            continue
-
-        # 执行比较
-        if operator == '>=':
-            results.append(value >= threshold)
-        elif operator == '<=':
-            results.append(value <= threshold)
-        elif operator == '>':
-            results.append(value > threshold)
-        elif operator == '<':
-            results.append(value < threshold)
-        elif operator == '==':
-            results.append(value == threshold)
-        elif operator == '!=':
-            results.append(value != threshold)
         else:
-            results.append(False)
+            # 使用动态权重
+            w_tech = weights.get('technical', 0.5)
+            w_fund = weights.get('fundamental', 0.3)
+            w_capital = weights.get('capital', 0.2)
+            return tech_score * w_tech + fund_score * w_fund + capital_score * w_capital
 
-    # 根据逻辑关系合并结果
-    if logic == 'OR':
-        return any(results)
-    else:  # AND
-        return all(results)
+    def _calculate_risk_level(self, score: float) -> str:
+        """计算风险等级
 
-def _is_macd_golden_cross(self, factors: Dict) -> bool:
-    """判断MACD金叉
+        Args:
+            score: 综合评分
 
-    Args:
-        factors: 技术指标因子字典
+        Returns:
+            风险等级: 'low', 'medium', 'high'
+        """
+        if score >= 70:
+            return 'low'
+        elif score >= 50:
+            return 'medium'
+        else:
+            return 'high'
 
-    Returns:
-        是否金叉
-    """
-    macd = factors.get('macd', 0)
-    signal = factors.get('macd_signal', 0)
-    macd_prev = factors.get('macd_prev', 0)
-    signal_prev = factors.get('macd_signal_prev', 0)
+    def _evaluate_conditions(
+        self,
+        conditions: List[Dict],
+        logic: str,
+        stock_data: Dict,
+        factors: Dict
+    ) -> bool:
+        """
+        评估筛选条件
 
-    # 当前MACD > 信号线 且 前一天MACD < 信号线
-    return macd > signal and macd_prev < signal_prev
+        Args:
+            conditions: 条件列表 [{"field": "roe", "operator": ">=", "value": 15}, ...]
+            logic: 逻辑关系 "AND" 或 "OR"
+            stock_data: 基本面数据（来自 stocks 表）
+            factors: 技术指标数据（从 klines 计算）
 
-def _is_volume_increasing(self, factors: Dict, days: int = 3) -> bool:
-    """判断成交量连续递增
+        Returns:
+            是否满足条件
+        """
+        if not conditions:
+            return True
 
-    Args:
-        factors: 技术指标因子字典
-        days: 判断天数
+        results = []
+        for cond in conditions:
+            field = cond.get('field')
+            operator = cond.get('operator')
+            threshold = cond.get('value')
 
-    Returns:
-        是否连续递增
-    """
-    volumes = factors.get('volume_history', [])
+            # 从 stock_data 或 factors 中获取字段值
+            value = stock_data.get(field) if stock_data else None
+            if value is None:
+                value = factors.get(field)
 
-    if len(volumes) < days:
-        return False
+            if value is None:
+                results.append(False)
+                continue
 
-    # 检查是否连续递增
-    for i in range(len(volumes) - days + 1, len(volumes)):
-        if volumes[i] <= volumes[i - 1]:
-            return False
+            # 执行比较
+            if operator == '>=':
+                results.append(value >= threshold)
+            elif operator == '<=':
+                results.append(value <= threshold)
+            elif operator == '>':
+                results.append(value > threshold)
+            elif operator == '<':
+                results.append(value < threshold)
+            elif operator == '==':
+                results.append(value == threshold)
+            elif operator == '!=':
+                results.append(value != threshold)
+            else:
+                results.append(False)
 
-    return True
+        # 根据逻辑关系合并结果
+        if logic == 'OR':
+            return any(results)
+        else:  # AND
+            return all(results)
 
-def _calculate_default_technical_score(self, factors: Dict) -> float:
-    """计算默认技术面评分（无筛选条件时使用）
+    def _is_macd_golden_cross(self, factors: Dict) -> bool:
+        """判断MACD金叉
 
-    综合评估RSI、MACD、布林带、成交量等指标
+        Args:
+            factors: 技术指标因子字典
 
-    Args:
-        factors: 技术指标因子字典
-
-    Returns:
-        技术面评分 (0-100)
-    """
-    score = 50.0  # 基础分
-
-    # RSI 评分 (±15分)
-    rsi = factors.get('rsi')
-    if rsi is not None:
-        if rsi < 30:  # 超卖
-            score += 15
-        elif rsi > 70:  # 超买
-            score -= 15
-        elif 40 <= rsi <= 60:  # 中性区间
-            score += 5
-
-    # MACD 评分 (±10分)
-    if self._is_macd_golden_cross(factors):
-        score += 10
-    else:
+        Returns:
+            是否金叉
+        """
         macd = factors.get('macd', 0)
         signal = factors.get('macd_signal', 0)
-        if macd < signal:
+        macd_prev = factors.get('macd_prev', 0)
+        signal_prev = factors.get('macd_signal_prev', 0)
+
+        # 当前MACD > 信号线 且 前一天MACD < 信号线
+        return macd > signal and macd_prev < signal_prev
+
+    def _is_volume_increasing(self, factors: Dict, days: int = 3) -> bool:
+        """判断成交量连续递增
+
+        Args:
+            factors: 技术指标因子字典
+            days: 判断天数
+
+        Returns:
+            是否连续递增
+        """
+        volumes = factors.get('volume_history', [])
+
+        if len(volumes) < days:
+            return False
+
+        # 检查是否连续递增
+        for i in range(len(volumes) - days + 1, len(volumes)):
+            if volumes[i] <= volumes[i - 1]:
+                return False
+
+        return True
+
+    def _calculate_default_technical_score(self, factors: Dict) -> float:
+        """计算默认技术面评分（无筛选条件时使用）
+
+        综合评估RSI、MACD、布林带、成交量等指标
+
+        Args:
+            factors: 技术指标因子字典
+
+        Returns:
+            技术面评分 (0-100)
+        """
+        score = 50.0  # 基础分
+
+        # RSI 评分 (±15分)
+        rsi = factors.get('rsi')
+        if rsi is not None:
+            if rsi < 30:  # 超卖
+                score += 15
+            elif rsi > 70:  # 超买
+                score -= 15
+            elif 40 <= rsi <= 60:  # 中性区间
+                score += 5
+
+        # MACD 评分 (±10分)
+        if self._is_macd_golden_cross(factors):
+            score += 10
+        else:
+            macd = factors.get('macd', 0)
+            signal = factors.get('macd_signal', 0)
+            if macd < signal:
+                score -= 10
+
+        # 布林带评分 (±10分)
+        close = factors.get('close', 0)
+        boll_upper = factors.get('boll_upper')
+        if close > 0 and boll_upper is not None:
+            if close > boll_upper:  # 突破上轨
+                score += 10
+            elif close < boll_upper * 0.95:  # 远离上轨
+                score -= 5
+
+        # 成交量评分 (±15分)
+        volume_ratio = factors.get('volume_ratio_5d', 1.0)
+        if volume_ratio > 1.5:  # 放量
+            score += 15
+        elif volume_ratio < 0.8:  # 缩量
             score -= 10
 
-    # 布林带评分 (±10分)
-    close = factors.get('close', 0)
-    boll_upper = factors.get('boll_upper')
-    if close > 0 and boll_upper is not None:
-        if close > boll_upper:  # 突破上轨
-            score += 10
-        elif close < boll_upper * 0.95:  # 远离上轨
-            score -= 5
+        return max(0, min(100, score))
 
-    # 成交量评分 (±15分)
-    volume_ratio = factors.get('volume_ratio_5d', 1.0)
-    if volume_ratio > 1.5:  # 放量
-        score += 15
-    elif volume_ratio < 0.8:  # 缩量
-        score -= 10
-
-    # TODO: Refactor - complexity 19 (target < 15)
-
-    return max(0, min(100, score))
-
-def _validate__calculate_default_fundamental_score_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _calculate_default_fundamental_score 移到这里
-    return True, None
-
-def _process__calculate_default_fundamental_score_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _calculate_default_fundamental_score 移到这里
-    return data
-
-def _build__calculate_default_fundamental_score_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _calculate_default_fundamental_score 移到这里
-    return data
-
-def _validate__calculate_default_fundamental_score_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _calculate_default_fundamental_score 移到这里
-    return True, None
-
-def _process__calculate_default_fundamental_score_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _calculate_default_fundamental_score 移到这里
-    return data
-
-def _build__calculate_default_fundamental_score_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _calculate_default_fundamental_score 移到这里
-    # TODO: 复杂度 19 - 需要重构拆分为更小的函数
-
-    return data
- # REFACTOR: Split this function into smaller pieces
-
-# TODO: Refactor - complexity 19 (target < 15)
     def _calculate_default_fundamental_score(self, fundamental: Dict) -> float:
         """计算默认基本面评分（无筛选条件时使用）
 

@@ -1,25 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_12 = 12
-
-
-
-CONST_3 = 3
-
-CONST_12 = 12
-
-
-
 """直接测试 API 路由代码"""
 import sys
 from pathlib import Path

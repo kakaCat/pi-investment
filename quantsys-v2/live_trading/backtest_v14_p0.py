@@ -1,59 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - backtest_v14_p0() = 171 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_12 = 0.12
-
-CONST_0_128 = 0.128
-
-CONST_0_18 = 0.18
-
-CONST_0_2 = 0.2
-
-CONST_0_213 = 0.213
-
-CONST_0_25 = 0.25
-
-CONST_0_28 = 0.28
-
-CONST_0_7 = 0.7
-
-CONST_0_9 = 0.9
-
-CONST_3_43 = 3.43
-
-
-
-CONST_0_12 = 0.12
-
-CONST_0_128 = 0.128
-
-CONST_0_18 = 0.18
-
-CONST_0_2 = 0.2
-
-CONST_0_213 = 0.213
-
-CONST_0_25 = 0.25
-
-CONST_0_28 = 0.28
-
-CONST_0_7 = 0.7
-
-CONST_0_9 = 0.9
-
-CONST_3_43 = 3.43
-
-
-
 """
 V14 P0优化版本回测验证
 
@@ -69,22 +13,7 @@ from pathlib import Path
 
 logging.basicConfig(level=logging.WARNING)
 
-# TODO: Split long function (171 lines, target < 100)
-# TODO: 长函数 184行 - 建议拆分为多个小函数
-
 def backtest_v14_p0():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
     """回测V14 P0优化版本"""
 
     print("\n" + "="*80)

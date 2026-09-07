@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
 """
 通用P2 异步Repository集合
 
@@ -146,7 +125,9 @@ class FundFlowAsyncRepository(AsyncBaseORMRepository[FundFlow]):
     ) -> List[Dict[str, Any]]:
         try:
             stmt = select(FundFlow)
-            if symbol and start_date:
+            if symbol:
+                stmt = stmt.where(FundFlow.symbol == symbol)
+            if start_date:
                 stmt = stmt.where(FundFlow.trade_date >= start_date)
             stmt = stmt.order_by(desc(FundFlow.trade_date)).limit(limit)
 
@@ -193,7 +174,9 @@ class DataQualityAsyncRepository(AsyncBaseORMRepository[DataQuality]):
     ) -> List[Dict[str, Any]]:
         try:
             conditions = {}
-            if table_name and passed is not None:
+            if table_name:
+                conditions['table_name'] = table_name
+            if passed is not None:
                 conditions['passed'] = passed
 
             if conditions:

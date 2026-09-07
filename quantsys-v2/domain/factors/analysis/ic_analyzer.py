@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.01, 0.02, 0.03, 0.05, 0.2]...
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_0_02 = 0.02
-
-CONST_0_03 = 0.03
-
-CONST_0_05 = 0.05
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_0_55 = 0.55
-
-CONST_0_6 = 0.6
-
-
-
 """
 因子IC/IR分析器
 
@@ -312,7 +281,8 @@ class ICAnalyzer:
             return '良好'
         elif score >= 5:
             return '一般'
-        return '较差'
+        else:
+            return '较差'
 
 
 # 使用示例

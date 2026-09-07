@@ -1,61 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - save_simple_backtest() = 220 lines
-#   - run_pe_mean_reversion_backtest() = 310 lines
-#   - run_pb_mean_reversion_backtest() = 290 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_0003 = 0.0003
-
-CONST_0_01 = 0.01
-
-CONST_0_08 = 0.08
-
-CONST_0_1 = 0.1
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_35 = 0.35
-
-CONST_0_4 = 0.4
-
-CONST_0_6 = 0.6
-
-CONST_1_2 = 1.2
-
-
-
-CONST_0_0003 = 0.0003
-
-CONST_0_01 = 0.01
-
-CONST_0_08 = 0.08
-
-CONST_0_1 = 0.1
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_35 = 0.35
-
-CONST_0_4 = 0.4
-
-CONST_0_6 = 0.6
-
-CONST_1_2 = 1.2
-
-
-
 """回测执行助手（框架无关）— 从 adapters/inbound/api/routes/backtest.py 解耦而来
 
 save_simple_backtest / run_pe_mean_reversion_backtest / run_pb_mean_reversion_backtest。
@@ -64,44 +6,7 @@ save_simple_backtest / run_pe_mean_reversion_backtest / run_pb_mean_reversion_ba
 from datetime import datetime
 import math
 
-# TODO: Extract 8 validation checks to _validate_save_simple_backtest()
-# TODO: Refactor - complexity 26 (target < 15)
-# TODO: Split long function (220 lines, target < 100)
-# TODO: Refactor - complexity 26 (target < 15)
-# TODO: Split long function (220 lines, target < 100)
-# TODO: 复杂度 26 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 239行 - 建议拆分为多个小函数
-
-def _validate_save_simple_backtest_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_save_simple_backtest_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_save_simple_backtest_result(data):
-    """构建返回结果"""
-    return data
-
 def save_simple_backtest(params, klines, initial_capital):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
     """执行简单的移动平均交叉回测"""
     from datetime import datetime
     import math
@@ -218,8 +123,6 @@ def save_simple_backtest(params, klines, initial_capital):
         value = point['value']
         if value > peak:
             peak = value
-            # TODO: 提取嵌套逻辑为独立方法
-
             if drawdown_start and not drawdown_end:
                 drawdown_end = point['date']
         else:
@@ -242,134 +145,91 @@ def save_simple_backtest(params, klines, initial_capital):
         variance = sum((r - avg_return) ** 2 for r in daily_returns) / len(daily_returns)
         std_dev = math.sqrt(variance)
         sharpe_ratio = (avg_return * math.sqrt(252)) / std_dev if std_dev > 0 else 0
-    sharpe_ratio = 0
+    else:
+        sharpe_ratio = 0
 
-win_trades = 0
-loss_trades = 0
-total_profit = 0
-total_loss = 0
-max_profit = 0
-max_loss = 0
+    win_trades = 0
+    loss_trades = 0
+    total_profit = 0
+    total_loss = 0
+    max_profit = 0
+    max_loss = 0
 
-for trade in trades:
-    if trade.get('profit', 0) > 0:
-        win_trades += 1
-        total_profit += trade['profit']
-        max_profit = max(max_profit, trade['profit'])
-    elif trade.get('profit', 0) < 0:
-        loss_trades += 1
-        total_loss += abs(trade['profit'])
-        max_loss = min(max_loss, trade['profit'])
+    for trade in trades:
+        if trade.get('profit', 0) > 0:
+            win_trades += 1
+            total_profit += trade['profit']
+            max_profit = max(max_profit, trade['profit'])
+        elif trade.get('profit', 0) < 0:
+            loss_trades += 1
+            total_loss += abs(trade['profit'])
+            max_loss = min(max_loss, trade['profit'])
 
-win_rate = win_trades / len(trades) if len(trades) > 0 else 0
-avg_profit = total_profit / win_trades if win_trades > 0 else 0
-avg_loss = total_loss / loss_trades if loss_trades > 0 else 0
-profit_loss_ratio = avg_profit / avg_loss if avg_loss > 0 else 0
+    win_rate = win_trades / len(trades) if len(trades) > 0 else 0
+    avg_profit = total_profit / win_trades if win_trades > 0 else 0
+    avg_loss = total_loss / loss_trades if loss_trades > 0 else 0
+    profit_loss_ratio = avg_profit / avg_loss if avg_loss > 0 else 0
 
-monthly_returns = {}
-for i in range(1, len(equity_curve)):
-    date_str = str(equity_curve[i]['date'])
-    try:
-        dt = datetime.strptime(date_str, '%Y%m%d')
-        year = dt.year
-        month = dt.month
+    monthly_returns = {}
+    for i in range(1, len(equity_curve)):
+        date_str = str(equity_curve[i]['date'])
+        try:
+            dt = datetime.strptime(date_str, '%Y%m%d')
+            year = dt.year
+            month = dt.month
 
-        if year not in monthly_returns:
-            monthly_returns[year] = {}
+            if year not in monthly_returns:
+                monthly_returns[year] = {}
 
-        prev_value = equity_curve[i-1]['value']
-        curr_value = equity_curve[i]['value']
-        monthly_return = (curr_value - prev_value) / prev_value if prev_value > 0 else 0
+            prev_value = equity_curve[i-1]['value']
+            curr_value = equity_curve[i]['value']
+            monthly_return = (curr_value - prev_value) / prev_value if prev_value > 0 else 0
 
-        if month not in monthly_returns[year]:
-            monthly_returns[year][month] = []
-        monthly_returns[year][month].append(monthly_return)
-    except:
-        continue
+            if month not in monthly_returns[year]:
+                monthly_returns[year][month] = []
+            monthly_returns[year][month].append(monthly_return)
+        except:
+            continue
 
-monthly_returns_list = []
-for year in sorted(monthly_returns.keys()):
-    months = [0] * 12
-    for month, returns in monthly_returns[year].items():
-        avg_return = sum(returns) / len(returns) if returns else 0
-        months[month - 1] = round(avg_return * 100, 2)
-    monthly_returns_list.append({
-        'year': year,
-        'months': months
-    })
+    monthly_returns_list = []
+    for year in sorted(monthly_returns.keys()):
+        months = [0] * 12
+        for month, returns in monthly_returns[year].items():
+            avg_return = sum(returns) / len(returns) if returns else 0
+            months[month - 1] = round(avg_return * 100, 2)
+        monthly_returns_list.append({
+            'year': year,
+            'months': months
+        })
 
-return {
-    'strategy_name': params['strategy_name'],
-    'symbol': params['symbol'],
-    'start_date': params['start_date'],
-    'end_date': params['end_date'],
-    'initial_capital': initial_capital,
-    'final_capital': round(final_capital, 2),
-    'total_return': round(total_return, 4),
-    'annualReturn': round(annual_return, 4),
-    'maxDrawdown': round(max_drawdown, 4),
-    'sharpeRatio': round(sharpe_ratio, 4),
-    'winRate': round(win_rate, 4),
-    'profitLossRatio': round(profit_loss_ratio, 4),
-    'winTrades': win_trades,
-    'lossTrades': loss_trades,
-    'avgProfit': round(avg_profit, 2),
-    'avgLoss': round(avg_loss, 2),
-    'maxProfit': round(max_profit, 2),
-    'maxLoss': round(max_loss, 2),
-    'recoveryDays': recovery_days,
-    'total_trades': len(trades),
-    'trades': trades,
-    'equityCurve': equity_curve,
-    'monthlyReturns': monthly_returns_list
-def _validate_run_pe_mean_reversion_backtest_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_run_pe_mean_reversion_backtest_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_run_pe_mean_reversion_backtest_result(data):
-    """构建返回结果"""
-    return data
-
-}
+    return {
+        'strategy_name': params['strategy_name'],
+        'symbol': params['symbol'],
+        'start_date': params['start_date'],
+        'end_date': params['end_date'],
+        'initial_capital': initial_capital,
+        'final_capital': round(final_capital, 2),
+        'total_return': round(total_return, 4),
+        'annualReturn': round(annual_return, 4),
+        'maxDrawdown': round(max_drawdown, 4),
+        'sharpeRatio': round(sharpe_ratio, 4),
+        'winRate': round(win_rate, 4),
+        'profitLossRatio': round(profit_loss_ratio, 4),
+        'winTrades': win_trades,
+        'lossTrades': loss_trades,
+        'avgProfit': round(avg_profit, 2),
+        'avgLoss': round(avg_loss, 2),
+        'maxProfit': round(max_profit, 2),
+        'maxLoss': round(max_loss, 2),
+        'recoveryDays': recovery_days,
+        'total_trades': len(trades),
+        'trades': trades,
+        'equityCurve': equity_curve,
+        'monthlyReturns': monthly_returns_list
+    }
 
 
-# TODO: Extract 8 validation checks to _validate_run_pe_mean_reversion_backtest()
-# TODO: Refactor - complexity 40 (target < 15)
-# TODO: Split long function (310 lines, target < 100)
-# TODO: 复杂度 40 - 需要重构拆分为更小的函数
-
-# TODO: Refactor - complexity 40 (target < 15)
-# TODO: 长函数 353行 - 建议拆分为多个小函数
-
-# TODO: Split long function (310 lines, target < 100)
 def run_pe_mean_reversion_backtest(params, klines, initial_capital):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 9 ----
-    # ---- Section 10 ----
-    # ---- Section 11 ----
-    # ---- Section 12 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 9 ----
-    # ---- Section 10 ----
-    # ---- Section 11 ----
     """
     PE均值回归策略回测引擎。
 
@@ -423,25 +283,6 @@ def run_pe_mean_reversion_backtest(params, klines, initial_capital):
         return 'hold'
 
     def zone_to_target_pct(zone):
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
-        # ---- Section 8 ----
-        # ---- Section 9 ----
-        # ---- Section 10 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
-        # ---- Section 8 ----
-        # ---- Section 9 ----
         mapping = {'heavy_buy': 0.60, 'batch_buy': 0.40, 'hold': 0.30,
                    'reduce': 0.10, 'liquidate': 0.00}
         return mapping.get(zone, 0.30)
@@ -623,126 +464,85 @@ def run_pe_mean_reversion_backtest(params, klines, initial_capital):
         variance = sum((r - avg_return) ** 2 for r in daily_returns) / len(daily_returns)
         std_dev = math.sqrt(variance)
         sharpe_ratio = (avg_return * math.sqrt(252)) / std_dev if std_dev > 0 else 0
-    sharpe_ratio = 0
+    else:
+        sharpe_ratio = 0
 
-win_trades = 0
-loss_trades = 0
-total_profit = 0
-total_loss = 0
-max_profit = 0
-max_loss = 0
+    win_trades = 0
+    loss_trades = 0
+    total_profit = 0
+    total_loss = 0
+    max_profit = 0
+    max_loss = 0
 
-for trade in trades:
-    if trade.get('profit', 0) > 0:
-        win_trades += 1
-        total_profit += trade['profit']
-        max_profit = max(max_profit, trade['profit'])
-    elif trade.get('profit', 0) < 0:
-        loss_trades += 1
-        total_loss += abs(trade['profit'])
-        max_loss = min(max_loss, trade['profit'])
+    for trade in trades:
+        if trade.get('profit', 0) > 0:
+            win_trades += 1
+            total_profit += trade['profit']
+            max_profit = max(max_profit, trade['profit'])
+        elif trade.get('profit', 0) < 0:
+            loss_trades += 1
+            total_loss += abs(trade['profit'])
+            max_loss = min(max_loss, trade['profit'])
 
-win_rate = win_trades / len(trades) if len(trades) > 0 else 0
-avg_profit = total_profit / win_trades if win_trades > 0 else 0
-avg_loss = total_loss / loss_trades if loss_trades > 0 else 0
-profit_loss_ratio = avg_profit / avg_loss if avg_loss > 0 else 0
+    win_rate = win_trades / len(trades) if len(trades) > 0 else 0
+    avg_profit = total_profit / win_trades if win_trades > 0 else 0
+    avg_loss = total_loss / loss_trades if loss_trades > 0 else 0
+    profit_loss_ratio = avg_profit / avg_loss if avg_loss > 0 else 0
 
-monthly_returns = {}
-for i in range(1, len(equity_curve)):
-    date_str = str(equity_curve[i]['date'])
-    try:
-        dt = datetime.strptime(date_str, '%Y%m%d')
-        year = dt.year
-        month = dt.month
-        if year not in monthly_returns:
-            monthly_returns[year] = {}
-        prev_value = equity_curve[i-1]['value']
-        curr_value = equity_curve[i]['value']
-        monthly_return = (curr_value - prev_value) / prev_value if prev_value > 0 else 0
-        if month not in monthly_returns[year]:
-            monthly_returns[year][month] = []
-        monthly_returns[year][month].append(monthly_return)
-    except:
-        continue
+    monthly_returns = {}
+    for i in range(1, len(equity_curve)):
+        date_str = str(equity_curve[i]['date'])
+        try:
+            dt = datetime.strptime(date_str, '%Y%m%d')
+            year = dt.year
+            month = dt.month
+            if year not in monthly_returns:
+                monthly_returns[year] = {}
+            prev_value = equity_curve[i-1]['value']
+            curr_value = equity_curve[i]['value']
+            monthly_return = (curr_value - prev_value) / prev_value if prev_value > 0 else 0
+            if month not in monthly_returns[year]:
+                monthly_returns[year][month] = []
+            monthly_returns[year][month].append(monthly_return)
+        except:
+            continue
 
-monthly_returns_list = []
-for year in sorted(monthly_returns.keys()):
-    months = [0] * 12
-    for month, returns in monthly_returns[year].items():
-        avg_return = sum(returns) / len(returns) if returns else 0
-        months[month - 1] = round(avg_return * 100, 2)
-    monthly_returns_list.append({'year': year, 'months': months})
+    monthly_returns_list = []
+    for year in sorted(monthly_returns.keys()):
+        months = [0] * 12
+        for month, returns in monthly_returns[year].items():
+            avg_return = sum(returns) / len(returns) if returns else 0
+            months[month - 1] = round(avg_return * 100, 2)
+        monthly_returns_list.append({'year': year, 'months': months})
 
-return {
-    'strategy_name': params['strategy_name'],
-    'symbol': params['symbol'],
-    'start_date': params['start_date'],
-    'end_date': params['end_date'],
-    'initial_capital': initial_capital,
-    'final_capital': round(final_capital, 2),
-    'total_return': round(total_return, 4),
-    'annualReturn': round(annual_return, 4),
-    'maxDrawdown': round(max_drawdown, 4),
-    'sharpeRatio': round(sharpe_ratio, 4),
-    'winRate': round(win_rate, 4),
-    def _validate_run_pb_mean_reversion_backtest_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_run_pb_mean_reversion_backtest_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_run_pb_mean_reversion_backtest_result(data):
-        """构建返回结果"""
-        return data
-
-    'profitLossRatio': round(profit_loss_ratio, 4),
-    'winTrades': win_trades,
-    'lossTrades': loss_trades,
-    'avgProfit': round(avg_profit, 2),
-    'avgLoss': round(avg_loss, 2),
-    'maxProfit': round(max_profit, 2),
-    'maxLoss': round(max_loss, 2),
-    'recoveryDays': recovery_days,
-    'total_trades': len(trades),
-    'trades': trades,
-    'equityCurve': equity_curve,
-    'monthlyReturns': monthly_returns_list
-}
+    return {
+        'strategy_name': params['strategy_name'],
+        'symbol': params['symbol'],
+        'start_date': params['start_date'],
+        'end_date': params['end_date'],
+        'initial_capital': initial_capital,
+        'final_capital': round(final_capital, 2),
+        'total_return': round(total_return, 4),
+        'annualReturn': round(annual_return, 4),
+        'maxDrawdown': round(max_drawdown, 4),
+        'sharpeRatio': round(sharpe_ratio, 4),
+        'winRate': round(win_rate, 4),
+        'profitLossRatio': round(profit_loss_ratio, 4),
+        'winTrades': win_trades,
+        'lossTrades': loss_trades,
+        'avgProfit': round(avg_profit, 2),
+        'avgLoss': round(avg_loss, 2),
+        'maxProfit': round(max_profit, 2),
+        'maxLoss': round(max_loss, 2),
+        'recoveryDays': recovery_days,
+        'total_trades': len(trades),
+        'trades': trades,
+        'equityCurve': equity_curve,
+        'monthlyReturns': monthly_returns_list
+    }
 
 
-# TODO: Extract 8 validation checks to _validate_run_pb_mean_reversion_backtest()
-# TODO: 复杂度 38 - 需要重构拆分为更小的函数
-
-# TODO: Refactor - complexity 38 (target < 15)
-# TODO: Split long function (290 lines, target < 100)
-# TODO: 长函数 329行 - 建议拆分为多个小函数
-
-# TODO: Refactor - complexity 38 (target < 15)
-# TODO: Split long function (290 lines, target < 100)
 def run_pb_mean_reversion_backtest(params, klines, initial_capital):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 9 ----
-    # ---- Section 10 ----
-    # ---- Section 11 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 9 ----
-    # ---- Section 10 ----
     """
     PB均值回归策略回测引擎。
 
@@ -796,23 +596,6 @@ def run_pb_mean_reversion_backtest(params, klines, initial_capital):
         return 'hold'
 
     def zone_to_target_pct(zone):
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
-        # ---- Section 8 ----
-        # ---- Section 9 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
-        # ---- Section 8 ----
         mapping = {'heavy_buy': 0.60, 'batch_buy': 0.40, 'hold': 0.30,
                    'reduce': 0.10, 'liquidate': 0.00}
         return mapping.get(zone, 0.30)
@@ -974,78 +757,81 @@ def run_pb_mean_reversion_backtest(params, klines, initial_capital):
         variance = sum((r - avg_return) ** 2 for r in daily_returns) / len(daily_returns)
         std_dev = math.sqrt(variance)
         sharpe_ratio = (avg_return * math.sqrt(252)) / std_dev if std_dev > 0 else 0
-    sharpe_ratio = 0
+    else:
+        sharpe_ratio = 0
 
-win_trades = 0
-loss_trades = 0
-total_profit = 0
-total_loss = 0
-max_profit = 0
-max_loss = 0
+    win_trades = 0
+    loss_trades = 0
+    total_profit = 0
+    total_loss = 0
+    max_profit = 0
+    max_loss = 0
 
-for trade in trades:
-    if trade.get('profit', 0) > 0:
-        win_trades += 1
-        total_profit += trade['profit']
-        max_profit = max(max_profit, trade['profit'])
-    elif trade.get('profit', 0) < 0:
-        loss_trades += 1
-        total_loss += abs(trade['profit'])
-        max_loss = min(max_loss, trade['profit'])
+    for trade in trades:
+        if trade.get('profit', 0) > 0:
+            win_trades += 1
+            total_profit += trade['profit']
+            max_profit = max(max_profit, trade['profit'])
+        elif trade.get('profit', 0) < 0:
+            loss_trades += 1
+            total_loss += abs(trade['profit'])
+            max_loss = min(max_loss, trade['profit'])
 
-win_rate = win_trades / len(trades) if len(trades) > 0 else 0
-avg_profit = total_profit / win_trades if win_trades > 0 else 0
-avg_loss = total_loss / loss_trades if loss_trades > 0 else 0
-profit_loss_ratio = avg_profit / avg_loss if avg_loss > 0 else 0
+    win_rate = win_trades / len(trades) if len(trades) > 0 else 0
+    avg_profit = total_profit / win_trades if win_trades > 0 else 0
+    avg_loss = total_loss / loss_trades if loss_trades > 0 else 0
+    profit_loss_ratio = avg_profit / avg_loss if avg_loss > 0 else 0
 
-monthly_returns = {}
-for i in range(1, len(equity_curve)):
-    date_str = str(equity_curve[i]['date'])
-    try:
-        dt = datetime.strptime(date_str, '%Y%m%d')
-        year = dt.year
-        month = dt.month
-        if year not in monthly_returns:
-            monthly_returns[year] = {}
-        prev_value = equity_curve[i-1]['value']
-        curr_value = equity_curve[i]['value']
-        monthly_return = (curr_value - prev_value) / prev_value if prev_value > 0 else 0
-        if month not in monthly_returns[year]:
-            monthly_returns[year][month] = []
-        monthly_returns[year][month].append(monthly_return)
-    except:
-        continue
+    monthly_returns = {}
+    for i in range(1, len(equity_curve)):
+        date_str = str(equity_curve[i]['date'])
+        try:
+            dt = datetime.strptime(date_str, '%Y%m%d')
+            year = dt.year
+            month = dt.month
+            if year not in monthly_returns:
+                monthly_returns[year] = {}
+            prev_value = equity_curve[i-1]['value']
+            curr_value = equity_curve[i]['value']
+            monthly_return = (curr_value - prev_value) / prev_value if prev_value > 0 else 0
+            if month not in monthly_returns[year]:
+                monthly_returns[year][month] = []
+            monthly_returns[year][month].append(monthly_return)
+        except:
+            continue
 
-monthly_returns_list = []
-for year in sorted(monthly_returns.keys()):
-    months = [0] * 12
-    for month, returns in monthly_returns[year].items():
-        avg_return = sum(returns) / len(returns) if returns else 0
-        months[month - 1] = round(avg_return * 100, 2)
-    monthly_returns_list.append({'year': year, 'months': months})
+    monthly_returns_list = []
+    for year in sorted(monthly_returns.keys()):
+        months = [0] * 12
+        for month, returns in monthly_returns[year].items():
+            avg_return = sum(returns) / len(returns) if returns else 0
+            months[month - 1] = round(avg_return * 100, 2)
+        monthly_returns_list.append({'year': year, 'months': months})
 
-return {
-    'strategy_name': params['strategy_name'],
-    'symbol': params['symbol'],
-    'start_date': params['start_date'],
-    'end_date': params['end_date'],
-    'initial_capital': initial_capital,
-    'final_capital': round(final_capital, 2),
-    'total_return': round(total_return, 4),
-    'annualReturn': round(annual_return, 4),
-    'maxDrawdown': round(max_drawdown, 4),
-    'sharpeRatio': round(sharpe_ratio, 4),
-    'winRate': round(win_rate, 4),
-    'profitLossRatio': round(profit_loss_ratio, 4),
-    'winTrades': win_trades,
-    'lossTrades': loss_trades,
-    'avgProfit': round(avg_profit, 2),
-    'avgLoss': round(avg_loss, 2),
-    'maxProfit': round(max_profit, 2),
-    'maxLoss': round(max_loss, 2),
-    'recoveryDays': recovery_days,
-    'total_trades': len(trades),
-    'trades': trades,
-    'equityCurve': equity_curve,
-    'monthlyReturns': monthly_returns_list
-}
+    return {
+        'strategy_name': params['strategy_name'],
+        'symbol': params['symbol'],
+        'start_date': params['start_date'],
+        'end_date': params['end_date'],
+        'initial_capital': initial_capital,
+        'final_capital': round(final_capital, 2),
+        'total_return': round(total_return, 4),
+        'annualReturn': round(annual_return, 4),
+        'maxDrawdown': round(max_drawdown, 4),
+        'sharpeRatio': round(sharpe_ratio, 4),
+        'winRate': round(win_rate, 4),
+        'profitLossRatio': round(profit_loss_ratio, 4),
+        'winTrades': win_trades,
+        'lossTrades': loss_trades,
+        'avgProfit': round(avg_profit, 2),
+        'avgLoss': round(avg_loss, 2),
+        'maxProfit': round(max_profit, 2),
+        'maxLoss': round(max_loss, 2),
+        'recoveryDays': recovery_days,
+        'total_trades': len(trades),
+        'trades': trades,
+        'equityCurve': equity_curve,
+        'monthlyReturns': monthly_returns_list
+    }
+
+

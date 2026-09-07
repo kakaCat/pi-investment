@@ -1,37 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - mine_factors() = 153 lines
-
-
-# TODO: Extract magic numbers to named constants: [1e-10, 1e-08, 0.1, 0.5, 0.7]...
-
-
-# Extracted Constants
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_1eNEG_08 = 1e-08
-
-CONST_0_1 = 0.1
-
-CONST_0_5 = 0.5
-
-CONST_0_7 = 0.7
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_20 = 20
-
-CONST_42 = 42
-
-
-
 """
 Factor Mining Calculator
 =========================
@@ -87,9 +53,6 @@ OPERATOR_REGISTRY = {
 }
 
 
-# TODO: Refactor large class (21 methods, target < 20)
-# TODO: 大类 21个方法 - 考虑拆分为多个类或使用组合模式
-
 class FactorMiningCalculator(BaseCalculator):
     """
     Automated factor mining for quantitative strategy development.
@@ -122,86 +85,7 @@ class FactorMiningCalculator(BaseCalculator):
 
     @validate_inputs
     @timing_decorator
-    # TODO: Refactor - complexity 27 (target < 15)
-
-    # TODO: Refactor - function too long (153 lines, target < 80)
-
-    def _validate_mine_factors_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 mine_factors 移到这里
-        return True, None
-
-    def _process_mine_factors_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 mine_factors 移到这里
-        return data
-
-    def _build_mine_factors_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 mine_factors 移到这里
-        return data
-
-    def _validate_mine_factors_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 mine_factors 移到这里
-        return True, None
-
-    def _process_mine_factors_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 mine_factors 移到这里
-        return data
-
-    def _build_mine_factors_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 mine_factors 移到这里
-        return data
-
-# TODO: Split long function (152 lines, target < 100)
-# TODO: Refactor - complexity 27 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    def _check_condition_0():
-        """Check: data is None or (isinstance(data, pd.DataFrame) and data.emp..."""
-        return data is None or (isinstance(data, pd.DataFrame) and data.empty)
-
-    # TODO: Refactor - complexity 28 (target < 15)
-    # TODO: Split long function (153 lines, target < 100)
-    # TODO: Refactor - complexity 28 (target < 15)
-    # TODO: Split long function (153 lines, target < 100)
-    # TODO: 复杂度 28 - 需要重构拆分为更小的函数
-
-    # TODO: 长函数 162行 - 建议拆分为多个小函数
-
-    def _validate_mine_factors_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_mine_factors_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_mine_factors_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_mine_factors_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_mine_factors_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_mine_factors_result(data):
-        """构建返回结果"""
-        return data
-
     def mine_factors(self,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
                      data: pd.DataFrame,
                      target: Union[np.ndarray, pd.Series],
                      method: str = 'combined',
@@ -232,8 +116,9 @@ class FactorMiningCalculator(BaseCalculator):
                 - ic: Information Coefficient for each factor
                 - formulas: Generated factor formulas (for genetic method)
         """
-        if data is None or (isinstance(data, pd.DataFrame) and data.empty) and _check_condition_0():
-            pass  # TODO: implement
+        if data is None or (isinstance(data, pd.DataFrame) and data.empty):
+            raise DataValidationError("Input data is empty", field_name="data")
+
         if not isinstance(data, pd.DataFrame):
             raise DataValidationError("data must be a pandas DataFrame", field_name="data")
 
@@ -270,8 +155,6 @@ class FactorMiningCalculator(BaseCalculator):
             lasso_factors, lasso_coefs = self._lasso_selection(data, target, n_factors)
             all_factors['lasso'] = lasso_factors
             for k, v in lasso_coefs.items():
-                # TODO: 提取嵌套逻辑为独立方法
-
                 if k in all_ic:
                     all_ic[k] = max(all_ic[k], abs(float(v)))
                 else:
@@ -609,7 +492,9 @@ class FactorMiningCalculator(BaseCalculator):
         elif expr_type == 'unary':
             _, op, child = expr
             child_vals = self._evaluate_expression(child, data)
-            if child_vals is None and op in OPERATOR_REGISTRY:
+            if child_vals is None:
+                return None
+            if op in OPERATOR_REGISTRY:
                 result = OPERATOR_REGISTRY[op](child_vals)
                 return result if isinstance(result, np.ndarray) else np.array(result)
             return None
@@ -618,7 +503,9 @@ class FactorMiningCalculator(BaseCalculator):
             _, op, left, right = expr
             left_vals = self._evaluate_expression(left, data)
             right_vals = self._evaluate_expression(right, data)
-            if left_vals is None or right_vals is None and op in OPERATOR_REGISTRY:
+            if left_vals is None or right_vals is None:
+                return None
+            if op in OPERATOR_REGISTRY:
                 result = OPERATOR_REGISTRY[op](left_vals, right_vals)
                 return result if isinstance(result, np.ndarray) else np.array(result)
             return None

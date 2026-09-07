@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-
-
 """
 因子ORM Repository
 
@@ -83,7 +62,9 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
                 FactorValue.symbol == symbol
             )
 
-            if factor_names and start_date:
+            if factor_names:
+                query = query.filter(FactorValue.factor_name.in_(factor_names))
+            if start_date:
                 query = query.filter(FactorValue.factor_date >= start_date)
             if end_date:
                 query = query.filter(FactorValue.factor_date <= end_date)

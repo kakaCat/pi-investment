@@ -1,62 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - scan_signals() = 131 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.2, 0.6, 3, 4, 20]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_2 = 0.2
-
-CONST_0_6 = 0.6
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_70 = 70
-
-CONST_200 = 200
-
-CONST_400 = 400
-
-
-
-CONST_0_2 = 0.2
-
-CONST_0_6 = 0.6
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_70 = 70
-
-CONST_200 = 200
-
-CONST_400 = 400
-
-
-
 """交易信号 API - FastAPI 版（从 Flask signals.py 迁移，响应契约保持一致）
 
 路由顺序：字面量路径（/history、/scan、/statistics、/detail/{id}、/approve/{id} 等）
@@ -140,8 +81,6 @@ def get_signals_statistics(request: Request):
     sell_accuracy = 0.0
     for row in accuracy_results:
         if isinstance(row, dict):
-            # TODO: 提取嵌套逻辑为独立方法
-
             if row['total'] > 0 and row.get('approved_count', 0) > 0:
                 accuracy = (row['approved_count'] / row['total']) * 100
                 if row['action'] == 'BUY':  # signals 大写契约（08-13）
@@ -185,71 +124,7 @@ def get_signal_detail(signal_id: str):
 
 
 @router.post('/api/signals/scan')
-# TODO: Refactor - complexity 30 (target < 15)
-
-# TODO: Refactor - function too long (132 lines, target < 80)
-
-def _validate_scan_signals_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 scan_signals 移到这里
-    return True, None
-
-def _process_scan_signals_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 scan_signals 移到这里
-    return data
-
-def _build_scan_signals_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 scan_signals 移到这里
-    return data
-
-# TODO: Split long function (131 lines, target < 100)
-# TODO: Refactor - complexity 30 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 30 (target < 15)
-# TODO: Split long function (131 lines, target < 100)
-# TODO: Refactor - complexity 30 (target < 15)
-# TODO: Split long function (131 lines, target < 100)
-# TODO: 复杂度 30 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 142行 - 建议拆分为多个小函数
-
-def _validate_scan_signals_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_scan_signals_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_scan_signals_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_scan_signals_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_scan_signals_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_scan_signals_result(data):
-    """构建返回结果"""
-    return data
-
 def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
     data = payload or {}
     snake_data = convert_keys_to_snake(data)
     strategy_id = snake_data.get('strategy_id')
@@ -372,7 +247,9 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
                 'elapsed_ms': scoring_diag.get('elapsed_ms'),
             },
         }
-        if strategy_id is not None and selected_sectors_info:
+        if strategy_id is not None:
+            result['strategy_id'] = strategy_id
+        if selected_sectors_info:
             result['sector_info'] = selected_sectors_info
         return result
 
@@ -415,7 +292,9 @@ def _get_stock_name(symbol: str) -> str:
 
 
 def _risk_level_from_score(score: float) -> str:
-    if score >= 70 and score >= 50:
+    if score >= 70:
+        return 'low'
+    if score >= 50:
         return 'medium'
     return 'high'
 
@@ -519,52 +398,7 @@ def get_signal_by_id(signal_id: int):
 # ============ 列表端点（根路径）============
 
 @router.get('/api/signals')
-# TODO: Refactor - complexity 17 (target < 15)
-
 @handle_api_error
-def _validate_get_signals_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 get_signals 移到这里
-    return True, None
-
-def _process_get_signals_data(data):
-    """处理数据转换"""
-    def _validate_get_signals_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_get_signals_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_get_signals_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_get_signals_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_get_signals_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_get_signals_result(data):
-        """构建返回结果"""
-        return data
-
-    # TODO: 将数据处理逻辑从 get_signals 移到这里
-    return data
-
-def _build_get_signals_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 get_signals 移到这里
-    return data
-
-# TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 17 (target < 15)
 def get_signals(request: Request):
     try:
         params = get_query_params_snake_case(request)
@@ -614,7 +448,9 @@ def get_signals(request: Request):
 
         opportunities = [signal_to_opportunity(s) for s in signals]
 
-        if min_score > 0 and max_risk_level:
+        if min_score > 0:
+            opportunities = [o for o in opportunities if o['score'] >= min_score]
+        if max_risk_level:
             opportunities = [o for o in opportunities if o['riskLevel'] == max_risk_level]
         if industries:
             filtered = []

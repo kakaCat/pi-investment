@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_95 = 0.95
-
-
-
-CONST_0_95 = 0.95
-
-
-
 """
 Team A: 风险管理模块接口定义
 负责人: 风控工程师

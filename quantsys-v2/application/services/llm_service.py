@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_3 = 0.3
-
-CONST_60 = 60
-
-CONST_200 = 200
-
-
-
-CONST_0_3 = 0.3
-
-CONST_60 = 60
-
-CONST_200 = 200
-
-
-
 """
 LLM 服务薄封装（DeepSeek，OpenAI 兼容接口）
 """

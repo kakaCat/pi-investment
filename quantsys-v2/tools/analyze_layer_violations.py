@@ -213,9 +213,13 @@ def analyze_adapter_usage_patterns(project_root: Path):
                 content = f.read()
 
             # 简单模式匹配
-            if 'from adapters.outbound.datasources' in content and 'from adapters.outbound.brokers' in content:
+            if 'from adapters.outbound.datasources' in content:
+                patterns['external_api'].append(str(py_file.relative_to(project_root)))
+            if 'from adapters.outbound.brokers' in content:
                 patterns['broker'].append(str(py_file.relative_to(project_root)))
-            if 'from adapters.inbound.fastapi_app' in content and 'from adapters.shared' in content:
+            if 'from adapters.inbound.fastapi_app' in content:
+                patterns['fastapi'].append(str(py_file.relative_to(project_root)))
+            if 'from adapters.shared' in content:
                 patterns['shared'].append(str(py_file.relative_to(project_root)))
 
         except:

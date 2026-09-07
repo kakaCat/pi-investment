@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_5 = 10.5
-CONST_11_0 = 11.0
-CONST_15 = 15
-CONST_1800_0 = 1800.0
-CONST_1810_0 = 1810.0
-CONST_1820_0 = 1820.0
-CONST_1850_0 = 1850.0
-CONST_1900_0 = 1900.0
-CONST_2_78 = 2.78
-CONST_20 = 20
-
 """
 测试 StrategyPerformanceRepository
 

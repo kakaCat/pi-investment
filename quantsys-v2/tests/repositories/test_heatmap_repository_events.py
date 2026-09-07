@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_15 = 15
-CONST_18 = 18
-CONST_19 = 19
-CONST_20 = 20
-CONST_20_0 = 20.0
-CONST_2008 = 2008
-CONST_2009 = 2009
-CONST_21 = 21
-CONST_23 = 23
-
 """HeatmapRepository 信号/池事件/持仓查询测试（真实 quant_test DB）"""
 from datetime import date, datetime
 

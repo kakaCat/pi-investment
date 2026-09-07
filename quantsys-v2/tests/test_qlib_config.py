@@ -1,13 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_128 = 128
-CONST_2026 = 2026
-CONST_25 = 25
-CONST_3 = 3
-CONST_50000 = 50000
-CONST_999 = 999
-
 """
 Tests for Qlib Configuration Module
 ====================================
@@ -33,9 +23,6 @@ from domain.quantlib.qlib.config import (
     ALGORITHM_PARAMS,
 )
 
-
-# TODO: Refactor large class (24 methods, target < 20)
-# TODO: 大类 24个方法 - 考虑拆分为多个类或使用组合模式
 
 class TestQlibConfig:
     """Test suite for Qlib configuration module."""

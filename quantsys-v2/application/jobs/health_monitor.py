@@ -1,32 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-CONST_3 = 3
-
-CONST_7 = 7
-
-CONST_24 = 24
-
-
-
-CONST_0_5 = 0.5
-
-CONST_3 = 3
-
-CONST_7 = 7
-
-CONST_24 = 24
-
-
-
 """
 任务健康监控
 

@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """同花顺 market data provider（备用源：板块资金流）
 
 2026-09-01 新增：东财 WAF 封禁本机 IP 期间（fund-flow/sector-flow 接口

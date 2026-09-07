@@ -1,49 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_8_0 = 8.0
-
-CONST_10_5 = 10.5
-
-CONST_15_0 = 15.0
-
-CONST_16_5 = 16.5
-
-CONST_60 = 60
-
-CONST_200 = 200
-
-CONST_300 = 300
-
-
-
-CONST_5 = 5
-
-CONST_8_0 = 8.0
-
-CONST_10_5 = 10.5
-
-CONST_15_0 = 15.0
-
-CONST_16_5 = 16.5
-
-CONST_60 = 60
-
-CONST_200 = 200
-
-CONST_300 = 300
-
-
-
 """
 验证 PortfolioRepository 修复后的方法
 
@@ -98,12 +53,13 @@ def test_get_order_by_id():
             print(f"   订单信息: {order['symbol']} {order['action']} {order['quantity']}股 @ {order['price']}")
             print(f"   状态: {order['status']}")
             return True
-        print(f"❌ get_order_by_id() 返回 None")
-        return False
+        else:
+            print(f"❌ get_order_by_id() 返回 None")
+            return False
 
-except Exception as e:
-    print(f"❌ 测试失败: {str(e)}")
-    return False
+    except Exception as e:
+        print(f"❌ 测试失败: {str(e)}")
+        return False
 
 
 def test_update_order():
@@ -158,17 +114,18 @@ def test_update_order():
                 updated_order.get('notes') == '已修改'):
                 print(f"✅ 字段更新验证成功")
                 return True
-            print(f"❌ 字段更新验证失败")
+            else:
+                print(f"❌ 字段更新验证失败")
+                return False
+        else:
+            print(f"❌ update_order() 返回 False")
             return False
-    else:
-        print(f"❌ update_order() 返回 False")
-        return False
 
-except Exception as e:
-    print(f"❌ 测试失败: {str(e)}")
-    import traceback
-    traceback.print_exc()
-    return False
+    except Exception as e:
+        print(f"❌ 测试失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
 def test_get_trades():
@@ -251,15 +208,16 @@ def test_field_whitelist():
                 print(f"   quantity 已更新: {updated_order['quantity']}")
                 print(f"   symbol 未被修改: {updated_order['symbol']}")
                 return True
-            print(f"❌ 字段白名单验证失败")
+            else:
+                print(f"❌ 字段白名单验证失败")
+                return False
+        else:
+            print(f"❌ update_order() 返回 False")
             return False
-    else:
-        print(f"❌ update_order() 返回 False")
-        return False
 
-except Exception as e:
-    print(f"❌ 测试失败: {str(e)}")
-    return False
+    except Exception as e:
+        print(f"❌ 测试失败: {str(e)}")
+        return False
 
 
 def main():

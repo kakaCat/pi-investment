@@ -1,15 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_11_0 = 11.0
-CONST_1100 = 1100
-CONST_12_0 = 12.0
-CONST_1200 = 1200
-CONST_20 = 20
-CONST_2026 = 2026
-CONST_3 = 3
-CONST_70 = 70
-
 """
 测试 Polars DataFrame 空值检查修复（无需数据库）
 """

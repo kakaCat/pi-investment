@@ -1,16 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_2025 = 2025
-CONST_2026 = 2026
-CONST_22 = 22
-CONST_3 = 3
-CONST_30 = 30
-CONST_415 = 415
-CONST_5001 = 5001
-CONST_60 = 60
-CONST_600737 = 600737
-
 #!/usr/bin/env python3
 """
 DataFrame修复验证测试

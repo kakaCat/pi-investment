@@ -1,44 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - backtest_indicator_strategy() = 109 lines
-#   - run_backtest_from_signals() = 267 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_99 = 0.99
-
-CONST_3 = 3
-
-CONST_252 = 252
-
-CONST_1000000 = 1000000
-
-
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_99 = 0.99
-
-CONST_3 = 3
-
-CONST_252 = 252
-
-CONST_1000000 = 1000000
-
-
-
 """
 策略回测服务
 
@@ -93,18 +52,7 @@ class StrategyBacktestService:
         self.indicator_executor = indicator_executor or IndicatorStrategyExecutor()
         self.script_executor = script_executor or ScriptStrategyExecutor()
 
-    # TODO: Split long function (109 lines, target < 100)
-    # TODO: 长函数 120行 - 建议拆分为多个小函数
-
     def backtest_indicator_strategy(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         strategy: Dict,
         klines: List[Dict],
@@ -139,8 +87,6 @@ class StrategyBacktestService:
             signals_df = exec_result.signals
             # 检查 signals_df 是否为空（兼容 pandas 和 polars）
             is_empty = False
-            # TODO: 提取嵌套逻辑为独立方法
-
             if signals_df is None:
                 is_empty = True
             else:
@@ -169,7 +115,9 @@ class StrategyBacktestService:
                 sell_sum = signals_df['sell'].sum()
             else:
                 for tier in [1, 2, 3]:
-                    if f'buy_tier{tier}' in signals_df.columns and f'sell_tier{tier}' in signals_df.columns:
+                    if f'buy_tier{tier}' in signals_df.columns:
+                        buy_sum += signals_df[f'buy_tier{tier}'].sum()
+                    if f'sell_tier{tier}' in signals_df.columns:
                         sell_sum += signals_df[f'sell_tier{tier}'].sum()
             logger.info(f"生成信号: {len(signals_df)} 条, buy信号: {buy_sum}, sell信号: {sell_sum}")
 
@@ -294,58 +242,7 @@ class StrategyBacktestService:
 
         return df
 
-    # TODO: Refactor - complexity 30 (target < 15)
-    # TODO: Split long function (267 lines, target < 100)
-    # TODO: Refactor - complexity 30 (target < 15)
-    # TODO: Split long function (267 lines, target < 100)
-    # TODO: 复杂度 30 - 需要重构拆分为更小的函数
-# TODO: 长函数 287行 - 建议拆分为多个小函数
-
-
-    def _validate_run_backtest_from_signals_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_run_backtest_from_signals_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_run_backtest_from_signals_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_run_backtest_from_signals_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_run_backtest_from_signals_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_run_backtest_from_signals_result(data):
-        """构建返回结果"""
-        return data
-
     def run_backtest_from_signals(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
-        # ---- Section 8 ----
-        # ---- Section 9 ----
-        # ---- Section 10 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
-        # ---- Section 8 ----
-        # ---- Section 9 ----
         self,
         signals_df: pd.DataFrame,
         initial_cash: float = 1000000,

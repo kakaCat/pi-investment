@@ -1,31 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - backfill_symbol() = 125 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_8 = 8
-
-
-
 """
 数据补充器
 
@@ -97,8 +69,6 @@ class DataBackfiller:
         try:
             from adapters.shared.services import get_stock_repo
             stock = get_stock_repo().get_by_symbol(symbol)
-            # TODO: 提取嵌套逻辑为独立方法
-
             if stock is not None and getattr(stock, 'list_date', None) is not None:
                 return False
         except Exception as e:
@@ -106,22 +76,7 @@ class DataBackfiller:
             logger.warning(f"_is_index_symbol stocks 校验失败 {symbol}: {e}")
         return True
 
-    # TODO: Refactor - function too long (126 lines, target < 80)
-
-# TODO: Split long function (125 lines, target < 100)
-    # TODO: 长函数 136行 - 建议拆分为多个小函数
-
     def backfill_symbol(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         symbol: str,
         missing_segments: List[Dict],
@@ -426,67 +381,6 @@ class DataBackfiller:
             max_workers=2,
             max_retries=max_retries
         )
-
-    # TODO: Refactor - complexity 24 (target < 15)
-
-    def _validate__convert_klines_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _convert_klines 移到这里
-        return True, None
-
-    def _process__convert_klines_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _convert_klines 移到这里
-        return data
-
-    def _build__convert_klines_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _convert_klines 移到这里
-        return data
-
-    def _validate__convert_klines_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _convert_klines 移到这里
-        return True, None
-
-    def _process__convert_klines_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _convert_klines 移到这里
-        return data
-
-    def _build__convert_klines_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _convert_klines 移到这里
-        return data
-
-# TODO: Refactor - complexity 24 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 24 (target < 15)
-    # TODO: 复杂度 24 - 需要重构拆分为更小的函数
-
-    def _validate__convert_klines_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__convert_klines_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__convert_klines_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate__convert_klines_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__convert_klines_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__convert_klines_result(data):
-        """构建返回结果"""
-        return data
 
     def _convert_klines(self, symbol: str, raw_data: List, start_date: str, end_date: str) -> List[Dict]:
         """转换原始K线数据为标准格式

@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Method registry for daemon handlers."""
 from typing import Callable, Dict, List, Optional
 import inspect

@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 旧版通知服务适配器
 
@@ -194,29 +191,30 @@ class LegacyAgentNotificationServiceAdapter:
         if result.success:
             if result.delivered:
                 return 'ok'
-            return 'timeout'
-    else:
-        return 'error'
+            else:
+                return 'timeout'
+        else:
+            return 'error'
 
-def send_reminder(
-    self,
-    agent_id: str,
-    message: str,
-    remind_at: Optional[str] = None
-) -> bool:
-    """发送提醒事件给 Agent（兼容旧版）
+    def send_reminder(
+        self,
+        agent_id: str,
+        message: str,
+        remind_at: Optional[str] = None
+    ) -> bool:
+        """发送提醒事件给 Agent（兼容旧版）
 
-    Args:
-        agent_id: Agent ID
-        message: 提醒消息
-        remind_at: 提醒时间
+        Args:
+            agent_id: Agent ID
+            message: 提醒消息
+            remind_at: 提醒时间
 
-    Returns:
-        bool: 是否成功通知
-    """
-    logger.debug("Legacy send_reminder called", agent_id=agent_id)
-    result = self.facade.send_agent_reminder(agent_id, message, remind_at)
-    return result.success
+        Returns:
+            bool: 是否成功通知
+        """
+        logger.debug("Legacy send_reminder called", agent_id=agent_id)
+        result = self.facade.send_agent_reminder(agent_id, message, remind_at)
+        return result.success
 
 
 # 全局单例（用于替换旧版服务）

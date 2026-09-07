@@ -1,62 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - validate_pool() = 136 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.1, 0.15, 0.2, 0.4, 0.5]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_180 = 180
-
-CONST_200 = 200
-
-CONST_300 = 300
-
-
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_180 = 180
-
-CONST_200 = 200
-
-CONST_300 = 300
-
-
-
 """Pool validation service - batch backtest strategies against a stock pool."""
 import structlog
 from collections import defaultdict
@@ -91,86 +32,7 @@ class PoolValidationService:
         self._pool_repo = pool_repo
         self._strategy_repo = strategy_repo
 
-    # TODO: Refactor - complexity 24 (target < 15)
-
-    # TODO: Refactor - function too long (137 lines, target < 80)
-
-    def _validate_validate_pool_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 validate_pool 移到这里
-        return True, None
-
-    def _process_validate_pool_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 validate_pool 移到这里
-        return data
-
-    def _build_validate_pool_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 validate_pool 移到这里
-        return data
-
-    def _validate_validate_pool_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 validate_pool 移到这里
-        return True, None
-
-    def _process_validate_pool_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 validate_pool 移到这里
-        return data
-
-    def _build_validate_pool_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 validate_pool 移到这里
-        return data
-
-# TODO: Split long function (136 lines, target < 100)
-# TODO: Refactor - complexity 24 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 24 (target < 15)
-    # TODO: Split long function (136 lines, target < 100)
-    # TODO: Refactor - complexity 24 (target < 15)
-    # TODO: Split long function (136 lines, target < 100)
-    # TODO: 复杂度 24 - 需要重构拆分为更小的函数
-
-    # TODO: 长函数 149行 - 建议拆分为多个小函数
-
-    def _validate_validate_pool_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_validate_pool_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_validate_pool_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_validate_pool_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_validate_pool_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_validate_pool_result(data):
-        """构建返回结果"""
-        return data
-
     def validate_pool(self, pool_id: int, strategy_ids: List[int] = None,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
                       start_date: str = None, end_date: str = None,
                       progress_emitter: Optional[ProgressEmitter] = None) -> Dict:
         """
@@ -205,8 +67,6 @@ class PoolValidationService:
         if strategy_ids:
             strategies = [
                 s for s in raw_strategies
-                # TODO: 提取嵌套逻辑为独立方法
-
                 if s.get('id') in strategy_ids
             ]
         else:
@@ -217,11 +77,15 @@ class PoolValidationService:
 
         # Validate strategy dicts and log warnings for any missing fields
         for s in strategies:
-            if not s.get('id') and not s.get('name'):
+            if not s.get('id'):
+                logger.warning(f"Skipping strategy with missing id: {s}")
+            if not s.get('name'):
                 logger.warning(f"Strategy {s.get('id', 'unknown')} has no name field")
 
         # 3. Resolve date range
-        if not end_date and not start_date:
+        if not end_date:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+        if not start_date:
             start_date = (datetime.now() - timedelta(days=180)).strftime('%Y-%m-%d')
 
         # 4. Build jobs: strategy × symbol cartesian product

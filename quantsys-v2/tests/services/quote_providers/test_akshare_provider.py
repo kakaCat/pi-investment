@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_1790_00 = 1790.00
-CONST_1795_00 = 1795.00
-CONST_1798_00 = 1798.00
-CONST_1800_50 = 1800.50
-CONST_1810_00 = 1810.00
-CONST_377_00 = 377.00
-CONST_378_00 = 378.00
-CONST_379_00 = 379.00
-CONST_380_50 = 380.50
-CONST_382_00 = 382.00
-
 """
 Tests for AkshareQuoteProvider
 """

@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_5 = 10.5
-CONST_12 = 12
-CONST_15 = 15
-CONST_150_0 = 150.0
-CONST_200 = 200
-CONST_2024 = 2024
-CONST_25_50 = 25.50
-CONST_3_5 = 3.5
-CONST_30_00 = 30.00
-CONST_31 = 31
-
 """
 SignalExecutionRepository 单元测试
 """

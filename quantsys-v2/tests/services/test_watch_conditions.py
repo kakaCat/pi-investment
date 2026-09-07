@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_101_0 = 101.0
-CONST_103_0 = 103.0
-CONST_11_1 = 11.1
-CONST_110_0 = 110.0
-CONST_2_0408 = 2.0408
-CONST_2_5 = 2.5
-CONST_20 = 20
-CONST_2026 = 2026
-CONST_21 = 21
-CONST_3 = 3
-
 """盯盘条件判定器单测（纯函数）"""
 from datetime import datetime, timedelta
 from types import SimpleNamespace

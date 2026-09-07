@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - generate_signal() = 115 lines
-
-
-# Extracted Constants
-
-CONST_0_02 = 0.02
-
-CONST_0_2 = 0.2
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_0_6 = 0.6
-
-CONST_0_8 = 0.8
-
-CONST_0_85 = 0.85
-
-CONST_0_9 = 0.9
-
-CONST_1_2 = 1.2
-
-CONST_4 = 4
-
-
-
 """
 均值回归策略 (Mean Reversion Strategy)
 
@@ -52,14 +21,7 @@ class MeanReversionStrategy(StrategyBase):
         threshold: 0.02 (触及阈值，2%以内算触及)
     """
 
-    # TODO: Split long function (115 lines, target < 100)
-    # TODO: 长函数 120行 - 建议拆分为多个小函数
-
     def generate_signal(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         klines: List[Dict[str, Any]],
         params: Dict[str, Any] = None

@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-
-
 """行情/K线失败诊断工具函数
 
 从 Flask adapters/inbound/api/routes/quote_market.py 提取的纯函数，
@@ -36,7 +15,9 @@ def _quote_failure_suggestion(symbol: str, provider_errors: dict) -> str:
         hints.append(
             f"疑似港股代码：本接口主要支持 6 位 A 股代码，港股请尝试 {code.zfill(5)}.HK 格式"
         )
-    if any(k in joined for k in ('timeout', 'Timeout', 'Connection', 'RemoteDisconnected', '502', 'Max retries')) and code.isdigit() and len(code) == 6:
+    if any(k in joined for k in ('timeout', 'Timeout', 'Connection', 'RemoteDisconnected', '502', 'Max retries')):
+        hints.append("存在网络型失败：数据源可能临时限流/封禁，可稍后重试")
+    if code.isdigit() and len(code) == 6:
         hints.append("请检查代码是否正确、是否已上市/已退市")
     if not hints:
         hints.append("请检查代码格式（A股为 6 位数字，可带 .SH/.SZ 后缀）")
@@ -61,9 +42,13 @@ def _kline_failure_suggestion(symbol: str, period: str, provider_errors: dict) -
             "000xxx 按深市个股解析（000001=平安银行）；"
             "若你想查的是上证指数，当前不支持，可改用深市指数 399001"
         )
-    if any(k in joined for k in ('timeout', 'Timeout', 'Connection', 'RemoteDisconnected', '502', 'Max retries')) and '数据库无' in joined and len(provider_errors) > 1:
+    if any(k in joined for k in ('timeout', 'Timeout', 'Connection', 'RemoteDisconnected', '502', 'Max retries')):
+        hints.append("存在网络型失败：数据源可能临时限流/封禁，可稍后重试，或缩短日期范围")
+    if '数据库无' in joined and len(provider_errors) > 1:
         hints.append("本地数据库无该代码缓存（指数/冷门标的属正常），关键在网络源是否可用")
-    if period != 'daily' and not hints:
+    if period != 'daily':
+        hints.append("周/月线由日线聚合，分钟线仅支持个股最近30天；可先用 daily 验证代码本身是否可取数")
+    if not hints:
         hints.append("请检查：代码是否正确（6位数字）、是否已上市/已退市、日期范围内是否有交易")
 
     return '；'.join(hints)

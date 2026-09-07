@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000 = 10000
-CONST_100000 = 100000
-CONST_12 = 12
-CONST_12_0 = 12.0
-CONST_14 = 14
-CONST_15 = 15
-CONST_15_0 = 15.0
-CONST_15000 = 15000
-CONST_16 = 16
-CONST_2000 = 2000
-
 """
 TradeGuardService 单元测试
 

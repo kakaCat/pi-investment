@@ -1,21 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_40 = 40
-
-
-
-CONST_40 = 40
-
-
-
 """存量 memory_entries embedding 回填脚本（W1.3）
 
 对 embedding IS NULL 的条目逐条调用 ollama bge-m3 计算向量并写回。

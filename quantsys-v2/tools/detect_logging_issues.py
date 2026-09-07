@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_5 = 10.5
-CONST_123 = 123
-CONST_213 = 213
-CONST_239 = 239
-CONST_3 = 3
-CONST_4 = 4
-CONST_473 = 473
-CONST_5 = 5
-CONST_6 = 6
-CONST_8 = 8
-
 """P1-4: Unified logging system migration tool.
 
 Detects and reports inconsistent logging usage across the codebase:
@@ -56,7 +42,9 @@ class LoggingAnalyzer:
 
             for line_num, line in enumerate(lines, start=1):
                 # Check for logging imports
-                if self.standard_logging_pattern.search(line) and self.structlog_pattern.search(line):
+                if self.standard_logging_pattern.search(line):
+                    result['has_standard_logging'] = True
+                if self.structlog_pattern.search(line):
                     result['has_structlog'] = True
 
                 # Check for print statements

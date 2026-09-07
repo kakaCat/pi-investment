@@ -1,31 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-CONST_1_01 = 1.01
-
-CONST_1_3 = 1.3
-
-CONST_1_5 = 1.5
-
-CONST_5 = 5
-
-CONST_40 = 40
-
-CONST_45 = 45
-
-CONST_50 = 50
-
-CONST_70 = 70
-
-CONST_272 = 272
-
-
-
 """
 策略272：新能源动量策略 v1.0（规则版）
 
@@ -89,11 +61,15 @@ class Strategy272(BaseStrategy):
             score = 70  # 基础分
 
             # RSI加分
-            if rsi < 45 and rsi < 40:
+            if rsi < 45:
+                score += 5
+            if rsi < 40:
                 score += 5
 
             # 成交量加分
-            if vol_ratio > 1.5 and vol_ratio > 2.0:
+            if vol_ratio > 1.5:
+                score += 5
+            if vol_ratio > 2.0:
                 score += 5
 
             # MACD加分

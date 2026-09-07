@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - optimize() = 104 lines
-
-
-# Extracted Constants
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_1eNEG_08 = 1e-08
-
-CONST_0_025 = 0.025
-
-CONST_0_1 = 0.1
-
-CONST_0_5 = 0.5
-
-CONST_2_5 = 2.5
-
-CONST_6 = 6
-
-
-
 """
 Black-Litterman Portfolio Optimization
 =======================================
@@ -98,16 +73,7 @@ class BlackLittermanOptimizer(BaseCalculator):
         """
         super().__init__(precision=precision, risk_free_rate=risk_free_rate)
 
-    # TODO: Refactor - function too long (105 lines, target < 80)
-
-# TODO: Split long function (104 lines, target < 100)
-    # TODO: 长函数 109行 - 建议拆分为多个小函数
-
     def optimize(self,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
                  market_weights: Union[np.ndarray, pd.Series, List],
                  cov_matrix: Union[np.ndarray, pd.DataFrame],
                  views: Optional[List[Dict[str, Any]]] = None,

@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_13 = 13
-CONST_131069 = 131069
-CONST_1500 = 1500
-CONST_17_11 = 17.11
-CONST_18_71 = 18.71
-CONST_200 = 200
-CONST_2000 = 2000
-CONST_2026 = 2026
-CONST_300008 = 300008
-CONST_300561 = 300561
-
 """simulation_trades action 大小写契约测试（2026-08-12；2026-08-13 升级）
 
 回归背景：simulation_trades.action 曾存在两套写入约定——SimulationTrader/portfolio.py

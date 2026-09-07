@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_101 = 101
-CONST_102 = 102
-CONST_105_0 = 105.0
-CONST_150_0 = 150.0
-CONST_20 = 20
-CONST_250_0 = 250.0
-CONST_252 = 252
-CONST_3_0 = 3.0
-CONST_42 = 42
-CONST_5_0 = 5.0
-
 """
 Tests for OptionStrategy classes - Delta Neutral and Volatility Arbitrage
 """

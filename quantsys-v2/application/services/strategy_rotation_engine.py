@@ -1,64 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - get_proposal_context() = 105 lines
-#   - simulate_rotation() = 102 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.0013, 0.02, 0.05, 0.2, 0.23]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_0013 = 0.0013
-
-CONST_0_02 = 0.02
-
-CONST_0_05 = 0.05
-
-CONST_0_2 = 0.2
-
-CONST_0_23 = 0.23
-
-CONST_0_5 = 0.5
-
-CONST_0_7 = 0.7
-
-CONST_0_9 = 0.9
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-
-
-CONST_0_0013 = 0.0013
-
-CONST_0_02 = 0.02
-
-CONST_0_05 = 0.05
-
-CONST_0_2 = 0.2
-
-CONST_0_23 = 0.23
-
-CONST_0_5 = 0.5
-
-CONST_0_7 = 0.7
-
-CONST_0_9 = 0.9
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-
-
 """
 策略自适应轮动引擎 (Strategy Rotation Engine)
 
@@ -75,6 +14,7 @@ CONST_4 = 4
     proposal = engine.evaluate()  # 每日盘前调用
     engine.execute_rotation(proposal)  # Agent 确认后执行
 """
+from __future__ import annotations
 
 from domain.ports import IAgentIntelligenceRepository, ISimulationRepository, IStrategyPerformanceRepository, IStrategyRepository
 
@@ -116,12 +56,6 @@ STYLE_STRATEGY_MAP = {
 # ============================================================
 # 轮动引擎
 # ============================================================
-
-# TODO: Refactor - class too large (25 methods, target < 15)
-
-# TODO: Refactor large class (31 methods, target < 20)
-# TODO: Refactor large class (31 methods, target < 20)
-# TODO: 大类 31个方法 - 考虑拆分为多个类或使用组合模式
 
 class StrategyRotationEngine:
     """策略自适应轮动引擎
@@ -205,8 +139,6 @@ class StrategyRotationEngine:
             )
 
             # [反馈闭环] 纳入回滚建议
-            # TODO: 提取嵌套逻辑为独立方法
-
             if negative_feedback:
                 proposal['actions'].append({
                     'action': 'rollback_candidate',
@@ -458,7 +390,9 @@ class StrategyRotationEngine:
         adjustments = sum(1 for a in actions if a['action'] == 'adjust_weight')
 
         parts = []
-        if activates and deactivates:
+        if activates:
+            parts.append(f"启用{activates}个")
+        if deactivates:
             parts.append(f"停用{deactivates}个")
         if adjustments:
             parts.append(f"调权{adjustments}个")
@@ -468,7 +402,9 @@ class StrategyRotationEngine:
     def _build_reason(self, style_changed: bool, underperformers: List) -> str:
         """构建轮动原因说明"""
         reasons = []
-        if style_changed and underperformers:
+        if style_changed:
+            reasons.append(f"市场风格切换: {self._last_market_style} → 新风格")
+        if underperformers:
             names = [u['strategy_name'] for u in underperformers]
             reasons.append(f"策略表现衰减: {', '.join(names)}")
         return '；'.join(reasons)
@@ -497,20 +433,7 @@ class StrategyRotationEngine:
 
     # ==================== Agent 工具链支持 ====================
 
-    # TODO: Refactor - function too long (106 lines, target < 80)
-
-# TODO: Split long function (105 lines, target < 100)
-    # TODO: 长函数 114行 - 建议拆分为多个小函数
-
     def get_proposal_context(self) -> Dict[str, Any]:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """获取富数据轮动方案（供 /api/agent/rotation/proposal 调用）
 
         返回完整上下文供 Agent 多步推理：
@@ -616,21 +539,8 @@ class StrategyRotationEngine:
                 '调用 market_style_detect 独立验证风格判断',
             ],
         }
-# TODO: Refactor - function too long (103 lines, target < 80)
 
-
-# TODO: 长函数 111行 - 建议拆分为多个小函数
-
-# TODO: Split long function (102 lines, target < 100)
     def simulate_rotation(self, actions: List[Dict[str, Any]]) -> Dict[str, Any]:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """模拟执行轮动方案（不真正执行）
 
         计算：
@@ -733,68 +643,6 @@ class StrategyRotationEngine:
                 '如有顾虑可修改 actions 后重新模拟',
             ],
         }
-
-    # TODO: Refactor - complexity 17 (target < 15)
-
-    def _validate_verify_rotation_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 verify_rotation 移到这里
-        return True, None
-
-    def _process_verify_rotation_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 verify_rotation 移到这里
-        return data
-
-    def _build_verify_rotation_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 verify_rotation 移到这里
-        return data
-
-    def _validate_verify_rotation_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 verify_rotation 移到这里
-        return True, None
-
-    def _process_verify_rotation_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 verify_rotation 移到这里
-        return data
-
-    def _build_verify_rotation_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 verify_rotation 移到这里
-        return data
-
-# TODO: Refactor - complexity 17 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Extract 3 validation checks to _validate_verify_rotation()
-    # TODO: Refactor - complexity 17 (target < 15)
-    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-    def _validate_verify_rotation_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_verify_rotation_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_verify_rotation_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_verify_rotation_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_verify_rotation_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_verify_rotation_result(data):
-        """构建返回结果"""
-        return data
 
     def verify_rotation(self, rotation_date: Optional[str] = None) -> Dict[str, Any]:
         """验证轮动效果（对比预期 vs 实际）

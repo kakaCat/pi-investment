@@ -1,16 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_123 = 123
-CONST_15 = 15
-CONST_19 = 19
-CONST_200 = 200
-CONST_2026 = 2026
-CONST_28 = 28
-CONST_30 = 30
-CONST_3001 = 3001
-CONST_3002 = 3002
-
 """
 Agent 通知服务测试
 

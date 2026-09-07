@@ -1,26 +1,9 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_10000 = 10000
-
-
-
-CONST_10000 = 10000
-
-
-
 """Unified Event Bus — Schema definitions and core event types.
 
 P2.4: Consolidates event handling across quantsys-v2, agent-os, and agent-ts
 into a single typed event system with history, replay, and admin APIs.
 """
+from __future__ import annotations
 
 import logging
 import uuid
@@ -134,7 +117,9 @@ class UnifiedEventBus:
         limit: int = 100,
     ) -> List[Dict[str, Any]]:
         items = list(self._history)
-        if event_type and source:
+        if event_type:
+            items = [e for e in items if e.type == event_type]
+        if source:
             items = [e for e in items if e.source == source]
         return [e.to_dict() for e in items[-limit:]]
 

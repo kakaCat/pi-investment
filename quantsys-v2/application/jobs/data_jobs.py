@@ -1,36 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_8 = 8
-
-CONST_500 = 500
-
-CONST_600 = 600
-
-CONST_1800 = 1800
-
-CONST_3600 = 3600
-
-
-
-CONST_8 = 8
-
-CONST_500 = 500
-
-CONST_600 = 600
-
-CONST_1800 = 1800
-
-CONST_3600 = 3600
-
-
-
 """
 数据类定时任务
 
@@ -173,9 +140,7 @@ class DataUpdateJob(Job):
                     symbol = futures[future]
                     try:
                         future.result()
-                        # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                        updated += 1  # TODO: Use parameterized queries
+                        updated += 1
                     except Exception as e:
                         errors.append({"symbol": symbol, "error": str(e)})
             return {"symbols_checked": len(symbols), "symbols_updated": updated, "errors": errors}

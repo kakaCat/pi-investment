@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.02, 0.025, 0.03, 0.035, 0.038]...
-
-
-# Extracted Constants
-
-CONST_0_02 = 0.02
-
-CONST_0_025 = 0.025
-
-CONST_0_03 = 0.03
-
-CONST_0_035 = 0.035
-
-CONST_0_038 = 0.038
-
-CONST_0_04 = 0.04
-
-CONST_0_042 = 0.042
-
-CONST_0_043 = 0.043
-
-CONST_0_044 = 0.044
-
-CONST_0_045 = 0.045
-
-
-
 """
 Fixed Income Analysis Examples
 ==============================

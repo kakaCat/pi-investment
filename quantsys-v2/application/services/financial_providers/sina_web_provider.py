@@ -1,35 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - get_financial_data() = 107 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_200 = 200
-
-
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_200 = 200
-
-
-
 """
 新浪财经网页爬虫数据提供者
 
@@ -52,84 +20,7 @@ class SinaWebFinancialProvider(FinancialProvider):
     def __init__(self, timeout: int = 10):
         super().__init__(name="sina_web", timeout=timeout)
 
-    # TODO: Refactor - complexity 23 (target < 15)
-
-    # TODO: Refactor - function too long (108 lines, target < 80)
-
-    def _validate_get_financial_data_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 get_financial_data 移到这里
-        return True, None
-
-    def _process_get_financial_data_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 get_financial_data 移到这里
-        return data
-
-    def _build_get_financial_data_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 get_financial_data 移到这里
-        return data
-
-    def _validate_get_financial_data_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 get_financial_data 移到这里
-        return True, None
-
-    def _process_get_financial_data_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 get_financial_data 移到这里
-        return data
-
-    def _build_get_financial_data_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 get_financial_data 移到这里
-        return data
-
-# TODO: Split long function (107 lines, target < 100)
-# TODO: Refactor - complexity 23 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 23 (target < 15)
-    # TODO: Split long function (107 lines, target < 100)
-    # TODO: Refactor - complexity 23 (target < 15)
-    # TODO: Split long function (107 lines, target < 100)
-    # TODO: 复杂度 23 - 需要重构拆分为更小的函数
-
-    # TODO: 长函数 118行 - 建议拆分为多个小函数
-
-    def _validate_get_financial_data_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_get_financial_data_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_get_financial_data_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_get_financial_data_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_get_financial_data_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_get_financial_data_result(data):
-        """构建返回结果"""
-        return data
-
     def get_financial_data(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         symbol: str,
         statement_type: str = 'all',
@@ -167,8 +58,6 @@ class SinaWebFinancialProvider(FinancialProvider):
             }
 
             # 获取利润表
-            # TODO: 提取嵌套逻辑为独立方法
-
             if statement_type in ('income', 'all'):
                 try:
                     url = f"https://money.finance.sina.com.cn/corp/go.php/vFD_ProfitStatement/stockid/{short_code}/ctrl/part/displaytype/4.phtml"
@@ -239,67 +128,7 @@ class SinaWebFinancialProvider(FinancialProvider):
         except Exception as e:
             logger.error(f"[{self.name}] 获取财务数据失败 {symbol}: {e}")
             raise Exception(f"新浪财经网页查询失败: {e}") from e
-# TODO: Refactor - complexity 18 (target < 15)
 
-
-    def _validate__parse_sina_table_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _parse_sina_table 移到这里
-        return True, None
-
-    def _process__parse_sina_table_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _parse_sina_table 移到这里
-        return data
-
-    def _build__parse_sina_table_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _parse_sina_table 移到这里
-        return data
-
-    def _validate__parse_sina_table_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _parse_sina_table 移到这里
-        return True, None
-
-    def _process__parse_sina_table_data(data):
-        """处理数据转换"""
-        def _validate__parse_sina_table_input(*args, **kwargs):
-            """验证输入参数"""
-            pass
-
-        def _process__parse_sina_table_data(data):
-            """处理数据转换"""
-            return data
-
-        def _build__parse_sina_table_result(data):
-            """构建返回结果"""
-            return data
-
-        def _validate__parse_sina_table_input(*args, **kwargs):
-            """验证输入参数"""
-            pass
-
-        def _process__parse_sina_table_data(data):
-            """处理数据转换"""
-            return data
-
-        def _build__parse_sina_table_result(data):
-            """构建返回结果"""
-            return data
-
-        # TODO: 将数据处理逻辑从 _parse_sina_table 移到这里
-        return data
-
-    def _build__parse_sina_table_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _parse_sina_table 移到这里
-        return data
-
-# TODO: 复杂度 18 - 需要重构拆分为更小的函数
-
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 18 (target < 15)
     def _parse_sina_table(self, table, periods: int):
         """解析新浪财经表格
 

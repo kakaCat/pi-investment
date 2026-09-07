@@ -1,40 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_1_4 = 1.4
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_7 = 7
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-
-
-CONST_1_4 = 1.4
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_7 = 7
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-
-
 """M3-1 信号质量追踪服务
 
 功能：
@@ -117,78 +80,7 @@ class SignalTrackingService:
             "message": f"Signal recorded: {symbol} grade {grade}"
         }
     
-    # TODO: Refactor - complexity 18 (target < 15)
-
-    def _validate_update_performance_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 update_performance 移到这里
-        return True, None
-
-    def _process_update_performance_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 update_performance 移到这里
-        return data
-
-    def _build_update_performance_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 update_performance 移到这里
-        return data
-
-    def _validate_update_performance_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 update_performance 移到这里
-        return True, None
-
-    def _process_update_performance_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 update_performance 移到这里
-        return data
-
-    def _build_update_performance_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 update_performance 移到这里
-        return data
-
-# TODO: Refactor - complexity 18 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 18 (target < 15)
-    # TODO: 复杂度 18 - 需要重构拆分为更小的函数
-
-    # TODO: 长函数 110行 - 建议拆分为多个小函数
-
-    def _validate_update_performance_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_update_performance_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_update_performance_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_update_performance_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_update_performance_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_update_performance_result(data):
-        """构建返回结果"""
-        return data
-
     def update_performance(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         self,
         signal_date: str = None,
         lookback_days: int = 30
@@ -226,8 +118,6 @@ class SignalTrackingService:
         for signal in signals:
             sig_date = signal['signal_date']
             # 确保是字符串格式
-            # TODO: 提取嵌套逻辑为独立方法
-
             if isinstance(sig_date, datetime):
                 sig_date = sig_date.strftime('%Y-%m-%d')
             elif hasattr(sig_date, 'isoformat'):
@@ -275,9 +165,7 @@ class SignalTrackingService:
             
             if updates:
                 repo.update_signal_performance(signal['id'], updates)
-                # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                updated_count += 1  # TODO: Use parameterized queries
+                updated_count += 1
         
         logger.info(
             "signal_performance_updated",
@@ -317,7 +205,9 @@ class SignalTrackingService:
         repo = SignalTrackingRepository(self.db)
         
         # 默认时间范围：最近30天
-        if not start_date and not end_date:
+        if not start_date:
+            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        if not end_date:
             end_date = datetime.now().strftime('%Y-%m-%d')
         
         # 获取符合条件的信号

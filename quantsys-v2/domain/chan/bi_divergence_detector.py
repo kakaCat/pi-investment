@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """笔组背驰检测器——比较进入/离开笔组的 MACD 面积"""
 from typing import List
 from .types import Bi, KLine
@@ -21,11 +18,15 @@ class BiDivergenceDetector:
             klines, bi.start_fenxing.index, bi.end_fenxing.index)
 
     def is_bottom_divergence(self, enter: Bi, leave: Bi, klines: List[KLine]) -> bool:
-        if enter.direction != 'down' or leave.direction != 'down' and leave.low >= enter.low:   # 必须价格新:
+        if enter.direction != 'down' or leave.direction != 'down':
+            return False
+        if leave.low >= enter.low:   # 必须价格新低
             return False
         return bool(abs(self._area(leave, klines)) < abs(self._area(enter, klines)))
 
     def is_top_divergence(self, enter: Bi, leave: Bi, klines: List[KLine]) -> bool:
-        if enter.direction != 'up' or leave.direction != 'up' and leave.high <= enter.high:  # 必须价格新:
+        if enter.direction != 'up' or leave.direction != 'up':
+            return False
+        if leave.high <= enter.high:  # 必须价格新高
             return False
         return bool(abs(self._area(leave, klines)) < abs(self._area(enter, klines)))

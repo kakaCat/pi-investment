@@ -1,14 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_20 = 20
-CONST_2026 = 2026
-CONST_50 = 50
-CONST_53 = 53
-CONST_60 = 60
-CONST_82_5 = 82.5
-CONST_99999 = 99999
-
 """Tests for StockPoolORMRepository CRUD operations."""
 import json
 import pytest

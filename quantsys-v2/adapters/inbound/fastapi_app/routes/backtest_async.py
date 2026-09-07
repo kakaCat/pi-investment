@@ -1,60 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - run_backtest_alias() = 145 lines
-#   - backtest_matrix() = 113 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_12 = 12
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_200 = 200
-
-CONST_400 = 400
-
-CONST_500 = 500
-
-CONST_1000000 = 1000000
-
-
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_12 = 12
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_200 = 200
-
-CONST_400 = 400
-
-CONST_500 = 500
-
-CONST_1000000 = 1000000
-
-
-
 """
 回测历史 API (FastAPI 异步版本)
 
@@ -252,21 +195,7 @@ def get_backtest_results(symbol: Optional[str] = Query(None),
 
 @flask_parity_router.post('/api/backtest/run')
 @handle_api_error
-# TODO: Split long function (145 lines, target < 100)
-# TODO: 长函数 157行 - 建议拆分为多个小函数
-
 def run_backtest_alias(payload: Optional[Dict[str, Any]] = Body(None)):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
     """
     运行策略回测（CLI 入口）
 
@@ -576,47 +505,7 @@ def combo_backtest(payload: Optional[Dict[str, Any]] = Body(None)):
 
 
 @flask_parity_router.post('/api/backtest/matrix')
-# TODO: Refactor - complexity 21 (target < 15)
-# TODO: Split long function (113 lines, target < 100)
-# TODO: Refactor - complexity 21 (target < 15)
-# TODO: Split long function (113 lines, target < 100)
-# TODO: 复杂度 21 - 需要重构拆分为更小的函数
-# TODO: 长函数 122行 - 建议拆分为多个小函数
-
-
-def _validate_backtest_matrix_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_backtest_matrix_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_backtest_matrix_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_backtest_matrix_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_backtest_matrix_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_backtest_matrix_result(data):
-    """构建返回结果"""
-    return data
-
 def backtest_matrix(payload: Optional[Dict[str, Any]] = Body(None)):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     """回测矩阵端点（F-1 修复：把散落 /tmp、tools/ 的矩阵驱动脚本固化为正式 API）。
 
     批量执行 策略×股票×区间 的真实回测（StrategyCodeService.backtest_strategy），

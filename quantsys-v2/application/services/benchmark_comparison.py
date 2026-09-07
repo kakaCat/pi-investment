@@ -1,33 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_252 = 252
-
-
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_252 = 252
-
-
-
 """
 基准对比计算（沪深300）
 
@@ -37,6 +7,7 @@ CONST_252 = 252
 单位契约：所有收益率字段均为小数比率（0.0123 = 1.23%），
 与后端 profit_total_rate / cumulative_return 口径一致；展示层负责 ×100。
 """
+from __future__ import annotations
 
 import logging
 import math
@@ -66,28 +37,6 @@ def _benchmark_daily_returns(klines: BenchmarkKlines) -> Dict[str, float]:
             returns[rows[i][0]] = rows[i][1] / prev_close - 1
     return returns
 
-
-# TODO: Refactor - complexity 16 (target < 15)
-
-def _validate_compute_benchmark_comparison_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 compute_benchmark_comparison 移到这里
-    return True, None
-
-def _process_compute_benchmark_comparison_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 compute_benchmark_comparison 移到这里
-    return data
-
-def _build_compute_benchmark_comparison_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 compute_benchmark_comparison 移到这里
-    return data
-
-# TODO: Refactor - complexity 16 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 16 (target < 15)
-# TODO: 复杂度 16 - 需要重构拆分为更小的函数
 
 def compute_benchmark_comparison(
     account_series: AccountSeries,
@@ -139,31 +88,32 @@ def compute_benchmark_comparison(
         benchmark_return = window_closes[-1][1] / window_closes[0][1] - 1
     elif aligned_bench:
         benchmark_return = math.prod(1 + r for r in aligned_bench) - 1
-    benchmark_return = 0.0
+    else:
+        benchmark_return = 0.0
 
-alpha = beta = sharpe = None
-if len(aligned_account) >= MIN_ALIGNED_DAYS_FOR_METRICS:
-    n = len(aligned_account)
-    mean_a = sum(aligned_account) / n
-    mean_b = sum(aligned_bench) / n
-    var_b = sum((r - mean_b) ** 2 for r in aligned_bench) / n
-    if var_b > 0:
-        cov_ab = sum((a - mean_a) * (b - mean_b) for a, b in zip(aligned_account, aligned_bench)) / n
-        beta = cov_ab / var_b
-        alpha = (mean_a - beta * mean_b) * 252  # 年化
-    std_a = math.sqrt(sum((r - mean_a) ** 2 for r in aligned_account) / n)
-    if std_a > 0:
-        sharpe = mean_a / std_a * math.sqrt(252)
+    alpha = beta = sharpe = None
+    if len(aligned_account) >= MIN_ALIGNED_DAYS_FOR_METRICS:
+        n = len(aligned_account)
+        mean_a = sum(aligned_account) / n
+        mean_b = sum(aligned_bench) / n
+        var_b = sum((r - mean_b) ** 2 for r in aligned_bench) / n
+        if var_b > 0:
+            cov_ab = sum((a - mean_a) * (b - mean_b) for a, b in zip(aligned_account, aligned_bench)) / n
+            beta = cov_ab / var_b
+            alpha = (mean_a - beta * mean_b) * 252  # 年化
+        std_a = math.sqrt(sum((r - mean_a) ** 2 for r in aligned_account) / n)
+        if std_a > 0:
+            sharpe = mean_a / std_a * math.sqrt(252)
 
-return {
-    "account_return_1m": round(account_return, 6),
-    "benchmark_return_1m": round(benchmark_return, 6),
-    "excess_return_1m": round(account_return - benchmark_return, 6),
-    "alpha": round(alpha, 4) if alpha is not None else None,
-    "beta": round(beta, 4) if beta is not None else None,
-    "sharpe": round(sharpe, 2) if sharpe is not None else None,
-    "aligned_days": len(aligned_account),
-}
+    return {
+        "account_return_1m": round(account_return, 6),
+        "benchmark_return_1m": round(benchmark_return, 6),
+        "excess_return_1m": round(account_return - benchmark_return, 6),
+        "alpha": round(alpha, 4) if alpha is not None else None,
+        "beta": round(beta, 4) if beta is not None else None,
+        "sharpe": round(sharpe, 2) if sharpe is not None else None,
+        "aligned_days": len(aligned_account),
+    }
 
 
 # ==================== 基准数据获取（带日级缓存） ====================

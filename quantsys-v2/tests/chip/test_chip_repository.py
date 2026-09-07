@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_18_0 = 18.0
-CONST_19_0 = 19.0
-CONST_20_0 = 20.0
-CONST_2026 = 2026
-CONST_21_0 = 21.0
-CONST_22_0 = 22.0
-CONST_23_0 = 23.0
-CONST_24_0 = 24.0
-CONST_3 = 3
-CONST_30_0 = 30.0
-
 """ChipRepository 集成测试 — quant_test 库，用合成 symbol TST001 自造数据、测后清理"""
 from datetime import date
 

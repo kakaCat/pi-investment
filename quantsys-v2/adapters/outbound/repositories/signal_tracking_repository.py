@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """M3-1 信号追踪 Repository
 
 数据库操作层：signal_tracking 表的 CRUD

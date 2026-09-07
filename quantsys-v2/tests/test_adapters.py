@@ -1,20 +1,6 @@
-from __future__ import annotations
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_2 = 10.2
-CONST_10_5 = 10.5
-CONST_10_8 = 10.8
-CONST_100000 = 100000
-CONST_11 = 11
-CONST_11_0 = 11.0
-CONST_11_5 = 11.5
-CONST_11_8 = 11.8
-CONST_110000 = 110000
-CONST_12 = 12
-
 """Tests for the market data adapter layer."""
 
+from __future__ import annotations
 
 import importlib
 import os

@@ -1,41 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_8 = 8
-
-CONST_26 = 26
-
-CONST_27 = 27
-
-CONST_60 = 60
-
-CONST_2026 = 2026
-
-
-
-CONST_3 = 3
-
-CONST_8 = 8
-
-CONST_26 = 26
-
-CONST_27 = 27
-
-CONST_60 = 60
-
-CONST_2026 = 2026
-
-
-
 """
 紧急回填脚本：08-26/27 全市场K线数据
 绕过 w1_backfill_klines.py 的限制（依赖持仓/池子API）

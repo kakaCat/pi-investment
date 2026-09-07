@@ -1,60 +1,7 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """响应数据标准化工具（框架无关）— 从 adapters/inbound/api/utils/response.py 解耦而来"""
 from typing import List, Dict, Any
 from datetime import datetime
 
-
-# TODO: Refactor - complexity 20 (target < 15)
-
-def _validate__normalize_fields_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _normalize_fields 移到这里
-    return True, None
-
-def _process__normalize_fields_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _normalize_fields 移到这里
-    return data
-
-def _build__normalize_fields_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _normalize_fields 移到这里
-    return data
-
-# TODO: Refactor - complexity 20 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-def _check_condition_0():
-    """Check: entity_type == 'indicator' and isinstance(metadata, dict) an..."""
-    return entity_type == 'indicator' and isinstance(metadata, dict) and isinstance(metadata.get('notebook'), dict)
-
-# TODO: Refactor - complexity 21 (target < 15)
-# TODO: 复杂度 21 - 需要重构拆分为更小的函数
-
-def _validate__normalize_fields_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process__normalize_fields_data(data):
-    """处理数据转换"""
-    return data
-
-def _build__normalize_fields_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate__normalize_fields_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process__normalize_fields_data(data):
-    """处理数据转换"""
-    return data
-
-def _build__normalize_fields_result(data):
-    """构建返回结果"""
-    return data
 
 def _normalize_fields(items, entity_type: str, default_name: str):
     normalized = []
@@ -62,7 +9,9 @@ def _normalize_fields(items, entity_type: str, default_name: str):
         if not isinstance(item, dict):
             continue
         n = item.copy()
-        if 'strategy_name' in n and 'name' not in n and 'strategy_id' in n and 'id' not in n:
+        if 'strategy_name' in n and 'name' not in n:
+            n['name'] = n['strategy_name']
+        if 'strategy_id' in n and 'id' not in n:
             n['id'] = n['strategy_id']
         n.setdefault('name', default_name)
         n.setdefault('description', '')
@@ -73,8 +22,6 @@ def _normalize_fields(items, entity_type: str, default_name: str):
         n.setdefault('favorite_count', 0)
         n.setdefault('use_count', 0)
         for time_field in ['created_at', 'updated_at']:
-            # TODO: 提取嵌套逻辑为独立方法
-
             if time_field in n:
                 value = n[time_field]
                 if isinstance(value, datetime):
@@ -85,8 +32,9 @@ def _normalize_fields(items, entity_type: str, default_name: str):
             if n.get(numeric_field) is None:
                 n[numeric_field] = 0
         metadata = n.get('metadata')
-        if entity_type == 'indicator' and isinstance(metadata, dict) and isinstance(metadata.get('notebook'), dict) and _check_condition_0():
-            pass  # TODO: implement
+        if entity_type == 'indicator' and isinstance(metadata, dict) and isinstance(metadata.get('notebook'), dict):
+            n['notebook'] = metadata['notebook']
+        strategy_profile = n.get('strategy_profile')
         if isinstance(strategy_profile, str):
             import json
             try:

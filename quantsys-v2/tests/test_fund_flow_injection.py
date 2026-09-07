@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_101_0 = 101.0
-CONST_102_0 = 102.0
-CONST_1290_0 = 1290.0
-CONST_1300_0 = 1300.0
-CONST_1310_0 = 1310.0
-CONST_200_0 = 200.0
-CONST_2026 = 2026
-CONST_27 = 27
-CONST_28 = 28
-CONST_29 = 29
-
 """测试 _inject_fund_flow_to_klines 从 DB 读取资金流数据"""
 import pytest
 from adapters.shared.fund_flow_helpers import (

@@ -1,51 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - create_order() = 197 lines
-#   - fill_order() = 117 lines
-#   - _update_position_on_buy() = 105 lines
-#   - _update_position_on_sell() = 101 lines
-#   - create_bracket_order() = 127 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_0003 = 0.0003
-
-CONST_0_001 = 0.001
-
-CONST_4 = 4
-
-CONST_7 = 7
-
-CONST_50 = 50
-
-CONST_500000 = 500000
-
-CONST_1000000 = 1000000
-
-
-
-CONST_0_0003 = 0.0003
-
-CONST_0_001 = 0.001
-
-CONST_4 = 4
-
-CONST_7 = 7
-
-CONST_50 = 50
-
-CONST_500000 = 500000
-
-CONST_1000000 = 1000000
-
-
-
 """
 订单生命周期管理服务 [DEPRECATED - 内部实现]
 
@@ -69,52 +21,7 @@ from domain.ports import (
 logger = structlog.get_logger(__name__)
 
 
-# TODO: Refactor - complexity 29 (target < 15)
-
-# TODO: Refactor - function too long (198 lines, target < 80)
-
-def _validate_create_order_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 create_order 移到这里
-    return True, None
-
-def _process_create_order_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 create_order 移到这里
-    return data
-
-def _build_create_order_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 create_order 移到这里
-    return data
-
-# TODO: Split long function (197 lines, target < 100)
-# TODO: Refactor - complexity 29 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 29 (target < 15)
-# TODO: Split long function (197 lines, target < 100)
-# TODO: Refactor - complexity 29 (target < 15)
-# TODO: Split long function (197 lines, target < 100)
-# TODO: 复杂度 29 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 215行 - 建议拆分为多个小函数
-
 def create_order(
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
-    # ---- Section 8 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 6 ----
-    # ---- Section 7 ----
     symbol: str,
     action: str,
     order_type: str,
@@ -251,8 +158,6 @@ def create_order(
                 from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
                 sim_repo = SimulationORMRepository()
                 position = sim_repo.get_position(account_name, symbol)
-                # TODO: 提取嵌套逻辑为独立方法
-
                 if position is not None:
                     # T+1 可卖数量：当日买入的 shares_available=0，次日才可卖
                     available_quantity = int(position.shares_available or 0)
@@ -315,46 +220,8 @@ def create_order(
     portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
     return portfolio_repo.create_order(order_data)
 
-# TODO: Refactor - complexity 16 (target < 15)
 
-# TODO: Refactor - function too long (118 lines, target < 80)
-
-
-def _validate_fill_order_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 fill_order 移到这里
-    return True, None
-
-def _process_fill_order_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 fill_order 移到这里
-    return data
-
-def _build_fill_order_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 fill_order 移到这里
-    return data
-
-# TODO: Split long function (117 lines, target < 100)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 16 (target < 15)
-# TODO: Split long function (117 lines, target < 100)
-# TODO: 复杂度 16 - 需要重构拆分为更小的函数
-
-# TODO: Refactor - complexity 16 (target < 15)
-# TODO: 长函数 127行 - 建议拆分为多个小函数
-
-# TODO: Split long function (117 lines, target < 100)
 def fill_order(
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     order_id: int,
     fill_price: float,
     fill_quantity: int = None,
@@ -540,22 +407,9 @@ def expire_orders(portfolio_repo: Optional[IPortfolioRepository] = None) -> int:
                 logger.error(f"过期订单失败 order_id={order['id']}: {e}")
 
     return expired_count
-# TODO: Refactor - function too long (106 lines, target < 80)
 
 
-# TODO: 长函数 114行 - 建议拆分为多个小函数
-
-
-# TODO: Split long function (105 lines, target < 100)
 def _update_position_on_buy(order: Dict, fill_price: float, fill_quantity: int, portfolio_repo: Optional[IPortfolioRepository] = None):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     """
     买入成交后更新持仓（新增或加仓）
 
@@ -607,73 +461,63 @@ def _update_position_on_buy(order: Dict, fill_price: float, fill_quantity: int, 
                     f"total={total_qty}, available={shares_available} (T+1)"
                 )
                 return
-            logger.warning(f"simulation 持仓更新失败，回退旧系统")
-    except Exception as e:
-        logger.warning(f"simulation 持仓更新异常，回退旧系统: {e}")
+            else:
+                logger.warning(f"simulation 持仓更新失败，回退旧系统")
+        except Exception as e:
+            logger.warning(f"simulation 持仓更新异常，回退旧系统: {e}")
+    
+    # 回退到旧 holdings 系统（历史兼容）
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+    existing = portfolio_repo.get_holding(symbol)
 
-# 回退到旧 holdings 系统（历史兼容）
-portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
-existing = portfolio_repo.get_holding(symbol)
+    if existing:
+        # 加仓：加权平均成本
+        old_qty = int(existing['quantity'])
+        old_cost = float(existing['total_invested'])
+        new_cost = fill_price * fill_quantity
+        total_qty = old_qty + fill_quantity
+        total_invested = old_cost + new_cost
+        avg_cost = total_invested / total_qty if total_qty > 0 else 0
 
-if existing:
-    # 加仓：加权平均成本
-    old_qty = int(existing['quantity'])
-    old_cost = float(existing['total_invested'])
-    new_cost = fill_price * fill_quantity
-    total_qty = old_qty + fill_quantity
-    total_invested = old_cost + new_cost
-    avg_cost = total_invested / total_qty if total_qty > 0 else 0
+        holding_data = {
+            'symbol': symbol,
+            'name': order.get('name', existing.get('name', '')),
+            'quantity': total_qty,
+            'avg_cost': round(avg_cost, 4),
+            'original_cost': round(avg_cost, 4),
+            'total_invested': round(total_invested, 2),
+            'market': existing.get('market', 'A'),
+            'sector': existing.get('sector'),
+            'added_date': existing.get('added_date'),
+            'stop_loss': existing.get('stop_loss'),
+            'target_price': existing.get('target_price'),
+            'buy_reason': existing.get('buy_reason'),
+            'notes': existing.get('notes'),
+        }
+    else:
+        # 新建持仓
+        total_invested = fill_price * fill_quantity
+        holding_data = {
+            'symbol': symbol,
+            'name': order.get('name', ''),
+            'quantity': fill_quantity,
+            'avg_cost': fill_price,
+            'original_cost': fill_price,
+            'total_invested': round(total_invested, 2),
+            'market': 'A',
+            'sector': None,
+            'added_date': datetime.now().strftime('%Y-%m-%d'),
+            'stop_loss': None,
+            'target_price': None,
+            'buy_reason': None,
+            'notes': None,
+        }
 
-    holding_data = {
-        'symbol': symbol,
-        'name': order.get('name', existing.get('name', '')),
-        'quantity': total_qty,
-        'avg_cost': round(avg_cost, 4),
-        'original_cost': round(avg_cost, 4),
-        'total_invested': round(total_invested, 2),
-        'market': existing.get('market', 'A'),
-        'sector': existing.get('sector'),
-        'added_date': existing.get('added_date'),
-        'stop_loss': existing.get('stop_loss'),
-        'target_price': existing.get('target_price'),
-        'buy_reason': existing.get('buy_reason'),
-        'notes': existing.get('notes'),
-    }
-else:
-    # 新建持仓
-    total_invested = fill_price * fill_quantity
-    holding_data = {
-        'symbol': symbol,
-        'name': order.get('name', ''),
-        'quantity': fill_quantity,
-        'avg_cost': fill_price,
-        'original_cost': fill_price,
-        'total_invested': round(total_invested, 2),
-        'market': 'A',
-        'sector': None,
-        'added_date': datetime.now().strftime('%Y-%m-%d'),
-        'stop_loss': None,
-        'target_price': None,
-        'buy_reason': None,
-        'notes': None,
-    }
-
-portfolio_repo.add_or_update_holding(holding_data)
-logger.info(f"持仓已更新（legacy）: {symbol} {'加仓' if existing else '建仓'} {fill_quantity}股 @ {fill_price}")
-# TODO: 长函数 110行 - 建议拆分为多个小函数
+    portfolio_repo.add_or_update_holding(holding_data)
+    logger.info(f"持仓已更新（legacy）: {symbol} {'加仓' if existing else '建仓'} {fill_quantity}股 @ {fill_price}")
 
 
-
-# TODO: Split long function (101 lines, target < 100)
 def _update_position_on_sell(order: Dict, fill_price: float, fill_quantity: int, portfolio_repo: Optional[IPortfolioRepository] = None):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     """
     卖出成交后更新持仓（减仓或清仓）
 
@@ -709,84 +553,73 @@ def _update_position_on_sell(order: Dict, fill_price: float, fill_quantity: int,
                         f"持仓已清仓（simulation）: {symbol} 卖出 {fill_quantity}股 @ {fill_price}"
                     )
                     return
-                logger.warning(f"simulation 持仓删除失败，回退旧系统")
-        else:
-            # 减仓：保持 avg_cost 不变
-            success = sim_repo.upsert_position(
-                account_name=account_name,
-                symbol=symbol,
-                shares_total=new_qty,
-                avg_cost=existing_position.avg_cost,
-                shares_available=new_available,
-                current_price=fill_price,
-                commit=True
-            )
-            
-            if success:
-                logger.info(
-                    f"持仓已减仓（simulation）: {symbol} 卖出 {fill_quantity}股 @ {fill_price}, "
-                    f"剩余 total={new_qty}, available={new_available}"
-                )
-                return
+                else:
+                    logger.warning(f"simulation 持仓删除失败，回退旧系统")
             else:
-                logger.warning(f"simulation 持仓更新失败，回退旧系统")
-    except Exception as e:
-        logger.warning(f"simulation 持仓更新异常，回退旧系统: {e}")
+                # 减仓：保持 avg_cost 不变
+                success = sim_repo.upsert_position(
+                    account_name=account_name,
+                    symbol=symbol,
+                    shares_total=new_qty,
+                    avg_cost=existing_position.avg_cost,
+                    shares_available=new_available,
+                    current_price=fill_price,
+                    commit=True
+                )
+                
+                if success:
+                    logger.info(
+                        f"持仓已减仓（simulation）: {symbol} 卖出 {fill_quantity}股 @ {fill_price}, "
+                        f"剩余 total={new_qty}, available={new_available}"
+                    )
+                    return
+                else:
+                    logger.warning(f"simulation 持仓更新失败，回退旧系统")
+        except Exception as e:
+            logger.warning(f"simulation 持仓更新异常，回退旧系统: {e}")
+    
+    # 回退到旧 holdings 系统（历史兼容）
+    portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
+    existing = portfolio_repo.get_holding(symbol)
 
-# 回退到旧 holdings 系统（历史兼容）
-portfolio_repo = portfolio_repo or ServiceFactory.get_portfolio_repository()
-existing = portfolio_repo.get_holding(symbol)
+    if not existing:
+        logger.warning(f"卖出但无持仓（legacy）: {symbol}，跳过持仓更新")
+        return
 
-if not existing:
-    logger.warning(f"卖出但无持仓（legacy）: {symbol}，跳过持仓更新")
-    return
+    old_qty = int(existing['quantity'])
+    new_qty = old_qty - fill_quantity
 
-old_qty = int(existing['quantity'])
-new_qty = old_qty - fill_quantity
+    if new_qty <= 0:
+        # 全部清仓
+        portfolio_repo.remove_holding(symbol)
+        logger.info(f"持仓已清仓（legacy）: {symbol} 卖出 {fill_quantity}股 @ {fill_price}")
+    else:
+        # 减仓：保持 avg_cost 不变
+        old_invested = float(existing['total_invested'])
+        # 按比例减少 total_invested
+        ratio = new_qty / old_qty
+        new_invested = old_invested * ratio
 
-if new_qty <= 0:
-    # 全部清仓
-    portfolio_repo.remove_holding(symbol)
-    logger.info(f"持仓已清仓（legacy）: {symbol} 卖出 {fill_quantity}股 @ {fill_price}")
-else:
-    # 减仓：保持 avg_cost 不变
-    old_invested = float(existing['total_invested'])
-    # 按比例减少 total_invested
-    ratio = new_qty / old_qty
-    new_invested = old_invested * ratio
-
-    holding_data = {
-        'symbol': symbol,
-        'name': existing.get('name', ''),
-        'quantity': new_qty,
-        'avg_cost': float(existing['avg_cost']),
-        'original_cost': float(existing.get('original_cost') or existing['avg_cost']),  # original_cost 可空，None 时回退 avg_cost
-        'total_invested': round(new_invested, 2),
-        'market': existing.get('market', 'A'),
-        'sector': existing.get('sector'),
-        'added_date': existing.get('added_date'),
-        'stop_loss': existing.get('stop_loss'),
-        'target_price': existing.get('target_price'),
-        'buy_reason': existing.get('buy_reason'),
-        'notes': existing.get('notes'),
-    }
-    portfolio_repo.add_or_update_holding(holding_data)
-    # TODO: Refactor - function too long (101 lines, target < 80)
-# TODO: 长函数 109行 - 建议拆分为多个小函数
-
-
+        holding_data = {
+            'symbol': symbol,
+            'name': existing.get('name', ''),
+            'quantity': new_qty,
+            'avg_cost': float(existing['avg_cost']),
+            'original_cost': float(existing.get('original_cost') or existing['avg_cost']),  # original_cost 可空，None 时回退 avg_cost
+            'total_invested': round(new_invested, 2),
+            'market': existing.get('market', 'A'),
+            'sector': existing.get('sector'),
+            'added_date': existing.get('added_date'),
+            'stop_loss': existing.get('stop_loss'),
+            'target_price': existing.get('target_price'),
+            'buy_reason': existing.get('buy_reason'),
+            'notes': existing.get('notes'),
+        }
+        portfolio_repo.add_or_update_holding(holding_data)
         logger.info(f"持仓已减仓（legacy）: {symbol} 卖出 {fill_quantity}股，剩余 {new_qty}股")
 
 
 def _update_signal_tracking(signal_id: int, action: str, fill_price: float, symbol: str, perf_repo=None):
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     """
     更新信号追踪记录（signal_test_log 和 strategy_performance）
 
@@ -812,9 +645,7 @@ def _update_signal_tracking(signal_id: int, action: str, fill_price: float, symb
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute(
-            # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-            f"SELECT * FROM {signal_log.TABLE_NAME} WHERE id = %s",  # TODO: Use parameterized queries
+            f"SELECT * FROM {signal_log.TABLE_NAME} WHERE id = %s",
             (signal_id,)
         )
         signal = cursor.fetchone()
@@ -829,9 +660,7 @@ def _update_signal_tracking(signal_id: int, action: str, fill_price: float, symb
             # 买入成交：更新 entry_price（仅在首次成交时更新）
             if signal_dict.get('entry_price') is None:
                 cursor.execute(
-                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                    f"UPDATE {signal_log.TABLE_NAME} SET entry_price = %s, updated_at = NOW() WHERE id = %s",  # TODO: Use parameterized queries
+                    f"UPDATE {signal_log.TABLE_NAME} SET entry_price = %s, updated_at = NOW() WHERE id = %s",
                     (fill_price, signal_id)
                 )
                 conn.commit()
@@ -1089,26 +918,11 @@ def get_state_history(order_id: str, portfolio_repo: Optional[IPortfolioReposito
             'is_terminal': order.get('status') in ('filled', 'cancelled', 'expired', 'rejected'),
         }
     ]
-# TODO: Refactor - function too long (126 lines, target < 80)
-
-# TODO: 长函数 138行 - 建议拆分为多个小函数
-
 
     return history
 
 
-# TODO: Split long function (127 lines, target < 100)
 def create_bracket_order(
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
     symbol: str,
     action: str,
     quantity: float,
@@ -1231,26 +1045,12 @@ def create_bracket_order(
         f"Bracket order created: entry={entry_order_id} tp={tp_order_id} "
         f"sl={sl_order_id} for {symbol} {action} {quantity}@{entry_price} "
         f"TP@{take_profit_price} SL@{stop_loss_price}"
-    # TODO: Refactor - function too long (120 lines, target < 80)
-
-    # TODO: 长函数 129行 - 建议拆分为多个小函数
-
     )
 
     return [entry_order_id, tp_order_id, sl_order_id]
 
 
-# TODO: Split long function (119 lines, target < 100)
 def create_order_from_signal(
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 5 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     signal: dict,
     symbol: str,
     order_type: str = 'limit',

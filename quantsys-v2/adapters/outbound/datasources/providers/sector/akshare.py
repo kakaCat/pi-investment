@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 AkshareSectorProvider - 板块列表备选数据源（eastmoney 单一源的 failover 备选）
 

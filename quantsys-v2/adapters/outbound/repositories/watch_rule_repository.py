@@ -1,32 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-CONST_12 = 12
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
-CONST_4 = 4
-
-CONST_12 = 12
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
 """WatchEngine 盯盘规则/触发记录 ORM Repository"""
 from datetime import datetime
 from typing import List, Optional
@@ -137,7 +108,9 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         """account=某账户时返回「该账户归属 + 通用观察(account IS NULL)」——
         看板按账户展示盯盘需要两组都可见；不传则返回全部。"""
         q = self.session.query(WatchRule)
-        if symbol and enabled is not None:
+        if symbol:
+            q = q.filter(WatchRule.symbol == symbol)
+        if enabled is not None:
             q = q.filter(WatchRule.enabled.is_(enabled))
         if account:
             q = q.filter(or_(WatchRule.account == account, WatchRule.account.is_(None)))

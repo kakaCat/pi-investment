@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-CONST_45 = 45
-
-
-
-CONST_20 = 20
-
-CONST_45 = 45
-
-
-
 """双侧捕获适应度装配服务：快照 + 基准 → 纯函数 → 落库（每日调度调用）"""
 from datetime import date, timedelta
 from typing import Any, Callable, Dict, Mapping, Optional
@@ -115,7 +94,9 @@ class EvolutionFitnessService:
                 account_name=account_name, window_end=window_end,
                 window_days=window_days, **result)
             
-            if result.get('up_capture') is not None and result.get('down_capture') is not None:
+            if result.get('up_capture') is not None:
+                evolution_fitness_score.labels(account=account_name, type='up_capture').set(result['up_capture'])
+            if result.get('down_capture') is not None:
                 evolution_fitness_score.labels(account=account_name, type='down_capture').set(result['down_capture'])
             
             computed += 1

@@ -1,15 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_20 = 20
-CONST_200 = 200
-CONST_3 = 3
-CONST_30 = 30
-CONST_42 = 42
-CONST_5 = 5
-CONST_80 = 80
-
 """
 Unit Tests for Extended Time Series Analysis Methods
 ====================================================

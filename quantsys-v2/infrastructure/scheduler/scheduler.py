@@ -1,66 +1,10 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [5, 6, 7, 8, 12]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_7 = 7
-
-CONST_8 = 8
-
-CONST_12 = 12
-
-CONST_20 = 20
-
-CONST_23 = 23
-
-CONST_30 = 30
-
-CONST_31 = 31
-
-CONST_50 = 50
-
-
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_7 = 7
-
-CONST_8 = 8
-
-CONST_12 = 12
-
-CONST_20 = 20
-
-CONST_23 = 23
-
-CONST_30 = 30
-
-CONST_31 = 31
-
-CONST_50 = 50
-
-
-
 """
 Cron-based task scheduler for quantsys-v2.
 
 Manages scheduled task definitions, cron parsing, task execution,
 and a blocking run loop with graceful shutdown support.
 """
+from __future__ import annotations
 
 import json
 import logging
@@ -170,7 +114,9 @@ def parse_cron(expression: str) -> CronSchedule:
 
     # Normalize Sunday: both 0 and 7 represent Sunday.
     # If either is present, both are allowed so matches() works.
-    if 0 in schedule.dow and 7 in schedule.dow:
+    if 0 in schedule.dow:
+        schedule.dow.add(7)
+    if 7 in schedule.dow:
         schedule.dow.add(0)
 
     return schedule
@@ -196,7 +142,9 @@ def _parse_field(field_str: str, min_val: int, max_val: int) -> Set[int]:
     if "/" in field_str:
         range_part, step_str = field_str.split("/", 1)
         step = int(step_str)
-        if step <= 0 and range_part == "*":
+        if step <= 0:
+            raise ValueError(f"Step must be positive: {field_str!r}")
+        if range_part == "*":
             start, end = min_val, max_val
         elif "-" in range_part:
             start_str, end_str = range_part.split("-", 1)
@@ -278,12 +226,6 @@ def next_run_time(expression: str, from_time: Optional[datetime] = None) -> date
 # SchedulerService
 # ============================================================================
 
-
-# TODO: Refactor - class too large (49 methods, target < 15)
-
-# TODO: Refactor large class (55 methods, target < 20)
-# TODO: Refactor large class (55 methods, target < 20)
-# TODO: 大类 55个方法 - 考虑拆分为多个类或使用组合模式
 
 class SchedulerService:
     """Cron-based task scheduler.
@@ -373,7 +315,9 @@ class SchedulerService:
 
     @staticmethod
     def _parse_started_at(value: Any) -> Optional[datetime]:
-        if isinstance(value, datetime) and isinstance(value, str):
+        if isinstance(value, datetime):
+            return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        if isinstance(value, str):
             try:
                 dt = datetime.fromisoformat(value)
             except ValueError:
@@ -401,10 +345,14 @@ class SchedulerService:
     # ==================================================================
 
     def _is_due(self, task: Dict[str, Any], now: Optional[datetime] = None) -> bool:
-        if not task.get("is_enabled") and now is None:
+        if not task.get("is_enabled"):
+            return False
+        if now is None:
             now = datetime.now(timezone.utc)
         next_run = task.get("next_run_at")
-        if next_run is None and isinstance(next_run, str):
+        if next_run is None:
+            return True
+        if isinstance(next_run, str):
             next_run = datetime.fromisoformat(next_run)
         if next_run.tzinfo is None:
             next_run = next_run.replace(tzinfo=timezone.utc)
@@ -415,7 +363,9 @@ class SchedulerService:
         if grace is None:
             return False
         next_run = task.get("next_run_at")
-        if next_run is None and isinstance(next_run, str):
+        if next_run is None:
+            return False
+        if isinstance(next_run, str):
             next_run = datetime.fromisoformat(next_run)
         if next_run.tzinfo is None:
             next_run = next_run.replace(tzinfo=timezone.utc)
@@ -450,8 +400,6 @@ class SchedulerService:
         results: List[Dict[str, Any]] = []
 
         for task in tasks:
-            # TODO: 提取嵌套逻辑为独立方法
-
             if not self._is_due(task, now):
                 continue
 
@@ -700,9 +648,7 @@ class SchedulerService:
         return handler(params)
 
     def _handle_kline_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-        """K 线日更：委托 infrastructure.jobs.kline_update_job.execute（多数据源 fallback + 限速防封）"""  # TODO: Use parameterized queries
+        """K 线日更：委托 infrastructure.jobs.kline_update_job.execute（多数据源 fallback + 限速防封）"""
         from infrastructure.jobs.kline_update_job import execute
         return execute(**(params or {}))
 
@@ -824,245 +770,207 @@ class SchedulerService:
                         # Other truthy value
                         has_data = bool(latest)
                     return (has_data, False)
-                # No data available
-                return (False, False)
-        except Exception as e:
-            logger.warning(f"Failed to update {symbol}: {e}")
-            return (False, True)
-
-    updated = 0
-    errors = 0
-
-    # Parallelize symbol updates with 8 workers
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        futures = {executor.submit(update_symbol, sym): sym for sym in symbols}
-        for future in as_completed(futures):
-            try:
-                success, error = future.result()
+                else:
+                    # No data available
+                    return (False, False)
             except Exception as e:
-                sym = futures[future]
-                logger.error(f"update_symbol crashed for {sym}: {e}\n{traceback.format_exc()}")
-                errors += 1
-                continue
-            if success:
-                # SECURITY WARNING: Potential SQL injection - use parameterized queries
+                logger.warning(f"Failed to update {symbol}: {e}")
+                return (False, True)
 
-                updated += 1  # TODO: Use parameterized queries
-            if error:
-                errors += 1
+        updated = 0
+        errors = 0
 
-    return {
-        "action": "data_update",
-        "symbols_checked": len(symbols),
-        "symbols_updated": updated,
-        "errors": errors,
-        "market": market,
-    }
+        # Parallelize symbol updates with 8 workers
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            futures = {executor.submit(update_symbol, sym): sym for sym in symbols}
+            for future in as_completed(futures):
+                try:
+                    success, error = future.result()
+                except Exception as e:
+                    sym = futures[future]
+                    logger.error(f"update_symbol crashed for {sym}: {e}\n{traceback.format_exc()}")
+                    errors += 1
+                    continue
+                if success:
+                    updated += 1
+                if error:
+                    errors += 1
 
-def _handle_benchmark_run(self, params: Dict[str, Any]) -> Dict[str, Any]:
-    """Run one or more performance benchmarks."""
-    from application.services.benchmark_service import BenchmarkService
+        return {
+            "action": "data_update",
+            "symbols_checked": len(symbols),
+            "symbols_updated": updated,
+            "errors": errors,
+            "market": market,
+        }
 
-    benchmark_ids = params.get("benchmarks")
-    if isinstance(benchmark_ids, str):
-        benchmark_ids = [benchmark_ids]
-    timeout_seconds = int(params.get("timeout_seconds", 600))
-    return BenchmarkService().run_benchmarks(
-        benchmark_ids=benchmark_ids,
-        timeout_seconds=timeout_seconds,
-    )
+    def _handle_benchmark_run(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Run one or more performance benchmarks."""
+        from application.services.benchmark_service import BenchmarkService
 
-# 信号生成的默认策略集（strategy_configs 中的活跃策略；可被任务 params.strategy_ids 覆盖）。
-# 2026-08-04 策略体检后换血：旧 [162,166,179,180] → [179,178,163,193]（3 月×20 股
-# 回测胜率/期望双正且样本足：179=55.8%/+0.30%(n=95)、178=55.1%/+0.41%(n=178)、
-# 163=55.0%/+0.37%(n=151)、193=65.4%/+1.86%(n=26)）。任务表 params 已同步。
-DEFAULT_SIGNAL_STRATEGY_IDS = [179, 178, 163, 193]
+        benchmark_ids = params.get("benchmarks")
+        if isinstance(benchmark_ids, str):
+            benchmark_ids = [benchmark_ids]
+        timeout_seconds = int(params.get("timeout_seconds", 600))
+        return BenchmarkService().run_benchmarks(
+            benchmark_ids=benchmark_ids,
+            timeout_seconds=timeout_seconds,
+        )
 
-def _handle_signal_generate(self, params: Dict[str, Any]) -> Dict[str, Any]:
-    """扫描 agent 宇宙（非空池成员 ∪ 当前持仓）× 活跃策略，买卖信号落库。
+    # 信号生成的默认策略集（strategy_configs 中的活跃策略；可被任务 params.strategy_ids 覆盖）。
+    # 2026-08-04 策略体检后换血：旧 [162,166,179,180] → [179,178,163,193]（3 月×20 股
+    # 回测胜率/期望双正且样本足：179=55.8%/+0.30%(n=95)、178=55.1%/+0.41%(n=178)、
+    # 163=55.0%/+0.37%(n=151)、193=65.4%/+1.86%(n=26)）。任务表 params 已同步。
+    DEFAULT_SIGNAL_STRATEGY_IDS = [179, 178, 163, 193]
 
-    2026-08-04 重写：旧实现是桩——只统计 stocks_with_factors 不落任何信号
-    （signals 表自 06-26 断流的直接原因）。链路：PoolSignalScanner 扫描 →
-    buy/sell 经 SignalORMRepository.create_signal 落库（唯一键幂等去重）。
+    def _handle_signal_generate(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """扫描 agent 宇宙（非空池成员 ∪ 当前持仓）× 活跃策略，买卖信号落库。
 
-    Expected params:
-        strategy_ids: (optional) 策略 ID 列表，默认 DEFAULT_SIGNAL_STRATEGY_IDS
-        date: (optional) 信号日期，默认今天
-        lookback_days: (optional) 扫描回溯天数，默认 60
-    """
-    from datetime import date as date_type
+        2026-08-04 重写：旧实现是桩——只统计 stocks_with_factors 不落任何信号
+        （signals 表自 06-26 断流的直接原因）。链路：PoolSignalScanner 扫描 →
+        buy/sell 经 SignalORMRepository.create_signal 落库（唯一键幂等去重）。
 
-    strategy_ids = params.get("strategy_ids") or self.DEFAULT_SIGNAL_STRATEGY_IDS
-    signal_date = params.get("date", date_type.today().isoformat())
-    lookback_days = params.get("lookback_days", 60)
+        Expected params:
+            strategy_ids: (optional) 策略 ID 列表，默认 DEFAULT_SIGNAL_STRATEGY_IDS
+            date: (optional) 信号日期，默认今天
+            lookback_days: (optional) 扫描回溯天数，默认 60
+        """
+        from datetime import date as date_type
 
-    repo = HeatmapRepository()
-    universe = repo.get_pool_members_now() | repo.get_current_holding_symbols()
-    # 统一去交易所后缀：stocks/signals 用裸代码（signals.symbol 有 FK 到
-    # stocks.symbol，带后缀会 ForeignKeyViolation），Kline repo 自会规范化
-    symbols = sorted({s.split('.')[0] for s in universe})
+        strategy_ids = params.get("strategy_ids") or self.DEFAULT_SIGNAL_STRATEGY_IDS
+        signal_date = params.get("date", date_type.today().isoformat())
+        lookback_days = params.get("lookback_days", 60)
 
-    if not symbols:
+        repo = HeatmapRepository()
+        universe = repo.get_pool_members_now() | repo.get_current_holding_symbols()
+        # 统一去交易所后缀：stocks/signals 用裸代码（signals.symbol 有 FK 到
+        # stocks.symbol，带后缀会 ForeignKeyViolation），Kline repo 自会规范化
+        symbols = sorted({s.split('.')[0] for s in universe})
+
+        if not symbols:
+            return {
+                "action": "signal_generate",
+                "status": "success",
+                "date": signal_date,
+                "universe_size": 0,
+                "signals_found": 0,
+                "signals_saved": 0,
+                "duplicates": 0,
+                "strategy_errors": [],
+                "note": "宇宙为空（无非空池成员且无持仓）",
+            }
+
+        names = {s: m['name'] for s, m in repo.get_stocks_meta(symbols).items()}
+        scanner = PoolSignalScanner(KlineORMRepository(), StrategyORMRepository())
+        sig_repo = SignalORMRepository()
+
+        found = saved = duplicates = 0
+        strategy_errors = []
+        for sid in strategy_ids:
+            try:
+                result = scanner.scan_pool_signals(
+                    symbols=symbols, strategy_id=sid, lookback_days=lookback_days)
+                for sig in result.get('buy_signals', []) + result.get('sell_signals', []):
+                    found += 1
+                    signal_id = sig_repo.create_signal({
+                        'signal_date': signal_date,
+                        'symbol': sig['symbol'],
+                        'name': names.get(sig['symbol'], ''),
+                        'action': sig['signal'].upper(),  # signals 表大写契约（08-13 统一）
+                        'strategy_id': str(sid),
+                        'price': sig.get('current_price'),
+                        'reason': '; '.join(sig.get('reasons', [])),
+                        'indicators': sig.get('indicators'),
+                        'status': 'pending',
+                    })
+                    if signal_id > 0:
+                        saved += 1
+                    else:
+                        duplicates += 1
+            except Exception as e:
+                logger.warning(f"signal_generate: strategy {sid} 扫描失败: {e}")
+                strategy_errors.append(f"{sid}: {e}")
+
+        # 假成功防护：有宇宙但一个策略都没跑成且零落库 → 显式 failed
+        status = 'failed' if strategy_errors and len(strategy_errors) == len(strategy_ids) and saved == 0 else 'success'
         return {
             "action": "signal_generate",
-            "status": "success",
+            "status": status,
             "date": signal_date,
-            "universe_size": 0,
-            "signals_found": 0,
-            "signals_saved": 0,
-            "duplicates": 0,
-            "strategy_errors": [],
-            "note": "宇宙为空（无非空池成员且无持仓）",
+            "universe_size": len(symbols),
+            "strategies": strategy_ids,
+            "signals_found": found,
+            "signals_saved": saved,
+            "duplicates": duplicates,
+            "strategy_errors": strategy_errors,
         }
 
-    names = {s: m['name'] for s, m in repo.get_stocks_meta(symbols).items()}
-    scanner = PoolSignalScanner(KlineORMRepository(), StrategyORMRepository())
-    sig_repo = SignalORMRepository()
+    def _handle_report_daily(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a daily summary report.
 
-    found = saved = duplicates = 0
-    strategy_errors = []
-    for sid in strategy_ids:
+        Aggregates market overview, top signals, and execution status.
+        """
         try:
-            result = scanner.scan_pool_signals(
-                symbols=symbols, strategy_id=sid, lookback_days=lookback_days)
-            for sig in result.get('buy_signals', []) + result.get('sell_signals', []):
-                found += 1
-                signal_id = sig_repo.create_signal({
-                    'signal_date': signal_date,
-                    'symbol': sig['symbol'],
-                    'name': names.get(sig['symbol'], ''),
-                    'action': sig['signal'].upper(),  # signals 表大写契约（08-13 统一）
-                    'strategy_id': str(sid),
-                    'price': sig.get('current_price'),
-                    'reason': '; '.join(sig.get('reasons', [])),
-                    'indicators': sig.get('indicators'),
-                    'status': 'pending',
-                })
-                if signal_id > 0:
-                    saved += 1
-                else:
-                    duplicates += 1
+            # Simplified daily report - extend with actual reporting logic
+            stocks = StockORMRepository().list_all_active(market="A")
+            total_stocks = len(stocks)
+
+            # Get recent signals
+            signals = []  # Extend with actual signal retrieval
+
+            return {
+                "action": "report_daily",
+                "status": "success",
+                "total_stocks": total_stocks,
+                "top_signal_count": len(signals),
+                "timestamp": datetime.now().isoformat(),
+            }
         except Exception as e:
-            logger.warning(f"signal_generate: strategy {sid} 扫描失败: {e}")
-            strategy_errors.append(f"{sid}: {e}")
+            logger.error(f"Daily report failed: {e}")
+            return {
+                "action": "report_daily",
+                "status": "failed",
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+            }
 
-    # 假成功防护：有宇宙但一个策略都没跑成且零落库 → 显式 failed
-    status = 'failed' if strategy_errors and len(strategy_errors) == len(strategy_ids) and saved == 0 else 'success'
-    return {
-        "action": "signal_generate",
-        "status": status,
-        "date": signal_date,
-        "universe_size": len(symbols),
-        "strategies": strategy_ids,
-        "signals_found": found,
-        "signals_saved": saved,
-        "duplicates": duplicates,
-        "strategy_errors": strategy_errors,
-    }
+    def _handle_backtest_run(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Trigger a backtest pipeline run.
 
-def _handle_report_daily(self, params: Dict[str, Any]) -> Dict[str, Any]:
-    """Generate a daily summary report.
+        Expected params:
+            strategy_name: (required) strategy to backtest.
+            symbol: (optional) single symbol or all.
+            start_date: default 90 days ago.
+            end_date: default today.
+            initial_capital: default 100_000.
+        """
+        from datetime import date as date_type
 
-    Aggregates market overview, top signals, and execution status.
-    """
-    try:
-        # Simplified daily report - extend with actual reporting logic
-        stocks = StockORMRepository().list_all_active(market="A")
-        total_stocks = len(stocks)
+        strategy_name = params.get("strategy_name")
+        if not strategy_name:
+            raise ValueError("backtest_run requires 'strategy_name' param")
 
-        # Get recent signals
-        signals = []  # Extend with actual signal retrieval
+        today = date_type.today()
+        end_date = params.get("end_date", today.isoformat())
+        start_date = params.get(
+            "start_date", (today - timedelta(days=90)).isoformat()
+        )
+        symbol = params.get("symbol", "000001.SZ")
+        initial_capital = float(params.get("initial_capital", 100_000))
+
+        klines_df = KlineORMRepository().get_daily_klines(symbol, start_date, end_date)
+        kline_count = len(klines_df) if klines_df is not None else 0
 
         return {
-            "action": "report_daily",
-            "status": "success",
-            "total_stocks": total_stocks,
-            "top_signal_count": len(signals),
-            "timestamp": datetime.now().isoformat(),
+            "action": "backtest_run",
+            "strategy_name": strategy_name,
+            "symbol": symbol,
+            "start_date": start_date,
+            "end_date": end_date,
+            "initial_capital": initial_capital,
+            "klines_available": kline_count,
+            "factors_available": list(params.get("factor_history", {}).keys()),
         }
-    except Exception as e:
-        logger.error(f"Daily report failed: {e}")
-        return {
-            "action": "report_daily",
-            "status": "failed",
-            "error": str(e),
-            "timestamp": datetime.now().isoformat(),
-        }
-
-def _handle_backtest_run(self, params: Dict[str, Any]) -> Dict[str, Any]:
-    """Trigger a backtest pipeline run.
-
-    Expected params:
-        strategy_name: (required) strategy to backtest.
-        symbol: (optional) single symbol or all.
-        start_date: default 90 days ago.
-        end_date: default today.
-        initial_capital: default 100_000.
-    """
-    from datetime import date as date_type
-
-    strategy_name = params.get("strategy_name")
-    if not strategy_name:
-        raise ValueError("backtest_run requires 'strategy_name' param")
-
-    today = date_type.today()
-    end_date = params.get("end_date", today.isoformat())
-    start_date = params.get(
-        "start_date", (today - timedelta(days=90)).isoformat()
-    )
-    symbol = params.get("symbol", "000001.SZ")
-    initial_capital = float(params.get("initial_capital", 100_000))
-
-    klines_df = KlineORMRepository().get_daily_klines(symbol, start_date, end_date)
-    kline_count = len(klines_df) if klines_df is not None else 0
-
-    return {
-        "action": "backtest_run",
-        "strategy_name": strategy_name,
-        "symbol": symbol,
-        "start_date": start_date,
-        "end_date": end_date,
-        "initial_capital": initial_capital,
-        "klines_available": kline_count,
-        "factors_available": list(params.get("factor_history", {}).keys()),
-    }
-
-# TODO: Refactor - complexity 16 (target < 15)
-
-def _validate__handle_factor_compute_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _handle_factor_compute 移到这里
-    return True, None
-
-def _process__handle_factor_compute_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _handle_factor_compute 移到这里
-    return data
-
-def _build__handle_factor_compute_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _handle_factor_compute 移到这里
-    return data
-
-def _validate__handle_factor_compute_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _handle_factor_compute 移到这里
-    return True, None
-
-def _process__handle_factor_compute_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _handle_factor_compute 移到这里
-    return data
-
-def _build__handle_factor_compute_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _handle_factor_compute 移到这里
-    return data
-
-# TODO: Refactor - complexity 16 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 16 (target < 15)
-    # TODO: 复杂度 16 - 需要重构拆分为更小的函数
 
     def _handle_factor_compute(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Compute factors for stocks.
@@ -1284,9 +1192,7 @@ def _build__handle_factor_compute_result(data):
                 try:
                     # Simplified implementation - extend with actual logic
                     logger.debug(f"Updating financial data for {symbol}")
-                    # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-                    updated_count += 1  # TODO: Use parameterized queries
+                    updated_count += 1
                 except Exception as e:
                     logger.warning(f"Failed to update {symbol}: {e}")
                     error_count += 1

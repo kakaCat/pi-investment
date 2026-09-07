@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12_8 = 12.8
-CONST_1234 = 1234
-CONST_15 = 15
-CONST_2024 = 2024
-CONST_3 = 3
-CONST_45_2 = 45.2
-CONST_5 = 5
-CONST_60 = 60
-CONST_7 = 7
-CONST_8 = 8
-
 """测试StockRepository"""
 import pytest
 from adapters.outbound.repositories import StockORMRepository

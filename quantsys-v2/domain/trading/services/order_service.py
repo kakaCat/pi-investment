@@ -1,9 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - fill_order() = 149 lines
-
 # domain/trading/services/order_service.py
 from typing import Optional, List
 from datetime import datetime, timedelta
@@ -14,25 +8,6 @@ from domain.portfolio.services.position_service import PositionService
 from domain.trading.models.order import Order, OrderSide, OrderType, OrderStatus
 from domain.trading.models.trade import Trade
 from domain.trading.ports.IOrderRepository import IOrderRepository
-
-
-# Extracted Constants
-
-CONST_1eNEG_05 = 1e-05
-
-CONST_0_00025 = 0.00025
-
-CONST_0_0005 = 0.0005
-
-CONST_4 = 4
-
-CONST_5_0 = 5.0
-
-CONST_7 = 7
-
-CONST_50 = 50
-
-
 
 logger = structlog.get_logger(__name__)
 
@@ -218,17 +193,7 @@ class OrderService:
                 f"(order_id={order_id})"
             )
 
-    # TODO: Refactor - function too long (150 lines, target < 80)
-
-# TODO: Split long function (149 lines, target < 100)
-    # TODO: 长函数 155行 - 建议拆分为多个小函数
-
     def fill_order(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         order_id: int,
         fill_price: float,

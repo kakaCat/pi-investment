@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 # domain/trading/ports/ITradeRepository.py
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict

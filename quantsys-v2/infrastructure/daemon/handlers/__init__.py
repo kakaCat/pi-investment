@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Daemon handlers - auto-import all handlers to register them."""
 
 # Import all handler modules to trigger @register_method decorators

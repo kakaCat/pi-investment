@@ -1,16 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_2 = 10.2
-CONST_10_5 = 10.5
-CONST_11_0 = 11.0
-CONST_11_2 = 11.2
-CONST_11_5 = 11.5
-CONST_1100 = 1100
-CONST_2024 = 2024
-CONST_3 = 3
-CONST_9_5 = 9.5
-
 """Phase 1 集成测试"""
 import pytest
 import json

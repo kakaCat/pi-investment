@@ -1,17 +1,7 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 # domain/trading/ports/IOrderRepository.py
 from abc import ABC, abstractmethod
 from typing import Optional, List
 from domain.trading.models.order import Order, OrderStatus
-
-
-# Extracted Constants
-
-CONST_50 = 50
-
-
 
 class IOrderRepository(ABC):
     """订单仓储接口 - 定义订单数据访问契约"""

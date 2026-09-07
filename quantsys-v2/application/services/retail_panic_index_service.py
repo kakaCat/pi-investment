@@ -1,59 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.1, 0.15, 0.2, 0.25, 0.3]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_6 = 0.6
-
-CONST_0_8 = 0.8
-
-CONST_2_5 = 2.5
-
-CONST_20 = 20
-
-
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_0_6 = 0.6
-
-CONST_0_8 = 0.8
-
-CONST_2_5 = 2.5
-
-CONST_20 = 20
-
-
-
 """M7-2 散户恐慌代理指标服务
 
 从多个可观测代理维度合成**连续 0-100 的散户恐慌指数**，替代离散三档
@@ -256,7 +200,9 @@ class RetailPanicIndexService:
     @staticmethod
     def _classify(panic_index: float) -> str:
         """恐慌等级：≥70 恐慌 / 50-70 偏恐慌 / 30-50 偏贪婪 / <30 贪婪。"""
-        if panic_index >= 70 and panic_index >= 50:
+        if panic_index >= 70:
+            return 'panic'
+        if panic_index >= 50:
             return 'leaning_panic'
         if panic_index >= 30:
             return 'leaning_greed'

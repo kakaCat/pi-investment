@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_50 = 50
-
-
-
-CONST_50 = 50
-
-
-
 """
 MarketStyle 异步ORM Repository
 
@@ -72,7 +55,9 @@ class MarketStyleAsyncRepository(AsyncBaseORMRepository[MarketStyleState]):
         try:
             stmt = select(MarketStyleState)
 
-            if start_date and end_date:
+            if start_date:
+                stmt = stmt.where(MarketStyleState.state_date >= start_date)
+            if end_date:
                 stmt = stmt.where(MarketStyleState.state_date <= end_date)
             if style_name:
                 stmt = stmt.where(MarketStyleState.style_name == style_name)

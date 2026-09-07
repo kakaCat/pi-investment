@@ -1,20 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_20 = 20
-
-CONST_60 = 60
-
-CONST_120 = 120
-
-
-
 """
 Moving Average Factors
 =======================
@@ -24,6 +7,7 @@ Simple Moving Average (SMA) and Exponential Moving Average (EMA) factors.
 
 Performance: TA-Lib (C implementation) vs pandas (Python) ~ 10x faster
 """
+from __future__ import annotations
 
 
 from typing import Optional

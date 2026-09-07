@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """配置驱动集成模块
 
 P2-3: 配置驱动集成

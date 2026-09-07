@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """缠论完整分析器 - 一站式分析接口（笔中枢版流水线，2026-08-05 重构）"""
 from typing import List
 import pandas as pd

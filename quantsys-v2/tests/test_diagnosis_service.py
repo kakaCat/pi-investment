@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_110_0 = 110.0
-CONST_12 = 12
-CONST_120 = 120
-CONST_120_0 = 120.0
-CONST_2024 = 2024
-CONST_24 = 24
-CONST_25 = 25
-CONST_3 = 3
-CONST_31 = 31
-CONST_5 = 5
-
 # tests/test_diagnosis_service.py
 import pytest
 from application.services.diagnosis_service import DiagnosisService

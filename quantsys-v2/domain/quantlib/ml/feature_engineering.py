@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - generate_features() = 136 lines
-
-
-# Extracted Constants
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_12 = 12
-
-CONST_14 = 14
-
-CONST_20 = 20
-
-CONST_26 = 26
-
-CONST_60 = 60
-
-CONST_252 = 252
-
-
-
 """
 Feature Engineering Calculator
 ==============================
@@ -94,85 +63,7 @@ class FeatureEngineeringCalculator(BaseCalculator):
 
     @validate_inputs
     @timing_decorator
-    # TODO: Refactor - complexity 25 (target < 15)
-
-    # TODO: Refactor - function too long (136 lines, target < 80)
-
-    def _validate_generate_features_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 generate_features 移到这里
-        return True, None
-
-    def _process_generate_features_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 generate_features 移到这里
-        return data
-
-    def _build_generate_features_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 generate_features 移到这里
-        return data
-
-    def _validate_generate_features_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 generate_features 移到这里
-        return True, None
-
-    def _process_generate_features_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 generate_features 移到这里
-        return data
-
-    def _build_generate_features_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 generate_features 移到这里
-        return data
-
-# TODO: Split long function (135 lines, target < 100)
-# TODO: Refactor - complexity 25 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    def _check_condition_0():
-        """Check: data is None or (isinstance(data, pd.DataFrame) and data.emp..."""
-        return data is None or (isinstance(data, pd.DataFrame) and data.empty)
-
-    # TODO: Refactor - complexity 26 (target < 15)
-    # TODO: Split long function (136 lines, target < 100)
-    # TODO: Refactor - complexity 26 (target < 15)
-    # TODO: Split long function (136 lines, target < 100)
-    # TODO: 复杂度 26 - 需要重构拆分为更小的函数
-
-    # TODO: 长函数 144行 - 建议拆分为多个小函数
-
-    def _validate_generate_features_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_generate_features_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_generate_features_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_generate_features_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_generate_features_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_generate_features_result(data):
-        """构建返回结果"""
-        return data
-
     def generate_features(self,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
                           data: pd.DataFrame,
                           feature_types: Optional[List[str]] = None,
                           window_sizes: Optional[List[int]] = None,
@@ -196,8 +87,9 @@ class FeatureEngineeringCalculator(BaseCalculator):
                 - feature_importance: Dict mapping feature name to importance score
                 - feature_types: Dict mapping feature name to its type
         """
-        if data is None or (isinstance(data, pd.DataFrame) and data.empty) and _check_condition_0():
-            pass  # TODO: implement
+        if data is None or (isinstance(data, pd.DataFrame) and data.empty):
+            raise DataValidationError("Input data is empty", field_name="data")
+
         if feature_types is None:
             feature_types = ['technical', 'statistical', 'time']
 
@@ -217,8 +109,6 @@ class FeatureEngineeringCalculator(BaseCalculator):
         valid_types = set(self.get_supported_methods())
         valid_types.discard('all')
         for ft in feature_types:
-            # TODO: 提取嵌套逻辑为独立方法
-
             if ft not in valid_types:
                 raise ConfigurationError(
                     f"Unsupported feature type: {ft}",

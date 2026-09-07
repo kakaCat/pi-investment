@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 # v17-dual-mode
 # ============================================================
 # 双模策略：close > MA60 → v11激进模式(等权投票) | close ≤ MA60 → v15防御模式(加权评分)
@@ -10,59 +7,6 @@
 #   牛市中用v11的7因子等权投票（已被证明在牛市中有效：宁德+84%，平安+65%）
 #   熊市中用v15的加权评分+波动率自适应阈值（已被证明在熊市中最扛跌：浦发银行-5.25%）
 # ============================================================
-
-# TODO: Extract magic numbers to named constants: [1e-10, 0.05, 0.07, 0.1, 0.15]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_0_05 = 0.05
-
-CONST_0_07 = 0.07
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_35 = 0.35
-
-CONST_0_4 = 0.4
-
-
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_0_05 = 0.05
-
-CONST_0_07 = 0.07
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_35 = 0.35
-
-CONST_0_4 = 0.4
-
-
-
 my_indicator_name = "v17-dual-mode"
 my_indicator_description = "双模策略：MA60以上用v11激进投票(牛市追趋势)，MA60以下用v15加权评分+自适应阈值(熊市防御)。2状态，简单稳定。"
 

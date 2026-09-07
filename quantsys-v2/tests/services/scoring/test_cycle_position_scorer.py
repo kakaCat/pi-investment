@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_2026 = 2026
-CONST_27 = 27
-CONST_28 = 28
-CONST_29 = 29
-CONST_30 = 30
-CONST_30_0 = 30.0
-CONST_32 = 32
-CONST_35 = 35
-CONST_35_0 = 35.0
-CONST_50 = 50
-
 """CyclePositionScorer 单元测试"""
 import pytest
 from application.services.scoring.cycle_position_scorer import CyclePositionScorer

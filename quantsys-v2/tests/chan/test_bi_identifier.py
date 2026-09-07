@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_2 = 10.2
-CONST_10_5 = 10.5
-CONST_10_8 = 10.8
-CONST_11_0 = 11.0
-CONST_11_2 = 11.2
-CONST_11_5 = 11.5
-CONST_1100 = 1100
-CONST_12_5 = 12.5
-CONST_1200 = 1200
-CONST_2024 = 2024
-
 """笔识别器测试"""
 import pytest
 from datetime import datetime, timedelta

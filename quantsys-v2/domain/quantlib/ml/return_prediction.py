@@ -1,38 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - predict_returns() = 116 lines
-#   - _train_lstm() = 128 lines
-
-
-# TODO: Extract magic numbers to named constants: [1e-10, 0.001, 0.05, 0.1, 0.2]...
-
-
-# Extracted Constants
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_0_001 = 0.001
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_2 = 0.2
-
-CONST_0_7 = 0.7
-
-CONST_0_8 = 0.8
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_20 = 20
-
-
-
 """
 Return Prediction Calculator
 =============================
@@ -102,84 +67,7 @@ class ReturnPredictionCalculator(BaseCalculator):
 
     @validate_inputs
     @timing_decorator
-    # TODO: Refactor - complexity 16 (target < 15)
-
-    # TODO: Refactor - function too long (116 lines, target < 80)
-
-    def _validate_predict_returns_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 predict_returns 移到这里
-        return True, None
-
-    def _process_predict_returns_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 predict_returns 移到这里
-        return data
-
-    def _build_predict_returns_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 predict_returns 移到这里
-        return data
-
-    def _validate_predict_returns_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 predict_returns 移到这里
-        return True, None
-
-    def _process_predict_returns_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 predict_returns 移到这里
-        return data
-
-    def _build_predict_returns_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 predict_returns 移到这里
-        return data
-
-# TODO: Split long function (115 lines, target < 100)
-# TODO: Refactor - complexity 16 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    def _check_condition_0():
-        """Check: features is None or (isinstance(features, pd.DataFrame) and ..."""
-        return features is None or (isinstance(features, pd.DataFrame) and features.empty)
-
-    # TODO: Refactor - complexity 17 (target < 15)
-    # TODO: Split long function (116 lines, target < 100)
-    # TODO: Refactor - complexity 17 (target < 15)
-    # TODO: Split long function (116 lines, target < 100)
-    # TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-    # TODO: 长函数 121行 - 建议拆分为多个小函数
-
-    def _validate_predict_returns_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_predict_returns_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_predict_returns_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_predict_returns_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_predict_returns_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_predict_returns_result(data):
-        """构建返回结果"""
-        return data
-
     def predict_returns(self,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
                         features: pd.DataFrame,
                         target: Union[np.ndarray, pd.Series],
                         model_type: str = 'xgboost',
@@ -212,8 +100,9 @@ class ReturnPredictionCalculator(BaseCalculator):
                 - metrics: Dict of evaluation metrics
                 - feature_importance: Dict of feature importance
         """
-        if features is None or (isinstance(features, pd.DataFrame) and features.empty) and _check_condition_0():
-            pass  # TODO: implement
+        if features is None or (isinstance(features, pd.DataFrame) and features.empty):
+            raise DataValidationError("Features DataFrame is empty", field_name="features")
+
         if not isinstance(features, pd.DataFrame):
             raise DataValidationError("features must be a pandas DataFrame", field_name="features")
 
@@ -333,8 +222,6 @@ class ReturnPredictionCalculator(BaseCalculator):
         """Select top features using correlation with target."""
         correlations = []
         for i in range(X_train.shape[1]):
-            # TODO: 提取嵌套逻辑为独立方法
-
             if np.std(X_train[:, i]) > 1e-10:
                 corr = np.corrcoef(X_train[:, i], y_train)[0, 1]
                 correlations.append((i, abs(corr) if not np.isnan(corr) else 0))
@@ -529,18 +416,8 @@ class ReturnPredictionCalculator(BaseCalculator):
                 importance = {k: v / max_imp for k, v in importance.items()}
 
         return model, predictions, metrics, importance
-# TODO: Refactor - function too long (129 lines, target < 80)
 
-
-# TODO: 长函数 134行 - 建议拆分为多个小函数
-
-# TODO: Split long function (128 lines, target < 100)
     def _train_lstm(self,
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
                     X_train: np.ndarray,
                     y_train: np.ndarray,
                     X_test: np.ndarray,
@@ -749,38 +626,39 @@ class ReturnPredictionCalculator(BaseCalculator):
                 baseline_pred = model.predict(X, verbose=0).flatten()
             except Exception:
                 return {name: 0.0 for name in feature_names}
-        try:
-            baseline_pred = model.predict(X)
-        except Exception:
-            return {name: 0.0 for name in feature_names}
-
-    baseline_error = np.mean((y - baseline_pred) ** 2)
-
-    for i, name in enumerate(feature_names):
-        if i >= X.shape[1]:
-            break
-        X_permuted = X.copy()
-        np.random.shuffle(X_permuted[:, i])
-
-        if is_keras:
-            try:
-                permuted_pred = model.predict(X_permuted, verbose=0).flatten()
-            except Exception:
-                importance[name] = 0.0
-                continue
         else:
             try:
-                permuted_pred = model.predict(X_permuted)
+                baseline_pred = model.predict(X)
             except Exception:
-                importance[name] = 0.0
-                continue
+                return {name: 0.0 for name in feature_names}
 
-        permuted_error = np.mean((y - permuted_pred) ** 2)
-        importance[name] = float(max(0, permuted_error - baseline_error))
+        baseline_error = np.mean((y - baseline_pred) ** 2)
 
-    if importance:
-        max_imp = max(importance.values())
-        if max_imp > 0:
-            importance = {k: v / max_imp for k, v in importance.items()}
+        for i, name in enumerate(feature_names):
+            if i >= X.shape[1]:
+                break
+            X_permuted = X.copy()
+            np.random.shuffle(X_permuted[:, i])
 
-    return importance
+            if is_keras:
+                try:
+                    permuted_pred = model.predict(X_permuted, verbose=0).flatten()
+                except Exception:
+                    importance[name] = 0.0
+                    continue
+            else:
+                try:
+                    permuted_pred = model.predict(X_permuted)
+                except Exception:
+                    importance[name] = 0.0
+                    continue
+
+            permuted_error = np.mean((y - permuted_pred) ** 2)
+            importance[name] = float(max(0, permuted_error - baseline_error))
+
+        if importance:
+            max_imp = max(importance.values())
+            if max_imp > 0:
+                importance = {k: v / max_imp for k, v in importance.items()}
+
+        return importance

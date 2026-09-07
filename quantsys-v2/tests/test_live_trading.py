@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000 = 10000
-CONST_123 = 123
-CONST_150_0 = 150.0
-CONST_150_50 = 150.50
-CONST_153_3333 = 153.3333
-CONST_155_0 = 155.0
-CONST_200 = 200
-CONST_25 = 25
-CONST_25000 = 25000
-CONST_3 = 3
-
 """
 Unit tests for Module 4: Live Trading
 

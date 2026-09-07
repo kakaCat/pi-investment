@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_2020 = 2020
-CONST_2026 = 2026
-CONST_26 = 26
-CONST_27 = 27
-CONST_28 = 28
-CONST_3 = 3
-CONST_30 = 30
-CONST_300000 = 300000
-CONST_35 = 35
-CONST_5 = 5
-
 """
 Tests for SignalExecutionLogORMRepository
 

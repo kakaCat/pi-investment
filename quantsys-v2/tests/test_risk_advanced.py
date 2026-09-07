@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000 = 10000
-CONST_100000 = 100000
-CONST_12000 = 12000
-CONST_12500_0 = 12500.0
-CONST_150 = 150
-CONST_15000 = 15000
-CONST_16 = 16
-CONST_20 = 20
-CONST_20_0 = 20.0
-CONST_20000 = 20000
-
 """
 Advanced Risk Management Test Suite
 ====================================

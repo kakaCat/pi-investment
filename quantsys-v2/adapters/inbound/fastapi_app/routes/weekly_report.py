@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_400 = 400
-
-CONST_500 = 500
-
-
-
-CONST_400 = 400
-
-CONST_500 = 500
-
-
-
 """M6-2 周报生成 API
 
 端点：
@@ -158,7 +137,8 @@ def push_weekly_report_to_feishu(
     
     if result['success']:
         return api_response(result)
-    return error_response(
-        result['push_result'].get('error', '推送失败'),
-        status_code=500
-    )
+    else:
+        return error_response(
+            result['push_result'].get('error', '推送失败'),
+            status_code=500
+        )

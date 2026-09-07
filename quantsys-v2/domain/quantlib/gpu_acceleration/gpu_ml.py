@@ -1,29 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_0_8 = 0.8
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_8 = 8
-
-CONST_20 = 20
-
-CONST_42 = 42
-
-CONST_50 = 50
-
-CONST_10000 = 10000
-
-
-
 """
 GPU加速机器学习训练
 

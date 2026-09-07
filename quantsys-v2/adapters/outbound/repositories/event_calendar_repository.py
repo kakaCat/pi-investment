@@ -1,40 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_8 = 8
-
-CONST_16 = 16
-
-CONST_20 = 20
-
-CONST_32 = 32
-
-CONST_50 = 50
-
-CONST_200 = 200
-
-
-
-CONST_8 = 8
-
-CONST_16 = 16
-
-CONST_20 = 20
-
-CONST_32 = 32
-
-CONST_50 = 50
-
-CONST_200 = 200
-
-
-
 """事件日历 ORM Repository（特殊日子：宏观发布/央行议息/财报/交割等）
 
 数据流：初始化脚本/手动 → quant.event_calendar 表 → API /api/events → 每日检查任务/Agent 工具
@@ -92,7 +55,9 @@ def event_to_dict(ev: EventCalendar) -> dict:
 
 def _parse_time(t) -> Optional[dtime]:
     """把 'HH:MM' 字符串或 None 转为 time 对象"""
-    if t is None or isinstance(t, dtime) and isinstance(t, str):
+    if t is None or isinstance(t, dtime):
+        return t
+    if isinstance(t, str):
         try:
             return datetime.strptime(t, '%H:%M').time()
         except ValueError:
@@ -126,9 +91,13 @@ class EventCalendarRepository(BaseORMRepository[EventCalendar]):
         """范围查询：按日期区间/类型/状态/标的过滤。"""
         try:
             q = self.session.query(self.model)
-            if start and end:
+            if start:
+                q = q.filter(self.model.event_date >= start)
+            if end:
                 q = q.filter(self.model.event_date <= end)
-            if event_type and status:
+            if event_type:
+                q = q.filter(self.model.event_type == event_type)
+            if status:
                 q = q.filter(self.model.status == status)
             if symbol:
                 q = q.filter(self.model.symbol == symbol)

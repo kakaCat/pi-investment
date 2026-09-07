@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_13 = 13
-CONST_16 = 16
-CONST_2024 = 2024
-CONST_3 = 3
-CONST_30 = 30
-CONST_300059 = 300059
-CONST_300274 = 300274
-CONST_300308 = 300308
-CONST_300750 = 300750
-
 """M6-4 candidate 参数扩大验证：macd 635 默认 vs 最优参数 fast5/slow13/sig3
 范围：16 股 × 2024H1/H2（强势区间）· 真实回测
 """

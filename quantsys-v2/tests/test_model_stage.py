@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000 = 10000
-CONST_105_0 = 105.0
-CONST_110 = 110
-CONST_14 = 14
-CONST_15_0 = 15.0
-CONST_2_5 = 2.5
-CONST_20 = 20
-CONST_2024 = 2024
-CONST_3 = 3
-CONST_30 = 30
-
 """
 ModelStage unit tests
 """

@@ -1,13 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-
-
 """
 盯盘触发通知格式化器
 
@@ -335,7 +325,9 @@ class WeeklyReportFormatter(FeishuFormatter):
             return "暂无展望"
 
         lines = []
-        if outlook.get('market_view') and outlook.get('recommendations'):
+        if outlook.get('market_view'):
+            lines.append(f"• 市场观点: {outlook['market_view']}")
+        if outlook.get('recommendations'):
             lines.append(f"• 操作建议: {outlook['recommendations']}")
         if outlook.get('focus_sectors'):
             lines.append(f"• 关注板块: {outlook['focus_sectors']}")

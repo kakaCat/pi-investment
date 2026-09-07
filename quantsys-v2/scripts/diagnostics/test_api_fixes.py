@@ -1,45 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_10_5 = 10.5
-
-CONST_15_0 = 15.0
-
-CONST_16_5 = 16.5
-
-CONST_60 = 60
-
-CONST_200 = 200
-
-CONST_300 = 300
-
-
-
-CONST_5 = 5
-
-CONST_10_5 = 10.5
-
-CONST_15_0 = 15.0
-
-CONST_16_5 = 16.5
-
-CONST_60 = 60
-
-CONST_200 = 200
-
-CONST_300 = 300
-
-
-
 """
 通过 API 验证交易模块修复效果
 
@@ -71,15 +30,16 @@ def test_api_health():
             print(f"   数据库连接: {data.get('db_connected', False)}")
             print(f"   版本: {data.get('db_info', {}).get('version', 'unknown')}")
             return True
-        print(f"❌ API 返回错误状态码: {response.status_code}")
+        else:
+            print(f"❌ API 返回错误状态码: {response.status_code}")
+            return False
+    except requests.exceptions.ConnectionError:
+        print(f"❌ 无法连接到 API 服务 ({BASE_URL})")
+        print(f"   请确保后端服务已启动: cd quantsys-v2 && python -m api.server")
         return False
-except requests.exceptions.ConnectionError:
-    print(f"❌ 无法连接到 API 服务 ({BASE_URL})")
-    print(f"   请确保后端服务已启动: cd quantsys-v2 && python -m api.server")
-    return False
-except Exception as e:
-    print(f"❌ 健康检查失败: {str(e)}")
-    return False
+    except Exception as e:
+        print(f"❌ 健康检查失败: {str(e)}")
+        return False
 
 
 def test_get_order_detail():
@@ -199,14 +159,15 @@ def test_update_order():
             updated_order.get('notes') == '已通过API修改'):
             print(f"✅ 字段更新验证成功")
             return True
-        print(f"❌ 字段更新验证失败")
-        return False
+        else:
+            print(f"❌ 字段更新验证失败")
+            return False
 
-except Exception as e:
-    print(f"❌ 测试失败: {str(e)}")
-    import traceback
-    traceback.print_exc()
-    return False
+    except Exception as e:
+        print(f"❌ 测试失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
 def test_get_trades_list():

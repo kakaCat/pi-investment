@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.001, 0.0015, 0.002, 0.003, 0.005]...
-
-
-# Extracted Constants
-
-CONST_0_001 = 0.001
-
-CONST_0_0015 = 0.0015
-
-CONST_0_002 = 0.002
-
-CONST_0_003 = 0.003
-
-CONST_0_005 = 0.005
-
-CONST_0_01 = 0.01
-
-CONST_0_012 = 0.012
-
-CONST_0_015 = 0.015
-
-CONST_0_02 = 0.02
-
-CONST_0_025 = 0.025
-
-
-
 """
 Factor Models Examples
 ======================
@@ -128,22 +97,23 @@ def example_1_fama_french_3factor():
     print("-" * 80)
     if result['value']['alpha'] > 0 and result['value']['p_values']['alpha'] < 0.05:
         print("✓ Positive and significant alpha - fund generates excess returns")
-    print("✗ Alpha not significant - no evidence of skill")
+    else:
+        print("✗ Alpha not significant - no evidence of skill")
 
-if result['value']['beta_mkt'] > 1:
-    print(f"✓ Market beta > 1 ({result['value']['beta_mkt']:.2f}) - fund is more volatile than market")
-else:
-    print(f"✓ Market beta < 1 ({result['value']['beta_mkt']:.2f}) - fund is less volatile than market")
+    if result['value']['beta_mkt'] > 1:
+        print(f"✓ Market beta > 1 ({result['value']['beta_mkt']:.2f}) - fund is more volatile than market")
+    else:
+        print(f"✓ Market beta < 1 ({result['value']['beta_mkt']:.2f}) - fund is less volatile than market")
 
-if abs(result['value']['beta_smb']) > 0.3:
-    tilt = "small-cap" if result['value']['beta_smb'] > 0 else "large-cap"
-    print(f"✓ Significant size tilt toward {tilt} stocks")
+    if abs(result['value']['beta_smb']) > 0.3:
+        tilt = "small-cap" if result['value']['beta_smb'] > 0 else "large-cap"
+        print(f"✓ Significant size tilt toward {tilt} stocks")
 
-if abs(result['value']['beta_hml']) > 0.3:
-    tilt = "value" if result['value']['beta_hml'] > 0 else "growth"
-    print(f"✓ Significant style tilt toward {tilt} stocks")
+    if abs(result['value']['beta_hml']) > 0.3:
+        tilt = "value" if result['value']['beta_hml'] > 0 else "growth"
+        print(f"✓ Significant style tilt toward {tilt} stocks")
 
-print("\n")
+    print("\n")
 
 
 def example_2_fama_french_5factor():

@@ -1,32 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-CONST_6 = 6
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-
-
-CONST_4 = 4
-
-CONST_6 = 6
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-
-
 """
 风险管理ORM Repository
 
@@ -108,7 +79,9 @@ _STOP_LOSS_STATUSES = ('active', 'inactive', 'triggered')
 
 def _validate_symbol(symbol: str) -> bool:
     """校验股票代码格式（对齐旧 BaseRepository._validate_symbol 行为）"""
-    if not symbol and not isinstance(symbol, str):
+    if not symbol:
+        raise ValueError("股票代码不能为空")
+    if not isinstance(symbol, str):
         raise ValueError("股票代码必须是字符串")
 
     base = symbol.strip().upper()
@@ -186,9 +159,7 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
         """查询指定日期的账户资金"""
         _validate_date(balance_date)
 
-        # SECURITY WARNING: Potential SQL injection - use parameterized queries
-
-        query = "SELECT * FROM quant.account_balance WHERE balance_date = %s"  # TODO: Use parameterized queries
+        query = "SELECT * FROM quant.account_balance WHERE balance_date = %s"
 
         cursor = self.db.cursor()
         try:
@@ -638,11 +609,15 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
         Returns:
             止损规则列表（dict）
         """
-        if symbol and status and status not in _STOP_LOSS_STATUSES:
+        if symbol:
+            _validate_symbol(symbol)
+        if status and status not in _STOP_LOSS_STATUSES:
             raise ValueError(f"无效的状态值: {status}")
 
         query = self.session.query(StopLossRule)
-        if symbol and status:
+        if symbol:
+            query = query.filter(StopLossRule.symbol == symbol)
+        if status:
             query = query.filter(StopLossRule.status == status)
 
         rules = query.order_by(StopLossRule.created_at.desc()).all()

@@ -1,34 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.015, 0.5, 3.0, 6, 12]...
-
-
-# Extracted Constants
-
-CONST_0_015 = 0.015
-
-CONST_0_5 = 0.5
-
-CONST_3_0 = 3.0
-
-CONST_6 = 6
-
-CONST_12 = 12
-
-CONST_14 = 14
-
-CONST_20 = 20
-
-CONST_24 = 24
-
-CONST_25 = 25
-
-CONST_26 = 26
-
-
-
 """
 Other Technical Indicators Module
 ==================================
@@ -45,12 +14,6 @@ from domain.factors.library.base import TechnicalFactorCalculator
 from infrastructure.quantlib.core.base_calculator import validate_inputs, timing_decorator
 from infrastructure.quantlib.core.exceptions import InsufficientDataError
 
-
-# TODO: Refactor - class too large (23 methods, target < 15)
-
-# TODO: Refactor large class (23 methods, target < 20)
-# TODO: Refactor large class (23 methods, target < 20)
-# TODO: 大类 23个方法 - 考虑拆分为多个类或使用组合模式
 
 class OtherFactors(TechnicalFactorCalculator):
     """

@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10000 = 10000
-CONST_100000 = 100000
-CONST_128 = 128
-CONST_2026 = 2026
-CONST_2048 = 2048
-CONST_25 = 25
-CONST_256 = 256
-CONST_3 = 3
-CONST_4 = 4
-CONST_5 = 5
-
 """
 Tests for FinRL Configuration Module
 =====================================

@@ -1,63 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - run() = 173 lines
-
-
-# TODO: Extract magic numbers to named constants: [1e-12, 0.05, 0.1, 0.2, 0.3]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_1eNEG_12 = 1e-12
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_6 = 6
-
-CONST_12 = 12
-
-
-
-CONST_1eNEG_12 = 1e-12
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_6 = 6
-
-CONST_12 = 12
-
-
-
 """策略进化引擎（RFC 012 P1，2026-09-03 w-8366e526）
 
 替代链：Agent OS legacy evolution（evolution_handler.go 的 0.05×i 占位阶梯，见
@@ -79,6 +19,7 @@ docs/rfcs/012-strategy-evolution-engine.md）→ 基于 qv2 真实回测的策�
 错误哲学：宁可 degraded 也不给假数。单变体失败只记该变体 degraded 不中断整轮；
 整轮全部失败（含 base）才整体 degraded。
 """
+from __future__ import annotations
 
 import math
 import uuid
@@ -112,7 +53,9 @@ NON_EVOLVABLE_KEYS = {
 
 def _normalize(v: Any) -> Any:
     """从声明/落库混入类型里取出可数值化的参数值（否则 None）。"""
-    if isinstance(v, bool) and isinstance(v, (int, float)):
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
         return v
     if isinstance(v, str):
         try:
@@ -164,89 +107,7 @@ class StrategyEvolutionService:
 
     # ---------------- 主入口 ----------------
 
-    # TODO: Refactor - complexity 21 (target < 15)
-
-    # TODO: Refactor - function too long (174 lines, target < 80)
-
-    def _validate_run_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 run 移到这里
-        return True, None
-
-    def _process_run_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 run 移到这里
-        return data
-
-    def _build_run_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 run 移到这里
-        return data
-
-    def _validate_run_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 run 移到这里
-        return True, None
-
-    def _process_run_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 run 移到这里
-        return data
-
-    def _build_run_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 run 移到这里
-        return data
-
-# TODO: Split long function (173 lines, target < 100)
-# TODO: Refactor - complexity 21 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 21 (target < 15)
-    # TODO: Split long function (173 lines, target < 100)
-    # TODO: Refactor - complexity 21 (target < 15)
-    # TODO: Split long function (173 lines, target < 100)
-    # TODO: 复杂度 21 - 需要重构拆分为更小的函数
-
-    # TODO: 长函数 189行 - 建议拆分为多个小函数
-
-    def _validate_run_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_run_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_run_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_run_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_run_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_run_result(data):
-        """构建返回结果"""
-        return data
-
     def run(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
-        # ---- Section 7 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 6 ----
         self,
         strategy_id: int,
         symbol: str,
@@ -316,8 +177,6 @@ class StrategyEvolutionService:
         variants: List[Dict[str, Any]] = [dict(base_params)]  # variant 0 = base
         for step in steps:
             for v in self._generate_variants(base_params, step):
-                # TODO: 提取嵌套逻辑为独立方法
-
                 if v not in variants:
                     variants.append(v)
         logger.info(f"策略进化开始: run_id={run_id} strategy={strategy_id} {symbol} "

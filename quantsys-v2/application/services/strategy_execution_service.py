@@ -1,31 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - execute() = 105 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_7 = 0.7
-
-CONST_8 = 8
-
-CONST_400 = 400
-
-
-
-CONST_0_7 = 0.7
-
-CONST_8 = 8
-
-CONST_400 = 400
-
-
-
 """Strategy execution service - unified strategy execution interface"""
 from domain.ports import IKlineRepository, ISignalRepository, IStockRepository, IStrategyRepository
 import structlog
@@ -71,8 +43,6 @@ class StrategyEngine:
             self.is_db_strategy = False
         else:
             # Not found in Python strategies, try database
-            # TODO: 提取嵌套逻辑为独立方法
-
             if self._strategy_repo is None:
                 from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
                 strategy_repo = EnhancedServiceFactory.resolve(IStrategyRepository)
@@ -111,20 +81,7 @@ class StrategyEngine:
             self._stock_repo = EnhancedServiceFactory.resolve(IStockRepository)
         return self._stock_repo
 
-    # TODO: Refactor - function too long (106 lines, target < 80)
-
-    # TODO: Split long function (105 lines, target < 100)
-    # TODO: 长函数 114行 - 建议拆分为多个小函数
-
     def execute(self, symbol: str, date: str = None) -> Dict:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """
         Execute real strategy on kline data.
 
@@ -230,65 +187,6 @@ class StrategyEngine:
             'indicators': result.get('indicators', {}),
             'timestamp': end_date
         }
-
-    # TODO: Refactor - complexity 20 (target < 15)
-
-    def _validate__execute_db_indicator_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _execute_db_indicator 移到这里
-        return True, None
-
-    def _process__execute_db_indicator_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _execute_db_indicator 移到这里
-        return data
-
-    def _build__execute_db_indicator_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _execute_db_indicator 移到这里
-        return data
-
-    def _validate__execute_db_indicator_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _execute_db_indicator 移到这里
-        return True, None
-
-    def _process__execute_db_indicator_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _execute_db_indicator 移到这里
-        return data
-
-    def _build__execute_db_indicator_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _execute_db_indicator 移到这里
-        return data
-
-    # TODO: Refactor - complexity 20 (target < 15)
-    # TODO: 复杂度 20 - 需要重构拆分为更小的函数
-
-    def _validate__execute_db_indicator_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__execute_db_indicator_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__execute_db_indicator_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate__execute_db_indicator_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__execute_db_indicator_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__execute_db_indicator_result(data):
-        """构建返回结果"""
-        return data
 
     def _execute_db_indicator(self, klines: List[Dict]) -> Dict:
         """

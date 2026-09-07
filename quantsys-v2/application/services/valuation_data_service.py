@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_100000000 = 100000000
-
-
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_100000000 = 100000000
-
-
-
 """
 估值数据服务 - 多数据源支持
 
@@ -99,8 +74,6 @@ class ValuationDataService:
                 self.logger.info(f"尝试从 {source_name} 获取 {clean_symbol} 估值数据")
                 result = fetcher(clean_symbol)
 
-                # TODO: 提取嵌套逻辑为独立方法
-
                 if result and result.get('success'):
                     self.logger.info(f"成功从 {source_name} 获取估值数据")
                     return result
@@ -116,67 +89,6 @@ class ValuationDataService:
             'data': None,
             'suggestion': '请检查股票代码是否正确，或稍后重试'
         }
-
-    # TODO: Refactor - complexity 19 (target < 15)
-
-    def _validate__get_from_sina_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _get_from_sina 移到这里
-        return True, None
-
-    def _process__get_from_sina_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _get_from_sina 移到这里
-        return data
-
-    def _build__get_from_sina_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _get_from_sina 移到这里
-        return data
-
-    def _validate__get_from_sina_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _get_from_sina 移到这里
-        return True, None
-
-    def _process__get_from_sina_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _get_from_sina 移到这里
-        return data
-
-    def _build__get_from_sina_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _get_from_sina 移到这里
-        return data
-
-# TODO: Refactor - complexity 19 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 19 (target < 15)
-    # TODO: 复杂度 19 - 需要重构拆分为更小的函数
-
-    def _validate__get_from_sina_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__get_from_sina_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__get_from_sina_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate__get_from_sina_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__get_from_sina_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__get_from_sina_result(data):
-        """构建返回结果"""
-        return data
 
     def _get_from_sina(self, symbol: str) -> Dict[str, Any]:
         """
@@ -308,67 +220,7 @@ class ValuationDataService:
         except Exception as e:
             self.logger.debug(f"东方财富获取失败: {e}")
             return {'success': False, 'error': str(e)}
-# TODO: Refactor - complexity 20 (target < 15)
 
-
-    def _validate__get_from_akshare_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _get_from_akshare 移到这里
-        return True, None
-
-    def _process__get_from_akshare_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _get_from_akshare 移到这里
-        return data
-
-    def _build__get_from_akshare_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _get_from_akshare 移到这里
-        return data
-
-    def _validate__get_from_akshare_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _get_from_akshare 移到这里
-        return True, None
-
-    def _process__get_from_akshare_data(data):
-        """处理数据转换"""
-        def _validate__get_from_akshare_input(*args, **kwargs):
-            """验证输入参数"""
-            pass
-
-        def _process__get_from_akshare_data(data):
-            """处理数据转换"""
-            return data
-
-        def _build__get_from_akshare_result(data):
-            """构建返回结果"""
-            return data
-
-        def _validate__get_from_akshare_input(*args, **kwargs):
-            """验证输入参数"""
-            pass
-
-        def _process__get_from_akshare_data(data):
-            """处理数据转换"""
-            return data
-
-        def _build__get_from_akshare_result(data):
-            """构建返回结果"""
-            return data
-
-        # TODO: 将数据处理逻辑从 _get_from_akshare 移到这里
-        return data
-
-    def _build__get_from_akshare_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _get_from_akshare 移到这里
-        return data
-
-# TODO: 复杂度 20 - 需要重构拆分为更小的函数
-
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 20 (target < 15)
     def _get_from_akshare(self, symbol: str) -> Dict[str, Any]:
         """从 akshare 获取估值数据"""
         try:

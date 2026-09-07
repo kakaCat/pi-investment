@@ -1,31 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - get_stock_valuation() = 134 lines
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_50 = 50
-
-
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_50 = 50
-
-
-
 """
 财务分析服务 - v2 原生实现
 提供财务指标、估值分析、现金流分析、利润表分析、质量筛选
@@ -39,9 +11,6 @@ from domain.ports.datasource_ports import IDataProviderManager
 
 logger = structlog.get_logger(__name__)
 
-
-# TODO: Refactor large class (21 methods, target < 20)
-# TODO: 大类 21个方法 - 考虑拆分为多个类或使用组合模式
 
 class FinancialAnalysisService:
     """财务分析服务"""
@@ -80,8 +49,6 @@ class FinancialAnalysisService:
 
                 # 计算关键财务指标
                 indicators = {}
-                # TODO: 提取嵌套逻辑为独立方法
-
                 if financial_data.income_statement and financial_data.balance_sheet:
                     indicators = self._calculate_indicators_from_statements(
                         financial_data.income_statement[0] if financial_data.income_statement else {},
@@ -151,67 +118,6 @@ class FinancialAnalysisService:
                 'data': None
             }
 
-    # TODO: Refactor - complexity 21 (target < 15)
-
-    def _validate__calculate_indicators_from_statements_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _calculate_indicators_from_statements 移到这里
-        return True, None
-
-    def _process__calculate_indicators_from_statements_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _calculate_indicators_from_statements 移到这里
-        return data
-
-    def _build__calculate_indicators_from_statements_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _calculate_indicators_from_statements 移到这里
-        return data
-
-    def _validate__calculate_indicators_from_statements_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _calculate_indicators_from_statements 移到这里
-        return True, None
-
-    def _process__calculate_indicators_from_statements_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _calculate_indicators_from_statements 移到这里
-        return data
-
-    def _build__calculate_indicators_from_statements_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _calculate_indicators_from_statements 移到这里
-        return data
-
-# TODO: Refactor - complexity 21 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 21 (target < 15)
-    # TODO: 复杂度 21 - 需要重构拆分为更小的函数
-
-    def _validate__calculate_indicators_from_statements_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__calculate_indicators_from_statements_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__calculate_indicators_from_statements_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate__calculate_indicators_from_statements_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__calculate_indicators_from_statements_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__calculate_indicators_from_statements_result(data):
-        """构建返回结果"""
-        return data
-
     def _calculate_indicators_from_statements(
         self,
         income: Dict[str, Any],
@@ -248,95 +154,8 @@ class FinancialAnalysisService:
             self.logger.warning(f"计算财务指标失败: {e}")
 
         return indicators
-# TODO: Refactor - complexity 31 (target < 15)
-
-
-    # TODO: Refactor - function too long (135 lines, target < 80)
-
-    def _validate_get_stock_valuation_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 get_stock_valuation 移到这里
-        return True, None
-
-    def _process_get_stock_valuation_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 get_stock_valuation 移到这里
-        return data
-
-    def _build_get_stock_valuation_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 get_stock_valuation 移到这里
-        return data
-
-    def _validate_get_stock_valuation_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 get_stock_valuation 移到这里
-        return True, None
-
-    def _process_get_stock_valuation_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 get_stock_valuation 移到这里
-        return data
-
-    def _build_get_stock_valuation_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 get_stock_valuation 移到这里
-        return data
-
-# TODO: Split long function (134 lines, target < 100)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 31 (target < 15)
-    def _check_condition_0():
-        """Check: net_assets and total_shares and net_assets > 0..."""
-        return net_assets and total_shares and net_assets > 0
-
-    def _validate_get_stock_valuation_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_get_stock_valuation_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_get_stock_valuation_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate_get_stock_valuation_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process_get_stock_valuation_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build_get_stock_valuation_result(data):
-        """构建返回结果"""
-        return data
-
-    def _check_condition_0():
-        """Check: net_assets and total_shares and net_assets > 0..."""
-        return net_assets and total_shares and net_assets > 0
-
-    # TODO: Refactor - complexity 31 (target < 15)
-    # TODO: Split long function (134 lines, target < 100)
-    # TODO: 复杂度 31 - 需要重构拆分为更小的函数
-
-    # TODO: Refactor - complexity 31 (target < 15)
-    # TODO: Split long function (134 lines, target < 100)
-    # TODO: 长函数 145行 - 建议拆分为多个小函数
 
     def get_stock_valuation(self, symbol: str) -> Dict[str, Any]:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         """
         获取估值分析 - 使用多数据源自动 failover
 
@@ -419,7 +238,9 @@ class FinancialAnalysisService:
 
                     # 尝试计算 PB (市净率 = 股价 / 每股净资产)
                     net_assets = balance.get('total_equity') or balance.get('股东权益合计') or balance.get('所有者权益合计')
-                    if net_assets and total_shares and net_assets > 0 and _check_condition_0():
+                    if net_assets and total_shares and net_assets > 0:
+                        bps = net_assets / total_shares  # 每股净资产
+                        if bps > 0:
                             valuation['pb'] = round(current_price / bps, 2)
 
                     if len(valuation) > 1:  # 除了 current_price 还有其他指标

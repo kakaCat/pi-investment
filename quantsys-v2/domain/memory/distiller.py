@@ -1,15 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_7 = 7
-
-CONST_200 = 200
-
-
-
 """Memory Distiller - 记忆蒸馏服务（W1.5a）
 
 从 memory_entries + agent_decisions 产出 rule 候选（status=testing）。

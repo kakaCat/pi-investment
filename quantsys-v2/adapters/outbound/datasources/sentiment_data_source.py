@@ -1,59 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.1, 0.5, 3, 4, 5]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_0_5 = 0.5
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_500 = 500
-
-CONST_5000 = 5000
-
-CONST_10000 = 10000
-
-
-
-CONST_0_1 = 0.1
-
-CONST_0_5 = 0.5
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_500 = 500
-
-CONST_5000 = 5000
-
-CONST_10000 = 10000
-
-
-
 """
 情绪数据源 - 内部交易、股东持仓等
 
@@ -420,24 +364,25 @@ class SentimentDataSource:
             return 'decreasing'  # 股东户数减少，筹码集中
         elif latest_change > 3:
             return 'increasing'  # 股东户数增加，筹码分散
-        return 'stable'
+        else:
+            return 'stable'
 
-def _generate_mock_top_fund_stocks(self, limit: int) -> List[Dict]:
-    """生成模拟基金重仓股"""
-    stocks = []
-    names = ['贵州茅台', '五粮液', '招商银行', '宁德时代', '比亚迪',
-            '工商银行', '中国平安', '美的集团', '格力电器', '伊利股份']
-    symbols = ['600519', '000858', '600036', '300750', '002594',
-              '601398', '601318', '000333', '000651', '600887']
+    def _generate_mock_top_fund_stocks(self, limit: int) -> List[Dict]:
+        """生成模拟基金重仓股"""
+        stocks = []
+        names = ['贵州茅台', '五粮液', '招商银行', '宁德时代', '比亚迪',
+                '工商银行', '中国平安', '美的集团', '格力电器', '伊利股份']
+        symbols = ['600519', '000858', '600036', '300750', '002594',
+                  '601398', '601318', '000333', '000651', '600887']
 
-    for i, (name, symbol) in enumerate(zip(names[:limit], symbols[:limit]), 1):
-        stocks.append({
-            'symbol': symbol,
-            'name': name,
-            'fund_count': random.randint(100, 500),
-            'total_shares': round(random.uniform(10000, 100000), 2),
-            'total_value': round(random.uniform(100000, 1000000), 2),
-            'avg_ratio': round(random.uniform(1.0, 5.0), 2),
-        })
+        for i, (name, symbol) in enumerate(zip(names[:limit], symbols[:limit]), 1):
+            stocks.append({
+                'symbol': symbol,
+                'name': name,
+                'fund_count': random.randint(100, 500),
+                'total_shares': round(random.uniform(10000, 100000), 2),
+                'total_value': round(random.uniform(100000, 1000000), 2),
+                'avg_ratio': round(random.uniform(1.0, 5.0), 2),
+            })
 
-    return stocks
+        return stocks

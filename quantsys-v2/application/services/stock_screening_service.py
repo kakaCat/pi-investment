@@ -1,62 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - screen_stocks() = 115 lines
-
-
-# TODO: Extract magic numbers to named constants: [0.08, 0.1, 0.15, 0.2, 0.3]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_08 = 0.08
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_15 = 15
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-
-
-CONST_0_08 = 0.08
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_3 = 0.3
-
-CONST_0_5 = 0.5
-
-CONST_15 = 15
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-
-
 """
 股票筛选服务
 
@@ -85,21 +26,7 @@ class StockScreeningService:
         self.stock_repo = stock_repo
         self.scoring_service = scoring_service
 
-    # TODO: Refactor - function too long (116 lines, target < 80)
-
-# TODO: Split long function (115 lines, target < 100)
-    # TODO: 长函数 127行 - 建议拆分为多个小函数
-
     def screen_stocks(self, criteria: Dict) -> Dict:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """
         根据条件筛选股票
 
@@ -153,8 +80,6 @@ class StockScreeningService:
             for stock in all_stocks:
                 try:
                     # 基本条件筛选
-                    # TODO: 提取嵌套逻辑为独立方法
-
                     if not self._match_basic_criteria(stock, criteria):
                         continue
 
@@ -217,67 +142,6 @@ class StockScreeningService:
         except Exception as e:
             logger.error(f"股票筛选失败: {e}", exc_info=True)
             return {'error': str(e)}
-
-    # TODO: Refactor - complexity 24 (target < 15)
-
-    def _validate__match_basic_criteria_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _match_basic_criteria 移到这里
-        return True, None
-
-    def _process__match_basic_criteria_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _match_basic_criteria 移到这里
-        return data
-
-    def _build__match_basic_criteria_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _match_basic_criteria 移到这里
-        return data
-
-    def _validate__match_basic_criteria_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 _match_basic_criteria 移到这里
-        return True, None
-
-    def _process__match_basic_criteria_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 _match_basic_criteria 移到这里
-        return data
-
-    def _build__match_basic_criteria_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 _match_basic_criteria 移到这里
-        return data
-
-# TODO: Refactor - complexity 24 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 24 (target < 15)
-    # TODO: 复杂度 24 - 需要重构拆分为更小的函数
-
-    def _validate__match_basic_criteria_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__match_basic_criteria_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__match_basic_criteria_result(data):
-        """构建返回结果"""
-        return data
-
-    def _validate__match_basic_criteria_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__match_basic_criteria_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__match_basic_criteria_result(data):
-        """构建返回结果"""
-        return data
 
     def _match_basic_criteria(self, stock: Dict, criteria: Dict) -> bool:
         """

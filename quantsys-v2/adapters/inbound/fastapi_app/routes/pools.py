@@ -1,32 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_201 = 201
-
-CONST_500 = 500
-
-
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_201 = 201
-
-CONST_500 = 500
-
-
-
 """
 股票池管理 API (FastAPI 版本)
 

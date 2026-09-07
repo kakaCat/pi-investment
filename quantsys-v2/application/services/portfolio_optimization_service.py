@@ -1,32 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_1eNEG_06 = 1e-06
-
-CONST_0_02 = 0.02
-
-CONST_0_95 = 0.95
-
-
-
-CONST_1eNEG_10 = 1e-10
-
-CONST_1eNEG_06 = 1e-06
-
-CONST_0_02 = 0.02
-
-CONST_0_95 = 0.95
-
-
-
 """
 组合优化服务 - 基于 cvxpy
 提供科学的组合构建和权重优化

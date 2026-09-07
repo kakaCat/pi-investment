@@ -1,36 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_7 = 7
-
-CONST_24 = 24
-
-CONST_30 = 30
-
-CONST_99 = 99
-
-CONST_3600 = 3600
-
-
-
-CONST_7 = 7
-
-CONST_24 = 24
-
-CONST_30 = 30
-
-CONST_99 = 99
-
-CONST_3600 = 3600
-
-
-
 """
 Circuit Breaker State Persistence
 
@@ -122,132 +89,133 @@ class CircuitBreakerStatePersistence:
                 data = self.redis_client.get(state_key)
                 if data:
                     return json.loads(data)
-            # Load from memory
-            return self._memory_store.get(state_key)
+            else:
+                # Load from memory
+                return self._memory_store.get(state_key)
 
-        return None
+            return None
 
-    except Exception as e:
-        logger.error(f"Failed to load circuit breaker state for {provider_name}: {e}")
-        return None
+        except Exception as e:
+            logger.error(f"Failed to load circuit breaker state for {provider_name}: {e}")
+            return None
 
-def delete_state(self, provider_name: str) -> bool:
-    """Delete circuit breaker state
+    def delete_state(self, provider_name: str) -> bool:
+        """Delete circuit breaker state
 
-    Args:
-        provider_name: Provider name
+        Args:
+            provider_name: Provider name
 
-    Returns:
-        True if deleted successfully, False otherwise
-    """
-    try:
-        state_key = f"{self.key_prefix}:{provider_name}"
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        try:
+            state_key = f"{self.key_prefix}:{provider_name}"
 
-        if self.redis_client:
-            self.redis_client.delete(state_key)
-        else:
-            self._memory_store.pop(state_key, None)
+            if self.redis_client:
+                self.redis_client.delete(state_key)
+            else:
+                self._memory_store.pop(state_key, None)
 
-        return True
+            return True
 
-    except Exception as e:
-        logger.error(f"Failed to delete circuit breaker state for {provider_name}: {e}")
-        return False
+        except Exception as e:
+            logger.error(f"Failed to delete circuit breaker state for {provider_name}: {e}")
+            return False
 
-def save_history(self, provider_name: str, event: str, details: Dict[str, Any]) -> bool:
-    """Save circuit breaker state transition history
+    def save_history(self, provider_name: str, event: str, details: Dict[str, Any]) -> bool:
+        """Save circuit breaker state transition history
 
-    Args:
-        provider_name: Provider name
-        event: Event type ('opened' | 'closed' | 'half_opened')
-        details: Event details dict
+        Args:
+            provider_name: Provider name
+            event: Event type ('opened' | 'closed' | 'half_opened')
+            details: Event details dict
 
-    Returns:
-        True if saved successfully, False otherwise
-    """
-    try:
-        history_key = f"{self.key_prefix}:history:{provider_name}"
-        history_entry = {
-            'event': event,
-            'timestamp': time.time(),
-            'details': details
-        }
+        Returns:
+            True if saved successfully, False otherwise
+        """
+        try:
+            history_key = f"{self.key_prefix}:history:{provider_name}"
+            history_entry = {
+                'event': event,
+                'timestamp': time.time(),
+                'details': details
+            }
 
-        if self.redis_client:
-            # Use Redis list to store history (max 100 entries)
-            self.redis_client.lpush(history_key, json.dumps(history_entry))
-            self.redis_client.ltrim(history_key, 0, 99)  # Keep last 100 entries
-            self.redis_client.expire(history_key, 30 * 24 * 3600)  # 30 days TTL
-        else:
-            # Fallback to memory (limited history)
-            if history_key not in self._memory_store:
-                self._memory_store[history_key] = []
-            self._memory_store[history_key].insert(0, history_entry)
-            self._memory_store[history_key] = self._memory_store[history_key][:100]
+            if self.redis_client:
+                # Use Redis list to store history (max 100 entries)
+                self.redis_client.lpush(history_key, json.dumps(history_entry))
+                self.redis_client.ltrim(history_key, 0, 99)  # Keep last 100 entries
+                self.redis_client.expire(history_key, 30 * 24 * 3600)  # 30 days TTL
+            else:
+                # Fallback to memory (limited history)
+                if history_key not in self._memory_store:
+                    self._memory_store[history_key] = []
+                self._memory_store[history_key].insert(0, history_entry)
+                self._memory_store[history_key] = self._memory_store[history_key][:100]
 
-        return True
+            return True
 
-    except Exception as e:
-        logger.error(f"Failed to save circuit breaker history for {provider_name}: {e}")
-        return False
+        except Exception as e:
+            logger.error(f"Failed to save circuit breaker history for {provider_name}: {e}")
+            return False
 
-def get_history(self, provider_name: str, limit: int = 10) -> list:
-    """Get circuit breaker state transition history
+    def get_history(self, provider_name: str, limit: int = 10) -> list:
+        """Get circuit breaker state transition history
 
-    Args:
-        provider_name: Provider name
-        limit: Max number of entries to return
+        Args:
+            provider_name: Provider name
+            limit: Max number of entries to return
 
-    Returns:
-        List of history entries (newest first)
-    """
-    try:
-        history_key = f"{self.key_prefix}:history:{provider_name}"
+        Returns:
+            List of history entries (newest first)
+        """
+        try:
+            history_key = f"{self.key_prefix}:history:{provider_name}"
 
-        if self.redis_client:
-            # Load from Redis
-            entries = self.redis_client.lrange(history_key, 0, limit - 1)
-            return [json.loads(e) for e in entries]
-        else:
-            # Load from memory
-            entries = self._memory_store.get(history_key, [])
-            return entries[:limit]
+            if self.redis_client:
+                # Load from Redis
+                entries = self.redis_client.lrange(history_key, 0, limit - 1)
+                return [json.loads(e) for e in entries]
+            else:
+                # Load from memory
+                entries = self._memory_store.get(history_key, [])
+                return entries[:limit]
 
-    except Exception as e:
-        logger.error(f"Failed to get circuit breaker history for {provider_name}: {e}")
-        return []
+        except Exception as e:
+            logger.error(f"Failed to get circuit breaker history for {provider_name}: {e}")
+            return []
 
-def get_all_states(self) -> Dict[str, Dict[str, Any]]:
-    """Get all circuit breaker states
+    def get_all_states(self) -> Dict[str, Dict[str, Any]]:
+        """Get all circuit breaker states
 
-    Returns:
-        Dict mapping provider name to state dict
-    """
-    try:
-        states = {}
+        Returns:
+            Dict mapping provider name to state dict
+        """
+        try:
+            states = {}
 
-        if self.redis_client:
-            # Scan Redis for all state keys
-            pattern = f"{self.key_prefix}:*"
-            for key in self.redis_client.scan_iter(match=pattern):
-                key_str = key.decode('utf-8') if isinstance(key, bytes) else key
-                if ':history:' not in key_str:  # Skip history keys
-                    provider_name = key_str.split(':')[-1]
-                    data = self.redis_client.get(key)
-                    if data:
-                        states[provider_name] = json.loads(data)
-        else:
-            # Load from memory
-            for key, value in self._memory_store.items():
-                if key.startswith(self.key_prefix) and ':history:' not in key:
-                    provider_name = key.split(':')[-1]
-                    states[provider_name] = value
+            if self.redis_client:
+                # Scan Redis for all state keys
+                pattern = f"{self.key_prefix}:*"
+                for key in self.redis_client.scan_iter(match=pattern):
+                    key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+                    if ':history:' not in key_str:  # Skip history keys
+                        provider_name = key_str.split(':')[-1]
+                        data = self.redis_client.get(key)
+                        if data:
+                            states[provider_name] = json.loads(data)
+            else:
+                # Load from memory
+                for key, value in self._memory_store.items():
+                    if key.startswith(self.key_prefix) and ':history:' not in key:
+                        provider_name = key.split(':')[-1]
+                        states[provider_name] = value
 
-        return states
+            return states
 
-    except Exception as e:
-        logger.error(f"Failed to get all circuit breaker states: {e}")
-        return {}
+        except Exception as e:
+            logger.error(f"Failed to get all circuit breaker states: {e}")
+            return {}
 
 
 def get_persistence_manager(redis_client=None) -> CircuitBreakerStatePersistence:

@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-
-
-CONST_0_1 = 0.1
-
-
-
 """
 Sentry 错误监控配置
 
@@ -138,7 +121,9 @@ def _filter_sensitive_data(event, hint):
     # 过滤请求头中的敏感信息
     if "request" in event and "headers" in event["request"]:
         headers = event["request"]["headers"]
-        if "Authorization" in headers and "Cookie" in headers:
+        if "Authorization" in headers:
+            headers["Authorization"] = "***REDACTED***"
+        if "Cookie" in headers:
             headers["Cookie"] = "***REDACTED***"
 
     return event

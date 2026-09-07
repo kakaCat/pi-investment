@@ -1,13 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_10_5 = 10.5
-CONST_3 = 3
-CONST_42 = 42
-CONST_5 = 5
-CONST_600000 = 600000
-CONST_7 = 7
-
 # tests/application/services/test_new_order_service.py
 """
 新订单服务测试 - 验证包装器正确委托给旧服务

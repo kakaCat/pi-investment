@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """后台任务并发控制（框架无关）— 从 adapters/inbound/api/shared.py 解耦而来"""
 import threading
 from typing import Dict

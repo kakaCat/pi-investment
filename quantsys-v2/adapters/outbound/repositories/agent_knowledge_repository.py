@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_5 = 0.5
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
-CONST_0_5 = 0.5
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-
-
 """Agent Knowledge ORM Repository - agent_knowledge 表访问
 
 表 DDL 见 infrastructure/persistence/migrations/recreate_agent_intelligence_tables.sql。

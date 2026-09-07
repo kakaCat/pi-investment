@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Daemon server main entry point."""
 import sys
 import asyncio
@@ -73,78 +70,79 @@ class DaemonServer:
                 error_msg = str(e)
                 if "Parse error" in error_msg:
                     return create_error_response(None, PARSE_ERROR, error_msg)
-                return create_error_response(None, INVALID_REQUEST, error_msg)
+                else:
+                    return create_error_response(None, INVALID_REQUEST, error_msg)
 
-        # Get handler
-        handler = self.registry.get_handler(method)
-        if handler is None:
-            return create_error_response(
-                request_id,
-                METHOD_NOT_FOUND,
-                f"Method '{method}' not found"
-            )
+            # Get handler
+            handler = self.registry.get_handler(method)
+            if handler is None:
+                return create_error_response(
+                    request_id,
+                    METHOD_NOT_FOUND,
+                    f"Method '{method}' not found"
+                )
 
-        # Call handler
-        try:
-            result = await handler(params)
-            return create_response(request_id, result)
-        except ValueError as e:
-            return create_error_response(
-                request_id,
-                INVALID_PARAMS,
-                f"Invalid params: {e}"
-            )
+            # Call handler
+            try:
+                result = await handler(params)
+                return create_response(request_id, result)
+            except ValueError as e:
+                return create_error_response(
+                    request_id,
+                    INVALID_PARAMS,
+                    f"Invalid params: {e}"
+                )
+            except Exception as e:
+                return create_error_response(
+                    request_id,
+                    INTERNAL_ERROR,
+                    f"Internal error: {e}"
+                )
+
         except Exception as e:
+            # Catch-all for unexpected errors
             return create_error_response(
                 request_id,
                 INTERNAL_ERROR,
-                f"Internal error: {e}"
+                f"Unexpected error: {e}"
             )
 
-    except Exception as e:
-        # Catch-all for unexpected errors
-        return create_error_response(
-            request_id,
-            INTERNAL_ERROR,
-            f"Unexpected error: {e}"
-        )
+    async def run(self):
+        """Main server loop - read from stdin, write to stdout."""
+        sys.stderr.write("[daemon] QuantSys daemon started\n")
+        sys.stderr.flush()
 
-async def run(self):
-    """Main server loop - read from stdin, write to stdout."""
-    sys.stderr.write("[daemon] QuantSys daemon started\n")
-    sys.stderr.flush()
+        while self.running:
+            try:
+                # Read line from stdin (blocking)
+                line = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    sys.stdin.readline
+                )
 
-    while self.running:
-        try:
-            # Read line from stdin (blocking)
-            line = await asyncio.get_event_loop().run_in_executor(
-                None,
-                sys.stdin.readline
-            )
+                if not line:
+                    # EOF reached
+                    break
 
-            if not line:
-                # EOF reached
+                line = line.strip()
+                if not line:
+                    continue
+
+                # Handle request
+                response = await self.handle_request(line)
+
+                # Write response to stdout
+                sys.stdout.write(response + "\n")
+                sys.stdout.flush()
+
+            except KeyboardInterrupt:
                 break
+            except Exception as e:
+                sys.stderr.write(f"[daemon] Error in main loop: {e}\n")
+                sys.stderr.flush()
 
-            line = line.strip()
-            if not line:
-                continue
-
-            # Handle request
-            response = await self.handle_request(line)
-
-            # Write response to stdout
-            sys.stdout.write(response + "\n")
-            sys.stdout.flush()
-
-        except KeyboardInterrupt:
-            break
-        except Exception as e:
-            sys.stderr.write(f"[daemon] Error in main loop: {e}\n")
-            sys.stderr.flush()
-
-    sys.stderr.write("[daemon] Shutting down\n")
-    sys.stderr.flush()
+        sys.stderr.write("[daemon] Shutting down\n")
+        sys.stderr.flush()
 
 
 def main():

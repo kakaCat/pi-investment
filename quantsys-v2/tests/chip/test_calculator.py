@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_11_0 = 11.0
-CONST_12_0 = 12.0
-CONST_15_0 = 15.0
-CONST_150_0 = 150.0
-CONST_16 = 16
-CONST_16_0 = 16.0
-CONST_18_0 = 18.0
-CONST_19_0 = 19.0
-CONST_20 = 20
-CONST_20_0 = 20.0
-
 """筹码分布计算器单测 — 合成 K 线，不依赖数据库"""
 import numpy as np
 import pytest

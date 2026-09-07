@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_15 = 15
-CONST_16 = 16
-CONST_2024 = 2024
-CONST_23 = 23
-CONST_31 = 31
-CONST_49_0 = 49.0
-CONST_50_0 = 50.0
-CONST_51_0 = 51.0
-CONST_52_5 = 52.5
-CONST_57_5 = 57.5
-
 """
 测试 MomentumStrategy 风控功能
 """

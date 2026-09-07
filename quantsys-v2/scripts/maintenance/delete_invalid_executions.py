@@ -1,21 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5432 = 5432
-
-
-
-CONST_5432 = 5432
-
-
-
 """
 删除无效的执行记录（没有持仓却有 sell 记录）
 """

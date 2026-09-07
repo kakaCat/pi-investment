@@ -1,45 +1,4 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_11_0 = 11.0
-
-CONST_200 = 200
-
-CONST_201 = 201
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_422 = 422
-
-CONST_100000 = 100000
-
-
-
-CONST_11_0 = 11.0
-
-CONST_200 = 200
-
-CONST_201 = 201
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-CONST_422 = 422
-
-CONST_100000 = 100000
-
-
-
 """多账户域端到端验证（对运行中的 5001 服务）"""
 import requests
 import sys

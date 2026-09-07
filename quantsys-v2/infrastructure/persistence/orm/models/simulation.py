@@ -1,25 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-CONST_15 = 15
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_64 = 64
-
-CONST_500 = 500
-
-
-
 """
 模拟交易相关Model
 

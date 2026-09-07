@@ -1,22 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_6 = 6
-
-CONST_8 = 8
-
-CONST_20 = 20
-
-
-
 """Abstract base class for market data adapters.
 
 Every downstream data source (akshare, tushare, wind, etc.) must implement
@@ -25,6 +6,7 @@ When a source changes its API, only the adapter needs updating — the rest of
 the system is protected.
 """
 
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -75,7 +57,9 @@ class BaseMarketAdapter(ABC):
     def exchange_prefix(code: str) -> str:
         """Return the exchange identifier for a raw 6-digit code: "sh", "sz", "bj"."""
         c = code.strip()
-        if c.startswith(("4", "8", "43", "92")) and c.startswith(("6", "9")):
+        if c.startswith(("4", "8", "43", "92")):
+            return "bj"
+        if c.startswith(("6", "9")):
             return "sh"
         if c.startswith(("0", "2", "3")):
             return "sz"

@@ -1,25 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - analyze() = 113 lines
-
-
-# Extracted Constants
-
-CONST_0_8 = 0.8
-
-CONST_1_2 = 1.2
-
-CONST_3 = 3
-
-CONST_5 = 5
-
-CONST_30 = 30
-
-
-
 """竞争分析服务 - 行业竞争格局、对手对比、优劣势识别
 
 核心逻辑：
@@ -34,6 +12,7 @@ CONST_30 = 30
 - ROE/毛利率 = 盈利能力（护城河指标）
 - 增长率 = 扩张速度（进攻性）
 """
+from __future__ import annotations
 from typing import Any, Dict, List, Optional
 import structlog
 
@@ -56,16 +35,7 @@ class CompetitionAnalysisService:
     def __init__(self, repo):
         self.repo = repo
 
-    # TODO: Refactor - function too long (114 lines, target < 80)
-
-# TODO: Split long function (113 lines, target < 100)
-    # TODO: 长函数 120行 - 建议拆分为多个小函数
-
     def analyze(self, symbol: str, include_financial: bool = True) -> Dict[str, Any]:
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
         """竞争分析主入口
 
         Args:
@@ -108,8 +78,6 @@ class CompetitionAnalysisService:
         target_rank = None
         target_market_cap = stock_info.get("market_cap", 0)
         for idx, comp in enumerate(competitors, start=1):
-            # TODO: 提取嵌套逻辑为独立方法
-
             if comp["symbol"] == symbol:
                 target_rank = idx
                 break
@@ -193,129 +161,45 @@ class CompetitionAnalysisService:
             return "leader"
         elif 2 <= rank <= 5 or 5 <= market_share <= 30:
             return "second_tier"
-        return "follower"
+        else:
+            return "follower"
 
-def _build_financial_comparison(
-    self, target_symbol: str, target_info: dict, competitors: List[dict]
-) -> Dict[str, Any]:
-    """构建财务对比表"""
-    metrics = ["roe", "gross_margin", "net_profit_growth", "revenue_growth"]
-    data = []
+    def _build_financial_comparison(
+        self, target_symbol: str, target_info: dict, competitors: List[dict]
+    ) -> Dict[str, Any]:
+        """构建财务对比表"""
+        metrics = ["roe", "gross_margin", "net_profit_growth", "revenue_growth"]
+        data = []
 
-    # 添加目标公司
-    target_row = {
-        "symbol": target_symbol,
-        "name": target_info["name"],
-        "roe": target_info.get("roe"),
-        "gross_margin": target_info.get("gross_margin"),
-        "net_profit_growth": target_info.get("net_profit_growth"),
-        "revenue_growth": target_info.get("revenue_growth")
-    }
-    data.append(target_row)
-
-    # 添加竞争对手
-    for comp in competitors:
-        if comp["symbol"] == target_symbol:
-            continue
-        comp_row = {
-            "symbol": comp["symbol"],
-            "name": comp["name"],
-            "roe": comp.get("roe"),
-            "gross_margin": comp.get("gross_margin"),
-            "net_profit_growth": comp.get("net_profit_growth"),
-            "revenue_growth": comp.get("revenue_growth")
+        # 添加目标公司
+        target_row = {
+            "symbol": target_symbol,
+            "name": target_info["name"],
+            "roe": target_info.get("roe"),
+            "gross_margin": target_info.get("gross_margin"),
+            "net_profit_growth": target_info.get("net_profit_growth"),
+            "revenue_growth": target_info.get("revenue_growth")
         }
-        data.append(comp_row)
+        data.append(target_row)
 
-    return {
-        "metrics": metrics,
-        "data": data
-    }
+        # 添加竞争对手
+        for comp in competitors:
+            if comp["symbol"] == target_symbol:
+                continue
+            comp_row = {
+                "symbol": comp["symbol"],
+                "name": comp["name"],
+                "roe": comp.get("roe"),
+                "gross_margin": comp.get("gross_margin"),
+                "net_profit_growth": comp.get("net_profit_growth"),
+                "revenue_growth": comp.get("revenue_growth")
+            }
+            data.append(comp_row)
 
-# TODO: Refactor - complexity 27 (target < 15)
-
-def _validate__extract_competitive_edges_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _extract_competitive_edges 移到这里
-    return True, None
-
-def _process__extract_competitive_edges_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _extract_competitive_edges 移到这里
-    return data
-
-def _build__extract_competitive_edges_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _extract_competitive_edges 移到这里
-    return data
-
-def _validate__extract_competitive_edges_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 _extract_competitive_edges 移到这里
-    return True, None
-
-def _process__extract_competitive_edges_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 _extract_competitive_edges 移到这里
-    return data
-
-def _validate__build__extract_competitive_edges_result_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process__build__extract_competitive_edges_result_data(data):
-    """处理数据转换"""
-    return data
-
-def _build__build__extract_competitive_edges_result_result(data):
-    """构建返回结果"""
-    def _validate__extract_competitive_edges_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__extract_competitive_edges_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__extract_competitive_edges_result(data):
-        """构建返回结果"""
-        return data
-
-    return data
-
-def _validate__build__extract_competitive_edges_result_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process__build__extract_competitive_edges_result_data(data):
-    """处理数据转换"""
-    return data
-
-def _build__build__extract_competitive_edges_result_result(data):
-    """构建返回结果"""
-    def _validate__extract_competitive_edges_input(*args, **kwargs):
-        """验证输入参数"""
-        pass
-
-    def _process__extract_competitive_edges_data(data):
-        """处理数据转换"""
-        return data
-
-    def _build__extract_competitive_edges_result(data):
-        """构建返回结果"""
-        return data
-
-    return data
-
-def _build__extract_competitive_edges_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 _extract_competitive_edges 移到这里
-    return data
-
-# TODO: Refactor - complexity 27 (target < 15)
-    # REFACTOR: Split this function into smaller pieces
-    # TODO: Refactor - complexity 27 (target < 15)
-    # TODO: 复杂度 27 - 需要重构拆分为更小的函数
+        return {
+            "metrics": metrics,
+            "data": data
+        }
 
     def _extract_competitive_edges(
         self, stock_info: dict, industry_totals: dict

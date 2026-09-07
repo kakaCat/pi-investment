@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_101 = 101
-CONST_20 = 20
-CONST_2024 = 2024
-CONST_3_1 = 3.1
-CONST_3_2 = 3.2
-CONST_3_3 = 3.3
-CONST_3_4 = 3.4
-CONST_31 = 31
-CONST_5 = 5
-CONST_5_0 = 5.0
-
 #!/usr/bin/env python3
 """
 异步测试运行脚本
@@ -229,8 +215,9 @@ async def main():
     if passed == total:
         print("\n🎉 所有测试通过！异步数据库基础设施工作正常。")
         return 0
-    print(f"\n⚠ {total - passed} 个测试失败，请检查配置。")
-    return 1
+    else:
+        print(f"\n⚠ {total - passed} 个测试失败，请检查配置。")
+        return 1
 
 
 if __name__ == "__main__":

@@ -1,59 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.01, 0.03, 0.05, 0.1, 0.15]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_01 = 0.01
-
-CONST_0_03 = 0.03
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-
-
-CONST_0_01 = 0.01
-
-CONST_0_03 = 0.03
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_15 = 0.15
-
-CONST_0_2 = 0.2
-
-CONST_0_25 = 0.25
-
-CONST_0_3 = 0.3
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-
-
 """
 期权Greeks计算完整示例
 
@@ -280,19 +224,7 @@ def greeks_sensitivity_analysis():
         print(f"{sigma:>6.1%}    {greeks['vega']:>10.4f}")
 
 
-# TODO: Refactor - function too long (101 lines, target < 80)
-
-# TODO: 长函数 109行 - 建议拆分为多个小函数
-
 def option_strategy_greeks():
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
-    # ---- Section 1 ----
-    # ---- Section 2 ----
-    # ---- Section 3 ----
-    # ---- Section 4 ----
     """期权策略Greeks"""
     print("\n" + "=" * 60)
     print("步骤5: 期权策略Greeks")

@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-
-
-CONST_400 = 400
-
-CONST_404 = 404
-
-
-
 """tools API - FastAPI 版（从 Flask tools.py 迁移，响应契约保持一致）
 
 端点为服务自省（列出/描述当前服务的路由）。Flask 遍历 current_app.url_map，

@@ -1,63 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-# LONG FUNCTIONS TO REFACTOR:
-#   - _discover_single() = 121 lines
-
-
-# TODO: Extract magic numbers to named constants: [1.2, 1.5, 2.5, 3, 4]...
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_1_2 = 1.2
-
-CONST_1_5 = 1.5
-
-CONST_2_5 = 2.5
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_7 = 7
-
-CONST_8 = 8
-
-CONST_9 = 9
-
-CONST_12 = 12
-
-
-
-CONST_1_2 = 1.2
-
-CONST_1_5 = 1.5
-
-CONST_2_5 = 2.5
-
-CONST_3 = 3
-
-CONST_4 = 4
-
-CONST_5 = 5
-
-CONST_7 = 7
-
-CONST_8 = 8
-
-CONST_9 = 9
-
-CONST_12 = 12
-
-
-
 """
 策略发现引擎 (Strategy Discovery Engine)
 
@@ -74,6 +14,7 @@ CONST_12 = 12
   report = service.run(symbols=["600900", "600025"], ...)
 """
 
+from __future__ import annotations
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -464,22 +405,7 @@ class StrategyDiscoveryService:
 
         return report
 
-    # TODO: Refactor - function too long (122 lines, target < 80)
-
-# TODO: Split long function (121 lines, target < 100)
-    # TODO: 长函数 132行 - 建议拆分为多个小函数
-
     def _discover_single(
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
-        # ---- Section 1 ----
-        # ---- Section 2 ----
-        # ---- Section 3 ----
-        # ---- Section 4 ----
-        # ---- Section 5 ----
         self,
         service,
         arch: StrategyArchetype,

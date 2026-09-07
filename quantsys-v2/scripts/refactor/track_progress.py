@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 #!/usr/bin/env python3
 """进度追踪工具 - 追踪重构进度并生成报告
 
@@ -40,8 +37,6 @@ def get_current_status() -> Dict:
     
     for line in lines:
         if 'sys.path.insert' in line:
-            # TODO: 提取嵌套逻辑为独立方法
-
             if 'PASS' in line:
                 status['issues']['sys_path'] = {'status': 'pass', 'count': 0}
             elif 'FAIL' in line:
@@ -99,52 +94,6 @@ def save_snapshot(status: Dict):
     
     print(f"✅ 进度快照已保存到 {PROGRESS_FILE}")
 
-
-# TODO: Refactor - complexity 16 (target < 15)
-
-def _validate_show_history_input(data):
-    """验证输入参数"""
-    # TODO: 将验证逻辑从 show_history 移到这里
-    return True, None
-
-def _process_show_history_data(data):
-    """处理数据转换"""
-    # TODO: 将数据处理逻辑从 show_history 移到这里
-    return data
-
-def _build_show_history_result(data):
-    """构建返回结果"""
-    # TODO: 将结果构建逻辑从 show_history 移到这里
-    return data
-
-# TODO: Refactor - complexity 16 (target < 15)
-# REFACTOR: Split this function into smaller pieces
-# TODO: Refactor - complexity 16 (target < 15)
-# TODO: 复杂度 16 - 需要重构拆分为更小的函数
-
-def _validate_show_history_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_show_history_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_show_history_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_show_history_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_show_history_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_show_history_result(data):
-    """构建返回结果"""
-    return data
 
 def show_history():
     """显示历史进度"""

@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """
 Command Pattern Base Classes
 
@@ -30,7 +27,9 @@ class CommandResult:
             'success': self.success,
             'data': self.data,
         }
-        if self.error and self.warnings:
+        if self.error:
+            result['error'] = self.error
+        if self.warnings:
             result['warnings'] = self.warnings
         return result
 

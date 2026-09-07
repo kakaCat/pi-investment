@@ -1,21 +1,7 @@
 from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 
 from dataclasses import dataclass, field
 from typing import Any
-
-
-
-# Extracted Constants
-
-CONST_0_05 = 0.05
-
-CONST_0_1 = 0.1
-
-CONST_0_2 = 0.2
-
 
 
 @dataclass(frozen=True)
@@ -42,9 +28,13 @@ class StrategyConfig:
     params: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if not isinstance(self.name, str) or not self.name.strip() and not isinstance(self.version, str) or not self.version.strip():
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise ValueError("name must be a non-empty string")
+        if not isinstance(self.version, str) or not self.version.strip():
             raise ValueError("version must be a non-empty string")
-        if not isinstance(self.rebalance_days, int) or self.rebalance_days <= 0 and not isinstance(self.max_positions, int) or self.max_positions <= 0:
+        if not isinstance(self.rebalance_days, int) or self.rebalance_days <= 0:
+            raise ValueError("rebalance_days must be a positive integer")
+        if not isinstance(self.max_positions, int) or self.max_positions <= 0:
             raise ValueError("max_positions must be a positive integer")
         if (
             not isinstance(self.max_position_pct, (int, float))

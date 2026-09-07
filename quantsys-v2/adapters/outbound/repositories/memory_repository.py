@@ -1,28 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_3 = 0.3
-
-CONST_20 = 20
-
-CONST_5000 = 5000
-
-
-
-CONST_0_3 = 0.3
-
-CONST_20 = 20
-
-CONST_5000 = 5000
-
-
-
 """Memory Repository - quant.memory_entries 数据访问层"""
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -144,7 +119,9 @@ class MemoryRepository(BaseORMRepository[MemoryEntryModel]):
             query = self.session.query(self.model)
 
             # 过滤条件
-            if scope and kind:
+            if scope:
+                query = query.filter(self.model.scope == scope)
+            if kind:
                 query = query.filter(self.model.kind == kind)
             if status:
                 # 支持逗号分隔多状态（如 "active,testing"——W1.4 queryExperience 依赖）
@@ -183,7 +160,9 @@ class MemoryRepository(BaseORMRepository[MemoryEntryModel]):
         """列出过滤后的全部候选（W1.3 混合检索语料，应用层建索引）"""
         try:
             query = self.session.query(self.model)
-            if scope and kind:
+            if scope:
+                query = query.filter(self.model.scope == scope)
+            if kind:
                 query = query.filter(self.model.kind == kind)
             if status:
                 statuses = [s.strip() for s in status.split(",") if s.strip()]

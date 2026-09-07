@@ -1,16 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_102_0 = 102.0
-CONST_105_0 = 105.0
-CONST_2_35 = 2.35
-CONST_2001 = 2001
-CONST_27 = 27
-CONST_3_0 = 3.0
-CONST_48_50 = 48.50
-CONST_55_20 = 55.20
-CONST_98_0 = 98.0
-
 """
 测试信号到订单的完整流程
 """

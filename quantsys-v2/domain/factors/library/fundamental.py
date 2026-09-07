@@ -1,35 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# TODO: Extract magic numbers to named constants: [0.001, 0.01, 0.02, 0.03, 0.04]...
-
-
-# Extracted Constants
-
-CONST_0_001 = 0.001
-
-CONST_0_01 = 0.01
-
-CONST_0_02 = 0.02
-
-CONST_0_03 = 0.03
-
-CONST_0_04 = 0.04
-
-CONST_0_05 = 0.05
-
-CONST_0_06 = 0.06
-
-CONST_0_08 = 0.08
-
-CONST_0_1 = 0.1
-
-CONST_0_12 = 0.12
-
-
-
 """
 Fundamental Factor Calculators
 ==============================
@@ -42,6 +10,7 @@ Earnings Quality decomposes profit quality into 4 sub-scores.
 All calculators inherit from BaseCalculator for standardized interface.
 """
 
+from __future__ import annotations
 
 from typing import Any, Optional
 
@@ -86,138 +55,6 @@ class FScoreCalculator(BaseCalculator):
     def get_supported_methods(self) -> list[str]:
         return ["fscore"]
 
-    # TODO: Refactor - complexity 20 (target < 15)
-
-    def _validate_calculate_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 calculate 移到这里
-        return True, None
-
-    def _process_calculate_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 calculate 移到这里
-        return data
-
-    def _build_calculate_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 calculate 移到这里
-        return data
-
-    def _validate_calculate_input(data):
-        """验证输入参数"""
-        # TODO: 将验证逻辑从 calculate 移到这里
-        return True, None
-
-    def _process_calculate_data(data):
-        """处理数据转换"""
-        # TODO: 将数据处理逻辑从 calculate 移到这里
-        return data
-
-    def _build_calculate_result(data):
-        """构建返回结果"""
-        # TODO: 将结果构建逻辑从 calculate 移到这里
-        return data
-
-    # TODO: Refactor - complexity 20 (target < 15)
-
-    def _init(self):
-        """执行: init"""
-        if len(args) == 1 and isinstance(args[0], dict) and 'current' in args[0]:
-            # Adapter calling convention
-            fd = args[0]
-            current = fd.get('current', {})
-            previous = fd.get('previous', {})
-        elif len(args) == 2:
-            current, previous = args[0], args[1]
-        else:
-            self.logger.error(f"Invalid arguments for FSCORE: {len(args)} args")
-            return None
-        def _get(d: dict, key: str) -> Optional[float]:
-            v = d.get(key)
-            return float(v) if v is not None else None
-        # ── extract values ──
-        roa = _get(current, "roa")
-        cfo = _get(current, "operating_cf")
-        ni  = _get(current, "net_income")
-        ltd = _get(current, "long_term_debt")
-        ta  = _get(current, "total_assets")
-        cr  = _get(current, "current_ratio")
-        shares = _get(current, "total_shares")
-        gm  = _get(current, "gross_margin")
-        rev = _get(current, "revenue")
-        prev_roa = _get(previous, "roa")
-        prev_ltd = _get(previous, "long_term_debt")
-        prev_ta  = _get(previous, "total_assets")
-        prev_cr  = _get(previous, "current_ratio")
-        prev_shares = _get(previous, "total_shares")
-        prev_gm  = _get(previous, "gross_margin")
-        prev_rev = _get(previous, "revenue")
-        # ── guard: need minima ──
-        if any(v is None for v in [roa, cfo, ni, ltd, ta, cr, shares, gm, rev]) and any(v is None for v in [prev_roa, prev_ltd, prev_ta, prev_cr:
-                                     prev_shares, prev_gm, prev_rev]):
-            return None
-        score = 0
-
-    def _roa__0(self):
-        """执行: roa_>_0"""
-        if roa > 0:
-            score += 1
-        pass
-
-    def _operating_cf__0(self):
-        """执行: operating_cf_>_0"""
-        if cfo > 0:
-            score += 1
-        pass
-
-    def _roa_increased_yoy(self):
-        """执行: roa_increased_yoy"""
-        if roa > prev_roa:
-            score += 1
-        pass
-
-    def _accrual_quality_cfo__net_income(self):
-        """执行: accrual_quality:_cfo_>_net_income"""
-        if cfo > ni:
-            score += 1
-        pass
-
-    def _leverage_decreased_lt_debt__total_assets_(self):
-        """执行: leverage_decreased:_lt_debt_/_total_assets_↓"""
-        cur_lev = ltd / ta if ta != 0 else None
-        prev_lev = prev_ltd / prev_ta if prev_ta != 0 else None
-        if cur_lev is not None and prev_lev is not None and cur_lev < prev_lev:
-            score += 1
-        pass
-
-    def _current_ratio_increased(self):
-        """执行: current_ratio_increased"""
-        if cr > prev_cr:
-            score += 1
-        pass
-
-    def _no_new_equity_issuance_shares__previous(self):
-        """执行: no_new_equity_issuance_shares_≤_previous"""
-        if shares <= prev_shares:
-            score += 1
-        pass
-
-    def _gross_margin_increased(self):
-        """执行: gross_margin_increased"""
-        if gm > prev_gm:
-            score += 1
-        pass
-
-    def _asset_turnover_increased_revenue__total_assets_(self):
-        """执行: asset_turnover_increased:_revenue_/_total_assets_↑"""
-        cur_turn = rev / ta if ta != 0 else None
-        prev_turn = prev_rev / prev_ta if prev_ta != 0 else None
-        if cur_turn is not None and prev_turn is not None and cur_turn > prev_turn:
-            score += 1
-        return score
-# ──────────────────────────────────────────────────────────────────────
-# Earnings Quality Calculator — 4-factor composite (0-400)
-# ──────────────────────────────────────────────────────────────────────
     def calculate(self, *args) -> Optional[int]:
         """
         Calculate FSCORE.
@@ -229,16 +66,96 @@ class FScoreCalculator(BaseCalculator):
 
         Returns None if critical data fields are missing.
         """
-        self._init()
-        self._roa__0()
-        self._operating_cf__0()
-        self._roa_increased_yoy()
-        self._accrual_quality_cfo__net_income()
-        self._leverage_decreased_lt_debt__total_assets_()
-        self._current_ratio_increased()
-        self._no_new_equity_issuance_shares__previous()
-        self._gross_margin_increased()
-        self._asset_turnover_increased_revenue__total_assets_()
+        if len(args) == 1 and isinstance(args[0], dict) and 'current' in args[0]:
+            # Adapter calling convention
+            fd = args[0]
+            current = fd.get('current', {})
+            previous = fd.get('previous', {})
+        elif len(args) == 2:
+            current, previous = args[0], args[1]
+        else:
+            self.logger.error(f"Invalid arguments for FSCORE: {len(args)} args")
+            return None
+
+        def _get(d: dict, key: str) -> Optional[float]:
+            v = d.get(key)
+            return float(v) if v is not None else None
+
+        # ── extract values ──
+        roa = _get(current, "roa")
+        cfo = _get(current, "operating_cf")
+        ni  = _get(current, "net_income")
+        ltd = _get(current, "long_term_debt")
+        ta  = _get(current, "total_assets")
+        cr  = _get(current, "current_ratio")
+        shares = _get(current, "total_shares")
+        gm  = _get(current, "gross_margin")
+        rev = _get(current, "revenue")
+
+        prev_roa = _get(previous, "roa")
+        prev_ltd = _get(previous, "long_term_debt")
+        prev_ta  = _get(previous, "total_assets")
+        prev_cr  = _get(previous, "current_ratio")
+        prev_shares = _get(previous, "total_shares")
+        prev_gm  = _get(previous, "gross_margin")
+        prev_rev = _get(previous, "revenue")
+
+        # ── guard: need minima ──
+        if any(v is None for v in [roa, cfo, ni, ltd, ta, cr, shares, gm, rev]):
+            return None
+        if any(v is None for v in [prev_roa, prev_ltd, prev_ta, prev_cr,
+                                     prev_shares, prev_gm, prev_rev]):
+            return None
+
+        score = 0
+
+        # 1. ROA > 0
+        if roa > 0:
+            score += 1
+
+        # 2. Operating CF > 0
+        if cfo > 0:
+            score += 1
+
+        # 3. ROA increased YoY
+        if roa > prev_roa:
+            score += 1
+
+        # 4. Accrual quality: CFO > Net Income
+        if cfo > ni:
+            score += 1
+
+        # 5. Leverage decreased: LT Debt / Total Assets ↓
+        cur_lev = ltd / ta if ta != 0 else None
+        prev_lev = prev_ltd / prev_ta if prev_ta != 0 else None
+        if cur_lev is not None and prev_lev is not None and cur_lev < prev_lev:
+            score += 1
+
+        # 6. Current Ratio increased
+        if cr > prev_cr:
+            score += 1
+
+        # 7. No new equity issuance (shares ≤ previous)
+        if shares <= prev_shares:
+            score += 1
+
+        # 8. Gross Margin increased
+        if gm > prev_gm:
+            score += 1
+
+        # 9. Asset Turnover increased: Revenue / Total Assets ↑
+        cur_turn = rev / ta if ta != 0 else None
+        prev_turn = prev_rev / prev_ta if prev_ta != 0 else None
+        if cur_turn is not None and prev_turn is not None and cur_turn > prev_turn:
+            score += 1
+
+        return score
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Earnings Quality Calculator — 4-factor composite (0-400)
+# ──────────────────────────────────────────────────────────────────────
+
 class EarningsQualityCalculator(BaseCalculator):
     """
     Earnings Quality 4-Factor Score (0-400).
@@ -309,7 +226,9 @@ class EarningsQualityCalculator(BaseCalculator):
         tl = _get("total_liabilities")
         roe_raw = _get("roe")
 
-        if any(v is None for v in [ni, cf, ta, tl, roe_raw]) and ta == 0:
+        if any(v is None for v in [ni, cf, ta, tl, roe_raw]):
+            return None
+        if ta == 0:
             return None
 
         ref = self.DEFAULT_PERCENTILES
@@ -356,8 +275,6 @@ class EarningsQualityCalculator(BaseCalculator):
         if not thresholds:
             return 50.0
         for i, t in enumerate(reversed(thresholds), 1):
-            # TODO: 提取嵌套逻辑为独立方法
-
             if value >= t:
                 return 100.0 - (i - 1) * 10.0 + (10.0 * min(1.0, (value - t) / (t + 0.001)))
         return 0.0

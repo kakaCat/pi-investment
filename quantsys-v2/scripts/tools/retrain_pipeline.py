@@ -1,19 +1,4 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_120 = 120
-CONST_200 = 200
-CONST_3 = 3
-CONST_365 = 365
-CONST_4 = 4
-CONST_42 = 42
-CONST_5 = 5
-CONST_60 = 60
-
 #!/usr/bin/env python3
-
-# TODO: Extract magic numbers to named constants: [0.03, 0.1, 0.5, 0.8, 3]...
-
 """
 v2 原生 ML 重训练流水线
 - 批量计算因子（存入 v2 PG）
@@ -28,38 +13,6 @@ _V2_ROOT = Path(__file__).resolve().parents[1]
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
-
-# TODO: Refactor - complexity 28 (target < 15)
-
-# TODO: Refactor - function too long (228 lines, target < 80)
-
-# TODO: 复杂度 28 - 需要重构拆分为更小的函数
-
-# TODO: 长函数 228行 - 建议拆分为多个小函数
-
-def _validate_main_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_main_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_main_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_main_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_main_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_main_result(data):
-    """构建返回结果"""
-    return data
 
 def main():
     from adapters.shared.services import get_stock_repo, get_kline_repo, get_factor_repo

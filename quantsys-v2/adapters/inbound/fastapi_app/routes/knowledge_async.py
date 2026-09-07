@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_500 = 500
-
-
-
-CONST_500 = 500
-
-
-
 """Knowledge API - FastAPI 版（知识库查询/应用/摘要/验证）
 
 背景：knowledge 路由此前只有 Flask 版（adapters/inbound/api/routes/knowledge_management.py），

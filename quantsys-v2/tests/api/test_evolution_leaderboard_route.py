@@ -1,14 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_20 = 20
-CONST_200 = 200
-CONST_2026 = 2026
-CONST_5 = 5
-CONST_500 = 500
-CONST_7 = 7
-CONST_8 = 8
-
 """GET /api/evolution/leaderboard FastAPI 路由契约测试（TestClient + mock 仓储层）"""
 from datetime import date
 from unittest.mock import patch

@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_60 = 60
-
-
-
-CONST_60 = 60
-
-
-
 """
 统一测试脚本 - Phase 1 宏观经济数据源
 测试所有新迁移的数据源：IMF, OECD, BIS, ECB, BOJ
@@ -232,8 +215,9 @@ def main():
     if passed == total:
         print("\n🎉 所有测试通过！Phase 1 迁移成功！")
         return 0
-    print(f"\n⚠️  {total - passed} 个数据源测试失败，请检查错误信息")
-    return 1
+    else:
+        print(f"\n⚠️  {total - passed} 个数据源测试失败，请检查错误信息")
+        return 1
 
 
 if __name__ == "__main__":

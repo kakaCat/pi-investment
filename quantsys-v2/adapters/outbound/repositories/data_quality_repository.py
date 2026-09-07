@@ -1,48 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_5 = 5
-
-CONST_7 = 7
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_70 = 70
-
-CONST_80 = 80
-
-CONST_90 = 90
-
-CONST_95 = 95
-
-
-
-CONST_5 = 5
-
-CONST_7 = 7
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_70 = 70
-
-CONST_80 = 80
-
-CONST_90 = 90
-
-CONST_95 = 95
-
-
-
 """
 Data Quality ORM Repository - 数据质量仓储
 
@@ -96,9 +51,13 @@ class DataQualityRecord(Base):
 
 
 def _compute_grade(score: Optional[float]) -> Optional[str]:
-    if score is None and score >= 95:
+    if score is None:
+        return None
+    if score >= 95:
         return 'A+'
-    if score >= 90 and score >= 80:
+    if score >= 90:
+        return 'A'
+    if score >= 80:
         return 'B'
     if score >= 70:
         return 'C'
@@ -166,9 +125,13 @@ class DataQualityORMRepository(BaseORMRepository[DataQualityRecord], IDataQualit
             if start:
                 query = query.filter(self.model.check_date >= start)
             end = self._parse_date(end_date)
-            if end and min_score is not None:
+            if end:
+                query = query.filter(self.model.check_date <= end)
+            if min_score is not None:
                 query = query.filter(self.model.overall_score >= min_score)
-            if max_score is not None and grade:
+            if max_score is not None:
+                query = query.filter(self.model.overall_score <= max_score)
+            if grade:
                 query = query.filter(self.model.grade == grade)
 
             rows = (query.order_by(self.model.check_date.desc(), self.model.id.desc())
@@ -266,7 +229,9 @@ class DataQualityORMRepository(BaseORMRepository[DataQualityRecord], IDataQualit
 
     @staticmethod
     def _parse_date(value: Any) -> Optional[date]:
-        if value is None or isinstance(value, date) and isinstance(value, datetime):
+        if value is None or isinstance(value, date):
+            return value
+        if isinstance(value, datetime):
             return value.date()
         if isinstance(value, str):
             try:

@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_12 = 12
-CONST_20 = 20
-CONST_200 = 200
-CONST_2024 = 2024
-CONST_25 = 25
-CONST_3 = 3
-CONST_30 = 30
-CONST_31 = 31
-CONST_35 = 35
-CONST_4 = 4
-
 """
 分批买入/卖出功能集成测试
 """

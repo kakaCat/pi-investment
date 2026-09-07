@@ -1,14 +1,3 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_4 = 4
-
-
-
 """筹码分布编排服务 — 增量更新、回填、换手率回退、查询
 
 换手率回退链（spec §计算模型）：
@@ -16,6 +5,7 @@ CONST_4 = 4
   → volume × close / circulating_mv（流通市值反推流通股）
   → 当日全市场换手率中位数
 """
+from __future__ import annotations
 
 from typing import Any, Dict, Optional
 

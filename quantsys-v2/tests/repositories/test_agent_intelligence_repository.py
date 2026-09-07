@@ -1,13 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_15 = 15
-CONST_2026 = 2026
-CONST_25 = 25
-CONST_3 = 3
-CONST_5 = 5
-CONST_5_2 = 5.2
-
 """
 测试 Agent Intelligence Repository - 符合 quantsys-v2 项目规范
 """
@@ -155,4 +145,5 @@ class TestPoolChangeLogRepository:
         history = repo_change_log.get_pool_history(pool_id=test_pool['id'], limit=10)
 
         assert len(history) >= 3
+
 

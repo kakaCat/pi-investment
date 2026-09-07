@@ -1,15 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100000 = 100000
-CONST_2_4 = 2.4
-CONST_20 = 20
-CONST_2024 = 2024
-CONST_30 = 30
-CONST_5 = 5
-CONST_50 = 50
-CONST_60 = 60
-
 #!/usr/bin/env python3
 """
 Phase 2.4 Validation Test

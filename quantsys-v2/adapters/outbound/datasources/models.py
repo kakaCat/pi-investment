@@ -1,6 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
 """Data models for all provider domains.
 
 All models include source and timestamp fields for tracking data origin.
@@ -28,7 +25,9 @@ class QuoteData:
 
     def __post_init__(self):
         """Validate data"""
-        if not self.symbol or not self.symbol.strip() and self.price <= 0:
+        if not self.symbol or not self.symbol.strip():
+            raise ValueError("symbol cannot be empty")
+        if self.price <= 0:
             raise ValueError(f"price must be positive, got {self.price}")
 
 

@@ -1,33 +1,5 @@
-from __future__ import annotations
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-CONST_0_0001 = 0.0001
-
-CONST_0_15 = 0.15
-
-CONST_0_33 = 0.33
-
-CONST_0_34 = 0.34
-
-CONST_0_4 = 0.4
-
-CONST_0_5 = 0.5
-
-CONST_0_6 = 0.6
-
-CONST_0_7 = 0.7
-
-CONST_0_95 = 0.95
-
-CONST_4 = 4
-
-
-
 """Multi-factor strategy — layered scoring model."""
+from __future__ import annotations
 from typing import Any
 
 from domain.backtest.engine.enhanced_strategy_base import EnhancedStrategyBase

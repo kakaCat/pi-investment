@@ -106,34 +106,6 @@ def scan_todos(base_dir: Path, patterns: List[str] = None) -> List[TODOItem]:
     return todos
 
 
-# TODO: Refactor - complexity 17 (target < 15)
-
-# TODO: 复杂度 17 - 需要重构拆分为更小的函数
-
-def _validate_generate_report_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_generate_report_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_generate_report_result(data):
-    """构建返回结果"""
-    return data
-
-def _validate_generate_report_input(*args, **kwargs):
-    """验证输入参数"""
-    pass
-
-def _process_generate_report_data(data):
-    """处理数据转换"""
-    return data
-
-def _build_generate_report_result(data):
-    """构建返回结果"""
-    return data
-
 def generate_report(todos: List[TODOItem], output_file: Path) -> None:
     """生成清理报告
 

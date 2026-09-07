@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_2_1 = 2.1
-CONST_2_2 = 2.2
-CONST_20_0 = 20.0
-CONST_2024 = 2024
-CONST_2026 = 2026
-CONST_27 = 27
-CONST_3 = 3
-CONST_39_0 = 39.0
-CONST_45_0 = 45.0
-CONST_49_0 = 49.0
-
 """Tests for StrategyValidationService"""
 import pytest
 from unittest.mock import Mock, patch

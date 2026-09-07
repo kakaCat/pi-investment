@@ -1,20 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_20 = 20
-
-
-
-CONST_20 = 20
-
-
-
 """
 Kline Commands
 
@@ -107,7 +90,9 @@ class KlineStatsCommand(HTTPCommand):
         return "GET"
 
     def validate_params(self, **kwargs) -> str:
-        if not kwargs.get('symbol') and not kwargs.get('start') or not kwargs.get('end'):
+        if not kwargs.get('symbol'):
+            return "股票代码不能为空"
+        if not kwargs.get('start') or not kwargs.get('end'):
             return "开始日期和结束日期不能为空"
         return None
 

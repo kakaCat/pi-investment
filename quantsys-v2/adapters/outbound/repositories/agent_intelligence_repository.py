@@ -1,36 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_7 = 7
-
-CONST_8 = 8
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-CONST_200 = 200
-
-
-
-CONST_7 = 7
-
-CONST_8 = 8
-
-CONST_20 = 20
-
-CONST_50 = 50
-
-CONST_200 = 200
-
-
-
 """
 Agent Intelligence ORM Repository - 智能体决策仓储
 
@@ -171,7 +138,9 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
             row.evaluation_status = 'evaluated'
             row.evaluation_result = evaluation
             row.evaluation_date = datetime.now()
-            if 'success' in evaluation and 'learned_lesson' in evaluation:
+            if 'success' in evaluation:
+                row.success = evaluation['success']
+            if 'learned_lesson' in evaluation:
                 row.learned_lesson = evaluation['learned_lesson']
             if 'confidence_score' in evaluation:
                 row.confidence_score = evaluation['confidence_score']

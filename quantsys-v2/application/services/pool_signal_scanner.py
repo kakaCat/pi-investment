@@ -1,44 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_0_1 = 0.1
-
-CONST_0_97 = 0.97
-
-CONST_1_08 = 1.08
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_60 = 60
-
-
-
-CONST_0_1 = 0.1
-
-CONST_0_97 = 0.97
-
-CONST_1_08 = 1.08
-
-CONST_20 = 20
-
-CONST_30 = 30
-
-CONST_50 = 50
-
-CONST_60 = 60
-
-
-
 """
 Pool Signal Scanner Service - 股票池实时信号扫描
 
@@ -63,7 +22,9 @@ class PoolSignalScanner:
         """parsed_params 归一为 {name: value}：
         dict → 原样；[{name, default, ...}] → {name: default}；
         ['a','b']（仅名字无默认值）→ {}；None/其他 → {}"""
-        if isinstance(raw, dict) and isinstance(raw, list):
+        if isinstance(raw, dict):
+            return raw
+        if isinstance(raw, list):
             out = {}
             for item in raw:
                 if isinstance(item, dict) and 'name' in item:
@@ -261,9 +222,7 @@ class PoolSignalScanner:
 
         # 执行策略代码（添加buy/sell列）；params 注入与 strategy_executor 契约一致
         local_vars = {'df': df, 'pd': pd, 'np': np, 'params': params}
-        # SECURITY WARNING: exec() usage - refactor to avoid dynamic execution
-
-        exec(strategy_code, {}, local_vars)  # TODO: Refactor to avoid dynamic code execution
+        exec(strategy_code, {}, local_vars)
         df = local_vars['df']
 
         # 获取最后一行（最新数据）
@@ -283,7 +242,9 @@ class PoolSignalScanner:
         if 'buy' in df.columns and last_row.get('buy', False):
             signal = 'buy'
             # 根据指标推断买入理由
-            if indicators.get('rsi14', 100) < 50 and indicators.get('macd', 0) > 0:
+            if indicators.get('rsi14', 100) < 50:
+                reasons.append('RSI超卖区间')
+            if indicators.get('macd', 0) > 0:
                 reasons.append('MACD金叉')
             if not reasons:
                 reasons.append('策略买入信号')

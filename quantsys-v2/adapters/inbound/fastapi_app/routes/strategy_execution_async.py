@@ -1,24 +1,3 @@
-# Configuration Constants (extracted from magic numbers)
-# TODO: Define constants for magic numbers found in this file
-
-
-# Extracted Constants
-
-
-# Extracted Constants
-
-CONST_400 = 400
-
-CONST_500 = 500
-
-
-
-CONST_400 = 400
-
-CONST_500 = 500
-
-
-
 """
 Strategy execution API routes - FastAPI 异步版本
 迁移自 Flask adapters/inbound/api/routes/strategy_execution.py

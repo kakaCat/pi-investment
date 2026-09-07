@@ -1,17 +1,3 @@
-
-# Configuration Constants
-# TODO: Review and rename these constants to meaningful names
-CONST_100000 = 100000
-CONST_101_0 = 101.0
-CONST_103_0 = 103.0
-CONST_105_0 = 105.0
-CONST_12 = 12
-CONST_120_0 = 120.0
-CONST_130_0 = 130.0
-CONST_14 = 14
-CONST_15 = 15
-CONST_150 = 150
-
 """
 Tests for Other Technical Indicators
 =====================================
@@ -25,9 +11,6 @@ import numpy as np
 from domain.quantlib.factors.other import OtherFactors
 from domain.quantlib.core.exceptions import InsufficientDataError, DataValidationError
 
-
-# TODO: Refactor large class (56 methods, target < 20)
-# TODO: 大类 56个方法 - 考虑拆分为多个类或使用组合模式
 
 class TestOtherFactors:
     """Test other technical indicator calculations."""
