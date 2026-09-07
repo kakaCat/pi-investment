@@ -171,6 +171,28 @@ export class QuantsysV2Client {
   private parseCondition(condition: string): Array<{type: string; params: Record<string, any>}> {
     const trimmed = condition.trim();
 
+    // JSON 复合条件格式（Phase 2）：{"type":"combined","params":{"operator":"AND","conditions":[...]}}
+    if (trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        // 如果是 combined 类型，返回包含它的数组（后端期望 conditions 是数组）
+        if (parsed.type === 'combined') {
+          return [parsed];
+        }
+        // 如果是其他结构化条件，直接返回（未来扩展）
+        if (parsed.type && parsed.params) {
+          return [parsed];
+        }
+        // 否则报错
+        throw new Error('JSON 格式必须包含 type 和 params');
+      } catch (e) {
+        throw new Error(
+          `Invalid JSON condition format: "${condition}". \n` +
+          `JSON 格式示例：{"type":"combined","params":{"operator":"AND","conditions":[...]}}`
+        );
+      }
+    }
+
     // velocity 特殊格式：velocity>2/15（15分钟窗口内波动≥2%）
     const velMatch = trimmed.match(/^velocity\s*>\s*([0-9]+\.?[0-9]*)\s*\/\s*([0-9]+)$/);
     if (velMatch) {
