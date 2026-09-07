@@ -152,7 +152,26 @@ ${alertsText}
     return this.sendCard({ title: `🌅 盘前准备 - ${date}`, content });
   }
 
+  // 2026-09-08 / w-752decf5：执行载体内容署名（与 dh 侧 feishu_notify 自动署名对齐）。
+  // 根因：agent-ts feishu webhook 与 Agent OS 通知渠道指向同一飞书机器人/群，ts 消息无来源
+  // 标识，用户无法区分执行载体（ts vs dh）。此署名让用户在群内一眼识别发送者。
+  private static readonly SIGNATURE = 'fin-agent（agent_virtual · ts）';
+
+  private injectSignature(payload: any): void {
+    if (!payload) return;
+    const sig = `—— ${FeishuNotificationService.SIGNATURE}`;
+    if (payload.msg_type === 'text' && payload.content?.text != null) {
+      payload.content.text = payload.content.text + '\n' + sig;
+    } else if (payload.msg_type === 'interactive' && Array.isArray(payload.card?.elements)) {
+      payload.card.elements.push({
+        tag: 'div',
+        text: { tag: 'lark_md', content: sig },
+      });
+    }
+  }
+
   private async send(payload: any): Promise<boolean> {
+    this.injectSignature(payload);
     if (!this.webhookUrl) {
       console.log('[Feishu] Webhook 未配置，跳过发送');
       return false;
