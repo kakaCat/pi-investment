@@ -364,6 +364,36 @@ class StrategyCodeService:
 
     # TODO: Refactor - complexity 19 (target < 15)
 
+    def _validate_update_strategy_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 update_strategy 移到这里
+        return True, None
+
+    def _process_update_strategy_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 update_strategy 移到这里
+        return data
+
+    def _build_update_strategy_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 update_strategy 移到这里
+        return data
+
+    def _validate_update_strategy_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 update_strategy 移到这里
+        return True, None
+
+    def _process_update_strategy_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 update_strategy 移到这里
+        return data
+
+    def _build_update_strategy_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 update_strategy 移到这里
+        return data
+
     def update_strategy(
         self,
         strategy_id: int,
@@ -555,6 +585,36 @@ class StrategyCodeService:
 
     # TODO: Refactor - function too long (138 lines, target < 80)
 
+    def _validate_generate_signal_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 generate_signal 移到这里
+        return True, None
+
+    def _process_generate_signal_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 generate_signal 移到这里
+        return data
+
+    def _build_generate_signal_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 generate_signal 移到这里
+        return data
+
+    def _validate_generate_signal_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 generate_signal 移到这里
+        return True, None
+
+    def _process_generate_signal_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 generate_signal 移到这里
+        return data
+
+    def _build_generate_signal_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 generate_signal 移到这里
+        return data
+
     def generate_signal(
         self,
         strategy_id: int,
@@ -695,6 +755,36 @@ class StrategyCodeService:
             return None
 # TODO: Refactor - function too long (181 lines, target < 80)
 
+
+    def _validate_run_strategy_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 run_strategy 移到这里
+        return True, None
+
+    def _process_run_strategy_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 run_strategy 移到这里
+        return data
+
+    def _build_run_strategy_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 run_strategy 移到这里
+        return data
+
+    def _validate_run_strategy_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 run_strategy 移到这里
+        return True, None
+
+    def _process_run_strategy_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 run_strategy 移到这里
+        return data
+
+    def _build_run_strategy_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 run_strategy 移到这里
+        return data
 
     def run_strategy(
         self,
@@ -1550,6 +1640,36 @@ class StrategyCodeService:
 
         return result
 
+    def _validate__inject_fund_flow_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _inject_fund_flow 移到这里
+        return True, None
+
+    def _process__inject_fund_flow_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _inject_fund_flow 移到这里
+        return data
+
+    def _build__inject_fund_flow_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _inject_fund_flow 移到这里
+        return data
+
+    def _validate__inject_fund_flow_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _inject_fund_flow 移到这里
+        return True, None
+
+    def _process__inject_fund_flow_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _inject_fund_flow 移到这里
+        return data
+
+    def _build__inject_fund_flow_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _inject_fund_flow 移到这里
+        return data
+
     def _inject_fund_flow(
         self,
         klines: List[Dict],
@@ -1741,6 +1861,36 @@ class StrategyCodeService:
             else:
                 logger.debug(f"东方财富获取失败: {symbol} - {e}")
             return None
+
+    def _validate__calculate_indicators_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_indicators 移到这里
+        return True, None
+
+    def _process__calculate_indicators_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_indicators 移到这里
+        return data
+
+    def _build__calculate_indicators_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_indicators 移到这里
+        return data
+
+    def _validate__calculate_indicators_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_indicators 移到这里
+        return True, None
+
+    def _process__calculate_indicators_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_indicators 移到这里
+        return data
+
+    def _build__calculate_indicators_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_indicators 移到这里
+        return data
 
     def _calculate_indicators(
         self,
@@ -1985,6 +2135,36 @@ class StrategyCodeService:
 
         # 否则返回原字符串
         return date_str
+
+    def _validate__inject_financial_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _inject_financial 移到这里
+        return True, None
+
+    def _process__inject_financial_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _inject_financial 移到这里
+        return data
+
+    def _build__inject_financial_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _inject_financial 移到这里
+        return data
+
+    def _validate__inject_financial_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _inject_financial 移到这里
+        return True, None
+
+    def _process__inject_financial_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _inject_financial 移到这里
+        return data
+
+    def _build__inject_financial_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _inject_financial 移到这里
+        return data
 
     def _inject_financial(self, klines: List[Dict], symbol: str) -> List[Dict]:
         """

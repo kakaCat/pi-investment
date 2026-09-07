@@ -196,6 +196,36 @@ class IBKRBroker(BaseBroker):
 
     # TODO: Refactor - complexity 16 (target < 15)
 
+    def _validate_get_quotes_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_quotes 移到这里
+        return True, None
+
+    def _process_get_quotes_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_quotes 移到这里
+        return data
+
+    def _build_get_quotes_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_quotes 移到这里
+        return data
+
+    def _validate_get_quotes_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_quotes 移到这里
+        return True, None
+
+    def _process_get_quotes_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_quotes 移到这里
+        return data
+
+    def _build_get_quotes_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_quotes 移到这里
+        return data
+
     def get_quotes(self, symbols: List[str]) -> ApiResponse[List[BrokerQuote]]:
         """
         Get real-time quotes using snapshot market data.
@@ -355,6 +385,36 @@ class IBKRBroker(BaseBroker):
     # ========================================================================
 # TODO: Refactor - complexity 16 (target < 15)
 
+
+    def _validate_place_order_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 place_order 移到这里
+        return True, None
+
+    def _process_place_order_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 place_order 移到这里
+        return data
+
+    def _build_place_order_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 place_order 移到这里
+        return data
+
+    def _validate_place_order_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 place_order 移到这里
+        return True, None
+
+    def _process_place_order_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 place_order 移到这里
+        return data
+
+    def _build_place_order_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 place_order 移到这里
+        return data
 
     def place_order(
         self,

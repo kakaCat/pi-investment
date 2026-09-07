@@ -26,6 +26,36 @@ router = APIRouter(tags=["Evolution - 策略进化引擎（RFC 012）"])
 
 # TODO: Refactor - complexity 16 (target < 15)
 
+def _validate__to_camel_run_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 _to_camel_run 移到这里
+    return True, None
+
+def _process__to_camel_run_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 _to_camel_run 移到这里
+    return data
+
+def _build__to_camel_run_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 _to_camel_run 移到这里
+    return data
+
+def _validate__to_camel_run_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 _to_camel_run 移到这里
+    return True, None
+
+def _process__to_camel_run_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 _to_camel_run 移到这里
+    return data
+
+def _build__to_camel_run_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 _to_camel_run 移到这里
+    return data
+
 def _to_camel_run(result: Dict[str, Any]) -> Dict[str, Any]:
     """服务 snake_case 结果 → qv2 camelCase 契约（proposals/metrics 内部键保留）。"""
     out: Dict[str, Any] = {}

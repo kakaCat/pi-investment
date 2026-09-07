@@ -96,7 +96,8 @@ def get_strategies_list(source: str = Query('user'), category: Optional[str] = Q
         return api_response({'strategies': strategies, 'total': len(strategies)})
 
     code_type = codeType
-    if code_type and code_type not in ('indicator', 'script', 'strategy'):
+    # Validation checks
+if code_type and code_type not in ('indicator', 'script', 'strategy'):
         return error_response({'success': False, 'error': f'无效的 code_type: {code_type}，必须是 indicator、script 或 strategy'}, 400)
 
     strategies = strategy_service.list_strategies(code_type=code_type, active_only=True)
@@ -169,7 +170,8 @@ def create_strategy(payload: Optional[Dict[str, Any]] = Body(None)):
     if 'code' not in strategy_data:
         return error_response({'success': False, 'error': '缺少必需参数: code'}, 400)
     code_type = strategy_data.get('code_type', 'indicator')
-    if code_type not in ('indicator', 'script', 'strategy'):
+    # Validation checks
+if code_type not in ('indicator', 'script', 'strategy'):
         return error_response({'success': False, 'error': f'无效的策略类型: {code_type}，必须是 indicator、script 或 strategy'}, 400)
 
     result = strategy_service.create_strategy(

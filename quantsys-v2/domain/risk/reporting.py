@@ -189,6 +189,36 @@ class RiskReportCalculator(BaseCalculator):
 
     # TODO: Refactor - complexity 17 (target < 15)
 
+    def _validate__assess_risk_level_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _assess_risk_level 移到这里
+        return True, None
+
+    def _process__assess_risk_level_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _assess_risk_level 移到这里
+        return data
+
+    def _build__assess_risk_level_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _assess_risk_level 移到这里
+        return data
+
+    def _validate__assess_risk_level_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _assess_risk_level 移到这里
+        return True, None
+
+    def _process__assess_risk_level_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _assess_risk_level 移到这里
+        return data
+
+    def _build__assess_risk_level_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _assess_risk_level 移到这里
+        return data
+
     def _assess_risk_level(self, metrics: Dict[str, Any]) -> Dict[str, Any]:
         """
         Assess overall risk level based on key metrics.

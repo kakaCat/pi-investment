@@ -34,7 +34,8 @@ def run_strategy(payload: Optional[Dict[str, Any]] = Body(None)):
         market = data.get("market", "A")
         total_capital = float(data.get("total_capital", 100000))
 
-        if market not in ("A", "HK"):
+        # Validation checks
+if market not in ("A", "HK"):
             return error_response({"success": False, "error": "market must be 'A' or 'HK'"}, 400)
 
         engine = _get_engine()

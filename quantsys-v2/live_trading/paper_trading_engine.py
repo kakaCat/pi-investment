@@ -262,6 +262,36 @@ class PaperTradingEngine:
 
     # TODO: Refactor - complexity 16 (target < 15)
 
+    def _validate__filter_buy_signals_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _filter_buy_signals 移到这里
+        return True, None
+
+    def _process__filter_buy_signals_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _filter_buy_signals 移到这里
+        return data
+
+    def _build__filter_buy_signals_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _filter_buy_signals 移到这里
+        return data
+
+    def _validate__filter_buy_signals_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _filter_buy_signals 移到这里
+        return True, None
+
+    def _process__filter_buy_signals_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _filter_buy_signals 移到这里
+        return data
+
+    def _build__filter_buy_signals_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _filter_buy_signals 移到这里
+        return data
+
     def _filter_buy_signals(
         self,
         signals: List[Signal],

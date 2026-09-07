@@ -39,6 +39,36 @@ class PoolValidationService:
 
     # TODO: Refactor - function too long (137 lines, target < 80)
 
+    def _validate_validate_pool_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 validate_pool 移到这里
+        return True, None
+
+    def _process_validate_pool_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 validate_pool 移到这里
+        return data
+
+    def _build_validate_pool_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 validate_pool 移到这里
+        return data
+
+    def _validate_validate_pool_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 validate_pool 移到这里
+        return True, None
+
+    def _process_validate_pool_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 validate_pool 移到这里
+        return data
+
+    def _build_validate_pool_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 validate_pool 移到这里
+        return data
+
     def validate_pool(self, pool_id: int, strategy_ids: List[int] = None,
                       start_date: str = None, end_date: str = None,
                       progress_emitter: Optional[ProgressEmitter] = None) -> Dict:

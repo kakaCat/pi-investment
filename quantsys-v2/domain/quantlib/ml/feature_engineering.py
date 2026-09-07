@@ -67,6 +67,36 @@ class FeatureEngineeringCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (136 lines, target < 80)
 
+    def _validate_generate_features_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 generate_features 移到这里
+        return True, None
+
+    def _process_generate_features_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 generate_features 移到这里
+        return data
+
+    def _build_generate_features_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 generate_features 移到这里
+        return data
+
+    def _validate_generate_features_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 generate_features 移到这里
+        return True, None
+
+    def _process_generate_features_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 generate_features 移到这里
+        return data
+
+    def _build_generate_features_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 generate_features 移到这里
+        return data
+
     def generate_features(self,
                           data: pd.DataFrame,
                           feature_types: Optional[List[str]] = None,

@@ -652,6 +652,36 @@ class AkShareAdapter(BaseMarketAdapter):
 
     # TODO: Refactor - complexity 21 (target < 15)
 
+    def _validate_get_market_news_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_market_news 移到这里
+        return True, None
+
+    def _process_get_market_news_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_market_news 移到这里
+        return data
+
+    def _build_get_market_news_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_market_news 移到这里
+        return data
+
+    def _validate_get_market_news_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_market_news 移到这里
+        return True, None
+
+    def _process_get_market_news_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_market_news 移到这里
+        return data
+
+    def _build_get_market_news_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_market_news 移到这里
+        return data
+
     def get_market_news(self, symbol: str = "", limit: int = 20) -> list[dict]:
         """Return recent market news for *symbol*.
 

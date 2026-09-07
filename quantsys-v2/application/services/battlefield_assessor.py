@@ -219,6 +219,36 @@ class BattlefieldAssessor:
 
     # TODO: Refactor - function too long (128 lines, target < 80)
 
+    def _validate__analyze_stocks_by_kline_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _analyze_stocks_by_kline 移到这里
+        return True, None
+
+    def _process__analyze_stocks_by_kline_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _analyze_stocks_by_kline 移到这里
+        return data
+
+    def _build__analyze_stocks_by_kline_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _analyze_stocks_by_kline 移到这里
+        return data
+
+    def _validate__analyze_stocks_by_kline_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _analyze_stocks_by_kline 移到这里
+        return True, None
+
+    def _process__analyze_stocks_by_kline_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _analyze_stocks_by_kline 移到这里
+        return data
+
+    def _build__analyze_stocks_by_kline_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _analyze_stocks_by_kline 移到这里
+        return data
+
     def _analyze_stocks_by_kline(self, symbols: List[str]) -> List[Dict]:
         """W2: 降级方法 - 使用K线数据分析战场（增强版）
         

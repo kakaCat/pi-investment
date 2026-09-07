@@ -24,6 +24,36 @@ class SinaWebFinancialProvider(FinancialProvider):
 
     # TODO: Refactor - function too long (108 lines, target < 80)
 
+    def _validate_get_financial_data_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_financial_data 移到这里
+        return True, None
+
+    def _process_get_financial_data_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_financial_data 移到这里
+        return data
+
+    def _build_get_financial_data_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_financial_data 移到这里
+        return data
+
+    def _validate_get_financial_data_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_financial_data 移到这里
+        return True, None
+
+    def _process_get_financial_data_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_financial_data 移到这里
+        return data
+
+    def _build_get_financial_data_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_financial_data 移到这里
+        return data
+
     def get_financial_data(
         self,
         symbol: str,
@@ -134,6 +164,36 @@ class SinaWebFinancialProvider(FinancialProvider):
             raise Exception(f"新浪财经网页查询失败: {e}") from e
 # TODO: Refactor - complexity 18 (target < 15)
 
+
+    def _validate__parse_sina_table_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _parse_sina_table 移到这里
+        return True, None
+
+    def _process__parse_sina_table_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _parse_sina_table 移到这里
+        return data
+
+    def _build__parse_sina_table_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _parse_sina_table 移到这里
+        return data
+
+    def _validate__parse_sina_table_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _parse_sina_table 移到这里
+        return True, None
+
+    def _process__parse_sina_table_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _parse_sina_table 移到这里
+        return data
+
+    def _build__parse_sina_table_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _parse_sina_table 移到这里
+        return data
 
     def _parse_sina_table(self, table, periods: int):
         """解析新浪财经表格

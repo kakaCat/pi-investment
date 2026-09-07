@@ -22,6 +22,36 @@ class EastmoneyFinancialProvider(FinancialProvider):
 
     # TODO: Refactor - function too long (122 lines, target < 80)
 
+    def _validate_get_financial_data_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_financial_data 移到这里
+        return True, None
+
+    def _process_get_financial_data_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_financial_data 移到这里
+        return data
+
+    def _build_get_financial_data_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_financial_data 移到这里
+        return data
+
+    def _validate_get_financial_data_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_financial_data 移到这里
+        return True, None
+
+    def _process_get_financial_data_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_financial_data 移到这里
+        return data
+
+    def _build_get_financial_data_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_financial_data 移到这里
+        return data
+
     def get_financial_data(
         self,
         symbol: str,

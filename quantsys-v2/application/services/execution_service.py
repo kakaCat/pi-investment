@@ -491,9 +491,9 @@ def execute_with_risk_check(
         from application.services.risk_service import live_pre_trade_check
 
         # Run live pre-trade risk check
-            risk_result = live_pre_trade_check(
-                broker_id, symbol, action, quantity, price
-            )
+        risk_result = live_pre_trade_check(
+            broker_id, symbol, action, quantity, price
+        )
 
         if not risk_result.get('passed', False):
             blocking_reasons = risk_result.get('blocking_reasons', ['Unknown risk violation'])

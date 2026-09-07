@@ -204,6 +204,36 @@ def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
 # TODO: Refactor - function too long (234 lines, target < 80)
 
 
+def _validate_update_gem_klines_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 update_gem_klines 移到这里
+    return True, None
+
+def _process_update_gem_klines_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 update_gem_klines 移到这里
+    return data
+
+def _build_update_gem_klines_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 update_gem_klines 移到这里
+    return data
+
+def _validate_update_gem_klines_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 update_gem_klines 移到这里
+    return True, None
+
+def _process_update_gem_klines_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 update_gem_klines 移到这里
+    return data
+
+def _build_update_gem_klines_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 update_gem_klines 移到这里
+    return data
+
 def update_gem_klines(**params):
     """
     更新K线数据

@@ -461,6 +461,36 @@ def handle_backtest_run(params: Dict[str, Any] = None) -> Dict[str, Any]:
 
 # TODO: Refactor - complexity 16 (target < 15)
 
+def _validate_handle_factor_compute_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 handle_factor_compute 移到这里
+    return True, None
+
+def _process_handle_factor_compute_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 handle_factor_compute 移到这里
+    return data
+
+def _build_handle_factor_compute_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 handle_factor_compute 移到这里
+    return data
+
+def _validate_handle_factor_compute_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 handle_factor_compute 移到这里
+    return True, None
+
+def _process_handle_factor_compute_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 handle_factor_compute 移到这里
+    return data
+
+def _build_handle_factor_compute_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 handle_factor_compute 移到这里
+    return data
+
 def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """因子计算任务（盘后批量重算并落库，为次日信号做准备）
 
@@ -1021,6 +1051,36 @@ def handle_chan_knowledge_distill(params: Dict[str, Any] = None) -> Dict[str, An
 
 
 # TODO: Refactor - function too long (252 lines, target < 80)
+
+def _validate_handle_model_train_auto_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 handle_model_train_auto 移到这里
+    return True, None
+
+def _process_handle_model_train_auto_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 handle_model_train_auto 移到这里
+    return data
+
+def _build_handle_model_train_auto_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 handle_model_train_auto 移到这里
+    return data
+
+def _validate_handle_model_train_auto_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 handle_model_train_auto 移到这里
+    return True, None
+
+def _process_handle_model_train_auto_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 handle_model_train_auto 移到这里
+    return data
+
+def _build_handle_model_train_auto_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 handle_model_train_auto 移到这里
+    return data
 
 def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """

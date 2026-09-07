@@ -252,6 +252,36 @@ class OpportunityScoringService:
 # TODO: Refactor - function too long (145 lines, target < 80)
 
 
+    def _validate__score_single_stock_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _score_single_stock 移到这里
+        return True, None
+
+    def _process__score_single_stock_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _score_single_stock 移到这里
+        return data
+
+    def _build__score_single_stock_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _score_single_stock 移到这里
+        return data
+
+    def _validate__score_single_stock_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _score_single_stock 移到这里
+        return True, None
+
+    def _process__score_single_stock_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _score_single_stock 移到这里
+        return data
+
+    def _build__score_single_stock_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _score_single_stock 移到这里
+        return data
+
     def _score_single_stock(
         self,
         symbol: str,
@@ -469,6 +499,36 @@ class OpportunityScoringService:
         return reasons
 # TODO: Refactor - complexity 19 (target < 15)
 
+
+    def _validate__calculate_factors_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_factors 移到这里
+        return True, None
+
+    def _process__calculate_factors_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_factors 移到这里
+        return data
+
+    def _build__calculate_factors_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_factors 移到这里
+        return data
+
+    def _validate__calculate_factors_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_factors 移到这里
+        return True, None
+
+    def _process__calculate_factors_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_factors 移到这里
+        return data
+
+    def _build__calculate_factors_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_factors 移到这里
+        return data
 
     def _calculate_factors(self, klines: List[Dict]) -> Dict:
         """计算技术指标因子
@@ -891,6 +951,36 @@ class OpportunityScoringService:
         # TODO: Refactor - complexity 19 (target < 15)
 
         return max(0, min(100, score))
+
+    def _validate__calculate_default_fundamental_score_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_default_fundamental_score 移到这里
+        return True, None
+
+    def _process__calculate_default_fundamental_score_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_default_fundamental_score 移到这里
+        return data
+
+    def _build__calculate_default_fundamental_score_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_default_fundamental_score 移到这里
+        return data
+
+    def _validate__calculate_default_fundamental_score_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_default_fundamental_score 移到这里
+        return True, None
+
+    def _process__calculate_default_fundamental_score_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_default_fundamental_score 移到这里
+        return data
+
+    def _build__calculate_default_fundamental_score_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_default_fundamental_score 移到这里
+        return data
 
     def _calculate_default_fundamental_score(self, fundamental: Dict) -> float:
         """计算默认基本面评分（无筛选条件时使用）

@@ -16,6 +16,36 @@ class DividendDataSource(ABC):
     """分红数据源抽象基类"""
 
     @abstractmethod
+    def _validate_fetch_dividends_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 fetch_dividends 移到这里
+        return True, None
+
+    def _process_fetch_dividends_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 fetch_dividends 移到这里
+        return data
+
+    def _build_fetch_dividends_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 fetch_dividends 移到这里
+        return data
+
+    def _validate_fetch_dividends_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 fetch_dividends 移到这里
+        return True, None
+
+    def _process_fetch_dividends_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 fetch_dividends 移到这里
+        return data
+
+    def _build_fetch_dividends_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 fetch_dividends 移到这里
+        return data
+
     def fetch_dividends(self, symbol: str) -> pd.DataFrame:
         """
         获取股票分红数据

@@ -24,6 +24,36 @@ router = APIRouter(tags=["Stocks - 股票数据"])
 
 # TODO: Refactor - complexity 17 (target < 15)
 
+def _validate_enrich_stock_data_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 enrich_stock_data 移到这里
+    return True, None
+
+def _process_enrich_stock_data_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 enrich_stock_data 移到这里
+    return data
+
+def _build_enrich_stock_data_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 enrich_stock_data 移到这里
+    return data
+
+def _validate_enrich_stock_data_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 enrich_stock_data 移到这里
+    return True, None
+
+def _process_enrich_stock_data_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 enrich_stock_data 移到这里
+    return data
+
+def _build_enrich_stock_data_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 enrich_stock_data 移到这里
+    return data
+
 def enrich_stock_data(stock) -> Dict:
     """为股票添加额外信息（价格、涨跌幅、K线天数、因子数量等）。逻辑与 Flask stock.py 一致。"""
     if hasattr(stock, 'symbol'):
@@ -93,6 +123,36 @@ def search_stocks(q: str = Query(''), page: int = Query(1), pageSize: int = Quer
 # TODO: Refactor - complexity 16 (target < 15)
 
 @router.get('/api/stocks/list')
+def _validate_get_stock_list_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 get_stock_list 移到这里
+    return True, None
+
+def _process_get_stock_list_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 get_stock_list 移到这里
+    return data
+
+def _build_get_stock_list_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 get_stock_list 移到这里
+    return data
+
+def _validate_get_stock_list_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 get_stock_list 移到这里
+    return True, None
+
+def _process_get_stock_list_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 get_stock_list 移到这里
+    return data
+
+def _build_get_stock_list_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 get_stock_list 移到这里
+    return data
+
 def get_stock_list(market: Optional[str] = Query(None), industry: Optional[str] = Query(None),
                    keyword: str = Query(''), page: int = Query(1), pageSize: int = Query(20)):
     try:
@@ -258,6 +318,36 @@ def get_stocks_batch(payload: Dict[str, Any] = Body(default_factory=dict)):
 
 
 @router.get('/api/stock/{symbol}/klines')
+def _validate_get_stock_klines_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 get_stock_klines 移到这里
+    return True, None
+
+def _process_get_stock_klines_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 get_stock_klines 移到这里
+    return data
+
+def _build_get_stock_klines_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 get_stock_klines 移到这里
+    return data
+
+def _validate_get_stock_klines_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 get_stock_klines 移到这里
+    return True, None
+
+def _process_get_stock_klines_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 get_stock_klines 移到这里
+    return data
+
+def _build_get_stock_klines_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 get_stock_klines 移到这里
+    return data
+
 def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
                      end_date: Optional[str] = Query(None), period: str = Query('daily'),
                      limit: int = Query(100)):
@@ -492,7 +582,8 @@ def _quote_failure_suggestion(symbol: str, provider_errors: dict) -> str:
 def get_stock_quote(symbol: str, source: str = Query('realtime')):
     """实时行情端点（source: realtime|db|auto，数据源优先级 akshare→sina→eastmoney→tencent→netease）"""
     source = source.lower()
-    if source not in ['realtime', 'db', 'auto']:
+    # Validation checks
+if source not in ['realtime', 'db', 'auto']:
         return error_response({"success": False, "error": f"Invalid source parameter: {source}. Must be one of: realtime, db, auto"}, 400)
 
     clean_symbol = re.sub(r'[^A-Za-z0-9.]', '', symbol)

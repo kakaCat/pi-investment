@@ -36,6 +36,36 @@ router = APIRouter(tags=["ML - 机器学习"])
 
 # TODO: Refactor - function too long (174 lines, target < 80)
 
+def _validate_ml_train_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 ml_train 移到这里
+    return True, None
+
+def _process_ml_train_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 ml_train 移到这里
+    return data
+
+def _build_ml_train_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 ml_train 移到这里
+    return data
+
+def _validate_ml_train_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 ml_train 移到这里
+    return True, None
+
+def _process_ml_train_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 ml_train 移到这里
+    return data
+
+def _build_ml_train_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 ml_train 移到这里
+    return data
+
 def ml_train(payload: Optional[Dict[str, Any]] = Body(None)):
     """Train an ML model (xgboost / lightgbm / randomforest)."""
     data = _convert_keys_to_snake(payload or {})
@@ -218,6 +248,36 @@ def ml_train(payload: Optional[Dict[str, Any]] = Body(None)):
 # TODO: Refactor - function too long (178 lines, target < 80)
 
 @_ml_error_handler
+def _validate_ml_predict_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 ml_predict 移到这里
+    return True, None
+
+def _process_ml_predict_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 ml_predict 移到这里
+    return data
+
+def _build_ml_predict_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 ml_predict 移到这里
+    return data
+
+def _validate_ml_predict_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 ml_predict 移到这里
+    return True, None
+
+def _process_ml_predict_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 ml_predict 移到这里
+    return data
+
+def _build_ml_predict_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 ml_predict 移到这里
+    return data
+
 def ml_predict(payload: Optional[Dict[str, Any]] = Body(None)):
     """Make batch predictions for given symbols."""
     start_time = time.time()

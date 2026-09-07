@@ -47,7 +47,7 @@ class PoolScannerService:
         Returns:
             扫描结果字典
         """
-                from application.services.strategy_code_service import StrategyCodeService
+        from application.services.strategy_code_service import StrategyCodeService
 
         if self._pool_repo is None:
             from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
@@ -137,6 +137,36 @@ class PoolScannerService:
 
         return result
 
+    def _validate__check_signal_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _check_signal 移到这里
+        return True, None
+
+    def _process__check_signal_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _check_signal 移到这里
+        return data
+
+    def _build__check_signal_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _check_signal 移到这里
+        return data
+
+    def _validate__check_signal_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _check_signal 移到这里
+        return True, None
+
+    def _process__check_signal_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _check_signal 移到这里
+        return data
+
+    def _build__check_signal_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _check_signal 移到这里
+        return data
+
     def _check_signal(self, symbol: str, strategy_id: int) -> Optional[Dict]:
         """
         检查单只股票的策略信号（重构版：策略模式）
@@ -149,7 +179,7 @@ class PoolScannerService:
             信号详情，如果无信号返回None
         """
         try:
-                        from domain.strategies.strategy_factory import StrategyFactory
+            from domain.strategies.strategy_factory import StrategyFactory
             from datetime import datetime, timedelta
 
             # 1. 获取K线数据
@@ -195,7 +225,7 @@ class PoolScannerService:
             信号详情，如果无信号返回None
         """
         try:
-                        import pandas as pd
+            import pandas as pd
             import numpy as np
             from datetime import datetime, timedelta
 

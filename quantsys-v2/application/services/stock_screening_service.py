@@ -150,6 +150,36 @@ class StockScreeningService:
 
     # TODO: Refactor - complexity 24 (target < 15)
 
+    def _validate__match_basic_criteria_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _match_basic_criteria 移到这里
+        return True, None
+
+    def _process__match_basic_criteria_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _match_basic_criteria 移到这里
+        return data
+
+    def _build__match_basic_criteria_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _match_basic_criteria 移到这里
+        return data
+
+    def _validate__match_basic_criteria_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _match_basic_criteria 移到这里
+        return True, None
+
+    def _process__match_basic_criteria_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _match_basic_criteria 移到这里
+        return data
+
+    def _build__match_basic_criteria_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _match_basic_criteria 移到这里
+        return data
+
     def _match_basic_criteria(self, stock: Dict, criteria: Dict) -> bool:
         """
         检查股票是否匹配基本条件

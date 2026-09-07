@@ -57,6 +57,36 @@ class SentimentService:
 
     # TODO: Refactor - function too long (118 lines, target < 80)
 
+    def _validate__analyze_fund_flow_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _analyze_fund_flow 移到这里
+        return True, None
+
+    def _process__analyze_fund_flow_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _analyze_fund_flow 移到这里
+        return data
+
+    def _build__analyze_fund_flow_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _analyze_fund_flow 移到这里
+        return data
+
+    def _validate__analyze_fund_flow_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _analyze_fund_flow 移到这里
+        return True, None
+
+    def _process__analyze_fund_flow_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _analyze_fund_flow 移到这里
+        return data
+
+    def _build__analyze_fund_flow_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _analyze_fund_flow 移到这里
+        return data
+
     def _analyze_fund_flow(self, flow_data: Dict) -> Dict:
         """
         分析资金流向数据

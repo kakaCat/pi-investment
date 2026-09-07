@@ -92,6 +92,36 @@ class FactorMiningCalculator(BaseCalculator):
 
     # TODO: Refactor - function too long (153 lines, target < 80)
 
+    def _validate_mine_factors_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 mine_factors 移到这里
+        return True, None
+
+    def _process_mine_factors_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 mine_factors 移到这里
+        return data
+
+    def _build_mine_factors_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 mine_factors 移到这里
+        return data
+
+    def _validate_mine_factors_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 mine_factors 移到这里
+        return True, None
+
+    def _process_mine_factors_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 mine_factors 移到这里
+        return data
+
+    def _build_mine_factors_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 mine_factors 移到这里
+        return data
+
     def mine_factors(self,
                      data: pd.DataFrame,
                      target: Union[np.ndarray, pd.Series],

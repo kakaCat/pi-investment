@@ -205,6 +205,36 @@ class CompetitionAnalysisService:
 
     # TODO: Refactor - complexity 27 (target < 15)
 
+    def _validate__extract_competitive_edges_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _extract_competitive_edges 移到这里
+        return True, None
+
+    def _process__extract_competitive_edges_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _extract_competitive_edges 移到这里
+        return data
+
+    def _build__extract_competitive_edges_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _extract_competitive_edges 移到这里
+        return data
+
+    def _validate__extract_competitive_edges_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _extract_competitive_edges 移到这里
+        return True, None
+
+    def _process__extract_competitive_edges_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _extract_competitive_edges 移到这里
+        return data
+
+    def _build__extract_competitive_edges_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _extract_competitive_edges 移到这里
+        return data
+
     def _extract_competitive_edges(
         self, stock_info: dict, industry_totals: dict
     ) -> tuple[List[str], List[str]]:

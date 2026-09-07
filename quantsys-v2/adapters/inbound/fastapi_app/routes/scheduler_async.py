@@ -229,6 +229,36 @@ def create_scheduler_task(payload: Optional[Dict[str, Any]] = Body(None)):
 @handle_api_error
 # TODO: Refactor - complexity 16 (target < 15)
 
+def _validate_update_scheduler_task_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 update_scheduler_task 移到这里
+    return True, None
+
+def _process_update_scheduler_task_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 update_scheduler_task 移到这里
+    return data
+
+def _build_update_scheduler_task_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 update_scheduler_task 移到这里
+    return data
+
+def _validate_update_scheduler_task_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 update_scheduler_task 移到这里
+    return True, None
+
+def _process_update_scheduler_task_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 update_scheduler_task 移到这里
+    return data
+
+def _build_update_scheduler_task_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 update_scheduler_task 移到这里
+    return data
+
 def update_scheduler_task(task_id: str, payload: Optional[Dict[str, Any]] = Body(None)):
     if not payload:
         return error_response({'success': False, 'error': 'Request body is required'}, 400)

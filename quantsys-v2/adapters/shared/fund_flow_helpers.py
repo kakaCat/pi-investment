@@ -174,6 +174,36 @@ def _fetch_financial_data(symbol: str) -> Optional[Dict[str, Any]]:
 
 # TODO: Refactor - complexity 29 (target < 15)
 
+def _validate__parse_financial_periods_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 _parse_financial_periods 移到这里
+    return True, None
+
+def _process__parse_financial_periods_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 _parse_financial_periods 移到这里
+    return data
+
+def _build__parse_financial_periods_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 _parse_financial_periods 移到这里
+    return data
+
+def _validate__parse_financial_periods_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 _parse_financial_periods 移到这里
+    return True, None
+
+def _process__parse_financial_periods_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 _parse_financial_periods 移到这里
+    return data
+
+def _build__parse_financial_periods_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 _parse_financial_periods 移到这里
+    return data
+
 def _parse_financial_periods(
     income_records: List[dict],
     balance_records: List[dict],

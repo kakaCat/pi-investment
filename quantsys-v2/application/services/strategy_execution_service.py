@@ -192,6 +192,36 @@ class StrategyEngine:
 
     # TODO: Refactor - complexity 20 (target < 15)
 
+    def _validate__execute_db_indicator_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _execute_db_indicator 移到这里
+        return True, None
+
+    def _process__execute_db_indicator_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _execute_db_indicator 移到这里
+        return data
+
+    def _build__execute_db_indicator_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _execute_db_indicator 移到这里
+        return data
+
+    def _validate__execute_db_indicator_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _execute_db_indicator 移到这里
+        return True, None
+
+    def _process__execute_db_indicator_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _execute_db_indicator 移到这里
+        return data
+
+    def _build__execute_db_indicator_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _execute_db_indicator 移到这里
+        return data
+
     def _execute_db_indicator(self, klines: List[Dict]) -> Dict:
         """
         Execute database-stored indicator strategy.

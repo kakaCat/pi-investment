@@ -271,6 +271,36 @@ class MarketSentimentService:
 
     # TODO: Refactor - complexity 30 (target < 15)
 
+    def _validate__calculate_sentiment_score_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_sentiment_score 移到这里
+        return True, None
+
+    def _process__calculate_sentiment_score_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_sentiment_score 移到这里
+        return data
+
+    def _build__calculate_sentiment_score_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_sentiment_score 移到这里
+        return data
+
+    def _validate__calculate_sentiment_score_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_sentiment_score 移到这里
+        return True, None
+
+    def _process__calculate_sentiment_score_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_sentiment_score 移到这里
+        return data
+
+    def _build__calculate_sentiment_score_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_sentiment_score 移到这里
+        return data
+
     def _calculate_sentiment_score(self, indicators: Dict) -> float:
         """
         综合计算情绪分数 (0-100)

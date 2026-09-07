@@ -655,6 +655,36 @@ class StrategyRotationEngine:
 
     # TODO: Refactor - complexity 17 (target < 15)
 
+    def _validate_verify_rotation_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 verify_rotation 移到这里
+        return True, None
+
+    def _process_verify_rotation_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 verify_rotation 移到这里
+        return data
+
+    def _build_verify_rotation_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 verify_rotation 移到这里
+        return data
+
+    def _validate_verify_rotation_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 verify_rotation 移到这里
+        return True, None
+
+    def _process_verify_rotation_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 verify_rotation 移到这里
+        return data
+
+    def _build_verify_rotation_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 verify_rotation 移到这里
+        return data
+
     def verify_rotation(self, rotation_date: Optional[str] = None) -> Dict[str, Any]:
         """验证轮动效果（对比预期 vs 实际）
 

@@ -276,6 +276,36 @@ class AlpacaBroker(BaseBroker):
 
     # TODO: Refactor - function too long (114 lines, target < 80)
 
+    def _validate_get_history_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_history 移到这里
+        return True, None
+
+    def _process_get_history_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_history 移到这里
+        return data
+
+    def _build_get_history_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_history 移到这里
+        return data
+
+    def _validate_get_history_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_history 移到这里
+        return True, None
+
+    def _process_get_history_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_history 移到这里
+        return data
+
+    def _build_get_history_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_history 移到这里
+        return data
+
     def get_history(
         self,
         symbol: str,
@@ -398,6 +428,36 @@ class AlpacaBroker(BaseBroker):
 
 # TODO: Refactor - function too long (103 lines, target < 80)
 
+
+    def _validate_place_order_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 place_order 移到这里
+        return True, None
+
+    def _process_place_order_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 place_order 移到这里
+        return data
+
+    def _build_place_order_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 place_order 移到这里
+        return data
+
+    def _validate_place_order_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 place_order 移到这里
+        return True, None
+
+    def _process_place_order_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 place_order 移到这里
+        return data
+
+    def _build_place_order_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 place_order 移到这里
+        return data
 
     def place_order(
         self,

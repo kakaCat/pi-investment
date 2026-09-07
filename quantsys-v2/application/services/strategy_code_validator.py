@@ -77,6 +77,36 @@ class StrategyCodeValidator:
 
     # TODO: Refactor - complexity 16 (target < 15)
 
+    def _validate__validate_indicator_code_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _validate_indicator_code 移到这里
+        return True, None
+
+    def _process__validate_indicator_code_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _validate_indicator_code 移到这里
+        return data
+
+    def _build__validate_indicator_code_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _validate_indicator_code 移到这里
+        return data
+
+    def _validate__validate_indicator_code_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _validate_indicator_code 移到这里
+        return True, None
+
+    def _process__validate_indicator_code_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _validate_indicator_code 移到这里
+        return data
+
+    def _build__validate_indicator_code_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _validate_indicator_code 移到这里
+        return data
+
     def _validate_indicator_code(self, code: str) -> Dict:
         """验证 Indicator 策略代码"""
         # 检查必需的函数
@@ -198,6 +228,36 @@ class StrategyCodeValidator:
 
 
     # TODO: Refactor - function too long (176 lines, target < 80)
+
+    def _validate_validate_custom_prices_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 validate_custom_prices 移到这里
+        return True, None
+
+    def _process_validate_custom_prices_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 validate_custom_prices 移到这里
+        return data
+
+    def _build_validate_custom_prices_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 validate_custom_prices 移到这里
+        return data
+
+    def _validate_validate_custom_prices_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 validate_custom_prices 移到这里
+        return True, None
+
+    def _process_validate_custom_prices_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 validate_custom_prices 移到这里
+        return data
+
+    def _build_validate_custom_prices_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 validate_custom_prices 移到这里
+        return data
 
     def validate_custom_prices(self, signals_df: pd.DataFrame) -> Dict[str, List[str]]:
         """

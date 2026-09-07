@@ -262,6 +262,36 @@ class EnhancedBuyRangeService:
 
     # TODO: Refactor - complexity 23 (target < 15)
 
+    def _validate__analyze_fundamental_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _analyze_fundamental 移到这里
+        return True, None
+
+    def _process__analyze_fundamental_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _analyze_fundamental 移到这里
+        return data
+
+    def _build__analyze_fundamental_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _analyze_fundamental 移到这里
+        return data
+
+    def _validate__analyze_fundamental_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _analyze_fundamental 移到这里
+        return True, None
+
+    def _process__analyze_fundamental_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _analyze_fundamental 移到这里
+        return data
+
+    def _build__analyze_fundamental_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _analyze_fundamental 移到这里
+        return data
+
     def _analyze_fundamental(self, manager, symbol: str) -> Optional[Dict[str, Any]]:
         """
         基本面分析（简化版）

@@ -226,6 +226,36 @@ class DataProviderManager(IDataProviderManager):
 
     # TODO: Refactor - complexity 19 (target < 15)
 
+    def _validate__is_valid_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _is_valid 移到这里
+        return True, None
+
+    def _process__is_valid_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _is_valid 移到这里
+        return data
+
+    def _build__is_valid_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _is_valid 移到这里
+        return data
+
+    def _validate__is_valid_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _is_valid 移到这里
+        return True, None
+
+    def _process__is_valid_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _is_valid 移到这里
+        return data
+
+    def _build__is_valid_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _is_valid 移到这里
+        return data
+
     def _is_valid(self, data) -> bool:
         """Validate data completeness (P0 Enhanced)
 
@@ -723,6 +753,36 @@ class DataProviderManager(IDataProviderManager):
 
 
     # TODO: Refactor - function too long (116 lines, target < 80)
+
+    def _validate_get_data_completeness_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_data_completeness 移到这里
+        return True, None
+
+    def _process_get_data_completeness_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_data_completeness 移到这里
+        return data
+
+    def _build_get_data_completeness_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_data_completeness 移到这里
+        return data
+
+    def _validate_get_data_completeness_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_data_completeness 移到这里
+        return True, None
+
+    def _process_get_data_completeness_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_data_completeness 移到这里
+        return data
+
+    def _build_get_data_completeness_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_data_completeness 移到这里
+        return data
 
     def get_data_completeness(
         self,

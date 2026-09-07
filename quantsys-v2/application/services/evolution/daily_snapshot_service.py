@@ -119,6 +119,36 @@ class DailySnapshotService:
 
     # TODO: Refactor - complexity 17 (target < 15)
 
+    def _validate_backfill_account_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 backfill_account 移到这里
+        return True, None
+
+    def _process_backfill_account_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 backfill_account 移到这里
+        return data
+
+    def _build_backfill_account_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 backfill_account 移到这里
+        return data
+
+    def _validate_backfill_account_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 backfill_account 移到这里
+        return True, None
+
+    def _process_backfill_account_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 backfill_account 移到这里
+        return data
+
+    def _build_backfill_account_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 backfill_account 移到这里
+        return data
+
     def backfill_account(
         self,
         account_name: str,

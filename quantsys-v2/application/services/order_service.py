@@ -25,6 +25,36 @@ logger = structlog.get_logger(__name__)
 
 # TODO: Refactor - function too long (198 lines, target < 80)
 
+def _validate_create_order_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 create_order 移到这里
+    return True, None
+
+def _process_create_order_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 create_order 移到这里
+    return data
+
+def _build_create_order_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 create_order 移到这里
+    return data
+
+def _validate_create_order_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 create_order 移到这里
+    return True, None
+
+def _process_create_order_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 create_order 移到这里
+    return data
+
+def _build_create_order_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 create_order 移到这里
+    return data
+
 def create_order(
     symbol: str,
     action: str,
@@ -228,6 +258,36 @@ def create_order(
 
 # TODO: Refactor - function too long (118 lines, target < 80)
 
+
+def _validate_fill_order_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 fill_order 移到这里
+    return True, None
+
+def _process_fill_order_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 fill_order 移到这里
+    return data
+
+def _build_fill_order_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 fill_order 移到这里
+    return data
+
+def _validate_fill_order_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 fill_order 移到这里
+    return True, None
+
+def _process_fill_order_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 fill_order 移到这里
+    return data
+
+def _build_fill_order_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 fill_order 移到这里
+    return data
 
 def fill_order(
     order_id: int,

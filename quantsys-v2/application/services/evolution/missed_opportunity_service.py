@@ -51,6 +51,36 @@ class MissedOpportunityService:
 
     # TODO: Refactor - complexity 16 (target < 15)
 
+    def _validate_capture_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 capture 移到这里
+        return True, None
+
+    def _process_capture_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 capture 移到这里
+        return data
+
+    def _build_capture_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 capture 移到这里
+        return data
+
+    def _validate_capture_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 capture 移到这里
+        return True, None
+
+    def _process_capture_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 capture 移到这里
+        return data
+
+    def _build_capture_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 capture 移到这里
+        return data
+
     def capture(self, lookback_days: int = 10, today: Optional[date] = None) -> Dict[str, Any]:
         """滚动捕获最近 lookback_days 内未被行动的买入信号，返回计数汇总。"""
         today = today or date.today()

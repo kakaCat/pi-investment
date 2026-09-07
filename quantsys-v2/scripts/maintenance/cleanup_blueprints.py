@@ -9,6 +9,36 @@ SERVER = Path(__file__).resolve().parents[1] / "api" / "server.py"
 # ── Step 1: Extract blocks from misc.py by domain ──
 # TODO: Refactor - complexity 21 (target < 15)
 
+def _validate_extract_misc_blocks_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 extract_misc_blocks 移到这里
+    return True, None
+
+def _process_extract_misc_blocks_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 extract_misc_blocks 移到这里
+    return data
+
+def _build_extract_misc_blocks_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 extract_misc_blocks 移到这里
+    return data
+
+def _validate_extract_misc_blocks_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 extract_misc_blocks 移到这里
+    return True, None
+
+def _process_extract_misc_blocks_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 extract_misc_blocks 移到这里
+    return data
+
+def _build_extract_misc_blocks_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 extract_misc_blocks 移到这里
+    return data
+
 def extract_misc_blocks():
     misc = ROUTES / "misc.py"
     if not misc.exists():

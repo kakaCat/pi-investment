@@ -35,6 +35,36 @@ class FundFlowDataSource:
 
     # TODO: Refactor - complexity 17 (target < 15)
 
+    def _validate_get_stock_fund_flow_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_stock_fund_flow 移到这里
+        return True, None
+
+    def _process_get_stock_fund_flow_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_stock_fund_flow 移到这里
+        return data
+
+    def _build_get_stock_fund_flow_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_stock_fund_flow 移到这里
+        return data
+
+    def _validate_get_stock_fund_flow_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_stock_fund_flow 移到这里
+        return True, None
+
+    def _process_get_stock_fund_flow_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_stock_fund_flow 移到这里
+        return data
+
+    def _build_get_stock_fund_flow_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_stock_fund_flow 移到这里
+        return data
+
     def get_stock_fund_flow(self, symbol: str, days: int = 5) -> Dict:
         """
         获取个股资金流向（优先本地缓存）
@@ -257,6 +287,36 @@ class EastMoneyFundFlowSource:
     name = "eastmoney"
 # TODO: Refactor - complexity 16 (target < 15)
 
+
+    def _validate_fetch_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 fetch 移到这里
+        return True, None
+
+    def _process_fetch_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 fetch 移到这里
+        return data
+
+    def _build_fetch_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 fetch 移到这里
+        return data
+
+    def _validate_fetch_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 fetch 移到这里
+        return True, None
+
+    def _process_fetch_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 fetch 移到这里
+        return data
+
+    def _build_fetch_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 fetch 移到这里
+        return data
 
     def fetch(self, symbol: str, days: int) -> List[Dict]:
         """

@@ -82,6 +82,36 @@ class SignalTrackingService:
     
     # TODO: Refactor - complexity 18 (target < 15)
 
+    def _validate_update_performance_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 update_performance 移到这里
+        return True, None
+
+    def _process_update_performance_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 update_performance 移到这里
+        return data
+
+    def _build_update_performance_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 update_performance 移到这里
+        return data
+
+    def _validate_update_performance_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 update_performance 移到这里
+        return True, None
+
+    def _process_update_performance_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 update_performance 移到这里
+        return data
+
+    def _build_update_performance_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 update_performance 移到这里
+        return data
+
     def update_performance(
         self,
         signal_date: str = None,

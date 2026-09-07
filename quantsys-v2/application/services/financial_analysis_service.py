@@ -120,6 +120,36 @@ class FinancialAnalysisService:
 
     # TODO: Refactor - complexity 21 (target < 15)
 
+    def _validate__calculate_indicators_from_statements_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_indicators_from_statements 移到这里
+        return True, None
+
+    def _process__calculate_indicators_from_statements_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_indicators_from_statements 移到这里
+        return data
+
+    def _build__calculate_indicators_from_statements_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_indicators_from_statements 移到这里
+        return data
+
+    def _validate__calculate_indicators_from_statements_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_indicators_from_statements 移到这里
+        return True, None
+
+    def _process__calculate_indicators_from_statements_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_indicators_from_statements 移到这里
+        return data
+
+    def _build__calculate_indicators_from_statements_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_indicators_from_statements 移到这里
+        return data
+
     def _calculate_indicators_from_statements(
         self,
         income: Dict[str, Any],
@@ -160,6 +190,36 @@ class FinancialAnalysisService:
 
 
     # TODO: Refactor - function too long (135 lines, target < 80)
+
+    def _validate_get_stock_valuation_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_stock_valuation 移到这里
+        return True, None
+
+    def _process_get_stock_valuation_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_stock_valuation 移到这里
+        return data
+
+    def _build_get_stock_valuation_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_stock_valuation 移到这里
+        return data
+
+    def _validate_get_stock_valuation_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_stock_valuation 移到这里
+        return True, None
+
+    def _process_get_stock_valuation_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_stock_valuation 移到这里
+        return data
+
+    def _build_get_stock_valuation_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_stock_valuation 移到这里
+        return data
 
     def get_stock_valuation(self, symbol: str) -> Dict[str, Any]:
         """

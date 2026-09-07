@@ -115,6 +115,36 @@ class StockScoringService:
 
     # TODO: Refactor - complexity 26 (target < 15)
 
+    def _validate__calculate_technical_score_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_technical_score 移到这里
+        return True, None
+
+    def _process__calculate_technical_score_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_technical_score 移到这里
+        return data
+
+    def _build__calculate_technical_score_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_technical_score 移到这里
+        return data
+
+    def _validate__calculate_technical_score_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_technical_score 移到这里
+        return True, None
+
+    def _process__calculate_technical_score_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_technical_score 移到这里
+        return data
+
+    def _build__calculate_technical_score_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_technical_score 移到这里
+        return data
+
     def _calculate_technical_score(self, factors: Dict) -> float:
         """
         技术面评分 (0-100)
@@ -192,6 +222,36 @@ class StockScoringService:
 # TODO: Refactor - complexity 22 (target < 15)
 
 
+    def _validate__calculate_fundamental_score_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_fundamental_score 移到这里
+        return True, None
+
+    def _process__calculate_fundamental_score_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_fundamental_score 移到这里
+        return data
+
+    def _build__calculate_fundamental_score_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_fundamental_score 移到这里
+        return data
+
+    def _validate__calculate_fundamental_score_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_fundamental_score 移到这里
+        return True, None
+
+    def _process__calculate_fundamental_score_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_fundamental_score 移到这里
+        return data
+
+    def _build__calculate_fundamental_score_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_fundamental_score 移到这里
+        return data
+
     def _calculate_fundamental_score(self, factors: Dict) -> float:
         """
         基本面评分 (0-100)
@@ -259,6 +319,36 @@ class StockScoringService:
         # TODO: Refactor - complexity 17 (target < 15)
 
         return min(100, max(0, score))
+
+    def _validate__calculate_momentum_score_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_momentum_score 移到这里
+        return True, None
+
+    def _process__calculate_momentum_score_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_momentum_score 移到这里
+        return data
+
+    def _build__calculate_momentum_score_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_momentum_score 移到这里
+        return data
+
+    def _validate__calculate_momentum_score_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _calculate_momentum_score 移到这里
+        return True, None
+
+    def _process__calculate_momentum_score_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _calculate_momentum_score 移到这里
+        return data
+
+    def _build__calculate_momentum_score_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _calculate_momentum_score 移到这里
+        return data
 
     def _calculate_momentum_score(self, factors: Dict) -> float:
         """

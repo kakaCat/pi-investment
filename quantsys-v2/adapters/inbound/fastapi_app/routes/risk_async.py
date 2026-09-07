@@ -42,6 +42,36 @@ def _format_rule(rule):
 @router.post('/api/risk/check')
 # TODO: Refactor - complexity 40 (target < 15)
 
+def _validate_risk_check_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 risk_check 移到这里
+    return True, None
+
+def _process_risk_check_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 risk_check 移到这里
+    return data
+
+def _build_risk_check_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 risk_check 移到这里
+    return data
+
+def _validate_risk_check_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 risk_check 移到这里
+    return True, None
+
+def _process_risk_check_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 risk_check 移到这里
+    return data
+
+def _build_risk_check_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 risk_check 移到这里
+    return data
+
 def risk_check(payload: Optional[Dict[str, Any]] = Body(None)):
     """风险检查
 
@@ -337,6 +367,36 @@ def delete_stop_loss_rule(rule_id: str):
 
 @handle_api_error
 # TODO: Refactor - function too long (136 lines, target < 80)
+
+def _validate_trade_verify_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 trade_verify 移到这里
+    return True, None
+
+def _process_trade_verify_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 trade_verify 移到这里
+    return data
+
+def _build_trade_verify_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 trade_verify 移到这里
+    return data
+
+def _validate_trade_verify_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 trade_verify 移到这里
+    return True, None
+
+def _process_trade_verify_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 trade_verify 移到这里
+    return data
+
+def _build_trade_verify_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 trade_verify 移到这里
+    return data
 
 def trade_verify(
     account_name: Optional[str] = Query('agent_virtual'),

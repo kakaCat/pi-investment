@@ -49,6 +49,36 @@ class SwingPointService:
 
     # TODO: Refactor - function too long (145 lines, target < 80)
 
+    def _validate_analyze_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 analyze 移到这里
+        return True, None
+
+    def _process_analyze_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 analyze 移到这里
+        return data
+
+    def _build_analyze_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 analyze 移到这里
+        return data
+
+    def _validate_analyze_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 analyze 移到这里
+        return True, None
+
+    def _process_analyze_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 analyze 移到这里
+        return data
+
+    def _build_analyze_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 analyze 移到这里
+        return data
+
     def analyze(self, params: Dict) -> Dict:
         """
         识别历史买卖点（ZigZag 算法）
@@ -200,6 +230,36 @@ class SwingPointService:
 
 # TODO: Refactor - function too long (154 lines, target < 80)
 
+
+    def _validate__zigzag_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _zigzag 移到这里
+        return True, None
+
+    def _process__zigzag_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _zigzag 移到这里
+        return data
+
+    def _build__zigzag_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _zigzag 移到这里
+        return data
+
+    def _validate__zigzag_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _zigzag 移到这里
+        return True, None
+
+    def _process__zigzag_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _zigzag 移到这里
+        return data
+
+    def _build__zigzag_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _zigzag 移到这里
+        return data
 
     def _zigzag(self, klines: List[Dict], threshold: float) -> List[Dict]:
         """

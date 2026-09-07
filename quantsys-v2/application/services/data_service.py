@@ -166,6 +166,36 @@ class DataService:
 
     # TODO: Refactor - complexity 18 (target < 15)
 
+    def _validate_check_data_integrity_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 check_data_integrity 移到这里
+        return True, None
+
+    def _process_check_data_integrity_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 check_data_integrity 移到这里
+        return data
+
+    def _build_check_data_integrity_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 check_data_integrity 移到这里
+        return data
+
+    def _validate_check_data_integrity_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 check_data_integrity 移到这里
+        return True, None
+
+    def _process_check_data_integrity_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 check_data_integrity 移到这里
+        return data
+
+    def _build_check_data_integrity_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 check_data_integrity 移到这里
+        return data
+
     def check_data_integrity(self, symbol: Optional[str] = None, check_type: str = 'all') -> Dict:
         """检查数据完整性
 

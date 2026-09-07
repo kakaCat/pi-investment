@@ -386,6 +386,36 @@ class DataBackfiller:
 
     # TODO: Refactor - complexity 24 (target < 15)
 
+    def _validate__convert_klines_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _convert_klines 移到这里
+        return True, None
+
+    def _process__convert_klines_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _convert_klines 移到这里
+        return data
+
+    def _build__convert_klines_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _convert_klines 移到这里
+        return data
+
+    def _validate__convert_klines_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 _convert_klines 移到这里
+        return True, None
+
+    def _process__convert_klines_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 _convert_klines 移到这里
+        return data
+
+    def _build__convert_klines_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 _convert_klines 移到这里
+        return data
+
     def _convert_klines(self, symbol: str, raw_data: List, start_date: str, end_date: str) -> List[Dict]:
         """转换原始K线数据为标准格式
 

@@ -35,6 +35,36 @@ class FinancialDataServiceAdapter:
 
     # TODO: Refactor - complexity 22 (target < 15)
 
+    def _validate_get_financial_data_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_financial_data 移到这里
+        return True, None
+
+    def _process_get_financial_data_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_financial_data 移到这里
+        return data
+
+    def _build_get_financial_data_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_financial_data 移到这里
+        return data
+
+    def _validate_get_financial_data_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_financial_data 移到这里
+        return True, None
+
+    def _process_get_financial_data_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_financial_data 移到这里
+        return data
+
+    def _build_get_financial_data_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_financial_data 移到这里
+        return data
+
     def get_financial_data(self, symbol: str, statement_type: str = 'all', periods: int = 4) -> FinancialStatementData:
         self.total_requests += 1
         mgr = get_data_provider_manager()

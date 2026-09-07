@@ -20,6 +20,36 @@ from infrastructure.persistence.database.engine import _resolve_db_dsn
 
 # TODO: Refactor - function too long (146 lines, target < 80)
 
+def _validate_verify_schema_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 verify_schema 移到这里
+    return True, None
+
+def _process_verify_schema_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 verify_schema 移到这里
+    return data
+
+def _build_verify_schema_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 verify_schema 移到这里
+    return data
+
+def _validate_verify_schema_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 verify_schema 移到这里
+    return True, None
+
+def _process_verify_schema_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 verify_schema 移到这里
+    return data
+
+def _build_verify_schema_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 verify_schema 移到这里
+    return data
+
 def verify_schema():
     """Verify the strategy_configs table has all required fields"""
 

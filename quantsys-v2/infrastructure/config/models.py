@@ -142,6 +142,36 @@ class ServicesConfig:
 
     # TODO: Refactor - function too long (105 lines, target < 80)
 
+    def _validate_get_merged_services_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_merged_services 移到这里
+        return True, None
+
+    def _process_get_merged_services_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_merged_services 移到这里
+        return data
+
+    def _build_get_merged_services_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_merged_services 移到这里
+        return data
+
+    def _validate_get_merged_services_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 get_merged_services 移到这里
+        return True, None
+
+    def _process_get_merged_services_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 get_merged_services 移到这里
+        return data
+
+    def _build_get_merged_services_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 get_merged_services 移到这里
+        return data
+
     def get_merged_services(self) -> Dict[str, ServiceConfig]:
         """获取合并后的服务配置
 

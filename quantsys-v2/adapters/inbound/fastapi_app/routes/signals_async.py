@@ -131,6 +131,36 @@ def get_signal_detail(signal_id: str):
 
 # TODO: Refactor - function too long (132 lines, target < 80)
 
+def _validate_scan_signals_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 scan_signals 移到这里
+    return True, None
+
+def _process_scan_signals_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 scan_signals 移到这里
+    return data
+
+def _build_scan_signals_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 scan_signals 移到这里
+    return data
+
+def _validate_scan_signals_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 scan_signals 移到这里
+    return True, None
+
+def _process_scan_signals_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 scan_signals 移到这里
+    return data
+
+def _build_scan_signals_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 scan_signals 移到这里
+    return data
+
 def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
     data = payload or {}
     snake_data = convert_keys_to_snake(data)
@@ -408,6 +438,36 @@ def get_signal_by_id(signal_id: int):
 # TODO: Refactor - complexity 17 (target < 15)
 
 @handle_api_error
+def _validate_get_signals_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 get_signals 移到这里
+    return True, None
+
+def _process_get_signals_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 get_signals 移到这里
+    return data
+
+def _build_get_signals_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 get_signals 移到这里
+    return data
+
+def _validate_get_signals_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 get_signals 移到这里
+    return True, None
+
+def _process_get_signals_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 get_signals 移到这里
+    return data
+
+def _build_get_signals_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 get_signals 移到这里
+    return data
+
 def get_signals(request: Request):
     try:
         params = get_query_params_snake_case(request)

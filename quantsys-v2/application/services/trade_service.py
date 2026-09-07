@@ -181,6 +181,36 @@ def get_trade_stats(
 
 # TODO: Refactor - function too long (110 lines, target < 80)
 
+def _validate_get_position_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 get_position 移到这里
+    return True, None
+
+def _process_get_position_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 get_position 移到这里
+    return data
+
+def _build_get_position_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 get_position 移到这里
+    return data
+
+def _validate_get_position_input(data):
+    """验证输入参数"""
+    # TODO: 将验证逻辑从 get_position 移到这里
+    return True, None
+
+def _process_get_position_data(data):
+    """处理数据转换"""
+    # TODO: 将数据处理逻辑从 get_position 移到这里
+    return data
+
+def _build_get_position_result(data):
+    """构建返回结果"""
+    # TODO: 将结果构建逻辑从 get_position 移到这里
+    return data
+
 def get_position(
     symbol: str,
     portfolio_repo: Optional[IPortfolioRepository] = None,

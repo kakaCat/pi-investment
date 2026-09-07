@@ -102,6 +102,36 @@ class AccountTradingService:
 
     # TODO: Refactor - function too long (319 lines, target < 80)
 
+    def _validate_execute_trade_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 execute_trade 移到这里
+        return True, None
+
+    def _process_execute_trade_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 execute_trade 移到这里
+        return data
+
+    def _build_execute_trade_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 execute_trade 移到这里
+        return data
+
+    def _validate_execute_trade_input(data):
+        """验证输入参数"""
+        # TODO: 将验证逻辑从 execute_trade 移到这里
+        return True, None
+
+    def _process_execute_trade_data(data):
+        """处理数据转换"""
+        # TODO: 将数据处理逻辑从 execute_trade 移到这里
+        return data
+
+    def _build_execute_trade_result(data):
+        """构建返回结果"""
+        # TODO: 将结果构建逻辑从 execute_trade 移到这里
+        return data
+
     def execute_trade(
         self,
         account_name: str,
