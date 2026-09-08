@@ -232,14 +232,20 @@ export function registerBoardPost(ctx: Context, boardClient: BoardClient, agentI
         type: 'boolean',
         description: 'true=进悬赏池（open），false=纯记录（done）',
       },
+      confirmed: {
+        type: 'boolean',
+        description: '是否已征得用户同意。false（默认）返回预览+提示，不真发；true 才执行发帖。',
+      },
     },
     output: {
       schema: {
         type: 'object',
         properties: {
           success: { type: 'boolean', description: '是否成功' },
-          post_id: { type: 'string', description: '帖子 ID' },
-          status: { type: 'string', description: '初始状态' },
+          post_id: { type: 'string', description: '帖子 ID（confirmed=true 时返回）' },
+          status: { type: 'string', description: '初始状态 或 needs_user_confirmation（未确认时）' },
+          preview: { type: 'object', additionalProperties: true, description: '未确认时返回的帖子预览' },
+          instruction: { type: 'string', description: '未确认时的操作指引' },
         },
         additionalProperties: false,
       },
@@ -247,33 +253,24 @@ export function registerBoardPost(ctx: Context, boardClient: BoardClient, agentI
         { type: 'text', text: JSON.stringify(value, null, 2) },
       ],
     },
-    timeoutMs: 120000,
+    timeoutMs: 10000,
     execute: async (args: any) => {
-      const { title, content, kind, needs_action = false } = args;
+      const { title, content, kind, needs_action = false, confirmed = false } = args;
 
       // R-014 工具级强制（2026-09-08 用户指令）：发帖前必须经用户确认。
       // 公告板只承载悬赏/跨窗口协作帖；纯记录应走 memory_write，不上板。
-      const askTool = ctx.tools.get('ask_user_question');
-      if (!askTool) {
-        throw new Error('当前环境无法向用户确认，board_post 被拒绝：请先征得用户同意，或改用 memory_write 记录（纯记录不应上公告板）');
-      }
-      const askResult: any = await askTool.execute({
-        questions: [{
-          id: 'board_post_confirm',
-          header: '公告板发帖确认',
-          question: 'agent 请求发布公告板帖子：\n标题：' + title + '\n类型：' + kind + '｜' + (needs_action ? '悬赏（需他人行动）' : '纯记录') + '\n\n提示：纯记录建议改用 memory_write，不上公告板。',
-          options: [
-            { label: '发布', description: '确认发帖到公告板' },
-            { label: '取消', description: '不发帖；纯记录请改走 memory_write' },
-          ],
-        }],
-      });
-      const selected: string[] = askResult?.answers?.[0]?.selected || [];
-      if (!selected.some((s: string) => s.includes('发布'))) {
+      if (!confirmed) {
         return {
           success: false,
           post_id: null,
-          status: 'rejected_by_user',
+          status: 'needs_user_confirmation',
+          preview: {
+            title,
+            content: content.slice(0, 200) + (content.length > 200 ? '...' : ''),
+            kind,
+            needs_action,
+          },
+          instruction: '请向用户确认是否需要发此公告板帖子。纯记录/复盘/交付说明建议改用 memory_write 不上板；悬赏/跨窗口协作才上公告板。确认后重新调用 board_post 并设 confirmed=true。',
         } as any;
       }
 
