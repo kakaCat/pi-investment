@@ -4,7 +4,7 @@
  *
  * @module dashboard-genome/client/dom
  */
-import { sidebarRoot, conversationColumn, ACTIVATE_EVENT } from '@pi-investment/page-kit/client'
+import { sidebarRoot, conversationColumn, ACTIVATE_EVENT, CONVERSATION_COLUMN_SELECTOR } from '@pi-investment/page-kit/client'
 
 export const ENTRY_SELECTOR = '[data-dsh-gen-entry]'
 export const BOARD_VIEW_SELECTOR = '[data-dsh-gen-view]'

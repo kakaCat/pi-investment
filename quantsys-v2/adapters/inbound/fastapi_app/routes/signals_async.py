@@ -19,6 +19,7 @@ from adapters.inbound.fastapi_app.shared import (
     _read_watchlist, _safe_float,
     signal_repo, stock_repo,
 )
+from application.services.opportunity_to_watch_rule_service import OpportunityToWatchRuleService
 
 logger = structlog.get_logger(__name__)
 
@@ -139,6 +140,9 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
     no_cache = bool(snake_data.get('no_cache', False))  # 跳过评分缓存强制重算
     page = max(1, int(snake_data.get('page', 1)))
     page_size = min(int(snake_data.get('page_size', 20)), 100)
+    
+    # RFC 011：自动创建盯盘规则（默认开启）
+    auto_create_rules = bool(snake_data.get('auto_create_rules', True))
 
     # 2026-09-01 契约对齐（investor w-8366e526）：消费 opportunity_scan 的
     # scan_type / pool_id（此前被静默忽略——工具传了但后端不消费，属契约失真）。
@@ -230,6 +234,24 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
         paginated = sorted_opps[offset:offset + page_size]
         total_pages = math.ceil(total / page_size) if page_size > 0 else 0
 
+        # RFC 011：自动为高分机会创建盯盘规则
+        watch_rule_results = []
+        if auto_create_rules and sorted_opps:
+            try:
+                watch_service = OpportunityToWatchRuleService()
+                # 只处理前 10 个最高分机会（避免一次创建太多）
+                top_opps = sorted_opps[:10]
+                watch_rule_results = watch_service.auto_create_rules(top_opps)
+                logger.info(
+                    '机会扫描自动创建盯盘规则',
+                    created=sum(1 for r in watch_rule_results if r['action'] == 'created'),
+                    skipped=sum(1 for r in watch_rule_results if r['action'] == 'skipped'),
+                    failed=sum(1 for r in watch_rule_results if r['action'] == 'failed'),
+                )
+            except Exception as e:
+                logger.error('自动创建盯盘规则失败', error=str(e))
+                watch_rule_results = [{'error': str(e)}]
+
         # 动态评分诊断（与 Flask signals.py parity）
         scoring_diag = getattr(scoring_service, 'last_diagnostics', None) or {}
         result = {
@@ -251,6 +273,8 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
             result['strategy_id'] = strategy_id
         if selected_sectors_info:
             result['sector_info'] = selected_sectors_info
+        if watch_rule_results:
+            result['watch_rules_created'] = watch_rule_results
         return result
 
     except Exception as e:

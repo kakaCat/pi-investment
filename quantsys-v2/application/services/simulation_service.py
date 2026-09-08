@@ -377,10 +377,11 @@ class SimulationService:
         }
     
     def _position_to_dict(self, position) -> Dict:
-        """将持仓记录转换为字典（含建仓时间与持有天数）"""
+        """将持仓记录转换为字典（含建仓时间、持有天数、股票名称）"""
         if isinstance(position, dict):
             return position
 
+        symbol = getattr(position, 'symbol', None)
         created_at = getattr(position, 'created_at', None)
         days_held = None
         if created_at is not None:
@@ -388,8 +389,21 @@ class SimulationService:
             if created_date:
                 days_held = max((date.today() - created_date).days, 0)
 
+        # 查询股票名称（与 _trade_to_dict 保持一致）
+        stock_name = None
+        if symbol and self.repo:
+            try:
+                from infrastructure.persistence.orm.models import Stock
+                from sqlalchemy import select
+                stmt = select(Stock.name).where(Stock.symbol == symbol)
+                result = self.repo.session.execute(stmt).scalar()
+                stock_name = result if result else None
+            except Exception as e:
+                self.logger.warning(f"Failed to fetch stock name for {symbol}: {e}")
+
         result = {
-            'symbol': getattr(position, 'symbol', None),
+            'symbol': symbol,
+            'name': stock_name,
             'shares_total': getattr(position, 'shares_total', None),
             'shares_available': getattr(position, 'shares_available', None),
             'avg_cost': float(position.avg_cost) if getattr(position, 'avg_cost', None) else None,

@@ -58,7 +58,11 @@ class NotificationFacade:
         notify_mode: str = 'direct',
         mode_tag: str = None,
         change_pct: float = None,
-        pnl_pct: float = None
+        pnl_pct: float = None,
+        trigger_level: str = None,      # ← 新增：L0/L1/L2
+        action_hint: dict = None,       # ← 新增：行动指引
+        escalation_reason: str = None,  # ← 新增：升级原因
+        decision_audit_id: str = None,  # ← 新增：审计ID
     ) -> ChannelResult:
         """发送盯盘触发通知
 
@@ -93,12 +97,18 @@ class NotificationFacade:
                 'mode_tag': mode_tag or (
                     'AI 分析版' if notify_mode == 'agent' else '直发提醒'
                 ),
+                # 新增：分层相关
+                'trigger_level': trigger_level,
+                'action_hint': action_hint,
+                'escalation_reason': escalation_reason,
+                'decision_audit_id': decision_audit_id,
             },
-            priority=NotificationPriority.HIGH
+            priority=NotificationPriority.HIGH if trigger_level == 'L2' else NotificationPriority.NORMAL
         )
 
         # 根据模式选择发送策略
-        if notify_mode == 'agent':
+        # L2 行动层：强制走 agent（即使 notify_mode=direct 也强制 agent）
+        if trigger_level == 'L2' or notify_mode == 'agent':
             # Agent 模式：优先 Agent，失败降级飞书
             return self.service.send_with_fallback(notification, 'agent', 'feishu')
         else:

@@ -246,6 +246,173 @@ def _send_feishu(text: str) -> bool:
         return False
 
 
+# ── 规则健康检查（RFC 011 Phase 2）───────────────────────────────────────────
+
+def _job_watch_rule_health() -> Dict[str, Any]:
+    """规则健康检查：每天收盘后评估所有启用规则的健康度
+    
+    自动禁用：
+    - EXPIRED: 已过有效期
+    - STALE: 价格偏差 >20%（位置失效）
+    - OUTDATED: 预案日期已过期
+    
+    标记审查（不自动禁用）：
+    - INACTIVE: 30天未触发
+    
+    飞书通知：健康度报告
+    """
+    import json
+    import re
+    from infrastructure.persistence.database.engine import get_engine
+    from sqlalchemy import text
+    
+    engine = get_engine()
+    reports = []
+    auto_disabled = []
+    marked_inactive = []
+    
+    with engine.begin() as conn:  # 使用 begin() 自动提交
+        # 获取所有启用规则
+        rules = conn.execute(text(
+            "SELECT id, symbol, context, conditions, expires_at, created_at, action_hint "
+            "FROM quant.watch_rules WHERE enabled = true"
+        )).fetchall()
+        
+        for rule in rules:
+            rule_id, symbol, context, conditions, expires_at, created_at, action_hint = rule
+            status = 'HEALTHY'
+            reason = '正常'
+            
+            # 1. 检查有效期
+            if expires_at and expires_at < datetime.now():
+                status = 'EXPIRED'
+                reason = f'已过有效期（{expires_at.strftime("%Y-%m-%d")}）'
+            else:
+                # 2. 检查价格偏差
+                try:
+                    # 获取当前价格
+                    price_row = conn.execute(text(
+                        "SELECT close FROM quant.daily_klines WHERE symbol = :s "
+                        "ORDER BY trade_date DESC LIMIT 1"
+                    ), {'s': symbol}).fetchone()
+                    
+                    if price_row and conditions:
+                        current_price = float(price_row[0])
+                        conds = json.loads(conditions) if isinstance(conditions, str) else conditions
+                        
+                        # 提取触发价格
+                        trigger_price = None
+                        for cond in conds:
+                            if isinstance(cond, dict):
+                                params = cond.get('params', {})
+                                if 'price' in params:
+                                    trigger_price = float(params['price'])
+                                    break
+                        
+                        if trigger_price and trigger_price > 0:
+                            deviation = abs(current_price - trigger_price) / trigger_price * 100
+                            if deviation > 20:
+                                status = 'STALE'
+                                reason = f'价格偏差{deviation:.1f}%（当前{current_price} vs 设定{trigger_price}）'
+                    
+                    # 3. 检查预案日期（如果还没被标记为 STALE）
+                    if status == 'HEALTHY' and context:
+                        date_patterns = [
+                            r'(\d{1,2})/(\d{1,2})',
+                            r'(\d{4})-(\d{2})-(\d{2})',
+                        ]
+                        for pattern in date_patterns:
+                            matches = re.findall(pattern, context)
+                            for match in matches:
+                                try:
+                                    if len(match) == 2:
+                                        month, day = int(match[0]), int(match[1])
+                                        year = datetime.now().year
+                                        date_obj = datetime(year, month, day)
+                                    else:
+                                        year, month, day = int(match[0]), int(match[1]), int(match[2])
+                                        date_obj = datetime(year, month, day)
+                                    
+                                    days_diff = (datetime.now() - date_obj).days
+                                    if days_diff > 7:
+                                        status = 'OUTDATED'
+                                        reason = f'预案日期已过期（{date_obj.strftime("%m/%d")}，已过去{days_diff}天）'
+                                        break
+                                except (ValueError, IndexError):
+                                    continue
+                            if status == 'OUTDATED':
+                                break
+                    
+                    # 4. 检查触发活跃度（如果还没被标记）
+                    if status == 'HEALTHY':
+                        trigger_row = conn.execute(text(
+                            "SELECT MAX(triggered_at) FROM quant.watch_triggers WHERE rule_id = :rid"
+                        ), {'rid': rule_id}).fetchone()
+                        
+                        last_trigger = trigger_row[0] if trigger_row else None
+                        
+                        if last_trigger:
+                            days_since = (datetime.now() - last_trigger).days
+                            if days_since > 30:
+                                status = 'INACTIVE'
+                                reason = f'{days_since}天未触发（上次：{last_trigger.strftime("%Y-%m-%d")}）'
+                        elif created_at:
+                            days_since = (datetime.now() - created_at).days
+                            if days_since > 30:
+                                status = 'INACTIVE'
+                                reason = f'创建后{days_since}天从未触发'
+                
+                except Exception as e:
+                    logger.warning('规则健康检查异常', rule_id=rule_id, error=str(e))
+            
+            reports.append({
+                'rule_id': rule_id,
+                'symbol': symbol,
+                'status': status,
+                'reason': reason,
+            })
+            
+            # 自动处理
+            if status in ('EXPIRED', 'STALE', 'OUTDATED'):
+                conn.execute(text(
+                    "UPDATE quant.watch_rules SET enabled = false, updated_at = NOW() WHERE id = :rid"
+                ), {'rid': rule_id})
+                auto_disabled.append({'rule_id': rule_id, 'symbol': symbol, 'reason': reason})
+            elif status == 'INACTIVE':
+                marked_inactive.append({'rule_id': rule_id, 'symbol': symbol, 'reason': reason})
+    
+    # 生成飞书通知
+    if auto_disabled or marked_inactive:
+        lines = [f'🧹 【规则健康检查】{datetime.now().strftime("%Y-%m-%d")}', '']
+        
+        if auto_disabled:
+            lines.append('自动禁用：')
+            for d in auto_disabled:
+                lines.append(f"- 规则#{d['rule_id']} {d['symbol']}：{d['reason']}")
+            lines.append('')
+        
+        if marked_inactive:
+            lines.append('待人工审查：')
+            for d in marked_inactive:
+                lines.append(f"- 规则#{d['rule_id']} {d['symbol']}：{d['reason']}")
+            lines.append('')
+        
+        # 统计
+        healthy_count = len([r for r in reports if r['status'] == 'HEALTHY'])
+        lines.append(f'统计：总数 {len(reports)} 条 | 健康 {healthy_count} 条 | 自动禁用 {len(auto_disabled)} 条 | 待审查 {len(marked_inactive)} 条')
+        
+        _send_feishu('\n'.join(lines))
+    
+    return {
+        'status': 'success',
+        'total': len(reports),
+        'healthy': len([r for r in reports if r['status'] == 'HEALTHY']),
+        'auto_disabled': len(auto_disabled),
+        'marked_inactive': len(marked_inactive),
+        'details': reports,
+    }
+
+
 # ── 事件日历检查（2026-09-06 下沉自 Agent OS event-calendar-check） ─────────
 
 _EVENT_TYPE_LABELS = {
@@ -329,6 +496,9 @@ JOBS: List[JobDef] = [
     # 错峰（2026-09-02）：20:30 是 EOD 低峰期，避开全国量化高峰
     # freshness_guard 17:20 早发现滞后，evening_pipeline 20:30 补齐
     # event_calendar_check 16:45 每日（含周末，原 Agent OS cron 语义）
+    # watch_rule_health 16:30 周一~五：规则健康检查（RFC 011 Phase 2）
+    JobDef('watch_rule_health', dtime(16, 30), (0, 1, 2, 3, 4),
+           _job_watch_rule_health, '规则健康检查：自动禁用过期/失效规则，标记长期未触发规则（RFC 011）'),
     JobDef('event_calendar_check', dtime(16, 45), (0, 1, 2, 3, 4, 5, 6),
            _job_event_calendar_check, '事件日历检查：未来2日 pending 高优事件（imp>=2）飞书提醒→标记notified'),
     JobDef('freshness_guard', dtime(17, 20), (0, 1, 2, 3, 4),

@@ -1,16 +1,27 @@
-"""WatchEngine 触发通知器：notify_mode 分流 + WS 广播 + 审计落库
+"""WatchEngine 触发通知器：分层提醒 + 自动升级 + DDD 通知架构
 
-notify_mode 两种模式（watch_rules.notify_mode）：
-- direct：纯提醒，直接发飞书（不唤醒 Agent，不经 LLM）
-- agent：需 LLM 处理，唤醒 Agent（/wake），由 Agent 分析后决定推送内容
+触发层级（trigger_level）：
+- L0_MESSAGE：纯信息通知，直接发飞书（不唤醒 Agent，不经 LLM）
+- L1_OBSERVATION：观察提醒，直接发飞书（不唤醒 Agent，不经 LLM）
+- L2_ACTION：关键操作，发给 Agent（经 LLM 分析后决策）
 
-兜底：agent 模式唤醒失败（最终失败）时，降级直接发飞书，保证提醒可达。
+升级机制：
+- L0/L1 触发满足 escalation_policy 条件时，自动升级为 L2
+- 升级原因在飞书消息中标注
+
+架构约束：
+- 所有通知必须走 NotificationFacade（禁止直接调用飞书 SDK）
+- 参考：pi-investment/CLAUDE.md 架构规范章节
 """
 import time
 from typing import Optional
 
 import requests
 import structlog
+
+from application.notification.notification_factory import NotificationFactory
+from application.services.watch_engine.dto import TriggerPayload
+from domain.watch.models import TriggerLevel
 
 logger = structlog.get_logger(__name__)
 
@@ -44,144 +55,199 @@ def _direction_advice(condition: dict) -> str:
     direction = params.get('direction')
     ctype = condition.get('type', '')
     if direction == 'above':
-        # 上破：强势信号。对持仓股为止盈/锁利参考，对观察股为买入候选
         return '📈 方向：上破（强势）——持仓参考止盈/锁利，空仓为买入候选'
     if direction == 'below':
-        # 下破：弱势信号。对持仓股为止损/风险预警，对观察股暂避
         return '📉 方向：下破（弱势）——持仓警惕止损，空仓暂不介入'
     return f'类型：{ctype}' if ctype else ''
 
 
 class WatchNotifier:
-    def __init__(self, agent_service, trigger_repo=None, feishu_service=None,
-                 ws_url: Optional[str] = 'http://127.0.0.1:5003/broadcast/market_data',
-                 max_retries: int = 3, retry_interval: float = 1.0):
-        self.agent_service = agent_service
+    """WatchEngine 通知器
+    
+    职责：
+    1. 构建 TriggerPayload（含 trigger_level/action_hint）
+    2. 根据 trigger_level 决定通知模式（direct/agent）
+    3. 调用 NotificationFacade 发送通知（复用 DDD 通知架构）
+    4. WebSocket 广播 + 触发记录落库
+    
+    架构约束：
+    - 禁止直接调用 feishu_service.send_alert()
+    - 禁止直接调用 agent_service.notify_agent_detailed()
+    - 所有通知必须走 NotificationFacade
+    """
+    
+    def __init__(
+        self,
+        trigger_repo=None,
+        ws_url: Optional[str] = 'http://127.0.0.1:5003/broadcast/market_data',
+        max_retries: int = 3,
+        retry_interval: float = 1.0,
+        notification_facade=None,  # 可选：注入 NotificationFacade 实例
+    ):
         self.trigger_repo = trigger_repo
-        self.feishu_service = feishu_service
         self.ws_url = ws_url
         self.max_retries = max_retries
         self.retry_interval = retry_interval
+        
+        # 注入或懒加载 NotificationFacade
+        self._notification_facade = notification_facade
+    
+    @property
+    def notification_facade(self):
+        """获取 NotificationFacade 实例（懒加载）"""
+        if self._notification_facade is None:
+            self._notification_facade = NotificationFactory.get_instance()
+        return self._notification_facade
 
-    def notify(self, rule, condition: dict, quote, result) -> bool:
-        """触发通知。按 notify_mode 分流；返回是否成功送达（失败也落库待补发）"""
-        payload = self._build_payload(rule, condition, quote, result)
-        mode = getattr(rule, 'notify_mode', None) or 'direct'
-
-        if mode == 'agent':
-            logger.info('准备唤醒 Agent', rule_id=rule.id, symbol=rule.symbol, payload=payload)
-            notified = self._notify_agent_with_retry(payload)
-            if not notified:
-                # 兜底：唤醒失败降级直接发飞书，保证提醒可达（标注降级直发，区别于 AI 分析版）
-                logger.warning('唤醒 Agent 失败，降级直接发飞书', symbol=rule.symbol)
-                notified = self._send_feishu(payload, mode_tag='降级直发·AI 唤醒失败')
-        else:
-            # direct：纯提醒，直接发飞书（标注直发，未经 LLM 分析）
-            logger.info('直接发飞书提醒', rule_id=rule.id, symbol=rule.symbol)
-            notified = self._send_feishu(payload, mode_tag='直发提醒·未经 AI 分析')
-
+    def notify(self, rule, condition: dict, quote, result, escalation_reason: str = None) -> bool:
+        """触发通知
+        
+        Args:
+            rule: 触发规则（含 action_hint, escalation_policy）
+            condition: 触发的条件
+            quote: 实时行情
+            result: 条件评估结果
+            escalation_reason: 升级原因（如果是 L1→L2 自动升级）
+        
+        Returns:
+            bool: 是否成功送达
+        """
+        # 1. 构建 TriggerPayload
+        payload = self._build_payload(rule, condition, quote, result, escalation_reason)
+        
+        # 2. 确定通知模式
+        trigger_level = payload.trigger_level
+        notify_mode = 'agent' if trigger_level == 'L2' else 'direct'
+        
+        # 3. 调用 NotificationFacade 发送通知
+        logger.info(
+            '发送盯盘触发通知',
+            rule_id=rule.id,
+            symbol=rule.symbol,
+            trigger_level=trigger_level,
+            notify_mode=notify_mode,
+            escalation_reason=escalation_reason,
+        )
+        
+        try:
+            # 构建 NotificationFacade 参数
+            facade_result = self.notification_facade.send_watch_triggered(
+                symbol=payload.symbol,
+                name=payload.name or payload.symbol,
+                price=payload.price,
+                condition=payload.condition,
+                message=payload.message,
+                context=payload.context,
+                notify_mode=notify_mode,
+                change_pct=payload.change_pct,
+                pnl_pct=payload.pnl_pct,
+                trigger_level=trigger_level,
+                action_hint=payload.to_notification_variables().get('action_hint'),
+                escalation_reason=escalation_reason,
+                decision_audit_id=payload.decision_audit_id,
+            )
+            notified = facade_result.success if hasattr(facade_result, 'success') else bool(facade_result)
+        except Exception as e:
+            logger.error('通知发送失败', symbol=payload.symbol, error=str(e))
+            notified = False
+        
+        # 4. WebSocket 广播
         self._broadcast_ws(payload)
+        
+        # 5. 触发记录落库
         self._record(rule, condition, quote, result, notified)
+        
         return notified
 
-    def _send_feishu(self, payload, mode_tag: str = '直发提醒') -> bool:
-        """直接发飞书告警（不经 LLM）。mode_tag 标注通知来源模式，便于区分直发/降级/AI 分析。"""
-        if self.feishu_service is None:
-            logger.error('feishu_service 未注入，无法直接发飞书', symbol=payload['symbol'])
-            return False
-        try:
-            name = payload.get('name') or ''
-            symbol = payload['symbol']
-            display = f"{name}（{symbol}）" if name else symbol
-
-            # 组织带 模式标签 + 名称 + 买卖方向 + 预案 的消息体
-            lines = [f"📡 `{mode_tag}`", f"**{display}** 触发盯盘条件"]
-            base_msg = payload.get('message')
-            if base_msg:
-                lines.append(f"**触发**：{base_msg}")
-            advice = _direction_advice(payload.get('condition'))
-            if advice:
-                lines.append(advice)
-            context = payload.get('context')
-            if context:
-                lines.append(f"**预案**：{context}")
-
-            data = {
-                'price': payload.get('price'),
-                'change_pct': payload.get('change_pct'),
-                'pnl_pct': payload.get('pnl_pct'),
-                'condition': payload.get('condition'),
-            }
-            return bool(self.feishu_service.send_alert(
-                alert_type='signal',
-                symbol=display,  # 标题带名称：💡 SIGNAL - 歌尔股份（002241.SZ）
-                message="\n".join(lines),
-                data=data,
-            ))
-        except Exception as e:
-            logger.error('直接发飞书失败', symbol=payload['symbol'], error=str(e))
-            return False
-
-    def _build_payload(self, rule, condition, quote, result) -> dict:
+    def _build_payload(self, rule, condition, quote, result, escalation_reason: str = None) -> TriggerPayload:
+        """构建 TriggerPayload"""
         price = float(quote.price)
+        
+        # 计算涨跌幅
         change_pct = None
         if getattr(quote, 'prev_close', None):
             change_pct = round((price - float(quote.prev_close)) / float(quote.prev_close) * 100, 2)
         elif getattr(quote, 'change_pct', None) is not None:
             change_pct = float(quote.change_pct)
+        
+        # 计算盈亏比例
         pnl_pct = None
         cost = getattr(rule, 'cost_price', None)
         if cost:
             pnl_pct = round((price - float(cost)) / float(cost) * 100, 2)
-        # 名称兜底：quote.name 为空时查 stocks 表（symbol 规范化去后缀）
+        
+        # 名称兜底
         name = getattr(quote, 'name', None) or _lookup_stock_name(rule.symbol)
-        return {
-            'rule_id': rule.id,
-            'symbol': rule.symbol,
-            'name': name,
-            'price': price,
-            'change_pct': change_pct,
-            'pnl_pct': pnl_pct,
-            'condition': condition,
-            'message': result.message,
-            'context': getattr(rule, 'context', None),
-            # 模式标识：agent 链路唤醒时带给 LLM，提示其为「AI 分析版」，
-            # 组织飞书通知时标注来源（区别于 direct 直发），便于用户区分可信度
-            'notify_mode': getattr(rule, 'notify_mode', None) or 'direct',
-            'mode_tag': 'AI 分析版' if (getattr(rule, 'notify_mode', None) == 'agent') else '直发提醒',
-        }
+        
+        # 获取 trigger_level（从 action_hint 或 rule 属性）
+        trigger_level = 'L1'  # 默认 L1
+        action_hint = None
+        
+        # 尝试从 rule.action_hint 读取
+        if hasattr(rule, 'action_hint') and rule.action_hint:
+            import json
+            try:
+                if isinstance(rule.action_hint, str):
+                    ah = json.loads(rule.action_hint)
+                else:
+                    ah = rule.action_hint
+                trigger_level = ah.get('trigger_level', 'L1')
+                from domain.watch.models import ActionHint, TriggerLevel
+                action_hint = ActionHint(
+                    trigger_level=TriggerLevel(trigger_level),
+                    action_on_trigger=ah.get('action_on_trigger', 'observe'),
+                    requires_agent=ah.get('requires_agent', False),
+                    position_ref=ah.get('position_ref'),
+                    confidence=ah.get('confidence'),
+                    max_position_pct=ah.get('max_position_pct'),
+                    stop_loss=ah.get('stop_loss'),
+                    target_price=ah.get('target_price'),
+                )
+            except Exception as e:
+                logger.warning('解析 action_hint 失败', rule_id=rule.id, error=str(e))
+        
+        # 如果是 L1→L2 升级，强制改为 L2
+        if escalation_reason:
+            trigger_level = 'L2'
+        
+        return TriggerPayload(
+            rule_id=rule.id,
+            symbol=rule.symbol,
+            name=name,
+            price=price,
+            condition=condition,
+            message=result.message,
+            context=getattr(rule, 'context', None),
+            trigger_level=trigger_level,
+            action_hint=action_hint,
+            escalation_reason=escalation_reason,
+            change_pct=change_pct,
+            pnl_pct=pnl_pct,
+            volume_ratio=result.value if hasattr(result, 'value') else None,
+        )
 
-    def _notify_agent_with_retry(self, payload) -> bool:
-        for attempt in range(1, self.max_retries + 1):
-            result = self.agent_service.notify_agent_detailed('watch_triggered', payload)
-            if result == 'ok':
-                return True
-            if result == 'timeout':
-                # 事件大概率已送达（wake 同步等待 LLM 决策，超时是常态），不重试避免重复唤醒
-                logger.info('唤醒 Agent 超时（事件已送达，不重试）', symbol=payload['symbol'])
-                return True
-            logger.warning('唤醒 Agent 失败，重试', attempt=attempt,
-                           symbol=payload['symbol'])
-            if attempt < self.max_retries:
-                time.sleep(self.retry_interval)
-        logger.error('唤醒 Agent 最终失败（已落库待补发）', symbol=payload['symbol'])
-        return False
-
-    def _broadcast_ws(self, payload):
+    def _broadcast_ws(self, payload: TriggerPayload):
+        """WebSocket 广播"""
         if not self.ws_url:
             return
         try:
-            requests.post(self.ws_url, json={'type': 'watch_triggered', 'data': payload},
-                          timeout=3)
+            requests.post(
+                self.ws_url,
+                json={'type': 'watch_triggered', 'data': payload.to_notification_variables()},
+                timeout=3
+            )
         except Exception as e:
             logger.debug('WS 广播失败（忽略）', error=str(e))
 
     def _record(self, rule, condition, quote, result, notified):
+        """触发记录落库"""
         if self.trigger_repo is None:
             return
         try:
             self.trigger_repo.record(
-                rule_id=rule.id, symbol=rule.symbol, condition=condition,
+                rule_id=rule.id,
+                symbol=rule.symbol,
+                condition=condition,
                 trigger_price=float(quote.price),
                 detail={'value': result.value, 'message': result.message},
                 notified=notified,

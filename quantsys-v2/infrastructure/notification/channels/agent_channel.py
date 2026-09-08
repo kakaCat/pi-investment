@@ -87,7 +87,7 @@ class AgentChannel(NotificationChannel):
             logger.debug(
                 "唤醒 Agent",
                 notification_id=notification.notification_id,
-                event=notification.notification_type.value
+                event_type=notification.notification_type.value
             )
 
             # 区分连接超时和响应超时

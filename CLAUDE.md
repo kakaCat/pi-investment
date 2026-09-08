@@ -240,6 +240,50 @@ When building dashboards:
 3. **Highlight anomalies** that need human attention
 4. **Track decision quality** over time
 
+### Architecture Rules (Mandatory)
+
+#### Notification Architecture
+
+**All notifications MUST go through `NotificationFacade`. Direct calls to Feishu SDK or agent_service are FORBIDDEN.**
+
+**Rules:**
+1. Application layer can only import `application.notification.notification_facade.NotificationFacade`
+2. NEVER import `infrastructure.notification.channels.*` in application layer
+3. NEVER call `requests.post(feishu_webhook_url)` directly
+4. New notification types MUST extend `NotificationFacade` first, then use it
+
+**Correct Example:**
+```python
+from application.notification import NotificationFacade
+
+facade = NotificationFacade(...)
+result = facade.send_watch_triggered(
+    symbol='600219',
+    name='南山铝业',
+    price=5.15,
+    condition={...},
+    message='突破5.13',
+    trigger_level='L2',
+    action_hint={...}
+)
+```
+
+**Wrong Example:**
+```python
+from infrastructure.notification.channels import FeishuChannel
+channel = FeishuChannel(...)
+channel.send(...)  # FORBIDDEN
+```
+
+**Consequences of violation:**
+- Code review rejection
+- CI check failure (if CI exists)
+- Runtime monitoring alert
+
+**Reference:**
+- Notification dev guide: `docs/guides/notification-development-guide.md`
+- WatchEngine tiered design: `docs/rfcs/011-watch-engine-tiered-notification.md`
+
 ## Project Structure
 
 ```

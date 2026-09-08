@@ -28,6 +28,9 @@ class WatchRule(Base):
     # notify_mode：direct=v2 直发飞书（纯提醒）；agent=唤醒 LLM 分析后再发
     # （2026-09-02 修复：模型此前漏此列，致 getattr 拿不到、agent 模式静默降级为 direct）
     notify_mode = Column(String(20), default='direct')
+    # RFC 011：分层提醒与自动升级
+    action_hint = Column(JSONB, default={})
+    escalation_policy = Column(JSONB, default={})
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now)
 
@@ -60,6 +63,9 @@ def rule_to_dict(rule: WatchRule) -> dict:
         'expires_at': rule.expires_at.isoformat() if rule.expires_at else None,
         'created_by': rule.created_by,
         'account': rule.account,
+        'notify_mode': rule.notify_mode,
+        'action_hint': rule.action_hint,
+        'escalation_policy': rule.escalation_policy,
         'created_at': rule.created_at.isoformat() if rule.created_at else None,
         'updated_at': rule.updated_at.isoformat() if rule.updated_at else None,
     }
