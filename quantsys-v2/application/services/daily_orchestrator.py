@@ -525,6 +525,12 @@ class DailyOrchestrator:
         except Exception:
             pass
 
+        # 幂等检查：避免同日重复推送（2026-09-08 修复：9/2 推 3 次、8/13 推 4 次）
+        if context.get('daily_review_notified'):
+            logger.info("review_phase: daily_review already notified today, skip",
+                       trade_date=str(state.trade_date))
+            return {'status': 'already_notified', 'skipped': True}
+        
         # 唤醒 Agent 做复盘决策（工具链引导 + 进化结果）
         self._notify_agent('daily_review', {
             'trade_date': str(state.trade_date),
@@ -547,6 +553,9 @@ class DailyOrchestrator:
                 '7. feishu_notify → 发送复盘报告'
             ),
         })
+        
+        # 标记已推送（防止重复，2026-09-08 修复：9/2 推 3 次、8/13 推 4 次）
+        self._update_context(state, {'daily_review_notified': True})
 
         return {
             'status': 'completed',
@@ -644,9 +653,23 @@ class DailyOrchestrator:
     # ==================== Agent 通知 ====================
 
     def _notify_agent(self, event: str, data: Dict[str, Any]):
-        """唤醒 Agent"""
+        """唤醒 Agent
+        
+        返回值处理：
+        - 'success': 正常推送
+        - 'timeout': Agent 正在处理中（不视为失败，避免重推）
+        - 'error': 连接失败或其他错误
+        """
         try:
-            agent_service.notify_agent(event, data)
+            result = agent_service.notify_agent(event, data)
+            if result == 'timeout':
+                # 超时不视为失败（Agent 大概率已收到事件正在处理，重推会导致重复）
+                logger.info(f"notify_agent_timeout_treated_as_success", event=event, 
+                           note="Agent 正在处理中，不重推")
+            elif result == 'error':
+                logger.warning(f"notify_agent_error", event=event, result=result)
+            else:
+                logger.info(f"notify_agent_success", event=event)
         except Exception as e:
             logger.warning(f"Failed to notify agent: {e}")
 

@@ -20,7 +20,8 @@ class AgentNotificationService:
     def __init__(self, agent_url: Optional[str] = None, timeout: Optional[int] = None):
         self.agent_url = agent_url or os.getenv('AGENT_API_URL', 'http://127.0.0.1:3002')
         # timeout 显式传入优先（如盯盘路径需要更短超时），否则读环境变量
-        self.timeout = timeout if timeout is not None else int(os.getenv('AGENT_TIMEOUT', '30'))
+        # 默认 300s（5min）：daily_review 等复杂事件需要多轮工具调用，30s 必然超时
+        self.timeout = timeout if timeout is not None else int(os.getenv('AGENT_TIMEOUT', '300'))
         self.enabled = os.getenv('AGENT_NOTIFY_ENABLED', 'true').lower() == 'true'
         self.token = os.getenv('AGENT_API_TOKEN')
 
