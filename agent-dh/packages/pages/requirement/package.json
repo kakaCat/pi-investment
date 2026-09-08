@@ -1,0 +1,24 @@
+{
+  "name": "@pi-investment/dashboard-requirement",
+  "version": "0.1.0",
+  "description": "需求看板 @pi-investment/dashboard-requirement — 需求流水线插件（host: reqboard JSON+SSE API + 两级状态机台账；client: 需求泳道看板 GUI）RFC 014",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "vitest": "^2.0.0"
+  }
+}
