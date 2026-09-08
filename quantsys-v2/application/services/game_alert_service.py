@@ -38,6 +38,10 @@ class GameAlertService:
         self.opponent_service = opponent_service or OpponentBehaviorService()
         self.manipulation_detector = manipulation_detector or ManipulationDetector()
 
+        # 操纵检测总超时（秒）：外部数据源（涨停池/龙虎榜）可能无响应，
+        # 必须给 check_alerts 设硬上限，否则 /api/alerts/check 无限挂起。
+        self.manipulation_timeout_seconds = 20
+
         # 预警阈值配置
         self.thresholds = {
             'retail_panic_threshold': -30,  # 散户恐慌：净流出30亿
@@ -166,8 +170,14 @@ class GameAlertService:
         alerts = []
 
         try:
-            # 执行操纵检测
-            manipulation_result = self.manipulation_detector.detect_market_manipulation()
+            # 执行操纵检测（受控超时，避免外部数据源拖垮预警接口）
+            manipulation_result = self._run_with_timeout(
+                self.manipulation_detector.detect_market_manipulation,
+                self.manipulation_timeout_seconds,
+            )
+            if not manipulation_result:
+                logger.warning("操纵检测超时，跳过操纵预警（降级）")
+                return alerts
 
             # 活跃的操纵事件 → 风险预警
             active_manipulations = manipulation_result.get('active_manipulations', [])
@@ -239,6 +249,35 @@ class GameAlertService:
         """生成预警ID"""
         import uuid
         return f"alert_{uuid.uuid4().hex[:8]}"
+
+    def _run_with_timeout(self, fn, timeout_seconds: float, *args):
+        """在受控线程中执行 fn，超时返回 None 并遗弃线程。
+
+        与 adapters/outbound/datasources/manager.py 的 _try_providers 同模式：
+        Python 线程无法强杀，超时后仅放弃等待，后台线程自行结束。
+        用于把外部数据源不响应的操纵检测限制在硬上限内。
+        """
+        import concurrent.futures
+        guard = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+        def _guarded():
+            try:
+                return fn(*args)
+            finally:
+                try:
+                    from infrastructure.persistence.orm import close_session
+                    close_session()
+                except Exception:
+                    pass
+
+        try:
+            fut = guard.submit(_guarded)
+            return fut.result(timeout=timeout_seconds)
+        except concurrent.futures.TimeoutError:
+            logger.warning(f"操作超时（>{timeout_seconds}s），放弃等待")
+            return None
+        finally:
+            guard.shutdown(wait=False)
 
     def get_alert_statistics(self) -> Dict[str, Any]:
         """

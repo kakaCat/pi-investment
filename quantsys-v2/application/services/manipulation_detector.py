@@ -7,6 +7,7 @@ from domain.ports import IAgentIntelligenceRepository, IFundFlowRepository
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
+import time
 
 logger = structlog.get_logger(__name__)
 
@@ -32,6 +33,11 @@ class ManipulationDetector:
         """
         self.manipulation_repo = manipulation_repo
         self.fund_flow_repo = fund_flow_repo
+
+        # 扫描预算：外部数据源（涨停池/龙虎榜/资金流）可能无响应，
+        # 必须对总扫描时间设硬上限，避免 /api/alerts/check 无限挂起（见盘中快检故障记录）。
+        self.scan_timeout_seconds = 15.0
+        self.max_scan_stocks = 20
 
     def detect_market_manipulation(self) -> Dict[str, Any]:
         """
@@ -106,7 +112,16 @@ class ManipulationDetector:
             # 获取最近的涨停板数据
             zt_pool = self._get_recent_zt_stocks()
 
-            for stock in zt_pool:
+            scan_start = time.monotonic()
+            for idx, stock in enumerate(zt_pool):
+                # 扫描总预算耗尽即降级返回已检出结果，绝不让外部数据源拖垮预警接口
+                if time.monotonic() - scan_start > self.scan_timeout_seconds:
+                    logger.warning(
+                        f"操纵扫描超预算（>{self.scan_timeout_seconds}s），"
+                        f"已扫描{len(manipulations)}只，剩余{len(zt_pool) - idx}只跳过"
+                    )
+                    break
+
                 symbol = stock['symbol']
 
                 # 检测操纵信号
@@ -182,7 +197,7 @@ class ManipulationDetector:
                     'zt_count': row.get('涨停统计', {}).get('连续涨停', 0) if isinstance(row.get('涨停统计'), dict) else 0
                 })
 
-            return stocks[:50]  # 限制扫描数量
+            return stocks[:self.max_scan_stocks]  # 限制扫描数量（防止外部数据源串行拉取放大延迟）
 
         except Exception as e:
             logger.warning(f"获取涨停池失败: {e}")
