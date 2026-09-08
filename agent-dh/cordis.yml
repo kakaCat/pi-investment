@@ -3,15 +3,6 @@
 
 # ========== DSH 核心插件 ==========
 
-# Skill 生态（模板说明，2026-09-05 更正）：
-# 本 profile 运行真身 DSH_HOME=~/.dsh-agent-dh（start.sh 隔离，勿与主实例 ~/.dsh 混淆）。
-# skill registry 按 scope 分层：host 层 skill-filesystem 被 dsh-web-app 禁用，
-# preset 层（agent-presets）负责各 preset 的 agent；investor 挂的 preset 用默认 roots，
-# 默认必扫 user-dsh root = ~/.dsh-agent-dh/skills。因此技能装载 = 真身放 agent-dh/skills
-# （本目录，git 版本管理）+ 软链到 ~/.dsh-agent-dh/skills/<skill>（运行时入口）。
-# 模板里的顶层 skill-filesystem customSkillDirs 仅 standalone 参考，不适用于本 profile 的
-# patch+preset 分层装载（顶层覆盖 host 层无效）。
-
 # 设置管理
 - id: settings
   name: '@deepseek-ai/dsh-settings-file'
@@ -55,6 +46,126 @@
     quantsysV2:
       baseURL: http://localhost:5001
 
+# 竞争分析工具
+- id: competition
+  name: '@pi-investment/competition'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
+
+# 市场数据工具
+- id: market
+  name: '@pi-investment/market'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
+
+# 风险管理工具
+- id: risk
+  name: '@pi-investment/risk'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
+
+# 策略管理工具
+- id: strategy
+  name: '@pi-investment/strategy'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
+
+# 因子分析工具
+- id: factor
+  name: '@pi-investment/factor'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
+
+# 数据管理工具
+- id: data-manager
+  name: '@pi-investment/data-manager'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
+
+# 记忆系统
+- id: memory
+  name: '@pi-investment/memory'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
+    agentOS:
+      baseURL: http://localhost:8080
+      agentId: agent-dh
+
+# 进化系统
+- id: evolution
+  name: '@pi-investment/evolution'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
+
+# 调度系统
+- id: scheduler
+  name: '@pi-investment/scheduler'
+  config:
+    agentOS:
+      baseURL: http://localhost:8080
+      agentId: agent-dh
+
+# 基因组管理
+- id: genome
+  name: '@pi-investment/genome'
+  config:
+    genomeDir: /Users/yunpeng/.dsh-agent-dh/genome
+
+# 学习系统
+- id: learning
+  name: '@pi-investment/learning'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
+
+# QuantSys-v2 管理器
+- id: quantsys-v2-manager
+  name: '@pi-investment/quantsys-v2-manager'
+  config:
+    projectRoot: /Users/yunpeng/pi-investment/quantsys-v2
+    port: 5001
+    healthCheckUrl: http://localhost:5001/api/health
+    startupScript: adapters/inbound/fastapi_app/main.py
+    activateScript: activate-py313.sh
+    logFile: logs/launchd-stdout.log
+
+# Agent OS 管理器
+- id: agent-os-manager
+  name: '@pi-investment/agent-os-manager'
+  config:
+    projectRoot: /Users/yunpeng/pi-investment/agent-os
+    port: 8080
+    healthCheckUrl: http://localhost:8080/health
+    startCommand: ./bin/agent-os serve
+    logDir: logs
+
+# 进化器（观察和优化参数）
+- id: evolver
+  name: '@pi-investment/evolver'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
+    observeDays: 5
+
+# 通知系统
+- id: notification
+  name: '@pi-investment/notification'
+  config:
+    agentOS:
+      baseURL: http://localhost:8080
+      agentId: agent-dh
+    # 降级兜底 webhook（方案 C：主路径 Agent OS API 失败/全挂时直发飞书；'*' 为所有渠道共用）
+    feishuWebhooks:
+      '*': https://open.feishu.cn/open-apis/bot/v2/hook/b24be3a5-35fc-4142-90c2-3a3933172829
+
 # ========== Agent 配置 ==========
 
 # Agent 循环驱动 + 预创建 investor Agent
@@ -71,20 +182,6 @@
 - id: system-prompt
   name: '@deepseek-ai/dsh-system-prompt'
   config:
-    persona: |
-      你是一个专业的投资分析助手，基于数据做出理性的投资决策。
-
-      你可以使用以下工具获取市场数据：
-      - data_fetch_quote: 获取股票实时行情
-      - data_fetch_kline: 获取K线数据用于技术分析
-      - data_fetch_financial: 获取财务数据评估公司基本面
-      - pool_list: 查看股票池列表
-      - strategy_list: 查看可用交易策略
-      - account_info: 查看账户资产情况
-      - position_list: 查看当前持仓
-
-      工作原则：
-      1. 数据驱动：基于客观数据而非情绪做决策
-      2. 风险控制：关注止损和仓位管理
-      3. 长期视角：重视基本面和趋势
-      4. 透明记录：每次决策说明理由
+    persona: ''
+    # persona 内容已迁移至 genome 插件管理的基因组段落
+    # constitution.md（宪法层，锁定） + principles.md（决策原则，可进化）

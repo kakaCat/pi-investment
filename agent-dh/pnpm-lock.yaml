@@ -530,6 +530,25 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@20.19.43)
 
+  packages/pages/dsh-pmboard:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: ^4.0.1
+        version: 4.0.1
+      '@pi-investment/page-kit':
+        specifier: workspace:*
+        version: link:../page-kit
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.43
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@20.19.43)
+
   packages/pages/execution:
     dependencies:
       '@deepseek-ai/cordis':
@@ -604,22 +623,6 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
-
-  packages/pages/requirement:
-    dependencies:
-      '@deepseek-ai/cordis':
-        specifier: ^4.0.1
-        version: 4.0.1
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.43
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      vitest:
-        specifier: ^2.0.0
-        version: 2.1.9(@types/node@20.19.43)
 
   packages/quantsys-v2-manager:
     dependencies:
