@@ -99,6 +99,7 @@ export function createSolveKit(deps: SolveKitDeps): SolveKit {
   /** POST endpoint（host 路由：自包含消息 → 目标 agent.followup） */
   const postSolve = async (kind: 'task' | 'error', snap: Record<string, unknown>, toSession?: string): Promise<void> => {
     const from = deps.current()
+    console.log('[solve-kit] postSolve', { endpoint: deps.endpoint, kind, toSession, from })
     try {
       const res = await fetch(deps.endpoint, {
         method: 'POST',
@@ -106,6 +107,7 @@ export function createSolveKit(deps: SolveKitDeps): SolveKit {
         body: JSON.stringify({ kind, task: kind === 'task' ? snap : undefined, err: kind === 'error' ? snap : undefined, from_session: from || undefined, to_session: toSession }),
       })
       const j = await res.json().catch(() => null)
+      console.log('[solve-kit] response', j)
       if (j === null || j.success !== true) { toast('投递失败：' + String(j?.error ?? 'HTTP ' + res.status), false); return }
       const d = j.data as { delivered?: boolean; note?: string; error?: string } | undefined
       toast(d?.delivered === true ? '✓ ' + String(d?.note ?? '已投递') : '⚠ ' + String(d?.error ?? j.error ?? '投递失败'), d?.delivered === true)
@@ -116,7 +118,9 @@ export function createSolveKit(deps: SolveKitDeps): SolveKit {
 
   /** 点「我来解决」：弹窗口选择器（默认当前窗口在首，current 标记）；无候选时直接投递主窗口 */
   const openPicker = (anchor: HTMLElement, kind: 'task' | 'error', identity: SolveIdentity): void => {
+    console.log('[solve-kit] openPicker', { kind, identity })
     const target = deps.resolveSnapshot(kind, identity)
+    console.log('[solve-kit] resolveSnapshot', target)
     if (target === null) { toast('⚠ 数据已刷新，请重试', false); return }
     close()
     const cands = deps.candidates()

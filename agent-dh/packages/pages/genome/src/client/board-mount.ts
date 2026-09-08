@@ -1,23 +1,20 @@
 /**
  * Board controller + center-column mounting for the genome dashboard.
- *
- * Visibility is toggled via a data attribute on <html> plus cross-plugin
- * activation events — the dsh-taskboard contract (mirrors dashboard-execution).
- * Opening evicts every sibling panel's active attr; a passive listener on
- * dsh-panel-activate closes this board when ANOTHER panel activates (siblings
- * don't know about us, so we self-close instead of editing their arrays).
+ * Delegated to page-kit board-shell for lifecycle; page only provides
+ * buildContainer / onMount / onPoll callbacks.
  *
  * @module dashboard-genome/client/board-mount
  */
 import type { ApiResponse, GenomeData } from './types.ts'
 import {
-  BOARD_VIEW_SELECTOR, PANEL_NAME, ACTIVE_ATTR, OTHER_ACTIVE_ATTRS,
-  ACTIVATE_EVENT, CONVERSATION_COLUMN_SELECTOR, conversationColumn,
+  PANEL_NAME, ACTIVE_ATTR, OTHER_ACTIVE_ATTRS,
+  ACTIVATE_EVENT,
 } from './dom.ts'
 import { buildView, renderAll, type ViewRefs } from './view.ts'
+import { createBoardShell } from '@pi-investment/page-kit/client'
 
 const GENOME_API = '/dashboard/api/genome'
-const POLL_MS = 30000 // 全量刷新（基因组/candidates 变化低频，30s 足够）
+const POLL_MS = 30000
 let fetching = false
 
 export interface BoardController {
@@ -29,62 +26,62 @@ export interface BoardController {
 }
 
 export function createBoardController(): BoardController {
-  const snap = { boardOpen: false }
-  const open = (): void => { snap.boardOpen = true; sync() }
-  const close = (): void => { snap.boardOpen = false; sync() }
-  const sync = (): void => {
-    if (snap.boardOpen) {
-      for (const attr of OTHER_ACTIVE_ATTRS) document.documentElement.removeAttribute(attr)
-      document.documentElement.setAttribute(ACTIVE_ATTR, '')
-      document.dispatchEvent(new CustomEvent(ACTIVATE_EVENT, { detail: PANEL_NAME }))
-    } else {
-      document.documentElement.removeAttribute(ACTIVE_ATTR)
-    }
+  const ctrl: BoardController = {
+    isActive: () => false,
+    toggle: () => {},
+    getSnapshot: () => ({ boardOpen: false }),
+    openBoard: () => {},
+    closeBoard: () => {},
   }
-  return {
-    isActive: () => snap.boardOpen,
-    toggle: () => { if (snap.boardOpen) close(); else open() },
-    getSnapshot: () => snap,
-    openBoard: open,
-    closeBoard: close,
-  }
+  return ctrl
 }
 
-/** Mount the board container + view into the center column; returns disposer. */
 export function mountBoard(controller: BoardController): () => void {
   let refs: ViewRefs | undefined
-  let container: HTMLDivElement | undefined
-  let pollTimer: number | undefined
   let lastData: GenomeData | undefined
-  let disposed = false
 
-  // 中心列可能晚于 client apply() 出现（boot 时序）→ 启动即挂 + MutationObserver 兜底补挂
-  // （dashboard-bulletin 实证范式）。容器常驻隐藏，点开只切 html[data-dsh-gen-active]。
-  const ensure = (): void => {
-    if (container !== undefined || disposed) return
-    const column = conversationColumn()
-    if (column === undefined) return
-    container = document.createElement('div')
-    container.className = 'dsh-gen-board'
-    container.dataset.dshGenView = ''
-    column.appendChild(container)
-    refs = buildView()
-    container.appendChild(refs.root)
-    refs.refreshBtn?.addEventListener('click', () => { void fetchData() })
-    // 显式「收起」按钮：看板点开后随时可一键回会话（不依赖点外部区域；点 = toggle，与入口同路径）
-    const closeBtn = document.createElement('button')
-    closeBtn.type = 'button'
-    closeBtn.className = 'dsh-gen-close'
-    closeBtn.title = '收起看板，回到会话'
-    closeBtn.textContent = '✕ 收起'
-    closeBtn.addEventListener('click', () => { controller.toggle() })
-    if (refs.head !== undefined) refs.head.insertBefore(closeBtn, refs.refreshBtn ?? null)
-    void fetchData(true)
-    console.log('[dashboard-genome] board container mounted')
-  }
-  const waitObserver = new MutationObserver(() => { ensure() })
-  waitObserver.observe(document.body, { childList: true, subtree: true })
-  ensure()
+  const shell = createBoardShell({
+    prefix: 'dsh-gen',
+    panelName: PANEL_NAME,
+    activeAttr: ACTIVE_ATTR,
+    otherActiveAttrs: OTHER_ACTIVE_ATTRS,
+    pollMs: POLL_MS,
+    dispatchTarget: 'document',
+    listenTarget: 'window',
+    buildContainer: () => {
+      const el = document.createElement('div')
+      el.className = 'dsh-gen-board'
+      el.dataset.dshGenView = ''
+      return el
+    },
+    onMount: (container) => {
+      refs = buildView()
+      container.appendChild(refs.root)
+      const onRefresh = () => { void fetchData() }
+      refs.refreshBtn?.addEventListener('click', onRefresh)
+      const closeBtn = document.createElement('button')
+      closeBtn.type = 'button'
+      closeBtn.className = 'dsh-gen-close'
+      closeBtn.title = '收起看板，回到会话'
+      closeBtn.textContent = '✕ 收起'
+      const onClose = () => { shell.toggle() }
+      closeBtn.addEventListener('click', onClose)
+      if (refs.head !== undefined) refs.head.insertBefore(closeBtn, refs.refreshBtn ?? null)
+      void fetchData(true)
+      console.log('[dashboard-genome] board container mounted')
+      return () => {
+        refs.refreshBtn?.removeEventListener('click', onRefresh)
+        closeBtn.removeEventListener('click', onClose)
+      }
+    },
+    onPoll: () => { void fetchData() },
+  })
+
+  controller.isActive = shell.isActive
+  controller.toggle = shell.toggle
+  controller.openBoard = shell.open
+  controller.closeBoard = shell.close
+  controller.getSnapshot = () => ({ boardOpen: shell.isActive() })
 
   async function fetchData(initial = false): Promise<void> {
     if (fetching || refs === undefined) return
@@ -105,53 +102,8 @@ export function mountBoard(controller: BoardController): () => void {
     }
   }
 
-  const startPoll = (): void => {
-    if (pollTimer !== undefined) return
-    pollTimer = window.setInterval(() => { void fetchData() }, POLL_MS)
-  }
-  const stopPoll = (): void => {
-    if (pollTimer !== undefined) { window.clearInterval(pollTimer); pollTimer = undefined }
-  }
-
-  // 打开时：确保容器已挂（幂等）+ 开始轮询；关闭时：停止轮询（保留容器数据）。
-  // 增强版 open/close/toggle 重绑定到 controller——sidebar-entry 运行时动态读
-  // controller.toggle()，替换后入口点击即走增强路径。
-  const rawOpen = controller.openBoard
-  const rawClose = controller.closeBoard
-  const openAndMount = (): void => { ensure(); startPoll(); rawOpen() }
-  const closeAndStop = (): void => { stopPoll(); rawClose() }
-  const ctrl = controller as unknown as Record<string, unknown>
-  ctrl.openBoard = openAndMount
-  ctrl.closeBoard = closeAndStop
-  ctrl.toggle = (): void => { if (controller.isActive()) closeAndStop(); else openAndMount() }
-
-  // 另一面板激活 → 关闭自己（被动互斥，避免与旧面板静态数组脱节）
-  const onActivate = (event: Event): void => {
-    const detail = (event as CustomEvent<string>).detail
-    if (detail !== undefined && detail !== PANEL_NAME && controller.isActive()) closeAndStop()
-  }
-  window.addEventListener(ACTIVATE_EVENT, onActivate)
-
-  // 打开时点看板以外任意区域 → 收起回会话（bulletin 语义，宽于原 data-pane=sidebar 一代收窄：
-  // 三代侧栏布局下会话列表/新会话按钮可能不在 data-pane="sidebar"，收窄会点不中 → 回不去会话）。
-  // 点入口本身走 entry 的 toggle（这里排除，避免与 toggle 重复）。
-  const onDocClick = (event: MouseEvent): void => {
-    if (!controller.isActive()) return
-    const target = event.target as HTMLElement | null
-    if (target === null) return
-    if (target.closest('[data-dsh-gen-entry], [data-dsh-gen-view]') !== null) return
-    closeAndStop()
-  }
-  document.addEventListener('click', onDocClick)
-
   return () => {
-    disposed = true
-    waitObserver.disconnect()
-    stopPoll()
-    window.removeEventListener(ACTIVATE_EVENT, onActivate)
-    document.removeEventListener('click', onDocClick)
-    container?.remove()
-    container = undefined
+    shell.dispose()
     document.documentElement.removeAttribute(ACTIVE_ATTR)
   }
 }

@@ -9,6 +9,7 @@
  */
 import type { BoardData, CheckpointResult, SchedulerTask, TimelineEntry } from './types.ts'
 import { esc, fmtClock } from '@pi-investment/page-kit/client'
+function shortDT(s: unknown): string { return fmtClock(String(s), { omitDateIfToday: true }) }
 
 function hmMin(s: unknown): number {
   const m = String(s ?? '').match(/^(\d{2}):(\d{2})/)

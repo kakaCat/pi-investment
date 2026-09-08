@@ -12,6 +12,7 @@
 import { createBoardController, mountBoard } from './board-mount.js'
 import { mountSidebarEntry } from './sidebar-entry.js'
 import { injectStyles } from './styles.js'
+import { injectToastStyles } from '@pi-investment/page-kit/client'
 
 export const name = '@pi-investment/dashboard-bulletin/client'
 
@@ -61,6 +62,7 @@ export function apply(ctx: ApplyContext): void {
   try { (window as any).__dshBbdCtx = ctx; (window as any).__dshBbdSessions = ctx?.sessions; (window as any).__dshBbdWorkspaces = ctx?.workspaces } catch { /* noop */ }
   try {
     injectStyles()
+    injectToastStyles("dsh-bbd")
 
     // HMR / 壳重载先清理上一份挂载，防重复挂载（同 holdings __dshHldClient 惯例）
     ;(window as any).__dshBbdClient?.dispose?.()

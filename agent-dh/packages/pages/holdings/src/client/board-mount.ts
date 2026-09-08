@@ -1,14 +1,17 @@
 /**
  * Board controller and mount logic — manages the holdings board lifecycle.
+ * Lifecycle (mutex/poll/mount/outside-click/dispose) delegated to page-kit board-shell.
+ * Page retains business state (account/watchKey/historyPage) and solve-kit integration.
  *
  * @module dashboard-holdings/client/board-mount
  */
-import { ACTIVE_ATTR, ACTIVATE_EVENT, BOARD_VIEW_SELECTOR, conversationColumn, OTHER_ACTIVE_ATTRS, PANEL_NAME } from './dom.js'
+import { ACTIVE_ATTR, ACTIVATE_EVENT, BOARD_VIEW_SELECTOR, PANEL_NAME, OTHER_ACTIVE_ATTRS } from './dom.js'
 import { buildHistoryCard, buildView, buildWatchCardHtml, HISTORY_PAGE_SIZE } from './view.js'
 import type { HoldingsData } from './types.js'
 import {
   createSolveKit, type SolveCandidate, type SolveIdentity, type SolveKit, type SolveSnapshot,
 } from '@pi-investment/solve-kit/client'
+import { createBoardShell } from '@pi-investment/page-kit/client'
 
 export interface BoardController {
   openBoard(): void
@@ -19,92 +22,23 @@ export interface BoardController {
   switchAccount(accountName: string): void
   watchSwitch(key: string): void
   historyPageSwitch(page: number): void
-  /** 「我来解决」：失败任务投递 investor 窗口（anchor=按钮，identity 读 data-solve-task） */
   solveTask(btn?: HTMLElement): void
 }
 
 export function createBoardController(): BoardController {
-  let boardOpen = false
   let currentAccount = 'agent_virtual'
-  let watchKey = 'current' // 盯盘中心当前 tab（'current'=默认本账户）
-  let historyPage = 0 // 「历史交易」分页卡当前页（0-based；轮询重渲染保留）
+  let watchKey = 'current'
+  let historyPage = 0
   let lastData: HoldingsData | undefined
-  let pollTimer: number | undefined
-
-  const open = (): void => {
-    if (boardOpen) return
-    boardOpen = true
-    console.log('[dashboard-holdings] opening board')
-
-    // Set activation attribute
-    document.documentElement.setAttribute(ACTIVE_ATTR, '')
-
-    // Evict sibling panels
-    for (const attr of OTHER_ACTIVE_ATTRS) {
-      document.documentElement.removeAttribute(attr)
-    }
-
-    // Dispatch activation event
-    window.dispatchEvent(new CustomEvent(ACTIVATE_EVENT, { detail: PANEL_NAME }))
-
-    // Start polling
-    startPolling()
-    fetchAndRender(currentAccount)
-  }
-
-  const close = (): void => {
-    if (!boardOpen) return
-    boardOpen = false
-    console.log('[dashboard-holdings] closing board')
-
-    document.documentElement.removeAttribute(ACTIVE_ATTR)
-    stopPolling()
-  }
-
-  const toggle = (): void => {
-    if (boardOpen) close()
-    else open()
-  }
-
-  const refresh = (): void => {
-    console.log('[dashboard-holdings] manual refresh')
-    fetchAndRender(currentAccount)
-  }
-
-  const switchAccount = (accountName: string): void => {
-    console.log('[dashboard-holdings] switching account to', accountName)
-    currentAccount = accountName
-    watchKey = 'current' // 切换账户后盯盘中心默认回到新账户的「本账户」tab
-    historyPage = 0 // 切换账户后历史交易回到第 1 页
-    fetchAndRender(accountName)
-  }
-
-  const startPolling = (): void => {
-    stopPolling()
-    pollTimer = window.setInterval(() => {
-      if (boardOpen) fetchAndRender(currentAccount)
-    }, 15000) // 15s 轮询
-  }
-
-  const stopPolling = (): void => {
-    if (pollTimer !== undefined) {
-      clearInterval(pollTimer)
-      pollTimer = undefined
-    }
-  }
+  let shellRef: { open(): void; close(): void; toggle(): void; isActive(): boolean } | undefined
 
   const fetchAndRender = async (accountName: string): Promise<void> => {
     try {
-      const url = `/dashboard/api/holdings?account=${encodeURIComponent(accountName)}`
+      const url = '/dashboard/api/holdings?account=' + encodeURIComponent(accountName)
       const res = await fetch(url)
       const json = await res.json()
-
-      if (!json.success) {
-        throw new Error(json.error || 'Unknown error')
-      }
-
-      const data: HoldingsData = json.data
-      renderBoard(data)
+      if (!json.success) throw new Error(json.error || 'Unknown error')
+      renderBoard(json.data as HoldingsData)
     } catch (error) {
       console.error('[dashboard-holdings] fetch failed:', error)
       renderError(String(error))
@@ -115,37 +49,22 @@ export function createBoardController(): BoardController {
     lastData = data
     const view = document.querySelector(BOARD_VIEW_SELECTOR)
     if (!view) return
-
     view.innerHTML = buildView(data, watchKey, historyPage)
   }
 
   const renderError = (message: string): void => {
     const view = document.querySelector(BOARD_VIEW_SELECTOR)
     if (!view) return
-
-    view.innerHTML = `
-      <div class="dsh-hld-board">
-        <div class="dsh-hld-wrap">
-          <div class="dsh-hld-head">
-            <h1 class="dsh-hld-title">持仓看板</h1>
-          </div>
-          <div class="dsh-hld-banner show">
-            数据加载失败: ${message}
-          </div>
-        </div>
-      </div>
-    `
+    view.innerHTML = '<div class="dsh-hld-board"><div class="dsh-hld-wrap"><div class="dsh-hld-head"><h1 class="dsh-hld-title">持仓看板</h1></div><div class="dsh-hld-banner show">数据加载失败: ' + message + '</div></div></div>'
   }
 
-  // 盯盘中心 tab 切换：仅用当前数据重渲染（不重新拉取）；15s 轮询仍按所选 tab 展示。
-  // 2026-09-05 局部刷新——只替换「盯盘中心」卡根（id=dsh-hld-watch），持仓/今日/历史不整板重绘
   const watchSwitch = (key: string): void => {
     const k = String(key || 'current')
     if (k === watchKey) return
     watchKey = k
     if (!lastData) return
     const host = document.getElementById('dsh-hld-watch')
-    if (host === null) { renderBoard(lastData); return } // 兜底：找不到卡根才整板重绘
+    if (host === null) { renderBoard(lastData); return }
     const tpl = document.createElement('template')
     tpl.innerHTML = buildWatchCardHtml(lastData, watchKey)
     const node = tpl.content.firstElementChild as HTMLElement | null
@@ -153,18 +72,15 @@ export function createBoardController(): BoardController {
     host.replaceWith(node)
   }
 
-  // 历史交易翻页：页号越界自动收敛（数据随轮询增减后防止空页）；
-  // 2026-09-05 局部刷新——只重建「历史交易」卡根（id=dsh-hld-hx），持仓/今日/盯盘等其余区块
-  // 不随之整板重绘（此前 renderBoard 全板 innerHTML 重写，翻页像整板刷新）
   const historyPageSwitch = (page: number): void => {
-    const total = (lastData?.tradeHistory?.length ?? 0)
+    const total = lastData?.tradeHistory?.length ?? 0
     const pages = Math.max(1, Math.ceil(total / HISTORY_PAGE_SIZE))
     const next = Math.max(0, Math.min(Math.trunc(Number(page) || 0), pages - 1))
     if (next === historyPage) return
     historyPage = next
     if (!lastData) return
     const host = document.getElementById('dsh-hld-hx')
-    if (host === null) { renderBoard(lastData); return } // 兜底：异常找不到卡根才整板重绘
+    if (host === null) { renderBoard(lastData); return }
     const tpl = document.createElement('template')
     tpl.innerHTML = buildHistoryCard(lastData, historyPage)
     const node = tpl.content.firstElementChild as HTMLElement | null
@@ -172,13 +88,10 @@ export function createBoardController(): BoardController {
     host.replaceWith(node)
   }
 
-  /* ---- 「我来解决」：失败任务 → investor 窗口排查（solve-kit 公用包，抽象自 execution 看板）---- */
-  // 会话候选（与左栏同源）：client apply() 注入 __dshHldCtx/__dshHldSessions/__dshHldWorkspaces（归档过滤）
+  // solve-kit
   const hldCurrentSession = (): string => {
     const w = window as any
-    try {
-      return String((w.__dshHldSessions ?? w.__dshHldCtx?.sessions)?.list?.getSnapshot?.().current ?? '')
-    } catch { return '' }
+    try { return String((w.__dshHldSessions ?? w.__dshHldCtx?.sessions)?.list?.getSnapshot?.().current ?? '') } catch { return '' }
   }
   const hldCandidates = (): SolveCandidate[] => {
     const w = window as any
@@ -200,10 +113,9 @@ export function createBoardController(): BoardController {
         const label = String(it?.title ?? it?.displayTitle ?? '').slice(0, 42)
         out.push({ sid: id, label: label || id, current: id === cur })
       }
-    } catch { /* 读失败：降级空候选 → 直投当前窗口 */ }
+    } catch { }
     return out
   }
-  /** automation 快照 → host 期望的 task 板型（name/lastRun 对象/fetchedAt/error）；数据已刷新找不到 → null */
   const hldSnapshotFor = (kind: 'task' | 'error', identity: SolveIdentity): SolveSnapshot | null => {
     if (kind !== 'task') return null
     const auto = lastData?.automation
@@ -230,82 +142,65 @@ export function createBoardController(): BoardController {
     current: hldCurrentSession,
     resolveSnapshot: hldSnapshotFor,
   })
-  const solveTask = (btn?: HTMLElement): void => {
-    if (!btn) return
-    const name = String(btn.dataset?.solveTask ?? '')
-    if (!name) return
-    solveKit.openPicker(btn, 'task', { name })
-  }
 
   return {
-    openBoard: open,
-    closeBoard: close,
-    toggleBoard: toggle,
-    getSnapshot: () => ({ boardOpen }),
-    refresh,
-    switchAccount,
+    openBoard: () => shellRef?.open(),
+    closeBoard: () => shellRef?.close(),
+    toggleBoard: () => shellRef?.toggle(),
+    getSnapshot: () => ({ boardOpen: shellRef?.isActive() ?? false }),
+    refresh: () => { console.log('[dashboard-holdings] manual refresh'); fetchAndRender(currentAccount) },
+    switchAccount: (accountName) => {
+      console.log('[dashboard-holdings] switching account to', accountName)
+      currentAccount = accountName
+      watchKey = 'current'
+      historyPage = 0
+      fetchAndRender(accountName)
+    },
     watchSwitch,
     historyPageSwitch,
-    solveTask,
+    solveTask: (btn) => {
+      if (!btn) return
+      const name = String(btn.dataset?.solveTask ?? '')
+      if (!name) return
+      solveKit.openPicker(btn, 'task', { name })
+    },
   }
 }
 
-/**
- * Mount the board view container to the conversation column.
- * Returns a disposer to remove the mount.
- */
 export function mountBoard(controller: BoardController): () => void {
-  let container: HTMLDivElement | undefined
-
-  // 中心列可能晚于 client apply() 挂载（boot 时序）：观察 body，列出现后补建视图容器。
-  // 此前无重试导致列未就绪时挂载永久失败（'conversation column not found'）→ 点击只置 active
-  // 属性、无任何可见内容。
-  const ensure = (): void => {
-    if (container !== undefined) return
-    const column = conversationColumn()
-    if (column === undefined) return
-    container = document.createElement('div')
-    container.setAttribute('data-dsh-hld-view', '')
-    container.className = 'dsh-hld-view'
-    column.appendChild(container)
-    console.log('[dashboard-holdings] board container mounted')
-  }
-  const waitObserver = new MutationObserver(() => { ensure() })
-  waitObserver.observe(document.body, { childList: true, subtree: true })
-  ensure()
-
-  // Wire global callbacks for view interactions
   ;(window as any).__dshHldRefresh = () => controller.refresh()
   ;(window as any).__dshHldSwitchAccount = (accountName: string) => controller.switchAccount(accountName)
   ;(window as any).__dshHldWatchTab = (key: string) => controller.watchSwitch(String(key))
   ;(window as any).__dshHldHistoryPage = (page: unknown) => controller.historyPageSwitch(Number(page))
   ;(window as any).__dshHldSolveTask = (btn?: HTMLElement) => controller.solveTask(btn)
 
-  // Listen for other panels' activation to auto-close
-  const onOtherActivate = (event: Event): void => {
-    const detail = (event as CustomEvent).detail
-    if (detail !== PANEL_NAME && controller.getSnapshot().boardOpen) controller.closeBoard()
-  }
-  window.addEventListener(ACTIVATE_EVENT, onOtherActivate)
+  const shell = createBoardShell({
+    prefix: 'dsh-hld',
+    panelName: PANEL_NAME,
+    activeAttr: ACTIVE_ATTR,
+    otherActiveAttrs: OTHER_ACTIVE_ATTRS,
+    pollMs: 15000,
+    buildContainer: () => {
+      const el = document.createElement('div')
+      el.setAttribute('data-dsh-hld-view', '')
+      el.className = 'dsh-hld-view'
+      return el
+    },
+    onMount: () => {
+      controller.refresh()
+      return undefined
+    },
+    onPoll: () => controller.refresh(),
+  })
 
-  // 关板：点击任何非本板/本入口（footer 按钮）的区域即关闭。会话行是 role=treeitem 的 div，
-  // 不能按 button/a/role=button 判定（旧逻辑从不触发 → active 属性卡死 → 点会话不显示）。
-  const onClickOutside = (event: MouseEvent): void => {
-    if (!controller.getSnapshot().boardOpen) return
-    const target = event.target as HTMLElement | null
-    if (target === null) return
-    if (target.closest('[data-dsh-hld-view]') !== null) return
-    if (target.closest('[class*="dsh-hld-foot"]') !== null) return
-    if (target.closest('[data-dsh-hld-entry]') !== null) return
-    controller.closeBoard()
-  }
-  document.addEventListener('click', onClickOutside, true)
+  const ctrl = controller as any
+  ctrl.openBoard = shell.open
+  ctrl.closeBoard = shell.close
+  ctrl.toggleBoard = shell.toggle
+  ctrl.getSnapshot = () => ({ boardOpen: shell.isActive() })
 
   return () => {
-    window.removeEventListener(ACTIVATE_EVENT, onOtherActivate)
-    document.removeEventListener('click', onClickOutside, true)
-    waitObserver.disconnect()
-    if (container !== undefined) container.remove()
+    shell.dispose()
     delete (window as any).__dshHldRefresh
     delete (window as any).__dshHldSwitchAccount
     delete (window as any).__dshHldWatchTab
@@ -314,4 +209,3 @@ export function mountBoard(controller: BoardController): () => void {
     console.log('[dashboard-holdings] board unmounted')
   }
 }
-

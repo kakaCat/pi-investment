@@ -210,15 +210,6 @@ html[data-dsh-bbd-active] .dsh-bbd-view {
   padding: 0 6px; border-radius: 999px;
 }
 .dsh-bbd-pick-empty { font-size: 12px; color: #8a9199; }
-.dsh-bbd-toast {
-  position: fixed; top: 14px; right: 16px; z-index: 9999; max-width: min(420px, 70vw);
-  padding: 9px 14px; border-radius: 8px; font-size: 13px; line-height: 1.55;
-  box-shadow: 0 6px 22px rgba(15, 23, 42, .16); opacity: 1;
-  transition: opacity .35s ease; word-break: break-word;
-}
-.dsh-bbd-toast.ok { background: #065f46; color: #ecfdf5; border: 1px solid #34d399; }
-.dsh-bbd-toast.err { background: #7f1d1d; color: #fef2f2; border: 1px solid #f87171; }
-.dsh-bbd-toast.out { opacity: 0; }
 `
 
 /** Inject the stylesheet once (tagged for the HMR driver cleanup). */
