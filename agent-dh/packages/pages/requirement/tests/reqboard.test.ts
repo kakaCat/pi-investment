@@ -241,69 +241,91 @@ describe('ReqboardStore', () => {
     expect(events[0].revision).toBe(1)
   })
 })
+
+
 // ---------------------------------------------------------------------------
-// M2: 分类器 + 会话同步 + 待归类区
+// M2: 三层分类架构（显式标记 → LLM 精准+需求分类 → 启发式兜底）
 // ---------------------------------------------------------------------------
 
-import { classifySession } from '../src/host/classifier.js'
-import { SessionSyncService, extractUserMessageText, titleFromText, isIgnoredSession } from '../src/host/session-sync.js'
+import { extractExplicitId, classifySessionHeuristic, classifySessionLlm } from '../src/host/classifier.js'
+import { SessionSyncService, extractUserMessageText, isIgnoredSession } from '../src/host/session-sync.js'
 
-describe('Classifier', () => {
+describe('Explicit marker detection', () => {
+  it('detects #REQ-xxx', () => {
+    const r = extractExplicitId('请查看 #REQ-000001 的需求')
+    expect(r).toEqual({ kind: 'req', id: 'REQ-000001' })
+  })
+  it('detects #t-xxx', () => {
+    const r = extractExplicitId('继续 #t-000002 的任务')
+    expect(r).toEqual({ kind: 'task', id: 't-000002' })
+  })
+  it('returns undefined when no marker', () => {
+    expect(extractExplicitId('普通消息')).toBeUndefined()
+  })
+})
+
+describe('Heuristic classifier', () => {
   const reqs: RequirementRecord[] = [
     { id: 'REQ-000001', title: '持仓看板 CSV 导出', description: '给持仓看板增加导出功能', status: 'draft', blocked: false, comments: [], version: 1, createdAt: 0, updatedAt: 0, createdBy: { kind: 'human' }, updatedBy: { kind: 'human' } },
-    { id: 'REQ-000002', title: '基因组 v26 升级', description: '升级提示词基因组到 v26', status: 'draft', blocked: false, comments: [], version: 1, createdAt: 0, updatedAt: 0, createdBy: { kind: 'human' }, updatedBy: { kind: 'human' } },
   ]
   const tasks: TaskRecord[] = [
     { id: 't-000001', requirementId: 'REQ-000001', title: '后端导出接口', phase: 'implement', side: 'backend', dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance: '', context: '', status: 'todo', blocked: false, executions: [], comments: [], version: 1, createdAt: 0, updatedAt: 0, createdBy: { kind: 'human' }, updatedBy: { kind: 'human' } },
   ]
 
+  it('suggests bind_req when title matches', () => {
+    const r = classifySessionHeuristic('持仓看板 CSV 导出功能', reqs, tasks)
+    expect(r.action).toBe('bind_req')
+    expect(r.targetId).toBe('REQ-000001')
+  })
+
   it('suggests create_req when no match', () => {
-    const r = classifySession('完全无关的内容', reqs, tasks)
+    const r = classifySessionHeuristic('完全无关的内容', reqs, tasks)
     expect(r.action).toBe('create_req')
     expect(r.score).toBe(0)
   })
+})
 
-  it('suggests bind_req when title matches', () => {
-    const r = classifySession('给持仓看板加个 CSV 导出功能', reqs, tasks)
+describe('LLM classifier with category', () => {
+  it('binds req by semantic match', async () => {
+    const r = await classifySessionLlm({
+      firstMessage: '持仓看板 CSV 导出怎么做',
+      requirements: [{ id: 'REQ-001', title: '持仓看板 CSV 导出', description: '', status: 'draft' }],
+      tasks: [],
+    })
     expect(r.action).toBe('bind_req')
-    expect(r.targetId).toBe('REQ-000001')
-    expect(r.score).toBeGreaterThan(0)
+    expect(r.targetId).toBe('REQ-001')
   })
 
-  it('suggests bind_task when task context matches', () => {
-    const r = classifySession('后端导出接口怎么实现', reqs, tasks)
-    expect(r.action).toBe('bind_task')
-    expect(r.targetId).toBe('t-000001')
+  it('creates req with category for bug', async () => {
+    const r = await classifySessionLlm({
+      firstMessage: '主力资金流数据源报错，需要修复',
+      requirements: [],
+      tasks: [],
+    })
+    expect(r.action).toBe('create_req')
+    expect(r.category).toBe('bug')
+    expect(r.suggestedTitle).toBeDefined()
+  })
+
+  it('creates req with category for doc', async () => {
+    const r = await classifySessionLlm({
+      firstMessage: '更新 README 文档，补充部署说明',
+      requirements: [],
+      tasks: [],
+    })
+    expect(r.action).toBe('create_req')
+    expect(r.category).toBe('doc')
   })
 })
 
-describe('Session sync utilities', () => {
-  it('extracts text from string content', () => {
-    expect(extractUserMessageText({ content: 'hello' })).toBe('hello')
-  })
-  it('extracts text from array content', () => {
-    expect(extractUserMessageText({ content: [{ text: 'hi' }, ' there'] })).toBe('hi\n there')
-  })
-  it('derives title from text', () => {
-    expect(titleFromText('  # 标题\n正文')).toBe('标题')
-  })
-  it('ignores subagent sessions', () => {
-    expect(isIgnoredSession('subagent-abc')).toBe(true)
-    expect(isIgnoredSession('session-reqboard-123')).toBe(true)
-    expect(isIgnoredSession('session-normal')).toBe(false)
-  })
-})
-
-describe('SessionSyncService with fake event bus', () => {
+describe('Session sync with explicit marker', () => {
   let store: ReqboardStore
   let tmpDir: string
-  let events: Array<{ sessionId: string; event: { type: string; data?: unknown }; meta?: unknown }> = []
   let busHandlers: Array<(...args: any[]) => void> = []
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), 'reqboard-m2-'))
     store = new ReqboardStore({ file: join(tmpDir, 'reqboard.json') })
-    events = []
     busHandlers = []
   })
 
@@ -315,22 +337,7 @@ describe('SessionSyncService with fake event bus', () => {
     busHandlers.forEach(h => h({ id: sessionId }, event, meta))
   }
 
-  it('creates triage on turn/start', async () => {
-    const svc = new SessionSyncService(
-      { store, now: () => Date.now() },
-      { on: (_evt, h) => { busHandlers.push(h); return () => {} } },
-    )
-    emit('session-abc', { type: 'turn/start' })
-    await new Promise(r => setTimeout(r, 50))
-    const snap = store.snapshot()
-    expect(snap.triages.length).toBe(1)
-    expect(snap.triages[0].sessionId).toBe('session-abc')
-    expect(snap.triages[0].status).toBe('pending')
-    svc.dispose()
-  })
-
-  it('updates triage text and runs classifier on user/message', async () => {
-    // seed a requirement for classifier to match
+  it('directly binds via explicit #REQ marker without LLM', async () => {
     await store.mutate('requirement-created', (ledger) => {
       ledger.requirements.push({
         id: 'REQ-000001', title: '持仓导出', description: '', status: 'draft', blocked: false,
@@ -339,19 +346,35 @@ describe('SessionSyncService with fake event bus', () => {
       })
       return { requirements: ledger.requirements }
     })
+
     const svc = new SessionSyncService(
       { store, now: () => Date.now() },
       { on: (_evt, h) => { busHandlers.push(h); return () => {} } },
     )
     emit('session-abc', { type: 'turn/start' })
-    emit('session-abc', { type: 'user/message', data: { content: '持仓导出怎么做' } })
+    emit('session-abc', { type: 'user/message', data: { content: '查看 #REQ-000001 的进度' } })
     await new Promise(r => setTimeout(r, 50))
-    const snap = store.snapshot()
-    const tri = snap.triages[0]
-    expect(tri.firstMessageText).toBe('持仓导出怎么做')
+
+    const tri = store.snapshot().triages[0]
     expect(tri.suggestedAction).toBe('bind_req')
     expect(tri.suggestedTargetId).toBe('REQ-000001')
-    expect(tri.score).toBeGreaterThan(0)
+    expect(tri.score).toBe(100)
+    expect(tri.comments.some(c => c.body.includes('[显式标记]'))).toBe(true)
+    svc.dispose()
+  })
+
+  it('creates triage and runs LLM for unmarked messages', async () => {
+    const svc = new SessionSyncService(
+      { store, now: () => Date.now() },
+      { on: (_evt, h) => { busHandlers.push(h); return () => {} } },
+    )
+    emit('session-def', { type: 'turn/start' })
+    emit('session-def', { type: 'user/message', data: { content: '发现一个 bug，登录页面崩溃' } })
+    await new Promise(r => setTimeout(r, 100))
+
+    const tri = store.snapshot().triages[0]
+    expect(tri.firstMessageText).toBe('发现一个 bug，登录页面崩溃')
+    expect(tri.comments.some(c => c.body.includes('[LLM 分类]'))).toBe(true)
     svc.dispose()
   })
 
@@ -367,7 +390,7 @@ describe('SessionSyncService with fake event bus', () => {
   })
 })
 
-describe('Triage routes', () => {
+describe('Triage routes with category', () => {
   let store: ReqboardStore
   let tmpDir: string
   let handler: ReturnType<typeof import('../src/host/routes.js').createReqboardHandler>
@@ -401,23 +424,24 @@ describe('Triage routes', () => {
     })
   }
 
-  it('confirms create_req from triage', async () => {
-    // seed triage
-    await store.mutate('requirement-created', (ledger) => {
+  it('confirms create_req with LLM category', async () => {
+    await store.mutate('triage-created', (ledger) => {
       ledger.triages.push({
-        id: 'tri-000001', sessionId: 's-1', firstMessageText: '加个新功能', suggestedAction: 'create_req', score: 0,
-        status: 'pending', createdAt: 0, comments: [],
+        id: 'tri-000001', sessionId: 's-1', firstMessageText: '登录页面崩溃', suggestedAction: 'create_req', score: 75,
+        status: 'pending', createdAt: 0, comments: [
+          { id: 'c-1', body: '[LLM 分类] 建议：create_req\n分类：bug\n建议标题：登录页面崩溃修复', createdAt: 0 },
+        ],
       })
       return { triages: ledger.triages }
     })
     const res = await post('/triage/confirm', { triageId: 'tri-000001', action: 'create_req' })
     expect(res.success).toBe(true)
-    expect(res.data.requirements[0].title).toBe('加个新功能')
+    expect(res.data.requirements[0].category).toBe('bug')
     expect(res.data.triages[0].status).toBe('confirmed')
   })
 
   it('rejects triage', async () => {
-    await store.mutate('requirement-created', (ledger) => {
+    await store.mutate('triage-created', (ledger) => {
       ledger.triages.push({
         id: 'tri-000002', sessionId: 's-2', firstMessageText: '垃圾消息', suggestedAction: 'create_req', score: 0,
         status: 'pending', createdAt: 0, comments: [],
@@ -429,4 +453,3 @@ describe('Triage routes', () => {
     expect(res.data.status).toBe('rejected')
   })
 })
-

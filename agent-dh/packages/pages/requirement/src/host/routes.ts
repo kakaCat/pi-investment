@@ -349,10 +349,23 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       const tri = ledger.triages.find(t => t.id === triageId && t.status === 'pending') ?? notFound(`待归类 ${triageId}`)
 
       if (action === 'create_req') {
+        // 从 triage 的 LLM 建议中提取分类和标题（如果有）
+        const llmComment = tri.comments.find(c => c.body.includes('[LLM 分类]'))
+        let category: RequirementRecord['category'] = undefined
+        let suggestedTitle: string | undefined
+        if (llmComment) {
+          const catMatch = llmComment.body.match(/分类：([a-z]+)/)
+          if (catMatch && ['feature','bug','doc','refactor','spike','chore'].includes(catMatch[1])) {
+            category = catMatch[1] as RequirementRecord['category']
+          }
+          const titleMatch = llmComment.body.match(/建议标题：(.+)/)
+          if (titleMatch) suggestedTitle = titleMatch[1].trim()
+        }
         const req: RequirementRecord = {
           id: newRequirementId(),
-          title: normalizeTitle(tri.firstMessageText) || '新建需求',
+          title: normalizeTitle(suggestedTitle || tri.firstMessageText) || '新建需求',
           description: tri.firstMessageText.slice(0, 2000),
+          ...(category ? { category } : {}),
           status: 'draft',
           blocked: false,
           comments: [

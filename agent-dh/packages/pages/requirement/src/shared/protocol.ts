@@ -186,10 +186,22 @@ export interface ExecutionRecord {
   evidence?: string[]
 }
 
+export type RequirementCategory = 'feature' | 'bug' | 'doc' | 'refactor' | 'spike' | 'chore'
+export const ALL_REQ_CATEGORIES: readonly RequirementCategory[] = ['feature', 'bug', 'doc', 'refactor', 'spike', 'chore']
+
+export function asReqCategory(raw: unknown): RequirementCategory {
+  if (typeof raw !== 'string' || !(ALL_REQ_CATEGORIES as readonly string[]).includes(raw)) {
+    bad(`需求分类必须是：${ALL_REQ_CATEGORIES.join(', ')}`)
+  }
+  return raw as RequirementCategory
+}
+
 export interface RequirementRecord {
   id: string // REQ-xxxxxx
   title: string
   description: string
+  /** 需求分类（LLM 在新建时自动标注） */
+  category?: RequirementCategory
   /** 文档链接（需求文档/UI/方案），相对工作区路径或 URL */
   docLinks?: { requirement?: string; ui?: string; proposal?: string }
   status: RequirementStatus
