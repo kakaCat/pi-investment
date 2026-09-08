@@ -262,7 +262,7 @@ export function registerBoardPost(ctx: Context, boardClient: BoardClient, agentI
       if (!confirmed) {
         return {
           success: false,
-          post_id: null,
+          post_id: '',
           status: 'needs_user_confirmation',
           preview: {
             title,
