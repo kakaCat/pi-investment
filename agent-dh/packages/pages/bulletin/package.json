@@ -16,6 +16,7 @@
     "build:client": "node ../../../node_modules/tsdown/dist/run.mjs -c tsdown.client.config.ts && node scripts/wrap-client.mjs"
   },
   "dependencies": {
+    "@pi-investment/page-kit": "workspace:*",
     "@deepseek-ai/cordis": "^4.0.1"
   },
   "devDependencies": {

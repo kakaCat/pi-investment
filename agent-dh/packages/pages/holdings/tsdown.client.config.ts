@@ -11,7 +11,7 @@ export default defineConfig({
   outDir: 'lib',
   clean: false,
   sourcemap: false,
-  noExternal: [/@pi-investment\/solve-kit/],
+  noExternal: [/@pi-investment\/solve-kit/, /@pi-investment\/page-kit/],
   external: ['react', 'react/jsx-runtime'],
   target: 'chrome120',
   minify: true,

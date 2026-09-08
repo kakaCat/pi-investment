@@ -12,11 +12,9 @@
  * @module dashboard-holdings/client/view
  */
 import type { Account, HoldingsData, Position, SchedulerTask, WatchRule } from './types.js'
+import { esc, fmtClock } from '@pi-investment/page-kit/client'
 
 /* ------------------------------------------------------------------ utils */
-const esc = (s: unknown): string =>
-  String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m] ?? m))
-
 const money = (v: number | undefined | null, frac = 2): string =>
   (Number.isFinite(Number(v)) ? Number(v) : 0).toLocaleString('zh-CN', { minimumFractionDigits: frac, maximumFractionDigits: frac })
 
@@ -34,14 +32,6 @@ const pct = (v: number | undefined | null): string => {
 const trend = (v: number | undefined | null): 'up' | 'down' | 'flat' => {
   const n = Number(v) || 0
   return n > 0.0001 ? 'up' : n < -0.0001 ? 'down' : 'flat'
-}
-
-const fmtClock = (ts?: string): string => {
-  if (!ts) return '—'
-  const d = new Date(ts)
-  if (Number.isNaN(d.getTime())) return String(ts).slice(11, 19)
-  const p = (n: number): string => String(n).padStart(2, '0')
-  return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes())
 }
 
 const ctxText = (rule: WatchRule): string => {

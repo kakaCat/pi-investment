@@ -12,6 +12,7 @@
  */
 
 import type { CandidateInfo, GenomeData, GenomeSectionInfo } from './types.ts'
+import { esc, fmtClock as _fmtClock, fmtDate as _fmtDate } from '@pi-investment/page-kit/client'
 
 export interface ViewRefs {
   root: HTMLElement
@@ -39,26 +40,8 @@ function explainBtn(moduleId: string, item?: string, hint?: string): string {
   return `<button type="button" class="${cls}" data-explain-module="${moduleId}"${itemAttr} title="${title}">${label}</button>`
 }
 
-function esc(s: unknown): string {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
-}
-
-function fmtDT(iso: string | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  const p = (n: number): string => String(n).padStart(2, '0')
-  return `${d.getMonth() + 1}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
-}
-
-function fmtDate(iso: string | undefined): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+function fmtDT(iso: string | undefined): string { return _fmtClock(iso) }
+function fmtDate(iso: string | undefined): string { return _fmtDate(iso) }
 
 const SEC_ZH: Record<string, string> = {
   constitution: '宪法', principles: '决策原则', rules: '操作规则', lessons: '经验教训',

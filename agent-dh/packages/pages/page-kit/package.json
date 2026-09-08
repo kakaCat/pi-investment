@@ -1,0 +1,21 @@
+{
+  "name": "@pi-investment/page-kit",
+  "version": "0.1.0",
+  "description": "DSH GUI page 共享组件库：dom 助手、侧栏入口、HTML 转义、时间格式化、toast、看板生命周期壳等",
+  "type": "module",
+  "main": "./src/host/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/host/index.ts",
+      "types": "./src/host/index.ts"
+    },
+    "./client": {
+      "import": "./src/client/index.ts",
+      "types": "./src/client/index.ts"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  }
+}

@@ -9,18 +9,7 @@
  * @module dashboard-bulletin/client/view
  */
 import type { BulletinCounts, BulletinData, KindKey, Post, StatusKey } from './types.js'
-
-/* ------------------------------------------------------------------ utils */
-const esc = (s: unknown): string =>
-  String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m] ?? m))
-
-const fmtClock = (ts?: string | null): string => {
-  if (!ts) return '—'
-  const d = new Date(ts)
-  if (Number.isNaN(d.getTime())) return String(ts).slice(0, 16).replace('T', ' ')
-  const p = (n: number): string => String(n).padStart(2, '0')
-  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes())
-}
+import { esc, fmtClock } from '@pi-investment/page-kit/client'
 
 /* ------------------------------------------------------------ label 映射 */
 const STATUS_TEXT: Record<string, string> = {

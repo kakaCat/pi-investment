@@ -8,21 +8,8 @@
  * @module dashboard-execution/client/view
  */
 import type { BoardData, CheckpointResult, SchedulerTask, TimelineEntry } from './types.ts'
+import { esc, fmtClock } from '@pi-investment/page-kit/client'
 
-function esc(s: unknown): string {
-  if (s === null || s === undefined) return ''
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-function shortDT(s: unknown): string {
-  if (!s) return '—'
-  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/)
-  if (!m) return esc(s).slice(0, 5)
-  const now = new Date()
-  const pad = (n: number): string => (n < 10 ? '0' : '') + n
-  const today = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
-  const hm = m[4] + ':' + m[5]
-  return (m[1] + '-' + m[2] + '-' + m[3] === today ? '' : m[2] + '-' + m[3] + ' ') + hm
-}
 function hmMin(s: unknown): number {
   const m = String(s ?? '').match(/^(\d{2}):(\d{2})/)
   if (!m) return 9999
