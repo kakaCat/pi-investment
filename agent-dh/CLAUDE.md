@@ -462,6 +462,18 @@ vim agent-dh/cordis.yml
 - **DO** test via the DSH profile (`~/.dsh/profiles/investment/`)
 - **DO** keep `cordis.yml` in sync with `~/.dsh/profiles/investment/cordis.patch.yml`
 
+### Architecture Rules (Mandatory)
+
+#### Notification Architecture
+
+**All notifications MUST go through `NotificationFacade`. Direct calls to Feishu SDK are FORBIDDEN.**
+
+- Application layer can only import `application.notification.NotificationFacade`
+- NEVER import `infrastructure.notification.channels.*`
+- New notification types MUST extend `NotificationFacade` first
+
+**Reference:** `pi-investment/CLAUDE.md` - "Architecture Rules (Mandatory)" section
+
 ### Port Allocation
 
 - **13080** - DSH investment profile (web UI)
