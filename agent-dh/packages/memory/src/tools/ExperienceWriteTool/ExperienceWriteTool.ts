@@ -40,9 +40,18 @@ export class ExperienceWriteTool extends BaseTool<ExperienceWriteParams, Experie
       };
     }
 
-    // 检查 outcome 有效性
+    // 强制 outcome 必填（2026-09-08 L4-A 数据清理：拒绝未标注经验入库）
     const validOutcomes = ['profit', 'loss', 'neutral'];
-    if (outcome && !validOutcomes.includes(outcome)) {
+    if (!outcome) {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'outcome',
+        issue: 'outcome 必填（profit/loss/neutral），拒绝未标注经验入库',
+        expected: validOutcomes.join(', '),
+      };
+    }
+    if (!validOutcomes.includes(outcome)) {
       return {
         success: false,
         errorType: ErrorType.INPUT_ERROR,
