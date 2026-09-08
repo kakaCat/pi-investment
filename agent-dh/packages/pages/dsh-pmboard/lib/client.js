@@ -199,11 +199,8 @@ window.__ModuleLoader__.load({
 		
 		.dsh-pm-view {
 		  display: none;
-		  position: absolute; inset: 0;
-		  background: var(--dsw-bg-primary, #fff);
-		  z-index: 10;
 		  flex-direction: column;
-		  overflow: hidden;
+		  height: 100%; overflow: hidden;
 		}
 		html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 		
