@@ -5,7 +5,7 @@
  * 设计来源：RFC 014（agent-dh/docs/rfcs/014-requirement-board.md）。
  * 协议闸哲学沿用 dsh-taskboard：人工闸门是代码级拒绝，不是提示词约定。
  *
- * @module dashboard-requirement/shared/protocol
+ * @module dsh-pmboard/shared/protocol
  */
 
 // ---------------------------------------------------------------------------

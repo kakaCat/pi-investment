@@ -2,14 +2,14 @@
  * Reqboard client half — step 1: sidebar entry + placeholder board view.
  *
  * DSH dual-half contract: package.json declares dsh.client + exports["./client"];
- * shell serves bundle at /plugins/??@pi-investment/dashboard-requirement/client.js.
+ * shell serves bundle at /plugins/??dsh-pmboard/client.js.
  */
 import { createBoardController, mountBoard } from './board-mount.ts'
 import { ReqboardFooterAction, injectFooterStyles, OPEN_EVENT } from './footer-action.ts'
 import { injectStyles } from './styles.ts'
 import { PANEL_NAME, PANEL_LABEL } from './dom.ts'
 
-export const name = '@pi-investment/dashboard-requirement/client'
+export const name = 'dsh-pmboard/client'
 export const inject: string[] = ['slots']
 
 interface SlotsService {
@@ -66,9 +66,9 @@ export function apply(ctx: ApplyContext): void {
         ),
       )
     } else {
-      console.warn('[dashboard-requirement] ctx.slots unavailable')
+      console.warn('[dsh-pmboard] ctx.slots unavailable')
     }
   } catch (e) {
-    console.error('[dashboard-requirement] client half failed to start:', e)
+    console.error('[dsh-pmboard] client half failed to start:', e)
   }
 }

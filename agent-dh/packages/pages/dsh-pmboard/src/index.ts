@@ -1,4 +1,4 @@
-// @pi-investment/dashboard-requirement · 需求看板（RFC 014）
+// dsh-pmboard · 项目看板（RFC 014）
 // M1 host 半：reqboard JSON+SSE API（/dashboard/api/reqboard/*）+ 两级状态机台账。
 // 模块形状与 dashboard-execution 一致（name + apply 具名导出）；路由经
 // (ctx as any).inject(['webServer']) 惰性注入 + webCtx.effect 包裹注册。
@@ -11,7 +11,7 @@ import { ReqboardStore } from './host/store.js';
 import { createReqboardHandler } from './host/routes.js';
 import { SessionSyncService } from './host/session-sync.js';
 
-export const name = 'dashboard-requirement';
+export const name = 'dsh-pmboard';
 
 /** 台账文件名（DSH 主目录，卸载插件不删除）。 */
 export const LEDGER_FILE = 'dsh-reqboard.json';

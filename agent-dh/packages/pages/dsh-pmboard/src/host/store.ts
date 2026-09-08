@@ -2,7 +2,7 @@
  * Reqboard 台账：DSH 主目录单 JSON 文件，串行写队列 + 原子写（temp+fsync+rename）
  * + 损坏隔离 + 深冻快照 + 订阅发布。模式沿用 dsh-taskboard host/store.ts（已验证）。
  *
- * @module dashboard-requirement/host/store
+ * @module dsh-pmboard/host/store
  */
 import { mkdir, open, readFile, rename } from 'node:fs/promises'
 import { dirname, join } from 'node:path'

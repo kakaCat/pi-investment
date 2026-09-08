@@ -1,5 +1,5 @@
 //#region src/client/index.d.ts
-declare const name = "@pi-investment/dashboard-requirement/client";
+declare const name = "dsh-pmboard/client";
 declare const inject: string[];
 interface SlotsService {
   inject(slot: string, thunk: () => unknown): unknown;

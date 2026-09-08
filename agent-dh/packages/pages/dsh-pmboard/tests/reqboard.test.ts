@@ -1,6 +1,6 @@
 /**
  * Reqboard M1 单测：状态机、闸门、DAG 校验、Store 并发与持久化。
- * 运行：cd agent-dh && npx vitest run packages/pages/requirement/tests/
+ * 运行：cd agent-dh && npx vitest run packages/pages/dsh-pmboard/tests/
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'

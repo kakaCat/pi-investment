@@ -42,7 +42,7 @@ export function mountBoard(controller: BoardController): () => void {
     container.className = 'dsh-reqboard-view'
     container.innerHTML = `
       <div class="dsh-reqboard-placeholder">
-        <h2>需求看板</h2>
+        <h2>项目看板</h2>
         <p>RFC 014 · 需求流水线插件</p>
         <p style="font-size:12px;color:#999">M3 开发中：泳道视图 / DAG / 待归类区 / 会话跳转</p>
       </div>

@@ -6,7 +6,7 @@
  * 2. 无标记 → LLM 判断：能挂靠的挂靠，需新建的新建 + 需求分类
  * 3. LLM 失败 → 启发式兜底
  * 
- * @module dashboard-requirement/host/classifier
+ * @module dsh-pmboard/host/classifier
  */
 import type { RequirementRecord, TaskRecord, TriageRecord, RequirementCategory } from '../shared/protocol.js'
 

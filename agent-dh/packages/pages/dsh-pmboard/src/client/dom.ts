@@ -13,8 +13,8 @@ export const BOARD_VIEW_SELECTOR = '[data-dsh-reqboard-view]'
 export const ENTRY_SELECTOR = '.dsh-reqboard-foot'
 
 /** Panel identity. */
-export const PANEL_NAME = 'dashboard-requirement'
-export const PANEL_LABEL = '需求看板'
+export const PANEL_NAME = 'dsh-pmboard'
+export const PANEL_LABEL = '项目看板'
 
 /** Activation event (cross-plugin). */
 export const ACTIVATE_EVENT = 'dsh:panel-activate'

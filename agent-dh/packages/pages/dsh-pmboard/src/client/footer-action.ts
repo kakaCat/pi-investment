@@ -5,9 +5,9 @@
 import { createElement } from 'react'
 import { PANEL_LABEL } from './dom.ts'
 
-const CSS_TAG = '@pi-investment/dashboard-requirement/footer-action.css'
+const CSS_TAG = 'dsh-pmboard/footer-action.css'
 
-export const OPEN_EVENT = 'dashboard-requirement:open-board'
+export const OPEN_EVENT = 'dsh-pmboard:open-board'
 
 export interface FooterActionProps {
   wide: boolean

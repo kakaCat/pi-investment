@@ -2,7 +2,7 @@
  * 会话同步服务：监听 session/event，自动捕获新会话进「待归类」区。
  * 三层分类：显式标记（直接绑定）→ LLM 精准（语义+分类）→ 启发式兜底。
  *
- * @module dashboard-requirement/host/session-sync
+ * @module dsh-pmboard/host/session-sync
  */
 import type { ReqboardStore } from './store.js'
 import { extractExplicitId, classifySessionHeuristic, classifySessionLlm } from './classifier.js'

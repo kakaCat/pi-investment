@@ -1,6 +1,6 @@
 /** Minimal styles for reqboard client (step 1: sidebar entry + placeholder board). */
 
-const CSS_TAG = '@pi-investment/dashboard-requirement/styles.css'
+const CSS_TAG = 'dsh-pmboard/styles.css'
 
 const CSS = `
 /* Sidebar footer button */

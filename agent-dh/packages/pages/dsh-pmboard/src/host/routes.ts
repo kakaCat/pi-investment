@@ -5,7 +5,7 @@
  *
  * 闸门在此强制执行：move 的 actor 经 protocol 断言，人工闸门拒绝 agent/system。
  *
- * @module dashboard-requirement/host/routes
+ * @module dsh-pmboard/host/routes
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { ReqboardStore } from './store.js'
