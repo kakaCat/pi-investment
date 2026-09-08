@@ -13,7 +13,8 @@ export class ApiError extends Error {
   constructor(message: string, readonly code?: string) { super(message) }
 }
 
-async function unwrap<T>(res: Response): Promise<T> {
+async function unwrap<T>(p: Promise<Response>): Promise<T> {
+  const res = await p
   if (!res.ok) throw new ApiError('HTTP ' + res.status)
   const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: T; error?: string; code?: string }
   if (json.success !== true) throw new ApiError(json.error ?? 'API 返回失败', json.code)
