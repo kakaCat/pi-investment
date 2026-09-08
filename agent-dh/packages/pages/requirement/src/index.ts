@@ -9,6 +9,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { ReqboardStore } from './host/store.js';
 import { createReqboardHandler } from './host/routes.js';
+import { SessionSyncService } from './host/session-sync.js';
 
 export const name = 'dashboard-requirement';
 
@@ -32,6 +33,18 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   void store.load();
   const now = () => Date.now();
 
+  // 会话同步服务（M2）：监听 session/event，自动捕获新会话进待归类区
+  let sessionSync: SessionSyncService | undefined
+  try {
+    sessionSync = new SessionSyncService(
+      { store, now },
+      { on: (event, handler) => ctx.on(event as never, handler as never) },
+    )
+    logger.info('session sync service started (M2: turn/start + user/message → triage)')
+  } catch (err) {
+    logger.warn('session sync service failed to start:', err)
+  }
+
   (ctx as unknown as { inject?: (services: string[], cb: (webCtx: any) => void) => void }).inject?.(
     ['webServer'],
     (webCtx: { effect?: (fn: () => void, label?: string) => void; webServer?: any }) => {
@@ -42,7 +55,12 @@ export function apply(ctx: Context, config?: PluginConfig): void {
           handler: createReqboardHandler({ store, now }),
         });
       }, name + ': api');
-      logger.info('routes registered: /dashboard/api/reqboard/* (M1: state/events/req/task CRUD + 闸门); client half lands in M3');
+      logger.info('routes registered: /dashboard/api/reqboard/* (M1+M2: state/events/req/task/triage CRUD + 闸门 + 会话捕获); client half lands in M3');
     },
   );
+
+  // teardown
+  ctx.on('dispose', () => {
+    sessionSync?.dispose()
+  })
 }

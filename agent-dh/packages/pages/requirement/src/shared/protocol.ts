@@ -251,17 +251,18 @@ export interface TaskRecord {
 // Ledger
 // ---------------------------------------------------------------------------
 
-export const REQBOARD_SCHEMA_VERSION = 1
+export const REQBOARD_SCHEMA_VERSION = 2
 
 export interface ReqboardLedger {
   schemaVersion: number
   revision: number
   requirements: RequirementRecord[]
   tasks: TaskRecord[]
+  triages: TriageRecord[]
 }
 
 export function emptyLedger(): ReqboardLedger {
-  return { schemaVersion: REQBOARD_SCHEMA_VERSION, revision: 0, requirements: [], tasks: [] }
+  return { schemaVersion: REQBOARD_SCHEMA_VERSION, revision: 0, requirements: [], tasks: [], triages: [] }
 }
 
 // ---------------------------------------------------------------------------
@@ -403,3 +404,33 @@ export function readyTasks(tasks: readonly TaskRecord[], requirementId: string):
   const doneIds = new Set(inReq.filter(t => t.status === 'done').map(t => t.id))
   return inReq.filter(t => t.status === 'todo' && t.dependsOn.every(dep => doneIds.has(dep)))
 }
+// ---------------------------------------------------------------------------
+// Triage（会话捕获待归类，人机回路）
+// ---------------------------------------------------------------------------
+
+export type TriageStatus = 'pending' | 'confirmed' | 'rejected'
+
+export interface TriageRecord {
+  id: string // tri-xxxxxx
+  sessionId: string
+  /** 会话首条用户消息文本（分类依据） */
+  firstMessageText: string
+  /** 建议动作 */
+  suggestedAction: 'create_req' | 'bind_req' | 'bind_task'
+  /** 建议绑定目标 id（REQ-xxx / t-xxx） */
+  suggestedTargetId?: string
+  /** 匹配分数 0-100 */
+  score: number
+  status: TriageStatus
+  createdAt: number
+  resolvedAt?: number
+  resolvedBy?: ActorRef
+  /** 确认后产生的结果需求 id */
+  resultRequirementId?: string
+  comments: CommentRecord[]
+}
+
+export function newTriageId(rand: () => number = Math.random): string {
+  return `tri-${Math.floor(rand() * 0xffffff).toString(16).padStart(6, '0')}`
+}
+

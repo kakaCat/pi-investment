@@ -20,9 +20,11 @@ export interface LedgerChange {
   kind:
     | 'requirement-created' | 'requirement-updated' | 'requirement-moved'
     | 'task-created' | 'task-updated' | 'task-moved'
+    | 'triage-created' | 'triage-updated'
     | 'comment-added' | 'execution-recorded' | 'ledger-replaced'
   requirements: readonly RequirementRecord[]
   tasks: readonly TaskRecord[]
+  triages: readonly import('../shared/protocol.js').TriageRecord[]
 }
 
 export interface ReqboardStoreOptions {
@@ -34,7 +36,7 @@ export interface ReqboardStoreOptions {
 function isPlausibleLedger(raw: unknown): raw is ReqboardLedger {
   if (typeof raw !== 'object' || raw === null) return false
   const o = raw as Record<string, unknown>
-  return typeof o.revision === 'number' && Array.isArray(o.requirements) && Array.isArray(o.tasks)
+  return typeof o.revision === 'number' && Array.isArray(o.requirements) && Array.isArray(o.tasks) && Array.isArray(o.triages ?? [])
 }
 
 function isPlausibleRequirement(raw: unknown): boolean {
@@ -82,7 +84,12 @@ export class ReqboardStore {
           if (!ok) console.warn('[reqboard] dropping implausible task on load:', (entry as { id?: unknown })?.id)
           return ok
         }) as TaskRecord[]
-        this.ledger = { schemaVersion: REQBOARD_SCHEMA_VERSION, revision: parsed.revision, requirements, tasks }
+        const triages = Array.isArray(parsed.triages) ? (parsed.triages as unknown[]).filter((entry) => {
+          const ok = typeof entry === 'object' && entry !== null && typeof (entry as { id?: unknown }).id === 'string'
+          if (!ok) console.warn('[reqboard] dropping implausible triage on load:', (entry as { id?: unknown })?.id)
+          return ok
+        }) as import('../shared/protocol.js').TriageRecord[] : []
+        this.ledger = { schemaVersion: REQBOARD_SCHEMA_VERSION, revision: parsed.revision, requirements, tasks, triages }
       }
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code
@@ -129,14 +136,14 @@ export class ReqboardStore {
    */
   async mutate(
     kind: LedgerChange['kind'],
-    mutator: (ledger: ReqboardLedger) => { requirements?: RequirementRecord[]; tasks?: TaskRecord[] } | undefined,
-  ): Promise<{ ledger: ReqboardLedger; changed: { requirements: readonly RequirementRecord[]; tasks: readonly TaskRecord[] } }> {
+    mutator: (ledger: ReqboardLedger) => { requirements?: RequirementRecord[]; tasks?: TaskRecord[]; triages?: import('../shared/protocol.js').TriageRecord[] } | undefined,
+  ): Promise<{ ledger: ReqboardLedger; changed: { requirements: readonly RequirementRecord[]; tasks: readonly TaskRecord[]; triages: readonly import('../shared/protocol.js').TriageRecord[] } }> {
     const run = async () => {
       await this.load()
       const draft: ReqboardLedger = structuredClone(this.ledger)
       const changed = mutator(draft)
       if (changed === undefined) {
-        return { ledger: deepFreeze(structuredClone(this.ledger)), changed: { requirements: [] as const, tasks: [] as const } }
+        return { ledger: deepFreeze(structuredClone(this.ledger)), changed: { requirements: [] as const, tasks: [] as const, triages: [] as const } }
       }
       draft.revision += 1
       await persistAtomic(this.file, JSON.stringify(draft))
@@ -146,6 +153,7 @@ export class ReqboardStore {
         kind,
         requirements: changed.requirements ?? [],
         tasks: changed.tasks ?? [],
+        triages: changed.triages ?? [],
       }
       for (const fn of this.subscribers) {
         try { fn(change) } catch { /* 订阅者错误不阻断写 */ }
@@ -155,6 +163,7 @@ export class ReqboardStore {
         changed: {
           requirements: (changed.requirements ?? []).map(r => deepFreeze(structuredClone(r))),
           tasks: (changed.tasks ?? []).map(t => deepFreeze(structuredClone(t))),
+          triages: (changed.triages ?? []).map(t => deepFreeze(structuredClone(t))),
         },
       }
     }

@@ -24,6 +24,7 @@ import {
   newExecutionId,
   newRequirementId,
   newTaskId,
+  newTriageId,
   normalizeText,
   normalizeTitle,
   readyTasks,
@@ -31,6 +32,7 @@ import {
   type CommentRecord,
   type RequirementRecord,
   type TaskRecord,
+  type TriageRecord,
 } from '../shared/protocol.js'
 
 export interface ReqboardRouteDeps {
@@ -324,6 +326,109 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
     ok(res, { comment, target: result.changed.requirements[0]?.id ?? result.changed.tasks[0]?.id })
   }
 
+
+  // -- Triage（人机回路）----------------------------------------------------
+
+  async function handleTriageList(res: ServerResponse): Promise<void> {
+    const ledger = await store.read(l => l)
+    ok(res, {
+      pending: ledger.triages.filter(t => t.status === 'pending'),
+      resolved: ledger.triages.filter(t => t.status !== 'pending').slice(-50),
+    })
+  }
+
+  async function handleTriageConfirm(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await readBody(req)
+    const triageId = normalizeText(body.triageId, 'triageId', 64)
+    const action = normalizeText(body.action, 'action', 32) as 'create_req' | 'bind_req'
+    const targetId = body.targetId !== undefined ? normalizeText(body.targetId, 'targetId', 64) : undefined
+    const nowTs = now()
+    const actor: ActorRef = { kind: 'human' }
+
+    const result = await store.mutate('requirement-created', (ledger) => {
+      const tri = ledger.triages.find(t => t.id === triageId && t.status === 'pending') ?? notFound(`待归类 ${triageId}`)
+
+      if (action === 'create_req') {
+        const req: RequirementRecord = {
+          id: newRequirementId(),
+          title: normalizeTitle(tri.firstMessageText) || '新建需求',
+          description: tri.firstMessageText.slice(0, 2000),
+          status: 'draft',
+          blocked: false,
+          comments: [
+            { id: ids.comment(), body: `[会话捕获] 来自会话 ${tri.sessionId}，判定分数 ${tri.score}`, createdAt: nowTs, createdBy: actor },
+          ],
+          version: 1,
+          createdAt: nowTs,
+          updatedAt: nowTs,
+          createdBy: actor,
+          updatedBy: actor,
+        }
+        ledger.requirements.push(req)
+        tri.status = 'confirmed'
+        tri.resolvedAt = nowTs
+        tri.resolvedBy = actor
+        tri.resultRequirementId = req.id
+        return { requirements: [req], triages: [tri] }
+      }
+
+      if (action === 'bind_req') {
+        const req = ledger.requirements.find(r => r.id === targetId) ?? notFound(`目标需求 ${targetId}`)
+        req.comments.push({
+          id: ids.comment(),
+          body: `[会话绑定] 会话 ${tri.sessionId} 已绑定（判定分数 ${tri.score}）`,
+          createdAt: nowTs,
+          createdBy: actor,
+        })
+        req.updatedAt = nowTs
+        req.updatedBy = actor
+        tri.status = 'confirmed'
+        tri.resolvedAt = nowTs
+        tri.resolvedBy = actor
+        tri.resultRequirementId = req.id
+        return { requirements: [req], triages: [tri] }
+      }
+
+      throw Object.assign(new Error('action 必须是 create_req 或 bind_req'), { code: 'invalid_input' })
+    })
+    ok(res, result.changed)
+  }
+
+  async function handleTriageRebind(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await readBody(req)
+    const triageId = normalizeText(body.triageId, 'triageId', 64)
+    const targetId = normalizeText(body.targetId, 'targetId', 64)
+    const nowTs = now()
+    const actor: ActorRef = { kind: 'human' }
+
+    const result = await store.mutate('requirement-updated', (ledger) => {
+      const tri = ledger.triages.find(t => t.id === triageId && t.status === 'pending') ?? notFound(`待归类 ${triageId}`)
+      const req = ledger.requirements.find(r => r.id === targetId) ?? notFound(`目标需求 ${targetId}`)
+      tri.suggestedAction = 'bind_req'
+      tri.suggestedTargetId = targetId
+      tri.comments.push({ id: ids.comment(), body: `[人工改绑] 改为绑定 ${targetId}`, createdAt: nowTs, createdBy: actor })
+      return { triages: [tri] }
+    })
+    ok(res, result.changed.triages[0])
+  }
+
+  async function handleTriageReject(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await readBody(req)
+    const triageId = normalizeText(body.triageId, 'triageId', 64)
+    const nowTs = now()
+    const actor: ActorRef = { kind: 'human' }
+
+    const result = await store.mutate('requirement-updated', (ledger) => {
+      const tri = ledger.triages.find(t => t.id === triageId && t.status === 'pending') ?? notFound(`待归类 ${triageId}`)
+      tri.status = 'rejected'
+      tri.resolvedAt = nowTs
+      tri.resolvedBy = actor
+      tri.comments.push({ id: ids.comment(), body: '[人工否决] 不建需求', createdAt: nowTs, createdBy: actor })
+      return { triages: [tri] }
+    })
+    ok(res, result.changed.triages[0])
+  }
+
   // -- 分发 ----------------------------------------------------------------
 
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -343,6 +448,11 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       if (method === 'POST' && sub === 'task/move') return await handleTaskMove(req, res)
       if (method === 'POST' && sub === 'task/update') return await handleTaskUpdate(req, res)
       if (method === 'POST' && sub === 'comment') return await handleComment(req, res)
+
+      if (method === 'GET' && sub === 'triage') return await handleTriageList(res)
+      if (method === 'POST' && sub === 'triage/confirm') return await handleTriageConfirm(req, res)
+      if (method === 'POST' && sub === 'triage/rebind') return await handleTriageRebind(req, res)
+      if (method === 'POST' && sub === 'triage/reject') return await handleTriageReject(req, res)
 
       json(res, 404, { success: false, error: `未知路由：${method} ${url.pathname}`, code: 'not_found' })
     } catch (err) {
