@@ -7,12 +7,17 @@ interface SlotsService {
 }
 interface ApplyContext {
   slots?: SlotsService;
+  sessions?: unknown;
+  workspaces?: unknown;
 }
 declare global {
   interface Window {
     __dshReqboardClient?: {
       dispose(): void;
     };
+    __dshPmSessions?: unknown;
+    __dshPmWorkspaces?: unknown;
+    __dshPmCtx?: ApplyContext;
   }
 }
 declare function apply(ctx: ApplyContext): void;

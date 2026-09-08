@@ -1,5 +1,5 @@
 /**
- * Reqboard client half — step 1: sidebar entry + placeholder board view.
+ * Dsh-pmboard client half — M3: 泳道看板 GUI（需求状态列 + 详情 + 待归类 + 会话跳转）。
  *
  * DSH dual-half contract: package.json declares dsh.client + exports["./client"];
  * shell serves bundle at /plugins/??dsh-pmboard/client.js.
@@ -10,7 +10,7 @@ import { injectStyles } from './styles.ts'
 import { PANEL_NAME, PANEL_LABEL } from './dom.ts'
 
 export const name = 'dsh-pmboard/client'
-export const inject: string[] = ['slots']
+export const inject: string[] = ['slots', 'sessions', 'workspaces']
 
 interface SlotsService {
   inject(slot: string, thunk: () => unknown): unknown
@@ -19,11 +19,16 @@ interface SlotsService {
 
 interface ApplyContext {
   slots?: SlotsService
+  sessions?: unknown
+  workspaces?: unknown
 }
 
 declare global {
   interface Window {
     __dshReqboardClient?: { dispose(): void }
+    __dshPmSessions?: unknown
+    __dshPmWorkspaces?: unknown
+    __dshPmCtx?: ApplyContext
   }
 }
 
@@ -34,6 +39,11 @@ export function apply(ctx: ApplyContext): void {
 
     // HMR guard: dispose previous apply
     window.__dshReqboardClient?.dispose()
+
+    // 供 session-jump 惰性读取（服务可能晚于 apply 提供）
+    window.__dshPmCtx = ctx
+    window.__dshPmSessions = ctx.sessions
+    window.__dshPmWorkspaces = ctx.workspaces
 
     const controller = createBoardController()
     const disposeBoard = mountBoard(controller)
@@ -54,6 +64,9 @@ export function apply(ctx: ApplyContext): void {
         window.removeEventListener(OPEN_EVENT, onOpen)
         disposeBoard()
         controller.closeBoard()
+        delete window.__dshPmCtx
+        delete window.__dshPmSessions
+        delete window.__dshPmWorkspaces
       },
     }
 

@@ -1,1 +1,1 @@
-{"version":3,"file":"client.d.cts","names":[],"sources":["../src/client/index.ts"],"mappings":";cAWa;cACA;UAEH;EACR,OAAO,cAAc;EACrB,SAAS,SAAS,yBAAyB;;UAGnC;EACR,QAAQ;;QAGF;YACI;IACR;MAAwB;;;;iBAIZ,MAAM,KAAK"}
+{"version":3,"file":"client.d.cts","names":[],"sources":["../src/client/index.ts"],"mappings":";cAWa;cACA;UAEH;EACR,OAAO,cAAc;EACrB,SAAS,SAAS,yBAAyB;;UAGnC;EACR,QAAQ;EACR;EACA;;QAGM;YACI;IACR;MAAwB;;IACxB;IACA;IACA,aAAa;;;iBAID,MAAM,KAAK"}
