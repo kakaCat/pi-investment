@@ -16,6 +16,8 @@ import { NativeReminderScheduler, type NativeTask } from './native-scheduler.js'
 import { registerBoardUpdate, registerBoardRead, registerBoardPost } from './board-tools.js';
 import { registerWakeWebhook } from './wake-webhook.js';
 import { registerAgentOsTrigger } from './agent-os-trigger.js';
+import { planAndScheduleRestart, type RestartPlannerDeps } from './restart-planner.js';
+import { onBoot } from './boot-hook.js';
 
 
 // 导入 BaseTool 工具
@@ -98,6 +100,9 @@ export default class LifecyclePlugin extends Service {
     } as Required<Config>;
     this.repo = new GitRepo(this.cfg.repoRoot);
     this.state = new StateStore(join(this.cfg.profileDir, 'state'));
+    // 2026-09（REQ-370b24）：boot 时刻确定性修复——滞留 agent-self 自动回干线、陈旧锁清理。
+    // 语义见 boot-recovery.ts 不变量 I1-I5，审计落 boot-recovery-audit.jsonl；异常吞掉不阻断 boot。
+    this.runBootRecovery();
     this.identity = this.loadIdentity();
     this.registerIdentitySection();
     // 窗口注册表（2026-08-21 用户需求：窗口随机打开，但要能按编码调动；落 Agent OS）
@@ -886,10 +891,70 @@ v2_event_json: ${JSON.stringify(data)}
   }
 
   /**
+   * 调度重启（2026-09, REQ-370b24 重构为纯模块 planAndScheduleRestart）：
+   * 限流 → 互斥锁 → wip 检查点 → pending 持久化 → spawn 包内重启器（detached）。
+   * 本方法仅剩：组装依赖 + 调用 planner + 打日志；行为与原实现逐行一致（等价迁移）。
+   */
+  private async scheduleRestart(reason: string, preserveContext: boolean, originAgentId?: string | null): Promise<void> {
+    const deps: RestartPlannerDeps = {
+      repo: this.repo,
+      state: this.state,
+      resolveBase: (b) => this.resolveTrunkBase(b),
+      resolveRestarterPath: () => this.resolveRestarterPath(),
+      profileDir: this.cfg.profileDir,
+      agentDhRoot: this.cfg.agentDhRoot,
+      repoRoot: this.cfg.repoRoot,
+      port: this.cfg.port,
+      processPid: process.pid,
+      captureLastUserMessage: (id) => this.captureLastUserMessage(id),
+      spawnRestarter: (cmd, args, opts) => {
+        const child = spawn(cmd, args, opts);
+        child.unref();
+      },
+    };
+    const plan = planAndScheduleRestart(deps, {
+      reason,
+      preserveContext,
+      originAgentId: originAgentId ?? null,
+      maxRestartsPerHour: this.cfg.maxRestartsPerHour,
+      now: Date.now(),
+    });
+    this.ctx.logger.info(
+      `lifecycle: Restart scheduled: ${plan.reason} → checkpoint=${plan.checkpointBranch ?? '(无改动)'} log=${plan.logPath} restarter=${plan.restarter}`,
+    );
+  }
+
+  /**
    * 改动4（w-856b64ef）：滞留 wip 看门狗。启动时若 HEAD 停在 agent-self/* 且无任何 pending 记录
    * （restarter 成功路径未把 HEAD 交还干线 + 收尾未执行就再次启动/人工重启 → wip 滞留无人管），
    * 向主 agent 注入提示：请先 self_finalize 收尾，勿在 wip 上再造链。只提示不代执行。
    */
+  private runBootRecovery(): void {
+    try {
+      const stateDir = join(this.cfg.profileDir, 'state');
+      const report = onBoot({
+        repo: this.repo,
+        state: this.state,
+        readLockTs: () => {
+          try { return Number(readFileSync(join(stateDir, 'restarting.lock'), 'utf8')); } catch { return null; }
+        },
+        releaseLock: () => this.state.releaseLock(),
+        resolveBase: () =>
+          this.repo.branchExists('main') ? 'main' : this.repo.branchExists('master') ? 'master' : null,
+        now: Date.now(),
+        auditPath: join(stateDir, 'boot-recovery-audit.jsonl'),
+      });
+      if (report.actions.length > 0 || report.issues.length > 0) {
+        this.ctx.logger.info(
+          `lifecycle: boot-recovery ${JSON.stringify({ actions: report.actions, issues: report.issues })}`,
+        );
+      }
+    } catch (e) {
+      // fail-safe：修复逻辑任何失败都不得阻断 boot（滞留态下次 boot 仍会再试 + 看门狗兜底）
+      this.ctx.logger.warn(`lifecycle: boot-recovery skipped: ${String(e)}`);
+    }
+  }
+
   private setupStrandedWipWatchdog(): void {
     try {
       const branch = this.repo.currentBranch();
@@ -934,71 +999,7 @@ v2_event_json: ${JSON.stringify(data)}
    * 调度重启：限流 → 互斥锁 → wip 检查点 → pending 持久化 → spawn 包内重启器（detached）。
    * 重启器独立于本进程与外部脚本，负责 kill 旧进程、start.sh 拉起、健康检查、失败回滚。
    */
-  private async scheduleRestart(reason: string, preserveContext: boolean, originAgentId?: string | null): Promise<void> {
-    const now = Date.now();
-    // ① 限流（必须先于拿锁：拒绝路径不持有锁，否则锁永远无人释放——50cb6084 Critical 修复）
-    const rate = this.state.checkRateLimit(this.cfg.maxRestartsPerHour, now);
-    if (!rate.allowed) {
-      throw new Error(`本小时已重启 ${rate.count} 次，达到上限 ${this.cfg.maxRestartsPerHour}，拒绝执行`);
-    }
-    // ② 互斥锁：防并发重启（锁由重启器在流程终结时释放，本进程只负责创建）
-    if (!this.state.acquireLock()) {
-      throw new Error('已有重启进行中（restarting.lock 存在），拒绝重入');
-    }
-    try {
-      // ③ 未提交代码 → wip 检查点（git 安全网，启动失败可回滚）
-      // 改动1（2026-09-06, w-856b64ef）：base 溯源 + 续提交。
-      //   旧逻辑 base=currentBranch()：若当前已在 agent-self/*（wip-on-wip：上次 restart 成功但
-      //   restarter 未交还 HEAD、agent 未 finalize 又重启），会把旧 wip 记为 base → 新 wip 链根是
-      //   wip，链永远合不进 main（144904 式滞留根因）。新逻辑：当停在 agent-self/* 上时，
-      //   ① base 溯源到链根干线（pendingDone/pending 记录的 base_branch，非 agent-self 前缀者）；
-      //   ② 未提交改动不另起新链——续提交到同一 wip 分支（commitOnCurrent），checkpoint 仍是该 wip。
-      const curBranch = this.repo.currentBranch();
-      const onWip = curBranch.startsWith('agent-self/');
-      const base = onWip ? this.resolveTrunkBase(curBranch) : curBranch;
-      let wip: { branch: string } | null = null;
-      if (onWip) {
-        // 改动1：续提交到同一 wip（无改动时 commitOnCurrent 是 no-op，wip 仍保留为检查点）
-        this.repo.commitOnCurrent(['agent-dh/'], `wip(agent-self): ${reason}（续 @ ${curBranch}）`);
-        wip = { branch: curBranch };
-      } else {
-        wip = this.repo.createWipBranch('agent-self', ['agent-dh/'], `wip(agent-self): ${reason}`);
-      }
-      const branch = wip?.branch ?? null;
-      // ④ 持久化 pending（重启后 setupResume 据此回投续跑消息；含上次消息内容便于接续）
-      const attempt = this.state.nextAttempt(preserveContext ? 'continue previous task' : 'maintenance');
-      this.state.writePending({
-        reason,
-        resume_task: preserveContext ? 'continue previous task' : 'maintenance',
-        checkpoint_branch: branch,
-        base_branch: base,
-        last_known_good: this.state.readLastKnownGood() ?? this.repo.head(),
-        attempt,
-        ts: new Date(now).toISOString(),
-        origin_agent_id: originAgentId ?? null,
-        last_user_message: this.captureLastUserMessage(originAgentId),
-      });
-      this.state.bumpCounter(now);
-      // ⑤ spawn 包内重启器（detached + unref；重启器自行 kill 本进程，本进程无需 exit）
-      const logPath = join(this.cfg.profileDir, 'state', `restart-${Date.now()}.log`);
-      const restarter = this.resolveRestarterPath();
-      const tsxFlag = restarter.endsWith('.ts') ? ['--import', 'tsx/esm'] : [];
-      const child = spawn(process.execPath, [
-        ...tsxFlag, restarter,
-        String(process.pid), String(this.cfg.port),
-        this.cfg.repoRoot, join(this.cfg.profileDir, 'state'),
-        join(this.cfg.profileDir, 'start.sh'), logPath,
-      ], { detached: true, stdio: 'ignore', cwd: this.cfg.agentDhRoot });
-      child.unref();
-      this.ctx.logger.info(
-        `lifecycle: Restart scheduled: ${reason} → checkpoint=${branch ?? '(无改动)'} log=${logPath} restarter=${restarter}`,
-      );
-    } catch (e) {
-      // 只有 spawn 成功前失败才由本进程释放锁；spawn 后锁归重启器管
-      this.state.releaseLock();
-      throw e;
-    }
-  }
+
 
   /** 捕获发起会话的最后一条用户消息文本，重启后随续跑消息注入（参考 dsh-schedule 从 session.events 读取） */
   private captureLastUserMessage(agentId: string | null | undefined): string | null {
