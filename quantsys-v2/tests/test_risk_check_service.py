@@ -4,22 +4,26 @@
 
 import pytest
 from unittest.mock import Mock, MagicMock
+import polars as pl
 from application.services.risk_check_service import RiskCheckService
-from application.services.data_service import DataService
 
 
 @pytest.fixture
 def mock_data_service():
-    """创建模拟的DataService"""
-    ds = Mock(spec=DataService)
+    """创建模拟的 repo 集合
+
+    RiskCheckService 为 DI 契约（P2-1：命名 repo 参数注入），
+    repo mock 按真实仓库契约返回：kline = 单行 polars DataFrame。
+    """
+    ds = Mock()
 
     # Mock kline repository
     ds.kline = Mock()
-    ds.kline.get_latest_daily_kline = Mock(return_value={
-        'symbol': '000001.SH',
-        'close': 1500.0,
-        'date': '2026-05-28'
-    })
+    ds.kline.get_latest_daily_kline = Mock(return_value=pl.DataFrame({
+        'symbol': ['000001.SH'],
+        'close': [1500.0],
+        'date': ['2026-05-28']
+    }))
 
     # Mock risk repository - 充足的资金
     ds.risk = Mock()
@@ -33,12 +37,11 @@ def mock_data_service():
     ds.portfolio = Mock()
     ds.portfolio.get_holding = Mock(return_value=None)
     ds.portfolio.get_all_holdings = Mock(return_value=[])
-    ds.portfolio.db = Mock()
 
     # Mock cursor for trade limit check
     mock_cursor = Mock()
     mock_cursor.fetchall = Mock(return_value=[])
-    ds.portfolio.db.cursor = Mock(return_value=mock_cursor)
+    ds.portfolio._get_cursor = Mock(return_value=mock_cursor)
 
     # Mock stock repository
     ds.stock = Mock()
@@ -48,12 +51,20 @@ def mock_data_service():
         'industry': '白酒'
     })
 
+    # DI 注入参数（RiskCheckService(**repo_kwargs)）
+    ds.repo_kwargs = {
+        'portfolio_repo': ds.portfolio,
+        'stock_repo': ds.stock,
+        'kline_repo': ds.kline,
+        'risk_repo': ds.risk,
+    }
+
     return ds
 
 
 def test_check_signal_buy_pass(mock_data_service):
     """测试买入信号通过风控"""
-    service = RiskCheckService(mock_data_service)
+    service = RiskCheckService(**mock_data_service.repo_kwargs)
 
     signal = {
         'symbol': '000001.SH',
@@ -75,7 +86,7 @@ def test_check_signal_buy_pass(mock_data_service):
 
 def test_check_signal_insufficient_funds(mock_data_service):
     """测试资金不足被拒绝"""
-    service = RiskCheckService(mock_data_service)
+    service = RiskCheckService(**mock_data_service.repo_kwargs)
 
     signal = {
         'symbol': '000001.SH',
@@ -100,7 +111,7 @@ def test_check_signal_sell_with_holding(mock_data_service):
         'quantity': 500
     })
 
-    service = RiskCheckService(mock_data_service)
+    service = RiskCheckService(**mock_data_service.repo_kwargs)
 
     signal = {
         'symbol': '000001.SH',
@@ -117,7 +128,7 @@ def test_check_signal_sell_with_holding(mock_data_service):
 
 def test_check_signal_no_holding(mock_data_service):
     """测试卖出无持仓被拒绝"""
-    service = RiskCheckService(mock_data_service)
+    service = RiskCheckService(**mock_data_service.repo_kwargs)
 
     signal = {
         'symbol': '999999.SH',
@@ -139,7 +150,7 @@ def test_check_signal_insufficient_holding(mock_data_service):
         'quantity': 50
     })
 
-    service = RiskCheckService(mock_data_service)
+    service = RiskCheckService(**mock_data_service.repo_kwargs)
 
     signal = {
         'symbol': '000001.SH',
@@ -155,7 +166,7 @@ def test_check_signal_insufficient_holding(mock_data_service):
 
 def test_check_signal_missing_stop_loss(mock_data_service):
     """测试缺少止损设置被拒绝"""
-    service = RiskCheckService(mock_data_service)
+    service = RiskCheckService(**mock_data_service.repo_kwargs)
 
     signal = {
         'symbol': '000001.SH',
@@ -172,7 +183,7 @@ def test_check_signal_missing_stop_loss(mock_data_service):
 
 def test_check_signal_stop_loss_too_small(mock_data_service):
     """测试止损幅度过小被拒绝"""
-    service = RiskCheckService(mock_data_service)
+    service = RiskCheckService(**mock_data_service.repo_kwargs)
 
     signal = {
         'symbol': '000001.SH',
@@ -191,7 +202,7 @@ def test_check_signal_stop_loss_too_small(mock_data_service):
 
 def test_check_signal_stop_loss_too_large(mock_data_service):
     """测试止损幅度过大被拒绝"""
-    service = RiskCheckService(mock_data_service)
+    service = RiskCheckService(**mock_data_service.repo_kwargs)
 
     signal = {
         'symbol': '000001.SH',
@@ -210,7 +221,7 @@ def test_check_signal_stop_loss_too_large(mock_data_service):
 
 def test_check_single_order_limit(mock_data_service):
     """测试单笔订单限制"""
-    service = RiskCheckService(mock_data_service)
+    service = RiskCheckService(**mock_data_service.repo_kwargs)
 
     # 订单金额超过总资产的20%
     signal = {
@@ -236,7 +247,7 @@ def test_check_position_concentration(mock_data_service):
         'quantity': 180  # 180 * 1500 = 270000 = 27%
     })
 
-    service = RiskCheckService(mock_data_service)
+    service = RiskCheckService(**mock_data_service.repo_kwargs)
 
     # 新增20股，总仓位 = (180+20)*1500 = 300000 = 30% of 1000000
     signal = {
@@ -275,14 +286,14 @@ def test_check_sector_concentration(mock_data_service):
     # Mock五粮液K线
     def get_kline(symbol):
         if symbol == '000001.SH':
-            return {'symbol': '000001.SH', 'close': 1500.0}
+            return pl.DataFrame({'symbol': ['000001.SH'], 'close': [1500.0]})
         elif symbol == '000858.SZ':
-            return {'symbol': '000858.SZ', 'close': 1000.0}
+            return pl.DataFrame({'symbol': ['000858.SZ'], 'close': [1000.0]})
         return None
 
     mock_data_service.kline.get_latest_daily_kline = Mock(side_effect=get_kline)
 
-    service = RiskCheckService(mock_data_service)
+    service = RiskCheckService(**mock_data_service.repo_kwargs)
 
     # 现有白酒仓位 = 200 * 1000 = 200000 = 20%
     # 新增后 = 200000 + 50*1500 = 275000 = 27.5%，未超过40%
@@ -306,9 +317,9 @@ def test_check_daily_trade_limit(mock_data_service):
     # Mock今日已有5笔交易
     mock_cursor = Mock()
     mock_cursor.fetchall = Mock(return_value=[1, 2, 3, 4, 5])
-    mock_data_service.portfolio.db.cursor = Mock(return_value=mock_cursor)
+    mock_data_service.portfolio._get_cursor = Mock(return_value=mock_cursor)
 
-    service = RiskCheckService(mock_data_service)
+    service = RiskCheckService(**mock_data_service.repo_kwargs)
 
     signal = {
         'symbol': '000001.SH',
@@ -327,7 +338,7 @@ def test_check_daily_trade_limit(mock_data_service):
 
 def test_calculate_quantity_with_position_sizing(mock_data_service):
     """测试根据仓位管理计算数量"""
-    service = RiskCheckService(mock_data_service)
+    service = RiskCheckService(**mock_data_service.repo_kwargs)
 
     signal = {
         'symbol': '000001.SH',
@@ -355,7 +366,7 @@ def test_calculate_sell_quantity_all(mock_data_service):
         'quantity': 500
     })
 
-    service = RiskCheckService(mock_data_service)
+    service = RiskCheckService(**mock_data_service.repo_kwargs)
 
     signal = {
         'symbol': '000001.SH',

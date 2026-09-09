@@ -14,6 +14,10 @@ import sys
 import os
 from datetime import datetime
 
+from domain.brokers.base_broker import BaseBroker
+from domain.brokers.broker_registry import BrokerRegistry
+from domain.brokers.trading_types import ApiResponse
+
 # Ensure the quantsys-v2 directory is on the path
 
 
@@ -172,16 +176,47 @@ class TestAlpacaBroker:
 # ========================================================================
 
 
+class _FakeExecutionBroker(BaseBroker):
+    """Minimal broker stub so execution_service simulation paths can resolve 'ibkr'.
+
+    execution_service functions only use the broker as an existence gate for
+    TWAP/VWAP/Iceberg/market simulation; no broker methods are invoked on the
+    success path. get_orders 沿用 BaseBroker 默认（ApiResponse.fail），供
+    get_execution_report 的"订单缺失"分支验证。
+    """
+
+    def __init__(self):
+        self._id = 'ibkr'
+        self._name = 'Fake IBKR (execution tests)'
+
+    def get_id(self) -> str:
+        return self._id
+
+    def get_name(self) -> str:
+        return self._name
+
+    def get_profile(self):
+        return None
+
+    def get_quotes(self, symbols):
+        return ApiResponse.fail("Not supported")
+
+    def get_history(self, symbol, start_date, end_date, frequency='daily'):
+        return ApiResponse.fail("Not supported")
+
+
 class TestExecutionService:
     """Test algorithmic execution service functions."""
 
-    @pytest.fixture
-    def ds(self):
-        """Create a mock DataService for execution tests."""
-        from application.services.data_service import DataService
-        return DataService()
+    @pytest.fixture(scope='class', autouse=True)
+    def _register_ibkr_broker(self):
+        """Register a fake 'ibkr' broker so execution simulations can run."""
+        registry = BrokerRegistry.instance()
+        if not registry.has('ibkr'):
+            registry.register(_FakeExecutionBroker())
+        yield
 
-    def test_execute_order_basic(self, ds):
+    def test_execute_order_basic(self):
         """Verify basic order execution returns success."""
         from application.services.execution_service import execute_order
 
@@ -192,7 +227,7 @@ class TestExecutionService:
             'price': 150.0,
         }
 
-        result = execute_order(ds, 'ibkr', order_details, algo='market')
+        result = execute_order('ibkr', order_details, algo='market')
 
         assert result.success is True
         assert result.algo == 'market'
@@ -201,7 +236,7 @@ class TestExecutionService:
         assert result.order_id != ""
         assert result.execution_time_seconds >= 0
 
-    def test_execute_order_missing_symbol(self, ds):
+    def test_execute_order_missing_symbol(self):
         """Verify execution fails gracefully with missing symbol."""
         from application.services.execution_service import execute_order
 
@@ -210,12 +245,12 @@ class TestExecutionService:
             'quantity': 100,
         }
 
-        result = execute_order(ds, 'ibkr', order_details)
+        result = execute_order('ibkr', order_details)
 
         assert result.success is False
         assert result.error is not None
 
-    def test_twap_execution_splits_correctly(self, ds):
+    def test_twap_execution_splits_correctly(self):
         """Verify TWAP splits order into correct number of slices."""
         from application.services.execution_service import execute_twap
 
@@ -226,7 +261,7 @@ class TestExecutionService:
             'price': 150.0,
         }
 
-        result = execute_twap(ds, 'ibkr', order, duration_minutes=30, slices=10)
+        result = execute_twap('ibkr', order, duration_minutes=30, slices=10)
 
         assert result.success is True
         assert result.algo == 'twap'
@@ -240,7 +275,7 @@ class TestExecutionService:
         assert result.avg_price > 0
         assert abs(result.filled_quantity - 1000) < 0.01
 
-    def test_vwap_execution_uses_volume_profile(self, ds):
+    def test_vwap_execution_uses_volume_profile(self):
         """Verify VWAP execution uses volume profile to weight slices."""
         from application.services.execution_service import execute_vwap
 
@@ -251,7 +286,7 @@ class TestExecutionService:
             'price': 150.0,
         }
 
-        result = execute_vwap(ds, 'ibkr', order, duration_minutes=60)
+        result = execute_vwap('ibkr', order, duration_minutes=60)
 
         assert result.success is True
         assert result.algo == 'vwap'
@@ -265,7 +300,7 @@ class TestExecutionService:
         total_qty = sum(s['quantity'] for s in result.slices)
         assert abs(total_qty - 1000) < 0.01
 
-    def test_iceberg_execution_displays_limit(self, ds):
+    def test_iceberg_execution_displays_limit(self):
         """Verify Iceberg execution respects display size."""
         from application.services.execution_service import execute_iceberg
 
@@ -277,7 +312,7 @@ class TestExecutionService:
         }
 
         display_size = 100
-        result = execute_iceberg(ds, 'ibkr', order, display_size=display_size)
+        result = execute_iceberg('ibkr', order, display_size=display_size)
 
         assert result.success is True
         assert result.algo == 'iceberg'
@@ -319,20 +354,20 @@ class TestExecutionService:
         assert error_result.success is False
         assert error_result.error == "Connection failed"
 
-    def test_get_execution_report_handles_missing(self, ds):
+    def test_get_execution_report_handles_missing(self):
         """Verify execution report handles missing orders gracefully."""
         from application.services.execution_service import get_execution_report
 
-        result = get_execution_report(ds, 'ibkr', 'nonexistent-99999')
+        result = get_execution_report('ibkr', 'nonexistent-99999')
 
         assert result['success'] is False
         assert 'order_id' in result
 
-    def test_cancel_all_orders_handles_no_broker(self, ds):
+    def test_cancel_all_orders_handles_no_broker(self):
         """Verify cancel all orders handles missing broker gracefully."""
         from application.services.execution_service import cancel_all_orders
 
-        result = cancel_all_orders(ds, 'nonexistent_broker')
+        result = cancel_all_orders('nonexistent_broker')
 
         assert result['success'] is False
         assert 'error' in result or result['cancelled_count'] == 0

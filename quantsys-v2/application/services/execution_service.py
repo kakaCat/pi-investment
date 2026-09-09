@@ -488,15 +488,23 @@ def execute_with_risk_check(
 
     try:
         # Import here to avoid circular dependency
-        from application.services.risk_service import live_pre_trade_check
+        from application.services.risk_service import RiskService
 
         # Run live pre-trade risk check
-            risk_result = live_pre_trade_check(
-                broker_id, symbol, action, quantity, price
+        risk_service = RiskService()
+        risk_result = risk_service.check_trade_risk(symbol, action, price, quantity)
+
+        if not risk_result.get('success', False):
+            error_msg = risk_result.get('error', 'Unknown risk violation')
+            return ExecutionResult(
+                success=False,
+                error=f"Risk check failed: {error_msg}",
+                algo='risk_checked',
             )
 
-        if not risk_result.get('passed', False):
-            blocking_reasons = risk_result.get('blocking_reasons', ['Unknown risk violation'])
+        risk_data = risk_result.get('data') or {}
+        if not risk_data.get('passed', False):
+            blocking_reasons = risk_data.get('warnings') or ['Risk violation']
             return ExecutionResult(
                 success=False,
                 error=f"Risk check failed: {'; '.join(blocking_reasons)}",

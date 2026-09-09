@@ -90,10 +90,10 @@ class RiskCheckService:
         try:
             # 获取当前价格
             latest_kline = self.kline_repo.get_latest_daily_kline(symbol)
-            if not latest_kline:
+            if latest_kline is None or latest_kline.is_empty():
                 return self._fail_result('无法获取股票价格')
 
-            current_price = float(latest_kline['close'])
+            current_price = float(latest_kline['close'][0])
 
             # 获取账户信息
             account = self.risk_repo.get_latest_balance()
@@ -329,8 +329,8 @@ class RiskCheckService:
             h_stock = self.stock_repo.get_by_symbol(h['symbol'])
             if h_stock and h_stock.get('industry') == sector:
                 h_kline = self.kline_repo.get_latest_daily_kline(h['symbol'])
-                if h_kline:
-                    h_price = float(h_kline['close'])
+                if h_kline is not None and not h_kline.is_empty():
+                    h_price = float(h_kline['close'][0])
                     sector_value += h['quantity'] * h_price
 
         new_quantity = signal.get('quantity', 100)
