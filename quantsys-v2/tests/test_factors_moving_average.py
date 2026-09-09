@@ -8,8 +8,8 @@ Test suite for MA and EMA factor calculations.
 import pytest
 import numpy as np
 
-from domain.quantlib.factors.moving_average import MovingAverageFactors
-from domain.quantlib.core.exceptions import InsufficientDataError, DataValidationError
+from domain.factors.library.moving_average import MovingAverageFactors
+from domain.quantlib.exceptions import InsufficientDataError, DataValidationError
 
 
 class TestMovingAverageFactors:

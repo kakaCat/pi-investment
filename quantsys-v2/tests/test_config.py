@@ -2,7 +2,7 @@
 测试 core.config 模块
 """
 import pytest
-from domain.quantlib.core.config import CHART_KLINE_LIMIT, CHART_KLINE_MAX_LIMIT
+from infrastructure.quantlib.core.config import CHART_KLINE_LIMIT, CHART_KLINE_MAX_LIMIT
 
 
 class TestConfig:

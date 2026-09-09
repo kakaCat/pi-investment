@@ -11,7 +11,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 from domain.quantlib.timeseries import TimeSeriesAnalyzer
-from domain.quantlib.core.exceptions import DataValidationError, InsufficientDataError
+from domain.quantlib.exceptions import DataValidationError, InsufficientDataError
 
 
 def _has_statsmodels() -> bool:

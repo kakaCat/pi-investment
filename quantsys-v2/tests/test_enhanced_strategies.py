@@ -55,7 +55,7 @@ class TestMultiFactorStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.multi_factor_strategy import MultiFactorStrategy
+        from domain.backtest.engine.multi_factor_strategy import MultiFactorStrategy
         return MultiFactorStrategy(name='test_mf')
 
     def test_signal_in_uptrend(self, strategy):
@@ -94,7 +94,7 @@ class TestADXTrendStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.adx_trend_strategy import ADXTrendStrategy
+        from domain.backtest.engine.adx_trend_strategy import ADXTrendStrategy
         return ADXTrendStrategy(name='test_adx')
 
     def test_signal_structure(self, strategy):
@@ -125,7 +125,7 @@ class TestCCIReversalStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.cci_reversal_strategy import CCIReversalStrategy
+        from domain.backtest.engine.cci_reversal_strategy import CCIReversalStrategy
         return CCIReversalStrategy(name='test_cci')
 
     def test_signal_structure(self, strategy):
@@ -153,7 +153,7 @@ class TestGridTradingStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.grid_trading_strategy import GridTradingStrategy
+        from domain.backtest.engine.grid_trading_strategy import GridTradingStrategy
         return GridTradingStrategy(name='test_grid')
 
     def test_signal_structure(self, strategy):
@@ -186,7 +186,7 @@ class TestMLPredictionStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.ml_prediction_strategy import MLPredictionStrategy
+        from domain.backtest.engine.ml_prediction_strategy import MLPredictionStrategy
         return MLPredictionStrategy(name='test_ml')
 
     def test_precomputed_buy(self, strategy):

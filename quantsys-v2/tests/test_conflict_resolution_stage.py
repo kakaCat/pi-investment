@@ -4,8 +4,8 @@ import pandas as pd
 import pytest
 from datetime import datetime
 
-from domain.quantlib.stages.data_pipeline import PipelineContext, PipelineResult
-from domain.quantlib.stages.data_pipeline.conflict_resolution_stage import ConflictResolutionStage
+from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
+from domain.backtest.stages.data_pipeline.conflict_resolution_stage import ConflictResolutionStage
 
 
 class TestConflictResolutionStage:

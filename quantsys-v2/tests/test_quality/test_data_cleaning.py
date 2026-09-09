@@ -8,7 +8,7 @@ import sys
 import os
 
 
-from domain.quantlib.core.data_cleaning import DataCleaningPipeline
+from infrastructure.quantlib.core.data_cleaning import DataCleaningPipeline
 
 
 class TestDataCleaningPipeline:

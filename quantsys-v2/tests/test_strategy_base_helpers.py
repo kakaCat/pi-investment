@@ -2,7 +2,7 @@
 测试 StrategyBase 风控辅助方法
 """
 import pytest
-from domain.quantlib.engine.strategy_base import StrategyBase
+from domain.backtest.engine.strategy_base import StrategyBase
 
 
 class ConcreteStrategy(StrategyBase):

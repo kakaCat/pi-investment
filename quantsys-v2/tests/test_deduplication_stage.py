@@ -3,8 +3,8 @@
 import pytest
 import pandas as pd
 from datetime import datetime
-from domain.quantlib.stages.data_pipeline.deduplication_stage import DeduplicationStage
-from domain.quantlib.stages.data_pipeline import PipelineContext, PipelineResult
+from domain.backtest.stages.data_pipeline.deduplication_stage import DeduplicationStage
+from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
 
 
 class TestDeduplicationStage:

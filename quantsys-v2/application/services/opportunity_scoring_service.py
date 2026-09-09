@@ -253,7 +253,12 @@ class OpportunityScoringService:
         context: Optional[Dict] = None,
     ) -> Optional[Dict]:
         """评分单只股票（动态 profile + regime 权重 + 证据链）"""
+        from application.services.scoring.degradation_tracker import DegradationTracker
+        
         try:
+            # ✅ 初始化降级追踪器
+            degradation_tracker = DegradationTracker()
+            
             context = context or {}
             profile_info = context.get('profile') or {
                 'profile': 'balanced', 'signals': {},
@@ -272,7 +277,7 @@ class OpportunityScoringService:
             klines = report.klines
 
             # 计算技术指标因子
-            factors = self._calculate_factors(klines)
+            factors = self._calculate_factors(klines, degradation_tracker)
 
             # 筛选条件（保持原逻辑）
             conditions = filters.get('conditions', [])
@@ -361,6 +366,11 @@ class OpportunityScoringService:
             stock_obj = self.stock_repo.get_by_symbol(symbol)
             stock_name = stock_obj.name if stock_obj and stock_obj.name else symbol
 
+            # ✅ 计算降级后的置信度
+            base_confidence = round(total_score / 100, 2)
+            confidence_penalty = degradation_tracker.get_confidence_penalty()
+            adjusted_confidence = round(base_confidence * confidence_penalty, 2)
+            
             return {
                 'symbol': symbol,
                 'name': stock_name,
@@ -368,7 +378,7 @@ class OpportunityScoringService:
                 'technical_score': round(tech_score),
                 'fundamental_score': round(fund_score),
                 'capital_score': round(capital_score),
-                'confidence': round(total_score / 100, 2),
+                'confidence': adjusted_confidence,
                 'risk_level': self._calculate_risk_level(total_score),
                 'signal_type': 'buy',
                 'timestamp': datetime.now().isoformat(),
@@ -384,6 +394,9 @@ class OpportunityScoringService:
                     'weights_source': weights_source,
                     'cache': context.get('cache_status', {}),
                 },
+                # ✅ 新增：降级信息
+                'degradations': degradation_tracker.get_degradations(),
+                'degradation_summary': degradation_tracker.get_summary(),
                 '_degraded_flow': len(flows) == 0,
                 '_degraded_quarterly': (
                     profile == 'cyclical' and len(quarterly) < 4),
@@ -463,11 +476,12 @@ class OpportunityScoringService:
             reasons.append('RSI超卖+MACD金叉共振')
         return reasons
 
-    def _calculate_factors(self, klines: List[Dict]) -> Dict:
+    def _calculate_factors(self, klines: List[Dict], degradation_tracker=None) -> Dict:
         """计算技术指标因子
 
         Args:
             klines: K线数据列表
+            degradation_tracker: 降级追踪器（可选）
 
         Returns:
             因子字典
@@ -483,6 +497,14 @@ class OpportunityScoringService:
             rsi14 = self.factor_adapter.calculate('rsi14', klines)
             if rsi14 is not None:
                 factors['rsi'] = rsi14
+            elif degradation_tracker:
+                degradation_tracker.record(
+                    component='technical_factors',
+                    factor='rsi14',
+                    reason='RSI calculation returned None (possible TA-Lib issue)',
+                    fallback='excluded from technical score',
+                    severity='warning'
+                )
 
             # 计算MACD
             macd = self.factor_adapter.calculate('macd', klines)
@@ -499,6 +521,14 @@ class OpportunityScoringService:
                     if macd_prev is not None and macd_signal_prev is not None:
                         factors['macd_prev'] = macd_prev
                         factors['macd_signal_prev'] = macd_signal_prev
+            elif degradation_tracker:
+                degradation_tracker.record(
+                    component='technical_factors',
+                    factor='macd',
+                    reason='MACD calculation returned None',
+                    fallback='excluded from technical score',
+                    severity='warning'
+                )
 
             # 计算布林带
 
@@ -506,6 +536,15 @@ class OpportunityScoringService:
             adx = self.factor_adapter.calculate('adx', klines)
             if adx is not None:
                 factors['adx'] = adx
+            elif degradation_tracker:
+                degradation_tracker.record(
+                    component='technical_factors',
+                    factor='adx',
+                    reason='ADX calculation returned None',
+                    fallback='excluded from technical score',
+                    severity='warning'
+                )
+            
             boll_upper = self.factor_adapter.calculate('bollinger_upper', klines)
             if boll_upper is not None:
                 factors['boll_upper'] = boll_upper

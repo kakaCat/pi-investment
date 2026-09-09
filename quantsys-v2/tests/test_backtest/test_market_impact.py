@@ -7,7 +7,7 @@ import sys
 import os
 
 
-from domain.quantlib.backtest.market_impact import AlmgrenChrissModel
+from domain.backtest.core.market_impact import AlmgrenChrissModel
 
 
 class TestAlmgrenChrissModel:

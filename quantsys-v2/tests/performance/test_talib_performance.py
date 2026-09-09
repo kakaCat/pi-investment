@@ -8,7 +8,7 @@ import sys
 
 import time
 import numpy as np
-from domain.quantlib.factors.momentum import MomentumFactors
+from domain.factors.library.momentum import MomentumFactors
 
 # 生成测试数据
 def generate_test_data(n=1000):

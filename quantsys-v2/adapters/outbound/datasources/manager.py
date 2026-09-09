@@ -695,9 +695,7 @@ class DataProviderManager(IDataProviderManager):
                     low=kline.low,
                     close=kline.close,
                     volume=kline.volume,
-                    source=kline.source,
-                    created_at=datetime.now(),
-                    updated_at=datetime.now()
+                    source=kline.source
                 )
                 session.add(daily)
                 saved_count += 1

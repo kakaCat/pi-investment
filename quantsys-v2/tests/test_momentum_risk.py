@@ -2,7 +2,7 @@
 测试 MomentumStrategy 风控功能
 """
 import pytest
-from domain.quantlib.engine.momentum_strategy import MomentumStrategy
+from domain.backtest.engine.momentum_strategy import MomentumStrategy
 
 
 class TestMomentumRisk:

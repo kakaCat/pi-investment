@@ -1,7 +1,7 @@
 """测试FactorStage - 因子计算"""
 import pytest
 import pandas as pd
-from domain.quantlib.stages.factor_stage import FactorStage
+from domain.backtest.stages.factor_stage import FactorStage
 
 
 class TestFactorStage:

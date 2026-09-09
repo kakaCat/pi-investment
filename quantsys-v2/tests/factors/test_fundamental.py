@@ -2,7 +2,7 @@
 Tests for fundamental factor calculators: FSCORE and Earnings Quality.
 """
 import pytest
-from domain.quantlib.factors.fundamental import (
+from domain.factors.library.fundamental import (
     FScoreCalculator,
     EarningsQualityCalculator,
     compute_fundamental_factors,

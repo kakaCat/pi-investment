@@ -6,6 +6,7 @@ Uses mock DataService to test rule logic without requiring a database connection
 """
 
 from unittest.mock import MagicMock
+import polars as pl
 
 from domain.backtest.engine.risk_rules import (
     check_position_size,
@@ -66,15 +67,29 @@ def _make_stock_info(symbol="000001.SZ", name="平安银行", industry="银行",
 
 
 def _make_kline(close=10.0, volume=5000000):
-    return {
-        "symbol": "000001.SZ",
-        "trade_date": "2025-01-15",
-        "open": close - 0.1,
-        "high": close + 0.2,
-        "low": close - 0.2,
-        "close": close,
-        "volume": volume,
-    }
+    """返回单行 polars DataFrame（模拟 get_latest_daily_kline）"""
+    return pl.DataFrame({
+        "symbol": ["000001.SZ"],
+        "trade_date": ["2025-01-15"],
+        "open": [close - 0.1],
+        "high": [close + 0.2],
+        "low": [close - 0.2],
+        "close": [close],
+        "volume": [volume],
+    })
+
+
+def _make_klines_df(n=20, close=10.0, volume=5000000):
+    """返回多行 polars DataFrame（模拟 get_daily_klines）"""
+    return pl.DataFrame({
+        "symbol": ["000001.SZ"] * n,
+        "trade_date": [f"2025-01-{i+1:02d}" for i in range(n)],
+        "open": [close - 0.1] * n,
+        "high": [close + 0.2] * n,
+        "low": [close - 0.2] * n,
+        "close": [close] * n,
+        "volume": [volume] * n,
+    })
 
 
 def _make_balance(total_assets=1000000, daily_pnl=0):

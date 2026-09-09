@@ -8,8 +8,8 @@ Test suite for Bollinger Bands, ATR, Keltner Channels, and volatility calculatio
 import pytest
 import numpy as np
 
-from domain.quantlib.factors.volatility import VolatilityFactors
-from domain.quantlib.core.exceptions import InsufficientDataError, DataValidationError
+from domain.factors.library.volatility import VolatilityFactors
+from domain.quantlib.exceptions import InsufficientDataError, DataValidationError
 
 
 class TestVolatilityFactors:

@@ -22,7 +22,7 @@ class TestIndicatorMixin:
 
     @pytest.fixture
     def mixin(self):
-        from domain.quantlib.engine.mixins.indicator_mixin import IndicatorMixin
+        from domain.backtest.engine.mixins.indicator_mixin import IndicatorMixin
         return IndicatorMixin()
 
     @pytest.fixture
@@ -51,7 +51,7 @@ class TestFactorMixin:
 
     @pytest.fixture
     def mixin(self):
-        from domain.quantlib.engine.mixins.factor_mixin import FactorMixin
+        from domain.backtest.engine.mixins.factor_mixin import FactorMixin
         return FactorMixin()
 
     @pytest.fixture
@@ -79,7 +79,7 @@ class TestMLMixin:
 
     @pytest.fixture
     def mixin(self):
-        from domain.quantlib.engine.mixins.ml_mixin import MLMixin
+        from domain.backtest.engine.mixins.ml_mixin import MLMixin
         return MLMixin()
 
     def test_ml_mixin_initial_state(self, mixin):
@@ -109,23 +109,23 @@ class TestEnhancedStrategyBase:
         return make_test_klines(50)
 
     def test_enhanced_base_includes_all_mixins(self):
-        from domain.quantlib.engine.enhanced_strategy_base import EnhancedStrategyBase
-        from domain.quantlib.engine.mixins.indicator_mixin import IndicatorMixin
-        from domain.quantlib.engine.mixins.factor_mixin import FactorMixin
-        from domain.quantlib.engine.strategy_base import StrategyBase
+        from domain.backtest.engine.enhanced_strategy_base import EnhancedStrategyBase
+        from domain.backtest.engine.mixins.indicator_mixin import IndicatorMixin
+        from domain.backtest.engine.mixins.factor_mixin import FactorMixin
+        from domain.backtest.engine.strategy_base import StrategyBase
 
         assert issubclass(EnhancedStrategyBase, StrategyBase)
         assert issubclass(EnhancedStrategyBase, IndicatorMixin)
         assert issubclass(EnhancedStrategyBase, FactorMixin)
 
     def test_enhanced_base_requires_generate_signal(self):
-        from domain.quantlib.engine.enhanced_strategy_base import EnhancedStrategyBase
+        from domain.backtest.engine.enhanced_strategy_base import EnhancedStrategyBase
         with pytest.raises(TypeError):
             # Cannot instantiate abstract class with abstract generate_signal
             EnhancedStrategyBase(name='test')
 
     def test_enhanced_base_calculates_indicator(self, klines):
-        from domain.quantlib.engine.enhanced_strategy_base import EnhancedStrategyBase
+        from domain.backtest.engine.enhanced_strategy_base import EnhancedStrategyBase
 
         class TestStrat(EnhancedStrategyBase):
             def generate_signal(self, klines, params=None):

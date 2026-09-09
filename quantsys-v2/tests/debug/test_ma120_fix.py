@@ -7,7 +7,7 @@ from pathlib import Path
 
 # Add project root to path
 
-from domain.quantlib.factors.moving_average import MovingAverageFactors
+from domain.factors.library.moving_average import MovingAverageFactors
 
 def test_ma120_with_insufficient_data():
     """Test MA120 with only 115 data points (less than 120)"""

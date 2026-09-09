@@ -2,8 +2,8 @@
 
 import pandas as pd
 import pytest
-from domain.quantlib.stages.data_pipeline import PipelineContext, PipelineResult
-from domain.quantlib.stages.data_pipeline.imputation_stage import ImputationStage
+from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
+from domain.backtest.stages.data_pipeline.imputation_stage import ImputationStage
 
 
 class TestImputationStage:

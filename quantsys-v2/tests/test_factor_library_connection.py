@@ -1,7 +1,7 @@
 """测试因子库能否被正常调用"""
 
-from domain.quantlib.factors.momentum import MomentumFactors
-from domain.quantlib.factors.trend import TrendFactors
+from domain.factors.library.momentum import MomentumFactors
+from domain.factors.library.trend import TrendFactors
 import pandas as pd
 
 # 准备测试数据

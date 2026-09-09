@@ -8,8 +8,8 @@ Test suite for OBV, MFI, VWAP, and volume-related calculations.
 import pytest
 import numpy as np
 
-from domain.quantlib.factors.volume import VolumeFactors
-from domain.quantlib.core.exceptions import InsufficientDataError, DataValidationError
+from domain.factors.library.volume import VolumeFactors
+from domain.quantlib.exceptions import InsufficientDataError, DataValidationError
 
 
 class TestVolumeFactors:

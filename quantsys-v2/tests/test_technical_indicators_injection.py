@@ -231,7 +231,7 @@ df['sell'] = df['overbought']
 """
 
         # Execute strategy
-        from domain.quantlib.engine.indicator_strategy_executor import IndicatorStrategyExecutor
+        from domain.backtest.engine.indicator_strategy_executor import IndicatorStrategyExecutor
         executor = IndicatorStrategyExecutor()
 
         result = executor.execute(

@@ -13,7 +13,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from application.services.strategy_backtest_service import StrategyBacktestService
 from application.services.strategy_code_validator import StrategyCodeValidator
-from domain.quantlib.engine.indicator_strategy_executor import IndicatorStrategyExecutor
+from domain.backtest.engine.indicator_strategy_executor import IndicatorStrategyExecutor
 
 
 def create_test_klines(days=100):

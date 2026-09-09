@@ -1,5 +1,5 @@
 import pytest
-from domain.quantlib.core.validators import validate_symbol, validate_date, validate_required, validate_positive
+from infrastructure.quantlib.core.validators import validate_symbol, validate_date, validate_required, validate_positive
 
 class TestValidateSymbol:
     def test_valid(self):

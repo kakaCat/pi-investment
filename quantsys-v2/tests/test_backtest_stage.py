@@ -2,7 +2,7 @@
 BacktestStage unit tests
 """
 import pytest
-from domain.quantlib.stages.backtest_stage import (
+from domain.backtest.stages.backtest_stage import (
     BacktestStage, Position, Trade, DailyEquity
 )
 
@@ -253,13 +253,13 @@ class TestBacktestStageEdgeCases:
 
 class TestMetricsCalculation:
     def test_no_trades_metrics(self):
-        from domain.quantlib.stages.backtest_stage import BacktestStage as BS
+        from domain.backtest.stages.backtest_stage import BacktestStage as BS
         metrics = BS._calculate_metrics([], [], 100000, "", "")
         assert metrics["total_trades"] == 0
         assert metrics["sharpe_ratio"] == 0.0
 
     def test_with_equity_curve_no_trades(self):
-        from domain.quantlib.stages.backtest_stage import DailyEquity, BacktestStage as BS
+        from domain.backtest.stages.backtest_stage import DailyEquity, BacktestStage as BS
         eq = [DailyEquity("2024-01-01", 100000, 0, 100000, 0, 0)]
         metrics = BS._calculate_metrics(eq, [], 100000, "2024-01-01", "2024-01-01")
         assert metrics["total_return"] == 0.0

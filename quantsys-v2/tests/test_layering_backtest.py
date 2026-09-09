@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 from unittest.mock import patch, MagicMock
 
-from domain.quantlib.factor_analysis.layering_backtest import FactorLayeringBacktest
+from domain.factors.analysis.layering_backtest import FactorLayeringBacktest
 
 
 @pytest.fixture

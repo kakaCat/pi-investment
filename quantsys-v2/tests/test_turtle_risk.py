@@ -2,7 +2,7 @@
 测试 TurtleStrategy 风控功能
 """
 import pytest
-from domain.quantlib.engine.turtle_strategy import TurtleStrategy
+from domain.backtest.engine.turtle_strategy import TurtleStrategy
 
 
 class TestTurtleRisk:

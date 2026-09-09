@@ -100,17 +100,17 @@ class IndustryDataAdapter(IndustryDataPort):
         # 从数据库查询
         try:
             with db_cursor() as cursor:
-                # 构建查询
+                # 构建查询（使用 stocks 表，它有 pe, roe, revenue_growth 字段）
                 if symbols:
                     # 查询指定股票
                     symbol_list = "', '".join(symbols)
                     cursor.execute(
-                        f"SELECT {factor_name} FROM quant.fundamentals WHERE symbol IN ('{symbol_list}') AND {factor_name} IS NOT NULL"
+                        f"SELECT {factor_name} FROM quant.stocks WHERE symbol IN ('{symbol_list}') AND {factor_name} IS NOT NULL"
                     )
                 else:
                     # 查询整个行业
                     cursor.execute(
-                        f"SELECT f.{factor_name} FROM quant.fundamentals f JOIN quant.stocks s ON f.symbol = s.symbol WHERE s.sector = %s AND f.{factor_name} IS NOT NULL",
+                        f"SELECT {factor_name} FROM quant.stocks WHERE sector = %s AND {factor_name} IS NOT NULL",
                         (sector,)
                     )
                 

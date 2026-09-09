@@ -4,7 +4,7 @@
 确保现有策略在添加风控管理功能后仍能正常工作。
 """
 import pytest
-from domain.quantlib.engine.strategy_runner import StrategyRunner
+from domain.backtest.engine.strategy_runner import StrategyRunner
 from adapters.outbound.repositories import StrategyORMRepository
 
 

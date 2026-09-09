@@ -8,8 +8,8 @@ Test suite for MACD, RSI, ROC, and Momentum factor calculations.
 import pytest
 import numpy as np
 
-from domain.quantlib.factors.momentum import MomentumFactors
-from domain.quantlib.core.exceptions import InsufficientDataError, DataValidationError
+from domain.factors.library.momentum import MomentumFactors
+from domain.quantlib.exceptions import InsufficientDataError, DataValidationError
 
 
 class TestMomentumFactors:

@@ -8,7 +8,7 @@ import sys
 import os
 
 
-from domain.quantlib.backtest.walk_forward import WalkForwardAnalysis
+from domain.backtest.core.walk_forward import WalkForwardAnalysis
 
 
 class TestWalkForwardAnalysis:

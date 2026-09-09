@@ -124,7 +124,7 @@ class TestHandleFactorCompute:
         )
 
         import infrastructure.services.service_factory as sf
-        import domain.quantlib.stages.factor_stage as fs_mod
+        import domain.backtest.stages.factor_stage as fs_mod
 
         monkeypatch.setattr(sf, 'get_data_service', lambda: fake_ds)
         monkeypatch.setattr(fs_mod, 'FactorStage', _FakeFactorStage)

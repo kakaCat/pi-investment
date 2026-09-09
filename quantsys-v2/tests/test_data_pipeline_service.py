@@ -6,7 +6,7 @@ from datetime import datetime
 import yaml
 
 from application.services.data_pipeline_service import DataPipelineService
-from domain.quantlib.stages.data_pipeline import PipelineContext, PipelineResult
+from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
 
 
 class TestDataPipelineService:

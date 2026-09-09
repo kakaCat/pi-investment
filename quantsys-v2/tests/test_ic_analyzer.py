@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 from unittest.mock import patch, MagicMock
 
-from domain.quantlib.factor_analysis.ic_analyzer import ICAnalyzer
+from domain.factors.analysis.ic_analyzer import ICAnalyzer
 
 
 @pytest.fixture
