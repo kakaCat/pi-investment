@@ -78,14 +78,33 @@ function buildSolveMessage(b: { kind: 'task' | 'error'; title: string; lines: st
   const lines = [
     b.kind === 'task'
       ? '【' + b.opts.panel + ' · 失败任务排查】以下调度任务失败，请排查处置并在本会话回复结论：'
-      : '【' + b.opts.panel + ' · 错误事件排查】以下错误事件需要定位处置，请排查并在本会话回复结论：',
+      : '【' + b.opts.panel + ' · 错误事件处置】以下错误事件需要你实际解决（定位根因并落地处置，不是只给结论）：',
     '',
     ...b.lines,
     '',
     '来源：' + b.opts.panelFull + '「我来解决」投递（' + b.actorWindow + '）。',
-    '要求：以任务/事件属主视角调查根因并处置——可查 Agent OS 日志、重启相关服务、修正任务或代码等，自定方案。',
-    '闭环方式：处置完成或给出结论后在本会话回复即可（本投递不建帖、不写 memory，由你决定是否沉淀经验/审计）。',
   ]
+  if (b.kind === 'task') {
+    lines.push(
+      '要求：以任务属主视角调查根因并处置——可查 Agent OS 日志、重启相关服务、修正任务或代码等，自定方案。',
+      '闭环方式：处置完成或给出结论后在本会话回复即可（本投递不建帖、不写 memory，由你决定是否沉淀经验/审计）。'
+    )
+  } else {
+    lines.push(
+      '处置目标：让该错误消除或确认无害——必须落地动作，不是只写一段排查结论。流程：',
+      '调查路径：',
+      '  1) 该错误由 Agent OS 采集（错误事件表 error_events，事件 ID 见上），先查对应端真实日志上下文（见上 logger/log 字段位置）；',
+      '  2) 溯源责任代码：quantsys-v2 → pi-investment/quantsys-v2，agent-os → pi-investment/agent-os，agent-dh → pi-investment/agent-dh；按错误串/logger 定位源码行；',
+      '  3) 判定根因类型：代码 bug / 环境问题 / 外部依赖 / 误报（自愈）；必要时本机复现（python -c / curl）实证，禁止臆造语言或 API 特性；',
+      '落地动作（三选一，必须做一件）：',
+      '  a) 能修则修——修代码/配置或重启服务，验证错误消除（日志干净/复现不再触发），给验证证据；',
+      '  b) 外部依赖/环境所致——给证据（前后日志/复现输出）与建议动作，交人工决定；',
+      '  c) 确属误报/一次性——给证据（未再现的日志区间或判定依据）。',
+      '回写闭环：处置完成后立即把该事件落终态（勿等用户再点按钮）：',
+      '  curl -s -X POST http://127.0.0.1:13080/dashboard/api/board/error-action -H "Content-Type: application/json" -d '{"id":"<上文事件ID>","action":"resolve","note":"<结论：根因+动作+证据+窗口署名 w-xxxx>"}'',
+      '  已修/已解决 → action=resolve；误报/无需处理 → action=ignore。接口不可达时，在本会话回复完整结论并说明，事件留给人工闭环。'
+    )
+  }
   return {
     id: randomUUID(),
     role: 'user',
@@ -161,13 +180,31 @@ export function createSolveHandler(deps: SolveKitHostDeps, opts: SolveKitHostOpt
       } else {
         const e = err as Record<string, any>
         const src = String(e.source ?? '?')
-        const first = String(e.line ?? e.file ?? '').replace(/\n/g, ' ').slice(0, 300)
-        title = '错误事件：' + src + (first ? ' ' + first.slice(0, 40) : '')
+        const msg = String(e.msg ?? '').trim()
+        const det = e.detail == null ? '' : (typeof e.detail === 'string' ? String(e.detail).trim() : JSON.stringify(e.detail))
+        const meta: Record<string, any> = (e.metadata && typeof e.metadata === 'object') ? e.metadata : {}
+        const line1 = String(e.line ?? e.file ?? '').replace(/\n/g, ' ').slice(0, 300)
+        const occ = Number(e.occurrenceCount ?? 1)
+        const metaParts = [
+          meta.logger ? 'logger=' + String(meta.logger) : '',
+          meta.log_path ? 'log=' + String(meta.log_path) : '',
+          meta.thread ? 'thread=' + String(meta.thread) : '',
+          meta.channel ? 'channel=' + String(meta.channel) : '',
+        ].filter(Boolean)
+        title = '错误事件：' + (msg || line1 || src).slice(0, 60)
         lines = [
-          '来源：' + src,
-          '时间：' + fmt(e.timestamp) + '（数据时点：' + fetchedAt + '，看板快照）',
-          '详情：' + (first || '—')
+          '事件：' + (msg || '—'),
+          '详情：' + (line1 || '—'),
         ]
+        if (det) lines.push('上下文（结构化）：' + det.slice(0, 1800))
+        lines.push('来源：' + src + (metaParts.length ? '（' + metaParts.join('；') + '）' : ''))
+        lines.push('事件 ID：' + String(e.id ?? '—') + '；状态：' + String(e.status ?? '?') + (e.assignee ? '；认领：' + String(e.assignee) : ''))
+        const tf: string[] = []
+        if (e.firstSeenAt) tf.push('首现 ' + fmt(e.firstSeenAt))
+        if (e.lastSeenAt) tf.push('最近 ' + fmt(e.lastSeenAt))
+        if (e.timestamp) tf.push('数据时点 ' + fmt(e.timestamp))
+        lines.push('频次：' + occ + ' 次' + (tf.length ? '；' + tf.join('；') : '') + '（' + fetchedAt + ' 看板快照）')
+        if (e.level) lines.push('级别：' + String(e.level) + (e.fingerprint ? '；指纹：' + String(e.fingerprint) : ''))
       }
 
       const message = buildSolveMessage({ kind, title, lines, actorWindow, opts })
