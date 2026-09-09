@@ -258,6 +258,7 @@ export class DataAggregationService {
       degraded,
       v2Available,
       fetchedAt: new Date().toISOString(),
+      orphanedTasks: orphanedR.tasks ?? [],
     };
   }
 
@@ -744,7 +745,7 @@ export class DataAggregationService {
       const res = await fetch(`${this.opts.osBaseURL}/api/v1/scheduler/orphaned-tasks`, { signal: AbortSignal.timeout(3000) });
       if (!res.ok) return { tasks: [], error: `HTTP ${res.status}` };
       const json: any = await res.json();
-      return { tasks: json.orphanedTasks || [] };
+      return { tasks: json.orphanedTasks ?? [] };
     } catch (err) {
       return { tasks: [], error: err instanceof Error ? err.message : String(err) };
     }
