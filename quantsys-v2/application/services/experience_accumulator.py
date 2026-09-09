@@ -36,7 +36,17 @@ class ExperienceAccumulator:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.signal_log = signal_log or SignalTestLog()
-        self.perf_repo = perf_repo
+        # perf_repo 可选参数兜底：未注入时使用具体 ORM 实现，避免裸构造后
+        # self.perf_repo=None → accumulate 时 AttributeError
+        # （注：ServiceFactory 解析路径当前直接实例化抽象端口类会 TypeError，
+        #   见 infrastructure/services/service_registry.py 的 create_* 工厂）
+        self.perf_repo = perf_repo or self._default_perf_repo()
+
+    @staticmethod
+    def _default_perf_repo():
+        """默认策略表现仓库（惰性导入避免模块加载期环依赖）"""
+        from adapters.outbound.repositories import StrategyPerformanceORMRepository
+        return StrategyPerformanceORMRepository()
 
     def accumulate_from_performance(
         self,

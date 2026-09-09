@@ -103,7 +103,8 @@ class TestConfigDrivenStrategy:
                 {'condition': 'close > sma20', 'action': 'SELL', 'confidence': 0.5},
             ],
         })
-        assert signal['action'] == 'BUY'
+        # 引擎归一化 action 到小写（规则配置大小写均可，输出契约 buy/sell/hold）
+        assert signal['action'] == 'buy'
         assert signal['confidence'] == 0.9
 
     def test_close_and_volume_in_condition(self, strategy):
@@ -119,7 +120,7 @@ class TestConfigDrivenStrategy:
                 'confidence': 0.7,
             }],
         })
-        assert signal['action'] == 'BUY'
+        assert signal['action'] == 'buy'
 
     def test_invalid_condition_returns_hold(self, strategy):
         """Malformed condition should not crash, returns hold."""
@@ -150,7 +151,7 @@ class TestConfigDrivenStrategy:
                 'confidence': 0.8,
             }],
         })
-        assert signal['action'] == 'BUY'
+        assert signal['action'] == 'buy'
 
         # Test <=
         signal = strategy.generate_signal(klines, {
@@ -163,7 +164,7 @@ class TestConfigDrivenStrategy:
                 'confidence': 0.8,
             }],
         })
-        assert signal['action'] == 'BUY'
+        assert signal['action'] == 'buy'
 
     def test_or_condition(self, strategy):
         """OR should work between conditions."""
@@ -178,7 +179,7 @@ class TestConfigDrivenStrategy:
                 'confidence': 0.8,
             }],
         })
-        assert signal['action'] == 'BUY'
+        assert signal['action'] == 'buy'
 
     def test_default_params(self, strategy):
         """Should have DEFAULT_PARAMS with empty config."""

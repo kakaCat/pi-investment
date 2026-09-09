@@ -35,7 +35,7 @@ class TestDonchianRisk:
 
         signal = strategy.generate_signal(klines)
 
-        assert signal['action'] == 'BUY'
+        assert signal['action'] == 'buy'
         assert 'risk_management' in signal
         assert 'stop_loss' in signal['risk_management']
 
@@ -71,7 +71,7 @@ class TestDonchianRisk:
 
         signal = strategy.generate_signal(klines)
 
-        assert signal['action'] == 'SELL'
+        assert signal['action'] == 'sell'
         assert 'risk_management' in signal
         assert 'stop_loss' in signal['risk_management']
         # 做空止损价应该高于当前价

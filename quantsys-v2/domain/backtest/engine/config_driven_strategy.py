@@ -90,7 +90,9 @@ class ConfigDrivenStrategy(EnhancedStrategyBase):
             try:
                 if self._eval_condition(condition, values):
                     return {
-                        'action': rule['action'],
+                        # 归一化 action 到小写（buy/sell/hold），与默认 hold、
+                        # docstring 范例及策略引擎输出契约一致；规则配置大小写均可
+                        'action': rule['action'].strip().lower(),
                         'confidence': float(rule.get('confidence', 0.5)),
                         'reason': f"Rule matched: {condition} (values: {self._format_matches(condition, values)})",
                     }
