@@ -411,7 +411,10 @@ def backtest_signal(payload: Optional[Dict[str, Any]] = Body(None)):
         from infrastructure.services.service_factory import ServiceFactory
         kline_repo = ServiceFactory.get_kline_repository()
         latest = kline_repo.get_latest_daily_kline(symbol)
-        current_price = latest['close'] if latest else 0
+        # get_latest_daily_kline 返回 polars DataFrame（单行），用 is_empty() 判空
+        # （曾写 latest['close'] if latest else 0：DataFrame 布尔判断抛 ambiguous，
+        #  且 Series 非标量 → backtest_signal 对 DB 有 K 线的标的必 500）
+        current_price = float(latest['close'][0]) if latest is not None and not latest.is_empty() else 0
         processor = SignalProcessor()
         trade_params = processor.process_signal(signal, symbol, current_price, account_balance)
         position_value = trade_params['quantity'] * trade_params['price']
