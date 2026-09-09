@@ -52,6 +52,7 @@ export class RegimePositionLimitTool extends BaseTool<RegimePositionLimitParams,
     const regime = latest?.payload?.regime ?? 'sideways';
     const dataQuality = latest?.payload?.evidence?.data_quality ?? 'unknown';
     const conflicts = latest?.payload?.evidence?.conflicts ?? null;
+    const regimeDate = latest?.payload?.date ?? ''; // 无 regime 记录时用空串兜底（schema 要求 string，null 会崩）
 
     // 2. 映射表（RFC 004 M4-1）；数据降级时收紧到震荡档（保守原则）
     const CAPS: Record<string, number> = { panic: 100, risk_on: 80, sideways: 60, risk_off: 40, euphoria: 30 };
@@ -98,7 +99,7 @@ export class RegimePositionLimitTool extends BaseTool<RegimePositionLimitParams,
 
     return {
       regime,
-      regime_date: latest?.payload?.date ?? null,
+      regime_date: regimeDate,
       data_quality: dataQuality,
       max_position_pct: cap,
       current_position_pct: currentPct,

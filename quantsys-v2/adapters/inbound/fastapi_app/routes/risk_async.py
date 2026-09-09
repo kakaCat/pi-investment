@@ -301,12 +301,15 @@ def calculate_stop_loss_v2(symbol: str, payload: Optional[Dict[str, Any]] = Body
         data = payload or {}
         entry_price = data.get('entry_price', 0)
         method = data.get('method', 'percentage')  # 默认使用百分比方法
+        # 2026-09-10 修复：透传 risk_level（此前 adapter 丢弃该键，永远走默认 large_cap -8%，
+        # 与 application 层已支持的 risk_level 分级映射契约断裂——客户端发 growth 仍按蓝筹止损）
+        risk_level = data.get('risk_level') or 'large_cap'
 
         if not entry_price:
             return error_response({'success': False, 'error': 'entry_price required'}, 400)
 
         risk_service = RiskService()
-        result = risk_service.calculate_stop_loss(symbol, float(entry_price), method)
+        result = risk_service.calculate_stop_loss(symbol, float(entry_price), method, risk_level)
 
         if not result.get('success'):
             return error_response({'success': False, 'error': result.get('error')}, 400)

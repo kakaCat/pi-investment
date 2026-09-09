@@ -46,7 +46,12 @@ class OsMemoryStore {
   async searchMemory(params: { q?: string; kind?: string; scope?: string; limit?: number }): Promise<{ items: any[]; total: number; degraded: boolean; strategy: string }> {
     const q = params.q ?? '';
     const limit = params.limit ?? 20;
-    const url = `${this.baseURL}/api/v1/memory/search?q=${encodeURIComponent(q || ' ')}&limit=${Math.min(limit * 3, 150)}`;
+    // 2026-09-10 修复：带 scope 时改走 List 端点 tag=scope 精确过滤（SQL ANY(tags) + created_at DESC），
+    // 避免模糊 search 被无关命中挤出返回窗口（实证：market:regime 记录曾被 100+ 命中压到第 30+ 位 → 客户端 scope 过滤后读空 → regime_date null 崩 schema）
+    const fetchLimit = Math.min(Math.max(limit * 3, 50), 150);
+    const url = params.scope
+      ? `${this.baseURL}/api/v1/memory?tag=${encodeURIComponent(params.scope)}&limit=${fetchLimit}`
+      : `${this.baseURL}/api/v1/memory/search?q=${encodeURIComponent(q || ' ')}&limit=${fetchLimit}`;
     const resp = await fetch(url);
     if (!resp.ok) throw new Error(`OS memory search failed: HTTP ${resp.status}`);
     const res: any = await resp.json();
