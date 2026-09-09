@@ -461,6 +461,17 @@ from adapters.inbound.fastapi_app.exception_handlers import register_exception_h
 register_exception_handlers(app)
 
 
+# ==================== 结构化错误上报（REQ-a42aa4 Batch C） ====================
+# v2 → Agent OS 主动上报：根 logger ERROR Handler + 计划任务上下文（job_executor 注入）
+# + HTTP 异常路径（exception_handlers 内）。安装失败不阻断启动（旁路能力）。
+try:
+    from infrastructure.error_reporting import agent_os_reporter
+    agent_os_reporter.install()
+    logger.info("✅ Agent OS 结构化错误上报已接线（source=v2）")
+except Exception as _reporting_install_err:  # noqa: BLE001
+    logger.warning(f"⚠️ Agent OS 错误上报安装失败（不影响服务）: {_reporting_install_err}")
+
+
 # ==================== 基础路由 ====================
 
 @app.get("/", tags=["System"])

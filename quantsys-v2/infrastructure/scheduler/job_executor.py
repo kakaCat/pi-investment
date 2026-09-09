@@ -21,8 +21,23 @@ logger = logging.getLogger(__name__)
 
 
 def execute_scheduled_job(task_id: int):
+    """APScheduler 调用入口（REQ-a42aa4 Batch C 包装：设/清任务上下文后执行）。
+
+    线程级任务上下文让本线程上任意 ERROR 日志（含深层 logger.exception）
+    自动携带 task_id/task_name 结构化上报 Agent OS；finally 确保清空，
+    防止线程池复用线程时上下文串扰到下一个任务。
     """
-    APScheduler 调用的任务执行入口
+    from infrastructure.error_reporting import agent_os_reporter
+    agent_os_reporter.set_task_context(task_id=task_id)
+    try:
+        return _execute_scheduled_job_impl(task_id)
+    finally:
+        agent_os_reporter.clear_task_context()
+
+
+def _execute_scheduled_job_impl(task_id: int):
+    """
+    计划任务执行体（原 execute_scheduled_job 主体）
 
     执行流程：
     1. 读取任务定义（scheduler_tasks）
@@ -49,6 +64,8 @@ def execute_scheduled_job(task_id: int):
             return
 
         task_name = task.get('name', f'task-{task_id}')
+        from infrastructure.error_reporting import agent_os_reporter
+        agent_os_reporter.set_task_context(task_id=task_id, task_name=task_name)
         if not task.get('is_enabled'):
             logger.warning(f"Task {task_id} ({task_name}) is disabled, skipping")
             return
@@ -96,6 +113,17 @@ def execute_scheduled_job(task_id: int):
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             inner_failed = isinstance(result, dict) and result.get('status') == 'failed'
             error = result.get('error') if inner_failed else None
+            # REQ-a42aa4 Batch C：Job 内层失败结构化上报 Agent OS（此前该路径无 ERROR
+            # 日志，真实失败只躺在 scheduler_runs.result 里 → 主动带 task 上下文上报）。
+            if inner_failed and error:
+                agent_os_reporter.report_event(
+                    f"[scheduler_task] {task_name} inner failed: {error}",
+                    detail=str(result.get('details') or result.get('result') or '')[:4000],
+                    task_id=task_id, task_name=task_name,
+                    logger_name=__name__,
+                    metadata={"channel": "scheduler_job", "command": task.get('command'),
+                              "run_id": str(run_id), "outer_success": False},
+                )
             # Fix（2026-09-05 w-8366e526）：executor 会话与 Job 共享同一线程级 session；
             # Job 内部 DB 工作中途报错会留下 aborted 事务 → complete_run 的 SELECT/UPDATE
             # 报 "Can't reconnect until invalid transaction is rolled back"

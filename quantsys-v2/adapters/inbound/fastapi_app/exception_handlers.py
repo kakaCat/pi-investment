@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 import logging
 import os
-from typing import Union
+from typing import Optional, Union
 
 from domain.exceptions import (
     QuantSysException,
@@ -23,6 +23,16 @@ from domain.exceptions import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _report_to_agent_os(exc: Exception, metadata: Optional[dict] = None) -> None:
+    """REQ-a42aa4 Batch C：把异常结构化上报 Agent OS（失败静默，绝不抛回）。"""
+    try:
+        from infrastructure.error_reporting import agent_os_reporter
+        agent_os_reporter.report_exception(exc, metadata=metadata)
+    except Exception:  # noqa: BLE001 —— 上报是旁路，绝不干扰主流程
+        pass
+
 
 # Determine if we're in a development environment
 IS_DEV = os.getenv("ENVIRONMENT", "production").lower() in ("dev", "development", "local")
@@ -64,6 +74,14 @@ async def quantsys_exception_handler(
             extra={"error_code": exc.error_code, "details": exc.details}
         )
         # TODO: Integrate with alerting system (PagerDuty, etc.)
+
+    # REQ-a42aa4 Batch C：系统级错误（DB/数据源等，非业务 4xx）主动结构化上报
+    # Agent OS——带完整堆栈 detail + 请求上下文；业务异常（INFO 级）不上报。
+    if log_level == logging.ERROR:
+        _report_to_agent_os(
+            exc,
+            metadata={"context": {"path": request.url.path, "method": request.method}},
+        )
 
     # Return structured response
     return JSONResponse(
@@ -147,6 +165,13 @@ async def unhandled_exception_handler(
         extra={"path": request.url.path, "method": request.method}
     )
     # TODO: Integrate with alerting system
+
+    # REQ-a42aa4 Batch C：未处理异常主动上报 Agent OS（msg=类型+摘要，detail=完整堆栈）
+    _report_to_agent_os(
+        exc,
+        metadata={"context": {"path": request.url.path, "method": request.method},
+                  "handler": "unhandled_exception_handler"},
+    )
 
     # Return generic error (never expose internal details)
     return JSONResponse(
