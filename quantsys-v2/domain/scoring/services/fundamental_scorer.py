@@ -50,7 +50,7 @@ class FundamentalScorer:
         except (TypeError, ValueError):
             return None
 
-    def score(self, data: Dict[str, Any], sector: Optional[str] = None, industry: Optional[str] = None) -> Dict[str, float]:
+    def score(self, data: Dict[str, Any], sector: Optional[str] = None, industry: Optional[str] = None, symbol: Optional[str] = None, name: Optional[str] = None) -> Dict[str, float]:
         """
         计算基本面评分（行业中性化 + 行业景气度）
 
@@ -61,6 +61,8 @@ class FundamentalScorer:
                 - revenue_growth: 营收增长率（%）
             sector: 行业名称（大类，用于行业中性化）
             industry: 行业名称（细分，用于行业景气度）
+            symbol: 股票代码（用于行业景气度精确匹配）
+            name: 股票名称（用于行业景气度精确匹配）
 
         Returns:
             评分结果字典：
@@ -81,12 +83,12 @@ class FundamentalScorer:
         """
         # 如果提供了行业数据端口和行业名称，使用行业中性化评分
         if self.industry_data_port and sector:
-            return self._score_industry_neutral(data, sector, industry)
+            return self._score_industry_neutral(data, sector, industry, symbol, name)
         
         # 否则使用绝对值评分（向后兼容）
         return self._score_absolute(data)
     
-    def _score_industry_neutral(self, data: Dict[str, Any], sector: str, industry: str = None) -> Dict[str, float]:
+    def _score_industry_neutral(self, data: Dict[str, Any], sector: str, industry: str = None, symbol: str = None, name: str = None) -> Dict[str, float]:
         """
         行业中性化评分（含行业景气度）
         
@@ -96,6 +98,8 @@ class FundamentalScorer:
             data: 基本面数据字典
             sector: 行业名称（大类）
             industry: 行业名称（细分）
+            symbol: 股票代码（用于行业景气度精确匹配）
+            name: 股票名称（用于行业景气度精确匹配）
             
         Returns:
             评分结果字典
@@ -126,7 +130,7 @@ class FundamentalScorer:
         base_total = pe_score * 0.40 + roe_score * 0.30 + growth_score * 0.30
         
         # 行业景气度调整（-10 到 +10 分）
-        industry_sentiment = get_industry_sentiment(industry, sector)
+        industry_sentiment = get_industry_sentiment(industry, sector, symbol, name)
         
         # 最终得分 = 基础得分 + 行业景气度
         total = base_total + industry_sentiment

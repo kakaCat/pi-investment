@@ -292,7 +292,8 @@ class OpportunityScoringService:
             # 获取行业信息（用于行业中性化和行业景气度）
             sector = self._get_sector(symbol)
             industry = self._get_industry(symbol)
-            fund_result = self.fundamental_scorer.score(fund_input, sector=sector, industry=industry)
+            name = self._get_name(symbol)
+            fund_result = self.fundamental_scorer.score(fund_input, sector=sector, industry=industry, symbol=symbol, name=name)
             fund_score = fund_result['total']
 
             # === 资金面 ===
@@ -975,6 +976,25 @@ class OpportunityScoringService:
                 return stock_info.get('industry')
         except Exception as e:
             logger.warning(f"获取 {symbol} 细分行业信息失败: {e}")
+        return None
+    
+    def _get_name(self, symbol: str) -> Optional[str]:
+        """
+        获取股票名称
+        
+        Args:
+            symbol: 股票代码
+            
+        Returns:
+            Optional[str]: 股票名称，获取失败返回 None
+        """
+        try:
+            # 从 stock_repo 获取股票名称
+            stock_info = self.stock_repo.get_stock_info(symbol)
+            if stock_info:
+                return stock_info.get('name')
+        except Exception as e:
+            logger.warning(f"获取 {symbol} 股票名称失败: {e}")
         return None
     
     def _normalize_weights(self, weights: Dict) -> Dict:
