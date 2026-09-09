@@ -74,8 +74,17 @@ export const fundFlowPrompt: ToolPrompt<FundFlowParams, FundFlowResult> = {
       if (data.sector_flow?.length) {
         lines.push('', '### 板块资金流 TOP');
         for (const r of data.sector_flow.slice(0, 10)) {
-          lines.push(`- ${r['行业'] || r['名称'] || JSON.stringify(r).slice(0, 60)}`);
+          const name = r['行业'] || r['名称'] || JSON.stringify(r).slice(0, 60);
+          const chg = r['涨跌幅'] ?? r['行业-涨跌幅'];
+          const net = r['净额'] ?? r['净流入'] ?? r['主力净流入'];
+          const leader = r['领涨股'];
+          const parts = [`- ${name}`];
+          if (chg !== undefined && chg !== null) parts.push(`涨跌 ${chg}%`);
+          if (net !== undefined && net !== null) parts.push(`净额 ${net}`);
+          if (leader) parts.push(`领涨 ${leader}`);
+          lines.push(parts.join(' ｜ '));
         }
+        lines.push(`> 板块资金流共 ${data.sector_flow.length} 个板块（字段值来自后端原始口径，净额单位以数据源为准）`);
       }
       if (data.degraded_sources?.length) lines.push('', `> ⚠️ 部分源降级：${data.degraded_sources.join(', ')}`);
       return [{ type: 'text', text: lines.join('\n') }];

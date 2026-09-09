@@ -100,13 +100,22 @@ export class FundFlowTool extends BaseTool<FundFlowParams, FundFlowResult> {
     };
   }
 
-  /** data_provider 层包裹结构不一，统一提取记录数组 */
+  /**
+   * data_provider 层包裹结构不一，统一提取记录数组。实测四种形态（2026-09-10）：
+   *   1) res.data 直接是数组
+   *   2) res.data.data 是数组（个股资金流 / 两融：{symbol, days, data: [...], ...}）
+   *   3) res.data.records 是数组
+   *   4) res.data.data 是 { records: [...], total } 嵌套对象（板块资金流全景）
+   * 修复背景：板块模式曾因形态 4 未被识别 → extractRows 返回 [] → available=false
+   * → render 误报「数据源暂不可用」——实际后端接口正常（curl 200 全量 90 条）。
+   */
   private extractRows(res: any): Array<Record<string, any>> {
     const d = res?.data;
     if (!d) return [];
     if (Array.isArray(d)) return d;
     if (Array.isArray(d.data)) return d.data;
     if (Array.isArray(d.records)) return d.records;
+    if (d.data && typeof d.data === 'object' && Array.isArray(d.data.records)) return d.data.records;
     return [];
   }
 }
