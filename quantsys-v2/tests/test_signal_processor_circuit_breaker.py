@@ -2,25 +2,16 @@
 测试信号处理器的熔断集成
 """
 import pytest
-from unittest.mock import Mock, MagicMock
 from application.services.signal_processor import SignalProcessor, SignalProcessingError
-from application.services.strategy_circuit_breaker import StrategyCircuitBreaker
 
 
 class TestSignalProcessorCircuitBreaker:
     """测试信号处理器的熔断集成"""
 
     @pytest.fixture
-    def mock_data_service(self):
-        """模拟数据服务"""
-        ds = Mock()
-        ds.get_latest_price = Mock(return_value=100.0)
-        return ds
-
-    @pytest.fixture
-    def signal_processor(self, mock_data_service):
-        """创建信号处理器"""
-        return SignalProcessor(mock_data_service)
+    def signal_processor(self):
+        """创建 SignalProcessor 实例（自建真实熔断器，状态走 ORM 落库）"""
+        return SignalProcessor()
 
     @pytest.fixture
     def valid_signal(self):
@@ -29,7 +20,7 @@ class TestSignalProcessorCircuitBreaker:
         unique_name = f'test_strategy_circuit_{int(time.time() * 1000000)}'
         return {
             'strategy_name': unique_name,
-            'action': 'BUY',
+            'action': 'buy',
             'confidence': 0.8,
             'reason': '测试信号',
             'risk_management': {
@@ -63,7 +54,7 @@ class TestSignalProcessorCircuitBreaker:
             account_balance=account_balance
         )
 
-        assert result['action'] == 'BUY'
+        assert result['action'] == 'buy'
         assert result['quantity'] > 0
 
     def test_blocks_signal_when_strategy_is_suspended(
@@ -116,7 +107,7 @@ class TestSignalProcessorCircuitBreaker:
             account_balance=account_balance
         )
 
-        assert result['action'] == 'BUY'
+        assert result['action'] == 'buy'
         assert result['quantity'] > 0
 
     def test_manual_suspend_blocks_signals(
@@ -162,5 +153,5 @@ class TestSignalProcessorCircuitBreaker:
             account_balance=account_balance
         )
 
-        assert result['action'] == 'BUY'
+        assert result['action'] == 'buy'
         assert result['quantity'] > 0
