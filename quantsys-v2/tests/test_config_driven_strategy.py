@@ -23,7 +23,7 @@ class TestConfigDrivenStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.config_driven_strategy import ConfigDrivenStrategy
+        from domain.backtest.engine.config_driven_strategy import ConfigDrivenStrategy
         return ConfigDrivenStrategy(name='test_config')
 
     def test_sma_cross_buy_rule(self, strategy):

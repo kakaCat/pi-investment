@@ -99,7 +99,7 @@ class TestFinRLAgentWithDependencies:
     def test_finrl_agent_inherits_from_base_calculator(self, mock_env):
         """Test that FinRLAgent inherits from BaseCalculator."""
         from domain.quantlib.finrl.finrl_agent import FinRLAgent
-        from domain.quantlib.core.base_calculator import BaseCalculator
+        from domain.quantlib.base_calculator import BaseCalculator
 
         agent = FinRLAgent(algorithm='ppo', env=mock_env)
         assert isinstance(agent, BaseCalculator)

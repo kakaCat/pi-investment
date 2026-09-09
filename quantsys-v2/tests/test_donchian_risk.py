@@ -2,7 +2,7 @@
 测试 DonchianChannelStrategy 风控功能
 """
 import pytest
-from domain.quantlib.engine.donchian_channel_strategy import DonchianChannelStrategy
+from domain.backtest.engine.donchian_channel_strategy import DonchianChannelStrategy
 
 
 class TestDonchianRisk:

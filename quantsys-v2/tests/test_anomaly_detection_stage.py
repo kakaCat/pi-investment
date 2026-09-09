@@ -4,8 +4,8 @@ import pytest
 import pandas as pd
 from datetime import date
 
-from domain.quantlib.stages.data_pipeline.anomaly_detection_stage import AnomalyDetectionStage
-from domain.quantlib.stages.data_pipeline import PipelineContext, PipelineResult
+from domain.backtest.stages.data_pipeline.anomaly_detection_stage import AnomalyDetectionStage
+from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
 from domain.quantlib.data_validator import DataValidator
 
 

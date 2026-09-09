@@ -303,9 +303,20 @@ export function buildTriage(triages: TriageRecord[], state: BoardState): string 
   const openReqs = state.requirements.filter(r => r.status !== 'archived' && r.status !== 'canceled')
 
   const rows = pending.map(t => {
+    const isCreate = t.suggestedAction === 'create_req' && !t.suggestedTargetId
     const suggestion = t.suggestedTargetId
       ? `${t.suggestedAction === 'bind_req' ? '绑定需求' : t.suggestedAction === 'bind_task' ? '绑定任务' : '新建需求'} ${esc(t.suggestedTargetId)}`
-      : (t.suggestedAction === 'create_req' ? '新建需求' : '')
+      : (t.suggestedAction === 'create_req'
+        ? `新建需求${t.suggestedCategory ? ` · ${CATEGORY_LABELS[t.suggestedCategory] ?? t.suggestedCategory}` : ''}`
+        : '')
+    // 乙流程人工门：确认前可编辑 1) 需求名称 2) 需求分类（预填 agent 提议值）
+    const editBlock = isCreate ? `
+        <div class="dsh-pm-triage-edit">
+          <input type="text" class="dsh-pm-input" data-role="triage-title" value="${esc(t.suggestedTitle ?? t.firstMessageText.slice(0, 120))}" placeholder="需求名称（可编辑）" />
+          <select class="dsh-pm-input" data-role="triage-category">
+            ${Object.entries(CATEGORY_LABELS).map(([v, l]) => `<option value="${v}" ${v === (t.suggestedCategory ?? 'feature') ? 'selected' : ''}>${l}</option>`).join('')}
+          </select>
+        </div>` : ''
     return `
       <div class="dsh-pm-triage" data-triage="${esc(t.id)}">
         <div class="dsh-pm-triage-head">
@@ -314,9 +325,10 @@ export function buildTriage(triages: TriageRecord[], state: BoardState): string 
           <span class="dsh-pm-triage-suggest">${suggestion}</span>
         </div>
         <div class="dsh-pm-triage-text">${esc(t.firstMessageText.slice(0, 200))}${t.firstMessageText.length > 200 ? '…' : ''}</div>
+        ${editBlock}
         <div class="dsh-pm-triage-actions">
           <button type="button" class="dsh-pm-btn primary" data-action="triage-confirm" data-triage="${esc(t.id)}">确认</button>
-          <button type="button" class="dsh-pm-btn" data-action="triage-rebind" data-triage="${esc(t.id)}">改绑</button>
+          ${isCreate ? '' : `<button type="button" class="dsh-pm-btn" data-action="triage-rebind" data-triage="${esc(t.id)}">改绑</button>`}
           <button type="button" class="dsh-pm-btn" data-action="triage-reject" data-triage="${esc(t.id)}">拒绝</button>
         </div>
       </div>`

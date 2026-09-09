@@ -22,12 +22,12 @@ class TestIndicatorAdapterABC:
     """Tests for the abstract base class interface."""
 
     def test_adapter_has_calculate_method(self):
-        from domain.quantlib.engine.indicators.base import IndicatorAdapter
+        from domain.backtest.engine.indicators.base import IndicatorAdapter
         assert hasattr(IndicatorAdapter, 'calculate')
         assert hasattr(IndicatorAdapter, 'is_available')
 
     def test_adapter_has_list_indicators_method(self):
-        from domain.quantlib.engine.indicators.base import IndicatorAdapter
+        from domain.backtest.engine.indicators.base import IndicatorAdapter
         assert hasattr(IndicatorAdapter, 'list_indicators')
 
 
@@ -36,7 +36,7 @@ class TestPandasTAAdapter:
 
     @pytest.fixture
     def adapter(self):
-        from domain.quantlib.engine.indicators.pandasta_adapter import PandasTAAdapter
+        from domain.backtest.engine.indicators.pandasta_adapter import PandasTAAdapter
         return PandasTAAdapter()
 
     @pytest.fixture
@@ -80,7 +80,7 @@ class TestTALibAdapter:
 
     @pytest.fixture
     def adapter(self):
-        from domain.quantlib.engine.indicators.talib_adapter import TALibAdapter
+        from domain.backtest.engine.indicators.talib_adapter import TALibAdapter
         return TALibAdapter()
 
     def test_is_available_returns_bool(self, adapter):
@@ -93,7 +93,7 @@ class TestIndicatorManager:
 
     @pytest.fixture
     def manager(self):
-        from domain.quantlib.engine.indicators.indicator_manager import IndicatorManager
+        from domain.backtest.engine.indicators.indicator_manager import IndicatorManager
         return IndicatorManager()
 
     @pytest.fixture
@@ -122,7 +122,7 @@ class TestIndicatorManager:
         assert 'CCI' in results
 
     def test_calculate_raises_when_no_adapter_available(self):
-        from domain.quantlib.engine.indicators.indicator_manager import IndicatorManager
+        from domain.backtest.engine.indicators.indicator_manager import IndicatorManager
         mgr = IndicatorManager()
         mgr.adapters = []
         with pytest.raises(RuntimeError, match='No indicator library'):

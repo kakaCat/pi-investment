@@ -3,7 +3,7 @@
 eastmoney `qt/stock/get` 在未传 fltt=2 时返回「分」单位整数价格
 (f43/f44/f45/f46/f60/f152/f170 均 ×100)。_parse_quote_data 必须换算为元。
 """
-from domain.quantlib.adapters.eastmoney_adapter import EastMoneyAdapter
+from adapters.outbound.datasources.providers.quantlib.eastmoney_adapter import EastMoneyAdapter
 
 
 def _raw_quote():

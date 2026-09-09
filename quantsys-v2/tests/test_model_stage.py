@@ -4,7 +4,7 @@ ModelStage unit tests
 import pytest
 import numpy as np
 import pandas as pd
-from domain.quantlib.stages.model_stage import (
+from domain.backtest.stages.model_stage import (
     ModelStage, FEATURE_NAMES, DEFAULT_MODEL_PATH
 )
 

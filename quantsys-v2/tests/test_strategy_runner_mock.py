@@ -8,7 +8,7 @@ import pytest
 import json
 from unittest.mock import MagicMock, patch, PropertyMock
 
-from domain.quantlib.engine.strategy_runner import StrategyRunner, STRATEGY_REGISTRY
+from domain.backtest.engine.strategy_runner import StrategyRunner, STRATEGY_REGISTRY
 
 
 # ==================== Helpers ====================

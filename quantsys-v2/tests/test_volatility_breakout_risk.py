@@ -2,7 +2,7 @@
 测试 VolatilityBreakoutStrategy 风控功能
 """
 import pytest
-from domain.quantlib.engine.volatility_breakout_strategy import VolatilityBreakoutStrategy
+from domain.backtest.engine.volatility_breakout_strategy import VolatilityBreakoutStrategy
 
 
 class TestVolatilityBreakoutRisk:

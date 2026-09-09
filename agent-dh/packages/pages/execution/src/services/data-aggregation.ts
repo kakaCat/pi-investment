@@ -221,7 +221,7 @@ export class DataAggregationService {
     const degraded: Array<{ source: string; error: string }> = [];
 
     // 各数据路全部并行；单路失败只进 degraded，绝不整体 500
-    const [healthR, tasksR, runsR, regimeR, themesR, memoryR, genomeR] = await Promise.all([
+    const [healthR, tasksR, runsR, regimeR, themesR, memoryR, genomeR, orphanedR] = await Promise.all([
       this.fetchHealthRows(degraded),
       this.fetchTasks(),
       this.fetchRuns(),
@@ -229,12 +229,13 @@ export class DataAggregationService {
       this.fetchThemes(),
       this.fetchMemoryToday(),
       this.fetchGenomeState(),
+      this.fetchOrphanedTasks(),
     ]);
 
     const v2Available = healthR.v2Available;
     for (const [key, val] of Object.entries({
       'scheduler-runs': runsR.error, regime: regimeR.error, themes: themesR.error,
-      memory: memoryR.error, genome: genomeR.error,
+      memory: memoryR.error, genome: genomeR.error, orphaned: orphanedR.error,
     })) {
       if (val) degraded.push({ source: key, error: val });
     }
@@ -736,4 +737,17 @@ export class DataAggregationService {
     all.sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0));
     return all.slice(0, 10).map(e => ({ source: e.source, timestamp: e.tsText ?? undefined, line: e.line, file: e.file }));
   }
+
+  // ================= 僵尸任务（数据库存在但调度器未加载） =================
+  private async fetchOrphanedTasks(): Promise<{ tasks: OrphanedTask[]; error?: string }> {
+    try {
+      const res = await fetch(`${this.opts.osBaseURL}/api/v1/scheduler/orphaned-tasks`, { signal: AbortSignal.timeout(3000) });
+      if (!res.ok) return { tasks: [], error: `HTTP ${res.status}` };
+      const json: any = await res.json();
+      return { tasks: json.orphanedTasks || [] };
+    } catch (err) {
+      return { tasks: [], error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
 }

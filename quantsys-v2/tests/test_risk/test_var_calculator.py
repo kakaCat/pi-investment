@@ -13,8 +13,8 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from domain.quantlib.risk.var import VaRCalculator, quick_var, quick_cvar
-from domain.quantlib.risk.cvar import CVaRCalculator
+from domain.risk.var import VaRCalculator, quick_var, quick_cvar
+from domain.risk.cvar import CVaRCalculator
 from domain.quantlib.exceptions import InsufficientDataError, DataValidationError
 
 

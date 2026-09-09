@@ -80,7 +80,7 @@ class TestTurtleStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.turtle_strategy import TurtleStrategy
+        from domain.backtest.engine.turtle_strategy import TurtleStrategy
         return TurtleStrategy()
 
     def test_buy_signal_on_breakout(self, strategy):
@@ -126,7 +126,7 @@ class TestDonchianChannelStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.donchian_channel_strategy import DonchianChannelStrategy
+        from domain.backtest.engine.donchian_channel_strategy import DonchianChannelStrategy
         return DonchianChannelStrategy()
 
     def test_buy_on_upper_breakout(self, strategy):
@@ -170,7 +170,7 @@ class TestMomentumStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.momentum_strategy import MomentumStrategy
+        from domain.backtest.engine.momentum_strategy import MomentumStrategy
         return MomentumStrategy()
 
     def test_buy_on_positive_momentum(self, strategy):
@@ -214,7 +214,7 @@ class TestBreakoutStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.breakout_strategy import BreakoutStrategy
+        from domain.backtest.engine.breakout_strategy import BreakoutStrategy
         return BreakoutStrategy()
 
     def test_buy_on_breakout_with_volume(self, strategy):
@@ -272,7 +272,7 @@ class TestMeanReversionStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.mean_reversion_strategy import MeanReversionStrategy
+        from domain.backtest.engine.mean_reversion_strategy import MeanReversionStrategy
         return MeanReversionStrategy()
 
     def test_buy_at_lower_band(self, strategy):
@@ -328,7 +328,7 @@ class TestVolatilityBreakoutStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.volatility_breakout_strategy import VolatilityBreakoutStrategy
+        from domain.backtest.engine.volatility_breakout_strategy import VolatilityBreakoutStrategy
         return VolatilityBreakoutStrategy()
 
     def test_buy_on_volatility_breakout(self, strategy):
@@ -378,7 +378,7 @@ class TestPairsCorrelationStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.pairs_correlation_strategy import PairsCorrelationStrategy
+        from domain.backtest.engine.pairs_correlation_strategy import PairsCorrelationStrategy
         return PairsCorrelationStrategy()
 
     def test_buy_on_negative_spread(self, strategy):
@@ -461,7 +461,7 @@ class TestStrategyParameterValidation:
 
     def test_turtle_insufficient_data(self):
         """测试海龟策略数据不足时抛出异常"""
-        from domain.quantlib.engine.turtle_strategy import TurtleStrategy
+        from domain.backtest.engine.turtle_strategy import TurtleStrategy
         strategy = TurtleStrategy()
         closes = [10.0] * 10  # 只有10条，不足20+1
         klines = make_klines(closes)
@@ -471,7 +471,7 @@ class TestStrategyParameterValidation:
 
     def test_momentum_insufficient_data(self):
         """测试动量策略数据不足时抛出异常"""
-        from domain.quantlib.engine.momentum_strategy import MomentumStrategy
+        from domain.backtest.engine.momentum_strategy import MomentumStrategy
         strategy = MomentumStrategy()
         closes = [10.0] * 10
         klines = make_klines(closes)
@@ -481,7 +481,7 @@ class TestStrategyParameterValidation:
 
     def test_volatility_insufficient_data(self):
         """测试波动率策略数据不足时抛出异常"""
-        from domain.quantlib.engine.volatility_breakout_strategy import VolatilityBreakoutStrategy
+        from domain.backtest.engine.volatility_breakout_strategy import VolatilityBreakoutStrategy
         strategy = VolatilityBreakoutStrategy()
         closes = [10.0] * 10
         klines = make_klines(closes)

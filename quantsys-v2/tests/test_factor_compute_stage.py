@@ -5,8 +5,8 @@ import pandas as pd
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 
-from domain.quantlib.stages.data_pipeline import PipelineContext, PipelineResult
-from domain.quantlib.stages.data_pipeline.factor_compute_stage import FactorComputeStage
+from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
+from domain.backtest.stages.data_pipeline.factor_compute_stage import FactorComputeStage
 
 
 class TestFactorComputeStage:

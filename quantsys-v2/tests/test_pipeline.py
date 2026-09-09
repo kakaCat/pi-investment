@@ -4,7 +4,7 @@
 目标：统一因子→模型→回测的调用方式
 """
 import pytest
-from domain.quantlib.core.pipeline import QuantPipeline, PipelineStage
+from infrastructure.quantlib.core.pipeline import QuantPipeline, PipelineStage
 
 
 class TestPipelineBasics:

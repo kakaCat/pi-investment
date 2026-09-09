@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 from unittest.mock import patch, MagicMock
 
-from domain.quantlib.factor_analysis.orthogonalizer import FactorOrthogonalizer
+from domain.factors.analysis.orthogonalizer import FactorOrthogonalizer
 
 
 @pytest.fixture

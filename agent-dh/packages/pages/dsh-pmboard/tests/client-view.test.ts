@@ -259,6 +259,38 @@ describe('buildTriage', () => {
     expect(html).not.toContain('REQ-000002')
   })
 
+  it('renders editable title/category prefill on agent-proposed create_req card', () => {
+    const tri = makeTriage({
+      id: 'tri-000009',
+      suggestedAction: 'create_req',
+      suggestedTitle: 'Agent 提议的标题',
+      suggestedCategory: 'refactor',
+      score: 100,
+    })
+    const html = buildTriage([tri], makeState())
+    expect(html).toContain('data-role="triage-title"')
+    expect(html).toContain('value="Agent 提议的标题"')
+    expect(html).toContain('data-role="triage-category"')
+    // 分类 select 预填 refactor（selected）
+    expect(html).toContain('<option value="refactor" selected>重构</option>')
+    // create_req 卡不渲染「改绑」按钮（无绑定目标）
+    expect(html).not.toContain('data-action="triage-rebind"')
+  })
+
+  it('create_req card without structured suggestion falls back to first message as title', () => {
+    const tri = makeTriage({ id: 'tri-000010', suggestedAction: 'create_req', firstMessageText: '原始消息文本' })
+    const html = buildTriage([tri], makeState())
+    expect(html).toContain('value="原始消息文本"')
+    expect(html).toContain('<option value="feature" selected>功能</option>')
+  })
+
+  it('bind_req card keeps rebind action and no editable title input', () => {
+    const tri = makeTriage({ id: 'tri-000011', suggestedAction: 'bind_req', suggestedTargetId: 'REQ-000001' })
+    const html = buildTriage([tri], makeState())
+    expect(html).not.toContain('data-role="triage-title"')
+    expect(html).toContain('data-action="triage-rebind"')
+  })
+
   it('escapes HTML in first message', () => {
     const tri = makeTriage({ id: 'tri-000001', firstMessageText: '<b>bold</b>' })
     const html = buildTriage([tri], makeState())

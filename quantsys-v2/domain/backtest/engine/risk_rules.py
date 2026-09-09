@@ -14,6 +14,9 @@ Every check returns the same structure:
 """
 
 from datetime import datetime, timedelta
+from typing import Optional
+import polars as pl
+from infrastructure.config.constants.trading.risk_limits import RiskLimits
 
 
 def _get_kline_repo():
@@ -41,11 +44,26 @@ def _get_factor_repo():
     return get_factor_repo()
 
 
-def check_position_size(ds, symbol, proposed_quantity, account_balance) -> dict:
-    """单只股票仓位不超过总资金20%"""
-    latest = _get_kline_repo().get_latest_daily_kline(symbol)
+def check_position_size(ds, symbol, proposed_quantity, account_balance, config: Optional[RiskLimits] = None) -> dict:
+    """单只股票仓位不超过总资金限制（默认20%）
 
-    if not latest or not latest.get("close"):
+    Args:
+        ds: 数据服务
+        symbol: 股票代码
+        proposed_quantity: 拟交易数量
+        account_balance: 账户余额（可以是字典或数字）
+        config: 风控配置（可选，默认使用 RiskLimits 默认值）
+
+    Returns:
+        风控检查结果字典
+    """
+    config = config or RiskLimits()
+
+    # Use ds.kline if provided (for testing), otherwise use global repo
+    kline_repo = ds.kline if (ds and hasattr(ds, 'kline')) else _get_kline_repo()
+    latest = kline_repo.get_latest_daily_kline(symbol)
+
+    if latest is None or latest.is_empty():
         return {
             "passed": True,
             "rule": "position_size",
@@ -53,7 +71,7 @@ def check_position_size(ds, symbol, proposed_quantity, account_balance) -> dict:
             "severity": "warning",
         }
 
-    current_price = latest["close"]
+    current_price = latest["close"][0]
     if current_price <= 0:
         return {
             "passed": True,
@@ -65,20 +83,21 @@ def check_position_size(ds, symbol, proposed_quantity, account_balance) -> dict:
     proposed_value = proposed_quantity * current_price
 
     if isinstance(account_balance, dict):
-        total_assets = account_balance.get("total_assets", 0) or 1000000
+        total_assets = account_balance.get("total_assets", 0) or config.DEFAULT_ACCOUNT_BALANCE
     else:
-        total_assets = account_balance or 1000000
+        total_assets = account_balance or config.DEFAULT_ACCOUNT_BALANCE
 
     if total_assets <= 0:
-        total_assets = 1000000
+        total_assets = config.DEFAULT_ACCOUNT_BALANCE
 
     ratio = proposed_value / total_assets
 
-    if ratio > 0.20:
+    if ratio > config.MAX_SINGLE_POSITION_RATIO:
+        limit_pct = config.MAX_SINGLE_POSITION_RATIO * 100
         return {
             "passed": False,
             "rule": "position_size",
-            "detail": f"单只股票仓位{ratio:.1%}超过总资金20%上限",
+            "detail": f"单只股票仓位{ratio:.1%}超过总资金{limit_pct:.0f}%上限",
             "severity": "error",
         }
 
@@ -90,8 +109,21 @@ def check_position_size(ds, symbol, proposed_quantity, account_balance) -> dict:
     }
 
 
-def check_portfolio_concentration(ds, symbol, proposed_value, total_value) -> dict:
-    """同行业持仓不超过总仓位40%"""
+def check_portfolio_concentration(ds, symbol, proposed_value, total_value, config: Optional[RiskLimits] = None) -> dict:
+    """同行业持仓不超过总仓位限制（默认40%）
+
+    Args:
+        ds: 数据服务
+        symbol: 股票代码
+        proposed_value: 拟交易金额
+        total_value: 总资产
+        config: 风控配置（可选，默认使用 RiskLimits 默认值）
+
+    Returns:
+        风控检查结果字典
+    """
+    config = config or RiskLimits()
+
     stock_info = _get_stock_repo().get_by_symbol(symbol)
 
     if not stock_info:
@@ -115,11 +147,12 @@ def check_portfolio_concentration(ds, symbol, proposed_value, total_value) -> di
     else:
         ratio = 0.0
 
-    if ratio > 0.40:
+    if ratio > config.MAX_SECTOR_CONCENTRATION:
+        limit_pct = config.MAX_SECTOR_CONCENTRATION * 100
         return {
             "passed": False,
             "rule": "portfolio_concentration",
-            "detail": f"同行业({sector})持仓{ratio:.1%}超过40%上限",
+            "detail": f"同行业({sector})持仓{ratio:.1%}超过{limit_pct:.0f}%上限",
             "severity": "error",
         }
 
@@ -131,8 +164,21 @@ def check_portfolio_concentration(ds, symbol, proposed_value, total_value) -> di
     }
 
 
-def check_stop_loss(ds, symbol, entry_price, current_price) -> dict:
-    """当前价跌破止损线（-8%）"""
+def check_stop_loss(ds, symbol, entry_price, current_price, config: Optional[RiskLimits] = None) -> dict:
+    """当前价跌破止损线（默认-8%）
+
+    Args:
+        ds: 数据服务
+        symbol: 股票代码
+        entry_price: 入场价格
+        current_price: 当前价格
+        config: 风控配置（可选，默认使用 RiskLimits 默认值）
+
+    Returns:
+        风控检查结果字典
+    """
+    config = config or RiskLimits()
+
     if entry_price is None or current_price is None or entry_price <= 0 or current_price <= 0:
         return {
             "passed": True,
@@ -143,11 +189,12 @@ def check_stop_loss(ds, symbol, entry_price, current_price) -> dict:
 
     change_pct = (current_price - entry_price) / entry_price
 
-    if change_pct <= -0.08:
+    if change_pct <= config.STOP_LOSS_THRESHOLD:
+        threshold_pct = abs(config.STOP_LOSS_THRESHOLD) * 100
         return {
             "passed": False,
             "rule": "stop_loss",
-            "detail": f"当前价较入场价下跌{change_pct:.1%}，触发-8%止损线",
+            "detail": f"当前价较入场价下跌{change_pct:.1%}，触发-{threshold_pct:.0f}%止损线",
             "severity": "error",
         }
 
@@ -159,15 +206,27 @@ def check_stop_loss(ds, symbol, entry_price, current_price) -> dict:
     }
 
 
-def check_daily_drawdown(ds, today_pnl, account_balance) -> dict:
-    """日内回撤不超过5%"""
+def check_daily_drawdown(ds, today_pnl, account_balance, config: Optional[RiskLimits] = None) -> dict:
+    """日内回撤不超过限制（默认5%）
+
+    Args:
+        ds: 数据服务
+        today_pnl: 当日盈亏
+        account_balance: 账户余额（可以是字典或数字）
+        config: 风控配置（可选，默认使用 RiskLimits 默认值）
+
+    Returns:
+        风控检查结果字典
+    """
+    config = config or RiskLimits()
+
     if isinstance(account_balance, dict):
-        total_assets = account_balance.get("total_assets", 0) or 1000000
+        total_assets = account_balance.get("total_assets", 0) or config.DEFAULT_ACCOUNT_BALANCE
     else:
-        total_assets = account_balance or 1000000
+        total_assets = account_balance or config.DEFAULT_ACCOUNT_BALANCE
 
     if total_assets <= 0:
-        total_assets = 1000000
+        total_assets = config.DEFAULT_ACCOUNT_BALANCE
 
     pnl = today_pnl or 0
 
@@ -181,11 +240,12 @@ def check_daily_drawdown(ds, today_pnl, account_balance) -> dict:
 
     drawdown_ratio = abs(pnl) / total_assets
 
-    if drawdown_ratio > 0.05:
+    if drawdown_ratio > config.MAX_DAILY_DRAWDOWN:
+        limit_pct = config.MAX_DAILY_DRAWDOWN * 100
         return {
             "passed": False,
             "rule": "daily_drawdown",
-            "detail": f"日内回撤{drawdown_ratio:.1%}超过5%上限",
+            "detail": f"日内回撤{drawdown_ratio:.1%}超过{limit_pct:.0f}%上限",
             "severity": "error",
         }
 
@@ -197,16 +257,26 @@ def check_daily_drawdown(ds, today_pnl, account_balance) -> dict:
     }
 
 
-def check_max_positions(ds) -> dict:
-    """同时持仓不超过10只"""
+def check_max_positions(ds, config: Optional[RiskLimits] = None) -> dict:
+    """同时持仓不超过限制（默认10只）
+
+    Args:
+        ds: 数据服务
+        config: 风控配置（可选，默认使用 RiskLimits 默认值）
+
+    Returns:
+        风控检查结果字典
+    """
+    config = config or RiskLimits()
+
     holdings = _get_portfolio_repo().get_all_holdings()
     position_count = len(holdings)
 
-    if position_count >= 10:
+    if position_count >= config.MAX_CONCURRENT_POSITIONS:
         return {
             "passed": False,
             "rule": "max_positions",
-            "detail": f"当前持仓{position_count}只，已达10只上限",
+            "detail": f"当前持仓{position_count}只，已达{config.MAX_CONCURRENT_POSITIONS}只上限",
             "severity": "error",
         }
 
@@ -453,7 +523,7 @@ def check_portfolio_volatility(ds, symbol, max_volatility=0.30) -> dict:
 
     klines = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
 
-    if not klines or len(klines) < 20:
+    if klines is None or klines.is_empty() or len(klines) < 20:
         return {
             "passed": True,
             "rule": "portfolio_volatility",
@@ -461,7 +531,7 @@ def check_portfolio_volatility(ds, symbol, max_volatility=0.30) -> dict:
             "severity": "warning",
         }
 
-    prices = [k.get("close", 0) for k in klines if k.get("close", 0) > 0]
+    prices = klines.filter(pl.col("close") > 0)["close"].to_list()
     if len(prices) < 20:
         return {
             "passed": True,
@@ -508,7 +578,7 @@ def check_market_regime(ds, index_symbol="000001.SH", lookback_days=60) -> dict:
 
     klines = _get_kline_repo().get_daily_klines(index_symbol, start_date, end_date)
 
-    if not klines or len(klines) < 20:
+    if klines is None or klines.is_empty() or len(klines) < 20:
         return {
             "passed": True,
             "rule": "market_regime",
@@ -516,7 +586,7 @@ def check_market_regime(ds, index_symbol="000001.SH", lookback_days=60) -> dict:
             "severity": "warning",
         }
 
-    prices = [k.get("close", 0) for k in klines if k.get("close", 0) > 0]
+    prices = klines.filter(pl.col("close") > 0)["close"].to_list()
     if len(prices) < 20:
         return {
             "passed": True,
@@ -558,7 +628,7 @@ def check_vix_level(ds, vix_threshold=30.0) -> dict:
     index_symbol = "000001.SH"
     klines = _get_kline_repo().get_daily_klines(index_symbol, start_date, end_date)
 
-    if not klines or len(klines) < 10:
+    if klines is None or klines.is_empty() or len(klines) < 10:
         return {
             "passed": True,
             "rule": "vix_level",
@@ -566,7 +636,7 @@ def check_vix_level(ds, vix_threshold=30.0) -> dict:
             "severity": "warning",
         }
 
-    prices = [k.get("close", 0) for k in klines if k.get("close", 0) > 0]
+    prices = klines.filter(pl.col("close") > 0)["close"].to_list()
     if len(prices) < 10:
         return {
             "passed": True,
@@ -685,7 +755,7 @@ def check_order_size_vs_adv(ds, symbol, proposed_quantity, adv_threshold=0.20) -
 
     klines = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
 
-    if not klines or len(klines) < 5:
+    if klines is None or klines.is_empty() or len(klines) < 5:
         return {
             "passed": True,
             "rule": "order_size_vs_adv",
@@ -693,7 +763,7 @@ def check_order_size_vs_adv(ds, symbol, proposed_quantity, adv_threshold=0.20) -
             "severity": "warning",
         }
 
-    volumes = [k.get("volume", 0) or 0 for k in klines]
+    volumes = klines["volume"].fill_null(0).to_list()
     recent_volumes = volumes[-min(20, len(volumes)):]
     avg_daily_volume = sum(recent_volumes) / len(recent_volumes) if recent_volumes else 0
 
@@ -730,7 +800,7 @@ def check_price_impact(ds, symbol, proposed_quantity, impact_threshold=0.02) -> 
 
     klines = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
 
-    if not klines or len(klines) < 10:
+    if klines is None or klines.is_empty() or len(klines) < 10:
         return {
             "passed": True,
             "rule": "price_impact",
@@ -739,7 +809,7 @@ def check_price_impact(ds, symbol, proposed_quantity, impact_threshold=0.02) -> 
         }
 
     # 计算平均成交量和波动率
-    volumes = [k.get("volume", 0) or 0 for k in klines]
+    volumes = klines["volume"].fill_null(0).to_list()
     avg_volume = sum(volumes) / len(volumes) if volumes else 0
 
     if avg_volume <= 0:
@@ -750,7 +820,7 @@ def check_price_impact(ds, symbol, proposed_quantity, impact_threshold=0.02) -> 
             "severity": "warning",
         }
 
-    prices = [k.get("close", 0) for k in klines if k.get("close", 0) > 0]
+    prices = klines.filter(pl.col("close") > 0)["close"].to_list()
     if len(prices) < 10:
         return {
             "passed": True,

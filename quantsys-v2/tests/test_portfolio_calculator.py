@@ -1,7 +1,7 @@
 import pytest
 from datetime import date
 from unittest.mock import Mock, patch
-from domain.quantlib.core.portfolio_calculator import PortfolioCalculator
+from infrastructure.quantlib.core.portfolio_calculator import PortfolioCalculator
 
 
 def make_calculator(**kwargs):

@@ -93,7 +93,7 @@ class TestStrategyBaseHelpers:
 
     @pytest.fixture
     def base(self):
-        from domain.quantlib.engine.strategy_base import StrategyBase
+        from domain.backtest.engine.strategy_base import StrategyBase
 
         # 用具体子类测试抽象类的方法
         class ConcreteStrategy(StrategyBase):
@@ -184,7 +184,7 @@ class TestMACrossStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.ma_cross import MACrossStrategy
+        from domain.backtest.engine.ma_cross import MACrossStrategy
         return MACrossStrategy()
 
     def test_golden_cross_buy_signal(self, strategy):
@@ -265,7 +265,7 @@ class TestRSIReversalStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.rsi_reversal import RSIReversalStrategy
+        from domain.backtest.engine.rsi_reversal import RSIReversalStrategy
         return RSIReversalStrategy()
 
     def test_oversold_buy_signal(self, strategy):
@@ -324,7 +324,7 @@ class TestBollingerBreakoutStrategy:
 
     @pytest.fixture
     def strategy(self):
-        from domain.quantlib.engine.bollinger_breakout import BollingerBreakoutStrategy
+        from domain.backtest.engine.bollinger_breakout import BollingerBreakoutStrategy
         return BollingerBreakoutStrategy()
 
     def test_upper_breakout_buy(self, strategy):
@@ -407,7 +407,7 @@ class TestStrategyCombiner:
 
     def test_and_mode_all_buy(self, signals_all_buy):
         """AND模式: 全部buy -> buy"""
-        from domain.quantlib.engine.strategy_combiner import StrategyCombiner
+        from domain.backtest.engine.strategy_combiner import StrategyCombiner
         combiner = StrategyCombiner(mode='and')
         result = combiner.combine(signals_all_buy)
 
@@ -417,7 +417,7 @@ class TestStrategyCombiner:
 
     def test_and_mode_mixed(self, signals_mixed):
         """AND模式: 策略分歧 -> hold"""
-        from domain.quantlib.engine.strategy_combiner import StrategyCombiner
+        from domain.backtest.engine.strategy_combiner import StrategyCombiner
         combiner = StrategyCombiner(mode='and')
         result = combiner.combine(signals_mixed)
 
@@ -426,7 +426,7 @@ class TestStrategyCombiner:
 
     def test_or_mode_mixed(self, signals_mixed):
         """OR模式: 有非hold信号 -> 取最高置信度"""
-        from domain.quantlib.engine.strategy_combiner import StrategyCombiner
+        from domain.backtest.engine.strategy_combiner import StrategyCombiner
         combiner = StrategyCombiner(mode='or')
         result = combiner.combine(signals_mixed)
 
@@ -435,7 +435,7 @@ class TestStrategyCombiner:
 
     def test_or_mode_all_hold(self, signals_all_hold):
         """OR模式: 全部hold -> hold"""
-        from domain.quantlib.engine.strategy_combiner import StrategyCombiner
+        from domain.backtest.engine.strategy_combiner import StrategyCombiner
         combiner = StrategyCombiner(mode='or')
         result = combiner.combine(signals_all_hold)
 
@@ -443,7 +443,7 @@ class TestStrategyCombiner:
 
     def test_majority_mode(self, signals_mixed):
         """多数投票模式: buy=1, sell=1, hold=1 -> 平票取非hold"""
-        from domain.quantlib.engine.strategy_combiner import StrategyCombiner
+        from domain.backtest.engine.strategy_combiner import StrategyCombiner
         combiner = StrategyCombiner(mode='majority')
         result = combiner.combine(signals_mixed)
 
@@ -452,7 +452,7 @@ class TestStrategyCombiner:
 
     def test_majority_mode_clear_winner(self):
         """多数投票: buy buy hold -> buy"""
-        from domain.quantlib.engine.strategy_combiner import StrategyCombiner
+        from domain.backtest.engine.strategy_combiner import StrategyCombiner
         signals = [
             {'action': 'BUY', 'confidence': 0.8, 'reason': 'p1'},
             {'action': 'BUY', 'confidence': 0.6, 'reason': 'p2'},
@@ -466,7 +466,7 @@ class TestStrategyCombiner:
 
     def test_weighted_mode(self, signals_mixed):
         """加权模式: 按权重聚合"""
-        from domain.quantlib.engine.strategy_combiner import StrategyCombiner
+        from domain.backtest.engine.strategy_combiner import StrategyCombiner
         combiner = StrategyCombiner(mode='weighted')
         # buy权重3, sell权重1 -> buy加权得分更高
         result = combiner.combine(signals_mixed, weights=[3.0, 1.0, 1.0])
@@ -476,7 +476,7 @@ class TestStrategyCombiner:
 
     def test_weighted_mode_all_zero_weights(self, signals_mixed):
         """加权模式: 所有权重为0"""
-        from domain.quantlib.engine.strategy_combiner import StrategyCombiner
+        from domain.backtest.engine.strategy_combiner import StrategyCombiner
         combiner = StrategyCombiner(mode='weighted')
         result = combiner.combine(signals_mixed, weights=[0.0, 0.0, 0.0])
 
@@ -485,7 +485,7 @@ class TestStrategyCombiner:
 
     def test_empty_signals(self):
         """空信号列表"""
-        from domain.quantlib.engine.strategy_combiner import StrategyCombiner
+        from domain.backtest.engine.strategy_combiner import StrategyCombiner
         combiner = StrategyCombiner(mode='majority')
         result = combiner.combine([])
 
@@ -495,7 +495,7 @@ class TestStrategyCombiner:
 
     def test_invalid_mode(self):
         """无效组合模式"""
-        from domain.quantlib.engine.strategy_combiner import StrategyCombiner
+        from domain.backtest.engine.strategy_combiner import StrategyCombiner
         with pytest.raises(ValueError, match="无效的组合模式"):
             StrategyCombiner(mode='invalid')
 
@@ -507,9 +507,9 @@ class TestEndToEnd:
 
     def test_all_strategies_on_uptrend(self):
         """上升趋势中所有策略的信号综合"""
-        from domain.quantlib.engine.ma_cross import MACrossStrategy
-        from domain.quantlib.engine.rsi_reversal import RSIReversalStrategy
-        from domain.quantlib.engine.bollinger_breakout import BollingerBreakoutStrategy
+        from domain.backtest.engine.ma_cross import MACrossStrategy
+        from domain.backtest.engine.rsi_reversal import RSIReversalStrategy
+        from domain.backtest.engine.bollinger_breakout import BollingerBreakoutStrategy
 
         closes = [10.0] * 20 + [10.0 + i * 0.5 for i in range(20)]
         klines = make_klines(closes)
@@ -534,9 +534,9 @@ class TestEndToEnd:
 
     def test_all_strategies_on_downtrend(self):
         """下降趋势中所有策略的信号综合"""
-        from domain.quantlib.engine.ma_cross import MACrossStrategy
-        from domain.quantlib.engine.rsi_reversal import RSIReversalStrategy
-        from domain.quantlib.engine.bollinger_breakout import BollingerBreakoutStrategy
+        from domain.backtest.engine.ma_cross import MACrossStrategy
+        from domain.backtest.engine.rsi_reversal import RSIReversalStrategy
+        from domain.backtest.engine.bollinger_breakout import BollingerBreakoutStrategy
 
         closes = [20.0] * 20 + [20.0 - i * 0.5 for i in range(20)]
         klines = make_klines(closes)
@@ -560,7 +560,7 @@ class TestEndToEnd:
 
     def test_signal_format(self):
         """验证信号返回格式"""
-        from domain.quantlib.engine.ma_cross import MACrossStrategy
+        from domain.backtest.engine.ma_cross import MACrossStrategy
 
         strategy = MACrossStrategy()
         klines = make_klines(uptrend_closes(50, start=10.0, step=0.2))
@@ -578,10 +578,10 @@ class TestEndToEnd:
 
     def test_combine_all_three_on_uptrend(self):
         """组合三种策略信号的端到端测试"""
-        from domain.quantlib.engine.ma_cross import MACrossStrategy
-        from domain.quantlib.engine.rsi_reversal import RSIReversalStrategy
-        from domain.quantlib.engine.bollinger_breakout import BollingerBreakoutStrategy
-        from domain.quantlib.engine.strategy_combiner import StrategyCombiner
+        from domain.backtest.engine.ma_cross import MACrossStrategy
+        from domain.backtest.engine.rsi_reversal import RSIReversalStrategy
+        from domain.backtest.engine.bollinger_breakout import BollingerBreakoutStrategy
+        from domain.backtest.engine.strategy_combiner import StrategyCombiner
 
         closes = [10.0] * 20 + [10.0 + i * 0.5 for i in range(20)]
         klines = make_klines(closes)
@@ -807,7 +807,7 @@ class TestStrategyRunner:
 
     @pytest.fixture
     def runner(self):
-        from domain.quantlib.engine.strategy_runner import StrategyRunner
+        from domain.backtest.engine.strategy_runner import StrategyRunner
         from adapters.outbound.repositories import StrategyORMRepository
         r = StrategyRunner(strategy_repo=StrategyORMRepository())
         yield r

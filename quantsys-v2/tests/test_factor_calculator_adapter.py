@@ -7,7 +7,7 @@ with the legacy FactorRegistry interface.
 """
 
 import pytest
-from domain.quantlib.adapters.factor_calculator_adapter import (
+from adapters.outbound.datasources.providers.quantlib.factor_calculator_adapter import (
     FactorCalculatorAdapter,
     get_factor_adapter
 )

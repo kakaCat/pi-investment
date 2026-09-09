@@ -14,8 +14,8 @@ Phase 2.4 Validation Test
 
 import numpy as np
 import time
-from domain.quantlib.factors.volume import VolumeFactors
-from domain.quantlib.factors.moving_average import MovingAverageFactors
+from domain.factors.library.volume import VolumeFactors
+from domain.factors.library.moving_average import MovingAverageFactors
 
 
 def generate_test_klines(n=100):

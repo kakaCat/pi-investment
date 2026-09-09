@@ -8,8 +8,8 @@ Test suite for ADX, DMI, CCI, Aroon, and SAR calculations.
 import pytest
 import numpy as np
 
-from domain.quantlib.factors.trend import TrendFactors
-from domain.quantlib.core.exceptions import InsufficientDataError, DataValidationError
+from domain.factors.library.trend import TrendFactors
+from domain.quantlib.exceptions import InsufficientDataError, DataValidationError
 
 
 class TestTrendFactors:

@@ -5,8 +5,8 @@ import pandas as pd
 from datetime import date
 from unittest.mock import Mock, MagicMock, patch
 
-from domain.quantlib.stages.data_pipeline import PipelineContext, PipelineResult
-from domain.quantlib.stages.data_pipeline.storage_stage import StorageStage
+from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
+from domain.backtest.stages.data_pipeline.storage_stage import StorageStage
 
 
 @pytest.fixture

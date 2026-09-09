@@ -20,7 +20,7 @@ from datetime import datetime, date, timedelta
 from sqlalchemy import text
 
 from application.services.data_pipeline_service import DataPipelineService
-from domain.quantlib.stages.data_pipeline import PipelineContext, PipelineResult
+from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
 from adapters.outbound.repositories import KlineORMRepository
 from adapters.outbound.repositories import FactorORMRepository
 

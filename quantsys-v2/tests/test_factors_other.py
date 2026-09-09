@@ -8,8 +8,8 @@ Test suite for WR, BIAS, PSY, AR, BR, DMA, TRIX, VR, EMV, WVAD, AD Line, and CCI
 import pytest
 import numpy as np
 
-from domain.quantlib.factors.other import OtherFactors
-from domain.quantlib.core.exceptions import InsufficientDataError, DataValidationError
+from domain.factors.library.other import OtherFactors
+from domain.quantlib.exceptions import InsufficientDataError, DataValidationError
 
 
 class TestOtherFactors:

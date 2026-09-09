@@ -4,8 +4,8 @@ import pytest
 import pandas as pd
 from datetime import date
 
-from domain.quantlib.stages.data_pipeline.time_alignment_stage import TimeAlignmentStage
-from domain.quantlib.stages.data_pipeline import PipelineContext, PipelineResult
+from domain.backtest.stages.data_pipeline.time_alignment_stage import TimeAlignmentStage
+from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
 
 
 class TestTimeAlignmentStage:

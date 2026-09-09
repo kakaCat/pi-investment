@@ -3,8 +3,8 @@
 import pytest
 import pandas as pd
 from datetime import datetime
-from domain.quantlib.stages.data_pipeline.data_fetch_stage import DataFetchStage
-from domain.quantlib.stages.data_pipeline import PipelineContext, PipelineResult
+from domain.backtest.stages.data_pipeline.data_fetch_stage import DataFetchStage
+from domain.backtest.stages.data_pipeline import PipelineContext, PipelineResult
 
 
 class TestDataFetchStage:

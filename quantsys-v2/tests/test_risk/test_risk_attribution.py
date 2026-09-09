@@ -5,7 +5,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from domain.quantlib.risk.attribution import RiskAttributionCalculator
+from domain.risk.attribution import RiskAttributionCalculator
 
 
 class TestRiskAttribution:

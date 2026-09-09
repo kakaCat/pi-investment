@@ -1,7 +1,7 @@
 """集成测试 - 端到端测试"""
 import pytest
-from domain.quantlib.core.pipeline import QuantPipeline
-from domain.quantlib.stages.factor_stage import FactorStage
+from infrastructure.quantlib.core.pipeline import QuantPipeline
+from domain.backtest.stages.factor_stage import FactorStage
 from adapters.outbound.repositories import StockORMRepository
 
 
@@ -77,7 +77,7 @@ class TestEndToEndFlow:
     def test_pipeline_with_multiple_stages(self):
         """测试多Stage的Pipeline"""
         # 创建一个简单的验证Stage
-        from domain.quantlib.core.pipeline import PipelineStage
+        from infrastructure.quantlib.core.pipeline import PipelineStage
         from typing import Dict, Any
 
         class ValidationStage(PipelineStage):
@@ -241,7 +241,7 @@ class TestEndToEndFlow:
 
     def test_pipeline_data_flow(self):
         """测试Pipeline数据流转"""
-        from domain.quantlib.core.pipeline import PipelineStage
+        from infrastructure.quantlib.core.pipeline import PipelineStage
         from typing import Dict, Any
 
         # 创建一个数据转换Stage
@@ -297,7 +297,7 @@ class TestEndToEndFlow:
 
     def test_pipeline_stage_isolation(self):
         """测试Pipeline Stage隔离性"""
-        from domain.quantlib.core.pipeline import PipelineStage
+        from infrastructure.quantlib.core.pipeline import PipelineStage
         from typing import Dict, Any
 
         # 创建一个修改输入数据的Stage
@@ -379,7 +379,7 @@ class TestPipelineIntegration:
 
     def test_pipeline_stage_order(self):
         """测试Pipeline Stage执行顺序"""
-        from domain.quantlib.core.pipeline import PipelineStage
+        from infrastructure.quantlib.core.pipeline import PipelineStage
         from typing import Dict, Any
 
         execution_order = []

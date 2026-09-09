@@ -11,12 +11,12 @@ import numpy as np
 import time
 import tracemalloc
 
-from domain.quantlib.factors.moving_average import MovingAverageFactors
-from domain.quantlib.factors.momentum import MomentumFactors
-from domain.quantlib.factors.volatility import VolatilityFactors
-from domain.quantlib.factors.volume import VolumeFactors
-from domain.quantlib.factors.trend import TrendFactors
-from domain.quantlib.factors.other import OtherFactors
+from domain.factors.library.moving_average import MovingAverageFactors
+from domain.factors.library.momentum import MomentumFactors
+from domain.factors.library.volatility import VolatilityFactors
+from domain.factors.library.volume import VolumeFactors
+from domain.factors.library.trend import TrendFactors
+from domain.factors.library.other import OtherFactors
 
 
 class TestFactorPerformanceBenchmark:

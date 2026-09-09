@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from domain.quantlib.timeseries import TimeSeriesAnalyzer
-from domain.quantlib.core.exceptions import DataValidationError, InsufficientDataError, ModelFitError
+from domain.quantlib.exceptions import DataValidationError, InsufficientDataError, ModelFitError
 
 
 class TestExtendedTimeSeriesMethods:

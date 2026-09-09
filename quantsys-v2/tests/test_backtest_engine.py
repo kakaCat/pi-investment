@@ -4,19 +4,19 @@ Tests for Backtest Engine Components
 Tests slippage, commission, position sizing, and report generation.
 """
 import pytest
-from domain.quantlib.engine.slippage import (
+from domain.backtest.engine.slippage import (
     FixedSlippage, ProportionalSlippage, MarketImpactSlippage,
     NoSlippage, create_slippage_model
 )
-from domain.quantlib.engine.commission import (
+from domain.backtest.engine.commission import (
     AShareCommission, HKStockCommission, FixedCommission,
     ZeroCommission, TieredCommission, create_commission_model
 )
-from domain.quantlib.engine.position_sizing import (
+from domain.backtest.engine.position_sizing import (
     FixedPositionSizer, FixedPercentSizer, KellyPositionSizer,
     RiskParitySizer, VolatilityTargetSizer, create_position_sizer
 )
-from domain.quantlib.engine.backtest_report import BacktestReportGenerator
+from domain.backtest.engine.backtest_report import BacktestReportGenerator
 
 
 # ==================== Slippage Tests ====================

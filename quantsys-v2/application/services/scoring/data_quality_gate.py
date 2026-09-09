@@ -71,17 +71,27 @@ class DataQualityGate:
     # ---------- 内部 ----------
 
     @staticmethod
-    def _is_clean(bar: Dict, is_recent: bool = True) -> bool:
+    def _is_clean(bar, is_recent: bool = True) -> bool:
+        """检查 K 线数据是否干净（兼容字典和 KlineData 对象）"""
         try:
-            if float(bar.get('close') or 0) <= 0:
-                return False
-            if is_recent:
+            # 兼容字典和对象
+            if isinstance(bar, dict):
+                close = float(bar.get('close') or 0)
                 vol = float(bar.get('volume') or 0)
                 amt = bar.get('amount')
+            else:
+                # KlineData 对象
+                close = float(getattr(bar, 'close', 0) or 0)
+                vol = float(getattr(bar, 'volume', 0) or 0)
+                amt = getattr(bar, 'amount', None)
+            
+            if close <= 0:
+                return False
+            if is_recent:
                 if amt is not None and vol > 0 and float(amt) == 0:
                     return False
             return True
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, AttributeError):
             return False
 
     def _repair_recent_gap(
@@ -137,6 +147,11 @@ class DataQualityGate:
             return bars, notes
 
     @staticmethod
-    def _bar_date(bar: Dict) -> Optional[str]:
-        d = bar.get('trade_date') or bar.get('date')
+    def _bar_date(bar) -> Optional[str]:
+        """提取 K 线日期（兼容字典和 KlineData 对象）"""
+        if isinstance(bar, dict):
+            d = bar.get('trade_date') or bar.get('date')
+        else:
+            # KlineData 对象
+            d = getattr(bar, 'trade_date', None) or getattr(bar, 'date', None)
         return str(d)[:10] if d else None

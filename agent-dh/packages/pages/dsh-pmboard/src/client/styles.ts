@@ -238,6 +238,9 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-triage-score { font-size: 11px; padding: 1px 8px; border-radius: 4px; background: rgba(74,125,255,.12); color: #4a7dff; }
 .dsh-pm-triage-suggest { font-size: 12px; color: var(--dsw-text-primary, #444); }
 .dsh-pm-triage-text { font-size: 13px; color: var(--dsw-text-secondary, #555); white-space: pre-wrap; }
+.dsh-pm-triage-edit { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.dsh-pm-triage-edit .dsh-pm-input[data-role="triage-title"] { flex: 1 1 220px; }
+.dsh-pm-triage-edit .dsh-pm-input[data-role="triage-category"] { flex: 0 0 auto; }
 .dsh-pm-triage-actions { display: flex; gap: 8px; }
 .dsh-pm-rebind-host { display: flex; gap: 8px; margin-top: 8px; }
 `

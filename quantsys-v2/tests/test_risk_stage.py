@@ -4,7 +4,7 @@ RiskAssessmentStage unit tests
 import pytest
 import numpy as np
 import pandas as pd
-from domain.quantlib.stages.risk_stage import RiskAssessmentStage
+from domain.backtest.stages.risk_stage import RiskAssessmentStage
 
 
 def make_klines(n: int = 100, volatility: float = 2.0) -> list:

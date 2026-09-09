@@ -22,12 +22,12 @@ import os
 
 # Add project root to path
 
-from domain.quantlib.risk.aggregation import RiskAggregationCalculator
-from domain.quantlib.risk.counterparty_risk import CounterpartyRiskCalculator
-from domain.quantlib.risk.regulatory import RegulatoryRiskCalculator
-from domain.quantlib.risk.backtesting import BacktestingCalculator
-from domain.quantlib.risk.margining import MarginCalculator
-from domain.quantlib.risk.reporting import RiskReportCalculator
+from domain.risk.aggregation import RiskAggregationCalculator
+from domain.risk.counterparty_risk import CounterpartyRiskCalculator
+from domain.risk.regulatory import RegulatoryRiskCalculator
+from domain.risk.backtesting import BacktestingCalculator
+from domain.risk.margining import MarginCalculator
+from domain.risk.reporting import RiskReportCalculator
 
 from domain.quantlib.exceptions import (
     DataValidationError,

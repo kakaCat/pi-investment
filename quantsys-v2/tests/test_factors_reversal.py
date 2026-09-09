@@ -6,7 +6,7 @@ Tests for reversal_1d, reversal_5d, and overnight_return factors.
 """
 
 import pytest
-from domain.quantlib.factors.reversal import ReversalFactors
+from domain.factors.library.reversal import ReversalFactors
 
 
 class TestReversalFactors:

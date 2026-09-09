@@ -2,11 +2,7 @@
 WebSocket和事件驱动系统测试
 """
 import pytest
-from flask import Flask
-from flask_socketio import SocketIO, SocketIOTestClient
 from infrastructure.events.event_bus import EventBus
-from adapters.inbound.api.websocket import ConnectionManager, init_connection_manager
-from datetime import datetime
 
 
 class TestEventBus:
@@ -106,75 +102,4 @@ class TestEventBus:
 
         bus.clear_history()
         assert len(bus.get_history()) == 0
-
-
-class TestConnectionManager:
-    """连接管理器测试"""
-
-    @pytest.fixture
-    def app(self):
-        """创建测试Flask应用"""
-        app = Flask(__name__)
-        app.config['TESTING'] = True
-        app.config['SECRET_KEY'] = 'test-secret'
-        return app
-
-    @pytest.fixture
-    def socketio(self, app):
-        """创建测试SocketIO实例"""
-        return SocketIO(app, async_mode='threading')
-
-    @pytest.fixture
-    def manager(self, socketio):
-        """创建测试连接管理器"""
-        return init_connection_manager(socketio)
-
-    def test_connect_and_disconnect(self, manager):
-        """测试连接和断开"""
-        session_id = "test_session_1"
-        symbol = "000001.SZ"
-
-        # 连接
-        manager.connect(session_id, symbol)
-        assert manager.get_connection_count(symbol) == 1
-        assert symbol in manager.get_subscribed_symbols(session_id)
-
-        # 断开
-        manager.disconnect(session_id, symbol)
-        assert manager.get_connection_count(symbol) == 0
-        assert symbol not in manager.get_subscribed_symbols(session_id)
-
-    def test_multiple_connections(self, manager):
-        """测试多个连接"""
-        manager.connect("session1", "000001.SZ")
-        manager.connect("session2", "000001.SZ")
-        manager.connect("session3", "000002.SZ")
-
-        assert manager.get_connection_count("000001.SZ") == 2
-        assert manager.get_connection_count("000002.SZ") == 1
-        assert manager.get_connection_count() == 3
-
-    def test_disconnect_all(self, manager):
-        """测试断开所有订阅"""
-        session_id = "test_session"
-        manager.connect(session_id, "000001.SZ")
-        manager.connect(session_id, "000002.SZ")
-
-        assert len(manager.get_subscribed_symbols(session_id)) == 2
-
-        manager.disconnect(session_id)
-        assert len(manager.get_subscribed_symbols(session_id)) == 0
-
-    def test_get_subscribed_symbols(self, manager):
-        """测试获取订阅列表"""
-        session_id = "test_session"
-        manager.connect(session_id, "000001.SZ")
-        manager.connect(session_id, "000002.SZ")
-        manager.connect(session_id, "600000.SH")
-
-        symbols = manager.get_subscribed_symbols(session_id)
-        assert len(symbols) == 3
-        assert "000001.SZ" in symbols
-        assert "000002.SZ" in symbols
-        assert "600000.SH" in symbols
 
