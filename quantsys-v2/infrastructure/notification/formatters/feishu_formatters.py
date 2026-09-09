@@ -49,14 +49,21 @@ class WatchTriggeredFormatter(FeishuFormatter):
         change_pct = vars.get('change_pct')
         condition = vars.get('condition', {})
         context = vars.get('context', '')
-        mode_tag = vars.get('mode_tag', '直发提醒')
+        trigger_level = vars.get('trigger_level', 'L1')
+        escalation_reason = vars.get('escalation_reason')
+        
+        # 根据 trigger_level 和升级状态确定模式标签
+        if trigger_level == 'L2' or escalation_reason:
+            mode_tag = '🔔 需决策' if escalation_reason else '⚡ AI 介入'
+        else:
+            mode_tag = '📡 直发提醒'
 
         # 构建显示名称
         display = f"{name}（{symbol}）" if name else symbol
 
         # 构建内容
         lines = [
-            f"📡 `{mode_tag}`",
+            f"`{mode_tag}`",
             f"**{display}** 触发盯盘条件"
         ]
 
@@ -75,9 +82,16 @@ class WatchTriggeredFormatter(FeishuFormatter):
         if direction:
             lines.append(direction)
 
-        # 操作预案
+        # 操作预案（L1 直发时精简，L2 或升级时显示完整预案）
+        trigger_level = vars.get('trigger_level', 'L1')
         if context:
-            lines.append(f"**预案**：{context}")
+            if trigger_level == 'L1' and not vars.get('escalation_reason'):
+                # L1 直发：只显示简化的操作提示
+                simplified = self._simplify_context(context, condition, price)
+                lines.append(f"**提示**：{simplified}")
+            else:
+                # L2 或已升级：显示完整预案
+                lines.append(f"**预案**：{context}")
 
         content = "\n".join(lines)
 
@@ -133,6 +147,35 @@ class WatchTriggeredFormatter(FeishuFormatter):
             return 'red'
 
         return 'blue'
+
+    def _simplify_context(self, context: str, condition: dict, price: float) -> str:
+        """简化 context，提取关键信息（用于 L1 直发提醒）
+
+        Args:
+            context: 完整的预案文本
+            condition: 触发条件
+            price: 当前价格
+
+        Returns:
+            str: 简化后的提示（3 行以内）
+        """
+        # 提取关键价格位（从条件中获取）
+        params = condition.get('params') or {}
+        trigger_price = params.get('price')
+        direction = params.get('direction', 'below')
+
+        # 构建简洁提示
+        if direction == 'below':
+            if trigger_price:
+                return f"跌破 {trigger_price}，进入观察区，等企稳信号"
+            return "价格走弱，观望为主"
+        elif direction == 'above':
+            if trigger_price:
+                return f"突破 {trigger_price}，观察量能是否确认"
+            return "价格走强，关注持续性"
+
+        # 如果无法提取，返回通用提示
+        return "触发盯盘条件，请查看详细预案"
 
 
 class StopLossFormatter(FeishuFormatter):
