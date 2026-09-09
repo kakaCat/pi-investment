@@ -18,7 +18,8 @@ type ErrorEventRepository interface {
 	// Upsert 指纹去重写入：存在则 occurrence_count+1 并刷新 last_seen_at；
 	// resolved/ignored 状态的事件复现时自动复开（status 回 open、清 resolution 字段）。
 	Upsert(ctx context.Context, in domain.ErrorEventUpsertInput) (*domain.ErrorEvent, bool, error)
-	List(ctx context.Context, req domain.ErrorEventListRequest) ([]*domain.ErrorEvent, error)
+	// List 返回 (events, total, error)：total 为满足过滤条件的总数（供分页）。
+	List(ctx context.Context, req domain.ErrorEventListRequest) ([]*domain.ErrorEvent, int, error)
 	GetByID(ctx context.Context, id string) (*domain.ErrorEvent, error)
 	// ApplyAction 状态流转：claim→processing(置 assignee)；resolve→resolved(置 resolved_at/note)；
 	// ignore→ignored(置 note)；reopen→open(清 resolution)。返回 (event, message, error)。
@@ -135,22 +136,31 @@ func (r *errorEventRepository) Upsert(ctx context.Context, in domain.ErrorEventU
 	return e, true, nil
 }
 
-// List 查询错误事件（status/source 过滤，按 last_seen_at DESC）
-func (r *errorEventRepository) List(ctx context.Context, req domain.ErrorEventListRequest) ([]*domain.ErrorEvent, error) {
-	query := "SELECT " + errorEventColumns + " FROM error_events WHERE 1=1"
+// List 查询错误事件（status/source 过滤，按 last_seen_at DESC；Offset/Limit 分页）
+// 返回 (events, total, error)：total 为满足过滤条件的 DB 总数（COUNT 同条件查询）。
+func (r *errorEventRepository) List(ctx context.Context, req domain.ErrorEventListRequest) ([]*domain.ErrorEvent, int, error) {
+	// 1) 组装 WHERE
+	where := " WHERE 1=1"
 	args := []interface{}{}
 	argIndex := 1
-
 	if req.Status != "" {
-		query += fmt.Sprintf(" AND status = $%d", argIndex)
+		where += fmt.Sprintf(" AND status = $%d", argIndex)
 		args = append(args, req.Status)
 		argIndex++
 	}
 	if req.Source != "" {
-		query += fmt.Sprintf(" AND source = $%d", argIndex)
+		where += fmt.Sprintf(" AND source = $%d", argIndex)
 		args = append(args, req.Source)
 		argIndex++
 	}
+
+	// 2) COUNT 同条件总数
+	var total int
+	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM error_events"+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count error events: %w", err)
+	}
+
+	// 3) 分页查询
 	limit := req.Limit
 	if limit <= 0 {
 		limit = 50
@@ -158,12 +168,20 @@ func (r *errorEventRepository) List(ctx context.Context, req domain.ErrorEventLi
 	if limit > 500 {
 		limit = 500
 	}
-	query += fmt.Sprintf(" ORDER BY last_seen_at DESC LIMIT $%d", argIndex)
-	args = append(args, limit)
+	offset := req.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > 100000 {
+		offset = 100000
+	}
+	query := "SELECT " + errorEventColumns + " FROM error_events" + where +
+		fmt.Sprintf(" ORDER BY last_seen_at DESC LIMIT $%d OFFSET $%d", argIndex, argIndex+1)
+	args = append(args, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list error events: %w", err)
+		return nil, 0, fmt.Errorf("failed to list error events: %w", err)
 	}
 	defer rows.Close()
 
@@ -171,14 +189,14 @@ func (r *errorEventRepository) List(ctx context.Context, req domain.ErrorEventLi
 	for rows.Next() {
 		e, err := scanErrorEvent(rows)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan error event: %w", err)
+			return nil, 0, fmt.Errorf("failed to scan error event: %w", err)
 		}
 		out = append(out, e)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return out, nil
+	return out, total, nil
 }
 
 // GetByID 按 ID 查询

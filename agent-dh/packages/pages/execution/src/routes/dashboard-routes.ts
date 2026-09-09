@@ -4,7 +4,7 @@
 // 不再提供独立 HTML 页面（用户纠正：HTML 页面非标准做法，标准是双半插件）。
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { DataAggregationService } from '../services/data-aggregation.js';
+import { DataAggregationService, errorEventRowToView } from '../services/data-aggregation.js';
 import type { BoardData } from '../types/index.js';
 
 function json(res: ServerResponse, status: number, body: unknown): void {
@@ -100,6 +100,63 @@ export function createErrorActionHandler(opts: { osBaseURL: string; windowCode: 
         ? data.message
         : ACTION_ZH[action as ErrorAction];
       json(res, 200, { success: true, data: { message, event: data?.event ?? null } });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      json(res, 500, { success: false, error: msg });
+    }
+  };
+}
+
+/** GET /dashboard/api/board/error-events?status=&source=&page=&pageSize=
+ * 错误事件分页浏览（浏览全部历史）：代理 Agent OS error-events 列表（offset=DB 偏移），
+ * 附加状态计数（/stats）供 Tabs 显示。total=满足过滤条件的 DB 总数；counts=全量状态分布。
+ * 200 {success,data:{events,total,page,pageSize,counts:{total,open,processing,resolved,ignored}}} */
+export function createErrorEventsHandler(opts: { osBaseURL: string }) {
+  return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    try {
+      const url = new URL(req.url ?? '/', 'http://x');
+      const status = url.searchParams.get('status') ?? '';
+      const source = url.searchParams.get('source') ?? '';
+      const page = Math.max(1, Number(url.searchParams.get('page') ?? 1) || 1);
+      const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('pageSize') ?? 10) || 10));
+      const offset = (page - 1) * pageSize;
+
+      const qs = new URLSearchParams();
+      if (status) qs.set('status', status);
+      if (source) qs.set('source', source);
+      qs.set('limit', String(pageSize));
+      qs.set('offset', String(offset));
+      const [listR, statsR] = await Promise.all([
+        fetch(`${opts.osBaseURL}/api/v1/scheduler/error-events?${qs.toString()}`, { signal: AbortSignal.timeout(3000) }),
+        fetch(`${opts.osBaseURL}/api/v1/scheduler/error-events/stats`, { signal: AbortSignal.timeout(3000) }),
+      ]);
+      if (!listR.ok) {
+        json(res, 200, { success: false, error: `Agent OS 列表 HTTP ${listR.status}` });
+        return;
+      }
+      const listJson: any = await listR.json().catch(() => ({}));
+      const rows: any[] = Array.isArray(listJson.events) ? listJson.events : [];
+      const total = Number(listJson.total ?? 0);
+      const events = rows.map((r: any) => errorEventRowToView(r));
+
+      let counts: Record<string, number> = { total, open: 0, processing: 0, resolved: 0, ignored: 0 };
+      if (statsR.ok) {
+        try {
+          const sJson: any = await statsR.json();
+          const st = sJson?.stats;
+          if (st && typeof st === 'object') {
+            const bs = (st.by_status ?? {}) as Record<string, number>;
+            counts = {
+              total: Number(st.total ?? total),
+              open: Number(bs.open ?? 0),
+              processing: Number(bs.processing ?? 0),
+              resolved: Number(bs.resolved ?? 0),
+              ignored: Number(bs.ignored ?? 0),
+            };
+          }
+        } catch { /* counts 降级为仅 total */ }
+      }
+      json(res, 200, { success: true, data: { events, total, page, pageSize, counts } });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       json(res, 500, { success: false, error: msg });

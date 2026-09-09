@@ -10,7 +10,7 @@ import { Context } from '@deepseek-ai/cordis';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { DataAggregationService } from './services/data-aggregation.js';
-import { createBoardHandler, createErrorActionHandler } from './routes/dashboard-routes.js';
+import { createBoardHandler, createErrorActionHandler, createErrorEventsHandler } from './routes/dashboard-routes.js';
 import { createSolveHandler, type ActionTarget } from '@pi-investment/solve-kit';
 
 export const name = 'dashboard-execution';
@@ -94,6 +94,12 @@ export function apply(ctx: Context, config?: PluginConfig): void {
           kind: 'exact',
           path: '/dashboard/api/board/solve',
           handler: createSolveHandler({ resolveAgent }, { panel: '执行看板', panelFull: '双线执行确认看板', plugin: 'dashboard-execution' }),
+        });
+        // 错误事件分页浏览：status/page/pageSize → Agent OS error-events（offset/total）
+        webCtx.webServer.register({
+          kind: 'exact',
+          path: '/dashboard/api/board/error-events',
+          handler: createErrorEventsHandler({ osBaseURL: options.osBaseURL }),
         });
         // 错误事件处置：claim/resolve/ignore/reopen → Agent OS error_events 状态机（actor=from_session 窗口）
         webCtx.webServer.register({

@@ -7,7 +7,7 @@
  *
  * @module dashboard-execution/client/view
  */
-import type { BoardData, CheckpointResult, SchedulerTask, TimelineEntry } from './types.ts'
+import type { BoardData, CheckpointResult, ErrorEvent, SchedulerTask, TimelineEntry } from './types.ts'
 import { esc, fmtClock } from '@pi-investment/page-kit/client'
 function shortDT(s: unknown): string { return fmtClock(String(s), { omitDateIfToday: true }) }
 
@@ -223,7 +223,7 @@ export function buildView(): ViewRefs {
   const flowSec = sec('执行流水线', 'ENGINE M0–M6 × AUTONOMY L1–L4 检查点状态', 'flowBox')
   const timelineSec = sec('今日时间轴', '按业务线分组：盈利引擎 / Autonomy 展开 · 账户与其它折叠 · 徽标 v2/os=调度来源 dh/ts=调用 agent · 按计划时刻排序', 'timelineBox')
   const tasksSec = sec('调度任务', '按业务线分类切换（盈利引擎 / Autonomy / 账户定时 / 临时核验）· 徽标 v2/os=调度来源 dh/ts=调用 agent · 点击任务行查看失败原因', 'tasksBox')
-  const errsSec = sec('错误事件', 'Agent OS error_events · 三端采集去重计数 · 处置：我来解决=认领并投递 / 解决 / 忽略 / 复开', 'errsBox')
+  const errsSec = sec('错误事件', 'Agent OS error_events 单一事实源 · 全部历史分页（Tabs 状态过滤 + 页码）· 处置：我来解决=认领并投递 / 解决 / 忽略 / 复开', 'errsBox')
   errsSec.style.display = 'none'
   const blockSec = sec('流水线阻断', 'failed/late 且声明阻断下游', 'blockBox')
   blockSec.style.display = 'none'
@@ -530,41 +530,92 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
     (selTask ? '<div class="dsh-exec-tkdetail">' + taskDetailHtml(selTask) + '</div>' : '')
 }
 
-// 错误事件状态机展示（Agent OS error_events 单源）：
-//   状态徽标 open待处理 / processing处理中 / resolved已解决 / ignored已忽略（×occ=指纹去重累计次数）
-//   处置：open→我来解决(认领并投递)/解决/忽略 · processing→解决/忽略 · resolved/ignored→复开
+// ================= 错误事件 =================
+// 分页浏览（用户 2026-09-10：完整分页 + 状态过滤），数据源=独立子端点 /dashboard/api/board/error-events
+// （透传 Agent OS error-events offset/total；counts=/stats 状态分布供 Tabs 计数）。
+//   errView.active='' 全部 · open/processing/resolved/ignored 过滤；claim/resolve/reopen 不改 last_seen → 行序稳定。
 const ERR_ST_ZH: Record<string, string> = { open: '待处理', processing: '处理中', resolved: '已解决', ignored: '已忽略' }
-function renderErrors(refs: ViewRefs, data: BoardData): void {
-  const errs = data.errors ?? []
-  refs.errsSec.style.display = errs.length > 0 ? '' : 'none'
-  if (errs.length === 0) return
-  refs.errsBox.innerHTML = '<ol class="dsh-exec-errs">' + errs.slice(0, 12).map((e, i) => {
-    const src = String(e.source ?? '').toLowerCase()
-    const cls = src.includes('os') ? 'os' : src.includes('dsh') ? 'dsh' : 'v2'
-    const st = e.status && ERR_ST_ZH[e.status] ? e.status : 'open'
-    const occ = Number(e.occurrenceCount) || 1
-    const rawLine = String(e.line ?? e.msg ?? '').replace(/\n/g, ' ')
-    const asg = e.status === 'processing' && e.assignee ? '<span class="asg" title="认领窗口">👤 ' + esc(e.assignee) + '</span>' : ''
-    const idAttr = ' data-evid="' + esc(String(e.id ?? '')) + '"'
-    let btns = ''
-    if (st === 'open') {
-      btns = '<button type="button" class="dsh-exec-solve" data-solve-err="' + i + '" title="认领(assignee=本窗口,状态→处理中)并投递给窗口排查处置">我来解决</button>' +
-        '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="resolve" title="标记已解决">解决</button>' +
-        '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="ignore" title="标记已忽略（不处置）">忽略</button>'
-    } else if (st === 'processing') {
-      btns = '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="resolve" title="已处置完成，标记解决">解决</button>' +
-        '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="ignore" title="标记已忽略（不处置）">忽略</button>'
-    } else {
-      btns = '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="reopen" title="重新打开为待处理">复开</button>'
+export interface ErrPageView {
+  events: ErrorEvent[]
+  total: number
+  page: number
+  pageSize: number
+  /** 当前状态过滤：''=全部 / open / processing / resolved / ignored */
+  active: string
+  counts: { total: number; open: number; processing: number; resolved: number; ignored: number }
+  error?: string
+}
+const emptyErrCounts = { total: 0, open: 0, processing: 0, resolved: 0, ignored: 0 }
+function errRowHtml(e: ErrorEvent, i: number): string {
+  const src = String(e.source ?? '').toLowerCase()
+  const cls = src.includes('os') ? 'os' : src.includes('dsh') ? 'dsh' : 'v2'
+  const st = e.status && ERR_ST_ZH[e.status] ? e.status : 'open'
+  const occ = Number(e.occurrenceCount) || 1
+  const rawLine = String(e.line ?? e.msg ?? '').replace(/\n/g, ' ')
+  const asg = e.status === 'processing' && e.assignee ? '<span class="asg" title="认领窗口">👤 ' + esc(e.assignee) + '</span>' : ''
+  const idAttr = ' data-evid="' + esc(String(e.id ?? '')) + '"'
+  let btns = ''
+  if (st === 'open') {
+    btns = '<button type="button" class="dsh-exec-solve" data-solve-err="' + i + '"' + idAttr + ' title="认领(assignee=本窗口,状态→处理中)并投递给窗口排查处置">我来解决</button>' +
+      '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="resolve" title="标记已解决">解决</button>' +
+      '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="ignore" title="标记已忽略（不处置）">忽略</button>'
+  } else if (st === 'processing') {
+    btns = '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="resolve" title="已处置完成，标记解决">解决</button>' +
+      '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="ignore" title="标记已忽略（不处置）">忽略</button>'
+  } else {
+    btns = '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="reopen" title="重新打开为待处理">复开</button>'
+  }
+  return '<li class="st-' + st + '"><span class="src ' + cls + '">' + esc(e.source ?? '?') + '</span>' +
+    '<span class="evst st-' + st + '">' + ERR_ST_ZH[st] + '</span>' +
+    '<time title="最近出现 ' + esc(String(e.lastSeenAt ?? e.timestamp ?? '')) + '">' + esc(shortDT(e.timestamp ?? e.lastSeenAt)) + '</time>' +
+    (occ > 1 ? '<span class="occ" title="同指纹累计出现 ' + occ + ' 次（去重合并）">×' + occ + '</span>' : '') +
+    '<span class="line" title="' + esc(rawLine.slice(0, 500)) + '">' + esc(trunc(rawLine, 120)) + '</span>' +
+    asg +
+    '<span class="op">' + btns + '</span></li>'
+}
+function errPagerHtml(page: number, pages: number, total: number): string {
+  const num = (pg: number): string =>
+    '<button type="button" class="tpg-num' + (pg === page ? ' act' : '') + '"' + (pg === page ? ' aria-current="page"' : '') + ' data-errpage="' + pg + '">' + pg + '</button>'
+  const nums: string[] = []
+  if (pages <= 7) { for (let i = 1; i <= pages; i++) nums.push(num(i)) }
+  else {
+    const seen: number[] = []
+    for (const n of [1, page - 1, page, page + 1, pages].sort((a, b) => a - b)) {
+      if (n < 1 || n > pages || seen.includes(n)) continue
+      seen.push(n)
     }
-    return '<li class="st-' + st + '"><span class="src ' + cls + '">' + esc(e.source ?? '?') + '</span>' +
-      '<span class="evst st-' + st + '">' + ERR_ST_ZH[st] + '</span>' +
-      '<time title="最近出现 ' + esc(String(e.lastSeenAt ?? e.timestamp ?? '')) + '">' + esc(shortDT(e.timestamp ?? e.lastSeenAt)) + '</time>' +
-      (occ > 1 ? '<span class="occ" title="同指纹累计出现 ' + occ + ' 次（去重合并）">×' + occ + '</span>' : '') +
-      '<span class="line" title="' + esc(rawLine.slice(0, 500)) + '">' + esc(trunc(rawLine, 120)) + '</span>' +
-      asg +
-      '<span class="op">' + btns + '</span></li>'
-  }).join('') + '</ol>'
+    let prev = 0
+    for (const n of seen) {
+      if (prev !== 0 && n - prev > 1) nums.push('<span class="tpg-gap">…</span>')
+      nums.push(num(n)); prev = n
+    }
+  }
+  return '<button type="button" class="tpg-arr" data-errpage="' + (page - 1) + '"' + (page <= 1 ? ' disabled' : '') + '>‹ 上一页</button>' +
+    '<span class="tpg-nums">' + nums.join('') + '</span>' +
+    '<button type="button" class="tpg-arr" data-errpage="' + (page + 1) + '"' + (page >= pages ? ' disabled' : '') + '>下一页 ›</button>' +
+    '<span class="tpg-cnt">第 ' + page + '/' + pages + ' 页 · 共 ' + total + ' 条</span>'
+}
+/** 渲染错误事件分页视图（状态 Tabs + 分页器 + 计数）。st 为空且无任何事件 → 整节隐藏（与历史行为一致）。 */
+export function renderErrorPage(refs: ViewRefs, st: ErrPageView): void {
+  const totalAll = st.counts.total ?? st.total
+  if (!st.error && totalAll === 0 && !st.active) { refs.errsSec.style.display = 'none'; return }
+  refs.errsSec.style.display = ''
+  const tab = (val: string, label: string, n: number): string =>
+    '<button type="button" class="dsh-exec-tab' + (st.active === val ? ' act' : '') + '" data-errst="' + val + '">' + label + '<b class="c">' + n + '</b></button>'
+  const tabs = tab('', '全部', st.counts.total ?? 0) + tab('open', '待处理', st.counts.open ?? 0) +
+    tab('processing', '处理中', st.counts.processing ?? 0) + tab('resolved', '已解决', st.counts.resolved ?? 0) +
+    tab('ignored', '已忽略', st.counts.ignored ?? 0)
+  const rows = st.events.map((e, i) => errRowHtml(e, i)).join('')
+  const emptyRow = st.events.length === 0 ? '<li class="empty"><span class="line">该状态下暂无错误事件</span></li>' : ''
+  const pages = Math.max(1, Math.ceil(st.total / Math.max(1, st.pageSize)))
+  const pager = st.total > st.pageSize
+    ? '<div class="dsh-exec-tkpg">' + errPagerHtml(st.page, pages, st.total) + '</div>' : ''
+  const banner = st.error ? '<div class="dsh-exec-banner show">⚠ 错误事件加载失败：' + esc(st.error) + ' — 请检查 Agent OS :8080</div>' : ''
+  refs.errsBox.innerHTML = banner +
+    '<div class="dsh-exec-legend dsh-exec-legend2"><span class="dsh-exec-hint">按状态点击 Tabs 过滤 · 全部历史分页浏览 · ' +
+    '<i class="dot ok"></i>待处理/处理中可处置 <i class="dot bad"></i>×N=同指纹累计次数（去重合并）</span></div>' +
+    '<div class="dsh-exec-tabs">' + tabs + '</div>' +
+    '<ol class="dsh-exec-errs">' + rows + emptyRow + '</ol>' + pager
 }
 function renderBlocked(refs: ViewRefs, data: BoardData): void {
   const bl = data.blockedFlows ?? []
@@ -616,7 +667,6 @@ export function renderAll(refs: ViewRefs, data: BoardData): void {
   renderFlow(refs, data)
   renderTimeline(refs, data)
   renderTasks(refs, data)
-  renderErrors(refs, data)
   renderBlocked(refs, data)
   renderOrphanedTasks(refs, data)
 }

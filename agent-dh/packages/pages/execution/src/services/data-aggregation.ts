@@ -171,7 +171,7 @@ function errorFile(row: Record<string, unknown>): string {
   }
   return row.task_name ? String(row.task_name) : String(row.source ?? 'log');
 }
-function mapErrorEventRow(row: Record<string, any>): ErrorEvent {
+export function errorEventRowToView(row: Record<string, any>): ErrorEvent {
   const status = (['open', 'processing', 'resolved', 'ignored'] as const).includes(row.status) ? row.status : 'open';
   const source = (['v2', 'os', 'dsh', 'pg'] as const).includes(row.source) ? row.source : 'os';
   const seenAt: string = row.last_seen_at ?? row.first_seen_at ?? '';
@@ -243,15 +243,13 @@ export class DataAggregationService {
     }, genomeR.state);
     const timeline = this.buildTimeline(tasksR.tasks, runsR.runs);
     const blockedFlows = this.buildBlockedFlows(checkpoints);
-    const errs = await this.fetchErrorEvents();
-    if (errs.error) degraded.push({ source: 'error-events', error: errs.error });
+    // 错误事件已解耦为独立分页子端点（/dashboard/api/board/error-events），主 board 不再内嵌
     const tasks = this.enrichTasks(tasksR.tasks, runsR.runs);
 
     return {
       health: healthR.rows,
       checkpoints,
       tasks,
-      errors: errs.events,
       timeline,
       blockedFlows,
       degraded,
@@ -715,21 +713,6 @@ export class DataAggregationService {
     return checkpoints
       .filter(cp => (cp.status === 'failed' || cp.status === 'late') && cp.blocksFlow && cp.blocksFlow.length > 0)
       .map(cp => ({ checkpointId: cp.id, checkpointName: cp.name, status: cp.status, blocks: cp.blocksFlow ?? [] }));
-  }
-
-  // ================= 错误事件（Agent OS error_events DB 单一事实源，2026-09-09 替代本地 tail） =================
-  private async fetchErrorEvents(): Promise<{ events: ErrorEvent[]; error?: string }> {
-    try {
-      const res = await fetch(`${this.opts.osBaseURL}/api/v1/scheduler/error-events?limit=30`, { signal: AbortSignal.timeout(3000) });
-      if (!res.ok) return { events: [], error: `HTTP ${res.status}` };
-      const json: any = await res.json();
-      const rows: any[] = json.events ?? [];
-      // 保持服务端 last_seen_at DESC 顺序：claim/resolve/reopen 不改 last_seen → 行序稳定，
-      // 基于索引的错误事件投递快照（snapshotFor）不因状态流转错位
-      return { events: rows.map((r: any) => mapErrorEventRow(r)) };
-    } catch (err) {
-      return { events: [], error: err instanceof Error ? err.message : String(err) };
-    }
   }
 
   // ================= 僵尸任务（数据库存在但调度器未加载） =================

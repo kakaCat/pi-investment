@@ -98,6 +98,7 @@ func (s *HTTPServer) Start(addr string) error {
 	// Error event endpoints（错误事件收集与处置；stats 必须先于 {id} 注册）
 	if s.errorEventHandler != nil {
 		api.HandleFunc("/scheduler/error-events", s.errorEventHandler.List).Methods("GET")
+		api.HandleFunc("/scheduler/error-events", s.errorEventHandler.Create).Methods("POST")
 		api.HandleFunc("/scheduler/error-events/stats", s.errorEventHandler.GetStats).Methods("GET")
 		api.HandleFunc("/scheduler/error-events/{id}", s.errorEventHandler.Update).Methods("PATCH")
 	}

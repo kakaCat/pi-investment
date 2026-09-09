@@ -64,10 +64,12 @@ type ErrorEventUpsertInput struct {
 }
 
 // ErrorEventListRequest 列表查询（GET /api/v1/scheduler/error-events）
+// Offset 分页偏移（配合 Limit 使用）；返回体 total 为满足过滤条件的 DB 总数（非本次条数）。
 type ErrorEventListRequest struct {
 	Status string
 	Source string
 	Limit  int
+	Offset int
 }
 
 // ErrorEventActionRequest 状态流转（PATCH /api/v1/scheduler/error-events/{id}）

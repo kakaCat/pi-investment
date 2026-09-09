@@ -9,14 +9,18 @@ import {
   BOARD_VIEW_SELECTOR, PANEL_NAME, ACTIVE_ATTR, OTHER_ACTIVE_ATTRS,
   ACTIVATE_EVENT, ENTRY_SELECTOR,
 } from './dom.ts'
-import { buildView, renderAll, renderTasks, setTaskSel, setDomSel, setTaskPage, type ViewRefs } from './view.ts'
+import { buildView, renderAll, renderTasks, renderErrorPage, setTaskSel, setDomSel, setTaskPage, type ViewRefs, type ErrPageView } from './view.ts'
 import { createSolveKit } from '@pi-investment/solve-kit/client'
 import { createBoardShell } from '@pi-investment/page-kit/client'
 
 const BOARD_API = '/dashboard/api/board'
+const ERROR_LIST_API = '/dashboard/api/board/error-events'
 const ERROR_ACTION_API = '/dashboard/api/board/error-action'
+const ERR_PAGE_SIZE = 10
 const POLL_MS = 30000
 let fetching = false
+let errLoading = false
+const emptyErrCounts = { total: 0, open: 0, processing: 0, resolved: 0, ignored: 0 }
 
 type EvAct = 'claim' | 'resolve' | 'ignore' | 'reopen'
 async function postErrorAction(body: { id: string; action: EvAct; from_session?: string }): Promise<{ ok: boolean; error?: string; message?: string }> {
@@ -59,6 +63,9 @@ export function createBoardController(): BoardController {
 export function mountBoard(controller: BoardController): () => void {
   let refs: ViewRefs | undefined
   let lastBoard: BoardData | undefined
+  // 错误事件独立分页状态（单源 /dashboard/api/board/error-events）；claim/resolve/reopen 不改 last_seen → 行序稳定
+  let errView: ErrPageView = { events: [], total: 0, page: 1, pageSize: ERR_PAGE_SIZE, active: '', counts: { ...emptyErrCounts } }
+  const errSnapCache = new Map<string, { row: Record<string, unknown>; fetchedAt: string }>()
 
   const shell = createBoardShell({
     prefix: 'dsh-exec',
@@ -79,7 +86,7 @@ export function mountBoard(controller: BoardController): () => void {
       refs = buildView()
       container.appendChild(refs.board)
       const refreshBtn = container.querySelector<HTMLButtonElement>('[data-role="refresh"]')
-      const onRefresh = () => { void fetchBoard() }
+      const onRefresh = () => { void fetchBoard(); void fetchErrPage({ silent: true }) }
       refreshBtn?.addEventListener('click', onRefresh)
       // 调度任务点击委派
       const onTasksClick = (ev: MouseEvent) => {
@@ -101,21 +108,33 @@ export function mountBoard(controller: BoardController): () => void {
         renderTasks(refs, lastBoard)
       }
       refs.tasksBox.addEventListener('click', onTasksClick)
-      // 错误事件处置（状态机）：
-      //   「我来解决」= 先 POST claim（认领,assignee=本窗口,状态→processing；409 冲突则提示不弹投递）→ 成功后弹投递窗口 → 刷新
-      //   解决/忽略/复开 = 轻量按钮（id 驱动，不依赖行序）
+      // 错误事件区：Tabs(状态过滤) / 分页器 / 处置（claim→投递 / resolve / ignore / reopen）
+      //   认领点击瞬间缓存行快照（errSnapCache）→ openPicker 后立即刷新当前页；
+      //   snapshotFor 优先按 id 查缓存（claim 后行可能因状态过滤离页，索引会失效），兜底当前 errView 索引
       const onErrsClick = (ev: MouseEvent) => {
         const target = ev.target as Element
+        if (refs === undefined) return
+        const etab = target.closest<HTMLElement>('.dsh-exec-tab[data-errst]')
+        if (etab !== null) { errView = { ...errView, active: etab.dataset.errst ?? '', page: 1 }; void fetchErrPage(); return }
+        const epg = target.closest<HTMLElement>('.dsh-exec-tkpg [data-errpage]')
+        if (epg !== null && !(epg as HTMLButtonElement).disabled) {
+          const pg = Number((epg as HTMLButtonElement).dataset.errpage)
+          if (!Number.isNaN(pg) && pg >= 1) { errView = { ...errView, page: Math.trunc(pg) }; void fetchErrPage() }
+          return
+        }
         const solveBtn = target.closest<HTMLElement>('.dsh-exec-solve[data-solve-err]')
         if (solveBtn !== null && solveBtn.dataset.solveErr !== undefined) {
           const idx = Number(solveBtn.dataset.solveErr)
-          const ev = (lastBoard?.errors ?? [])[idx]
+          let ev = errView.events[idx]
+          if (ev?.id === undefined && solveBtn.dataset.evid) ev = errView.events.find((x) => String(x.id) === String(solveBtn.dataset.evid))
           if (ev?.id === undefined) return
+          errSnapCache.set(String(ev.id), { row: { ...(ev as unknown as Record<string, unknown>), fetchedAt: lastBoard?.fetchedAt ?? '' }, fetchedAt: lastBoard?.fetchedAt ?? '' })
+          if (errSnapCache.size > 60) { const k = errSnapCache.keys().next().value; if (k !== undefined) errSnapCache.delete(k) }
           void (async () => {
             const r = await postErrorAction({ id: ev.id, action: 'claim', from_session: currentSession() })
             if (!r.ok) { kit.toast('⚠ 认领失败：' + (r.error ?? '')); return }
-            kit.openPicker(solveBtn, 'error', { index: idx })  // 快照在打开瞬间按当前 lastBoard 解析（行序稳定，claim 不改 last_seen_at）
-            void fetchBoard(true)
+            kit.openPicker(solveBtn, 'error', { index: idx, id: ev.id })
+            void fetchErrPage({ silent: true })
           })()
           return
         }
@@ -127,19 +146,20 @@ export function mountBoard(controller: BoardController): () => void {
           void (async () => {
             const r = await postErrorAction({ id, action: act, from_session: currentSession() })
             kit.toast(r.ok ? '✓ ' + (r.message ?? '已更新') : '⚠ ' + (r.error ?? '操作失败'))
-            if (r.ok) void fetchBoard(true)
+            if (r.ok) void fetchErrPage({ silent: true })
           })()
         }
       }
       refs.errsBox.addEventListener('click', onErrsClick)
       void fetchBoard(true)
+      void fetchErrPage()
       return () => {
         refreshBtn?.removeEventListener('click', onRefresh)
         refs.tasksBox.removeEventListener('click', onTasksClick)
         refs.errsBox.removeEventListener('click', onErrsClick)
       }
     },
-    onPoll: () => { void fetchBoard() },
+    onPoll: () => { void fetchBoard(); void fetchErrPage({ silent: true }) },
   })
 
   controller.isActive = shell.isActive
@@ -168,6 +188,43 @@ export function mountBoard(controller: BoardController): () => void {
       refs.banner.classList.add('show')
     } finally {
       fetching = false
+    }
+  }
+
+  // 错误事件分页加载：GET /dashboard/api/board/error-events?status=&page=&pageSize=
+  // 成功 → 更新 errView 并重绘；失败 → 区内 banner（silent 时不弹 toast，避免 30s 轮询刷屏）
+  async function fetchErrPage(opts?: { silent?: boolean }): Promise<void> {
+    if (errLoading) return
+    errLoading = true
+    const snap = errView
+    try {
+      const qs = new URLSearchParams()
+      if (snap.active) qs.set('status', snap.active)
+      qs.set('page', String(snap.page))
+      qs.set('pageSize', String(snap.pageSize))
+      const res = await fetch(ERROR_LIST_API + '?' + qs.toString(), { headers: { Accept: 'application/json' } })
+      if (!res.ok) throw new Error('HTTP ' + res.status)
+      const json = (await res.json()) as { success?: boolean; data?: { events?: any[]; total?: number; page?: number; counts?: any }; error?: string }
+      if (!json.success || json.data === undefined) throw new Error(json.error ?? 'API 返回失败')
+      if (refs === undefined) return
+      errView = {
+        events: Array.isArray(json.data.events) ? (json.data.events as any) : [],
+        total: Number(json.data.total ?? snap.total),
+        page: Math.max(1, Number(json.data.page ?? snap.page)),
+        pageSize: snap.pageSize,
+        active: snap.active,
+        counts: { ...emptyErrCounts, ...(json.data.counts ?? {}) },
+        error: undefined,
+      }
+      renderErrorPage(refs, errView)
+    } catch (e) {
+      const msg = String(e && (e as Error).message ? (e as Error).message : e)
+      if (!opts?.silent) kit.toast('⚠ 错误事件加载失败：' + msg)
+      if (refs === undefined) return
+      errView = { ...errView, error: msg }
+      renderErrorPage(refs, errView)
+    } finally {
+      errLoading = false
     }
   }
 
@@ -202,15 +259,21 @@ export function mountBoard(controller: BoardController): () => void {
   const currentSession = (): string => {
     try { return String((window as any).__dshExecSessions?.list?.getSnapshot?.()?.current ?? '') } catch { return '' }
   }
-  const snapshotFor = (kind: 'task' | 'error', identity: { name?: string; index?: number }): { kind: 'task' | 'error'; snap: Record<string, unknown> } | null => {
-    if (lastBoard === undefined) return null
-    const fetchedAt = lastBoard.fetchedAt ?? ''
+  const snapshotFor = (kind: 'task' | 'error', identity: { name?: string; index?: number; id?: string }): { kind: 'task' | 'error'; snap: Record<string, unknown> } | null => {
     if (kind === 'task') {
+      if (lastBoard === undefined) return null
+      const fetchedAt = lastBoard.fetchedAt ?? ''
       const t = (lastBoard.tasks ?? []).find((x) => String(x.name) === identity.name)
       return t ? { kind: 'task', snap: { ...(t as Record<string, unknown>), fetchedAt } } : null
     }
-    const e = (lastBoard.errors ?? [])[Number(identity.index)]
-    return e ? { kind: 'error', snap: { ...(e as Record<string, unknown>), fetchedAt } } : null
+    // 错误事件：优先认领瞬间缓存（claim 后行可能因状态过滤离页）；兜底当前 errView 行索引
+    const fetchedAt = lastBoard?.fetchedAt ?? ''
+    if (identity.id !== undefined) {
+      const c = errSnapCache.get(String(identity.id))
+      if (c) return { kind: 'error', snap: c.row }
+    }
+    const e = errView.events[Number(identity.index ?? -1)]
+    return e ? { kind: 'error', snap: { ...(e as unknown as Record<string, unknown>), fetchedAt } } : null
   }
   const kit = createSolveKit({
     endpoint: '/dashboard/api/board/solve',
