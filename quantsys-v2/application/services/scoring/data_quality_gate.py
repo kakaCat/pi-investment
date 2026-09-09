@@ -13,6 +13,10 @@ from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import logging
+from infrastructure.config.constants.scoring.scorer_params import (
+    DataQualityGateConfig,
+    DEFAULT_DATA_QUALITY_GATE_CONFIG,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +33,19 @@ class QualityReport:
 class DataQualityGate:
     """数据质量检测与自动修复"""
 
-    MIN_KLINES = 120
-    STALE_DAYS = 4           # 最后一根 K 线距今超过此天数 = 近端缺口
-    RECENT_DIRTY_WINDOW = 10  # amount=0 脏数据仅判定最近 N 根（历史 07-13 遗留容忍）
+    def __init__(self, data_provider=None, config: Optional[DataQualityGateConfig] = None, repair_budget: Optional[int] = None):
+        """
+        初始化数据质量门
 
-    def __init__(self, data_provider=None, repair_budget: int = 20):
+        Args:
+            data_provider: 数据提供者（用于补抓K线）
+            config: 质量门配置，None 时使用默认配置
+            repair_budget: 修复预算（兼容旧版参数，优先级高于 config）
+        """
         self.data_provider = data_provider
-        self.repair_budget = repair_budget
+        self.config = config or DEFAULT_DATA_QUALITY_GATE_CONFIG
+        # repair_budget 参数优先级高于 config（向后兼容）
+        self.repair_budget = repair_budget if repair_budget is not None else self.config.default_repair_budget
         self.repair_report = {
             'attempted': 0, 'succeeded': 0,
             'failed': 0, 'skipped_over_budget': 0,
@@ -56,13 +66,13 @@ class DataQualityGate:
         before = len(bars)
         n = len(bars)
         bars = [b for i, b in enumerate(bars)
-                if self._is_clean(b, is_recent=(i >= n - self.RECENT_DIRTY_WINDOW))]
+                if self._is_clean(b, is_recent=(i >= n - self.config.recent_dirty_window))]
         removed = before - len(bars)
         if removed:
             repairs.append(f'剔除脏K线{removed}根(amount=0/价格异常)')
 
         # 3. 长度检查
-        if len(bars) < self.MIN_KLINES:
+        if len(bars) < self.config.min_klines:
             return QualityReport(symbol, bars, False,
                                  skip_reason='insufficient_klines',
                                  repairs=repairs)
@@ -110,7 +120,7 @@ class DataQualityGate:
             return bars, notes
 
         gap_days = (datetime.now() - last_dt).days
-        if gap_days <= self.STALE_DAYS:
+        if gap_days <= self.config.stale_days:
             return bars, notes
 
         if self.data_provider is None:

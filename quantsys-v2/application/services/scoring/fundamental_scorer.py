@@ -3,8 +3,12 @@
 
 基于公司的基本面指标（PE、ROE、毛利率、负债率等）进行灰度化评分
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from .base_scorer import BaseScorer
+from infrastructure.config.constants.scoring.scorer_params import (
+    FundamentalScorerConfig,
+    DEFAULT_FUNDAMENTAL_SCORER_CONFIG,
+)
 
 
 class FundamentalScorer(BaseScorer):
@@ -22,9 +26,15 @@ class FundamentalScorer(BaseScorer):
     总分范围：0-100（自动截断）
     """
 
-    def __init__(self):
-        """初始化基本面评分器"""
+    def __init__(self, config: Optional[FundamentalScorerConfig] = None):
+        """
+        初始化基本面评分器
+
+        Args:
+            config: 评分器配置，None 时使用默认配置
+        """
         super().__init__()
+        self.config = config or DEFAULT_FUNDAMENTAL_SCORER_CONFIG
 
     @staticmethod
     def _to_float(value):
@@ -65,7 +75,7 @@ class FundamentalScorer(BaseScorer):
             }
         """
         # 基础分
-        base_score = 50.0
+        base_score = self.config.base_score
 
         # 各维度评分（🔧 数据库可能返回 Decimal，统一转 float）
         pe_score = self._score_pe(self._to_float(data.get('pe')))
@@ -89,7 +99,7 @@ class FundamentalScorer(BaseScorer):
         )
 
         # 截断到 0-100
-        total = max(0.0, min(100.0, total))
+        total = max(self.config.min_score, min(self.config.max_score, total))
 
         return {
             'total': total,
@@ -126,27 +136,38 @@ class FundamentalScorer(BaseScorer):
         if pe is None:
             return 0.0
 
+        cfg = self.config
+
         if pe < 0:
             # 亏损
-            return -20.0
-        elif pe <= 10:
+            return cfg.pe_negative_score
+        elif pe <= cfg.pe_excellent_threshold:
             # 极度低估
-            return 20.0
-        elif pe <= 15:
+            return cfg.pe_excellent_score
+        elif pe <= cfg.pe_good_threshold:
             # 低估，线性递减：20 -> 15
-            return 20.0 - (pe - 10) * (5.0 / 5.0)
-        elif pe <= 25:
+            return cfg.pe_excellent_score - (pe - cfg.pe_excellent_threshold) * (
+                (cfg.pe_excellent_score - cfg.pe_good_score) /
+                (cfg.pe_good_threshold - cfg.pe_excellent_threshold)
+            )
+        elif pe <= cfg.pe_fair_threshold:
             # 合理估值
-            return 10.0
-        elif pe <= 40:
+            return cfg.pe_fair_score
+        elif pe <= cfg.pe_acceptable_threshold:
             # 略高估，线性递减：10 -> 0
-            return 10.0 - (pe - 25) * (10.0 / 15.0)
-        elif pe <= 60:
+            return cfg.pe_fair_score - (pe - cfg.pe_fair_threshold) * (
+                (cfg.pe_fair_score - cfg.pe_acceptable_score) /
+                (cfg.pe_acceptable_threshold - cfg.pe_fair_threshold)
+            )
+        elif pe <= cfg.pe_warning_threshold:
             # 高估，线性递减：0 -> -10
-            return 0.0 - (pe - 40) * (10.0 / 20.0)
+            return cfg.pe_acceptable_score - (pe - cfg.pe_acceptable_threshold) * (
+                (cfg.pe_acceptable_score - cfg.pe_warning_score) /
+                (cfg.pe_warning_threshold - cfg.pe_acceptable_threshold)
+            )
         else:
             # 极度高估
-            return -20.0
+            return cfg.pe_poor_score
 
     def _score_roe(self, roe: float) -> float:
         """
@@ -169,24 +190,35 @@ class FundamentalScorer(BaseScorer):
         if roe is None:
             return 0.0
 
+        cfg = self.config
+
         if roe < 0:
             # 亏损
-            return -20.0
-        elif roe < 5:
+            return cfg.roe_negative_score
+        elif roe < cfg.roe_poor_threshold:
             # 较差
-            return -10.0
-        elif roe <= 10:
+            return cfg.roe_poor_score
+        elif roe <= cfg.roe_fair_threshold:
             # 一般，线性增长：-10 -> +5
-            return -10.0 + (roe - 5) * (15.0 / 5.0)
-        elif roe <= 15:
+            return cfg.roe_poor_score + (roe - cfg.roe_poor_threshold) * (
+                (cfg.roe_fair_score - cfg.roe_poor_score) /
+                (cfg.roe_fair_threshold - cfg.roe_poor_threshold)
+            )
+        elif roe <= cfg.roe_good_threshold:
             # 良好，线性增长：+5 -> +12
-            return 5.0 + (roe - 10) * (7.0 / 5.0)
-        elif roe <= 20:
+            return cfg.roe_fair_score + (roe - cfg.roe_fair_threshold) * (
+                (cfg.roe_good_score - cfg.roe_fair_score) /
+                (cfg.roe_good_threshold - cfg.roe_fair_threshold)
+            )
+        elif roe <= cfg.roe_excellent_threshold:
             # 优秀，线性增长：+12 -> +18
-            return 12.0 + (roe - 15) * (6.0 / 5.0)
+            return cfg.roe_good_score + (roe - cfg.roe_good_threshold) * (
+                (cfg.roe_excellent_score - cfg.roe_good_score) /
+                (cfg.roe_excellent_threshold - cfg.roe_good_threshold)
+            )
         else:
             # 卓越
-            return 20.0
+            return cfg.roe_outstanding_score
 
     def _score_gross_margin(self, gross_margin: float) -> float:
         """
@@ -207,17 +239,25 @@ class FundamentalScorer(BaseScorer):
         if gross_margin is None:
             return 0.0
 
-        if gross_margin < 10:
-            return 0.0
-        elif gross_margin <= 20:
+        cfg = self.config
+
+        if gross_margin < cfg.gross_margin_min_threshold:
+            return cfg.gross_margin_min_score
+        elif gross_margin <= cfg.gross_margin_fair_threshold:
             # 线性增长：0 -> 5
-            return (gross_margin - 10) * (5.0 / 10.0)
-        elif gross_margin <= 30:
+            return cfg.gross_margin_min_score + (gross_margin - cfg.gross_margin_min_threshold) * (
+                (cfg.gross_margin_fair_score - cfg.gross_margin_min_score) /
+                (cfg.gross_margin_fair_threshold - cfg.gross_margin_min_threshold)
+            )
+        elif gross_margin <= cfg.gross_margin_good_threshold:
             # 线性增长：5 -> 10
-            return 5.0 + (gross_margin - 20) * (5.0 / 10.0)
+            return cfg.gross_margin_fair_score + (gross_margin - cfg.gross_margin_fair_threshold) * (
+                (cfg.gross_margin_good_score - cfg.gross_margin_fair_score) /
+                (cfg.gross_margin_good_threshold - cfg.gross_margin_fair_threshold)
+            )
         else:
             # 优秀
-            return 15.0
+            return cfg.gross_margin_excellent_score
 
     def _score_debt_ratio(self, debt_ratio: float) -> float:
         """
@@ -238,18 +278,26 @@ class FundamentalScorer(BaseScorer):
         if debt_ratio is None:
             return 0.0
 
-        if debt_ratio < 30:
+        cfg = self.config
+
+        if debt_ratio < cfg.debt_ratio_excellent_threshold:
             # 低负债
-            return 15.0
-        elif debt_ratio <= 50:
+            return cfg.debt_ratio_excellent_score
+        elif debt_ratio <= cfg.debt_ratio_good_threshold:
             # 线性递减：15 -> 10
-            return 15.0 - (debt_ratio - 30) * (5.0 / 20.0)
-        elif debt_ratio <= 70:
+            return cfg.debt_ratio_excellent_score - (debt_ratio - cfg.debt_ratio_excellent_threshold) * (
+                (cfg.debt_ratio_excellent_score - cfg.debt_ratio_good_score) /
+                (cfg.debt_ratio_good_threshold - cfg.debt_ratio_excellent_threshold)
+            )
+        elif debt_ratio <= cfg.debt_ratio_fair_threshold:
             # 线性递减：10 -> 5
-            return 10.0 - (debt_ratio - 50) * (5.0 / 20.0)
+            return cfg.debt_ratio_good_score - (debt_ratio - cfg.debt_ratio_good_threshold) * (
+                (cfg.debt_ratio_good_score - cfg.debt_ratio_fair_score) /
+                (cfg.debt_ratio_fair_threshold - cfg.debt_ratio_good_threshold)
+            )
         else:
             # 高负债
-            return 0.0
+            return cfg.debt_ratio_poor_score
 
     def _score_revenue_growth(self, revenue_growth: float) -> float:
         """
@@ -271,21 +319,32 @@ class FundamentalScorer(BaseScorer):
         if revenue_growth is None:
             return 0.0
 
-        if revenue_growth < -10:
+        cfg = self.config
+
+        if revenue_growth < cfg.revenue_growth_poor_threshold:
             # 严重萎缩
-            return 0.0
-        elif revenue_growth <= 0:
+            return cfg.revenue_growth_poor_score
+        elif revenue_growth <= cfg.revenue_growth_negative_threshold:
             # 线性增长：0 -> 3
-            return (revenue_growth + 10) * (3.0 / 10.0)
-        elif revenue_growth <= 10:
+            return cfg.revenue_growth_poor_score + (revenue_growth - cfg.revenue_growth_poor_threshold) * (
+                (cfg.revenue_growth_negative_score - cfg.revenue_growth_poor_score) /
+                (cfg.revenue_growth_negative_threshold - cfg.revenue_growth_poor_threshold)
+            )
+        elif revenue_growth <= cfg.revenue_growth_fair_threshold:
             # 线性增长：3 -> 8
-            return 3.0 + revenue_growth * (5.0 / 10.0)
-        elif revenue_growth <= 30:
+            return cfg.revenue_growth_negative_score + (revenue_growth - cfg.revenue_growth_negative_threshold) * (
+                (cfg.revenue_growth_fair_score - cfg.revenue_growth_negative_score) /
+                (cfg.revenue_growth_fair_threshold - cfg.revenue_growth_negative_threshold)
+            )
+        elif revenue_growth <= cfg.revenue_growth_good_threshold:
             # 线性增长：8 -> 13
-            return 8.0 + (revenue_growth - 10) * (5.0 / 20.0)
+            return cfg.revenue_growth_fair_score + (revenue_growth - cfg.revenue_growth_fair_threshold) * (
+                (cfg.revenue_growth_good_score - cfg.revenue_growth_fair_score) /
+                (cfg.revenue_growth_good_threshold - cfg.revenue_growth_fair_threshold)
+            )
         else:
             # 高成长
-            return 15.0
+            return cfg.revenue_growth_excellent_score
 
     def _calculate_resonance(self, data: Dict[str, Any]) -> float:
         """
@@ -302,6 +361,7 @@ class FundamentalScorer(BaseScorer):
         Returns:
             共振加成分（0-15）
         """
+        cfg = self.config
         resonance = 0.0
 
         # 字段可能为 None（stocks 表基本面列未填充），必须先经 _to_float
@@ -318,15 +378,15 @@ class FundamentalScorer(BaseScorer):
         debt_ratio = debt_ratio if debt_ratio is not None else 100
 
         # 规则1：价值 + 高盈利
-        if pe < 20 and pe > 0 and roe > 15:
-            resonance += 10.0
+        if pe < cfg.resonance_value_pe_threshold and pe > 0 and roe > cfg.resonance_value_roe_threshold:
+            resonance += cfg.resonance_value_bonus
 
         # 规则2：优质成长
-        if gross_margin > 30 and revenue_growth > 20:
-            resonance += 5.0
+        if gross_margin > cfg.resonance_growth_margin_threshold and revenue_growth > cfg.resonance_growth_revenue_threshold:
+            resonance += cfg.resonance_growth_bonus
 
         # 规则3：稳健优质
-        if debt_ratio < 40 and roe > 15:
-            resonance += 5.0
+        if debt_ratio < cfg.resonance_quality_debt_threshold and roe > cfg.resonance_quality_roe_threshold:
+            resonance += cfg.resonance_quality_bonus
 
-        return min(resonance, 15.0)
+        return min(resonance, cfg.resonance_max_bonus)

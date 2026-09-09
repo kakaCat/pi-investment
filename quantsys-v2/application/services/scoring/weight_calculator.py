@@ -10,39 +10,34 @@
 调用方显式传 weights 时本模块不被调用（显式 > 隐式）。
 """
 from typing import Dict, Optional, Any
+from infrastructure.config.constants.scoring.scorer_params import (
+    WeightCalculatorConfig,
+    DEFAULT_WEIGHT_CALCULATOR_CONFIG,
+)
 
-# 端点 = (分位0时权重, 分位1时权重)；标量 = 固定权重
-PROFILE_WEIGHT_ENDPOINTS: Dict[str, Dict[str, Any]] = {
-    'growth':   {'technical': (0.45, 0.35), 'fundamental': (0.30, 0.40),
-                 'capital': (0.25, 0.25)},
-    'value':    {'technical': (0.30, 0.20), 'fundamental': (0.45, 0.55),
-                 'capital': (0.25, 0.25)},
-    'cyclical': {'technical': 0.25, 'fundamental': 0.20,
-                 'capital': 0.25, 'cycle': 0.30},
-    'balanced': {'technical': 0.50, 'fundamental': 0.30, 'capital': 0.20},
-}
+# 全局默认配置实例
+_default_config = DEFAULT_WEIGHT_CALCULATOR_CONFIG
 
 # profile → 用哪个特征分位插值
 _PROFILE_FEATURE_KEY = {'growth': 'growth_pct', 'value': 'value_pct'}
 
-# regime 修正系数与中性点
-_TECH_COEF, _TECH_MID = 0.5, 0.5     # trend_strength
-_FUND_COEF, _FUND_MID = 0.6, 0.4     # market_risk
-_CAP_COEF, _CAP_MID = 0.5, 0.5       # liquidity_heat
 
-_MIN_W, _MAX_W = 0.15, 0.60
-
-
-def base_weights(profile: str, feature_pct: Optional[float]) -> Dict[str, float]:
+def base_weights(
+    profile: str,
+    feature_pct: Optional[float],
+    config: Optional[WeightCalculatorConfig] = None
+) -> Dict[str, float]:
     """profile 基础权重（growth/value 按特征分位插值）
 
     Args:
         profile: growth/value/cyclical/balanced
         feature_pct: 特征分位（growth→growth_pct, value→value_pct），None 按 0.5
+        config: 权重计算配置，None 时使用默认配置
     """
-    endpoints = PROFILE_WEIGHT_ENDPOINTS.get(
-        profile, PROFILE_WEIGHT_ENDPOINTS['balanced'])
-    pct = feature_pct if feature_pct is not None else 0.5
+    cfg = config or _default_config
+    endpoints = cfg.profile_weight_endpoints.get(
+        profile, cfg.profile_weight_endpoints['balanced'])
+    pct = feature_pct if feature_pct is not None else cfg.default_feature_pct
     out: Dict[str, float] = {}
     for dim, spec in endpoints.items():
         if isinstance(spec, tuple):
@@ -54,33 +49,37 @@ def base_weights(profile: str, feature_pct: Optional[float]) -> Dict[str, float]
 
 
 def apply_regime(
-    weights: Dict[str, float], regime_signals: Dict[str, float]
+    weights: Dict[str, float],
+    regime_signals: Dict[str, float],
+    config: Optional[WeightCalculatorConfig] = None
 ) -> Dict[str, float]:
     """regime 连续信号修正权重 → 限幅 → 归一化
 
     Args:
         weights: base_weights 输出
         regime_signals: {trend_strength, market_risk, liquidity_heat}（0-1）
+        config: 权重计算配置，None 时使用默认配置
     """
-    ts = float(regime_signals.get('trend_strength', _TECH_MID))
-    mr = float(regime_signals.get('market_risk', _FUND_MID))
-    lh = float(regime_signals.get('liquidity_heat', _CAP_MID))
+    cfg = config or _default_config
+    ts = float(regime_signals.get('trend_strength', cfg.technical_regime_mid))
+    mr = float(regime_signals.get('market_risk', cfg.fundamental_regime_mid))
+    lh = float(regime_signals.get('liquidity_heat', cfg.capital_regime_mid))
 
     adjusted = dict(weights)
     if 'technical' in adjusted:
-        adjusted['technical'] *= (1 + _TECH_COEF * (ts - _TECH_MID))
+        adjusted['technical'] *= (1 + cfg.technical_regime_coef * (ts - cfg.technical_regime_mid))
     if 'fundamental' in adjusted:
-        adjusted['fundamental'] *= (1 + _FUND_COEF * (mr - _FUND_MID))
+        adjusted['fundamental'] *= (1 + cfg.fundamental_regime_coef * (mr - cfg.fundamental_regime_mid))
     if 'capital' in adjusted:
-        adjusted['capital'] *= (1 + _CAP_COEF * (lh - _CAP_MID))
+        adjusted['capital'] *= (1 + cfg.capital_regime_coef * (lh - cfg.capital_regime_mid))
     # cycle 维度不修正
 
     for k in adjusted:
-        adjusted[k] = min(_MAX_W, max(_MIN_W, adjusted[k]))
+        adjusted[k] = min(cfg.max_weight, max(cfg.min_weight, adjusted[k]))
 
     total = sum(adjusted.values())
     if total <= 0:
-        return dict(PROFILE_WEIGHT_ENDPOINTS['balanced'])
+        return dict(cfg.profile_weight_endpoints['balanced'])
     return {k: v / total for k, v in adjusted.items()}
 
 

@@ -14,6 +14,10 @@ fund_flows 缺失时降级纯量能评分，reasons 注明（不许静默降级�
 from typing import Dict, Any, List, Optional, Tuple
 import logging
 from .base_scorer import BaseScorer
+from infrastructure.config.constants.scoring.scorer_params import (
+    CapitalScorerConfig,
+    DEFAULT_CAPITAL_SCORER_CONFIG,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -21,15 +25,15 @@ logger = logging.getLogger(__name__)
 class CapitalScorer(BaseScorer):
     """资金面评分器"""
 
-    INFLOW_MAX = 30.0          # 主力净流入满分（累计达流通市值 2%）
-    INFLOW_FULL_RATIO = 0.02
-    ACCEL_MAX = 20.0
-    VOLUME_MAX = 20.0
-    TREND_MAX = 15.0
-    RESONANCE_MAX = 15.0
-    BASE = 50.0
-    OUTLIER_RATIO = 0.20       # 单日净流入 > 流通市值 20% = 异常值
-    FLOW_UNIT = 1e4            # fund_flows 金额单位万元 → 元
+    def __init__(self, config: Optional[CapitalScorerConfig] = None):
+        """
+        初始化资金面评分器
+
+        Args:
+            config: 评分器配置，None 时使用默认配置
+        """
+        super().__init__()
+        self.config = config or DEFAULT_CAPITAL_SCORER_CONFIG
 
     def score(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -43,6 +47,7 @@ class CapitalScorer(BaseScorer):
         Returns:
             {'total': float, 'breakdown': {...}, 'reasons': [str]}
         """
+        cfg = self.config
         flows = list(data.get('fund_flows') or [])
         volume_ratio = self._f(data.get('volume_ratio_5d'), 1.0)
         volume_ma5 = self._f(data.get('volume_ma5'), 0.0)
@@ -76,7 +81,7 @@ class CapitalScorer(BaseScorer):
         elif vol_score < 0:
             reasons.append(f'量能萎缩(量比{volume_ratio:.2f})')
 
-        trend_score = self.TREND_MAX if (volume_ma20 > 0 and volume_ma5 > volume_ma20) else 0.0
+        trend_score = cfg.volume_trend_max_score if (volume_ma20 > 0 and volume_ma5 > volume_ma20) else 0.0
         breakdown['volume_trend'] = trend_score
         if trend_score > 0:
             reasons.append('量能趋势向上(5日均量>20日均量)')
@@ -84,13 +89,13 @@ class CapitalScorer(BaseScorer):
         resonance = 0.0
         if not degraded:
             total_inflow = sum(self._f(f.get('main_net_inflow'), 0.0) for f in flows)
-            if total_inflow > 0 and volume_ratio > 1.5 and change_pct > 0:
-                resonance = self.RESONANCE_MAX
+            if total_inflow > cfg.resonance_inflow_positive and volume_ratio > cfg.resonance_volume_surge_threshold and change_pct > cfg.resonance_price_rise_threshold:
+                resonance = cfg.resonance_max_bonus
                 reasons.append('量价资共振：主力流入+放量+上涨')
         breakdown['resonance'] = resonance
 
         raw = sum(v for v in breakdown.values() if v is not None)
-        total = max(0.0, min(100.0, self.BASE + raw))
+        total = max(cfg.min_score, min(cfg.max_score, cfg.base_score + raw))
 
         return {
             'total': round(total, 2),
@@ -105,15 +110,16 @@ class CapitalScorer(BaseScorer):
         self, flows: List[Dict], market_cap: Optional[float]
     ) -> Tuple[float, List[str]]:
         """主力净流入方向（±30）：5 日累计净流入相对流通市值归一化"""
+        cfg = self.config
         amounts = [self._f(f.get('main_net_inflow'), 0.0) for f in flows]
         total_inflow = sum(amounts)  # 万元
 
         if market_cap and market_cap > 0:
-            ratio = total_inflow * self.FLOW_UNIT / market_cap
+            ratio = total_inflow * cfg.flow_unit / market_cap
         else:
             # 无市值数据：用绝对额粗判（累计 ±1 亿元 = ±10000 万元为满分线）
-            ratio = total_inflow / 10000.0 * self.INFLOW_FULL_RATIO
-        score = max(-1.0, min(1.0, ratio / self.INFLOW_FULL_RATIO)) * self.INFLOW_MAX
+            ratio = total_inflow / cfg.inflow_fallback_threshold * cfg.inflow_full_ratio
+        score = max(-1.0, min(1.0, ratio / cfg.inflow_full_ratio)) * cfg.inflow_max_score
 
         reasons = []
         yi = total_inflow / 10000.0  # 万元 → 亿元
@@ -124,7 +130,7 @@ class CapitalScorer(BaseScorer):
                     consecutive += 1
                 else:
                     break
-            if consecutive >= 3:
+            if consecutive >= cfg.consecutive_inflow_threshold:
                 reasons.append(f'主力资金连续{consecutive}日净流入(累计{yi:.1f}亿)')
             else:
                 reasons.append(f'主力资金净流入(累计{yi:.1f}亿)')
@@ -134,31 +140,34 @@ class CapitalScorer(BaseScorer):
 
     def _score_acceleration(self, flows: List[Dict]) -> Tuple[float, List[str]]:
         """流入加速（0-20）：近 2 日均值 > 前 3 日均值"""
-        if len(flows) < 5:
+        cfg = self.config
+        if len(flows) < cfg.acceleration_min_days:
             return 0.0, []
-        recent2 = sum(self._f(f.get('main_net_inflow'), 0.0) for f in flows[:2]) / 2
-        prev3 = sum(self._f(f.get('main_net_inflow'), 0.0) for f in flows[2:5]) / 3
+        recent2 = sum(self._f(f.get('main_net_inflow'), 0.0) for f in flows[:cfg.acceleration_recent_days]) / cfg.acceleration_recent_days
+        prev3 = sum(self._f(f.get('main_net_inflow'), 0.0) for f in flows[cfg.acceleration_recent_days:cfg.acceleration_min_days]) / cfg.acceleration_prev_days
         if prev3 > 0 and recent2 > prev3:
-            return self.ACCEL_MAX, ['资金流入加速(近2日均值>前3日均值)']
+            return cfg.acceleration_max_score, ['资金流入加速(近2日均值>前3日均值)']
         if prev3 <= 0 and recent2 > 0:
-            return self.ACCEL_MAX / 2, ['资金由流出转流入']
+            return cfg.acceleration_half_score, ['资金由流出转流入']
         return 0.0, []
 
     def _score_volume_ratio(self, ratio: float) -> float:
         """量比（-10~+20），口径与 TechnicalScorer 一致"""
-        if ratio > 1.5:
-            return min(self.VOLUME_MAX, (ratio - 1) * 20)
-        if ratio < 0.8:
-            return -10.0
+        cfg = self.config
+        if ratio > cfg.volume_ratio_surge_threshold:
+            return min(cfg.volume_ratio_max_score, (ratio - 1) * cfg.volume_ratio_factor)
+        if ratio < cfg.volume_ratio_shrink_threshold:
+            return cfg.volume_ratio_shrink_penalty
         return 0.0
 
     def _winsorize(
         self, flows: List[Dict], market_cap: Optional[float]
     ) -> Tuple[List[Dict], bool]:
         """异常值截断：单日净流入 > 流通市值 20% → 截到边界"""
+        cfg = self.config
         if not market_cap or market_cap <= 0:
             return flows, False
-        limit = market_cap * self.OUTLIER_RATIO / self.FLOW_UNIT  # 万元
+        limit = market_cap * cfg.outlier_ratio / cfg.flow_unit  # 万元
         truncated = False
         out = []
         for f in flows:

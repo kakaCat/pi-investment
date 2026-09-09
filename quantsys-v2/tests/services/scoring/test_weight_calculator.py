@@ -1,8 +1,14 @@
 """权重计算器单元测试"""
 import pytest
 from application.services.scoring.weight_calculator import (
-    base_weights, apply_regime, feature_pct_for, PROFILE_WEIGHT_ENDPOINTS,
+    base_weights, apply_regime, feature_pct_for,
 )
+from infrastructure.config.constants.scoring.scorer_params import (
+    DEFAULT_WEIGHT_CALCULATOR_CONFIG,
+)
+
+# 获取默认配置的端点
+PROFILE_WEIGHT_ENDPOINTS = DEFAULT_WEIGHT_CALCULATOR_CONFIG.profile_weight_endpoints
 
 
 NEUTRAL_REGIME = {'label': 'sideways', 'trend_strength': 0.5,

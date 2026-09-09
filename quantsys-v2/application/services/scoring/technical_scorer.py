@@ -12,6 +12,10 @@
 from typing import Dict, Any, Optional
 import logging
 from .base_scorer import BaseScorer
+from infrastructure.config.constants.scoring.scorer_params import (
+    TechnicalScorerConfig,
+    DEFAULT_TECHNICAL_SCORER_CONFIG,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +29,16 @@ class TechnicalScorer(BaseScorer):
     范围：0-100（自动截断）
     """
 
-    def __init__(self, factor_adapter=None):
+    def __init__(self, factor_adapter=None, config: Optional[TechnicalScorerConfig] = None):
         """
         初始化技术面评分器
 
         Args:
             factor_adapter: 因子计算适配器（可选，用于扩展）
+            config: 评分器配置，None 时使用默认配置
         """
         self.factor_adapter = factor_adapter
+        self.config = config or DEFAULT_TECHNICAL_SCORER_CONFIG
 
     def score(
         self,
@@ -65,7 +71,7 @@ class TechnicalScorer(BaseScorer):
             }
         """
         # 基础分
-        base = 50.0
+        base = self.config.base_score
 
         # 各维度评分
         rsi_score = self._score_rsi(factors.get('rsi', 50))
@@ -88,7 +94,7 @@ class TechnicalScorer(BaseScorer):
 
         # 计算总分并截断
         total = base + rsi_score + macd_score + adx_score + volume_score + resonance_score
-        total = max(0, min(100, total))
+        total = max(self.config.min_score, min(self.config.max_score, total))
 
         return {
             'total': round(total, 2),
@@ -112,15 +118,17 @@ class TechnicalScorer(BaseScorer):
         Returns:
             评分 (-20 到 +20)
         """
-        if rsi < 30:
+        cfg = self.config
+
+        if rsi < cfg.rsi_oversold_threshold:
             # 超卖区：线性加分
-            return 20 * (30 - rsi) / 30
-        elif rsi > 70:
+            return cfg.rsi_oversold_max_score * (cfg.rsi_oversold_threshold - rsi) / cfg.rsi_oversold_threshold
+        elif rsi > cfg.rsi_overbought_threshold:
             # 超买区：线性扣分
-            return -20 * (rsi - 70) / 30
-        elif 40 <= rsi <= 60:
+            return cfg.rsi_overbought_max_score * (rsi - cfg.rsi_overbought_threshold) / (100 - cfg.rsi_overbought_threshold)
+        elif cfg.rsi_neutral_lower <= rsi <= cfg.rsi_neutral_upper:
             # 中性区：小幅加分
-            return 5
+            return cfg.rsi_neutral_score
         return 0
 
     def _score_macd(self, factors: Dict) -> float:
@@ -136,17 +144,18 @@ class TechnicalScorer(BaseScorer):
         Returns:
             评分 (-15 到 +20)
         """
+        cfg = self.config
         macd = factors.get('macd', 0)
         signal = factors.get('macd_signal', 0)
         hist = macd - signal  # 柱状图
 
         if self._is_golden_cross(factors):
-            # 金叉强度 = 基础分 + 柱状图绝对值 × 100
-            strength = min(10, abs(hist) * 100)
-            return 10 + strength
+            # 金叉强度 = 基础分 + 柱状图绝对值 × 系数
+            strength = min(cfg.macd_golden_max_bonus, abs(hist) * cfg.macd_golden_strength_factor)
+            return cfg.macd_golden_base_score + strength
         elif macd < signal:
             # 死叉扣分
-            return -min(15, abs(hist) * 100)
+            return -min(-cfg.macd_death_max_penalty, abs(hist) * cfg.macd_death_strength_factor)
         return 0
 
     def _is_golden_cross(self, factors: Dict) -> bool:
@@ -183,10 +192,12 @@ class TechnicalScorer(BaseScorer):
         Returns:
             评分 (0 到 15)
         """
-        if adx <= 25:
+        cfg = self.config
+        if adx <= cfg.adx_no_trend_threshold:
             return 0
         # 从 25 到 50 线性增长到 15 分
-        return min(15, (adx - 25) / 25 * 15)
+        return min(cfg.adx_max_score, (adx - cfg.adx_no_trend_threshold) /
+                   (cfg.adx_strong_trend_threshold - cfg.adx_no_trend_threshold) * cfg.adx_max_score)
 
     def _score_volume(self, factors: Dict) -> float:
         """
@@ -201,14 +212,15 @@ class TechnicalScorer(BaseScorer):
         Returns:
             评分 (-10 到 +20)
         """
+        cfg = self.config
         volume_ratio = factors.get('volume_ratio_5d', 1.0)
 
-        if volume_ratio > 1.5:
+        if volume_ratio > cfg.volume_surge_threshold:
             # 放量：线性加分，最多20分
-            return min(20, (volume_ratio - 1) * 20)
-        elif volume_ratio < 0.8:
+            return min(cfg.volume_surge_max_score, (volume_ratio - 1) * cfg.volume_surge_factor)
+        elif volume_ratio < cfg.volume_shrink_threshold:
             # 缩量：扣分
-            return -10
+            return cfg.volume_shrink_penalty
         return 0
 
     def _calculate_resonance(self, factors: Dict, breakdown: Dict) -> float:
@@ -228,6 +240,7 @@ class TechnicalScorer(BaseScorer):
         Returns:
             共振加成分 (0 到 15)
         """
+        cfg = self.config
         bonus = 0
         rsi = factors.get('rsi', 50)
         volume_ratio = factors.get('volume_ratio_5d', 1.0)
@@ -235,11 +248,11 @@ class TechnicalScorer(BaseScorer):
 
         # 规则1：RSI超卖 + MACD金叉
         # MACD得分>10表示金叉
-        if rsi < 30 and breakdown.get('macd', 0) > 10:
-            bonus += 10
+        if rsi < cfg.resonance_rsi_oversold_threshold and breakdown.get('macd', 0) > cfg.resonance_macd_golden_threshold:
+            bonus += cfg.resonance_oversold_golden_bonus
 
         # 规则2：放量 + 强趋势
-        if volume_ratio > 1.5 and adx > 25:
-            bonus += 5
+        if volume_ratio > cfg.resonance_volume_surge_threshold and adx > cfg.resonance_adx_trend_threshold:
+            bonus += cfg.resonance_volume_trend_bonus
 
-        return min(bonus, 15)
+        return min(bonus, cfg.resonance_max_bonus)
