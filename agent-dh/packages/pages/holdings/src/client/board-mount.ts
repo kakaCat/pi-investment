@@ -94,27 +94,8 @@ export function createBoardController(): BoardController {
     try { return String((w.__dshHldSessions ?? w.__dshHldCtx?.sessions)?.list?.getSnapshot?.().current ?? '') } catch { return '' }
   }
   const hldCandidates = (): SolveCandidate[] => {
-    const w = window as any
-    const out: SolveCandidate[] = []
-    try {
-      const svc = w.__dshHldSessions ?? w.__dshHldCtx?.sessions
-      const list = svc?.list?.getSnapshot?.()
-      const items: any[] = Array.isArray(list?.items) ? list.items : (list?.ids ?? []).map((id: string) => ({ id, title: id }))
-      const archived = new Set<string>(
-        w.__dshHldWorkspaces?.list?.getSnapshot?.().archivedSessionIds ??
-        w.__dshHldCtx?.workspaces?.list?.getSnapshot?.().archivedSessionIds ?? [])
-      const cur = hldCurrentSession()
-      for (const it of items) {
-        const id = String(it?.id ?? '')
-        if (!id || archived.has(id)) continue
-        const blank = Boolean(it?.blank)
-        const origin = String(it?.origin ?? '')
-        if (blank || origin.startsWith('subagent')) continue
-        const label = String(it?.title ?? it?.displayTitle ?? '').slice(0, 42)
-        out.push({ sid: id, label: label || id, current: id === cur })
-      }
-    } catch { }
-    return out
+    // holdings「我来解决」直投 investor 主窗口，不弹选择器（2026-09-08 用户需求）
+    return []
   }
   const hldSnapshotFor = (kind: 'task' | 'error', identity: SolveIdentity): SolveSnapshot | null => {
     if (kind !== 'task') return null
