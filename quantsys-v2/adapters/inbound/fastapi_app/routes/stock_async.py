@@ -413,21 +413,36 @@ def data_update(payload: Optional[Dict[str, Any]] = Body(None)):
 # ============ 实时行情（quote_market.py，agent data_fetch_quote 缺口补齐） ============
 
 def _get_db_quote(symbol: str):
-    """从数据库获取最新K线数据作为行情（与 Flask quote_market.py 一致）。"""
+    """从数据库获取最新K线数据作为行情（与 Flask quote_market.py 一致）。
+
+    ⚠️ ds.kline.get_latest_daily_kline 返回 polars DataFrame（单行），非 dict——
+    契约错位曾导致 `if latest and latest.get(...)` 对 DataFrame 布尔判断抛
+    "the truth value of a DataFrame is ambiguous"，异常被吞后 db 源一律 404。
+    """
     try:
         latest = ds.kline.get_latest_daily_kline(symbol)
-        if latest and latest.get("close"):
-            stock = ds.stock.get_by_symbol(symbol) or {}
+        if latest is not None and not latest.is_empty():
+            row = latest.to_dicts()[0]
+            stock = ds.stock.get_by_symbol(symbol)  # 返回 ORM Stock 对象（非 dict）
+            # 兼容 ORM 对象与字典两种形态（get_by_symbol 可能返回 ORM 对象）
+            if stock is None:
+                stock_name = symbol
+            elif hasattr(stock, 'name'):
+                stock_name = stock.name or symbol
+            elif isinstance(stock, dict):
+                stock_name = stock.get('name', symbol)
+            else:
+                stock_name = symbol
             return {
                 "symbol": symbol,
-                "name": stock.get("name", symbol),
-                "price": float(latest["close"]),
-                "change_pct": float(latest.get("change_pct", 0) or 0),
-                "high": float(latest.get("high", 0) or 0),
-                "low": float(latest.get("low", 0) or 0),
-                "open": float(latest.get("open", 0) or 0),
-                "volume": float(latest.get("volume", 0) or 0),
-                "trade_date": latest.get("trade_date", ""),
+                "name": stock_name,
+                "price": float(row.get("close", 0) or 0),
+                "change_pct": float(row.get("change_pct", 0) or 0),
+                "high": float(row.get("high", 0) or 0),
+                "low": float(row.get("low", 0) or 0),
+                "open": float(row.get("open", 0) or 0),
+                "volume": float(row.get("volume", 0) or 0),
+                "trade_date": row.get("trade_date", ""),
                 "source": "db_fallback",
             }
     except Exception as e:
