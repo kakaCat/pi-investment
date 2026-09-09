@@ -287,11 +287,12 @@ class OpportunityScoringService:
             tech_score = tech_result['total']
             reasons.extend(self._tech_reasons(factors, tech_result))
 
-            # === 基本面（使用领域层行业中性化评分）===
+            # === 基本面（使用领域层行业中性化评分 + 行业景气度）===
             fund_input = self._map_fundamental_keys(fundamental or {})
-            # 获取行业信息（用于行业中性化）
+            # 获取行业信息（用于行业中性化和行业景气度）
             sector = self._get_sector(symbol)
-            fund_result = self.fundamental_scorer.score(fund_input, sector=sector)
+            industry = self._get_industry(symbol)
+            fund_result = self.fundamental_scorer.score(fund_input, sector=sector, industry=industry)
             fund_score = fund_result['total']
 
             # === 资金面 ===
@@ -940,13 +941,13 @@ class OpportunityScoringService:
 
     def _get_sector(self, symbol: str) -> Optional[str]:
         """
-        获取股票所属行业
+        获取股票所属行业（大类）
         
         Args:
             symbol: 股票代码
             
         Returns:
-            Optional[str]: 行业名称，获取失败返回 None
+            Optional[str]: 行业名称（大类），获取失败返回 None
         """
         try:
             # 从 stock_repo 获取行业信息
@@ -955,6 +956,25 @@ class OpportunityScoringService:
                 return stock_info.get('sector')
         except Exception as e:
             logger.warning(f"获取 {symbol} 行业信息失败: {e}")
+        return None
+    
+    def _get_industry(self, symbol: str) -> Optional[str]:
+        """
+        获取股票所属行业（细分）
+        
+        Args:
+            symbol: 股票代码
+            
+        Returns:
+            Optional[str]: 行业名称（细分），获取失败返回 None
+        """
+        try:
+            # 从 stock_repo 获取行业信息
+            stock_info = self.stock_repo.get_stock_info(symbol)
+            if stock_info:
+                return stock_info.get('industry')
+        except Exception as e:
+            logger.warning(f"获取 {symbol} 细分行业信息失败: {e}")
         return None
     
     def _normalize_weights(self, weights: Dict) -> Dict:

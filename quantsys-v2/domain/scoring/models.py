@@ -30,6 +30,23 @@ class ScoringMethod(Enum):
 
 
 @dataclass
+class IndustrySentiment:
+    """行业景气度"""
+    industry: str                   # 行业名称
+    score: float                    # 景气度分数（-10 到 +10）
+    reason: str                     # 原因说明
+    updated_at: datetime = field(default_factory=datetime.now)
+    
+    def to_dict(self) -> Dict:
+        return {
+            'industry': self.industry,
+            'score': self.score,
+            'reason': self.reason,
+            'updated_at': self.updated_at.isoformat(),
+        }
+
+
+@dataclass
 class FactorScore:
     """单因子评分"""
     factor_name: str                # 因子名称（如 pe, roe, rsi）

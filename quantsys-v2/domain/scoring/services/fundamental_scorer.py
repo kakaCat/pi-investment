@@ -50,16 +50,17 @@ class FundamentalScorer:
         except (TypeError, ValueError):
             return None
 
-    def score(self, data: Dict[str, Any], sector: Optional[str] = None) -> Dict[str, float]:
+    def score(self, data: Dict[str, Any], sector: Optional[str] = None, industry: Optional[str] = None) -> Dict[str, float]:
         """
-        计算基本面评分（行业中性化）
+        计算基本面评分（行业中性化 + 行业景气度）
 
         Args:
             data: 基本面数据字典，包含以下字段：
                 - pe: 市盈率
                 - roe: 净资产收益率（%）
                 - revenue_growth: 营收增长率（%）
-            sector: 行业名称（可选，用于行业中性化）
+            sector: 行业名称（大类，用于行业中性化）
+            industry: 行业名称（细分，用于行业景气度）
 
         Returns:
             评分结果字典：
@@ -69,6 +70,7 @@ class FundamentalScorer:
                     'pe': PE评分,
                     'roe': ROE评分,
                     'revenue_growth': 营收增长评分,
+                    'industry_sentiment': 行业景气度,
                 },
                 'sector_percentiles': {
                     'pe': PE分位数,
@@ -79,24 +81,27 @@ class FundamentalScorer:
         """
         # 如果提供了行业数据端口和行业名称，使用行业中性化评分
         if self.industry_data_port and sector:
-            return self._score_industry_neutral(data, sector)
+            return self._score_industry_neutral(data, sector, industry)
         
         # 否则使用绝对值评分（向后兼容）
         return self._score_absolute(data)
     
-    def _score_industry_neutral(self, data: Dict[str, Any], sector: str) -> Dict[str, float]:
+    def _score_industry_neutral(self, data: Dict[str, Any], sector: str, industry: str = None) -> Dict[str, float]:
         """
-        行业中性化评分
+        行业中性化评分（含行业景气度）
         
-        使用行业内分位数排名，而不是绝对值阈值。
+        使用行业内分位数排名，加上行业景气度调整。
         
         Args:
             data: 基本面数据字典
-            sector: 行业名称
+            sector: 行业名称（大类）
+            industry: 行业名称（细分）
             
         Returns:
             评分结果字典
         """
+        from .industry_sentiment import get_industry_sentiment
+        
         # 获取同行业所有值
         sector_pe_values = self.industry_data_port.get_sector_factor_values(sector, 'pe')
         sector_roe_values = self.industry_data_port.get_sector_factor_values(sector, 'roe')
@@ -118,7 +123,16 @@ class FundamentalScorer:
         growth_score = growth_percentile * 100
         
         # 加权合成
-        total = pe_score * 0.40 + roe_score * 0.30 + growth_score * 0.30
+        base_total = pe_score * 0.40 + roe_score * 0.30 + growth_score * 0.30
+        
+        # 行业景气度调整（-10 到 +10 分）
+        industry_sentiment = get_industry_sentiment(industry, sector)
+        
+        # 最终得分 = 基础得分 + 行业景气度
+        total = base_total + industry_sentiment
+        
+        # 截断到 0-100
+        total = max(0.0, min(100.0, total))
         
         return {
             'total': total,
@@ -126,6 +140,7 @@ class FundamentalScorer:
                 'pe': pe_score,
                 'roe': roe_score,
                 'revenue_growth': growth_score,
+                'industry_sentiment': industry_sentiment,
             },
             'sector_percentiles': {
                 'pe': pe_percentile,
