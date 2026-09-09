@@ -261,7 +261,8 @@ class SmoothScorer:
         hist = macd - signal
         
         # tanh 平滑：hist=0 时得 0 分，hist→+∞ 时得 +10 分
-        return self.tanh_score(hist, scale=50.0, max_score=10.0)
+        # scale=30 让评分更平滑，避免单日大幅波动
+        return self.tanh_score(hist, scale=30.0, max_score=10.0)
     
     def score_rsi_smooth(self, rsi: float) -> float:
         """

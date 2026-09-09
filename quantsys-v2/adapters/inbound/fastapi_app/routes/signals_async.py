@@ -143,6 +143,9 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
     
     # RFC 011：自动创建盯盘规则（默认开启）
     auto_create_rules = bool(snake_data.get('auto_create_rules', True))
+    
+    # RFC 012：使用 DDD 评分系统（默认开启，行业中性化 + 平滑化）
+    use_ddd_scoring = bool(snake_data.get('use_ddd_scoring', True))
 
     # 2026-09-01 契约对齐（investor w-8366e526）：消费 opportunity_scan 的
     # scan_type / pool_id（此前被静默忽略——工具传了但后端不消费，属契约失真）。
@@ -207,9 +210,21 @@ def scan_signals(payload: Optional[Dict[str, Any]] = Body(None)):
         if strategy_id is not None:
             opportunities = _scan_strategy_opportunities(strategy_id, symbols)
         else:
-            opportunities = scoring_service.score_stocks(
-                symbols=symbols, filters={'technical': technical, 'fundamental': fundamental},
-                weights=weights, no_cache=no_cache)
+            # RFC 012：使用 DDD 评分系统（行业中性化 + 平滑化）
+            if use_ddd_scoring:
+                opportunities = scoring_service.score_stocks(
+                    symbols=symbols, filters={'technical': technical, 'fundamental': fundamental},
+                    weights=weights, no_cache=no_cache)
+                # 添加 DDD 评分标记
+                for opp in opportunities:
+                    opp['scoring_method'] = 'ddd_industry_neutral_smooth'
+            else:
+                # 旧评分系统（绝对值 + 离散事件）
+                opportunities = scoring_service.score_stocks(
+                    symbols=symbols, filters={'technical': technical, 'fundamental': fundamental},
+                    weights=weights, no_cache=no_cache)
+                for opp in opportunities:
+                    opp['scoring_method'] = 'legacy_absolute_discrete'
 
         if selected_sectors_info:
             sector_score_map = {s['name']: s for s in selected_sectors_info['selected_sectors']}

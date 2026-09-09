@@ -148,7 +148,8 @@ class TechnicalScorer:
         hist = macd - signal
         
         # tanh 平滑：hist=0 时得 0 分，hist→+∞ 时得 +10 分
-        return 10 * math.tanh(hist * 50)
+        # scale=30 让评分更平滑，避免单日大幅波动
+        return 10 * math.tanh(hist * 30)
 
     def _is_golden_cross(self, factors: Dict) -> bool:
         """
