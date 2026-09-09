@@ -12,8 +12,8 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 from infrastructure.quantlib.adapters import get_factor_adapter
-from application.services.scoring.technical_scorer import TechnicalScorer
-from application.services.scoring.fundamental_scorer import FundamentalScorer
+# 使用领域层的评分器（DDD 架构）
+from domain.scoring.services import TechnicalScorer, FundamentalScorer
 from application.services.scoring.capital_scorer import CapitalScorer
 from application.services.scoring.cycle_position_scorer import CyclePositionScorer
 from application.services.scoring.stock_profile_classifier import StockProfileClassifier
@@ -23,6 +23,7 @@ from domain.ports.datasource_ports import IDataProviderManager
 from application.services.scoring.regime_signal_provider import RegimeSignalProvider
 from application.services.scoring.data_quality_gate import DataQualityGate
 from infrastructure.cache.cache_service import get_cache_service
+from infrastructure.adapters.industry_data_adapter import IndustryDataAdapter
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -65,9 +66,10 @@ class OpportunityScoringService:
         self.stock_repo = stock_repo
         self.factor_adapter = factor_adapter
 
-        # 初始化评分器
+        # 初始化评分器（使用领域层 DDD 评分器）
+        self.industry_data_adapter = IndustryDataAdapter()
         self.technical_scorer = TechnicalScorer(factor_adapter)
-        self.fundamental_scorer = FundamentalScorer()
+        self.fundamental_scorer = FundamentalScorer(self.industry_data_adapter)
 
         # 动态评分组件
         self.capital_scorer = CapitalScorer()
@@ -280,14 +282,16 @@ class OpportunityScoringService:
                 if not self._evaluate_conditions(conditions, logic, fundamental or {}, factors):
                     return {'_skipped': 'condition_filter'}  # 不满足条件，跳过
 
-            # === 技术面 ===
+            # === 技术面（使用领域层平滑化评分）===
             tech_result = self.technical_scorer.score(factors)
             tech_score = tech_result['total']
             reasons.extend(self._tech_reasons(factors, tech_result))
 
-            # === 基本面（修复 key 错位：pe_ratio→pe 等）===
+            # === 基本面（使用领域层行业中性化评分）===
             fund_input = self._map_fundamental_keys(fundamental or {})
-            fund_result = self.fundamental_scorer.score(fund_input)
+            # 获取行业信息（用于行业中性化）
+            sector = self._get_sector(symbol)
+            fund_result = self.fundamental_scorer.score(fund_input, sector=sector)
             fund_score = fund_result['total']
 
             # === 资金面 ===
@@ -934,6 +938,25 @@ class OpportunityScoringService:
 
         return max(0, min(100, score))
 
+    def _get_sector(self, symbol: str) -> Optional[str]:
+        """
+        获取股票所属行业
+        
+        Args:
+            symbol: 股票代码
+            
+        Returns:
+            Optional[str]: 行业名称，获取失败返回 None
+        """
+        try:
+            # 从 stock_repo 获取行业信息
+            stock_info = self.stock_repo.get_stock_info(symbol)
+            if stock_info:
+                return stock_info.get('sector')
+        except Exception as e:
+            logger.warning(f"获取 {symbol} 行业信息失败: {e}")
+        return None
+    
     def _normalize_weights(self, weights: Dict) -> Dict:
         """归一化权重，确保权重和为 1
 
