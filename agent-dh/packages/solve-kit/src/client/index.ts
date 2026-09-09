@@ -109,8 +109,24 @@ export function createSolveKit(deps: SolveKitDeps): SolveKit {
       const j = await res.json().catch(() => null)
       console.log('[solve-kit] response', j)
       if (j === null || j.success !== true) { toast('投递失败：' + String(j?.error ?? 'HTTP ' + res.status), false); return }
-      const d = j.data as { delivered?: boolean; note?: string; error?: string } | undefined
+      const d = j.data as { delivered?: boolean; note?: string; error?: string; target?: { sessionId: string; window: string } } | undefined
       toast(d?.delivered === true ? '✓ ' + String(d?.note ?? '已投递') : '⚠ ' + String(d?.error ?? j.error ?? '投递失败'), d?.delivered === true)
+      // 投递成功后自动打开目标会话
+      if (d?.delivered === true && d.target?.sessionId) {
+        try {
+          const w = window as any
+          const sessions = w.__dshHldSessions ?? w.__dshExecSessions ?? w.__dshBbdSessions ?? w.__dshPmSessions ?? 
+                          w.__dshHldCtx?.sessions ?? w.__dshExecCtx?.sessions ?? w.__dshBbdCtx?.sessions ?? w.__dshPmCtx?.sessions
+          if (sessions && typeof sessions.open === 'function') {
+            console.log('[solve-kit] auto-opening target session:', d.target.sessionId)
+            sessions.open(d.target.sessionId)
+          } else {
+            console.warn('[solve-kit] sessions service not available for auto-open')
+          }
+        } catch (e) {
+          console.warn('[solve-kit] failed to auto-open session:', e)
+        }
+      }
     } catch (e) {
       toast('请求异常：' + String(e instanceof Error ? e.message : e), false)
     }
