@@ -153,15 +153,16 @@ def test_get_backtest_data_missing_id():
         'strategy_name': 'ma_cross'
     }
 
-    with pytest.raises(ValueError, match="backtestId is required"):
+    with pytest.raises(ValueError, match="backtest_id is required"):
         service._get_backtest_data(params)
 
 
 def test_get_backtest_data_not_found():
     """测试回测结果不存在"""
     service = DiagnosisService()
+    service.backtest_repo = Mock()  # ctor 无 repo 兜底，注入假仓库
 
-    params = {'backtestId': 99999}
+    params = {'backtest_id': 99999}
 
     with patch.object(service.backtest_repo, 'get_backtest', return_value=None):
         with pytest.raises(ValueError, match="Backtest not found: 99999"):
@@ -288,6 +289,7 @@ def test_calculate_max_drawdown_empty_klines():
 def test_get_benchmark_data_fallback():
     """测试基准数据获取失败时的降级"""
     service = DiagnosisService()
+    service.kline_repo = Mock()  # ctor 无 repo 兜底，注入假仓库
 
     with patch.object(service.kline_repo, 'get_daily_klines', return_value=[]):
         result = service._get_benchmark_data('000300.SH', '2024-01-01', '2024-12-31')
@@ -302,6 +304,7 @@ def test_get_benchmark_data_fallback():
 def test_get_benchmark_data_exception():
     """测试基准数据获取异常"""
     service = DiagnosisService()
+    service.kline_repo = Mock()  # ctor 无 repo 兜底，注入假仓库
 
     with patch.object(service.kline_repo, 'get_daily_klines', side_effect=Exception("DB error")):
         result = service._get_benchmark_data('000300.SH', '2024-01-01', '2024-12-31')

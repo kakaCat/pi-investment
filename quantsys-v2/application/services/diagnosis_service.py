@@ -238,12 +238,16 @@ class DiagnosisService:
             - 起始价格为 0 返回 0.0（避免除零错误）
             - 负收益率（total_return < -1）会导致数学域错误，返回 -1.0
         """
-        # klines is a Polars DataFrame, check if empty using .is_empty()
-        if klines.is_empty() or len(klines) < 2:
+        # klines 双态兼容：kline_repo 契约返回 polars DataFrame，
+        # 历史调用方/直接测试传入 list[dict] 或 None
+        if hasattr(klines, 'to_dicts'):  # polars DataFrame
+            if klines.is_empty():
+                return 0.0
+            klines = klines.to_dicts()
+        elif not klines or len(klines) < 2:
             return 0.0
 
-        # Convert to list of dicts for easier access
-        klines_list = klines.to_dicts()
+        klines_list = klines
         start_price = klines_list[0]['close']
         end_price = klines_list[-1]['close']
 
@@ -295,12 +299,15 @@ class DiagnosisService:
         Args:
             klines: K线数据 (Polars DataFrame)
         """
-        # klines is a Polars DataFrame, check if empty using .is_empty()
-        if klines.is_empty():
+        # klines 双态兼容：polars DataFrame（kline_repo 契约）/ list[dict] / None
+        if hasattr(klines, 'to_dicts'):  # polars DataFrame
+            if klines.is_empty():
+                return 0.0
+            klines = klines.to_dicts()
+        elif not klines:
             return 0.0
 
-        # Convert to list of dicts for iteration
-        klines_list = klines.to_dicts()
+        klines_list = klines
         peak = klines_list[0]['close']
         max_dd = 0.0
 
