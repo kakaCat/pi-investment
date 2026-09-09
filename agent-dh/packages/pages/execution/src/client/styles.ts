@@ -410,6 +410,16 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
   background: #ff6b6b;
   color: white;
 }
+
+
+.dsh-exec-orphaned-empty {
+  padding: 24px;
+  text-align: center;
+  color: #28a745;
+  font-size: 14px;
+  background: #28a74511;
+  border-radius: 6px;
+}
 `
 
 /** Inject the stylesheet once (tagged for the HMR driver cleanup). */

@@ -556,8 +556,14 @@ function renderBlocked(refs: ViewRefs, data: BoardData): void {
 
 function renderOrphanedTasks(refs: ViewRefs, data: BoardData): void {
   const orphaned = data.orphanedTasks ?? []
-  refs.orphanedSec.style.display = orphaned.length > 0 ? '' : 'none'
-  if (orphaned.length === 0) return
+  // 始终显示区块（选项 B）
+  refs.orphanedSec.style.display = ''
+  
+  // 如果没有僵尸任务，显示空状态提示
+  if (orphaned.length === 0) {
+    refs.orphanedBox.innerHTML = '<div class="dsh-exec-orphaned-empty">✓ 当前无僵尸任务（数据库中的任务均已正确加载到调度器）</div>'
+    return
+  }
   
   refs.orphanedBox.innerHTML = '<div class="dsh-exec-orphaned-list">' + orphaned.map(task => {
     const daysSince = task.daysSinceLastRun ?? 0

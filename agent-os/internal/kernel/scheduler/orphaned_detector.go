@@ -2,10 +2,11 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pi-investment/agent-os/internal/kernel/scheduler/types"
+	"github.com/pi-investment/agent-os/pkg/types"
 	"github.com/pi-investment/agent-os/pkg/logger"
 )
 
@@ -32,10 +33,10 @@ func (s *Scheduler) DetectOrphanedTasks(ctx context.Context) ([]*OrphanedTask, e
 		return nil, err
 	}
 
-	// 2. Get scheduled task IDs from scheduler
+	// 2. Get scheduled task IDs from scheduler (using cronEntries)
 	s.mu.RLock()
 	scheduledIDs := make(map[uuid.UUID]bool)
-	for id := range s.tasks {
+	for id := range s.cronEntries {
 		scheduledIDs[id] = true
 	}
 	s.mu.RUnlock()
@@ -56,7 +57,7 @@ func (s *Scheduler) DetectOrphanedTasks(ctx context.Context) ([]*OrphanedTask, e
 		var lastRunAt *time.Time
 		var daysSince int
 
-		// Try to get last run time (use GetLatestRunByTaskID)
+		// Try to get last run time
 		lastRun, err := s.taskRunRepo.GetLatestRunByTaskID(ctx, task.ID)
 		if err == nil && lastRun != nil {
 			lastRunAt = &lastRun.StartedAt
@@ -112,11 +113,12 @@ func determineOrphanedReason(task *types.Task) string {
 func (s *Scheduler) CleanupOrphanedTask(ctx context.Context, taskID uuid.UUID) error {
 	// Verify task is not in scheduler (safety check)
 	s.mu.RLock()
-	_, inScheduler := s.tasks[taskID]
+	_, inScheduler := s.cronEntries[taskID]
 	s.mu.RUnlock()
 
 	if inScheduler {
-		return logger.ErrorReturn("cannot delete task that is in scheduler", "task_id", taskID)
+		logger.Error("Cannot delete task that is in scheduler", "task_id", taskID)
+		return fmt.Errorf("cannot delete task that is in scheduler")
 	}
 
 	// Delete from database
