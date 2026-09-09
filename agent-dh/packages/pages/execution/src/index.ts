@@ -10,7 +10,7 @@ import { Context } from '@deepseek-ai/cordis';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { DataAggregationService } from './services/data-aggregation.js';
-import { createBoardHandler } from './routes/dashboard-routes.js';
+import { createBoardHandler, createErrorActionHandler } from './routes/dashboard-routes.js';
 import { createSolveHandler, type ActionTarget } from '@pi-investment/solve-kit';
 
 export const name = 'dashboard-execution';
@@ -28,27 +28,16 @@ interface PluginConfig {
 
 function resolveOptions(config: PluginConfig | undefined) {
   const home = os.homedir();
-  const piInvestDir = config?.piInvestDir || process.env.PI_INVEST_DIR || path.join(home, 'pi-investment');
   const profileDir = config?.profileDir || path.join(home, '.dsh', 'profiles', 'investment');
   const v2BaseURL = (config?.v2BaseURL || process.env.QUANTSYS_V2_API_URL || 'http://127.0.0.1:5001').replace(/\/$/, '');
   const osBaseURL = (config?.osBaseURL || 'http://127.0.0.1:8080').replace(/\/$/, '');
-
-  const logFiles = [
-    // v2 日志可能极大（78MB）——聚合器 tail 只 seek 末 512KB
-    { source: 'v2' as const, file: path.join(piInvestDir, 'quantsys-v2', 'logs', 'launchd-stdout.log') },
-    { source: 'v2' as const, file: path.join(piInvestDir, 'quantsys-v2', 'logs', 'launchd-stderr.log') },
-    { source: 'os' as const, file: path.join(piInvestDir, 'agent-os', 'logs', 'launchd-stdout.log') },
-    { source: 'os' as const, file: path.join(piInvestDir, 'agent-os', 'logs', 'launchd-stderr.log') },
-    { source: 'dsh' as const, file: path.join(profileDir, 'state', 'launchd.out.log') },
-    { source: 'dsh' as const, file: path.join(profileDir, 'state', 'launchd.err.log') },
-  ];
+  // 错误事件数据源=Agent OS error_events DB（2026-09-09 起单一事实源，不再 tail 本地日志）
 
   return {
     v2BaseURL,
     osBaseURL,
     genomeDir: config?.genomeDir || path.join(home, '.dsh-agent-dh', 'genome'),
     profileStateDir: path.join(profileDir, 'state'),
-    logFiles,
     requestTimeoutMs: config?.requestTimeoutMs ?? 4000,
     agentId: config?.agentId || process.env.AGENT_ID || 'investor',
   };
@@ -106,10 +95,16 @@ export function apply(ctx: Context, config?: PluginConfig): void {
           path: '/dashboard/api/board/solve',
           handler: createSolveHandler({ resolveAgent }, { panel: '执行看板', panelFull: '双线执行确认看板', plugin: 'dashboard-execution' }),
         });
+        // 错误事件处置：claim/resolve/ignore/reopen → Agent OS error_events 状态机（actor=from_session 窗口）
+        webCtx.webServer.register({
+          kind: 'exact',
+          path: '/dashboard/api/board/error-action',
+          handler: createErrorActionHandler({ osBaseURL: options.osBaseURL, windowCode }),
+        });
 
       }, name + ': api');
 
-      logger.info('routes registered: /dashboard/api/board + /dashboard/api/board/solve (client half renders GUI); /dashboard/api/holdings owned by dashboard-holdings');
+      logger.info('routes registered: /dashboard/api/board + /solve + /error-action (client half renders GUI); /dashboard/api/holdings owned by dashboard-holdings');
     },
   );
 }

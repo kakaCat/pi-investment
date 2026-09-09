@@ -284,7 +284,19 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-errs li .src { flex:none; border-radius:4px; padding:0 6px; font-size:10.5px; color:#fff; }
 .dsh-exec-errs .src.v2 { background:#e6a23c; } .dsh-exec-errs .src.os { background:#409eff; } .dsh-exec-errs .src.dsh { background:#909399; }
 .dsh-exec-errs li time { flex:none; color:var(--faint); font-size:11px; font-variant-numeric:tabular-nums; }
-.dsh-exec-errs li .line { color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.dsh-exec-errs li .line { flex:1 1 auto; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+/* 状态机徽标（error_events 去重事件） */
+.dsh-exec-errs li .evst { flex:none; border-radius:3px; padding:0 5px; font-size:10px; line-height:1.7; font-weight:600; }
+.dsh-exec-errs li .evst.st-open { background:#fef0f0; color:#f56c6c; border:1px solid #fbc4c4; }
+.dsh-exec-errs li .evst.st-processing { background:#ecf5ff; color:#409eff; border:1px solid #b3d8ff; }
+.dsh-exec-errs li .evst.st-resolved { background:#f0f9eb; color:#67c23a; border:1px solid #c2e7b0; }
+.dsh-exec-errs li .evst.st-ignored { background:#f4f4f5; color:#909399; border:1px solid #d3d4d6; }
+.dsh-exec-errs li .occ { flex:none; color:#f56c6c; font-size:10.5px; font-weight:700; font-variant-numeric:tabular-nums; }
+.dsh-exec-errs li .asg { flex:none; color:#9254de; font-size:10.5px; background:#f5f0ff; border-radius:3px; padding:0 5px; white-space:nowrap; }
+.dsh-exec-errs li .op { margin-left:auto; display:inline-flex; gap:6px; align-items:center; flex:none; }
+.dsh-exec-errs li .op .dsh-exec-solve { margin-left:0; }
+.dsh-exec-evact { flex:none; border:1px solid #dcdfe6; background:#fff; color:#606266; border-radius:5px; padding:1px 8px; font-size:11px; line-height:1.6; cursor:pointer; white-space:nowrap; vertical-align:middle; }
+.dsh-exec-evact:hover { color:#409eff; border-color:#c6e2ff; background:#ecf5ff; }
 .dsh-exec-block { display:flex; align-items:center; gap:10px; padding:8px 0; font-size:12.5px; }
 .dsh-exec-block b { color:var(--text); font-weight:500; }
 .dsh-exec-block .blocks { color:var(--faint); font-size:11.5px; }

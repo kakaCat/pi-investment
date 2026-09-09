@@ -33,9 +33,6 @@ interface OsSchedulerStat {
 }
 type GenomeMap = Record<string, GenomeState>;
 
-const ERROR_RE = /ERROR|CRITICAL|Traceback|panic|FATAL/i;
-const TS_RE = /\[?(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})/;
-
 function pad2(n: number): string { return String(n).padStart(2, '0'); }
 function toLocalDate(d: Date): string {
   return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
@@ -150,56 +147,57 @@ function deadlineDate(now: Date, expectTime: string, graceMinutes: number): Date
   d.setHours(h, m, 0, 0);
   return new Date(d.getTime() + graceMinutes * 60 * 1000);
 }
-/** 读取日志尾部（>1MB 只 seek 末 512KB，绝不整读 78MB 文件）；日志被轮转/不存在时返回空 */
-async function tailFile(file: string, tailLines = 300, maxBytes = 512 * 1024): Promise<string[]> {
-  let st;
-  try {
-    st = await fsp.stat(file);
-  } catch {
-    return [];
-  }
-  let content: string;
-  if (st.size > maxBytes) {
-    const fh = await fsp.open(file, 'r');
+// ================= 错误事件映射（Agent OS error_events 行 → ErrorEvent） =================
+/** os 采集行 msg 常为通用文案（如 "Scheduled task execution failed"），真实错误在 detail.error —— 提炼合并 */
+function errorLine(row: Record<string, unknown>): string {
+  const msg = String(row.msg ?? '').trim();
+  const det = typeof row.detail === 'string' ? row.detail.trim() : '';
+  if (msg && msg.length < 60 && det.length > 0) {
     try {
-      const len = Math.min(st.size, maxBytes);
-      const buf = Buffer.alloc(len);
-      await fh.read(buf, 0, len, st.size - len);
-      content = buf.toString('utf-8');
-    } finally {
-      await fh.close();
-    }
-    const nl = content.indexOf('\n');
-    content = nl >= 0 ? content.slice(nl + 1) : content; // 丢弃被截断的半行
-  } else {
-    content = await fsp.readFile(file, 'utf-8');
+      const o: any = JSON.parse(det);
+      const e = o && typeof o === 'object' ? (o.error ?? o.err ?? o.message ?? o.msg) : null;
+      if (typeof e === 'string' && e.length > 0) return msg + ' · ' + e.slice(0, 200);
+    } catch { /* detail 非 JSON，忽略 */ }
   }
-  const lines = content.split('\n');
-  return lines.slice(-tailLines);
+  if (msg) return msg;
+  return det ? det.slice(0, 300) : String(row.id ?? '未知错误');
 }
-/** 日志时间戳多格式提取（v2 JSON "timestamp"/os zap "ts" ISO 或 epoch 秒）+ ISO 行首 */
-interface LogTs { ts: number | null; text: string | null }
-function extractLogTime(raw: string): LogTs {
-  const m = raw.match(TS_RE);
-  if (m) return { ts: tsMs(m[1]), text: m[1] };
-  const jm = raw.match(/"timestamp"\s*:\s*"([^"]+)"/) || raw.match(/"ts"\s*:\s*"([^"]+)"/);
-  if (jm) {
-    const t = parseTs(jm[1]);
-    if (t && !Number.isNaN(t.getTime())) {
-      return { ts: t.getTime(), text: toLocalDate(t) + ' ' + hhmmOf(t) + ':' + pad2(t.getSeconds()) };
-    }
+function errorFile(row: Record<string, unknown>): string {
+  const md: any = row.metadata;
+  const lp = md && typeof md === 'object' ? md.log_path : null;
+  if (typeof lp === 'string' && lp) {
+    const i = lp.lastIndexOf('/');
+    return i >= 0 ? lp.slice(i + 1) : lp;
   }
-  const em = raw.match(/"ts"\s*:\s*(\d{10,13}(?:\.\d+)?)/);
-  if (em) {
-    const n = Number(em[1]);
-    const ms = n > 1e12 ? n : n * 1000;
-    const d = new Date(ms);
-    if (!Number.isNaN(d.getTime())) {
-      return { ts: ms, text: toLocalDate(d) + ' ' + hhmmOf(d) + ':' + pad2(d.getSeconds()) };
-    }
-  }
-  return { ts: null, text: null };
+  return row.task_name ? String(row.task_name) : String(row.source ?? 'log');
 }
+function mapErrorEventRow(row: Record<string, any>): ErrorEvent {
+  const status = (['open', 'processing', 'resolved', 'ignored'] as const).includes(row.status) ? row.status : 'open';
+  const source = (['v2', 'os', 'dsh', 'pg'] as const).includes(row.source) ? row.source : 'os';
+  const seenAt: string = row.last_seen_at ?? row.first_seen_at ?? '';
+  return {
+    id: String(row.id),
+    source,
+    status,
+    occurrenceCount: Number(row.occurrence_count ?? 1),
+    firstSeenAt: row.first_seen_at ?? undefined,
+    lastSeenAt: row.last_seen_at ?? undefined,
+    level: row.level ?? undefined,
+    msg: row.msg ?? undefined,
+    detail: row.detail ?? null,
+    taskName: row.task_name ?? null,
+    taskId: row.task_id ?? null,
+    assignee: row.assignee ?? null,
+    dispatchedSession: row.dispatched_session ?? null,
+    resolvedAt: row.resolved_at ?? null,
+    resolutionNote: row.resolution_note ?? null,
+    metadata: row.metadata ?? null,
+    timestamp: seenAt || undefined,          // solve-kit 兼容：最近出现时间
+    line: errorLine(row),                    // solve-kit 兼容：错误摘要（一行）
+    file: errorFile(row),                    // solve-kit 兼容：来源文件/任务名
+  };
+}
+
 export class DataAggregationService {
   private readonly opts: AggregatorOptions;
   private readonly now: Date;
@@ -245,14 +243,15 @@ export class DataAggregationService {
     }, genomeR.state);
     const timeline = this.buildTimeline(tasksR.tasks, runsR.runs);
     const blockedFlows = this.buildBlockedFlows(checkpoints);
-    const errors = await this.fetchErrorEvents();
+    const errs = await this.fetchErrorEvents();
+    if (errs.error) degraded.push({ source: 'error-events', error: errs.error });
     const tasks = this.enrichTasks(tasksR.tasks, runsR.runs);
 
     return {
       health: healthR.rows,
       checkpoints,
       tasks,
-      errors,
+      errors: errs.events,
       timeline,
       blockedFlows,
       degraded,
@@ -718,25 +717,19 @@ export class DataAggregationService {
       .map(cp => ({ checkpointId: cp.id, checkpointName: cp.name, status: cp.status, blocks: cp.blocksFlow ?? [] }));
   }
 
-  // ================= 错误事件流（v2/os/dsh 三端 tail） =================
-  private async fetchErrorEvents(): Promise<ErrorEvent[]> {
-    const all: Array<{ source: ErrorEvent['source']; ts: number | null; tsText: string | null; line: string; file: string }> = [];
-    for (const { source, file } of this.opts.logFiles) {
-      try {
-        const lines = await tailFile(file);
-        let lastTs: LogTs = { ts: null, text: null };
-        for (const raw of lines) {
-          const own = extractLogTime(raw);
-          if (own.ts !== null && own.text !== null) lastTs = own; // 时间戳向下继承（栈碎片/纯文本错误行无行首时间）
-          if (!ERROR_RE.test(raw)) continue;
-          all.push({ source, ts: own.ts ?? lastTs.ts, tsText: own.text ?? lastTs.text, line: raw.substring(0, 500), file: path.basename(file) });
-        }
-      } catch {
-        // 单文件读失败忽略（可能被轮转/删除）
-      }
+  // ================= 错误事件（Agent OS error_events DB 单一事实源，2026-09-09 替代本地 tail） =================
+  private async fetchErrorEvents(): Promise<{ events: ErrorEvent[]; error?: string }> {
+    try {
+      const res = await fetch(`${this.opts.osBaseURL}/api/v1/scheduler/error-events?limit=30`, { signal: AbortSignal.timeout(3000) });
+      if (!res.ok) return { events: [], error: `HTTP ${res.status}` };
+      const json: any = await res.json();
+      const rows: any[] = json.events ?? [];
+      // 保持服务端 last_seen_at DESC 顺序：claim/resolve/reopen 不改 last_seen → 行序稳定，
+      // 基于索引的错误事件投递快照（snapshotFor）不因状态流转错位
+      return { events: rows.map((r: any) => mapErrorEventRow(r)) };
+    } catch (err) {
+      return { events: [], error: err instanceof Error ? err.message : String(err) };
     }
-    all.sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0));
-    return all.slice(0, 10).map(e => ({ source: e.source, timestamp: e.tsText ?? undefined, line: e.line, file: e.file }));
   }
 
   // ================= 僵尸任务（数据库存在但调度器未加载） =================

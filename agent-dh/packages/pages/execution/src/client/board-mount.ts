@@ -14,8 +14,26 @@ import { createSolveKit } from '@pi-investment/solve-kit/client'
 import { createBoardShell } from '@pi-investment/page-kit/client'
 
 const BOARD_API = '/dashboard/api/board'
+const ERROR_ACTION_API = '/dashboard/api/board/error-action'
 const POLL_MS = 30000
 let fetching = false
+
+type EvAct = 'claim' | 'resolve' | 'ignore' | 'reopen'
+async function postErrorAction(body: { id: string; action: EvAct; from_session?: string }): Promise<{ ok: boolean; error?: string; message?: string }> {
+  try {
+    const res = await fetch(ERROR_ACTION_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const j = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { message?: string }; error?: string }
+    if (!res.ok && j.success === undefined) return { ok: false, error: 'HTTP ' + res.status }
+    if (j.success === false) return { ok: false, error: j.error ?? '操作失败' }
+    return { ok: true, message: j.data?.message ?? '已更新' }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}
 
 export interface BoardController {
   isActive(): boolean
@@ -83,11 +101,34 @@ export function mountBoard(controller: BoardController): () => void {
         renderTasks(refs, lastBoard)
       }
       refs.tasksBox.addEventListener('click', onTasksClick)
-      // 错误事件条「我来解决」
+      // 错误事件处置（状态机）：
+      //   「我来解决」= 先 POST claim（认领,assignee=本窗口,状态→processing；409 冲突则提示不弹投递）→ 成功后弹投递窗口 → 刷新
+      //   解决/忽略/复开 = 轻量按钮（id 驱动，不依赖行序）
       const onErrsClick = (ev: MouseEvent) => {
-        const solveBtn = (ev.target as Element).closest<HTMLElement>('.dsh-exec-solve[data-solve-err]')
+        const target = ev.target as Element
+        const solveBtn = target.closest<HTMLElement>('.dsh-exec-solve[data-solve-err]')
         if (solveBtn !== null && solveBtn.dataset.solveErr !== undefined) {
-          kit.openPicker(solveBtn, 'error', { index: Number(solveBtn.dataset.solveErr) })
+          const idx = Number(solveBtn.dataset.solveErr)
+          const ev = (lastBoard?.errors ?? [])[idx]
+          if (ev?.id === undefined) return
+          void (async () => {
+            const r = await postErrorAction({ id: ev.id, action: 'claim', from_session: currentSession() })
+            if (!r.ok) { kit.toast('⚠ 认领失败：' + (r.error ?? '')); return }
+            kit.openPicker(solveBtn, 'error', { index: idx })  // 快照在打开瞬间按当前 lastBoard 解析（行序稳定，claim 不改 last_seen_at）
+            void fetchBoard(true)
+          })()
+          return
+        }
+        const actBtn = target.closest<HTMLElement>('.dsh-exec-evact[data-evid][data-evact]')
+        if (actBtn !== null) {
+          const id = actBtn.dataset.evid
+          const act = actBtn.dataset.evact as EvAct | undefined
+          if (id === undefined || act === undefined) return
+          void (async () => {
+            const r = await postErrorAction({ id, action: act, from_session: currentSession() })
+            kit.toast(r.ok ? '✓ ' + (r.message ?? '已更新') : '⚠ ' + (r.error ?? '操作失败'))
+            if (r.ok) void fetchBoard(true)
+          })()
         }
       }
       refs.errsBox.addEventListener('click', onErrsClick)

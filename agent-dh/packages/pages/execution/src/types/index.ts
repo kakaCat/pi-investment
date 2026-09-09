@@ -79,11 +79,34 @@ export interface SchedulerRun {
   payload?: { error?: string; status?: string; details?: unknown } | null;
 }
 
+export type ErrorEventStatus = 'open' | 'processing' | 'resolved' | 'ignored';
+
+/** 错误事件：2026-09-09 起数据源=Agent OS error_events 表（采集入库、按指纹去重计数）。
+ *  solve-kit 兼容字段（source/timestamp/line/file）保持填充：投递消息读 source/line/file/timestamp。 */
 export interface ErrorEvent {
   source: 'v2' | 'os' | 'dsh' | 'pg';
-  timestamp?: string;   // 解析自行首，失败为 undefined
-  line: string;         // 截断 500 字符
-  file: string;         // 日志文件名（basename）
+  /** 兼容/展示用：最近一次出现时间（last_seen_at ISO，fmtClock 可解析） */
+  timestamp?: string;
+  /** 兼容/展示用：单行错误摘要（msg 或 msg+err 提炼） */
+  line: string;
+  /** 兼容/展示用：来源文件或任务（metadata.log_path basename 或 task_name） */
+  file: string;
+  // —— Agent OS error_events DB 字段 ——
+  id: string;
+  status: ErrorEventStatus;
+  occurrenceCount: number;      // 指纹去重后的出现次数
+  firstSeenAt?: string;         // ISO
+  lastSeenAt?: string;          // ISO
+  level?: string;
+  msg?: string;
+  detail?: string | null;
+  taskName?: string | null;
+  taskId?: string | null;
+  assignee?: string | null;           // claim 认领窗口（如 w-xxxx）
+  dispatchedSession?: string | null;
+  resolvedAt?: string | null;
+  resolutionNote?: string | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface TimelineEntry {
@@ -132,7 +155,6 @@ export interface AggregatorOptions {
   osBaseURL: string;
   genomeDir: string;                 // genome 目录（candidates.json/genome.json）
   profileStateDir: string;           // ~/.dsh/profiles/investment/state
-  logFiles: Array<{ source: 'v2' | 'os' | 'dsh' | 'pg'; file: string }>;
   requestTimeoutMs?: number;
 }
 export interface OrphanedTask {

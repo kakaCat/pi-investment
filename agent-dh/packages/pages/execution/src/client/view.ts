@@ -223,7 +223,7 @@ export function buildView(): ViewRefs {
   const flowSec = sec('执行流水线', 'ENGINE M0–M6 × AUTONOMY L1–L4 检查点状态', 'flowBox')
   const timelineSec = sec('今日时间轴', '按业务线分组：盈利引擎 / Autonomy 展开 · 账户与其它折叠 · 徽标 v2/os=调度来源 dh/ts=调用 agent · 按计划时刻排序', 'timelineBox')
   const tasksSec = sec('调度任务', '按业务线分类切换（盈利引擎 / Autonomy / 账户定时 / 临时核验）· 徽标 v2/os=调度来源 dh/ts=调用 agent · 点击任务行查看失败原因', 'tasksBox')
-  const errsSec = sec('错误事件', '近 10 条日志异常（系统侧）', 'errsBox')
+  const errsSec = sec('错误事件', 'Agent OS error_events · 三端采集去重计数 · 处置：我来解决=认领并投递 / 解决 / 忽略 / 复开', 'errsBox')
   errsSec.style.display = 'none'
   const blockSec = sec('流水线阻断', 'failed/late 且声明阻断下游', 'blockBox')
   blockSec.style.display = 'none'
@@ -530,18 +530,40 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
     (selTask ? '<div class="dsh-exec-tkdetail">' + taskDetailHtml(selTask) + '</div>' : '')
 }
 
+// 错误事件状态机展示（Agent OS error_events 单源）：
+//   状态徽标 open待处理 / processing处理中 / resolved已解决 / ignored已忽略（×occ=指纹去重累计次数）
+//   处置：open→我来解决(认领并投递)/解决/忽略 · processing→解决/忽略 · resolved/ignored→复开
+const ERR_ST_ZH: Record<string, string> = { open: '待处理', processing: '处理中', resolved: '已解决', ignored: '已忽略' }
 function renderErrors(refs: ViewRefs, data: BoardData): void {
   const errs = data.errors ?? []
   refs.errsSec.style.display = errs.length > 0 ? '' : 'none'
   if (errs.length === 0) return
-  refs.errsBox.innerHTML = '<ol class="dsh-exec-errs">' + errs.slice(0, 10).map((e, i) => {
+  refs.errsBox.innerHTML = '<ol class="dsh-exec-errs">' + errs.slice(0, 12).map((e, i) => {
     const src = String(e.source ?? '').toLowerCase()
     const cls = src.includes('os') ? 'os' : src.includes('dsh') ? 'dsh' : 'v2'
-    const first = trunc((e.line ?? e.file ?? '').replace(/\\n/g, ' '), 120)
-    return '<li><span class="src ' + cls + '">' + esc(e.source ?? '?') + '</span>' +
-      '<time>' + esc(shortDT(e.timestamp)) + '</time>' +
-      '<span class="line" title="' + esc(e.line ?? '') + '">' + esc(first) + '</span>' +
-      '<button type="button" class="dsh-exec-solve" data-solve-err="' + i + '" title="把该错误事件投递给窗口排查处置">我来解决</button></li>'
+    const st = e.status && ERR_ST_ZH[e.status] ? e.status : 'open'
+    const occ = Number(e.occurrenceCount) || 1
+    const rawLine = String(e.line ?? e.msg ?? '').replace(/\n/g, ' ')
+    const asg = e.status === 'processing' && e.assignee ? '<span class="asg" title="认领窗口">👤 ' + esc(e.assignee) + '</span>' : ''
+    const idAttr = ' data-evid="' + esc(String(e.id ?? '')) + '"'
+    let btns = ''
+    if (st === 'open') {
+      btns = '<button type="button" class="dsh-exec-solve" data-solve-err="' + i + '" title="认领(assignee=本窗口,状态→处理中)并投递给窗口排查处置">我来解决</button>' +
+        '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="resolve" title="标记已解决">解决</button>' +
+        '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="ignore" title="标记已忽略（不处置）">忽略</button>'
+    } else if (st === 'processing') {
+      btns = '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="resolve" title="已处置完成，标记解决">解决</button>' +
+        '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="ignore" title="标记已忽略（不处置）">忽略</button>'
+    } else {
+      btns = '<button type="button" class="dsh-exec-evact"' + idAttr + ' data-evact="reopen" title="重新打开为待处理">复开</button>'
+    }
+    return '<li class="st-' + st + '"><span class="src ' + cls + '">' + esc(e.source ?? '?') + '</span>' +
+      '<span class="evst st-' + st + '">' + ERR_ST_ZH[st] + '</span>' +
+      '<time title="最近出现 ' + esc(String(e.lastSeenAt ?? e.timestamp ?? '')) + '">' + esc(shortDT(e.timestamp ?? e.lastSeenAt)) + '</time>' +
+      (occ > 1 ? '<span class="occ" title="同指纹累计出现 ' + occ + ' 次（去重合并）">×' + occ + '</span>' : '') +
+      '<span class="line" title="' + esc(rawLine.slice(0, 500)) + '">' + esc(trunc(rawLine, 120)) + '</span>' +
+      asg +
+      '<span class="op">' + btns + '</span></li>'
   }).join('') + '</ol>'
 }
 function renderBlocked(refs: ViewRefs, data: BoardData): void {

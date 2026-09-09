@@ -35,11 +35,32 @@ export interface SchedulerTask {
   /** 是否调用 agent：dh=agent-dh / ts=agent-ts（无则不显示） */
   agentCall?: string
 }
+export type ErrorEventStatus = 'open' | 'processing' | 'resolved' | 'ignored'
+/** 错误事件（数据源=Agent OS error_events 表，采集入库按指纹去重） */
 export interface ErrorEvent {
   source?: string
+  /** 最近一次出现时间（last_seen_at） */
   timestamp?: string
+  /** 错误摘要（msg 提炼，一行） */
   line?: string
+  /** 来源文件/任务（log_path basename 或 task_name） */
   file?: string
+  // —— Agent OS error_events DB 字段 ——
+  id?: string
+  status?: ErrorEventStatus
+  occurrenceCount?: number
+  firstSeenAt?: string
+  lastSeenAt?: string
+  level?: string
+  msg?: string
+  detail?: string | null
+  taskName?: string | null
+  taskId?: string | null
+  assignee?: string | null
+  dispatchedSession?: string | null
+  resolvedAt?: string | null
+  resolutionNote?: string | null
+  logPath?: string | null
 }
 export interface TimelineEntry {
   taskId?: string | number
