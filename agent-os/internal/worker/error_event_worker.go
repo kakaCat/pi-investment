@@ -248,15 +248,15 @@ func (w *ErrorEventWorker) processLines(ctx context.Context, t LogTarget, lines 
 		}
 		return
 	}
-	// v2/dsh：优先结构化 JSON（稳定 msg/指纹），否则按非结构化文本正则
-	re := errorLineRe(t.Source)
+	// v2/dsh：优先结构化 JSON（稳定 msg/指纹）。合法 JSON 只收 error 级，
+	// 非 error 级 JSON 直接跳过——不得掉进非结构化正则（JSON 内容里的
+	// error/critical 子串会误命中：all_critical_ok、detail 里 "Error 61
+	// connecting"、event 文案 CRITICAL，曾把 v2 启动 INFO/warning 当错误入库）。
+	// 决策逻辑收敛在 classifyLogLine（纯函数，见 error_event_worker_test.go 回归用例）。
 	for _, ln := range lines {
-		msg, structured := parseStructuredLogLine(ln)
-		if !structured {
-			if !re.MatchString(ln) {
-				continue
-			}
-			msg = stripLogPrefix(ln)
+		msg, ok := classifyLogLine(ln, t.Source)
+		if !ok {
+			continue
 		}
 		fp := repository.FingerprintOf(t.Source, "", msg)
 		_, _, err := w.repo.Upsert(ctx, domain.ErrorEventUpsertInput{
@@ -271,6 +271,22 @@ func (w *ErrorEventWorker) processLines(ctx context.Context, t LogTarget, lines 
 			logger.L().Error("Failed to upsert log error event", logger.String("source", t.Source), logger.String("error", err.Error()))
 		}
 	}
+}
+
+// classifyLogLine 判定单行 v2/dsh 日志是否应收为 error 事件并提取稳定 msg。
+// 合法结构化 JSON：parseStructuredLogLine 内按 level 白名单（error/fatal/critical/exception）
+// 判定，非 error 级返回 false——绝不拿 JSON 内容去跑非结构化正则。
+// 非 JSON 文本行：按 error 级正则（errorLineRe）匹配后剥前缀。
+func classifyLogLine(ln, source string) (string, bool) {
+	trimmed := strings.TrimSpace(ln)
+	if strings.HasPrefix(trimmed, "{") {
+		return parseStructuredLogLine(ln)
+	}
+	re := errorLineRe(source)
+	if !re.MatchString(ln) {
+		return "", false
+	}
+	return stripLogPrefix(ln), true
 }
 
 // --- 解析辅助 ---
