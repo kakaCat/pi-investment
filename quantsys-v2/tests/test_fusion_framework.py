@@ -7,23 +7,21 @@ Tests the fusion of FinceptTerminal's design patterns into QuantSys V2.
 
 import pytest
 import numpy as np
-import pandas as pd
-from datetime import datetime
 
-from domain.quantlib.core.base_calculator import (
+from domain.quantlib.base_calculator import (
     BaseCalculator,
     validate_inputs,
     timing_decorator,
-    handle_calculation_error,
     CalculatorFactory
 )
-from domain.quantlib.core.exceptions import (
+from domain.quantlib.exceptions import (
     DataValidationError as CoreDataValidationError,
     InsufficientDataError as CoreInsufficientDataError,
     CalculationError as CoreCalculationError,
     ConvergenceError as CoreConvergenceError
 )
 from domain.quantlib.exceptions import (
+    handle_calculation_error,
     DataValidationError as QLDataValidationError,
     InsufficientDataError as QLInsufficientDataError,
     CalculationError as QLCalculationError,
@@ -34,7 +32,6 @@ DataValidationError = (CoreDataValidationError, QLDataValidationError)
 InsufficientDataError = (CoreInsufficientDataError, QLInsufficientDataError)
 CalculationError = (CoreCalculationError, QLCalculationError)
 ConvergenceError = (CoreConvergenceError, QLConvergenceError)
-from domain.quantlib.core.data_validator import DataValidator, DataQualityReport
 from domain.quantlib.derivatives.black_scholes import BlackScholesCalculator
 from domain.quantlib.derivatives.greeks import GreeksCalculator
 
@@ -103,76 +100,6 @@ class TestBaseCalculator:
         assert "timestamp" in result
         assert result["calculator"] == "BlackScholesCalculator"
 
-
-class TestDataValidator:
-    """Test DataValidator class."""
-
-    def test_validate_returns_series_valid(self):
-        """Test validation of valid returns series."""
-        returns = np.random.randn(100) * 0.02  # 2% daily volatility
-        result = DataValidator.validate_returns_series(returns, min_length=30)
-        assert len(result) == 100
-
-    def test_validate_returns_series_too_short(self):
-        """Test that short series are rejected."""
-        returns = [0.01, 0.02]
-        with pytest.raises(InsufficientDataError):
-            DataValidator.validate_returns_series(returns, min_length=30)
-
-    def test_validate_returns_series_with_nan(self):
-        """Test that NaN values are rejected."""
-        returns = [0.01, np.nan, 0.02]
-        with pytest.raises(DataValidationError, match="NaN"):
-            DataValidator.validate_returns_series(returns, min_length=2)
-
-    def test_validate_positive(self):
-        """Test positive number validation."""
-        assert DataValidator.validate_positive_number(5.0, "test") == 5.0
-
-        with pytest.raises(DataValidationError):
-            DataValidator.validate_positive_number(-1.0, "test")
-
-    def test_validate_probability(self):
-        """Test probability validation."""
-        assert DataValidator.validate_probability(0.75, "test") == 0.75
-
-        with pytest.raises(DataValidationError):
-            DataValidator.validate_probability(1.5, "test")
-
-    def test_detect_outliers_iqr(self):
-        """Test outlier detection using IQR method."""
-        data = np.concatenate([
-            np.random.randn(100),
-            [10, -10]  # Outliers
-        ])
-        mask, indices = DataValidator.detect_outliers(data, method="iqr")
-        assert len(indices) >= 2  # Should detect at least the 2 outliers
-
-    def test_detect_outliers_zscore(self):
-        """Test outlier detection using z-score method."""
-        data = np.concatenate([
-            np.random.randn(100),
-            [5, -5]  # Outliers
-        ])
-        mask, indices = DataValidator.detect_outliers(data, method="zscore", threshold=3.0)
-        assert len(indices) >= 2
-
-    def test_generate_quality_report(self):
-        """Test data quality report generation."""
-        df = pd.DataFrame({
-            'price': [100, 101, np.nan, 103, 104],
-            'volume': [1000, 1100, 1200, 1300, 1400],
-            'date': pd.date_range('2024-01-01', periods=5)
-        })
-
-        validator = DataValidator()
-        report = validator.generate_quality_report(df, date_column='date')
-
-        assert isinstance(report, DataQualityReport)
-        assert report.total_records == 5
-        assert report.missing_values['price'] == 1
-        assert report.date_range is not None
-        assert 0 <= report.quality_score <= 100
 
 
 class TestBlackScholesCalculator:

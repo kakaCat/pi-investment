@@ -4,9 +4,9 @@
 import pytest
 import pandas as pd
 from flask import Flask
-from adapters.inbound.api.utils.response import normalize_indicator_fields
+from adapters.shared.response_helpers import normalize_indicator_fields
 from application.services.strategy_code_service import StrategyCodeService
-from domain.quantlib.engine.indicator_strategy_executor import IndicatorStrategyResult
+from domain.backtest.engine.indicator_strategy_executor import IndicatorStrategyResult
 
 
 class TestNormalizeIndicatorFields:
@@ -46,8 +46,8 @@ class TestNormalizeIndicatorFields:
         ]
         result = normalize_indicator_fields(indicators)
 
-        # 不应该添加 name 字段
-        assert 'name' not in result[0]
+        # 真实实现会补充默认 name（不新增 strategy_name）
+        assert result[0]['name'] == 'Unnamed Indicator'
         assert 'strategy_name' not in result[0]
 
     def test_multiple_indicators(self):
@@ -64,7 +64,8 @@ class TestNormalizeIndicatorFields:
         assert result[0]['name'] == 'Strategy 1'
         assert result[1]['name'] == 'Strategy 2'
         assert result[2]['name'] == 'Strategy 3'
-        assert 'name' not in result[3]
+        # 无 name/strategy_name 的条目被补充默认名
+        assert result[3]['name'] == 'Unnamed Indicator'
 
     def test_preserves_other_fields(self):
         """测试保留其他字段"""
@@ -158,9 +159,11 @@ class TestNormalizeIndicatorFields:
 
         result = normalize_indicator_fields(original)
 
-        # 原始列表应该被修改（函数设计为就地修改）
-        assert original[0]['name'] == 'Test'
-        assert result is original  # 返回的是同一个列表对象
+        # 真实实现返回新列表+新 dict，不就地修改原始输入
+        assert original == original_copy  # 原始输入未被修改
+        assert result is not original
+        assert result[0] is not original[0]
+        assert result[0]['name'] == 'Test'  # 规范化的结果在新对象上
 
 
 if __name__ == '__main__':

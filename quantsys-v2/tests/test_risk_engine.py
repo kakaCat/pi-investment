@@ -7,7 +7,7 @@ Uses mock DataService to test rule logic without requiring a database connection
 
 from unittest.mock import MagicMock
 
-from domain.quantlib.engine.risk_rules import (
+from domain.backtest.engine.risk_rules import (
     check_position_size,
     check_portfolio_concentration,
     check_stop_loss,
@@ -30,7 +30,7 @@ from domain.quantlib.engine.risk_rules import (
     check_trading_hours,
 )
 from application.services.risk_service import RiskService
-from domain.quantlib.engine.stress_test import StressTestEngine, SCENARIO_MARKET_DROP_10, SCENARIO_2015_CRASH
+from domain.backtest.engine.stress_test import StressTestEngine, SCENARIO_MARKET_DROP_10, SCENARIO_2015_CRASH
 
 
 # ---------------------------------------------------------------------------
@@ -510,7 +510,7 @@ class TestPreTradeCheck:
 
         assert isinstance(result, dict)
         assert result["symbol"] == "000001.SZ"
-        assert result["action'] == 'BUY'
+        assert result["action"] == 'BUY'
         assert result["passed"] is True
         assert len(result["failures"]) == 0
         assert "checks" in result
@@ -1914,56 +1914,56 @@ class TestHelperFunctions:
 
     def test_calculate_returns_empty_list(self):
         """空列表返回空"""
-        from domain.quantlib.engine.risk_rules import _calculate_returns
+        from domain.backtest.engine.risk_rules import _calculate_returns
         result = _calculate_returns([])
         assert result == []
 
     def test_calculate_returns_single_price(self):
         """单个价格返回空"""
-        from domain.quantlib.engine.risk_rules import _calculate_returns
+        from domain.backtest.engine.risk_rules import _calculate_returns
         result = _calculate_returns([10.0])
         assert result == []
 
     def test_calculate_returns_zero_price(self):
         """价格为0时跳过该收益率"""
-        from domain.quantlib.engine.risk_rules import _calculate_returns
+        from domain.backtest.engine.risk_rules import _calculate_returns
         result = _calculate_returns([10.0, 0, 12.0])
         assert len(result) == 1  # 只有一个有效收益率
 
     def test_calculate_volatility_empty_returns(self):
         """空收益率返回None"""
-        from domain.quantlib.engine.risk_rules import _calculate_volatility
+        from domain.backtest.engine.risk_rules import _calculate_volatility
         result = _calculate_volatility([])
         assert result is None
 
     def test_calculate_volatility_single_return(self):
         """单个收益率返回None"""
-        from domain.quantlib.engine.risk_rules import _calculate_volatility
+        from domain.backtest.engine.risk_rules import _calculate_volatility
         result = _calculate_volatility([0.01])
         assert result is None
 
     def test_calculate_correlation_empty_returns(self):
         """空收益率返回None"""
-        from domain.quantlib.engine.risk_rules import _calculate_correlation
+        from domain.backtest.engine.risk_rules import _calculate_correlation
         result = _calculate_correlation([], [0.01, 0.02])
         assert result is None
 
     def test_calculate_correlation_insufficient_data(self):
         """数据不足10条返回None"""
-        from domain.quantlib.engine.risk_rules import _calculate_correlation
+        from domain.backtest.engine.risk_rules import _calculate_correlation
         result = _calculate_correlation([0.01] * 5, [0.02] * 5)
         assert result is None
 
     def test_calculate_correlation_zero_denominator(self):
         """标准差为0时返回None"""
-        from domain.quantlib.engine.risk_rules import _calculate_correlation
+        from domain.backtest.engine.risk_rules import _calculate_correlation
         # 所有收益率相同，标准差为0
         result = _calculate_correlation([0.01] * 20, [0.02] * 20)
         assert result is None
 
     def test_get_sample_symbols_exception(self):
         """获取样本股票异常时返回硬编码列表"""
-        from domain.quantlib.engine.risk_rules import _get_sample_symbols
+        from domain.backtest.engine.risk_rules import _get_sample_symbols
         ds = _make_ds(stock=MagicMock(get_all_stocks=MagicMock(side_effect=Exception("DB error"))))
         result = _get_sample_symbols(ds)
         assert len(result) == 10
@@ -1971,7 +1971,7 @@ class TestHelperFunctions:
 
     def test_get_sample_symbols_empty(self):
         """无股票时返回硬编码列表"""
-        from domain.quantlib.engine.risk_rules import _get_sample_symbols
+        from domain.backtest.engine.risk_rules import _get_sample_symbols
         ds = _make_ds(stock=MagicMock(get_all_stocks=lambda: []))
         result = _get_sample_symbols(ds)
         assert len(result) == 10
