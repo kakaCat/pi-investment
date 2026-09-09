@@ -21,6 +21,9 @@ func TestClassifyLogLine_RejectsInfoWarningJSON(t *testing.T) {
 		// 纯文本 INFO 前缀
 		`INFO:uvicorn:Application startup complete.`,
 		`2026-09-09 18:05:52 INFO     main: routes registered successfully`,
+		// 启动 banner（无 level，含 exception/error 词但非错误）
+		`Exception handlers registered successfully`,
+		`Agent OS 结构化错误上报已启用 → http://127.0.0.1:8080/api/v1/scheduler/error-events`,
 	}
 	for _, ln := range cases {
 		if msg, ok := classifyLogLine(ln, "v2"); ok {

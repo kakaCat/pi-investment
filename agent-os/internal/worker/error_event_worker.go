@@ -273,14 +273,22 @@ func (w *ErrorEventWorker) processLines(ctx context.Context, t LogTarget, lines 
 	}
 }
 
+// startupBannerRe 启动/常规 banner 白名单：无 level 前缀的纯文本行即使含
+// error/exception 词（FastAPI "Exception handlers registered successfully"、
+// reporter 启用行里的 error-events URL）也不是错误，直接跳过。
+var startupBannerRe = regexp.MustCompile(`(?i)(registered successfully|startup complete|Application startup complete|Uvicorn running|Agent OS 结构化错误上报已启用)`)
+
 // classifyLogLine 判定单行 v2/dsh 日志是否应收为 error 事件并提取稳定 msg。
 // 合法结构化 JSON：parseStructuredLogLine 内按 level 白名单（error/fatal/critical/exception）
 // 判定，非 error 级返回 false——绝不拿 JSON 内容去跑非结构化正则。
-// 非 JSON 文本行：按 error 级正则（errorLineRe）匹配后剥前缀。
+// 非 JSON 文本行：先排除启动/常规 banner，再按 error 级正则（errorLineRe）匹配后剥前缀。
 func classifyLogLine(ln, source string) (string, bool) {
 	trimmed := strings.TrimSpace(ln)
 	if strings.HasPrefix(trimmed, "{") {
 		return parseStructuredLogLine(ln)
+	}
+	if startupBannerRe.MatchString(ln) {
+		return "", false
 	}
 	re := errorLineRe(source)
 	if !re.MatchString(ln) {
