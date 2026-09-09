@@ -92,6 +92,11 @@ export interface TriageRecord {
   firstMessageText: string
   suggestedAction: 'create_req' | 'bind_req' | 'bind_task'
   suggestedTargetId?: string
+  /** Agent/LLM 建议的需求标题（create_req；可编辑建议卡预填） */
+  suggestedTitle?: string
+  /** Agent/LLM 建议的需求分类（create_req；可编辑建议卡预填） */
+  suggestedCategory?: RequirementCategory
+  /** 匹配分数 0-100（agent 显式提议=100，启发式匹配=低值） */
   score: number
   status: TriageStatus
   createdAt: number

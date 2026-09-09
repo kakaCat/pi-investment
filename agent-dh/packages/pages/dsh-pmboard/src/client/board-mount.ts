@@ -163,7 +163,16 @@ export function mountBoard(controller: BoardController): () => void {
         if (tri?.suggestedAction === 'bind_req' && tri.suggestedTargetId) {
           void api.triageConfirm({ triageId, action: 'bind_req', targetId: tri.suggestedTargetId }).then(() => fetchAll()).catch(e => window.alert(String(e)))
         } else {
-          void api.triageConfirm({ triageId, action: 'create_req' }).then(() => fetchAll()).catch(e => window.alert(String(e)))
+          // 乙流程人工门：create_req 前读取可编辑卡上的 名称/分类（人工可改，空则不覆盖）
+          const card = el.closest<HTMLElement>('.dsh-pm-triage')
+          const title = card?.querySelector<HTMLInputElement>('[data-role="triage-title"]')?.value.trim()
+          const category = card?.querySelector<HTMLSelectElement>('[data-role="triage-category"]')?.value
+          void api.triageConfirm({
+            triageId,
+            action: 'create_req',
+            ...(title ? { title } : {}),
+            ...(category ? { category } : {}),
+          }).then(() => fetchAll()).catch(e => window.alert(String(e)))
         }
         return
       }

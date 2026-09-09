@@ -73,7 +73,15 @@ export function addComment(input: { target: 'req' | 'task'; id: string; body: st
 
 // -- 待归类操作 -----------------------------------------------------------
 
-export function triageConfirm(input: { triageId: string; action: 'create_req' | 'bind_req'; targetId?: string }): Promise<unknown> {
+export function triageConfirm(input: {
+  triageId: string
+  action: 'create_req' | 'bind_req'
+  targetId?: string
+  /** create_req 人工编辑覆盖（可编辑建议卡） */
+  title?: string
+  category?: string
+  description?: string
+}): Promise<unknown> {
   return post(BASE + '/triage/confirm', input)
 }
 

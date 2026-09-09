@@ -211,6 +211,8 @@ export interface RequirementRecord {
   paused?: boolean
   /** 评审共创会话 */
   reviewSessionId?: string
+  /** 立项来源窗口（自动立项时写入；人工建卡不填）——窗口↔需求 n:n 的需求侧锚点 */
+  sourceSessionId?: string
   /** 归档后的目录路径 */
   archivePath?: string
   comments: CommentRecord[]
@@ -417,7 +419,9 @@ export function readyTasks(tasks: readonly TaskRecord[], requirementId: string):
   return inReq.filter(t => t.status === 'todo' && t.dependsOn.every(dep => doneIds.has(dep)))
 }
 // ---------------------------------------------------------------------------
-// Triage（会话捕获待归类，人机回路）
+// Triage（遗留：旧流程「会话捕获待归类建议卡，人工在看板确认」；新流程 2026-09 起
+// 改为创建即立项——两问弹框作答即确认，直接 reqboard_create 建 REQ，不再产生
+// pending triage。存量 triage 记录保留供回溯，路由仍兼容其 confirm/reject/rebind。）
 // ---------------------------------------------------------------------------
 
 export type TriageStatus = 'pending' | 'confirmed' | 'rejected'
@@ -431,14 +435,20 @@ export interface TriageRecord {
   suggestedAction: 'create_req' | 'bind_req' | 'bind_task'
   /** 建议绑定目标 id（REQ-xxx / t-xxx） */
   suggestedTargetId?: string
+  /** LLM 建议的需求标题（create_req 时；GUI 可编辑卡预填） */
+  suggestedTitle?: string
+  /** LLM 建议的需求分类（create_req 时） */
+  suggestedCategory?: RequirementCategory
   /** 匹配分数 0-100 */
   score: number
   status: TriageStatus
   createdAt: number
   resolvedAt?: number
   resolvedBy?: ActorRef
-  /** 确认后产生的结果需求 id */
+  /** 确认后产生的结果需求 id（最近一条；历史见 resultRequirementIds） */
   resultRequirementId?: string
+  /** 该窗口全部已立项需求（自动立项史，窗口→需求 n:n 的窗口侧锚点） */
+  resultRequirementIds?: string[]
   comments: CommentRecord[]
 }
 
