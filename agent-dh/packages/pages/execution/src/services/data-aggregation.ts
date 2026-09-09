@@ -16,7 +16,7 @@ import { CHECKPOINTS } from './checkpoint-registry.js';
 import { fetchJson, HttpError } from './http.js';
 import type {
   AggregatorOptions, BlockedFlowEntry, BoardData, Checkpoint, CheckpointResult,
-  ErrorEvent, HealthStatus, SchedulerRun, SchedulerTask, TimelineEntry, Verify,
+  ErrorEvent, HealthStatus, OrphanedTask, SchedulerRun, SchedulerTask, TimelineEntry, Verify,
 } from '../types/index.js';
 
 interface TaskRunsResult { tasks: SchedulerTask[]; fetchError?: string }
