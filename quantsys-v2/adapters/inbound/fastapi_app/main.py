@@ -62,6 +62,26 @@ async def lifespan(app: FastAPI):
     # 启动时
     logger.info("🚀 FastAPI application starting...")
 
+    # E-201 启动依赖检查（TA-Lib / PostgreSQL / Redis）
+    # 尽早暴露关键依赖缺失；critical 缺失记录 ERROR，不中断启动（容错启动）。
+    try:
+        from infrastructure.diagnostics.dependency_check import (
+            check_dependencies,
+            summarize,
+        )
+        dep_results = check_dependencies()
+        dep_summary = summarize(dep_results)
+        if not dep_summary['all_critical_ok']:
+            logger.error(
+                "startup_dependency_check_failed",
+                failed=dep_summary['failed'],
+                detail="关键依赖缺失，应用可能无法正常工作",
+            )
+        else:
+            logger.info("startup_dependency_check_ok", summary=dep_summary)
+    except Exception as e:
+        logger.warning(f"⚠️ Startup dependency check skipped: {e}")
+
     # 初始化 JobRegistry（2026-09-01: scheduler 重构，优先使用 JobRegistry）
     try:
         from application.jobs.registry_setup import register_all_jobs
