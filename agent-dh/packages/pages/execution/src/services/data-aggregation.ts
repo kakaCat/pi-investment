@@ -218,7 +218,6 @@ export class DataAggregationService {
   }
 
   async fetchBoardData(): Promise<BoardData> {
-    console.log('[DEBUG] fetchBoardData called - orphanedTasks feature enabled');
     const degraded: Array<{ source: string; error: string }> = [];
 
     // 各数据路全部并行；单路失败只进 degraded，绝不整体 500
