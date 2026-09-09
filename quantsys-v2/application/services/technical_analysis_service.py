@@ -5,7 +5,11 @@
 import structlog
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
-from domain.ports.datasource_ports import IDataProviderManager
+
+from infrastructure.config.constants.detection_config import (
+    TechnicalAnalysisConfig,
+    DEFAULT_TECHNICAL_ANALYSIS_CONFIG,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -13,25 +17,31 @@ logger = structlog.get_logger(__name__)
 class TechnicalAnalysisService:
     """技术分析服务"""
 
-    def __init__(self):
+    def __init__(self, config: Optional[TechnicalAnalysisConfig] = None):
         self.logger = structlog.get_logger(__name__)
+        self.config = config or DEFAULT_TECHNICAL_ANALYSIS_CONFIG
 
-    def _get_klines_df(self, symbol: str, period_days: int = 60) -> Optional['pd.DataFrame']:
+    def _get_klines_df(self, symbol: str, period_days: int = None) -> Optional['pd.DataFrame']:
         """通过 DataProviderManager 获取K线数据并转为 DataFrame
 
         Args:
             symbol: 股票代码（6位数字）
-            period_days: 获取多少天的数据
+            period_days: 获取多少天的数据（可选，默认使用配置）
 
         Returns:
             pandas DataFrame（中文列名，与 akshare 格式兼容）或 None
         """
         import pandas as pd
+        from domain.ports.datasource_ports import IDataProviderManager
+
+        if period_days is None:
+            period_days = self.config.default_period_days
 
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=period_days)).strftime('%Y-%m-%d')
 
-        manager: IDataProviderManager = get_data_provider_manager()
+        from infrastructure.services.service_factory import ServiceFactory
+        manager: IDataProviderManager = ServiceFactory.get_data_provider_manager()
         result = manager.get_klines(symbol, 'daily', start_date, end_date)
 
         if not result.get('success') or not result.get('data'):
@@ -60,17 +70,20 @@ class TechnicalAnalysisService:
         df = df.sort_values('日期').reset_index(drop=True)
         return df
 
-    def analyze_price_action(self, symbol: str, period: int = 60) -> Dict[str, Any]:
+    def analyze_price_action(self, symbol: str, period: int = None) -> Dict[str, Any]:
         """
         价格行为分析
 
         Args:
             symbol: 股票代码
-            period: 分析周期（天数）
+            period: 分析周期（天数，可选，默认使用配置）
 
         Returns:
             包含价格行为分析结果的字典
         """
+        if period is None:
+            period = self.config.default_period_days
+
         try:
             import pandas as pd
 
@@ -78,7 +91,7 @@ class TechnicalAnalysisService:
 
             try:
                 # 获取历史K线数据（通过 DataProviderManager）
-                df = self._get_klines_df(symbol, period_days=period + 10)
+                df = self._get_klines_df(symbol, period_days=period + self.config.price_action_extra_days)
 
                 if df is None or df.empty:
                     return {
@@ -91,9 +104,9 @@ class TechnicalAnalysisService:
                 df = df.tail(period)
 
                 # 计算价格行为指标
-                df['ma5'] = df['收盘'].rolling(window=5).mean()
-                df['ma10'] = df['收盘'].rolling(window=10).mean()
-                df['ma20'] = df['收盘'].rolling(window=20).mean()
+                df['ma5'] = df['收盘'].rolling(window=self.config.ma_short).mean()
+                df['ma10'] = df['收盘'].rolling(window=self.config.ma_medium).mean()
+                df['ma20'] = df['收盘'].rolling(window=self.config.ma_long).mean()
 
                 latest = df.iloc[-1]
 
@@ -102,7 +115,7 @@ class TechnicalAnalysisService:
                 try:
                     change_pct = float(raw_change_pct) if pd.notna(raw_change_pct) else 0.0
                     # 验证数据合理性
-                    if abs(change_pct) > 30:
+                    if abs(change_pct) > self.config.max_reasonable_change_pct:
                         change_pct = 0.0
                 except (ValueError, TypeError):
                     change_pct = 0.0
@@ -164,7 +177,7 @@ class TechnicalAnalysisService:
 
             # 使用 KlineRepository 从数据库获取历史数据
             end_date = datetime.now().strftime('%Y-%m-%d')
-            start_date = (datetime.now() - timedelta(days=120)).strftime('%Y-%m-%d')
+            start_date = (datetime.now() - timedelta(days=self.config.buy_range_period_days)).strftime('%Y-%m-%d')
 
             from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
             kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
@@ -194,11 +207,11 @@ class TechnicalAnalysisService:
                 }
 
             # 计算买入区间（基于布林带）
-            df = df.tail(60)
-            df['ma20'] = df['close'].rolling(window=20).mean()
-            df['std20'] = df['close'].rolling(window=20).std()
-            df['upper'] = df['ma20'] + 2 * df['std20']
-            df['lower'] = df['ma20'] - 2 * df['std20']
+            df = df.tail(self.config.bollinger_data_window)
+            df['ma20'] = df['close'].rolling(window=self.config.bollinger_period).mean()
+            df['std20'] = df['close'].rolling(window=self.config.bollinger_period).std()
+            df['upper'] = df['ma20'] + self.config.bollinger_std_multiplier * df['std20']
+            df['lower'] = df['ma20'] - self.config.bollinger_std_multiplier * df['std20']
 
             latest = df.iloc[-1]
             current_price = float(latest['close'])
@@ -206,8 +219,8 @@ class TechnicalAnalysisService:
             buy_range = {
                 'symbol': symbol,
                 'current_price': round(current_price, 2),
-                'lower_bound': round(float(latest['lower']) if pd.notna(latest['lower']) else current_price * 0.95, 2),
-                'upper_bound': round(float(latest['upper']) if pd.notna(latest['upper']) else current_price * 1.05, 2),
+                'lower_bound': round(float(latest['lower']) if pd.notna(latest['lower']) else current_price * (1 - self.config.bollinger_default_lower_pct), 2),
+                'upper_bound': round(float(latest['upper']) if pd.notna(latest['upper']) else current_price * (1 + self.config.bollinger_default_upper_pct), 2),
                 'ma20': round(float(latest['ma20']) if pd.notna(latest['ma20']) else current_price, 2),
                 'recommendation': 'hold',  # 简化版，实际应根据价格位置判断
                 'update_time': datetime.now().isoformat()
@@ -253,7 +266,7 @@ class TechnicalAnalysisService:
                 from domain.ports import IKlineRepository
 
                 end_date = datetime.now().strftime('%Y-%m-%d')
-                start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+                start_date = (datetime.now() - timedelta(days=self.config.exit_plan_period_days)).strftime('%Y-%m-%d')
 
                 # 确保 symbol 有后缀
                 if '.' not in symbol:
@@ -278,15 +291,15 @@ class TechnicalAnalysisService:
                 if entry_price is None:
                     entry_price = current_price
 
-                # 简化版退出计划
+                # 简化版退出计划（止损/止盈均基于入场价乘系数）
                 exit_plan = {
                     'symbol': symbol,
                     'entry_price': entry_price,
                     'current_price': current_price,
                     'profit_pct': ((current_price - entry_price) / entry_price * 100) if entry_price > 0 else 0,
-                    'stop_loss': entry_price * 0.92,  # 8% 止损
-                    'take_profit_1': entry_price * 1.10,  # 10% 止盈
-                    'take_profit_2': entry_price * 1.20,  # 20% 止盈
+                    'stop_loss': entry_price * (1 - self.config.stop_loss_pct),
+                    'take_profit_1': entry_price * (1 + self.config.take_profit_1_pct),
+                    'take_profit_2': entry_price * (1 + self.config.take_profit_2_pct),
                     'update_time': datetime.now().isoformat()
                 }
 
@@ -317,17 +330,20 @@ class TechnicalAnalysisService:
                 'data': None
             }
 
-    def analyze_candlestick(self, symbol: str, period: int = 30) -> Dict[str, Any]:
+    def analyze_candlestick(self, symbol: str, period: int = None) -> Dict[str, Any]:
         """
         K线形态分析
 
         Args:
             symbol: 股票代码
-            period: 分析周期（天数）
+            period: 分析周期（天数，可选，默认使用配置）
 
         Returns:
             包含K线形态分析结果的字典
         """
+        if period is None:
+            period = self.config.candlestick_period
+
         try:
             import pandas as pd
 
@@ -335,7 +351,7 @@ class TechnicalAnalysisService:
 
             try:
                 # 获取K线数据（通过 DataProviderManager）
-                df = self._get_klines_df(symbol, period_days=period + 5)
+                df = self._get_klines_df(symbol, period_days=period + self.config.candlestick_extra_days)
 
                 if df is None or df.empty:
                     return {
@@ -349,12 +365,12 @@ class TechnicalAnalysisService:
                 patterns = []
 
                 # 检测十字星
-                if abs(float(latest['收盘']) - float(latest['开盘'])) < 0.01 * float(latest['收盘']):
+                if abs(float(latest['收盘']) - float(latest['开盘'])) < self.config.doji_body_threshold_pct * float(latest['收盘']):
                     patterns.append('十字星')
 
-                # 检测趋势
-                if len(df) >= 5:
-                    ma5 = df['收盘'].tail(5).mean()
+                # 检测趋势（需要至少一根短均线的数据量）
+                if len(df) >= self.config.ma_short:
+                    ma5 = df['收盘'].tail(self.config.ma_short).mean()
                     if latest['收盘'] > ma5:
                         patterns.append('上升趋势')
                     else:

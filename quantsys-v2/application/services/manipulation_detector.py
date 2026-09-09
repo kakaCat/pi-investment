@@ -8,6 +8,10 @@ import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import time
+from infrastructure.config.constants.detection_config import (
+    ManipulationDetectorConfig,
+    DEFAULT_MANIPULATION_DETECTOR_CONFIG,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -22,22 +26,25 @@ class ManipulationDetector:
         self,
         manipulation_repo: Optional[IAgentIntelligenceRepository] = None,
         fund_flow_repo: Optional[IFundFlowRepository] = None,
+        config: Optional[ManipulationDetectorConfig] = None,
     ):
         """初始化服务
 
         Args:
             manipulation_repo: 智能仓库（可选）
             fund_flow_repo: 资金流仓库（可选）
+            config: 检测器配置，None 时使用默认配置
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.manipulation_repo = manipulation_repo
         self.fund_flow_repo = fund_flow_repo
+        self.config = config or DEFAULT_MANIPULATION_DETECTOR_CONFIG
 
         # 扫描预算：外部数据源（涨停池/龙虎榜/资金流）可能无响应，
         # 必须对总扫描时间设硬上限，避免 /api/alerts/check 无限挂起（见盘中快检故障记录）。
-        self.scan_timeout_seconds = 15.0
-        self.max_scan_stocks = 20
+        self.scan_timeout_seconds = self.config.scan_timeout_seconds
+        self.max_scan_stocks = self.config.max_scan_stocks
 
     def detect_market_manipulation(self) -> Dict[str, Any]:
         """
@@ -127,9 +134,12 @@ class ManipulationDetector:
                 # 检测操纵信号
                 signals = self._detect_manipulation_signals(symbol, stock)
 
-                if len(signals) >= 3:  # 至少3个信号才判定为操纵
+                if len(signals) >= self.config.min_signal_count:  # 至少N个信号才判定为操纵
                     # 计算置信度
-                    confidence = min(0.95, 0.5 + len(signals) * 0.15)
+                    confidence = min(
+                        self.config.confidence_max,
+                        self.config.confidence_base + len(signals) * self.config.confidence_per_signal
+                    )
 
                     # 判断操纵阶段
                     stage = self._determine_manipulation_stage(symbol, signals)
@@ -215,15 +225,16 @@ class ManipulationDetector:
             检测到的信号列表
         """
         signals = []
+        cfg = self.config
 
         # 信号1: 连续涨停
         zt_count = stock_info.get('zt_count', 0)
-        if zt_count >= 3:
+        if zt_count >= cfg.consecutive_zt_threshold:
             signals.append(f'连续{zt_count}天涨停')
 
         # 信号2: 换手率异常
         turnover_rate = stock_info.get('turnover_rate', 0)
-        if turnover_rate > 30:
+        if turnover_rate > cfg.turnover_rate_threshold:
             signals.append(f'换手率异常高({turnover_rate:.1f}%)')
 
         # 信号3: 龙虎榜游资席位
@@ -255,11 +266,11 @@ class ManipulationDetector:
             是否检测到游资
         """
         try:
-            # 通过统一数据访问层获取最近5天的龙虎榜数据（Phase 2 数据提供者接口）
+            # 通过统一数据访问层获取最近N天的龙虎榜数据（Phase 2 数据提供者接口）
             from infrastructure.services.service_factory import ServiceFactory
 
             end_date = datetime.now()
-            start_date = end_date - timedelta(days=5)
+            start_date = end_date - timedelta(days=self.config.lhb_lookback_days)
 
             provider_manager = ServiceFactory.get_data_provider_manager()
             result = provider_manager.get_lhb_detail(
@@ -275,13 +286,7 @@ class ManipulationDetector:
                 return False
 
             # 检查是否有知名游资席位
-            hot_money_keywords = [
-                '东方财富证券拉萨',
-                '国泰君安成都',
-                '华泰证券深圳',
-                '银河证券绍兴',
-                '中信证券杭州'
-            ]
+            hot_money_keywords = self.config.hot_money_keywords
 
             for row in records:
                 buyer = str(row.get('买方营业部', ''))
@@ -308,7 +313,7 @@ class ManipulationDetector:
         try:
             # 获取最近的资金流向数据
             end_date = datetime.now()
-            start_date = end_date - timedelta(days=10)
+            start_date = end_date - timedelta(days=self.config.fund_flow_lookback_days)
 
             flows = self.fund_flow_repo.get_fund_flow(
                 symbol,
@@ -316,12 +321,13 @@ class ManipulationDetector:
                 end_date.strftime('%Y-%m-%d')
             )
 
-            if len(flows) < 5:
+            if len(flows) < self.config.min_fund_flow_records:
                 return False
 
-            # 计算最近3天平均成交量 vs 前7天平均
-            recent_volumes = [row.get('main_net_inflow', 0) for row in flows[:3]]
-            previous_volumes = [row.get('main_net_inflow', 0) for row in flows[3:]]
+            # 计算最近N天平均成交量 vs 之前平均
+            recent_window = self.config.volume_surge_recent_days
+            recent_volumes = [row.get('main_net_inflow', 0) for row in flows[:recent_window]]
+            previous_volumes = [row.get('main_net_inflow', 0) for row in flows[recent_window:]]
 
             if not previous_volumes:
                 return False
@@ -329,8 +335,8 @@ class ManipulationDetector:
             recent_avg = sum(abs(v) for v in recent_volumes) / len(recent_volumes)
             previous_avg = sum(abs(v) for v in previous_volumes) / len(previous_volumes)
 
-            # 成交量放大3倍以上
-            return recent_avg > previous_avg * 3
+            # 成交量放大N倍以上
+            return recent_avg > previous_avg * self.config.volume_surge_multiplier
 
         except Exception as e:
             logger.debug(f"检查成交量失败: {symbol} - {e}")
@@ -364,7 +370,7 @@ class ManipulationDetector:
         try:
             # 获取最近K线数据
             end_date = datetime.now()
-            start_date = end_date - timedelta(days=10)
+            start_date = end_date - timedelta(days=self.config.stagnation_lookback_days)
 
             # TODO: 获取K线数据，判断是否高位+放量+涨幅收窄
             # 这里简化处理
@@ -422,10 +428,11 @@ class ManipulationDetector:
         if current_price <= 0:
             return 0
 
-        # 简化估算：假设每个涨停板10%，回撤50%是合理价值
+        # 简化估算：假设每个涨停板配置的涨幅，回撤配置的比例是合理价值
         if zt_count > 0:
-            total_gain = (1.1 ** zt_count) - 1
-            fair_value = current_price / (1 + total_gain * 0.5)
+            daily_limit = 1 + self.config.daily_limit_gain
+            total_gain = (daily_limit ** zt_count) - 1
+            fair_value = current_price / (1 + total_gain * self.config.fair_value_retracement)
             return round(fair_value, 2)
 
         return current_price
@@ -441,9 +448,9 @@ class ManipulationDetector:
         Returns:
             风险级别
         """
-        if stage == 'distribution' or deviation > 50:
+        if stage == 'distribution' or deviation > self.config.extreme_risk_deviation:
             return 'extreme'
-        elif stage == 'markup' or deviation > 30:
+        elif stage == 'markup' or deviation > self.config.high_risk_deviation:
             return 'high'
         else:
             return 'medium'
@@ -496,7 +503,7 @@ class ManipulationDetector:
                         'collapsed_from': event.get('current_price', 0),
                         'current_price': self._get_current_price(symbol),
                         'fair_value': event.get('fair_value', 0),
-                        'confidence': 0.75,
+                        'confidence': self.config.bottom_fishing_confidence,
                         'action': 'bottom_fishing',
                         'entry_trigger': '止跌企稳后介入'
                     }
@@ -522,7 +529,7 @@ class ManipulationDetector:
         检查是否崩盘完成
 
         判断标准：
-        - 距离检测时间超过7天
+        - 距离检测时间超过配置天数
         - 当前价格接近公允价值
 
         Args:
@@ -542,7 +549,7 @@ class ManipulationDetector:
                 detected_time = datetime.fromisoformat(detected_time)
 
             days_passed = (datetime.now() - detected_time).days
-            if days_passed < 7:
+            if days_passed < self.config.collapse_min_days:
                 return False
 
             # 价格判断
@@ -552,9 +559,9 @@ class ManipulationDetector:
             if current_price <= 0 or fair_value <= 0:
                 return False
 
-            # 当前价格在公允价值±20%范围内
+            # 当前价格在公允价值±配置容差范围内
             deviation = abs(current_price - fair_value) / fair_value
-            return deviation < 0.2
+            return deviation < self.config.collapse_price_tolerance
 
         except Exception as e:
             logger.debug(f"检查崩盘完成失败: {symbol} - {e}")

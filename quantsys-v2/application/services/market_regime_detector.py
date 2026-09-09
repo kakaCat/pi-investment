@@ -18,6 +18,11 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 import structlog
 
+from infrastructure.config.constants.detection_config import (
+    MarketRegimeDetectorConfig,
+    DEFAULT_MARKET_REGIME_DETECTOR_CONFIG,
+)
+
 logger = structlog.get_logger(__name__)
 
 
@@ -58,14 +63,16 @@ class MarketRegimeDetector:
         }
     }
 
-    def __init__(self, kline_repo=None):
+    def __init__(self, kline_repo=None, config: Optional[MarketRegimeDetectorConfig] = None):
         """
         初始化市场环境识别器
 
         Args:
             kline_repo: K线数据仓储（用于获取指数数据）
+            config: 市场环境检测配置（可选，默认使用 DEFAULT_MARKET_REGIME_DETECTOR_CONFIG）
         """
         self.kline_repo = kline_repo
+        self.config = config or DEFAULT_MARKET_REGIME_DETECTOR_CONFIG
 
     def detect_current_regime(self, index_symbol: str = '000001') -> Dict[str, Any]:
         """
@@ -83,10 +90,10 @@ class MarketRegimeDetector:
             }
         """
         try:
-            # 获取指数数据（至少需要120天）
+            # 获取指数数据（至少需要配置的最小天数）
             if self.kline_repo:
-                klines = self.kline_repo.get_recent(index_symbol, limit=150)
-                if len(klines) < 120:
+                klines = self.kline_repo.get_recent(index_symbol, limit=self.config.fetch_klines)
+                if len(klines) < self.config.min_klines:
                     logger.warning(f"指数数据不足（{len(klines)}条），使用默认判断")
                     return self._get_default_regime()
 
@@ -114,7 +121,7 @@ class MarketRegimeDetector:
         """从已构建的指数K线 DataFrame 识别市场环境（公共方法）
 
         Args:
-            df: 含 date/open/high/low/close/volume 列，按日期升序，≥120 行
+            df: 含 date/open/high/low/close/volume 列，按日期升序，≥配置的最小天数
 
         Returns:
             {'regime', 'confidence', 'signals', 'characteristics', 'detected_at'}
@@ -123,7 +130,7 @@ class MarketRegimeDetector:
 
         # 1. 趋势强度（ADX）
         signals['adx'] = self._calculate_adx(df)
-        signals['trend_strength'] = 'strong' if signals['adx'] > 25 else 'weak'
+        signals['trend_strength'] = 'strong' if signals['adx'] > self.config.adx_strong_threshold else 'weak'
 
         # 2. 价格相对位置（52周高低点）
         signals['price_position'] = self._calculate_price_position(df)
@@ -136,8 +143,8 @@ class MarketRegimeDetector:
         signals['volatility_level'] = self._classify_volatility(signals['volatility'])
 
         # 5. 价格动量
-        signals['momentum_20'] = (df['close'].iloc[-1] / df['close'].iloc[-21] - 1) if len(df) >= 21 else 0
-        signals['momentum_60'] = (df['close'].iloc[-1] / df['close'].iloc[-61] - 1) if len(df) >= 61 else 0
+        signals['momentum_20'] = (df['close'].iloc[-1] / df['close'].iloc[-self.config.momentum_short_period - 1] - 1) if len(df) > self.config.momentum_short_period else 0
+        signals['momentum_60'] = (df['close'].iloc[-1] / df['close'].iloc[-self.config.momentum_long_period - 1] - 1) if len(df) > self.config.momentum_long_period else 0
 
         # 综合判断
         regime, confidence = self._determine_regime(signals)
@@ -151,13 +158,16 @@ class MarketRegimeDetector:
             'detected_at': datetime.now().isoformat(),
         }
 
-    def _calculate_adx(self, df: pd.DataFrame, period: int = 14) -> float:
+    def _calculate_adx(self, df: pd.DataFrame, period: int = None) -> float:
         """
         计算ADX（平均趋向指数）
 
         ADX > 25: 趋势强
         ADX < 20: 趋势弱
         """
+        if period is None:
+            period = self.config.adx_period
+
         try:
             high = df['high']
             low = df['low']
@@ -186,11 +196,11 @@ class MarketRegimeDetector:
             dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
             adx = dx.rolling(period).mean()
 
-            return float(adx.iloc[-1]) if not pd.isna(adx.iloc[-1]) else 20.0
+            return float(adx.iloc[-1]) if not pd.isna(adx.iloc[-1]) else self.config.adx_default
 
         except Exception as e:
             logger.error(f"ADX计算失败: {e}")
-            return 20.0
+            return self.config.adx_default
 
     def _calculate_price_position(self, df: pd.DataFrame) -> float:
         """
@@ -201,18 +211,19 @@ class MarketRegimeDetector:
         """
         try:
             current_price = df['close'].iloc[-1]
-            high_52w = df['high'].iloc[-min(252, len(df)):].max()
-            low_52w = df['low'].iloc[-min(252, len(df)):].min()
+            lookback = min(self.config.weeks_52_days, len(df))
+            high_52w = df['high'].iloc[-lookback:].max()
+            low_52w = df['low'].iloc[-lookback:].min()
 
             if high_52w == low_52w:
-                return 0.5
+                return self.config.price_position_default
 
             position = (current_price - low_52w) / (high_52w - low_52w)
             return float(position)
 
         except Exception as e:
             logger.error(f"价格位置计算失败: {e}")
-            return 0.5
+            return self.config.price_position_default
 
     def _analyze_ma_arrangement(self, df: pd.DataFrame) -> str:
         """
@@ -224,9 +235,9 @@ class MarketRegimeDetector:
             'mixed': 混合排列
         """
         try:
-            ma20 = df['close'].rolling(20).mean().iloc[-1]
-            ma60 = df['close'].rolling(60).mean().iloc[-1]
-            ma120 = df['close'].rolling(120).mean().iloc[-1]
+            ma20 = df['close'].rolling(self.config.ma_short).mean().iloc[-1]
+            ma60 = df['close'].rolling(self.config.ma_medium).mean().iloc[-1]
+            ma120 = df['close'].rolling(self.config.ma_long).mean().iloc[-1]
 
             if ma20 > ma60 > ma120:
                 return 'bullish'
@@ -239,21 +250,24 @@ class MarketRegimeDetector:
             logger.error(f"均线排列分析失败: {e}")
             return 'mixed'
 
-    def _calculate_volatility(self, df: pd.DataFrame, period: int = 20) -> float:
+    def _calculate_volatility(self, df: pd.DataFrame, period: int = None) -> float:
         """计算年化波动率"""
+        if period is None:
+            period = self.config.volatility_period
+
         try:
             returns = df['close'].pct_change()
-            volatility = returns.rolling(period).std().iloc[-1] * np.sqrt(252)
+            volatility = returns.rolling(period).std().iloc[-1] * self.config.volatility_annualize_factor
             return float(volatility)
         except Exception as e:
             logger.error(f"波动率计算失败: {e}")
-            return 0.20  # 默认20%
+            return self.config.volatility_default  # 默认波动率
 
     def _classify_volatility(self, volatility: float) -> str:
         """分类波动率水平"""
-        if volatility < 0.15:
+        if volatility < self.config.volatility_low_threshold:
             return 'low'
-        elif volatility < 0.25:
+        elif volatility < self.config.volatility_medium_threshold:
             return 'medium'
         else:
             return 'high'
@@ -273,42 +287,42 @@ class MarketRegimeDetector:
 
         # 1. 趋势强度
         if signals['trend_strength'] == 'strong':
-            if signals['momentum_20'] > 0.05:
-                score_bull += 2
-            elif signals['momentum_20'] < -0.05:
-                score_bear += 2
+            if signals['momentum_20'] > self.config.momentum_short_bull:
+                score_bull += self.config.score_trend
+            elif signals['momentum_20'] < self.config.momentum_short_bear:
+                score_bear += self.config.score_trend
         else:
-            score_sideways += 2
+            score_sideways += self.config.score_trend
 
         # 2. 价格位置
         price_pos = signals['price_position']
-        if price_pos > 0.7:
-            score_bull += 2
-        elif price_pos < 0.3:
-            score_bear += 2
+        if price_pos > self.config.price_position_bull:
+            score_bull += self.config.score_price_position_high
+        elif price_pos < self.config.price_position_bear:
+            score_bear += self.config.score_price_position_high
         else:
-            score_sideways += 1
+            score_sideways += self.config.score_price_position_mid
 
         # 3. 均线排列
         ma_arr = signals['ma_arrangement']
         if ma_arr == 'bullish':
-            score_bull += 2
+            score_bull += self.config.score_ma_arrangement
         elif ma_arr == 'bearish':
-            score_bear += 2
+            score_bear += self.config.score_ma_arrangement
         else:
-            score_sideways += 2
+            score_sideways += self.config.score_ma_arrangement
 
         # 4. 动量
-        if signals['momentum_60'] > 0.10:
-            score_bull += 1
-        elif signals['momentum_60'] < -0.10:
-            score_bear += 1
+        if signals['momentum_60'] > self.config.momentum_long_bull:
+            score_bull += self.config.score_momentum
+        elif signals['momentum_60'] < self.config.momentum_long_bear:
+            score_bear += self.config.score_momentum
 
         # 5. 波动率
         if signals['volatility_level'] == 'high':
             # 高波动率在熊市和震荡市更常见
-            score_bear += 0.5
-            score_sideways += 0.5
+            score_bear += self.config.score_volatility
+            score_sideways += self.config.score_volatility
 
         # 选择得分最高的
         scores = {
@@ -322,7 +336,7 @@ class MarketRegimeDetector:
         total_score = sum(scores.values())
 
         # 计算置信度
-        confidence = max_score / total_score if total_score > 0 else 0.33
+        confidence = max_score / total_score if total_score > 0 else self.config.confidence_min
 
         return regime, confidence
 
@@ -330,7 +344,7 @@ class MarketRegimeDetector:
         """获取默认市场环境（数据不足时）"""
         return {
             'regime': 'sideways',
-            'confidence': 0.50,
+            'confidence': self.config.confidence_default,
             'signals': {},
             'characteristics': self.REGIME_CHARACTERISTICS['sideways'],
             'detected_at': datetime.now().isoformat(),
