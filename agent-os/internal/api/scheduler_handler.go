@@ -44,6 +44,10 @@ func (h *SchedulerHandler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/scheduler/executions", h.handleListExecutions).Methods("GET")
 	router.HandleFunc("/scheduler/executions/{id}", h.handleGetExecution).Methods("GET")
 	router.HandleFunc("/scheduler/executions/{id}", h.handleUpdateExecution).Methods("PUT")
+
+	// Orphaned tasks (僵尸任务)
+	router.HandleFunc("/scheduler/orphaned-tasks", h.handleGetOrphanedTasks).Methods("GET")
+	router.HandleFunc("/scheduler/orphaned-tasks/{id}", h.handleDeleteOrphanedTask).Methods("DELETE")
 }
 
 // handleRegisterTask registers a new task
@@ -409,3 +413,45 @@ func (h *SchedulerHandler) handleGetTasksWithStats(w http.ResponseWriter, r *htt
 		"count": len(tasksWithStats),
 	})
 }
+
+// handleGetOrphanedTasks gets tasks that exist in database but not in scheduler
+// GET /api/v1/scheduler/orphaned-tasks
+func (h *SchedulerHandler) handleGetOrphanedTasks(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	orphaned, err := h.scheduler.DetectOrphanedTasks(ctx)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to detect orphaned tasks: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"orphanedTasks": orphaned,
+		"count":        len(orphaned),
+	})
+}
+
+// handleDeleteOrphanedTask deletes an orphaned task
+// DELETE /api/v1/scheduler/orphaned-tasks/{id}
+func (h *SchedulerHandler) handleDeleteOrphanedTask(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	taskID, err := uuid.Parse(idStr)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid task ID: "+err.Error())
+		return
+	}
+
+	if err := h.scheduler.CleanupOrphanedTask(ctx, taskID); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to cleanup orphaned task: "+err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Orphaned task deleted successfully",
+	})
+}
+

@@ -70,9 +70,23 @@ export interface BoardData {
   degraded?: { source?: string; error?: string }[]
   v2Available?: boolean
   fetchedAt?: string
+  orphanedTasks?: OrphanedTask[]
 }
 export interface ApiResponse {
   success?: boolean
   data?: BoardData
   error?: string
+}
+export interface OrphanedTask {
+  id?: string
+  name?: string
+  scheduleExpr?: string
+  lastRunAt?: string | null
+  createdAt?: string
+  inScheduler?: boolean
+  inDatabase?: boolean
+  daysSinceLastRun?: number
+  enabled?: boolean
+  reason?: string
+  webhookUrl?: string
 }

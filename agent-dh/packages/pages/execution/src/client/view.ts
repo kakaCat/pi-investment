@@ -195,6 +195,8 @@ export interface ViewRefs {
   errsBox: HTMLElement
   blockSec: HTMLElement
   blockBox: HTMLElement
+  orphanedSec: HTMLElement
+  orphanedBox: HTMLElement
 }
 export function buildView(): ViewRefs {
   const board = document.createElement('div')
@@ -225,7 +227,9 @@ export function buildView(): ViewRefs {
   errsSec.style.display = 'none'
   const blockSec = sec('流水线阻断', 'failed/late 且声明阻断下游', 'blockBox')
   blockSec.style.display = 'none'
-  wrap.append(head, banner, healthSec, flowSec, timelineSec, tasksSec, errsSec, blockSec)
+  const orphanedSec = sec('僵尸任务', '数据库存在但调度器未加载的任务', 'orphanedBox')
+  orphanedSec.style.display = 'none'
+  wrap.append(head, banner, healthSec, flowSec, timelineSec, tasksSec, errsSec, blockSec, orphanedSec)
   board.appendChild(wrap)
   const $ = <T extends HTMLElement>(sel: string): T => board.querySelector<T>(sel) as T
   return {
@@ -240,6 +244,8 @@ export function buildView(): ViewRefs {
     errsBox: $('[data-role="errsBox"]'),
     blockSec,
     blockBox: $('[data-role="blockBox"]'),
+    orphanedSec,
+    orphanedBox: $('[data-role="orphanedBox"]'),
   }
 }
 
@@ -548,6 +554,35 @@ function renderBlocked(refs: ViewRefs, data: BoardData): void {
     (b.blocks && b.blocks.length > 0 ? '<span class="blocks">阻断: ' + esc(b.blocks.join(', ')) + '</span>' : '') + '</div>').join('')
 }
 
+function renderOrphanedTasks(refs: ViewRefs, data: BoardData): void {
+  const orphaned = data.orphanedTasks ?? []
+  refs.orphanedSec.style.display = orphaned.length > 0 ? '' : 'none'
+  if (orphaned.length === 0) return
+  
+  refs.orphanedBox.innerHTML = '<div class="dsh-exec-orphaned-list">' + orphaned.map(task => {
+    const daysSince = task.daysSinceLastRun ?? 0
+    const lastRun = task.lastRunAt ? shortDT(task.lastRunAt) : '从未执行'
+    const enabledTag = task.enabled ? '<span class="tag enabled">启用</span>' : '<span class="tag disabled">禁用</span>'
+    return `
+      <div class="dsh-exec-orphaned-item" data-task-id="${task.id}">
+        <div class="orphaned-header">
+          <span class="task-name">⚠️ ${esc(task.name ?? '?')}</span>
+          ${enabledTag}
+        </div>
+        <div class="orphaned-info">
+          <span class="info-item">最后执行: ${esc(lastRun)}</span>
+          <span class="info-item">距今: ${daysSince}天</span>
+          <span class="info-item reason">原因: ${esc(task.reason ?? '?')}</span>
+        </div>
+        <div class="orphaned-actions">
+          <button type="button" class="dsh-exec-cleanup-btn" data-orphaned-id="${task.id}" title="从数据库删除此僵尸任务">清理</button>
+        </div>
+      </div>
+    `
+  }).join('') + '</div>'
+}
+
+
 export function renderAll(refs: ViewRefs, data: BoardData): void {
   renderHealth(refs, data)
   renderFlow(refs, data)
@@ -555,4 +590,5 @@ export function renderAll(refs: ViewRefs, data: BoardData): void {
   renderTasks(refs, data)
   renderErrors(refs, data)
   renderBlocked(refs, data)
+  renderOrphanedTasks(refs, data)
 }

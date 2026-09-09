@@ -334,6 +334,82 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-toast.ok { background:#529b2e; }
 .dsh-exec-toast.err { background:#e64545; }
 .dsh-exec-toast.out { opacity:0; transform:translateX(-50%) translateY(8px); }
+
+/* Orphaned tasks (僵尸任务) */
+.dsh-exec-orphaned-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dsh-exec-orphaned-item {
+  padding: 12px;
+  border: 1px solid #ff6b6b33;
+  border-radius: 6px;
+  background: #ff6b6b11;
+}
+
+.dsh-exec-orphaned-item .orphaned-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dsh-exec-orphaned-item .task-name {
+  font-weight: 500;
+  color: #ff6b6b;
+}
+
+.dsh-exec-orphaned-item .tag {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.dsh-exec-orphaned-item .tag.enabled {
+  background: #ffc10733;
+  color: #ffc107;
+}
+
+.dsh-exec-orphaned-item .tag.disabled {
+  background: #9e9e9e33;
+  color: #9e9e9e;
+}
+
+.dsh-exec-orphaned-item .orphaned-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #666;
+}
+
+.dsh-exec-orphaned-item .orphaned-info .reason {
+  flex: 1 1 100%;
+  color: #ff6b6b;
+}
+
+.dsh-exec-orphaned-item .orphaned-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dsh-exec-cleanup-btn {
+  padding: 4px 12px;
+  border: 1px solid #ff6b6b;
+  border-radius: 4px;
+  background: white;
+  color: #ff6b6b;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.dsh-exec-cleanup-btn:hover {
+  background: #ff6b6b;
+  color: white;
+}
 `
 
 /** Inject the stylesheet once (tagged for the HMR driver cleanup). */

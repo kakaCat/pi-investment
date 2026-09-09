@@ -116,7 +116,8 @@ export interface BoardData {
   blockedFlows: BlockedFlowEntry[];
   degraded: Array<{ source: string; error: string }>;
   v2Available: boolean;
-  fetchedAt: string; // 本地 ISO
+  fetchedAt: string;
+  orphanedTasks?: OrphanedTask[]; // 本地 ISO
 }
 
 export interface ApiResponse<T = unknown> {
@@ -133,4 +134,17 @@ export interface AggregatorOptions {
   profileStateDir: string;           // ~/.dsh/profiles/investment/state
   logFiles: Array<{ source: 'v2' | 'os' | 'dsh' | 'pg'; file: string }>;
   requestTimeoutMs?: number;
+}
+export interface OrphanedTask {
+  id: string;
+  name: string;
+  scheduleExpr: string;
+  lastRunAt?: string | null;
+  createdAt: string;
+  inScheduler: boolean;
+  inDatabase: boolean;
+  daysSinceLastRun: number;
+  enabled: boolean;
+  reason: string;
+  webhookUrl?: string;
 }
