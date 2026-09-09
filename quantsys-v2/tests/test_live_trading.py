@@ -32,7 +32,7 @@ class TestIBKRBroker:
     @pytest.fixture
     def broker(self):
         """Create an IBKR broker instance."""
-        from domain.brokers.adapters.ibkr_broker import IBKRBroker
+        from adapters.outbound.brokers.ibkr_broker import IBKRBroker
         return IBKRBroker()
 
     def test_get_id(self, broker):
@@ -116,7 +116,7 @@ class TestAlpacaBroker:
     @pytest.fixture
     def broker(self):
         """Create an Alpaca broker instance."""
-        from domain.brokers.adapters.alpaca_broker import AlpacaBroker
+        from adapters.outbound.brokers.alpaca_broker import AlpacaBroker
         return AlpacaBroker()
 
     def test_get_id(self, broker):
@@ -209,7 +209,8 @@ class TestExecutionService:
     """Test algorithmic execution service functions."""
 
     @pytest.fixture(scope='class', autouse=True)
-    def _register_ibkr_broker(self):
+    @classmethod
+    def _register_ibkr_broker(cls):
         """Register a fake 'ibkr' broker so execution simulations can run."""
         registry = BrokerRegistry.instance()
         if not registry.has('ibkr'):
@@ -390,7 +391,7 @@ class TestPositionService:
             {'symbol': 'AAPL', 'action': 'BUY', 'quantity': 200, 'price': 155.0},
         ]
 
-        result = get_average_cost_basis(None, trades, 'AAPL')
+        result = get_average_cost_basis(trades, 'AAPL')
 
         assert result['success'] is True
         assert result['symbol'] == 'AAPL'
@@ -410,7 +411,7 @@ class TestPositionService:
             {'symbol': 'MSFT', 'action': 'BUY', 'quantity': 50, 'price': 410.0},
         ]
 
-        result = get_average_cost_basis(None, trades, 'MSFT')
+        result = get_average_cost_basis(trades, 'MSFT')
 
         assert result['success'] is True
         # avg = (50*400 + 50*410) / 100 = (20000 + 20500) / 100 = 405.0
@@ -423,7 +424,7 @@ class TestPositionService:
         """Verify cost basis handles empty trade list."""
         from application.services.position_service import get_average_cost_basis
 
-        result = get_average_cost_basis(None, [], 'EMPTY')
+        result = get_average_cost_basis([], 'EMPTY')
 
         assert result['success'] is True
         assert result['average_cost'] == 0.0
@@ -433,7 +434,7 @@ class TestPositionService:
         """Verify close_position returns structured data about the closing order."""
         from application.services.position_service import close_position
 
-        result = close_position(None, 'ibkr', 'AAPL')
+        result = close_position('ibkr', 'AAPL')
 
         # Without live broker, should return error or structured fallback
         assert 'success' in result
@@ -499,99 +500,56 @@ class TestOrderStateMachine:
 
 
 # ========================================================================
-# Test Live Risk Checks
+# Pre-Trade Risk (RiskService, wired into execution_service)
 # ========================================================================
 
 
-class TestLiveRiskChecks:
-    """Test pre-trade risk check functions."""
+class TestRiskServicePreTradeChecks:
+    """真实预交易风控（RiskService.check_trade_risk，接线于
+    execution_service.execute_with_risk_check）。
 
-    @pytest.fixture
-    def ds(self):
-        """Create a mock DataService."""
-        from application.services.data_service import DataService
-        return DataService()
+    注：旧 TestLiveRiskChecks 测的模块级 get_risk_limits /
+    check_margin_requirement / check_day_trading_limit /
+    check_short_sale_restriction / live_pre_trade_check 经全仓核验
+    在当前基线不存在（虚构 API，基线还原时删除），其"大单限额/结构化
+    返回"语义由 RiskService.check_trade_risk 承接，此处重建真实覆盖。"""
 
-    def test_get_risk_limits_defaults(self, ds):
-        """Verify risk limits return sensible defaults when no DB config."""
-        from application.services.risk_service import get_risk_limits
+    def test_check_trade_risk_returns_structured_result(self):
+        """Verify structured pre-trade risk result on a normal order."""
+        from application.services.risk_service import RiskService
 
-        limits = get_risk_limits(ds)
+        result = RiskService().check_trade_risk('AAPL', 'buy', 150.0, 100)
 
-        assert 'max_position_pct' in limits
-        assert 'max_sector_pct' in limits
-        assert 'max_daily_trades' in limits
-        assert 'max_order_value' in limits
-        assert 'pdt_min_equity' in limits
+        assert result['success'] is True
+        data = result['data']
+        assert data['passed'] is True
+        assert data['symbol'] == 'AAPL'
+        assert data['action'] == 'buy'
+        assert data['total_value'] == 15000.0
+        assert data['risk_level'] == 'low'
+        assert isinstance(data['warnings'], list)
 
-        # Values should be within reasonable ranges
-        assert 0 < limits['max_position_pct'] <= 1.0
-        assert 0 < limits['max_sector_pct'] <= 1.0
-        assert limits['pdt_min_equity'] == 25000
+    def test_check_trade_risk_size_limit_blocks_oversized_order(self):
+        """$5M 大单（10000 股 × $500）应触发单笔金额上限 → 拦截。"""
+        from application.services.risk_service import RiskService
 
-    def test_check_margin_requirement_no_data(self, ds):
-        """Verify margin check handles missing account data gracefully."""
-        from application.services.risk_service import check_margin_requirement
+        result = RiskService().check_trade_risk('AAPL', 'buy', 500.0, 10000)
 
-        result = check_margin_requirement(
-            ds, 'ibkr', order_value=50000, symbol='AAPL'
-        )
+        data = result['data']
+        assert data['passed'] is False
+        assert data['risk_level'] == 'high'
+        assert any('单笔' in w for w in data['warnings'])
 
-        assert result['passed'] is True  # Skips when no data
-        assert result['rule'] == 'margin_requirement'
+    def test_check_trade_risk_medium_order_warns_but_passes(self):
+        """中额订单（$600k）→ medium 预警但放行。"""
+        from application.services.risk_service import RiskService
 
-    def test_live_pre_trade_check_returns_structured_result(self, ds):
-        """Verify live pre-trade check returns a properly structured dict."""
-        from application.services.risk_service import live_pre_trade_check
+        result = RiskService().check_trade_risk('AAPL', 'buy', 150.0, 4000)
 
-        result = live_pre_trade_check(
-            ds, 'ibkr', 'AAPL', 'buy', 100, 150.0
-        )
-
-        assert isinstance(result, dict)
-        assert 'passed' in result
-        assert 'checks' in result
-        assert 'blocking_reasons' in result
-        assert 'warnings' in result
-
-        # All results should be typed correctly
-        assert isinstance(result['passed'], bool)
-        assert isinstance(result['checks'], list)
-        assert isinstance(result['blocking_reasons'], list)
-
-    def test_check_day_trading_limit_returns_structure(self, ds):
-        """Verify PDT check returns proper structure."""
-        from application.services.risk_service import check_day_trading_limit
-
-        result = check_day_trading_limit(ds, 'ibkr', 'AAPL', 'buy')
-
-        assert isinstance(result, dict)
-        assert 'passed' in result
-        assert 'rule' in result
-        assert result['rule'] == 'pdt_rule'
-
-    def test_check_short_sale_restriction_handles_no_data(self, ds):
-        """Verify SSR check handles missing data gracefully."""
-        from application.services.risk_service import check_short_sale_restriction
-
-        result = check_short_sale_restriction(ds, 'NONEXISTENT')
-
-        assert isinstance(result, dict)
-        assert 'passed' in result
-        assert result['rule'] == 'short_sale_restriction'
-
-    def test_live_pre_trade_check_size_limit(self, ds):
-        """Verify position size check catches oversized orders."""
-        from application.services.risk_service import live_pre_trade_check
-
-        # A large order (90% of a small portfolio) should trigger position size alert
-        result = live_pre_trade_check(
-            ds, 'ibkr', 'AAPL', 'buy', 10000, 500.0  # $5M order
-        )
-
-        assert isinstance(result, dict)
-        assert 'passed' in result
-        assert len(result['checks']) > 0
+        data = result['data']
+        assert data['passed'] is True
+        assert data['risk_level'] == 'medium'
+        assert any('偏大' in w for w in data['warnings'])
 
 
 if __name__ == '__main__':
