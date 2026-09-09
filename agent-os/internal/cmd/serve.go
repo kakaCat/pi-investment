@@ -208,6 +208,17 @@ var serveCmd = &cobra.Command{
 		boardRepo := repository.NewBoardWebRepository(db)
 		boardHandler := api.NewBoardHandler(boardRepo)
 
+		// REQ-a42aa4: 错误事件收集与处置
+		//  ① 采集 worker：os task_runs 失败 + v2/os/dsh 日志 tail，每 1 分钟一轮；
+		//  ② HTTP API：列表 / stats / 状态流转（claim→resolve/ignore→reopen）
+		errorEventRepo := repository.NewErrorEventRepository(db)
+		errorEventHandler := api.NewErrorEventHandler(errorEventRepo)
+		errorEventWorker := worker.NewErrorEventWorker(db, errorEventRepo, nil)
+		if err := errorEventWorker.Start(); err != nil {
+			return fmt.Errorf("failed to start error event worker: %w", err)
+		}
+		defer errorEventWorker.Stop()
+
 		// RFC 010: 启动心跳监控器（60s 检查间隔，60s 超时阈值）
 		heartbeatMonitor := service.NewHeartbeatMonitor(
 			registryRepo,
@@ -222,7 +233,7 @@ var serveCmd = &cobra.Command{
 		}()
 
 		// Create HTTP server
-		server := api.NewHTTPServer(svc, skillHandler, schedulerHandler, decisionHandler, memoryHandler, eventHandler, systemHandler, notificationHandler, profileHandler, registryHandler, boardHandler)
+		server := api.NewHTTPServer(svc, skillHandler, schedulerHandler, decisionHandler, memoryHandler, eventHandler, systemHandler, notificationHandler, profileHandler, registryHandler, boardHandler, errorEventHandler)
 
 		// Start HTTP server in goroutine
 		addr := fmt.Sprintf("%s:%d", host, port)
