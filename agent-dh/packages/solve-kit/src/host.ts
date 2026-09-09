@@ -191,12 +191,29 @@ export function createSolveHandler(deps: SolveKitHostDeps, opts: SolveKitHostOpt
           meta.thread ? 'thread=' + String(meta.thread) : '',
           meta.channel ? 'channel=' + String(meta.channel) : '',
         ].filter(Boolean)
-        title = '错误事件：' + (msg || line1 || src).slice(0, 60)
+        // msg/detail 常直接是结构化 JSON（如 v2 failed_to_shutdown_pool）：提炼 error/event 做事件行，原文进上下文
+        const pick = (raw: string): { err: string; ev: string } => {
+          if (!raw.startsWith('{')) return { err: '', ev: '' }
+          try {
+            const o: any = JSON.parse(raw)
+            if (o && typeof o === 'object') return { err: typeof o.error === 'string' ? o.error : '', ev: typeof o.event === 'string' ? o.event : '' }
+          } catch { /* 非 JSON */ }
+          return { err: '', ev: '' }
+        }
+        const mPick = pick(msg)
+        const dPick = pick(det)
+        const errTxt = mPick.err || dPick.err
+        const evTxt = mPick.ev || dPick.ev
+        const evtLabel = errTxt ? errTxt + (evTxt ? '（event=' + evTxt + '）' : '') : (evTxt ? 'event=' + evTxt : '')
+        const isMsgJson = msg.startsWith('{') && (mPick.err || mPick.ev)
+        // 结构化原文优先 detail（det 有 error/event 提炼），否则 msg 原文（msg 自身是 JSON 时）
+        const fullRaw = det ? (dPick.err || dPick.ev ? det : '') : (isMsgJson ? msg : '')
+        title = '错误事件：' + (evtLabel || msg || line1 || src).slice(0, 60)
         lines = [
-          '事件：' + (msg || '—'),
-          '详情：' + (line1 || '—'),
+          '事件：' + (evtLabel || (msg && !isMsgJson ? msg : '') || '—'),
         ]
-        if (det) lines.push('上下文（结构化）：' + det.slice(0, 1800))
+        if (line1 && !isMsgJson && line1 !== (evtLabel || msg)) lines.push('详情：' + line1)
+        if (fullRaw) lines.push('原始日志：' + fullRaw.slice(0, 1800))
         lines.push('来源：' + src + (metaParts.length ? '（' + metaParts.join('；') + '）' : ''))
         lines.push('事件 ID：' + String(e.id ?? '—') + '；状态：' + String(e.status ?? '?') + (e.assignee ? '；认领：' + String(e.assignee) : ''))
         const tf: string[] = []
