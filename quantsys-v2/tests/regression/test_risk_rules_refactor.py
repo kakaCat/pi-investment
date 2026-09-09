@@ -4,6 +4,7 @@
 """
 
 import pytest
+import polars as pl
 from unittest.mock import Mock, MagicMock
 from domain.backtest.engine.risk_rules import (
     check_position_size,
@@ -21,12 +22,21 @@ class TestRiskRulesRegression:
     def setup_method(self):
         """每个测试前设置 mock"""
         self.ds = Mock()
+        # risk_rules 自 c91cd148 起统一为「ds 优先」取 repo（_resolve_repo）。
+        # ds 上若残留 auto-Mock 的 kline/stock 等属性会遮蔽下方 monkeypatch 的
+        # 模块级全局 repo，因此显式置 None → 这些规则回退走 0 参全局 repo
+        # （回归验证的正是「全局 repo + 默认配置」这条路径）。
+        self.ds.kline = None
+        self.ds.stock = None
+        self.ds.portfolio = None
+        self.ds.risk = None
+        self.ds.factor = None
 
     def test_check_position_size_default_behavior(self, monkeypatch):
         """测试仓位检查默认行为（20% 限制）"""
         # Mock kline repo
         mock_kline_repo = Mock()
-        mock_kline_repo.get_latest_daily_kline.return_value = {"close": 10.0}
+        mock_kline_repo.get_latest_daily_kline.return_value = pl.DataFrame({"close": [10.0]})
 
         def mock_get_kline_repo():
             return mock_kline_repo
@@ -69,7 +79,7 @@ class TestRiskRulesRegression:
     def test_check_position_size_default_account_balance(self, monkeypatch):
         """测试默认账户余额（1,000,000 元）"""
         mock_kline_repo = Mock()
-        mock_kline_repo.get_latest_daily_kline.return_value = {"close": 10.0}
+        mock_kline_repo.get_latest_daily_kline.return_value = pl.DataFrame({"close": [10.0]})
 
         monkeypatch.setattr(
             "domain.backtest.engine.risk_rules._get_kline_repo",
@@ -211,7 +221,7 @@ class TestRiskRulesRegression:
     def test_custom_config_overrides_defaults(self, monkeypatch):
         """测试自定义配置可以覆盖默认值"""
         mock_kline_repo = Mock()
-        mock_kline_repo.get_latest_daily_kline.return_value = {"close": 10.0}
+        mock_kline_repo.get_latest_daily_kline.return_value = pl.DataFrame({"close": [10.0]})
 
         monkeypatch.setattr(
             "domain.backtest.engine.risk_rules._get_kline_repo",
@@ -243,7 +253,7 @@ class TestRiskRulesRegression:
     def test_backward_compatibility_no_config_param(self, monkeypatch):
         """测试向后兼容：不传 config 参数的旧代码仍能工作"""
         mock_kline_repo = Mock()
-        mock_kline_repo.get_latest_daily_kline.return_value = {"close": 10.0}
+        mock_kline_repo.get_latest_daily_kline.return_value = pl.DataFrame({"close": [10.0]})
 
         monkeypatch.setattr(
             "domain.backtest.engine.risk_rules._get_kline_repo",

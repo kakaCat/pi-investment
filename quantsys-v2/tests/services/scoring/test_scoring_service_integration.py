@@ -2,7 +2,7 @@
 import pytest
 from datetime import datetime, timedelta
 from application.services.opportunity_scoring_service import OpportunityScoringService
-from adapters.outbound.repositories import KlineORMRepository, StockORMRepository
+from adapters.outbound.repositories import KlineORMRepository, StockORMRepository, FinancialORMRepository
 from adapters.shared.services import get_factor_adapter
 
 
@@ -12,7 +12,11 @@ def service(db_connection):
     kline_repo.db = db_connection
     stock_repo = StockORMRepository()
     stock_repo.db = db_connection
-    return OpportunityScoringService(kline_repo, stock_repo, get_factor_adapter())
+    financial_repo = FinancialORMRepository()
+    financial_repo.db = db_connection
+    return OpportunityScoringService(
+        kline_repo, stock_repo, get_factor_adapter(),
+        financial_repo=financial_repo)
 
 
 def _seed_stock(db, symbol, name, pe, roe, gross_margin, revenue_growth):
@@ -20,7 +24,7 @@ def _seed_stock(db, symbol, name, pe, roe, gross_margin, revenue_growth):
     cursor.execute("""
         INSERT INTO quant.stocks (symbol, name, market, pe, roe, gross_margin,
                                   revenue_growth, debt_ratio, updated_at)
-        VALUES (%s, %s, 'SH', %s, %s, %s, %s, 40, NOW())
+        VALUES (%s, %s, 'A', %s, %s, %s, %s, 40, NOW())
         ON CONFLICT (symbol) DO UPDATE SET
           pe=EXCLUDED.pe, roe=EXCLUDED.roe,
           gross_margin=EXCLUDED.gross_margin,

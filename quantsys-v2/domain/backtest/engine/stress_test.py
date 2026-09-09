@@ -19,6 +19,19 @@ def _get_portfolio_repo():
     return get_portfolio_repo()
 
 
+def _resolve_repo(ds, attr, getter):
+    """ds-first 仓库解析：注入的 ds 有对应属性则用之，否则回落全局 0 参 getter。
+
+    与 risk_rules 同款接线约定：测试注入 _make_ds(kline=MagicMock(...)) 时命中 ds；
+    未注入/attr 显式 None 时回落全局仓库（如回归套件 monkeypatch 0 参 getter）。
+    """
+    if ds is not None:
+        repo = getattr(ds, attr, None)
+        if repo is not None:
+            return repo
+    return getter()
+
+
 class StressTestScenario:
     """压力测试场景定义"""
 
@@ -142,7 +155,7 @@ class StressTestEngine:
             }
         """
         # 获取当前持仓
-        holdings = _get_portfolio_repo().get_all_holdings()
+        holdings = _resolve_repo(self.ds, 'portfolio', _get_portfolio_repo).get_all_holdings()
         if not holdings:
             return {
                 "scenario_name": scenario.name,
@@ -166,9 +179,12 @@ class StressTestEngine:
             quantity = holding.get("quantity", 0) or 0
             avg_cost = holding.get("avg_cost", 0) or 0
 
-            # 获取当前价格
-            latest = _get_kline_repo().get_latest_daily_kline(symbol)
-            current_price = latest.get("close") if latest else avg_cost
+            # 获取当前价格（kline repo 现返回 polars 单行 DataFrame）
+            latest = _resolve_repo(self.ds, 'kline', _get_kline_repo).get_latest_daily_kline(symbol)
+            if latest is not None and not latest.is_empty():
+                current_price = float(latest["close"][0])
+            else:
+                current_price = avg_cost
 
             position_current_value = quantity * current_price
             current_value += position_current_value
@@ -257,16 +273,17 @@ class StressTestEngine:
                 max_drawdown, volatility, sharpe_ratio
             }
         """
-        # 获取指数历史数据
-        index_klines = _get_kline_repo().get_daily_klines(index_symbol, start_date, end_date)
-        if not index_klines or len(index_klines) < 2:
+        # 获取指数历史数据（kline repo 现返回 polars DataFrame，转 dict 行保持旧迭代语义）
+        index_klines_df = _resolve_repo(self.ds, 'kline', _get_kline_repo).get_daily_klines(index_symbol, start_date, end_date)
+        if index_klines_df is None or index_klines_df.is_empty() or len(index_klines_df) < 2:
             return {
                 "error": "指数历史数据不足",
                 "period": f"{start_date} to {end_date}",
             }
+        index_klines = index_klines_df.to_dicts()
 
         # 获取当前持仓
-        holdings = _get_portfolio_repo().get_all_holdings()
+        holdings = _resolve_repo(self.ds, 'portfolio', _get_portfolio_repo).get_all_holdings()
         if not holdings:
             return {
                 "error": "无持仓数据",
@@ -277,10 +294,10 @@ class StressTestEngine:
         holdings_history = {}
         for holding in holdings:
             symbol = holding.get("symbol")
-            klines = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
-            if klines and len(klines) >= 2:
+            klines_df = _resolve_repo(self.ds, 'kline', _get_kline_repo).get_daily_klines(symbol, start_date, end_date)
+            if klines_df is not None and not klines_df.is_empty() and len(klines_df) >= 2:
                 holdings_history[symbol] = {
-                    "klines": klines,
+                    "klines": klines_df.to_dicts(),
                     "weight": holding.get("total_invested", 0) or 0,
                 }
 

@@ -44,6 +44,19 @@ def _get_factor_repo():
     return get_factor_repo()
 
 
+def _resolve_repo(ds, attr, getter):
+    """优先取 ds 上注入的 repo（测试注入 / 组合容器场景），否则回退全局单例 repo。
+
+    ds 上的 repo 属性若显式为 None（或 ds 无该属性），则回退到模块级 getter，
+    保持旧调用方式（0 参全局 repo）向后兼容。
+    """
+    if ds is not None:
+        repo = getattr(ds, attr, None)
+        if repo is not None:
+            return repo
+    return getter()
+
+
 def check_position_size(ds, symbol, proposed_quantity, account_balance, config: Optional[RiskLimits] = None) -> dict:
     """单只股票仓位不超过总资金限制（默认20%）
 
@@ -60,7 +73,7 @@ def check_position_size(ds, symbol, proposed_quantity, account_balance, config: 
     config = config or RiskLimits()
 
     # Use ds.kline if provided (for testing), otherwise use global repo
-    kline_repo = ds.kline if (ds and hasattr(ds, 'kline')) else _get_kline_repo()
+    kline_repo = _resolve_repo(ds, 'kline', _get_kline_repo)
     latest = kline_repo.get_latest_daily_kline(symbol)
 
     if latest is None or latest.is_empty():
@@ -124,7 +137,7 @@ def check_portfolio_concentration(ds, symbol, proposed_value, total_value, confi
     """
     config = config or RiskLimits()
 
-    stock_info = _get_stock_repo().get_by_symbol(symbol)
+    stock_info = _resolve_repo(ds, 'stock', _get_stock_repo).get_by_symbol(symbol)
 
     if not stock_info:
         return {
@@ -136,7 +149,7 @@ def check_portfolio_concentration(ds, symbol, proposed_value, total_value, confi
 
     sector = stock_info.get("industry") or "未知"
 
-    holdings = _get_portfolio_repo().get_all_holdings()
+    holdings = _resolve_repo(ds, 'portfolio', _get_portfolio_repo).get_all_holdings()
     sector_value = proposed_value or 0
     for h in holdings:
         if h.get("sector") == sector:
@@ -269,7 +282,7 @@ def check_max_positions(ds, config: Optional[RiskLimits] = None) -> dict:
     """
     config = config or RiskLimits()
 
-    holdings = _get_portfolio_repo().get_all_holdings()
+    holdings = _resolve_repo(ds, 'portfolio', _get_portfolio_repo).get_all_holdings()
     position_count = len(holdings)
 
     if position_count >= config.MAX_CONCURRENT_POSITIONS:
@@ -290,7 +303,7 @@ def check_max_positions(ds, config: Optional[RiskLimits] = None) -> dict:
 
 def check_blacklist(ds, symbol) -> dict:
     """ST股票、退市风险股拒绝交易"""
-    stock_info = _get_stock_repo().get_by_symbol(symbol)
+    stock_info = _resolve_repo(ds, 'stock', _get_stock_repo).get_by_symbol(symbol)
 
     if not stock_info:
         return {
@@ -330,7 +343,7 @@ def check_liquidity(ds, symbol, proposed_quantity) -> dict:
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=60)).strftime("%Y-%m-%d")
 
-    klines_df = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
+    klines_df = _resolve_repo(ds, 'kline', _get_kline_repo).get_daily_klines(symbol, start_date, end_date)
 
     if klines_df is None or klines_df.is_empty() or len(klines_df) < 5:
         return {
@@ -377,7 +390,7 @@ def check_liquidity(ds, symbol, proposed_quantity) -> dict:
 
 def check_sector_concentration(ds, symbol, proposed_value, total_value, threshold=0.40) -> dict:
     """行业集中度检查，单行业持仓不超过阈值（默认40%）"""
-    stock_info = _get_stock_repo().get_by_symbol(symbol)
+    stock_info = _resolve_repo(ds, 'stock', _get_stock_repo).get_by_symbol(symbol)
 
     if not stock_info:
         return {
@@ -388,7 +401,7 @@ def check_sector_concentration(ds, symbol, proposed_value, total_value, threshol
         }
 
     sector = stock_info.get("industry") or "未知"
-    holdings = _get_portfolio_repo().get_all_holdings()
+    holdings = _resolve_repo(ds, 'portfolio', _get_portfolio_repo).get_all_holdings()
 
     sector_value = proposed_value or 0
     for h in holdings:
@@ -430,7 +443,7 @@ def check_correlation_risk(ds, symbol, holdings_symbols, threshold=0.80) -> dict
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
 
-    target_klines_df = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
+    target_klines_df = _resolve_repo(ds, 'kline', _get_kline_repo).get_daily_klines(symbol, start_date, end_date)
     if target_klines_df is None or target_klines_df.is_empty() or len(target_klines_df) < 20:
         return {
             "passed": True,
@@ -447,7 +460,7 @@ def check_correlation_risk(ds, symbol, holdings_symbols, threshold=0.80) -> dict
         if holding_symbol == symbol:
             continue
 
-        holding_klines_df = _get_kline_repo().get_daily_klines(holding_symbol, start_date, end_date)
+        holding_klines_df = _resolve_repo(ds, 'kline', _get_kline_repo).get_daily_klines(holding_symbol, start_date, end_date)
         if holding_klines_df is None or holding_klines_df.is_empty() or len(holding_klines_df) < 20:
             continue
 
@@ -480,12 +493,12 @@ def check_beta_exposure(ds, symbol, portfolio_beta_range=(0.5, 1.5)) -> dict:
     """Beta暴露检查，组合Beta应在合理范围内"""
     # 获取股票的Beta值（从因子数据或风险指标）
     try:
-        risk_metrics = _get_risk_repo().get_latest_risk_metrics(symbol)
+        risk_metrics = _resolve_repo(ds, 'risk', _get_risk_repo).get_latest_risk_metrics(symbol)
         if risk_metrics and risk_metrics.get("beta") is not None:
             beta = risk_metrics["beta"]
         else:
             # 如果没有风险指标，尝试从因子获取
-            factors = _get_factor_repo().get_latest_factors(symbol)
+            factors = _resolve_repo(ds, 'factor', _get_factor_repo).get_latest_factors(symbol)
             beta = factors.get("beta") if factors else None
     except Exception:
         beta = None
@@ -521,7 +534,7 @@ def check_portfolio_volatility(ds, symbol, max_volatility=0.30) -> dict:
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=60)).strftime("%Y-%m-%d")
 
-    klines = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
+    klines = _resolve_repo(ds, 'kline', _get_kline_repo).get_daily_klines(symbol, start_date, end_date)
 
     if klines is None or klines.is_empty() or len(klines) < 20:
         return {
@@ -576,7 +589,7 @@ def check_market_regime(ds, index_symbol="000001.SH", lookback_days=60) -> dict:
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
 
-    klines = _get_kline_repo().get_daily_klines(index_symbol, start_date, end_date)
+    klines = _resolve_repo(ds, 'kline', _get_kline_repo).get_daily_klines(index_symbol, start_date, end_date)
 
     if klines is None or klines.is_empty() or len(klines) < 20:
         return {
@@ -626,7 +639,7 @@ def check_vix_level(ds, vix_threshold=30.0) -> dict:
     start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
     index_symbol = "000001.SH"
-    klines = _get_kline_repo().get_daily_klines(index_symbol, start_date, end_date)
+    klines = _resolve_repo(ds, 'kline', _get_kline_repo).get_daily_klines(index_symbol, start_date, end_date)
 
     if klines is None or klines.is_empty() or len(klines) < 10:
         return {
@@ -699,7 +712,7 @@ def check_market_breadth(ds, advance_decline_threshold=0.30) -> dict:
         declining = 0
 
         for symbol in sample_symbols[:50]:  # 限制样本数量
-            klines_df = _get_kline_repo().get_daily_klines(symbol, yesterday, today)
+            klines_df = _resolve_repo(ds, 'kline', _get_kline_repo).get_daily_klines(symbol, yesterday, today)
             if klines_df is not None and not klines_df.is_empty() and len(klines_df) >= 2:
                 klines = klines_df.to_dicts()
                 prev_close = klines[-2].get("close", 0)
@@ -753,7 +766,7 @@ def check_order_size_vs_adv(ds, symbol, proposed_quantity, adv_threshold=0.20) -
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=60)).strftime("%Y-%m-%d")
 
-    klines = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
+    klines = _resolve_repo(ds, 'kline', _get_kline_repo).get_daily_klines(symbol, start_date, end_date)
 
     if klines is None or klines.is_empty() or len(klines) < 5:
         return {
@@ -798,7 +811,7 @@ def check_price_impact(ds, symbol, proposed_quantity, impact_threshold=0.02) -> 
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
-    klines = _get_kline_repo().get_daily_klines(symbol, start_date, end_date)
+    klines = _resolve_repo(ds, 'kline', _get_kline_repo).get_daily_klines(symbol, start_date, end_date)
 
     if klines is None or klines.is_empty() or len(klines) < 10:
         return {
@@ -976,7 +989,7 @@ def _get_sample_symbols(ds):
     """获取样本股票列表（用于市场广度计算）"""
     try:
         # 尝试获取所有股票，取前100只作为样本
-        stocks = _get_stock_repo().get_all_stocks()
+        stocks = _resolve_repo(ds, 'stock', _get_stock_repo).get_all_stocks()
         if stocks:
             return [s.get("symbol") for s in stocks[:100] if s.get("symbol")]
     except Exception:
