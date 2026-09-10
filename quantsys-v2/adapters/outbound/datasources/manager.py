@@ -665,11 +665,25 @@ class DataProviderManager(IDataProviderManager):
         """
         try:
             from infrastructure.persistence.orm.config import get_session
-            from infrastructure.persistence.orm.models.stock import DailyKline
+            from infrastructure.persistence.orm.models.stock import DailyKline, Stock
             from datetime import datetime
             from dateutil.parser import parse as parse_date
 
             session = get_session()
+            
+            # 确保股票元数据存在（防止外键约束错误）
+            stock = session.query(Stock).filter(Stock.symbol == symbol).first()
+            if not stock:
+                # 自动创建股票元数据
+                stock = Stock(
+                    symbol=symbol,
+                    name=symbol,  # 临时使用代码作为名称
+                    market='unknown'  # 临时标记
+                )
+                session.add(stock)
+                session.flush()  # 立即写入，确保后续 K 线插入有外键
+                logger.warning(f"Auto-created stock metadata for {symbol} (backfill K线时缺失)")
+            
             saved_count = 0
 
             for kline in klines:
