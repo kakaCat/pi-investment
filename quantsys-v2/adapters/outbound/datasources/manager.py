@@ -695,16 +695,25 @@ class DataProviderManager(IDataProviderManager):
         # （新浪日线接口只有 volume 无 amount）。KlineData 契约要求 provider
         # 估算，个别 provider 未实现——在此统一兜底，防止 0 值流入成交额类
         # 因子/流动性判断（全库曾累积 44.7 万行 amount=0）。
-        self._ensure_amount(result.get('data') or [])
+        self._ensure_amount(symbol, result.get('data') or [])
 
         return result
 
     @staticmethod
-    def _ensure_amount(klines: list) -> int:
+    def _ensure_amount(symbol: str, klines: list) -> int:
         """为缺失成交额的 K 线按 volume×close 估算（与 tencent/baostock 同口径）。
 
         仅在 volume>0 且 close>0 时估算，避免制造伪值；返回补齐条数。
+
+        指数/伪代码跳过（2026-09-10 w-23c70356）：指数行的 volume 是成分股聚合量，
+        volume×close 与"成交额"无物理关系——实测 399001 2026-09-01 被估成
+        949.86 万亿元（真实全市场单日约 2 万亿元量级），638 行累计 75,830 万亿元
+        污染 daily_klines.amount 并被下游成交额/流动性因子读取。
         """
+        from utils.symbol_classifier import is_pseudo_symbol
+        if is_pseudo_symbol(symbol):
+            logger.info(f"amount 估算跳过（指数/伪代码）: {symbol}")
+            return 0
         filled = 0
         for k in klines:
             try:

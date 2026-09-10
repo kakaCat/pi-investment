@@ -21,6 +21,11 @@ from pathlib import Path
 
 from adapters.outbound.datasources.manager import DataProviderManager
 from infrastructure.persistence.database.engine import get_engine
+from utils.symbol_classifier import index_symbols_for_exclusion
+
+# 成交额量级异常判据：当日成交额 > 该股近 20 日均额 × 该倍数即告警
+# （量纲错会把 amount 整体放大约 100 倍，真实放量极少超过 50 倍）
+AMOUNT_SCALE_THRESHOLD = 50.0
 
 logger = logging.getLogger(__name__)
 
@@ -398,6 +403,17 @@ def update_gem_klines(**params):
                 f"⚠️ {target_date} 有 {amount_missing} 行有成交量但 amount 为 0/NULL "
                 f"——数据源未提供成交额，请核查 provider 的 KlineData.amount 契约")
 
+        # 成交额量级异常自检（2026-09-10 w-23c70356 立）：量纲（手/股）错误不破坏
+        # amount/volume/close 自洽性，既有 VWAP 自洽校验看不见，只能按"当日额 vs
+        # 自身近期中位额"的离群度发现。实测 2026-07~08 科创板 2,110 行 volume 被
+        # 放大 100 倍（688008 单日 14,881 亿元）、指数伪行 949 万亿元。
+        amount_scale_anomalies = _detect_amount_scale_anomalies(conn, target_date)
+        if amount_scale_anomalies:
+            top = ", ".join(f"{a['symbol']} ×{a['multiple']:.0f}" for a in amount_scale_anomalies[:5])
+            logger.critical(
+                f"⚠️ {target_date} 有 {len(amount_scale_anomalies)} 行成交额超该股近期中位额 "
+                f"{AMOUNT_SCALE_THRESHOLD:.0f} 倍，疑似量纲（手/股）错误或极端放量，需独立源复核: {top}")
+
         result = {
             'action': 'kline_update',
             'status': 'success',
@@ -410,6 +426,7 @@ def update_gem_klines(**params):
             'skipped': skipped,
             'stale': stale,
             'amount_missing': amount_missing,
+            'amount_scale_anomalies': amount_scale_anomalies[:20],
             'date_range': f"{start_date} -> {end_date}",
             'target_date': target_date,
             'message': f'K线更新完成: 成功{success}只, 失败{failed}只, 跳过{skipped}只, 未覆盖基准日{stale}只'
@@ -422,6 +439,7 @@ def update_gem_klines(**params):
         logger.info(f"  跳过: {skipped}只")
         logger.info(f"  未覆盖基准日({target_date}): {stale}只")
         logger.info(f"  成交额缺失(volume>0 且 amount<=0): {amount_missing} 行")
+        logger.info(f"  成交额量级异常(>{AMOUNT_SCALE_THRESHOLD:.0f}×近期中位): {len(amount_scale_anomalies)} 行")
         logger.info("="*70)
 
         return result
@@ -449,13 +467,19 @@ def _count_missing_amount(conn, target_date: str) -> int:
     """基准日有成交量但成交额缺失的行数（K线写入后的完整性自检）。
 
     自检失败不阻断同步（返回 0 并告警），因为它是观测手段而非数据正确性前提。
+
+    指数/伪代码排除（2026-09-10 w-23c70356）：指数行的 amount 未知即未知（已置
+    NULL，不做 volume×close 估算，见 utils.symbol_classifier），若不排除则每日同步
+    指数（399300 等）后该自检必然误报 critical。
     """
     try:
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT count(*) FROM quant.daily_klines "
-                "WHERE trade_date = %s AND volume > 0 AND (amount IS NULL OR amount <= 0)",
-                (target_date,),
+                "WHERE trade_date = %s AND volume > 0 AND (amount IS NULL OR amount <= 0) "
+                "AND symbol !~ '^399' AND position('.' in symbol) = 0 "
+                "AND NOT (symbol = ANY(%s))",
+                (target_date, list(index_symbols_for_exclusion())),
             )
             row = cur.fetchone()
             return int(row[0]) if row else 0
@@ -466,6 +490,46 @@ def _count_missing_amount(conn, target_date: str) -> int:
             pass
         logger.warning(f"成交额完整性自检失败（不影响同步）: {e}")
         return 0
+
+
+def _detect_amount_scale_anomalies(conn, target_date: str, threshold: float = AMOUNT_SCALE_THRESHOLD) -> list:
+    """基准日成交额量级异常检测（观测手段，不改数）。
+
+    判据：当日 amount > 该股近 20 个交易日中位 amount × threshold。
+    背景：volume 的「手/股」量纲在不同源/板块间不一致（科创板源给股、主板源给手），
+    量纲错会整体放大约 100 倍，但 amount/volume/close 仍自洽（VWAP 自洽校验查不出），
+    只能靠跨期离群度发现。实测 2026-07~08 科创板 2,110 行 volume×100。
+    仅告警不阻断；是否缺陷需独立源复核后由数据侧修复。
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "WITH ref AS ("
+                "  SELECT symbol, percentile_cont(0.5) WITHIN GROUP (ORDER BY amount) AS med, count(*) AS n"
+                "  FROM quant.daily_klines"
+                "  WHERE trade_date < %s AND trade_date >= %s::date - INTERVAL '40 days'"
+                "    AND amount > 0 AND volume > 0"
+                "  GROUP BY symbol HAVING count(*) >= 5)"
+                " SELECT k.symbol, k.volume, k.amount, ref.med"
+                " FROM quant.daily_klines k JOIN ref ON ref.symbol = k.symbol"
+                " WHERE k.trade_date = %s AND k.amount > 0 AND ref.med > 0"
+                "   AND k.amount > %s * ref.med"
+                "   AND k.symbol !~ '^399' AND position('.' in k.symbol) = 0"
+                " ORDER BY k.amount / ref.med DESC LIMIT 50",
+                (target_date, target_date, target_date, threshold),
+            )
+            return [
+                {'symbol': r[0], 'volume': float(r[1] or 0), 'amount': float(r[2] or 0),
+                 'median_amount': float(r[3] or 0), 'multiple': float(r[2]) / float(r[3])}
+                for r in cur.fetchall()
+            ]
+    except Exception as e:  # noqa: BLE001 - 自检异常不得影响同步结果
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        logger.warning(f"成交额量级自检失败（不影响同步）: {e}")
+        return []
 
 
 def execute(**params):

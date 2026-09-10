@@ -50,6 +50,13 @@ class DataBackfiller:
         表——若存在真实股票记录（list_date 非空）则按股票处理，仅纯指数（list_date 为空
         或 stocks 表无记录）才按指数拉取。
         """
+        # 2026-09-10：判定逻辑抽取到 utils.symbol_classifier（与 K 线写入侧的
+        # amount 估算/自检共用同一判据，避免两套逻辑漂移）。
+        from utils.symbol_classifier import is_index_symbol
+        return is_index_symbol(symbol)
+
+    def _is_index_symbol_legacy(self, symbol: str) -> bool:
+        """旧实现留档（逻辑已迁至 utils.symbol_classifier.is_index_symbol）。"""
         # 常见指数白名单（000001既是上证指数也是平安银行，需显式区分）
         index_whitelist = {
             '000001',  # 上证指数
