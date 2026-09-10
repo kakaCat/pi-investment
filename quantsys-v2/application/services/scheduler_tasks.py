@@ -481,7 +481,12 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
             from domain.ports import IStockRepository
             repo = EnhancedServiceFactory.resolve(IStockRepository)
             stocks = repo.get_all(limit=params.get('max_symbols', 500))
-            symbols = [s['symbol'] for s in stocks]
+            # 过滤指数代码（399开头、000300、000852、000016等）
+            symbols = [
+                s['symbol'] for s in stocks 
+                if not s['symbol'].startswith('399')  # 深证指数
+                and s['symbol'] not in ('000300', '000852', '000016', '000905', '000906')  # 常见指数
+            ]
 
         requested = params.get('factors') or None
         if requested == ['all']:
