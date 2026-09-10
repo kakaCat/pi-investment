@@ -15,12 +15,12 @@ DDD架构：
 - 实现 domain.ports.IKlineRepository 接口
 - 符合依赖倒置原则
 """
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
 from datetime import date, datetime
 import polars as pl
 import structlog
 
-from sqlalchemy import desc, and_, func
+from sqlalchemy import desc, and_, func, text
 from infrastructure.persistence.orm import BaseORMRepository, get_session
 from infrastructure.persistence.orm.models import DailyKline, MinuteKline, Stock
 from domain.ports import IKlineRepository
@@ -306,6 +306,47 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         if '.' in symbol:
             return symbol.split('.')[0]
         return symbol
+
+    # ==================== 指数日线（独立表） ====================
+
+    def get_index_daily_klines(
+        self,
+        index_symbol: str,
+        start_date: str,
+        end_date: str,
+        fields: List[str] = None
+    ) -> List[Dict[str, Any]]:
+        """读取指数日线（quant.index_daily，键为带市场后缀的指数代码，如 000300.SH）。
+
+        2026-09-11（w-f4aa1f6a）指数与个股**分表**的原因：
+          ① 语义不同——指数 volume 是成分股聚合（量纲与个股不同）、无复权/停牌/涨跌停，
+             混表曾导致「amount = volume × close」把深证成指估成 949.86 万亿元（w-23c70356 清理过）；
+          ② 命名空间——daily_klines 全是裸 6 位码，指数与深市股票同码冲突
+             （000001 平安银行 / 000016 *ST康佳A / 000905 厦门港务 …），指数价格实际无处安放。
+        调用方应先经 utils.symbol_classifier.resolve_index_symbol 规范化，非指数不要走本方法。
+        """
+        try:
+            allowed = {'symbol', 'trade_date', 'open', 'high', 'low', 'close', 'volume', 'amount'}
+            cols = [c for c in (fields or allowed) if c in allowed] or sorted(allowed)
+            sql = (
+                f"SELECT {', '.join(cols)} FROM quant.index_daily "
+                f"WHERE symbol = :sym AND trade_date BETWEEN :start AND :end "
+                f"ORDER BY trade_date ASC"
+            )
+            rows = self.session.execute(
+                text(sql), {'sym': index_symbol, 'start': start_date, 'end': end_date}
+            ).mappings().all()
+            out: List[Dict[str, Any]] = []
+            for r in rows:
+                d = dict(r)
+                if d.get('trade_date') is not None and hasattr(d['trade_date'], 'isoformat'):
+                    d['trade_date'] = d['trade_date'].isoformat()
+                out.append(d)
+            return out
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting index daily klines for {index_symbol}: {e}")
+            return []
 
     # ==================== 日K线查询 ====================
 

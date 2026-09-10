@@ -86,3 +86,36 @@ def index_symbols_for_exclusion() -> tuple:
 def index_symbols_sql_predicate(column: str = 'symbol') -> str:
     """返回"排除指数行"的 SQL 片段（配合 INDEX_SYMBOLS 参数使用）。"""
     return (f"NOT ({column} = ANY(%s)) AND {column} !~ '^399' AND position('.' in {column}) = 0")
+
+
+def resolve_index_symbol(symbol: str) -> 'str | None':
+    """把请求里的指数标识规范化为 quant.index_daily 的键（带市场后缀）。
+
+    2026-09-11（w-f4aa1f6a）：指数价格已与个股 K 线**分表**——指数存 quant.index_daily，
+    键带市场后缀（000300.SH / 399001.SZ），daily_klines 只放个股。
+
+    接受的写法：'000300'（裸码）、'000300.SH'、'sh000300'（新浪风格）。
+    **与指数同码的深市个股返回 None**（000001 平安银行 / 000016 *ST康佳A / 000905 厦门港务 …）
+    ——这正是本函数存在的意义：同一串数字，靠 stocks 表定夺它是谁。
+
+    Returns:
+        规范化的指数键（如 '000300.SH'），非指数返回 None。
+    """
+    s = (symbol or '').strip()
+    if not s:
+        return None
+    market_hint = None
+    low = s.lower()
+    if len(low) > 6 and low[:2] in ('sh', 'sz'):
+        market_hint, s = low[:2].upper(), s[2:]
+    if '.' in s:
+        code, _, mkt = s.partition('.')
+        market_hint = (mkt or '').strip().upper() or market_hint
+        s = code
+    if not s.isdigit() or len(s) != 6:
+        return None
+    if not is_index_symbol(s):   # 白名单 + stocks 表定夺（歧义码在此被排除）
+        return None
+    # 399 族恒为深证指数；其余白名单指数为沪市
+    market = market_hint or ('SZ' if s.startswith('399') else 'SH')
+    return f'{s}.{market}'

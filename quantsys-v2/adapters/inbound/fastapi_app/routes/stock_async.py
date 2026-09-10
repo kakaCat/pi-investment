@@ -260,7 +260,20 @@ def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
             start_date = start_date or (datetime.now() - timedelta(days=limit)).strftime('%Y-%m-%d')
 
         daily_periods = ['daily', '1d', '1D', 'day', 'D', 'd']
-        if period in daily_periods:
+
+        # 指数走专用表（2026-09-11，w-f4aa1f6a）：指数价格存 quant.index_daily（键带市场后缀），
+        # daily_klines 只放个股。必须在"剥后缀"之前判定，否则 000300.SH 会被削成 000300
+        # 落到个股命名空间；而 000001/000016/000905 这类裸码在两边都合法，
+        # 只能靠 utils.symbol_classifier.resolve_index_symbol（查 stocks 表）定夺身份。
+        from utils.symbol_classifier import resolve_index_symbol
+
+        _index_key = resolve_index_symbol(symbol)
+        if _index_key and period in daily_periods:
+            klines = ds.kline.get_index_daily_klines(
+                _index_key, start_date, end_date,
+                fields=['symbol', 'trade_date', 'open', 'high', 'low', 'close', 'volume', 'amount'])
+            clean_symbol = _index_key
+        elif period in daily_periods:
             klines = ds.kline.get_daily_klines(
                 clean_symbol, start_date, end_date,
                 fields=['symbol', 'trade_date', 'open', 'high', 'low', 'close', 'volume', 'amount'])

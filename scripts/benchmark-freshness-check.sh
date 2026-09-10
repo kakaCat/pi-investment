@@ -16,15 +16,15 @@
 set -uo pipefail
 PSQL=/opt/homebrew/opt/postgresql@14/bin/psql
 DB=quant_investment
-BENCH=${BENCH:-000300}
+BENCH=${BENCH:-000300.SH}   # 指数已与个股分表：quant.index_daily，键带市场后缀
 MIN_LEVEL=${MIN_LEVEL:-1000}    # 合理指数下界（元级股票必然低于此）
 MAX_LEVEL=${MAX_LEVEL:-20000}   # 合理指数上界
 
 q() { $PSQL -d "$DB" -t -A -c "$1" 2>/dev/null | tr -d ' '; }
 
-BENCH_LAST=$(q "select coalesce(max(trade_date)::text,'') from quant.daily_klines where symbol='$BENCH';")
+BENCH_LAST=$(q "select coalesce(max(trade_date)::text,'') from quant.index_daily where symbol='$BENCH';")
 REF_LAST=$(q "select coalesce(max(trade_date)::text,'') from quant.daily_klines where symbol='600519';")
-CLOSE=$(q "select coalesce(close::text,'') from quant.daily_klines where symbol='$BENCH' order by trade_date desc limit 1;")
+CLOSE=$(q "select coalesce(close::text,'') from quant.index_daily where symbol='$BENCH' order by trade_date desc limit 1;")
 
 FAIL=""
 [ -z "$BENCH_LAST" ] && FAIL="基准 $BENCH 在库中无任何数据"
