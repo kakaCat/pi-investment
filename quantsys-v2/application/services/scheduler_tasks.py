@@ -456,6 +456,88 @@ def handle_backtest_run(params: Dict[str, Any] = None) -> Dict[str, Any]:
         }
 
 
+MIN_BARS_FOR_FACTORS = 26  # MACD 最长窗口（26 根）→ 全量技术因子可算的最低门槛
+
+# 非股票标的的名称关键词（2026-09-10 实测：810011/810013/810014 "*定转" 是定增转股
+# 挂牌凭证、000300 沪深300 / 399001 深证成指 / 399006 创业板指 是指数伪标的，
+# 它们没有股票 K 线体系，送进 FactorStage 只会稳定抛 InsufficientDataError）
+_NON_EQUITY_NAME_KEYWORDS = (
+    '退', '定转', '指数', '沪深300', '上证50', '中证500', '中证1000',
+    '深证成指', '创业板指', '科创50',
+)
+
+
+def _filter_factor_universe(symbols, start_date: str, end_date: str):
+    """因子计算前预筛标的池（2026-09-10 修复 C，w-8f2c4cc5）。
+
+    背景：因子池直接取 stocks 全表，未剔除①退市/ST ②定转凭证（810xxx）③指数伪标的
+    ④K 线不足的标的（新上市/长期停牌）。实测 8 只标的在同一个 pass 里各抛 8 次
+    InsufficientDataError（ATR14 / RSI14 / BOLL×3 / MACD×3），既污染 Agent OS 错误
+    事件流（8 条事件 28 次），又让整轮全市场计算的失败面被误读为"系统异常"。
+
+    返回 (kept, dropped)；dropped 为统计 dict，供调用方日志留痕。
+    """
+    from infrastructure.persistence.database.engine import get_engine
+    from sqlalchemy import text
+
+    dropped = {
+        'delisted': 0, 'st': 0, 'non_equity': 0, 'insufficient_bars': 0,
+        'unknown': [], 'examples': [],
+    }
+    if not symbols:
+        return [], dropped
+
+    engine = get_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("""
+                SELECT s.symbol, s.name, s.is_delisted, s.is_st,
+                       count(k.trade_date) AS bars
+                  FROM quant.stocks s
+                  LEFT JOIN quant.daily_klines k
+                         ON k.symbol = s.symbol
+                        AND k.trade_date BETWEEN :start AND :end
+                 WHERE s.symbol = ANY(:syms)
+                 GROUP BY s.symbol, s.name, s.is_delisted, s.is_st
+            """),
+            {'start': start_date, 'end': end_date, 'syms': list(symbols)},
+        ).mappings().all()
+    known = {r['symbol']: r for r in rows}
+
+    kept = []
+    for sym in symbols:
+        r = known.get(sym)
+        if r is None:
+            dropped['unknown'].append(sym)      # 不在股票主表（指数伪代码等）
+            continue
+        name = r['name'] or ''
+        if r['is_delisted']:
+            dropped['delisted'] += 1
+            continue
+        # ST 判定用 is_st 布尔位 + 名称前缀（A 股 ST 一律以 ST/*ST 开头；
+        # 不做全文子串匹配——"Test" 这类名称含 "ST"，会被误判成 ST 股）
+        upper = name.upper()
+        if r['is_st'] or upper.startswith('ST') or upper.startswith('*ST'):
+            dropped['st'] += 1
+            continue
+        # 非股票标的：定转挂牌凭证（810xxx）、带后缀的伪代码（600000.SH~600009.SH
+        # 「Test」测试污染行，实测 stocks 表内 10 行）、指数伪标的（名称关键词）
+        if sym.startswith('810') or '.' in sym or 'TEST' in upper \
+                or any(k in name for k in _NON_EQUITY_NAME_KEYWORDS):
+            dropped['non_equity'] += 1
+            if len(dropped['examples']) < 10:
+                dropped['examples'].append(f"{sym} {name}")
+            continue
+        bars = int(r['bars'] or 0)
+        if bars < MIN_BARS_FOR_FACTORS:
+            dropped['insufficient_bars'] += 1
+            if len(dropped['examples']) < 10:
+                dropped['examples'].append(f"{sym} {bars}bar")
+            continue
+        kept.append(sym)
+    return kept, dropped
+
+
 def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
     """因子计算任务（盘后批量重算并落库，为次日信号做准备）
 
@@ -498,6 +580,17 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
         lookback_days = params.get('lookback_days', 420)
         end_date = datetime.now().strftime('%Y-%m-%d')
         start_date = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
+
+        # C 修复（2026-09-10）：进入 FactorStage 之前预筛标的池——退市/ST/定转/指数
+        # 伪标的/K 线不足标的直接剔除，避免"预期内数据不足"被当成系统异常刷错误事件。
+        symbols, dropped = _filter_factor_universe(symbols, start_date, end_date)
+        universe_dropped = dropped
+        logger.info(
+            f"factor universe 预筛：{len(symbols)} 只入选，剔除 "
+            f"{dropped['delisted']} 退市 / {dropped['st']} ST / "
+            f"{dropped['non_equity']} 非股票标的 / "
+            f"{dropped['insufficient_bars']} K线<{MIN_BARS_FOR_FACTORS}根 / "
+            f"{len(dropped['unknown'])} 不在主表；样例={dropped['examples']}")
 
         computed = 0
         failed = []
@@ -543,6 +636,8 @@ def handle_factor_compute(params: Dict[str, Any] = None) -> Dict[str, Any]:
             "symbols_count": len(symbols),
             "factors_computed": computed,
             "failed": failed[:20],
+            "universe_dropped": {k: v for k, v in universe_dropped.items() if k != 'examples'},
+            "universe_dropped_examples": universe_dropped['examples'],
             "timestamp": datetime.now().isoformat()
         }
 

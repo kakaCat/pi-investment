@@ -664,12 +664,15 @@ class DailyOrchestrator:
             result = agent_service.notify_agent(event, data)
             if result == 'timeout':
                 # 超时不视为失败（Agent 大概率已收到事件正在处理，重推会导致重复）
-                logger.info(f"notify_agent_timeout_treated_as_success", event=event, 
-                           note="Agent 正在处理中，不重推")
+                # 修复（2026-09-10，w-8f2c4cc5）：structlog BoundLogger 已把首个位置参绑定为
+                # event 键，此处再传 event=event 会抛 "got multiple values for argument
+                # 'event'"，异常被下方 except 吞成 "Failed to notify agent"，掩盖真实投递结果。
+                logger.info("notify_agent_timeout_treated_as_success", notify_event=event,
+                            note="Agent 正在处理中，不重推")
             elif result == 'error':
-                logger.warning(f"notify_agent_error", event=event, result=result)
+                logger.warning("notify_agent_error", notify_event=event, result=result)
             else:
-                logger.info(f"notify_agent_success", event=event)
+                logger.info("notify_agent_success", notify_event=event)
         except Exception as e:
             logger.warning(f"Failed to notify agent: {e}")
 

@@ -89,8 +89,10 @@ class SinaKlineProvider(KlineProvider):
             sina_code = self._to_sina_code(symbol)
             scale = self._convert_period(period)
 
-            # 新浪接口返回最近 N 条数据，默认获取 300 条（约一年多）
-            datalen = 300
+            # 新浪接口返回最近 N 条数据。2026-09-10 实测：datalen=1023 返回 1023 根日线
+            # （000001 首根 2022-06-28 → 末根 2026-09-10），可覆盖约 4 年历史；
+            # 原值 300 只覆盖约 1 年，导致长窗口回补（如 2025-06~2026-08）取不到数据。
+            datalen = 1023
 
             params = {
                 'symbol': sina_code,
@@ -133,9 +135,12 @@ class SinaKlineProvider(KlineProvider):
                     if end_date and date_str > end_date:
                         continue
 
-                    # volume 为成交量（手），需要转换为股（×100）
+                    # volume 单位=股（不是手），无需 ×100。
+                    # 依据（2026-09-10 实测）：sina 日线原始 volume 与 hq.sinajs.cn 实时快照
+                    # sz000001 成交量 86,763,222 股 完全一致；历史行 2025-05-29=91,980,676
+                    # 也与原库内该日 volume 一致。原 ×100 会把成交量放大 100 倍。
                     volume_raw = float(item.get('volume', 0))
-                    volume = int(volume_raw * 100) if volume_raw > 0 else 0
+                    volume = int(volume_raw) if volume_raw > 0 else 0
 
                     kline = KlineData(
                         symbol=symbol,

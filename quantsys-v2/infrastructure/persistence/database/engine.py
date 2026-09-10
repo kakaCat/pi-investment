@@ -48,9 +48,28 @@ def _resolve_db_dsn():
     )
     
     # Priority 2: Pydantic Settings (recommended)
+    # 修复（2026-09-10，w-8f2c4cc5）：get_config() 是向后兼容层，未接配置时返回 {}，
+    # 这里直接取 .database.url 会抛 AttributeError 且被上层吞掉 → DSN 变 None →
+    # ORM 初始化失败 → 所有落库静默丢弃（2026-08~09 数据停摆的同类故障面）。
+    # 现在降级为显式告警 + 继续找标准 PG* 变量，绝不静默返回 None。
     if not dsn:
-        config = get_config()
-        dsn = config.database.url
+        try:
+            config = get_config()
+            dsn = config.database.url
+        except Exception as e:  # noqa: BLE001 —— 兼容层无配置属预期情况
+            logger.debug("config.database.url 不可用（%s），回退后续优先级", e)
+
+    # Priority 3: 标准 libpq 环境变量拼装（文档此前即承诺支持 PG*，代码未实现）
+    if not dsn:
+        pg_db = os.environ.get("PGDATABASE")
+        if pg_db:
+            from urllib.parse import quote_plus
+            user = quote_plus(os.environ.get("PGUSER") or os.environ.get("USER") or "postgres")
+            pwd = os.environ.get("PGPASSWORD")
+            auth = f"{user}:{quote_plus(pwd)}@" if pwd else f"{user}@"
+            host = os.environ.get("PGHOST") or "127.0.0.1"
+            port = os.environ.get("PGPORT") or "5432"
+            dsn = f"postgresql://{auth}{host}:{port}/{pg_db}"
 
     # 安全检查：pytest 环境必须使用测试库
     # 这是第二层防护，防止绕过 conftest.py 的情况
@@ -77,6 +96,13 @@ def _resolve_db_dsn():
                 f"Test database name must end with '{TEST_DB_SUFFIX}'. "
                 f"This prevents accidental connection to production database during tests."
             )
+
+    if not dsn:
+        logger.warning(
+            "未解析到数据库 DSN：QUANT_DATABASE_URL / DATABASE_URL / POSTGRES_DSN / PGDATABASE "
+            "均未设置 —— ORM 初始化将失败，所有落库会被静默丢弃。请在启动环境显式导出 "
+            "QUANT_DATABASE_URL=postgresql://<user>@127.0.0.1:5432/quant_investment"
+        )
 
     return dsn
 

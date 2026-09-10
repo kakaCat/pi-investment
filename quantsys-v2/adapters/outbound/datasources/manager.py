@@ -1,5 +1,6 @@
 """Unified data provider manager with automatic failover."""
 import logging
+from datetime import date as _date, datetime as _datetime, timedelta as _timedelta
 from typing import List, Dict, Any, Optional
 
 from domain.exceptions import ExternalServiceError
@@ -634,6 +635,13 @@ class DataProviderManager(IDataProviderManager):
 
         Backfill: When network provider fetches data (not from DB),
         automatically stores it back to DB for future fast access.
+
+        覆盖度修复（2026-09-10）：数据库 provider 只要返回非空就被当作成功，
+        导致"部分覆盖"被当成"已覆盖"——日更任务用 end_date=最近交易日查询，
+        DB 返回更早的行后任务判 stale 却不再取实时源，市场级缺口（2026-09-03
+        起 5150 只 K 线停在 09-02）被永久固化。现在：DB 结果未覆盖请求窗口
+        尾部（最近应有 EOD 的交易日）时，继续走实时源并把两边按日期合并
+        （实时优先），合并结果仍照常回写 DB。
         """
         result = self._try_providers(
             self.kline_providers,
@@ -644,6 +652,38 @@ class DataProviderManager(IDataProviderManager):
             end_date
         )
 
+        if period in ['daily', 'weekly', 'monthly'] and result.get('source') == 'database':
+            expected_last = self._expected_last_bar_date(period, end_date)
+            db_last = ''
+            for k in (result.get('data') or []):
+                d = str(getattr(k, 'date', ''))[:10]
+                if d > db_last:
+                    db_last = d
+            if db_last < expected_last:
+                network = self._try_providers(
+                    self.kline_providers[1:],
+                    'get_klines',
+                    symbol,
+                    period,
+                    start_date,
+                    end_date
+                )
+                if network.get('success') and network.get('data'):
+                    merged: Dict[str, Any] = {}
+                    for k in result.get('data') or []:
+                        merged[str(getattr(k, 'date', ''))[:10]] = k
+                    for k in network['data']:
+                        merged[str(getattr(k, 'date', ''))[:10]] = k
+                    result = {
+                        'success': True,
+                        'data': [merged[d] for d in sorted(merged)],
+                        'source': f"database+{network.get('source')}",
+                    }
+                    logger.info(
+                        f"Kline DB 覆盖不足({symbol}: db_last={db_last} < "
+                        f"expected={expected_last})，已用实时源补齐至 "
+                        f"{max(merged) if merged else db_last}")
+
         # Backfill: store network-fetched data back to DB
         if (result.get('success') and
             result.get('source') != 'database' and
@@ -652,6 +692,28 @@ class DataProviderManager(IDataProviderManager):
             self._backfill_klines_to_db(symbol, result['data'])
 
         return result
+
+    @staticmethod
+    def _expected_last_bar_date(period: str, end_date: str) -> str:
+        """请求窗口尾部"最近应当已有 EOD 数据"的日期（用于覆盖度判定）。
+
+        规则：不晚于 min(end_date, 今天)，再回退到最近的工作日。
+        无交易日历（节假日按工作日处理）——偏保守，最坏情况是多取一次实时源，
+        不影响正确性；宁可多取，也不要把缺口当已覆盖。
+        """
+        try:
+            if period in ('weekly', 'monthly'):
+                # 周/月线只需覆盖到窗口内即可，不做工作日回退（由调用方按需取源）
+                return end_date
+            end = _datetime.strptime(end_date, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            return end_date
+        today = _date.today()
+        if end > today:
+            end = today
+        while end.weekday() >= 5:
+            end -= _timedelta(days=1)
+        return end.strftime('%Y-%m-%d')
 
     def _backfill_klines_to_db(self, symbol: str, klines: list) -> bool:
         """Store kline data back to DB for future fast access

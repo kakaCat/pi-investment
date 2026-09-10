@@ -236,13 +236,22 @@ def validate_inputs(func):
     """
     Decorator to validate inputs before calculation.
     Catches common validation errors and provides clear messages.
+
+    分级（2026-09-10 修复 B，w-8f2c4cc5）：
+    预期内的输入校验失败（InsufficientDataError / DataValidationError / ValueError）
+    记为 **warning**，不进 ERROR 级上报通道——它们不是故障，而是"数据不足以算这个
+    因子"的正常结果（实证：8 只 K 线不足标的在一次全市场 pass 中各抛 8 次
+    InsufficientDataError，被本体当成 "Unexpected error" 打成 8 条 error 事件、28 次
+    计数，进而让 Agent OS 错误看板与告警失真）。
+    真正的系统性故障（数据源挂、代码缺陷）仍走 ERROR 级，由 error_reporting 上报，
+    市场级数据缺失由 freshness_guard（按标的覆盖度）负责告警——职责不重叠。
     """
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         try:
             return func(self, *args, **kwargs)
-        except ValueError as e:
-            self.logger.error(f"Input validation failed in {func.__name__}: {e}")
+        except (InsufficientDataError, DataValidationError, ValueError) as e:
+            self.logger.warning(f"Input validation failed in {func.__name__}: {e}")
             raise
         except Exception as e:
             self.logger.error(f"Unexpected error in {func.__name__}: {e}")

@@ -171,7 +171,9 @@ class LegacyAgentNotificationServiceAdapter:
         Returns:
             str: 'ok' | 'timeout' | 'error' | 'disabled'
         """
-        logger.debug("Legacy notify_agent_detailed called", event=event)
+        # 修复（2026-09-10，w-8f2c4cc5）：首个位置参已被 structlog 绑定为 event 键，
+        # 再传 event=event 会抛 TypeError（got multiple values for argument 'event'）。
+        logger.debug("Legacy notify_agent_detailed called", notify_event=event)
 
         # 检查 Agent 渠道是否可用
         channels = self.facade.get_available_channels()
