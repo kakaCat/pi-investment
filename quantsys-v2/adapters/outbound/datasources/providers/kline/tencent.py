@@ -92,9 +92,20 @@ class TencentKlineProvider(KlineProvider):
                 logger.warning(f"Tencent API error for {symbol}: {payload.get('msg')}")
                 return None
 
-            node = payload.get('data', {}).get(code) or {}
-            # 新接口返回格式：data.{code}.day 为数组
-            rows = node.get('day') or []
+            # 2026-09-11 修复（w-f4aa1f6a）：腾讯接口的 data 字段**两种形状都出现过**——
+            # 既可能是 {code: {...}}（新格式），也可能直接是 [...]（旧/异常格式）。
+            # 原实现无条件 .get(code)，遇到 list 抛 "'list' object has no attribute 'get'"，
+            # 整条 K 线回退链随之失败（实证 error_event 4e8ecf88，12 次复发）。
+            data_field = payload.get('data')
+            if isinstance(data_field, dict):
+                node = data_field.get(code) or {}
+            elif isinstance(data_field, list):
+                # list 形态：单标的请求下取首个元素；无法识别时明确报错而不是抛属性异常
+                node = (data_field[0] if data_field and isinstance(data_field[0], dict) else {})
+            else:
+                node = {}
+            # 两种形态下 day 数组可能在 node 内，也可能直接挂在 payload 上
+            rows = node.get('day') or (payload.get('day') if isinstance(payload.get('day'), list) else []) or []
             if not rows:
                 self.last_error = f"腾讯无 {symbol} 的K线数据（代码不存在或该时段无交易）"
                 logger.warning(f"Tencent returned no data for {symbol}")

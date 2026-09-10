@@ -196,31 +196,51 @@ class AkshareBroker(BaseBroker):
                 # 首先尝试 akshare（东方财富）
                 df = None
                 try:
-                    # 使用超时保护包装 akshare 调用
-                    import signal
+                    # 超时保护包装 akshare 调用
+                    # 2026-09-11 修复（w-f4aa1f6a）：原实现无条件用 signal.alarm 做超时，
+                    # 但 signal 只能在**主线程**注册——该路径会被 FastAPI 线程池 / 后台任务线程调用，
+                    # 于是抛 "signal only works in main thread of the main interpreter"，
+                    # 直接把 AkShare→Sina 回退链打断（实证 error_event 9223e5b2 / 5da6019a /
+                    # 306a35ea，及 96 次 traceback 的源头）。现按线程角色分流：
+                    #   主线程   → 沿用 signal（开销最低、语义与原实现一致）
+                    #   非主线程 → 线程池 + future.result(timeout=30)，线程安全且超时语义等价
                     import platform
+                    import threading
 
-                    def timeout_handler(signum, frame):
-                        raise TimeoutError(f"AkShare request timeout after 30s for {symbol}")
-
-                    # 在非 Windows 系统上使用 signal 超时
-                    if platform.system() != 'Windows':
-                        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-                        signal.alarm(30)  # 30秒超时
-
-                    try:
-                        df = self._akshare.stock_zh_a_hist(
+                    def _call_akshare():
+                        return self._akshare.stock_zh_a_hist(
                             symbol=clean_symbol,
                             period=period,
                             start_date=start_date.replace('-', ''),
                             end_date=end_date.replace('-', ''),
                             adjust="qfq"  # 前复权
                         )
-                        logger.info(f"[BROKER] AkShare succeeded for {symbol}")
-                    finally:
-                        if platform.system() != 'Windows':
+
+                    _use_signal = platform.system() != 'Windows' and threading.current_thread() is threading.main_thread()
+                    if _use_signal:
+                        import signal
+
+                        def timeout_handler(signum, frame):
+                            raise TimeoutError(f"AkShare request timeout after 30s for {symbol}")
+
+                        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+                        signal.alarm(30)  # 30秒超时
+                        try:
+                            df = _call_akshare()
+                            logger.info(f"[BROKER] AkShare succeeded for {symbol}")
+                        finally:
                             signal.alarm(0)  # 取消超时
                             signal.signal(signal.SIGALRM, old_handler)
+                    else:
+                        from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+
+                        with ThreadPoolExecutor(max_workers=1) as _pool:
+                            _fut = _pool.submit(_call_akshare)
+                            try:
+                                df = _fut.result(timeout=30)  # 非主线程安全超时
+                                logger.info(f"[BROKER] AkShare succeeded for {symbol} (thread-safe timeout path)")
+                            except FuturesTimeoutError:
+                                raise TimeoutError(f"AkShare request timeout after 30s for {symbol}")
 
                 except TimeoutError as timeout_err:
                     logger.warning(f"[BROKER] AkShare timeout for {symbol}, falling back to Sina: {timeout_err}")
