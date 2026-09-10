@@ -63,6 +63,11 @@ export function isWindowBound(ledger: ReqboardLedger, windowKey: string): boolea
   return false
 }
 
+/** 该窗口绑定的 open 需求里，仍处 draft 的（接手推进信号 R1 用）。 */
+export function draftRequirementsFor(ledger: ReqboardLedger, windowKey: string): RequirementRecord[] {
+  return openRequirementsFor(ledger, windowKey).filter(r => r.status === 'draft')
+}
+
 /** 该窗口是否已有**遗留** pending 建议卡（旧流程 triage 产物；仅旧窗口会残留，已建议 → 抑制重复引导）。 */
 export function hasPendingSuggestion(ledger: ReqboardLedger, windowKey: string): boolean {
   return ledger.triages.some(t => t.sessionId === windowKey && t.status === 'pending')

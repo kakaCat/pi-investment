@@ -15,9 +15,11 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { ReqboardStore } from './host/store.js';
 import { createReqboardHandler } from './host/routes.js';
-import { captureSectionText, windowKeyFromContext } from './host/capture.js';
+import { captureSectionText, windowKeyFromContext, draftRequirementsFor } from './host/capture.js';
+import { applyPickupAdvance } from './host/rollup.js';
+import { newCommentId, type RequirementRecord } from './shared/protocol.js';
 import { createSessionEventCaptureHook, type CaptureHookDeps } from './host/capture-hook.js';
-import { defineCreateTool, defineStatusTool } from './host/agent-tools.js';
+import { defineCreateTool, defineStatusTool, defineMoveTool } from './host/agent-tools.js';
 
 export const name = 'dsh-pmboard';
 
@@ -78,6 +80,18 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     snapshot: () => store.snapshot(),
     pending: pendingCapture,
     now,
+    // R1 接手推进：已绑定窗口出现直接人类消息 = 该窗口仍在推进其需求 → 其 draft 需求
+    // 自动进评审（人工闸门仍在：方案确认/拆分确认/验收均为人工，代码级不可越过）。
+    onBoundWindowActivity: (windowKey) => {
+      const drafts = draftRequirementsFor(store.snapshot(), windowKey);
+      if (drafts.length === 0) return;
+      void store.mutate('requirement-moved', (ledger) => {
+        const advanced = drafts
+          .map((d) => applyPickupAdvance(ledger, d.id, { now: now(), commentId: () => newCommentId() }))
+          .filter((r): r is RequirementRecord => r !== undefined);
+        return advanced.length > 0 ? { requirements: advanced } : undefined;
+      }).catch((err) => logger.warn('reqboard rollup (pickup advance) failed:', err));
+    },
     logger: { info: (m) => logger.info(m), debug: (m) => logger.debug(m) },
   };
   const captureHandler = createSessionEventCaptureHook(captureHookDeps);
@@ -127,8 +141,9 @@ export function apply(ctx: Context, config?: PluginConfig): void {
       toolsCtx.effect?.(() => {
         disposers.push(toolsCtx.tools.register(defineCreateTool(toolDeps)));
         disposers.push(toolsCtx.tools.register(defineStatusTool(toolDeps)));
+        disposers.push(toolsCtx.tools.register(defineMoveTool(toolDeps)));
       }, name + ': tools');
-      logger.info('agent tools registered: reqboard_create / reqboard_status');
+      logger.info('agent tools registered: reqboard_create / reqboard_status / reqboard_move');
     },
   );
 

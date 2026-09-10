@@ -152,3 +152,42 @@ describe('createSessionEventCaptureHook', () => {
     expect(d.pending.size).toBe(0)
   })
 })
+describe('R1 接手推进信号（onBoundWindowActivity）', () => {
+  it('bound 窗口收到直接人类消息 → 触发回调一次（带 windowKey 与消息文本）', () => {
+    const d = deps()
+    const calls: Array<[string, string]> = []
+    const h = createSessionEventCaptureHook({ ...d.deps, onBoundWindowActivity: (k, t) => calls.push([k, t]) })
+    d.setLedger({ ...emptyLedger(), requirements: [{ id: 'REQ-1', sourceSessionId: W, status: 'draft' } as never] })
+    h({ id: W }, textMsg('继续推进这个需求'))
+    expect(calls).toHaveLength(1)
+    expect(calls[0][0]).toBe(W)
+    expect(calls[0][1]).toContain('继续推进')
+    // bound 窗口不再登记待捕获（不重复 nag 立项）
+    expect(d.pending.size).toBe(0)
+  })
+
+  it('unbound 窗口不触发接手推进（仍走立项捕获）', () => {
+    const d = deps()
+    const calls: string[] = []
+    const h = createSessionEventCaptureHook({ ...d.deps, onBoundWindowActivity: (k) => calls.push(k) })
+    h({ id: W }, textMsg('帮我做个日报工具'))
+    expect(calls).toHaveLength(0)
+    expect(d.pending.size).toBe(1)
+  })
+
+  it('非直接人类消息（plugin 注入）不触发接手推进', () => {
+    const d = deps()
+    const calls: string[] = []
+    const h = createSessionEventCaptureHook({ ...d.deps, onBoundWindowActivity: (k) => calls.push(k) })
+    d.setLedger({ ...emptyLedger(), requirements: [{ id: 'REQ-1', sourceSessionId: W, status: 'draft' } as never] })
+    h({ id: W }, textMsg('workspace 文件变更', 'plugin'))
+    expect(calls).toHaveLength(0)
+  })
+
+  it('未注入回调 → 不抛错（可选依赖）', () => {
+    const d = deps()
+    const h = createSessionEventCaptureHook(d.deps)
+    d.setLedger({ ...emptyLedger(), requirements: [{ id: 'REQ-1', sourceSessionId: W, status: 'draft' } as never] })
+    expect(() => h({ id: W }, textMsg('继续'))).not.toThrow()
+  })
+})

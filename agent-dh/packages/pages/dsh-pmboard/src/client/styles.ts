@@ -116,6 +116,14 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-card-bar { flex: 1; height: 4px; border-radius: 2px; background: rgba(128,128,128,.15); overflow: hidden; }
 .dsh-pm-card-bar-fill { height: 100%; background: var(--dsw-accent, #4a7dff); border-radius: 2px; }
 .dsh-pm-card-pct { font-size: 11px; color: var(--dsw-text-secondary, #999); flex: none; }
+.dsh-pm-window {
+  display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: 9px;
+  border: 1px solid rgba(74,125,255,.35); background: rgba(74,125,255,.08);
+  color: var(--dsw-accent, #4a7dff); font-size: 11px; cursor: pointer;
+  font-family: ui-monospace, monospace;
+}
+.dsh-pm-window:hover { background: rgba(74,125,255,.16); }
+
 .dsh-pm-session {
   font-size: 11px; padding: 2px 8px; border-radius: 4px;
   border: 1px solid var(--dsw-border, rgba(128,128,128,.25));

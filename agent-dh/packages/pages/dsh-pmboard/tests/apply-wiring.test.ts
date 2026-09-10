@@ -79,11 +79,11 @@ describe('dsh-pmboard apply() 宿主接线（乙流程装配冒烟）', () => {
     expect(text).toContain('reqboard_create')
   })
 
-  it('注册两个 agent 工具：reqboard_create / reqboard_status', () => {
+  it('注册三个 agent 工具：reqboard_create / reqboard_move / reqboard_status', () => {
     const ctx = stubCtx()
     apply(ctx, { dshHome: dir })
     const names = ctx.tools.map(t => t.name).sort()
-    expect(names).toEqual(['reqboard_create', 'reqboard_status'])
+    expect(names).toEqual(['reqboard_create', 'reqboard_move', 'reqboard_status'])
   })
 
   it('注册看板路由：/dashboard/api/reqboard 前缀', () => {

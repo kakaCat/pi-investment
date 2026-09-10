@@ -40,6 +40,7 @@ import type { ReqboardLedger } from '../shared/protocol.js'
 import { isIgnoredSession, extractUserMessageText } from './session-sync.js'
 import { cleanUserMessageText } from './classifier.js'
 import { isWindowBound, hasPendingSuggestion, type PendingCaptureMessage } from './capture.js'
+// R1 接手推进：hook 只发信号（bound 窗口有人类消息），推进落库由 apply 侧注入的回调做
 
 export interface CaptureHookLogger {
   /** 成员必填；logger 整体可选（deps.logger?:）→ logger?.info(...) 即安全。 */
@@ -53,6 +54,11 @@ export interface CaptureHookDeps {
   /** 待捕获候选共享 Map（windowKey → 最新未消费消息；capture section 同引用读取）。 */
   pending: Map<string, PendingCaptureMessage>
   now: () => number
+  /**
+   * 接手推进回调（R1）：**已绑定**窗口出现直接人类消息 = 该窗口在继续推进其需求 →
+   * 调用方把它绑定的 draft 需求推进到 reviewing。可选（未注入 = 关闭该自动推进）。
+   */
+  onBoundWindowActivity?: (windowKey: string, text: string) => void
   logger?: CaptureHookLogger
 }
 
@@ -121,6 +127,9 @@ export function createSessionEventCaptureHook(deps: CaptureHookDeps): (session: 
     // 窗口条件：unbound && 无遗留 pending → 需要立项捕获（确定性判定，语义判断留给 LLM）。
     if (!shouldCaptureWindow(snapshot(), windowKey)) {
       debug(`reqboard-capture: window ${windowKey.slice(0, 16)} bound or has pending — no capture needed`)
+      // 已绑定窗口 + 直接人类消息 = 该窗口仍在实际推进其需求 → 通知接手推进（R1）
+      const ledger = snapshot()
+      if (isWindowBound(ledger, windowKey)) deps.onBoundWindowActivity?.(windowKey, text)
       return
     }
 
