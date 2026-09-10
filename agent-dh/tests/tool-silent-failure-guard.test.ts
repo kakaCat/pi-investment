@@ -139,3 +139,57 @@ describe('risk_metrics 诚实性', () => {
     expect(r.beta_note).toMatch(/未计算|无基准/);
   });
 });
+
+describe('pool_list 字段契约（后端为 symbol_count）', () => {
+  it('把 symbol_count 映射为 member_count（旧实现恒 undefined）', async () => {
+    const { PoolListTool } = await import('../packages/investment/src/tools/PoolListTool/PoolListTool.js');
+    const tool: any = new PoolListTool({ listPools: vi.fn().mockResolvedValue([{ id: 41, name: '机器人供应链观察池', symbol_count: 7 }]) } as any);
+    const pools: any[] = await tool.execute({}, ctx);
+    expect(pools[0].member_count).toBe(7);
+  });
+});
+
+describe('data_fetch_dividend 数据真实性护栏', () => {
+  it('后端返回 success=true 但全 0 / 全 null 时必须显式失败（不得当成"不分红"）', async () => {
+    const { DataFetchDividendTool } = await import('../packages/investment/src/tools/DataFetchDividendTool/DataFetchDividendTool.js');
+    const zeros = [
+      { symbol: '600176', dividend_per_share: 0.0, dividend_yield: null, ex_dividend_date: null },
+      { symbol: '600176', dividend_per_share: 0.0, dividend_yield: null, ex_dividend_date: null },
+    ];
+    const tool: any = new DataFetchDividendTool({ getDividends: vi.fn().mockResolvedValue(zeros) } as any);
+    await expect(tool.execute({ mode: 'history', symbol: '600176' }, ctx)).rejects.toThrow(/无有效分红数据/);
+  });
+
+  it('有真实分红数据时正常返回', async () => {
+    const { DataFetchDividendTool } = await import('../packages/investment/src/tools/DataFetchDividendTool/DataFetchDividendTool.js');
+    const rows = [{ symbol: '601398', dividend_per_share: 0.3, ex_dividend_date: '2026-07-10' }];
+    const tool: any = new DataFetchDividendTool({ getDividends: vi.fn().mockResolvedValue(rows) } as any);
+    const r: any = await tool.execute({ mode: 'history', symbol: '601398' }, ctx);
+    expect(r.data.length).toBe(1);
+    expect(r.raw_rows).toBe(1);
+  });
+});
+
+describe('fund_flow 新鲜度标注', () => {
+  it('个股模式补 data_date / staleness_days / freshness_note', async () => {
+    const { FundFlowTool } = await import('../packages/competition/src/tools/FundFlowTool/FundFlowTool.js');
+    const tool: any = new FundFlowTool({
+      getStockFundFlow: vi.fn().mockResolvedValue({ success: true, data: [{ date: '2020-01-02', mainNetInflow: 100 }] }),
+      getStockMargin: vi.fn().mockResolvedValue({ success: true, data: [] }),
+    } as any);
+    const r: any = await tool.execute({ symbol: '600150' }, ctx);
+    expect(r.data_date).toBe('2020-01-02');
+    expect(r.staleness_days).toBeGreaterThan(1);
+    expect(r.freshness_note).toMatch(/非当日数据/);
+  });
+});
+
+describe('sector_analysis 窗口诚实性', () => {
+  it('标注后端忽略 days（单一窗口），避免被当 N 日区间涨幅', async () => {
+    const { SectorAnalysisTool } = await import('../packages/market/src/tools/SectorAnalysisTool/SectorAnalysisTool.js');
+    const tool: any = new SectorAnalysisTool({ getSectorAnalysis: vi.fn().mockResolvedValue({ data_type: 'sector_list', data: { industries: [] } }) } as any);
+    const r: any = await tool.execute({ days: 20 }, ctx);
+    expect(r.days_requested).toBe(20);
+    expect(r.window_note).toMatch(/忽略 days/);
+  });
+});

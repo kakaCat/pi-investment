@@ -62,6 +62,10 @@ export class FundFlowTool extends BaseTool<FundFlowParams, FundFlowResult> {
         sector_flow: rows,
         summary: rows.length ? `板块资金流 ${rows.length} 条` : '数据源返回空',
         source: res.source,
+        // 2026-09-11（REQ-342799）：后端 /api/market/sector-flow 的窗口由 indicator 决定（默认『今日』），
+        // 源不返回精确数据日期 → 显式标注，避免被当作任意日期或历史区间使用。
+        window_indicator: '今日（数据源为最近交易日快照，未返回精确日期）',
+        freshness_note: '板块资金流无日期字段，新鲜度未知；如需精确日期请用个股模式（fund_flow({symbol})）',
       } as any;
     }
 
@@ -89,9 +93,23 @@ export class FundFlowTool extends BaseTool<FundFlowParams, FundFlowResult> {
       summary += `${summary ? '；' : ''}两融余额 ${m0.totalBalance ?? '?'}万（${m0.date}）`;
     }
 
+    // 2026-09-11 修复（REQ-342799）：实测个股资金流最新只到 2026-09-09（当时为 09-11），
+    // 旧实现仅把日期写进 summary 文本、不标注新鲜度，容易被当成当日资金流使用。
+    const latestDate = fundFlow.find((r: any) => r?.date)?.date ?? null;
+    const stalenessDays = latestDate
+      ? Math.round((Date.now() - new Date(latestDate + 'T00:00:00+08:00').getTime()) / 86400000)
+      : null;
+
     return {
       mode: `stock:${args.symbol}`,
       available,
+      data_date: latestDate,
+      staleness_days: stalenessDays,
+      freshness_note: latestDate
+        ? (stalenessDays !== null && stalenessDays >= 2
+          ? '资金流最新日期 ' + latestDate + '，距调用日 ' + stalenessDays + ' 天 → 非当日数据，勿当今日资金流使用'
+          : '资金流日期 ' + latestDate)
+        : '数据源未返回日期字段，新鲜度未知',
       fund_flow: fundFlow,
       margin,
       summary: summary || undefined,

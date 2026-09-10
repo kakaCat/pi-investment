@@ -36,11 +36,25 @@ export class SectorAnalysisTool extends BaseTool<SectorAnalysisParams, SectorAna
    * Phase 2: 执行任务
    */
   protected async execute(args: SectorAnalysisParams, _context: ToolContext): Promise<SectorAnalysisResult> {
-    const result = await this.qv2.getSectorAnalysis({
+    const requestedDays = args.days || 5;
+    const result: any = await this.qv2.getSectorAnalysis({
       sector: args.sector,
-      days: args.days || 5,
+      days: requestedDays,
     });
-    return result as SectorAnalysisResult;
+
+    // 2026-09-11 修复（REQ-342799）：实测后端 /api/market/sectors 路由不接收 days 参数
+    // （curl days=5 与 days=20 返回完全相同的 change_pct），返回的是『最新快照』单一窗口。
+    // 此前工具对外表现为支持多窗口，导致分析时把单日快照误当 5/20 日区间涨幅使用。
+    // 同时：client.unwrap 会剥掉外层 {success,data}，路由在数据源故障回退 DB 快照时标注的
+    // degraded/stale/stale_from 字段位于外层 → 会被静默丢弃。此处显式补齐，避免把陈旧快照当实时。
+    return {
+      ...(result as any),
+      days_requested: requestedDays,
+      window_note: '后端该接口忽略 days，返回单一窗口（最新快照）；请勿当作 N 日区间涨幅',
+      data_degraded: (result as any)?.degraded ?? null,
+      data_stale: (result as any)?.stale ?? null,
+      stale_from: (result as any)?.stale_from ?? null,
+    } as SectorAnalysisResult;
   }
 
   /**

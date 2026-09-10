@@ -81,4 +81,50 @@ describe.skipIf(!LIVE)('工具数据真实性体检（真实后端）', () => {
     expect(a.beta_note).toBeTruthy();
     if (identical) console.log('[risk-window] DEGRADED：后端窗口参数未生效（30/250 同值），分析时不得声称多窗口对比');
   }, 90000);
+
+  it('pool_list：member_count 有值（后端 symbol_count 映射）', async () => {
+    const { PoolListTool } = await import('../packages/investment/src/tools/PoolListTool/PoolListTool.js');
+    const tool: any = new PoolListTool(client);
+    const pools: any[] = await tool.execute({}, ctx);
+    const withCount = pools.filter((p) => typeof p?.member_count === 'number' && p.member_count > 0);
+    console.log('[pool] total=' + pools.length + ' with_count=' + withCount.length + ' sample=' + JSON.stringify({ n: pools[0]?.name, c: pools[0]?.member_count }));
+    expect(pools.length).toBeGreaterThan(0);
+    expect(withCount.length).toBeGreaterThan(0);
+  }, 60000);
+
+  it('sector_analysis：必须标注后端忽略 days（单一窗口）', async () => {
+    const { SectorAnalysisTool } = await import('../packages/market/src/tools/SectorAnalysisTool/SectorAnalysisTool.js');
+    const tool: any = new SectorAnalysisTool(client);
+    const r: any = await tool.execute({ days: 20 }, ctx);
+    console.log('[sector] days_requested=' + r.days_requested + ' note=' + String(r.window_note).slice(0, 40));
+    expect(r.window_note).toMatch(/忽略 days/);
+  }, 60000);
+
+  it('data_quality_report：语义探针 pack 可用且能抓到已知失效', async () => {
+    const { DataQualityReportTool } = await import('../packages/data-manager/src/tools/DataQualityReportTool/DataQualityReportTool.js');
+    const tool: any = new DataQualityReportTool(client);
+    const r: any = await tool.execute({ data_type: 'all', days: 7 }, ctx);
+    console.log('[dq] ' + r.tool_health_summary);
+    for (const p of r.tool_health ?? []) console.log('   - ' + p.probe + ': ' + p.status + ' | ' + p.evidence);
+    expect(Array.isArray(r.tool_health)).toBe(true);
+    expect(r.tool_health.length).toBeGreaterThanOrEqual(5);
+    expect(r.scope_note).toBeTruthy();
+    const sectorWin = (r.tool_health ?? []).find((p: any) => p.probe === 'sector_analysis.window');
+    expect(sectorWin?.status).toBe('degraded');
+  }, 120000);
+
+  it('data_fetch_dividend：只允许"显式失败"或"有效数据"，绝不静默返回全 0', async () => {
+    const { DataFetchDividendTool } = await import('../packages/investment/src/tools/DataFetchDividendTool/DataFetchDividendTool.js');
+    const tool: any = new DataFetchDividendTool(client);
+    let threw = '';
+    let val: any = null;
+    try { val = await tool.execute({ mode: 'history', symbol: '600519' }, ctx); } catch (e: any) { threw = String(e?.message ?? e); }
+    console.log('[dividend] ' + (threw ? 'EXPLICIT_FAIL: ' + threw.slice(0, 120) : 'rows=' + (val?.data?.length ?? 0)));
+    if (!threw) {
+      const rows: any[] = val?.data ?? [];
+      expect(rows.every((x: any) => Number(x?.dividend_per_share) > 0)).toBe(true);
+    } else {
+      expect(threw).toMatch(/无有效分红数据|源失效|失败/);
+    }
+  }, 60000);
 });
