@@ -11,24 +11,34 @@ export interface RetailPanicIndexParams {
   days?: number;
 }
 
+/**
+ * 结果字段全部可选（2026-09-10，w-23c70356 修复）
+ *
+ * 后端在某一维度数据源降级时，该维度的键返回 null（如 2026-09-10 实测
+ * dimensions.retail_flow_score=null、raw.retail_flow_yi=null），而输出 schema 把这些键
+ * 声明为 `type: 'number'`（null 不满足）→ 工具返回值直接被 schema 校验拒绝
+ * （value.dimensions.retail_flow_score must be a number）。
+ * 约定：无数据的键**不出现**在返回值里（见 RetailPanicIndexTool._shape 的 compact），
+ * 故类型上标记为可选；render 侧统一用 `?? 'N/A'` 兜底展示。
+ */
 export interface RetailPanicIndexResult {
   trade_date: string;
-  panic_index: number | null;
+  panic_index?: number;
   level: string;
   degraded: boolean;
-  dimensions: {
-    retail_flow_score: number | null;
-    ad_ratio_score: number | null;
-    volume_score: number | null;
-    fear_greed_score: number | null;
-    volatility_score: number | null;
+  dimensions?: {
+    retail_flow_score?: number;
+    ad_ratio_score?: number;
+    volume_score?: number;
+    fear_greed_score?: number;
+    volatility_score?: number;
   };
-  raw: {
-    retail_flow_yi: number | null;
-    ad_ratio: number | null;
-    volume_ratio: number | null;
-    fear_greed_index: number | null;
-    volatility: number | null;
+  raw?: {
+    retail_flow_yi?: number;
+    ad_ratio?: number;
+    volume_ratio?: number;
+    fear_greed_index?: number;
+    volatility?: number;
   };
   reason?: string;
 }
@@ -127,7 +137,7 @@ export const retailPanicIndexPrompt: ToolPrompt<RetailPanicIndexParams, RetailPa
         text: [
           `## 散户恐慌指数（${data.trade_date}）`,
           '',
-          `**恐慌指数**: ${data.panic_index} / 100 — ${levelMap[data.level] ?? data.level}`,
+          `**恐慌指数**: ${data.panic_index ?? 'N/A'} / 100 — ${levelMap[data.level] ?? data.level}`,
           '',
           '**维度分解**（0=贪婪 / 100=恐慌）:',
           `- 散户资金流: ${data.dimensions?.retail_flow_score ?? 'N/A'}（净流入 ${data.raw?.retail_flow_yi ?? 'N/A'} 亿）`,

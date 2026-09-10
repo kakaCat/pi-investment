@@ -83,29 +83,53 @@ export class RetailPanicIndexTool extends BaseTool<
 
   /**
    * 后端返回 → 输出 schema 显式映射（防 undefined 键）
+   *
+   * 修复（2026-09-10，w-23c70356）：原实现把缺失值统一填 `null`，而输出 schema 把
+   * dimensions/raw 的子键声明为 `type: 'number'`、对象节点 additionalProperties:false
+   * —— null 触发校验失败（value.dimensions.retail_flow_score must be a number），
+   * 工具整体不可用。改为"无数据即不出键"：数值键只接受有限数字，null/NaN/字符串一律剔除；
+   * 剔空后的嵌套对象也不再输出。render 侧已用 `?? 'N/A'` 兜底。
    */
   private _shape(d: any): RetailPanicIndexResult {
-    return {
+    const num = (v: any): number | undefined =>
+      typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+
+    const compact = <T extends Record<string, any>>(obj: T): Record<string, any> => {
+      const out: Record<string, any> = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (value === null || value === undefined) continue;
+        if (typeof value === 'object' && !Array.isArray(value)) {
+          const nested = compact(value as Record<string, any>);
+          if (Object.keys(nested).length === 0) continue;
+          out[key] = nested;
+          continue;
+        }
+        out[key] = value;
+      }
+      return out;
+    };
+
+    return compact({
       trade_date: d?.trade_date ?? '',
-      panic_index: d?.panic_index ?? null,
+      panic_index: num(d?.panic_index),
       level: d?.level ?? 'unknown',
       degraded: d?.degraded ?? true,
       dimensions: {
-        retail_flow_score: d?.dimensions?.retail_flow_score ?? null,
-        ad_ratio_score: d?.dimensions?.ad_ratio_score ?? null,
-        volume_score: d?.dimensions?.volume_score ?? null,
-        fear_greed_score: d?.dimensions?.fear_greed_score ?? null,
-        volatility_score: d?.dimensions?.volatility_score ?? null,
+        retail_flow_score: num(d?.dimensions?.retail_flow_score),
+        ad_ratio_score: num(d?.dimensions?.ad_ratio_score),
+        volume_score: num(d?.dimensions?.volume_score),
+        fear_greed_score: num(d?.dimensions?.fear_greed_score),
+        volatility_score: num(d?.dimensions?.volatility_score),
       },
       raw: {
-        retail_flow_yi: d?.raw?.retail_flow_yi ?? null,
-        ad_ratio: d?.raw?.ad_ratio ?? null,
-        volume_ratio: d?.raw?.volume_ratio ?? null,
-        fear_greed_index: d?.raw?.fear_greed_index ?? null,
-        volatility: d?.raw?.volatility ?? null,
+        retail_flow_yi: num(d?.raw?.retail_flow_yi),
+        ad_ratio: num(d?.raw?.ad_ratio),
+        volume_ratio: num(d?.raw?.volume_ratio),
+        fear_greed_index: num(d?.raw?.fear_greed_index),
+        volatility: num(d?.raw?.volatility),
       },
       reason: d?.reason,
-    };
+    }) as RetailPanicIndexResult;
   }
 
   /**
