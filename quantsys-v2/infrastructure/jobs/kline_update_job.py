@@ -27,6 +27,15 @@ from utils.symbol_classifier import index_symbols_for_exclusion
 # （量纲错会把 amount 整体放大约 100 倍，真实放量极少超过 50 倍）
 AMOUNT_SCALE_THRESHOLD = 50.0
 
+# 量纲交叉截面判据（2026-09-10 w-23c70356 立，实测标定）：
+# r = 当日 volume / stocks.avg_volume（独立源，股），m = 同日同板块 r 的中位数。
+# 缺陷行 r ≈ 100×m。以 2026-07~09 已知 2,098 行缺陷为 ground truth 实测：
+# K=20 → 召回 2,080/2,098=99.1%、全市场误报 727/262,874=0.28%；
+# K=50 → 召回 70.8%、误报 0.19%（故取 20）。
+# 该判据与 AMOUNT_SCALE_THRESHOLD（时序自比）互补：截面判据不怕"连续多日整体
+# 放大"（时序中位数会被污染），时序判据不怕 avg_volume 缺失。
+VOLUME_CROSS_SECTION_THRESHOLD = 20.0
+
 logger = logging.getLogger(__name__)
 
 
@@ -414,6 +423,16 @@ def update_gem_klines(**params):
                 f"⚠️ {target_date} 有 {len(amount_scale_anomalies)} 行成交额超该股近期中位额 "
                 f"{AMOUNT_SCALE_THRESHOLD:.0f} 倍，疑似量纲（手/股）错误或极端放量，需独立源复核: {top}")
 
+        # 成交量量纲截面自检（2026-09-10 w-23c70356 立）：与上一条互补，捕捉
+        # "连续多日整体放大导致时序中位数被污染"的量纲错（实测 08-14~08-27
+        # 连续 10 个交易日、每天固定 196 只科创板标的 ×100）。
+        volume_unit_anomalies = _detect_volume_unit_anomalies(conn, target_date)
+        if volume_unit_anomalies:
+            top = ", ".join(f"{a['symbol']} ×{a['multiple']:.0f}" for a in volume_unit_anomalies[:5])
+            logger.warning(
+                f"⚠️ {target_date} 有 {len(volume_unit_anomalies)} 行成交量超同日同板块中位水平 "
+                f"{VOLUME_CROSS_SECTION_THRESHOLD:.0f} 倍，疑似量纲（手/股）错误，需独立源复核: {top}")
+
         result = {
             'action': 'kline_update',
             'status': 'success',
@@ -427,6 +446,7 @@ def update_gem_klines(**params):
             'stale': stale,
             'amount_missing': amount_missing,
             'amount_scale_anomalies': amount_scale_anomalies[:20],
+            'volume_unit_anomalies': volume_unit_anomalies[:20],
             'date_range': f"{start_date} -> {end_date}",
             'target_date': target_date,
             'message': f'K线更新完成: 成功{success}只, 失败{failed}只, 跳过{skipped}只, 未覆盖基准日{stale}只'
@@ -440,6 +460,7 @@ def update_gem_klines(**params):
         logger.info(f"  未覆盖基准日({target_date}): {stale}只")
         logger.info(f"  成交额缺失(volume>0 且 amount<=0): {amount_missing} 行")
         logger.info(f"  成交额量级异常(>{AMOUNT_SCALE_THRESHOLD:.0f}×近期中位): {len(amount_scale_anomalies)} 行")
+        logger.info(f"  成交量量纲异常(>{VOLUME_CROSS_SECTION_THRESHOLD:.0f}×同日同板块中位): {len(volume_unit_anomalies)} 行")
         logger.info("="*70)
 
         return result
@@ -529,6 +550,53 @@ def _detect_amount_scale_anomalies(conn, target_date: str, threshold: float = AM
         except Exception:
             pass
         logger.warning(f"成交额量级自检失败（不影响同步）: {e}")
+        return []
+
+
+def _detect_volume_unit_anomalies(conn, target_date: str,
+                                    threshold: float = VOLUME_CROSS_SECTION_THRESHOLD) -> list:
+    """基准日成交量量纲异常检测（观测手段，不改数）。
+
+    判据：r = volume / stocks.avg_volume（股），同日同板块中位数 m，r > threshold × m。
+    背景：成交量的「手/股」量纲错会让数值整体放大 100 倍，而 amount/volume/close
+    仍自洽（VWAP 自洽校验无感）；时序自比（近 N 日中位额）在缺陷连续多日时会被
+    污染，截面自比不受影响——实测 2026-08-14~08-27 连续 10 个交易日每天固定
+    196 只科创板标的 volume ×100。仅告警不阻断。
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "WITH cur AS ("
+                "  SELECT k.symbol, k.volume, s.avg_volume,"
+                "         CASE WHEN k.symbol ~ '^(688|689)' THEN '688'"
+                "              WHEN k.symbol ~ '^6' THEN '60'"
+                "              WHEN k.symbol ~ '^(300|301)' THEN '300'"
+                "              WHEN k.symbol ~ '^(000|001|002|003)' THEN '000'"
+                "              ELSE k.symbol END AS brd"
+                "  FROM quant.daily_klines k JOIN quant.stocks s ON s.symbol = k.symbol"
+                "  WHERE k.trade_date = %s AND k.volume > 0 AND s.avg_volume > 0"
+                "    AND k.symbol ~ '^[0-9]{6}$' AND k.symbol !~ '^399'),"
+                " m AS ("
+                "  SELECT brd, percentile_cont(0.5) WITHIN GROUP (ORDER BY volume / avg_volume) AS med"
+                "  FROM cur GROUP BY brd HAVING count(*) >= 5)"
+                " SELECT cur.symbol, cur.volume, cur.avg_volume, m.med"
+                " FROM cur JOIN m USING (brd)"
+                " WHERE (cur.volume / cur.avg_volume) > %s * m.med"
+                " ORDER BY (cur.volume / cur.avg_volume) / m.med DESC LIMIT 50",
+                (target_date, threshold),
+            )
+            return [
+                {'symbol': r[0], 'volume': float(r[1] or 0), 'avg_volume': float(r[2] or 0),
+                 'median_ratio': float(r[3] or 0),
+                 'multiple': (float(r[1]) / float(r[2])) / float(r[3]) if r[2] and r[3] else 0.0}
+                for r in cur.fetchall()
+            ]
+    except Exception as e:  # noqa: BLE001 - 自检异常不得影响同步结果
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        logger.warning(f"成交量量纲截面自检失败（不影响同步）: {e}")
         return []
 
 

@@ -108,8 +108,17 @@ class TencentKlineProvider(KlineProvider):
                     row[0], float(row[1]), float(row[2]),
                     float(row[3]), float(row[4]), int(float(row[5])),
                 )
-                # 归一为股（契约单位），成交额按 股×收盘价 估算
-                volume = volume_lots * 100
+                # 归一为股（契约单位，DB daily_klines.volume 存股）。
+                # 量纲例外（2026-09-10 w-23c70356 立，实证）：腾讯该接口【科创板
+                # 688/689】返回的已是「股」，其余板块返回「手」——统一 ×100 会把
+                # 科创板放大 100 倍。证据链：①2026-07-24~08-31 共 2,110 行科创板
+                # 数据的 DB 值 = 腾讯值 ×100（其中 08-14~08-27 连续 10 个交易日
+                # 每天固定 196 只）；②独立源 quant.stocks.avg_volume（股，来自
+                # stock-list 管线，与 K 线管线无耦合）核对：修复前中位 79.2×、
+                # 修复后 0.79×（同标的同窗口未修复对照 0.87×）。同期非科创板
+                # 未出现任何 ×100 异常 → 说明 ×100 对其余板块正确、对科创板错。
+                bare = symbol.split('.')[0]
+                volume = volume_lots if bare.startswith(('688', '689')) else volume_lots * 100
                 amount = volume * close
                 change_pct = (
                     round((close - prev_close) / prev_close * 100, 2)
