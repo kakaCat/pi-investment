@@ -250,7 +250,7 @@ class RealtimeQuoteServiceV2:
         for i, provider in enumerate(self.providers, 1):
             # 检查熔断器
             if not self.circuit_breaker.is_available(provider.name):
-                logger.debug(f"[{i}/{len(self.providers)}] {provider.name} 被熔断，跳过")
+                logger.info(f"[{i}/{len(self.providers)}] {provider.name} 熔断冷却中，跳过")  # 原 debug：故障期不可见，误导排查
                 self.provider_stats[provider.name]['skipped'] += 1
                 continue
 
@@ -287,8 +287,13 @@ class RealtimeQuoteServiceV2:
                 self.provider_stats[provider.name]['failure'] += 1
                 self.circuit_breaker.record_failure(provider.name)
 
-        # 3. 所有数据源都失败
-        logger.error(f"❌ 所有数据源都无法获取 {symbol} 的实时行情")
+        # 3. 所有数据源都失败——区分"真实全灭"与"熔断冷却期跳过"（后者是预期行为，误报 error 会污染错误事件流）
+        _cb = self.circuit_breaker.get_status()
+        _blocked = [f"{n}(剩{s.get('remaining_seconds', '?')}s)" for n, s in _cb.items() if s.get('blocked')]
+        if len(_blocked) == len(self.providers):
+            logger.warning(f"⏸ {symbol} 本轮跳过：所有数据源熔断冷却中（{', '.join(_blocked)}），非真实失败")
+        else:
+            logger.error(f"❌ 所有数据源都无法获取 {symbol} 的实时行情（熔断中: {', '.join(_blocked) or '无'}）")
         self.failure_count += 1
         return None
 
