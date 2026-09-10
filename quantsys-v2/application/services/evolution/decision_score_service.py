@@ -91,7 +91,19 @@ class DecisionScoreService:
             if result['scored'] > 0:
                 evolution_decision_scored_total.labels(account='agent_virtual').inc(result['scored'])
         
-        logger.info(f"决策打分完成: {result}")
+        # 2026-09-10 修复（investor / w-8f2c4cc5，错误事件 363337b4）：
+        # 原实现无条件 logger.info(f"决策打分完成: {result}")，输出的是 Python dict 字面量、含 'errors' 键；
+        # Agent OS 错误采集器（agent-os/internal/worker/error_event_worker.go）对非 JSON 文本行按
+        # error 子串判定，于是这条 INFO 汇总行被误采为 error 事件——daily_orchestrator 每次进入
+        # REVIEW 阶段都会打一次，2026-09-10 一天被误采 19 次（全是 scanned=0 的空跑：
+        # pending_days=30 的截断窗口内确实没有待打分决策，见同文件 score_mature_decisions）。
+        # 现改为：真失败才 error（保留 errors=N 便于采集器识别）、有打分才 info、空跑只 debug。
+        if result['errors'] > 0:
+            logger.error(f"决策打分存在失败: errors={result['errors']} scanned={result['scanned']}")
+        elif result['scored'] > 0:
+            logger.info(f"决策打分完成: scored={result['scored']} scanned={result['scanned']}")
+        else:
+            logger.debug(f"决策打分跳过: 无待打分决策 scanned={result['scanned']}")
         return result
 
     def _score_one(self, decision: Dict[str, Any], action: str) -> str:

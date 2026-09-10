@@ -89,7 +89,17 @@ class MissedOpportunityService:
                 result['errors'] += 1
                 continue
             result[outcome] += 1
-        logger.info(f"踏空捕获完成: {result}")
+        # 2026-09-10 修复（investor / w-8f2c4cc5，与错误事件 cbad5b65 同源）：
+        # 原实现无条件 logger.info(f"踏空捕获完成: {result}")，输出 Python dict 字面量、含 'errors' 键，
+        # 被 Agent OS 错误采集器（agent-os/internal/worker/error_event_worker.go 非 JSON 文本行按
+        # error 子串判定）误采为 error 事件——实测 19 次。
+        # 现改为：真失败才 error（保留 errors=N 便于采集器识别）、有捕获才 info、空转只 debug。
+        if result['errors'] > 0:
+            logger.error(f"踏空捕获存在失败: errors={result['errors']} scanned={result['scanned']}")
+        elif result['captured'] > 0:
+            logger.info(f"踏空捕获完成: captured={result['captured']} scanned={result['scanned']}")
+        else:
+            logger.debug(f"踏空捕获跳过: 无候选信号 scanned={result['scanned']}")
         return result
 
     def _capture_one(self, signal: Any, today: date) -> str:
