@@ -70,6 +70,59 @@ def _probe_kline_sources() -> bool:
         return False
 
 
+KLINE_COVERAGE_FRESH_THRESHOLD = 0.98
+
+
+def _kline_coverage(engine, expected: str) -> Dict[str, Any]:
+    """按标的统计 K 线覆盖度（2026-09-10 修复）。
+
+    原判定用全局 `max(trade_date) FROM daily_klines`：只要有一只票有当日数据
+    就认定"全市场新鲜"→ evening_pipeline 直接跳过同步。实际 2026-09-10 时
+    5150/5542 只（93%）停在 09-02，缺口被固化近 8 个交易日无人发现。
+    改为按标的覆盖度（已覆盖标的数 / 活跃标的数）+ 最陈旧标的日期。
+    """
+    from sqlalchemy import text
+
+    universe = """
+        SELECT s.symbol FROM quant.stocks s
+         WHERE NOT s.is_delisted
+           AND s.name NOT LIKE '%退%'
+           AND s.name NOT LIKE '%ST%'
+    """
+    with engine.connect() as conn:
+        row = conn.execute(
+            text(f"""
+                SELECT
+                  (SELECT count(*) FROM ({universe}) u) AS total,
+                  (SELECT count(*) FROM ({universe}) u
+                    WHERE EXISTS (SELECT 1 FROM quant.daily_klines k
+                                   WHERE k.symbol = u.symbol
+                                     AND k.trade_date >= :expected)) AS covered,
+                  (SELECT min(mx) FROM (
+                      SELECT s.symbol, max(k.trade_date) AS mx
+                        FROM quant.stocks s
+                        LEFT JOIN quant.daily_klines k ON k.symbol = s.symbol
+                       WHERE NOT s.is_delisted
+                         AND s.name NOT LIKE '%退%'
+                         AND s.name NOT LIKE '%ST%'
+                       GROUP BY s.symbol) t
+                    WHERE t.mx IS NULL OR t.mx < :expected) AS oldest_stale
+            """),
+            {'expected': expected},
+        ).mappings().first()
+
+    total = int(row['total'] or 0)
+    covered = int(row['covered'] or 0)
+    oldest = row['oldest_stale']
+    return {
+        'total': total,
+        'covered': covered,
+        'stale': total - covered,
+        'coverage': (covered / total) if total else 1.0,
+        'oldest_stale': str(oldest) if oldest else None,
+    }
+
+
 def _job_evening_pipeline() -> Dict[str, Any]:
     """K线分批同步 → 因子全市场计算（链式：因子依赖当日K线）
 
@@ -86,30 +139,57 @@ def _job_evening_pipeline() -> Dict[str, Any]:
 
     expected = _last_trading_day(datetime.now())
     engine = get_engine()
-    with engine.connect() as conn:
-        kline_latest = conn.execute(
-            text("SELECT max(trade_date) FROM quant.daily_klines")).scalar()
+    cov = _kline_coverage(engine, expected)
 
-    if kline_latest and str(kline_latest) >= expected:
-        logger.info(f"K线已新鲜（{kline_latest} ≥ {expected}），跳过同步")
+    if cov['total'] and cov['coverage'] >= KLINE_COVERAGE_FRESH_THRESHOLD:
+        logger.info(
+            f"K线已新鲜（覆盖 {cov['covered']}/{cov['total']}="
+            f"{cov['coverage']:.1%} ≥ {KLINE_COVERAGE_FRESH_THRESHOLD:.0%}，"
+            f"基准日 {expected}），跳过同步")
         results['kline_sync'] = {
             'status': 'skipped',
-            'reason': f'K线已新鲜（{kline_latest} ≥ {expected}）'
+            'reason': (f"K线覆盖 {cov['covered']}/{cov['total']}"
+                       f"（{cov['coverage']:.1%}）≥ 基准日 {expected}"),
+            'coverage': cov,
         }
     else:
         # 先探活：源挂/被封时快速失败
         if not _probe_kline_sources():
             raise RuntimeError('K线数据源探活失败（疑似故障或 WAF 封禁），本次 pass 放弃，下个窗口重试')
 
-        logger.info(f"K线需更新（{kline_latest} < {expected}），开始分批同步")
+        # 缺口规模决定批大小与回溯天数（2026-09-10）：原固定 batch_size=500/days=2
+        # 在大缺口下只能回补约 800 只/天，5150 只缺口要一周以上；按实测缺口动态放大。
+        batch_size = min(6000, max(500, cov['stale']))
+        gap_days = 2
+        if cov['oldest_stale']:
+            try:
+                gap_days = (datetime.strptime(expected, '%Y-%m-%d').date()
+                            - datetime.strptime(cov['oldest_stale'], '%Y-%m-%d').date()).days + 5
+            except ValueError:
+                gap_days = 2
+            gap_days = max(2, min(gap_days, 60))
+        logger.info(
+            f"K线覆盖不足（{cov['covered']}/{cov['total']}={cov['coverage']:.1%}，"
+            f"最陈旧={cov['oldest_stale']}，基准日={expected}）→ "
+            f"分批同步 days={gap_days} batch_size={batch_size}")
         from infrastructure.jobs.kline_update_job import update_gem_klines
-        # 分批同步策略：P0+P1 必同步 + 按陈旧度补充 500 只，约 800 只/天
-        results['kline_sync'] = update_gem_klines(scope='batch', days=2, batch_size=500)
+        results['kline_sync'] = update_gem_klines(
+            scope='batch', days=gap_days, batch_size=batch_size)
+        results['kline_sync']['coverage_before'] = cov
 
     # 因子计算
     from application.services.scheduler_tasks import handle_factor_compute
     logger.info("evening_pipeline: factor_compute start (full market)")
     results['factor_compute'] = handle_factor_compute({'max_symbols': 6000})
+
+    # K线同步失败必须上抛（2026-09-10，w-23c70356）：update_gem_klines 内部
+    # except 后返回 {'status':'error'} 而不抛，本函数把结果塞进 results 照常
+    # return → 宿主记 success 并发"✅ 每日任务完成"，2026-09-03~09-09 连续 6 个
+    # 交易日全市场同步失败却只有 ✅ 通知。放在因子计算之后 raise，保证因子仍按
+    # 现有数据算完，只把任务判 failed 并触发失败告警。
+    sync = results.get('kline_sync') or {}
+    if sync.get('status') == 'error':
+        raise RuntimeError(f"K线同步失败：{str(sync.get('error'))[:300]}")
 
     return results
 
@@ -194,14 +274,19 @@ def _job_freshness_guard() -> Dict[str, Any]:
     expected = _last_trading_day(datetime.now())
     engine = get_engine()
     with engine.connect() as conn:
-        kline_latest = conn.execute(
-            text("SELECT max(trade_date) FROM quant.daily_klines")).scalar()
         factor_latest = conn.execute(
             text("SELECT max(factor_date) FROM quant.factor_values")).scalar()
 
+    # 按标的覆盖度巡检（2026-09-10 修复）：原用全局 max(trade_date)，一只票新鲜
+    # 就判定全市场新鲜 → 93% 标的缺 8 个交易日的缺口 8 天无人告警。
+    cov = _kline_coverage(engine, expected)
+
     stale: List[str] = []
-    if not kline_latest or str(kline_latest) < expected:
-        stale.append(f"daily_klines 最新={kline_latest}（期望≥{expected}）")
+    if cov['total'] and cov['coverage'] < KLINE_COVERAGE_FRESH_THRESHOLD:
+        stale.append(
+            f"daily_klines 覆盖 {cov['covered']}/{cov['total']}"
+            f"（{cov['coverage']:.1%} < {KLINE_COVERAGE_FRESH_THRESHOLD:.0%}，"
+            f"基准日 {expected}），缺 {cov['stale']} 只，最陈旧={cov['oldest_stale']}")
     if not factor_latest or str(factor_latest) < expected:
         stale.append(f"factor_values 最新={factor_latest}（期望≥{expected}）")
 
