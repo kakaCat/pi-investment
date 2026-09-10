@@ -140,6 +140,46 @@ describe('risk_metrics 诚实性', () => {
   });
 });
 
+/**
+ * 框架口径的输出校验（与 dsh-tools 一致）：additionalProperties:false 时，
+ * 未在 schema.properties 中声明的键会被静默丢弃——新增字段必须先声明，
+ * 否则『修好了但线上看不到』（REQ-342799 实测踩过一次）。
+ */
+function undeclaredKeys(schema: any, value: any, path = 'value', errs: string[] = []): string[] {
+  if (value === null || value === undefined || typeof value !== 'object') return errs;
+  if (Array.isArray(value)) {
+    value.forEach((v, i) => undeclaredKeys(schema?.items ?? {}, v, path + '[' + i + ']', errs));
+    return errs;
+  }
+  const props = schema?.properties ?? {};
+  for (const [k, v] of Object.entries(value)) {
+    const sub: any = (props as any)[k];
+    if (!sub) {
+      if (schema?.additionalProperties !== true) errs.push(path + '.' + k + ' 未在 schema 声明（会被框架丢弃）');
+      continue;
+    }
+    undeclaredKeys(sub, v, path + '.' + k, errs);
+  }
+  return errs;
+}
+
+describe('输出 schema 完整性护栏（additionalProperties:false 会静默丢字段）', () => {
+  it('data_quality_report 的语义探针字段必须在 schema 中声明', async () => {
+    const { dataQualityReportPrompt } = await import('../packages/data-manager/src/tools/DataQualityReportTool/prompt.js');
+    const props: any = (dataQualityReportPrompt as any).output.schema.properties;
+    expect(props.tool_health).toBeTruthy();
+    expect(props.tool_health_summary).toBeTruthy();
+    expect(props.scope_note).toBeTruthy();
+  });
+
+  it('工具真实输出不得含未声明字段（framework-strip 自查）', async () => {
+    const { dataQualityReportPrompt } = await import('../packages/data-manager/src/tools/DataQualityReportTool/prompt.js');
+    const schema: any = (dataQualityReportPrompt as any).output.schema;
+    const sample = { data_type: 'all', check_date: '2026-09-10', overall_score: 92.5, missing_data: [], delayed_data: [], anomalies: [], summary: 'x', tool_health: [{ probe: 'p', status: 'ok', evidence: 'e' }], tool_health_summary: 's', scope_note: 'n' };
+    expect(undeclaredKeys(schema, sample)).toEqual([]);
+  });
+});
+
 describe('pool_list 字段契约（后端为 symbol_count）', () => {
   it('把 symbol_count 映射为 member_count（旧实现恒 undefined）', async () => {
     const { PoolListTool } = await import('../packages/investment/src/tools/PoolListTool/PoolListTool.js');

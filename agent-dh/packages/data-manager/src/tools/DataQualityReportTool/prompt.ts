@@ -13,6 +13,11 @@ export interface DataQualityReportResult {
   delayed_data: any[];
   anomalies: any[];
   summary: string;
+  // 2026-09-11（REQ-342799）：接口契约语义探针。注意 schema 若为 additionalProperties:false，
+  // 未在此声明的字段会被框架静默丢弃——本次修复就曾被该 schema 吞掉一次。
+  tool_health?: any[];
+  tool_health_summary?: string;
+  scope_note?: string;
 }
 
 export const dataQualityReportPrompt: ToolPrompt<DataQualityReportParams, DataQualityReportResult> = {
@@ -48,6 +53,10 @@ export const dataQualityReportPrompt: ToolPrompt<DataQualityReportParams, DataQu
         delayed_data: { type: 'array', items: { type: 'object', additionalProperties: true } },
         anomalies: { type: 'array', items: { type: 'object', additionalProperties: true } },
         summary: { type: 'string' },
+        // 语义探针（REQ-342799）：必须显式声明，否则 additionalProperties:false 会静默丢弃
+        tool_health: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        tool_health_summary: { type: 'string' },
+        scope_note: { type: 'string' },
       },
     },
   },
