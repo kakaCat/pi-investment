@@ -301,18 +301,11 @@ class TestAccountTradingService:
 
 
 
-class TestStrategyAccountValidation:
-    """Task 9: 策略账户启动校验"""
-
-    def test_strategy_account_validation(self, repo, caplog):
-        import logging
-        repo.create_account('test_acc_a', initial_capital=100000)
-        from application.services.strategy_service import StrategyService
-        service = StrategyService()
-        with caplog.at_level(logging.WARNING):
-            strategies = service.list_strategies()
-        # 迁移已建 v13/v14/v15 账户，策略不应被禁用
-        assert 'v13' in strategies
+# TestStrategyAccountValidation 已删除（2026-09-10，w-f4aa1f6a）：
+# 该测试断言 YAML 时代的 StrategyService.list_strategies() 含 'v13'，而 e05bd620
+# hexagonal 重构已删除 live_trading/configs/strategies/*.yaml——被测功能本身不存在了。
+# 现役策略列表链路 = adapters.shared.services.get_strategy_service() → StrategyCodeService
+# （DB quant.strategy_metadata 支撑，/api/simulation/strategies 实测正常返回）。
 
 
 class TestFastAPIParity:
