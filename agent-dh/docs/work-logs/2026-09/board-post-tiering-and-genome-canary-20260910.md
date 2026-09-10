@@ -48,9 +48,18 @@
 | 分档门禁测试 | 8/8 通过 | `vitest run packages/lifecycle/tests/board-post-gate.test.ts`，2026-09-10 20:57 |
 | schema 冒烟 | 19/19 通过 | `vitest run tests/plugin-schema.smoke.test.ts`，2026-09-10 20:59 |
 
-## 四、待办（重启后执行）
+## 四、重启后验证结果（2026-09-10 21:00-21:05，全部通过）
 
-1. `genome_update(rules, expected_section_version=14)` 落 R-015 v15（金丝雀修复后应可成功）。
-2. 活体验证公告板两档：纯记录档免确认真发；悬赏档无 confirmed 被拦。
-3. `decision_audit(record)` + `memory_write` 留痕；R-010 里程碑通知（feishu_notify）。
-4. 验证通过后 `self_finalize(merge)` 合回 main。
+1. **金丝雀修复生效**：`genome_update(rules, expected_section_version=14)` 成功 → rules **v14→v15**、genome **g25→g26**、git commit `addac86`（此前同样的调用必被金丝雀失败自动还原）。
+2. **公告板两档门禁活体实测**（重启后新 dist）：
+   - 档②纯记录免确认 → 真落库：`post_id=db4783da-d4f3-46a2-ac43-588d2aead1ab`，`status=done`；
+   - 档①悬赏无 confirmed → `status=needs_user_confirmation`，未落库（`post_id=`空，受控探针）；
+   - 防噪声护栏 → `status=rejected_noise`，未落库（探针标题 `reminder … delivered`）。
+3. **留痕**：`decision_audit(record)` → `DEC-20260910210052-90744e90`（type=rule_change, entity=rules:R-015）；`memory_write(experience)` → `618597e1-c4e9-488c-a27e-103527ba65ec`。
+4. **归档**：逐文件提起（不夹带其他窗口改动）→ main `67e43a0a`（本文件 + board-tools.ts + genome/src/index.ts + board-post-gate.test.ts）。
+
+## 五、遗留问题（需人工/其他窗口处理）
+
+1. **R-010 无法执行**：`:13080` 实例的 `cordis.patch.yml` 未注册 notification 插件（`@pi-investment/notification`），`feishu_notify`/`notification_send` 在本会话工具集中不存在（`Object.keys(tools)` 126 项中无匹配）→ 本次里程碑通知未发出，规则 R-010 目前是"无工具可调"状态。
+2. **检查点夹带**：重启检查点分支 `agent-self/20260910-210017` 除本任务 4 个文件外，还提交了**其他窗口（w-8f2c4cc5，REQ-2057bd）20:56-20:58 的未提交改动**（`packages/pages/execution` 的 client/board-mount/styles/view + lib 产物）。已刻意**不**合回 main，原样保留在该 wip 分支，待其归属窗口自行提交/合并。
+
