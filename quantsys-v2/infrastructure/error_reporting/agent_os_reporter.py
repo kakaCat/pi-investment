@@ -135,7 +135,7 @@ def normalize_msg(msg: str) -> str:
             if isinstance(obj, dict):
                 for k in _VOLATILE_JSON_KEYS:
                     obj.pop(k, None)
-                s = json.dumps(obj, sort_keys=True, ensure_ascii=False)
+                s = json.dumps(obj, sort_keys=True, ensure_ascii=False, separators=(",", ":"))  # 紧凑格式对齐 Go json.Marshal
         except Exception:  # noqa: BLE001 —— 非 JSON 按文本处理
             pass
     s = _RE_UUID.sub("<uuid>", s)
@@ -165,7 +165,7 @@ def _fingerprint(msg: str, task_id: Optional[Any], detail: Optional[str] = None)
         raw = f"{_SOURCE}|{tid}|stack|{stack}"
     else:
         raw = f"{_SOURCE}|{tid}|{normalize_msg(msg)}"
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:40]  # 截断 40 位对齐 Go 端
 
 
 def _enqueue(msg: str, *, detail: Optional[str] = None, level: str = "error",

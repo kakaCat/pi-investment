@@ -374,10 +374,9 @@ func (r *errorEventRepository) Stats(ctx context.Context) (*domain.ErrorEventSta
 // 使同根因错误同指纹（此前 msg 原文哈希导致同根因多行、resolved 复现自动复开失效）。
 var (
 	reUUID    = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
-	reISOTs   = regexp.MustCompile(`\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.d+)?(Z|[+-]\d{2}:?\d{2})?`)
+	reISOTs   = regexp.MustCompile(`\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?`)
 	reHexLong = regexp.MustCompile(`(^|[^0-9a-zA-Z])[0-9a-fA-F]{16,}([^0-9a-zA-Z]|$)`)
 	reHex8    = regexp.MustCompile(`(^|[^0-9a-zA-Z])[0-9a-fA-F]{8}([^0-9a-zA-Z]|$)`)
-	reEpochMs = regexp.MustCompile(`(^|[^\d])\d{13,}([^\d]|$)`)
 	reNumber  = regexp.MustCompile(`\d+(?:\.\d+)*(?:\.[A-Za-z]{2,4})?`)
 )
 
@@ -393,7 +392,8 @@ func NormalizeMsg(msg string) string {
 				delete(obj, k)
 			}
 			if b, err := json.Marshal(obj); err == nil {
-				s = string(b)
+				// Go Marshal 转义 <>& 为 \\u003c 等，Python ensure_ascii=False 不转义——反转义对齐
+				s = strings.NewReplacer("\\u003c", "<", "\\u003e", ">", "\\u0026", "&").Replace(string(b))
 			}
 		}
 	}
@@ -401,7 +401,6 @@ func NormalizeMsg(msg string) string {
 	s = reISOTs.ReplaceAllString(s, "<ts>")
 	s = reHexLong.ReplaceAllString(s, "${1}<hex>${2}")
 	s = reHex8.ReplaceAllString(s, "${1}<hex8>${2}")
-	s = reEpochMs.ReplaceAllString(s, "${1}<num>${2}")
 	s = reNumber.ReplaceAllString(s, "<num>")
 	return s
 }
