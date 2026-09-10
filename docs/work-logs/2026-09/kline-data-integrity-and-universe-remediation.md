@@ -83,6 +83,16 @@ application/services/daily_orchestrator.py                 structlog event= 参�
 application/notification/legacy_adapters.py                同上（4 处）
 ```
 
+## 5b. 线 E（收尾发现的同类单位缺陷）：腾讯行情 amount 误取「外盘」
+
+排查 quote 路径时发现 **000001 实时行情 amount = 5,131,630,000 元，是真实成交额（约 10.2 亿）的 5.02 倍**。
+
+- 根因：adapters/outbound/datasources/providers/quote/tencent.py 把拆包字段 **[7]** 当作成交额（万元）——实测原始报文 [7]=513,163 是**外盘手数**，成交额在 **[37]=102,254 万元**。
+- 修复：改取 [37] × 10000；docstring 字段表同步订正。
+- 验证（重启加载后实测）：000001 amount 1,022,540,000（与新浪/DB **完全一致**），amount/volume 11.785 ≈ 当日 VWAP；600887 amount/volume/price = 1.0005。
+- 影响面：R-003 大额拆单的「日均成交额 1%」阈值、流动性类判断此前被系统性高估 ~5 倍。
+- 其余行情源（sina/netease/eastmoney）字段映射抽查未发现同类问题（本次网络受限未取到实时值，字段定义与官方格式一致）。
+
 ## 6. 影响面与风险
 
 - **对现网决策的影响**：价格类因子与 5-10 日量能因子在 2026-09-10 当日 bar 修复后已恢复正常；本轮修复的主要受益面是**回测/复盘与长窗口量能因子**。
