@@ -48,6 +48,44 @@ class AccountTradingService:
             raise TradingError(f'无法获取 {symbol} 实时价格', 502)
         return float(quote.price)
 
+    @staticmethod
+    def _as_int(value, field: str):
+        """入参规整为 int；类型非法抛 TradingError(400)（2026-09-11，w-8f2c4cc5）"""
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            raise TradingError(f'{field} 类型非法（bool），需为整数', 400)
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            if value != int(value):
+                raise TradingError(f'{field} 必须为整数，收到 {value}', 400)
+            return int(value)
+        if isinstance(value, str):
+            try:
+                return int(float(value.strip()))
+            except ValueError:
+                raise TradingError(f'{field} 无法解析为整数: {value!r}', 400)
+        raise TradingError(
+            f'{field} 类型非法（{type(value).__name__}），需为整数', 400)
+
+    @staticmethod
+    def _as_float(value, field: str):
+        """入参规整为 float；类型非法抛 TradingError(400)（2026-09-11，w-8f2c4cc5）"""
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            raise TradingError(f'{field} 类型非法（bool），需为数值', 400)
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                return float(value.strip())
+            except ValueError:
+                raise TradingError(f'{field} 无法解析为数值: {value!r}', 400)
+        raise TradingError(
+            f'{field} 类型非法（{type(value).__name__}），需为数值', 400)
+
     def _check_trading_window(self, now: datetime) -> None:
         """A股交易时段护栏：只有交易日的 9:30-11:30 / 13:00-15:00 才能成交。
 
@@ -143,6 +181,25 @@ class AccountTradingService:
         # ---- 1. 参数校验和标准化 ----
         if not reason or len(reason.strip()) < 10:
             raise TradingError('必须提供详细的交易理由（至少10字）', 400)
+
+        # 入参类型护栏（2026-09-11，w-8f2c4cc5｜看板事件 56dab403 根因）：
+        # 客户端把 shares 传成 JSON 字符串时，下游 shares % 100 退化为字符串格式化，
+        # 抛 TypeError("not all arguments converted during string formatting")
+        # 冒泡成 500（路由 except Exception 分支当时也没记日志 → 静默 500）。
+        # 这里显式校验/转换：非法类型/取值一律 400，不再落到 500。
+        if not isinstance(symbol, str) or not symbol.strip():
+            raise TradingError(f'symbol 必填且需为字符串，收到 {symbol!r}', 400)
+        shares = self._as_int(shares, 'shares')
+        amount = self._as_float(amount, 'amount')
+        price = self._as_float(price, 'price')
+        price_limit = self._as_float(price_limit, 'price_limit')
+        max_positions = self._as_int(max_positions, 'max_positions')
+        if max_positions is None:
+            max_positions = 10
+        if shares is not None and shares <= 0:
+            raise TradingError(f'shares 必须为正整数，收到 {shares}', 400)
+        if amount is not None and amount <= 0:
+            raise TradingError(f'amount 必须为正数，收到 {amount}', 400)
 
         from infrastructure.persistence.orm.models.action_norm import normalize_action
         try:

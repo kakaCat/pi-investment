@@ -6,6 +6,7 @@
 from collections import defaultdict
 from typing import Any, Dict, Optional
 
+import structlog
 from fastapi import APIRouter, Body, Query
 from fastapi.responses import JSONResponse
 
@@ -16,6 +17,8 @@ from application.services.account_trading_service import (
 from adapters.outbound.repositories.simulation_repository import (
     SimulationORMRepository,
 )
+
+logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/api/simulation", tags=["Simulation Accounts"])
 
@@ -93,6 +96,13 @@ async def manual_trade(account_name: str, payload: Dict[str, Any] = Body(...)):
             body['details'] = e.details
         return JSONResponse(status_code=e.status_code, content=body)
     except Exception as e:
+        # 2026-09-11（w-8f2c4cc5）：此前 500 分支不打日志，看板事件 56dab403
+        # 只留下 access log 的 "500"，根因（shares 传字符串 → TypeError）无处可查。
+        # 非预期异常必须留 traceback + 请求上下文。
+        logger.error("manual_trade_unexpected_error", account=account_name,
+                     payload={k: v for k, v in (payload or {}).items()
+                              if k != 'reason'},
+                     error=str(e), exc_info=True)
         return JSONResponse(status_code=500, content={'success': False, 'error': str(e)})
 
 
@@ -121,6 +131,9 @@ async def cancel_pending_order(account_name: str, order_id: int):
         return JSONResponse(status_code=e.status_code,
                             content={'success': False, 'error': str(e)})
     except Exception as e:
+        logger.error("cancel_pending_order_unexpected_error",
+                     account=account_name, order_id=order_id,
+                     error=str(e), exc_info=True)
         return JSONResponse(status_code=500, content={'success': False, 'error': str(e)})
 
 

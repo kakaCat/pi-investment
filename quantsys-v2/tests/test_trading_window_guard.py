@@ -59,7 +59,7 @@ def test_after_close_rejected():
 
 # ---------- execute_trade 集成点 ----------
 
-def _make_tradable_svc():
+def _make_tradable_svc(now: datetime = None):
     """构造一个能通过全部前置校验的 service（mock repo）"""
     repo = MagicMock()
     account = MagicMock()
@@ -74,29 +74,43 @@ def _make_tradable_svc():
     repo.get_all_positions.return_value = []
     repo.create_order.return_value = MagicMock(id=1)
     repo.add_trade.return_value = 1
-    svc = AccountTradingService(repo=repo, calendar=MagicMock())
+    # 2026-09-11（w-8f2c4cc5）：固定时钟到交易时段内。
+    # 原先不传 now_fn = 用真实时钟：本用例只 mock 了应用层 _check_trading_window，
+    # 但 execute_trade 还会走 domain TradeGuardService.validate_trading_window
+    # （now_fn=self.now_fn，真实时钟）→ 非交易时段跑测试必失败（时间依赖型假失败）。
+    svc = AccountTradingService(
+        repo=repo, calendar=MagicMock(),
+        now_fn=lambda: now or datetime(2026, 7, 27, 10, 0),  # 默认周一上午盘
+    )
     svc._get_price = MagicMock(return_value=10.0)
     return svc
 
 
 def test_execute_trade_invokes_guard_by_default():
-    svc = _make_tradable_svc()
-    svc._check_trading_window = MagicMock()
+    """默认不传 allow_off_hours：收盘后委托必须被交易时段护栏拒绝。
 
-    svc.execute_trade(
-        account_name='agent_virtual', action='buy', symbol='601398',
-        amount=1000, reason='测试交易时段护栏默认开启')
+    2026-09-11（w-8f2c4cc5）修正陈旧断言：时段校验已下沉到 domain
+    TradeGuardService，execute_trade 不再调用应用层 self._check_trading_window
+    —— 原用例 mock 该方法后断言"被调用一次"，在 domain 化之后恒为 0 次，
+    即"断言一个永不执行的 mock"（且用真实时钟，非交易时段还会先抛异常）。
+    现改为断言真实契约：默认路径 = 非交易时段拒绝。
+    """
+    svc = _make_tradable_svc(now=datetime(2026, 7, 27, 18, 0))  # 周一收盘后
 
-    svc._check_trading_window.assert_called_once()
+    with pytest.raises(TradingError, match='非交易时段'):
+        svc.execute_trade(
+            account_name='agent_virtual', action='buy', symbol='601398',
+            amount=1000, reason='测试交易时段护栏默认开启')
 
 
 def test_execute_trade_skips_guard_with_allow_off_hours():
-    svc = _make_tradable_svc()
-    svc._check_trading_window = MagicMock()
+    """allow_off_hours=True 时同一时点放行（回放/补录模式），真实下单路径走通"""
+    svc = _make_tradable_svc(now=datetime(2026, 7, 27, 18, 0))
 
     svc.execute_trade(
         account_name='agent_virtual', action='buy', symbol='601398',
         amount=1000, reason='测试回放模式绕过时段护栏',
         allow_off_hours=True)
 
-    svc._check_trading_window.assert_not_called()
+    # 真实断言：绕开时段护栏后确实走到下单（create_order 被调用）
+    svc.repo.create_order.assert_called()
