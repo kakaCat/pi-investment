@@ -42,7 +42,7 @@ type ErrorEventWorker struct {
 	mu           sync.Mutex
 	offsets      map[string]int64 // 各日志文件已读偏移（持久化到 statePath；重启不再回扫重复行）
 	statePath    string           // 偏移持久化文件路径（空=仅进程内维护）
-	lastTaskScan time.Time        // task_runs 水位（进程内；重启后最多重扫最近 30 分钟）
+	lastTaskScan time.Time        // task_runs 水位（随 statePath 持久化；仅首次运行回退 30 分钟）
 }
 
 // taskFailureRow 一次失败执行记录
@@ -68,7 +68,7 @@ func NewErrorEventWorker(db *sql.DB, repo repository.ErrorEventRepository, targe
 		offsets:   map[string]int64{},
 		statePath: offsetsStatePath(targets),
 	}
-	w.loadOffsets()
+	w.loadState()
 	return w
 }
 
@@ -150,6 +150,7 @@ func (w *ErrorEventWorker) collectTaskFailures(ctx context.Context) error {
 		}
 	}
 	w.lastTaskScan = maxFinished
+	w.persistState() // 水位一并持久化，重启后不再重扫历史失败
 	return nil
 }
 
@@ -193,7 +194,7 @@ func (w *ErrorEventWorker) tailOne(ctx context.Context, t LogTarget) error {
 	}
 	w.offsets[t.Path] = size // 先推进游标，防止同一行被下一轮重复处理
 	w.mu.Unlock()
-	w.persistOffsets() // 落盘：重启后不再回扫已处理过的历史行
+	w.persistState() // 落盘：重启后不再回扫已处理过的历史行
 
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
@@ -483,6 +484,14 @@ func (w *ErrorEventWorker) scanFailedTaskRuns(ctx context.Context, since time.Ti
 
 const offsetsStateFileName = ".error_event_offsets.json"
 
+// offsetsState 采集游标持久化结构：日志文件偏移 + task_runs 扫描水位。
+// 两者都是"重启后必须接着上次位置继续"的游标，缺任何一个都会在重启时把
+// 已处置的历史错误当成新发生重新 Upsert（reopen + occurrenceCount 虚增）。
+type offsetsState struct {
+	Offsets      map[string]int64 `json:"offsets"`
+	LastTaskScan time.Time        `json:"last_task_scan,omitempty"`
+}
+
 // offsetsStatePath 选一个随日志目录走的稳定位置：优先 os 目标所在目录（agent-os/logs）
 func offsetsStatePath(targets []LogTarget) string {
 	dir := ""
@@ -514,44 +523,50 @@ func resolveOffset(offsets map[string]int64, path string, size int64) int64 {
 	return offset
 }
 
-// loadOffsets 启动时恢复游标（失败只告警，退化为原行为，不影响采集）
-func (w *ErrorEventWorker) loadOffsets() {
+// loadState 启动时恢复游标（失败只告警，退化为"回扫末窗口"的原行为，不影响采集）
+func (w *ErrorEventWorker) loadState() {
 	if w.statePath == "" {
 		return
 	}
 	raw, err := os.ReadFile(w.statePath)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			logger.L().Warn("Error event offsets load failed", logger.String("path", w.statePath), logger.String("error", err.Error()))
+			logger.L().Warn("Error event state load failed", logger.String("path", w.statePath), logger.String("error", err.Error()))
 		}
 		return
 	}
-	loaded := map[string]int64{}
-	if err := json.Unmarshal(raw, &loaded); err != nil {
-		logger.L().Warn("Error event offsets parse failed", logger.String("path", w.statePath), logger.String("error", err.Error()))
+	state := offsetsState{}
+	if err := json.Unmarshal(raw, &state); err != nil {
+		logger.L().Warn("Error event state parse failed", logger.String("path", w.statePath), logger.String("error", err.Error()))
 		return
 	}
 	w.mu.Lock()
-	for k, v := range loaded {
+	for k, v := range state.Offsets {
 		w.offsets[k] = v
 	}
+	if !state.LastTaskScan.IsZero() {
+		w.lastTaskScan = state.LastTaskScan
+	}
 	w.mu.Unlock()
-	logger.L().Info("Error event offsets restored", logger.Int("files", len(loaded)), logger.String("path", w.statePath))
+	logger.L().Info("Error event state restored",
+		logger.Int("files", len(state.Offsets)),
+		logger.String("last_task_scan", state.LastTaskScan.Format(time.RFC3339)),
+		logger.String("path", w.statePath))
 }
 
-// persistOffsets 原子落盘（临时文件 + rename）
-func (w *ErrorEventWorker) persistOffsets() {
+// persistState 原子落盘（临时文件 + rename）
+func (w *ErrorEventWorker) persistState() {
 	if w.statePath == "" {
 		return
 	}
 	w.mu.Lock()
-	snapshot := make(map[string]int64, len(w.offsets))
+	state := offsetsState{Offsets: make(map[string]int64, len(w.offsets)), LastTaskScan: w.lastTaskScan}
 	for k, v := range w.offsets {
-		snapshot[k] = v
+		state.Offsets[k] = v
 	}
 	w.mu.Unlock()
 
-	raw, err := json.Marshal(snapshot)
+	raw, err := json.Marshal(state)
 	if err != nil {
 		return
 	}

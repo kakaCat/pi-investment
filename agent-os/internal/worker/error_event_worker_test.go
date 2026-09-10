@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // 回归：v2 合法 structlog JSON 但 level=info/warning 的行不得被当错误入库
@@ -133,27 +134,35 @@ func TestResolveOffset_PersistedCursor(t *testing.T) {
 	}
 }
 
-// TestOffsetsPersistRoundTrip 回归：游标跨进程持久化（写→读→续读）与损坏降级
+// TestOffsetsPersistRoundTrip 回归：游标（日志偏移 + task_runs 水位）跨进程持久化与损坏降级
 func TestOffsetsPersistRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	statePath := filepath.Join(dir, offsetsStateFileName)
+	scanWatermark := time.Date(2026, 9, 10, 15, 46, 0, 0, time.UTC)
 
-	w := &ErrorEventWorker{offsets: map[string]int64{"/tmp/a.log": 12345}, statePath: statePath}
-	w.persistOffsets()
+	w := &ErrorEventWorker{
+		offsets:      map[string]int64{"/tmp/a.log": 12345},
+		lastTaskScan: scanWatermark,
+		statePath:    statePath,
+	}
+	w.persistState()
 
 	raw, err := os.ReadFile(statePath)
 	if err != nil {
-		t.Fatalf("偏移文件未落盘: %v", err)
+		t.Fatalf("状态文件未落盘: %v", err)
 	}
-	if !strings.Contains(string(raw), "12345") {
-		t.Fatalf("偏移文件内容异常: %s", raw)
+	if !strings.Contains(string(raw), "12345") || !strings.Contains(string(raw), "2026-09-10T15:46:00Z") {
+		t.Fatalf("状态文件内容异常（偏移与水位都应落盘）: %s", raw)
 	}
 
-	// 模拟重启：新 worker 无内存游标，loadOffsets 后应从 12345 继续
+	// 模拟重启：新 worker 无内存游标，loadState 后应从 12345 继续、水位保持
 	restarted := &ErrorEventWorker{offsets: map[string]int64{}, statePath: statePath}
-	restarted.loadOffsets()
+	restarted.loadState()
 	if got := resolveOffset(restarted.offsets, "/tmp/a.log", 1<<20); got != 12345 {
-		t.Errorf("重启后游标未恢复: got=%d want=12345", got)
+		t.Errorf("重启后日志游标未恢复: got=%d want=12345", got)
+	}
+	if !restarted.lastTaskScan.Equal(scanWatermark) {
+		t.Errorf("重启后 task_runs 水位未恢复: got=%v want=%v", restarted.lastTaskScan, scanWatermark)
 	}
 
 	// 状态文件损坏：退化为空游标，不得 panic
@@ -161,15 +170,15 @@ func TestOffsetsPersistRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	broken := &ErrorEventWorker{offsets: map[string]int64{}, statePath: statePath}
-	broken.loadOffsets()
-	if len(broken.offsets) != 0 {
-		t.Errorf("损坏状态文件应退化为空游标: %v", broken.offsets)
+	broken.loadState()
+	if len(broken.offsets) != 0 || !broken.lastTaskScan.IsZero() {
+		t.Errorf("损坏状态文件应退化为空游标: offsets=%v watermark=%v", broken.offsets, broken.lastTaskScan)
 	}
 
 	// statePath 为空（无目标场景）：读写均安全 no-op
 	none := &ErrorEventWorker{offsets: map[string]int64{"/tmp/x": 1}}
-	none.persistOffsets()
-	none.loadOffsets()
+	none.persistState()
+	none.loadState()
 }
 
 // TestOffsetsStatePath 回归：状态文件落在 agent-os 日志目录（随日志一起轮转/清理）
