@@ -29,6 +29,47 @@ _guard_enabled = False
 _timeout_seconds = 300  # 默认 5 分钟
 
 
+# 线程引导/库内部帧的路径特征：这些帧永远位于创建点之前，且与泄漏根因无关
+_NOISE_FRAME_PARTS = (
+    'threading.py',
+    'concurrent/futures/thread.py',
+    'concurrent/futures/_base.py',
+    'concurrent/futures/__init__.py',
+    'site-packages/',
+    'importlib/_bootstrap',
+    'runpy.py',
+)
+
+
+def _capture_origin_stack(max_frames: int = 10):
+    """捕获 Session 创建点的应用侧调用栈
+
+    返回 (stack_text, origin)：origin 为最内层应用帧的 "函数@文件:行号"。
+
+    2026-09-11 修复（错误看板 session_leak_detected 126 次无法定位根因）：
+    原实现直接 traceback.format_stack()，在 ThreadPoolExecutor 工作线程里创建 Session 时
+    前几十帧全是 threading._bootstrap 引导帧，日志按 500 字符截断后只剩引导帧
+    （实测 detail 尾部停在 "self._targe"），真实调用方被截掉 → 事件不可行动。
+    改为：先剔除引导帧/第三方库帧，再取最靠近创建点的 max_frames 帧。
+    """
+    try:
+        frames = traceback.extract_stack()[:-1]
+    except Exception:
+        return '', 'unknown'
+    _own_file = __file__
+    app_frames = [
+        f for f in frames
+        # 排除本模块自身的帧（否则 origin 会指向 guard 自己，仍定位不到调用方）
+        if f.filename != _own_file
+        and not any(part in f.filename for part in _NOISE_FRAME_PARTS)
+    ]
+    kept = app_frames[-max_frames:] if app_frames else frames[-max_frames:]
+    if not kept:
+        return '', 'unknown'
+    origin = f"{kept[-1].name}@{kept[-1].filename}:{kept[-1].lineno}"
+    return ''.join(traceback.format_list(kept)), origin
+
+
 def track_session_creation(session):
     """记录 Session 创建（在 get_session() 中调用）
 
@@ -39,13 +80,16 @@ def track_session_creation(session):
         return
 
     session_id = id(session)
+    _stack_text, _origin = _capture_origin_stack()
+    _dict_stack = {'traceback': _stack_text, 'origin': _origin}
     with _registry_lock:
         _session_registry[session_id] = {
             'session': weakref.ref(session),
             'created_at': time.time(),
             'thread_id': threading.get_ident(),
             'thread_name': threading.current_thread().name,
-            'traceback': ''.join(traceback.format_stack()[:-1])  # 排除当前帧
+            # 只保留应用侧帧：origin 直接指出创建点，stack 供追溯
+            **_dict_stack,
         }
 
 
@@ -89,7 +133,8 @@ def _guard_loop():
                     age_seconds=int(age),
                     thread_id=info['thread_id'],
                     thread_name=info['thread_name'],
-                    traceback=info['traceback'][:500]  # 截断避免日志过大
+                    origin=info.get('origin', 'unknown'),  # 创建点（函数@文件:行号）
+                    traceback=info['traceback'][:2000]  # 已剔除引导帧，放宽预算
                 )
 
                 # 尝试清理
