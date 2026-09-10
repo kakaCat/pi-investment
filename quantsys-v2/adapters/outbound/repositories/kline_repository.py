@@ -778,18 +778,29 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             from sqlalchemy.dialects.postgresql import insert
 
             # 1. 确保所有股票元数据存在（去重）
+            from adapters.shared.market_helpers import infer_market
             symbols = list(set(kline.symbol for kline in klines))
+            uncreatable = []
             for symbol in symbols:
                 stock = self.session.query(Stock).filter(Stock.symbol == symbol).first()
                 if not stock:
-                    # 自动创建股票元数据（最小字段集）
+                    # 自动创建股票元数据（最小字段集）；market 必须可从代码推断，
+                    # 否则跳过该标的（禁止用 'unknown' 占位触发 chk_stocks_market）
+                    market = infer_market(symbol)
+                    if market is None:
+                        uncreatable.append(symbol)
+                        continue
                     stock = Stock(
                         symbol=symbol,
                         name=symbol,  # 临时使用代码作为名称
-                        market='unknown'  # 临时标记
+                        market=market
                     )
                     self.session.add(stock)
-                    logger.warning(f"Auto-created stock metadata for {symbol} (K线插入时缺失)")
+                    logger.warning(f"Auto-created stock metadata for {symbol} (K线插入时缺失, market={market})")
+            if uncreatable:
+                logger.warning(
+                    f"Skip klines for symbols without inferable market: {uncreatable}")
+                klines = [k for k in klines if k.symbol not in set(uncreatable)]
             self.session.flush()  # 提交股票元数据
 
             # 2. 转换为字典列表
@@ -808,6 +819,11 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                     'remark': getattr(kline, 'remark', None),
                     'source': getattr(kline, 'source', None),
                 })
+
+            if not data_list:
+                # 全部标的都因 market 不可推断被跳过：不能带空列表进 insert().values([])
+                logger.warning("No insertable klines after market inference filter")
+                return True
 
             # 使用 PostgreSQL 的 ON CONFLICT DO UPDATE
             stmt = insert(DailyKline).values(data_list)

@@ -773,15 +773,22 @@ class DataProviderManager(IDataProviderManager):
             # 确保股票元数据存在（防止外键约束错误）
             stock = session.query(Stock).filter(Stock.symbol == symbol).first()
             if not stock:
-                # 自动创建股票元数据
+                # 自动创建股票元数据（market 必须可从代码推断，见 infer_market 说明）
+                from adapters.shared.market_helpers import infer_market
+                market = infer_market(symbol)
+                if market is None:
+                    logger.warning(
+                        f"Skip kline backfill for {symbol}: 无法从代码推断 market"
+                        f"（仅支持 A 股 6 位/港股 5 位），拒绝用非法占位值建 stocks 行")
+                    return False
                 stock = Stock(
                     symbol=symbol,
                     name=symbol,  # 临时使用代码作为名称
-                    market='unknown'  # 临时标记
+                    market=market
                 )
                 session.add(stock)
                 session.flush()  # 立即写入，确保后续 K 线插入有外键
-                logger.warning(f"Auto-created stock metadata for {symbol} (backfill K线时缺失)")
+                logger.warning(f"Auto-created stock metadata for {symbol} (backfill K线时缺失, market={market})")
             
             saved_count = 0
 
