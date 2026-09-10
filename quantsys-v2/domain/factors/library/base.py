@@ -14,6 +14,33 @@ import numpy as np
 from infrastructure.quantlib.core.base_calculator import BaseCalculator
 from infrastructure.quantlib.core.exceptions import DataValidationError, InsufficientDataError
 
+# TA-Lib 为可选加速依赖（未安装时降级纯 numpy 实现，2026-09-10，w-f4aa1f6a）：
+# 此前 _sma/_ema/_ema_series 在函数内直接 import talib，talib 未装时整个因子
+# （trix/trix12/ema 等 6 处调用）直接抛 ModuleNotFoundError 上报错误事件。
+try:
+    import talib as _talib  # type: ignore
+except ImportError:
+    _talib = None
+
+
+def _ema_series_np(series: np.ndarray, period: int) -> np.ndarray:
+    """纯 numpy EMA 序列（talib 缺失时的降级实现，与 talib adjust=False 递推一致）。
+
+    前 period-1 个值为 NaN（与 talib 输出形状对齐），首个有效值为前 period 个的 SMA，
+    之后按 EMA 递推：ema[t] = alpha * x[t] + (1-alpha) * ema[t-1]，alpha = 2/(period+1)。
+    """
+    n = len(series)
+    out = np.full(n, np.nan)
+    if n < period:
+        return out
+    alpha = 2.0 / (period + 1)
+    ema_prev = float(np.mean(series[:period]))
+    out[period - 1] = ema_prev
+    for i in range(period, n):
+        ema_prev = alpha * float(series[i]) + (1 - alpha) * ema_prev
+        out[i] = ema_prev
+    return out
+
 
 class TechnicalFactorCalculator(BaseCalculator):
     """
@@ -182,8 +209,10 @@ class TechnicalFactorCalculator(BaseCalculator):
         if len(series) < period:
             raise InsufficientDataError(period, len(series))
 
-        import talib
-        sma_values = talib.SMA(series, timeperiod=period)
+        if _talib is not None:
+            sma_values = _talib.SMA(series, timeperiod=period)
+        else:
+            sma_values = np.convolve(series, np.ones(period) / period, mode='valid')
         sma = float(sma_values[-1]) if not np.isnan(sma_values[-1]) else 0.0
         return sma
 
@@ -204,8 +233,7 @@ class TechnicalFactorCalculator(BaseCalculator):
         if n < period:
             raise InsufficientDataError(period, n)
 
-        import talib
-        ema_values = talib.EMA(series, timeperiod=period)
+        ema_values = _talib.EMA(series, timeperiod=period) if _talib is not None else _ema_series_np(series, period)
         ema = float(ema_values[-1]) if not np.isnan(ema_values[-1]) else 0.0
         return ema
 
@@ -226,9 +254,9 @@ class TechnicalFactorCalculator(BaseCalculator):
         if n < period:
             raise InsufficientDataError(period, n)
 
-        import talib
-        ema_values = talib.EMA(series, timeperiod=period)
-        return ema_values
+        if _talib is not None:
+            return _talib.EMA(series, timeperiod=period)
+        return _ema_series_np(series, period)
 
     def _std(self, series: np.ndarray, period: int) -> float:
         """
