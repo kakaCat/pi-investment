@@ -295,13 +295,22 @@ class AgentOSClient:
         """
         logger.debug(f"Reporting result for run {run_id}")
 
-        response = await self.client.put(
-            f"{self.base_url}/api/v1/scheduler/executions/{run_id}",
-            json=result
-        )
-        response.raise_for_status()
-
-        logger.debug(f"Result reported: {run_id} - {result.get('status')}")
+        try:
+            response = await self.client.put(
+                f"{self.base_url}/api/v1/scheduler/executions/{run_id}",
+                json=result
+            )
+            response.raise_for_status()
+            logger.debug(f"Result reported: {run_id} - {result.get('status')}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                # 执行记录可能还未创建（时序问题），降级为 warning
+                logger.warning(
+                    f"Execution record not found when reporting result (run_id={run_id}), "
+                    f"this is likely a timing issue with Agent OS async record creation"
+                )
+            else:
+                raise
 
     async def list_executions(
         self,
