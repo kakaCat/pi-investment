@@ -206,12 +206,31 @@ export function registerBoardRead(ctx: Context, boardClient: BoardClient, _agent
 }
 
 /**
+ * 系统噪声帖护栏（R-015 v15 纯记录免确认档的配套防线）。
+ *
+ * 依据：2026-09-05 公告板清板记录——删除的 20 条旧帖中 10 条是 `reminder * delivered`
+ * 垃圾数据；2026-09-08 误捞事件同理。纯记录档免确认放行后，必须挡住这类"投递回执"，
+ * 否则公告板会退化成第二个 memory 日志流，悬赏帖被淹没。
+ */
+function isNoisePost(title: string, content: string): boolean {
+  const head = String(title || '').trim()
+  const body = String(content || '').trim()
+  return (
+    /^reminder\b.*delivered\b/i.test(head) ||
+    /^auto-track\b/i.test(head) ||
+    /^(reminder|auto-track)\s*[:：]/i.test(head) ||
+    (/\bdelivered\b/i.test(head) && head.length < 40) ||
+    body.length < 20
+  )
+}
+
+/**
  * 注册增强的 board_post 工具
  */
 export function registerBoardPost(ctx: Context, boardClient: BoardClient, agentId: string) {
   ctx.tools.register(defineTool({
     name: 'board_post',
-    description: '发布公告板帖子（RFC 009/014）。⚠️ 调用即向用户弹确认框，用户同意才真发——纯记录/复盘/交付说明请改用 memory_write 不要调本工具；公告板只承载悬赏/跨窗口协作/需他人行动的帖子。needs_action=true进悬赏池（open状态），false纯记录（done状态）。',
+    description: '发布公告板帖子（RFC 009/014）。分档确认（R-015 v15，2026-09-10 用户授权放宽）：①悬赏/跨窗口协作/需他人行动（needs_action=true，进悬赏池 open）——必须先 ask_user_question 征得用户同意，带 confirmed=true 才发；缺 confirmed 返回 needs_user_confirmation 硬拦截。②纯记录/台账（needs_action=false，创建即 done 终态）——免确认可直接发，用于有长期价值的重大发现/根因/里程碑/交付结论；日常复盘流水仍走 memory_write 不上板，reminder delivered / auto-track 等系统噪声被护栏拒绝。',
     parameters: {
       title: {
         type: 'string',
@@ -234,7 +253,7 @@ export function registerBoardPost(ctx: Context, boardClient: BoardClient, agentI
       },
       confirmed: {
         type: 'boolean',
-        description: '是否已征得用户同意。false（默认）返回预览+提示，不真发；true 才执行发帖。',
+        description: '是否已征得用户同意（仅悬赏档 needs_action=true 需要）。悬赏档 false（默认）返回预览+提示不真发，true 才发；纯记录档（needs_action=false）免确认，本参数可省略。',
       },
     },
     output: {
@@ -257,9 +276,11 @@ export function registerBoardPost(ctx: Context, boardClient: BoardClient, agentI
     execute: async (args: any) => {
       const { title, content, kind, needs_action = false, confirmed = false } = args;
 
-      // R-014 工具级强制（2026-09-08 用户指令）：发帖前必须经用户确认。
-      // 公告板只承载悬赏/跨窗口协作帖；纯记录应走 memory_write，不上板。
-      if (!confirmed) {
+      // R-015 v15 分档确认（2026-09-08 立，2026-09-10 用户授权放宽）：
+      //   悬赏档（needs_action=true）→ 仍必须经用户确认（工具级硬拦截）。
+      //   纯记录档（needs_action=false）→ 免确认；配套防噪声护栏 + 创建即 done 终态，
+      //     不会停留在 open，故不会重演 2026-09-08"永不关闭的悬赏帖"病理。
+      if (needs_action && !confirmed) {
         return {
           success: false,
           post_id: '',
@@ -270,7 +291,23 @@ export function registerBoardPost(ctx: Context, boardClient: BoardClient, agentI
             kind,
             needs_action,
           },
-          instruction: '请向用户确认是否需要发此公告板帖子。纯记录/复盘/交付说明建议改用 memory_write 不上板；悬赏/跨窗口协作才上公告板。确认后重新调用 board_post 并设 confirmed=true。',
+          instruction: '这是悬赏档（needs_action=true），请先向用户确认是否需要发此公告板帖子，确认后重新调用 board_post 并设 confirmed=true。若本意只是记录结论而非派活，请改设 needs_action=false（免确认）或改用 memory_write。',
+        } as any;
+      }
+
+      // 纯记录档防噪声护栏（见 isNoisePost 注释）
+      if (!needs_action && isNoisePost(title, content)) {
+        return {
+          success: false,
+          post_id: '',
+          status: 'rejected_noise',
+          preview: {
+            title,
+            content: content.slice(0, 200) + (content.length > 200 ? '...' : ''),
+            kind,
+            needs_action,
+          },
+          instruction: '纯记录档防噪声护栏拒绝：该系统噪声/过短内容（reminder delivered、auto-track、正文<20字）不上公告板——它已在 memory 自动留痕。请改用有长期价值的结论性内容（根因/里程碑/交付结论），或若确需他人行动则设 needs_action=true 并先向用户确认。',
         } as any;
       }
 

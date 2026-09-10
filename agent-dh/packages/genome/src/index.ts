@@ -30,9 +30,14 @@ export default class GenomePlugin extends Service {
   static inject = ['tools', 'systemPrompt'];  // 添加 systemPrompt 依赖
   static Config = z.object({
     genomeDir: z.string().default('~/.dsh-agent-dh/genome'),
+    // 金丝雀组装用的 agent 身份前缀（默认本实例主身份 investor）
+    agentId: z.string().default('investor'),
   }).default({} as any);
 
   private genomeDir: string;
+  private agentId: string;
+  /** agents 服务（惰性注入，用于金丝雀按 agent 作用域组装） */
+  private agentsSvc: any = null;
   private disposers: Map<string, () => void> = new Map();
   private genomeData: any = null;
   private lock!: GenomeLock;
@@ -43,6 +48,12 @@ export default class GenomePlugin extends Service {
 
     // 展开 ~ 路径
     this.genomeDir = config.genomeDir.replace(/^~/, process.env.HOME || '');
+    this.agentId = config.agentId ?? 'investor';
+
+    // agents 服务非本插件静态注入（同 bulletin 页面惰性注入模式）。
+    // 金丝雀需要 agent 作用域才能解析 agent 级变量（见 canaryRender）。
+    (ctx as unknown as { inject?: (s: string[], cb: (c: { agents?: any }) => void, label?: string) => void })
+      .inject?.(['agents'], (actx) => { this.agentsSvc = actx.agents; }, 'genome: agents');
 
     // 直接在构造函数中初始化（cordis 加载器场景下 ctx.on('ready') 不会触发，
     // 导致段/工具永远不注册——2026-08-20 验收发现的阻断性 bug）
@@ -312,9 +323,35 @@ export default class GenomePlugin extends Service {
     this.ctx.logger('genome').info(`Hot-swapped section genome:${section} (v${sectionVersion}, ${genomeVersion})`);
   }
 
-  /** GenomeWriteHost：渲染金丝雀（真实试渲染；失败抛错由工具自动还原） */
+  /**
+   * 金丝雀组装用的 agent：优先本实例主身份（id 前缀匹配 this.agentId），退化取第一个 root。
+   * 拿不到 agent（如测试桩/极早期启动）返回 undefined，调用方退回无作用域组装。
+   */
+  private canaryAgent(): any | undefined {
+    try {
+      const roots: any[] = (this.agentsSvc?.roots?.() ?? []) as any[];
+      return roots.find((a) => String(a?.id ?? '').startsWith(this.agentId)) ?? roots[0];
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * GenomeWriteHost：渲染金丝雀（真实试渲染；失败抛错由工具自动还原）。
+   *
+   * 2026-09-10 修复：原实现用无作用域 assemble()，不参与 agent 级变量提供者，
+   * 而 investor 预设 persona 文本含 {{model}}/{{cwd}}（agent 级变量）→ 每次写入都
+   * 以 "prompt variable {{model}} has no value" 失败并自动还原，基因组自 2026-09-08
+   * 22:45（agent 预设创建）起无法再进版本。改为与 agent-loop 生产路径同款组装：
+   * assemble({ agent, scope: agent })——即 dsh-agent 的 assembleContextFor(agent)
+   * 返回值（已核对 node_modules/@deepseek-ai/dsh-agent/lib/index.js:384-390），
+   * 内联同形对象以免为一次性金丝雀引入跨包运行时依赖。
+   */
   async canaryRender(): Promise<void> {
-    const assembly = await this.ctx.systemPrompt.assemble();
+    const agent = this.canaryAgent();
+    const assembly = await this.ctx.systemPrompt.assemble(
+      agent ? ({ agent, scope: agent } as any) : undefined
+    );
     renderPrompt(assembly);
   }
 
