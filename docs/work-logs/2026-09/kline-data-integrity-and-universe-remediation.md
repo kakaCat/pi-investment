@@ -193,7 +193,8 @@ application/notification/legacy_adapters.py                同上（4 处）
 
 ### §5c 成交额闭环的独立留痕（2026-09-10 22:55，w-8f2c4cc5）
 
-- commit：**a495696f**（5 文件 / +144 行：sina.py、database.py、manager.py、kline_update_job.py、本文档）
+- commit：**363b89eb**（5 文件 / +155 行：sina.py、database.py、manager.py、kline_update_job.py、本文档）
+  注：该提交经两次 `--amend` 补全内容，中间态哈希 a495696f 出现在下方 decision_audit / memory / feishu / 公告板记录中，**内容相同，以 363b89eb 为准**（此后不再 amend）
 - decision_audit：**DEC-20260910225547-d2f59705**（decision_type=data_fix）
 - memory_write：**5a7e7a39-1940-443c-8951-c2ee0c6188cb**（namespace=analysis, importance=0.9）
 - experience_write：**dced8ad3-3e80-4465-a8b7-fccdbd6b963b**
