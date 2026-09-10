@@ -174,8 +174,12 @@ export class PortfolioAggregationService {
     trades: Trade[],
     timeout: { timeoutMs: number }
   ): Promise<Trade[]> {
+    // 后端 2026-09-10 起 trades 路由已联查填充 name——只补仍缺名的代码，避免重复请求
     const codes = [...new Set(
-      trades.map((t) => String(t.symbol ?? '').replace(/\D/g, '').slice(-6)).filter((c) => /^\d{6}$/.test(c))
+      trades
+        .filter((t) => !String(t.name ?? '').trim())
+        .map((t) => String(t.symbol ?? '').replace(/\D/g, '').slice(-6))
+        .filter((c) => /^\d{6}$/.test(c))
     )].slice(0, 40);
     if (codes.length === 0) return trades;
 
@@ -196,6 +200,7 @@ export class PortfolioAggregationService {
       if (r.status === 'fulfilled' && r.value) names[codes[i]] = r.value;
     });
     return trades.map((t) => {
+      if (String(t.name ?? '').trim()) return t; // 后端已填真名的行不动
       const code = String(t.symbol ?? '').replace(/\D/g, '').slice(-6);
       return { ...t, name: names[code] ?? '' };
     });

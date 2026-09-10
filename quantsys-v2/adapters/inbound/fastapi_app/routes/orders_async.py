@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Query, Body
+from fastapi import APIRouter, Query, Body, Response
 import structlog
 
 from adapters.inbound.fastapi_app.shared import (
@@ -17,6 +17,32 @@ from adapters.inbound.fastapi_app.shared import (
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(tags=["Orders/Portfolio - 订单与组合"])
+
+
+# 2026-09-10：/api/portfolio/positions|summary 已废弃——全部消费方（agent-dh 看板/quantsys-v2-client/
+# agent-ts/web-frontend）已迁至 /api/simulation/accounts/{account}（真名+实时价）。保留仅为兼容，
+# 响应带 Deprecation 头并记告警日志；历史教训：'name' 曾写死空串（假数据陷阱），现已补真名。
+def _lookup_stock_names(repo, symbols: List[str]) -> Dict[str, str]:
+    """批量联查 stocks 主数据表取股票名称（一次 IN 查询，避免逐行 N+1）。失败返回空表，不阻断主流程。"""
+    if not symbols:
+        return {}
+    try:
+        from infrastructure.persistence.orm.models import Stock
+        from sqlalchemy import select
+        rows = repo.session.execute(
+            select(Stock.symbol, Stock.name).where(Stock.symbol.in_(symbols))
+        ).all()
+        return {sym: name for sym, name in rows if name}
+    except Exception as e:
+        logger.warning(f"批量查询股票名称失败: {e}")
+        return {}
+
+
+def _mark_deprecated(response: Response, successor: str, endpoint: str):
+    """给废弃端点打 RFC 8594 Deprecation 头 + successor 链接 + 告警日志。"""
+    response.headers['Deprecation'] = 'true'
+    response.headers['Link'] = f'<{successor}>; rel="successor-version"'
+    logger.warning(f"DEPRECATED endpoint called: {endpoint} → 请迁移至 {successor}")
 
 
 def _generate_twap_slices(quantity: int, duration_minutes: int, start_time) -> list:
@@ -235,8 +261,9 @@ def get_trade_history(
 
 @router.get('/api/portfolio/positions')
 @handle_api_error
-def get_portfolio_positions(account_name: Optional[str] = Query(None)):
-    """获取持仓列表（数据源：simulation_* 体系，account_name 必填）。与 Flask 新版对齐。"""
+def get_portfolio_positions(response: Response, account_name: Optional[str] = Query(None)):
+    """[DEPRECATED] 获取持仓列表（数据源：simulation_* 体系，account_name 必填）。
+    请迁移至 /api/simulation/accounts/{account}（真名+实时价+price_stale 标记）。"""
     if not account_name:
         return error_response({'success': False, 'error': 'account_name is required'}, 400)
     from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
@@ -244,11 +271,17 @@ def get_portfolio_positions(account_name: Optional[str] = Query(None)):
     if not repo.get_account(account_name):
         return error_response({'success': False, 'error': f'账户不存在: {account_name}'}, 404)
 
+    _mark_deprecated(response, f'/api/simulation/accounts/{account_name}', '/api/portfolio/positions')
+
+    all_positions = repo.get_all_positions(account_name)
+    # 名称联查 stocks 主数据表（曾写死空串=假数据陷阱，2026-09-10 修复）
+    names = _lookup_stock_names(repo, [p.symbol for p in all_positions])
+
     positions = []
-    for pos in repo.get_all_positions(account_name):
+    for pos in all_positions:
         positions.append({
             'symbol': pos.symbol,
-            'name': '',
+            'name': names.get(pos.symbol, ''),
             'quantity': pos.shares_total,
             'shares_available': pos.shares_available,
             'avg_cost': float(pos.avg_cost or 0),
@@ -264,8 +297,9 @@ def get_portfolio_positions(account_name: Optional[str] = Query(None)):
 
 @router.get('/api/portfolio/summary')
 @handle_api_error
-def get_portfolio_summary(account_name: Optional[str] = Query(None)):
-    """获取账户汇总（数据源：simulation_* 体系，account_name 必填）。与 Flask 新版对齐。"""
+def get_portfolio_summary(response: Response, account_name: Optional[str] = Query(None)):
+    """[DEPRECATED] 获取账户汇总（数据源：simulation_* 体系，account_name 必填）。
+    请迁移至 /api/simulation/accounts/{account}。"""
     try:
         if not account_name:
             return error_response({'success': False, 'error': 'account_name is required'}, 400)
@@ -274,6 +308,8 @@ def get_portfolio_summary(account_name: Optional[str] = Query(None)):
         account = repo.get_account(account_name)
         if not account:
             return error_response({'success': False, 'error': f'账户不存在: {account_name}'}, 404)
+
+        _mark_deprecated(response, f'/api/simulation/accounts/{account_name}', '/api/portfolio/summary')
 
         positions = repo.get_all_positions(account_name)
         total_cost = sum(float(p.cost or 0) for p in positions)

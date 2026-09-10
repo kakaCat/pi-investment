@@ -138,7 +138,21 @@ async def get_trades(account_name: Optional[str] = Query(None),
             'success': False, 'error': f'账户不存在: {account_name}',
             'available_accounts': _available_accounts(repo)})
     trades = repo.get_trades(account_name, limit=limit)
-    return {'success': True, 'data': [t.to_dict() for t in trades]}
+    items = [t.to_dict() for t in trades]
+    # 补股票名称（2026-09-10）：SimulationTrade.to_dict 无 name 列，联查 stocks 主数据表，
+    # 一次 IN 查询避免 N+1；失败容忍为空串（与 _trade_to_dict 同语义）
+    try:
+        from infrastructure.persistence.orm.models import Stock
+        from sqlalchemy import select
+        symbols = list({t.symbol for t in trades})
+        if symbols:
+            names = {sym: name for sym, name in repo.session.execute(
+                select(Stock.symbol, Stock.name).where(Stock.symbol.in_(symbols))).all() if name}
+            for it in items:
+                it['name'] = names.get(it.get('symbol'), '')
+    except Exception:
+        pass
+    return {'success': True, 'data': items}
 
 
 @router.get("/accounts/{account_name}/trades")
