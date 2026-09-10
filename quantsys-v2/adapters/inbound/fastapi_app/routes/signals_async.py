@@ -20,6 +20,7 @@ from adapters.inbound.fastapi_app.shared import (
     signal_repo, stock_repo,
 )
 from application.services.opportunity_to_watch_rule_service import OpportunityToWatchRuleService
+from application.services.signal_processor import SignalProcessingError
 
 logger = structlog.get_logger(__name__)
 
@@ -406,6 +407,16 @@ def backtest_signal(payload: Optional[Dict[str, Any]] = Body(None)):
     symbol = data.get('symbol') if data else None
     signal = data.get('signal') if data else None
     account_balance = data.get('account_balance', {'total_assets': 1000000, 'cash': 500000}) if data else {'total_assets': 1000000, 'cash': 500000}
+    # 入参前置校验（2026-09-11，w-8f2c4cc5｜看板事件 873b0e22）：
+    # 缺 signal/symbol 属于客户端入参错误，此前会一路下沉到 SignalProcessor
+    # 抛 ValueError('Missing required field: …') 并被兜底 except 映射成 500，
+    # 让真实的服务端故障淹没在客户端错误里。这里提前 400 分流。
+    if not isinstance(signal, dict) or not symbol:
+        return error_response({
+            'success': False,
+            'error': 'payload 必须包含 signal(对象) 与 symbol(代码)',
+            'hint': "示例: {'symbol':'600519','signal':{'action':'buy','confidence':0.8,'reason':'突破'}}",
+        }, 400)
     try:
         from application.services.signal_processor import SignalProcessor
         from infrastructure.services.service_factory import ServiceFactory
@@ -424,6 +435,14 @@ def backtest_signal(payload: Optional[Dict[str, Any]] = Body(None)):
         trade_params['risk_amount'] = round(risk_amount, 2)
         trade_params['risk_percent'] = round(risk_amount / account_balance['total_assets'], 4)
         return {'success': True, 'trade_params': trade_params}
+    except ValueError as e:
+        # 信号结构校验失败（缺字段/非法 action/confidence 越界）→ 客户端入参错误
+        logger.warning("backtest_signal_invalid_input", symbol=symbol, error=str(e))
+        return error_response({'success': False, 'error': f'入参错误: {e}'}, 400)
+    except SignalProcessingError as e:
+        # 业务拒绝：策略熔断暂停 / 止盈止损参数不合理
+        logger.warning("backtest_signal_rejected", symbol=symbol, error=str(e))
+        return error_response({'success': False, 'error': str(e)}, 422)
     except Exception as e:
         logger.error(f"Failed to backtest signal: {e}", exc_info=True)
         return error_response({'success': False, 'error': str(e)}, 500)
