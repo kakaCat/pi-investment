@@ -31,7 +31,8 @@ import json
 
 
 from domain.config import create_cache_service
-from domain.cache import CacheService
+# 2026-09-11（investor / w-8f2c4cc5）修复：cd952915 盲改 domain.cache（不存在）→ 导入即 ImportError。
+from infrastructure.cache import CacheService
 
 
 def benchmark_write(cache: CacheService, count: int = 1000, repeat: int = 3):

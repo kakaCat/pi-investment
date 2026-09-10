@@ -6,7 +6,9 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import structlog
 
-from domain.persistence import get_session
+# 2026-09-11（investor / w-8f2c4cc5）修复：cd952915 盲改 domain.persistence.get_session（不存在）→
+# 导入即 ImportError（domain/persistence/ 只下沉了会话上下文，未下沉 get_session）。
+from infrastructure.persistence.orm import get_session
 from domain.memory.service import MemoryService
 from domain.memory.models import MemoryEntry, MemoryKind, MemoryStatus
 
