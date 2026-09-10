@@ -1255,10 +1255,19 @@ def register_routes():
     logger.info(f"✅ CRITICAL routes: {len(critical_routes)}/{len(critical_routes)} (all must succeed)")
     logger.info(f"   Routes: {', '.join(critical_routes)}")
     
+    # 2026-09-11（w-8f2c4cc5）：启动期路由注册降级必须可见。
+    # 故障现场：启动时 peer 正在写文件，42 个可选路由 import 失败 → 进程带 237 个 404 端点静默运行
+    # （日志仅 warning），且启动期导入失败不会重试，不重启永不恢复。
+    app.state.optional_route_failures = list(optional_failed)
     if optional_failed:
         logger.warning(f"⚠️  Optional routes: some failed ({len(optional_failed)} failures)")
         logger.warning(f"   Failed: {', '.join(optional_failed)}")
         logger.warning(f"   Note: Application will continue with reduced functionality")
+        if len(optional_failed) >= 10:
+            logger.error(
+                f"❌ 启动期路由注册大面积失败（{len(optional_failed)} 条）：进程以残缺 API 运行且不会自愈，"
+                f"必须重启；清单见 GET /api/health/routes：{', '.join(optional_failed)}"
+            )
     else:
         logger.info(f"✅ Optional routes: all registered successfully")
     

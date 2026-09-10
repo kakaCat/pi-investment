@@ -1,7 +1,7 @@
 """
 健康检查和系统状态 API - FastAPI 异步版本
 """
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Request, Response
 from datetime import datetime
 import structlog
 from pathlib import Path
@@ -43,6 +43,24 @@ async def health_check():
             'error': str(e),
             'framework': 'fastapi'
         }
+
+
+@router.get("/routes")
+async def health_routes(request: Request):
+    """路由注册健康检查（2026-09-11 w-8f2c4cc5 新增）
+
+    返回启动期注册失败的可选路由清单。非空 = 进程 API 残缺（启动时模块导入失败），
+    且启动期失败不会自动重试，需重启进程才能恢复。
+    """
+    failed = list(getattr(request.app.state, 'optional_route_failures', []) or [])
+    return {
+        'status': 'ok' if not failed else 'degraded',
+        'failure_count': len(failed),
+        'optional_route_failures': failed,
+        'hint': '' if not failed else '启动期导入失败的可选路由不会自动重试，重启进程方可恢复',
+        'framework': 'fastapi',
+        'timestamp': datetime.now().isoformat(),
+    }
 
 
 @router.get("/db")
