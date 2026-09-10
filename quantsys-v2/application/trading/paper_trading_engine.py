@@ -449,7 +449,8 @@ class PaperTradingEngine:
         peak = float(account.peak_value or initial)
         if total_value > peak:
             peak = total_value
-        drawdown = (peak - total_value) / peak if peak > 0 else 0
+        # 当日回撤统一为负号口径（旧实现取正号 peak-total，与快照/risk_metrics 的负号峰谷口径相反）
+        day_drawdown = (total_value / peak - 1.0) if peak > 0 else 0.0
 
         snap = self.repo.upsert_equity_snapshot(
             account_name=self.account_name,
@@ -457,7 +458,7 @@ class PaperTradingEngine:
             position_value=position_value,
             total_value=total_value,
             cumulative_return=cumulative_return,
-            drawdown=drawdown,
+            drawdown=day_drawdown,
         )
         daily_return = (
             float(snap.daily_return)
@@ -465,13 +466,20 @@ class PaperTradingEngine:
             else None
         )
 
+        # 账户表写「峰谷最大回撤」（唯一真源=净值序列），不再写当日回撤——
+        # 旧实现在此写当日回撤且取正号，导致 simulation_account.max_drawdown = +0.0043
+        # 与 risk_metrics 的 -1.83% 符号语义全不一致（2026-09-11, w-8f2c4cc5）。
+        max_drawdown = self.repo.recompute_account_max_drawdown(self.account_name)
+        if max_drawdown is None:
+            max_drawdown = min(day_drawdown, float(account.max_drawdown or 0))
+
         self.repo.update_account(
             account_name=self.account_name,
             cash_available=cash,
             total_value=total_value,
             peak_value=peak,
             cumulative_return=cumulative_return,
-            max_drawdown=drawdown,
+            max_drawdown=max_drawdown,
             position_value=position_value,
         )
 
@@ -482,7 +490,8 @@ class PaperTradingEngine:
             'nav': round(total_value / initial, 4) if initial > 0 else 1.0,
             'total_value': round(total_value, 2),
             'daily_return': round(daily_return, 6) if daily_return is not None else None,
-            'drawdown': round(drawdown, 4),
+            'drawdown': round(day_drawdown, 4),          # 当日回撤（负号）
+            'max_drawdown': round(max_drawdown, 4),      # 峰谷最大回撤（负号，与 risk_metrics 同口径）
         }
 
     def set_market_style(self, style: str):

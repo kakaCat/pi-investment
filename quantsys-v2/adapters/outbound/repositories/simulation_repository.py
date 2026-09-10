@@ -37,6 +37,8 @@ logger = structlog.get_logger(__name__)
 SNAPSHOT_RETURN_SUSPICIOUS = 0.15
 # 找「上一交易日有效基准」时最多回看的快照条数（容忍连续残缺/停牌日）
 SNAPSHOT_BASELINE_SCAN = 5
+# 重算账户最大回撤时扫描的快照条数上限（覆盖一年以上交易日）
+SNAPSHOT_DRAWDOWN_SCAN = 400
 
 __all__ = ['SimulationORMRepository', 'normalize_action']
 
@@ -599,6 +601,55 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         external_in = self.external_flow_on(account_name, day)
         return (float(total_value) - external_in - prev_total) / prev_total
 
+    def recompute_account_max_drawdown(self, account_name: str) -> Optional[float]:
+        """按净值序列重算并写回账户表的最大回撤（负号、峰谷口径），返回该值。
+
+        2026-09-11（w-8f2c4cc5）：账户表 simulation_account.max_drawdown 此前由
+        paper_trading_engine 写入**当日**回撤且取**正号**（实测 agent_virtual = 0.0043），
+        而快照 drawdown 与 risk_metrics 用的是「负号峰谷最大回撤」（-1.83%）——
+        符号与语义双双不一致，读到该字段的一方会得到「最大回撤 +0.43%」这种无意义值。
+        现统一为：唯一真源=净值序列，取峰谷最大回撤（<=0）；peak_value 同步取
+        「已有峰值与序列峰值的较大者」。
+        """
+        try:
+            rows = (
+                self.session.query(SimulationEquitySnapshot)
+                .filter(SimulationEquitySnapshot.account_name == account_name)
+                .order_by(SimulationEquitySnapshot.snapshot_date.asc())
+                .limit(SNAPSHOT_DRAWDOWN_SCAN)
+                .all()
+            )
+            peak = None
+            worst = 0.0  # 负值；全程未回撤时为 0
+            for row in rows:
+                total = float(row.total_value or 0)
+                cash = float(row.cash or 0)
+                if total <= 0 or total < cash:  # 残缺估值行不参与
+                    continue
+                peak = total if peak is None else max(peak, total)
+                if peak > 0:
+                    worst = min(worst, total / peak - 1.0)
+
+            account = (
+                self.session.query(SimulationAccount)
+                .filter(SimulationAccount.account_name == account_name)
+                .first()
+            )
+            if account is None:
+                logger.warning(f"重算最大回撤时账户不存在: {account_name}")
+                return None
+            account.max_drawdown = worst
+            if peak is not None and (
+                account.peak_value is None or float(account.peak_value or 0) < peak
+            ):
+                account.peak_value = peak
+            self.session.commit()
+            return worst
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"重算账户最大回撤失败: {account_name} {e}")
+            self._safe_rollback()
+            return None
+
     def upsert_equity_snapshot(
         self,
         account_name: str,
@@ -651,6 +702,8 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             self.session.add(snap)
         if commit:
             self.session.commit()
+            # 账户表的最大回撤由净值序列唯一推导（口径与符号统一，见 recompute_account_max_drawdown）
+            self.recompute_account_max_drawdown(account_name)
         return snap
 
     def get_equity_snapshots(self, account_name: str, limit: int = 90) -> List[SimulationEquitySnapshot]:

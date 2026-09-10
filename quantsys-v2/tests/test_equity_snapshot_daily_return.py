@@ -35,6 +35,7 @@ class _FakeQuery:
         self.model = model
         self._same_day_lookup = False
         self._limit = None
+        self._desc = None
 
     def filter(self, *args, **kwargs):
         return self
@@ -45,6 +46,12 @@ class _FakeQuery:
         return self
 
     def order_by(self, *args):
+        # 识别 asc/desc（SQLAlchemy 元素带 modifier），让替身也遵守排序语义：
+        # 净值峰谷回撤依赖升序、基准查询依赖降序，忽略排序会算出错误回撤。
+        for arg in args:
+            mod = getattr(arg, 'modifier', None)
+            if mod is not None:
+                self._desc = str(mod).endswith('desc_op')
         return self
 
     def limit(self, n):
@@ -57,7 +64,9 @@ class _FakeQuery:
             return list(self.session.flows)
         if name == 'SimulationAccount':
             return [self.session.account] if self.session.account is not None else []
-        rows = sorted(self.session.history, key=lambda r: r.snapshot_date, reverse=True)
+        rows = list(self.session.history)
+        if self._desc is not None:
+            rows.sort(key=lambda r: r.snapshot_date, reverse=self._desc)
         return rows[: self._limit] if self._limit else rows
 
     def first(self):
@@ -302,5 +311,50 @@ def test_sharpe_magnitude_sane_when_below_risk_free():
     returns = [0.00002, 0.00003, 0.00001, 0.000025] * 5
     assert svc.calculate_sharpe_ratio(returns) < 0
     assert svc.calculate_sharpe_ratio([r + 0.001 for r in returns]) > 0
+
+# ── 账户表最大回撤：唯一真源=净值序列，负号峰谷口径 ────────────────────────
+
+def test_recompute_account_max_drawdown_peak_to_trough(monkeypatch):
+    """账户表 max_drawdown 必须是「负号峰谷最大回撤」，并同步抬高峰值。"""
+    session = _FakeSession(
+        history=[
+            _snap('2026-06-22', 100000.0),
+            _snap('2026-07-10', 105000.0),
+            _snap('2026-07-20', 98000.0),
+            _snap('2026-09-10', 105183.52),
+        ],
+        account=SimpleNamespace(max_drawdown=0.0043, peak_value=100000.0),
+    )
+    repo = _repo_with(monkeypatch, session)
+    worst = repo.recompute_account_max_drawdown('agent_virtual')
+    assert worst == pytest.approx(98000.0 / 105000.0 - 1)
+    assert worst < 0, '必须是负号（旧实现写正号 +0.0043）'
+    assert session.account.max_drawdown == pytest.approx(worst)
+    assert session.account.peak_value == pytest.approx(105183.52)
+
+
+def test_recompute_max_drawdown_skips_partial_rows(monkeypatch):
+    """残缺估值行（total_value < cash）不得制造假回撤。"""
+    session = _FakeSession(
+        history=[_snap('2026-06-22', 100000.0), _snap('2026-07-10', 5000.0, cash=100000.0)],
+        account=SimpleNamespace(max_drawdown=0.0, peak_value=100000.0),
+    )
+    repo = _repo_with(monkeypatch, session)
+    assert repo.recompute_account_max_drawdown('agent_virtual') == pytest.approx(0.0)
+
+
+def test_recompute_max_drawdown_monotonic_up_is_zero(monkeypatch):
+    session = _FakeSession(
+        history=[_snap('2026-06-22', 100000.0), _snap('2026-09-10', 105000.0)],
+        account=SimpleNamespace(max_drawdown=0.0, peak_value=100000.0),
+    )
+    repo = _repo_with(monkeypatch, session)
+    assert repo.recompute_account_max_drawdown('agent_virtual') == pytest.approx(0.0)
+
+
+def test_recompute_max_drawdown_missing_account(monkeypatch):
+    repo = _repo_with(monkeypatch, _FakeSession(history=[_snap('2026-06-22', 100000.0)], account=None))
+    assert repo.recompute_account_max_drawdown('missing') is None
+
 
 

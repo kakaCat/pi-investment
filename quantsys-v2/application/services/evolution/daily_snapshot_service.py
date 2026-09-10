@@ -83,10 +83,6 @@ class DailySnapshotService:
         )
         cash = float(acct.cash_available or 0) + float(acct.cash_frozen or 0)
         total = cash + position_value
-        prev = self.sim_repo.get_equity_snapshots(acct.account_name, limit=1)
-        prev = [s for s in prev if s.snapshot_date < target_date]
-        daily_return = (total / float(prev[0].total_value) - 1) if prev and float(
-            prev[0].total_value or 0) > 0 else 0.0
         initial = float(acct.initial_capital or 0)
         cumulative = (total / initial - 1) if initial > 0 else 0.0
         peak = max(float(acct.peak_value or 0), total)
@@ -96,7 +92,8 @@ class DailySnapshotService:
             cash=cash,
             position_value=position_value,
             total_value=total,
-            daily_return=daily_return,
+            # daily_return 不再自算：由 repo 按上一交易日有效快照统一计算（含残缺行跳过、
+            # 成立资金剔除、|r|>15% 告警）；无基准写 NULL 而非 0.0（2026-09-11, w-8f2c4cc5）
             cumulative_return=cumulative,
             drawdown=drawdown,
             snapshot_date=target_date,
@@ -171,7 +168,6 @@ class DailySnapshotService:
                 for sym, sh in holdings.items() if sh > 0
             )
             total = cash + position_value
-            daily_return = (total / prev_total - 1) if prev_total else 0.0
             peak = max(peak, total)
             if overwrite or day not in existing:
                 self.sim_repo.upsert_equity_snapshot(
@@ -179,13 +175,12 @@ class DailySnapshotService:
                     cash=cash,
                     position_value=position_value,
                     total_value=total,
-                    daily_return=daily_return,
+                    # 同上：daily_return 由 repo 统一计算（此处回放序列的基准=DB 中上一交易日快照）
                     cumulative_return=(total / initial - 1) if initial > 0 else 0.0,
                     drawdown=(total / peak - 1) if peak > 0 else 0.0,
                     snapshot_date=day,
                 )
                 written += 1
-            prev_total = total
         logger.info('backfill done', account=account_name, written=written,
                     start=str(start), end=str(end))
         return {'written': written}
