@@ -68,10 +68,11 @@ def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
                       AND symbols IS NOT NULL
                 ),
                 recent_symbols AS (
-                    SELECT DISTINCT symbol
+                    SELECT symbol
                     FROM quant.daily_klines
-                    WHERE updated_at >= NOW() - INTERVAL '7 days'
-                    ORDER BY updated_at DESC
+                    WHERE trade_date >= CURRENT_DATE - INTERVAL '7 days'
+                    GROUP BY symbol
+                    ORDER BY MAX(trade_date) DESC
                     LIMIT 500
                 ),
                 high_priority AS (
@@ -105,12 +106,12 @@ def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
                     ORDER BY k.max_date ASC NULLS FIRST, s.symbol
                     LIMIT {batch_size}
                 )
-                SELECT symbol, name
-                FROM high_priority
-                UNION ALL
-                SELECT symbol, name
-                FROM stale_stocks
-                ORDER BY priority, symbol
+                SELECT symbol, name FROM (
+                    SELECT symbol, name, priority FROM high_priority
+                    UNION ALL
+                    SELECT symbol, name, priority FROM stale_stocks
+                ) ordered
+                ORDER BY ordered.priority, ordered.symbol
             """,
             None,
         )
@@ -128,10 +129,11 @@ def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
                       AND symbols IS NOT NULL
                 ),
                 recent_symbols AS (
-                    SELECT DISTINCT symbol
+                    SELECT symbol
                     FROM quant.daily_klines
-                    WHERE updated_at >= NOW() - INTERVAL '7 days'
-                    ORDER BY updated_at DESC
+                    WHERE trade_date >= CURRENT_DATE - INTERVAL '7 days'
+                    GROUP BY symbol
+                    ORDER BY MAX(trade_date) DESC
                     LIMIT 500
                 ),
                 prioritized_stocks AS (
