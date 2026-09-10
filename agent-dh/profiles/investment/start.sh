@@ -46,6 +46,15 @@ echo ""
 DSH_BIN="$PROFILE_DIR/node_modules/@deepseek-ai/dsh/lib/bin.js"
 cd "$PROFILE_DIR"
 
+# 堆上限（2026-09-11, w-8f2c4cc5）：本实例是"多窗口共享单进程"，实测稳态 RSS ≈ 2.9GB
+# 且仍以 ~21MB/min 增长，而 Node 默认 V8 上限仅 4144MB —— 2026-09-10 03:19 自重启后新进程
+# 启动 20 秒即 OOM（state/restart-1788981563958.log：Mark-Compact 4034MB → FATAL ERROR
+# Reached heap limit）。此处把上限提到 8GB（机器 64GB 内存，稳态 ~3GB，余量充足），
+# 可用环境变量 DSH_MAX_OLD_SPACE 覆盖（如 4096 复现旧行为）。这治标：真正的增长源
+# （多窗口会话记录常驻堆）需上游 DSH 修，见后续根因分析。
+DSH_MAX_OLD_SPACE="${DSH_MAX_OLD_SPACE:-8192}"
+export NODE_OPTIONS="--max-old-space-size=${DSH_MAX_OLD_SPACE}${NODE_OPTIONS:+ $NODE_OPTIONS}"
+
 if [[ " $* " == *" --dump-config "* ]]; then
   exec node --import tsx/esm "$DSH_BIN" --profile investment --dump-config
 fi
