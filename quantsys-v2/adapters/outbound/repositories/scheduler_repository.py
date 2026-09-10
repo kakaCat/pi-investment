@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
 
-from sqlalchemy import and_, func, or_, text
+from sqlalchemy import and_, case, func, or_, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from domain.ports import ISchedulerRepository
@@ -214,12 +214,18 @@ class SchedulerRepository(ISchedulerRepository):
 
     # ── Run Lifecycle ──
 
-    def create_run(self, task_id: int) -> int:
+    def create_run(self, task_id: int, started_at: Optional[datetime] = None) -> int:
+        # P0-C（2026-09-10 w-23c70356 审计）：started_at 原本硬用"写库时刻"，
+        # webhook 路径（先跑完 handler 再写库）因此把 started_at/completed_at 都记成
+        # 写库瞬间 → duration_ms 恒为 3~15ms，执行时间列对 Agent OS 委托任务完全失真
+        # （实测 market_style_update 真实 elapsed 0.16s、market_daily_snapshot 3.3s，
+        # 而 run.duration_ms 显示 11ms/13ms）。允许调用方传入真实开始时刻；
+        # 不传（APScheduler 路径在跑任务前调用）保持 now() 原语义不变。
         now = datetime.now(timezone.utc)
         run = SchedulerRun(
             task_id=task_id,
             status="running",
-            started_at=now,
+            started_at=started_at or now,
         )
         try:
             self.session.add(run)
@@ -240,9 +246,12 @@ class SchedulerRepository(ISchedulerRepository):
         success: bool = True,
         result: Optional[Dict[str, Any]] = None,
         error: Optional[str] = None,
+        completed_at: Optional[datetime] = None,
     ) -> bool:
         status = "success" if success else "failed"
-        now = datetime.now(timezone.utc)
+        # P0-C：同上，允许传入真实完成时刻（webhook 路径在 handler 结束后写库，
+        # 不传时用 now()，与 APScheduler 路径原语义一致）。
+        now = completed_at or datetime.now(timezone.utc)
         try:
             run = self.session.get(SchedulerRun, run_id)
             if run is None:
@@ -399,11 +408,31 @@ class SchedulerRepository(ISchedulerRepository):
             cutoff = datetime.now(timezone.utc) - timedelta(days=days)
             # 排除"孤儿 run"（error 含 孤儿/进程重启 字样）：进程重启打断的 run 是
             # 调度环境事故，不代表任务逻辑失败，计入失败率会造成误报。
+            # P0-B 修复（2026-09-10 w-23c70356 审计）：
+            # ① 原失败计数 func.sum(func.cast(status=="failed", func.cast(0, func.cast(1, id))))
+            #    是非法聚合表达式，实测恒为 0 —— 真失败也测不出来（实证：任务 325
+            #    market_style_update 近 7 天 4 次运行 4 次 failed，本方法仍返回 []），
+            #    失败率看门狗形同虚设；
+            # ② 只统计行级 status，漏掉"行级 success + 内层 result 报错"的静默失败
+            #    （同次审计发现 2026-06-04 起 40 条静默失败全部逃过看门狗）。
+            # 现改为 case() 显式计数，并把内层失败一并计入 failed。
+            inner_failed = or_(
+                SchedulerRun.result["status"].astext.in_(["failed", "error"]),
+                SchedulerRun.result["success"].astext == "false",
+                and_(
+                    SchedulerRun.result["status"].astext.is_(None),
+                    SchedulerRun.result["error"].astext.isnot(None),
+                ),
+            )
+            is_failed = case(
+                (or_(SchedulerRun.status == "failed", inner_failed), 1),
+                else_=0,
+            )
             rows = (
                 self.session.query(
                     SchedulerTaskConfig.name,
                     func.count(SchedulerRun.id).label("total"),
-                    func.sum(func.cast(SchedulerRun.status == "failed", func.cast(0, func.cast(1, SchedulerRun.id)))).label("failed"),
+                    func.sum(is_failed).label("failed"),
                 )
                 .join(SchedulerRun, SchedulerRun.task_id == SchedulerTaskConfig.id)
                 .filter(

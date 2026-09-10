@@ -20,6 +20,47 @@ from typing import Dict, Any, Optional
 logger = logging.getLogger(__name__)
 
 
+def classify_job_result(result: Any) -> Optional[str]:
+    """判定 job handler 返回值是否为「内层失败」，是则返回错误摘要，否则 None。
+
+    P0-B（2026-09-10 w-23c70356 审计）：调度器此前只看「有没有抛异常」决定 run 状态，
+    handler 用返回值报告失败（返回 dict 不抛异常）时 run 记录仍写 success —— 真实失败
+    只躺在 scheduler_runs.result 里，看门狗一路报 ok。实证：market_perception_daily
+    2026-09-07~09-10 连败 4 天，4 条 run 全 success；历史同类 40 条（2026-06-04 起）。
+
+    判定口径（覆盖仓库里并存的三种 handler 约定，任一命中即失败）：
+    1. {"success": False, "error": ...}      —— scheduler_handlers 风格
+    2. {"status": "failed"|"error", ...}     —— JobRegistry / legacy 风格
+    3. 未给 status 且 error 非空             —— 裸错误返回
+
+    对显式 {"success": True} / {"status": "success"} / {"error": None} 一律判成功，
+    避免把正常返回误判成失败（宁少报不误报：本函数只做失败升级，不做成功降级）。
+    """
+    if not isinstance(result, dict):
+        return None
+
+    if result.get("success") is False:
+        return str(
+            result.get("error")
+            or result.get("message")
+            or "handler reported success=false"
+        )[:2000]
+
+    status = result.get("status")
+    if isinstance(status, str):
+        if status.lower() in ("failed", "error"):
+            return str(result.get("error") or f"handler status={status}")[:2000]
+        return None  # 显式给出成功态 status → 不再看 error 字段
+
+    if result.get("success") is True:
+        return None
+
+    error = result.get("error")
+    if error:
+        return str(error)[:2000]
+    return None
+
+
 def execute_scheduled_job(task_id: int):
     """APScheduler 调用入口（REQ-a42aa4 Batch C 包装：设/清任务上下文后执行）。
 
@@ -111,8 +152,11 @@ def _execute_scheduled_job_impl(task_id: int):
             # → scheduler_tasks.last_status 假成功、真实失败只藏在 runs.result 内层。
             # 现在以外层内层 result.status 为准：status=='failed' → 外层也记 failed。
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-            inner_failed = isinstance(result, dict) and result.get('status') == 'failed'
-            error = result.get('error') if inner_failed else None
+            # P0-B（2026-09-10 w-23c70356）：原判定只认 status=='failed'，漏掉
+            # "success: false" 风格的 handler（market_perception_daily 正是这种）→ 统一
+            # 走 classify_job_result（与 webhook 路径共用同一口径，见 scheduler_webhook.py）。
+            error = classify_job_result(result)
+            inner_failed = error is not None
             # REQ-a42aa4 Batch C：Job 内层失败结构化上报 Agent OS（此前该路径无 ERROR
             # 日志，真实失败只躺在 scheduler_runs.result 里 → 主动带 task 上下文上报）。
             if inner_failed and error:

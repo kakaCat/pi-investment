@@ -1121,10 +1121,17 @@ class SchedulerService:
         Returns:
             Result dictionary from the scheduled task
         """
-        from infrastructure.scheduler.market_style_jobs import update_market_style
+        # P1-A 修复（2026-09-10 w-23c70356 审计）：原实现 import
+        # infrastructure.scheduler.market_style_jobs —— 该模块从未存在（git log 无此文件，
+        # 全仓仅此一处引用），命令必然 ModuleNotFoundError。实证：任务 325
+        # market_style_update 2026-09-08/09/10 连续 3 天（近 7 天 4/4）failed，
+        # 耗时 14ms。真实现在 infrastructure/jobs/market_style_update_job.py:execute
+        # （CLI 与调度共用入口，返回 {'success': bool, ...}），与其他 handler（kline_update
+        # / risk_check / weekly_report …）的迁移约定一致。
+        from infrastructure.jobs.market_style_update_job import execute
 
         logger.info("Executing market_style_update command")
-        return update_market_style()
+        return execute(**(params or {}))
 
     def _handle_v13_daily_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute V13 simulation trading daily check.

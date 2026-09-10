@@ -6,6 +6,10 @@
 - P2: 全市场其他股票（低优先级，可选）
 
 2026-09-02: 创建，减少数据源压力
+
+⚠️ 状态（2026-09-10 w-23c70356 审计）：本模块当前**无任何调用方**（全仓 grep 仅
+   自引用），属未接线/潜在死代码；内部 SQL 的无效列已修（见 build_priority_query），
+   保留待接线或后续评估删除 —— 接线前请先确认 P0/P1/P2 分层同步策略是否仍需要。
 """
 import logging
 from typing import List, Tuple, Set
@@ -147,10 +151,15 @@ def build_priority_query(scope: str, specific_symbols=None, priority_levels=None
                       AND symbols IS NOT NULL
                 ),
                 recent_symbols AS (
+                    -- P1-B 修复（2026-09-10 w-23c70356 审计）：原用 updated_at ——
+                    -- quant.daily_klines 没有该列（实际列：symbol, trade_date, open, high,
+                    -- low, close, volume, amount, turnover_rate, remark, source），
+                    -- 该 SQL 一旦被调用必报 column "updated_at" does not exist。改按
+                    -- trade_date 取最近 7 个自然日的 K 线作为"近期活跃"近似。
                     SELECT DISTINCT symbol
                     FROM quant.daily_klines
-                    WHERE updated_at >= NOW() - INTERVAL '7 days'
-                    ORDER BY updated_at DESC
+                    WHERE trade_date >= CURRENT_DATE - INTERVAL '7 days'
+                    ORDER BY symbol
                     LIMIT 500
                 ),
                 prioritized_stocks AS (

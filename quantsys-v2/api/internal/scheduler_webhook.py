@@ -210,11 +210,29 @@ async def execute_job(handler: Callable, payload: WebhookPayload):
             logger.debug(f"Executing sync handler for {payload.job_name} in threadpool")
             result = await run_in_threadpool(handler, payload.metadata)
 
-        status = "success"
-        error_msg = None
-        logger.info(
-            f"Job '{payload.job_name}' succeeded (run_id={run_id}): {result}"
-        )
+        # P0-B 修复（2026-09-10 w-23c70356 审计）：此前无论 handler 返回什么，这里都硬编码
+        # status="success" —— handler 用 {"success": False, "error": ...} 报告内部失败时
+        # （不抛异常），run 记录仍写 success，真实失败只躺在 scheduler_runs.result 里。
+        # 实证：market_perception_daily 2026-09-07~09-10 连败 4 天（AttributeError），
+        # 4 条 run 全 success，看门狗 v2_health_check 全程报 ok。现以内层结果为准，
+        # 判定口径与 APScheduler 路径共用 classify_job_result（避免两套口径再次漂移）。
+        from infrastructure.scheduler.job_executor import classify_job_result
+
+        inner_error = classify_job_result(result)
+        if inner_error is None:
+            status = "success"
+            error_msg = None
+            logger.info(
+                f"Job '{payload.job_name}' succeeded (run_id={run_id}): {result}"
+            )
+        else:
+            status = "failed"
+            error_msg = inner_error
+            # 结构化 ERROR 日志：Agent OS 错误上报据此带 task 上下文入库
+            logger.error(
+                f"Job '{payload.job_name}' inner failed (run_id={run_id}): "
+                f"{inner_error}; result={result}"
+            )
     except Exception as e:
         logger.exception(f"Job '{payload.job_name}' failed (run_id={run_id})")
         status = "failed"
@@ -313,12 +331,17 @@ async def _write_run_to_database(
         )
         repo.disable_task(task_id)
 
-    run_db_id = repo.create_run(task_id)
+    # P0-C 修复（2026-09-10 w-23c70356 审计）：本函数收下的 started_at/completed_at
+    # 原先是死参数（从未使用），run 记录的两个时间戳都由 repo 内部 now() 生成 ——
+    # webhook 路径是"先跑完再写库"，于是 duration_ms 只剩写库开销（恒 3~15ms），
+    # 任务真实耗时（0.16s / 3.3s / 数分钟）在 run 表里全部丢失。现如实回传。
+    run_db_id = repo.create_run(task_id, started_at=started_at)
     repo.complete_run(
         run_db_id,
         success=(status == "success"),
         result=result,
         error=error_msg,
+        completed_at=completed_at,
     )
     logger.debug(f"Wrote run record to database: run_id={run_id}, task_id={task_id}")
 

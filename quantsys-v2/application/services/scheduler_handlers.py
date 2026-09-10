@@ -10,6 +10,7 @@ in the appropriate layers.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Dict
 
@@ -150,18 +151,30 @@ async def handle_market_perception_daily(metadata: Dict[str, Any]) -> Dict[str, 
     try:
         service = MarketPerceptionService()
         
-        # Execute regime daily snapshot
-        regime_result = await service.regime_daily()
-        logger.info(f"Regime snapshot completed: {regime_result.get('regime')}")
-        
-        # Note: sentiment and theme updates are triggered by regime_daily internally
-        # or via separate API calls if needed
-        
+        # P0-A 修复（2026-09-10 w-23c70356 审计）：原实现调 service.regime_daily() ——
+        # MarketPerceptionService 没有该方法（只有 run_daily_snapshot），导致本任务
+        # 2026-09-07~09-10 连续 4 个工作日空转（AttributeError，耗时 3~10ms），而 run
+        # 记录仍被写成 success（see P0-B 修复）。run_daily_snapshot 一步完成 M1-3 情绪 →
+        # M1-1 regime → M1-2 主线，且为同步阻塞方法（DB+计算），必须丢线程池执行，
+        # 否则会卡住 webhook 事件循环（本文件其他 handler 均为 async I/O）。
+        snapshot = await asyncio.to_thread(service.run_daily_snapshot)
+
+        logger.info(
+            "market_perception_daily completed: trade_date=%s success=%s "
+            "all_steps_success=%s failed_steps=%s",
+            snapshot.get("trade_date"),
+            snapshot.get("success"),
+            snapshot.get("all_steps_success"),
+            snapshot.get("failed_steps"),
+        )
+
         return {
-            "success": True,
-            "regime": regime_result.get("regime"),
-            "date": regime_result.get("date"),
-            "message": "M1 market perception daily snapshot completed"
+            "success": bool(snapshot.get("success")),
+            "trade_date": snapshot.get("trade_date"),
+            "all_steps_success": snapshot.get("all_steps_success"),
+            "failed_steps": snapshot.get("failed_steps"),
+            "steps": snapshot.get("steps"),
+            "message": "M1 market perception daily snapshot completed",
         }
     except Exception as e:
         logger.error(f"market_perception_daily failed: {e}", exc_info=True)
