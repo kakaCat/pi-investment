@@ -285,22 +285,14 @@ def _send_quality_alerts(alerts: list, summary: dict, d_grade_count: int, backfi
 
         message = "\n".join([line for line in message_lines if line])
 
-        # 写入 system_logs
-        from infrastructure.persistence.orm.config import get_session
-        from sqlalchemy import text
-
-        session = get_session()
-        session.execute(text("""
-            INSERT INTO system_logs (level, source, message, created_at)
-            VALUES (:level, :source, :message, NOW())
-        """), {
-            'level': 'WARNING' if any(a['level'] == 'warning' for a in alerts) else 'ERROR',
-            'source': 'data_quality_check',
-            'message': message,
-        })
-        session.commit()
-
-        logger.info(f"质量告警已记录到 system_logs: {len(alerts)} 项问题")
+        # 质量告警已记录到日志（structlog）
+        # TODO: 如需持久化告警到数据库，需先创建 system_logs 表
+        logger.warning(
+            "data_quality_alert",
+            alert_count=len(alerts),
+            score=summary.get('data_quality_score', 0),
+            message=message
+        )
 
     except Exception as e:
         logger.error(f"发送质量告警失败: {e}")

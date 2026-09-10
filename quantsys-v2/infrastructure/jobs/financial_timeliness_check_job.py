@@ -161,18 +161,14 @@ cd /Users/yunpeng/pi-investment/quantsys-v2
 python -m infrastructure.jobs.financial_data_update_job --report-date {check_result['expected_report_date'].replace('-', '')}
 """
 
-        # 写入 system_logs
-        from infrastructure.persistence.orm.config import get_session
-        from sqlalchemy import text
-
-        session = get_session()
-        session.execute(text("""
-            INSERT INTO system_logs (level, source, message, created_at)
-            VALUES ('WARNING', 'financial_timeliness_check', :message, NOW())
-        """), {'message': message})
-        session.commit()
-
-        logger.info("财报时效性告警已记录到 system_logs")
+        # 财报时效性告警已记录到日志（structlog）
+        # TODO: 如需持久化告警到数据库，需先创建 system_logs 表
+        logger.warning(
+            "financial_timeliness_alert",
+            symbol=check_result['symbol'],
+            expected_date=check_result['expected_report_date'],
+            message=message
+        )
 
     except Exception as e:
         logger.error(f"发送时效性告警失败: {e}")
