@@ -11,6 +11,28 @@ import (
 // 回归：v2 合法 structlog JSON 但 level=info/warning 的行不得被当错误入库
 // （曾因掉进非结构化正则，JSON 内容里 critical/error 子串误命中——all_critical_ok、
 // "Error 61 connecting"、event 文案 CRITICAL——把启动 INFO 噪音抓成错误事件）。
+// 回归（2026-09-10，w-8f2c4cc5）：任务汇总行只有在载荷显式标记失败时才收为错误，
+// 且真正失败的任务行不得被误滤（保证过滤没有把信号一起滤掉）。
+func TestClassifyLogLine_JobSummaryFailureSemantics(t *testing.T) {
+	shouldReject := []string{
+		`Job 'market_perception_daily' succeeded (run_id=x): {'status': 'success', 'steps': 3, 'failed_steps': []}`,
+	}
+	for _, ln := range shouldReject {
+		if msg, ok := classifyLogLine(ln, "v2"); ok {
+			t.Errorf("全绿任务回执行被误收为错误: msg=%q", msg)
+		}
+	}
+	shouldAccept := []string{
+		`Job 'market_perception_daily' succeeded (run_id=x): {'success': False, 'error': "'MarketPerceptionService' object has no attribute 'regime_daily'"}`,
+		`Job 'filter_a' failed (run_id=y): {'status': 'failed', 'error': 'boom'}`,
+	}
+	for _, ln := range shouldAccept {
+		if _, ok := classifyLogLine(ln, "v2"); !ok {
+			t.Errorf("真实失败任务行被误滤: %s", ln)
+		}
+	}
+}
+
 func TestClassifyLogLine_RejectsInfoWarningJSON(t *testing.T) {
 	cases := []string{
 		// 真实噪音行 1：all_critical_ok 含 critical 子串
@@ -33,7 +55,12 @@ func TestClassifyLogLine_RejectsInfoWarningJSON(t *testing.T) {
 		`决策打分完成: {'scanned': 0, 'scored': 0, 'errors': 0}`,
 		`batch summary: processed=12 error_count: 0 failed: 0`,
 		`任务完成: 失败=0 errors=0`,
+		// 事件 764bb312 / c448196b 回归：scheduler_webhook 的 INFO 级任务回执行，载荷里
+		// 的键名/空数组（strategy_errors、failed）会误触 v2ErrRe
+		`Job 'signal_generate_sell' succeeded (run_id=30a54799-c015-43c4-ae92-d0dcaa593ef4): {'action': 'signal_generate', 'status': 'success', 'universe_size': 142, 'strategy_errors': [], 'signals_saved': 6}`,
+		`Job 'pool_refresh_daily' succeeded (run_id=abc): {'action': 'pool_refresh', 'status': 'partial', 'failed': [], 'updated': 12}`,
 	}
+
 	for _, ln := range cases {
 		if msg, ok := classifyLogLine(ln, "v2"); ok {
 			t.Errorf("info/warning 行被误收为 error: ok=true msg=%q line=%s", msg, ln)

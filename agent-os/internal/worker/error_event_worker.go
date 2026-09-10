@@ -294,6 +294,18 @@ var zeroErrorMetricRe = regexp.MustCompile(`(?i)(['"]?(?:errors?|error_count|exc
 // （保留 traceback 锚点，回归用例 TestClassifyLogLine_AcceptsError 仍覆盖该行）。
 var tracebackContinuationRe = regexp.MustCompile(`^(?:raise\s+[\w\.]+|self\.[\w\.]+\(|File "|During handling of the above exception|\(Background on this error at:)`)
 
+// jobSummarySucceededRe 调度器任务执行回执行（scheduler_webhook:
+// "Job 'x' succeeded (run_id=...): {...}"，INFO 级）。这类行本身是"任务跑完了"的
+// 常规回执，载荷里的键名（strategy_errors / failed / error）会误触 v2ErrRe 被收成错误。
+// 实证（2026-09-10，w-8f2c4cc5）：事件 764bb312 / c448196b 均为 "Job '...' succeeded"
+// 行——前者载荷 {'success': False, ...}，后者载荷 {'strategy_errors': []} 全绿，两者
+// 都被 v2ErrRe 的空子串 pattern 命中，板上凭空多出 2 条"错误"。
+var jobSummarySucceededRe = regexp.MustCompile(`Job '[^']*' succeeded \(run_id=`)
+
+// jobSummaryFailureRe 载荷里显式的失败标记：只有命中它才保留汇总行为错误
+// （success=False / status=failed 两种约定，与 v2 侧 classify_job_result 对齐）。
+var jobSummaryFailureRe = regexp.MustCompile(`(?i)('success'\s*:\s*(?:False|false)|"success"\s*:\s*false|'status'\s*:\s*'failed'|"status"\s*:\s*"failed")`)
+
 // classifyLogLine 判定单行 v2/dsh 日志是否应收为 error 事件并提取稳定 msg。
 // 合法结构化 JSON：parseStructuredLogLine 内按 level 白名单（error/fatal/critical/exception）
 // 判定，非 error 级返回 false——绝不拿 JSON 内容去跑非结构化正则。
@@ -308,6 +320,11 @@ func classifyLogLine(ln, source string) (string, bool) {
 	}
 	// traceback 续行（栈帧回显）单独成事件无信息量，见 tracebackContinuationRe 注释
 	if tracebackContinuationRe.MatchString(trimmed) {
+		return "", false
+	}
+	// 任务回执行（INFO 级）本身不是错误，见 jobSummarySucceededRe 注释；
+	// 只有载荷显式标记失败（success=False / status=failed）才继续按错误处理。
+	if jobSummarySucceededRe.MatchString(trimmed) && !jobSummaryFailureRe.MatchString(ln) {
 		return "", false
 	}
 	re := errorLineRe(source)
