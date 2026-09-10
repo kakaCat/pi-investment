@@ -7,15 +7,13 @@
 
 - /api/orders/create 已返回 410 Gone（2026-08-25 废弃），相关测试已移除。
 - 新交易走 /api/simulation/accounts/{account_name}/trade，覆盖见 test_api_smoke.py。
-- 新持仓/汇总走 /api/portfolio/positions|summary（需 account_name），见 simulation 域测试。
+- 持仓/汇总走 /api/simulation/accounts/{account_name}（2026-09-10 起 /api/portfolio/positions|summary 已删除），见 simulation 域测试。
 """
 from tests.migration.parity import assert_parity
 
 ORDERS_LIST = "/api/orders/list"
 ORDER_DETAIL = "/api/orders/detail/999999"
 TRADES = "/api/trades/list"
-POSITIONS = "/api/portfolio/positions"
-SUMMARY = "/api/portfolio/summary"
 HISTORY = "/api/portfolio/history"
 HOLDINGS = "/api/portfolio/holdings"
 ALLOCATION = "/api/portfolio/allocation"
@@ -32,14 +30,6 @@ def test_order_detail_not_found(fastapi_client):
 
 def test_trades_list(fastapi_client):
     assert_parity(fastapi_client, "GET", TRADES, params={"page": 1, "pageSize": 5})
-
-
-def test_positions(fastapi_client):
-    assert_parity(fastapi_client, "GET", POSITIONS)
-
-
-def test_summary(fastapi_client):
-    assert_parity(fastapi_client, "GET", SUMMARY)
 
 
 def test_history(fastapi_client):

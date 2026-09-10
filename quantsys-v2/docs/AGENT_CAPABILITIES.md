@@ -468,8 +468,7 @@ PUT /api/orders/<order_id>/cancel
 
 **持仓查询**
 ```http
-GET /api/portfolio/positions
-GET /api/portfolio/summary
+GET /api/simulation/accounts/<account_name>   # 持仓+汇总（真名+实时价；/api/portfolio/positions|summary 已于 2026-09-10 删除）
 GET /api/portfolio/history
 ```
 

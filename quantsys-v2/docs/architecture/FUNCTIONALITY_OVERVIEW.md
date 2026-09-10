@@ -338,7 +338,7 @@ GET  /alerts           风险预警列表
 
 **API 端点** (前缀 `/api`)：
 ```
-GET  /portfolio/positions    当前持仓
+GET  /simulation/accounts/{account}  当前持仓+汇总（/portfolio/positions 已于 2026-09-10 删除）
 GET  /portfolio/history      持仓历史
 POST /orders                 下单
 GET  /orders                 订单列表

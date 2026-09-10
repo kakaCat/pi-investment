@@ -7,7 +7,7 @@ W3: API 端点冒烟测试
 - /api/memory (POST)
 - /api/market/sectors (GET)
 - /api/market/sector/{name} (GET)
-- /api/portfolio/positions (GET)
+- /api/simulation/accounts/{account_name} (GET)（持仓+汇总，2026-09-10 起替代已删除的 /api/portfolio/positions|summary）
 - /api/simulation/accounts/{account_name}/trade (POST) - sell 校验路径（新 API）
 - /api/backtest/run (POST)
 - /api/risk/metrics (GET)
@@ -56,9 +56,9 @@ def test_market_sector_detail():
     assert response.status_code in [200, 404]
 
 def test_portfolio_positions():
-    """测试持仓列表接口"""
-    response = requests.get(f"{BASE_URL}/api/portfolio/positions")
-    assert response.status_code != 500, f"portfolio/positions 返回 500: {response.text}"
+    """测试持仓+账户状态接口（/api/portfolio/positions 已于 2026-09-10 删除，打 successor 端点）"""
+    response = requests.get(f"{BASE_URL}/api/simulation/accounts/agent_virtual")
+    assert response.status_code != 500, f"simulation/accounts 返回 500: {response.text}"
     data = response.json()
     assert "success" in data or "positions" in data or "error" in data
 
