@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/pi-investment/agent-os/internal/domain"
 )
@@ -213,6 +214,23 @@ func (r *errorEventRepository) GetByID(ctx context.Context, id string) (*domain.
 	return e, nil
 }
 
+// validateActionNote P1（2026-09-10 w-f4aa1f6a）：resolve/ignore 必须带结构化处置结论 note（≥10 字），
+// 防止"我解决了"式空话占位——结论供页面展示，也是复开判伪的责任依据。
+func validateActionNote(action, note string) error {
+	if action != "resolve" && action != "ignore" {
+		return nil
+	}
+	n := strings.TrimSpace(note)
+	what := "处置结论（格式：根因+动作+证据，如：根因=3.13移除timeout参数；动作=thread_pool.py改cancel_futures；证据=go test PASS）"
+	if action == "ignore" {
+		what = "忽略理由（为何误报/无需处置）"
+	}
+	if utf8.RuneCountInString(n) < 10 {
+		return fmt.Errorf("note 校验失败：%s 必须填写%s（≥10 字，当前 %d 字）", action, what, utf8.RuneCountInString(n))
+	}
+	return nil
+}
+
 // ApplyAction 状态流转（事务内 SELECT FOR UPDATE → 状态机校验 → 更新）
 func (r *errorEventRepository) ApplyAction(ctx context.Context, id string, req domain.ErrorEventActionRequest) (*domain.ErrorEvent, string, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -249,6 +267,9 @@ func (r *errorEventRepository) ApplyAction(ctx context.Context, id string, req d
 		if e.Status != string(domain.ErrorStatusProcessing) && e.Status != string(domain.ErrorStatusOpen) {
 			return nil, "", fmt.Errorf("状态机不允许：当前状态 %s 不可 resolve（仅 open/processing 可解决）", e.Status)
 		}
+		if err := validateActionNote("resolve", req.Note); err != nil {
+			return nil, "", err
+		}
 		var note *string
 		if req.Note != "" {
 			note = &req.Note
@@ -261,6 +282,9 @@ func (r *errorEventRepository) ApplyAction(ctx context.Context, id string, req d
 	case "ignore":
 		if e.Status == string(domain.ErrorStatusResolved) {
 			return nil, "", fmt.Errorf("状态机不允许：已解决事件不可忽略")
+		}
+		if err := validateActionNote("ignore", req.Note); err != nil {
+			return nil, "", err
 		}
 		var note *string
 		if req.Note != "" {

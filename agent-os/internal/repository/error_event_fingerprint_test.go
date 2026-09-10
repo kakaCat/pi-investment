@@ -39,3 +39,27 @@ func TestNormalizeMsg_JSONKeepsSemanticKeys(t *testing.T) {
 		t.Fatalf("归一应删 trace_id: %s", n)
 	}
 }
+
+// P1 note 必填校验（2026-09-10 w-f4aa1f6a）
+func TestValidateActionNote(t *testing.T) {
+	cases := []struct {
+		action, note string
+		wantErr      bool
+	}{
+		{"resolve", "", true},
+		{"resolve", "已解决", true},            // 空话：3 字 < 10
+		{"resolve", "根因=x;动作=y", true},     // 9 字仍不足
+		{"resolve", "根因=3.13移除timeout；动作=改cancel_futures；证据=pytest过", false},
+		{"ignore", "", true},
+		{"ignore", "误报，无需处理", true},     // 8 字不足
+		{"ignore", "误报：该告警源自测试环境数据，线上无影响", false},
+		{"claim", "", false},                   // claim 不要求 note
+		{"reopen", "", false},                  // reopen 不要求 note
+	}
+	for _, c := range cases {
+		err := validateActionNote(c.action, c.note)
+		if (err != nil) != c.wantErr {
+			t.Errorf("validateActionNote(%q, %q) err=%v, wantErr=%v", c.action, c.note, err, c.wantErr)
+		}
+	}
+}

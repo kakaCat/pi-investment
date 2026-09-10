@@ -142,6 +142,8 @@ func (h *ErrorEventHandler) Update(w http.ResponseWriter, r *http.Request) {
 		lower := strings.ToLower(err.Error())
 		if strings.Contains(lower, "not found") {
 			status = http.StatusNotFound
+		} else if strings.Contains(err.Error(), "note 校验失败") {
+			status = http.StatusBadRequest
 		} else if strings.Contains(lower, "状态机") || strings.Contains(lower, "未知动作") {
 			status = http.StatusConflict
 		}
