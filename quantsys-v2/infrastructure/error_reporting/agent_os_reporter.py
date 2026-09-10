@@ -49,6 +49,37 @@ _DEFAULT_INGEST = "http://127.0.0.1:8080/api/v1/scheduler/error-events"
 _SOURCE = "v2"
 _SELF_PREFIX = "infrastructure.error_reporting"
 
+# ---------------- 测试/CI 隔离（P0，2026-09-10 w-8f2c4cc5） ----------------
+# 背景：install() 把 ERROR Handler 挂到根 logger 后，**pytest 全量跑一遍会把测试夹具里
+# 刻意触发的错误当作生产错误灌进 Agent OS 错误看板**：2026-09-10 15:30 / 22:29-22:34 /
+# 23:31 三次跑批共上报 441 条 open 事件、覆盖 49 个消息族（boom / fake-task /
+# tests.mocks / InvalidClassName / quant.secret_table / eastmoney reset 等全部可在
+# tests/ 目录找到对应夹具），占当日 open 事件 96%——生产错误看板被测试噪音淹没，
+# 真实故障（如 ml_models 缺陷）反而被埋在下面。
+# 规则：pytest 进程内一律不上报；需要验证上报链路本身的测试显式开
+# AGENT_OS_ERROR_REPORT_FORCE=1。
+_FORCE_ENV = "AGENT_OS_ERROR_REPORT_FORCE"
+_OFF_ENV = "AGENT_OS_ERROR_REPORTING"
+_TRUTHY = ("1", "true", "yes", "on")
+
+
+def _pytest_running() -> bool:
+    """判断当前进程是否 pytest 运行（PYTEST_CURRENT_TEST 由 pytest 每个测试设置）。"""
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        return True
+    if os.getenv("PYTEST_VERSION") or os.getenv("PYTEST_ADDOPTS"):
+        return True
+    return "pytest" in sys.modules
+
+
+def reporting_disabled() -> bool:
+    """是否抑制上报（测试隔离优先于显式关闭）。FORCE 仅用于测试上报链路本身。"""
+    if os.getenv(_FORCE_ENV, "").strip().lower() in _TRUTHY:
+        return False
+    if os.getenv(_OFF_ENV, "").strip().lower() in ("off", "0", "false", "no"):
+        return True
+    return _pytest_running()
+
 log = logging.getLogger(_SELF_PREFIX + ".agent_os_reporter")
 
 # ---------------- 异步发送（队列 + 单 daemon 线程） ----------------
@@ -208,7 +239,7 @@ def report_event(msg: str, *, detail: Optional[str] = None, level: str = "error"
                  task_id: Optional[Any] = None, task_name: Optional[str] = None,
                  logger_name: Optional[str] = None, metadata: Optional[dict] = None) -> None:
     """主动上报一条结构化错误事件（不依赖日志路径）。"""
-    if os.getenv("AGENT_OS_ERROR_REPORTING") == "off":
+    if reporting_disabled():
         return
     _ensure_worker()
     _enqueue(msg, detail=detail, level=level, task_id=task_id, task_name=task_name,
@@ -241,6 +272,8 @@ class AgentOSErrorLogHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord) -> None:  # noqa: D401 —— logging 要求
         try:
+            if reporting_disabled():
+                return
             if record.name.startswith(_SELF_PREFIX):
                 return
             now = time.monotonic()
@@ -305,7 +338,8 @@ _install_lock = threading.Lock()
 def install(level: int = logging.ERROR) -> bool:
     """把 Handler 挂到根 logger（幂等）。返回是否本次新装。"""
     global _installed
-    if os.getenv("AGENT_OS_ERROR_REPORTING") == "off":
+    if reporting_disabled():
+        log.info("Agent OS 结构化错误上报已抑制（测试进程或显式关闭）")
         return False
     with _install_lock:
         if _installed:

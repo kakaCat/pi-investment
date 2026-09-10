@@ -16,17 +16,36 @@ logger = structlog.get_logger(__name__)
 
 # ==================== MLModel ====================
 class MLModel(Base):
-    """机器学习模型ORM"""
+    """机器学习模型ORM（对齐线上 quant.ml_models 真实结构）
+
+    2026-09-10 修复（错误事件 ffc221de 根因，w-8f2c4cc5）：原声明 model_name /
+    model_version / model_data / accuracy / created_at 五列在线上表中**不存在**，
+    而 __table_args__ 用了 extend_existing=True —— 同名 Table 已存在时会**把不存在的
+    列追加到该 Table 对象**上，污染 ml_model_repository.MlModel.__table__；后者
+    _to_dict 遍历 table.columns 取值时撞上未被映射的 model_name →
+    AttributeError → /api/ml/models 恒返回空且日志持续刷错（launchd-stdout.log）。
+    现按线上表列对齐（与 ml_model_repository.MlModel 列集完全一致，杜绝同名表分叉）。
+    """
     __tablename__ = 'ml_models'
     __table_args__ = {'schema': 'quant', 'extend_existing': True}
 
-    id = Column(BigInteger, primary_key=True)
-    model_name = Column(String(100))
+    id = Column(Integer, primary_key=True)
     model_type = Column(String(50))
-    model_version = Column(String(20))
-    model_data = Column(JSON)
-    accuracy = Column(Float)
-    created_at = Column(DateTime)
+    version = Column(String(50))
+    model_path = Column(Text)
+    train_accuracy = Column(Float)
+    test_accuracy = Column(Float)
+    precision = Column(Float)
+    recall = Column(Float)
+    f1_score = Column(Float)
+    roc_auc = Column(Float)
+    feature_count = Column(Integer)
+    train_samples = Column(Integer)
+    feature_importance = Column(Text, default='{}')
+    training_params = Column(Text, default='{}')
+    training_report = Column(Text, default='{}')
+    status = Column(String(20), default='ready')
+    train_date = Column(DateTime(timezone=True))
 
 
 class MLModelAsyncRepository(AsyncBaseORMRepository[MLModel]):
@@ -46,8 +65,10 @@ class MLModelAsyncRepository(AsyncBaseORMRepository[MLModel]):
                 models = await self.find_by_condition(model_type=model_type)
             else:
                 models = await self.list_all(limit=limit)
-            return [{'id': m.id, 'model_name': m.model_name, 'model_type': m.model_type,
-                     'accuracy': m.accuracy} for m in models]
+            return [{'id': m.id, 'model_type': m.model_type, 'version': m.version,
+                     'test_accuracy': m.test_accuracy, 'status': m.status,
+                     'train_date': m.train_date.isoformat() if m.train_date else None}
+                    for m in models]
         except Exception as e:
             logger.error(f"Error getting models: {e}")
             return []

@@ -158,11 +158,16 @@ def _execute_scheduled_job_impl(task_id: int):
             )
 
     finally:
-        # 7. 清理数据库连接（防止泄漏）
-        try:
-            session.close()
-        except Exception as e:
-            logger.error(f"Failed to close session: {e}")
+        # 7. 清理数据库连接（防止泄漏）——best-effort：session 可能为 None（建会话即失败）
+        #    或测试替身（无 close 方法），缺 close() 不构成错误。
+        #    2026-09-10 w-8f2c4cc5：原实现把 AttributeError（'object' object has no
+        #    attribute 'close'）打成 ERROR 级日志并被上报到错误看板，属纯噪音。
+        _close = getattr(session, "close", None)
+        if callable(_close):
+            try:
+                _close()
+            except Exception as e:
+                logger.warning(f"Failed to close session: {e}")
 
 
 def _execute_command(command: str, params: Dict[str, Any]) -> Dict[str, Any]:

@@ -26,6 +26,27 @@ class _FakeRun:
         self.duration_ms = None
 
 
+class _FakeSession:
+    """最小可用假会话。
+
+    job_executor 在失败分支与 finally 清理里会调用 session.rollback()/close()
+    （Fix 2026-09-05 止血、2026-09-10 best-effort 清理），原来用 object() 顶替
+    → 测试自身抛 AttributeError，既让 3 个用例长期失败，又把 ERROR 级日志上报到
+    生产错误看板（事件族 Failed to close session: 'object' object has no
+    attribute 'close'，w-8f2c4cc5 2026-09-10 定位）。
+    """
+
+    def __init__(self):
+        self.rollbacks = 0
+        self.closed = False
+
+    def rollback(self):
+        self.rollbacks += 1
+
+    def close(self):
+        self.closed = True
+
+
 class _FakeRepo:
     """记录 complete_run 调用的假仓库"""
 
@@ -59,7 +80,7 @@ def _patch_execute(monkeypatch, return_value):
     import adapters.outbound.repositories.scheduler_repository as sched_repo_mod
     monkeypatch.setattr(sched_repo_mod, "SchedulerRepository", lambda session: repo)
     import infrastructure.persistence.orm as orm_mod
-    monkeypatch.setattr(orm_mod, "get_session", lambda: object())
+    monkeypatch.setattr(orm_mod, "get_session", _FakeSession)
     return repo
 
 
