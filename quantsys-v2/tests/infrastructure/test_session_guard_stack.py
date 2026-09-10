@@ -75,3 +75,80 @@ def test_guard_disabled_no_tracking():
     session = _FakeSession()
     session_guard.track_session_creation(session)
     assert session_guard._session_registry == {}
+
+# ---------------------------------------------------------------- 误报治理（2026-09-11）
+
+class _IdleSession:
+    """空闲会话替身：无活动事务（等价于已 close 但被线程本地注册表强引用）"""
+
+    def __init__(self):
+        self.rollback_called = False
+        self.close_called = False
+
+    def in_transaction(self):
+        return False
+
+    is_active = False
+
+    def rollback(self):
+        self.rollback_called = True
+
+    def close(self):
+        self.close_called = True
+
+
+class _TxSession(_IdleSession):
+    """仍握着活动事务的会话替身（真泄漏）"""
+
+    def in_transaction(self):
+        return True
+
+    is_active = True
+
+
+def _expire(session):
+    session_guard.track_session_creation(session)
+    session_guard._session_registry[id(session)]['created_at'] -= 10_000
+
+
+def test_idle_session_not_reported_as_leak():
+    """无活动事务的会话只注销，不算泄漏、不做跨线程 rollback（线上 995 次误报的主要来源）"""
+    import time
+
+    s = _IdleSession()
+    _expire(s)
+    stats = session_guard._scan_and_clean(time.time())
+
+    assert stats['idle_unregistered'] == 1, stats
+    assert stats['cleaned'] == 0 and stats['failed'] == 0, stats
+    assert id(s) not in session_guard._session_registry
+    assert s.rollback_called is False, "guard 不应跨线程回滚空闲会话"
+
+
+def test_dead_weakref_pruned_without_noise():
+    """弱引用已死（对象被 GC）→ 直接注销，不报泄漏（占线上 44%）"""
+    import gc
+    import time
+
+    s = _IdleSession()
+    _expire(s)
+    del s
+    gc.collect()
+
+    stats = session_guard._scan_and_clean(time.time())
+    assert stats['dead_pruned'] == 1, stats
+    assert stats['idle_unregistered'] == 0 and stats['cleaned'] == 0, stats
+    assert session_guard._session_registry == {}
+
+
+def test_live_transaction_session_still_reported_and_cleaned():
+    """仍握着活动事务的会话是真泄漏：保留止血（rollback+close）并报 error"""
+    import time
+
+    s = _TxSession()
+    _expire(s)
+    stats = session_guard._scan_and_clean(time.time())
+
+    assert stats['cleaned'] == 1, stats
+    assert s.rollback_called is True and s.close_called is True
+    assert id(s) not in session_guard._session_registry

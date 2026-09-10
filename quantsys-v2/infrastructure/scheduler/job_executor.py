@@ -213,6 +213,16 @@ def _execute_scheduled_job_impl(task_id: int):
             except Exception as e:
                 logger.warning(f"Failed to close session: {e}")
 
+        # 2026-09-11（w-8f2c4cc5）：仅 session.close() 不够——会话仍留在 scoped_session
+        # 的线程本地注册表里（强引用），线程被线程池复用时该条目永久滞留，5 分钟后被
+        # session_guard 判为泄漏（线上 995 次 session_leak_detected 中约 1/3 出自
+        # ThreadPoolExecutor-0_* 调度线程即此形态）。close_session() 会 remove() 掉它。
+        try:
+            from infrastructure.persistence.orm import close_session
+            close_session()
+        except Exception as e:
+            logger.warning(f"Failed to deregister thread session: {e}")
+
 
 def _execute_command(command: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """

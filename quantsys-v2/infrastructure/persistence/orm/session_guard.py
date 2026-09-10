@@ -107,71 +107,123 @@ def track_session_close(session):
         _session_registry.pop(session_id, None)
 
 
+def _scan_and_clean(now: float) -> Dict[str, int]:
+    """扫描注册表：注销无主/空闲条目，只对仍握着活动事务的 Session 报泄漏。
+
+    返回计数 {dead_pruned, idle_unregistered, cleaned, failed}。
+
+    2026-09-11（investor / w-8f2c4cc5）根因修复。线上 995 次 session_leak_detected 构成：
+      · 438 次（44%）弱引用已死（Session 早被 GC）却仍被判泄漏 → 纯误报；
+      · 其余大量"清理成功"并非真泄漏：代码直接调 session.close()（如 job_executor.finally）时，
+        scoped_session 的线程本地注册表仍强引用该对象 → 弱引用存活 → 5 分钟后被判泄漏，
+        且清理在 guard 线程里对"属于工作线程的同一对象"执行 rollback——工作线程随后可能
+        已用该会话开启新事务，跨线程 rollback 会打掉正常事务。
+    现判定：弱引用已死 → 注销（误报）；对象存活但无活动事务 → 只注销，不跨线程 rollback
+    （无事务即未持有连接资源）；确有活动事务 → 保留止血（rollback+close）。
+    """
+    leaked = []
+    dead_pruned = 0
+    idle_unregistered = 0
+
+    with _registry_lock:
+        for session_id, info in list(_session_registry.items()):
+            ref = info.get('session')
+            session = ref() if ref else None
+            if session is None:
+                # Session 对象已被 GC：无论是否曾泄漏，现在都不可能还占着资源
+                _session_registry.pop(session_id, None)
+                dead_pruned += 1
+                continue
+
+            age = now - info['created_at']
+            if age <= _timeout_seconds:
+                continue
+
+            in_transaction = False
+            try:
+                in_transaction = bool(session.in_transaction())
+            except Exception:
+                in_transaction = False
+
+            if not in_transaction:
+                # 无活动事务 = 未持有连接/事务资源，只是被线程本地注册表持有
+                _session_registry.pop(session_id, None)
+                idle_unregistered += 1
+                logger.warning(
+                    "session_unregistered_idle",
+                    session_id=session_id,
+                    age_seconds=int(age),
+                    thread_name=info.get('thread_name'),
+                    origin=info.get('origin', 'unknown'),
+                )
+                continue
+
+            leaked.append((session_id, info, age))
+
+    cleaned = 0
+    failed = 0
+    for session_id, info, age in leaked:
+        session_ref = info['session']
+        session = session_ref() if session_ref else None
+
+        logger.error(
+            "session_leak_detected",
+            session_id=session_id,
+            age_seconds=int(age),
+            thread_id=info['thread_id'],
+            thread_name=info['thread_name'],
+            origin=info.get('origin', 'unknown'),  # 创建点（函数@文件:行号）
+            traceback=info['traceback'][:2000]  # 已剔除引导帧，放宽预算
+        )
+
+        if session is not None:
+            try:
+                if session.is_active:
+                    session.rollback()
+                session.close()
+                cleaned += 1
+                logger.info("leaked_session_cleaned", session_id=session_id)
+            except Exception as e:
+                # idle-in-transaction timeout 是预期的（PostgreSQL 已关闭连接）
+                error_msg = str(e)
+                if "idle-in-transaction timeout" in error_msg:
+                    logger.warning(
+                        "leaked_session_already_closed_by_db",
+                        session_id=session_id,
+                        reason="idle_in_transaction_timeout"
+                    )
+                else:
+                    failed += 1
+                    logger.error(
+                        "failed_to_clean_leaked_session",
+                        session_id=session_id,
+                        error=error_msg
+                    )
+
+        with _registry_lock:
+            _session_registry.pop(session_id, None)
+
+    return {
+        'dead_pruned': dead_pruned,
+        'idle_unregistered': idle_unregistered,
+        'cleaned': cleaned,
+        'failed': failed,
+    }
+
+
 def _guard_loop():
     """后台线程：定期检查泄漏的 Session"""
     logger.info("session_guard_started", timeout=_timeout_seconds)
 
     while _guard_enabled:
         try:
-            now = time.time()
-            leaked_sessions = []
-
-            with _registry_lock:
-                for session_id, info in list(_session_registry.items()):
-                    age = now - info['created_at']
-                    if age > _timeout_seconds:
-                        leaked_sessions.append((session_id, info, age))
-
-            # 处理泄漏的 Session
-            for session_id, info, age in leaked_sessions:
-                session_ref = info['session']
-                session = session_ref() if session_ref else None
-
-                logger.error(
-                    "session_leak_detected",
-                    session_id=session_id,
-                    age_seconds=int(age),
-                    thread_id=info['thread_id'],
-                    thread_name=info['thread_name'],
-                    origin=info.get('origin', 'unknown'),  # 创建点（函数@文件:行号）
-                    traceback=info['traceback'][:2000]  # 已剔除引导帧，放宽预算
-                )
-
-                # 尝试清理
-                if session is not None:
-                    try:
-                        if session.is_active:
-                            session.rollback()
-                        session.close()
-                        logger.info(
-                            "leaked_session_cleaned",
-                            session_id=session_id
-                        )
-                    except Exception as e:
-                        # idle-in-transaction timeout 是预期的（PostgreSQL 已关闭连接）
-                        error_msg = str(e)
-                        if "idle-in-transaction timeout" in error_msg:
-                            logger.warning(
-                                "leaked_session_already_closed_by_db",
-                                session_id=session_id,
-                                reason="idle_in_transaction_timeout"
-                            )
-                        else:
-                            logger.error(
-                                "failed_to_clean_leaked_session",
-                                session_id=session_id,
-                                error=error_msg
-                            )
-
-                # 从注册表移除
-                with _registry_lock:
-                    _session_registry.pop(session_id, None)
-
+            stats = _scan_and_clean(time.time())
+            if stats['dead_pruned'] or stats['idle_unregistered']:
+                logger.info("session_guard_scan", **stats)
         except Exception as e:
             logger.error("session_guard_error", error=str(e), exc_info=True)
 
         time.sleep(60)  # 每分钟检查一次
-
 
 def enable_session_guard(timeout: int = 300):
     """启用 Session 泄漏检测
