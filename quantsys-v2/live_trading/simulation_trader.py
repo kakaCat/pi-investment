@@ -376,11 +376,36 @@ class SimulationTrader:
         # ✅ 保存每日快照（按账户隔离，写入 simulation_equity_snapshot）
         self._save_daily_snapshot(total_value, cumulative_return)
 
+    def _should_write_snapshot(self, check_date=None) -> bool:
+        """是否应写入当日净值快照（2026-09-11，w-f4aa1f6a 加守卫）。
+
+        实证：2026-08-08（**周六**）02:00:09，5 个账户在同一秒内被写入快照（值还与周五不同），
+        来源是周六 02:00 的任务链在结算时**无条件**落快照（本文件此前没有任何交易日校验）。
+        非交易日快照会污染下游：risk_metrics 的波动率/alpha/IR 由「相邻快照差分的日收益」算出，
+        凭空多出一天会把跨日涨跌切成两段；基准对齐也会出现「净值有、基准无」的伪缺口。
+
+        校验失败时**仍写入**（宁可多一条，也不丢真正的交易日快照——交易日快照缺失是更难补救的）。
+        """
+        d = check_date or datetime.now().strftime('%Y-%m-%d')
+        try:
+            from application.services.trading_calendar_service import TradingCalendarService
+
+            if not TradingCalendarService().is_trading_day(d):
+                logger.info(f"[{self.account_name}] {d} 非交易日 → 跳过净值快照写入")
+                return False
+            return True
+        except Exception as e:  # noqa: BLE001 - 校验不可用时不阻断结算，按旧行为写入
+            logger.warning(f"[{self.account_name}] 交易日校验失败({e})，按保守策略仍写快照")
+            return True
+
     def _save_daily_snapshot(self, total_value: float, cumulative_return: float):
         """保存每日账户快照到 simulation_equity_snapshot 表（按账户隔离）
 
         修复：旧实现写 quant.account_balance（无账户列），多账户同日互相覆盖。
+        2026-09-11 追加：非交易日不写（见 _should_write_snapshot 的实证说明）。
         """
+        if not self._should_write_snapshot():
+            return
         position_value = total_value - self.cash
         drawdown = (total_value / self.peak_value - 1) if self.peak_value > 0 else 0
         self.repo.upsert_equity_snapshot(
