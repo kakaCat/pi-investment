@@ -36,41 +36,101 @@ export class RiskMetricsTool extends BaseTool<RiskMetricsParams, RiskMetricsResu
    * Phase 2: 执行任务
    */
   protected async execute(args: RiskMetricsParams, _context: ToolContext): Promise<RiskMetricsResult> {
-    const result: any = await this.qv2.getRiskMetrics({
-      account_name: args.account_name || 'agent_virtual',
-      days: args.days || 60,
-    });
+    const days = args.days || 60;
+    const account = args.account_name || 'agent_virtual';
 
-    // 映射后端字段到标准格式（2026-09-04 修复）
-    // curl 实测 POST /api/risk/metrics 返回 camelCase 比率字段：
-    //   sharpeRatio / sortinoRatio / calmarRatio / maxDrawdown / annualReturn /
-    //   annualVolatility / var95 / cvar95 / cumulativeReturn
-    // schema 契约 % 类指标（volatility/max_drawdown/var_95）为百分数 → 比率×100，
-    // 口径统一到 regime_position_limit(-7.72)/m4 熔断(-8 阈值)；
-    // 后端未计算 beta/alpha（需基准输入）→ 保持 0。不再 ...result 透传（避免 camelCase/snake_case 双写混淆）
+    // 1) 账户口径基础指标（拿到 navPoints / returnsSource，用于基准对齐）
+    const base: any = await this.qv2.getRiskMetrics({ account_name: account, days });
+
+    // 2) 2026-09-11 新增（REQ-342799 P1 基准与归因）：
+    //    后端 /api/risk/metrics 支持 benchmark_returns（empyrical 计算 alpha/beta/informationRatio），
+    //    但需要与账户收益序列**等长对齐**——实测传 6 点基准配 55 点净值会得到 beta=0 的假值。
+    //    此处拉沪深300 日收益，按长度尾部对齐后回传，使 beta/alpha 从『恒 0』变为真实值。
+    const attribution = await this.buildAttribution(base, days);
+    const enriched: any = attribution?.benchmark_returns?.length
+      ? await this.qv2.getRiskMetrics({
+          account_name: account,
+          days,
+          benchmark_returns: attribution.benchmark_returns,
+        } as any)
+      : base;
+
+    const betaRaw = enriched?.beta ?? null;
+    const alphaRaw = enriched?.alpha ?? null;
     const pct = (v: any) => {
       const n = Number(v ?? 0);
       return Math.abs(n) <= 1 ? +(n * 100).toFixed(2) : n;
     };
-    const betaRaw = result?.beta ?? result?.betaCoefficient ?? null;
-    const alphaRaw = result?.alpha ?? result?.alphaAnnual ?? null;
     return {
-      volatility: pct(result?.annualVolatility ?? result?.volatility ?? result?.annualizedVolatility ?? 0),
-      max_drawdown: pct(result?.maxDrawdown ?? result?.max_drawdown ?? 0),
-      sharpe_ratio: Number(result?.sharpeRatio ?? result?.sharpe_ratio ?? 0),
+      volatility: pct(enriched?.annualVolatility ?? enriched?.volatility ?? 0),
+      max_drawdown: pct(enriched?.maxDrawdown ?? enriched?.max_drawdown ?? 0),
+      sharpe_ratio: Number(enriched?.sharpeRatio ?? 0),
       beta: Number(betaRaw ?? 0),
       alpha: Number(alphaRaw ?? 0),
-      var_95: pct(result?.var95 ?? result?.var_95 ?? result?.VaR ?? 0),
-      sortino_ratio: Number(result?.sortinoRatio ?? result?.sortino_ratio ?? 0),
-      // 2026-09-11（REQ-342799 数据真实性护栏）：把『未计算』与『真的是 0』区分开，
-      // 避免 0 被当成『无市场相关性 / 无超额收益』这类中性结论使用。
-      beta_note: betaRaw === null ? '后端未计算 beta（无基准输入）——此处 0 表示未计算，不代表无市场相关性' : 'backend_provided',
-      alpha_note: alphaRaw === null ? '后端未计算 alpha（无基准输入）——此处 0 表示未计算，不代表无超额收益' : 'backend_provided',
-      days_requested: args.days || 60,
-      window_note: '2026-09-11 实测：后端 /api/risk/metrics 对 days=30/60/250 返回完全相同的数值（窗口参数未生效），勿假设多窗口可比',
+      var_95: pct(enriched?.var95 ?? enriched?.var_95 ?? 0),
+      sortino_ratio: Number(enriched?.sortinoRatio ?? 0),
+      information_ratio: enriched?.informationRatio ?? null,
+      beta_note: betaRaw === null
+        ? '后端未计算 beta（未提供基准或基准未对齐）——此处 0 表示未计算，不代表无市场相关性'
+        : 'backend_provided（基准=' + (attribution?.benchmark_name ?? '-') + '，' + (attribution?.alignment ?? '-') + '）',
+      alpha_note: alphaRaw === null
+        ? '后端未计算 alpha（无基准输入）——此处 0 表示未计算，不代表无超额收益'
+        : 'backend_provided（年化口径，empyrical）',
+      days_requested: days,
+      window_note: '账户口径为净值序列日收益（returnsSource=' + String(enriched?.returnsSource ?? '?') +
+        '，navPoints=' + String(enriched?.navPoints ?? '?') + '）；后端 days 实际用于取净值快照条数上限',
+      attribution: attribution
+        ? {
+            benchmark_symbol: attribution.benchmark_symbol,
+            benchmark_name: attribution.benchmark_name,
+            benchmark_return_pct: attribution.benchmark_return_pct,
+            portfolio_return_pct: pct(enriched?.cumulativeReturn),
+            excess_return_pct:
+              attribution.benchmark_return_pct === null || enriched?.cumulativeReturn === undefined
+                ? null
+                : +(pct(enriched.cumulativeReturn) - attribution.benchmark_return_pct).toFixed(2),
+            beta: Number(betaRaw ?? 0),
+            alpha_annual_pct: pct(alphaRaw),
+            information_ratio: enriched?.informationRatio ?? null,
+            nav_points: enriched?.navPoints ?? null,
+            alignment: attribution.alignment,
+            note: '超额=组合窗口收益-基准窗口收益；alpha 为年化扣β超额（empyrical）；样本点少时结论仅供参考',
+          }
+        : null,
     };
   }
 
+  /**
+   * 构建基准收益序列并做尾部对齐（2026-09-11，REQ-342799 P1）。
+   * 返回 { benchmark_returns, benchmark_return_pct, alignment, ... }；任一步失败返回 null（不阻塞主指标）。
+   */
+  private async buildAttribution(base: any, days: number): Promise<any | null> {
+    try {
+      const navPoints = Number(base?.navPoints ?? 0);
+      if (!Number.isFinite(navPoints) || navPoints < 5) return null;
+      const end = new Date().toISOString().slice(0, 10);
+      const start = new Date(Date.now() - Math.max(90, days * 2 + 40) * 86400000).toISOString().slice(0, 10);
+      const raw: any = await (this.qv2 as any).getKlines('000300', start, end, 'daily');
+      const rows: any[] = Array.isArray(raw) ? raw : (raw?.klines ?? []);
+      const closes = rows.map((r) => Number(r.close)).filter((n) => Number.isFinite(n) && n > 0);
+      if (closes.length < navPoints + 1) return null;
+      const rets: number[] = [];
+      for (let i = 1; i < closes.length; i++) rets.push(closes[i] / closes[i - 1] - 1);
+      const tail = rets.slice(-navPoints);
+      const tailCloses = closes.slice(-(navPoints + 1));
+      const benchReturn =
+        tailCloses.length >= 2 ? +((tailCloses[tailCloses.length - 1] / tailCloses[0] - 1) * 100).toFixed(2) : null;
+      return {
+        benchmark_returns: tail,
+        benchmark_symbol: '000300',
+        benchmark_name: '沪深300',
+        benchmark_return_pct: benchReturn,
+        alignment: 'tail-aligned by length(navPoints=' + navPoints + ', 基准点数=' + tail.length + ')',
+      };
+    } catch {
+      return null;
+    }
+  }
   /**
    * Phase 3: 包装返回数据
    */

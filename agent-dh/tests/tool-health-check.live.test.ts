@@ -113,6 +113,20 @@ describe.skipIf(!LIVE)('工具数据真实性体检（真实后端）', () => {
     expect(sectorWin?.status).toBe('degraded');
   }, 120000);
 
+  it('risk_metrics：基准（沪深300）接入后 beta/alpha 为真实值，附业绩归因', async () => {
+    const { RiskMetricsTool } = await import('../packages/risk/src/tools/RiskMetricsTool/RiskMetricsTool.js');
+    const tool: any = new RiskMetricsTool(client);
+    const r: any = await tool.execute({ days: 60 }, ctx);
+    console.log('[risk-attrib] beta=' + r.beta + ' alpha=' + r.alpha + ' IR=' + r.information_ratio);
+    console.log('[risk-attrib] ' + JSON.stringify(r.attribution));
+    expect(r.beta_note).toBeTruthy();
+    if (r.attribution) {
+      expect(r.attribution.benchmark_symbol).toBe('000300');
+      expect(String(r.beta_note)).toMatch(/backend_provided/);
+      console.log('[risk-attrib] 组合 ' + r.attribution.portfolio_return_pct + '% vs 基准 ' + r.attribution.benchmark_return_pct + '% → 超额 ' + r.attribution.excess_return_pct + '%');
+    }
+  }, 120000);
+
   it('data_fetch_dividend：只允许"显式失败"或"有效数据"，绝不静默返回全 0', async () => {
     const { DataFetchDividendTool } = await import('../packages/investment/src/tools/DataFetchDividendTool/DataFetchDividendTool.js');
     const tool: any = new DataFetchDividendTool(client);
