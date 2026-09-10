@@ -113,6 +113,19 @@ describe.skipIf(!LIVE)('工具数据真实性体检（真实后端）', () => {
     expect(sectorWin?.status).toBe('degraded');
   }, 120000);
 
+  it('signal_track 写入护栏（真实后端）：非交易日与偏离价必须被拒', async () => {
+    const { SignalTrackTool } = await import('../packages/intelligence/src/tools/SignalTrackTool/SignalTrackTool.js');
+    const tool: any = new SignalTrackTool(client);
+    let eSunday = '';
+    let ePrice = '';
+    try { await tool.execute({ action: 'record', symbol: '600519', price: 1295, source: 'watch_rule', grade: 'C', signal_date: '2026-09-06' }, ctx); } catch (e: any) { eSunday = String(e?.message ?? e); }
+    try { await tool.execute({ action: 'record', symbol: '600519', price: 1850.5, source: 'opportunity_scan', grade: 'A', signal_date: '2026-08-27' }, ctx); } catch (e: any) { ePrice = String(e?.message ?? e); }
+    console.log('[signal-guard] 周日 → ' + (eSunday ? 'REJECT: ' + eSunday.slice(0, 90) : '❌ 被写入了'));
+    console.log('[signal-guard] 偏离价 → ' + (ePrice ? 'REJECT: ' + ePrice.slice(0, 90) : '❌ 被写入了'));
+    expect(eSunday).toMatch(/无法与行情对账|校验取数失败|日期不匹配/);
+    expect(ePrice).toMatch(/偏离|校验取数失败/);
+  }, 60000);
+
   it('risk_metrics：基准（沪深300）接入后 beta/alpha 为真实值，附业绩归因', async () => {
     const { RiskMetricsTool } = await import('../packages/risk/src/tools/RiskMetricsTool/RiskMetricsTool.js');
     const tool: any = new RiskMetricsTool(client);

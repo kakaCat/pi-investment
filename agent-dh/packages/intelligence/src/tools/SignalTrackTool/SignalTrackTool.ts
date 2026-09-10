@@ -67,8 +67,17 @@ export class SignalTrackTool extends BaseTool<SignalTrackParams, any> {
       const raw: any = await (this.qv2Client as any).getKlines(symbol, date, date, 'daily');
       const rows: any[] = Array.isArray(raw) ? raw : (raw?.klines ?? []);
       const close = Number(rows?.[0]?.close);
+      const rowDate = String(rows?.[0]?.trade_date ?? rows?.[0]?.date ?? '');
       if (!rows.length || !Number.isFinite(close) || close <= 0) {
-        return { ok: false, reason: '日期 ' + date + ' 在 ' + symbol + ' 的K线中不存在（非交易日或数据缺失）' };
+        return { ok: false, reason: '日期 ' + date + ' 无 ' + symbol + ' 的K线（非交易日或数据缺失），无法与行情对账' };
+      }
+      // 后端对非交易日可能回退返回邻近交易日的K线 → 必须比对日期，否则周末照样能写入。
+      if (rowDate && rowDate !== date) {
+        return {
+          ok: false,
+          reason: '请求日期 ' + date + ' 但后端返回的是 ' + rowDate + ' 的K线（日期不匹配，疑似非交易日回退）',
+          close,
+        };
       }
       const dev = Math.abs(price / close - 1);
       if (dev > 0.15) {
@@ -79,8 +88,11 @@ export class SignalTrackTool extends BaseTool<SignalTrackParams, any> {
         };
       }
       return { ok: true, close };
-    } catch {
-      return { ok: true, close: undefined };
+    } catch (e: any) {
+      // fail-closed（2026-09-11 实测修正）：原实现 catch 后返回 ok:true 属 fail-open，
+      // 而真实后端对非交易日返回 {error:'No kline data'} → client 抛错 → 被当成『通道故障』放行，
+      // 实测确实写入了 1 条周末假记录。无法与行情对账的记录一律不写入。
+      return { ok: false, reason: '校验取数失败（fail-closed，无法对账则不写入）：' + String(e?.message ?? e).slice(0, 80) };
     }
   }
   protected async execute(params: SignalTrackParams, context: ToolContext): Promise<any> {
