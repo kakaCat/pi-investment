@@ -133,9 +133,78 @@ class MarginDataSource:
 
 
 class AkShareMarginSource:
-    """AkShare 融资融券数据源"""
+    """AkShare 融资融券数据源
+
+    2026-09-11（w-8f2c4cc5）：akshare 1.18.x 的 stock_margin_detail_sse/szse/bse 均为
+    「按日期取全市场明细」，不接受 symbol 关键字——旧调用
+    ak.stock_margin_detail_sse(symbol=stock_code) 直接 TypeError（board 事件 3cef6bef）。
+    现改为：按代码前缀选市场接口 → 逐交易日回溯（跳周末/未发布日）→ 按证券代码过滤该股行。
+    注意沪市明细（sse）无「融券余额」列，此时 margin_balance 记 0 并以 has_margin_balance=False 标注。
+    """
 
     name = "akshare"
+
+    # A 股代码前缀 → akshare 明细接口市场后缀
+    _MARKET_PREFIXES = (('6', 'sse'), ('0', 'szse'), ('3', 'szse'), ('4', 'bse'), ('8', 'bse'))
+
+    @classmethod
+    def _market_for(cls, code: str) -> Optional[str]:
+        """按 6 位代码前缀判定市场（沪/深/北）。"""
+        for prefix, market in cls._MARKET_PREFIXES:
+            if code.startswith(prefix):
+                return market
+        return None
+
+    @staticmethod
+    def _candidate_dates(days: int) -> List[str]:
+        """从今天往前生成候选交易日（YYYYMMDD，跳过周末），多取缓冲以覆盖节假日与未发布日。"""
+        dates: List[str] = []
+        cursor = datetime.now()
+        for _ in range(days * 3 + 12):
+            if cursor.weekday() < 5:
+                dates.append(cursor.strftime('%Y%m%d'))
+            cursor -= timedelta(days=1)
+            if len(dates) >= days + 6:
+                break
+        return dates
+
+    @staticmethod
+    def _match_row(df, code: str):
+        """在当日全市场明细中定位该股行（沪市列名为标的证券代码，深/北为证券代码）。"""
+        for col in ('标的证券代码', '证券代码'):
+            if col in df.columns:
+                hit = df[df[col].astype(str).str.zfill(6) == code]
+                if len(hit):
+                    return hit.iloc[0]
+        return None
+
+    @staticmethod
+    def _to_float(value) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+    @classmethod
+    def _to_standard(cls, row, date_str: str) -> Dict:
+        """把 akshare 明细行归一为既有字段口径（金额元 → 万元，量保持股）。"""
+        raw_date = str(row.get('信用交易日期') or row.get('日期') or date_str).replace('-', '')[:8]
+        date_out = raw_date[:4] + "-" + raw_date[4:6] + "-" + raw_date[6:8] if len(raw_date) == 8 else str(raw_date)
+        financing_balance = cls._to_float(row.get('融资余额', 0))
+        has_margin_balance = '融券余额' in getattr(row, 'index', [])
+        margin_balance = cls._to_float(row.get('融券余额', 0)) if has_margin_balance else 0.0
+        total_balance = cls._to_float(row.get('融资融券余额', 0)) or (financing_balance + margin_balance)
+        return {
+            'date': date_out,
+            'financing_balance': financing_balance / 10000,  # 元转万元
+            'financing_buy': cls._to_float(row.get('融资买入额', 0)) / 10000,
+            'financing_repay': cls._to_float(row.get('融资偿还额', 0)) / 10000,
+            'margin_balance': margin_balance / 10000,
+            'has_margin_balance': has_margin_balance,  # False=该市场明细未提供融券余额（非真实 0）
+            'margin_sell': cls._to_float(row.get('融券卖出量', 0)),
+            'margin_repay': cls._to_float(row.get('融券偿还量', 0)),
+            'total_balance': total_balance / 10000,
+        }
 
     def fetch(self, symbol: str, days: int) -> List[Dict]:
         """
@@ -169,49 +238,59 @@ class AkShareMarginSource:
             with _disable_proxies():
                 import akshare as ak
 
-                stock_code = symbol.replace('.SH', '').replace('.SZ', '')
+                stock_code = symbol.replace('.SH', '').replace('.SZ', '').replace('.BJ', '').strip()
                 logger.info(f"获取 {stock_code} 融资融券数据")
 
-                # 重试机制
+                market = self._market_for(stock_code)
+                if market is None:
+                    raise DataSourceError(f"无法识别 {stock_code} 所属市场（仅支持沪/深/北交所标的）")
+                fetch_detail = getattr(ak, f"stock_margin_detail_{market}", None)
+                if fetch_detail is None:
+                    raise DataSourceError(f"当前 akshare 无 stock_margin_detail_{market} 接口")
+
+                # 重试机制（按交易日逐日回溯，单日失败降级为跳过，连续失败则判数据源不可用）
                 max_retries = 3
                 retry_delay = 1
 
-                for attempt in range(max_retries):
-                    try:
-                        # 使用 akshare 的融资融券接口
-                        df = ak.stock_margin_detail_sse(symbol=stock_code)
+                result: List[Dict] = []
+                consecutive_failures = 0
+                candidate_dates = self._candidate_dates(days)
+                for date_str in candidate_dates:
+                    if len(result) >= days:
+                        break
+                    df = None
+                    for attempt in range(max_retries):
+                        try:
+                            df = fetch_detail(date=date_str)
+                            consecutive_failures = 0
+                            break
+                        except Exception as e:
+                            if isinstance(e, ValueError) and 'Length mismatch' in str(e):
+                                # akshare 对「当日尚未发布」的沪市明细会抛该 ValueError（空 payload 仍按 13 列建轴）——
+                                # 属正常无数据，直接跳过该日，不做无谓重试
+                                logger.info(f"{date_str} 无融资融券明细（akshare 空返回），跳过")
+                                break
+                            if attempt < max_retries - 1:
+                                logger.warning(f"{date_str} 明细获取失败（尝试 {attempt + 1}/{max_retries}），{retry_delay}秒后重试: {e}")
+                                time.sleep(retry_delay)
+                                retry_delay *= 2
+                            else:
+                                logger.warning(f"{date_str} 融资融券明细获取失败，跳过该日: {e}")
+                                consecutive_failures += 1
+                    if consecutive_failures >= 3:
+                        raise DataSourceError(f"{stock_code} 连续 3 个交易日获取失败（最近 {date_str}），疑似数据源不可用")
+                    if df is None or df.empty:
+                        continue
+                    row = self._match_row(df, stock_code)
+                    if row is None:
+                        continue
+                    result.append(self._to_standard(row, date_str))
 
-                        if df is None or df.empty:
-                            logger.warning(f"{stock_code} 返回空数据")
-                            return []
-
-                        # 只取最近 N 天
-                        df = df.head(days)
-
-                        # 转换为标准格式
-                        result = []
-                        for _, row in df.iterrows():
-                            result.append({
-                                'date': str(row.get('日期', '')),
-                                'financing_balance': float(row.get('融资余额', 0)) / 10000,  # 元转万元
-                                'financing_buy': float(row.get('融资买入额', 0)) / 10000,
-                                'financing_repay': float(row.get('融资偿还额', 0)) / 10000,
-                                'margin_balance': float(row.get('融券余额', 0)) / 10000,
-                                'margin_sell': float(row.get('融券卖出量', 0)),
-                                'margin_repay': float(row.get('融券偿还量', 0)),
-                                'total_balance': float(row.get('融资融券余额', 0)) / 10000,
-                            })
-
-                        logger.info(f"成功获取 {stock_code} 融资融券数据，共 {len(result)} 条")
-                        return result
-
-                    except Exception as e:
-                        if attempt < max_retries - 1:
-                            logger.warning(f"获取失败（尝试 {attempt + 1}/{max_retries}），{retry_delay}秒后重试: {e}")
-                            time.sleep(retry_delay)
-                            retry_delay *= 2
-                        else:
-                            raise
+                if result:
+                    logger.info(f"成功获取 {stock_code} 融资融券数据，共 {len(result)} 条（{result[0]['date']} .. {result[-1]['date']}，市场 {market}）")
+                else:
+                    logger.warning(f"{stock_code} 近期无融资融券明细（市场 {market}，已回溯 {len(candidate_dates)} 个交易日）")
+                return result
 
         except Exception as e:
             logger.error(f"AkShare 融资融券数据源获取失败: {e}")
