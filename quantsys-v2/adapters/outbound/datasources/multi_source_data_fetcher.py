@@ -12,7 +12,7 @@ import os
 import logging
 import pandas as pd
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -248,6 +248,47 @@ class AKShareSource(DataSource):
             return None
 
 
+def contains_weekday(start_date: str, end_date: str) -> bool:
+    """区间内是否含周一~周五（法定节假日仍按可能交易日处理，交由数据源判定）。
+
+    2026-09-11（w-8f2c4cc5）新增：请求区间只含周末时（如查询 2026-09-06 周日单日），
+    任何数据源都必然为空——外部源查询纯属浪费，且空结果会被误判为「数据源全失败」。
+    """
+    try:
+        start = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end = datetime.strptime(end_date, '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        return True  # 日期格式异常时不拦截，交回原链路处理
+    if end < start:
+        start, end = end, start
+    cursor = start
+    while cursor <= end:
+        if cursor.weekday() < 5:
+            return True
+        cursor += timedelta(days=1)
+    return False
+
+
+def classify_chain_outcome(symbol: str, start_date: str, end_date: str,
+                           empty_sources: List[str],
+                           errors: List[tuple]) -> tuple:
+    """判定「区间无数据」还是「数据源故障」，返回 (level, message)。
+
+    2026-09-11（w-8f2c4cc5）：此前只要没取到数据就按 ERROR 上报，于是「查询非交易日」
+    这类正常空结果也变成看板错误事件（事件 7e66acac：GET /api/stock/600519/klines
+    ?start_date=2026-09-06&end_date=2026-09-06 周日 → 链路 LocalDB 空 + Sina 过滤后空
+    + AKShare 网络异常 → ERROR「所有数据源均失败」）。语义应为：
+      - 有数据源正常返回但区间为空 → WARNING「区间无数据」（非故障，不产生错误事件）
+      - 所有数据源都抛异常 → ERROR「所有数据源均失败」（真故障）
+    """
+    err_detail = '; '.join(f'{name}: {err}' for name, err in errors) or '无'
+    if empty_sources:
+        return ('warning',
+                f'⚠️ {symbol} 区间 {start_date}~{end_date} 无K线数据（源正常但为空: '
+                f'{", ".join(empty_sources)}；异常源: {err_detail}）')
+    return ('error', f'❌ 所有数据源均失败，无法获取 {symbol} K线数据（{err_detail}）')
+
+
 class MultiSourceDataFetcher:
     """多数据源数据获取器"""
 
@@ -298,17 +339,30 @@ class MultiSourceDataFetcher:
         Returns:
             DataFrame或None
         """
+        if not contains_weekday(start_date, end_date):
+            logger.info(f"区间 {start_date}~{end_date} 仅含周末，无交易日，跳过外部源查询: {symbol}")
+            return None
+
+        empty_sources: List[str] = []
+        errors: List[tuple] = []
         for source in self.sources:
             try:
                 df = source.fetch_klines(symbol, start_date, end_date)
                 if df is not None and not df.empty:
                     logger.info(f"✓ 使用 {source.name} 成功获取 {symbol} K线数据")
                     return df
+                empty_sources.append(source.name)
             except Exception as e:
                 logger.warning(f"✗ {source.name} 异常: {e}")
+                errors.append((source.name, e))
                 continue
 
-        logger.error(f"❌ 所有数据源均失败，无法获取 {symbol} K线数据")
+        level, message = classify_chain_outcome(
+            symbol, start_date, end_date, empty_sources, errors)
+        if level == 'error':
+            logger.error(message)
+        else:
+            logger.warning(message)
         return None
 
     def fetch_multiple_stocks(
