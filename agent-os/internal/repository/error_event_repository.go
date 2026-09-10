@@ -381,9 +381,19 @@ var (
 	reHexLong = regexp.MustCompile(`(^|[^0-9a-zA-Z])[0-9a-fA-F]{16,}([^0-9a-zA-Z]|$)`)
 	reHex8    = regexp.MustCompile(`(^|[^0-9a-zA-Z])[0-9a-fA-F]{8}([^0-9a-zA-Z]|$)`)
 	reNumber  = regexp.MustCompile(`\d+(?:\.\d+)*(?:\.[A-Za-z]{2,4})?`)
+	// reLoggerPrefix：纯文本日志的 logger 前缀（与 Python 端 _RE_LOGGER_PREFIX 同规则）
+	reLoggerPrefix = regexp.MustCompile(`^[a-z_][a-z0-9_]*(?:\.[a-z0-9_]+)+:\s+`)
 )
 
 var volatileJSONKeys = []string{"trace_id", "timestamp", "ts", "time", "request_id", "span_id", "run_id"}
+
+// jsonEssenceKeys 结构化日志的「根因文本」字段（按优先级）。
+// 2026-09-11（w-8f2c4cc5）：JSON 通道与文本通道此前指纹不同——同一异常经 structlog JSON
+// 落盘时指纹取「去掉易变键后的整段 JSON」，经纯文本 logger 落盘时取「剥掉 logger 前缀的
+// 事件文案」，两者天然不等，于是一次异常生成 2 条事件（实测 2026-09-11 00:52
+// SchedulerService.add_task TypeError：f5341905 JSON 行 + 9e7070cc 文本行）。
+// 现统一取事件文案本身作为根因文本，使同一异常的不同落盘通道归并到同一指纹。
+var jsonEssenceKeys = []string{"event", "message", "msg", "error", "exception", "detail"}
 
 // NormalizeMsg 归一化错误消息：同根因错误 → 同指纹。供 FingerprintOf 与测试使用。
 func NormalizeMsg(msg string) string {
@@ -394,18 +404,43 @@ func NormalizeMsg(msg string) string {
 			for _, k := range volatileJSONKeys {
 				delete(obj, k)
 			}
-			if b, err := json.Marshal(obj); err == nil {
+			if essence, ok := jsonEssenceText(obj); ok {
+				s = essence
+			} else if b, err := json.Marshal(obj); err == nil {
 				// Go Marshal 转义 <>& 为 \\u003c 等，Python ensure_ascii=False 不转义——反转义对齐
 				s = strings.NewReplacer("\\u003c", "<", "\\u003e", ">", "\\u0026", "&").Replace(string(b))
 			}
 		}
 	}
+	// 纯文本通道的 logger 前缀（模块路径形态，至少含一个点且小写开头）：
+	// "adapters.inbound.fastapi_app.shared: API错误: ..." → "API错误: ..."。
+	// 限定「模块路径」形态是为了不误伤 "TypeError: xxx" 这类异常名开头（无点、首字母大写）。
+	s = reLoggerPrefix.ReplaceAllString(s, "")
 	s = reUUID.ReplaceAllString(s, "<uuid>")
 	s = reISOTs.ReplaceAllString(s, "<ts>")
 	s = reHexLong.ReplaceAllString(s, "${1}<hex>${2}")
 	s = reHex8.ReplaceAllString(s, "${1}<hex8>${2}")
 	s = reNumber.ReplaceAllString(s, "<num>")
 	return s
+}
+
+// jsonEssenceText 取结构化日志的根因文本（event/message/msg），无则返回 false。
+// 语义键的值按顺序拼接（不丢弃任何已出现的根因文本）：只取 event 会漏掉
+// 「event 是通用标签、error 才是根因」的日志形态；拼接既保持通道间可比，
+// 又避免不同故障因共用标签而被合并。
+func jsonEssenceText(obj map[string]any) (string, bool) {
+	parts := make([]string, 0, len(jsonEssenceKeys))
+	for _, k := range jsonEssenceKeys {
+		if v, ok := obj[k]; ok {
+			if text, ok := v.(string); ok && strings.TrimSpace(text) != "" {
+				parts = append(parts, text)
+			}
+		}
+	}
+	if len(parts) == 0 {
+		return "", false
+	}
+	return strings.Join(parts, "|"), true
 }
 
 // traceback 帧：File "path", line N, in func（与 Python 端 _RE_TB_FRAME 同规则）

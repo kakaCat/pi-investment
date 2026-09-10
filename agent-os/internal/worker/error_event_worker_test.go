@@ -353,11 +353,13 @@ func TestExpandTargets_GlobAndPath(t *testing.T) {
 type fakeErrorEventRepo struct {
 	msgs    []string
 	details []string
+	fps     []string
 }
 
 func (f *fakeErrorEventRepo) Upsert(ctx context.Context, in domain.ErrorEventUpsertInput) (*domain.ErrorEvent, bool, error) {
 	f.msgs = append(f.msgs, in.Msg)
 	f.details = append(f.details, in.Detail)
+	f.fps = append(f.fps, in.Fingerprint)
 	return &domain.ErrorEvent{ID: "fake"}, false, nil
 }
 

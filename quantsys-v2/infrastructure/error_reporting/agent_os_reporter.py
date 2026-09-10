@@ -151,6 +151,11 @@ def _worker_loop() -> None:
 # 等日志元数据 + 通用数字参数化（\d+(\.\d+)*(\.[A-Za-z]{2,4})? 覆盖股票代码/价格/数量/
 # 行号等一切入参数字，不再用"6位股票代码"这类业务规则过拟合）。
 _VOLATILE_JSON_KEYS = ("trace_id", "timestamp", "ts", "time", "request_id", "span_id", "run_id")
+# 结构化日志的「根因文本」字段（按优先级），与 Go jsonEssenceKeys 对齐
+_JSON_ESSENCE_KEYS = ("event", "message", "msg", "error", "exception", "detail")
+# 纯文本通道的 logger 前缀（模块路径形态，至少含一个点且小写开头）：与 Go reLoggerPrefix 同规则。
+# 限定形态是为了不误伤 "TypeError: xxx" 这类异常名开头（无点、首字母大写）。
+_RE_LOGGER_PREFIX = re.compile(r"^[a-z_][a-z0-9_]*(?:\.[a-z0-9_]+)+:\s+")
 _RE_UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 _RE_HEX_LONG = re.compile(r"(?<![0-9a-zA-Z])[0-9a-fA-F]{16,}(?![0-9a-zA-Z])")
 _RE_HEX8 = re.compile(r"(?<![0-9a-zA-Z])[0-9a-fA-F]{8}(?![0-9a-zA-Z])")
@@ -162,7 +167,13 @@ _RE_TB_FRAME = re.compile(r'File "([^"]+)", line \d+, in (\w+)')
 
 
 def normalize_msg(msg: str) -> str:
-    """归一化错误消息：抹掉 trace_id/timestamp/uuid 等易变段，使同根因错误同指纹。"""
+    """归一化错误消息：抹掉 trace_id/timestamp/uuid 等易变段，使同根因错误同指纹。
+
+    2026-09-11（w-8f2c4cc5）：JSON 通道与文本通道此前指纹不同——structlog JSON 落盘的
+    指纹取「去掉易变键后的整段 JSON」，纯文本 logger 落盘的取「剥掉 logger 前缀的事件
+    文案」，两者天然不等，一次异常因此生成 2 条事件（实测 00:52 SchedulerService.add_task
+    TypeError）。现两端口径统一为「取事件文案本身（event/message/msg）」。
+    """
     s = (msg or "").strip()
     if s.startswith("{"):
         try:
@@ -170,15 +181,32 @@ def normalize_msg(msg: str) -> str:
             if isinstance(obj, dict):
                 for k in _VOLATILE_JSON_KEYS:
                     obj.pop(k, None)
-                s = json.dumps(obj, sort_keys=True, ensure_ascii=False, separators=(",", ":"))  # 紧凑格式对齐 Go json.Marshal
+                essence = _json_essence_text(obj)
+                if essence is not None:
+                    s = essence
+                else:
+                    s = json.dumps(obj, sort_keys=True, ensure_ascii=False, separators=(",", ":"))  # 紧凑格式对齐 Go json.Marshal
         except Exception:  # noqa: BLE001 —— 非 JSON 按文本处理
             pass
+    s = _RE_LOGGER_PREFIX.sub("", s)
     s = _RE_UUID.sub("<uuid>", s)
     s = _RE_ISO_TS.sub("<ts>", s)
     s = _RE_HEX_LONG.sub("<hex>", s)
     s = _RE_HEX8.sub("<hex8>", s)
     s = _RE_NUMBER.sub("<num>", s)
     return s
+
+
+def _json_essence_text(obj: dict) -> Optional[str]:
+    """取结构化日志的根因文本：语义键的值按顺序以 | 拼接，无则 None。
+
+    只取 event 会漏掉「event 是通用标签、error 才是根因」的日志形态；拼接既保持通道间
+    可比（同一事件文案在 JSON 与文本通道一致），又避免不同故障因共用标签被合并。
+    与 Go jsonEssenceText 同规则。
+    """
+    parts = [v for v in (obj.get(k) for k in _JSON_ESSENCE_KEYS)
+             if isinstance(v, str) and v.strip()]
+    return "|".join(parts) if parts else None
 
 
 def _stack_fingerprint_input(detail: Optional[str]) -> Optional[str]:

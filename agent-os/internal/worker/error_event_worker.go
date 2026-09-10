@@ -305,7 +305,10 @@ func (w *ErrorEventWorker) processLines(ctx context.Context, t LogTarget, lines 
 			detail = strings.Join(preamble, "\n") + "\n" + ln
 		}
 		preamble = preamble[:0]
-		fp := repository.FingerprintOf(t.Source, "", msg)
+		// 用 detail（含聚合到的 traceback 帧）参与指纹：Python 上报通道（logging ERROR →
+		// agent_os_reporter）对带 exc_info 的事件同样按堆栈帧取指纹，两侧一致才能真正归并
+		// （纯文本通道的同一异常此前因 worker 只按 msg 取指纹而与上报事件分列两条）。
+		fp := repository.FingerprintOfWithDetail(t.Source, "", msg, detail)
 		_, _, err := w.repo.Upsert(ctx, domain.ErrorEventUpsertInput{
 			Source:      t.Source,
 			Level:       "error",
