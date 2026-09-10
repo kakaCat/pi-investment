@@ -181,8 +181,14 @@ class ISchedulerRepository(ABC):
         command: str,
         params: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
+        task_type: str = 'cron',
     ) -> int:
-        """注册新的定时任务，返回 task id"""
+        """注册新的定时任务，返回 task id
+
+        task_type（2026-09-11 契约对齐, w-8f2c4cc5）：cron / delay / interval / once。
+        实现层（SchedulerRepository.add_task）自 2026-09 起已支持并校验该参数，但端口与
+        域服务此前未声明 → POST /api/scheduler/tasks 传 task_type 必然 TypeError(500)。
+        """
         pass
 
     @abstractmethod

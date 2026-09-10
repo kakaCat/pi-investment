@@ -31,6 +31,36 @@ def _pagination_payload(total: int, page: int, page_size: int) -> Dict[str, int]
             'total_pages': total_pages, 'totalPages': total_pages}
 
 
+def _detach_apscheduler_job(request: Any, task_id: int) -> Optional[str]:
+    """把已删除的任务从 APScheduler 摘除（best-effort，不改变删除结果）。
+
+    2026-09-11 修复（看板事件 3721874a，w-8f2c4cc5）：DELETE /api/scheduler/tasks/{id}
+    此前只做软删除（params._deleted_at + is_enabled=False），不同步 APScheduler —— 运行期
+    删除的任务，其 job（id=f"task_{tid}"）仍留在 jobstore 里按 cron 继续触发；job_executor
+    读不到任务定义，每次都报 "Task N not found in scheduler_tasks"（2026-09-10 01:50/02:00
+    共 3 次），直到下一次进程重启才消失。
+
+    Returns:
+        None 表示已摘除或无需摘除；字符串表示未摘除的原因（调用方仅记日志）。
+    """
+    if request is None:
+        return 'no request context'
+    scheduler_service = getattr(getattr(getattr(request, 'app', None), 'state', None),
+                               'scheduler_service', None)
+    if scheduler_service is None:
+        return 'APScheduler not available (Agent OS mode or not started)'
+    try:
+        scheduler = getattr(scheduler_service, 'scheduler', None)
+        if scheduler is None:
+            return 'scheduler_service has no scheduler'
+        job_id = f"task_{task_id}"
+        if scheduler.get_job(job_id) is not None:
+            scheduler.remove_job(job_id)
+        return None
+    except Exception as e:  # noqa: BLE001 - 调度器摘除失败不该让删除接口失败
+        return f'remove_job failed: {e}'
+
+
 def _extract_params_dict(params: Any) -> Dict[str, Any]:
     if not params:
         return {}
@@ -289,7 +319,7 @@ def disable_scheduler_task(task_id: str):
 
 @router.delete('/api/scheduler/tasks/{task_id}')
 @handle_api_error
-def delete_scheduler_task(task_id: str):
+def delete_scheduler_task(task_id: str, request: Request = None):
     try:
         tid = int(task_id)
         task = _scheduler.get_task(tid)
@@ -303,6 +333,13 @@ def delete_scheduler_task(task_id: str):
                 params = {}
         params['_deleted_at'] = datetime.now().isoformat()
         _scheduler.update_task(tid, params=params, is_enabled=False)
+        # 2026-09-11（事件 3721874a）：删除必须同时摘除 APScheduler job，
+        # 否则内存/持久 jobstore 里的 job 会继续按 cron 触发，反复报任务不存在。
+        detach_error = _detach_apscheduler_job(request, tid)
+        if detach_error:
+            logger.warning(f"Task {tid} soft-deleted but not detached from APScheduler: {detach_error}")
+        else:
+            logger.info(f"Task {tid} soft-deleted and detached from APScheduler")
         return {'success': True}
     except ValueError as e:
         return error_response({'success': False, 'error': str(e)}, 404)
