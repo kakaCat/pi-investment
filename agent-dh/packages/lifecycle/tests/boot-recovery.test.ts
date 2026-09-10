@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { GitRepo } from '../src/git.js';
 import { StateStore } from '../src/state.js';
-import { planBootRecovery, runBootRecovery, type BootRecoveryDeps } from '../src/boot-recovery.js';
+import { planBootRecovery, runBootRecovery, rescueBranchName, type BootRecoveryDeps } from '../src/boot-recovery.js';
 
 /** boot 修复器不变量测试（I1-I5）：真实 git + StateStore + 磁盘 restarting.lock */
 describe('boot-recovery', () => {
@@ -81,6 +81,36 @@ describe('boot-recovery', () => {
     expect(repo.branchExists(w)).toBe(true); // 分支不删
     expect(execFileSync('git', ['show', `${w}:agent-dh/a.txt`], { cwd: dir, encoding: 'utf8' })).toBe('v2-wip');
     expect(planBootRecovery(deps()).actions).toEqual([]); // 幂等
+  });
+
+  it('I3-救援 独有内容 wip → 先归档 wip/rescued-* 再回干线（内容零丢失）', () => {
+    const w = makeStrandedWip();
+    const r = runBootRecovery(deps());
+    const ref = rescueBranchName(w, now);
+    expect(r.actions).toContainEqual({ kind: 'rescueWip', from: w, ref });
+    expect(repo.branchExists(ref)).toBe(true);
+    // 归档分支与 wip 同一提交：内容零丢失（含"只存在于 wip 上的文件"）
+    expect(execFileSync('git', ['rev-parse', ref], { cwd: dir, encoding: 'utf8' }).trim())
+      .toBe(execFileSync('git', ['rev-parse', w], { cwd: dir, encoding: 'utf8' }).trim());
+    expect(execFileSync('git', ['show', `${ref}:agent-dh/a.txt`], { cwd: dir, encoding: 'utf8' })).toBe('v2-wip');
+    expect(repo.currentBranch()).toBe('main');
+    expect(planBootRecovery(deps()).actions).toEqual([]); // 幂等：救援后仍无动作
+  });
+
+  it('I3 无独有内容（wip 与干线同提交）→ 只回干线，不建救援分支', () => {
+    execFileSync('git', ['checkout', '-b', 'agent-self/20260910-empty'], { cwd: dir });
+    const r = runBootRecovery(deps());
+    expect(r.actions.map((a) => a.kind)).toEqual(['checkoutBase']);
+    expect(execFileSync('git', ['branch', '--list', 'wip/rescued-*'], { cwd: dir, encoding: 'utf8' }).trim()).toBe('');
+    expect(repo.currentBranch()).toBe('main');
+  });
+
+  it('rescueBranchName：确定性 + 单级 ref（含 / 的分支名被 slug 化）', () => {
+    const a = rescueBranchName('agent-self/20260910-2100', now);
+    expect(a).toBe(rescueBranchName('agent-self/20260910-2100', now)); // 同输入同输出
+    expect(a.split('/').length).toBe(2);                               // refs/heads/wip/rescued（不再多一级）
+    expect(a).toMatch(/^wip\/rescued-agent-self-20260910-2100-\d{4}-\d{4}$/);
+    expect(rescueBranchName('agent-self/20260910-2100', now + 60_000)).not.toBe(a); // 分钟粒度区分
   });
 
   it('I3 正常续跑态（agent-self + pending 匹配）→ 不动', () => {

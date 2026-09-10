@@ -18,6 +18,7 @@ import { registerWakeWebhook } from './wake-webhook.js';
 import { registerAgentOsTrigger } from './agent-os-trigger.js';
 import { planAndScheduleRestart, type RestartPlannerDeps } from './restart-planner.js';
 import { onBoot } from './boot-hook.js';
+import { exitFinalize, describeExitFinalize } from './exit-finalize.js';
 
 
 // 导入 BaseTool 工具
@@ -949,9 +950,54 @@ v2_event_json: ${JSON.stringify(data)}
           `lifecycle: boot-recovery ${JSON.stringify({ actions: report.actions, issues: report.issues })}`,
         );
       }
+      // P1（2026-09-10）：救援归档必须主动播报——I3 已把 HEAD 切回干线，看门狗会短路，
+      // 不主动说就没人知道"工作区里消失的文件被归档到了哪个分支"（这正是本 bug 静默的一半）。
+      const rescues = report.actions.filter(
+        (a): a is { kind: 'rescueWip'; from: string; ref: string } => a.kind === 'rescueWip',
+      );
+      if (rescues.length > 0) this.announceWipRescue(rescues);
     } catch (e) {
       // fail-safe：修复逻辑任何失败都不得阻断 boot（滞留态下次 boot 仍会再试 + 看门狗兜底）
       this.ctx.logger.warn(`lifecycle: boot-recovery skipped: ${String(e)}`);
+    }
+  }
+
+  /**
+   * 播报 boot 救援归档（P1，2026-09-10）：把"文件从磁盘消失了"变成"文件在某具名分支，可一键取回"。
+   * 投递模式与 stranded watchdog 一致：优先在线根 agent，未就绪则等 agent/created（30 分钟窗口）。
+   */
+  private announceWipRescue(rescues: Array<{ from: string; ref: string }>): void {
+    const text = [
+      '【lifecycle boot 救援】上次进程退出时 HEAD 滞留在 wip 分支且无续跑记录，已自动切回干线。',
+      '为避免这些分支上的独有内容随 checkout 从磁盘消失，已先归档为具名分支：',
+      ...rescues.map((r) => `- ${r.from} → ${r.ref}`),
+      '取回单个文件到工作区（保持未提交改动形态）：git checkout <归档分支> -- <路径>',
+      '注意：归档分支内容尚未并入干线，是否合并由内容 owner 判断，不要盲目 merge。',
+    ].join('\n');
+    const deliver = (agent: Agent | undefined): boolean => {
+      if (!agent) return false;
+      try {
+        agent.followup(createUserMessage({
+          content: [{ type: 'text', text }],
+          source: { kind: 'plugin', plugin: 'lifecycle' },
+        } as any));
+        this.ctx.logger.info(`lifecycle: wip-rescue notice delivered to ${String(agent.id)}`);
+        return true;
+      } catch (e) {
+        this.ctx.logger.warn(`lifecycle: wip-rescue notice failed: ${String(e)}`);
+        return false;
+      }
+    };
+    try {
+      const roots: Agent[] = this.ctx.agents.roots();
+      const target = roots.find((a) => String(a.id).startsWith(this.cfg.agentId)) ?? roots[0];
+      if (deliver(target)) return;
+      const dispose = this.ctx.on('agent/created', ({ agent }) => {
+        if (String(agent.id).startsWith(this.cfg.agentId) && deliver(agent)) dispose();
+      });
+      setTimeout(() => dispose(), 30 * 60_000);
+    } catch (e) {
+      this.ctx.logger.warn(`lifecycle: wip-rescue notice skipped: ${String(e)}`);
     }
   }
 
@@ -1048,10 +1094,14 @@ v2_event_json: ${JSON.stringify(data)}
    *   更新 last-known-good 为该合并后 HEAD，清理 pending 与 wip 分支。基线分支继续运行（不退出进程）。
    * action=rollback：验证失败 → 放弃 wip 检查点分支改动，回基线分支并硬重置到 last-known-good，
    *   清理 pending 与 wip 分支。基线分支继续运行（不退出进程）。
-   * action=exit：仅保存状态并退出（等效旧版行为，无 git 操作）。
+   * action=exit：退出前显式收尾（2026-09-10 修复 P0：wip 独有内容归档到 wip/rescued-* + 取回工作区
+   *   → 回干线 → 删除已归档的检查点分支），随后清理 pending 并优雅退出。
+   *   原实现"清 pending 但不回干线"与 boot-recovery I3 判定互相矛盾：设计性退出会被下次启动
+   *   误判为崩溃滞留，静默切回干线，并把只存在于 wip 上的文件从磁盘抹掉且无人告知。
+   *   详见 exit-finalize.ts。
    * 无 pending 检查点分支（如直接提交在基线的场景）时，merge/rollback 自动降级为仅确认/保存状态。
    */
-  private async scheduleFinalize(reason: string, action: 'merge' | 'rollback' | 'exit', saveState: boolean): Promise<{ action: string; merged_hash?: string }> {
+  private async scheduleFinalize(reason: string, action: 'merge' | 'rollback' | 'exit', saveState: boolean): Promise<{ action: string; merged_hash?: string; note?: string }> {
     this.ctx.logger('lifecycle').info(`Finalize scheduled: ${reason}, action=${action}, saveState=${saveState}`);
 
     if (saveState) {
@@ -1129,12 +1179,23 @@ v2_event_json: ${JSON.stringify(data)}
       return { action };
     }
 
-    // exit：清理 pending 状态后优雅退出（保留旧版语义）
+    // exit：先做退出前收尾（P0 修复，2026-09-10），再清理 pending 状态并优雅退出
+    const exitRes = exitFinalize(this.repo, { checkpoint, base });
+    const exitNote = describeExitFinalize(exitRes);
+    if (exitNote) this.ctx.logger('lifecycle').info(`Finalize exit pre-cleanup: ${exitNote}`);
+    if (saveState && (exitRes.archived || exitRes.error)) {
+      // 归档/失败是"别人工作是否会从磁盘消失"的关键动作，必须留审计（写失败不阻塞退出）
+      try {
+        await this.osWrite('lifecycle:finalize', {
+          reason, action, exitFinalize: exitRes, timestamp: new Date().toISOString(),
+        });
+      } catch { /* 忽略 */ }
+    }
     this.state.clearPending();
     this.state.clearPendingDone();
     this.state.clearAttempt();
     setTimeout(() => process.exit(0), 1000);
-    return { action: 'exit' };
+    return { action: 'exit', note: exitNote || undefined };
   }
 
   /**

@@ -56,6 +56,47 @@ export class GitRepo {
     return this.git(['status', '--porcelain', '--', ...paths]).length > 0;
   }
 
+  /**
+   * branch 相对 base 是否有"独有内容"（存在 patch-id 不等价的提交）。
+   * 用于 boot/exit 救援判定：有独有内容 = 切回干线会让工作区里这些文件从磁盘消失。
+   */
+  hasDivergentContent(branch: string, base: string): boolean {
+    try { return this.cherryPatchMissing(base, branch) > 0; } catch { return false; }
+  }
+
+  /** branch 相对 base 有差异的文件清单（base...branch 三方点=自分叉点起）；失败返回空数组 */
+  listDivergentFiles(branch: string, base: string): string[] {
+    try {
+      return this.git(['diff', '--name-only', `${base}...${branch}`])
+        .split('\n').map((s) => s.trim()).filter(Boolean);
+    } catch { return []; }
+  }
+
+  /** 在 from（分支/提交）处创建归档分支；同名已存在则追加 -2/-3… 后缀。返回实际创建的分支名 */
+  createArchiveBranch(name: string, from: string): string {
+    let target = name;
+    let i = 2;
+    while (this.branchExists(target)) target = `${name}-${i++}`;
+    this.git(['branch', target, from]);
+    return target;
+  }
+
+  /**
+   * 把 ref 里的指定文件取回工作区，并刻意保持"未提交改动"形态（unstage）——
+   * 作者窗口能在原位置接着编辑，不需要从 git 历史里捞，也不必让别人的内容混进干线提交。
+   * 返回成功取回的文件清单（单文件失败不阻塞其余）。
+   */
+  restorePathsFrom(ref: string, paths: string[]): string[] {
+    const restored: string[] = [];
+    for (const p of paths) {
+      try { this.git(['checkout', ref, '--', p]); restored.push(p); } catch { /* 单文件失败跳过 */ }
+    }
+    if (restored.length > 0) {
+      try { this.git(['restore', '--staged', '--', ...restored]); } catch { /* 忽略 */ }
+    }
+    return restored;
+  }
+
   private ts(): string {
     const d = this.clock();
     const p = (n: number) => String(n).padStart(2, '0');

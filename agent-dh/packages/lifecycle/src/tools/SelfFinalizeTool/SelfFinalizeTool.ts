@@ -55,10 +55,11 @@ export class SelfFinalizeTool extends BaseTool<SelfFinalizeParams, SelfFinalizeR
 
     return {
       success: true,
-      message: `终止已调度，原因：${args.reason}`,
+      message: `终止已调度，原因：${args.reason}${result?.note ? `（${result.note}）` : ''}`,
       finalized: true,
       action: result?.action ?? action,
       merged_hash: result?.merged_hash,
+      note: result?.note,
     };
   }
 

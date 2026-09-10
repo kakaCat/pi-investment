@@ -10,6 +10,10 @@
  *  I2 新鲜锁（重启器仍在健康检查）→ 不动（动会破坏回滚记账）
  *  I3 HEAD 在 agent-self/* 且无 pending/pendingDone（滞留/孤儿态）→ 自动 checkout 回干线
  *     （分支不删除、内容零丢失；杜绝后续窗口继续堆 commit）
+ *     I3-救援（2026-09-10 加）：切回干线前，若该 wip 相对干线有独有内容，先归档到具名分支
+ *     wip/rescued-<原分支>-<MMDD-HHmm>。原因：工作区里"只存在于 wip 上"的文件（典型=其他窗口
+ *     被重启检查点收走的未提交改动）会随 checkout 从磁盘消失，此前没有任何人被告知——
+ *     现在既有具名归属分支，也由调用方主动播报（index.ts announceWipRescue）。
  *  I4 pending.checkpoint_branch 与 HEAD 分支不匹配 → 只报 issue 不擅动
  *      （回滚成功态=pending 还在但 HEAD 已回 base，属正常；见 restarter 语义）
  *  I5 幂等：plan 结果确定；apply 后再次 plan 无动作
@@ -19,6 +23,10 @@
 export interface BootGit {
   currentBranch(): string;
   checkout(branch: string): void;
+  /** 可选（缺省视为"无独有内容"→ 不建救援分支，保持老实现向后兼容） */
+  hasDivergentContent?(branch: string, base: string): boolean;
+  /** 可选：在 from 处建归档/救援分支，返回实际分支名 */
+  createArchiveBranch?(name: string, from: string): string;
 }
 export interface BootStateLike {
   readPending(): { checkpoint_branch: string | null; base_branch: string } | null;
@@ -39,7 +47,20 @@ export interface BootRecoveryDeps {
 }
 export type BootAction =
   | { kind: 'releaseStaleLock' }
+  | { kind: 'rescueWip'; from: string; ref: string }
   | { kind: 'checkoutBase'; from: string; to: string };
+
+/**
+ * 救援归档分支名（纯函数，便于测试与幂等断言）：
+ *   wip/rescued-agent-self-20260910-210017-0910-2133
+ * 分支名里的 '/' 会被替换，避免造出 refs/heads/wip/rescued/... 的多级路径。
+ */
+export function rescueBranchName(branch: string, now: number): string {
+  const d = new Date(now);
+  const p = (n: number) => String(n).padStart(2, '0');
+  const slug = branch.replace(/[^A-Za-z0-9._-]/g, '-').replace(/^-+|-+$/g, '');
+  return `wip/rescued-${slug}-${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+}
 
 export interface BootRecoveryReport {
   actions: BootAction[];
@@ -65,8 +86,13 @@ export function planBootRecovery(deps: BootRecoveryDeps): BootRecoveryReport {
   if (onWip) {
     if (!pending) {
       const base = resolveBase(branch);
-      if (base) actions.push({ kind: 'checkoutBase', from: branch, to: base });
-      else issues.push(`stranded on ${branch} but no trunk branch resolvable`);
+      if (base) {
+        // 顺序即语义：先把 wip 独有内容归档成具名分支，再切回干线（否则内容只剩"某个 agent-self 分支"）
+        if (repo.hasDivergentContent?.(branch, base)) {
+          actions.push({ kind: 'rescueWip', from: branch, ref: rescueBranchName(branch, now) });
+        }
+        actions.push({ kind: 'checkoutBase', from: branch, to: base });
+      } else issues.push(`stranded on ${branch} but no trunk branch resolvable`);
     } else if (pending.checkpoint_branch && pending.checkpoint_branch !== branch) {
       issues.push(
         `pending.checkpoint_branch=${pending.checkpoint_branch} != HEAD=${branch}（回滚成功态属正常，勿自动处理）`,
@@ -80,6 +106,11 @@ export function planBootRecovery(deps: BootRecoveryDeps): BootRecoveryReport {
 export function applyBootRecovery(deps: BootRecoveryDeps, report: BootRecoveryReport): void {
   for (const a of report.actions) {
     if (a.kind === 'checkoutBase') deps.repo.checkout(a.to);
+    else if (a.kind === 'rescueWip') {
+      // 归档失败不阻塞回干线（wip 分支本身仍在，内容未丢）；调用方按 report 播报
+      try { deps.repo.createArchiveBranch?.(a.ref, a.from); }
+      catch { /* 保持 fail-safe：救援是尽力而为，绝不能阻断 boot */ }
+    }
     else if (a.kind === 'releaseStaleLock') deps.releaseLock();
   }
 }
