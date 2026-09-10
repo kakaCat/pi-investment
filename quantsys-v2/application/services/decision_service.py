@@ -261,8 +261,18 @@ class DecisionService:
             if field not in data:
                 raise ValueError(f"缺少必需字段: {field}")
 
-        # 验证决策类型
+        # 验证决策类型（2026-09-10 修复，investor / w-8f2c4cc5）
+        #
+        # 原清单只列了股票池相关类型，而实际落库类型远多于它（数据来源：quant.agent_decisions
+        # 按 decision_type 分组统计，2026-09-10 23:15 查询，样本 300+ 条）：
+        #   hold_stock(38) / daily_review(28) / auto_risk_control(26) / trade_buy(26) /
+        #   trade_sell(25) / auto_capture_opportunity(22) / missed_opportunity(20) /
+        #   risk_control(19) / no_trade(15) / pool_update(9) / skip_trade(8) /
+        #   deep_analysis(6) / refresh_pool(6) / morning_analysis(5) / trade_BUY(4)
+        # 后果：日常决策全部落入"未知的决策类型"warning（日志噪声，掩盖真正的拼写错误）。
+        # 注意：本清单只用于提示，不做拦截；大小写变体（如 trade_BUY）故意不收录，以便继续告警。
         valid_types = [
+            # 股票池 / 策略
             'create_pool',
             'update_pool',
             'delete_pool',
@@ -271,8 +281,24 @@ class DecisionService:
             'remove_stock',
             'select_strategy',
             'screening',
+            # 交易
+            'trade_buy',
+            'trade_sell',
+            'hold_stock',
+            'no_trade',
+            'skip_trade',
+            # 风控 / 机会
             'auto_risk_control',
-            'auto_capture_opportunity'
+            'risk_control',
+            'auto_capture_opportunity',
+            'missed_opportunity',
+            'pending_order',
+            'watch_rule',
+            # 分析与巡检
+            'daily_review',
+            'morning_analysis',
+            'deep_analysis',
+            'data_fix',
         ]
 
         if data['decision_type'] not in valid_types:
