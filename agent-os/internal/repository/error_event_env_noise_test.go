@@ -21,6 +21,7 @@ func TestMatchEnvNoise_EastmoneyProxyTransient(t *testing.T) {
 		{"裸 ProxyError", "HTTP request failed: ProxyError(Unable to connect to proxy)", "Traceback ..."},
 		{"ProxyError 只在 detail", "数据源获取失败", "requests.exceptions.ProxyError: Cannot connect to proxy"},
 		{"显式本地代理不可达", "get https://x: ProxyError", "connection refused 127.0.0.1:7897"},
+		{"多源全源失败+连接类错误（窄口径 AND 命中）", "❌ 所有数据源均失败，无法获取 600519 K线数据", "ConnectionError: HTTPSConnectionPool … Connection aborted."},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -41,6 +42,7 @@ func TestMatchEnvNoise_DoesNotMaskRealBugs(t *testing.T) {
 		{"akshare 签名断裂（真缺陷）", "AkShare 融资融券数据源获取失败: stock_margin_detail_sse() got an unexpected keyword argument 'symbol'", "TypeError"},
 		{"调度任务不存在（真缺陷）", "Task 251 not found in scheduler_tasks", ""},
 		{"未经网络层的通用失败", "检查成交量失败: 600519", ""},
+		{"全源失败但无连接类错误（可能是配置/接口问题，不得归档）", "❌ 所有数据源均失败，无法获取 600519 K线数据", "KeyError: 'sina' 数据源未注册，provider chain 为空"},
 		{"空消息", "", ""},
 	}
 	for _, c := range cases {

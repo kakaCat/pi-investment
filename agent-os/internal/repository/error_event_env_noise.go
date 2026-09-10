@@ -43,6 +43,16 @@ var envNoiseRules = []envNoiseRule{
 			"东财经代理 ProxyError、直连 RemoteDisconnected）。属外部网络层，本机无法根治。",
 	},
 	{
+		Name: "multi-source-all-failed-network",
+		// 窄口径 AND：必须"全源失败"与"连接类错误"同时出现才判为环境抖动；
+		// 仅凭"所有数据源均失败"绝不归档——配置错误/接口变更也会产生同一文案。
+		// 注：Go RE2 的重复上限是 1000，故用 (?s).*? 而非 {0,2000}（后者 init 直接 panic）。
+		Re: regexp.MustCompile("(?s)所有数据源均失败" +
+			".*?(ProxyError|RemoteDisconnected|Connection aborted|ConnectionError|ReadTimeout|ConnectTimeout)"),
+		Why: "实证 2026-09-11 01:36-01:37（事件 7e66acac，1 分钟内 2 次）：本机出口到行情源间歇不可达时，" +
+			"多源 fetcher 报全源失败；同一路径 01:45 复测正常（fetch_klines 600519 返回数据）。属外部网络层。",
+	},
+	{
 		Name: "local-proxy-down",
 		Re:   regexp.MustCompile("(?i)(ProxyError|Cannot connect to proxy|connection refused.{0,40}(7897|7890|1087|8888))"),
 		Why:  "本机代理进程重启/未监听时的瞬时失败，链路恢复后自愈，非我方缺陷。",
