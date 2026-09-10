@@ -122,7 +122,7 @@ class FundFlowDataSource:
 
                 if self._is_cache_valid(cached_data, days):
                     logger.info(f"命中本地缓存: {symbol}")
-                    return self._format_cache_response(cached_data, clean_symbol, 'cache')
+                    return self._format_cache_response(cached_data, clean_symbol, 'cache', days)
             except Exception as e:
                 logger.warning(f"缓存查询失败: {e}")
 
@@ -167,7 +167,7 @@ class FundFlowDataSource:
                     fallback_data = self.repository.get_latest_fund_flow(clean_symbol, days=30)
                     if fallback_data:
                         logger.info(f"使用旧缓存数据: {symbol}")
-                        return self._format_cache_response(fallback_data, clean_symbol, 'stale_cache')
+                        return self._format_cache_response(fallback_data, clean_symbol, 'stale_cache', days)
                 except Exception as cache_err:
                     logger.error(f"旧缓存查询失败: {cache_err}")
             raise
@@ -198,7 +198,8 @@ class FundFlowDataSource:
 
         return age_hours < self.cache_ttl_hours
 
-    def _format_cache_response(self, cached_data: List[Dict], symbol: str, source: str) -> Dict:
+    def _format_cache_response(self, cached_data: List[Dict], symbol: str, source: str,
+                               days_requested: Optional[int] = None) -> Dict:
         """格式化缓存数据为标准响应
 
         2026-09-01 修复：DB 里部分列为 NULL（sina 源只落 main/small 两档），
@@ -235,9 +236,22 @@ class FundFlowDataSource:
 
         summary = self._calculate_summary(formatted_data)
 
+        # 口径澄清（2026-09-11 修复，w-f4aa1f6a）：原实现把 days 写成"返回行数"，
+        # 与 API 分支（days=请求窗口）语义不一致——实测请求 days=5 却返回 days=30
+        # （stale 分支固定取 30 条），调用方会误判数据覆盖范围。
+        # 现拆分三个语义明确的字段：
+        #   days          = 请求窗口回显（与 API 分支一致）
+        #   returned_rows = 实际返回条数
+        #   date_range    = [最早日, 最新日]（无数据为 None）
+        date_range = None
+        if formatted_data:
+            dates = sorted(str(d['date']) for d in formatted_data)
+            date_range = [dates[0], dates[-1]]
         return {
             'symbol': symbol,
-            'days': len(formatted_data),
+            'days': days_requested,
+            'returned_rows': len(formatted_data),
+            'date_range': date_range,
             'data': formatted_data,
             'summary': summary,
             'source': source,

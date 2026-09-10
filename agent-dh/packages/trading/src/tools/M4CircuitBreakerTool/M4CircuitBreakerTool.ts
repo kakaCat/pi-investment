@@ -16,6 +16,7 @@ import {
   CircuitBreakerCheckResult,
   CircuitBreakerStatus,
 } from './prompt';
+import { assessDrawdownTrust } from './drawdownTrust';
 
 export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, CircuitBreakerCheckResult> {
   protected readonly metadata: ToolMetadata = {
@@ -73,6 +74,30 @@ export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, Ci
   /**
    * Phase 2: 执行任务
    */
+  /**
+   * 取净值序列并独立复算回撤（闸门用）。数据源：/api/simulation/performance 的 total_value 峰谷。
+   * 注意不使用该接口自带的 max_drawdown 字段（实测 0.43，与风险口径 -1.83% 符号量纲均不符）。
+   */
+  private async assessDrawdownTrust(accountName: string, claimedDrawdown: number, _now: string) {
+    try {
+      const base = process.env.QUANTSYS_V2_API_URL || 'http://127.0.0.1:5001';
+      const url = base + '/api/simulation/performance?account_name=' + encodeURIComponent(accountName);
+      const res = await fetch(url);
+      if (!res.ok) {
+        return { trusted: false, reason: '净值序列不可获取（HTTP ' + res.status + '），无法复核回撤——按保守原则不下单', detail: {} };
+      }
+      const body: any = await res.json();
+      const curve: any[] = body?.data?.equity_curve ?? [];
+      const navs = curve.map((r) => Number(r?.total_value)).filter((n) => Number.isFinite(n) && n > 0);
+      return assessDrawdownTrust(claimedDrawdown, navs);
+    } catch (e: any) {
+      return {
+        trusted: false,
+        reason: '复核过程异常（' + (e?.message || String(e)).slice(0, 80) + '）——按保守原则不下单',
+        detail: {},
+      };
+    }
+  }
   protected async execute(
     args: CircuitBreakerCheckParams,
     context: ToolContext
@@ -144,6 +169,38 @@ export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, Ci
 
     // 3. 判断是否触发熔断
     if (!isActive && maxDrawdown < -8.0) {
+      // ── 输入可信度闸门（2026-09-11，w-f4aa1f6a，事故驱动）──────────────────────
+      // 2026-09-10 08:30 熔断依据 -10.71% 触发并真实卖出 600887，而该读数源自净值快照收益
+      // 口径错误（修正后同一账户回撤 -1.83%，同期总盈亏 +1.13%）。坏数据 → 不可逆真卖单，
+      // 故此处先用净值序列独立复算复核；复核不过**只报待复核、不下任何单**。
+      const trust = await this.assessDrawdownTrust(accountName, maxDrawdown, now);
+      if (!trust.trusted) {
+        actions.push('⛔ 熔断未执行（输入不可信）：' + trust.reason);
+        await this.osMemory.write({
+          title: 'M4-2 熔断被可信度闸门拦下',
+          content: JSON.stringify({
+            checked_at: now,
+            claimed_drawdown: maxDrawdown,
+            reason: trust.reason,
+            detail: trust.detail,
+            account: accountName,
+          }),
+          namespace: 'risk',
+          tags: ['m4', 'circuit_breaker_gate', 'needs_review'],
+        });
+        return {
+          checked_at: now,
+          max_drawdown: maxDrawdown,
+          triggered: false,
+          unblocked: false,
+          actions,
+          circuit_breaker_status: breakerStatus as any,
+          needs_review: true,
+          trust_reason: trust.reason,
+          trust_detail: trust.detail,
+        } as any;
+      }
+      actions.push('✅ 输入可信度复核通过：' + trust.reason);
       // 触发熔断：减仓一半 + 禁止开仓
       const positions: any[] = await this.qv2.getPositions(accountName);
       const sellActions: string[] = [];
