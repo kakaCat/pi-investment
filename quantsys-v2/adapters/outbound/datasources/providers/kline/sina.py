@@ -142,14 +142,24 @@ class SinaKlineProvider(KlineProvider):
                     volume_raw = float(item.get('volume', 0))
                     volume = int(volume_raw) if volume_raw > 0 else 0
 
+                    # 成交额：新浪日线接口**不返回** amount 字段（只到 close/volume）。
+                    # 2026-09-10 定位：该 provider 未按 KlineData 契约（base.py:
+                    # "无原始数据时 provider 按 volume×close 估算"）估算，导致
+                    # KlineData.amount 默认 0 流入库——全库 44.7 万行 amount=0
+                    # 的主因（2026-09-02 起 sina 取代失效的 baostock/tencent 成为主源）。
+                    # 口径与 tencent.py(amount = volume*close)、baostock 一致。
+                    close_val = float(item.get('close', 0))
+                    amount_est = round(volume * close_val, 2) if volume > 0 and close_val > 0 else 0.0
+
                     kline = KlineData(
                         symbol=symbol,
                         date=date_str,
                         open=float(item.get('open', 0)),
                         high=float(item.get('high', 0)),
                         low=float(item.get('low', 0)),
-                        close=float(item.get('close', 0)),
+                        close=close_val,
                         volume=volume,
+                        amount=amount_est,
                         source='sina',
                         timestamp=datetime.now().isoformat()
                     )

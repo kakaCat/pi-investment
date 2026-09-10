@@ -72,6 +72,13 @@ class DatabaseKlineProvider(KlineProvider):
                 high = float(k.get('high', 0))
                 low = float(k.get('low', 0))
                 volume = int(k.get('volume', 0))
+                # 成交额/换手率回传（2026-09-10 修）：本 provider 构造 KlineData
+                # 时漏传这两个字段，KlineData.amount 默认 0 —— 凡经 DB 路径取
+                # K线（回测/因子/复盘的主路径）成交额恒为 0，与新浪 provider
+                # 不返回 amount 属同一类缺陷。仓库 DataFrame 本就有这两列
+                # （kline_repository._DAILY_KLINE_SCHEMA）。
+                amount = float(k.get('amount') or 0)
+                turnover_rate = float(k.get('turnover_rate') or 0)
 
                 if i > 0:
                     prev_close = float(klines[i-1].get('close', 0))
@@ -88,6 +95,8 @@ class DatabaseKlineProvider(KlineProvider):
                     close=close,
                     volume=volume,
                     change_pct=change_pct,
+                    amount=amount,
+                    turnover_rate=turnover_rate,
                     source=self.name,
                     timestamp=datetime.now().isoformat()
                 ))

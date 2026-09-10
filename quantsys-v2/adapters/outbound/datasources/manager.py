@@ -691,7 +691,35 @@ class DataProviderManager(IDataProviderManager):
             period in ['daily', 'weekly', 'monthly']):
             self._backfill_klines_to_db(symbol, result['data'])
 
+        # amount 兜底（2026-09-10）：数据源不返回成交额时上游会留 0
+        # （新浪日线接口只有 volume 无 amount）。KlineData 契约要求 provider
+        # 估算，个别 provider 未实现——在此统一兜底，防止 0 值流入成交额类
+        # 因子/流动性判断（全库曾累积 44.7 万行 amount=0）。
+        self._ensure_amount(result.get('data') or [])
+
         return result
+
+    @staticmethod
+    def _ensure_amount(klines: list) -> int:
+        """为缺失成交额的 K 线按 volume×close 估算（与 tencent/baostock 同口径）。
+
+        仅在 volume>0 且 close>0 时估算，避免制造伪值；返回补齐条数。
+        """
+        filled = 0
+        for k in klines:
+            try:
+                if getattr(k, 'amount', None):
+                    continue
+                volume = float(getattr(k, 'volume', 0) or 0)
+                close = float(getattr(k, 'close', 0) or 0)
+                if volume > 0 and close > 0:
+                    k.amount = round(volume * close, 2)
+                    filled += 1
+            except (TypeError, ValueError):
+                continue
+        if filled:
+            logger.info(f"amount 缺失按 volume×close 估算补齐 {filled} 条")
+        return filled
 
     @staticmethod
     def _expected_last_bar_date(period: str, end_date: str) -> str:

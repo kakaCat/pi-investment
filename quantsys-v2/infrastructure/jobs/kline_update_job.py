@@ -387,6 +387,17 @@ def update_gem_klines(**params):
                 f"⚠️ {stale}只股票数据未覆盖基准日 {target_date}"
                 f"（上游 EOD 未发布），建议稍后补跑")
 
+        # 成交额完整性自检（2026-09-10 立）：本 INSERT 是 daily_klines 的唯一
+        # 写入路径（原样落 float(k.amount)），上游 provider 不返回 amount 时会
+        # 静默写 0——新浪日线接口只有 volume 无 amount，2026-09-02 起其成为主源
+        # 后全库累积 185 万行 amount=0/NULL。在此对本次同步覆盖的基准日做一次
+        # 自检，让"成交额丢失"在写入当日就可见，而不是几周后在因子/回测层发现。
+        amount_missing = _count_missing_amount(conn, target_date)
+        if amount_missing:
+            logger.critical(
+                f"⚠️ {target_date} 有 {amount_missing} 行有成交量但 amount 为 0/NULL "
+                f"——数据源未提供成交额，请核查 provider 的 KlineData.amount 契约")
+
         result = {
             'action': 'kline_update',
             'status': 'success',
@@ -398,6 +409,7 @@ def update_gem_klines(**params):
             'failed': failed,
             'skipped': skipped,
             'stale': stale,
+            'amount_missing': amount_missing,
             'date_range': f"{start_date} -> {end_date}",
             'target_date': target_date,
             'message': f'K线更新完成: 成功{success}只, 失败{failed}只, 跳过{skipped}只, 未覆盖基准日{stale}只'
@@ -409,6 +421,7 @@ def update_gem_klines(**params):
         logger.info(f"  失败: {failed}只")
         logger.info(f"  跳过: {skipped}只")
         logger.info(f"  未覆盖基准日({target_date}): {stale}只")
+        logger.info(f"  成交额缺失(volume>0 且 amount<=0): {amount_missing} 行")
         logger.info("="*70)
 
         return result
@@ -432,6 +445,29 @@ def update_gem_klines(**params):
 
 
 # Job注册点 - scheduler会调用这个函数
+def _count_missing_amount(conn, target_date: str) -> int:
+    """基准日有成交量但成交额缺失的行数（K线写入后的完整性自检）。
+
+    自检失败不阻断同步（返回 0 并告警），因为它是观测手段而非数据正确性前提。
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT count(*) FROM quant.daily_klines "
+                "WHERE trade_date = %s AND volume > 0 AND (amount IS NULL OR amount <= 0)",
+                (target_date,),
+            )
+            row = cur.fetchone()
+            return int(row[0]) if row else 0
+    except Exception as e:  # noqa: BLE001 - 自检异常不得影响同步结果
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        logger.warning(f"成交额完整性自检失败（不影响同步）: {e}")
+        return 0
+
+
 def execute(**params):
     """Scheduler调用的入口函数"""
     return update_gem_klines(**params)
