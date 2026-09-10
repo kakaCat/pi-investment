@@ -20,6 +20,33 @@ MAX_BYTES=${MAX_BYTES:-67108864}   # 单文件阈值，默认 64MB
 KEEP_DAYS=${KEEP_DAYS:-14}         # 归档保留天数
 LOCK_DIR=/tmp/pi-rotate-logs.lock
 TS=$(date +%Y%m%d-%H%M%S)
+MAX_AGE_HOURS=${MAX_AGE_HOURS:-26}   # --check 模式：超过该时长未运行即视为定时失效
+
+# --check：只核验"上一次运行距今多久"，不做轮转、不取锁，退出码即结论
+#（2026-09-11 w-f4aa1f6a：日志轮转是"静默失效型"任务——不跑也不报错，
+#  必须有独立探针把"没跑"变成可见的失败）
+if [ "${1:-}" = "--check" ]; then
+  STATE_FILE=/Users/yunpeng/pi-investment/agent-os/logs/.log_rotate_history
+  if [ ! -f "$STATE_FILE" ]; then
+    echo "[rotate-logs][CHECK-FAIL] 无运行留痕文件 $STATE_FILE —— 定时轮转从未执行过"
+    exit 1
+  fi
+  last_line=$(tail -1 "$STATE_FILE")
+  last_ts=${last_line%% |*}
+  last_epoch=$(date -j -f '%Y-%m-%d %H:%M:%S' "$last_ts" '+%s' 2>/dev/null || echo 0)
+  now_epoch=$(date '+%s')
+  if [ "$last_epoch" = "0" ]; then
+    echo "[rotate-logs][CHECK-FAIL] 无法解析上次运行时间：$last_line"
+    exit 1
+  fi
+  age_hours=$(( (now_epoch - last_epoch) / 3600 ))
+  if [ "$age_hours" -gt "$MAX_AGE_HOURS" ]; then
+    echo "[rotate-logs][CHECK-FAIL] 上次运行距今 ${age_hours}h > ${MAX_AGE_HOURS}h（定时轮转疑似失效）：$last_line"
+    exit 1
+  fi
+  echo "[rotate-logs][CHECK-OK] 上次运行距今 ${age_hours}h（阈值 ${MAX_AGE_HOURS}h）：$last_line"
+  exit 0
+fi
 
 # 目标：服务日志目录 + 重启器日志（DSH 两个 profile 路径都覆盖）
 TARGET_DIRS=(
@@ -76,4 +103,16 @@ for dir in "${TARGET_DIRS[@]}"; do
   done < <(find "$dir" -maxdepth 1 -name '*.log.*.gz' -mtime +"$KEEP_DAYS" 2>/dev/null)
 done
 
-echo "[rotate-logs] 完成：轮转 ${rotated} 个，未达阈值 ${skipped} 个，清理归档 ${pruned} 个（保留 ${KEEP_DAYS} 天）"
+SUMMARY="[rotate-logs] 完成：轮转 ${rotated} 个，未达阈值 ${skipped} 个，清理归档 ${pruned} 个（保留 ${KEEP_DAYS} 天）"
+echo "$SUMMARY"
+
+# 运行留痕（2026-09-11 w-f4aa1f6a）：定时任务"是否真的跑了"必须可核验，
+# 不能只看 plist 是否加载。每次运行追加一行到 STATE_FILE，供 --check 与复盘查询。
+STATE_DIR="/Users/yunpeng/pi-investment/agent-os/logs"
+STATE_FILE="$STATE_DIR/.log_rotate_history"
+mkdir -p "$STATE_DIR"
+printf '%s | rotated=%s skipped=%s pruned=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$rotated" "$skipped" "$pruned" >> "$STATE_FILE"
+# 只保留最近 200 行，避免留痕文件自身无限增长
+if [ "$(wc -l < "$STATE_FILE" 2>/dev/null || echo 0)" -gt 200 ]; then
+  tail -200 "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+fi

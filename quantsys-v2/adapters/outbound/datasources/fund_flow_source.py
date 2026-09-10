@@ -8,6 +8,8 @@
 主源失败时必须显式报错，绝不返回假数据。
 """
 import logging
+import threading
+import time as _time
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import pandas as pd
@@ -15,6 +17,62 @@ import pandas as pd
 from domain.ports.datasource_ports import DataSourceError
 
 logger = logging.getLogger(__name__)
+
+# ── 资金流读取加固：短期缓存 + 连续失败冷却（2026-09-11，w-f4aa1f6a） ──────────
+# 背景：本机到 push2his.eastmoney.com 必须经系统代理，代理出口间歇不可达
+# （实测：东财经代理 ProxyError、直连被网络封锁；同刻百度经同一代理 200/0.1s）。
+# 单次失败要烧 1+2+4 ≈ 7s 重试，调用方（资金流工具、博弈预警）被拖慢；
+# 上游已明确"宁缺毋滥、不返回假数据"，所以这里只做两件事，不改语义：
+#   ① 成功结果短期缓存（默认 15 分钟）：日频数据在短窗口内重复问没有意义；
+#   ② 连续失败 N 次进入冷却（默认 5 分钟）：冷却期内快速失败，不再反复冲击
+#      已经不可达的链路（也减少对代理的无效压力）。
+_FLOW_CACHE: Dict[tuple, tuple] = {}
+_FLOW_CACHE_TTL_SECONDS = 900.0
+_FLOW_FAIL_STATE: Dict[str, list] = {}
+_FLOW_COOLDOWN_SECONDS = 300.0
+_FLOW_FAIL_THRESHOLD = 3
+_FLOW_LOCK = threading.Lock()
+
+
+def _cache_get(symbol: str, days: int) -> Optional[List[Dict]]:
+    with _FLOW_LOCK:
+        hit = _FLOW_CACHE.get((symbol, days))
+    if not hit:
+        return None
+    ts, rows = hit
+    if _time.monotonic() - ts > _FLOW_CACHE_TTL_SECONDS:
+        return None
+    return [dict(r) for r in rows]
+
+
+def _cache_put(symbol: str, days: int, rows: List[Dict]) -> None:
+    if not rows:
+        return  # 空结果不缓存，避免把"上游暂时空返回"固化成 15 分钟的假空
+    with _FLOW_LOCK:
+        _FLOW_CACHE[(symbol, days)] = (_time.monotonic(), [dict(r) for r in rows])
+
+
+def _cooldown_remaining(symbol: str) -> float:
+    with _FLOW_LOCK:
+        st = _FLOW_FAIL_STATE.get(symbol)
+    if not st:
+        return 0.0
+    fails, until = st[0], st[1]
+    remain = until - _time.monotonic()
+    return remain if fails >= _FLOW_FAIL_THRESHOLD and remain > 0 else 0.0
+
+
+def _record_failure(symbol: str) -> int:
+    with _FLOW_LOCK:
+        fails = (_FLOW_FAIL_STATE.get(symbol) or [0, 0.0])[0] + 1
+        until = _time.monotonic() + _FLOW_COOLDOWN_SECONDS if fails >= _FLOW_FAIL_THRESHOLD else 0.0
+        _FLOW_FAIL_STATE[symbol] = [fails, until]
+    return fails
+
+
+def _record_success(symbol: str) -> None:
+    with _FLOW_LOCK:
+        _FLOW_FAIL_STATE.pop(symbol, None)
 
 
 class FundFlowDataSource:
@@ -282,6 +340,19 @@ class EastMoneyFundFlowSource:
             由下方退避重试兜住。"""
             yield
 
+        # ① 短期缓存命中（默认 15 分钟）直接返回，避免重复冲击抖动链路
+        cached = _cache_get(symbol, days)
+        if cached is not None:
+            logger.info(f"{symbol} 资金流向命中短期缓存（{len(cached)} 条，TTL {int(_FLOW_CACHE_TTL_SECONDS)}s）")
+            return cached
+        # ② 冷却期：连续失败达阈值后快速失败，不再烧 7s 重试（语义不变：仍然显式报错）
+        remain = _cooldown_remaining(symbol)
+        if remain > 0:
+            raise DataSourceError(
+                f"{symbol} 资金流向数据源处于冷却期（连续失败 >= {_FLOW_FAIL_THRESHOLD} 次，"
+                f"{int(remain)}s 后重试）：本机代理出口到东财间歇不可达，属环境问题"
+            )
+
         try:
             with _disable_proxies():
                 import akshare as ak
@@ -335,6 +406,8 @@ class EastMoneyFundFlowSource:
                             })
 
                         logger.info(f"成功获取 {stock_code} 资金流向数据，共 {len(result)} 条")
+                        _record_success(symbol)
+                        _cache_put(symbol, days, result)
                         return result
 
                     except Exception as e:
@@ -347,7 +420,14 @@ class EastMoneyFundFlowSource:
                             raise
 
         except Exception as e:
-            logger.error(f"东方财富数据源获取失败（已重试{max_retries}次）: {e}")
+            fails = _record_failure(symbol)
+            if fails >= _FLOW_FAIL_THRESHOLD:
+                logger.error(
+                    f"东方财富数据源获取失败（已重试{max_retries}次，连续失败 {fails} 次）："
+                    f"进入 {int(_FLOW_COOLDOWN_SECONDS)}s 冷却，期间快速失败不再重试: {e}"
+                )
+            else:
+                logger.error(f"东方财富数据源获取失败（已重试{max_retries}次）: {e}")
             raise
 
     # 全市场 A 股范围（沪深京）
