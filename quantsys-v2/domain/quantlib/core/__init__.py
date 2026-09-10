@@ -2,7 +2,7 @@ from .base_calculator import BaseCalculator
 from .exceptions import (
     InsufficientDataError,
     DataValidationError,
-    CalculatorError,
+    CalculationError,
 )
 from .pipeline import PipelineStage
 
