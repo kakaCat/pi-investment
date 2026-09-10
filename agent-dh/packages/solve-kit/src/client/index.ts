@@ -32,6 +32,8 @@ export interface SolveKitDeps {
   current(): string
   /** identity → 当前数据里的最新快照；列表已刷新找不到 → null（提示重试） */
   resolveSnapshot(kind: 'task' | 'error', identity: SolveIdentity): SolveSnapshot | null
+  /** 在线窗口 session id 列表（可选；提供则 picker 标注离线项，离线项点击需确认改投当前窗口） */
+  online?: () => Promise<string[]>
   /** 浮层挂载宿主（默认 document.body）；点击按钮时容器通常已存在 */
   host?: HTMLElement | (() => HTMLElement | undefined)
 }
@@ -56,6 +58,7 @@ function cssFor(pf: string): string {
     '.' + pf + '-solvepop-item { border:none; background:transparent; text-align:left; padding:5px 8px; border-radius:5px; cursor:pointer; color:var(--body,#606266); font:inherit; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }',
     '.' + pf + '-solvepop-item:hover { background:var(--hover,rgba(128,128,128,.12)); }',
     '.' + pf + '-solvepop-item.cur { color:#409eff; font-weight:600; }',
+    '.' + pf + '-solvepop-item.off { color:var(--dim,#909399); font-style:italic; }',
     '.' + pf + '-solvepop-cancel { width:100%; margin-top:4px; border:none; background:transparent; color:var(--dim,#909399); font:inherit; font-size:12px; padding:4px; cursor:pointer; border-top:1px solid var(--line,#ebeef5); }',
     '.' + pf + '-solvepop-cancel:hover { color:var(--text,#303133); }',
     '.' + pf + '-toast { position:fixed; left:50%; bottom:54px; transform:translateX(-50%); z-index:10000; max-width:70vw; background:#303133; color:#fff; border-radius:7px; padding:7px 15px; font-size:12.5px; line-height:1.6; box-shadow:0 4px 16px rgba(0,0,0,.22); transition:opacity .35s, transform .35s; }',
@@ -141,20 +144,40 @@ export function createSolveKit(deps: SolveKitDeps): SolveKit {
     close()
     const cands = deps.candidates()
     if (cands.length === 0) { void postSolve(target.kind, target.snap); return }
+    // 离线防护（2026-09-10）：会话列表含离线历史会话，但投递要求在线 agent（懒加载）。
+    // 拉在线窗口列表标注；离线项点击需确认改投当前窗口，避免 exactOnly 投递必败。
+    void (async () => {
+      let onlineSet: Set<string> | null = null
+      try {
+        const ids = await deps.online?.()
+        if (Array.isArray(ids)) onlineSet = new Set(ids.map(String))
+      } catch { /* 拉取失败 → 不标注，保持原行为 */ }
+      renderPop(onlineSet)
+    })()
+    const renderPop = (onlineSet: Set<string> | null): void => {
     const pop = document.createElement('div')
     pop.className = pf + '-solvepop'
     const head = document.createElement('div')
     head.className = pf + '-solvepop-head'
-    head.textContent = '投递给窗口排查处置'
+    head.textContent = '投递给窗口排查处置' + (onlineSet !== null ? '（● 当前 / ○ 在线 / ○离线）' : '')
     pop.appendChild(head)
     const list = document.createElement('div')
     list.className = pf + '-solvepop-list'
     for (const c of cands) {
+      const isOn = onlineSet === null || c.current || onlineSet.has(c.sid)
       const b = document.createElement('button')
       b.type = 'button'
-      b.className = pf + '-solvepop-item' + (c.current ? ' cur' : '')
-      b.textContent = (c.current ? '● ' : '○ ') + c.label
-      b.addEventListener('click', () => { close(); void postSolve(target.kind, target.snap, c.sid) })
+      b.className = pf + '-solvepop-item' + (c.current ? ' cur' : '') + (isOn ? '' : ' off')
+      b.textContent = (c.current ? '● ' : '○ ') + c.label + (isOn ? '' : '（离线）')
+      b.addEventListener('click', () => {
+        if (!isOn) {
+          const okGo = window.confirm('窗口「' + c.label + '」不在线（agent 未加载），直接投递必失败。\n\n确定改投到当前在线窗口处理吗？\n（或先到该窗口发一条消息激活后再重试）')
+          if (!okGo) return
+          close(); void postSolve(target.kind, target.snap)
+          return
+        }
+        close(); void postSolve(target.kind, target.snap, c.sid)
+      })
       list.appendChild(b)
     }
     pop.appendChild(list)
@@ -186,6 +209,7 @@ export function createSolveKit(deps: SolveKitDeps): SolveKit {
     }
     document.addEventListener('click', onDoc, true)
     solveDocClean = () => document.removeEventListener('click', onDoc, true)
+    }
   }
 
   return { toast, openPicker, close }

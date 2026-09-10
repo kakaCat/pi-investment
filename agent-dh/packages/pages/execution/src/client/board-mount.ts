@@ -290,6 +290,13 @@ export function mountBoard(controller: BoardController): () => void {
     endpoint: '/dashboard/api/board/solve',
     prefix: 'dsh-exec',
     candidates: sessionCandidates,
+  online: async () => {
+    try {
+      const res = await fetch('/dashboard/api/board/online-windows')
+      const j = (await res.json()) as { data?: { online?: unknown } }
+      return Array.isArray(j?.data?.online) ? (j.data.online as string[]).map(String) : []
+    } catch { return [] }
+  },
     current: currentSession,
     resolveSnapshot: (kind, identity) => snapshotFor(kind, identity),
     host: () => document.querySelector<HTMLElement>(BOARD_VIEW_SELECTOR) ?? undefined,

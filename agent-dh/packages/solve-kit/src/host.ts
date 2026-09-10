@@ -154,7 +154,10 @@ export function createSolveHandler(deps: SolveKitHostDeps, opts: SolveKitHostOpt
         ? deps.resolveAgent(to_session, true)
         : deps.resolveAgent(from_session && typeof from_session === 'string' ? from_session : undefined, false)
       if (!target) {
-        return json(res, 200, { success: false, error: '未解析到任何在线目标窗口，投递未执行' })
+        const toHint = to_session && typeof to_session === 'string'
+          ? '目标窗口 ' + windowCode(to_session) + ' 不在线（其会话 agent 未加载——picker 列表含离线会话，投递要求在线 agent）'
+          : '当前窗口与主窗口均不在线'
+        return json(res, 200, { success: false, error: toHint + '，投递未执行。请选择标 ● 的当前窗口/在线窗口，或先到目标窗口发一条消息激活后重试' })
       }
 
       const actorWindow = from_session && typeof from_session === 'string' ? windowCode(from_session) : target.window

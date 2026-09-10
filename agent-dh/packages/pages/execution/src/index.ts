@@ -95,6 +95,17 @@ export function apply(ctx: Context, config?: PluginConfig): void {
           path: '/dashboard/api/board/solve',
           handler: createSolveHandler({ resolveAgent }, { panel: '执行看板', panelFull: '双线执行确认看板', plugin: 'dashboard-execution' }),
         });
+        // 在线窗口列表（picker 离线防护数据源：会话列表含离线会话，投递要求在线 agent）
+        webCtx.webServer.register({
+          kind: 'exact',
+          path: '/dashboard/api/board/online-windows',
+          handler: (_req: unknown, res: { writeHead: (n: number, h: Record<string, string>) => void; end: (s: string) => void }) => {
+            let ids: string[] = [];
+            try { ids = (((agentsSvc as { roots?: () => { id: unknown }[] })?.roots?.() ?? [])).map((r) => String(r.id)); } catch { ids = []; }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, data: { online: ids } }));
+          },
+        });
         // 错误事件分页浏览：status/page/pageSize → Agent OS error-events（offset/total）
         webCtx.webServer.register({
           kind: 'exact',
