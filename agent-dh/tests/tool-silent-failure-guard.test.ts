@@ -180,6 +180,37 @@ describe('输出 schema 完整性护栏（additionalProperties:false 会静默�
   });
 });
 
+describe('signal_track 写入护栏（决策账本防污染）', () => {
+  const load = async () => {
+    const { SignalTrackTool } = await import('../packages/intelligence/src/tools/SignalTrackTool/SignalTrackTool.js');
+    return SignalTrackTool;
+  };
+
+  it('非交易日 → 拒绝写入（历史 3 条记录落在周末）', async () => {
+    const T = await load();
+    const tool: any = new T({ getKlines: vi.fn().mockResolvedValue([]), recordSignal: vi.fn() } as any);
+    await expect(
+      tool.execute({ action: 'record', symbol: '600519', price: 1292.3, source: 'watch_rule', grade: 'C', signal_date: '2026-08-30' }, ctx),
+    ).rejects.toThrow(/不存在的K线|非交易日|K线中不存在/);
+  });
+
+  it('价格与真实收盘偏离 >15% → 拒绝写入（历史 A 级假数据形态：1800 vs 真实 1292）', async () => {
+    const T = await load();
+    const tool: any = new T({ getKlines: vi.fn().mockResolvedValue([{ close: 1292.3 }]), recordSignal: vi.fn() } as any);
+    await expect(
+      tool.execute({ action: 'record', symbol: '600519', price: 1850.5, source: 'mainline_stocks', grade: 'A', signal_date: '2026-08-27' }, ctx),
+    ).rejects.toThrow(/偏离/);
+  });
+
+  it('价格合理 → 正常写入并附带校验结果', async () => {
+    const T = await load();
+    const recordSignal = vi.fn().mockResolvedValue({ signalId: 99 });
+    const tool: any = new T({ getKlines: vi.fn().mockResolvedValue([{ close: 1292.3 }]), recordSignal } as any);
+    const r: any = await tool.execute({ action: 'record', symbol: '600519', price: 1295, source: 'opportunity_scan', grade: 'B', signal_date: '2026-08-27' }, ctx);
+    expect(recordSignal).toHaveBeenCalledOnce();
+    expect(String(r.details.price_check)).toMatch(/verified/);
+  });
+});
 describe('pool_list 字段契约（后端为 symbol_count）', () => {
   it('把 symbol_count 映射为 member_count（旧实现恒 undefined）', async () => {
     const { PoolListTool } = await import('../packages/investment/src/tools/PoolListTool/PoolListTool.js');
