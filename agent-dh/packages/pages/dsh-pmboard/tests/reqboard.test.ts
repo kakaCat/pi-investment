@@ -52,10 +52,18 @@ describe('Requirement state machine', () => {
     throwsCode(() => assertReqTransition('done', 'archived', 'agent'), 'human_gate')
   })
 
-  it('system gate: system only allowed implementing→accepting rollup', () => {
+  it('system gate: 白名单内两类自动推进放行、白名单外一律拒绝', () => {
+    // 白名单：接手推进 + 实施完成 rollup
+    expect(() => assertReqTransition('draft', 'reviewing', 'system')).not.toThrow()
     expect(() => assertReqTransition('implementing', 'accepting', 'system')).not.toThrow()
-    throwsCode(() => assertReqTransition('draft', 'reviewing', 'system'), 'system_gate')
+    // 白名单外的普通转移：system 不可发起
+    throwsCode(() => assertReqTransition('draft', 'canceled', 'system'), 'system_gate')
+    throwsCode(() => assertReqTransition('reviewing', 'draft', 'system'), 'system_gate')
+    // 人工闸门优先于 system 白名单：自动推进永不能越过人工闸门
     throwsCode(() => assertReqTransition('reviewing', 'decomposing', 'system'), 'human_gate')
+    throwsCode(() => assertReqTransition('decomposing', 'implementing', 'system'), 'human_gate')
+    throwsCode(() => assertReqTransition('accepting', 'done', 'system'), 'human_gate')
+    throwsCode(() => assertReqTransition('done', 'archived', 'system'), 'human_gate')
   })
 })
 

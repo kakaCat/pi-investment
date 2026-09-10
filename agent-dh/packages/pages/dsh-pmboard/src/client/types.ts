@@ -28,6 +28,8 @@ export interface RequirementRecord {
   blockedReason?: string
   paused?: boolean
   reviewSessionId?: string
+  /** 立项来源窗口（agent 会话 id，如 session-<uuid>；人工建卡不填）——窗口↔需求关联锚点 */
+  sourceSessionId?: string
   archivePath?: string
   comments: CommentRecord[]
   version: number

@@ -34,6 +34,17 @@ export const LANE_STATUSES: readonly RequirementStatus[] = [
   'draft', 'reviewing', 'decomposing', 'implementing', 'accepting', 'done',
 ]
 
+/**
+ * 会话 id → 窗口码（人类可读短标识）：`session-<uuid>` → `w-<uuid 前 8 位>`。
+ * 与 host shared/protocol.ts 的 windowCodeFromSessionId 同规则（client 半不 import
+ * host 模块，避免打包把 host 代码带进浏览器包）。
+ */
+function windowCodeFromSessionId(sessionId: string): string {
+  const raw = sessionId.startsWith('session-') ? sessionId.slice('session-'.length) : sessionId
+  const head = raw.split('-')[0] ?? raw
+  return `w-${head.slice(0, 8)}`
+}
+
 const fmtTime = (ts: number): string => {
   const d = new Date(ts)
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -109,8 +120,8 @@ function renderReqCard(card: ReqCard): string {
   const blockedChip = blocked ? '<span class="dsh-pm-flag blocked">阻塞</span>' : ''
   const pausedChip = req.paused ? '<span class="dsh-pm-flag paused">暂停</span>' : ''
   const readyChip = readyIds.length > 0 ? `<span class="dsh-pm-flag ready">${readyIds.length} ready</span>` : ''
-  // 会话 chip：取最近一条有 sessionId 的执行
-  const sessionChip = renderSessionChip(tasks)
+  // 窗口 chip：立项来源窗口（窗口↔需求关联）+ 最近执行会话
+  const sessionChip = renderWindowChip(req) + renderSessionChip(tasks)
 
   return `
     <div class="dsh-pm-card${blocked ? ' is-blocked' : ''}" data-req="${esc(req.id)}" data-action="open-req">
@@ -125,6 +136,18 @@ function renderReqCard(card: ReqCard): string {
       </div>
       ${sessionChip}
     </div>`
+}
+
+/**
+ * 立项来源窗口 chip —— 「项目看板 ↔ 窗口关联」在看板上的可见锚点。
+ * sourceSessionId 是 host 落库时写入的窗口会话 id；点击可跳转到该会话。
+ * 人工建卡（GUI/看板按钮）无 sourceSessionId → 不渲染（避免空 chip）。
+ */
+function renderWindowChip(req: RequirementRecord): string {
+  const sid = req.sourceSessionId
+  if (!sid) return ''
+  const code = windowCodeFromSessionId(sid)
+  return `<button type="button" class="dsh-pm-window" data-action="jump-session" data-sid="${esc(sid)}" title="立项来源窗口（点击跳转到该会话）：${esc(sid)}">窗口 ${esc(code)}</button>`
 }
 
 function renderSessionChip(tasks: TaskRecord[]): string {
@@ -156,6 +179,7 @@ export function buildReqDetail(req: RequirementRecord, tasks: TaskRecord[]): str
         <span class="dsh-pm-card-id">${esc(req.id)}</span>
         <span class="dsh-pm-status" data-status="${req.status}">${STATUS_LABELS[req.status]}</span>
         ${req.blocked ? '<span class="dsh-pm-flag blocked">阻塞</span>' : ''}
+        ${renderWindowChip(req)}
         <span class="dsh-pm-detail-updated">${fmtTime(req.updatedAt)}</span>
       </div>
       <h2 class="dsh-pm-detail-title">${esc(req.title)}</h2>
@@ -183,6 +207,7 @@ export function buildReqDetail(req: RequirementRecord, tasks: TaskRecord[]): str
 /** 当前状态的闸门提示（人工闸门标出操作按钮） */
 function gateHintFor(status: RequirementStatus): string {
   const hints: Partial<Record<RequirementStatus, string>> = {
+    draft: '<div class="dsh-pm-gate">需求已立项：窗口接手开工后自动进入评审 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="reviewing">提交评审</button></div>',
     reviewing: '<div class="dsh-pm-gate">人工闸门：方案确认后进入拆分 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="decomposing">确认方案</button></div>',
     decomposing: '<div class="dsh-pm-gate">人工闸门：DAG 确认后进入实施 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="implementing">确认拆分</button></div>',
     accepting: '<div class="dsh-pm-gate">人工闸门：验收通过后完成 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="done">验收通过</button></div>',

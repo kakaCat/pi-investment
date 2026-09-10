@@ -40,6 +40,7 @@
 
 import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { isWindowBound, pendingSuggestionFor, openRequirementsFor } from './capture.js';
+import { applyTaskRollup } from './rollup.js';
 import type { ReqboardStore } from './store.js';
 import type {
   ReqboardLedger,
@@ -49,7 +50,10 @@ import type {
 } from '../shared/protocol.js';
 import {
   ALL_REQ_CATEGORIES,
+  ALL_REQ_STATUSES,
   asReqCategory,
+  asReqStatus,
+  assertReqTransition,
   newCommentId,
   newRequirementId,
   normalizeText,
@@ -351,6 +355,132 @@ export function defineStatusTool(deps: ReqboardToolDeps) {
             : pending !== undefined
               ? '存在遗留待确认建议卡（旧流程产物）：可在看板确认/拒绝，或忽略；新立项直接走 reqboard_create'
               : '本窗口未绑定需求：识别到值得立项的新工作 → 先 ask_user_question 弹「两问确认」（需求名称+需求类型）获用户确认，再按确认值调 reqboard_create 直接立项（创建即立项）',
+      }
+    },
+  } as any)
+}
+/**
+ * reqboard_move：推进本窗口**绑定需求**的状态（窗口侧唯一的状态推进入口）。
+ *
+ * 为什么需要它：台账状态此前只能由人在看板点按钮推进（GUI move-req），窗口 agent
+ * 没有任何推进手段——需求建卡后即静止。本工具把「窗口推进自己的需求」变成一次
+ * 工具调用，闸门仍然代码级生效：
+ *   - 人工闸门（评审通过 reviewing>decomposing / 拆分确认 decomposing>implementing /
+ *     验收通过 accepting>done / 归档 done>archived）→ 抛 human_gate，工具返回明确
+ *     指引「该转移需人在项目看板点击确认」；
+ *   - 非法转移 → invalid_transition；
+ *   - 只能推进**本窗口绑定**的需求（防越权推进他窗口需求）。
+ *
+ * 典型用法：agent 完成方案设计 → move 到 reviewing；人确认方案后 agent 拆分任务卡
+ * 落库（task/create）→ 全部任务 done 时 rollup 自动进 accepting（无需调用本工具）。
+ *
+ * 认证：identity + live driver（与 create 一致），不要求 direct-human——推进是执行
+ * 窗口的常规工作动作，但人工闸门由协议层拒绝，故无越权风险。
+ */
+export function defineMoveTool(deps: ReqboardToolDeps) {
+  return defineTool({
+    name: 'reqboard_move',
+    description:
+      '推进本窗口已绑定需求的状态（项目看板泳道）。仅能推进本窗口绑定的需求；'
+      + '人工闸门转移（评审通过/拆分确认/验收通过/归档）会被拒绝——那几步必须人在看板点确认。'
+      + '用法：先 reqboard_status 确认绑定需求与当前状态，再 move 到目标状态并给 reason。',
+    parameters: {
+      to: {
+        type: 'string',
+        description: '目标状态：draft / reviewing / decomposing / implementing / accepting / done / archived / canceled',
+        required: true,
+        enum: [...ALL_REQ_STATUSES],
+      },
+      requirement_id: {
+        type: 'string',
+        description: '需求 id（REQ-xxxxxx）；不传则默认本窗口绑定的那条 open 需求',
+      },
+      reason: {
+        type: 'string',
+        description: '推进理由（≤500 字符，写入需求评论供复盘）',
+      },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          success: { type: 'boolean' },
+          requirement_id: { type: 'string' },
+          from: { type: 'string', description: '推进前状态' },
+          to: { type: 'string', description: '推进后状态' },
+          note: { type: 'string' },
+        },
+      },
+      render: renderJson,
+    },
+    timeoutMs: 15000,
+    execute: async (args: unknown, exec: ToolRunContext) => {
+      const windowKey = agentIdFromExec(exec)
+      requireLiveDriver(deps, exec)
+      const a = (args ?? {}) as { to?: unknown; requirement_id?: unknown; reason?: unknown }
+      const to = asReqStatus(a.to)
+      const explicitId = normalizeText(a.requirement_id, 'requirement_id', 64)
+      const reason = normalizeText(a.reason, 'reason', 500)
+
+      const snapshot = deps.store.snapshot()
+      const bound = openRequirementsFor(snapshot, windowKey)
+      if (bound.length === 0) {
+        reject('reqboard_move 未执行：本窗口没有绑定中的需求', 'REQBOARD_NO_BOUND_REQ')
+      }
+      const target = explicitId.length > 0 ? bound.find(r => r.id === explicitId) : bound[0]
+      if (target === undefined) {
+        reject(
+          `reqboard_move 未执行：需求 ${explicitId} 不是本窗口绑定的进行中需求（只能推进自己的需求）`,
+          'REQBOARD_NOT_BOUND_TO_WINDOW',
+        )
+      }
+
+      const from = target.status
+      try {
+        assertReqTransition(from, to, 'agent')
+      } catch (err) {
+        const code = (err as { code?: string }).code ?? 'invalid_transition'
+        if (code === 'human_gate') {
+          reject(
+            `reqboard_move 未执行：${from} → ${to} 是人工闸门（需人在项目看板点击确认，agent 不可代替）`,
+            'REQBOARD_HUMAN_GATE',
+          )
+        }
+        reject(`reqboard_move 未执行：${(err as Error).message}`, code)
+      }
+
+      const result = await deps.store.mutate('requirement-moved', (ledger) => {
+        const req = ledger.requirements.find(r => r.id === target.id)
+        if (req === undefined) return undefined
+        assertReqTransition(req.status, to, 'agent')
+        req.status = to
+        req.version += 1
+        req.updatedAt = deps.now()
+        req.updatedBy = { kind: 'agent', sessionId: windowKey }
+        req.comments.push({
+          id: newCommentId(),
+          body: `[窗口推进] ${from} → ${to}${reason ? `：${reason}` : ''}（窗口 ${windowKey}）`,
+          createdAt: deps.now(),
+          createdBy: { kind: 'agent', sessionId: windowKey },
+        })
+        // 推进到 implementing 时顺带重算（任务可能已全部完成）
+        const advanced = applyTaskRollup(ledger, { now: deps.now(), commentId: () => newCommentId() }, req.id)
+        return { requirements: [req, ...advanced] }
+      })
+      const changed = result.changed.requirements[0]
+      if (changed === undefined) {
+        reject('reqboard_move 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
+      }
+      return {
+        success: true,
+        requirement_id: changed.id,
+        from,
+        to: changed.status,
+        note:
+          changed.status === to
+            ? `已推进：${from} → ${to}`
+            : `已推进：${from} → ${changed.status}（派生规则顺带推进）`,
       }
     },
   } as any)

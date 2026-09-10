@@ -311,3 +311,33 @@ describe('buildEmpty / buildError', () => {
     expect(buildError('网络错误')).toContain('网络错误')
   })
 })
+
+// -- 窗口 ↔ 需求关联（sourceSessionId chip）---------------------------------
+
+describe('窗口关联可见性', () => {
+  it('卡片渲染来源窗口 chip（窗口码 w-xxxxxxxx + 跳转 data-sid）', () => {
+    const req = makeReq({ sourceSessionId: 'session-1cee2467-95f9-46ec-9cd8-8577932e7060' })
+    const html = buildBoard(makeState({ requirements: [req] }))
+    expect(html).toContain('data-action="jump-session"')
+    expect(html).toContain('data-sid="session-1cee2467-95f9-46ec-9cd8-8577932e7060"')
+    expect(html).toContain('窗口 w-1cee2467')
+  })
+
+  it('人工建卡（无 sourceSessionId）不渲染窗口 chip', () => {
+    const html = buildBoard(makeState({ requirements: [makeReq()] }))
+    expect(html).not.toContain('dsh-pm-window')
+  })
+
+  it('详情页头部也显示来源窗口 chip', () => {
+    const req = makeReq({ sourceSessionId: 'session-ac92e536-f709-466d-a5dd-aead9e70f6f7' })
+    const html = buildReqDetail(req, [])
+    expect(html).toContain('窗口 w-ac92e536')
+    expect(html).toContain('data-sid="session-ac92e536-f709-466d-a5dd-aead9e70f6f7"')
+  })
+
+  it('draft 需求给出「提交评审」人工入口（自动推进之外的兜底）', () => {
+    const html = buildReqDetail(makeReq({ status: 'draft' }), [])
+    expect(html).toContain('data-action="move-req"')
+    expect(html).toContain('data-to="reviewing"')
+  })
+})

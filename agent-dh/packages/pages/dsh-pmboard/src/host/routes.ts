@@ -33,6 +33,7 @@ import {
   type TaskRecord,
   type TriageRecord,
 } from '../shared/protocol.js'
+import { applyTaskRollup } from './rollup.js'
 
 export interface ReqboardRouteDeps {
   store: ReqboardStore
@@ -230,7 +231,9 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       if (!ledger.requirements.some(r => r.id === requirementId)) notFound(`需求 ${requirementId}`)
       assertDagAcyclic([...ledger.tasks, record], requirementId)
       ledger.tasks.push(record)
-      return { tasks: [record] }
+      // 任务集变化 → 重算所属需求完成度（派生推进）
+      const advanced = applyTaskRollup(ledger, { now: now(), commentId: () => ids.comment() }, record.requirementId)
+      return { tasks: [record], requirements: advanced }
     })
     ok(res, record)
   }
@@ -261,7 +264,9 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       if (reason) {
         task.comments.push({ id: ids.comment(), body: `[状态] → ${to}：${reason}`, createdAt: now(), createdBy: { kind: actor } })
       }
-      return { tasks: [task] }
+      // 派生推进（system）：任务状态落定后重算所属需求（全部实施任务 done → 验收）
+      const advanced = applyTaskRollup(ledger, { now: now(), commentId: () => ids.comment() }, task.requirementId)
+      return { tasks: [task], requirements: advanced }
     })
     ok(res, result.changed.tasks[0])
   }
@@ -290,7 +295,9 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       task.version += 1
       task.updatedAt = now()
       task.updatedBy = { kind: 'human' }
-      return { tasks: [task] }
+      // 取消/依赖变更都可能改变完成度 → 重算所属需求
+      const advanced = applyTaskRollup(ledger, { now: now(), commentId: () => ids.comment() }, task.requirementId)
+      return { tasks: [task], requirements: advanced }
     })
     ok(res, result.changed.tasks[0])
   }

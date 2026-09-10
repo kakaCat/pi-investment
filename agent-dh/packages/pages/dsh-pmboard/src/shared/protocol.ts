@@ -65,10 +65,28 @@ export const HUMAN_ONLY_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
   'canceled>archived', // 取消后归档
 ])
 
-/** system（rollup）允许自动推进的转移白名单：其余转移 system 一律不可发起。 */
+/**
+ * system（rollup）允许自动推进的转移白名单：其余转移 system 一律不可发起。
+ *  - draft>reviewing       需求被窗口接手开工（有直接人类消息）的接手推进；
+ *  - implementing>accepting 全部实施任务 done 的 rollup。
+ * 人工闸门（reviewing>decomposing / decomposing>implementing / accepting>done /
+ * done>archived）永不在本白名单内 —— 自动推进不可能越过人工闸门。
+ */
 export const SYSTEM_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
+  'draft>reviewing', // 窗口接手开工 → 进入评审（方案共创）
   'implementing>accepting', // 全部实施任务 done 的 rollup
 ])
+
+/**
+ * 会话 id → 窗口码（人类可读的短标识）。规则与 DSH 窗口编码一致：
+ * `session-<uuid>` → `w-<uuid 前 8 位>`（如 session-1cee2467-95f9-… → w-1cee2467）。
+ * 非标准 id 原样前缀截断，保证看板永不显示空标识。
+ */
+export function windowCodeFromSessionId(sessionId: string): string {
+  const raw = sessionId.startsWith('session-') ? sessionId.slice('session-'.length) : sessionId
+  const head = raw.split('-')[0] ?? raw
+  return `w-${head.slice(0, 8)}`
+}
 
 export function canReqTransition(from: RequirementStatus, to: RequirementStatus): boolean {
   return REQ_TRANSITIONS[from].includes(to)
