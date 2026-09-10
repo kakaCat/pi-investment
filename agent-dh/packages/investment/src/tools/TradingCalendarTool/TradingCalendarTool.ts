@@ -38,8 +38,12 @@ export class TradingCalendarTool extends BaseTool<TradingCalendarParams, Trading
     const isWeekend = dow === 0 || dow === 6;
 
     // 先试后端日历源
+    // 2026-09-10 修复（investor / w-8f2c4cc5）：必须带日期窗口。此前不带参数，
+    // Provider 收到空区间返回 data:[] → 静默降级为周末排除法，
+    // 实测 2026-10-01 国庆被判定为交易日（"不在集合=非交易日"的前提是有集合）。
     try {
-      const res = await this.qv2.getTradingCalendar();
+      const { start, end } = this.windowAround(dateStr);
+      const res = await this.qv2.getTradingCalendar(start, end);
       if (res.success) {
         const days = this.extractDates(res);
         if (days.length > 0) {
@@ -65,6 +69,18 @@ export class TradingCalendarTool extends BaseTool<TradingCalendarParams, Trading
         ? '周末非交易日'
         : '日历源不可用，按周一~周五判定为交易日；法定节假日请以交易所公告为准',
     };
+  }
+
+  /** 以查询日期为中心取 ±45 天窗口，保证目标日期一定落在返回集合内 */
+  private windowAround(dateStr: string): { start: string; end: string } {
+    const base = new Date(dateStr + 'T12:00:00');
+    const shift = (offsetDays: number) => {
+      const x = new Date(base.getTime());
+      x.setDate(x.getDate() + offsetDays);
+      const pad = (v: number) => String(v).padStart(2, '0');
+      return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
+    };
+    return { start: shift(-45), end: shift(45) };
   }
 
   private extractDates(res: any): string[] {

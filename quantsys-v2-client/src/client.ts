@@ -1888,9 +1888,17 @@ export class QuantsysV2Client {
     return response.data;
   }
 
-  /** 交易日历 */
-  async getTradingCalendar(): Promise<ProviderResponse> {
-    const response = await this.client.get('/api/provider/trading-calendar')
+  /** 交易日历
+   *
+   * 2026-09-10 修复（investor / w-8f2c4cc5）：必须传日期窗口——不传时后端 Provider
+   * 收到空区间返回 data:[]，调用方（trading_calendar 工具）会静默降级成"周末排除法"，
+   * 实测把 2026-10-01 国庆误判为交易日。缺省时后端已给 ±1 年窗口，显式传更可控。
+   */
+  async getTradingCalendar(startDate?: string, endDate?: string): Promise<ProviderResponse> {
+    const params: Record<string, string> = {};
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
+    const response = await this.client.get('/api/provider/trading-calendar', { params })
       .catch((e: any) => ({ data: { success: false, error: e.message } }));
     return response.data;
   }

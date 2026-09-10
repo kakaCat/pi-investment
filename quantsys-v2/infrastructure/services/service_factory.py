@@ -788,11 +788,17 @@ class ServiceFactory:
         # 2026-09-01 修复：无参构造导致所有 repo=None（K线/行情端点全灭，
         # 'NoneType' object has no attribute 'get_daily_klines'）。
         # 参照 StrategyCodeService fallback 模式注入具体 ORM 实现。
+        # 2026-09-10 修复（investor / w-8f2c4cc5）：factor_repo 漏注入 → ds.factor 恒为 None，
+        # /api/stocks/search 的 enrich_stock_data 调 ds.factor.get_available_factors(symbol)
+        # 抛 'NoneType' object has no attribute 'get_available_factors'，被 except 静默吞掉，
+        # 导致 factorCount 恒为 0、dataStatus 永不 complete（日志 13:08-13:09 连续告警）。
         from adapters.outbound.repositories.kline_repository import KlineORMRepository
         from adapters.outbound.repositories.stock_repository import StockORMRepository
+        from adapters.outbound.repositories.factor_repository import FactorORMRepository
         return DataService(
             kline_repo=KlineORMRepository(),
             stock_repo=StockORMRepository(),
+            factor_repo=FactorORMRepository(),
         )
 
     @classmethod

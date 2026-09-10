@@ -513,6 +513,32 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
             logger.error(f"Error getting factor names: {e}")
             return []
 
+    def get_available_factors(self, symbol: Optional[str] = None) -> List[str]:
+        """获取可用因子名列表
+
+        2026-09-10 新增（investor / w-8f2c4cc5）：/api/stocks/search 的 enrich_stock_data
+        历史调用 ds.factor.get_available_factors(symbol)，但该签名此前只存在于
+        FactorCalculatorAdapter（且不接受 symbol，返回的是计算器全量目录），
+        Repository 层无实现 → 调用恒失败（先 None 后 AttributeError）。
+        此处按"该标的实际有因子值"的语义补齐，兼容无参调用（= get_factor_names）。
+
+        Args:
+            symbol: 股票代码；不传则返回全表因子名
+
+        Returns:
+            因子名列表（升序去重）
+        """
+        try:
+            query = self.session.query(FactorValue.factor_name).distinct()
+            if symbol:
+                query = query.filter(FactorValue.symbol == symbol)
+            return sorted({row[0] for row in query.all() if row[0]})
+
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting available factors (symbol={symbol}): {e}")
+            return []
+
     def count_factors_by_date(
         self,
         factor_date: str,

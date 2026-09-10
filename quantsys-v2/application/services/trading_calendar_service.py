@@ -76,7 +76,14 @@ class TradingCalendarService:
 
         # 尝试从 DataProviderManager 获取精确的交易日历（用于排除节假日）
         try:
-            manager: IDataProviderManager = get_data_provider_manager()
+            # 2026-09-10 修复（investor / w-8f2c4cc5）：此处调用裸名 get_data_provider_manager()，
+            # 但本模块从未导入该名字（datasource 迁移只补了 IDataProviderManager 类型导入），
+            # 每次调用都抛 NameError 并被下方 except 吞掉 → 永远静默降级为"周一~周五"，
+            # 法定节假日（如 2026-10-01 国庆）被当成交易日（trade_guard / data_quality /
+            # signal_tracking / DataProviderManager 均走此路径）。
+            # 统一经 ServiceFactory 解析（application 层不直接依赖 adapters），保留原降级路径。
+            from infrastructure.services.service_factory import ServiceFactory
+            manager: IDataProviderManager = ServiceFactory.get_data_provider_manager()
             result = manager.get_trading_calendar(start_date, end_date)
 
             if result.get('success') and result.get('data'):

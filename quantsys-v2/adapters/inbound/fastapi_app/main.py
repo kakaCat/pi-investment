@@ -1083,7 +1083,11 @@ def register_routes():
 
     # P1 批量路由（包含多个子路由）
     try:
-        from .routes import p1_batch_async
+        # 2026-09-10 修复（investor / w-8f2c4cc5）：此处原为相对导入 `from .routes import ...`，
+        # 但生产入口是 `python adapters/inbound/fastapi_app/main.py`（脚本模式，__package__=''），
+        # 相对导入必抛 ImportError → 3 组批量路由静默缺失（p1 5 个 + p2_batch1 6 个 + p2_batch2 5 个），
+        # 日志仅留 warning。改用绝对导入（项目根已在 sys.path，脚本/模块两种模式都成立）。
+        from adapters.inbound.fastapi_app.routes import p1_batch_async
         app.include_router(p1_batch_async.sentiment_router, prefix="/api")
         app.include_router(p1_batch_async.discovery_router, prefix="/api")
         app.include_router(p1_batch_async.game_alert_router, prefix="/api")
@@ -1096,7 +1100,7 @@ def register_routes():
 
     # P2 批量路由 - Batch 1
     try:
-        from .routes import p2_batch1_async
+        from adapters.inbound.fastapi_app.routes import p2_batch1_async
         app.include_router(p2_batch1_async.diagnosis_router, prefix="/api")
         app.include_router(p2_batch1_async.dividends_router, prefix="/api")
         app.include_router(p2_batch1_async.financial_router, prefix="/api")
@@ -1110,7 +1114,7 @@ def register_routes():
 
     # P2 批量路由 - Batch 2
     try:
-        from .routes import p2_batch2_async
+        from adapters.inbound.fastapi_app.routes import p2_batch2_async
         app.include_router(p2_batch2_async.ml_model_router, prefix="/api")
         app.include_router(p2_batch2_async.position_router, prefix="/api")
         app.include_router(p2_batch2_async.industry_router, prefix="/api")

@@ -3,6 +3,7 @@
 This is the SINGLE source of truth for data provider HTTP APIs.
 All endpoints return {"success": bool, "data": ..., "source": str}.
 """
+from datetime import datetime, timedelta
 from typing import List, Optional
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
@@ -218,6 +219,14 @@ def get_index_constituents(symbol: str):
 
 @router.get("/trading-calendar")
 def get_trading_calendar(start_date: str = Query(""), end_date: str = Query("")):
+    # 2026-09-10 修复（investor / w-8f2c4cc5）：调用方（DSH trading_calendar 工具）不带参数，
+    # Provider 收到空区间 → 返回 data:[] → 工具静默降级为"周末排除法"，
+    # 法定节假日（实测 2026-10-01 国庆）被判定为交易日。
+    # 缺省给 ±1 年窗口，保证任意查询日期都落在返回集合内（"不在集合=非交易日"才成立）。
+    if not start_date or not end_date:
+        today = datetime.now().date()
+        start_date = start_date or (today - timedelta(days=365)).isoformat()
+        end_date = end_date or (today + timedelta(days=365)).isoformat()
     return _call("get_trading_calendar", start_date, end_date)
 
 
