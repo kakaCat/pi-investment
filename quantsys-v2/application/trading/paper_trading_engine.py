@@ -441,26 +441,28 @@ class PaperTradingEngine:
         initial = float(account.initial_capital or self.initial_capital)
         cumulative_return = (total_value - initial) / initial if initial > 0 else 0
 
-        snapshots = self.repo.get_equity_snapshots(self.account_name, limit=1)
-        if snapshots:
-            prev_value = float(snapshots[0].total_value or 0)
-            daily_return = (total_value - prev_value) / prev_value if prev_value > 0 else 0
-        else:
-            daily_return = cumulative_return
+        # 日收益率不再在此自算（2026-09-11, w-8f2c4cc5）：旧实现取「最近一条快照」当基准，而该条
+        # 可能是当日自己 09:31 的早盘快照（估值残缺），2026-07-27 因此写出 +24.08% 假日收益
+        # （真实 +0.72%），污染 sharpe/vol/max_drawdown 与 M4 熔断。现统一交给
+        # repo.upsert_equity_snapshot 按上一交易日有效快照计算，再用返回值回填本方法的输出。
 
         peak = float(account.peak_value or initial)
         if total_value > peak:
             peak = total_value
         drawdown = (peak - total_value) / peak if peak > 0 else 0
 
-        self.repo.upsert_equity_snapshot(
+        snap = self.repo.upsert_equity_snapshot(
             account_name=self.account_name,
             cash=cash,
             position_value=position_value,
             total_value=total_value,
-            daily_return=daily_return,
             cumulative_return=cumulative_return,
             drawdown=drawdown,
+        )
+        daily_return = (
+            float(snap.daily_return)
+            if snap is not None and getattr(snap, 'daily_return', None) is not None
+            else None
         )
 
         self.repo.update_account(
@@ -473,13 +475,13 @@ class PaperTradingEngine:
             position_value=position_value,
         )
 
-        logger.info("daily_snapshot_taken", account=self.account_name, nav=round(total_value / initial, 4) if initial > 0 else 1.0, total_value=round(total_value, 2), daily_return=f"{daily_return:.4%}")
+        logger.info("daily_snapshot_taken", account=self.account_name, nav=round(total_value / initial, 4) if initial > 0 else 1.0, total_value=round(total_value, 2), daily_return=(f"{daily_return:.4%}" if daily_return is not None else None))
 
         return {
             'date': date.today().isoformat(),
             'nav': round(total_value / initial, 4) if initial > 0 else 1.0,
             'total_value': round(total_value, 2),
-            'daily_return': round(daily_return, 6),
+            'daily_return': round(daily_return, 6) if daily_return is not None else None,
             'drawdown': round(drawdown, 4),
         }
 

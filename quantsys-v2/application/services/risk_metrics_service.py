@@ -11,6 +11,27 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
+def nav_returns_from_snapshots(snapshots) -> tuple:
+    """把账户净值快照序列（任意顺序）转成日收益率序列。
+
+    2026-09-11（w-8f2c4cc5）新增：风控计算以**账户净值**为唯一真源，与
+    simulation_equity_snapshot.daily_return 列解耦——该列历史上存在基准错位
+    （2026-07-27 记录 +24.08%，真实 +0.72%），直接消费会放大回撤与波动。
+    口径：按 snapshot_date 升序取 total_value，逐日 (v[i]/v[i-1] - 1)，
+    跳过 total_value <= 0 的快照。返回 (returns, 有效净值点数)。
+    """
+    rows = [s for s in (snapshots or []) if getattr(s, 'total_value', None) is not None]
+    rows = [s for s in rows if float(s.total_value) > 0]
+    rows.sort(key=lambda s: s.snapshot_date)
+    values = [float(s.total_value) for s in rows]
+    returns = [
+        (values[i] - values[i - 1]) / values[i - 1]
+        for i in range(1, len(values))
+        if values[i - 1] > 0
+    ]
+    return returns, len(values)
+
+
 class RiskMetricsService:
     """
     风险指标计算服务
@@ -34,6 +55,19 @@ class RiskMetricsService:
             risk_free: 年化无风险利率（默认3%）
         """
         self.risk_free = risk_free
+
+    TRADING_DAYS = 252
+
+    def _period_risk_free(self, annual_risk_free: Optional[float]) -> float:
+        """年化无风险利率 → 单期（日）无风险利率。
+
+        2026-09-11（w-8f2c4cc5）：empyrical 的 sharpe_ratio / sortino_ratio / alpha_beta
+        期望的是**单期**利率，此前直接把年化值传进去，相当于把 2% 年化当成 2%/日——实测
+        agent_virtual 出现 annual_return +26.6% 却 sharpe_ratio -78.7 的自相矛盾结果。
+        """
+        if annual_risk_free is None:
+            return 0.0
+        return (1.0 + float(annual_risk_free)) ** (1.0 / self.TRADING_DAYS) - 1.0
 
     def calculate_all_metrics(
         self,
@@ -109,7 +143,7 @@ class RiskMetricsService:
         rf = risk_free if risk_free is not None else self.risk_free
 
         try:
-            return float(ep.sharpe_ratio(returns, risk_free=rf))
+            return float(ep.sharpe_ratio(returns, risk_free=self._period_risk_free(rf)))
         except Exception as e:
             logger.warning(f"计算夏普比率失败: {e}")
             return np.nan
@@ -136,7 +170,7 @@ class RiskMetricsService:
         rf = risk_free if risk_free is not None else self.risk_free
 
         try:
-            return float(ep.sortino_ratio(returns, required_return=rf))
+            return float(ep.sortino_ratio(returns, required_return=self._period_risk_free(rf)))
         except Exception as e:
             logger.warning(f"计算索提诺比率失败: {e}")
             return np.nan
@@ -212,7 +246,8 @@ class RiskMetricsService:
         rf = risk_free if risk_free is not None else self.risk_free
 
         try:
-            alpha, beta = ep.alpha_beta(returns, benchmark_returns, risk_free=rf)
+            alpha, beta = ep.alpha_beta(
+                returns, benchmark_returns, risk_free=self._period_risk_free(rf))
             return float(alpha), float(beta)
         except Exception as e:
             logger.warning(f"计算Alpha/Beta失败: {e}")

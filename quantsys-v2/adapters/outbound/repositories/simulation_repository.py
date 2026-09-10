@@ -31,6 +31,13 @@ from domain.ports import ISimulationRepository
 
 logger = structlog.get_logger(__name__)
 
+# 日收益率异常告警阈值（15%）：A 股个股单日涨跌停 ±10%，组合层面超过 15% 基本都是
+# 基准快照错位或当日估值残缺——2026-07-27 曾写出 daily_return=+24.08%（真实 +0.72%），
+# 污染 sharpe/vol/max_drawdown 并波及 M4 熔断判定，故必须告警留痕。
+SNAPSHOT_RETURN_SUSPICIOUS = 0.15
+# 找「上一交易日有效基准」时最多回看的快照条数（容忍连续残缺/停牌日）
+SNAPSHOT_BASELINE_SCAN = 5
+
 __all__ = ['SimulationORMRepository', 'normalize_action']
 
 # 统一事实源在 models/action_norm.py（2026-08-13 上移，ORM @validates 复用）；
@@ -488,20 +495,138 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
 
     # ==================== 净值快照 ====================
 
+    def previous_valid_snapshot(
+        self, account_name: str, before: date
+    ) -> Optional[SimulationEquitySnapshot]:
+        """取 before 之前最近一条估值完整的快照，作为日收益率的基准。
+
+        2026-09-11（w-8f2c4cc5）：此前调用方用 get_equity_snapshots(limit=1) 取「最近一条」当基准，
+        该条常常是当日自己 09:31 的早盘快照（同一交易日的旧值），且早盘 total_value 可能只完成
+        部分估值——2026-07-27 因此写出 daily_return=+24.08%（真实 +0.72%）。
+        残缺判定：total_value <= 0 或 total_value < cash（总资产不可能小于现金）。
+        """
+        rows = (
+            self.session.query(SimulationEquitySnapshot)
+            .filter(
+                SimulationEquitySnapshot.account_name == account_name,
+                SimulationEquitySnapshot.snapshot_date < before,
+            )
+            .order_by(SimulationEquitySnapshot.snapshot_date.desc())
+            .limit(SNAPSHOT_BASELINE_SCAN)
+            .all()
+        )
+        for row in rows:
+            total_value = float(row.total_value or 0)
+            cash = float(row.cash or 0)
+            if total_value > 0 and total_value >= cash:
+                return row
+            logger.warning(
+                f"跳过残缺净值快照作为基准: {account_name} {row.snapshot_date} "
+                f"total_value={total_value} cash={cash}"
+            )
+        return None
+
+    def _warn_if_adjustment_flow(self, account_name: str, day: date) -> None:
+        """当日存在 adjustment 流水时告警：该类流水语义含糊，日收益率口径存疑需人工复核。"""
+        try:
+            rows = (
+                self.session.query(SimulationCashFlow)
+                .filter(
+                    SimulationCashFlow.account_name == account_name,
+                    func.date(SimulationCashFlow.created_at) == day,
+                    SimulationCashFlow.flow_type == 'adjustment',
+                )
+                .all()
+            )
+            if rows:
+                logger.warning(
+                    f"当日存在 adjustment 流水（{len(rows)} 笔，合计 "
+                    f"{sum(float(r.amount or 0) for r in rows):.2f}），"
+                    f"日收益率口径存疑: {account_name} {day}"
+                )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"查询当日 adjustment 流水失败: {account_name} {day} {e}")
+
+    def external_flow_on(self, account_name: str, day: date) -> float:
+        """当日真实外部入金合计（用于把注资从日收益中剔除）。
+
+        判定规则：每个账户**最早的一笔 deposit 是成立资金**（排除，不计入当日流入），
+        其后同日的 deposit 才算真实追加入金。原因：本库成立资金记录的 created_at 是迁移
+        时间而非真实入金日（2026-07-21 agent_virtual 才落 147070.15），按当日相减会算出
+        -147% 这类荒谬日收益。buy_debit/sell_credit 是交易内生现金流；adjustment 语义含糊，
+        不并入分子，由 _warn_if_adjustment_flow 单独告警。
+        """
+        try:
+            deposits = (
+                self.session.query(SimulationCashFlow)
+                .filter(
+                    SimulationCashFlow.account_name == account_name,
+                    SimulationCashFlow.flow_type == 'deposit',
+                )
+                .order_by(SimulationCashFlow.created_at.asc())
+                .all()
+            )
+            total = 0.0
+            for idx, row in enumerate(deposits):
+                created = getattr(row, 'created_at', None)
+                if idx == 0:
+                    logger.warning(
+                        f"忽略成立资金入金（账户首笔 deposit，视为初始资本）: "
+                        f"{account_name} {created} {float(row.amount or 0)}"
+                    )
+                    continue
+                if created is not None and created.date() == day:
+                    total += float(row.amount or 0)
+            return total
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"查询当日外部入金失败（按 0 处理）: {account_name} {day} {e}")
+            return 0.0
+
+    def calculate_daily_return(
+        self, account_name: str, day: date, total_value: float
+    ) -> Optional[float]:
+        """按上一交易日有效快照计算日收益率；无可用基准时返回 None（未知，不得写 0）。
+
+        口径：trade-only 收益率 = (当日总资产 - 当日外部入金) / 上一有效快照总资产 - 1，
+        使注资不被当成收益。当日存在 adjustment 流水时口径存疑，记录告警。
+        """
+        prev = self.previous_valid_snapshot(account_name, day)
+        if prev is None:
+            return None
+        prev_total = float(prev.total_value or 0)
+        if prev_total <= 0:
+            return None
+        external_in = self.external_flow_on(account_name, day)
+        return (float(total_value) - external_in - prev_total) / prev_total
+
     def upsert_equity_snapshot(
         self,
         account_name: str,
         cash: float,
         position_value: float,
         total_value: float,
-        daily_return: float = 0.0,
+        daily_return: Optional[float] = None,
         cumulative_return: float = 0.0,
         drawdown: float = 0.0,
         snapshot_date: Optional[date] = None,
         commit: bool = True
     ) -> SimulationEquitySnapshot:
-        """写入/更新当日净值快照"""
+        """写入/更新当日净值快照。
+
+        日收益率口径唯一化（2026-09-11, w-8f2c4cc5）：daily_return 缺省（None）时由本方法按
+        上一交易日有效快照自动计算；无法计算则写 NULL 表示「未知」，不再与「平盘 0.0」混淆。
+        调用方无需也无法自算——旧实现各自取值（缺省 0.0 / 拿当日快照当基准）正是 +24.08%
+        假日收益的来源。
+        """
         day = snapshot_date or datetime.now().date()
+        if daily_return is None:
+            daily_return = self.calculate_daily_return(account_name, day, float(total_value))
+            self._warn_if_adjustment_flow(account_name, day)
+        if daily_return is not None and abs(float(daily_return)) > SNAPSHOT_RETURN_SUSPICIOUS:
+            logger.warning(
+                f"日收益率异常偏大: {account_name} {day} daily_return={float(daily_return):.4f} "
+                f"total_value={total_value} —— 请核查基准快照与当日估值完整性"
+            )
         snap = self.session.query(SimulationEquitySnapshot).filter_by(
             account_name=account_name, snapshot_date=day
         ).first()

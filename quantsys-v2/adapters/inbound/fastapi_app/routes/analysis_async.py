@@ -828,7 +828,10 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
 
     支持两种调用模式：
     1. 直接传 returns 数组：{ "returns": [...], "benchmark_returns": [...] }
-    2. 传 account_name：{ "account_name": "default" } — 自动从持仓计算收益率
+    2. 传 account_name：{ "account_name": "default" } — 账户口径，返回值含 returns_source：
+       account_nav（主口径，账户净值序列日收益，与 M4 熔断同源）
+       holdings_proxy（回退口径，当前持仓等权、忽略现金权重，会高估风险）
+       explicit_returns（调用方直传）
     """
     from application.services.risk_metrics_service import RiskMetricsService
     import pandas as pd
@@ -838,20 +841,40 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
     # 参数验证
     returns = data.get('returns')
     account_name = data.get('account_name') or data.get('accountName')
+    returns_source = 'explicit_returns'
+    nav_points = 0
 
     # 模式 2：通过 account_name 自动获取收益率
     if not returns and account_name:
         try:
-            # 从 simulation 获取指定账户的持仓数据（支持多账户）
-            positions = simulation_repo.get_all_positions(account_name, only_nonzero=True)
-            if not positions:
+            # 主口径（2026-09-11, w-8f2c4cc5）：账户净值序列日收益，与 M4 熔断同源。
+            # 旧实现只用「当前持仓等权 + 忽略现金」的个股 K 线拼收益，现金占比高的账户风险被严重
+            # 高估——实测 agent_virtual（现金 87%）60 日回撤 -6.7%，而账户净值直算仅 -1.83%，
+            # 4.9pct 的差距会直接改写熔断与仓位判定。
+            from application.services.risk_metrics_service import nav_returns_from_snapshots
+            nav_returns: List[float] = []
+            nav_points = 0
+            try:
+                snaps = simulation_repo.get_equity_snapshots(
+                    account_name, limit=int(data.get('days') or 120))
+                nav_returns, nav_points = nav_returns_from_snapshots(snaps)
+            except Exception as nav_err:  # noqa: BLE001
+                logger.warning(f'读取账户净值序列失败，回退持仓代理口径: {nav_err}')
+            nav_ok = len(nav_returns) >= 5
+            if nav_ok:
+                returns = nav_returns
+                returns_source = 'account_nav'
+
+            # 回退口径：持仓等权代理（忽略现金权重，会高估风险）——仅在净值序列不足时使用
+            positions = [] if nav_ok else simulation_repo.get_all_positions(account_name, only_nonzero=True)
+            if not nav_ok and not positions:
                 return error_response({
                     'success': False,
                     'error': f'账户 {account_name} 无持仓数据，无法计算风险指标'
                 }, 400)
             
-            # 转换为 dict 格式（与后续代码兼容）
-            holdings = [{'symbol': p.symbol} for p in positions]
+            # 转换为 dict 格式（与后续代码兼容）；净值口径下无需持仓
+            holdings = [] if nav_ok else [{'symbol': p.symbol} for p in positions]
 
             # 计算每只持仓的日收益率（简化：用最新K线计算）
             daily_returns = []
@@ -873,13 +896,15 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
                 except Exception:
                     continue
 
-            if len(daily_returns) < 5:
+            if not nav_ok and len(daily_returns) < 5:
                 return error_response({
                     'success': False,
                     'error': f'账户 {account_name} 的历史数据不足，无法计算风险指标（需要至少5个数据点）'
                 }, 400)
 
-            returns = daily_returns
+            if not nav_ok:
+                returns = daily_returns
+                returns_source = 'holdings_proxy'
 
         except Exception as e:
             logger.error(f"通过 account_name 获取收益率失败: {e}", exc_info=True)
@@ -908,6 +933,12 @@ def calculate_risk_metrics(payload: Optional[Dict[str, Any]] = Body(None)):
             returns=returns_series,
             benchmark_returns=benchmark_series
         )
+
+        # 口径必须可追溯（R-013）：调用方要能区分「账户净值」与「持仓代理」两套风险数
+        if isinstance(metrics, dict):
+            metrics['returns_source'] = returns_source
+            if returns_source == 'account_nav':
+                metrics['nav_points'] = nav_points
 
         return api_response(metrics)
 
