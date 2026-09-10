@@ -75,7 +75,35 @@ func TestFingerprintOf_MergesBySymbol(t *testing.T) {
 	if FingerprintOf("v2", "", m1) == FingerprintOf("v2", "", m3) {
 		t.Fatal("异模板应异指纹")
 	}
-	if !strings.Contains(NormalizeMsg(m1), "<sym>") {
-		t.Fatal("symbol 应归一为 <sym>")
+	if !strings.Contains(NormalizeMsg(m1), "<num>") {
+		t.Fatal("symbol 应被通用数字规则归一为 <num>")
+	}
+}
+
+// 堆栈指纹优先：同堆栈异入参异 msg → 同指纹；异堆栈 → 异指纹；无堆栈回退 msg（Sentry 式分层，2026-09-10）
+func TestFingerprintOf_StackFirst(t *testing.T) {
+	tb := func(file, fn, exc string) string {
+		return "Traceback (most recent call last):\n  File \"/app/services/" + file + "\", line 88, in " + fn + "\n    code()\n" + exc
+	}
+	// 同堆栈（帧同，行号相同），msg 与异常文本完全不同 → 同指纹
+	if FingerprintOfWithDetail("v2", "", "shutdown pool default failed", tb("pool.py", "shutdown", "TypeError: a")) !=
+		FingerprintOfWithDetail("v2", "", "shutdown pool io_pool failed, trace bbbb2222", tb("pool.py", "shutdown", "TypeError: b")) {
+		t.Fatal("同堆栈异入参异msg 应同指纹")
+	}
+	// 异堆栈 → 异指纹
+	if FingerprintOfWithDetail("v2", "", "m", tb("pool.py", "shutdown", "TypeError")) ==
+		FingerprintOfWithDetail("v2", "", "m", tb("other.py", "connect", "TypeError")) {
+		t.Fatal("异堆栈应异指纹")
+	}
+	// 行号不同但帧序列相同 → 同指纹（代码微调不拆分）
+	tbLine := "Traceback (most recent call last):\n  File \"/app/services/pool.py\", line 999, in shutdown\n    code()\nTypeError: x"
+	if FingerprintOfWithDetail("v2", "", "m", tb("pool.py", "shutdown", "TypeError: a")) !=
+		FingerprintOfWithDetail("v2", "", "m", tbLine) {
+		t.Fatal("行号差异不应拆分指纹")
+	}
+	// 无堆栈 → 回退 msg 归一化
+	if FingerprintOfWithDetail("v2", "", "无法获取 600737.SH 行情", "") !=
+		FingerprintOfWithDetail("v2", "", "无法获取 300750.SZ 行情", "") {
+		t.Fatal("无堆栈回退 msg 通用参数化应合并")
 	}
 }

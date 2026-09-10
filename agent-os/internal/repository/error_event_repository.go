@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -69,7 +70,7 @@ func (r *errorEventRepository) Upsert(ctx context.Context, in domain.ErrorEventU
 		in.Level = "error"
 	}
 	if in.Fingerprint == "" {
-		in.Fingerprint = FingerprintOf(in.Source, in.TaskID, in.Msg)
+		in.Fingerprint = FingerprintOfWithDetail(in.Source, in.TaskID, in.Msg, in.Detail)
 	}
 	metaJSON := []byte("{}")
 	if len(in.Metadata) > 0 {
@@ -377,7 +378,7 @@ var (
 	reHexLong = regexp.MustCompile(`(^|[^0-9a-zA-Z])[0-9a-fA-F]{16,}([^0-9a-zA-Z]|$)`)
 	reHex8    = regexp.MustCompile(`(^|[^0-9a-zA-Z])[0-9a-fA-F]{8}([^0-9a-zA-Z]|$)`)
 	reEpochMs = regexp.MustCompile(`(^|[^\d])\d{13,}([^\d]|$)`)
-	reStock   = regexp.MustCompile(`(^|[^0-9a-zA-Z.])\d{6}(?:\.(?:SH|SZ|BJ|sh|sz|bj))?([^0-9a-zA-Z]|$)`)
+	reNumber  = regexp.MustCompile(`\d+(?:\.\d+)*(?:\.[A-Za-z]{2,4})?`)
 )
 
 var volatileJSONKeys = []string{"trace_id", "timestamp", "ts", "time", "request_id", "span_id", "run_id"}
@@ -401,13 +402,45 @@ func NormalizeMsg(msg string) string {
 	s = reHexLong.ReplaceAllString(s, "${1}<hex>${2}")
 	s = reHex8.ReplaceAllString(s, "${1}<hex8>${2}")
 	s = reEpochMs.ReplaceAllString(s, "${1}<num>${2}")
-	s = reStock.ReplaceAllString(s, "${1}<sym>${2}")
+	s = reNumber.ReplaceAllString(s, "<num>")
 	return s
+}
+
+// traceback 帧：File "path", line N, in func（与 Python 端 _RE_TB_FRAME 同规则）
+var reTbFrame = regexp.MustCompile(`File "([^"]+)", line \d+, in (\w+)`)
+
+// StackFramesOf 从 detail 的 traceback 提取帧序列（basename:func，不含行号——
+// 代码微调行号变但根因相同应合并）。无堆栈返回空串。
+func StackFramesOf(detail string) string {
+	if detail == "" {
+		return ""
+	}
+	matches := reTbFrame.FindAllStringSubmatch(detail, -1)
+	if len(matches) == 0 {
+		return ""
+	}
+	frames := make([]string, 0, len(matches))
+	for _, m := range matches {
+		frames = append(frames, path.Base(m[1])+":"+m[2])
+	}
+	return strings.Join(frames, "|")
 }
 
 // FingerprintOf 生成去重指纹（sha256(source|task_id|归一化 msg) hex 前 40 位）
 func FingerprintOf(source, taskID, msg string) string {
-	base := source + "|" + taskID + "|" + NormalizeMsg(msg)
+	return FingerprintOfWithDetail(source, taskID, msg, "")
+}
+
+// FingerprintOfWithDetail 分层指纹（2026-09-10 重构，与 v2 端 _fingerprint 同规则）：
+// ①detail 有 traceback → 按堆栈帧序列取指纹（同根因异入参天然合并，不过拟合）；
+// ②无堆栈 → msg 通用参数化兜底（uuid/hex/ISO时间 + 通用数字 \d+(\.\d+)*(\.[A-Za-z]{2,4})?）。
+func FingerprintOfWithDetail(source, taskID, msg, detail string) string {
+	base := source + "|" + taskID + "|"
+	if stack := StackFramesOf(detail); stack != "" {
+		base += "stack|" + stack
+	} else {
+		base += NormalizeMsg(msg)
+	}
 	sum := sha256.Sum256([]byte(base))
 	return hex.EncodeToString(sum[:])[:40]
 }
