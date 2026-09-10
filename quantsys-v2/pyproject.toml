@@ -16,8 +16,14 @@ license = {text = "Proprietary"}
 dependencies = [
     "fastapi>=0.100.0",
     "uvicorn[standard]>=0.23.0",
-    "sqlalchemy>=1.4.0,<2.0.0",
+    # 2026-09-10(w-8f2c4cc5)：原 pin <2.0.0 与线上 venv（SQLAlchemy 2.0.51）及代码不符——
+    # infrastructure/persistence/orm/async_config.py 用的是 2.0 才有的 async_sessionmaker，
+    # 按旧 pin 重建环境会直接装 1.4 把整个异步层打死。
+    "sqlalchemy>=2.0.0,<3.0.0",
     "psycopg2-binary>=2.9.0",
+    # 异步 ORM 驱动：9 个文件 / 51 处 get_async_session_context 依赖它；
+    # 此前未声明也未安装 → 错误事件 f00fd8fe（ModuleNotFoundError: No module named 'asyncpg'）。
+    "asyncpg>=0.29.0",
     "pandas>=1.5.0",
     "numpy>=1.23.0",
     "akshare>=1.10.0",

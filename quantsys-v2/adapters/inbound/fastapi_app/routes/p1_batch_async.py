@@ -171,16 +171,23 @@ data_quality_router = APIRouter(
 
 @data_quality_router.get("/report", response_model=ApiResponse, summary="质量报告")
 async def get_quality_report(
-    table_name: Optional[str] = Query(None, description="表名")
+    symbol: Optional[str] = Query(None, description="股票代码过滤"),
+    period: Optional[str] = Query(None, description="周期过滤，如 daily"),
+    limit: int = Query(50, description="返回条数")
 ):
-    """获取数据质量报告"""
+    """获取数据质量报告（数据源：quant.data_quality_records，按 check_date 倒序）
+
+    2026-09-10 修复：原查询参数 table_name 对应的列在线上表（data_quality_records）中并不存在，
+    ORM 又指向不存在的 data_quality_checks，异常被基类吞掉后恒返回空列表；
+    现按真实列（symbol/period）过滤，取数失败不再静默返回空。
+    """
     try:
         from adapters.outbound.repositories.p2_async_repositories import DataQualityAsyncRepository
         from infrastructure.persistence.orm.async_config import get_async_session_context
 
         async with get_async_session_context() as session:
             repo = DataQualityAsyncRepository(session)
-            checks = await repo.get_checks(table_name=table_name, limit=50)
+            checks = await repo.get_checks(symbol=symbol, period=period, limit=limit)
 
             return {"success": True, "data": {"checks": checks, "count": len(checks)}}
     except Exception as e:

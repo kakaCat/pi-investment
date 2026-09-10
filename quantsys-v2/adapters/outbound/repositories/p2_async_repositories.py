@@ -55,17 +55,27 @@ class MLModelAsyncRepository(AsyncBaseORMRepository[MLModel]):
 
 # ==================== Position ====================
 class Position(Base):
-    """持仓ORM"""
+    """持仓ORM（对齐线上 quant.positions 真实结构）
+
+    2026-09-10 修复（错误事件 f00fd8fe 连带）：原映射 id=BigInteger、成本列 cost_price
+    与线上表（id 为 uuid、成本列 cost_basis）不一致，select 抛 UndefinedColumn 后被
+    AsyncBaseORMRepository 吞掉 → /api/positions 恒返回 success:true + 空列表（静默空数据）。
+    """
     __tablename__ = 'positions'
     __table_args__ = {'schema': 'quant', 'extend_existing': True}
 
-    id = Column(BigInteger, primary_key=True)
+    id = Column(String(36), primary_key=True)   # uuid 列
     account_id = Column(String(50))
     symbol = Column(String(20))
+    name = Column(String(50))
     quantity = Column(Integer)
-    cost_price = Column(Float)
+    cost_basis = Column(Float)                  # 线上列名（原误写 cost_price）
     current_price = Column(Float)
-    updated_at = Column(DateTime)
+    market_value = Column(Float)
+    unrealized_pnl = Column(Float)
+    unrealized_pnl_pct = Column(Float)
+    status = Column(String(20))
+    updated_at = Column(DateTime(timezone=True))
 
 
 class PositionAsyncRepository(AsyncBaseORMRepository[Position]):
@@ -78,18 +88,26 @@ class PositionAsyncRepository(AsyncBaseORMRepository[Position]):
     async def get_positions(
         self,
         account_id: Optional[str] = None,
+        status: Optional[str] = None,
         limit: int = 100
     ) -> List[Dict[str, Any]]:
-        try:
-            if account_id:
-                positions = await self.find_by_condition(account_id=account_id)
-            else:
-                positions = await self.list_all(limit=limit)
-            return [{'id': p.id, 'symbol': p.symbol, 'quantity': p.quantity,
-                     'cost_price': p.cost_price} for p in positions]
-        except Exception as e:
-            logger.error(f"Error getting positions: {e}")
-            return []
+        stmt = select(Position)
+        if account_id:
+            stmt = stmt.where(Position.account_id == account_id)
+        if status:
+            stmt = stmt.where(Position.status == status)
+        stmt = stmt.order_by(desc(Position.symbol)).limit(limit)
+
+        result = await self.session.execute(stmt)
+        positions = result.scalars().all()
+        return [{'id': str(p.id), 'account_id': p.account_id, 'symbol': p.symbol,
+                 'name': p.name, 'quantity': p.quantity, 'cost_basis': p.cost_basis,
+                 'current_price': p.current_price, 'market_value': p.market_value,
+                 'unrealized_pnl': p.unrealized_pnl,
+                 'unrealized_pnl_pct': p.unrealized_pnl_pct,
+                 'status': p.status,
+                 'updated_at': p.updated_at.isoformat() if p.updated_at else None}
+                for p in positions]
 
 
 # ==================== FundFlow ====================
@@ -147,16 +165,32 @@ class FundFlowAsyncRepository(AsyncBaseORMRepository[FundFlow]):
 
 # ==================== DataQuality ====================
 class DataQuality(Base):
-    """数据质量ORM"""
-    __tablename__ = 'data_quality_checks'
+    """数据质量ORM（对齐线上 quant.data_quality_records）
+
+    2026-09-10 修复（错误事件 f00fd8fe 连带）：原映射指向不存在的 quant.data_quality_checks
+    （线上真表为 data_quality_records，列也完全不同），查询抛 UndefinedTable 后被基类吞掉
+    → /api/data-quality/report 恒返回 success:true + checks:[]（静默空数据）。
+    """
+    __tablename__ = 'data_quality_records'
     __table_args__ = {'schema': 'quant', 'extend_existing': True}
 
     id = Column(BigInteger, primary_key=True)
+    symbol = Column(String(20))
+    period = Column(String(20))
     check_date = Column(Date)
-    table_name = Column(String(100))
-    check_type = Column(String(50))
-    passed = Column(Boolean)
-    details = Column(JSON)
+    original_count = Column(Integer)
+    cleaned_count = Column(Integer)
+    removed_count = Column(Integer)
+    fixed_count = Column(Integer)
+    error_count = Column(Integer)
+    warning_count = Column(Integer)
+    completeness_score = Column(Float)
+    consistency_score = Column(Float)
+    accuracy_score = Column(Float)
+    overall_score = Column(Float)
+    grade = Column(String(10))
+    duration_ms = Column(Integer)
+    created_at = Column(DateTime)
 
 
 class DataQualityAsyncRepository(AsyncBaseORMRepository[DataQuality]):
@@ -168,27 +202,25 @@ class DataQualityAsyncRepository(AsyncBaseORMRepository[DataQuality]):
 
     async def get_checks(
         self,
-        table_name: Optional[str] = None,
-        passed: Optional[bool] = None,
+        symbol: Optional[str] = None,
+        period: Optional[str] = None,
         limit: int = 100
     ) -> List[Dict[str, Any]]:
-        try:
-            conditions = {}
-            if table_name:
-                conditions['table_name'] = table_name
-            if passed is not None:
-                conditions['passed'] = passed
+        stmt = select(DataQuality)
+        if symbol:
+            stmt = stmt.where(DataQuality.symbol == symbol)
+        if period:
+            stmt = stmt.where(DataQuality.period == period)
+        stmt = stmt.order_by(desc(DataQuality.check_date), desc(DataQuality.id)).limit(limit)
 
-            if conditions:
-                checks = await self.find_by_condition(**conditions)
-            else:
-                checks = await self.list_all(limit=limit)
-
-            return [{'id': c.id, 'table_name': c.table_name, 'check_type': c.check_type,
-                     'passed': c.passed} for c in checks]
-        except Exception as e:
-            logger.error(f"Error getting checks: {e}")
-            return []
+        result = await self.session.execute(stmt)
+        checks = result.scalars().all()
+        return [{'id': c.id, 'symbol': c.symbol, 'period': c.period,
+                 'check_date': c.check_date.isoformat() if c.check_date else None,
+                 'original_count': c.original_count, 'cleaned_count': c.cleaned_count,
+                 'error_count': c.error_count, 'warning_count': c.warning_count,
+                 'overall_score': c.overall_score, 'grade': c.grade}
+                for c in checks]
 
 
 # ==================== Automation ====================

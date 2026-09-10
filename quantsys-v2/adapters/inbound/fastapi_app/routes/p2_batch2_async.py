@@ -78,16 +78,22 @@ position_router = APIRouter(
 @position_router.get("", response_model=ApiResponse, summary="持仓列表")
 async def list_positions(
     account_id: Optional[str] = Query(None, description="账户ID"),
+    status: Optional[str] = Query(None, description="持仓状态过滤，如 open/closed"),
     limit: int = Query(100, description="返回数量")
 ):
-    """列出持仓"""
+    """列出持仓（数据源：quant.positions，按 symbol 排序）
+
+    2026-09-10 修复：原调用 get_positions(account_id, limit) 的位置参数在新签名下会错位，
+    且 ORM 字段（id/cost_price）与线上表（uuid/cost_basis）不一致，查询异常被基类吞掉后
+    接口恒返回 success:true + 空列表；现按真实列取值并以关键字传参。
+    """
     try:
         from adapters.outbound.repositories.p2_async_repositories import PositionAsyncRepository
         from infrastructure.persistence.orm.async_config import get_async_session_context
 
         async with get_async_session_context() as session:
             repo = PositionAsyncRepository(session)
-            positions = await repo.get_positions(account_id, limit)
+            positions = await repo.get_positions(account_id=account_id, status=status, limit=limit)
 
             return {
                 "success": True,
