@@ -11,7 +11,7 @@ from typing import List, Optional
 import requests
 import structlog
 
-from infrastructure.config import get_config
+from domain.config import get_config
 
 logger = structlog.get_logger(__name__)
 

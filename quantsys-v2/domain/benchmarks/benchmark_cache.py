@@ -30,8 +30,8 @@ import numpy as np
 import json
 
 
-from infrastructure.config import create_cache_service
-from infrastructure.cache import CacheService
+from domain.config import create_cache_service
+from domain.cache import CacheService
 
 
 def benchmark_write(cache: CacheService, count: int = 1000, repeat: int = 3):

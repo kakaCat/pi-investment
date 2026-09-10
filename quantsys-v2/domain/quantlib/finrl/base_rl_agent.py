@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 from typing import Any, Dict, List, Optional
 import numpy as np
 
-from infrastructure.quantlib.core.base_calculator import BaseCalculator
+from domain.quantlib.core.base_calculator import BaseCalculator
 
 
 class BaseRLAgent(BaseCalculator):

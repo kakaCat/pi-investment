@@ -18,7 +18,7 @@ except ImportError:
     talib = None
 
 from domain.factors.library.base import TechnicalFactorCalculator
-from infrastructure.quantlib.core.base_calculator import validate_inputs, timing_decorator
+from domain.quantlib.core.base_calculator import validate_inputs, timing_decorator
 
 
 class MovingAverageFactors(TechnicalFactorCalculator):

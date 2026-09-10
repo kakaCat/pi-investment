@@ -9,7 +9,7 @@ import structlog
 from domain.memory.embedding import OllamaEmbeddingService
 from domain.memory.hybrid_search import hybrid_rank
 from domain.memory.models import MemoryEntry, MemoryKind, MemoryStatus
-from infrastructure.config import get_config
+from domain.config import get_config
 
 logger = structlog.get_logger(__name__)
 

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import structlog
 
-from infrastructure.persistence.orm import get_session
+from domain.persistence import get_session
 from domain.memory.service import MemoryService
 from domain.memory.models import MemoryEntry, MemoryKind, MemoryStatus
 

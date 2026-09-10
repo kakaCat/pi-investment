@@ -16,7 +16,7 @@ Every check returns the same structure:
 from datetime import datetime, timedelta
 from typing import Optional
 import polars as pl
-from infrastructure.config.constants.trading.risk_limits import RiskLimits
+from domain.config.constants.trading.risk_limits import RiskLimits
 
 
 def _get_kline_repo():
