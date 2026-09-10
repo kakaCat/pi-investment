@@ -72,7 +72,7 @@ class IntradayMonitor:
         }
 
         try:
-            from live_trading.paper_trading_engine import PaperTradingEngine
+            from application.trading.paper_trading_engine import PaperTradingEngine
             engine = PaperTradingEngine(account_name='rotation_main')
 
             # 获取当前持仓

@@ -1,3 +1,5 @@
+
+
 """
 Factor Mining Calculator
 =========================
@@ -16,6 +18,9 @@ Date: 2026-05-25
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Dict, Any, Optional, Union, List, Tuple, Callable
 from itertools import combinations
@@ -68,7 +73,7 @@ class FactorMiningCalculator(BaseCalculator):
             method='genetic',
             n_factors=20
         )
-        print(f"Top factors: {result['value']['factors'][:5]}")
+        logger.info(f"Top factors: {result['value']['factors'][:5]}")
     """
 
     def __init__(self, precision: int = 6, risk_free_rate: float = 0.0,

@@ -181,3 +181,26 @@ def detect_manipulation():
     except Exception as e:
         logger.exception(f"Failed to detect manipulation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== 兼容路由（规范文档路径别名） ====================
+
+# 背景（2026-09-10，w-23c70356）：
+# 系统规范文档 pi-investment/CLAUDE.md 的 P0 API 清单把该能力声明为
+#   GET /api/market/opponent-behavior
+# 本模块使用 prefix="/api/game"，实际注册路径为 /api/game/market/opponent-behavior
+# （agent 侧 quantsys-v2-client 用的就是后者，故工具本身可用）。
+# 结果：按规范文档路径调用的消费者（人工排查、脚本、新工具）会拿到 404。
+# 处理：把同一 handler 再挂一次到规范路径，两个路径并存，行为完全一致（无重复实现）。
+compat_router = APIRouter(
+    prefix="/api",
+    tags=["Game Intelligence (compat)"],
+)
+
+compat_router.add_api_route(
+    "/market/opponent-behavior",
+    get_opponent_behavior,
+    methods=["GET"],
+    response_model=OpponentBehaviorResponse,
+    summary="获取市场对手行为分析（规范路径别名）",
+    description="CLAUDE.md P0 规范路径 /api/market/opponent-behavior，等价于 /api/game/market/opponent-behavior。",
+)

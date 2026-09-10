@@ -1,3 +1,5 @@
+
+
 """
 FinRL Callbacks Module
 ======================
@@ -33,6 +35,9 @@ Date: 2026-05-25
 """
 
 from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import Any, Dict, List, Optional
 import numpy as np
 
@@ -146,7 +151,7 @@ class TensorBoardCallback(BaseCallback):
             self.writer.close()
 
         if self.verbose > 0:
-            print("TensorBoard logging completed")
+            logger.info("TensorBoard logging completed")
 
 
 class CheckpointCallback(BaseCallback):
@@ -221,7 +226,7 @@ class CheckpointCallback(BaseCallback):
             self.model.save(str(checkpoint_path))
 
             if self.verbose > 0:
-                print(f"Saved checkpoint at step {self.num_timesteps}: {checkpoint_path}")
+                logger.info(f"Saved checkpoint at step {self.num_timesteps}: {checkpoint_path}")
 
         return True
 
@@ -235,7 +240,7 @@ class CheckpointCallback(BaseCallback):
         self.model.save(str(final_path))
 
         if self.verbose > 0:
-            print(f"Saved final model: {final_path}")
+            logger.info(f"Saved final model: {final_path}")
 
 
 class EvalCallback(BaseCallback):
@@ -299,8 +304,8 @@ class EvalCallback(BaseCallback):
             save_dir.mkdir(parents=True, exist_ok=True)
 
         if self.verbose > 0:
-            print(f"Evaluation frequency: every {self.eval_freq} steps")
-            print(f"Number of evaluation episodes: {self.n_eval_episodes}")
+            logger.info(f"Evaluation frequency: every {self.eval_freq} steps")
+            logger.info(f"Number of evaluation episodes: {self.n_eval_episodes}")
 
     def _on_step(self) -> bool:
         """
@@ -353,23 +358,23 @@ class EvalCallback(BaseCallback):
         self.last_mean_reward = mean_reward
 
         if self.verbose > 0:
-            print(f"\nEvaluation at step {self.num_timesteps}:")
-            print(f"  Mean reward: {mean_reward:.2f} +/- {std_reward:.2f}")
-            print(f"  Mean episode length: {mean_length:.1f}")
+            logger.info(f"\nEvaluation at step {self.num_timesteps}:")
+            logger.info(f"  Mean reward: {mean_reward:.2f} +/- {std_reward:.2f}")
+            logger.info(f"  Mean episode length: {mean_length:.1f}")
 
         # Save best model
         if mean_reward > self.best_mean_reward:
             self.best_mean_reward = mean_reward
 
             if self.verbose > 0:
-                print(f"  New best mean reward: {self.best_mean_reward:.2f}")
+                logger.info(f"  New best mean reward: {self.best_mean_reward:.2f}")
 
             if self.best_model_save_path is not None:
                 best_model_path = Path(self.best_model_save_path) / "best_model"
                 self.model.save(str(best_model_path))
 
                 if self.verbose > 0:
-                    print(f"  Saved best model to: {best_model_path}")
+                    logger.info(f"  Saved best model to: {best_model_path}")
 
     def _on_training_end(self) -> None:
         """
@@ -378,12 +383,12 @@ class EvalCallback(BaseCallback):
         Performs final evaluation.
         """
         if self.verbose > 0:
-            print("\nFinal evaluation:")
+            logger.info("\nFinal evaluation:")
 
         self._evaluate_model()
 
         if self.verbose > 0:
-            print(f"Best mean reward achieved: {self.best_mean_reward:.2f}")
+            logger.info(f"Best mean reward achieved: {self.best_mean_reward:.2f}")
 
 
 def create_callbacks(

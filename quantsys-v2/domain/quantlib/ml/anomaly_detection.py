@@ -1,3 +1,5 @@
+
+
 """
 Anomaly Detection Calculator
 =============================
@@ -16,6 +18,9 @@ Date: 2026-05-25
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Dict, Any, Optional, Union, List, Tuple
 import warnings

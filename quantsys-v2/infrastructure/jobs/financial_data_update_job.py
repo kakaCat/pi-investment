@@ -268,7 +268,7 @@ def main():
 
     result = execute(report_date=args.report_date, symbols=args.symbols,
                      dry_run=args.dry_run)
-    print(result)
+    logger.info(result)
     sys.exit(0 if result.get('success') else 1)
 
 

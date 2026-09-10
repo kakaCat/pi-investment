@@ -1,3 +1,5 @@
+
+
 #!/usr/bin/env python3
 """
 缓存性能基准测试
@@ -19,6 +21,9 @@ CacheService，因此对 infrastructure.config / infrastructure.cache 的 import
 属于独立工作线，本次不做。
 """
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 import time
 from pathlib import Path
 import numpy as np
@@ -127,9 +132,9 @@ def simulate_data_access(cache: CacheService, with_cache: bool = True, repeat: i
 
 def run_cache_benchmarks():
     """运行缓存基准测试"""
-    print("=" * 80)
-    print("缓存性能基准测试")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("缓存性能基准测试")
+    logger.info("=" * 80)
 
     results = {
         'test_name': 'cache_performance',
@@ -138,7 +143,7 @@ def run_cache_benchmarks():
     }
 
     # 测试内存缓存
-    print("\n【内存缓存】")
+    logger.info("\n【内存缓存】")
     memory_cache = create_cache_service(use_redis=False)
 
     memory_result = {
@@ -150,20 +155,20 @@ def run_cache_benchmarks():
 
     write_result = benchmark_write(memory_cache, 1000, repeat=3)
     memory_result['write'] = write_result
-    print(f"写入1000条: {write_result['mean_time']*1000:.2f}ms ± {write_result['std_time']*1000:.2f}ms ({write_result['ops_per_sec']:.0f} ops/s)")
+    logger.info(f"写入1000条: {write_result['mean_time']*1000:.2f}ms ± {write_result['std_time']*1000:.2f}ms ({write_result['ops_per_sec']:.0f} ops/s)")
 
     read_result = benchmark_read(memory_cache, 1000, repeat=3)
     memory_result['read'] = read_result
-    print(f"读取1000条: {read_result['mean_time']*1000:.2f}ms ± {read_result['std_time']*1000:.2f}ms ({read_result['ops_per_sec']:.0f} ops/s)")
+    logger.info(f"读取1000条: {read_result['mean_time']*1000:.2f}ms ± {read_result['std_time']*1000:.2f}ms ({read_result['ops_per_sec']:.0f} ops/s)")
 
     hit_rate_result = benchmark_hit_rate(memory_cache, 1000)
     memory_result['hit_rate'] = hit_rate_result
-    print(f"缓存命中率: {hit_rate_result['hit_rate']*100:.1f}% (命中:{hit_rate_result['hits']}, 未命中:{hit_rate_result['misses']})")
+    logger.info(f"缓存命中率: {hit_rate_result['hit_rate']*100:.1f}% (命中:{hit_rate_result['hits']}, 未命中:{hit_rate_result['misses']})")
 
     results['backends'].append(memory_result)
 
     # 测试Redis缓存（如果可用）
-    print("\n【Redis缓存】")
+    logger.info("\n【Redis缓存】")
     redis_cache = create_cache_service(use_redis=True)
     stats = redis_cache.get_stats()
 
@@ -177,47 +182,47 @@ def run_cache_benchmarks():
 
         write_result = benchmark_write(redis_cache, 1000, repeat=3)
         redis_result['write'] = write_result
-        print(f"写入1000条: {write_result['mean_time']*1000:.2f}ms ± {write_result['std_time']*1000:.2f}ms ({write_result['ops_per_sec']:.0f} ops/s)")
+        logger.info(f"写入1000条: {write_result['mean_time']*1000:.2f}ms ± {write_result['std_time']*1000:.2f}ms ({write_result['ops_per_sec']:.0f} ops/s)")
 
         read_result = benchmark_read(redis_cache, 1000, repeat=3)
         redis_result['read'] = read_result
-        print(f"读取1000条: {read_result['mean_time']*1000:.2f}ms ± {read_result['std_time']*1000:.2f}ms ({read_result['ops_per_sec']:.0f} ops/s)")
+        logger.info(f"读取1000条: {read_result['mean_time']*1000:.2f}ms ± {read_result['std_time']*1000:.2f}ms ({read_result['ops_per_sec']:.0f} ops/s)")
 
         hit_rate_result = benchmark_hit_rate(redis_cache, 1000)
         redis_result['hit_rate'] = hit_rate_result
-        print(f"缓存命中率: {hit_rate_result['hit_rate']*100:.1f}% (命中:{hit_rate_result['hits']}, 未命中:{hit_rate_result['misses']})")
+        logger.info(f"缓存命中率: {hit_rate_result['hit_rate']*100:.1f}% (命中:{hit_rate_result['hits']}, 未命中:{hit_rate_result['misses']})")
 
         results['backends'].append(redis_result)
     else:
-        print("Redis不可用，跳过测试")
+        logger.info("Redis不可用，跳过测试")
 
     # 模拟真实场景
-    print("\n【真实场景模拟】")
-    print("场景: 100次查询 × 10只股票 = 1000次数据访问")
+    logger.info("\n【真实场景模拟】")
+    logger.info("场景: 100次查询 × 10只股票 = 1000次数据访问")
 
     real_scenario = {}
 
     # 无缓存
-    print("\n无缓存:")
+    logger.info("\n无缓存:")
     no_cache = create_cache_service(use_redis=False)
     no_cache_result = simulate_data_access(no_cache, with_cache=False, repeat=3)
     real_scenario['no_cache_time'] = no_cache_result['mean_time']
     real_scenario['no_cache_std'] = no_cache_result['std_time']
-    print(f"总耗时: {no_cache_result['mean_time']:.2f}s ± {no_cache_result['std_time']:.2f}s")
+    logger.info(f"总耗时: {no_cache_result['mean_time']:.2f}s ± {no_cache_result['std_time']:.2f}s")
 
     # 有缓存
-    print("\n有缓存:")
+    logger.info("\n有缓存:")
     with_cache = create_cache_service(use_redis=False)
     with_cache_result = simulate_data_access(with_cache, with_cache=True, repeat=3)
     real_scenario['with_cache_time'] = with_cache_result['mean_time']
     real_scenario['with_cache_std'] = with_cache_result['std_time']
-    print(f"总耗时: {with_cache_result['mean_time']:.2f}s ± {with_cache_result['std_time']:.2f}s")
+    logger.info(f"总耗时: {with_cache_result['mean_time']:.2f}s ± {with_cache_result['std_time']:.2f}s")
 
     # 性能提升
     speedup = no_cache_result['mean_time'] / with_cache_result['mean_time']
     real_scenario['speedup'] = speedup
-    print(f"\n性能提升: {speedup:.1f}x")
-    print(f"时间节省: {(1 - 1/speedup)*100:.1f}%")
+    logger.info(f"\n性能提升: {speedup:.1f}x")
+    logger.info(f"时间节省: {(1 - 1/speedup)*100:.1f}%")
 
     results['real_scenario'] = real_scenario
 
@@ -228,9 +233,9 @@ def run_cache_benchmarks():
     with open(output_file, 'w') as f:
         json.dump(results, f, indent=2)
 
-    print("\n" + "=" * 80)
-    print(f"测试完成！结果已保存到: {output_file}")
-    print("=" * 80)
+    logger.info("\n" + "=" * 80)
+    logger.info(f"测试完成！结果已保存到: {output_file}")
+    logger.info("=" * 80)
 
     return results
 
@@ -241,26 +246,26 @@ def main():
         results = run_cache_benchmarks()
 
         # 打印汇总
-        print("\n" + "=" * 80)
-        print("测试汇总")
-        print("=" * 80)
+        logger.info("\n" + "=" * 80)
+        logger.info("测试汇总")
+        logger.info("=" * 80)
 
         for backend in results['backends']:
-            print(f"\n{backend['backend'].upper()}:")
-            print(f"  写入: {backend['write']['ops_per_sec']:.0f} ops/s")
-            print(f"  读取: {backend['read']['ops_per_sec']:.0f} ops/s")
-            print(f"  命中率: {backend['hit_rate']['hit_rate']*100:.1f}%")
+            logger.info(f"\n{backend['backend'].upper()}:")
+            logger.info(f"  写入: {backend['write']['ops_per_sec']:.0f} ops/s")
+            logger.info(f"  读取: {backend['read']['ops_per_sec']:.0f} ops/s")
+            logger.info(f"  命中率: {backend['hit_rate']['hit_rate']*100:.1f}%")
 
         if 'real_scenario' in results:
             scenario = results['real_scenario']
-            print(f"\n真实场景:")
-            print(f"  无缓存: {scenario['no_cache_time']:.2f}s")
-            print(f"  有缓存: {scenario['with_cache_time']:.2f}s")
-            print(f"  加速比: {scenario['speedup']:.1f}x")
+            logger.info(f"\n真实场景:")
+            logger.info(f"  无缓存: {scenario['no_cache_time']:.2f}s")
+            logger.info(f"  有缓存: {scenario['with_cache_time']:.2f}s")
+            logger.info(f"  加速比: {scenario['speedup']:.1f}x")
 
         return 0
     except Exception as e:
-        print(f"\n错误: {e}")
+        logger.info(f"\n错误: {e}")
         import traceback
         traceback.print_exc()
         return 1

@@ -366,22 +366,22 @@ def example_usage():
     date = datetime.now()
 
     factors = news_factor.calculate(symbol, date, lookback_days=7)
-    print("News Sentiment Factors:")
+    logger.info("News Sentiment Factors:")
     for key, value in factors.items():
-        print(f"  {key}: {value:.4f}")
+        logger.info(f"  {key}: {value:.4f}")
 
     # 2. 批量计算
     symbols = ['000001', '000002', '600000', '600036']
     df = news_factor.batch_calculate(symbols, date)
-    print("\nBatch Calculation:")
-    print(df)
+    logger.info("\nBatch Calculation:")
+    logger.info(df)
 
     # 3. 社交媒体因子
     social_factor = SocialMediaFactor()
     social_factors = social_factor.calculate(symbol, date)
-    print("\nSocial Media Factors:")
+    logger.info("\nSocial Media Factors:")
     for key, value in social_factors.items():
-        print(f"  {key}: {value:.4f}")
+        logger.info(f"  {key}: {value:.4f}")
 
 
 if __name__ == "__main__":

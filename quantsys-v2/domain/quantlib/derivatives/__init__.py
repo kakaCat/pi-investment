@@ -1,3 +1,8 @@
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 """
 Derivatives Pricing Module
 ===========================
@@ -17,7 +22,7 @@ Usage:
 
     bs = BlackScholesCalculator()
     result = bs.calculate(S=100, K=100, T=1, r=0.05, sigma=0.2, option_type='call')
-    print(result['value'])  # Option price
+    logger.info(result['value'])  # Option price
 """
 
 from .black_scholes import BlackScholesCalculator

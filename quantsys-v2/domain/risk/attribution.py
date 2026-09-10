@@ -1,3 +1,5 @@
+
+
 """
 Risk Attribution Calculator
 ============================
@@ -10,6 +12,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Union, Dict, List, Any, Optional, Tuple
 
@@ -39,7 +44,7 @@ class RiskAttributionCalculator(BaseCalculator):
     Example:
         calculator = RiskAttributionCalculator()
         result = calculator.calculate(returns_df, weights)
-        print(result['value']['contributions'])
+        logger.info(result['value']['contributions'])
     """
 
     def __init__(self, precision: int = 6, risk_free_rate: float = 0.0):

@@ -21,7 +21,7 @@ import structlog
 from application.services.strategy_code_service import StrategyCodeService
 from application.services.risk_check_service import RiskCheckService
 from application.services.new_order_service import create_order
-from live_trading.paper_trading_engine import PaperTradingEngine, Signal as TradeSignal
+from application.trading.paper_trading_engine import PaperTradingEngine, Signal as TradeSignal
 from infrastructure.services.service_factory import ServiceFactory
 from domain.ports import IPortfolioRepository, IStockRepository, IKlineRepository
 

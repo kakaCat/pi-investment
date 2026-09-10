@@ -29,7 +29,7 @@ class DataPipelineMonitor:
         >>> monitor.on_stage_start('DataFetchStage')
         >>> # ... stage execution ...
         >>> monitor.on_stage_complete('DataFetchStage', result)
-        >>> print(monitor.get_metrics())
+        >>> logger.info(monitor.get_metrics())
     """
 
     def __init__(self, event_bus=None):

@@ -1,3 +1,5 @@
+
+
 """
 Efficient Frontier Calculator
 ==============================
@@ -12,6 +14,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Dict, Any, Optional, Union, List, Tuple
 
@@ -44,7 +49,7 @@ class EfficientFrontierCalculator(BaseCalculator):
         # Access frontier points
         frontier = result['value']['frontier']
         for point in frontier:
-            print(f"Return: {point['return']:.4f}, Risk: {point['risk']:.4f}")
+            logger.info(f"Return: {point['return']:.4f}, Risk: {point['risk']:.4f}")
 
         # Get optimal portfolios
         min_var = result['value']['min_variance_portfolio']

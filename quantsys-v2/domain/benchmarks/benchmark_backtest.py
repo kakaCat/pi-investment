@@ -1,3 +1,5 @@
+
+
 #!/usr/bin/env python3
 """
 策略回测性能基准测试
@@ -10,6 +12,9 @@
 """
 
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 import time
 import numpy as np
 import pandas as pd
@@ -150,9 +155,9 @@ def benchmark_backtest(
 
 def run_backtest_benchmarks():
     """运行回测基准测试"""
-    print("=" * 80)
-    print("策略回测性能基准测试")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("策略回测性能基准测试")
+    logger.info("=" * 80)
 
     results = {
         'test_name': 'strategy_backtest',
@@ -172,14 +177,14 @@ def run_backtest_benchmarks():
     strategy_params = {'fast': 5, 'slow': 20}
 
     for scenario in scenarios:
-        print(f"\n{'='*80}")
-        print(f"场景: {scenario['name']}")
-        print(f"{'='*80}")
+        logger.info(f"\n{'='*80}")
+        logger.info(f"场景: {scenario['name']}")
+        logger.info(f"{'='*80}")
 
         # 生成市场数据
-        print(f"生成市场数据...")
+        logger.info(f"生成市场数据...")
         market_data = generate_market_data(scenario['n_stocks'], scenario['n_days'])
-        print(f"数据规模: {scenario['n_stocks']} 股票 × {scenario['n_days']} 天")
+        logger.info(f"数据规模: {scenario['n_stocks']} 股票 × {scenario['n_days']} 天")
 
         scenario_result = {
             'name': scenario['name'],
@@ -190,7 +195,7 @@ def run_backtest_benchmarks():
         }
 
         # 串行回测
-        print(f"\n[串行回测]")
+        logger.info(f"\n[串行回测]")
         serial_result = benchmark_backtest(
             market_data,
             strategy_params,
@@ -199,12 +204,12 @@ def run_backtest_benchmarks():
         )
         scenario_result['serial'] = serial_result
 
-        print(f"  总耗时: {serial_result['mean_time']:.3f}s ± {serial_result['std_time']:.3f}s")
-        print(f"  吞吐量: {serial_result['throughput']:.1f} 股票/秒")
+        logger.info(f"  总耗时: {serial_result['mean_time']:.3f}s ± {serial_result['std_time']:.3f}s")
+        logger.info(f"  吞吐量: {serial_result['throughput']:.1f} 股票/秒")
 
         # 并行回测
         n_workers = min(multiprocessing.cpu_count(), scenario['n_stocks'])
-        print(f"\n[并行回测] (workers={n_workers})")
+        logger.info(f"\n[并行回测] (workers={n_workers})")
 
         parallel_result = benchmark_backtest(
             market_data,
@@ -215,17 +220,17 @@ def run_backtest_benchmarks():
         )
         scenario_result['parallel'] = parallel_result
 
-        print(f"  总耗时: {parallel_result['mean_time']:.3f}s ± {parallel_result['std_time']:.3f}s")
-        print(f"  吞吐量: {parallel_result['throughput']:.1f} 股票/秒")
+        logger.info(f"  总耗时: {parallel_result['mean_time']:.3f}s ± {parallel_result['std_time']:.3f}s")
+        logger.info(f"  吞吐量: {parallel_result['throughput']:.1f} 股票/秒")
 
         # 计算加速比
         speedup = serial_result['mean_time'] / parallel_result['mean_time']
         scenario_result['speedup'] = speedup
         scenario_result['n_workers'] = n_workers
 
-        print(f"\n[性能对比]")
-        print(f"  加速比: {speedup:.2f}x")
-        print(f"  并行效率: {speedup / n_workers * 100:.1f}%")
+        logger.info(f"\n[性能对比]")
+        logger.info(f"  加速比: {speedup:.2f}x")
+        logger.info(f"  并行效率: {speedup / n_workers * 100:.1f}%")
 
         results['scenarios'].append(scenario_result)
 
@@ -236,9 +241,9 @@ def run_backtest_benchmarks():
     with open(output_file, 'w') as f:
         json.dump(results, f, indent=2)
 
-    print(f"\n{'='*80}")
-    print(f"测试完成！结果已保存到: {output_file}")
-    print(f"{'='*80}")
+    logger.info(f"\n{'='*80}")
+    logger.info(f"测试完成！结果已保存到: {output_file}")
+    logger.info(f"{'='*80}")
 
     return results
 
@@ -249,20 +254,20 @@ def main():
         results = run_backtest_benchmarks()
 
         # 打印汇总
-        print("\n" + "=" * 80)
-        print("测试汇总")
-        print("=" * 80)
-        print(f"CPU核心数: {results['cpu_count']}")
+        logger.info("\n" + "=" * 80)
+        logger.info("测试汇总")
+        logger.info("=" * 80)
+        logger.info(f"CPU核心数: {results['cpu_count']}")
 
         for scenario in results['scenarios']:
-            print(f"\n{scenario['name']}:")
-            print(f"  串行: {scenario['serial']['mean_time']:.3f}s ({scenario['serial']['throughput']:.1f} 股票/秒)")
-            print(f"  并行: {scenario['parallel']['mean_time']:.3f}s ({scenario['parallel']['throughput']:.1f} 股票/秒)")
-            print(f"  加速比: {scenario['speedup']:.2f}x (workers={scenario['n_workers']})")
+            logger.info(f"\n{scenario['name']}:")
+            logger.info(f"  串行: {scenario['serial']['mean_time']:.3f}s ({scenario['serial']['throughput']:.1f} 股票/秒)")
+            logger.info(f"  并行: {scenario['parallel']['mean_time']:.3f}s ({scenario['parallel']['throughput']:.1f} 股票/秒)")
+            logger.info(f"  加速比: {scenario['speedup']:.2f}x (workers={scenario['n_workers']})")
 
         return 0
     except Exception as e:
-        print(f"\n错误: {e}")
+        logger.info(f"\n错误: {e}")
         import traceback
         traceback.print_exc()
         return 1

@@ -99,7 +99,7 @@ class PipelineErrorHandler:
         >>> handler = PipelineErrorHandler()
         >>> error = DataSourceTimeout("API timeout")
         >>> strategy = handler.handle_stage_error('DataFetchStage', error, {})
-        >>> print(strategy.strategy_type)
+        >>> logger.info(strategy.strategy_type)
         'retry'
     """
 

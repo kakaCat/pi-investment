@@ -1,3 +1,5 @@
+
+
 """
 Base RL Agent Module
 ====================
@@ -10,6 +12,9 @@ Date: 2026-05-25
 """
 
 from __future__ import annotations
+import logging
+
+logger = logging.getLogger(__name__)
 
 import numpy as np
 from abc import abstractmethod
@@ -105,7 +110,7 @@ class BaseRLAgent(BaseCalculator):
 
         Example:
             results = agent.train(env, episodes=5000, learning_rate=0.001)
-            print(f"Average reward: {results['avg_reward']}")
+            logger.info(f"Average reward: {results['avg_reward']}")
         """
         pass
 
@@ -222,6 +227,6 @@ class BaseRLAgent(BaseCalculator):
 
         Example:
             methods = agent.get_supported_methods()
-            print(f"Supported methods: {methods}")
+            logger.info(f"Supported methods: {methods}")
         """
         return ['predict', 'train']

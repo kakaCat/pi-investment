@@ -1,3 +1,5 @@
+
+
 """
 Factor Exposure Calculator
 ===========================
@@ -15,6 +17,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Dict, Any, Optional, Union, List
 from scipy import stats
@@ -45,7 +50,7 @@ class FactorExposureCalculator(BaseCalculator):
             asset_returns=returns,
             factor_returns=factors
         )
-        print(f"Factor Exposures: {result['value']['exposures']}")
+        logger.info(f"Factor Exposures: {result['value']['exposures']}")
     """
 
     def __init__(self, precision: int = 6, risk_free_rate: float = 0.0):

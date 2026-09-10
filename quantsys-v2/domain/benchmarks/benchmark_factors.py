@@ -1,3 +1,5 @@
+
+
 #!/usr/bin/env python3
 """
 因子计算性能基准测试
@@ -10,6 +12,9 @@
 """
 
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 import time
 import numpy as np
 import pandas as pd
@@ -114,9 +119,9 @@ def benchmark_batch_factors(
 
 def run_factor_benchmarks():
     """运行因子计算基准测试"""
-    print("=" * 80)
-    print("因子计算性能基准测试")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("因子计算性能基准测试")
+    logger.info("=" * 80)
 
     results = {
         'test_name': 'factor_calculation',
@@ -134,14 +139,14 @@ def run_factor_benchmarks():
     factors = ['sma_20', 'ema_12', 'rsi_14', 'macd', 'bollinger']
 
     for scenario in scenarios:
-        print(f"\n{'='*80}")
-        print(f"场景: {scenario['name']}")
-        print(f"{'='*80}")
+        logger.info(f"\n{'='*80}")
+        logger.info(f"场景: {scenario['name']}")
+        logger.info(f"{'='*80}")
 
         # 生成测试数据
-        print(f"生成测试数据...")
+        logger.info(f"生成测试数据...")
         df = generate_test_data(scenario['n_stocks'], scenario['n_days'])
-        print(f"数据规模: {len(df):,} 行")
+        logger.info(f"数据规模: {len(df):,} 行")
 
         scenario_result = {
             'name': scenario['name'],
@@ -153,44 +158,44 @@ def run_factor_benchmarks():
         }
 
         # CPU测试
-        print(f"\n[CPU测试]")
+        logger.info(f"\n[CPU测试]")
         cpu_calc = GPUFactorCalculator(use_gpu=False)
 
         cpu_result = benchmark_batch_factors(cpu_calc, df, factors, repeat=3)
         scenario_result['cpu'] = cpu_result
 
-        print(f"  批量计算 {len(factors)} 个因子:")
-        print(f"    平均耗时: {cpu_result['mean_time']:.3f}s")
-        print(f"    标准差: {cpu_result['std_time']:.3f}s")
-        print(f"    吞吐量: {len(df) / cpu_result['mean_time']:.0f} 行/秒")
+        logger.info(f"  批量计算 {len(factors)} 个因子:")
+        logger.info(f"    平均耗时: {cpu_result['mean_time']:.3f}s")
+        logger.info(f"    标准差: {cpu_result['std_time']:.3f}s")
+        logger.info(f"    吞吐量: {len(df) / cpu_result['mean_time']:.0f} 行/秒")
 
         # GPU测试
         try:
-            print(f"\n[GPU测试]")
+            logger.info(f"\n[GPU测试]")
             gpu_calc = GPUFactorCalculator(use_gpu=True)
 
             if gpu_calc.use_gpu:
                 gpu_result = benchmark_batch_factors(gpu_calc, df, factors, repeat=3)
                 scenario_result['gpu'] = gpu_result
 
-                print(f"  批量计算 {len(factors)} 个因子:")
-                print(f"    平均耗时: {gpu_result['mean_time']:.3f}s")
-                print(f"    标准差: {gpu_result['std_time']:.3f}s")
-                print(f"    吞吐量: {len(df) / gpu_result['mean_time']:.0f} 行/秒")
+                logger.info(f"  批量计算 {len(factors)} 个因子:")
+                logger.info(f"    平均耗时: {gpu_result['mean_time']:.3f}s")
+                logger.info(f"    标准差: {gpu_result['std_time']:.3f}s")
+                logger.info(f"    吞吐量: {len(df) / gpu_result['mean_time']:.0f} 行/秒")
 
                 # 计算加速比
                 speedup = cpu_result['mean_time'] / gpu_result['mean_time']
                 scenario_result['speedup'] = speedup
 
-                print(f"\n  [性能对比]")
-                print(f"    加速比: {speedup:.2f}x")
-                print(f"    性能提升: {(speedup - 1) * 100:.1f}%")
+                logger.info(f"\n  [性能对比]")
+                logger.info(f"    加速比: {speedup:.2f}x")
+                logger.info(f"    性能提升: {(speedup - 1) * 100:.1f}%")
             else:
-                print("  GPU不可用，跳过GPU测试")
+                logger.info("  GPU不可用，跳过GPU测试")
                 scenario_result['gpu'] = None
                 scenario_result['speedup'] = None
         except Exception as e:
-            print(f"  GPU测试失败: {e}")
+            logger.info(f"  GPU测试失败: {e}")
             scenario_result['gpu'] = None
             scenario_result['speedup'] = None
 
@@ -203,9 +208,9 @@ def run_factor_benchmarks():
     with open(output_file, 'w') as f:
         json.dump(results, f, indent=2)
 
-    print(f"\n{'='*80}")
-    print(f"测试完成！结果已保存到: {output_file}")
-    print(f"{'='*80}")
+    logger.info(f"\n{'='*80}")
+    logger.info(f"测试完成！结果已保存到: {output_file}")
+    logger.info(f"{'='*80}")
 
     return results
 
@@ -216,24 +221,24 @@ def main():
         results = run_factor_benchmarks()
 
         # 打印汇总
-        print("\n" + "=" * 80)
-        print("测试汇总")
-        print("=" * 80)
+        logger.info("\n" + "=" * 80)
+        logger.info("测试汇总")
+        logger.info("=" * 80)
 
         for scenario in results['scenarios']:
-            print(f"\n{scenario['name']}:")
-            print(f"  数据规模: {scenario['n_rows']:,} 行")
-            print(f"  CPU耗时: {scenario['cpu']['mean_time']:.3f}s")
+            logger.info(f"\n{scenario['name']}:")
+            logger.info(f"  数据规模: {scenario['n_rows']:,} 行")
+            logger.info(f"  CPU耗时: {scenario['cpu']['mean_time']:.3f}s")
 
             if scenario['gpu']:
-                print(f"  GPU耗时: {scenario['gpu']['mean_time']:.3f}s")
-                print(f"  加速比: {scenario['speedup']:.2f}x")
+                logger.info(f"  GPU耗时: {scenario['gpu']['mean_time']:.3f}s")
+                logger.info(f"  加速比: {scenario['speedup']:.2f}x")
             else:
-                print(f"  GPU: 不可用")
+                logger.info(f"  GPU: 不可用")
 
         return 0
     except Exception as e:
-        print(f"\n错误: {e}")
+        logger.info(f"\n错误: {e}")
         import traceback
         traceback.print_exc()
         return 1

@@ -1,9 +1,14 @@
+
+
 """
 Prometheus metrics endpoint for quantsys-v2
 
 提供 /metrics 端点用于 Prometheus 抓取监控指标
 """
 from flask import Blueprint, Response
+import logging
+
+logger = logging.getLogger(__name__)
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 metrics_bp = Blueprint('metrics', __name__)

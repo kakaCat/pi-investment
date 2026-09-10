@@ -4,10 +4,13 @@
 从数据库获取行业分类和因子数据。
 """
 
+import structlog
 from typing import Dict, List, Optional
 from infrastructure.persistence.database.engine import db_cursor
 
 from domain.scoring.ports import IndustryDataPort
+
+logger = structlog.get_logger(__name__)
 
 
 class IndustryDataAdapter(IndustryDataPort):
@@ -50,7 +53,7 @@ class IndustryDataAdapter(IndustryDataPort):
                 self._sector_cache[symbol] = sector
                 return sector
         except Exception as e:
-            print(f"获取 {symbol} 行业失败: {e}")
+            logger.warning(f"获取 {symbol} 行业失败: {e}")
             return '未知'
     
     def get_sector_stocks(self, sector: str) -> List[str]:
@@ -72,7 +75,7 @@ class IndustryDataAdapter(IndustryDataPort):
                 results = cursor.fetchall()
                 return [row['symbol'] for row in results]
         except Exception as e:
-            print(f"获取 {sector} 行业股票列表失败: {e}")
+            logger.warning(f"获取 {sector} 行业股票列表失败: {e}")
             return []
     
     def get_sector_factor_values(
@@ -121,7 +124,7 @@ class IndustryDataAdapter(IndustryDataPort):
                 self._factor_cache[cache_key] = values
                 return values
         except Exception as e:
-            print(f"获取 {sector} 行业 {factor_name} 因子值失败: {e}")
+            logger.warning(f"获取 {sector} 行业 {factor_name} 因子值失败: {e}")
             return []
     
     def clear_cache(self):

@@ -1,3 +1,5 @@
+
+
 """
 Drawdown Analysis Calculator
 =============================
@@ -10,6 +12,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Union, Dict, List, Any, Optional, Tuple
 from datetime import datetime
@@ -41,7 +46,7 @@ class DrawdownCalculator(BaseCalculator):
     Example:
         calculator = DrawdownCalculator(precision=4)
         result = calculator.calculate(returns)
-        print(f"Max Drawdown: {result['value']['max_drawdown']}")
+        logger.info(f"Max Drawdown: {result['value']['max_drawdown']}")
     """
 
     def __init__(self, precision: int = 6, risk_free_rate: float = 0.0):

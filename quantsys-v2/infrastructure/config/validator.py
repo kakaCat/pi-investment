@@ -1,9 +1,14 @@
+
+
 """配置验证器
 
 P2-3: 验证服务配置的正确性
 """
 
 import importlib
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import List, Set, Dict, Optional
 from pathlib import Path
 
@@ -36,7 +41,7 @@ class ConfigValidator:
         errors = validator.validate(config)
         if errors:
             for error in errors:
-                print(error)
+                logger.error(error)
     """
 
     def __init__(self, strict: bool = False):
@@ -271,12 +276,11 @@ class ConfigValidator:
         errors = self.validate(config)
 
         if not errors:
-            print("✅ Configuration validation passed!")
-            print(f"   Total services: {len(config.get_merged_services())}")
+            logger.info("✅ Configuration validation passed!")
+            logger.info(f"   Total services: {len(config.get_merged_services())}")
             return True
 
-        print(f"❌ Configuration validation failed with {len(errors)} error(s):")
-        print()
+        logger.error(f"❌ Configuration validation failed with {len(errors)} error(s):")
 
         # 按错误类型分组
         by_type: Dict[str, List[ValidationError]] = {}
@@ -284,10 +288,10 @@ class ConfigValidator:
             by_type.setdefault(error.error_type, []).append(error)
 
         for error_type, type_errors in sorted(by_type.items()):
-            print(f"  {error_type}:")
+            logger.error(f"  {error_type}:")
             for error in type_errors:
-                print(f"    - {error.service_name}: {error.message}")
-            print()
+                logger.error(f"    - {error.service_name}: {error.message}")
+            logger.info()
 
         return False
 
@@ -314,5 +318,5 @@ def validate_config_file(config_path: Path, strict: bool = False) -> bool:
         return validator.validate_and_report(config)
 
     except Exception as e:
-        print(f"❌ Failed to validate config: {e}")
+        logger.error(f"❌ Failed to validate config: {e}")
         return False

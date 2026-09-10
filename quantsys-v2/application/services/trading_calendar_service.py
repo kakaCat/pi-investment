@@ -8,11 +8,12 @@ from typing import List, Optional
 from datetime import datetime, timedelta, date
 import json
 from domain.ports.datasource_ports import IDataProviderManager
+from domain.trading.ports.ITradingCalendar import ITradingCalendar
 
 logger = structlog.get_logger(__name__)
 
 
-class TradingCalendarService:
+class TradingCalendarService(ITradingCalendar):
     """交易日历服务
 
     提供交易日历查询，数据源优先级：

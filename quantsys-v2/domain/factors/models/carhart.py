@@ -1,3 +1,5 @@
+
+
 """
 Carhart Four-Factor Model
 =========================
@@ -22,6 +24,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Dict, Any, Union, Tuple
 from scipy import stats
@@ -55,7 +60,7 @@ class CarhartFourFactorCalculator(BaseCalculator):
             mom_factor=mom
         )
         print(f"Alpha: {result['value']['alpha']}")
-        print(f"Momentum Beta: {result['value']['beta_mom']}")
+        logger.info(f"Momentum Beta: {result['value']['beta_mom']}")
     """
 
     def __init__(self, precision: int = 6, risk_free_rate: float = 0.0):

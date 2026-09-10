@@ -1,3 +1,5 @@
+
+
 """
 Black-Litterman Portfolio Optimization
 =======================================
@@ -16,6 +18,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Dict, Any, Optional, Union, List, Tuple
 
@@ -60,7 +65,7 @@ class BlackLittermanOptimizer(BaseCalculator):
             risk_aversion=2.5
         )
         print(f"Posterior returns: {result['value']['posterior_returns']}")
-        print(f"Optimal weights: {result['value']['weights']}")
+        logger.info(f"Optimal weights: {result['value']['weights']}")
     """
 
     def __init__(self, precision: int = 6, risk_free_rate: float = 0.0):

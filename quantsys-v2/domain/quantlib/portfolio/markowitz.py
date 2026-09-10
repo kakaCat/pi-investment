@@ -1,3 +1,5 @@
+
+
 """
 Markowitz Mean-Variance Optimization
 =====================================
@@ -17,6 +19,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Dict, Any, Optional, Union, List, Tuple
 from scipy.optimize import minimize
@@ -55,9 +60,9 @@ class MarkowitzOptimizer(BaseCalculator):
             objective='max_sharpe',
             risk_free_rate=0.02
         )
-        print(f"Optimal weights: {result['value']['weights']}")
+        logger.info(f"Optimal weights: {result['value']['weights']}")
         print(f"Expected return: {result['value']['expected_return']}")
-        print(f"Portfolio risk: {result['value']['risk']}")
+        logger.info(f"Portfolio risk: {result['value']['risk']}")
     """
 
     def __init__(self, precision: int = 6, risk_free_rate: float = 0.0):

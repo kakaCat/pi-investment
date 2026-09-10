@@ -288,7 +288,7 @@ async def verify_rotation(rotation_date: Optional[str] = None):
 async def update_risk_params(update: RiskParamUpdate):
     """Agent 调整风控参数"""
     try:
-        from live_trading.paper_trading_engine import PaperTradingEngine
+        from application.trading.paper_trading_engine import PaperTradingEngine
         engine = PaperTradingEngine(account_name='rotation_main')
 
         changes = {}
@@ -440,7 +440,7 @@ async def get_orchestrator_status():
 async def get_positions():
     """查询当前持仓"""
     try:
-        from live_trading.paper_trading_engine import PaperTradingEngine
+        from application.trading.paper_trading_engine import PaperTradingEngine
         engine = PaperTradingEngine(account_name='rotation_main')
         positions = engine.get_current_positions()
 

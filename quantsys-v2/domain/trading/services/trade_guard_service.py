@@ -21,6 +21,7 @@ from datetime import date, datetime, time as dt_time
 from typing import List, Tuple, Optional
 
 from domain.ports import ISimulationRepository
+from domain.trading.ports.ITradingCalendar import ITradingCalendar
 
 logger = structlog.get_logger(__name__)
 
@@ -64,7 +65,7 @@ class TradeGuardService:
     def __init__(
         self,
         repo: ISimulationRepository,
-        calendar=None,
+        calendar: ITradingCalendar = None,
         now_fn=None,
         breaker_active_fn=None
     ):
@@ -73,7 +74,7 @@ class TradeGuardService:
 
         Args:
             repo: 仓储接口（查询账户、持仓、历史交易）
-            calendar: 交易日历服务（判断交易日）
+            calendar: 交易日历服务（实现 ITradingCalendar 接口）
             now_fn: 时间函数（可注入用于测试）
             breaker_active_fn: 组合熔断状态查询函数（account_name)->bool（可注入用于测试）；
                 传入后买入方向将做 M4 熔断硬拦截（2026-09-10，w-f4aa1f6a）

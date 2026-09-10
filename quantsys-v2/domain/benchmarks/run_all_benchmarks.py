@@ -1,3 +1,5 @@
+
+
 #!/usr/bin/env python3
 """
 综合性能基准测试运行器
@@ -12,6 +14,9 @@ Architecture:
 """
 
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 import sys
 from pathlib import Path
 from typing import Optional, Any
@@ -34,20 +39,20 @@ def main(benchmark_service: Optional[Any] = None) -> int:
         try:
             from application.services.benchmark_service import BenchmarkService
             benchmark_service = BenchmarkService()
-            print("Warning: BenchmarkService not injected, using fallback (should be injected)")
+            logger.warning("Warning: BenchmarkService not injected, using fallback (should be injected)")
         except ImportError as e:
-            print(f"Error: Cannot import BenchmarkService: {e}")
-            print("Please provide benchmark_service via dependency injection")
+            logger.error(f"Error: Cannot import BenchmarkService: {e}")
+            logger.info("Please provide benchmark_service via dependency injection")
             return 1
 
     result = benchmark_service.run_benchmarks(timeout_seconds=600)
 
-    print("=" * 80)
-    print("Quantsys-v2 综合性能基准测试")
-    print("=" * 80)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-    print(f"\n报告已保存到: {result['report_path']}")
-    print(f"原始数据已保存到: {result['results_path']}")
+    logger.info("=" * 80)
+    logger.info("Quantsys-v2 综合性能基准测试")
+    logger.info("=" * 80)
+    logger.info(json.dumps(result, ensure_ascii=False, indent=2))
+    logger.info(f"\n报告已保存到: {result['report_path']}")
+    logger.info(f"原始数据已保存到: {result['results_path']}")
 
     return 0 if result["status"] == "success" else 1
 

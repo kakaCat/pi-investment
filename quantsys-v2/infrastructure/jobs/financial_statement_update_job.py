@@ -214,7 +214,7 @@ def main():
     args = parser.parse_args()
 
     result = execute(symbols=args.symbols, periods=args.periods)
-    print(result)
+    logger.info(result)
     sys.exit(0 if result['success'] else 1)
 
 

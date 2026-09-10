@@ -1,3 +1,5 @@
+
+
 """
 Monte Carlo Option Pricing
 ===========================
@@ -20,6 +22,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import Dict, Any, Optional, Callable
 from domain.quantlib import BaseCalculator
 from domain.quantlib.exceptions import DataValidationError, CalculationError
@@ -44,7 +49,7 @@ class MonteCarloCalculator(BaseCalculator):
         ...     S=100, K=100, T=1, r=0.05, sigma=0.2,
         ...     option_type='call', simulations=10000
         ... )
-        >>> print(f"Option price: {result['value']:.4f} ± {result['metadata']['std_error']:.4f}")
+        >>> logger.error(f"Option price: {result['value']:.4f} ± {result['metadata']['std_error']:.4f}")
         Option price: 10.4523 ± 0.0821
     """
 

@@ -1,3 +1,5 @@
+
+
 """
 Qlib Configuration Module
 ==========================
@@ -26,6 +28,9 @@ Date: 2026-05-25
 """
 
 from typing import Any, Dict, List, Tuple
+import logging
+
+logger = logging.getLogger(__name__)
 from copy import deepcopy
 
 
@@ -211,7 +216,7 @@ def validate_config(config: Dict[str, Any]) -> Tuple[bool, List[str]]:
         >>> config = get_default_config('ppo')
         >>> is_valid, errors = validate_config(config)
         >>> if not is_valid:
-        ...     print("Validation errors:", errors)
+        ...     logger.error("Validation errors:", errors)
     """
     errors: List[str] = []
 

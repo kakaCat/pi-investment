@@ -389,7 +389,7 @@ class DailyOrchestrator:
             settled = {TRADING_ACCOUNT: repo.settle_t1(TRADING_ACCOUNT)}
 
         # 更新最终市值（使用收盘价）
-        from live_trading.paper_trading_engine import PaperTradingEngine
+        from application.trading.paper_trading_engine import PaperTradingEngine
         engine = PaperTradingEngine(account_name=TRADING_ACCOUNT)
 
         # 获取持仓并更新价格
@@ -412,7 +412,7 @@ class DailyOrchestrator:
 
     def _phase_post_market(self, state: DailyOrchestratorState) -> Dict[str, Any]:
         """盘后阶段：绩效统计 + 净值快照 + 因子重算"""
-        from live_trading.paper_trading_engine import PaperTradingEngine
+        from application.trading.paper_trading_engine import PaperTradingEngine
         from application.services.scheduler_tasks import handle_factor_compute
 
         engine = PaperTradingEngine(account_name=TRADING_ACCOUNT)

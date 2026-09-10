@@ -1,3 +1,5 @@
+
+
 """
 Extreme Value Theory Calculator
 ================================
@@ -16,6 +18,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Union, Dict, List, Any, Optional, Tuple
 from scipy import stats, optimize
@@ -60,7 +65,7 @@ class ExtremeValueCalculator(BaseCalculator):
             threshold=0.05,
             confidence_level=0.99
         )
-        print(f"Tail VaR (99%): {result['value']['tail_var']}")
+        logger.info(f"Tail VaR (99%): {result['value']['tail_var']}")
     """
 
     def __init__(self, precision: int = 6, risk_free_rate: float = 0.0):

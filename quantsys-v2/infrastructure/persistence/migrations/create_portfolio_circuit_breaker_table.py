@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 """创建组合级回撤熔断状态表（M4 硬拦截，2026-09-10，w-f4aa1f6a）
 
 区分：quant.strategy_circuit_breaker = 策略级熔断（连续亏损/低胜率暂停策略）
@@ -27,7 +31,7 @@ COMMENT ON TABLE quant.portfolio_circuit_breaker IS 'M4 组合级回撤熔断状
 def run_migration():
     with db_cursor(commit=True) as cur:
         cur.execute(DDL)
-    print("✅ quant.portfolio_circuit_breaker 表已就绪")
+    logger.info("✅ quant.portfolio_circuit_breaker 表已就绪")
 
 
 if __name__ == '__main__':

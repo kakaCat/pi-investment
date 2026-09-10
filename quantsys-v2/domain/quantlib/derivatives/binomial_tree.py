@@ -1,3 +1,5 @@
+
+
 """
 Binomial Tree Option Pricing
 =============================
@@ -18,6 +20,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import Dict, Any, Optional, Tuple
 from domain.quantlib import BaseCalculator
 from domain.quantlib.exceptions import DataValidationError, CalculationError
@@ -42,7 +47,7 @@ class BinomialTreeCalculator(BaseCalculator):
         ...     S=100, K=100, T=1, r=0.05, sigma=0.2,
         ...     option_type='put', exercise_style='american', steps=50
         ... )
-        >>> print(f"American put price: {result['value']:.4f}")
+        >>> logger.info(f"American put price: {result['value']:.4f}")
         American put price: 5.5739
     """
 

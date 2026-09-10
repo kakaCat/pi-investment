@@ -1,3 +1,5 @@
+
+
 """
 Barra Risk Model
 ================
@@ -18,6 +20,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Dict, Any, List, Optional, Union, Tuple
 from scipy import stats
@@ -55,7 +60,7 @@ class BarraRiskModelCalculator(BaseCalculator):
             industry_exposures=industries
         )
         print(f"Factor Risk: {result['value']['factor_risk']}")
-        print(f"Specific Risk: {result['value']['specific_risk']}")
+        logger.info(f"Specific Risk: {result['value']['specific_risk']}")
     """
 
     def __init__(self, precision: int = 6, risk_free_rate: float = 0.0):

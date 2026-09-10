@@ -1,3 +1,5 @@
+
+
 """
 Base RL Agent Module
 ====================
@@ -12,6 +14,9 @@ Date: 2026-05-25
 """
 
 from abc import abstractmethod
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import Any, Dict, List, Optional
 import numpy as np
 
@@ -184,7 +189,7 @@ class BaseRLAgent(BaseCalculator):
         Example:
             >>> agent = MyRLAgent(algorithm='ppo', env=env)
             >>> methods = agent.get_supported_methods()
-            >>> print(methods)
+            >>> logger.info(methods)
             ['train', 'predict', 'save_model', 'load_model', 'calculate']
         """
         return ['train', 'predict', 'save_model', 'load_model', 'calculate']

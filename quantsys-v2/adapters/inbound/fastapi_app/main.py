@@ -1176,7 +1176,11 @@ def register_routes():
     try:
         from adapters.inbound.fastapi_app.routes.game.intelligence import router as game_intelligence_router
         app.include_router(game_intelligence_router)
-        logger.info("✅ Registered: game.intelligence")
+        # 兼容路由：把同一 handler 挂到规范文档路径 /api/market/opponent-behavior
+        # （原路径 /api/game/market/opponent-behavior 保留；2026-09-10，w-23c70356）
+        from adapters.inbound.fastapi_app.routes.game.intelligence import compat_router as game_intelligence_compat_router
+        app.include_router(game_intelligence_compat_router)
+        logger.info("✅ Registered: game.intelligence (+compat /api/market/opponent-behavior)")
     except ImportError as e:
         optional_failed.append("game.intelligence")
         logger.warning(f"⚠️ Failed to import game.intelligence: {e}")

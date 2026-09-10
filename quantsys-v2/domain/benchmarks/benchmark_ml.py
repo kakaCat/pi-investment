@@ -1,3 +1,5 @@
+
+
 #!/usr/bin/env python3
 """
 机器学习性能基准测试
@@ -10,6 +12,9 @@
 """
 
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 import time
 import numpy as np
 import pandas as pd
@@ -95,9 +100,9 @@ def benchmark_model_training(
 
 def run_ml_benchmarks():
     """运行机器学习基准测试"""
-    print("=" * 80)
-    print("机器学习性能基准测试")
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info("机器学习性能基准测试")
+    logger.info("=" * 80)
 
     results = {
         'test_name': 'machine_learning',
@@ -135,15 +140,15 @@ def run_ml_benchmarks():
             'params': {'n_estimators': 100, 'max_depth': 6}
         })
     except ImportError:
-        print("XGBoost不可用，跳过XGBoost测试")
+        logger.info("XGBoost不可用，跳过XGBoost测试")
 
     for scenario in scenarios:
-        print(f"\n{'='*80}")
-        print(f"场景: {scenario['name']}")
-        print(f"{'='*80}")
+        logger.info(f"\n{'='*80}")
+        logger.info(f"场景: {scenario['name']}")
+        logger.info(f"{'='*80}")
 
         # 生成测试数据
-        print(f"生成测试数据...")
+        logger.info(f"生成测试数据...")
         X, y = generate_classification_data(
             scenario['n_samples'],
             scenario['n_features']
@@ -154,8 +159,8 @@ def run_ml_benchmarks():
         X_train, X_test = X[:split], X[split:]
         y_train, y_test = y[:split], y[split:]
 
-        print(f"训练集: {len(X_train):,} 样本")
-        print(f"测试集: {len(X_test):,} 样本")
+        logger.info(f"训练集: {len(X_train):,} 样本")
+        logger.info(f"测试集: {len(X_test):,} 样本")
 
         scenario_result = {
             'name': scenario['name'],
@@ -167,7 +172,7 @@ def run_ml_benchmarks():
         }
 
         for model_config in models:
-            print(f"\n[{model_config['name']}]")
+            logger.info(f"\n[{model_config['name']}]")
 
             model_result = {
                 'name': model_config['name'],
@@ -177,7 +182,7 @@ def run_ml_benchmarks():
             }
 
             # CPU训练
-            print(f"  CPU训练...")
+            logger.info(f"  CPU训练...")
             cpu_trainer = GPUMLTrainer(use_gpu=False)
 
             cpu_result = benchmark_model_training(
@@ -190,13 +195,13 @@ def run_ml_benchmarks():
             )
             model_result['cpu'] = cpu_result
 
-            print(f"    训练时间: {cpu_result['train_time_mean']:.3f}s ± {cpu_result['train_time_std']:.3f}s")
-            print(f"    预测时间: {cpu_result['predict_time_mean']:.4f}s")
-            print(f"    准确率: {cpu_result['score_mean']:.4f} ± {cpu_result['score_std']:.4f}")
+            logger.info(f"    训练时间: {cpu_result['train_time_mean']:.3f}s ± {cpu_result['train_time_std']:.3f}s")
+            logger.info(f"    预测时间: {cpu_result['predict_time_mean']:.4f}s")
+            logger.info(f"    准确率: {cpu_result['score_mean']:.4f} ± {cpu_result['score_std']:.4f}")
 
             # GPU训练
             try:
-                print(f"  GPU训练...")
+                logger.info(f"  GPU训练...")
                 gpu_trainer = GPUMLTrainer(use_gpu=True)
 
                 if gpu_trainer.use_gpu:
@@ -210,9 +215,9 @@ def run_ml_benchmarks():
                     )
                     model_result['gpu'] = gpu_result
 
-                    print(f"    训练时间: {gpu_result['train_time_mean']:.3f}s ± {gpu_result['train_time_std']:.3f}s")
-                    print(f"    预测时间: {gpu_result['predict_time_mean']:.4f}s")
-                    print(f"    准确率: {gpu_result['score_mean']:.4f} ± {gpu_result['score_std']:.4f}")
+                    logger.info(f"    训练时间: {gpu_result['train_time_mean']:.3f}s ± {gpu_result['train_time_std']:.3f}s")
+                    logger.info(f"    预测时间: {gpu_result['predict_time_mean']:.4f}s")
+                    logger.info(f"    准确率: {gpu_result['score_mean']:.4f} ± {gpu_result['score_std']:.4f}")
 
                     # 计算加速比
                     train_speedup = cpu_result['train_time_mean'] / gpu_result['train_time_mean']
@@ -221,14 +226,14 @@ def run_ml_benchmarks():
                     model_result['train_speedup'] = train_speedup
                     model_result['predict_speedup'] = predict_speedup
 
-                    print(f"\n  [性能对比]")
-                    print(f"    训练加速比: {train_speedup:.2f}x")
-                    print(f"    预测加速比: {predict_speedup:.2f}x")
+                    logger.info(f"\n  [性能对比]")
+                    logger.info(f"    训练加速比: {train_speedup:.2f}x")
+                    logger.info(f"    预测加速比: {predict_speedup:.2f}x")
                 else:
-                    print("    GPU不可用，跳过GPU测试")
+                    logger.info("    GPU不可用，跳过GPU测试")
                     model_result['gpu'] = None
             except Exception as e:
-                print(f"    GPU测试失败: {e}")
+                logger.info(f"    GPU测试失败: {e}")
                 model_result['gpu'] = None
 
             scenario_result['models'].append(model_result)
@@ -242,9 +247,9 @@ def run_ml_benchmarks():
     with open(output_file, 'w') as f:
         json.dump(results, f, indent=2)
 
-    print(f"\n{'='*80}")
-    print(f"测试完成！结果已保存到: {output_file}")
-    print(f"{'='*80}")
+    logger.info(f"\n{'='*80}")
+    logger.info(f"测试完成！结果已保存到: {output_file}")
+    logger.info(f"{'='*80}")
 
     return results
 
@@ -255,26 +260,26 @@ def main():
         results = run_ml_benchmarks()
 
         # 打印汇总
-        print("\n" + "=" * 80)
-        print("测试汇总")
-        print("=" * 80)
+        logger.info("\n" + "=" * 80)
+        logger.info("测试汇总")
+        logger.info("=" * 80)
 
         for scenario in results['scenarios']:
-            print(f"\n{scenario['name']}:")
+            logger.info(f"\n{scenario['name']}:")
 
             for model in scenario['models']:
-                print(f"  {model['name']}:")
-                print(f"    CPU训练: {model['cpu']['train_time_mean']:.3f}s")
+                logger.info(f"  {model['name']}:")
+                logger.info(f"    CPU训练: {model['cpu']['train_time_mean']:.3f}s")
 
                 if model['gpu']:
-                    print(f"    GPU训练: {model['gpu']['train_time_mean']:.3f}s")
-                    print(f"    加速比: {model.get('train_speedup', 0):.2f}x")
+                    logger.info(f"    GPU训练: {model['gpu']['train_time_mean']:.3f}s")
+                    logger.info(f"    加速比: {model.get('train_speedup', 0):.2f}x")
                 else:
-                    print(f"    GPU: 不可用")
+                    logger.info(f"    GPU: 不可用")
 
         return 0
     except Exception as e:
-        print(f"\n错误: {e}")
+        logger.info(f"\n错误: {e}")
         import traceback
         traceback.print_exc()
         return 1

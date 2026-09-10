@@ -1,3 +1,5 @@
+
+
 """
 Greeks Calculations
 ===================
@@ -16,6 +18,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 from scipy.stats import norm
 from typing import Dict, Any
 from domain.quantlib import BaseCalculator
@@ -37,7 +42,7 @@ class GreeksCalculator(BaseCalculator):
     Example:
         >>> calc = GreeksCalculator()
         >>> greeks = calc.calculate(S=100, K=100, T=1, r=0.05, sigma=0.2, option_type='call')
-        >>> print(f"Delta: {greeks['value']['delta']:.4f}")
+        >>> logger.info(f"Delta: {greeks['value']['delta']:.4f}")
         Delta: 0.6368
     """
 

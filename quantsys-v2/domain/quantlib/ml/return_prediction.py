@@ -1,3 +1,5 @@
+
+
 """
 Return Prediction Calculator
 =============================
@@ -17,6 +19,9 @@ Date: 2026-05-25
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Dict, Any, Optional, Union, List, Tuple
 import warnings
@@ -50,7 +55,7 @@ class ReturnPredictionCalculator(BaseCalculator):
             horizon=5,
             train_ratio=0.7
         )
-        print(f"Predictions: {result['value']['predictions'][:5]}")
+        logger.info(f"Predictions: {result['value']['predictions'][:5]}")
     """
 
     def __init__(self, precision: int = 6, risk_free_rate: float = 0.0,

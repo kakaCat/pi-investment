@@ -281,7 +281,7 @@ def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
             # 数据库无数据，尝试从外部数据源拉取（M3-2 修复）
             logger.info(f"Database has no kline data for {clean_symbol}, attempting to fetch from external sources...")
             try:
-                from live_trading.multi_source_data_fetcher import MultiSourceDataFetcher
+                from adapters.outbound.datasources.multi_source_data_fetcher import MultiSourceDataFetcher
                 fetcher = MultiSourceDataFetcher()
                 
                 # 直接从外部数据源获取

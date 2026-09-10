@@ -62,7 +62,7 @@ class IndicatorStrategyAdapter(bt.Strategy):
         """Logging function."""
         if self.params.printlog:
             dt = dt or self.datas[0].datetime.date(0)
-            print(f'{dt.isoformat()} {txt}')
+            logger.info(f'{dt.isoformat()} {txt}')
     
     def notify_order(self, order):
         """Called when order status changes."""
@@ -203,7 +203,7 @@ class SignalStrategyAdapter(bt.Strategy):
         """Logging function."""
         if self.params.printlog:
             dt = dt or self.datas[0].datetime.date(0)
-            print(f'{dt.isoformat()} {txt}')
+            logger.info(f'{dt.isoformat()} {txt}')
     
     def notify_order(self, order):
         """Called when order status changes."""

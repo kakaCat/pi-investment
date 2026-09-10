@@ -1,3 +1,5 @@
+
+
 """
 Risk Parity Portfolio Optimization
 ===================================
@@ -15,6 +17,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Dict, Any, Optional, Union, List, Tuple
 from scipy.optimize import minimize
@@ -48,7 +53,7 @@ class RiskParityOptimizer(BaseCalculator):
         # Equal risk contribution
         result = optimizer.optimize(cov_matrix=Sigma)
         print(f"Weights: {result['value']['weights']}")
-        print(f"Risk contributions: {result['value']['risk_contributions']}")
+        logger.info(f"Risk contributions: {result['value']['risk_contributions']}")
 
         # Custom target risk contributions
         result = optimizer.optimize(

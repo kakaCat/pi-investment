@@ -1,3 +1,5 @@
+
+
 """
 远期与期货定价模块
 ==================
@@ -15,6 +17,9 @@ Date: 2026-05-25
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import Dict, Any
 from domain.quantlib import BaseCalculator
 from domain.quantlib.exceptions import CalculationError, DataValidationError
@@ -36,7 +41,7 @@ class ForwardFuturesCalculator(BaseCalculator):
     Example:
         >>> calc = ForwardFuturesCalculator()
         >>> result = calc.calculate(S=100, T=0.5, r=0.05, storage_cost=0.02)
-        >>> print(f"Fair futures price: {result['value']:.2f}")
+        >>> logger.info(f"Fair futures price: {result['value']:.2f}")
     """
 
     def __init__(self, precision: int = 6, risk_free_rate: float = 0.0):

@@ -1,3 +1,5 @@
+
+
 """
 高阶Greeks计算模块
 ===================
@@ -15,6 +17,9 @@ Date: 2026-05-25
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 from scipy.stats import norm
 from typing import Dict, Any
 from domain.quantlib import BaseCalculator
@@ -39,7 +44,7 @@ class AdvancedGreeksCalculator(BaseCalculator):
     Example:
         >>> calc = AdvancedGreeksCalculator()
         >>> result = calc.calculate(S=100, K=100, T=1, r=0.05, sigma=0.2, option_type='call')
-        >>> print(result['value']['speed'])
+        >>> logger.info(result['value']['speed'])
     """
 
     def __init__(self, precision: int = 6, risk_free_rate: float = 0.0):

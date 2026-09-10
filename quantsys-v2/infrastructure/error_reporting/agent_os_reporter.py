@@ -1,3 +1,5 @@
+
+
 """v2 → Agent OS 结构化错误上报（REQ-a42aa4 Batch C，2026-09-10 w-f4aa1f6a）
 
 背景
@@ -30,6 +32,8 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+
+logger = logging.getLogger(__name__)
 import os
 import queue
 import re

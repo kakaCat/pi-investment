@@ -406,7 +406,7 @@ class CalculationResult:
 
     Example:
         result = CalculationResult({'value': 0.25, 'method': 'sharpe_ratio'})
-        print(result.value)  # 0.25
+        logger.info(result.value)  # 0.25
         result.export_json('result.json')
     """
 

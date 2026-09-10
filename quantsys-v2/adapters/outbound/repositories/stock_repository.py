@@ -32,7 +32,7 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
 
         # 查询单个股票
         stock = repo.get_by_symbol('000001')
-        print(f"{stock.name}: {stock.roe}%")
+        logger.info(f"{stock.name}: {stock.roe}%")
 
         # 查询股票列表
         stocks = repo.list_by_market('A', limit=10)

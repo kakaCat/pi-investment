@@ -1,3 +1,5 @@
+
+
 """
 Implied Volatility Calculator
 ==============================
@@ -16,6 +18,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 from scipy.optimize import brentq, newton
 from scipy.stats import norm
 from typing import Dict, Any, Optional
@@ -40,7 +45,7 @@ class ImpliedVolatilityCalculator(BaseCalculator):
         ...     S=100, K=100, T=1, r=0.05,
         ...     option_type='call'
         ... )
-        >>> print(f"Implied volatility: {result['value']:.4f}")
+        >>> logger.info(f"Implied volatility: {result['value']:.4f}")
         Implied volatility: 0.2000
     """
 

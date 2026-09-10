@@ -1,3 +1,5 @@
+
+
 """
 Base RL Environment - Abstract base class for trading environments
 
@@ -9,6 +11,9 @@ Date: 2026-05-25
 """
 
 from abc import ABC, abstractmethod
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import Any, Dict, Optional, Tuple
 import numpy as np
 
@@ -165,7 +170,7 @@ class BaseRLEnvironment(ABC):
 
         Example:
             >>> output = env.render()
-            >>> print(output)
+            >>> logger.info(output)
             'Step: 10, Position: 100 shares, PnL: $1250.50'
         """
         pass

@@ -396,5 +396,5 @@ def example_usage():
 
 if __name__ == "__main__":
     example_usage()
-    print("\n")
+    logger.info("\n")
     benchmark_ml_performance()

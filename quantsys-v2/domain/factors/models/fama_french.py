@@ -1,3 +1,5 @@
+
+
 """
 Fama-French Factor Models
 ==========================
@@ -17,6 +19,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Dict, Any, Optional, Union, Tuple
 from scipy import stats
@@ -51,7 +56,7 @@ class FamaFrench3FactorCalculator(BaseCalculator):
             smb_factor=smb,
             hml_factor=hml
         )
-        print(f"Alpha: {result['value']['alpha']}")
+        logger.info(f"Alpha: {result['value']['alpha']}")
         print(f"Market Beta: {result['value']['beta_mkt']}")
     """
 

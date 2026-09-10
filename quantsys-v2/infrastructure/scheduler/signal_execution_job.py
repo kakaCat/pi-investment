@@ -105,4 +105,4 @@ def execute_daily_signals(task_context: Dict[str, Any] = None) -> Dict[str, Any]
 # 向后兼容：支持调度器直接调用模块
 if __name__ == '__main__':
     result = execute_daily_signals({})
-    print(result)
+    logger.info(result)

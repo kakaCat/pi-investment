@@ -1,3 +1,5 @@
+
+
 """
 Value at Risk (VaR) Calculator
 ===============================
@@ -12,6 +14,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 import pandas as pd
 from typing import Union, Dict, List, Any, Optional
 from scipy import stats

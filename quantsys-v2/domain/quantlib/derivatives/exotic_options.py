@@ -1,3 +1,5 @@
+
+
 """
 Exotic Options Pricing
 =======================
@@ -19,6 +21,9 @@ Date: 2026-05-24
 """
 
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 from scipy.stats import norm
 from typing import Dict, Any, Optional
 from domain.quantlib import BaseCalculator

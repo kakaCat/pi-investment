@@ -253,16 +253,36 @@ async def handle_v13_daily_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
 
 @register_job_handler("v13_risk_check")
 async def handle_v13_risk_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
-    """v13 盘后风险检查.
+    """V13策略风险检查（单股止损+组合风险）.
 
-    Original: SchedulerService._handle_v13_risk_check
-    Schedule: 工作日 16:00
+    功能：
+    - 检查所有持仓的单股止损（默认 -15%）
+    - 检查组合级风险（累计收益、跑输指数）
+    - 触发时发送告警通知
+    - 可选：自动执行止损（params.auto_execute）
+
+    Original: infrastructure/jobs/strategy_risk_check_job.py
+    Schedule: 工作日 08:00
     """
-    logger.info("Starting v13_risk_check job")
-    from infrastructure.scheduler.scheduler import SchedulerService
+    logger.info("Starting v13_risk_check job (strategy_risk_check_job)")
+    from infrastructure.jobs.strategy_risk_check_job import v13_risk_check
 
-    scheduler = SchedulerService()
-    result = scheduler._handle_v13_risk_check(metadata)
+    result = v13_risk_check(**(metadata or {}))
+    return result
+
+
+@register_job_handler("v14_risk_check")
+async def handle_v14_risk_check(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """V14策略风险检查（单股止损+组合风险）.
+
+    功能：同 v13_risk_check，但针对 v14 账户
+
+    Schedule: 工作日 08:00
+    """
+    logger.info("Starting v14_risk_check job (strategy_risk_check_job)")
+    from infrastructure.jobs.strategy_risk_check_job import v14_risk_check
+
+    result = v14_risk_check(**(metadata or {}))
     return result
 
 

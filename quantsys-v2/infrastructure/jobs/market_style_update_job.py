@@ -201,7 +201,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument('--dry-run', action='store_true', help='只计算不落库')
     args = parser.parse_args(argv)
     result = execute(trade_date=args.trade_date, dry_run=args.dry_run)
-    print(f"[market_style_update] {result}")
+    logger.info(f"[market_style_update] {result}")
     return 0 if result.get('success') else 1
 
 
