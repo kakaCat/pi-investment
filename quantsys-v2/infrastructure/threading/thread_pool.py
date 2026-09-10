@@ -304,7 +304,8 @@ def shutdown_all_pools(wait: bool = True, timeout: Optional[float] = 30):
             logger.error(
                 "failed_to_shutdown_pool",
                 pool_name=pool.pool_name,
-                error=str(e)
+                error=str(e),
+                exc_info=True
             )
 
     logger.info("all_thread_pools_shutdown_complete")

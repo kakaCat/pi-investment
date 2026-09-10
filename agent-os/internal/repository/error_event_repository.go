@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -343,9 +344,44 @@ func (r *errorEventRepository) Stats(ctx context.Context) (*domain.ErrorEventSta
 	return stats, nil
 }
 
-// FingerprintOf 生成去重指纹（sha256(source|task_id|msg) hex 前 40 位）
+// 指纹归一化（P0，2026-09-10 w-f4aa1f6a）：与 quantsys-v2 infrastructure/error_reporting/
+// agent_os_reporter.py normalize_msg 同规则——抹掉 trace_id/timestamp/uuid 等易变段，
+// 使同根因错误同指纹（此前 msg 原文哈希导致同根因多行、resolved 复现自动复开失效）。
+var (
+	reUUID    = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
+	reISOTs   = regexp.MustCompile(`\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.d+)?(Z|[+-]\d{2}:?\d{2})?`)
+	reHexLong = regexp.MustCompile(`(^|[^0-9a-zA-Z])[0-9a-fA-F]{16,}([^0-9a-zA-Z]|$)`)
+	reHex8    = regexp.MustCompile(`(^|[^0-9a-zA-Z])[0-9a-fA-F]{8}([^0-9a-zA-Z]|$)`)
+	reEpochMs = regexp.MustCompile(`(^|[^\d])\d{13,}([^\d]|$)`)
+)
+
+var volatileJSONKeys = []string{"trace_id", "timestamp", "ts", "time", "request_id", "span_id", "run_id"}
+
+// NormalizeMsg 归一化错误消息：同根因错误 → 同指纹。供 FingerprintOf 与测试使用。
+func NormalizeMsg(msg string) string {
+	s := strings.TrimSpace(msg)
+	if strings.HasPrefix(s, "{") {
+		var obj map[string]any
+		if err := json.Unmarshal([]byte(s), &obj); err == nil {
+			for _, k := range volatileJSONKeys {
+				delete(obj, k)
+			}
+			if b, err := json.Marshal(obj); err == nil {
+				s = string(b)
+			}
+		}
+	}
+	s = reUUID.ReplaceAllString(s, "<uuid>")
+	s = reISOTs.ReplaceAllString(s, "<ts>")
+	s = reHexLong.ReplaceAllString(s, "1<hex>2")
+	s = reHex8.ReplaceAllString(s, "1<hex8>2")
+	s = reEpochMs.ReplaceAllString(s, "${1}<num>${2}")
+	return s
+}
+
+// FingerprintOf 生成去重指纹（sha256(source|task_id|归一化 msg) hex 前 40 位）
 func FingerprintOf(source, taskID, msg string) string {
-	base := source + "|" + taskID + "|" + strings.TrimSpace(msg)
+	base := source + "|" + taskID + "|" + NormalizeMsg(msg)
 	sum := sha256.Sum256([]byte(base))
 	return hex.EncodeToString(sum[:])[:40]
 }

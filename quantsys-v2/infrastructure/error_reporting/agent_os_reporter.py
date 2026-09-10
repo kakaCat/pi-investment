@@ -32,7 +32,9 @@ import json
 import logging
 import os
 import queue
+import re
 import socket
+import sys
 import threading
 import time
 import traceback
@@ -105,8 +107,41 @@ def _worker_loop() -> None:
                 log.warning("agent-os ingest POST failed (dropped): %s", getattr(last, "reason", last))
 
 
+# ---------------- 指纹归一化（P0，2026-09-10 w-f4aa1f6a） ----------------
+# 背景：msg 原文直接哈希 → 同一根因错误因 trace_id/timestamp 等易变段产生不同指纹，
+# 重复上报不合并（79de0df7 与 f34b889e 同为 shutdown(timeout) 却两行），且服务端
+# "resolved 后同指纹复现自动复开"机制对这类错误完全失效（假解决逃逸检测）。
+# 规则：JSON 行先删易变键再规范化序列化；文本抹 uuid/hex/ISO时间/毫秒时间戳。
+_VOLATILE_JSON_KEYS = ("trace_id", "timestamp", "ts", "time", "request_id", "span_id", "run_id")
+_RE_UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+_RE_HEX_LONG = re.compile(r"(?<![0-9a-zA-Z])[0-9a-fA-F]{16,}(?![0-9a-zA-Z])")
+_RE_HEX8 = re.compile(r"(?<![0-9a-zA-Z])[0-9a-fA-F]{8}(?![0-9a-zA-Z])")
+_RE_ISO_TS = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?")
+_RE_EPOCH_MS = re.compile(r"(?<!\d)\d{13,}(?!\d)")
+
+
+def normalize_msg(msg: str) -> str:
+    """归一化错误消息：抹掉 trace_id/timestamp/uuid 等易变段，使同根因错误同指纹。"""
+    s = (msg or "").strip()
+    if s.startswith("{"):
+        try:
+            obj = json.loads(s)
+            if isinstance(obj, dict):
+                for k in _VOLATILE_JSON_KEYS:
+                    obj.pop(k, None)
+                s = json.dumps(obj, sort_keys=True, ensure_ascii=False)
+        except Exception:  # noqa: BLE001 —— 非 JSON 按文本处理
+            pass
+    s = _RE_UUID.sub("<uuid>", s)
+    s = _RE_ISO_TS.sub("<ts>", s)
+    s = _RE_HEX_LONG.sub("<hex>", s)
+    s = _RE_HEX8.sub("<hex8>", s)
+    s = _RE_EPOCH_MS.sub("<num>", s)
+    return s
+
+
 def _fingerprint(msg: str, task_id: Optional[Any]) -> str:
-    raw = f"{_SOURCE}|{task_id if task_id is not None else ''}|{msg}"
+    raw = f"{_SOURCE}|{task_id if task_id is not None else ''}|{normalize_msg(msg)}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
@@ -183,10 +218,16 @@ class AgentOSErrorLogHandler(logging.Handler):
                 return
             now = time.monotonic()
             exc = record.exc_info
+            # 堆栈 fallback（A 方案，2026-09-10 w-f4aa1f6a）：except 块内 logger.error 未显式传
+            # exc_info=True 时（如 structlog 风格调用），取当前线程活跃异常补齐 traceback。
+            if not (exc and exc[2] is not None):
+                si = sys.exc_info()
+                if si[2] is not None:
+                    exc = si
             msg = record.getMessage().strip()
             if not msg and exc:
                 msg = f"{exc[0].__name__}: {exc[1]}"
-            key = f"{record.name}|{msg[:80]}"
+            key = f"{record.name}|{normalize_msg(msg)[:80]}"
             last = self._cooldown.get(key, 0.0)
             if now - last < 60.0:
                 return
