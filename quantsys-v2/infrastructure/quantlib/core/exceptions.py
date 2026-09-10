@@ -10,33 +10,46 @@ from typing import Optional, Any
 from functools import wraps
 import logging
 
+# 2026-09-10（w-f4aa1f6a）：统一双轨异常体系——本模块类改为继承 domain.quantlib.exceptions
+# 的同名规范类（54 个非测试文件 + 测试用 domain 版；本模块 12 个文件用 infra 版）。
+# 此前两边同名不同类，pytest.raises(domain 版) 接不住 infra 版抛出的异常，
+# 13 个存量因子测试因此全挂。继承后双向兼容：except/raises 任一侧都成立。
+# 构造签名保持 infra 原版不变（parameter_name / actual / 自定义 message 全保留）。
+from domain.quantlib.exceptions import (
+    QuantAnalyticsError as _DomainQuantAnalyticsError,
+    DataValidationError as _DomainDataValidationError,
+    InsufficientDataError as _DomainInsufficientDataError,
+)
+
 logger = logging.getLogger(__name__)
 
 
-class QuantAnalyticsError(Exception):
+class QuantAnalyticsError(_DomainQuantAnalyticsError):
     """Base exception for all quantitative analytics errors."""
-    pass
+
+    def __init__(self, message: str = "", error_code: Optional[str] = None):
+        super().__init__(message, error_code=error_code)
 
 
-class DataValidationError(QuantAnalyticsError):
+class DataValidationError(_DomainDataValidationError):
     """Raised when input data validation fails."""
 
     def __init__(self, message: str, parameter_name: Optional[str] = None):
         self.parameter_name = parameter_name
-        if parameter_name:
-            message = f"Data validation error for '{parameter_name}': {message}"
-        super().__init__(message)
+        super().__init__(message, field_name=parameter_name)
 
 
-class InsufficientDataError(QuantAnalyticsError):
+class InsufficientDataError(_DomainInsufficientDataError):
     """Raised when there is insufficient data for calculation."""
 
     def __init__(self, required: int, actual: int, message: Optional[str] = None):
         self.required = required
         self.actual = actual
-        if message is None:
-            message = f"Insufficient data: need {required} points, got {actual}"
-        super().__init__(message)
+        super().__init__(required=required, provided=actual)
+        if message is not None:
+            # 保留 infra 版自定义 message（如 "TRIX requires at least 36 data points"）
+            self.message = message
+            self.args = (message,)
 
 
 class CalculationError(QuantAnalyticsError):
