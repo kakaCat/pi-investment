@@ -49,8 +49,13 @@ var envNoiseRules = []envNoiseRule{
 		// 注：Go RE2 的重复上限是 1000，故用 (?s).*? 而非 {0,2000}（后者 init 直接 panic）。
 		Re: regexp.MustCompile("(?s)所有数据源均失败" +
 			".*?(ProxyError|RemoteDisconnected|Connection aborted|ConnectionError|ReadTimeout|ConnectTimeout)"),
-		Why: "实证 2026-09-11 01:36-01:37（事件 7e66acac，1 分钟内 2 次）：本机出口到行情源间歇不可达时，" +
-			"多源 fetcher 报全源失败；同一路径 01:45 复测正常（fetch_klines 600519 返回数据）。属外部网络层。",
+		// 证据边界（2026-09-11 w-f4aa1f6a 更正）：本规则只覆盖"连接类错误"那一路。
+		// 反例必须记住——事件 7e66acac 同文案但根因是**语义误判**：请求 2026-09-06（周日）
+		// 单日 K 线，本地库无数据 + 新浪过滤后为空属正常空结果，却被报成"全源失败"
+		// （该事件由另一窗口以该根因结案，本规则不会命中它、也不该命中它）。
+		// 故此处要求连接类错误同时出现：文案相同、根因不同的两类必须区分开。
+		Why: "本机出口到行情源间歇不可达时（实证：同一时刻百度经代理 200/0.1s，而东财经代理 " +
+			"ProxyError、直连 RemoteDisconnected），多源 fetcher 会报全源失败；链路恢复即自愈。",
 	},
 	{
 		Name: "local-proxy-down",
