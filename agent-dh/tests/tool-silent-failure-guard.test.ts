@@ -1,0 +1,141 @@
+/**
+ * 数据真实性护栏契约测试（REQ-342799）
+ *
+ * 目的：锁死『后端返回失败/字段缺失 → 工具静默返回 0/空』这一类故障。
+ * 与既有单测的区别：这里用的是 2026-09-11 从线上后端 curl 到的**真实响应**，
+ * 而不是手写的理想 payload（后者曾让 bug 通过测试）。
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ChipAnalysisTool } from '../packages/market/src/tools/ChipAnalysisTool/ChipAnalysisTool.js';
+import { BarraDecompositionTool } from '../packages/risk/src/tools/BarraDecompositionTool/BarraDecompositionTool.js';
+import { DataFetchKlineTool } from '../packages/investment/src/tools/DataFetchKlineTool/DataFetchKlineTool.js';
+import { WatchListTool } from '../packages/intelligence/src/tools/WatchListTool/WatchListTool.js';
+
+const ctx = {} as any;
+
+// —— 真实样本 1：GET /api/analysis/chip-distribution/600150（2026-09-11 01:2x 实测）——
+const REAL_CHIP_600150 = {
+  success: true,
+  data: {
+    symbol: '600150',
+    asOf: '2026-09-10',
+    close: 40.82,
+    curve: [
+      { price: 39.3724, weight: 0.012667092448551362 },
+      { price: 40.5145, weight: 0.13091054390331214 },
+      { price: 40.8952, weight: 0.056422363648137075 },
+    ],
+    metrics: {
+      profitRatio: 0.9061409969644746,
+      avgCost: 40.31754899672987,
+      cost90Low: 39.62615,
+      cost90High: 40.89515,
+      cost70Low: 39.87995000000001,
+      cost70High: 40.76825000000001,
+      peakPrice: 40.514450000000004,
+      concentration: 0.02202900994690522,
+    },
+  },
+};
+
+// —— 真实样本 2：POST /api/risk/metrics（后端计算成功，但未计算 beta/alpha）——
+const REAL_RISK_METRICS = {
+  success: true,
+  data: {
+    sharpeRatio: -11.34670985581161,
+    sortinoRatio: -10.564379554145876,
+    calmarRatio: 17.787134109452094,
+    maxDrawdown: -0.06695652173913046,
+    annualReturn: 1.190964631676358,
+    annualVolatility: 0.3692252213466794,
+    var95: -0.030623727071412202,
+    cvar95: -0.03367049582189598,
+    cumulativeReturn: 0.1396527981474336,
+  },
+};
+
+describe('chip_analysis 数据真实性护栏', () => {
+  it('解析后端 metrics（旧实现静默返回全 0）', async () => {
+    const tool: any = new ChipAnalysisTool({ getChipDistribution: vi.fn().mockResolvedValue(REAL_CHIP_600150) } as any);
+    const r = await tool.execute({ symbol: '600150' }, ctx);
+    expect(r.avg_cost).toBeCloseTo(40.3175, 3);
+    expect(r.profit_ratio).toBeCloseTo(90.61, 1);
+    expect(r.concentration).toBeCloseTo(2.2, 1);
+    expect(r.as_of).toBe('2026-09-10');
+    expect(r.support_levels.length).toBeGreaterThan(0);
+    expect(r.resistance_levels.length).toBeGreaterThan(0);
+    expect(r.curve_points).toBe(3);
+  });
+
+  it('缺 metrics 时显式失败，而不是返回 0', async () => {
+    const tool: any = new ChipAnalysisTool({ getChipDistribution: vi.fn().mockResolvedValue({ success: true, data: { symbol: '600150' } }) } as any);
+    await expect(tool.execute({ symbol: '600150' }, ctx)).rejects.toThrow(/缺少 metrics/);
+  });
+});
+
+describe('risk_barra_decomposition 数据真实性护栏', () => {
+  it('后端 success=false（样本不足）时抛错，不再输出 total_risk=0 假结论', async () => {
+    const tool: any = new BarraDecompositionTool({
+      getBarraDecomposition: vi.fn().mockResolvedValue({ success: false, data: null, message: 'Insufficient data for all symbols' }),
+    } as any);
+    await expect(tool.execute({ symbols: ['300677', '600887'] }, ctx)).rejects.toThrow(/Insufficient data|无有效结果/);
+  });
+
+  it('后端全空字段时同样抛错', async () => {
+    const tool: any = new BarraDecompositionTool({
+      getBarraDecomposition: vi.fn().mockResolvedValue({ data: { totalRisk: null, factorRisks: [] } }),
+    } as any);
+    await expect(tool.execute({}, ctx)).rejects.toThrow(/无有效结果/);
+  });
+
+  it('后端有真实数据时正常映射', async () => {
+    const tool: any = new BarraDecompositionTool({
+      getBarraDecomposition: vi.fn().mockResolvedValue({ data: { totalRisk: 15.5, factorRisks: [{ name: 'size', risk: 3.1 }], idiosyncraticRisk: 5.0 } }),
+    } as any);
+    const r = await tool.execute({}, ctx);
+    expect(r.total_risk).toBe(15.5);
+    expect(r.factor_risks.length).toBe(1);
+  });
+});
+
+describe('data_fetch_kline 指数数据（amount=null）', () => {
+  it('指数 null amount 不再让整条调用失败，且不伪造成 0', async () => {
+    const tool: any = new DataFetchKlineTool({
+      getKlines: vi.fn().mockResolvedValue([
+        { symbol: '000300', trade_date: '2026-08-03', open: 4561.817, high: 4572.588, low: 4529.186, close: 4543.178, volume: 23204258400, amount: null },
+      ]),
+    } as any);
+    const rows = await tool.execute({ symbol: '000300', start_date: '2026-08-01', end_date: '2026-09-10' }, ctx);
+    expect(rows.length).toBe(1);
+    expect(rows[0].date).toBe('2026-08-03');
+    expect('amount' in rows[0]).toBe(false);
+    expect(rows[0].close).toBeCloseTo(4543.178, 3);
+  });
+});
+
+describe('watch_list 字段契约（conditions[] + context）', () => {
+  it('归一化出 name/condition，不再全是 undefined', async () => {
+    const tool: any = new WatchListTool({
+      listWatchRules: vi.fn().mockResolvedValue({
+        rules: [{ id: 135, symbol: '600150', enabled: true, conditions: [{ type: 'price_break', params: { price: 39.25, direction: 'below' } }], context: '600150 火灾事故破位预警' }],
+      }),
+    } as any);
+    const rules = await tool.execute({}, ctx);
+    expect(rules[0].name).toBe('规则#135');
+    expect(rules[0].condition).toBe('price < 39.25');
+    expect(rules[0].reason).toContain('火灾');
+  });
+});
+
+describe('risk_metrics 诚实性', () => {
+  it('后端未计算 beta/alpha 时给出解释字段，而不是让 0 冒充中性', async () => {
+    const { RiskMetricsTool } = await import('../packages/risk/src/tools/RiskMetricsTool/RiskMetricsTool.js');
+    // 客户端 unwrap() 会剥掉 {success,data} 外层 → tool 收到的是内层 data 对象
+    const tool: any = new RiskMetricsTool({ getRiskMetrics: vi.fn().mockResolvedValue(REAL_RISK_METRICS.data) } as any);
+    const r = await tool.execute({ days: 60 }, ctx);
+    expect(r.volatility).toBeCloseTo(36.92, 1);
+    expect(r.max_drawdown).toBeCloseTo(-6.7, 1);
+    expect(r.beta_note).toMatch(/未计算|无基准/);
+  });
+});

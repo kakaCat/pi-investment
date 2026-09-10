@@ -52,14 +52,22 @@ export class RiskMetricsTool extends BaseTool<RiskMetricsParams, RiskMetricsResu
       const n = Number(v ?? 0);
       return Math.abs(n) <= 1 ? +(n * 100).toFixed(2) : n;
     };
+    const betaRaw = result?.beta ?? result?.betaCoefficient ?? null;
+    const alphaRaw = result?.alpha ?? result?.alphaAnnual ?? null;
     return {
       volatility: pct(result?.annualVolatility ?? result?.volatility ?? result?.annualizedVolatility ?? 0),
       max_drawdown: pct(result?.maxDrawdown ?? result?.max_drawdown ?? 0),
       sharpe_ratio: Number(result?.sharpeRatio ?? result?.sharpe_ratio ?? 0),
-      beta: Number(result?.beta ?? 0),
-      alpha: Number(result?.alpha ?? 0),
+      beta: Number(betaRaw ?? 0),
+      alpha: Number(alphaRaw ?? 0),
       var_95: pct(result?.var95 ?? result?.var_95 ?? result?.VaR ?? 0),
       sortino_ratio: Number(result?.sortinoRatio ?? result?.sortino_ratio ?? 0),
+      // 2026-09-11（REQ-342799 数据真实性护栏）：把『未计算』与『真的是 0』区分开，
+      // 避免 0 被当成『无市场相关性 / 无超额收益』这类中性结论使用。
+      beta_note: betaRaw === null ? '后端未计算 beta（无基准输入）——此处 0 表示未计算，不代表无市场相关性' : 'backend_provided',
+      alpha_note: alphaRaw === null ? '后端未计算 alpha（无基准输入）——此处 0 表示未计算，不代表无超额收益' : 'backend_provided',
+      days_requested: args.days || 60,
+      window_note: '2026-09-11 实测：后端 /api/risk/metrics 对 days=30/60/250 返回完全相同的数值（窗口参数未生效），勿假设多窗口可比',
     };
   }
 

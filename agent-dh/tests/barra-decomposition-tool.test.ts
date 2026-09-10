@@ -40,7 +40,8 @@ describe('BarraDecompositionTool', () => {
 
       expect(mockClient.getBarraDecomposition).toHaveBeenCalledOnce();
       const callArgs = mockClient.getBarraDecomposition.mock.calls[0][0];
-      expect(callArgs.symbols).toEqual(['600519', '000858', '601318', '000001', '600036']);
+      // 2026-09-11 同步：默认标的自 2026-09-01 起扩至 10 只（Barra 横截面回归需 ≥ 因子数+5）
+      expect(callArgs.symbols).toEqual(['600519', '000858', '601318', '000001', '600036', '601398', '600028', '601288', '600900', '000333']);
       expect(callArgs.start_date).toBeDefined();
       expect(callArgs.end_date).toBeDefined();
     });
@@ -104,16 +105,13 @@ describe('BarraDecompositionTool', () => {
       expect(result.total_risk).toBe(12.0);
     });
 
-    it('defaults to 0/empty when fields missing', async () => {
+    // 2026-09-11（REQ-342799）原用例名为『defaults to 0/empty when fields missing』，
+    // 它把『后端无数据 → 输出 total_risk=0』这个静默失效行为固化成了期望值——
+    // 正是生产上把『样本不足』误读成『零风险』的根因。现改为断言显式失败。
+    it('throws explicit error when backend has no meaningful result (数据真实性护栏)', async () => {
       mockClient.getBarraDecomposition.mockResolvedValue({});
 
-      const result = await (tool as any).execute({ symbols: ['000001'] }, mockContext);
-
-      expect(result.total_risk).toBe(0);
-      expect(result.factor_risks).toEqual([]);
-      expect(result.idiosyncratic_risk).toBe(0);
-      expect(result.industry_concentration).toBe(0);
-      expect(result.style_exposure).toEqual({});
+      await expect((tool as any).execute({ symbols: ['000001'] }, mockContext)).rejects.toThrow(/无有效结果/);
     });
   });
 

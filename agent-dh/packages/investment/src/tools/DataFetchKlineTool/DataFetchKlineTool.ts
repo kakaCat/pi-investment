@@ -99,13 +99,35 @@ export class DataFetchKlineTool extends BaseTool<DataFetchKlineParams, DataFetch
     context: ToolContext
   ): Promise<DataFetchKlineResult> {
     const period = args.period || 'daily';
-    const result = await this.qv2.getKlines(
+    const result: any = await this.qv2.getKlines(
       args.symbol,
       args.start_date,
       args.end_date,
       period
     );
-    return result as DataFetchKlineResult;
+
+    // 2026-09-11 修复（REQ-342799）：指数（如 000300）K线的 amount 为 null，
+    // 旧实现原样透传 → DSH 输出校验报 'amount must be a number'，整条调用失败（基准数据取不到）。
+    // 现在归一化：date 补别名（后端字段为 trade_date）；null/非有限值字段删除而非填 0（不伪造数据）。
+    const rows: any[] = Array.isArray(result)
+      ? result
+      : Array.isArray(result?.klines)
+        ? result.klines
+        : Array.isArray(result?.data)
+          ? result.data
+          : [];
+    return rows.map((r: any) => {
+      const out: any = { ...r };
+      if (!out.date && r?.trade_date) out.date = r.trade_date;
+      for (const k of ['open', 'high', 'low', 'close', 'volume', 'amount']) {
+        if (out[k] === null || out[k] === undefined || !Number.isFinite(Number(out[k]))) {
+          delete out[k];
+        } else {
+          out[k] = Number(out[k]);
+        }
+      }
+      return out;
+    }) as DataFetchKlineResult;
   }
 
   protected wrap(data: DataFetchKlineResult): ToolResponse<DataFetchKlineResult> {
