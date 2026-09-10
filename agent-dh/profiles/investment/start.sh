@@ -30,7 +30,7 @@ if [ -z "$DEEPSEEK_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
 fi
 
 # 与 agent-dh/package.json 的 @deepseek-ai/dsh-* 依赖对齐
-DSH_VERSION="0.1.0-rc.7"
+DSH_VERSION="0.1.2-alpha.4"  # 2026-09-11 同步线上（原 0.1.0-rc.7 陈旧，从模板重建会降级）
 PORT="${1:-13080}"
 
 echo "========================================"
@@ -54,6 +54,13 @@ cd "$PROFILE_DIR"
 # （多窗口会话记录常驻堆）需上游 DSH 修，见后续根因分析。
 DSH_MAX_OLD_SPACE="${DSH_MAX_OLD_SPACE:-8192}"
 export NODE_OPTIONS="--max-old-space-size=${DSH_MAX_OLD_SPACE}${NODE_OPTIONS:+ $NODE_OPTIONS}"
+
+# 多实例隔离（2026-08-21）：写本实例 pidfile（exec 保持 PID 不变，$$ 即最终 node 进程 PID）。
+# 停止本实例只能走 stop.sh（pidfile + 端口双重校验），禁止 pkill -f 模糊匹配。
+# 2026-09-11 同步线上：模板此前缺本段，从模板重建会丢失精确停机能力。
+mkdir -p "$PROFILE_DIR/state"
+echo $$ > "$PROFILE_DIR/state/server.pid"
+echo $PORT > "$PROFILE_DIR/state/server.port"
 
 if [[ " $* " == *" --dump-config "* ]]; then
   exec node --import tsx/esm "$DSH_BIN" --profile investment --dump-config

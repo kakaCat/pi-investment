@@ -43,6 +43,8 @@ from .repository_ports_extended import (
     IAsyncKlineRepository,
     IAsyncFactorRepository,
     IMemoryRepository,
+    ISchedulerConfigRepository,
+    IHeatmapRepository,
 )
 
 __all__ = [
@@ -77,4 +79,6 @@ __all__ = [
     'IAsyncKlineRepository',
     'IAsyncFactorRepository',
     'IMemoryRepository',
+    'ISchedulerConfigRepository',
+    'IHeatmapRepository',
 ]
