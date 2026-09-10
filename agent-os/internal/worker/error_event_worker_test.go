@@ -77,7 +77,10 @@ func TestClassifyLogLine_AcceptsError(t *testing.T) {
 		`{"event": "akshare failed", "logger": "main", "level": "error", "error": "stock_margin_detail_sse() got an unexpected keyword"}`,
 		`{"event": "boom", "logger": "worker", "level": "critical", "error": "panic in goroutine"}`,
 		`2026-09-10 02:06:11 ERROR    main: Task 251 not found in scheduler_tasks`,
-		`Traceback (most recent call last):`,
+		// 2026-09-11（w-8f2c4cc5）契约变更：栈头 "Traceback (most recent call last):" 不再算锚点——
+		// 旧实现为它单独建事件，且因归一化后文本相同，不同异常全部塌缩成同一条（实证 62a2ae6f：
+		// 自 09-10 累计 96 次、detail 只有栈头）。现并入 preamble，由随后的异常行作唯一锚点；
+		// 若整块无锚点，由 flushOrphanTraceback 兜底落一条带栈帧的事件。
 		// 非 0 计数不得被剥：真失败仍要入库
 		`决策打分失败 errors=3 scanned=5`,
 		`batch summary: processed=12 errors=2`,
@@ -177,9 +180,9 @@ func TestClassifyLogLine_RejectsTracebackContinuations(t *testing.T) {
 			t.Errorf("traceback 续行被误收为 error: ok=true msg=%q line=%s", msg, ln)
 		}
 	}
-	// 反向保护：traceback 锚点行与真正的错误行必须照常入库（不得因本次过滤被连带漏收）
+	// 反向保护：真正的错误行必须照常入库（不得因本次过滤被连带漏收）。
+	// 注：栈头不再属于「错误行」——它由 flushOrphanTraceback 兜底保证不丢信号（见下一条用例）。
 	kept := []string{
-		"Traceback (most recent call last):",
 		"sqlalchemy.exc.OperationalError: connection to server failed",
 		"2026-09-10 23:21:26 ERROR    main: raise failed for job filter_a",
 		// 反向保护：含路径但带时间戳/等级的真实错误行不得被路径类模式连带漏收
@@ -381,6 +384,8 @@ func (f *fakeErrorEventRepo) Stats(ctx context.Context) (*domain.ErrorEventStats
 
 // 续行聚合回归：栈帧回显不单独成事件，但必须并进紧随其后的错误锚点 Detail——
 // 只滤不并会把根因的调用链丢光（过滤把信号一起滤掉，比噪音更糟）。
+// 2026-09-11（w-8f2c4cc5）更新期望：栈头 "Traceback (most recent call last):" 也不再单独成事件
+// （旧实现让不同异常的栈头塌缩成同一条 96 次事件 62a2ae6f），故一次 traceback = 1 条事件。
 func TestProcessLines_AggregatesTracebackIntoAnchor(t *testing.T) {
 	repo := &fakeErrorEventRepo{}
 	w := &ErrorEventWorker{repo: repo, offsets: map[string]int64{}}
@@ -392,8 +397,11 @@ func TestProcessLines_AggregatesTracebackIntoAnchor(t *testing.T) {
 		`RecursionError: maximum recursion depth exceeded`,
 	}
 	w.processLines(context.Background(), LogTarget{Source: "v2", Path: "/tmp/v2-test.log"}, lines)
-	if len(repo.msgs) != 2 {
-		t.Fatalf("应只产出 2 条锚点事件（Traceback 头 + RecursionError），实际 %d 条: %v", len(repo.msgs), repo.msgs)
+	if len(repo.msgs) != 1 {
+		t.Fatalf("一次 traceback 应只产出 1 条锚点事件（异常行），实际 %d 条: %v", len(repo.msgs), repo.msgs)
+	}
+	if !strings.Contains(repo.details[0], "Traceback (most recent call last):") {
+		t.Errorf("锚点 Detail 应保留栈头: %q", repo.details[0])
 	}
 	last := repo.details[len(repo.details)-1]
 	if !strings.Contains(last, "wrap_app_handling_exceptions") {
@@ -401,5 +409,57 @@ func TestProcessLines_AggregatesTracebackIntoAnchor(t *testing.T) {
 	}
 	if !strings.Contains(last, "RecursionError") {
 		t.Errorf("锚点 Detail 应含错误行: %q", last)
+	}
+}
+
+// TestProcessLines_OrphanTracebackFlush 回归（2026-09-11, w-8f2c4cc5）：
+// 栈头 + 栈帧但没有可识别的异常锚点（异常行被其他规则滤掉，或整块被 tail 边界截断）时
+// 必须兜底落一条带栈帧的事件；只有栈头时同样落一条。绝不静默丢弃——
+// 「过滤把信号一起滤掉」比噪音更糟。指纹含栈帧，不同栈不会互相合并。
+func TestProcessLines_OrphanTracebackFlush(t *testing.T) {
+	w := &ErrorEventWorker{offsets: map[string]int64{}}
+
+	repoWithFrames := &fakeErrorEventRepo{}
+	w.repo = repoWithFrames
+	w.processLines(context.Background(), LogTarget{Source: "v2", Path: "/tmp/v2-orphan.log"}, []string{
+		`Traceback (most recent call last):`,
+		`  File "/app/services/pool.py", line 88, in shutdown`,
+		`    code()`,
+	})
+	if len(repoWithFrames.msgs) != 1 {
+		t.Fatalf("孤儿 traceback 应兜底落 1 条事件，实际 %d 条: %v", len(repoWithFrames.msgs), repoWithFrames.msgs)
+	}
+	if !strings.Contains(repoWithFrames.details[0], "pool.py") {
+		t.Errorf("兜底事件必须带栈帧: %q", repoWithFrames.details[0])
+	}
+
+	repoHeaderOnly := &fakeErrorEventRepo{}
+	w.repo = repoHeaderOnly
+	w.processLines(context.Background(), LogTarget{Source: "v2", Path: "/tmp/v2-orphan.log"}, []string{
+		`Traceback (most recent call last):`,
+	})
+	if len(repoHeaderOnly.msgs) != 1 {
+		t.Fatalf("仅栈头也应兜底落 1 条（不静默丢弃），实际 %d 条", len(repoHeaderOnly.msgs))
+	}
+}
+
+// TestProcessLines_HeaderWithFramesOnlyOneEvent：正常块（栈头+帧+异常行）只产出 1 条事件，
+// 且 Detail 同时包含栈头、栈帧与异常行。
+func TestProcessLines_HeaderWithFramesOnlyOneEvent(t *testing.T) {
+	repo := &fakeErrorEventRepo{}
+	w := &ErrorEventWorker{repo: repo, offsets: map[string]int64{}}
+	w.processLines(context.Background(), LogTarget{Source: "v2", Path: "/tmp/v2-one.log"}, []string{
+		`Traceback (most recent call last):`,
+		`  File "/app/x.py", line 3, in f`,
+		"ModuleNotFoundError: No module named 'fastapi'",
+	})
+	if len(repo.msgs) != 1 {
+		t.Fatalf("应只产出 1 条事件，实际 %d 条: %v", len(repo.msgs), repo.msgs)
+	}
+	detail := repo.details[0]
+	for _, want := range []string{"Traceback (most recent call last):", "x.py", "ModuleNotFoundError"} {
+		if !strings.Contains(detail, want) {
+			t.Errorf("Detail 缺少 %q: %q", want, detail)
+		}
 	}
 }

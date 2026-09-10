@@ -288,26 +288,8 @@ func (w *ErrorEventWorker) processLines(ctx context.Context, t LogTarget, lines 
 	// 丢弃会把根因的调用链丢光，单独建成事件又会炸出十几条噪音——因此缓冲在
 	// tracebackPreamble 里，遇到第一个错误锚点行时并入该事件的 Detail（w-f4aa1f6a）。
 	preamble := make([]string, 0, tracebackPreambleMax)
-	for _, ln := range lines {
-		if isTracebackContinuation(ln) {
-			if len(preamble) < tracebackPreambleMax {
-				preamble = append(preamble, ln)
-			}
-			continue
-		}
-		msg, ok := classifyLogLine(ln, t.Source)
-		if !ok {
-			preamble = preamble[:0] // 非续行且非错误：traceback 块已结束，缓冲作废
-			continue
-		}
-		detail := ln
-		if len(preamble) > 0 {
-			detail = strings.Join(preamble, "\n") + "\n" + ln
-		}
-		preamble = preamble[:0]
-		// 用 detail（含聚合到的 traceback 帧）参与指纹：Python 上报通道（logging ERROR →
-		// agent_os_reporter）对带 exc_info 的事件同样按堆栈帧取指纹，两侧一致才能真正归并
-		// （纯文本通道的同一异常此前因 worker 只按 msg 取指纹而与上报事件分列两条）。
+	// emit 统一落库（msg/detail/fingerprint 一处生成，栈帧参与指纹）
+	emit := func(msg, detail string) {
 		fp := repository.FingerprintOfWithDetail(t.Source, "", msg, detail)
 		_, _, err := w.repo.Upsert(ctx, domain.ErrorEventUpsertInput{
 			Source:      t.Source,
@@ -321,6 +303,43 @@ func (w *ErrorEventWorker) processLines(ctx context.Context, t LogTarget, lines 
 			logger.L().Error("Failed to upsert log error event", logger.String("source", t.Source), logger.String("error", err.Error()))
 		}
 	}
+	// flushOrphanTraceback 兜底：一段 traceback 只剩栈头、始终等不到可识别的异常锚点
+	// （异常行被其他规则滤掉，或整块被 tail 边界截断）时仍落一条带栈帧的事件——
+	// 过滤把信号一起滤掉比噪音更糟（2026-09-11, w-8f2c4cc5）。指纹含栈帧，故不同栈不会互相合并。
+	flushOrphanTraceback := func() {
+		if len(preamble) > 0 && tracebackHeaderRe.MatchString(strings.TrimSpace(preamble[0])) {
+			joined := strings.Join(preamble, "\n")
+			logger.L().Info("traceback block without anchor line, emitting fallback event",
+				logger.String("path", t.Path))
+			emit(strings.TrimSpace(preamble[0]), joined)
+		}
+		preamble = preamble[:0]
+	}
+
+	for _, ln := range lines {
+		if isTracebackContinuation(ln) {
+			if len(preamble) < tracebackPreambleMax {
+				preamble = append(preamble, ln)
+			}
+			continue
+		}
+		msg, ok := classifyLogLine(ln, t.Source)
+		if !ok {
+			flushOrphanTraceback() // 块结束：只剩栈头则兜底落一条
+			continue
+		}
+		detail := ln
+		if len(preamble) > 0 {
+			detail = strings.Join(preamble, "\n") + "\n" + ln
+		}
+		preamble = preamble[:0]
+		// 用 detail（含聚合到的 traceback 帧）参与指纹：Python 上报通道（logging ERROR →
+		// agent_os_reporter）对带 exc_info 的事件同样按堆栈帧取指纹，两侧一致才能真正归并
+		// （纯文本通道的同一异常此前因 worker 只按 msg 取指纹而与上报事件分列两条）。
+		emit(msg, detail)
+	}
+	// 批次结束时仍在缓冲的块（tail 截断）同样兜底，避免静默丢弃
+	flushOrphanTraceback()
 }
 
 // startupBannerRe 启动/常规 banner 白名单：无 level 前缀的纯文本行即使含
@@ -365,6 +384,9 @@ var frameEchoRe = regexp.MustCompile(`^(?:await\s|async with\s|\.\.\.<\d+ lines>
 // caretUnderlineRe Python traceback 的定位下划线行（~~~~^^^^），纯装饰。
 var caretUnderlineRe = regexp.MustCompile(`^[~^]+$`)
 
+// tracebackHeaderRe Python traceback 栈头（本身不含根因，只能作为锚点行的 Detail 一部分）。
+var tracebackHeaderRe = regexp.MustCompile(`^Traceback \(most recent call last\):$`)
+
 // isTracebackContinuation 判定“栈帧回显/多行记录续行”——这类行不构成独立错误事件。
 // 除 tracebackContinuationRe 已覆盖的形态外，2026-09-11（w-f4aa1f6a）补两类漏网形态：
 //
@@ -389,6 +411,15 @@ func isTracebackContinuation(ln string) bool {
 		return true
 	}
 	if frameEchoRe.MatchString(trimmed) {
+		return true
+	}
+	// ③ "Traceback (most recent call last):" 只是栈头，不是错误锚点。
+	// 2026-09-11（w-8f2c4cc5）实证：旧实现让它走 classifyLogLine，v2ErrRe 命中 "traceback"
+	// 关键字 → 为每次 traceback 生成一条**只有栈头、没有任何帧**的事件；不同异常的栈头
+	// 归一化后完全相同，于是全部塌缩成同一条事件（62a2ae6f 自 09-10 累计 96 次、detail
+	// 仅一行栈头，根因信息为零），后续真正的异常行才带着帧另建一条 → 一次 traceback 2 条事件。
+	// 现并入 preamble，由紧随其后的异常行作为唯一锚点，Detail 同时保留栈头与全部帧。
+	if tracebackHeaderRe.MatchString(trimmed) {
 		return true
 	}
 	if ln[0] == ' ' || ln[0] == '\t' {
