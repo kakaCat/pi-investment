@@ -63,15 +63,28 @@ export class DataQualityReportTool extends BaseTool<DataQualityReportParams, Dat
     const failCount = tool_health.filter((p) => p.status === 'fail').length;
     const degradedCount = tool_health.filter((p) => p.status === 'degraded').length;
 
+    const okCount = tool_health.length - failCount - degradedCount;
+    const probeSummary =
+      '接口语义探针 ' + tool_health.length + ' 项：ok ' + okCount + ' / degraded ' + degradedCount + ' / fail ' + failCount;
+    // 双通道输出（2026-09-11 实测教训）：本工具 output.schema 为 additionalProperties:false，
+    // 即便已在 prompt.ts 声明 tool_health，运行实例仍会把该字段丢掉（疑似框架按注册期 schema 收敛输出）。
+    // 因此把探针结果**同时**写入已声明的 anomalies / summary —— 用户与 agent 默认就看这两处，
+    // 结构化副本仍保留在 tool_health（schema 生效时可用）。
+    const probeAnomalies = tool_health
+      .filter((x) => x.status !== 'ok')
+      .map((x) => ({ type: 'tool_health_probe', probe: x.probe, status: x.status, evidence: x.evidence }));
+    const baseAnomalies: any[] = Array.isArray((response as any)?.anomalies) ? (response as any).anomalies : [];
+    const baseSummary = String((response as any)?.summary ?? '');
+
     return {
       ...(response as any),
+      anomalies: [...baseAnomalies, ...probeAnomalies],
+      summary: (baseSummary ? baseSummary + '；' : '') + probeSummary,
       tool_health,
-      tool_health_summary:
-        '语义探针 ' + tool_health.length + ' 项：ok ' + (tool_health.length - failCount - degradedCount) +
-        ' / degraded ' + degradedCount + ' / fail ' + failCount,
+      tool_health_summary: probeSummary,
       scope_note:
-        'overall_score/records 等字段来自后端个股数据质量记录；tool_health 为本工具层新增的接口契约探针。' +
-        '两者口径不同，不可相互替代——总分高不代表接口层没有静默失效。',
+        'overall_score/records 等字段来自后端个股数据质量记录；接口语义探针（tool_health，并镜像进 anomalies/summary）' +
+        '为本工具层新增，二者口径不同不可相互替代——总分高不代表接口层没有静默失效。',
     } as DataQualityReportResult;
   }
 
