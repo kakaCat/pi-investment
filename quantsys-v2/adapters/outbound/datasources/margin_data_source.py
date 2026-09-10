@@ -8,6 +8,8 @@ from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import random
 
+from domain.ports.datasource_ports import DataSourceError
+
 logger = logging.getLogger(__name__)
 
 
@@ -260,6 +262,4 @@ class SimulatedMarginSource:
         return result
 
 
-class DataSourceError(Exception):
-    """数据源错误"""
-    pass
+# DataSourceError 已归一至 domain/ports/datasource_ports.py（2026-09-10），此处不再重复定义

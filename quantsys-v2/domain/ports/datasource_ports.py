@@ -16,6 +16,16 @@ from domain.models.market_data import (
 )
 
 
+# ==================== 数据源异常（统一定义，2026-09-10，w-f4aa1f6a） ====================
+# 此前 fund_flow_source.py / margin_data_source.py 各自重复定义同名 DataSourceError，
+# 跨 adapter 捕获/测试断言会因类不同而失效。归一到端口层，adapter 全部 import 本类。
+
+
+class DataSourceError(Exception):
+    """数据源错误（所有数据源适配器共用的统一异常）"""
+    pass
+
+
 # ==================== Provider 接口 ====================
 
 class IQuoteProvider(ABC):
