@@ -32,6 +32,13 @@ class OpponentBehaviorService:
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
         self.opponent_repo = opponent_repo
+        
+        # 自动创建 fund_flow_repo（如果未提供）
+        if fund_flow_repo is None:
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+            from domain.ports import IFundFlowRepository
+            fund_flow_repo = EnhancedServiceFactory.resolve(IFundFlowRepository)
+        
         self.fund_flow_repo = fund_flow_repo
 
     def analyze_current_behavior(self) -> Dict[str, Any]:
