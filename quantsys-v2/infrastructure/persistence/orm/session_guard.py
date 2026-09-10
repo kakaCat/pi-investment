@@ -103,11 +103,20 @@ def _guard_loop():
                             session_id=session_id
                         )
                     except Exception as e:
-                        logger.error(
-                            "failed_to_clean_leaked_session",
-                            session_id=session_id,
-                            error=str(e)
-                        )
+                        # idle-in-transaction timeout 是预期的（PostgreSQL 已关闭连接）
+                        error_msg = str(e)
+                        if "idle-in-transaction timeout" in error_msg:
+                            logger.warning(
+                                "leaked_session_already_closed_by_db",
+                                session_id=session_id,
+                                reason="idle_in_transaction_timeout"
+                            )
+                        else:
+                            logger.error(
+                                "failed_to_clean_leaked_session",
+                                session_id=session_id,
+                                error=error_msg
+                            )
 
                 # 从注册表移除
                 with _registry_lock:
