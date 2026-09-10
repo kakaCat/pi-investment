@@ -278,6 +278,11 @@ class ISchedulerRepository(ABC):
         pass
 
     @abstractmethod
+    def recover_orphan_runs(self, note: str = "孤儿 run：进程重启遗留") -> List[int]:
+        """启动时回收上一进程遗留的 running run（标记 failed），返回回收的 run id 列表"""
+        pass
+
+    @abstractmethod
     def find_missed_tasks(self, threshold_hours: int = 24) -> List[Dict[str, Any]]:
         """查找超过阈值未执行的任务"""
         pass

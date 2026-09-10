@@ -329,6 +329,40 @@ class SchedulerRepository(ISchedulerRepository):
 
     # ── Health Check ──
 
+    def recover_orphan_runs(self, note: str = "孤儿 run：进程重启遗留") -> List[int]:
+        """启动时回收上一进程遗留的 running run（闭环为 failed）。
+
+        2026-09-11 w-23c70356：APScheduler 运行在 API 进程内，进程重启会打断 run 的
+        收尾记账，run 行会永久停留 running（实例 run 3527 自 2026-09-10 22:00 卡死
+        1.9 小时，只能人工闭环）。启动时统一回收，避免僵尸累积与看门狗误报。
+        安全性：本进程刚启动时不存在"本进程在跑"的 run；仅跳过 60 秒内创建的行，
+        防止与同进程并发启动的 run 竞争。
+        """
+        try:
+            now = datetime.now(timezone.utc)
+            guard = now - timedelta(seconds=60)
+            rows = (
+                self.session.query(SchedulerRun)
+                .filter(SchedulerRun.status == "running")
+                .all()
+            )
+            recovered: List[int] = []
+            for run in rows:
+                if run.started_at is not None and run.started_at > guard:
+                    continue  # 刚创建，可能仍在执行（同进程并发）
+                run.status = "failed"
+                run.completed_at = now
+                run.error = note
+                if run.started_at:
+                    run.duration_ms = int((now - run.started_at).total_seconds() * 1000)
+                recovered.append(run.id)
+            if recovered:
+                self.session.commit()
+            return recovered
+        except Exception:
+            self.session.rollback()
+            raise
+
     def find_zombie_runs(self, threshold_hours: int = 1) -> List[Dict[str, Any]]:
         try:
             cutoff = datetime.now(timezone.utc) - timedelta(hours=threshold_hours)

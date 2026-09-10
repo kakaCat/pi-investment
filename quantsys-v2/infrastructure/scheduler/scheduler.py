@@ -706,6 +706,9 @@ class SchedulerService:
 
         if result['success']:
             check_summary = result.get('check_summary', {})
+            # 2026-09-11 w-23c70356：把护栏/诚实标注字段透传到 run 记录
+            # （预算是否触顶、回填是否全灭、生效参数），否则"跑完但没跑完"
+            # 的状态在看板上不可见。
             return {
                 "action": "data_quality_check",
                 "success": True,
@@ -714,6 +717,13 @@ class SchedulerService:
                 "total_missing_days": check_summary.get('total_missing_days', 0),
                 "data_quality_score": check_summary.get('data_quality_score', 0),
                 "backfill_executed": result.get('backfill_executed', False),
+                "backfill_degraded": result.get('backfill_degraded', False),
+                "timed_out": result.get('timed_out', False),
+                "budget_limited": result.get('budget_limited', False),
+                "check_truncated": result.get('check_truncated', False),
+                "backfill_skip_reason": result.get('backfill_skip_reason'),
+                "effective_params": result.get('effective_params'),
+                "runtime_sec": result.get('runtime_sec'),
                 "timestamp": result.get('timestamp'),
             }
         else:

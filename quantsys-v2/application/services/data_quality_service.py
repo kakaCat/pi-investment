@@ -4,10 +4,16 @@
 统一的数据质量管理入口，整合检测、补充、验证功能。
 """
 import structlog
+import time
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 
 logger = structlog.get_logger(__name__)
+
+# 回填失败率熔断阈值（2026-09-11 w-23c70356）：失败率 ≥ 80% 判定数据源整体不可用，
+# 跳过 retry_failed(max_retries=5) 重试轮，避免夜间空转数小时。
+# 依据：run 3480 回填 50 只失败 49（98%）、run 3504 失败 50（100%）。
+RETRY_SKIP_FAIL_RATE = 0.8
 
 
 class DataQualityService:
@@ -65,7 +71,8 @@ class DataQualityService:
         symbols: Optional[List[str]] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        include_report: bool = False
+        include_report: bool = False,
+        deadline: Optional[float] = None
     ) -> Dict:
         """检查数据质量
 
@@ -74,6 +81,10 @@ class DataQualityService:
             start_date: 开始日期（可选，默认最近30天）
             end_date: 结束日期（可选，默认今天）
             include_report: 是否生成详细报告
+            deadline: 墙钟截止（time.monotonic 基准，可选）。逐只扫描重复/异常是
+                本方法的主要耗时来源（5699 只全市场曾耗 12~100 分钟），超过截止
+                即停止扫描并在 summary 中如实标注 check_truncated/checked_stocks，
+                覆盖率统计仍基于全量缺口检测结果（gap_detector 为批量查询）。
 
         Returns:
             质量检查结果:
@@ -122,8 +133,17 @@ class DataQualityService:
             total_issues = 0
             check_start_time = datetime.now()
 
+            checked_stocks = 0
+            check_truncated = False
+
             for symbol, gap_info in gaps.items():
+                # 墙钟护栏：超预算即停止逐只扫描（缺量统计已由批量缺口检测完成）
+                if deadline is not None and time.monotonic() >= deadline:
+                    check_truncated = True
+                    break
+
                 symbol_start = datetime.now()
+                checked_stocks += 1
 
                 # 检测重复数据
                 dup_info = self.validator.detect_duplicates(symbol, start_date, end_date)
@@ -185,7 +205,11 @@ class DataQualityService:
                 'stocks_with_issues': total_issues,
                 'total_missing_days': gap_summary['total_missing_days'],
                 'avg_coverage_rate': gap_summary['avg_coverage_rate'],
-                'data_quality_score': round(avg_quality_score, 2)
+                'data_quality_score': round(avg_quality_score, 2),
+                # 诚实标注：扫描到第几只、是否因预算提前收尾
+                'checked_stocks': checked_stocks,
+                'skipped_stocks': len(symbols) - checked_stocks,
+                'check_truncated': check_truncated,
             }
 
             # 5. 生成报告（可选）
@@ -202,10 +226,17 @@ class DataQualityService:
                 # TODO: 保存报告到数据库
                 report_url = f'/api/data-quality/reports/{report_id}'
 
+            if check_truncated:
+                logger.warning(
+                    f"检查阶段触达墙钟预算: 已扫描 {checked_stocks}/{len(symbols)} 只，"
+                    f"剩余 {len(symbols) - checked_stocks} 只未做重复/异常扫描（缺口统计仍为全量）"
+                )
+
             result = {
                 'success': True,
                 'summary': summary,
                 'stocks_with_issues': stocks_with_issues[:50],  # 最多返回50个
+                'issues_detail_truncated': total_issues > 50,
                 'timestamp': datetime.now().isoformat()
             }
 
@@ -343,7 +374,21 @@ class DataQualityService:
             )
 
             # 3. 重试失败的任务（最多1次）
-            if result['failed_count'] > 0 and result['failed_symbols']:
+            # 2026-09-11 w-23c70356 失败率熔断：实测回填失败率 98%/100%
+            # （run 3480/3504 result.backfill_summary + launchd-stdout.log 告警
+            # "❌ 回填失败率过高: 98.0%/100.0%"），却仍对全部失败标的重试 5 轮
+            # ⇒ 夜间（数据源不可用/被 WAF 封禁）空转数小时（run 3391 达 2.8 小时）。
+            # 数据源整体不可用时重试无意义：失败率 ≥ 阈值直接跳过重试并如实上报。
+            _total = result.get('total_stocks') or 0
+            _fail_rate = (result['failed_count'] / _total) if _total else 0.0
+            if _total and _fail_rate >= RETRY_SKIP_FAIL_RATE:
+                reason = (
+                    f"回填失败率 {_fail_rate:.0%} ≥ {RETRY_SKIP_FAIL_RATE:.0%}，"
+                    f"判定数据源整体不可用，跳过 {result['failed_count']} 只标的的重试"
+                )
+                logger.warning(reason)
+                result['retry_skipped_reason'] = reason
+            elif result['failed_count'] > 0 and result['failed_symbols']:
                 logger.info(f"重试失败任务: {result['failed_count']} 只股票")
                 failed_tasks = {
                     symbol: backfill_tasks[symbol]
@@ -369,6 +414,7 @@ class DataQualityService:
                     'elapsed_time': result['elapsed_time']
                 },
                 'failed_symbols': result['failed_symbols'],
+                'retry_skipped_reason': result.get('retry_skipped_reason'),
                 'timestamp': datetime.now().isoformat()
             }
 

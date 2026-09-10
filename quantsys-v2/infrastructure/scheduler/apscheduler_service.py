@@ -212,7 +212,25 @@ class APSchedulerService:
         self.load_tasks_from_db()
         self.scheduler.start()
 
+        # 进程重启会打断 run 的收尾记账 → 启动时回收遗留的 running run
+        self._recover_orphan_runs()
+
         logger.info("✅ APScheduler started")
+
+    def _recover_orphan_runs(self) -> None:
+        """回收上一进程遗留的 running run（防止僵尸 run 永久停留 running）。
+
+        2026-09-11 w-23c70356：实例 run 3527（每日数据质量检查，2026-09-10 22:00
+        启动）在进程重启后卡 running 1.9 小时，看门狗持续报僵尸。
+        """
+        try:
+            recovered = self.repo.recover_orphan_runs()
+            if recovered:
+                logger.warning(f"♻️ 已回收孤儿 run {len(recovered)} 条（进程重启遗留）: {recovered}")
+            else:
+                logger.info("无孤儿 run 需要回收")
+        except Exception as e:
+            logger.error(f"回收孤儿 run 失败（不影响调度器启动）: {e}")
 
     def shutdown(self, wait: bool = True):
         """
