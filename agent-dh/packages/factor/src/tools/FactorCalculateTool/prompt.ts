@@ -40,6 +40,7 @@ export const factorCalculatePrompt: ToolPrompt<FactorCalculateParams, FactorCalc
     },
   ],
   notes: [
+    '2026-09-11（REQ-cf627b）：新增资金类因子「静默全 0」护栏——后端因子表中 10 个资金因子曾全部为 0.0 且标记 stale=false（新鲜的假数据），而 provider 资金流同标的显示主力净流入 6.84 亿。规则：资金因子全 0 时不信任该组数据，剔除 + degraded=true + 附 provider 真实资金面快照（fund_flow_provider）；资金面判定请改用 fund_flow 工具。',
     '💡 factors 不传则计算全部因子（更全但更慢）',
     '💡 财务因子（roe, pe, pb）基于最新财报',
     '⚠️ 数据陈旧时会在 freshness_warnings 中提示',

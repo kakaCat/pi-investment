@@ -16,6 +16,7 @@ import { createTradingCalendarTool } from './tools/TradingCalendarTool';
 import { createPePercentileTool } from './tools/PePercentileTool';
 import { createDataFetchDividendTool } from './tools/DataFetchDividendTool';
 import { createPoolManageTool } from './tools/PoolManageTool';
+import { createIndexConstituentsTool } from './tools/IndexConstituentsTool';
 
 // ========== Plugin Config Schema ==========
 
@@ -104,5 +105,8 @@ export default class InvestmentPlugin extends Service {
 
     // 14. 股票池管理（写）- 建/删池、改筛选规则、批量增删成员、刷新动态池、策略校验（2026-09-05）
     reg(createPoolManageTool(qv2));
+
+    // 15. 指数成分股 - 基准成分池（2026-09-11，REQ-cf627b：后端已有端点，补齐工具接线）
+    reg(createIndexConstituentsTool(qv2));
   }
 }

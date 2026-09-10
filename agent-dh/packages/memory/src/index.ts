@@ -6,6 +6,7 @@ import { createMemorySearchTool } from './tools/MemorySearchTool';
 import { createMemoryWriteTool } from './tools/MemoryWriteTool';
 import { createExperienceWriteTool } from './tools/ExperienceWriteTool';
 import { createExperienceStatsTool } from './tools/ExperienceStatsTool';
+import { createRecallAuditTool } from './tools/RecallAuditTool';
 
 export interface Config {
   quantsysV2?: {
@@ -77,6 +78,10 @@ export default class MemoryPlugin extends Service {
 
     // 经验库胜率统计（2026-09-01，对标 agent-ts query_experience 统计维度）
     ctx.tools.register(createExperienceStatsTool(this.aosBaseURL));
+
+    // 记忆召回审计（2026-09-11，REQ-cf627b）：区分「库里没有」与「检索失效」，
+    // 使 R-008「决策前检索」从动作合规升级为效果可测
+    ctx.tools.register(createRecallAuditTool(this.qv2));
   }
 }
 
@@ -84,6 +89,8 @@ export default class MemoryPlugin extends Service {
 export { MemorySearchTool, createMemorySearchTool } from './tools/MemorySearchTool';
 export { MemoryWriteTool, createMemoryWriteTool } from './tools/MemoryWriteTool';
 export { ExperienceWriteTool, createExperienceWriteTool } from './tools/ExperienceWriteTool';
+export { RecallAuditTool, createRecallAuditTool } from './tools/RecallAuditTool';
+export type { RecallAuditParams } from './tools/RecallAuditTool';
 export type { MemorySearchParams, MemorySearchResult } from './tools/MemorySearchTool';
 export type { MemoryWriteParams, MemoryWriteResult } from './tools/MemoryWriteTool';
 export type { ExperienceWriteParams, ExperienceWriteResult } from './tools/ExperienceWriteTool';

@@ -1846,6 +1846,36 @@ export class QuantsysV2Client {
     return response.data;
   }
 
+  /** 指数成分股（如 000300 → 沪深300 成分代码列表） */
+  async getIndexConstituents(symbol: string): Promise<ProviderResponse> {
+    const response = await this.client.get(`/api/provider/index/${symbol}/constituents`)
+      .catch((e: any) => ({ data: { success: false, error: e.message } }));
+    return response.data;
+  }
+
+  /**
+   * 记忆召回审计统计（quantsys-v2 /api/memory/recall-audit/stats）
+   * 注意：该端点返回**裸 JSON**（非 {success,data} 包裹），此处不做 unwrap。
+   */
+  async getRecallAuditStats(params: { date_from?: string; date_to?: string } = {}): Promise<any> {
+    const response = await this.client.get('/api/memory/recall-audit/stats', { params })
+      .catch((e: any) => ({ data: { success: false, error: e.message } }));
+    return response.data;
+  }
+
+  /**
+   * 记忆召回审计明细（quantsys-v2 /api/memory/recall-audit）
+   * 返回 { items: [...], ... }，同样为裸 JSON。
+   */
+  async getRecallAudit(params: {
+    flow?: string; gate_result?: string; suppressed_only?: boolean;
+    date_from?: string; date_to?: string; page?: number; page_size?: number;
+  } = {}): Promise<any> {
+    const response = await this.client.get('/api/memory/recall-audit', { params })
+      .catch((e: any) => ({ data: { success: false, error: e.message } }));
+    return response.data;
+  }
+
   /** 龙虎榜：某日上榜记录 */
   async getLhbDaily(date: string): Promise<ProviderResponse> {
     const response = await this.client.get(`/api/provider/lhb/daily/${date}`)

@@ -151,6 +151,30 @@ export class DataQualityReportTool extends BaseTool<DataQualityReportParams, Dat
       push('sector_flow', f?.success === false ? 'fail' : 'ok', f?.success === false ? String(f?.error ?? 'failed').slice(0, 100) : '可用');
     } catch (e: any) { push('sector_flow', 'fail', String(e?.message ?? e).slice(0, 120)); }
 
+    // 7) 资金类因子静默全 0（2026-09-11，REQ-cf627b）
+    //    实测：后端因子表 10 个资金因子全为 0.0 且 stale=false（新鲜的假数据），
+    //    而 provider 资金流同标的显示主力净流入 6.84 亿 —— 数据层自相矛盾。
+    //    factor_calculate 已加护栏（剔除 + degraded），本探针负责每日自动发现回归。
+    try {
+      const fr: any = await q.calculateFactors({ symbol: '600150' });
+      const rows: any[] = Array.isArray(fr?.factors) ? fr.factors : [];
+      const FUND = [
+        'super_large_net', 'large_net', 'main_net_pct', 'super_large_pct', 'large_pct',
+        'fund_inflow_pos_days_5', 'fund_inflow_pos_days_3', 'fund_inflow_3d_sum',
+        'fund_inflow_5d_sum', 'main_net_inflow',
+      ];
+      const present = rows.filter((r: any) => FUND.includes(String(r?.factor_name)));
+      const zeros = present.filter((r: any) => Number(r?.factor_value) === 0);
+      const dead = present.length > 0 && zeros.length === present.length;
+      push('factor.fund_group(600150)',
+        present.length === 0 ? 'fail' : (dead ? 'degraded' : 'ok'),
+        present.length === 0
+          ? '因子表未返回任何资金类因子'
+          : dead
+            ? `${zeros.length}/${present.length} 个资金因子全为 0 且标记非过期 → 疑似静默假数据（factor_calculate 已剔除并与 provider 对账）`
+            : `${present.length} 个资金因子，非零 ${present.length - zeros.length} 个`);
+    } catch (e: any) { push('factor.fund_group', 'fail', String(e?.message ?? e).slice(0, 120)); }
+
     return out;
   }
   protected wrap(data: DataQualityReportResult, context: ToolContext): ToolResponse<DataQualityReportResult> {
