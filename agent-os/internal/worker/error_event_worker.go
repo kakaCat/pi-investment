@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -39,7 +40,8 @@ type ErrorEventWorker struct {
 	cron    *cron.Cron
 
 	mu           sync.Mutex
-	offsets      map[string]int64 // 各日志文件已读偏移（进程内游标；重启回退到末 tailWindow）
+	offsets      map[string]int64 // 各日志文件已读偏移（持久化到 statePath；重启不再回扫重复行）
+	statePath    string           // 偏移持久化文件路径（空=仅进程内维护）
 	lastTaskScan time.Time        // task_runs 水位（进程内；重启后最多重扫最近 30 分钟）
 }
 
@@ -58,13 +60,16 @@ func NewErrorEventWorker(db *sql.DB, repo repository.ErrorEventRepository, targe
 	if len(targets) == 0 {
 		targets = defaultLogTargets()
 	}
-	return &ErrorEventWorker{
-		repo:    repo,
-		db:      db,
-		targets: targets,
-		cron:    cron.New(),
-		offsets: map[string]int64{},
+	w := &ErrorEventWorker{
+		repo:      repo,
+		db:        db,
+		targets:   targets,
+		cron:      cron.New(),
+		offsets:   map[string]int64{},
+		statePath: offsetsStatePath(targets),
 	}
+	w.loadOffsets()
+	return w
 }
 
 // Start 启动 worker（每 60s 收集一次）
@@ -177,19 +182,7 @@ func (w *ErrorEventWorker) tailOne(ctx context.Context, t LogTarget) error {
 	size := info.Size()
 
 	w.mu.Lock()
-	offset, seen := w.offsets[t.Path]
-	if !seen {
-		offset = size - tailWindow
-		if offset < 0 {
-			offset = 0
-		}
-	} else if offset > size {
-		// 日志被轮转/截断：重置到文件尾窗口
-		offset = size - tailWindow
-		if offset < 0 {
-			offset = 0
-		}
-	}
+	offset := resolveOffset(w.offsets, t.Path, size)
 	if offset >= size {
 		w.mu.Unlock()
 		return nil // 无新增
@@ -200,6 +193,7 @@ func (w *ErrorEventWorker) tailOne(ctx context.Context, t LogTarget) error {
 	}
 	w.offsets[t.Path] = size // 先推进游标，防止同一行被下一轮重复处理
 	w.mu.Unlock()
+	w.persistOffsets() // 落盘：重启后不再回扫已处理过的历史行
 
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
@@ -476,6 +470,101 @@ func (w *ErrorEventWorker) scanFailedTaskRuns(ctx context.Context, since time.Ti
 }
 
 // defaultLogTargets 默认三端日志采集目标（与本实例部署一致）
+// ---------- 日志游标持久化（2026-09-10，w-8f2c4cc5）----------
+//
+// 背景：offsets 原为纯进程内游标，进程重启后 w.offsets 为空 → tailOne 从
+// size-tailWindow 回扫末 256KB 并逐行 Upsert。Upsert 对已 resolved/ignored 的
+// 同指纹事件会 reopen（设计如此，用于真"复发"场景），于是每次 agent-os 重启
+// 都把历史已关闭的错误当成新发生重新翻开、occurrenceCount 虚增：
+// 2026-09-10 23:46 重启后 open 事件由 216 涨到 222、已关闭族 lastSeenAt 被刷新，
+// 处置动作被自己的重启撤销（错误看板 4f0f770c / 893a7da3 现场）。
+// 修法：把游标持久化到 agent-os/logs/.error_event_offsets.json，重启后接着上次
+// 位置读；仅当"首次见到该文件"或"offset>size（轮转/截断）"才回退到末窗口。
+
+const offsetsStateFileName = ".error_event_offsets.json"
+
+// offsetsStatePath 选一个随日志目录走的稳定位置：优先 os 目标所在目录（agent-os/logs）
+func offsetsStatePath(targets []LogTarget) string {
+	dir := ""
+	for _, t := range targets {
+		if t.Source == string(domain.ErrorSourceOS) {
+			dir = filepath.Dir(t.Path)
+			break
+		}
+	}
+	if dir == "" && len(targets) > 0 {
+		dir = filepath.Dir(targets[0].Path)
+	}
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, offsetsStateFileName)
+}
+
+// resolveOffset 计算本次读取起点（纯函数，回归用）
+func resolveOffset(offsets map[string]int64, path string, size int64) int64 {
+	win := size - tailWindow
+	if win < 0 {
+		win = 0
+	}
+	offset, seen := offsets[path]
+	if !seen || offset > size {
+		return win
+	}
+	return offset
+}
+
+// loadOffsets 启动时恢复游标（失败只告警，退化为原行为，不影响采集）
+func (w *ErrorEventWorker) loadOffsets() {
+	if w.statePath == "" {
+		return
+	}
+	raw, err := os.ReadFile(w.statePath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			logger.L().Warn("Error event offsets load failed", logger.String("path", w.statePath), logger.String("error", err.Error()))
+		}
+		return
+	}
+	loaded := map[string]int64{}
+	if err := json.Unmarshal(raw, &loaded); err != nil {
+		logger.L().Warn("Error event offsets parse failed", logger.String("path", w.statePath), logger.String("error", err.Error()))
+		return
+	}
+	w.mu.Lock()
+	for k, v := range loaded {
+		w.offsets[k] = v
+	}
+	w.mu.Unlock()
+	logger.L().Info("Error event offsets restored", logger.Int("files", len(loaded)), logger.String("path", w.statePath))
+}
+
+// persistOffsets 原子落盘（临时文件 + rename）
+func (w *ErrorEventWorker) persistOffsets() {
+	if w.statePath == "" {
+		return
+	}
+	w.mu.Lock()
+	snapshot := make(map[string]int64, len(w.offsets))
+	for k, v := range w.offsets {
+		snapshot[k] = v
+	}
+	w.mu.Unlock()
+
+	raw, err := json.Marshal(snapshot)
+	if err != nil {
+		return
+	}
+	tmp := w.statePath + ".tmp"
+	if err := os.WriteFile(tmp, raw, 0644); err != nil {
+		logger.L().Warn("Error event offsets persist failed", logger.String("error", err.Error()))
+		return
+	}
+	if err := os.Rename(tmp, w.statePath); err != nil {
+		logger.L().Warn("Error event offsets rename failed", logger.String("error", err.Error()))
+	}
+}
+
 func defaultLogTargets() []LogTarget {
 	home, _ := os.UserHomeDir()
 	return []LogTarget{

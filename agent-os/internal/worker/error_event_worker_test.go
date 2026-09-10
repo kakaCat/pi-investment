@@ -1,6 +1,8 @@
 package worker
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -107,5 +109,79 @@ func TestClassifyLogLine_RejectsTracebackContinuations(t *testing.T) {
 		if _, ok := classifyLogLine(ln, "v2"); !ok {
 			t.Errorf("真 error 行被漏收: line=%s", ln)
 		}
+	}
+}
+
+// TestResolveOffset_PersistedCursor 回归：重启后不得回扫已处理过的历史行
+// （2026-09-10 现场：agent-os 重启回扫末 256KB → open 事件由 216 涨到 222、
+// 已 resolved/ignored 的族被 reopen、occurrenceCount 虚增，处置被自己撤销）
+func TestResolveOffset_PersistedCursor(t *testing.T) {
+	const size = 10 << 20 // 10MB 日志
+	offsets := map[string]int64{"/tmp/a.log": size - 1024}
+
+	if got := resolveOffset(offsets, "/tmp/a.log", size); got != size-1024 {
+		t.Errorf("已知游标未生效（重启会回扫历史行）: got=%d want=%d", got, size-1024)
+	}
+	if got := resolveOffset(offsets, "/tmp/new.log", size); got != size-tailWindow {
+		t.Errorf("首次见到的文件应只回扫末窗口: got=%d want=%d", got, size-tailWindow)
+	}
+	if got := resolveOffset(offsets, "/tmp/a.log", 1024); got != 0 {
+		t.Errorf("轮转/截断后应回退到末窗口(0): got=%d", got)
+	}
+	if got := resolveOffset(map[string]int64{}, "/tmp/small.log", 100); got != 0 {
+		t.Errorf("小文件起点应为 0 且不得为负: got=%d", got)
+	}
+}
+
+// TestOffsetsPersistRoundTrip 回归：游标跨进程持久化（写→读→续读）与损坏降级
+func TestOffsetsPersistRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, offsetsStateFileName)
+
+	w := &ErrorEventWorker{offsets: map[string]int64{"/tmp/a.log": 12345}, statePath: statePath}
+	w.persistOffsets()
+
+	raw, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatalf("偏移文件未落盘: %v", err)
+	}
+	if !strings.Contains(string(raw), "12345") {
+		t.Fatalf("偏移文件内容异常: %s", raw)
+	}
+
+	// 模拟重启：新 worker 无内存游标，loadOffsets 后应从 12345 继续
+	restarted := &ErrorEventWorker{offsets: map[string]int64{}, statePath: statePath}
+	restarted.loadOffsets()
+	if got := resolveOffset(restarted.offsets, "/tmp/a.log", 1<<20); got != 12345 {
+		t.Errorf("重启后游标未恢复: got=%d want=12345", got)
+	}
+
+	// 状态文件损坏：退化为空游标，不得 panic
+	if err := os.WriteFile(statePath, []byte("{not json"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	broken := &ErrorEventWorker{offsets: map[string]int64{}, statePath: statePath}
+	broken.loadOffsets()
+	if len(broken.offsets) != 0 {
+		t.Errorf("损坏状态文件应退化为空游标: %v", broken.offsets)
+	}
+
+	// statePath 为空（无目标场景）：读写均安全 no-op
+	none := &ErrorEventWorker{offsets: map[string]int64{"/tmp/x": 1}}
+	none.persistOffsets()
+	none.loadOffsets()
+}
+
+// TestOffsetsStatePath 回归：状态文件落在 agent-os 日志目录（随日志一起轮转/清理）
+func TestOffsetsStatePath(t *testing.T) {
+	got := offsetsStatePath([]LogTarget{
+		{Source: "v2", Path: "/tmp/v2/logs/out.log"},
+		{Source: "os", Path: "/tmp/os/logs/err.log"},
+	})
+	if got != "/tmp/os/logs/"+offsetsStateFileName {
+		t.Errorf("状态文件应落在 os 日志目录: %s", got)
+	}
+	if offsetsStatePath(nil) != "" {
+		t.Error("无目标时应返回空路径")
 	}
 }
