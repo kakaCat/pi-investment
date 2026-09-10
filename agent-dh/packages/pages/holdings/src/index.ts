@@ -79,7 +79,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         webCtx.webServer.register({
           kind: 'exact',
           path: '/dashboard/api/holdings/solve',
-          handler: createSolveHandler({ resolveAgent }, { panel: '持仓看板', panelFull: '账户持仓看板', plugin: 'dashboard-holdings' }),
+          handler: createSolveHandler({ resolveAgent }, { panel: '持仓看板', panelFull: '账户持仓看板', plugin: 'dashboard-holdings', osBaseURL: 'http://127.0.0.1:8080' }),
         });
       }, name + ': api');
 

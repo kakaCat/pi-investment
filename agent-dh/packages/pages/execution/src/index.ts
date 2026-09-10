@@ -93,7 +93,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         webCtx.webServer.register({
           kind: 'exact',
           path: '/dashboard/api/board/solve',
-          handler: createSolveHandler({ resolveAgent }, { panel: '执行看板', panelFull: '双线执行确认看板', plugin: 'dashboard-execution' }),
+          handler: createSolveHandler({ resolveAgent }, { panel: '执行看板', panelFull: '双线执行确认看板', plugin: 'dashboard-execution', osBaseURL: 'http://127.0.0.1:8080' }),
         });
         // 在线窗口列表（picker 离线防护数据源：会话列表含离线会话，投递要求在线 agent）
         webCtx.webServer.register({

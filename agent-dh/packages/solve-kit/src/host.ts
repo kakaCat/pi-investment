@@ -29,6 +29,11 @@ export interface SolveKitHostOptions {
   panelFull: string
   /** source.plugin 值（消息留痕归属），如 'dashboard-execution' / 'dashboard-holdings' */
   plugin: string
+  /** 收单盯梢：agent-os 基址（查事件终态用），如 'http://127.0.0.1:8080'；不传则关闭盯梢 */
+  osBaseURL?: string
+  /** 收单盯梢检查点（分钟），默认 [8, 25, 50]（最多 3 次催办）；传 [] 关闭。
+   *  限制：内存计时器，宿主进程（DSH）重启即丢失——超时兜底由 agent-os 侧机制负责 */
+  watchDelaysMin?: number[]
 }
 
 function json(res: ServerResponse, status: number, body: unknown): void {
@@ -125,6 +130,61 @@ async function deliverMessage(target: ActionTarget | null, message: unknown): Pr
   } catch (e) {
     return { delivered: false, error: '投递失败：' + (e instanceof Error ? e.message : String(e)), target: { sessionId: target.sessionId, window: target.window } }
   }
+}
+
+/** 查事件当前状态（盯梢用）；查不到（已删除/列表外）视为已终态 */
+async function fetchEventStatus(osBaseURL: string, eventId: string): Promise<string | null> {
+  const resp = await fetch(osBaseURL + '/api/v1/scheduler/error-events?limit=200', { signal: AbortSignal.timeout(5000) })
+  const data: any = await resp.json()
+  const list: any[] = Array.isArray(data?.events) ? data.events : []
+  const ev = list.find((e) => e && e.id === eventId)
+  return ev ? String(ev.status ?? '') : null
+}
+
+/** 收单催办消息（盯梢 followup 给处置窗口） */
+function buildNudgeMessage(p: { eventId: string; title: string; attempt: number; total: number; actorWindow: string; panel: string }): string {
+  return [
+    '⏰ 收单催办（' + p.panel + ' · 第 ' + p.attempt + '/' + p.total + ' 次，来自 ' + p.actorWindow + ' 的派单）',
+    '你认领的错误事件 ' + p.eventId.slice(0, 8) + '「' + p.title + '」当前仍是 processing，尚未回写终态。',
+    '- 已处置 → 立即回写：curl -s -X POST http://127.0.0.1:13080/dashboard/api/board/error-action -H \'Content-Type: application/json\' -d \'{"id":"' + p.eventId + '","action":"resolve","note":"根因=...；动作=...；证据=...（处置窗口署名）"}\'（note ≥10 字；误报改用 "action":"ignore" 并注明为何误报）',
+    '- 无法处置 → 回写 "action":"reopen" 并注明卡因，让事件回到待认领池',
+    '不回写 = 处置无闭环：事件永久卡 processing 列表，且本盯梢会继续催办直到终态。',
+  ].join(NL)
+}
+
+/** 收单盯梢（2026-09-10，w-f4aa1f6a）：错误事件投递成功后启动延迟检查链——
+ *  到点查事件终态，仍 processing 则 followup 催办目标窗口回写。
+ *  堵「只有派单没有收单」缺口：回写不再只依赖被派单窗口自觉 curl。 */
+function watchResolution(
+  deps: SolveKitHostDeps,
+  opts: SolveKitHostOptions,
+  p: { eventId: string; title: string; targetSessionId: string; actorWindow: string },
+): void {
+  const delays = opts.watchDelaysMin ?? [8, 25, 50]
+  if (!opts.osBaseURL || delays.length === 0 || !p.eventId) return
+  let attempt = 0
+  const tick = async (): Promise<void> => {
+    attempt += 1
+    try {
+      const status = await fetchEventStatus(opts.osBaseURL as string, p.eventId)
+      if (status !== 'processing') return // 已回写终态/复开/消失——收工
+      const target = deps.resolveAgent(p.targetSessionId, true)
+      if (target && typeof (target.agent as any)?.followup === 'function') {
+        await (target.agent as any).followup(buildNudgeMessage({
+          eventId: p.eventId, title: p.title, attempt, total: delays.length, actorWindow: p.actorWindow, panel: opts.panel,
+        }))
+        console.log('[solve-kit] 收单催办已投递:', p.eventId.slice(0, 8), '第', attempt, '次 →', target.window)
+      }
+    } catch (e) {
+      console.warn('[solve-kit] 收单盯梢检查异常（下一检查点重试）:', e instanceof Error ? e.message : String(e))
+    }
+    if (attempt < delays.length) {
+      const t = setTimeout(tick, (delays[attempt] - delays[attempt - 1]) * 60_000)
+      ;(t as any).unref?.()
+    }
+  }
+  const t0 = setTimeout(tick, delays[0] * 60_000)
+  ;(t0 as any).unref?.()
 }
 
 /** 会话 id → 窗口标签（与 lifecycle/bulletin 同口径：session- 前缀取中段 8 位） */
@@ -230,6 +290,19 @@ export function createSolveHandler(deps: SolveKitHostDeps, opts: SolveKitHostOpt
       const message = buildSolveMessage({ kind, title, lines, actorWindow, opts })
       const delivery = await deliverMessage(target, message)
 
+      // 收单盯梢：错误事件投递成功 → 启动延迟检查链（未回写终态则催办目标窗口）
+      // 测试钩子：body.watch_delays_sec（秒数组）可覆盖默认分钟检查点，仅联调/E2E 使用
+      const errId = kind === 'error' ? String((err as any)?.id ?? '') : ''
+      if (delivery.delivered && errId) {
+        const testSec: unknown = (body as any).watch_delays_sec
+        const effOpts: SolveKitHostOptions = Array.isArray(testSec) && testSec.length > 0
+          ? { ...opts, watchDelaysMin: testSec.map((s) => Number(s) / 60) }
+          : opts
+        watchResolution(deps, effOpts, {
+          eventId: errId, title, targetSessionId: target.sessionId, actorWindow,
+        })
+      }
+
       return json(res, 200, {
         success: true,
         data: {
@@ -237,8 +310,9 @@ export function createSolveHandler(deps: SolveKitHostDeps, opts: SolveKitHostOpt
           title,
           target: { sessionId: target.sessionId, window: target.window },
           delivered: delivery.delivered,
+          watched: delivery.delivered && errId ? (opts.watchDelaysMin ?? [8, 25, 50]) : false,
           note: delivery.delivered
-            ? '已投递窗口 ' + target.window + '，处理结论将回复在该窗口会话'
+            ? '已投递窗口 ' + target.window + '，处理结论将回复在该窗口会话' + (errId ? '；收单盯梢已启动（未回写将自动催办）' : '')
             : (delivery.error || '投递未完成，请稍后重试')
         },
       })
