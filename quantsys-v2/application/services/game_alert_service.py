@@ -13,6 +13,28 @@ from application.services.manipulation_detector import ManipulationDetector
 logger = structlog.get_logger(__name__)
 
 
+def _net_flow_yi(participant: Dict[str, Any]) -> Optional[float]:
+    """参与者净流入（亿元）；数据不可用时返回 None。
+
+    口径：OpponentBehaviorService 返回的 net_flow 单位是「元」，降级时为 None
+    （见 opponent_behavior_service._analyze_retail_behavior / _analyze_institution_behavior）。
+
+    2026-09-11 修复（w-f4aa1f6a）：原实现读 participant['flow_amount']，该键不存在，
+    抛 KeyError 后被下面 except 吞掉 → 「抄底机会 / 顶部风险 / 机构出货」三条预警永久失效，
+    /api/alerts/check 恒返回空（实证：日志 “检查对手行为预警失败: 'flow_amount'”，
+    而同一时刻对手服务已识别出 panic_selling + accumulating 的抄底机会）。
+    """
+    flow = participant.get('net_flow')
+    if flow is None:
+        return None
+    return flow / 100_000_000.0
+
+
+def _fmt_yi(value: Optional[float]) -> str:
+    """净流入格式化（亿元）；None → 数据不可用，避免预警文案里出现 'None亿'。"""
+    return f"{value:.1f}亿" if value is not None else "数据不可用"
+
+
 class GameAlertService:
     """博弈预警服务 - 实时监控和预警
 
@@ -99,10 +121,14 @@ class GameAlertService:
         try:
             # 获取当前对手行为
             opponent_behavior = self.opponent_service.analyze_current_behavior()
+            retail = opponent_behavior.get('retail') or {}
+            institution = opponent_behavior.get('institution') or {}
+            retail_yi = _net_flow_yi(retail)
+            institution_yi = _net_flow_yi(institution)
 
             # 散户恐慌 + 机构建仓 = 抄底机会
-            if (opponent_behavior['retail']['behavior'] == 'panic_selling' and
-                opponent_behavior['institution']['behavior'] == 'accumulating'):
+            if (retail.get('behavior') == 'panic_selling' and
+                institution.get('behavior') == 'accumulating'):
 
                 alerts.append({
                     'alert_id': self._generate_alert_id(),
@@ -110,8 +136,8 @@ class GameAlertService:
                     'level': 'high',
                     'title': '抄底机会',
                     'message': (
-                        f"散户恐慌抛售（{opponent_behavior['retail']['flow_amount']:.1f}亿），"
-                        f"机构逢低建仓（{opponent_behavior['institution']['flow_amount']:.1f}亿）"
+                        f"散户恐慌抛售（{_fmt_yi(retail_yi)}），"
+                        f"机构逢低建仓（{_fmt_yi(institution_yi)}）"
                     ),
                     'action': '建议创建"恐慌抄底池"',
                     'symbols': [],
@@ -123,8 +149,8 @@ class GameAlertService:
                 })
 
             # 散户追涨 + 机构出货 = 风险预警
-            if (opponent_behavior['retail']['behavior'] == 'fomo_buying' and
-                opponent_behavior['institution']['behavior'] == 'distributing'):
+            if (retail.get('behavior') == 'fomo_buying' and
+                institution.get('behavior') == 'distributing'):
 
                 alerts.append({
                     'alert_id': self._generate_alert_id(),
@@ -132,8 +158,8 @@ class GameAlertService:
                     'level': 'high',
                     'title': '顶部风险',
                     'message': (
-                        f"散户追涨（{opponent_behavior['retail']['flow_amount']:.1f}亿），"
-                        f"机构出货（{opponent_behavior['institution']['flow_amount']:.1f}亿）"
+                        f"散户追涨（{_fmt_yi(retail_yi)}），"
+                        f"机构出货（{_fmt_yi(institution_yi)}）"
                     ),
                     'action': '建议减仓或空仓观望',
                     'symbols': [],
@@ -144,8 +170,8 @@ class GameAlertService:
                 })
 
             # 机构大量出货（无论散户如何）= 风险预警
-            institution_flow = opponent_behavior['institution']['flow_amount']
-            if institution_flow < -50:  # 机构净流出>50亿
+            institution_flow = institution_yi
+            if institution_flow is not None and institution_flow < -50:  # 机构净流出>50亿
                 alerts.append({
                     'alert_id': self._generate_alert_id(),
                     'type': 'risk',

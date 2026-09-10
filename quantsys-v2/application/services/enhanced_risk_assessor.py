@@ -152,9 +152,15 @@ class EnhancedRiskAssessor:
         try:
             # 获取市场对手行为
             opponent_behavior = self.opponent_service.analyze_current_behavior()
+            # 2026-09-11 修复（w-f4aa1f6a）：对手服务返回的键是 net_flow（单位：元），
+            # 不存在 flow_amount；原实现抛 KeyError 被下面 except 吞掉 → 市场风险因子
+            # （派发阶段/散户追涨/机构出货）从未计入 pool_health 风险分。
+            institution = opponent_behavior.get('institution') or {}
+            _inst_flow = institution.get('net_flow')
+            institution_yi = None if _inst_flow is None else _inst_flow / 100_000_000.0
 
             # 市场处于派发阶段 → 高风险
-            if opponent_behavior['market_phase'] == 'distribution':
+            if opponent_behavior.get('market_phase') == 'distribution':
                 score += 30
                 factors.append({
                     'category': 'market_risk',
@@ -164,7 +170,7 @@ class EnhancedRiskAssessor:
                 })
 
             # 散户追涨 → 中风险
-            if opponent_behavior['retail']['behavior'] == 'fomo_buying':
+            if (opponent_behavior.get('retail') or {}).get('behavior') == 'fomo_buying':
                 score += 20
                 factors.append({
                     'category': 'market_risk',
@@ -174,8 +180,8 @@ class EnhancedRiskAssessor:
                 })
 
             # 机构大量出货 → 高风险
-            institution_flow = opponent_behavior['institution']['flow_amount']
-            if institution_flow < -50:
+            institution_flow = institution_yi
+            if institution_flow is not None and institution_flow < -50:  # 机构净流出>50亿
                 score += 40
                 factors.append({
                     'category': 'market_risk',

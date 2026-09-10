@@ -262,29 +262,25 @@ class EastMoneyFundFlowSource:
 
         使用 akshare 的 stock_individual_fund_flow 接口
         """
-        import os
         import time
         from contextlib import contextmanager
 
         @contextmanager
         def _disable_proxies():
-            """临时禁用代理的上下文管理器（akshare 对代理支持不好）"""
-            proxy_keys = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']
-            original_proxies = {k: os.environ.get(k) for k in proxy_keys}
-            
-            try:
-                # 临时删除所有代理环境变量
-                for key in proxy_keys:
-                    if key in os.environ:
-                        del os.environ[key]
-                yield
-            finally:
-                # 恢复原始代理设置
-                for key, value in original_proxies.items():
-                    if value is not None:
-                        os.environ[key] = value
-                    elif key in os.environ:
-                        del os.environ[key]
+            """已废弃（2026-09-11，w-f4aa1f6a）：保留为显式 no-op。
+
+            原实现删除 HTTP(S)_PROXY 环境变量，但方向和作用都是错的：
+              ① macOS 上 requests 会回退到 urllib.getproxies() 的 SystemConfiguration
+                 取值，删完环境变量代理照旧生效（实测删完仍得到
+                 {'https': 'http://127.0.0.1:7897'}），日志却打印「禁用代理」误导排查；
+              ② 本机对 push2his.eastmoney.com 的**直连是被封的**
+                 （实测直连 0.1s RemoteDisconnected），当前网络下该域必须经代理
+                 （实测经代理 200/0.3s）；若这段代码在 env 代理生效的环境真删掉代理，
+                 反而会把唯一可用的通道走死。
+            现网残余失败（board 事件 5b4f7a85）为代理出口到东财的间歇性不可达
+            （ProxyError @127.0.0.1:7897，同时刻百度经同一代理 200 OK），属环境问题，
+            由下方退避重试兜住。"""
+            yield
 
         try:
             with _disable_proxies():
@@ -301,10 +297,11 @@ class EastMoneyFundFlowSource:
                 else:  # 00, 30 → 深交所
                     market = 'sz'
 
-                logger.info(f"获取 {stock_code} 资金流向数据（market={market}，禁用代理）")
+                logger.info(f"获取 {stock_code} 资金流向数据（market={market}，经系统代理）")
 
-                # 重试机制：最多尝试3次
-                max_retries = 3
+                # 重试机制：最多尝试4次（1s→2s→4s 指数退避，约 7s），
+                # 用于骑过代理出口到东财的短时抖动（见 _disable_proxies 文档）
+                max_retries = 4
                 retry_delay = 1  # 秒
 
                 for attempt in range(max_retries):

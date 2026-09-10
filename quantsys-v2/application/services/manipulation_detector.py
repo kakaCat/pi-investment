@@ -37,14 +37,61 @@ class ManipulationDetector:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
-        self.manipulation_repo = manipulation_repo
-        self.fund_flow_repo = fund_flow_repo
+        # 2026-09-11 修复（w-f4aa1f6a）：GameAlertService 构造检测器时不传仓库，
+        # 两个 repo 长期为 None → ① _check_volume_surge 每只票抛
+        # "'NoneType' object has no attribute 'get_fund_flow'"（debug 级被吞）；
+        # ② _scan_post_manipulation_opportunities 抛
+        # "'NoneType' object has no attribute 'get_active_events'"（warning 级，每次调用必现）；
+        # 信号维度缺失使 min_signal_count(3) 永不达标 → /api/alerts/check 恒返回空。
+        # 与 OpponentBehaviorService 同款做法：未注入时按端口自动解析；解析失败保持 None 并留痕。
+        self.manipulation_repo = manipulation_repo or self._resolve_repo(
+            'IAgentIntelligenceRepository', 'manipulation_repo',
+            ('adapters.outbound.repositories.agent_intelligence_repository',
+             'AgentIntelligenceORMRepository'))
+        self.fund_flow_repo = fund_flow_repo or self._resolve_repo(
+            'IFundFlowRepository', 'fund_flow_repo',
+            ('adapters.outbound.repositories.fund_flow_repository',
+             'FundFlowORMRepository'))
         self.config = config or DEFAULT_MANIPULATION_DETECTOR_CONFIG
 
         # 扫描预算：外部数据源（涨停池/龙虎榜/资金流）可能无响应，
         # 必须对总扫描时间设硬上限，避免 /api/alerts/check 无限挂起（见盘中快检故障记录）。
         self.scan_timeout_seconds = self.config.scan_timeout_seconds
         self.max_scan_stocks = self.config.max_scan_stocks
+
+    @staticmethod
+    def _resolve_repo(port_name: str, attr: str, fallback: Optional[tuple] = None):
+        """按端口名解析仓库；端口不可用或解析为 None 时直连 ORM 仓库兜底。
+
+        Args:
+            port_name: domain.ports 中的端口名
+            attr: 属性名（仅用于日志）
+            fallback: (模块路径, 类名) 兜底实现（与路由层同款直接构造方式）
+
+        Returns:
+            仓库实例或 None（None 时该维度信号缺失，调用方需容忍）
+        """
+        try:
+            import domain.ports as _ports
+            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+
+            instance = EnhancedServiceFactory.resolve(getattr(_ports, port_name))
+            if instance is not None:
+                return instance
+            logger.warning(f"{attr} 端口 {port_name} 解析结果为 None，改用兜底实现")
+        except Exception as e:
+            logger.warning(f"{attr} 未注入且无法自动解析（{port_name}）: {e}")
+
+        if fallback:
+            module_path, class_name = fallback
+            try:
+                import importlib
+
+                cls = getattr(importlib.import_module(module_path), class_name)
+                return cls()
+            except Exception as e:
+                logger.warning(f"{attr} 兜底 {class_name} 构造失败，该维度信号将缺失: {e}")
+        return None
 
     def detect_market_manipulation(self) -> Dict[str, Any]:
         """
@@ -116,10 +163,19 @@ class ManipulationDetector:
         manipulations = []
 
         try:
+            # 2026-09-11 修复（w-f4aa1f6a）：扫描预算原来从抓取涨停池之后才开始，
+            # 外部抓取（akshare 涨停池，实测 1.4s 且无超时保护）游离在预算之外。
+            # 预算必须覆盖抓取本身，否则「有硬上限」是假象。
+            scan_start = time.monotonic()
+
             # 获取最近的涨停板数据
             zt_pool = self._get_recent_zt_stocks()
 
-            scan_start = time.monotonic()
+            if time.monotonic() - scan_start > self.scan_timeout_seconds:
+                logger.warning(
+                    f"操纵扫描超预算（抓取涨停池已用>{self.scan_timeout_seconds}s），跳过本轮扫描"
+                )
+                return manipulations
             for idx, stock in enumerate(zt_pool):
                 # 扫描总预算耗尽即降级返回已检出结果，绝不让外部数据源拖垮预警接口
                 if time.monotonic() - scan_start > self.scan_timeout_seconds:

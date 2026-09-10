@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -19,10 +20,16 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-// LogTarget 日志采集目标
+// LogTarget 日志采集目标。Path 与 Glob 二选一：
+//
+//	Path：固定文件（游标按路径持久化）；
+//	Glob：目录级通配（每次扫描展开，逐文件独立游标）——用于"文件名每次启动都变"的日志，
+//	      如 DSH 自重启产生的 state/restart-<epoch>.log（每次 self_restart 换名，
+//	      固死路径永远只追到最早那个文件 → source=dsh 长期 0 事件，w-f4aa1f6a 实证）。
 type LogTarget struct {
 	Source string // os / v2 / dsh
 	Path   string // 日志文件绝对路径
+	Glob   string // 日志文件通配（与 Path 二选一）
 }
 
 // ErrorEventWorker 错误事件收集 worker（REQ-a42aa4）
@@ -156,13 +163,41 @@ func (w *ErrorEventWorker) collectTaskFailures(ctx context.Context) error {
 
 // collectLogTail 增量 tail 三端日志
 func (w *ErrorEventWorker) collectLogTail(ctx context.Context) error {
-	for _, t := range w.targets {
+	for _, t := range expandTargets(w.targets) {
 		if err := w.tailOne(ctx, t); err != nil {
 			logger.L().Error("Log tail failed", logger.String("source", t.Source), logger.String("path", t.Path), logger.String("error", err.Error()))
 		}
 	}
 	return nil
 }
+
+// expandTargets 把 Glob 目标展开成具体文件目标（按路径升序，保证 offset 水位稳定）。
+// glob 无匹配（目录还没建/文件全部滚走）时跳过该目标，不算错误。
+func expandTargets(targets []LogTarget) []LogTarget {
+	out := make([]LogTarget, 0, len(targets))
+	for _, t := range targets {
+		if t.Glob == "" {
+			out = append(out, t)
+			continue
+		}
+		matches, err := filepath.Glob(t.Glob)
+		if err != nil {
+			logger.L().Warn("Log target glob invalid", logger.String("glob", t.Glob), logger.String("error", err.Error()))
+			continue
+		}
+		sort.Strings(matches)
+		for _, m := range matches {
+			if fi, statErr := os.Stat(m); statErr != nil || fi.IsDir() {
+				continue
+			}
+			out = append(out, LogTarget{Source: t.Source, Path: m})
+		}
+	}
+	return out
+}
+
+// tracebackPreambleMax 单个 traceback 块最多并入 Detail 的续行数（防深栈/异常长块吃内存）
+const tracebackPreambleMax = 60
 
 const tailWindow = 256 * 1024 // 重启后回扫窗口：只处理末 256KB，避免重扫超大文件
 
@@ -248,17 +283,33 @@ func (w *ErrorEventWorker) processLines(ctx context.Context, t LogTarget, lines 
 	// error/critical 子串会误命中：all_critical_ok、detail 里 "Error 61
 	// connecting"、event 文案 CRITICAL，曾把 v2 启动 INFO/warning 当错误入库）。
 	// 决策逻辑收敛在 classifyLogLine（纯函数，见 error_event_worker_test.go 回归用例）。
+	// 续行聚合：Python traceback 的栈帧回显（含 await/| File 等形态）本身不是错误，
+	// 丢弃会把根因的调用链丢光，单独建成事件又会炸出十几条噪音——因此缓冲在
+	// tracebackPreamble 里，遇到第一个错误锚点行时并入该事件的 Detail（w-f4aa1f6a）。
+	preamble := make([]string, 0, tracebackPreambleMax)
 	for _, ln := range lines {
-		msg, ok := classifyLogLine(ln, t.Source)
-		if !ok {
+		if isTracebackContinuation(ln) {
+			if len(preamble) < tracebackPreambleMax {
+				preamble = append(preamble, ln)
+			}
 			continue
 		}
+		msg, ok := classifyLogLine(ln, t.Source)
+		if !ok {
+			preamble = preamble[:0] // 非续行且非错误：traceback 块已结束，缓冲作废
+			continue
+		}
+		detail := ln
+		if len(preamble) > 0 {
+			detail = strings.Join(preamble, "\n") + "\n" + ln
+		}
+		preamble = preamble[:0]
 		fp := repository.FingerprintOf(t.Source, "", msg)
 		_, _, err := w.repo.Upsert(ctx, domain.ErrorEventUpsertInput{
 			Source:      t.Source,
 			Level:       "error",
 			Msg:         msg,
-			Detail:      truncate(ln, 2000),
+			Detail:      truncate(detail, 2000),
 			Fingerprint: fp,
 			Metadata:    map[string]interface{}{"collect_channel": "log_tail", "log_path": t.Path},
 		})
@@ -303,6 +354,45 @@ var tracebackContinuationRe = regexp.MustCompile(`^(?:raise\s+[\w\.]+|self\.[\w\
 // 实证（2026-09-10，w-8f2c4cc5）：事件 764bb312 / c448196b 均为 "Job '...' succeeded"
 // 行——前者载荷 {'success': False, ...}，后者载荷 {'strategy_errors': []} 全绿，两者
 // 都被 v2ErrRe 的空子串 pattern 命中，板上凭空多出 2 条"错误"。
+// frameEchoRe Python 栈帧源码回显（第 0 列起步的 await/async with/省略行）。
+// FastAPI/Starlette 的协程栈帧长这样，函数名含 "exception" 子串 → 命中 errorLineRe 被误收。
+var frameEchoRe = regexp.MustCompile(`^(?:await\s|async with\s|\.\.\.<\d+ lines>\.\.\.)`)
+
+// caretUnderlineRe Python traceback 的定位下划线行（~~~~^^^^），纯装饰。
+var caretUnderlineRe = regexp.MustCompile(`^[~^]+$`)
+
+// isTracebackContinuation 判定“栈帧回显/多行记录续行”——这类行不构成独立错误事件。
+// 除 tracebackContinuationRe 已覆盖的形态外，2026-09-11（w-f4aa1f6a）补两类漏网形态：
+//
+//	① “| ...” 前缀行：structlog 控制台渲染器给多行字段的续行统一加 “| ” 前缀
+//	   （实证：00:39 RecursionError 一族的 13 条噪音里，8 条是 | File ... / | await ...）；
+//	② 第 0 列即空白的缩进行：真实日志记录一律从第 0 列开始（JSON 从 {、uvicorn 从 INFO:），
+//	   缩进即续行。FastAPI/Starlette 栈帧源码回显 await wrap_app_handling_exceptions(...)
+//	   含 “exception” 子串，会命中 errorLineRe 被误收成事件（00:39 一次 traceback 因此
+//	   炸成 22 条事件，其中 13 条是栈帧回显，噪音放大 1.7 倍且指纹各不相同、去重失效）。
+func isTracebackContinuation(ln string) bool {
+	trimmed := strings.TrimSpace(ln)
+	if trimmed == "" {
+		return true
+	}
+	if strings.HasPrefix(trimmed, "|") {
+		return true
+	}
+	if tracebackContinuationRe.MatchString(trimmed) {
+		return true
+	}
+	if caretUnderlineRe.MatchString(trimmed) {
+		return true
+	}
+	if frameEchoRe.MatchString(trimmed) {
+		return true
+	}
+	if ln[0] == ' ' || ln[0] == '\t' {
+		return true
+	}
+	return false
+}
+
 var jobSummarySucceededRe = regexp.MustCompile(`Job '[^']*' succeeded \(run_id=`)
 
 // jobSummaryFailureRe 载荷里显式的失败标记：只有命中它才保留汇总行为错误
@@ -316,13 +406,19 @@ var jobSummaryFailureRe = regexp.MustCompile(`(?i)('success'\s*:\s*(?:False|fals
 func classifyLogLine(ln, source string) (string, bool) {
 	trimmed := strings.TrimSpace(ln)
 	if strings.HasPrefix(trimmed, "{") {
-		return parseStructuredLogLine(ln)
+		msg, ok := parseStructuredLogLine(ln)
+		// 多行结构化记录的续行片段（structlog 把栈帧以 “| ...” 形式渲染进 error 字段）
+		// 同样按续行丢弃，避免 JSON 通道绕过下面的续行过滤。
+		if ok && isTracebackContinuation(msg) {
+			return "", false
+		}
+		return msg, ok
 	}
 	if startupBannerRe.MatchString(ln) {
 		return "", false
 	}
-	// traceback 续行（栈帧回显）单独成事件无信息量，见 tracebackContinuationRe 注释
-	if tracebackContinuationRe.MatchString(trimmed) {
+	// traceback 续行（栈帧回显）单独成事件无信息量，见 isTracebackContinuation 注释
+	if isTracebackContinuation(ln) {
 		return "", false
 	}
 	// 任务回执行（INFO 级）本身不是错误，见 jobSummarySucceededRe 注释；
@@ -600,12 +696,19 @@ func (w *ErrorEventWorker) persistState() {
 	}
 }
 
+// 2026-09-11（w-f4aa1f6a）修正 DSH 盲区：原先只采 ~/.dsh-agent-dh/profile-13080.log，
+// 该文件停在 08-20（648B，早被 DSH 以只读句柄遗弃）→ source=dsh 长期 0 事件。
+// 实测 DSH(13080) 进程 fd1/fd2 指向 state/restart-<epoch>.log（每次 self_restart 换名），
+// launchd 托管时则写 state/launchd.{out,err}.log——两条都用 Glob 覆盖，
+// 旧 profile-13080.log 保留为兜底（万一回归旧启动方式）。
 func defaultLogTargets() []LogTarget {
 	home, _ := os.UserHomeDir()
 	return []LogTarget{
 		{Source: string(domain.ErrorSourceV2), Path: "/Users/yunpeng/pi-investment/quantsys-v2/logs/launchd-stderr.log"},
 		{Source: string(domain.ErrorSourceV2), Path: "/Users/yunpeng/pi-investment/quantsys-v2/logs/launchd-stdout.log"},
 		{Source: string(domain.ErrorSourceOS), Path: "/Users/yunpeng/pi-investment/agent-os/logs/launchd-stderr.log"},
+		{Source: string(domain.ErrorSourceDSH), Glob: home + "/.dsh-agent-dh/profiles/investment/state/restart-*.log"},
+		{Source: string(domain.ErrorSourceDSH), Glob: home + "/.dsh/profiles/investment/state/launchd.*.log"},
 		{Source: string(domain.ErrorSourceDSH), Path: home + "/.dsh-agent-dh/profile-13080.log"},
 	}
 }

@@ -1,11 +1,14 @@
 package worker
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/pi-investment/agent-os/internal/domain"
 )
 
 // 回归：v2 合法 structlog JSON 但 level=info/warning 的行不得被当错误入库
@@ -228,5 +231,133 @@ func TestOffsetsStatePath(t *testing.T) {
 	}
 	if offsetsStatePath(nil) != "" {
 		t.Error("无目标时应返回空路径")
+	}
+}
+
+// 回归（2026-09-11，w-f4aa1f6a）：一次 FastAPI RecursionError traceback 在 log_tail 通道炸成
+// 22 条事件，其中 13 条是栈帧回显——FastAPI/Starlette 栈帧函数名（wrap_app_handling_exceptions）
+// 含 "exception" 子串，命中 errorLineRe 被误收；每族指纹不同，去重完全失效（板面 1 个根因 = 22 条）。
+// 用例逐行固化这 22 行的分类结果：文件里 9 条有效锚点必须收、13 条续行必须拒。
+func TestClassifyLogLine_RecursionErrorBurstRegression(t *testing.T) {
+	noise := []string{
+		`await wrap_app_handling_exceptions(app, request)(scope, receive, send)`,
+		`await self.app(scope, receive_or_disconnect, send_no_error)`,
+		`await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)`,
+		`|   File "/Users/yunpeng/pi-investment/quantsys-v2/venv/lib/python3.13/site-packages/fastapi/encoders.py", line 341, in jsonable_encoder`,
+		`|   File "/Users/yunpeng/pi-investment/quantsys-v2/venv/lib/python3.13/site-packages/starlette/middleware/base.py", line 195, in __call__`,
+		`|     raise BaseExceptionGroup(`,
+		`|     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)`,
+		`|     await self.app(scope, receive_or_disconnect, send_no_error)`,
+		`| RecursionError: maximum recursion depth exceeded`,
+		`| ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)`,
+		`|         "unhandled errors in a TaskGroup", self._exceptions`,
+		`  File "/Users/yunpeng/pi-investment/quantsys-v2/venv/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 63, in __call__`,
+		`       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^`,
+	}
+	for _, ln := range noise {
+		if msg, ok := classifyLogLine(ln, "v2"); ok {
+			t.Errorf("栈帧回显被误收为 error: msg=%q line=%s", msg, ln)
+		}
+	}
+	// 反向保护：真正的错误锚点一个都不能被这次过滤连带漏收
+	anchors := []string{
+		`ALERT: Unhandled exception - RecursionError: maximum recursion depth exceeded`,
+		`RecursionError: maximum recursion depth exceeded`,
+		`RecursionError on GET /api/signals`,
+		`UNHANDLED EXCEPTION: RecursionError on GET /api/signals`,
+		`Exception in ASGI application`,
+		`INFO:     127.0.0.1:63159 - "GET /api/signals HTTP/1.1" 500 Internal Server Error`,
+		`{"level":"error","logger":"adapters.inbound.fastapi_app.routes.backtest_async","event":"Failed to get backtest results: Object of type BacktestResult is not JSON serializable"}`,
+		`{"level":"error","event":"Failed to get backtest results: Object of type BacktestResult is not JSON serializable"}`,
+	}
+	for _, ln := range anchors {
+		if _, ok := classifyLogLine(ln, "v2"); !ok {
+			t.Errorf("真 error 锚点被漏收: line=%s", ln)
+		}
+	}
+}
+
+// Glob 目标展开回归（2026-09-11，w-f4aa1f6a W2）：DSH 日志文件名每次自重启都变，
+// 固死路径采集必然漏收 → 用 Glob 逐文件独立游标。同时验证 Path 目标原样保留、
+// 目录不参与、无匹配不报错。
+func TestExpandTargets_GlobAndPath(t *testing.T) {
+	dir := t.TempDir()
+	for _, n := range []string{"restart-2.log", "restart-1.log"} {
+		if err := os.WriteFile(filepath.Join(dir, n), []byte("x\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Mkdir(filepath.Join(dir, "restart-3.log"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	picked := expandTargets([]LogTarget{
+		{Source: "v2", Path: "/tmp/fixed.log"},
+		{Source: "dsh", Glob: filepath.Join(dir, "restart-*.log")},
+		{Source: "dsh", Glob: filepath.Join(dir, "none-*.log")},
+	})
+	if len(picked) != 3 {
+		t.Fatalf("应展开为 3 个目标（固定 1 + glob 命中 2），实际 %d: %+v", len(picked), picked)
+	}
+	if picked[0].Path != "/tmp/fixed.log" {
+		t.Errorf("固定路径目标应原样保留: %+v", picked[0])
+	}
+	if !strings.HasSuffix(picked[1].Path, "restart-1.log") {
+		t.Errorf("glob 命中应按路径升序: %+v", picked[1])
+	}
+	if picked[2].Source != "dsh" || !strings.HasSuffix(picked[2].Path, "restart-2.log") {
+		t.Errorf("glob 第二命中异常: %+v", picked[2])
+	}
+}
+
+// fakeErrorEventRepo 只捕获 Upsert 入参，用于驱动 processLines 的续行聚合分支
+type fakeErrorEventRepo struct {
+	msgs    []string
+	details []string
+}
+
+func (f *fakeErrorEventRepo) Upsert(ctx context.Context, in domain.ErrorEventUpsertInput) (*domain.ErrorEvent, bool, error) {
+	f.msgs = append(f.msgs, in.Msg)
+	f.details = append(f.details, in.Detail)
+	return &domain.ErrorEvent{ID: "fake"}, false, nil
+}
+
+func (f *fakeErrorEventRepo) List(ctx context.Context, req domain.ErrorEventListRequest) ([]*domain.ErrorEvent, int, error) {
+	return nil, 0, nil
+}
+
+func (f *fakeErrorEventRepo) GetByID(ctx context.Context, id string) (*domain.ErrorEvent, error) {
+	return nil, nil
+}
+
+func (f *fakeErrorEventRepo) ApplyAction(ctx context.Context, id string, req domain.ErrorEventActionRequest) (*domain.ErrorEvent, string, error) {
+	return nil, "", nil
+}
+
+func (f *fakeErrorEventRepo) Stats(ctx context.Context) (*domain.ErrorEventStats, error) {
+	return nil, nil
+}
+
+// 续行聚合回归：栈帧回显不单独成事件，但必须并进紧随其后的错误锚点 Detail——
+// 只滤不并会把根因的调用链丢光（过滤把信号一起滤掉，比噪音更糟）。
+func TestProcessLines_AggregatesTracebackIntoAnchor(t *testing.T) {
+	repo := &fakeErrorEventRepo{}
+	w := &ErrorEventWorker{repo: repo, offsets: map[string]int64{}}
+	lines := []string{
+		`Traceback (most recent call last):`,
+		`  File "/Users/x/venv/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 63, in __call__`,
+		`    await wrap_app_handling_exceptions(app, request)(scope, receive, send)`,
+		`       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^`,
+		`RecursionError: maximum recursion depth exceeded`,
+	}
+	w.processLines(context.Background(), LogTarget{Source: "v2", Path: "/tmp/v2-test.log"}, lines)
+	if len(repo.msgs) != 2 {
+		t.Fatalf("应只产出 2 条锚点事件（Traceback 头 + RecursionError），实际 %d 条: %v", len(repo.msgs), repo.msgs)
+	}
+	last := repo.details[len(repo.details)-1]
+	if !strings.Contains(last, "wrap_app_handling_exceptions") {
+		t.Errorf("锚点 Detail 未聚合栈帧（调用链丢失）: %q", last)
+	}
+	if !strings.Contains(last, "RecursionError") {
+		t.Errorf("锚点 Detail 应含错误行: %q", last)
 	}
 }

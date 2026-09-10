@@ -87,6 +87,7 @@ class APSchedulerService:
         tasks = self.repo.list_tasks(enabled_only=True)
         loaded_count = 0
         skipped_count = 0
+        desired_ids = set()  # 本次加载后"应当存在"的 job id 集合（供孤儿回收比对）
 
         for task in tasks:
             # 跳过由 Agent OS 管理的任务
@@ -114,6 +115,7 @@ class APSchedulerService:
                     misfire_grace_time=task.get("misfire_grace_time_seconds") or 300
                 )
 
+                desired_ids.add(f"task_{task.get('id')}")
                 loaded_count += 1
                 logger.info(
                     f"Loaded task: {task.get('name')} "
@@ -127,6 +129,50 @@ class APSchedulerService:
             f"Task loading complete: {loaded_count} loaded, "
             f"{skipped_count} skipped (Agent OS)"
         )
+
+        # 孤儿回收：jobstore 是持久化的，add_job(replace_existing=True) 只增不删，
+        # 任何"删除任务/停用任务/转为 Agent OS 托管"都不会摘掉已注册的 job。
+        self.reconcile_jobs(desired_ids)
+
+    def reconcile_jobs(self, desired_ids) -> int:
+        """摘掉 jobstore 里不再有对应任务的"孤儿 job"，返回摘除数量。
+
+        背景（2026-09-11 w-f4aa1f6a 实证）：任务 251 `realtime-signal-monitor`
+        （cron 1-6 点每 5 分钟）的 scheduler_tasks 行早已删除，但 APScheduler
+        jobstore（public.apscheduler_jobs，持久化）里的 task_251 一直在跑到 09-10
+        02:00，每 5 分钟空跑一次并记一条 ERROR（raw 日志 373 条），
+        Agent OS 侧收成 error_event「Task 251 not found in scheduler_tasks」。
+        全仓库此前没有任何 remove_job 调用 → 缺失的正是这个对账。
+
+        只做删除、不做新增：安全性上不触碰任何仍在册的任务（不动 next_run_time），
+        因此可独立于 load 流程调用与验证。
+        """
+        removed = 0
+        try:
+            jobs = self.scheduler.get_jobs()
+        except Exception as e:
+            logger.warning(f"孤儿 job 对账跳过（get_jobs 失败）: {e}")
+            return 0
+        for job in jobs:
+            job_id = str(getattr(job, "id", ""))
+            if not job_id.startswith("task_"):
+                continue  # 非本服务注册的 job，不动
+            if job_id in desired_ids:
+                continue
+            try:
+                self.scheduler.remove_job(job_id)
+                removed += 1
+                logger.warning(
+                    f"🧹 孤儿调度任务已摘除: id={job_id} name={getattr(job, 'name', '')} "
+                    f"（scheduler_tasks 中已无对应的启用任务）"
+                )
+            except Exception as e:
+                logger.error(f"孤儿 job 摘除失败: id={job_id} error={e}")
+        if removed:
+            logger.warning(f"孤儿调度任务对账完成：摘除 {removed} 个，保留 {len(desired_ids)} 个")
+        else:
+            logger.info(f"孤儿调度任务对账：无孤儿（在册 {len(desired_ids)} 个）")
+        return removed
 
     def _create_trigger(self, task_type: str, task):
         """

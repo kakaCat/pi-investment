@@ -1,11 +1,49 @@
 """Akshare market data provider."""
 import logging
+import threading
+import time as _time
 from typing import Optional
 from datetime import datetime, timedelta
 from adapters.outbound.datasources.base import MarketProvider
 from adapters.outbound.datasources.models import MarketData
 
 logger = logging.getLogger(__name__)
+
+# ── 龙虎榜全市场数据缓存（2026-09-11，w-f4aa1f6a） ──────────────────────────
+# ak.stock_lhb_detail_em 是「全市场 + 日期区间」接口，get_lhb_detail(symbol,..)
+# 只是本地按代码过滤。此前 ManipulationDetector 对每只涨停股各调一次
+# → 20 只票 = 20 次同参数 HTTP（cProfile 实测 10.4s，占 /api/alerts/check 全部耗时 11.5s）。
+# 龙虎榜按日发布、当日收盘后不再变化，按 (start,end) 做 10 分钟 TTL 缓存即可。
+_LHB_CACHE: dict = {}
+_LHB_CACHE_TTL_SECONDS = 600.0
+_LHB_CACHE_MAX_ENTRIES = 8
+_LHB_CACHE_LOCK = threading.Lock()
+
+
+def _fetch_lhb_market_df(start_date: str, end_date: str):
+    """获取并缓存全市场龙虎榜 DataFrame（失败/空返回 None，不缓存空结果）。"""
+    key = (start_date, end_date)
+    now = _time.monotonic()
+    with _LHB_CACHE_LOCK:
+        hit = _LHB_CACHE.get(key)
+        if hit and now - hit[0] < _LHB_CACHE_TTL_SECONDS:
+            return hit[1]
+
+    import akshare as ak
+
+    df = ak.stock_lhb_detail_em(
+        start_date=start_date.replace('-', ''),
+        end_date=end_date.replace('-', '')
+    )
+    if df is None or df.empty:
+        return None
+
+    with _LHB_CACHE_LOCK:
+        if len(_LHB_CACHE) >= _LHB_CACHE_MAX_ENTRIES:
+            oldest = min(_LHB_CACHE.items(), key=lambda kv: kv[1][0])[0]
+            _LHB_CACHE.pop(oldest, None)
+        _LHB_CACHE[key] = (now, df)
+    return df
 
 
 class AkshareMarketProvider(MarketProvider):
@@ -187,10 +225,8 @@ class AkshareMarketProvider(MarketProvider):
             if not start_date:
                 start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
 
-            df = ak.stock_lhb_detail_em(
-                start_date=start_date.replace('-', ''),
-                end_date=end_date.replace('-', '')
-            )
+            # 走缓存：同一 (start,end) 的全市场龙虎榜只抓一次（见文件头缓存说明）
+            df = _fetch_lhb_market_df(start_date, end_date)
 
             if df is None or df.empty:
                 return None
