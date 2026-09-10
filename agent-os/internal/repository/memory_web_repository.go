@@ -107,17 +107,31 @@ func (r *memoryWebRepository) List(ctx context.Context, req domain.MemoryListReq
 // Search 搜索记忆
 func (r *memoryWebRepository) Search(ctx context.Context, req domain.MemorySearchRequest) ([]*domain.MemoryWeb, error) {
 	// RFC 009 审计修复：添加 metadata 字段返回
-	// 使用 ILIKE 进行模糊搜索，支持中文
+	// 2026-09-11（REQ-342799，w-c8cae280）：原实现把**整串查询**当一个 ILIKE pattern
+	//（'%'+req.Query+'%'），多词/自然语言查询必然 0 命中——实测『业绩归因』命中、
+	//『业绩归因 超额 beta alpha』0 命中、长中文句 0 命中，memory_search 因而静默返回
+	//『无历史』，R-008『决策前检索历史教训』空转。现改为按词/n-gram 做 OR 子串匹配，
+	// 并按命中词数排序（复用 memory_repository.go 的 splitQueryTerms/escapeLike）。
+	terms := splitQueryTerms(req.Query)
+	if len(terms) == 0 {
+		terms = []string{req.Query}
+	}
+	patterns := make([]string, 0, len(terms))
+	for _, t := range terms {
+		patterns = append(patterns, "%"+escapeLike(t)+"%")
+	}
 	query := `SELECT id, title, content, category, tags, created_at, updated_at, metadata
 	          FROM memories
-	          WHERE (title ILIKE $1 OR content ILIKE $1)`
+	          WHERE (title ILIKE ANY($1) OR content ILIKE ANY($1))`
 	
 	// RFC 009: 默认排除 done/dropped/archived 状态的公告板帖子
 	if !req.IncludeClosed {
 		query += ` AND (metadata->>'board_status' IS NULL OR metadata->>'board_status' NOT IN ('done', 'dropped', 'archived'))`
 	}
 	
-	query += " ORDER BY created_at DESC"
+	// 按命中词数排序（命中越多越靠前），再按时间兜底
+	query += ` ORDER BY (SELECT count(*) FROM unnest($1::text[]) AS p
+	                     WHERE title ILIKE p OR content ILIKE p) DESC, created_at DESC`
 	
 	if req.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", req.Limit)
@@ -125,8 +139,7 @@ func (r *memoryWebRepository) Search(ctx context.Context, req domain.MemorySearc
 		query += " LIMIT 50"
 	}
 	
-	searchPattern := "%" + req.Query + "%"
-	rows, err := r.db.QueryContext(ctx, query, searchPattern)
+	rows, err := r.db.QueryContext(ctx, query, pq.Array(patterns))
 	if err != nil {
 		return nil, fmt.Errorf("failed to search memories: %w", err)
 	}
