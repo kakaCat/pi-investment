@@ -293,11 +293,11 @@ export function createSolveHandler(deps: SolveKitHostDeps, opts: SolveKitHostOpt
       // 收单盯梢：错误事件投递成功 → 启动延迟检查链（未回写终态则催办目标窗口）
       // 测试钩子：body.watch_delays_sec（秒数组）可覆盖默认分钟检查点，仅联调/E2E 使用
       const errId = kind === 'error' ? String((err as any)?.id ?? '') : ''
+      const testSec: unknown = (body as any).watch_delays_sec
+      const effOpts: SolveKitHostOptions = Array.isArray(testSec) && testSec.length > 0
+        ? { ...opts, watchDelaysMin: testSec.map((s) => Number(s) / 60) }
+        : opts
       if (delivery.delivered && errId) {
-        const testSec: unknown = (body as any).watch_delays_sec
-        const effOpts: SolveKitHostOptions = Array.isArray(testSec) && testSec.length > 0
-          ? { ...opts, watchDelaysMin: testSec.map((s) => Number(s) / 60) }
-          : opts
         watchResolution(deps, effOpts, {
           eventId: errId, title, targetSessionId: target.sessionId, actorWindow,
         })
@@ -310,7 +310,7 @@ export function createSolveHandler(deps: SolveKitHostDeps, opts: SolveKitHostOpt
           title,
           target: { sessionId: target.sessionId, window: target.window },
           delivered: delivery.delivered,
-          watched: delivery.delivered && errId ? (opts.watchDelaysMin ?? [8, 25, 50]) : false,
+          watched: delivery.delivered && errId ? (effOpts.watchDelaysMin ?? [8, 25, 50]) : false,
           note: delivery.delivered
             ? '已投递窗口 ' + target.window + '，处理结论将回复在该窗口会话' + (errId ? '；收单盯梢已启动（未回写将自动催办）' : '')
             : (delivery.error || '投递未完成，请稍后重试')
