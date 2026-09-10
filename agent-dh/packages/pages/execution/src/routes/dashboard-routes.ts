@@ -107,19 +107,33 @@ export function createErrorActionHandler(opts: { osBaseURL: string; windowCode: 
   };
 }
 
-/** GET /dashboard/api/board/error-events?status=&source=&page=&pageSize=
+/** GET /dashboard/api/board/error-events?status=&source=&page=&pageSize=（兼容 limit=&offset=）
  * 错误事件分页浏览（浏览全部历史）：代理 Agent OS error-events 列表（offset=DB 偏移），
  * 附加状态计数（/stats）供 Tabs 显示。total=满足过滤条件的 DB 总数；counts=全量状态分布。
- * 200 {success,data:{events,total,page,pageSize,counts:{total,open,processing,resolved,ignored}}} */
+ * 200 {success,data:{events,total,page,pageSize,paging:{via},counts:{...}}}
+ *
+ * 2026-09-11（w-8f2c4cc5）：此前只认 page/pageSize，传 limit/offset 时**静默回落默认分页**
+ * （HTTP 200 且看不出异常），按 REST 惯例调用的一方会误判「分页失效、296 条只能看 10 条」。
+ * 现兼容 limit/offset 别名，并在响应 paging.via 中标出实际采用的口径。 */
 export function createErrorEventsHandler(opts: { osBaseURL: string }) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     try {
       const url = new URL(req.url ?? '/', 'http://x');
       const status = url.searchParams.get('status') ?? '';
       const source = url.searchParams.get('source') ?? '';
-      const page = Math.max(1, Number(url.searchParams.get('page') ?? 1) || 1);
-      const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('pageSize') ?? 10) || 10));
-      const offset = (page - 1) * pageSize;
+      const rawPage = url.searchParams.get('page');
+      const rawPageSize = url.searchParams.get('pageSize');
+      const rawLimit = url.searchParams.get('limit');
+      const rawOffset = url.searchParams.get('offset');
+
+      const pageSize = Math.min(100, Math.max(1, Number(rawPageSize ?? rawLimit ?? 10) || 10));
+      // offset 别名优先于 page：直接使用调用方给的 DB 偏移，避免非整除时被 page 取整改变语义
+      const usingOffsetAlias = rawOffset !== null && rawPage === null;
+      const offset = usingOffsetAlias
+        ? Math.max(0, Number(rawOffset) || 0)
+        : (Math.max(1, Number(rawPage ?? 1) || 1) - 1) * pageSize;
+      const page = Math.floor(offset / pageSize) + 1;
+      const pagingVia = usingOffsetAlias ? 'limit/offset' : 'page/pageSize';
 
       const qs = new URLSearchParams();
       if (status) qs.set('status', status);
@@ -156,7 +170,7 @@ export function createErrorEventsHandler(opts: { osBaseURL: string }) {
           }
         } catch { /* counts 降级为仅 total */ }
       }
-      json(res, 200, { success: true, data: { events, total, page, pageSize, counts } });
+      json(res, 200, { success: true, data: { events, total, page, pageSize, paging: { via: pagingVia, offset }, counts } });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       json(res, 500, { success: false, error: msg });
