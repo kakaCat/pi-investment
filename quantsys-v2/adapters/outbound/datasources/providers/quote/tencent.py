@@ -97,7 +97,8 @@ class TencentQuoteProvider(QuoteProvider):
         [4] = 昨收 (prev_close)
         [5] = 今开 (open)
         [6] = 成交量手 (volume_lots)
-        [7] = 成交额万元 (amount_10k)
+        [7] = 外盘手 (outer_volume_lots，**不是成交额**)
+        [37] = 成交额万元 (amount_10k)
         [31] = 涨跌额 (change)
         [32] = 涨跌幅% (change_pct)
         [33] = 最高 (high)
@@ -129,7 +130,8 @@ class TencentQuoteProvider(QuoteProvider):
             change = float(fields[31]) if len(fields) > 31 and fields[31] else 0.0
             change_pct = float(fields[32]) if len(fields) > 32 and fields[32] else 0.0
             volume = int(fields[6]) * 100  # Convert lots to shares
-            amount = float(fields[7]) * 10000  # Convert 万元 to 元
+            # [7] 是外盘手数，成交额在 [37]（2026-09-10 修正：原按 [7] 取值导致 amount 系统性偏大）
+            amount = float(fields[37]) * 10000 if len(fields) > 37 and fields[37] else 0.0
             open_price = float(fields[5]) if len(fields) > 5 and fields[5] else 0.0
 
             # prev_close, high, low (correct positions)
