@@ -180,6 +180,22 @@ describe('输出 schema 完整性护栏（additionalProperties:false 会静默�
   });
 });
 
+describe('kline_daily_sync 输出契约（做完了却报失败）', () => {
+  it('后端 total_stocks/elapsed_time 归一化为声明字段，且不含未声明键', async () => {
+    const { KlineDailySyncTool } = await import('../packages/data-manager/src/tools/KlineDailySyncTool/KlineDailySyncTool.js');
+    const { klineDailySyncPrompt } = await import('../packages/data-manager/src/tools/KlineDailySyncTool/prompt.js');
+    // 2026-09-11 真实后端响应
+    const backend = { success: true, sync_date: '2026-09-10', success_count: 1, failed_count: 0, total_stocks: 1, total_rows: 1, elapsed_time: 0.201081, message: 'ok', failed_symbols: [] };
+    const tool: any = new KlineDailySyncTool({ syncDailyKlines: vi.fn().mockResolvedValue(backend) } as any);
+    const r: any = await tool.execute({ date: '2026-09-10', symbols: ['000300'] }, ctx);
+    expect(r.total_symbols).toBe(1);
+    expect(r.duration_seconds).toBeCloseTo(0.201, 3);
+    expect(r.backend_success).toBe(true);
+    expect((klineDailySyncPrompt as any).output.schema.additionalProperties).toBe(false);
+    expect(undeclaredKeys((klineDailySyncPrompt as any).output.schema, r)).toEqual([]);
+  });
+});
+
 describe('signal_track 写入护栏（决策账本防污染）', () => {
   const load = async () => {
     const { SignalTrackTool } = await import('../packages/intelligence/src/tools/SignalTrackTool/SignalTrackTool.js');

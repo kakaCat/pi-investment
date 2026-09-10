@@ -53,6 +53,9 @@ export const klineDailySyncPrompt: ToolPrompt<KlineDailySyncParams, KlineDailySy
         failed_symbols: { type: 'array', items: { type: 'string' } },
         duration_seconds: { type: 'number' },
         message: { type: 'string' },
+        // 2026-09-11（REQ-342799）：additionalProperties:false 下必须声明，否则校验失败
+        total_rows: { type: 'number' },
+        backend_success: { type: 'boolean' },
       },
     },
   },

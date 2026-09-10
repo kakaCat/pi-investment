@@ -86,7 +86,7 @@ export class KlineDailySyncTool extends BaseTool<KlineDailySyncParams, KlineDail
           '）: ' +
           String(response.success_count ?? 0) +
           '/' +
-          String(response.total_symbols ?? 0) +
+          String(response.total_stocks ?? response.total_symbols ?? 0) +
           ' 成功，' +
           String(response.failed_count) +
           ' 失败' +
@@ -95,7 +95,23 @@ export class KlineDailySyncTool extends BaseTool<KlineDailySyncParams, KlineDail
       );
     }
 
-    return response as KlineDailySyncResult;
+    // 2026-09-11 修复（REQ-342799 P3）：后端契约是 {success, sync_date, success_count, failed_count,
+    // total_stocks, total_rows, elapsed_time, message, failed_symbols}，而本工具 output.schema 为
+    // additionalProperties:false 且声明的是 total_symbols/duration_seconds/skipped_count ——
+    // 直接透传 → DSH 输出校验报「value.success is not a declared property」，工具明明做完了事却报失败
+    // （实测同步 000300 已写入成功，调用方却收到错误）。此处显式归一化到声明字段。
+    return {
+      sync_date: String(response?.sync_date ?? requestParams.date ?? ''),
+      total_symbols: Number(response?.total_stocks ?? response?.total_symbols ?? 0),
+      success_count: Number(response?.success_count ?? 0),
+      failed_count: Number(response?.failed_count ?? 0),
+      skipped_count: Number(response?.skipped_count ?? 0),
+      failed_symbols: Array.isArray(response?.failed_symbols) ? response.failed_symbols : [],
+      duration_seconds: Number(response?.elapsed_time ?? response?.duration_seconds ?? 0),
+      message: String(response?.message ?? ''),
+      total_rows: Number(response?.total_rows ?? 0),
+      backend_success: response?.success === true,
+    } as KlineDailySyncResult;
   }
 
   protected wrap(data: KlineDailySyncResult, context: ToolContext): ToolResponse<KlineDailySyncResult> {
