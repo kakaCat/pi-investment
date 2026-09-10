@@ -125,3 +125,31 @@ agent 的零星实时取数会把 max 顶到当天，于是判定"K 线已新鲜
   `amount=0` 的另一批行），本窗口未擅自改写别人的数据，**待用户决策**：
   `UPDATE quant.daily_klines SET amount = round(amount/100.0, 2) WHERE source='sina-volsync-20260910' AND amount > volume*close*20;`
   （谓词自限：修正后不再命中，可安全重跑、并发重入不会二次除）。
+
+**已执行修正（22:14，psql 实测）**：该 source 的 amount 错误是**双向**的——
+
+| 情况 | 行数 | 处置 | 修正后校验 |
+|---|---|---|---|
+| amount = volume×close×**100** | 4922（472 只，07-24~09-10） | ÷100 | 688065 09-10：18,689,976,360 → **186,899,764** = 4,719,691×39.6 分毫不差 |
+| amount = volume×close/**100** | 129 | ×100 | 601600 09-02：13,263,002 → 1,326,300,259 = 138,156,277×9.6 |
+| amount = 0 | 80606 | **未动** | 属并行窗口 vol_fix_noamount*.py 在办的 volume 单位修复范围 |
+| amount IS NULL | 8 | **未动** | 同上 |
+
+修正后该 source 全部 5217 行 `amount/volume == close`。
+判别方法（可复用）：**先用 `volume×close/市值` 的换手率分位数跨 source 交叉验证谁错**
+（本 source 中位 0.74% vs sina 1.32% vs tencent 1.16% → volume 对、amount 错），
+再用 `amount/volume÷close` 的比值（100 或 0.01）确认方向。
+留痕：decision_audit DEC-20260910221628-61416101、memory(a76837cd)、公告板 8af83e82。
+
+## 8. 收尾（2026-09-10 22:16）
+
+| 项 | 状态 |
+|---|---|
+| K线三处 SQL 缺陷 + 失败上抛 | 已修，commit `41f19484`（含并行窗口覆盖率门贡献） |
+| `freshness_guard` 基准日改"前一交易日" | 已修，commit `a3aa451f`；5001 已重启（PID 93006 @ 22:15:32）加载 |
+| 基准日实测复核 | 旧基准=当天 09-10：5290 只覆盖 5264（99.5%）→ fresh；新基准=前一交易日 09-09：5266（99.5%）→ fresh；`factor_values` 最新 09-10 ≥ 基准 → **双基准下均不误报**（差异只在 17:20 这种 EOD 未落库的时刻显现） |
+| amount 双向 100 倍修正 | 已修（见第 7 节），已留痕 |
+| 本文档 | commit `35340f92`（本次续修另计） |
+
+**唯一遗留**：`data_quality_report(kline)` 对停摆型缺口假阴性（覆盖率口径不统一），
+建议后续纳入同一套 `_kline_coverage` 口径。
