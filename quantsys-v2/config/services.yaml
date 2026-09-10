@@ -81,6 +81,16 @@ repositories:
     lifecycle: singleton
     description: '风险数据仓库'
 
+  # 资金流 / 博弈情报（2026-09-10 补注册，w-23c70356）
+  # 缺失导致 GameAlertService→OpponentBehaviorService 构造时
+  # EnhancedServiceFactory.resolve(IFundFlowRepository) 抛 "Service not registered"，
+  # /api/alerts/check 返回 500、market_alert 工具不可用
+  fund_flow:
+    interface: domain.ports.IFundFlowRepository
+    implementation: adapters.outbound.repositories.FundFlowORMRepository
+    lifecycle: singleton
+    description: '个股资金流仓库（quant.stock_fund_flow，金额单位万元）'
+
 # Application 服务层
 services:
   # 缠论相关

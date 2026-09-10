@@ -21,6 +21,8 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, date, time
 from enum import Enum
 
+from sqlalchemy.orm.attributes import flag_modified
+
 from infrastructure.persistence.orm import get_session
 from infrastructure.persistence.orm.models.orchestrator import DailyOrchestratorState
 from application.services.agent_notification_service import agent_service
@@ -644,10 +646,19 @@ class DailyOrchestrator:
         )
 
     def _update_context(self, state: DailyOrchestratorState, data: Dict):
-        """更新运行上下文"""
-        context = state.context or {}
+        """更新运行上下文
+
+        修复（2026-09-10，w-23c70356）：原实现 `context = state.context or {}` 后原地
+        update 再把同一个对象赋回，SQLAlchemy 对普通 JSON 列判定"值未变"→ 不发 UPDATE，
+        上下文静默丢失。实证：daily_review_notified 永远写不进 quant.daily_orchestrator_state
+        （该行 updated_at 有 onupdate 却一直不推进），导致 REVIEW 阶段幂等门失效、
+        每次 tick / 每次进程重启 resume 都重复唤醒 Agent 做复盘。
+        改为重建 dict + flag_modified 显式标脏，保证落库。
+        """
+        context = dict(state.context or {})
         context.update(data)
         state.context = context
+        flag_modified(state, 'context')
         self.session.commit()
 
     # ==================== Agent 通知 ====================
