@@ -18,7 +18,7 @@ from application.strategies.strategy_factory import StrategyFactory
 from application.strategies.v13_config import V13_CONFIG
 from application.strategies.v14_config import V14_CONFIG
 from domain.strategies.value_objects import StrategyConfig
-from utils.feishu_notifier import create_notifier_from_config
+from application.notification import get_notification_facade
 
 __all__ = ["StrategyExecutor"]
 
@@ -45,7 +45,7 @@ class StrategyExecutor:
             position_repo: Position repository forwarded to the use case.
             engine: Trading engine; when it exposes a dict ``config``
                 attribute, that config provides the Feishu section for
-                :func:`create_notifier_from_config`.
+                :func:`get_notification_facade`.
         """
         self.trader = trader
         self.position_repo = position_repo
@@ -138,12 +138,8 @@ class StrategyExecutor:
         ``feishu`` section), then the strategy config's ``params['feishu']``,
         then an empty config (notifier disabled).
         """
-        engine_config = getattr(self.engine, "config", None)
-        if isinstance(engine_config, dict):
-            return create_notifier_from_config(engine_config)
-
-        feishu_params = config.params.get("feishu") if config.params else None
-        if isinstance(feishu_params, dict):
-            return create_notifier_from_config({"feishu": feishu_params})
-
-        return create_notifier_from_config({})
+        # 2026-09-11（w-23c70356）：原按 config 构造 utils.feishu_notifier.FeishuNotifier
+        # （直连 webhook 的旁路）。该类已删除，通知统一走 NotificationFacade，
+        # 由 NotificationPolicy 决定「Agent OS 优先、飞书降级」，不再依赖 config 里的 feishu 段。
+        del config  # 参数保留以兼容既有调用签名
+        return get_notification_facade()

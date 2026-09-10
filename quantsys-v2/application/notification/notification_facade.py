@@ -427,6 +427,77 @@ class NotificationFacade:
         result = self.service.send(notification)
         return result.success
 
+    # ============ 策略/风控（原 utils/feishu_notifier 直连实现的收敛点） ============
+
+    def send_rebalance_notification(self, report_data: Dict[str, Any]) -> ChannelResult:
+        """发送调仓通知（REBALANCE）
+
+        2026-09-11（w-23c70356）：`utils/feishu_notifier.py`（自行 requests.post
+        飞书 webhook 的旁路实现）已删除，策略层调仓通知统一收敛到门面。
+
+        Args:
+            report_data: {date, positions, top_stocks:[(symbol,score,weight,reason)],
+                          buy_trades:[(symbol,qty,price)], sell_trades:[...]}
+        """
+        date = report_data.get('date') or ''
+        lines = [
+            f"**日期**：{date or '-'}",
+            f"**持仓数**：{report_data.get('positions', '-')}",
+        ]
+
+        buy_trades = report_data.get('buy_trades') or []
+        sell_trades = report_data.get('sell_trades') or []
+        if buy_trades:
+            lines.append('')
+            lines.append('**买入**')
+            lines.extend(f"- {s} {q}股 @ {p}" for s, q, p in buy_trades)
+        if sell_trades:
+            lines.append('')
+            lines.append('**卖出**')
+            lines.extend(f"- {s} {q}股 @ {p}" for s, q, p in sell_trades)
+
+        top_stocks = report_data.get('top_stocks') or []
+        if top_stocks:
+            lines.append('')
+            lines.append('**候选标的**')
+            for item in top_stocks[:8]:
+                try:
+                    symbol, score, weight, reason = item
+                    lines.append(f"- {symbol} 评分 {score} 权重 {weight} {reason or ''}".rstrip())
+                except (TypeError, ValueError):
+                    lines.append(f"- {item}")
+
+        notification = Notification(
+            notification_type=NotificationType.REBALANCE,
+            title=f"🔁 调仓通知 {date}".rstrip(),
+            content='\n'.join(lines),
+            variables={'date': date},
+            priority=NotificationPriority.NORMAL,
+        )
+        return self.service.send(notification)
+
+    def send_risk_alert(self, report_data: Dict[str, Any]) -> ChannelResult:
+        """发送盘中风险告警（RISK_ALERT）
+
+        2026-09-11（w-23c70356）：同 send_rebalance_notification，原直连实现已收敛。
+
+        Args:
+            report_data: {trigger: 触发原因, losing_stocks: [symbol, ...]}
+        """
+        losing = report_data.get('losing_stocks') or []
+        content = f"**触发原因**：{report_data.get('trigger', '-')}"
+        if losing:
+            content += '\n\n**涉及标的**：' + '、'.join(str(s) for s in losing)
+
+        notification = Notification(
+            notification_type=NotificationType.RISK_ALERT,
+            title='🚨 盘中风控告警',
+            content=content,
+            variables={'trigger': report_data.get('trigger')},
+            priority=NotificationPriority.HIGH,
+        )
+        return self.service.send(notification)
+
     # ==================== 诊断方法 ====================
 
     def get_available_channels(self) -> List[str]:

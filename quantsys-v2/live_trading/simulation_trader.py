@@ -941,15 +941,18 @@ class SimulationTrader:
             # 9. 生成报告
             # self.generate_daily_report(current_date)  # 暂时注释，ORM Repository缺少get_latest_report
 
-            # 10. 发送飞书通知
-            if self.feishu_notifier:
-                self._send_rebalance_notification(
-                    current_date,
-                    top_stocks,
-                    weights,
-                    latest_factors,
-                    total_value
-                )
+            # 10. 发送飞书通知（2026-09-11 w-23c70356）
+            # 原写法 `if self.feishu_notifier:` 的 self.feishu_notifier 全仓从未被赋值
+            # （本类实际用的是 self.notification_facade，见 __init__ 与 _send_rebalance_notification），
+            # 该分支一旦进入即 AttributeError —— 残留死代码，直接删除；
+            # _send_rebalance_notification 内部已用 notification_facade 自守卫。
+            self._send_rebalance_notification(
+                current_date,
+                top_stocks,
+                weights,
+                latest_factors,
+                total_value
+            )
 
             logger.info("\n调仓完成\n")
 

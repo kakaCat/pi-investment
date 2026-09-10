@@ -215,13 +215,16 @@ class AgentChannel(NotificationChannel):
             return ChannelResult.error(error_msg)
 
         except requests.exceptions.ReadTimeout:
-            # 响应超时：请求可能已送达，OS 正在处理
+            # 2026-09-11（w-23c70356）语义修正：原返回 ChannelResult.timeout()（success=True）
+            # 会让 NotificationService 认为已送达并**跳过飞书降级**——对告警类通知而言漏发比重复
+            # 更严重（OS 网关实测 <1s，>timeout 属病态），故如实报 error，交由策略降级下一渠道。
+            error_msg = "Agent OS 响应超时（未能确认送达，降级下一渠道）"
             logger.warning(
-                "Agent OS 响应超时（可能已送达）",
+                error_msg,
                 notification_id=notification.notification_id,
                 timeout=self.timeout
             )
-            return ChannelResult.timeout("Agent OS 响应超时（可能已送达）")
+            return ChannelResult.error(error_msg)
 
         except requests.exceptions.ConnectionError as e:
             error_msg = f"无法连接到 Agent OS: {self.agent_url}"

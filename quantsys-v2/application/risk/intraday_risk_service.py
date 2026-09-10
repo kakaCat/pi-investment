@@ -16,7 +16,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from utils.feishu_notifier import create_notifier_from_config
+from application.notification import get_notification_facade
 
 __all__ = ["IntradayRiskService"]
 
@@ -58,7 +58,8 @@ class IntradayRiskService:
         )
 
         self.account_name = getattr(engine, "account_name", None) or "default"
-        self.feishu_notifier = create_notifier_from_config(self._config)
+        # 2026-09-11（w-23c70356）：统一走 NotificationFacade（原直连旁路已删除）
+        self.feishu_notifier = get_notification_facade()
 
     # ------------------------------------------------------------------
     # Public API

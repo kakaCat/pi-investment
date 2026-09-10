@@ -122,15 +122,15 @@ def test_send_connection_error_is_reported_not_raised(monkeypatch):
     assert "os.test:8080" in result.message
 
 
-def test_send_read_timeout_marks_maybe_delivered(monkeypatch):
+def test_send_read_timeout_triggers_fallback(monkeypatch):
+    """读超时必须报错（而非 success），否则 NotificationService 不会降级飞书。"""
     def boom(*a, **k):
         raise requests.exceptions.ReadTimeout("read timed out")
 
     monkeypatch.setattr(requests, "post", boom)
     result = _channel().send(_notification())
-    # 超时语义：可能已送达 → success=True 但 delivered=False，避免上层重复发送
-    assert result.success is True
-    assert result.delivered is False
+    assert result.success is False
+    assert "降级下一渠道" in result.message
 
 
 def test_healthcheck_hits_agent_os_health(monkeypatch):

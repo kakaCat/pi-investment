@@ -8,8 +8,7 @@ def _make_trader(**kwargs):
     """在 mock 重依赖的前提下构造 SimulationTrader"""
     with patch('live_trading.simulation_trader.DataService'), \
          patch('live_trading.simulation_trader.get_engine', return_value=MagicMock()), \
-         patch('live_trading.simulation_trader.SimulationORMRepository') as MockRepo, \
-         patch('live_trading.simulation_trader.create_notifier_from_config', return_value=None):
+         patch('live_trading.simulation_trader.SimulationORMRepository') as MockRepo:
         MockRepo.return_value.get_account.return_value = None
         from live_trading.simulation_trader import SimulationTrader
         trader = SimulationTrader(**kwargs)

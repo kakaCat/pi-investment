@@ -25,7 +25,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from domain.strategies.value_objects import Order, OrderSide, StrategyConfig
 from domain.strategies.xgboost_strategy import XGBoostStrategy
-from utils.feishu_notifier import create_notifier_from_config
+from application.notification import get_notification_facade
 
 from application.strategies.v13_config import V13_CONFIG
 
@@ -58,8 +58,8 @@ class XGBoostStrategyUseCase:
         Args:
             trader: Execution adapter (duck-typed: ``execute_order(order)``
                 or ``buy/sell(symbol, quantity, price)``).
-            feishu_notifier: ``FeishuNotifier`` instance or None. Build one
-                from app config via :func:`create_notifier_from_config`.
+            feishu_notifier: ``NotificationFacade`` instance or None. Build one
+                via :func:`get_notification_facade`.
             position_repo: Position repository exposing
                 ``get_all_positions(account_name)``.
             account_name: Account identifier used for positions and audit.
@@ -86,7 +86,8 @@ class XGBoostStrategyUseCase:
         **kwargs: Any,
     ) -> "XGBoostStrategyUseCase":
         """Build a use case from an app config dict (Feishu section included)."""
-        notifier = create_notifier_from_config(config)
+        # 2026-09-11（w-23c70356）：通知统一经 NotificationFacade（原 utils/feishu_notifier 直连已删除）
+        notifier = get_notification_facade()
         return cls(
             trader=trader,
             feishu_notifier=notifier,

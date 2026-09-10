@@ -124,3 +124,47 @@ def test_watch_direct_mode_keeps_feishu(monkeypatch):
         message="突破", notify_mode="direct")
 
     assert captured[0].preferred_channels == ["feishu"]
+
+
+# ==================== 旁路清理（2026-09-11 第二轮：残留直接删除） ====================
+
+def test_direct_webhook_notifier_is_gone():
+    """utils/feishu_notifier.py（自行 POST 飞书 webhook 的旁路）不应复活。"""
+    import importlib
+
+    import pytest
+
+    with pytest.raises(ImportError):
+        importlib.import_module("utils.feishu_notifier")
+
+
+def test_facade_send_rebalance_notification(monkeypatch):
+    facade, captured = _capture_facade_notifications(monkeypatch)
+
+    facade.send_rebalance_notification({
+        "date": "2026-09-10",
+        "positions": 2,
+        "top_stocks": [("600519", 0.91, 0.15, "(¥1500.00，买入)")],
+        "buy_trades": [("600519", 100, 1500.0)],
+        "sell_trades": [("000001", 200, 11.5)],
+    })
+
+    notification = captured[0]
+    assert notification.notification_type.value == "rebalance"
+    assert notification.preferred_channels == []          # 交给策略选渠道（OS 优先）
+    assert "600519" in notification.content
+    assert "000001" in notification.content
+    assert "2026-09-10" in notification.title
+
+
+def test_facade_send_risk_alert_is_high_priority(monkeypatch):
+    facade, captured = _capture_facade_notifications(monkeypatch)
+
+    facade.send_risk_alert({"trigger": "回撤触发", "losing_stocks": ["600887"]})
+
+    notification = captured[0]
+    assert notification.notification_type.value == "risk_alert"
+    assert notification.priority.value == "high"
+    assert "回撤触发" in notification.content
+    assert "600887" in notification.content
+

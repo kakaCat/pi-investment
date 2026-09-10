@@ -61,3 +61,25 @@
 - 记忆：memory_write（namespace=experience）
 - 通知：feishu_notify（R-010）
 - 提交：本轮仅提交本次改动文件（见 commit）。
+
+
+## 六、残留清理（第二轮：用户指令「残留 直接删除」）
+
+原第五节列的 3 项残留，按「能删就删」处理：
+
+1. **直连旁路已删除**（残留①）：删除 `utils/feishu_notifier.py`（自行 `requests.post` 飞书 webhook 的平行实现）与 `scripts/test_feishu_notification.py`（其唯一用途是手测裸 webhook，随实现一并作废）。调用方全部迁移到门面：
+   - `application/strategies/v13_use_case.py`：`create_notifier_from_config(config)` → `get_notification_facade()`
+   - `application/strategies/strategy_executor.py::_create_notifier`：不再读 config 的 feishu 段，直接返回门面（保留参数签名）
+   - `application/risk/intraday_risk_service.py`：`self.feishu_notifier` → 门面（其 `send_text`/`send_risk_alert` 调用点不变）
+   - `live_trading/simulation_trader.py`：删除 `if self.feishu_notifier:` 死门（该属性**全仓从未被赋值**，进入即 AttributeError；本类真正的发送对象是 `self.notification_facade`，见 156/1607 行），改由方法内部自守卫
+   - `tests/test_strategy_service_unified.py`：去掉对已删除符号 `create_notifier_from_config` 的 patch（该文件另有既有的模块属性漂移失败，与本轮无关）
+2. **门面补齐两个方法**（CLAUDE.md：新通知类型必须先扩门面）：`NotificationFacade.send_rebalance_notification(report_data)`（`NotificationType.REBALANCE`）与 `send_risk_alert(report_data)`（`NotificationType.RISK_ALERT`，HIGH），两者都不设 `preferred_channels` → 交给 NotificationPolicy 走 OS 优先。
+3. **超时抑制已删除**（残留②）：`AgentChannel` 读超时由 `ChannelResult.timeout()`（success=True，会导致**跳过飞书降级**）改为 `ChannelResult.error()` → 如实降级下一渠道。取舍：OS 网关实测 <1s，>timeout 属病态；告警类「漏发比重复更严重」，故宁可降级可能重复。
+4. **残留③（`AgentNotificationService` 的 `/wake`）保留**：其语义是「唤醒 Agent 处理事件」而有别于「投递通知」，被 7 个服务使用（watch_engine/intraday_monitor/daily_orchestrator/market_monitor_scheduler/strategy_rotation_engine/scheduler_tasks/agent_scheduler_tool），端点实测存在（无 token 401）。删除会打断盯盘唤醒链路——这不是残留，是另一条语义通道。
+
+验证（本轮增量）：
+- 单测：通知相关 **68 passed**（新增 3 项：旁路模块不可导入、rebalance 通知、risk 告警 HIGH；超时用例改为断言降级）。
+- 真实 import：`v13_use_case` / `strategy_executor` / `intraday_risk_service` / `simulation_trader` / `notification_facade` 全部 IMPORT_OK；门面新方法存在性实测 True。
+- 全仓 grep `utils.feishu_notifier | FeishuNotifier | create_notifier_from_config` = 仅剩注释与文档字符串，无代码引用。
+- qv2 重启，health ok。
+
