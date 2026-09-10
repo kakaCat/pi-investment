@@ -110,6 +110,7 @@ func (r *errorEventRepository) Upsert(ctx context.Context, in domain.ErrorEventU
 			if err2 != nil {
 				return nil, false, fmt.Errorf("failed to update existing error event: %w", err2)
 			}
+			r.applyEnvNoisePolicy(ctx, e)
 			return e, false, nil
 		}
 		query = "UPDATE error_events SET occurrence_count = occurrence_count + 1, last_seen_at = NOW(), updated_at = NOW() WHERE fingerprint = $1 RETURNING " + errorEventColumns
@@ -118,6 +119,7 @@ func (r *errorEventRepository) Upsert(ctx context.Context, in domain.ErrorEventU
 		if err2 != nil {
 			return nil, false, fmt.Errorf("failed to update existing error event: %w", err2)
 		}
+		r.applyEnvNoisePolicy(ctx, e)
 		return e, false, nil
 	}
 	if err != sql.ErrNoRows {
@@ -136,6 +138,7 @@ func (r *errorEventRepository) Upsert(ctx context.Context, in domain.ErrorEventU
 		}
 		return nil, false, fmt.Errorf("failed to create error event: %w", err)
 	}
+	r.applyEnvNoisePolicy(ctx, e)
 	return e, true, nil
 }
 

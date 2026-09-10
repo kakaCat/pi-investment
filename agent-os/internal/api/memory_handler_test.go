@@ -30,6 +30,16 @@ func (m *MockMemoryWebRepository) List(ctx context.Context, req domain.MemoryLis
 	return args.Get(0).([]*domain.MemoryWeb), args.Error(1)
 }
 
+// GetByID 补齐 MemoryWebRepository 接口（2026-09-11，w-f4aa1f6a）：
+// 接口新增 GetByID 后本 mock 未同步，导致 go test ./internal/api 在 HEAD 上编译失败。
+func (m *MockMemoryWebRepository) GetByID(ctx context.Context, id string, includeClosed bool) (*domain.MemoryWeb, error) {
+	args := m.Called(ctx, id, includeClosed)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.MemoryWeb), args.Error(1)
+}
+
 func (m *MockMemoryWebRepository) Search(ctx context.Context, req domain.MemorySearchRequest) ([]*domain.MemoryWeb, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {

@@ -94,6 +94,46 @@ func TestClassifyLogLine_AcceptsError(t *testing.T) {
 	}
 }
 
+// 成功访问日志不得采为错误（2026-09-11 w-f4aa1f6a）
+// 实证误报：GET /api/market/perception/panic-index/series 200 —— URL 路径含 "panic"
+// 命中 errorLineRe 被收成事件并复发 7 次（事件 1d28d866）。
+func TestClassifyLogLine_RejectsSuccessfulAccessLine(t *testing.T) {
+	cases := []string{
+		`INFO:     127.0.0.1:54841 - "GET /api/market/perception/panic-index/series?days=30 HTTP/1.1" 200 OK`,
+		`INFO:     127.0.0.1:54841 - "GET /api/error-events/1d28d866 HTTP/1.1" 200 OK`,
+		`INFO:     127.0.0.1:54841 - "POST /api/scheduler/error-events HTTP/1.1" 201 Created`,
+		`INFO:     127.0.0.1:54841 - "GET /api/x HTTP/1.1" 304 Not Modified`,
+	}
+	for _, ln := range cases {
+		if msg, ok := classifyLogLine(ln, "v2"); ok {
+			t.Errorf("成功访问日志被误采为事件（msg=%q）: line=%s", msg, ln)
+		}
+	}
+}
+
+// 失败的访问日志仍须采集（不能因噎废食）
+func TestClassifyLogLine_KeepsFailedAccessLine(t *testing.T) {
+	cases := []struct {
+		line string
+		want bool
+	}{
+		{`INFO:     127.0.0.1:63159 - "GET /api/signals HTTP/1.1" 500 Internal Server Error`, true},
+		{`INFO:     127.0.0.1:63159 - "GET /api/backtest/results HTTP/1.1" 500 Internal Server Error`, true},
+		// 4xx 且不含 error 关键字的行本来就不采（既有行为，本次未改）；
+		// 本次 guard 只拦 2xx/3xx，故 4xx 含关键字的行必须仍然采集。
+		{`INFO:     127.0.0.1:63159 - "GET /api/nope HTTP/1.1" 404 Not Found`, false},
+		{`INFO:     127.0.0.1:63159 - "PATCH /api/x HTTP/1.1" 409 Conflict - resource error`, true},
+		// 非访问日志行不受影响
+		{`2026-09-10 02:06:11 ERROR    main: Task 251 not found in scheduler_tasks`, true},
+	}
+	for _, c := range cases {
+		_, ok := classifyLogLine(c.line, "v2")
+		if ok != c.want {
+			t.Errorf("访问日志判定错误：want=%v got=%v line=%s", c.want, ok, c.line)
+		}
+	}
+}
+
 // 稳定 msg：同源同错误指纹稳定（去重依赖），不得含 timestamp/trace_id 等易变字段
 func TestClassifyLogLine_StableMsg(t *testing.T) {
 	ln := `{"event": "boom", "logger": "job.worker", "level": "error", "error": "connection refused", "trace_id": "abc123", "timestamp": "2026-09-10T02:00:00Z"}`

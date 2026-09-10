@@ -10,6 +10,13 @@ import structlog
 
 from infrastructure.persistence.orm.async_config import get_async_session_context
 
+# 2026-09-11 修复（w-f4aa1f6a）：IAsyncKlineRepository 是 domain 层 ABC 端口，
+# 直接 IAsyncKlineRepository(session) 会抛 "takes no arguments"，导致
+# DataAsyncService.get_klines / get_latest_price 静默返回空
+#（实证：error_event 8957c9b8，2026-09-11 01:17:12，core_async_services.py:155）。
+# 端口对应的异步实现是 DailyKlineAsyncRepository（其日期过滤已正确处理可选参数）。
+from adapters.outbound.repositories.stock_async_repository import DailyKlineAsyncRepository
+
 logger = structlog.get_logger(__name__)
 
 
@@ -152,7 +159,7 @@ class DataAsyncService:
         """获取K线数据"""
         try:
             async with get_async_session_context() as session:
-                kline_repo = IAsyncKlineRepository(session)
+                kline_repo = DailyKlineAsyncRepository(session)
                 klines = await kline_repo.get_klines(symbol, start_date, end_date, limit)
                 return klines
         except Exception as e:
@@ -163,7 +170,7 @@ class DataAsyncService:
         """获取最新价格"""
         try:
             async with get_async_session_context() as session:
-                kline_repo = IAsyncKlineRepository(session)
+                kline_repo = DailyKlineAsyncRepository(session)
                 latest = await kline_repo.get_latest_kline(symbol)
                 return latest.get('close') if latest else None
         except Exception as e:

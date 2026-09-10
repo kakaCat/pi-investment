@@ -35,6 +35,16 @@ func (m *mockMemoryWebRepository) Search(ctx context.Context, req domain.MemoryS
 	return []*domain.MemoryWeb{}, nil
 }
 
+// GetByID 补齐 MemoryWebRepository 接口（2026-09-11，w-f4aa1f6a）：
+// 接口新增 GetByID 后本 mock 未同步，导致 go test ./internal/api 在 HEAD 上就编译失败
+// （vet: *mockMemoryWebRepository does not implement repository.MemoryWebRepository）。
+func (m *mockMemoryWebRepository) GetByID(ctx context.Context, id string, includeClosed bool) (*domain.MemoryWeb, error) {
+	if mem, ok := m.memories[id]; ok {
+		return mem, nil
+	}
+	return nil, nil
+}
+
 func (m *mockMemoryWebRepository) Create(ctx context.Context, req domain.MemoryCreateRequest) (*domain.MemoryWeb, error) {
 	mem := &domain.MemoryWeb{
 		Title:   req.Title,
@@ -49,11 +59,11 @@ func (m *mockMemoryWebRepository) Update(ctx context.Context, id string, req dom
 		mem = &domain.MemoryWeb{Title: "test", Content: "original"}
 		m.memories[id] = mem
 	}
-	
+
 	if req.Content != nil {
 		mem.Content = *req.Content
 	}
-	
+
 	return mem, nil
 }
 
@@ -78,29 +88,29 @@ func (m *mockMemoryWebRepository) DeleteTag(ctx context.Context, name string) er
 func TestMemoryUpdate(t *testing.T) {
 	repo := newMockMemoryWebRepository()
 	handler := NewMemoryHandler(repo)
-	
+
 	router := mux.NewRouter()
 	router.HandleFunc("/memory/{id}", handler.Update).Methods("PATCH")
-	
+
 	newContent := "updated content"
 	reqBody := domain.MemoryUpdateRequest{
 		Content: &newContent,
 	}
 	bodyBytes, _ := json.Marshal(reqBody)
-	
+
 	req := httptest.NewRequest("PATCH", "/memory/test-id", bytes.NewReader(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(w, req)
-	
+
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
-	
+
 	var resp map[string]interface{}
 	json.NewDecoder(w.Body).Decode(&resp)
-	
+
 	if !resp["success"].(bool) {
 		t.Error("Expected success=true")
 	}
@@ -110,32 +120,32 @@ func TestMemoryUpdate(t *testing.T) {
 func TestMemoryDelete(t *testing.T) {
 	repo := newMockMemoryWebRepository()
 	handler := NewMemoryHandler(repo)
-	
+
 	router := mux.NewRouter()
 	router.HandleFunc("/memory/{id}", handler.Delete).Methods("DELETE")
-	
+
 	reqBody := domain.MemoryDeleteRequest{
 		Reason: "test deletion",
 	}
 	bodyBytes, _ := json.Marshal(reqBody)
-	
+
 	req := httptest.NewRequest("DELETE", "/memory/test-id", bytes.NewReader(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(w, req)
-	
+
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
-	
+
 	var resp map[string]interface{}
 	json.NewDecoder(w.Body).Decode(&resp)
-	
+
 	if !resp["success"].(bool) {
 		t.Error("Expected success=true")
 	}
-	
+
 	if resp["message"].(string) != "memory deleted successfully" {
 		t.Errorf("Expected success message, got %s", resp["message"])
 	}
@@ -145,24 +155,24 @@ func TestMemoryDelete(t *testing.T) {
 func TestMemoryListWithIncludeClosed(t *testing.T) {
 	repo := newMockMemoryWebRepository()
 	handler := NewMemoryHandler(repo)
-	
+
 	router := mux.NewRouter()
 	router.HandleFunc("/memory", handler.List).Methods("GET")
-	
+
 	// Test without include_closed (default false)
 	req := httptest.NewRequest("GET", "/memory", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
-	
+
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
-	
+
 	// Test with include_closed=true
 	req = httptest.NewRequest("GET", "/memory?include_closed=true", nil)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
-	
+
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}

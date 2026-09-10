@@ -330,12 +330,19 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         try:
             normalized_symbol = self._normalize_symbol(symbol)
 
-            # 构建查询
+            # 构建查询（2026-09-11 修复 w-f4aa1f6a）：start/end 为 None 时不能作为
+            # 比较值使用——SQLAlchemy 会抛 "Only '=', '!=', 'is_()', ... can be used
+            # with None/True/False"，整条 K 线查询随之失败
+            #（实证：error_event 39510d03，2026-09-11 01:17:05，300677 日线获取失败）。
+            # 只在实际提供了边界时才加过滤条件。
             query = self.session.query(DailyKline).filter(
-                DailyKline.symbol == normalized_symbol,
-                DailyKline.trade_date >= start_date,
-                DailyKline.trade_date <= end_date
-            ).order_by(DailyKline.trade_date.asc())
+                DailyKline.symbol == normalized_symbol
+            )
+            if start_date:
+                query = query.filter(DailyKline.trade_date >= start_date)
+            if end_date:
+                query = query.filter(DailyKline.trade_date <= end_date)
+            query = query.order_by(DailyKline.trade_date.asc())
 
             # 执行查询
             klines = query.all()

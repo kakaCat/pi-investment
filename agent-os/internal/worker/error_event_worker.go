@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -426,12 +427,35 @@ func classifyLogLine(ln, source string) (string, bool) {
 	if jobSummarySucceededRe.MatchString(trimmed) && !jobSummaryFailureRe.MatchString(ln) {
 		return "", false
 	}
+	// uvicorn/FastAPI 访问日志：只有 4xx/5xx 才算错误（2026-09-11 w-f4aa1f6a）。
+	// 实证误报：GET /api/market/perception/panic-index/series 200 因 URL 路径里含
+	// "panic" 命中 errorLineRe，被采成 error 事件并复发 7 次（事件 1d28d866）——
+	// 接口名/查询串里的 error/panic 字样与"发生错误"无关。
+	if isSuccessfulAccessLine(trimmed) {
+		return "", false
+	}
 	re := errorLineRe(source)
 	// 剥掉零值错误计数后再判定（见 zeroErrorMetricRe 注释）
 	if !re.MatchString(zeroErrorMetricRe.ReplaceAllString(ln, "")) {
 		return "", false
 	}
 	return stripLogPrefix(ln), true
+}
+
+// uvicornAccessStatusRe 从 uvicorn/FastAPI 访问日志行提取响应码，形如：
+//
+//	INFO:     127.0.0.1:54841 - "GET /api/x?days=30 HTTP/1.1" 200 OK
+var uvicornAccessStatusRe = regexp.MustCompile(`"(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) [^"]*HTTP/\d(?:\.\d)?"\s+(\d{3})`)
+
+// isSuccessfulAccessLine 判断访问日志行是否为"成功"响应（2xx/3xx）。
+// 4xx 仍按错误采集（保留既有行为，避免过滤过宽把真问题一起丢掉）。
+func isSuccessfulAccessLine(line string) bool {
+	m := uvicornAccessStatusRe.FindStringSubmatch(line)
+	if m == nil {
+		return false
+	}
+	code, err := strconv.Atoi(m[1])
+	return err == nil && code < 400
 }
 
 // --- 解析辅助 ---
