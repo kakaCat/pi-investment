@@ -278,6 +278,14 @@ func (w *ErrorEventWorker) processLines(ctx context.Context, t LogTarget, lines 
 // reporter 启用行里的 error-events URL）也不是错误，直接跳过。
 var startupBannerRe = regexp.MustCompile(`(?i)(registered successfully|startup complete|Application startup complete|Uvicorn running|Agent OS 结构化错误上报已启用)`)
 
+// zeroErrorMetricRe 取值为 0 的"错误计数"字段：{'errors': 0} / failed=0 / error_count: 0 / 失败=0。
+// 这类"零失败汇总行"本身不是错误——判定前先在探针副本里剥掉，否则裸子串
+// v2ErrRe 会把汇总行里的 error 字样当错误。回归事件 363337b4：v2 daily_orchestrator
+// 每次 REVIEW 阶段都打 "决策打分完成: {'scanned': 0, ..., 'errors': 0}"，
+// 9-10 一天被误采 19 次（0 扫描空跑的 INFO 行）。
+// 只剥"为 0"的字段：非 0 计数（errors=3）与行内真正的 level 前缀（[error]/ERROR）不受影响。
+var zeroErrorMetricRe = regexp.MustCompile(`(?i)(['"]?(?:errors?|error_count|exceptions?|failures?|failed_count)['"]?\s*[:=]\s*0\b|失败\s*[:=]\s*0\b)`)
+
 // classifyLogLine 判定单行 v2/dsh 日志是否应收为 error 事件并提取稳定 msg。
 // 合法结构化 JSON：parseStructuredLogLine 内按 level 白名单（error/fatal/critical/exception）
 // 判定，非 error 级返回 false——绝不拿 JSON 内容去跑非结构化正则。
@@ -291,7 +299,8 @@ func classifyLogLine(ln, source string) (string, bool) {
 		return "", false
 	}
 	re := errorLineRe(source)
-	if !re.MatchString(ln) {
+	// 剥掉零值错误计数后再判定（见 zeroErrorMetricRe 注释）
+	if !re.MatchString(zeroErrorMetricRe.ReplaceAllString(ln, "")) {
 		return "", false
 	}
 	return stripLogPrefix(ln), true

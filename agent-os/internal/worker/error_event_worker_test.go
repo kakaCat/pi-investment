@@ -24,6 +24,12 @@ func TestClassifyLogLine_RejectsInfoWarningJSON(t *testing.T) {
 		// 启动 banner（无 level，含 exception/error 词但非错误）
 		`Exception handlers registered successfully`,
 		`Agent OS 结构化错误上报已启用 → http://127.0.0.1:8080/api/v1/scheduler/error-events`,
+		// 事件 363337b4 回归：v2 决策打分空跑的纯文本汇总行，只含 'errors': 0，
+		// 曾被 v2ErrRe 的 error 子串误采为 error 事件（9-10 共 19 次）
+		`决策打分完成: {'scanned': 0, 'scored': 0, 'skipped_unmature': 0, 'skipped_invalid': 0, 'errors': 0}`,
+		`决策打分完成: {'scanned': 0, 'scored': 0, 'errors': 0}`,
+		`batch summary: processed=12 error_count: 0 failed: 0`,
+		`任务完成: 失败=0 errors=0`,
 	}
 	for _, ln := range cases {
 		if msg, ok := classifyLogLine(ln, "v2"); ok {
@@ -39,6 +45,9 @@ func TestClassifyLogLine_AcceptsError(t *testing.T) {
 		`{"event": "boom", "logger": "worker", "level": "critical", "error": "panic in goroutine"}`,
 		`2026-09-10 02:06:11 ERROR    main: Task 251 not found in scheduler_tasks`,
 		`Traceback (most recent call last):`,
+		// 非 0 计数不得被剥：真失败仍要入库
+		`决策打分失败 errors=3 scanned=5`,
+		`batch summary: processed=12 errors=2`,
 	}
 	for _, ln := range cases {
 		msg, ok := classifyLogLine(ln, "v2")
