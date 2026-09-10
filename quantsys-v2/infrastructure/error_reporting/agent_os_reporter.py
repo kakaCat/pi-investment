@@ -118,6 +118,8 @@ _RE_HEX_LONG = re.compile(r"(?<![0-9a-zA-Z])[0-9a-fA-F]{16,}(?![0-9a-zA-Z])")
 _RE_HEX8 = re.compile(r"(?<![0-9a-zA-Z])[0-9a-fA-F]{8}(?![0-9a-zA-Z])")
 _RE_ISO_TS = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?")
 _RE_EPOCH_MS = re.compile(r"(?<!\d)\d{13,}(?!\d)")
+# 股票代码（入参差异不改变错误类别，2026-09-10 用户反馈：同模板仅 symbol 不同应合并）
+_RE_STOCK = re.compile(r"(?<![0-9a-zA-Z.])\d{6}(?:\.(?:SH|SZ|BJ))?(?![0-9a-zA-Z])", re.IGNORECASE)
 
 
 def normalize_msg(msg: str) -> str:
@@ -137,6 +139,7 @@ def normalize_msg(msg: str) -> str:
     s = _RE_HEX_LONG.sub("<hex>", s)
     s = _RE_HEX8.sub("<hex8>", s)
     s = _RE_EPOCH_MS.sub("<num>", s)
+    s = _RE_STOCK.sub("<sym>", s)
     return s
 
 

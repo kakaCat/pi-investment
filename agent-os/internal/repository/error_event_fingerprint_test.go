@@ -63,3 +63,19 @@ func TestValidateActionNote(t *testing.T) {
 		}
 	}
 }
+
+// 同模板仅股票代码不同 → 同指纹（2026-09-10：入参差异不应分行）
+func TestFingerprintOf_MergesBySymbol(t *testing.T) {
+	m1 := `{"event":"❌ 所有数据源都无法获取 600737.SH 的实时行情","trace_id":"aaaa1111","logger":"lg","timestamp":"2026-09-10T05:43:16Z"}`
+	m2 := `{"event":"❌ 所有数据源都无法获取 300750.SZ 的实时行情","trace_id":"bbbb2222","logger":"lg","timestamp":"2026-09-10T06:07:21Z"}`
+	m3 := `{"event":"别的错误模板","trace_id":"aaaa1111","logger":"lg"}`
+	if FingerprintOf("v2", "", m1) != FingerprintOf("v2", "", m2) {
+		t.Fatal("同模板异 symbol 应同指纹")
+	}
+	if FingerprintOf("v2", "", m1) == FingerprintOf("v2", "", m3) {
+		t.Fatal("异模板应异指纹")
+	}
+	if !strings.Contains(NormalizeMsg(m1), "<sym>") {
+		t.Fatal("symbol 应归一为 <sym>")
+	}
+}

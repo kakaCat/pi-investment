@@ -377,6 +377,7 @@ var (
 	reHexLong = regexp.MustCompile(`(^|[^0-9a-zA-Z])[0-9a-fA-F]{16,}([^0-9a-zA-Z]|$)`)
 	reHex8    = regexp.MustCompile(`(^|[^0-9a-zA-Z])[0-9a-fA-F]{8}([^0-9a-zA-Z]|$)`)
 	reEpochMs = regexp.MustCompile(`(^|[^\d])\d{13,}([^\d]|$)`)
+	reStock   = regexp.MustCompile(`(^|[^0-9a-zA-Z.])\d{6}(?:\.(?:SH|SZ|BJ|sh|sz|bj))?([^0-9a-zA-Z]|$)`)
 )
 
 var volatileJSONKeys = []string{"trace_id", "timestamp", "ts", "time", "request_id", "span_id", "run_id"}
@@ -397,9 +398,10 @@ func NormalizeMsg(msg string) string {
 	}
 	s = reUUID.ReplaceAllString(s, "<uuid>")
 	s = reISOTs.ReplaceAllString(s, "<ts>")
-	s = reHexLong.ReplaceAllString(s, "1<hex>2")
-	s = reHex8.ReplaceAllString(s, "1<hex8>2")
+	s = reHexLong.ReplaceAllString(s, "${1}<hex>${2}")
+	s = reHex8.ReplaceAllString(s, "${1}<hex8>${2}")
 	s = reEpochMs.ReplaceAllString(s, "${1}<num>${2}")
+	s = reStock.ReplaceAllString(s, "${1}<sym>${2}")
 	return s
 }
 
