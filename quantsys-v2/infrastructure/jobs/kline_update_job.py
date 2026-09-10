@@ -36,6 +36,14 @@ AMOUNT_SCALE_THRESHOLD = 50.0
 # 放大"（时序中位数会被污染），时序判据不怕 avg_volume 缺失。
 VOLUME_CROSS_SECTION_THRESHOLD = 20.0
 
+# 符号形状白名单（2026-09-11 w-23c70356 立）：daily_klines 只接受 6 位 A 股裸码。
+# 背景：quant.stocks 曾被测试数据污染（600000.SH…600009.SH，name='Test'），
+# 同步任务把 stocks 当宇宙逐日写出 1,213 行伪 K 线——其中 600001/600002/600003/
+# 600005（邯郸钢铁/齐鲁石化/ST东北高/武钢股份）早已退市却出现 2026 年行情，且与
+# 真实裸码同日收盘价 0 天相同（改名合并会污染真数据）。清理 1,507 行后加双保险：
+# ① 选股 SQL 层过滤（本常量）② 写入循环兜底（显式 symbols 入参也能挡住）。
+STANDARD_SYMBOL_SQL = "s.symbol ~ '^[0-9]{6}$'"
+
 logger = logging.getLogger(__name__)
 
 
@@ -93,6 +101,7 @@ def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
                     SELECT s.symbol, s.name, 0 AS priority
                     FROM quant.stocks s
                     WHERE s.symbol IN (SELECT symbol FROM pool_symbols)
+                      AND {STANDARD_SYMBOL_SQL}
                       AND s.name NOT LIKE '%退%'
                       AND s.name NOT LIKE '%ST%'
                       AND NOT s.is_delisted
@@ -100,6 +109,7 @@ def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
                     SELECT s.symbol, s.name, 1 AS priority
                     FROM quant.stocks s
                     WHERE s.symbol IN (SELECT symbol FROM recent_symbols)
+                      AND {STANDARD_SYMBOL_SQL}
                       AND s.symbol NOT IN (SELECT symbol FROM pool_symbols)
                       AND s.name NOT LIKE '%退%'
                       AND s.name NOT LIKE '%ST%'
@@ -114,6 +124,7 @@ def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
                         GROUP BY symbol
                     ) k ON k.symbol = s.symbol
                     WHERE s.symbol NOT IN (SELECT symbol FROM high_priority)
+                      AND {STANDARD_SYMBOL_SQL}
                       AND s.name NOT LIKE '%退%'
                       AND s.name NOT LIKE '%ST%'
                       AND NOT s.is_delisted
@@ -162,7 +173,8 @@ def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
                     FROM quant.stocks s
                     LEFT JOIN pool_symbols p ON p.symbol = s.symbol
                     LEFT JOIN recent_symbols r ON r.symbol = s.symbol
-                    WHERE s.name NOT LIKE '%退%'
+                    WHERE s.symbol ~ '^[0-9]{6}$'
+                      AND s.name NOT LIKE '%退%'
                       AND s.name NOT LIKE '%ST%'
                       AND NOT s.is_delisted
                 )
@@ -180,6 +192,7 @@ def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
                 SELECT symbol, name
                 FROM quant.stocks
                 WHERE (symbol LIKE '300%' OR symbol LIKE '301%')
+                  AND symbol ~ '^[0-9]{6}$'
                   AND name NOT LIKE '%退%'
                   AND name NOT LIKE '%ST%'
                   AND NOT is_delisted
@@ -202,7 +215,8 @@ def build_stock_query(scope: str, specific_symbols=None, batch_size=500):
                 FROM quant.daily_klines
                 GROUP BY symbol
             ) k ON k.symbol = s.symbol
-            WHERE s.name NOT LIKE '%退%'
+            WHERE s.symbol ~ '^[0-9]{6}$'
+              AND s.name NOT LIKE '%退%'
               AND s.name NOT LIKE '%ST%'
               AND NOT s.is_delisted
             ORDER BY k.max_date ASC NULLS FIRST, s.symbol
@@ -300,6 +314,13 @@ def update_gem_klines(**params):
         consecutive_empty = 0
 
         for i, (symbol, name) in enumerate(stocks, 1):
+            # 2026-09-11 (w-23c70356) 写入侧兜底：daily_klines 只存 6 位 A 股裸码。
+            # 选股 SQL 已过滤，此处兜住显式 symbols 入参（如 '600000.SH' 测试残留）——
+            # 它们曾写出 1,213 行伪 K 线（含 4 只已退市代码的 2026 年"行情"）。
+            if not (len(str(symbol)) == 6 and str(symbol).isdigit()):
+                skipped += 1
+                logger.warning(f"[{i}/{total}] 跳过非标准代码: {symbol}")
+                continue
             # 限速：首只之前不 sleep
             if i > 1 and interval and interval[1] > 0:
                 time.sleep(random.uniform(*interval))

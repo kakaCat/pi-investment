@@ -77,3 +77,58 @@ def test_health_ok_below_min_sample():
     """样本 <20 只时不做降级判定（小批量手动更新不误报）"""
     result = _run_job(['300001', '300002'], [_fail_result()] * 2)
     assert result['provider_health'] == 'ok'
+
+def test_nonstandard_symbol_skipped_before_write():
+    """伪代码/非 6 位符号在写入循环被兜底拦下（2026-09-11 w-23c70356）
+
+    背景：quant.stocks 曾被测试数据污染（600000.SH…600009.SH，name='Test'），
+    同步任务把它们当宇宙成员逐日写出 1,213 行伪 K 线（其中 600001/600002/600003/
+    600005 早已退市却有 2026 年行情）。清理 1,507 行后加写入侧兜底：显式 symbols
+    入参（如手动补跑）也不能穿透，且连 provider 请求都不该发出。
+    """
+    cursor = MagicMock()
+    cursor.fetchall.return_value = [('600000.SH', 'Test')]
+    conn = MagicMock()
+    conn.cursor.return_value = cursor
+    engine = MagicMock()
+    engine.raw_connection.return_value = conn
+
+    manager = MagicMock()
+    manager.get_klines.return_value = _ok_result()
+
+    with patch.object(kline_update_job, 'get_engine', return_value=engine), \
+         patch.object(kline_update_job, 'DataProviderManager', return_value=manager):
+        result = kline_update_job.update_gem_klines(
+            days=1, symbols=['600000.SH'], interval_seconds=0)
+
+    assert result['skipped'] == 1
+    assert result['success'] == 0
+    manager.get_klines.assert_not_called()
+    inserts = [c for c in cursor.execute.call_args_list
+               if 'INSERT INTO quant.daily_klines' in str(c[0][0])]
+    assert inserts == []
+
+
+def test_standard_symbol_still_written():
+    """对照组：6 位裸码照常写入（兜底不能误伤正常标的）"""
+    cursor = MagicMock()
+    cursor.fetchall.return_value = [('300001', '特锐德')]
+    conn = MagicMock()
+    conn.cursor.return_value = cursor
+    engine = MagicMock()
+    engine.raw_connection.return_value = conn
+
+    manager = MagicMock()
+    manager.get_klines.return_value = _ok_result()
+
+    with patch.object(kline_update_job, 'get_engine', return_value=engine), \
+         patch.object(kline_update_job, 'DataProviderManager', return_value=manager):
+        result = kline_update_job.update_gem_klines(
+            days=1, symbols=['300001'], interval_seconds=0)
+
+    assert result['success'] == 1
+    assert result['skipped'] == 0
+    inserts = [c for c in cursor.execute.call_args_list
+               if 'INSERT INTO quant.daily_klines' in str(c[0][0])]
+    assert len(inserts) == 1
+
