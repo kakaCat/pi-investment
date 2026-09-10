@@ -469,9 +469,11 @@ def _check_quality_alerts(result: Dict[str, Any], quality_threshold: float = 90.
                 'message': '❌ 回填无任何成功（数据源不可用）→ 数据缺口未收敛',
             })
 
-        # 发送告警
+        # 发送告警（日志 + 飞书外发；外发结果写入 result 供 run 记录核验）
         if alerts:
-            _send_quality_alerts(alerts, summary, d_grade_count, backfill_fail_rate)
+            dispatch = _send_quality_alerts(alerts, summary, d_grade_count, backfill_fail_rate)
+            if dispatch:
+                result['alert_dispatch'] = dispatch
             logger.warning(f"数据质量告警触发: {len(alerts)} 项问题")
         else:
             logger.info("数据质量告警检查通过，无异常")
@@ -489,8 +491,43 @@ def _check_quality_alerts(result: Dict[str, Any], quality_threshold: float = 90.
             logger.error(f"质量告警检查回滚失败: {rb_err}")
 
 
-def _send_quality_alerts(alerts: list, summary: dict, d_grade_count: int, backfill_fail_rate: float) -> None:
-    """发送质量告警通知"""
+def _get_notification_facade():
+    """获取通知门面（单独抽出，便于测试注入假门面）
+
+    架构铁律（CLAUDE.md 通知架构）：所有外发通知必须走
+    application.notification.NotificationFacade，禁止直接调用飞书 SDK/webhook。
+    """
+    from application.notification import get_notification_facade
+    return get_notification_facade()
+
+
+def _dispatch_alert_to_feishu(title: str, message: str, urgency: str = 'normal') -> bool:
+    """把质量告警外发到飞书（经 NotificationFacade）
+
+    2026-09-11 w-23c70356：用户要求质量告警不能只落日志，需真实外发。
+    失败只记录、绝不影响任务结果（通知是旁路，不是主线）。
+    """
+    try:
+        facade = _get_notification_facade()
+        ok = facade.send_card(title=title, content=message, urgency=urgency)
+        if ok:
+            logger.info(f"✅ 质量告警已外发飞书（urgency={urgency}）")
+        else:
+            logger.error("❌ 质量告警外发失败：门面返回 False（渠道未配置或投递被策略拦截）")
+        return bool(ok)
+    except Exception as e:
+        logger.error(f"❌ 质量告警外发异常: {e}")
+        return False
+
+
+def _send_quality_alerts(alerts: list, summary: dict, d_grade_count: int, backfill_fail_rate: float) -> dict:
+    """发送质量告警通知（日志 + 飞书外发）
+
+    Returns:
+        dict: {'alert_count', 'urgency', 'delivered', 'title'}，供调用方写入运行结果，
+              让"告警是否真的发出去"在 run 记录里可核验（本模块 logger.info 实测被
+              根 logger 的 WARNING 级别过滤，不能只靠日志自证）。
+    """
     try:
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         message_lines = [
@@ -521,8 +558,6 @@ def _send_quality_alerts(alerts: list, summary: dict, d_grade_count: int, backfi
         # "Logger._log() got an unexpected keyword argument 'alert_count'"
         # 并被外层 except 吞掉 ⇒ 告警内容从未落日志（实证：2026-09-11 00:13 小范围实跑）。
         # 改标准 logging 写法，告警全文进日志。
-        # 注：本仓库 infrastructure/ 层无 NotificationFacade 投递先例，告警目前仅落日志，
-        # 真正外发渠道待统一设计（已在工作日志记录为后续项）。
         logger.warning(
             "data_quality_alert alert_count=%d score=%.2f\n%s",
             len(alerts),
@@ -530,8 +565,21 @@ def _send_quality_alerts(alerts: list, summary: dict, d_grade_count: int, backfi
             message,
         )
 
+        # 外发飞书：error 级（回填失败率过高 / 数据缺口未收敛）用 high，warning 级用 normal
+        urgency = 'high' if any(a.get('level') in ('error', 'critical') for a in alerts) else 'normal'
+        title = f"数据质量告警（{len(alerts)} 项）"
+        delivered = _dispatch_alert_to_feishu(title=title, message=message, urgency=urgency)
+
+        return {
+            'alert_count': len(alerts),
+            'urgency': urgency,
+            'delivered': delivered,
+            'title': title,
+        }
+
     except Exception as e:
         logger.error(f"发送质量告警失败: {e}")
+        return None
 
 
 # Job注册点 - scheduler会调用这个函数

@@ -278,3 +278,63 @@ def test_service_check_completes_without_deadline(monkeypatch):
     assert res["summary"]["check_truncated"] is False
     assert res["summary"]["checked_stocks"] == 4
     assert validator.calls == 4
+
+
+# ── 质量告警外发飞书（CLAUDE.md：必须经 NotificationFacade） ─────────────
+
+class FakeFacade:
+    def __init__(self, ok=True, raises=None):
+        self.ok = ok
+        self.raises = raises
+        self.calls = []
+
+    def send_card(self, title=None, content=None, urgency=None):
+        self.calls.append({"title": title, "content": content, "urgency": urgency})
+        if self.raises:
+            raise self.raises
+        return self.ok
+
+
+def _summary():
+    return {"total_stocks": 5689, "stocks_with_issues": 5689,
+            "data_quality_score": 95.42, "avg_coverage_rate": 92.37}
+
+
+def test_alert_dispatched_to_feishu_with_high_urgency(monkeypatch):
+    """error 级告警（回填全灭）必须以 high 外发，且返回投递结果供 run 记录核验"""
+    fake = FakeFacade()
+    monkeypatch.setattr(job, "_get_notification_facade", lambda: fake)
+    alerts = [{"level": "error", "type": "backfill_degraded", "message": "回填全灭"}]
+    out = job._send_quality_alerts(alerts, _summary(), 368, 100.0)
+    assert len(fake.calls) == 1, "必须走门面发一次"
+    assert fake.calls[0]["urgency"] == "high"
+    assert "数据质量告警" in fake.calls[0]["title"]
+    assert "368" in fake.calls[0]["content"] and "95.42" in fake.calls[0]["content"]
+    assert out["delivered"] is True and out["alert_count"] == 1 and out["urgency"] == "high"
+
+
+def test_alert_urgency_normal_for_warning_only(monkeypatch):
+    fake = FakeFacade()
+    monkeypatch.setattr(job, "_get_notification_facade", lambda: fake)
+    alerts = [{"level": "warning", "type": "quality_score", "message": "评分偏低"}]
+    out = job._send_quality_alerts(alerts, _summary(), 10, 0.0)
+    assert fake.calls[0]["urgency"] == "normal"
+    assert out["delivered"] is True
+
+
+def test_alert_dispatch_failure_contained(monkeypatch):
+    """门面不可用时只记日志、返回 False，绝不抛出（通知是旁路，不能影响任务结果）"""
+    def boom():
+        raise RuntimeError("facade down")
+    monkeypatch.setattr(job, "_get_notification_facade", boom)
+    assert job._dispatch_alert_to_feishu("t", "c", "normal") is False
+    out = job._send_quality_alerts([{"level": "error", "type": "x", "message": "m"}], _summary(), 0, 0.0)
+    assert out["delivered"] is False
+
+
+def test_facade_returns_false_is_reported(monkeypatch):
+    fake = FakeFacade(ok=False)
+    monkeypatch.setattr(job, "_get_notification_facade", lambda: fake)
+    out = job._send_quality_alerts([{"level": "error", "type": "x", "message": "m"}], _summary(), 0, 0.0)
+    assert out["delivered"] is False
+

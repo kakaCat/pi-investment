@@ -67,7 +67,7 @@
 
 ## 五、剩余风险与后续项（未处理，供决策）
 
-1. **告警只落日志、不外发**：infrastructure 层无 NotificationFacade 投递先例（已 grep 确认），质量告警目前不会推送到飞书。建议按 CLAUDE.md 通知架构统一设计后再接。
+1. ~~**告警只落日志、不外发**~~：**已于 2026-09-11 00:52 修复**（用户指令「需要发飞书」），见第七节——现经 NotificationFacade 外发飞书，投递结果写入 run 记录。
 2. **超时是协作式预算**：不打断在途的单只回填请求，实测总时长 = 预算内耗时 + 至多 1 次在途请求；若需硬上限需进程级看门狗。本夜 901s 远低于 1800s。
 3. **检查语义可疑**：5689/5689 只全部"有问题"，avg_coverage_rate 92.37%、total_missing_days 9986（23 个交易日窗口），而库内 2026-09-10 有 5499 只有数据；D 级 727 只/日的日常告警可能源于口径（停牌/上市前区间/覆盖率分母）。属既有口径问题，未在本次改动范围内。
 4. **拆分建议（可选）**：若希望覆盖更长窗口，建议"周度全市场（check_days=90，非交易日跑）+ 日度热门子集（symbols_limit=300）"双任务，而非把日检窗口拉长——现参数已支持，可一句话启用。
@@ -78,3 +78,37 @@
 - 记忆：memory_write（namespace=experience）。
 - 通知：feishu_notify（R-010，normal/reports）。
 - 提交：仅上述 7 个文件（不含他人改动）。
+
+## 七、追加：质量告警接入飞书（2026-09-11 00:50 用户指令「需要发飞书」）
+
+### 7.1 改法（遵守 CLAUDE.md 通知架构铁律）
+
+- 不新增通知类型：复用既有 `NotificationType.SYSTEM_ALERT`（SystemAlertFormatter 已存在），经既有门面方法 `NotificationFacade.send_card(title, content, urgency)` 外发；全程未直接触碰飞书 SDK/webhook，未 import `infrastructure.notification.channels.*`。
+- `infrastructure/jobs/data_quality_check_job.py` 新增两个模块级函数（可测试注入）：
+  - `_get_notification_facade()`：惰性 import `application.notification.get_notification_facade`，抽出以便单测替换为假门面。
+  - `_dispatch_alert_to_feishu(title, message, urgency)`：try/except 全包，失败只记 error 日志并返回 False，**绝不抛出**（通知是旁路，不能影响任务成败）。
+- urgency 映射：告警集含 `error`/`critical` 级（回填失败率过高 / 回填全灭数据缺口未收敛）→ `high`；仅 `warning` 级（质量评分偏低 / D 级过多）→ `normal`。
+- `_send_quality_alerts` 返回投递结果 dict，`_check_quality_alerts` 写入 `result["alert_dispatch"]`（`{alert_count, urgency, delivered, title}`）→ 随任务结果落 `quant.scheduler_runs.result`，"告警到底发出去没有"可在 run 记录里核验。
+
+### 7.2 为什么必须写进 result（实测证据）
+
+本模块 stdlib `logger.info` 实测被根 logger 的 WARNING 级别过滤：2026-09-11 00:38 全市场实跑输出 `/tmp/dq_fullrun2.out` 1305 行中，本模块 INFO 行（如「执行结果:」「状态: 成功」）**一条都没有**，只有 WARNING 行可见。故"已外发"不能只靠日志自证，必须落结构化结果。
+
+### 7.3 验证
+
+1. **真实投递**（2026-09-11 00:49:25，真实告警集：回填失败率 100.0% + 回填全灭，summary 取 00:38 实跑真实值）：日志 `飞书发送成功 notification_id=notif_c645fc0b91c94d18` → `通知发送成功 channel=feishu delivered=True`；门面解析渠道 `channels=["feishu","agent"]`、`health={"feishu": True, "agent": False}`（AgentChannel 指向 localhost:3002 未运行，未参与投递）。
+2. **链路**（假门面替换，避免重复刷屏）：`_check_quality_alerts` 输入真实形状 result（5689 只、评分 95.42、回填 50/50 失败、backfill_degraded=True）→ `ALERT_DISPATCH {'alert_count': 2, 'urgency': 'high', 'delivered': True, 'title': '数据质量告警（2 项）'}`，门面恰好被调用 1 次。
+3. **故障注入**：门面构造抛 `RuntimeError("facade unavailable")` → 日志 `❌ 质量告警外发异常`、返回 False、无异常外溢；门面返回 False（渠道被策略拦截）同样如实标注 `delivered=False`。
+4. 单测：`tests/test_data_quality_job_guardrails.py` 13 → **17 passed**（新增 4 项：high/normal urgency、异常收敛、False 如实上报）；相关回归合计 **147 passed / 4 skipped**。
+5. 生效确认：qv2 重启（pid 71323，health ok），日志 `Loaded task: 每日数据质量检查 (id=232)`、`无孤儿 run 需要回收`、`✅ APScheduler started`。
+
+### 7.4 诚实边界
+
+- 本次未在 qv2 服务进程内触发全量任务（`/api/scheduler/tasks/232/trigger` 无参数覆盖，触发即跑存量的全市场 30 天配置 ≈14 分钟），生产链路以「同配置进程内的真实投递（7.3.1）+ 链路/故障注入验证（7.3.2/3）」证明；今晚 22:00 定时运行是首个生产验证点，届时看 `quant.scheduler_runs.result.alert_dispatch.delivered` 即可确认。
+- 飞书渠道共用一个 webhook（`settings.external.feishu_webhook_url`，已配置），故质量告警与其它系统告警同群；不同于 Agent 侧 `feishu_notify` 的 reports/alerts 分渠道路由。
+
+
+### 7.5 提交
+
+- 提交：标题为「fix(data-quality): 任务232 质量告警接入飞书（NotificationFacade）」的那一笔（即本节撰写时的 HEAD，`git log -1` 可查）；仅 3 个文件——data_quality_check_job.py、tests/test_data_quality_job_guardrails.py、本工作日志。
+- 说明：该提交经两次 `--amend`（7a101e93 → 04ac2e5f → HEAD）：第一次删除 `_send_quality_alerts` 成功分支后的一行死代码 `return None`（我第一轮编辑误插入，行为等价、仅磁盘清理），第二次补本节文字。每次均重跑 py_compile + 17 项单测通过，并重启 qv2（末次 pid 72512，health ok）保证「磁盘代码 = 运行代码」。
