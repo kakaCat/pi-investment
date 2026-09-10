@@ -185,6 +185,24 @@ export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, Ci
 
       actions.push(...sellActions, '熔断激活：禁止新开仓');
 
+      // 2026-09-10（w-f4aa1f6a）：熔断状态双写 v2（quant.portfolio_circuit_breaker）——
+      // 此前"禁止新开仓"只是 osMemory 决策层标记，v2 撮合网关不感知，熔断期买入照样成交。
+      // 双写后 trade_guard 买入方向硬拦截（422）。失败不阻断主流程（osMemory 仍为权威回退）。
+      try {
+        await this.qv2.setCircuitBreaker({
+          account_name: accountName,
+          active: true,
+          triggered_drawdown: maxDrawdown,
+          actions_taken: sellActions,
+          unblock_condition: '60日回撤修复到 <8%',
+          note: 'M4 工具触发双写',
+        });
+        actions.push('熔断状态已写入 v2 交易网关（买入硬拦截生效）');
+      } catch (e: any) {
+        console.error('[m4_circuit_breaker_check] v2 熔断状态写入失败:', e?.message || String(e));
+        actions.push('⚠️ v2 熔断状态写入失败（' + (e?.message || String(e)).slice(0, 80) + '）——撮合层硬拦截未生效，仅决策层拦截');
+      }
+
       // 飞书高优告警（记录到 osMemory）
       await this.osMemory.write({
         title: 'M4-2 熔断触发告警',
@@ -227,7 +245,20 @@ export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, Ci
         tags: ['m4', 'circuit_breaker_status', 'unblocked'],
       });
 
-      actions.push('熔断解除：恢复允许开仓');
+      // 双写解除（2026-09-10）：v2 撮合网关同步放行买入
+      try {
+        await this.qv2.setCircuitBreaker({
+          account_name: accountName,
+          active: false,
+          note: 'M4 工具解除双写（回撤 ' + maxDrawdown.toFixed(2) + '% 已修复至 8% 以内）',
+        });
+        actions.push('熔断解除：恢复允许开仓');
+        actions.push('v2 交易网关买入拦截已解除');
+      } catch (e: any) {
+        console.error('[m4_circuit_breaker_check] v2 熔断解除写入失败:', e?.message || String(e));
+        actions.push('熔断解除：恢复允许开仓');
+        actions.push('⚠️ v2 熔断解除写入失败——撮合层仍拦截买入，需人工 POST /api/risk/circuit-breaker {active:false}');
+      }
 
       return {
         checked_at: now,
