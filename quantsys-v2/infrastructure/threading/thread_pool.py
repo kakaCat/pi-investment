@@ -97,11 +97,23 @@ class ManagedThreadPool:
             timeout=timeout
         )
 
-        # Python 3.9+ 才支持 timeout 参数
+        # Python 3.13+ 移除了 timeout 参数，3.9-3.12 支持 timeout
         import sys
-        if sys.version_info >= (3, 9) and timeout is not None:
+        if sys.version_info >= (3, 13):
+            # Python 3.13+: 移除了 timeout，改用 cancel_futures
+            if timeout is not None:
+                logger.warning(
+                    "timeout_parameter_not_supported",
+                    pool_name=self.pool_name,
+                    reason="Python 3.13+ removed timeout parameter",
+                    timeout=timeout
+                )
+            self.executor.shutdown(wait=wait, cancel_futures=False)
+        elif sys.version_info >= (3, 9) and timeout is not None:
+            # Python 3.9-3.12: 支持 timeout
             self.executor.shutdown(wait=wait, timeout=timeout)
         else:
+            # Python < 3.9: 不支持 timeout
             if timeout is not None:
                 logger.warning(
                     "timeout_parameter_ignored",
