@@ -113,6 +113,35 @@ describe.skipIf(!LIVE)('工具数据真实性体检（真实后端）', () => {
     expect(sectorWin?.status).toBe('degraded');
   }, 120000);
 
+  it('memory_search 放宽召回（真实后端）：多词/长句不再零命中', async () => {
+    // 用最小 real-HTTP 适配器替代 MemoryClient（同一契约：GET /api/v1/memory/search?q=&limit=&category=），
+    // 从而在真实后端上检验工具层的放宽召回逻辑（不是 mock 匹配行为）。
+    const realMemoryClient: any = {
+      async search(params: any) {
+        const url = new URL('http://127.0.0.1:8080/api/v1/memory/search');
+        url.searchParams.set('q', String(params.query ?? ''));
+        if (params.top_k) url.searchParams.set('limit', String(params.top_k));
+        if (params.category) url.searchParams.set('category', String(params.category));
+        const resp = await fetch(url);
+        return await resp.json();
+      },
+    };
+    const { MemorySearchTool } = await import('../packages/memory/src/tools/MemorySearchTool/MemorySearchTool.js');
+    const tool: any = new MemorySearchTool(realMemoryClient);
+    const multi = await tool.execute({ query: '业绩归因 超额 beta alpha', namespace: 'analysis', top_k: 3 }, ctx);
+    // 句子内含已知短语（'业绩归因' 存在于记忆库）→ 期望放宽后命中
+    const long = await tool.execute({ query: '帮我看看那个业绩归因的超额数据到底怎么样', top_k: 3 }, ctx);
+    // 句内短语确实不存在于库中 → 允许 0 命中，但**必须显式说明已放宽尝试**（不得静默返回"无历史"）
+    const absent = await tool.execute({ query: '紫电青霜玄武朱雀完全不存在的话题', top_k: 3 }, ctx);
+    console.log('[mem-relax] 多词 total=' + multi.total + ' relaxed=' + multi.query_relaxed);
+    console.log('[mem-relax] 长句 total=' + long.total + ' relaxed=' + long.query_relaxed + ' attempts=' + long.relax_attempts.length);
+    console.log('[mem-relax] 不存在 total=' + absent.total + ' note=' + String(absent.relax_note).slice(0, 60));
+    expect(multi.total).toBeGreaterThan(0);
+    expect(long.total).toBeGreaterThan(0);
+    expect(absent.total).toBe(0);
+    expect(String(absent.relax_note)).toMatch(/均零命中|确无相关历史/);
+  }, 90000);
+
   it('signal_track 写入护栏（真实后端）：非交易日与偏离价必须被拒', async () => {
     const { SignalTrackTool } = await import('../packages/intelligence/src/tools/SignalTrackTool/SignalTrackTool.js');
     const tool: any = new SignalTrackTool(client);
