@@ -75,3 +75,37 @@ func TestClassifyLogLine_StableMsg(t *testing.T) {
 		t.Errorf("msg 应含 error 主体: %q", msg)
 	}
 }
+
+// 回归（2026-09-10，w-8f2c4cc5）：traceback 续行不得单独成事件。
+// 现场：一次 SQLAlchemy 连接异常在 log_tail 通道被逐行切碎成 8 个事件族共 91 次上报
+// （错误板 62a2ae6f/56a0317c/6f43abae/131ed7ed/ca42d579/f539c83c/053267b0/195d2ff3/3cba07e1），
+// 每族指纹不同 → 去重失效，板面被栈帧回显淹没。
+func TestClassifyLogLine_RejectsTracebackContinuations(t *testing.T) {
+	cases := []string{
+		"raise translated_error from error",
+		"self._adapt_connection._handle_exception(error)",
+		"self._handle_exception(error)",
+		"self._handle_dbapi_exception(",
+		"raise sqlalchemy_exception.with_traceback(exc_info[2]) from e",
+		`  File "/Users/yunpeng/pi-investment/quantsys-v2/venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context`,
+		"raise HTTPStatusError(message, request=request, response=self)",
+		"(Background on this error at: https://sqlalche.me/e/20/f405)",
+		"During handling of the above exception, another exception occurred:",
+	}
+	for _, ln := range cases {
+		if msg, ok := classifyLogLine(ln, "v2"); ok {
+			t.Errorf("traceback 续行被误收为 error: ok=true msg=%q line=%s", msg, ln)
+		}
+	}
+	// 反向保护：traceback 锚点行与真正的错误行必须照常入库（不得因本次过滤被连带漏收）
+	kept := []string{
+		"Traceback (most recent call last):",
+		"sqlalchemy.exc.OperationalError: connection to server failed",
+		"2026-09-10 23:21:26 ERROR    main: raise failed for job filter_a",
+	}
+	for _, ln := range kept {
+		if _, ok := classifyLogLine(ln, "v2"); !ok {
+			t.Errorf("真 error 行被漏收: line=%s", ln)
+		}
+	}
+}

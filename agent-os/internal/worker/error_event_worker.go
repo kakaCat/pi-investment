@@ -286,6 +286,19 @@ var startupBannerRe = regexp.MustCompile(`(?i)(registered successfully|startup c
 // 只剥"为 0"的字段：非 0 计数（errors=3）与行内真正的 level 前缀（[error]/ERROR）不受影响。
 var zeroErrorMetricRe = regexp.MustCompile(`(?i)(['"]?(?:errors?|error_count|exceptions?|failures?|failed_count)['"]?\s*[:=]\s*0\b|失败\s*[:=]\s*0\b)`)
 
+// tracebackContinuationRe 纯 traceback 续行：栈帧源码回显/收尾提示，本身不含根因，
+// 单独采集成事件只会污染板面（真正有意义的是 traceback 末尾的异常类型+消息行，
+// 由 v2ErrRe 单独采集）。
+// 取证（2026-09-10 事件族快照，w-8f2c4cc5）：一次 SQLAlchemy 连接异常在 log_tail 通道被
+// 逐行切碎成 8 个事件族共 91 次上报（raise translated_error from error /
+// self._handle_exception(error) / self._adapt_connection._handle_exception(error) /
+// self._handle_dbapi_exception( / raise sqlalchemy_exception.with_traceback(exc_info[2]) from e /
+// File "<path>/sqlalchemy/engine/base.py", line ... / raise HTTPStatusError(message, request=..., response=...) /
+// (Background on this error at: https://sqlalche.me/e/20/f405)），每个族的指纹都不同，
+// 去重完全失效。只滤"续行"，不滤 "Traceback (most recent call last):" 首行
+// （保留 traceback 锚点，回归用例 TestClassifyLogLine_AcceptsError 仍覆盖该行）。
+var tracebackContinuationRe = regexp.MustCompile(`^(?:raise\s+[\w\.]+|self\.[\w\.]+\(|File "|During handling of the above exception|\(Background on this error at:)`)
+
 // classifyLogLine 判定单行 v2/dsh 日志是否应收为 error 事件并提取稳定 msg。
 // 合法结构化 JSON：parseStructuredLogLine 内按 level 白名单（error/fatal/critical/exception）
 // 判定，非 error 级返回 false——绝不拿 JSON 内容去跑非结构化正则。
@@ -296,6 +309,10 @@ func classifyLogLine(ln, source string) (string, bool) {
 		return parseStructuredLogLine(ln)
 	}
 	if startupBannerRe.MatchString(ln) {
+		return "", false
+	}
+	// traceback 续行（栈帧回显）单独成事件无信息量，见 tracebackContinuationRe 注释
+	if tracebackContinuationRe.MatchString(trimmed) {
 		return "", false
 	}
 	re := errorLineRe(source)
