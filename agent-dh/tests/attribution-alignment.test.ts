@@ -57,6 +57,17 @@ describe('alignByTradingDate', () => {
     expect(r.ok).toBe(true);
   });
 
+  it('基准滞后于组合（实证：CSI300 冻结在 08-27）→ stale=true 且区间收益为 null，而不是算出一个错数', () => {
+    const nav = ['2026-08-26', '2026-08-27', '2026-08-28'];
+    const bStale = [{ date: '2026-08-26', close: 100 }, { date: '2026-08-27', close: 99 }];
+    const r = alignByTradingDate(nav, bStale, 10);
+    expect(r.stale).toBe(true);
+    expect(r.benchmarkLatest).toBe('2026-08-27');
+    expect(r.navLatest).toBe('2026-08-28');
+    expect(r.benchmarkReturnPct).toBeNull();
+    expect(r.note).toContain('基准滞后');
+  });
+
   it('navPoints 只取尾部窗口', () => {
     const nav = ['2026-06-19', '2026-06-22', '2026-06-23', '2026-06-24'];
     const r = alignByTradingDate(nav, bench, 2);

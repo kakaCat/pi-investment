@@ -25,6 +25,12 @@ export interface DateAlignedResult {
   pairs: number;
   /** 因基准缺该日而无法配对的净值日期 */
   missingDates: string[];
+  /** 基准序列的最新交易日（无数据为 null） */
+  benchmarkLatest: string | null;
+  /** 净值序列的最新交易日（无数据为 null） */
+  navLatest: string | null;
+  /** 基准是否滞后于组合（benchmarkLatest < navLatest）——这类情况归因结果不可用 */
+  stale: boolean;
   /** 人类可读说明（写入 attribution.alignment） */
   note: string;
 }
@@ -62,6 +68,12 @@ export function alignByTradingDate(
   const pct = first !== undefined && last !== undefined && first > 0
     ? +((last / first - 1) * 100).toFixed(2)
     : null;
+  const benchDates = Array.from(benchMap.keys()).sort();
+  const benchmarkLatest = benchDates.length ? benchDates[benchDates.length - 1] : null;
+  const navLatest = navTail.length ? navTail[navTail.length - 1] : null;
+  // 2026-09-11 实证：CSI300 日线在库里冻结在 08-27 而组合到 09-10，
+  // 于是"用停在两周前的基准"算出了一个看起来正常的超额。滞后必须显式可见。
+  const stale = !!(benchmarkLatest && navLatest && benchmarkLatest < navLatest);
   const rangeLabel = navTail.length ? navTail[0] + "→" + navTail[navTail.length - 1] : "-";
   const complete = missingDates.length === 0;
   const sufficient = pairs >= 5;
@@ -71,6 +83,9 @@ export function alignByTradingDate(
   if (missingDates.length) {
     const uniq = Array.from(new Set(missingDates));
     notes.push("基准缺日=" + uniq.slice(0, 8).join(",") + (uniq.length > 8 ? " 等" + uniq.length + "天" : ""));
+  }
+  if (stale) {
+    notes.push("基准最新=" + benchmarkLatest + " 落后于组合最新=" + navLatest + " → 基准滞后，归因不可用，须先补基准数据");
   }
   notes.push(ok ? "口径可用"
     : (!complete ? "基准缺端点→已按可用对配对，beta/alpha/IR 解读须保守"
@@ -84,6 +99,9 @@ export function alignByTradingDate(
     ok,
     pairs,
     missingDates: Array.from(new Set(missingDates)),
+    benchmarkLatest,
+    navLatest,
+    stale,
     note: notes.join("；"),
   };
 }
