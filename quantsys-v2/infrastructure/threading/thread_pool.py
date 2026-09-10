@@ -97,31 +97,21 @@ class ManagedThreadPool:
             timeout=timeout
         )
 
-        # Python 3.13+ 移除了 timeout 参数，3.9-3.12 支持 timeout
-        import sys
-        if sys.version_info >= (3, 13):
-            # Python 3.13+: 移除了 timeout，改用 cancel_futures
-            if timeout is not None:
-                logger.warning(
-                    "timeout_parameter_not_supported",
-                    pool_name=self.pool_name,
-                    reason="Python 3.13+ removed timeout parameter",
-                    timeout=timeout
-                )
-            self.executor.shutdown(wait=wait, cancel_futures=False)
-        elif sys.version_info >= (3, 9) and timeout is not None:
-            # Python 3.9-3.12: 支持 timeout
-            self.executor.shutdown(wait=wait, timeout=timeout)
-        else:
-            # Python < 3.9: 不支持 timeout
-            if timeout is not None:
-                logger.warning(
-                    "timeout_parameter_ignored",
-                    pool_name=self.pool_name,
-                    reason=f"Python {sys.version_info.major}.{sys.version_info.minor} < 3.9",
-                    timeout=timeout
-                )
-            self.executor.shutdown(wait=wait)
+        # concurrent.futures.Executor.shutdown 从未支持 timeout 参数——3.9 只新增了
+        # cancel_futures，3.13 也没有 timeout（标准库签名始终是 shutdown(wait=True,
+        # *, cancel_futures=False)）。原实现按版本分支、只对 3.9-3.12 传 timeout=，
+        # 于是任何非 3.13 运行时调用带 timeout 的 shutdown 必然抛
+        # TypeError: ThreadPoolExecutor.shutdown() got an unexpected keyword argument 'timeout'
+        # （错误看板事件族 8ea2ecdd / thread_pool.py:302→114，2026-09-10，w-8f2c4cc5）。
+        # 统一走 (wait, cancel_futures) 语义：timeout 只做告警留痕，不再下传。
+        if timeout is not None:
+            logger.warning(
+                "timeout_parameter_not_supported",
+                pool_name=self.pool_name,
+                reason="concurrent.futures.Executor.shutdown 不接受 timeout 参数（全版本）",
+                timeout=timeout
+            )
+        self.executor.shutdown(wait=wait, cancel_futures=False)
 
         logger.info("thread_pool_shutdown_complete", pool_name=self.pool_name)
 
