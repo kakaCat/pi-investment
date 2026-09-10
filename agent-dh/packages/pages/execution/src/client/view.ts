@@ -553,6 +553,10 @@ function errRowHtml(e: ErrorEvent, i: number): string {
   const occ = Number(e.occurrenceCount) || 1
   const rawLine = String(e.line ?? e.msg ?? '').replace(/\n/g, ' ')
   const asg = e.status === 'processing' && e.assignee ? '<span class="asg" title="认领窗口">👤 ' + esc(e.assignee) + '</span>' : ''
+  // P1（2026-09-10）：已解决/已忽略行展示处置结论（resolution_note），悬停看全文
+  const note = (st === 'resolved' || st === 'ignored') && e.resolutionNote
+    ? '<span class="note" title="' + esc(e.resolutionNote) + '">📝 ' + esc(trunc(String(e.resolutionNote).replace(/\n/g, ' '), 60)) + '</span>'
+    : ''
   const idAttr = ' data-evid="' + esc(String(e.id ?? '')) + '"'
   let btns = ''
   if (st === 'open') {
@@ -570,7 +574,7 @@ function errRowHtml(e: ErrorEvent, i: number): string {
     '<time title="最近出现 ' + esc(String(e.lastSeenAt ?? e.timestamp ?? '')) + '">' + esc(shortDT(e.timestamp ?? e.lastSeenAt)) + '</time>' +
     (occ > 1 ? '<span class="occ" title="同指纹累计出现 ' + occ + ' 次（去重合并）">×' + occ + '</span>' : '') +
     '<span class="line" title="' + esc(rawLine.slice(0, 500)) + '">' + esc(trunc(rawLine, 120)) + '</span>' +
-    asg +
+    asg + note +
     '<span class="op">' + btns + '</span></li>'
 }
 function errPagerHtml(page: number, pages: number, total: number): string {

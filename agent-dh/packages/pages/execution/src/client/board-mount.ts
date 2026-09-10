@@ -23,7 +23,7 @@ let errLoading = false
 const emptyErrCounts = { total: 0, open: 0, processing: 0, resolved: 0, ignored: 0 }
 
 type EvAct = 'claim' | 'resolve' | 'ignore' | 'reopen'
-async function postErrorAction(body: { id: string; action: EvAct; from_session?: string }): Promise<{ ok: boolean; error?: string; message?: string }> {
+async function postErrorAction(body: { id: string; action: EvAct; from_session?: string; note?: string }): Promise<{ ok: boolean; error?: string; message?: string }> {
   try {
     const res = await fetch(ERROR_ACTION_API, {
       method: 'POST',
@@ -143,8 +143,19 @@ export function mountBoard(controller: BoardController): () => void {
           const id = actBtn.dataset.evid
           const act = actBtn.dataset.evact as EvAct | undefined
           if (id === undefined || act === undefined) return
+          // P1（2026-09-10）：resolve/ignore 必填结构化结论，结论会展示在事件卡片上
+          let note: string | undefined
+          if (act === 'resolve' || act === 'ignore') {
+            const hint = act === 'resolve'
+              ? '处置结论（≥10字）：根因 + 动作 + 证据\n例：根因=Python3.13移除timeout参数；动作=thread_pool.py改cancel_futures；证据=pytest PASS'
+              : '忽略理由（≥10字）：为何误报 / 无需处置'
+            const input = window.prompt(hint)
+            if (input === null) return // 用户取消
+            note = input.trim()
+            if ([...note].length < 10) { kit.toast('⚠ 结论太短（≥10字），未提交'); return }
+          }
           void (async () => {
-            const r = await postErrorAction({ id, action: act, from_session: currentSession() })
+            const r = await postErrorAction({ id, action: act, from_session: currentSession(), note })
             kit.toast(r.ok ? '✓ ' + (r.message ?? '已更新') : '⚠ ' + (r.error ?? '操作失败'))
             if (r.ok) void fetchErrPage({ silent: true })
           })()

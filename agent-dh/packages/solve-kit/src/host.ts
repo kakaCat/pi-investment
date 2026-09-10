@@ -100,9 +100,9 @@ function buildSolveMessage(b: { kind: 'task' | 'error'; title: string; lines: st
       '  a) 能修则修——修代码/配置或重启服务，验证错误消除（日志干净/复现不再触发），给验证证据；',
       '  b) 外部依赖/环境所致——给证据（前后日志/复现输出）与建议动作，交人工决定；',
       '  c) 确属误报/一次性——给证据（未再现的日志区间或判定依据）。',
-      '回写闭环：处置完成后立即把该事件落终态（勿等用户再点按钮）：',
-      "  已解决 → 调用: curl -s -X POST http://127.0.0.1:13080/dashboard/api/board/error-action -H 'Content-Type: application/json' -d '{\"id\":\"<上文事件ID>\",\"action\":\"resolve\",\"note\":\"根因+动作+证据（处置窗口署名）\"}'",
-      '  已修/已解决 → action=resolve；误报/无需处理 → action=ignore。接口不可达时，在本会话回复完整结论并说明，事件留给人工闭环。'
+      '回写闭环：处置完成后立即把该事件落终态（勿等用户再点按钮）。note 为必填（≥10 字，否则接口 400 拒绝）且会展示在页面事件卡片上——它是"如何解决"的结论与复开判伪的责任依据：',
+      "  已解决 → 调用: curl -s -X POST http://127.0.0.1:13080/dashboard/api/board/error-action -H 'Content-Type: application/json' -d '{\"id\":\"<上文事件ID>\",\"action\":\"resolve\",\"note\":\"根因=...；动作=...；证据=...（处置窗口署名）\"}'",
+      '  已修/已解决 → action=resolve（note=根因+动作+证据）；误报/无需处理 → action=ignore（note=为何误报/无需处置）。接口不可达时，在本会话回复完整结论并说明，事件留给人工闭环。'
     )
   }
   return {
