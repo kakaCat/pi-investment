@@ -65,7 +65,8 @@ class TradeGuardService:
         self,
         repo: ISimulationRepository,
         calendar=None,
-        now_fn=None
+        now_fn=None,
+        breaker_active_fn=None
     ):
         """
         初始化交易护栏
@@ -74,8 +75,11 @@ class TradeGuardService:
             repo: 仓储接口（查询账户、持仓、历史交易）
             calendar: 交易日历服务（判断交易日）
             now_fn: 时间函数（可注入用于测试）
+            breaker_active_fn: 组合熔断状态查询函数（account_name)->bool（可注入用于测试）；
+                传入后买入方向将做 M4 熔断硬拦截（2026-09-10，w-f4aa1f6a）
         """
         self.repo = repo
+        self.breaker_active_fn = breaker_active_fn
 
         if calendar is None:
             from application.services.trading_calendar_service import TradingCalendarService
@@ -411,6 +415,16 @@ class TradeGuardService:
         Raises:
             TradingError: 任何校验失败
         """
+        # 0. 组合回撤熔断硬拦截（M4-2，2026-09-10）：买入最优先检查——
+        #    先于时段校验，熔断拒单不被"非交易时段"掩盖；
+        #    挂单 9:31 撮合也走本方法（execute_pending_orders），同样覆盖。卖出放行（熔断要减仓）。
+        if action == 'BUY' and self.breaker_active_fn is not None and self.breaker_active_fn(account_name):
+            raise TradingError(
+                '组合回撤熔断激活中，禁止新开仓（M4：60日最大回撤超8%触发；'
+                '卖出不受影响；解除条件=回撤修复至8%以内，由 m4_circuit_breaker_check 解除）',
+                status_code=422
+            )
+
         # 1. 交易时段校验
         if not allow_off_hours:
             self.validate_trading_window()

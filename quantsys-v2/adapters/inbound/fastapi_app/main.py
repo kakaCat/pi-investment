@@ -685,6 +685,15 @@ def register_routes():
         optional_failed.append("risk")
         logger.warning(f"⚠️ Failed to import risk_async: {e}")
 
+    # 组合级回撤熔断状态（M4 硬拦截数据源，2026-09-10，w-f4aa1f6a）
+    try:
+        from adapters.inbound.fastapi_app.routes.circuit_breaker_async import router as circuit_breaker_router
+        app.include_router(circuit_breaker_router)
+        logger.info("✅ Registered: circuit_breaker (M4 组合熔断)")
+    except ImportError as e:
+        optional_failed.append("circuit_breaker")
+        logger.warning(f"⚠️ Failed to import circuit_breaker_async: {e}")
+
     # ===== P1 业务路由 =====
 
     # 投资组合管理（portfolio 端点已并入 orders_async.py，P5 迁移；原 portfolio_async 空桩已删）

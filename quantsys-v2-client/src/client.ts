@@ -1282,6 +1282,29 @@ export class QuantsysV2Client {
   }
 
   /**
+   * 组合级回撤熔断状态读写（M4 硬拦截数据源，2026-09-10）
+   * Real endpoints: GET/POST /api/risk/circuit-breaker
+   */
+  async getCircuitBreaker(account_name?: string): Promise<any> {
+    const response = await this.client.get('/api/risk/circuit-breaker', {
+      params: { account_name: account_name ?? 'agent_virtual' },
+    });
+    return this.unwrap<any>(response.data, 'getCircuitBreaker');
+  }
+
+  async setCircuitBreaker(params: {
+    account_name?: string;
+    active: boolean;
+    triggered_drawdown?: number;
+    actions_taken?: string[];
+    unblock_condition?: string;
+    note?: string;
+  }): Promise<any> {
+    const response = await this.client.post('/api/risk/circuit-breaker', params);
+    return this.unwrap<any>(response.data, 'setCircuitBreaker');
+  }
+
+  /**
    * Barra risk decomposition
    * Real endpoint: POST /api/factor-models/barra/calculate
    */

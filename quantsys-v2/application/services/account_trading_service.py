@@ -241,11 +241,13 @@ class AccountTradingService:
 
         # ---- 4. 交易护栏 - 锁外预检查（领域层）----
         from domain.trading.services.trade_guard_service import TradeGuardService
+        from application.services.portfolio_breaker_service import is_active as portfolio_breaker_active
 
         trade_guard = TradeGuardService(
             repo=self.repo,
             calendar=self.calendar,
-            now_fn=self.now_fn
+            now_fn=self.now_fn,
+            breaker_active_fn=portfolio_breaker_active
         )
 
         # 所有业务规则在这里校验：交易时段、限额、资金、持仓、仓位
@@ -473,8 +475,8 @@ class AccountTradingService:
         成交类记录由本方法保证。
         """
         try:
-            from application.services.decision_service import DecisionService
-            DecisionService().record_decision({
+            from infrastructure.services.service_factory import ServiceFactory
+            ServiceFactory.get_decision_service().record_decision({
                 'decision_type': f'trade_{action}',
                 'reasoning': reason or '',
                 'context': {'account': account_name, 'auto_recorded': True},
