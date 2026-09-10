@@ -223,7 +223,7 @@ export function buildView(): ViewRefs {
   const flowSec = sec('执行流水线', 'ENGINE M0–M6 × AUTONOMY L1–L4 检查点状态', 'flowBox')
   const timelineSec = sec('今日时间轴', '按业务线分组：盈利引擎 / Autonomy 展开 · 账户与其它折叠 · 徽标 v2/os=调度来源 dh/ts=调用 agent · 按计划时刻排序', 'timelineBox')
   const tasksSec = sec('调度任务', '按业务线分类切换（盈利引擎 / Autonomy / 账户定时 / 临时核验）· 徽标 v2/os=调度来源 dh/ts=调用 agent · 点击任务行查看失败原因', 'tasksBox')
-  const errsSec = sec('错误事件', 'Agent OS error_events 单一事实源 · 全部历史分页（Tabs 状态过滤 + 页码）· 处置：我来解决=认领并投递 / 解决 / 忽略 / 复开', 'errsBox')
+  const errsSec = sec('错误事件', 'Agent OS error_events 单一事实源 · 全部历史分页（Tabs 状态过滤 + 页码）· 事件 ID：点击 #ID 复制完整 ID · 处置：我来解决=认领并投递 / 解决 / 忽略 / 复开', 'errsBox')
   errsSec.style.display = 'none'
   const blockSec = sec('流水线阻断', 'failed/late 且声明阻断下游', 'blockBox')
   blockSec.style.display = 'none'
@@ -558,6 +558,12 @@ function errRowHtml(e: ErrorEvent, i: number): string {
     ? '<span class="note" title="' + esc(e.resolutionNote) + '">📝 ' + esc(trunc(String(e.resolutionNote).replace(/\n/g, ' '), 60)) + '</span>'
     : ''
   const idAttr = ' data-evid="' + esc(String(e.id ?? '')) + '"'
+  // 2026-09-10（w-8f2c4cc5）：列表必须给出可引用的事件 ID——短 ID 徽标 + 悬停完整 UUID + 点击复制
+  // 依据：用户反馈"错误事件列表没id，我没办法和你描述问题"（REQ-2057bd）
+  const fullId = String(e.id ?? '')
+  const idChip = fullId === ''
+    ? '<span class="evid none" title="该行无 event id">#无ID</span>'
+    : '<button type="button" class="evid" data-evcopy="' + esc(fullId) + '" title="事件 ID（点击复制完整 ID）：' + esc(fullId) + '">#' + esc(fullId.slice(0, 8)) + '</button>'
   let btns = ''
   if (st === 'open') {
     btns = '<button type="button" class="dsh-exec-solve" data-solve-err="' + i + '"' + idAttr + ' title="认领(assignee=本窗口,状态→处理中)并投递给窗口排查处置">我来解决</button>' +
@@ -571,6 +577,7 @@ function errRowHtml(e: ErrorEvent, i: number): string {
   }
   return '<li class="st-' + st + '"><span class="src ' + cls + '">' + esc(e.source ?? '?') + '</span>' +
     '<span class="evst st-' + st + '">' + ERR_ST_ZH[st] + '</span>' +
+    idChip +
     '<time title="最近出现 ' + esc(String(e.lastSeenAt ?? e.timestamp ?? '')) + '">' + esc(shortDT(e.timestamp ?? e.lastSeenAt)) + '</time>' +
     (occ > 1 ? '<span class="occ" title="同指纹累计出现 ' + occ + ' 次（去重合并）">×' + occ + '</span>' : '') +
     '<span class="line" title="' + esc(rawLine.slice(0, 500)) + '">' + esc(trunc(rawLine, 120)) + '</span>' +
@@ -617,7 +624,7 @@ export function renderErrorPage(refs: ViewRefs, st: ErrPageView): void {
   const banner = st.error ? '<div class="dsh-exec-banner show">⚠ 错误事件加载失败：' + esc(st.error) + ' — 请检查 Agent OS :8080</div>' : ''
   refs.errsBox.innerHTML = banner +
     '<div class="dsh-exec-legend dsh-exec-legend2"><span class="dsh-exec-hint">按状态点击 Tabs 过滤 · 全部历史分页浏览 · ' +
-    '<i class="dot ok"></i>待处理/处理中可处置 <i class="dot bad"></i>×N=同指纹累计次数（去重合并）</span></div>' +
+    '<i class="dot ok"></i>待处理/处理中可处置 <i class="dot bad"></i>×N=同指纹累计次数（去重合并）· 点击 <b>#ID</b> 复制完整事件 ID</span></div>' +
     '<div class="dsh-exec-tabs">' + tabs + '</div>' +
     '<ol class="dsh-exec-errs">' + rows + emptyRow + '</ol>' + pager
 }

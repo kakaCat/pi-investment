@@ -39,6 +39,30 @@ async function postErrorAction(body: { id: string; action: EvAct; from_session?:
   }
 }
 
+/** 复制文本到剪贴板：navigator.clipboard 优先，非安全上下文/被拒时回退 textarea + execCommand。
+ *  2026-09-10（w-8f2c4cc5）：错误事件列表暴露可引用的完整事件 ID，供用户与 agent 对齐排查对象（REQ-2057bd）。 */
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch { /* 回退到 execCommand */ }
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.setAttribute('readonly', '')
+    ta.style.position = 'fixed'
+    ta.style.top = '-1000px'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    return ok
+  } catch { return false }
+}
+
 export interface BoardController {
   isActive(): boolean
   toggle(): void
@@ -114,6 +138,16 @@ export function mountBoard(controller: BoardController): () => void {
       const onErrsClick = (ev: MouseEvent) => {
         const target = ev.target as Element
         if (refs === undefined) return
+        // 事件 ID 徽标：点击复制完整 UUID（用户 2026-09-10 反馈"列表没 ID 无法描述问题"）
+        const idChip = target.closest<HTMLElement>('.evid[data-evcopy]')
+        if (idChip !== null) {
+          const id = idChip.dataset.evcopy ?? ''
+          if (id !== '') {
+            // toast 第二参 ok 控制绿/红配色（solve-kit client.toast(text, ok)）
+            void copyText(id).then((ok) => kit.toast(ok ? '✓ 已复制事件 ID：' + id : '⚠ 复制失败，请手动复制 ID：' + id, ok))
+          }
+          return
+        }
         const etab = target.closest<HTMLElement>('.dsh-exec-tab[data-errst]')
         if (etab !== null) { errView = { ...errView, active: etab.dataset.errst ?? '', page: 1 }; void fetchErrPage(); return }
         const epg = target.closest<HTMLElement>('.dsh-exec-tkpg [data-errpage]')

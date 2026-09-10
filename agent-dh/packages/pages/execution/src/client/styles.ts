@@ -292,6 +292,11 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-errs li .evst.st-processing { background:#ecf5ff; color:#409eff; border:1px solid #b3d8ff; }
 .dsh-exec-errs li .evst.st-resolved { background:#f0f9eb; color:#67c23a; border:1px solid #c2e7b0; }
 .dsh-exec-errs li .evst.st-ignored { background:#f4f4f5; color:#909399; border:1px solid #d3d4d6; }
+/* 事件 ID 徽标：短 ID 可复制（2026-09-10，用户反馈列表缺 ID 无法指认具体事件） */
+.dsh-exec-errs li .evid { flex:none; border:1px solid #dcdfe6; background:#fafafa; color:#909399; border-radius:3px;
+  padding:0 5px; font-size:10.5px; line-height:1.7; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; cursor:pointer; }
+.dsh-exec-errs li .evid:hover { color:#409eff; border-color:#c6e2ff; background:#ecf5ff; }
+.dsh-exec-errs li .evid.none { cursor:default; color:#c0c4cc; }
 .dsh-exec-errs li .occ { flex:none; color:#f56c6c; font-size:10.5px; font-weight:700; font-variant-numeric:tabular-nums; }
 .dsh-exec-errs li .asg { flex:none; color:#9254de; font-size:10.5px; background:#f5f0ff; border-radius:3px; padding:0 5px; white-space:nowrap; }
 .dsh-exec-errs li .note { flex:none; color:#3f7f3f; font-size:10.5px; background:#f0f9eb; border-radius:3px; padding:0 5px; white-space:nowrap; max-width:260px; overflow:hidden; text-overflow:ellipsis; cursor:help; }
