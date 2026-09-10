@@ -300,8 +300,17 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
             from datetime import datetime
 
             cat = strategy_data.get('category', 'custom')
+            
+            # 检查策略名称是否已存在
+            strategy_name = strategy_data.get('name')
+            existing = self.session.query(StrategyConfig).filter(
+                StrategyConfig.strategy_name == strategy_name
+            ).first()
+            if existing:
+                raise ValueError(f'策略名称已存在: {strategy_name}')
+            
             strategy = StrategyConfig(
-                strategy_name=strategy_data.get('name'),
+                strategy_name=strategy_name,
                 code_content=strategy_data.get('code_content'),
                 code_type=strategy_data.get('code_type'),
                 description=strategy_data.get('description'),

@@ -22,7 +22,7 @@ import structlog
 
 from sqlalchemy import desc, and_, func
 from infrastructure.persistence.orm import BaseORMRepository, get_session
-from infrastructure.persistence.orm.models import DailyKline, MinuteKline
+from infrastructure.persistence.orm.models import DailyKline, MinuteKline, Stock
 from domain.ports import IKlineRepository
 
 logger = structlog.get_logger(__name__)
@@ -777,7 +777,22 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         try:
             from sqlalchemy.dialects.postgresql import insert
 
-            # 转换为字典列表
+            # 1. 确保所有股票元数据存在（去重）
+            symbols = list(set(kline.symbol for kline in klines))
+            for symbol in symbols:
+                stock = self.session.query(Stock).filter(Stock.symbol == symbol).first()
+                if not stock:
+                    # 自动创建股票元数据（最小字段集）
+                    stock = Stock(
+                        symbol=symbol,
+                        name=symbol,  # 临时使用代码作为名称
+                        market='unknown'  # 临时标记
+                    )
+                    self.session.add(stock)
+                    logger.warning(f"Auto-created stock metadata for {symbol} (K线插入时缺失)")
+            self.session.flush()  # 提交股票元数据
+
+            # 2. 转换为字典列表
             data_list = []
             for kline in klines:
                 data_list.append({
