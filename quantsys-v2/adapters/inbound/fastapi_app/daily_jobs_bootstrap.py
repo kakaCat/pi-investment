@@ -27,7 +27,7 @@ import json
 import threading
 import time
 from dataclasses import dataclass
-from datetime import datetime, time as dtime
+from datetime import datetime, time as dtime, timedelta
 from typing import Any, Callable, Dict, List, Optional
 
 import structlog
@@ -235,9 +235,9 @@ def _last_trading_day(ref: datetime) -> str:
     d = ref.date()
     # 收盘前（15:30 前）看前一工作日；收盘后看今天
     if ref.time() < dtime(15, 30) or d.weekday() >= 5:
-        d = d - __import__('datetime').timedelta(days=1)
+        d = d - timedelta(days=1)
     while d.weekday() >= 5:
-        d = d - __import__('datetime').timedelta(days=1)
+        d = d - timedelta(days=1)
     return d.strftime('%Y-%m-%d')
 
 
@@ -271,7 +271,11 @@ def _job_freshness_guard() -> Dict[str, Any]:
     from infrastructure.persistence.database.engine import get_engine
     from sqlalchemy import text
 
-    expected = _last_trading_day(datetime.now())
+    # 基准日=前一交易日（2026-09-10，w-23c70356）：本巡检 17:20 跑，而当天 EOD 要到
+    # 20:30 的 evening_pipeline 才落库 —— 原用"当天"当基准，结构上每个交易日都必然判
+    # stale（09-04~09-09 连续 5 天误报），告警因长期噪声被忽略。观测对象是"上一交易日的
+    # EOD 是否到位"，即滞后>1 个交易日，故基准取前一交易日。
+    expected = _last_trading_day(datetime.now() - timedelta(days=1))
     engine = get_engine()
     with engine.connect() as conn:
         factor_latest = conn.execute(
