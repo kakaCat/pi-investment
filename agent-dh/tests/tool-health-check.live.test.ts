@@ -160,6 +160,8 @@ describe.skipIf(!LIVE)('工具数据真实性体检（真实后端）', () => {
     const tool: any = new RiskMetricsTool(client);
     const r: any = await tool.execute({ days: 60 }, ctx);
     console.log('[risk-attrib] beta=' + r.beta + ' alpha=' + r.alpha + ' IR=' + r.information_ratio);
+    console.log('[risk-nav] ' + JSON.stringify(r.nav_coverage));
+    expect(r.nav_coverage === null || typeof r.nav_coverage === 'object').toBe(true);
     console.log('[risk-attrib] ' + JSON.stringify(r.attribution));
     expect(r.beta_note).toBeTruthy();
     if (r.attribution) {
