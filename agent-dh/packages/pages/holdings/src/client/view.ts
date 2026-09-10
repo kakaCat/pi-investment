@@ -93,6 +93,16 @@ function stockName(symbol: string | undefined, ctxNames: Record<string, string>)
 
 const pureCode = (symbol?: string): string => String(symbol ?? '').replace(/\D/g, '')
 
+/** 展示名优先用 host 补全的真实公司名（2026-09-10 起持仓行走 simulation 实时端点、
+ *  交易行走 /api/stocks/search 批量补名）；空串/与代码相同视为缺失，回退静态字典/context/裸代码。
+ *  静态字典只作兜底——agent 新买入的票必然不在字典里，不能再让字典当主数据源。 */
+function displayName(name: string | null | undefined, symbol: string | undefined, ctxNames: Record<string, string>): string {
+  const code = String(symbol ?? '').replace(/\D/g, '').slice(-6)
+  const n = String(name ?? '').trim()
+  if (n && n !== code && n !== String(symbol ?? '')) return n
+  return stockName(symbol, ctxNames)
+}
+
 /** 生成 A 股风险档位对应的止损比例（宪法铁律） */
 function stopRatioFor(code: string): number {
   return /^(30|68)/.test(code) ? -0.10 : -0.08 // 成长 -10% / 大盘蓝筹 -8%
@@ -214,7 +224,7 @@ function renderPositions(positions: Position[], ctxNames: Record<string, string>
 }
 
 function renderPositionRow(p: Position, ctxNames: Record<string, string>, ruleCodes: Set<string>): string {
-  const name = stockName(p.symbol, ctxNames)
+  const name = displayName(p.name, p.symbol, ctxNames)
   const code = pureCode(p.symbol)
   const stopRatio = stopRatioFor(code)
   const stop = (Number(p.avgCost) || 0) * (1 + stopRatio)
@@ -271,7 +281,7 @@ function renderTrades(data: HoldingsData): string {
       const st = zhStatus[String(t.status ?? '')] ?? String(t.status ?? '')
       return `<tr>
         <td><span class="dsh-hld-tag ${a.tag}">${a.text}</span></td>
-        <td><span class="sec-name">${esc(stockName(t.symbol, ctxNames))}</span> <span class="sec-code">${esc(pureCode(t.symbol))}</span></td>
+        <td><span class="sec-name">${esc(displayName(t.name, t.symbol, ctxNames))}</span> <span class="sec-code">${esc(pureCode(t.symbol))}</span></td>
         <td class="r">${money(price)}<span class="sub">× ${t.shares ?? 0} 股</span></td>
         <td class="r">${money(amount)}</td>
         <td>${esc(String(t.reason ?? '—').slice(0, 64))}</td>
@@ -349,7 +359,7 @@ export function buildHistoryCard(data: HoldingsData, page: number): string {
       const reason = String(t.reason ?? '—')
       return `<tr>
         <td><span class="dsh-hld-tag ${a.tag}">${a.text}</span></td>
-        <td><span class="sec-name">${esc(stockName(t.symbol, ctxNames))}</span> <span class="sec-code">${esc(pureCode(t.symbol))}</span></td>
+        <td><span class="sec-name">${esc(displayName(t.name, t.symbol, ctxNames))}</span> <span class="sec-code">${esc(pureCode(t.symbol))}</span></td>
         <td class="r">${money(price)}<span class="sub">× ${t.shares ?? 0} 股</span></td>
         <td class="r">${money(amount)}</td>
         <td class="r ${pnlCls}">${hasPnl ? signNum(pnl) + rateSub : '<span class=\"dim\">—</span>'}</td>

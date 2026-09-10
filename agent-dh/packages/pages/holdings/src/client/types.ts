@@ -45,6 +45,8 @@ export interface Position {
 export interface Trade {
   order_id: string;
   symbol: string;
+  /** 股票名称（host 侧补全；可能为空串 → displayName 回退静态字典/裸代码） */
+  name?: string;
   action: string;
   shares: number;
   price: number;

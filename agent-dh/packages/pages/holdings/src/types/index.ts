@@ -47,6 +47,8 @@ export interface Position {
 export interface Trade {
   order_id: string;
   symbol: string;
+  /** 股票名称（host 侧经 /api/stocks/search 补全；可能为空串，client 回退静态字典/裸代码） */
+  name?: string;
   action: string;
   shares: number;
   price: number;
@@ -117,8 +119,6 @@ export interface AccountAutomation {
   tasks: SchedulerTask[];
   /** 执行载体标签（agent 类账户展示用，如 "fin-agent（AI 执行者）"/"agent-dh · investor 例行"） */
   executor?: string;
-  /** 执行载体短码（徽标，与「智能执行」时间轴口径一致）：v2=quantsys-v2 引擎 / ts=fin-agent(agent-ts) / dh=agent-dh·investor；空=不展示 */
-  executorCode?: string;
   /** 执行载体短码（徽标，与「智能执行」时间轴口径一致）：v2=quantsys-v2 引擎 / ts=fin-agent(agent-ts) / dh=agent-dh·investor；空=不展示 */
   executorCode?: string;
   /** 诚实性说明（agent 账户例行任务的性质/作用账户口径；engine 账户可不填） */

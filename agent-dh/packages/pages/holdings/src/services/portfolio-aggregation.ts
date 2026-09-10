@@ -35,10 +35,9 @@ export class PortfolioAggregationService {
     try {
       // 并发请求所有端点（单个失败不影响其他）；agentOsTasks 仅 agent 类账户展示用到，
       // 失败容忍为空（8080 若不可用，agent 账户 automation 退化为不渲染块，strategy 账户不受影响）
-      const [accounts, summary, positions, trades, watchRules, schedulerTasks, agentOsTasks] = await Promise.allSettled([
+      const [accounts, accountStatus, trades, watchRules, schedulerTasks, agentOsTasks] = await Promise.allSettled([
         this.fetchAccounts(v2BaseURL, timeout),
-        this.fetchSummary(v2BaseURL, accountName, timeout),
-        this.fetchPositions(v2BaseURL, accountName, timeout),
+        this.fetchAccountStatus(v2BaseURL, accountName, timeout),
         this.fetchTrades(v2BaseURL, accountName, timeout),
         this.fetchWatchRules(v2BaseURL, accountName, timeout),
         this.fetchSchedulerTasks(v2BaseURL, timeout),
@@ -47,8 +46,8 @@ export class PortfolioAggregationService {
 
       // 提取结果，失败的用空数组/默认值
       const accountsData = accounts.status === 'fulfilled' ? accounts.value : [];
-      const summaryData = summary.status === 'fulfilled' ? summary.value : this.getDefaultSummary();
-      const positionsData = positions.status === 'fulfilled' ? positions.value : [];
+      const summaryData = accountStatus.status === 'fulfilled' ? accountStatus.value.summary : this.getDefaultSummary();
+      const positionsData = accountStatus.status === 'fulfilled' ? accountStatus.value.positions : [];
       const tradesData = trades.status === 'fulfilled' ? trades.value : [];
 
       // 今日成交与历史交易同源（/api/simulation/trades 全量，v2 已倒序）；拆两视图用：
@@ -92,29 +91,66 @@ export class PortfolioAggregationService {
     return resp.accounts || [];
   }
 
-  private async fetchSummary(
+  /** 账户状态（持仓+汇总，同一端点一次请求）。
+   *  2026-09-10 起改调 /api/simulation/accounts/{account}（get_account_status，与 position_list 工具同源）：
+   *  旧 /api/portfolio/positions|summary 直读 DB 快照——name 恒空（看板名称列退化为裸代码，
+   *  靠两份静态字典兜底永远追不上新持仓）且价格曾陈旧（8/28 旧价事故后客户端已弃用该端点）；
+   *  新端点每次请求实时拉行情刷新价格并回填真实股票名称。 */
+  private async fetchAccountStatus(
     baseURL: string,
     accountName: string,
     timeout: { timeoutMs: number }
-  ): Promise<PortfolioSummary> {
-    const url = `${baseURL}/api/portfolio/summary?account_name=${accountName}`;
-    return await fetchData<PortfolioSummary>(url, timeout);
-  }
+  ): Promise<{ summary: PortfolioSummary; positions: Position[] }> {
+    const url = `${baseURL}/api/simulation/accounts/${encodeURIComponent(accountName)}`;
+    const data = await fetchData<Record<string, any>>(url, timeout);
+    const rawPositions = Array.isArray(data.positions) ? data.positions : [];
 
-  private async fetchPositions(
-    baseURL: string,
-    accountName: string,
-    timeout: { timeoutMs: number }
-  ): Promise<Position[]> {
-    const url = `${baseURL}/api/portfolio/positions?account_name=${accountName}`;
-    const resp = await fetchData<{ positions: Position[] }>(url, timeout);
-    const positions = resp.positions || [];
+    // snake_case → camelCase（口径同 quantsys-v2-client mapPosition）
+    const positions: Position[] = rawPositions.map((p: Record<string, any>) => {
+      const symbol = String(p.symbol ?? '');
+      const quantity = Number(p.shares_total) || 0;
+      const avgCost = Number(p.avg_cost) || 0;
+      const currentPrice = Number(p.current_price) || avgCost;
+      const currentValue = Number(p.market_value) || quantity * currentPrice;
+      const totalCost = quantity * avgCost;
+      const profitLoss = Number(p.profit_total) ?? (currentValue - totalCost);
+      const rate = Number(p.profit_total_rate);
+      return {
+        symbol,
+        // 新端点回填真实名称；空时退化为静态映射兜底
+        name: String(p.name ?? '') || getStockName(symbol),
+        quantity,
+        sharesAvailable: Number(p.shares_available) ?? quantity,
+        avgCost,
+        currentPrice,
+        currentValue,
+        profitLoss,
+        profitLossPct: Number.isFinite(rate)
+          ? +(rate * 100).toFixed(2)
+          : totalCost > 0 ? +((profitLoss / totalCost) * 100).toFixed(2) : 0,
+        profitToday: Number(p.profit_today) || 0,
+      };
+    });
 
-    // 补全 name 字段（v2 返回的 name 为空）
-    return positions.map((pos) => ({
-      ...pos,
-      name: pos.name || getStockName(pos.symbol),
-    }));
+    const totalCost = positions.reduce((s, p) => s + p.avgCost * p.quantity, 0);
+    const totalMarketValue = Number(data.position_value) || positions.reduce((s, p) => s + p.currentValue, 0);
+    const totalPnl = totalMarketValue - totalCost;
+    const cash = (Number(data.cash_available) || 0) + (Number(data.cash_frozen) || 0);
+    const summary: PortfolioSummary = {
+      totalValue: Number(data.total_value) || totalMarketValue + cash,
+      totalCost,
+      totalMarketValue,
+      totalPnl,
+      totalPnlPct: totalCost > 0 ? +((totalPnl / totalCost) * 100).toFixed(2) : 0,
+      dailyChange: positions.reduce((s, p) => s + p.profitToday, 0),
+      positions: positions.length,
+      cash,
+      liquidAssets: cash,
+      profitCount: positions.filter((p) => p.profitLoss > 0).length,
+      lossCount: positions.filter((p) => p.profitLoss < 0).length,
+      lastUpdated: String(data.last_updated ?? new Date().toISOString()),
+    };
+    return { summary, positions };
   }
 
   private async fetchTrades(
@@ -126,7 +162,43 @@ export class PortfolioAggregationService {
     // pluck 按 data 数组直取，勿按 {trades:[]} 假设（旧写法 unwrap 后取 .trades 恒为空）
     const url = `${baseURL}/api/simulation/trades?account_name=${accountName}`;
     const resp = await fetchData<Trade[]>(url, timeout);
-    return Array.isArray(resp) ? resp : [];
+    const trades = Array.isArray(resp) ? resp : [];
+    return this.enrichTradeNames(baseURL, trades, timeout);
+  }
+
+  /** 交易记录补名（2026-09-10）：/api/simulation/trades 成交行无 name 字段，
+   *  按代码经 /api/stocks/search 批量补全（每代码一次、并发、失败容忍——
+   *  补不到时 client 端回退静态字典/裸代码，与持仓行同口径）。 */
+  private async enrichTradeNames(
+    baseURL: string,
+    trades: Trade[],
+    timeout: { timeoutMs: number }
+  ): Promise<Trade[]> {
+    const codes = [...new Set(
+      trades.map((t) => String(t.symbol ?? '').replace(/\D/g, '').slice(-6)).filter((c) => /^\d{6}$/.test(c))
+    )].slice(0, 40);
+    if (codes.length === 0) return trades;
+
+    const results = await Promise.allSettled(
+      codes.map(async (code) => {
+        // search 端点为裸信封 {query,total,stocks[]}（无 success/data 包装）→ fetchJson 直取
+        const resp = await fetchJson<{ stocks?: Array<Record<string, any>> }>(
+          `${baseURL}/api/stocks/search?q=${code}`,
+          timeout
+        );
+        const stocks = Array.isArray(resp?.stocks) ? resp.stocks : [];
+        const hit = stocks.find((s) => String(s.symbol ?? '').replace(/\D/g, '').slice(-6) === code) ?? stocks[0];
+        return String(hit?.name ?? '');
+      })
+    );
+    const names: Record<string, string> = {};
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled' && r.value) names[codes[i]] = r.value;
+    });
+    return trades.map((t) => {
+      const code = String(t.symbol ?? '').replace(/\D/g, '').slice(-6);
+      return { ...t, name: names[code] ?? '' };
+    });
   }
   private async fetchWatchRules(baseURL: string, accountName: string, timeout: { timeoutMs: number }): Promise<WatchRule[]> {
     // 全量拉取（不按 account 过滤）：盯盘中心按「账户归属 tab」展示，须带出全部账户规则；
