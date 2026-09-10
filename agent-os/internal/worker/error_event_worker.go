@@ -295,7 +295,7 @@ var zeroErrorMetricRe = regexp.MustCompile(`(?i)(['"]?(?:errors?|error_count|exc
 // 2026-09-10 补充（w-8f2c4cc5）：Python traceback 被多行/多段切碎后，`from x import (`、
 // 纯路径碎片、JSON 尾片段、"The above exception was the direct cause" 这些断行同样无信息量，
 // 独立成事件只会把看板淹掉（实证：`from domain.exceptions import (` 单条 21 次）。
-var tracebackContinuationRe = regexp.MustCompile(`^(?:raise\s+[\w\.]+|self\.[\w\.]+\(|File "|from [\w\.]+ import|The above exception was the direct cause|During handling of the above exception|\(Background on this error at:|"[\w]+"\s*:|[\w\.\-]*site-packages/|[\w\.\-/]*\.py\)?$)`)
+var tracebackContinuationRe = regexp.MustCompile(`^(?:raise\s+[\w\.]+|self\.[\w\.]+\(|File "|from [\w\.]+ import|The above exception was the direct cause|During handling of the above exception|\(Background on this error at:|[\s,]*"[\w]+"\s*[,:]|[\w\.\-/]*site-packages/|[\w\.\-/]*\.py\)?$)`)
 
 // jobSummarySucceededRe 调度器任务执行回执行（scheduler_webhook:
 // "Job 'x' succeeded (run_id=...): {...}"，INFO 级）。这类行本身是"任务跑完了"的

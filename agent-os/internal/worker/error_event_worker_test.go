@@ -121,6 +121,13 @@ func TestClassifyLogLine_RejectsTracebackContinuations(t *testing.T) {
 		"raise HTTPStatusError(message, request=request, response=self)",
 		"(Background on this error at: https://sqlalche.me/e/20/f405)",
 		"During handling of the above exception, another exception occurred:",
+		// 2026-09-11 补测（w-8f2c4cc5）：板面实测漏过的 5 类碎片——其中 venv 路径碎片
+		// 曾因字符类不含 "/" 而持续漏收（[\w\.\-]* 匹配不到以 / 分隔的路径）
+		"i-investment/quantsys-v2/venv/lib/python3.13/site-packages/sqlalchemy/dialects/postgresql/asyncpg.py",
+		"from domain.exceptions import (",
+		"ys-v2/domain/exceptions.py)",
+		"\t\"error\", \"timestamp\": \"2026-09-09T15:05:10.782623Z\"}",
+		"The above exception was the direct cause of the following exception:",
 	}
 	for _, ln := range cases {
 		if msg, ok := classifyLogLine(ln, "v2"); ok {
@@ -132,6 +139,8 @@ func TestClassifyLogLine_RejectsTracebackContinuations(t *testing.T) {
 		"Traceback (most recent call last):",
 		"sqlalchemy.exc.OperationalError: connection to server failed",
 		"2026-09-10 23:21:26 ERROR    main: raise failed for job filter_a",
+		// 反向保护：含路径但带时间戳/等级的真实错误行不得被路径类模式连带漏收
+		"2026-09-10 10:38 ERROR    kline_sync: backfill failed at /data/kline_sync.py",
 	}
 	for _, ln := range kept {
 		if _, ok := classifyLogLine(ln, "v2"); !ok {
