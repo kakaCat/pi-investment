@@ -326,10 +326,25 @@ def _job_freshness_guard() -> Dict[str, Any]:
 
 
 def _send_feishu(text: str) -> bool:
-    """飞书告警（失败只记日志，不阻断任务流）"""
+    """飞书告警（失败只记日志，不阻断任务流）
+
+    2026-09-11（w-23c70356）：改为经 NotificationFacade 投递，并与其余系统通知统一为
+    卡片样式（首行作标题、其余作正文）。此前直接调旧版 FeishuNotificationService
+    .send_text 走裸 webhook：既绕过 DDD 通知域（违反 CLAUDE.md 通知架构铁律），
+    也拿不到「Agent OS 优先、飞书降级」策略路由，所以在同一飞书群里与本 Agent 的
+    卡片消息观感不一致。urgency：🚨/❌ 开头按 high，其余 normal。
+    """
     try:
-        from application.services.feishu_service import FeishuNotificationService
-        return FeishuNotificationService().send_text(text)
+        from application.notification import get_notification_facade
+
+        title, _, body = text.partition('\n')
+        title = title.strip() or '每日任务通知'
+        urgency = 'high' if title.startswith(('🚨', '❌')) else 'normal'
+        return bool(get_notification_facade().send_card(
+            title=title,
+            content=(body.strip() or title),
+            urgency=urgency
+        ))
     except Exception as e:
         logger.error("freshness/job alert feishu send failed", error=str(e))
         return False
@@ -537,7 +552,9 @@ def _job_event_calendar_check() -> Dict[str, Any]:
     from adapters.outbound.repositories.event_calendar_repository import (
         get_event_calendar_repo,
     )
-    from application.services.feishu_service import FeishuNotificationService
+    # 2026-09-11（w-23c70356）：改走 NotificationFacade（原直接 new 旧版
+    # FeishuNotificationService，绕过 DDD 通知域）
+    from application.notification import get_notification_facade
 
     events = get_event_calendar_repo().list_upcoming(days_ahead=2)
     target = [e for e in events if e.status == 'pending' and (e.importance or 1) >= 2]
@@ -546,7 +563,7 @@ def _job_event_calendar_check() -> Dict[str, Any]:
 
     high = [e for e in target if e.importance >= 3]
     mid = [e for e in target if e.importance < 3]
-    svc = FeishuNotificationService()
+    svc = get_notification_facade()
     sent_ids: List[int] = []
     fail: Optional[Exception] = None
 

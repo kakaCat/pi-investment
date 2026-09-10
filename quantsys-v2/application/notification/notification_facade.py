@@ -148,8 +148,7 @@ class NotificationFacade:
                 'stop_loss_pct': stop_loss_pct,
                 'loss_pct': loss_pct,
             },
-            priority=NotificationPriority.CRITICAL,
-            preferred_channels=['feishu']  # 止损优先飞书
+            priority=NotificationPriority.CRITICAL
         )
         return self.service.send(notification)
 
@@ -184,7 +183,6 @@ class NotificationFacade:
                 'profit_pct': profit_pct,
             },
             priority=NotificationPriority.HIGH,
-            preferred_channels=['feishu']
         )
         return self.service.send(notification)
 
@@ -216,7 +214,6 @@ class NotificationFacade:
             content="",
             variables=report_data,
             priority=NotificationPriority.NORMAL,
-            preferred_channels=['feishu']
         )
         return self.service.send(notification)
 
@@ -243,7 +240,6 @@ class NotificationFacade:
             content="",
             variables=report_data,
             priority=NotificationPriority.NORMAL,
-            preferred_channels=['feishu']
         )
         return self.service.send(notification)
 
@@ -285,7 +281,6 @@ class NotificationFacade:
             content="",
             variables=result,
             priority=priority,
-            preferred_channels=['feishu']
         )
         return self.service.send(notification)
 
@@ -349,7 +344,6 @@ class NotificationFacade:
             content=text,
             variables={'mention_all': mention_all},
             priority=priority_enum,
-            preferred_channels=['feishu']
         )
 
         result = self.service.send(notification)
@@ -384,7 +378,6 @@ class NotificationFacade:
             content=content,
             variables={'actions': actions or []},
             priority=priority_enum,
-            preferred_channels=['feishu']
         )
 
         result = self.service.send(notification)
@@ -429,7 +422,6 @@ class NotificationFacade:
             content=message,
             variables=data or {},
             priority=NotificationPriority.HIGH,
-            preferred_channels=['feishu']
         )
 
         result = self.service.send(notification)

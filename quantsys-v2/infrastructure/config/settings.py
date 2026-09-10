@@ -68,8 +68,10 @@ class SchedulerSettings(BaseSettings):
     misfire_grace_time: int = Field(default=300, alias="SCHEDULER_MISFIRE_GRACE_TIME")
 
     # Agent OS 集成
+    # 2026-09-11（w-23c70356）：默认地址 3002 是已废弃的 wake-channel 网关，实测无监听，
+    # 导致 AgentChannel 恒失败、策略里的「OS 优先」从未生效；Agent OS 实际监听 8080。
     agent_os_enabled: bool = Field(default=True, alias="AGENT_OS_ENABLED")
-    agent_os_url: str = Field(default="http://localhost:3002", alias="AGENT_OS_URL")
+    agent_os_url: str = Field(default="http://localhost:8080", alias="AGENT_OS_URL")
 
     model_config = SettingsConfigDict(
         env_file=".env",

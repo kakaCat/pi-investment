@@ -12,6 +12,8 @@ Author: System
 Date: 2026-09-02
 """
 
+import os
+
 import structlog
 from typing import Optional
 
@@ -172,7 +174,9 @@ class NotificationFactory:
             agent_channel = AgentChannel(
                 agent_url=settings.scheduler.agent_os_url,
                 timeout=30,
-                token=None  # 可扩展为从配置读取
+                # Agent OS 通知 API（/api/v1/notifications/send）当前无需认证；
+                # 保留 token 参数以便后续接入鉴权（如通过 AGENT_API_TOKEN 环境变量）。
+                token=os.getenv('AGENT_OS_TOKEN') or None
             )
             channels.append(agent_channel)
             logger.info(

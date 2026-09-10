@@ -3,7 +3,6 @@
 支持文本、卡片、交互式消息推送
 """
 import json
-import requests
 import structlog
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -52,29 +51,21 @@ class FeishuNotificationService:
 
         Returns:
             是否发送成功
+
+        2026-09-11（w-23c70356）：改为经 NotificationFacade 统一投递。
+            原实现直接 requests.post 飞书 webhook，绕过 DDD 通知域（违反 CLAUDE.md
+            「所有通知必须经 NotificationFacade」铁律），也拿不到「Agent OS 优先、
+            飞书降级」的策略路由。注意：mention_users 门面暂不支持，只透传 mention_all。
         """
-        if not self.webhook_url:
-            logger.warning("Feishu webhook not configured, skipping notification")
+        try:
+            # 统一入口：application/notification/legacy_adapters.py 的桥接层
+            # （内部转 NotificationFacade，2026-09-11 w-23c70356 起真正被启用）
+            from application.notification.legacy_adapters import get_legacy_feishu_service
+
+            return bool(get_legacy_feishu_service().send_text(text, mention_all=mention_all))
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"legacy adapter send_text failed: {e}")
             return False
-
-        # 构建 @提及
-        mentions = []
-        if mention_all:
-            mentions.append('<at user_id="all">所有人</at>')
-        if mention_users:
-            for user_id in mention_users:
-                mentions.append(f'<at user_id="{user_id}"></at>')
-
-        full_text = ' '.join(mentions + [text]) if mentions else text
-
-        payload = {
-            "msg_type": "text",
-            "content": {
-                "text": full_text
-            }
-        }
-
-        return self._send(payload)
 
     def send_card(
         self,
@@ -95,76 +86,25 @@ class FeishuNotificationService:
 
         Returns:
             是否发送成功
+
+        2026-09-11（w-23c70356）：改为经 NotificationFacade 统一投递（同 send_text）。
+            本类所有报表/告警方法（send_daily_report/send_weekly_report/send_alert/
+            send_premarket_report）最终都汇聚到本方法，因此一并收敛到 DDD 通知域。
+            差异说明：extra_elements 门面不支持，会忽略并记 debug 日志。
         """
-        if not self.webhook_url:
-            logger.warning("Feishu webhook not configured, skipping notification")
+        try:
+            from application.notification.legacy_adapters import get_legacy_feishu_service
+
+            return bool(get_legacy_feishu_service().send_card(
+                title=title,
+                content=content,
+                urgency=urgency,
+                actions=actions,
+                extra_elements=extra_elements
+            ))
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"legacy adapter send_card failed: {e}")
             return False
-
-        # 颜色映射
-        color_map = {
-            "normal": "blue",
-            "high": "orange",
-            "critical": "red",
-            "success": "green"
-        }
-        color = color_map.get(urgency, "blue")
-
-        # 构建卡片元素
-        elements = [
-            {
-                "tag": "div",
-                "text": {
-                    "tag": "lark_md",
-                    "content": content
-                }
-            }
-        ]
-
-        # 添加额外元素
-        if extra_elements:
-            elements.extend(extra_elements)
-
-        # 添加操作按钮
-        if actions:
-            action_elements = []
-            for action in actions:
-                button = {
-                    "tag": "button",
-                    "text": {
-                        "tag": "plain_text",
-                        "content": action.get('label', 'Button')
-                    },
-                    "type": action.get('type', 'default')
-                }
-
-                # 添加 URL 或回调值
-                if 'url' in action:
-                    button['url'] = action['url']
-                if 'value' in action:
-                    button['value'] = action['value']
-
-                action_elements.append(button)
-
-            elements.append({
-                "tag": "action",
-                "actions": action_elements
-            })
-
-        payload = {
-            "msg_type": "interactive",
-            "card": {
-                "header": {
-                    "title": {
-                        "tag": "plain_text",
-                        "content": title
-                    },
-                    "template": color
-                },
-                "elements": elements
-            }
-        }
-
-        return self._send(payload)
 
     def send_daily_report(self, report_data: Dict[str, Any]) -> bool:
         """发送每日投资报告
@@ -406,42 +346,9 @@ class FeishuNotificationService:
 
         return ', '.join(watchlist[:10])  # 最多显示10个
 
-    def _send(self, payload: Dict) -> bool:
-        """发送消息到飞书
-
-        Args:
-            payload: 消息载荷
-
-        Returns:
-            是否发送成功
-        """
-        if not self.webhook_url:
-            logger.warning("Feishu webhook not configured")
-            return False
-
-        try:
-            response = requests.post(
-                self.webhook_url,
-                json=payload,
-                headers={'Content-Type': 'application/json'},
-                timeout=10
-            )
-
-            result = response.json()
-
-            if result.get('code') == 0 or result.get('StatusCode') == 0:
-                logger.info("Feishu notification sent successfully")
-                return True
-            else:
-                logger.error(f"Feishu notification failed: {result}")
-                return False
-
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to send Feishu notification: {e}")
-            return False
-        except Exception as e:
-            logger.error(f"Unexpected error sending Feishu notification: {e}")
-            return False
+    # 2026-09-11（w-23c70356）：原 _send()（直接 requests.post 飞书 webhook）已删除——
+    # 该类所有对外方法现已统一经 NotificationFacade 投递，裸 webhook 通道不应保留为可用路径。
+    # 需要底层发送能力时请用 infrastructure/notification/channels/feishu_channel.py（DDD 基础设施层）。
 
 
 # 全局单例
