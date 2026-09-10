@@ -23,9 +23,25 @@ if [ -z "$PID" ]; then
   exit 0
 fi
 
+# 阈值自适应（2026-09-11 w-f4aa1f6a 补）：堆上限会被各窗口调整（实证 8GB→16GB），
+# 固定阈值会在**正常水位**误触发——而本看门狗已开 AUTO_RESTART=1，误触发等于打断会话。
+# 故读取实例实际的 --max-old-space-size，取其 75% 作为阈值（不低于配置值）。
+# FORCE_THRESHOLD=1 时跳过自适应——保留"用低阈值验证告警/重启路径"的能力（否则自适应会把测试阈值顶回去）
+LIMIT_MB=""
+if [ "${FORCE_THRESHOLD:-0}" != "1" ]; then
+  LIMIT_MB=$(ps eww -p "$PID" 2>/dev/null | tr ' ' '\n' | grep -o 'max-old-space-size=[0-9]*' | head -1 | cut -d= -f2)
+fi
+if [ -n "${LIMIT_MB:-}" ] && [ "$LIMIT_MB" -gt 0 ] 2>/dev/null; then
+  ADAPTIVE_MB=$((LIMIT_MB * 3 / 4))
+  if [ "$ADAPTIVE_MB" -gt "$THRESHOLD_MB" ]; then
+    echo "[dsh-heap-watch] 堆上限=${LIMIT_MB}MB → 阈值自适应 ${THRESHOLD_MB}MB→${ADAPTIVE_MB}MB"
+    THRESHOLD_MB=$ADAPTIVE_MB
+  fi
+fi
+
 RSS_KB=$(ps -o rss= -p "$PID" | tr -d ' ')
 RSS_MB=$((RSS_KB / 1024))
-echo "[dsh-heap-watch] pid=$PID rss=${RSS_MB}MB 阈值=${THRESHOLD_MB}MB"
+echo "[dsh-heap-watch] pid=$PID rss=${RSS_MB}MB 阈值=${THRESHOLD_MB}MB 堆上限=${LIMIT_MB:-未知}MB"
 
 if [ "$RSS_MB" -lt "$THRESHOLD_MB" ]; then
   exit 0
