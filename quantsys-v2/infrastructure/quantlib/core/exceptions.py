@@ -19,6 +19,11 @@ from domain.quantlib.exceptions import (
     QuantAnalyticsError as _DomainQuantAnalyticsError,
     DataValidationError as _DomainDataValidationError,
     InsufficientDataError as _DomainInsufficientDataError,
+    CalculationError as _DomainCalculationError,
+    ConvergenceError as _DomainConvergenceError,
+    ModelFitError as _DomainModelFitError,
+    ConfigurationError as _DomainConfigurationError,
+    DependencyError as _DomainDependencyError,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,46 +57,51 @@ class InsufficientDataError(_DomainInsufficientDataError):
             self.args = (message,)
 
 
-class CalculationError(QuantAnalyticsError):
-    """Raised when a calculation fails."""
+class CalculationError(_DomainCalculationError):
+    """Raised when a calculation fails.（infra 签名 (method, message) 保留）"""
 
     def __init__(self, method: str, message: str):
         self.method = method
+        self.calculation_type = method  # 兼容 domain 版属性名
+        # 不传 calculation_type 给父类——避免 "method: Calculation error in method: ..." 前缀叠加
         super().__init__(f"Calculation error in {method}: {message}")
 
 
-class ConvergenceError(QuantAnalyticsError):
-    """Raised when an iterative algorithm fails to converge."""
+class ConvergenceError(_DomainConvergenceError):
+    """Raised when an iterative algorithm fails to converge.（infra 签名 (method, iterations, message) 保留）"""
 
     def __init__(self, method: str, iterations: int, message: Optional[str] = None):
         self.method = method
         self.iterations = iterations
         if message is None:
             message = f"Failed to converge after {iterations} iterations in {method}"
+        # 不传 iterations 给父类——避免 "(after N iterations)" 与自组文案重复
         super().__init__(message)
 
 
-class ModelFitError(QuantAnalyticsError):
-    """Raised when a model fitting fails."""
+class ModelFitError(_DomainModelFitError):
+    """Raised when a model fitting fails.（infra 签名 (model_name, message) 保留）"""
 
     def __init__(self, model_name: str, message: str):
         self.model_name = model_name
+        self.model_type = model_name  # 兼容 domain 版属性名
+        # 不传 model_type 给父类——避免 "model: Model fit error for model: ..." 前缀叠加
         super().__init__(f"Model fit error for {model_name}: {message}")
 
 
-class ConfigurationError(QuantAnalyticsError):
-    """Raised when configuration is invalid."""
-    pass
+class ConfigurationError(_DomainConfigurationError):
+    """Raised when configuration is invalid.（infra 原版为裸 pass，宽松构造兼容任意文案）"""
+
+    def __init__(self, message: str = "", parameter: Optional[str] = None):
+        super().__init__(message, parameter=parameter)
 
 
-class DependencyError(QuantAnalyticsError):
-    """Raised when a required dependency is missing."""
+class DependencyError(_DomainDependencyError):
+    """Raised when a required dependency is missing.（infra 签名 (package, message) 保留）"""
 
     def __init__(self, package: str, message: Optional[str] = None):
         self.package = package
-        if message is None:
-            message = f"Required package '{package}' is not installed"
-        super().__init__(message)
+        super().__init__(package, message=message)
 
 
 # Decorator for safe calculation execution
