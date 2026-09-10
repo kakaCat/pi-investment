@@ -25,7 +25,7 @@ from domain.ports import ISimulationRepository
 logger = structlog.get_logger(__name__)
 
 # 导入应用层的 TradingError（领域层可以依赖应用层的异常类型）
-from application.services.account_trading_service import TradingError
+from domain.trading.exceptions import TradingError  # 2026-09-10：消除 domain→application 反向依赖
 
 
 class TradeGuardService:

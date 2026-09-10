@@ -11,11 +11,9 @@ from domain.ports import ISimulationRepository
 logger = structlog.get_logger(__name__)
 
 
-class TradingError(Exception):
-    def __init__(self, message: str, status_code: int = 422, details: dict = None):
-        super().__init__(message)
-        self.status_code = status_code
-        self.details = details
+# TradingError 已上移至 domain/trading/exceptions.py（2026-09-10，分层倒置修正）；
+# 此处保留别名，存量 import（tests/adapters/simulation_async 等）零改动兼容。
+from domain.trading.exceptions import TradingError  # noqa: F401
 
 
 class AccountTradingService:
