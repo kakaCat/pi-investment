@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/pi-investment/agent-os/internal/storage/postgres"
@@ -64,12 +67,15 @@ func (e *Executor) Execute(ctx context.Context, task *types.Task, triggeredBy ty
 	var lastErr error
 	for attempt := 0; attempt <= e.config.MaxRetries; attempt++ {
 		if attempt > 0 {
+			delay := RetryDelayFor(attempt, lastErr, e.config.RetryDelay)
 			logger.Info("Retrying task execution",
 				"task_id", task.ID,
 				"task_name", task.Name,
 				"run_id", run.ID,
-				"attempt", attempt)
-			time.Sleep(e.config.RetryDelay)
+				"attempt", attempt,
+				"delay", delay.String(),
+				"connection_failure", IsConnectionFailure(lastErr))
+			time.Sleep(delay)
 		}
 
 		// Update status to running
@@ -334,4 +340,67 @@ func (e *Executor) executeWebhook(ctx context.Context, task *types.Task, run *ty
 		"run_id", run.ID)
 
 	return output, nil
+}
+
+// IsConnectionFailure reports whether err looks like the downstream endpoint
+// was unreachable (as opposed to returning a bad response).
+//
+// Rationale (2026-09-11): scheduled agent-webhook tasks talk to long-running
+// local services (e.g. the DSH instance on 127.0.0.1:13080). While such a
+// service restarts, the port is closed and the call fails with
+// "dial tcp 127.0.0.1:13080: connect: connection refused". agent-os stderr
+// between 2026-08-27 and 2026-09-11 contains 96 such failures across 10+
+// agent-brain-* routines, each one silently losing that run of the routine.
+func IsConnectionFailure(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, syscall.ECONNREFUSED) ||
+		errors.Is(err, syscall.ECONNRESET) ||
+		errors.Is(err, syscall.EHOSTUNREACH) ||
+		errors.Is(err, syscall.ENETUNREACH) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	// Fallback for wrapped errors whose errno got stringified along the way.
+	msg := strings.ToLower(err.Error())
+	for _, marker := range []string{
+		"connection refused",
+		"connection reset",
+		"no route to host",
+		"network is unreachable",
+		"i/o timeout",
+		"connection timed out",
+	} {
+		if strings.Contains(msg, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// RetryDelayFor returns the wait before the given retry attempt.
+//
+// Connection failures get an escalating backoff so the retry window covers a
+// service restart, while ordinary failures keep the configured fixed delay.
+// With the default RetryDelay of 5s the total window grows from ~10s
+// (5s + 5s) to ~90s (30s + 60s), which is longer than a DSH instance restart.
+func RetryDelayFor(attempt int, lastErr error, base time.Duration) time.Duration {
+	if attempt <= 0 {
+		return 0
+	}
+	if !IsConnectionFailure(lastErr) {
+		return base
+	}
+	if base <= 0 {
+		base = 5 * time.Second
+	}
+	delay := base * time.Duration(6*attempt)
+	if maxDelay := 2 * time.Minute; delay > maxDelay {
+		delay = maxDelay
+	}
+	return delay
 }
