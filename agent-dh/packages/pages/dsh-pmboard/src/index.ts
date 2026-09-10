@@ -16,7 +16,7 @@ import * as path from 'node:path';
 import { ReqboardStore } from './host/store.js';
 import { createReqboardHandler } from './host/routes.js';
 import { captureSectionText, windowKeyFromContext, draftRequirementsFor } from './host/capture.js';
-import { applyPickupAdvance } from './host/rollup.js';
+import { applyPickupAdvance, applyPickupReconcile, applyTaskRollup } from './host/rollup.js';
 import { newCommentId, type RequirementRecord } from './shared/protocol.js';
 import { createSessionEventCaptureHook, type CaptureHookDeps } from './host/capture-hook.js';
 import { defineCreateTool, defineStatusTool, defineMoveTool } from './host/agent-tools.js';
@@ -46,6 +46,27 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   // 急加载：fresh boot 时让首个 GET /state 见到台账而非空板（load 永不抛——损坏即隔离）
   void store.load();
   const now = () => Date.now();
+
+  // 启动对账（R0 + R2）：台账装载后跑一次派生推进，让升级前积压的 draft 需求
+  // （窗口立项、无人推进）立刻进入评审，并结算已完成实施的需求。无变化时不写盘
+  // （mutator 返回 undefined → revision 不 bump）。
+  void store
+    .load()
+    .then(() =>
+      store.mutate('requirement-moved', (ledger) => {
+        const ctx = { now: now(), commentId: () => newCommentId() };
+        const advanced = [...applyPickupReconcile(ledger, ctx), ...applyTaskRollup(ledger, ctx)];
+        return advanced.length > 0 ? { requirements: advanced } : undefined;
+      }),
+    )
+    .then((result) => {
+      if (result.changed.requirements.length > 0) {
+        logger.info(
+          `reqboard 启动对账：${result.changed.requirements.length} 条需求自动推进（${result.changed.requirements.map((r) => r.id).join(', ')}）`,
+        );
+      }
+    })
+    .catch((err) => logger.warn('reqboard 启动对账失败（不影响服务）:', err));
 
   // 乙流程依赖的运行时服务（惰性获取，未就绪/缺失时相关能力降级放行）：
   //   agents             → requireLiveDriver（服务可得则校验 live driver，缺失放行）

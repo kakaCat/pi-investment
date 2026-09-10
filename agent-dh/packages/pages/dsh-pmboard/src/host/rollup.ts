@@ -75,6 +75,31 @@ export function applyPickupAdvance(
 }
 
 /**
+ * R0 启动对账：把历史上「已挂窗口但仍停在 draft」的需求按同一套规则补齐推进。
+ * 用途：插件启动时跑一次（对齐 RFC 014 §7「启动对账」），让升级前积压的需求立刻
+ * 反映真实状态，而不是等人逐条点。只动 draft + 已挂窗口（sourceSessionId 或
+ * triage 锚点）的需求——人工建卡、且从未被窗口接手的仍留在立项。
+ */
+export function applyPickupReconcile(ledger: ReqboardLedger, ctx: RollupContext): RequirementRecord[] {
+  const bound = new Set<string>()
+  for (const r of ledger.requirements) {
+    if (typeof r.sourceSessionId === 'string' && r.sourceSessionId.length > 0) bound.add(r.id)
+  }
+  for (const t of ledger.triages) {
+    const anchors: unknown[] = [t.resultRequirementId, ...(Array.isArray(t.resultRequirementIds) ? t.resultRequirementIds : [])]
+    for (const a of anchors) if (typeof a === 'string' && a.length > 0) bound.add(a)
+  }
+  const advanced: RequirementRecord[] = []
+  for (const req of ledger.requirements) {
+    if (req.status !== 'draft' || !bound.has(req.id)) continue
+    advanced.push(
+      advance(req, 'reviewing', '启动对账：该需求已由窗口立项并接手，自动提交评审（方案待人工确认）', ctx),
+    )
+  }
+  return advanced
+}
+
+/**
  * R2 任务派生推进：implementing 且全部未取消任务 done（≥1 个）→ accepting。
  * 返回被推进的需求列表（通常 0 或 1 条）。
  */

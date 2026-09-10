@@ -4,7 +4,7 @@
  * 非触发态不动、canceled 任务不计入完成度、人工闸门永不被自动越过。
  */
 import { describe, it, expect } from 'vitest'
-import { applyPickupAdvance, applyTaskRollup } from '../src/host/rollup.js'
+import { applyPickupAdvance, applyPickupReconcile, applyTaskRollup } from '../src/host/rollup.js'
 import { emptyLedger, type ReqboardLedger, type RequirementRecord, type TaskRecord } from '../src/shared/protocol.js'
 
 let seq = 0
@@ -119,5 +119,43 @@ describe('applyTaskRollup（R2 实施完成 → 验收）', () => {
     expect(advanced).toHaveLength(1)
     expect(advanced[0].id).toBe(b.id)
     expect(l.requirements.find(r => r.id === a.id)!.status).toBe('implementing')
+  })
+})
+// -- R0 启动对账 -----------------------------------------------------------
+
+describe('applyPickupReconcile（R0 启动对账）', () => {
+  it('已挂窗口的 draft 需求 → reviewing（带对账留痕）', () => {
+    const bound = req({ status: 'draft', sourceSessionId: 'session-abc' })
+    const human = req({ status: 'draft' }) // 人工建卡：无 sourceSessionId
+    const l = ledger({ requirements: [bound, human] })
+    const advanced = applyPickupReconcile(l, ctx)
+    expect(advanced.map(r => r.id)).toEqual([bound.id])
+    expect(l.requirements[0].status).toBe('reviewing')
+    expect(l.requirements[0].comments.at(-1)?.body).toContain('启动对账')
+    expect(l.requirements[1].status).toBe('draft')
+  })
+
+  it('triage 锚点绑定的 draft 需求也纳入对账', () => {
+    const r0 = req({ status: 'draft' })
+    const l = ledger({
+      requirements: [r0],
+      triages: [{ id: 'tri-1', sessionId: 'session-x', status: 'confirmed', resultRequirementId: r0.id } as never],
+    })
+    expect(applyPickupReconcile(l, ctx)).toHaveLength(1)
+    expect(l.requirements[0].status).toBe('reviewing')
+  })
+
+  it('幂等：第二次跑无变化（已在评审的不再动）', () => {
+    const r0 = req({ status: 'draft', sourceSessionId: 'session-abc' })
+    const l = ledger({ requirements: [r0] })
+    expect(applyPickupReconcile(l, ctx)).toHaveLength(1)
+    expect(applyPickupReconcile(l, ctx)).toHaveLength(0)
+  })
+
+  it('非 draft 状态一律不动，且永不越过人工闸门（reviewing 不被自动推成 decomposing）', () => {
+    const r0 = req({ status: 'reviewing', sourceSessionId: 'session-abc' })
+    const l = ledger({ requirements: [r0] })
+    expect(applyPickupReconcile(l, ctx)).toHaveLength(0)
+    expect(l.requirements[0].status).toBe('reviewing')
   })
 })

@@ -341,3 +341,10 @@ describe('窗口关联可见性', () => {
     expect(html).toContain('data-to="reviewing"')
   })
 })
+describe('评审态人工回退口', () => {
+  it('reviewing 详情同时给出「确认方案」与「退回立项」', () => {
+    const html = buildReqDetail(makeReq({ status: 'reviewing' }), [])
+    expect(html).toContain('data-to="decomposing"')
+    expect(html).toContain('data-to="draft"')
+  })
+})
