@@ -141,3 +141,71 @@ adapters/outbound/datasources/providers/kline/tencent.py（fallback provider，p
 
 quant.stocks 中缺少部分新上市标的记录（如 001220、001396、301522、301556、301557、301592、301613、301626、301628 等），导致 ① 这些标的没有 avg_volume 基准、截面自检对其失效；② 任何"以 stocks 表反查是否为指数/存在性"的逻辑会把它们误判。属 universe 修复范畴（与 w-8f2c4cc5 工作线重叠），本次仅记录。
 
+---
+
+## 九、伪代码清理 + 双层防护（2026-09-11 00:0x ~ 00:4x，用户批准"全部执行"）
+
+承接追加发现 2 的待决策项。用户经 ask_user_question 选择「全部执行（推荐）」＝备份 → 清理 → 补写入侧防护 → 验证不复发。
+
+### 9.1 清理决策依据（先证真伪，再决定删/改）
+
+| 检验 | 结果 |
+|---|---|
+| 10 只 `600000.SH`…`600009.SH` 的 stocks 记录 | name 全为 `Test`、`list_date` 为 NULL |
+| 600001/600002/600003/600005 真实身份 | 邯郸钢铁/齐鲁石化/ST东北高/武钢股份——**均已退市**，裸码无 K 线；伪码却有 2026-05-06~09-02 共 120 行"行情" |
+| 与真实裸码的同日收盘价比对 | 78~85 天重叠中 0 天完全相同（仅 600007/600009 有 12 天）→ **非同一证券**，改名合并会污染真数据 |
+| 引用面（删前扫描） | daily_klines 1,213 / factor_values 174 / public.kline_data_quality 110 / stocks 10；池子、成交、盯盘、止损、回测表 **0** 引用 |
+| 写入方 | 就是 kline_update_job（以 stocks 为宇宙逐日同步）→ 不删 stocks 行必然复发 |
+
+结论：**删除而非修复**（改名会污染真实序列，保留则以 stocks 为源的同步会持续回写）。
+
+### 9.2 执行（/tmp/testpseudo_delete_w23c70356.py）
+
+先备份后删，逐表 `backed_up == deleted` 且 `left == 0`，共 **1,507 行**：
+
+| 表 | 行数 | 备份表 |
+|---|---|---|
+| quant.daily_klines | 1,213 | quant.bak_testpseudo_w23c70356_daily_klines |
+| quant.factor_values | 174 | quant.bak_testpseudo_w23c70356_factor_values |
+| public.kline_data_quality | 110 | public.bak_testpseudo_w23c70356_quality |
+| quant.stocks | 10 | quant.bak_testpseudo_w23c70356_stocks |
+
+（quant_compat.* 是 quant.* 的 VIEW，无需单独清理；并行窗口的 quant.daily_klines_amount_backup_20260910 未动。）
+
+### 9.3 防护（提交 9d2ac122）
+
+1. **选股 SQL 形状过滤**：`STANDARD_SYMBOL_SQL = "s.symbol ~ '^[0-9]{6}$'"`，all/gem/batch/priority 四个分支全部接入——伪代码不再进同步队列。
+2. **写入循环兜底**：update_gem_klines 循环内非 6 位裸码直接 `skipped`（连 provider 请求都不发），显式 symbols 入参也穿不过。
+3. **f-string 陷阱**（实测踩到）：batch 分支是 f-string，把 `'^[0-9]{6}$'` 直接写进去会被渲染为 `'^[0-9]6$'`（过滤静默失效）→ 改用 `{STANDARD_SYMBOL_SQL}` 插值，并加测试锁定该形态。
+
+### 9.4 变异测试（证明测试真的能抓住回退，三次注入后均已还原，md5 一致 7e4462a03071ca20bdb7520e7b77b183）
+
+| 注入 | 预期 | 实际 |
+|---|---|---|
+| 去掉写入循环兜底 | 对应测试 FAILED | ✅ FAILED |
+| batch 分支改回字面量（brace trap） | f-string 测试 FAILED | ✅ FAILED |
+| 去掉 all 分支形状过滤 | 不变量测试 FAILED | ✅ FAILED |
+
+### 9.5 顺带修复的两处"静默失效的回归测试"
+
+- `tests/test_kline_amount_fix.py` 的 `TENCENT_RESPONSE` 仍写 `qfqday`，而 provider 自 **2026-07-23（84ce0cc2）** 起只读 `node['day']` → 该回归测试自 07-23 起从未跑到断言（只打印 "Tencent returned no data"）。fixture 键更正为 `day`，断言（volume×100、amount = 股×close）恢复生效。
+- `tests/infrastructure/test_kline_update_selection.py` 改为断言**不变量**而非造污染行：四个 scope 的实际查询结果不得含非 6 位符号（测试库 quant_test 里确实存在 `600000.SH` 行，故该断言能真实抓住回退）。不往 stocks 塞含点行是因为 `quant.portfolio_holdings` 上有 FK `portfolio_holdings_symbol_fkey → quant.stocks(symbol)`——塞/删都会撞 FK（实测：删 `600000.SH` 报 "still referenced from table portfolio_holdings"）。
+
+### 9.6 验收（2026-09-11 00:4x，psql 直查 quant_investment）
+
+| 验收项 | 结果 |
+|---|---|
+| quant.stocks 非 6 位裸码行 | **0**（总 5,856 行） |
+| quant.daily_klines 非 6 位裸码行 | **0** |
+| factor_values / kline_data_quality 含点行 | **0 / 0** |
+| 备份表在档 | 1,213 行（可回滚） |
+| 回归测试 | **37 passed**（本次相关 5 个测试文件） |
+
+> 待观察：2026-09-11 17:40 的定时同步应保持非标准码 0 行（防护已生效；该次同步前 qv2 需重启加载新代码）。
+
+### 9.7 诚实边界
+
+- 本次只清理**生产库**；测试库 quant_test 里同样的 `600000.SH` 行（及其持仓子行）未动——那是测试库，清理属另一条线。
+- `quant.portfolio_holdings` 曾存在引用伪代码的行（FK 报错即证），在我做清理扫描时该行已不在（其余窗口/并行活动清理过），**本窗口未对其做任何删除**；此点记录在案以免日后误判为"漏查"。
+- 本窗口对上述统计口径的直接贡献仅限两处：科创板 −88.398 万亿（08 月）/ −3.012 万亿（07 月）与指数伪行 amount 移除；其余由并行窗口完成，已在前文注明。
+
