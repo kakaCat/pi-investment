@@ -109,12 +109,12 @@ services:
     description: '股票代码验证服务'
 
   # 筹码分布
-  # 盯盘引擎
-  watch_engine:
-    class: application.services.watch_engine.WatchEngine
-    lifecycle: singleton
-    factory: infrastructure.factories.create_watch_engine
-    description: '实时盯盘引擎'
+  # 盯盘引擎（TODO: 未实现，暂时禁用）
+  # watch_engine:
+  #   class: application.services.watch_engine.WatchEngine
+  #   lifecycle: singleton
+  #   factory: infrastructure.factories.create_watch_engine
+  #   description: '实时盯盘引擎'
 
   # 策略服务
   strategy_code_service:
