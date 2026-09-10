@@ -101,6 +101,12 @@ class OpportunityToWatchRuleService:
         # 4. 创建规则
         try:
             rule = self._create_watch_rule(opp)
+            if rule is None:
+                return {
+                    'symbol': symbol,
+                    'action': 'skipped',
+                    'reason': '无法确定入场价（载荷无价格且数据库无该标的K线），未创建空条件规则',
+                }
             return {
                 'symbol': symbol,
                 'action': 'created',
@@ -123,8 +129,15 @@ class OpportunityToWatchRuleService:
         reasons = opp.get('reasons', [])
         score_breakdown = opp.get('score_breakdown', {})
         
-        # 获取当前价格（从 score_breakdown 或 reasons 中提取）
+        # 获取当前价格：先试载荷内字段，再回落数据库最新收盘
+        # 2026-09-11 修复（REQ-342799，w-c8cae280）：实测 opportunity_scan 载荷**根本不含价格字段**
+        #（键为 symbol/name/score/.../scoring_method），而 _extract_current_price 只找
+        # score_breakdown.technical.details.latest_price 与 reasons 里的『当前价 X』——两者都不存在，
+        # 于是 current_price 恒为 None、conditions 恒为空、却照样 create_rule，
+        # 造成 09-10 起累计 13 条 conditions=[] 的『永不触发』规则（假监控覆盖）。
         current_price = self._extract_current_price(opp)
+        if not current_price:
+            current_price = self._latest_close_from_db(symbol)
         
         # 计算买入区和止损止盈价
         if current_price:
@@ -145,6 +158,16 @@ class OpportunityToWatchRuleService:
                 'cooldown_sec': 1800,
             })
         
+        # 没有可执行条件就不建规则：宁可显式跳过（并留日志/计数），也不生产空壳规则。
+        # 这是『不产生假数据』纪律在盯盘链路上的落地——空条件规则的危害是让人误以为有监控覆盖。
+        if not conditions:
+            logger.warning(
+                '跳过自动创建盯盘规则：无法确定入场价',
+                symbol=symbol,
+                score=score,
+            )
+            return None
+
         # 构建 context（预案）
         context = self._build_context(opp, entry_price, stop_loss, take_profit)
         
@@ -181,6 +204,26 @@ class OpportunityToWatchRuleService:
         
         return rule
     
+    def _latest_close_from_db(self, symbol: str) -> Optional[float]:
+        """从日K线库取该标的最新收盘价（2026-09-11 新增：载荷本身不含价格字段）"""
+        if not symbol:
+            return None
+        try:
+            with get_engine().connect() as conn:
+                row = conn.execute(
+                    text(
+                        'SELECT close FROM quant.daily_klines WHERE symbol = :s '
+                        'ORDER BY trade_date DESC LIMIT 1'
+                    ),
+                    {'s': symbol},
+                ).fetchone()
+            if row and row[0] is not None:
+                return float(row[0])
+            return None
+        except Exception as e:  # noqa: BLE001
+            logger.warning('读取最新收盘价失败', symbol=symbol, error=str(e))
+            return None
+
     def _extract_current_price(self, opp: Dict) -> Optional[float]:
         """从机会数据中提取当前价格"""
         # 尝试从 score_breakdown 中提取
