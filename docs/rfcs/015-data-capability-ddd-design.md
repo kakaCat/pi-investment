@@ -58,6 +58,41 @@ agent-dh/packages/*/src/tools/*               ← 消费侧（DSH 工具，经 q
 
 ---
 
+## 1.5 多数据源设计（三项**强制**，非可选）
+
+### 1.5.1 为什么强制——今日实证的三种"假多源"
+
+| 反模式 | 实证（2026-09-11） | 后果 |
+|---|---|---|
+| **框架有、只挂一个源** | `dividend_providers = [akshare]`（`_try_providers` 熔断/动态优先级齐备，但无可故障转移对象） | 单点故障即全链路失败；`/api/dividends/screen` 报 "All data providers failed" |
+| **源接上了、字段映射错** | akshare 分红 provider 读 `每股派息/股息率/除权除息日`，而该接口真实列是 `派息比例/除权日/股权登记日` | **静默全 0**，被误读为"该公司不分红"（比报错危险） |
+| **源之间口径不一致** | `fund_flow` DB 缓存经 sina 落库时 large/big 档为 null，东财 clist 路径四档齐全 | 因子出现"部分档位恒 0"，跨源拼出的数据不自洽 |
+
+**结论**：多数据源不是"注册两个类"，而是三条硬约束同时满足。
+
+### 1.5.2 硬约束（每项特性都必须过）
+
+1. **≥2 个独立通道**：同一数据类型的 provider 必须来自**不同上游通道**（例：腾讯 / 东财 / 新浪 / akshare / 本地 DB 各算一个通道）。禁止把同一个上游 API 包两个类充数。
+2. **复用既有故障转移框架**：provider 注册进 `adapters/outbound/datasources/manager.py` 的对应列表，自动获得 `_try_providers`（独立超时 + 熔断 + 动态降权 + attempted_sources 透传），**不得另起并行链路**。
+3. **契约先验证再注册**：每个新 provider 的字段映射必须先用**真实响应**打样核对（今日教训：mock 与理想 payload 会让错映射通过测试）；未验证的 provider 不得进注册表。
+4. **本地 DB 兜底作为最后一级**：所有三项都必须有一条 "DatabaseXxxProvider"（读本地表），保证上游全挂时链路不中断且**显式标记 stale**（stale-while-error）。
+5. **失败与空结果语义分离**：全部源失败 → **显式失败**；某源返回空 → 继续下一源；**禁止**用空结果/0 值冒充成功。
+6. **跨源一致性校验**：当 ≥2 源同时返回时做比对，超阈值分歧 → 标注 `cross_source_conflict` + 取**保守值** + 记入体检探针（例：交易状态冲突时以"不可交易"为准）。
+
+### 1.5.3 响应契约（三项统一）
+
+```json
+{ "success": true, "data": {...},
+  "source": "tencent",                    // 实际服务源
+  "attempted_sources": ["tencent","eastmoney"],
+  "degraded": false, "stale": false,
+  "cross_source_conflict": null,          // 非 null 时含分歧细节
+  "as_of": "2026-09-11T14:05:00+08:00"    // 数据时点（R-013 标注要求）
+}
+```
+
+---
+
 ## 2. ① 产业链图谱（Industry Chain Graph）
 
 ### 2.1 领域层
@@ -116,7 +151,17 @@ class IIndustryChainProvider(ABC):
 | `map_symbol(symbol)` | **个股→所属链/环节/主营占比**（链式扫描的关键查询） |
 | `chain_scan(name)` | **链式扫描**：按环节分组 + 挂实时行情/资金流（复用既有 quote/fund_flow 端口） |
 
-### 2.3 出站适配器 · `providers/industry_chain/{eastmoney,ths,akshare}.py`
+### 2.3 出站适配器（多源矩阵，按 1.5 硬约束）
+
+| 优先级 | Provider | 通道 | 提供字段 | 失败降级 |
+|---|---|---|---|---|
+| 0（权威） | `CuratedChainProvider` | 人工策展 seed（`domain/industry_chain/seed/*.yaml`） | 环节拓扑（node 与上下游关系） | 不可降级：拓扑唯一来源，缺失即 fail-loud |
+| 1 | `EastmoneyRevenueProvider` | 东财 F10 主营构成 | 成员**归位证据**（产品/行业占营收比） | → akshare 同义接口 |
+| 2 | `AkshareRevenueProvider` | akshare `stock_zygc_em` | 同上（同数据不同通道） | → 概念成分 |
+| 3 | `AkshareConceptProvider` | akshare 概念/行业成分 | 候选成员（低置信） | → 本地 DB |
+| 4 | `DatabaseChainProvider` | `quant.industry_chain_member` | 上次成功图谱 | stale-while-error |
+
+**交叉校验**：主营构成（优先级 1/2）与概念成分（3）对同一标的归位冲突时 → **以主营构成为准**，并把冲突写入 `evidence_conflict` 供人工复核（不静默取其一）。
 
 数据源现实（诚实评估）：
 - **无现成"产业链"接口**。可组合：东财行业/概念成分（链的粗粒度）+ **主营构成**（akshare `stock_zygc_em`，提供"XX产品占营收 N%"——这是把标的归位到环节的**唯一硬证据**）
@@ -158,9 +203,28 @@ class MarketEvent:            # 聚合根
 ### 3.2 应用层 · `application/services/event_feed_service.py`
 `ingest_policy()` / `ingest_symbol_events(symbols)` / `list_events(scope,type,range)` / `events_for_symbol(symbol)` / `upcoming(days)` / **`link_to_watchlist()`（事件→盯盘规则联动：解禁/财报自动挂规则）**
 
-### 3.3 出站适配器 · `providers/events/{eastmoney_corp,cninfo,policy_gov}.py`
-- **个股事件**（可自动化）：东财大事提醒、巨潮公告（akshare `stock_notice_report` / `stock_zh_a_disclosure_report_cninfo`）、解禁排队（`stock_restricted_release_queue_em`）
-- **政策**（半自动）：国务院/发改委/证监会/交易所发布页；无稳定免费 API → **采集器 + 人工策展兜底**，抓取失败必须显式标注（禁止静默空）
+### 3.3 出站适配器（多源矩阵，按 1.5 硬约束）
+
+**个股事件**（全自动化，≥3 独立通道）
+
+| 优先级 | Provider | 通道 | 覆盖类型 |
+|---|---|---|---|
+| 1 | `EastmoneyNoticeProvider` | 东财大事提醒 | 财报/解禁/定增/股东会/减持 |
+| 2 | `CninfoDisclosureProvider` | 巨潮公告（法定披露） | 全部公告类型（权威） |
+| 3 | `AkshareUnlockProvider` | akshare 解禁排队 | 解禁（结构化） |
+| 4 | `DatabaseEventProvider` | `quant.event_calendar` | 上次成功入库（stale 标注） |
+
+**交叉校验**：同一 (symbol, 日期, 类型) 多源并存 → 按 `evidence_hash` 幂等去重，保留**权威度最高**源（巨潮 > 东财），差异记入 `source_divergence`。
+
+**政策事件**（半自动，≥2 通道 + 人工兜底）
+
+| 优先级 | Provider | 通道 |
+|---|---|---|
+| 1 | `GovPolicyProvider` | 国务院/发改委发布页 |
+| 2 | `CsrcPolicyProvider` | 证监会/交易所发布页 |
+| 3 | `ManualPolicySeed` | **人工策展兜底**（抓取失败时的最低保障，带 operator 标记） |
+
+**硬要求**：政策源无稳定免费 API（已有东财 WAF 前例），抓取失败**必须显式失败或落到人工 seed**，禁止静默空——否则"没有政策事件"与"没抓到"无法区分。
 
 ### 3.4 入站适配器
 扩展现有 `/api/events`：新增 `GET /api/events/feed`（按 scope/type/date 过滤）、`GET /api/events/symbol/{symbol}`、`GET /api/events/upcoming?days=N`。
@@ -194,8 +258,26 @@ class TradingStatus:    # 值对象：下单前硬约束
 ### 4.2 应用层 · `application/services/microstructure_service.py`
 `get_minute_klines(symbol, period, date)` / `get_trading_status(symbol)` / **`estimate_execution(order)`（滑点/冲击成本预估：用分钟线量能 + 当前买卖价差，供 R-003 拆单决策）** / `intraday_context(symbol)`（分时位置：相对当日均价/高低点）
 
-### 4.3 出站适配器 · `providers/minute_kline/{tencent,eastmoney,akshare}.py`
-腾讯/东财分钟线为网络首选；落库 `quant.minute_klines`（表已存在，仅补 provider + repository）。
+### 4.3 出站适配器（多源矩阵，按 1.5 硬约束）
+
+**分钟线**（≥4 独立通道 + 本地兜底）
+
+| 优先级 | Provider | 通道 | 备注 |
+|---|---|---|---|
+| 1 | `TencentMinuteProvider` | 腾讯 ifzq.gtimg.cn | 稳定、延迟低，网络首选 |
+| 2 | `EastmoneyMinuteProvider` | 东财 push2his | 需经系统代理（本机直连被封） |
+| 3 | `SinaMinuteProvider` | 新浪 | 备选通道 |
+| 4 | `AkshareMinuteProvider` | akshare `stock_zh_a_hist_min_em` | 慢，末位网络通道 |
+| 5 | `DatabaseMinuteKlineProvider` | `quant.minute_klines` | 断网/收盘后兜底，标 `stale` |
+
+**交易状态**（**双通道 + 保守裁决**，这条最关乎资金安全）
+
+| 优先级 | Provider | 通道 | 判定内容 |
+|---|---|---|---|
+| 1 | `StockTableStatusProvider` | `stocks.is_st` / `is_suspended` | 基础状态（权威静态） |
+| 2 | `QuoteDerivedStatusProvider` | 实时行情（腾讯→新浪→东财） | 动态：成交量为 0 → 疑似停牌；现价触及 ±限幅 → 涨/跌停 |
+
+**保守裁决规则**：两通道结论不一致时（如表说可交易、行情显示成交为 0）→ **按"不可交易"处理** + 抛 `cross_source_conflict` + 在 `portfolio_trade` 前置校验中 fail-closed。宁可错杀一次委托，不可在停牌票上误下单。
 
 ### 4.4 入站适配器
 `GET /api/stocks/{symbol}/minute-klines?period=5&date=YYYY-MM-DD` ｜ `GET /api/stocks/{symbol}/trading-status` ｜ `POST /api/execution/estimate`
@@ -214,6 +296,8 @@ class TradingStatus:    # 值对象：下单前硬约束
 | 维度 | 标准 |
 |---|---|
 | 契约 | 每端口有 provider 实现 + repository 实现；provider 注册进 manager 且 `name` 唯一 |
+| **多源（1.5）** | 每类数据 **≥2 个独立通道** 的 provider 注册进 manager；**故障注入实测**——手工屏蔽首选源后仍能出数且 `attempted_sources` 如实反映；跨源冲突有保守裁决与 `cross_source_conflict` 标注 |
+| **字段映射** | 每个新 provider 的字段映射经**真实响应**打样核对（禁止仅凭 mock/文档；今日分红全 0 的根因） |
 | 依赖方向 | `grep -rn "adapters.outbound" application/` 与 `domain/` **零命中**（ADR-001 红线） |
 | 真实数据 | LIVE 用例：chain_scan 返回真实成员与占比；events_for_symbol 返回真实公告事件；minute_kline 返回真实分钟线；trading_status 对 ST/停牌/涨跌停样本判定正确 |
 | 失败语义 | 数据源失败 → **显式失败**（不返回空清单/全 0）；空结果与失败分别可辨 |
