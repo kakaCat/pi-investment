@@ -1872,6 +1872,25 @@ export class QuantsysV2Client {
     return this.unwrap(response.data, 'deleteEvent');
   }
 
+  // ==================== P3 事件源扩展（RFC 015 §3，2026-09-11） ====================
+  // 多源聚合接口：**不走 unwrap**，失败语义透传工具层（与 fund_flow/minute_kline 同款约定）。
+
+  /** 事件流（按 scope/type/日期过滤） */
+  async getEventsFeed(params: {
+    scope?: string; type?: string; date_from?: string; date_to?: string; limit?: number;
+  } = {}): Promise<ProviderResponse> {
+    const response = await this.client.get('/api/events/feed', { params })
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
+  /** 个股事件（公告/解禁/财报/股东会/减持…）——买入前排雷 */
+  async getSymbolEvents(symbol: string, params: { days?: number } = {}): Promise<ProviderResponse> {
+    const response = await this.client.get(`/api/events/symbol/${symbol}`, { params })
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
   // ==================== P1 微观结构：分钟线 / 交易状态 / 执行预估（2026-09-11，RFC 015） ====================
   // 注意：以下方法**不走 unwrap**——多源失败语义需透传给工具层做降级处理（与 fund_flow 同款约定）。
 

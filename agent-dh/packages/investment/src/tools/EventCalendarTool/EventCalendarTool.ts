@@ -5,6 +5,8 @@ import { eventCalendarPrompt, EventCalendarParams, EventCalendarResult } from '.
 
 const VALID_TYPES = ['cpi_ppi', 'pmi', 'nbs', 'lpr', 'fomc', 'us_cpi', 'nfp', 'earnings', 'futures_delivery', 'policy', 'other'];
 const VALID_STATUSES = ['pending', 'notified', 'collected', 'reviewed', 'skipped'];
+// P3/RFC 015 §3：事件层级（macro=既有宏观日历；industry/individual=多源事件流）
+const VALID_SCOPES = ['macro', 'industry', 'individual'];
 
 export class EventCalendarTool extends BaseTool<EventCalendarParams, EventCalendarResult> {
   protected readonly metadata: ToolMetadata = {
@@ -52,6 +54,16 @@ export class EventCalendarTool extends BaseTool<EventCalendarParams, EventCalend
         expected: VALID_TYPES.join(' | '),
       };
     }
+    if (args.scope && !VALID_SCOPES.includes(args.scope)) {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'scope',
+        issue: 'scope 非法',
+        received: args.scope,
+        expected: VALID_SCOPES.join(' | '),
+      };
+    }
     if (args.status && !VALID_STATUSES.includes(args.status)) {
       return {
         success: false,
@@ -70,6 +82,32 @@ export class EventCalendarTool extends BaseTool<EventCalendarParams, EventCalend
     context: ToolContext
   ): Promise<EventCalendarResult> {
     const mode = args.mode || 'upcoming';
+
+    // P3/RFC 015 §3：指定 scope 时改走多源事件流（宏观之外新增行业/个股事件）。
+    // 保持既有行为兼容：不传 scope 时完全走原路径。
+    if (args.scope) {
+      const res: any = await (this.qv2 as any).getEventsFeed({
+        scope: args.scope,
+        type: args.event_type,
+        date_from: args.start,
+        date_to: args.end,
+        limit: 200,
+      });
+      // 多源失败语义：显式失败，禁止把失败当「无事件」
+      if (!res || res.success !== true) {
+        const why = res?.error || res?.message || '未知原因';
+        const att = res?.attempted_sources ? `（已尝试: ${(res.attempted_sources || []).join(', ')}）` : '';
+        throw new Error(`事件流查询失败（scope=${args.scope}）：${why}${att}。禁止据此判定『无事件』`);
+      }
+      const p: any = res.data ?? res;
+      const events: any[] = Array.isArray(p) ? p : (p?.events ?? []);
+      return {
+        mode: `feed(scope=${args.scope}${args.event_type ? ', type=' + args.event_type : ''})`,
+        count: events.length,
+        events,
+        note: `多源事件流：source=${res.source ?? p?.source ?? '?'}；attempted=${(res.attempted_sources ?? []).join(',') || '-'}；degraded=${res.degraded ?? false}；as_of=${res.as_of ?? p?.as_of ?? '?'}`,
+      } as any;
+    }
 
     if (mode === 'upcoming') {
       const days = args.days ?? 2;

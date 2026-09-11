@@ -9,7 +9,11 @@ export interface EventCalendarParams {
   start?: string;
   /** range 模式：结束日期 YYYY-MM-DD */
   end?: string;
-  /** range 模式：事件类型过滤（cpi_ppi/pmi/nbs/lpr/fomc/earnings/futures_delivery/policy/other） */
+  /** 事件层级过滤（P3/RFC 015 §3）：macro=宏观（既有日历）/ industry=行业 / individual=个股。
+   *  传入 scope 时改走多源事件流接口（/api/events/feed），可查宏观之外的行业与个股事件。 */
+  scope?: 'macro' | 'industry' | 'individual';
+  /** range 模式：事件类型过滤（cpi_ppi/pmi/nbs/lpr/fomc/earnings/futures_delivery/policy/other，
+   *  以及 P3 新增：unlock/placement/shareholder_meeting/regulatory/dividend） */
   event_type?: string;
   /** range 模式：状态过滤（pending/notified/collected/reviewed/skipped） */
   status?: string;

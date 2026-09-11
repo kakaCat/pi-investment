@@ -18,6 +18,7 @@ import { createDataFetchDividendTool } from './tools/DataFetchDividendTool';
 import { createPoolManageTool } from './tools/PoolManageTool';
 import { createIndexConstituentsTool } from './tools/IndexConstituentsTool';
 import { createMinuteKlineTool } from './tools/MinuteKlineTool';
+import { createStockEventsTool } from './tools/StockEventsTool';
 import { createTradingStatusTool } from './tools/TradingStatusTool';
 
 // ========== Plugin Config Schema ==========
@@ -114,5 +115,8 @@ export default class InvestmentPlugin extends Service {
     // 16-17. 微观结构（P1/RFC 015）：分钟线（多源故障转移）+ 交易状态（下单前 fail-closed 硬校验）
     reg(createMinuteKlineTool(qv2));
     reg(createTradingStatusTool(qv2));
+
+    // 18. 个股事件（P3/RFC 015 §3）：公告/解禁/定增/股东会/财报/监管——买入前排雷
+    reg(createStockEventsTool(qv2));
   }
 }

@@ -33,6 +33,14 @@ from adapters.outbound.datasources.providers.industry_chain.eastmoney_revenue im
 )
 from adapters.outbound.datasources.providers.industry_chain.akshare_concept import AkshareConceptProvider
 from adapters.outbound.datasources.providers.industry_chain.database import DatabaseChainProvider
+# 政策·个股事件源（RFC 015 §3.3，2026-09-11 REQ-cf627b P3）：7 个 provider 分两条子链路
+from adapters.outbound.datasources.providers.events.eastmoney_notice import EastmoneyNoticeProvider
+from adapters.outbound.datasources.providers.events.cninfo_disclosure import CninfoDisclosureProvider
+from adapters.outbound.datasources.providers.events.akshare_unlock import AkshareUnlockProvider
+from adapters.outbound.datasources.providers.events.database import DatabaseEventProvider
+from adapters.outbound.datasources.providers.events.gov_policy import GovPolicyProvider
+from adapters.outbound.datasources.providers.events.csrc_policy import CsrcPolicyProvider
+from adapters.outbound.datasources.providers.events.manual_policy_seed import ManualPolicySeedProvider
 from adapters.outbound.datasources.providers.sector.eastmoney import EastmoneySectorProvider
 from adapters.outbound.datasources.providers.sector.akshare import AkshareSectorProvider
 from adapters.outbound.datasources.providers.index.akshare import AkshareIndexProvider
@@ -159,6 +167,37 @@ class DataProviderManager(IDataProviderManager):
             self.industry_chain_concept_providers
         )
 
+        # 政策·个股事件源 providers（RFC 015 §3.3 / §1.5，2026-09-11 REQ-cf627b P3）
+        # 两条子链路刻意分开（发布主体 / 权威度 / 降级策略都不同）：
+        # - 个股事件：**聚合**语义（各源覆盖不同事件集：东财公告流 / 巨潮法定披露 /
+        #   akshare 解禁结构化），故逐个 provider 独立走 _try_providers 再合并结果
+        #   （见 get_event_symbol_events）——不是"首个成功即返回"的故障转移链。
+        # - 政策事件：gov（国务院+发改委）与 csrc（证监会）发布的是**不同主体**的政策，
+        #   同样聚合；manual_policy_seed 只在自动通道全挂/全空时兜底（禁止静默空）。
+        # database_event 必须放最后（stale 兜底，放前面会把旧数据当新鲜数据返回）。
+        from adapters.outbound.repositories.event_repository import get_market_event_repo
+        self.event_repository = get_market_event_repo()
+        self.eastmoney_notice_provider = EastmoneyNoticeProvider()
+        self.cninfo_disclosure_provider = CninfoDisclosureProvider()
+        self.akshare_unlock_provider = AkshareUnlockProvider()
+        self.gov_policy_provider = GovPolicyProvider()
+        self.csrc_policy_provider = CsrcPolicyProvider()
+        self.manual_policy_seed_provider = ManualPolicySeedProvider()
+        self.database_event_provider = DatabaseEventProvider(self.event_repository)
+        self.event_symbol_providers = [
+            self.eastmoney_notice_provider,      # 通道 1：东财公告流
+            self.cninfo_disclosure_provider,     # 通道 2：巨潮法定披露（权威）
+            self.akshare_unlock_provider,        # 通道 3：解禁结构化
+            self.database_event_provider,        # 通道 4：本地库兜底（stale）
+        ]
+        self.event_policy_auto_providers = [
+            self.gov_policy_provider,            # 通道 1：国务院 / 发改委
+            self.csrc_policy_provider,           # 通道 2：证监会
+        ]
+        self.event_policy_providers = self.event_policy_auto_providers + [
+            self.manual_policy_seed_provider,    # 通道 3：人工策展兜底
+        ]
+
         # Health tracking (cache provider channel status)
         self.provider_stats: Dict[str, Dict[str, int]] = {}
         # Dynamic priority: providers with high failure rate get temporarily deprioritized
@@ -181,7 +220,9 @@ class DataProviderManager(IDataProviderManager):
             self.stock_providers +
             self.kline_providers +
             self.minute_kline_providers +
-            self.industry_chain_providers
+            self.industry_chain_providers +
+            self.event_symbol_providers +
+            self.event_policy_providers
         )
         seen_names = set()
         for provider in all_providers:
@@ -1365,6 +1406,143 @@ class DataProviderManager(IDataProviderManager):
     def list_industry_chain_candidates(self) -> dict:
         """候选板块清单（新浪行业）"""
         return self._try_providers(self.industry_chain_concept_providers, 'list_chains')
+
+    # ------------------------------------------------------------ 政策·个股事件
+
+    def get_event_symbol_events(self, symbols: Optional[List[str]] = None,
+                                include_fallback: bool = True) -> dict:
+        """**聚合**多源个股事件（RFC 015 §3.3：≥3 独立通道 + DB 兜底）
+
+        为什么不是一次 _try_providers(event_symbol_providers)：
+        _try_providers 是**故障转移**语义（首个成功即返回），而个股事件各源覆盖的
+        事件集**不重叠**——东财公告流给公司公告、巨潮给法定披露、akshare 给结构化
+        解禁、DB 给上次落库。用故障转移会"只有东财出数就再也不问巨潮"，
+        多源退化成单源（RFC §1.5.1 明令禁止的"框架有、只挂一个源"）。
+        故这里对**每个 provider 独立**调用一次 _try_providers（各自享有独立超时、
+        熔断、健康分与 attempted_sources），再合并结果——仍不另起链路。
+
+        Args:
+            symbols: 目标标的；None 由各 provider 自行决定范围
+            include_fallback: 是否包含 DB 兜底通道（is_fallback=True）。
+                **ingest 必须传 False**：兜底源读的就是本地库，把它的输出再写回库里
+                会造成"自己喂自己"——既有 67 行宏观事件 evidence_hash 为空，
+                重新计算 hash 后会被当成新事件插入，导致宏观事件翻倍。
+
+        Returns:
+            {'success': bool, 'data': [row], 'source': 'a+b+c', 'attempted_sources': [...],
+             'provider_errors': {...}, 'degraded': bool, 'empty': bool}
+            全部通道都失败 → success=False（显式失败）；全部返回空 → success=True + empty=True
+            （"该批标的确实无事件"与"没抓到"必须可区分）。
+        """
+        rows: List[Dict] = []
+        sources: List[str] = []
+        attempted: List[str] = []
+        errors: Dict[str, str] = {}
+        empty_sources: List[str] = []
+        failed = 0
+
+        providers = [p for p in self.event_symbol_providers
+                     if include_fallback or not getattr(p, 'is_fallback', False)]
+        if not providers:
+            return {'success': False, 'error': 'No event symbol providers enabled',
+                    'data': None, 'source': None, 'attempted_sources': [], 'provider_errors': {}}
+
+        for provider in self._sort_providers_by_health(providers):
+            result = self._try_providers([provider], 'fetch_symbol_events', symbols)
+            attempted.extend(result.get('attempted_sources') or [])
+            if result.get('success'):
+                data = result.get('data') or []
+                source = result.get('source') or provider.name
+                if data:
+                    sources.append(source)
+                    rows.extend(data)
+                else:
+                    empty_sources.append(source)
+            else:
+                failed += 1
+                errors.update(result.get('provider_errors') or {})
+
+        if not rows and failed >= len(providers):
+            return {
+                'success': False,
+                'error': 'All event symbol providers failed',
+                'data': None,
+                'source': None,
+                'attempted_sources': attempted,
+                'provider_errors': errors,
+            }
+        return {
+            'success': True,
+            'data': rows,
+            'source': '+'.join(sources) if sources else None,
+            'attempted_sources': attempted,
+            'provider_errors': errors,
+            'degraded': bool(errors),
+            'empty': not rows,
+            'empty_sources': empty_sources,
+        }
+
+    def get_event_policy_events(self) -> dict:
+        """**聚合**政策事件（gov.cn+发改委 / 证监会 两条独立通道 + 人工策展兜底）
+
+        自动通道（gov / csrc）发布的是**不同主体**的政策，不是同一事件的多源副本，
+        故聚合而非故障转移；人工 seed 仅在"自动通道全失败"或"自动通道全空"时兜底——
+        这样既不会用 seed 覆盖真实抓取结果，也保证 7×24 至少能给出人工核验过的政策
+        （RFC §3.3 硬要求：抓取失败必须显式失败或落到人工 seed，禁止静默空）。
+        """
+        rows: List[Dict] = []
+        sources: List[str] = []
+        attempted: List[str] = []
+        errors: Dict[str, str] = {}
+        failed = 0
+
+        for provider in self._sort_providers_by_health(self.event_policy_auto_providers):
+            result = self._try_providers([provider], 'fetch_policy')
+            attempted.extend(result.get('attempted_sources') or [])
+            if result.get('success'):
+                data = result.get('data') or []
+                if data:
+                    sources.append(result.get('source') or provider.name)
+                    rows.extend(data)
+            else:
+                failed += 1
+                errors.update(result.get('provider_errors') or {})
+
+        fallback_used = False
+        if not rows:
+            # 自动通道全挂（failed>0）或全空（failed==0）→ 一律落到人工策展兜底
+            result = self._try_providers([self.manual_policy_seed_provider], 'fetch_policy')
+            attempted.extend(result.get('attempted_sources') or [])
+            if result.get('success'):
+                data = result.get('data') or []
+                if data:
+                    sources.append(result.get('source') or self.manual_policy_seed_provider.name)
+                    rows.extend(data)
+                    fallback_used = True
+            else:
+                errors.update(result.get('provider_errors') or {})
+                failed += 1
+
+        if not rows:
+            return {
+                'success': False,
+                'error': 'All policy providers failed (含人工 seed 兜底)',
+                'data': None,
+                'source': None,
+                'attempted_sources': attempted,
+                'provider_errors': errors,
+            }
+        return {
+            'success': True,
+            'data': rows,
+            'source': '+'.join(sources) if sources else None,
+            'attempted_sources': attempted,
+            'provider_errors': errors,
+            'degraded': bool(errors) or fallback_used,
+            'empty': False,
+            # 是否走了人工兜底（应用层据此在响应里显式标注，便于区分"抓到"与"人工补位"）
+            'manual_fallback_used': fallback_used,
+        }
 
     def get_provider_stats(self) -> Dict[str, Dict[str, Any]]:
         """获取所有 provider 的健康状态（IDataProviderManager 接口方法）"""

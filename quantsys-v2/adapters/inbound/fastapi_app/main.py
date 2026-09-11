@@ -90,6 +90,22 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ JobRegistry initialization failed: {e}")
 
+    # P3 政策·个股事件源定时任务（RFC 015 §3.5，2026-09-11 REQ-cf627b）
+    # 调度链路：quant.scheduler_tasks 行（command=ingest_events_daily / ingest_events_policy）
+    #   → APScheduler → job_executor._execute_command → JobRegistry.get(command) → 这里的 Job。
+    # 服务实例用入站适配器的组合根装配（应用层因此保持零 adapters 导入）。
+    # 注册顺序在 register_all_jobs 之后：JobRegistry.register 对同名不同实例会抛错，
+    # 放在此处可让"同名冲突"在启动日志里立刻可见，而不是被静默覆盖。
+    try:
+        from application.jobs.job_registry import job_registry
+        from application.services.event_feed_service import build_event_ingest_jobs
+        from adapters.inbound.fastapi_app.routes.events_async import get_feed_service
+        for _job in build_event_ingest_jobs(get_feed_service()):
+            job_registry.register(_job)
+        logger.info("✅ Registered: event ingest jobs (ingest_events_daily / ingest_events_policy)")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to register event ingest jobs: {e}")
+
     # 初始化数据库引擎
     try:
         from infrastructure.persistence.database.engine import init_engine
