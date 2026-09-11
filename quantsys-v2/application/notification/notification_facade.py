@@ -69,6 +69,7 @@ class NotificationFacade:
         account: str = None,            # ← 归属账户
         scope: str = None,              # ← market/sector/symbol/position（P8 路由）
         action_amount_yuan: float = None,   # ← 动作影响金额（P8：≥账户5% → 风控频道）
+        target_agent: str = None,       # ← 处置该事件的 agent（按分类投递，见 WatchDeliveryPolicy）
     ) -> ChannelResult:
         """发送盯盘触发通知
 
@@ -94,6 +95,9 @@ class NotificationFacade:
             is_constitutional=(intent == 'exit_stop'),
             action_amount_yuan=action_amount_yuan,
         )
+        # 处置 agent（谁接手）是**独立维度**：按账户归属解析，绝不从消息频道推导（2026-09-11 用户定调）
+        from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
+        target_agent = target_agent or WatchDeliveryPolicy().resolve(account=account)
 
         notification = Notification(
             notification_type=NotificationType.WATCH_TRIGGERED,
@@ -124,6 +128,8 @@ class NotificationFacade:
                 'scope': scope,
                 'action_amount_yuan': action_amount_yuan,
                 'watch_channel': watch_channel,
+                # 处置 agent：投递层（AgentNotificationService）据此选择 wake 端点
+                'target_agent': target_agent,
                 # os_channel 是 agent 网关的既有覆盖点：逻辑频道码写入此处即完成路由
                 'os_channel': watch_channel,
             },

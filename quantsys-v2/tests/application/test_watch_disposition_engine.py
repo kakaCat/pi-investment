@@ -47,7 +47,8 @@ class FakeNotifier:
         self._next_id = 100
 
     def notify(self, rule, condition, quote, result, escalation_reason=None,
-               disposition=None, disposition_reason=None, dup_of=None):
+               disposition=None, disposition_reason=None, dup_of=None,
+               action_amount_yuan=None):
         self._next_id += 1
         self.calls.append({'rule_id': rule.id, 'disposition': disposition,
                            'dup_of': dup_of, 'reason': disposition_reason})

@@ -87,6 +87,9 @@ class WatchDigestService:
                 "trigger_level": hint.get("trigger_level"),
                 "suggested_action": hint.get("action_on_trigger"),
                 "intent": getattr(rule, "intent", None),
+                # 账户归属：**投送 agent 的唯一决策输入**（与消息频道无关，见 WatchDeliveryPolicy）
+                "account": getattr(rule, "linked_account", None),
+                "scope": getattr(rule, "scope", None),
                 "lifecycle_stage": getattr(rule, "lifecycle_stage", None),
                 "next_action_hint": getattr(rule, "next_action_hint", None),
                 "plan": ctx[:160],
@@ -127,6 +130,30 @@ class WatchDigestService:
             "text": (market_text + chr(10) + chr(10) if market_text else "") + chr(10).join(lines),
         }
 
+    def _resolve_target(self, digest: dict) -> str:
+        """摘要的处置 agent：按待处置项的**账户归属**投票（同票/无法判定 → 默认 agent）
+
+        纪律：投送 agent 与消息频道是两件事——这里只看 rule.linked_account + scope
+        （非账户事件按 scope 分类），**不读频道码**（见 WatchDeliveryPolicy 铁律）。
+        摘要可能混着多个账户，按多数派投；宁可多给一个 agent，不可漏。
+        """
+        from domain.notification.policies.watch_delivery_policy import (
+            WatchDeliveryPolicy, DEFAULT_AGENT)
+        policy = WatchDeliveryPolicy()
+        votes: dict = {}
+        for g in digest.get("groups") or []:
+            for it in g.get("items") or []:
+                account = it.get("account")
+                if not account:
+                    continue
+                agent = policy.resolve(account=account, category=it.get("scope"))
+                votes[agent] = votes.get(agent, 0) + 1
+        if not votes:
+            return DEFAULT_AGENT
+        best = max(votes.values())
+        winners = sorted(a for a, v in votes.items() if v == best)
+        return winners[0] if len(winners) == 1 else DEFAULT_AGENT
+
     # ── 唤醒门（引擎 loop 调用）────────────────────────────────
     def maybe_wake(self, now: Optional[datetime] = None) -> Dict[str, Any]:
         now = now or datetime.now()
@@ -145,19 +172,27 @@ class WatchDigestService:
             return {"woke": False, "reason": "自上次唤醒以来无待处置触发", "count": 0}
         if self.agent_service is None:
             return {"woke": False, "reason": "agent 通道未注入", "count": digest["count"]}
-        ok = self.agent_service.notify_agent("watch_digest", {
+        # 按分类投递（2026-09-11，w-aebfddcd）：摘要也可能混类，按待处置项的多数派选处置 agent
+        target_agent = self._resolve_target(digest)
+        payload = {
             "count": digest["count"],
             "group_count": digest["group_count"],
             "by_disposition": digest["by_disposition"],
             "since": last_at.isoformat() if last_at else None,
             "digest": digest["text"],
+            "target_agent": target_agent,
             "instruction": (
                 "按标的处置待处置触发：可自决的 PATCH /api/watch/triggers/{id} 置 handled 并写动作与结果；"
                 "判不动的置 ignored，reason 必须含「为什么不动 + 下次什么条件下才动(NEXT)」；"
                 "需用户决策的不要替用户决定，留在待决策队列由交互会话用 ask_user_question 拉起；"
                 "遵守 R-001~R-009 与交易宪法。"
             ),
-        })
+        }
+        try:
+            ok = self.agent_service.notify_agent("watch_digest", payload, target=target_agent)
+        except TypeError:
+            # 兼容旧实现（notify_agent(event, data)）——不因签名差异丢掉唤醒
+            ok = self.agent_service.notify_agent("watch_digest", payload)
         if ok:
             self._save_wake(now)
             logger.info("盯盘摘要已唤醒 agent", count=digest["count"], groups=digest["group_count"])
