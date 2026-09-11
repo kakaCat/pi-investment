@@ -63,6 +63,9 @@ def captured(monkeypatch):
         return _Resp()
 
     monkeypatch.setattr(requests, "post", _post)
+    # 出网已拦在本 fixture 内，显式开非生产闸门，让摘要门照常走投递路径
+    # （闸门本身见 tests/application/test_notify_env_guard.py）
+    monkeypatch.setenv("AGENT_NOTIFY_ALLOW_TEST", "true")
     return calls
 
 

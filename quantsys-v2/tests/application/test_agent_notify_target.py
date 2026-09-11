@@ -24,6 +24,9 @@ def _clean_env(monkeypatch):
     for k in ("AGENT_API_URL", "AGENT_API_URL_DH", "AGENT_API_URL_TS", "AGENT_NOTIFY_ENABLED"):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("AGENT_NOTIFY_ENABLED", "true")
+    # 本模块测传输层（HTTP 已 mock），显式开非生产闸门；
+    # 闸门本身的行为见 tests/application/test_notify_env_guard.py
+    monkeypatch.setenv("AGENT_NOTIFY_ALLOW_TEST", "true")
 
 
 def test_default_urls_split_by_agent():

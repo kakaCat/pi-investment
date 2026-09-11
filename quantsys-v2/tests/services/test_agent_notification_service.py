@@ -8,6 +8,17 @@ Agent 通知服务测试
 """
 from unittest.mock import patch, MagicMock
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _allow_non_prod_notify(monkeypatch):
+    """本模块测的是传输层（requests.post 已 mock），显式开非生产闸门。
+
+    闸门本身的行为见 tests/application/test_notify_env_guard.py。
+    """
+    monkeypatch.setenv("AGENT_NOTIFY_ALLOW_TEST", "true")
+
 
 def test_agent_notification_service_module_imports():
     """模块 import 不应抛 NameError（缺 import logging 的回归测试）"""

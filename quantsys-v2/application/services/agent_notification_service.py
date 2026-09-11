@@ -3,6 +3,7 @@ Agent 通知服务
 V2 任务完成后调用此服务通知 Agent
 """
 import os
+import sys
 import structlog
 import requests
 from typing import Dict, Any, Optional
@@ -33,6 +34,35 @@ TARGET_URL_ENVS = {
 }
 
 
+# ── 非生产环境闸门（2026-09-11，w-f4aa1f6a）────────────────────────────────────
+# 事故：pytest 套件（根 conftest 载入 .env.test → PGDATABASE=quant_test）里跑的池刷新
+# 会调用本服务，而 wake 地址取自生产 .env / 内置默认 :13080 —— 测试反复运行就把
+# quant_test 的假池变更（pool_id 798/813/827/841「动态」池，removed=["000858.SZ"]）
+# 真实投递给在线 agent，制造 5 条 wake 回执 + 5 次"请处置"要求，而 agent 无从处置
+# （它根本不是生产事件，生产库 stock_pools.max(id)=52）。
+# 纪律：**测试进程永不唤醒真实 agent**；确需验证投递链路的用例显式开闸。
+BLOCKED_DB_SUFFIX = '_test'
+ALLOW_NON_PROD_ENV = 'AGENT_NOTIFY_ALLOW_TEST'
+
+
+def non_prod_reason() -> Optional[str]:
+    """非生产环境判定（None=生产环境，允许唤醒真实 agent）
+
+    信号（任一命中即非生产）：
+      1. PGDATABASE 以 _test 结尾——根 conftest 强制测试库以 _test 结尾，是可靠的库级信号
+      2. pytest 运行中（PYTEST_CURRENT_TEST 或 sys.modules 含 pytest）
+    显式开闸：AGENT_NOTIFY_ALLOW_TEST=true（仅限 HTTP 已被 mock 的单测/E2E 验证）
+    """
+    if os.getenv(ALLOW_NON_PROD_ENV, '').strip().lower() == 'true':
+        return None
+    db = (os.getenv('PGDATABASE') or '').strip()
+    if db.endswith(BLOCKED_DB_SUFFIX):
+        return f'test-db:{db}'
+    if os.getenv('PYTEST_CURRENT_TEST') or 'pytest' in sys.modules:
+        return 'pytest-runtime'
+    return None
+
+
 class AgentNotificationService:
     """Agent 通知服务
 
@@ -40,7 +70,8 @@ class AgentNotificationService:
     """
 
     def __init__(self, agent_url: Optional[str] = None, timeout: Optional[int] = None,
-                 targets: Optional[Dict[str, str]] = None):
+                 targets: Optional[Dict[str, str]] = None,
+                 allow_non_prod: bool = False):
         #: 显式传入的地址（最高优先级）：历史契约——构造时给 agent_url 即指定默认 agent 的落点
         self._explicit_url = agent_url.rstrip('/') if agent_url else None
         #: 默认落点：显式传入 > AGENT_API_URL_DH > AGENT_API_URL > 内置默认
@@ -53,6 +84,8 @@ class AgentNotificationService:
         self.timeout = timeout if timeout is not None else int(os.getenv('AGENT_TIMEOUT', '300'))
         self.enabled = os.getenv('AGENT_NOTIFY_ENABLED', 'true').lower() == 'true'
         self.token = os.getenv('AGENT_API_TOKEN')
+        #: 显式开闸（单测/E2E 自查用）；生产代码永不置位——见 non_prod_reason()
+        self.allow_non_prod = allow_non_prod
 
     def notify_agent(self, event: str, data: Dict[str, Any], target: Optional[str] = None) -> bool:
         """通知 Agent 处理事件
@@ -99,6 +132,7 @@ class AgentNotificationService:
             'timeout' - 请求超时（事件大概率已送达，Agent 正在处理，不应重试）
             'error'   - 连接失败/其他错误（事件未送达，可重试）
             'disabled'- 通知被禁用
+            'skipped' - 非生产环境（测试库/pytest 进程），按纪律不投递真实 agent
 
         回退纪律（2026-09-11，w-aebfddcd）：目标 agent 连接失败时回退到默认 agent，
         并在 payload 里标注 delivery_target / delivery_fallback_from ——
@@ -107,6 +141,14 @@ class AgentNotificationService:
         if not self.enabled:
             logger.debug(f"Agent notify disabled, skipping: {event}")
             return 'disabled'
+
+        if not self.allow_non_prod:
+            reason = non_prod_reason()
+            if reason:
+                logger.warning("非生产环境，跳过 agent 唤醒（不投递真实 agent）",
+                               notify_event=event, reason=reason,
+                               target=target or DEFAULT_TARGET)
+                return 'skipped'
 
         key = target or DEFAULT_TARGET
         url = self.resolve_target_url(key)
