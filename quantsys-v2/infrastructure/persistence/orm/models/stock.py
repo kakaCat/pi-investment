@@ -162,6 +162,12 @@ class DailyKline(Base):
     )
     trade_date = Column(Date, primary_key=True, comment='交易日期')
 
+    # 交易所归属（2026-09-11 w-f4aa1f6a 步4：命名空间显式化）
+    # SH/SZ/BJ，由 DB 触发器 trg_daily_klines_set_market 从 symbol 自动推导，
+    # 调用方无需显式传值。与 quant.stocks.market（类型：A/B/H）语义不同，勿混用。
+    # 指数数据不在本表（见 quant.index_daily）。
+    market = Column(String(6), nullable=True, comment='交易所：SH/SZ/BJ（触发器自动推导）')
+
     # OHLCV数据
     open = Column(Float, comment='开盘价')
     high = Column(Float, comment='最高价')
