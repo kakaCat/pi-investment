@@ -9,11 +9,21 @@ from application.services.watch_engine.engine import WatchEngine, elapsed_tradin
 
 def make_rule(id=1, symbol='600519.SH', conditions=None, cost_price=None,
               active_window=None):
+    # 2026-09-11（w-aebfddcd）：引擎在 REQ-f08def 之后新增了意图/升级策略/账户等字段，
+    # 旧的裸 SimpleNamespace 缺字段会让整个文件长期红着（噪音淹没真回归）。一次性补齐。
     return SimpleNamespace(
         id=id, symbol=symbol,
         conditions=conditions or [{'type': 'price_break',
                                    'params': {'direction': 'above', 'price': 100.0}}],
         cost_price=cost_price, active_window=active_window,
+        # 意图用宪法级 exit_stop：本文件测的是引擎的触发/冷却/闩锁/重臂机制，
+        # 必须让触发真的走到"通知"这一步（观察类意图会被处置门压成 auto_observed 而不通知），
+        # 否则用例断言的是被门拦掉后的 0 次通知，与用例本意不符。
+        intent='exit_stop', action_hint={'trigger_level': 'L2', 'action_on_trigger': 'sell'},
+        escalation_policy=None,
+        scope='symbol', linked_account=None, lifecycle_stage='watching',
+        created_from=None, next_action_hint=None, target=None,
+        review_interval_days=None, review_due_at=None, enabled=True,
     )
 
 
@@ -43,9 +53,12 @@ class FakeNotifier:
     def __init__(self):
         self.notifications = []
 
-    def notify(self, rule, condition, quote, result):
+    # 引擎调用 notify 时会带 escalation_reason/disposition/dup_of/action_amount_yuan 等
+    # 关键字参数（REQ-f08def 起）。旧签名会让调用抛 TypeError，被引擎按"通知失败"吞掉
+    # → 用例看到 0 次通知。用 *args/**kwargs 适配，测试只关心"通知了几次"。
+    def notify(self, rule, condition, quote, result, **kwargs):
         self.notifications.append((rule.id, condition['type'], quote.price))
-        return True
+        return SimpleNamespace(id=len(self.notifications))
 
 
 NOW = datetime(2026, 7, 21, 10, 30)  # 周二，交易时段内
@@ -190,11 +203,11 @@ class TestTick:
         class FlakyNotifier:
             def __init__(self):
                 self.calls = 0
-            def notify(self, rule, condition, quote, result):
+            def notify(self, rule, condition, quote, result, **kwargs):
                 self.calls += 1
                 if self.calls == 1:
                     raise RuntimeError('feishu down')
-                return True
+                return SimpleNamespace(id=self.calls)
         notifier = FlakyNotifier()
         engine = make_engine([make_rule()], {'600519.SH': 101.0}, notifier)
         assert engine.tick() == []  # 第一次抛异常，无事件

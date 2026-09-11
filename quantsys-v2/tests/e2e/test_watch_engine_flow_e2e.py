@@ -104,10 +104,12 @@ def test_e2e_rule_to_trigger_to_notification(rule_id, captured):
     mine = [e for e in events if e.get("rule_id") == rule_id]
     assert mine, "规则未命中：检查 intent/条件/激活窗口。events=%s" % events
 
-    # 复核发现：tick 事件里**没有** disposition/notified 字段（只有 rule_id/symbol/
-    # condition/price/message），调用方无法从返回值区分"命中且通知了"与"命中但被去重/压预算"。
-    # 这里改为到库里核验真实处置结论。
-    assert set(mine[0]) >= {"rule_id", "symbol", "condition", "price", "message"}
+    # 可观测性：命中事件必须带处置结论（2026-09-11 修复：此前只有 message，无法区分
+    # "命中并通知"与"命中但被去重/压预算"，调用方只能回查库）
+    ev = mine[0]
+    assert ev["disposition"] in ("escalated", "pending"), ev
+    assert ev["notified"] is True
+    assert ev["trigger_id"], "事件缺触发ID，无法与库内记录对齐"
 
     # 触发落库（真库）
     rows = WatchTriggerRepository().list_triggers(limit=200)

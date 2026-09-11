@@ -295,9 +295,20 @@ class WatchEngine:
                         )
                 self._last_triggered[(rule.id, idx)] = now
                 self._latched.add((rule.id, idx))
+                # 可观测性（2026-09-11，w-aebfddcd E2E 发现）：事件必须带**处置结论**，
+                # 否则调用方无法区分"命中并通知"与"命中但被去重/被预算压掉"，只能回查库。
+                # disposition 即答案：escalated/pending=进队列并推送；deduped=只归档不打扰；
+                # auto_observed/ignored/expired=记录但不打扰。
                 events.append({'rule_id': rule.id, 'symbol': rule.symbol,
                                'condition': cond, 'price': float(quote.price),
-                               'message': result.message})
+                               'message': result.message,
+                               'disposition': disposition,
+                               'disposition_reason': disposition_reason,
+                               'dup_of': dup_of,
+                               'trigger_id': getattr(trigger, 'id', None),
+                               'trigger_level': trigger_level,
+                               'notified': disposition not in ('deduped', 'auto_observed',
+                                                               'ignored', 'expired')})
 
         # 去重窗裁剪：清掉已过期的键，避免长跑进程内的无界增长
         if self._recent_notified:
