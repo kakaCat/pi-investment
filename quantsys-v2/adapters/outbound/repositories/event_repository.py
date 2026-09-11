@@ -291,6 +291,33 @@ class EventRepository(IMarketEventRepository):
             ).fetchone()
         return row is not None
 
+    def is_in_default_universe(self, symbol: str) -> bool:
+        """该标的是否在默认采集池内（持仓 ∪ 启用中的盯盘规则）
+
+        为什么需要（2026-09-11，w-f436d4ea）：个股事件通道**只采集 default_universe**
+        （实测仅 24 只标的有个股事件），池外标的的 for_symbol 只能返回宏观事件。
+        调用方（买入前排雷）必须能区分两种截然不同的结论：
+          · 在池内且无个股事件 → 确实没有（可放心）
+          · 不在池内           → **未知**（不是"没有"，是"没抓过"）
+        混合成同一个空结果，就是拿"没查"冒充"没问题"。
+
+        判据与 default_universe 同源，避免两处各写一套范围定义。
+        """
+        sql = """
+            SELECT 1 FROM (
+                SELECT regexp_replace(symbol, '[^0-9]', '', 'g') AS symbol
+                  FROM quant.positions WHERE quantity > 0
+                UNION
+                SELECT regexp_replace(symbol, '[^0-9]', '', 'g') AS symbol
+                  FROM quant.watch_rules WHERE enabled = true
+            ) u
+            WHERE u.symbol = regexp_replace(:code, '[^0-9]', '', 'g')
+              AND length(u.symbol) = 6
+            LIMIT 1
+        """
+        with self.engine.connect() as conn:
+            return conn.execute(text(sql), {'code': str(symbol or '')}).fetchone() is not None
+
     def default_universe(self, limit: int = 200) -> List[str]:
         """默认采集池：持仓 ∪ 盯盘规则（只取 quant.stocks 中真实存在的 6 位代码）"""
         sql = """

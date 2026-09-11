@@ -287,9 +287,32 @@ class EventFeedService:
                     kept.append(row)
             dropped = len(rows) - len(kept)
             rows = kept
+        # 覆盖状态如实回报（2026-09-11，w-f436d4ea）：个股事件通道的采集范围 =
+        # default_universe（持仓 ∪ 启用中的盯盘规则），实测仅 24 只标的被采过。
+        # 池外标的只能拿到宏观事件，而"没抓过"与"确实没有"必须可分——买入前排雷时
+        # 前者是未知（要去补采），后者才可放心。混合成同一个空结果是拿"没查"冒充"没问题"。
+        try:
+            covered: Optional[bool] = repository.is_in_default_universe(code)
+        except Exception as exc:
+            covered = None
+            # 本模块用 stdlib logging（非 structlog）：必须 printf 风格，
+            # 传 key=value 会抛 TypeError——而且是在异常分支里抛，等于降级逻辑自己崩。
+            logger.warning('default_universe 覆盖检查失败: symbol=%s error=%s', code, exc)
+        coverage = 'covered' if covered else ('not_covered' if covered is False else 'unknown')
+        # 仅当"不在池内 **且** 本次确实没有个股事件"时才提示未知——否则会出现
+        # "池外但查到了个股事件"（持仓/规则变动后残留数据）时声称"不含个股事件"的错话。
+        has_individual = any(str(r.get('scope') or '') == 'individual' for r in rows)
+        coverage_note = None
+        if covered is False and not has_individual:
+            coverage_note = (
+                '该标的**不在**个股事件采集池内（持仓 ∪ 启用中的盯盘规则）——返回中不含个股事件，'
+                '但这是"未采集"而非"确实没有"：解禁/减持/定增等供给冲击无从判断。'
+                '需要排雷请先为该标的建立盯盘规则（watch_manage），或显式触发一次个股 ingest。'
+            )
         return self._envelope(rows, source='database' if rows else None,
                               count=len(rows), symbol=code,
-                              window_days=window_days, filtered_out=dropped)
+                              window_days=window_days, filtered_out=dropped,
+                              individual_coverage=coverage, note=coverage_note)
 
     def upcoming(self, days: int = 7, limit: int = 100) -> Dict:
         """未来 N 天内即将发生的事件（含今天；覆盖宏观+政策+个股）"""
