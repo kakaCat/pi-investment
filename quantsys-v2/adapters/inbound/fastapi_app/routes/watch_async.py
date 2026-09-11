@@ -168,7 +168,7 @@ def trigger_disposition_stats(date: Optional[str] = Query(None)):
     legacy_unknown（状态机上线前的历史数据）不计入分母，避免美化指标。
     agent_wakeups_estimate = escalated + L2 触发的去重合并数（估算实际唤醒量级）。
     """
-    from application.services.watch_engine.disposition import UNRESOLVED, is_resolved
+    from domain.watch.services.disposition import UNRESOLVED, is_resolved
     trigger_repo = WatchTriggerRepository()
     rows = trigger_repo.list_triggers(limit=200)
     day = date or datetime.now().strftime('%Y-%m-%d')
@@ -193,7 +193,7 @@ def trigger_disposition_stats(date: Optional[str] = Query(None)):
 @router.get('/api/watch/triggers/unresolved')
 def list_unresolved_triggers(date: Optional[str] = Query(None), limit: Optional[str] = Query(None)):
     """盘后未处置清单（pending/escalated）——把"触发后没人管"变成可追的待办。"""
-    from application.services.watch_engine.disposition import UNRESOLVED
+    from domain.watch.services.disposition import UNRESOLVED
     trigger_repo = WatchTriggerRepository()
     day = date or datetime.now().strftime('%Y-%m-%d')
     rows = trigger_repo.list_triggers(dispositions=UNRESOLVED, limit=_limit_of(limit, 200))

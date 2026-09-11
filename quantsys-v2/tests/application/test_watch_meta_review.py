@@ -5,7 +5,7 @@
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
-from application.services.watch_engine.disposition import (
+from domain.watch.services.disposition import (
     DISPOSITION_META_REVIEW, InterventionConfig,
 )
 from application.services.watch_engine.meta_review_service import WatchMetaReviewService

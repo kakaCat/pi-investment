@@ -24,11 +24,14 @@ logger = structlog.get_logger(__name__)
 class WatchDigestService:
     """待处置触发的摘要与唤醒门（引擎 loop 调用 maybe_wake）"""
 
-    def __init__(self, trigger_repo, rule_repo, agent_service=None,
+    def __init__(self, trigger_repo, rule_repo, agent_service=None, state_repo=None,
                  min_interval_sec: int = 1500, daily_cap: int = 8, limit: int = 200):
         self.trigger_repo = trigger_repo
         self.rule_repo = rule_repo
         self.agent_service = agent_service
+        # 端口注入（ADR-001）：状态持久化交给 IWatchDigestStateRepository 适配器，
+        # 应用层不得 get_engine()/裸 SQL
+        self.state_repo = state_repo
         self.min_interval_sec = min_interval_sec
         self.daily_cap = daily_cap
         self.limit = limit
@@ -42,43 +45,18 @@ class WatchDigestService:
         return (dtime(9, 30) <= t <= dtime(11, 30)) or (dtime(13, 0) <= t <= dtime(15, 0))
 
     # ── 状态（落库，重启不清零）──────────────────────────────
-    def _load_state(self) -> Dict[str, Any]:
-        from infrastructure.persistence.database.engine import get_engine
-        from sqlalchemy import text
-        try:
-            with get_engine().connect() as conn:
-                row = conn.execute(text(
-                    "SELECT last_wake_at, wake_date, wake_count FROM quant.watch_digest_state WHERE id = 1"
-                )).fetchone()
-            if row is None:
-                return {"last_wake_at": None, "wake_date": None, "wake_count": 0}
-            return {"last_wake_at": row[0], "wake_date": row[1], "wake_count": int(row[2] or 0)}
-        except Exception as e:
-            logger.warning("摘要状态读取失败（按未唤醒处理）", error=str(e))
+    def _load_state(self):
+        if self.state_repo is None:
             return {"last_wake_at": None, "wake_date": None, "wake_count": 0}
+        return self.state_repo.load_state()
 
-    def _save_wake(self, now: datetime) -> None:
-        from infrastructure.persistence.database.engine import get_engine
-        from sqlalchemy import text
-        try:
-            with get_engine().begin() as conn:
-                conn.execute(text("""
-                    INSERT INTO quant.watch_digest_state (id, last_wake_at, wake_date, wake_count, updated_at)
-                    VALUES (1, :ts, :d, 1, NOW())
-                    ON CONFLICT (id) DO UPDATE SET
-                      last_wake_at = :ts,
-                      wake_count = CASE WHEN quant.watch_digest_state.wake_date = :d
-                                        THEN quant.watch_digest_state.wake_count + 1 ELSE 1 END,
-                      wake_date = :d,
-                      updated_at = NOW()
-                """), {"ts": now, "d": now.date()})
-        except Exception as e:
-            logger.error("摘要状态写入失败", error=str(e))
+    def _save_wake(self, now) -> None:
+        if self.state_repo is not None:
+            self.state_repo.save_wake(now)
 
-    # ── 摘要构建 ─────────────────────────────────────────────
     def build_digest(self, since: Optional[datetime] = None) -> Dict[str, Any]:
         """按标的聚合的待处置摘要（路由与唤醒共用同一实现，避免两处口径）"""
-        from application.services.watch_engine.disposition import UNRESOLVED
+        from domain.watch.services.disposition import UNRESOLVED
         rows = self.trigger_repo.list_triggers(dispositions=UNRESOLVED, limit=self.limit)
         if since is not None:
             rows = [t for t in rows if t.triggered_at and t.triggered_at >= since]

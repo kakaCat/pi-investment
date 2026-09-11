@@ -65,3 +65,45 @@ class IQuoteProvider(ABC):
     def get_current_price(self, symbol: str) -> Optional[float]:
         """获取股票当前价格"""
         pass
+
+
+class IWatchDigestStateRepository(ABC):
+    """盯盘摘要状态端口（REQ-f08def P4）
+
+    摘要门的"上次唤醒时间/当日唤醒次数"必须落库——存进程内存会在重启后清零，
+    使每日预算形同虚设（2026-09-11 实测）。
+    """
+
+    @abstractmethod
+    def load_state(self) -> Any:
+        """返回 {last_wake_at, wake_date, wake_count}"""
+        pass
+
+    @abstractmethod
+    def save_wake(self, now: datetime) -> None:
+        """记录一次唤醒（当日计数自增，跨日归零）"""
+        pass
+
+
+class IWatchInterventionRepository(ABC):
+    """介入记账端口（REQ-f08def P4）
+
+    agent 每被唤醒介入一次都要留痕：规则/标的/意图/类型/结果/成本/审计 id；
+    并提供当日计数与"单位唤醒产出"口径。
+    """
+
+    @abstractmethod
+    def count_today(self) -> int:
+        pass
+
+    @abstractmethod
+    def record(self, symbol: str, intent: Optional[str] = None, rule_id: Optional[int] = None,
+               trigger_kind: str = "price", outcome: str = "escalated",
+               trigger_ids: Optional[List[int]] = None, tokens: Optional[int] = None,
+               cost_yuan: float = 0.0, decision_audit_id: Optional[str] = None) -> None:
+        pass
+
+    @abstractmethod
+    def summary_today(self) -> Any:
+        pass
+

@@ -18,7 +18,7 @@ from typing import Any, Dict, Optional
 
 import structlog
 
-from application.services.watch_engine.disposition import (
+from domain.watch.services.disposition import (
     DISPOSITION_META_REVIEW, InterventionConfig, evaluate_meta_trigger,
 )
 
@@ -41,24 +41,13 @@ class WatchMetaReviewService:
         self.cfg = cfg or InterventionConfig()
 
     # ── 数据采集（一次查询覆盖全部规则，避免 N+1）──────────
-    def _trigger_stats(self) -> Dict[int, Dict[str, Any]]:
-        from infrastructure.persistence.database.engine import get_engine
-        from sqlalchemy import text
-        stats: Dict[int, Dict[str, Any]] = {}
+    def _trigger_stats(self):
+        """批量触发统计（由注入的 trigger_repo 适配器提供，应用层不碰 SQL）"""
         try:
-            with get_engine().connect() as conn:
-                rows = conn.execute(text("""
-                    SELECT rule_id,
-                           count(*) FILTER (WHERE triggered_at >= CURRENT_DATE) AS today_cnt,
-                           max(triggered_at) AS last_at
-                      FROM quant.watch_triggers
-                     GROUP BY rule_id
-                """)).fetchall()
-            for r in rows:
-                stats[int(r[0])] = {"today": int(r[1] or 0), "last_at": r[2]}
+            return self.trigger_repo.get_rule_trigger_stats() or {}
         except Exception as e:
             logger.warning("元触发统计读取失败", error=str(e))
-        return stats
+            return {}
 
     def scan(self, now: Optional[datetime] = None, force: bool = False) -> Dict[str, Any]:
         """扫描全部启用规则，产出 meta_review 复核项。返回摘要。"""
@@ -134,18 +123,16 @@ class WatchMetaReviewService:
         return {"scanned_rules": len(rules), "raised": len(raised),
                 "skipped_already_reviewed": skipped_reviewed, "details": raised}
 
-    def _mark_reviewed(self, rule_id: int, now: datetime, interval_days: int) -> None:
-        from infrastructure.persistence.database.engine import get_engine
-        from sqlalchemy import text
+    def _mark_reviewed(self, rule_id: int, now, interval_days: int) -> None:
+        """标记已复核（走仓储端口，不裸 SQL）——保证到期必被 agent 看一次"""
+        from datetime import timedelta as _td
         try:
-            with get_engine().begin() as conn:
-                conn.execute(text("""
-                    UPDATE quant.watch_rules
-                       SET last_reviewed_at = :now,
-                           review_interval_days = :iv,
-                           review_due_at = :due
-                     WHERE id = :rid
-                """), {"now": now, "iv": interval_days,
-                       "due": now + timedelta(days=interval_days), "rid": rule_id})
+            self.rule_repo.update_fields(
+                rule_id,
+                last_reviewed_at=now,
+                review_interval_days=interval_days,
+                review_due_at=now + _td(days=interval_days),
+            )
         except Exception as e:
             logger.error("复核时间写入失败", rule_id=rule_id, error=str(e))
+

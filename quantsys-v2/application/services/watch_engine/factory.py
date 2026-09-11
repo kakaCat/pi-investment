@@ -16,6 +16,9 @@ from application.services.watch_engine.engine import WatchEngine
 from application.services.watch_engine.notifier import WatchNotifier
 from application.services.watch_engine.digest_service import WatchDigestService
 from application.services.watch_engine.intervention_ledger import InterventionLedger
+from adapters.outbound.repositories.watch_state_repository import (
+    WatchDigestStateRepository, WatchInterventionRepository,
+)
 from application.services.watch_engine.meta_review_service import WatchMetaReviewService
 from application.services.watch_engine.position_lifecycle_service import PositionLifecycleService
 from adapters.outbound.repositories.simulation_position_repository import SimulationPositionRepository
@@ -88,6 +91,7 @@ def create_watch_engine() -> WatchEngine:
             trigger_repo=WatchTriggerRepository(),
             rule_repo=WatchRuleRepository(),
             agent_service=AgentNotificationService(),
+            state_repo=WatchDigestStateRepository(),   # 端口实现（ADR-001：SQL 只在适配器层）
         )
     else:
         digest_service = None
@@ -104,7 +108,7 @@ def create_watch_engine() -> WatchEngine:
         account_total_provider=account_total_provider,
         digest_service=digest_service,
         # P4 介入记账：预算计数落库；P7 元触发复核：规则健康度回到 agent
-        ledger=InterventionLedger(),
+        ledger=InterventionLedger(WatchInterventionRepository()),
         meta_review_service=WatchMetaReviewService(
             rule_repo=WatchRuleRepository(),
             trigger_repo=WatchTriggerRepository(),

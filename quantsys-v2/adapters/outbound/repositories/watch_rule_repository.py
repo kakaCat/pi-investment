@@ -227,7 +227,7 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
     def update_disposition(self, trigger_id: int, disposition: str,
                            reason: str = None, by: str = 'agent') -> Optional[WatchTrigger]:
         """处置一条触发（handled / ignored / expired）。ignored 必须带 reason。"""
-        from application.services.watch_engine.disposition import DISPOSITION_IGNORED
+        from domain.watch.services.disposition import DISPOSITION_IGNORED
         if disposition == DISPOSITION_IGNORED and not (reason or '').strip():
             raise ValueError('ignored 状态必须填写 reason（为什么知悉但不动作）')
         trigger = self.get_by_id(trigger_id)
@@ -239,6 +239,29 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         trigger.disposition_at = datetime.now()
         self.session.commit()
         return trigger
+
+
+    def get_rule_trigger_stats(self) -> dict:
+        """批量触发统计（元触发复核用，避免 N+1）：{rule_id: {today, last_at}}
+
+        对应 domain/watch/ports.ITriggerHistoryRepository 的批量口径扩展。
+        """
+        from sqlalchemy import text
+        from infrastructure.persistence.database.engine import get_engine
+        out = {}
+        try:
+            with get_engine().connect() as conn:
+                rows = conn.execute(text(
+                    "SELECT rule_id, count(*) FILTER (WHERE triggered_at >= CURRENT_DATE) AS today_cnt,"
+                    "       max(triggered_at) AS last_at"
+                    "  FROM quant.watch_triggers GROUP BY rule_id"
+                )).fetchall()
+            for r in rows:
+                out[int(r[0])] = {"today": int(r[1] or 0), "last_at": r[2]}
+        except Exception as e:
+            import structlog
+            structlog.get_logger(__name__).warning("批量触发统计读取失败", error=str(e))
+        return out
 
     def list_triggers(self, symbol: Optional[str] = None,
                       disposition: Optional[str] = None,

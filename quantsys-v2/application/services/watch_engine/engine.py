@@ -12,7 +12,7 @@ import structlog
 from application.services.watch_engine.conditions import (
     DEFAULT_COOLDOWN_SEC, EvalContext, evaluate,
 )
-from application.services.watch_engine.disposition import (
+from domain.watch.services.disposition import (
     DEDUP_WINDOW_SEC, GateContext, InterventionConfig,
     decide as decide_disposition, dedup_key, normalize_symbol,
 )
