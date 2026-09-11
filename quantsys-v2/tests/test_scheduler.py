@@ -286,18 +286,37 @@ class TestNextRunTime:
         result = next_run_time("0 0 1 * *", from_time)
         assert result == datetime(2025, 2, 1, 0, 0, tzinfo=timezone.utc)
 
-    def test_default_from_time_is_utc_now(self):
-        """Calling without from_time should return a future time."""
-        result = next_run_time("* * * * *")
-        now = datetime.now(timezone.utc)
-        assert result > now
+    def test_default_from_time_is_beijing_now(self):
+        """不传 from_time 时以北京时间为基准（2026-09-11 时区修复后的契约）。"""
+        from zoneinfo import ZoneInfo
 
-    def test_naive_from_time_treated_as_utc(self):
-        """Naive datetimes should be treated as UTC."""
+        CN = ZoneInfo("Asia/Shanghai")
+        result = next_run_time("* * * * *")
+        assert result > datetime.now(CN)
+        assert result.utcoffset() == timedelta(hours=8)
+
+    def test_cron_expression_is_interpreted_in_beijing_time(self):
+        """回归钉子：cron 按北京时间解释，返回值必须是北京时刻。
+
+        旧实现用 datetime.now(timezone.utc) 作基准，会把 "45 15" 算成 15:45 UTC
+        （＝北京时间 23:45）——本用例在旧实现下失败，防止时区修复被改回去。
+        """
+        from zoneinfo import ZoneInfo
+
+        CN = ZoneInfo("Asia/Shanghai")
+        result = next_run_time("45 15 * * 1-5")
+        local = result.astimezone(CN)
+        assert (local.hour, local.minute) == (15, 45)
+        assert local.weekday() < 5
+
+    def test_naive_from_time_treated_as_beijing(self):
+        """Naive 时间按北京时间解释（原契约按 UTC，为 2026-09-11 时区修复的一部分）。"""
+        from zoneinfo import ZoneInfo
+
         from_time = datetime(2025, 1, 6, 8, 0)  # naive
         result = next_run_time("0 9 * * 1-5", from_time)
         assert result.tzinfo is not None
-        assert result == datetime(2025, 1, 6, 9, 0, tzinfo=timezone.utc)
+        assert result == datetime(2025, 1, 6, 9, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
 
 
 # ============================================================================
