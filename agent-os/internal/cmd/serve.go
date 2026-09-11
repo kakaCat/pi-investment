@@ -165,6 +165,16 @@ var serveCmd = &cobra.Command{
 			Services:           cfg.Services,
 		})
 
+		// 任务投递积压 + 补投 worker（2026-09-11 w-f4aa1f6a）
+		// 背景：webhook 投递此前只有内存重试（≈90s 窗口），对端长时间不可达即丢任务。
+		deliveryBacklogRepo := repository.NewTaskDeliveryBacklogRepository(db)
+		schedulerSvc.SetDeliveryBacklog(deliveryBacklogRepo)
+		deliveryRetryWorker := worker.NewTaskDeliveryRetryWorker(deliveryBacklogRepo)
+		if err := deliveryRetryWorker.Start(); err != nil {
+			return fmt.Errorf("failed to start task delivery retry worker: %w", err)
+		}
+		defer deliveryRetryWorker.Stop()
+
 		// Start Scheduler
 		if err := schedulerSvc.Start(ctx); err != nil {
 			return fmt.Errorf("failed to start scheduler: %w", err)

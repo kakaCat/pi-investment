@@ -55,6 +55,14 @@ func New(config *types.SchedulerConfig) *Scheduler {
 }
 
 // Start starts the scheduler
+// SetDeliveryBacklog 注入投递积压队列（须在 Start 之前调用）。
+//
+// 2026-09-11（w-f4aa1f6a）：webhook 投递重试耗尽后不再直接丢弃——
+// 连接类失败落库到 task_delivery_backlog，由 worker.TaskDeliveryRetryWorker 补投。
+func (s *Scheduler) SetDeliveryBacklog(b DeliveryBacklog) {
+	s.executor.SetDeliveryBacklog(b)
+}
+
 func (s *Scheduler) Start(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

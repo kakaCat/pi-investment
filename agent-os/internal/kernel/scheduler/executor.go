@@ -19,11 +19,28 @@ import (
 	"github.com/pi-investment/agent-os/pkg/types"
 )
 
+// DeliveryBacklog 投递积压队列接口（2026-09-11 w-f4aa1f6a）。
+//
+// 为什么需要：webhook 投递此前只有内存内重试（MaxRetries + 递增退避 ≈90s 窗口），
+// 对端不可达超过该窗口时任务被**直接丢弃**（实测 2026-09-11 DSH 不可达 90+ 分钟，
+// 09-10 19:00 晚间例行也丢过一次）。实现方为 repository.TaskDeliveryBacklogRepository，
+// 由 worker.TaskDeliveryRetryWorker 在后台补投。
+type DeliveryBacklog interface {
+	Enqueue(ctx context.Context, taskID, taskName, webhookURL string,
+		payload json.RawMessage, firstDelay time.Duration, maxAttempts int, lastErr string) error
+}
+
 // Executor handles task execution with timeout, retry, and concurrency control
 type Executor struct {
-	taskRunRepo *postgres.TaskRunRepository
-	config      *types.SchedulerConfig
-	semaphore   chan struct{} // Semaphore for concurrency control
+	taskRunRepo     *postgres.TaskRunRepository
+	config          *types.SchedulerConfig
+	semaphore       chan struct{} // Semaphore for concurrency control
+	deliveryBacklog DeliveryBacklog
+}
+
+// SetDeliveryBacklog 注入投递积压队列（未注入时行为与旧版一致：仅内存重试）。
+func (e *Executor) SetDeliveryBacklog(b DeliveryBacklog) {
+	e.deliveryBacklog = b
 }
 
 // NewExecutor creates a new Executor
@@ -163,6 +180,22 @@ func (e *Executor) Execute(ctx context.Context, task *types.Task, triggeredBy ty
 		"task_name", task.Name,
 		"run_id", run.ID,
 		"max_retries", e.config.MaxRetries)
+
+	// 2026-09-11（w-f4aa1f6a）：连接类失败落持久积压，交由 TaskDeliveryRetryWorker 补投。
+	// 只对"对端不可达/超时"这类可恢复失败入队——业务性失败（4xx/5xx 语义错误）重投无意义。
+	if e.deliveryBacklog != nil && task.WebhookURL != "" && lastErr != nil && IsConnectionFailure(lastErr) {
+		if payloadBytes, mErr := json.Marshal(buildWebhookPayload(task, run)); mErr != nil {
+			logger.Error("Failed to marshal webhook payload for backlog", "run_id", run.ID, "error", mErr)
+		} else if enqErr := e.deliveryBacklog.Enqueue(
+			ctx, task.ID.String(), task.Name, task.WebhookURL, payloadBytes,
+			30*time.Second, 10, lastErr.Error(),
+		); enqErr != nil {
+			logger.Error("Failed to enqueue delivery backlog", "run_id", run.ID, "error", enqErr)
+		} else {
+			logger.Warn("Task delivery enqueued to durable backlog for retry",
+				"task_name", task.Name, "webhook_url", task.WebhookURL, "error", lastErr.Error())
+		}
+	}
 
 	run.Status = types.TaskStatusFailed
 	run.Error = lastErr.Error()

@@ -79,9 +79,10 @@ func (r *TaskRepository) Create(ctx context.Context, task *types.Task) error {
 // GetByID retrieves a task by ID
 func (r *TaskRepository) GetByID(ctx context.Context, id uuid.UUID) (*types.Task, error) {
 	query := `
-		SELECT id, name, owner, description, schedule, cron, command,
-		       webhook_url, service_name, payload, timeout, retry_count, enabled,
-		       created_at, updated_at, created_by, metadata
+		SELECT id, name, owner, COALESCE(description, ''), COALESCE(schedule, ''), COALESCE(cron, ''),
+		       COALESCE(command, ''), COALESCE(webhook_url, ''), COALESCE(service_name, ''),
+		       COALESCE(payload, '{}'::jsonb), COALESCE(timeout, 3600), COALESCE(retry_count, 0), enabled,
+		       created_at, updated_at, COALESCE(created_by, ''), COALESCE(metadata, '{}'::jsonb)
 		FROM tasks
 		WHERE id = $1
 	`
@@ -131,9 +132,10 @@ func (r *TaskRepository) GetByID(ctx context.Context, id uuid.UUID) (*types.Task
 // GetByName retrieves a task by name
 func (r *TaskRepository) GetByName(ctx context.Context, name string) (*types.Task, error) {
 	query := `
-		SELECT id, name, owner, description, schedule, cron, command,
-		       webhook_url, service_name, payload, timeout, retry_count, enabled,
-		       created_at, updated_at, created_by, metadata
+		SELECT id, name, owner, COALESCE(description, ''), COALESCE(schedule, ''), COALESCE(cron, ''),
+		       COALESCE(command, ''), COALESCE(webhook_url, ''), COALESCE(service_name, ''),
+		       COALESCE(payload, '{}'::jsonb), COALESCE(timeout, 3600), COALESCE(retry_count, 0), enabled,
+		       created_at, updated_at, COALESCE(created_by, ''), COALESCE(metadata, '{}'::jsonb)
 		FROM tasks
 		WHERE name = $1
 	`
@@ -183,9 +185,10 @@ func (r *TaskRepository) GetByName(ctx context.Context, name string) (*types.Tas
 // List retrieves all tasks with optional filters
 func (r *TaskRepository) List(ctx context.Context, enabledOnly bool) ([]*types.Task, error) {
 	query := `
-		SELECT id, name, owner, description, schedule, cron, command,
-		       webhook_url, service_name, payload, timeout, retry_count, enabled,
-		       created_at, updated_at, created_by, metadata
+		SELECT id, name, owner, COALESCE(description, ''), COALESCE(schedule, ''), COALESCE(cron, ''),
+		       COALESCE(command, ''), COALESCE(webhook_url, ''), COALESCE(service_name, ''),
+		       COALESCE(payload, '{}'::jsonb), COALESCE(timeout, 3600), COALESCE(retry_count, 0), enabled,
+		       created_at, updated_at, COALESCE(created_by, ''), COALESCE(metadata, '{}'::jsonb)
 		FROM tasks
 	`
 	if enabledOnly {
@@ -310,10 +313,16 @@ func (r *TaskRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
 // GetScheduledTasks retrieves all enabled tasks with schedules
 func (r *TaskRepository) GetScheduledTasks(ctx context.Context) ([]*types.Task, error) {
+	// 2026-09-11（w-f4aa1f6a）：可空列一律 COALESCE。
+	// 事故：一条未填 command/schedule 的任务（INSERT 时省略）会让本查询在
+	// rows.Scan 处报 "cannot scan NULL into *string (col: description)"，
+	// 进而 failed to load tasks → **agent-os 整个起不来**（实测确认）。
+	// 调度器启动路径不允许因单条脏数据而全盘失败。
 	query := `
-		SELECT id, name, owner, description, schedule, cron, command,
-		       webhook_url, service_name, payload, timeout, retry_count, enabled,
-		       created_at, updated_at, created_by, metadata
+		SELECT id, name, owner, COALESCE(description, ''), COALESCE(schedule, ''), COALESCE(cron, ''),
+		       COALESCE(command, ''), COALESCE(webhook_url, ''), COALESCE(service_name, ''),
+		       COALESCE(payload, '{}'::jsonb), COALESCE(timeout, 3600), COALESCE(retry_count, 0), enabled,
+		       created_at, updated_at, COALESCE(created_by, ''), COALESCE(metadata, '{}'::jsonb)
 		FROM tasks
 		WHERE enabled = true AND (
 			(schedule IS NOT NULL AND schedule != '') OR
