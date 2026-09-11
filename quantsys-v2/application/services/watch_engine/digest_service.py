@@ -21,6 +21,10 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
+#: 无账户归属的触发（规则缺 linked_account）——单独成桶投默认 agent，绝不静默丢弃
+UNASSIGNED = "__unassigned__"
+
+
 class WatchDigestService:
     """待处置触发的摘要与唤醒门（引擎 loop 调用 maybe_wake）"""
 
@@ -57,8 +61,14 @@ class WatchDigestService:
         if self.state_repo is not None:
             self.state_repo.save_wake(now)
 
-    def build_digest(self, since: Optional[datetime] = None) -> Dict[str, Any]:
-        """按标的聚合的待处置摘要（路由与唤醒共用同一实现，避免两处口径）"""
+    def build_digest(self, since: Optional[datetime] = None,
+                     account: Optional[str] = None) -> Dict[str, Any]:
+        """按**账户 × 标的**聚合的待处置摘要（路由与唤醒共用同一实现，避免两处口径）
+
+        2026-09-11（w-aebfddcd）：账户是投送维度（哪个 agent 接手），因此**同一标的被两个
+        账户盯盘时绝不合并**——合并 = 把 A 账户的止损预案投给 B 账户的 agent。
+        每条规则应先有 linked_account（账户归属）；无归属的进"未归属"桶并显式暴露。
+        """
         from domain.watch.services.disposition import UNRESOLVED
         rows = self.trigger_repo.list_triggers(dispositions=UNRESOLVED, limit=self.limit)
         if since is not None:
@@ -68,10 +78,15 @@ class WatchDigestService:
         groups: Dict[str, Dict[str, Any]] = {}
         for t in rows:
             sym = str(t.symbol).split(".")[0]
-            g = groups.setdefault(sym, {"symbol": sym, "count": 0, "items": [], "dispositions": {}})
+            rule = rules.get(t.rule_id)
+            acct = getattr(rule, "linked_account", None) if rule is not None else None
+            if account is not None and acct != account:
+                continue
+            key = "%s|%s" % (acct or "-", sym)
+            g = groups.setdefault(key, {"symbol": sym, "account": acct, "count": 0,
+                                        "items": [], "dispositions": {}})
             g["count"] += 1
             g["dispositions"][t.disposition] = g["dispositions"].get(t.disposition, 0) + 1
-            rule = rules.get(t.rule_id)
             cond = t.condition or {}
             params = cond.get("params") or {}
             hint = (getattr(rule, "action_hint", None) or {}) if rule is not None else {}
@@ -97,10 +112,12 @@ class WatchDigestService:
             })
 
         lines: List[str] = []
-        for sym, g in sorted(groups.items(), key=lambda kv: kv[1]["count"], reverse=True):
+        for _key, g in sorted(groups.items(), key=lambda kv: kv[1]["count"], reverse=True):
             first = min((i["triggered_at"] or "") for i in g["items"])
             disp = "/".join("%s×%d" % (k, v) for k, v in sorted(g["dispositions"].items()))
-            lines.append("[%s] %d条（%s）首发 %s" % (sym, g["count"], disp, first[11:19] if first else "-"))
+            acct_tag = ("[%s] " % g["account"]) if g["account"] else "[未归属账户] "
+            lines.append(acct_tag + "[%s] %d条（%s）首发 %s" % (
+                g["symbol"], g["count"], disp, first[11:19] if first else "-"))
             for it in g["items"][:4]:
                 lines.append("  - #%s 规则%s %s/%s %s 现价%s%s" % (
                     it["trigger_id"], it["rule_id"], it["trigger_level"] or "L1",
@@ -120,39 +137,83 @@ class WatchDigestService:
             except Exception as e:
                 logger.warning("市场摘要生成失败", error=str(e))
 
+        by_account: Dict[str, int] = {}
+        for g in groups.values():
+            k = g["account"] or "未归属"
+            by_account[k] = by_account.get(k, 0) + g["count"]
+
         return {
-            "gate": len(rows) > 0,
+            "gate": sum(g["count"] for g in groups.values()) > 0,
+            "by_account": by_account,
+            "unassigned": sum(g["count"] for g in groups.values() if not g["account"]),
             "market_summary": market_text,
-            "count": len(rows),
+            "count": sum(g["count"] for g in groups.values()),
             "by_disposition": by_disp,
             "group_count": len(groups),
             "groups": list(groups.values()),
             "text": (market_text + chr(10) + chr(10) if market_text else "") + chr(10).join(lines),
         }
 
-    def _resolve_target(self, digest: dict) -> str:
-        """摘要的处置 agent：按待处置项的**账户归属**投票（同票/无法判定 → 默认 agent）
+    # ── 按账户分段（投送维度 = 账户；一个账户一份摘要）────────────
+    @staticmethod
+    def _segments(digest: dict) -> Dict[str, dict]:
+        """把摘要按账户拆开：{账户 or UNASSIGNED: 子摘要}
 
-        纪律：投送 agent 与消息频道是两件事——这里只看 rule.linked_account + scope
-        （非账户事件按 scope 分类），**不读频道码**（见 WatchDeliveryPolicy 铁律）。
-        摘要可能混着多个账户，按多数派投；宁可多给一个 agent，不可漏。
+        账户是**投送维度**（谁接手），所以不能把多账户混成一份唤醒——那等于让 A 账户的
+        agent 处置 B 账户的仓位。无法归属的进 UNASSIGNED 桶并显式投给默认 agent（不漏）。
         """
-        from domain.notification.policies.watch_delivery_policy import (
-            WatchDeliveryPolicy, DEFAULT_AGENT)
-        policy = WatchDeliveryPolicy()
-        votes: dict = {}
+        segs: Dict[str, dict] = {}
         for g in digest.get("groups") or []:
-            for it in g.get("items") or []:
-                account = it.get("account")
-                if not account:
-                    continue
-                agent = policy.resolve(account=account, category=it.get("scope"))
-                votes[agent] = votes.get(agent, 0) + 1
-        if not votes:
-            return DEFAULT_AGENT
-        best = max(votes.values())
-        winners = sorted(a for a, v in votes.items() if v == best)
-        return winners[0] if len(winners) == 1 else DEFAULT_AGENT
+            key = g.get("account") or UNASSIGNED
+            seg = segs.setdefault(key, {"count": 0, "group_count": 0, "groups": [],
+                                        "by_disposition": {}, "by_account": {}})
+            seg["groups"].append(g)
+            seg["count"] += g.get("count", 0)
+            seg["group_count"] += 1
+            seg["by_account"][key] = seg["by_account"].get(key, 0) + g.get("count", 0)
+            for d, n in (g.get("dispositions") or {}).items():
+                seg["by_disposition"][d] = seg["by_disposition"].get(d, 0) + n
+        for seg in segs.values():
+            seg["text"] = chr(10).join(WatchDigestService._group_lines(seg["groups"]))
+        return segs
+
+    @staticmethod
+    def _group_lines(groups) -> List[str]:
+        lines: List[str] = []
+        for g in sorted(groups, key=lambda x: x.get("count", 0), reverse=True):
+            first = min((i.get("triggered_at") or "") for i in g.get("items") or [""]) or ""
+            disp = "/".join("%s×%d" % (k, v) for k, v in sorted((g.get("dispositions") or {}).items()))
+            acct_tag = ("[%s] " % g.get("account")) if g.get("account") else ""
+            lines.append(acct_tag + "[%s] %d条（%s）首发 %s" % (
+                g.get("symbol"), g.get("count", 0), disp, first[11:19] if first else "-"))
+            for it in (g.get("items") or [])[:4]:
+                lines.append("  - #%s 规则%s %s/%s %s 现价%s%s" % (
+                    it.get("trigger_id"), it.get("rule_id"), it.get("trigger_level") or "L1",
+                    it.get("suggested_action") or "-", it.get("condition"), it.get("trigger_price"),
+                    (" | 预案：" + it.get("plan")) if it.get("plan") else ""))
+            if g.get("count", 0) > 4:
+                lines.append("  … 另有 %d 条同标的触发" % (g.get("count", 0) - 4))
+        return lines
+
+    def _resolve_target(self, account: Optional[str], category: Optional[str] = None) -> str:
+        """账户 → 处置 agent（决策在 domain 策略；本方法只做调用，**不读频道码**）"""
+        from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
+        return WatchDeliveryPolicy().resolve(account=account, category=category)
+
+    @staticmethod
+    def _instruction(account: Optional[str]) -> str:
+        """唤醒指令：账户作用域纪律（同 agent-brain 例行任务的写法）"""
+        scope = ("本摘要仅属于账户 **%s**：所有账户查询/交易工具必须显式传 account_name=\"%s\"，"
+                 "禁止操作其他账户。" % (account, account)) if account else (
+                 "本摘要含**未归属账户**的触发（规则缺 linked_account）：先判断归属再动作，"
+                 "拿不准的不要下单，留给交互会话决策。")
+        return (
+            scope +
+            "按标的处置待处置触发：可自决的 PATCH /api/watch/triggers/{id} 置 handled 并写动作与结果；"
+            "判不动的置 ignored，reason 必须含「为什么不动 + 下次什么条件下才动(NEXT)」；"
+            "需用户决策的不要替用户决定，留在待决策队列由交互会话用 ask_user_question 拉起；"
+            "遵守 R-001~R-009 与交易宪法。"
+        )
 
     # ── 唤醒门（引擎 loop 调用）────────────────────────────────
     def maybe_wake(self, now: Optional[datetime] = None) -> Dict[str, Any]:
@@ -172,29 +233,44 @@ class WatchDigestService:
             return {"woke": False, "reason": "自上次唤醒以来无待处置触发", "count": 0}
         if self.agent_service is None:
             return {"woke": False, "reason": "agent 通道未注入", "count": digest["count"]}
-        # 按分类投递（2026-09-11，w-aebfddcd）：摘要也可能混类，按待处置项的多数派选处置 agent
-        target_agent = self._resolve_target(digest)
-        payload = {
-            "count": digest["count"],
-            "group_count": digest["group_count"],
-            "by_disposition": digest["by_disposition"],
-            "since": last_at.isoformat() if last_at else None,
-            "digest": digest["text"],
-            "target_agent": target_agent,
-            "instruction": (
-                "按标的处置待处置触发：可自决的 PATCH /api/watch/triggers/{id} 置 handled 并写动作与结果；"
-                "判不动的置 ignored，reason 必须含「为什么不动 + 下次什么条件下才动(NEXT)」；"
-                "需用户决策的不要替用户决定，留在待决策队列由交互会话用 ask_user_question 拉起；"
-                "遵守 R-001~R-009 与交易宪法。"
-            ),
-        }
-        try:
-            ok = self.agent_service.notify_agent("watch_digest", payload, target=target_agent)
-        except TypeError:
-            # 兼容旧实现（notify_agent(event, data)）——不因签名差异丢掉唤醒
-            ok = self.agent_service.notify_agent("watch_digest", payload)
-        if ok:
-            self._save_wake(now)
-            logger.info("盯盘摘要已唤醒 agent", count=digest["count"], groups=digest["group_count"])
-            return {"woke": True, "count": digest["count"], "group_count": digest["group_count"]}
-        return {"woke": False, "reason": "唤醒通道失败（不写状态，下次重试）", "count": digest["count"]}
+
+        # 按账户分段投送（2026-09-11，w-aebfddcd）：一个账户一份唤醒，投给该账户的处置 agent。
+        # 预算按"唤醒次数"计（一次唤醒 = 一个账户），上限仍是 daily_cap。
+        segments = self._segments(digest)
+        woke_accounts, failed, delivered = [], [], 0
+        for acc_key, seg in segments.items():
+            if wake_count >= self.daily_cap:
+                break
+            acct = None if acc_key == UNASSIGNED else acc_key
+            target_agent = self._resolve_target(acct)
+            payload = {
+                "account_name": acct,
+                "count": seg["count"],
+                "group_count": seg["group_count"],
+                "by_disposition": seg["by_disposition"],
+                "by_account": seg["by_account"],
+                "unassigned": acc_key == UNASSIGNED,
+                "since": last_at.isoformat() if last_at else None,
+                "digest": seg["text"],
+                "target_agent": target_agent,
+                "instruction": self._instruction(acct),
+            }
+            try:
+                ok = self.agent_service.notify_agent("watch_digest", payload, target=target_agent)
+            except TypeError:
+                # 兼容旧实现（notify_agent(event, data)）——不因签名差异丢掉唤醒
+                ok = self.agent_service.notify_agent("watch_digest", payload)
+            if ok:
+                wake_count += 1
+                delivered += 1
+                self._save_wake(now)
+                woke_accounts.append(acc_key)
+            else:
+                failed.append(acc_key)
+        if delivered:
+            logger.info("盯盘摘要已按账户唤醒", accounts=woke_accounts,
+                        count=digest["count"], groups=digest["group_count"])
+            return {"woke": True, "count": digest["count"], "group_count": digest["group_count"],
+                    "accounts": woke_accounts, "failed": failed, "wakes": delivered}
+        return {"woke": False, "reason": "唤醒通道失败（不写状态，下次重试）",
+                "count": digest["count"], "failed": failed}
