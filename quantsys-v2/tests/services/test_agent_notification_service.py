@@ -161,15 +161,21 @@ def test_agent_reminder_handler_registered_once():
     mock_send.assert_called_once()
 
 
-def test_notify_sends_token_header_and_default_port_3002(monkeypatch):
-    """token 配置时请求带 X-Wake-Token；默认 URL 为 3002"""
+def test_notify_sends_token_header_and_default_port_13080(monkeypatch):
+    """token 配置时请求带 X-Wake-Token；默认 URL 为 13080
+
+    2026-09-11（w-aebfddcd）：内置默认由 :3002 改为 :13080——旧 :3002 是 agent-ts 的
+    wake 网关，实测早已不监听（见 infrastructure/notification/channels/agent_channel.py 契约修复注释），
+    在线的是 DSH investment profile 的 127.0.0.1:13080/wake。agent-ts 仍可显式配置：
+    AGENT_API_URL_TS=http://127.0.0.1:3002。
+    """
     from unittest.mock import patch, MagicMock
     monkeypatch.delenv('AGENT_API_URL', raising=False)
     monkeypatch.setenv('AGENT_API_TOKEN', 'tok-123')
     from application.services.agent_notification_service import AgentNotificationService
 
     service = AgentNotificationService()
-    assert service.agent_url == 'http://127.0.0.1:3002'
+    assert service.agent_url == 'http://127.0.0.1:13080'
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200

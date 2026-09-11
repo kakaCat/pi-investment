@@ -41,8 +41,10 @@ class AgentNotificationService:
 
     def __init__(self, agent_url: Optional[str] = None, timeout: Optional[int] = None,
                  targets: Optional[Dict[str, str]] = None):
-        #: 默认落点（历史参数保留：显式传入 > AGENT_API_URL_DH > AGENT_API_URL_DH 默认值）
-        self.agent_url = (agent_url or self._env_url(DEFAULT_TARGET)
+        #: 显式传入的地址（最高优先级）：历史契约——构造时给 agent_url 即指定默认 agent 的落点
+        self._explicit_url = agent_url.rstrip('/') if agent_url else None
+        #: 默认落点：显式传入 > AGENT_API_URL_DH > AGENT_API_URL > 内置默认
+        self.agent_url = (self._explicit_url or self._env_url(DEFAULT_TARGET)
                           or DEFAULT_TARGET_URLS[DEFAULT_TARGET]).rstrip('/')
         #: agent 键 → 基地址覆盖（不传则由 env 解析）
         self.targets = dict(targets) if targets else {}
@@ -79,6 +81,9 @@ class AgentNotificationService:
         key = target or DEFAULT_TARGET
         if self.targets.get(key):
             return str(self.targets[key]).rstrip('/')
+        if self._explicit_url and key == DEFAULT_TARGET:
+            # 构造显式传入的 agent_url 就是默认 agent 的地址（不得被环境变量悄悄盖掉）
+            return self._explicit_url
         return (self._env_url(key) or DEFAULT_TARGET_URLS.get(key)
                 or self.agent_url).rstrip('/')
 
