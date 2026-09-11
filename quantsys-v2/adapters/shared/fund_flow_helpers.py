@@ -1,9 +1,18 @@
 """资金流助手（框架无关）— 从 adapters/inbound/api/routes/jobs.py 解耦而来
 
-注意：_inject_fund_flow_to_klines 调用的 get_stock_fund_flow 在原 Flask 代码中
-即未定义（latent bug，经 try/except 静默降级为资金流全 0），此处原样保留（parity）。
+2026-09-11（REQ-cf627b，w-f436d4ea）根治三个 latent bug（Flask 时代 parity 保留）：
+① _inject_fund_flow_to_klines 调用的 get_stock_fund_flow 从未定义（NameError 被
+   try/except 吞掉 → 资金流列静默全 0 → 因子表 10 个资金因子恒 0）
+② _fetch_financial_data 用的 ds 从未定义（NameError → 财务因子静默 None）
+③ 本模块缺 logger（异常处理路径里的 logger.warning 会二次崩溃）
+现改为：资金流走 FundFlowDataSource（DB 缓存优先，每日批量 job 以万元写入）；
+财务数据走 adapters.shared.services.get_data_service()；补 structlog logger。
 """
 from typing import Any, Dict, List, Optional
+
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 # -- 资金流注入辅助函数 --
@@ -28,8 +37,9 @@ def _inject_fund_flow_to_klines(klines: List[dict], symbol: str) -> List[dict]:
             k[alias] = 0.0
 
     try:
+        from adapters.outbound.datasources.fund_flow_source import FundFlowDataSource
         days = len(klines)
-        fund_data = get_stock_fund_flow(symbol, days=days)
+        fund_data = FundFlowDataSource().get_stock_fund_flow(symbol, days=days)
 
         if not fund_data or not isinstance(fund_data, dict):
             return klines
@@ -38,26 +48,52 @@ def _inject_fund_flow_to_klines(klines: List[dict], symbol: str) -> List[dict]:
         if not fund_rows:
             return klines
 
+        # 行键兼容：FundFlowDataSource 为 snake_case（单位=万元），akshare 原始为中文列名
+        def _g(row: dict, *names):
+            for n in names:
+                v = row.get(n)
+                if v is not None:
+                    return v
+            return None
+
         # 建立 日期→资金流 映射
         fund_by_date: Dict[str, dict] = {}
         for row in fund_rows:
-            date_str = str(row.get('日期', '')).replace('-', '')
-            fund_by_date[date_str] = row
+            d = _g(row, 'date', 'trade_date', '日期')
+            if d:
+                fund_by_date[str(d).replace('-', '')] = row
+
+        # FundFlowDataSource 字段口径（万元）：
+        #   large_net_inflow = 超大单净流入；big_net_inflow = 大单净流入
+        _KEY_MAP = {
+            'main_net_inflow': ('main_net_inflow', '主力净流入-净额'),
+            'main_net_pct': ('main_net_inflow_rate', '主力净流入-净占比'),
+            'super_large_net': ('large_net_inflow', '超大单净流入-净额'),
+            'super_large_pct': ('large_net_inflow_rate', '超大单净流入-净占比'),
+            'large_net': ('big_net_inflow', '大单净流入-净额'),
+            'large_pct': ('big_net_inflow_rate', '大单净流入-净占比'),
+        }
 
         # 按日期合并
+        merged = 0
         for k in klines:
             kdate = str(k.get('trade_date', k.get('date', ''))).replace('-', '')
-            if kdate in fund_by_date:
-                frow = fund_by_date[kdate]
-                for cn_name, alias in _FUND_FLOW_COLUMN_MAP.items():
-                    val = frow.get(cn_name)
-                    if val is not None:
-                        try:
-                            k[alias] = float(val)
-                        except (ValueError, TypeError):
-                            pass
-    except Exception:
-        pass  # 数据源不可用时静默降级
+            frow = fund_by_date.get(kdate)
+            if not frow:
+                continue
+            merged += 1
+            for alias, names in _KEY_MAP.items():
+                val = _g(frow, *names)
+                if val is not None:
+                    try:
+                        k[alias] = float(val)
+                    except (ValueError, TypeError):
+                        pass
+        if merged == 0:
+            logger.warning(f'{symbol} 资金流注入 0 条命中（日期对不上），资金流列保持 0')
+    except Exception as e:
+        # 数据源不可用时降级，但不再静默吞掉——至少留日志可追
+        logger.warning(f'{symbol} 资金流注入失败（资金流列保持 0）: {e}')
 
     return klines
 
@@ -113,7 +149,8 @@ def _fetch_financial_data(symbol: str) -> Optional[Dict[str, Any]]:
     至少需要 2 期数据；不足则返回 None。
     """
     try:
-        raw = ds.get_financial_statements(symbol, statement_type='all', periods=8)
+        from adapters.shared.services import get_data_service
+        raw = get_data_service().get_financial_statements(symbol, statement_type='all', periods=8)
     except Exception as e:
         logger.warning(f"Failed to fetch financial statements for {symbol}: {e}")
         return None

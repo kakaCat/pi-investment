@@ -15,6 +15,7 @@ from adapters.outbound.datasources.providers.quote.tencent import TencentQuotePr
 from adapters.outbound.datasources.providers.quote.netease import NeteaseQuoteProvider
 from adapters.outbound.datasources.providers.stock.akshare import AkshareStockProvider
 from adapters.outbound.datasources.providers.dividend.akshare import AkshareDividendProvider
+from adapters.outbound.datasources.providers.dividend.eastmoney import EastmoneyDividendProvider
 from adapters.outbound.datasources.providers.market.akshare import AkshareMarketProvider
 from adapters.outbound.datasources.providers.market.ths import ThsMarketProvider
 from adapters.outbound.datasources.providers.market.sina import SinaMarketProvider
@@ -70,8 +71,12 @@ class DataProviderManager(IDataProviderManager):
         self.hk_providers = [
             AkshareHKProvider(),
         ]
+        # 2026-09-11（REQ-cf627b，w-f436d4ea）：分红源由单源（akshare，且其字段映射曾错致
+        # 全 0）改为多源故障转移——akshare（已修列名映射）优先、东财 datacenter 兜底
+        # （可补 akshare 缺失的股息率）。
         self.dividend_providers = [
             AkshareDividendProvider(),
+            EastmoneyDividendProvider(),
         ]
         self.market_providers = [
             AkshareMarketProvider(),

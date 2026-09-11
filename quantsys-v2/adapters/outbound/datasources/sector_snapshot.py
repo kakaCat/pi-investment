@@ -18,7 +18,7 @@
 import json
 import logging
 from datetime import date
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -133,3 +133,39 @@ def load_snapshot() -> Optional[Dict]:
     except Exception as e:  # noqa: BLE001
         logger.warning(f'sector 快照读取失败: {e}')
         return None
+
+
+def load_snapshots(limit: int = 5) -> List[Dict]:
+    """读最近 N 天板块快照（按日期倒序，最新在前）。
+
+    2026-09-11（REQ-cf627b，w-f436d4ea）：为 /api/market/sectors 的 days 多窗口
+    提供数据基础——此前该端点忽略 days 参数（任何窗口都返回当日快照）。
+    返回 [{'snapshot_date','industries','concepts'}]；无表/失败返回 []。
+    """
+    try:
+        from infrastructure.persistence.orm.config import get_session
+        from sqlalchemy import text
+
+        session = get_session()
+        try:
+            rows = session.execute(
+                text(f"SELECT snapshot_date, industries, concepts FROM {_TABLE} "
+                     f"ORDER BY snapshot_date DESC, updated_at DESC LIMIT :n"),
+                {'n': int(limit)},
+            ).mappings().all()
+        finally:
+            session.close()
+
+        out: List[Dict] = []
+        for r in rows:
+            inds = r['industries']
+            cons = r['concepts']
+            out.append({
+                'snapshot_date': str(r['snapshot_date']),
+                'industries': json.loads(inds) if isinstance(inds, str) else (inds or []),
+                'concepts': json.loads(cons) if isinstance(cons, str) else (cons or []),
+            })
+        return out
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f'sector 快照历史读取失败: {e}')
+        return []

@@ -98,17 +98,20 @@ export class DataQualityReportTool extends BaseTool<DataQualityReportParams, Dat
     const q: any = this.quantsysClient as any;
     const rowsOf = (x: any) => (Array.isArray(x) ? x : (x?.data?.industries ?? x?.industries ?? []));
 
-    // 1) 板块列表可用性 + 窗口参数是否生效
+    // 1) 板块列表可用性 + 窗口参数是否生效（测机制：当日 vs 复合窗口，而非深度）
     try {
-      const a: any = await q.getSectorAnalysis({ days: 5 });
-      const b20: any = await q.getSectorAnalysis({ days: 20 });
+      const a: any = await q.getSectorAnalysis({ days: 1 });
+      const b: any = await q.getSectorAnalysis({ days: 5 });
       const ra = rowsOf(a);
-      const rb = rowsOf(b20);
+      const rb = rowsOf(b);
       if (!ra.length) push('sector_analysis.rows', 'fail', '板块列表为空');
       else {
         const same = ra.length === rb.length && ra.slice(0, 20).every((x: any, i: number) => x.change_pct === rb[i]?.change_pct);
+        const win = (b as any)?.window ?? (b as any)?.data?.window;
         push('sector_analysis.window', same ? 'degraded' : 'ok',
-          same ? 'days=5 与 days=20 返回完全相同 → 后端忽略窗口参数（当前为单一快照）' : '窗口参数生效');
+          same
+            ? 'days=1 与 days=5 返回完全相同 → 窗口参数未生效'
+            : `窗口参数生效（days=5 由 ${win?.days_computed ?? '?'} 天快照复合）`);
       }
     } catch (e: any) { push('sector_analysis', 'fail', '调用失败：' + String(e?.message ?? e).slice(0, 120)); }
 

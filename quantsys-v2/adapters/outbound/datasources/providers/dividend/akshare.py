@@ -37,13 +37,40 @@ class AkshareDividendProvider(DividendProvider):
                 return None
 
             # Convert to DividendData list
+            # 2026-09-11（REQ-cf627b，w-f436d4ea）字段映射修复：
+            # akshare stock_dividend_cninfo 实测列名为
+            #   实施方案公告日期/分红类型/送股比例/转增比例/派息比例/股权登记日/除权日/派息日/...
+            # 而旧代码读的是 '每股派息'/'股息率'/'除权除息日' —— 这些列**不存在**，
+            # 导致 dividend_per_share 恒 0、ex_dividend_date 恒 None（即「分红源返回全 0 行」
+            # 被误判为『该公司不分红』）。此处按实测真实列名映射，派息比例（每10股）→ 每股派息。
+            def _num(v):
+                try:
+                    return float(v)
+                except (TypeError, ValueError):
+                    return None
+
+            def _date(v):
+                s = str(v) if v is not None else ''
+                return s[:10] if s and s not in ('None', 'nan', 'NaT') else None
+
             result = []
             for _, row in df.head(years * 2).iterrows():  # *2 to get more records
+                dps_per10 = _num(row.get('派息比例'))  # 每10股派息(元,含税)
+                # 从说明文本兜底解析（如 "10派1.511元(含税)"）
+                if dps_per10 is None:
+                    import re
+                    m = re.search(r'10派([0-9.]+)元', str(row.get('实施方案分红说明', '') or ''))
+                    dps_per10 = _num(m.group(1)) if m else None
+                dps = (dps_per10 / 10.0) if dps_per10 is not None else None
+                if dps is None:
+                    continue  # 纯送转/未实施方案不产出派息记录
                 result.append(DividendData(
                     symbol=symbol,
-                    dividend_per_share=float(row.get('每股派息', 0)),
-                    dividend_yield=float(row.get('股息率', 0)) if '股息率' in row else None,
-                    ex_dividend_date=str(row.get('除权除息日', '')) if '除权除息日' in row else None,
+                    dividend_per_share=round(dps, 4),
+                    dividend_yield=None,  # 股息率需现价，由东财源或工具层补
+                    ex_dividend_date=_date(row.get('除权日')),
+                    record_date=_date(row.get('股权登记日')),
+                    pay_date=_date(row.get('派息日')),
                     source=self.name,
                     timestamp=datetime.now().isoformat()
                 ))
