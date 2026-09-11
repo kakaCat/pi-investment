@@ -9,7 +9,6 @@ from adapters.outbound.repositories.watch_rule_repository import (
     WatchTrigger, WatchRuleRepository, WatchTriggerRepository, rule_to_dict, trigger_to_dict,
 )
 from application.services.watch_engine.conditions import validate_condition
-from domain.watch.services.rule_guard import guard_new_rule, guard_rule_change
 
 router = APIRouter(tags=['Watch - 实时盯盘'])
 
@@ -72,14 +71,6 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
         expires_at = _parse_expires_at(data.get('expires_at'))
     except ValueError:
         return _err(EXPIRES_AT_ERROR, 400)
-    # 铁律（用户 2026-09-11）：**没有账户的规则不能进入买卖**——在源头拦，而不是触发时降级
-    try:
-        guard_new_rule(intent=data.get('intent'), action_hint=data.get('action_hint'),
-                       conditions=conditions,
-                       account=(data.get('linked_account') or data.get('account')),
-                       symbol=symbol)
-    except ValueError as e:
-        return _err(str(e), 400)
     try:
         rule_repo = WatchRuleRepository()
         rule = rule_repo.create_rule(
@@ -91,8 +82,17 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
             expires_at=expires_at,
             created_by=data.get('created_by', 'agent'),
             account=(data.get('account') or data.get('linked_account') or None),
+            # 2026-09-11（w-aebfddcd）：账户归一 + intent/action_hint 透传。
+            # 透传是必须的：①账户铁律在**仓储层**（create_rule/update_fields）统一拦，"没有账户
+            # 不能进入买卖"；②此前 intent 被静默丢弃，声明 entry 的规则实际落库 NULL。
             linked_account=(data.get('linked_account') or data.get('account') or None),
+            intent=data.get('intent'),
+            action_hint=data.get('action_hint'),
         )
+    except ValueError as e:
+        # 领域守卫拒绝（没有账户不能进入买卖 / 策略账户不接受盯盘规则）→ 400 而非 500：
+        # 这是**调用方数据问题**，必须给出可读原因，不能被当成服务端故障
+        return _err(str(e), 400)
     except Exception as e:
         return _err(f'创建失败: {e}', 500)
     return {'success': True, 'data': {'rule': rule_to_dict(rule)}}
@@ -123,15 +123,13 @@ def _update_rule(rule_id: int, payload: Dict[str, Any]):
     before_rule = rule_repo.get_by_id(rule_id)
     if before_rule is None:
         return _err('规则不存在', 404)
-    # 铁律（用户 2026-09-11）：合并"改后状态"再判——不许把观察规则改成买卖规则却不给账户，
-    # 也不许把已有买卖规则的账户清空（清空=把缺陷写回系统）
-    try:
-        guard_rule_change(before_rule, data)
-    except ValueError as e:
-        return _err(str(e), 400)
     before = {k: getattr(before_rule, k, None) for k in data.keys()}
 
-    rule = rule_repo.update_fields(rule_id, **data)
+    try:
+        rule = rule_repo.update_fields(rule_id, **data)
+    except ValueError as e:
+        # 领域守卫拒绝（把观察规则改成买卖却不给账户 / 清空买卖规则的账户）→ 400
+        return _err(str(e), 400)
     if rule is None:
         return _err('规则不存在', 404)
     changes = [k for k, v in before.items() if str(v) != str(getattr(rule, k, None))]
@@ -184,7 +182,7 @@ def trigger_disposition_stats(date: Optional[str] = Query(None)):
     legacy_unknown（状态机上线前的历史数据）不计入分母，避免美化指标。
     agent_wakeups_estimate = escalated + L2 触发的去重合并数（估算实际唤醒量级）。
     """
-    from domain.watch.services.disposition import UNRESOLVED, is_resolved
+    from application.services.watch_engine.disposition import UNRESOLVED, is_resolved
     trigger_repo = WatchTriggerRepository()
     rows = trigger_repo.list_triggers(limit=200)
     day = date or datetime.now().strftime('%Y-%m-%d')
@@ -209,7 +207,7 @@ def trigger_disposition_stats(date: Optional[str] = Query(None)):
 @router.get('/api/watch/triggers/unresolved')
 def list_unresolved_triggers(date: Optional[str] = Query(None), limit: Optional[str] = Query(None)):
     """盘后未处置清单（pending/escalated）——把"触发后没人管"变成可追的待办。"""
-    from domain.watch.services.disposition import UNRESOLVED
+    from application.services.watch_engine.disposition import UNRESOLVED
     trigger_repo = WatchTriggerRepository()
     day = date or datetime.now().strftime('%Y-%m-%d')
     rows = trigger_repo.list_triggers(dispositions=UNRESOLVED, limit=_limit_of(limit, 200))
@@ -253,24 +251,81 @@ def update_trigger_disposition(trigger_id: int,
 
 @router.get('/api/watch/triggers/digest')
 def trigger_digest(since: Optional[str] = Query(None), limit: Optional[str] = Query(None)):
-    """待处置摘要（REQ-f08def）—— agent 摘要式批量唤醒的载荷。
+    """待处置摘要（REQ-f08def Phase 2）—— agent 摘要式批量唤醒的载荷。
 
-    2026-09-11 重构：构建逻辑下沉到 WatchDigestService，与「引擎内置唤醒门」共用同一份实现。
-    原实现与本路由并存会产生两处口径——摘要门改了聚合方式，路由就会不一致。
+    设计要点（RFC 014 §4.5 / §6）：
+    1) **gate=false 时调用方必须直接退出，不唤醒 agent** —— 这是"唤醒次数与触发数解耦"的关键：
+       队列空则零 LLM；队列非空则不论多少条都只唤醒一次。
+    2) 载荷里带 `text`（紧凑文本）：唤醒提示词可直接内嵌，agent 无需再发工具调用取数（省 token）。
+    3) 按标的聚合：一次跌穿常产生同标的多条触发，聚合后 agent 按"标的"而不是按"触发"决策。
     """
-    from application.services.watch_engine.digest_service import WatchDigestService
-    since_dt = None
+    from application.services.watch_engine.disposition import UNRESOLVED
+    trigger_repo = WatchTriggerRepository()
+    rule_repo = WatchRuleRepository()
+    rows = trigger_repo.list_triggers(dispositions=UNRESOLVED, limit=_limit_of(limit, 200))
     if since:
         try:
             since_dt = datetime.fromisoformat(since)
+            rows = [t for t in rows if t.triggered_at and t.triggered_at >= since_dt]
         except ValueError:
             return _err('since 需为 ISO 时间，如 2026-09-11T13:00:00', 400)
-    svc = WatchDigestService(
-        trigger_repo=WatchTriggerRepository(),
-        rule_repo=WatchRuleRepository(),
-        limit=_limit_of(limit, 200),
-    )
-    return {'success': True, 'data': svc.build_digest(since=since_dt)}
+
+    rules = {r.id: r for r in rule_repo.list_rules()}
+    groups: Dict[str, Dict[str, Any]] = {}
+    for t in rows:
+        sym = str(t.symbol).split('.')[0]
+        g = groups.setdefault(sym, {'symbol': sym, 'count': 0, 'items': [], 'dispositions': {}})
+        g['count'] += 1
+        g['dispositions'][t.disposition] = g['dispositions'].get(t.disposition, 0) + 1
+        rule = rules.get(t.rule_id)
+        cond = t.condition or {}
+        params = cond.get('params') or {}
+        hint = (getattr(rule, 'action_hint', None) or {}) if rule is not None else {}
+        ctx = (getattr(rule, 'context', None) or '') if rule is not None else ''
+        g['items'].append({
+            'trigger_id': t.id,
+            'rule_id': t.rule_id,
+            'disposition': t.disposition,
+            'trigger_price': float(t.trigger_price) if t.trigger_price is not None else None,
+            'triggered_at': t.triggered_at.isoformat() if t.triggered_at else None,
+            'condition': f"{cond.get('type')} {params.get('direction', '')} {params.get('price', params.get('pct', ''))}".strip(),
+            'trigger_level': hint.get('trigger_level'),
+            'suggested_action': hint.get('action_on_trigger'),
+            # REQ-f08def P1：意图与阶段——agent 拿到触发就知道该回答什么问题
+            'intent': getattr(rule, 'intent', None),
+            'lifecycle_stage': getattr(rule, 'lifecycle_stage', None),
+            'next_action_hint': getattr(rule, 'next_action_hint', None),
+            'plan': ctx[:160],
+            'reason': (t.disposition_reason or '')[:120],
+        })
+
+    # 紧凑文本：唤醒提示词直接内嵌，省一次工具调用
+    lines = []
+    for sym, g in sorted(groups.items(), key=lambda kv: kv[1]['count'], reverse=True):
+        first = min((i['triggered_at'] or '') for i in g['items'])
+        disp = '/'.join(f'{k}×{v}' for k, v in sorted(g['dispositions'].items()))
+        lines.append(f"[{sym}] {g['count']}条（{disp}）首发 {first[11:19] if first else '-'}")
+        for it in g['items'][:4]:
+            lvl = it['trigger_level'] or 'L1'
+            act = it['suggested_action'] or '-'
+            lines.append(f"  - #{it['trigger_id']} 规则{it['rule_id']} {lvl}/{act} "
+                         f"{it['condition']} 现价{it['trigger_price']}"
+                         + (f" | 预案：{it['plan']}" if it['plan'] else ''))
+        if g['count'] > 4:
+            lines.append(f"  … 另有 {g['count'] - 4} 条同标的触发")
+
+    by_disposition: Dict[str, int] = {}
+    for t in rows:
+        by_disposition[t.disposition] = by_disposition.get(t.disposition, 0) + 1
+
+    return {'success': True, 'data': {
+        'gate': len(rows) > 0,
+        'count': len(rows),
+        'by_disposition': by_disposition,
+        'group_count': len(groups),
+        'groups': list(groups.values()),
+        'text': chr(10).join(lines),
+    }}
 
 
 @router.post('/api/watch/rules/batch')
@@ -300,23 +355,13 @@ def batch_reconfigure_rules(payload: Dict[str, Any] = Body(default_factory=dict)
                     continue
                 for c in conds:
                     validate_condition(c)
-                # 铁律：没有账户的规则不能进入买卖（批量创建同样拦）
-                try:
-                    guard_new_rule(intent=act.get('intent'), action_hint=act.get('action_hint'),
-                                   conditions=conds,
-                                   account=(act.get('linked_account') or act.get('account')),
-                                   symbol=act.get('symbol'))
-                except ValueError as e:
-                    results.append({'index': i, 'success': False, 'error': str(e)})
-                    continue
                 rule = rule_repo.create_rule(
                     symbol=act.get('symbol'), conditions=conds,
                     context=act.get('context'), cost_price=act.get('cost_price'),
                     active_window=act.get('active_window'),
                     expires_at=_parse_expires_at(act.get('expires_at')),
                     created_by=act.get('created_by') or 'agent',
-                    account=(act.get('account') or act.get('linked_account')),
-                    linked_account=(act.get('linked_account') or act.get('account')))
+                    account=act.get('account'))
                 meta = {k: act[k] for k in ('intent', 'lifecycle_stage', 'scope', 'target',
                         'linked_account', 'next_action_hint', 'review_interval_days',
                         'action_hint', 'escalation_policy') if k in act}
