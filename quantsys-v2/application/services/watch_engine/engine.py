@@ -252,6 +252,7 @@ class WatchEngine:
                         disposition=disposition,
                         disposition_reason=disposition_reason,
                         dup_of=dup_of,
+                        action_amount_yuan=self._position_value(rule),
                     )
                 except Exception as e:
                     # 不闩锁、不记 _last_triggered，下个 tick 重试（at-least-once）

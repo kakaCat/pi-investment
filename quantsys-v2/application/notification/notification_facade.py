@@ -67,6 +67,8 @@ class NotificationFacade:
         lifecycle_stage: str = None,    # ← 阶段
         next_action_hint: str = None,   # ← 触发后该做什么
         account: str = None,            # ← 归属账户
+        scope: str = None,              # ← market/sector/symbol/position（P8 路由）
+        action_amount_yuan: float = None,   # ← 动作影响金额（P8：≥账户5% → 风控频道）
     ) -> ChannelResult:
         """发送盯盘触发通知
 
@@ -85,6 +87,14 @@ class NotificationFacade:
         Returns:
             ChannelResult: 发送结果
         """
+        # P8：路由决策交给**通知域策略**（盯盘只声明语义，不关心发到哪个群）
+        from domain.notification.policies.watch_channel_policy import WatchChannelPolicy
+        watch_channel = WatchChannelPolicy().resolve(
+            intent=intent, scope=scope,
+            is_constitutional=(intent == 'exit_stop'),
+            action_amount_yuan=action_amount_yuan,
+        )
+
         notification = Notification(
             notification_type=NotificationType.WATCH_TRIGGERED,
             title=f"盯盘触发 - {symbol}",
@@ -111,6 +121,11 @@ class NotificationFacade:
                 'lifecycle_stage': lifecycle_stage,
                 'next_action_hint': next_action_hint,
                 'account': account,
+                'scope': scope,
+                'action_amount_yuan': action_amount_yuan,
+                'watch_channel': watch_channel,
+                # os_channel 是 agent 网关的既有覆盖点：逻辑频道码写入此处即完成路由
+                'os_channel': watch_channel,
             },
             priority=NotificationPriority.HIGH if trigger_level == 'L2' else NotificationPriority.NORMAL
         )

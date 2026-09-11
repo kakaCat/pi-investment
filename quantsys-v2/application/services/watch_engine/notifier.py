@@ -101,7 +101,7 @@ class WatchNotifier:
 
     def notify(self, rule, condition: dict, quote, result, escalation_reason: str = None,
                disposition: str = None, disposition_reason: str = None,
-               dup_of: int = None):
+               dup_of: int = None, action_amount_yuan: float = None):
         """触发通知
         
         Args:
@@ -131,7 +131,8 @@ class WatchNotifier:
         # 而不是在通知层悄悄吞掉。故此处保持推送（disposition 照旧记录以便追溯）。
 
         # 1. 构建 TriggerPayload
-        payload = self._build_payload(rule, condition, quote, result, escalation_reason)
+        payload = self._build_payload(rule, condition, quote, result, escalation_reason,
+                                      action_amount_yuan=action_amount_yuan)
         
         # 2. 确定通知模式
         trigger_level = payload.trigger_level
@@ -167,6 +168,8 @@ class WatchNotifier:
                 lifecycle_stage=payload.lifecycle_stage,
                 next_action_hint=payload.next_action_hint,
                 account=payload.account,
+                scope=payload.scope,
+                action_amount_yuan=payload.action_amount_yuan,
             )
             notified = facade_result.success if hasattr(facade_result, 'success') else bool(facade_result)
         except Exception as e:
@@ -182,7 +185,8 @@ class WatchNotifier:
 
         return trigger
 
-    def _build_payload(self, rule, condition, quote, result, escalation_reason: str = None) -> TriggerPayload:
+    def _build_payload(self, rule, condition, quote, result, escalation_reason: str = None,
+                       action_amount_yuan: float = None) -> TriggerPayload:
         """构建 TriggerPayload"""
         price = float(quote.price)
         
@@ -251,6 +255,8 @@ class WatchNotifier:
             lifecycle_stage=getattr(rule, 'lifecycle_stage', None),
             next_action_hint=getattr(rule, 'next_action_hint', None),
             account=getattr(rule, 'account', None),
+            scope=getattr(rule, 'scope', None),
+            action_amount_yuan=action_amount_yuan,
         )
 
     def _broadcast_ws(self, payload: TriggerPayload):
