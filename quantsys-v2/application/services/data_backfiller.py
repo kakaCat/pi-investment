@@ -108,6 +108,28 @@ class DataBackfiller:
                 'elapsed_time': 1.23
             }
         """
+        # 2026-09-11（w-f4aa1f6a）：指数数据已拆分到 quant.index_daily——
+        # daily_klines 明确禁止指数行（CHECK chk_daily_klines_no_indexrows，见
+        # migration 20260911_index_daily_split.py）。原实现把指数（如 399300 沪深300）
+        # 经同一保存路径写进 daily_klines，触发 CheckViolation 导致 18:40 的补齐任务
+        # 整批失败（事件 bbb56df6 / b376f70d / bc64397b）。
+        # 指数由 quant.index_daily 维护（tools/backfill_index_daily.py + launchd
+        # index-daily-refresh 每日 16:30），此处跳过并回报 skipped（非失败，不污染
+        # 失败统计与告警）。
+        if self._is_index_symbol(symbol.split('.')[0] if '.' in symbol else symbol):
+            logger.info(
+                f"跳过指数 {symbol}：指数数据由 quant.index_daily 维护，不写 daily_klines"
+            )
+            return {
+                'symbol': symbol,
+                'success': True,
+                'skipped': True,
+                'segments_filled': 0,
+                'total_days_filled': 0,
+                'failed_segments': [],
+                'message': '指数数据由 quant.index_daily 维护，本任务跳过',
+            }
+
         if not missing_segments:
             return {
                 'symbol': symbol,
