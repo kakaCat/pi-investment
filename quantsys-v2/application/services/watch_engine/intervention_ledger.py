@@ -16,6 +16,11 @@ logger = structlog.get_logger(__name__)
 class InterventionLedger:
     """介入记账（应用层薄封装：策略在此，持久化交给 IWatchInterventionRepository 端口）"""
 
+    def __init__(self, repo=None):
+        # 端口注入（ADR-001）：持久化由 IWatchInterventionRepository 适配器负责
+        self.repo = repo
+
+
     def count_today(self) -> int:
         """当日介入次数（预算门用）。走 IWatchInterventionRepository 端口。"""
         if self.repo is None:
