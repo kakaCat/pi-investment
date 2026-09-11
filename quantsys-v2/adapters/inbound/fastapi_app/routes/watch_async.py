@@ -89,10 +89,22 @@ def _update_rule(rule_id: int, payload: Dict[str, Any]):
             data['expires_at'] = _parse_expires_at(data['expires_at'])
         except ValueError:
             return _err(EXPIRES_AT_ERROR, 400)
+    if 'action_hint' in data and not isinstance(data['action_hint'], dict):
+        return _err('action_hint 必须为对象', 400)
+    if 'escalation_policy' in data and not isinstance(data['escalation_policy'], dict):
+        return _err('escalation_policy 必须为对象', 400)
+
+    # 变更留痕（RFC 014 §4.2 非对称护栏的落地基础）：返回改动前后值，供调用方写 decision_audit。
+    before_rule = rule_repo.get_by_id(rule_id)
+    if before_rule is None:
+        return _err('规则不存在', 404)
+    before = {k: getattr(before_rule, k, None) for k in data.keys()}
+
     rule = rule_repo.update_fields(rule_id, **data)
     if rule is None:
         return _err('规则不存在', 404)
-    return {'success': True, 'data': {'rule': rule_to_dict(rule)}}
+    changes = [k for k, v in before.items() if str(v) != str(getattr(rule, k, None))]
+    return {'success': True, 'data': {'rule': rule_to_dict(rule), 'changed_fields': changes}}
 
 
 @router.put('/api/watch/rules/{rule_id}')

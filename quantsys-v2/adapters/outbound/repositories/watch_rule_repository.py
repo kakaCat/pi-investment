@@ -142,7 +142,10 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
             return None
         allowed = {'symbol', 'enabled', 'conditions', 'context',
                    'cost_price', 'active_window', 'expires_at', 'account',
-                   'notify_mode'}  # 2026-09-05 补：notify_mode 曾被白名单静默丢弃
+                   'notify_mode',  # 2026-09-05 补：notify_mode 曾被白名单静默丢弃
+                   # 2026-09-11（w-c8cae280 / REQ-f08def Phase 3）：规则演化（改分级/改动作/改升级策略）
+                   # 需要这两个字段可写，否则 agent 无法按 RFC 014 §4 的反馈边调整规则。
+                   'action_hint', 'escalation_policy'}
         for key, value in fields.items():
             if key in allowed:
                 setattr(rule, key, value)
