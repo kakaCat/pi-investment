@@ -61,11 +61,28 @@ def test_池外标的必须回报not_covered并说明是未采集():
     assert 'watch_manage' in out['note'], '要给出可行动出路'
 
 
-def test_池外但确有个股事件时不得声称不含个股事件():
-    """边界：持仓/盯盘规则变动后可能残留池外事件——此时文案不能自相矛盾。"""
+def test_池外但确有个股事件时判covered():
+    """语义校准：本字段回答「**有没有**个股数据」，不是「在不在周期采集池里」。
+
+    实测场景：600176 / 002080 显式补采后有 31 条个股事件落库，但因不在
+    持仓 ∪ 盯盘规则内，初版实现仍报 not_covered —— 反向误导。
+    """
     out = _call(rows=[_macro_row(), _individual_row()], covered=False)
-    assert out['individual_coverage'] == 'not_covered'
+    assert out['individual_coverage'] == 'covered'
     assert out['note'] is None, '已有个股事件就不该再说「返回中不含个股事件」'
+
+
+def test_窄窗口裁掉个股事件时仍判covered():
+    """has_individual 必须在窗口过滤**前**判定：过滤会裁掉窗口外事件，若过滤后
+    判断，一次窄窗口查询就会把「有数据但不在窗口内」误报成「未采集」。
+    用远期日期构造，保证与运行当天无关。"""
+    far = dict(_individual_row(), effective_date='2099-01-01')
+    repo = _Repo([_macro_row(), far], covered=False)
+
+    out = EventFeedService(manager=None, repository=repo).events_for_symbol('600176', window_days=1)
+
+    assert out['individual_coverage'] == 'covered', '窗口外的个股事件不得让覆盖状态倒退回未采集'
+    assert out['filtered_out'] >= 1, '个股事件确实被窗口裁掉（否则本测试没覆盖到该分支）'
 
 
 def test_覆盖检查失败时降级为unknown且不影响主结果():

@@ -273,6 +273,9 @@ class EventFeedService:
         if not code:
             return self._envelope(None, error='symbol 不能为空')
         rows = repository.for_symbol(code, limit=limit)
+        # 在**窗口过滤前**记录是否真有个股事件：过滤会把窗口外的事件裁掉，
+        # 若在过滤后判断，一次窄窗口查询会把"有数据但不在窗口内"误报成"未采集"。
+        has_individual_rows = any(str(r.get('scope') or '') == 'individual' for r in rows)
         dropped = 0
         if window_days:
             # 窗口 = [今天 - window_days, 今天 + window_days]（排雷既要看即将发生、
@@ -298,12 +301,19 @@ class EventFeedService:
             # 本模块用 stdlib logging（非 structlog）：必须 printf 风格，
             # 传 key=value 会抛 TypeError——而且是在异常分支里抛，等于降级逻辑自己崩。
             logger.warning('default_universe 覆盖检查失败: symbol=%s error=%s', code, exc)
-        coverage = 'covered' if covered else ('not_covered' if covered is False else 'unknown')
-        # 仅当"不在池内 **且** 本次确实没有个股事件"时才提示未知——否则会出现
-        # "池外但查到了个股事件"（持仓/规则变动后残留数据）时声称"不含个股事件"的错话。
-        has_individual = any(str(r.get('scope') or '') == 'individual' for r in rows)
+        # 语义校准（2026-09-11 第二轮）：本字段回答的是「**有没有**个股事件数据」，
+        # 不是「在不在周期采集池里」。初版只看池内成员，导致显式补采过的标的
+        # （实测 600176/002080 补采后有 31 条个股事件）仍被标成 not_covered——
+        # 反向误导。现在：有数据 → covered；无数据且不在池 → not_covered（未知）；
+        # 无数据但检查失败 → unknown（无法断言）。
+        if has_individual_rows or covered is True:
+            coverage = 'covered'
+        elif covered is False:
+            coverage = 'not_covered'
+        else:
+            coverage = 'unknown'
         coverage_note = None
-        if covered is False and not has_individual:
+        if coverage == 'not_covered':
             coverage_note = (
                 '该标的**不在**个股事件采集池内（持仓 ∪ 启用中的盯盘规则）——返回中不含个股事件，'
                 '但这是"未采集"而非"确实没有"：解禁/减持/定增等供给冲击无从判断。'
