@@ -291,12 +291,18 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
                 return 0
             if name == key:
                 return 1
-            for stem in stems[1:]:
-                if name.startswith(stem):
+            # 2026-09-11（w-f436d4ea）：原实现只对「去后缀后的词干」做前缀/包含匹配，
+            # 于是**裸词**（无已知后缀可去，如 '玻璃'/'船舶'）匹配不到任何板块 →
+            # 该通道静默返回空（通道退化，且不报错）。单测 test_industry_preferred_...
+            # 暴露此口子（'玻璃' → []）。改为对原始关键词与词干一起参与匹配。
+            for stem in stems:
+                if stem != key and name.startswith(stem):
                     return 2
-                if name == stem:
+                if stem != key and name == stem:
                     return 3
-            for stem in stems[1:]:
+                if stem == key and name.startswith(stem):
+                    return 2
+            for stem in stems:
                 if stem in name:
                     return 4
             if name in key and len(name) >= 2:
