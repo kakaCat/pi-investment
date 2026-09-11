@@ -125,12 +125,15 @@ cd ~/.dsh/profiles/investment
 
 ### 4. 停止服务
 
-```bash
-# 查找进程
-lsof -ti:13080
+:13080 由 launchd 作业 `com.pi-investment.dsh` 托管（KeepAlive），**不能用 `kill`**——
+kill 之后 launchd 会立刻把它拉起来，看起来"停了"其实还在跑。
 
-# 停止
-kill <PID>
+```bash
+# 停止（内部走 launchctl bootout；pidfile + 监听校验，不会误杀别的 dsh 实例）
+cd ~/.dsh/profiles/investment && ./stop.sh
+
+# 恢复运行
+cd ~/.dsh/profiles/investment && ./start.sh
 ```
 
 ## 📦 项目结构
@@ -187,9 +190,8 @@ vim packages/investment/src/index.ts
 # 2. 重新构建
 pnpm build
 
-# 3. 重启 DSH profile
-lsof -ti:13080 | xargs kill
-cd ~/.dsh/profiles/investment && ./start.sh
+# 3. 重启 DSH profile（:13080 由 launchd 托管，kill 会被 KeepAlive 立刻拉起）
+launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh
 ```
 
 ## 📚 文档

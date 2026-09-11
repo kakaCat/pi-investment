@@ -2,18 +2,21 @@
 
 ## 🚀 启动/停止
 
+> **:13080 由 launchd 作业 `com.pi-investment.dsh` 托管（KeepAlive）**：`kill` 会被立刻
+> 拉起，紧接着的手工 `./start.sh` 必然 `EADDRINUSE`。重启/停止走下面的命令，别用 kill。
+
 ```bash
-# 启动（默认端口 13080）
+# 启动（默认端口 13080；作业已加载时脚本会自动转为 kickstart 重启，不会抢端口）
 cd ~/.dsh/profiles/investment && ./start.sh
 
-# 启动（指定端口）
+# 启动（指定端口，脱离 launchd 的裸实例）
 cd ~/.dsh/profiles/investment && ./start.sh 13081
 
-# 停止
-lsof -ti:13080 | xargs kill
+# 停止（:13080 真正停机；直接 kill 会被 KeepAlive 立刻拉起）
+cd ~/.dsh/profiles/investment && ./stop.sh
 
-# 重启
-lsof -ti:13080 | xargs kill && cd ~/.dsh/profiles/investment && ./start.sh
+# 重启（唯一正确入口）
+launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh
 ```
 
 ## 🔧 开发
@@ -50,8 +53,8 @@ cat ~/.dsh/profiles/investment/cordis.patch.yml
 # 检查进程
 ps aux | grep "dsh.*investment"
 
-# 检查端口
-lsof -ti:13080
+# 检查端口（-sTCP:LISTEN 必须带，否则连页面过来的浏览器进程也会列出来）
+lsof -ti:13080 -sTCP:LISTEN
 
 # 检查 Web UI
 curl http://localhost:13080
