@@ -93,10 +93,19 @@ def add_to_watchlist(payload: Dict[str, Any] = Body(default_factory=dict)):
     for item in wl.get('items', []):
         if item['symbol'] == symbol:
             return {'success': True, 'message': '已在自选股中', 'item': item}
+    # 2026-09-11 修复（w-aebfddcd 代 w-348bf585 处理）：stock_repo.get_by_symbol 返回的是
+    # **ORM 对象（Stock）**而非 dict——原代码 stock_info.get(...) 直接抛
+    # AttributeError: 'Stock' object has no attribute 'get'，导致 POST /api/stocks/watchlist
+    # 线上恒 500（自选股加不进去）。统一用 _field() 取值，兼容 ORM 对象与 dict 两种返回。
+    def _field(obj, key, default=None):
+        if isinstance(obj, dict):
+            return obj.get(key, default)
+        return getattr(obj, key, default)
+
     new_item = {
         'symbol': symbol,
-        'name': stock_info.get('name', symbol),
-        'market': stock_info.get('market', ''),
+        'name': _field(stock_info, 'name', symbol),
+        'market': _field(stock_info, 'market', ''),
         'group_id': payload.get('groupId', 'default'),
         'note': payload.get('note', ''),
         'added_at': datetime.now().isoformat(),
