@@ -63,6 +63,9 @@ def test_prod_dsn_is_not_blocked_env_wise(monkeypatch):
 
 
 def test_pytest_runtime_reason_when_db_looks_prod(monkeypatch):
+    """库名信号全部清空（模拟生产库配置），pytest 信号仍须独立拦住"""
+    for var in DB_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("PGDATABASE", "quant_investment")
     monkeypatch.setenv("PYTEST_CURRENT_TEST", "tests/x.py::test_y (call)")
     assert non_prod_reason() == "pytest-runtime"
