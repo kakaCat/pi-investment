@@ -15,6 +15,8 @@ from application.services.realtime_quote_service_v2 import RealtimeQuoteServiceV
 from application.services.watch_engine.engine import WatchEngine
 from application.services.watch_engine.notifier import WatchNotifier
 from application.services.watch_engine.digest_service import WatchDigestService
+from application.services.watch_engine.intervention_ledger import InterventionLedger
+from application.services.watch_engine.meta_review_service import WatchMetaReviewService
 from adapters.outbound.repositories.simulation_position_repository import SimulationPositionRepository
 
 logger = structlog.get_logger(__name__)
@@ -100,6 +102,12 @@ def create_watch_engine() -> WatchEngine:
         position_value_provider=position_value_provider,
         account_total_provider=account_total_provider,
         digest_service=digest_service,
+        # P4 介入记账：预算计数落库；P7 元触发复核：规则健康度回到 agent
+        ledger=InterventionLedger(),
+        meta_review_service=WatchMetaReviewService(
+            rule_repo=WatchRuleRepository(),
+            trigger_repo=WatchTriggerRepository(),
+        ),
     )
 
 

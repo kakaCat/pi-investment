@@ -51,7 +51,7 @@ class WatchEngine:
                  escalation_checker: Optional[EscalationChecker] = None,
                  position_value_provider: Optional[Callable] = None,
                  account_total_provider: Optional[Callable] = None,
-                 digest_service=None):
+                 digest_service=None, ledger=None, meta_review_service=None):
         self.rule_repo = rule_repo
         self.quote_service = quote_service
         self.notifier = notifier
@@ -80,6 +80,11 @@ class WatchEngine:
         # 摘要门（REQ-f08def P2/P4）：何时唤醒 agent 的判据由本服务负责，
         # 挂在引擎 loop 里——引擎本就是盯盘唯一宿主，无需外部定时器/脚本。
         self.digest_service = digest_service
+        # 介入记账（P4）：预算计数落库，修掉"重启清零 → 每日预算形同虚设"
+        self.ledger = ledger
+        # 元触发复核（P7）：规则不能无限期盯下去（频次/静默/滞留/到期 → 回到 agent）
+        self.meta_review_service = meta_review_service
+        self._last_meta_scan_date = None
         self._avg_volume_cache: Dict[str, float] = {}
         self._state_date = None
         self.fast_mode = False
@@ -121,6 +126,16 @@ class WatchEngine:
                         self.digest_service.maybe_wake(now)
                 except Exception as e:
                     logger.error('摘要门异常', error=str(e))
+                # 元触发复核：每日一次（规则不能无限期盯下去，RFC 014 v3 §13）
+                try:
+                    if (self.meta_review_service is not None
+                            and self._last_meta_scan_date != now.date()):
+                        summary = self.meta_review_service.scan(now)
+                        self._last_meta_scan_date = now.date()
+                        if summary.get('raised'):
+                            logger.info('元触发复核完成', raised=summary['raised'])
+                except Exception as e:
+                    logger.error('元触发复核异常', error=str(e))
                 interval = self.fast_interval if self.fast_mode else self.base_interval
             else:
                 interval = 60  # 非交易时段低频心跳
@@ -132,6 +147,12 @@ class WatchEngine:
     def tick(self) -> List[dict]:
         now = self.now_fn()
         self._reset_daily_state_if_needed(now)
+        # 预算计数每 tick 从库刷新一次（不每规则查，避免 N+1）；库不可用时沿用内存值
+        if self.ledger is not None:
+            try:
+                self._interventions_today = self.ledger.count_today()
+            except Exception:
+                pass
         rules = self.rule_repo.list_enabled()
         events = []
         fast = False
@@ -229,6 +250,12 @@ class WatchEngine:
                     intent = str(getattr(rule, 'intent', '') or '') or                         str((rule.action_hint or {}).get('action_on_trigger', '') if isinstance(getattr(rule, 'action_hint', None), dict) else '')
                     self._last_intervention[(norm, intent or 'unknown')] = now
                     self._interventions_today += 1
+                    if self.ledger is not None:
+                        self.ledger.record(
+                            symbol=rule.symbol, intent=(intent or None), rule_id=rule.id,
+                            trigger_kind='price', outcome='escalated',
+                            trigger_ids=[getattr(trigger, 'id', None)],
+                        )
                 self._last_triggered[(rule.id, idx)] = now
                 self._latched.add((rule.id, idx))
                 events.append({'rule_id': rule.id, 'symbol': rule.symbol,

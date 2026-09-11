@@ -34,6 +34,30 @@ class WatchRule(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now)
 
+    # ── 价值生命周期（REQ-f08def P1/P4/P7，RFC 014 v3 §7.1）──────────────
+    # 2026-09-11 实测教训（两次踩）：①migration 加了 DB 列但 ORM 未声明 →
+    # intent/lifecycle_stage/scope/价值账本对 ORM 完全不可见，update_fields 的改动
+    # 也不落库（#120 改成 entry 看似成功、库里仍是旧值）；②锚点 agent_response 在
+    # WatchTrigger 里也有，第一次补列插错了类。补 ORM 列时必须做唯一性断言。
+    intent = Column(String(30))
+    lifecycle_stage = Column(String(30), default='tracking')
+    scope = Column(String(20), default='symbol')
+    target = Column(String(60))
+    linked_account = Column(String(60))
+    created_from = Column(String(80))
+    next_action_hint = Column(String(160))
+    last_reviewed_at = Column(DateTime)
+    review_interval_days = Column(Integer)
+    review_due_at = Column(DateTime)
+    burst_count_window = Column(Integer, default=0)
+    last_burst_alert_at = Column(DateTime)
+    valuable_actions = Column(Integer, default=0)
+    valuable_reviews = Column(Integer, default=0)
+    interventions = Column(Integer, default=0)
+    noise_triggers = Column(Integer, default=0)
+    tokens_cost = Column(Numeric(12, 4), default=0)
+    last_value_at = Column(DateTime)
+
 
 class WatchTrigger(Base):
     __tablename__ = 'watch_triggers'
