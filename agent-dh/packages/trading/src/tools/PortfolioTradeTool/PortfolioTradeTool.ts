@@ -12,6 +12,7 @@ import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { portfolioTradePrompt, PortfolioTradeParams, PortfolioTradeResult } from './prompt';
 import { assertTradingHours } from '../../utils/trading-hours';
+import { checkTradabilityGate } from '../../utils/tradability';
 
 export class PortfolioTradeTool extends BaseTool<PortfolioTradeParams, PortfolioTradeResult> {
   protected readonly metadata: ToolMetadata = {
@@ -213,6 +214,15 @@ export class PortfolioTradeTool extends BaseTool<PortfolioTradeParams, Portfolio
         // 检索失败不阻塞交易（降级）
         experienceNote = '⚠️  R-008: 经验检索失败，降级放行';
       }
+    }
+
+    // P1/RFC 015 §4.6 可交易性闸门（2026-09-11）：把 trading_status 接进真实下单路径。
+    // 方向差异化：BUY fail-closed（状态未知/停牌/涨停/冲突一律拒单）；
+    // SELL 仅确证停牌拒单，状态未知不阻塞（不得阻断减仓/止损等风险削减动作）。
+    const tradeAction = String(args.action).toUpperCase() as 'BUY' | 'SELL';
+    const tradability = await checkTradabilityGate(this.qv2, args.symbol, tradeAction);
+    if (tradability.rejection) {
+      return { ...tradability.rejection, r008_check: experienceNote } as any;
     }
 
     // M4-1 & M4-2 仓位映射与熔断校验（P1，2026-08-28）
