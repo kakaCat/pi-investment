@@ -30,7 +30,8 @@ class WatchDigestService:
 
     def __init__(self, trigger_repo, rule_repo, agent_service=None, state_repo=None,
                  market_watch_service=None,
-                 min_interval_sec: int = 1500, daily_cap: int = 8, limit: int = 200):
+                 min_interval_sec: int = 1500, daily_cap: int = 8, limit: int = 200,
+                 dry_run: bool = False):
         self.trigger_repo = trigger_repo
         self.rule_repo = rule_repo
         self.agent_service = agent_service
@@ -42,6 +43,10 @@ class WatchDigestService:
         self.min_interval_sec = min_interval_sec
         self.daily_cap = daily_cap
         self.limit = limit
+        # 影子模式（2026-09-11，w-aebfddcd）：照常算"该唤醒谁、带什么摘要与授权"，
+        # **不发唤醒、不消耗唤醒预算**，只落结构日志供人工复核。用途：真开之前的 24h 观察。
+        self.dry_run = dry_run
+        self._shadow_last_at = None
 
     # ── 交易时段门 ────────────────────────────────────────────
     @staticmethod
@@ -263,6 +268,30 @@ class WatchDigestService:
         # 按账户分段投送（2026-09-11，w-aebfddcd）：一个账户一份唤醒，投给该账户的处置 agent。
         # 预算按"唤醒次数"计（一次唤醒 = 一个账户），上限仍是 daily_cap。
         segments = self._segments(digest)
+
+        if self.dry_run:
+            # 影子模式：同一冷却窗内最多记一次，避免每 tick 刷屏；不动库内状态（预算不消耗）
+            if (self._shadow_last_at is not None
+                    and (now - self._shadow_last_at).total_seconds() < self.min_interval_sec):
+                return {"woke": False, "dry_run": True, "reason": "影子模式冷却窗内"}
+            self._shadow_last_at = now
+            plan = []
+            for acc_key, seg in segments.items():
+                acct = None if acc_key == UNASSIGNED else acc_key
+                if acct is not None and self._is_strategy_managed(acct):
+                    plan.append({"account": acct, "count": seg["count"],
+                                 "action": "skip", "reason": "策略账户：盯盘不介入"})
+                    continue
+                target = self._resolve_target(acct)
+                autonomy = self._resolve_autonomy(acct)
+                plan.append({"account": acct, "count": seg["count"], "action": "wake",
+                             "target_agent": target, "autonomy": autonomy,
+                             "groups": seg["group_count"]})
+            logger.info("摘要门影子模式：本应唤醒如下（未真发，不消耗预算）",
+                        plan=plan, unresolved=digest["count"], groups=digest["group_count"])
+            return {"woke": False, "dry_run": True, "would_wake": plan,
+                    "count": digest["count"], "group_count": digest["group_count"]}
+
         woke_accounts, failed, delivered, defects, out_of_scope = [], [], 0, [], []
         for acc_key, seg in segments.items():
             acct = None if acc_key == UNASSIGNED else acc_key

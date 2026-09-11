@@ -101,6 +101,9 @@ def create_watch_engine() -> WatchEngine:
             agent_service=AgentNotificationService(),
             state_repo=WatchDigestStateRepository(),   # 端口实现（ADR-001：SQL 只在适配器层）
             market_watch_service=_market_watch,        # 摘要内嵌市场状态（P6）
+            # 影子模式默认**开**（fail-safe）：只写日志不发唤醒；显式 WATCH_DIGEST_DRY_RUN=false
+            # 才是真开（会叫 agent 处置，agent 自有账户可自主下单）。
+            dry_run=_os.getenv('WATCH_DIGEST_DRY_RUN', 'true').lower() != 'false',
         )
     else:
         digest_service = None

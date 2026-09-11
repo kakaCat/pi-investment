@@ -165,6 +165,11 @@ class WatchEngine:
 
     def tick(self) -> List[dict]:
         now = self.now_fn()
+        # 时段自检（2026-09-11，w-aebfddcd 场景矩阵发现）：此前交易时段守卫只在 run_forever 的
+        # 循环里，tick() 本身不看表 —— 任何旁路调用（补跑脚本/新服务/其他窗口）都会在盘后
+        # 照样判定并推送通知。铁律：交易时段外一律不产出事件。
+        if now.weekday() >= 5 or not self.is_trading_time(now.time()):
+            return []
         self._reset_daily_state_if_needed(now)
         # 预算计数每 tick 从库刷新一次（不每规则查，避免 N+1）；库不可用时沿用内存值
         if self.ledger is not None:

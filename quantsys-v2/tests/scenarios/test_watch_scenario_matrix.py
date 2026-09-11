@@ -83,10 +83,10 @@ def test_B2_latch_prevents_repeat_until_rearm():
     engine.tick()
     engine.tick()                       # 仍在上方 → 闩锁，不重复
     assert len(n.notifications) == 1
-    clock['t'] = NOW + timedelta(hours=1)   # 越过冷却窗（否则第二次穿越会被冷却拦掉）
+    clock['t'] = NOW + timedelta(minutes=20)  # 越过冷却窗，且仍在交易时段内（10:50）
     prices['600519.SH'] = 99.0          # 回落到阈值下 → 解除闩锁
     engine.tick()
-    clock['t'] = NOW + timedelta(hours=2)
+    clock['t'] = NOW + timedelta(minutes=25)  # 11:10，仍在交易时段内
     prices['600519.SH'] = 101.0         # 再穿越 → 重新通知
     engine.tick()
     assert len(n.notifications) == 2
@@ -126,17 +126,19 @@ def test_B5_duplicate_rules_same_event_dedup():
     assert deduped['notified'] is False
 
 
-def test_B6_tick_outside_trading_hours_still_evaluates():
-    """契约核查：tick() 自身不判交易时段，靠 run_forever 的循环守卫。
+def test_B6_tick_self_checks_trading_hours():
+    """时段自检（2026-09-11 修复）：盘后/周末直接调 tick() 不得产出事件。
 
-    这是**调用方契约**而非缺陷，但值得钉住：任何直接调 tick() 的旁路
-    （脚本/测试/新服务）都会在非交易时段照样通知。
+    修复前：时段守卫只在 run_forever 循环里，旁路调用（补跑脚本/新服务）会在盘后推通知。
     """
     n = FakeNotifier()
     engine = make_engine([make_rule()], PRICE_UP(), n)
-    engine.now_fn = lambda: datetime(2026, 7, 21, 20, 0)     # 晚间
-    events = engine.tick()
-    assert events, 'tick 在非交易时段仍判定触发（契约：时段由 run_forever 保证）'
+    engine.now_fn = lambda: datetime(2026, 7, 21, 20, 0)      # 周二晚间
+    assert engine.tick() == [] and n.notifications == []
+    engine.now_fn = lambda: datetime(2026, 7, 25, 10, 30)     # 周六盘中时间点
+    assert engine.tick() == [] and n.notifications == []
+    engine.now_fn = lambda: datetime(2026, 7, 21, 10, 30)     # 周二盘中
+    assert engine.tick(), '交易时段内应正常判定'
 
 
 # ── C. 路由与授权策略 ───────────────────────────────────────────
