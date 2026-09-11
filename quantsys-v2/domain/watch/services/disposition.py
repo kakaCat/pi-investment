@@ -63,6 +63,16 @@ class GateContext:
 
 CONSTITUTIONAL_INTENTS = ('exit_stop',)     # 止损铁律：无条件介入，可突破预算
 
+#: 交易类意图（触发后会走到"下单/改单"）：**必须**有账户归属才能动作。
+#: 用户 2026-09-11 定调：账户为空的交易类事件不唤醒 agent（没有账户不能交易），只发飞书；
+#: 非交易类（观察/跟踪/治理/市场）即便账户为空也照常唤醒 agent 处理。
+TRADE_INTENTS = ('entry', 'add_position', 't_trade', 'exit_stop', 'exit_take_profit', 'exit_reduce')
+
+
+def is_trade_intent(intent) -> bool:
+    """交易类意图判定（无账户时不可执行的那一类）"""
+    return str(intent or '').strip() in TRADE_INTENTS
+
 
 def normalize_symbol(symbol) -> str:
     return str(symbol or '').split('.')[0].strip()

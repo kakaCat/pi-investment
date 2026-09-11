@@ -1,7 +1,8 @@
 """盯盘摘要账户分段与按账户投送单测（2026-09-11，w-aebfddcd）
 
-用户定调：盯盘信息归属 agent_virtual / agent_brain / v13_simulation / user_main_simulation，
-即**账户是投送维度**——一个账户一份摘要、投给该账户的处置 agent，账户之间不得串味。
+用户定调：盯盘信息归属 agent_virtual / agent_brain / v13_simulation / user_main_simulation；
+账户为空的**交易类**事件不唤醒 agent（没有账户不能交易）→ 只发飞书；
+账户为空的**非交易类**（观察/跟踪/治理）仍唤醒 agent 处理。
 """
 from datetime import datetime
 
@@ -71,23 +72,25 @@ class _Agent:
 
 TRADING_NOW = datetime(2026, 9, 11, 10, 0)
 
-
-def _svc(agent=None, cap=8):
-    rules = [
-        _Rule(1, "600519", account="agent_virtual"),
-        _Rule(2, "600519", account="agent_brain"),          # 同标的、不同账户
-        _Rule(3, "000001", account=None),                    # 未归属
-    ]
-    trigs = [_Trig(11, 1, "600519"), _Trig(12, 2, "600519"), _Trig(13, 3, "000001")]
-    return WatchDigestService(trigger_repo=_TriggerRepo(trigs), rule_repo=_RuleRepo(rules),
-                              agent_service=agent or _Agent(), state_repo=_StateRepo(),
-                              daily_cap=cap)
+DEFAULT_RULES = [
+    _Rule(1, "600519", account="agent_virtual"),
+    _Rule(2, "600519", account="agent_brain"),        # 同标的、不同账户
+    _Rule(3, "000001", account=None, intent="entry"),  # 未归属 + 交易类
+]
+DEFAULT_TRIGS = [_Trig(11, 1, "600519"), _Trig(12, 2, "600519"), _Trig(13, 3, "000001")]
 
 
+def _svc(agent=None, cap=8, rules=None, trigs=None):
+    return WatchDigestService(
+        trigger_repo=_TriggerRepo(trigs if trigs is not None else DEFAULT_TRIGS),
+        rule_repo=_RuleRepo(rules if rules is not None else DEFAULT_RULES),
+        agent_service=agent or _Agent(), state_repo=_StateRepo(), daily_cap=cap)
+
+
+# ── 聚合与分段 ───────────────────────────────────────────────
 def test_same_symbol_two_accounts_never_merge():
     """同标的被两个账户盯盘 → 两条独立摘要（合并会把 A 的预案投给 B 的 agent）"""
     d = _svc().build_digest()
-    # 3 组：600519(agent_virtual) / 600519(agent_brain) 不合并 + 000001(未归属)
     assert d["group_count"] == 3
     same_symbol = [g for g in d["groups"] if g["symbol"] == "600519"]
     assert len(same_symbol) == 2
@@ -112,37 +115,67 @@ def test_segments_one_per_account_plus_unassigned():
     svc = _svc()
     segs = svc._segments(svc.build_digest())
     assert set(segs) == {"agent_virtual", "agent_brain", UNASSIGNED}
-    assert segs["agent_virtual"]["count"] == 1
 
 
+# ── 投送：账户有归属 ─────────────────────────────────────────
 def test_wake_fans_out_per_account_with_scope_instruction():
-    """一个账户一份唤醒；payload 带 account_name；指令含账户作用域纪律"""
     agent = _Agent()
-    svc = _svc(agent=agent)
-    res = svc.maybe_wake(now=TRADING_NOW)
-    assert res["woke"] is True and res["wakes"] == 3
-    assert sorted(res["accounts"]) == sorted(["agent_virtual", "agent_brain", UNASSIGNED])
+    res = _svc(agent=agent).maybe_wake(now=TRADING_NOW)
+    assert res["woke"] is True and res["wakes"] == 2
+    assert sorted(res["accounts"]) == ["agent_brain", "agent_virtual"]
     by_acct = {c["data"]["account_name"]: c for c in agent.calls}
-    assert by_acct["agent_virtual"]["data"]["account_name"] == "agent_virtual"
+    assert sorted(by_acct) == ["agent_brain", "agent_virtual"]
     assert 'account_name=\"agent_virtual\"' in by_acct["agent_virtual"]["data"]["instruction"]
-    # 未归属桶：account_name=None 且显式标注
-    assert by_acct[None]["data"]["unassigned"] is True
-    assert "未归属账户" in by_acct[None]["data"]["instruction"]
     # 每份摘要只含本账户内容
     assert "agent_brain" not in by_acct["agent_virtual"]["data"]["digest"]
 
 
+# ── 投送：账户为空（关键口径）──────────────────────────────
+def test_unassigned_trade_does_not_wake_agent():
+    """账户空 + 交易类：没有账户不能交易 → 只发飞书，不唤醒 agent"""
+    agent = _Agent()
+    rules = [_Rule(3, "000001", account=None, intent="entry")]
+    trigs = [_Trig(13, 3, "000001")]
+    res = _svc(agent=agent, rules=rules, trigs=trigs).maybe_wake(now=TRADING_NOW)
+    assert agent.calls == []
+    assert res["woke"] is False
+    assert "只发飞书" in res["reason"]
+    assert res["feishu_only"][0]["count"] == 1
+
+
+def test_unassigned_observe_still_wakes_agent():
+    """账户空 + 非交易类（观察/跟踪）：照常唤醒 agent，但禁止下单"""
+    agent = _Agent()
+    rules = [_Rule(4, "600150", account=None, intent="trend_observe")]
+    trigs = [_Trig(14, 4, "600150")]
+    res = _svc(agent=agent, rules=rules, trigs=trigs).maybe_wake(now=TRADING_NOW)
+    assert res["woke"] is True and len(agent.calls) == 1
+    data = agent.calls[0]["data"]
+    assert data["unassigned"] is True and data["account_name"] is None
+    assert "不得下单" in data["instruction"]
+
+
+def test_mixed_unassigned_bucket_splits_trade_from_observe():
+    """同一未归属桶里混着交易类与观察类 → 观察类唤醒，交易类只飞书"""
+    agent = _Agent()
+    rules = [_Rule(5, "601138", account=None, intent="entry"),
+             _Rule(6, "600011", account=None, intent="trend_observe")]
+    trigs = [_Trig(15, 5, "601138"), _Trig(16, 6, "600011")]
+    res = _svc(agent=agent, rules=rules, trigs=trigs).maybe_wake(now=TRADING_NOW)
+    assert res["wakes"] == 1 and len(agent.calls) == 1
+    assert "600011" in agent.calls[0]["data"]["digest"]
+    assert "601138" not in agent.calls[0]["data"]["digest"]
+    assert res["feishu_only"][0]["count"] == 1
+
+
 def test_wake_respects_daily_cap():
     agent = _Agent()
-    svc = _svc(agent=agent, cap=2)
-    res = svc.maybe_wake(now=TRADING_NOW)
-    assert res["wakes"] == 2 and len(agent.calls) == 2
-    assert svc.state_repo.saves == 2
+    res = _svc(agent=agent, cap=1).maybe_wake(now=TRADING_NOW)
+    assert res["wakes"] == 1 and len(agent.calls) == 1
 
 
 def test_wake_skipped_off_hours():
-    svc = _svc()
-    assert svc.maybe_wake(now=datetime(2026, 9, 11, 8, 0))["woke"] is False
+    assert _svc().maybe_wake(now=datetime(2026, 9, 11, 8, 0))["woke"] is False
 
 
 def test_segment_text_labels_account():

@@ -178,6 +178,50 @@ class WatchDigestService:
         return segs
 
     @staticmethod
+    def _partition_unassigned(seg: dict) -> tuple:
+        """未归属桶一分为二：(交易类, 非交易类)
+
+        交易类无账户 = 不能下单 → 只发飞书；非交易类（观察/跟踪/治理/市场）仍唤醒 agent。
+        """
+        from domain.watch.services.disposition import is_trade_intent
+
+        def _mk(g, items):
+            disp: Dict[str, int] = {}
+            for it in items:
+                d = it.get("disposition")
+                if d:
+                    disp[d] = disp.get(d, 0) + 1
+            ng = dict(g)
+            ng["items"] = items
+            ng["count"] = len(items)
+            ng["dispositions"] = disp
+            return ng
+
+        def _empty():
+            return {"count": 0, "group_count": 0, "groups": [], "by_disposition": {},
+                    "by_account": {}}
+
+        trade, other = _empty(), _empty()
+        for g in seg.get("groups") or []:
+            items = g.get("items") or []
+            buckets = (([i for i in items if is_trade_intent(i.get("intent"))], trade),
+                       ([i for i in items if not is_trade_intent(i.get("intent"))], other))
+            for picked, target in buckets:
+                if not picked:
+                    continue
+                ng = _mk(g, picked)
+                target["groups"].append(ng)
+                target["count"] += ng["count"]
+                target["group_count"] += 1
+                for d, n in ng["dispositions"].items():
+                    target["by_disposition"][d] = target["by_disposition"].get(d, 0) + n
+        for tgt in (trade, other):
+            if tgt["groups"]:
+                tgt["by_account"][UNASSIGNED] = tgt["count"]
+                tgt["text"] = chr(10).join(WatchDigestService._group_lines(tgt["groups"]))
+        return trade, other
+
+    @staticmethod
     def _group_lines(groups) -> List[str]:
         lines: List[str] = []
         for g in sorted(groups, key=lambda x: x.get("count", 0), reverse=True):
@@ -203,10 +247,11 @@ class WatchDigestService:
     @staticmethod
     def _instruction(account: Optional[str]) -> str:
         """唤醒指令：账户作用域纪律（同 agent-brain 例行任务的写法）"""
+        # 账户为空时**只有非交易类**才会唤醒 agent（交易类无账户=不能下单，只发飞书）
         scope = ("本摘要仅属于账户 **%s**：所有账户查询/交易工具必须显式传 account_name=\"%s\"，"
                  "禁止操作其他账户。" % (account, account)) if account else (
-                 "本摘要含**未归属账户**的触发（规则缺 linked_account）：先判断归属再动作，"
-                 "拿不准的不要下单，留给交互会话决策。")
+                 "本摘要含**未归属账户**的非交易类触发（观察/跟踪/治理）：可分析、可改规则、可继续跟踪，"
+                 "但**不得下单**（无账户不能交易）；若判定某条其实属于某账户，PATCH 规则补 linked_account。")
         return (
             scope +
             "按标的处置待处置触发：可自决的 PATCH /api/watch/triggers/{id} 置 handled 并写动作与结果；"
@@ -237,11 +282,23 @@ class WatchDigestService:
         # 按账户分段投送（2026-09-11，w-aebfddcd）：一个账户一份唤醒，投给该账户的处置 agent。
         # 预算按"唤醒次数"计（一次唤醒 = 一个账户），上限仍是 daily_cap。
         segments = self._segments(digest)
-        woke_accounts, failed, delivered = [], [], 0
+        woke_accounts, failed, delivered, feishu_only = [], [], 0, []
         for acc_key, seg in segments.items():
+            acct = None if acc_key == UNASSIGNED else acc_key
+            if acc_key == UNASSIGNED:
+                # 用户 2026-09-11 定调（精确口径）：
+                #   · 账户为空 **且交易类** → 没有账户不能交易，不唤醒 agent，只发飞书
+                #   · 账户为空 **但非交易类**（观察/跟踪/治理/市场）→ 照常唤醒 agent
+                trade_seg, other_seg = self._partition_unassigned(seg)
+                if trade_seg["count"]:
+                    feishu_only.append({
+                        "account": None, "count": trade_seg["count"],
+                        "reason": "账户为空且为交易类：无账户不能交易 → 只发飞书，不唤醒 agent"})
+                if not other_seg["count"]:
+                    continue
+                seg = other_seg
             if wake_count >= self.daily_cap:
                 break
-            acct = None if acc_key == UNASSIGNED else acc_key
             target_agent = self._resolve_target(acct)
             payload = {
                 "account_name": acct,
@@ -269,8 +326,14 @@ class WatchDigestService:
                 failed.append(acc_key)
         if delivered:
             logger.info("盯盘摘要已按账户唤醒", accounts=woke_accounts,
-                        count=digest["count"], groups=digest["group_count"])
+                        count=digest["count"], groups=digest["group_count"],
+                        feishu_only=sum(s["count"] for s in feishu_only))
             return {"woke": True, "count": digest["count"], "group_count": digest["group_count"],
-                    "accounts": woke_accounts, "failed": failed, "wakes": delivered}
+                    "accounts": woke_accounts, "failed": failed, "wakes": delivered,
+                    "feishu_only": feishu_only}
+        if feishu_only:
+            # 只有未归属触发：按纪律不发 agent 唤醒（否则等于让默认 agent 处置无主事件）
+            return {"woke": False, "reason": "全部触发账户为空：只发飞书，不唤醒 agent",
+                    "count": sum(s["count"] for s in feishu_only), "feishu_only": feishu_only}
         return {"woke": False, "reason": "唤醒通道失败（不写状态，下次重试）",
                 "count": digest["count"], "failed": failed}
