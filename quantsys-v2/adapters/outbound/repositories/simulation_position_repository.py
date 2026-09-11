@@ -36,8 +36,12 @@ class SimulationPositionRepository(IPositionRepository):
             avg_cost=float(orm_position.avg_cost or 0),
             current_price=float(orm_position.current_price or 0),
             market_value=float(orm_position.market_value or 0),
-            unrealized_pnl=float(orm_position.unrealized_pnl or 0),
-            unrealized_pnl_rate=float(orm_position.unrealized_pnl_rate or 0),
+            # 2026-09-11 修复（w-c8cae280）：SimulationPosition ORM 的盈亏字段是
+            # profit_total / profit_total_rate，原代码引用 unrealized_pnl* → AttributeError，
+            # 使 get_position/get_all_positions 整体抛错、调用方拿到空持仓
+            # （实测：盯盘持仓联动因此误判"已清仓"，差点退役真实持仓的止损规则）。
+            unrealized_pnl=float(getattr(orm_position, 'profit_total', 0) or 0),
+            unrealized_pnl_rate=float(getattr(orm_position, 'profit_total_rate', 0) or 0),
             created_at=orm_position.created_at,
             updated_at=orm_position.updated_at,
         )
@@ -54,8 +58,8 @@ class SimulationPositionRepository(IPositionRepository):
                 avg_cost=float(p.avg_cost or 0),
                 current_price=float(p.current_price or 0),
                 market_value=float(p.market_value or 0),
-                unrealized_pnl=float(p.unrealized_pnl or 0),
-                unrealized_pnl_rate=float(p.unrealized_pnl_rate or 0),
+                unrealized_pnl=float(getattr(p, 'profit_total', 0) or 0),
+                unrealized_pnl_rate=float(getattr(p, 'profit_total_rate', 0) or 0),
                 created_at=p.created_at,
                 updated_at=p.updated_at,
             )

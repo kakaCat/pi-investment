@@ -51,7 +51,8 @@ class WatchEngine:
                  escalation_checker: Optional[EscalationChecker] = None,
                  position_value_provider: Optional[Callable] = None,
                  account_total_provider: Optional[Callable] = None,
-                 digest_service=None, ledger=None, meta_review_service=None):
+                 digest_service=None, ledger=None, meta_review_service=None,
+                 position_lifecycle_service=None):
         self.rule_repo = rule_repo
         self.quote_service = quote_service
         self.notifier = notifier
@@ -85,6 +86,9 @@ class WatchEngine:
         # 元触发复核（P7）：规则不能无限期盯下去（频次/静默/滞留/到期 → 回到 agent）
         self.meta_review_service = meta_review_service
         self._last_meta_scan_date = None
+        # 持仓生命周期联动（P5）：买入成交 → 等买规则退役 + 补挂止损；清仓 → 卖出族收摊
+        self.position_lifecycle_service = position_lifecycle_service
+        self._last_lifecycle_date = None
         self._avg_volume_cache: Dict[str, float] = {}
         self._state_date = None
         self.fast_mode = False
@@ -136,6 +140,16 @@ class WatchEngine:
                             logger.info('元触发复核完成', raised=summary['raised'])
                 except Exception as e:
                     logger.error('元触发复核异常', error=str(e))
+                # 持仓生命周期联动：每日一次（买入完成/清仓收摊，RFC 014 v3 §2.3）
+                try:
+                    if (self.position_lifecycle_service is not None
+                            and self._last_lifecycle_date != now.date()):
+                        s = self.position_lifecycle_service.reconcile(now)
+                        self._last_lifecycle_date = now.date()
+                        if s.get('retired') or s.get('created'):
+                            logger.info('持仓生命周期联动完成', retired=s['retired'], created=s['created'])
+                except Exception as e:
+                    logger.error('持仓生命周期联动异常', error=str(e))
                 interval = self.fast_interval if self.fast_mode else self.base_interval
             else:
                 interval = 60  # 非交易时段低频心跳

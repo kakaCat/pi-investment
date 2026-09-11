@@ -17,6 +17,7 @@ from application.services.watch_engine.notifier import WatchNotifier
 from application.services.watch_engine.digest_service import WatchDigestService
 from application.services.watch_engine.intervention_ledger import InterventionLedger
 from application.services.watch_engine.meta_review_service import WatchMetaReviewService
+from application.services.watch_engine.position_lifecycle_service import PositionLifecycleService
 from adapters.outbound.repositories.simulation_position_repository import SimulationPositionRepository
 
 logger = structlog.get_logger(__name__)
@@ -107,6 +108,11 @@ def create_watch_engine() -> WatchEngine:
         meta_review_service=WatchMetaReviewService(
             rule_repo=WatchRuleRepository(),
             trigger_repo=WatchTriggerRepository(),
+        ),
+        # P5 持仓生命周期联动：规则使命跟着交易走
+        position_lifecycle_service=PositionLifecycleService(
+            rule_repo=WatchRuleRepository(),
+            position_repo=SimulationPositionRepository(),
         ),
     )
 
