@@ -8,7 +8,7 @@ import {
   buildBoard, buildReqDetail, buildTaskDetail, buildTriage, buildEmpty, buildError,
   toReqCards, LANE_STATUSES,
 } from '../src/client/view.ts'
-import type { BoardState, RequirementRecord, TaskRecord, TriageRecord } from '../src/client/types.ts'
+import type { BoardState, RequirementRecord, RequirementStatus, TaskRecord, TriageRecord } from '../src/client/types.ts'
 
 // -- 测试数据构造 ---------------------------------------------------------
 
@@ -346,5 +346,39 @@ describe('评审态人工回退口', () => {
     const html = buildReqDetail(makeReq({ status: 'reviewing' }), [])
     expect(html).toContain('data-to="decomposing"')
     expect(html).toContain('data-to="draft"')
+  })
+})
+describe('泳道卡面操作按钮（不进详情页即可推进）', () => {
+  const actionsOf = (status: RequirementStatus): string =>
+    buildBoard(makeState({ requirements: [makeReq({ status })] }))
+
+  it('draft 卡面给「提交评审」并带 data-id（卡面直连 move-req）', () => {
+    const html = actionsOf('draft')
+    expect(html).toContain('dsh-pm-card-actions')
+    expect(html).toContain('data-action="move-req"')
+    expect(html).toContain('data-to="reviewing"')
+    expect(html).toMatch(/data-id="REQ-\d{6}"/)
+    expect(html).toContain('提交评审')
+  })
+
+  it('每个状态给出对应人工动作：确认方案 / 确认拆分 / 提交验收 / 验收通过 / 归档', () => {
+    expect(actionsOf('reviewing')).toContain('data-to="decomposing"')
+    expect(actionsOf('decomposing')).toContain('data-to="implementing"')
+    expect(actionsOf('implementing')).toContain('data-to="accepting"')
+    expect(actionsOf('accepting')).toContain('data-to="done"')
+    expect(actionsOf('done')).toContain('data-to="archived"')
+  })
+
+  it('卡面按钮 data-id 指向该卡自身需求（多卡互不串）', () => {
+    const a = makeReq({ status: 'draft' })
+    const b = makeReq({ status: 'accepting' })
+    const html = buildBoard(makeState({ requirements: [a, b] }))
+    expect(html).toContain(`data-id="${a.id}"`)
+    expect(html).toContain(`data-id="${b.id}"`)
+  })
+
+  it('归档/取消态不进泳道，无卡面按钮', () => {
+    const html = buildBoard(makeState({ requirements: [makeReq({ status: 'archived' })] }))
+    expect(html).not.toContain('dsh-pm-card-actions')
   })
 })

@@ -122,6 +122,7 @@ function renderReqCard(card: ReqCard): string {
   const readyChip = readyIds.length > 0 ? `<span class="dsh-pm-flag ready">${readyIds.length} ready</span>` : ''
   // 窗口 chip：立项来源窗口（窗口↔需求关联）+ 最近执行会话
   const sessionChip = renderWindowChip(req) + renderSessionChip(tasks)
+  const actions = cardActions(req)
 
   return `
     <div class="dsh-pm-card${blocked ? ' is-blocked' : ''}" data-req="${esc(req.id)}" data-action="open-req">
@@ -135,7 +136,48 @@ function renderReqCard(card: ReqCard): string {
         <span class="dsh-pm-card-pct">${progress(doneCount, totalCount)}</span>
       </div>
       ${sessionChip}
+      ${actions}
     </div>`
+}
+
+/**
+ * 泳道卡面操作按钮 —— 状态推进不埋在详情页里（用户反馈「按钮太深」）。
+ * 每个状态只给**下一步合法的人工操作**：闸门按钮本身就是闸门（人点 = 确认），
+ * 非闸门态给便捷推进/退回。所有按钮自带 data-id，卡面直连 move-req
+ * （不再依赖「当前处于详情态」）。
+ */
+function cardActions(req: RequirementRecord): string {
+  const btn = (to: RequirementStatus, label: string, opts?: { primary?: boolean; title?: string }): string => {
+    const cls = opts?.primary === true ? 'dsh-pm-card-btn primary' : 'dsh-pm-card-btn'
+    const title = opts?.title !== undefined ? ` title="${esc(opts.title)}"` : ''
+    return `<button type="button" class="${cls}" data-action="move-req" data-to="${to}" data-id="${esc(req.id)}"${title}>${label}</button>`
+  }
+  let actions = ''
+  switch (req.status) {
+    case 'draft':
+      actions = btn('reviewing', '提交评审', { primary: true, title: '进入评审（方案共创）；窗口接手开工时也会自动进入' })
+        + btn('canceled', '取消', { title: '取消该需求' })
+      break
+    case 'reviewing':
+      actions = btn('decomposing', '确认方案', { primary: true, title: '人工闸门：方案确认后进入拆分' })
+        + btn('draft', '退回', { title: '退回立项' })
+      break
+    case 'decomposing':
+      actions = btn('implementing', '确认拆分', { primary: true, title: '人工闸门：任务 DAG 确认后进入实施' })
+      break
+    case 'implementing':
+      actions = btn('accepting', '提交验收', { primary: true, title: '实施完成 → 验收（任务全部完成时也会自动进入）' })
+      break
+    case 'accepting':
+      actions = btn('done', '验收通过', { primary: true, title: '人工闸门：验收通过即完成' })
+      break
+    case 'done':
+      actions = btn('archived', '归档', { title: '人工闸门：归档归集文档' })
+      break
+    default:
+      actions = ''
+  }
+  return actions.length === 0 ? '' : `<div class="dsh-pm-card-actions">${actions}</div>`
 }
 
 /**

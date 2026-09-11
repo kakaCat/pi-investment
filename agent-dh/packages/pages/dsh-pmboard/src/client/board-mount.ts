@@ -127,10 +127,14 @@ export function mountBoard(controller: BoardController): () => void {
         mode = { kind: 'req', reqId: el.dataset.req ?? '' }; render()
         return
       case 'move-req': {
-        const reqId = state.requirements.find(r => mode.kind === 'req' && r.id === mode.reqId)?.id
+        // 卡面按钮自带 data-id（泳道图直接操作）；详情页闸门按钮退回用当前详情需求
+        const reqId = el.dataset.id ?? (mode.kind === 'req' ? mode.reqId : undefined)
         const to = el.dataset.to
         if (reqId && to) {
-          void api.moveReq({ id: reqId, to, actor: 'human' }).then(() => fetchAll()).catch(e => window.alert(String(e)))
+          void api
+            .moveReq({ id: reqId, to, actor: 'human', reason: el.dataset.id ? '看板泳道卡面操作' : '需求详情页操作' })
+            .then(() => fetchAll())
+            .catch(e => window.alert(String(e)))
         }
         return
       }
