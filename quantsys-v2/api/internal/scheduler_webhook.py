@@ -173,6 +173,28 @@ async def scheduler_webhook(
 # ==================== Background Execution ====================
 
 
+def _run_sync_handler_with_session_release(handler: Callable, metadata: dict):
+    """在线程池线程内执行同步 handler，**并在同一线程内释放 ORM 会话**。
+
+    2026-09-11（w-f4aa1f6a）：实测事故根因——同步 handler 经 run_in_threadpool 跑在
+    线程池线程里，而 close_session() 只清"当前线程"的 scoped 注册表。线程池线程长期存活，
+    于是每个线程读一次 ORM 就把会话永久挂住（session_guard 实测 age_seconds>300、
+    thread_name=ThreadPoolExecutor-108_6 等，累计 25 次），最终把 DB 连接池打满
+    （事件 ed7d2f6a utilization 100%）。
+    修法：把释放放在**执行线程内部**的 finally——从事件循环里调 close_session() 清的是
+    asyncio 线程的注册表，解决不了问题。
+    """
+    try:
+        return handler(metadata)
+    finally:
+        try:
+            from infrastructure.persistence.orm.config import close_session
+
+            close_session()
+        except Exception as exc:  # 释放失败不应影响任务结果
+            logger.warning(f"释放线程会话失败（{exc}）")
+
+
 async def execute_job(handler: Callable, payload: WebhookPayload):
     """Execute job handler and report results to Agent OS.
 
@@ -206,9 +228,13 @@ async def execute_job(handler: Callable, payload: WebhookPayload):
             logger.debug(f"Executing async handler for {payload.job_name}")
             result = await handler(payload.metadata)
         else:
-            # Sync handler: run in threadpool to avoid blocking event loop
+            # Sync handler: run in threadpool to avoid blocking event loop。
+            # 2026-09-11（w-f4aa1f6a）：经 wrapper 执行，保证在线程池线程内释放 ORM 会话，
+            # 否则该线程的 scoped 会话永久占住连接（连接池耗尽的根因）。
             logger.debug(f"Executing sync handler for {payload.job_name} in threadpool")
-            result = await run_in_threadpool(handler, payload.metadata)
+            result = await run_in_threadpool(
+                _run_sync_handler_with_session_release, handler, payload.metadata
+            )
 
         # P0-B 修复（2026-09-10 w-23c70356 审计）：此前无论 handler 返回什么，这里都硬编码
         # status="success" —— handler 用 {"success": False, "error": ...} 报告内部失败时
