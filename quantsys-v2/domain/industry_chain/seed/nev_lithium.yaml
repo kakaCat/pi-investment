@@ -1,0 +1,100 @@
+# 产业链策展 seed —— 新能源车锂电链
+chain_id: nev_lithium
+name: 新能源车锂电链
+aliases: [锂电, 新能源车, 锂电池, 动力电池, 锂电链, 电动车]
+curator: investor/w-83e881ec
+curated_at: '2026-09-11'
+description: 锂资源 → 电池材料（正极/负极/电解液/隔膜）→ 电芯/PACK → 整车 → 充电/回收终端
+rationale: |
+  策展依据（人工判断，可质疑）：
+  1) 环节按"成本传导顺序"切分：锂盐（资源）→ 四大材料 → 电芯 → 整车；
+     锂价波动时，利润在这条链上**此消彼长**（资源涨=材料与电芯承压），必须分环节看。
+  2) 上游只放锂资源（不纳入钴镍），因为 A 股锂资源标的的弹性和资金关注度集中在锂盐本身，
+     且锂价周期是这条链的主导变量。
+  3) 终端放充电/回收：回收是锂资源的第二供给源，长期会削弱上游资源溢价——是这条链的"自我否定"环节，
+     单独列出以便在资源高溢价时评估对冲。
+nodes:
+  - node_id: lithium_resource
+    name: 锂资源/锂盐
+    stage: upstream
+    upstream_of: [battery_materials]
+    downstream_of: []
+    keywords: [锂矿, 碳酸锂, 氢氧化锂, 锂系列产品, 锂化合物, 锂盐产品, 锂产品, 盐湖, 锂盐, 锂精矿]
+    rationale: 锂价是锂电链的成本锚与情绪锚，资源端利润弹性最大（价格上行时）。
+    members:
+      - symbol: '002466'
+        name: 天齐锂业
+        role: 龙头
+        evidence: 锂精矿自给率最高的锂盐标的之一，锂价弹性最大（策展，待主营构成校验）
+      - symbol: '002460'
+        name: 赣锋锂业
+        role: 龙头
+        evidence: 锂盐产能全球前列+资源布局（策展）
+  - node_id: battery_materials
+    name: 电池材料（正极/负极/电解液/隔膜）
+    stage: midstream
+    upstream_of: [cell_pack]
+    downstream_of: [lithium_resource]
+    keywords: [锂离子电池材料, 电池材料, 多元材料, 正极材料, 正极, 负极, 电解液, 隔膜, 隔离膜, 涂布膜, 锂电材料, 三元, 磷酸铁锂, 六氟磷酸锂]
+    rationale: 材料端产能过剩（2024-2026）导致议价权弱，只有当某环节出现供给出清时才有个股机会，故必须单独一节观察。
+    members:
+      - symbol: '300073'
+        name: 当升科技
+        role: 二线
+        evidence: 三元正极（含海外客户）（策展，待主营构成校验）
+      - symbol: '002812'
+        name: 恩捷股份
+        role: 龙头
+        evidence: 湿法隔膜龙头（策展）
+      - symbol: '002709'
+        name: 天赐材料
+        role: 龙头
+        evidence: 电解液一体化（六氟自供）（策展）
+  - node_id: cell_pack
+    name: 电芯/PACK
+    stage: midstream
+    upstream_of: [vehicle]
+    downstream_of: [battery_materials]
+    keywords: [动力电池, 电池, 锂离子电池, 储能电池, 电池系统, 电芯]
+    rationale: 电芯是产业链议价权最强的一环（宁德时代毛利率即链上分配的结果）。
+    members:
+      - symbol: '300750'
+        name: 宁德时代
+        role: 龙头
+        evidence: 全球动力电池份额第一，链主（策展，待主营构成校验）
+      - symbol: '300014'
+        name: 亿纬锂能
+        role: 二线
+        evidence: 动力+储能电池（策展）
+      - symbol: '002074'
+        name: 国轩高科
+        role: 二线
+        evidence: 磷酸铁锂电池（策展）
+      - symbol: '300207'
+        name: 欣旺达
+        role: 弹性标的
+        evidence: 消费电池+动力电池（策展）
+  - node_id: vehicle
+    name: 整车
+    stage: downstream
+    upstream_of: [charging_recycle]
+    downstream_of: [cell_pack]
+    keywords: [汽车, 整车, 新能源车, 乘用车, 商用车]
+    rationale: 整车是需求端，价格战会向上游要利润（压缩电芯与材料毛利）。
+    members:
+      - symbol: '002594'
+        name: 比亚迪
+        role: 龙头
+        evidence: 整车+电池一体化（策展，待主营构成校验）
+      - symbol: '601633'
+        name: 长城汽车
+        role: 二线
+        evidence: 整车（策展）
+  - node_id: charging_recycle
+    name: 充电/回收终端
+    stage: terminal
+    upstream_of: []
+    downstream_of: [vehicle]
+    keywords: [充电桩, 充电, 回收, 梯次利用]
+    rationale: 回收是锂的第二供给源，长期削弱资源溢价，属于"反自身"环节。
+    members: []

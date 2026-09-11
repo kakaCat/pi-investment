@@ -1,0 +1,89 @@
+# 产业链策展 seed —— 化工链
+chain_id: chemical
+name: 化工（油气煤/基础化工/精细材料）链
+aliases: [化工, 基础化工, 精细化工, 化工链, 化纤]
+curator: investor/w-83e881ec
+curated_at: '2026-09-11'
+description: 油气煤原料 → 基础化工（MDI/乙烯/化肥）→ 精细化工/新材料 → 终端制品（农化/化纤/塑料）
+rationale: |
+  策展依据（人工判断，可质疑）：
+  1) 与既有「化工全产业链股票池（15只，覆盖 MDI/钛白粉/农药/煤化工/炼化/半导体材料/氟化工/染料/氨纶/改性塑料/有机硅/电子陶瓷）」
+     的覆盖一致，本 seed 把该池的品类清单结构化为**四段环节拓扑**。
+  2) 环节按"原料—基础—精细—制品"切分：底层（油气煤）决定成本，基础化工决定价差
+     （周期弹性），精细/新材料决定成长性（估值体系不同），制品端决定需求。
+     不做这个切分，就会把周期股与成长股混成一个"化工板块"。
+  3) 上游同时放煤/油/气/盐湖：中国化工成本曲线由煤化工与油化工两条路线竞争决定，
+     单看油价会误判煤头企业的价差。
+nodes:
+  - node_id: feedstock
+    name: 油气煤盐原料
+    stage: upstream
+    upstream_of: [base_chemicals]
+    downstream_of: []
+    keywords: [原油, 石油, 煤炭, 天然气, 盐湖, 钾肥, 磷矿]
+    rationale: 成本端；煤化工与油化工的路线价差是中国化工周期的核心变量。
+    members:
+      - symbol: '000792'
+        name: 盐湖股份
+        role: 龙头
+        evidence: 钾肥+锂盐（资源端）（策展，待主营构成校验）
+      - symbol: '600096'
+        name: 云天化
+        role: 二线
+        evidence: 磷矿—磷肥一体化（资源+基础化工跨段）（策展）
+  - node_id: base_chemicals
+    name: 基础化工（MDI/乙烯/化肥/纯碱）
+    stage: midstream
+    upstream_of: [fine_materials]
+    downstream_of: [feedstock]
+    keywords: [功能化学品, 基础化学品, 大宗化学品, 聚氨酯, MDI, 乙烯, 基础化工, 化肥, 纯碱, 氯碱, 尿素, 醋酸]
+    rationale: 价差生意（产品价格—原料成本），产能周期决定盈利中枢，是最典型的周期段。
+    members:
+      - symbol: '600309'
+        name: 万华化学
+        role: 龙头
+        evidence: MDI 全球龙头，成本与规模双壁垒（策展，待主营构成校验）
+      - symbol: '600426'
+        name: 华鲁恒升
+        role: 龙头
+        evidence: 煤化工平台型成本领先（策展）
+      - symbol: '002648'
+        name: 卫星化学
+        role: 二线
+        evidence: 轻烃裂解（乙烷路线）（策展）
+  - node_id: fine_materials
+    name: 精细化工/新材料（氟化工/有机硅/电子材料）
+    stage: midstream
+    upstream_of: [end_products]
+    downstream_of: [base_chemicals]
+    keywords: [精细化工, 新材料, 电子材料, 有机硅, 氟化工, 含氟, 制冷剂, 半导体材料, 原药, 制剂, 农药, 染料, 电子陶瓷]
+    rationale: 成长性来自国产替代与新品类扩张（估值体系与周期段不同），必须与基础化工分开评估。
+    members:
+      - symbol: '600486'
+        name: 扬农化工
+        role: 龙头
+        evidence: 农药（菊酯）龙头（策展，待主营构成校验）
+      - symbol: '600160'
+        name: 巨化股份
+        role: 二线
+        evidence: 氟化工（制冷剂配额制受益）（策展）
+      - symbol: '600141'
+        name: 兴发集团
+        role: 二线
+        evidence: 磷化工+电子级磷酸（跨段）（策展）
+  - node_id: end_products
+    name: 终端制品（农化/化纤/改性塑料）
+    stage: downstream
+    upstream_of: []
+    downstream_of: [fine_materials]
+    keywords: [化学纤维, 化纤, 塑料, 氨纶, 农药制剂, 复合肥, 改性塑料, 制品]
+    rationale: 需求端受纺织/农业/汽车景气驱动，是化工周期的落点；成本下行时制品端毛利先修复。
+    members:
+      - symbol: '002064'
+        name: 华峰化学
+        role: 二线
+        evidence: 氨纶+聚氨酯原液（策展，待主营构成校验）
+      - symbol: '600143'
+        name: 金发科技
+        role: 二线
+        evidence: 改性塑料（策展）

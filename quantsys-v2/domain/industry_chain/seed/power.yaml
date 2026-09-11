@@ -1,0 +1,89 @@
+# 产业链策展 seed —— 电力链（火电/水电/核电/绿电）
+chain_id: power
+name: 电力（火电/水电/核电/绿电）链
+aliases: [电力, 火电, 水电, 核电, 绿电, 电力链, 公用事业]
+curator: investor/w-83e881ec
+curated_at: '2026-09-11'
+description: 一次能源/发电设备 → 火电水电运营 + 核电绿电运营 → 电网/用电终端
+rationale: |
+  策展依据（人工判断，可质疑）：
+  1) 电力是"同一终端（度电）多条并行上游"的链，所以中游按**电源类型**拆分（火电水电 / 核电绿电）
+     而不是按公司拆分：不同电源的驱动完全不同（火电看煤价与电价、水电看来水、核电看装机与利用小时、
+     绿电看消纳与补贴）。
+  2) 上游放一次能源（煤/气）+ 发电设备（核电设备、风电光伏设备、输变电设备），
+     因为电价受管制时，利润弹性主要来自成本端（煤价）。
+  3) 终端放电网与用电（含数据中心）：算力用电是 2026 年电力需求增量的核心变量，
+     也是"电价—绿电—算力"这条博弈线的接口。
+nodes:
+  - node_id: fuel_and_equipment
+    name: 一次能源/发电设备
+    stage: upstream
+    upstream_of: [thermal_hydro, nuclear_renewable]
+    downstream_of: []
+    keywords: [能源装备, 发电设备制造, 发电设备, 煤电, 气电, 燃机, 煤炭, 动力煤, 天然气, 核电设备, 风电设备, 光伏设备, 电气设备]
+    rationale: 电价受管制时电力利润弹性主要来自成本端；设备端（尤其特高压/核电设备）则吃资本开支周期。
+    members:
+      - symbol: '601088'
+        name: 中国神华
+        role: 龙头
+        evidence: 煤电一体化，动力煤自给是火电成本的对冲（策展，待主营构成校验）
+      - symbol: '600875'
+        name: 东方电气
+        role: 二线
+        evidence: 发电设备（火电/水电/核电/燃机）总成套（策展）
+  - node_id: thermal_hydro
+    name: 火电/水电运营
+    stage: midstream
+    upstream_of: [grid_and_demand]
+    downstream_of: [fuel_and_equipment]
+    keywords: [电力热力, 电力销售, 燃煤发电, 燃气发电, 火力发电, 水力发电, 火电, 燃煤, 水电, 电力生产]
+    rationale: 火电是煤价—电价的价差生意，水电是来水—电价的量价生意，二者共处"常规电源"但驱动不同，故合为一节点但在成员 role 里标注。
+    members:
+      - symbol: '600900'
+        name: 长江电力
+        role: 龙头
+        evidence: 长江干流梯级水电，来水与电价决定盈利，现金流稳定（策展，待主营构成校验）
+      - symbol: '600011'
+        name: 华能国际
+        role: 龙头
+        evidence: 火电装机第一梯队，煤电价差的核心标的（策展）
+      - symbol: '600795'
+        name: 国电电力
+        role: 二线
+        evidence: 火电+水电+新能源混合（策展）
+      - symbol: '600886'
+        name: 国投电力
+        role: 二线
+        evidence: 水电（雅砻江）+火电（策展）
+  - node_id: nuclear_renewable
+    name: 核电/绿电运营
+    stage: midstream
+    upstream_of: [grid_and_demand]
+    downstream_of: [fuel_and_equipment]
+    keywords: [核电, 风力发电, 光伏发电, 新能源发电, 绿电, 太阳能发电]
+    rationale: 核电/绿电的驱动是装机与利用小时（成长逻辑），与火电水电的周期逻辑不同，故分列。
+    members:
+      - symbol: '601985'
+        name: 中国核电
+        role: 龙头
+        evidence: 核电运营双寡头之一，装机成长性明确（策展，待主营构成校验）
+      - symbol: '003816'
+        name: 中国广核
+        role: 龙头
+        evidence: 核电运营双寡头之一（策展）
+      - symbol: '600905'
+        name: 三峡能源
+        role: 二线
+        evidence: 海上风电+光伏运营（策展）
+  - node_id: grid_and_demand
+    name: 电网/用电终端
+    stage: terminal
+    upstream_of: []
+    downstream_of: [thermal_hydro, nuclear_renewable]
+    keywords: [变压器, 开关, 电力电子器件, 输变电设备, 电网, 输配电, 变电, 用电, 数据中心, 售电业务]
+    rationale: 电网是电量落点；把数据中心列为终端用电变量，是"算力—电力"博弈的接口。
+    members:
+      - symbol: '601179'
+        name: 中国西电
+        role: 二线
+        evidence: 输变电一次设备，电网资本开支的直接受益方（策展）

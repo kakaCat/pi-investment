@@ -1,0 +1,109 @@
+# 产业链策展 seed —— 半导体链
+chain_id: semiconductor
+name: 半导体（设计/制造/封测/设备/材料）链
+aliases: [半导体, 芯片, 集成电路, 芯片产业链, 半导体链]
+curator: investor/w-83e881ec
+curated_at: '2026-09-11'
+description: 材料 → 设备 → 芯片设计 → 晶圆制造 → 封装测试 → 终端应用
+rationale: |
+  策展依据（人工判断，可质疑）：
+  1) 与既有「半导体芯片产业链核心池」的追踪逻辑一致：设备最赚钱（国产替代）→ AI 芯片弹性最大
+     → 制造战略地位 → 封测 Chiplet → 材料国产化洼地；本 seed 把该池的经验结构化为环节拓扑。
+  2) 上游拆成 材料 / 设备 两个节点：两者的国产化率与验证周期完全不同
+     （材料验证周期更长、客户粘性更强；设备订单弹性更大）。
+  3) 中游拆成 设计 / 制造 / 封测 三节点：设计吃 AI 需求弹性、制造吃产能与制程、封测吃先进封装景气，
+     混成一个"芯片"节点会让链式扫描失去分辨力（这是主线扫描最容易犯的错）。
+  4) 终端只放整机/模组应用，用于判断需求来源（AI 算力 vs 消费电子 vs 汽车）。
+nodes:
+  - node_id: materials
+    name: 半导体材料
+    stage: upstream
+    upstream_of: [equipment, foundry]
+    downstream_of: []
+    keywords: [硅片, 光刻胶, 电子特气, 特气产品, 高纯, 抛光, 靶材, 电子材料, 半导体材料, 前驱体]
+    rationale: 材料验证周期长、切换成本高，国产化率最低的环节之一（洼地）。
+    members:
+      - symbol: '688126'
+        name: 沪硅产业
+        role: 龙头
+        evidence: 大硅片（300mm）国产化主力（策展，待主营构成校验）
+      - symbol: '300346'
+        name: 南大光电
+        role: 二线
+        evidence: 电子特气+光刻胶（ArF）（策展）
+  - node_id: equipment
+    name: 半导体设备
+    stage: upstream
+    upstream_of: [foundry]
+    downstream_of: [materials]
+    keywords: [电子工艺装备, 电子专用设备, 半导体装备, 半导体设备, 刻蚀, 薄膜, 专用设备, 光刻, 检测设备, 清洗设备, 离子注入]
+    rationale: 设备是国产替代确定性最强、订单能见度最高的环节（资本开支驱动）。
+    members:
+      - symbol: '002371'
+        name: 北方华创
+        role: 龙头
+        evidence: 刻蚀/薄膜/清洗多品类平台型设备商（策展，待主营构成校验）
+      - symbol: '688012'
+        name: 中微公司
+        role: 龙头
+        evidence: 刻蚀设备（CCP/ICP）国内龙头（策展）
+  - node_id: design
+    name: 芯片设计
+    stage: midstream
+    upstream_of: [foundry]
+    downstream_of: []
+    keywords: [集成电路设计, 芯片设计, 集成电路产品, 模拟芯片, 存储芯片, 处理器, 芯片产品, 互连类芯片, 云端产品线, 图像传感器]
+    rationale: 设计端吃 AI 需求弹性，但受制程与代工产能约束，故置于制造之前。
+    members:
+      - symbol: '688008'
+        name: 澜起科技
+        role: 龙头
+        evidence: 内存接口芯片（DDR5 渗透与 AI 服务器配套）（策展，待主营构成校验）
+      - symbol: '688256'
+        name: 寒武纪
+        role: 弹性标的
+        evidence: AI 训练/推理芯片，A 股稀缺算力芯片标的（策展）
+      - symbol: '603501'
+        name: 豪威集团
+        role: 二线
+        evidence: CMOS 图像传感器（原韦尔股份，2026 年更名）（策展）
+  - node_id: foundry
+    name: 晶圆制造
+    stage: midstream
+    upstream_of: [packaging_test]
+    downstream_of: [equipment, materials, design]
+    keywords: [集成电路晶圆代工, 晶圆代工, 晶圆制造, 集成电路制造, 芯片制造, 晶圆, 代工]
+    rationale: 制造是战略环节（产能与制程），也是设备/材料的下游客户，是全链的枢纽。
+    members:
+      - symbol: '688981'
+        name: 中芯国际
+        role: 龙头
+        evidence: 国内晶圆代工龙头，产能利用率与制程是链上温度计（策展，待主营构成校验）
+  - node_id: packaging_test
+    name: 封装测试
+    stage: midstream
+    upstream_of: [application]
+    downstream_of: [foundry]
+    keywords: [集成电路封装测试, 封装测试, 封测, 集成电路封装, 封装, 测试服务]
+    rationale: 先进封装（Chiplet）是 AI 芯片性能提升的关键路径，封测环节景气与先进封装产能绑定。
+    members:
+      - symbol: '600584'
+        name: 长电科技
+        role: 龙头
+        evidence: 全球封测第一梯队，先进封装产能（策展，待主营构成校验）
+      - symbol: '002156'
+        name: 通富微电
+        role: 二线
+        evidence: AMD 封装核心供应商，先进封装弹性（策展）
+      - symbol: '002185'
+        name: 华天科技
+        role: 二线
+        evidence: 封测三强之一（策展）
+  - node_id: application
+    name: 终端应用（算力/消费/汽车）
+    stage: terminal
+    upstream_of: []
+    downstream_of: [packaging_test]
+    keywords: [终端, 模组, 应用, 整机]
+    rationale: 需求来源分辨器：AI 算力拉动高端制程与先进封装，消费电子与汽车拉动成熟制程。
+    members: []

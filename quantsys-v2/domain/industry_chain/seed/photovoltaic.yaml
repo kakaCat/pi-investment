@@ -1,0 +1,87 @@
+# 产业链策展 seed —— 光伏链
+chain_id: photovoltaic
+name: 光伏（硅料/硅片/电池/组件/电站）链
+aliases: [光伏, 太阳能, 硅料, 组件, 光伏链, 硅片]
+curator: investor/w-83e881ec
+curated_at: '2026-09-11'
+description: 硅料/硅片 → 电池片/组件 → 辅材（逆变器/胶膜/玻璃）→ 电站/EPC
+rationale: |
+  策展依据（人工判断，可质疑）：
+  1) 环节按"价格传导链"切分：硅料—硅片—电池—组件是同一价格战的不同段位，
+     利润在四段之间轮动（谁紧缺谁拿利润），必须分段而不是只看"光伏板块"。
+  2) 辅材（逆变器/胶膜/光伏玻璃/银浆）单列中游：它们的驱动是**装机量**而非硅料价格，
+     硅料暴跌时辅材反而量增利稳——这是光伏链最容易误判的地方。
+  3) 终端放电站/EPC：装机需求与电价政策（消纳、绿证）是这条链的最终约束。
+nodes:
+  - node_id: polysilicon_wafer
+    name: 硅料/硅片
+    stage: upstream
+    upstream_of: [cell_module]
+    downstream_of: []
+    keywords: [高纯晶硅, 多晶硅, 硅料, 单晶硅, 晶硅, 硅片]
+    rationale: 硅料是产能周期最长（投产慢）的一段，价格弹性最大；硅片是产能最快过剩的一段，两者合看会掩盖分化。
+    members:
+      - symbol: '600438'
+        name: 通威股份
+        role: 龙头
+        evidence: 硅料产能全球第一（同时拥有电池片产能，故本标的跨环节）；（策展，待主营构成校验）
+      - symbol: '002129'
+        name: TCL中环
+        role: 龙头
+        evidence: 单晶硅片双寡头之一（策展，待主营构成校验）
+  - node_id: cell_module
+    name: 电池片/组件
+    stage: midstream
+    upstream_of: [power_station]
+    downstream_of: [polysilicon_wafer]
+    keywords: [太阳能电池, 光伏组件, 光伏产品, 电池组件, 组件, 电池片]
+    rationale: 组件是"制造业末端"，直面终端招标价，利润被上游硅料与下游电站两头挤压。
+    members:
+      - symbol: '601012'
+        name: 隆基绿能
+        role: 龙头
+        evidence: 组件与硅片一体化龙头（策展，待主营构成校验）
+      - symbol: '002459'
+        name: 晶澳科技
+        role: 二线
+        evidence: 组件出货第一梯队（策展）
+      - symbol: '688599'
+        name: 天合光能
+        role: 二线
+        evidence: 组件+分布式系统（策展）
+      - symbol: '600732'
+        name: 爱旭股份
+        role: 弹性标的
+        evidence: ABC 电池（新型电池技术弹性）（策展）
+  - node_id: auxiliary
+    name: 辅材（逆变器/胶膜/光伏玻璃）
+    stage: midstream
+    upstream_of: [power_station]
+    downstream_of: []
+    keywords: [逆变器, 胶膜, 光伏玻璃, 银浆, 光伏设备, 封装胶膜, 储能系统, 储能]
+    rationale: 辅材驱动是装机量而非硅料价格：硅料暴跌反而刺激装机→辅材量增。与主链分开是关键纠偏点。
+    members:
+      - symbol: '300274'
+        name: 阳光电源
+        role: 龙头
+        evidence: 逆变器全球份额前列+储能（策展，待主营构成校验）
+      - symbol: '603806'
+        name: 福斯特
+        role: 龙头
+        evidence: 光伏胶膜全球份额第一（策展）
+      - symbol: '601865'
+        name: 福莱特
+        role: 二线
+        evidence: 光伏玻璃双寡头之一（策展）
+  - node_id: power_station
+    name: 电站/EPC
+    stage: downstream
+    upstream_of: []
+    downstream_of: [cell_module, auxiliary]
+    keywords: [电站, EPC, 光伏发电, 新能源电站, 发电业务]
+    rationale: 电站是需求落点，收益率取决于组件价格（成本）与上网电价（收入），是整链景气的最终裁判。
+    members:
+      - symbol: '600905'
+        name: 三峡能源
+        role: 二线
+        evidence: 新能源电站运营（跨链：亦属电力链中游）（策展）

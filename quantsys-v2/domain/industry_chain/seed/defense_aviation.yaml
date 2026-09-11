@@ -1,0 +1,81 @@
+# 产业链策展 seed —— 军工·航空链
+chain_id: defense_aviation
+name: 军工·航空链
+aliases: [军工, 航空, 航天, 国防, 大飞机, 军工链]
+curator: investor/w-83e881ec
+curated_at: '2026-09-11'
+description: 高温合金/碳纤维 → 发动机/机载系统 → 主机厂总装 → 运营/维修保障
+rationale: |
+  策展依据（人工判断，可质疑）：
+  1) 环节按"航空制造价值链"切分：材料 → 零部件/机载 → 总装主机厂 → 运营维修。
+     军工的需求不由市场决定而由订单（采购）决定，因此"订单流"是唯一有效的跟踪线：
+     材料/零部件跟随主机厂排产，主机厂跟随采购计划。
+  2) 材料（高温合金、碳纤维、钛材）放最上游，因为它们是国产航空发动机与机体放量的**瓶颈**，
+     也是毛利最高、认证壁垒最强的一段。
+  3) 终端放运营/维修（MRO）：其收入随存量机队增长而非新机订单，是这条链的"后周期"环节，
+     在订单走弱时反而相对稳（可用于防守切换）。
+nodes:
+  - node_id: aero_materials
+    name: 航空材料（高温合金/碳纤维/钛材）
+    stage: upstream
+    upstream_of: [engine_components, airframe]
+    downstream_of: []
+    keywords: [高温合金, 航空新材料, 预浸料, 蜂窝, 碳纤维, 复合材料, 钛材, 钛合金, 特种材料, 合金材料]
+    rationale: 材料是发动机与机体放量的瓶颈环节，认证壁垒高、毛利高；材料端先于总装反映排产变化。
+    members:
+      - symbol: '300777'
+        name: 中简科技
+        role: 弹性标的
+        evidence: 航空航天用高性能碳纤维（策展，待主营构成校验）
+      - symbol: '688122'
+        name: 西部超导
+        role: 龙头
+        evidence: 高端钛合金+超导材料（策展）
+      - symbol: '600862'
+        name: 中航高科
+        role: 龙头
+        evidence: 航空复合材料预浸料（策展）
+  - node_id: engine_components
+    name: 发动机/机载系统
+    stage: midstream
+    upstream_of: [airframe]
+    downstream_of: [aero_materials]
+    keywords: [航空发动机, 发动机, 机载, 连接器, 光电, 机电系统]
+    rationale: 发动机是航空制造中价值量最大、技术壁垒最高的子系统；机载（连接器/光电）弹性次之。
+    members:
+      - symbol: '600893'
+        name: 航发动力
+        role: 龙头
+        evidence: 国内航空发动机整机唯一总装平台（策展，待主营构成校验）
+      - symbol: '002179'
+        name: 中航光电
+        role: 二线
+        evidence: 军用连接器龙头（跨链：亦属电子）（策展）
+  - node_id: airframe
+    name: 主机厂/总装
+    stage: midstream
+    upstream_of: [operation_mro]
+    downstream_of: [engine_components, aero_materials]
+    keywords: [航空产品, 航空防务, 航空装备, 飞机, 整机, 飞行器]
+    rationale: 主机厂是订单的直接承接方，业绩确认节奏受交付与验收影响（季度波动大）。
+    members:
+      - symbol: '600760'
+        name: 中航沈飞
+        role: 龙头
+        evidence: 战斗机总装主机厂（策展，待主营构成校验）
+      - symbol: '000768'
+        name: 中航西飞
+        role: 二线
+        evidence: 大中型飞机总装（策展）
+      - symbol: '600038'
+        name: 中直股份
+        role: 二线
+        evidence: 直升机总装（策展）
+  - node_id: operation_mro
+    name: 运营/维修保障(MRO)
+    stage: terminal
+    upstream_of: []
+    downstream_of: [airframe]
+    keywords: [维修, 运营, 通航, 保障服务]
+    rationale: 收入随存量机队增长（后周期），订单走弱时相对稳定，是链内的防守位。
+    members: []

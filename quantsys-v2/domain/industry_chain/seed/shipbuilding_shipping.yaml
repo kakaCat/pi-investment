@@ -1,0 +1,80 @@
+# 产业链策展 seed —— 造船·航运链
+chain_id: shipbuilding_shipping
+name: 造船·航运链
+aliases: [造船, 航运, 船舶, 船, 集运, 油运]
+curator: investor/w-83e881ec
+curated_at: '2026-09-11'
+description: 船板钢/船舶配套设备 → 造船总装 → 航运承运 → 港口/贸易终端
+rationale: |
+  策展依据（人工判断，可质疑）：
+  1) 环节切分依据"订单流与利润分配"：船东下单 → 船厂总装 → 船东运营（航运）→ 港口/贸易。
+  2) 造船与航运是反向周期（运价高 → 船东赚钱 → 下单造船 → 造船景气），必须分环节看，
+     否则会把两个相反驱动混成一条"船舶概念"——这正是只看概念板块会犯的错。
+  3) 上游只放船板钢/船舶配套（动力、机电）：它们是船厂成本的直接输入；
+     不纳入普钢整体（船板仅是中厚板的一小部分）。
+  4) 终端放港口/贸易：吞吐量是贸易需求的落点，可用于验证"运价上行是需求驱动还是运力收缩驱动"。
+nodes:
+  - node_id: ship_equipment
+    name: 船板钢/船舶配套设备
+    stage: upstream
+    upstream_of: [shipbuilding_yard]
+    downstream_of: []
+    keywords: [船用, 船舶配套, 柴油机, 动力, 船板, 推进, 低速机]
+    rationale: 动力/机电设备约占船舶造价 30-40%，是船厂最大外购项，故列上游。
+    members:
+      - symbol: '600482'
+        name: 中国动力
+        role: 龙头
+        evidence: 船用低速/中速柴油机与动力系统总成（策展，待主营构成校验）
+  - node_id: shipbuilding_yard
+    name: 造船总装
+    stage: midstream
+    upstream_of: [shipping]
+    downstream_of: [ship_equipment]
+    keywords: [海洋防务装备, 海洋运输装备, 海洋科考装备, 海洋开发装备, 船舶造修, 海洋工程装备, 船舶建造, 造船, 海洋工程, 海工, 舰船, 船舶]
+    rationale: 总装厂的在手订单与新船价格是全链最可跟踪的高频指标（订单/价格/成本三要素）。
+    members:
+      - symbol: '600150'
+        name: 中国船舶
+        role: 龙头
+        evidence: 军民船总装龙头，手持订单与造船周期直接相关（策展，待主营构成校验）
+      - symbol: '601989'
+        name: 中国重工
+        role: 二线
+        evidence: 军民船舶总装（策展）
+  - node_id: shipping
+    name: 航运（集运/油运/散货）
+    stage: downstream
+    upstream_of: [port_trade]
+    downstream_of: [shipbuilding_yard]
+    keywords: [集装箱运输, 航运, 油品运输, 干散货, 运输, 物流, 船舶运输]
+    rationale: 航运是运价的直接受益方，与造船反向；单独成环节才能把"运价上行"与"船厂订单"区分开。
+    members:
+      - symbol: '601919'
+        name: 中远海控
+        role: 龙头
+        evidence: 全球集装箱运力前列，集运运价（SCFI/CCFI）直接决定盈利（策展，待主营构成校验）
+      - symbol: '600026'
+        name: 中远海能
+        role: 二线
+        evidence: 油品运输（VLCC），受 OPEC 产量与运距驱动（策展）
+      - symbol: '601872'
+        name: 招商轮船
+        role: 二线
+        evidence: 油散气多船型组合（策展）
+      - symbol: '601975'
+        name: 招商南油
+        role: 弹性标的
+        evidence: 成品油运（MR），运价弹性最大（策展）
+      - symbol: '601866'
+        name: 中远海发
+        role: 二线
+        evidence: 船舶租赁与集装箱制造（策展）
+  - node_id: port_trade
+    name: 港口/贸易终端
+    stage: terminal
+    upstream_of: []
+    downstream_of: [shipping]
+    keywords: [港口, 码头, 贸易]
+    rationale: 吞吐量是贸易需求的落点；作为终端用于验证运价行情的驱动来源。
+    members: []

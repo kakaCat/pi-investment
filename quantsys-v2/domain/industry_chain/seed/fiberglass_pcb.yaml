@@ -1,0 +1,94 @@
+# 产业链策展 seed —— 玻纤·电子布·PCB 链
+# 纪律（RFC 015 §2.3）：拓扑是**人工判断**，必须写 rationale；成员必须带证据与置信度。
+# 本文件的 upstream_of/downstream_of 双向声明由 domain service 做对称性校验（不一致即失败）。
+chain_id: fiberglass_pcb
+name: 玻纤·电子布·PCB链
+aliases: [玻纤, 电子布, 覆铜板, PCB, 玻纤链, 电子布链]
+curator: investor/w-83e881ec
+curated_at: '2026-09-11'
+description: 池窑拉丝（玻纤纱）→ 电子纱/电子布 → 覆铜板(CCL) → 印制电路板(PCB) → 算力/终端应用
+rationale: |
+  策展依据（人工判断，可质疑）：
+  1) 该链是 2026-09 算力主线的高频链式扫描对象——本窗口 2026-09-11 曾手工硬编码上下游
+     （玻纤→电子布→CCL→PCB），说明链式扫描（决策原则#4）当时不可执行，故优先策展。
+  2) 环节切分依据"物料形态变化点"：玻纤纱（纤维）→ 电子布（织物）→ CCL（覆铜基材）→ PCB（线路成品）。
+     每一跳都有独立的定价与供需驱动（电子布涨价不必然传导到 PCB 毛利）。
+  3) 上下游判定：按实物构成关系（谁是谁的原料）而非股价相关性；服务器/算力列为终端，
+     因为 AI 服务器是 2026 年该链需求增量的来源，终端需求决定上游弹性。
+nodes:
+  - node_id: glass_fiber_yarn
+    name: 玻纤纱/池窑拉丝
+    stage: upstream
+    upstream_of: [electronic_yarn_cloth]
+    downstream_of: []
+    keywords: [玻璃纤维, 玻纤, 粗纱, 无碱, 纤维纱, 玻纤纱, 玻纤及其制品]
+    rationale: 池窑拉丝是最上游工序，窑炉点火后产能刚性（停窑成本极高），故供给弹性最差、周期弹性最大。
+    members:
+      - symbol: '600176'
+        name: 中国巨石
+        role: 龙头
+        evidence: 全球玻纤纱产能第一（粗纱+电子布双线）；2026Q1 主营构成「玻璃纤维纱及制品」占营收 74.77%（东财F10，报告期 2026-03-31）
+      - symbol: '002080'
+        name: 中材科技
+        role: 二线
+        evidence: 玻纤及制品+风电叶片双主业，玻纤规模第二梯队（策展，待主营构成校验）
+  - node_id: electronic_yarn_cloth
+    name: 电子纱/电子布
+    stage: upstream
+    upstream_of: [copper_clad_laminate]
+    downstream_of: [glass_fiber_yarn]
+    keywords: [电子级玻璃纤维, 电子布, 电子纱, E玻璃纤维布, 玻璃纤维布]
+    rationale: 电子布是 CCL 的直接增强材料；高端 Low-Dk/Low-Df 布是 AI 服务器高速板卡的关键瓶颈，与普通粗纱的供需周期不同步，故单列环节而非并入玻纤纱。
+    members:
+      - symbol: '603256'
+        name: 宏和科技
+        role: 弹性标的
+        evidence: 主营为电子级玻璃纤维布（高端电子布纯标的，弹性大于综合玻纤企业）；依据为主营业务描述（同花顺F10 经营分析，2026-09-11 打样）
+      - symbol: '600176'
+        name: 中国巨石
+        role: 龙头
+        evidence: 2026Q1 主营构成「电子纱及电子布」占营收 24.30%（东财F10，报告期 2026-03-31）——同一标的跨两个节点是真实经营事实
+  - node_id: copper_clad_laminate
+    name: 覆铜板(CCL)
+    stage: midstream
+    upstream_of: [pcb]
+    downstream_of: [electronic_yarn_cloth]
+    keywords: [覆铜板, 粘结片, 半固化片, 覆铜板及]
+    rationale: CCL 是「铜箔+树脂+电子布」的复合基材，是价格传导第一站：能吃电子布涨价，也承受铜价波动，故与 PCB 分开。
+    members:
+      - symbol: '600183'
+        name: 生益科技
+        role: 龙头
+        evidence: 全球刚性覆铜板份额前列，高速板材进入 AI 服务器供应链（策展，待主营构成校验）
+  - node_id: pcb
+    name: 印制电路板(PCB)
+    stage: midstream
+    upstream_of: [ai_server_terminal]
+    downstream_of: [copper_clad_laminate]
+    keywords: [印制电路板, PCB, 线路板, 电路板, 电子电路]
+    rationale: PCB 最贴近终端需求（订单可见度高于上游），但毛利受 CCL 成本挤压——与上游是同一主线、不同弹性。
+    members:
+      - symbol: '002463'
+        name: 沪电股份
+        role: 龙头
+        evidence: 企业通讯市场板（AI 服务器/交换机高多层板）为核心增量（策展，待主营构成校验）
+      - symbol: '300476'
+        name: 胜宏科技
+        role: 弹性标的
+        evidence: 高多层板/HDI 产能进入 AI 加速卡供应链（策展）
+      - symbol: '002916'
+        name: 深南电路
+        role: 二线
+        evidence: PCB+封装基板双业务，通信板为主（策展）
+  - node_id: ai_server_terminal
+    name: 算力服务器/终端应用
+    stage: terminal
+    upstream_of: []
+    downstream_of: [pcb]
+    keywords: [服务器, 算力, 数据中心, 通信及移动网络, 通信设备, 云计算, 云服务, 3C电子]
+    rationale: 终端需求决定整链景气度；工业富联放在终端而非中游，因为其收入来自整机/AI 服务器组装，毛利结构与 PCB 厂完全不同。
+    members:
+      - symbol: '601138'
+        name: 工业富联
+        role: 龙头
+        evidence: AI 服务器整机与云计算设备收入占比高（策展，待主营构成校验）
