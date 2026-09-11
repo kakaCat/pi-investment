@@ -347,6 +347,7 @@ class SchedulerRepository(ISchedulerRepository):
                 .all()
             )
             recovered: List[int] = []
+            touched_tasks: set = set()
             for run in rows:
                 if run.started_at is not None and run.started_at > guard:
                     continue  # 刚创建，可能仍在执行（同进程并发）
@@ -356,6 +357,25 @@ class SchedulerRepository(ISchedulerRepository):
                 if run.started_at:
                     run.duration_ms = int((now - run.started_at).total_seconds() * 1000)
                 recovered.append(run.id)
+                touched_tasks.add(run.task_id)
+
+            # 同步回写任务行（2026-09-11 w-f436d4ea）：原先只闭环 run 行，任务行的
+            # last_status/last_error/next_run_at **一个都不动**。后果三连（实测任务 232
+            # 『每日数据质量检查』09-10、09-11 两次被进程重启打断）：
+            #   ① 任务列表显示 failed 却**没有任何原因**——原因只躺在 scheduler_runs.error
+            #      里，看板与排查入口（scheduler_tasks.last_error）读不到；
+            #   ② next_run_at 停在被打断的那次时刻（实测停在 2026-09-11 22:00:00）不推进；
+            #   ③ 于是「任务失败」这件事在运维面上表现为「失败且无可解释信息」。
+            # 回写口径与 complete_run 保持一致（含 managed_by_agent_ 伪任务跳过 next_run）。
+            for task_id in touched_tasks:
+                config = self.session.get(SchedulerTaskConfig, task_id)
+                if config is None:
+                    continue
+                config.last_status = "failed"
+                config.last_error = note
+                if not str(config.cron_expression).startswith("managed_by_agent_"):
+                    config.next_run_at = _calc_next_run_time(config.cron_expression)
+
             if recovered:
                 self.session.commit()
             return recovered
