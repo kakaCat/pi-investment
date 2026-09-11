@@ -106,6 +106,30 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ Failed to register event ingest jobs: {e}")
 
+    # P1/P2 自维护回路定时任务（RFC 015 §4.5 / §2.5，2026-09-11 w-f436d4ea）
+    # 补上两条此前缺失的回路：
+    #   · minute_kline_sync      —— 分钟线增量落库（此前 quant.minute_klines 断更至 2026-05-29）
+    #   · industry_chain_refresh —— 产业链成员刷新（此前无任何任务调用 build_chain）
+    # 落库前提：save_minute_klines 已于 2026-09-11 改为幂等 upsert，
+    # 否则"每 5 分钟反复跑"第二次必然因重叠 K 线主键冲突整批失败。
+    try:
+        from application.jobs.job_registry import job_registry
+        from application.jobs.refresh_jobs import build_refresh_jobs
+        from adapters.outbound.datasources import get_data_provider_manager
+        from adapters.outbound.repositories.minute_kline_repository import get_minute_kline_repo
+        from adapters.outbound.repositories.event_repository import get_market_event_repo
+        from adapters.inbound.fastapi_app.routes.industry_chain_async import get_service as _get_chain_service
+        for _job in build_refresh_jobs(
+            manager=get_data_provider_manager(),
+            minute_repo=get_minute_kline_repo(),
+            chain_service=_get_chain_service(),
+            universe_repo=get_market_event_repo(),
+        ):
+            job_registry.register(_job)
+        logger.info("✅ Registered: refresh jobs (minute_kline_sync / industry_chain_refresh)")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to register refresh jobs: {e}")
+
     # 初始化数据库引擎
     try:
         from infrastructure.persistence.database.engine import init_engine

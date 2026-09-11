@@ -658,10 +658,58 @@ class SchedulerService:
         }
 
         handler = handlers.get(command)
-        if handler is None:
-            raise ValueError(f"Unknown scheduler command: {command!r}")
+        if handler is not None:
+            return handler(params)
 
-        return handler(params)
+        # 2026-09-11（w-f436d4ea）：**统一两条派发路径**。
+        # 此前「手动触发」只认上面的静态 handler map，而「定时触发」
+        # （infrastructure/scheduler/job_executor.py）会先查 JobRegistry ——
+        # 于是只注册在 JobRegistry 的命令会出现「定时能跑、手动触发报
+        # Unknown scheduler command」的不一致（实测 minute_kline_sync 与
+        # industry_chain_refresh 手动触发即报此错 → 无法手动测试/补跑；
+        # P3 的 ingest_events_* 同样受影响）。
+        # 现补 JobRegistry 兜底，与 job_executor 对齐。
+        job = None
+        try:
+            from application.jobs.job_registry import job_registry
+            job = job_registry.get(command)
+        except Exception as exc:  # noqa: BLE001 注册表不可用不应改变"未知命令"的语义
+            logger.warning("JobRegistry lookup failed for %r: %s", command, exc)
+            job = None
+
+        if job is not None:
+            # Job.execute 是协程；调用方可能是同步线程（调度循环）也可能身处
+            # 事件循环（FastAPI 异步端点）。用独立线程 + 自有事件循环执行，
+            # 两种上下文都安全（避免 asyncio.run 在已有 loop 时抛 RuntimeError）。
+            import asyncio
+            import threading
+
+            box: Dict[str, Any] = {}
+
+            def _run_job() -> None:
+                try:
+                    box['result'] = asyncio.run(job.execute(params or {}))
+                except Exception as exc:  # noqa: BLE001 交由调用方按失败处理
+                    box['error'] = exc
+
+            worker = threading.Thread(target=_run_job, name=f'sched-{command}', daemon=True)
+            worker.start()
+            worker.join()
+            if 'error' in box:
+                raise box['error']
+            result = box.get('result')
+            if hasattr(result, 'details') and not isinstance(result, dict):
+                # JobResult → dict（保持本方法既有的 dict 契约）
+                return {
+                    'action': getattr(result, 'action', command),
+                    'status': 'success' if getattr(result, 'success', False) else 'failed',
+                    'message': getattr(result, 'message', ''),
+                    'details': getattr(result, 'details', {}) or {},
+                    'error': getattr(result, 'error', None),
+                }
+            return result if isinstance(result, dict) else {'success': True, 'action': command}
+
+        raise ValueError(f"Unknown scheduler command: {command!r}")
 
     def _handle_kline_update(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """K 线日更：委托 infrastructure.jobs.kline_update_job.execute（多数据源 fallback + 限速防封）"""

@@ -130,31 +130,64 @@ class MinuteKlineRepository(IMinuteKlineRepository):
     # ------------------------------------------------------------------ 写入
 
     def save_minute_klines(self, klines: List[MinuteKline]) -> bool:
-        """批量落库（委托既有 batch_insert_minute_klines）
+        """批量落库（**幂等 upsert**，2026-09-11 w-f436d4ea）
 
-        注意：既有实现是 session.add_all() 直插（非 upsert），主键冲突会整批失败
-        → 返回 False 并保留日志；调用方必须把 False 当失败处理（不得当作已落库）。
+        为什么改：此前委托 batch_insert_minute_klines，而它是 session.add_all() 直插
+        （非 upsert），主键 (symbol, trade_datetime) 冲突会**整批失败**返回 False。
+        对"盘中每 5 分钟增量同步"这是致命的——第二次同步必然因与上次重叠的 K 线冲突
+        而整批失败，回路建了也跑不起来（写在一个永远失败的落库原语上）。
+
+        现改为 PostgreSQL `INSERT ... ON CONFLICT (symbol, trade_datetime) DO UPDATE`
+        （晚到的数据覆盖早到的，符合"更晚采集 = 更完整"的直觉），使重复采集安全幂等。
+        既有 `batch_insert_minute_klines` 保持原语义不动（可能有调用方依赖其
+        "冲突即失败"的行为）。
         """
         if not klines:
             return True
-        objs = []
+        rows = []
         for k in klines:
             dt = _parse_dt(k.trade_datetime)
             if dt is None:
                 continue
-            objs.append(MinuteKlineORM(
-                symbol=str(k.symbol).split('.')[0],
-                trade_datetime=dt,
-                open=k.open,
-                high=k.high,
-                low=k.low,
-                close=k.close,
-                volume=k.volume,
-                amount=k.amount,
-            ))
-        if not objs:
+            rows.append({
+                'symbol': str(k.symbol).split('.')[0],
+                'trade_datetime': dt,
+                'open': k.open,
+                'high': k.high,
+                'low': k.low,
+                'close': k.close,
+                'volume': k.volume,
+                'amount': k.amount,
+            })
+        if not rows:
             return False
-        return bool(self.repo.batch_insert_minute_klines(objs))
+        try:
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+            from infrastructure.persistence.orm.config import get_session
+
+            session = get_session()
+            try:
+                stmt = pg_insert(MinuteKlineORM.__table__).values(rows)
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=['symbol', 'trade_datetime'],
+                    set_={
+                        'open': stmt.excluded.open,
+                        'high': stmt.excluded.high,
+                        'low': stmt.excluded.low,
+                        'close': stmt.excluded.close,
+                        'volume': stmt.excluded.volume,
+                        'amount': stmt.excluded.amount,
+                    },
+                )
+                session.execute(stmt)
+                session.commit()
+                return True
+            finally:
+                session.close()
+        except Exception as e:  # noqa: BLE001
+            import logging
+            logging.getLogger(__name__).error(f'Error upserting minute klines: {e}')
+            return False
 
 
 _repo_instance: Optional[MinuteKlineRepository] = None
