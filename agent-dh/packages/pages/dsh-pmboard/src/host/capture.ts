@@ -142,6 +142,34 @@ export function captureSectionText(
 }
 
 /**
+ * 绑定窗口的「推进纪律」段 —— 本窗口已绑定进行中需求时注入；未绑定 → ''。
+ *
+ * 为什么需要：此前 bound 窗口的 section 返回 ''（零噪音），窗口 agent 根本不知道
+ * 自己名下有需求、更不知道可以推进状态 → 需求建卡后只能等人点按钮（用户反馈
+ * 「agent 自己不能推进吗，还需要用户手动推进」）。本段把「状态由窗口自己维护」
+ * 变成提示词里的明确纪律，窗口在里程碑处主动调 reqboard_move。
+ */
+export function boundSectionText(ledger: ReqboardLedger, context: unknown): string {
+  const windowKey = windowKeyFromContext(context as { agent?: { id?: unknown }; scope?: unknown })
+  if (windowKey === undefined) return ''
+  const open = openRequirementsFor(ledger, windowKey)
+  if (open.length === 0) return ''
+  return [
+    `## 项目看板（reqboard · 本窗口 ${windowKey.slice(0, 16)} 已绑定需求）`,
+    '',
+    '本窗口名下有进行中的需求：',
+    ...open.map(r => `- ${r.id}《${r.title}》当前状态：${r.status}`),
+    '',
+    '状态推进纪律（由窗口自己维护，不需要用户手动点按钮）：',
+    '- 方案/拆解完成 → reqboard_move 到 decomposing；任务开始执行 → implementing；',
+    '- 工作交付并自检通过 → accepting（进入验收）；',
+    '- 任务全部完成时系统会自动 implementing → accepting，无需手动。',
+    '- 只有「取消需求」「归档」必须人操作（agent 调用会被代码级拒绝）。',
+    '- 推进时用 reason 写清做了什么（进需求留痕，供复盘与验收）。',
+  ].join('\n')
+}
+
+/**
  * 针对性立项提示（消息事件 hook 命中时注入）：引用刚到达的用户消息原文，
  * 指示 LLM 判断该输入是否值得立项——值得则【两问弹框 = 立项门 → 直接建 REQ】：
  * 先 ask_user_question 向用户弹两问——「需求名称」（选项由本条消息上下文推导、

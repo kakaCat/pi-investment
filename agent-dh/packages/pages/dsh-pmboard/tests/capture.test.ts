@@ -7,6 +7,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
+  boundSectionText,
   windowKeyFromContext,
   isWindowBound,
   hasPendingSuggestion,
@@ -177,5 +178,28 @@ describe('openRequirementsFor（窗口→需求投影）', () => {
     }
     const ids = openRequirementsFor(l, W).map(r => r.id).sort()
     expect(ids).toEqual(['REQ-000001', 'REQ-000003'])
+  })
+})
+describe('boundSectionText（绑定窗口推进纪律）', () => {
+  it('已绑定窗口 → 注入需求清单与推进纪律（窗口不再等人点按钮）', () => {
+    const l: ReqboardLedger = {
+      ...emptyLedger(),
+      requirements: [req({ id: 'REQ-abc123', title: '修卡片', status: 'reviewing', sourceSessionId: W })],
+    }
+    const text = boundSectionText(l, { agent: { id: W } })
+    expect(text).toContain('REQ-abc123')
+    expect(text).toContain('reviewing')
+    expect(text).toContain('reqboard_move')
+    expect(text).toContain('取消需求')
+  })
+
+  it('未绑定窗口 / 无 windowKey → 空段（零噪音）', () => {
+    expect(boundSectionText(emptyLedger(), { agent: { id: W } })).toBe('')
+    expect(boundSectionText(emptyLedger(), {})).toBe('')
+  })
+
+  it('已结束需求（done/archived）不算绑定 → 空段', () => {
+    const l: ReqboardLedger = { ...emptyLedger(), requirements: [req({ status: 'done', sourceSessionId: W })] }
+    expect(boundSectionText(l, { agent: { id: W } })).toBe('')
   })
 })

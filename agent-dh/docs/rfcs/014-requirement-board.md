@@ -57,6 +57,16 @@ draft → reviewing → analyzing → implementing → testing → verifying →
 - 闸门部分（评审通过、人工验收、归档确认）**代码级仅人可操作**——沿用 taskboard "验收权只属于人" 的协议闸哲学，agent 调用直接拒绝，不是提示词约定；
 - `blocked` 沿用 taskboard 智慧：横向标记而非状态，任何非终态可携带。
 
+> **2026-09-11 修订（用户裁定，v1 落地后）**：上述"在途闸门仅人"在实盘被证明是**流程停摆源**——
+> 需求建卡后必须由人点「确认方案」「确认拆分」「验收通过」才能前进，实际结果是 11 条需求
+> 全部停在「立项」数日无人推进。用户明确要求"agent 自己推进，不要用户手动点"。
+> 因此闸门收缩为**仅终态/破坏性动作**：取消需求、归档（`*→canceled`、`*→archived`）
+> 仍是人工闸门；在途步骤（评审→拆分→实施→验收→完成）由窗口 agent 经 `reqboard_move`
+> 自行推进，系统另按任务事实派生推进（拆分落库→拆分态；任务开工→实施态；全部完成→验收态）。
+> 人工验收仍可发生（人可随时退回/取消），但不再是流程前进的必要条件。
+> 现行规则以 `shared/protocol.ts` 的 `HUMAN_ONLY_REQ_TRANSITIONS` / `SYSTEM_REQ_TRANSITIONS`
+> 与 `host/rollup.ts` 为准（代码即事实）。
+
 **设计决策二：验收是二层的（用户明确）——先 agent 验收，再人工验收。**
 - **第一层 agent 验收（testing 状态）**：独立 review 会话做代码 review + 单元测试任务跑测试，两者都要交出证据（review 报告 + 单测输出，写入 checklist note）。**证据闸是代码级的**：证据不齐，需求不允许从 testing 前进，agent 也无法伪造（证据要附真实命令输出）。
 - **第二层人工验收（verifying 状态）**：agent 验收全过后，人做实际功能测试，点「验收通过」才进 merging。

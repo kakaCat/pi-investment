@@ -15,7 +15,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { ReqboardStore } from './host/store.js';
 import { createReqboardHandler } from './host/routes.js';
-import { captureSectionText, windowKeyFromContext, draftRequirementsFor } from './host/capture.js';
+import { captureSectionText, boundSectionText, windowKeyFromContext, draftRequirementsFor } from './host/capture.js';
 import { applyPickupAdvance, applyPickupReconcile, applyTaskRollup } from './host/rollup.js';
 import { newCommentId, type RequirementRecord } from './shared/protocol.js';
 import { createSessionEventCaptureHook, type CaptureHookDeps } from './host/capture-hook.js';
@@ -140,7 +140,10 @@ export function apply(ctx: Context, config?: PluginConfig): void {
               assembleContext as { agent?: { id?: unknown }; scope?: unknown } | undefined,
             );
             const pending = windowKey ? pendingCapture.get(windowKey) : undefined;
-            return captureSectionText(store.snapshot(), assembleContext, pending);
+            const sectionText = captureSectionText(store.snapshot(), assembleContext, pending);
+            if (sectionText.length > 0) return sectionText;
+            // 已绑定窗口：注入「推进纪律」（状态由窗口自己维护，不必等人点按钮）
+            return boundSectionText(store.snapshot(), assembleContext);
           },
         }));
       }, name + ': capture');

@@ -98,9 +98,14 @@ describe('路由层自动推进（R2 实施完成 → 验收）', () => {
     await post(handler, '/task/move', { id: taskId, to: 'done', actor: 'human' })
 
     const req = await store.read(l => l.requirements.find(r => r.id === reqId)!)
-    expect(req.status).toBe('accepting') // 停在验收，等人
-    const done = await post(handler, '/req/move', { id: reqId, to: 'done', actor: 'system' })
-    expect(done.statusCode).toBe(403)
-    expect(done.payload.code).toBe('human_gate')
+    expect(req.status).toBe('accepting') // 派生链停在验收
+    // 人工闸门（取消/归档）仍代码级拒绝
+    const cancel = await post(handler, '/req/move', { id: reqId, to: 'canceled', actor: 'system' })
+    expect(cancel.statusCode).toBe(403)
+    expect(cancel.payload.code).toBe('human_gate')
+    // agent 可自行完成验收（用户裁定：不需要人点中间步骤）
+    const done = await post(handler, '/req/move', { id: reqId, to: 'done', actor: 'agent' })
+    expect(done.statusCode).toBe(200)
+    expect((await store.read(l => l.requirements.find(r => r.id === reqId)!)).status).toBe('done')
   })
 })
