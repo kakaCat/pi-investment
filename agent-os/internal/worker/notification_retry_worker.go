@@ -15,8 +15,8 @@ import (
 // NotificationRetryWorker 通知重试 worker
 // 功能：定期扫描 pending 状态的通知，重新尝试投递
 type NotificationRetryWorker struct {
-	repo    *repository.NotificationRepository
-	service *service.NotificationService
+	repo          *repository.NotificationRepository
+	service       *service.NotificationService
 	cron          *cron.Cron
 	lastAlertTime *time.Time
 }
@@ -85,7 +85,7 @@ func (w *NotificationRetryWorker) retryPendingNotifications(ctx context.Context)
 		retryCount := notifLog.RetryCount
 		if retryCount >= 3 {
 			// 重试次数已达上限，标记为永久失败
-			w.repo.UpdateLog(ctx, notifLog.ID, "failed_permanent", "", 
+			w.repo.UpdateLog(ctx, notifLog.ID, "failed_permanent", "",
 				fmt.Sprintf("Retry exhausted after %d attempts", retryCount), nil)
 			expiredCount++
 			continue
@@ -117,10 +117,10 @@ func (w *NotificationRetryWorker) retryPendingNotifications(ctx context.Context)
 
 		// 重新调用 provider 投递
 		result, err := w.retryDelivery(ctx, channel, localLog)
-		
+
 		// 更新重试次数（无论成功失败都计数）
 		newRetryCount := retryCount + 1
-		
+
 		if err != nil || (result != nil && !result.Success) {
 			// 投递仍然失败
 			errorMsg := "Unknown error"
@@ -129,11 +129,11 @@ func (w *NotificationRetryWorker) retryPendingNotifications(ctx context.Context)
 			} else if result.Error != nil {
 				errorMsg = result.Error.Error()
 			}
-			
+
 			// 更新重试次数和错误信息，状态保持 pending（等待下次重试）
 			w.repo.UpdateLogRetry(ctx, notifLog.ID, newRetryCount, errorMsg)
 			failedCount++
-			
+
 			logger.L().Warn("Notification retry failed", logger.String("log_id", notifLog.ID), logger.Int("retry_count", newRetryCount), logger.String("error", errorMsg))
 		} else {
 			// 投递成功
@@ -142,7 +142,7 @@ func (w *NotificationRetryWorker) retryPendingNotifications(ctx context.Context)
 			w.repo.UpdateLogRetry(ctx, notifLog.ID, newRetryCount, "")
 			w.repo.UpdateLog(ctx, notifLog.ID, "sent", result.MessageID, "", &now)
 			successCount++
-			
+
 			logger.L().Info("Notification retry succeeded", logger.String("log_id", notifLog.ID), logger.Int("retry_count", newRetryCount))
 		}
 	}

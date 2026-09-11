@@ -124,15 +124,11 @@ class WatchNotifier:
                                 disposition=disposition, disposition_reason=disposition_reason,
                                 dup_of=dup_of)
 
-        # P8（RFC 015）：观察类不即时推送，进日终汇总。
-        # 用户原则「通知是给用户看的事实，不是给用户做的题目」「不该发的一条都不发」——
-        # auto_observed 表示"只是看了一眼"，不构成需要即时知道的事实。
-        # 仍落库（notified=False），日终汇总里会体现，账不丢。
-        if disposition == 'auto_observed':
-            logger.info('观察类触发不即时推送（进日终汇总）', rule_id=getattr(rule, 'id', None),
-                        symbol=getattr(rule, 'symbol', None), reason=disposition_reason)
-            return self._record(rule, condition, quote, result, notified=False,
-                                disposition=disposition, disposition_reason=disposition_reason)
+        # 2026-09-11 用户否决：观察类也必须推送。
+        # 我曾按 RFC 015 草案把 auto_observed 从即时通道摘掉（理由"只是一眼看不值得打扰"），
+        # 但用户的定位是「通知是给用户看的事实」——**不该由机器替用户过滤掉一类信息**。
+        # 降噪的正确路径是「让 agent 把规则设好」（规则重叠/阈值失真 → 治理），
+        # 而不是在通知层悄悄吞掉。故此处保持推送（disposition 照旧记录以便追溯）。
 
         # 1. 构建 TriggerPayload
         payload = self._build_payload(rule, condition, quote, result, escalation_reason)

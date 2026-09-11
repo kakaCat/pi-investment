@@ -1257,6 +1257,15 @@ def register_routes():
         logger.warning(f"⚠️ Failed to import microstructure_async: {e}")
         optional_failed.append("microstructure")
 
+    # 产业链图谱（RFC 015 §2.4）
+    try:
+        from adapters.inbound.fastapi_app.routes.industry_chain_async import router as industry_chain_router
+        app.include_router(industry_chain_router)
+        logger.info("✅ Registered: industry_chain (产业链图谱)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import industry_chain_async: {e}")
+        optional_failed.append("industry_chain")
+
     # ===== 路由注册总结 =====
     logger.info("=" * 60)
     logger.info("Route Registration Summary")

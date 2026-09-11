@@ -1928,6 +1928,37 @@ export class QuantsysV2Client {
     return response.data;
   }
 
+  // ==================== P2 产业链图谱（RFC 015 §2，2026-09-11） ====================
+  // 与 provider 类同款约定：**不走 unwrap**，多源失败语义透传工具层。
+
+  /** 产业链清单 */
+  async getIndustryChains(): Promise<ProviderResponse> {
+    const response = await this.client.get('/api/industry-chains')
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
+  /** 单条产业链全貌（按环节分组的成员 + evidence/confidence） */
+  async getIndustryChain(name: string): Promise<ProviderResponse> {
+    const response = await this.client.get(`/api/industry-chains/${encodeURIComponent(name)}`)
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
+  /** 个股所属产业链与环节（链式扫描的关键查询） */
+  async getStockChain(symbol: string): Promise<ProviderResponse> {
+    const response = await this.client.get(`/api/stocks/${symbol}/chain`)
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
+  /** 链式扫描：按环节分组 + 可选挂实时行情 */
+  async scanIndustryChain(name: string, params: { include_quotes?: boolean } = {}): Promise<ProviderResponse> {
+    const response = await this.client.post(`/api/industry-chains/${encodeURIComponent(name)}/scan`, params)
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
   /** 指数成分股（如 000300 → 沪深300 成分代码列表） */
   async getIndexConstituents(symbol: string): Promise<ProviderResponse> {
     const response = await this.client.get(`/api/provider/index/${symbol}/constituents`)

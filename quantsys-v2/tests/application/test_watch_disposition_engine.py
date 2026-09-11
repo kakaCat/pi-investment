@@ -160,8 +160,12 @@ def test_notifier_skips_channel_but_still_records_when_deduped():
     assert repo.recorded[0]['dup_of'] == 42
 
 
-def test_notifier_skips_channel_for_auto_observed():
-    """P8：观察类（auto_observed）不即时推送，但必须落库（账不丢）"""
+def test_observer_class_is_pushed_to_user():
+    """观察类**必须推送**（2026-09-11 用户否决了我的抑制方案）
+
+    用户定位：通知是给用户看的事实——不该由机器替用户过滤掉一整类信息。
+    降噪要靠"让 agent 把规则设好"，不是在通知层静默吞掉。
+    """
     repo = FakeTriggerRepo()
     facade = FakeFacade()
     notifier = WatchNotifier(trigger_repo=repo, notification_facade=facade, ws_url=None)
@@ -173,7 +177,7 @@ def test_notifier_skips_channel_for_auto_observed():
     notifier.notify(rule, rule.conditions[0], quote, result,
                     disposition="auto_observed", disposition_reason="观察类（意图门）")
 
-    assert facade.sent == 0, "观察类不得即时推送（进了日终汇总就不该打扰）"
-    assert len(repo.recorded) == 1, "观察类仍须落库，账不能丢"
-    assert repo.recorded[0]["notified"] is False
+    assert facade.sent == 1, "观察类必须推送给用户（用户 2026-09-11 明确要求）"
+    assert len(repo.recorded) == 1, "观察类也须落库"
+    assert repo.recorded[0]["notified"] is True, "推送成功 → notified=True"
     assert repo.recorded[0]["disposition"] == "auto_observed"

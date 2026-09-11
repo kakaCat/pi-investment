@@ -27,6 +27,12 @@ from adapters.outbound.datasources.providers.kline.akshare import AkshareKlinePr
 from adapters.outbound.datasources.providers.minute_kline.database import DatabaseMinuteKlineProvider
 from adapters.outbound.datasources.providers.minute_kline.tencent import TencentMinuteKlineProvider
 from adapters.outbound.datasources.providers.minute_kline.sina import SinaMinuteKlineProvider
+from adapters.outbound.datasources.providers.industry_chain.curated import CuratedChainProvider
+from adapters.outbound.datasources.providers.industry_chain.eastmoney_revenue import (
+    EastmoneyRevenueProvider, ThsRevenueProvider,
+)
+from adapters.outbound.datasources.providers.industry_chain.akshare_concept import AkshareConceptProvider
+from adapters.outbound.datasources.providers.industry_chain.database import DatabaseChainProvider
 from adapters.outbound.datasources.providers.sector.eastmoney import EastmoneySectorProvider
 from adapters.outbound.datasources.providers.sector.akshare import AkshareSectorProvider
 from adapters.outbound.datasources.providers.index.akshare import AkshareIndexProvider
@@ -121,6 +127,38 @@ class DataProviderManager(IDataProviderManager):
         self.minute_kline_providers.append(SinaMinuteKlineProvider())
         self.minute_kline_providers.append(DatabaseMinuteKlineProvider(get_minute_kline_repo()))
 
+        # 产业链图谱 providers（RFC 015 §2.3 / §1.5，2026-09-11 REQ-cf627b P2）
+        # 三条子链路刻意分开（每类的上游通道与降级策略不同）：
+        # - 拓扑：curated（人工策展 seed，**权威且不可降级**）→ database_chain（stale 兜底）
+        #   说明：本节数据的"多源"要求不适用——无现成产业链接口，拓扑必须人工策展
+        #   （RFC §2.3/§7：禁止 LLM 自动生成拓扑），故仍是"权威源 + DB 兜底"两段。
+        # - 归位证据：eastmoney_revenue（东财 F10 主营构成，带占比）→ ths_revenue（同花顺 F10
+        #   产品构成，独立通道、无占比）→ database_chain（上次落库值，stale）。**≥2 独立通道**。
+        # - 候选/补全：akshare_concept（新浪行业成分，低置信，只作候选与交叉校验）
+        from adapters.outbound.repositories.industry_chain_repository import get_industry_chain_repo
+        self.curated_chain_provider = CuratedChainProvider()
+        self.eastmoney_revenue_provider = EastmoneyRevenueProvider()
+        self.ths_revenue_provider = ThsRevenueProvider()
+        self.concept_chain_provider = AkshareConceptProvider()
+        self.database_chain_provider = DatabaseChainProvider(get_industry_chain_repo())
+        self.industry_chain_topology_providers = [
+            self.curated_chain_provider,      # 放最前：权威拓扑
+            self.database_chain_provider,     # 放最后：stale 兜底
+        ]
+        self.industry_chain_revenue_providers = [
+            self.eastmoney_revenue_provider,
+            self.ths_revenue_provider,
+            self.database_chain_provider,
+        ]
+        self.industry_chain_concept_providers = [
+            self.concept_chain_provider,
+        ]
+        self.industry_chain_providers = (
+            self.industry_chain_topology_providers +
+            self.industry_chain_revenue_providers +
+            self.industry_chain_concept_providers
+        )
+
         # Health tracking (cache provider channel status)
         self.provider_stats: Dict[str, Dict[str, int]] = {}
         # Dynamic priority: providers with high failure rate get temporarily deprioritized
@@ -142,9 +180,16 @@ class DataProviderManager(IDataProviderManager):
             self.sector_providers +
             self.stock_providers +
             self.kline_providers +
-            self.minute_kline_providers
+            self.minute_kline_providers +
+            self.industry_chain_providers
         )
+        seen_names = set()
         for provider in all_providers:
+            # 同一实例可挂在多个子链路上（如 database_chain 同时做拓扑/归位兜底），
+            # 统计与熔断器按 name 只登记一次，避免重复初始化把计数清零。
+            if provider.name in seen_names:
+                continue
+            seen_names.add(provider.name)
             self.provider_stats[provider.name] = {
                 'success': 0,
                 'failure': 0,
@@ -1226,6 +1271,67 @@ class DataProviderManager(IDataProviderManager):
                 data = result.get('data')
                 return StockData(**data) if isinstance(data, dict) else data
         return None
+
+    # ---------------------------------------------------------------- 产业链图谱
+    # RFC 015 §2.3 / §1.5（2026-09-11 REQ-cf627b P2）。返回值沿用 _try_providers 的统一结构：
+    #   {success, data, source, attempted_sources} / {success=False, error, attempted_sources, provider_errors}
+    # 契约：全部源失败 → success=False（**显式失败**）；某源返回空 → 继续下一源；
+    # 禁止用空数组冒充成功（失败与空结果语义分离，§1.5.2 硬约束 5）。
+
+    def list_industry_chains(self) -> dict:
+        """产业链清单（人工策展 → DB 兜底）"""
+        return self._try_providers(self.industry_chain_topology_providers, 'list_chains')
+
+    def get_industry_chain(self, chain_id_or_name: str) -> dict:
+        """单链环节 + 成员（人工策展 → DB 兜底，DB 命中即 stale）"""
+        return self._try_providers(
+            self.industry_chain_topology_providers, 'get_chain', chain_id_or_name,
+        )
+
+    def get_industry_chain_topology(self, chain_id_or_name: str) -> dict:
+        """**仅人工策展源**取拓扑（不可降级）
+
+        为什么单独开一个口子：拓扑错了，整条链的成员归位全错（比无数据更危险）。
+        故 build_chain 必须走本方法——策展源取不到就显式失败，不允许任何下游源"补"拓扑。
+        """
+        return self._try_providers(
+            [self.curated_chain_provider], 'get_chain', chain_id_or_name,
+        )
+
+    def get_industry_chain_revenue(self, symbol: str) -> dict:
+        """个股主营/产品构成（东财 F10 带占比 → 同花顺 F10 文本 → DB 缓存）
+
+        多源矩阵（§1.5.2 硬约束 1）：东财与同花顺是**不同上游通道**；DB 为最后一级兜底
+        （返回行带 stale=True，调用方必须标注）。
+
+        **为什么分两段调用而不是一个列表**：`_try_providers` 内部按健康分排序（动态降权），
+        实测（2026-09-11，造船链 8 只标的）同花顺会因"零失败"被排到东财之前——东财只要遇到
+        一只没有主营构成数据的标的（如中国重工 601989 返回空）即计一次失败，健康分被反超，
+        后续标的全部降级到同花顺，**白丢带营收占比的硬证据**（占比是成员归位的唯一硬证据）。
+        两段调用 = 显式表达"权威通道优先、文本通道兜底"，同时仍复用 _try_providers 的
+        超时/熔断/attempted_sources 机制，不另起链路。
+        """
+        primary = self._try_providers([self.eastmoney_revenue_provider], 'get_revenue_exposure', symbol)
+        if primary.get('success'):
+            return primary
+        fallback = self._try_providers(
+            [self.ths_revenue_provider, self.database_chain_provider], 'get_revenue_exposure', symbol,
+        )
+        fallback['attempted_sources'] = (
+            (primary.get('attempted_sources') or []) + (fallback.get('attempted_sources') or [])
+        )
+        merged_errors = dict(primary.get('provider_errors') or {})
+        merged_errors.update(fallback.get('provider_errors') or {})
+        fallback['provider_errors'] = merged_errors
+        return fallback
+
+    def get_industry_chain_candidates(self, sector_name: str) -> dict:
+        """行业板块成员（低置信候选源：新浪行业，经 akshare）"""
+        return self._try_providers(self.industry_chain_concept_providers, 'get_chain', sector_name)
+
+    def list_industry_chain_candidates(self) -> dict:
+        """候选板块清单（新浪行业）"""
+        return self._try_providers(self.industry_chain_concept_providers, 'list_chains')
 
     def get_provider_stats(self) -> Dict[str, Dict[str, Any]]:
         """获取所有 provider 的健康状态（IDataProviderManager 接口方法）"""

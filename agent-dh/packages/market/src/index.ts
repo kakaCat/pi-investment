@@ -9,6 +9,9 @@ import { createSwingPointsTool } from './tools/SwingPointsTool';
 import { createRegimeDailyTool } from './tools/RegimeDailyTool';
 import { createMainlineScanTool } from './tools/MainlineScanTool';
 import { createMainlineStocksTool } from './tools/MainlineStocksTool';
+import { createChainListTool } from './tools/ChainListTool';
+import { createChainScanTool } from './tools/ChainScanTool';
+import { createSymbolChainTool } from './tools/SymbolChainTool';
 
 /**
  * Minimal OsMemoryStore replacement (inlined from deleted @pi-investment/os-memory)
@@ -148,5 +151,10 @@ export default class MarketPlugin extends Service {
 
     // M2-1: 主线→标的映射器（RFC 004/005，2026-08-22）
     ctx.tools.register(createMainlineStocksTool(qv2));
+
+    // P2/RFC 015 §2 产业链图谱（2026-09-11）：链式扫描从"手写成员"变为"查表 + 证据"
+    ctx.tools.register(createChainListTool(qv2));
+    ctx.tools.register(createChainScanTool(qv2));
+    ctx.tools.register(createSymbolChainTool(qv2));
   }
 }
