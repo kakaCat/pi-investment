@@ -838,6 +838,24 @@ export class QuantsysV2Client {
     return this.unwrap<WatchRule[]>(response.data, 'listWatchRules');
   }
 
+  /**
+   * 盯盘触发记录（2026-09-11，w-c8cae280）
+   *
+   * 为什么需要：后端 /api/watch/rules 不返回 triggered_count，watch_list 工具层
+   * 曾用 `?? 0` 兜底 → 53 条规则全部显示「从未触发」，而同一时刻 watch_triggers
+   * 里规则 #135 当日已触发 4 次。这个假 0 直接造成「盯盘引擎失效」的误判。
+   * 本方法提供真实计数的数据来源。
+   * Response: {success, data: {triggers: [...]}}
+   */
+  async listWatchTriggers(symbol?: string, limit: number = 500): Promise<any[]> {
+    const qs = new URLSearchParams();
+    if (symbol) qs.set('symbol', symbol);
+    qs.set('limit', String(limit));
+    const response = await this.client.get(`/api/watch/triggers?${qs.toString()}`);
+    const data = this.unwrap<any>(response.data, 'listWatchTriggers');
+    return Array.isArray(data) ? data : (data?.triggers ?? []);
+  }
+
   // ==================== Portfolio/Trading APIs ====================
 
   /**
