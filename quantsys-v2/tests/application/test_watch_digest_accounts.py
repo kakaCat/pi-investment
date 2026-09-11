@@ -131,6 +131,20 @@ def test_wake_fans_out_per_account_with_scope_instruction():
     assert "agent_brain" not in by_acct["agent_virtual"]["data"]["digest"]
 
 
+def test_wake_carries_per_account_authority():
+    """授权按账户给：agent 自有账户可自主下单；用户账户只提醒（用户 2026-09-11 定调）"""
+    agent = _Agent()
+    rules = [_Rule(7, "600519", account="agent_virtual"),
+             _Rule(8, "600036", account="user_main_simulation")]
+    trigs = [_Trig(17, 7, "600519"), _Trig(18, 8, "600036")]
+    _svc(agent=agent, rules=rules, trigs=trigs).maybe_wake(now=TRADING_NOW)
+    by_acct = {c["data"]["account_name"]: c["data"] for c in agent.calls}
+    assert by_acct["agent_virtual"]["autonomy"] == "autonomous"
+    assert "你可以自主操作" in by_acct["agent_virtual"]["instruction"]
+    assert by_acct["user_main_simulation"]["autonomy"] == "remind_only"
+    assert "不得下单" in by_acct["user_main_simulation"]["instruction"]
+
+
 # ── 投送：账户为空 = 数据缺陷（关键口径）────────────────────
 def test_unassigned_still_wakes_agent_and_flags_defect():
     """账户为空是**规则数据缺陷**，不是投送模式：

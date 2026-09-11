@@ -200,9 +200,28 @@ class WatchDigestService:
         from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
         return WatchDeliveryPolicy().resolve(account=account, category=category)
 
+    def _resolve_autonomy(self, account: Optional[str]) -> str:
+        """账户 → 授权等级（agent 自有账户可自主操作；用户账户只提醒）"""
+        from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
+        return WatchDeliveryPolicy().resolve_autonomy(account)
+
     @staticmethod
-    def _instruction(account: Optional[str]) -> str:
-        """唤醒指令：账户作用域纪律（同 agent-brain 例行任务的写法）"""
+    def _instruction(account: Optional[str], autonomy: Optional[str] = None) -> str:
+        """唤醒指令：账户作用域纪律 + **授权等级**（用户 2026-09-11 定调）
+
+        授权按账户给：agent 自有账户（agent_virtual/agent_brain）agent 自己操作；
+        用户账户（user_main_simulation）只提醒、不得下单。未知账户兜底只提醒。
+        """
+        from domain.notification.policies.watch_delivery_policy import AUTONOMOUS, REMIND_ONLY
+        if autonomy == AUTONOMOUS:
+            authority = ("本账户是 **agent 自有账户**：**你可以自主操作**（含下单），"
+                         "按交易宪法与 R-001~R-009 执行，下单 reason 写明规则ID+数据依据，"
+                         "并用 decision_audit 留痕。")
+        elif autonomy == REMIND_ONLY:
+            authority = ("本账户**属于用户（真身）**：你**不得下单**，只做提醒、预案更新与规则维护；"
+                         "需要交易时用 ask_user_question 拉起用户确认，不得替用户决定。")
+        else:
+            authority = "授权未明确：按最保守处理——只提醒，不下单。"
         # 账户为空是**规则数据缺陷**（不是投送模式）：照常唤醒 agent，但第一优先是把归属补齐。
         scope = ("本摘要仅属于账户 **%s**：所有账户查询/交易工具必须显式传 account_name=\"%s\"，"
                  "禁止操作其他账户。" % (account, account)) if account else (
@@ -211,10 +230,9 @@ class WatchDigestService:
                  "agent_brain / v13_simulation / user_main_simulation 之一）；补归属前不得下单"
                  "（无账户无法交易），也不得把本摘要当作已处置。")
         return (
-            scope +
+            scope + authority +
             "按标的处置待处置触发：可自决的 PATCH /api/watch/triggers/{id} 置 handled 并写动作与结果；"
             "判不动的置 ignored，reason 必须含「为什么不动 + 下次什么条件下才动(NEXT)」；"
-            "需用户决策的不要替用户决定，留在待决策队列由交互会话用 ask_user_question 拉起；"
             "遵守 R-001~R-009 与交易宪法。"
         )
 
@@ -255,6 +273,7 @@ class WatchDigestService:
             if wake_count >= self.daily_cap:
                 break
             target_agent = self._resolve_target(acct)
+            autonomy = self._resolve_autonomy(acct)
             payload = {
                 "account_name": acct,
                 "count": seg["count"],
@@ -265,7 +284,9 @@ class WatchDigestService:
                 "since": last_at.isoformat() if last_at else None,
                 "digest": seg["text"],
                 "target_agent": target_agent,
-                "instruction": self._instruction(acct),
+                # 授权等级（账户维度）：autonomous=agent 自己操作 / remind_only=只提醒不下单
+                "autonomy": autonomy,
+                "instruction": self._instruction(acct, autonomy),
             }
             if acc_key == UNASSIGNED:
                 payload["data_defect"] = (

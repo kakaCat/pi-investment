@@ -5,7 +5,8 @@
 import pytest
 
 from domain.notification.policies.watch_delivery_policy import (
-    AGENT_DH, AGENT_TS, DEFAULT_AGENT, _parse_map, WATCH_AGENTS, WatchDeliveryPolicy,
+    AGENT_DH, AGENT_TS, AUTONOMOUS, DEFAULT_AGENT, REMIND_ONLY, _parse_map, WATCH_AGENTS,
+    WatchDeliveryPolicy,
 )
 
 
@@ -64,6 +65,28 @@ def test_env_map_parsing_is_fail_soft():
     assert _parse_map('["agent-ts"]') == {}
     assert _parse_map('{"market_state": "agent-ts"}') == {"market_state": AGENT_TS}
     assert _parse_map('{"a": "", "b": 3}') == {}
+
+
+def test_autonomy_follows_account_ownership():
+    """用户 2026-09-11：agent 的账户 agent 自己操作；用户账户只提醒"""
+    p = WatchDeliveryPolicy()
+    assert p.resolve_autonomy("agent_virtual") == AUTONOMOUS
+    assert p.resolve_autonomy("agent_brain") == AUTONOMOUS
+    assert p.resolve_autonomy("user_main_simulation") == REMIND_ONLY
+    assert p.resolve_autonomy("v13_simulation") == REMIND_ONLY   # 策略账户先保守
+
+
+def test_autonomy_defaults_to_remind_when_unknown():
+    """授权必须显式给予：未知账户/无账户（缺陷）一律只提醒"""
+    p = WatchDeliveryPolicy()
+    assert p.resolve_autonomy(None) == REMIND_ONLY
+    assert p.resolve_autonomy("") == REMIND_ONLY
+    assert p.resolve_autonomy("agent_virtual_typo") == REMIND_ONLY
+
+
+def test_autonomy_override_can_promote_account():
+    p = WatchDeliveryPolicy(autonomy={"v13_simulation": AUTONOMOUS}, autonomy_overrides={})
+    assert p.resolve_autonomy("v13_simulation") == AUTONOMOUS
 
 
 def test_policy_does_not_accept_message_channel():

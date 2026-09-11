@@ -59,6 +59,28 @@ DEFAULT_AGENT_BY_CATEGORY: Dict[str, str] = {
 ACCOUNT_MAP_ENV = "WATCH_ACCOUNT_AGENT_MAP"
 CATEGORY_MAP_ENV = "WATCH_CATEGORY_AGENT_MAP"
 
+# ── 授权等级（账户维度）：谁有权动手 ────────────────────────────────────────
+# 用户 2026-09-11 定调：「agent 的账户 agent 自己操作」「用户是真身（只提醒）」。
+# 即同一个 agent，对不同账户的授权不同：
+#   · agent 自有账户（agent_virtual / agent_brain）→ autonomous：agent 自己操作，含下单
+#   · 用户账户（user_main_simulation）→ remind_only：不得下单，只提醒 + 更新预案，
+#     需要交易时用 ask_user_question 拉起用户确认
+AUTONOMOUS = "autonomous"       # agent 自己操作（可下单）
+REMIND_ONLY = "remind_only"     # 只提醒（不得下单）
+
+#: 账户 → 授权等级（默认表；改这张表 = 改授权。生产可按 simulation_account.account_type 校准：
+#: agent=autonomous / user=remind_only / strategy=待明确，先按保守处理）
+DEFAULT_AUTONOMY_BY_ACCOUNT: Dict[str, str] = {
+    "agent_virtual": AUTONOMOUS,
+    "agent_brain": AUTONOMOUS,
+    "user_main_simulation": REMIND_ONLY,
+    "v13_simulation": REMIND_ONLY,     # 策略账户先保守：待用户明确后再放开
+}
+
+#: 兜底：未知账户 / 无账户一律最保守（只提醒）
+DEFAULT_AUTONOMY = REMIND_ONLY
+AUTONOMY_MAP_ENV = "WATCH_ACCOUNT_AUTONOMY_MAP"
+
 
 def _parse_map(raw: Optional[str]) -> Dict[str, str]:
     """解析覆盖表；非法输入一律忽略（配置错误不该中断路由）"""
@@ -83,13 +105,32 @@ class WatchDeliveryPolicy:
     def __init__(self, accounts: Optional[Dict[str, str]] = None,
                  categories: Optional[Dict[str, str]] = None,
                  account_overrides: Optional[Dict[str, str]] = None,
-                 category_overrides: Optional[Dict[str, str]] = None):
+                 category_overrides: Optional[Dict[str, str]] = None,
+                 autonomy: Optional[Dict[str, str]] = None,
+                 autonomy_overrides: Optional[Dict[str, str]] = None):
         self.accounts = dict(accounts) if accounts is not None else dict(DEFAULT_AGENT_BY_ACCOUNT)
         self.categories = dict(categories) if categories is not None else dict(DEFAULT_AGENT_BY_CATEGORY)
         self.account_overrides = (dict(account_overrides) if account_overrides is not None
                                   else _parse_map(os.getenv(ACCOUNT_MAP_ENV)))
         self.category_overrides = (dict(category_overrides) if category_overrides is not None
                                    else _parse_map(os.getenv(CATEGORY_MAP_ENV)))
+        self.autonomy = (dict(autonomy) if autonomy is not None
+                         else dict(DEFAULT_AUTONOMY_BY_ACCOUNT))
+        self.autonomy_overrides = (dict(autonomy_overrides) if autonomy_overrides is not None
+                                   else _parse_map(os.getenv(AUTONOMY_MAP_ENV)))
+
+    def resolve_autonomy(self, account: Optional[str] = None) -> str:
+        """账户 → 授权等级（autonomous=agent 自己操作 / remind_only=只提醒）
+
+        未知账户或无账户（数据缺陷）一律兜底 remind_only：**授权必须显式给予，不能默认放开**。
+        """
+        key = (account or "").strip()
+        if key:
+            for table in (self.autonomy_overrides, self.autonomy):
+                level = table.get(key)
+                if level in (AUTONOMOUS, REMIND_ONLY):
+                    return level
+        return DEFAULT_AUTONOMY
 
     def resolve(self, account: Optional[str] = None, category: Optional[str] = None) -> str:
         """账户优先，其次事件分类，最后兜底（账户是责任归属的事实来源）"""
