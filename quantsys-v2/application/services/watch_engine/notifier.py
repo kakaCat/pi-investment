@@ -259,6 +259,32 @@ class WatchNotifier:
             action_amount_yuan=action_amount_yuan,
         )
 
+    def record_governance(self, rule, reason: str, detail: dict = None):
+        '''记录一条规则治理项（P8：去重从通知层的橡皮擦升级为规则层的体检项）。
+
+        2026-09-11 用户指出：去重合并是业务上的偷懒——同标的同向被多条规则重复表达时，
+        静默合并只是让症状闭嘴，根因（规则重叠）仍在。故跨规则重叠时：
+          1. 仍然合并通知（避免同一次跌穿响多次）
+          2. 另外落一条 meta_review 治理项 → 进未处置清单 → agent 决定合并/调参/退役
+        '''
+        if self.trigger_repo is None:
+            return None
+        try:
+            return self.trigger_repo.record(
+                rule_id=getattr(rule, 'id', None),
+                symbol=getattr(rule, 'symbol', None),
+                condition={'type': 'rule_overlap', 'params': detail or {}},
+                trigger_price=None,
+                detail={'message': reason, **(detail or {})},
+                notified=False,
+                disposition='meta_review',
+                disposition_reason=reason,
+                disposition_by='system',
+            )
+        except Exception as e:
+            logger.error('治理项落库失败', error=str(e))
+            return None
+
     def _broadcast_ws(self, payload: TriggerPayload):
         """WebSocket 广播"""
         if not self.ws_url:

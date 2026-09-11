@@ -69,7 +69,10 @@ class WatchEngine:
         self._latched: set = set()
         # 去重窗（REQ-f08def）：key=(归一化标的,方向) -> (最近一次触发时间, 触发记录 id)
         # 同标的同向在该窗内只通知一次，重复的仍落库（disposition='deduped' + dup_of）
-        self._recent_notified: Dict[Tuple[str, str], Tuple[datetime, int]] = {}
+        # key -> (最近触发时间, 触发记录 id, 规则 id)。带 rule_id 才能分辨
+        # 同一条规则多条件重复（物理去重，保留）与跨规则重叠（业务问题，转治理）
+        self._recent_notified: Dict[Tuple[str, str], Tuple[datetime, int, int]] = {}
+        self._overlap_reported: set = set()
         self.dedup_window_sec = DEDUP_WINDOW_SEC
         # 介入判据（REQ-f08def P3，RFC 014 v3 §3）：金额门/增量门/经济门/预算门所需的注入
         self._position_value_provider = position_value_provider
@@ -244,6 +247,23 @@ class WatchEngine:
                         f'合并到触发 #{prev[1]}，不再重复通知'
                     )
                     dup_of = prev[1]
+                    # 跨规则重叠 → 属于「规则该重设」的业务问题（用户 2026-09-11）：
+                    # 除合并通知外，另落一条治理项交 agent 处置（同一天同一对规则只报一次）
+                    prev_rule_id = prev[2] if len(prev) > 2 else None
+                    if prev_rule_id is not None and prev_rule_id != rule.id:
+                        pair = tuple(sorted((int(prev_rule_id), int(rule.id))))
+                        if pair not in self._overlap_reported:
+                            self._overlap_reported.add(pair)
+                            reason = ('规则重叠：规则 #%s 与 #%s 在同一事件（%s/%s）上重复表达 → '
+                                      '建议合并为一条多档规则、调阈值或退役其一' %
+                                      (pair[0], pair[1], key[0], key[1]))
+                            try:
+                                self.notifier.record_governance(
+                                    rule, reason,
+                                    {'overlap_with_rule': pair[0], 'key': list(key)})
+                                logger.info('规则重叠已转治理', rules=list(pair), key=list(key))
+                            except Exception as e:
+                                logger.error('规则重叠治理项记录失败', error=str(e))
 
                 try:
                     trigger = self.notifier.notify(
@@ -260,7 +280,7 @@ class WatchEngine:
                     continue
                 if disposition != 'deduped':
                     self._recent_notified[key] = (
-                        now, getattr(trigger, 'id', 0) or 0)
+                        now, getattr(trigger, 'id', 0) or 0, int(getattr(rule, 'id', 0) or 0))
                 if disposition == 'escalated':
                     # 增量门 + 预算记账：escalated = 进 agent 摘要队列 = 一次潜在介入
                     norm = normalize_symbol(rule.symbol)
@@ -354,6 +374,7 @@ class WatchEngine:
         # 跨天全量重新武装：新的一天允许持续成立的条件再报一次（每日最多一次）
         self._latched.clear()
         self._recent_notified.clear()
+        self._overlap_reported.clear()
         self._last_intervention.clear()
         self._interventions_today = 0
         active_ids = {r.id for r in self.rule_repo.list_enabled()}
