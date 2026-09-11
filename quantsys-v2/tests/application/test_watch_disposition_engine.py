@@ -158,3 +158,22 @@ def test_notifier_skips_channel_but_still_records_when_deduped():
     assert repo.recorded[0]['notified'] is False
     assert repo.recorded[0]['disposition'] == 'deduped'
     assert repo.recorded[0]['dup_of'] == 42
+
+
+def test_notifier_skips_channel_for_auto_observed():
+    """P8：观察类（auto_observed）不即时推送，但必须落库（账不丢）"""
+    repo = FakeTriggerRepo()
+    facade = FakeFacade()
+    notifier = WatchNotifier(trigger_repo=repo, notification_facade=facade, ws_url=None)
+    rule = _rule(120, "600150", [{"type": "price_break",
+                                  "params": {"price": 39.25, "direction": "below"}}])
+    quote = SimpleNamespace(symbol="600150", price=39.0, prev_close=40.0, name="中国船舶")
+    result = SimpleNamespace(value=39.0, message="现价 39.0 ≤ 阈值 39.25（下破）")
+
+    notifier.notify(rule, rule.conditions[0], quote, result,
+                    disposition="auto_observed", disposition_reason="观察类（意图门）")
+
+    assert facade.sent == 0, "观察类不得即时推送（进了日终汇总就不该打扰）"
+    assert len(repo.recorded) == 1, "观察类仍须落库，账不能丢"
+    assert repo.recorded[0]["notified"] is False
+    assert repo.recorded[0]["disposition"] == "auto_observed"

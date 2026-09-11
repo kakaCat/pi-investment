@@ -124,6 +124,16 @@ class WatchNotifier:
                                 disposition=disposition, disposition_reason=disposition_reason,
                                 dup_of=dup_of)
 
+        # P8（RFC 015）：观察类不即时推送，进日终汇总。
+        # 用户原则「通知是给用户看的事实，不是给用户做的题目」「不该发的一条都不发」——
+        # auto_observed 表示"只是看了一眼"，不构成需要即时知道的事实。
+        # 仍落库（notified=False），日终汇总里会体现，账不丢。
+        if disposition == 'auto_observed':
+            logger.info('观察类触发不即时推送（进日终汇总）', rule_id=getattr(rule, 'id', None),
+                        symbol=getattr(rule, 'symbol', None), reason=disposition_reason)
+            return self._record(rule, condition, quote, result, notified=False,
+                                disposition=disposition, disposition_reason=disposition_reason)
+
         # 1. 构建 TriggerPayload
         payload = self._build_payload(rule, condition, quote, result, escalation_reason)
         
