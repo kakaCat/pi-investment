@@ -124,3 +124,29 @@ class RuleHealthReport:
     reason: str
     deviation_pct: Optional[float] = None
     checked_at: datetime = field(default_factory=datetime.now)
+
+
+@dataclass(frozen=True)
+class MarketState:
+    """市场状态快照（RFC 014 v3 §1.1/§1.3：盯盘是紧盯市场的工具）
+
+    市场级盯盘的观察对象不是个股，而是指数/涨停家数/量能/情绪/板块强度。
+    缺数据时必须显式记入 degraded（诚实标注），不得用 0 冒充——0 会被判定成"涨停家数=0 → 冰点"，
+    从而产出错误的行动信号（2026-09-11 lessons：静默兜底会把缺陷伪装成事实）。
+    """
+    trade_date: str = ""
+    indices: Dict[str, Dict[str, Any]] = field(default_factory=dict)   # code -> {close, change_pct}
+    limit_up_count: Optional[int] = None
+    max_streak: Optional[int] = None
+    sentiment_score: Optional[float] = None
+    fear_greed_index: Optional[float] = None
+    advance_decline_ratio: Optional[float] = None
+    volume_ratio: Optional[float] = None
+    sectors: Dict[str, float] = field(default_factory=dict)            # 板块名 -> 涨跌幅%
+    degraded: List[str] = field(default_factory=list)                  # 不可用数据源
+
+    def index_change_pct(self, code: str) -> Optional[float]:
+        item = self.indices.get(code) or {}
+        v = item.get("change_pct")
+        return float(v) if v is not None else None
+

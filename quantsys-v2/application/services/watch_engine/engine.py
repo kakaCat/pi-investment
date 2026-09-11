@@ -52,7 +52,7 @@ class WatchEngine:
                  position_value_provider: Optional[Callable] = None,
                  account_total_provider: Optional[Callable] = None,
                  digest_service=None, ledger=None, meta_review_service=None,
-                 position_lifecycle_service=None):
+                 position_lifecycle_service=None, market_watch_service=None):
         self.rule_repo = rule_repo
         self.quote_service = quote_service
         self.notifier = notifier
@@ -89,6 +89,8 @@ class WatchEngine:
         # 持仓生命周期联动（P5）：买入成交 → 等买规则退役 + 补挂止损；清仓 → 卖出族收摊
         self.position_lifecycle_service = position_lifecycle_service
         self._last_lifecycle_date = None
+        # 市场级盯盘（P6）：指数/涨停家数/情绪/量能/板块——盯盘是紧盯市场的工具
+        self.market_watch_service = market_watch_service
         self._avg_volume_cache: Dict[str, float] = {}
         self._state_date = None
         self.fast_mode = False
@@ -282,6 +284,13 @@ class WatchEngine:
             self._recent_notified = {
                 k: v for k, v in self._recent_notified.items() if v[0].timestamp() >= cutoff
             }
+
+        # 市场级规则扫描（P6）：与个股 tick 分开的数据通道；服务自带节流与闩锁
+        try:
+            if self.market_watch_service is not None:
+                self.market_watch_service.scan_market_rules(now)
+        except Exception as e:
+            logger.error('市场级扫描异常', error=str(e))
 
         self.fast_mode = fast
         return events

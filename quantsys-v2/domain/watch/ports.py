@@ -107,3 +107,17 @@ class IWatchInterventionRepository(ABC):
     def summary_today(self) -> Any:
         pass
 
+
+
+class IMarketStateProvider(ABC):
+    """市场状态端口（REQ-f08def P6，RFC 014 v3 §1.1/§8）
+
+    市场级盯盘（指数/涨停家数/情绪/量能/板块）与个股盯盘的数据来源完全不同：
+    前者靠市场级快照，后者靠个股实时报价。取数实现放适配器层，应用/领域层只认本端口。
+    """
+
+    @abstractmethod
+    def get_state(self):
+        """返回 domain.watch.models.MarketState（缺数据项记入 degraded，不得用 0 冒充）"""
+        pass
+

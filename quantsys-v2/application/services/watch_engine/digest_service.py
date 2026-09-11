@@ -25,6 +25,7 @@ class WatchDigestService:
     """待处置触发的摘要与唤醒门（引擎 loop 调用 maybe_wake）"""
 
     def __init__(self, trigger_repo, rule_repo, agent_service=None, state_repo=None,
+                 market_watch_service=None,
                  min_interval_sec: int = 1500, daily_cap: int = 8, limit: int = 200):
         self.trigger_repo = trigger_repo
         self.rule_repo = rule_repo
@@ -32,6 +33,8 @@ class WatchDigestService:
         # 端口注入（ADR-001）：状态持久化交给 IWatchDigestStateRepository 适配器，
         # 应用层不得 get_engine()/裸 SQL
         self.state_repo = state_repo
+        # 市场状态摘要（P6）：agent 由此一眼看到"市场发生了什么"，不必再逐个工具取数
+        self.market_watch_service = market_watch_service
         self.min_interval_sec = min_interval_sec
         self.daily_cap = daily_cap
         self.limit = limit
@@ -107,13 +110,21 @@ class WatchDigestService:
         for t in rows:
             by_disp[t.disposition] = by_disp.get(t.disposition, 0) + 1
 
+        market_text = ""
+        if self.market_watch_service is not None:
+            try:
+                market_text = self.market_watch_service.summary_text() or ""
+            except Exception as e:
+                logger.warning("市场摘要生成失败", error=str(e))
+
         return {
             "gate": len(rows) > 0,
+            "market_summary": market_text,
             "count": len(rows),
             "by_disposition": by_disp,
             "group_count": len(groups),
             "groups": list(groups.values()),
-            "text": chr(10).join(lines),
+            "text": (market_text + chr(10) + chr(10) if market_text else "") + chr(10).join(lines),
         }
 
     # ── 唤醒门（引擎 loop 调用）────────────────────────────────

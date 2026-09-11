@@ -21,6 +21,8 @@ from adapters.outbound.repositories.watch_state_repository import (
 )
 from application.services.watch_engine.meta_review_service import WatchMetaReviewService
 from application.services.watch_engine.position_lifecycle_service import PositionLifecycleService
+from application.services.watch_engine.market_watch_service import MarketWatchService
+from adapters.outbound.datasources.market_state_provider import MarketStateProvider
 from adapters.outbound.repositories.simulation_position_repository import SimulationPositionRepository
 
 logger = structlog.get_logger(__name__)
@@ -79,6 +81,12 @@ def create_watch_engine() -> WatchEngine:
         except Exception:
             return None
 
+    _market_watch = MarketWatchService(
+        rule_repo=WatchRuleRepository(),
+        trigger_repo=WatchTriggerRepository(),
+        state_provider=MarketStateProvider(),
+    )
+
     # 摘要门（REQ-f08def P2/P4）：唤醒走 AgentNotificationService → POST /wake（官方通道）。
     #
     # ⚠️ 默认关闭，必须显式 WATCH_DIGEST_ENABLED=true 才生效（2026-09-11 w-c8cae280）。
@@ -92,6 +100,7 @@ def create_watch_engine() -> WatchEngine:
             rule_repo=WatchRuleRepository(),
             agent_service=AgentNotificationService(),
             state_repo=WatchDigestStateRepository(),   # 端口实现（ADR-001：SQL 只在适配器层）
+            market_watch_service=_market_watch,        # 摘要内嵌市场状态（P6）
         )
     else:
         digest_service = None
@@ -118,6 +127,8 @@ def create_watch_engine() -> WatchEngine:
             rule_repo=WatchRuleRepository(),
             position_repo=SimulationPositionRepository(),
         ),
+        # P6 市场级盯盘：取数走 IMarketStateProvider 端口，实现是 MarketStateProvider 适配器
+        market_watch_service=_market_watch,
     )
 
 
