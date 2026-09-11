@@ -6,7 +6,7 @@
 import logging
 from typing import Any, Dict
 
-from application.jobs.job_protocol import Job, JobResult
+from application.jobs.job_protocol import Job, JobResult, result_from_dict
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +62,7 @@ class V13WeeklyReportJob(Job):
         try:
             from infrastructure.jobs.weekly_report_job import execute
             result = execute(**params)
-            return JobResult.ok(
-                self.name,
-                message="V13 周报生成完成",
-                details=result
-            )
+            return result_from_dict(self.name, "V13 周报生成完成", result)
         except Exception as e:
             return JobResult.fail(self.name, str(e))
 

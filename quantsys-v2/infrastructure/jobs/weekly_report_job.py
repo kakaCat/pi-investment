@@ -233,7 +233,13 @@ class WeeklyReportJob:
         account = self.repo.get_account(account_name=self.ACCOUNT_NAME)
         if not account:
             logger.warning("账户不存在，跳过周报生成")
-            return
+            # 2026-09-11（w-f4aa1f6a）：不再静默 return None——账户缺失是配置错误，
+            # 必须让调度层看到 failed（原实现返回 None 被包装成假成功）
+            return {
+                'status': 'failed',
+                'error': f'账户不存在: {self.ACCOUNT_NAME}',
+                'account_name': self.ACCOUNT_NAME,
+            }
 
         # 计算周初和周末账户价值
         initial_value = self._get_account_value_at_date(start_date)
@@ -318,17 +324,37 @@ class WeeklyReportJob:
             'observation_progress': observation_progress
         }
 
+        # 2026-09-11（w-f4aa1f6a）：通知结果必须回传，不再"发送失败仍报完成"
+        send_ok = False
+        send_error = None
         try:
             result = self.notification_facade.send_weekly_report(notification_data)
 
             if result.success:
                 logger.info("周报发送成功")
+                send_ok = True
             else:
-                logger.error("周报发送失败")
+                send_error = getattr(result, 'error', None) or '通知渠道返回 success=False'
+                logger.error(f"周报发送失败: {send_error}")
         except Exception as e:
+            send_error = str(e)
             logger.error(f"发送周报异常: {e}")
 
         logger.info("周报生成完成")
+        return {
+            'status': 'completed' if send_ok else 'failed',
+            'strategy': 'v13',
+            'account_name': self.ACCOUNT_NAME,
+            'start_date': start_date,
+            'end_date': end_date,
+            'initial_value': initial_value,
+            'final_value': final_value,
+            'weekly_return_pct': round(weekly_return * 100, 4),
+            'trade_count': len(trades),
+            'rebalance_count': rebalance_count,
+            'notification_sent': send_ok,
+            'error': send_error,
+        }
 
 
 def main():
@@ -338,13 +364,13 @@ def main():
     config_path = project_root / 'live_trading' / 'config_simulation.yaml'
 
     job = WeeklyReportJob(config_path=str(config_path))
-    job.run()
+    return job.run()
 
 
 # Job注册点 - scheduler会调用这个函数
 def execute(**params):
-    """Scheduler调用的入口函数"""
-    main()
+    """Scheduler调用的入口函数（返回结构化结果供调度层判定成败）"""
+    return main()
 
 
 if __name__ == '__main__':

@@ -31,6 +31,25 @@ class JobResult:
         return cls(success=False, action=action, error=error)
 
 
+def result_from_dict(action: str, ok_message: str, result: Any) -> JobResult:
+    """把 job 函数返回 dict 的 status 映射为 JobResult（统一契约，唯一实现）。
+
+    2026-09-11（w-f4aa1f6a）：修复"job 内部失败但任务 success"的静默失败。
+    strategy_daily_check / weekly_report_job 等 job 函数用「返回 dict +
+    status='failed'」表达失败（不抛异常），包装层若无条件 JobResult.ok，
+    任务状态永远全绿。实测后果：e05bd620 重构误删 live 配置后，v13/v14
+    策略日检连续失败（get_config 抛"策略配置不存在"）却无人发现。
+    """
+    if isinstance(result, dict):
+        status = str(result.get('status') or '').lower()
+        if status in ('failed', 'error', 'fail'):
+            return JobResult.fail(
+                action,
+                result.get('error') or result.get('message') or f'job 内部 status={status}',
+            )
+    return JobResult.ok(action, message=ok_message, details=result)
+
+
 class Job(ABC):
     """所有定时任务必须实现的接口"""
 

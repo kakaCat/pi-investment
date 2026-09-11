@@ -8,7 +8,7 @@ import asyncio
 import logging
 from typing import Any, Dict
 
-from application.jobs.job_protocol import Job, JobResult
+from application.jobs.job_protocol import Job, JobResult, result_from_dict
 
 logger = logging.getLogger(__name__)
 
@@ -23,14 +23,7 @@ def _ok_or_fail(job_name: str, ok_message: str, result: Any) -> JobResult:
     v13/v14 策略日检连续失败却无人发现（错误只落在日志里，任务状态全绿）。
     与 PoolRefreshDailyJob 既有写法对齐。
     """
-    if isinstance(result, dict):
-        status = str(result.get('status') or '').lower()
-        if status in ('failed', 'error', 'fail'):
-            return JobResult.fail(
-                job_name,
-                result.get('error') or result.get('message') or f'job 内部 status={status}',
-            )
-    return JobResult.ok(job_name, message=ok_message, details=result)
+    return result_from_dict(job_name, ok_message, result)
 
 
 class V13DailyCheckJob(Job):
