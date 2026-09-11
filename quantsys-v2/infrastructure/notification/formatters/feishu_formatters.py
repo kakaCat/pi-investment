@@ -31,99 +31,102 @@ class WatchTriggeredFormatter(FeishuFormatter):
         """
         return notification_type == NotificationType.WATCH_TRIGGERED
 
+    # ── 意图驱动的消息主体（REQ-f08def P8）──────────────────────────────
+    # 2026-09-11 用户反馈真实消息：中金黄金 触发盯盘条件 / 下破（弱势）——空仓暂不介入，
+    # 而该规则真实意图是【买入跟踪】（下破 25.5 = 进入买区）——通用方向建议与规则意图相反，
+    # 会误导决策。消息必须由 intent 驱动，先说清主体是谁、这条提醒为了什么。
+    INTENT_META = {
+        'trend_observe':    ('👀 趋势观察', '看趋势/结构是否变化：转强 → 升级为买入跟踪；转弱 → 考虑取消盯盘'),
+        'entry':            ('🎯 买入跟踪', '等买点：是否已进入买区、要不要建仓'),
+        'add_position':     ('➕ 加仓跟踪', '是否该加仓、加多少'),
+        't_trade':          ('🔁 做T跟踪', '区间高抛低吸：找卖出的高点 / 回补的低点'),
+        'exit_stop':        ('🛑 止损盯盘', '浮亏触及止损线 —— 宪法要求必须执行，不得延后'),
+        'exit_take_profit': ('💰 止盈盯盘', '达到目标位：减仓锁利，还是继续持有'),
+        'exit_reduce':      ('📉 减仓盯盘', '触及减仓档：减多少、还是清仓'),
+    }
+    STAGE_LABELS = {
+        'discovered': '刚发现', 'tracking': '跟踪中', 'entry_triggered': '买点已触发',
+        'holding': '持仓中', 'exit_triggered': '卖点已触发', 'closed': '已收摊',
+    }
+
     def format(self, notification: Notification) -> Dict[str, Any]:
-        """格式化盯盘触发通知
-
-        Args:
-            notification: 通知对象
-
-        Returns:
-            Dict: 飞书卡片消息载荷
-        """
+        """格式化盯盘触发通知（意图驱动：主体 → 事实 → 为什么提醒 → 预案 → 下一步）"""
         vars = notification.variables
-
-        # 提取变量
         symbol = vars.get('symbol', 'N/A')
         name = vars.get('name', '')
         price = vars.get('price', 0)
         change_pct = vars.get('change_pct')
+        pnl_pct = vars.get('pnl_pct')
         condition = vars.get('condition', {})
         context = vars.get('context', '')
         trigger_level = vars.get('trigger_level', 'L1')
         escalation_reason = vars.get('escalation_reason')
-        
-        # 根据 trigger_level 和升级状态确定模式标签
+        intent = vars.get('intent')
+        stage = vars.get('lifecycle_stage')
+        account = vars.get('account')
+        next_hint = vars.get('next_action_hint')
+
+        intent_label, purpose = self.INTENT_META.get(
+            intent or '',
+            ('❓ 未标注意图', '这条规则没有声明意图——建议补 intent（无主规则=烂账）'))
+
         if trigger_level == 'L2' or escalation_reason:
             mode_tag = '🔔 需决策' if escalation_reason else '⚡ AI 介入'
         else:
             mode_tag = '📡 直发提醒'
 
-        # 构建显示名称
-        display = f"{name}（{symbol}）" if name else symbol
-
-        # 构建内容
+        display = name + '（' + symbol + '）' if name else symbol
         lines = [
-            f"`{mode_tag}`",
-            f"**{display}** 触发盯盘条件"
+            chr(96) + mode_tag + chr(96),
+            '**' + intent_label + '｜' + display + '**',
         ]
+        meta_bits = []
+        if stage:
+            meta_bits.append('阶段：' + self.STAGE_LABELS.get(stage, stage))
+        meta_bits.append('归属：' + (account or '通用观察'))
+        lines.append(' · '.join(meta_bits))
 
-        # 添加触发信息
         if notification.content:
-            lines.append(f"**触发**：{notification.content}")
+            lines.append('**触发**：' + notification.content)
 
-        # 添加价格信息
-        price_info = f"**当前价格**：¥{price:.2f}"
+        price_info = '**当前**：¥%.2f' % price
         if change_pct is not None:
-            price_info += f" ({change_pct:+.2f}%)"
+            price_info += ' (%+.2f%%)' % change_pct
+        if pnl_pct is not None:
+            price_info += '　盈亏 %+.2f%%' % pnl_pct
         lines.append(price_info)
 
-        # 方向建议
-        direction = self._get_direction_advice(condition)
-        if direction:
-            lines.append(direction)
+        lines.append('**这条提醒为了**：' + purpose)
 
-        # 操作预案（L1 直发时精简，L2 或升级时显示完整预案）
-        trigger_level = vars.get('trigger_level', 'L1')
         if context:
-            if trigger_level == 'L1' and not vars.get('escalation_reason'):
-                # L1 直发：只显示简化的操作提示
-                simplified = self._simplify_context(context, condition, price)
-                lines.append(f"**提示**：{simplified}")
+            if trigger_level == 'L1' and not escalation_reason:
+                lines.append('**预案**：' + self._simplify_context(context, condition, price))
             else:
-                # L2 或已升级：显示完整预案
-                lines.append(f"**预案**：{context}")
+                lines.append('**预案**：' + context)
 
-        content = "\n".join(lines)
-
-        # 选择颜色
-        color = self._get_color_by_condition(condition)
+        lines.append('**下一步**：' + (next_hint or '由 agent 汇总时判断（动作 / 继续观察 / 取消盯盘）'))
 
         return self.format_card(
-            title=f"💡 盯盘触发 - {display}",
-            content=content,
-            color=color
+            title=intent_label + ' · ' + display,
+            content=chr(10).join(lines),
+            color=self._get_color_by_condition(condition),
         )
 
     def _get_direction_advice(self, condition: dict) -> str:
-        """解读操作建议
+        """方向的中性事实描述。
 
-        Args:
-            condition: 条件字典
-
-        Returns:
-            str: 方向建议文本
+        2026-09-11 修正：原文案"下破（弱势）——持仓警惕止损，空仓暂不介入"是通用判断，
+        会与规则真实意图相反（如"下破=进入买区"的买入跟踪规则）。方向只作事实陈述，
+        建议由 intent 驱动的"这条提醒为了"承担。
         """
         if not isinstance(condition, dict):
             return ''
-
         params = condition.get('params') or {}
         direction = params.get('direction')
-
         if direction == 'above':
-            return '📈 **方向**：上破（强势）——持仓参考止盈/锁利，空仓为买入候选'
-        elif direction == 'below':
-            return '📉 **方向**：下破（弱势）——持仓警惕止损，空仓暂不介入'
-
+            return '📈 方向：上破（现价高于阈值）'
+        if direction == 'below':
+            return '📉 方向：下破（现价低于阈值）'
         return ''
 
     def _get_color_by_condition(self, condition: dict) -> str:

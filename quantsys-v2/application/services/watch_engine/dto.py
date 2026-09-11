@@ -32,6 +32,12 @@ class TriggerPayload:
     
     # 审计相关
     decision_audit_id: Optional[str] = None
+
+    # 价值生命周期（REQ-f08def P1/P8）：消息必须说清"主体是谁、为什么提醒"
+    intent: Optional[str] = None            # trend_observe/entry/add_position/t_trade/exit_*
+    lifecycle_stage: Optional[str] = None   # tracking/holding/...
+    next_action_hint: Optional[str] = None  # 触发后该做什么
+    account: Optional[str] = None           # 归属账户（谁的持仓）
     
     def to_notification_variables(self) -> Dict[str, Any]:
         """转换为 NotificationFacade 的 variables 格式"""
@@ -47,6 +53,10 @@ class TriggerPayload:
             'change_pct': self.change_pct,
             'pnl_pct': self.pnl_pct,
             'volume_ratio': self.volume_ratio,
+            'intent': self.intent,
+            'lifecycle_stage': self.lifecycle_stage,
+            'next_action_hint': self.next_action_hint,
+            'account': self.account,
         }
         
         if self.action_hint:

@@ -157,6 +157,10 @@ class WatchNotifier:
                 action_hint=payload.to_notification_variables().get('action_hint'),
                 escalation_reason=escalation_reason,
                 decision_audit_id=payload.decision_audit_id,
+                intent=payload.intent,
+                lifecycle_stage=payload.lifecycle_stage,
+                next_action_hint=payload.next_action_hint,
+                account=payload.account,
             )
             notified = facade_result.success if hasattr(facade_result, 'success') else bool(facade_result)
         except Exception as e:
@@ -237,6 +241,10 @@ class WatchNotifier:
             change_pct=change_pct,
             pnl_pct=pnl_pct,
             volume_ratio=result.value if hasattr(result, 'value') else None,
+            intent=getattr(rule, 'intent', None),
+            lifecycle_stage=getattr(rule, 'lifecycle_stage', None),
+            next_action_hint=getattr(rule, 'next_action_hint', None),
+            account=getattr(rule, 'account', None),
         )
 
     def _broadcast_ws(self, payload: TriggerPayload):

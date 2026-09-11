@@ -63,6 +63,10 @@ class NotificationFacade:
         action_hint: dict = None,       # ← 新增：行动指引
         escalation_reason: str = None,  # ← 新增：升级原因
         decision_audit_id: str = None,  # ← 新增：审计ID
+        intent: str = None,             # ← REQ-f08def P8：规则意图（消息主体）
+        lifecycle_stage: str = None,    # ← 阶段
+        next_action_hint: str = None,   # ← 触发后该做什么
+        account: str = None,            # ← 归属账户
     ) -> ChannelResult:
         """发送盯盘触发通知
 
@@ -102,6 +106,11 @@ class NotificationFacade:
                 'action_hint': action_hint,
                 'escalation_reason': escalation_reason,
                 'decision_audit_id': decision_audit_id,
+                # REQ-f08def P8：消息必须让用户一眼看清"主体是谁、为什么提醒"
+                'intent': intent,
+                'lifecycle_stage': lifecycle_stage,
+                'next_action_hint': next_action_hint,
+                'account': account,
             },
             priority=NotificationPriority.HIGH if trigger_level == 'L2' else NotificationPriority.NORMAL
         )
