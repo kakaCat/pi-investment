@@ -175,7 +175,14 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
                     'change_pct': item.get('f3'),
                     'kind': kind,
                 })
-            if len(rows) >= (total or 0):
+            # 2026-09-11（w-f436d4ea）审查修复：原写法 `len(rows) >= (total or 0)` 在
+            # total=0（falsy）时恒为真 → **只取第 1 页就静默停止**（上游 total 缺失/
+            # 为 0 时会静默截断清单，正是本项目反复出现的"静默截断"型隐患）。
+            # 现改为：仅当 total 明确 >0 且已取够才提前结束；否则靠「本页不足一页」
+            # 判定取完，兜底由 _MAX_PAGES 限制。
+            if total and total > 0 and len(rows) >= total:
+                break
+            if len(diff) < self._PAGE_SIZE:
                 break
             time.sleep(0.2)      # 翻页间隔：避免把该域打成限流（实测 0.2s 足以稳定取全）
         if not rows:
