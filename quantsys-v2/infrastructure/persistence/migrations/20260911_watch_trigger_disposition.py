@@ -62,7 +62,10 @@ UPDATE quant.watch_triggers
    SET disposition = 'legacy_unknown',
        disposition_reason = '状态机上线前的历史触发：当时无处置记录（REQ-f08def 迁移）',
        disposition_by = 'system'
- WHERE disposition IS NULL OR disposition = 'pending'
+ WHERE disposition = 'pending' AND disposition_reason IS NULL
+   -- 幂等护栏（2026-09-11 实测踩过）：新触发一律带 disposition_reason（decide() 判定理由），
+   -- 只有迁移前的历史行 reason 为 NULL。早期版本用 "IS NULL OR ='pending'" 会在重跑时
+   -- 把状态机上线后的真实 pending 触发误标成 legacy_unknown。
 """
 
 # 分级补齐：按规则自身语义推断，避免"所有规则都走 agent"（用户的硬约束是 token 成本）
