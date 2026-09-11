@@ -16,6 +16,7 @@ from unittest.mock import patch
 import pytest
 
 from application.services.agent_notification_service import (
+    DB_ENV_VARS,
     AgentNotificationService,
     non_prod_reason,
 )
@@ -40,7 +41,25 @@ def _no_hatch_by_default(monkeypatch):
 
 def test_test_db_reason(monkeypatch):
     monkeypatch.setenv("PGDATABASE", "quant_test")
-    assert non_prod_reason() == "test-db:quant_test"
+    assert non_prod_reason() == "test-db:PGDATABASE=quant_test"
+
+
+def test_test_db_reason_via_dsn_only(monkeypatch):
+    """DSN-only 配置（.env.test 的 Option 1 写法）同样能被识别——只查 PGDATABASE 会漏"""
+    for var in ("PGDATABASE", "DATABASE_URL", "POSTGRES_DSN"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("QUANT_DATABASE_URL",
+                       "postgresql://mac@127.0.0.1:5432/quant_test?sslmode=disable")
+    assert non_prod_reason() == "test-db:QUANT_DATABASE_URL=quant_test"
+
+
+def test_prod_dsn_is_not_blocked_env_wise(monkeypatch):
+    """反向用例：生产库 DSN 不触发闸门（闸门只认 _test 结尾库名）"""
+    for var in DB_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("QUANT_DATABASE_URL", "postgresql://mac@127.0.0.1:5432/quant_investment")
+    monkeypatch.setenv("AGENT_NOTIFY_ALLOW_TEST", "true")  # 排除 pytest-runtime 信号干扰
+    assert non_prod_reason() is None
 
 
 def test_pytest_runtime_reason_when_db_looks_prod(monkeypatch):

@@ -43,21 +43,30 @@ TARGET_URL_ENVS = {
 # 纪律：**测试进程永不唤醒真实 agent**；确需验证投递链路的用例显式开闸。
 BLOCKED_DB_SUFFIX = '_test'
 ALLOW_NON_PROD_ENV = 'AGENT_NOTIFY_ALLOW_TEST'
+#: 库名信号候选变量（裸库名 + 各 DSN 写法），见 non_prod_reason()
+DB_ENV_VARS = ('PGDATABASE', 'QUANT_DATABASE_URL', 'DATABASE_URL', 'POSTGRES_DSN')
 
 
 def non_prod_reason() -> Optional[str]:
     """非生产环境判定（None=生产环境，允许唤醒真实 agent）
 
     信号（任一命中即非生产）：
-      1. PGDATABASE 以 _test 结尾——根 conftest 强制测试库以 _test 结尾，是可靠的库级信号
+      1. 库名以 _test 结尾——根 conftest 强制测试库以 _test 结尾，是可靠的库级信号。
+         逐个候选变量检查，因为 .env.test 同时用 PGDATABASE 与 DSN 两种写法
+         （QUANT_DATABASE_URL / DATABASE_URL，load_dotenv(override=False) 下二者都可能生效）
       2. pytest 运行中（PYTEST_CURRENT_TEST 或 sys.modules 含 pytest）
     显式开闸：AGENT_NOTIFY_ALLOW_TEST=true（仅限 HTTP 已被 mock 的单测/E2E 验证）
     """
     if os.getenv(ALLOW_NON_PROD_ENV, '').strip().lower() == 'true':
         return None
-    db = (os.getenv('PGDATABASE') or '').strip()
-    if db.endswith(BLOCKED_DB_SUFFIX):
-        return f'test-db:{db}'
+    for var in DB_ENV_VARS:
+        val = (os.getenv(var) or '').strip()
+        if not val:
+            continue
+        # PGDATABASE 是裸库名；DSN 形如 postgresql://user@host:port/dbname?args
+        dbname = val.rsplit('/', 1)[-1].split('?')[0] if '://' in val else val
+        if dbname.endswith(BLOCKED_DB_SUFFIX):
+            return f'test-db:{var}={dbname}'
     if os.getenv('PYTEST_CURRENT_TEST') or 'pytest' in sys.modules:
         return 'pytest-runtime'
     return None
