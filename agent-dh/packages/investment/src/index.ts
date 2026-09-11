@@ -17,6 +17,8 @@ import { createPePercentileTool } from './tools/PePercentileTool';
 import { createDataFetchDividendTool } from './tools/DataFetchDividendTool';
 import { createPoolManageTool } from './tools/PoolManageTool';
 import { createIndexConstituentsTool } from './tools/IndexConstituentsTool';
+import { createMinuteKlineTool } from './tools/MinuteKlineTool';
+import { createTradingStatusTool } from './tools/TradingStatusTool';
 
 // ========== Plugin Config Schema ==========
 
@@ -108,5 +110,9 @@ export default class InvestmentPlugin extends Service {
 
     // 15. 指数成分股 - 基准成分池（2026-09-11，REQ-cf627b：后端已有端点，补齐工具接线）
     reg(createIndexConstituentsTool(qv2));
+
+    // 16-17. 微观结构（P1/RFC 015）：分钟线（多源故障转移）+ 交易状态（下单前 fail-closed 硬校验）
+    reg(createMinuteKlineTool(qv2));
+    reg(createTradingStatusTool(qv2));
   }
 }

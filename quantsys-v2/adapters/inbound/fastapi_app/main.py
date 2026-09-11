@@ -1248,6 +1248,15 @@ def register_routes():
         logger.warning(f"⚠️ Failed to import daily_jobs_async: {e}")
         optional_failed.append("daily_jobs")
 
+    # 微观结构（分钟线 / 交易状态 / 执行成本估算，RFC 015 §4.4）
+    try:
+        from adapters.inbound.fastapi_app.routes.microstructure_async import router as microstructure_router
+        app.include_router(microstructure_router)
+        logger.info("✅ Registered: microstructure (分钟线/交易状态/执行估算)")
+    except ImportError as e:
+        logger.warning(f"⚠️ Failed to import microstructure_async: {e}")
+        optional_failed.append("microstructure")
+
     # ===== 路由注册总结 =====
     logger.info("=" * 60)
     logger.info("Route Registration Summary")

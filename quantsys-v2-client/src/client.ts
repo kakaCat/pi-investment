@@ -1872,6 +1872,35 @@ export class QuantsysV2Client {
     return this.unwrap(response.data, 'deleteEvent');
   }
 
+  // ==================== P1 微观结构：分钟线 / 交易状态 / 执行预估（2026-09-11，RFC 015） ====================
+  // 注意：以下方法**不走 unwrap**——多源失败语义需透传给工具层做降级处理（与 fund_flow 同款约定）。
+
+  /** 分钟线（多源故障转移：腾讯/东财/新浪 + 本地 DB 兜底） */
+  async getMinuteKlines(
+    symbol: string,
+    params: { period?: string; date?: string; limit?: number } = {}
+  ): Promise<ProviderResponse> {
+    const response = await this.client.get(`/api/stocks/${symbol}/minute-klines`, { params })
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
+  /** 交易状态（ST/停牌/涨跌停/可交易性——下单前硬校验） */
+  async getTradingStatus(symbol: string): Promise<ProviderResponse> {
+    const response = await this.client.get(`/api/stocks/${symbol}/trading-status`)
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
+  /** 执行预估（参与率/滑点/冲击成本，供 R-003 拆单参考） */
+  async estimateExecution(payload: {
+    symbol: string; side: 'BUY' | 'SELL'; quantity: number; price?: number;
+  }): Promise<ProviderResponse> {
+    const response = await this.client.post('/api/execution/estimate', payload)
+      .catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
   // ==================== P0 情报数据层（多数据源，降级友好） ====================
   // 注意：以下方法**不走 unwrap**——数据源失败（success:false）是常态，
   // 需把原始响应（含 error/attempted_sources）透传给工具层做降级处理。

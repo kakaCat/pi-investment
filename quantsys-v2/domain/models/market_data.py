@@ -56,6 +56,39 @@ class KlineData:
 
 
 @dataclass
+class MinuteKline:
+    """分钟K线数据（领域模型）
+
+    RFC 015 §4.1（2026-09-11 REQ-cf627b）：分钟级择时/滑点估算的载体。
+    时间粒度由 period 标注（'1m'/'5m'/'15m'/'30m'/'60m'）——底层表
+    quant.minute_klines **无 period 列**（只存一种粒度），多周期由 provider
+    侧按上游接口直接取对应粒度，或由服务层按需聚合。
+
+    volume 单位统一为股，amount 为成交额（元）——provider 负责归一，
+    严禁把「手」直接塞进 volume（腾讯分钟线对非科创板返回手，详见
+    providers/minute_kline/tencent.py 的量纲注释）。
+    """
+    symbol: str
+    trade_datetime: str          # 'YYYY-MM-DD HH:MM:SS'
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+    amount: float
+    period: str = '1m'
+    source: str = ''
+    timestamp: str = ''
+
+    def __post_init__(self):
+        """数据验证：symbol/trade_datetime 是主键语义，不允许为空"""
+        if not self.symbol or not str(self.symbol).strip():
+            raise ValueError("symbol cannot be empty")
+        if not self.trade_datetime:
+            raise ValueError("trade_datetime cannot be empty")
+
+
+@dataclass
 class FinancialData:
     """财务数据（领域模型）
 

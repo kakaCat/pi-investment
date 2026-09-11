@@ -24,6 +24,9 @@ from adapters.outbound.datasources.providers.kline.sina import SinaKlineProvider
 from adapters.outbound.datasources.providers.kline.tencent import TencentKlineProvider
 from adapters.outbound.datasources.providers.kline.baostock import BaostockKlineProvider
 from adapters.outbound.datasources.providers.kline.akshare import AkshareKlineProvider
+from adapters.outbound.datasources.providers.minute_kline.database import DatabaseMinuteKlineProvider
+from adapters.outbound.datasources.providers.minute_kline.tencent import TencentMinuteKlineProvider
+from adapters.outbound.datasources.providers.minute_kline.sina import SinaMinuteKlineProvider
 from adapters.outbound.datasources.providers.sector.eastmoney import EastmoneySectorProvider
 from adapters.outbound.datasources.providers.sector.akshare import AkshareSectorProvider
 from adapters.outbound.datasources.providers.index.akshare import AkshareIndexProvider
@@ -103,6 +106,21 @@ class DataProviderManager(IDataProviderManager):
         self.kline_providers.append(TencentKlineProvider())   # 501 错误，保留作为备选
         self.kline_providers.append(AkshareKlineProvider())   # 代理故障，保留作为备选
 
+        # 分钟线 providers（RFC 015 §4.3 / §1.5，2026-09-11 REQ-cf627b）：
+        # 要求 ≥2 个**独立上游通道** + 本地 DB 兜底（DB 必须放最后）。
+        # - tencent_minute：ifzq.gtimg.cn（实测 200，支持 m1~m60）
+        # - sina_minute：quotes.sina.cn（实测 200，支持 5/15/30/60）
+        # - eastmoney_minute：**未注册** —— push2his.eastmoney.com 本机不可达
+        #   （直连/代理/编号子域全部失败，打样记录见该 provider 模块 docstring）；
+        #   按 §1.5 硬约束 3，未经真实响应打样的 provider 不得进注册表。
+        # - database_minute：quant.minute_klines 兜底（stale，实测只到 2026-05-29）
+        # name 与日线 provider 刻意区分（tencent/sina/database），避免共用熔断器与健康统计。
+        self.minute_kline_providers = []
+        from adapters.outbound.repositories.minute_kline_repository import get_minute_kline_repo
+        self.minute_kline_providers.append(TencentMinuteKlineProvider())
+        self.minute_kline_providers.append(SinaMinuteKlineProvider())
+        self.minute_kline_providers.append(DatabaseMinuteKlineProvider(get_minute_kline_repo()))
+
         # Health tracking (cache provider channel status)
         self.provider_stats: Dict[str, Dict[str, int]] = {}
         # Dynamic priority: providers with high failure rate get temporarily deprioritized
@@ -123,7 +141,8 @@ class DataProviderManager(IDataProviderManager):
             self.market_providers +
             self.sector_providers +
             self.stock_providers +
-            self.kline_providers
+            self.kline_providers +
+            self.minute_kline_providers
         )
         for provider in all_providers:
             self.provider_stats[provider.name] = {
@@ -209,7 +228,11 @@ class DataProviderManager(IDataProviderManager):
                     return {
                         'success': True,
                         'data': result,
-                        'source': provider.name
+                        'source': provider.name,
+                        # 成功路径同样透出「实际尝试过的源」（2026-09-11，RFC 015 §1.5.3）：
+                        # 之前只有全失败路径才带 attempted_sources，成功时调用方无法
+                        # 如实回答「这个数据是哪次降级拿到的」。附加键，不影响既有消费者。
+                        'attempted_sources': attempted_sources,
                     }
 
                 reason = getattr(provider, 'last_error', None) or '返回空数据或数据校验未通过'
@@ -838,6 +861,170 @@ class DataProviderManager(IDataProviderManager):
             except Exception:
                 pass
             return False
+
+    # ==================== 分钟线（RFC 015 §4.3，2026-09-11 REQ-cf627b） ====================
+
+    def get_minute_klines(
+        self,
+        symbol: str,
+        period: str = '5m',
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        limit: int = 240,
+    ) -> dict:
+        """分钟线多源取数（复用 _try_providers：独立超时 + 熔断 + 动态优先级）
+
+        Args:
+            symbol: 股票代码
+            period: '1m'/'5m'/'15m'/'30m'/'60m'（或裸数字）
+            start_date/end_date: 'YYYY-MM-DD'（可空；上游为「最近 N 根」型接口）
+            limit: 最大返回根数
+
+        Returns:
+            dict：
+              success=True  → data(List[MinuteKline]) / source / attempted_sources
+              success=False → error='All data providers failed' / attempted_sources /
+                              provider_errors {源: 失败原因}（**显式失败**，不返回空数组）
+        """
+        result = self._try_providers(
+            self.minute_kline_providers,
+            'get_minute_klines',
+            symbol,
+            period,
+            start_date,
+            end_date,
+            limit=limit,
+        )
+        # 把「provider 掌握的事实」（库内最后一根时间 / 推断粒度）透传给调用方，
+        # 供应用层判定 stale 与粒度（不在这里替调用方下结论）
+        if result.get('success'):
+            provider = next(
+                (p for p in self.minute_kline_providers if p.name == result.get('source')), None
+            )
+            if provider is not None:
+                for attr in ('latest_bar_datetime', 'granularity'):
+                    if hasattr(provider, attr):
+                        result[attr] = getattr(provider, attr)
+        return result
+
+    def cross_check_minute_klines(
+        self,
+        symbol: str,
+        period: str = '5m',
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        limit: int = 240,
+        max_sources: int = 2,
+    ) -> dict:
+        """跨源一致性校验（RFC 015 §1.5 硬约束 6）
+
+        故障转移路径同一时刻只有 1 个源在服务，因此「≥2 源同时返回时的比对」
+        必须显式触发：本方法按健康度顺序向最多 max_sources 个**网络源**分别取数，
+        在共同时间戳上比对收盘价，超阈值（默认 0.5%）标 divergent + 给出
+        cross_source_conflict 明细（取保守解释：数据不可直接采信）。
+        DB 兜底源不参与实时比对（它是历史快照，天然与实时源不一致）。
+        """
+        from statistics import fmean
+
+        results: Dict[str, list] = {}
+        skipped: Dict[str, str] = {}
+        for provider in self._sort_providers_by_health(self.minute_kline_providers):
+            if len(results) >= int(max_sources):
+                break
+            if provider.name == 'database_minute':
+                skipped[provider.name] = 'DB 为历史兜底源，不参与实时一致性比对'
+                continue
+            if self._is_circuit_broken(provider.name):
+                skipped[provider.name] = '熔断中'
+                continue
+            try:
+                data = provider.get_minute_klines(symbol, period, start_date, end_date, limit=limit)
+            except Exception as e:
+                skipped[provider.name] = f"{type(e).__name__}: {e}"
+                continue
+            if data:
+                results[provider.name] = data
+            else:
+                skipped[provider.name] = getattr(provider, 'last_error', None) or '返回空结果'
+
+        as_of = _datetime.now().isoformat()
+        if len(results) < 2:
+            return {
+                'success': False,
+                'error': f'不足 2 个独立通道同时返回数据（{len(results)} 个），无法交叉校验',
+                'sources_returned': {k: len(v) for k, v in results.items()},
+                'skipped': skipped,
+                'as_of': as_of,
+            }
+
+        names = list(results)
+        left, right = results[names[0]], results[names[1]]
+        left_map = {str(b.trade_datetime): b.close for b in left}
+        diffs = []
+        for bar in right:
+            ref = left_map.get(str(bar.trade_datetime))
+            if ref:
+                diffs.append(abs(bar.close - ref) / ref * 100)
+        if not diffs:
+            return {
+                'success': False,
+                'error': '两源无共同时间戳，无法比对（时间戳口径可能不一致）',
+                'sources_returned': {k: len(v) for k, v in results.items()},
+                'as_of': as_of,
+            }
+
+        threshold = 0.5
+        avg_diff = fmean(diffs)
+        max_diff = max(diffs)
+        diverged = avg_diff > threshold
+        return {
+            'success': True,
+            'verdict': 'divergent' if diverged else 'consistent',
+            'sources_returned': {k: len(v) for k, v in results.items()},
+            'compared_sources': names[:2],
+            'common_bars': len(diffs),
+            'avg_close_diff_pct': round(avg_diff, 4),
+            'max_close_diff_pct': round(max_diff, 4),
+            'threshold_pct': threshold,
+            'cross_source_conflict': ({
+                'type': 'minute_kline_close_divergence',
+                'sources': names[:2],
+                'avg_close_diff_pct': round(avg_diff, 4),
+                'max_close_diff_pct': round(max_diff, 4),
+                'threshold_pct': threshold,
+                'resolution': 'conservative: 该窗口分钟线不直接采信，需人工/多源复核',
+            } if diverged else None),
+            'skipped': skipped,
+            'as_of': as_of,
+        }
+
+    def get_stock_base_status(self, symbol: str) -> dict:
+        """stocks 表基础交易状态（is_st / is_suspended / is_delisted + 最近日线昨收）
+
+        说明：这是**本地 DB 单源事实**，不是可故障转移的外部数据源，
+        因此不走 _try_providers（没有第二个通道可以顶替 stocks 表）。
+        实时维度由调用方叠加行情通道（get_quote）后交给
+        domain.trading.services.TradingStatusPolicy 做保守裁决。
+        """
+        try:
+            from adapters.outbound.repositories.trading_status_repository import get_trading_status_repo
+            status = get_trading_status_repo().get_stock_status(symbol)
+        except Exception as e:
+            logger.warning(f"get_stock_base_status failed for {symbol}: {e}")
+            return {
+                'success': False,
+                'data': None,
+                'source': 'stocks_table',
+                'error': f'stocks 表查询失败: {type(e).__name__}: {e}',
+            }
+        if status is None:
+            return {
+                'success': False,
+                'data': None,
+                'source': 'stocks_table',
+                'error': f'stocks 表无 {symbol}（未入库/非 A 股代码）——无法确认基础交易状态',
+            }
+        return {'success': True, 'data': status, 'source': 'stocks_table'}
 
     def get_data_completeness(
         self,
