@@ -63,6 +63,12 @@ def _no_sleep(monkeypatch):
 
 def _patch(monkeypatch, handler):
     stub = StubRequests(handler)
+    # 缝变更（2026-09-11，w-f436d4ea）：provider 改用进程级共享 Session 复用连接
+    # （原先每次 requests.get 新建 TCP，连打数十次后上游/代理开始拒连）。
+    # 必须同时：①把桩装到 _shared_session ②清掉模块级缓存 —— 少了②会把上一次
+    # 真实 Session 从缓存里取回来，测试**静默真打上游**（比失败更危险：会「通过」）。
+    monkeypatch.setattr(mod, '_SHARED_SESSION', None)
+    monkeypatch.setattr(mod, '_shared_session', lambda: stub)
     monkeypatch.setattr(mod, 'requests', stub)
     return stub
 

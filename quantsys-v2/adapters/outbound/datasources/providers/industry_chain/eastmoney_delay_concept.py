@@ -84,6 +84,36 @@ _A_SHARE_PREFIXES = ('00', '30', '60', '68', '92', '43', '83', '87', '88')
 _NON_TRADEABLE_SUFFIX = 'Ｂ'
 
 
+_SHARED_SESSION: Optional[requests.Session] = None
+
+
+def _shared_session() -> requests.Session:
+    """进程级共享 Session（连接池复用）
+
+    为什么需要（2026-09-11）：list_chains 要翻 6 页（概念 504）+ 5 页（行业 496），
+    每个板块成分再各一次请求；build 全部 8 条链时会连打数十次本域。同域的
+    eastmoney_revenue 已实测「每次新建 TCP 连接时上游/代理很快开始拒连、失败累计到
+    10 次触发熔断后全线静默降级」，故这里采用同一连接复用模式——避免同一域出现
+    两种连接策略。
+
+    ⚠️ 刻意不复用 eastmoney_revenue 的 helper：两个 provider 分属不同模块、各自可
+    独立实例化，跨模块导入私有名会把一条通道的实现细节耦合进另一条。
+
+    ⚠️ 行为不变：仍按**每个请求**传 proxies=_NO_PROXY（本域实测经本机代理会返回
+    rc=102/data=null，必须显式绕过）。Session 只负责连接复用，不引入环境代理。
+    """
+    global _SHARED_SESSION
+    if _SHARED_SESSION is None:
+        session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=4, pool_maxsize=8, max_retries=0
+        )
+        session.mount('https://', adapter)
+        session.mount('http://', adapter)
+        _SHARED_SESSION = session
+    return _SHARED_SESSION
+
+
 class EastmoneyDelayConceptProvider(IIndustryChainProvider):
     """东财延迟域概念/行业成分：候选成员与交叉校验用，低/中置信（通道 ②）"""
 
@@ -126,7 +156,7 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
         last_exc: Optional[Exception] = None
         for attempt in range(1, _attempts + 1):
             try:
-                resp = requests.get(
+                resp = _shared_session().get(
                     self._URL,
                     params=params,
                     headers={
