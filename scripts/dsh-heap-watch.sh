@@ -9,8 +9,9 @@
 # 本脚本把"失控崩溃"变成"可控信号"：
 #   ① 超过 THRESHOLD_MB（默认 6144，低于加固后的 8192 上限，留安全余量）
 #      → 投递一条 error 事件进 open 队列（可被人/agent 处置），并按需告警；
-#   ② AUTO_RESTART=1 时才真正重启实例（默认 0=只告警），重启走实例自己的 stop/start，
-#      避免 pkill 模糊匹配误杀其它 dsh 实例（见多实例生命周期铁律）。
+#   ② AUTO_RESTART=1 时才真正重启实例（默认 0=只告警）。重启走 launchd 原生的
+#      `launchctl kickstart -k`（2026-09-11 修）：既不 pkill 模糊匹配误杀其它 dsh 实例
+#      （见多实例生命周期铁律），也不会像旧版那样「杀了却起不来」——详见文末注释。
 set -uo pipefail
 
 PORT=${DSH_PORT:-13080}
@@ -62,10 +63,43 @@ PY
 curl -s -X POST http://127.0.0.1:8080/api/v1/scheduler/error-events \
   -H 'Content-Type: application/json' -d "$payload" -o /dev/null -w 'error-event ingest HTTP=%{http_code}\n' || true
 
+# ── AUTO_RESTART：先确认「重启通道可用」再动手，绝不制造宕机 ─────────────────
+# 旧版（2026-09-11 修复前）是 stop.sh 杀实例 + `nohup start.sh` 起新的，两个缺陷：
+#   ① 它被 launchd 以精简 PATH（/usr/bin:/bin:/usr/sbin:/sbin）拉起，而本机 node 在
+#      ~/.local/bin → start.sh 直接 `node: command not found`：**实例杀了却起不来**；
+#   ② 绕过 launchd 手动起进程，会与 plist 的 KeepAlive respawn 抢同一端口——这正是
+#      pi-services.sh 里针对 v2/web 记下的血泪教训。
+# 现在统一走 launchd 原生 `launchctl kickstart -k`：杀旧起新由 launchd 内部完成，
+# PATH 与 KeepAlive 全程有效，不存在抢端口。且**通道不可用就只告警、绝不 kill**。
 if [ "$AUTO_RESTART" = "1" ]; then
-  echo "[dsh-heap-watch] AUTO_RESTART=1 → 重启实例 $PORT"
-  bash ~/.dsh/profiles/investment/stop.sh "$PORT" 2>/dev/null || true
-  sleep 2
-  nohup bash ~/.dsh/profiles/investment/start.sh "$PORT" >/dev/null 2>&1 &
+  LABEL=com.pi-investment.dsh
+  GUI="gui/$(id -u)"
+  export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+
+  if ! launchctl print "$GUI/$LABEL" >/dev/null 2>&1; then
+    # 关键：没有可用重启通道时绝不能 kill。宁可让高内存实例多活一会儿（可能自然回落），
+    # 也好过看门狗把唯一实例杀掉却拉不起来。error 事件上面已投递，这里只补明细。
+    echo "[dsh-heap-watch] 重启通道不可用（$LABEL 不在 launchd 域内）→ 跳过自动重启，仅告警" >&2
+    exit 0
+  fi
+
+  echo "[dsh-heap-watch] AUTO_RESTART=1 → launchctl kickstart -k $GUI/$LABEL"
+  if ! launchctl kickstart -k "$GUI/$LABEL"; then
+    echo "[dsh-heap-watch] FAIL: kickstart 失败，未 kill 任何进程（实例保持原样）" >&2
+    exit 1
+  fi
+
+  # 重启后必须确认实例真的回来了，否则就是「看门狗把实例看死了」，要吵出来而不是静默
+  BACK=0
+  for n in $(seq 1 60); do
+    if lsof -ti:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then BACK=1; break; fi
+    sleep 1
+  done
+  if [ "$BACK" = "1" ]; then
+    echo "[dsh-heap-watch] 重启完成，新 pid=$(lsof -ti:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1)（${n}s 内恢复）"
+  else
+    echo "[dsh-heap-watch] FAIL: 重启后 ${n}s 内 $PORT 仍未监听，需人工介入" >&2
+    exit 1
+  fi
 fi
 exit 0

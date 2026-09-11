@@ -46,12 +46,22 @@ echo ""
 DSH_BIN="$PROFILE_DIR/node_modules/@deepseek-ai/dsh/lib/bin.js"
 cd "$PROFILE_DIR"
 
-# 堆上限（2026-09-11, w-8f2c4cc5）：本实例是"多窗口共享单进程"，实测稳态 RSS ≈ 2.9GB
-# 且仍以 ~21MB/min 增长，而 Node 默认 V8 上限仅 4144MB —— 2026-09-10 03:19 自重启后新进程
-# 启动 20 秒即 OOM（state/restart-1788981563958.log：Mark-Compact 4034MB → FATAL ERROR
-# Reached heap limit）。此处把上限提到 8GB（机器 64GB 内存，稳态 ~3GB，余量充足），
-# 可用环境变量 DSH_MAX_OLD_SPACE 覆盖（如 4096 复现旧行为）。这治标：真正的增长源
-# （多窗口会话记录常驻堆）需上游 DSH 修，见后续根因分析。
+# 堆上限（2026-09-11）：本实例是"多窗口共享单进程"，堆持续增长（实测稳态 RSS 3.7-3.9GB，
+# 并随时间爬升），而 Node 默认 V8 old-space 上限仅 4144MB —— 2026-09-11 00:51 / 01:18
+# 两次 `FATAL ERROR: Reached heap limit`（error_event 2a0f8617）就是撞在这个默认值上。
+# 故显式提到 8192MB（机器 64GB 内存，余量充足），可用 DSH_MAX_OLD_SPACE 覆盖。
+#
+# 生效性已实测确认（2026-09-11 11:2x 复核）：活进程环境里能看到
+# `NODE_OPTIONS=--max-old-space-size=8192`，参数确实传到了 node。
+# ⚠️ 曾有一处注释断言"8GB 设置未生效（hermes node 路径问题）"——**该判断是错的**，
+# 当时的"不生效"现象实为下面的重启循环反复杀进程（见 scripts/restart-dsh-controlled.sh
+# 的根因注释），与堆参数无关。据此把上限继续抬到 16GB 属于误判，故维持 8192。
+#
+# ⚠️ 本文件是**模板**：launchd（com.pi-investment.dsh）实际执行的是
+# ~/.dsh/profiles/investment/start.sh。只改这里而不部署 = 什么都没发生，
+# 两者需保持同步（历史上正是这份漂移让"改了却没生效"一再发生）。
+#
+# 这仍是治标：真正的增长源（多窗口会话记录常驻堆）需上游 DSH 修。
 DSH_MAX_OLD_SPACE="${DSH_MAX_OLD_SPACE:-8192}"
 export NODE_OPTIONS="--max-old-space-size=${DSH_MAX_OLD_SPACE}${NODE_OPTIONS:+ $NODE_OPTIONS}"
 
