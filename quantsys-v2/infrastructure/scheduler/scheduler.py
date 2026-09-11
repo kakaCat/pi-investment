@@ -188,23 +188,30 @@ def next_run_time(expression: str, from_time: Optional[datetime] = None) -> date
     Scans minute-by-minute up to 2 years ahead.
 
     Args:
-        expression: 5-field cron expression.
-        from_time: reference datetime (default: now, UTC).
+        expression: 5-field cron expression（按北京时间编写，A 股 9:30/15:00 语境）。
+        from_time: reference datetime（默认：当前北京时间）。
 
     Returns:
-        The earliest matching datetime strictly after *from_time*.
+        The earliest matching datetime strictly after *from_time*（北京时间，tz-aware）。
 
     Raises:
         ValueError: if no match is found within the search window.
     """
     schedule = parse_cron(expression)
 
-    if from_time is None:
-        from_time = datetime.now(timezone.utc)
+    # 2026-09-11（w-f436d4ea）时区修复：cron 按北京时间编写，且生产的真实派发器
+    # APSchedulerService 用 timezone='Asia/Shanghai'；但此处此前用 UTC 计算，
+    # 导致 scheduler_tasks.next_run_at 比北京时间晚 8 小时（显示 23:30 实为 15:30）。
+    # 统一改用 Asia/Shanghai，与真实触发对齐。
+    from zoneinfo import ZoneInfo
+    _CN = ZoneInfo("Asia/Shanghai")
 
-    # Ensure we are working in UTC
+    if from_time is None:
+        from_time = datetime.now(_CN)
+
+    # 统一按北京时间解释 naive 时间
     if from_time.tzinfo is None:
-        from_time = from_time.replace(tzinfo=timezone.utc)
+        from_time = from_time.replace(tzinfo=_CN)
 
     # Start from the next whole minute
     current = from_time.replace(second=0, microsecond=0) + timedelta(minutes=1)
