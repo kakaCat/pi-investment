@@ -39,6 +39,14 @@ class FundFlow(Base):
     small_net_inflow_rate = Column(Numeric(8, 4))
 
     source = Column(String(50))
+    # 数据质量标记（2026-09-11，w-f436d4ea）：NULL = 干净；
+    # 'close_mismatch_vs_kline' = 该行收盘价与权威 K 线偏差 >0.5%（历史污染）。
+    # 明细见 quant.stock_fund_flow_suspect，迁移见 20260911_fund_flow_quality_flag.py。
+    # 消费者应 filter quality_flag IS NULL。
+    # ⚠️ 写入路径**不设置**该列（新数据由 fund_flow_update_job 的两道闸门保证质量），
+    # 故新行恒为 NULL；且 batch_upsert 必须把它排除在 DO UPDATE SET 之外，
+    # 否则重新写入同一 (symbol, trade_date) 会把标记擦回 NULL、把污染重新藏起来。
+    quality_flag = Column(String(32))
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
 
@@ -137,9 +145,13 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
                 rows.append(row)
 
             stmt = pg_insert(self.model).values(rows)
+            # quality_flag 排除在外（2026-09-11）：它是**数据质量标记**而非数据本身，
+            # 写入路径不产出该值（insert 行里没有它 → excluded 为 NULL）。若不排除，
+            # 任何一次对同一 (symbol, trade_date) 的重新写入都会把已标记的坏行
+            # 擦成 NULL，等于把已知污染重新伪装成干净数据。
             update_cols = {c.name: getattr(stmt.excluded, c.name)
                            for c in self.model.__table__.columns
-                           if c.name not in ('id', 'symbol', 'trade_date', 'created_at')}
+                           if c.name not in ('id', 'symbol', 'trade_date', 'created_at', 'quality_flag')}
             stmt = stmt.on_conflict_do_update(
                 index_elements=['symbol', 'trade_date'],
                 set_=update_cols,
