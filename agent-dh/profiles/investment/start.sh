@@ -5,9 +5,14 @@
 #
 # 用法:
 #   ./start.sh [端口] [web 子命令额外参数]
-#   ./start.sh                    # 默认端口 13080
-#   ./start.sh 13081              # 指定端口
+#   ./start.sh                    # 默认端口 13080（launchd 托管端口）
+#   ./start.sh 13081              # 指定端口（脱离 launchd 的裸实例）
 #   ./start.sh 13081 --dump-config  # 打印组合后的 profile 配置并退出
+#
+# 重启 :13080（本机 launchd 托管，唯一正确入口）:
+#   launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh
+# 停止 :13080:
+#   ./stop.sh        （内部走 launchctl bootout；直接 kill 会被 KeepAlive 立刻拉起）
 set -e
 
 # 独立 DSH_HOME：与主实例（~/.dsh，:3080）隔离，避免两个 dsh web 进程共享
@@ -29,9 +34,68 @@ if [ -z "$DEEPSEEK_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
   echo "警告: 未设置 DEEPSEEK_API_KEY / OPENAI_API_KEY（若已在 dsh 设置中配置可忽略）"
 fi
 
-# 与 agent-dh/package.json 的 @deepseek-ai/dsh-* 依赖对齐
+# 与 agent-dh/package.json 的 @deepseek-ai/dsh-* 依赖对齐。
+# ⚠️ 本行**刻意**与线上不同，勿"顺手同步"：线上用 node -p 读 node_modules 里的实际版本，
+# 而模板目录没有 node_modules，那句在 set -e 下会直接让脚本失败。升级 dsh 依赖时两边都要改。
 DSH_VERSION="0.1.2-alpha.4"  # 2026-09-11 同步线上（原 0.1.0-rc.7 陈旧，从模板重建会降级）
 PORT="${1:-13080}"
+
+# ── launchd 托管互斥（2026-09-11）────────────────────────────────────────────
+# 本机 :13080 由 launchd 作业 com.pi-investment.dsh 托管（KeepAlive + RunAtLoad，
+# ProgramArguments 就是本脚本）。此时手工 `lsof -ti:13080 | xargs kill -9 && ./start.sh`
+# **必然** EADDRINUSE：ThrottleInterval 从"上次拉起"起算而非从退出起算，对一个已经跑了
+# 很久的实例等于立即重启，手工进程根本抢不到端口（2026-09-11 事故根因）。
+# 因此：只要作业已加载、且请求的端口就是它托管的端口，本脚本不再自行 bind，而是把
+# "重启"这个意图转交给 launchctl（kickstart -k 会负责先杀后拉，是唯一正确的重启入口）。
+#
+# 安全绳：判定"我就是 launchd 拉起的那个进程"用双保险（PPID=1 / launchd 记录的作业 pid
+# 就是我）。托管实例自身必须永远不走 kickstart，否则就是自我重启死循环——KeepAlive 下
+# 会无限重跑（2026-09-11 已踩过一次的坑）。
+LAUNCHD_LABEL="com.pi-investment.dsh"
+LAUNCHD_PLIST="$HOME/Library/LaunchAgents/$LAUNCHD_LABEL.plist"
+LAUNCHD_TARGET="gui/$(id -u)/$LAUNCHD_LABEL"
+
+_launchd_loaded() { launchctl print "$LAUNCHD_TARGET" >/dev/null 2>&1; }
+_launchd_job_pid() {
+  launchctl print "$LAUNCHD_TARGET" 2>/dev/null \
+    | awk -F'= ' '/[[:space:]]pid = /{print $2; exit}' | tr -d '[:space:]'
+}
+_is_launchd_child() {
+  # ① launchd 直接 fork+exec 本脚本，故 PPID=1（exec node 不改变 PID/PPID）
+  if [ "${PPID:-0}" = "1" ]; then
+    return 0
+  fi
+  # ② 兜底：作业当前记录的 pid 就是本进程（与 PPID 逻辑无关，防 PPID 判定失效）
+  _jp="$(_launchd_job_pid)"
+  if [ -n "$_jp" ] && [ "$_jp" = "$$" ]; then
+    return 0
+  fi
+  return 1
+}
+
+_launchd_managed_port() {
+  local p
+  p=$(/usr/libexec/PlistBuddy -c "Print :ProgramArguments:2" "$LAUNCHD_PLIST" 2>/dev/null || true)
+  printf '%s' "${p:-13080}"
+}
+
+if _launchd_loaded; then
+  MANAGED_PORT="$(_launchd_managed_port)"
+  if [ "$PORT" = "$MANAGED_PORT" ] && ! _is_launchd_child; then
+    echo "注意: :$PORT 由 launchd 作业 $LAUNCHD_LABEL 托管（KeepAlive）。"
+    echo "      手工 bind 会与 launchd 抢端口（必然 EADDRINUSE），已改为请求 launchctl 重启。"
+    echo "      如确实要脱离 launchd 手工接管: launchctl bootout $LAUNCHD_TARGET"
+    exec launchctl kickstart -k "$LAUNCHD_TARGET"
+  fi
+fi
+
+# 作业文件存在但未加载（例如刚被 stop.sh bootout）时，优先恢复托管而不是起一个
+# "没有 KeepAlive 兜底"的裸进程——否则 stop → start 之后实例会失去自动重启能力。
+if [ "$PORT" = "13080" ] && [ -f "$LAUNCHD_PLIST" ] && ! _launchd_loaded; then
+  echo "注意: launchd 作业 $LAUNCHD_LABEL 未加载，正在恢复托管（bootstrap）。"
+  echo "      如确实要起脱离 launchd 的裸实例，请换端口: ./start.sh 13081"
+  exec launchctl bootstrap "gui/$(id -u)" "$LAUNCHD_PLIST"
+fi
 
 echo "========================================"
 echo "  PI Investment Agent-DH 启动"

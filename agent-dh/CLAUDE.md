@@ -218,13 +218,15 @@ pnpm build
 
 3. **Restart DSH profile** (if running):
 
-```bash
-# Find and kill the running instance
-lsof -ti:13080 | xargs kill
+:13080 由 launchd 作业 `com.pi-investment.dsh` 托管（KeepAlive），**不能 kill**——
+kill 会被 launchd 立刻重新拉起，随后再 `./start.sh` 必然 `EADDRINUSE`。正确入口是 kickstart：
 
-# Restart
-cd ~/.dsh/profiles/investment
-./start.sh
+```bash
+# 重启（先杀后拉由 launchctl 负责）
+launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh
+
+# 若确实在手工跑（例如调试用 13081），才走脚本
+cd ~/.dsh/profiles/investment && ./start.sh 13081
 ```
 
 ### Creating a New Plugin Package
@@ -393,12 +395,15 @@ Access the web UI at `http://localhost:13080`
 ### Stop the Investment Agent
 
 ```bash
-# Find the process
-lsof -ti:13080
+# 本实例的专用停机脚本（pidfile + 监听校验；托管端口内部走 launchctl bootout）
+cd ~/.dsh/profiles/investment && ./stop.sh
 
-# Kill it
-kill <PID>
+# 恢复运行
+cd ~/.dsh/profiles/investment && ./start.sh
 ```
+
+**不要用 `kill`**：KeepAlive 会立刻把它拉起来，`kill` 看起来成功但服务还在跑（静默失效）。
+真正停机必须 `launchctl bootout gui/$(id -u)/com.pi-investment.dsh`，`stop.sh` 已经这么做了。
 
 ### Rebuild All Plugins
 
@@ -429,9 +434,8 @@ ls -la packages/investment/dist/  # Should contain .js files
 # Edit the active patch file
 vim ~/.dsh/profiles/investment/cordis.patch.yml
 
-# Restart the profile to apply changes
-lsof -ti:13080 | xargs kill
-cd ~/.dsh/profiles/investment && ./start.sh
+# Restart the profile to apply changes（:13080 由 launchd 托管，kill 会被 KeepAlive 拉起）
+launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh
 ```
 
 **Alternative**: Update the template and regenerate (advanced):
@@ -623,6 +627,11 @@ Agent-DH 现已完成**完整自主能力体系**的架构设计。
 2. **lsof 查端口必须带 `-sTCP:LISTEN`**——不带会把连着该端口页面的浏览器进程（Chrome Helper）也杀掉
 3. **每个实例**：`start.sh` 写 `state/server.pid` + `state/server.port`；停止走 `stop.sh`（pidfile + 监听校验 + 端口兜底，防 PID 复用误杀）
 4. self_restart 按 PID 精确停止，天然安全；手动停实例一律用该实例的 stop.sh
+5. **:13080 归 launchd 管**（`com.pi-investment.dsh`，KeepAlive + RunAtLoad）：重启只能
+   `launchctl kickstart -k`，停止只能 `launchctl bootout`。`kill` / `kill -9` 会被 launchd
+   秒级拉起（ThrottleInterval 从"上次拉起"起算，对长跑实例等于立即重启），紧接着的手工
+   `./start.sh` 必然 `EADDRINUSE`（2026-09-11 事故）。脚本已内置互斥：`start.sh` 遇托管
+   端口会转交 kickstart，`stop.sh` 会走 bootout，手工执行是安全的
 
 ## Agent 身份系统（2026-08-21 起）
 
