@@ -120,7 +120,26 @@ The DSH profile at `~/.dsh/profiles/investment/` references these packages:
 }
 ```
 
-When you run `pnpm build` in agent-dh, the built JavaScript is immediately available to the DSH profile (via file: links).
+⚠️ **`pnpm build` 不是部署，`pnpm install` 更不是。** 别以为改完代码就生效了 —— 2026-09-11 的事故正是这么来的。
+
+- profile 的 `@pi-investment/*` 依赖**必须是**指向仓库源码的**符号链接**。此时改源码 → 重启即生效（tsx 直载 TS）。
+- 但 `pnpm install` 会把它们换回**硬链接副本**。硬链接只在"没人替换过该文件"时同步：任何一次 Write/Edit（写临时文件再 rename）都会换掉 inode、断链，profile 静默停在旧版本，**且没有任何报错**。
+- 更隐蔽的是它会**部分**过期：没被编辑过的文件仍保持硬链接、看起来"是同步的"，被编辑过的才落后 —— 于是很容易误判成"已经部署好了"。
+
+因此发版/部署的正确入口是：
+
+```bash
+# 体检（有漂移则退出码 1，可用于 CI）
+python3 agent-dh/scripts/relink-profile.py --check
+
+# 把副本换回符号链接（旧的先备份到 .deploy-backup/<时间戳>/）
+python3 agent-dh/scripts/relink-profile.py
+
+# 重启（:13080 由 launchd 托管，kill 会被 KeepAlive 拉回来）
+launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh
+```
+
+`agent-dh/scripts/restart-with-build.sh` 已把这三步串起来，正常发版走它即可。
 
 ### 3. DSH Profile Startup
 
@@ -320,13 +339,15 @@ export default class MyPlugin extends Service {
           baseURL: http://localhost:5001
 ```
 
-6. **链接进 profile**（注意：profile 目录不在 agent-dh workspace 内，`pnpm install` 会因 `workspace:^` 协议报错，必须手动建符号链接）：
+6. **链接进 profile**（注意：profile 目录不在 agent-dh workspace 内，`pnpm install` 会因 `workspace:^` 协议报错）：
 
 ```bash
-ln -sfn /Users/yunpeng/pi-investment/agent-dh/packages/my-plugin \
-  ~/.dsh/profiles/investment/node_modules/@pi-investment/my-plugin
 # 新插件的依赖链接由 agent-dh 根目录的 pnpm install 生成：
 cd agent-dh && pnpm install
+
+# 装进 profile 并统一成符号链接 —— 别手写 ln，pnpm install 会产生硬链接副本，
+# 而那些副本会在文件被编辑后静默停在旧版本（见上文「⚠️ pnpm build 不是部署」）
+python3 agent-dh/scripts/relink-profile.py
 ```
 
 ## Configuration Files
