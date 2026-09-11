@@ -16,6 +16,10 @@ dist
 .superpowers/
 /data/
 quantsys-v2/data/pipeline_runs.json
+# DSH profile 运行时状态（server.pid/server.port/重启锁等）。正常部署时 start.sh 写的是
+# ~/.dsh/profiles/investment/state/（仓库外）；只有在本仓就地跑模板时才会落到这里，
+# 于是一次测试就留下 untracked 垃圾，故显式忽略（2026-09-11）。
+agent-dh/profiles/investment/state/
 
 # Claude 会话计划产物
 .claude/plans/
