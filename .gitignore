@@ -74,6 +74,8 @@ SCHEDULER_*.md
 TASK_*.md
 check-*.sh
 check_*.py
+# 例外：契约监控校验器是常驻交付物（步3 契约驱动监控，2026-09-11 w-f4aa1f6a），必须入库
+!quantsys-v2/tools/check_data_contracts.py
 daily_*.sh
 demo-*.js
 demo-*.py

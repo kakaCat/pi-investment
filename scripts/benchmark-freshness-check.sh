@@ -13,6 +13,11 @@
 #      （实测 4,655,497 行全为裸码），000300 之外的指数代码与深市股票**同码冲突**
 #      （000001 平安银行/000016 *ST康佳A/000905 厦门港务），一旦有人把指数写成股票数据，
 #      量级会立刻异常（指数在千点级，股票在元级）。这条能抓住"静默错配"。
+#
+# 【已收敛到契约】上述两项检查已声明为契约行 quant.index_daily:000300.SH
+# （quant.data_contracts，校验器 tools/check_data_contracts.py，2026-09-11 w-f4aa1f6a）：
+#   freshness(trade_date, mode=market_latest) + value_ranges(close >= 1000 / <= 20000) + rowcount
+# 本脚本与对应 launchd 任务**保留不动**（是否下线由人工决定）。
 set -uo pipefail
 PSQL=/opt/homebrew/opt/postgresql@14/bin/psql
 DB=quant_investment
