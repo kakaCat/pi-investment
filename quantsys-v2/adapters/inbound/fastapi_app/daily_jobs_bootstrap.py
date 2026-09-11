@@ -317,12 +317,20 @@ def _job_freshness_guard() -> Dict[str, Any]:
                  + (f"：{f['error']}" if f['error'] else "") for f in failed_jobs]
         _send_feishu("🚨 v2 定时任务失败残留\n" + "\n".join(lines) +
                      "\n框架 2h 自动重试仍失败，请人工排查（/api/jobs/inprocess/status）")
+        # 2026-09-11（w-f4aa1f6a）：原写 str(kline_latest) —— 该变量自 2026-09-10 改成
+        # 按标的覆盖度巡检后已不存在，导致"数据新鲜"这条分支必抛
+        # NameError: name 'kline_latest' is not defined（滞后分支反而正常，故长期未被发现）。
+        # 现改报覆盖度事实，信息量更大且与巡检口径一致。
         return {'status': 'fresh_but_job_failed', 'expected': expected,
-                'kline_latest': str(kline_latest), 'factor_latest': str(factor_latest),
+                'kline_coverage': f"{cov['covered']}/{cov['total']}",
+                'kline_stale': cov['stale'], 'kline_oldest_stale': cov['oldest_stale'],
+                'factor_latest': str(factor_latest),
                 'failed_jobs': failed_jobs, 'alert_sent': True}
 
     return {'status': 'fresh', 'expected': expected,
-            'kline_latest': str(kline_latest), 'factor_latest': str(factor_latest)}
+            'kline_coverage': f"{cov['covered']}/{cov['total']}",
+            'kline_stale': cov['stale'], 'kline_oldest_stale': cov['oldest_stale'],
+            'factor_latest': str(factor_latest)}
 
 
 def _send_feishu(text: str) -> bool:
@@ -820,7 +828,8 @@ def _summarize_result(result: Any, max_len: int = 300) -> str:
     if not isinstance(result, dict):
         return ''
     keys = ['symbols_updated', 'updated', 'computed', 'failed_count',
-            'symbols_checked', 'status', 'expected', 'kline_latest', 'factor_latest']
+            'symbols_checked', 'status', 'expected', 'kline_coverage', 'kline_stale',
+            'kline_oldest_stale', 'factor_latest']
     parts = [f"{k}={result[k]}" for k in keys if k in result]
     # evening_pipeline 等链式任务：深入一层提取子任务摘要
     for sub_key, sub_val in result.items():
