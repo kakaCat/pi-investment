@@ -114,13 +114,96 @@ def delete_rule(rule_id: int):
     return {'success': True}
 
 
+def _limit_of(limit, default: int = 50, cap: int = 200) -> int:
+    try:
+        value = int(limit) if limit is not None else default
+    except (TypeError, ValueError):
+        value = default
+    return max(1, min(value, cap))
+
+
 @router.get('/api/watch/triggers')
-def list_triggers(symbol: Optional[str] = Query(None), limit: Optional[str] = Query(None)):
+def list_triggers(symbol: Optional[str] = Query(None),
+                  disposition: Optional[str] = Query(None),
+                  limit: Optional[str] = Query(None)):
+    """触发记录。disposition 可过滤处置状态（待处置/已归档/去重合并/已升级等）。"""
+    trigger_repo = WatchTriggerRepository()
+    triggers = trigger_repo.list_triggers(
+        symbol=symbol, disposition=disposition, limit=_limit_of(limit))
+    return {'success': True, 'data': {'triggers': [trigger_to_dict(t) for t in triggers]}}
+
+
+@router.get('/api/watch/triggers/stats')
+def trigger_disposition_stats(date: Optional[str] = Query(None)):
+    """处置率统计（REQ-f08def 验收指标数据源）。
+
+    处置率 = 已收敛终态 / (已收敛 + pending + escalated)；
+    legacy_unknown（状态机上线前的历史数据）不计入分母，避免美化指标。
+    agent_wakeups_estimate = escalated + L2 触发的去重合并数（估算实际唤醒量级）。
+    """
+    from application.services.watch_engine.disposition import UNRESOLVED, is_resolved
+    trigger_repo = WatchTriggerRepository()
+    rows = trigger_repo.list_triggers(limit=200)
+    day = date or datetime.now().strftime('%Y-%m-%d')
+    rows = [t for t in rows if t.triggered_at and t.triggered_at.strftime('%Y-%m-%d') == day]
+    buckets = {}
+    for t in rows:
+        buckets[t.disposition or 'legacy_unknown'] = buckets.get(t.disposition or 'legacy_unknown', 0) + 1
+    resolved = sum(v for k, v in buckets.items() if is_resolved(k))
+    unresolved = sum(v for k, v in buckets.items() if k in UNRESOLVED)
+    denom = resolved + unresolved
+    return {'success': True, 'data': {
+        'date': day,
+        'total': len(rows),
+        'by_disposition': buckets,
+        'resolved': resolved,
+        'unresolved': unresolved,
+        'disposition_rate': round(resolved / denom, 4) if denom else None,
+        'escalated_to_agent': buckets.get('escalated', 0),
+    }}
+
+
+@router.get('/api/watch/triggers/unresolved')
+def list_unresolved_triggers(date: Optional[str] = Query(None), limit: Optional[str] = Query(None)):
+    """盘后未处置清单（pending/escalated）——把"触发后没人管"变成可追的待办。"""
+    from application.services.watch_engine.disposition import UNRESOLVED
+    trigger_repo = WatchTriggerRepository()
+    day = date or datetime.now().strftime('%Y-%m-%d')
+    rows = trigger_repo.list_triggers(dispositions=UNRESOLVED, limit=_limit_of(limit, 200))
+    rows = [t for t in rows if t.triggered_at and t.triggered_at.strftime('%Y-%m-%d') == day]
+    by_symbol = {}
+    for t in rows:
+        key = str(t.symbol).split('.')[0]
+        by_symbol.setdefault(key, []).append(t.disposition)
+    return {'success': True, 'data': {
+        'date': day,
+        'count': len(rows),
+        'by_symbol': {k: {'count': len(v), 'dispositions': sorted(set(v))} for k, v in by_symbol.items()},
+        'triggers': [trigger_to_dict(t) for t in rows],
+    }}
+
+
+@router.patch('/api/watch/triggers/{trigger_id}')
+def update_trigger_disposition(trigger_id: int,
+                               payload: Dict[str, Any] = Body(default_factory=dict)):
+    """处置一条触发：handled（有动作）/ ignored（知悉但不动作，必须带 reason）/ expired。
+
+    这是闭环的最后一环——把 200 条 agent_response=null 的死账变成有终态的账。
+    """
+    disposition = str(payload.get('disposition') or '').strip()
+    allowed = {'handled', 'ignored', 'expired', 'pending'}
+    if disposition not in allowed:
+        return _err(f'disposition 必须是 {sorted(allowed)} 之一', 400)
+    reason = payload.get('reason')
+    if disposition == 'ignored' and not str(reason or '').strip():
+        return _err('ignored 必须填写 reason（为什么知悉但不动作）', 400)
     trigger_repo = WatchTriggerRepository()
     try:
-        limit_value = int(limit) if limit is not None else 50
-    except (TypeError, ValueError):
-        limit_value = 50
-    limit_value = max(1, min(limit_value, 200))
-    triggers = trigger_repo.list_by_symbol(symbol=symbol, limit=limit_value)
-    return {'success': True, 'data': {'triggers': [trigger_to_dict(t) for t in triggers]}}
+        trigger = trigger_repo.update_disposition(
+            trigger_id, disposition, reason=reason,
+            by=str(payload.get('by') or 'agent'))
+    except ValueError as e:
+        return _err(str(e), 400)
+    if trigger is None:
+        return _err('触发记录不存在', 404)
+    return {'success': True, 'data': {'trigger': trigger_to_dict(trigger)}}

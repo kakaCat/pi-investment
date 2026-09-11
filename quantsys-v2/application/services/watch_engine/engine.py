@@ -12,6 +12,9 @@ import structlog
 from application.services.watch_engine.conditions import (
     DEFAULT_COOLDOWN_SEC, EvalContext, evaluate,
 )
+from application.services.watch_engine.disposition import (
+    DEDUP_WINDOW_SEC, decide as decide_disposition, dedup_key,
+)
 from domain.watch.services.escalation_checker import EscalationChecker
 from domain.watch.models import QuoteData
 
@@ -59,6 +62,10 @@ class WatchEngine:
         self._history: Dict[str, List[Tuple[datetime, float]]] = {}
         self._last_triggered: Dict[Tuple[int, int], datetime] = {}
         self._latched: set = set()
+        # 去重窗（REQ-f08def）：key=(归一化标的,方向) -> (最近一次触发时间, 触发记录 id)
+        # 同标的同向在该窗内只通知一次，重复的仍落库（disposition='deduped' + dup_of）
+        self._recent_notified: Dict[Tuple[str, str], Tuple[datetime, int]] = {}
+        self.dedup_window_sec = DEDUP_WINDOW_SEC
         self._avg_volume_cache: Dict[str, float] = {}
         self._state_date = None
         self.fast_mode = False
@@ -163,17 +170,49 @@ class WatchEngine:
                         concurrent_trigger_count=concurrent_count,
                     )
                 
+                # ── 处置决策（REQ-f08def）─────────────────────────────
+                # 机械优先：去重合并 / observe 类归档当场收敛（零 LLM），
+                # 只有 L2 或升级触发才进 agent 摘要队列（用户硬约束：token 成本）。
+                key = dedup_key(rule, cond)
+                disposition, disposition_reason = decide_disposition(
+                    rule, cond, escalated=bool(escalation_reason))
+                dup_of = None
+                prev = self._recent_notified.get(key)
+                if prev is not None and (now - prev[0]).total_seconds() < self.dedup_window_sec:
+                    disposition = 'deduped'
+                    disposition_reason = (
+                        f'同标的同向 {self.dedup_window_sec}s 内已触发（key={key[0]}/{key[1]}），'
+                        f'合并到触发 #{prev[1]}，不再重复通知'
+                    )
+                    dup_of = prev[1]
+
                 try:
-                    self.notifier.notify(rule, cond, quote, result, escalation_reason=escalation_reason)
+                    trigger = self.notifier.notify(
+                        rule, cond, quote, result,
+                        escalation_reason=escalation_reason,
+                        disposition=disposition,
+                        disposition_reason=disposition_reason,
+                        dup_of=dup_of,
+                    )
                 except Exception as e:
                     # 不闩锁、不记 _last_triggered，下个 tick 重试（at-least-once）
                     logger.error('通知发送失败', rule_id=rule.id, cond=cond, error=str(e))
                     continue
+                if disposition != 'deduped':
+                    self._recent_notified[key] = (
+                        now, getattr(trigger, 'id', 0) or 0)
                 self._last_triggered[(rule.id, idx)] = now
                 self._latched.add((rule.id, idx))
                 events.append({'rule_id': rule.id, 'symbol': rule.symbol,
                                'condition': cond, 'price': float(quote.price),
                                'message': result.message})
+
+        # 去重窗裁剪：清掉已过期的键，避免长跑进程内的无界增长
+        if self._recent_notified:
+            cutoff = now.timestamp() - self.dedup_window_sec
+            self._recent_notified = {
+                k: v for k, v in self._recent_notified.items() if v[0].timestamp() >= cutoff
+            }
 
         self.fast_mode = fast
         return events
@@ -189,6 +228,7 @@ class WatchEngine:
         self._avg_volume_cache.clear()
         # 跨天全量重新武装：新的一天允许持续成立的条件再报一次（每日最多一次）
         self._latched.clear()
+        self._recent_notified.clear()
         active_ids = {r.id for r in self.rule_repo.list_enabled()}
         self._last_triggered = {k: v for k, v in self._last_triggered.items()
                                 if k[0] in active_ids}

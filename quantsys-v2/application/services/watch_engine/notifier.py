@@ -99,7 +99,9 @@ class WatchNotifier:
             self._notification_facade = NotificationFactory.get_instance()
         return self._notification_facade
 
-    def notify(self, rule, condition: dict, quote, result, escalation_reason: str = None) -> bool:
+    def notify(self, rule, condition: dict, quote, result, escalation_reason: str = None,
+               disposition: str = None, disposition_reason: str = None,
+               dup_of: int = None):
         """触发通知
         
         Args:
@@ -112,6 +114,16 @@ class WatchNotifier:
         Returns:
             bool: 是否成功送达
         """
+        # 0. 去重短路（REQ-f08def）：同标的同向在去重窗内已有触发 → 只落库不通知。
+        # 实测噪声来源：同规则同向多阈值（0.46 秒内两条）、601600 六条规则语义重合（一次跌穿 4+ 条）。
+        # 仍落库是为了保留审计（notified=False + disposition='deduped' + dup_of 溯源）。
+        if disposition == 'deduped':
+            logger.info('触发去重合并（不通知）', rule_id=getattr(rule, 'id', None),
+                        symbol=getattr(rule, 'symbol', None), dup_of=dup_of)
+            return self._record(rule, condition, quote, result, notified=False,
+                                disposition=disposition, disposition_reason=disposition_reason,
+                                dup_of=dup_of)
+
         # 1. 构建 TriggerPayload
         payload = self._build_payload(rule, condition, quote, result, escalation_reason)
         
@@ -154,10 +166,11 @@ class WatchNotifier:
         # 4. WebSocket 广播
         self._broadcast_ws(payload)
         
-        # 5. 触发记录落库
-        self._record(rule, condition, quote, result, notified)
-        
-        return notified
+        # 5. 触发记录落库（含处置初态）
+        trigger = self._record(rule, condition, quote, result, notified,
+                               disposition=disposition, disposition_reason=disposition_reason)
+
+        return trigger
 
     def _build_payload(self, rule, condition, quote, result, escalation_reason: str = None) -> TriggerPayload:
         """构建 TriggerPayload"""
@@ -239,18 +252,23 @@ class WatchNotifier:
         except Exception as e:
             logger.debug('WS 广播失败（忽略）', error=str(e))
 
-    def _record(self, rule, condition, quote, result, notified):
-        """触发记录落库"""
+    def _record(self, rule, condition, quote, result, notified,
+                disposition: str = None, disposition_reason: str = None, dup_of: int = None):
+        """触发记录落库（含处置初态，返回落库后的触发对象供去重溯源）"""
         if self.trigger_repo is None:
-            return
+            return None
         try:
-            self.trigger_repo.record(
+            return self.trigger_repo.record(
                 rule_id=rule.id,
                 symbol=rule.symbol,
                 condition=condition,
                 trigger_price=float(quote.price),
                 detail={'value': result.value, 'message': result.message},
                 notified=notified,
+                disposition=disposition or 'pending',
+                disposition_reason=disposition_reason,
+                dup_of=dup_of,
             )
         except Exception as e:
             logger.error('触发记录落库失败', error=str(e))
+            return None
