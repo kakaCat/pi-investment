@@ -2,7 +2,7 @@
  * RegimePositionLimitTool - 市场状态仓位限制工具
  */
 
-import { BaseTool } from '@pi-investment/core-tool';
+import { BaseTool, assessBreakerTrigger, BREAKER_THRESHOLD_PCT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { regimePositionLimitPrompt, RegimePositionLimitParams, RegimePositionLimitResult } from './prompt';
@@ -22,6 +22,26 @@ export class RegimePositionLimitTool extends BaseTool<RegimePositionLimitParams,
     version: '1.0.0',
     timeoutMs: 20000,
   };
+
+  /**
+   * 取账户净值序列（total_value）供回撤可信度复算。与 risk_metrics 的 account_nav 同源
+   * （/api/simulation/performance），失败返回空数组（闸门会因此判定不可信 → 不触发熔断，方向安全）。
+   */
+  private async fetchNavValues(accountName: string): Promise<number[]> {
+    try {
+      const base = process.env.QUANTSYS_V2_API_URL || 'http://127.0.0.1:5001';
+      const url = base + '/api/simulation/performance?account_name=' + encodeURIComponent(accountName);
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const body: any = await res.json();
+      const curve: any[] = body?.data?.equity_curve ?? [];
+      return curve
+        .map((r) => Number(r?.total_value))
+        .filter((n) => Number.isFinite(n) && (n as number) > 0) as number[];
+    } catch {
+      return [];
+    }
+  }
 
   protected readonly prompt = regimePositionLimitPrompt;
 
@@ -79,22 +99,36 @@ export class RegimePositionLimitTool extends BaseTool<RegimePositionLimitParams,
     // （-0.0716 = -7.16%），不是 max_drawdown 百分数——E2E 前读的是错的
     let circuit: any = { triggered: false };
     let verdict: 'compliant' | 'reduce_required' | 'circuit_breaker' = headroom >= 0 ? 'compliant' : 'reduce_required';
+    // 2026-09-11 修复（w-f4aa1f6a，agent_brain 假熔断事故驱动）：
+    // 原实现直接采信 risk_metrics.maxDrawdown 作为"账户回撤"，**不校验口径与样本量**。
+    // 实证：agent_brain 只有 2 条净值快照 → 主口径 account_nav 不可用，服务静默回退到
+    // holdings_proxy（当前持仓等权、忽略现金权重、接口自述"会高估风险"），算出 -8.88%，
+    // 于是本工具报 triggered=true；而同一账户用原始净值序列复算只有 -0.13%、
+    // 总盈亏 -0.53%、现金占比 75.6%——三者都不支持触发。
+    // 现改为：口径必须是账户净值 + 样本足够 + 回撤可由净值序列复现，任一不满足一律不触发。
+    // 闸门来自 core-tool 共享模块（与 M4 熔断工具同一套逻辑，避免两处漂移）。
     try {
       const metrics: any = await this.qv2.getRiskMetrics({ account_name: accountName, days: 60 });
       const raw = Number(metrics?.maxDrawdown ?? metrics?.max_drawdown ?? 0);
       const mdd = Math.abs(raw) <= 1 ? +(raw * 100).toFixed(2) : raw;  // 小数比率→百分比
-      if (mdd <= -8) {
-        circuit = {
-          triggered: true,
-          max_drawdown: mdd,
-          action: '组合回撤熔断触发：强制减仓一半（权益仓位降至当前 50%），禁止新开仓直到回撤修复',
-        };
+      const caliber = String(metrics?.returnsSource ?? metrics?.returns_source ?? '').trim();
+      const navs = await this.fetchNavValues(accountName);
+      const assessment = assessBreakerTrigger(mdd, caliber, navs);
+      circuit = {
+        triggered: assessment.triggered,
+        max_drawdown: mdd,
+        threshold: BREAKER_THRESHOLD_PCT,
+        caliber: assessment.caliber,
+        untrusted: assessment.untrusted,
+        note: assessment.reason,
+        trust_detail: assessment.detail,
+      };
+      if (assessment.triggered) {
+        circuit.action = '组合回撤熔断触发：强制减仓一半（权益仓位降至当前 50%），禁止新开仓直到回撤修复';
         verdict = 'circuit_breaker';
-      } else {
-        circuit = { triggered: false, max_drawdown: mdd, threshold: -8 };
       }
-    } catch {
-      circuit = { triggered: false, note: '回撤指标不可用，熔断未评估' };
+    } catch (e: any) {
+      circuit = { triggered: false, note: "回撤指标不可用，熔断未评估: " + String(e?.message || e).slice(0, 80) };
     }
 
     return {

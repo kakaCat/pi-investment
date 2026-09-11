@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { recomputeMaxDrawdown, assessDrawdownTrust } from '../packages/trading/src/tools/M4CircuitBreakerTool/drawdownTrust';
+import { recomputeMaxDrawdown, assessDrawdownTrust } from '../packages/core-tool/src/drawdownTrust';
 
 // 熔断输入可信度闸门的回归测试（2026-09-11，w-f4aa1f6a）
 describe('recomputeMaxDrawdown', () => {

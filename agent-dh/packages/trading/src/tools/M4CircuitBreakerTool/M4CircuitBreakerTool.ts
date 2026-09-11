@@ -16,7 +16,7 @@ import {
   CircuitBreakerCheckResult,
   CircuitBreakerStatus,
 } from './prompt';
-import { assessDrawdownTrust } from './drawdownTrust';
+import { assessDrawdownTrust } from '@pi-investment/core-tool';
 
 export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, CircuitBreakerCheckResult> {
   protected readonly metadata: ToolMetadata = {

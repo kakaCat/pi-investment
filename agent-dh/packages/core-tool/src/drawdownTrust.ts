@@ -1,4 +1,10 @@
 /**
+ * 熔断输入可信度闸门（共享模块，2026-09-11 从 trading 包提升到 core-tool）
+ *
+ * 提升原因：M4 熔断工具与 regime_position_limit 工具都需要"别在坏输入上做不可逆风控动作"，
+ * 而 agent_brain 2026-09-11 的假熔断（holdings_proxy 口径 -8.88% vs 真实 -0.13%）正是
+ * 后者缺这道闸门所致——两处各写一套必然漂移，故收敛到本模块。
+ *
  * 熔断输入可信度闸门（2026-09-11，w-f4aa1f6a，事故驱动）
  *
  * 事故：2026-09-10 08:30 熔断依据 -10.71% 触发并**真实卖出** 600887，但该读数源自净值快照
@@ -63,5 +69,63 @@ export function assessDrawdownTrust(claimedPct: number, values: number[]): Drawd
     trusted: true,
     reason: '声明回撤可由净值序列复现（复算 ' + r.maxDrawdownPct.toFixed(2) + '%，样本 ' + r.points + ' 点）',
     detail: { claimed: claimedPct, recomputed: r.maxDrawdownPct, diff: +diff.toFixed(4), points: r.points },
+  };
+}
+/**
+ * 熔断触发判定（2026-09-11，agent_brain 假熔断事故驱动，w-f4aa1f6a）。
+ *
+ * 事故：agent_brain 仅 2 条净值快照 → 主口径 account_nav 不可用，risk_metrics 静默回退到
+ * holdings_proxy（持仓等权、忽略现金权重、自述会高估风险）→ -8.88% → 被当账户回撤触发"强制减仓一半"；
+ * 而原始净值序列复算仅 -0.13%、账户总盈亏 -0.53%、现金 75.6%。
+ *
+ * 规则（任一不满足即不触发，只记录）：
+ *   ① 口径必须是 account_nav（代理/直传口径一律不触发）；
+ *   ② 回撤必须可由净值序列复现（样本 >= 20、与复算差值 <= 容差）。
+ */
+export const BREAKER_THRESHOLD_PCT = -8;
+
+export interface BreakerAssessment {
+  triggered: boolean;
+  untrusted: boolean;
+  caliber: string;
+  reason: string;
+  detail: Record<string, unknown>;
+}
+
+export function assessBreakerTrigger(
+  claimedDrawdownPct: number,
+  caliber: string,
+  navValues: number[],
+): BreakerAssessment {
+  const c = (caliber || '').trim();
+  if (c && c !== 'account_nav') {
+    return {
+      triggered: false,
+      untrusted: true,
+      caliber: c,
+      reason:
+        '口径为 ' + c + '（非账户净值序列；holdings_proxy 忽略现金权重会高估风险）→ 熔断不触发，仅记录',
+      detail: { claimed: claimedDrawdownPct, caliber: c },
+    };
+  }
+  const trust = assessDrawdownTrust(claimedDrawdownPct, navValues);
+  if (!trust.trusted) {
+    return {
+      triggered: false,
+      untrusted: true,
+      caliber: c || 'account_nav',
+      reason: '未通过可信度闸门：' + trust.reason,
+      detail: trust.detail,
+    };
+  }
+  const triggered = claimedDrawdownPct <= BREAKER_THRESHOLD_PCT;
+  return {
+    triggered,
+    untrusted: false,
+    caliber: c || 'account_nav',
+    reason: triggered
+      ? '口径与复算均通过，回撤 ' + claimedDrawdownPct.toFixed(2) + '% <= 阈值 ' + BREAKER_THRESHOLD_PCT + '% → 熔断触发'
+      : '口径与复算均通过，回撤 ' + claimedDrawdownPct.toFixed(2) + '% 未达阈值 ' + BREAKER_THRESHOLD_PCT + '%',
+    detail: trust.detail,
   };
 }
