@@ -65,8 +65,15 @@ CATEGORY_MAP_ENV = "WATCH_CATEGORY_AGENT_MAP"
 #   · agent 自有账户（agent_virtual / agent_brain）→ autonomous：agent 自己操作，含下单
 #   · 用户账户（user_main_simulation）→ remind_only：不得下单，只提醒 + 更新预案，
 #     需要交易时用 ask_user_question 拉起用户确认
-AUTONOMOUS = "autonomous"       # agent 自己操作（可下单）
-REMIND_ONLY = "remind_only"     # 只提醒（不得下单）
+AUTONOMOUS = "autonomous"           # agent 自己操作（可下单）
+REMIND_ONLY = "remind_only"         # 只提醒（不得下单）
+NOT_APPLICABLE = "not_applicable"   # 盯盘不适用：策略账户由策略执行（用户 2026-09-11）
+
+#: 策略账户：**交易由策略引擎执行，与盯盘无关**——不进盯盘投递链，也不该有盯盘规则。
+#: 依据：用户 2026-09-11「策略账户 交易和盯盘没关联，是策略去执行的」；
+#: 与 simulation_account.account_type='strategy' 一致（v13/v14/v15/chip）。
+STRATEGY_MANAGED_ACCOUNTS = ("v13_simulation", "v14_simulation", "v15_simulation",
+                             "chip_simulation", "rotation_main")
 
 #: 账户 → 授权等级（默认表；改这张表 = 改授权。生产可按 simulation_account.account_type 校准：
 #: agent=autonomous / user=remind_only / strategy=待明确，先按保守处理）
@@ -74,7 +81,7 @@ DEFAULT_AUTONOMY_BY_ACCOUNT: Dict[str, str] = {
     "agent_virtual": AUTONOMOUS,
     "agent_brain": AUTONOMOUS,
     "user_main_simulation": REMIND_ONLY,
-    "v13_simulation": REMIND_ONLY,     # 策略账户先保守：待用户明确后再放开
+    # 策略账户不在此表：它们走 NOT_APPLICABLE（见 STRATEGY_MANAGED_ACCOUNTS）
 }
 
 #: 兜底：未知账户 / 无账户一律最保守（只提醒）
@@ -125,12 +132,19 @@ class WatchDeliveryPolicy:
         未知账户或无账户（数据缺陷）一律兜底 remind_only：**授权必须显式给予，不能默认放开**。
         """
         key = (account or "").strip()
+        if key and self.is_strategy_managed(key):
+            return NOT_APPLICABLE
         if key:
             for table in (self.autonomy_overrides, self.autonomy):
                 level = table.get(key)
                 if level in (AUTONOMOUS, REMIND_ONLY):
                     return level
         return DEFAULT_AUTONOMY
+
+    @staticmethod
+    def is_strategy_managed(account: Optional[str]) -> bool:
+        """策略账户判定：交易由策略执行，盯盘不介入（投递层据此跳过，规则守卫据此拒绝建规则）"""
+        return (account or "").strip() in STRATEGY_MANAGED_ACCOUNTS
 
     def resolve(self, account: Optional[str] = None, category: Optional[str] = None) -> str:
         """账户优先，其次事件分类，最后兜底（账户是责任归属的事实来源）"""

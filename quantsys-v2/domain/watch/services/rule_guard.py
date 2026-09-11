@@ -27,6 +27,19 @@ class TradeRuleWithoutAccount(ValueError):
     """买卖规则缺账户归属（数据缺陷，拒绝入库）"""
 
 
+class WatchRuleNotApplicable(ValueError):
+    """策略账户不接受盯盘规则：策略账户的交易由策略引擎执行，与盯盘无关（用户 2026-09-11）"""
+
+
+def guard_account_applicable(account, symbol=None) -> None:
+    """盯盘适用性：策略账户（v13/v14/v15/chip 等）由策略执行，不进盯盘体系。"""
+    from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
+    if account and WatchDeliveryPolicy.is_strategy_managed(account):
+        raise WatchRuleNotApplicable(
+            "策略账户不接受盯盘规则：%s 的交易由策略引擎执行，与盯盘无关"
+            "（盯盘只服务 agent 自有账户与用户账户）。symbol=%s" % (account, symbol or '-'))
+
+
 def effective_account(rule) -> Optional[str]:
     """规则的有效账户：linked_account（投送权威字段）优先，回退 account"""
     if isinstance(rule, dict):
@@ -42,7 +55,8 @@ def _draft(intent=None, action_hint=None, conditions=None):
 
 def guard_new_rule(*, intent=None, action_hint=None, conditions=None,
                    account=None, symbol=None) -> None:
-    """创建前校验：买卖规则必须有账户（raise TradeRuleWithoutAccount）"""
+    """创建前校验：①策略账户不接受盯盘规则 ②买卖规则必须有账户"""
+    guard_account_applicable(account, symbol)
     derived = intent_of(_draft(intent=intent, action_hint=action_hint, conditions=conditions))
     if not is_trade_intent(derived):
         return

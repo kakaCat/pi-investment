@@ -131,6 +131,17 @@ def test_wake_fans_out_per_account_with_scope_instruction():
     assert "agent_brain" not in by_acct["agent_virtual"]["data"]["digest"]
 
 
+def test_strategy_account_rule_is_not_delivered_to_agent():
+    """策略账户持有盯盘规则 = 设计错误：不投递 agent，显式上报 out_of_scope"""
+    agent = _Agent()
+    rules = [_Rule(9, "300224", account="v13_simulation", intent="trend_observe")]
+    trigs = [_Trig(19, 9, "300224")]
+    res = _svc(agent=agent, rules=rules, trigs=trigs).maybe_wake(now=TRADING_NOW)
+    assert agent.calls == []
+    assert res["woke"] is False and "盯盘不介入" in res["reason"]
+    assert res["out_of_scope"][0]["account"] == "v13_simulation"
+
+
 def test_wake_carries_per_account_authority():
     """授权按账户给：agent 自有账户可自主下单；用户账户只提醒（用户 2026-09-11 定调）"""
     agent = _Agent()

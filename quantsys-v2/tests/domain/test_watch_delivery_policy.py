@@ -5,8 +5,8 @@
 import pytest
 
 from domain.notification.policies.watch_delivery_policy import (
-    AGENT_DH, AGENT_TS, AUTONOMOUS, DEFAULT_AGENT, REMIND_ONLY, _parse_map, WATCH_AGENTS,
-    WatchDeliveryPolicy,
+    AGENT_DH, AGENT_TS, AUTONOMOUS, DEFAULT_AGENT, NOT_APPLICABLE, REMIND_ONLY, _parse_map,
+    WATCH_AGENTS, WatchDeliveryPolicy,
 )
 
 
@@ -67,13 +67,31 @@ def test_env_map_parsing_is_fail_soft():
     assert _parse_map('{"a": "", "b": 3}') == {}
 
 
-def test_autonomy_follows_account_ownership():
+def test_autonomy_follows_account_ownership():  # noqa: D103
     """用户 2026-09-11：agent 的账户 agent 自己操作；用户账户只提醒"""
     p = WatchDeliveryPolicy()
     assert p.resolve_autonomy("agent_virtual") == AUTONOMOUS
     assert p.resolve_autonomy("agent_brain") == AUTONOMOUS
     assert p.resolve_autonomy("user_main_simulation") == REMIND_ONLY
-    assert p.resolve_autonomy("v13_simulation") == REMIND_ONLY   # 策略账户先保守
+    # 策略账户不走授权档：由策略引擎执行（见 test_strategy_accounts_are_not_applicable）
+
+
+def test_strategy_accounts_are_not_applicable():
+    """用户 2026-09-11：策略账户交易由策略执行，与盯盘无关 → 不进盯盘投递链"""
+    p = WatchDeliveryPolicy()
+    for acct in ("v13_simulation", "v14_simulation", "v15_simulation", "chip_simulation"):
+        assert p.is_strategy_managed(acct) is True
+        assert p.resolve_autonomy(acct) == NOT_APPLICABLE
+    assert p.is_strategy_managed("agent_virtual") is False
+    assert p.resolve_autonomy("agent_virtual") == AUTONOMOUS
+
+
+def test_strategy_account_rule_rejected():
+    from domain.watch.services.rule_guard import WatchRuleNotApplicable, guard_new_rule
+    with pytest.raises(WatchRuleNotApplicable):
+        guard_new_rule(intent="trend_observe", account="v13_simulation")
+    # 非策略账户不受影响
+    guard_new_rule(intent="trend_observe", account="agent_virtual")
 
 
 def test_autonomy_defaults_to_remind_when_unknown():
@@ -85,8 +103,11 @@ def test_autonomy_defaults_to_remind_when_unknown():
 
 
 def test_autonomy_override_can_promote_account():
-    p = WatchDeliveryPolicy(autonomy={"v13_simulation": AUTONOMOUS}, autonomy_overrides={})
-    assert p.resolve_autonomy("v13_simulation") == AUTONOMOUS
+    """授权可显式上调（如把用户账户临时授权给 agent 自主）——但策略账户永远不适用"""
+    p = WatchDeliveryPolicy(autonomy={"user_main_simulation": AUTONOMOUS}, autonomy_overrides={})
+    assert p.resolve_autonomy("user_main_simulation") == AUTONOMOUS
+    p2 = WatchDeliveryPolicy(autonomy={"v13_simulation": AUTONOMOUS}, autonomy_overrides={})
+    assert p2.resolve_autonomy("v13_simulation") == NOT_APPLICABLE
 
 
 def test_policy_does_not_accept_message_channel():

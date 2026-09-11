@@ -200,6 +200,11 @@ class WatchDigestService:
         from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
         return WatchDeliveryPolicy().resolve(account=account, category=category)
 
+    @staticmethod
+    def _is_strategy_managed(account: Optional[str]) -> bool:
+        from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
+        return WatchDeliveryPolicy.is_strategy_managed(account)
+
     def _resolve_autonomy(self, account: Optional[str]) -> str:
         """账户 → 授权等级（agent 自有账户可自主操作；用户账户只提醒）"""
         from domain.notification.policies.watch_delivery_policy import WatchDeliveryPolicy
@@ -258,7 +263,7 @@ class WatchDigestService:
         # 按账户分段投送（2026-09-11，w-aebfddcd）：一个账户一份唤醒，投给该账户的处置 agent。
         # 预算按"唤醒次数"计（一次唤醒 = 一个账户），上限仍是 daily_cap。
         segments = self._segments(digest)
-        woke_accounts, failed, delivered, defects = [], [], 0, []
+        woke_accounts, failed, delivered, defects, out_of_scope = [], [], 0, [], []
         for acc_key, seg in segments.items():
             acct = None if acc_key == UNASSIGNED else acc_key
             if acc_key == UNASSIGNED:
@@ -270,6 +275,13 @@ class WatchDigestService:
                     "rule_ids": sorted({it.get("rule_id") for g in seg["groups"]
                                         for it in (g.get("items") or []) if it.get("rule_id")}),
                 })
+            if acc_key != UNASSIGNED and self._is_strategy_managed(acct):
+                # 策略账户：交易由策略引擎执行，与盯盘无关（用户 2026-09-11）→ 不投递 agent，
+                # 但要显式报告：策略账户**不该有盯盘规则**，出现即规则治理问题。
+                out_of_scope.append({
+                    "account": acct, "count": seg["count"],
+                    "reason": "策略账户由策略执行，与盯盘无关：不投递 agent；该规则应清理或改归其他账户"})
+                continue
             if wake_count >= self.daily_cap:
                 break
             target_agent = self._resolve_target(acct)
@@ -311,6 +323,12 @@ class WatchDigestService:
                         unassigned_defects=sum(d["count"] for d in defects))
             return {"woke": True, "count": digest["count"], "group_count": digest["group_count"],
                     "accounts": woke_accounts, "failed": failed, "wakes": delivered,
-                    "data_defects": defects}
+                    "data_defects": defects, "out_of_scope": out_of_scope}
+        if out_of_scope and not delivered and not defects:
+            return {"woke": False,
+                    "reason": "仅命中策略账户（策略执行，盯盘不介入）：不唤醒 agent",
+                    "count": sum(s["count"] for s in out_of_scope),
+                    "out_of_scope": out_of_scope}
         return {"woke": False, "reason": "唤醒通道失败（不写状态，下次重试）",
-                "count": digest["count"], "failed": failed, "data_defects": defects}
+                "count": digest["count"], "failed": failed, "data_defects": defects,
+                "out_of_scope": out_of_scope}
