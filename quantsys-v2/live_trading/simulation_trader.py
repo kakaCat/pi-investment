@@ -60,31 +60,23 @@ import psycopg2
 def judge_trading_day(day, *, kline_exists_on_date, latest_kline_date, today):
     """判定某天是否为交易日（纯函数，可单测）。
 
-    语义（2026-08-12 重写，修复"盘中永远判定非交易日"bug）：
-    - 周末 → False
-    - 未来日期 → False
+    2026-09-11（w-f4aa1f6a 步2）：唯一实现已提升到
+    application.services.trading_day_guard.judge_trading_day，
+    这里保留同名委托以兼容既有调用与单测（语义未变）：
+    - 周末 → False；未来日期 → False
     - 当天日K已落库 → True（历史日期的主要判据，精确覆盖法定节假日）
-    - 当天日K未落库且判定对象就是"今天"：盘中场景（日K 17:40 才更新），
-      只要市场近期活跃（7 个自然日内有K线）→ True
+    - 当天日K未落库且判定对象是"今天"：盘中场景（日K 17:40 才更新），
+      近期市场活跃（7 个自然日内有K线）→ True
     - 其他（过去的工作日无K线 = 节假日；长期停市/数据断供）→ False
-
-    Args:
-        day: 待判定日期（datetime.date）
-        kline_exists_on_date: 该日期 daily_klines 是否有记录
-        latest_kline_date: daily_klines 最大 trade_date（date 或 None）
-        today: 今天（datetime.date）
     """
-    if day.weekday() >= 5:
-        return False
-    if day > today:
-        return False
-    if kline_exists_on_date:
-        return True
-    if day == today:
-        if latest_kline_date is None:
-            return False
-        return (today - latest_kline_date).days <= 7
-    return False
+    from application.services.trading_day_guard import judge_trading_day as _judge
+
+    return _judge(
+        day,
+        kline_exists_on_date=kline_exists_on_date,
+        latest_kline_date=latest_kline_date,
+        today=today,
+    )
 
 
 class SimulationTrader:
@@ -387,16 +379,26 @@ class SimulationTrader:
         校验失败时**仍写入**（宁可多一条，也不丢真正的交易日快照——交易日快照缺失是更难补救的）。
         """
         d = check_date or datetime.now().strftime('%Y-%m-%d')
-        try:
-            from application.services.trading_calendar_service import TradingCalendarService
+        # 2026-09-11（w-f4aa1f6a 步2）：收敛到 TradingDayGuard 唯一入口。
+        # 原来走 TradingCalendarService：其内部 Redis→内存→工作日→provider 的
+        # 路径在工作日兜底时会把法定节假日当交易日（且不告知调用方），
+        # 正是 2026-08-08 周末合成快照那类问题的温床。护栏改为 K 线数据驱动，
+        # 并显式返回判定来源与降级标记。
+        from application.services.trading_day_guard import TradingDayGuard
 
-            if not TradingCalendarService().is_trading_day(d):
-                logger.info(f"[{self.account_name}] {d} 非交易日 → 跳过净值快照写入")
-                return False
-            return True
-        except Exception as e:  # noqa: BLE001 - 校验不可用时不阻断结算，按旧行为写入
-            logger.warning(f"[{self.account_name}] 交易日校验失败({e})，按保守策略仍写快照")
-            return True
+        verdict = TradingDayGuard.should_write_daily(d)
+        if not verdict.is_trading_day:
+            logger.info(
+                f"[{self.account_name}] {d} 非交易日"
+                f"（{verdict.source}: {verdict.reason}）→ 跳过净值快照写入"
+            )
+            return False
+        if verdict.degraded:
+            logger.warning(
+                f"[{self.account_name}] {d} 交易日判定降级"
+                f"（{verdict.source}: {verdict.reason}），按交易日处理"
+            )
+        return True
 
     def _save_daily_snapshot(self, total_value: float, cumulative_return: float):
         """保存每日账户快照到 simulation_equity_snapshot 表（按账户隔离）
@@ -759,36 +761,16 @@ class SimulationTrader:
         交易日"→ v13/v14 调仓永远跳过且被记为 success。判定逻辑抽为纯函数
         judge_trading_day，这里只负责取数。
         """
-        day = datetime.strptime(date_str, '%Y-%m-%d').date()
-        today = datetime.now().date()
+        # 2026-09-11（w-f4aa1f6a 步2）：取数 + 判定统一交给 TradingDayGuard
+        # （原实现自带一套 cursor 取数 + 失败时"默认周一~周五"的静默降级）
+        from application.services.trading_day_guard import TradingDayGuard
 
-        # 非周末的过去/当天日期才需要查库；周末和未来日纯函数即可判定
-        if day.weekday() >= 5 or day > today:
-            return judge_trading_day(
-                day, kline_exists_on_date=False, latest_kline_date=None, today=today,
+        verdict = TradingDayGuard.check(date_str, use_cache=False)
+        if verdict.degraded or verdict.source == 'unavailable':
+            logger.warning(
+                f"交易日判定降级 [{date_str}] source={verdict.source}: {verdict.reason}"
             )
-
-        try:
-            cursor = self.repo.session.connection().connection.cursor()
-            cursor.execute("""
-                SELECT COUNT(*) FROM quant.daily_klines
-                WHERE trade_date = %s
-                LIMIT 1
-            """, (date_str,))
-            kline_exists = cursor.fetchone()[0] > 0
-            cursor.execute("SELECT MAX(trade_date) FROM quant.daily_klines")
-            latest_kline_date = cursor.fetchone()[0]
-            cursor.close()
-            return judge_trading_day(
-                day,
-                kline_exists_on_date=kline_exists,
-                latest_kline_date=latest_kline_date,
-                today=today,
-            )
-        except Exception as e:
-            logger.warning(f"检查交易日失败: {e}，默认周一至周五为交易日")
-            # 如果数据库查询失败，默认周一到周五是交易日
-            return day.weekday() < 5
+        return verdict.is_trading_day
 
     def _count_trading_days(self, start_date: str, end_date: str) -> int:
         """

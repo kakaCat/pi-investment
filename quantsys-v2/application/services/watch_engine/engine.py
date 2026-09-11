@@ -76,9 +76,11 @@ class WatchEngine:
     def run_forever(self):
         logger.info('WatchEngine 启动', base_interval=self.base_interval,
                     fast_interval=self.fast_interval)
+        # 2026-09-11（w-f4aa1f6a 步2）：交易日判断收敛到唯一入口（原为只判周末）
+        from application.services.trading_day_guard import TradingDayGuard
         while not self._stopped:
             now = self.now_fn()
-            if now.weekday() < 5 and self.is_trading_time(now.time()):
+            if TradingDayGuard.is_trading_day(now.date()) and self.is_trading_time(now.time()):
                 try:
                     self.tick()
                 except Exception as e:

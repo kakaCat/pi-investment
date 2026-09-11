@@ -294,13 +294,18 @@ def update_gem_klines(**params):
         # stale 校验的基准日：最近一个"应当已有 EOD 数据"的交易日。
         # 盘中/早盘/非交易日跑任务时，当天本来就没有日K，不能拿今天当
         # 基准（否则全部误报 stale，2026-07-31 回填时 4364 只全误报）。
-        # 规则：工作日且已过 15:00 → 今天；否则 → 上一个工作日。
-        # （无交易日历，节假日会稍偏保守，仅影响 stale 计数不影响入库）
+        # 规则：今天是交易日且已过 15:00 → 今天；否则 → 上一个交易日。
+        # 2026-09-11（w-f4aa1f6a 步2）：改用 TradingDayGuard（原为只判周末，
+        # 节假日会把基准日判错，仅影响 stale 计数不影响入库）
+        from application.services.trading_day_guard import TradingDayGuard
+
         now = datetime.now()
         target_date = end_date
-        if now.weekday() >= 5 or now.hour < 15:
-            d = now - timedelta(days=1)
-            while d.weekday() >= 5:
+        if not (TradingDayGuard.is_trading_day(now.date()) and now.hour >= 15):
+            d = now.date() - timedelta(days=1)
+            for _ in range(30):  # 最长回溯 30 天（春节等长假）
+                if TradingDayGuard.is_trading_day(d):
+                    break
                 d -= timedelta(days=1)
             target_date = d.strftime('%Y-%m-%d')
 

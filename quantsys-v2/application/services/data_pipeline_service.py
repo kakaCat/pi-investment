@@ -29,6 +29,15 @@ def load_trading_calendar_from_db(exchange: str):
     """
     from infrastructure.persistence.database.engine import db_cursor
 
+    from datetime import date as _date, timedelta as _timedelta
+
+    def _rows_to_set(results):
+        if results and isinstance(results[0], dict):
+            return {row['trade_date'] for row in results}
+        if results:
+            return {row[0] for row in results}
+        return set()
+
     try:
         with db_cursor() as cursor:
             cursor.execute(
@@ -39,15 +48,33 @@ def load_trading_calendar_from_db(exchange: str):
                 """,
                 (exchange,),
             )
-            results = cursor.fetchall()
-            
-            if results and isinstance(results[0], dict):
-                return {row['trade_date'] for row in results}
-            if results:
-                return {row[0] for row in results}
-            return set()
-    except Exception:
-        logger.warning("Database connection not available. Using empty calendar.")
+            days = _rows_to_set(cursor.fetchall())
+            if days:
+                return days
+
+            # 2026-09-11（w-f4aa1f6a 步2）：空表**不再静默返回空日历**。
+            # 实测 quant.trading_calendar 长期 0 行（无人写入），而本函数是
+            # TimeAlignmentStage 的 calendar_loader → 管道一直在用空日历对齐。
+            # 现回退到唯一真源（K 线数据），并显式报错留痕（同时已由数据契约
+            # 「quant.trading_calendar 行数下限」持续监控该表是否被真正填充）。
+            logger.error(
+                "trading_calendar_empty_fallback_to_klines",
+                exchange=exchange,
+                hint="quant.trading_calendar 为空，已回退 daily_klines 真源；请检查日历刷新任务",
+            )
+            bound = _date.today() - _timedelta(days=365 * 5)
+            cursor.execute(
+                """
+                SELECT DISTINCT trade_date
+                FROM quant.daily_klines
+                WHERE trade_date >= %s
+                ORDER BY trade_date
+                """,
+                (bound,),
+            )
+            return _rows_to_set(cursor.fetchall())
+    except Exception as e:
+        logger.warning("trading_calendar_unavailable", exchange=exchange, error=str(e))
         return set()
 
 

@@ -119,8 +119,10 @@ class DailyOrchestrator:
         now = datetime.now()
         today = now.date()
 
-        # 跳过周末
-        if today.weekday() >= 5:
+        # 非交易日跳过（周末 + 法定节假日）；统一走 TradingDayGuard 唯一入口
+        # （2026-09-11 w-f4aa1f6a 步2：原先只判周末，节假日会被当交易日执行）
+        from application.services.trading_day_guard import TradingDayGuard
+        if not TradingDayGuard.is_trading_day(today):
             return
 
         try:
@@ -697,7 +699,8 @@ class DailyOrchestrator:
         now = datetime.now()
         today = now.date()
 
-        if today.weekday() >= 5:
+        from application.services.trading_day_guard import TradingDayGuard
+        if not TradingDayGuard.is_trading_day(today):
             return
 
         state = self._get_or_create_state(today)

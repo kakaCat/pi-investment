@@ -44,27 +44,20 @@ class VerificationJob:
         self.notification_facade = get_notification_facade()
 
     def _is_trading_day(self, date_str: str) -> bool:
-        """检查是否为交易日"""
-        date = datetime.strptime(date_str, '%Y-%m-%d')
+        """检查是否为交易日。
 
-        # 排除周末
-        if date.weekday() >= 5:
-            return False
+        2026-09-11（w-f4aa1f6a 步2）：收敛到 TradingDayGuard 唯一入口——
+        原实现①只排周末（法定节假日误判为交易日）②直接开裸 DB cursor
+        绕过连接池与 ORM 会话管理。
+        """
+        from application.services.trading_day_guard import TradingDayGuard
 
-        # 检查数据库中是否有K线数据
-        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
-        kline_repo = KlineRepository()
-
-        # 简单检查：如果任意股票在该日期有K线数据，则认为是交易日
-        cursor = kline_repo.session.connection().connection.cursor()
-        cursor.execute(
-            "SELECT COUNT(*) FROM quant.daily_klines WHERE trade_date = %s LIMIT 1",
-            (date_str,)
-        )
-        count = cursor.fetchone()[0]
-        cursor.close()
-
-        return count > 0
+        verdict = TradingDayGuard.check(date_str, use_cache=False)
+        if verdict.degraded or verdict.source == 'unavailable':
+            logger.warning(
+                f"交易日判定降级 [{date_str}] source={verdict.source}: {verdict.reason}"
+            )
+        return verdict.is_trading_day
 
     def _count_trading_days_between(self, start_date: str, end_date: str) -> int:
         """计算两个日期之间的交易日数量"""

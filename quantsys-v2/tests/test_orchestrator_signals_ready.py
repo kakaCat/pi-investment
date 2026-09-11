@@ -9,6 +9,9 @@ def _make_orchestrator():
     orch = DailyOrchestrator.__new__(DailyOrchestrator)
     orch.name = 'test'
     orch.session = MagicMock()
+    # 2026-09-11（w-f4aa1f6a）：__init__ 被绕过，须显式注入 _simulation_repo，
+    # 否则 _phase_market_open 访问 self._simulation_repo 直接 AttributeError
+    orch._simulation_repo = MagicMock()
     return orch
 
 
@@ -36,8 +39,9 @@ def test_market_open_pushes_signals_ready_without_executing():
 
     # 不再自动下单
     MockSched.return_value.execute_daily_signals.assert_not_called()
-    # 开盘前先 T+1 结转（前日持仓开盘即可卖）
-    MockRepo.return_value.settle_t1.assert_called_once_with('agent_virtual')
+    # 开盘前先 T+1 结转（2026-09-05 起改为全 active 账户：settle_t1_all，
+    # 原硬编码 settle_t1('agent_virtual') 会让 agent_brain 等账户 T+1 永不结转）
+    orch._simulation_repo.settle_t1_all.assert_called_once_with()
     # 推送 signals_ready
     mock_agent.notify_agent.assert_called_once()
     event, data = mock_agent.notify_agent.call_args[0]
