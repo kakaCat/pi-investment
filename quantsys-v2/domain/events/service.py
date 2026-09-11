@@ -91,10 +91,17 @@ _HIGH_IMPACT_INDUSTRIES = ('半导体', '集成电路', '新能源', '光伏', '
 def normalize_title(title: str) -> str:
     """标题归一化（用于 evidence_hash 与相似度比对，**不改变原文**）
 
-    实测依据（2026-09-11 打样）：
+    实测依据（2026-09-11 打样，两源对同一条公告的真实标题）：
       东财：中国船舶:关于北海造船厂一货轮火灾事故有关情况的公告
-      巨潮：中国船舶工业股份有限公司关于北海造船厂一货轮火灾事故有关情况的公告
-    两者剥掉公司名前缀与标点后一致 → 归一化后可作为同一事件的锚。
+      巨潮：关于北海造船厂一货轮火灾事故有关情况的公告（无公司名前缀）
+    两者归一后相同（都是「关于北海造船厂…公告」）→ 可作为同一事件的锚。
+
+    ⚠️ 实测边界（2026-09-11 复核实测，勿按直觉推断）：_ABOUT_PREFIX 要求「关于」前至少有
+    2 个字符，因此**开头的「关于」不会被剥离**——「中国船舶:关于X」与「中国船舶工业股份
+    有限公司关于X」归一后分别是「关于X」与「X」，**hash 不同**。这类差异由 R3 merge 的
+    相似度聚类兜底（两条同桶相似度 ≈0.95 ≥ 0.62 → 合并 + 记 SourceDivergence）。
+    为什么不把开头的「关于」也剥掉：evidence_hash 是 DB 唯一索引的锚，改归一化规则会让
+    已入库行以新 hash 再插一遍（重复行），需配套迁移方案才可动。
     """
     text = str(title or '').translate(_FULLWIDTH).strip()
     for _ in range(2):  # 可能同时有"XX公司:"与"XX关于"，剥两轮
@@ -239,6 +246,14 @@ class MarketEventService:
         rejected: List[Dict] = []
         for row in rows or []:
             if not isinstance(row, dict):
+                # 非 dict 行必须**如实回报**（2026-09-11 静默失败清单 §4：只处理一种形态会让
+                # 另一种形态整批消失）。旧实现直接 continue，provider 返回领域对象时下游只会
+                # 看到"今天没有事件"，与"上游改版了"无法区分。
+                rejected.append({
+                    'reason': f'行不是 dict（实际 {type(row).__name__}）——provider 行契约违例',
+                    'title': str(getattr(row, 'title', '') or '')[:80],
+                    'source': str(getattr(row, 'source', '') or ''),
+                })
                 continue
             try:
                 events.append(self.build_event(row))

@@ -23,6 +23,9 @@ class DatabaseChainProvider(IIndustryChainProvider):
         self._repo = repository
         self.last_error: Optional[str] = None
         self.stale_reason: str = ''
+        #: 成员归位失败（node_id 不在本链节点里）的行——如实回报，不静默丢弃
+        #: （静默丢成员会让"某标的不在链上"与"库里数据不一致"无法区分）
+        self.orphan_members: List[Dict] = []
 
     @property
     def repo(self):
@@ -75,6 +78,7 @@ class DatabaseChainProvider(IIndustryChainProvider):
         if not data:
             return []
         self.stale_reason = 'DB 缓存（上游策展/主营构成不可用时的兜底），非实时'
+        self.orphan_members = []
         updated_at = str(data.get('updated_at') or '')
         nodes_by_id: Dict[str, Dict] = {}
         for node in data.get('nodes') or []:
@@ -98,6 +102,14 @@ class DatabaseChainProvider(IIndustryChainProvider):
         for member in data.get('members') or []:
             node = nodes_by_id.get(member.get('node_id'))
             if node is None:
+                # 不静默丢：如实记下"哪个成员指向了不存在的节点"，调用方可据此发现库内不一致
+                self.orphan_members.append({
+                    'symbol': member.get('symbol'),
+                    'node_id': member.get('node_id'),
+                    'reason': 'node_id 不在本链节点集合内（库内数据不一致或链被裁剪过）',
+                })
+                logger.warning('database_chain: 成员 %s 的 node_id=%r 不在链 %s 的节点里，已跳过',
+                               member.get('symbol'), member.get('node_id'), chain_id_or_name)
                 continue
             node['members'].append({
                 'symbol': member.get('symbol'),

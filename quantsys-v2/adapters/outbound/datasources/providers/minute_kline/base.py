@@ -5,6 +5,23 @@ RFC 015 §4.3 / §1.5（2026-09-11 REQ-cf627b）：
 - 契约：成功返回 List[MinuteKline]（可为空列表=该源无数据），
   失败返回 None 且写 self.last_error（失败与空结果语义分离，禁止静默空数组）
 - 单位契约：volume 一律为**股**，amount 为**元**；provider 负责把上游的「手」×100 归一
+
+返回三态（2026-09-11『空结果≠故障』契约对齐，manager._try_providers 按此处置）：
+
+  List（非空）            → 成功：记成功、重置连续失败、返回该源数据
+  []（空列表）            → **健康**：该源对此查询无数据 → manager 计入 empty_sources，
+                            **不计故障、不计连续失败、不影响熔断**，继续尝试下一个源
+  None + self.last_error  → **真故障**（异常 / HTTP 失败 / 结构异常 / 映射体检失败）
+  [] + self.last_note     → 健康无数据 + 诊断说明（last_note 默认 ""）
+
+为什么不把「无数据」写成 last_error（2026-09-11 P10 修复）：契约本就规定空列表=无数据，
+实现却写成 last_error+None —— manager 按真故障计，累计 consecutive_failures 直至熔断，
+把一个「这个查询它没有」升级成「这个源坏了」，该源被整体跳过。
+
+为什么还要 last_note：把「无数据」从 last_error 挪走后，若不单独透出诊断，调用方只会
+看到「返回空数据」——而「腾讯无 600150 的 m5 数据（代码不存在或该时段无交易）」
+「DB 无该标的在窗口内的缓存」这类说明是排障的唯一线索。空结果不计故障，
+但**原因必须可见**：manager 会把 last_note 拼进 provider_errors[name]。
 """
 from abc import ABC, abstractmethod
 from typing import List, Optional
@@ -145,6 +162,12 @@ class MinuteKlineProvider(ABC):
     1. 提供唯一 name（注册进 DataProviderManager.minute_kline_providers）
     2. 把上游成交量归一为**股**、成交额归一为**元**
     3. 失败时返回 None 并写 self.last_error（不得返回空数组冒充失败）
+    4. 「该源无此标的 / 该时段无数据 / 库内无缓存」返回**空列表**，并把诊断文本写进
+       self.last_note（**不得**写成 last_error —— 那会让 manager 计真故障）
+
+    实现类应把 last_error 与 last_note 都作为实例属性在 __init__ 里初始化为 None / ""，
+    并在每次 get_minute_klines 入口重置两者（provider 通常是长生命周期单例，
+    上一次调用的说明不得泄漏到这一次）。
     """
 
     @property

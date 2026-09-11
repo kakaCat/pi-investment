@@ -96,8 +96,12 @@ class MicrostructureService:
 
         Returns:
             {success, data, source, attempted_sources, degraded, stale, as_of, ...}
-            全源失败 → success=False + error + provider_errors（**显式失败**，
-            绝不返回空数组冒充成功）
+            全源**硬失败** → success=False + error + provider_errors（**显式失败**，
+            绝不返回空数组冒充成功）。
+            全源**健康但无数据**（2026-09-11『空结果≠故障』契约对齐）→ success=False +
+            empty=True + error（对**调用方**而言仍无分钟线可用，故 success 保持 False；
+            区别在于 provider_errors 里是带 last_note 的空结果说明而非故障文本，
+            调用方能据此区分「这个查询确实没有数据」与「源挂了」——两者此前同形）。
         """
         manager = self._require_manager()
         label = self._normalize_period(period)
@@ -107,14 +111,18 @@ class MicrostructureService:
         as_of = datetime.now().isoformat()
 
         if not resp.get('success'):
+            # manager 已按契约区分两种「没数据」：全源健康空 → success=True+empty=True（走下面）；
+            # 走到这里说明存在**硬失败**（异常/超时/熔断/自报 last_error），是显式失败。
             return {
                 'success': False,
                 'data': None,
                 'source': None,
                 'attempted_sources': resp.get('attempted_sources') or [],
                 'provider_errors': resp.get('provider_errors') or {},
+                'empty_sources': resp.get('empty_sources') or [],
                 'degraded': True,
                 'stale': False,
+                'empty': False,
                 'error': resp.get('error') or '分钟线取数失败',
                 'period': label,
                 'as_of': as_of,
@@ -122,15 +130,22 @@ class MicrostructureService:
 
         bars: List[Any] = resp.get('data') or []
         if not bars:
-            # manager 的成功路径不会带空列表（_is_valid 会判无效），这里兜底防御
+            # 2026-09-11『空结果≠故障』：manager 现在会用 success=True+empty=True 表达
+            # 「所有源都健康地回答了：这个查询没有数据」。对调用方而言仍然没有分钟线可用，
+            # 故 success 保持 False（消费者语义不变），但必须显式标 empty=True 并把
+            # 空源清单与诊断文本透出——此前这条分支的注释假设「成功路径不会带空列表」，
+            # 该假设已随契约对齐失效。
             return {
                 'success': False,
                 'data': None,
                 'source': resp.get('source'),
                 'attempted_sources': resp.get('attempted_sources') or [],
+                'provider_errors': resp.get('provider_errors') or {},
+                'empty_sources': resp.get('empty_sources') or [],
                 'degraded': True,
                 'stale': False,
-                'error': '数据源返回空结果（已按失败处理，不冒充成功）',
+                'empty': True,
+                'error': '全源健康但无数据（该标的/时段确实无分钟线，非源故障）',
                 'period': label,
                 'as_of': as_of,
             }

@@ -51,6 +51,9 @@ class TencentMinuteKlineProvider(MinuteKlineProvider):
 
     def __init__(self):
         self.last_error: Optional[str] = None
+        # 「无数据」的诊断说明（健康路径，见 base.py 的三态契约）：
+        # 空列表 + last_note 才是「该源对此查询没有数据」，不得写成 last_error
+        self.last_note: str = ''
 
     def get_minute_klines(
         self,
@@ -61,6 +64,7 @@ class TencentMinuteKlineProvider(MinuteKlineProvider):
         limit: int = 240,
     ) -> Optional[List[MinuteKline]]:
         self.last_error = None
+        self.last_note = ''
         try:
             minutes = period_minutes(period)
         except ValueError as e:
@@ -89,6 +93,7 @@ class TencentMinuteKlineProvider(MinuteKlineProvider):
             return None
 
         if payload.get('code') != 0:
+            # 上游自报错误码 = 真故障（服务端拒绝/参数错误），必须 fail-loud
             self.last_error = f"腾讯接口返回错误: {payload.get('msg')}"
             return None
 
@@ -100,9 +105,12 @@ class TencentMinuteKlineProvider(MinuteKlineProvider):
 
         rows = node.get(f'm{minutes}')
         if not isinstance(rows, list) or not rows:
-            # 空结果 ≠ 失败：明确写清「该源无此标的/时段数据」，由 manager 继续降级
-            self.last_error = f"腾讯无 {symbol} 的 m{minutes} 数据（代码不存在或该时段无交易）"
-            return None
+            # 空结果 ≠ 故障（2026-09-11 P10 修复）：契约规定空列表=该源无此数据，
+            # 之前写成 last_error+None 会被 manager 计真故障 → 累计连续失败 → 熔断该源。
+            # 现在返回 [] + last_note：健康路径，不计故障；诊断文本经 manager 透到
+            # provider_errors，排障信息不丢。
+            self.last_note = f"腾讯无 {symbol} 的 m{minutes} 数据（代码不存在或该时段无交易）"
+            return []
 
         bare = str(symbol).split('.')[0]
         is_star = bare.startswith(('688', '689'))
@@ -139,11 +147,12 @@ class TencentMinuteKlineProvider(MinuteKlineProvider):
             ))
 
         if not out:
-            self.last_error = (
+            # 上游有数据但都落在请求窗口外 = 「这个查询它没有」，不是源故障
+            self.last_note = (
                 f"腾讯返回 {len(rows)} 根但均不在请求窗口 "
                 f"[{start_date or '最早'} ~ {end_date or '最新'}]（需扩大回溯）"
             )
-            return None
+            return []
 
         problem = ohlc_sanity(out)
         if problem:

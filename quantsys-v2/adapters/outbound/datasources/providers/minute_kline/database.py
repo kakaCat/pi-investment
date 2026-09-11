@@ -36,6 +36,10 @@ class DatabaseMinuteKlineProvider(MinuteKlineProvider):
         """Args: minute_repo —— MinuteKlineRepository（缺省走进程级单例）"""
         self._repo = minute_repo
         self.last_error: Optional[str] = None
+        # 「无数据」的诊断说明（健康路径，见 base.py 的三态契约）：
+        # 库内无该标的/该窗口的缓存是**正常**的（缓存本就只覆盖部分标的），
+        # 绝不能写成 last_error —— 那会把这个源计成故障直至熔断。
+        self.last_note: str = ''
         # 供调用方判定陈旧（provider 只报事实：库内最后一根的时间）
         self.latest_bar_datetime: Optional[str] = None
         self.granularity: str = ''
@@ -56,6 +60,7 @@ class DatabaseMinuteKlineProvider(MinuteKlineProvider):
         limit: int = 240,
     ) -> Optional[List[MinuteKline]]:
         self.last_error = None
+        self.last_note = ''
         self.latest_bar_datetime = None
         self.granularity = ''
         try:
@@ -71,8 +76,8 @@ class DatabaseMinuteKlineProvider(MinuteKlineProvider):
             else:
                 latest = self.repo.get_latest_minute_kline(symbol)
                 if latest is None:
-                    self.last_error = f"DB 无 {symbol} 的分钟线缓存（该标的从未入库）"
-                    return None
+                    self.last_note = f"DB 无 {symbol} 的分钟线缓存（该标的从未入库）"
+                    return []
                 end_day = datetime.strptime(latest.trade_datetime[:10], '%Y-%m-%d')
                 end_dt = f"{latest.trade_datetime[:10]} 23:59:59"
 
@@ -88,11 +93,11 @@ class DatabaseMinuteKlineProvider(MinuteKlineProvider):
             return None
 
         if not rows:
-            self.last_error = (
+            self.last_note = (
                 f"DB 无 {symbol} 在 [{start_dt} ~ {end_dt}] 的分钟线缓存"
                 "（本地分钟线仅历史回填，非实时增量）"
             )
-            return None
+            return []
 
         from adapters.outbound.repositories.minute_kline_repository import granularity_label
         label = granularity_label(rows)
@@ -120,8 +125,8 @@ class DatabaseMinuteKlineProvider(MinuteKlineProvider):
         rows = [replace(r, period=label) for r in rows]
         rows = [r for r in rows if in_date_range(r.trade_datetime, start_date, end_date)]
         if not rows:
-            self.last_error = f"DB 命中 {symbol} 但过滤后无落在请求窗口内的行"
-            return None
+            self.last_note = f"DB 命中 {symbol} 但过滤后无落在请求窗口内的行"
+            return []
 
         self.latest_bar_datetime = rows[-1].trade_datetime
         logger.info(f"Database minute provider returned {len(rows)} bars for {symbol} (stale source)")

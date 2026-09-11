@@ -381,7 +381,12 @@ class IndustryChainService:
             conflicts.append(conflict)
 
             if resolved:
-                winners = [c for c in top_claims if c.stage == winner.stage]
+                # 胜出的**环节**整体保留：同一 stage 下的多个节点是合法事实（R2/文档：
+                # "同一 stage 多节点是合法事实"），冲突只存在于"不同 stage"之间。
+                # 旧实现只保留 top_claims（最高优先级证据本身），会把同 stage、不同 node 的
+                # 其他主张（如人工策展指向的另一个节点）**静默丢弃**——既不在 dropped、
+                # 也不在 retained、更没有标注，属"不静默取其一"红线。
+                winners = [c for c in claims if c.stage == winner.stage]
                 for claim in winners:
                     claim.conflict = ('来源冲突已裁决：%s 支持 %s；详见 evidence_conflicts'
                                       % (claim.evidence_kind, claim.stage.value))

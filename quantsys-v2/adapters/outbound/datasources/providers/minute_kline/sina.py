@@ -43,6 +43,8 @@ class SinaMinuteKlineProvider(MinuteKlineProvider):
 
     def __init__(self):
         self.last_error: Optional[str] = None
+        # 「无数据」的诊断说明（健康路径，见 base.py 的三态契约）
+        self.last_note: str = ''
 
     def get_minute_klines(
         self,
@@ -53,6 +55,7 @@ class SinaMinuteKlineProvider(MinuteKlineProvider):
         limit: int = 240,
     ) -> Optional[List[MinuteKline]]:
         self.last_error = None
+        self.last_note = ''
         try:
             minutes = period_minutes(period)
         except ValueError as e:
@@ -83,8 +86,17 @@ class SinaMinuteKlineProvider(MinuteKlineProvider):
             logger.warning(f"Sina minute provider request failed for {symbol}: {e}")
             return None
 
-        if not isinstance(payload, list) or not payload:
-            self.last_error = f"新浪无 {symbol} 的 {minutes} 分钟数据（返回空/结构异常）"
+        if isinstance(payload, list) and not payload:
+            # 空结果 ≠ 故障（2026-09-11 P10 修复）：上游正常应答但该标的/时段没有数据。
+            # 返回 [] + last_note：健康路径，不计故障、不影响熔断；诊断经 manager 透出。
+            self.last_note = f"新浪无 {symbol} 的 {minutes} 分钟数据（该标的无此周期数据或已停牌）"
+            return []
+        if not isinstance(payload, list):
+            # 非 list = 上游返回了非数据体（错误对象/HTML/WAF 页）= 结构异常，属真故障
+            self.last_error = (
+                f"新浪响应结构异常：期望 list，实际 {type(payload).__name__}"
+                f"（上游可能返回了错误体或被 WAF 拦截）"
+            )
             return None
 
         bare = str(symbol).split('.')[0]
@@ -120,11 +132,12 @@ class SinaMinuteKlineProvider(MinuteKlineProvider):
             ))
 
         if not out:
-            self.last_error = (
+            # 上游有数据但都落在请求窗口外 = 「这个查询它没有」，不是源故障
+            self.last_note = (
                 f"新浪返回 {len(payload)} 根但均不在请求窗口 "
                 f"[{start_date or '最早'} ~ {end_date or '最新'}]（需扩大回溯）"
             )
-            return None
+            return []
 
         problem = ohlc_sanity(out)
         if problem:

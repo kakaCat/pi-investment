@@ -117,8 +117,12 @@ class GovPolicyProvider(IMarketEventProvider):
                 self.degraded_sources.append({'source': label, 'error': f'{type(exc).__name__}: {exc}'})
                 logger.warning('gov_policy 子通道失败 %s: %s', label, exc)
 
-        if not rows and len(errors) == len(('gov.cn', 'ndrc')):
-            # 全部子通道失败 → 显式失败（禁止返回空冒充"今天没政策"）
+        if not rows and errors:
+            # 只要**有子通道失败**且最终没有行 → 显式失败（禁止返回空冒充"今天没政策"）。
+            # 旧实现要求"全部子通道都失败"才报错，于是"1 条挂了 + 1 条正常返回空"会静默返回 []，
+            # manager 据此记为「返回空数据（非故障）」——真故障被掩盖（2026-09-11 静默失败清单 §5）。
+            # 且 degraded_sources 只挂在 provider 实例上，manager 的成功/空结果分支都不会透出它，
+            # 所以这里的 last_error 是仅有的、能传到调用方的降级信号。
             self.last_error = '；'.join(errors)
             return None
         self.last_fetched_at = datetime.now().isoformat(timespec='seconds')

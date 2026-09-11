@@ -42,7 +42,7 @@
 """
 import logging
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 import requests
@@ -86,14 +86,18 @@ def _strip_tags(text) -> str:
 
 
 def _ms_to_date(ms) -> str:
-    """毫秒时间戳 → 'YYYY-MM-DD'（按 UTC+8 换算，不依赖运行机时区）"""
+    """毫秒时间戳 → 'YYYY-MM-DD'（按 UTC+8 换算，不依赖运行机时区）
+
+    用 timezone-aware 的 fromtimestamp 而非已废弃的 utcfromtimestamp —— 后者在
+    Python 3.13 已发 DeprecationWarning，未来版本移除后本函数会在 ingest 路径直接抛错。
+    """
     try:
         seconds = float(ms) / 1000.0
     except (TypeError, ValueError):
         return ''
     if seconds <= 0:
         return ''
-    return (datetime.utcfromtimestamp(seconds) + timedelta(hours=8)).strftime('%Y-%m-%d')
+    return (datetime.fromtimestamp(seconds, timezone.utc) + timedelta(hours=8)).strftime('%Y-%m-%d')
 
 
 class CninfoDisclosureProvider(IMarketEventProvider):
@@ -103,6 +107,9 @@ class CninfoDisclosureProvider(IMarketEventProvider):
         self.timeout = timeout
         self.last_error: Optional[str] = None
         self.last_fetched_at: Optional[str] = None
+        # 截断标注（静默失败清单 §2）：标的数超 _MAX_SYMBOLS 时列出未采集的代码
+        self.truncated_symbols: List[str] = []
+        self.truncation_note: str = ''
 
     @property
     def name(self) -> str:
@@ -119,6 +126,8 @@ class CninfoDisclosureProvider(IMarketEventProvider):
     def fetch_symbol_events(self, symbols: Optional[List[str]] = None) -> Optional[List[Dict]]:
         """个股法定披露公告（按标的检索；symbols=None 时取当日全市场公告采样）"""
         self.last_error = None
+        self.truncated_symbols = []
+        self.truncation_note = ''
         targets = [str(s).strip() for s in (symbols or []) if str(s).strip()]
         try:
             today = date.today()
@@ -131,7 +140,20 @@ class CninfoDisclosureProvider(IMarketEventProvider):
                 rows.extend(self._query('', se_date, _MARKET_PAGE_SIZE, columns=('szse',)))
                 rows.extend(self._query('', se_date, _MARKET_PAGE_SIZE, columns=('sse',)))
             else:
-                for symbol in targets[:_MAX_SYMBOLS]:
+                queried = targets[:_MAX_SYMBOLS]
+                if len(targets) > _MAX_SYMBOLS:
+                    # 不静默截断：超出上限的标的必须被如实标注（含日志告警）
+                    self.truncated_symbols = targets[_MAX_SYMBOLS:]
+                    self.truncation_note = (
+                        '%s: 请求标的 %d 只，超过单次上限 %d 只，本次仅检索前 %d 只；'
+                        '未检索 %d 只（%s）'
+                        % (self.name, len(targets), _MAX_SYMBOLS, _MAX_SYMBOLS,
+                           len(self.truncated_symbols),
+                           ','.join(self.truncated_symbols[:10])
+                           + ('…' if len(self.truncated_symbols) > 10 else ''))
+                    )
+                    logger.warning(self.truncation_note)
+                for symbol in queried:
                     rows.extend(self._query(symbol, se_date, _PAGE_SIZE))
             self.last_fetched_at = datetime.now().isoformat(timespec='seconds')
             return rows

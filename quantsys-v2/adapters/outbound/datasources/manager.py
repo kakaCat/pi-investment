@@ -55,6 +55,17 @@ from adapters.outbound.datasources.providers.hk.akshare import AkshareHKProvider
 
 logger = logging.getLogger(__name__)
 
+# 「健康但无数据」在 provider_errors 文本里的固定标记（2026-09-11『空结果≠故障』契约对齐）：
+# 调用方（如 get_event_symbol_events / event_feed_service）据此把「该源没这个查询的数据」
+# 与「该源真失败」区分开，不能让两者在同一个字段里长得一样。
+_EMPTY_RESULT_MARKER = '返回空数据（非故障：该查询无数据，不计入健康分）'
+
+# 「返回了非空数据但校验未通过」的标记：语义上属于「该查询拿不到可用数据」，
+# 与空结果一同**不计故障**（不累计连续失败/不熔断），但**不是契约意义上的空结果**，
+# 因此不得进入 empty_sources，也不得把 overall 结果翻成 success=True
+# （否则「上游返回了脏数据」会被伪装成「成功且无数据」——比原缺陷更危险）。
+_INVALID_RESULT_MARKER = '数据校验未通过（非空但无效，不计入健康分）'
+
 
 class DataProviderManager(IDataProviderManager):
     """Unified data provider manager
@@ -281,16 +292,27 @@ class DataProviderManager(IDataProviderManager):
         Returns:
             dict with keys:
                 - success: bool
-                - data: result data if success, None otherwise
-                - source: provider name if success
+                - data: result data if success, None otherwise（「全源健康空」时 data=[]）
+                - source: provider name if success（全源健康空时为 None）
                 - error: error message if all providers failed
                 - attempted_sources: list of actually attempted provider names
-                - provider_errors: {provider_name: failure reason}
+                - provider_errors: {provider_name: 失败原因 或 空结果说明（含 last_note）}
+                - empty_sources: 本次「健康但无数据」的 provider 名（成功与全空两条返回都带）
+                - empty: bool（仅当**全部** provider 都是健康空结果、零硬失败时为 True）
+
+        空结果 ≠ 故障（2026-09-11『空结果≠故障』契约对齐）：
+            []（形状有效的空结果）且未自报 last_error → 健康无数据：计入 empty_sources、
+            继续尝试下一个 provider（不同源覆盖不同，不急着下结论），**不计故障、不计连续
+            失败、不影响熔断**。
+            None + last_error → 真故障：计故障（语义不变）。
+        只有「所有 provider 都是健康空结果（零硬失败）」这一种情形由 success=False 改为
+        success=True + empty=True；只要存在硬失败且无数据，仍维持 success=False（显式失败）。
         """
         sorted_providers = self._sort_providers_by_health(providers)
 
         provider_errors: Dict[str, str] = {}
         attempted_sources: List[str] = []
+        empty_sources: List[str] = []
 
         for provider in sorted_providers:
             if self._is_circuit_broken(provider.name):
@@ -339,16 +361,29 @@ class DataProviderManager(IDataProviderManager):
                         # 之前只有全失败路径才带 attempted_sources，成功时调用方无法
                         # 如实回答「这个数据是哪次降级拿到的」。附加键，不影响既有消费者。
                         'attempted_sources': attempted_sources,
+                        # 空结果语义对齐（2026-09-11）：降级链上先经过的「健康无数据」源
+                        # 同样要透出，否则调用方无法回答「这个数据绕过了几个空源」。
+                        'empty_sources': empty_sources,
+                        'empty': False,
                     }
 
                 # 2026-09-11（w-f436d4ea）：拆分「真故障」与「空结果」——
-                # provider 自报 last_error 才是故障；否则视为该查询无数据（健康）。
+                # provider 自报 last_error 才是故障；形状有效的空结果且未自报错误
+                # 视为该查询无数据（健康）→ 继续尝试下一个源（不同源覆盖不同）。
                 reason = getattr(provider, 'last_error', None)
+                if not reason and self._is_empty_result(result):
+                    empty_sources.append(provider.name)
+                    provider_errors[provider.name] = self._empty_reason(provider)
+                    self._record_empty(provider.name)
+                    continue
                 if reason:
                     provider_errors[provider.name] = reason
                     self._record_failure(provider.name)
                 else:
-                    provider_errors[provider.name] = '返回空数据（非故障：该查询无数据，不计入健康分）'
+                    # 校验未通过的「非空但无效」结果：不计故障（不拖垮健康分），但**不进
+                    # empty_sources**——它不是契约意义上的「形状有效的空结果」。
+                    # 保守起见 overall 仍按显式失败处理（见 _has_hard_failure）。
+                    provider_errors[provider.name] = _INVALID_RESULT_MARKER
                     self._record_empty(provider.name)
 
             except Exception as e:
@@ -356,11 +391,28 @@ class DataProviderManager(IDataProviderManager):
                 provider_errors[provider.name] = f"{type(e).__name__}: {e}"
                 self._record_failure(provider.name)
 
+        # 全源「健康无数据」≠ 全源失败：零硬失败且至少有一个源健康回答了「这个查询没有数据」
+        # 时，把 success 翻成 True + empty=True，让调用方能把「确实没有」与「没抓到」区分开。
+        # ⚠️ 只要存在硬失败（provider_errors 里的真故障/异常/超时/熔断）且无数据，
+        #    一律维持 success=False（显式失败语义不变）——这是本方法约 20 个调用点的共同前提。
+        if empty_sources and not self._has_hard_failure(provider_errors, attempted_sources):
+            return {
+                'success': True,
+                'data': [],
+                'source': None,
+                'attempted_sources': attempted_sources,
+                'provider_errors': provider_errors,
+                'empty_sources': empty_sources,
+                'empty': True,
+            }
+
         return {
             'success': False,
             'error': 'All data providers failed',
             'attempted_sources': attempted_sources,
             'provider_errors': provider_errors,
+            'empty_sources': empty_sources,
+            'empty': False,
         }
 
     def _is_valid(self, data) -> bool:
@@ -416,6 +468,57 @@ class DataProviderManager(IDataProviderManager):
 
         # 默认：有source就认为有效
         return True
+
+    @staticmethod
+    def _is_empty_result(data) -> bool:
+        """形状有效的「空结果」判定：空列表 / 空 DataFrame（长度 0，非 None）
+
+        与 None（=调用失败）严格区分：契约见 providers/minute_kline/base.py
+        「成功返回 List（可为空列表=该源无数据），失败返回 None 且写 self.last_error」。
+        本方法只做**形状**判断，不解释语义——是否算健康由调用处结合 last_error 决定。
+        """
+        if data is None:
+            return False
+        if isinstance(data, (list, tuple, set, dict)):
+            return len(data) == 0
+        # pandas.DataFrame 等「有 len 的对象」：len==0 即空
+        try:
+            return len(data) == 0
+        except TypeError:
+            return False
+
+    @staticmethod
+    def _empty_reason(provider) -> str:
+        """空结果的诊断文本：拼上 provider 自报的 last_note（诊断信息不得丢失）
+
+        为什么必须带 last_note（2026-09-11）：把「无数据」从 last_error 挪到 last_note
+        后，若不透出，调用方只会看到「返回空数据」——而 provider 原本会写明
+        「腾讯无 600150 的 m5 数据（代码不存在或该时段无交易）」这类可行动诊断。
+        空结果不计故障，但**原因必须可见**，否则排障时无从下手。
+        """
+        note = str(getattr(provider, 'last_note', '') or '').strip()
+        if note:
+            return f'{_EMPTY_RESULT_MARKER}；说明：{note}'
+        return _EMPTY_RESULT_MARKER
+
+    @staticmethod
+    def _has_hard_failure(provider_errors: Dict[str, str], attempted_sources: List[str]) -> bool:
+        """是否存在**非「健康空结果」**的条目（真故障 / 异常 / 超时 / 熔断 / 无效数据）
+
+        判据取**补集**：只有「在 attempted_sources 里、其 provider_errors 文本带空结果
+        标记」的源才算健康空；其余任何条目（含非空但无效、异常、超时、熔断）都算硬失败。
+        取补集而不是白名单逐个排除，是为了让**新增的错误文本自动落入保守分支**——
+        漏算的后果是把真故障静默翻成 success=True（最危险的失败方向）。
+
+        用途：决定「全源无数据」时返回 success=True+empty=True 还是 success=False。
+        "有的源挂了、有的源没数据"与"所有源都好好地回答了没有"必须区分。
+        """
+        attempted = set(attempted_sources or [])
+        for name, reason in (provider_errors or {}).items():
+            if name in attempted and reason and _EMPTY_RESULT_MARKER in str(reason):
+                continue          # 唯一可以「不算失败」的情形
+            return True
+        return False
 
     def _record_success(self, provider_name: str):
         """Record successful provider call - resets circuit breaker"""
@@ -1081,7 +1184,13 @@ class DataProviderManager(IDataProviderManager):
             if data:
                 results[provider.name] = data
             else:
-                skipped[provider.name] = getattr(provider, 'last_error', None) or '返回空结果'
+                # 无数据（last_note）与真故障（last_error）都进 skipped，但文本必须可区分：
+                # 交叉校验拿不到第二个源时，调用方要能看懂「是这个源没数据」还是「这个源坏了」。
+                skipped[provider.name] = (
+                    getattr(provider, 'last_error', None)
+                    or getattr(provider, 'last_note', None)
+                    or '返回空结果（该源无数据，非故障）'
+                )
 
         as_of = _datetime.now().isoformat()
         if len(results) < 2:
@@ -1537,9 +1646,11 @@ class DataProviderManager(IDataProviderManager):
 
         Returns:
             {'success': bool, 'data': [row], 'source': 'a+b+c', 'attempted_sources': [...],
-             'provider_errors': {...}, 'degraded': bool, 'empty': bool}
+             'provider_errors': {...}, 'degraded': bool, 'empty': bool, 'empty_sources': [...]}
             全部通道都失败 → success=False（显式失败）；全部返回空 → success=True + empty=True
             （"该批标的确实无事件"与"没抓到"必须可区分）。
+            empty_sources 记录**健康但无数据**的通道（源自 _try_providers 的空结果契约），
+            provider_errors 里对应条目是带诊断说明的空结果文本而非故障文本。
         """
         rows: List[Dict] = []
         sources: List[str] = []
@@ -1557,19 +1668,33 @@ class DataProviderManager(IDataProviderManager):
         for provider in self._sort_providers_by_health(providers):
             result = self._try_providers([provider], 'fetch_symbol_events', symbols)
             attempted.extend(result.get('attempted_sources') or [])
+            # 空结果路径（2026-09-11 修复 P9）：_try_providers 已按「空结果≠故障」契约
+            # 把「形状有效的空结果」放在 success=True+empty_sources 里返回；这里消费该字段。
+            # 修复前的写法是「success=True 且 data 为空才记 empty_sources」——但旧 _try_providers
+            # 对空列表返回的是 success=False，故 empty_sources.append 永远不可达（死代码），
+            # 三个源全部「健康地无数据」却被判成 'All event symbol providers failed'，
+            # 每日 17:00 的无人值守 ingest 在「当天确实没有公告」时误报红。
+            for name in (result.get('empty_sources') or []):
+                if name not in empty_sources:
+                    empty_sources.append(name)
+            errors.update(result.get('provider_errors') or {})
             if result.get('success'):
                 data = result.get('data') or []
                 source = result.get('source') or provider.name
                 if data:
                     sources.append(source)
                     rows.extend(data)
-                else:
-                    empty_sources.append(source)
+                # 成功但空 = 该源健康无数据，已由上面的 empty_sources 记账（不再重复 append）
             else:
                 failed += 1
-                errors.update(result.get('provider_errors') or {})
 
-        if not rows and failed >= len(providers):
+        # 硬失败判定：有数据 → 成功；无数据但**零硬失败**且至少一个源健康空 → 成功且为空；
+        # 无数据且存在硬失败 → 显式失败（真故障与"确实没有"必须可分，不得同形）。
+        # has_hard 取补集判定（同 _try_providers）：failed 只统计 success=False 的源，
+        # 而「非空但无效」的结果是 success=True 但不得算「健康空」——若只按
+        # failed >= len(providers) 判失败，三源全返回脏数据时会被当成 success=True+empty=True。
+        has_hard = self._has_hard_failure(errors, attempted)
+        if not rows and has_hard:
             return {
                 'success': False,
                 'error': 'All event symbol providers failed',
@@ -1577,6 +1702,9 @@ class DataProviderManager(IDataProviderManager):
                 'source': None,
                 'attempted_sources': attempted,
                 'provider_errors': errors,
+                'empty_sources': empty_sources,
+                'empty': False,
+                'degraded': True,
             }
         return {
             'success': True,
@@ -1584,7 +1712,9 @@ class DataProviderManager(IDataProviderManager):
             'source': '+'.join(sources) if sources else None,
             'attempted_sources': attempted,
             'provider_errors': errors,
-            'degraded': bool(errors),
+            # degraded 只看**硬失败**：全源健康无数据（errors 里全是带 last_note 的空结果说明）
+            # 不是降级——那正是 P9 要修的误报。errors 仍带空结果说明，供排障阅读（诊断不丢）。
+            'degraded': bool(failed),
             'empty': not rows,
             'empty_sources': empty_sources,
         }

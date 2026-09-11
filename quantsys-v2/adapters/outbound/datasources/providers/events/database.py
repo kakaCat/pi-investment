@@ -19,6 +19,9 @@ from domain.events.ports.IMarketEventProvider import IMarketEventProvider
 
 logger = logging.getLogger(__name__)
 
+#: 单次调用的标的数上限（与其它事件 provider 同口径；超出即标注截断，见 __init__）
+_MAX_SYMBOLS = 50
+
 
 class DatabaseEventProvider(IMarketEventProvider):
     """本地事件表兜底（权威度 20；stale 标记如实透出）"""
@@ -34,6 +37,9 @@ class DatabaseEventProvider(IMarketEventProvider):
         self.last_error: Optional[str] = None
         self.stale = True          # 兜底源天然陈旧：本 provider 的所有输出都标 stale
         self.as_of: Optional[str] = None
+        # 截断标注（静默失败清单 §2）：标的数超 _MAX_SYMBOLS 时列出未查询的代码
+        self.truncated_symbols: List[str] = []
+        self.truncation_note: str = ''
 
     @property
     def name(self) -> str:
@@ -67,11 +73,26 @@ class DatabaseEventProvider(IMarketEventProvider):
     def fetch_symbol_events(self, symbols: Optional[List[str]] = None) -> Optional[List[Dict]]:
         """库内已有的个股事件（stale）"""
         self.last_error = None
+        self.truncated_symbols = []
+        self.truncation_note = ''
         targets = [str(s).strip() for s in (symbols or []) if str(s).strip()]
         try:
             rows: List[Dict] = []
             if targets:
-                for symbol in targets[:50]:
+                queried = targets[:_MAX_SYMBOLS]
+                if len(targets) > _MAX_SYMBOLS:
+                    # 不静默截断：兜底源同样要如实回报"哪些标的没查"
+                    self.truncated_symbols = targets[_MAX_SYMBOLS:]
+                    self.truncation_note = (
+                        '%s: 请求标的 %d 只，超过单次上限 %d 只，本次仅查询前 %d 只；'
+                        '未查询 %d 只（%s）'
+                        % (self.name, len(targets), _MAX_SYMBOLS, _MAX_SYMBOLS,
+                           len(self.truncated_symbols),
+                           ','.join(self.truncated_symbols[:10])
+                           + ('…' if len(self.truncated_symbols) > 10 else ''))
+                    )
+                    logger.warning(self.truncation_note)
+                for symbol in queried:
                     rows.extend(self.repository.for_symbol(symbol, limit=50))
             else:
                 today = date.today()

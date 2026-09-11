@@ -58,6 +58,22 @@ class EventFeedService:
             )
         return self._repository
 
+    @staticmethod
+    def _truncation_notes(manager) -> List[str]:
+        """收集各 provider 自报的截断说明（静默失败清单 §2：截断必须出现在响应里）
+
+        为什么在这里读：provider 按标的数有单次上限（东财 30 / 巨潮 20 / DB 50），
+        超限时**只采集前 N 只**；manager 的聚合返回值只带 data/source/attempted_sources，
+        没有透出 provider 级说明的通道。若不在应用层透出，调用方拿到的是"覆盖完整的假象"。
+        组合根换实现时（manager 支持 provider_notes 合并）本方法可删除。
+        """
+        notes: List[str] = []
+        for provider in (getattr(manager, 'event_symbol_providers', None) or []):
+            note = str(getattr(provider, 'truncation_note', '') or '').strip()
+            if note:
+                notes.append(note)
+        return notes
+
     # ------------------------------------------------------------------ 工具
 
     @staticmethod
@@ -100,13 +116,16 @@ class EventFeedService:
         prepared = self._domain.prepare(fetched.get('data') or [])
         events: List[MarketEvent] = prepared['events']
         written = repository.upsert([self._to_record(e) for e in events])
+        provider_notes = self._truncation_notes(manager)
         return self._envelope(
             [e.to_dict() for e in events],
             source=fetched.get('source'),
             attempted=fetched.get('attempted_sources'),
-            degraded=bool(fetched.get('degraded')),
+            degraded=bool(fetched.get('degraded')) or bool(provider_notes),
             conflicts=[d.to_dict() for d in prepared['divergences']],
             manual_fallback_used=bool(fetched.get('manual_fallback_used')),
+            truncated=bool(provider_notes),
+            provider_notes=provider_notes,
             counts={
                 'fetched': len(fetched.get('data') or []),
                 'parsed': prepared['parsed'],
@@ -130,14 +149,25 @@ class EventFeedService:
         Returns:
             统一响应契约；`universe` 字段如实回报本次使用的标的范围
             （空池时只做政策 ingest 不伪造标的，见 default_universe 契约）
+            全部通道**健康但无数据** → success=True + data=[] + empty=True + note 说明
+            （2026-09-11『空结果≠故障』契约对齐）：这是**成功且 0 条**，不是失败——
+            "当天确实没有公告"与"抓取挂了"必须可区分，否则无人值守的每日 17:00
+            ingest 在无公告日误报红。只有存在**硬失败**（源异常/超时/熔断）时才 success=False。
         """
         manager = self._require_manager()
         repository = self._require_repository()
         targets = [str(s).strip() for s in (symbols or []) if str(s).strip()]
         universe_source = 'explicit'
+        notes: List[str] = []
         if not targets:
             targets = repository.default_universe(limit=universe_limit)
             universe_source = 'default_universe(持仓∪盯盘规则)'
+            if len(targets) >= int(universe_limit):
+                # 池子命中上限 = 可能被截断（仓储用 LIMIT，无法区分"正好这么多"与"被截"）
+                notes.append(
+                    'default_universe 命中上限 %d 只，采集范围可能被截断（提高 universe_limit 可扩展）'
+                    % int(universe_limit)
+                )
         if not targets:
             # 不伪造标的：如实返回"无可采集标的"，由调用方决定是否视为异常
             return self._envelope(
@@ -150,12 +180,35 @@ class EventFeedService:
 
         fetched = manager.get_event_symbol_events(targets, include_fallback=False)
         if not fetched.get('success'):
+            # 走到这里 = 存在**硬失败**（源异常/超时/熔断）；"全源健康无数据"已由 manager
+            # 归入 success=True+empty=True（下面的 empty 分支处理），不在此路径。
             return self._envelope(
                 None, attempted=fetched.get('attempted_sources'),
                 degraded=True, error=fetched.get('error') or 'event providers failed',
                 provider_errors=fetched.get('provider_errors') or {},
+                empty=False, empty_sources=list(fetched.get('empty_sources') or []),
                 universe=targets, universe_source=universe_source,
             )
+        empty = bool(fetched.get('empty'))
+        empty_sources = list(fetched.get('empty_sources') or [])
+        if empty:
+            # 全源健康但无数据（2026-09-11『空结果≠故障』对齐）：**成功且 0 条**。
+            # 这里不落库（没有事件可写），但必须返回 success=True —— 任务层据此判绿；
+            # 之前 manager 把这种情形报成 success=False，导致无公告日任务误报红。
+            return self._envelope(
+                [], source=None,
+                attempted=fetched.get('attempted_sources'),
+                degraded=False,
+                universe=targets, universe_source=universe_source,
+                empty=True, empty_sources=empty_sources,
+                counts={'fetched': 0, 'parsed': 0, 'deduped': 0, 'merged': 0,
+                        'rejected': 0, 'inserted': 0, 'updated': 0, 'skipped': 0},
+                provider_errors=fetched.get('provider_errors') or {},
+                note=('全部事件源健康但对本批标的无事件（0 条）：'
+                      '源=%s；这不是故障，未落库、也不计任务失败'
+                      % (','.join(empty_sources) or '未记录')),
+            )
+
         prepared = self._domain.prepare(fetched.get('data') or [])
         events: List[MarketEvent] = prepared['events']
         # 多源同一事件的分歧挂回被保留的那条（RFC §3.3：差异不静默丢弃）
@@ -167,14 +220,18 @@ class EventFeedService:
                 record['source_divergence'] = divergence
             records.append(record)
         written = repository.upsert(records)
+        notes.extend(self._truncation_notes(manager))
         return self._envelope(
             [e.to_dict() for e in events],
             source=fetched.get('source'),
             attempted=fetched.get('attempted_sources'),
-            degraded=bool(fetched.get('degraded')),
+            degraded=bool(fetched.get('degraded')) or bool(notes),
             conflicts=[d.to_dict() for d in prepared['divergences']],
             universe=targets, universe_source=universe_source,
-            empty=bool(fetched.get('empty')),
+            empty=empty,
+            empty_sources=empty_sources,
+            truncated=bool(notes),
+            provider_notes=notes,
             counts={
                 'fetched': len(fetched.get('data') or []),
                 'parsed': prepared['parsed'],

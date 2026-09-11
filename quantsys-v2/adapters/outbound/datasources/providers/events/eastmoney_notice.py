@@ -105,6 +105,10 @@ class EastmoneyNoticeProvider(IMarketEventProvider):
         self.timeout = timeout
         self.last_error: Optional[str] = None
         self.last_fetched_at: Optional[str] = None
+        # 截断标注（静默失败清单 §2：取前 N 条必须标注）：标的数超 _MAX_SYMBOLS 时，
+        # 未被采集的代码写进这里，调用方（EventFeedService / 入站响应）负责如实透出。
+        self.truncated_symbols: List[str] = []
+        self.truncation_note: str = ''
 
     @property
     def name(self) -> str:
@@ -124,12 +128,27 @@ class EastmoneyNoticeProvider(IMarketEventProvider):
         失败 → 返回 None 且写 self.last_error（真异常必须显式，禁止静默空）。
         """
         self.last_error = None
+        self.truncated_symbols = []
+        self.truncation_note = ''
         targets = [str(s).strip() for s in (symbols or []) if str(s).strip()]
         try:
             if not targets:
                 return self._fetch_market()
+            queried = targets[:_MAX_SYMBOLS]
+            if len(targets) > _MAX_SYMBOLS:
+                # 不静默截断：把"哪些标的这次没被采集"如实标注出来（含日志告警）
+                self.truncated_symbols = targets[_MAX_SYMBOLS:]
+                self.truncation_note = (
+                    '%s: 请求标的 %d 只，超过单次上限 %d 只，本次仅采集前 %d 只；'
+                    '未采集 %d 只（%s）'
+                    % (self.name, len(targets), _MAX_SYMBOLS, _MAX_SYMBOLS,
+                       len(self.truncated_symbols),
+                       ','.join(self.truncated_symbols[:10])
+                       + ('…' if len(self.truncated_symbols) > 10 else ''))
+                )
+                logger.warning(self.truncation_note)
             rows: List[Dict] = []
-            for symbol in targets[:_MAX_SYMBOLS]:
+            for symbol in queried:
                 rows.extend(self._fetch_one(symbol))
             self.last_fetched_at = datetime.now().isoformat(timespec='seconds')
             return rows
