@@ -39,15 +39,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from sqlalchemy import create_engine, text  # noqa: E402
 
 DDL = [
-    "ALTER TABLE quant.daily_klines ADD COLUMN IF NOT EXISTS market varchar(6)",
+    "ALTER TABLE quant.daily_klines ADD COLUMN IF NOT EXISTS market varchar(8)",
+    # 早期版本为 varchar(6)，UNKNOWN 有 7 字符 → 统一放宽（扩宽是元数据操作，不重写）
+    "ALTER TABLE quant.daily_klines ALTER COLUMN market TYPE varchar(8)",
     """COMMENT ON COLUMN quant.daily_klines.market IS
-       '交易所归属 SH/SZ/BJ（2026-09-11 w-f4aa1f6a 步4；指数数据在 quant.index_daily）'""",
+       '交易所归属 SH/SZ/BJ/UNKNOWN（2026-09-11 w-f4aa1f6a 步4；指数数据在 quant.index_daily）'""",
     """CREATE OR REPLACE FUNCTION quant.derive_kline_market(sym text) RETURNS varchar AS $$
          SELECT CASE
            WHEN sym ~ '^6' THEN 'SH'
            WHEN sym ~ '^[03]' THEN 'SZ'
            WHEN sym ~ '^(4|8|92)' THEN 'BJ'
-           ELSE NULL
+           ELSE 'UNKNOWN'
          END;
        $$ LANGUAGE sql IMMUTABLE""",
     """CREATE OR REPLACE FUNCTION quant.daily_klines_set_market() RETURNS trigger AS $$
@@ -56,8 +58,7 @@ DDL = [
            NEW.market := quant.derive_kline_market(NEW.symbol);
          END IF;
          IF NEW.market IS NULL THEN
-           -- 本文件的 DDL 一律经原生 DBAPI 游标（params=None）下发，
-           -- psycopg2 此时不做占位符插值，故 % 保持单写；若改回 exec_driver_sql 需写成 %%
+           -- 本文件的 DDL 一律经原生 DBAPI 游标（params=None）下发。
            RAISE EXCEPTION '无法从 symbol=% 推导 market（2026-09-11 w-f4aa1f6a 步4）', NEW.symbol;
          END IF;
          RETURN NEW;
