@@ -56,19 +56,32 @@ export class WatchListTool extends BaseTool<WatchListParams, any[]> {
       const conds: any[] = Array.isArray(r?.conditions)
         ? r.conditions
         : (r?.condition ? [r.condition] : []);
-      const condText = conds
-        .map((c: any) => {
-          if (typeof c === 'string') return c;
-          const t = c?.type ?? 'condition';
-          const ps: any = c?.params ?? {};
-          if (t === 'price_break') return 'price ' + (ps.direction === 'below' ? '<' : '>') + ' ' + ps.price;
-          if (t === 'volume_surge') return 'volume_surge>' + ps.multiple;
-          // 2026-09-11 修复：后端 pnl_pct 的阈值键是 pct（非 value），
-          // 旧实现读 ps.value → 渲染成 'pnl_pct > undefined'，看起来像阈值丢失（实为展示 bug）。
-          if (t === 'pnl_pct') return 'pnl_pct ' + (ps.direction === 'below' ? '<' : '>') + ' ' + (ps.pct ?? ps.value);
-          return t + ' ' + JSON.stringify(ps);
-        })
-        .join(' AND ');
+      // 单条件渲染（支持 combined 递归——AND 只可能出现在 combined 节点内部）
+      const renderCond = (c: any): string => {
+        if (typeof c === 'string') return c;
+        const t = c?.type ?? 'condition';
+        const ps: any = c?.params ?? {};
+        if (t === 'price_break') return 'price ' + (ps.direction === 'below' ? '<' : '>') + ' ' + ps.price;
+        if (t === 'volume_surge') return 'volume_surge>' + ps.multiple;
+        // 2026-09-11 修复：后端 pnl_pct 的阈值键是 pct（非 value），
+        // 旧实现读 ps.value → 渲染成 'pnl_pct > undefined'，看起来像阈值丢失（实为展示 bug）。
+        if (t === 'pnl_pct') return 'pnl_pct ' + (ps.direction === 'below' ? '<' : '>') + ' ' + (ps.pct ?? ps.value);
+        if (t === 'combined') {
+          const sep = ps.operator === 'AND' ? ' 且 ' : ' 或 ';
+          const inner = (Array.isArray(ps.conditions) ? ps.conditions : []).map(renderCond).join(sep);
+          return '(' + inner + ')';
+        }
+        return t + ' ' + JSON.stringify(ps);
+      };
+      const parts = conds.map(renderCond);
+      // ⚠️ 顶层 conditions 列表的执行语义是 **OR（任一触发）**，不是 AND：
+      // engine.py 对 conditions[] 逐条独立评估，每条各有闩锁/冷却/通知（AND 只能通过
+      // 单个 combined 节点表达）。旧实现 join(' AND ') 与执行语义**相反**，后果实测：
+      //   · 10 条合法的"区间突破"规则（如 跌破9.85 或 突破10.2）被渲染成
+      //     'price < 9.85 AND price > 10.2'，看起来逻辑恒假、像僵尸规则，
+      //     2026-09-11 据此后**几乎误删这 10 条规则**；
+      //   · 更危险的是反向误读：把"任一触发"当成"双重确认"，据此以为自己有确认保护。
+      const condText = parts.join(parts.length > 1 ? ' 或 ' : '');
       return {
         ...r,
         name: r?.name ?? r?.rule_name ?? ('规则#' + (r?.id ?? '?')),
