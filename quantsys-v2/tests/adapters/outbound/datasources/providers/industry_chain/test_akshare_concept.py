@@ -5,7 +5,7 @@
 
 锁住的契约：
   板块清单 / 板块成员的行契约（candidate=True、stage=midstream、evidence_kind=行业分类）
-  未命中板块 / 取数失败必须区分（None+last_error vs []）
+  未命中板块 / 取数失败必须区分（未命中=[] + last_note；取数失败=None + last_error）
   上游形态变化（不是 DataFrame）必须 fail-loud 而不是抛 AttributeError 炸掉整条链
 """
 import sys
@@ -85,11 +85,23 @@ def test_带前缀的chain_id也能匹配(monkeypatch):
     assert AkshareConceptProvider().get_chain('sina_sector:new_blhy')[0]['chain_name'] == '玻璃行业'
 
 
-def test_未命中板块必须显式失败而不是返回空节点(monkeypatch):
+def test_未命中板块是健康空但与取数失败可分(monkeypatch):
+    """2026-09-11 契约反转（w-f436d4ea，同日四态契约统一）：原判据为 None + last_error。
+
+    反转理由：本 provider 是**跨源按名匹配**的候选通道，上游分类体系与策展命名天然
+    不同（策展叫'造船'、新浪叫'船舶制造'），「这个源没有这个名字」是**预期内的正常
+    结果**而非故障。而 manager._try_providers 会把 None+last_error 计为真故障、扣
+    健康分 → 该通道被系统性降权、挤出竞争（RFC 015 §1.5.1 禁止多源退化成单源）。
+
+    反转后仍保住原测试的实质诉求「未命中不得与取数失败混淆」（形状可分——见
+    test_取数失败必须写last_error / test_成分取数失败写last_error），并顺带保住
+    '不返回空节点'：零成员节点现在同样归 [] + last_note，不再产出。
+    """
     _install(monkeypatch)
     provider = AkshareConceptProvider()
-    assert provider.get_chain('不存在的板块') is None
-    assert provider.last_error and '没有' in provider.last_error
+    assert provider.get_chain('不存在的板块') == []
+    assert provider.last_error is None
+    assert provider.last_note and '没有' in provider.last_note
 
 
 def test_成分取数失败写last_error(monkeypatch):

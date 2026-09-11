@@ -37,10 +37,26 @@ _SECTOR_PREFIX = 'sina_sector:'
 
 
 class AkshareConceptProvider(IIndustryChainProvider):
-    """新浪行业成分（经 akshare）：候选成员与交叉校验用，低/中置信"""
+    """新浪行业成分（经 akshare）：候选成员与交叉校验用，低/中置信
+
+    返回值的四态契约（2026-09-11 全仓统一，manager._try_providers 消费）
+
+    | 返回 | last_error | last_note | 语义 |
+    |---|---|---|---|
+    | 非空行列表 | None | '' | 取到数据 |
+    | **[]** | **None** | **<诊断文本>** | **健康无数据**：如「新浪行业里没有这个板块名」
+（跨源命名差异）、该板块无可用成分。manager 会继续降级下一通道 |
+    | None | <原因> | '' | **真故障**：板块清单/成分取数失败、异常 |
+    | None | 空 | 空 | ⚠️ 禁止（manager 两头都判不了，会被记成"非空但无效"） |
+
+    ⚠️ provider 是**长生命周期单例**：每个入口都要重置 last_error / last_note /
+    last_channel，否则上一次调用的诊断会挂到下一次调用上（"没这个板块"被当成取数失败
+    会打掉健康分与熔断余量）。
+    """
 
     def __init__(self):
         self.last_error: Optional[str] = None
+        self.last_note: str = ''
         self.last_channel: str = ''
 
     @property
@@ -93,6 +109,8 @@ class AkshareConceptProvider(IIndustryChainProvider):
     def list_chains(self) -> Optional[List[Dict]]:
         """候选链清单（新浪行业板块）。注意：这些是**行业板块**，不是策展产业链拓扑"""
         self.last_error = None
+        self.last_note = ''
+        self.last_channel = ''
         try:
             sectors = self._sector_list()
         except Exception as exc:
@@ -115,9 +133,13 @@ class AkshareConceptProvider(IIndustryChainProvider):
     def get_chain(self, chain_id_or_name: str) -> Optional[List[Dict]]:
         """按板块名/label 返回该板块成员（合成单节点，node_id=sector:<label>）
 
-        未命中返回 None + last_error（fail-loud：区分"没这个板块"与"取数失败"）。
+        四态（2026-09-11，与 eastmoney_delay_concept 同口径）：命中→节点行；
+        **该源没有这个板块 / 板块无可用成分 → [] + last_note**（健康无数据，不得冒充
+        故障）；板块清单或成分取数失败 → None + last_error。
         """
         self.last_error = None
+        self.last_note = ''
+        self.last_channel = ''
         key = str(chain_id_or_name or '').strip()
         key = key[len(_SECTOR_PREFIX):] if key.startswith(_SECTOR_PREFIX) else key
         try:
@@ -138,11 +160,15 @@ class AkshareConceptProvider(IIndustryChainProvider):
                     matched = row
                     break
         if matched is None:
-            self.last_error = (
+            # 健康无数据（2026-09-11，w-f436d4ea）：上游清单取回来了、回答得好好的，
+            # 只是它的分类体系里没有这个名字（跨源命名差异，如策展叫"造船"、新浪叫
+            # "船舶制造"）。判成真故障会打掉本通道健康分、把候选通道①挤出竞争，
+            # 正是 RFC 015 §1.5.1 禁止的「多源退化成单源」。
+            self.last_note = (
                 f"新浪行业中没有 {chain_id_or_name!r} 对应板块（可用: "
                 f"{', '.join(r['sector'] for r in sectors[:30])} ...）"
             )
-            return None
+            return []
 
         try:
             members = self._sector_members(matched['label'])
@@ -150,6 +176,11 @@ class AkshareConceptProvider(IIndustryChainProvider):
             self.last_error = f"新浪行业成分取数失败（{matched['sector']}）: {type(exc).__name__}: {exc}"
             logger.warning(self.last_error)
             return None
+        if not members:
+            # 健康无数据：板块在、成分接口也正常返回，只是没有可用成分——不是取数故障。
+            # 返回「零成员节点」会被下游当成有效节点，故与兄弟通道同口径返回 [] + last_note。
+            self.last_note = f"新浪行业板块 {matched['sector']}({matched['label']}) 无可用成分"
+            return []
         self.last_channel = 'sina_sector_detail'
         return [{
             'chain_id': _SECTOR_PREFIX + matched['label'],
@@ -182,4 +213,10 @@ class AkshareConceptProvider(IIndustryChainProvider):
     def get_revenue_exposure(self, symbol: str) -> Optional[List[Dict]]:
         """本通道不提供主营构成：[] = 该源无此类数据（非失败）"""
         self.last_error = None
+        # 结构性缺能力（不是取数失败，也不是「这只票没有」）：明确写进 last_note，
+        # 使 manager 的 empty_sources 诊断能如实说明「为什么这个源没有数据」。
+        self.last_note = (
+            '新浪行业分类源不提供主营构成（结构性：该接口只有行业归属，无营收占比），'
+            f'故 {symbol} 无数据可返回——不是取数失败'
+        )
         return []

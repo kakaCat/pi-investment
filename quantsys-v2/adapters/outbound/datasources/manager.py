@@ -1558,8 +1558,8 @@ class DataProviderManager(IDataProviderManager):
 
         Returns:
             {'success': bool, 'data': [节点行], 'source': 'a+b', 'sources': [...],
-             'channels': {name: {success, rows, error}}, 'attempted_sources': [...],
-             'provider_errors': {...}, 'empty': bool}
+             'channels': {name: {success, rows, error, empty}}, 'attempted_sources': [...],
+             'provider_errors': {...}, 'empty': bool, 'failed_channels_hard': int}
             「某通道无该板块」（返回空）与「该通道失败」（返回 None + last_error）严格可分。
         """
         rows: List[Dict] = []
@@ -1568,6 +1568,7 @@ class DataProviderManager(IDataProviderManager):
         errors: Dict[str, str] = {}
         channels: Dict[str, Dict] = {}
         failed = 0
+        hard_failed = 0
 
         for provider in self._sort_providers_by_health(self.industry_chain_concept_providers):
             result = self._try_providers([provider], 'get_chain', sector_name)
@@ -1578,12 +1579,17 @@ class DataProviderManager(IDataProviderManager):
                 'success': bool(result.get('success')),
                 'rows': len(data or []),
                 'error': (result.get('provider_errors') or {}).get(provider.name),
+                # 四态契约（2026-09-11）：通道「健康无数据」与「真故障」必须可分——
+                # 前者不计故障、不打健康分（RFC 015 §1.5.1），后者才进 failed_channels_hard。
+                'empty': bool(result.get('empty')),
             }
             if result.get('success') and data:
                 rows.extend(data)
                 sources.append(provider.name)
             else:
                 failed += 1
+                if not result.get('empty'):
+                    hard_failed += 1
 
         return {
             'success': bool(rows),
@@ -1594,8 +1600,15 @@ class DataProviderManager(IDataProviderManager):
             'attempted_sources': attempted,
             'provider_errors': errors,
             'empty': not rows,
-            'error': None if rows else 'All industry-chain candidate providers failed or empty',
+            # 本方法上面刚把四态算出来，旧写法却在最后一步合并成同一句 'failed or empty'，
+            # 等于把区分丢掉：下游（chain_scan 的 candidate_error）无法判断「该去排障」
+            # 还是「只是没有匹配、换个关键词即可」。现按 hard_failed 如实分档。
+            'error': (None if rows else
+                      ('All industry-chain candidate providers failed'
+                       if hard_failed else
+                       'No industry-chain candidates: every source answered but none matched')),
             'failed_channels': failed,
+            'failed_channels_hard': hard_failed,
         }
 
     def list_industry_chain_candidates(self) -> dict:
@@ -1609,6 +1622,7 @@ class DataProviderManager(IDataProviderManager):
         attempted: List[str] = []
         errors: Dict[str, str] = {}
         channels: Dict[str, Dict] = {}
+        hard_failed = 0
 
         for provider in self._sort_providers_by_health(self.industry_chain_concept_providers):
             result = self._try_providers([provider], 'list_chains')
@@ -1619,10 +1633,15 @@ class DataProviderManager(IDataProviderManager):
                 'success': bool(result.get('success')),
                 'rows': len(data or []),
                 'error': (result.get('provider_errors') or {}).get(provider.name),
+                # 四态契约（2026-09-11）：通道「健康无数据」与「真故障」必须可分——
+                # 前者不计故障、不打健康分（RFC 015 §1.5.1），后者才进 failed_channels_hard。
+                'empty': bool(result.get('empty')),
             }
             if result.get('success') and data:
                 rows.extend(data)
                 sources.append(provider.name)
+            elif not result.get('empty'):
+                hard_failed += 1
 
         return {
             'success': bool(rows),
@@ -1633,7 +1652,13 @@ class DataProviderManager(IDataProviderManager):
             'attempted_sources': attempted,
             'provider_errors': errors,
             'empty': not rows,
-            'error': None if rows else 'All industry-chain candidate providers failed or empty',
+            # 同上：旧文案把「通道挂了」与「所有通道都答了但没匹配」写成同一句，
+            # 下游无法判断该去排障还是该换个关键词。按 hard_failed 如实分档。
+            'error': (None if rows else
+                      ('All industry-chain candidate providers failed'
+                       if hard_failed else
+                       'No industry-chain candidates: every source answered but none matched')),
+            'failed_channels_hard': hard_failed,
         }
 
     # ------------------------------------------------------------ 政策·个股事件
