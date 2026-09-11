@@ -114,8 +114,87 @@ def resolve_index_symbol(symbol: str) -> 'str | None':
         s = code
     if not s.isdigit() or len(s) != 6:
         return None
+    # 2026-09-11（w-348bf585, REQ-733c5e）：显式市场后缀/前缀优先于 stocks 表歧义裁决。
+    # 对歧义码（000001 上证指数/平安银行、000016 上证50/*ST康佳A、000905 中证500/厦门港务、
+    # 000852 中证1000/石化机械、000906 中证800），'.SH' 后缀或 'sh' 前缀恒为指数——
+    # 深市个股不可能挂 .SH（厦门港务是 000905.SZ）。此前 resolve 只查 stocks 表，导致
+    # '000905.SH' / 'sh000905' 被错配到同名深市个股（静默返回个股K线，无任何歧义提示）。
+    if market_hint == 'SH' and s in INDEX_WHITELIST and not s.startswith('399'):
+        return f'{s}.SH'
     if not is_index_symbol(s):   # 白名单 + stocks 表定夺（歧义码在此被排除）
         return None
     # 399 族恒为深证指数；其余白名单指数为沪市
     market = market_hint or ('SZ' if s.startswith('399') else 'SH')
     return f'{s}.{market}'
+
+# ==================== REQ-733c5e：解析元数据 + 歧义告警（w-348bf585, 2026-09-11） ====================
+
+# 指数名称表（告警与展示用；覆盖白名单全部代码）
+INDEX_NAMES = {
+    '000001': '上证指数',
+    '000016': '上证50',
+    '000300': '沪深300',
+    '399300': '沪深300',
+    '399001': '深证成指',
+    '399005': '中小板指',
+    '399006': '创业板指',
+    '000852': '中证1000',
+    '000905': '中证500',
+    '000906': '中证800',
+}
+
+
+def _bare_code(symbol: str) -> 'tuple[str, bool]':
+    """剥掉 sh/sz 前缀与 .XX 后缀，返回 (六位代码, 是否带显式市场标识)。"""
+    raw = (symbol or '').strip()
+    if not raw:
+        return '', False
+    hinted = ('.' in raw) or raw.lower()[:2] in ('sh', 'sz')
+    code = raw.split('.')[0]
+    for p in ('sh', 'sz'):
+        if raw.lower().startswith(p):
+            code = raw[2:]
+    return code, hinted
+
+
+def build_resolution_meta(symbol: str, resolved_kind: str, resolved_key: str,
+                          stock_name: 'str | None' = None) -> dict:
+    """组装 K 线响应的解析元数据：解析身份/名称 + 歧义告警（REQ-733c5e）。
+
+    目的：杜绝"指数/股票同码"导致的静默错配——历史上 agent 曾把 000905（厦门港务）
+    的 K 线当作中证500 指数回撤用于抄底判断。meta 里显式声明本次解析结果与替代写法。
+
+    Args:
+        symbol: 原始入参（可能带 .XX 后缀或 sh/sz 前缀）
+        resolved_kind: 'index' 或 'stock'
+        resolved_key: 最终用于取数的键（指数带 .SH/.SZ 后缀）
+        stock_name: 股票名（stock 路径时传入；指数路径忽略）
+    Returns:
+        dict：resolved_kind / resolved_symbol / resolved_name(可选) /
+              ambiguity_warning 或 ambiguity_note(可选)
+    """
+    meta: dict = {'resolved_kind': resolved_kind, 'resolved_symbol': resolved_key}
+    code, hinted = _bare_code(symbol)
+    if resolved_kind == 'index':
+        name = INDEX_NAMES.get(code) or INDEX_NAMES.get(resolved_key.split('.')[0])
+        if name:
+            meta['resolved_name'] = name
+    elif stock_name:
+        meta['resolved_name'] = stock_name
+
+    # 歧义提示：仅对"白名单歧义码 + 裸码（未带市场标识）"提示——显式 .SH/.SZ 已消歧，不再告警
+    if not hinted and code in INDEX_WHITELIST and not code.startswith('399'):
+        idx_name = INDEX_NAMES.get(code, code)
+        if resolved_kind == 'stock':
+            meta['ambiguity_warning'] = (
+                f"代码 {code} 存在『指数/股票』歧义：本次已按股票解析"
+                + (f"『{meta.get('resolved_name')}』" if meta.get('resolved_name') else '')
+                + f"；若你要的是指数『{idx_name}』，请传 {code}.SH 或 sh{code}。"
+            )
+        else:
+            meta['ambiguity_note'] = (
+                f"代码 {code} 存在歧义，本次已按指数『{meta.get('resolved_name', idx_name)}』解析；"
+                f"若要同名深市个股请传 {code}.SZ。"
+            )
+    return meta
+

@@ -302,6 +302,26 @@ export class QuantsysV2Client {
     return response.data.klines || [];
   }
 
+  /**
+   * Get K-line data with full envelope（含解析元数据）。
+   * 2026-09-11（REQ-733c5e, w-348bf585）：后端 /api/stock/{symbol}/klines 自本日起在响应里附带
+   * resolved_kind / resolved_symbol / resolved_name / ambiguity_warning，用于杜绝"指数/股票同码"
+   * 静默错配（000905→厦门港务 vs 中证500）。getKlines 只取 klines 数组、会丢这些字段；
+   * 需要歧义判定时用本方法拿完整 envelope。
+   */
+  async getKlinesEnvelope(
+    symbol: string,
+    startDate: string,
+    endDate: string,
+    period: 'daily' | 'weekly' | 'monthly' = 'daily',
+    limit?: number
+  ): Promise<any> {
+    const response = await this.client.get('/api/stock/' + symbol + '/klines', {
+      params: { start_date: startDate, end_date: endDate, period, limit },
+    });
+    return response.data;
+  }
+
   // ==================== Strategy APIs ====================
 
   /**
@@ -1222,7 +1242,22 @@ export class QuantsysV2Client {
   async getAlerts(params?: { level?: string; limit?: number }): Promise<Alert[]> {
     // /api/alerts/check 触发 opponent+manipulation 检测，冷路径实测 30-40s，超时放宽到 60s
     const response = await this.client.get('/api/alerts/check', { params, timeout: 60000 });
-    return this.unwrap<Alert[]>(response.data, 'getAlerts');
+    const raw = this.unwrap<any>(response.data, 'getAlerts');
+    const arr: any[] = Array.isArray(raw) ? raw : [];
+    // 2026-09-11（REQ-733c5e, w-348bf585）：契约对齐。
+    // 后端 /api/alerts/check 实测返回 {alert_id,type,level,title,message,action,symbols,details,created_at}，
+    // 而 Alert 接口声明 {id,description,triggered_at} → 此前工具读 description 恒为空字符串，
+    // 把「有依据的告警」误显示为「无依据」。此处映射字段并透传后端附加字段（不丢信息）。
+    return arr.map((a: any) => ({
+      id: a.id ?? a.alert_id ?? '',
+      level: a.level ?? 'medium',
+      title: a.title ?? '',
+      description: a.description ?? a.message ?? '',
+      symbol: a.symbol ?? (Array.isArray(a.symbols) ? a.symbols[0] : a.symbols),
+      triggered_at: a.triggered_at ?? a.created_at ?? '',
+      // 透传后端附加信息（action/details/symbols/type），供工具层展示依据
+      type: a.type, action: a.action, symbols: a.symbols, details: a.details,
+    })) as any as Alert[];
   }
 
   // ==================== Market APIs (P0) ====================

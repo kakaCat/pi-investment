@@ -101,16 +101,38 @@ describe('risk_barra_decomposition 数据真实性护栏', () => {
 
 describe('data_fetch_kline 指数数据（amount=null）', () => {
   it('指数 null amount 不再让整条调用失败，且不伪造成 0', async () => {
+    // 2026-09-11（REQ-733c5e）：工具改用 getKlinesEnvelope 取完整 envelope，返回对象。
     const tool: any = new DataFetchKlineTool({
-      getKlines: vi.fn().mockResolvedValue([
-        { symbol: '000300', trade_date: '2026-08-03', open: 4561.817, high: 4572.588, low: 4529.186, close: 4543.178, volume: 23204258400, amount: null },
-      ]),
+      getKlinesEnvelope: vi.fn().mockResolvedValue({
+        symbol: '000300', count: 1, resolved_kind: 'index', resolved_name: '沪深300', resolved_symbol: '000300.SH',
+        klines: [
+          { symbol: '000300', trade_date: '2026-08-03', open: 4561.817, high: 4572.588, low: 4529.186, close: 4543.178, volume: 23204258400, amount: null },
+        ],
+      }),
     } as any);
-    const rows = await tool.execute({ symbol: '000300', start_date: '2026-08-01', end_date: '2026-09-10' }, ctx);
-    expect(rows.length).toBe(1);
-    expect(rows[0].date).toBe('2026-08-03');
-    expect('amount' in rows[0]).toBe(false);
-    expect(rows[0].close).toBeCloseTo(4543.178, 3);
+    const r = await tool.execute({ symbol: '000300', start_date: '2026-08-01', end_date: '2026-09-10' }, ctx);
+    expect(r.count).toBe(1);
+    expect(r.resolved_kind).toBe('index');
+    expect(r.klines.length).toBe(1);
+    expect(r.klines[0].date).toBe('2026-08-03');
+    expect('amount' in r.klines[0]).toBe(false);
+    expect(r.klines[0].close).toBeCloseTo(4543.178, 3);
+  });
+
+  // 2026-09-11（REQ-733c5e）：歧义代码必须透出告警，而不是静默返回同名个股K线。
+  it('歧义代码（000905 厦门港务 vs 中证500）透出 ambiguity_warning', async () => {
+    const tool: any = new DataFetchKlineTool({
+      getKlinesEnvelope: vi.fn().mockResolvedValue({
+        symbol: '000905', count: 1, resolved_kind: 'stock', resolved_name: '厦门港务', resolved_symbol: '000905',
+        ambiguity_warning: '代码 000905 存在『指数/股票』歧义：本次已按股票解析『厦门港务』；若你要的是指数『中证500』，请传 000905.SH 或 sh000905。',
+        klines: [{ symbol: '000905', trade_date: '2026-09-10', open: 9.4, high: 9.66, low: 9.27, close: 9.46, volume: 26487109, amount: 250568051 }],
+      }),
+    } as any);
+    const r = await tool.execute({ symbol: '000905', start_date: '2026-09-08', end_date: '2026-09-10' }, ctx);
+    expect(r.resolved_kind).toBe('stock');
+    expect(r.resolved_name).toBe('厦门港务');
+    expect(r.ambiguity_warning).toContain('歧义');
+    expect(r.ambiguity_warning).toContain('000905.SH');
   });
 });
 
@@ -281,11 +303,22 @@ describe('fund_flow 新鲜度标注', () => {
 });
 
 describe('sector_analysis 窗口诚实性', () => {
-  it('标注后端忽略 days（单一窗口），避免被当 N 日区间涨幅', async () => {
+  // 2026-09-11（REQ-733c5e）：上一版写死『后端忽略 days』与后端 data.window 自述矛盾，
+  // 现改为透传后端 window + 标注 taxonomy（两套口径会随数据源/快照回退切换）。
+  it('透传后端 window 自述并标注 taxonomy，不再写死错误结论', async () => {
     const { SectorAnalysisTool } = await import('../packages/market/src/tools/SectorAnalysisTool/SectorAnalysisTool.js');
-    const tool: any = new SectorAnalysisTool({ getSectorAnalysis: vi.fn().mockResolvedValue({ data_type: 'sector_list', data: { industries: [] } }) } as any);
+    const tool: any = new SectorAnalysisTool({ getSectorAnalysis: vi.fn().mockResolvedValue({ data_type: 'sector_list', data: { window: { days_requested: 20, days_computed: 6, basis: 'compounded_daily_snapshots', note: '快照深度不足，实际 6 天' }, industries: [{ code: 'BK0428', name: '电力', change_pct: 1.2 }] } }) } as any);
     const r: any = await tool.execute({ days: 20 }, ctx);
     expect(r.days_requested).toBe(20);
-    expect(r.window_note).toMatch(/忽略 days/);
+    expect(r.window.days_computed).toBe(6);
+    expect(r.window_note).toContain('快照深度不足');
+    expect(r.taxonomy).toMatch(/eastmoney/);
+    expect(r.taxonomy_note).toContain('两套口径');
+  });
+  it('legacy new_* 口径被识别为 legacy taxonomy', async () => {
+    const { SectorAnalysisTool } = await import('../packages/market/src/tools/SectorAnalysisTool/SectorAnalysisTool.js');
+    const tool: any = new SectorAnalysisTool({ getSectorAnalysis: vi.fn().mockResolvedValue({ data_type: 'sector_list', data: { industries: [{ code: 'new_dlhy', name: '电力行业', change_pct: 1.38 }] } }) } as any);
+    const r: any = await tool.execute({ days: 5 }, ctx);
+    expect(r.taxonomy).toMatch(/legacy/);
   });
 });

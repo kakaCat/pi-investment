@@ -96,19 +96,26 @@ export class FundFlowTool extends BaseTool<FundFlowParams, FundFlowResult> {
     // 2026-09-11 修复（REQ-342799）：实测个股资金流最新只到 2026-09-09（当时为 09-11），
     // 旧实现仅把日期写进 summary 文本、不标注新鲜度，容易被当成当日资金流使用。
     const latestDate = fundFlow.find((r: any) => r?.date)?.date ?? null;
+    // 2026-09-11（REQ-733c5e）：staleness 口径修正。旧实现 Math.round（自然日）会把『前一交易日』
+    // 四舍五入成 2 天，夸大到不可读。口径：staleness_days=自然日 floor；is_today=是否当日。
+    // 资金流盘后才发布，盘中可见的最新通常是前一交易日——属正常而非异常。
+    const todayStr = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
     const stalenessDays = latestDate
-      ? Math.round((Date.now() - new Date(latestDate + 'T00:00:00+08:00').getTime()) / 86400000)
+      ? Math.max(0, Math.floor((Date.parse(todayStr) - Date.parse(latestDate)) / 86400000))
       : null;
+    const isToday = latestDate === todayStr;
 
     return {
-      mode: `stock:${args.symbol}`,
+      mode: 'stock:' + args.symbol,
       available,
       data_date: latestDate,
       staleness_days: stalenessDays,
       freshness_note: latestDate
-        ? (stalenessDays !== null && stalenessDays >= 2
-          ? '资金流最新日期 ' + latestDate + '，距调用日 ' + stalenessDays + ' 天 → 非当日数据，勿当今日资金流使用'
-          : '资金流日期 ' + latestDate)
+        ? (isToday
+          ? '资金流日期 ' + latestDate + '（当日）'
+          : stalenessDays === 1
+            ? '资金流日期 ' + latestDate + '（前一交易日——资金流盘后发布，盘中最新即前一交易日，属正常）'
+            : '资金流最新日期 ' + latestDate + '，非当日数据（' + stalenessDays + ' 个自然日前，陈旧），勿当今日资金流使用')
         : '数据源未返回日期字段，新鲜度未知',
       fund_flow: fundFlow,
       margin,

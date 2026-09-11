@@ -99,7 +99,10 @@ export class DataFetchKlineTool extends BaseTool<DataFetchKlineParams, DataFetch
     context: ToolContext
   ): Promise<DataFetchKlineResult> {
     const period = args.period || 'daily';
-    const result: any = await this.qv2.getKlines(
+    // 2026-09-11（REQ-733c5e, w-348bf585）：改用 getKlinesEnvelope 取完整 envelope，
+    // 以拿到 resolved_kind/resolved_name/ambiguity_warning（指数/股票同码歧义告警）。
+    // 后端旧版本无这些字段时为 undefined，不影响主流程（向后兼容）。
+    const result: any = await this.qv2.getKlinesEnvelope(
       args.symbol,
       args.start_date,
       args.end_date,
@@ -116,7 +119,7 @@ export class DataFetchKlineTool extends BaseTool<DataFetchKlineParams, DataFetch
         : Array.isArray(result?.data)
           ? result.data
           : [];
-    return rows.map((r: any) => {
+    const rows2 = rows.map((r: any) => {
       const out: any = { ...r };
       if (!out.date && r?.trade_date) out.date = r.trade_date;
       for (const k of ['open', 'high', 'low', 'close', 'volume', 'amount']) {
@@ -127,20 +130,32 @@ export class DataFetchKlineTool extends BaseTool<DataFetchKlineParams, DataFetch
         }
       }
       return out;
-    }) as DataFetchKlineResult;
+    });
+
+    // 2026-09-11（REQ-733c5e）：返回对象，携带后端解析元数据（歧义告警）。
+    return {
+      klines: rows2,
+      symbol: result?.symbol ?? args.symbol,
+      count: rows2.length,
+      resolved_kind: result?.resolved_kind,
+      resolved_name: result?.resolved_name,
+      resolved_symbol: result?.resolved_symbol,
+      ambiguity_warning: result?.ambiguity_warning,
+      ambiguity_note: result?.ambiguity_note,
+    } as DataFetchKlineResult;
   }
 
   protected wrap(data: DataFetchKlineResult): ToolResponse<DataFetchKlineResult> {
-    // K线数据应该是数组
-    if (!Array.isArray(data)) {
+    // 2026-09-11（REQ-733c5e）：输出由纯数组改为对象（klines + resolved_kind/ambiguity_warning 等）。
+    if (!data || !Array.isArray((data as any).klines)) {
       return {
         success: false,
         error: {
           success: false,
           errorType: ErrorType.OUTPUT_ERROR,
           field: 'result',
-          issue: '返回数据不是数组',
-          expected: 'Array<KlineData>',
+          issue: '返回数据不是含 klines 数组的对象',
+          expected: '{klines: Array<KlineData>, symbol, count, resolved_kind?, ambiguity_warning?}',
         },
       };
     }

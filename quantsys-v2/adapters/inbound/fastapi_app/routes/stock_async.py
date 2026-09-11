@@ -290,6 +290,23 @@ def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
                     if 'trade_datetime' in kline and 'trade_date' not in kline:
                         kline['trade_date'] = str(kline['trade_datetime'])
 
+        # 2026-09-11（REQ-733c5e, w-348bf585）：返回解析元数据 + 歧义告警。
+        # 目的：杜绝"指数/股票同码"静默错配（历史事故：agent 把 000905 厦门港务的 K 线
+        # 当中证500 指数回撤用于抄底判断）。resolved_kind/resolved_name/ambiguity_warning
+        # 显式声明本次解析结果与替代写法。
+        from utils.symbol_classifier import build_resolution_meta
+        _res_kind = 'index' if (_index_key and period in daily_periods) else 'stock'
+        _res_key = clean_symbol
+        _stock_name = None
+        if _res_kind == 'stock':
+            try:
+                from adapters.shared.services import get_stock_repo
+                _st = get_stock_repo().get_by_symbol(clean_symbol)
+                _stock_name = getattr(_st, 'name', None) if _st else None
+            except Exception:  # noqa: BLE001 - 名称仅用于展示，查不到不阻塞主链路
+                _stock_name = None
+        _meta = build_resolution_meta(symbol, _res_kind, _res_key, stock_name=_stock_name)
+
         if klines is None or (hasattr(klines, 'is_empty') and klines.is_empty()) or (isinstance(klines, list) and len(klines) == 0):
             # 数据库无数据，尝试从外部数据源拉取（M3-2 修复）
             logger.info(f"Database has no kline data for {clean_symbol}, attempting to fetch from external sources...")
@@ -313,7 +330,7 @@ def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
                         logger.warning(f"Failed to cache klines: {cache_error}")
                     
                     # 直接返回
-                    return {'symbol': clean_symbol, 'count': len(raw_klines), 'klines': sanitize_for_json(raw_klines[-limit:])}
+                    return {'symbol': clean_symbol, 'count': len(raw_klines), 'klines': sanitize_for_json(raw_klines[-limit:]), **_meta}
                 
                 logger.warning(f"External sources returned no data for {clean_symbol}")
             except Exception as fetch_error:
@@ -323,7 +340,7 @@ def get_stock_klines(symbol: str, start_date: Optional[str] = Query(None),
             return error_response({'error': f'No kline data for {symbol}'}, 404)
         if hasattr(klines, 'to_dicts'):
             klines = klines.to_dicts()
-        return {'symbol': clean_symbol, 'count': len(klines), 'klines': sanitize_for_json(klines[-limit:])}
+        return {'symbol': clean_symbol, 'count': len(klines), 'klines': sanitize_for_json(klines[-limit:]), **_meta}
     except Exception as e:
         return error_response({'error': str(e)}, 500)
 

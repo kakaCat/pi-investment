@@ -52,8 +52,10 @@ describe.skipIf(!LIVE)('工具数据真实性体检（真实后端）', () => {
 
   it('data_fetch_kline：指数（000300）可取到且输出 schema 安全（amount=null 不再炸）', async () => {
     const tool: any = new DataFetchKlineTool(client);
-    const rows: any[] = await tool.execute({ symbol: '000300', start_date: '2026-08-01', end_date: '2026-09-10' }, ctx);
-    console.log('[kline-index] rows=' + rows.length + ' first=' + JSON.stringify(rows[0] ?? null));
+    // 2026-09-11（REQ-733c5e）：输出由纯数组改为对象 {klines, resolved_kind, ...}
+    const r: any = await tool.execute({ symbol: '000300', start_date: '2026-08-01', end_date: '2026-09-10' }, ctx);
+    const rows: any[] = Array.isArray(r?.klines) ? r.klines : [];
+    console.log('[kline-index] rows=' + rows.length + ' resolved=' + JSON.stringify({ kind: r?.resolved_kind, name: r?.resolved_name }) + ' first=' + JSON.stringify(rows[0] ?? null));
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) {
       for (const k of ['open', 'high', 'low', 'close', 'volume', 'amount']) {

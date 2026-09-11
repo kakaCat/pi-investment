@@ -78,10 +78,11 @@ export class WatchListTool extends BaseTool<WatchListParams, any[]> {
         condition_missing: conds.length === 0,
         conditions: conds,
         reason: r?.reason ?? r?.context ?? undefined,
-        // 真值来源：触发记录统计（见上方说明）。取不到时为 null + 说明，绝不回落 0。
-        triggered_count: counts ? (counts.get(r?.id) ?? 0) : null,
-        triggered_count_scope: triggerScope ?? undefined,
-        triggered_count_note: counts ? undefined : '触发记录查询失败：本规则触发次数未知（勿按 0 理解）',
+        // 2026-09-11（REQ-733c5e）：优先用后端权威 triggered_count（rule_to_dict 现已返回该字段，
+        // 为 COUNT(watch_triggers) 全量值）；后端缺失/非数字时回落到本工具的触发记录统计（近 500 条口径）。
+        triggered_count: (typeof r?.triggered_count === 'number' ? r.triggered_count : (counts ? (counts.get(r?.id) ?? 0) : null)),
+        triggered_count_scope: (typeof r?.triggered_count === 'number') ? '全量（后端 COUNT）' : (triggerScope ?? undefined),
+        triggered_count_note: (typeof r?.triggered_count === 'number' || counts) ? undefined : '触发次数未知（勿按 0 理解）',
       };
     });
   }

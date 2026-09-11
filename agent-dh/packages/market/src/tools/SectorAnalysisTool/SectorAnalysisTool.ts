@@ -42,15 +42,25 @@ export class SectorAnalysisTool extends BaseTool<SectorAnalysisParams, SectorAna
       days: requestedDays,
     });
 
-    // 2026-09-11 修复（REQ-342799）：实测后端 /api/market/sectors 路由不接收 days 参数
-    // （curl days=5 与 days=20 返回完全相同的 change_pct），返回的是『最新快照』单一窗口。
-    // 此前工具对外表现为支持多窗口，导致分析时把单日快照误当 5/20 日区间涨幅使用。
-    // 同时：client.unwrap 会剥掉外层 {success,data}，路由在数据源故障回退 DB 快照时标注的
-    // degraded/stale/stale_from 字段位于外层 → 会被静默丢弃。此处显式补齐，避免把陈旧快照当实时。
+    // 2026-09-11（REQ-733c5e, w-348bf585）：纠正上一版写死的错误结论。
+    // 实测：后端 days>1 时按 DB 日快照复合（data.window 自述 basis=compounded_daily_snapshots，
+    // 快照深度不足会诚实降级标注 days_computed）。此前本工具硬编码『后端忽略 days，返回单一窗口』
+    // 与后端 data.window 自述互相矛盾——改为透传后端 window，不再伪造结论。
+    const data: any = (result as any)?.data ?? {};
+    const inds: any[] = Array.isArray(data?.industries) ? data.industries : [];
+    const codes = inds.map((x: any) => String(x?.code ?? '')).filter(Boolean);
+    const taxonomy = codes.some((c) => c.startsWith('new_'))
+      ? 'legacy(new_*, 49个申万口径)'
+      : codes.some((c) => c.startsWith('BK'))
+        ? 'eastmoney(BK*, 496个东财口径)'
+        : 'unknown';
     return {
       ...(result as any),
       days_requested: requestedDays,
-      window_note: '后端该接口忽略 days，返回单一窗口（最新快照）；请勿当作 N 日区间涨幅',
+      window: data?.window ?? null,
+      window_note: data?.window?.note ?? data?.window_note ?? null,
+      taxonomy,
+      taxonomy_note: '板块列表存在两套口径（legacy new_* 49个 / eastmoney BK* 496个），随数据源/快照回退切换；同一入参两次调用可能返回不同口径且不可比，做结论前先核对 taxonomy 与 window.days_computed',
       data_degraded: (result as any)?.degraded ?? null,
       data_stale: (result as any)?.stale ?? null,
       stale_from: (result as any)?.stale_from ?? null,

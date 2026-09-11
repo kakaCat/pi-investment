@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, Query
 from fastapi.responses import JSONResponse
 
 from adapters.outbound.repositories.watch_rule_repository import (
-    WatchRuleRepository, WatchTriggerRepository, rule_to_dict, trigger_to_dict,
+    WatchTrigger, WatchRuleRepository, WatchTriggerRepository, rule_to_dict, trigger_to_dict,
 )
 from application.services.watch_engine.conditions import validate_condition
 
@@ -33,7 +33,22 @@ def list_rules(symbol: Optional[str] = Query(None), enabled: Optional[str] = Que
     rule_repo = WatchRuleRepository()
     enabled_value = None if enabled is None else enabled.lower() == 'true'
     rules = rule_repo.list_rules(symbol=symbol, enabled=enabled_value, account=account)
-    return {'success': True, 'data': {'rules': [rule_to_dict(r) for r in rules]}}
+    items = [rule_to_dict(r) for r in rules]
+    # 2026-09-11（REQ-733c5e, w-348bf585）：补权威 triggered_count。
+    # rule_to_dict 此前不含该字段，下游工具层只好多查一次 /api/watch/triggers 自算（双口径），
+    # 且曾因此把「触发 4 次」误显示为 0。统一由后端给出 COUNT(watch_triggers) GROUP BY rule_id。
+    counts = None
+    try:
+        rows = WatchTriggerRepository().session.query(WatchTrigger.rule_id).all()
+        counts = {}
+        for (rid,) in rows:
+            if rid is not None:
+                counts[rid] = counts.get(rid, 0) + 1
+    except Exception:  # noqa: BLE001 - 统计失败不阻塞规则列表，置 None 让下游勿按 0 理解
+        counts = None
+    for it in items:
+        it['triggered_count'] = counts.get(it.get('id'), 0) if counts is not None else None
+    return {'success': True, 'data': {'rules': items}}
 
 
 @router.post('/api/watch/rules')
