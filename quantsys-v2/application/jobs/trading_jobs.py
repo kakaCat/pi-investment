@@ -13,6 +13,26 @@ from application.jobs.job_protocol import Job, JobResult
 logger = logging.getLogger(__name__)
 
 
+def _ok_or_fail(job_name: str, ok_message: str, result: Any) -> JobResult:
+    """把 job 函数返回 dict 的 status 映射为 JobResult，杜绝"内部失败但任务 success"。
+
+    2026-09-11 修复（w-f4aa1f6a，看板事件 dff409c4 / 任务 319）：
+    strategy_daily_check 等 job 函数用「返回 dict + status='failed'」表达失败（不抛异常），
+    而包装层原先无条件 JobResult.ok → 任务永远标记 success。
+    实测后果：昨日重构误删 live_trading/configs/strategies/{v13,v14}.yaml 后，
+    v13/v14 策略日检连续失败却无人发现（错误只落在日志里，任务状态全绿）。
+    与 PoolRefreshDailyJob 既有写法对齐。
+    """
+    if isinstance(result, dict):
+        status = str(result.get('status') or '').lower()
+        if status in ('failed', 'error', 'fail'):
+            return JobResult.fail(
+                job_name,
+                result.get('error') or result.get('message') or f'job 内部 status={status}',
+            )
+    return JobResult.ok(job_name, message=ok_message, details=result)
+
+
 class V13DailyCheckJob(Job):
     """V13 模拟交易每日检查"""
 
@@ -36,11 +56,7 @@ class V13DailyCheckJob(Job):
         try:
             from infrastructure.jobs.strategy_trading_job import v13_daily_check
             result = v13_daily_check(**params)
-            return JobResult.ok(
-                self.name,
-                message="V13 每日检查完成",
-                details=result
-            )
+            return _ok_or_fail(self.name, "V13 每日检查完成", result)
         except Exception as e:
             return JobResult.fail(self.name, str(e))
 
@@ -68,11 +84,7 @@ class V14DailyCheckJob(Job):
         try:
             from infrastructure.jobs.strategy_trading_job import v14_daily_check
             result = v14_daily_check(**params)
-            return JobResult.ok(
-                self.name,
-                message="V14 每日检查完成",
-                details=result
-            )
+            return _ok_or_fail(self.name, "V14 每日检查完成", result)
         except Exception as e:
             return JobResult.fail(self.name, str(e))
 
@@ -100,11 +112,7 @@ class V13RiskCheckJob(Job):
         try:
             from infrastructure.jobs.risk_check_job import execute
             result = execute(**params)
-            return JobResult.ok(
-                self.name,
-                message="V13 风险检查完成",
-                details=result
-            )
+            return _ok_or_fail(self.name, "V13 风险检查完成", result)
         except Exception as e:
             return JobResult.fail(self.name, str(e))
 
@@ -132,11 +140,7 @@ class V13VerificationJob(Job):
         try:
             from infrastructure.jobs.verification_job import execute
             result = execute(**params)
-            return JobResult.ok(
-                self.name,
-                message="V13 验证完成",
-                details=result
-            )
+            return _ok_or_fail(self.name, "V13 验证完成", result)
         except Exception as e:
             return JobResult.fail(self.name, str(e))
 

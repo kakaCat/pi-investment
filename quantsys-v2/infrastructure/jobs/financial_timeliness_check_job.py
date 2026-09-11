@@ -165,7 +165,7 @@ python -m infrastructure.jobs.financial_data_update_job --report-date {check_res
         # TODO: 如需持久化告警到数据库，需先创建 system_logs 表
         logger.warning(
             "financial_timeliness_alert",
-            symbol=check_result['symbol'],
+            symbol=check_result.get('symbol', '全市场'),  # 2026-09-11 修复（w-f4aa1f6a）：本 job 是全市场时效性检查，result_dict 不含 symbol（事件 bd03ca47）
             expected_date=check_result['expected_report_date'],
             message=message
         )

@@ -67,22 +67,41 @@ class WeeklyReportJob:
         )
 
     def _get_account_value_at_date(self, date_str: str) -> float:
-        """
-        获取指定日期的账户价值（简化实现）
+        """获取指定日期（含）之前最近一条净值快照的账户总资产，始终返回 float。
 
-        Args:
-            date_str: 日期字符串
-
-        Returns:
-            账户价值
+        2026-09-11 修复（w-f4aa1f6a，看板事件 271）：
+        - 原实现是 TODO 桩，直接返回 account.initial_capital（且是 ORM 的 Decimal）：
+          ① 语义错误——"本周收益"实为"累计收益"（数字对外发布是错的）；
+          ② 类型错误——与 float 的 final_value 混算抛
+          TypeError: unsupported operand type(s) for -: 'float' and 'decimal.Decimal'，
+          任务每天/每周失败（事件 1d87e242 / c4e93003 / 271 同源）。
+        - 现按 snapshot_date <= date_str 取最近一条快照的 total_value；
+          无快照（或日期不可解析）时回退 initial_capital，并 WARNING 留痕。
         """
-        # TODO: 实现准确的历史账户价值查询
-        # 这里简化处理
+        try:
+            target = datetime.fromisoformat(str(date_str)).date()
+        except (TypeError, ValueError):
+            logger.warning(f"日期无法解析，回退初始资金: {date_str!r}")
+            target = None
+
+        snapshots = []
+        if target is not None:
+            try:
+                snapshots = self.repo.get_equity_snapshots(self.ACCOUNT_NAME, limit=400) or []
+            except Exception as e:
+                logger.warning(f"读取净值快照失败，回退初始资金: {e}")
+
+        for snap in snapshots:  # 已按 snapshot_date 倒序，第一条满足 <= target 即最近
+            snap_date = getattr(snap, 'snapshot_date', None)
+            if snap_date is not None and snap_date <= target:
+                value = getattr(snap, 'total_value', None)
+                if value is not None:
+                    return float(value)
+
         account = self.repo.get_account(account_name=self.ACCOUNT_NAME)
-        if not account:
-            return 100000.0
-
-        return account.initial_capital
+        base = getattr(account, 'initial_capital', None) if account else None
+        logger.warning(f"{date_str} 无可用净值快照，回退初始资金: {base}")
+        return float(base) if base is not None else 100000.0
 
     def _calculate_position_returns(self, start_date: str, end_date: str) -> list:
         """
@@ -221,7 +240,7 @@ class WeeklyReportJob:
         final_value = float(account.total_value)
 
         # 计算本周收益
-        weekly_return = (final_value - initial_value) / initial_value
+        weekly_return = (final_value - initial_value) / initial_value if initial_value else 0.0
 
         # 获取本周交易数据
         trades = self.repo.get_trades_by_account(
