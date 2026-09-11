@@ -148,8 +148,14 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
 
     def create_rule(self, symbol, conditions, context=None, cost_price=None,
                     active_window=None, expires_at=None, created_by='agent',
-                    account=None, linked_account=None) -> WatchRule:
-        # 账户归一（2026-09-11，w-aebfddcd）：account 与 linked_account 是同一语义的两个字段，
+                    account=None, linked_account=None,
+                    intent=None, action_hint=None) -> WatchRule:
+        # 铁律下沉（2026-09-11，w-aebfddcd）：没有账户的规则不能进入买卖——在**仓储层**拦，
+        # 这样任何创建路径（API / 内部服务 / 定时任务）都绕不过去。观察类规则放行。
+        from domain.watch.services.rule_guard import guard_new_rule
+        guard_new_rule(intent=intent, action_hint=action_hint, conditions=conditions,
+                       account=(linked_account or account), symbol=symbol)
+        # 账户归一：account 与 linked_account 是同一语义的两个字段，
         # 只传其一时另一个必须跟随——否则新建的规则在投送侧（读 linked_account）看起来"无账户"，
         # 触发时会被当成数据缺陷，而创建方以为自己给了账户。
         rule = WatchRule(
@@ -158,6 +164,11 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
             expires_at=expires_at, created_by=created_by, enabled=True,
             account=account or linked_account,
             linked_account=linked_account or account,
+            # 2026-09-11（w-aebfddcd）：这两个参数此前被**静默丢弃**（签名收了却不写库），
+            # 导致"创建时声明 intent=exit_stop"的规则实际落库 intent=NULL，
+            # 仓储层守卫与运行时都把它当观察类 —— 典型的参数收下不生效陷阱。
+            intent=intent,
+            action_hint=action_hint,
         )
         return self.create(rule)
 
@@ -188,6 +199,12 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         rule = self.get_by_id(rule_id)
         if rule is None:
             return None
+        # 铁律下沉：按"改后状态"判——不许把观察规则改成买卖规则却不给账户，
+        # 也不许把已有买卖规则的账户清空（任何调用方都绕不过）
+        from domain.watch.services.rule_guard import guard_rule_change
+        guard_rule_change(rule, {k: v for k, v in fields.items()
+                                 if k in ('intent', 'action_hint', 'conditions',
+                                          'account', 'linked_account')} or None)
         allowed = {'symbol', 'enabled', 'conditions', 'context',
                    'cost_price', 'active_window', 'expires_at', 'account',
                    'notify_mode',  # 2026-09-05 补：notify_mode 曾被白名单静默丢弃
