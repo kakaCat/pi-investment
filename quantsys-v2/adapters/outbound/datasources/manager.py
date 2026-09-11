@@ -193,6 +193,9 @@ class DataProviderManager(IDataProviderManager):
             self.provider_stats[provider.name] = {
                 'success': 0,
                 'failure': 0,
+                # 2026-09-11（w-f436d4ea）：「空结果」独立计数——语义上 provider 是**健康**的
+                # （它成功回答了这一问，只是该查询无数据），不得与 failure 混计。
+                'empty': 0,
                 'consecutive_failures': 0,
                 'last_attempt_time': 0,
             }
@@ -280,9 +283,15 @@ class DataProviderManager(IDataProviderManager):
                         'attempted_sources': attempted_sources,
                     }
 
-                reason = getattr(provider, 'last_error', None) or '返回空数据或数据校验未通过'
-                provider_errors[provider.name] = reason
-                self._record_failure(provider.name)
+                # 2026-09-11（w-f436d4ea）：拆分「真故障」与「空结果」——
+                # provider 自报 last_error 才是故障；否则视为该查询无数据（健康）。
+                reason = getattr(provider, 'last_error', None)
+                if reason:
+                    provider_errors[provider.name] = reason
+                    self._record_failure(provider.name)
+                else:
+                    provider_errors[provider.name] = '返回空数据（非故障：该查询无数据，不计入健康分）'
+                    self._record_empty(provider.name)
 
             except Exception as e:
                 logger.warning(f"Provider {provider.name}.{method_name} failed: {e}")
@@ -362,12 +371,36 @@ class DataProviderManager(IDataProviderManager):
             cb.reset()
 
     def _record_failure(self, provider_name: str):
-        """Record failed provider call"""
+        """Record failed provider call
+
+        仅用于**真故障**：异常 / 超时 / provider 自报 last_error。
+        「返回空数据」不算失败——见 _record_empty。
+        """
         import time
         if provider_name in self.provider_stats:
             self.provider_stats[provider_name]['failure'] += 1
             consecutive = self.provider_stats[provider_name].get('consecutive_failures', 0) + 1
             self.provider_stats[provider_name]['consecutive_failures'] = consecutive
+            self.provider_stats[provider_name]['last_attempt_time'] = time.time()
+
+    def _record_empty(self, provider_name: str):
+        """Record an EMPTY result (provider healthy, query has no data)
+
+        2026-09-11（w-f436d4ea）修复的真实缺陷：此前「返回空数据或数据校验未通过」
+        在 _try_providers 里与真故障走同一条 _record_failure 分支，导致
+        **某查询无数据把 provider 健康分打掉**。实测后果：东财主营构成遇到 1 只
+        无数据标的即记一次连续失败，健康分被零失败的同花顺反超 →
+        造船链 by_main_business 从 7 掉到 2（回退到弱证据源，归位质量下降）。
+
+        语义：空结果 = provider 成功回答了「该查询」，只是结果为空 → 不计失败、
+        不计连续失败、不影响熔断与排序；只单独计数供可观测性使用。
+        （若未来要按「系统性空」降权，应基于 empty 比例另设阈值，
+          绝不能与 failure 混计——那正是本次缺陷的成因。）
+        """
+        import time
+        if provider_name in self.provider_stats:
+            self.provider_stats.setdefault(provider_name, {})
+            self.provider_stats[provider_name]['empty'] = self.provider_stats[provider_name].get('empty', 0) + 1
             self.provider_stats[provider_name]['last_attempt_time'] = time.time()
 
     def reset_circuit_breakers(self):
