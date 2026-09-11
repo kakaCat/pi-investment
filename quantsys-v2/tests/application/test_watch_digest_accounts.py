@@ -121,51 +121,53 @@ def test_segments_one_per_account_plus_unassigned():
 def test_wake_fans_out_per_account_with_scope_instruction():
     agent = _Agent()
     res = _svc(agent=agent).maybe_wake(now=TRADING_NOW)
-    assert res["woke"] is True and res["wakes"] == 2
-    assert sorted(res["accounts"]) == ["agent_brain", "agent_virtual"]
+    # 2 个账户各一份 + 未归属桶一份（未归属照常唤醒，只是带缺陷标注）
+    assert res["woke"] is True and res["wakes"] == 3
+    assert sorted(res["accounts"]) == sorted(["agent_brain", "agent_virtual", UNASSIGNED])
     by_acct = {c["data"]["account_name"]: c for c in agent.calls}
-    assert sorted(by_acct) == ["agent_brain", "agent_virtual"]
+    assert sorted(by_acct, key=str) == sorted(["agent_brain", "agent_virtual", None], key=str)
     assert 'account_name=\"agent_virtual\"' in by_acct["agent_virtual"]["data"]["instruction"]
     # 每份摘要只含本账户内容
     assert "agent_brain" not in by_acct["agent_virtual"]["data"]["digest"]
 
 
-# ── 投送：账户为空（关键口径）──────────────────────────────
-def test_unassigned_trade_does_not_wake_agent():
-    """账户空 + 交易类：没有账户不能交易 → 只发飞书，不唤醒 agent"""
+# ── 投送：账户为空 = 数据缺陷（关键口径）────────────────────
+def test_unassigned_still_wakes_agent_and_flags_defect():
+    """账户为空是**规则数据缺陷**，不是投送模式：
+    照常唤醒 agent，并把'补 linked_account'作为第一优先交给它——绝不'只发飞书'把缺陷藏起来。
+    """
     agent = _Agent()
     rules = [_Rule(3, "000001", account=None, intent="entry")]
     trigs = [_Trig(13, 3, "000001")]
     res = _svc(agent=agent, rules=rules, trigs=trigs).maybe_wake(now=TRADING_NOW)
-    assert agent.calls == []
-    assert res["woke"] is False
-    assert "只发飞书" in res["reason"]
-    assert res["feishu_only"][0]["count"] == 1
+    assert res["woke"] is True and len(agent.calls) == 1
+    data = agent.calls[0]["data"]
+    assert data["unassigned"] is True and "linked_account" in data["data_defect"]
+    assert "数据缺陷" in data["instruction"]
+    assert res["data_defects"] == [{"count": 1, "rule_ids": [3]}]
 
 
-def test_unassigned_observe_still_wakes_agent():
-    """账户空 + 非交易类（观察/跟踪）：照常唤醒 agent，但禁止下单"""
+def test_unassigned_observe_also_wakes_agent():
+    """非交易类未归属同样唤醒（判据只看账户是不是缺陷，不看意图）"""
     agent = _Agent()
     rules = [_Rule(4, "600150", account=None, intent="trend_observe")]
     trigs = [_Trig(14, 4, "600150")]
     res = _svc(agent=agent, rules=rules, trigs=trigs).maybe_wake(now=TRADING_NOW)
     assert res["woke"] is True and len(agent.calls) == 1
-    data = agent.calls[0]["data"]
-    assert data["unassigned"] is True and data["account_name"] is None
-    assert "不得下单" in data["instruction"]
+    assert agent.calls[0]["data"]["data_defect"]
 
 
-def test_mixed_unassigned_bucket_splits_trade_from_observe():
-    """同一未归属桶里混着交易类与观察类 → 观察类唤醒，交易类只飞书"""
+def test_unassigned_bucket_is_not_split_by_intent():
+    """未归属桶不再按交易/非交易切分（那是把缺陷当路由）：混着也一起投，整体标缺陷"""
     agent = _Agent()
     rules = [_Rule(5, "601138", account=None, intent="entry"),
              _Rule(6, "600011", account=None, intent="trend_observe")]
     trigs = [_Trig(15, 5, "601138"), _Trig(16, 6, "600011")]
     res = _svc(agent=agent, rules=rules, trigs=trigs).maybe_wake(now=TRADING_NOW)
     assert res["wakes"] == 1 and len(agent.calls) == 1
-    assert "600011" in agent.calls[0]["data"]["digest"]
-    assert "601138" not in agent.calls[0]["data"]["digest"]
-    assert res["feishu_only"][0]["count"] == 1
+    digest_text = agent.calls[0]["data"]["digest"]
+    assert "601138" in digest_text and "600011" in digest_text
+    assert res["data_defects"][0]["rule_ids"] == [5, 6]
 
 
 def test_wake_respects_daily_cap():
