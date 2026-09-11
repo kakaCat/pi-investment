@@ -76,6 +76,26 @@ def rule_to_dict(rule: WatchRule) -> dict:
         'escalation_policy': rule.escalation_policy,
         'created_at': rule.created_at.isoformat() if rule.created_at else None,
         'updated_at': rule.updated_at.isoformat() if rule.updated_at else None,
+        # ── 价值生命周期字段（REQ-f08def P1，RFC 014 v3 §7.1）──
+        # 没有 intent/lifecycle_stage，agent 拿到触发不知道该回答什么问题。
+        'intent': getattr(rule, 'intent', None),
+        'lifecycle_stage': getattr(rule, 'lifecycle_stage', None),
+        'scope': getattr(rule, 'scope', None),
+        'target': getattr(rule, 'target', None),
+        'linked_account': getattr(rule, 'linked_account', None),
+        'created_from': getattr(rule, 'created_from', None),
+        'next_action_hint': getattr(rule, 'next_action_hint', None),
+        'last_reviewed_at': rule.last_reviewed_at.isoformat() if getattr(rule, 'last_reviewed_at', None) else None,
+        'review_interval_days': getattr(rule, 'review_interval_days', None),
+        'review_due_at': rule.review_due_at.isoformat() if getattr(rule, 'review_due_at', None) else None,
+        'value_ledger': {
+            'valuable_actions': getattr(rule, 'valuable_actions', 0) or 0,
+            'valuable_reviews': getattr(rule, 'valuable_reviews', 0) or 0,
+            'interventions': getattr(rule, 'interventions', 0) or 0,
+            'noise_triggers': getattr(rule, 'noise_triggers', 0) or 0,
+            'tokens_cost': getattr(rule, 'tokens_cost', 0.0) or 0.0,
+            'last_value_at': rule.last_value_at.isoformat() if getattr(rule, 'last_value_at', None) else None,
+        },
     }
 
 
@@ -145,7 +165,11 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
                    'notify_mode',  # 2026-09-05 补：notify_mode 曾被白名单静默丢弃
                    # 2026-09-11（w-c8cae280 / REQ-f08def Phase 3）：规则演化（改分级/改动作/改升级策略）
                    # 需要这两个字段可写，否则 agent 无法按 RFC 014 §4 的反馈边调整规则。
-                   'action_hint', 'escalation_policy'}
+                   'action_hint', 'escalation_policy',
+                   # REQ-f08def P2：规则重配置所需字段（价值账本计数由系统维护，不在此列）
+                   'intent', 'lifecycle_stage', 'scope', 'target',
+                   'linked_account', 'created_from', 'next_action_hint',
+                   'review_interval_days', 'review_due_at'}
         for key, value in fields.items():
             if key in allowed:
                 setattr(rule, key, value)

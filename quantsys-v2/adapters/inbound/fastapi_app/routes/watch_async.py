@@ -262,6 +262,10 @@ def trigger_digest(since: Optional[str] = Query(None), limit: Optional[str] = Qu
             'condition': f"{cond.get('type')} {params.get('direction', '')} {params.get('price', params.get('pct', ''))}".strip(),
             'trigger_level': hint.get('trigger_level'),
             'suggested_action': hint.get('action_on_trigger'),
+            # REQ-f08def P1：意图与阶段——agent 拿到触发就知道该回答什么问题
+            'intent': getattr(rule, 'intent', None),
+            'lifecycle_stage': getattr(rule, 'lifecycle_stage', None),
+            'next_action_hint': getattr(rule, 'next_action_hint', None),
             'plan': ctx[:160],
             'reason': (t.disposition_reason or '')[:120],
         })
@@ -293,3 +297,87 @@ def trigger_digest(since: Optional[str] = Query(None), limit: Optional[str] = Qu
         'groups': list(groups.values()),
         'text': chr(10).join(lines),
     }}
+
+
+@router.post('/api/watch/rules/batch')
+def batch_reconfigure_rules(payload: Dict[str, Any] = Body(default_factory=dict)):
+    # 规则重配置批量接口（REQ-f08def P2，RFC 014 v3 §7.4）。
+    # 为什么批量：检查点输出=一次规则重配置（买入+挂卖出规则/加仓/清仓收摊），
+    # 天然是多条一起动；逐条调既不原子也无法归因到同一触发。
+    # 强制审计：reason + source_trigger_id 必填（重配置必须可回溯到触发）。
+    actions = payload.get('actions')
+    if not isinstance(actions, list) or not actions:
+        return _err('actions 必须为非空数组', 400)
+    reason = str(payload.get('reason') or '').strip()
+    source_trigger_id = payload.get('source_trigger_id')
+    if not reason:
+        return _err('reason 必填（规则重配置的依据）', 400)
+    if source_trigger_id is None:
+        return _err('source_trigger_id 必填（重配置必须可回溯到触发）', 400)
+    rule_repo = WatchRuleRepository()
+    results = []
+    for i, act in enumerate(actions):
+        op = act.get('op')
+        try:
+            if op == 'create':
+                conds = act.get('conditions') or []
+                if not isinstance(conds, list) or not conds:
+                    results.append({'index': i, 'success': False, 'error': 'create 需要非空 conditions'})
+                    continue
+                for c in conds:
+                    validate_condition(c)
+                rule = rule_repo.create_rule(
+                    symbol=act.get('symbol'), conditions=conds,
+                    context=act.get('context'), cost_price=act.get('cost_price'),
+                    active_window=act.get('active_window'),
+                    expires_at=_parse_expires_at(act.get('expires_at')),
+                    created_by=act.get('created_by') or 'agent',
+                    account=act.get('account'))
+                meta = {k: act[k] for k in ('intent', 'lifecycle_stage', 'scope', 'target',
+                        'linked_account', 'next_action_hint', 'review_interval_days',
+                        'action_hint', 'escalation_policy') if k in act}
+                meta['created_from'] = act.get('created_from') or ('trigger:' + str(source_trigger_id))
+                if meta:
+                    rule_repo.update_fields(rule.id, **meta)
+                results.append({'index': i, 'success': True, 'op': 'create', 'rule_id': rule.id})
+            elif op == 'update':
+                rid = act.get('rule_id')
+                if rid is None:
+                    results.append({'index': i, 'success': False, 'error': 'update 需要 rule_id'})
+                    continue
+                if rule_repo.get_by_id(rid) is None:
+                    results.append({'index': i, 'success': False, 'error': '规则 ' + str(rid) + ' 不存在'})
+                    continue
+                fields = {k: act[k] for k in (
+                    'enabled', 'conditions', 'context', 'cost_price', 'active_window',
+                    'expires_at', 'account', 'notify_mode', 'action_hint', 'escalation_policy',
+                    'intent', 'lifecycle_stage', 'scope', 'target', 'linked_account',
+                    'next_action_hint', 'review_interval_days', 'review_due_at') if k in act}
+                if 'conditions' in fields:
+                    for c in fields['conditions']:
+                        validate_condition(c)
+                if 'expires_at' in fields:
+                    fields['expires_at'] = _parse_expires_at(fields['expires_at'])
+                rule_repo.update_fields(rid, **fields)
+                results.append({'index': i, 'success': True, 'op': 'update', 'rule_id': rid})
+            elif op == 'retire':
+                rid = act.get('rule_id')
+                if rid is None:
+                    results.append({'index': i, 'success': False, 'error': 'retire 需要 rule_id'})
+                    continue
+                old = rule_repo.get_by_id(rid)
+                if old is None:
+                    results.append({'index': i, 'success': False, 'error': '规则 ' + str(rid) + ' 不存在'})
+                    continue
+                banner = act.get('retire_note') or ('报废（来源触发 #' + str(source_trigger_id) + '）')
+                ctx = (old.context or '') if old else ''
+                rule_repo.update_fields(rid, enabled=False,
+                    context='[报废 ' + datetime.now().strftime('%Y-%m-%d') + '] ' + banner + chr(10) + ctx)
+                results.append({'index': i, 'success': True, 'op': 'retire', 'rule_id': rid})
+            else:
+                results.append({'index': i, 'success': False, 'error': 'op 必须是 create/update/retire'})
+        except Exception as e:
+            results.append({'index': i, 'success': False, 'error': str(e)})
+    ok = sum(1 for r in results if r.get('success'))
+    return {'success': True, 'data': {'results': results, 'ok': ok, 'failed': len(results) - ok,
+            'reason': reason, 'source_trigger_id': source_trigger_id}}

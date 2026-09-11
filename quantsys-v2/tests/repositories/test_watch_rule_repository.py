@@ -47,10 +47,17 @@ class TestWatchRuleRepository:
         # 2026-09-11 修正（w-c8cae280）：本断言自 09-02 起即红灯——rule_to_dict 在此期间
         # 新增了 account / notify_mode / action_hint / escalation_policy（b176c3ca、3116f6d4），
         # 属契约扩展（分层通知与账户归属），测试未同步。补全键集合，恢复契约守护作用。
+        # 2026-09-11（w-c8cae280 / REQ-f08def P1）：rule_to_dict 增价值生命周期字段与
+        # value_ledger（intent/lifecycle_stage/scope/target/linked_account/created_from/
+        # next_action_hint/last_reviewed_at/review_interval_days/review_due_at/value_ledger）。
+        # 没有这些字段，agent 拿到触发不知道该回答什么问题（RFC 014 v3 §7.1）。
         assert set(d.keys()) == {
             'id', 'symbol', 'enabled', 'conditions', 'context', 'cost_price',
             'active_window', 'expires_at', 'created_by', 'created_at', 'updated_at',
             'account', 'notify_mode', 'action_hint', 'escalation_policy',
+            'intent', 'lifecycle_stage', 'scope', 'target', 'linked_account',
+            'created_from', 'next_action_hint', 'last_reviewed_at',
+            'review_interval_days', 'review_due_at', 'value_ledger',
         }
         assert isinstance(d['cost_price'], float)
         assert d['cost_price'] == 1700.0

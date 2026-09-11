@@ -14,6 +14,7 @@ from application.services.agent_notification_service import AgentNotificationSer
 from application.services.realtime_quote_service_v2 import RealtimeQuoteServiceV2
 from application.services.watch_engine.engine import WatchEngine
 from application.services.watch_engine.notifier import WatchNotifier
+from adapters.outbound.repositories.simulation_position_repository import SimulationPositionRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -46,11 +47,38 @@ def create_watch_engine() -> WatchEngine:
     notifier = WatchNotifier(
         trigger_repo=WatchTriggerRepository(),
     )
+    _pos_repo = SimulationPositionRepository()
+
+    def position_value_provider(rule):
+        # 介入判据金额门：持仓级动作影响金额 = 该标的持仓市值
+        account = getattr(rule, 'account', None) or 'agent_virtual'
+        symbol = str(getattr(rule, 'symbol', '')).split('.')[0]
+        try:
+            pos = _pos_repo.get_position(account, symbol)
+            if pos is None:
+                return None
+            return float(getattr(pos, 'market_value', 0) or 0)
+        except Exception:
+            return None
+
+    def account_total_provider():
+        # 介入判据金额门：账户总资产
+        try:
+            from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
+            status = SimulationORMRepository().get_account_status('agent_virtual')
+            if isinstance(status, dict):
+                return float(status.get('total_value') or 0) or None
+            return float(getattr(status, 'total_value', 0) or 0) or None
+        except Exception:
+            return None
+
     return WatchEngine(
         rule_repo=WatchRuleRepository(),
         quote_service=RealtimeQuoteServiceV2(),
         notifier=notifier,
         avg_volume_provider=make_avg_volume_provider(),
+        position_value_provider=position_value_provider,
+        account_total_provider=account_total_provider,
     )
 
 

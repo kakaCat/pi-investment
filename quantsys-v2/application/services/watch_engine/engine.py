@@ -13,7 +13,8 @@ from application.services.watch_engine.conditions import (
     DEFAULT_COOLDOWN_SEC, EvalContext, evaluate,
 )
 from application.services.watch_engine.disposition import (
-    DEDUP_WINDOW_SEC, decide as decide_disposition, dedup_key,
+    DEDUP_WINDOW_SEC, GateContext, InterventionConfig,
+    decide as decide_disposition, dedup_key, normalize_symbol,
 )
 from domain.watch.services.escalation_checker import EscalationChecker
 from domain.watch.models import QuoteData
@@ -47,7 +48,9 @@ class WatchEngine:
                  base_interval: int = 60, fast_interval: int = 10,
                  buffer_ratio: float = 0.2, history_minutes: int = 30,
                  now_fn: Callable[[], datetime] = datetime.now,
-                 escalation_checker: Optional[EscalationChecker] = None):
+                 escalation_checker: Optional[EscalationChecker] = None,
+                 position_value_provider: Optional[Callable] = None,
+                 account_total_provider: Optional[Callable] = None):
         self.rule_repo = rule_repo
         self.quote_service = quote_service
         self.notifier = notifier
@@ -66,6 +69,13 @@ class WatchEngine:
         # 同标的同向在该窗内只通知一次，重复的仍落库（disposition='deduped' + dup_of）
         self._recent_notified: Dict[Tuple[str, str], Tuple[datetime, int]] = {}
         self.dedup_window_sec = DEDUP_WINDOW_SEC
+        # 介入判据（REQ-f08def P3，RFC 014 v3 §3）：金额门/增量门/经济门/预算门所需的注入
+        self._position_value_provider = position_value_provider
+        self._account_total_provider = account_total_provider
+        self._intervention_cfg = InterventionConfig()
+        # 增量门（同标的同议题 4h 冷却）：key=(归一化标的,意图) -> 最近介入时间
+        self._last_intervention: Dict[Tuple[str, str], datetime] = {}
+        self._interventions_today: int = 0
         self._avg_volume_cache: Dict[str, float] = {}
         self._state_date = None
         self.fast_mode = False
@@ -174,8 +184,10 @@ class WatchEngine:
                 # 机械优先：去重合并 / observe 类归档当场收敛（零 LLM），
                 # 只有 L2 或升级触发才进 agent 摘要队列（用户硬约束：token 成本）。
                 key = dedup_key(rule, cond)
+                gate_ctx = self._build_gate_ctx(rule, cond, quote)
                 disposition, disposition_reason = decide_disposition(
-                    rule, cond, escalated=bool(escalation_reason))
+                    rule, cond, escalated=bool(escalation_reason),
+                    gate=gate_ctx, cfg=self._intervention_cfg)
                 dup_of = None
                 prev = self._recent_notified.get(key)
                 if prev is not None and (now - prev[0]).total_seconds() < self.dedup_window_sec:
@@ -201,6 +213,12 @@ class WatchEngine:
                 if disposition != 'deduped':
                     self._recent_notified[key] = (
                         now, getattr(trigger, 'id', 0) or 0)
+                if disposition == 'escalated':
+                    # 增量门 + 预算记账：escalated = 进 agent 摘要队列 = 一次潜在介入
+                    norm = normalize_symbol(rule.symbol)
+                    intent = str(getattr(rule, 'intent', '') or '') or                         str((rule.action_hint or {}).get('action_on_trigger', '') if isinstance(getattr(rule, 'action_hint', None), dict) else '')
+                    self._last_intervention[(norm, intent or 'unknown')] = now
+                    self._interventions_today += 1
                 self._last_triggered[(rule.id, idx)] = now
                 self._latched.add((rule.id, idx))
                 events.append({'rule_id': rule.id, 'symbol': rule.symbol,
@@ -219,6 +237,52 @@ class WatchEngine:
 
     # ── 内部 ────────────────────────────────────────────────
 
+    def _build_gate_ctx(self, rule, cond, quote) -> GateContext:
+        '''构建介入判据上下文（RFC 014 v3 §3.2）。数据不足时留 None → 对应门跳过。'''
+        ah = rule.action_hint if isinstance(getattr(rule, 'action_hint', None), dict) else {}
+        intent = str(getattr(rule, 'intent', '') or ah.get('action_on_trigger') or '').strip()
+        norm = normalize_symbol(rule.symbol)
+        topic = intent or ah.get('action_on_trigger') or 'unknown'
+        amount = None
+        ev = None
+        if intent in ('exit_stop', 'exit_take_profit', 'exit_reduce', 'add_position', 't_trade'):
+            # 持仓级动作：金额 = 持仓市值
+            amount = self._position_value(rule)
+            if amount is not None:
+                ev = amount * 0.05  # 粗估：一个 5% 动作的利害关系
+        elif intent == 'entry':
+            # 买入意向金额：action_hint.max_position_pct × 账户总资产（若有）
+            mpp = ah.get('max_position_pct')
+            total = self._account_total()
+            if mpp and total:
+                amount = float(mpp) / 100.0 * float(total)
+                ev = amount * 0.03
+        return GateContext(
+            intent=intent or None,
+            amount_yuan=amount,
+            last_intervention_at=self._last_intervention.get((norm, topic)),
+            expected_value_yuan=ev,
+            trigger_kind='price',
+            daily_wake_count=self._interventions_today,
+            change_pct=getattr(quote, 'change_pct', None),
+        )
+
+    def _position_value(self, rule) -> Optional[float]:
+        if self._position_value_provider is None:
+            return None
+        try:
+            return self._position_value_provider(rule)
+        except Exception:
+            return None
+
+    def _account_total(self) -> Optional[float]:
+        if self._account_total_provider is None:
+            return None
+        try:
+            return self._account_total_provider()
+        except Exception:
+            return None
+
     def _reset_daily_state_if_needed(self, now: datetime):
         """跨天重置：均量缓存过期 + 清理已删除规则的残留状态"""
         current_date = now.date()
@@ -229,6 +293,8 @@ class WatchEngine:
         # 跨天全量重新武装：新的一天允许持续成立的条件再报一次（每日最多一次）
         self._latched.clear()
         self._recent_notified.clear()
+        self._last_intervention.clear()
+        self._interventions_today = 0
         active_ids = {r.id for r in self.rule_repo.list_enabled()}
         self._last_triggered = {k: v for k, v in self._last_triggered.items()
                                 if k[0] in active_ids}
