@@ -70,9 +70,25 @@ CONSTITUTIONAL_INTENTS = ('exit_stop',)     # 止损铁律：无条件介入，�
 TRADE_INTENTS = ('entry', 'add_position', 't_trade', 'exit_stop', 'exit_take_profit', 'exit_reduce')
 
 
+#: 意图中文名（错误提示/消息用，避免各处重复硬编码）
+TRADE_INTENT_LABELS = {
+    'entry': '建仓买入',
+    'add_position': '加仓',
+    't_trade': '做T',
+    'exit_stop': '止损卖出',
+    'exit_take_profit': '止盈卖出',
+    'exit_reduce': '减仓卖出',
+}
+
+
 def is_trade_intent(intent) -> bool:
-    """交易类意图判定（无账户时不可执行的那一类）"""
+    """交易类意图判定（会走到下单的那一类）"""
     return str(intent or '').strip() in TRADE_INTENTS
+
+
+def intent_of(rule) -> str:
+    """公开别名：规则意图推导（规则守卫与运行时必须同源）"""
+    return _intent_of(rule)
 
 
 def normalize_symbol(symbol) -> str:

@@ -148,12 +148,16 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
 
     def create_rule(self, symbol, conditions, context=None, cost_price=None,
                     active_window=None, expires_at=None, created_by='agent',
-                    account=None) -> WatchRule:
+                    account=None, linked_account=None) -> WatchRule:
+        # 账户归一（2026-09-11，w-aebfddcd）：account 与 linked_account 是同一语义的两个字段，
+        # 只传其一时另一个必须跟随——否则新建的规则在投送侧（读 linked_account）看起来"无账户"，
+        # 触发时会被当成数据缺陷，而创建方以为自己给了账户。
         rule = WatchRule(
             symbol=symbol, conditions=conditions, context=context,
             cost_price=cost_price, active_window=active_window,
             expires_at=expires_at, created_by=created_by, enabled=True,
-            account=account,
+            account=account or linked_account,
+            linked_account=linked_account or account,
         )
         return self.create(rule)
 

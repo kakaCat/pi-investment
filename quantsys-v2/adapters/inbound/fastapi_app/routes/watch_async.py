@@ -9,6 +9,7 @@ from adapters.outbound.repositories.watch_rule_repository import (
     WatchTrigger, WatchRuleRepository, WatchTriggerRepository, rule_to_dict, trigger_to_dict,
 )
 from application.services.watch_engine.conditions import validate_condition
+from domain.watch.services.rule_guard import guard_new_rule, guard_rule_change
 
 router = APIRouter(tags=['Watch - 实时盯盘'])
 
@@ -71,6 +72,14 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
         expires_at = _parse_expires_at(data.get('expires_at'))
     except ValueError:
         return _err(EXPIRES_AT_ERROR, 400)
+    # 铁律（用户 2026-09-11）：**没有账户的规则不能进入买卖**——在源头拦，而不是触发时降级
+    try:
+        guard_new_rule(intent=data.get('intent'), action_hint=data.get('action_hint'),
+                       conditions=conditions,
+                       account=(data.get('linked_account') or data.get('account')),
+                       symbol=symbol)
+    except ValueError as e:
+        return _err(str(e), 400)
     try:
         rule_repo = WatchRuleRepository()
         rule = rule_repo.create_rule(
@@ -81,7 +90,8 @@ def create_rule(payload: Dict[str, Any] = Body(default_factory=dict)):
             active_window=data.get('active_window'),
             expires_at=expires_at,
             created_by=data.get('created_by', 'agent'),
-            account=(data.get('account') or None),
+            account=(data.get('account') or data.get('linked_account') or None),
+            linked_account=(data.get('linked_account') or data.get('account') or None),
         )
     except Exception as e:
         return _err(f'创建失败: {e}', 500)
@@ -113,6 +123,12 @@ def _update_rule(rule_id: int, payload: Dict[str, Any]):
     before_rule = rule_repo.get_by_id(rule_id)
     if before_rule is None:
         return _err('规则不存在', 404)
+    # 铁律（用户 2026-09-11）：合并"改后状态"再判——不许把观察规则改成买卖规则却不给账户，
+    # 也不许把已有买卖规则的账户清空（清空=把缺陷写回系统）
+    try:
+        guard_rule_change(before_rule, data)
+    except ValueError as e:
+        return _err(str(e), 400)
     before = {k: getattr(before_rule, k, None) for k in data.keys()}
 
     rule = rule_repo.update_fields(rule_id, **data)
@@ -284,13 +300,23 @@ def batch_reconfigure_rules(payload: Dict[str, Any] = Body(default_factory=dict)
                     continue
                 for c in conds:
                     validate_condition(c)
+                # 铁律：没有账户的规则不能进入买卖（批量创建同样拦）
+                try:
+                    guard_new_rule(intent=act.get('intent'), action_hint=act.get('action_hint'),
+                                   conditions=conds,
+                                   account=(act.get('linked_account') or act.get('account')),
+                                   symbol=act.get('symbol'))
+                except ValueError as e:
+                    results.append({'index': i, 'success': False, 'error': str(e)})
+                    continue
                 rule = rule_repo.create_rule(
                     symbol=act.get('symbol'), conditions=conds,
                     context=act.get('context'), cost_price=act.get('cost_price'),
                     active_window=act.get('active_window'),
                     expires_at=_parse_expires_at(act.get('expires_at')),
                     created_by=act.get('created_by') or 'agent',
-                    account=act.get('account'))
+                    account=(act.get('account') or act.get('linked_account')),
+                    linked_account=(act.get('linked_account') or act.get('account')))
                 meta = {k: act[k] for k in ('intent', 'lifecycle_stage', 'scope', 'target',
                         'linked_account', 'next_action_hint', 'review_interval_days',
                         'action_hint', 'escalation_policy') if k in act}
