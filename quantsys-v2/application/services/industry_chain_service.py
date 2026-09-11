@@ -604,25 +604,43 @@ class IndustryChainService:
         candidates: List[Dict] = []
         candidate_source = None
         candidate_error = None
+        candidate_channels: Optional[Dict] = None
         if include_candidates:
-            concept = self._manager.get_industry_chain_candidates(self._sector_hint(data))
+            # 聚合**全部**候选通道（RFC 015 §1.5.1 禁止多源退化成单源）：
+            # 通道 ①akshare→新浪行业（49 板块）与 ②东财延迟域概念+行业（504+496 板块）
+            # 是不同分类体系、互补而非互备，故障转移语义下只会跑第一条。
+            concept = self._manager.get_industry_chain_candidates_all(self._sector_hint(data))
             candidate_source = concept.get('source')
+            candidate_channels = concept.get('channels')
             if concept.get('success'):
                 known = set(symbols)
+                index: Dict[str, Dict] = {}
                 for node in concept.get('data') or []:
                     for member in node.get('members') or []:
-                        if member.get('symbol') in known:
+                        symbol = member.get('symbol')
+                        if not symbol or symbol in known:
                             continue
-                        candidates.append({
-                            'symbol': member.get('symbol'),
+                        source = member.get('source')
+                        item = index.get(symbol)
+                        if item is not None:
+                            # 同一标的可能同时出现在两条通道的板块里（如"玻璃玻纤"与
+                            # "玻璃行业"）——合并证据而不是重复成两行，并如实记录来源。
+                            if source and source not in (item.get('sources') or []):
+                                item['sources'].append(source)
+                            continue
+                        item = {
+                            'symbol': symbol,
                             'name': member.get('name'),
                             'sector': node.get('node_name'),
                             'evidence': member.get('evidence'),
                             'evidence_kind': member.get('evidence_kind'),
                             'confidence': member.get('confidence'),
-                            'source': member.get('source'),
+                            'source': source,
+                            'sources': [source] if source else [],
                             'candidate': True,
-                        })
+                        }
+                        index[symbol] = item
+                        candidates.append(item)
             else:
                 candidate_error = concept.get('error')
 
@@ -636,7 +654,10 @@ class IndustryChainService:
                 'nodes': data.get('nodes'),
                 'symbols': symbols,
                 'candidates': candidates,
+                # candidate_source 保留（向后兼容）＝本次贡献候选的通道名，多通道时 'a+b'；
+                # candidate_channels 给出逐通道的成败与行数（来源与时点均可核验）
                 'candidate_source': candidate_source,
+                'candidate_channels': candidate_channels,
                 'candidate_error': candidate_error,
                 'evidence_conflicts': base.get('evidence_conflicts'),
                 'multi_stage': base.get('multi_stage'),

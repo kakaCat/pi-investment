@@ -27,7 +27,11 @@ from adapters.outbound.datasources.providers.kline.akshare import AkshareKlinePr
 from adapters.outbound.datasources.providers.minute_kline.database import DatabaseMinuteKlineProvider
 from adapters.outbound.datasources.providers.minute_kline.tencent import TencentMinuteKlineProvider
 from adapters.outbound.datasources.providers.minute_kline.sina import SinaMinuteKlineProvider
+from adapters.outbound.datasources.providers.minute_kline.eastmoney import EastmoneyMinuteKlineProvider
 from adapters.outbound.datasources.providers.industry_chain.curated import CuratedChainProvider
+from adapters.outbound.datasources.providers.industry_chain.eastmoney_delay_concept import (
+    EastmoneyDelayConceptProvider,
+)
 from adapters.outbound.datasources.providers.industry_chain.eastmoney_revenue import (
     EastmoneyRevenueProvider, ThsRevenueProvider,
 )
@@ -124,15 +128,20 @@ class DataProviderManager(IDataProviderManager):
         # 要求 ≥2 个**独立上游通道** + 本地 DB 兜底（DB 必须放最后）。
         # - tencent_minute：ifzq.gtimg.cn（实测 200，支持 m1~m60）
         # - sina_minute：quotes.sina.cn（实测 200，支持 5/15/30/60）
-        # - eastmoney_minute：**未注册** —— push2his.eastmoney.com 本机不可达
-        #   （直连/代理/编号子域全部失败，打样记录见该 provider 模块 docstring）；
-        #   按 §1.5 硬约束 3，未经真实响应打样的 provider 不得进注册表。
+        # - eastmoney_minute：push2delay.eastmoney.com（**东财延迟行情域**，2026-09-11
+        #   w-4c81bb36 注册）。此前未注册是因为 push2his.eastmoney.com 本机直连/代理
+        #   全不可达；实测改用**延迟域**后直连 200，返回当日全部 240 根真实 1m
+        #   （首根 2026-09-11 09:31,39.50,39.59,39.93,39.40,168236,665639626.00,1.30）。
+        #   该域只支持 klt=1（klt=5 返回空数组），5/15/30/60m 由 provider 内按交易
+        #   时段栅格聚合；字段序为 时间/开/收/高/低/量(手)/额(元)，已用 ohlc_sanity
+        #   与腾讯/新浪日终量交叉核对（详见该 provider docstring 打样记录）。
         # - database_minute：quant.minute_klines 兜底（stale，实测只到 2026-05-29）
         # name 与日线 provider 刻意区分（tencent/sina/database），避免共用熔断器与健康统计。
         self.minute_kline_providers = []
         from adapters.outbound.repositories.minute_kline_repository import get_minute_kline_repo
         self.minute_kline_providers.append(TencentMinuteKlineProvider())
         self.minute_kline_providers.append(SinaMinuteKlineProvider())
+        self.minute_kline_providers.append(EastmoneyMinuteKlineProvider())
         self.minute_kline_providers.append(DatabaseMinuteKlineProvider(get_minute_kline_repo()))
 
         # 产业链图谱 providers（RFC 015 §2.3 / §1.5，2026-09-11 REQ-cf627b P2）
@@ -148,6 +157,13 @@ class DataProviderManager(IDataProviderManager):
         self.eastmoney_revenue_provider = EastmoneyRevenueProvider()
         self.ths_revenue_provider = ThsRevenueProvider()
         self.concept_chain_provider = AkshareConceptProvider()
+        # 通道 ②：东财延迟域概念/行业成分（2026-09-11 w-4c81bb36 补入）。
+        # 原记录"东财概念成分打样失败"的根因是 push2.eastmoney.com / 17.push2 入口域被封
+        # （akshare 的 stock_board_concept_name_em 也走这些域，故 akshare 不是解法）；
+        # 换成 push2delay 延迟域后直连 200：概念 504 个、行业 496 个板块，成分可取。
+        # 两条通道是**不同分类体系**（新浪 49 板块 vs 东财 1000 板块），互补而非互备，
+        # 故 chain_scan 用 get_industry_chain_candidates_all 聚合（见该方法的说明）。
+        self.eastmoney_delay_concept_provider = EastmoneyDelayConceptProvider()
         self.database_chain_provider = DatabaseChainProvider(get_industry_chain_repo())
         self.industry_chain_topology_providers = [
             self.curated_chain_provider,      # 放最前：权威拓扑
@@ -159,7 +175,8 @@ class DataProviderManager(IDataProviderManager):
             self.database_chain_provider,
         ]
         self.industry_chain_concept_providers = [
-            self.concept_chain_provider,
+            self.concept_chain_provider,            # 通道 ①：akshare→新浪行业（49 板块）
+            self.eastmoney_delay_concept_provider,  # 通道 ②：东财延迟域概念+行业（504+496 板块）
         ]
         self.industry_chain_providers = (
             self.industry_chain_topology_providers +
@@ -1400,12 +1417,102 @@ class DataProviderManager(IDataProviderManager):
         return fallback
 
     def get_industry_chain_candidates(self, sector_name: str) -> dict:
-        """行业板块成员（低置信候选源：新浪行业，经 akshare）"""
+        """行业板块成员（低置信候选源：akshare→新浪行业 **故障转移**语义，首个成功即返回）
+
+        保留此方法供需要"一个答案"的调用方使用；需要**看到全部通道**（两源互补）
+        请用 get_industry_chain_candidates_all。
+        """
         return self._try_providers(self.industry_chain_concept_providers, 'get_chain', sector_name)
 
+    def get_industry_chain_candidates_all(self, sector_name: str) -> dict:
+        """**聚合**全部概念/行业候选通道（RFC 015 §1.5.1「禁止多源退化成单源」）
+
+        为什么不是一次 _try_providers：候选通道 ①akshare_concept（新浪行业，49 个板块）
+        与 ②eastmoney_delay_concept（东财概念 504 + 行业 496 板块）覆盖的是**不同分类
+        体系**，两者互补而非互为备份。故障转移语义下 akshare 一成功就再也不会问东财，
+        多源名义上存在、实际只跑一条（2026-09-11 实测即如此）。故这里对每个 provider
+        **独立**调用一次 _try_providers（各自享有独立超时/熔断/健康分与 attempted_sources），
+        再合并——与 get_event_symbol_events 同一模式，不另起链路。
+
+        Returns:
+            {'success': bool, 'data': [节点行], 'source': 'a+b', 'sources': [...],
+             'channels': {name: {success, rows, error}}, 'attempted_sources': [...],
+             'provider_errors': {...}, 'empty': bool}
+            「某通道无该板块」（返回空）与「该通道失败」（返回 None + last_error）严格可分。
+        """
+        rows: List[Dict] = []
+        sources: List[str] = []
+        attempted: List[str] = []
+        errors: Dict[str, str] = {}
+        channels: Dict[str, Dict] = {}
+        failed = 0
+
+        for provider in self._sort_providers_by_health(self.industry_chain_concept_providers):
+            result = self._try_providers([provider], 'get_chain', sector_name)
+            attempted.extend(result.get('attempted_sources') or [])
+            errors.update(result.get('provider_errors') or {})
+            data = result.get('data') if result.get('success') else None
+            channels[provider.name] = {
+                'success': bool(result.get('success')),
+                'rows': len(data or []),
+                'error': (result.get('provider_errors') or {}).get(provider.name),
+            }
+            if result.get('success') and data:
+                rows.extend(data)
+                sources.append(provider.name)
+            else:
+                failed += 1
+
+        return {
+            'success': bool(rows),
+            'data': rows or None,
+            'source': '+'.join(sources) if sources else None,
+            'sources': sources,
+            'channels': channels,
+            'attempted_sources': attempted,
+            'provider_errors': errors,
+            'empty': not rows,
+            'error': None if rows else 'All industry-chain candidate providers failed or empty',
+            'failed_channels': failed,
+        }
+
     def list_industry_chain_candidates(self) -> dict:
-        """候选板块清单（新浪行业）"""
+        """候选板块清单（akshare→新浪行业，故障转移）"""
         return self._try_providers(self.industry_chain_concept_providers, 'list_chains')
+
+    def list_industry_chain_candidates_all(self) -> dict:
+        """**聚合**全部候选通道的板块清单（与 get_industry_chain_candidates_all 同模式）"""
+        rows: List[Dict] = []
+        sources: List[str] = []
+        attempted: List[str] = []
+        errors: Dict[str, str] = {}
+        channels: Dict[str, Dict] = {}
+
+        for provider in self._sort_providers_by_health(self.industry_chain_concept_providers):
+            result = self._try_providers([provider], 'list_chains')
+            attempted.extend(result.get('attempted_sources') or [])
+            errors.update(result.get('provider_errors') or {})
+            data = result.get('data') if result.get('success') else None
+            channels[provider.name] = {
+                'success': bool(result.get('success')),
+                'rows': len(data or []),
+                'error': (result.get('provider_errors') or {}).get(provider.name),
+            }
+            if result.get('success') and data:
+                rows.extend(data)
+                sources.append(provider.name)
+
+        return {
+            'success': bool(rows),
+            'data': rows or None,
+            'source': '+'.join(sources) if sources else None,
+            'sources': sources,
+            'channels': channels,
+            'attempted_sources': attempted,
+            'provider_errors': errors,
+            'empty': not rows,
+            'error': None if rows else 'All industry-chain candidate providers failed or empty',
+        }
 
     # ------------------------------------------------------------ 政策·个股事件
 
