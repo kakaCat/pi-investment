@@ -116,6 +116,17 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-card-bar { flex: 1; height: 4px; border-radius: 2px; background: rgba(128,128,128,.15); overflow: hidden; }
 .dsh-pm-card-bar-fill { height: 100%; background: var(--dsw-accent, #4a7dff); border-radius: 2px; }
 .dsh-pm-card-pct { font-size: 11px; color: var(--dsw-text-secondary, #999); flex: none; }
+.dsh-pm-card-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.dsh-pm-card-btn {
+  font-size: 11px; line-height: 1.4; padding: 3px 8px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--dsw-border, rgba(127,127,127,.35)); background: transparent; color: inherit;
+}
+.dsh-pm-card-btn:hover { background: rgba(127,127,127,.12); }
+.dsh-pm-card-btn.primary {
+  border-color: var(--dsw-accent, #4a7dff); background: rgba(74,125,255,.12); color: var(--dsw-accent, #4a7dff);
+}
+.dsh-pm-card-btn.primary:hover { background: rgba(74,125,255,.22); }
+
 .dsh-pm-window {
   display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: 9px;
   border: 1px solid rgba(74,125,255,.35); background: rgba(74,125,255,.08);
