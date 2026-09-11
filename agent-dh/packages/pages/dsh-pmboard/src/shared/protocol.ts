@@ -58,9 +58,14 @@ export const REQ_TRANSITIONS: Readonly<Record<RequirementStatus, readonly Requir
  * 键格式 'from>to'。agent 与 system 对这些转移一律拒绝。
  */
 export const HUMAN_ONLY_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
-  'reviewing>decomposing', // 方案确认
-  'decomposing>implementing', // 拆分 DAG 确认
-  'accepting>done', // 人工验收通过
+  // 2026-09-11 用户裁定：agent 必须能自己推进在途需求（此前「确认方案/确认拆分/
+  // 验收通过」都是人工闸门 → 每个需求都要人点两三次，看板实质静止）。
+  // 现在仅保留**终态与破坏性动作**为人工闸门，在途推理由窗口 agent 自行推进：
+  'draft>canceled',
+  'reviewing>canceled',
+  'decomposing>canceled',
+  'implementing>canceled',
+  'accepting>canceled', // 取消需求（破坏性）
   'done>archived', // 归档
   'canceled>archived', // 取消后归档
 ])
@@ -74,6 +79,8 @@ export const HUMAN_ONLY_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
  */
 export const SYSTEM_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
   'draft>reviewing', // 窗口接手开工 → 进入评审（方案共创）
+  'reviewing>decomposing', // 拆分结果落库（任务存在）→ 自动进入拆分态
+  'decomposing>implementing', // 任务开始执行 → 自动进入实施
   'implementing>accepting', // 全部实施任务 done 的 rollup
 ])
 

@@ -148,31 +148,31 @@ function renderReqCard(card: ReqCard): string {
  */
 function cardActions(req: RequirementRecord): string {
   const btn = (to: RequirementStatus, label: string, opts?: { primary?: boolean; title?: string }): string => {
-    const cls = opts?.primary === true ? 'dsh-pm-card-btn primary' : 'dsh-pm-card-btn'
+    const cls = opts?.primary === true ? 'dsh-pm-btn sm primary' : 'dsh-pm-btn sm'
     const title = opts?.title !== undefined ? ` title="${esc(opts.title)}"` : ''
     return `<button type="button" class="${cls}" data-action="move-req" data-to="${to}" data-id="${esc(req.id)}"${title}>${label}</button>`
   }
   let actions = ''
   switch (req.status) {
     case 'draft':
-      actions = btn('reviewing', '提交评审', { primary: true, title: '进入评审（方案共创）；窗口接手开工时也会自动进入' })
-        + btn('canceled', '取消', { title: '取消该需求' })
+      actions = btn('reviewing', '提交评审', { primary: true, title: '进入评审；窗口接手开工时会自动进入' })
+        + btn('canceled', '取消', { title: '取消该需求（仅人可操作）' })
       break
     case 'reviewing':
-      actions = btn('decomposing', '确认方案', { primary: true, title: '人工闸门：方案确认后进入拆分' })
+      actions = btn('decomposing', '确认方案', { primary: true, title: '进入拆分；窗口 agent 会自行推进，人可在此加速' })
         + btn('draft', '退回', { title: '退回立项' })
       break
     case 'decomposing':
-      actions = btn('implementing', '确认拆分', { primary: true, title: '人工闸门：任务 DAG 确认后进入实施' })
+      actions = btn('implementing', '确认拆分', { primary: true, title: '进入实施；任务落库/开工时系统会自动推进' })
       break
     case 'implementing':
-      actions = btn('accepting', '提交验收', { primary: true, title: '实施完成 → 验收（任务全部完成时也会自动进入）' })
+      actions = btn('accepting', '提交验收', { primary: true, title: '进入验收；任务全部完成时系统会自动推进' })
       break
     case 'accepting':
-      actions = btn('done', '验收通过', { primary: true, title: '人工闸门：验收通过即完成' })
+      actions = btn('done', '验收通过', { primary: true, title: '完成该需求；窗口 agent 交付后也可自行完成' })
       break
     case 'done':
-      actions = btn('archived', '归档', { title: '人工闸门：归档归集文档' })
+      actions = btn('archived', '归档', { title: '归档归集文档（仅人可操作）' })
       break
     default:
       actions = ''
@@ -249,11 +249,12 @@ export function buildReqDetail(req: RequirementRecord, tasks: TaskRecord[]): str
 /** 当前状态的闸门提示（人工闸门标出操作按钮） */
 function gateHintFor(status: RequirementStatus): string {
   const hints: Partial<Record<RequirementStatus, string>> = {
-    draft: '<div class="dsh-pm-gate">需求已立项：窗口接手开工后自动进入评审 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="reviewing">提交评审</button></div>',
-    reviewing: '<div class="dsh-pm-gate">人工闸门：方案确认后进入拆分 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="decomposing">确认方案</button> <button type="button" class="dsh-pm-btn" data-action="move-req" data-to="draft">退回立项</button></div>',
-    decomposing: '<div class="dsh-pm-gate">人工闸门：DAG 确认后进入实施 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="implementing">确认拆分</button></div>',
-    accepting: '<div class="dsh-pm-gate">人工闸门：验收通过后完成 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="done">验收通过</button></div>',
-    done: '<div class="dsh-pm-gate">人工闸门：归档归集文档 <button type="button" class="dsh-pm-btn" data-action="move-req" data-to="archived">归档</button></div>',
+    draft: '<div class="dsh-pm-gate">已立项：窗口接手开工后自动进入评审 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="reviewing">提交评审</button></div>',
+    reviewing: '<div class="dsh-pm-gate">评审中：窗口 agent 会自行推进到拆分，人可在此加速 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="decomposing">确认方案</button> <button type="button" class="dsh-pm-btn" data-action="move-req" data-to="draft">退回立项</button></div>',
+    decomposing: '<div class="dsh-pm-gate">拆分中：任务落库/开工后系统自动推进到实施 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="implementing">确认拆分</button></div>',
+    implementing: '<div class="dsh-pm-gate">实施中：任务全部完成时自动进入验收 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="accepting">提交验收</button></div>',
+    accepting: '<div class="dsh-pm-gate">验收中：窗口 agent 交付后可自行完成，人可在此确认 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="done">验收通过</button></div>',
+    done: '<div class="dsh-pm-gate">已完成：归档归集文档（仅人可操作）<button type="button" class="dsh-pm-btn" data-action="move-req" data-to="archived">归档</button></div>',
   }
   return hints[status] ?? ''
 }

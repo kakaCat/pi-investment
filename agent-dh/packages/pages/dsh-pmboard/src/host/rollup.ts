@@ -93,15 +93,19 @@ export function applyPickupReconcile(ledger: ReqboardLedger, ctx: RollupContext)
   for (const req of ledger.requirements) {
     if (req.status !== 'draft' || !bound.has(req.id)) continue
     advanced.push(
-      advance(req, 'reviewing', '启动对账：该需求已由窗口立项并接手，自动提交评审（方案待人工确认）', ctx),
+      advance(req, 'reviewing', '启动对账：该需求已由窗口立项并接手，自动提交评审（后续由窗口按里程碑自行推进）', ctx),
     )
   }
   return advanced
 }
 
 /**
- * R2 任务派生推进：implementing 且全部未取消任务 done（≥1 个）→ accepting。
- * 返回被推进的需求列表（通常 0 或 1 条）。
+ * 任务驱动的派生推进（R2/R3/R4）—— 让需求跟着任务事实自己走，不需要人点中间步骤：
+ *  R3 reviewing + 已有任务（拆分结果落库）        → decomposing
+ *  R4 decomposing + 有任务已进入执行（非 todo）    → implementing
+ *  R2 implementing + 全部未取消任务 done（≥1 个）  → accepting
+ * 一次调用内循环至稳定（上限 3 步/需求），使「拆分+全部完成」这类跨越在一次 rollup 内收敛。
+ * 返回被推进的需求列表（含同一需求的多步推进记录）。
  */
 export function applyTaskRollup(
   ledger: ReqboardLedger,
@@ -111,13 +115,28 @@ export function applyTaskRollup(
   const advanced: RequirementRecord[] = []
   for (const req of ledger.requirements) {
     if (onlyReqId !== undefined && req.id !== onlyReqId) continue
-    if (req.status !== 'implementing') continue
-    const tasks = activeTasksOf(ledger, req.id)
-    if (tasks.length === 0) continue
-    if (!tasks.every(t => t.status === 'done')) continue
-    advanced.push(
-      advance(req, 'accepting', `全部 ${tasks.length} 个实施任务已完成，自动进入验收（等人做功能验收）`, ctx),
-    )
+    if (req.status !== 'reviewing' && req.status !== 'decomposing' && req.status !== 'implementing') continue
+    const before = req.status
+    for (let step = 0; step < 3; step++) {
+      const tasks = activeTasksOf(ledger, req.id)
+      if (tasks.length === 0) break
+      if (req.status === 'reviewing') {
+        // 拆分结果落库 = 方案已过、进入拆分（闸门已按用户裁定放开为派生推进）
+        advance(req, 'decomposing', `已落库 ${tasks.length} 个任务，自动进入拆分`, ctx)
+        continue
+      }
+      if (req.status === 'decomposing') {
+        if (!tasks.some(t => t.status !== 'todo')) break
+        advance(req, 'implementing', '任务已开始执行，自动进入实施', ctx)
+        continue
+      }
+      // implementing
+      if (!tasks.every(t => t.status === 'done')) break
+      advance(req, 'accepting', `全部 ${tasks.length} 个实施任务已完成，自动进入验收`, ctx)
+      break
+    }
+    // 同一需求多步推进只上报一次（对象已是终态；逐步留痕在 comments 里）
+    if (req.status !== before) advanced.push(req)
   }
   return advanced
 }

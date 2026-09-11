@@ -32,7 +32,7 @@ Object.defineProperty(exports,Symbol.toStringTag,{value:`Module`});let e=require
       </div>
       ${m}
       ${g}
-    </div>`}function y(e){let t=(t,n,i)=>{let a=i?.primary===!0?`dsh-pm-card-btn primary`:`dsh-pm-card-btn`,o=i?.title===void 0?``:` title="${r(i.title)}"`;return`<button type="button" class="${a}" data-action="move-req" data-to="${t}" data-id="${r(e.id)}"${o}>${n}</button>`},n=``;switch(e.status){case`draft`:n=t(`reviewing`,`提交评审`,{primary:!0,title:`进入评审（方案共创）；窗口接手开工时也会自动进入`})+t(`canceled`,`取消`,{title:`取消该需求`});break;case`reviewing`:n=t(`decomposing`,`确认方案`,{primary:!0,title:`人工闸门：方案确认后进入拆分`})+t(`draft`,`退回`,{title:`退回立项`});break;case`decomposing`:n=t(`implementing`,`确认拆分`,{primary:!0,title:`人工闸门：任务 DAG 确认后进入实施`});break;case`implementing`:n=t(`accepting`,`提交验收`,{primary:!0,title:`实施完成 → 验收（任务全部完成时也会自动进入）`});break;case`accepting`:n=t(`done`,`验收通过`,{primary:!0,title:`人工闸门：验收通过即完成`});break;case`done`:n=t(`archived`,`归档`,{title:`人工闸门：归档归集文档`});break;default:n=``}return n.length===0?``:`<div class="dsh-pm-card-actions">${n}</div>`}function b(e){let t=e.sourceSessionId;if(!t)return``;let n=p(t);return`<button type="button" class="dsh-pm-window" data-action="jump-session" data-sid="${r(t)}" title="立项来源窗口（点击跳转到该会话）：${r(t)}">窗口 ${r(n)}</button>`}function x(e){for(let t=e.length-1;t>=0;t--){let n=e[t].executions;for(let e=n.length-1;e>=0;e--){let t=n[e].sessionId;if(t)return`<button type="button" class="dsh-pm-session" data-action="jump-session" data-sid="${r(t)}" title="跳转到执行会话">会话 ${r(t.slice(0,12))}…</button>`}}return``}function S(e,t){let n=t.filter(t=>t.requirementId===e.id),i=w(n),a=T(n),o=E(e.comments),s=C(e.status);return`
+    </div>`}function y(e){let t=(t,n,i)=>{let a=i?.primary===!0?`dsh-pm-btn sm primary`:`dsh-pm-btn sm`,o=i?.title===void 0?``:` title="${r(i.title)}"`;return`<button type="button" class="${a}" data-action="move-req" data-to="${t}" data-id="${r(e.id)}"${o}>${n}</button>`},n=``;switch(e.status){case`draft`:n=t(`reviewing`,`提交评审`,{primary:!0,title:`进入评审；窗口接手开工时会自动进入`})+t(`canceled`,`取消`,{title:`取消该需求（仅人可操作）`});break;case`reviewing`:n=t(`decomposing`,`确认方案`,{primary:!0,title:`进入拆分；窗口 agent 会自行推进，人可在此加速`})+t(`draft`,`退回`,{title:`退回立项`});break;case`decomposing`:n=t(`implementing`,`确认拆分`,{primary:!0,title:`进入实施；任务落库/开工时系统会自动推进`});break;case`implementing`:n=t(`accepting`,`提交验收`,{primary:!0,title:`进入验收；任务全部完成时系统会自动推进`});break;case`accepting`:n=t(`done`,`验收通过`,{primary:!0,title:`完成该需求；窗口 agent 交付后也可自行完成`});break;case`done`:n=t(`archived`,`归档`,{title:`归档归集文档（仅人可操作）`});break;default:n=``}return n.length===0?``:`<div class="dsh-pm-card-actions">${n}</div>`}function b(e){let t=e.sourceSessionId;if(!t)return``;let n=p(t);return`<button type="button" class="dsh-pm-window" data-action="jump-session" data-sid="${r(t)}" title="立项来源窗口（点击跳转到该会话）：${r(t)}">窗口 ${r(n)}</button>`}function x(e){for(let t=e.length-1;t>=0;t--){let n=e[t].executions;for(let e=n.length-1;e>=0;e--){let t=n[e].sessionId;if(t)return`<button type="button" class="dsh-pm-session" data-action="jump-session" data-sid="${r(t)}" title="跳转到执行会话">会话 ${r(t.slice(0,12))}…</button>`}}return``}function S(e,t){let n=t.filter(t=>t.requirementId===e.id),i=w(n),a=T(n),o=E(e.comments),s=C(e.status);return`
     <div class="dsh-pm-detail" data-detail-req="${r(e.id)}">
       <div class="dsh-pm-detail-head">
         <button type="button" class="dsh-pm-btn" data-action="back" title="返回看板">← 看板</button>
@@ -61,7 +61,7 @@ Object.defineProperty(exports,Symbol.toStringTag,{value:`Module`});let e=require
           <button type="button" class="dsh-pm-btn" data-action="add-comment" data-target="req" data-id="${r(e.id)}">发送</button>
         </div>
       </div>
-    </div>`}function C(e){return{draft:`<div class="dsh-pm-gate">需求已立项：窗口接手开工后自动进入评审 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="reviewing">提交评审</button></div>`,reviewing:`<div class="dsh-pm-gate">人工闸门：方案确认后进入拆分 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="decomposing">确认方案</button> <button type="button" class="dsh-pm-btn" data-action="move-req" data-to="draft">退回立项</button></div>`,decomposing:`<div class="dsh-pm-gate">人工闸门：DAG 确认后进入实施 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="implementing">确认拆分</button></div>`,accepting:`<div class="dsh-pm-gate">人工闸门：验收通过后完成 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="done">验收通过</button></div>`,done:`<div class="dsh-pm-gate">人工闸门：归档归集文档 <button type="button" class="dsh-pm-btn" data-action="move-req" data-to="archived">归档</button></div>`}[e]??``}function w(e){if(e.length===0)return`<div class="dsh-pm-empty">暂无任务</div>`;let t=new Map,n=new Map(e.map(e=>[e.id,e])),i=(e,r)=>{if(t.has(e.id))return t.get(e.id);if(r.has(e.id))return 0;r.add(e.id);let a=e.dependsOn.filter(e=>n.has(e)),o=a.length===0?0:1+Math.max(...a.map(e=>i(n.get(e),r)));return t.set(e.id,o),o};e.forEach(e=>i(e,new Set));let a=Math.max(...t.values()),o=Array.from({length:a+1},()=>[]);return e.forEach(e=>o[t.get(e.id)].push(e)),`<div class="dsh-pm-dag">`+o.map((e,t)=>`
+    </div>`}function C(e){return{draft:`<div class="dsh-pm-gate">已立项：窗口接手开工后自动进入评审 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="reviewing">提交评审</button></div>`,reviewing:`<div class="dsh-pm-gate">评审中：窗口 agent 会自行推进到拆分，人可在此加速 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="decomposing">确认方案</button> <button type="button" class="dsh-pm-btn" data-action="move-req" data-to="draft">退回立项</button></div>`,decomposing:`<div class="dsh-pm-gate">拆分中：任务落库/开工后系统自动推进到实施 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="implementing">确认拆分</button></div>`,implementing:`<div class="dsh-pm-gate">实施中：任务全部完成时自动进入验收 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="accepting">提交验收</button></div>`,accepting:`<div class="dsh-pm-gate">验收中：窗口 agent 交付后可自行完成，人可在此确认 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="done">验收通过</button></div>`,done:`<div class="dsh-pm-gate">已完成：归档归集文档（仅人可操作）<button type="button" class="dsh-pm-btn" data-action="move-req" data-to="archived">归档</button></div>`}[e]??``}function w(e){if(e.length===0)return`<div class="dsh-pm-empty">暂无任务</div>`;let t=new Map,n=new Map(e.map(e=>[e.id,e])),i=(e,r)=>{if(t.has(e.id))return t.get(e.id);if(r.has(e.id))return 0;r.add(e.id);let a=e.dependsOn.filter(e=>n.has(e)),o=a.length===0?0:1+Math.max(...a.map(e=>i(n.get(e),r)));return t.set(e.id,o),o};e.forEach(e=>i(e,new Set));let a=Math.max(...t.values()),o=Array.from({length:a+1},()=>[]);return e.forEach(e=>o[t.get(e.id)].push(e)),`<div class="dsh-pm-dag">`+o.map((e,t)=>`
     <div class="dsh-pm-dag-layer">
       <span class="dsh-pm-dag-layer-label">L${t}</span>
       ${e.map(e=>`
@@ -228,6 +228,8 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
   background: var(--dsw-accent, #4a7dff); color: #fff; border-color: transparent;
 }
 .dsh-pm-btn.primary:hover { opacity: .88; }
+/* 卡片内紧凑尺寸（同色系/同圆角，只缩尺寸） */
+.dsh-pm-btn.sm { padding: 3px 10px; font-size: 12px; border-radius: 6px; }
 .dsh-pm-input {
   padding: 5px 10px; border-radius: 6px; border: 1px solid var(--dsw-border, rgba(128,128,128,.25));
   font-size: 13px; background: var(--dsw-bg-primary, #fff); color: inherit;
@@ -284,16 +286,9 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-card-bar { flex: 1; height: 4px; border-radius: 2px; background: rgba(128,128,128,.15); overflow: hidden; }
 .dsh-pm-card-bar-fill { height: 100%; background: var(--dsw-accent, #4a7dff); border-radius: 2px; }
 .dsh-pm-card-pct { font-size: 11px; color: var(--dsw-text-secondary, #999); flex: none; }
+/* 卡面操作行：按钮复用全站 .dsh-pm-btn 体系（与页头「刷新/+需求」、详情页闸门同款），
+   只加紧凑尺寸变体，避免看板内出现第二套按钮视觉。 */
 .dsh-pm-card-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-.dsh-pm-card-btn {
-  font-size: 11px; line-height: 1.4; padding: 3px 8px; border-radius: 6px; cursor: pointer;
-  border: 1px solid var(--dsw-border, rgba(127,127,127,.35)); background: transparent; color: inherit;
-}
-.dsh-pm-card-btn:hover { background: rgba(127,127,127,.12); }
-.dsh-pm-card-btn.primary {
-  border-color: var(--dsw-accent, #4a7dff); background: rgba(74,125,255,.12); color: var(--dsw-accent, #4a7dff);
-}
-.dsh-pm-card-btn.primary:hover { background: rgba(74,125,255,.22); }
 
 .dsh-pm-window {
   display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: 9px;

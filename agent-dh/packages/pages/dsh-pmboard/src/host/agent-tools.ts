@@ -46,6 +46,7 @@ import type {
   ReqboardLedger,
   RequirementCategory,
   RequirementRecord,
+  RequirementStatus,
   TriageRecord,
 } from '../shared/protocol.js';
 import {
@@ -54,6 +55,8 @@ import {
   asReqCategory,
   asReqStatus,
   assertReqTransition,
+  HUMAN_ONLY_REQ_TRANSITIONS,
+  REQ_TRANSITIONS,
   newCommentId,
   newRequirementId,
   normalizeText,
@@ -201,6 +204,11 @@ async function createRequirementDirect(
   reject('reqboard_create 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
 }
 
+/** agent 从当前状态可自行推进的目标（排除人工闸门：取消/归档）。 */
+function agentNextActions(status: RequirementStatus): RequirementStatus[] {
+  return [...REQ_TRANSITIONS[status]].filter((to) => !HUMAN_ONLY_REQ_TRANSITIONS.has(`${status}>${to}`))
+}
+
 /** 需求简要投影（open_requirements 输出用；不泄漏 comments 等内部字段）。 */
 function projectRequirement(r: RequirementRecord): { id: string; title: string; status: string; category: string } {
   return {
@@ -331,6 +339,11 @@ export function defineStatusTool(deps: ReqboardToolDeps) {
           },
           has_pending: { type: 'boolean', description: '本窗口是否已有遗留待确认建议卡（旧流程 triage）' },
           pending_triage_id: { type: 'string', description: '最近遗留 pending triage id（无则空串）' },
+          next_actions: {
+            type: 'array',
+            description: '本窗口可自行推进的目标状态（agent 合法转移；取消/归档为人工闸门不在此列）',
+            items: { type: 'string' },
+          },
           note: { type: 'string', description: '下一步指引' },
         },
       },
@@ -349,9 +362,10 @@ export function defineStatusTool(deps: ReqboardToolDeps) {
         open_requirements: open.map(projectRequirement),
         has_pending: pending !== undefined,
         pending_triage_id: pending?.id ?? '',
+        next_actions: open.length > 0 ? agentNextActions(open[0].status) : [],
         note:
           open.length > 0
-            ? '本窗口已绑定进行中需求，聚焦推进，勿重复立项'
+            ? `本窗口已绑定进行中需求（当前 ${open[0].status}）：里程碑处用 reqboard_move 自行推进（${agentNextActions(open[0].status).join(' / ') || '无可推进项'}），勿重复立项`
             : pending !== undefined
               ? '存在遗留待确认建议卡（旧流程产物）：可在看板确认/拒绝，或忽略；新立项直接走 reqboard_create'
               : '本窗口未绑定需求：识别到值得立项的新工作 → 先 ask_user_question 弹「两问确认」（需求名称+需求类型）获用户确认，再按确认值调 reqboard_create 直接立项（创建即立项）',
@@ -381,9 +395,11 @@ export function defineMoveTool(deps: ReqboardToolDeps) {
   return defineTool({
     name: 'reqboard_move',
     description:
-      '推进本窗口已绑定需求的状态（项目看板泳道）。仅能推进本窗口绑定的需求；'
-      + '人工闸门转移（评审通过/拆分确认/验收通过/归档）会被拒绝——那几步必须人在看板点确认。'
-      + '用法：先 reqboard_status 确认绑定需求与当前状态，再 move 到目标状态并给 reason。',
+      '推进本窗口已绑定需求的状态（项目看板泳道）——状态由执行窗口自己维护，不要等用户手动点。'
+      + '仅能推进本窗口绑定的需求；在途状态（评审→拆分→实施→验收）都可自行推进，'
+      + '只有「取消需求」「归档」是人工闸门（调用会被代码级拒绝并提示）。'
+      + '用法：里程碑处调用（方案定 → decomposing，开工 → implementing，交付 → accepting），'
+      + 'reason 写清做了什么（进需求留痕供验收与复盘）；先 reqboard_status 可查当前状态与可选动作。',
     parameters: {
       to: {
         type: 'string',

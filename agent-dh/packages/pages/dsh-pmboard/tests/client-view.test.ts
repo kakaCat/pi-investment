@@ -382,3 +382,10 @@ describe('泳道卡面操作按钮（不进详情页即可推进）', () => {
     expect(html).not.toContain('dsh-pm-card-actions')
   })
 })
+describe('卡面按钮视觉一致性（复用 .dsh-pm-btn 体系）', () => {
+  it('卡面按钮使用 dsh-pm-btn（与页头/详情页同款），不引入第二套按钮样式', () => {
+    const html = buildBoard(makeState({ requirements: [makeReq({ status: 'draft' })] }))
+    expect(html).toContain('class="dsh-pm-btn sm primary"')
+    expect(html).not.toContain('dsh-pm-card-btn')
+  })
+})

@@ -101,11 +101,33 @@ describe('applyTaskRollup（R2 实施完成 → 验收）', () => {
     expect(applyTaskRollup(l, ctx)).toHaveLength(0)
   })
 
-  it('非 implementing 状态不动（人工闸门不可绕过：reviewing 全部任务 done 也不自动进实施）', () => {
+  it('派生链 R3/R4：reviewing + 有任务 → 一路推进到 accepting（拆分/实施不再要人点）', () => {
     const r = req({ status: 'reviewing' })
     const l = ledger({ requirements: [r], tasks: [task(r.id, { status: 'done' })] })
-    expect(applyTaskRollup(l, ctx)).toHaveLength(0)
-    expect(l.requirements[0].status).toBe('reviewing')
+    const advanced = applyTaskRollup(l, ctx)
+    expect(advanced).toHaveLength(1) // 同一需求只上报一次（避免 change 载荷重复）
+    expect(l.requirements[0].status).toBe('accepting')
+    // 三步都在留痕里可追溯
+    const trail = l.requirements[0].comments.filter(c => c.body.includes('[自动推进]')).map(c => c.body)
+    expect(trail.some(b => b.includes('reviewing → decomposing'))).toBe(true)
+    expect(trail.some(b => b.includes('decomposing → implementing'))).toBe(true)
+    expect(trail.some(b => b.includes('implementing → accepting'))).toBe(true)
+  })
+
+  it('R3：reviewing + 任务全为 todo → 停在 decomposing（未开工不进实施）', () => {
+    const r = req({ status: 'reviewing' })
+    const l = ledger({ requirements: [r], tasks: [task(r.id, { status: 'todo' })] })
+    expect(applyTaskRollup(l, ctx).map(a => a.status)).toEqual(['decomposing'])
+    expect(l.requirements[0].status).toBe('decomposing')
+  })
+
+  it('无任务时任何状态都不动（拆分未落库不进拆分态）', () => {
+    for (const status of ['reviewing', 'decomposing', 'implementing'] as const) {
+      const r = req({ status })
+      const l = ledger({ requirements: [r] })
+      expect(applyTaskRollup(l, ctx)).toHaveLength(0)
+      expect(l.requirements[0].status).toBe(status)
+    }
   })
 
   it('onlyReqId 过滤：只重算指定需求', () => {
