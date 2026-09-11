@@ -1428,6 +1428,21 @@ def list_available_commands() -> list:
 # 模型训练自动化任务
 # ============================================================
 
+def _release_thread_session() -> None:
+    """释放当前线程的 ORM 会话（归还连接池）；失败不抛。
+
+    2026-09-11（w-f4aa1f6a）：get_session() 取的是线程本地 scoped session，
+    任务线程若无 close_session()，该会话会一直占用连接。session_guard 实测
+    model_train_auto 任务路径上会话被持有 311 秒（age_seconds=311，事件 a6780ec3），
+    是 v2 DB 连接池健康度被打满（utilization 100%，事件 ed7d2f6a）的来源之一。
+    """
+    try:
+        from infrastructure.persistence.orm.config import close_session
+        close_session()
+    except Exception as e:  # 释放失败不应影响任务本身
+        logger.debug(f"release thread session failed: {e}")
+
+
 def _check_train_needed(model_type: str) -> tuple:
     """检查是否需要训练"""
     import pandas as pd
@@ -1439,6 +1454,10 @@ def _check_train_needed(model_type: str) -> tuple:
     
     repo = _get_model_repo()
     model = repo.get_by_type_version(model_type, latest_version)
+    # 2026-09-11（w-f4aa1f6a）：本函数是 model_train_auto 的最早步骤（此前无待写事务），
+    # get_by_type_version 返回 plain dict（无惰性加载），读完即可安全归还会话，
+    # 避免训练全程占住连接（详见 _release_thread_session 注释）
+    _release_thread_session()
     if not model:
         return (True, "模型元数据缺失")
     
