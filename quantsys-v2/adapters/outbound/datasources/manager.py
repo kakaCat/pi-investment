@@ -1448,6 +1448,11 @@ class DataProviderManager(IDataProviderManager):
             result = method()
             if result.get('success'):
                 data = result.get('data')
+                if not data:
+                    # 2026-09-11（w-62dd5259）：四态契约下「健康无数据」= success=True + data=[]，
+                    # 本方法声明返回 Optional[MarketData] → 空数据必须落回 None。
+                    # 返回 [] 会让调用方的「if md is None: 走降级」判据失效（拿到空列表当对象用）。
+                    return None
                 return MarketData(**data) if isinstance(data, dict) else data
         return None
 
@@ -1469,6 +1474,9 @@ class DataProviderManager(IDataProviderManager):
             result = method()
             if result.get('success'):
                 data = result.get('data')
+                if not data:
+                    # 同上：健康无数据 → None（声明返回 Optional[StockData]），不得返回 []
+                    return None
                 return StockData(**data) if isinstance(data, dict) else data
         return None
 
@@ -1512,7 +1520,12 @@ class DataProviderManager(IDataProviderManager):
         超时/熔断/attempted_sources 机制，不另起链路。
         """
         primary = self._try_providers([self.eastmoney_revenue_provider], 'get_revenue_exposure', symbol)
-        if primary.get('success'):
+        # 2026-09-11（w-62dd5259）：判据必须带 not empty —— 单源调用下「健康无数据」的返回是
+        # success=True + empty=True（四态契约的设计），只看 success 会**短路**掉下面两段：
+        # 东财没有某标的的主营构成时，同花顺的文本证据与 DB 兜底会一次都不被访问
+        # （实测：attempted_sources 只剩 ['eastmoney_revenue']，data=0 行）。
+        # 单源列表下 empty 只可能来自东财自己，故它就是「权威源没有数据 → 继续降级」。
+        if primary.get('success') and not primary.get('empty'):
             return primary
         fallback = self._try_providers(
             [self.ths_revenue_provider, self.database_chain_provider], 'get_revenue_exposure', symbol,

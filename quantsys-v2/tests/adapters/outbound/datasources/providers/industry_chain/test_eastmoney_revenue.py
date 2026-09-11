@@ -10,6 +10,8 @@
   MBI_RATIO 已是小数（按百分数处理会差 100 倍）
   取数失败必须写 last_error（禁止静默降级成"无主营构成"）
   同花顺页面结构变化 → last_error（禁止静默返回空）
+  **无数据 → [] + last_note**（2026-09-11 四态契约：None 是"真故障"专用形状，
+  "这只票没有主营构成"必须走健康空，否则 manager 判不了故障也判不了空 → 降级链语义错乱）
 """
 import pytest
 
@@ -84,11 +86,17 @@ def test_东财行映射与分类口径(monkeypatch):
     assert session.calls[0]['params'] == {'code': 'SH600176'}
 
 
-def test_无主营构成数据时返回None且不计故障(monkeypatch):
-    """该标的确实没有主营构成 ≠ 取数失败：last_error 必须保持空，否则健康分被打掉。"""
+def test_无主营构成数据时返回空列表加last_note而不是None(monkeypatch):
+    """该标的确实没有主营构成 ≠ 取数失败：返回 **[] + last_note**，不是 None。
+
+    四态契约（2026-09-11）：[] + last_note = 健康无数据（manager 计入 empty_sources，
+    不计故障、不影响熔断，并继续降级下一源）；None + last_error = 真故障。
+    返回 None 却不写 last_error 属"两头不靠"，会被 manager 记成"非空但无效"。
+    """
     provider, _ = _em(monkeypatch, FakeResponse(_payload([])))
-    assert provider.get_revenue_exposure('600176') is None
+    assert provider.get_revenue_exposure('600176') == []
     assert provider.last_error is None
+    assert 'zygcfx' in provider.last_note and '为空' in provider.last_note
 
 
 def test_无法识别的代码直接返回None并写明原因(monkeypatch):

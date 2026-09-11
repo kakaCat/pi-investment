@@ -30,6 +30,19 @@
     → 成分表含 **B 股**（200012 南  玻Ｂ / 900918 耀皮Ｂ股）与非 A 段代码，
       本 provider 只保留 6 位 A 股代码段（00/30/60/68/92 等），其余过滤并计数。
 
+## 返回值的四态契约（2026-09-11 全仓统一，manager._try_providers 消费）
+
+| 返回 | last_error | last_note | 语义 |
+|---|---|---|---|
+| 非空行列表 | None | '' | 取到数据 |
+| **[]** | **None** | **<诊断文本>** | **健康无数据**：例如「东财 504 概念 / 496 行业里没有这个板块名」、
+该板块没有 A 股成分。这是"这一源没有"，**不是故障**——manager 会继续降级下一通道 |
+| None | <原因> | '' | **真故障**：板块清单/成分取数失败、解析异常、返回结构不符 |
+| None | 空 | 空 | ⚠️ 禁止（manager 两头都判不了，会被记成"非空但无效"） |
+
+⚠️ provider 是**长生命周期单例**：每个入口都要重置 last_error / last_note / last_channel，
+否则上一次调用的诊断会挂到下一次调用上（"没这个板块"被当成取数失败会打掉健康分与熔断余量）。
+
 ## 为什么之前记为「打样失败」
 
 原记录（akshare_concept.py 的失败通道表）：`ak.stock_board_concept_name_em` /
@@ -86,6 +99,7 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
 
     def __init__(self):
         self.last_error: Optional[str] = None
+        self.last_note: str = ''
         self.last_channel: str = ''
         self.as_of: str = ''
 
@@ -189,10 +203,24 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
             raise ValueError(f'东财延迟域 {kind} 板块清单为空（total={total}）')
         return rows
 
-    def _fetch_members(self, board_code: str) -> Tuple[List[Dict], int]:
-        """板块成分（返回 (A 股成员行, 上游 total)）"""
+    def _fetch_members(self, board_code: str) -> Tuple[List[Dict], int, bool]:
+        """板块成分（返回 (A 股成员行, 上游 total, 是否被分页上限截断)）
+
+        分页终止判据（2026-09-11 w-62dd5259 修复），旧写法
+        len(rows) >= reported_total or len(diff) < _PAGE_SIZE 有两处缺陷：
+          ① reported_total 缺失或为 0（上游不给 total）时 len(rows) >= 0 **恒真**
+             → 只取第 1 页就静默停止（与 _fetch_boards 已修的 total=0 缺陷同源，
+             当时没有一并修到本函数）；
+          ② rows 是**过滤后**的 A 股行，而上游 total 含 B 股/非 A 段 → 早停判据
+             几乎永不成立，白打一次空页请求。
+        现改为：拿**收到的原始条目数** seen 与可信的 total(>0) 比较；total 不可信时
+        靠「本页不足一页」判定取完；兜底由 _MAX_PAGES 限制，且触顶时显式置
+        page_limited=True（**绝不静默截断**）。
+        """
         rows: List[Dict] = []
         reported_total = 0
+        seen = 0                 # 上游原始条目数（含被过滤掉的 B 股/非 A 段）
+        page_limited = False
         for pn in range(1, self._MAX_PAGES + 1):
             payload = self._get({
                 'pn': pn, 'pz': self._PAGE_SIZE, 'po': 1, 'np': 1,
@@ -207,6 +235,7 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
                 reported_total = int(data.get('total') or 0)
             if not diff:
                 break
+            seen += len(diff)
             for item in diff:
                 code = str(item.get('f12') or '').strip()
                 stock_name = str(item.get('f14') or '').strip()
@@ -220,12 +249,21 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
                     'symbol': code,
                     # 上游名称带全角空格填充（'南  玻Ａ'）→ 归一为单空格
                     'name': ' '.join(stock_name.split()),
-                    'change_pct': item.get('f3'),
+                    # fltt=2 下 f3 是百分数（10.02 = +10.02%）；上游停牌/占位值会给 '-'
+                    # 这类非数值——一律归 None（与 fund_flow_source 同口径），
+                    # 既不把占位符当数字透出，也不臆造 0
+                    'change_pct': (item.get('f3') if isinstance(item.get('f3'), (int, float))
+                                   else None),
                 })
-            if len(rows) >= reported_total or len(diff) < self._PAGE_SIZE:
+            if reported_total > 0 and seen >= reported_total:
+                break                                   # 明确取够（判据用原始条目数）
+            if len(diff) < self._PAGE_SIZE:
+                break                                   # 本页不满一页 = 已到最后一页
+            if pn == self._MAX_PAGES:
+                page_limited = True                     # 到安全阀但仍有后续页 → 如实标注
                 break
             time.sleep(0.2)
-        return rows, reported_total
+        return rows, reported_total, page_limited
 
     # -------------------------------------------------------------- 名称解析
 
@@ -275,13 +313,26 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
 
         boards: List[Dict] = []
         kinds = [forced_kind] if forced_kind else ['industry', 'concept']
+        kind_errors: List[str] = []
         for kind in kinds:
             try:
                 boards.extend(self._fetch_boards(kind))
             except Exception as exc:
-                self.last_error = f"东财延迟域 {kind} 板块清单取数失败: {type(exc).__name__}: {exc}"
-                logger.warning(self.last_error)
-                raise
+                # 2026-09-11（w-62dd5259）：单类失败**不再直接放弃整次解析**。
+                # 该域限流（rc=102/空 data）是常态，实测 industry 取数失败而 concept
+                # 正常时，旧写法会把整条候选通道判死——正是 RFC 015 §1.5.1 要禁止的
+                # 「多源退化成单源/静默丢通道」。改为：还有可用分类就继续匹配并把
+                # 失败如实记进 last_note；**全部失败才 rise**（真故障语义不变）。
+                kind_errors.append(f'{kind}: {type(exc).__name__}: {exc}')
+                logger.warning('东财延迟域 %s 板块清单取数失败: %s', kind, exc)
+                continue
+        if not boards:
+            self.last_error = ('东财延迟域板块清单取数失败 —— ' + '; '.join(kind_errors)
+                               if kind_errors else '东财延迟域板块清单为空（无可用分类）')
+            raise RuntimeError(self.last_error)
+        if kind_errors:
+            self.last_note = ('部分板块类型取数失败（已用可用分类继续匹配）—— '
+                              + '; '.join(kind_errors))
 
         upper = key.upper()
         stems = [key]
@@ -361,6 +412,8 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
     def list_chains(self) -> Optional[List[Dict]]:
         """候选链清单（东财概念 504 + 行业 496 板块）"""
         self.last_error = None
+        self.last_note = ''
+        self.last_channel = ''
         self.as_of = datetime.now().isoformat(timespec='seconds')
         rows: List[Dict] = []
         errors: List[str] = []
@@ -377,8 +430,10 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
             logger.warning(self.last_error)
             return None
         if errors:
-            # 部分成功：如实记在 last_error 供排障，但仍返回已取到的行（不静默丢通道）
-            self.last_error = '部分板块类型取数失败 —— ' + '; '.join(errors)
+            # 部分成功：如实记在 last_note，但**不写 last_error**——返回了数据就不是失败，
+            # 同时写 last_error 会自相矛盾，还会在长生命周期单例上留下"失败"残影被误读
+            # （manager 成功路径不读 last_error，故此前这段诊断其实被丢掉了）。
+            self.last_note = '部分板块类型取数失败（仍有数据返回）—— ' + '; '.join(errors)
         for row in rows:
             row.pop('_evidence_kind', None)
             row.pop('_confidence', None)
@@ -386,8 +441,14 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
         return rows
 
     def get_chain(self, chain_id_or_name: str) -> Optional[List[Dict]]:
-        """按板块代码/名/关键词返回该板块成员（合成单节点，node_id=em_board:<code>）"""
+        """按板块代码/名/关键词返回该板块成员（合成单节点，node_id=em_board:<code>）
+
+        四态：命中→节点行；**该源没有这个板块 / 板块无 A 股成分 → [] + last_note**
+        （健康无数据，不得冒充故障）；板块清单或成分取数失败 → None + last_error。
+        """
         self.last_error = None
+        self.last_note = ''
+        self.last_channel = ''
         self.as_of = datetime.now().isoformat(timespec='seconds')
         try:
             matched = self._resolve_board(chain_id_or_name)
@@ -397,11 +458,14 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
             return None
 
         if not matched:
-            self.last_error = (
+            # 健康无数据：上游回答得好好的，只是它的分类体系里没有这个板块名
+            # （跨源命名差异，如新浪叫"玻璃行业"、东财叫"玻璃玻纤"）。判成故障会打掉
+            # 本通道健康分并把候选通道②挤出竞争（RFC 015 §1.5.1 禁止多源退化成单源）。
+            self.last_note = (
                 f"东财概念/行业板块中没有 {chain_id_or_name!r} 对应板块"
                 "（概念 504 个 / 行业 496 个，跨源命名可能不同）"
             )
-            return None
+            return []
 
         # _resolve_board 已按「档位 → 行业优先 → 更名短优先」排序，取首个
         board = matched[0]
@@ -409,7 +473,7 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
         prefix, evidence_kind, confidence = _BOARD_KINDS[kind][1:]
 
         try:
-            members, reported_total = self._fetch_members(board['code'])
+            members, reported_total, page_limited = self._fetch_members(board['code'])
         except Exception as exc:
             self.last_error = (
                 f"东财延迟域板块 {board['name']}({board['code']}) 成分取数失败: "
@@ -420,18 +484,30 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
 
         self.last_channel = 'em_board_members'
         if not members:
-            self.last_error = (
+            # 健康无数据：板块拿到了、成分也取回了，只是过滤后没有 A 股标的
+            # （B 股 200/900 段、外股一律排除）——"没有可用成员"不是取数故障
+            self.last_note = (
                 f"东财延迟域板块 {board['name']}({board['code']}) 无 A 股成分"
                 f"（上游 total={reported_total}，可能全为 B 股/非 A 段）"
             )
-            return None
+            return []
 
         board_label = f'东财{"概念" if kind == "concept" else "行业"}板块'
         truncated = len(members) > self._MEMBER_CAP
+        # 两种截断必须分开标注：cap 是策略性截断（上游数据本身是完整的，只是我们不全放），
+        # page_limited 是**取数不完整**（还有页没取到）——后者若混在前者里会被误读成"完整快照"
+        truncation_note = ''
+        if truncated:
+            truncation_note += f'，按涨跌幅截取前 {self._MEMBER_CAP} 只'
+        if page_limited:
+            truncation_note += (
+                f'，已达分页安全阀（{self._MAX_PAGES} 页 × {self._PAGE_SIZE} 条），'
+                '上游可能仍有未取到的成员'
+            )
         evidence = (
             f'{board_label}「{board["name"]}」成分（{self.name}，push2delay.eastmoney.com '
             f'clist fs=b:{board["code"]}，上游 total={reported_total}，快照 {self.as_of}'
-            + (f'，按涨跌幅截取前 {self._MEMBER_CAP} 只' if truncated else '')
+            + truncation_note
             + '——板块成分非主营构成，仅作候选/交叉校验，不参与环节归位裁决'
         )
         if truncated:
@@ -466,13 +542,17 @@ class EastmoneyDelayConceptProvider(IIndustryChainProvider):
             'candidate': True,
             'board_code': board['code'],
             'board_kind': kind,
+            # matched_total = 上游返回的 total（**含被过滤掉的 B 股/非 A 段**），
+            # 不等于 members_returned，覆盖率类计算不得直接相除
             'matched_total': reported_total,
             'members_returned': len(members),
-            'members_truncated': truncated,
+            'members_truncated': truncated or page_limited,
+            'members_page_limited': page_limited,
             'as_of': self.as_of,
         }]
 
     def get_revenue_exposure(self, symbol: str) -> Optional[List[Dict]]:
         """本通道不提供主营构成：[] = 该源无此类数据（非失败）"""
         self.last_error = None
+        self.last_note = ''
         return []

@@ -7,6 +7,18 @@
 | EastmoneyRevenueProvider | eastmoney_revenue | 东财 F10 emweb.securities.eastmoney.com | 主营构成：按产品/按行业分类的**营收占比** |
 | ThsRevenueProvider | ths_revenue | 同花顺 F10 basic.10jqka.com.cn | 产品构成：产品名称/产品类型/主营业务（**无占比**，作为关键词证据与独立佐证） |
 
+## 返回值的四态契约（2026-09-11 全仓统一，manager._try_providers 消费）
+
+| 返回 | last_error | last_note | 语义 |
+|---|---|---|---|
+| 行列表（非空） | None | '' | 取到数据 |
+| **[]** | **None** | **<诊断文本>** | **健康无数据**（上游 200 但该标的没有主营构成/未披露）→ manager 计入 empty_sources，**不计故障、不影响熔断与健康分**，并继续降级下一源 |
+| None | <原因> | '' | **真故障**（HTTP 异常/重试耗尽/页面改版/结构不符/代码无法映射）→ 计故障 |
+| None | 空 | 空 | ⚠️ 禁止（两头不靠：manager 既判不了故障，也判不了健康空；会被记成"非空但无效"） |
+
+⚠️ provider 是**长生命周期单例**：每次入口（含 business_scope）必须重置 last_error **与 last_note**，
+否则上一次调用的诊断会泄漏到下一次（"无数据说明"挂到一次真故障上会误导排障）。
+
 ## 真实响应打样（2026-09-11 本机实测，非文档/mock）
 
 1) 东财 F10（**可用**，实测 0.4s）：
@@ -104,6 +116,7 @@ class EastmoneyRevenueProvider(IIndustryChainProvider):
     def __init__(self, session=None):
         self._session = session or _shared_session()
         self.last_error: Optional[str] = None
+        self.last_note: str = ''
 
     @property
     def name(self) -> str:
@@ -114,28 +127,37 @@ class EastmoneyRevenueProvider(IIndustryChainProvider):
     def list_chains(self) -> Optional[List[Dict]]:
         """主营构成源不提供产业链清单：[] = 该源无此类数据（非失败）"""
         self.last_error = None
+        self.last_note = ''
         return []
 
     def get_chain(self, chain_id_or_name: str) -> Optional[List[Dict]]:
         """主营构成源不提供环节拓扑：[] = 该源无此类数据（非失败）"""
         self.last_error = None
+        self.last_note = ''
         return []
 
     def get_revenue_exposure(self, symbol: str) -> Optional[List[Dict]]:
         self.last_error = None
+        self.last_note = ''
         code = market_prefixed(symbol)
         if not code:
+            # 真故障（入参无法映射市场前缀，是 fail-loud 而不是"这只票没有数据"）
             self.last_error = f"代码 {symbol!r} 无法映射到市场前缀（东财需 SH/SZ/BJ + 6 位数字）"
             return None
 
         payload = self._fetch(code)
         if payload is None:
-            return None
+            return None          # _fetch 内已写 last_error（真故障）
         rows_raw = payload.get('zygcfx') or []
         if not rows_raw:
-            # 该标的确实没有主营构成数据（空结果 ≠ 失败）
-            self.last_error = None
-            return None
+            # 健康无数据：上游 200 且结构正常，只是该标的确实没有主营构成（空结果 ≠ 失败）。
+            # 契约要求"空列表 + last_note"，**不得**返回 None（None 会被 manager 判成真故障/无效数据）。
+            self.last_note = (
+                f"东财 F10 未返回 {symbol} 的主营构成（zygcfx "
+                f"{'字段缺失' if 'zygcfx' not in payload else '为空'}）——"
+                "该标的可能无主营构成数据或尚未披露；交由下一源（同花顺 F10 / DB）继续降级"
+            )
+            return []
 
         rows: List[Dict] = []
         for item in rows_raw:
@@ -155,7 +177,13 @@ class EastmoneyRevenueProvider(IIndustryChainProvider):
         return rows
 
     def business_scope(self, symbol: str) -> Optional[str]:
-        """经营范围/主营业务文本（zyfw.BUSINESS_SCOPE）——用于产品关键词佐证"""
+        """经营范围/主营业务文本（zyfw.BUSINESS_SCOPE）——用于产品关键词佐证
+
+        返回 str 表示命中；None 时**看 last_error 分辨**：last_error 非空=真故障，
+        last_error 空 + last_note 非空=上游健康但该标的没有经营范围文本。
+        """
+        self.last_error = None
+        self.last_note = ''
         code = market_prefixed(symbol)
         if not code:
             self.last_error = f"代码 {symbol!r} 无法映射到市场前缀"
@@ -167,6 +195,7 @@ class EastmoneyRevenueProvider(IIndustryChainProvider):
             scope = item.get('BUSINESS_SCOPE')
             if scope:
                 return str(scope)
+        self.last_note = f"东财 F10 未返回 {symbol} 的经营范围（zyfw.BUSINESS_SCOPE 为空）"
         return None
 
     # ------------------------------------------------------------------ HTTP
@@ -209,6 +238,7 @@ class ThsRevenueProvider(IIndustryChainProvider):
     def __init__(self, session=None):
         self._session = session or requests
         self.last_error: Optional[str] = None
+        self.last_note: str = ''
 
     @property
     def name(self) -> str:
@@ -216,18 +246,25 @@ class ThsRevenueProvider(IIndustryChainProvider):
 
     def list_chains(self) -> Optional[List[Dict]]:
         self.last_error = None
+        self.last_note = ''
         return []
 
     def get_chain(self, chain_id_or_name: str) -> Optional[List[Dict]]:
         self.last_error = None
+        self.last_note = ''
         return []
 
     def get_revenue_exposure(self, symbol: str) -> Optional[List[Dict]]:
         """返回产品构成行（ratio=None；classification='产品构成'）
 
         契约 C 允许 ratio 为 None（文本证据）；领域层据此产出 PRODUCT_PROFILE 归位主张。
+
+        四态（与东财通道同口径）：命中→行列表；上游健康但无可用文本→[] + last_note；
+        取数失败/页面改版→None + last_error。**没数据不得返回 None**，否则会被 manager
+        判成故障，把"这只票没有产品构成"说成"同花顺挂了"。
         """
         self.last_error = None
+        self.last_note = ''
         code = re.sub(r'(SH|SZ|BJ)|\.\w+', '', str(symbol or '').strip().upper())
         if not re.fullmatch(r'\d{6}', code):
             self.last_error = f"代码 {symbol!r} 不是 6 位 A 股代码"
@@ -262,8 +299,12 @@ class ThsRevenueProvider(IIndustryChainProvider):
                     'field': name,
                 })
         if not rows:
-            self.last_error = None
-            return None
+            # 健康无数据：页面字段解析到了，但拆分/清洗后没有可用条目（如值全为碎片）
+            self.last_note = (
+                f"同花顺 F10 未解析出 {symbol} 的可用产品构成条目"
+                f"（页面字段：{'/'.join(fields.keys())}，清洗后均为空/过短）"
+            )
+            return []
         return rows
 
     def _fetch_fields(self, code: str) -> Optional[Dict[str, str]]:
