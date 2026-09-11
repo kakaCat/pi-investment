@@ -53,13 +53,12 @@ cd "$PROFILE_DIR"
 #
 # 生效性已实测确认（2026-09-11 11:2x 复核）：活进程环境里能看到
 # `NODE_OPTIONS=--max-old-space-size=8192`，参数确实传到了 node。
-# ⚠️ 曾有一处注释断言"8GB 设置未生效（hermes node 路径问题）"——**该判断是错的**，
-# 当时的"不生效"现象实为下面的重启循环反复杀进程（见 scripts/restart-dsh-controlled.sh
-# 的根因注释），与堆参数无关。据此把上限继续抬到 16GB 属于误判，故维持 8192。
 #
 # ⚠️ 本文件是**模板**：launchd（com.pi-investment.dsh）实际执行的是
-# ~/.dsh/profiles/investment/start.sh。只改这里而不部署 = 什么都没发生，
-# 两者需保持同步（历史上正是这份漂移让"改了却没生效"一再发生）。
+# ~/.dsh/profiles/investment/start.sh。只改这里而不部署 = 什么都没发生。
+# 历史上本修复就曾"看起来没生效"，原因是**部署漂移**而非参数本身：00:58 它先落在
+# ~/.dsh-agent-dh/profiles/investment/start.sh，而 launchd 执行的是 ~/.dsh/... 那份，
+# 直到 01:20 才补上（见该文件 w-f4aa1f6a 的注释）。两份 profile 需保持同步。
 #
 # 这仍是治标：真正的增长源（多窗口会话记录常驻堆）需上游 DSH 修。
 DSH_MAX_OLD_SPACE="${DSH_MAX_OLD_SPACE:-8192}"
