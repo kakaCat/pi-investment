@@ -276,6 +276,36 @@ def scan_v2(conn, now_utc, since_utc):
     return issues
 
 
+def reconcile_task_status(conn):
+    """把 last_status 仍停在 running/started 的任务，按最新**已完成** run 回填状态。
+
+    2026-09-11（w-f4aa1f6a）：实测任务 232 的 run 已于 09-11 00:09 闭环（failed），
+    但 quant.scheduler_tasks.last_status 一直停在 'running' 共 21 小时——看板/巡检
+    长期显示"运行中"，而 zombie 检测只查 scheduler_runs，两边口径不回填。
+    本对账每轮跑一次，自愈此类"假卡死"。
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            WITH latest AS (
+              SELECT DISTINCT ON (task_id) task_id, status
+                FROM quant.scheduler_runs
+               WHERE completed_at IS NOT NULL
+               ORDER BY task_id, started_at DESC
+            )
+            UPDATE quant.scheduler_tasks t
+               SET last_status = latest.status
+              FROM latest
+             WHERE t.id::text = latest.task_id::text
+               AND t.last_status IN ('running', 'started')
+            RETURNING t.id, t.name, latest.status
+            """
+        )
+        fixed = cur.fetchall()
+    conn.commit()
+    return fixed
+
+
 def scan_agent_os(conn, now_utc, since_utc):
     issues = []
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -374,6 +404,12 @@ def main():
         elif it["policy"] == "alert_only":
             action_line = "\n  → 仅告警（alert_only，有副作用需人工评估）"
         new_alerts.append((it, action_line))
+
+    # 3.5 任务状态对账（自愈"假卡死"）：run 已闭环但 last_status 仍 running
+    reconciled = reconcile_task_status(conn)
+    if reconciled:
+        print(f"[watchdog] 状态对账：{len(reconciled)} 个任务由 running 回填为最终状态 "
+              f"{[(name, st) for _id, name, st in reconciled]}")
 
     resolved = resolve_issues(conn, still_open, open_issues)
     conn.commit()

@@ -6,8 +6,24 @@
 import logging
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 import uuid
+
+# 项目统一时间口径：北京时间（UTC+8）
+# 2026-09-11（w-f4aa1f6a）：此前 v2 日志用 structlog 默认的 UTC（7.2 万行），
+# 与 agent-os(zap,+0800)、launchd、PG(timestamptz/Asia-Shanghai) 不一致，排查易误读。
+CST = timezone(timedelta(hours=8))
+
+
+def _beijing_timestamp(_logger: Any, _method_name: str, event_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """structlog 处理器：写入**显式北京时间**（带 +08:00 偏移）的时间戳。
+
+    键名保持 "timestamp" 不变，避免下游解析口径漂移；值形如
+    2026-09-11T19:03:43.449278+08:00（aware，不会与 UTC 混淆）。
+    """
+    event_dict["timestamp"] = datetime.now(CST).isoformat()
+    return event_dict
 
 
 def configure_structured_logging(
@@ -70,8 +86,14 @@ def configure_structured_logging(
         add_logger_name,
         # 2. 添加日志级别
         add_log_level,
-        # 3. 添加时间戳（ISO 8601 格式）
-        structlog.processors.TimeStamper(fmt="iso"),
+        # 3. 添加时间戳（ISO 8601，**显式北京时间 +08:00**）
+        # 2026-09-11（w-f4aa1f6a）：原用 TimeStamper(fmt="iso")，structlog 默认 utc=True
+        # → v2 全部日志（当时 7.2 万行）时间戳是 UTC、比北京时间早 8 小时，与
+        # agent-os(zap,+0800)、launchd、DB(timestamptz/Asia-Shanghai) 口径不一致，
+        # 排查时极易误读（本次会话就因它把 13:07 读成 05:07Z 而误判时间线）。
+        # 注意 utc=False 只给"裸本地时间"（无偏移，仍易误读），故用自定义处理器
+        # 输出带 +08:00 的 aware 时间；键名保持 "timestamp" 不变（避免下游解析漂移）。
+        _beijing_timestamp,
         # 4. 添加堆栈信息（异常时）
         structlog.processors.StackInfoRenderer(),
         # 5. 格式化异常

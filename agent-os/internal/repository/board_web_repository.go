@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pi-investment/agent-os/internal/domain"
+	"github.com/pi-investment/agent-os/internal/timeutil"
 )
 
 // BoardWebRepository 公告板仓储接口（RFC 014 独立存储）
@@ -124,7 +125,8 @@ func (r *boardWebRepository) Create(ctx context.Context, req domain.BoardCreateR
 		kind = "finding"
 	}
 	logEntry := domain.ModerationLogEntry{
-		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+		// 2026-09-11（w-f4aa1f6a）：原为 UTC，项目时间统一北京时间
+		Timestamp: timeutil.RFC3339Nano(time.Now()),
 		Action:    "create",
 		Actor:     req.Author,
 		Note:      note,
@@ -274,7 +276,7 @@ func (r *boardWebRepository) Update(ctx context.Context, id string, req domain.B
 		_ = json.Unmarshal(p.ModerationLog, &log)
 	}
 	log = append(log, domain.ModerationLogEntry{
-		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+		Timestamp: timeutil.RFC3339Nano(time.Now()), // 2026-09-11（w-f4aa1f6a）统一北京时间
 		Action:    req.Action,
 		Actor:     req.Actor,
 		Note:      req.Note,

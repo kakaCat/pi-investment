@@ -10,10 +10,10 @@ import (
 	"path"
 	"regexp"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	"github.com/pi-investment/agent-os/internal/domain"
+	"github.com/pi-investment/agent-os/internal/timeutil"
 )
 
 // ErrorEventRepository 错误事件仓储接口
@@ -368,7 +368,7 @@ func (r *errorEventRepository) Stats(ctx context.Context) (*domain.ErrorEventSta
 	}
 
 	stats.OpenCount = stats.ByStatus[string(domain.ErrorStatusOpen)] + stats.ByStatus[string(domain.ErrorStatusProcessing)]
-	stats.UpdatedAt = time.Now().UTC()
+	stats.UpdatedAt = timeutil.Now() // 2026-09-11（w-f4aa1f6a）统一北京时间
 	return stats, nil
 }
 
