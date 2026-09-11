@@ -540,7 +540,9 @@ RETURNING fingerprint, occurrence_count, (xmax = 0) AS inserted
 
 def build_event_row(contract: Contract, result: CheckResult, generated_at: datetime) -> dict:
     fp = fingerprint_for(result.dataset, result.rule_key)
-    msg = f'数据契约违约：{result.dataset} 规则 {result.target}'
+    # severity 进 msg：level 已统一为 error，severity 是运维分诊的第一信号，
+    # 必须在一眼能看到的位置（此前只在 detail JSON 里）
+    msg = f'数据契约违约[{result.severity}]：{result.dataset} 规则 {result.target}'
     detail = json.dumps({
         'dataset': result.dataset,
         'table': contract.qualified,
@@ -555,7 +557,10 @@ def build_event_row(contract: Contract, result: CheckResult, generated_at: datet
     }, ensure_ascii=False)
     return {
         'source': UPSTREAM_SOURCE,
-        'level': 'error' if result.severity == 'high' else 'warning',
+        # 2026-09-11（w-f4aa1f6a）：统一写 level='error'——台账既有 300+ 行全是 error，
+        # medium 写 warning 会成孤例，任何按 level='error' 过滤的下游/看板都会静默漏掉它
+        # （正是本项目反复出现的"静默失败"类）。severity 仍保留在 msg/detail 中可区分。
+        'level': 'error',
         'msg': msg,
         'detail': detail,
         'fingerprint': fp,

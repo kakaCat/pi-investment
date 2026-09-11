@@ -355,10 +355,18 @@ def test_build_event_row_contract(run):
     assert json.loads(row['metadata'])['probe'] == 'data-contract'
 
 
-def test_build_event_row_level_maps_medium_to_warning(run):
+def test_build_event_row_level_is_always_error(run):
+    """medium 违约也写 level='error'（2026-09-11 w-f4aa1f6a 统一口径）。
+
+    原因：台账既有 300+ 行全是 error，medium 写 warning 会成孤例，
+    任何按 level='error' 过滤的下游/看板会静默漏掉它（本项目反复出现的静默失败类）。
+    severity 仍保留在 msg/detail 中可区分。
+    """
     c = _c('ds', 'empty_t', severity='medium', rowcount={'min': 1, 'severity': 'medium'})
     res = [r for r in evaluate_contract(c, _ctx(run)) if r.failed][0]
-    assert build_event_row(c, res, datetime(2026, 9, 11, 13, 0))['level'] == 'warning'
+    row = build_event_row(c, res, datetime(2026, 9, 11, 13, 0))
+    assert row['level'] == 'error'
+    assert 'medium' in row['msg']
 
 
 def test_upsert_event_sql_guards_own_fingerprints():
