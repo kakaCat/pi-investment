@@ -128,23 +128,27 @@ class MarketStateProvider:
             return {}
 
     def _sectors(self, degraded) -> Dict[str, float]:
-        """板块强度（best-effort v1）：用 manager.get_sector_list()（实测无 get_sector_flow），
-        键名弹性解析；解析不出就记 degraded，绝不用 0 冒充。"""
+        """板块强度：get_sector_list 真实结构（2026-09-11 probe 确认）
+             {success, data: MarketData}
+             MarketData.data = {industries:[{code,name,change_pct,change_amount,market_cap}]x496,
+                                concepts:[...]x504, total, industry_count, concept_count}
+        取 industries 的 name/change_pct 作为板块强度；概念板块不进主表（避免与行业同名混淆）。
+        """
         try:
             from adapters.outbound.datasources.manager import get_data_provider_manager
             res = get_data_provider_manager().get_sector_list()
-            rows = _as_rows(res)
+            inner = getattr(getattr(res, "data", None), "data", None)
+            if inner is None and isinstance(res, dict):
+                inner = getattr(res.get("data"), "data", None)
+            if not isinstance(inner, dict):
+                raise RuntimeError("sector_list 结构不可识别: %s" % type(inner).__name__)
             out: Dict[str, float] = {}
-            for r in (rows or []):
-                if not isinstance(r, dict):
+            for row in (inner.get("industries") or []):
+                if not isinstance(row, dict):
                     continue
-                name = r.get("名称") or r.get("行业") or r.get("name") or r.get("sector")
-                pct = None
-                for k in ("涨跌幅", "行业-涨跌幅", "change_pct", "changePct", "涨跌幅%"):
-                    if r.get(k) is not None:
-                        pct = r.get(k)
-                        break
-                if name and pct is not None:
+                name = row.get("name")
+                pct = row.get("change_pct")
+                if name is not None and pct is not None:
                     try:
                         out[str(name)] = float(pct)
                     except (TypeError, ValueError):
@@ -157,52 +161,3 @@ class MarketStateProvider:
             degraded.append("sector_list")
             return {}
 
-
-def _as_rows(res):
-    """把 provider 返回的 MarketData / dict / list / DataFrame 归一为行列表（None=结构不可识别）
-
-    2026-09-11 实测：akshare 路径下 res.data 常是 **pandas DataFrame**（既不是 list 也不是
-    dict），原来只判 list/dict → 一律"结构不可识别"，涨停池与板块永远取不到数。
-    """
-    if res is None:
-        return None
-    if isinstance(res, list):
-        return res
-    data = getattr(res, "data", None)
-    if data is None and isinstance(res, dict):
-        data = res.get("data")
-        if data is None:
-            return None
-    return _rows_of(data)
-
-
-def _rows_of(data, _depth: int = 0):
-    if data is None or _depth > 3:
-        return None
-    if isinstance(data, list):
-        return data
-    # MarketData 这类包装对象：继续往里挖它的 .data
-    # （实测结构：{success, data: MarketData} 而 MarketData.data = {'date':..., 'records':[...]}）
-    inner = getattr(data, "data", None)
-    if inner is not None and inner is not data:
-        got = _rows_of(inner, _depth + 1)
-        if got is not None:
-            return got
-    # pandas DataFrame（不 import pandas，用鸭子类型判定）
-    if hasattr(data, "to_dict") and hasattr(data, "columns"):
-        try:
-            return data.to_dict("records")
-        except Exception:
-            return None
-    if isinstance(data, dict):
-        for key in ("items", "rows", "list", "records", "data"):
-            v = data.get(key)
-            if isinstance(v, list):
-                return v
-            if hasattr(v, "to_dict") and hasattr(v, "columns"):
-                try:
-                    return v.to_dict("records")
-                except Exception:
-                    continue
-        return None
-    return None
