@@ -5,7 +5,10 @@ tick() 为一次完整判定（同步、可单测）；run_forever() 为常驻�
 """
 import time as time_module
 from datetime import datetime, time, timedelta
-from typing import Callable, Dict, List, Optional, Tuple
+import os
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeout
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import structlog
 
@@ -64,6 +67,18 @@ class WatchEngine:
         self.now_fn = now_fn
         self.escalation_checker = escalation_checker or EscalationChecker()
 
+        # 均量取数保护（2026-09-11，w-aebfddcd）：外部 K 线降级链离线时单 tick 实测 127s，
+        # tick 本该 60s 一次被拖成两分钟一次。策略：按日缓存 + 硬超时 + 失败熔断。
+        self._avg_volume_cache: Dict[str, float] = {}
+        self._avg_volume_fail: Dict[str, datetime] = {}
+        self._avg_volume_inflight: Dict[str, Any] = {}
+        self._avg_volume_cache_date = None
+        self._avg_volume_timeout_sec = float(os.getenv('WATCH_AVG_VOLUME_TIMEOUT_SEC', '1.0'))
+        self._avg_volume_fail_ttl_sec = float(os.getenv('WATCH_AVG_VOLUME_FAIL_TTL_SEC', '600'))
+        self._avg_volume_breaker_n = int(os.getenv('WATCH_AVG_VOLUME_BREAKER_N', '3'))
+        self._avg_volume_consec_fail = 0
+        self._avg_volume_blocked_until: Optional[datetime] = None
+        self._avg_volume_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix='avgvol')
         self._history: Dict[str, List[Tuple[datetime, float]]] = {}
         self._last_triggered: Dict[Tuple[int, int], datetime] = {}
         self._latched: set = set()
@@ -431,17 +446,59 @@ class WatchEngine:
         self._history[symbol] = [(t, p) for t, p in buf if t >= cutoff]
 
     def _get_avg_volume(self, symbol: str) -> Optional[float]:
+        """20 日均量（供 volume_surge 类条件）：按日缓存 + 硬超时 + 失败熔断
+
+        2026-09-11（w-aebfddcd）：该值走外部 K 线供应商降级链（baostock 60s 超时 → 腾讯 →
+        akshare），供应商离线时单次 tick 实测 127 秒，把 60 秒的 tick 拖成两分钟，
+        快档 10 秒形同虚设 —— 盯盘时效被外部源绑架。
+        现在：取不到就**快速放弃**（按"无均量"处理，相关条件当次跳过），绝不拖住 tick；
+        连续失败达阈值则整体熔断一段时间，避免每个标的都去撞同一堵墙。
+        """
         if self.avg_volume_provider is None:
             return None
-        if symbol not in self._avg_volume_cache:
-            try:
-                value = self.avg_volume_provider(symbol)
-                if value:
-                    self._avg_volume_cache[symbol] = value
-            except Exception as e:
-                logger.warning('均量获取失败', symbol=symbol, error=str(e))
-                return None
-        return self._avg_volume_cache.get(symbol)
+        now = self.now_fn()
+        if self._avg_volume_cache_date != now.date():
+            self._avg_volume_cache.clear()
+            self._avg_volume_fail.clear()
+            self._avg_volume_cache_date = now.date()
+        if self._avg_volume_blocked_until is not None and now < self._avg_volume_blocked_until:
+            return None
+        if symbol in self._avg_volume_cache:
+            return self._avg_volume_cache[symbol]
+        failed_at = self._avg_volume_fail.get(symbol)
+        if failed_at is not None and (now - failed_at).total_seconds() < self._avg_volume_fail_ttl_sec:
+            return None
+        fut = self._avg_volume_inflight.get(symbol)
+        if fut is None:
+            fut = self._avg_volume_pool.submit(self.avg_volume_provider, symbol)
+            self._avg_volume_inflight[symbol] = fut
+        try:
+            value = fut.result(timeout=self._avg_volume_timeout_sec)
+        except FuturesTimeout:
+            # 在途 future 保留：完成后再回收（下次命中即取到值），不每 tick 重新发起
+            self._note_avg_volume_failure(symbol, now, '超时 %.1fs' % self._avg_volume_timeout_sec)
+            return None
+        except Exception as e:  # noqa: BLE001 - 任何取数异常都不该影响 tick
+            self._avg_volume_inflight.pop(symbol, None)
+            self._note_avg_volume_failure(symbol, now, str(e))
+            return None
+        self._avg_volume_inflight.pop(symbol, None)
+        if value:
+            self._avg_volume_cache[symbol] = float(value)
+            self._avg_volume_consec_fail = 0
+            return self._avg_volume_cache[symbol]
+        self._note_avg_volume_failure(symbol, now, '空值')
+        return None
+
+    def _note_avg_volume_failure(self, symbol: str, now: datetime, why: str) -> None:
+        self._avg_volume_fail[symbol] = now
+        self._avg_volume_consec_fail += 1
+        if self._avg_volume_consec_fail >= self._avg_volume_breaker_n:
+            self._avg_volume_blocked_until = now + timedelta(seconds=self._avg_volume_fail_ttl_sec)
+            logger.warning('均量取数连续失败，熔断 %ds（期内按无均量处理）',
+                           symbol=symbol, reason=why, ttl=self._avg_volume_fail_ttl_sec)
+        else:
+            logger.warning('均量取数失败（按无均量处理）', symbol=symbol, reason=why)
 
     def _in_cooldown(self, rule_id: int, cond_idx: int, cond: dict, now: datetime) -> bool:
         last = self._last_triggered.get((rule_id, cond_idx))
