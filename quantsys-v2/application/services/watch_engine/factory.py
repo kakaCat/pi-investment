@@ -14,6 +14,7 @@ from application.services.agent_notification_service import AgentNotificationSer
 from application.services.realtime_quote_service_v2 import RealtimeQuoteServiceV2
 from application.services.watch_engine.engine import WatchEngine
 from application.services.watch_engine.notifier import WatchNotifier
+from application.services.watch_engine.digest_service import WatchDigestService
 from adapters.outbound.repositories.simulation_position_repository import SimulationPositionRepository
 
 logger = structlog.get_logger(__name__)
@@ -72,6 +73,25 @@ def create_watch_engine() -> WatchEngine:
         except Exception:
             return None
 
+    # 摘要门（REQ-f08def P2/P4）：唤醒走 AgentNotificationService → POST /wake（官方通道）。
+    #
+    # ⚠️ 默认关闭，必须显式 WATCH_DIGEST_ENABLED=true 才生效（2026-09-11 w-c8cae280）。
+    # 原因不是技术：摘要门一旦运行会真的唤醒 agent 去处置待处置触发，而这些触发里
+    # 含真实买卖预案（如 300750「下破333=挂单建仓≤10%」）→ 可能产生真实委托。
+    # 按 RFC 014 v3 §3.4（L3 交接态）：替用户决定下单是越权，故默认关，等明确授权。
+    import os as _os
+    if _os.getenv('WATCH_DIGEST_ENABLED', 'false').lower() == 'true':
+        digest_service = WatchDigestService(
+            trigger_repo=WatchTriggerRepository(),
+            rule_repo=WatchRuleRepository(),
+            agent_service=AgentNotificationService(),
+        )
+    else:
+        digest_service = None
+        import structlog as _structlog
+        _structlog.get_logger(__name__).info(
+            '摘要门未启用（WATCH_DIGEST_ENABLED != true）—— 触发照常落库归档，但不唤醒 agent')
+
     return WatchEngine(
         rule_repo=WatchRuleRepository(),
         quote_service=RealtimeQuoteServiceV2(),
@@ -79,6 +99,7 @@ def create_watch_engine() -> WatchEngine:
         avg_volume_provider=make_avg_volume_provider(),
         position_value_provider=position_value_provider,
         account_total_provider=account_total_provider,
+        digest_service=digest_service,
     )
 
 

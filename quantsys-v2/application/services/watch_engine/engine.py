@@ -50,7 +50,8 @@ class WatchEngine:
                  now_fn: Callable[[], datetime] = datetime.now,
                  escalation_checker: Optional[EscalationChecker] = None,
                  position_value_provider: Optional[Callable] = None,
-                 account_total_provider: Optional[Callable] = None):
+                 account_total_provider: Optional[Callable] = None,
+                 digest_service=None):
         self.rule_repo = rule_repo
         self.quote_service = quote_service
         self.notifier = notifier
@@ -76,6 +77,9 @@ class WatchEngine:
         # 增量门（同标的同议题 4h 冷却）：key=(归一化标的,意图) -> 最近介入时间
         self._last_intervention: Dict[Tuple[str, str], datetime] = {}
         self._interventions_today: int = 0
+        # 摘要门（REQ-f08def P2/P4）：何时唤醒 agent 的判据由本服务负责，
+        # 挂在引擎 loop 里——引擎本就是盯盘唯一宿主，无需外部定时器/脚本。
+        self.digest_service = digest_service
         self._avg_volume_cache: Dict[str, float] = {}
         self._state_date = None
         self.fast_mode = False
@@ -111,6 +115,12 @@ class WatchEngine:
                         close_session()
                     except Exception:
                         pass
+                # 摘要门：队列非空 + 冷却窗 + 当日预算（状态落库，重启不清零）
+                try:
+                    if self.digest_service is not None:
+                        self.digest_service.maybe_wake(now)
+                except Exception as e:
+                    logger.error('摘要门异常', error=str(e))
                 interval = self.fast_interval if self.fast_mode else self.base_interval
             else:
                 interval = 60  # 非交易时段低频心跳

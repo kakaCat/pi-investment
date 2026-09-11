@@ -237,81 +237,24 @@ def update_trigger_disposition(trigger_id: int,
 
 @router.get('/api/watch/triggers/digest')
 def trigger_digest(since: Optional[str] = Query(None), limit: Optional[str] = Query(None)):
-    """待处置摘要（REQ-f08def Phase 2）—— agent 摘要式批量唤醒的载荷。
+    """待处置摘要（REQ-f08def）—— agent 摘要式批量唤醒的载荷。
 
-    设计要点（RFC 014 §4.5 / §6）：
-    1) **gate=false 时调用方必须直接退出，不唤醒 agent** —— 这是"唤醒次数与触发数解耦"的关键：
-       队列空则零 LLM；队列非空则不论多少条都只唤醒一次。
-    2) 载荷里带 `text`（紧凑文本）：唤醒提示词可直接内嵌，agent 无需再发工具调用取数（省 token）。
-    3) 按标的聚合：一次跌穿常产生同标的多条触发，聚合后 agent 按"标的"而不是按"触发"决策。
+    2026-09-11 重构：构建逻辑下沉到 WatchDigestService，与「引擎内置唤醒门」共用同一份实现。
+    原实现与本路由并存会产生两处口径——摘要门改了聚合方式，路由就会不一致。
     """
-    from application.services.watch_engine.disposition import UNRESOLVED
-    trigger_repo = WatchTriggerRepository()
-    rule_repo = WatchRuleRepository()
-    rows = trigger_repo.list_triggers(dispositions=UNRESOLVED, limit=_limit_of(limit, 200))
+    from application.services.watch_engine.digest_service import WatchDigestService
+    since_dt = None
     if since:
         try:
             since_dt = datetime.fromisoformat(since)
-            rows = [t for t in rows if t.triggered_at and t.triggered_at >= since_dt]
         except ValueError:
             return _err('since 需为 ISO 时间，如 2026-09-11T13:00:00', 400)
-
-    rules = {r.id: r for r in rule_repo.list_rules()}
-    groups: Dict[str, Dict[str, Any]] = {}
-    for t in rows:
-        sym = str(t.symbol).split('.')[0]
-        g = groups.setdefault(sym, {'symbol': sym, 'count': 0, 'items': [], 'dispositions': {}})
-        g['count'] += 1
-        g['dispositions'][t.disposition] = g['dispositions'].get(t.disposition, 0) + 1
-        rule = rules.get(t.rule_id)
-        cond = t.condition or {}
-        params = cond.get('params') or {}
-        hint = (getattr(rule, 'action_hint', None) or {}) if rule is not None else {}
-        ctx = (getattr(rule, 'context', None) or '') if rule is not None else ''
-        g['items'].append({
-            'trigger_id': t.id,
-            'rule_id': t.rule_id,
-            'disposition': t.disposition,
-            'trigger_price': float(t.trigger_price) if t.trigger_price is not None else None,
-            'triggered_at': t.triggered_at.isoformat() if t.triggered_at else None,
-            'condition': f"{cond.get('type')} {params.get('direction', '')} {params.get('price', params.get('pct', ''))}".strip(),
-            'trigger_level': hint.get('trigger_level'),
-            'suggested_action': hint.get('action_on_trigger'),
-            # REQ-f08def P1：意图与阶段——agent 拿到触发就知道该回答什么问题
-            'intent': getattr(rule, 'intent', None),
-            'lifecycle_stage': getattr(rule, 'lifecycle_stage', None),
-            'next_action_hint': getattr(rule, 'next_action_hint', None),
-            'plan': ctx[:160],
-            'reason': (t.disposition_reason or '')[:120],
-        })
-
-    # 紧凑文本：唤醒提示词直接内嵌，省一次工具调用
-    lines = []
-    for sym, g in sorted(groups.items(), key=lambda kv: kv[1]['count'], reverse=True):
-        first = min((i['triggered_at'] or '') for i in g['items'])
-        disp = '/'.join(f'{k}×{v}' for k, v in sorted(g['dispositions'].items()))
-        lines.append(f"[{sym}] {g['count']}条（{disp}）首发 {first[11:19] if first else '-'}")
-        for it in g['items'][:4]:
-            lvl = it['trigger_level'] or 'L1'
-            act = it['suggested_action'] or '-'
-            lines.append(f"  - #{it['trigger_id']} 规则{it['rule_id']} {lvl}/{act} "
-                         f"{it['condition']} 现价{it['trigger_price']}"
-                         + (f" | 预案：{it['plan']}" if it['plan'] else ''))
-        if g['count'] > 4:
-            lines.append(f"  … 另有 {g['count'] - 4} 条同标的触发")
-
-    by_disposition: Dict[str, int] = {}
-    for t in rows:
-        by_disposition[t.disposition] = by_disposition.get(t.disposition, 0) + 1
-
-    return {'success': True, 'data': {
-        'gate': len(rows) > 0,
-        'count': len(rows),
-        'by_disposition': by_disposition,
-        'group_count': len(groups),
-        'groups': list(groups.values()),
-        'text': chr(10).join(lines),
-    }}
+    svc = WatchDigestService(
+        trigger_repo=WatchTriggerRepository(),
+        rule_repo=WatchRuleRepository(),
+        limit=_limit_of(limit, 200),
+    )
+    return {'success': True, 'data': svc.build_digest(since=since_dt)}
 
 
 @router.post('/api/watch/rules/batch')
