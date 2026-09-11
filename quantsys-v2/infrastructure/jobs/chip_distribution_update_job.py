@@ -1,7 +1,7 @@
 """
 筹码分布增量更新 Job — 全市场每日增量
 
-调度配置（quant.scheduler_task_configs，见 011_seed_chip_distribution_job.sql）：
+调度配置（quant.scheduler_tasks，旧表 scheduler_task_configs 已于 2026-09-11 删除/归档）：
     task_name: chip_distribution_update
     command:   infrastructure.jobs.chip_distribution_update_job.execute
     cron:      30 18 * * 0-4（kline_update 17:40 之后）

@@ -20,7 +20,7 @@
 - debt_ratio：东财 yjbb 接口无此列 → 不更新、保留现值（避免用 NULL 覆盖真实值）。
 - pe/pb/market_cap：属估值/市值列，非本任务范围，不动。
 
-调度配置（quant.scheduler_task_configs）：
+调度配置（quant.scheduler_tasks，旧表 scheduler_task_configs 已于 2026-09-11 删除/归档）：
     task_name: financial_data_update
     command:   infrastructure.jobs.financial_data_update_job.execute
 

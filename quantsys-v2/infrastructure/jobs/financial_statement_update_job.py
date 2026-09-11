@@ -4,7 +4,7 @@
 数据源：FinancialDataService provider 链（eastmoney_direct → sina_web → akshare → sina）
 落库：quant.income_statements（period_type: 12-31=Y，其余=Q）
 
-调度配置（quant.scheduler_task_configs）：
+调度配置（quant.scheduler_tasks，旧表 scheduler_task_configs 已于 2026-09-11 删除/归档）：
     task_name: financial_statement_update
     command:   infrastructure.jobs.financial_statement_update_job.execute
     cron:      0 20 * * 6（每周六 20:00）

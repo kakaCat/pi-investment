@@ -4,7 +4,7 @@
 数据源：东方财富 push2 clist 全市场分页扫描（约 60 页请求覆盖全部 A 股）
 落库：quant.stock_fund_flow（单位：万元）
 
-调度配置（quant.scheduler_task_configs）：
+调度配置（quant.scheduler_tasks，旧表 scheduler_task_configs 已于 2026-09-11 删除/归档）：
     task_name: fund_flow_update
     command:   infrastructure.jobs.fund_flow_update_job.execute
     cron:      30 15 * * 1-5（交易日收盘后）
