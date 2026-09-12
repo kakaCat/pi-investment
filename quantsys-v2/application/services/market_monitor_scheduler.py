@@ -9,6 +9,10 @@ import os
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
+from typing import Optional
+
+from domain.trading.models.market_session import SessionPhase
+from domain.trading.services.market_session_policy import MarketSessionPolicy
 
 logger = structlog.get_logger(__name__)
 
@@ -83,11 +87,19 @@ class MarketMonitorScheduler:
         except Exception as e:
             logger.error(f"市场监控任务失败: {e}", exc_info=True)
 
-    def _is_silent_time(self) -> bool:
-        """检查是否在静默时段（11:30-13:00 午休）"""
-        now = datetime.now()
-        hour_float = now.hour + now.minute / 60.0
-        return 11.5 <= hour_float < 13
+    def _is_silent_time(self, now: Optional[datetime] = None) -> bool:
+        """检查是否在静默时段（午休 11:30–13:00）
+
+        RFC 016 §8.1：午休口径**唯一**在 `MarketSessionPolicy`（`LUNCH_BREAK`；
+        端点闭合规则把 11:30 归 MORNING）。与原实现 `11.5 <= hour + minute/60 < 13`
+        相比，**唯一有意差异在 11:30 整分钟**：原判静默、现判盘中（按 RFC 端点闭合口径），
+        其余时刻一致。`now` 可注入以便单测（原实现内部取 `datetime.now()`，无法钉住时刻）。
+        """
+        at = now or datetime.now()
+        return (
+            MarketSessionPolicy.phase_for(at.time(), is_trading_day=True)
+            is SessionPhase.LUNCH_BREAK
+        )
 
     def _get_index_change(self, symbol: str) -> float:
         """获取指数涨跌幅

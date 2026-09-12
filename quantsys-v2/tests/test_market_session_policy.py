@@ -252,3 +252,21 @@ def test_intraday_gates_agree_at_sub_minute_endpoints():
     lunch = datetime(2026, 9, 11, 12, 0)
     assert _in_intraday_window(lunch) is False
     assert monitor._is_trading_time(lunch.time()) is False
+
+
+def test_market_monitor_silent_time_converges_to_same_lunch_break():
+    """市场监控的「静默时段」必须与策略的 `LUNCH_BREAK` 同源（第 7 份午休副本收敛）。
+
+    边界：13:00 止；**11:30 整分钟不算静默**（端点闭合规则把它归 MORNING）——
+    这是与原实现 `11.5 <= h+m/60 < 13` 唯一的有意差异（原从 11:30 起即静默）。
+    """
+    from application.services.market_monitor_scheduler import MarketMonitorScheduler
+
+    sched = object.__new__(MarketMonitorScheduler)  # 绕过 BackgroundScheduler 构造
+    assert sched._is_silent_time(datetime(2026, 9, 11, 11, 30)) is False   # 端点闭合 → 仍算盘中
+    assert sched._is_silent_time(datetime(2026, 9, 11, 11, 31)) is True
+    assert sched._is_silent_time(datetime(2026, 9, 11, 12, 0)) is True
+    assert sched._is_silent_time(datetime(2026, 9, 11, 12, 59, 59)) is True
+    assert sched._is_silent_time(datetime(2026, 9, 11, 13, 0)) is False
+    assert sched._is_silent_time(datetime(2026, 9, 11, 9, 30)) is False
+    assert sched._is_silent_time(datetime(2026, 9, 11, 15, 0)) is False
