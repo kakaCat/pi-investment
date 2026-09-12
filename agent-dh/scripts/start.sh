@@ -178,6 +178,25 @@ _link_dir() {  # $1=目标路径  $2=源路径  $3=说明
   ln -s "$src" "$dst"
 }
 
+# 单文件版的非破坏性链接。文件不存在则跳过（不建悬空链接）；已是同处符号链接则跳过；
+# 已是有内容的真实文件则**拒绝替换**并告警（与 _link_dir 同一策略，防静默丢数据）。
+_link_file() {  # $1=目标路径  $2=源路径  $3=说明
+  local dst="$1" src="$2" label="$3"
+  [ -e "$src" ] || return 0
+  if [ -L "$dst" ]; then
+    [ "$(readlink "$dst")" = "$src" ] || \
+      echo "  警告: $label 已是指向 $(readlink "$dst") 的符号链接（预期 $src），保持不变" >&2
+    return 0
+  fi
+  if [ -e "$dst" ] && [ -s "$dst" ]; then
+    echo "  警告: $label 是含内容的真实文件，拒绝替换为符号链接。" >&2
+    echo "        如确要迁到项目数据目录，请先人工归档：mv <dst> <dst>.bak-<时间戳> 后再启动。" >&2
+    return 0
+  fi
+  rm -f "$dst"
+  ln -s "$src" "$dst"
+}
+
 if [ "$MANAGED_HOME" = "1" ]; then
   echo "运行模式: 项目内托管（DSH_HOME=$DSH_HOME profile=$DSH_PROFILE）"
   mkdir -p "$DSH_DATA_DIR/data"
@@ -203,6 +222,17 @@ if [ "$MANAGED_HOME" = "1" ]; then
   mkdir -p "$DSH_DATA_DIR/sessions" "$DSH_DATA_DIR/storages"
   _link_dir "$DSH_HOME/sessions" "$DSH_DATA_DIR/sessions" "sessions"
   _link_dir "$DSH_HOME/storages" "$DSH_DATA_DIR/storages" "storages"
+
+  # DSH_HOME 顶层其余状态项：插件与框架按 `$DSH_HOME/<名字>` 取数，不挂 = 实例读到空数据。
+  #   dsh-reqboard.json —— dsh-pmboard 的台账（LEDGER_FILE，按 DSH_HOME 解析）
+  #   skills/ · attachments/ —— skill 根与附件对象库
+  #   pet.json —— 实例图标状态
+  # （2026-09-13 立：DSH_HOME 迁入项目内时只挂了 sessions/storages，
+  #   导致 pmboard 台账在运行实例里消失——数据在 .dsh-data 里，实例却看不见。）
+  _link_file "$DSH_HOME/dsh-reqboard.json" "$DSH_DATA_DIR/dsh-reqboard.json" "dsh-reqboard.json"
+  _link_file "$DSH_HOME/pet.json"          "$DSH_DATA_DIR/pet.json"          "pet.json"
+  _link_dir  "$DSH_HOME/skills"            "$DSH_DATA_DIR/skills"            "skills"
+  _link_dir  "$DSH_HOME/attachments"       "$DSH_DATA_DIR/attachments"       "attachments"
 else
   echo "运行模式: 外部 DSH_HOME（只启动，不生成 profile 脚手架）: $DSH_HOME"
 fi
