@@ -14,7 +14,6 @@ export interface DecisionScoresParams {
 }
 
 export const decisionScoresPrompt: ToolPrompt<DecisionScoresParams> = {
-  name: 'decision_scores',
   description: '查询决策评分与教训（只读，M6↔L2 决策回流边的消费端）：拉取已完成评分的决策（含 20 交易日超额收益 band/score/excessReturn 与 learnedLesson），输出 band 分布、平均/最差/最好超额、教训覆盖率与明细。适用于：①盘前/盘后决策前必读（R-008 扩展：先看自己过去同类决策跑赢还是跑输基准）②复盘"为什么我的买入是负期望"③检查回流边是否断链（learnedLesson 覆盖率=0 即断）。',
 
   parameters: {
@@ -48,40 +47,40 @@ export const decisionScoresPrompt: ToolPrompt<DecisionScoresParams> = {
 
   output: {
     schema: {
-      type: 'object', additionalProperties: true,
+      type: 'object',
+      additionalProperties: true,
       properties: {
         total: { type: 'integer', description: '评分记录总数' },
         matched: { type: 'integer', description: '过滤后条数' },
         summary: { type: 'object', additionalProperties: true, description: 'band 分布 / 平均超额 / 最差最好 / 教训覆盖率' },
         items: { type: 'array', description: '决策评分明细（含 learnedLesson）' },
       },
-      additionalProperties: true,
     },
     render: (_args: DecisionScoresParams, value: any) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
   },
 
   examples: [
     {
-      scenario: '盘前必读：我过去的买入决策跑赢基准了吗',
+      title: '盘前必读：我过去的买入决策跑赢基准了吗',
       params: { action: 'buy' },
-      expectedBehavior: '返回买入类决策的 band 分布与平均超额；big_loss 占比高说明该方法负期望',
+      expectedResult: '返回买入类决策的 band 分布与平均超额；big_loss 占比高说明该方法负期望',
     },
     {
-      scenario: '查最差的几笔决策及其教训',
+      title: '查最差的几笔决策及其教训',
       params: { band: 'big_loss', limit: 10 },
-      expectedBehavior: '返回大幅跑输基准的决策明细与已沉淀教训（learnedLesson）',
+      expectedResult: '返回大幅跑输基准的决策明细与已沉淀教训（learnedLesson）',
     },
     {
-      scenario: '检查回流边是否断链',
+      title: '检查回流边是否断链',
       params: {},
-      expectedBehavior: 'summary.lessonCoverage.rate = 0 表示评分已产出但教训未回填（L2 断链）',
+      expectedResult: 'summary.lessonCoverage.rate = 0 表示评分已产出但教训未回填（L2 断链）',
     },
   ],
 
   useCases: [
-    { title: '决策前必读（R-008 扩展）', description: '下单/分析前先看同类决策的历史超额，避免重复负期望操作', example: 'action=buy + symbol=XXX' },
-    { title: '回流边健康检查', description: '教训覆盖率为 0 或大量记录缺 learnedLesson → 上报 L2 断链', example: '不带参数调一次看 summary' },
-    { title: '负期望归因输入', description: '为"选股/择时/执行"三层归因提供量化底稿', example: 'band=big_loss 明细逐条看 context.regime/signal_source' },
+    '决策前必读（R-008 扩展）：下单/分析前先看同类决策的历史超额，避免重复负期望操作（action=buy + symbol=XXX）',
+    '回流边健康检查：教训覆盖率为 0 或大量记录缺 learnedLesson → 上报 L2 断链（不带参数调一次看 summary）',
+    '负期望归因输入：为"选股/择时/执行"三层归因提供量化底稿（band=big_loss 明细逐条看 context.regime/signal_source）',
   ],
 
   notes: [
@@ -92,9 +91,9 @@ export const decisionScoresPrompt: ToolPrompt<DecisionScoresParams> = {
   ],
 
   relatedTools: [
-    { name: 'decision_history', relationship: '决策时间线/待评估', useCase: '看推理原文与评估状态' },
-    { name: 'decision_audit', relationship: '记录与触发评估', useCase: '有积压时用 evaluate 关闭' },
-    { name: 'signal_track', relationship: '信号侧表现', useCase: '信号胜率 vs 决策评分互补' },
+    'decision_history：看决策推理原文与评估状态（时间线/待评估）',
+    'decision_audit：记录决策并触发评估；有 pending 积压时用 evaluate 关闭',
+    'signal_track：信号侧胜率，与决策评分互补（信号=入场点，评分=事后对错）',
   ],
 };
 
