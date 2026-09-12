@@ -99,6 +99,12 @@ const TASK_ZH: Record<string, string> = {
   fund_flow_update: '资金流数据更新', chan_knowledge_distill_weekly: '知识蒸馏(周)',
   'chan-knowledge-distill-weekly': '知识蒸馏(周)',
   '每日数据更新': '每日数据更新', '每日数据质量检查': '每日数据质量检查', '每周财务数据更新': '每周财务数据更新',
+  '每周策略发现': '每周策略发现', '每日模型重训': '每日模型重训',
+  // 显示名补齐（2026-09-13）：此前这 8 个在看板里显示英文原名
+  'attribution-daily': '业绩归因(M6)', 'minute_kline_sync': '分钟线同步',
+  'industry_chain_refresh': '产业链刷新', 'ingest_events_daily': '事件入库(每日)',
+  'ingest_events_policy': '事件入库(政策)', 'session-probe': '会话探针',
+  'intraday-surge-scan-am': '盘中异动扫描(上午)', 'intraday-surge-scan-pm': '盘中异动扫描(下午)',
   '每日财报时效性检查': '每日财报时效性检查', '每日信号生成': '每日信号生成', '每日信号执行': '每日信号执行', '每周报告生成': '每周报告生成',
   // Agent OS 调 agent 的自主例程（src=os / agentCall=dh）
   'pre-market-routine': '盘前例程', 'afternoon-open-check-live': '午后开盘检查', 'data-quality-monitor-daily': '数据质量监控',

@@ -54,6 +54,8 @@ const ENGINE_KEYS = new Set<string>([
 const AUTONOMY_KEYS = new Set<string>([
   'daily-strategy-validation', 'daily_strategy_validation', 'v13-verification', 'v13_verification',
   'weekly-strategy-discovery', 'weekly_strategy_discovery',
+  // 2026-09-13 实体改中文名（用户要求）；旧名保留兼容历史记录
+  '每周策略发现',
   'chan-knowledge-distill-weekly', 'chan_knowledge_distill_weekly',
   'v13-weekly-report', 'v13_weekly_report', '每周报告生成',
   'evolution-distill-daily', 'evolution-gate-adjudicate', 'evolution-weekly-variant',

@@ -236,7 +236,8 @@ async def handle_strategy_discover_weekly(metadata: Dict[str, Any]) -> Dict[str,
     """Execute weekly strategy discovery task.
 
     Original: SchedulerService._handle_strategy_discover_weekly
-    Schedule: 每周日
+    Schedule: 每周六 02:00（口径以 quant.scheduler_tasks.cron_expression='0 2 * * 6' 为准；
+    原注释写"每周日"与标准 cron 语义不符，2026-09-13 w-c8cae280 按配置口径更正）
     """
     logger.info("Starting strategy_discover_weekly job")
     from infrastructure.scheduler.scheduler import SchedulerService
