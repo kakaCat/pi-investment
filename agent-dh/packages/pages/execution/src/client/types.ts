@@ -98,7 +98,8 @@ export interface BoardData {
     fieldTagged?: number
     fieldMissing?: number
     unclassified?: string[]
-    os?: { apiTotal?: number; included?: number; excluded?: number; byReason?: Record<string, number> }
+    os?: { apiTotal?: number; included?: number; excluded?: number; byReason?: Record<string, number>; lineTagged?: number }
+    v2?: { total?: number; domainTagged?: number; domainMissing?: number; domainByValue?: Record<string, number>; missingNames?: string[] }
   }
   errors?: ErrorEvent[]
   timeline?: TimelineEntry[]

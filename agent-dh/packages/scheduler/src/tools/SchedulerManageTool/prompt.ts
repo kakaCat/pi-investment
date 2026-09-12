@@ -55,13 +55,24 @@ export function taskKind(task: any): string {
   return '—';
 }
 
+/** 业务线别标签（渲染用，2026-09-12 接口暴露后新增）：取库中 agent_line 字段 */
+export function lineTag(task: any): string {
+  if (!task) return '—';
+  const v = String(task.agent_line ?? '').trim();
+  if (v === 'profit_engine') return '盈利引擎';
+  if (v === 'autonomy') return 'Autonomy';
+  if (v === 'account') return '账户';
+  if (v === 'other') return '其它';
+  return v || '—';
+}
+
 export const schedulerManagePrompt: ToolPrompt<SchedulerManageParams, SchedulerManageResult> = {
   description:
     '管理 Agent OS 定时任务（调度器）。支持：列出全部任务(list)、注册新任务(create)、查看任务详情(get)、更新任务(update)、立即触发一次(trigger)、启用(enable)、禁用(disable)、删除(delete)。' +
     '适用于：查看当前有哪些自动任务、新增每日盘前扫描、临时暂停某个任务、手动触发一次补跑。' +
     '⚠️ Agent 定时任务（webhook 驱动，本实例 13080/agent-os-trigger）的完整指令存在 payload.prompt：' +
     '改任务要干的事 = action=update + task_id + payload={"prompt":"<新指令>"}；改造 webhook 地址用 webhook_url。' +
-    'list 会标出任务类型（Agent任务/Webhook/内部/脚本）。',
+    'list 会标出任务类型（Agent任务/Webhook/内部/脚本）与业务线别（agent_line 字段：盈利引擎/Autonomy/账户/其它）。',
 
   useCases: [
     '查看当前所有定时任务',
@@ -186,14 +197,14 @@ export const schedulerManagePrompt: ToolPrompt<SchedulerManageParams, SchedulerM
           output += `## 📋 定时任务列表\n\n`;
           output += `**任务总数**: ${data.count || 0}\n\n`;
           if (data.tasks && data.tasks.length > 0) {
-            output += `| 任务ID | 名称 | 类型 | Cron | 状态 |\n`;
-            output += `|--------|------|------|------|------|\n`;
+            output += `| 任务ID | 名称 | 类型 | 线别 | Cron | 状态 |\n`;
+            output += `|--------|------|------|------|------|------|\n`;
             for (const task of data.tasks) {
               const status = task.enabled ? '✅ 启用' : '⏸️ 禁用';
               const kind = taskKind(task);
               const name = task.name || task.id;
               const cron = task.cron || task.schedule || '';
-              output += `| ${task.id} | ${name} | ${kind} | ${cron} | ${status} |\n`;
+              output += `| ${task.id} | ${name} | ${kind} | ${lineTag(task)} | ${cron} | ${status} |\n`;
             }
           } else {
             output += `*暂无定时任务*\n`;

@@ -304,12 +304,22 @@ function coverageNote(data: BoardData): string {
   const c = data.taskCoverage
   if (!c) return ''
   const parts: string[] = []
-  const total = c.total ?? 0
-  const fm = c.fieldMissing ?? 0
-  if (total > 0 && fm >= total) {
-    parts.push('分类字段未在接口暴露（库中已有 agent_line / domain，需接通 API）→ 当前按任务名名单兜底')
-  } else if (fm > 0) {
-    parts.push('有 ' + fm + ' / ' + total + ' 个任务未带分类字段，已回退名单')
+  // OS 侧：line 字段（agent_line）接通情况——接口 2026-09-12 起暴露，页面以库中字段为准
+  const osCov = c.os
+  const inc = osCov?.included ?? 0
+  if (inc > 0) {
+    const tagged = osCov?.lineTagged ?? 0
+    parts.push(tagged >= inc
+      ? 'OS 侧 ' + inc + ' 个任务均带 agent_line 字段（分类以库中字段为准）'
+      : 'OS 侧 ' + tagged + '/' + inc + ' 个任务带 agent_line 字段，其余按任务名名单兜底')
+  }
+  // v2 侧：domain 是六域，与业务线正交，只作「是否已打标」对账，不能说成「缺分类字段」
+  const v2c = c.v2
+  if (v2c && (v2c.total ?? 0) > 0) {
+    const miss = v2c.domainMissing ?? 0
+    const names = v2c.missingNames ?? []
+    parts.push('v2 侧 domain（六域，与业务线正交）已打标 ' + (v2c.domainTagged ?? 0) + '/' + (v2c.total ?? 0)
+      + (miss > 0 ? '，缺 ' + miss + '：' + names.slice(0, 3).join('、') + (names.length > 3 ? ' 等' : '') : ''))
   }
   const un = c.unclassified ?? []
   if (un.length > 0) {

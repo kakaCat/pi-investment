@@ -80,6 +80,37 @@ describe('对账 computeTaskCoverage', () => {
     expect(c.byLine.engine).toBe(1);
   });
 
+  it('v2 侧 domain 单独对账（六域与业务线正交，不计入 line 字段）', () => {
+    const mixed = [
+      { name: '每日数据更新', src: 'v2', domain: 'data' },
+      { name: 'session-probe', src: 'v2', domain: null },
+      { name: 'pre-market-routine', src: 'os', agentLine: 'profit_engine' },
+    ] as any[];
+    const c = computeTaskCoverage(mixed);
+    expect(c.v2).toBeDefined();
+    expect(c.v2!.total).toBe(2);
+    expect(c.v2!.domainTagged).toBe(1);
+    expect(c.v2!.domainMissing).toBe(1);
+    expect(c.v2!.domainByValue).toEqual({ data: 1 });
+    expect(c.v2!.missingNames).toEqual(['session-probe']);
+    // line 字段只认 OS 侧：v2 任务不因带 domain 而被算成 fieldTagged
+    expect(c.fieldTagged).toBe(1);
+    expect(c.fieldMissing).toBe(2);
+  });
+
+  it('OS 侧 lineTagged 统计库中字段覆盖率（接口暴露后应等于并入数）', () => {
+    const c = computeTaskCoverage(
+      [
+        { name: 'agent-brain-daily-review', src: 'os', agentLine: 'account' },
+        { name: 'x', src: 'os', agentLine: null },
+      ] as any[],
+      { apiTotal: 3, included: 2, excluded: 1, byReason: { no_webhook: 1 } },
+    );
+    expect(c.os!.lineTagged).toBe(1);
+    expect(c.os!.apiTotal).toBe(3);
+    expect(c.v2).toBeUndefined();
+  });
+
   it('OS 侧对账（接口总数/并入数/排除原因）原样透传，供页面披露"少了哪些、为什么"', () => {
     const c = computeTaskCoverage(tasks, {
       apiTotal: 27, included: 20, excluded: 7,

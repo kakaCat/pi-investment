@@ -115,23 +115,45 @@ export interface TaskCoverage {
   fieldMissing: number;
   /** 名单与字段都认不出、需补录的任务名 */
   unclassified: string[];
-  /** OS 侧对账（若上游提供）：接口返回总数 / 实际并入数 / 被排除数 */
-  os?: { apiTotal: number; included: number; excluded: number; byReason: Record<string, number> };
+  /** OS 侧对账（若上游提供）：接口返回总数 / 实际并入数 / 被排除数 / 其中带 line 字段数 */
+  os?: { apiTotal: number; included: number; excluded: number; byReason: Record<string, number>; lineTagged?: number };
+  /** v2 侧对账（2026-09-12 接口接通后新增）：domain 是六域，与业务线正交，只作「是否已打标」信号，不计入 line 字段 */
+  v2?: { total: number; domainTagged: number; domainMissing: number; domainByValue: Record<string, number>; missingNames: string[] };
 }
 
 /** 对账：把"分类字段是否打通 / 有无未归类"变成可读指标，供页面显式展示 */
 export function computeTaskCoverage(
-  tasks: Array<{ name?: unknown; agentLine?: unknown }>,
+  tasks: Array<{ name?: unknown; agentLine?: unknown; domain?: unknown; src?: unknown }>,
   os?: TaskCoverage['os'],
 ): TaskCoverage {
   const byLine: Record<string, number> = { engine: 0, autonomy: 0, account: 0, other: 0 };
-  let fieldTagged = 0, fieldMissing = 0;
+  let fieldTagged = 0, fieldMissing = 0, osLineTagged = 0;
   const unclassified: string[] = [];
+  // v2 侧单独对账：domain 与业务线正交，不能拿来当 line，只能证明「这条 v2 任务已打标」
+  let v2Total = 0, domainTagged = 0;
+  const domainByValue: Record<string, number> = {};
+  const missingNames: string[] = [];
   for (const t of tasks ?? []) {
     const c = classifyTask(t);
     byLine[c.line] = (byLine[c.line] ?? 0) + 1;
     if (c.source === 'field') fieldTagged += 1; else fieldMissing += 1;
     if (c.unclassified) unclassified.push(String(t?.name ?? ''));
+    const src = t?.src;
+    if (src === 'os') {
+      if (String(t?.agentLine ?? '').trim()) osLineTagged += 1;
+    } else if (src === 'v2') {
+      v2Total += 1;
+      const d = String(t?.domain ?? '').trim();
+      if (d) { domainTagged += 1; domainByValue[d] = (domainByValue[d] ?? 0) + 1; }
+      else missingNames.push(String(t?.name ?? ''));
+    }
   }
-  return { total: (tasks ?? []).length, byLine, fieldTagged, fieldMissing, unclassified, os };
+  const v2 = v2Total > 0
+    ? { total: v2Total, domainTagged, domainMissing: v2Total - domainTagged, domainByValue, missingNames }
+    : undefined;
+  return {
+    total: (tasks ?? []).length, byLine, fieldTagged, fieldMissing, unclassified,
+    os: os ? { ...os, lineTagged: osLineTagged } : undefined,
+    v2,
+  };
 }
