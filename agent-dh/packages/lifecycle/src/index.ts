@@ -10,6 +10,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent';
 import { assembleContextFor } from '@deepseek-ai/dsh-agent';
 import { renderPrompt } from '@deepseek-ai/dsh-system-prompt';
 import { AgentOSClient } from '@pi-investment/agent-os-client';
+import { buildDeliveryReceipt } from './deliveryReceipt';
 import { GitRepo } from './git.js';
 import { PendingResume, RestartResult, StateStore } from './state.js';
 import { NativeReminderScheduler, type NativeTask } from './native-scheduler.js';
@@ -304,16 +305,16 @@ v2_event_json: ${JSON.stringify(data)}
     const myWindow = onlineRoot ? this.windowCode(String(onlineRoot.id)) : this.windowCode(this.identity.id);
     await this.osWrite('memory_write', {
       title: `reminder ${taskName} delivered`,
-      content: JSON.stringify({
+      // 2026-09-12 修复（w-adb088f2）：不再写 prompt 全文——任务文本会污染记忆检索
+      // （R-008 决策前检索拿到任务信封而非知识）。回执只留可溯标识 + 摘要。
+      content: JSON.stringify(buildDeliveryReceipt({
         task: taskName,
         task_id: taskId,
         prompt,
         window,
         fired_at: firedAt,
-        delivered: true,
-        delivered_at: new Date().toISOString(),
         executor,
-      }),
+      })),
       namespace: 'data',
       tags: ['office:delivered', 'office:reminder:exec', `office:reminder:${myWindow}`],
     });
@@ -386,12 +387,15 @@ v2_event_json: ${JSON.stringify(data)}
           // ③ 执行留痕（含完整提示词，可溯）
           await this.osWrite('memory_write', {
             title: `reminder ${p.task ?? ''} delivered`,
-            content: JSON.stringify({
-              ...p,  // 含完整 prompt（提示词持久化）
-              delivered: true,
-              delivered_at: new Date().toISOString(),
+            // 2026-09-12 修复（w-adb088f2）：同上——回执不落 prompt 全文
+            content: JSON.stringify(buildDeliveryReceipt({
+              task: p.task,
+              task_id: p.task_id,
+              prompt: p.prompt,
+              window: p.window,
+              fired_at: p.fired_at,
               executor,
-            }),
+            })),
             namespace: 'data',
             tags: ['office:delivered', 'office:reminder:exec', `office:reminder:${myWindow}`],
           });
