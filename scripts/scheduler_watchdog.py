@@ -48,8 +48,26 @@ ZOMBIE_MINUTES = int(os.environ.get("WATCHDOG_ZOMBIE_MINUTES", "60"))
 MATCH_TOLERANCE_MIN = 5          # 期望时刻 ±5min 内的实际 run 视为命中
 MIN_MISSED_AGE_MIN = 20          # 期望时刻须早于 now-20min 才算"错过"（防边界误报）
 
-# 自动补跑开关：本期默认关（只告警+建议命令）。True 时对 auto_rerun 任务调 trigger API。
+# 自动补跑总开关：True 时才真正调 trigger API（默认 false=只告警）。
+# 开关打开后，是否补跑仍由**业务规则**逐条判定（见 catchup_decision）。
 AUTO_RERUN_ENABLED = os.environ.get("WATCHDOG_AUTO_RERUN", "false").lower() == "true"
+
+# ---------------------------------------------------------------- 补跑业务规则（2026-09-13 w-c8cae280）
+# 判定顺序：一次性任务 → 授权位 → 已被后续成功运行覆盖 → 次数上限 → 补跑窗口
+#          → 最早补跑时刻 → 交易时段。任一不过即不补，并把原因写进告警/留痕。
+CATCHUP_WINDOW_HOURS = float(os.environ.get("WATCHDOG_CATCHUP_WINDOW_HOURS", "12"))
+CATCHUP_DEFAULT_CHECK_AFTER = os.environ.get("WATCHDOG_CATCHUP_CHECK_AFTER", "08:00")
+CATCHUP_REASON_ZH = {
+    "no_rule": "无补跑规则",
+    "one_off": "一次性任务不补跑",
+    "policy_alert_only": "未授权自动补跑（v2: compensation_enabled / OS: metadata.watchdog=auto_rerun）",
+    "superseded": "槽位之后已有成功运行，补跑会重复",
+    "max_attempts": "已达最大补跑次数",
+    "window_exceeded": "超出补跑窗口",
+    "before_check_after": "未到最早补跑时刻（下一轮会再判）",
+    "outside_market_hours": "非 A 股交易时段",
+    "eligible": "可补跑",
+}
 
 CST = timezone(timedelta(hours=8))
 SIGNATURE = "—— scheduler-watchdog"
@@ -209,7 +227,8 @@ def scan_v2(conn, now_utc, since_utc):
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
             "SELECT id, name, cron_expression, command, compensation_enabled, last_run_at, "
-            "misfire_grace_time_seconds "
+            "misfire_grace_time_seconds, compensation_check_after, compensation_max_attempts, "
+            "task_type, params "
             "FROM quant.scheduler_tasks WHERE is_enabled=true "
             "AND cron_expression NOT LIKE 'managed_by_agent_%'"
         )
@@ -259,11 +278,31 @@ def scan_v2(conn, now_utc, since_utc):
                 if (now_utc - e).total_seconds() <= grace_min * 60:
                     continue  # 仍在宽限期，可能补投
                 note = "；APScheduler 有未来排期（只说明下次会跑）" if tid in scheduled_ids else ""
+                # 覆盖判定：槽位之后是否已有成功运行（漏跑已由后续运行覆盖 → 补跑只会重复）
+                cur.execute(
+                    "SELECT count(*) AS n FROM quant.scheduler_runs "
+                    "WHERE task_id=%s AND status='success' AND started_at > %s",
+                    (tid, e),
+                )
+                superseded = int(cur.fetchone()["n"] or 0) > 0
+                cu = (t.get("params") or {}).get("catchup") if isinstance(t.get("params"), dict) else None
+                cu = cu or {}
                 issues.append({
                     "key": f"v2:missed:{tid}:{e.strftime('%Y%m%d%H%M')}",
                     "type": "missed", "system": "v2", "task_id": tid,
                     "task": name, "policy": policy,
                     "detail": f"应于 {e.astimezone(CST):%m-%d %H:%M} 执行（{cron}），已超 {grace_min} 分钟宽限期未跑{note}",
+                    "catchup": {
+                        "enabled": bool(t["compensation_enabled"]) or bool(cu.get("enabled")),
+                        "max_attempts": t.get("compensation_max_attempts") or cu.get("max_attempts") or 1,
+                        "check_after": (str(t.get("compensation_check_after"))[:5]
+                                        if t.get("compensation_check_after") else cu.get("check_after")),
+                        "window_hours": float(cu.get("window_hours") or CATCHUP_WINDOW_HOURS),
+                        "market_hours_only": bool(cu.get("market_hours", False)),
+                        "task_type": t.get("task_type") or "cron",
+                        "superseded": superseded,
+                        "slot_age_hours": (now_utc - e).total_seconds() / 3600.0,
+                    },
                 })
 
         # zombie：running 超阈值
@@ -338,13 +377,30 @@ def scan_agent_os(conn, now_utc, since_utc):
                 (tid, since_utc),
             )
             runs = [r["started_at"] for r in cur.fetchall()]
+            cu = (meta.get("catchup") or {})
             for e in exps:
                 if not has_run_near(runs, e):
+                    cur.execute(
+                        "SELECT count(*) AS n FROM public.task_runs "
+                        "WHERE task_id=%s AND status='success' AND started_at > %s",
+                        (tid, e),
+                    )
+                    superseded = int(cur.fetchone()["n"] or 0) > 0
                     issues.append({
                         "key": f"os:missed:{tid}:{e.strftime('%Y%m%d%H%M')}",
                         "type": "missed", "system": "agent_os", "task_id": tid,
                         "task": name, "policy": policy,
                         "detail": f"应于 {e.astimezone(CST):%m-%d %H:%M} 执行（{cron}）",
+                        "catchup": {
+                            "enabled": policy == "auto_rerun",
+                            "max_attempts": cu.get("max_attempts", 1),
+                            "check_after": cu.get("check_after"),
+                            "window_hours": float(cu.get("window_hours") or CATCHUP_WINDOW_HOURS),
+                            "market_hours_only": bool(cu.get("market_hours", False)),
+                            "task_type": "cron",
+                            "superseded": superseded,
+                            "slot_age_hours": (now_utc - e).total_seconds() / 3600.0,
+                        },
                     })
 
         # 未打标检测（2026-09-12 w-c8cae280）：agent_line 此前是 NOT NULL DEFAULT
@@ -385,6 +441,7 @@ def main():
     since_utc = now_utc - timedelta(hours=LOOKBACK_HOURS)
     conn = db_conn()
     ensure_log_table(conn)
+    ensure_catchup_table(conn)
     open_issues = load_open_issues(conn)
 
     # 1. 进程探活
@@ -413,19 +470,36 @@ def main():
         still_open.add(it["key"])
         is_new = record_issue(conn, it["key"], it["system"], it["type"],
                               it["detail"], "alerted")
+
+        # 补跑决策：对所有 missed issue 每轮都重评（不只新告警的）——
+        # 这样"未到最早补跑时刻/还在宽限期"的任务会在后续轮次自然被重新判定，
+        # 且次数上限由 quant.scheduler_catchup_log 的累计尝试数兜住，不会无限补。
+        action_line = ""
+        if it["type"] == "missed":
+            c = dict(it.get("catchup") or {})
+            c["attempts_used"] = catchup_attempts(conn, it["key"])
+            eligible, reason = catchup_decision(c, now_utc.astimezone(CST))
+            used = int(c["attempts_used"])
+            cap = int(c.get("max_attempts") or 1)
+            if eligible and it.get("task_id") is not None:
+                if AUTO_RERUN_ENABLED:
+                    ok = trigger_rerun(it["system"], it["task_id"])
+                    record_catchup(conn, it["key"], it["system"], it["task"], used + 1, ok, reason)
+                    if ok:
+                        rerun_done.append((it, ok))
+                    action_line = f"\n  → 按规则补跑（第 {used + 1}/{cap} 次）：{'已派发' if ok else '派发失败'}"
+                else:
+                    action_line = (
+                        f"\n  → 规则判定可补跑（第 {used + 1}/{cap} 次），但总开关 "
+                        f"WATCHDOG_AUTO_RERUN=false 未执行；开启即自动补"
+                    )
+            else:
+                action_line = f"\n  → 不补跑：{CATCHUP_REASON_ZH.get(reason, reason)}"
+        elif it["policy"] == "alert_only":
+            action_line = "\n  → 仅告警（业务规则未授权自动补跑）"
+
         if not is_new:
             continue
-        # 自动补跑（本期默认关）
-        action_line = ""
-        if it["type"] == "missed" and it["policy"] == "auto_rerun":
-            if AUTO_RERUN_ENABLED and it["task_id"] is not None:
-                ok = trigger_rerun(it["system"], it["task_id"])
-                rerun_done.append((it, ok))
-                action_line = f"\n  → 已自动补跑：{'成功' if ok else '失败'}"
-            else:
-                action_line = "\n  → 可补跑（auto_rerun）：待人工确认"
-        elif it["policy"] == "alert_only":
-            action_line = "\n  → 仅告警（alert_only，有副作用需人工评估）"
         new_alerts.append((it, action_line))
 
     # 3.5 任务状态对账（自愈"假卡死"）：run 已闭环但 last_status 仍 running
@@ -461,6 +535,70 @@ def main():
           f"v2_up={v2_up} os_up={os_up} issues={len(issues)} "
           f"new={len(new_alerts)} resolved={len(resolved)}")
     return 0
+
+
+def is_trading_now(now_local):
+    """A 股交易时段粗判：周一至周五 09:30-11:30 / 13:00-15:00（法定节假日未纳入，
+    节假日的补跑由窗口与 check_after 规则兜底；需要精确可接交易日历）。"""
+    if now_local.weekday() >= 5:
+        return False
+    m = now_local.hour * 60 + now_local.minute
+    return (570 <= m <= 690) or (780 <= m <= 900)
+
+
+def catchup_decision(c, now_local):
+    """纯函数：按业务规则判断该漏跑槽位可否补跑 → (是否执行, 原因码)。"""
+    if not c:
+        return False, "no_rule"
+    if c.get("task_type") == "once":
+        return False, "one_off"
+    if not c.get("enabled"):
+        return False, "policy_alert_only"
+    if c.get("superseded"):
+        return False, "superseded"
+    if int(c.get("attempts_used") or 0) >= int(c.get("max_attempts") or 1):
+        return False, "max_attempts"
+    if float(c.get("slot_age_hours") or 0) > float(c.get("window_hours") or CATCHUP_WINDOW_HOURS):
+        return False, "window_exceeded"
+    check_after = c.get("check_after") or CATCHUP_DEFAULT_CHECK_AFTER
+    try:
+        hh, mm = [int(x) for x in str(check_after).split(":")[:2]]
+        if now_local.hour * 60 + now_local.minute < hh * 60 + mm:
+            return False, "before_check_after"
+    except Exception:
+        pass
+    if c.get("market_hours_only") and not is_trading_now(now_local):
+        return False, "outside_market_hours"
+    return True, "eligible"
+
+
+def ensure_catchup_table(conn):
+    """补跑留痕表：谁被补跑了第几次、成功与否、依据什么原因。"""
+    with conn.cursor() as cur:
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS quant.scheduler_catchup_log ("
+            " id BIGSERIAL PRIMARY KEY, issue_key TEXT NOT NULL, system TEXT, task TEXT,"
+            " attempt INT NOT NULL, ok BOOLEAN NOT NULL, reason TEXT,"
+            " created_at TIMESTAMPTZ NOT NULL DEFAULT now())"
+        )
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_catchup_issue ON quant.scheduler_catchup_log(issue_key)")
+    conn.commit()
+
+
+def catchup_attempts(conn, issue_key):
+    with conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM quant.scheduler_catchup_log WHERE issue_key=%s", (issue_key,))
+        return int(cur.fetchone()[0] or 0)
+
+
+def record_catchup(conn, issue_key, system, task, attempt, ok, reason):
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO quant.scheduler_catchup_log(issue_key, system, task, attempt, ok, reason) "
+            "VALUES (%s, %s, %s, %s, %s, %s)",
+            (issue_key, system, task, attempt, ok, reason),
+        )
+    conn.commit()
 
 
 def trigger_rerun(system, task_id):
