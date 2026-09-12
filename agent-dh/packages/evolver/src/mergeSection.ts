@@ -43,6 +43,12 @@ export interface NormalizeResult {
   noop: boolean;
   /** replace=候选整段合法可直接替换；delta=确定性增量合并 */
   semantics: 'replace' | 'delta';
+  /** 结构歧义标题行（前一行非空）——非空时调用方必须 fail-closed，避免静默截断 */
+  ambiguousHeadings: string[];
+  /** 新增 ID 中是"空壳"（标题后无正文）的规则——非空时调用方必须拒绝 */
+  emptyShellIds: string[];
+  /** delta 模式下未落盘的非空白字符数（既有规则改写 + prelude 改动），供可见化与告警 */
+  droppedChars: number;
 }
 
 /** 提取规则定义（标题行）ID，按出现顺序 */
@@ -61,6 +67,42 @@ export function findDuplicateRuleDefs(content: string): string[] {
     seen.add(d);
   }
   return [...dups];
+}
+
+/**
+ * 找出**歧义标题行**（2026-09-13 修复，独立审阅发现）：
+ * 形如 `^#{1,6}\s*R-\d{3}\b` 但**前一行非空**的标题行。
+ *
+ * 背景：该正则会命中正文里被 LLM 升格为小标题的行内回指，例如
+ *   `要点：\n## R-001 的执行前提必须已满足\n其余说明。`
+ * 此时 splitRuleBlocks 会在正文中途切断，后半段被并进一个"既有 ID 的候选块"，
+ * 而 delta 合并只追加新 ID 的块 → **后半段被静默丢弃**（实证复现）。
+ * 正常 markdown 的规则块之间必有空行（线上 rules.md 16 个定义行 100% 有空行），
+ * 故"前一行非空"足以判为结构歧义；判为歧义后由调用方 fail-closed，绝不静默截断。
+ */
+export function findAmbiguousHeadings(content: string): string[] {
+  const text = content ?? '';
+  const lines = text.split('\n');
+  const re = new RegExp(RULE_DEF_SOURCE);
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!re.test(lines[i])) continue;
+    // 文件开头或前一行是空行 → 正常；否则结构可疑
+    if (i === 0 || lines[i - 1].trim() === '') continue;
+    out.push(lines[i].trim().slice(0, 60));
+  }
+  return out;
+}
+
+/** 空壳规则检测：块的标题行之后必须有正文（非空白 ≥ 10 字符） */
+export function findEmptyShellDefs(content: string): string[] {
+  const { blocks } = splitRuleBlocks(content);
+  const out: string[] = [];
+  for (const b of blocks) {
+    const body = b.text.split('\n').slice(1).join('\n').replace(/\s+/g, '');
+    if (body.length < 10) out.push(b.id);
+  }
+  return out;
 }
 
 /** 按规则定义标题切块 */
@@ -102,6 +144,7 @@ const stripWs = (s: string) => (s ?? '').replace(/\s+/g, '');
 export function normalizeRulesContent(currentContent: string, candidateContent: string): NormalizeResult {
   const current = currentContent ?? '';
   const candidate = candidateContent ?? '';
+  const ambiguousHeadings = findAmbiguousHeadings(candidate);
   const cur = splitRuleBlocks(current);
   const cand = splitRuleBlocks(candidate);
   const curIds = new Set(cur.blocks.map((b) => b.id));
@@ -124,6 +167,12 @@ export function normalizeRulesContent(currentContent: string, candidateContent: 
   const hasDup = findDuplicateRuleDefs(candidate).length > 0;
   const substantive = curIds.size === 0 ? stripWs(candidate).length > 0 : stripWs(candidate) !== stripWs(current);
 
+  const emptyShellIds = addedIds.filter((id) => {
+    const block = candFirst.get(id) ?? '';
+    const body = block.split('\n').slice(1).join('\n').replace(/\s+/g, '');
+    return body.length < 10;
+  });
+
   if (!hasDup && removedIds.length === 0 && candIds.length > 0 && substantive) {
     return {
       content: candidate.endsWith('\n') ? candidate : `${candidate}\n`,
@@ -133,6 +182,9 @@ export function normalizeRulesContent(currentContent: string, candidateContent: 
       deltaText: addedIds.map((id) => (candFirst.get(id) ?? '').trim()).join('\n\n'),
       noop: false,
       semantics: 'replace',
+      ambiguousHeadings,
+      emptyShellIds,
+      droppedChars: 0,
     };
   }
 
@@ -146,5 +198,12 @@ export function normalizeRulesContent(currentContent: string, candidateContent: 
   }
   const noop = addedIds.length === 0 || stripWs(content) === stripWs(current);
 
-  return { content, addedIds, droppedRewriteIds, dedupedIds, deltaText, noop, semantics: 'delta' };
+  // 丢弃量可见化：delta 保留"当前段 + 新 ID 块"，其余候选内容（既有规则改写 + prelude 改动）不落盘。
+  const keptFromCandidate = stripWs(deltaText).length;
+  const droppedChars = Math.max(0, stripWs(candidate).length - keptFromCandidate);
+
+  return {
+    content, addedIds, droppedRewriteIds, dedupedIds, deltaText, noop, semantics: 'delta',
+    ambiguousHeadings, emptyShellIds, droppedChars,
+  };
 }

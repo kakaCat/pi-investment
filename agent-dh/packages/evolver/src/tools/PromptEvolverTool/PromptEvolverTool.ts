@@ -119,10 +119,14 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
         //    （实证 2026-09-12：rules 段 R-001…R-015 全量重复 → genome guard 拒绝，变异 0/1）。
         //    归一化策略：合法整段重写 → replace；含重复定义/删改既有 ID → 按当前段增量合并。
         let norm: NormalizeResult | null = null;
+        // 2026-09-13 修复（独立审阅 #2）：损坏标记检查提升到**全段**。
+        // 此前 assertNoDamage 只在 isRules 分支内 —— 但 suggestion.content 会被原样拼进 LLM
+        // 提示词再整体回写，而 genome guard 对非 rules 段不做规则 ID 校验，于是
+        // principles/lessons 段同样能把 [object Object] 写进基因组（提交说明曾把它写成通道级保证，不实）。
+        assertNoDamage(String(suggestion.content ?? ''), '建议内容');
+        assertNoDamage(content, `${suggestion.section} 候选内容`);
         const isRules = suggestion.section === 'rules' || extractRuleDefs(currentContent).length > 0;
         if (isRules) {
-          assertNoDamage(String(suggestion.content ?? ''), '建议内容');
-          assertNoDamage(content, `${suggestion.section} 候选内容`);
           norm = normalizeRulesContent(currentContent, content);
           if (norm.semantics === 'delta' && findDuplicateRuleDefs(content).length > 0) {
             method = method === 'llm' ? 'llm+dedup' : `${method}+dedup`;
@@ -135,14 +139,28 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
               method = `${method}+delta_from_suggestion`;
             }
           }
+          // 2026-09-13 修复（独立审阅 #1/#3）：结构歧义与空壳规则一律 fail-closed。
+          // #1 实证：候选含 `要点：\n## R-001 的执行前提必须已满足\n其余说明。` 时，
+          //   该行被误判为规则定义 → 后半段落入"既有 ID 的候选块"→ delta 只追加新 ID → 正文被静默丢弃。
+          // #3 实证：`## R-009` 这种空标题也会被当作新增规则登记，占用验证门分母。
+          // 顺序：先判结构歧义（根因），再判空壳 —— 歧义场景下"空壳"往往是截断的副产物
+          if (norm.ambiguousHeadings.length > 0) {
+            throw new Error(
+              `${suggestion.section} 候选含结构歧义标题行（前一行非空，疑似把行内 R-xxx 引用升格为小标题）：` +
+              `${norm.ambiguousHeadings.join(' | ')} —— 归一化会静默截断正文，拒绝写入基因组`,
+            );
+          }
+          if (norm.emptyShellIds.length > 0) {
+            throw new Error(
+              `${suggestion.section} 候选含空壳规则（标题后无正文）：${norm.emptyShellIds.join(', ')}，拒绝写入基因组`,
+            );
+          }
           content = norm.content;
           assertNoDamage(content, `${suggestion.section} 归一化结果`);
           const stillDup = findDuplicateRuleDefs(content);
           if (stillDup.length > 0) {
             throw new Error(`${suggestion.section} 归一化后仍存在重复规则定义：${stillDup.join(', ')}，拒绝写入基因组`);
           }
-        } else {
-          assertNoDamage(content, `${suggestion.section} 候选内容`);
         }
 
         // 4. 生成 diff 预览
@@ -162,6 +180,10 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
           delta: norm?.deltaText ?? '',
           semantics: norm?.semantics,
           noop: norm?.noop ?? false,
+          // 2026-09-13（独立审阅 #1）：把"delta 未落盘的内容量"显式暴露，避免静默丢弃
+          dropped_chars: norm?.droppedChars ?? 0,
+          ambiguous_headings: norm?.ambiguousHeadings ?? [],
+          empty_shell_ids: norm?.emptyShellIds ?? [],
         };
 
         // 5. 如果非预览模式，调用 genome_update 应用为 candidate
@@ -415,13 +437,15 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
       }
       return { content: cleaned + '\n', method: 'llm' };
     } catch (e: any) {
-      // 回退不再裸拼接（2026-09-12 修复）：rules 段改用确定性增量合并，
-      // 既有规则以当前段为准、只追加候选里的新 ID；非 rules 段保持追加语义。
-      if (section === 'rules' || extractRuleDefs(currentContent).length > 0) {
-        const fallback = normalizeRulesContent(currentContent, String(suggestion.content || ''));
-        return { content: fallback.content, method: 'append_fallback' };
-      }
-      return { content: currentContent.trim() + '\n' + (suggestion.content || '') + '\n', method: 'append_fallback' };
+      // 2026-09-13 修复（独立审阅复核中发现）：**归一化只能做一次**。
+      // 此前回退路径自己调了 normalizeRulesContent，导致 execute 的统一入口拿到的是
+      // "已被消化的结果"——歧义标题行在回退时就没了，工具第二次归一化只剩"空壳规则"，
+      // 真正的根因（结构歧义）被掩盖（实证：歧义候选报"空壳"而非"结构歧义"）。
+      // 现在回退只做**原始拼接**，归一化/去重/歧义判定全部交给 execute 的统一入口。
+      const raw = (section === 'rules' || extractRuleDefs(currentContent).length > 0)
+        ? currentContent.trimEnd() + '\n\n' + String(suggestion.content || '')
+        : currentContent.trim() + '\n' + (suggestion.content || '') + '\n';
+      return { content: raw, method: 'append_fallback' };
     }
   }
 
