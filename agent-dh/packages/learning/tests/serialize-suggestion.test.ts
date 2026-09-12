@@ -21,10 +21,15 @@ describe('serializeSuggestion', () => {
     expect(s).not.toContain('[object Object]');
   });
 
-  it('多个文本字段按优先级拼接', () => {
+  it('多字段对象取主字段（不再把异质字段拼成一句话）', () => {
+    // 2026-09-13 第三批审阅 A9：TEXT_KEYS 优先级里 content 高于 title
     const s = serializeSuggestion({ title: '止损纪律', content: '跌破 -8% 必须止损' });
-    expect(s).toContain('止损纪律');
-    expect(s).toContain('跌破 -8% 必须止损');
+    expect(s).toBe('跌破 -8% 必须止损');
+    expect(s).not.toContain('；');
+  });
+
+  it('只有次级字段时仍取该字段（不是空串）', () => {
+    expect(serializeSuggestion({ reason: '样本不足', confidence: 0.9 })).toBe('样本不足');
   });
 
   it('无文本字段的对象回退为 JSON（保留信息而非丢失）', () => {

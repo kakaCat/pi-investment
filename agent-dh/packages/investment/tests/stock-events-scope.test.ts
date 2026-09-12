@@ -49,6 +49,23 @@ describe('stock_events 标的过滤', () => {
     expect(r.data.note).toContain('非失败');
   });
 
+  it('symbols 带交易所后缀/前缀时仍认得住（不做假阴性）', async () => {
+    // 2026-09-13 第三批审阅 A10：后端 symbols 存在 600150.SH / SH600150 等写法，
+    // 原样比较会让真事件被错判成 market_events（排雷时"有雷当无雷"）。
+    const t = tool({
+      events: [
+        { event_date: '2026-09-10', type: 'regulatory', symbols: ['600150.SH'], title: '后缀式' },
+        { event_date: '2026-09-11', type: 'dividend', symbol: 'SH600150', title: '前缀式' },
+        { event_date: '2026-09-12', type: 'nbs', symbols: [], title: '宏观' },
+        { event_date: '2026-09-12', type: 'regulatory', symbols: ['600151'], title: '其它股' },
+      ],
+    });
+    const r: any = await t.call({ symbol: '600150' });
+    expect(r.data.count).toBe(2);
+    expect(r.data.events.map((e: any) => e.title)).toEqual(['后缀式', '前缀式']);
+    expect(r.data.market_events_count).toBe(2);
+  });
+
   it('多源全失败仍显式报错（不把失败当无事件）', async () => {
     const t = tool({}, { success: false });
     let res: any = null;

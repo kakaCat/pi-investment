@@ -32,11 +32,17 @@ export class StockEventsTool extends BaseTool<StockEventsParams, any> {
     // 旧实现把它们当作"该股事件"返回 → 排雷时会被误读为个股公告。
     // 现按标的严格过滤：只有 symbols/symbol 命中本标的才算该股事件，
     // 其余单列到 market_events（明确标注为背景，不参与 upcoming 统计）。
+    // 2026-09-13 加固（w-adb088f2，第三批审阅 A10）：后端 symbols 的表达形态不止 6 位裸码
+    // （实测存在 600150.SH / SH600150 / 带空格等写法），原样比较会造成**假阴性**——
+    // 真有该股事件却被归入 market_events，排雷时"有雷当无雷"。统一抽数字后比较。
+    const normCode = (s: any): string => String(s ?? '').replace(/\D/g, '');
+    const targetCode = normCode(args.symbol);
     const belongsToSymbol = (e: any): boolean => {
+      if (targetCode.length !== 6) return false;
       const syms: string[] = Array.isArray(e?.symbols)
-        ? e.symbols.map((s: any) => String(s))
-        : (e?.symbol ? [String(e.symbol)] : []);
-      return syms.includes(String(args.symbol));
+        ? e.symbols.map(normCode)
+        : (e?.symbol ? [normCode(e.symbol)] : []);
+      return syms.includes(targetCode);
     };
     const events = rawEvents.filter(belongsToSymbol);
     const marketEvents = rawEvents.filter((e: any) => !belongsToSymbol(e));

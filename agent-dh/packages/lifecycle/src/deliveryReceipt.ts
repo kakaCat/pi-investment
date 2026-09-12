@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
  *  ② 每日任务累积大量富文本，放大检索噪声（召回审计：wake-event 12 万次、注入率 7%）。
  *
  * 处理：回执只保留**可溯标识**（task/task_id/window/时间/执行者）+ prompt 摘要
- * （sha256 前 16 位、长度、前 60 字预览）。完整 prompt 仍由 OS 任务注册表持有，
+ * （sha256 前 16 位、长度、前 24 字预览）。完整 prompt 仍由 OS 任务注册表持有，
  * 需要时按 task_id 取回——回执的职责是幂等与审计，不是存全文。
  */
 
@@ -35,7 +35,9 @@ export function promptDigest(prompt: string): {
   return {
     prompt_sha256: createHash('sha256').update(text).digest('hex').slice(0, 16),
     prompt_length: text.length,
-    prompt_preview: text.slice(0, 60),
+    // 2026-09-13（第三批审阅 A8）：60 字预览对自然语言任务而言已足够长到污染检索，
+    // 缩短到 24 字——足以人工认出是哪条任务，又不足以承载可被检索到的语义。
+    prompt_preview: text.slice(0, 24),
   };
 }
 

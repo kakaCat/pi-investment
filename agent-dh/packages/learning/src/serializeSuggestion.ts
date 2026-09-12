@@ -27,12 +27,13 @@ export function serializeSuggestion(input: unknown): string {
   }
   if (typeof input === 'object') {
     const obj = input as Record<string, unknown>;
-    const parts: string[] = [];
+    // 2026-09-13（w-adb088f2，第三批审阅 A9）：主字段语义 —— 按 TEXT_KEYS 优先级取
+    // **第一个**非空文本字段作为建议正文。旧实现把所有命中字段用「；」拼接，
+    // 会把异质字段（如 title + reason）粘成一句话，读起来像一条不存在的结论。
     for (const k of TEXT_KEYS) {
       const v = obj[k];
-      if (typeof v === 'string' && v.trim().length > 0) parts.push(v.trim());
+      if (typeof v === 'string' && v.trim().length > 0) return v.trim();
     }
-    if (parts.length > 0) return parts.join('；');
     try {
       const js = JSON.stringify(input);
       return js && js !== '{}' ? js : '';
