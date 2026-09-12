@@ -34,7 +34,8 @@ describe('buildDeliveryReceipt', () => {
     expect(receipt.delivered).toBe(true);
     expect(String(receipt.prompt_sha256)).toHaveLength(16);
     expect(receipt.prompt_length).toBe(LONG_PROMPT.length);
-    expect(String(receipt.prompt_preview).length).toBeLessThanOrEqual(60);
+    // 2026-09-13 第三批审阅 A8：预览收紧到 24 字（60 字已足够长到污染检索）
+    expect(String(receipt.prompt_preview).length).toBeLessThanOrEqual(24);
   });
 
   it('摘要稳定且可区分不同 prompt', () => {
