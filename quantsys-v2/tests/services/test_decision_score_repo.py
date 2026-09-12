@@ -57,3 +57,34 @@ def test_create_decision_with_created_at_override():
         session = repo.session
         session.query(repo.model).filter_by(decision_id='TEST-CREATED-AT-001').delete()
         session.commit()
+
+
+def test_update_score_writes_learned_lesson():
+    """REQ-9bcd0a WP1：update_score 支持写入 learned_lesson（M6↔L2 回流边的数据入口）。
+
+    回归要点：①传 lesson 时落库；②不传 lesson 时保持旧行为（不覆盖已有教训）。
+    """
+    repo = AgentIntelligenceORMRepository()
+    created = repo.create_decision({
+        'decision_type': 'trade_buy',
+        'parameters': {'symbol': '600519', 'price': 10.0, 'shares': 100},
+        'reasoning': 'WP1 learned_lesson 落库测试',
+    })
+    decision_id = created['decision_id']
+    try:
+        detail = {'scorer': 'decision_score_p0a', 'excess_return': -0.44,
+                  'trade_date': '2026-07-14', 'ref_date': '2026-08-11',
+                  'benchmark': 'sh000300'}
+        lesson = ('买入 600519@10.00（2026-07-14→2026-08-11，20 交易日）'
+                  '超额 -44.4%（band=big_loss，score=-1.00）→ 测试教训')
+        updated = repo.update_score(decision_id, -1.0, 'big_loss', detail, lesson=lesson)
+        assert updated is not None
+        assert updated['learned_lesson'] == lesson
+
+        # 不传 lesson → 旧行为：不覆盖已有教训
+        again = repo.update_score(decision_id, -1.0, 'big_loss', detail)
+        assert again['learned_lesson'] == lesson
+    finally:
+        session = repo.session
+        session.query(repo.model).filter_by(decision_id=decision_id).delete()
+        session.commit()
