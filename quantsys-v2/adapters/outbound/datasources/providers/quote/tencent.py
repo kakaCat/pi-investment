@@ -1,6 +1,7 @@
 """
 TencentQuoteProvider - 腾讯财经实时行情数据源
 """
+import re
 import requests
 from datetime import datetime
 from typing import Optional
@@ -58,6 +59,60 @@ class TencentQuoteProvider(QuoteProvider):
 
         except Exception as e:
             raise Exception(f"腾讯财经查询失败: {e}") from e
+
+    def get_quotes(self, symbols):
+        """批量行情：**一次 HTTP 请求**取回多只（2026-09-13，w-adb088f2）
+
+        腾讯接口本身支持 `q=sz300677,sh600887,...` 一次多只，响应是按标的逐行的
+        `v_CODE="..."`。原实现逐只 get_quote，N 只 = N 次新建连接；在本机 IPv6 兜底
+        场景下每只要多付约 8s（实测 2 只 = 16.4s，超出工具 10s 超时）。
+
+        解析复用单只路径（把每个 `v_CODE="..."` 段切出来交回 _parse_quote），
+        保证字段口径只有一份，避免批量/单只两条解析逻辑漂移。
+
+        Returns:
+            {symbol: QuoteData}（只含成功且 price>0 的标的；整批失败时抛异常交给降级链）
+        """
+        self.last_error = None
+        out = {}
+        symbols = list(symbols or [])
+        if not symbols:
+            return out
+
+        codes = [self._convert_to_tencent_code(s) for s in symbols]
+        code_to_symbol = dict(zip(codes, symbols))
+        url = f"http://qt.gtimg.cn/q={','.join(codes)}"
+
+        try:
+            response = requests.get(
+                url,
+                timeout=self.timeout,
+                proxies={'http': None, 'https': None}
+            )
+            response.encoding = 'gbk'
+            text = response.text or ''
+        except Exception as e:
+            raise Exception(f"腾讯财经批量查询失败: {e}") from e
+
+        for segment in re.split(r'[;\n]', text):
+            if '="' not in segment:
+                continue
+            raw_code = segment.split('=', 1)[0].strip()
+            code = raw_code[2:] if raw_code.startswith('v_') else raw_code
+            symbol = code_to_symbol.get(code)
+            if symbol is None:
+                continue
+            try:
+                quote = self._parse_quote(symbol, segment)
+            except Exception:
+                # 单只解析失败不影响整批（该只算缺口，交给降级链补齐）
+                continue
+            if quote is not None:
+                out[symbol] = quote
+
+        if not out:
+            self.last_error = f"腾讯批量无 {len(codes)} 只数据（代码不存在或该市场不支持）"
+        return out
 
     def _convert_to_tencent_code(self, symbol: str) -> str:
         """

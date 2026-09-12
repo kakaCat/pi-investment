@@ -78,6 +78,13 @@ class DataProviderManager(IDataProviderManager):
     """
 
     def __init__(self, ds=None):
+        # 2026-09-13（w-adb088f2）：进程级收敛到 IPv4。本机 IPv6 不可达但 getaddrinfo 先返回
+        # AAAA，urllib3 逐个 SYN 超时后才回退 → 每次新建连接多付 ~8s（详见 net_prefs 注释）。
+        try:
+            from adapters.outbound.datasources.net_prefs import prefer_ipv4
+            prefer_ipv4()
+        except Exception:
+            pass
         # 单 provider 调用超时（秒）
         self.provider_timeout_seconds = 60
         # Provider priorities (optimized based on current network conditions)
@@ -628,6 +635,100 @@ class DataProviderManager(IDataProviderManager):
             Result dict with success, data, source fields
         """
         return self._try_providers(self.quote_providers, 'get_quote', symbol)
+
+    def get_quotes(self, symbols: List[str]) -> dict:
+        """批量实时行情：一次 provider 调用取回多只（2026-09-13，w-adb088f2）
+
+        动机（实测）：账户查询逐只取价，每只各新建一次 HTTP 连接；本机 IPv6 兜底场景下
+        每只多付约 8s（2 只持仓 = 16.4s > agent 工具 10s 超时）。
+        批量后 N 只合并为 1 次请求。
+
+        语义（与 get_quote 的降级/熔断记账保持一致）：
+          - 按健康分排序逐个 provider 尝试，**只把尚未取到的 symbol 交给下一个源**（部分补齐）；
+          - 拿到部分数据 → success=True, data={...}, missing_symbols=[缺口]，缺口显式暴露，
+            调用方据此判定 price_stale，而不是把"部分成功"当"全部成功"；
+          - 一只都没拿到 → success=False + provider_errors；
+          - 熔断源跳过、健康空结果计入 empty_sources（不计故障）。
+
+        Returns:
+            dict(success, data: {symbol: QuoteData}, source, attempted_sources,
+                 empty_sources, missing_symbols, [error|provider_errors])
+        """
+        wanted = list(dict.fromkeys(symbols or []))
+        if not wanted:
+            return {
+                'success': True, 'data': {}, 'source': None, 'attempted_sources': [],
+                'empty_sources': [], 'missing_symbols': [], 'empty': True,
+            }
+
+        pending = list(wanted)
+        data: Dict[str, Any] = {}
+        provider_errors: Dict[str, str] = {}
+        attempted_sources: List[str] = []
+        empty_sources: List[str] = []
+
+        for provider in self._sort_providers_by_health(self.quote_providers):
+            if not pending:
+                break
+            if self._is_circuit_broken(provider.name):
+                cb = self._circuit_breakers.get(provider.name)
+                state = cb.get_state() if cb else {}
+                provider_errors[provider.name] = f'熔断中（{state.get("state", "open")}）'
+                continue
+            if not hasattr(provider, 'get_quotes'):
+                continue
+
+            attempted_sources.append(provider.name)
+            try:
+                got = provider.get_quotes(pending) or {}
+            except Exception as e:
+                provider_errors[provider.name] = str(e)
+                self._record_failure(provider.name)
+                continue
+
+            hit = {s: q for s, q in got.items() if q is not None}
+            if hit:
+                data.update(hit)
+                self._record_success(provider.name)
+                pending = [s for s in pending if s not in data]
+                continue
+
+            reason = getattr(provider, 'last_error', None)
+            if reason:
+                provider_errors[provider.name] = reason
+                self._record_failure(provider.name)
+            else:
+                empty_sources.append(provider.name)
+                provider_errors[provider.name] = self._empty_reason(provider)
+                self._record_empty(provider.name)
+
+        missing_symbols = [s for s in wanted if s not in data]
+        sources = sorted({getattr(q, 'source', None) for q in data.values() if getattr(q, 'source', None)})
+
+        if data:
+            return {
+                'success': True,
+                'data': data,
+                'source': ','.join(sources) if sources else None,
+                'attempted_sources': attempted_sources,
+                'empty_sources': empty_sources,
+                'missing_symbols': missing_symbols,
+                'provider_errors': provider_errors,
+                'empty': False,
+            }
+
+        return {
+            'success': False,
+            'data': {},
+            'source': None,
+            'error': '全部数据源均未返回批量行情'
+                     + (f'（{"; ".join(f"{k}: {v}" for k, v in provider_errors.items())}）' if provider_errors else ''),
+            'attempted_sources': attempted_sources,
+            'empty_sources': empty_sources,
+            'missing_symbols': missing_symbols,
+            'provider_errors': provider_errors,
+            'empty': bool(empty_sources) and len(empty_sources) == len(attempted_sources),
+        }
 
     def get_announcements(self, symbol: str) -> dict:
         """Get stock announcements

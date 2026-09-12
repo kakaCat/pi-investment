@@ -100,27 +100,33 @@ class StockDataService:
         """
         self.logger.info(f"批量获取股票行情: {len(symbols)} 只")
 
-        # Use DataProviderManager with automatic failover per symbol
+        # 2026-09-13（w-adb088f2）：逐只 → 批量。原实现注释写着 "failover per symbol"，
+        # 实际就是 for 循环逐只 get_quote：N 只 = N 次新建连接（本机 IPv6 兜底场景每只多付
+        # 约 8s，实测 2 只 = 16.3s）。改走 manager.get_quotes 一次取回多只。
+        batch = self.provider_manager.get_quotes(list(symbols))
         quotes = []
         sources_used = set()
 
-        for symbol in symbols:
-            result = self.provider_manager.get_quote(symbol)
-            if result['success']:
-                quote_data = result['data']
-                quotes.append({
-                    'symbol': quote_data.symbol,
-                    'name': quote_data.name,
-                    'price': quote_data.price,
-                    'open': quote_data.open,
-                    'high': quote_data.high,
-                    'low': quote_data.low,
-                    'volume': quote_data.volume,
-                    'change_pct': quote_data.change_pct,
-                })
-                sources_used.add(quote_data.source)
-            else:
-                self.logger.warning(f"获取 {symbol} 行情失败")
+        for symbol, quote_data in (batch.get('data') or {}).items():
+            if quote_data is None:
+                continue
+            quotes.append({
+                'symbol': quote_data.symbol,
+                'name': quote_data.name,
+                'price': quote_data.price,
+                'open': quote_data.open,
+                'high': quote_data.high,
+                'low': quote_data.low,
+                'volume': quote_data.volume,
+                'change_pct': quote_data.change_pct,
+            })
+            sources_used.add(quote_data.source)
+
+        # 缺口显式暴露，不把"部分成功"当"全部成功"
+        missing = batch.get('missing_symbols') or [s for s in symbols if s not in (batch.get('data') or {})]
+        if missing:
+            self.logger.warning(f"批量行情缺口 {len(missing)} 只: {list(missing)}")
+
 
         if not quotes:
             return {

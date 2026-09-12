@@ -45,6 +45,33 @@ class QuoteProvider(BaseDataProvider[QuoteData]):
         """
         pass
 
+    def get_quotes(self, symbols: "list[str]") -> "dict[str, QuoteData]":
+        """批量实时行情（2026-09-13，w-adb088f2）
+
+        默认实现退化为逐只调用 get_quote —— 语义正确但对**支持批量的源**不是最优。
+        支持一次请求多只的 provider（如腾讯）应覆盖本方法，把 N 次新建连接降为 1 次。
+
+        约定（调用方 manager.get_quotes 依赖）：
+          - 返回 {symbol: QuoteData}，只包含**成功且非空**的标的；
+          - 未返回 ≠ 该股无行情，只表示本 provider 没给；
+          - 单只失败不得让整批抛错（吞掉并继续），除非整批请求本身失败。
+
+        Args:
+            symbols: 标准代码列表（如 ['600519.SH', '000001']）
+
+        Returns:
+            {symbol: QuoteData}
+        """
+        out: "dict[str, QuoteData]" = {}
+        for symbol in symbols:
+            try:
+                quote = self.get_quote(symbol)
+            except Exception:
+                continue
+            if quote is not None:
+                out[symbol] = quote
+        return out
+
 
 class FinancialProvider(BaseDataProvider[FinancialData]):
     """Financial data provider interface"""

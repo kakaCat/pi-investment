@@ -256,9 +256,12 @@ class SimulationService:
             prices = {}
             # 记录每个 symbol 的行情时间戳，供 get_account_status 透传
             self._price_timestamps = {}
-            for symbol in symbols:
+            # 2026-09-13（w-adb088f2）：逐只 → 批量。原实现每只各新建一次 HTTP 连接，
+            # 本机 IPv6 兜底场景下每只多付约 8s（实测 2 只持仓 = 16.4s，超过 agent 工具 10s
+            # 超时，导致 account_info/position_list 不可用）。批量后合并为 1 次请求。
+            quotes = quote_service.get_realtime_quotes(symbols)
+            for symbol, quote in quotes.items():
                 try:
-                    quote = quote_service.get_realtime_quote(symbol)
                     if quote and quote.price and quote.price > 0:
                         prices[symbol] = float(quote.price)
                         ts = getattr(quote, 'timestamp', None)
@@ -266,9 +269,12 @@ class SimulationService:
                             self._price_timestamps[symbol] = (
                                 ts.isoformat() if hasattr(ts, 'isoformat') else str(ts)
                             )
-                        self.logger.info(f"Updated price for {symbol}: {quote.price}")
                 except Exception as e:
-                    self.logger.warning(f"Failed to fetch price for {symbol}: {e}")
+                    self.logger.warning(f"Failed to parse price for {symbol}: {e}")
+            gap = sorted(set(symbols) - set(prices))
+            if gap:
+                # 缺口显式告警：调用方据此置 price_stale（部分成功 ≠ 全部成功）
+                self.logger.warning(f"批量行情缺口 {len(gap)} 只: {gap}")
             return prices
         except Exception as e:
             self.logger.error(f"Error fetching prices: {e}")
