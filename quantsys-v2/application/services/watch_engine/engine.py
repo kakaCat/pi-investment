@@ -21,28 +21,24 @@ from domain.watch.services.disposition import (
 )
 from domain.watch.services.escalation_checker import EscalationChecker
 from domain.watch.models import QuoteData
+from domain.trading.services.market_session_policy import (
+    TOTAL_TRADING_MINUTES,   # 单一出处（RFC 016 §8.1）；本模块继续再导出以兼容既有 importer
+    MarketSessionPolicy,
+)
 
 logger = structlog.get_logger(__name__)
 
-TOTAL_TRADING_MINUTES = 240  # 上午120 + 下午120
-
 
 def elapsed_trading_fraction(now: datetime) -> float:
-    """当日已过交易时间比例（0~1），供 volume_surge 折算同期均量"""
-    t = now.time()
-    morning_end = time(11, 30)
-    afternoon_start = time(13, 0)
-    if t <= time(9, 30):
-        return 0.0
-    if t <= morning_end:
-        minutes = (now - now.replace(hour=9, minute=30, second=0)).seconds / 60
-    elif t < afternoon_start:
-        minutes = 120
-    elif t <= time(15, 0):
-        minutes = 120 + (now - now.replace(hour=13, minute=0, second=0)).seconds / 60
-    else:
-        minutes = TOTAL_TRADING_MINUTES
-    return min(1.0, max(0.0, minutes / TOTAL_TRADING_MINUTES))
+    """当日已过交易时间比例（0~1），供 volume_surge 折算同期均量
+
+    RFC 016 §8.1：折算口径收敛到 `MarketSessionPolicy.session_progress`
+    （此前此处是又一份实现，`TOTAL_TRADING_MINUTES` 也是本地副本）。
+
+    与旧实现的差异**仅在子分钟**：旧用小数分钟、策略按整分钟向下取整（≤0.4%），
+    **整分钟时刻完全一致**（既有断言 9:30→0.0 / 11:30→0.5 / 14:00→0.75 / 15:00→1.0 全部成立）。
+    """
+    return MarketSessionPolicy.session_progress(now.time(), is_trading_day=True)
 
 
 class WatchEngine:
@@ -116,7 +112,14 @@ class WatchEngine:
 
     @staticmethod
     def is_trading_time(t: time) -> bool:
-        return (time(9, 30) <= t <= time(11, 30)) or (time(13, 0) <= t <= time(15, 0))
+        """交易时段判定（RFC 016 §8.1：收敛到 MarketSessionPolicy）
+
+        只判时段、不判日级——日级由调用方负责（`:133` 走 TradingDayGuard、`:186` 走 weekday）。
+        子分钟端点按整分钟口径闭合（11:30 / 15:00 算盘中），与巡检闸门、摘要门同口径。
+        """
+        return MarketSessionPolicy.is_market_open(
+            MarketSessionPolicy.phase_for(t, is_trading_day=True)
+        )
 
     def stop(self):
         self._stopped = True
