@@ -547,6 +547,36 @@ decision_id = f"MISS-{signal_id}"  # 已捕获的不会再创建
 
 ---
 
+## 三点五、回流边：M6/L2 产出 → 消费（2026-09-12 新增）
+
+> 本文原文定义的是**正向边**（引擎产生经验 → Autonomy 炼成规则 → 写回基因组）。
+> 本节补上一直缺失的**反向边**：L2 的评估产出（评分/教训）与 M6 的归因产出，**如何变成决策输入**。
+> 此前该方向无定义、无负责方，是"两条线各自闭环合格、交界处无人负责"的典型。
+
+### 3.5.1 缺口实证
+
+- 决策评分自 2026-08 生产运行：27 条已评，**平均 20 日超额 -10.24%**、**18/27 big_loss**、最差 **-44.41%**
+- 但 `learned_lesson` 长期为空（**0/27**）→ 评分器知道决策对错，进化线读不到结论
+- 业绩归因每日 18:40 准时写入记忆库，却无强制读者
+- 2026-09-12 的一次「还缺什么」分析，**既没引用归因也没读评分** —— 产出无人消费等于没有产出
+
+### 3.5.2 已落地的四段（REQ-9bcd0a，2026-09-12）
+
+| 环节 | 实现 | 验证 |
+|---|---|---|
+| 教训产出 | `application/services/evolution/lesson_generator.py`（纯函数，禁模板化）+ `DecisionScoreService._score_one` 回写 `learned_lesson` | 27 条回填，覆盖率 **0 → 1.0** |
+| 读取出口 | `GET /api/evolution/decision-scores` → agent 工具 `decision_scores`（band 分布 / 动作·标的过滤 / 平均·最差·最好超额 / 教训覆盖率） | 工具返回 total=27、byBand、lessonCoverage |
+| 强制消费 | 盘前例程第 ⑧ 步（读昨日归因 + 评分 → 写 `attribution_read`）；R-008 扩展（rules v16 / g28） | 候选观察至 2026-09-17 |
+| 可观测 | 「智能执行」页检查点 `m6_attribution`（产出侧 18:40）+ `m6_l2_reflux`（消费侧 09:25） | board checkpoints=18，断链判红 |
+
+### 3.5.3 纪律与陷阱
+
+- **契约全文**：`docs/architecture/m6-l2-reflux-contract.md`（7 要素定义、责任划分、已知缺陷、验收判据 S1–S4）
+- **方向语义陷阱（本次实证）**：`score_calculator` 的 `excess_return` **已按动作方向调整**（buy 正向、sell/miss 反向）；教训文案写反会把学习回路带偏（比没有教训更糟）。首版即踩，靠 `--dry-run` 预览真实样例发现并修正，补了方向断言测试防回归。
+- **已知缺陷修复**：G1（`genome_update` 候选不写 candidates.json → 验证门空转）已于 2026-09-12 修复（commit `3d850ab5`），端到端以 `lessons g29 watching` 验证。
+
+---
+
 ## 四、自主能力体系实现细节
 
 ### 4.1 日常投资循环编排器

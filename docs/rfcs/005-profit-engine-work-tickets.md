@@ -67,6 +67,7 @@
 | M6-2 | 归因分析：周度盈亏拆解（选股/择时/板块/滑点） | M3-3、M5-1 | 第一份周报归因段落 | 每只平仓标的有归因标签 |
 | M6-3 | 周报自动生成（胜率/盈亏比/夏普/回撤/归因/下周计划） | M6-2 | 连续 2 周周报 | 无中断，指标齐全 |
 | M6-4 | evolution 常态化：每周 `evolution_run` 全策略 | M3-2 | `evolution_leaderboard` | ≥10 条有效记录且有 fitness 区分度 |
+| **M6-5** | **回流边消费闭环**（REQ-9bcd0a，2026-09-12 交付）：①评分补 `learned_lesson`（教训生成器纯函数 + 27 条回填，覆盖率 0→1.0）②`decision_scores` 工具（band 分布/过滤/平均·最差·最好超额/**教训覆盖率**）③R-008 扩展：分析/复盘前必读归因与评分并写 `attribution_read` ④「智能执行」页检查点 `m6_attribution`（产出侧）+`m6_l2_reflux`（消费侧，断链判红） | M6-1、M6-2 | 调 `decision_scores`；看盘前例程 decision_audit context；curl `/dashboard/api/board` | lessonCoverage > 0；当日分析 context 含 `attribution_read` 与引用数值；checkpoints 含两个 M6 回流检查点 |
 
 ## M7 对手博弈情报 〔联合：基建线供数，挣钱线定义指标〕
 
@@ -100,3 +101,4 @@
 |---|---|
 | 2026-08-20 | 创建。8 模块 26 个工单，三波启动顺序 |
 | 2026-08-20 | 审核更新：M0-1/2/3 标记已完成；新增 M0-5 工单（资金流因子覆盖外股票 stale 标记）；调整启动波次（M0-4/5 进入立即波次） |
+| 2026-09-12 | 新增 **M6-5 回流边消费闭环**（REQ-9bcd0a）：评分→教训→强制消费→可观测四段已交付并 live 验证；契约全文见 `docs/architecture/m6-l2-reflux-contract.md` |

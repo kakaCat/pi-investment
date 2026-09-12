@@ -469,6 +469,21 @@ await tools.learning_apply({
 - `benchmark_run` - 基准测试
 - `benchmark_compare` - 版本对比
 
+## 10. 回流边：L1/L2 产出的消费契约（2026-09-12 新增）
+
+> 背景：本文此前只定义了「L1-L4 把产出写进 genome」这条边；**产出被谁消费、何时消费、缺失如何发现**从未定义 —— 结果决策评分（27 条已评、20 日平均超额 **-10.24%**、18/27 big_loss）与业绩归因（每日 18:40）长期无人消费。**产出无人消费等于没有产出。**
+
+| 产出 | 形态 | 消费方 | 时限 | 缺失语义 | 可观测 |
+|---|---|---|---|---|---|
+| 业绩归因（M6） | `memory(namespace=analysis)` | 盘前例程 + 任何开仓分析 | 次日盘前 | 写 `attribution_read=false` + 原因 | 检查点 `m6_attribution`（产出侧 18:40） |
+| 决策评分与教训（L2） | `GET /api/evolution/decision-scores`（含 `learned_lesson`） | `decision_scores` 工具 + 盘前例程 | 决策前 | `lessonCoverage=0` 即断链 | 检查点 `m6_l2_reflux`（消费侧 09:25，断链判红） |
+
+- **纪律载体**：genome `rules` R-008 扩展（rules v16 / genome g28，候选 `cand_1789220789501_2mah72`，观察至 2026-09-17）
+- **教训生成**：`quantsys-v2/application/services/evolution/lesson_generator.py`（纯函数；每条含 标的+日期区间+超额数值+band + 条件化结论）
+  ⚠️ **方向语义陷阱（实证）**：`score_calculator` 的 `excess_return` **已按动作方向调整**（buy 正向；sell/miss 反向——"躲过下跌/正确观望为**正**，割肉/踏空为**负**"）。首版把 miss 的结论写反，靠 `--dry-run` 预览真实样例才发现；**消费带正负号语义的字段前必须先回定义处确认口径**。
+- **契约全文**：[m6-l2-reflux-contract.md](../../../docs/architecture/m6-l2-reflux-contract.md)（7 要素 + 责任划分 + 已知缺陷 + 验收判据 S1–S4）
+- **已知缺陷**：`genome_update(stage=candidate)` 候选登记缺失（G1/C2，验证门空转）已于 2026-09-12 修复（commit `3d850ab5`），以「`lessons g29 watching` 出现在 genome_benchmark」端到端验证
+
 ---
 
 **状态**: 🚀 Phase 1 完成，Phase 2-4 设计中
