@@ -19,7 +19,8 @@
     "@deepseek-ai/schemastery": "^3.18.1",
     "@deepseek-ai/dsh-tools": "0.1.2-rc.1",
     "@deepseek-ai/dsh-system-prompt": "0.1.2-rc.1",
-    "@pi-investment/core-tool": "workspace:*"
+    "@pi-investment/core-tool": "workspace:*",
+    "@pi-investment/evolver": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

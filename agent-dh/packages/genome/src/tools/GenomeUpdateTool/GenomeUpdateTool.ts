@@ -15,6 +15,7 @@ import {
   type GenomeMetadata,
 } from '../../store';
 import { createHistoryEntry, advanceVersion } from '../../versioning';
+import { registerCandidate } from '@pi-investment/evolver';
 import {
   guardConstitution,
   validateVersion,
@@ -198,6 +199,30 @@ export class GenomeUpdateTool extends BaseTool<GenomeUpdateParams, GenomeUpdateR
         }
       }
 
+      // Step 15.5（2026-09-12，REQ-9bcd0a G1 根因修复）：candidate 必须登记 candidates.json
+      // 背景：本工具此前只写 genome.json history、从不登记 candidates.json → validation_gate
+      // 读 candidates.json 永远无输入（"候选 0"空转 + 孤儿候选）。2026-09-06 审计首现、09-12 复现。
+      // 登记刻意放在金丝雀/热替换**之后**：只有变更已确认生效才登记，避免还原流程留下孤儿候选。
+      let candidateId: string | undefined;
+      let candidateWarning: string | undefined;
+      if (stage === 'candidate') {
+        try {
+          const rec = registerCandidate({
+            genomeDir: this.genomeDir,
+            section,
+            sectionVersion: newData.sections[section].version,
+            genomeVersion: newData.genome_version,
+            baselineVersion: data.genome_version,
+            mutationType: 'prompt',
+          });
+          candidateId = rec?.id;
+        } catch (regError: any) {
+          // 不抛错（内容已生效，回滚代价过大），但必须显式告警——否则又回到"候选永不进验证门"的静默空转
+          candidateWarning = 'candidate 已生效但登记 candidates.json 失败（验证门将无案可裁），需人工补录：'
+            + String(regError?.message ?? regError);
+        }
+      }
+
       // Step 15: 同步插件内存
       Object.assign(this.genomeData, newData);
 
@@ -213,6 +238,10 @@ export class GenomeUpdateTool extends BaseTool<GenomeUpdateParams, GenomeUpdateR
         git_commit: gitHash,
       };
       if (hoursWarning?.warning) result.warning = hoursWarning.warning;
+      if (candidateId) result.candidate_id = candidateId;
+      if (candidateWarning) {
+        result.warning = (result.warning ? result.warning + ' | ' : '') + candidateWarning;
+      }
 
       return result;
     } catch (error: any) {

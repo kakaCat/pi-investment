@@ -14,6 +14,13 @@ import {
   createGenomeBenchmarkTool,
 } from './tools';
 
+// 2026-09-12（REQ-9bcd0a G1 根因修复）：候选登记的唯一实现在 ./candidates，
+// 供 PromptEvolverTool（登记方）与 ValidationGateTool（裁决方）共用；此处再导出给
+// @pi-investment/genome 的 genome_update 复用——此前该工具只写 genome.json history、
+// 从不登记 candidates.json，导致验证门永远无案可裁（静默空转、孤儿候选）。
+export { registerCandidate, readCandidates } from './candidates';
+export type { CandidateRecord } from './candidates';
+
 /**
  * Minimal OsMemoryStore replacement (inlined from deleted @pi-investment/os-memory)
  * Wraps AgentOSClient to provide createMemory/searchMemory API

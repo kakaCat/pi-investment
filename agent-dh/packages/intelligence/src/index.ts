@@ -23,7 +23,9 @@ export interface Config {
  */
 export default class IntelligencePlugin extends Service {
   static inject = ['tools'];
-  static Config = z.object({
+  // 显式 any 注解（2026-09-12）：否则 dts 生成报 TS2742 —— 'Config' 的推断类型需要引用
+  // .pnpm/@deepseek-ai+schemastery 的内部路径，不可移植，构建即失败（且失败会清空 dist）。
+  static Config: any = z.object({
     quantsysV2: z.object({
       baseURL: z.string().default('http://localhost:5001'),
       timeout: z.number().default(30000),

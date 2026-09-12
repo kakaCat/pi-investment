@@ -29,7 +29,9 @@ export interface GenomeUpdateResult {
   /** 规则 ID 增删（仅 rules 段有意义，其余段为空数组） */
   rule_id_changes: { added: string[]; removed: string[] };
   git_commit?: string;
-  /** 交易时段 force 修改的留痕警告 */
+  /** candidate 登记的候选 ID（stage=candidate 时返回；用于验证门裁决与漂移核对） */
+  candidate_id?: string;
+  /** 交易时段 force 修改的留痕警告；或 candidate 登记失败告警 */
   warning?: string;
 }
 
