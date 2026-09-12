@@ -167,7 +167,7 @@ _link_dir() {  # $1=目标路径  $2=源路径  $3=说明
   local dst="$1" src="$2" label="$3"
   if [ -L "$dst" ]; then
     [ "$(readlink "$dst")" = "$src" ] || \
-      echo "  警告: $label 已是指向 $(readlink "$dst") 的符号链接（预期 $src），保持不变" >&2
+      echo "  警告: $label 已是指向 $(readlink "$dst") 的符号链接（预期 ${src}），保持不变" >&2
     return 0
   fi
   if [ -e "$dst" ] && [ -n "$(ls -A "$dst" 2>/dev/null)" ]; then
@@ -186,7 +186,7 @@ _link_file() {  # $1=目标路径  $2=源路径  $3=说明
   [ -e "$src" ] || return 0
   if [ -L "$dst" ]; then
     [ "$(readlink "$dst")" = "$src" ] || \
-      echo "  警告: $label 已是指向 $(readlink "$dst") 的符号链接（预期 $src），保持不变" >&2
+      echo "  警告: $label 已是指向 $(readlink "$dst") 的符号链接（预期 ${src}），保持不变" >&2
     return 0
   fi
   if [ -e "$dst" ] && [ -s "$dst" ]; then
@@ -199,7 +199,7 @@ _link_file() {  # $1=目标路径  $2=源路径  $3=说明
 }
 
 if [ "$MANAGED_HOME" = "1" ]; then
-  echo "运行模式: 项目内托管（DSH_HOME=$DSH_HOME profile=$DSH_PROFILE）"
+  echo "运行模式: 项目内托管（DSH_HOME=${DSH_HOME} profile=${DSH_PROFILE}）"
   mkdir -p "$DSH_DATA_DIR/data"
 
   # 在 DSH_HOME 创建配置文件符号链接，让 DSH 读取项目内的配置
@@ -211,11 +211,79 @@ if [ "$MANAGED_HOME" = "1" ]; then
     ln -sf "$DSH_DATA_DIR/.credentials.yaml" "$DSH_HOME/.credentials.yaml"
   fi
 
-  # 拷入自建 agent preset（investment = 内置 standard 去掉 delegation 组）。
-  # 内置 standard 含 delegation，会因 host 层 modelSelectionSettings 缺失而整体挂载失败。
+  # ── agent preset 分发（2026-09-13 加固）────────────────────────────────
+  # 拷入自建 agent preset。仓库 config/agent-presets/ 是**唯一来源**：
+  #   investment —— 内置 standard 去掉 delegation 组（内置 standard 含 delegation，
+  #                 会因 host 层 modelSelectionSettings 缺失而整体挂载失败）
+  #   liangshen  —— 梁神模式（phase1 双工具锚定，晋升后切 PTC Mode）
+  # 发现规则（dsh-agent-presets）：preset = $DSH_HOME/.agent-presets/<id>/agent.cordis.yml，
+  # **目录名即 id，且只允许 ^[a-z0-9][a-z0-9-]*$**（大写/下划线/点的目录不会被发现）。
+  # 缺 preset 不是"降级"而是硬失败：新建会话、恢复记录了该 preset 的老会话都会报
+  #   agent-presets: preset "<id>" not found (available: …)
+  # （2026-09-13 事故：settings.yaml 的默认 preset 还是 liangshen，而迁移后的
+  #   DSH_HOME 里只拷了 investment —— 老会话与新建会话全部 resume failed。）
+  # 这里是**拷贝**而非符号链接：改仓库 preset 需重启实例才生效（discovery 在进程内热读
+  # 文件，但 DSH_HOME 下这份副本只在启动时刷新）。目标下已有的其它 preset 一律保留。
   if [ -d "$PROJECT_ROOT/config/agent-presets" ]; then
     mkdir -p "$DSH_HOME/.agent-presets"
-    cp -R "$PROJECT_ROOT/config/agent-presets/"* "$DSH_HOME/.agent-presets/" 2>/dev/null || true
+    for _preset_dir in "$PROJECT_ROOT"/config/agent-presets/*/; do
+      [ -d "$_preset_dir" ] || continue
+      _preset_src="${_preset_dir%/}"
+      _preset_id="$(basename "$_preset_src")"
+      if [ ! -f "$_preset_src/agent.cordis.yml" ]; then
+        echo "  警告: 仓库 preset ${_preset_id} 缺 agent.cordis.yml，跳过（实例发现不了它）" >&2
+        continue
+      fi
+      # id 合法性：框架只认 ^[a-z0-9][a-z0-9-]*$（大写/下划线/点/前导横线都不行）。
+      # 不合法的目录拷了也白拷——discovery 直接不把它当 preset 槽位，而引用它的
+      # 会话/默认值会拿到 not-found。这里提前点破，别让"目录明明在"骗过眼睛。
+      case "$_preset_id" in
+        [!a-z0-9]*|*[!a-z0-9-]*)
+          echo "  警告: 仓库 preset 目录名 ${_preset_id} 不是合法 preset id" >&2
+          echo "        （只允许小写字母/数字/横线，且首位是字母或数字）——实例永远不会发现它。" >&2
+          echo "        处置：改名成合法 id（如 liangshen），并同步改引用它的默认值与老会话。" >&2
+          ;;
+      esac
+      if cp -R "$_preset_src" "$DSH_HOME/.agent-presets/"; then
+        echo "  分发 preset: ${_preset_id}"
+      else
+        echo "  警告: preset ${_preset_id} 拷入 $DSH_HOME/.agent-presets 失败" >&2
+      fi
+    done
+
+    # 落地校验：实例真正会引用的 preset 是否都在
+    #   ① 仓库分发的每一个（上面刚拷）
+    #   ② profile 补丁的默认值（config/cordis.yml 的 agent-presets.config.default）
+    #   ③ 用户设置的默认值（$DSH_DATA_DIR/settings.yaml 的 agent-presets.default，
+    #      优先于 ②；settings 是可写切片，defaultId = settings.default ?? config.default）
+    # 缺 = 新建/恢复会话直接 not-found，所以在启动时就喊出来，别等 UI 上报错。
+    _yaml_default() {  # $1=文件 $2=awk 程序；文件缺失或解析失败一律静默返回空（不触发 set -e）
+      [ -f "$1" ] || return 0
+      awk "$2" "$1" 2>/dev/null || true
+    }
+    _wanted_presets=""
+    for _preset_dir in "$PROJECT_ROOT"/config/agent-presets/*/; do
+      [ -d "$_preset_dir" ] && _wanted_presets="$_wanted_presets $(basename "${_preset_dir%/}")"
+    done
+    # settings.yaml：块键在行首，块内取第一个 default:
+    _wanted_presets="$_wanted_presets $(_yaml_default "$DSH_DATA_DIR/settings.yaml" '
+      /^agent-presets:/{inblock=1; next}
+      inblock && /^[^[:space:]]/{inblock=0}
+      inblock && /^[[:space:]]+default:/{print $2; exit}')"
+    # config/cordis.yml：定位 `- id: agent-presets` 行，取其后的第一个 default:
+    _wanted_presets="$_wanted_presets $(_yaml_default "$PROJECT_ROOT/config/cordis.yml" '
+      /^- id: agent-presets[[:space:]]*$/{found=1; next}
+      found && /^- id: /{exit}
+      found && /^[[:space:]]+default:/{print $2; exit}')"
+    for _preset_id in $(printf '%s\n' $_wanted_presets | sort -u); do
+      if [ ! -f "$DSH_HOME/.agent-presets/${_preset_id}/agent.cordis.yml" ]; then
+        echo "  警告: preset \"${_preset_id}\" 被配置引用，但 $DSH_HOME/.agent-presets/ 下没有它。" >&2
+        echo "        后果：新建会话、以及恢复记录该 preset 的会话会以" >&2
+        echo "              agent-presets: preset \"${_preset_id}\" not found 失败。" >&2
+        echo "        处置：把该 preset 放进 config/agent-presets/<id>/ 后重启，" >&2
+        echo "              或改 settings.yaml 的 agent-presets.default 指向已有的 preset。" >&2
+      fi
+    done
   fi
 
   # 会话与 storages 常驻项目数据目录（.dsh-data），DSH_HOME 内用符号链接指过去。
