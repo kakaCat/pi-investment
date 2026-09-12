@@ -153,11 +153,14 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
             return None
 
     def update_score(self, decision_id: str, score: float, band: str,
-                     detail: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+                     detail: Dict[str, Any],
+                     lesson: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """写回决策打分（文本参数进化 P0a）。
 
         score/score_band 落列，明细进 evaluation_result，状态置 evaluated；
         success = 分数为正（供 decision_service 报表统计）。
+        lesson（REQ-9bcd0a WP1，2026-09-12）：可选决策教训，非空时写入 learned_lesson，
+        这是 Autonomy L2『评估 → 教训 → 规则』回流边的数据入口；缺省 None 保持旧行为。
         """
         try:
             row = (self.session.query(self.model)
@@ -171,6 +174,8 @@ class AgentIntelligenceORMRepository(BaseORMRepository[AgentDecision], IAgentInt
             row.evaluation_result = detail
             row.evaluation_date = datetime.now()
             row.success = score > 0
+            if lesson:
+                row.learned_lesson = lesson
             self.session.commit()
             return self._to_dict(row)
         except SQLAlchemyError as e:

@@ -14,6 +14,7 @@ from datetime import date, datetime
 from typing import Any, Callable, Dict, Optional
 
 from application.services.evolution.score_calculator import compute_trade_score
+from application.services.evolution.lesson_generator import generate_lesson
 
 logger = logging.getLogger(__name__)
 
@@ -143,8 +144,23 @@ class DecisionScoreService:
             'benchmark_missing': bench_missing,
             **scored,
         }
+        lesson = generate_lesson(
+            action=action,
+            decision_type=decision.get('decision_type') or '',
+            symbol=symbol,
+            trade_price=float(trade_price),
+            trade_date=trade_date.isoformat(),
+            ref_date=ref_date.isoformat(),
+            excess_return=float(scored['excess_return']),
+            band=scored['band'],
+            score=float(scored['score']),
+            window_trading_days=self.mature_window,
+            benchmark=BENCHMARK_SYMBOL,
+            benchmark_missing=bench_missing,
+            context=decision.get('context') if isinstance(decision.get('context'), dict) else None,
+        )
         written = self.decision_repo.update_score(
-            decision['decision_id'], scored['score'], scored['band'], detail)
+            decision['decision_id'], scored['score'], scored['band'], detail, lesson=lesson)
         if written is None:
             raise RuntimeError(f"打分回写失败: {decision['decision_id']}")
         return 'scored'
