@@ -54,6 +54,26 @@ class RealtimeQuoteService:
         logger.warning(f"Failed to fetch quote for {symbol}: {result.get('error')}")
         return None
 
+    def get_realtime_quotes(self, symbols) -> dict:
+        """批量实时行情（2026-09-13，w-adb088f2）
+
+        一次 provider 调用取回多只，返回 {symbol: QuoteData}；整批失败返回 {}（不透传异常，
+        与 get_realtime_quote 返回 None 的既有约定一致）。缺口由调用方按 len(prices) 判定。
+        """
+        wanted = list(dict.fromkeys(symbols or []))
+        if not wanted:
+            return {}
+        logger.info(f"Fetching batch quotes for {len(wanted)} symbols")
+        result = self.provider_manager.get_quotes(wanted)
+        if result.get('success'):
+            data = dict(result.get('data') or {})
+            missing = result.get('missing_symbols') or []
+            if missing:
+                logger.warning(f"Batch quote partial: missing {missing}")
+            return data
+        logger.warning(f"Failed to fetch batch quotes: {result.get('error')}")
+        return {}
+
     def get_provider_health(self):
         """获取数据源健康状态
 
