@@ -144,10 +144,11 @@ DSH_PROFILE="${DSH_PROFILE:-agent-dh}"
 
 # 托管模式（未显式传 DSH_HOME）：用项目内 .dsh-home，本脚本负责生成 profile 脚手架，
 #   数据落项目内 .dsh-data。
-# 外部模式（显式传了 DSH_HOME，如 launchd 传 ~/.dsh-agent-dh 以保持现役布局）：
+# 外部模式（显式传了 DSH_HOME 且不是项目内的 .dsh-home，如回滚到旧 home 时）：
 #   本脚本**只负责启动**，绝不创建/覆盖/改链那份 home 的任何内容。
-#   理由：旧 home 下有 sessions(537MB)、genome/、dsh-reqboard.json、skills/、attachments/
+#   理由：外部 home 下有 sessions、genome/、dsh-reqboard.json、skills/、attachments/
 #   等全部活数据；脚手架里的 rm -rf + 符号链接会把它们静默搬走 = 数据丢失。
+#   （2026-09-13 起 launchd 不再传 DSH_HOME，走下面的托管模式。）
 if [ -n "${DSH_HOME:-}" ] && [ "$DSH_HOME" != "$PROJECT_ROOT/.dsh-home" ]; then
   MANAGED_HOME=0
 else

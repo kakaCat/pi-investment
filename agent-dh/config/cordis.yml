@@ -272,9 +272,11 @@
 
 # ========== Skill 自定义目录 ==========
 # 2026-09-03：skill 真身统一放 agent-dh/skills（工程归属），此处注册为自定义 skill 根。
-# 2026-09-05 更正：本文件（~/.dsh）为主实例(:3080)配置，非 :13080 运行配置！
-# :13080 investment profile 的 DSH_HOME=~/.dsh-agent-dh（start.sh 隔离），真身见
-# ~/.dsh-agent-dh/profiles/investment/cordis.patch.yml（已在彼处注册 customSkillDirs）。
+# 2026-09-05 更正：本文件为主实例(:3080)配置模板，非 :13080 运行配置！
+# 2026-09-13 更新：:13080 的 DSH_HOME 已迁入项目内 —— 托管模式下 start.sh 把它设为
+# agent-dh/.dsh-home（数据在 agent-dh/.dsh-data），现役真身见
+# agent-dh/.dsh-home/profiles/investment/cordis.patch.yml（已在彼处注册 customSkillDirs）。
+# 旧路径 ~/.dsh-agent-dh/profiles/investment/ 已是历史副本，仅作回滚用。
 - id: skill-filesystem
   name: '@deepseek-ai/dsh-skill-filesystem'
   config:

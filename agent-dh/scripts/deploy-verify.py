@@ -35,7 +35,19 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PKG_SCOPE = "@pi-investment"
-FALLBACK_PROFILES = ("~/.dsh-agent-dh/profiles/investment", "~/.dsh/profiles/investment")
+# 仓库外的历史 profile 副本：仅作兜底（回滚场景），正常情况下不该被选中。
+LEGACY_PROFILES = ("~/.dsh-agent-dh/profiles/investment", "~/.dsh/profiles/investment")
+
+
+def project_profile(profile_name="investment"):
+    """项目内托管布局的 profile 目录 —— 2026-09-13 起 :13080 的现役布局。
+
+    从脚本自身位置反推（scripts/ -> agent-dh/ -> .dsh-home/profiles/<name>），
+    **不硬编码 home**：硬编码正是 2026-09-13 那次漂移的成因 —— 发版工具链指着
+    ~/.dsh-agent-dh，而真正在跑的是 .dsh-home，体检整个验错了对象。
+    """
+    agent_dh = os.path.dirname(HERE)
+    return os.path.join(agent_dh, ".dsh-home", "profiles", profile_name)
 
 
 def resolve_profile(cli=None):
@@ -48,11 +60,23 @@ def resolve_profile(cli=None):
     dsh_home = os.environ.get("DSH_HOME")
     if dsh_home:
         cands.append(os.path.join(dsh_home, "profiles", "investment"))
-    cands += [os.path.expanduser(p) for p in FALLBACK_PROFILES]
+    cands.append(project_profile())
     for c in cands:
         if os.path.isfile(os.path.join(c, "package.json")):
             return c
-    return os.path.expanduser(FALLBACK_PROFILES[0])
+    legacy = [
+        os.path.expanduser(p)
+        for p in LEGACY_PROFILES
+        if os.path.isfile(os.path.join(os.path.expanduser(p), "package.json"))
+    ]
+    if legacy:
+        print(
+            f"⚠️ 项目内 profile ({project_profile()}) 不可用，回退到仓库外的历史副本：{legacy[0]}\n"
+            f"   这不是 :13080 的现役布局。确认目标无误后再继续。",
+            file=sys.stderr,
+        )
+        return legacy[0]
+    return project_profile()
 
 
 def run(cmd):

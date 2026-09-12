@@ -25,7 +25,10 @@ set -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-PROFILE_DIR="${DSH_INVESTMENT_PROFILE:-$HOME/.dsh-agent-dh/profiles/investment}"
+# 项目内托管布局（2026-09-13 起 :13080 的现役布局）：从脚本自身位置反推，不硬编码 home。
+# 原来写死 ~/.dsh-agent-dh/profiles/investment —— 切换后那份已是历史副本，本脚本会去
+# relink/体检一个没人跑的 home，再用它那份旧 start.sh 去撞 13080 端口。
+PROFILE_DIR="${DSH_INVESTMENT_PROFILE:-$PROJECT_ROOT/.dsh-home/profiles/investment}"
 
 LAUNCHD_LABEL="com.pi-investment.dsh"
 LAUNCHD_PLIST="$HOME/Library/LaunchAgents/$LAUNCHD_LABEL.plist"
@@ -225,7 +228,9 @@ echo "[5/6] 启动 Agent-DH 服务..."
 if [ "$MANAGED" = "1" ]; then
   launchctl bootstrap "gui/$(id -u)" "$LAUNCHD_PLIST"
 else
-  (cd "$PROFILE_DIR" && ./start.sh &)
+  # 托管布局的 profile 目录里**没有 start.sh**（只有配置与 state/data 链接），
+  # cwd 取 PROJECT_ROOT 与 launchd 拉起的实例一致（config 里 cwd 是 process.cwd()）。
+  (cd "$PROJECT_ROOT" && "$SCRIPT_DIR/start.sh" &)
 fi
 STARTED_OK=0
 for _ in $(seq 1 60); do
