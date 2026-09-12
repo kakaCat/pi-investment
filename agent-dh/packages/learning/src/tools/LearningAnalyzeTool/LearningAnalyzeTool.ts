@@ -3,6 +3,7 @@
  */
 
 import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { serializeSuggestion } from '../../serializeSuggestion';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import { learningAnalyzePrompt, LearningAnalyzeParams, LearningAnalyzeResult } from './prompt';
 
@@ -49,8 +50,11 @@ export class LearningAnalyzeTool extends BaseTool<LearningAnalyzeParams, Learnin
     return {
       success: true,
       patterns: Array.isArray(result?.patterns) ? result.patterns : [],
+      // 2026-09-12 修复（w-adb088f2）：此前用 String(s) 处理对象型建议，
+      // 产出字面量 "[object Object]" 并沿 daily_distill → prompt_evolver 污染候选内容。
       suggestions: (Array.isArray(result?.suggestions) ? result.suggestions : [])
-        .map((s: any) => String(s ?? '')),
+        .map((s: any) => serializeSuggestion(s))
+        .filter((s: string) => s.length > 0),
       sample_count: typeof result?.sample_count === 'number' ? result.sample_count : 0,
     };
   }
