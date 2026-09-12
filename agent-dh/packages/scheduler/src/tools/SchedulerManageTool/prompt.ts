@@ -32,6 +32,12 @@ export interface SchedulerManageParams {
   payload?: Record<string, any>;
   /** Webhook 回调地址（create/update 可选）：设置后任务触发改走 HTTP POST，command 不再执行 */
   webhook_url?: string;
+  /**
+   * 业务线别（create/update 可选，2026-09-12 起可写）：profit_engine=盈利引擎线 /
+   * autonomy=自主能力线 / account=账户专属例行 / other=临时·核验·未归类。
+   * 不传=不设置（新建任务落 NULL=未打标，会被调度看门狗列为待补标）。
+   */
+  agent_line?: 'profit_engine' | 'autonomy' | 'account' | 'other';
 }
 
 export interface SchedulerManageResult {
@@ -156,6 +162,11 @@ export const schedulerManagePrompt: ToolPrompt<SchedulerManageParams, SchedulerM
       type: 'string',
       required: false,
       description: '任务描述',
+    },
+    agent_line: {
+      type: 'string',
+      required: false,
+      description: '业务线别（create/update 可选）：profit_engine=盈利引擎线 / autonomy=自主能力线 / account=账户专属例行 / other=临时·核验·未归类。不传=新建任务未打标（会被调度看门狗列为待补标）',
     },
     webhook_url: {
       type: 'string',

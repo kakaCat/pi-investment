@@ -145,6 +145,22 @@ def _normalize_run(run: Dict[str, Any], task_name: str = None) -> Dict[str, Any]
     }
 
 
+def _sync_apscheduler_jobs(request: Request = None) -> None:
+    """启用/禁用任务后立即让 APScheduler 生效（加载或摘除 job）。
+
+    2026-09-12（w-c8cae280）：此前 enable/disable 只改 DB 标志位，不动 jobstore →
+    禁用只在下次进程重启/reload 才生效（而重启时的对账又看不到历史 job），
+    实证任务 250 禁用后仍每天触发 15 天。此处 best-effort：失败不影响主流程返回。
+    """
+    try:
+        svc = getattr(getattr(request, 'app', None), 'state', None)
+        scheduler_service = getattr(svc, 'scheduler_service', None) if svc is not None else None
+        if scheduler_service is not None:
+            scheduler_service.reload_tasks()
+    except Exception as e:
+        logger.warning(f"APScheduler 任务重载失败（不影响启用/禁用结果）: {e}")
+
+
 def _task_to_summary(task: Dict[str, Any]) -> Dict[str, Any]:
     runs = _scheduler.list_runs(task_id=task.get('id'), limit=100)
     today = datetime.now().strftime('%Y-%m-%d')
@@ -298,10 +314,11 @@ def update_scheduler_task(task_id: str, payload: Optional[Dict[str, Any]] = Body
 
 @router.post('/api/scheduler/tasks/{task_id}/enable')
 @handle_api_error
-def enable_scheduler_task(task_id: str):
+def enable_scheduler_task(task_id: str, request: Request = None):
     try:
         _scheduler.enable_task(int(task_id))
         task = _scheduler.get_task(int(task_id))
+        _sync_apscheduler_jobs(request)
         return {'success': True, 'data': task}
     except ValueError as e:
         return error_response({'success': False, 'error': str(e)}, 404)
@@ -309,10 +326,11 @@ def enable_scheduler_task(task_id: str):
 
 @router.post('/api/scheduler/tasks/{task_id}/disable')
 @handle_api_error
-def disable_scheduler_task(task_id: str):
+def disable_scheduler_task(task_id: str, request: Request = None):
     try:
         _scheduler.disable_task(int(task_id))
         task = _scheduler.get_task(int(task_id))
+        _sync_apscheduler_jobs(request)
         return {'success': True, 'data': task}
     except ValueError as e:
         return error_response({'success': False, 'error': str(e)}, 404)

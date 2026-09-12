@@ -81,6 +81,7 @@ func (h *SchedulerHandler) handleRegisterTask(w http.ResponseWriter, r *http.Req
 		Timeout:     req.Timeout,
 		RetryCount:  req.RetryCount,
 		Enabled:     req.Enabled,
+		AgentLine:   req.AgentLine,
 	}
 
 	// Set defaults
@@ -162,6 +163,7 @@ func (h *SchedulerHandler) handleUpdateTask(w http.ResponseWriter, r *http.Reque
 		Timeout     *int                    `json:"timeout,omitempty"`
 		RetryCount  *int                    `json:"retry_count,omitempty"`
 		Enabled     *bool                   `json:"enabled,omitempty"`
+		AgentLine   *string                 `json:"agent_line,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -197,6 +199,9 @@ func (h *SchedulerHandler) handleUpdateTask(w http.ResponseWriter, r *http.Reque
 	}
 	if req.Enabled != nil {
 		existingTask.Enabled = *req.Enabled
+	}
+	if req.AgentLine != nil {
+		existingTask.AgentLine = *req.AgentLine
 	}
 
 	// Update task

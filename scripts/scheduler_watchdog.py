@@ -208,7 +208,8 @@ def scan_v2(conn, now_utc, since_utc):
     issues = []
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
-            "SELECT id, name, cron_expression, command, compensation_enabled, last_run_at "
+            "SELECT id, name, cron_expression, command, compensation_enabled, last_run_at, "
+            "misfire_grace_time_seconds "
             "FROM quant.scheduler_tasks WHERE is_enabled=true "
             "AND cron_expression NOT LIKE 'managed_by_agent_%'"
         )
@@ -247,15 +248,22 @@ def scan_v2(conn, now_utc, since_utc):
             )
             runs = [r["started_at"] for r in cur.fetchall()]
             missed = [e for e in exps if not has_run_near(runs, e)]
-            # 已排期（job store 有未来 next_run）则豁免 missed
-            if missed and tid in scheduled_ids:
-                continue
+            # 豁免收窄（2026-09-12 w-c8cae280）：原实现只要 job store 里有"未来排期"就整体豁免。
+            # 但任务漏掉本次槽位后，APScheduler 本就会把 next_run 推到下一个周期 → 该豁免恰好
+            # 把"漏跑"与"活着"混为一谈，真漏跑永不告警（实证：23 个带 DOW 的 v2 任务因 cron
+            # 星期口径错位整体错跑数周，看门狗 issues 恒为 0）。
+            # 现按 misfire 宽限期判定：宽限期内仍可能补投 → 豁免；超过宽限期，未来排期只能
+            # 说明"下次会跑"，不能说明"这次跑过" → 报 missed。
+            grace_min = max(MIN_MISSED_AGE_MIN, int(t.get("misfire_grace_time_seconds") or 300) // 60)
             for e in missed:
+                if (now_utc - e).total_seconds() <= grace_min * 60:
+                    continue  # 仍在宽限期，可能补投
+                note = "；APScheduler 有未来排期（只说明下次会跑）" if tid in scheduled_ids else ""
                 issues.append({
                     "key": f"v2:missed:{tid}:{e.strftime('%Y%m%d%H%M')}",
                     "type": "missed", "system": "v2", "task_id": tid,
                     "task": name, "policy": policy,
-                    "detail": f"应于 {e.astimezone(CST):%m-%d %H:%M} 执行（{cron}）",
+                    "detail": f"应于 {e.astimezone(CST):%m-%d %H:%M} 执行（{cron}），已超 {grace_min} 分钟宽限期未跑{note}",
                 })
 
         # zombie：running 超阈值
@@ -339,6 +347,21 @@ def scan_agent_os(conn, now_utc, since_utc):
                         "detail": f"应于 {e.astimezone(CST):%m-%d %H:%M} 执行（{cron}）",
                     })
 
+        # 未打标检测（2026-09-12 w-c8cae280）：agent_line 此前是 NOT NULL DEFAULT
+        # 'profit_engine'，新建任务静默继承默认值 → 7 个 agent-brain-* 账户例行被错标成
+        # 引擎线且无人发现。现该列允许 NULL（未打标可表达），未打标必须被主动发现。
+        # 注：v2 的 domain 不做此检查——六域与业务线正交，且存在有意保留的 NULL。
+        cur.execute(
+            "SELECT id, name FROM public.tasks WHERE enabled=true AND agent_line IS NULL ORDER BY id"
+        )
+        for t in cur.fetchall():
+            issues.append({
+                "key": f"os:untagged:{t['id']}", "type": "untagged", "system": "agent_os",
+                "task_id": str(t["id"]), "task": t["name"], "policy": "alert_only",
+                "detail": "agent_line 为空（未打标）→ 智能执行页只能按任务名兜底分组；"
+                          "请补标 profit_engine / autonomy / account / other",
+            })
+
         cur.execute(
             "SELECT r.id, r.started_at, t.name FROM public.task_runs r "
             "JOIN public.tasks t ON t.id=r.task_id "
@@ -419,7 +442,7 @@ def main():
     if new_alerts:
         lines = []
         for it, action_line in new_alerts:
-            icon = {"offline": "🔴", "zombie": "🟠", "missed": "🟡"}.get(it["type"], "⚪")
+            icon = {"offline": "🔴", "zombie": "🟠", "missed": "🟡", "untagged": "🔵"}.get(it["type"], "⚪")
             lines.append(
                 f"{icon} **[{it['system']}/{it['type']}]** {it['task']}\n"
                 f"  {it['detail']}{action_line}"

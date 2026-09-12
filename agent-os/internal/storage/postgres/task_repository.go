@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -42,13 +43,21 @@ func (r *TaskRepository) Create(ctx context.Context, task *types.Task) error {
 		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
+	// 业务线别：显式传值才写，留空写 NULL（=未打标，可被看板对账/告警识别）。
+	// 2026-09-12 前该列是 NOT NULL DEFAULT 'profit_engine'，导致 09-02 后新建的
+	// 任务全部静默继承默认值（agent-brain-* 7 个账户例行被标成引擎线）。
+	var agentLine *string
+	if strings.TrimSpace(task.AgentLine) != "" {
+		agentLine = &task.AgentLine
+	}
+
 	query := `
 		INSERT INTO tasks (
 			name, owner, description, schedule, cron, command,
 			webhook_url, service_name, payload, timeout, retry_count, enabled,
-			created_by, metadata
+			created_by, metadata, agent_line
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		RETURNING id, created_at, updated_at
 	`
 
@@ -67,6 +76,7 @@ func (r *TaskRepository) Create(ctx context.Context, task *types.Task) error {
 		task.Enabled,
 		task.CreatedBy,
 		metadataJSON,
+		agentLine,
 	).Scan(&task.ID, &task.CreatedAt, &task.UpdatedAt)
 
 	if err != nil {
@@ -267,12 +277,18 @@ func (r *TaskRepository) Update(ctx context.Context, task *types.Task) error {
 		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
+	// 与 Create 同口径：留空写 NULL（=未打标），显式传值才落库。
+	var agentLine *string
+	if strings.TrimSpace(task.AgentLine) != "" {
+		agentLine = &task.AgentLine
+	}
+
 	query := `
 		UPDATE tasks
 		SET description = $1, schedule = $2, cron = $3, command = $4,
 		    webhook_url = $5, service_name = $6, payload = $7, timeout = $8,
-		    retry_count = $9, enabled = $10, metadata = $11
-		WHERE id = $12
+		    retry_count = $9, enabled = $10, metadata = $11, agent_line = $12
+		WHERE id = $13
 		RETURNING updated_at
 	`
 
@@ -288,6 +304,7 @@ func (r *TaskRepository) Update(ctx context.Context, task *types.Task) error {
 		task.RetryCount,
 		task.Enabled,
 		metadataJSON,
+		agentLine,
 		task.ID,
 	).Scan(&task.UpdatedAt)
 

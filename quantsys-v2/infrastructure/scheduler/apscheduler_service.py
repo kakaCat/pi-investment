@@ -21,6 +21,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.triggers.cron import CronTrigger
+
+from infrastructure.scheduler.cron_compat import build_cron_trigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -132,7 +134,11 @@ class APSchedulerService:
 
         # 孤儿回收：jobstore 是持久化的，add_job(replace_existing=True) 只增不删，
         # 任何"删除任务/停用任务/转为 Agent OS 托管"都不会摘掉已注册的 job。
+        # 注意：调度器未启动时 get_jobs() 只返回本次会话 pending 的 job，看不到 jobstore
+        # 里的历史 job —— 因此 start() 必须在 scheduler.start() 之后再对账一次
+        # （见 start() 内注释与 2026-09-12 实证：task_250 禁用后仍跑了 15 天）。
         self.reconcile_jobs(desired_ids)
+        return desired_ids
 
     def reconcile_jobs(self, desired_ids) -> int:
         """摘掉 jobstore 里不再有对应任务的"孤儿 job"，返回摘除数量。
@@ -199,11 +205,10 @@ class APSchedulerService:
         task_name = get_attr(task, 'name', 'Unknown')
 
         if task_type == 'cron':
-            # 标准 Cron 任务
-            return CronTrigger.from_crontab(
-                cron_expr,
-                timezone='Asia/Shanghai'
-            )
+            # 标准 Cron 任务：DOW 必须按标准 cron（0=周日）翻译后再交给 APScheduler。
+            # APScheduler 的 from_crontab 用 0=周一，直接透传会让 Mon-Fri 实跑成 Tue-Sat，
+            # 实证与口径见 infrastructure/scheduler/cron_compat.py。
+            return build_cron_trigger(cron_expr, tz='Asia/Shanghai')
 
         elif task_type == 'delay':
             # 延迟任务：N 秒后执行一次
@@ -255,8 +260,17 @@ class APSchedulerService:
             return
 
         # 先加载任务，再启动
-        self.load_tasks_from_db()
+        desired_ids = self.load_tasks_from_db()
         self.scheduler.start()
+
+        # 启动后再对账一次（关键）：未启动的 BackgroundScheduler 上 get_jobs() 只返回
+        # 本次会话 add_job 的 pending job，看不到持久化 jobstore 里的历史 job →
+        # 已禁用/已删除/已转 Agent OS 的任务会长期残留在 jobstore 里继续触发。
+        # 实证（2026-09-12 w-c8cae280）：任务 250 pre-market-scan 早已 is_enabled=false，
+        # 仍每天 01:25 触发（近 30 天 15 次），三次进程重启都没摘掉，只有显式
+        # POST /api/scheduler/reload（此时 scheduler 已 running）才摘得掉。
+        if desired_ids is not None:
+            self.reconcile_jobs(desired_ids)
 
         # 进程重启会打断 run 的收尾记账 → 启动时回收遗留的 running run
         self._recover_orphan_runs()

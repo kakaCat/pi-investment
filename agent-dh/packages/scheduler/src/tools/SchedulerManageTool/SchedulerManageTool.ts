@@ -141,6 +141,7 @@ export class SchedulerManageTool extends BaseTool<SchedulerManageParams, Schedul
           retry_delay: args.retry_delay,
           webhook_url: args.webhook_url,
           payload: args.payload,
+          agent_line: args.agent_line,
         } as any);
         result.task = task;
         result.task_id = task.id;
@@ -164,6 +165,7 @@ export class SchedulerManageTool extends BaseTool<SchedulerManageParams, Schedul
           retry_count: args.retry_count,
           webhook_url: args.webhook_url,
           payload: args.payload,
+          agent_line: args.agent_line,
         } as any);
         result.task = task;
         result.task_id = args.task_id;

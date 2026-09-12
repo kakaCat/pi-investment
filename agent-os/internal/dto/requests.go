@@ -14,6 +14,9 @@ type CreateTaskRequest struct {
 	Timeout     int                    `json:"timeout" validate:"min=1,max=3600"`
 	RetryCount  int                    `json:"retry_count" validate:"min=0,max=10"`
 	Enabled     bool                   `json:"enabled"`
+	// 业务线别（2026-09-12 起可写）：profit_engine / autonomy / account / other。
+	// 留空=NULL=未打标（不再默认 profit_engine，避免默认值把误分类伪装成已打标）。
+	AgentLine string `json:"agent_line" validate:"omitempty,max=32"`
 }
 
 // UpdateTaskRequest represents the request to update a task
