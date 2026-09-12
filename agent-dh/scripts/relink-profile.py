@@ -97,9 +97,21 @@ def resolve_profile(cli=None):
 
 
 def find_repo_root(profile, declared_targets):
-    """从任一已声明的目标反推仓库根（含 agent-dh/packages 的目录）。"""
-    for t in declared_targets:
-        p = os.path.abspath(t)
+    """反推仓库根（含 agent-dh/packages 的目录）。
+
+    优先从已声明的 file:/link: 目标反推，但 profile **可以一个此类声明都没有**
+    （项目内托管布局的 profile package.json 只有 dsh.profile.bundles，实测如此）——
+    那时若只认声明就推不出仓库根，未声明条目会一律退化成 linked-unverified：
+    只能判"不是副本"，判不了"指向的是本仓库"，门禁强度悄悄变松。
+    故补三个与声明无关的锚点：node_modules（解软链后）、profile 自身、脚本自身。
+    """
+    anchors = list(declared_targets) + [
+        os.path.join(profile, "node_modules"),
+        profile,
+        HERE,
+    ]
+    for t in anchors:
+        p = os.path.realpath(t)
         for _ in range(8):
             if os.path.isdir(os.path.join(p, "agent-dh", "packages")):
                 return p
