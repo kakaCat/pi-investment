@@ -38,7 +38,11 @@ export function createBoardController(): BoardController {
   // 页面因此"卡住"。现改为分块拉取：轮询只带 parts=hot（约 4 KB），每第 4 次轮询补一次全量
   // （约 60s）以刷新盯盘规则与成交明细。
   let pollTick = 0
+  // 请求序号：只有最后一次发出的请求允许落地（防止旧响应覆盖新响应）
+  let fetchSeq = 0
   const fetchAndRender = async (accountName: string, mode: 'full' | 'hot' = 'full'): Promise<void> => {
+    const mySeq = ++fetchSeq
+    const forAccount = accountName
     try {
       const url = '/dashboard/api/holdings?account=' + encodeURIComponent(accountName)
         + (mode === 'hot' ? '&parts=hot' : '')
@@ -46,11 +50,24 @@ export function createBoardController(): BoardController {
       const json = await res.json()
       if (!json.success) throw new Error(json.error || 'Unknown error')
       const incoming = json.data as HoldingsData
-      // 合并：只覆盖本次**实际返回**的块（incoming.parts）。否则 hot 响应里的空 watchRules/
-      // tradeHistory 会把上一轮已加载的大块擦掉——那正是"看着有数据却突然空了"的经典来源。
+      // 2026-09-13（w-adb088f2）两处修复：
+      // ① 竞态：轮询（15s，hot 约 2.5 KB 很快）与切换账户（full 约 77 KB 较慢）并发时，
+      //    先发出的**旧账户**响应可能后落地，把新账户数据覆盖回去（"切了又弹回去"）。
+      //    分块把轮询变快后这个窗口被放大。故按请求序号 + 目标账户双重校验，过期响应一律丢弃。
+      // ② 账户一致性：HOT_PARTS 曾漏掉 currentAccount，hot 响应不带它，合并后保留了上一个
+      //    账户的值 —— 而下拉框的 selected 正是由 currentAccount 渲染的，于是出现
+      //    「下拉框显示 A、数据是 B」。现在无论服务端是否回显，都以本次请求的账户为准。
+      if (mySeq !== fetchSeq) {
+        console.log('[dashboard-holdings] 丢弃过期响应（有更新的请求在后）: ' + forAccount)
+        return
+      }
+      if (forAccount !== currentAccount) {
+        console.log('[dashboard-holdings] 丢弃跨账户响应: ' + forAccount + '（当前 ' + currentAccount + '）')
+        return
+      }
       const merged: HoldingsData = lastData !== undefined
-        ? ({ ...lastData, ...(pickParts(incoming as any, incoming.parts) as object), parts: incoming.parts } as HoldingsData)
-        : ({ ...incoming, parts: incoming.parts } as HoldingsData)
+        ? ({ ...lastData, ...(pickParts(incoming as any, incoming.parts) as object), currentAccount: forAccount, parts: incoming.parts } as HoldingsData)
+        : ({ ...incoming, currentAccount: forAccount, parts: incoming.parts } as HoldingsData)
       renderBoard(merged)
     } catch (error) {
       console.error('[dashboard-holdings] fetch failed:', error)
