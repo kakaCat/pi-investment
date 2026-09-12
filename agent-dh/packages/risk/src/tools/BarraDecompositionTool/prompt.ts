@@ -62,7 +62,7 @@ export const barraDecompositionPrompt: ToolPrompt<BarraDecompositionParams, Barr
     {
       title: '查询组合的 Barra 风险分解',
       params: {
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
       },
       expectedResult: '返回因子风险贡献、特质风险、行业集中度等',
     },

@@ -107,9 +107,9 @@ export const portfolioTradePrompt: ToolPrompt<PortfolioTradeParams, PortfolioTra
     },
     account_name: {
       type: 'string',
-      description: '账户名称，默认 agent_virtual',
-      default: 'agent_virtual',
-      example: 'agent_virtual',
+      description: '账户名称，必填：agent-dh 自有账户 agent_brain（agent_virtual 属 agent-ts，禁止写入）',
+      default: 'agent_brain',
+      example: 'agent_brain',
     },
     execute_at: {
       type: 'string',

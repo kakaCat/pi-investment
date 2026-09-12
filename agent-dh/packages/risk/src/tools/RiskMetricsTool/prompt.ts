@@ -52,7 +52,7 @@ export const riskMetricsPrompt: ToolPrompt<RiskMetricsParams, RiskMetricsResult>
     {
       title: '查询默认账户的风险指标',
       params: {
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
         days: 60,
       },
       expectedResult: '返回包含波动率、回撤、夏普比率等风险指标',
@@ -70,8 +70,8 @@ export const riskMetricsPrompt: ToolPrompt<RiskMetricsParams, RiskMetricsResult>
   parameters: {
     account_name: {
       type: 'string',
-      description: '账户名称，默认 agent_virtual',
-      default: 'agent_virtual',
+      description: '账户名称，默认 agent_brain',
+      default: 'agent_brain',
     },
     days: {
       type: 'integer',

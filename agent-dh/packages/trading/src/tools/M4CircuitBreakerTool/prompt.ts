@@ -44,7 +44,7 @@ export const circuitBreakerPrompt: ToolPrompt<CircuitBreakerCheckParams, Circuit
     {
       title: '检查熔断状态',
       params: {
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
       },
       expectedResult: '60日回撤: -5.2%, 无熔断',
     },
@@ -62,9 +62,9 @@ export const circuitBreakerPrompt: ToolPrompt<CircuitBreakerCheckParams, Circuit
   parameters: {
     account_name: {
       type: 'string',
-      description: '账户名称，默认 agent_virtual',
-      default: 'agent_virtual',
-      example: 'agent_virtual',
+      description: '账户名称，必填：agent-dh 自有账户 agent_brain（agent_virtual 属 agent-ts，禁止写入）',
+      default: 'agent_brain',
+      example: 'agent_brain',
     },
   },
 

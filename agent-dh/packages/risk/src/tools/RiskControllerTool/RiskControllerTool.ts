@@ -94,7 +94,7 @@ export class RiskControllerTool extends BaseTool<RiskControllerParams, RiskContr
     const raw: any = await this.qv2.riskControl({
       command: args.command,
       symbol: args.symbol,
-      account_name: args.account_name || 'agent_virtual',
+      account_name: args.account_name || 'agent_brain',
       risk_level: args.risk_level,
       price: args.price,
       entry_price: args.entry_price,

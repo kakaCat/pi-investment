@@ -38,7 +38,7 @@ export class TradeMonitorTool extends BaseTool<TradeMonitorParams, TradeMonitorR
           issue: 'account_name 必须是非空字符串',
           received: args.account_name,
           expected: 'string',
-          example: 'agent_virtual',
+          example: 'agent_brain',
         };
       }
     }
@@ -65,7 +65,7 @@ export class TradeMonitorTool extends BaseTool<TradeMonitorParams, TradeMonitorR
    * Phase 2: 执行任务
    */
   protected async execute(args: TradeMonitorParams, _context: ToolContext): Promise<TradeMonitorResult> {
-    const account = args.account_name || 'agent_virtual';
+    const account = args.account_name || 'agent_brain';
     const result = await this.qv2.getTradeHistory({
       account_name: account,
       order_id: args.order_id,

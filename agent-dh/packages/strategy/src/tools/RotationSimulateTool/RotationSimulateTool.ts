@@ -60,7 +60,7 @@ export class RotationSimulateTool extends BaseTool<RotationSimulateParams, Rotat
     // 此处做字段映射，同时保留原始明细供上层参考。
     const raw = await this.qv2.simulateRotation({
       proposals: args.proposals,
-      account_name: args.account_name || 'default',
+      account_name: args.account_name || 'agent_brain',
       check_constraints: args.check_constraints !== false,
     });
 

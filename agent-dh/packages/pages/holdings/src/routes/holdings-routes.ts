@@ -21,9 +21,9 @@ function json(res: ServerResponse, status: number, body: unknown): void {
 export function createHoldingsHandler(aggregator: PortfolioAggregationService) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     try {
-      // 解析 query 参数 account（默认 agent_virtual）
+      // 解析 query 参数 account（默认 agent_brain）
       const url = new URL(req.url || '/', `http://${req.headers.host}`);
-      const account = url.searchParams.get('account') || 'agent_virtual';
+      const account = url.searchParams.get('account') || 'agent_brain';
       // 2026-09-13（w-adb088f2）：parts 缺省＝全量（向后兼容）；轮询用 parts=hot 只拉约 4 KB 高频块
       const parts = parseParts(url.searchParams.get('parts'));
 

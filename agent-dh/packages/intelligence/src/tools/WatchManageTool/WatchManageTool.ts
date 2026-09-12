@@ -99,7 +99,7 @@ export class WatchManageTool extends BaseTool<WatchManageParams, any> {
       const isPnl = /^\s*pnl_pct/.test(params.condition ?? '');
       if (isPnl && !params.cost_price) {
         // 自动取持仓成本（对标 agent-ts"持仓补位止损"场景）
-        const account = params.account || 'agent_virtual';
+        const account = params.account || 'agent_brain';
         const positions = await this.qv2Client.getPositions(account);
         const pos = (positions || []).find((p: any) => p.symbol === params.symbol);
         const cost = pos?.avgCost ?? pos?.avg_cost ?? pos?.costPrice;

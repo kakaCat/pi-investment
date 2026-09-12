@@ -130,6 +130,33 @@ export class AlgoExecuteTool extends BaseTool<AlgoExecuteParams, AlgoExecuteResu
       }
     }
 
+    // R-019（2026-09-13 w-c8cae280）：写操作必须显式指定账户。
+    // agent-dh 自有账户 = agent_brain；agent_virtual 属 agent-ts（fin-agent），禁止写入。
+    const acct = args.account_name;
+    if (acct === undefined || acct === null || String(acct).trim() === '') {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'account_name',
+        issue: '写操作必须显式传 account_name（agent-dh 自有账户 = agent_brain）',
+        received: acct,
+        expected: "'agent_brain'",
+        example: 'agent_brain',
+        guide: '默认账户不再隐式作用于写操作；agent_virtual 属 agent-ts，禁止写入',
+      };
+    }
+    if (String(acct).trim() === 'agent_virtual') {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'account_name',
+        issue: 'agent_virtual 属 agent-ts（fin-agent），agent-dh 禁止对其写入',
+        received: acct,
+        expected: "'agent_brain'",
+        example: 'agent_brain',
+      };
+    }
+
     return { success: true };
   }
 
@@ -146,7 +173,7 @@ export class AlgoExecuteTool extends BaseTool<AlgoExecuteParams, AlgoExecuteResu
       quantity: args.quantity,
       algo: args.algo || 'TWAP',
       duration: args.duration || 30,
-      account_name: args.account_name || 'agent_virtual',
+      account_name: args.account_name || 'agent_brain',
     });
     return result as unknown as AlgoExecuteResult;
   }

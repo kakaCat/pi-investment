@@ -49,14 +49,14 @@ export const tradeMonitorPrompt: ToolPrompt<TradeMonitorParams, TradeMonitorResu
     {
       title: '查询所有订单',
       params: {
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
       },
       expectedResult: '返回近期全部订单列表',
     },
     {
       title: '查询特定订单',
       params: {
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
         order_id: 'ORD-20260828-001',
       },
       expectedResult: '返回该订单的详细信息',
@@ -78,8 +78,8 @@ export const tradeMonitorPrompt: ToolPrompt<TradeMonitorParams, TradeMonitorResu
   parameters: {
     account_name: {
       type: 'string',
-      description: '账户名称，默认 agent_virtual',
-      default: 'agent_virtual',
+      description: '账户名称，默认 agent_brain',
+      default: 'agent_brain',
     },
     order_id: {
       type: 'string',

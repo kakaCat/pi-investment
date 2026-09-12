@@ -14,8 +14,8 @@ export const portfolioAnalyzePrompt: ToolPrompt<PortfolioAnalyzeParams> = {
   parameters: {
     account_name: {
       type: 'string',
-      description: '账户名称，默认 agent_virtual',
-      default: 'agent_virtual',
+      description: '账户名称，默认 agent_brain',
+      default: 'agent_brain',
     },
   },
 

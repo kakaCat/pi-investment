@@ -58,7 +58,7 @@ export const algoExecutePrompt: ToolPrompt<AlgoExecuteParams, AlgoExecuteResult>
         quantity: 1000,
         algo: 'TWAP',
         duration: 30,
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
       },
       expectedResult: '返回算法订单ID、拆分的子单列表、成交均价',
     },
@@ -69,7 +69,7 @@ export const algoExecutePrompt: ToolPrompt<AlgoExecuteParams, AlgoExecuteResult>
         symbol: '000001',
         quantity: 2000,
         algo: 'VWAP',
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
       },
       expectedResult: '返回算法订单ID、拆分的子单列表、成交均价',
     },
@@ -118,8 +118,8 @@ export const algoExecutePrompt: ToolPrompt<AlgoExecuteParams, AlgoExecuteResult>
     },
     account_name: {
       type: 'string',
-      description: '账户名称，默认 agent_virtual',
-      default: 'agent_virtual',
+      description: '账户名称，必填：agent-dh 自有账户 agent_brain（agent_virtual 属 agent-ts，禁止写入）',
+      default: 'agent_brain',
     },
   },
 

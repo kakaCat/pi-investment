@@ -38,7 +38,7 @@ export class TradeVerifyTool extends BaseTool<TradeVerifyParams, TradeVerifyResu
           issue: 'account_name 必须是非空字符串',
           received: args.account_name,
           expected: 'string',
-          example: 'agent_virtual',
+          example: 'agent_brain',
         };
       }
     }
@@ -69,7 +69,7 @@ export class TradeVerifyTool extends BaseTool<TradeVerifyParams, TradeVerifyResu
     // 逻辑与本地版一致：重复成交/字段缺失/非法值/持仓勾稽+迁移缺腿降级）。
     // 本地替代实现（2026-08-23 起的 performLocalVerify）已退役。
     const raw: any = await this.qv2.verifyTrades({
-      account_name: args.account_name || 'agent_virtual',
+      account_name: args.account_name || 'agent_brain',
       ...(args.date ? { date: args.date } : {}),
     });
 

@@ -52,7 +52,7 @@ export const regimePositionLimitPrompt: ToolPrompt<RegimePositionLimitParams, Re
     {
       title: '检查当前仓位限制',
       params: {
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
       },
       expectedResult: '返回 regime 映射的仓位上限、当前仓位、可加仓空间和合规判定',
     },
@@ -70,8 +70,8 @@ export const regimePositionLimitPrompt: ToolPrompt<RegimePositionLimitParams, Re
   parameters: {
     account_name: {
       type: 'string',
-      description: '账户名称，默认 agent_virtual',
-      default: 'agent_virtual',
+      description: '账户名称，默认 agent_brain',
+      default: 'agent_brain',
     },
   },
 

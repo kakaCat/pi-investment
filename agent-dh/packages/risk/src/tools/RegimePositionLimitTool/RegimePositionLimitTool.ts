@@ -61,7 +61,7 @@ export class RegimePositionLimitTool extends BaseTool<RegimePositionLimitParams,
    * Phase 2: 执行任务
    */
   protected async execute(args: RegimePositionLimitParams, _context: ToolContext): Promise<RegimePositionLimitResult> {
-    const accountName = args.account_name || 'agent_virtual';
+    const accountName = args.account_name || 'agent_brain';
 
     // 1. 读最新 regime 记录（忽略已弃用）
     const res = await this.memoryClient.searchMemory({ q: 'regime', scope: 'market:regime', limit: 10 });

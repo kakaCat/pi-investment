@@ -55,7 +55,7 @@ export const riskControllerPrompt: ToolPrompt<RiskControllerParams, RiskControll
       params: {
         command: 'position_size',
         symbol: '600519',
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
       },
       expectedResult: '返回建议买入仓位比例和金额',
     },
@@ -65,7 +65,7 @@ export const riskControllerPrompt: ToolPrompt<RiskControllerParams, RiskControll
         command: 'stop_loss',
         symbol: '600519',
         risk_level: 'large_cap',
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
       },
       expectedResult: '返回建议止损价格',
     },
@@ -73,7 +73,7 @@ export const riskControllerPrompt: ToolPrompt<RiskControllerParams, RiskControll
       title: '评估组合风险',
       params: {
         command: 'portfolio_risk',
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
       },
       expectedResult: '返回组合整体风险评估',
     },
@@ -99,8 +99,8 @@ export const riskControllerPrompt: ToolPrompt<RiskControllerParams, RiskControll
     },
     account_name: {
       type: 'string',
-      description: '账户名称，默认 agent_virtual',
-      default: 'agent_virtual',
+      description: '账户名称，默认 agent_brain',
+      default: 'agent_brain',
     },
     risk_level: {
       type: 'string',

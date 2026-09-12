@@ -42,9 +42,9 @@ export class PortfolioAggregationService {
 
   /**
    * 聚合持仓数据
-   * @param accountName - 账户名称，默认 agent_virtual
+   * @param accountName - 账户名称，默认 agent_brain
    */
-  async aggregate(accountName: string = 'agent_virtual', opts?: { parts?: string[] }): Promise<HoldingsData> {
+  async aggregate(accountName: string = 'agent_brain', opts?: { parts?: string[] }): Promise<HoldingsData> {
     const { v2BaseURL, requestTimeoutMs, agentOsBaseURL } = this.options;
     const timeout = { timeoutMs: requestTimeoutMs };
     // 2026-09-13（w-adb088f2）：按分块取数。轮询只带 hot（约 4 KB），冷块（盯盘规则 79.5 KB /

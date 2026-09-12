@@ -88,7 +88,7 @@ export class QuantsysV2MarketDataAdapter implements MarketDataProvider {
       
       // 否则查询该股票的最近成交
       const response = await this.qv2Client.tradeMonitor({
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
       });
       
       const orders = response?.orders ?? [];
@@ -120,7 +120,7 @@ export class QuantsysV2MarketDataAdapter implements MarketDataProvider {
    */
   async getCurrentPosition(
     symbol: string,
-    accountName: string = 'agent_virtual'
+    accountName: string = 'agent_brain'
   ): Promise<Position | null> {
     try {
       const response = await this.qv2Client.getPositionList({

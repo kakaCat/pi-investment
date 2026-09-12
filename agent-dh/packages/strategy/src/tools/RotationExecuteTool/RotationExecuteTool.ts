@@ -49,6 +49,33 @@ export class RotationExecuteTool extends BaseTool<RotationExecuteParams, Rotatio
       }
     }
 
+    // R-019（2026-09-13 w-c8cae280）：写操作必须显式指定账户。
+    // agent-dh 自有账户 = agent_brain；agent_virtual 属 agent-ts（fin-agent），禁止写入。
+    const acct = args.account_name;
+    if (acct === undefined || acct === null || String(acct).trim() === '') {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'account_name',
+        issue: '写操作必须显式传 account_name（agent-dh 自有账户 = agent_brain）',
+        received: acct,
+        expected: "'agent_brain'",
+        example: 'agent_brain',
+        guide: '默认账户不再隐式作用于写操作；agent_virtual 属 agent-ts，禁止写入',
+      };
+    }
+    if (String(acct).trim() === 'agent_virtual') {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'account_name',
+        issue: 'agent_virtual 属 agent-ts（fin-agent），agent-dh 禁止对其写入',
+        received: acct,
+        expected: "'agent_brain'",
+        example: 'agent_brain',
+      };
+    }
+
     return { success: true };
   }
 
@@ -58,7 +85,7 @@ export class RotationExecuteTool extends BaseTool<RotationExecuteParams, Rotatio
   ): Promise<RotationExecuteResult> {
     return this.qv2.executeRotation({
       proposals: args.proposals,
-      account_name: args.account_name || 'default',
+      account_name: args.account_name || 'agent_brain',
       dry_run: args.dry_run || false,
     }) as any;
   }

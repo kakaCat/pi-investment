@@ -58,7 +58,7 @@ export class PortfolioAnalyzeTool extends BaseTool<PortfolioAnalyzeParams, any> 
   }
 
   protected async execute(args: PortfolioAnalyzeParams, _context: ToolContext): Promise<any> {
-    const account = args.account_name || 'agent_virtual';
+    const account = args.account_name || 'agent_brain';
     const [positions, summary] = await Promise.all([
       this.qv2.getPositions(account),
       this.qv2.getPortfolioSummary(account),

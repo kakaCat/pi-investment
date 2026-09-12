@@ -152,7 +152,7 @@ export const watchManagePrompt: ToolPrompt<WatchManageParams> = {
             ]
           }
         }),
-        account: 'agent_virtual',
+        account: 'agent_brain',
         reason: '大盘蓝筹止损-8% 或 止盈+15%',
       },
       expectedBehavior: '跌幅达-8% 或 涨幅达+15% 任一触发',

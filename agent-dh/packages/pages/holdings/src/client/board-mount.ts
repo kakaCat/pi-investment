@@ -27,7 +27,7 @@ export interface BoardController {
 }
 
 export function createBoardController(): BoardController {
-  let currentAccount = 'agent_virtual'
+  let currentAccount = 'agent_brain'
   let watchKey = 'current'
   let historyPage = 0
   let lastData: HoldingsData | undefined

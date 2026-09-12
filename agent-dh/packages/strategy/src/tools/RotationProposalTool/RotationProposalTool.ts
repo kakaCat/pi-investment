@@ -60,7 +60,7 @@ export class RotationProposalTool extends BaseTool<RotationProposalParams, Rotat
     // strategy_id/strategy_name）。此前工具 as any 透传整个后端对象，与声明的
     // proposals 个股语义（symbol/buy/sell）不符——此处规范化为契约结构并保留 meta。
     const raw: any = await this.qv2.generateRotationProposal({
-      account_name: args.account_name || 'default',
+      account_name: args.account_name || 'agent_brain',
       mode: args.mode || 'balanced',
       max_positions: args.max_positions || 10,
     });

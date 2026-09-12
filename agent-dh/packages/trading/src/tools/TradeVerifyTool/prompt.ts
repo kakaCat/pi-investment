@@ -46,14 +46,14 @@ export const tradeVerifyPrompt: ToolPrompt<TradeVerifyParams, TradeVerifyResult>
     {
       title: '对账当日交易',
       params: {
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
       },
       expectedResult: '返回当日对账结果，包含异常列表',
     },
     {
       title: '对账指定日期',
       params: {
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
         date: '2026-08-28',
       },
       expectedResult: '返回该日期对账结果',
@@ -76,8 +76,8 @@ export const tradeVerifyPrompt: ToolPrompt<TradeVerifyParams, TradeVerifyResult>
   parameters: {
     account_name: {
       type: 'string',
-      description: '账户名称，默认 agent_virtual',
-      default: 'agent_virtual',
+      description: '账户名称，默认 agent_brain',
+      default: 'agent_brain',
     },
     date: {
       type: 'string',

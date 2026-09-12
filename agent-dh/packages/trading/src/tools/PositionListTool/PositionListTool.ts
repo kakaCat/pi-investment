@@ -38,7 +38,7 @@ export class PositionListTool extends BaseTool<PositionListParams, PositionListR
           issue: 'account_name 必须是字符串',
           received: typeof args.account_name,
           expected: 'string',
-          example: 'agent_virtual',
+          example: 'agent_brain',
         };
       }
 
@@ -50,7 +50,7 @@ export class PositionListTool extends BaseTool<PositionListParams, PositionListR
           issue: 'account_name 不能为空字符串',
           received: '""',
           expected: '非空字符串',
-          example: 'agent_virtual',
+          example: 'agent_brain',
         };
       }
     }
@@ -62,7 +62,7 @@ export class PositionListTool extends BaseTool<PositionListParams, PositionListR
    * Phase 2: 执行任务
    */
   protected async execute(args: PositionListParams, _context: ToolContext): Promise<PositionListResult> {
-    const accountName = args.account_name || 'agent_virtual';
+    const accountName = args.account_name || 'agent_brain';
     const result = await this.qv2.getPositions(accountName);
     return result as unknown as PositionListResult;
   }

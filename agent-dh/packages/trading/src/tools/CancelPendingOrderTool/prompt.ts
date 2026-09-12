@@ -46,7 +46,7 @@ export const cancelPendingOrderPrompt: ToolPrompt<CancelPendingOrderParams, Canc
       title: '撤销指定挂单',
       params: {
         order_id: 19,
-        account_name: 'agent_virtual',
+        account_name: 'agent_brain',
         reason: '与 id=18 重复的 SELL 单，保留限价保护版',
       },
       expectedResult: '返回 status=cancelled 与被撤单详情',
@@ -74,8 +74,8 @@ export const cancelPendingOrderPrompt: ToolPrompt<CancelPendingOrderParams, Canc
     },
     account_name: {
       type: 'string',
-      description: '账户名称，默认 agent_virtual',
-      default: 'agent_virtual',
+      description: '账户名称，必填：agent-dh 自有账户 agent_brain（agent_virtual 属 agent-ts，禁止写入）',
+      default: 'agent_brain',
     },
     reason: {
       type: 'string',

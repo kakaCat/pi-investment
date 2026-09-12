@@ -72,12 +72,12 @@ export const rotationProposalPrompt: ToolPrompt<RotationProposalParams, Rotation
   examples: [
     {
       title: '生成保守轮动方案',
-      params: { account_name: 'agent_virtual', mode: 'conservative', max_positions: 8 },
+      params: { account_name: 'agent_brain', mode: 'conservative', max_positions: 8 },
       expectedResult: '建议卖出 2 只弱势股，买入 1 只优质股',
     },
     {
       title: '生成激进轮动方案',
-      params: { account_name: 'agent_virtual', mode: 'aggressive', max_positions: 15 },
+      params: { account_name: 'agent_brain', mode: 'aggressive', max_positions: 15 },
       expectedResult: '建议大幅调仓，卖出 5 只、买入 8 只',
     },
   ],

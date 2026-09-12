@@ -56,9 +56,9 @@ export const positionListPrompt: ToolPrompt<PositionListParams, PositionListResu
   parameters: {
     account_name: {
       type: 'string',
-      description: '账户名称，默认 agent_virtual。除非配置了多账户，否则无需传入',
-      default: 'agent_virtual',
-      example: 'agent_virtual',
+      description: '账户名称，默认 agent-dh 自有账户 agent_brain（agent_virtual 属 agent-ts，只读不写）',
+      default: 'agent_brain',
+      example: 'agent_brain',
     },
   },
 

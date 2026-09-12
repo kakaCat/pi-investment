@@ -39,33 +39,31 @@ export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, Ci
    * Phase 1: 校验参数
    */
   protected validate(args: CircuitBreakerCheckParams): ValidationResult {
-    // account_name 可选，但如果提供必须是字符串
-    if (args.account_name !== undefined && args.account_name !== null) {
-      if (typeof args.account_name !== 'string') {
-        return {
-          success: false,
-          errorType: ErrorType.INPUT_ERROR,
-          field: 'account_name',
-          issue: 'account_name 必须是字符串',
-          received: typeof args.account_name,
-          expected: 'string',
-          example: 'agent_virtual',
-          guide: '请提供正确的账户名称字符串',
-        };
-      }
-
-      if (args.account_name.trim() === '') {
-        return {
-          success: false,
-          errorType: ErrorType.INPUT_ERROR,
-          field: 'account_name',
-          issue: 'account_name 不能为空字符串',
-          received: '""',
-          expected: '非空字符串',
-          example: 'agent_virtual',
-          guide: '请提供有效的账户名称，或省略此参数使用默认账户',
-        };
-      }
+    // R-019（2026-09-13 w-c8cae280）：写操作必须显式指定账户。
+    // agent-dh 自有账户 = agent_brain；agent_virtual 属 agent-ts（fin-agent），禁止写入。
+    const acct = args.account_name;
+    if (acct === undefined || acct === null || String(acct).trim() === '') {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'account_name',
+        issue: '写操作必须显式传 account_name（agent-dh 自有账户 = agent_brain）',
+        received: acct,
+        expected: "'agent_brain'",
+        example: 'agent_brain',
+        guide: '默认账户不再隐式作用于写操作；agent_virtual 属 agent-ts，禁止写入',
+      };
+    }
+    if (String(acct).trim() === 'agent_virtual') {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'account_name',
+        issue: 'agent_virtual 属 agent-ts（fin-agent），agent-dh 禁止对其写入',
+        received: acct,
+        expected: "'agent_brain'",
+        example: 'agent_brain',
+      };
     }
 
     return { success: true };
@@ -102,7 +100,7 @@ export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, Ci
     args: CircuitBreakerCheckParams,
     context: ToolContext
   ): Promise<CircuitBreakerCheckResult> {
-    const accountName = args.account_name || 'agent_virtual';
+    const accountName = args.account_name || 'agent_brain';
     const now = new Date().toISOString();
 
     // 1. 计算 60 日最大回撤（错误兜底：API 不可用时降级为 0 不触发熔断）
