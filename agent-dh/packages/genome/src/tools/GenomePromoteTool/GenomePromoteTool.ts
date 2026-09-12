@@ -32,7 +32,18 @@ export class GenomePromoteTool extends BaseTool<GenomePromoteParams, GenomePromo
   }
 
   protected validate(params: GenomePromoteParams): ValidationResult {
-    const { section, reason } = params;
+    const { section, reason, genome_version } = params;
+
+    if (genome_version !== undefined && (typeof genome_version !== 'string' || genome_version.trim() === '')) {
+      return {
+        success: false,
+        errorType: ErrorType.INPUT_ERROR,
+        field: 'genome_version',
+        issue: 'genome_version 若提供必须是非空字符串，如 "g30"',
+        expected: 'string（如 g30）',
+      };
+    }
+
 
     if (!this.genomeData.sections || !this.genomeData.sections[section]) {
       return {
@@ -57,7 +68,7 @@ export class GenomePromoteTool extends BaseTool<GenomePromoteParams, GenomePromo
   }
 
   protected async execute(params: GenomePromoteParams, context: ToolContext): Promise<GenomePromoteResult> {
-    const { section, reason } = params;
+    const { section, reason, genome_version } = params;
 
     let data: GenomeMetadata = this.genomeData;
     try {
@@ -71,7 +82,8 @@ export class GenomePromoteTool extends BaseTool<GenomePromoteParams, GenomePromo
       guardConstitution(section, data);
 
       // 转正（改 history 标记，不动段内容与版本号）
-      const newGenomeData = promoteCandidate(data, section, reason);
+      // genome_version 有值时精确定位该候选（2026-09-12 修复：旧行为会改错同段的其它候选）
+      const newGenomeData = promoteCandidate(data, section, reason, undefined, genome_version);
       writeGenomeJson(this.genomeDir, newGenomeData);
 
       // CHANGELOG

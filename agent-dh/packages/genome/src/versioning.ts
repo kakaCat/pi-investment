@@ -172,18 +172,39 @@ export function promoteCandidate(
   genomeData: GenomeMetadata,
   sectionName: string,
   reason: string,
-  gitCommit?: string
+  gitCommit?: string,
+  expectedGenomeVersion?: string
 ): GenomeMetadata {
   const history = [...(genomeData.history || [])];
 
-  // 找该段最新的 candidate 条目（从后往前）
-  const reversedIdx = [...history].reverse().findIndex(
-    e => e.section === sectionName && e.stage === 'candidate'
-  );
-  if (reversedIdx === -1) {
-    throw new Error(`段 ${sectionName} 没有观察中的 candidate，无法转正`);
+  // 2026-09-12（w-adb088f2）：支持按 genome_version 精确定位候选。
+  // 旧行为"找该段最新的 candidate"与裁决对象松耦合——验证门按 candidate.genome_version
+  // 取奖励、却把"最新"的那条标 active，同段堆叠多条候选时会把**尚未裁决的另一条**提前转正。
+  // 传入 expectedGenomeVersion 后必须命中该版本，否则拒绝（宁可不转正，也不改错对象）。
+  let idx: number;
+  if (expectedGenomeVersion) {
+    const found = history.findIndex(
+      e => e.section === sectionName
+        && e.stage === 'candidate'
+        && String(e.version) === String(expectedGenomeVersion)
+    );
+    if (found === -1) {
+      throw new Error(
+        `段 ${sectionName} 未找到 ${expectedGenomeVersion} 的观察中 candidate，拒绝转正` +
+        '（避免把同段的其它候选改错；请核对 candidate.genome_version）'
+      );
+    }
+    idx = found;
+  } else {
+    // 兼容旧调用：无版本约束时退回"该段最新 candidate"
+    const reversedIdx = [...history].reverse().findIndex(
+      e => e.section === sectionName && e.stage === 'candidate'
+    );
+    if (reversedIdx === -1) {
+      throw new Error(`段 ${sectionName} 没有观察中的 candidate，无法转正`);
+    }
+    idx = history.length - 1 - reversedIdx;
   }
-  const idx = history.length - 1 - reversedIdx;
   history[idx] = { ...history[idx], stage: 'active' as const };
 
   history.push({

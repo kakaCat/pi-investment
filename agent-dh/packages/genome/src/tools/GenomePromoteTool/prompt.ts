@@ -3,6 +3,8 @@ import type { ToolPrompt } from '@pi-investment/core-tool';
 export interface GenomePromoteParams {
   section: string;
   reason: string;
+  /** 可选：精确指定要转正的候选版本（history.version，如 "g30"）；缺省时退回"该段最新 candidate"的旧行为 */
+  genome_version?: string;
 }
 
 export interface GenomePromoteResult {
@@ -29,6 +31,11 @@ export const genomePromotePrompt: ToolPrompt<GenomePromoteParams, GenomePromoteR
       type: 'string',
       required: true,
       description: '转正理由（必填），如"观察期胜率不劣于基准"',
+    },
+    genome_version: {
+      type: 'string',
+      required: false,
+      description: '要转正的候选版本（history.version，如 g30）。强烈建议填写——缺省时会转正"该段最新 candidate"，同段堆叠多条候选时可能改错对象',
     },
   },
   output: {

@@ -488,6 +488,8 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
                 : '';
           await this.callTool('genome_promote', {
             section: c.section,
+            // 绑定候选版本（2026-09-12）：避免"转正最新 candidate"把同段尚未裁决的候选改错
+            genome_version: c.genome_version,
             reason: `观察期达标：candidate 平均奖励 ${cand.avg.toFixed(3)} vs 基准 ${base.avg.toFixed(3)}（样本 ${cand.count}/${base.count}）${healthNote}`,
           });
           c.status = 'promoted';
