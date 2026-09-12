@@ -155,6 +155,16 @@ export const CHECKPOINTS: Checkpoint[] = [
     expectTime: '18:40',
     graceMinutes: 30
   },
+  {
+    id: 'm6_l2_reflux',
+    line: 'engine',
+    module: 'M6',
+    name: '归因/评分回流消费',
+    verify: { type: 'decision_reflux_read' },
+    expectDays: '1-5',
+    expectTime: '09:25',
+    graceMinutes: 60
+  },
 
   // L1 - Strategy Validation
   {

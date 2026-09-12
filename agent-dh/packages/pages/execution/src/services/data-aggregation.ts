@@ -219,7 +219,7 @@ export class DataAggregationService {
     const degraded: Array<{ source: string; error: string }> = [];
 
     // 各数据路全部并行；单路失败只进 degraded，绝不整体 500
-    const [healthR, tasksR, runsR, regimeR, themesR, memoryR, genomeR, orphanedR] = await Promise.all([
+    const [healthR, tasksR, runsR, regimeR, themesR, memoryR, genomeR, orphanedR, refluxR] = await Promise.all([
       this.fetchHealthRows(degraded),
       this.fetchTasks(),
       this.fetchRuns(),
@@ -228,18 +228,21 @@ export class DataAggregationService {
       this.fetchMemoryToday(),
       this.fetchGenomeState(),
       this.fetchOrphanedTasks(),
+      this.fetchRefluxRead(),
     ]);
 
     const v2Available = healthR.v2Available;
     for (const [key, val] of Object.entries({
       'scheduler-runs': runsR.error, regime: regimeR.error, themes: themesR.error,
       memory: memoryR.error, genome: genomeR.error, orphaned: orphanedR.error,
+      reflux: refluxR.error,
     })) {
       if (val) degraded.push({ source: key, error: val });
     }
 
     const checkpoints = this.verifyAllCheckpoints(v2Available, tasksR, runsR.runs, {
       regimeLatest: regimeR.latest, themesLatest: themesR.latest, memoryToday: memoryR.count,
+      refluxRead: refluxR.read, refluxLessonCoverage: refluxR.lessonCoverage,
     }, genomeR.state);
     const timeline = this.buildTimeline(tasksR.tasks, runsR.runs);
     const blockedFlows = this.buildBlockedFlows(checkpoints);
@@ -488,12 +491,12 @@ export class DataAggregationService {
     });
   }
 
-  // ================= Checkpoints（16 行 registry × 状态机） =================
+  // ================= Checkpoints（registry × 状态机；数量以 checkpoint-registry.ts 为准） =================
   private verifyAllCheckpoints(
     v2Available: boolean,
     tasksResult: TaskRunsResult,
     runs: SchedulerRun[],
-    vs: { regimeLatest?: string; themesLatest?: string; memoryToday?: number },
+    vs: { regimeLatest?: string; themesLatest?: string; memoryToday?: number; refluxRead?: boolean | null; refluxLessonCoverage?: number | null },
     genome: GenomeMap,
   ): CheckpointResult[] {
     return CHECKPOINTS.map(cp => {
@@ -510,7 +513,7 @@ export class DataAggregationService {
     v2Available: boolean,
     tasksResult: TaskRunsResult,
     runs: SchedulerRun[],
-    vs: { regimeLatest?: string; themesLatest?: string; memoryToday?: number },
+    vs: { regimeLatest?: string; themesLatest?: string; memoryToday?: number; refluxRead?: boolean | null; refluxLessonCoverage?: number | null },
     genome: GenomeMap,
   ): CheckpointResult {
     const base = { id: cp.id, line: cp.line, module: cp.module, name: cp.name, blocksFlow: cp.blocksFlow, expectTime: cp.expectTime };
@@ -524,7 +527,7 @@ export class DataAggregationService {
 
     // v2 依赖且 v2 不可达 → unknown（紫灰降级保护，防误报"业务没跑"）
     const vt = cp.verify.type;
-    if (!v2Available && (vt === 'scheduler_task' || vt === 'v2_regime' || vt === 'v2_themes' || vt === 'v2_memory_kind')) {
+    if (!v2Available && (vt === 'scheduler_task' || vt === 'v2_regime' || vt === 'v2_themes' || vt === 'v2_memory_kind' || vt === 'decision_reflux_read')) {
       return { ...base, status: 'unknown', message: 'v2 不可达（降级保护）' };
     }
 
@@ -599,6 +602,20 @@ export class DataAggregationService {
       return { ...base, status: 'pending', message: '等待 ' + cp.expectTime + (gs.date ? '（最近 ' + gs.date + '）' : '') };
     }
 
+    if (vt === 'decision_reflux_read') {
+      const read = vs.refluxRead;
+      if (read === null || read === undefined) {
+        if (!this.isPastExpectTime(cp.expectTime)) return { ...base, status: 'pending', message: '等待今日盘前分析（' + cp.expectTime + '）' };
+        if (deadlinePassed) return { ...base, status: 'late', message: '今日无盘前分析决策记录 → 无法确认回流边是否被消费' };
+        return { ...base, status: 'pending', message: '等待盘前分析落库' };
+      }
+      if (read === true) {
+        const lc = vs.refluxLessonCoverage;
+        return { ...base, status: 'confirmed', message: '今日分析已读回流产出（attribution_read=true）' + (typeof lc === 'number' ? '，教训覆盖率 ' + lc : '') };
+      }
+      return { ...base, status: 'failed', message: '回流边断链：今日分析 attribution_read=false（未读昨日归因/决策评分）' };
+    }
+
     return { ...base, status: 'unknown', message: '未实现的验证类型: ' + vt };
   }
 
@@ -640,6 +657,33 @@ export class DataAggregationService {
         return d ? toLocalDate(d) === this.today : it.created_at.startsWith(this.today);
       }).length;
       return { ok: true, count };
+    } catch (e) {
+      return { ok: false, error: errMsg(e) };
+    }
+  }
+
+  /**
+   * REQ-9bcd0a WP3/WP6②：今日盘前分析是否消费了回流产出。
+   * 读 decision_audit 中 decision_type=morning_analysis 的当日记录，取 context.attribution_read。
+   * 三态：true=已读 / false=断链 / null=今日尚未落库（区分"没做"与"做了但没读"）。
+   */
+  private async fetchRefluxRead(): Promise<{ ok: boolean; read?: boolean | null; lessonCoverage?: number | null; error?: string }> {
+    try {
+      const json = await fetchJson<{ success?: boolean; data?: Array<{ created_at?: string; context?: Record<string, unknown> }> }>(
+        this.v2Base + '/api/decisions/history?decision_type=morning_analysis&limit=20'
+      );
+      const rows = Array.isArray(json?.data) ? json.data : [];
+      const todayRow = rows.find(r => {
+        if (!r?.created_at) return false;
+        const d = parseTs(r.created_at);
+        return d ? toLocalDate(d) === this.today : r.created_at.startsWith(this.today);
+      });
+      if (!todayRow) return { ok: true, read: null };
+      const ctx = (todayRow.context ?? {}) as Record<string, unknown>;
+      const raw = ctx['attribution_read'];
+      const read = raw === true || raw === 'true' ? true : raw === false || raw === 'false' ? false : null;
+      const lc = ctx['scores_lesson_coverage'];
+      return { ok: true, read, lessonCoverage: typeof lc === 'number' ? lc : null };
     } catch (e) {
       return { ok: false, error: errMsg(e) };
     }

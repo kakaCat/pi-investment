@@ -22,6 +22,8 @@ export type Verify =
   | { type: 'v2_themes' }                    // market/perception/themes 最新 trade_date
   | { type: 'v2_memory_kind'; kind: string } // memory/search 当日新增计数
   | { type: 'genome_file'; file: 'genome.json' | 'candidates.json' }
+  // REQ-9bcd0a WP6②：今日 morning_analysis 决策的 context.attribution_read（M6↔L2 回流边消费证据）
+  | { type: 'decision_reflux_read' }
   | { type: 'log_marker'; file: string; pattern: string };
 
 export interface CheckpointResult {
