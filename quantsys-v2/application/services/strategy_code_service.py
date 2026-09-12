@@ -28,6 +28,11 @@ from domain.backtest.engine.code_validator import CodeValidator
 from domain.backtest.engine.param_parser import ParamParser
 from infrastructure.quantlib.core.config import CHART_KLINE_LIMIT, CHART_KLINE_MAX_LIMIT
 from domain.risk.attribution import RiskAttributionCalculator
+from domain.trading.services.market_session_policy import AFTERNOON_START, MORNING_END
+
+# 午休边界的字符串形式（分钟线聚合的跨时段分组判据用；口径唯一在 MarketSessionPolicy）
+_MORNING_END_HHMMSS = MORNING_END.strftime('%H:%M:%S')        # '11:30:00'
+_AFTERNOON_START_HHMMSS = AFTERNOON_START.strftime('%H:%M:%S')  # '13:00:00'
 
 # 🆕 导入因子计算器（11个类，132个因子）
 from domain.factors.library.momentum import MomentumFactors
@@ -1472,8 +1477,11 @@ class StrategyCodeService:
                 prev_dt = str(current_group[-1].get('trade_date', ''))
                 prev_time = prev_dt.split(' ')[1][:8] if ' ' in prev_dt else prev_dt[-8:]
 
-                # 跨午休边界（前一根在11:xx, 当前在13:xx）
-                if prev_time < '12:00:00' and time_part >= '13:00:00':
+                # 跨午休边界（上午盘 → 下午盘）：口径唯一在 MarketSessionPolicy
+                # 旧写法 `prev < '12:00:00' and cur >= '13:00:00'` 是宽松代理：真实数据在
+                # 11:30–13:00 无成交、不存在 bar，故与现值等价；此处改为直接引用午休边界常量，
+                # 对 11:30–12:00 的非常规（合成）bar 不再误判为跨午休。
+                if prev_time <= _MORNING_END_HHMMSS and time_part >= _AFTERNOON_START_HHMMSS:
                     should_flush = True
                 # 跨交易日边界
                 elif ' ' in str(dt_str) and ' ' in prev_dt:
