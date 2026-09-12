@@ -105,6 +105,7 @@ export const genomeUpdatePrompt: ToolPrompt<GenomeUpdateParams, GenomeUpdateResu
           required: ['added', 'removed'],
         },
         git_commit: { type: 'string' },
+        candidate_id: { type: 'string' },
         warning: { type: 'string' },
       },
       required: ['success', 'section', 'old_version', 'new_version', 'genome_version', 'diff_summary', 'rule_id_changes'],

@@ -68,8 +68,11 @@
 
 ## 5. 已知缺陷与风险（必须跟踪）
 
-1. **G1/C2 登记缺失（未修）**：`genome_update(stage=candidate)` 不写 `candidates.json` → 候选不进观察流水线、**永远不会被 validation_gate 裁决**（空转孤儿）。2026-09-06 审计首次发现，2026-09-12 再次复现（本次已人工补录 + 备份）。**任何走该路径的变更都会重蹈此辙**，需修 `registerCandidate` 接线。
-2. **前向路径时效**：评分服务需重载代码后新打分轮次才产教训；回填类操作不受影响。
+1. **G1/C2 登记缺失 → ✅ 已修（2026-09-12，commit `3d850ab5`）**：`genome_update(stage=candidate)` 此前只写 `genome.json` history、不写 `candidates.json` → 候选永远进不了观察流水线、**永远不会被 validation_gate 裁决**（空转孤儿）。2026-09-06 审计首现、09-12 复现（当日已人工补录 + 备份）。
+   **修复方式**：`evolver` 导出 `registerCandidate`（复用唯一实现，防字段漂移）→ `genome` 声明该依赖（tsdown 外部化）→ `GenomeUpdateTool` 在**金丝雀/热替换之后**新增 Step 15.5 登记；登记失败不抛错但写入 `result.warning`，**绝不静默**；结果新增 `candidate_id` 字段。
+   **端到端验证**：修复后一次 `genome_update(section=lessons, stage=candidate)` → `genome_benchmark` 出现 `lessons g29 watching`（此前该路径从不留下 watching 记录）✅
+   **通用教训**：任何"写 A 处、读 B 处"的双轨机制，都要问一句「登记方真的登记了吗」，并让健康检查能发现"只有一半"的状态。
+2. **前向路径时效 + 部署前提**：评分服务需重载代码后新打分轮次才产教训（回填类操作不受影响）。**⚠️ 2026-09-12 实测的部署铁律**：本仓多数包（含 genome/intelligence/trading/strategy…）的 `main` 指向 **`dist/index.mjs`**——**改源码必须 `pnpm build` 才生效，光重启无效**；dist 不入库，只提交源码；正确发版路径 = `agent-dh/scripts/restart-with-build.sh`。另：**构建失败会清空 dist**（intelligence 曾因 dts 报 TS2742 失败并清空，致 6 个既有工具濒临消失）→ 构建后必须校验产物（文件存在 + 关键符号 grep 命中），不能只看退出码。
 3. **基准新鲜度**：基准（沪深300）滞后时归因结论不可用，此时须显式"无法归因"，不得降级为 0。
 
 ## 6. 验收判据（可执行）
