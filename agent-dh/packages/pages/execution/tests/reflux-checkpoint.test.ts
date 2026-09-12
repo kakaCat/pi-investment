@@ -59,6 +59,18 @@ describe('m6_l2_reflux 回流消费检查点', () => {
     expect(r.status).toBe('late');
   });
 
+  it('有记录但缺 attribution_read 字段 → failed（纪律未生效），不是"没跑"', () => {
+    const r = check('2026-09-14T23:00:00', { refluxRead: null, refluxHasRecord: true });
+    expect(r.status).toBe('failed');
+    expect(r.message).toContain('未写 attribution_read');
+  });
+
+  it('确无记录 + 过宽限 → late（区分「没跑」与「跑了没写」）', () => {
+    const r = check('2026-09-14T23:00:00', { refluxRead: null, refluxHasRecord: false });
+    expect(r.status).toBe('late');
+    expect(r.message).toContain('无盘前分析决策记录');
+  });
+
   it('非执行日（周六）→ off_day，优先于一切判定', () => {
     const r = check('2026-09-12T10:00:00', { refluxRead: false });
     expect(r.status).toBe('off_day');

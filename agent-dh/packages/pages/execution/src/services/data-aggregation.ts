@@ -242,7 +242,7 @@ export class DataAggregationService {
 
     const checkpoints = this.verifyAllCheckpoints(v2Available, tasksR, runsR.runs, {
       regimeLatest: regimeR.latest, themesLatest: themesR.latest, memoryToday: memoryR.count,
-      refluxRead: refluxR.read, refluxLessonCoverage: refluxR.lessonCoverage,
+      refluxRead: refluxR.read, refluxHasRecord: refluxR.hasRecord, refluxLessonCoverage: refluxR.lessonCoverage,
     }, genomeR.state);
     const timeline = this.buildTimeline(tasksR.tasks, runsR.runs);
     const blockedFlows = this.buildBlockedFlows(checkpoints);
@@ -496,7 +496,7 @@ export class DataAggregationService {
     v2Available: boolean,
     tasksResult: TaskRunsResult,
     runs: SchedulerRun[],
-    vs: { regimeLatest?: string; themesLatest?: string; memoryToday?: number; refluxRead?: boolean | null; refluxLessonCoverage?: number | null },
+    vs: { regimeLatest?: string; themesLatest?: string; memoryToday?: number; refluxRead?: boolean | null; refluxHasRecord?: boolean; refluxLessonCoverage?: number | null },
     genome: GenomeMap,
   ): CheckpointResult[] {
     return CHECKPOINTS.map(cp => {
@@ -513,7 +513,7 @@ export class DataAggregationService {
     v2Available: boolean,
     tasksResult: TaskRunsResult,
     runs: SchedulerRun[],
-    vs: { regimeLatest?: string; themesLatest?: string; memoryToday?: number; refluxRead?: boolean | null; refluxLessonCoverage?: number | null },
+    vs: { regimeLatest?: string; themesLatest?: string; memoryToday?: number; refluxRead?: boolean | null; refluxHasRecord?: boolean; refluxLessonCoverage?: number | null },
     genome: GenomeMap,
   ): CheckpointResult {
     const base = { id: cp.id, line: cp.line, module: cp.module, name: cp.name, blocksFlow: cp.blocksFlow, expectTime: cp.expectTime };
@@ -606,8 +606,12 @@ export class DataAggregationService {
       const read = vs.refluxRead;
       if (read === null || read === undefined) {
         if (!this.isPastExpectTime(cp.expectTime)) return { ...base, status: 'pending', message: '等待今日盘前分析（' + cp.expectTime + '）' };
-        if (deadlinePassed) return { ...base, status: 'late', message: '今日无盘前分析决策记录 → 无法确认回流边是否被消费' };
-        return { ...base, status: 'pending', message: '等待盘前分析落库' };
+        if (!deadlinePassed) return { ...base, status: 'pending', message: '等待盘前分析落库' };
+        if (vs.refluxHasRecord) {
+          // 落库了却没写 attribution_read —— 纪律未生效，是断链而非"没跑"
+          return { ...base, status: 'failed', message: '盘前分析已落库但未写 attribution_read 字段（回流纪律未生效，需检查例程指令是否含第⑧步）' };
+        }
+        return { ...base, status: 'late', message: '今日无盘前分析决策记录 → 无法确认回流边是否被消费' };
       }
       if (read === true) {
         const lc = vs.refluxLessonCoverage;
@@ -667,7 +671,7 @@ export class DataAggregationService {
    * 读 decision_audit 中 decision_type=morning_analysis 的当日记录，取 context.attribution_read。
    * 三态：true=已读 / false=断链 / null=今日尚未落库（区分"没做"与"做了但没读"）。
    */
-  private async fetchRefluxRead(): Promise<{ ok: boolean; read?: boolean | null; lessonCoverage?: number | null; error?: string }> {
+  private async fetchRefluxRead(): Promise<{ ok: boolean; read?: boolean | null; hasRecord?: boolean; lessonCoverage?: number | null; error?: string }> {
     try {
       const json = await fetchJson<{ success?: boolean; data?: Array<{ created_at?: string; context?: Record<string, unknown> }> }>(
         this.v2Base + '/api/decisions/history?decision_type=morning_analysis&limit=20'
@@ -678,12 +682,16 @@ export class DataAggregationService {
         const d = parseTs(r.created_at);
         return d ? toLocalDate(d) === this.today : r.created_at.startsWith(this.today);
       });
-      if (!todayRow) return { ok: true, read: null };
+      if (!todayRow) return { ok: true, read: null, hasRecord: false };
       const ctx = (todayRow.context ?? {}) as Record<string, unknown>;
       const raw = ctx['attribution_read'];
       const read = raw === true || raw === 'true' ? true : raw === false || raw === 'false' ? false : null;
       const lc = ctx['scores_lesson_coverage'];
-      return { ok: true, read, lessonCoverage: typeof lc === 'number' ? lc : null };
+      // hasRecord 用于区分两种都表现为 read=null 的情况：
+      //   false = 盘前分析根本没落库（流程没跑）
+      //   true  = 落库了但没写 attribution_read（纪律未生效 —— 是断链，不是没跑）
+      // 二者排查方向完全不同，不可合并（2026-09-12 review 修正）。
+      return { ok: true, read, hasRecord: true, lessonCoverage: typeof lc === 'number' ? lc : null };
     } catch (e) {
       return { ok: false, error: errMsg(e) };
     }
