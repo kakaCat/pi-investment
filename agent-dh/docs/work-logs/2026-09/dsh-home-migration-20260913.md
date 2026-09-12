@@ -91,6 +91,44 @@
 **教训**：迁 DSH_HOME 时「数据已复制」≠「实例可见」。判定依据必须是**运行实例的读数**
 （API 响应 / 启动日志），不是数据目录的文件清单——后者只证明磁盘上有，不证明应用读得到。
 
+## 四之三、发版工具链重定位（同日续查）
+
+上一节修的是"实例看不见数据"，顺着查发现**发版工具链整个指着旧 home**：
+
+| 位置 | 原值 |
+|---|---|
+| `relink-profile.py:46` | `FALLBACK_PROFILES[0] = ~/.dsh-agent-dh/profiles/investment` |
+| `deploy-verify.py:38` | 同上 |
+| `restart-with-build.sh:28` | `PROFILE_DIR="$HOME/.dsh-agent-dh/profiles/investment"` |
+
+后果分两层：
+
+1. **门禁验错对象**。跑 `relink-profile.py --check` 打印的是 `profile: ~/.dsh-agent-dh/...`，
+   并给出一句 "OK: 29 个符号链接" —— 而真正在跑的是 `.dsh-home`。这个"OK"什么都不保证。
+2. **发版脚本会撞墙**。`restart-with-build.sh`（CLAUDE.md 写的"正常发版走它即可"）
+   会 `cd` 到旧 home 跑**它那份旧 start.sh**：硬编码 `DSH_HOME=$HOME/.dsh-agent-dh`，
+   与仓库版差 418 行，且**没有 EADDRINUSE 互斥**。结果是撞 13080 端口失败，而真正该
+   relink 的 `.dsh-home` 一次都不会被碰到。
+
+**修复**（`6c18245a`）：三者改为**从脚本自身位置反推** profile
+（`scripts/` → `agent-dh/` → `.dsh-home/profiles/<name>`），旧路径降级为兜底，
+且被选中时**打印警告**——不再可能静默验错对象。`restart-with-build.sh` 的启动分支
+一并修正：托管布局的 profile 目录里没有 `start.sh`，改用 `$SCRIPT_DIR/start.sh`，
+cwd 取 `PROJECT_ROOT`（与 launchd 拉起实例的 `process.cwd()` 一致）。
+
+**连带修复**（`3f78e54c`）：改指向后 `--check` 把 25 个条目全判成 `linked-unverified`
+（旧目标下是 `symlink-ok`）——门禁悄悄变松：只判得出"不是副本"，判不出"指向本仓库"。
+根因是 `find_repo_root` 只从 `package.json` 的 `file:`/`link:` 声明反推，而托管布局的
+profile package.json **只有 `dsh.profile.bundles`，零声明**，仓库根推不出 → `repo_index` 空
+→ 未声明条目一律降级。补三个与声明无关的锚点（`node_modules` 解软链后 / profile 自身 /
+脚本自身）后，现役 profile **25/25 symlink-ok**。
+
+四种形态判定已逐一实测：仓库内→`symlink-ok`、仓库外→`symlink-bad`、
+普通目录→`copy`、悬空→`symlink-dangling`。
+
+**教训**：改 DSH_HOME 布局时，**跟着改的不只是运行时，还有工具链**。运行时错了会报错，
+工具链错了只会给你一句漂亮的 "OK"。
+
 ## 五、遗留
 
 - `~/.dsh-agent-dh`（1.5GB）保留作为回滚，**未删除**
