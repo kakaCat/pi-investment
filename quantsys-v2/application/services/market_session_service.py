@@ -76,6 +76,9 @@ class MarketSessionService:
     def next_boundary_at(self, now: Optional[datetime] = None) -> Optional[datetime]:
         """下一个相位边界的完整时刻（当日无更晚边界时返回 None）"""
         at = now or self._clock.now()
+        # 非交易日没有相位边界——与 current().next_boundary_at 保持一致（曾一个填值一个置空）
+        if not TradingDayGuard.is_trading_day(at.date()):
+            return None
         nxt = MarketSessionPolicy.next_boundary(at.time())
         # 保留 tzinfo：与 current().at 同口径（datetime.combine 默认丢 tz）
         return datetime.combine(at.date(), nxt, tzinfo=at.tzinfo) if nxt is not None else None

@@ -233,3 +233,22 @@ def test_section_bounds_name_is_public_and_single_sourced():
     from domain.trading.services.market_session_policy import SESSION_BOUNDS
     assert isinstance(SESSION_BOUNDS, tuple) and len(SESSION_BOUNDS) == 5
     assert POLICY.window_of(SessionPhase.MORNING) in SESSION_BOUNDS
+
+
+def test_intraday_gates_agree_at_sub_minute_endpoints():
+    """外层节拍闸门与 `IntradayMonitor` 内层闸门必须一致（端到端）。
+
+    回归背景：只修外层时出现「外层 True / 内层 False」→ 11:30 与 15:00 的
+    `intraday_monitor_check()`（含收盘那次止损/止盈）仍被跳过。本钉子同时钉两层。
+    """
+    from adapters.inbound.fastapi_app.orchestrator_bootstrap import _in_intraday_window
+    from application.services.intraday_monitor import IntradayMonitor
+
+    monitor = object.__new__(IntradayMonitor)  # 绕过重依赖构造（仓库既有测试手法）
+    for h, m, s in ((11, 30, 45), (15, 0, 30), (10, 0, 0), (14, 30, 0)):
+        now = datetime(2026, 9, 11, h, m, s)
+        assert _in_intraday_window(now) is True, now
+        assert monitor._is_trading_time(now.time()) is True, now
+    lunch = datetime(2026, 9, 11, 12, 0)
+    assert _in_intraday_window(lunch) is False
+    assert monitor._is_trading_time(lunch.time()) is False

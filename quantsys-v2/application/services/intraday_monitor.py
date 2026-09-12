@@ -17,6 +17,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, date, time
 
 from application.services.agent_notification_service import agent_service
+from domain.trading.services.market_session_policy import MarketSessionPolicy
 
 logger = structlog.get_logger(__name__)
 
@@ -135,10 +136,18 @@ class IntradayMonitor:
     # ==================== 内部方法 ====================
 
     def _is_trading_time(self, current_time: time) -> bool:
-        """判断是否在交易时段"""
-        morning = time(9, 30) <= current_time <= time(11, 30)
-        afternoon = time(13, 0) <= current_time <= time(15, 0)
-        return morning or afternoon
+        """判断是否在交易时段（RFC 016 §8.1：时段判定收敛到 MarketSessionPolicy）
+
+        回归背景（2026-09-12 代码审查）：旧实现按精确 `time` 比较，而调用方传的是
+        `datetime.now().time()`（秒/微秒非零）→ `time(15,0,30) <= time(15,0)` 为假，
+        使 11:30 与 15:00 两次巡检被静默跳过（外层节拍闸门判 True、内层却 False，
+        收盘那次止损/止盈不执行）。策略内部先**截到整分钟**，端点按整分钟语义闭合。
+
+        日级仍由调用方（外层节拍闸门）把关，待 RFC 016 D9 统一。
+        """
+        return MarketSessionPolicy.is_market_open(
+            MarketSessionPolicy.phase_for(current_time, is_trading_day=True)
+        )
 
     def _get_realtime_prices(self, symbols: List[str]) -> Dict[str, float]:
         """获取实时价格（使用最新K线收盘价模拟）"""
