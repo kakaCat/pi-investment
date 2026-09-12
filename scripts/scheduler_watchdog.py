@@ -12,9 +12,14 @@ scheduler_watchdog — 双调度系统独立看门狗（RFC 011 第3层）
 告警：飞书 bot webhook 直发（不依赖 v2/Agent OS 通知链路），同一问题去重
 （写 quant.scheduler_watchdog_log，恢复前只报一次，恢复后报一次"已恢复"）。
 
-补跑策略（任务级字段，本期只告警不自动补跑）：
-  - v2: quant.scheduler_tasks.compensation_enabled (t=auto_rerun / f=alert_only)
-  - Agent OS: public.tasks.metadata->>'watchdog' (auto_rerun / skip / 默认 alert_only)
+补跑策略（业务规则驱动；2026-09-13 w-c8cae280 起启用自动补跑）：
+  判定顺序（catchup_decision）：一次性任务 → 授权位 → 已被后续成功运行覆盖 → 次数上限
+    → 补跑窗口 → 最早补跑时刻 → 交易时段；任一不过即不补并写明原因。
+  - 授权：v2 quant.scheduler_tasks.compensation_enabled / OS public.tasks.metadata->>'watchdog'='auto_rerun'
+  - 参数：v2 compensation_check_after / compensation_max_attempts；
+          OS metadata.catchup{window_hours, check_after, max_attempts, market_hours}
+  - 留痕：quant.scheduler_catchup_log(issue_key, system, task, attempt, ok, reason)
+  - 总开关：环境变量 WATCHDOG_AUTO_RERUN（false=只告警；true=按上述规则补跑）
 
 运行方式：launchd com.pi-investment.scheduler-watchdog.plist 每 15 分钟触发。
 仅依赖标准库 + psycopg2 + croniter（用 quantsys-v2 venv 解释器运行）。

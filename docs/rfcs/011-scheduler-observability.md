@@ -10,12 +10,12 @@
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | P1 第3层看门狗 | `scripts/scheduler_watchdog.py` + launchd `com.pi-investment.scheduler-watchdog`（15min） | ✅ 已上线（commit da336438） |
-| 任务级补跑策略 | v2 `compensation_enabled`（26 auto_rerun+8 alert_only）+ Agent OS `metadata.watchdog`（2 auto_rerun+15 skip） | ✅ 已落库 |
+| 任务级补跑策略 | v2 `compensation_enabled`（15 auto_rerun / 12 alert_only）+ Agent OS `metadata.watchdog`（24 auto_rerun / 3 alert_only） | ✅ 已落库并按规则启用（2026-09-13） |
 | P4a 第1层 v2 misfire | 幂等任务 grace→3600s、时点敏感→600s，重启生效（job store 实测 3600/300） | ✅ 已完成 |
 | P4b 启动补跑 | **不需要额外代码**——APScheduler misfire 机制在 `start()` 时自动补跑过期 job（见 §5.1 修订） | ✅ 由 misfire 覆盖 |
 | P2 第2层 v2 高频化 | v2_health_check 16:45→每小时 | ⏸ 暂缓（看门狗 15min 已覆盖，避免重复告警） |
 | P3/P5 Agent OS 侧 | 自检+补跑（需改 Go） | ⏸ 暂缓（用户决策：不动 Go，由看门狗外部监控） |
-| P6 自动补跑白名单 | 接通 trigger API，WATCHDOG_AUTO_RERUN 开关 | ⏸ 待观察稳定后开启 |
+| P6 自动补跑白名单 | 接通 trigger API，WATCHDOG_AUTO_RERUN 开关 | ✅ 2026-09-13 开启（升级为**业务规则驱动**：授权位/覆盖判定/次数上限/窗口/最早时刻/交易时段，见 `docs/work-logs/2026-09/scheduler-catchup-rules.md`） |
 
 ### §5.1 修订：启动补跑 = misfire 机制（无需额外代码）
 实施时发现 APScheduler 的 misfire 机制本身就是启动补跑：调度器 `start()` 时检查 job store，
@@ -31,6 +31,12 @@
   `apscheduler_jobs.next_run_time` 实测排期为准（cron `0 8` 排期在北京 08:00）。
 - **任务级补跑策略字段**：v2 复用现成 `compensation_enabled`，Agent OS 复用 `metadata.watchdog`，
   无需新建字段。
+- **补跑必须按业务规则，不能只有一个布尔位（2026-09-13 补记）**：原实现里
+  `compensation_check_after` / `compensation_max_attempts` 被写进 `params` 后**全仓无读取方**（死字段），
+  自动补跑只有"任务布尔位 + 全局开关"两个条件 → 会在凌晨补盘前例程、会对已被后续运行覆盖的槽位重复补、
+  可反复触发。现补齐三件事：①规则引擎（7 条判定，含覆盖判定与次数上限，次数由
+  `quant.scheduler_catchup_log` 累计）②补跑留痕（谁被补了第几次、成功与否、依据什么）
+  ③按业务含义分级授权（交易时段敏感 3h / 盘后数据 12h / 周度自主 48h / 有交易副作用一律不授权）。
 
 
 
