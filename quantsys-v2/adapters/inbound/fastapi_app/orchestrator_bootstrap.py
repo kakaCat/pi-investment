@@ -17,7 +17,6 @@ from typing import Optional, Tuple
 
 import structlog
 
-from application.services.trading_day_guard import TradingDayGuard
 from domain.trading.services.market_session_policy import MarketSessionPolicy
 
 logger = structlog.get_logger(__name__)
@@ -26,16 +25,20 @@ _TICK_INTERVAL_SEC = 60
 
 
 def _in_orchestrator_window(now: datetime) -> bool:
-    """编排器**运行时段**：交易日 08:00-17:59（沿用原 daemon cron 的 hour='8-17'）
+    """编排器**运行时段**：工作日 08:00-17:59（沿用原 daemon cron 的 hour='8-17'）
 
     注意：这不是「市况判定」而是「编排器允许跑 tick 的时段」（含盘前/盘后），
-    故时段部分**不**收敛到 `MarketSessionPolicy`（策略表达的是相位，不是运行时段）。
+    故**不**收敛到 `MarketSessionPolicy`（策略表达的是相位，不是运行时段）。
 
-    日级判定**委托 `TradingDayGuard`**（RFC 016 §7 红线：禁止自算 weekday）——
-    原实现用 `weekday() < 5`，法定节假日（如 10-01 周四）会被当交易日，
-    使编排器在非交易日照跑 T+1 结转/挂单撮合。
+    ⚠️ 日级这里**刻意保持 weekday 近似**，不接 `TradingDayGuard`（2026-09-12 审查后回退）。
+    两个实测理由：① 该守卫是 **fail-closed** 的（数据源异常 → 保守判非交易日并缓存 60s），
+    而本函数是「钱路」任务的唯一门 —— 接上去会让 DB 一抖就静默停掉 T+1 结转与止损
+    （正是本文件头注释记的"编排器静默死亡"事故）；② 长假后**首个交易日**（与上一根 K 线
+    间隔 >7 天）会被其"近 7 日有 K 线"启发式误判为非交易日，整个交易日的 T+1/止损不跑。
+    要真正支持节假日，需要一个**故障时降级为 weekday 而非判 False** 的日级来源
+    ——属待定设计（RFC 016 §8.1 第 9 项）。
     """
-    return TradingDayGuard.is_trading_day(now.date()) and 8 <= now.hour <= 17
+    return now.weekday() < 5 and 8 <= now.hour <= 17
 
 
 def _in_intraday_window(now: datetime) -> bool:
@@ -45,12 +48,12 @@ def _in_intraday_window(now: datetime) -> bool:
     11:30 / 15:00 端点闭合沿用既有语义）。`:00 / :30` 是**节拍**约束（原 daemon cron），
     与市况无关，保留在此。
 
-    日级判定**委托 `TradingDayGuard`**（同上，RFC §7 红线），不再自算 weekday。
+    日级同 `_in_orchestrator_window`：保持 weekday 近似，理由见该函数 docstring。
     """
     if now.minute not in (0, 30):
         return False
     phase = MarketSessionPolicy.phase_for(
-        now.time(), is_trading_day=TradingDayGuard.is_trading_day(now.date()),
+        now.time(), is_trading_day=now.weekday() < 5,
     )
     return MarketSessionPolicy.is_market_open(phase)
 

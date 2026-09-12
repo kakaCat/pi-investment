@@ -1477,11 +1477,11 @@ class StrategyCodeService:
                 prev_dt = str(current_group[-1].get('trade_date', ''))
                 prev_time = prev_dt.split(' ')[1][:8] if ' ' in prev_dt else prev_dt[-8:]
 
-                # 跨午休边界（上午盘 → 下午盘）：口径唯一在 MarketSessionPolicy
-                # 旧写法 `prev < '12:00:00' and cur >= '13:00:00'` 是宽松代理：真实数据在
-                # 11:30–13:00 无成交、不存在 bar，故与现值等价；此处改为直接引用午休边界常量，
-                # 对 11:30–12:00 的非常规（合成）bar 不再误判为跨午休。
-                if prev_time <= _MORNING_END_HHMMSS and time_part >= _AFTERNOON_START_HHMMSS:
+                # 跨午休边界（午休前 → 下午盘）：口径唯一在 MarketSessionPolicy。
+                # 判据 = 「前一根早于下午开盘 且 当前不早于下午开盘」——对 11:30/11:45 等
+                # 任何午休前后的 bar 都会正确分段（审查指出：若只判 prev <= 11:30，
+                # 11:31–11:59 的前一根会被与下午 bar 合并成跨午休的错误聚合 bar）。
+                if prev_time < _AFTERNOON_START_HHMMSS and time_part >= _AFTERNOON_START_HHMMSS:
                     should_flush = True
                 # 跨交易日边界
                 elif ' ' in str(dt_str) and ' ' in prev_dt:

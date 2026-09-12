@@ -12,8 +12,8 @@ RFC 016 §4.5：市况的**唯一对外入口**。应用层只做编排，不做
 """
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta
-from typing import Optional
+from datetime import date, datetime, time, timedelta
+from typing import Optional, Union
 
 from application.services.trading_day_guard import TradingDayGuard
 from domain.trading.exceptions import TradingError

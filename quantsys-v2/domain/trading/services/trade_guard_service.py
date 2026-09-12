@@ -64,11 +64,8 @@ class TradeGuardService:
     MAX_DAILY_BUY_COUNT = 5              # 单日买入笔数上限
     MAX_DAILY_BUY_AMOUNT_RATIO = 0.50    # 单日买入金额占总资产上限
 
-    # A股交易时段（**兼容保留**：判定请用 MarketSessionPolicy；此处由策略常量派生，单一出处）
-    TRADING_SESSIONS = (
-        (CONTINUOUS_START, MORNING_END),     # 上午盘
-        (AFTERNOON_START, CONTINUOUS_END),   # 下午盘
-    )
+    # 交易时段判定：一律 `MarketSessionPolicy`（RFC 016 §8.1）。
+    # 原 TRADING_SESSIONS 常量已删除——收敛后它零引用，留着只会成为与真判据相矛盾的"第二个真相"。
 
     def __init__(
         self,

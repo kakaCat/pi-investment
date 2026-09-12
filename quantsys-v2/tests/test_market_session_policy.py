@@ -203,13 +203,19 @@ def test_price_is_fresh_fails_closed_on_missing_values():
     assert v.price_is_fresh('not-a-date', '2026-09-11') is False
 
 
-def test_minute_freshness_rejects_future_timestamps():
-    """未来时间戳不算"新鲜"（`abs()` 曾双向放行）；aware/naive 混用不再抛 TypeError"""
+def test_minute_freshness_tolerates_bounded_clock_skew():
+    """新鲜度是**有界对称**窗口：阈值内的时钟偏斜两个方向都容忍，超出即判不新鲜。
+
+    2026-09-12 审查：改成单侧（未来一律判不新鲜）过严——收盘标记的分钟 bar 可能标到
+    下一分钟、主机/DB 有 NTP 偏斜，会把"最新的那根 bar"判成陈旧。aware/naive 混用不抛错。
+    """
     from zoneinfo import ZoneInfo
     now = datetime(2026, 9, 11, 10, 0, 0)
-    assert POLICY.minute_freshness_ok(datetime(2026, 9, 11, 10, 3), now) is False   # 未来
     assert POLICY.minute_freshness_ok(datetime(2026, 9, 11, 9, 58), now) is True    # 过去 2 分钟
+    assert POLICY.minute_freshness_ok(datetime(2026, 9, 11, 10, 3), now) is True    # 未来 3 分钟（偏斜容忍）
     assert POLICY.minute_freshness_ok(datetime(2026, 9, 11, 9, 50), now) is False   # 过去 10 分钟
+    assert POLICY.minute_freshness_ok(datetime(2026, 9, 11, 10, 10), now) is False  # 未来 10 分钟，超阈值
+    assert POLICY.minute_freshness_ok(None, now) is False
     assert POLICY.minute_freshness_ok(
         datetime(2026, 9, 11, 9, 58), datetime(2026, 9, 11, 10, 0, tzinfo=ZoneInfo('Asia/Shanghai')),
     ) is True
@@ -284,6 +290,11 @@ def test_assert_can_trade_raises_trading_error(monkeypatch):
     from application.services.trading_day_guard import TradingDayGuard
     from domain.trading.exceptions import TradingError
 
+    # 先清空 60s 判决缓存——否则本用例会被前一个用例预热的缓存命中，
+    # 打桩 `_kline_stats` 根本不生效、实际依赖 DB 内容（2026-09-12 审查指出）。
+    # 注意：`_verdict_cache` 是**模块级**变量（不是 `TradingDayGuard` 的类属性）。
+    from application.services import trading_day_guard as _tdg
+    _tdg._verdict_cache.clear()
     monkeypatch.setattr(
         TradingDayGuard, '_kline_stats', staticmethod(lambda day: (True, day)))
 

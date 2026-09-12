@@ -176,10 +176,10 @@ class MarketSessionPolicy:
         整分钟口径（**向下取整**）：09:30 → 0；11:30 → 120；午休 → 120；
         13:00 → 120；15:00 及以后 → 240。
 
-        ⚠️ 与旧 `watch_engine.elapsed_trading_fraction` **并非逐点等价**：后者用
-        `.seconds/60` 保留小数分钟（10:00:30 → 0.127083），本函数取整（→ 0.125）。
-        迁移消费方（如 volume_surge 同期均量折算）时须注意这 ≤0.4% 的差异；
-        旧函数在 `watch_engine/engine.py:439` 仍在运行，尚未被本函数取代。
+        ⚠️ 与**已迁移**的旧实现（原 `watch_engine.elapsed_trading_fraction`，本分支已改为
+        委托本函数，见 `watch_engine/engine.py`）存在 ≤0.4% 的口径差异：旧实现用
+        `.seconds/60` 保留小数分钟（10:00:30 → 0.127083），本函数按整分钟向下取整（→ 0.125）。
+        现有消费方（volume_surge 同期均量折算）对该差异不敏感。
         """
         if not is_trading_day:
             return 0
@@ -221,7 +221,11 @@ class MarketSessionPolicy:
         a = latest_minute_at.replace(tzinfo=None) if latest_minute_at.tzinfo else latest_minute_at
         b = now.replace(tzinfo=None) if now.tzinfo else now
         delta = (b - a).total_seconds()
-        return 0 <= delta <= threshold_minutes * 60   # 单侧：未来时间戳不算新鲜
+        # **有界对称**：`abs(delta) <= threshold` 是刻意的时钟偏斜容忍——
+        # 收盘标记的分钟 bar 可能标到下一分钟、主机/DB 存在 NTP 偏斜，
+        # 都会让 bar 时间戳略早于 now 之后的几秒（delta 为负）。用单侧 `< 0 → False`
+        # 会把"最新的那根 bar"判成不新鲜（2026-09-12 审查指出）。
+        return abs(delta) <= threshold_minutes * 60
 
     # ------------------------------------------------------------ 组装 VO
     def evaluate(

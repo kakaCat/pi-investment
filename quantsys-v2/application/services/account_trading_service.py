@@ -33,11 +33,8 @@ class AccountTradingService:
     MAX_TOTAL_POSITION_RATIO = 0.80
     MAX_DAILY_BUY_COUNT = 5              # 单日买入笔数上限
     MAX_DAILY_BUY_AMOUNT_RATIO = 0.50    # 单日买入金额占总资产上限
-    # A股交易时段（**兼容保留**：判定请用 MarketSessionPolicy；此处由策略常量派生，单一出处）
-    TRADING_SESSIONS = (
-        (CONTINUOUS_START, MORNING_END),
-        (AFTERNOON_START, CONTINUOUS_END),
-    )
+    # 交易时段判定：一律 `MarketSessionPolicy`（RFC 016 §8.1）。
+    # 原 TRADING_SESSIONS 常量已删除——收敛后它零引用，留着只会成为与真判据相矛盾的"第二个真相"。
 
     def __init__(self, repo: Optional[ISimulationRepository] = None, calendar=None,
                  now_fn=None):
@@ -117,12 +114,17 @@ class AccountTradingService:
                 f'{ORDER_CUTOFF_SECONDS} 秒，不再接受新委托', 422)
 
     def _is_in_trading_window(self, now: datetime) -> bool:
-        """复用 _check_trading_window 的判定逻辑，返回布尔而不抛异常"""
-        try:
-            self._check_trading_window(now)
-            return True
-        except TradingError:
+        """**会话是否开市**（布尔，不抛异常）——供「立即成交 vs 挂单」的决策使用。
+
+        ⚠️ 刻意**不含**收盘截止规则：它回答的是"现在能不能立刻成交"，而不是
+        "现在接不接受新委托"。若复用 `_check_trading_window`（含截止规则），
+        14:59 的 `execute_at='market_open'` 会被误判为"非开市"而静默顺延到次日开盘
+        （2026-09-12 审查指出）。
+        """
+        if not self.calendar.is_trading_day(now.date().isoformat()):
             return False
+        return MarketSessionPolicy.is_market_open(
+            MarketSessionPolicy.phase_for(now.time(), is_trading_day=True))
 
     def _check_daily_buy_limits(
         self, account_name: str, trade_amount: float, total_value: float
