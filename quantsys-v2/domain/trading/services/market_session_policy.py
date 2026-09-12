@@ -39,6 +39,11 @@ MORNING_MINUTES = 120
 AFTERNOON_MINUTES = 120
 TOTAL_TRADING_MINUTES = MORNING_MINUTES + AFTERNOON_MINUTES   # 240（对齐旧 watch_engine 常量）
 
+# 新委托截止：距任一时段收盘不足该秒数时**不再接受新委托**（尾盘/收盘竞价风险）。
+# RFC 016 §8.1（2026-09-12 用户裁定 B）：下单闸门收敛到本策略后，端点闭合会把
+# 15:00:30 由"拒绝"变成"放行"；为避免尾盘误下单，显式加这条**可解释的截止规则**。
+ORDER_CUTOFF_SECONDS = 60
+
 # 相位窗口（顺序即优先级；半开区间 [start, end)）
 SESSION_BOUNDS: Tuple[SessionWindow, ...] = (
     SessionWindow(SessionPhase.CALL_AUCTION, CALL_AUCTION_START, MATCHING_START),
@@ -122,8 +127,32 @@ class MarketSessionPolicy:
 
     @staticmethod
     def is_market_open(phase: SessionPhase) -> bool:
-        """连续竞价中（下单硬约束的判据）"""
+        """连续竞价中（盯盘/监控/折算等**非下单**场景的判据）"""
         return phase in _OPEN_PHASES
+
+    @staticmethod
+    def accepts_new_orders(t: time, *, is_trading_day: bool = True) -> bool:
+        """是否接受**新委托**（下单闸门专用，比 `is_market_open` 更严）
+
+        规则 = 开市 **且** 距该时段收盘 > `ORDER_CUTOFF_SECONDS`（默认 60s）。
+
+        为什么需要它：端点闭合（11:30 / 15:00 算盘中）让 15:00:30 从"拒绝"变"放行"，
+        而尾盘/收盘竞价期间下新单风险高。用一条**显式的截止规则**替代原来的隐式行为，
+        既保持口径统一，又对资金安全保守（2026-09-12 用户裁定 B）。
+
+        影响面：相比旧闸门（精确 `time` 比较、允许到 xx:xx:00 整秒），
+        每段末尾的 `ORDER_CUTOFF_SECONDS` 秒由"可下单"变为"拒单"——这是**有意的收紧**。
+        盯盘/监控/摘要/折算等场景**不用**本方法，仍用 `is_market_open`。
+        """
+        if not is_trading_day:
+            return False
+        if not MarketSessionPolicy.is_market_open(
+                MarketSessionPolicy.phase_for(t, is_trading_day=True)):
+            return False
+        at = t.replace(second=0, microsecond=0)      # 与 phase_for 同口径（整分钟）
+        session_end = MORNING_END if at <= MORNING_END else CONTINUOUS_END
+        remaining_seconds = (_minutes(session_end) - _minutes(at)) * 60
+        return remaining_seconds > ORDER_CUTOFF_SECONDS
 
     @staticmethod
     def is_price_fresh_window(t: time, *, is_trading_day: bool) -> bool:

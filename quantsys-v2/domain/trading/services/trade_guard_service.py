@@ -17,11 +17,19 @@
 """
 
 import structlog
-from datetime import date, datetime, time as dt_time
+from datetime import date, datetime
 from typing import List, Tuple, Optional
 
 from domain.ports import ISimulationRepository
 from domain.trading.ports.ITradingCalendar import ITradingCalendar
+from domain.trading.services.market_session_policy import (
+    AFTERNOON_START,
+    CONTINUOUS_END,
+    CONTINUOUS_START,
+    MORNING_END,
+    ORDER_CUTOFF_SECONDS,
+    MarketSessionPolicy,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -56,10 +64,10 @@ class TradeGuardService:
     MAX_DAILY_BUY_COUNT = 5              # 单日买入笔数上限
     MAX_DAILY_BUY_AMOUNT_RATIO = 0.50    # 单日买入金额占总资产上限
 
-    # A股交易时段
+    # A股交易时段（**兼容保留**：判定请用 MarketSessionPolicy；此处由策略常量派生，单一出处）
     TRADING_SESSIONS = (
-        (dt_time(9, 30), dt_time(11, 30)),   # 上午盘
-        (dt_time(13, 0), dt_time(15, 0)),    # 下午盘
+        (CONTINUOUS_START, MORNING_END),     # 上午盘
+        (AFTERNOON_START, CONTINUOUS_END),   # 下午盘
     )
 
     def __init__(
@@ -117,12 +125,21 @@ class TradeGuardService:
                 status_code=422
             )
 
-        # 校验交易时段
+        # 校验交易时段（唯一判据在 MarketSessionPolicy；RFC 016 §8.1）
         t = now.time()
-        if not any(start <= t <= end for start, end in self.TRADING_SESSIONS):
+        if not MarketSessionPolicy.is_market_open(
+                MarketSessionPolicy.phase_for(t, is_trading_day=True)):
             raise TradingError(
                 f'非交易时段（{t.strftime("%H:%M")}），'
                 f'A股交易时段为 9:30-11:30 / 13:00-15:00，委托拒绝',
+                status_code=422
+            )
+
+        # 收盘截止窗口（有意收紧：每段末尾 ORDER_CUTOFF_SECONDS 秒内不再接受新委托）
+        if not MarketSessionPolicy.accepts_new_orders(t, is_trading_day=True):
+            raise TradingError(
+                f'临近休市（{t.strftime("%H:%M")}），距本段结束不足 '
+                f'{ORDER_CUTOFF_SECONDS} 秒，不再接受新委托',
                 status_code=422
             )
 

@@ -44,11 +44,30 @@ def test_lunch_break_rejected():
 
 
 def test_afternoon_session_boundaries():
+    """下午盘边界 + **收盘截止窗口**（RFC 016 §8.1 裁定 B，2026-09-12 有意收紧）
+
+    旧断言允许到 15:00 整；收敛到 MarketSessionPolicy 后，端点闭合虽把 15:00 视为盘中，
+    但每段末尾 `ORDER_CUTOFF_SECONDS`(60s) 内不再接受新委托 → 14:59 与 15:00 均拒。
+    """
     svc = _svc(is_trading_day=True)
     svc._check_trading_window(datetime(2026, 7, 27, 13, 0))
-    svc._check_trading_window(datetime(2026, 7, 27, 15, 0))
+    svc._check_trading_window(datetime(2026, 7, 27, 14, 58))          # 距收盘 120s > 60s
+    with pytest.raises(TradingError, match='临近休市'):
+        svc._check_trading_window(datetime(2026, 7, 27, 14, 59))      # 距收盘 60s，已截止
+    with pytest.raises(TradingError, match='临近休市'):
+        svc._check_trading_window(datetime(2026, 7, 27, 15, 0))       # 端点闭合算盘中，但已截止
     with pytest.raises(TradingError, match='非交易时段'):
         svc._check_trading_window(datetime(2026, 7, 27, 15, 1))
+
+
+def test_morning_close_cutoff_window():
+    """上午盘同样有截止窗口（11:29 起拒单，11:28 仍可）"""
+    svc = _svc(is_trading_day=True)
+    svc._check_trading_window(datetime(2026, 7, 27, 11, 28))
+    with pytest.raises(TradingError, match='临近休市'):
+        svc._check_trading_window(datetime(2026, 7, 27, 11, 29))
+    with pytest.raises(TradingError, match='临近休市'):
+        svc._check_trading_window(datetime(2026, 7, 27, 11, 30))
 
 
 def test_after_close_rejected():

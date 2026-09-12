@@ -3,10 +3,18 @@
 事务流: 校验 → 委托单 → 成交+费用 → 资金流水(add_trade自动) → 持仓 → 账户 → 快照
 """
 import structlog
-from datetime import date, datetime, time as dt_time
+from datetime import date, datetime
 from typing import Dict, Optional
 
 from domain.ports import ISimulationRepository
+from domain.trading.services.market_session_policy import (
+    AFTERNOON_START,
+    CONTINUOUS_END,
+    CONTINUOUS_START,
+    MORNING_END,
+    ORDER_CUTOFF_SECONDS,
+    MarketSessionPolicy,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -25,10 +33,10 @@ class AccountTradingService:
     MAX_TOTAL_POSITION_RATIO = 0.80
     MAX_DAILY_BUY_COUNT = 5              # 单日买入笔数上限
     MAX_DAILY_BUY_AMOUNT_RATIO = 0.50    # 单日买入金额占总资产上限
-    # A股交易时段（交易日才允许成交）
+    # A股交易时段（**兼容保留**：判定请用 MarketSessionPolicy；此处由策略常量派生，单一出处）
     TRADING_SESSIONS = (
-        (dt_time(9, 30), dt_time(11, 30)),
-        (dt_time(13, 0), dt_time(15, 0)),
+        (CONTINUOUS_START, MORNING_END),
+        (AFTERNOON_START, CONTINUOUS_END),
     )
 
     def __init__(self, repo: Optional[ISimulationRepository] = None, calendar=None,
@@ -87,19 +95,26 @@ class AccountTradingService:
             f'{field} 类型非法（{type(value).__name__}），需为数值', 400)
 
     def _check_trading_window(self, now: datetime) -> None:
-        """A股交易时段护栏：只有交易日的 9:30-11:30 / 13:00-15:00 才能成交。
+        """A股下单闸门：交易日 + 连续竞价时段 + **未进入收盘截止窗口**。
 
-        非交易日或非交易时段抛 TradingError（422），
-        拒绝原因返回给调用方（agent 记录后应等下一交易时段）。
+        时段判定与截止规则**唯一**在 `MarketSessionPolicy`（RFC 016 §8.1；
+        2026-09-12 裁定 B）。相比旧的精确时刻比较，每段末尾 `ORDER_CUTOFF_SECONDS`
+        秒内不再接受新委托（有意收紧，防尾盘误下单）。
+        三种拒绝原因分别抛 TradingError(422)，供 agent 记录后等待下一时段。
         """
         day_str = now.date().isoformat()
         if not self.calendar.is_trading_day(day_str):
             raise TradingError(f'非交易日（{day_str}），A股不开市，委托拒绝', 422)
         t = now.time()
-        if not any(start <= t <= end for start, end in self.TRADING_SESSIONS):
+        if not MarketSessionPolicy.is_market_open(
+                MarketSessionPolicy.phase_for(t, is_trading_day=True)):
             raise TradingError(
                 f'非交易时段（{t.strftime("%H:%M")}），'
                 f'A股交易时段为 9:30-11:30 / 13:00-15:00，委托拒绝', 422)
+        if not MarketSessionPolicy.accepts_new_orders(t, is_trading_day=True):
+            raise TradingError(
+                f'临近休市（{t.strftime("%H:%M")}），距本段结束不足 '
+                f'{ORDER_CUTOFF_SECONDS} 秒，不再接受新委托', 422)
 
     def _is_in_trading_window(self, now: datetime) -> bool:
         """复用 _check_trading_window 的判定逻辑，返回布尔而不抛异常"""
