@@ -7,7 +7,7 @@ import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '
 import type { Context } from '@deepseek-ai/cordis';
 import type { OsMemoryStore } from '../../index';
 import { promptEvolverPrompt, PromptEvolverParams, PromptEvolverResult } from './prompt';
-import { registerCandidate, type CandidateRecord } from '../../candidates';
+import { registerCandidate, readCandidates, type CandidateRecord } from '../../candidates';
 import {
   assertNoDamage,
   extractRuleDefs,
@@ -183,9 +183,45 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
               suggestion.reason,
               'candidate'
             );
-            // RFC 008 修复（2026-09-03）：genome_update(stage='candidate') 只写 genome.json
-            // history，从不登记 candidates.json → validation_gate 永远无案可裁。
-            // 这里在成功应用后立即登记观察候选，闭环验证门输入。
+            // ── 登记去重（2026-09-12，w-adb088f2）──────────────────────────────
+            // genome_update 自 3d850ab5（2026-09-12 21:54）起，在 stage='candidate' 时
+            // 自行登记 candidates.json 并回传 candidate_id。本处 2026-09-03 引入的补充登记
+            // （当时 genome_update 尚不登记）遂成冗余：若不跳过会造成**同一次变异双登记**
+            // —— 实证 cand_1789225325354_pc9f9k 与 cand_1789225325389_7sd9s8（相差 35ms，
+            // 同 section_version/genome_version/baseline），验证门将对同一变更重复裁决。
+            // 策略：优先采用 genome_update 的登记；仅在其未回传 candidate_id 时兜底自登记。
+            const existingCandidateId = updateResult?.candidate_id
+              ? String(updateResult.candidate_id)
+              : '';
+            if (existingCandidateId) {
+              let observeUntil: string | undefined;
+              try {
+                // @ts-ignore ctx.genome 由 genome 插件注入，无类型声明
+                const dir = this.ctx.genome?.genomeDir;
+                if (dir) {
+                  observeUntil = readCandidates(dir).find((r) => r.id === existingCandidateId)?.observe_until;
+                }
+              } catch {
+                // 读取失败不影响主流程（仅观察期信息缺失）
+              }
+              return {
+                proposal,
+                result: {
+                  success: true,
+                  section: suggestion.section,
+                  message: `已更新为 candidate 版本（登记由 genome_update 完成：${existingCandidateId}${
+                    observeUntil ? `，观察期至 ${observeUntil}` : ''
+                  }）`,
+                  candidate_id: existingCandidateId,
+                  observe_until: observeUntil,
+                  stage: 'candidate' as const,
+                },
+              };
+            }
+
+            // ── 兜底登记（2026-09-03 引入）────────────────────────────────────
+            // 仅当 genome_update 未回传 candidate_id（旧版 genome_update 只写
+            // genome.json history、不登记 candidates.json → validation_gate 无案可裁）时执行。
             // baseline = 变更前一代（genome_version gN → g(N-1)，与历史实现 80ce5cfc 一致）
             let candidate: CandidateRecord | null = null;
             try {
