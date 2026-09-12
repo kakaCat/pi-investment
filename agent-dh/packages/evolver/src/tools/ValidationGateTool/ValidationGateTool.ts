@@ -16,6 +16,7 @@ import * as path from 'path';
  * 现统一从共享模块 import type。本地 writeCandidates 仍保留（与共享模块语义一致）。
  */
 import type { CandidateRecord } from '../../candidates';
+import { canAutoRollback } from '../../rollbackGuard';
 
 /** 提取候选健康检查的裁决摘要（供 verdict 输出与转正防御） */
 function healthSummary(hc: CandidateRecord['health_check']): {
@@ -91,8 +92,14 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
     const promotedCount = verdicts.filter(v => v.verdict === 'promoted').length;
     const rejectedCount = verdicts.filter(v => v.verdict === 'rejected' || v.verdict === 'rejected_by_backtest').length;
     const watchingCount = verdicts.filter(v => v.verdict === 'watching' || v.verdict === 'extended').length;
+    // 回滚守卫拦截数（2026-09-12）：判为"应回滚"但因候选已被后续变更取代而未执行——
+    // 单列出来，避免与真正回滚混为一谈（统计诚实）
+    const noRollbackCount = verdicts.filter(v => v.verdict === 'rejected_no_rollback').length;
 
     let summary = `裁决完成：${promotedCount} 转正，${rejectedCount} 回滚，${watchingCount} 继续观察`;
+    if (noRollbackCount > 0) {
+      summary += `；⚠️ ${noRollbackCount} 条判应回滚但被守卫拦下（候选已被后续变更取代，未执行破坏性回滚，详见 verdicts.note）`;
+    }
     if (!consistency.healthy) {
       summary += `；⚠️ 状态一致性 ${consistency.issues.length} 项异常（孤儿候选 ${consistency.orphan_candidates.length} / 未登记版本 ${consistency.unregistered_versions.length} / 原子写残留 ${consistency.atomic_leftovers.length}，详见 consistency，需 decision_audit 留痕）`;
     }
@@ -104,6 +111,7 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
       promoted_count: promotedCount,
       rejected_count: rejectedCount,
       watching_count: watchingCount,
+      no_rollback_count: noRollbackCount,
       consistency,
     };
   }
@@ -138,6 +146,22 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
     const tmp = this.candidatesPath + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(list, null, 2));
     fs.renameSync(tmp, this.candidatesPath);
+  }
+
+  /**
+   * 读取某段当前版本号（genome.json.sections[section].version）。
+   * 读不到返回 null —— 调用方（回滚守卫）按 fail-closed 处理，绝不猜。
+   */
+  private readCurrentSectionVersion(section: string): number | null {
+    try {
+      const p = path.join(this.ctx.genome.genomeDir, 'genome.json');
+      if (!fs.existsSync(p)) return null;
+      const raw = JSON.parse(fs.readFileSync(p, 'utf-8'));
+      const v = raw?.sections?.[section]?.version;
+      return Number.isFinite(Number(v)) ? Number(v) : null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -407,7 +431,27 @@ export class ValidationGateTool extends BaseTool<ValidationGateParams, Validatio
 
       const drop = base.avg - cand.avg;
       if (drop > 0.1) {
-        // 显著恶化 → 回滚
+        // 显著恶化 → 回滚（先过 staleness 守卫，2026-09-12，w-adb088f2）
+        const guard = canAutoRollback(
+          { id: c.id, section: c.section, section_version: c.section_version },
+          this.readCurrentSectionVersion(c.section),
+        );
+        if (!guard.allowed) {
+          c.status = 'rejected';
+          c.note = `回滚守卫拒绝自动回滚：${guard.reason}`;
+          this.writeCandidates(list);
+          verdicts.push({
+            id: c.id,
+            section: c.section,
+            genome_version: c.genome_version,
+            verdict: 'rejected_no_rollback',
+            cand_avg: cand.avg,
+            base_avg: base.avg,
+            note: c.note,
+            ...healthSummary(c.health_check),
+          });
+          continue;
+        }
         try {
           await this.callTool('genome_rollback', {
             section: c.section,

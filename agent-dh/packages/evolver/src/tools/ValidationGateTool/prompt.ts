@@ -34,7 +34,14 @@ export interface ValidationGateResult {
     id: string;
     section: string;
     genome_version: string;
-    verdict: 'watching' | 'promoted' | 'rejected' | 'extended' | 'rejected_by_backtest';
+    verdict:
+      | 'watching'
+      | 'promoted'
+      | 'rejected'
+      | 'extended'
+      | 'rejected_by_backtest'
+      /** 判定应回滚、但被 staleness 守卫拦下（候选已被后续变更取代 / 版本不可读） */
+      | 'rejected_no_rollback';
     cand_avg?: number;
     base_avg?: number;
     cand_samples?: number;
@@ -48,6 +55,8 @@ export interface ValidationGateResult {
   promoted_count: number;
   rejected_count: number;
   watching_count: number;
+  /** 判定应回滚但被 staleness 守卫拦下的条数（2026-09-12） */
+  no_rollback_count?: number;
   /** F1 状态一致性诊断（healthy=false 时有异常项，见 issues） */
   consistency?: ConsistencyReport;
 }
