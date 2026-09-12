@@ -71,6 +71,42 @@ def md5_of(path, limit=None):
     return h.hexdigest()
 
 
+def process_start_subsec(pid):
+    """macOS: 用 proc_pidinfo 取**亚秒**进程启动时间。失败返回 (None, '')。
+
+    2026-09-13（独立审阅 H2 实证）：ps -o lstart 只有秒级精度，配合 1 秒容差会掩盖
+    "进程启动后 ~1 秒内写入的代码"。实测真实 manifest 的 PASS 余量只有 0.102s
+    （进程 00:17:13.930927 vs 代码 00:17:13.828433）—— 判据落在噪声里，不构成证据。
+    """
+    try:
+        import ctypes
+        import ctypes.util
+        libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+
+        class BSP(ctypes.Structure):
+            _fields_ = [
+                ("pbi_flags", ctypes.c_uint32), ("pbi_status", ctypes.c_uint32),
+                ("pbi_xstatus", ctypes.c_uint32), ("pbi_pid", ctypes.c_uint32),
+                ("pbi_ppid", ctypes.c_uint32), ("pbi_uid", ctypes.c_uint32),
+                ("pbi_gid", ctypes.c_uint32), ("pbi_ruid", ctypes.c_uint32),
+                ("pbi_rgid", ctypes.c_uint32), ("pbi_svuid", ctypes.c_uint32),
+                ("pbi_svgid", ctypes.c_uint32), ("rfu_1", ctypes.c_uint32),
+                ("pbi_comm", ctypes.c_char * 16), ("pbi_name", ctypes.c_char * 32),
+                ("pbi_nfiles", ctypes.c_uint32), ("pbi_pgid", ctypes.c_uint32),
+                ("pbi_pjobc", ctypes.c_uint32), ("e_tdev", ctypes.c_uint32),
+                ("e_tpgid", ctypes.c_uint32), ("pbi_nice", ctypes.c_int32),
+                ("pbi_start_tvsec", ctypes.c_uint64), ("pbi_start_tvusec", ctypes.c_uint64),
+            ]
+
+        b = BSP()
+        n = libc.proc_pidinfo(pid, 3, 0, ctypes.byref(b), ctypes.sizeof(b))
+        if n > 0 and b.pbi_start_tvsec > 0:
+            return b.pbi_start_tvsec + b.pbi_start_tvusec / 1e6, "proc_pidinfo(亚秒)"
+    except Exception:
+        pass
+    return None, ""
+
+
 def process_start(pid):
     rc, out = run(["ps", "-o", "lstart=", "-p", str(pid)])
     if rc != 0 or not out.strip():
@@ -124,11 +160,16 @@ def plugin_dirs(profile):
     dirs = {}
     if not os.path.isdir(pkg_dir):
         return dirs
+    skipped = []
     for short in sorted(os.listdir(pkg_dir)):
+        if ".bak" in short:
+            continue  # 残留备份目录：不纳入新鲜度，否则碰一下备份就误判 FAIL（审阅 L5）
         p = os.path.join(pkg_dir, short)
         if os.path.isdir(p):
             dirs[short] = os.path.realpath(p)
-    return dirs
+        else:
+            skipped.append(short)
+    return dirs, skipped
 
 
 def newest_plugin_code(dirs):
@@ -188,7 +229,11 @@ def main():
         failures.append("L2 产物层：有包产物缺失或落后于源码（详见 dist-packages.py verify 输出）")
 
     # ---- L3 进程层 ----
-    dirs = plugin_dirs(profile)
+    dirs, unresolved = plugin_dirs(profile)
+    if unresolved:
+        # 审阅 L5：条目无法解析必须报错，不能静默丢弃
+        print(f"[L3] ⚠️ profile 中有 {len(unresolved)} 个条目无法解析：{', '.join(unresolved[:5])}")
+        failures.append("L3 进程层：profile 条目无法解析（悬空/类型异常）：" + ", ".join(unresolved[:5]))
     newest_m, newest_f = newest_plugin_code(dirs)
     pid = listening_pid(args.port)
     if args.skip_process:
@@ -204,7 +249,10 @@ def main():
             report["checks"]["L3_process"] = {"ok": False, "detail": msg}
             failures.append("L3 进程层：" + msg)
     else:
-        started = process_start(pid)
+        # 2026-09-13（H2）：优先用 proc_pidinfo 取**亚秒**启动时间；只有它可用时才谈得上"余量"
+        start_ts, start_src = process_start_subsec(pid)
+        precise = start_ts is not None
+        started = datetime.datetime.fromtimestamp(start_ts) if precise else process_start(pid)
         if started is None:
             print("[L3] 进程加载新鲜度 ... FAIL  (无法读取进程启动时间)")
             report["checks"]["L3_process"] = {"ok": False, "detail": "无法读取进程启动时间"}
@@ -242,15 +290,29 @@ def main():
                                                   "process_started": started.isoformat(),
                                                   "basis": "content_fingerprint"}
             else:
-                # 判据二（兜底）：mtime 先后。容差 1 秒 —— ps 启动时间只有秒级精度，
-                # 与亚秒 mtime 落在同一秒时先后不可知（实证：发版脚本自身曾被误判 FAIL）。
+                # 判据二（兜底）：mtime 先后。
+                # 2026-09-13（独立审阅 H2）：有亚秒启动时间时**不再用容差**，直接比真实余量；
+                # 只有秒级时间且余量落在 1s 内时 → "先后不可知" → 判**不可判定**（不等于 OK）。
                 code_dt = datetime.datetime.fromtimestamp(newest_m)
-                TOLERANCE = datetime.timedelta(seconds=1)
-                stale = started + TOLERANCE < code_dt
-                detail = (f"进程 {pid} 启动于 {started.strftime('%m-%d %H:%M:%S')}；"
-                          f"最新插件代码 mtime {code_dt.strftime('%m-%d %H:%M:%S')}"
+                margin = (started - code_dt).total_seconds()
+                TOLERANCE_SEC = 1.0
+                indeterminate = (not precise) and abs(margin) <= TOLERANCE_SEC
+                stale = (margin <= 0) if precise else (margin < -TOLERANCE_SEC)
+                ms = lambda d: f"{int((d.microsecond / 1e6) * 1000):03d}"
+                detail = (f"进程 {pid} 启动于 {started.strftime('%m-%d %H:%M:%S')}"
+                          + (f".{ms(started)}" if precise else "")
+                          + f"（{start_src or 'ps(秒级)'}）；最新插件代码 mtime {code_dt.strftime('%m-%d %H:%M:%S')}.{ms(code_dt)}"
+                          + f"，余量 {margin:+.3f}s"
                           + (f"（{os.path.relpath(newest_f, os.path.dirname(HERE))}）" if newest_f else ""))
-                if stale:
+                if indeterminate:
+                    print("[L3] 进程加载新鲜度 ... 不可判定（只有秒级启动时间且余量落入 1s 容差内）")
+                    print(f"       {detail}")
+                    report["checks"]["L3_process"] = {"ok": False, "detail": detail, "pid": pid,
+                                                      "process_started": started.isoformat(),
+                                                      "newest_code": code_dt.isoformat(),
+                                                      "basis": "indeterminate"}
+                    failures.append("L3 进程层：余量落在容差内、先后不可知 —— 不构成『已加载最新代码』的证据（判为未通过）")
+                elif stale:
                     print(f"[L3] 进程加载新鲜度 ... FAIL  (进程比代码还老 ⇒ 未加载最新包)")
                     print(f"       {detail}")
                     report["checks"]["L3_process"] = {"ok": False, "detail": detail, "pid": pid,
@@ -264,7 +326,8 @@ def main():
                                                       "process_started": started.isoformat(),
                                                       "newest_code": code_dt.isoformat(),
                                                       "newest_code_file": newest_f,
-                                                      "basis": "mtime"}
+                                                      "margin_sec": round(margin, 3),
+                                                      "basis": "mtime_subsec" if precise else "mtime"}
 
     # ---- L4 留痕 ----
     _, head = run(["git", "-C", os.path.dirname(HERE), "rev-parse", "--short", "HEAD"])

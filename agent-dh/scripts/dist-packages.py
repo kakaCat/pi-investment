@@ -55,6 +55,12 @@ def cmd_list(root: pathlib.Path) -> int:
 
 def cmd_verify(root: pathlib.Path) -> int:
     pkgs = dist_packages(root)
+    # 2026-09-13（独立审阅 M1）：0 个包 = "没有可校验对象"，绝不等于通过。
+    # 此前返回 "0/0 通过" exit 0，配合发版脚本里被 2>/dev/null 吞掉的 lister 失败，
+    # 会演成"什么都没构建、什么都没校验"却宣布发版成功。
+    if not pkgs:
+        print("❌ 未发现任何 main 指向 dist/ 的包 —— 无可校验对象 ≠ 通过（可能根目录不对或解析失败）")
+        return 2
     fails = []
     for d, main in pkgs:
         art = artifact_of(d, main)
