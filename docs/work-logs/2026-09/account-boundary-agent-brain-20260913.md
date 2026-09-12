@@ -55,3 +55,22 @@
 1. **需要重启 :13080 才真正生效**（插件从 dist 加载 + host 侧 src 重载）。
 2. `quant.simulation_order` **无 submitted_by/窗口字段**（只有 genome_version），多窗口共账时无法归属下单者 —— 已作为跨线事项提给后端线（公告板）。
 3. 历史污染（agent_virtual 里的 23 笔）不做回滚：那是既成事实，且 agent-ts 侧的账应由 agent-ts 决定处置。
+## 五、部署与运行时验证（2026-09-13 02:38–02:45）
+
+- 部署方式：延迟 90 秒、**脱离 launchd 作业进程组**（python `start_new_session=True`）执行 `restart-with-build.sh` 全流程 —— 停服 → 构建 19 包 → relink（25/25 符号链接）→ 启动 → 四层体检；日志 `/tmp/dsh_deploy_20260913.log`。
+- 首次体检 **L3 误报 FAIL**（进程 88912@02:38:09 比某个 dist `.map` 的 mtime 02:38:11 早 1.69 秒，属 mtime 抖动），重跑 `--verify-only`：**L1/L2/L3/L4 全绿**（进程 89052@02:38:12；脚本 L3 已改为内容指纹比对，免疫 mtime 抖动）。
+- 运行时实测（重启后由新代码执行，全部为**拒绝路径**，未产生任何新委托）：
+
+| 调用 | 结果 |
+|---|---|
+| `account_info({})`（不传账户） | totalValue 98,922.97 / cash 84,842.97 → **落在 agent_brain** ✅（改造前是 agent_virtual 的 105,174.52） |
+| `position_list({})` | 002007 华兰生物（agent_brain 的持仓） ✅ |
+| `portfolio_trade` 缺 `account_name` | 拒绝：「写操作必须显式传 account_name（agent-dh 自有账户 = agent_brain）」 ✅ |
+| `portfolio_trade` `account_name=agent_virtual` | 拒绝：「agent_virtual 属 agent-ts（fin-agent），agent-dh 禁止对其写入」 ✅ |
+| `m4_circuit_breaker_check` 缺 `account_name` | 拒绝 ✅ |
+
+- 公告板派单（悬赏池 open，用户已确认）：`026cd6a3-0936-4721-85ae-620dc28355e3` —— 请后端线给 `quant.simulation_order` 加 `submitted_by`（窗口编码）。
+
+## 六、并发提示
+
+改造期间另一窗口（w-adb088f2）正在同一包 `packages/pages/holdings` 做"看板预热/分块刷新"改动（`parts.ts`、`board-mount.ts` 的 primeOnMount/refreshOnOpen），其改动处于 **staged 未提交** 状态。经核对：本窗口的 `currentAccount = 'agent_brain'` 与路由默认值均**未被覆盖**（工作树 grep 确认），两者互不冲突；提交时只 add 本窗口路径，未夹带对方文件。
