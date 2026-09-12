@@ -137,41 +137,75 @@ if ! _wait_port_free; then
   exit 1
 fi
 
-# ── DSH 配置 ────────────────────────────────────────────────────────
-# DSH_HOME：使用项目内的 .dsh-home 目录（完全隔离，不依赖全局 ~/.dsh）
-export DSH_HOME="${DSH_HOME:-$PROJECT_ROOT/.dsh-home}"
+# ── DSH 配置：项目内托管 / 外部 home 两种模式 ──────────────────────────
+# 运行身份（profile 名）可配置：默认 agent-dh（项目内 profile）；
+# 兼容现役旧布局时由 launchd 显式传 DSH_PROFILE=investment。
+DSH_PROFILE="${DSH_PROFILE:-agent-dh}"
+
+# 托管模式（未显式传 DSH_HOME）：用项目内 .dsh-home，本脚本负责生成 profile 脚手架，
+#   数据落项目内 .dsh-data。
+# 外部模式（显式传了 DSH_HOME，如 launchd 传 ~/.dsh-agent-dh 以保持现役布局）：
+#   本脚本**只负责启动**，绝不创建/覆盖/改链那份 home 的任何内容。
+#   理由：旧 home 下有 sessions(537MB)、genome/、dsh-reqboard.json、skills/、attachments/
+#   等全部活数据；脚手架里的 rm -rf + 符号链接会把它们静默搬走 = 数据丢失。
+if [ -n "${DSH_HOME:-}" ] && [ "$DSH_HOME" != "$PROJECT_ROOT/.dsh-home" ]; then
+  MANAGED_HOME=0
+else
+  MANAGED_HOME=1
+  export DSH_HOME="$PROJECT_ROOT/.dsh-home"
+fi
 mkdir -p "$DSH_HOME"
 
-# DSH 数据目录：state、data 等运行时数据（含 .credentials.yaml / sessions，已在 .gitignore 忽略）
+# 项目内数据/簿记目录：pidfile、以及托管模式下的 sessions/storages 都在这儿（已 gitignore）
 export DSH_DATA_DIR="${DSH_DATA_DIR:-$PROJECT_ROOT/.dsh-data}"
 mkdir -p "$DSH_DATA_DIR/state"
-mkdir -p "$DSH_DATA_DIR/data"
 
-# 在 DSH_HOME 创建配置文件符号链接，让 DSH 读取项目内的配置
-if [ -f "$DSH_DATA_DIR/settings.yaml" ]; then
-  ln -sf "$DSH_DATA_DIR/settings.yaml" "$DSH_HOME/settings.yaml"
-fi
-
-if [ -f "$DSH_DATA_DIR/.credentials.yaml" ]; then
-  ln -sf "$DSH_DATA_DIR/.credentials.yaml" "$DSH_HOME/.credentials.yaml"
-fi
-
-# 拷入自建 agent preset（investment = 内置 standard 去掉 delegation 组）。
-# 内置 standard 含 delegation，会因 host 层 modelSelectionSettings 缺失而整体挂载失败。
-if [ -d "$PROJECT_ROOT/config/agent-presets" ]; then
-  mkdir -p "$DSH_HOME/.agent-presets"
-  cp -R "$PROJECT_ROOT/config/agent-presets/"* "$DSH_HOME/.agent-presets/" 2>/dev/null || true
-fi
-
-# 会话与 storages 常驻项目数据目录（.dsh-data），DSH_HOME 内用符号链接指过去。
-# 这样 .dsh-home 被重建时，历史会话与工作区登记不会丢。
-mkdir -p "$DSH_DATA_DIR/sessions" "$DSH_DATA_DIR/storages"
-for _d in sessions storages; do
-  if [ ! -L "$DSH_HOME/$_d" ]; then
-    rm -rf "$DSH_HOME/$_d"
-    ln -s "$DSH_DATA_DIR/$_d" "$DSH_HOME/$_d"
+# 非破坏性目录链接：已是指向同处的符号链接 → 跳过；已是有内容的真实目录 → **拒绝替换**并告警。
+# （2026-09-12 立：原实现无条件 rm -rf + ln -s，遇到含 67 项活 state 的真实目录会直接抹掉。）
+_link_dir() {  # $1=目标路径  $2=源路径  $3=说明
+  local dst="$1" src="$2" label="$3"
+  if [ -L "$dst" ]; then
+    [ "$(readlink "$dst")" = "$src" ] || \
+      echo "  警告: $label 已是指向 $(readlink "$dst") 的符号链接（预期 $src），保持不变" >&2
+    return 0
   fi
-done
+  if [ -e "$dst" ] && [ -n "$(ls -A "$dst" 2>/dev/null)" ]; then
+    echo "  警告: $label 是含内容的真实目录（$(ls -A "$dst" | wc -l | tr -d ' ') 项），拒绝替换为符号链接。" >&2
+    echo "        如确要迁到项目数据目录，请先人工归档：mv <dst> <dst>.bak-<时间戳> 后再启动。" >&2
+    return 0
+  fi
+  rm -rf "$dst"
+  ln -s "$src" "$dst"
+}
+
+if [ "$MANAGED_HOME" = "1" ]; then
+  echo "运行模式: 项目内托管（DSH_HOME=$DSH_HOME profile=$DSH_PROFILE）"
+  mkdir -p "$DSH_DATA_DIR/data"
+
+  # 在 DSH_HOME 创建配置文件符号链接，让 DSH 读取项目内的配置
+  if [ -f "$DSH_DATA_DIR/settings.yaml" ]; then
+    ln -sf "$DSH_DATA_DIR/settings.yaml" "$DSH_HOME/settings.yaml"
+  fi
+
+  if [ -f "$DSH_DATA_DIR/.credentials.yaml" ]; then
+    ln -sf "$DSH_DATA_DIR/.credentials.yaml" "$DSH_HOME/.credentials.yaml"
+  fi
+
+  # 拷入自建 agent preset（investment = 内置 standard 去掉 delegation 组）。
+  # 内置 standard 含 delegation，会因 host 层 modelSelectionSettings 缺失而整体挂载失败。
+  if [ -d "$PROJECT_ROOT/config/agent-presets" ]; then
+    mkdir -p "$DSH_HOME/.agent-presets"
+    cp -R "$PROJECT_ROOT/config/agent-presets/"* "$DSH_HOME/.agent-presets/" 2>/dev/null || true
+  fi
+
+  # 会话与 storages 常驻项目数据目录（.dsh-data），DSH_HOME 内用符号链接指过去。
+  # 这样 .dsh-home 被重建时，历史会话与工作区登记不会丢。
+  mkdir -p "$DSH_DATA_DIR/sessions" "$DSH_DATA_DIR/storages"
+  _link_dir "$DSH_HOME/sessions" "$DSH_DATA_DIR/sessions" "sessions"
+  _link_dir "$DSH_HOME/storages" "$DSH_DATA_DIR/storages" "storages"
+else
+  echo "运行模式: 外部 DSH_HOME（只启动，不生成 profile 脚手架）: $DSH_HOME"
+fi
 
 # 确保 DSH 已安装
 DSH_BIN="$PROJECT_ROOT/node_modules/@deepseek-ai/dsh/lib/bin.js"
@@ -201,8 +235,11 @@ export NODE_PATH="$PROJECT_ROOT/node_modules:${NODE_PATH:-}"
 
 # ── 创建 profile 配置 ────────────────────────────────────────────────
 # DSH 需要 profile 配置，我们在 DSH_HOME 下创建一个
-PROFILE_DIR="$DSH_HOME/profiles/agent-dh"
+PROFILE_DIR="$DSH_HOME/profiles/$DSH_PROFILE"
 mkdir -p "$PROFILE_DIR"
+
+# 外部 DSH_HOME：profile 配置由人工管理，本脚本不生成、不覆盖
+if [ "$MANAGED_HOME" = "1" ]; then
 
 # 2026-09-12 加固：原先每次启动**无条件覆盖** profile 配置（heredoc + cp），于是任何人就地
 # 手改（例如启用 lifecycle、调端口）都会在下次启动被静默冲掉——而自我重启链路依赖 profile
@@ -282,6 +319,8 @@ if [ ! -L "$PROFILE_DIR/data" ]; then
   ln -s "$DSH_DATA_DIR/data" "$PROFILE_DIR/data"
 fi
 
+fi  # end: MANAGED_HOME=1 的 profile 配置脚手架
+
 # ── 多实例隔离：写 pidfile（exec 保持 PID 不变，$$ 即最终 node 进程 PID）─────────
 # 停机只能走 ./stop.sh（pidfile + 端口双重校验）；禁止 pkill -f 模糊匹配（会误杀同机其他实例）。
 echo $$ > "$DSH_DATA_DIR/state/server.pid"
@@ -293,6 +332,6 @@ cd "$PROJECT_ROOT"
 # 不使用符号链接，改为在项目根目录直接启动 DSH
 # DSH 会从当前目录解析 node_modules
 exec node --import tsx/esm "$DSH_BIN" \
-  --profile agent-dh \
+  --profile "$DSH_PROFILE" \
   --port "$PORT" \
   "${EXTRA_ARGS[@]}"

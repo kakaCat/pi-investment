@@ -21,6 +21,15 @@ quantsys-v2/data/pipeline_runs.json
 # 于是一次测试就留下 untracked 垃圾，故显式忽略（2026-09-11）。
 agent-dh/profiles/investment/state/
 
+# DSH 运行时数据目录（2026-09-12 w-f9c9a5c1）：.dsh-data 内含 .credentials.yaml（API 凭据）、
+# sessions/、state/、settings.yaml；.dsh-home 是启动脚本生成的 profile 目录。三者都是运行时
+# 产物，**绝不入库**——未被忽略时，任何人一次 `git add -A` 就会把 API key 提交进仓库。
+# 无前导斜杠 = 匹配任意层级，可同时覆盖 ./.dsh-data 与 ./agent-dh/.dsh-data。
+# 见 agent-dh/DATA_MIGRATION.md「版本控制建议」。
+.dsh-data/
+.dsh-home/
+.dsh-agent-dh/
+
 # Claude 会话计划产物
 .claude/plans/
 
