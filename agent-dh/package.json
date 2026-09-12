@@ -10,6 +10,8 @@
     "profiles/*"
   ],
   "scripts": {
+    "start": "bash scripts/start.sh",
+    "start:dev": "bash scripts/start.sh --verbose",
     "build": "pnpm -r build",
     "build:clients": "pnpm --filter @pi-investment/agent-os-client build && pnpm --filter @pi-investment/quantsys-v2-client build",
     "postinstall": "pnpm build:clients",
@@ -18,14 +20,42 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-agent": "^0.1.0-rc.7",
-    "@deepseek-ai/dsh-fs": "^0.1.0-rc.7",
-    "@deepseek-ai/dsh-llm": "^0.1.0-rc.7",
-    "@deepseek-ai/dsh-session": "^0.1.0-rc.7",
-    "@deepseek-ai/dsh-shell": "^0.1.0-rc.7",
-    "@deepseek-ai/dsh-skill": "^0.1.0-rc.7",
-    "@deepseek-ai/dsh-tools": "^0.1.0-rc.7"
+    "@deepseek-ai/cordis": "4.0.1",
+    "@deepseek-ai/dsh": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-agent": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-base": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-fs": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-llm": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-session": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-shell": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-skill": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-tools": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-web-app": "0.1.2-rc.1",
+    "yaml": "^2.3.4",
+    "@pi-investment/agent-os-manager": "workspace:*",
+    "@pi-investment/competition": "workspace:*",
+    "@pi-investment/core-tool": "workspace:*",
+    "@pi-investment/dashboard-bulletin": "workspace:*",
+    "@pi-investment/dashboard-execution": "workspace:*",
+    "@pi-investment/dashboard-genome": "workspace:*",
+    "@pi-investment/dashboard-holdings": "workspace:*",
+    "@pi-investment/data-manager": "workspace:*",
+    "@pi-investment/evolution": "workspace:*",
+    "@pi-investment/evolver": "workspace:*",
+    "@pi-investment/factor": "workspace:*",
+    "@pi-investment/genome": "workspace:*",
+    "@pi-investment/intelligence": "workspace:*",
+    "@pi-investment/investment": "workspace:*",
+    "@pi-investment/learning": "workspace:*",
+    "@pi-investment/market": "workspace:*",
+    "@pi-investment/memory": "workspace:*",
+    "@pi-investment/notification": "workspace:*",
+    "@pi-investment/quantsys-v2-manager": "workspace:*",
+    "@pi-investment/risk": "workspace:*",
+    "@pi-investment/scheduler": "workspace:*",
+    "@pi-investment/strategy": "workspace:*",
+    "@pi-investment/trading": "workspace:*",
+    "dsh-pmboard": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -42,5 +72,11 @@
     "node": ">=20.0.0",
     "pnpm": ">=8.0.0"
   },
-  "packageManager": "pnpm@8.15.0"
+  "packageManager": "pnpm@8.15.0",
+  "pnpm": {
+    "overrides": {
+      "@deepseek-ai/dsh-*": "0.1.2-rc.1",
+      "@deepseek-ai/cordis": "4.0.1"
+    }
+  }
 }

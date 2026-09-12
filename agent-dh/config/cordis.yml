@@ -1,0 +1,305 @@
+# Agent-DH Investment Profile Patch
+# 投资分析 Agent 配置 —— 加载 PI Investment 插件
+
+# ========== Agent Preset ==========
+# 2026-09-12: 启用 agent-presets 并指向自建 investment preset。
+# 内置 standard 组含 delegation（subagent/workflow/ralph），会因 host 层缺少
+# modelSelectionSettings 而整体挂载失败；investment preset 是 standard 去掉
+# delegation 组的副本（config/agent-presets/investment/，start.sh 会拷入 DSH_HOME）。
+- id: agent-presets
+  disabled: false
+  config:
+    default: investment
+
+# ========== 禁用有 bug 的插件 ==========
+# DSH 0.1.1-rc.2 版本中 tool-subagent-report 和 api-gateway 插件有 API 不兼容问题
+- id: tool-subagent-report
+  disabled: true
+- id: api-gateway
+  disabled: true
+
+# DSH 0.1.2-alpha.5 版本中 subagent 和 session-controller 插件有导出缺失问题
+# 2026-09-08: 0.1.2-rc.1 版本已修复，重新启用 session-controller
+# 2026-09-12: 必须启用 model-selection-settings（host 层服务），否则 agent-presets
+#             加载 delegation 组时会失败（即使 tool 本身被禁用，preset 仍需 host 依赖存在）
+- id: subagent-model-selection-settings
+  disabled: false
+# - id: session-controller
+#   disabled: true
+
+# 2026-09-08: 禁用整个 delegation 组 + 组内每个子项
+- id: delegation
+  disabled: true
+- id: tool-subagent-control
+  disabled: true
+- id: tool-subagent-list-agents
+  disabled: true
+- id: tool-subagent
+  disabled: true
+- id: tool-subagent-fork
+  disabled: true
+- id: tool-workflow
+  disabled: true
+- id: tool-ralph
+  disabled: true
+
+# DSH 0.1.2-rc.1 版本中 @linxin666/* 和第三方 UI 插件与 dsh-settings API 不兼容
+# 错误：The requested module '@deepseek-ai/dsh-settings' does not provide an export named 'settingsNamespace'
+- id: web-ui-settings
+  disabled: true
+- id: web-ui-market
+  disabled: true
+- id: web-ui-task-board
+  disabled: true
+- id: web-ui-remote-web-ui
+  disabled: true
+- id: web-ui-pet
+  disabled: true
+- id: web-ui-ssh
+  disabled: true
+- id: web-ui-describe-image
+  disabled: true
+- id: web-ui-desktop-launcher
+  disabled: true
+- id: web-ui-doctor
+  disabled: true
+- id: web-ui-skin-center
+  disabled: true
+- id: web-ui-better-sidebar
+  disabled: true
+
+# ========== 重新启用核心工具 ==========
+# dsh-web-app 默认禁用这些工具（移到 agent-presets 管理），investment profile 直接启用
+- id: tool-bash
+  disabled: false
+- id: tool-pwsh
+  disabled: false
+- id: tool-jobs
+  disabled: false
+- id: tool-fs
+  disabled: false
+- id: tool-fs-search
+  disabled: false
+- id: tool-str-replace-editor
+  disabled: false
+- id: tool-skill
+  disabled: false
+- id: tool-goal
+  disabled: false
+- id: tool-todo
+  disabled: false
+- id: tool-web
+  disabled: false
+- id: command-goal
+  disabled: false
+- id: command-compact
+  disabled: false
+- id: compaction-basic
+  disabled: false
+- id: tool-result-pruner
+  disabled: false
+- id: plan-mode
+  disabled: false
+- id: workflow-worker-thread
+  disabled: false
+- id: agent-instructions
+  disabled: false
+
+# ========== 投资插件 ==========
+- insert:
+    - id: dashboard-holdings
+      name: '@pi-investment/dashboard-holdings'
+      config: {}
+
+    - id: dashboard-execution
+      name: '@pi-investment/dashboard-execution'
+      config: {}
+
+    - id: dashboard-bulletin
+      name: '@pi-investment/dashboard-bulletin'
+      config: {}
+
+    - id: dashboard-genome
+      name: '@pi-investment/dashboard-genome'
+      config: {}
+
+    - id: dsh-pmboard
+      name: 'dsh-pmboard'
+      config: {}
+
+    - id: investment
+      name: '@pi-investment/investment'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: trading
+      name: '@pi-investment/trading'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: intelligence
+      name: '@pi-investment/intelligence'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: competition
+      name: '@pi-investment/competition'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: market
+      name: '@pi-investment/market'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: risk
+      name: '@pi-investment/risk'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: strategy
+      name: '@pi-investment/strategy'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: factor
+      name: '@pi-investment/factor'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: data-manager
+      name: '@pi-investment/data-manager'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: memory
+      name: '@pi-investment/memory'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+        agentOS:
+          baseURL: http://localhost:8080
+          agentId: agent-dh
+
+    - id: evolution
+      name: '@pi-investment/evolution'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: scheduler
+      name: '@pi-investment/scheduler'
+      config:
+        agentOS:
+          baseURL: http://localhost:8080
+          agentId: agent-dh
+
+    - id: genome
+      name: '@pi-investment/genome'
+      config:
+        genomeDir: /Users/yunpeng/.dsh-agent-dh/genome
+
+    - id: learning
+      name: '@pi-investment/learning'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: quantsys-v2-manager
+      name: '@pi-investment/quantsys-v2-manager'
+      config:
+        projectRoot: /Users/yunpeng/pi-investment/quantsys-v2
+        port: 5001
+        healthCheckUrl: http://localhost:5001/api/health
+        startupScript: adapters/inbound/fastapi_app/main.py
+        activateScript: activate-py313.sh
+        logFile: logs/launchd-stdout.log
+
+    - id: agent-os-manager
+      name: '@pi-investment/agent-os-manager'
+      config:
+        projectRoot: /Users/yunpeng/pi-investment/agent-os
+        port: 8080
+        healthCheckUrl: http://localhost:8080/health
+        startCommand: ./bin/agent-os serve
+        logDir: logs
+
+    - id: evolver
+      name: '@pi-investment/evolver'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+        observeDays: 5
+
+    # - id: lifecycle
+    #   name: '@pi-investment/lifecycle'
+    #   config:
+    #     repoRoot: /Users/yunpeng/pi-investment
+    #     agentDhRoot: /Users/yunpeng/pi-investment/agent-dh
+    #     profileDir: /Users/yunpeng/.dsh/profiles/investment
+    #     port: 13080
+    #     agentId: investor
+    #     maxRestartsPerHour: 10
+
+    - id: notification
+      name: '@pi-investment/notification'
+      config:
+        agentOS:
+          baseURL: http://localhost:8080
+          agentId: agent-dh
+        # 降级兜底 webhook（方案 C：主路径 Agent OS API 失败/全挂时直发飞书；'*' 为所有渠道共用）
+        feishuWebhooks:
+          '*': https://open.feishu.cn/open-apis/bot/v2/hook/b24be3a5-35fc-4142-90c2-3a3933172829
+
+# ========== 定时提醒 ==========
+# 2026-08-25 起：提醒统一走 Agent OS（reminder_create/list/delete，postgres 持久）。
+# dsh-schedule（session-local，会话 fork 即丢提醒）已退役，不再加载。
+# 历史配置保留备查：
+# - insert:
+#     - id: schedule
+#       name: '@deepseek-ai/dsh-schedule'
+
+# ========== Skill 自定义目录 ==========
+# 2026-09-03：skill 真身统一放 agent-dh/skills（工程归属），此处注册为自定义 skill 根。
+# 2026-09-05 更正：本文件（~/.dsh）为主实例(:3080)配置，非 :13080 运行配置！
+# :13080 investment profile 的 DSH_HOME=~/.dsh-agent-dh（start.sh 隔离），真身见
+# ~/.dsh-agent-dh/profiles/investment/cordis.patch.yml（已在彼处注册 customSkillDirs）。
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+  config:
+    customSkillDirs:
+      - /Users/yunpeng/pi-investment/agent-dh/skills
+
+# ========== LLM 配置 ==========
+- id: llm-deepseek
+  name: '@deepseek-ai/dsh-llm-deepseek'
+  config:
+    models:
+      - id: deepseek-v4-flash
+        contextWindow: 128000
+
+# ========== 系统提示词 ==========
+- id: system-prompt
+  config:
+    persona: ''
+    # persona 内容已迁移至 genome 插件管理的基因组段落
+    # constitution.md（宪法层，锁定） + principles.md（决策原则，可进化）
+
+# ========== Agent 配置 ==========
+- id: agent-loop
+  name: '@deepseek-ai/dsh-agent-loop'
+  config:
+    agents:
+      - id: investor
+        provider: deepseek-official
+        model: deepseek-v4-flash
+        cwd: !!js process.cwd()

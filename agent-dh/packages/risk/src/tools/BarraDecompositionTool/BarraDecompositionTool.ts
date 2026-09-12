@@ -89,6 +89,15 @@ export class BarraDecompositionTool extends BaseTool<BarraDecompositionParams, B
    * Phase 3: 包装返回数据
    */
   protected wrap(result: BarraDecompositionResult, _context: ToolContext): ToolResponse<BarraDecompositionResult> {
+    // P1-5: 降级模式时添加警告信息
+    if (result.degraded) {
+      return {
+        success: true,
+        data: result,
+        message: result.warning || '小样本模式：仅使用市值单因子，精度降低但可用',
+      };
+    }
+    
     return {
       success: true,
       data: result,

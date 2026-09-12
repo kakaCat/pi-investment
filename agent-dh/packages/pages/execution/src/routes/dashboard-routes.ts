@@ -177,3 +177,51 @@ export function createErrorEventsHandler(opts: { osBaseURL: string }) {
     }
   };
 }
+
+/** POST /dashboard/api/board/orphaned-task-cleanup：清理僵尸任务（从数据库删除）。
+ * body: { id: string }
+ * 代理 Agent OS DELETE /api/v1/scheduler/tasks/:id 端点。
+ * 200 {success,data:{message}}；失败 200 {success:false,error} */
+export function createOrphanedTaskCleanupHandler(opts: { osBaseURL: string }) {
+  return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    try {
+      const raw = await readBody(req);
+      let parsed: any;
+      try {
+        parsed = raw ? JSON.parse(raw) : {};
+      } catch {
+        json(res, 400, { success: false, error: '请求体非合法 JSON' });
+        return;
+      }
+      
+      const taskId = parsed && parsed.id != null ? String(parsed.id) : '';
+      if (!taskId) {
+        json(res, 400, { success: false, error: '缺少任务 ID' });
+        return;
+      }
+
+      // 调用 Agent OS API 删除任务
+      const resp = await fetch(
+        `${opts.osBaseURL}/api/v1/scheduler/tasks/${encodeURIComponent(taskId)}`,
+        {
+          method: 'DELETE',
+          signal: AbortSignal.timeout(4000),
+        },
+      );
+
+      let data: any = {};
+      try { data = await resp.json(); } catch { /* 非 JSON 响应 */ }
+
+      if (!resp.ok || data?.success === false) {
+        json(res, 200, { success: false, error: data?.message || data?.error || `HTTP ${resp.status}` });
+        return;
+      }
+
+      const message = data?.message || '僵尸任务已清理';
+      json(res, 200, { success: true, data: { message } });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      json(res, 500, { success: false, error: msg });
+    }
+  };
+}

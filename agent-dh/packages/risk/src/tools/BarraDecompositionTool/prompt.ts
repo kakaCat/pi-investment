@@ -34,6 +34,14 @@ export interface BarraDecompositionResult {
   industry_concentration: number;
   /** 风格暴露 */
   style_exposure: any;
+  /** 是否为降级模式（小样本路径） */
+  degraded?: boolean;
+  /** 计算方法：full（完整多因子）/ shrinkage_covariance（收缩协方差）/ single_factor_size（单因子市值） */
+  method?: string;
+  /** 降级警告信息 */
+  warning?: string;
+  /** 收缩强度（0-1，仅 shrinkage_covariance 模式） */
+  shrinkage_intensity?: number;
   [key: string]: any;
 }
 
@@ -41,7 +49,7 @@ export interface BarraDecompositionResult {
  * Barra风险分解工具提示词定义
  */
 export const barraDecompositionPrompt: ToolPrompt<BarraDecompositionParams, BarraDecompositionResult> = {
-  description: '用 Barra 模型将组合风险分解到因子层面（市值、行业、风格），给出各因子风险贡献与特质风险。适用于：组合回撤异常时定位风险来源、检查行业/风格暴露是否过度集中。整体风险指标用 risk_metrics。',
+  description: '用 Barra 模型将组合风险分解到因子层面（市值、行业、风格），给出各因子风险贡献与特质风险。适用于：组合回撤异常时定位风险来源、检查行业/风格暴露是否过度集中。三级自动降级：≥10 只=完整多因子；5-9 只=收缩协方差（保留多因子但稳健）；2-4 只=单因子市值。整体风险指标用 risk_metrics。',
 
   useCases: [
     '组合回撤异常时定位风险来源',
@@ -64,6 +72,7 @@ export const barraDecompositionPrompt: ToolPrompt<BarraDecompositionParams, Barr
     '用于定位风险来源，分析到因子层面',
     '整体风险指标使用 risk_metrics',
     '帮助识别行业或风格的过度集中',
+    '【P1-5/P1-5.1 三级降级】≥10只=完整多因子；5-9只=收缩协方差（多因子+Ledoit-Wolf稳健化）；2-4只=单因子市值（degraded=true）',
   ],
 
   relatedTools: ['risk_metrics', 'risk_controller'],
@@ -102,6 +111,10 @@ export const barraDecompositionPrompt: ToolPrompt<BarraDecompositionParams, Barr
         idiosyncratic_risk: { type: 'number', description: '特质风险（%）' },
         industry_concentration: { type: 'number', description: '行业集中度' },
         style_exposure: { type: 'object', additionalProperties: true, description: '风格暴露' },
+        degraded: { type: 'boolean', description: '是否为降级模式' },
+        method: { type: 'string', description: '计算方法：full/shrinkage_covariance/single_factor_size' },
+        warning: { type: 'string', description: '降级警告信息' },
+        shrinkage_intensity: { type: 'number', description: '收缩强度 0-1（仅收缩协方差模式）' },
       },
     },
     render: (_args: BarraDecompositionParams, data: BarraDecompositionResult) => [{

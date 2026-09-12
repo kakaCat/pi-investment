@@ -62,10 +62,53 @@ export class DataFetchDividendTool extends BaseTool<DataFetchDividendParams, any
         '后端未报错而是填充 0 值。禁止据此判断『该公司不分红』；请改用 stock_intel 公告或外部源核对。',
       );
     }
-    return sanitizeLossless({ mode: 'history', symbol: args.symbol, data: usable, raw_rows: rows.length });
+    // 2026-09-11 补充（P1-2）：akshare 不提供 dividend_yield（需现价），工具层补充计算
+    // yield = dividend_per_share / current_price * 100
+    // 需要获取除权日的收盘价作为基准价（更准确），或用当前价（实时但可能偏差大）
+    const enriched = await this.enrichWithYield(usable, args.symbol!);
+    return sanitizeLossless({ mode: 'history', symbol: args.symbol, data: enriched, raw_rows: rows.length });
   }
 
   protected wrap(data: any, _context: ToolContext): ToolResponse<any> {
     return { success: true, data };
   }
+
+  /**
+   * 补充 dividend_yield 计算（2026-09-11 P1-2）
+   * 
+   * akshare 不提供 yield，需要工具层补充：yield = dividend_per_share / price * 100
+   * 
+   * 理想：用除权日的收盘价（准确反映当时股息率）
+   * 实际：用当前价（简化实现，偏差可能较大但可用）
+   * 
+   * TODO: 如果需要准确历史 yield，需要获取除权日的历史价格
+   */
+  private async enrichWithYield(rows: any[], symbol: string): Promise<any[]> {
+    try {
+      // 获取当前价格作为基准
+      const quote = await this.qv2.getQuote(symbol);
+      const currentPrice = quote?.price ?? quote?.data?.price ?? null;
+      
+      if (!currentPrice || currentPrice <= 0) {
+        // 无法获取价格，返回原数据（yield 保持 null）
+        return rows;
+      }
+      
+      // 计算每行的 yield（简化：用当前价，所有历史分红的 yield 基于同一价格）
+      return rows.map(r => ({
+        ...r,
+        dividend_yield: r.dividend_per_share && currentPrice 
+          ? Math.round((r.dividend_per_share / currentPrice) * 10000) / 100  // 保留2位小数
+          : null,
+        yield_note: currentPrice 
+          ? '基于当前价计算（简化方案，实际除权日价格可能不同）' 
+          : 'yield计算失败：无法获取股价',
+      }));
+    } catch (e) {
+      // yield 计算失败不影响主流程，返回原数据
+      console.warn('dividend_yield 计算失败:', e);
+      return rows;
+    }
+  }
+
 }

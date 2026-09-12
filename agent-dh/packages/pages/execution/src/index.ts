@@ -10,7 +10,7 @@ import { Context } from '@deepseek-ai/cordis';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { DataAggregationService } from './services/data-aggregation.js';
-import { createBoardHandler, createErrorActionHandler, createErrorEventsHandler } from './routes/dashboard-routes.js';
+import { createBoardHandler, createErrorActionHandler, createErrorEventsHandler, createOrphanedTaskCleanupHandler } from './routes/dashboard-routes.js';
 import { createSolveHandler, type ActionTarget } from '@pi-investment/solve-kit';
 
 export const name = 'dashboard-execution';
@@ -117,6 +117,12 @@ export function apply(ctx: Context, config?: PluginConfig): void {
           kind: 'exact',
           path: '/dashboard/api/board/error-action',
           handler: createErrorActionHandler({ osBaseURL: options.osBaseURL, windowCode }),
+        });
+        // 清理僵尸任务：POST /dashboard/api/board/orphaned-task-cleanup (body: {id})
+        webCtx.webServer.register({
+          kind: 'exact',
+          path: '/dashboard/api/board/orphaned-task-cleanup',
+          handler: createOrphanedTaskCleanupHandler({ osBaseURL: options.osBaseURL }),
         });
 
       }, name + ': api');

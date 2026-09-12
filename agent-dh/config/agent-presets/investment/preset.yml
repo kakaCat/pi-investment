@@ -1,0 +1,3 @@
+name: 投资模式
+description: 投资分析 Agent 预设——standard 工具集去除 delegation 组（无 subagent/workflow/ralph），保留 host 层投资插件。
+order: 1

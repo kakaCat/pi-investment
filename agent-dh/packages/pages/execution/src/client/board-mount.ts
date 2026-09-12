@@ -196,12 +196,44 @@ export function mountBoard(controller: BoardController): () => void {
         }
       }
       refs.errsBox.addEventListener('click', onErrsClick)
+      // 僵尸任务清理按钮点击委派
+      const onOrphanedClick = (ev: MouseEvent) => {
+        const target = ev.target as Element
+        const cleanupBtn = target.closest<HTMLElement>('.dsh-exec-cleanup-btn[data-orphaned-id]')
+        if (cleanupBtn !== null && cleanupBtn.dataset.orphanedId !== undefined) {
+          const taskId = cleanupBtn.dataset.orphanedId
+          if (!window.confirm(`确认清理僵尸任务 ID: ${taskId}？\n此操作将从数据库中永久删除该任务。`)) {
+            return
+          }
+          void (async () => {
+            try {
+              const res = await fetch('/dashboard/api/board/orphaned-task-cleanup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: taskId }),
+              })
+              const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { message?: string }; error?: string }
+              if (!res.ok || json.success === false) {
+                kit.toast('⚠ 清理失败：' + (json.error ?? 'HTTP ' + res.status))
+                return
+              }
+              kit.toast('✓ ' + (json.data?.message ?? '僵尸任务已清理'))
+              // 刷新看板数据
+              void fetchBoard()
+            } catch (e) {
+              kit.toast('⚠ 清理失败：' + (e instanceof Error ? e.message : String(e)))
+            }
+          })()
+        }
+      }
+      refs.orphanedBox.addEventListener('click', onOrphanedClick)
       void fetchBoard(true)
       void fetchErrPage()
       return () => {
         refreshBtn?.removeEventListener('click', onRefresh)
         refs.tasksBox.removeEventListener('click', onTasksClick)
         refs.errsBox.removeEventListener('click', onErrsClick)
+        refs.orphanedBox.removeEventListener('click', onOrphanedClick)
       }
     },
     onPoll: () => { void fetchBoard(); void fetchErrPage({ silent: true }) },

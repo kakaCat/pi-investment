@@ -98,20 +98,22 @@ export class DataQualityReportTool extends BaseTool<DataQualityReportParams, Dat
     const q: any = this.quantsysClient as any;
     const rowsOf = (x: any) => (Array.isArray(x) ? x : (x?.data?.industries ?? x?.industries ?? []));
 
-    // 1) 板块列表可用性 + 窗口参数是否生效（测机制：当日 vs 复合窗口，而非深度）
+    // 1) 板块列表可用性 + 窗口参数是否生效（改用 5 vs 60，间隔更大，判据更严格）
     try {
-      const a: any = await q.getSectorAnalysis({ days: 1 });
-      const b: any = await q.getSectorAnalysis({ days: 5 });
+      const a: any = await q.getSectorAnalysis({ days: 5 });
+      const b: any = await q.getSectorAnalysis({ days: 60 });
       const ra = rowsOf(a);
       const rb = rowsOf(b);
       if (!ra.length) push('sector_analysis.rows', 'fail', '板块列表为空');
       else {
-        const same = ra.length === rb.length && ra.slice(0, 20).every((x: any, i: number) => x.change_pct === rb[i]?.change_pct);
-        const win = (b as any)?.window ?? (b as any)?.data?.window;
+        // 加强判据：不仅比 length，还要比 top3 的实际涨跌幅（窗口不同，数值必然不同）
+        const top3A = ra.slice(0, 3).map((x: any) => `${x.name}:${x.change_pct}`).join(',');
+        const top3B = rb.slice(0, 3).map((x: any) => `${x.name}:${x.change_pct}`).join(',');
+        const same = ra.length === rb.length && top3A === top3B;
         push('sector_analysis.window', same ? 'degraded' : 'ok',
           same
-            ? 'days=1 与 days=5 返回完全相同 → 窗口参数未生效'
-            : `窗口参数生效（days=5 由 ${win?.days_computed ?? '?'} 天快照复合）`);
+            ? `days=5 与 days=60 完全相同（${ra.length}行，top3=${top3A}）→ 窗口参数被忽略`
+            : `窗口参数生效（${ra.length}行，5天top3≠60天top3）`);
       }
     } catch (e: any) { push('sector_analysis', 'fail', '调用失败：' + String(e?.message ?? e).slice(0, 120)); }
 
@@ -178,6 +180,49 @@ export class DataQualityReportTool extends BaseTool<DataQualityReportParams, Dat
             : `${present.length} 个资金因子，非零 ${present.length - zeros.length} 个`);
     } catch (e: any) { push('factor.fund_group', 'fail', String(e?.message ?? e).slice(0, 120)); }
 
+    // 8) factor_calculate 资金因子字段（曾部分为 0 且 degraded=false 静默）
+    try {
+      const f: any = await q.calculateFactors({ symbol: '600150' });
+      const factors = f?.factors ?? f?.data?.factors ?? {};
+      const fundFields = ['super_large_net', 'large_net', 'main_net_pct', 'main_net_inflow', 'fund_inflow_5d_sum'];
+      const zeroFields = fundFields.filter(k => factors[k] === 0);
+      const nonZeroFields = fundFields.filter(k => typeof factors[k] === 'number' && factors[k] !== 0);
+      if (zeroFields.length === fundFields.length) {
+        push('factor_calculate.fund_fields', 'fail', `资金因子全部为 0（${fundFields.join(',')}）`);
+      } else if (zeroFields.length > 0) {
+        push('factor_calculate.fund_fields', 'degraded', `资金因子部分为 0：${zeroFields.join(',')}；非零：${nonZeroFields.join(',')}`);
+      } else {
+        push('factor_calculate.fund_fields', 'ok', `资金因子全部非零（${nonZeroFields.length}个）`);
+      }
+    } catch (e: any) { push('factor_calculate', 'fail', String(e?.message ?? e).slice(0, 120)); }
+
+    // 9) dividend_yield（数据有流水但 yield 字段仍 null）
+    try {
+      const d: any = await q.getDividends('601398', 3);
+      const rows = d?.data ?? d ?? [];
+      if (!rows.length) push('dividend.history', 'fail', '分红历史为空');
+      else {
+        const hasYield = rows.some((r: any) => typeof r.dividend_yield === 'number');
+        push('dividend.yield', hasYield ? 'ok' : 'degraded', 
+          hasYield ? '股息率字段已计算' : `有 ${rows.length} 条分红流水，但 dividend_yield 全为 null`);
+      }
+    } catch (e: any) { push('dividend', 'fail', String(e?.message ?? e).slice(0, 120)); }
+
+    // 10) barra 小样本可用性（账户只有 2 只持仓，横截面回归永久样本不足 → 需小样本路径）
+    try {
+      // 直接调用后端 API（client 未封装此方法）
+      const baseUrl = (q as any).baseURL || 'http://localhost:5001';
+      const resp = await fetch(`${baseUrl}/api/factor-models/barra/calculate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbols: ['300677', '600887'], start_date: '2026-08-01', end_date: '2026-09-11' })
+      });
+      const b: any = await resp.json();
+      const hasRisk = b?.success && (typeof b?.data?.total_risk === 'number' || (b?.data?.factor_risks ?? []).length > 0);
+      push('barra.small_sample', hasRisk ? 'ok' : 'degraded',
+        hasRisk ? 'Barra 分解可用' : '样本不足（2只持仓）→ 横截面回归不可用，需小样本路径（单因子映射/收缩协方差）');
+    } catch (e: any) { push('barra', 'fail', String(e?.message ?? e).slice(0, 120)); }
+
     return out;
   }
   protected wrap(data: DataQualityReportResult, context: ToolContext): ToolResponse<DataQualityReportResult> {
@@ -214,6 +259,10 @@ export class DataQualityReportTool extends BaseTool<DataQualityReportParams, Dat
       delayed_data,
       anomalies,
       summary: (data as any).summary ?? `数据质量报告（${data_type}）: ${records.length} 条检查记录, 综合评分 ${overall_score.toFixed(1)}`,
+      // 2026-09-11 修复：保留 tool_health 探针结果（execute 里生成，wrap 里曾被静默丢弃）
+      tool_health: (data as any).tool_health,
+      tool_health_summary: (data as any).tool_health_summary,
+      scope_note: (data as any).scope_note,
     };
 
     const score = typeof overall_score === 'number' ? overall_score : 0;

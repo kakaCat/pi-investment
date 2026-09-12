@@ -1,6 +1,6 @@
 import { Context, Service } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
-import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
+import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { createQuantsysV2StatusTool } from './tools/QuantsysV2StatusTool';
 import { createQuantsysV2RestartTool } from './tools/QuantsysV2RestartTool';
 import { createQuantsysV2LogsTool } from './tools/QuantsysV2LogsTool';
@@ -36,13 +36,18 @@ export default class QuantsysV2Manager extends Service {
   }).default({} as any);
 
   private config: any;
-  private qv2Client: QuantsysV2Client;
+  private qv2Client: QuantsysV2Client | null = null;
 
   constructor(ctx: Context, config: any) {
     super(ctx, 'quantsys-v2-manager');
     this.config = { ...QuantsysV2Manager.Config.default({} as any), ...config };
 
-    // 创建 QuantsysV2Client 实例
+    // 延迟初始化客户端和工具（避免 tsx 编译时序问题）
+    this.initAsync();
+  }
+
+  private async initAsync() {
+    const { QuantsysV2Client } = await import('@pi-investment/quantsys-v2-client');
     this.qv2Client = new QuantsysV2Client({
       baseURL: this.config.baseURL,
     });
@@ -52,6 +57,10 @@ export default class QuantsysV2Manager extends Service {
 
   private registerTools() {
     const { ctx } = this;
+
+    if (!this.qv2Client) {
+      throw new Error('QuantsysV2Client not initialized');
+    }
 
     const config = {
       projectRoot: this.config.projectRoot,
