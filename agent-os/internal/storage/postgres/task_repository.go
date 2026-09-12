@@ -82,7 +82,8 @@ func (r *TaskRepository) GetByID(ctx context.Context, id uuid.UUID) (*types.Task
 		SELECT id, name, owner, COALESCE(description, ''), COALESCE(schedule, ''), COALESCE(cron, ''),
 		       COALESCE(command, ''), COALESCE(webhook_url, ''), COALESCE(service_name, ''),
 		       COALESCE(payload, '{}'::jsonb), COALESCE(timeout, 3600), COALESCE(retry_count, 0), enabled,
-		       created_at, updated_at, COALESCE(created_by, ''), COALESCE(metadata, '{}'::jsonb)
+		       created_at, updated_at, COALESCE(created_by, ''), COALESCE(metadata, '{}'::jsonb),
+		       COALESCE(agent_line, '')
 		FROM tasks
 		WHERE id = $1
 	`
@@ -109,6 +110,7 @@ func (r *TaskRepository) GetByID(ctx context.Context, id uuid.UUID) (*types.Task
 		&task.UpdatedAt,
 		&task.CreatedBy,
 		&metadataJSON,
+		&task.AgentLine,
 	)
 
 	if err != nil {
@@ -135,7 +137,8 @@ func (r *TaskRepository) GetByName(ctx context.Context, name string) (*types.Tas
 		SELECT id, name, owner, COALESCE(description, ''), COALESCE(schedule, ''), COALESCE(cron, ''),
 		       COALESCE(command, ''), COALESCE(webhook_url, ''), COALESCE(service_name, ''),
 		       COALESCE(payload, '{}'::jsonb), COALESCE(timeout, 3600), COALESCE(retry_count, 0), enabled,
-		       created_at, updated_at, COALESCE(created_by, ''), COALESCE(metadata, '{}'::jsonb)
+		       created_at, updated_at, COALESCE(created_by, ''), COALESCE(metadata, '{}'::jsonb),
+		       COALESCE(agent_line, '')
 		FROM tasks
 		WHERE name = $1
 	`
@@ -162,6 +165,7 @@ func (r *TaskRepository) GetByName(ctx context.Context, name string) (*types.Tas
 		&task.UpdatedAt,
 		&task.CreatedBy,
 		&metadataJSON,
+		&task.AgentLine,
 	)
 
 	if err == pgx.ErrNoRows {
@@ -188,7 +192,8 @@ func (r *TaskRepository) List(ctx context.Context, enabledOnly bool) ([]*types.T
 		SELECT id, name, owner, COALESCE(description, ''), COALESCE(schedule, ''), COALESCE(cron, ''),
 		       COALESCE(command, ''), COALESCE(webhook_url, ''), COALESCE(service_name, ''),
 		       COALESCE(payload, '{}'::jsonb), COALESCE(timeout, 3600), COALESCE(retry_count, 0), enabled,
-		       created_at, updated_at, COALESCE(created_by, ''), COALESCE(metadata, '{}'::jsonb)
+		       created_at, updated_at, COALESCE(created_by, ''), COALESCE(metadata, '{}'::jsonb),
+		       COALESCE(agent_line, '')
 		FROM tasks
 	`
 	if enabledOnly {
@@ -226,6 +231,7 @@ func (r *TaskRepository) List(ctx context.Context, enabledOnly bool) ([]*types.T
 			&task.UpdatedAt,
 			&task.CreatedBy,
 			&metadataJSON,
+			&task.AgentLine,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan task: %w", err)
@@ -322,7 +328,8 @@ func (r *TaskRepository) GetScheduledTasks(ctx context.Context) ([]*types.Task, 
 		SELECT id, name, owner, COALESCE(description, ''), COALESCE(schedule, ''), COALESCE(cron, ''),
 		       COALESCE(command, ''), COALESCE(webhook_url, ''), COALESCE(service_name, ''),
 		       COALESCE(payload, '{}'::jsonb), COALESCE(timeout, 3600), COALESCE(retry_count, 0), enabled,
-		       created_at, updated_at, COALESCE(created_by, ''), COALESCE(metadata, '{}'::jsonb)
+		       created_at, updated_at, COALESCE(created_by, ''), COALESCE(metadata, '{}'::jsonb),
+		       COALESCE(agent_line, '')
 		FROM tasks
 		WHERE enabled = true AND (
 			(schedule IS NOT NULL AND schedule != '') OR
@@ -361,6 +368,7 @@ func (r *TaskRepository) GetScheduledTasks(ctx context.Context) ([]*types.Task, 
 			&task.UpdatedAt,
 			&task.CreatedBy,
 			&metadataJSON,
+			&task.AgentLine,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan task: %w", err)

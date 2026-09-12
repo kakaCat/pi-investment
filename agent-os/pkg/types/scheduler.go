@@ -46,6 +46,7 @@ type Task struct {
 	CreatedAt   time.Time              `json:"created_at"`
 	UpdatedAt   time.Time              `json:"updated_at"`
 	CreatedBy   string                 `json:"created_by,omitempty"`         // Deprecated, use Owner
+	AgentLine   string                 `json:"agent_line,omitempty"`         // business line: profit_engine / autonomy
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`           // Additional metadata
 
 	// Runtime fields (not stored in DB)
