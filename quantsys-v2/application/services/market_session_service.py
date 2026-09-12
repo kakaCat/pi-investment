@@ -16,6 +16,7 @@ from datetime import datetime, time, timedelta
 from typing import Optional
 
 from application.services.trading_day_guard import TradingDayGuard
+from domain.trading.exceptions import TradingError
 from domain.trading.models.market_session import MarketSession, SessionPhase
 from domain.trading.ports.IMarketClock import IMarketClock
 from domain.trading.services.market_session_policy import MarketSessionPolicy
@@ -113,14 +114,23 @@ class MarketSessionService:
 
     # ------------------------------------------------------ 硬约束（fail-closed）
     def assert_can_trade(self, now: Optional[datetime] = None) -> MarketSession:
-        """下单前置硬约束：非开市即拒绝（fail-closed）
+        """下单前置判据（**自查用，不参与下单链**）：非开市或进入收盘截止窗口即拒绝。
 
-        ⚠️ 尚未接线到下单链路（RFC 016 阶段 P5）；当前仅提供判据，不改变既有行为。
-        调用方约定：捕获 ValueError → HTTP 422（与既有 `_check_trading_window` 同口径）。
+        ⚠️ 本方法**不是**下单链的闸门——真正生效的是
+        `TradeGuardService.validate_trading_window` 与
+        `AccountTradingService._check_trading_window`（两者 2026-09-12 已收敛到同一策略）。
+        若把它接成第三个闸门，会因**日级真源不同**（此处 `TradingDayGuard` vs 两闸门的
+        `ITradingCalendar`）在节假日/日历降级时给出相反结论。保留它是供 agent 工具侧下单前自查。
+
+        异常类型与既有闸门统一为 `TradingError(422)`（原为裸 `ValueError`，会逼每个调用方
+        自行映射，且与闸门的 422 文案口径不一）。
         """
-        session = self.current(now)
-        if not session.is_market_open:
-            raise ValueError('当前非连续竞价时段（%s），禁止委托' % session.phase.value)
+        at = now or self._clock.now()
+        session = self.current(at)
+        if not MarketSessionPolicy.accepts_new_orders(
+                at.time(), is_trading_day=session.is_trading_day):
+            raise TradingError(
+                f'非交易时段或临近休市（{at.strftime("%H:%M")}），禁止委托', 422)
         return session
 
     def assert_daily_write_allowed(self, day: Optional[datetime] = None) -> bool:

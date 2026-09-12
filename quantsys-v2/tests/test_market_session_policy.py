@@ -14,6 +14,8 @@
 """
 from datetime import datetime, time
 
+import pytest
+
 from domain.trading.models.market_session import MarketSession, SessionPhase
 from domain.trading.services.market_session_policy import (
     AFTERNOON_START,
@@ -270,3 +272,27 @@ def test_market_monitor_silent_time_converges_to_same_lunch_break():
     assert sched._is_silent_time(datetime(2026, 9, 11, 13, 0)) is False
     assert sched._is_silent_time(datetime(2026, 9, 11, 9, 30)) is False
     assert sched._is_silent_time(datetime(2026, 9, 11, 15, 0)) is False
+
+
+def test_assert_can_trade_raises_trading_error(monkeypatch):
+    """`assert_can_trade` 与两个真闸门同口径：抛 `TradingError`（原裸 ValueError），
+    且与收盘截止规则一致（自查用，不参与下单链）。
+
+    日级真源按仓库惯用法打桩（monkeypatch `_kline_stats`），不碰 DB。
+    """
+    from application.services.market_session_service import MarketSessionService
+    from application.services.trading_day_guard import TradingDayGuard
+    from domain.trading.exceptions import TradingError
+
+    monkeypatch.setattr(
+        TradingDayGuard, '_kline_stats', staticmethod(lambda day: (True, day)))
+
+    svc = MarketSessionService()
+    # 开市且距收盘 > 60s → 放行
+    assert svc.assert_can_trade(datetime(2026, 9, 11, 10, 0)).is_market_open is True
+    # 进入收盘截止窗口 → 拒
+    with pytest.raises(TradingError):
+        svc.assert_can_trade(datetime(2026, 9, 11, 14, 59))
+    # 午休 → 拒
+    with pytest.raises(TradingError):
+        svc.assert_can_trade(datetime(2026, 9, 11, 12, 0))
