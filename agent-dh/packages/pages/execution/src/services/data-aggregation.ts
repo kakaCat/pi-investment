@@ -198,6 +198,30 @@ export function errorEventRowToView(row: Record<string, any>): ErrorEvent {
   };
 }
 
+/**
+ * OS 任务是否应并入看板（= 是否真的唤醒 agent）。纯函数，便于回归。
+ *
+ * 判据（2026-09-12 修正，w-c8cae280）——**以 webhook_url 指向 DSH（/agent-os-trigger）为准**：
+ * 该地址就是"投递到 DSH 唤醒 agent"的直接证据，而 `payload.executor` 只是**部分任务才写的字段**。
+ * 修正前的判据只看 executor → 把 pre-market-routine / post-market-routine-live /
+ * intraday-surge-scan-am/pm 这类"靠 webhook_url 投递、payload 里没有 executor"的任务
+ * **静默过滤掉**，于是「今日时间轴」少了当天最该出现的例程（用户报"展示不对"的根因）。
+ *
+ * 仍排除：①disabled ②无任何 webhook 的任务（如 equity-snapshot-daily，纯脚本不唤醒 agent）
+ * ③指向 v2 内部 webhook（:5001/…）的任务 —— 它们由 v2 侧展示，并入会与 v2 scheduler 双计。
+ */
+export function shouldIncludeOsTask(t: {
+  enabled?: unknown; payload?: unknown; webhook_url?: unknown;
+}): boolean {
+  const enabled = t.enabled === true || t.enabled === 'true' || t.enabled === 1 || t.enabled === '1';
+  if (!enabled) return false;
+  const webhookUrl = String(t.webhook_url ?? '');
+  if (webhookUrl.includes(':5001/')) return false;               // v2 内部：避免双计
+  const executor = String((t.payload as Record<string, unknown> | null | undefined)?.executor ?? '');
+  if (executor === 'dsh-webhook') return true;
+  return webhookUrl.includes('/agent-os-trigger');
+}
+
 export class DataAggregationService {
   private readonly opts: AggregatorOptions;
   private readonly now: Date;
@@ -399,11 +423,10 @@ export class DataAggregationService {
   }
 
   /**
-   * Agent OS 中"真正调用 agent"的定时任务（payload.executor=dsh-webhook，经 webhook
-   * 唤醒 DSH 侧 agent-dh/agent-ts）并入看板：src=os / agentCall=dh|ts。
-   * 其余（纯引擎占位的 quantsys-v2 任务、disabled、非 dsh-webhook）不并入 —— 引擎任务
-   * 以 v2 为准，避免与 v2 scheduler 双计。无 v2 run：今日状态由 /tasks/stats 的
-   * last_run_at / last_run_status 推导（Agent OS 无 today 计数）。
+   * Agent OS 中"真正调用 agent"的定时任务并入看板：src=os / agentCall=dh。
+   * 入选判据见上方 shouldIncludeOsTask（2026-09-12 修正：以 webhook 指向 DSH 为准）。
+   * 无 v2 run：今日状态由 /tasks/stats 的 last_run_at / last_run_status 推导（Agent OS 无 today 计数）。
+   * 注：间隔型 cron（例如每 30 分钟一次）经 osCron5 拿不到单一时刻 → 不进时间轴（无法定位在时间轴上）。
    */
   private async fetchOsAgentTasks(): Promise<{ tasks: SchedulerTask[]; error?: string }> {
     try {
@@ -417,10 +440,8 @@ export class DataAggregationService {
       const out: SchedulerTask[] = [];
       for (const t of Array.isArray(listJ?.tasks) ? listJ.tasks : []) {
         const name = String(t.name ?? '');
-        const enabled = t.enabled === true || t.enabled === 'true' || t.enabled === 1 || t.enabled === '1';
-        if (!name || !enabled) continue;
-        const executor = String((t.payload as Record<string, unknown> | null | undefined)?.executor ?? '');
-        if (executor !== 'dsh-webhook') continue; // 只并入真正调用 agent 的任务
+        if (!name) continue;
+        if (!shouldIncludeOsTask(t)) continue; // 判据见 shouldIncludeOsTask 注释
         const expr5 = osCron5(String(t.schedule ?? ''));
         if (!expr5) continue; // 时刻不可解析 → 不进时间轴（避免无依据展示）
         const st = stats.get(name);

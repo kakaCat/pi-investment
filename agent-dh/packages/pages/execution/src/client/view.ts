@@ -138,6 +138,8 @@ const ENGINE_KEYS = new Set<string>([
   'v13-risk-check', 'v13_risk_check', 'daily_trade_verify', '每日模型重训',
   'pre-market-routine', 'afternoon-open-check-live', 'm4-circuit-breaker-live', 'post-market-routine-live',
   'data-quality-monitor-daily', 'event-calendar-check',
+  // 2026-09-12 补录：之前漏登记 → 落进「临时/核验/其他」被折叠（归因正是回流边的产出任务）
+  'attribution-daily', 'intraday-surge-scan-am', 'intraday-surge-scan-pm', 'equity-snapshot-daily',
 ])
 const AUTONOMY_KEYS = new Set<string>([
   'daily-strategy-validation', 'daily_strategy_validation', 'v13-verification', 'v13_verification',
