@@ -13,7 +13,9 @@
  */
 
 /** 跟随轮询的高频块（约 4 KB） */
-export const HOT_PARTS = ['accounts', 'summary', 'positions', 'automation', 'compliance'] as const
+// currentAccount 必须在 hot 里：账户下拉框的 selected 由它渲染，缺了它就会出现
+// 「下拉框显示 A、数据是 B」的不一致（2026-09-13 实证）
+export const HOT_PARTS = ['accounts', 'currentAccount', 'summary', 'positions', 'automation', 'compliance'] as const
 /** 低频大块（约 85 KB）：盯盘规则 + 成交（todayTrades 与 tradeHistory 同源） */
 export const COLD_PARTS = ['watchRules', 'tradeHistory', 'todayTrades'] as const
 export const ALL_PARTS: readonly string[] = [...HOT_PARTS, ...COLD_PARTS]

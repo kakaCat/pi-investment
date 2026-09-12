@@ -23,6 +23,10 @@ describe('parseParts', () => {
     expect(parts).not.toContain('tradeHistory')
   })
 
+  it('hot 必须包含 currentAccount（下拉框 selected 由它渲染，缺了会「下拉显示 A、数据是 B」）', () => {
+    expect(parseParts('hot')).toContain('currentAccount')
+  })
+
   it('cold 预设 = 低频大块', () => {
     expect(parseParts('cold')).toEqual([...COLD_PARTS])
   })
