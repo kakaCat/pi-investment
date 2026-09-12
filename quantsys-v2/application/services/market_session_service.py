@@ -60,9 +60,13 @@ class MarketSessionService:
         """报价是否可能仍在变动（09:15–15:00 + 收盘后 5 分钟宽限）"""
         return self.current(now).is_price_fresh_window
 
-    def is_trading_day(self, day: Optional[datetime] = None) -> bool:
-        """当日是否交易日（透传日级真源）"""
-        return self.current(day).is_trading_day
+    def is_trading_day(self, day: Union[None, str, date, datetime] = None) -> bool:
+        """当日是否交易日（**透传日级真源**，接受 None / 'YYYY-MM-DD' / date / datetime）
+
+        直接委托 `TradingDayGuard.is_trading_day`（不构造 VO）：旧实现把它转给 `current()`
+        再由 `at.date()` 取日，传 `date`/`str` 会 AttributeError（审查发现，2026-09-12）。
+        """
+        return TradingDayGuard.is_trading_day(self._clock.today() if day is None else day)
 
     # -------------------------------------------------- 开始时间 / 交易进度
     def session_start_of(self, phase: SessionPhase) -> Optional[time]:
@@ -73,7 +77,8 @@ class MarketSessionService:
         """下一个相位边界的完整时刻（当日无更晚边界时返回 None）"""
         at = now or self._clock.now()
         nxt = MarketSessionPolicy.next_boundary(at.time())
-        return datetime.combine(at.date(), nxt) if nxt is not None else None
+        # 保留 tzinfo：与 current().at 同口径（datetime.combine 默认丢 tz）
+        return datetime.combine(at.date(), nxt, tzinfo=at.tzinfo) if nxt is not None else None
 
     def elapsed_trading_minutes(self, now: Optional[datetime] = None) -> int:
         """当日已交易分钟（午休不计，0..240）"""
@@ -84,17 +89,24 @@ class MarketSessionService:
         return self.current(now).session_progress
 
     # ------------------------------------------------------------ 价格相关
-    def expected_price_date(self, now: Optional[datetime] = None) -> str:
+    def expected_price_date(self, now: Optional[datetime] = None) -> date:
         """期望价日期 = 最近一个交易日（含今日）——取价门面 `stale` 判据（RFC 016 D4）
 
         非开市日读到该日期的收盘价即为新鲜（"已收盘最终价"，不是陈旧）。
+        返回 **date**（RFC §4.5.2 契约）。
+
+        回溯窗口内找不到交易日（日K数据源不可用 / 长期断供）时 **fail-loud**：
+        静默返回一个非交易日会让下游把陈旧价判成"新鲜"（审查发现，2026-09-12）。
         """
         day = (now or self._clock.now()).date()
         for _ in range(_LAST_TRADING_DAY_LOOKBACK):
             if TradingDayGuard.is_trading_day(day):
-                return day.isoformat()
+                return day
             day -= timedelta(days=1)
-        return day.isoformat()
+        raise RuntimeError(
+            '最近 %d 天内未找到交易日（日K数据源不可用？）——无法确定期望价日期'
+            % _LAST_TRADING_DAY_LOOKBACK
+        )
 
     # ------------------------------------------------------ 硬约束（fail-closed）
     def assert_can_trade(self, now: Optional[datetime] = None) -> MarketSession:

@@ -153,3 +153,83 @@ def test_price_is_fresh_non_trading_day_reads_last_close():
     assert session.is_market_open is False
     assert session.price_is_fresh('2026-09-11', '2026-09-11') is True
     assert session.price_is_fresh('2026-09-10', '2026-09-11') is False
+
+
+# ── 9. 审查回归钉子（2026-09-12：每条都是代码审查实测复现后补的）─────────
+def test_endpoint_closure_is_minute_granular_not_second_exact():
+    """端点闭合必须是**整分钟**语义：11:30:45 / 15:00:30 仍算盘中。
+
+    回归背景：`_INCLUSIVE_END` 曾按精确 `time` 相等匹配，而调用方传的是
+    `datetime.now().time()`（秒/微秒非零）→ 11:30 / 15:00 两个节拍被判
+    LUNCH_BREAK / AFTER_HOURS，`intraday_monitor_check()`（含收盘那次止损止盈）被静默跳过。
+    """
+    assert POLICY.phase_for(time(11, 30, 45)) is SessionPhase.MORNING
+    assert POLICY.phase_for(time(11, 30, 0, 1)) is SessionPhase.MORNING
+    assert POLICY.phase_for(time(15, 0, 30)) is SessionPhase.AFTERNOON
+    assert POLICY.phase_for(time(15, 0, 59, 999999)) is SessionPhase.AFTERNOON
+    for t in (time(11, 30, 45), time(15, 0, 30)):
+        assert POLICY.is_market_open(POLICY.phase_for(t)) is True
+        assert POLICY.is_price_fresh_window(t, is_trading_day=True) is True
+    # 宽限窗口同口径（曾出现 15:05 新鲜 / 15:05:30 不新鲜 的秒级悬崖）
+    assert POLICY.is_price_fresh_window(time(15, 5, 30), is_trading_day=True) is True
+
+
+def test_next_boundary_empty_on_non_trading_day():
+    """非交易日没有相位边界（曾被填成当日 11:30，会让消费者在周六醒来）"""
+    v = POLICY.evaluate(datetime(2026, 9, 12, 10, 0), is_trading_day=False, day_source='weekend')
+    assert v.next_boundary_at == ''
+
+
+def test_boundary_fields_share_timezone():
+    """`at` 与 `next_boundary_at` 必须同口径（`datetime.combine` 曾丢 tzinfo）"""
+    from zoneinfo import ZoneInfo
+    v = POLICY.evaluate(
+        datetime(2026, 9, 11, 10, 0, tzinfo=ZoneInfo('Asia/Shanghai')),
+        is_trading_day=True, day_source='kline-data',
+    )
+    assert v.at.endswith('+08:00')
+    assert v.next_boundary_at.endswith('+08:00')
+    assert datetime.fromisoformat(v.next_boundary_at) > datetime.fromisoformat(v.at)
+
+
+def test_price_is_fresh_fails_closed_on_missing_values():
+    """缺失/不可解析一律判**不新鲜**（旧实现 `str(a or '') >= str(b or '')` 会把空值判成新鲜）"""
+    v = POLICY.evaluate(datetime(2026, 9, 12, 10, 0), is_trading_day=False, day_source='weekend')
+    assert v.price_is_fresh(None, None) is False
+    assert v.price_is_fresh('', '2026-09-11') is False
+    assert v.price_is_fresh('2026-09-11', None) is False
+    assert v.price_is_fresh('not-a-date', '2026-09-11') is False
+
+
+def test_minute_freshness_rejects_future_timestamps():
+    """未来时间戳不算"新鲜"（`abs()` 曾双向放行）；aware/naive 混用不再抛 TypeError"""
+    from zoneinfo import ZoneInfo
+    now = datetime(2026, 9, 11, 10, 0, 0)
+    assert POLICY.minute_freshness_ok(datetime(2026, 9, 11, 10, 3), now) is False   # 未来
+    assert POLICY.minute_freshness_ok(datetime(2026, 9, 11, 9, 58), now) is True    # 过去 2 分钟
+    assert POLICY.minute_freshness_ok(datetime(2026, 9, 11, 9, 50), now) is False   # 过去 10 分钟
+    assert POLICY.minute_freshness_ok(
+        datetime(2026, 9, 11, 9, 58), datetime(2026, 9, 11, 10, 0, tzinfo=ZoneInfo('Asia/Shanghai')),
+    ) is True
+
+
+def test_service_is_trading_day_accepts_date_and_str(monkeypatch):
+    """`MarketSessionService.is_trading_day` 必须接受 date / 'YYYY-MM-DD'（曾 AttributeError）"""
+    from datetime import date
+    from application.services.market_session_service import MarketSessionService
+    from application.services.trading_day_guard import TradingDayGuard
+
+    monkeypatch.setattr(
+        TradingDayGuard, 'is_trading_day', classmethod(lambda cls, day=None: True))
+    svc = MarketSessionService()
+    assert svc.is_trading_day(date(2026, 9, 11)) is True
+    assert svc.is_trading_day('2026-09-11') is True
+    assert svc.is_trading_day(datetime(2026, 9, 11, 10, 0)) is True
+    assert svc.is_trading_day() is True
+
+
+def test_section_bounds_name_is_public_and_single_sourced():
+    """RFC 016 D2 指定的唯一常量名 `SESSION_BOUNDS` 必须存在且被 `window_of` 使用"""
+    from domain.trading.services.market_session_policy import SESSION_BOUNDS
+    assert isinstance(SESSION_BOUNDS, tuple) and len(SESSION_BOUNDS) == 5
+    assert POLICY.window_of(SessionPhase.MORNING) in SESSION_BOUNDS

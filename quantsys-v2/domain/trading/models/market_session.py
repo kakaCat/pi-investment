@@ -9,8 +9,26 @@ RFC 016 §4.5（2026-09-12）：把"当前处于哪个交易相位、是否开�
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import time
+from datetime import date, datetime, time
 from enum import Enum
+from typing import Optional
+
+
+def _as_date(value) -> Optional[date]:
+    """把 'YYYY-MM-DD' / 'YYYY-MM-DDTHH:MM[:SS]' / date / datetime 归一为 date；不可解析 → None"""
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if not value:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return date.fromisoformat(text[:10])
+    except ValueError:
+        return None
 
 
 class SessionPhase(str, Enum):
@@ -101,8 +119,16 @@ class MarketSession:
     def price_is_fresh(self, as_of_date: str, expected_price_date: str) -> bool:
         """价格日期是否达到期望（RFC 016 D4，领域规则，不下沉到应用层）
 
-        判据 `as_of_date >= expected_price_date`：
+        判据 `as_of >= expected`，**按日期比较而非字符串**：
         - **非开市**：休市日读到最近一个交易日收盘价 → True（是"已收盘最终价"，不是陈旧）；
         - **开市**：调用方另需按分钟级新鲜度复检（`MarketSessionPolicy.minute_freshness_ok`）。
+
+        缺失/不可解析一律 **fail-closed（判不新鲜）**：旧实现 `str(a or '') >= str(b or '')`
+        会把两个空值判成"新鲜"，且带时刻的 as_of（`'2026-09-11T10:00'`）按字典序恒 >=
+        日期串，使尚未落库的分钟 K 被判"新鲜"（审查发现，2026-09-12）。
         """
-        return str(as_of_date or '') >= str(expected_price_date or '')
+        a = _as_date(as_of_date)
+        b = _as_date(expected_price_date)
+        if a is None or b is None:
+            return False
+        return a >= b

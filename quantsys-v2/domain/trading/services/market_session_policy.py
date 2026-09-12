@@ -40,7 +40,7 @@ AFTERNOON_MINUTES = 120
 TOTAL_TRADING_MINUTES = MORNING_MINUTES + AFTERNOON_MINUTES   # 240（对齐旧 watch_engine 常量）
 
 # 相位窗口（顺序即优先级；半开区间 [start, end)）
-SESSION_WINDOWS: Tuple[SessionWindow, ...] = (
+SESSION_BOUNDS: Tuple[SessionWindow, ...] = (
     SessionWindow(SessionPhase.CALL_AUCTION, CALL_AUCTION_START, MATCHING_START),
     SessionWindow(SessionPhase.OPENING, MATCHING_START, CONTINUOUS_START),
     SessionWindow(SessionPhase.MORNING, CONTINUOUS_START, MORNING_END),
@@ -56,15 +56,6 @@ _INCLUSIVE_END = {
 
 # "盘中"相位（is_market_open 的定义）
 _OPEN_PHASES = (SessionPhase.MORNING, SessionPhase.AFTERNOON)
-
-# 报价可能仍在变动的相位（比 is_market_open 宽：集合竞价/午休/开盘撮合期间价格也在动）
-_PRICE_FRESH_PHASES = (
-    SessionPhase.CALL_AUCTION,
-    SessionPhase.OPENING,
-    SessionPhase.MORNING,
-    SessionPhase.LUNCH_BREAK,
-    SessionPhase.AFTERNOON,
-)
 
 # 当日相位边界（升序），供 next_boundary 使用
 _BOUNDARIES: Tuple[time, ...] = (
@@ -85,7 +76,7 @@ class MarketSessionPolicy:
     @staticmethod
     def window_of(phase: SessionPhase) -> Optional[SessionWindow]:
         """相位的窗口（无窗口的相位返回 None）"""
-        for w in SESSION_WINDOWS:
+        for w in SESSION_BOUNDS:
             if w.phase == phase:
                 return w
         return None
@@ -110,13 +101,21 @@ class MarketSessionPolicy:
     # ---------------------------------------------------------------- 判定
     @staticmethod
     def phase_for(t: time, *, is_trading_day: bool = True) -> SessionPhase:
-        """时刻 → 相位（非交易日一律 NON_TRADING_DAY）"""
+        """时刻 → 相位（非交易日一律 NON_TRADING_DAY）
+
+        入参**先截到整分钟**再判定：调用方传的是 `datetime.now().time()`（秒/微秒非零），
+        而端点闭合（11:30 / 15:00 算盘中）与既有实现 `hm = hour*100 + minute` 一样是
+        **整分钟粒度**语义。若不截断，`time(11,30,7)` 会落进 LUNCH_BREAK、
+        `time(15,0,7)` 落进 AFTER_HOURS —— 11:30 / 15:00 两个节拍被静默跳过
+        （审查发现的真实回归，2026-09-12）。
+        """
+        t = t.replace(second=0, microsecond=0)
         if not is_trading_day:
             return SessionPhase.NON_TRADING_DAY
         edge = _INCLUSIVE_END.get(t)
         if edge is not None:
             return edge
-        for w in SESSION_WINDOWS:
+        for w in SESSION_BOUNDS:
             if w.start <= t < w.end:
                 return w.phase
         return SessionPhase.PRE_OPEN if t < CALL_AUCTION_START else SessionPhase.AFTER_HOURS
@@ -128,9 +127,14 @@ class MarketSessionPolicy:
 
     @staticmethod
     def is_price_fresh_window(t: time, *, is_trading_day: bool) -> bool:
-        """报价是否可能仍在变动（09:15–15:00 + 收盘后 5 分钟宽限）"""
+        """报价是否可能仍在变动（09:15–15:00 + 收盘后 5 分钟宽限）
+
+        与 `phase_for` 一致：**截到整分钟**再比较，避免 15:05:30 被判"不新鲜"
+        而 15:05:00 被判"新鲜"这种秒级悬崖（宽限窗口按整分钟口径）。
+        """
         if not is_trading_day:
             return False
+        t = t.replace(second=0, microsecond=0)
         if t > PRICE_FRESH_GRACE_END:
             return False
         return t >= CALL_AUCTION_START
@@ -140,8 +144,13 @@ class MarketSessionPolicy:
     def elapsed_trading_minutes(t: time, *, is_trading_day: bool = True) -> int:
         """当日已交易分钟（午休不计，0..240）
 
-        与旧 `watch_engine.elapsed_trading_fraction` 逐点等价：
-        09:30 → 0；11:30 → 120；午休 → 120；13:00 → 120；15:00 及以后 → 240。
+        整分钟口径（**向下取整**）：09:30 → 0；11:30 → 120；午休 → 120；
+        13:00 → 120；15:00 及以后 → 240。
+
+        ⚠️ 与旧 `watch_engine.elapsed_trading_fraction` **并非逐点等价**：后者用
+        `.seconds/60` 保留小数分钟（10:00:30 → 0.127083），本函数取整（→ 0.125）。
+        迁移消费方（如 volume_surge 同期均量折算）时须注意这 ≤0.4% 的差异；
+        旧函数在 `watch_engine/engine.py:439` 仍在运行，尚未被本函数取代。
         """
         if not is_trading_day:
             return 0
@@ -179,7 +188,11 @@ class MarketSessionPolicy:
         """
         if latest_minute_at is None:
             return False
-        return abs((now - latest_minute_at).total_seconds()) <= threshold_minutes * 60
+        # 容忍 aware/naive 混用（DB 的分钟时间戳普遍为 naive，时钟为 aware）
+        a = latest_minute_at.replace(tzinfo=None) if latest_minute_at.tzinfo else latest_minute_at
+        b = now.replace(tzinfo=None) if now.tzinfo else now
+        delta = (b - a).total_seconds()
+        return 0 <= delta <= threshold_minutes * 60   # 单侧：未来时间戳不算新鲜
 
     # ------------------------------------------------------------ 组装 VO
     def evaluate(
@@ -216,7 +229,9 @@ class MarketSessionPolicy:
             phase_start=window.start.strftime('%H:%M') if window else '',
             phase_end=window.end.strftime('%H:%M') if window else '',
             next_boundary_at=(
-                datetime.combine(now.date(), nxt).isoformat() if nxt is not None else ''
+                # 保留 tzinfo（与 at 同口径；datetime.combine 默认丢 tz）
+                datetime.combine(now.date(), nxt, tzinfo=now.tzinfo).isoformat()
+                if (nxt is not None and is_trading_day) else ''
             ),
             elapsed_trading_minutes=self.elapsed_trading_minutes(t, is_trading_day=is_trading_day),
             session_progress=self.session_progress(t, is_trading_day=is_trading_day),
