@@ -154,6 +154,7 @@ def _task_to_summary(task: Dict[str, Any]) -> Dict[str, Any]:
     last_run = runs[0] if runs else None
     return {
         'id': str(task.get('id', '')), 'name': task.get('name', ''),
+        'domain': task.get('domain'),
         'enabled': task.get('is_enabled', True), 'scheduleKind': 'cron',
         'scheduleExpr': task.get('cron_expression', ''),
         'payload': {'command': task.get('command', ''), 'description': task.get('description', ''),

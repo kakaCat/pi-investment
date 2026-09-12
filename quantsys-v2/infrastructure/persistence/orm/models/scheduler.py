@@ -17,6 +17,7 @@ class SchedulerTaskConfig(Base):
     description = Column(Text, comment='任务描述')
     cron_expression = Column(Text, nullable=False, comment='Cron表达式')
     command = Column(Text, nullable=False, comment='执行命令/函数路径')
+    domain = Column(String(32), comment='领域模型分组: data/signal/trading/analysis/report/monitor（2026-09-02 打标，2026-09-12 起随接口暴露）')
     params = Column(JSONB, comment='任务参数', default={})
     is_enabled = Column(Boolean, default=True, comment='是否启用')
     task_type = Column(String(20), nullable=False, default='cron', comment='任务类型: cron/delay/interval/once')
