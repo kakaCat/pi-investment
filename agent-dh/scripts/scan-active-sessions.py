@@ -78,7 +78,7 @@ def main():
     root = dp.sessions_root()
     dp.require_dir(root, '会话根目录')
     store = os.path.join(root, dp.store_dir_for_cwd())
-    dp.require_dir(store, f'store 目录（cwd={dp.REPO_ROOT}）')
+    dp.require_dir(store, f'store 目录（cwd={dp.AGENT_DH}）')
     print(f'sessions root: {root}')
     print(f'store:         {store}')
 

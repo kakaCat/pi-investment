@@ -48,9 +48,14 @@ def store_dir_for_cwd(cwd=None):
     例：/Users/yunpeng/pi-investment/agent-dh
         -> --Users-yunpeng-pi-investment-agent-dh--
 
+    **默认取 AGENT_DH 而不是 REPO_ROOT**：DSH 实例的 cwd 是 `agent-dh/`（launchd 起
+    进程时的 cwd，实测 `lsof -a -p <pid> -d cwd` = /Users/yunpeng/pi-investment/agent-dh），
+    不是 git 仓库根。用 REPO_ROOT 会推出 `--Users-yunpeng-pi-investment--` 这种不存在的
+    目录 —— 2026-09-13 初版就是这么写错的，靠下面的 require_dir 当场拦下。
+
     不要把这个名字抄成字面量：它跟着 cwd 走，抄下来就又是一处硬编码。
     """
-    cwd = os.path.abspath(cwd or REPO_ROOT)
+    cwd = os.path.abspath(cwd or AGENT_DH)
     return "-" + cwd.replace(os.sep, "-") + "--"
 
 
