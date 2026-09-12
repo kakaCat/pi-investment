@@ -13,10 +13,12 @@
 三道门（任一不过则静默退出，零 LLM）：
   ①队列空 ②距上次唤醒 < min_interval_sec ③当日唤醒 >= daily_cap
 """
-from datetime import datetime, time as dtime
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import structlog
+
+from domain.trading.services.market_session_policy import MarketSessionPolicy
 
 logger = structlog.get_logger(__name__)
 
@@ -51,10 +53,17 @@ class WatchDigestService:
     # ── 交易时段门 ────────────────────────────────────────────
     @staticmethod
     def is_trading_time(now: datetime) -> bool:
-        if now.weekday() >= 5:
-            return False
-        t = now.time()
-        return (dtime(9, 30) <= t <= dtime(11, 30)) or (dtime(13, 0) <= t <= dtime(15, 0))
+        """交易时段门（RFC 016 §8.1：时段判定收敛到 `MarketSessionPolicy`）
+
+        日级仍用 weekday 近似（不引 DB 依赖），待 D9 统一为 `TradingDayGuard`。
+
+        与原实现的差异**仅在子分钟端点**：11:30:45 / 15:00:30 原按精确 `time` 比较判
+        False，现按整分钟口径判 True（端点闭合）——与盯盘引擎 tick、盘中巡检闸门同口径。
+        影响：收盘那一分钟内的摘要唤醒不再被推迟到次日开盘（仍受队列/间隔/日预算三道门约束）。
+        """
+        return MarketSessionPolicy.is_market_open(
+            MarketSessionPolicy.phase_for(now.time(), is_trading_day=now.weekday() < 5)
+        )
 
     # ── 状态（落库，重启不清零）──────────────────────────────
     def _load_state(self):
