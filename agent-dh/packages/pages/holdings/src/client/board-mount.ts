@@ -31,6 +31,7 @@ export function createBoardController(): BoardController {
   let historyPage = 0
   let lastData: HoldingsData | undefined
   let shellRef: { open(): void; close(): void; toggle(): void; isActive(): boolean } | undefined
+  let renderRetryTimer: number | undefined
 
   const fetchAndRender = async (accountName: string): Promise<void> => {
     try {
@@ -48,8 +49,31 @@ export function createBoardController(): BoardController {
   const renderBoard = (data: HoldingsData): void => {
     lastData = data
     const view = document.querySelector(BOARD_VIEW_SELECTOR)
-    if (!view) return
+    if (!view) {
+      // 2026-09-13（w-adb088f2）：这里原来是**静默 return**——容器没挂上时，数据已经取回来了
+      // 却无处渲染：控制台干净、页面空白，故障被伪装成"没有数据"（用户实测：无账户下拉、
+      // 控制台无报错）。与本次会话反复修复的"静默失败把它伪装成在工作"是同一类缺陷。
+      // 现改为：显式报错 + 400ms 后重试一次（容器可能比数据晚一帧挂载）。
+      console.error('[dashboard-holdings] 渲染失败：找不到看板容器 ' + BOARD_VIEW_SELECTOR
+        + '（容器由 page-kit createBoardShell 挂到中心栏；找不到时数据会全部丢失且原本不报错）')
+      if (renderRetryTimer === undefined) {
+        renderRetryTimer = window.setTimeout(() => {
+          renderRetryTimer = undefined
+          const again = document.querySelector(BOARD_VIEW_SELECTOR)
+          if (again) {
+            console.log('[dashboard-holdings] 重试成功：容器已就绪，补渲染')
+            again.innerHTML = buildView(data, watchKey, historyPage)
+          } else {
+            console.error('[dashboard-holdings] 重试仍失败：容器始终未出现 —— 看板将无法显示任何数据')
+          }
+        }, 400)
+      }
+      return
+    }
     view.innerHTML = buildView(data, watchKey, historyPage)
+    console.log('[dashboard-holdings] 已渲染：账户=' + (data.currentAccount ?? '?')
+      + '，账户数=' + (data.accounts?.length ?? 0)
+      + '，持仓行=' + (data.positions?.length ?? 0))
   }
 
   const renderError = (message: string): void => {
