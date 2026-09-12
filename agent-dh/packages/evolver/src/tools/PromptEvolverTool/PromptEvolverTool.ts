@@ -8,6 +8,13 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { OsMemoryStore } from '../../index';
 import { promptEvolverPrompt, PromptEvolverParams, PromptEvolverResult } from './prompt';
 import { registerCandidate, type CandidateRecord } from '../../candidates';
+import {
+  assertNoDamage,
+  extractRuleDefs,
+  findDuplicateRuleDefs,
+  normalizeRulesContent,
+  type NormalizeResult,
+} from '../../mergeSection';
 
 /**
  * 提示词进化工具类
@@ -97,14 +104,48 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
         // 1. 读取当前段落内容
         const currentContent = await this.readSection(suggestion.section);
 
-        // 2. LLM 改写段落（失败时回退追加）
-        const { content, method } = await this.llmRewriteSection(
+        // 2. LLM 改写段落（失败时回退为确定性增量合并，不再裸拼接）
+        const rewritten = await this.llmRewriteSection(
           suggestion.section,
           currentContent,
           suggestion
         );
+        let content = rewritten.content;
+        let method: string = rewritten.method;
 
-        // 3. 生成 diff 预览
+        // 3. 落盘前归一化（2026-09-12 修复）
+        //    背景：上游（daily_distill）会把「整段全文」当建议再喂回来，或携带
+        //    [object Object] 损坏标记；LLM 整段重写因此常出现规则 ID 重复定义
+        //    （实证 2026-09-12：rules 段 R-001…R-015 全量重复 → genome guard 拒绝，变异 0/1）。
+        //    归一化策略：合法整段重写 → replace；含重复定义/删改既有 ID → 按当前段增量合并。
+        let norm: NormalizeResult | null = null;
+        const isRules = suggestion.section === 'rules' || extractRuleDefs(currentContent).length > 0;
+        if (isRules) {
+          assertNoDamage(String(suggestion.content ?? ''), '建议内容');
+          assertNoDamage(content, `${suggestion.section} 候选内容`);
+          norm = normalizeRulesContent(currentContent, content);
+          if (norm.semantics === 'delta' && findDuplicateRuleDefs(content).length > 0) {
+            method = method === 'llm' ? 'llm+dedup' : `${method}+dedup`;
+          }
+          if (norm.noop) {
+            // LLM 输出不可用（无新增/与当前段等价）→ 退一步用原始建议内容做增量
+            const alt = normalizeRulesContent(currentContent, String(suggestion.content ?? ''));
+            if (!alt.noop) {
+              norm = alt;
+              method = `${method}+delta_from_suggestion`;
+            }
+          }
+          content = norm.content;
+          assertNoDamage(content, `${suggestion.section} 归一化结果`);
+          const stillDup = findDuplicateRuleDefs(content);
+          if (stillDup.length > 0) {
+            throw new Error(`${suggestion.section} 归一化后仍存在重复规则定义：${stillDup.join(', ')}，拒绝写入基因组`);
+          }
+        } else {
+          assertNoDamage(content, `${suggestion.section} 候选内容`);
+        }
+
+        // 4. 生成 diff 预览
         const diff = this.generateDiff(currentContent, content);
 
         const proposal = {
@@ -114,10 +155,27 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
           content,
           reason: suggestion.reason,
           diff,
+          // 增量语义（2026-09-12）：下游按 delta 沉淀，避免把整段当建议再次回灌
+          added_ids: norm?.addedIds ?? [],
+          dropped_rewrite_ids: norm?.droppedRewriteIds ?? [],
+          deduped_ids: norm?.dedupedIds ?? [],
+          delta: norm?.deltaText ?? '',
+          semantics: norm?.semantics,
+          noop: norm?.noop ?? false,
         };
 
-        // 4. 如果非预览模式，调用 genome_update 应用为 candidate
+        // 5. 如果非预览模式，调用 genome_update 应用为 candidate
         if (!dryRun) {
+          if (norm?.noop) {
+            return {
+              proposal,
+              result: {
+                success: false,
+                section: suggestion.section,
+                message: '无实质变更：建议未包含新的规则 ID（rules 段只允许新增，不允许删改既有 ID），已拒绝应用以免生成空更新候选',
+              },
+            };
+          }
           try {
             const updateResult = await this.callGenomeUpdate(
               suggestion.section,
@@ -290,7 +348,7 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
       const prompt = [
         `你是投资 Agent 的提示词进化器。下面是 Agent 系统提示词中「${section}」段的当前全文，以及一条来自经验蒸馏的改进建议。`,
         `请整体改写该段：把建议自然地融入（新增/强化/淘汰相应内容），保持 markdown 结构清晰、语言精炼。`,
-        `硬性约束：①只输出改写后的段落全文，不要任何解释、前言或代码块包裹；②总长度不超过 6000 字符；③禁止出现 {{ 或 }} 字符；④rules 段的规则 ID（R-xxx 标题）只允许新增，不允许删除或修改已有 ID；⑤不得与交易宪法冲突（9:30-15:00 交易时段、T+1、仓位上限、止损纪律）。`,
+        `硬性约束：①只输出改写后的段落全文，不要任何解释、前言或代码块包裹；②总长度不超过 6000 字符；③禁止出现 {{ 或 }} 字符；④rules 段的规则 ID（R-xxx 标题）只允许新增，不允许删除或修改已有 ID；⑤不得与交易宪法冲突（9:30-15:00 交易时段、T+1、仓位上限、止损纪律）；⑥每个 R-xxx 标题行在输出中最多出现一次——已有规则原样保留其标题行，禁止重复输出。`,
         ``,
         `【当前段落全文】`,
         currentContent,
@@ -321,7 +379,13 @@ export class PromptEvolverTool extends BaseTool<PromptEvolverParams, PromptEvolv
       }
       return { content: cleaned + '\n', method: 'llm' };
     } catch (e: any) {
-      return { content: currentContent.trim() + '\n' + (suggestion.content || ''), method: 'append_fallback' };
+      // 回退不再裸拼接（2026-09-12 修复）：rules 段改用确定性增量合并，
+      // 既有规则以当前段为准、只追加候选里的新 ID；非 rules 段保持追加语义。
+      if (section === 'rules' || extractRuleDefs(currentContent).length > 0) {
+        const fallback = normalizeRulesContent(currentContent, String(suggestion.content || ''));
+        return { content: fallback.content, method: 'append_fallback' };
+      }
+      return { content: currentContent.trim() + '\n' + (suggestion.content || '') + '\n', method: 'append_fallback' };
     }
   }
 

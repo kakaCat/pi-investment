@@ -23,6 +23,13 @@ export interface PromptEvolverResult {
     content: string;
     reason: string;
     diff?: string;
+    /** 增量语义（2026-09-12）：下游按 delta 沉淀，避免把整段当建议再次回灌 */
+    added_ids?: string[];
+    dropped_rewrite_ids?: string[];
+    deduped_ids?: string[];
+    delta?: string;
+    semantics?: 'replace' | 'delta';
+    noop?: boolean;
   }>;
   summary: string;
   applied_count: number;
@@ -48,7 +55,9 @@ export const promptEvolverPrompt: ToolPrompt<PromptEvolverParams> = {
     'dry_run=true（默认）只生成提案预览，不实际修改基因组',
     'dry_run=false 会以 candidate 观察版应用，须经 validation_gate 裁决转正',
     'rules 段规则 ID 只允许新增，不允许删除或修改已有 ID',
-    '改写失败自动回退为追加模式，保证可用性',
+    '改写失败回退为确定性增量合并：既有规则以当前段为准，只追加新规则 ID',
+    '落盘前归一化：rules 段保证 R-xxx 标题定义唯一；含重复定义/删改既有 ID 时按当前段增量合并',
+    '内容含 [object Object] 等损坏标记时 fail-closed，拒绝写入基因组',
   ],
   relatedTools: ['genome_update', 'learning_distill', 'validation_gate', 'candidate_status'],
   parameters: {
