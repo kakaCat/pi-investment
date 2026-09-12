@@ -25,20 +25,47 @@ export class StockEventsTool extends BaseTool<StockEventsParams, any> {
       throw new Error(`个股事件查询失败（${args.symbol}）：${why}${att}。**禁止据此判定『该股无事件』**——排雷场景下"查不到"与"没有"必须区分`);
     }
     const p: any = res.data ?? res;
-    const events: any[] = Array.isArray(p) ? p : (p?.events ?? []);
+    const rawEvents: any[] = Array.isArray(p) ? p : (p?.events ?? []);
+
+    // 2026-09-12 修复（w-adb088f2）：后端 /api/events/symbol/{symbol} 在个股无事件时
+    // 会**回落返回全局/宏观事件**（policy/nbs/lpr/pmi/cpi 等，symbols 为空）。
+    // 旧实现把它们当作"该股事件"返回 → 排雷时会被误读为个股公告。
+    // 现按标的严格过滤：只有 symbols/symbol 命中本标的才算该股事件，
+    // 其余单列到 market_events（明确标注为背景，不参与 upcoming 统计）。
+    const belongsToSymbol = (e: any): boolean => {
+      const syms: string[] = Array.isArray(e?.symbols)
+        ? e.symbols.map((s: any) => String(s))
+        : (e?.symbol ? [String(e.symbol)] : []);
+      return syms.includes(String(args.symbol));
+    };
+    const events = rawEvents.filter(belongsToSymbol);
+    const marketEvents = rawEvents.filter((e: any) => !belongsToSymbol(e));
     const today = new Date().toISOString().slice(0, 10);
     const upcoming = events.filter((e: any) => String(e?.event_date ?? e?.effective_date ?? '') >= today);
+
+    let note: string;
+    if (events.length > 0) {
+      note = '事件来自多源聚合，逐条带 source/url 可溯源';
+    } else if (marketEvents.length > 0) {
+      note = `该窗口内**无该股自身事件**；后端同批返回的 ${marketEvents.length} 条为全局/宏观事件（已单列到 market_events，**禁止当作该股事件**）`;
+    } else {
+      note = '该窗口内无事件记录（多源均成功返回空，非失败）';
+    }
+
     return sanitizeLossless({
       symbol: p?.symbol ?? args.symbol,
       count: events.length,
       upcoming_count: upcoming.length,
       events,
+      market_events: marketEvents,
+      market_events_count: marketEvents.length,
+      raw_count: rawEvents.length,
       source: res.source ?? p?.source ?? null,
       attempted_sources: res.attempted_sources ?? null,
       degraded: res.degraded ?? false,
       stale: res.stale ?? false,
       as_of: res.as_of ?? p?.as_of ?? null,
-      note: events.length === 0 ? '该窗口内无事件记录（多源均成功返回空，非失败）' : '事件来自多源聚合，逐条带 source/url 可溯源',
+      note,
     });
   }
 }
