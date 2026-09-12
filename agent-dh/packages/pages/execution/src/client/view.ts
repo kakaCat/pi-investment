@@ -9,6 +9,7 @@
  */
 import type { BoardData, CheckpointResult, ErrorEvent, SchedulerTask, TimelineEntry } from './types.ts'
 import { esc, fmtClock } from '@pi-investment/page-kit/client'
+import { LINE_META, LINE_ZH, classifyTask, isDualLine as isDualLineTask } from '../shared/line-classify.ts'
 function shortDT(s: unknown): string { return fmtClock(String(s), { omitDateIfToday: true }) }
 
 function hmMin(s: unknown): number {
@@ -118,52 +119,10 @@ function taskZh(name: unknown): string {
   return TASK_ZH[n] ?? n
 }
 
-/* 业务线分组（用户 2026-09-08 确认口径）：任务按业务归属分线——盈利引擎线（M 系生产）/ Autonomy 线（L 系自我改进）/
-   账户定时任务（账户专属例行 + 模拟撮合）/ 临时·核验·基建（一次性或未归类，宁显不藏）。不再按动作域分类。 */
-const LINE_META: { key: string; zh: string }[] = [
-  { key: 'engine', zh: '盈利引擎线' },
-  { key: 'autonomy', zh: 'Autonomy 线' },
-  { key: 'account', zh: '账户定时任务' },
-  { key: 'other', zh: '临时/核验/其他' },
-]
-const LINE_ZH: Record<string, string> = { engine: '盈利引擎线', autonomy: 'Autonomy 线', account: '账户定时任务', other: '临时/核验/其他' }
-/* 归属表：raw name 精确匹配（兼容 v2 下划线/连字符双命名）+ 前缀兜底；未知一律 other（宁显不藏，可后续补录） */
-const ENGINE_KEYS = new Set<string>([
-  '每日数据更新', '每日数据质量检查', '每日财报时效性检查', '每周财务数据更新',
-  'market_daily_snapshot', 'chan-scan-daily', 'chan_scan_daily', 'market-style-update', 'market_style_update',
-  'fund_flow_update', 'market_perception_daily',
-  'daily-pool-refresh', 'daily_pool_refresh',
-  'pre-market-scan', 'pre_market_scan', '每日信号生成', '每日信号执行',
-  'signal-perf-backfill-daily', 'signal_perf_backfill_daily', 'signal_generate_sell',
-  'v13-risk-check', 'v13_risk_check', 'daily_trade_verify', '每日模型重训',
-  'pre-market-routine', 'afternoon-open-check-live', 'm4-circuit-breaker-live', 'post-market-routine-live',
-  'data-quality-monitor-daily', 'event-calendar-check',
-  // 2026-09-12 补录：之前漏登记 → 落进「临时/核验/其他」被折叠（归因正是回流边的产出任务）
-  'attribution-daily', 'intraday-surge-scan-am', 'intraday-surge-scan-pm', 'equity-snapshot-daily',
-])
-const AUTONOMY_KEYS = new Set<string>([
-  'daily-strategy-validation', 'daily_strategy_validation', 'v13-verification', 'v13_verification',
-  'weekly-strategy-discovery', 'weekly_strategy_discovery',
-  'chan-knowledge-distill-weekly', 'chan_knowledge_distill_weekly',
-  'v13-weekly-report', 'v13_weekly_report', '每周报告生成',
-  'evolution-distill-daily', 'evolution-gate-adjudicate', 'evolution-weekly-variant',
-  'meta-learning-weekly', 'weekly-report-m6',
-  'weekly_evolution', 'weekly_memory_distill', 'daily_ai_review', 'daily_recall_audit', 'weekly_tool_roi_review',
-])
-const ACCOUNT_KEYS = new Set<string>(['v13-simulation-trading', 'v13_simulation_trading', 'v14-simulation-trading'])
-function lineOf(name: unknown): string {
-  const n = String(name ?? '')
-  if (ENGINE_KEYS.has(n)) return 'engine'
-  if (AUTONOMY_KEYS.has(n)) return 'autonomy'
-  if (ACCOUNT_KEYS.has(n) || n.startsWith('agent-brain-')) return 'account'
-  if (n.startsWith('board-') || n.startsWith('geer-') || n === 'v2_health_check') return 'other'
-  return 'other'
-}
-/** 双线口径：今日执行总览 / 时间轴主视图只计这两条业务线（用户 2026-09-08） */
-function isDualLine(name: unknown): boolean {
-  const k = lineOf(String(name ?? ''))
-  return k === 'engine' || k === 'autonomy'
-}
+/* 业务线分组已抽到 shared/line-classify.ts（host/client 共用唯一实现，2026-09-12）：
+   分类优先级 =①任务自带字段(agent_line) → ②名单兜底 → ③other 且标记「未归类」（由对账显式暴露，不静默）。
+   本文件只保留薄转发，避免两处各写一份名单再次漂移。 */
+function isDualLine(name: unknown): boolean { return isDualLineTask({ name }) }
 
 /* M0-M6 × L1-L4 模块定义（节点始终展示，状态来自该模块检查点 worst case） */
 const ENGINE_MODS: { code: string; zh: string }[] = [
@@ -253,7 +212,7 @@ export function buildView(): ViewRefs {
 
 function renderHealth(refs: ViewRefs, data: BoardData): void {
   // 今日执行总览口径 = 双线（盈利引擎 + Autonomy）；账户/临时任务不计入（用户 2026-09-08）
-  const tl = (data.timeline ?? []).filter(t => t.status !== 'off_day' && isDualLine(t.taskName))
+  const tl = (data.timeline ?? []).filter(t => t.status !== 'off_day' && isDualLine({ name: t.taskName, agentLine: t.agentLine }))
   const total = tl.length
   let ok = 0, fail = 0
   for (const t of tl) { if (t.status === 'success') ok++; else if (t.status === 'failed') fail++ }
@@ -340,13 +299,39 @@ function freqNote(items: TimelineEntry[]): string {
   const d = items.filter(t => (t.freq ?? 'daily') !== 'weekly').length
   return '共 ' + items.length + ' 项 · 日执行 ' + d + ' / 周执行 ' + (items.length - d)
 }
+/** 分类对账提示（2026-09-12）：把"字段没打通 / 有任务未归类 / OS 有被排除"显式说出来，不静默 */
+function coverageNote(data: BoardData): string {
+  const c = data.taskCoverage
+  if (!c) return ''
+  const parts: string[] = []
+  const total = c.total ?? 0
+  const fm = c.fieldMissing ?? 0
+  if (total > 0 && fm >= total) {
+    parts.push('分类字段未在接口暴露（库中已有 agent_line / domain，需接通 API）→ 当前按任务名名单兜底')
+  } else if (fm > 0) {
+    parts.push('有 ' + fm + ' / ' + total + ' 个任务未带分类字段，已回退名单')
+  }
+  const un = c.unclassified ?? []
+  if (un.length > 0) {
+    parts.push('⚠️ 未归类 ' + un.length + ' 个：' + un.slice(0, 6).join('、') + (un.length > 6 ? ' 等' : '') + '（请补录名单或打标）')
+  }
+  const os = c.os
+  if (os && (os.excluded ?? 0) > 0) {
+    const detail = Object.entries(os.byReason ?? {}).filter(([, n]) => Number(n) > 0).map(([k, n]) => k + ' ' + n).join(' / ')
+    parts.push('OS 接口 ' + (os.apiTotal ?? 0) + ' 个 → 并入 ' + (os.included ?? 0) + '（排除 ' + (os.excluded ?? 0) + (detail ? '：' + detail : '') + '）')
+  }
+  if (parts.length === 0) return ''
+  return '<div class="dsh-exec-cover">' + parts.map(p => '<span>' + p + '</span>').join('') + '</div>'
+}
+
 function renderTimeline(refs: ViewRefs, data: BoardData): void {
   // 非执行日（今日 cron 不排、亦无真实 run）行同样入列展示为灰态「非执行日」，与执行流水线 off_day 一致
   const tl = (data.timeline ?? []).slice().sort((a, b) => hmMin(a.expectedTime) - hmMin(b.expectedTime))
-  if (tl.length === 0) { refs.timelineBox.innerHTML = '<div class="dsh-exec-empty">今日暂无计划任务</div>'; return }
+  const cov = coverageNote(data)
+  if (tl.length === 0) { refs.timelineBox.innerHTML = cov + '<div class="dsh-exec-empty">今日暂无计划任务</div>'; return }
   // 业务线分组：盈利引擎 + Autonomy 双线展开；账户 / 其它折叠进 <details>（用户 2026-09-08：时间轴=双线看板）
   const byL: Record<string, TimelineEntry[]> = { engine: [], autonomy: [], account: [], other: [] }
-  for (const t of tl) { const k = lineOf(String(t.taskName ?? '')); (byL[k] ?? byL.other).push(t) }
+  for (const t of tl) { const k = classifyTask({ name: t.taskName, agentLine: t.agentLine }).line; (byL[k] ?? byL.other).push(t) }
   const grp = (key: string, items: TimelineEntry[]): string =>
     '<div class="dsh-exec-tlg t-' + key + '"><div class="tlg-t"><span class="t">' + esc(LINE_ZH[key] ?? key) + '</span><em>' + esc(freqNote(items)) + '</em></div>' +
     '<div class="dsh-exec-tl-list">' + items.map(tlRow).join('') + '</div></div>'
@@ -356,7 +341,7 @@ function renderTimeline(refs: ViewRefs, data: BoardData): void {
       '<em>' + esc(freqNote(items)) + '</em></summary><div class="dsh-exec-tl-list">' + items.map(tlRow).join('') + '</div></details>'
   const html = grp('engine', byL.engine) + grp('autonomy', byL.autonomy) +
     fold('account', byL.account) + fold('other', byL.other)
-  refs.timelineBox.innerHTML = html
+  refs.timelineBox.innerHTML = cov + html
 }
 
 function taskTag(t: SchedulerTask): { cls: string; label: string } {
@@ -438,7 +423,8 @@ function fullDT(s: unknown): string {
   return m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5]
 }
 function taskDetailHtml(t: SchedulerTask): string {
-  const ln = lineOf(String(t.name ?? ''))
+  const cls = classifyTask(t)
+  const ln = cls.line
   const tag = taskTag(t)
   const last = runLast(t)
   const trig = Number(t.todayTriggered) || 0
@@ -451,7 +437,8 @@ function taskDetailHtml(t: SchedulerTask): string {
   html += row('调度来源', t.src === 'os' ? 'Agent OS（webhook 触发）' : 'quantsys-v2 引擎')
   if (t.agentCall === 'dh' || t.agentCall === 'ts') html += row('调用 Agent', t.agentCall === 'dh' ? 'agent-dh（LLM 智能体）' : 'agent-ts（LLM 智能体）')
   html += row('状态', '<span class="tag ' + tag.cls + '">' + esc(tag.label) + '</span>')
-  html += row('业务线', esc(LINE_ZH[ln] ?? ln))
+  const src = cls.source === 'field' ? '任务自带字段' : cls.source === 'name' ? '名单兜底' : '未归类（待补录）'
+  html += row('业务线', esc(LINE_ZH[ln] ?? ln) + ' <em class="tkd-code">' + esc(src) + '</em>')
   // ⏱ 时间口径：「计划时刻」= cronPlan(cron)（与时间轴 expectedTime 同源，计划几点就几点）；
   //    「上次运行」= last.at 为实际触发时刻（lastRun.triggeredAt），仅补充参考——手动补跑/延后时 ≠ 计划时刻。
   const cronRaw = String(t.scheduleExpr ?? '').trim()
@@ -471,12 +458,12 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
   if (tasks.length === 0) { selTaskName = null; selDom = 'all'; taskPage = 1; lastDomShown = 'all'; lastTaskShown = null; refs.tasksBox.innerHTML = '<div class="dsh-exec-empty">暂无调度任务</div>'; return }
   // 业务线 tab 计数（用户 2026-09-08：调度任务按业务线分类，替代原按动作域分类）
   const lineCount: Record<string, number> = { engine: 0, autonomy: 0, account: 0, other: 0 }
-  for (const t of tasks) { const k = lineOf(String(t.name ?? '')); lineCount[k] = (lineCount[k] ?? 0) + 1 }
+  for (const t of tasks) { const k = classifyTask(t).line; lineCount[k] = (lineCount[k] ?? 0) + 1 }
   // 当前 tab 分类合法性：该业务线下已无任务则回退到「全部」
   const domOk = selDom === 'all' || (lineCount[selDom] ?? 0) > 0
   if (!domOk) selDom = 'all'
-  const inDom = (raw: string): boolean => (selDom === 'all' ? true : lineOf(raw) === selDom)
-  const view = tasks.filter((t) => inDom(String(t.name ?? '')))
+  const inDom = (t: SchedulerTask): boolean => (selDom === 'all' ? true : classifyTask(t).line === selDom)
+  const view = tasks.filter(inDom)
   // 选中任务持久化（30s 轮询重绘仍保留）；不在当前分类内则取消选中（表格下方详情随行）
   if (selTaskName !== null && !view.some((t) => String(t.name) === selTaskName)) selTaskName = null
   // 分页：换分类复位到第 1 页；点选/换分类时自动跟随任务所在页；轮询/翻页保持当前页
@@ -510,7 +497,7 @@ export function renderTasks(refs: ViewRefs, data: BoardData): void {
     const zh = taskZh(raw)
     // ⏱ 列时间语义：计划时刻=cron 计划（与时间轴同源）；上次运行=实际触发(lastRun.triggeredAt)，仅供参考。
     return '<tr class="dsh-exec-tr' + sel + '" data-tk="' + esc(raw) + '"' + (err ? ' title="失败原因：' + esc(err.slice(0, 300)) + '"' : '') + '>' +
-      '<td class="nm"' + (zh === raw ? '' : ' title="系统任务名：' + esc(raw) + '"') + '><span class="ln-hd"><i class="dk l-' + lineOf(raw) + '"></i><span class="zh">' + esc(zh) + '</span></span></td>' +
+      '<td class="nm"' + (zh === raw ? '' : ' title="系统任务名：' + esc(raw) + '"') + '><span class="ln-hd"><i class="dk l-' + classifyTask(t).line + '"></i><span class="zh">' + esc(zh) + '</span></span></td>' +
       '<td class="cr" title="' + (t.scheduleExpr ? esc('原 cron: ' + String(t.scheduleExpr).trim()) : '') + '">' + esc(cronPlan(t.scheduleExpr)) + '</td>' +
       '<td class="st"><span class="tag ' + tag.cls + '">' + esc(tag.label) + '</span>' + srcChip(t.src) + agentChip(t.agentCall) + '</td>' +
       '<td class="tm">' + esc(last.at) + (last.st ? '<em class="ls ' + (TL_TAG[last.st] ?? 'unk') + '">' + esc(TL_ZH[last.st] ?? last.st) + '</em>' : '') + '</td>' +

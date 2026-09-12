@@ -69,6 +69,10 @@ html[data-dsh-exec-active] .dsh-exec-view { display: flex; flex-direction: colum
 .dsh-exec-cardx .hd .more { font-size:12px; color:var(--dim); font-weight:400; }
 .dsh-exec-cardx .bd { padding:14px 18px; }
 .dsh-exec-empty { color:var(--faint); font-size:13px; padding:10px 0; }
+/* 分类对账提示（2026-09-12）：字段未打通 / 未归类任务 / OS 并入对账 —— 显式可见，不静默 */
+.dsh-exec-cover { display:flex; flex-wrap:wrap; gap:6px 14px; padding:6px 0 8px; font-size:12px; color:var(--faint); }
+.dsh-exec-cover span { padding:2px 8px; border-radius:4px; background:var(--bg2); }
+.dsh-exec-cover code { font-family:var(--mono, monospace); padding:0 3px; }
 
 /* 执行总览：大数字健康条 + 服务 pills */
 .dsh-exec-hb { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:12px; }

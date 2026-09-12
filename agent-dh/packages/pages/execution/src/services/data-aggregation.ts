@@ -13,13 +13,19 @@ import { promises as fsp } from 'node:fs';
 import { readdirSync } from 'node:fs';
 import * as path from 'node:path';
 import { CHECKPOINTS } from './checkpoint-registry.js';
+import { computeTaskCoverage } from '../shared/line-classify.js';
 import { fetchJson, HttpError } from './http.js';
 import type {
   AggregatorOptions, BlockedFlowEntry, BoardData, Checkpoint, CheckpointResult,
   ErrorEvent, HealthStatus, OrphanedTask, SchedulerRun, SchedulerTask, TimelineEntry, Verify,
 } from '../types/index.js';
 
-interface TaskRunsResult { tasks: SchedulerTask[]; fetchError?: string }
+interface TaskRunsResult {
+  tasks: SchedulerTask[];
+  fetchError?: string;
+  /** OS 端对账（2026-09-12）：接口返回总数与被排除原因计数，供分类对账披露 */
+  osCoverage?: { apiTotal: number; byReason: Record<string, number> };
+}
 interface GenomeState { date?: string; missing?: boolean; statErr?: string }
 /** Agent OS /api/v1/scheduler/tasks 行（6 段 cron，payload 含 executor） */
 interface OsSchedulerTask {
@@ -210,16 +216,25 @@ export function errorEventRowToView(row: Record<string, any>): ErrorEvent {
  * 仍排除：①disabled ②无任何 webhook 的任务（如 equity-snapshot-daily，纯脚本不唤醒 agent）
  * ③指向 v2 内部 webhook（:5001/…）的任务 —— 它们由 v2 侧展示，并入会与 v2 scheduler 双计。
  */
+export type OsExclusionReason = 'disabled' | 'v2_internal' | 'no_webhook';
+
+/** 不并入的原因（null=应并入）。与 shouldIncludeOsTask 同源，供"对账"显式披露被排除者 */
+export function osTaskExclusionReason(t: {
+  enabled?: unknown; payload?: unknown; webhook_url?: unknown;
+}): OsExclusionReason | null {
+  const enabled = t.enabled === true || t.enabled === 'true' || t.enabled === 1 || t.enabled === '1';
+  if (!enabled) return 'disabled';
+  const webhookUrl = String(t.webhook_url ?? '');
+  if (webhookUrl.includes(':5001/')) return 'v2_internal';       // v2 内部：避免双计
+  const executor = String((t.payload as Record<string, unknown> | null | undefined)?.executor ?? '');
+  if (executor === 'dsh-webhook') return null;
+  return webhookUrl.includes('/agent-os-trigger') ? null : 'no_webhook';
+}
+
 export function shouldIncludeOsTask(t: {
   enabled?: unknown; payload?: unknown; webhook_url?: unknown;
 }): boolean {
-  const enabled = t.enabled === true || t.enabled === 'true' || t.enabled === 1 || t.enabled === '1';
-  if (!enabled) return false;
-  const webhookUrl = String(t.webhook_url ?? '');
-  if (webhookUrl.includes(':5001/')) return false;               // v2 内部：避免双计
-  const executor = String((t.payload as Record<string, unknown> | null | undefined)?.executor ?? '');
-  if (executor === 'dsh-webhook') return true;
-  return webhookUrl.includes('/agent-os-trigger');
+  return osTaskExclusionReason(t) === null;
 }
 
 export class DataAggregationService {
@@ -272,11 +287,21 @@ export class DataAggregationService {
     const blockedFlows = this.buildBlockedFlows(checkpoints);
     // 错误事件已解耦为独立分页子端点（/dashboard/api/board/error-events），主 board 不再内嵌
     const tasks = this.enrichTasks(tasksR.tasks, runsR.runs);
+    // 分类对账（2026-09-12）：分类字段是否已打通 / 有无未归类 / OS 端并入是否完整
+    const osCov = tasksR.osCoverage;
+    const osIncluded = tasks.filter(t => t.src === 'os').length;
+    const taskCoverage = computeTaskCoverage(tasks, osCov ? {
+      apiTotal: osCov.apiTotal,
+      included: osIncluded,
+      excluded: osCov.apiTotal - osIncluded,
+      byReason: osCov.byReason,
+    } : undefined);
 
     return {
       health: healthR.rows,
       checkpoints,
       tasks,
+      taskCoverage,
       timeline,
       blockedFlows,
       degraded,
@@ -404,9 +429,9 @@ export class DataAggregationService {
       v2Error = errMsg(e);
     }
     const os = await this.fetchOsAgentTasks();
-    if (v2Error && os.tasks.length === 0) return { tasks: [], fetchError: v2Error };
-    if (v2Error) return { tasks: os.tasks, fetchError: v2Error };
-    return { tasks: [...v2Tasks, ...os.tasks] };
+    if (v2Error && os.tasks.length === 0) return { tasks: [], fetchError: v2Error, osCoverage: os.coverage };
+    if (v2Error) return { tasks: os.tasks, fetchError: v2Error, osCoverage: os.coverage };
+    return { tasks: [...v2Tasks, ...os.tasks], osCoverage: os.coverage };
   }
 
   private normalizeTask(t: SchedulerTask, src: 'v2' | 'os' = 'v2'): SchedulerTask {
@@ -418,6 +443,9 @@ export class DataAggregationService {
     };
     return {
       ...t, id: String(t.id), enabled, src, agentCall: src === 'os' ? undefined : 'none',
+      // 分类字段透传（2026-09-12）：接口暴露后即成为分类首选依据；未暴露时保持 undefined
+      agentLine: (t as { agentLine?: string | null }).agentLine ?? null,
+      domain: (t as { domain?: string | null }).domain ?? null,
       todaySuccess: num(t.todaySuccess), todayTriggered: num(t.todayTriggered),
     };
   }
@@ -428,7 +456,11 @@ export class DataAggregationService {
    * 无 v2 run：今日状态由 /tasks/stats 的 last_run_at / last_run_status 推导（Agent OS 无 today 计数）。
    * 注：间隔型 cron（例如每 30 分钟一次）经 osCron5 拿不到单一时刻 → 不进时间轴（无法定位在时间轴上）。
    */
-  private async fetchOsAgentTasks(): Promise<{ tasks: SchedulerTask[]; error?: string }> {
+  private async fetchOsAgentTasks(): Promise<{
+    tasks: SchedulerTask[];
+    coverage?: { apiTotal: number; byReason: Record<string, number> };
+    error?: string;
+  }> {
     try {
       const [listJ, statJ] = await Promise.all([
         fetchJson<{ success?: boolean; tasks?: OsSchedulerTask[] }>(this.osBase + '/api/v1/scheduler/tasks'),
@@ -438,12 +470,18 @@ export class DataAggregationService {
         (Array.isArray(statJ?.tasks) ? statJ.tasks : []).map(s => [String(s.name), s]),
       );
       const out: SchedulerTask[] = [];
-      for (const t of Array.isArray(listJ?.tasks) ? listJ.tasks : []) {
+      // 对账（2026-09-12）：把"被排除的对象与原因"计数，供页面显式披露——静默 continue 会让
+      // "少了东西"永远只能靠人眼发现（本次时间轴缺例程即因此长期无人知）。
+      const all = Array.isArray(listJ?.tasks) ? listJ.tasks : [];
+      const byReason: Record<string, number> = {};
+      const bump = (k: string) => { byReason[k] = (byReason[k] ?? 0) + 1; };
+      for (const t of all) {
         const name = String(t.name ?? '');
-        if (!name) continue;
-        if (!shouldIncludeOsTask(t)) continue; // 判据见 shouldIncludeOsTask 注释
+        if (!name) { bump('no_name'); continue; }
+        const why = osTaskExclusionReason(t);
+        if (why) { bump(why); continue; }   // 判据见 osTaskExclusionReason 注释
         const expr5 = osCron5(String(t.schedule ?? ''));
-        if (!expr5) continue; // 时刻不可解析 → 不进时间轴（避免无依据展示）
+        if (!expr5) { bump('unparsable_time'); continue; } // 区间型 cron 无单一时刻 → 不进时间轴
         const st = stats.get(name);
         const lastAt = st?.last_run_at ? String(st.last_run_at) : null;
         const lastStatus = String(st?.last_run_status ?? '');
@@ -458,12 +496,15 @@ export class DataAggregationService {
           nextRunAt: null,
           src: 'os',
           agentCall: 'dh', // executor=dsh-webhook 当前只唤醒 agent-dh（agent-ts 已并入 v2 引擎）
+          // 任务自带业务线字段（DB public.tasks.agent_line）；接口未暴露时为 null → 分类回退名单
+          agentLine: (t as { agent_line?: string | null }).agent_line
+            ?? (t as { agentLine?: string | null }).agentLine ?? null,
           todayTriggered: ranToday ? 1 : 0,
           todaySuccess: ranToday && lastStatus === 'success' ? 1 : 0,
         });
       }
       out.sort((a, b) => String(a.name).localeCompare(String(b.name)));
-      return { tasks: out };
+      return { tasks: out, coverage: { apiTotal: all.length, byReason } };
     } catch (e) {
       return { tasks: [], error: errMsg(e) };
     }
@@ -775,7 +816,11 @@ export class DataAggregationService {
       if (status === 'pending' && cronDowMatchToday(task.scheduleExpr, this.weekday) === false) {
         status = 'off_day';
       }
-      list.push({ taskId: task.id, taskName: task.name, expectedTime, status, runId, error, freq: cronFreq(task.scheduleExpr), src: task.src, agentCall: task.agentCall });
+      list.push({
+        taskId: task.id, taskName: task.name, expectedTime, status, runId, error,
+        freq: cronFreq(task.scheduleExpr), src: task.src, agentCall: task.agentCall,
+        agentLine: task.agentLine ?? null,
+      });
     }
     list.sort((a, b) => a.expectedTime.localeCompare(b.expectedTime) || a.taskName.localeCompare(b.taskName));
     return list;

@@ -34,6 +34,10 @@ export interface SchedulerTask {
   src?: string
   /** 是否调用 agent：dh=agent-dh / ts=agent-ts（无则不显示） */
   agentCall?: string
+  /** 任务自带业务线字段（OS=agent_line）——分类首选依据（2026-09-12） */
+  agentLine?: string | null
+  /** v2 领域六域——与业务线正交，仅作打标对账信号 */
+  domain?: string | null
 }
 export type ErrorEventStatus = 'open' | 'processing' | 'resolved' | 'ignored'
 /** 错误事件（数据源=Agent OS error_events 表，采集入库按指纹去重） */
@@ -74,6 +78,8 @@ export interface TimelineEntry {
   /** 透传调度来源与 agent 调用标记（徽标渲染） */
   src?: string
   agentCall?: string
+  /** 透传任务自带业务线字段（分类首选依据） */
+  agentLine?: string | null
 }
 export interface BlockedFlowEntry {
   checkpointId?: string
@@ -85,6 +91,15 @@ export interface BoardData {
   health?: BoardHealth[]
   checkpoints?: CheckpointResult[]
   tasks?: SchedulerTask[]
+  /** 分类对账（2026-09-12）：字段是否打通 / 未归类清单 / OS 并入对账 */
+  taskCoverage?: {
+    total?: number
+    byLine?: Record<string, number>
+    fieldTagged?: number
+    fieldMissing?: number
+    unclassified?: string[]
+    os?: { apiTotal?: number; included?: number; excluded?: number; byReason?: Record<string, number> }
+  }
   errors?: ErrorEvent[]
   timeline?: TimelineEntry[]
   blockedFlows?: BlockedFlowEntry[]

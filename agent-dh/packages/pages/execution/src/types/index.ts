@@ -63,6 +63,10 @@ export interface SchedulerTask {
   updatedAt?: string | null;
   todaySuccess?: number | string;
   todayTriggered?: number | string;
+  /** 任务自带业务线字段（OS=agent_line：profit_engine/autonomy）——接口暴露后分类以其为准 */
+  agentLine?: string | null;
+  /** v2 领域模型六域（data/signal/trading/analysis/report/monitor）——与业务线正交，仅作打标对账信号 */
+  domain?: string | null;
   /** 调度来源：v2=quantsys-v2 引擎任务 / os=Agent OS 定时（webhook 触发 agent） */
   src?: 'v2' | 'os';
   /** 是否调用 agent 及运行时：dh=agent-dh / ts=agent-ts / none=纯引擎无 agent */
@@ -123,6 +127,8 @@ export interface TimelineEntry {
   /** 透传调度来源与 agent 调用标记（供徽标渲染） */
   src?: 'v2' | 'os';
   agentCall?: 'dh' | 'ts' | 'none';
+  /** 透传任务自带业务线字段（分类以其为准，缺省回退名单） */
+  agentLine?: string | null;
 }
 
 export interface BlockedFlowEntry {
@@ -136,6 +142,15 @@ export interface BoardData {
   health: HealthStatus[];
   checkpoints: CheckpointResult[];
   tasks: SchedulerTask[];
+  /** 分类对账（2026-09-12 新增）：分类字段是否打通 / 有无未归类任务 / OS 并入对账 */
+  taskCoverage?: {
+    total: number;
+    byLine: Record<string, number>;
+    fieldTagged: number;
+    fieldMissing: number;
+    unclassified: string[];
+    os?: { apiTotal: number; included: number; excluded: number; byReason: Record<string, number> };
+  };
   errors: ErrorEvent[];
   timeline: TimelineEntry[];
   blockedFlows: BlockedFlowEntry[];
