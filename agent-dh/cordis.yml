@@ -114,10 +114,13 @@
       agentId: agent-dh
 
 # 基因组管理
+# genomeDir 的插件默认值是硬编码的 ~/.dsh-agent-dh/genome（旧 home），不会跟随
+# DSH_HOME，所以必须显式指定。2026-09-13 DSH_HOME 迁入项目内 .dsh-home 后，
+# 基因组随数据落到 .dsh-data/genome。
 - id: genome
   name: '@pi-investment/genome'
   config:
-    genomeDir: /Users/yunpeng/.dsh-agent-dh/genome
+    genomeDir: /Users/yunpeng/pi-investment/agent-dh/.dsh-data/genome
 
 # 学习系统
 - id: learning

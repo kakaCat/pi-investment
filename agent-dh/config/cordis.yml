@@ -206,7 +206,9 @@
     - id: genome
       name: '@pi-investment/genome'
       config:
-        genomeDir: /Users/yunpeng/.dsh-agent-dh/genome
+        # 插件默认值是硬编码的 ~/.dsh-agent-dh/genome（旧 home），不跟随 DSH_HOME，
+        # 故必须显式指定。2026-09-13 DSH_HOME 迁入项目内 .dsh-home 后随数据落此。
+        genomeDir: /Users/yunpeng/pi-investment/agent-dh/.dsh-data/genome
 
     - id: learning
       name: '@pi-investment/learning'
