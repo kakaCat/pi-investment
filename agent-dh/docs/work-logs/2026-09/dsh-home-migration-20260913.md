@@ -59,12 +59,46 @@
 - `genome` 加载成功（g32）；裸地址 401、带 token 303→200（4.8ms）
 - 本文件相关改动（`genomeDir` 硬编码）随本次一并合入
 
+## 四之二、补记：数据复制了，但运行实例看不见（当日发现并修复）
+
+切换后用户反馈"数据没复制到 agent-dh 项目里"。核查结论：**数据确实在**——
+
+| | 旧 home `~/.dsh-agent-dh` | `agent-dh/.dsh-data` |
+|---|---|---|
+| sessions | 191 | **203**（并集） |
+| genome | 272 文件 | rsync 空跑**零差异** |
+| dsh-reqboard.json | 96064 字节 | **逐字节相同** |
+| skills / attachments | 8 / 全 | 8 / 全 |
+
+`rsync -ain ~/.dsh-agent-dh/ .dsh-data/` 空跑只剩 2 条（都是切换后新写的会话），无遗漏。
+
+**但运行实例看不见** —— `DSH_HOME` 是 `.dsh-home`，而 start.sh 托管模式只挂了 4 项
+（`settings.yaml` / `.credentials.yaml` / `sessions` / `storages`），其余顶层状态项一个没挂：
+
+| `.dsh-data` 有 | `.dsh-home` 暴露 | 后果 |
+|---|---|---|
+| `dsh-reqboard.json` | ❌ | **真损坏**：`dsh-pmboard` 按 `$DSH_HOME/dsh-reqboard.json` 取台账（`src/index.ts:39`，`LEDGER_FILE`），读不到就当空板 → 14 条 REQ 在实例里消失 |
+| `skills/` · `attachments/` · `pet.json` | ❌ | 附件与 skill 根取不到 |
+| `genome/` | ❌ | 无影响——config 里写了绝对 `genomeDir` |
+
+**修复**（提交 `89df4f4e`）：start.sh 新增 `_link_file()`（单文件版非破坏性链接：源缺失则跳过、
+**不建悬空链接**；真实文件则告警**拒绝替换**，与 `_link_dir` 同策略），并挂上这四项。
+
+**验证**：六种行为干跑（首挂/幂等/源缺失/目标真实文件/目标含内容目录/空位挂上）全对；
+重启后线上跑的是幂等分支（无告警 = 已挂对），`/dashboard/api/reqboard/` 返回
+**14 条 REQ / revision 257**，与文件一致。
+
+**教训**：迁 DSH_HOME 时「数据已复制」≠「实例可见」。判定依据必须是**运行实例的读数**
+（API 响应 / 启动日志），不是数据目录的文件清单——后者只证明磁盘上有，不证明应用读得到。
+
 ## 五、遗留
 
 - `~/.dsh-agent-dh`（1.5GB）保留作为回滚，**未删除**
 - `config/cordis.yml` 与现役 `cordis.patch.yml` 仍有 253 行分叉（repo 那份是 09-12 21:40 改的，现役停在 19:53）。本次**以现役为准**，分叉未处理
 - 插件默认值 `packages/genome/src/index.ts:32` 硬编码 `~/.dsh-agent-dh/genome`，不跟随 `DSH_HOME`——这是本次必须显式写 `genomeDir` 的原因。建议后续改为 DSH_HOME 相对
 - `.dsh-data/state/launchd.out.log` 混有 9/12 迁移带来的历史日志（前 1392 行）
+- `.dsh-data/profiles/` 里有 9/12 那份未启用的 profile 副本；现役是 `.dsh-home/profiles/investment`，未清理
+- 挂载清单是**手写枚举**的。若日后有新插件按 `$DSH_HOME/<名字>` 落状态，需同步加进 start.sh（现无自动发现机制）
 
 ## 六、回滚
 
