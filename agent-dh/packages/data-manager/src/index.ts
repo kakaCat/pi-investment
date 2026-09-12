@@ -19,7 +19,7 @@ export interface Config {
  */
 export default class DataManagerPlugin extends Service {
   static inject = ['tools'];
-  static Config = z.object({
+  static Config: any = z.object({
     quantsysV2: z.object({
       baseURL: z.string().default('http://localhost:5001'),
       timeout: z.number().default(30000),

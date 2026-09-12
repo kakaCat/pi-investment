@@ -20,7 +20,7 @@ export interface Config {
  */
 export default class NotificationPlugin extends Service {
   static inject = ['tools'];
-  static Config = z.object({
+  static Config: any = z.object({
     agentOS: z.object({
       baseURL: z.string().default('http://localhost:8080'),
       agentId: z.string().default('agent-dh'),

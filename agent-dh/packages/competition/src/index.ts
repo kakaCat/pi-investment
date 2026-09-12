@@ -24,7 +24,10 @@ export interface Config {
  */
 export default class CompetitionPlugin extends Service {
   static inject = ['tools'];
-  static Config = z.object({
+  // 2026-09-12（w-adb088f2）：显式注解 —— 不加时 tsdown --dts 报 TS2742
+  // （Config 的推断类型需引用 .pnpm/@deepseek-ai+schemastery 内部路径，不可移植），
+  // 且**失败前会先清空 dist**，导致该插件下次重启直接消失（本包 dist 曾因此被清空）。
+  static Config: any = z.object({
     quantsysV2: z.object({
       baseURL: z.string().default('http://localhost:5001'),
       timeout: z.number().default(30000),
