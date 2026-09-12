@@ -4,6 +4,7 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { PortfolioAggregationService } from '../services/portfolio-aggregation.js';
+import { parseParts } from '../services/parts.js';
 import type { HoldingsData } from '../types/index.js';
 
 function json(res: ServerResponse, status: number, body: unknown): void {
@@ -23,8 +24,10 @@ export function createHoldingsHandler(aggregator: PortfolioAggregationService) {
       // 解析 query 参数 account（默认 agent_virtual）
       const url = new URL(req.url || '/', `http://${req.headers.host}`);
       const account = url.searchParams.get('account') || 'agent_virtual';
+      // 2026-09-13（w-adb088f2）：parts 缺省＝全量（向后兼容）；轮询用 parts=hot 只拉约 4 KB 高频块
+      const parts = parseParts(url.searchParams.get('parts'));
 
-      const data: HoldingsData = await aggregator.aggregate(account);
+      const data: HoldingsData = await aggregator.aggregate(account, { parts });
       json(res, 200, { success: true, data });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
