@@ -171,7 +171,10 @@ class SchedulerRepository(ISchedulerRepository):
             if enabled_only:
                 query = query.filter_by(is_enabled=True)
             return [self._row_to_dict(r) for r in query.all()]
-        except Exception:
+        except Exception as e:
+            # 不静默（2026-09-13）：此处曾吞异常返回 []，导致调用方把"读失败"当"没有任务"，
+            # 进而清空 APScheduler jobstore（调度静默停摆）。
+            logger.error(f"list_tasks 读取失败（返回空列表，调用方需自行判定）: {e}", exc_info=True)
             self._safe_rollback()
             return []
 

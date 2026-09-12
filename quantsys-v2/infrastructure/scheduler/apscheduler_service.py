@@ -87,6 +87,23 @@ class APSchedulerService:
         - once: 一次性任务（DateTrigger）
         """
         tasks = self.repo.list_tasks(enabled_only=True)
+
+        # 防御（2026-09-13 w-c8cae280 实证）：repo 层对读库异常是"静默 return []"。
+        # 若照此继续，下游 reconcile 会把 jobstore 全量摘除——曾发生：reload 时读库瞬时失败
+        # → remove_all_jobs + 0 条重载 → 27 个 job 全没，日志还打"✅ Tasks reloaded"，
+        # 调度静默停摆直到下次进程重启。判据：DB 说有启用任务，却一条也没读出来。
+        if not tasks:
+            try:
+                expected = self.repo.count_tasks(enabled_only=True)
+            except Exception:
+                expected = 0
+            if expected > 0:
+                logger.error(
+                    f"❌ 任务列表加载为空但库中有 {expected} 个启用任务 → 判为读取异常："
+                    f"本次不加载也不对账（jobstore 保持原样，避免误摘全部 job）"
+                )
+                return None
+
         loaded_count = 0
         skipped_count = 0
         desired_ids = set()  # 本次加载后"应当存在"的 job id 集合（供孤儿回收比对）
@@ -153,6 +170,11 @@ class APSchedulerService:
         只做删除、不做新增：安全性上不触碰任何仍在册的任务（不动 next_run_time），
         因此可独立于 load 流程调用与验证。
         """
+        # 空集护栏：desired_ids 为空说明"应存在集合"没有依据，绝不能据此清空 jobstore。
+        if not desired_ids:
+            logger.error("孤儿 job 对账已跳过：desired_ids 为空（疑似任务列表加载失败）")
+            return 0
+
         removed = 0
         try:
             jobs = self.scheduler.get_jobs()
@@ -318,13 +340,16 @@ class APSchedulerService:
             logger.error("Cannot reload tasks: scheduler not running")
             return
 
-        # 移除所有现有任务
-        self.scheduler.remove_all_jobs()
+        # 不再 remove_all_jobs()（2026-09-13 实证）：先清空再重建，一旦重建阶段读库失败
+        # （repo 静默 return []）就会清空调度且报成功。改为纯增量对账——加载用
+        # add_job(replace_existing=True) 覆盖同名 job，摘除交给 reconcile_jobs，
+        # 并在"读库为空但库中有任务"时中止，任何一步失败都不会毁掉现有 jobstore。
+        desired_ids = self.load_tasks_from_db()
+        if desired_ids is None:
+            logger.error("❌ Tasks reload aborted：任务列表读取异常，jobstore 保持原样")
+            return
 
-        # 重新加载
-        self.load_tasks_from_db()
-
-        logger.info("✅ Tasks reloaded")
+        logger.info(f"✅ Tasks reloaded（在册 {len(desired_ids)} 个）")
 
     def get_job_status(self, task_id: int) -> dict:
         """
