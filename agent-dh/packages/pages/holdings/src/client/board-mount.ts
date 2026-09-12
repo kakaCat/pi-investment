@@ -8,6 +8,7 @@
 import { ACTIVE_ATTR, ACTIVATE_EVENT, BOARD_VIEW_SELECTOR, PANEL_NAME, OTHER_ACTIVE_ATTRS } from './dom.js'
 import { buildHistoryCard, buildView, buildWatchCardHtml, HISTORY_PAGE_SIZE } from './view.js'
 import type { HoldingsData } from './types.js'
+import { pickParts } from '../services/parts.js'
 import {
   createSolveKit, type SolveCandidate, type SolveIdentity, type SolveKit, type SolveSnapshot,
 } from '@pi-investment/solve-kit/client'
@@ -33,13 +34,24 @@ export function createBoardController(): BoardController {
   let shellRef: { open(): void; close(): void; toggle(): void; isActive(): boolean } | undefined
   let renderRetryTimer: number | undefined
 
-  const fetchAndRender = async (accountName: string): Promise<void> => {
+  // 2026-09-13（w-adb088f2）：整包 82 KB 里 94.8% 是盯盘规则（54 条），却每 15 秒重传一次，
+  // 页面因此"卡住"。现改为分块拉取：轮询只带 parts=hot（约 4 KB），每第 4 次轮询补一次全量
+  // （约 60s）以刷新盯盘规则与成交明细。
+  let pollTick = 0
+  const fetchAndRender = async (accountName: string, mode: 'full' | 'hot' = 'full'): Promise<void> => {
     try {
       const url = '/dashboard/api/holdings?account=' + encodeURIComponent(accountName)
+        + (mode === 'hot' ? '&parts=hot' : '')
       const res = await fetch(url)
       const json = await res.json()
       if (!json.success) throw new Error(json.error || 'Unknown error')
-      renderBoard(json.data as HoldingsData)
+      const incoming = json.data as HoldingsData
+      // 合并：只覆盖本次**实际返回**的块（incoming.parts）。否则 hot 响应里的空 watchRules/
+      // tradeHistory 会把上一轮已加载的大块擦掉——那正是"看着有数据却突然空了"的经典来源。
+      const merged: HoldingsData = lastData !== undefined
+        ? ({ ...lastData, ...(pickParts(incoming as any, incoming.parts) as object), parts: incoming.parts } as HoldingsData)
+        : ({ ...incoming, parts: incoming.parts } as HoldingsData)
+      renderBoard(merged)
     } catch (error) {
       console.error('[dashboard-holdings] fetch failed:', error)
       renderError(String(error))
@@ -153,7 +165,13 @@ export function createBoardController(): BoardController {
     closeBoard: () => shellRef?.close(),
     toggleBoard: () => shellRef?.toggle(),
     getSnapshot: () => ({ boardOpen: shellRef?.isActive() ?? false }),
-    refresh: () => { console.log('[dashboard-holdings] manual refresh'); fetchAndRender(currentAccount) },
+    refresh: () => {
+      pollTick += 1
+      // 第 1 次（打开看板）必为全量；之后每 4 次轮询补一次全量（15s × 4 ≈ 60s）
+      const mode: 'full' | 'hot' = pollTick % 4 === 1 ? 'full' : 'hot'
+      console.log('[dashboard-holdings] refresh (' + mode + ')')
+      fetchAndRender(currentAccount, mode)
+    },
     switchAccount: (accountName) => {
       console.log('[dashboard-holdings] switching account to', accountName)
       currentAccount = accountName

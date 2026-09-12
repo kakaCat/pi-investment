@@ -2,6 +2,7 @@
 // 职责：从 v2 各端点拉取数据，聚合为 HoldingsData 契约
 
 import { fetchData, fetchJson } from './http.js';
+import { ALL_PARTS } from './parts.js';
 import { getStockName } from './name-map.js';
 import type {
   Account,
@@ -21,6 +22,21 @@ export interface AggregationOptions {
   requestTimeoutMs: number;
 }
 
+// 冷块（盯盘规则 / 成交明细）服务端 TTL 缓存：这几块变化慢、体积大，短时间内的重复轮询
+// 不必回源；用 HOLDINGS_COLD_CACHE_MS 覆盖（默认 30 秒），设 0 关闭。
+const COLD_TTL_MS = Number(process.env.HOLDINGS_COLD_CACHE_MS ?? 30000);
+const _coldCache = new Map<string, { value: any; ts: number }>();
+
+async function coldCached<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  if (COLD_TTL_MS > 0) {
+    const hit = _coldCache.get(key);
+    if (hit !== undefined && (Date.now() - hit.ts) <= COLD_TTL_MS) return hit.value as T;
+  }
+  const value = await fn();
+  if (COLD_TTL_MS > 0) _coldCache.set(key, { value, ts: Date.now() });
+  return value;
+}
+
 export class PortfolioAggregationService {
   constructor(private readonly options: AggregationOptions) {}
 
@@ -28,18 +44,25 @@ export class PortfolioAggregationService {
    * 聚合持仓数据
    * @param accountName - 账户名称，默认 agent_virtual
    */
-  async aggregate(accountName: string = 'agent_virtual'): Promise<HoldingsData> {
+  async aggregate(accountName: string = 'agent_virtual', opts?: { parts?: string[] }): Promise<HoldingsData> {
     const { v2BaseURL, requestTimeoutMs, agentOsBaseURL } = this.options;
     const timeout = { timeoutMs: requestTimeoutMs };
+    // 2026-09-13（w-adb088f2）：按分块取数。轮询只带 hot（约 4 KB），冷块（盯盘规则 79.5 KB /
+    // 成交明细）不进高频轮询 —— 整包 82 KB 里 94.8% 是盯盘规则，却每 15 秒重传一次，这就是
+    // 页面"卡住"的主因。缺省＝全量，向后兼容。
+    const parts: string[] = opts?.parts ?? [...ALL_PARTS];
+    const want = new Set(parts);
 
     try {
       // 并发请求所有端点（单个失败不影响其他）；agentOsTasks 仅 agent 类账户展示用到，
       // 失败容忍为空（8080 若不可用，agent 账户 automation 退化为不渲染块，strategy 账户不受影响）
+      const needTrades = want.has('tradeHistory') || want.has('todayTrades');
+      const needRules = want.has('watchRules');
       const [accounts, accountStatus, trades, watchRules, schedulerTasks, agentOsTasks] = await Promise.allSettled([
         this.fetchAccounts(v2BaseURL, timeout),
         this.fetchAccountStatus(v2BaseURL, accountName, timeout),
-        this.fetchTrades(v2BaseURL, accountName, timeout),
-        this.fetchWatchRules(v2BaseURL, accountName, timeout),
+        needTrades ? coldCached('trades:' + accountName, () => this.fetchTrades(v2BaseURL, accountName, timeout)) : Promise.resolve([] as any[]),
+        needRules ? coldCached('rules:' + accountName, () => this.fetchWatchRules(v2BaseURL, accountName, timeout)) : Promise.resolve([] as any[]),
         this.fetchSchedulerTasks(v2BaseURL, timeout),
         this.fetchAgentOsTasks(agentOsBaseURL, timeout),
       ]);
@@ -72,6 +95,7 @@ export class PortfolioAggregationService {
       return {
         accounts: accountsData,
         currentAccount: accountName,
+        parts,
         summary: summaryData,
         positions: positionsData,
         todayTrades,

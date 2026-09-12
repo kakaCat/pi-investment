@@ -143,6 +143,8 @@ export interface HoldingsData {
   /** 历史成交全量（同源 /api/simulation/trades，倒序；供「历史交易」分页卡） */
   tradeHistory: Trade[];
   watchRules: WatchRule[];
+  /** 本次响应实际包含的分块（见 host 侧 parts 参数） */
+  parts?: string[];
   /** 当前账户的自动化流程（引擎调度任务；agent/user/legacy 账户无任务时 engine=false） */
   automation?: AccountAutomation;
   compliance: {
