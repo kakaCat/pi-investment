@@ -91,6 +91,33 @@ def listening_pid(port):
     return int(out.strip().splitlines()[0])
 
 
+def package_fingerprint(real_dir):
+    """包内容指纹：md5(排序后的 (相对路径, 文件内容md5))，覆盖 dist/index.mjs 与 src/**/*.ts。
+
+    用**内容**而非 mtime 判断"运行实例加载的代码是否仍是当前磁盘上的代码"——
+    mtime 会被重建（内容未变）或无关注销（git 操作）污染，实测已造成误报。
+    """
+    items = []
+    for sub in ("dist/index.mjs", "src"):
+        p = os.path.join(real_dir, sub)
+        if os.path.isfile(p):
+            items.append(p)
+        elif os.path.isdir(p):
+            for root, _dirs, files in os.walk(p):
+                for f in files:
+                    if f.endswith(".ts"):
+                        items.append(os.path.join(root, f))
+    items.sort()
+    h = hashlib.md5()
+    for p in items:
+        try:
+            h.update(os.path.relpath(p, real_dir).encode("utf-8"))
+            h.update(md5_of(p).encode("ascii"))
+        except OSError:
+            continue
+    return h.hexdigest()[:16]
+
+
 def plugin_dirs(profile):
     """profile 里 @pi-investment/* 依赖解析到的仓库目录（跟随符号链接）。"""
     pkg_dir = os.path.join(profile, "node_modules", PKG_SCOPE)
@@ -183,24 +210,61 @@ def main():
             report["checks"]["L3_process"] = {"ok": False, "detail": "无法读取进程启动时间"}
             failures.append("L3 进程层：无法读取进程启动时间")
         else:
-            code_dt = datetime.datetime.fromtimestamp(newest_m)
-            stale = started < code_dt
-            detail = (f"进程 {pid} 启动于 {started.strftime('%m-%d %H:%M:%S')}；"
-                      f"最新插件代码 mtime {code_dt.strftime('%m-%d %H:%M:%S')}"
-                      + (f"（{os.path.relpath(newest_f, os.path.dirname(HERE))}）" if newest_f else ""))
-            if stale:
-                print(f"[L3] 进程加载新鲜度 ... FAIL  (进程比代码还老 ⇒ 未加载最新包)")
-                print(f"       {detail}")
-                report["checks"]["L3_process"] = {"ok": False, "detail": detail, "pid": pid,
-                                                  "process_started": started.isoformat(),
-                                                  "newest_code": code_dt.isoformat()}
-                failures.append("L3 进程层：进程启动时间早于最新代码 mtime ⇒ 运行实例未加载最新包，需重启")
-            else:
+            # ── 判据一（优先）：内容指纹与"进程启动前的最后一次记录"一致 ⇒ 期间代码内容没变，
+            #    进程加载的就是当前磁盘上的代码（免疫重建/mtime 抖动）。
+            prev = {}
+            if os.path.isfile(manifest_path):
+                try:
+                    with open(manifest_path, encoding="utf-8") as pf:
+                        prev = json.load(pf)
+                except (OSError, ValueError):
+                    prev = {}
+            prev_fps = prev.get("fingerprints") or {}
+            prev_ts = prev.get("ts")
+            cur_fps = {short: package_fingerprint(real) for short, real in dirs.items()}
+            prev_before_process = False
+            if prev_ts and prev_fps:
+                try:
+                    prev_before_process = datetime.datetime.fromisoformat(prev_ts) < started
+                except ValueError:
+                    prev_before_process = False
+            changed = sorted(
+                k for k in set(prev_fps) | set(cur_fps)
+                if prev_fps.get(k) != cur_fps.get(k)
+            )
+            report["fingerprints"] = cur_fps
+            if prev_before_process and not changed:
+                # 判据一（优先）：内容指纹一致 ⇒ 进程加载的就是当前磁盘上的代码
+                detail = (f"进程 {pid} 启动于 {started.strftime('%m-%d %H:%M:%S')}；"
+                          f"启动后插件代码内容未变（指纹一致，免疫 mtime 抖动）")
                 print(f"[L3] 进程加载新鲜度 ... OK  ({detail})")
                 report["checks"]["L3_process"] = {"ok": True, "detail": detail, "pid": pid,
                                                   "process_started": started.isoformat(),
-                                                  "newest_code": code_dt.isoformat(),
-                                                  "newest_code_file": newest_f}
+                                                  "basis": "content_fingerprint"}
+            else:
+                # 判据二（兜底）：mtime 先后。容差 1 秒 —— ps 启动时间只有秒级精度，
+                # 与亚秒 mtime 落在同一秒时先后不可知（实证：发版脚本自身曾被误判 FAIL）。
+                code_dt = datetime.datetime.fromtimestamp(newest_m)
+                TOLERANCE = datetime.timedelta(seconds=1)
+                stale = started + TOLERANCE < code_dt
+                detail = (f"进程 {pid} 启动于 {started.strftime('%m-%d %H:%M:%S')}；"
+                          f"最新插件代码 mtime {code_dt.strftime('%m-%d %H:%M:%S')}"
+                          + (f"（{os.path.relpath(newest_f, os.path.dirname(HERE))}）" if newest_f else ""))
+                if stale:
+                    print(f"[L3] 进程加载新鲜度 ... FAIL  (进程比代码还老 ⇒ 未加载最新包)")
+                    print(f"       {detail}")
+                    report["checks"]["L3_process"] = {"ok": False, "detail": detail, "pid": pid,
+                                                      "process_started": started.isoformat(),
+                                                      "newest_code": code_dt.isoformat(),
+                                                      "basis": "mtime"}
+                    failures.append("L3 进程层：进程启动时间早于最新代码 mtime ⇒ 运行实例未加载最新包，需重启")
+                else:
+                    print(f"[L3] 进程加载新鲜度 ... OK  ({detail})")
+                    report["checks"]["L3_process"] = {"ok": True, "detail": detail, "pid": pid,
+                                                      "process_started": started.isoformat(),
+                                                      "newest_code": code_dt.isoformat(),
+                                                      "newest_code_file": newest_f,
+                                                      "basis": "mtime"}
 
     # ---- L4 留痕 ----
     _, head = run(["git", "-C", os.path.dirname(HERE), "rev-parse", "--short", "HEAD"])
