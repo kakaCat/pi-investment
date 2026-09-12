@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-修复两个活跃会话文件中「缺 id 的 instruction-hint user/message 事件」。
+修复会话文件中「缺 id 的 instruction-hint user/message 事件」。
+
 仅允许在 :13080 服务停止时运行（用户手动重启窗口），否则拒绝执行（--force 可绕过）。
 
 格式规范（与 DSH src/index.ts 一致）：
@@ -14,12 +15,25 @@
   - type == 'user/message'    -> 缺 data.id 则补 'repair-<type>-<seq>-<time>'
   - type in ('assistant/message','tool/result') -> 缺 data.message.id 则补同格式 id
   - 其他事件不修改；已修复行用 json.dumps 重序列化，未修复行保持原字节
+
+用法：
+    python3 agent-dh/scripts/repair-active-sessions.py [--force] [session-id ...]
+    （不给 session-id 时用下面 TARGETS 里的默认清单）
 """
-import json, os, shutil, socket, subprocess, sys, time
+import json
+import os
+import shutil
+import socket
+import subprocess
+import sys
+import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _dsh_paths as dp  # noqa: E402
 
 ZSTD = '/Users/yunpeng/anaconda3/bin/zstd'
-SESSIONS_ROOT = '/Users/yunpeng/.dsh-agent-dh/sessions'
-STORE_DIR = '--Users-yunpeng-pi-investment-agent-dh--'
+# 默认目标：2026-09-11 那批受影响会话。它们已不在现役 store 里，故现多改为命令行传 ID，
+# 这里保留仅作历史参考 —— 找不到会明确报错并以非零退出（不再"打印 MISSING 然后 DONE"）。
 TARGETS = [
     'session-d8c936df-7d52-452e-b3ea-8d5eaf87d3df',
     'session-a1484624-d538-4e42-8a83-dd15c522bce5',
@@ -133,22 +147,44 @@ def decompress_to_memory_check(data: bytes) -> bytes:
 
 
 def main():
+    argv = [a for a in sys.argv[1:] if a != '--force']
     force = '--force' in sys.argv
     if server_running(PORT) and not force:
         print(f'ABORT: :{PORT} is RUNNING. 请先停止 DSH 服务（用户手动重启窗口）再运行本脚本；或用 --force 强制（不推荐）。')
         sys.exit(2)
+
+    root = dp.sessions_root()
+    dp.require_dir(root, '会话根目录')
+    store = os.path.join(root, dp.store_dir_for_cwd())
+    dp.require_dir(store, f'store 目录（cwd={dp.REPO_ROOT}）')
+    print(f'sessions root: {root}')
+    print(f'store:         {store}')
+
     os.makedirs(BACKUP_ROOT, exist_ok=True)
     print(f'backup root: {BACKUP_ROOT}')
-    for sid in TARGETS:
-        path = os.path.join(SESSIONS_ROOT, STORE_DIR, sid, 'session.jsonl.zstd')
+
+    sids = argv or TARGETS
+    repaired = 0
+    missing = []
+    for sid in sids:
+        path = os.path.join(store, sid, 'session.jsonl.zstd')
         if not os.path.exists(path):
+            missing.append(sid)
             print(f'MISSING: {path}')
             continue
         info = repair_file(path, BACKUP_ROOT)
+        repaired += 1
         print(f'OK fixed={info["fixed"]} blanks_removed={info["blank_removed"]} lines={info["lines"]}')
         print(f'   {path}')
-    print('DONE')
+
+    if missing and not repaired:
+        # 一个都没修成还退出 0，会被调用方当成"处理过了" —— 这正是要避免的静默成功
+        print(f'\n❌ {len(missing)} 个目标都不存在，未做任何修改。'
+              f'（store 里的会话 ID 轮转很快，硬编码清单会失效 —— 请显式传 session-id。）')
+        return 1
+    print('DONE', f'（{repaired} 个已处理，{len(missing)} 个缺失）' if missing else '')
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
