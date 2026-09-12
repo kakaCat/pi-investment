@@ -83,7 +83,40 @@ job 28→27 ✅。API 即时性：enable→job 出现、disable→job 消失 ✅
 - 253 `weekly-strategy-discovery` → 手工 trigger → **success**；
 - 238 `每周财务数据更新` → 手工 trigger → **success**（启动对账同时把 running 回填为 success）。
 
-## 七、遗留
+## 八、事故：一次 reload 清空了整个 jobstore（同日 01:03，已修 + 已加护栏）
+
+**现场**：改名 v2 任务 253 后调 `POST /api/scheduler/reload`，返回 success、日志
+`✅ Tasks reloaded`——而 `public.apscheduler_jobs` 里 **27 个 job 全部消失**，
+调度静默停摆（只能靠进程重启恢复）。
+
+**根因链**（日志铁证 `Task loading complete: 0 loaded` → `对账（在册 0 个）`）：
+1. `reload_tasks()` 先 `self.scheduler.remove_all_jobs()` 再重建；
+2. `SchedulerRepository.list_tasks` 对读库异常是**静默 `return []`**（无任何日志）；
+3. 该次读库瞬时失败 → 0 条重载 → jobstore 空 + 报成功。
+
+**三层护栏（含 3 例回归测 `tests/infrastructure/test_reload_guard.py`）**：
+- `load_tasks_from_db`：列表为空但 `count_tasks(enabled_only)>0` → 判为读取异常，
+  `return None`，不加载也不对账（jobstore 原样）；
+- `reconcile_jobs`：`desired_ids` 为空即拒绝执行（无依据不得摘除）；
+- `reload_tasks`：**移除 `remove_all_jobs()`**，改为纯增量对账；
+- `list_tasks` 异常改为 `logger.error(exc_info=True)`，不再静默吞。
+
+> 与既有教训同型：`mainline_scan` 曾把"解析失败的空结果"当有效结果永久挡住重扫——
+> **空结果不得当作有效结果**。本次是同一类错误出现在调度器上，代价是整套调度停摆。
+
+## 九、任务中文化（同日）
+
+- 实体改名 1 个：253 `weekly-strategy-discovery` → **每周策略发现**（备份
+  `/tmp/task253_rename_20260913-010350/task253.json`；cron/domain 不变；看板 byLine
+  改名前后均为 engine 27 / autonomy 11 / account 9 / other 7，零扰动）。
+- 其余 18 个英文名任务**不改实体名**：它们同时是①检查点核验键（`daily-pool-refresh`、
+  `signal-perf-backfill-daily`、`v13-risk-check`、`daily_trade_verify`、
+  `v13-weekly-report`、`daily-strategy-validation` 被 checkpoint-registry 按名引用）
+  ②OS→v2 派发键（`scheduler_webhook.py` 用 `get_task_by_name(job_name)` 解析，改名会
+  静默打断派发）。改为显示层中文化：`TASK_ZH` 补齐 8 个此前显示英文原名的任务。
+- `strategy_discover_weekly` docstring「每周日」与 cron 标准语义（周六）不符 → 按配置口径更正。
+
+## 十、遗留
 
 1. 253 的"周六 vs 周日"意图待裁决（见 §二 注）；
 2. `WATCHDOG_AUTO_RERUN` 仍为 false（只告警不自动补跑）——是否开启需用户决定；
