@@ -31,6 +31,8 @@ export interface Config {
   repoRoot: string;
   agentDhRoot: string;
   profileDir: string;
+  /** 自我重启拉起的启动脚本绝对路径；'' = 缺省 profileDir/start.sh（2026-09-12, w-f9c9a5c1） */
+  startScript?: string;
   port?: number;
   agentId?: string;
   maxRestartsPerHour?: number;
@@ -71,6 +73,7 @@ export default class LifecyclePlugin extends Service {
     repoRoot: z.string(),
     agentDhRoot: z.string(),
     profileDir: z.string(),
+    startScript: z.string().default(''),  // '' = 缺省 profileDir/start.sh（保持历史行为）
     port: z.number().default(13080),
     agentId: z.string().default('investor'),
     maxRestartsPerHour: z.number().default(10),
@@ -903,6 +906,8 @@ v2_event_json: ${JSON.stringify(data)}
       resolveBase: (b) => this.resolveTrunkBase(b),
       resolveRestarterPath: () => this.resolveRestarterPath(),
       profileDir: this.cfg.profileDir,
+      // '' → 落到 planner 的缺省 profileDir/start.sh；显式配置即指向仓库内启动器
+      startScript: (this.cfg as any).startScript || join(this.cfg.profileDir, 'start.sh'),
       agentDhRoot: this.cfg.agentDhRoot,
       repoRoot: this.cfg.repoRoot,
       port: this.cfg.port,

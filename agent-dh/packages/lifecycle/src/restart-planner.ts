@@ -39,6 +39,14 @@ export interface RestartPlannerDeps {
   resolveBase: (curBranch: string) => string;
   resolveRestarterPath: () => string;
   profileDir: string;
+  /**
+   * 自我重启拉起的启动脚本绝对路径（2026-09-12，w-f9c9a5c1）。
+   * 缺省 = `${profileDir}/start.sh`（历史行为，等价迁移不变量）。
+   * 显式配置后，自我重启拉起的是 profile 之外的启动器（如 agent-dh 仓库内的
+   * `agent-dh/scripts/start.sh`），让「开机自启（launchd）」与「自我重启」指向
+   * 同一入口，消除两份 start.sh 相互漂移（历史上 launchd 与自我重启曾各拉一份）。
+   */
+  startScript?: string;
   agentDhRoot: string;
   repoRoot: string;
   port: number;
@@ -73,6 +81,10 @@ export interface RestartRequest {
 export function planAndScheduleRestart(deps: RestartPlannerDeps, req: RestartRequest): RestartPlan {
   const { repo, state, resolveBase, resolveRestarterPath, profileDir, agentDhRoot, repoRoot, port, processPid, captureLastUserMessage, spawnRestarter } = deps;
   const { reason, preserveContext, originAgentId, maxRestartsPerHour, now } = req;
+  // 启动脚本：显式配置优先，缺省沿用 profileDir/start.sh（历史行为不变）
+  const startScript = deps.startScript && deps.startScript.length > 0
+    ? deps.startScript
+    : joinPath(profileDir, 'start.sh');
 
   // ① 限流（必须先于拿锁：拒绝路径不持有锁，否则锁永远无人释放——50cb6084 Critical 修复）
   const rate = state.checkRateLimit(maxRestartsPerHour, now);
@@ -121,7 +133,7 @@ export function planAndScheduleRestart(deps: RestartPlannerDeps, req: RestartReq
       ...tsxFlag, restarter,
       String(processPid), String(port),
       repoRoot, joinPath(profileDir, 'state'),
-      joinPath(profileDir, 'start.sh'), logPath,
+      startScript, logPath,
     ], { detached: true, stdio: 'ignore', cwd: agentDhRoot });
     return { checkpointBranch: branch, baseBranch: base, attempt, logPath, restarter, reason };
   } catch (e) {

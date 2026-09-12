@@ -59,6 +59,24 @@ describe('planAndScheduleRestart', () => {
     ...over,
   });
 
+  // —— startScript 注入（2026-09-12，w-f9c9a5c1）——
+  // 动机：自我重启原先硬编码 `${profileDir}/start.sh`，而 launchd 执行的启动器可能
+  // 是另一份文件（双 start.sh 漂移，历史上两份内容已分叉）。改为可注入后两条路径同源。
+  it('startScript 显式配置：重启器拉起 profile 之外的启动器', () => {
+    writeFileSync(join(dir, 'agent-dh/a.txt'), 'v2');
+    planAndScheduleRestart({ ...deps, startScript: '/repo/agent-dh/scripts/start.sh' }, req());
+    const args = spawnCalls[0].args;
+    expect(args[args.length - 2]).toBe('/repo/agent-dh/scripts/start.sh');
+    expect(args[args.length - 1]).toMatch(/restart-\d+\.log$/);
+  });
+
+  it('startScript 缺省：沿用 profileDir/start.sh（历史行为不漂移）', () => {
+    writeFileSync(join(dir, 'agent-dh/a.txt'), 'v2');
+    planAndScheduleRestart(deps, req());
+    const args = spawnCalls[0].args;
+    expect(args[args.length - 2]).toBe(join(dir, 'start.sh'));
+  });
+
   it('有改动：建 agent-self wip、写 pending、spawn 重启器、锁交给重启器', () => {
     writeFileSync(join(dir, 'agent-dh/a.txt'), 'v2');
     const plan = planAndScheduleRestart(deps, req());
