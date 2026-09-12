@@ -60,6 +60,27 @@ monitor（3）：235 风险检查 / 264 权益快照 / 301 市场感知快照
 - v2 domain 分布：6 域齐全、0 NULL、0 未匹配
 - 备份：`/tmp/scheduler_line_20260902/pre_alter_backup.sql`（457 行，public.tasks + quant.scheduler_tasks 全量）
 
-## 六、后续可选增强（本次未做）
+## 六、接口暴露（2026-09-12 完成，REQ-9bcd0a 第 1/4 项）
 
-- 纯 DB 层方案下，agent-os Go 模型 / v2 SchedulerTaskConfig ORM model 尚未包含新列 → **scheduler_manage 工具与管理 API 暂不显示 agent_line/domain**。如需 API 可见：v2 侧在 ORM model + serializer 补 domain（需重启 v2）；agent-os 侧改 Go struct + handler（需重启 OS）。列为后续迭代。
+本节原为「后续可选增强（本次未做）」，两条已全部落地：
+
+- **agent-os（Go）**：`pkg/types/scheduler.go` 的 `Task` 增 `AgentLine`（json `agent_line,omitempty`）；`task_repository.go` 4 处 SELECT 增 `COALESCE(agent_line, '')` + 对应 4 处 Scan 增 `&task.AgentLine`（第 5 处 `GetTasksWithStats` 未改）。GET `/api/v1/scheduler/tasks` 实测返回 `agent_line`（27 条）。
+- **quantsys-v2（Python）**：`SchedulerTaskConfig` ORM 补 `domain` 列（`_row_to_dict` 按模型列泛化生成 dict → 读取链路自动带上）；`scheduler_async._task_to_summary` 增 `'domain'`。GET `/api/scheduler/tasks` 实测返回 `domain`（34 条）。
+- **agent 工具**：`scheduler_manage(list)` 本就透传 `agent_line`（输出 schema `additionalProperties: true`，不撞契约）；渲染层新增「线别」列。
+- **看板对账**：`computeTaskCoverage` 拆两套信号——OS 侧 `os.lineTagged`（agent_line 覆盖率）+ v2 侧 `v2{domainTagged,domainMissing,domainByValue,missingNames}`。六域与业务线正交，v2 任务不再被误报成「缺分类字段」。
+
+### 打标数据修正（同批）
+
+根因：`public.tasks.agent_line` 是 `NOT NULL DEFAULT 'profit_engine'`，而 Go `Create()` 的 INSERT 不含该列 → **09-02 之后新建的任务全部静默继承默认值**，9 条 mis-tag 由此而来（不是有人填错）。
+
+| 对象 | 修正 | 依据 |
+|---|---|---|
+| OS `agent-brain-*`（7） | profit_engine → **account** | payload 明写「本任务是账户 agent_brain 的专属例行，必须显式传 account_name="agent_brain"」 |
+| OS `board-3341a342-verify-daily-review` | → **other** | 一次性核验任务 |
+| OS `v2_health_check` | → **other** | 健康检查，非生产业务线 |
+| v2 12 条 NULL domain | data 5 / signal 2 / monitor 2 / trading 1 / analysis 1 | 同族先例（`v14_risk_check` ↔ 已标 trading 的 `v13_risk_check`）+ 实现模块（`financial_timeliness_check` → `application/jobs/data_jobs.py`） |
+| v2 `session-probe` | **保留 NULL** | 全仓无实现、disabled、溯源不明 → 宁显不藏，不猜 |
+
+备份 `/tmp/scheduler_agentline_20260912-224610/pre_*.json`。修正后分布：OS account 7 / autonomy 5 / other 2 / profit_engine 13；v2 六域齐 + `session-probe` 1 NULL。
+
+> 遗留（不阻塞读取）：`Create()` 仍未写 `agent_line`（新建任务继续继承默认值）；`GetTasksWithStats` 未加该列。
