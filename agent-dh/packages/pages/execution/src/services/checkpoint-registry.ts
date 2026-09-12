@@ -145,6 +145,16 @@ export const CHECKPOINTS: Checkpoint[] = [
     graceMinutes: 60,
     blocksFlow: ['l1_strategy_validate', 'l2_distill']
   },
+  {
+    id: 'm6_attribution',
+    line: 'engine',
+    module: 'M6',
+    name: '盘后业绩归因',
+    verify: { type: 'scheduler_task', taskName: 'attribution-daily' },
+    expectDays: '1-5',
+    expectTime: '18:40',
+    graceMinutes: 30
+  },
 
   // L1 - Strategy Validation
   {

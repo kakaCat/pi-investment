@@ -7,6 +7,7 @@ import { createMarketAlertTool } from './tools/MarketAlertTool';
 import { createSignalTrackTool } from './tools/SignalTrackTool';
 import { createDecisionAuditTool } from './tools/DecisionAuditTool';
 import { createDecisionHistoryTool } from './tools/DecisionHistoryTool';
+import { createDecisionScoresTool } from './tools/DecisionScoresTool';
 
 export interface Config {
   quantsysV2?: {
@@ -58,5 +59,8 @@ export default class IntelligencePlugin extends Service {
     // 决策审计闭环（2026-09-01，对标 agent-ts decision_record/decision_history）
     ctx.tools.register(createDecisionAuditTool(qv2));
     ctx.tools.register(createDecisionHistoryTool(qv2));
+
+    // M6↔L2 决策回流边消费端（2026-09-12，REQ-9bcd0a WP2）
+    ctx.tools.register(createDecisionScoresTool(qv2));
   }
 }
