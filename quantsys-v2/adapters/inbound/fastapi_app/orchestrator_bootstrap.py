@@ -17,6 +17,7 @@ from typing import Optional, Tuple
 
 import structlog
 
+from application.services.trading_day_guard import TradingDayGuard
 from domain.trading.services.market_session_policy import MarketSessionPolicy
 
 logger = structlog.get_logger(__name__)
@@ -25,13 +26,16 @@ _TICK_INTERVAL_SEC = 60
 
 
 def _in_orchestrator_window(now: datetime) -> bool:
-    """编排器**运行时段**：工作日 08:00-17:59（沿用原 daemon cron 的 hour='8-17'）
+    """编排器**运行时段**：交易日 08:00-17:59（沿用原 daemon cron 的 hour='8-17'）
 
     注意：这不是「市况判定」而是「编排器允许跑 tick 的时段」（含盘前/盘后），
-    故**不**收敛到 `MarketSessionPolicy`（策略表达的是相位，不是运行时段）。
-    其中 weekday 近似为日级判断，待 RFC 016 D9 统一为 `TradingDayGuard`（含节假日）。
+    故时段部分**不**收敛到 `MarketSessionPolicy`（策略表达的是相位，不是运行时段）。
+
+    日级判定**委托 `TradingDayGuard`**（RFC 016 §7 红线：禁止自算 weekday）——
+    原实现用 `weekday() < 5`，法定节假日（如 10-01 周四）会被当交易日，
+    使编排器在非交易日照跑 T+1 结转/挂单撮合。
     """
-    return now.weekday() < 5 and 8 <= now.hour <= 17
+    return TradingDayGuard.is_trading_day(now.date()) and 8 <= now.hour <= 17
 
 
 def _in_intraday_window(now: datetime) -> bool:
@@ -41,12 +45,12 @@ def _in_intraday_window(now: datetime) -> bool:
     11:30 / 15:00 端点闭合沿用既有语义）。`:00 / :30` 是**节拍**约束（原 daemon cron），
     与市况无关，保留在此。
 
-    日级仍用 weekday 近似（不引 DB 依赖）；待 D9 换 `MarketSessionService` 真源。
+    日级判定**委托 `TradingDayGuard`**（同上，RFC §7 红线），不再自算 weekday。
     """
     if now.minute not in (0, 30):
         return False
     phase = MarketSessionPolicy.phase_for(
-        now.time(), is_trading_day=now.weekday() < 5,
+        now.time(), is_trading_day=TradingDayGuard.is_trading_day(now.date()),
     )
     return MarketSessionPolicy.is_market_open(phase)
 

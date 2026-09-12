@@ -14,6 +14,20 @@ from pathlib import Path
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _stub_day_source(monkeypatch):
+    """窗口守卫的日级判定现已委托 TradingDayGuard（RFC 016 §7 红线）。
+
+    单测打桩为「仅周末非交易日」，保持无 DB 依赖；节假日感知由
+    `test_intraday_window_honors_holiday` 单独覆盖（否则只是把行为藏进桩里）。
+    """
+    from application.services.trading_day_guard import TradingDayGuard
+    monkeypatch.setattr(
+        TradingDayGuard, 'is_trading_day',
+        classmethod(lambda cls, day=None: (day or datetime(2026, 8, 13)).weekday() < 5),
+    )
+
+
 class TestWindows:
     """tick 窗口守卫（沿用原 daemon cron 语义）"""
 
@@ -34,6 +48,21 @@ class TestWindows:
         assert not _in_intraday_window(datetime(2026, 8, 13, 9, 31))   # 非 :00/:30
         assert not _in_intraday_window(datetime(2026, 8, 13, 12, 0))   # 午休
         assert not _in_intraday_window(datetime(2026, 8, 15, 10, 0))   # 周六
+
+    def test_intraday_window_honors_holiday(self, monkeypatch):
+        """法定节假日（工作日）必须判非交易日——窗口不再自算 weekday（RFC 016 §7 红线）。
+
+        回归背景：原实现用 `now.weekday() < 5`，10-01（周四）会被当交易日，
+        使 intraday 巡检与编排器 tick 在非交易日照跑（用节前陈旧收盘价）。
+        """
+        from application.services.trading_day_guard import TradingDayGuard
+        from adapters.inbound.fastapi_app.orchestrator_bootstrap import (
+            _in_intraday_window, _in_orchestrator_window,
+        )
+        monkeypatch.setattr(
+            TradingDayGuard, 'is_trading_day', classmethod(lambda cls, day=None: False))
+        assert _in_intraday_window(datetime(2026, 10, 1, 10, 0)) is False     # 国庆（周四）
+        assert _in_orchestrator_window(datetime(2026, 10, 1, 10, 0)) is False
 
 
 def test_start_orchestrator_calls_ticks(monkeypatch):
