@@ -154,7 +154,7 @@ export default class TradingPlugin extends Service {
     ctx.tools.register(createTradeVerifyTool(qv2));
 
     // 7. 滑点报告（M5，2026-08-25）- 重构为 BaseTool
-    ctx.tools.register(createSlippageReportTool(osMemory));
+    ctx.tools.register(createSlippageReportTool(qv2, osMemory));
 
     // M4-2: 组合回撤熔断检查（2026-08-26）- 重构为 BaseTool
     ctx.tools.register(createM4CircuitBreakerTool(qv2, osMemory));

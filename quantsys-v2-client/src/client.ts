@@ -1922,6 +1922,15 @@ export class QuantsysV2Client {
     return response.data;
   }
 
+  /** 执行质量报表：决策价 vs 成交价的滑点（2026-09-13 w-a9ec14d7，M5 闭环） */
+  async getSlippageReport(accountName: string = DEFAULT_AGENT_ACCOUNT,
+                          params: { days?: number; symbol?: string } = {}): Promise<ProviderResponse> {
+    const response = await this.client.get(
+      '/api/simulation/accounts/' + encodeURIComponent(accountName) + '/slippage-report',
+      { params }).catch((err: any) => ({ data: { success: false, error: err.message } }));
+    return response.data;
+  }
+
   /** 事件 → 盯盘规则建议（前瞻日历；2026-09-13 w-a9ec14d7 补上消费端） */
   async getEventWatchSuggestions(params: { symbols?: string; days?: number } = {}): Promise<ProviderResponse> {
     const response = await this.client.get('/api/events/watch-suggestions', { params })

@@ -32,7 +32,7 @@ export interface SlippageReportResult {
  * 工具提示词
  */
 export const slippageReportPrompt: ToolPrompt<SlippageReportParams, SlippageReportResult> = {
-  description: '滑点追踪报告：汇总 trade:slippage 落库记录——成交笔数、平均滑点、最大滑点、按标的分布。滑点=成交价 vs 决策时价（方向归一：正值=买贵/卖便宜）。供：评估模拟盘与真实成交的差距（P6 接真金前必看）、执行质量复盘。',
+  description: '滑点追踪报告（数据源=v2 挂单记录 simulation_pending_orders 的决策价/成交价；Agent OS 的 trade:slippage 记忆仅为兜底）——成交笔数、平均/最大滑点、逐笔明细。滑点=成交价 vs 决策时价（方向归一：正值=买贵/卖便宜）。供：评估模拟盘与真实成交的差距（P6 接真金前必看）、执行质量复盘。',
 
   useCases: [
     '评估模拟盘与真实成交的差距',
@@ -73,24 +73,31 @@ export const slippageReportPrompt: ToolPrompt<SlippageReportParams, SlippageRepo
       type: 'string',
       description: '可选：只看某只标的',
     },
+    days: {
+      type: 'number',
+      description: '回溯天数（1-365），默认 30',
+      default: 30,
+    },
+    account_name: {
+      type: 'string',
+      description: '账户名（默认本实例投资账户）',
+    },
   },
 
   output: {
     schema: {
       type: 'object', additionalProperties: true,
       properties: {
-        total_fills: { type: 'number', description: '总成交笔数' },
-        avg_slippage_pct: { type: 'number', description: '平均滑点（%）' },
-        max_slippage_pct: { type: 'number', description: '最大滑点（%）' },
-        by_symbol: {
-          type: 'array',
-          description: '按标的分组统计',
-          items: { type: 'object', additionalProperties: true },
-        },
+        total_fills: { type: 'number', description: '参与统计的成交笔数（决策价与成交价都有值）' },
+        missing_decision_price: { type: 'number', description: '已成交但缺决策价的笔数（单列，不按 0 计入均值）' },
+        avg_slippage_bps: { type: 'number', description: '平均滑点（基点；正=买贵/卖便宜=成本）' },
+        max_slippage_bps: { type: 'number', description: '最大滑点（基点）' },
+        cost_bps_total: { type: 'number', description: '滑点合计（基点）' },
+        records: { type: 'array', description: '逐笔：决策价/成交价/滑点/来源', items: { type: 'object', additionalProperties: true } },
+        source: { type: 'string', description: '数据来源（v2挂单记录 / Agent OS 记忆兜底）' },
       },
-      additionalProperties: true,
     },
-    render: (args, value) => [{
+    render: (_args, value) => [{
       type: 'text',
       text: JSON.stringify(value, null, 2),
     }],

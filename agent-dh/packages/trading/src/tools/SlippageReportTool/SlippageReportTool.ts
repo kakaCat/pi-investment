@@ -2,9 +2,10 @@
  * SlippageReportTool - 滑点报告工具
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { OsMemoryStore } from '../../index';
+import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { slippageReportPrompt, SlippageReportParams, SlippageReportResult } from './prompt';
 
 /**
@@ -20,7 +21,7 @@ export class SlippageReportTool extends BaseTool<SlippageReportParams, SlippageR
 
   protected readonly prompt = slippageReportPrompt;
 
-  constructor(private osClient: OsMemoryStore) {
+  constructor(private qv2: QuantsysV2Client, private osClient: OsMemoryStore) {
     super();
   }
 
@@ -63,7 +64,20 @@ export class SlippageReportTool extends BaseTool<SlippageReportParams, SlippageR
    * Phase 2: 执行任务
    */
   protected async execute(args: SlippageReportParams, _context: ToolContext): Promise<SlippageReportResult> {
-    // 从 osClient 检索滑点记录
+    // 2026-09-13（w-a9ec14d7）**改数据源**：原先只读 Agent OS 记忆 scope=trade:slippage，
+    // 但全仓没有任何写入方 → 本工具此前恒返回 0 条（能力存在但没接线）。
+    // 现优先读 v2 的挂单记录（decision_price / fill_price / slippage_bps 已落在挂单行上），
+    // 记忆通道保留为兜底，并在返回里用 source 字段标明本次数据来自哪。
+    const account = (args as any).account_name || DEFAULT_AGENT_ACCOUNT;
+    try {
+      const res: any = await (this.qv2 as any).getSlippageReport(account, {
+        days: (args as any).days ?? 30, symbol: args.symbol });
+      if (res && res.success === true && res.data) {
+        return { ...res.data, source: 'v2挂单记录(simulation_pending_orders)' } as unknown as SlippageReportResult;
+      }
+    } catch { /* v2 不可用则落到记忆兜底 */ }
+
+    // 从 osClient 检索滑点记录（兜底通道）
     const searchResult: any = await this.osClient.searchMemory({
       q: args.symbol ? `slippage ${args.symbol}` : 'slippage',
       kind: 'episode',

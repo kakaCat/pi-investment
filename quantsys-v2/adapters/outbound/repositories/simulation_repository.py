@@ -434,8 +434,14 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         price_limit: Optional[float] = None,
         reason: Optional[str] = None,
         execute_at: str = 'market_open',
+        decision_price: Optional[float] = None,
+        price_source: Optional[str] = None,
         commit: bool = True
     ) -> SimulationPendingOrder:
+        # 2026-09-13（w-a9ec14d7，M5 执行质量闭环）：
+        # 额外记录**决策时价**与来源，用于事后算滑点（决策价 vs 成交价）。
+        # 取不到时传 None（不阻断下单）——滑点算不出来是「缺数据」，不是「没滑点」；
+        # 宁可在报表里显示 N/A，也不要编一个基准价。
         """创建条件委托（挂单），初始状态 pending"""
         order = SimulationPendingOrder(
             account_name=account_name,
@@ -447,6 +453,9 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             reason=reason,
             execute_at=execute_at,
             status='pending',
+            decision_price=decision_price,
+            decision_at=datetime.now() if decision_price else None,
+            price_source=price_source,
         )
         self.session.add(order)
         if commit:
@@ -479,6 +488,8 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         status: str,
         fail_reason: Optional[str] = None,
         executed_trade_id: Optional[int] = None,
+        fill_price: Optional[float] = None,
+        slippage_bps: Optional[float] = None,
         commit: bool = True
     ) -> bool:
         """更新挂单状态（executed/failed/cancelled）"""
@@ -490,6 +501,10 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             order.fail_reason = fail_reason
         if executed_trade_id is not None:
             order.executed_trade_id = executed_trade_id
+        if fill_price is not None:
+            order.fill_price = fill_price
+        if slippage_bps is not None:
+            order.slippage_bps = slippage_bps
         order.updated_at = datetime.now()
         if commit:
             self.session.commit()

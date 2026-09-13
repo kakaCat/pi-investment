@@ -275,10 +275,23 @@ class AccountTradingService:
                             'hint': 'allow_duplicate=true 放行；或先 cancel 原挂单再挂新单',
                         })
 
+            # 决策价（2026-09-13 M5 执行质量闭环）：记录下单那刻看到的价格，供事后算滑点。
+            # 取不到**不阻断下单**：滑点算不出来是「缺数据」而不是「没滑点」，
+            # 但来源要如实标注（R-013），否则报表会把 N/A 当成 0。
+            decision_price, price_source = None, None
+            try:
+                decision_price = self._get_price(symbol)
+                price_source = 'RealtimeQuoteService@下单时刻'
+            except Exception as exc:  # noqa: BLE001
+                price_source = 'unavailable:%s' % type(exc).__name__
+                logger.warning('pending_order_decision_price_unavailable',
+                               symbol=symbol, error=str(exc)[:120])
+
             pending = self.repo.create_pending_order(
                 account_name=account_name, action=action, symbol=symbol,
                 shares=shares, amount=amount, price_limit=price_limit,
-                reason=reason, execute_at='market_open')
+                reason=reason, execute_at='market_open',
+                decision_price=decision_price, price_source=price_source)
 
             logger.info("pending_order_placed",
                         account=account_name, action=action, symbol=symbol,
@@ -513,13 +526,25 @@ class AccountTradingService:
                     price_limit=float(po.price_limit) if po.price_limit is not None else None,
                     reason=po.reason,
                 )
+                # 滑点（M5 闭环）：方向归一——正数 = 买贵/卖便宜 = 成本。
+                # 无决策价（下单时取不到）则留 None，绝不拿成交价自比冒充 0 滑点。
+                fill_px = result.get('price')
+                dp = float(po.decision_price) if po.decision_price is not None else None
+                slip = None
+                if dp and fill_px:
+                    sign = 1.0 if str(po.action).upper() == 'BUY' else -1.0
+                    slip = round(sign * (float(fill_px) - dp) / dp * 10000, 2)
                 self.repo.update_pending_order_status(
-                    po.id, 'executed', executed_trade_id=result['trade_id'])
+                    po.id, 'executed', executed_trade_id=result['trade_id'],
+                    fill_price=fill_px, slippage_bps=slip)
                 executed += 1
                 details.append({
                     'pending_order_id': po.id,
                     'status': 'executed',
                     'trade_id': result['trade_id'],
+                    'decision_price': dp,
+                    'fill_price': float(fill_px) if fill_px else None,
+                    'slippage_bps': slip,
                 })
             except TradingError as e:
                 self.repo.update_pending_order_status(

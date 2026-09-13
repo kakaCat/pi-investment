@@ -4,6 +4,7 @@
 保持前后端契约一致（不用 shared.api_response）。
 """
 from collections import defaultdict
+from datetime import datetime   # 滑点报表的窗口过滤（2026-09-13）
 from typing import Any, Dict, Optional
 
 import structlog
@@ -15,7 +16,7 @@ from application.services.account_trading_service import (
     AccountTradingService, TradingError,
 )
 from adapters.outbound.repositories.simulation_repository import (
-    SimulationORMRepository,
+    SimulationORMRepository, SimulationPendingOrder,   # 后者用于滑点报表（M5 闭环）
 )
 
 logger = structlog.get_logger(__name__)
@@ -117,6 +118,63 @@ async def list_pending_orders(account_name: str,
             status=None if status == 'all' else status)
         return {'success': True, 'data': [o.to_dict() for o in orders]}
     except Exception as e:
+        return JSONResponse(status_code=500, content={'success': False, 'error': str(e)})
+
+
+@router.get("/accounts/{account_name}/slippage-report")
+async def slippage_report(account_name: str, days: int = Query(30, ge=1, le=365),
+                          symbol: Optional[str] = Query(None)):
+    """执行质量报表：决策价 vs 成交价的滑点（2026-09-13 w-a9ec14d7，M5 闭环）
+
+    口径（R-013 可追溯）：
+      · slippage_bps 方向归一：**正数 = 买贵 / 卖便宜 = 成本**；
+      · 只统计**两者都有值**的已成交挂单；无决策价的单子单列 missing，
+        绝不按 0 计入均值（否则「缺数据」会被平均成「没滑点」）；
+      · price_source 一并返回，便于判断基准价的可信来源。
+    """
+    try:
+        from datetime import timedelta
+        svc = AccountTradingService(repo=SimulationORMRepository())
+        since = datetime.now() - timedelta(days=days)
+        rows = (svc.repo.session.query(SimulationPendingOrder)
+                .filter(SimulationPendingOrder.account_name == account_name,
+                        SimulationPendingOrder.status == 'executed')
+                .order_by(SimulationPendingOrder.id.desc())
+                .limit(1000).all())
+        recs, missing = [], 0
+        for o in rows:
+            if getattr(o, 'updated_at', None) and o.updated_at.replace(tzinfo=None) < since:
+                continue
+            if symbol and o.symbol != symbol:
+                continue
+            if o.slippage_bps is None:
+                missing += 1
+            recs.append({
+                'pending_order_id': o.id, 'symbol': o.symbol,
+                'action': str(o.action).lower(), 'shares': o.shares,
+                'decision_price': float(o.decision_price) if o.decision_price is not None else None,
+                'price_source': o.price_source,
+                'fill_price': float(o.fill_price) if o.fill_price is not None else None,
+                'slippage_bps': float(o.slippage_bps) if o.slippage_bps is not None else None,
+                'executed_trade_id': o.executed_trade_id,
+                'at': str(getattr(o, 'updated_at', '') or ''),
+            })
+        vals = [r['slippage_bps'] for r in recs if r['slippage_bps'] is not None]
+        payload = {
+            'account_name': account_name, 'days': days,
+            'total_fills': len(vals),
+            'missing_decision_price': missing,
+            'avg_slippage_bps': round(sum(vals) / len(vals), 2) if vals else None,
+            'max_slippage_bps': max(vals) if vals else None,
+            'min_slippage_bps': min(vals) if vals else None,
+            'cost_bps_total': round(sum(vals), 2) if vals else None,
+            'records': recs,
+            'note': ('平均/极值只统计 decision_price 与 fill_price 都有的单子；'
+                     'missing_decision_price 单列——缺数据不等于零滑点'),
+        }
+        return {'success': True, 'data': payload}
+    except Exception as e:
+        logger.error("slippage_report_failed", account=account_name, error=str(e), exc_info=True)
         return JSONResponse(status_code=500, content={'success': False, 'error': str(e)})
 
 
