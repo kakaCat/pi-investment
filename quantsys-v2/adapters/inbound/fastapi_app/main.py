@@ -106,6 +106,18 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ Failed to register event ingest jobs: {e}")
 
+    # core 建仓计划任务（2026-09-13 w-a9ec14d7：从 scripts/core_plan.py 上迁）
+    # 上迁原因：用户裁定「脚本不能写进 v2 项目，脚本只能测试用」；
+    # 但本能力是账户建仓决策入口（工作日 09:05 生成计划，09:10 的 agent 任务只读取文件）。
+    try:
+        from application.jobs.job_registry import job_registry
+        from application.services.core_plan_service import build_core_plan_jobs
+        for _job in build_core_plan_jobs():
+            job_registry.register(_job)
+        logger.info("✅ Registered: core plan job (core_plan_generate)")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to register core plan job: {e}")
+
     # P1/P2 自维护回路定时任务（RFC 015 §4.5 / §2.5，2026-09-11 w-f436d4ea）
     # 补上两条此前缺失的回路：
     #   · minute_kline_sync      —— 分钟线增量落库（此前 quant.minute_klines 断更至 2026-05-29）

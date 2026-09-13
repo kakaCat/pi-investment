@@ -1,4 +1,14 @@
-"""投资脑 core 建仓计划（core_plan.py，2026-09-13 w-c8cae280）——**只出计划，不自动下单**
+"""投资脑 core 建仓计划服务（2026-09-13 w-a9ec14d7 从 scripts/core_plan.py 上迁）
+
+为什么上迁：用户 2026-09-13 裁定「脚本不能写进 v2 项目，脚本只能测试用」。
+本文件原先在 scripts/core_plan.py，但它是**账户建仓决策的入口**（工作日 09:10 例行任务调用），
+属于生产能力而非一次性脚本 —— 故迁入 application 层，并由 core_plan_generate 定时任务驱动。
+
+⚠️ 已知技术债：内部仍以 subprocess 调 psql 取数（原脚本写法），后续应改为走 engine/仓储。
+
+原始说明如下 ——
+
+**只出计划，不自动下单**
 
 依据（当日研究结论）：选股型叠层全部负超额；**等权 core + 波动目标 + 回撤闸门**稳健
 （2024-07~2026-09：Sharpe 0.98→1.22、回撤 -17.9%→-10.6%，9 组参数/3 种池子规模一致）。
@@ -19,7 +29,10 @@ import numpy as np
 import pandas as pd
 import io
 
-ROOT = Path(__file__).resolve().parents[1]
+# ⚠️ 路径基准（2026-09-13 上迁时实测踩到）：本文件从 scripts/ 迁到 application/services/ 后，
+# parents[1] 变成了 application/ 而不是 quantsys-v2/ —— 计划会被写到 application/config/core_plan.json，
+# 而 09:10 的任务读的是 quantsys-v2/config/core_plan.json → **静默读到旧文件**。故用 parents[2]。
+ROOT = Path(__file__).resolve().parents[2]
 ENV = dict(os.environ, PATH="/opt/homebrew/bin:/usr/local/bin:" + os.environ.get("PATH", ""))
 DEF_START, DEF_END = "2024-01-01", "2024-06-30"
 OUT = ROOT / "config" / "core_plan.json"
@@ -44,34 +57,16 @@ def psql_csv(q):
     return df
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--names", type=int, default=15)
-    ap.add_argument("--single-cap", type=float, default=0.15)   # 单只上限：core 的 15%
-    ap.add_argument("--min-names", type=int, default=8)          # 持仓数下限
-    ap.add_argument("--growth-sleeve-pct", type=float, default=0.05)  # 成长板独立额度（占总资产）
-    ap.add_argument("--growth-names", type=int, default=3)
-    # 2026-09-13 证据收敛：行业动量与风格两路 tilt **默认关闭**（保留开关，随时可恢复）。
-    # 依据（docs/work-logs/2026-09/strategy-research-journal.md）：
-    #   · 行业动量：轮动 top20% 费后 CAGR +4.40% vs 同池等权 +22.19%（超额 -17.79pp）；
-    #     多空价差月均 -0.14%（无预测力）；直接 A/B 权重 tilt 的相对贡献仅 +0.29pp CAGR / +0.01 Sharpe（与零无异），
-    #     却每次调仓多付 0.48% 成本 → 是装饰品，不是 edge。
-    #   · 风格：库内风格序列仅 8 条（2026-06-02 起），检验窗口 2024-07 起 → **无法验证**，故不默认启用未验证的调整。
-    ap.add_argument("--momentum-tilt", action="store_true", help="启用行业动量 tilt（默认关，见脚本头注释的证据）")
-    ap.add_argument("--style-tilt", action="store_true", help="启用风格 tilt（默认关：无可用历史序列，未能验证）")
-    ap.add_argument("--growth-min-amount", type=float, default=5e7)   # 成长板候选日成交额下限（元）
-    # 2026-09-13（用户裁定"要解决"）：子额度**独立质量门槛**，不再沿用 core 的松门槛。
-    # 依据：收紧前子额度实买 300319(ROE 3.05/PE 31.2)、300413(ROE 0.86/PE 28.5)——
-    # 后者是"几乎不赚钱却给 28 倍估值"，正是用户警告过的价值陷阱画像；而 core 持仓 ROE 中位 5.7。
-    # 门槛 ROE>0/PE<=60 是为主板蓝筹设计的，用在成长板上会持续买入低质量标的。
-    ap.add_argument("--growth-min-roe", type=float, default=5.0)
-    ap.add_argument("--growth-max-pe", type=float, default=40.0)
-    ap.add_argument("--target-vol", type=float, default=0.15)
-    ap.add_argument("--max-exposure", type=float, default=0.25)   # 首期上限：25%（regime 允许 40% 以内）
-    ap.add_argument("--account", default="agent_brain")
-    ap.add_argument("--max-price", type=float, default=30.0)      # 100 股整手可负担
-    ap.add_argument("--exclude-near-high", type=float, default=-0.05)  # 排除"距52周高 <5%"的追高标的
-    a = ap.parse_args()
+def generate(**kwargs) -> dict:
+    class _A:
+        pass
+    a = _A()
+    for k, v in dict(names=15, single_cap=0.15, min_names=8, growth_sleeve_pct=0.05, growth_names=3, growth_min_amount=50000000.0, growth_min_roe=5.0, growth_max_pe=40.0, target_vol=0.15, max_exposure=0.25, account=None, max_price=30.0, exclude_near_high=-0.05, momentum_tilt=False, style_tilt=False).items():
+        setattr(a, k, v)
+    for k, v in (kwargs or {}).items():
+        setattr(a, k, v)
+    if not a.account:
+        raise ValueError('core_plan generate 需要 account 参数（账户事实源见 agents.json / account_list）')
 
     # 1) 候选池：窗口前定义（2024H1）流动性 Top，含价格与流动性明细
     px = psql_csv("select symbol, max(trade_date)::text as d, avg(amount) as amt from quant.daily_klines "
@@ -483,8 +478,55 @@ def main():
              target_amount + _sleeve_amt, (target_expo + _sleeve_pct) * 100))
     print("现金保留 %.1f%%（宪法下限 10%%）" % ((1 - target_expo - _sleeve_pct) * 100))
     print("计划已写入", OUT)
-    return 0
+    return plan
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+
+class CorePlanGenerateJob:
+    """core 建仓计划生成定时任务（工作日 09:05，2026-09-13 w-a9ec14d7）
+
+    为什么是 job 而不是脚本：用户 2026-09-13 裁定「脚本不能写进 v2 项目，脚本只能测试用」。
+    本能力原先由 scripts/core_plan.py 承担、由 09:10 的 agent 任务用 bash 调脚本 —— 属生产能力，
+    上迁为 application 层服务 + 定时任务后，agent 任务只需**读取**生成的计划文件。
+    """
+
+    def __init__(self):
+        self._name = "core_plan_generate"
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def description(self) -> str:
+        return "core 建仓计划生成：等权分散 + 波动目标 + 回撤闸门（只出计划，不下单）"
+
+    @property
+    def timeout_seconds(self) -> int:
+        return 600
+
+    async def execute(self, params=None):
+        from application.jobs.job_protocol import JobResult, result_from_dict
+        import asyncio
+        p = params or {}
+        try:
+            plan = await asyncio.to_thread(generate, **p)
+        except Exception as exc:  # noqa: BLE001 —— 失败必须显式（调度器据此标红）
+            import logging
+            logging.getLogger(__name__).exception("core_plan_generate failed")
+            return JobResult.fail(self._name, "%s: %s" % (type(exc).__name__, exc))
+        h = plan.get("holdings") or []
+        s = plan.get("growth_sleeve", {}).get("holdings") or []
+        return result_from_dict(self._name,
+                                "core_plan generated: core=%d sleeve=%d" % (len(h), len(s)),
+                                {"account": plan.get("account"), "core": len(h), "sleeve": len(s),
+                                 "exposure": plan.get("exposure", {}).get("target_pct")})
+
+
+def build_core_plan_jobs():
+    """构造 core 计划任务（组合根在 main.py 注册进 JobRegistry）"""
+    return [CorePlanGenerateJob()]
