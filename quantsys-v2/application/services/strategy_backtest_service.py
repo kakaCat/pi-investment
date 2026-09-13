@@ -17,6 +17,15 @@ from domain.backtest.engine.script_strategy_executor import ScriptStrategyExecut
 
 logger = structlog.get_logger(__name__)
 
+# ===== 交易成本（2026-09-13 w-c8cae280 补）=====
+# 此前本回测器**不含任何交易成本**，使 quant.backtest_results 与"每日策略校验"分数系统性偏乐观
+# （高换手策略尤甚）。现按 A 股常规口径计入：佣金 2.5bp（双边）、印花税 5bp（仅卖出）、滑点 5bp（双边）。
+COMMISSION_RATE = 2.5 / 10000.0
+STAMP_DUTY_RATE = 5.0 / 10000.0
+SLIPPAGE_RATE = 5.0 / 10000.0
+COST_RATE_BUY = COMMISSION_RATE + SLIPPAGE_RATE
+COST_RATE_SELL = COMMISSION_RATE + STAMP_DUTY_RATE + SLIPPAGE_RATE
+
 
 @dataclass
 class PositionTier:
@@ -312,7 +321,7 @@ class StrategyBacktestService:
                         else:
                             exit_price = close_price
 
-                        sell_value = total_shares * exit_price
+                        sell_value = total_shares * exit_price * (1 - COST_RATE_SELL)
                         cash += sell_value
                         pnl = sell_value - total_cost
                         pnl_pct = pnl / total_cost if total_cost > 0 else 0
@@ -372,7 +381,7 @@ class StrategyBacktestService:
                             sell_shares = int(pt.shares * sell_pct)
 
                             if sell_shares > 0:
-                                sell_value = sell_shares * exit_price
+                                sell_value = sell_shares * exit_price * (1 - COST_RATE_SELL)
                                 cost = sell_shares * pt.entry_price
                                 cash += sell_value
 
@@ -456,10 +465,12 @@ class StrategyBacktestService:
 
                         # 计算该批次分配资金
                         allocated_cash = initial_cash * target_pct
-                        shares = int(min(allocated_cash, cash) / entry_price / 100) * 100  # 整百股
+                        # 2026-09-13：按**含费单价**计算股数——否则满仓单会因"现金不够付手续费"被静默跳过
+                        effective_entry = entry_price * (1 + COST_RATE_BUY)
+                        shares = int(min(allocated_cash, cash) / effective_entry / 100) * 100  # 整百股
 
                         if shares > 0:
-                            cost = shares * entry_price
+                            cost = shares * effective_entry   # 含佣金+滑点
                             if cash >= cost:
                                 cash -= cost
 
