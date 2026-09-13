@@ -86,9 +86,6 @@ def get_factor_adapter():
 
 # ── P1-5 新增服务 getter 函数 ──
 
-def get_order_service():
-    return get_service_factory().get_order_service()
-
 def get_account_trading_service():
     return get_service_factory().get_account_trading_service()
 

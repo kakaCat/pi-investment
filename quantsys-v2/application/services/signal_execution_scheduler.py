@@ -20,7 +20,6 @@ import structlog
 
 from application.services.strategy_code_service import StrategyCodeService
 from application.services.risk_check_service import RiskCheckService
-from application.services.new_order_service import create_order
 from application.trading.paper_trading_engine import PaperTradingEngine, Signal as TradeSignal
 from infrastructure.services.service_factory import ServiceFactory
 from domain.ports import IPortfolioRepository, IStockRepository, IKlineRepository
@@ -153,7 +152,7 @@ class SignalExecutionScheduler:
                     },
                     'orders_summary': {
                         'total_created': len(orders_created),
-                        'order_ids': orders_created
+                        'executed_signal_ids': orders_created
                     }
                 }
             })
@@ -371,17 +370,24 @@ class SignalExecutionScheduler:
 
     def _batch_create_orders(self, approved_signals: List[Dict]) -> List[int]:
         """
-        为通过的信号批量创建订单并通过模拟引擎执行
+        为通过的信号执行下单（模拟交易引擎）
+
+        2026-09-14（REQ-24e15d B4-c2）：本方法原先**先**调 legacy
+        application.services.order_service.create_order()（写 quant.orders）
+        **再**喂给 PaperTradingEngine。但 quant.orders 已于 2026-08-25 归档不存在，
+        该调用必抛 UndefinedTable、被下方 except 吞掉后 continue ——
+        trade_signals 永远为空，**模拟引擎一单都不会执行**，整条信号执行链
+        静默失效（日志只留下"订单创建失败"）。删除该 legacy 调用后，
+        本方法回归单一职责：只走模拟引擎（落 simulation_* 表）。
 
         Args:
             approved_signals: 通过风控的信号列表
 
         Returns:
-            创建的订单ID列表
+            实际成交的信号 ID 列表（调用方取其长度写 signal_executions.orders_created）
         """
-        logger.info("Step 4: 批量创建订单 + 模拟执行")
+        logger.info("Step 4: 批量执行信号（模拟交易引擎）")
 
-        order_ids = []
         trade_signals = []  # 收集转换为引擎信号
 
         for signal in approved_signals:
@@ -393,24 +399,6 @@ class SignalExecutionScheduler:
                     continue
 
                 close_price = float(latest_kline['close'])
-
-                # 计算限价单价格
-                if signal['action'] == 'BUY':  # signals 大写契约（08-13 统一）
-                    limit_price = round(close_price * 1.01, 2)
-                else:
-                    limit_price = round(close_price * 0.99, 2)
-
-                # 创建订单（保留原有订单系统记录）
-                order_id = create_order(
-                    symbol=signal['symbol'],
-                    action=signal['action'],
-                    order_type='limit',
-                    quantity=signal['quantity'],
-                    price=limit_price,
-                    reason=signal.get('reason', 'Signal execution'),
-                    signal_id=signal['id']
-                )
-                order_ids.append(order_id)
 
                 # 转换为 PaperTradingEngine 信号格式
                 trade_signal = TradeSignal(
@@ -425,16 +413,13 @@ class SignalExecutionScheduler:
                 )
                 trade_signals.append(trade_signal)
 
-                logger.info(
-                    f"订单创建成功: {signal['symbol']} {signal['action']} "
-                    f"qty={signal['quantity']} price={limit_price} order_id={order_id}"
-                )
-
             except Exception as e:
-                logger.error(f"订单创建失败: {signal.get('symbol')} - {str(e)}")
+                logger.error(f"信号转换失败: {signal.get('symbol')} - {str(e)}")
                 continue
 
-        # 通过模拟交易引擎执行
+        executed_signal_ids: List[int] = []
+
+        # 通过模拟交易引擎执行（唯一的落库路径：simulation_* 表）
         if trade_signals:
             try:
                 # 获取当前价格
@@ -447,6 +432,11 @@ class SignalExecutionScheduler:
                 )
 
                 executed = sum(1 for r in trade_results if r.success)
+                executed_signal_ids = [
+                    int(r.signal.signal_id)
+                    for r in trade_results
+                    if r.success and str(r.signal.signal_id or '').strip().isdigit()
+                ]
                 logger.info(
                     f"模拟交易执行完成: 总数={len(trade_signals)}, "
                     f"成功={executed}, 失败={len(trade_signals)-executed}"
@@ -455,9 +445,9 @@ class SignalExecutionScheduler:
             except Exception as e:
                 logger.error(f"模拟交易执行失败: {str(e)}")
 
-        logger.info(f"订单创建完成: 总数={len(order_ids)}")
+        logger.info(f"信号执行完成: 成交={len(executed_signal_ids)}")
 
-        return order_ids
+        return executed_signal_ids
 
     def _get_current_prices(self, symbols: List[str]) -> Dict[str, float]:
         """获取股票当前价格"""

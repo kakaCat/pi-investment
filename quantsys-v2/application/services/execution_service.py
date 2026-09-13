@@ -624,10 +624,9 @@ def get_execution_report(
                 target_order = o
                 break
 
-        if target_order is None:
-            from infrastructure.services.service_factory import ServiceFactory
-            portfolio_repo = ServiceFactory.get_portfolio_repository()
-            target_order = portfolio_repo.get_order(int(order_id)) if order_id.isdigit() else None
+        # 2026-09-14（REQ-24e15d B4-c2）：原此处有 legacy 兜底
+        # portfolio_repo.get_order()（读 quant.orders，该表已归档不存在），
+        # 已随 legacy 订单栈一并删除。本接口只认券商回报的订单列表。
 
         if target_order is None:
             return {

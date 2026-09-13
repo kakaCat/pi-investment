@@ -15,9 +15,11 @@ class TestSignalExecutionScheduler:
     """测试信号执行调度器"""
 
     @pytest.fixture
-    def scheduler(self):
-        """创建调度器实例"""
-        return SignalExecutionScheduler()
+    def scheduler(self, mock_paper_engine):
+        """创建调度器实例（注入 mock 模拟引擎，避免真实落库）"""
+        s = SignalExecutionScheduler()
+        s._paper_engine = mock_paper_engine
+        return s
 
     @pytest.fixture
     def mock_strategy_service(self):
@@ -74,10 +76,18 @@ class TestSignalExecutionScheduler:
         yield mock
 
     @pytest.fixture
-    def mock_create_order(self):
-        """Mock订单创建函数"""
-        with patch('application.services.signal_execution_scheduler.create_order') as mock:
-            yield mock
+    def mock_paper_engine(self):
+        """Mock 模拟交易引擎
+
+        2026-09-14（REQ-24e15d B4-c2）：legacy create_order 已随 quant.orders
+        归档一并删除；orders_created 现由模拟引擎的实际成交结果决定。
+        """
+        mock = MagicMock()
+        result = MagicMock()
+        result.success = True
+        result.signal.signal_id = '1'
+        mock.execute_signals.return_value = [result]
+        yield mock
 
     def test_execute_daily_signals_success(
         self,
@@ -90,7 +100,7 @@ class TestSignalExecutionScheduler:
         mock_kline_repo,
         mock_stock_repo,
         mock_portfolio_repo,
-        mock_create_order
+        mock_paper_engine
     ):
         """测试完整的每日信号执行流程"""
         # 准备测试数据
@@ -146,8 +156,7 @@ class TestSignalExecutionScheduler:
         }
 
         # Mock订单创建
-        mock_create_order.return_value = 1001
-
+        
         # Mock日志创建
         mock_log_repo.create_execution_log.return_value = 1
 
@@ -180,7 +189,7 @@ class TestSignalExecutionScheduler:
         mock_signal_repo.create_signal.assert_called()
         mock_signal_repo.get_signals_by_date.assert_called_once_with(execution_date)
         mock_risk_service.check_signal.assert_called_once()
-        mock_create_order.assert_called_once()
+        mock_paper_engine.execute_signals.assert_called_once()
         mock_log_repo.create_execution_log.assert_called_once()
         mock_log_repo.update_execution_log.assert_called()
 
@@ -194,7 +203,7 @@ class TestSignalExecutionScheduler:
         mock_log_repo,
         mock_stock_repo,
         mock_portfolio_repo,
-        mock_create_order
+        mock_paper_engine
     ):
         """测试信号被风控拒绝的情况"""
         execution_date = date.today().strftime('%Y-%m-%d')
@@ -260,7 +269,7 @@ class TestSignalExecutionScheduler:
         assert result['orders_created'] == 0
 
         # 验证订单创建未被调用
-        mock_create_order.assert_not_called()
+        mock_paper_engine.execute_signals.assert_not_called()
 
         # 验证信号状态更新为rejected
         update_calls = mock_signal_repo.update_signal.call_args_list
@@ -346,92 +355,6 @@ class TestSignalExecutionScheduler:
         # 验证结果 - 策略错误不应导致整个流程失败
         assert result['success'] is True
         assert result['strategies_run'] == 1  # 策略被尝试运行
-
-    def test_limit_price_calculation(
-        self,
-        scheduler,
-        mock_strategy_repo,
-        mock_strategy_service,
-        mock_signal_repo,
-        mock_risk_service,
-        mock_log_repo,
-        mock_kline_repo,
-        mock_stock_repo,
-        mock_portfolio_repo,
-        mock_create_order
-    ):
-        """测试限价单价格计算"""
-        execution_date = date.today().strftime('%Y-%m-%d')
-
-        # Mock策略列表
-        mock_strategy_repo.get_all.return_value = [
-            {'id': 1, 'strategy_name': '测试策略', 'is_active': True}
-        ]
-
-        # Mock策略生成买入信号
-        mock_strategy_service.generate_signal.return_value = {
-            'symbol': '000001.SH',
-            'signal_type': 'buy',
-            'price': 1680.0,
-            'confidence': 0.85
-        }
-
-        # Mock信号创建
-        mock_signal_repo.create_signal.return_value = 1
-
-        # Mock待处理信号
-        mock_signal_repo.get_signals_by_date.return_value = [
-            {
-                'id': 1,
-                'symbol': '000001.SH',
-                'action': 'BUY',
-                'status': 'pending',
-                'price': 1680.0
-            }
-        ]
-
-        # Mock风控检查通过
-        mock_risk_service.check_signal.return_value = {
-            'passed': True,
-            'quantity': 100
-        }
-
-        # Mock K线数据
-        mock_kline_repo.get_latest_daily_kline.return_value = {
-            'close': 1000.0
-        }
-
-        # Mock股票信息
-        mock_stock_repo.get_by_symbol.return_value = {
-            'name': '测试股票'
-        }
-
-        # Mock订单创建
-        mock_create_order.return_value = 1001
-
-        # Mock日志创建
-        mock_log_repo.create_execution_log.return_value = 1
-
-        # 替换调度器的依赖
-        scheduler.strategy_repo = mock_strategy_repo
-        scheduler.strategy_service = mock_strategy_service
-        scheduler.signal_repo = mock_signal_repo
-        scheduler.risk_service = mock_risk_service
-        scheduler.log_repo = mock_log_repo
-        scheduler.kline_repo = mock_kline_repo
-        scheduler.stock_repo = mock_stock_repo
-        scheduler.portfolio_repo = mock_portfolio_repo
-
-        # 执行测试
-        result = scheduler.execute_daily_signals()
-
-        # 验证订单创建时的价格计算
-        # 买入：1000.0 * 1.01 = 1010.0
-        mock_create_order.assert_called_once()
-        call_args = mock_create_order.call_args
-        assert call_args.kwargs['price'] == 1010.0
-        assert call_args.kwargs['action'] == 'BUY'
-        assert call_args.kwargs['quantity'] == 100
 
     def test_get_stock_pool(self, scheduler):
         """测试获取股票池"""

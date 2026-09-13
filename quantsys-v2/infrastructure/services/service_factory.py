@@ -285,16 +285,6 @@ class ServiceFactory:
 
     @classmethod
     @lru_cache(maxsize=1)
-    def get_order_service(cls):
-        """获取OrderService实例（模块级单例 new_order_service）"""
-        if 'order_service' not in cls._instances:
-            from application.services import new_order_service
-            cls._instances['order_service'] = new_order_service
-            logger.info("OrderService initialized (via new_order_service)")
-        return cls._instances['order_service']
-
-    @classmethod
-    @lru_cache(maxsize=1)
     def get_account_trading_service(cls):
         """获取AccountTradingService实例"""
         if 'account_trading_service' not in cls._instances:
@@ -832,7 +822,6 @@ class ServiceFactory:
         cls.get_data_quality_service.cache_clear()
         cls.get_strategy_rotation_service.cache_clear()
         # P1-5 新增
-        cls.get_order_service.cache_clear()
         cls.get_account_trading_service.cache_clear()
         cls.get_market_data_service.cache_clear()
         cls.get_hk_market_data_service.cache_clear()

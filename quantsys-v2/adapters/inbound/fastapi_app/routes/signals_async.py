@@ -382,22 +382,13 @@ def mark_error_signal(signal_id: int, payload: Optional[Dict[str, Any]] = Body(N
     return api_response(updated_signal, message='信号已标记为错误')
 
 
-@router.post('/api/signals/execute')
-@handle_api_error
-def execute_signal(payload: Optional[Dict[str, Any]] = Body(None)):
-    data = payload
-    symbol = data.get('symbol') if data else None
-    signal = data.get('signal') if data else None
-    order_type = data.get('order_type', 'limit') if data else 'limit'
-    if not symbol or not signal:
-        return error_response({'success': False, 'error': 'Missing symbol or signal'}, 400)
-    try:
-        from application.services.new_order_service import create_order_from_signal
-        result = create_order_from_signal(signal, symbol, order_type)
-        return {'success': True, **result}
-    except Exception as e:
-        logger.error(f"Failed to execute signal: {e}", exc_info=True)
-        return error_response({'success': False, 'error': str(e)}, 500)
+# 2026-09-14（REQ-24e15d B4-c2）：原 POST /api/signals/execute 已删除。
+# 它走 legacy application.services.order_service.create_order() → INSERT INTO
+# quant.orders，而该表已于 2026-08-25 归档不存在 ⇒ 调用必 500（且是全仓唯一
+# 残留的 quant.orders 写入点）。删除前已核：agent-dh / agent-ts / web-frontend
+# 三端均无任何调用方。信号下单的现役路径是 account_trading_service /
+# PaperTradingEngine（落 simulation_* 表），如需再次对外暴露下单接口，
+# 应基于该路径重新设计并明确 account_name 语义。
 
 
 @router.post('/api/signals/backtest-signal')
