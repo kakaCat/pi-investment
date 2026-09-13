@@ -45,6 +45,7 @@ def main():
     ap.add_argument("--max-exposure", type=float, default=0.25)   # 首期上限：25%（regime 允许 40% 以内）
     ap.add_argument("--account", default="agent_brain")
     ap.add_argument("--max-price", type=float, default=30.0)      # 100 股整手可负担
+    ap.add_argument("--exclude-near-high", type=float, default=-0.05)  # 排除"距52周高 <5%"的追高标的
     a = ap.parse_args()
 
     # 1) 候选池：窗口前定义（2024H1）流动性 Top，含价格与流动性明细
@@ -58,6 +59,16 @@ def main():
     uni = px.merge(latest, on="symbol", how="inner", suffixes=("_def", "_now"))
     uni = uni[(uni["close"] > 0) & (uni["close"] <= a.max_price)]
     uni = uni.sort_values("amt", ascending=False)
+    # 不追高（2026-09-13 基准率检验）：距 52 周高 ≤3% 的标的，未来 20/60 日**中位收益为负**、胜率<50%；
+    # 而距高 <-30% 的深跌标的 120 日中位 +11.1%、胜率 66.8%。故默认排除近高标的。
+    hi = psql_csv("select symbol, max(close) as hi52 from quant.daily_klines where trade_date >= "
+                  "(select max(trade_date) - 365 from quant.daily_klines) group by symbol")
+    hi["symbol"] = hi["symbol"].astype(str).str.zfill(6)
+    uni = uni.merge(hi, on="symbol", how="left")
+    uni["dist_high"] = uni["close"] / uni["hi52"] - 1
+    before = len(uni)
+    uni = uni[uni["dist_high"] <= a.exclude_near_high]
+    print("不追高过滤：%d → %d 只（排除距52周高 > %.0f%% 的标的）" % (before, len(uni), a.exclude_near_high * 100))
     picks = uni.head(a.names)
 
     # 2) 账户与持仓

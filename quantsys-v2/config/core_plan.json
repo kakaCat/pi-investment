@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-13T13:15:46",
+ "generated_at": "2026-09-13T13:18:49",
  "account": "agent_brain",
  "mode": "PLAN_ONLY（不下单）",
  "account_total": 98922.97,
@@ -7,10 +7,10 @@
  "exposure": {
   "target_pct": 0.175,
   "first_phase_cap_pct": 0.35,
-  "core_realized_vol_ann": 0.1061,
+  "core_realized_vol_ann": 0.1352,
   "vol_target": 0.15,
   "w_vol": 1.0,
-  "core_drawdown": -0.2118,
+  "core_drawdown": -0.2735,
   "dd_gate": 0.5
  },
  "holdings": [
@@ -47,13 +47,7 @@
   {
    "symbol": "600733",
    "close": 4.65,
-   "amount_def_avg": 1584094276.762051,
-   "target_weight_pct": 10.0
-  },
-  {
-   "symbol": "601398",
-   "close": 8.11,
-   "amount_def_avg": 1576077198.7094016,
+   "amount_def_avg": 1584094276.7620509,
    "target_weight_pct": 10.0
   },
   {
@@ -63,15 +57,21 @@
    "target_weight_pct": 10.0
   },
   {
-   "symbol": "000001",
-   "close": 11.74,
-   "amount_def_avg": 1569737679.1758118,
-   "target_weight_pct": 10.0
-  },
-  {
    "symbol": "601288",
    "close": 6.97,
    "amount_def_avg": 1557979736.1311967,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "000099",
+   "close": 13.35,
+   "amount_def_avg": 1543122875.0527349,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "002129",
+   "close": 8.69,
+   "amount_def_avg": 1444175996.8349578,
    "target_weight_pct": 10.0
   }
  ],
