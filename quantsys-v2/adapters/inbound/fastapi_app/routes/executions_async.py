@@ -76,7 +76,15 @@ def get_executions_by_signal(signal_id: int):
 
 @router.get('/api/executions')
 def list_executions(status: Optional[str] = Query(None), limit: int = Query(200), offset: int = Query(0)):
-    results = execution_repo.get_all_executions(limit=limit)
+    # 2026-09-14（w-c8cae280）修**真实缺陷**：本路由声明了 status 参数却从未使用 ——
+    # 原实现直接 get_all_executions(limit)，status 被静默忽略（API 承诺的过滤无声失效）。
+    try:
+        if status:
+            results = execution_repo.get_executions_by_status(status, limit=limit)
+        else:
+            results = execution_repo.get_all_executions(limit=limit)
+    except ValueError as e:
+        return error_response({'error': str(e)}, 400)
     mapped = [_map_execution(r) for r in results]
     return sanitize_for_json({'executions': mapped, 'count': len(mapped)})
 

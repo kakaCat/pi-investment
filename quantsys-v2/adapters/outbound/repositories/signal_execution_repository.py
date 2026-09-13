@@ -93,7 +93,31 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
             logger.error(f"Error getting executions by date: {e}")
             return []
 
-    def get_pending_executions(self) -> List[SignalExecution]:
+    def get_executions_by_status(self, status: str, limit: Optional[int] = None) -> List[SignalExecution]:
+        """按状态查询执行记录（2026-09-14 w-c8cae280 补）。
+
+        为什么补：本方法此前不存在，而 **GET /api/executions 声明了 status 参数却从未使用它**
+        （路由直接 get_all_executions(limit) 返回，status 被静默忽略）——
+        即"API 承诺的过滤是无声失效的"。补上仓库方法并接线后，该参数才真正生效。
+        状态取值以本类 STATUSES 为唯一事实源；非法值抛 ValueError（与 by_date 等既有方法一致）。
+        """
+        if status not in self.STATUSES:
+            raise ValueError(f"Invalid status: {status}")
+        try:
+            query = self.session.query(SignalExecution).filter(
+                SignalExecution.status == status
+            ).order_by(SignalExecution.created_at.desc())
+            if limit:
+                query = query.limit(limit)
+            return query.all()
+        except ValueError:
+            raise
+        except Exception as e:            # noqa: BLE001
+            self._safe_rollback()
+            logger.error("Error getting executions by status: %s", e)
+            return []
+
+    def get_pending_executions(self, limit: Optional[int] = None) -> List[SignalExecution]:
         """查询所有待执行的记录
 
         Returns:

@@ -69,6 +69,13 @@ class TestBacktestResults:
             assert 'strategy_name' in results[0]
             assert 'avg_sharpe' in results[0]
 
+    # 2026-09-14（w-c8cae280）已删除三个用例：test_get_all_strategy_configs /
+    # _by_type / _by_active。依据：它们调的是 BacktestRepository 上"返回策略配置对象并支持
+    # strategy_type / is_active 过滤"的方法，而该类现只剩 get_all_strategies() -> List[str]（仅策略名）。
+    # 策略清单能力现在住在 strategy_repository.list_strategies(source=, code_type=)
+    # （支持 source/code_type 过滤，不含 is_active）。故这是**该能力已从 BacktestRepository 移除**，
+    # 不是测试写错名字；如需 is_active 过滤属新需求，应在 strategy_repository 上实现并配新用例。
+
     # ==================== 写入方法测试 ====================
 
     def test_save_backtest_basic(self):
@@ -140,25 +147,6 @@ class TestStrategyConfigs:
         assert isinstance(strategies, list)
         for s in strategies:
             assert s['is_active'] is True
-
-    def test_get_all_strategy_configs(self):
-        configs = self.repo.get_all_strategy_configs()
-        assert isinstance(configs, list)
-        if len(configs) > 0:
-            assert 'strategy_name' in configs[0]
-            assert 'strategy_type' in configs[0]
-
-    def test_get_all_strategy_configs_by_type(self):
-        configs = self.repo.get_all_strategy_configs(strategy_type="momentum")
-        assert isinstance(configs, list)
-        for c in configs:
-            assert c['strategy_type'] == 'momentum'
-
-    def test_get_all_strategy_configs_by_active(self):
-        configs = self.repo.get_all_strategy_configs(is_active=True)
-        assert isinstance(configs, list)
-        for c in configs:
-            assert c['is_active'] is True
 
     # ==================== 写入方法测试 ====================
 

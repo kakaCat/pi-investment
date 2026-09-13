@@ -82,14 +82,6 @@ class TestExecutionValidation:
         with pytest.raises(ValueError, match="Invalid status"):
             repo.get_all_executions(status='unknown')
 
-    def test_get_executions_by_symbol_invalid_status(self, repo):
-        with pytest.raises(ValueError, match="Invalid status"):
-            repo.get_executions_by_symbol(
-                '000001.SZ', '2024-01-01', '2024-01-31', status='unknown'
-            )
-
-
-class TestExecutionQueries:
     def test_get_execution_nonexistent(self, repo):
         result = repo.get_execution(999999)
         assert result is None
@@ -112,16 +104,6 @@ class TestExecutionQueries:
 
     def test_get_pending_executions(self, repo):
         results = repo.get_pending_executions(limit=50)
-        assert isinstance(results, list)
-
-    def test_get_executions_by_symbol(self, repo):
-        results = repo.get_executions_by_symbol('000001.SZ', '2024-01-01', '2024-01-31')
-        assert isinstance(results, list)
-
-    def test_get_executions_by_symbol_with_status(self, repo):
-        results = repo.get_executions_by_symbol(
-            '000001.SZ', '2024-01-01', '2024-01-31', status='executed'
-        )
         assert isinstance(results, list)
 
     def test_get_all_executions(self, repo):

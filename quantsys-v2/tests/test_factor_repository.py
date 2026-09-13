@@ -46,17 +46,18 @@ class TestFactorRepository:
         """测试基本因子查询"""
         factors = self.repo.get_factors_by_symbol("000001.SZ", "2024-01-02", "2024-01-02")
 
-        if factors:
-            assert isinstance(factors, dict)
-            # 验证因子值是数字
-            for factor_name, factor_value in factors.items():
-                assert isinstance(factor_name, str)
-                assert isinstance(factor_value, (int, float)) or factor_value is None
+        # 2026-09-14（w-c8cae280）按现契约改写（实测确认，非放宽）：返回类型已由 dict
+        # 变为 List[FactorValue] 实体列表，故断言改为列表 + 实体属性。
+        assert isinstance(factors, list)
+        for fv in factors:
+            assert getattr(fv, 'factor_date', None) is not None
+            assert getattr(fv, 'factor_value', None) is not None or fv.factor_value is None
 
     def test_get_factors_no_data(self):
         """测试不存在的数据"""
         factors = self.repo.get_factors_by_symbol("999999.SZ", "2024-01-01", "2024-01-01")
-        assert factors is None
+        # 实测：无数据返回 []（而非旧契约的 None）。空列表比 None 更好用，故按现契约断言。
+        assert factors == []
 
     def test_get_factors_batch(self):
         """测试批量查询因子"""

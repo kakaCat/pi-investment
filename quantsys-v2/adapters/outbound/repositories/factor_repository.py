@@ -256,6 +256,18 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
         Returns:
             FactorValue对象列表
         """
+        # 2026-09-14（w-c8cae280）补入参校验 —— tests/test_factor_repository.py 明写契约：
+        #   非法股票代码 → ValueError 含"股票代码"；非法日期 → ValueError 含 "Invalid date format"。
+        # 此前本方法**不做任何校验**，坏输入一路走到 SQL、以空结果静默"成功"返回（实测 DID NOT RAISE）。
+        from datetime import date as _date
+        if not symbol or not isinstance(symbol, str) or "." not in symbol:
+            raise ValueError("股票代码格式不正确：%r（应为 000001.SZ 形式）" % (symbol,))
+        for _d in (start_date, end_date):
+            try:
+                _date.fromisoformat(str(_d))
+            except (TypeError, ValueError) as exc:
+                raise ValueError("Invalid date format: %r（应为 YYYY-MM-DD）" % (_d,)) from exc
+
         try:
             query = self.session.query(FactorValue).filter(
                 FactorValue.symbol == symbol,
