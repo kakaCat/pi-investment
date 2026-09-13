@@ -130,6 +130,20 @@ export class AlgoExecuteTool extends BaseTool<AlgoExecuteParams, AlgoExecuteResu
       }
     }
 
+    // 2026-09-13（w-c8cae280）：补整手校验（宪法第2条：A股买入 100 股整数倍）。
+    // 实测原先 quantity=150 也放行，并生成"15 股/片"这种 A 股不可能成交的切片计划。
+    if (Number(args.quantity) % 100 !== 0) {
+      return {
+        success: false,
+        errorType: 'INPUT_ERROR' as any,
+        field: 'quantity',
+        issue: 'quantity 必须是100的整数倍（A股一手=100股，宪法第2条）',
+        received: String(args.quantity),
+        expected: '100 的整数倍',
+        example: '100',
+      };
+    }
+
     // 2026-09-13（用户裁定）：不做拦截——account_name 缺参时按工具层默认账户执行
     // （agent-dh = DEFAULT_AGENT_ACCOUNT = agent_brain；agent-ts 侧各自维护自己的默认值）。
     // 账户名不写死：任务/文档引用系统提示词 agent:identity 段的「本实例投资账户」。
@@ -140,9 +154,18 @@ export class AlgoExecuteTool extends BaseTool<AlgoExecuteParams, AlgoExecuteResu
    * Phase 2: 执行任务
    */
   protected async execute(args: AlgoExecuteParams, _context: ToolContext): Promise<AlgoExecuteResult> {
-    // 交易时段检查（需要从 trading/src/utils/trading-hours.ts 导入）
-    // assertTradingHours();
-
+    // ⚠️ 2026-09-13（w-c8cae280）实测结论，改动前必读：
+    // 后端 POST /api/orders/algo-execute **只生成 TWAP/VWAP 切片计划，从不下单** ——
+    // 实测（agent_brain，非交易日）：返回 algo_order_id/filled_quantity=0/slices=pending，
+    // 而现金变动 0、持仓不变、挂单 0；实现里没有交易服务调用、没有资金/持仓校验、没过 trade_guard。
+    // 因此本工具**不是执行器**：调用它不会产生任何成交。
+    // 交易时段闸门此前被注释掉（原因即"它不下单"），但这留下一个陷阱：
+    //   * 工具名/描述像执行器，"成功"返回也像已受理 → agent 会误以为大单在分批执行；
+    //   * 一旦后端将来真的下单，这里没有闸门 = 宪法第1条失守。
+    // 故：① 本工具改为**计划语义**（下方 wrap 显式标注 executed=false）；
+    //     ② 补整手校验（宪法第2条，A股 100 股整数倍——原先 quantity=150 也放行）；
+    //     ③ 真实执行落地时必须同时补 assertTradingHours()（TODO 与后端实现一起做）。
+    // 整手校验在 validate()（Phase 1）里做 —— execute 必须返回 AlgoExecuteResult，不能返回校验错误。
     const result = await this.qv2.executeAlgo({
       side: args.action.toLowerCase() as 'buy' | 'sell',
       symbol: args.symbol,
@@ -158,6 +181,17 @@ export class AlgoExecuteTool extends BaseTool<AlgoExecuteParams, AlgoExecuteResu
    * Phase 3: 包装返回数据
    */
   protected wrap(result: AlgoExecuteResult, _context: ToolContext): ToolResponse<AlgoExecuteResult> {
+    // 2026-09-13（w-c8cae280）：显式声明"未执行"。后端只回切片计划，filled_quantity 恒 0——
+    // 不标注的话，返回体（有 algo_order_id、status、slices）与"已受理的算法单"无法区分。
+    const _r: any = result as any;
+    if (_r && typeof _r === 'object') {
+      const filled = Number(_r.filled_quantity ?? 0);
+      _r.executed = false;
+      _r.plan_only_note =
+        '本工具只生成切片计划，未产生任何成交（filled_quantity=' + filled + '）。' +
+        '需要真实成交请用 portfolio_trade（可分多次下真实单）；' +
+        '后端 algo-execute 目前不接交易服务、不过 trade_guard。';
+    }
     // 检查必需字段
     const requiredFields = ['algo_order_id', 'symbol', 'total_quantity', 'status'];
     const missingFields: string[] = [];

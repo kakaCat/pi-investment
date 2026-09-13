@@ -41,7 +41,11 @@ export interface AlgoExecuteResult {
  * 工具提示词
  */
 export const algoExecutePrompt: ToolPrompt<AlgoExecuteParams, AlgoExecuteResult> = {
-  description: '算法交易（大单拆分）：用 TWAP/VWAP 将大单拆成多笔小单分批成交，降低市场冲击、减少滑点。适用于：大额交易（>5000股或市值>50万）；高敏感标的（流动性差或波动大）。小单直接用 portfolio_trade。',
+  description:
+    '⚠️ **本工具当前不下单**（2026-09-13 实测）：后端 /api/orders/algo-execute 只生成 TWAP/VWAP ' +
+    '切片计划并返回 filled_quantity=0，不接交易服务、不过 trade_guard、不动资金与持仓。' +
+    '需要真实成交请用 portfolio_trade 分批下真实单（每笔仍走 R-001/R-002）。' +
+    '保留本工具仅作切片计划参考；返回体含 executed=false 与 plan_only_note。',
 
   useCases: [
     '大额交易降低市场冲击',
