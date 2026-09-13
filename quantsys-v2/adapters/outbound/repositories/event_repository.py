@@ -337,12 +337,15 @@ class EventRepository(IMarketEventRepository):
              LIMIT :lim
         """
         try:
-            rows = self.session.execute(text(sql), {"lim": int(limit)}).fetchall()
+            # 本类用 engine.begin() 拿连接（没有 self.session —— 那是 ORM 仓储的模式，
+            # 我第一版照抄了 ORM 写法导致 AttributeError）。这里只读，用 engine.connect()。
+            with self.engine.connect() as conn:
+                rows = conn.execute(text(sql), {"lim": int(limit)}).fetchall()
             return [str(r[0]).zfill(6) for r in rows]
         except Exception as exc:  # noqa: BLE001
-            self._safe_rollback()
             logger.error("research_universe failed: %s", exc)
             return []
+
     def default_universe(self, limit: int = 200) -> List[str]:
         """监控宇宙（默认采集池）：持仓 ∪ 盯盘规则（只取 quant.stocks 中真实存在的 6 位代码）。
 

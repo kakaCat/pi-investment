@@ -129,6 +129,7 @@ class CninfoDisclosureProvider(IMarketEventProvider):
         """个股法定披露公告（按标的检索；symbols=None 时取当日全市场公告采样）"""
         self.last_error = None
         self.truncated_symbols = []
+        self._fallback_symbols = []   # orgId 解析失败、回退全文检索的标的（会漏，必须可见）
         self.truncation_note = ''
         targets = [str(s).strip() for s in (symbols or []) if str(s).strip()]
         try:
@@ -156,8 +157,32 @@ class CninfoDisclosureProvider(IMarketEventProvider):
                     )
                     logger.warning(self.truncation_note)
                 for symbol in queried:
-                    rows.extend(self._query(symbol, se_date, _PAGE_SIZE))
+                    # 2026-09-13（w-a9ec14d7）**修静默少收 bug**：
+                    # 原来直接用 searchkey=<代码> 检索，而巨潮是**全文检索**——
+                    # searchkey=000001 会命中一堆「公告编号里含 000001」的别家公司公告，
+                    # 再经 secCode==searchkey 过滤后一条不剩 -> 返回 0 条，
+                    # 调用方以为「这只票没有公告」（实测平安银行就是这样被静默吞掉的）。
+                    # 正确姿势：stock=<代码>,<orgId>（orgId 由 topSearch 解析，见 _resolve_org_id）。
+                    org = self._resolve_org_id(symbol)
+                    if org:
+                        items, _total = self._query_page('szse', '', se_date, _PAGE_SIZE, 1,
+                                                         stock='%s,%s' % (symbol, org))
+                        for item in items:
+                            row = self._map(item, symbol)   # 仍按 secCode 过滤，防串号
+                            if row:
+                                rows.append(row)
+                    else:
+                        # 回退：老的全文字段检索（会漏，漏多少无法预知）——
+                        # 必须记入 _fallback_symbols 并写进 truncation_note，绝不静默。
+                        self._fallback_symbols.append(symbol)
+                        rows.extend(self._query(symbol, se_date, _PAGE_SIZE))
             self.last_fetched_at = datetime.now().isoformat(timespec='seconds')
+            if self._fallback_symbols:
+                note = ('%s: %d 只标的 orgId 解析失败，已回退全文检索（searchkey）——该路径会静默少收，'
+                        '本次结果对这些标的不完整：%s'
+                        % (self.name, len(self._fallback_symbols), ','.join(self._fallback_symbols[:8])))
+                self.truncation_note = (self.truncation_note + ' | ' + note) if self.truncation_note else note
+                logger.warning(note)
             return rows
         except Exception as exc:  # noqa: BLE001 —— fail-loud
             self.last_error = f'{type(exc).__name__}: {exc}'

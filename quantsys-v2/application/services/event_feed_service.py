@@ -584,6 +584,31 @@ class IngestDisclosureCalendarJob(_EventIngestJobBase):
         return self._service.ingest_scheduled_disclosures(periods=periods or None)
 
 
+class IngestEventsHistoryJob(_EventIngestJobBase):
+    """研究宇宙历史事件**增量**回补（每周，2026-09-13 w-a9ec14d7，RFC 015 §4）
+
+    为什么需要：daily 任务只覆盖监控宇宙（持仓∪盯盘，实测 34 只），做研究远远不够；
+    而全量历史回补是一次性动作，后续必须靠**增量**维持研究宇宙的事件新鲜度。
+    默认窗口 35 天（覆盖一个月 + 富余），避免与上一轮重叠太多；幂等由 evidence_hash 保证。
+    """
+
+    def __init__(self, service: EventFeedService):
+        super().__init__(service, 'ingest_events_history',
+                         '研究宇宙事件增量回补：按流动性取 800 只，回补近 35 天公告（RFC 015 §4）')
+
+    def _run(self, params: Dict[str, Any]) -> Dict:
+        from datetime import date, timedelta
+        days = int(params.get('days') or 35)
+        end = str(params.get("end") or date.today().isoformat())
+        start = str(params.get("start") or (date.fromisoformat(end) - timedelta(days=days)).isoformat())
+        symbols = params.get("symbols")
+        if isinstance(symbols, str):
+            symbols = [s for s in symbols.replace(",", " ").split() if s]
+        return self._service.ingest_history(
+            start, end, symbols=symbols or None,
+            universe_limit=int(params.get("universe_limit") or 800),
+            max_symbols=int(params.get("max_symbols") or 0))
+
 def build_event_ingest_jobs(service: EventFeedService) -> List[Any]:
     """构造事件采集定时任务（组合根在 main.py 里注册进 JobRegistry）
 
@@ -591,4 +616,4 @@ def build_event_ingest_jobs(service: EventFeedService) -> List[Any]:
     （ingest_events_daily / ingest_events_policy / ingest_disclosure_calendar）。
     """
     return [IngestEventsDailyJob(service), IngestEventsPolicyJob(service),
-            IngestDisclosureCalendarJob(service)]
+            IngestDisclosureCalendarJob(service), IngestEventsHistoryJob(service)]
