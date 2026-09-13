@@ -121,10 +121,21 @@ profile 配置**零改动**（两页仍 `config: {}`）：目录不再由配置�
 **连带影响**：`docs/work-logs/2026-09/dsh-home-migration-20260913.md` §六 的「回滚到旧 home」路径就此失效。
 不过该回滚在本次勘查时已被证伪——旧 home 的 profile 目录早被清空，回滚只会拿到那个 g1 空基因组。
 
-**仍未清理（本次未动，需用户定夺）**：
+**随后一并清理（用户追加指令「清掉」，2026-09-13 17:28）**：
 
-- `~/.dsh/profiles/investment/`（**387M**，默认 home 下的旧 investment profile 副本；不带 `DSH_HOME` 直接
-  `dsh --profile investment` 时会用到，其 genomeDir 已在第七节对齐 `.dsh-data/genome`）
-- `.dsh-data/profiles/investment/`（2.9M，2026-09-12 那份未启用副本，迁移工作记录已列为遗留）
+| 路径 | 体积 | 内容 | 处置 |
+|---|---|---|---|
+| `~/.dsh/profiles/investment/` | **387M** | 旧布局 profile 副本（node_modules 占绝大部分；另含 start.sh/stop.sh/restart-with-build.sh 三份已分叉的历史脚本、`state/` 日志台账、`verify_*.mts`） | 归档后删除 |
+| `.dsh-data/profiles/investment/` | 2.9M | 2026-09-12 未启用副本（含 12 个 `cordis.patch.yml*.bak` 历史版本） | 归档后删除 |
+
+- 删前勘查：无进程引用；**无会话/凭据等独有数据**（`sessions`/`.credentials.yaml` 只存在于 `DSH_DATA_DIR`，不在这两份副本里）。
+- 归档：`/tmp/dsh-cleanup-20260913/legacy-home-dsh-profiles-investment.tgz`（3.9M，已排除 node_modules 与 *.log）、
+  `legacy-dsh-data-profiles-investment.tgz`（429K）。
+- **顺带修掉一处悬空引用**：`scripts/rfc010-quick-start.sh:12` 硬编码 `DSH_DIR="$HOME/.dsh/profiles/investment"`，
+  删目录后会直接报「DSH 目录不存在」。已改为从脚本自身位置反推 `../.dsh-home/profiles/investment`，启动提示改成
+  `$SCRIPT_DIR/start.sh 13080`（托管布局的 profile 目录里没有 start.sh）——`bash -n` 通过、路径自检解析到现役 profile。
+- 复验：`:13080` 正常（g36 / `genomeDirSource=genome-plugin` / 15 候选 / 38 谱系）；`relink-profile.py --check` 仍 **25/25**。
+- 保留的「死兜底」（仅加注释说明、未删）：`relink-profile.py` 与 `deploy-verify.py` 的 `LEGACY_PROFILES` 仍列着这两个
+  已删除路径——它们只在「回滚到旧 home」场景被选中，现已空转，保留是为语义显式。
 
 

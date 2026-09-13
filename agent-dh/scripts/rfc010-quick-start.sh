@@ -9,7 +9,10 @@ echo ""
 
 # 检查目录
 AGENT_OS_DIR="/Users/yunpeng/pi-investment/agent-os"
-DSH_DIR="$HOME/.dsh/profiles/investment"
+# 2026-09-13：旧布局 ~/.dsh/profiles/investment 已随遗留清理删除；现役为项目内托管布局，
+# 从脚本自身位置反推，不再硬编码 home（同 scripts/restart-with-build.sh 的做法）。
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DSH_DIR="$(cd "$SCRIPT_DIR/.." && pwd)/.dsh-home/profiles/investment"
 
 if [ ! -d "$AGENT_OS_DIR" ]; then
     echo "❌ Agent OS 目录不存在: $AGENT_OS_DIR"
@@ -45,7 +48,7 @@ if lsof -i :13080 | grep -q LISTEN; then
     echo "   ✅ DSH 已在运行 (PID: $DSH_PID)"
 else
     echo "   ⚠️  DSH 未运行，请手动启动:"
-    echo "      cd $DSH_DIR && ./start.sh 13080"
+    echo "      $SCRIPT_DIR/start.sh 13080   # 托管布局：profile 目录内没有 start.sh，入口在仓库 scripts/"
 fi
 echo ""
 

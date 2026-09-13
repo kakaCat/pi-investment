@@ -44,6 +44,7 @@ PKG_SCOPE = "@pi-investment"
 BACKUP_DIRNAME = ".deploy-backup"
 SUPPORTED_PROTOCOLS = ("file:", "link:")
 # 仓库外的历史 profile 副本：仅作兜底（回滚场景），正常情况下不该被选中。
+# 2026-09-13：两个旧 home 均已删除（~/.dsh-agent-dh 与 ~/.dsh/profiles/investment），此兜底现为空转，保留仅为语义显式。
 LEGACY_PROFILES = (
     "~/.dsh-agent-dh/profiles/investment",
     "~/.dsh/profiles/investment",
