@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-13T13:40:07",
+ "generated_at": "2026-09-13T15:11:30",
  "account": "agent_brain",
  "mode": "PLAN_ONLY（不下单）",
  "account_total": 98922.97,
@@ -18,12 +18,34 @@
   "confidence": 0.921,
   "source": "/api/market/style"
  },
+ "sector_heat_top5": [
+  [
+   "通信线缆及配套",
+   5.84
+  ],
+  [
+   "玻纤制造",
+   4.67
+  ],
+  [
+   "地面兵装Ⅲ",
+   4.48
+  ],
+  [
+   "地面兵装Ⅱ",
+   4.48
+  ],
+  [
+   "其他数字媒体",
+   3.78
+  ]
+ ],
  "sector_momentum_note": "行业动量由库内 quant.stocks.industry 分组、近 60 日成分股等权收益中位数自算（/api/market/sectors 实测返回 0 条，不可用）",
  "holdings": [
   {
    "symbol": "002085",
    "industry": "制造业-汽车制造业",
-   "weight_pct_of_core": 8.13,
+   "weight_pct_of_core": 8.7,
    "tilt_mult": 0.5,
    "tilt_note": "行业动量 弱（69/77）；风格顺风(growth)",
    "close": 10.12,
@@ -34,7 +56,7 @@
   {
    "symbol": "601857",
    "industry": "采矿业-石油和天然气开采业",
-   "weight_pct_of_core": 21.14,
+   "weight_pct_of_core": 22.61,
    "tilt_mult": 1.3,
    "tilt_note": "行业动量 强（4/77）",
    "close": 11.24,
@@ -45,7 +67,7 @@
   {
    "symbol": "601919",
    "industry": "交通运输、仓储和邮政业-水上运输业",
-   "weight_pct_of_core": 21.14,
+   "weight_pct_of_core": 22.61,
    "tilt_mult": 1.3,
    "tilt_note": "行业动量 强（18/77）",
    "close": 16.19,
@@ -56,7 +78,7 @@
   {
    "symbol": "601288",
    "industry": "金融业-货币金融服务",
-   "weight_pct_of_core": 13.82,
+   "weight_pct_of_core": 14.78,
    "tilt_mult": 0.85,
    "tilt_note": "行业动量 中（29/77）；风格逆风(成长市/周期行业) ×0.85",
    "close": 6.97,
@@ -65,48 +87,26 @@
    "amount_def_avg": 1557979736.1311967
   },
   {
+   "symbol": "603993",
+   "industry": "采矿业-有色金属矿采选业",
+   "weight_pct_of_core": 22.61,
+   "tilt_mult": 1.3,
+   "tilt_note": "行业动量 强（13/77）",
+   "close": 18.15,
+   "roe": 18.29,
+   "pe": 18.49,
+   "amount_def_avg": 1436821876.1452992
+  },
+  {
    "symbol": "000100",
    "industry": "制造业-计算机、通信和其他电子设备制造业",
-   "weight_pct_of_core": 8.13,
+   "weight_pct_of_core": 8.7,
    "tilt_mult": 0.5,
    "tilt_note": "行业动量 弱（76/77）；风格顺风(growth)",
    "close": 4.64,
    "roe": 6.19,
    "pe": 19.94,
-   "amount_def_avg": 1280034707.449658
-  },
-  {
-   "symbol": "601600",
-   "industry": "制造业-有色金属冶炼和压延加工业",
-   "weight_pct_of_core": 6.91,
-   "tilt_mult": 0.425,
-   "tilt_note": "行业动量 弱（56/77）；风格逆风(成长市/周期行业) ×0.85",
-   "close": 9.6,
-   "roe": 14.67,
-   "pe": 15.48,
-   "amount_def_avg": 1090930682.8119657
-  },
-  {
-   "symbol": "601668",
-   "industry": "建筑业-土木工程建筑业",
-   "weight_pct_of_core": 13.82,
-   "tilt_mult": 0.85,
-   "tilt_note": "行业动量 中（46/77）；风格逆风(成长市/周期行业) ×0.85",
-   "close": 4.35,
-   "roe": 4.61,
-   "pe": 4.0,
-   "amount_def_avg": 1083371933.974359
-  },
-  {
-   "symbol": "601901",
-   "industry": "金融业-资本市场服务",
-   "weight_pct_of_core": 6.91,
-   "tilt_mult": 0.425,
-   "tilt_note": "行业动量 弱（73/77）；风格逆风(成长市/周期行业) ×0.85",
-   "close": 6.79,
-   "roe": 5.68,
-   "pe": 11.25,
-   "amount_def_avg": 1010601642.1282052
+   "amount_def_avg": 1280034707.4496577
   }
  ],
  "phase_plan": "分 4 批、每批约 1 周；每批按当时 vol-target 与回撤闸门重算"

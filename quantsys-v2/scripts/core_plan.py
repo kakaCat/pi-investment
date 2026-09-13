@@ -153,6 +153,19 @@ def main():
     except Exception as _e:  # noqa: BLE001
         style_info = {"style": "unknown", "confidence": 0.0, "error": str(_e)[:80]}
 
+    # ===== 行业热度（/api/market/sectors，2026-09-13 修正解析层级）=====
+    # 说明：该接口**本身没坏**——真实结构是 data.data.industries（双层 data），
+    # 我此前按 data.industries 解析才以为"返回 0 条"。现按正确层级解析，取当日行业热度（496 个行业）
+    # 作为**当日热度交叉验证**；中长周期动量仍用库内 60 日自算（口径与持仓行业精确对齐）。
+    api_sectors = {}
+    try:
+        _ar = _rq.get("http://127.0.0.1:5001/api/market/sectors", timeout=25).json()
+        _rows = (((_ar or {}).get("data") or {}).get("data") or {}).get("industries") or []
+        api_sectors = {str(x.get("name")): float(x.get("change_pct") or 0) for x in _rows}
+        _top = sorted(api_sectors.items(), key=lambda kv: kv[1], reverse=True)[:5]
+        print("行业热度（当日，来源 /api/market/sectors）：样本 %d 个行业，最强 %s" % (len(api_sectors), _top))
+    except Exception as _e:  # noqa: BLE001
+        print("行业热度接口不可用（降级为仅库内动量）:", str(_e)[:80])
     ind_mom = {}
     try:
         _im = psql_csv_plain("""select s.industry, avg(k.close / p.close - 1) as r60
@@ -230,6 +243,7 @@ def main():
                      "vol_target": a.target_vol, "w_vol": round(w_vol, 3),
                      "core_drawdown": round(dd, 4), "dd_gate": gate},
         "market_style": {"style": STYLE, "confidence": round(CONF, 3), "source": "/api/market/style"},
+        "sector_heat_top5": sorted(api_sectors.items(), key=lambda kv: kv[1], reverse=True)[:5],
         "sector_momentum_note": "行业动量由库内 quant.stocks.industry 分组、近 60 日成分股等权收益中位数自算（/api/market/sectors 实测返回 0 条，不可用）",
         "holdings": [
             {"symbol": t["symbol"], "industry": t["industry"],
