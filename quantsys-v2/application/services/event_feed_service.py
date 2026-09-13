@@ -181,15 +181,17 @@ class EventFeedService:
         )
 
     def ingest_history(self, start_date: str, end_date: str, symbols: Optional[List[str]] = None,
-                       universe_limit: int = 800, max_symbols: int = 0) -> Dict:
+                       universe_limit: int = 800, max_symbols: int = 0,
+                       chunk_size: int = 30) -> Dict:
         """按日期区间回补**研究宇宙**的历史事件（RFC 015 §4，2026-09-13）
 
-        为什么走逐标的而不是日期区间全市场：实测巨潮忽略 pageNum/column，
-        日期区间全市场**一次只回 30 条**（而全市场一天有 1358 条）→ 无法支撑研究。
-        逐标的路径天然有界（单股单窗口公告数少），配合按月切片即可完整回补。
+        ⚠️ **必须分块**（2026-09-13 实测教训）：provider 层有 60s 超时，
+        一次性喂 800 只（≈16 分钟）会让每次调用超时降级 → **一条都入不了库**，
+        而脚本还会因为"每月都返回成功=False"而看起来跑完了（假完成）。
+        故这里按 chunk_size 切块累积：每次调用工作量有界（30 只 ≈ 40s，留安全余量）。
 
-        宇宙选择：symbols 显式给出，否则取 research_universe（流动性别名，默认 800 只）——
-        **不是** default_universe（监控宇宙=持仓∪盯盘，实测仅 34 只，做研究会严重低估事件密度）。
+        宇宙选择：symbols 显式给出，否则取 research_universe（流动性，默认 800 只）——
+        不是 default_universe（监控宇宙=持仓∪盯盘，实测仅 34 只，做研究会严重低估事件密度）。
         """
         manager = self._require_manager()
         repository = self._require_repository()
@@ -199,31 +201,50 @@ class EventFeedService:
             if not targets:
                 return self._envelope(None, degraded=True,
                                       error="research_universe 为空：无法回补（检查 quant.stocks/daily_klines）")
-        fetched = manager.get_event_symbol_history(targets, start_date, end_date,
-                                                  max_symbols=max_symbols)
-        if not fetched.get("success"):
-            return self._envelope(None, attempted=fetched.get("attempted_sources"),
-                                  degraded=True, error=fetched.get("error") or "history providers failed",
-                                  provider_errors=fetched.get("provider_errors") or {})
-        prepared = self._domain.prepare(fetched.get("data") or [])
+        step = max(1, int(chunk_size or 30))
+        agg_rows: List[Dict] = []
+        sources: List[str] = []
+        attempted: List[str] = []
+        notes: List[str] = []
+        errors: Dict[str, str] = {}
+        ok_chunks = 0
+        for i in range(0, len(targets), step):
+            part = targets[i:i + step]
+            fetched = manager.get_event_symbol_history(part, start_date, end_date,
+                                                       max_symbols=max_symbols)
+            attempted.extend(fetched.get("attempted_sources") or [])
+            if fetched.get("success"):
+                ok_chunks += 1
+                agg_rows.extend(fetched.get("data") or [])
+                if fetched.get("source"):
+                    sources.append(fetched["source"])
+                notes.extend(fetched.get("notes") or [])
+            errors.update(fetched.get("provider_errors") or {})
+        if ok_chunks == 0:
+            return self._envelope(None, attempted=attempted, degraded=True,
+                                  error="所有分块都失败（检查 provider 超时/网络）",
+                                  provider_errors=errors,
+                                  counts={"universe": len(targets), "chunks": 0, "fetched": 0})
+        prepared = self._domain.prepare(agg_rows)
         events: List[MarketEvent] = prepared["events"]
         written = repository.upsert([self._to_record(e) for e in events])
         return self._envelope(
             [e.to_dict() for e in events],
-            source=fetched.get("source"),
-            attempted=fetched.get("attempted_sources"),
-            degraded=bool(fetched.get("degraded")),
+            source="+".join(sorted(set(sources))) or None,
+            attempted=attempted,
+            degraded=bool(errors),
             counts={
                 "universe": len(targets),
-                "fetched": len(fetched.get("data") or []),
+                "chunks": ok_chunks,
+                "fetched": len(agg_rows),
                 "parsed": prepared["parsed"],
                 "deduped": prepared["deduped"],
                 "merged": len(events),
                 "rejected": len(prepared["rejected"]),
                 **written,
             },
-            provider_notes=fetched.get("notes") or [],
-            provider_errors=fetched.get("provider_errors") or {},
+            provider_notes=notes,
+            provider_errors=errors,
         )
 
     def ingest_symbol_events(self, symbols: Optional[List[str]] = None,

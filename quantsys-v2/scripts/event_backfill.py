@@ -67,7 +67,15 @@ def main() -> int:
         per_month.append({"window": ms + "~" + me, "counts": c, "notes": notes,
                           "success": bool((r or {}).get("success"))})
 
-    report = {"start": a.start, "end": a.end, "universe": syms or a.universe_limit,
+    # 2026-09-13（w-a9ec14d7）**fail-loud**：一次回补如果一条都没取到，绝不能退出码 0——
+    # 实测教训：800 只一次性喂给 provider 触发 60s 超时，4 个月全返回 success=False，
+    # 而脚本照样打印"完成"（假完成）。回补 0 条必须让人看见。
+    if total_fetched == 0:
+        print("❌ 回补失败：fetched=0（检查 provider 超时/网络/分块大小）")
+        for m in per_month:
+            if not m["success"]:
+                print("   失败窗口:", m["window"], "| notes:", (m.get("notes") or ["-"])[:1])
+        report = {"start": a.start, "end": a.end, "universe": syms or a.universe_limit,
               "months": len(plan), "fetched": total_fetched, "merged": total_merged,
               "inserted": total_inserted, "updated": total_updated,
               "per_month": per_month}
@@ -75,7 +83,7 @@ def main() -> int:
     print("合计：fetched %d | merged %d | 新增 %d | 更新 %d"
           % (total_fetched, total_merged, total_inserted, total_updated))
     print("报告 →", a.report)
-    return 0
+    return 1 if total_fetched == 0 else 0
 
 
 if __name__ == "__main__":
