@@ -138,6 +138,48 @@ class EventFeedService:
             provider_errors=fetched.get('provider_errors') or {},
         )
 
+    def ingest_scheduled_disclosures(self, periods: Optional[List[str]] = None) -> Dict:
+        """采集**预约披露日程**（前瞻性财报日历）并幂等落库（2026-09-13 w-a9ec14d7）
+
+        与 ingest_symbol_events 的区别：那条是"按标的问公告"（只有**已发生**的公告），
+        本条是"按报告期取全市场日程"（**含未来披露日**）。这是财报从"事后记录"变成
+        "可预期事件"的唯一来源 —— 实测此前 earnings 事件 69 条全部是 collected（事后）。
+
+        幂等：沿用领域层 R1 证据哈希（含 type/日期/标的）；但**披露日变更**会产生新 hash
+        → 落成新事件（变更本身是信息，不应被去重吃掉）。
+        """
+        from datetime import date as _date
+        manager = self._require_manager()
+        repository = self._require_repository()
+        fetched = manager.get_event_scheduled_disclosures(periods=periods)
+        if not fetched.get('success'):
+            return self._envelope(
+                None, attempted=fetched.get('attempted_sources'),
+                degraded=True, error=fetched.get('error') or 'schedule providers failed',
+                provider_errors=fetched.get('provider_errors') or {},
+            )
+        prepared = self._domain.prepare(fetched.get('data') or [])
+        events: List[MarketEvent] = prepared['events']
+        written = repository.upsert([self._to_record(e) for e in events])
+        today = _date.today().isoformat()
+        future = sum(1 for e in events if str(getattr(e, 'effective_date', '') or '') >= today)
+        return self._envelope(
+            [e.to_dict() for e in events],
+            source=fetched.get('source'),
+            attempted=fetched.get('attempted_sources'),
+            degraded=bool(fetched.get('degraded')),
+            counts={
+                'fetched': len(fetched.get('data') or []),
+                'parsed': prepared['parsed'],
+                'deduped': prepared['deduped'],
+                'merged': len(events),
+                'rejected': len(prepared['rejected']),
+                'future_events': future,
+                **written,
+            },
+            provider_errors=fetched.get('provider_errors') or {},
+        )
+
     def ingest_symbol_events(self, symbols: Optional[List[str]] = None,
                              universe_limit: int = 200) -> Dict:
         """采集个股事件（公告/财报/解禁/定增…）并幂等落库
@@ -475,10 +517,32 @@ class IngestEventsPolicyJob(_EventIngestJobBase):
         return self._service.ingest_policy()
 
 
+class IngestDisclosureCalendarJob(_EventIngestJobBase):
+    """预约披露日程刷新（前瞻性财报日历，2026-09-13 w-a9ec14d7）
+
+    为什么单列一个任务而不是塞进 ingest_events_daily：
+    两者的取数形态不同 —— 日常任务按**标的**问公告（只有已发生的事件），
+    本任务按**报告期**取全市场日程（含未来披露日）。且日程表按季开放（实测 2026-09-13
+    「2026三季」尚未开放、返回空表），需要**周度轮询**才能在开放的第一时间接住，
+    而日常任务每天跑一次全市场日程是浪费。
+    """
+
+    def __init__(self, service: EventFeedService):
+        super().__init__(service, 'ingest_disclosure_calendar',
+                         '预约披露日程刷新：全市场财报披露日历（含未来披露日，巨潮/akshare）')
+
+    def _run(self, params: Dict[str, Any]) -> Dict:
+        periods = params.get('periods')
+        if isinstance(periods, str):
+            periods = [p for p in periods.replace(',', ' ').split() if p]
+        return self._service.ingest_scheduled_disclosures(periods=periods or None)
+
+
 def build_event_ingest_jobs(service: EventFeedService) -> List[Any]:
-    """构造两个定时任务（组合根在 main.py 里注册进 JobRegistry）
+    """构造事件采集定时任务（组合根在 main.py 里注册进 JobRegistry）
 
     返回的是 Job 协议实例：name 即 scheduler_tasks.command
-    （ingest_events_daily / ingest_events_policy）。
+    （ingest_events_daily / ingest_events_policy / ingest_disclosure_calendar）。
     """
-    return [IngestEventsDailyJob(service), IngestEventsPolicyJob(service)]
+    return [IngestEventsDailyJob(service), IngestEventsPolicyJob(service),
+            IngestDisclosureCalendarJob(service)]

@@ -19,6 +19,7 @@ import { createPoolManageTool } from './tools/PoolManageTool';
 import { createIndexConstituentsTool } from './tools/IndexConstituentsTool';
 import { createMinuteKlineTool } from './tools/MinuteKlineTool';
 import { createStockEventsTool } from './tools/StockEventsTool';
+import { createEventWatchDigestTool } from './tools/EventWatchDigestTool';
 import { createTradingStatusTool } from './tools/TradingStatusTool';
 
 // ========== Plugin Config Schema ==========
@@ -118,5 +119,8 @@ export default class InvestmentPlugin extends Service {
 
     // 18. 个股事件（P3/RFC 015 §3）：公告/解禁/定增/股东会/财报/监管——买入前排雷
     reg(createStockEventsTool(qv2));
+
+    // 事件 → 盯盘规则建议（前瞻日历；2026-09-13：补上 link_to_watchlist 的消费端——此前 API 有、agent 没有工具）
+    reg(createEventWatchDigestTool(qv2));
   }
 }

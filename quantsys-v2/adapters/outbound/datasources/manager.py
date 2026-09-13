@@ -41,6 +41,7 @@ from adapters.outbound.datasources.providers.industry_chain.database import Data
 from adapters.outbound.datasources.providers.events.eastmoney_notice import EastmoneyNoticeProvider
 from adapters.outbound.datasources.providers.events.cninfo_disclosure import CninfoDisclosureProvider
 from adapters.outbound.datasources.providers.events.akshare_unlock import AkshareUnlockProvider
+from adapters.outbound.datasources.providers.events.scheduled_disclosure import ScheduledDisclosureProvider
 from adapters.outbound.datasources.providers.events.database import DatabaseEventProvider
 from adapters.outbound.datasources.providers.events.gov_policy import GovPolicyProvider
 from adapters.outbound.datasources.providers.events.csrc_policy import CsrcPolicyProvider
@@ -215,6 +216,7 @@ class DataProviderManager(IDataProviderManager):
         self.eastmoney_notice_provider = EastmoneyNoticeProvider()
         self.cninfo_disclosure_provider = CninfoDisclosureProvider()
         self.akshare_unlock_provider = AkshareUnlockProvider()
+        self.scheduled_disclosure_provider = ScheduledDisclosureProvider()
         self.gov_policy_provider = GovPolicyProvider()
         self.csrc_policy_provider = CsrcPolicyProvider()
         self.manual_policy_seed_provider = ManualPolicySeedProvider()
@@ -228,6 +230,11 @@ class DataProviderManager(IDataProviderManager):
         self.event_policy_auto_providers = [
             self.gov_policy_provider,            # 通道 1：国务院 / 发改委
             self.csrc_policy_provider,           # 通道 2：证监会
+        ]
+        # 预约披露日程（前瞻性财报日历，2026-09-13）：单独成链——
+        # 它不是"按标的问公告"，而是"按报告期取全市场日程"，与上面两条子链路语义都不同。
+        self.event_schedule_providers = [
+            self.scheduled_disclosure_provider,  # 通道 A：交易所/巨潮预约披露日程（akshare 结构化）
         ]
         self.event_policy_providers = self.event_policy_auto_providers + [
             self.manual_policy_seed_provider,    # 通道 3：人工策展兜底
@@ -257,7 +264,8 @@ class DataProviderManager(IDataProviderManager):
             self.minute_kline_providers +
             self.industry_chain_providers +
             self.event_symbol_providers +
-            self.event_policy_providers
+            self.event_policy_providers +
+            self.event_schedule_providers
         )
         seen_names = set()
         for provider in all_providers:
@@ -1130,6 +1138,20 @@ class DataProviderManager(IDataProviderManager):
         Returns:
             True if backfill succeeded, False otherwise
         """
+        # 指数行不入 daily_klines —— DB 约束 chk_daily_klines_no_indexrows
+        # （symbol !~ '^399' AND symbol <> ALL(ARRAY['000300','399300'])）。
+        # 指数价格按 2026-09-11 分表设计存 quant.index_daily（键带市场后缀
+        # 000300.SH / 399001.SZ），由 index-daily 刷新任务写入。
+        # 实证（2026-09-12 00:25，看板事件 585f5a3f）：evening_pipeline 回填 399001
+        # 撞约束 → CheckViolation → 该批 K 线整批回滚、日志刷 error。
+        # 必须在 auto-create stocks 元数据之前拦截：指数不是股票，提前放行会
+        # 造出假个股行（历史上 chk_stocks_market 事故同源）。
+        from utils.symbol_classifier import is_index_symbol
+        if is_index_symbol(symbol):
+            logger.info(
+                f"Skip kline DB backfill for {symbol}: 指数行不入 daily_klines"
+                f"（chk_daily_klines_no_indexrows），指数价格存 quant.index_daily")
+            return False
         try:
             from infrastructure.persistence.orm.config import get_session
             from infrastructure.persistence.orm.models.stock import DailyKline, Stock
@@ -1857,6 +1879,44 @@ class DataProviderManager(IDataProviderManager):
             'empty': not rows,
             'empty_sources': empty_sources,
         }
+
+    def get_event_scheduled_disclosures(self, periods: Optional[List[str]] = None) -> dict:
+        """预约披露日程（前瞻性财报日历）扇出。
+
+        与个股事件同样的**聚合**语义（逐个 provider 独立调用，各自享有超时/熔断/健康分），
+        不用故障转移——理由见 get_event_symbol_events 的 docstring。
+
+        Returns:
+            {'success', 'data', 'source', 'attempted_sources', 'provider_errors', 'degraded', 'empty'}
+            全部通道失败 → success=False（显式失败）；全部为空 → success=True + empty=True
+        """
+        rows: List[Dict] = []
+        sources: List[str] = []
+        attempted: List[str] = []
+        errors: Dict[str, str] = {}
+        failed = 0
+        providers = [p for p in getattr(self, 'event_schedule_providers', [])
+                     if hasattr(p, 'fetch_scheduled_disclosures')]
+        if not providers:
+            return {'success': False, 'error': 'No event schedule providers enabled',
+                    'data': None, 'source': None, 'attempted_sources': [], 'provider_errors': {}}
+        for provider in self._sort_providers_by_health(providers):
+            res = self._try_providers([provider], 'fetch_scheduled_disclosures', periods)
+            attempted.extend(res.get('attempted_sources') or [])
+            if res.get('success'):
+                data = res.get('data') or []
+                if data:
+                    rows.extend(data)
+                    sources.append(res.get('source') or getattr(provider, 'name', '?'))
+            else:
+                failed += 1
+                errors[getattr(provider, 'name', '?')] = res.get('error') or 'fetch failed'
+        if not rows and failed == len(providers):
+            return {'success': False, 'error': 'all schedule providers failed', 'data': None,
+                    'source': None, 'attempted_sources': attempted, 'provider_errors': errors}
+        return {'success': True, 'data': rows, 'source': '+'.join(sources) or None,
+                'attempted_sources': attempted, 'provider_errors': errors,
+                'degraded': bool(errors), 'empty': not rows}
 
     def get_event_policy_events(self) -> dict:
         """**聚合**政策事件（gov.cn+发改委 / 证监会 两条独立通道 + 人工策展兜底）

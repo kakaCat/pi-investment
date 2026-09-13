@@ -73,3 +73,21 @@ class IMarketEventProvider(ABC):
             失败返回 None 且写 self.last_error；**不提供个股事件的能力返回 []**
         """
         pass
+
+    def fetch_scheduled_disclosures(self, periods: Optional[List[str]] = None) -> Optional[List[Dict]]:
+        """**预约披露日程**（前瞻性财报日历）—— 2026-09-13（w-a9ec14d7）新增能力
+
+        为什么单列一个能力而不复用 fetch_symbol_events：
+        fetch_symbol_events 的语义是"问我给你的这些标的的公告"（只有**已发生**的公告），
+        而预约披露日程是**按报告期的全市场日程表**（含未来披露日、变更历史、最终实际披露日），
+        取数形态（按期而非按标的）、触发场景（提前排雷/事件研究 vs 事后归因）都不同。
+
+        实测缺口：event_calendar 里 earnings 事件曾 69 条**全部是 collected（事后）**，
+        财报因此不可能成为可预期事件。本能力是把它变成前瞻日历的唯一来源。
+
+        Returns:
+            成功返回 List[dict]（行契约见模块 docstring；空列表 = 该期尚未开放预约）；
+            失败返回 None 且写 self.last_error；
+            **默认实现返回 [] = 本 provider 不提供该能力**（沿用端口第 3 条纪律）
+        """
+        return []
