@@ -41,6 +41,26 @@ def _json_safe(value: Any) -> Any:
             return str(value)
 
 
+
+def _normalize_params(raw: Any) -> Dict[str, Any]:
+    """把 params 归一化成 dict —— 它可能是 dict，也可能是 **JSON 字符串**。
+
+    2026-09-13（w-a9ec14d7）：软删除那条任务的 params 存的是字符串，
+    直接 dict(raw) 会抛 "dictionary update sequence element #0 has length 1; 2 is required"。
+    数据形态有几种就要处理几种，否则同一条路径会在某些行上炸、在另一些行上正常 —— 最难查的那类 bug。
+    """
+    if raw is None:
+        return {}
+    if isinstance(raw, dict):
+        return dict(raw)
+    if isinstance(raw, str):
+        try:
+            v = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            return {}
+        return dict(v) if isinstance(v, dict) else {}
+    return {}
+
 class SchedulerRepository(ISchedulerRepository):
     """调度任务仓储 - SQLAlchemy ORM 实现"""
 
@@ -68,17 +88,11 @@ class SchedulerRepository(ISchedulerRepository):
     def _is_soft_deleted(config) -> bool:
         """软删除判定：DELETE 路由写 params._deleted_at；个别旧路径可能写 deleted_at 列。
 
-        两处都要看：只看一处在数据形态变化时会静默漏判，于是又回到"名字被隐形占用"。
+        两处都要看：只看一处在数据形态变化时会静默漏判，于是又回到「名字被隐形占用」。
         """
         if getattr(config, 'deleted_at', None):
             return True
-        p = getattr(config, 'params', None)
-        if isinstance(p, str):
-            try:
-                p = json.loads(p)
-            except (json.JSONDecodeError, TypeError):
-                p = {}
-        return bool((p or {}).get('_deleted_at'))
+        return bool(_normalize_params(getattr(config, 'params', None)).get('_deleted_at'))
 
     def add_task(
         self,
@@ -112,7 +126,9 @@ class SchedulerRepository(ISchedulerRepository):
             _next = None
             if task_type == 'cron' and not _is_agent_os_placeholder:
                 _next = _calc_next_run_time(cron_expression)
-            _params = dict(existing.params or {})
+            # params 可能是 dict，也可能是 **JSON 字符串**（实测：软删除那条就是字符串，
+            # dict(str) 会抛 "dictionary update sequence element #0 has length 1; 2 is required"）。
+            _params = _normalize_params(existing.params)
             _params.pop('_deleted_at', None)
             existing.description = description
             existing.cron_expression = cron_expression
