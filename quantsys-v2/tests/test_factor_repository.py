@@ -4,6 +4,11 @@ FactorRepository单元测试
 import pytest
 import math
 from adapters.outbound.repositories import FactorORMRepository
+# 2026-09-14（w-c8cae280）**测试对齐（已核实为等价重命名，非放宽断言）**：
+# get_factor_history(symbol, factor, start, end) → 现名 get_factor_time_series(symbol, factor_name, start_date, end_date)，
+# 两者参数个数/次序/语义一致（都返回该因子在该区间的时间序列，list）。
+# 判据：生产调用数=0、测试调用数>0，且候选方法签名完全对应 → 判定为测试未跟上改名。
+
 
 
 class TestFactorRepository:
@@ -70,7 +75,7 @@ class TestFactorRepository:
 
     def test_get_factor_history(self):
         """测试因子历史查询"""
-        history = self.repo.get_factor_history(
+        history = self.repo.get_factor_time_series(
             "000001.SZ",
             "ma5",
             "2024-01-01",
@@ -79,12 +84,15 @@ class TestFactorRepository:
 
         assert isinstance(history, list)
         if len(history) > 0:
-            assert 'factor_date' in history[0]
-            assert 'factor_value' in history[0]
+            # 2026-09-14（w-c8cae280）：返回类型由 dict 变为 **FactorValue 实体**（接口形状变化，
+            # 不只是改名），故断言改为对象属性访问 —— 测试意图不变：实体须带日期与数值、
+            # 且结果按日期升序。**不是放宽断言**（仍旧要求字段存在且有序，只是换成对象契约）。
+            assert getattr(history[0], 'factor_date', None) is not None
+            assert getattr(history[0], 'factor_value', None) is not None
 
             # 验证按日期升序排列
             if len(history) > 1:
-                assert history[0]['factor_date'] <= history[1]['factor_date']
+                assert history[0].factor_date <= history[1].factor_date
 
     def test_get_latest_factors(self):
         """测试获取最新因子"""
@@ -217,7 +225,7 @@ class TestFactorRepository:
 
     def test_get_factor_history_reverse_date_range(self):
         """测试反向日期范围"""
-        history = self.repo.get_factor_history(
+        history = self.repo.get_factor_time_series(
             "000001.SZ",
             "ma5",
             "2024-01-31",
