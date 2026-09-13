@@ -32,6 +32,14 @@ class StockCodeValidator:
 
         P2-1: 推荐通过 ServiceFactory 获取实例
         """
+        # 2026-09-13（w-c8cae280）：kline_repo 声明为 Optional，但 validate() 里无条件调用
+        # self.kline_repo.count_daily_klines(...) —— 一旦调用方不传（走默认 None）就 500：
+        #   'NoneType' object has no attribute 'count_daily_klines'
+        # （实测 GET /api/stock/600519/data-health 与 /api/stock/999999/data-health 均 500）。
+        # 与 MarketSentimentService / OpportunityScoringService 保持一致：None 时用 ServiceFactory 兜底。
+        if kline_repo is None:
+            from infrastructure.services.service_factory import ServiceFactory
+            kline_repo = ServiceFactory.get_kline_repository()
         self.kline_repo = kline_repo
         self._cache: Dict[str, Dict] = {}
         self._cache_ttl = 3600  # 缓存1小时

@@ -4,6 +4,8 @@
 验证评分过程中的降级信息是否正确记录和传递
 """
 import pytest
+from datetime import datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 from application.services.opportunity_scoring_service import OpportunityScoringService
 from application.services.scoring.degradation_tracker import DegradationTracker, Severity
@@ -123,15 +125,28 @@ class TestScoringServiceDegradation:
         """测试评分结果包含降级信息"""
         # Mock 依赖
         scoring_service.factor_adapter.calculate = Mock(return_value=None)
-        scoring_service.stock_repo.get_by_symbol = Mock(return_value={
-            'symbol': '688981',
-            'name': '中芯国际',
-            'industry': '半导体'
-        })
+        # 2026-09-13（w-c8cae280）：原来是 dict，而 StockRepository.get_by_symbol 的签名是
+        # -> Optional[Stock]（ORM 实体，属性访问 .name / .industry）。
+        # 传 dict 会让 _score_single_stock 在 stock_obj.name 上抛 AttributeError，
+        # 被内部 except 吞成 {'_skipped': 'error'} → 测试看到的"没有 degradations"其实是**评分根本没跑**。
+        # 契约以真实仓库为准（对象），故 fixture 改用 SimpleNamespace。
+        scoring_service.stock_repo.get_by_symbol = Mock(return_value=SimpleNamespace(
+            symbol='688981', name='中芯国际', industry='半导体'
+        ))
         
+        # 2026-09-13（w-c8cae280）：原 fixture 是"同一天复制 60 份"，而 DataQualityGate.min_klines=120
+        # → 评分在质量门就被跳过（_skipped=insufficient_klines），结果里自然没有 degradations。
+        # 这是**测试腐烂**（守卫阈值引入/提高后 fixture 没跟上），修 fixture 而不是放宽断言：
+        # 日期必须逐日递增（否则等于只有 1 个交易日），并补上 amount（真实 K 线都有）。
         klines = [
-            {'date': '2026-09-01', 'close': 100, 'volume': 1000, 'open': 99, 'high': 101, 'low': 98},
-        ] * 60  # 足够的数据点
+            {
+                'date': (datetime(2026, 3, 1) + timedelta(days=i)).strftime('%Y-%m-%d'),
+                'open': 99, 'high': 101, 'low': 98,
+                'close': 100 + (i % 5) * 0.1,
+                'volume': 1000, 'amount': 100000,
+            }
+            for i in range(130)
+        ]  # 130 根 > min_klines(120)，且日期唯一
         
         fundamental = {
             'pe_ratio': 20,

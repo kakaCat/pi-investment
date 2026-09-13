@@ -486,8 +486,15 @@ def get_exit_plan(symbol: str,
             buy_price = float(current_price)
 
         # 获取股票名称
-        stock_info = stock_repo.get_by_symbol(symbol_with_suffix) or {}
-        stock_name = stock_info.get('name', symbol)
+        # 2026-09-13（w-c8cae280）：StockRepository.get_by_symbol 的签名是 -> Optional[Stock]（ORM 实体，
+        # 属性访问），这里却按 dict 用 .get('name') → AttributeError → 本接口 500
+        # （实测 GET /api/stock/600519/exit-plan）。与上方 klines 的 polars/dict 是同一类"类型假设未验证"。
+        # 两种形态都兼容，取不到则回落 symbol（不静默丢名字）。
+        _stock = stock_repo.get_by_symbol(symbol_with_suffix)
+        if isinstance(_stock, dict):
+            stock_name = _stock.get('name') or symbol
+        else:
+            stock_name = getattr(_stock, 'name', None) or symbol
 
         # 计算收益率
         profit_pct = ((current_price - buy_price) / buy_price) * 100

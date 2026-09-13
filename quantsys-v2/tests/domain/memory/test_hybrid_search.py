@@ -273,8 +273,16 @@ class TestServiceHybridSearch:
 
 @pytest.fixture
 def route_client(monkeypatch):
-    # 指向废弃端口：embed 必然失败 → degraded:true，不依赖 ollama 状态
-    monkeypatch.setenv("OLLAMA_BASE_URL", "http://127.0.0.1:9")
+    # 2026-09-13（w-c8cae280）**修复长期假绿的降级路径验证**：
+    # 原实现靠 monkeypatch.setenv("OLLAMA_BASE_URL", "http://127.0.0.1:9") 制造 embed 失败，
+    # 但 OllamaEmbeddingService.base_url 读的是**应用配置**（app.ollama_base_url）而非该环境变量
+    # —— 全库非测试代码对 OLLAMA_BASE_URL 的引用为 0（grep 实证）。
+    # 于是那个 monkeypatch 早已失效：embed 照常连上真实 ollama，得 degraded=False，测试长期红。
+    # 现在打在**真正的缝**上：hybrid_rank 以 "query_embedding is None" 判降级（hybrid_search.py:171），
+    # 故直接把 OllamaEmbeddingService.embed 打回 None —— 与"ollama 不可达"在产品语义上等价
+    # （embedding.py 的注释即"失败静默降级"），且不依赖任何环境状态。
+    from domain.memory.embedding import OllamaEmbeddingService
+    monkeypatch.setattr(OllamaEmbeddingService, "embed", lambda self, text: None, raising=True)
     from adapters.inbound.fastapi_app.routes.memory_async import router
 
     app = FastAPI()

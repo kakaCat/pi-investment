@@ -135,7 +135,10 @@ class TestSentimentScoreGuard:
 
     def test_empty_index_performance_no_score(self):
         from application.services.market_sentiment_service import MarketSentimentService
-        svc = MarketSentimentService(data_service=None)
+        # 2026-09-13（w-c8cae280）：MarketSentimentService 的签名已改为 (kline_repo=None)，
+        # data_service 参数不存在 → TypeError。本用例只测 _calculate_sentiment_score 的边界，
+        # 构造参数与断言意图无关，按当前签名修正即可（不是放宽断言）。
+        svc = MarketSentimentService(kline_repo=None)
 
         score_empty = svc._calculate_sentiment_score({
             'advance_decline': {'error': '无数据'},

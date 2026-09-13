@@ -571,7 +571,12 @@ class SignalExecutionScheduler:
         """
         try:
             stock = self.stock_repo.get_by_symbol(symbol)
-            return stock.get('name', symbol) if stock else symbol
+            # 2026-09-13（w-c8cae280）：get_by_symbol 返回 Stock ORM 实体（属性访问），
+            # 原写法按 dict 调 .get('name') → AttributeError → 被下面 except 吞掉 → **永远回落到代码号**，
+            # 股票名静默解析不出来（与 exit-plan 500 同一类，只是这里不崩、只失真）。
+            if isinstance(stock, dict):
+                return stock.get('name') or symbol
+            return getattr(stock, 'name', None) or symbol
         except Exception:
             return symbol
 

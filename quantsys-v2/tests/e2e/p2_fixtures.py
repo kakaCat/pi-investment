@@ -258,11 +258,17 @@ class MockDecisionRepository:
     def list_pending_evaluations(self, days: int = 1):
         return self.decisions
 
-    def update_score(self, decision_id: str, score: float, band: str, detail: dict):
+    def update_score(self, decision_id: str, score: float, band: str, detail: dict,
+                     lesson: str = None):
+        # 2026-09-13（w-c8cae280）：生产签名已扩为 (..., detail, lesson=None)
+        #   —— lesson 是 REQ-9bcd0a「评估→教训→规则」回流边的入口（非空时写 learned_lesson）。
+        # 本 mock 未跟上 → DecisionScoreService 调用即 TypeError → 被内部 except 吞成 errors=1、scored=0，
+        # 测试报"assert 0 >= 1"，看起来像业务没打分，实际是 fixture 签名腐烂。
         self.scored_decisions.append({
             'decision_id': decision_id,
             'score': score,
             'band': band,
-            'detail': detail
+            'detail': detail,
+            'lesson': lesson,
         })
         return decision_id
