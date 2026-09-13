@@ -109,6 +109,16 @@ crontab -l | grep -v cron_train_model.sh | grep -v cron_train_model_force.sh | c
 - 结果：`quant.scheduler_runs` **3710 success / 6657 ms**，version `20260914_041938`、test_acc 0.5975、`auto_switched=true`、Job 复核 `freshness_alerts: []`；飞书成功通知已投递（v2 日志 `飞书发送成功`）。注入已精确复原（0914_030011 的 train_date 回到 2026-09-14 03:00:11）。
 - 复原后复核：门控 `(False, 模型20260914_041938仍有效 (age=0.0d < 6.5d, acc=0.5975))`；外部巡检 OK。
 
+**收口裁定与残留待办（同日，用户两问确认）**
+- **t6 按现有证据收口**（用户裁定「按现有证据收口，日历项转为自动兜底+到点核一次」）：故障注入四条全过、节律由测试钉在 7.0 天、in-app 训练路径已实测可训（runs 3710）。原验收里的「观测窗口内模型年龄峰值 ≤8 天」是纯日历项，改为**自动兜底**——两道已部署巡检会在模型 >10 天时自己告警（in-app Job 每次运行后复核 + 外部 launchd 每日 09:05），无需人盯。
+- **t2 按原验收收口**（用户裁定「我去删 crontab 两行，删完告你」）：脚本级已停用（weekly no-op、force 需 `CONFIRM_FORCE_TRAIN=1`），剩 crontab 两行由人工删除。因 macOS TCC 拒写 `/var/at/tmp`，agent 无权限代劳——这是本需求唯一无法自动完成的一步。
+
+**残留待办（不阻塞需求，异常会自己告警）**：
+1. 人工删 crontab 两行：`crontab -l | grep -v cron_train_model.sh | grep -v cron_train_model_force.sh | crontab -`（删完 t2 → done）。
+2. 09-21 / 09-22 到点核一次：预期 `quant.scheduler_runs` 出现 task 320 的 success 且 version 递增（模型 09-14 04:19 训练，按 6.5 天阈值下一次应落在 09-21 03:30），并看 `logs/model-freshness-check.log` 当天的 OK 行。两者都不需要主动干预；若模型 >10 天，两道巡检会分别告警。
+3. 产物对账/归档（8 个孤儿 pkl、2 条悬空 DB 记录）仍按原计划留在需求外，走 R-020 数据卫生另行处理。
+4. 看板小毛病（记于本需求之外）：卡面允许人把需求拖进「拆分」泳道，但拖卡不写 `plan.approvedAt`，agent 仍被闸门挡住——建议「未批准时禁止拖入」或「拖入即视为批准」二选一。
+
 **t5 证据更正（同一日）**：早前用 `notification_logs` 计数不变作为「跳过不发通知」的证据是**无效工具**——训练通知走 `NotificationFacade.send_ml_train_notification`（`notification_facade.py:278`），不写该表（只有像模型新鲜度告警那样经 `send_card` 的才写）。正确证据是 v2 日志：跳过窗口（03:55 runs 3707 / 04:01 runs 3709）通知子系统初始化 **0 行**，真训练窗口（04:19 runs 3710）**10 行 + 飞书发送成功**。
 
 **阈值修订记录（同日 04:01，w-4db568de）**：首版取 6.0 天，依据是「每周 cron 检查一次」——但 t2 之后唯一的入口是**日检查**（03:30），节律随之改变。按时间轴推演（`_age_needs_retrain` + 03:30 日检查）：
