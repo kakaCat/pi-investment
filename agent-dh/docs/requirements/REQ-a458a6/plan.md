@@ -104,6 +104,13 @@ crontab -l | grep -v cron_train_model.sh | grep -v cron_train_model_force.sh | c
 ```
 
 
+**追加验证（同日 04:19，w-4db568de）：把「in-app 训练路径能不能真训」从「等 09-21」变成「现在就知道」**
+- 做法：注入陈旧态（把最新模型 20260914_030011 的 train_date 回拨 11 天 → 最新变成 0905 的 8.71 天）→ 触发 task 320 → 走的是将于 09-21 真正使用的同一条路径。
+- 结果：`quant.scheduler_runs` **3710 success / 6657 ms**，version `20260914_041938`、test_acc 0.5975、`auto_switched=true`、Job 复核 `freshness_alerts: []`；飞书成功通知已投递（v2 日志 `飞书发送成功`）。注入已精确复原（0914_030011 的 train_date 回到 2026-09-14 03:00:11）。
+- 复原后复核：门控 `(False, 模型20260914_041938仍有效 (age=0.0d < 6.5d, acc=0.5975))`；外部巡检 OK。
+
+**t5 证据更正（同一日）**：早前用 `notification_logs` 计数不变作为「跳过不发通知」的证据是**无效工具**——训练通知走 `NotificationFacade.send_ml_train_notification`（`notification_facade.py:278`），不写该表（只有像模型新鲜度告警那样经 `send_card` 的才写）。正确证据是 v2 日志：跳过窗口（03:55 runs 3707 / 04:01 runs 3709）通知子系统初始化 **0 行**，真训练窗口（04:19 runs 3710）**10 行 + 飞书发送成功**。
+
 **阈值修订记录（同日 04:01，w-4db568de）**：首版取 6.0 天，依据是「每周 cron 检查一次」——但 t2 之后唯一的入口是**日检查**（03:30），节律随之改变。按时间轴推演（`_age_needs_retrain` + 03:30 日检查）：
 
 | 阈值 | 训练于 03:00:11 | 训练于 03:30:11 |
