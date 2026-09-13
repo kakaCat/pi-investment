@@ -87,7 +87,7 @@ def main():
     # 2) 可投资性：非 ST、非停牌、上市满 2 年（次新勿碰）
     # 3) 杠杆：负债率 < 80%，**金融业豁免**（银行天然 90+）
     # 4) 分红代理：连续亏损必然砍分红，故以"ROE>0 且 PE>0"为代理；库内暂无全市场分红表（已记录，建议数据线补）
-    st = psql_csv("select symbol, name, industry, roe, pe, debt_ratio, is_st, is_suspended, list_date, market_cap "
+    st = psql_csv("select symbol, name, industry, sector, roe, pe, debt_ratio, is_st, is_suspended, list_date, market_cap "
                   "from quant.stocks")
     st["symbol"] = st["symbol"].astype(str).str.zfill(6)
     for c in ("roe", "pe", "debt_ratio", "market_cap"):
@@ -303,6 +303,10 @@ def main():
     # 池子来源：**全市场** 300/301/688/689，而非 core 的 240 只流动池
     # 依据：流动池里成长板只有 45 只创业板 + 8 只科创板，且经质量闸门后仅剩 12 只、科创板 0 只（2026-09-13 实测）——
     # 用 240 只池做成长板子额度等于把子额度饿死。质量闸门与 core 完全一致，另加流动性下限。
+    # 窄门类上限：同一 sector（证监会门类）成分股 <500 只时，子额度内最多 1 只。
+    # 依据：sector 只有 19 类且制造业独占 3924/5857=67%，用它做统一上限不合理；
+    # 但"文化、体育和娱乐业"这类窄门类（58 只）里放 2 只 = 子额度 2/3 押一个方向，需要拦。
+    _sec_size = st["sector"].value_counts().to_dict()
     _gst = st[st["symbol"].astype(str).str.startswith(_G_PREFIX)].copy()
     _gn0 = len(_gst)
     _gst = _gst[_gst["roe"].notna() & (_gst["roe"] > 0)]
@@ -348,15 +352,22 @@ def main():
             _m, _n = _tilt(str(_r.industry))
             _ranked.append((-_m, -float(_r.amount), _r, _m, _n))
         _ranked.sort(key=lambda x: (x[0], x[1]))
+        _ssec = {}
         for _m0, _amt0, _r, _m, _n in _ranked:
             if len(_cand) >= a.growth_names:
                 break
             _ind = str(_r.industry)
             if _ind in _sind:
                 continue
-            _cand.append({"symbol": str(_r.symbol), "industry": _ind, "mult": _m, "note": _n,
+            _sec = str(_r.sector)
+            if _sec_size.get(_sec, 9999) < 500 and _ssec.get(_sec, 0) >= 1:
+                continue   # 窄门类最多 1 只
+            if _ssec.get(_sec, 0) >= 2:
+                continue
+            _cand.append({"symbol": str(_r.symbol), "industry": _ind, "sector": _sec, "mult": _m, "note": _n,
                           "close": float(_r.close), "roe": float(_r.roe), "pe": float(_r.pe)})
             _sind.add(_ind)
+            _ssec[_sec] = _ssec.get(_sec, 0) + 1
         _top = _cand[:a.growth_names]
         if _top:
             _mtt = sum(c["mult"] for c in _top) or 1.0
