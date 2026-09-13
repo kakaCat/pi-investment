@@ -44,6 +44,7 @@ from .data_quality import KlineDataQuality
 from .sector_snapshot import SectorSnapshot
 from .agent_session import AgentSession, AgentSessionEvent
 from .signal_test_log import SignalTestRecord
+from .portfolio_circuit_breaker import PortfolioCircuitBreaker
 
 __all__ = [
     # 股票相关
@@ -101,4 +102,5 @@ __all__ = [
     'AgentSession',
     'AgentSessionEvent',
     'SignalTestRecord',
+    'PortfolioCircuitBreaker',
 ]
