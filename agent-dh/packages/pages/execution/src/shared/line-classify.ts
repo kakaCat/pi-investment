@@ -137,22 +137,39 @@ export interface TaskCoverage {
   unclassified: string[];
   /** OS 侧对账（若上游提供）：接口返回总数 / 实际并入数 / 被排除数 / 其中带 line 字段数 */
   os?: { apiTotal: number; included: number; excluded: number; byReason: Record<string, number>; lineTagged?: number };
-  /** v2 侧对账（2026-09-12 接口接通后新增）：domain 是六域，与业务线正交，只作「是否已打标」信号，不计入 line 字段 */
-  v2?: { total: number; domainTagged: number; domainMissing: number; domainByValue: Record<string, number>; missingNames: string[] };
+  /** v2 侧对账（2026-09-12 接口接通后新增）：domain 是六域，与业务线正交，只作「是否已打标」信号，不计入 line 字段
+   *  口径（2026-09-13, REQ-c970e5）：**缺口只对启用任务计** —— 未启用/已软删的任务不参与打标对账
+   *  （session-probe = disabled + 全仓无实现 + 溯源不明，2026-09-12 明确「宁显不藏」有意留空，
+   *  不该天天刷告警）。未启用且未打标的单列 untaggedDisabled：仍可见，但不计缺口。 */
+  v2?: {
+    total: number
+    /** 启用任务数（对账分母） */
+    enabledTotal: number
+    /** 已打标（含未启用） */
+    domainTagged: number
+    /** 启用任务里真缺的个数（= missingNames.length） */
+    domainMissing: number
+    domainByValue: Record<string, number>
+    /** 启用任务里的真缺口 */
+    missingNames: string[]
+    /** 未启用且未打标（有意留空/历史遗留，不参与对账） */
+    untaggedDisabled: string[]
+  };
 }
 
 /** 对账：把"分类字段是否打通 / 有无未归类"变成可读指标，供页面显式展示 */
 export function computeTaskCoverage(
-  tasks: Array<{ name?: unknown; agentLine?: unknown; domain?: unknown; src?: unknown }>,
+  tasks: Array<{ name?: unknown; agentLine?: unknown; domain?: unknown; src?: unknown; enabled?: unknown }>,
   os?: TaskCoverage['os'],
 ): TaskCoverage {
   const byLine: Record<string, number> = { engine: 0, autonomy: 0, account: 0, other: 0 };
   let fieldTagged = 0, fieldMissing = 0, osLineTagged = 0;
   const unclassified: string[] = [];
   // v2 侧单独对账：domain 与业务线正交，不能拿来当 line，只能证明「这条 v2 任务已打标」
-  let v2Total = 0, domainTagged = 0;
+  let v2Total = 0, v2EnabledTotal = 0, domainTagged = 0, domainTaggedEnabled = 0;
   const domainByValue: Record<string, number> = {};
   const missingNames: string[] = [];
+  const untaggedDisabled: string[] = [];
   for (const t of tasks ?? []) {
     const c = classifyTask(t);
     byLine[c.line] = (byLine[c.line] ?? 0) + 1;
@@ -163,13 +180,31 @@ export function computeTaskCoverage(
       if (String(t?.agentLine ?? '').trim()) osLineTagged += 1;
     } else if (src === 'v2') {
       v2Total += 1;
+      // 只有**明确** disabled 才排除出对账：字段缺失时按启用处理（宁显不藏，别把真缺口吞掉）
+      const enabled = !(t?.enabled === false || t?.enabled === 'false' || t?.enabled === 0);
+      if (enabled) v2EnabledTotal += 1;
       const d = String(t?.domain ?? '').trim();
-      if (d) { domainTagged += 1; domainByValue[d] = (domainByValue[d] ?? 0) + 1; }
-      else missingNames.push(String(t?.name ?? ''));
+      if (d) {
+        domainTagged += 1;
+        domainByValue[d] = (domainByValue[d] ?? 0) + 1;
+        if (enabled) domainTaggedEnabled += 1;
+      } else if (enabled) {
+        missingNames.push(String(t?.name ?? ''));
+      } else {
+        untaggedDisabled.push(String(t?.name ?? ''));
+      }
     }
   }
   const v2 = v2Total > 0
-    ? { total: v2Total, domainTagged, domainMissing: v2Total - domainTagged, domainByValue, missingNames }
+    ? {
+        total: v2Total,
+        enabledTotal: v2EnabledTotal,
+        domainTagged,
+        domainMissing: v2EnabledTotal - domainTaggedEnabled,
+        domainByValue,
+        missingNames,
+        untaggedDisabled,
+      }
     : undefined;
   return {
     total: (tasks ?? []).length, byLine, fieldTagged, fieldMissing, unclassified,

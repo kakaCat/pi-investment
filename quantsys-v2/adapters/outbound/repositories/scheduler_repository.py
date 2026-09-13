@@ -18,6 +18,7 @@ from infrastructure.persistence.orm.models.scheduler import (
     SchedulerRun,
 )
 from infrastructure.scheduler.scheduler import next_run_time as _calc_next_run_time, parse_cron
+from infrastructure.scheduler.task_fields import validate_domain
 
 logger = logging.getLogger(__name__)
 
@@ -102,11 +103,16 @@ class SchedulerRepository(ISchedulerRepository):
         params: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
         task_type: str = 'cron',
+        domain: Optional[str] = None,
     ) -> int:
         # 验证 task_type
         valid_types = ['cron', 'delay', 'interval', 'once']
         if task_type not in valid_types:
             raise ValueError(f"Invalid task_type {task_type!r}, must be one of {valid_types}")
+
+        # 六域打标（2026-09-13, REQ-c970e5）：创建路径此前完全不接该字段 → 新任务必然 NULL。
+        # 非法值在写入前拒绝；不传 / 空串 = 未打标（保持 NULL，交给对账暴露，不设默认值）。
+        domain = validate_domain(domain)
 
         # 只有 cron 类型需要验证 cron 表达式；Agent OS 托管伪任务（cron 保留字
         # managed_by_agent_*）不是真实 cron，跳过校验与 next_run 计算
@@ -137,6 +143,9 @@ class SchedulerRepository(ISchedulerRepository):
             existing.is_enabled = True
             existing.task_type = task_type
             existing.next_run_at = _next
+            if domain is not None:
+                # 复活时若显式给了 domain 就一并打标；不给则保留原值（不猜、不覆盖）
+                existing.domain = domain
             try:
                 self.session.commit()
                 self.session.refresh(existing)
@@ -161,6 +170,7 @@ class SchedulerRepository(ISchedulerRepository):
             is_enabled=True,
             task_type=task_type,
             next_run_at=next_run,
+            domain=domain,
         )
         try:
             self.session.add(config)
@@ -186,7 +196,7 @@ class SchedulerRepository(ISchedulerRepository):
             raise
 
     def update_task(self, task_id: int, **kwargs) -> bool:
-        allowed = {"name", "description", "cron_expression", "command", "params", "is_enabled", "task_type"}
+        allowed = {"name", "description", "cron_expression", "command", "params", "is_enabled", "task_type", "domain"}
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
             return False
@@ -196,6 +206,10 @@ class SchedulerRepository(ISchedulerRepository):
             valid_types = ['cron', 'delay', 'interval', 'once']
             if updates["task_type"] not in valid_types:
                 raise ValueError(f"Invalid task_type {updates['task_type']!r}, must be one of {valid_types}")
+
+        # 六域打标（2026-09-13, REQ-c970e5）：更新路径同样支持改标（补标/纠错）
+        if "domain" in updates:
+            updates["domain"] = validate_domain(updates["domain"])
 
         # 获取当前任务配置
         task = self.get_task(task_id)

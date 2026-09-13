@@ -160,3 +160,30 @@ describe('REQ-eeb38c：11 个 v2 任务名兜底归类', () => {
     expect(classifyTask({ name: 'session-probe' })).toEqual({ line: 'other', source: 'name', unclassified: false });
   });
 });
+
+/**
+ * REQ-c970e5（2026-09-13 w-a1402b8c）：v2 domain 对账口径 —— 缺口只对**启用**任务计。
+ * 未启用且未打标的单列 untaggedDisabled（session-probe = 无实现 + disabled + 溯源不明，
+ * 2026-09-12 明确「宁显不藏」的有意留空），否则它会把对账告警永久点亮。
+ */
+describe('REQ-c970e5：v2 domain 对账只算启用任务', () => {
+  it('未启用且未打标 → untaggedDisabled，不计入 domainMissing', () => {
+    const c = computeTaskCoverage([
+      { name: 'a-enabled-tagged', src: 'v2', domain: 'data', enabled: true },
+      { name: 'b-enabled-gap', src: 'v2', domain: null, enabled: true },
+      { name: 'session-probe', src: 'v2', domain: null, enabled: false },
+    ] as any[]);
+    expect(c.v2!.total).toBe(3);
+    expect(c.v2!.enabledTotal).toBe(2);
+    expect(c.v2!.domainMissing).toBe(1);
+    expect(c.v2!.missingNames).toEqual(['b-enabled-gap']);
+    expect(c.v2!.untaggedDisabled).toEqual(['session-probe']);
+  });
+
+  it('缺 enabled 字段时按启用处理（宁显不藏，不吞真缺口）', () => {
+    const c = computeTaskCoverage([{ name: 'x', src: 'v2', domain: null }] as any[]);
+    expect(c.v2!.enabledTotal).toBe(1);
+    expect(c.v2!.missingNames).toEqual(['x']);
+    expect(c.v2!.untaggedDisabled).toEqual([]);
+  });
+});

@@ -292,16 +292,20 @@ class SchedulerService:
         params: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
         task_type: str = 'cron',
+        domain: Optional[str] = None,
     ) -> int:
-        """注册任务；task_type 透传给仓储（cron / delay / interval / once）。
+        """注册任务；task_type / domain 透传给仓储（cron / delay / interval / once）。
 
         2026-09-11（w-8f2c4cc5）契约修复：上层路由 create_scheduler_task 会按
         schedule_kind 推导 task_type 并作为关键字参数传入，但本方法此前未声明该参数，
         导致 POST /api/scheduler/tasks 100% 抛 TypeError → 500
         （实测：SchedulerService.add_task() got an unexpected keyword argument 'task_type'），
         同时 delay/once 类任务永远无法通过 API 创建。
+
+        domain（2026-09-13, REQ-c970e5）同理补声明：六域打标字段，创建路径不接它
+        → 新建任务必然 domain=NULL（看板「v2 侧 domain 缺 N」反复变脏的根因）。
         """
-        return self.repo.add_task(name, cron_expression, command, params, description, task_type)
+        return self.repo.add_task(name, cron_expression, command, params, description, task_type, domain)
 
     def remove_task(self, task_id: int) -> bool:
         return self.repo.remove_task(task_id)

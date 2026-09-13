@@ -319,13 +319,22 @@ function coverageNote(data: BoardData): string {
       ? 'OS 侧 ' + inc + ' 个任务均带 agent_line 字段（分类以库中字段为准）'
       : 'OS 侧 ' + tagged + '/' + inc + ' 个任务带 agent_line 字段，其余按任务名名单兜底')
   }
-  // v2 侧：domain 是六域，与业务线正交，只作「是否已打标」对账，不能说成「缺分类字段」
+  // v2 侧：domain 是六域，与业务线正交，只作「是否已打标」对账，不能说成「缺分类字段」。
+  // 口径（2026-09-13, REQ-c970e5）：分母只算**启用**任务；未启用且未打标的单列说明
+  // （session-probe 是有意留空：无实现 + disabled + 溯源不明，不该天天刷「请补录」）。
   const v2c = c.v2
   if (v2c && (v2c.total ?? 0) > 0) {
     const miss = v2c.domainMissing ?? 0
     const names = v2c.missingNames ?? []
-    parts.push('v2 侧 domain（六域，与业务线正交）已打标 ' + (v2c.domainTagged ?? 0) + '/' + (v2c.total ?? 0)
+    const enabledTotal = v2c.enabledTotal ?? v2c.total ?? 0
+    const taggedEnabled = enabledTotal - miss
+    parts.push('v2 侧 domain（六域，与业务线正交）启用任务已打标 ' + taggedEnabled + '/' + enabledTotal
       + (miss > 0 ? '，缺 ' + miss + '：' + names.slice(0, 3).join('、') + (names.length > 3 ? ' 等' : '') : ''))
+    const dis = v2c.untaggedDisabled ?? []
+    if (dis.length > 0) {
+      parts.push('v2 未启用任务未打标 ' + dis.length + ' 个：' + dis.slice(0, 3).join('、')
+        + (dis.length > 3 ? ' 等' : '') + '（不参与对账，含有意留空）')
+    }
   }
   const un = c.unclassified ?? []
   if (un.length > 0) {

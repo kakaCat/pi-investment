@@ -150,7 +150,11 @@ export interface BoardData {
     fieldMissing: number;
     unclassified: string[];
     os?: { apiTotal: number; included: number; excluded: number; byReason: Record<string, number>; lineTagged?: number };
-    v2?: { total: number; domainTagged: number; domainMissing: number; domainByValue: Record<string, number>; missingNames: string[] };
+    /** v2 侧对账（2026-09-13, REQ-c970e5 起：缺口只对启用任务计，未启用未打标单列 untaggedDisabled） */
+    v2?: {
+      total: number; enabledTotal: number; domainTagged: number; domainMissing: number;
+      domainByValue: Record<string, number>; missingNames: string[]; untaggedDisabled: string[];
+    };
   };
   errors: ErrorEvent[];
   timeline: TimelineEntry[];

@@ -182,12 +182,19 @@ class ISchedulerRepository(ABC):
         params: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
         task_type: str = 'cron',
+        domain: Optional[str] = None,
     ) -> int:
         """注册新的定时任务，返回 task id
 
         task_type（2026-09-11 契约对齐, w-8f2c4cc5）：cron / delay / interval / once。
         实现层（SchedulerRepository.add_task）自 2026-09 起已支持并校验该参数，但端口与
         域服务此前未声明 → POST /api/scheduler/tasks 传 task_type 必然 TypeError(500)。
+
+        domain（2026-09-13, REQ-c970e5）：六域 data/signal/trading/analysis/report/monitor
+        （取值与校验见 infrastructure/scheduler/task_fields.py）。此前端口/域服务/仓储/路由
+        四处签名都无该参数 → 新建任务必然 born-NULL、看板对账反复变脏。
+        不传 = 未打标（保持 NULL，交给对账显式暴露）；**刻意不设 DEFAULT**，
+        以免重演 2026-09-02 OS 侧 agent_line 静默继承默认值的事故。
         """
         pass
 
