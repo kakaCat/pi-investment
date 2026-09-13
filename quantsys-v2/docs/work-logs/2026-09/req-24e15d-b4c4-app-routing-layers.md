@@ -151,6 +151,22 @@
 `ds.portfolio.db` 必抛 `AttributeError`，而整段被 `except Exception: pass` 吞掉。
 迁移后不再依赖这个已消失的接口，静默失效随之消除（修复前证据已写进代码注释）。
 
+**修复后实测（重启 5001 后 curl，2026-09-14）：**
+
+    $ curl -s http://127.0.0.1:5001/api/stocks/my-stocks
+    {"success":true,"data":{"positions":[{"symbol":"000999","name":"华润三九"},{"symbol":"601398","name":""},
+     {"symbol":"600036","name":"招商银行"},{"symbol":"601088","name":"中国神华"},{"symbol":"601288","name":"农业银行"},
+     {"symbol":"9988","name":"阿里巴巴"},{"symbol":"01810","name":"小米集团"},{"symbol":"00700","name":"腾讯控股"},
+     {"symbol":"600600","name":"青岛啤酒"},{"symbol":"600900","name":"长江电力"},{"symbol":"512880","name":"证券ETF"},
+     {"symbol":"000425","name":"徐工机械"}],"watchlist":[{"symbol":"600519","name":"贵州茅台"}]}}
+
+返回 12 条 = 库里 `status=open` 的 12 行，顺序与字段逐条一致（`601398` 库里 `name` 为 NULL，
+接口按原契约归一成空串）。**从恒空到 12 条，是同一个接口的同一个 bug 被真正修掉。**
+
+顺带交叉验证了一条：`GET /api/signals/statistics` 经 HTTP 返回
+`avgConfidence 0.94 / buyApprovedRate 9.62 / sellApprovedRate 6.91`，
+与 §4 里进程内等价性验证的数值**逐位相同** —— 说明那套 harness 的数值是真的（不是自洽的假象）。
+
 ### 5.2 `StrategyConfig` 模型缺 3 列
 `risk_params / version / risk_config` 表里真实存在但模型没声明——
 退役备份 `select *` 改走模型后**会少这 3 个字段**。已补齐（线上 27 列 = 模型 27 列，实测）。
@@ -230,7 +246,38 @@
 
 ### 7.4 干净串行结果
 
-（串行重跑进行中，落地后补入；以 FAILED+ERROR **集合 diff** 为准，不比计数）
+### 7.4 干净串行结果（最终口径）
+
+    基线(HEAD 4da3e84d)  289 failed / 5406 passed / 82 skipped / 87 errors   -> FAILED+ERROR 集合 376 条
+    当前树               289 failed / 5426 passed / 82 skipped / 87 errors   -> FAILED+ERROR 集合 376 条
+
+    集合 diff：新增 1，消失 1
+
+新增的 1 条：
+
+    FAILED tests/test_stock_data_fix.py::TestStockDataAPIs::test_07_api_parameters_validation
+
+**判定：与本批无关的实时外网抖动，不是我引入的。** 判据（不是"看起来像"）：
+
+1. 该用例通篇调 `akshare`（`import akshare as ak`）打**外部站点**，
+   `ak.stock_individual_notice_report(...)` / `ak.stock_individual_fund_flow(...)` ——
+   **根本不经过 FastAPI 进程**，因此我改的 `routes/stock_async.py` 在它的调用链上不存在；
+2. 它的失败分支只认异常文案里的 `network`/`ssl`/`proxy` 关键词，
+   文案一变（限流/超时措辞不同）就记 fail —— 典型的**网络依赖型抖动**；
+3. 单独连跑 3 次：**3 passed**；基线 worktree 单跑：**passed**。
+
+消失的 1 条：`tests/migration/test_sentiment_parity.py::test_fund_flow` ——
+同为**实时网络** parity 测试（打 `/api/stock/600519/fund-flow`），且 **B4-c3 那一批它就以同样方式抖动过**。
+
+> 两条一增一减、方向相反、都不在调用链上，合计 376 vs 376，**本批引入的新失败 = 0**。
+>
+> 注意与第一次（并行跑）的差别：并行那次是「新增 3、消失 3」，串行这次收敛到「1 增 1 减」。
+> 差额那 2 条（`test_ai_diagnosis_no_api_key`、`test_batch_entry_exit::test_batch_entry`）
+> 在两次里都没有出现为真实增量 —— 印证了它们是并发争用产物。
+
+**passed 数差 20（5406 vs 5426）不可直接横比**：当前树有多窗口留下的未跟踪测试文件
+（`tests/test_barra_shrinkage.py` + `tests/test_barra_small_sample.py` 等），
+两边收集的用例集本就不同 —— 能比的只有 FAILED+ERROR 集合。
 
 ---
 
