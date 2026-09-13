@@ -93,7 +93,16 @@ ORM 模型 `IndexDaily`、仓储指数口径方法（`get_index_return` 等）�
 批次日志：`req-24e15d-b1-jobs-layer.md`、`-b2a-`、`-b2b-`、`-b3a-`、`-b3a2-`、
 `-b3b-`、`-b4a-`、`-b4b-`、`-b4c-portfolio-repo.md`。
 
-## 7. 当前闸门状态（B4-c1 后）
+## 6.5 B4-c2：legacy 订单栈删除（`9bb04e65`，经用户裁定 A 方案）
+
+详见 `req-24e15d-b4c2-delete-legacy-order-stack.md`。要点：
+
+- 删 10 个 orders 方法 + `db` 裸连接属性 ⇒ **portfolio_repository.py 15 → 0，100% ORM**；
+- 删 `order_service.py`(1175) + `new_order_service.py`(102) + `POST /api/signals/execute` + 8 个 legacy 测试文件；
+- **修好一条静默失效的调度链**：`_batch_create_orders` 里 legacy `create_order` 必抛异常、
+  被 except 吞掉 → `trade_signals` 恒空 → **PaperTradingEngine 自 2026-08-25 起一单未执行**。
+
+## 7. 当前闸门状态（B4-c2 后）
 
 ```
 P0 fstring_value_interp  本轮范围 0    ✅
