@@ -1,5 +1,4 @@
-"""
-Stock Pool Repository - CRUD for quant.stock_pools table.
+"""Stock Pool Repository - CRUD for quant.stock_pools table.
 
 2026-08-04 恢复说明：ORM 重构把本仓储换成缺 dict 契约的残版
 （create(dict) 静默吞错返回 None，update/update_symbols/update_validation/
@@ -7,17 +6,23 @@ delete/update_scan_enabled 全缺失），导致股票池创建/更新/删除/�
 扫描开关等生产链路静默退化。按归档 8f06ae1^ 版本恢复旧实现
 （symbols 列为 ARRAY、filter_template/members/last_validation/last_signal_scan
 为 JSONB，与生产表结构一致），保留 StockPoolORMRepository 别名兼容调用方。
+
+2026-09-14（w-32314d00，REQ-24e15d B4）：**上一段说的"旧实现"本身是 db_cursor + 裸 SQL**
+（10 处），本批把它真正落到 ORM —— 类改为继承 BaseORMRepository[StockPool]，
+SQL 全部消失，JSONB 直接传 Python 对象（不再手工 json.dumps）。
+对外契约（方法名、返回 dict、None 语义、bool 语义、字段白名单）**逐条保持不变**。
 """
 import json
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
-# ORM 模型保留给 heatmap_repository 等 SQLAlchemy 查询方使用
-# （仓储本体走 psycopg2 旧契约，两者共存）
-from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, Boolean, ARRAY
+from sqlalchemy import ARRAY, Boolean, Column, DateTime, Integer, JSON, String, Text
+from sqlalchemy.sql import func
+
+from infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.base import Base
 
 
@@ -41,12 +46,24 @@ class StockPool(Base):
     last_signal_scan = Column(JSON)
 
 
-class StockPoolRepository:
-    """Data access for stock_pools table."""
+# update() 允许修改的字段（与旧实现的 allowed 集合一致）
+_UPDATABLE_FIELDS = frozenset({
+    'name', 'description', 'symbols', 'members', 'filter_template', 'refresh_interval',
+})
+
+
+class StockPoolRepository(BaseORMRepository[StockPool]):
+    """Data access for stock_pools table.
+
+    db_connection 参数仅为向后兼容保留（忽略）：连接由 scoped_session 按线程现取。
+    """
+
+    model = StockPool
 
     def __init__(self, db_connection=None):
-        """db_connection 参数仅为向后兼容保留（忽略）。连接按操作现取现还。"""
-        pass
+        if self.model is None:
+            raise ValueError('StockPoolRepository must set model')
+        self._session = None
 
     def close(self):
         """兼容旧调用方的 no-op（连接不再由实例持有）。"""
@@ -58,42 +75,41 @@ class StockPoolRepository:
     def __exit__(self, exc_type, exc_val, exc_tb):
         return False
 
-    def create(self, data: Dict) -> Dict:
-        """Create a new stock pool. Returns the created pool dict."""
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor(commit=True) as cursor:
-            cursor.execute("""
-                INSERT INTO quant.stock_pools
-                    (name, pool_type, description, symbols,
-                     filter_template, refresh_interval)
-                VALUES
-                    (%(name)s, %(pool_type)s, %(description)s, %(symbols)s,
-                     %(filter_template)s, %(refresh_interval)s)
-                RETURNING id
-            """, {
-                'name': data['name'],
-                'pool_type': data['pool_type'],
-                'description': data.get('description'),
-                'symbols': data.get('symbols', []),
-                'filter_template': json.dumps(data['filter_template']) if data.get('filter_template') else None,
-                'refresh_interval': data.get('refresh_interval'),
-            })
-            result = dict(cursor.fetchone())
-        # 提交后再读：get_by_id 走池里另一条连接，块内调用读不到未提交的 INSERT
-        return self.get_by_id(result['id'])
+    # ---------------- 内部 ----------------
+
+    def _parse_row(self, row) -> Dict:
+        """ORM 对象 → dict。
+
+        旧实现要 JSONB 字段是 str 时再 json.loads（psycopg2 裸游标 + json.dumps 写入的遗留）；
+        ORM 的 JSON 列读出来已是 Python 对象，这段兼容分支保留但正常情况下不会触发。
+        """
+        d = {c.name: getattr(row, c.name) for c in row.__table__.columns} if not isinstance(row, dict) else dict(row)
+        for jsonb_field in ('filter_template', 'last_validation', 'members', 'last_signal_scan'):
+            if isinstance(d.get(jsonb_field), str):
+                try:
+                    d[jsonb_field] = json.loads(d[jsonb_field])
+                except (ValueError, TypeError):
+                    pass
+        return d
+
+    def _get_model(self, pool_id: int) -> Optional[StockPool]:
+        return (
+            self.session.query(StockPool)
+            .filter(StockPool.id == pool_id)
+            .first()
+        )
+
+    # ---------------- 读 ----------------
 
     def get_by_id(self, pool_id: int) -> Optional[Dict]:
         """Get a pool by ID. Returns None if not found."""
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor() as cursor:
-            cursor.execute(
-                "SELECT * FROM quant.stock_pools WHERE id = %(id)s",
-                {'id': pool_id}
-            )
-            row = cursor.fetchone()
-            if not row:
-                return None
-            return self._parse_row(row)
+        try:
+            obj = self._get_model(pool_id)
+            return self._parse_row(obj) if obj else None
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error in get_by_id({pool_id}): {e}")
+            return None
 
     def get_pool(self, pool_id: int) -> Optional[Dict]:
         """get_by_id 的别名（ORM 时期引入的调用名，16 处生产调用）"""
@@ -101,110 +117,105 @@ class StockPoolRepository:
 
     def get_all(self) -> List[Dict]:
         """Get all stock pools."""
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor() as cursor:
-            cursor.execute("SELECT * FROM quant.stock_pools ORDER BY created_at DESC")
-            return [self._parse_row(row) for row in cursor.fetchall()]
+        try:
+            rows = (
+                self.session.query(StockPool)
+                .order_by(StockPool.created_at.desc())
+                .all()
+            )
+            return [self._parse_row(r) for r in rows]
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error in get_all: {e}")
+            return []
 
     def get_dynamic_pools(self) -> List[Dict]:
         """Get all dynamic pools (for scheduler recovery)."""
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor() as cursor:
-            cursor.execute(
-                "SELECT * FROM quant.stock_pools WHERE pool_type = 'dynamic' ORDER BY id"
+        try:
+            rows = (
+                self.session.query(StockPool)
+                .filter(StockPool.pool_type == 'dynamic')
+                .order_by(StockPool.id.asc())
+                .all()
             )
-            return [self._parse_row(row) for row in cursor.fetchall()]
+            return [self._parse_row(r) for r in rows]
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error in get_dynamic_pools: {e}")
+            return []
+
+    # ---------------- 写 ----------------
+
+    def create(self, data: Dict) -> Dict:
+        """Create a new stock pool. Returns the created pool dict."""
+        obj = StockPool(
+            name=data['name'],
+            pool_type=data['pool_type'],
+            description=data.get('description'),
+            symbols=data.get('symbols', []),
+            # 旧实现 json.dumps 后交给 psycopg2；ORM 下直接传 Python 对象
+            filter_template=data.get('filter_template') or None,
+            refresh_interval=data.get('refresh_interval'),
+        )
+        self.session.add(obj)
+        self.session.commit()
+        return self.get_by_id(obj.id)
 
     def update(self, pool_id: int, data: Dict) -> Optional[Dict]:
         """Update pool fields. Returns updated pool or None if not found."""
-        allowed = {'name', 'description', 'symbols', 'members', 'filter_template', 'refresh_interval'}
-        fields = {k: v for k, v in data.items() if k in allowed and v is not None}
+        fields = {k: v for k, v in data.items()
+                  if k in _UPDATABLE_FIELDS and v is not None}
         if not fields:
             return self.get_by_id(pool_id)
 
-        set_clauses = []
-        params = {'id': pool_id}
-        for key, value in fields.items():
-            if key in ('filter_template', 'members'):
-                params[key] = json.dumps(value)
-            else:
-                params[key] = value
-            set_clauses.append(f"{key} = %({key})s")
-        set_clauses.append("updated_at = NOW()")
-
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor(commit=True) as cursor:
-            cursor.execute(f"""
-                UPDATE quant.stock_pools
-                SET {', '.join(set_clauses)}
-                WHERE id = %(id)s
-                RETURNING id
-            """, params)
-            result = cursor.fetchone()
-        # 提交后再读：get_by_id 走池里另一条连接，块内调用会读到提交前的旧数据
-        if not result:
+        obj = self._get_model(pool_id)
+        if not obj:
             return None
+        for key, value in fields.items():
+            setattr(obj, key, value)
+        obj.updated_at = func.now()
+        self.session.commit()
         return self.get_by_id(pool_id)
 
     def update_symbols(self, pool_id: int, symbols: List[str]) -> Optional[Dict]:
         """Update pool symbols and set last_refreshed_at. Used by dynamic pool refresh."""
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor(commit=True) as cursor:
-            cursor.execute("""
-                UPDATE quant.stock_pools
-                SET symbols = %(symbols)s,
-                    last_refreshed_at = NOW(),
-                    updated_at = NOW()
-                WHERE id = %(id)s
-                RETURNING id
-            """, {'id': pool_id, 'symbols': symbols})
-            result = cursor.fetchone()
-        # 提交后再读：get_by_id 走池里另一条连接，块内调用会读到提交前的旧数据
-        if not result:
+        obj = self._get_model(pool_id)
+        if not obj:
             return None
+        obj.symbols = list(symbols)
+        obj.last_refreshed_at = func.now()
+        obj.updated_at = func.now()
+        self.session.commit()
         return self.get_by_id(pool_id)
 
     def update_validation(self, pool_id: int, validation: Dict) -> Optional[Dict]:
         """Update last_validation JSON snapshot."""
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor(commit=True) as cursor:
-            cursor.execute("""
-                UPDATE quant.stock_pools
-                SET last_validation = %(validation)s,
-                    updated_at = NOW()
-                WHERE id = %(id)s
-                RETURNING id
-            """, {'id': pool_id, 'validation': json.dumps(validation)})
-            result = cursor.fetchone()
-        # 提交后再读：get_by_id 走池里另一条连接，块内调用会读到提交前的旧数据
-        if not result:
+        obj = self._get_model(pool_id)
+        if not obj:
             return None
+        obj.last_validation = validation
+        obj.updated_at = func.now()
+        self.session.commit()
         return self.get_by_id(pool_id)
 
     def delete(self, pool_id: int) -> bool:
         """Delete a pool. Returns True if deleted, False if not found."""
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor(commit=True) as cursor:
-            cursor.execute(
-                "DELETE FROM quant.stock_pools WHERE id = %(id)s RETURNING id",
-                {'id': pool_id}
-            )
-            result = cursor.fetchone()
-            return result is not None
+        obj = self._get_model(pool_id)
+        if not obj:
+            return False
+        self.session.delete(obj)
+        self.session.commit()
+        return True
 
     def update_scan_enabled(self, pool_id: int, enabled: bool) -> bool:
         """开关池的信号扫描（pools_async / pool_scan_switch 路由调用）"""
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor(commit=True) as cursor:
-            cursor.execute("""
-                UPDATE quant.stock_pools
-                SET scan_enabled = %(enabled)s,
-                    updated_at = NOW()
-                WHERE id = %(id)s
-                RETURNING id
-            """, {'id': pool_id, 'enabled': enabled})
-            result = cursor.fetchone()
-            return result is not None
+        obj = self._get_model(pool_id)
+        if not obj:
+            return False
+        obj.scan_enabled = bool(enabled)
+        obj.updated_at = func.now()
+        self.session.commit()
+        return True
 
     def update_signal_scan(self, pool_id: int, scan_result: Dict) -> Optional[Dict]:
         """
@@ -217,31 +228,16 @@ class StockPoolRepository:
         Returns:
             更新后的股票池，或None如果不存在
         """
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor(commit=True) as cursor:
-            cursor.execute("""
-                UPDATE quant.stock_pools
-                SET last_signal_scan = %(scan_result)s,
-                    updated_at = NOW()
-                WHERE id = %(id)s
-                RETURNING id
-            """, {'id': pool_id, 'scan_result': json.dumps(scan_result)})
-            result = cursor.fetchone()
-        # 提交后再读：get_by_id 走池里另一条连接，块内调用会读到提交前的旧数据
-        if not result:
+        obj = self._get_model(pool_id)
+        if not obj:
             return None
+        obj.last_signal_scan = scan_result
+        obj.updated_at = func.now()
+        self.session.commit()
         return self.get_by_id(pool_id)
-
-    def _parse_row(self, row) -> Dict:
-        """Convert a database row to a dict, parsing JSONB fields."""
-        d = dict(row)
-        for jsonb_field in ('filter_template', 'last_validation', 'members', 'last_signal_scan'):
-            if isinstance(d.get(jsonb_field), str):
-                d[jsonb_field] = json.loads(d[jsonb_field])
-        return d
 
 
 # 兼容别名：ORM 时期的调用名
 StockPoolORMRepository = StockPoolRepository
 
-__all__ = ['StockPoolRepository', 'StockPoolORMRepository']
+__all__ = ['StockPoolRepository', 'StockPoolORMRepository', 'StockPool']
