@@ -366,3 +366,142 @@ class TestEndToEnd:
         expo = (gs.get("meta") or {}).get("exposure_pct_of_total") or 0
         assert expo <= 0.05 + 1e-9, "成长板子额度超 5%% 上限：%r" % expo
         assert plan.get("data_date"), "计划必须自描述行情时点（R-013）"
+
+# --------------------------------------------------------------------------- #
+# 7. 宪法限额静态复检（_limit_check）
+# --------------------------------------------------------------------------- #
+class TestLimitCheck:
+    """机械差额由计划权重推导、**从不校验宪法限额**（可能已持有某股 15% 再按计划加仓）。
+
+    此前只写在 caveats 文案里"下单前必须复核"，等于把校验推给下游人工；这里钉住机器判定。
+    """
+
+    def _row(self, symbol, held, delta, close, action):
+        return {"symbol": symbol, "held_shares": held, "delta_shares": delta,
+                "plan_close": close, "action": action, "est_amount": abs(delta) * close}
+
+    def test_unchecked_when_total_value_unknown(self):
+        r = S._limit_check([self._row("600000", 0, 100, 10.0, "BUY")], {}, 1000.0, None)
+        assert r["checked"] is False and r["passed"] is None
+        assert "未校验" in r["note"]
+
+    def test_passes_in_normal_case(self):
+        rows = [self._row("600000", 0, 100, 10.0, "BUY")]
+        with patch.object(S, "_industries", return_value={"600000": "银行"}):
+            r = S._limit_check(rows, {}, 100000.0, 200000.0)
+        assert r["passed"] is True and r["violations"] == []
+        assert r["max_single"]["pct"] == 0.5
+        # 现金 100000 / 总资产 200000 = 50%；买入 1000 后 49.5%（远高于 10% 下限）
+        assert r["cash_after_pct"] == 49.5
+
+    def test_single_stock_limit_violation(self):
+        # 已持 19%（38000/200000），再买 300 股 → 41000/200000 = 20.5% > 20%
+        rows = [self._row("600000", 3800, 300, 10.0, "BUY")]
+        with patch.object(S, "_industries", return_value={"600000": "银行"}):
+            r = S._limit_check(rows, {}, 100000.0, 200000.0)
+        kinds = [v["type"] for v in r["violations"]]
+        assert "single_stock" in kinds and r["passed"] is False
+
+    def test_industry_limit_violation(self):
+        rows = [self._row("600000", 0, 4000, 10.0, "BUY"),   # 40000
+                self._row("601288", 0, 4500, 10.0, "BUY")]   # 45000 → 同行业 85000/200000=42.5%
+        with patch.object(S, "_industries", return_value={"600000": "银行", "601288": "银行"}):
+            r = S._limit_check(rows, {}, 100000.0, 200000.0)
+        kinds = [v["type"] for v in r["violations"]]
+        assert "industry" in kinds and r["passed"] is False
+        assert r["max_industry"]["industry"] == "银行"
+
+    def test_cash_min_violation(self):
+        rows = [self._row("600000", 0, 1900, 10.0, "BUY")]   # 花 19000，现金 20000 → 剩 1000 = 0.5%
+        with patch.object(S, "_industries", return_value={"600000": "银行"}):
+            r = S._limit_check(rows, {}, 20000.0, 200000.0)
+        kinds = [v["type"] for v in r["violations"]]
+        assert "cash_min" in kinds
+
+    def test_sell_reduces_exposure_not_flagged(self):
+        rows = [self._row("600000", 5000, -4000, 10.0, "SELL")]
+        with patch.object(S, "_industries", return_value={"600000": "银行"}):
+            r = S._limit_check(rows, {}, 100000.0, 200000.0)
+        assert r["passed"] is True and r["max_single"]["pct"] == 5.0
+
+
+# --------------------------------------------------------------------------- #
+# 8. 分批节奏（execution_plan）
+# --------------------------------------------------------------------------- #
+class TestExecutionPlan:
+    def _core(self, n=15):
+        return [{"symbol": "C%02d" % i, "weight_pct_of_core": round(100.0 / n, 2),
+                 "lots": 1, "close": 10.0} for i in range(n)]
+
+    def test_every_name_appears_exactly_once(self):
+        ep = S.build_execution_plan(self._core(), [], 100000.0, 0.0)
+        syms = [s for b in ep["batches"] for s in b["symbols"]]
+        assert len(syms) == len(set(syms)) == 15
+
+    def test_batches_are_balanced(self):
+        ep = S.build_execution_plan(self._core(), [], 100000.0, 0.0)
+        amts = [b["amount"] for b in ep["batches"]]
+        assert len(amts) == 4
+        assert max(amts) - min(amts) <= max(amts) * 0.5, "各批金额差异过大：%r" % amts
+
+    def test_sleeve_rows_carried_with_bucket(self):
+        sleeve = [{"symbol": "300014", "weight_pct_of_sleeve": 50.0, "lots": 1, "close": 20.0},
+                  {"symbol": "300456", "weight_pct_of_sleeve": 50.0, "lots": 2, "close": 10.0}]
+        ep = S.build_execution_plan(self._core(4), sleeve, 40000.0, 20000.0)
+        got = {x["symbol"]: x["bucket"] for b in ep["batches"] for x in b["detail"]}
+        assert got["300014"] == "growth_sleeve" and got["C00"] == "core"
+
+    def test_rule_states_no_one_shot(self):
+        ep = S.build_execution_plan(self._core(2), [], 10000.0, 0.0)
+        assert "一次性打满" in ep["rule"] or "不得" in ep["rule"]
+
+    def test_empty_input_is_safe(self):
+        ep = S.build_execution_plan([], [], 0.0, 0.0)
+        assert len(ep["batches"]) == 4 and all(b["amount"] == 0 for b in ep["batches"])
+
+
+# --------------------------------------------------------------------------- #
+# 9. 风险透镜（risk_lens）——必须 best-effort，绝不拖垮 09:05 的计划任务
+# --------------------------------------------------------------------------- #
+def _fake_klines(n_days=80, n_syms=3, seed=7):
+    rng = np.random.default_rng(seed)
+    dates = pd.bdate_range("2026-01-01", periods=n_days)
+    frames = []
+    for i in range(n_syms):
+        px = 10.0 * np.cumprod(1 + rng.normal(0.0005, 0.015, n_days))
+        frames.append(pd.DataFrame({"symbol": "60000%d" % i, "trade_date": dates, "close": px}))
+    return pd.concat(frames, ignore_index=True)
+
+
+class TestRiskLens:
+    def test_too_few_names_degrades_not_raises(self):
+        r = S.risk_lens({"600000": 0.1}, 100000.0)
+        assert r["unavailable_reason"] and r["ann_vol"] is None
+
+    def test_no_kline_data_degrades(self):
+        with patch.object(S, "kline_history", return_value=pd.DataFrame(columns=["symbol", "trade_date", "close"])):
+            r = S.risk_lens({"600000": 0.1, "600001": 0.1}, 100000.0)
+        assert "无日线数据" in (r["unavailable_reason"] or "")
+
+    def test_happy_path_computes_effective_bets(self):
+        with patch.object(S, "kline_history", return_value=_fake_klines()):
+            r = S.risk_lens({"600000": 0.1, "600001": 0.1, "600002": 0.05}, 100000.0)
+        assert r["unavailable_reason"] is None
+        # 有效注数（特征值口径、不含权重）的上界是**标的数**（Cauchy-Schwarz: Σλ² ≥ n），不是名义注数：
+        # 权重不均时特征值口径反而可能更大（实测 3 只 (0.4,0.4,0.2) → 2.93 > 名义 2.78）。两者不可直接比。
+        assert 1.0 <= r["effective_bets"] <= 3 + 1e-6, "有效注数必须落在 [1, 标的数]：%r" % r["effective_bets"]
+        assert "不可直接比大小" in r["bets_note"]
+        assert r["ann_vol"] > 0 and r["var95_daily"] < 0
+        assert r["var95_amount"] is not None and r["trading_days"] > 20
+
+    def test_benchmark_failure_only_loses_beta(self):
+        with patch.object(S, "kline_history", return_value=_fake_klines()), \
+             patch.dict("sys.modules", {"akshare": None}):
+            r = S.risk_lens({"600000": 0.1, "600001": 0.1}, 100000.0)
+        assert r["beta_vs_hs300"] is None and r["ann_vol"] is not None
+        assert r["benchmark_note"]
+
+    def test_malformed_exposure_ignored(self):
+        with patch.object(S, "kline_history", return_value=_fake_klines()):
+            r = S.risk_lens({"600000": 0.1, "600001": "bad", "600002": None}, 100000.0)
+        assert r["unavailable_reason"], "剔掉非法权重后只剩 1 只 → 应显式降级"

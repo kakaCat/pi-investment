@@ -22,9 +22,13 @@ infrastructure 的 SQLAlchemy engine + **绑定变量**。为什么必须收口�
   2. 目标持仓 = 流动性 Top 且价格可负担的 N 只等权（A股 100 股整数倍约束下可落地）+ 成长板独立子额度；
   3. 写入 quantsys-v2/config/core_plan.json + 打印人类可读摘要。**不下任何委托。**
 
-⚠️ 文档/实现对齐（2026-09-13 B7 复核）：原文案第 3 条写"与当前持仓的差额（需要买/卖多少股）"，
-但**代码从未实现**——本服务不读 position_list，产出的 holdings 是"目标组合"而非"待下委托"。
-差额要由消费方（agent）读当前持仓自行比对。此处按实现改正，避免计划文件被当成下单清单。
+文档/实现对齐（2026-09-13 B7 复核 → 同日 B8/w-c8cae280 追平）：
+  - 计划**文件**本身仍只有"目标组合"（holdings + growth_sleeve），不含与持仓的差额；
+  - 差额由**只读视图** plan_snapshot() / GET /api/core-plan 提供（_plan_delta，B8），
+    并在其中新增宪法第 3 条**静态限额复检**（_limit_check：单股≤20%/单行业≤40%/现金≥10%）；
+  - 产物新增两段（w-c8cae280）：execution_plan（分批节奏，避免差额表被当一次性委托清单）、
+    risk_lens（年化波动/夏普/日 VaR/CVaR/平均相关/**有效注数**/β/α，生成时算一次写进产物）。
+  - 仍然：**机械差额不是委托清单**——下单前必须走 R-001/R-002 与实时价（见 DELTA_CAVEATS）。
 
 用法：由定时任务 core_plan_generate 驱动（工作日 09:05，task id 337）。
       不要用 python 直接跑本模块——它是 application 层服务，不是可执行入口。
@@ -105,6 +109,12 @@ def kline_history(symbols, start: str) -> pd.DataFrame:
                 ).bindparams(bindparam("syms", expanding=True))
     df = query_df(stmt, {"syms": syms, "start": start})
     df["symbol"] = df["symbol"].astype(str).str.zfill(6)
+    if len(df):
+        # 2026-09-13 实测踩到：走 SQLAlchemy engine 取回的 date 列是 datetime.date 对象，
+        # 而 psql CSV 路径下 pandas 会解析成 Timestamp —— 同一字段两种类型。
+        # 后果是下游 .date() 直接 AttributeError、与 akshare 基准按时间 join 静默 0 行（β 变 None）。
+        # 故在**取数出口**统一成 datetime，不让调用方各自猜类型。
+        df["trade_date"] = pd.to_datetime(df["trade_date"])
     return df
 
 
@@ -282,6 +292,146 @@ def enforce_core_constraints(tilts: list, used: set, pk: dict, uni, tilt_fn,
         _t["lots"] = int((amt_total_pre * _t["weight_pct_of_core"] / 100.0)
                          // (float(pk[_t["symbol"]]["close"]) * 100))
     return tilts, dropped_total
+
+
+# --------------------------------------------------------------------------- #
+# 公式透镜 / 分批节奏（2026-09-13 w-c8cae280）
+# --------------------------------------------------------------------------- #
+RF_ANNUAL = 0.02      # 无风险利率假设（年化），仅用于夏普口径，不参与任何下单判断
+
+
+def _fmt_day(x) -> str:
+    """日期格式化：date / datetime / Timestamp / 字符串都能吃（上游类型不统一，别猜）。"""
+    return x.strftime("%Y-%m-%d") if hasattr(x, "strftime") else str(x)
+CONST_SINGLE_PCT = 20.0    # 宪法第 3 条：单股 ≤ 总资产 20%
+CONST_INDUSTRY_PCT = 40.0  # 宪法第 3 条：单行业 ≤ 总资产 40%
+CONST_CASH_MIN_PCT = 10.0  # 宪法第 3 条：现金 ≥ 总资产 10%
+
+
+def risk_lens(exposure_by_symbol: dict, total_value: float, start: str = "2024-07-01") -> dict:
+    """计划组合的公式透镜：波动 / 夏普 / VaR / CVaR / 相关 / **有效注数** / β / α。
+
+    为什么在**生成时**算而不是读 API 时算：读计划是高频动作（盘前、盘中、其他任务），
+    而算一次要拉十几只两年日线 + 基准指数。放生成时（每日一次）算完写进产物，
+    计划因此**自描述**自身风险特征，消费端零成本。
+
+    为什么 best-effort（绝不抛错）：本函数失败不能让 09:05 的计划任务失败——那会让当天没有计划。
+    失败一律写进 unavailable_reason、字段留 None，消费端能显式看到"没算出来"，不会误读成 0。
+
+    关键口径（R-013）：
+      - 有效注数 = 相关矩阵特征值的 (Σλ)²/Σλ² —— 回答"15 只到底等于几个独立下注"
+      - VaR/CVaR 为**日频历史法**，var95_amount 按当前计划暴露折算成金额
+      - β/α 基准=沪深300：库内**无指数日线**（实测），故走 akshare 日收益率口径；拿不到只缺 β/α
+    """
+    out = {"window": None, "trading_days": None, "ann_return": None, "ann_vol": None, "sharpe": None,
+           "var95_daily": None, "cvar95_daily": None, "var95_amount": None,
+           "mean_pairwise_corr": None, "effective_bets": None, "nominal_bets": None,
+           "max_drawdown": None, "beta_vs_hs300": None, "alpha_ann": None,
+           "benchmark": None, "benchmark_note": None, "unavailable_reason": None}
+    try:
+        w = {}
+        for k, v in (exposure_by_symbol or {}).items():
+            try:
+                fv = float(v)
+            except (TypeError, ValueError):
+                continue
+            if fv > 0:
+                w[str(k).zfill(6)] = fv
+        if len(w) < 2:
+            out["unavailable_reason"] = "组合标的不足 2 只，透镜无统计意义"
+            return out
+        px = kline_history(list(w), start)
+        if px is None or len(px) == 0:
+            out["unavailable_reason"] = "无日线数据"
+            return out
+        close = px.pivot_table(index="trade_date", columns="symbol", values="close").ffill()
+        ret = close.pct_change().dropna(how="all")
+        ret = ret[[c for c in ret.columns if c in w]]
+        if ret.shape[1] < 2 or len(ret) < 20:
+            out["unavailable_reason"] = "可用标的或交易日不足（需 ≥2 只、≥20 日）"
+            return out
+        ww = np.array([w[c] for c in ret.columns], dtype=float)
+        ww = ww / ww.sum()
+        rp = (ret * ww).sum(axis=1).dropna()
+        mu = float(rp.mean() * 252)
+        sig = float(rp.std() * np.sqrt(252))
+        var95 = float(np.percentile(rp, 5))
+        out.update({
+            "window": "%s~%s" % (_fmt_day(ret.index.min()), _fmt_day(ret.index.max())),
+            "trading_days": int(len(rp)),
+            "ann_return": round(mu, 4),
+            "ann_vol": round(sig, 4),
+            "sharpe": round((mu - RF_ANNUAL) / sig, 3) if sig > 0 else None,
+            "var95_daily": round(var95, 4),
+            "cvar95_daily": round(float(rp[rp <= var95].mean()), 4),
+            "max_drawdown": round(float(((1 + rp).cumprod() / (1 + rp).cumprod().cummax() - 1).min()), 4),
+        })
+        # 口径（2026-09-13 自查修正）：金额按**计划实际投入**折算，不是账户总资产。
+        # 曾误传 total_value（50 万）→ 得到"日 VaR −10623 元"，会被读成"账户一天可能亏 1 万"；
+        # 而计划只投 16%（约 8 万），同一波动率下的日 VaR 约 −1700 元。差 6 倍且方向性误导。
+        out["var95_amount"] = round(var95 * float(total_value or 0), 0)
+        out["var95_amount_basis"] = "按传入的投入金额折算（generate 传计划投入 = core+子额度）"
+        corr = ret.corr()
+        iu = np.triu_indices_from(corr.values, k=1)
+        out["mean_pairwise_corr"] = round(float(np.nanmean(corr.values[iu])), 3)
+        ev = np.linalg.eigvalsh(corr.values.astype(float))
+        out["effective_bets"] = round(float(ev.sum() ** 2 / (ev ** 2).sum()), 2)
+        out["nominal_bets"] = round(float(1.0 / (ww ** 2).sum()), 2)
+        # 口径警告（2026-09-13 单测踩到）：有效注数走**相关矩阵特征值**、不含权重；名义注数 1/Σw² 含权重。
+        # 两者可差很多且**不可直接比大小**（权重不均时特征值口径反而更大）：
+        # 实测 3 只权重 (0.4,0.4,0.2) 且两两正相关时，特征值口径 2.93 > 名义 2.78。
+        # 正确读法：有效注数回答"这些标的行为上等于几个独立方向"，与怎么配权重无关；上界是标的数。
+        out["bets_note"] = "有效注数=相关矩阵特征值口径（不含权重）；名义注数=1/Σw²（含权重）；两者口径不同，不可直接比大小"
+        try:
+            import akshare as ak
+            bm = ak.stock_zh_index_daily(symbol="sh000300")
+            bm["trade_date"] = pd.to_datetime(bm["date"])
+            bm = bm.sort_values("trade_date")
+            bm["bm"] = bm["close"].astype(float).pct_change()
+            j = rp.to_frame("rp").join(bm.set_index("trade_date")[["bm"]], how="inner").dropna()
+            if len(j) > 30:
+                beta = float(np.cov(j["rp"], j["bm"], ddof=1)[0, 1] / np.var(j["bm"], ddof=1))
+                out["beta_vs_hs300"] = round(beta, 3)
+                out["alpha_ann"] = round(float((j["rp"].mean() - beta * j["bm"].mean()) * 252), 4)
+                out["benchmark"] = "沪深300（akshare stock_zh_index_daily，日收益率口径，对齐 %d 日）" % len(j)
+            else:
+                out["benchmark_note"] = "基准对齐不足 30 个交易日，β/α 未计算"
+        except Exception as exc:  # noqa: BLE001
+            out["benchmark_note"] = "基准不可用（%s），β/α 未计算：%s" % (type(exc).__name__, exc)
+    except Exception as exc:  # noqa: BLE001
+        out["unavailable_reason"] = "%s: %s" % (type(exc).__name__, exc)
+    return out
+
+
+def build_execution_plan(core_rows, sleeve_rows, target_amount, sleeve_amount, batches: int = 4) -> dict:
+    """分批节奏：把目标组合拆成 N 批（按金额贪心均衡），让"分批"从口头约定变成产物字段。
+
+    为什么必须写进产物：机械差额表看起来就是"今天该买这些"，消费端极易一次打满——
+    把全部择时押在某一天。计划本身声明分 4 批，但此前只写在文案里、不是字段。
+    分法用贪心（每只分给当前累计最小的那批）：各批金额接近，且高价票不会挤在同一批。
+    """
+    rows = []
+    for h in (core_rows or []):
+        rows.append({"symbol": str(h.get("symbol")), "bucket": "core", "lots": h.get("lots"),
+                     "close": h.get("close"),
+                     "amount": round(float(target_amount or 0) * float(h.get("weight_pct_of_core") or 0) / 100.0, 0)})
+    for h in (sleeve_rows or []):
+        rows.append({"symbol": str(h.get("symbol")), "bucket": "growth_sleeve", "lots": h.get("lots"),
+                     "close": h.get("close"),
+                     "amount": round(float(sleeve_amount or 0) * float(h.get("weight_pct_of_sleeve") or 0) / 100.0, 0)})
+    n = max(1, int(batches))
+    rows.sort(key=lambda r: -r["amount"])
+    buckets, tot = [[] for _ in range(n)], [0.0] * n
+    for r in rows:
+        i = tot.index(min(tot))
+        buckets[i].append(r)
+        tot[i] += r["amount"]
+    return {
+        "batches": [{"batch": i + 1, "amount": round(tot[i], 0),
+                     "symbols": [x["symbol"] for x in b], "detail": b} for i, b in enumerate(buckets)],
+        "rule": ("每批只执行本批名单（批间隔约 1 周）；每批开跑前按**当时**的 vol-target 与回撤闸门重算，"
+                 "不得把机械差额一次性打满。子额度 growth_sleeve 按同批号并行执行、独立核算。"),
+    }
 
 
 def generate(**kwargs) -> dict:
@@ -642,6 +792,21 @@ def generate(**kwargs) -> dict:
         "growth_sleeve": {"meta": sleeve_meta, "holdings": sleeve},
         "phase_plan": "分 4 批、每批约 1 周；每批按当时 vol-target 与回撤闸门重算",
     }
+    # 公式透镜 + 分批节奏：在**生成时**算好写进产物（读计划是高频动作，算一次要拉十几只两年日线）
+    _target_amount = total * target_expo
+    _sl_amt = float(sleeve_meta.get("amount") or 0) if sleeve else 0.0
+    _sl_pct = float(sleeve_meta.get("exposure_pct_of_total") or 0) if sleeve else 0.0
+    _expo_map = {}
+    for _h in _core_rows:
+        _expo_map[str(_h["symbol"])] = target_expo * float(_h.get("weight_pct_of_core") or 0) / 100.0
+    for _h in sleeve:
+        _expo_map[str(_h["symbol"])] = _sl_pct * float(_h.get("weight_pct_of_sleeve") or 0) / 100.0
+    plan["execution_plan"] = build_execution_plan(_core_rows, sleeve, _target_amount, _sl_amt)
+    # 透镜金额口径 = 计划实际投入（不是账户总资产），否则日 VaR 金额会被放大到账户级别
+    plan["risk_lens"] = risk_lens(_expo_map, _target_amount + _sl_amt)
+    plan["risk_lens"]["plan_investment_amount"] = round(_target_amount + _sl_amt, 0)
+    plan["risk_lens"]["plan_exposure_pct_of_total"] = round(expo_total := (target_expo + _sl_pct), 4)
+
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(plan, ensure_ascii=False, indent=1), encoding="utf-8")
 
@@ -665,6 +830,22 @@ def generate(**kwargs) -> dict:
           % (target_expo * 100, _sleeve_pct * 100, (target_expo + _sleeve_pct) * 100,
              target_amount + _sleeve_amt, (target_expo + _sleeve_pct) * 100))
     print("现金保留 %.1f%%（宪法下限 10%%）" % ((1 - target_expo - _sleeve_pct) * 100))
+    _rl = plan["risk_lens"]
+    if _rl.get("unavailable_reason"):
+        print("风险透镜：未产出（%s）" % _rl["unavailable_reason"])
+    else:
+        print("风险透镜（%s，%d 日）：年化波动 %.1f%%｜夏普 %.2f｜日 VaR95 %.2f%%（约 %.0f 元）｜CVaR95 %.2f%%"
+              % (_rl["window"], _rl["trading_days"], (_rl["ann_vol"] or 0) * 100, _rl["sharpe"] or 0,
+                 (_rl["var95_daily"] or 0) * 100, _rl["var95_amount"] or 0, (_rl["cvar95_daily"] or 0) * 100))
+        _b, _a = _rl["beta_vs_hs300"], _rl["alpha_ann"]
+        print("　　　　　　　平均两两相关 %.2f｜有效注数 %.2f（名义 %.2f）｜β(沪深300) %s｜α(年化) %s｜窗口最大回撤 %.1f%%"
+              % (_rl["mean_pairwise_corr"] or 0, _rl["effective_bets"] or 0, _rl["nominal_bets"] or 0,
+                 "n/a" if _b is None else "%.3f" % _b,
+                 ("n/a（%s）" % (_rl["benchmark_note"] or "")) if _a is None else "%.1f%%" % (_a * 100),
+                 (_rl["max_drawdown"] or 0) * 100))
+    _ep = plan["execution_plan"]
+    print("分批：%d 批，各批金额 %s"
+          % (len(_ep["batches"]), [b["amount"] for b in _ep["batches"]]))
     print("计划已写入", OUT)
     return plan
 
@@ -700,7 +881,9 @@ DELTA_CAVEATS = [
     "未做 regime/止损复检：下单前必须走 R-001（regime_position_limit + account_info + 风控仓位）与 R-002（止损价）。",
     "本表是「目标组合 vs 当前持仓」的**机械差额**，不含分批节奏——计划本身是分 4 批执行的（见 plan.phase_plan），一次打满是误用。",
     "in_plan=false 的持仓**不等于应卖出**：本计划是建仓计划，不含退出判断；处置走 R-002 止损与组合复核。",
-    "未校验单股≤20%/单行业≤40%/现金≥10%（宪法第3条）——机械差额可能超限，下单前必须复核。",
+    "宪法第3条限额已由 limit_check **静态**复检（单股≤20%/单行业≤40%/现金≥10%，假设差额全部成交）——"
+    "但它是静态口径：未含 regime 上限收紧、未含涨跌停/停牌导致的不可成交、未含成交后价格的即时变化。",
+    "分批节奏见 plan.execution_plan（各批名单与金额）。按本表一次打满 = 把全部择时押在一天，属误用。",
 ]
 
 
@@ -736,6 +919,21 @@ def _plan_freshness(plan: dict, now: Optional[datetime] = None) -> dict:
     return info
 
 
+def _industries(symbols) -> dict:
+    """symbol -> 行业（用于行业集中度校验）。best-effort：查不到返回 {}，不阻塞差额计算。"""
+    syms = [str(s).zfill(6) for s in (symbols or [])]
+    if not syms:
+        return {}
+    try:
+        from sqlalchemy import bindparam, text
+        stmt = text("select symbol, industry from quant.stocks where symbol in :syms"
+                    ).bindparams(bindparam("syms", expanding=True))
+        rows = query_rows(stmt, {"syms": syms})
+        return {str(r[0]).zfill(6): (r[1] or "未知") for r in rows}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _plan_delta(plan: dict, account: str) -> dict:
     """目标组合 vs 当前持仓的机械差额。只读：不刷行情、不下单、不改库。"""
     from adapters.outbound.repositories.simulation_position_repository import SimulationPositionRepository
@@ -745,9 +943,15 @@ def _plan_delta(plan: dict, account: str) -> dict:
     for p in positions:
         held[str(p.symbol).zfill(6)] = p
 
-    rows = query_rows("select coalesce(cash_available,0) from quant.simulation_account "
-                      "where account_name = :a", {"a": account})
+    rows = query_rows("select coalesce(cash_available,0), coalesce(total_value,0) "
+                      "from quant.simulation_account where account_name = :a", {"a": account})
     cash = float(rows[0][0] or 0) if rows else None
+    total_value = None
+    try:
+        if rows and len(rows[0]) > 1:
+            total_value = float(rows[0][1] or 0) or None
+    except (TypeError, IndexError):
+        total_value = None
 
     targets = []
     for h in (plan.get("holdings") or []):
@@ -801,8 +1005,65 @@ def _plan_delta(plan: dict, account: str) -> dict:
             "cash_after_full_delta": (round(cash - est_buy, 0) if cash is not None else None),
             "cash_sufficient": (cash is not None and cash >= est_buy),
         },
+        "limit_check": _limit_check(out_rows, held, cash, total_value),
         "caveats": DELTA_CAVEATS,
     }
+
+
+def _limit_check(out_rows, held, cash, total_value) -> dict:
+    """宪法第 3 条**静态**复检：单股≤20% / 单行业≤40% / 现金≥10%（按"差额全部执行后"的口径）。
+
+    为什么要有它：机械差额由计划权重推导，**从不校验宪法限额**——计划与现状叠加后可能超限
+    （例如已持有某股 15% 再按计划加仓）。此前只写在 caveats 文案里"下单前必须复核"，
+    等于把校验推给下游人工。这里给出机器可判定的结论，下单前仍需 R-001/R-002 复检 regime 与止损。
+    """
+    res = {"limits": {"single_stock_pct": CONST_SINGLE_PCT, "industry_pct": CONST_INDUSTRY_PCT,
+                      "cash_min_pct": CONST_CASH_MIN_PCT},
+           "total_value": total_value, "checked": False, "violations": [], "passed": None,
+           "max_single": None, "max_industry": None, "cash_after_pct": None,
+           "note": "静态口径：假设本表差额全部成交后的组合结构；未含 regime 上限、止损线与涨跌停导致的不可成交。"}
+    if not total_value or total_value <= 0:
+        res["note"] = "账户总资产未知（或为 0），限额未校验；" + res["note"]
+        return res
+    res["checked"] = True
+    inds = _industries([r["symbol"] for r in out_rows])
+    by_ind, singles = {}, []
+    for r in out_rows:
+        p = held.get(r["symbol"])
+        after = r["held_shares"] + (r["delta_shares"] or 0)
+        price = r["plan_close"]
+        if price is None:
+            price = float(getattr(p, "current_price", 0) or 0) if p else 0.0
+        val = max(0.0, float(after) * float(price or 0))
+        if val <= 0:
+            continue
+        pct = val / total_value * 100.0
+        singles.append({"symbol": r["symbol"], "after_value": round(val, 0), "pct": round(pct, 2)})
+        ind = inds.get(r["symbol"], "未知")
+        by_ind[ind] = by_ind.get(ind, 0.0) + val
+    if singles:
+        res["max_single"] = max(singles, key=lambda x: x["pct"])
+        for s in singles:
+            if s["pct"] > CONST_SINGLE_PCT + 1e-9:
+                res["violations"].append({"type": "single_stock", "symbol": s["symbol"],
+                                          "pct": s["pct"], "limit": CONST_SINGLE_PCT})
+    if by_ind:
+        inds_pct = {k: round(v / total_value * 100.0, 2) for k, v in by_ind.items()}
+        res["industry_pct"] = inds_pct
+        top = max(inds_pct.items(), key=lambda kv: kv[1])
+        res["max_industry"] = {"industry": top[0], "pct": top[1]}
+        for k, v in inds_pct.items():
+            if v > CONST_INDUSTRY_PCT + 1e-9:
+                res["violations"].append({"type": "industry", "industry": k,
+                                          "pct": v, "limit": CONST_INDUSTRY_PCT})
+    est_buy = sum(float(r["est_amount"] or 0) for r in out_rows if r["action"] == "BUY")
+    cash_after = float(cash or 0) - est_buy
+    res["cash_after_pct"] = round(cash_after / total_value * 100.0, 2)
+    if res["cash_after_pct"] < CONST_CASH_MIN_PCT - 1e-9:
+        res["violations"].append({"type": "cash_min", "pct": res["cash_after_pct"],
+                                  "limit": CONST_CASH_MIN_PCT})
+    res["passed"] = not res["violations"]
+    return res
 
 
 def plan_snapshot(account: Optional[str] = None, path: Optional[Path] = None) -> dict:

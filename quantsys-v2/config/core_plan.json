@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-13T20:11:51",
+ "generated_at": "2026-09-13T23:49:12",
  "data_date": "2026-09-11",
  "account": "agent_brain",
  "mode": "PLAN_ONLY（不下单）",
@@ -52,7 +52,7 @@
    "close": 10.12,
    "roe": 5.35,
    "pe": 30.64,
-   "amount_def_avg": 2614505668.058547,
+   "amount_def_avg": 2614505668.0585475,
    "lots": 4,
    "amount": 4169.0
   },
@@ -87,7 +87,7 @@
    "industry": "交通运输、仓储和邮政业-水上运输业",
    "weight_pct_of_core": 6.67,
    "tilt_mult": 1.0,
-   "tilt_note": "行业动量 强（18/77）（未加权：实测无预测力）",
+   "tilt_note": "行业动量 强（19/77）（未加权：实测无预测力）",
    "close": 16.19,
    "roe": 5.7,
    "pe": 7.53,
@@ -113,7 +113,7 @@
    "industry": "金融业-货币金融服务",
    "weight_pct_of_core": 6.67,
    "tilt_mult": 1.0,
-   "tilt_note": "行业动量 中（29/77）（未加权：实测无预测力）",
+   "tilt_note": "行业动量 中（31/77）（未加权：实测无预测力）",
    "close": 6.97,
    "roe": 5.07,
    "pe": 7.7,
@@ -191,7 +191,7 @@
    "industry": "制造业-有色金属冶炼和压延加工业",
    "weight_pct_of_core": 6.67,
    "tilt_mult": 1.0,
-   "tilt_note": "行业动量 弱（56/77）（未加权：实测无预测力）",
+   "tilt_note": "行业动量 弱（55/77）（未加权：实测无预测力）",
    "close": 9.6,
    "roe": 14.67,
    "pe": 15.48,
@@ -217,7 +217,7 @@
    "industry": "金融业-货币金融服务",
    "weight_pct_of_core": 6.67,
    "tilt_mult": 1.0,
-   "tilt_note": "行业动量 中（29/77）（未加权：实测无预测力）",
+   "tilt_note": "行业动量 中（31/77）（未加权：实测无预测力）",
    "close": 18.13,
    "roe": 4.79,
    "pe": 5.11,
@@ -230,7 +230,7 @@
    "industry": "房地产业-房地产业",
    "weight_pct_of_core": 6.67,
    "tilt_mult": 1.0,
-   "tilt_note": "行业动量 中（32/77）（未加权：实测无预测力）",
+   "tilt_note": "行业动量 中（41/77）（未加权：实测无预测力）",
    "close": 28.06,
    "roe": 2.31,
    "pe": 54.87,
@@ -291,5 +291,201 @@
    }
   ]
  },
- "phase_plan": "分 4 批、每批约 1 周；每批按当时 vol-target 与回撤闸门重算"
+ "phase_plan": "分 4 批、每批约 1 周；每批按当时 vol-target 与回撤闸门重算",
+ "execution_plan": {
+  "batches": [
+   {
+    "batch": 1,
+    "amount": 21665.0,
+    "symbols": [
+     "300014",
+     "000099",
+     "600887",
+     "600895"
+    ],
+    "detail": [
+     {
+      "symbol": "300014",
+      "bucket": "growth_sleeve",
+      "lots": 1,
+      "close": 48.6,
+      "amount": 9158.0
+     },
+     {
+      "symbol": "000099",
+      "bucket": "core",
+      "lots": 3,
+      "close": 13.35,
+      "amount": 4169.0
+     },
+     {
+      "symbol": "600887",
+      "bucket": "core",
+      "lots": 1,
+      "close": 26.51,
+      "amount": 4169.0
+     },
+     {
+      "symbol": "600895",
+      "bucket": "core",
+      "lots": 1,
+      "close": 28.06,
+      "amount": 4169.0
+     }
+    ]
+   },
+   {
+    "batch": 2,
+    "amount": 17496.0,
+    "symbols": [
+     "300456",
+     "603993",
+     "601600"
+    ],
+    "detail": [
+     {
+      "symbol": "300456",
+      "bucket": "growth_sleeve",
+      "lots": 2,
+      "close": 34.65,
+      "amount": 9158.0
+     },
+     {
+      "symbol": "603993",
+      "bucket": "core",
+      "lots": 2,
+      "close": 18.15,
+      "amount": 4169.0
+     },
+     {
+      "symbol": "601600",
+      "bucket": "core",
+      "lots": 4,
+      "close": 9.6,
+      "amount": 4169.0
+     }
+    ]
+   },
+   {
+    "batch": 3,
+    "amount": 20845.0,
+    "symbols": [
+     "002085",
+     "601857",
+     "600030",
+     "002241",
+     "601668"
+    ],
+    "detail": [
+     {
+      "symbol": "002085",
+      "bucket": "core",
+      "lots": 4,
+      "close": 10.12,
+      "amount": 4169.0
+     },
+     {
+      "symbol": "601857",
+      "bucket": "core",
+      "lots": 3,
+      "close": 11.24,
+      "amount": 4169.0
+     },
+     {
+      "symbol": "600030",
+      "bucket": "core",
+      "lots": 1,
+      "close": 26.92,
+      "amount": 4169.0
+     },
+     {
+      "symbol": "002241",
+      "bucket": "core",
+      "lots": 1,
+      "close": 22.24,
+      "amount": 4169.0
+     },
+     {
+      "symbol": "601668",
+      "bucket": "core",
+      "lots": 9,
+      "close": 4.35,
+      "amount": 4169.0
+     }
+    ]
+   },
+   {
+    "batch": 4,
+    "amount": 20845.0,
+    "symbols": [
+     "300059",
+     "601919",
+     "601288",
+     "000100",
+     "601166"
+    ],
+    "detail": [
+     {
+      "symbol": "300059",
+      "bucket": "core",
+      "lots": 2,
+      "close": 18.31,
+      "amount": 4169.0
+     },
+     {
+      "symbol": "601919",
+      "bucket": "core",
+      "lots": 2,
+      "close": 16.19,
+      "amount": 4169.0
+     },
+     {
+      "symbol": "601288",
+      "bucket": "core",
+      "lots": 5,
+      "close": 6.97,
+      "amount": 4169.0
+     },
+     {
+      "symbol": "000100",
+      "bucket": "core",
+      "lots": 8,
+      "close": 4.64,
+      "amount": 4169.0
+     },
+     {
+      "symbol": "601166",
+      "bucket": "core",
+      "lots": 2,
+      "close": 18.13,
+      "amount": 4169.0
+     }
+    ]
+   }
+  ],
+  "rule": "每批只执行本批名单（批间隔约 1 周）；每批开跑前按**当时**的 vol-target 与回撤闸门重算，不得把机械差额一次性打满。子额度 growth_sleeve 按同批号并行执行、独立核算。"
+ },
+ "risk_lens": {
+  "window": "2024-07-02~2026-09-11",
+  "trading_days": 536,
+  "ann_return": 0.2229,
+  "ann_vol": 0.2457,
+  "sharpe": 0.826,
+  "var95_daily": -0.0212,
+  "cvar95_daily": -0.0326,
+  "var95_amount": -1717.0,
+  "mean_pairwise_corr": 0.249,
+  "effective_bets": 6.74,
+  "nominal_bets": 15.26,
+  "max_drawdown": -0.2197,
+  "beta_vs_hs300": 1.093,
+  "alpha_ann": 0.0685,
+  "benchmark": "沪深300（akshare stock_zh_index_daily，日收益率口径，对齐 536 日）",
+  "benchmark_note": null,
+  "unavailable_reason": null,
+  "var95_amount_basis": "按传入的投入金额折算（generate 传计划投入 = core+子额度）",
+  "bets_note": "有效注数=相关矩阵特征值口径（不含权重）；名义注数=1/Σw²（含权重）；两者口径不同，不可直接比大小",
+  "plan_investment_amount": 80815.0,
+  "plan_exposure_pct_of_total": 0.1616
+ }
 }
