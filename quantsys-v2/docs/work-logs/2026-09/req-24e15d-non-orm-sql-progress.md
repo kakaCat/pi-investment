@@ -76,17 +76,64 @@ B1 完成（6 个文件 15 处 → 0，另删死代码 3 处）：
 新增：`adapters/outbound/repositories/kline_sync_repository.py`（选股 + 写入 + 3 个自检）、
 ORM 模型 `IndexDaily`、仓储指数口径方法（`get_index_return` 等）。
 
-## 6. 当前闸门状态（B1 后）
+## 6. 批次进度总表（截至 2026-09-14 B4-c1）
+
+| 批次 | 提交 | 内容 | 站点 |
+|---|---|---|---|
+| 修 bug | `8d0efff8` | 6 类缺陷（TA-Lib 空数据崩溃 / 订单状态机缺 (PENDING,FILLED) / 等） | — |
+| B2-a | `2ba1e85e` | jobs 层 + kline 质量 | 15 |
+| B2-b | `e79a1c67` | routes + datasources | — |
+| B3-a | `3345143a` | session 服务 + agent_session 两表落 ORM | — |
+| B3-a2 | `b3e476ae` | daily_klines 查询收敛到仓储 | 4 |
+| B3-b | `8e51a916` | 信号测试日志落 ORM + 移除私有连接访问器 | 11 |
+| B4-a | `004f4a67` | stock_pool_repository 真正落 ORM | 10 |
+| B4-b | `87850eb0` | 熔断状态服务落 ORM + 修 JSONB NULL 语义陷阱 | 2 |
+| B4-c1 | 本批 | portfolio_repository（trades/holdings 半区 9 处）+ 2 个静默缺陷 | 15→6 |
+
+批次日志：`req-24e15d-b1-jobs-layer.md`、`-b2a-`、`-b2b-`、`-b3a-`、`-b3a2-`、
+`-b3b-`、`-b4a-`、`-b4b-`、`-b4c-portfolio-repo.md`。
+
+## 7. 当前闸门状态（B4-c1 后）
 
 ```
 P0 fstring_value_interp  本轮范围 0    ✅
 P0 raw_connect           本轮范围 0    ✅
-P1 cursor_execute        本轮范围 106（口径修正后 124 → 106）
-P1 core_text_sql         本轮范围 35
-P2 session_execute_var   本轮范围 48（审计桶，人工复核；本仓多为 stmt=select(...)）
+P1 cursor_execute        本轮范围 51（起点 124）
+P1 core_text_sql         本轮范围 25（起点 35）
+P2 session_execute_var   本轮范围 53（审计桶，人工复核；本仓多为 stmt=select(...)）
+P2 fstring_sql           本轮范围 6（起点 11）
 P2 read_sql              本轮范围 5
 → --gate 退出码 0
 ```
 
-`infrastructure/jobs/` 仅剩 3 个文件 7 处（B2 批次）。
+## 8. 剩余工作（按优先级）
+
+| 文件 | 站点 | 备注 |
+|---|---|---|
+| `portfolio_repository.py` | 6 | **⛔ 阻塞**：`quant.orders` 已归档（2026-08-25），见 B4-c 日志"遗留决策" |
+| `risk_repository.py` | 10 | cursor_execute |
+| `kline_repository.py` | 9 | core_text_sql=7 |
+| `chip_repository.py` | 7 | core_text_sql=7 |
+| `strategy_performance_repository.py` | 7 | cursor_execute |
+| `signal_tracking_repository.py` | 6 | cursor_execute |
+| `routes/signals_async.py` | 6 | cursor_execute=5 |
+| `application/services/order_service.py` | 5 | **依赖上面那条阻塞决策** |
+
+另有两项**独立既有缺陷**建议单列（均为 HEAD 已复现，非本线引入）：
+1. `signals.action_type` 模型声明 NOT NULL 无默认值 ⇒ 建表列亦无默认值 ⇒
+   `NotNullViolation`（`test_heatmap_service` 10 errors + `test_heatmap_repository_events` 7 errors）。
+2. **测试库 `quant_test` schema 落后于 ORM 模型**：`simulation_order` 缺
+   `decision_price/decision_at/price_source/fill_price/slippage_bps` 五列 ⇒
+   `test_multi_account_domain` 6 例 `UndefinedColumn`。
+
+## 9. 运行态
+
 服务重启后：ERROR 0 / session_leak_detected 0 / idle in transaction 0。
+
+## 10. 口径提醒（重要，跨会话）
+
+- 扫描器必须用 `./venv/bin/python tools/non_orm_sql_scan.py`（系统 python3.9 会在 f-string 语法上直接失败）。
+- `cursor_execute` 基线**已修正过**：111（旧口径，只认变量名叫 cursor 的）→ **124**。
+  **不要拿 111 当起点**，否则会算出"凭空多出来 13 处"。
+- 判定"是否引入新失败"必须用 `git worktree add /tmp/wt-head HEAD` 跑同一组用例并
+  **diff 失败集合**，不能只比数量、更不能看"像不像既有问题"。

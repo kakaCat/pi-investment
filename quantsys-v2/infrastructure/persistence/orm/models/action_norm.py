@@ -22,6 +22,26 @@ def normalize_action(action: str) -> str:
     return normalized
 
 
+def normalize_legacy_trade_action(action: str) -> str:
+    """quant.trades 专用：归一小写 'buy'/'sell'。
+
+    ⚠️ 与 normalize_action 的大写契约**方向相反**，这是有意的：quant.trades
+    不在 2026-08-13 大写迁移的四张表清单内，其 DB CHECK 约束
+    trades_action_check 强制小写（action = ANY(ARRAY['buy','sell'])），
+    36 行存量数据亦全为小写。2026-09-14 实测：对该表写大写 'BUY' 直接
+    CheckViolation。
+
+    背景（本次修复的缺陷）：models/trade.py 原先误用大写 normalize_action，
+    使 Trade ORM 的写入路径与真库约束正面冲突（写即炸），而读侧按小写比较的
+    需求又无法满足——导致 record_trade 只能绕开 ORM 走裸 SQL，且
+    get_trade_stats 用大写过滤，把 36 笔交易统计成「0 买 0 卖」而不报错。
+    """
+    normalized = (action or '').strip().lower()
+    if normalized not in ('buy', 'sell'):
+        raise ValueError(f"非法交易方向: {action!r}（quant.trades 期望 buy/sell）")
+    return normalized
+
+
 def normalize_signal_action(action: str) -> str:
     """信号方向归一化为大写 'BUY'/'SELL'/'HOLD'。"""
     normalized = (action or '').strip().upper()

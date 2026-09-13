@@ -8,7 +8,7 @@ from sqlalchemy import Column, BigInteger, Text, Float, Integer, Date, DateTime,
 from sqlalchemy.orm import validates
 from sqlalchemy.sql import func
 from infrastructure.persistence.orm import Base
-from .action_norm import normalize_action
+from .action_norm import normalize_legacy_trade_action
 
 __all__ = ['Trade']
 
@@ -22,8 +22,11 @@ class Trade(Base):
     """
 
     __tablename__ = 'trades'
+    # ⚠️ 小写契约：quant.trades 的 DB CHECK trades_action_check 强制
+    # action = ANY(ARRAY['buy','sell'])，存量 36 行全为小写。此处与真库保持一致；
+    # 大写契约（BUY/SELL）只适用于 simulation_trades 等四张表，见 action_norm.py。
     __table_args__ = (
-        CheckConstraint("action IN ('BUY', 'SELL')", name='trades_action_check'),
+        CheckConstraint("action IN ('buy', 'sell')", name='trades_action_check'),
         CheckConstraint('price > 0', name='trades_price_check'),
         CheckConstraint('quantity > 0', name='trades_quantity_check'),
         {'schema': 'quant'}
@@ -31,7 +34,7 @@ class Trade(Base):
 
     @validates('action')
     def _normalize_action(self, key, value):
-        return normalize_action(value)
+        return normalize_legacy_trade_action(value)
 
     # 主键
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment='交易ID')
@@ -41,7 +44,7 @@ class Trade(Base):
     name = Column(Text, nullable=False, comment='股票名称')
 
     # 交易信息
-    action = Column(Text, nullable=False, index=True, comment='交易方向: BUY/SELL (大写契约)')
+    action = Column(Text, nullable=False, index=True, comment='交易方向: buy/sell (quant.trades 小写契约)')
     price = Column(Float, nullable=False, comment='成交价格')
     quantity = Column(Integer, nullable=False, comment='成交数量')
     amount = Column(Float, nullable=False, comment='成交金额')

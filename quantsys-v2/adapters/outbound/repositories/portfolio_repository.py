@@ -161,6 +161,32 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         """将PortfolioHolding对象转换为字典（委托给 model.to_dict）"""
         return holding.to_dict()
 
+    def _trade_to_raw_dict(self, trade: Trade) -> Dict[str, Any]:
+        """将 Trade 对象转为**原始列类型**的字典。
+
+        ⚠️ 刻意不复用 Trade.to_dict()：to_dict() 会把 trade_date/created_at
+        字符串化（isoformat），而本文件这几处读取的旧契约是 psycopg2 DictCursor
+        的 dict(row)——日期保持 date/datetime 对象。裸 SQL 迁 ORM 时不得顺手
+        改变返回类型（历史教训：日期被无条件字符串化后，下游 date 运算直接炸）。
+        """
+        return {
+            'id': trade.id,
+            'symbol': trade.symbol,
+            'name': trade.name,
+            'action': trade.action,
+            'price': trade.price,
+            'quantity': trade.quantity,
+            'amount': trade.amount,
+            'fee': trade.fee,
+            'stamp_duty': trade.stamp_duty,
+            'trade_date': trade.trade_date,
+            'order_id': trade.order_id,
+            'created_at': trade.created_at,
+            'pnl': trade.pnl,
+            'pnl_percent': trade.pnl_percent,
+            'reason': trade.reason,
+        }
+
     # ==================== 查询方法 ====================
 
     def _get_holding_model(self, symbol: str) -> Optional[PortfolioHolding]:
@@ -528,50 +554,46 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             统计信息 {total_positions, total_invested, total_cost,
                       sector_distribution, market_distribution}
         """
-        query = """
-            SELECT
-                COUNT(*) as total_positions,
-                COALESCE(SUM(total_invested), 0) as total_invested,
-                COALESCE(SUM(quantity * avg_cost), 0) as total_cost
-            FROM quant.portfolio_holdings
-        """
+        totals = self.session.query(
+            func.count().label('total_positions'),
+            func.coalesce(func.sum(PortfolioHolding.total_invested), 0).label('total_invested'),
+            func.coalesce(
+                func.sum(PortfolioHolding.quantity * PortfolioHolding.avg_cost), 0
+            ).label('total_cost'),
+        ).one()
 
-        cursor = self.db.cursor()
-        try:
-            cursor.execute(query)
-            result = cursor.fetchone()
-            stats = dict(result) if result else {
-                'total_positions': 0, 'total_invested': 0, 'total_cost': 0
-            }
-        finally:
-            cursor.close()
+        stats = {
+            'total_positions': int(totals.total_positions or 0),
+            'total_invested': float(totals.total_invested or 0),
+            'total_cost': float(totals.total_cost or 0),
+        }
 
-        # 按行业分布
-        cursor = self.db.cursor()
-        try:
-            cursor.execute("""
-                SELECT COALESCE(sector, '未知') as sector, COUNT(*) as count,
-                       SUM(total_invested) as invested
-                FROM quant.portfolio_holdings
-                GROUP BY sector
-                ORDER BY invested DESC
-            """)
-            stats['sector_distribution'] = [dict(row) for row in cursor.fetchall()]
-        finally:
-            cursor.close()
+        # 按行业分布（保持原口径：invested 不做 COALESCE，全 NULL 时为 None）
+        sector_expr = func.coalesce(PortfolioHolding.sector, '未知')
+        sector_rows = self.session.query(
+            sector_expr.label('sector'),
+            func.count().label('count'),
+            func.sum(PortfolioHolding.total_invested).label('invested'),
+        ).group_by(sector_expr).order_by(
+            func.sum(PortfolioHolding.total_invested).desc()
+        ).all()
+        stats['sector_distribution'] = [
+            {'sector': r.sector, 'count': int(r.count), 'invested': r.invested}
+            for r in sector_rows
+        ]
 
         # 按市场分布
-        cursor = self.db.cursor()
-        try:
-            cursor.execute("""
-                SELECT market, COUNT(*) as count, SUM(total_invested) as invested
-                FROM quant.portfolio_holdings
-                GROUP BY market
-                ORDER BY invested DESC
-            """)
-            stats['market_distribution'] = [dict(row) for row in cursor.fetchall()]
-        finally:
-            cursor.close()
+        market_rows = self.session.query(
+            PortfolioHolding.market.label('market'),
+            func.count().label('count'),
+            func.sum(PortfolioHolding.total_invested).label('invested'),
+        ).group_by(PortfolioHolding.market).order_by(
+            func.sum(PortfolioHolding.total_invested).desc()
+        ).all()
+        stats['market_distribution'] = [
+            {'market': r.market, 'count': int(r.count), 'invested': r.invested}
+            for r in market_rows
+        ]
 
         return stats
 
@@ -1022,15 +1044,8 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
 
     def get_trade(self, trade_id: int) -> Optional[Dict]:
         """查询单条交易记录，不存在返回 None"""
-        query = "SELECT * FROM quant.trades WHERE id = %s"
-
-        cursor = self.db.cursor()
-        try:
-            cursor.execute(query, (trade_id,))
-            result = cursor.fetchone()
-            return dict(result) if result else None
-        finally:
-            cursor.close()
+        trade = self.session.query(Trade).filter_by(id=trade_id).first()
+        return self._trade_to_raw_dict(trade) if trade else None
 
     def get_trades_by_symbol(
         self,
@@ -1041,34 +1056,19 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         """查询指定股票的交易记录（按日期降序）"""
         _validate_symbol(symbol)
 
-        conditions = ["symbol = %s"]
-        params = [symbol]
+        query = self.session.query(Trade).filter(Trade.symbol == symbol)
 
         if start_date:
             _validate_date(start_date)
-            conditions.append("trade_date >= %s")
-            params.append(start_date)
+            query = query.filter(Trade.trade_date >= start_date)
         if end_date:
             _validate_date(end_date)
-            conditions.append("trade_date <= %s")
-            params.append(end_date)
+            query = query.filter(Trade.trade_date <= end_date)
 
-        where_clause = " AND ".join(conditions)
-
-        query = f"""
-            SELECT *
-            FROM quant.trades
-            WHERE {where_clause}
-            ORDER BY trade_date DESC, created_at DESC
-        """
-
-        cursor = self.db.cursor()
-        try:
-            cursor.execute(query, params)
-            results = cursor.fetchall()
-            return [dict(row) for row in results]
-        finally:
-            cursor.close()
+        trades = query.order_by(
+            Trade.trade_date.desc(), Trade.created_at.desc()
+        ).all()
+        return [self._trade_to_raw_dict(t) for t in trades]
 
     def get_trades_by_date(
         self,
@@ -1080,31 +1080,19 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         _validate_date(start_date)
         _validate_date(end_date)
 
-        conditions = ["trade_date >= %s", "trade_date <= %s"]
-        params = [start_date, end_date]
+        query = self.session.query(Trade).filter(
+            Trade.trade_date >= start_date, Trade.trade_date <= end_date
+        )
 
         if action:
             if action not in ('buy', 'sell'):
                 raise ValueError(f"无效的交易方向: {action}，必须是 buy 或 sell")
-            conditions.append("action = %s")
-            params.append(action)
+            query = query.filter(Trade.action == action)
 
-        where_clause = " AND ".join(conditions)
-
-        query = f"""
-            SELECT *
-            FROM quant.trades
-            WHERE {where_clause}
-            ORDER BY trade_date DESC, created_at DESC
-        """
-
-        cursor = self.db.cursor()
-        try:
-            cursor.execute(query, params)
-            results = cursor.fetchall()
-            return [dict(row) for row in results]
-        finally:
-            cursor.close()
+        trades = query.order_by(
+            Trade.trade_date.desc(), Trade.created_at.desc()
+        ).all()
+        return [self._trade_to_raw_dict(t) for t in trades]
 
     def record_trade(self, trade_data: Dict) -> int:
         """
@@ -1127,28 +1115,18 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         _validate_symbol(trade_data['symbol'])
         _validate_date(trade_data['trade_date'])
 
-        query = """
-            INSERT INTO quant.trades (
-                symbol, name, action, price, quantity, amount,
-                fee, stamp_duty, trade_date, reason, order_id
-            ) VALUES (
-                %(symbol)s, %(name)s, %(action)s, %(price)s, %(quantity)s, %(amount)s,
-                %(fee)s, %(stamp_duty)s, %(trade_date)s, %(reason)s, %(order_id)s
-            )
-            RETURNING id
-        """
+        # 只取模型已知列：旧裸 SQL 也只写这 11 列，多余键必须被忽略而不是 TypeError
+        allowed = {c.name for c in Trade.__table__.columns} - {'id'}
+        payload = {k: v for k, v in trade_data.items() if k in allowed}
 
-        cursor = self.db.cursor()
         try:
-            cursor.execute(query, trade_data)
-            trade_id = cursor.fetchone()['id']
-            self.db.commit()
-            return trade_id
+            trade = Trade(**payload)
+            self.session.add(trade)
+            self.session.commit()
+            return trade.id
         except Exception as e:
-            self.db.rollback()
+            self.session.rollback()
             raise Exception(f"记录交易失败: {str(e)}")
-        finally:
-            cursor.close()
 
     def get_trade_stats(
         self,
@@ -1163,43 +1141,42 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
             {total_trades, buy_trades, sell_trades, total_buy_amount,
              total_sell_amount, total_fee}
         """
-        conditions = []
-        params = []
+        # ⚠️ 大小写修复：原 SQL 用 action = 'BUY'/'SELL'（大写）过滤，而
+        # quant.trades 的 DB CHECK 约束强制小写，36 行存量数据全为 'buy'/'sell'
+        # —— 导致本方法长期把 36 笔交易统计成「0 买 0 卖、买卖金额均为 0」
+        # 且不报错（2026-09-14 实测复现）。此处按真库契约用小写。
+        query = self.session.query(
+            func.count().label('total_trades'),
+            func.count().filter(Trade.action == 'buy').label('buy_trades'),
+            func.count().filter(Trade.action == 'sell').label('sell_trades'),
+            func.coalesce(
+                func.sum(Trade.amount).filter(Trade.action == 'buy'), 0
+            ).label('total_buy_amount'),
+            func.coalesce(
+                func.sum(Trade.amount).filter(Trade.action == 'sell'), 0
+            ).label('total_sell_amount'),
+            func.coalesce(func.sum(Trade.fee + Trade.stamp_duty), 0).label('total_fee'),
+        )
 
         if symbol:
             _validate_symbol(symbol)
-            conditions.append("symbol = %s")
-            params.append(symbol)
+            query = query.filter(Trade.symbol == symbol)
         if start_date:
             _validate_date(start_date)
-            conditions.append("trade_date >= %s")
-            params.append(start_date)
+            query = query.filter(Trade.trade_date >= start_date)
         if end_date:
             _validate_date(end_date)
-            conditions.append("trade_date <= %s")
-            params.append(end_date)
+            query = query.filter(Trade.trade_date <= end_date)
 
-        where_clause = " AND ".join(conditions) if conditions else "1=1"
-
-        query = f"""
-            SELECT
-                COUNT(*) as total_trades,
-                COUNT(*) FILTER (WHERE action = 'BUY') as buy_trades,
-                COUNT(*) FILTER (WHERE action = 'SELL') as sell_trades,
-                COALESCE(SUM(amount) FILTER (WHERE action = 'BUY'), 0) as total_buy_amount,
-                COALESCE(SUM(amount) FILTER (WHERE action = 'SELL'), 0) as total_sell_amount,
-                COALESCE(SUM(fee + stamp_duty), 0) as total_fee
-            FROM quant.trades
-            WHERE {where_clause}
-        """
-
-        cursor = self.db.cursor()
-        try:
-            cursor.execute(query, params)
-            result = cursor.fetchone()
-            return dict(result) if result else {}
-        finally:
-            cursor.close()
+        row = query.one()
+        return {
+            'total_trades': int(row.total_trades or 0),
+            'buy_trades': int(row.buy_trades or 0),
+            'sell_trades': int(row.sell_trades or 0),
+            'total_buy_amount': float(row.total_buy_amount or 0),
+            'total_sell_amount': float(row.total_sell_amount or 0),
+            'total_fee': float(row.total_fee or 0),
+        }
 
     # ==================== 持仓删除 ====================
 
@@ -1207,17 +1184,13 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         """删除持仓记录（order_service 清仓时调用）"""
         _validate_symbol(symbol)
 
-        query = "DELETE FROM quant.portfolio_holdings WHERE symbol = %s"
-
-        cursor = self.db.cursor()
         try:
-            cursor.execute(query, (symbol,))
-            self.db.commit()
-            affected = cursor.rowcount
+            affected = self.session.query(PortfolioHolding).filter(
+                PortfolioHolding.symbol == symbol
+            ).delete(synchronize_session=False)
+            self.session.commit()
             return affected > 0
         except Exception as e:
-            self.db.rollback()
+            self.session.rollback()
             raise Exception(f"删除持仓失败: {str(e)}")
-        finally:
-            cursor.close()
 
