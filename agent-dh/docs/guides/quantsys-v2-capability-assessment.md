@@ -1,6 +1,7 @@
 ---
 id: guides-quantsys-v2-capability-assessment
 title: quantsys-v2 能力诚实评估：真能解决问题吗？
+summary: v2 后端能力诚实评估：哪些真能用、哪些是「接口通但链路死」（2026-09-02 全链路实测）。
 type: guide
 status: living
 updated: 2026-09-14

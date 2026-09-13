@@ -1,6 +1,7 @@
 ---
 id: pkg-core-tool-readme
 title: @pi-investment/core-tool-tool
+summary: core-tool 规范包：只定义三段式工具接口规范，不含具体实现。
 type: package
 status: living
 updated: 2026-08-30

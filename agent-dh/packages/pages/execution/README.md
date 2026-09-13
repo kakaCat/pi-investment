@@ -1,6 +1,7 @@
 ---
 id: pkg-pages-execution-readme
 title: @pi-investment/dashboard-execution
+summary: 双线执行确认看板包：v2/os 健康 + 调度任务 + 检查点与时间轴。
 type: package
 status: living
 updated: 2026-09-04

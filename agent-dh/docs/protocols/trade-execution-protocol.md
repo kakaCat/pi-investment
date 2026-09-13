@@ -1,6 +1,7 @@
 ---
 id: protocols-trade-execution-protocol
 title: 交易执行协议（Trade Execution Protocol）
+summary: 交易打标协议 v1.0：每笔交易如何带 genome_version / rules_used 进经验库。
 type: protocol
 status: living
 updated: 2026-09-14

@@ -1,6 +1,7 @@
 ---
 id: guides-restart-session-safety
 title: 重启防丢 Session 操作手册（Restart Session Safety Runbook）
+summary: 重启（含 self_restart）后会话历史为什么不丢、怎么保证——附 PID 与源码级证据。
 type: guide
 status: living
 updated: 2026-09-14

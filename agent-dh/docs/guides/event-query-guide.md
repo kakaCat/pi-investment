@@ -1,6 +1,7 @@
 ---
 id: guides-event-query-guide
 title: 事件查询统一指南（P1-4）
+summary: 两个事件查询工具怎么选、字段怎么读（统一指南）。
 type: guide
 status: living
 updated: 2026-09-13

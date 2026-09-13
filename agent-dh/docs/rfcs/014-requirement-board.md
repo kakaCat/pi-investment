@@ -1,6 +1,7 @@
 ---
 id: rfc-014-requirement-board
 title: RFC 014 需求看板
+summary: RFC 014：需求看板（reqboard）设计——状态机、人工闸门与归档。
 type: rfc
 status: living
 updated: 2026-09-13

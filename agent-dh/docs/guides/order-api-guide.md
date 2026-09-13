@@ -1,6 +1,7 @@
 ---
 id: guides-order-api-guide
 title: 订单 API 使用指南
+summary: 两套订单 API 的区别与正确用法（新 API 优先，2026-08-25）。
 type: guide
 status: living
 updated: 2026-09-14

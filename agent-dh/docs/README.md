@@ -1,6 +1,7 @@
 ---
 id: agent-dh-home
 title: agent-dh Wiki（归档文档首页 / 大纲）
+summary: agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。
 type: manual
 status: living
 updated: 2026-09-13
@@ -18,6 +19,9 @@ tags: [wiki, index, home, agent-dh]
 > [文档规范](../../docs/DOCUMENT-MANAGEMENT-PLAN.md) 的「Wiki 化：页面模型」章。
 
 ## 一页速览（读完这 8 行再动手）
+
+> **找页先看 [全站页面索引](INDEX.md)**（一张表列出每页的一句话，由 docs_index.py 生成）；本页是叙事版大纲。
+
 
 - **agent-dh 是什么**：DSH（DeepSeek Harness）的一个 Profile——插件树 + 系统提示词 + 工具，
   以投资 agent 的身份跑在 :13080（launchd 托管）。
@@ -195,19 +199,28 @@ tags: [wiki, index, home, agent-dh]
 
 ## 最近改动
 
-| 日期 | 页面 | 变更 | 来源 |
-|---|---|---|---|
-| 2026-09-13 | 本页 | 建立 agent-dh wiki 首页与大纲（9 卷） | w-1cee2467 |
-| 2026-09-13 | 本页 | 补 **卷 1 技术要求规范（强制）**，大纲扩为 10 卷并重编号 | w-1cee2467 |
-| 2026-09-13 | [卷 1 规范 9 页](standards/tool-development.md) | 写全：工具/构建/测试/编码/数据/账户/留痕/插件/边界 | w-1cee2467 |
-| 2026-09-13 | [agent-dh 是什么](architecture/agent-dh-overview.md) · [术语表](architecture/glossary.md) | 卷 0 落地 | w-1cee2467 |
-| 2026-09-13 | [插件模型](architecture/plugin-model.md) · [身份系统](architecture/identity-and-agents-json.md) | 建 stub（问题清单 + 素材位置） | w-1cee2467 |
-| 2026-09-13 | [需求看板实操](guides/reqboard-workflow.md) · [故障排查手册](guides/troubleshooting.md) · [定时巡检清单](guides/routine-checks.md) | B1 落地（卷 8、卷 9 的 P0/P1 页） | w-1cee2467 |
-| 2026-09-13 | [插件模型与装载](architecture/plugin-model.md) · [身份系统与 agents.json](architecture/identity-and-agents-json.md) | B2 起：两个 stub 补成正式页（待写债清零） | w-1cee2467 |
-| 2026-09-13 | [账户模型与边界](architecture/accounts-and-boundaries.md) · [交易约束速查](guides/trading-constraints.md) · [数据契约与新鲜度](architecture/data-contracts-and-freshness.md) | B2 续：卷 4、卷 5 的 P0 页 | w-1cee2467 |
-| 2026-09-13 | [工具审计清单](protocols/tool-audit.md) · [记忆与召回](architecture/memory-and-recall.md) · [页面插件契约](architecture/page-plugin-contract.md) | B3：卷 3/6/7 的 P1 页（大纲 P0/P1 全部落地，剩余仅历史页迁移） | w-1cee2467 |
-| 2026-09-14 | [工作日志索引](work-logs/README.md) · [需求档案索引](requirements/INDEX.md) | L3 档案总入口落地：全部日志按月索引、需求档案（进行中/已归档）统一登记 | w-1cee2467 |
-| 2026-09-14 | 全站历史页 | front-matter 迁移收口（work-logs + 架构/设计/指南 + 包内 README）；修复 .gitignore 历史通配把 48 个文档挡在版本控制之外 | w-1cee2467 |
+<!-- AUTO:recent BEGIN -->
+| 日期 | 页面 | 一句话 |
+|---|---|---|
+| 2026-09-14 | [工作日志索引（L3 证据档案）](work-logs/README.md) | 某个时间点「当时做了什么、为什么这么做、结论是什么」。按月份倒序列出全部工作日志。 |
+| 2026-09-14 | [RFC 010 Phase 1 - Window-OS Lifecycle Management](rfcs/RFC-010-README.md) | RFC 010 Phase 1：多窗口协同（窗口注册、角色化派单、窗口间消息、心跳容错）。 |
+| 2026-09-14 | [P1-3: 判断结果自动对账系统 DDD 重构设计](rfcs/013-decision-evaluation-ddd-refactor.md) | RFC 013：决策评估 DDD 重构（decision_audit 评估引擎 + agent_decisions 表）。 |
+| 2026-09-14 | [RFC 013：公告板页面（dashboard-bulletin）](rfcs/013-bulletin-board-page.md) | RFC 013：公告板页面插件设计（双半插件，与 board_* 工具同源）。 |
+| 2026-09-14 | [RFC 011：工具 Web 自定义卡片（Tool Web Cards）统一实现规范](rfcs/011-tool-web-cards.md) | RFC 011：工具调用在 GUI 里的 Web 卡片展示（草案）。 |
+| 2026-09-14 | [RFC 009：盯盘推送双通道方案（direct 直推 / agent 判断分流）](rfcs/009-watch-push-dual-channel.md) | RFC 009：盯盘推送双通道设计（草案）。 |
+| 2026-09-14 | [RFC 008: P2 验证门（Validation Gate）——回测 + 模拟盘 A/B + 自动裁决](rfcs/008-validation-gate.md) | RFC 008：验证门——候选段观察期后对比基准决定转正或回滚（已实施并验收）。 |
+| 2026-09-14 | [RFC 007: P0-2 genome_manager 工具化（版本快照 / 段更新 / 回滚 / changelog）实现方案](rfcs/007-genome-manager.md) | RFC 007：genome_manager 工具化设计提案（段读写、版本与候选）。 |
+| 2026-09-14 | [RFC 006: P0-1 提示词基因组切分（宪法层 / 可进化段）实现计划](rfcs/006-prompt-genome-sections.md) | RFC 006：提示词基因组分段（宪法/原则/规则/教训）设计提案。 |
+| 2026-09-14 | [RFC 005: 自进化投资 Agent（Self-Evolving Investment Agent）](rfcs/005-self-evolving-agent.md) | RFC 005：自进化 Agent 设计（Phase 1-3 已落地，Phase 4 元学习待启动）。 |
+| 2026-09-14 | [RFC 003: Agent Self-Learning and Distillation System](rfcs/003-self-learning-distillation.md) | RFC 003：经验追踪 → 知识蒸馏 → 规则转正的自学习系统设计。 |
+| 2026-09-14 | [交易执行协议（Trade Execution Protocol）](protocols/trade-execution-protocol.md) | 交易打标协议 v1.0：每笔交易如何带 genome_version / rules_used 进经验库。 |
+| 2026-09-14 | [技能装载机制（Skill Loading）——排障实录与标准流程](guides/skill-loading.md) | 技能为什么看不见：两个 dsh home + skill registry 分层，以及正确的装载姿势。 |
+| 2026-09-14 | [重启防丢 Session 操作手册（Restart Session Safety Runbook）](guides/restart-session-safety.md) | 重启（含 self_restart）后会话历史为什么不丢、怎么保证——附 PID 与源码级证据。 |
+| 2026-09-14 | [quantsys-v2 能力诚实评估：真能解决问题吗？](guides/quantsys-v2-capability-assessment.md) | v2 后端能力诚实评估：哪些真能用、哪些是「接口通但链路死」（2026-09-02 全链路实测）。 |
+
+> 自动生成（`docs_index.py`）：按 front-matter 的 updated 倒序取前 15 页。
+<!-- AUTO:recent END -->
+
 
 ## 怎么维护
 

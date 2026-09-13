@@ -1,6 +1,7 @@
 ---
 id: guides-usage-guide
 title: Agent-DH 使用指南
+summary: v0.1.1 时代的使用说明：可用性状态与日常操作入口（历史，部分已被新规范取代）。
 type: guide
 status: living
 updated: 2026-09-14

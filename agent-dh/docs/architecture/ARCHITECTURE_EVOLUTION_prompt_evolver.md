@@ -1,6 +1,7 @@
 ---
 id: architecture-architecture-evolution-prompt-evolver
 title: 架构演进记录：prompt_evolver → agent自主变更
+summary: 架构演进记录：专用 prompt_evolver 改为 agent 自主变更段（2026-08-28；现行门控见 RFC 008）。
 type: architecture
 status: frozen
 updated: 2026-09-13

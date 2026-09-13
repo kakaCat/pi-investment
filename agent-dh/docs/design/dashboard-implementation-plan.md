@@ -1,6 +1,7 @@
 ---
 id: design-dashboard-implementation-plan
 title: 看板插件实现方案 · dashboard-holdings / dashboard-execution（双插件）
+summary: 双看板（holdings/execution）方案稿（已落地，形态后被纠正为双半插件；历史设计）。
 type: design
 status: archived
 updated: 2026-09-13

@@ -1,6 +1,7 @@
 ---
 id: readme-2
 title: Agent-DH
+summary: agent-dh 是什么、代码怎么组织、怎么启动——仓库入口页。
 type: manual
 status: living
 updated: 2026-09-11

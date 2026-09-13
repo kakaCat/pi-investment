@@ -1,6 +1,7 @@
 ---
 id: guides-quickstart
 title: Agent-DH 快速开始指南
+summary: 5 分钟把 agent-dh 跑起来：前置依赖、启动步骤、验证方法。
 type: guide
 status: living
 updated: 2026-09-13

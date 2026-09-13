@@ -1,6 +1,7 @@
 ---
 id: guides-learnings-from-agent-ts
 title: 从 agent-ts（PI 投资顾问·TS版）会话学习报告
+summary: 从 agent-ts（TS 版投顾）的会话里学到的回答模板与经验。
 type: guide
 status: living
 updated: 2026-09-14

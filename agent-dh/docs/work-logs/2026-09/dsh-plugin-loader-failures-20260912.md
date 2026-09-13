@@ -6,6 +6,7 @@ status: archived
 updated: 2026-09-12
 owners: [w-32314d00]
 tags: [worklog, 2026-09]
+distilled_into: docs/standards/build-and-release.md
 ---
 
 # DSH 插件加载失败（15 条 loader 事件）处置与发版闸门核验

@@ -1,6 +1,7 @@
 ---
 id: rfcs-003-self-learning-distillation
 title: RFC 003: Agent Self-Learning and Distillation System
+summary: RFC 003：经验追踪 → 知识蒸馏 → 规则转正的自学习系统设计。
 type: rfc
 status: living
 updated: 2026-09-14

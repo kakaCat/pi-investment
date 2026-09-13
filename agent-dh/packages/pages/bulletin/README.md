@@ -1,6 +1,7 @@
 ---
 id: pkg-pages-bulletin-readme
 title: @pi-investment/dashboard-bulletin（公告板页面，RFC 013）
+summary: 公告板页面包（双半插件）：与 board_post/board_read 工具同源的看板。
 type: package
 status: living
 updated: 2026-09-05

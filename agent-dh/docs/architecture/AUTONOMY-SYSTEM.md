@@ -1,6 +1,7 @@
 ---
 id: architecture-autonomy-system
 title: Agent-DH 自主能力体系
+summary: 自主能力体系总览：自管理/自学习/自进化三层能力矩阵与学习循环。
 type: architecture
 status: living
 updated: 2026-09-14

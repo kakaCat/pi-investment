@@ -1,6 +1,7 @@
 ---
 id: architecture-tools-inventory
 title: Agent-DH 工具清单
+summary: 工具清单快照（2026-08-28，约 120 个工具与归属插件）——核对某工具是否存在时用；数字可能滞后。
 type: architecture
 status: living
 updated: 2026-09-14

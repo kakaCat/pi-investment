@@ -1,6 +1,7 @@
 ---
 id: design-dashboard-implementation-detail
 title: dashboard 页面插件 · 详细实施方案（数据链路实测版）
+summary: 看板页面插件的数据链路实测细化（端点/参数/返回字段，2026-09-03 curl 打样）。
 type: design
 status: living
 updated: 2026-09-14

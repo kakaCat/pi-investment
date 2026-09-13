@@ -1,6 +1,7 @@
 ---
 id: pkg-pages-genome-readme
 title: @pi-investment/dashboard-genome · 自主进化看板
+summary: 自主进化看板包：基因组目录、候选状态与进化链路的可视化。
 type: package
 status: living
 updated: 2026-09-13

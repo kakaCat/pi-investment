@@ -1,6 +1,7 @@
 ---
 id: pkg-pages-holdings-readme
 title: @pi-investment/dashboard-holdings
+summary: 账户持仓看板包：多账户摘要、持仓明细、合规监控、盯盘中心。
 type: package
 status: living
 updated: 2026-09-04

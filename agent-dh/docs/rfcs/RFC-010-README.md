@@ -1,6 +1,7 @@
 ---
 id: rfcs-rfc-010-readme
 title: RFC 010 Phase 1 - Window-OS Lifecycle Management
+summary: RFC 010 Phase 1：多窗口协同（窗口注册、角色化派单、窗口间消息、心跳容错）。
 type: rfc
 status: living
 updated: 2026-09-14

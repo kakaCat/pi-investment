@@ -1,6 +1,7 @@
 ---
 id: guides-event-query-best-practices
 title: 事件查询最佳实践（P1-4）
+summary: 事件查询最佳实践：盘前用两个事件工具查什么、怎么查、别踩什么坑。
 type: guide
 status: living
 updated: 2026-09-14

@@ -1,6 +1,7 @@
 ---
 id: architecture-self-restart-behavior
 title: self_restart 工具行为说明
+summary: self_restart 工具的行为说明与失败排查（状态文件、门控、常见误判）。
 type: architecture
 status: living
 updated: 2026-09-14

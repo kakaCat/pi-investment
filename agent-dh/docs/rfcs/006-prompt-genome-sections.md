@@ -1,6 +1,7 @@
 ---
 id: rfcs-006-prompt-genome-sections
 title: RFC 006: P0-1 提示词基因组切分（宪法层 / 可进化段）实现计划
+summary: RFC 006：提示词基因组分段（宪法/原则/规则/教训）设计提案。
 type: rfc
 status: living
 updated: 2026-09-14

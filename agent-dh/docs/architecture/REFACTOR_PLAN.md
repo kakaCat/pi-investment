@@ -1,6 +1,7 @@
 ---
 id: architecture-refactor-plan
 title: Agent-DH 工具重构总计划
+summary: 2026-08-28 的工具重构总计划（只落地 Phase 1 trading）；现行工具架构以工具开发规范为准。
 type: architecture
 status: frozen
 updated: 2026-09-13

@@ -1,6 +1,7 @@
 ---
 id: guides-weekly-report-push-guide
 title: M6 周报推送使用指南
+summary: 周报推送到飞书的配置与使用步骤。
 type: guide
 status: living
 updated: 2026-09-13

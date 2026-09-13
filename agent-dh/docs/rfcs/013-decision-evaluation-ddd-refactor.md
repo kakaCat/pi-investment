@@ -1,6 +1,7 @@
 ---
 id: rfcs-013-decision-evaluation-ddd-refactor
 title: P1-3: 判断结果自动对账系统 DDD 重构设计
+summary: RFC 013：决策评估 DDD 重构（decision_audit 评估引擎 + agent_decisions 表）。
 type: rfc
 status: living
 updated: 2026-09-14

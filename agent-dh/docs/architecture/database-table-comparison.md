@@ -1,6 +1,7 @@
 ---
 id: architecture-database-table-comparison
 title: 数据库表设计对比分析报告
+summary: v2 数据库表设计与文档的对比分析（结论：simulation_* 表设计更好），2026-08-25。
 type: architecture
 status: living
 updated: 2026-09-14

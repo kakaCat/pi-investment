@@ -1,6 +1,7 @@
 ---
 id: guides-startup
 title: Agent-DH 启动指南
+summary: 启动/停止实例的实操步骤与启动配置位置（agent-dh 独立应用形态）。
 type: guide
 status: living
 updated: 2026-09-14

@@ -1,6 +1,7 @@
 ---
 id: rfcs-013-bulletin-board-page
 title: RFC 013：公告板页面（dashboard-bulletin）
+summary: RFC 013：公告板页面插件设计（双半插件，与 board_* 工具同源）。
 type: rfc
 status: living
 updated: 2026-09-14

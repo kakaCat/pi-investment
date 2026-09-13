@@ -1,6 +1,7 @@
 ---
 id: release-notes-v0.1.1
 title: 🎊 Agent-DH v0.1.1 发布说明
+summary: v0.1.1（2026-08-18）发布说明：稳定性与可靠性改进清单（历史版本记录）。
 type: doc
 status: living
 updated: 2026-09-14

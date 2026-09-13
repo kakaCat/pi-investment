@@ -1,6 +1,7 @@
 ---
 id: pkg-learning-readme
 title: @pi-investment/learning
+summary: learning 插件：经验追踪 / 模式挖掘 / 知识蒸馏 / 规则转正（RFC 003 落地）。
 type: package
 status: living
 updated: 2026-08-20

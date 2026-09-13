@@ -1,6 +1,7 @@
 ---
 id: design-page1-holdings-implementation-plan
 title: page1 账户持仓看板（dashboard-holdings）实施方案
+summary: holdings 独立包补齐方案（已实施）：当时「包从未创建」缺口是怎么闭合的。
 type: design
 status: archived
 updated: 2026-09-13

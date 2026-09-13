@@ -1,6 +1,7 @@
 ---
 id: readme
 title: Agent-DH 示例
+summary: agent-dh 使用示例目录：从最简 agent loop 到工具调用的可运行样例。
 type: example
 status: living
 updated: 2026-08-30

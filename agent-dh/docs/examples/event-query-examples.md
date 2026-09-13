@@ -1,6 +1,7 @@
 ---
 id: examples-event-query-examples
 title: 事件查询使用示例（P1-4）
+summary: 事件查询两个工具的实战示例（盘前例行、个股排雷等）。
 type: doc
 status: living
 updated: 2026-09-14

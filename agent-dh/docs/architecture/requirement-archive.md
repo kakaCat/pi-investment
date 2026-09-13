@@ -1,6 +1,7 @@
 ---
 id: requirement-archive
 title: 需求归档规范（reqboard 执行细则）
+summary: 需求归档执行细则：归档要备哪些材料、合并去向怎么定、代码在哪校验。
 type: architecture
 status: living
 updated: 2026-09-13

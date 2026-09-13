@@ -1,6 +1,7 @@
 ---
 id: guides-quickref
 title: Agent-DH 快速参考卡片
+summary: 常用命令速查卡片：启停实例、看日志、跑巡检（含「别用 kill」红线）。
 type: guide
 status: living
 updated: 2026-09-14

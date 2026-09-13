@@ -1,6 +1,7 @@
 ---
 id: architecture-why-no-dist
 title: 为什么部分插件没有 dist 目录？
+summary: 为什么有的包有 dist、有的没有（tsx 直载），以及怎么判断某个包走哪条路。
 type: architecture
 status: living
 updated: 2026-09-14

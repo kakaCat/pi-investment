@@ -1,6 +1,7 @@
 ---
 id: architecture-legacy-system-deprecation-plan
 title: 旧订单体系废弃计划
+summary: 旧 orders/holdings 体系的安全废弃计划与已删端点清单（2026-08-25）。
 type: architecture
 status: living
 updated: 2026-09-14

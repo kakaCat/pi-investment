@@ -1,6 +1,7 @@
 ---
 id: profile-investment-readme
 title: DSH Investment Profile
+summary: DSH profile 配置模板：插件以 file: 依赖 + 符号链接接入（含打包流程证伪注记）。
 type: profile
 status: living
 updated: 2026-09-11

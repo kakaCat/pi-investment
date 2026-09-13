@@ -1,6 +1,7 @@
 ---
 id: guides-skill-loading
 title: 技能装载机制（Skill Loading）——排障实录与标准流程
+summary: 技能为什么看不见：两个 dsh home + skill registry 分层，以及正确的装载姿势。
 type: guide
 status: living
 updated: 2026-09-14

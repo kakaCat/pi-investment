@@ -261,6 +261,7 @@ docs/work-logs/
 ---
 id: requirement-archive           # 全仓唯一，kebab-case（链接与检索用）
 title: 需求归档规范
+summary: 一句话说清这页讲什么（索引表就靠它；也可改在正文写「**这页回答**：…」）
 # type 取闭集（探针会校验，见规则 7）：
 #   L1/L2 认知页：manual | architecture | guide | standard | protocol | adr | rfc | design | research | package | profile | example | doc
 #   L3 档案页：  worklog | requirement | plan | verification | retro | troubleshooting
@@ -270,6 +271,7 @@ status: living | stub | frozen | archived | superseded   # superseded=被后来�
 updated: 2026-09-13
 owners: [w-1cee2467]
 tags: [archive, reqboard]
+distilled_into: docs/standards/xxx.md   # 仅 L3 日志用：结论已合并进哪一页
 ---
 
 # 标题（与人读到的第一句一致）
@@ -302,7 +304,17 @@ tags: [archive, reqboard]
      它们长期追加、需要被机器索引；
    - `requirements/REQ-xxxxxx/*.md` 与 `_template/`：**不要求** front-matter——
      它们是**流水证据**且状态由需求看板管理，加字段 = 制造"两处真相"；由 `INDEX.md` 登记即算可达。
-10. **档案页不回改死链**：`status: archived` / `superseded` 的页面引用的是**当时的路径**，
+10. **一句话摘要**：每页**要么**在 fm 写 `summary:`，**要么**在正文写「**这页回答**：…」——索引表靠它；
+    两者都没有 = 在索引里看不到这页讲什么（探针会列出来）。
+11. **自动区与生成器**：`docs/INDEX.md`（全站页面地图）、`docs/README.md` 的「最近改动」、
+    `docs/work-logs/README.md` 的台账**都是生成的**，带 `<!-- AUTO:xxx BEGIN/END -->` 标记，**勿手改**；
+    改了页面后跑 `python3 agent-dh/scripts/docs_index.py`（`--check` 不一致 = 巡检判失败）。
+    这就是「front-matter 字段的消费者」——没有消费者，补字段只是台账。
+12. **待提炼队列（把 L3 整理变成有终点的活）**：日志 fm 的 `distilled_into:`（写项目内路径，
+    如 `docs/standards/build-and-release.md`）表示「这篇的结论已经合并进哪一页」；
+    为空的日志进**待提炼队列**（超 30 天算逾期）——**只做队列里的**；合并完回填字段，队列自然缩短。
+13. **模板与草稿**：文件名以 `_` 开头（`work-logs/_TEMPLATE.md`、`requirements/_template/`）不进索引、不计队列。
+14. **档案页不回改死链**：`status: archived` / `superseded` 的页面引用的是**当时的路径**，
     文件后来改名/删除属正常——巡检对它们只报告、不计失败（否则每次都"历史欠债报警"，真正的问题被淹没）。
     反过来说：**现行页（living）里绝不允许有死链**。
 

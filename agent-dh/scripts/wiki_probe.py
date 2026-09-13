@@ -13,15 +13,22 @@
   - **需求档案**（`requirements/REQ-*`、`_template/`）：**豁免** front-matter（由 INDEX.md 登记），
     单列提示；未被 `INDEX.md` 登记的 REQ 目录也在此提示。
 
+另外三项「有终点」的提示：
+  - **待提炼队列**：`work-logs` 里 `distilled_into` 为空且超过 30 天的日志（那才是要干的活）；
+  - **缺 summary**：wiki 页没有一句话摘要（索引表会显示不出这页讲什么）；
+  - **自动索引过期**：`docs_index.py --check` 不一致 → **计入失败**（改了页面没重跑生成）。
+
 退出码：0 = 无失败项；1 = 有失败项（供定时任务与 CI 使用）。
 用法：python3 agent-dh/scripts/wiki_probe.py [--root .] [--json]
 """
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import re
+import subprocess
 import sys
 
 SKIP_DIRS = {'.git', 'node_modules', '.claude', 'dist', 'lib', '__pycache__',
@@ -41,6 +48,8 @@ REQUIREMENT_MARKS = ('/requirements/REQ-', '/requirements/_template/')  # L3 需
 FRONT_MATTER_RE = re.compile(r'^---\s*\n(.*?)\n---\s*\n', re.S)
 LINK_RE = re.compile(r'\[[^\]]*\]\(([^)\s#]+)(?:#[^)]*)?\)')
 REQUIRED_FM = ('id', 'title', 'type', 'status', 'updated')
+ANSWERS_RE = re.compile(r'\*\*这页回答\*\*[:：]\s*(.+)$', re.M)
+STALE_DISTILL_DAYS = 30   # 待提炼队列的时间门槛（天）
 
 TYPES = {'manual', 'architecture', 'guide', 'standard', 'protocol', 'adr', 'rfc',
          'design', 'research', 'package', 'profile', 'example', 'doc',
@@ -58,8 +67,8 @@ def iter_pages(root: str):
         for dirpath, dirnames, filenames in os.walk(base):
             dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
             for name in sorted(filenames):
-                if not name.endswith('.md'):
-                    continue
+                if not name.endswith('.md') or name.startswith('_'):
+                    continue   # _ 开头 = 模板/草稿，不进页面图
                 path = os.path.join(dirpath, name)
                 if path in seen:
                     continue
@@ -99,6 +108,17 @@ def is_archive(rel: str) -> bool:
 
 def is_requirement(rel: str) -> bool:
     return any(mark in '/' + rel for mark in REQUIREMENT_MARKS)
+
+
+def check_index(root: str):
+    """自动生成区是否与文档一致（docs_index.py --check）。返回 (rc, 输出)。"""
+    for rel in ('agent-dh/scripts/docs_index.py', 'scripts/docs_index.py'):
+        script = os.path.join(root, rel)
+        if os.path.isfile(script):
+            r = subprocess.run([sys.executable, script, '--root', root, '--check'],
+                               capture_output=True, text=True)
+            return r.returncode, (r.stdout or '') + (r.stderr or '')
+    return 0, ''
 
 
 def find_requirement_dirs(root: str):
@@ -195,7 +215,24 @@ def main() -> int:
             if os.path.basename(d) not in index_text:
                 req_unlisted.append(d)
 
-    problems = len(dead) + len(orphans) + len(bad_enum) + len(archive_missing_fm) + len(bad_fm)
+    # 待提炼队列：档案页里没写提炼去向、且已过 N 天的（有终点，不是无边界的历史债）
+    cutoff = (datetime.date.today() - datetime.timedelta(days=STALE_DISTILL_DAYS)).isoformat()
+    distill_queue = sorted(
+        rel for _p, rel, _t in archive_pages
+        if not fm_of.get(rel, {}).get('distilled_into')
+        and fm_of.get(rel, {}).get('status') in ('archived', 'superseded')
+        and os.path.basename(rel) != 'README.md')
+    distill_overdue = [r for r in distill_queue if fm_of.get(r, {}).get('updated', '9999') < cutoff]
+
+    # 一句话摘要：要么写在 fm.summary，要么在正文写「**这页回答**：…」（索引表靠它）
+    no_summary = sorted(rel for _p, rel, text in wiki_pages
+                        if not fm_of.get(rel, {}).get('summary')
+                        and not ANSWERS_RE.search(text))
+
+    index_rc, index_out = check_index(root)
+
+    problems = (len(dead) + len(orphans) + len(bad_enum) + len(archive_missing_fm) + len(bad_fm)
+                + (1 if index_rc else 0))
 
     report = {
         'wiki_pages': len(wiki_pages),
@@ -213,6 +250,10 @@ def main() -> int:
         'bad_enum_other_trees': bad_enum_other,
         'archive_missing_front_matter': archive_missing_fm,
         'requirements_unlisted': req_unlisted,
+        'distill_queue': distill_queue,
+        'distill_overdue': distill_overdue,
+        'pages_without_summary': no_summary,
+        'index_check_rc': index_rc,
     }
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=1))
@@ -255,8 +296,22 @@ def main() -> int:
             print(f'（提示）{len(legacy)} 个历史页还没有 front-matter（迁一个是一个，不计失败）')
         if bad_fm_other:
             print(f'（提示）管辖范围外（其他项目/根 docs）front-matter 缺字段 {len(bad_fm_other)} 个——不归 agent-dh 管，只报告')
+        if index_rc:
+            print('自动索引过期（' + 'docs_index.py --check' + ' 退出码 ' + str(index_rc) + '）——跑一次 docs_index.py 重生：')
+            print('  ' + index_out.strip().splitlines()[0] if index_out.strip() else '')
+        if distill_queue:
+            print(f'（提示）待提炼队列 {len(distill_queue)} 篇（archived/superseded 且 distilled_into 为空；'
+                  f'其中 {len(distill_overdue)} 篇已超 {STALE_DISTILL_DAYS} 天）——结论合并进 L2 后填 distilled_into：')
+            for q in distill_overdue[:10]:
+                print(f'  - {q}')
+            if not distill_overdue:
+                print('  （暂无逾期：队列里的日志都还在 ' + str(STALE_DISTILL_DAYS) + ' 天内）')
+        if no_summary:
+            print(f'（提示）{len(no_summary)} 个 wiki 页没有一句话摘要（fm.summary 与「**这页回答**」都没有）：')
+            for q in no_summary[:10]:
+                print(f'  - {q}')
         if problems == 0:
-            print('OK：现行页无死链、无孤儿、front-matter 与 type/status 全部合规')
+            print('OK：现行页无死链、无孤儿、front-matter 与 type/status 全部合规，自动索引与文档一致')
     return 1 if problems > 0 else 0
 
 

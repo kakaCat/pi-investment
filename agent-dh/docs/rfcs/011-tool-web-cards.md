@@ -1,6 +1,7 @@
 ---
 id: rfcs-011-tool-web-cards
 title: RFC 011：工具 Web 自定义卡片（Tool Web Cards）统一实现规范
+summary: RFC 011：工具调用在 GUI 里的 Web 卡片展示（草案）。
 type: rfc
 status: living
 updated: 2026-09-14

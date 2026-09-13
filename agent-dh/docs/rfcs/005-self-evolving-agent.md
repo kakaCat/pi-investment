@@ -1,6 +1,7 @@
 ---
 id: rfcs-005-self-evolving-agent
 title: RFC 005: 自进化投资 Agent（Self-Evolving Investment Agent）
+summary: RFC 005：自进化 Agent 设计（Phase 1-3 已落地，Phase 4 元学习待启动）。
 type: rfc
 status: living
 updated: 2026-09-14

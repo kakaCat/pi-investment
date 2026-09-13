@@ -1,6 +1,7 @@
 ---
 id: rfcs-007-genome-manager
 title: RFC 007: P0-2 genome_manager 工具化（版本快照 / 段更新 / 回滚 / changelog）实现方案
+summary: RFC 007：genome_manager 工具化设计提案（段读写、版本与候选）。
 type: rfc
 status: living
 updated: 2026-09-14
