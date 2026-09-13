@@ -70,6 +70,9 @@ class DecisionScoreService:
             pending = self.decision_repo.list_pending_evaluations(days=pending_days)
             result = {'scanned': 0, 'scored': 0, 'skipped_unmature': 0,
                       'skipped_invalid': 0, 'errors': 0}
+            # 独立审阅 M5（2026-09-13 w-c8cae280）：指标按决策真实账户记账，
+            # 原实现写死 labels(account='agent_virtual')，跨账户污染监控口径。
+            scored_by_account: Dict[str, int] = {}
             for decision in pending:
                 # 2026-09-13（w-c8cae280）：大小写归一。
                 # 成交自动审计（account_trading_service._auto_record_decision）写的是
@@ -91,13 +94,15 @@ class DecisionScoreService:
                     continue
                 if outcome == 'scored':
                     result['scored'] += 1
+                    _acct = str((decision.get('context') or {}).get('account') or 'unknown')
+                    scored_by_account[_acct] = scored_by_account.get(_acct, 0) + 1
                 elif outcome == 'unmature':
                     result['skipped_unmature'] += 1
                 else:
                     result['skipped_invalid'] += 1
             
-            if result['scored'] > 0:
-                evolution_decision_scored_total.labels(account='agent_virtual').inc(result['scored'])
+            for _acct, _n in scored_by_account.items():
+                evolution_decision_scored_total.labels(account=_acct).inc(_n)
         
         # 2026-09-10 修复（investor / w-8f2c4cc5，错误事件 363337b4）：
         # 原实现无条件 logger.info(f"决策打分完成: {result}")，输出的是 Python dict 字面量、含 'errors' 键；

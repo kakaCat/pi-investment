@@ -1,4 +1,5 @@
 """WatchEngine 装配：构建引擎 + 后台线程启动"""
+import os
 import threading
 from datetime import datetime, timedelta
 from typing import Optional
@@ -60,7 +61,11 @@ def create_watch_engine() -> WatchEngine:
 
     def position_value_provider(rule):
         # 介入判据金额门：持仓级动作影响金额 = 该标的持仓市值
-        account = getattr(rule, 'account', None) or 'agent_virtual'
+        # 2026-09-13（w-c8cae280，独立审阅 M4）：无归属账户的规则不再借用 agent_virtual 的持仓
+        # —— 那会让『通用观察』规则按别人的持仓市值过金额门；无账户即跳过该门（返回 None）。
+        account = getattr(rule, 'account', None)
+        if not account:
+            return None
         symbol = str(getattr(rule, 'symbol', '')).split('.')[0]
         try:
             pos = _pos_repo.get_position(account, symbol)
@@ -70,11 +75,15 @@ def create_watch_engine() -> WatchEngine:
         except Exception:
             return None
 
-    def account_total_provider():
+    def account_total_provider(rule=None):
         # 介入判据金额门：账户总资产
+        # 2026-09-13（w-c8cae280，独立审阅 M4）：原实现恒用 agent_virtual 的总资产当所有规则的门槛。
+        # 现优先用规则归属账户；无归属时用 agent-dh 自有账户（可用 WATCH_ENGINE_DEFAULT_ACCOUNT 覆盖）。
+        account = (getattr(rule, 'account', None) if rule is not None else None) \
+            or os.getenv('WATCH_ENGINE_DEFAULT_ACCOUNT', 'agent_brain')
         try:
             from adapters.outbound.repositories.simulation_repository import SimulationORMRepository
-            status = SimulationORMRepository().get_account_status('agent_virtual')
+            status = SimulationORMRepository().get_account_status(account)
             if isinstance(status, dict):
                 return float(status.get('total_value') or 0) or None
             return float(getattr(status, 'total_value', 0) or 0) or None

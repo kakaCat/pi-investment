@@ -368,7 +368,7 @@ class WatchEngine:
         elif intent == 'entry':
             # 买入意向金额：action_hint.max_position_pct × 账户总资产（若有）
             mpp = ah.get('max_position_pct')
-            total = self._account_total()
+            total = self._account_total(rule)
             if mpp and total:
                 amount = float(mpp) / 100.0 * float(total)
                 ev = amount * 0.03
@@ -390,11 +390,12 @@ class WatchEngine:
         except Exception:
             return None
 
-    def _account_total(self) -> Optional[float]:
+    def _account_total(self, rule=None) -> Optional[float]:
+        # 2026-09-13（w-c8cae280）：透传规则，让金额门按规则归属账户取值。
         if self._account_total_provider is None:
             return None
         try:
-            return self._account_total_provider()
+            return self._account_total_provider(rule)
         except Exception:
             return None
 

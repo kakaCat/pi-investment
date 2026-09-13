@@ -44,7 +44,7 @@ def _make_service(accounts, positions_by_acct, trades_by_acct, prev_snaps, price
 
 
 class TestDailySnapshot:
-    def test_values_positions_at_close_and_computes_daily_return(self):
+    def test_values_positions_at_close_and_defers_daily_return(self):
         # 持仓 1000 股，当日收盘 11 元 → 总资产 90000+11000=101000
         # 前快照 100000 → daily_return = 0.01
         svc, sim_repo = _make_service(
@@ -58,7 +58,10 @@ class TestDailySnapshot:
         assert kw['snapshot_date'] == date(2026, 8, 5)
         assert kw['position_value'] == pytest.approx(11000.0)
         assert kw['total_value'] == pytest.approx(101000.0)
-        assert kw['daily_return'] == pytest.approx(0.01)
+        # 2026-09-13（w-c8cae280）：日收益率口径已统一到 repo（e020a76b『日收益率收敛到单一实现』）
+        # —— 服务不再自算/透传 daily_return，由 upsert_equity_snapshot 按上一交易日有效快照计算。
+        # 原断言 kw['daily_return'] 正是这次契约变更后遗留的失败（3 个用例）。
+        assert 'daily_return' not in kw
         # cumulative = 101000/100000-1 = 0.01；peak 105000 → drawdown = (101000-105000)/105000
         assert kw['cumulative_return'] == pytest.approx(0.01)
         assert kw['drawdown'] == pytest.approx(-4000 / 105000)
@@ -74,7 +77,7 @@ class TestDailySnapshot:
         kw = sim_repo.upsert_equity_snapshot.call_args.kwargs
         assert kw['position_value'] == pytest.approx(10500.0)
 
-    def test_no_prev_snapshot_daily_return_zero(self):
+    def test_no_prev_snapshot_defers_daily_return(self):
         svc, sim_repo = _make_service(
             [_account()], {'agent_virtual': [_position()]}, {},
             {'agent_virtual': []},
@@ -82,7 +85,10 @@ class TestDailySnapshot:
         )
         svc.snapshot_all_accounts(target_date=date(2026, 8, 5))
         kw = sim_repo.upsert_equity_snapshot.call_args.kwargs
-        assert kw['daily_return'] == 0.0
+        # 2026-09-13（w-c8cae280）：日收益率口径已统一到 repo（e020a76b『日收益率收敛到单一实现』）
+        # —— 服务不再自算/透传 daily_return，由 upsert_equity_snapshot 按上一交易日有效快照计算。
+        # 原断言 kw['daily_return'] 正是这次契约变更后遗留的失败（3 个用例）。
+        assert 'daily_return' not in kw
 
 
 class TestBackfill:
@@ -107,10 +113,12 @@ class TestBackfill:
         d0, d1 = calls[0].kwargs, calls[1].kwargs
         assert d0['snapshot_date'] == date(2026, 7, 30)
         assert d0['total_value'] == pytest.approx(100000.0)
-        assert d0['daily_return'] == 0.0
         assert d1['snapshot_date'] == date(2026, 7, 31)
         assert d1['total_value'] == pytest.approx(101000.0)
-        assert d1['daily_return'] == pytest.approx(0.01)
+        # 2026-09-13（w-c8cae280）：日收益率口径已统一到 repo（e020a76b『日收益率收敛到单一实现』）
+        # —— 服务不再自算/透传 daily_return，由 upsert_equity_snapshot 按上一交易日有效快照计算。
+        # 原断言 kw['daily_return'] 正是这次契约变更后遗留的失败（3 个用例）。
+        assert 'daily_return' not in d0 and 'daily_return' not in d1
 
     def test_sell_trade_releases_cash(self):
         # 买后次日卖出：07-31 卖 1000 股 @11（total_revenue 11000）→ 全现金 101000
