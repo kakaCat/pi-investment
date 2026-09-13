@@ -38,9 +38,15 @@ class TestSymbolConversion:
 
     def test_internal_to_clean_no_suffix_sh_heuristic(self):
         """Six-digit code starting with 6 → inferred as SH."""
-        code, exchange = BaseMarketAdapter.internal_to_clean("000001")
-        assert code == "000001"
+        # 2026-09-14（w-c8cae280）：原用例 docstring 说"以 6 开头 → SH"，却传了 000001（以 0 开头），
+        # 而实现按 startswith(("6","9"))→SH 否则 SZ，对 000001 返回 SZ —— 是**用例输入与自己的文档不符**
+        # （实现是对的）。此处改成真正验证该启发式的输入，并补一条 000001→SZ 的对照，避免同一坑再犯。
+        code, exchange = BaseMarketAdapter.internal_to_clean("600000")
+        assert code == "600000"
         assert exchange == "SH"
+
+        code2, exchange2 = BaseMarketAdapter.internal_to_clean("000001")
+        assert (code2, exchange2) == ("000001", "SZ")
 
     def test_internal_to_clean_no_suffix_sz_heuristic(self):
         """Six-digit code starting with 0 → inferred as SZ."""
@@ -156,10 +162,10 @@ class TestAdapterFactory:
             get_adapter("nonexistent_source")
 
     def test_register_adapter(self):
-        register_adapter("mock_test", "quantlib.adapters.base_adapter.BaseMarketAdapter")
+        register_adapter("mock_test", "adapters.outbound.datasources.providers.quantlib.base_adapter.BaseMarketAdapter")
         assert "mock_test" in list_adapters()
         # Clean up — remove from registry to avoid polluting other tests
-        from domain.quantlib.adapters import factory
+        from adapters.outbound.datasources.providers.quantlib import factory
         factory._REGISTRY.pop("mock_test", None)
 
     def test_list_adapters(self):
@@ -180,7 +186,7 @@ class _BaseMockAkshareTest:
         """Patch the `ak` reference inside ak_share_adapter so tests never
         call the real akshare library."""
         self.mock_ak = MagicMock()
-        monkeypatch.setattr("quantlib.adapters.akshare_adapter.ak", self.mock_ak)
+        monkeypatch.setattr("adapters.outbound.datasources.providers.quantlib.akshare_adapter.ak", self.mock_ak)
 
     def _make_adapter(self):
         from adapters.outbound.datasources.providers.quantlib.akshare_adapter import AkShareAdapter
@@ -709,7 +715,7 @@ class TestAkShareAdapterStructure:
 
 class TestModuleExports:
     def test_init_exports_all_symbols(self):
-        from domain.quantlib.adapters import (
+        from adapters.outbound.datasources.providers.quantlib import (
             BaseMarketAdapter,
             AkShareAdapter,
             get_adapter,
@@ -723,6 +729,6 @@ class TestModuleExports:
         assert callable(list_adapters)
 
     def test_factory_importable_from_package(self):
-        from domain.quantlib.adapters import get_adapter
+        from adapters.outbound.datasources.providers.quantlib import get_adapter
         adapter = get_adapter("akshare")
         assert isinstance(adapter, BaseMarketAdapter)

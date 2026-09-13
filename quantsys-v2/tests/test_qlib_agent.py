@@ -78,7 +78,7 @@ class TestQlibRLAgent:
             agent = QlibRLAgent(algorithm=algo, env=mock_env)
             assert agent.algorithm == algo
 
-    @patch('quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
+    @patch('domain.quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
     def test_train_method_exists(self, mock_env):
         """Test that train method exists."""
         from domain.quantlib.qlib import QlibRLAgent
@@ -87,7 +87,7 @@ class TestQlibRLAgent:
         assert hasattr(agent, 'train')
         assert callable(agent.train)
 
-    @patch('quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
+    @patch('domain.quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
     def test_train_with_config(self, mock_env, mock_qlib_model):
         """Test training with configuration."""
         from domain.quantlib.qlib import QlibRLAgent
@@ -113,7 +113,7 @@ class TestQlibRLAgent:
         with pytest.raises(RuntimeError, match="not trained"):
             agent.predict(observation)
 
-    @patch('quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
+    @patch('domain.quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
     def test_predict_after_training(self, mock_env, mock_qlib_model):
         """Test prediction after training."""
         from domain.quantlib.qlib import QlibRLAgent
@@ -137,7 +137,7 @@ class TestQlibRLAgent:
         with pytest.raises(RuntimeError, match="not trained"):
             agent.save_model(model_path)
 
-    @patch('quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
+    @patch('domain.quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
     def test_save_model_after_training(self, mock_env, mock_qlib_model, tmp_path):
         """Test saving model after training."""
         from domain.quantlib.qlib import QlibRLAgent
@@ -150,7 +150,7 @@ class TestQlibRLAgent:
 
         mock_qlib_model.save.assert_called_once()
 
-    @patch('quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
+    @patch('domain.quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', True)
     def test_load_model(self, mock_env, mock_qlib_model, tmp_path):
         """Test loading model from disk."""
         from domain.quantlib.qlib import QlibRLAgent
@@ -204,7 +204,7 @@ class TestQlibRLAgent:
         assert 'load_model' in methods
         assert 'calculate' in methods
 
-    @patch('quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', False)
+    @patch('domain.quantlib.qlib.qlib_agent.QLIB_RL_AVAILABLE', False)
     def test_graceful_degradation_when_qlib_unavailable(self, mock_env):
         """Test that agent handles missing Qlib gracefully."""
         from domain.quantlib.qlib import QlibRLAgent

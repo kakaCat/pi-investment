@@ -104,7 +104,7 @@ class TestFinRLAgentWithDependencies:
         agent = FinRLAgent(algorithm='ppo', env=mock_env)
         assert isinstance(agent, BaseCalculator)
 
-    @patch('quantlib.finrl.finrl_agent.PPO')
+    @patch('domain.quantlib.finrl.finrl_agent.PPO')
     def test_train_method_ppo(self, mock_ppo_class, mock_env):
         """Test train() method with PPO algorithm."""
         from domain.quantlib.finrl.finrl_agent import FinRLAgent
@@ -131,7 +131,7 @@ class TestFinRLAgentWithDependencies:
         assert 'algorithm' in result
         assert result['algorithm'] == 'ppo'
 
-    @patch('quantlib.finrl.finrl_agent.A2C')
+    @patch('domain.quantlib.finrl.finrl_agent.A2C')
     def test_train_method_a2c(self, mock_a2c_class, mock_env):
         """Test train() method with A2C algorithm."""
         from domain.quantlib.finrl.finrl_agent import FinRLAgent
@@ -155,7 +155,7 @@ class TestFinRLAgentWithDependencies:
         # Verify result
         assert result['algorithm'] == 'a2c'
 
-    @patch('quantlib.finrl.finrl_agent.PPO')
+    @patch('domain.quantlib.finrl.finrl_agent.PPO')
     def test_train_with_callbacks(self, mock_ppo_class, mock_env):
         """Test train() method with callbacks."""
         from domain.quantlib.finrl.finrl_agent import FinRLAgent
@@ -176,7 +176,7 @@ class TestFinRLAgentWithDependencies:
         call_kwargs = mock_model.learn.call_args[1]
         assert 'callback' in call_kwargs
 
-    @patch('quantlib.finrl.finrl_agent.PPO')
+    @patch('domain.quantlib.finrl.finrl_agent.PPO')
     def test_predict_method(self, mock_ppo_class, mock_env):
         """Test predict() method."""
         from domain.quantlib.finrl.finrl_agent import FinRLAgent
@@ -202,7 +202,7 @@ class TestFinRLAgentWithDependencies:
         assert action is not None
         assert isinstance(action, np.ndarray)
 
-    @patch('quantlib.finrl.finrl_agent.PPO')
+    @patch('domain.quantlib.finrl.finrl_agent.PPO')
     def test_predict_batch_observations(self, mock_ppo_class, mock_env):
         """Test predict() with batch observations."""
         from domain.quantlib.finrl.finrl_agent import FinRLAgent
@@ -234,7 +234,7 @@ class TestFinRLAgentWithDependencies:
         with pytest.raises(RuntimeError, match="Model not trained"):
             agent.predict(observation)
 
-    @patch('quantlib.finrl.finrl_agent.PPO')
+    @patch('domain.quantlib.finrl.finrl_agent.PPO')
     def test_save_model(self, mock_ppo_class, mock_env, temp_dir):
         """Test save_model() method."""
         from domain.quantlib.finrl.finrl_agent import FinRLAgent
@@ -255,7 +255,7 @@ class TestFinRLAgentWithDependencies:
         # Verify save was called
         mock_model.save.assert_called_once()
 
-    @patch('quantlib.finrl.finrl_agent.PPO')
+    @patch('domain.quantlib.finrl.finrl_agent.PPO')
     def test_load_model(self, mock_ppo_class, mock_env, temp_dir):
         """Test load_model() method."""
         from domain.quantlib.finrl.finrl_agent import FinRLAgent
@@ -276,7 +276,7 @@ class TestFinRLAgentWithDependencies:
         # Verify model is set
         assert agent.model is not None
 
-    @patch('quantlib.finrl.finrl_agent.PPO')
+    @patch('domain.quantlib.finrl.finrl_agent.PPO')
     def test_calculate_method(self, mock_ppo_class, mock_env):
         """Test calculate() method (inherited from BaseCalculator)."""
         from domain.quantlib.finrl.finrl_agent import FinRLAgent
@@ -301,7 +301,7 @@ class TestFinRLAgentWithDependencies:
         assert 'parameters' in result
         assert 'metadata' in result
 
-    @patch('quantlib.finrl.finrl_agent.PPO')
+    @patch('domain.quantlib.finrl.finrl_agent.PPO')
     def test_get_supported_methods(self, mock_ppo_class, mock_env):
         """Test get_supported_methods() returns correct methods."""
         from domain.quantlib.finrl.finrl_agent import FinRLAgent
@@ -375,7 +375,7 @@ class TestFinRLAgentIntegration:
     """Integration tests for FinRLAgent."""
 
     @pytest.mark.skipif(not FINRL_AVAILABLE, reason="FinRL dependencies not available")
-    @patch('quantlib.finrl.finrl_agent.PPO')
+    @patch('domain.quantlib.finrl.finrl_agent.PPO')
     def test_full_training_pipeline(self, mock_ppo_class, mock_env, temp_dir):
         """Test full training pipeline: train -> predict -> save -> load."""
         from domain.quantlib.finrl.finrl_agent import FinRLAgent

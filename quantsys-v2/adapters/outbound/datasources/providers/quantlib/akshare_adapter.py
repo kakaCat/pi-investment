@@ -12,6 +12,12 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Any
+import logging
+
+# 2026-09-14（w-c8cae280）修：本模块 logger 被使用 26 次，却只在第 238 行**某方法内**局部定义过 →
+# 模块级与其它方法（A股/港股实时行情抓取）里的 logger 是未定义名 → NameError。
+# 更糟的是它崩在 except 块内：真实异常被 NameError 掩盖，排障时只看到 name logger is not defined。
+logger = logging.getLogger(__name__)
 
 import pandas as pd
 

@@ -297,7 +297,7 @@ class TestQlibTradingEnv:
         assert env.df is not None
         assert len(env.df) > 0
 
-    @patch('quantlib.qlib.qlib_environment.QLIB_RL_AVAILABLE', False)
+    @patch('domain.quantlib.qlib.qlib_environment.QLIB_RL_AVAILABLE', False)
     def test_graceful_degradation_when_qlib_unavailable(self, sample_data):
         """Test that environment handles missing Qlib gracefully."""
         from domain.quantlib.qlib import QlibTradingEnv
