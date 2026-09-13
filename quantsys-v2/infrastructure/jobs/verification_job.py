@@ -104,58 +104,34 @@ class VerificationJob:
 
     def _get_index_return(self, start_date: str, end_date: str) -> float:
         """
-        获取创业板指数在指定期间的收益率
+        获取创业板指数（399006）在指定期间的收益率
 
         Args:
             start_date: 开始日期
             end_date: 结束日期
 
         Returns:
-            收益率（小数形式）
+            收益率（小数形式）；取不到指数数据时返回 0.0 并 **ERROR 告警**
+
+        ⚠️ 2026-09-13（w-32314d00，REQ-24e15d t4）修了一个**长期静默错误**：
+        原实现读的是 quant.daily_klines WHERE symbol='399006'，而指数自 2026-09-11 起
+        与个股**分表**（w-f4aa1f6a）—— daily_klines 里 399 族 **0 行**，指数在
+        quant.index_daily 且键带市场后缀（399006.SZ，实测 268 行）。
+        于是本方法此前**恒返回 0.0**：验证报表里的"基准收益"一直是 0，
+        超额收益（策略 − 基准）被系统性高估。现改走仓储的指数口径方法。
         """
         from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
         kline_repo = KlineRepository()
 
-        # 创业板指数代码
-        index_symbol = '399006'
-
-        cursor = kline_repo.session.connection().connection.cursor()
-
-        # 获取起始价格
-        cursor.execute(
-            """
-            SELECT close FROM quant.daily_klines
-            WHERE symbol = %s AND trade_date >= %s
-            ORDER BY trade_date ASC LIMIT 1
-            """,
-            (index_symbol, start_date)
-        )
-        start_row = cursor.fetchone()
-
-        if not start_row:
-            cursor.close()
+        ret = kline_repo.get_index_return('399006', start_date, end_date)
+        if ret is None:
+            # 明确区分"取不到"与"收益为 0"：宁可告警也不要再静默给 0
+            logger.error(
+                f"基准指数 399006 区间收益取数为空（{start_date} ~ {end_date}），"
+                f"本次基准按 0 计——请核查 quant.index_daily 是否有该区间数据"
+            )
             return 0.0
-
-        start_price = start_row[0]
-
-        # 获取结束价格
-        cursor.execute(
-            """
-            SELECT close FROM quant.daily_klines
-            WHERE symbol = %s AND trade_date <= %s
-            ORDER BY trade_date DESC LIMIT 1
-            """,
-            (index_symbol, end_date)
-        )
-        end_row = cursor.fetchone()
-        cursor.close()
-
-        if not end_row:
-            return 0.0
-
-        end_price = end_row[0]
-
-        return (end_price - start_price) / start_price
+        return ret
 
     def run(self):
         """运行验证任务"""

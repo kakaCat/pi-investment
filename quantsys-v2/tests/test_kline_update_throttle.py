@@ -2,6 +2,11 @@
 
 背景（2026-07-28）：tencent 被封的直接诱因是回填时 5 分钟 1348 次连发请求；
 且源被封时 job 全部标记"跳过"，两周无人发现。
+
+2026-09-13（w-32314d00，REQ-24e15d t4）适配：作业层不再直接持有 engine/cursor
+（SQL 已收敛到 KlineSyncRepository），因此 mock 点从 get_engine 换成仓储，
+断言也从"INSERT 文本是否出现"换成"仓储写方法是否被调用"——后者更直接地表达了
+本测试真正关心的不变量（**不该发请求、不该落库**）。
 """
 from unittest.mock import patch, MagicMock
 
@@ -9,23 +14,30 @@ from infrastructure.jobs import kline_update_job
 from adapters.outbound.datasources.providers.kline.base import KlineData
 
 
+def _repo_for(symbols):
+    """构造替身仓储：选股返回给定宇宙，写方法与自检方法均为无害桩。"""
+    repo = MagicMock()
+    repo.select_sync_universe.return_value = [(s, f'股{s}') for s in symbols]
+    repo.upsert_fetched_klines.return_value = 1
+    repo.count_missing_amount.return_value = 0
+    repo.detect_amount_scale_anomalies.return_value = []
+    repo.detect_volume_unit_anomalies.return_value = []
+    return repo
+
+
 def _run_job(symbols, manager_results, **params):
-    """以 mock engine/manager 运行 update_gem_klines"""
-    cursor = MagicMock()
-    cursor.fetchall.return_value = [(s, f'股{s}') for s in symbols]
-    conn = MagicMock()
-    conn.cursor.return_value = cursor
-    engine = MagicMock()
-    engine.raw_connection.return_value = conn
+    """以替身仓储/数据源运行 update_gem_klines，返回 (结果, 仓储替身, 数据源替身)"""
+    repo = _repo_for(symbols)
 
     manager = MagicMock()
     manager.get_klines.side_effect = manager_results
 
     defaults = {'interval_seconds': 0}
     defaults.update(params)
-    with patch.object(kline_update_job, 'get_engine', return_value=engine), \
+    with patch.object(kline_update_job, 'KlineSyncRepository', return_value=repo), \
          patch.object(kline_update_job, 'DataProviderManager', return_value=manager):
-        return kline_update_job.update_gem_klines(days=1, **defaults)
+        result = kline_update_job.update_gem_klines(days=1, **defaults)
+    return result, repo, manager
 
 
 def _ok_result():
@@ -62,21 +74,38 @@ def test_throttle_disabled_with_zero_interval():
 def test_degraded_when_mostly_failed():
     """≥20 只且成功率 <50% → provider_health=degraded"""
     symbols = [f'3000{i:02d}' for i in range(25)]
-    result = _run_job(symbols, [_fail_result()] * 25)
+    result, _repo, _mgr = _run_job(symbols, [_fail_result()] * 25)
     assert result['provider_health'] == 'degraded'
 
 
 def test_health_ok_when_mostly_success():
     """正常情况 provider_health=ok"""
     symbols = [f'3000{i:02d}' for i in range(25)]
-    result = _run_job(symbols, [_ok_result()] * 25)
+    result, _repo, _mgr = _run_job(symbols, [_ok_result()] * 25)
     assert result['provider_health'] == 'ok'
 
 
 def test_health_ok_below_min_sample():
     """样本 <20 只时不做降级判定（小批量手动更新不误报）"""
-    result = _run_job(['300001', '300002'], [_fail_result()] * 2)
+    result, _repo, _mgr = _run_job(['300001', '300002'], [_fail_result()] * 2)
     assert result['provider_health'] == 'ok'
+
+
+def test_write_failure_counted_as_failed():
+    """仓储 upsert 返回 None（写失败）时计 failed，不得计 success（2026-09-13 新增）"""
+    repo = _repo_for(['300001'])
+    repo.upsert_fetched_klines.return_value = None
+    manager = MagicMock()
+    manager.get_klines.return_value = _ok_result()
+
+    with patch.object(kline_update_job, 'KlineSyncRepository', return_value=repo), \
+         patch.object(kline_update_job, 'DataProviderManager', return_value=manager):
+        result = kline_update_job.update_gem_klines(
+            days=1, symbols=['300001'], interval_seconds=0)
+
+    assert result['failed'] == 1
+    assert result['success'] == 0
+
 
 def test_nonstandard_symbol_skipped_before_write():
     """伪代码/非 6 位符号在写入循环被兜底拦下（2026-09-11 w-23c70356）
@@ -86,17 +115,12 @@ def test_nonstandard_symbol_skipped_before_write():
     600005 早已退市却有 2026 年行情）。清理 1,507 行后加写入侧兜底：显式 symbols
     入参（如手动补跑）也不能穿透，且连 provider 请求都不该发出。
     """
-    cursor = MagicMock()
-    cursor.fetchall.return_value = [('600000.SH', 'Test')]
-    conn = MagicMock()
-    conn.cursor.return_value = cursor
-    engine = MagicMock()
-    engine.raw_connection.return_value = conn
-
     manager = MagicMock()
     manager.get_klines.return_value = _ok_result()
+    # 选股替身故意返回伪代码（模拟显式 symbols 穿透选股层）
+    repo = _repo_for(['600000.SH'])
 
-    with patch.object(kline_update_job, 'get_engine', return_value=engine), \
+    with patch.object(kline_update_job, 'KlineSyncRepository', return_value=repo), \
          patch.object(kline_update_job, 'DataProviderManager', return_value=manager):
         result = kline_update_job.update_gem_klines(
             days=1, symbols=['600000.SH'], interval_seconds=0)
@@ -104,31 +128,13 @@ def test_nonstandard_symbol_skipped_before_write():
     assert result['skipped'] == 1
     assert result['success'] == 0
     manager.get_klines.assert_not_called()
-    inserts = [c for c in cursor.execute.call_args_list
-               if 'INSERT INTO quant.daily_klines' in str(c[0][0])]
-    assert inserts == []
+    repo.upsert_fetched_klines.assert_not_called()
 
 
 def test_standard_symbol_still_written():
     """对照组：6 位裸码照常写入（兜底不能误伤正常标的）"""
-    cursor = MagicMock()
-    cursor.fetchall.return_value = [('300001', '特锐德')]
-    conn = MagicMock()
-    conn.cursor.return_value = cursor
-    engine = MagicMock()
-    engine.raw_connection.return_value = conn
-
-    manager = MagicMock()
-    manager.get_klines.return_value = _ok_result()
-
-    with patch.object(kline_update_job, 'get_engine', return_value=engine), \
-         patch.object(kline_update_job, 'DataProviderManager', return_value=manager):
-        result = kline_update_job.update_gem_klines(
-            days=1, symbols=['300001'], interval_seconds=0)
+    result, repo, _mgr = _run_job(['300001'], [_ok_result()], interval_seconds=0)
 
     assert result['success'] == 1
     assert result['skipped'] == 0
-    inserts = [c for c in cursor.execute.call_args_list
-               if 'INSERT INTO quant.daily_klines' in str(c[0][0])]
-    assert len(inserts) == 1
-
+    assert repo.upsert_fetched_klines.call_count == 1

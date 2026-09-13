@@ -85,32 +85,46 @@ def test_akshare_amount_from_column_and_volume_normalized():
 
 
 def test_kline_update_job_writes_amount():
-    """kline_update_job 必须写入 k.amount（回归：此前硬编码 0.0）"""
+    """kline_update_job 必须把 k.amount 原样带到写入层（回归：此前硬编码 0.0）
+
+    2026-09-13（w-32314d00，REQ-24e15d t4）适配：作业层的手写 INSERT 已收敛为
+    KlineSyncRepository.upsert_fetched_klines → KlineORMRepository.batch_insert_daily_klines，
+    断言点随之从"INSERT 语句的位置参数"改为"交给写入口的 DailyKline 对象"。
+    断言的不变量完全不变：amount / turnover_rate 必须一路传到落库层。
+    """
     from infrastructure.jobs import kline_update_job
+    from adapters.outbound.repositories.kline_sync_repository import KlineSyncRepository
+    from adapters.outbound.repositories import kline_repository as kr_module
 
     kline = KlineData(symbol='300001', date='2026-07-16', open=31.79,
                       high=33.61, low=31.40, close=32.28,
                       volume=26010900, amount=839878123.0, turnover_rate=2.5)
 
-    cursor = MagicMock()
-    cursor.fetchall.return_value = [('300001', '测试股')]
-    conn = MagicMock()
-    conn.cursor.return_value = cursor
-    engine = MagicMock()
-    engine.raw_connection.return_value = conn
-
     manager = MagicMock()
     manager.get_klines.return_value = {'success': True, 'data': [kline], 'source': 'tencent'}
 
-    with patch.object(kline_update_job, 'get_engine', return_value=engine), \
-         patch.object(kline_update_job, 'DataProviderManager', return_value=manager):
-        kline_update_job.update_gem_klines(days=1, symbols=['300001'])
+    repo = MagicMock()
+    repo.select_sync_universe.return_value = [('300001', '测试股')]
+    repo.count_missing_amount.return_value = 0
+    repo.detect_amount_scale_anomalies.return_value = []
+    repo.detect_volume_unit_anomalies.return_value = []
+    # 让替身仓储执行**真实的** upsert 转换逻辑（本测试要验的正是这一段的字段透传），
+    # 只把最底层的写入口 batch_insert_daily_klines 换成捕获器。
+    repo.upsert_fetched_klines.side_effect = (
+        lambda symbol, klines: KlineSyncRepository.upsert_fetched_klines(repo, symbol, klines))
 
-    # 找到 INSERT 调用（第一次 execute 是 SELECT stocks，之后是 INSERT）
-    insert_calls = [c for c in cursor.execute.call_args_list
-                    if 'INSERT INTO quant.daily_klines' in c[0][0]]
-    assert insert_calls, "未执行 INSERT"
-    params = insert_calls[0][0][1]
-    # 参数顺序: symbol, trade_date, open, high, low, close, volume, amount, turnover_rate
-    assert params[7] == 839878123.0
-    assert params[8] == 2.5
+    captured = {}
+
+    def _capture_batch(self, objs):
+        captured['objs'] = list(objs)
+        return True
+
+    with patch.object(kline_update_job, 'KlineSyncRepository', return_value=repo), \
+         patch.object(kline_update_job, 'DataProviderManager', return_value=manager), \
+         patch.object(kr_module.KlineORMRepository, 'batch_insert_daily_klines', _capture_batch):
+        kline_update_job.update_gem_klines(days=1, symbols=['300001'], interval_seconds=0)
+
+    objs = captured.get('objs')
+    assert objs, "未调用 daily_klines 写入口"
+    assert objs[0].amount == 839878123.0
+    assert objs[0].turnover_rate == 2.5

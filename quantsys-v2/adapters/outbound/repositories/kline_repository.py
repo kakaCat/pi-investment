@@ -22,7 +22,11 @@ import structlog
 
 from sqlalchemy import desc, and_, func, text
 from infrastructure.persistence.orm import BaseORMRepository, get_session
-from infrastructure.persistence.orm.models import DailyKline, MinuteKline, Stock
+from infrastructure.persistence.orm.models import DailyKline, IndexDaily, MinuteKline, Stock
+# 指数与个股分表（2026-09-11 w-f4aa1f6a）：指数键带市场后缀，解析统一走 symbol_classifier，
+# 绝不在调用方手写后缀（399xxx 恒 .SZ，其余白名单 .SH，歧义码由 stocks 表定夺）。
+# 该模块只依赖标准库 + 惰性 DB 访问，无循环导入。
+from utils.symbol_classifier import resolve_index_symbol
 from domain.ports import IKlineRepository
 
 logger = structlog.get_logger(__name__)
@@ -861,6 +865,82 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             logger.error(f"Error getting first close for {symbol}: {e}")
             return None
 
+    # ==================== 指数收盘价（quant.index_daily） ====================
+    # 2026-09-13（w-32314d00，REQ-24e15d t4）：verification_job / weekly_report_job /
+    # risk_check_job 三处都在读"创业板指 399006 的区间收益"，写法清一色是
+    #   SELECT close FROM quant.daily_klines WHERE symbol='399006' ...
+    # 而 daily_klines 里 **399 族一行都没有**（实测 0 行；指数在 quant.index_daily，
+    # 399006.SZ 有 268 行）→ 三处**全部静默返回 0.0**：周报/验证的"基准收益"长期是 0，
+    # 超额收益归因因此失真。收敛成本方法后，此类错误不会再各写一遍。
+
+    def _resolve_index_key(self, index_symbol: str) -> Optional[str]:
+        """把指数标识解析为 index_daily 的键；非指数/无法解析返回 None。"""
+        key = resolve_index_symbol(index_symbol)
+        if not key:
+            logger.warning("resolve_index_failed", given=index_symbol,
+                           hint="非指数代码或与深市个股同码；指数请传 399006 / 000300.SH")
+        return key
+
+    def get_first_index_close_on_or_after(self, index_symbol: str, start_date) -> Optional[float]:
+        """返回 >= start_date 的**第一个交易日**指数收盘价（quant.index_daily）。
+
+        非指数代码或无数据 → None（**不静默返回 0.0**，调用方须自行区分"未取到"与"收益为 0"）。
+        """
+        key = self._resolve_index_key(index_symbol)
+        if not key:
+            return None
+        try:
+            row = (
+                self.session.query(IndexDaily.close)
+                .filter(IndexDaily.symbol == key)
+                .filter(IndexDaily.trade_date >= start_date)
+                .order_by(IndexDaily.trade_date.asc())
+                .limit(1)
+                .first()
+            )
+            return float(row[0]) if row and row[0] is not None else None
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting first index close for {index_symbol}: {e}")
+            return None
+
+    def get_last_index_close_on_or_before(self, index_symbol: str, end_date) -> Optional[float]:
+        """返回 <= end_date 的**最后一个交易日**指数收盘价；非指数或无数据 → None。"""
+        key = self._resolve_index_key(index_symbol)
+        if not key:
+            return None
+        try:
+            row = (
+                self.session.query(IndexDaily.close)
+                .filter(IndexDaily.symbol == key)
+                .filter(IndexDaily.trade_date <= end_date)
+                .order_by(IndexDaily.trade_date.desc())
+                .limit(1)
+                .first()
+            )
+            return float(row[0]) if row and row[0] is not None else None
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting last index close for {index_symbol}: {e}")
+            return None
+
+    def get_index_return(self, index_symbol: str, start_date, end_date) -> Optional[float]:
+        """区间收益（小数）= 末值/首值 - 1；任一端取不到返回 None。
+
+        口径：首值 = >= start_date 的第一个交易日收盘；末值 = <= end_date 的最后一个交易日收盘。
+        """
+        first = self.get_first_index_close_on_or_after(index_symbol, start_date)
+        if not first:
+            return None
+        last = self.get_last_index_close_on_or_before(index_symbol, end_date)
+        if not last:
+            return None
+        return (last - first) / first
+
+    def get_latest_index_close(self, index_symbol: str) -> Optional[float]:
+        """最新一个交易日的指数收盘价；非指数或无数据 → None。"""
+        return self.get_last_index_close_on_or_before(index_symbol, date.today().isoformat())
+
     def get_last_close_on_or_before(self, symbol: str, end_date) -> Optional[float]:
         """返回 <= end_date 的**最后一个交易日**收盘价；无数据返回 None。"""
         try:
@@ -965,7 +1045,11 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                     'volume': stmt.excluded.volume,
                     'amount': stmt.excluded.amount,
                     'turnover_rate': stmt.excluded.turnover_rate,
-                    'source': stmt.excluded.source,
+                    # source 是"数据来源"的溯源字段：调用方没带来源时（如每日同步的
+                    # KlineData 不带 source）不能把既有来源**抹成 NULL** —— 那会让
+                    # source 逐日流失，最终无法回答"这行是谁写的"。改用 coalesce：
+                    # 有新值才覆盖。2026-09-13（w-32314d00，REQ-24e15d t4）。
+                    'source': func.coalesce(stmt.excluded.source, DailyKline.source),
                 }
             )
 

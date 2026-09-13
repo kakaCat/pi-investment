@@ -48,7 +48,13 @@ class RiskCheckJob:
         self.underperform_threshold = self.config['feishu']['observation_period']['underperform_threshold']
 
     def _get_index_return_since_start(self) -> float:
-        """获取创业板指数从策略开始以来的累计收益率"""
+        """获取创业板指数（399006）自策略开始以来的累计收益率。
+
+        ⚠️ 2026-09-13（w-32314d00，REQ-24e15d t4）：原实现把"先拿仓储 session 再手写裸 SQL"
+        和"读错表"两个毛病叠在一起——指数自 2026-09-11 起分表到 quant.index_daily
+        （键 399006.SZ），daily_klines 里 399 族 0 行，故此处**长期恒返回 0.0**，
+        "跑输指数"判定因此退化成"跑输 0"。现改走仓储指数口径。
+        """
         account = self.repo.get_account(account_name='default')
         if not account:
             return 0.0
@@ -59,46 +65,14 @@ class RiskCheckJob:
         from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
         kline_repo = KlineRepository()
 
-        # 创业板指数代码
-        index_symbol = '399006'
-
-        cursor = kline_repo.session.connection().connection.cursor()
-
-        # 获取起始价格
-        cursor.execute(
-            """
-            SELECT close FROM quant.daily_klines
-            WHERE symbol = %s AND trade_date >= %s
-            ORDER BY trade_date ASC LIMIT 1
-            """,
-            (index_symbol, start_date)
-        )
-        start_row = cursor.fetchone()
-
-        if not start_row:
-            cursor.close()
+        ret = kline_repo.get_index_return('399006', start_date, current_date)
+        if ret is None:
+            logger.error(
+                f"基准指数 399006 区间收益取数为空（{start_date} ~ {current_date}），"
+                f"本次基准按 0 计——请核查 quant.index_daily 是否有该区间数据"
+            )
             return 0.0
-
-        start_price = start_row[0]
-
-        # 获取最新价格
-        cursor.execute(
-            """
-            SELECT close FROM quant.daily_klines
-            WHERE symbol = %s AND trade_date <= %s
-            ORDER BY trade_date DESC LIMIT 1
-            """,
-            (index_symbol, current_date)
-        )
-        end_row = cursor.fetchone()
-        cursor.close()
-
-        if not end_row:
-            return 0.0
-
-        end_price = end_row[0]
-
-        return (end_price - start_price) / start_price
+        return ret
 
     def _get_recent_week_return(self) -> float:
         """获取近一周收益率"""
@@ -171,25 +145,17 @@ class RiskCheckJob:
 
         losing_stocks = []
 
+        # 2026-09-13（w-32314d00，REQ-24e15d t4）：仓储实例提到循环外——原先每只持仓
+        # 都新建一个仓储（各自一个 session），N 只持仓 = N 个 session，既是裸 SQL 也是 session 泄漏源。
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
+        kline_repo = KlineRepository()
+        as_of = datetime.now().strftime('%Y-%m-%d')
+
         for pos in positions:
-            # 获取当前价格
-            from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
-            kline_repo = KlineRepository()
+            # 获取当前价格（最后一个交易日收盘）
+            current_price = kline_repo.get_last_close_on_or_before(pos.symbol, as_of)
 
-            cursor = kline_repo.session.connection().connection.cursor()
-            cursor.execute(
-                """
-                SELECT close FROM quant.daily_klines
-                WHERE symbol = %s
-                ORDER BY trade_date DESC LIMIT 1
-                """,
-                (pos.symbol,)
-            )
-            row = cursor.fetchone()
-            cursor.close()
-
-            if row:
-                current_price = row[0]
+            if current_price:
                 return_rate = (current_price - pos.avg_price) / pos.avg_price
 
                 if return_rate < -0.05:  # 亏损超过5%

@@ -137,49 +137,24 @@ class WeeklyReportJob:
         return returns
 
     def _get_index_return(self, start_date: str, end_date: str) -> float:
-        """获取创业板指数收益率"""
+        """获取创业板指数（399006）区间收益率；取不到时返回 0.0 并 ERROR 告警。
+
+        ⚠️ 2026-09-13（w-32314d00，REQ-24e15d t4）：本方法此前读 quant.daily_klines
+        取指数价，而指数已分表到 quant.index_daily（键 399006.SZ，见 w-f4aa1f6a）——
+        daily_klines 里 399 族 0 行，导致周报"基准收益"**长期恒为 0.0**，超额收益失真。
+        现改走仓储指数口径；取数为空时显式告警，不再静默把"没取到"当成"收益为 0"。
+        """
         from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
         kline_repo = KlineRepository()
 
-        index_symbol = '399006'
-
-        cursor = kline_repo.session.connection().connection.cursor()
-
-        # 获取起始价格
-        cursor.execute(
-            """
-            SELECT close FROM quant.daily_klines
-            WHERE symbol = %s AND trade_date >= %s
-            ORDER BY trade_date ASC LIMIT 1
-            """,
-            (index_symbol, start_date)
-        )
-        start_row = cursor.fetchone()
-
-        if not start_row:
-            cursor.close()
+        ret = kline_repo.get_index_return('399006', start_date, end_date)
+        if ret is None:
+            logger.error(
+                f"基准指数 399006 区间收益取数为空（{start_date} ~ {end_date}），"
+                f"本次基准按 0 计——请核查 quant.index_daily 是否有该区间数据"
+            )
             return 0.0
-
-        start_price = start_row[0]
-
-        # 获取结束价格
-        cursor.execute(
-            """
-            SELECT close FROM quant.daily_klines
-            WHERE symbol = %s AND trade_date <= %s
-            ORDER BY trade_date DESC LIMIT 1
-            """,
-            (index_symbol, end_date)
-        )
-        end_row = cursor.fetchone()
-        cursor.close()
-
-        if not end_row:
-            return 0.0
-
-        end_price = end_row[0]
-
-        return (end_price - start_price) / start_price
+        return ret
 
     def _get_next_rebalance_date(self) -> str:
         """获取下次调仓日期"""

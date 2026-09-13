@@ -80,26 +80,29 @@ class StrategyRiskChecker:
         logger.info(f"  自动止损: {'是' if self.auto_execute else '否（仅告警）'}")
 
     def _get_current_price(self, symbol: str) -> Optional[float]:
-        """获取股票当前价格"""
-        try:
-            cursor = self.kline_repo.session.connection().connection.cursor()
-            cursor.execute(
-                """
-                SELECT close FROM quant.daily_klines
-                WHERE symbol = %s
-                ORDER BY trade_date DESC LIMIT 1
-                """,
-                (symbol,)
-            )
-            row = cursor.fetchone()
-            cursor.close()
+        """获取股票最新收盘价（quant.daily_klines 的最后一个交易日）
 
-            if row:
-                return float(row[0])
+        2026-09-13（w-32314d00，REQ-24e15d t4）：原实现"先取仓储 session 再手写裸 SQL"，
+        现收敛到仓储方法（作业层不再出现 SQL 文本）。
+        """
+        try:
+            return self.kline_repo.get_last_close_on_or_before(
+                symbol, datetime.now().strftime('%Y-%m-%d'))
         except Exception as e:
             logger.error(f"获取 {symbol} 价格失败: {e}")
 
         return None
+
+    def _get_stock_name(self, symbol: str) -> str:
+        """取股票名称（查不到时回退为代码本身）。
+
+        2026-09-13（w-32314d00，REQ-24e15d t4）：原来是本文件里唯一一处对 quant.stocks
+        的裸 SQL（且裸 except 吞掉一切异常），现走 StockORMRepository.get_by_symbol。
+        """
+        from adapters.outbound.repositories.stock_repository import StockORMRepository
+        stock = StockORMRepository().get_by_symbol(symbol)
+        name = getattr(stock, 'name', None) if stock else None
+        return name or symbol
 
     def check_single_stock_stop_loss(self) -> List[Dict]:
         """检查单股止损
@@ -149,14 +152,10 @@ class StrategyRiskChecker:
             if pnl_pct <= self.single_stop_loss:
                 logger.warning(f"🚨 {symbol} 触发止损: {pnl_pct:.2%} <= {self.single_stop_loss:.2%}")
 
-                # 获取股票名称
+                # 获取股票名称（2026-09-13 w-32314d00：裸 SQL → StockORMRepository）
                 try:
-                    cursor = self.repo.session.connection().connection.cursor()
-                    cursor.execute("SELECT name FROM quant.stocks WHERE symbol = %s", (symbol,))
-                    name_row = cursor.fetchone()
-                    stock_name = name_row[0] if name_row else symbol
-                    cursor.close()
-                except:
+                    stock_name = self._get_stock_name(symbol)
+                except Exception:
                     stock_name = symbol
 
                 stop_loss_list.append({

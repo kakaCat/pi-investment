@@ -22,7 +22,7 @@ ORM Models模块
     klines = session.query(DailyKline).filter_by(symbol='000001').limit(10).all()
 """
 
-from .stock import Stock, DailyKline
+from .stock import Stock, DailyKline, IndexDaily
 from .kline import MinuteKline
 from .signal import Signal, SignalExecution
 from .simulation import (
@@ -44,6 +44,7 @@ __all__ = [
     # 股票相关
     'Stock',
     'DailyKline',
+    'IndexDaily',
     'MinuteKline',
     'IndexConstituent',
 

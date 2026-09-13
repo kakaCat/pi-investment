@@ -44,14 +44,49 @@
   `conn = get_db_connection()`（无人使用却仍开连接）。该文件仅剩一个未使用的 import 待顺手清理。
 - 下一步：`signals_async` → `session_service`（需新建 agent_session 仓储，13 处）。
 
-## 5. 当前闸门状态
+## 5. t4（jobs 层）：进行中 —— 批次 B1 已完成
+
+> 详见 `docs/work-logs/2026-09/req-24e15d-b1-jobs-layer.md`
+
+**先修了扫描器自己的盲区**：`cursor_execute` 原口径是 `\bcursor\.execute\(`，**只认变量名恰好叫 cursor**
+的调用——实测漏计 `cur.execute(...)`（kline_update_job 的 3 个自检）与 `conn.execute(...)` 等同义写法，
+基线**系统性偏低约 40%**。改为"任意 `.execute` 接收者 − 非 DB 对象 − SQLAlchemy 构造器入参"，
+并新增审计桶 `session_execute_var`（`session.execute(<标识符>)` 正则无法判定，本仓 43/48 是 `stmt=select(...)`）。
+**口径修正后基线：cursor_execute 111 → 124**（不是改坏了，是原来没看见）。
+
+B1 完成（6 个文件 15 处 → 0，另删死代码 3 处）：
+
+| 文件 | 前 | 后 |
+|---|---|---|
+| verification_job.py | 2 | 0 |
+| weekly_report_job.py | 2 | 0 |
+| risk_check_job.py | 3 | 0 |
+| strategy_risk_check_job.py | 2 | 0 |
+| kline_update_job.py | 6 | 0 |
+| kline_priority_sync.py（死代码） | 3 | 删除 |
+
+**期间揪出两个真 bug**（详见 B1 日志）：
+① **基准收益长期恒为 0.0**——三处都在读已分表的 `quant.daily_klines` 取指数价（399 族 0 行），
+  指数其实在 `quant.index_daily`（`399006.SZ`，268 行）⇒ 超额收益被系统性高估；已改走仓储指数口径。
+② **同步宇宙混入 4 个指数占位行**（stocks 里 `list_date IS NULL` 的 000300/399001/399006/399300）
+  ⇒ 每日白请求 4 个指数、写入口刷告警，且是约束违规的历史路径；已在选股出口用
+  `is_index_symbol`（与写入口同语义）剔除。
+另修 `batch_insert_daily_klines` 的 upsert 会把既有 `source` 抹成 NULL（改 coalesce）。
+
+新增：`adapters/outbound/repositories/kline_sync_repository.py`（选股 + 写入 + 3 个自检）、
+ORM 模型 `IndexDaily`、仓储指数口径方法（`get_index_return` 等）。
+
+## 6. 当前闸门状态（B1 后）
 
 ```
-P0 fstring_value_interp  本轮范围 0   ✅
-P0 raw_connect           本轮范围 0   ✅
-P1 cursor_execute        本轮范围 116（t3 已从 122 降至 116）
+P0 fstring_value_interp  本轮范围 0    ✅
+P0 raw_connect           本轮范围 0    ✅
+P1 cursor_execute        本轮范围 106（口径修正后 124 → 106）
 P1 core_text_sql         本轮范围 35
+P2 session_execute_var   本轮范围 48（审计桶，人工复核；本仓多为 stmt=select(...)）
 P2 read_sql              本轮范围 5
+→ --gate 退出码 0
 ```
 
+`infrastructure/jobs/` 仅剩 3 个文件 7 处（B2 批次）。
 服务重启后：ERROR 0 / session_leak_detected 0 / idle in transaction 0。

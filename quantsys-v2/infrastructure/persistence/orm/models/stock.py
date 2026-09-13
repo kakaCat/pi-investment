@@ -14,7 +14,7 @@ from datetime import datetime
 
 from ..base import Base
 
-__all__ = ['Stock', 'DailyKline']
+__all__ = ['Stock', 'DailyKline', 'IndexDaily']
 
 
 class Stock(Base):
@@ -205,3 +205,42 @@ class DailyKline(Base):
             'remark': self.remark,
             'source': self.source,
         }
+
+
+class IndexDaily(Base):
+    """指数日线数据表（2026-09-13 新增，REQ-24e15d t4）
+
+    对应数据库表：quant.index_daily
+    主键：(symbol, trade_date)
+
+    为什么单独一张表（2026-09-11 w-f4aa1f6a 的分表设计）：
+      ① 语义不同——指数 volume 是成分股聚合、无复权/停牌/涨跌停；
+      ② 命名空间——daily_klines 全是裸 6 位码，指数与深市股票同码冲突
+         （000001 平安银行/上证指数、000905 厦门港务/中证500 …）。
+    因此本表 symbol **带市场后缀**（399006.SZ / 000300.SH），
+    写入前必须先经 utils.symbol_classifier.resolve_index_symbol 规范化。
+    无 turnover_rate / 无 stocks 外键（指数不是"股票"）。
+    """
+    __tablename__ = 'index_daily'
+    # 只声明 schema：真实表仅有主键唯一索引 index_daily_pkey，不额外声明 Index，
+    # 以免 create_all 时凭空多建索引（与线上结构不一致）。
+    __table_args__ = {'schema': 'quant'}
+
+    symbol = Column(Text, primary_key=True, comment='指数代码（带市场后缀，如 399006.SZ）')
+    trade_date = Column(Date, primary_key=True, comment='交易日期')
+
+    open = Column(Float, comment='开盘价')
+    high = Column(Float, comment='最高价')
+    low = Column(Float, comment='最低价')
+    close = Column(Float, comment='收盘价')
+    volume = Column(Float, comment='成交量（成分股聚合）')
+    amount = Column(Float, comment='成交额（成分股聚合）')
+
+    source = Column(Text, nullable=True, comment='数据来源')
+    updated_at = Column(DateTime(timezone=True), nullable=True, comment='更新时间')
+
+    def __repr__(self):
+        return (
+            f"<IndexDaily(symbol='{self.symbol}', date='{self.trade_date}', "
+            f"close={self.close})>"
+        )

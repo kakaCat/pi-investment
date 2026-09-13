@@ -49,7 +49,7 @@ EXCLUDE_FILES = {"conftest.py", "simple_verify.py"}
 PATTERNS = {
     "fstring_sql": re.compile(r"""(?:f|F)["'][^"']*\b(?:SELECT|INSERT|UPDATE|DELETE)\b"""),
     "raw_connect": re.compile(r"\b(?:psycopg2|sqlite3)\.connect\("),
-    "cursor_execute": re.compile(r"\bcursor\.execute\("),
+    "cursor_execute": re.compile(r"\bcursor\.execute\("),  # 兼容保留；实际口径见 ANY_EXECUTE_RX
     "core_text_sql": re.compile(r"session\.execute\(\s*text\("),
     "read_sql": re.compile(r"\bread_sql(?:_query)?\("),
     "psql_subprocess": re.compile(r"subprocess\.[A-Za-z_]+\("),  # 与下一行联合判定
@@ -58,9 +58,70 @@ PSQL_SUBPROCESS_RX = re.compile(r"""subprocess\.[A-Za-z_]+\(\s*\[?\s*["']psql"""
 SQL_LINE_RX = re.compile(r"""(?:f|F)["'][^"']*\b(?:SELECT|INSERT|UPDATE|DELETE)\b""")
 QUOTED_INTERP_RX = re.compile(r"""(?:'\{[^{}]*\}'|"\{[^{}]*\}")""")  # '{x}' / "{x}"
 
+# 2026-09-13（w-32314d00，B1 前置）：`cursor_execute` 原口径是 \bcursor\.execute\( ——
+# **只认变量名恰好叫 cursor** 的调用，实测系统性漏计两类真实裸 SQL：
+#   ① `cur.execute(...)`（kline_update_job 的 3 个完整性自检查询本就是裸 SQL，此前完全没被数到）
+#   ② `conn.execute(...)` / `c.execute(...)` 等同义写法
+# 指标偏低 = 验收看着绿、实际没改完（正是本文档开头警告的"把改得多当改得好"的反面）。
+# 现改为「任意 .execute/.executemany 接收者」，再剔除 SQLAlchemy 构造器入参
+# （execute(select()/text()/insert()/update()/delete()) 是 ORM/Core 的正常写法）。
+# 注意：`session.execute("SELECT ...")` 传裸字符串**仍计入本指标** —— 它确实是裸 SQL。
+EXECUTE_CALL_RX = re.compile(
+    r"(?P<recv>(?:[A-Za-z_][A-Za-z0-9_]*\s*\.\s*)*[A-Za-z_][A-Za-z0-9_]*)"
+    r"\s*\.\s*(?:execute|executemany)\(")
+# DB-API 游标/连接系的接收者名（含 self._cursor / self._conn 这类）
+DBAPI_RECEIVER_TAILS = {"cursor", "cur", "c", "conn", "connection", "db", "cx", "database"}
+# SQLAlchemy 的 Session / Engine
+ORM_RECEIVER_TAILS = {"session", "engine"}
+# execute(...) 的首参若是这些构造器 → 是 ORM/Core 正常写法，不算裸 SQL
+ORM_CONSTRUCT_ARG_RX = re.compile(r"\s*(?:text|select|insert|update|delete)\s*\(")
+IDENT_ARG_RX = re.compile(r"\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)")
+
+
+def classify_execute_calls(text: str):
+    """按「接收者 + 首参形态」判定每个 .execute/.executemany 调用。
+
+    2026-09-13（w-32314d00）：第一版宽化（任意接收者）会**误数非 DB 对象**——
+    实测 `self.indicator_executor.execute(...)` / `self.script_executor.execute(...)`
+    （策略执行器，与数据库无关）被算成裸 SQL。故加接收者白名单：
+      · cursor/cur/c/conn/connection/db/cx  → DB-API，算裸 SQL；
+      · session/engine                       → 看首参：构造器(select/text/…)不算；
+                                                标识符且名字带 sql/query 的算（如 _d_grade_sql）；
+                                                其余标识符（如 stmt）单列 session_execute_var 供人工复核；
+                                                字符串/f-string 字面量算。
+    返回值 (cursor_execute, session_execute_var)。
+    """
+    n_cursor = n_var = 0
+    for m in EXECUTE_CALL_RX.finditer(text):
+        recv = m.group("recv").split(".")[-1].strip().strip("_").lower()
+        after = m.end()
+        if ORM_CONSTRUCT_ARG_RX.match(text, after):
+            continue                      # execute(select()/text()/…) → ORM/Core，不计
+        if recv in DBAPI_RECEIVER_TAILS:
+            n_cursor += 1
+            continue
+        if recv in ORM_RECEIVER_TAILS:
+            im = IDENT_ARG_RX.match(text, after)
+            if im:
+                name = im.group("name").lower()
+                # 标识符后紧跟引号 → 其实是 f"..." 这类字面量，按裸 SQL 计
+                tail = text[im.end():im.end() + 1]
+                if tail in ("'", '"'):
+                    n_cursor += 1
+                elif "sql" in name or "query" in name:
+                    n_cursor += 1
+                else:
+                    n_var += 1
+            else:
+                n_cursor += 1             # 字符串字面量首参 → 裸 SQL
+    return n_cursor, n_var
+
 P0 = ("fstring_value_interp", "raw_connect")
 METRIC_ORDER = ("fstring_value_interp", "raw_connect", "cursor_execute", "core_text_sql",
-                "fstring_sql", "read_sql", "psql_subprocess")
+                "session_execute_var", "fstring_sql", "read_sql", "psql_subprocess")
+# 仅作人工复核的中间桶：session.execute(<标识符>) 无法用正则判定它装的是 SQL 还是 ORM 构造
+# （本仓 orm/async_base.py 与 *_async_repository.py 都传 stmt=select(...)，属正常写法）。
+AUDIT_ONLY = ("session_execute_var",)
 
 
 def iter_py_files() -> List[pathlib.Path]:
@@ -125,10 +186,16 @@ def scan() -> Dict[str, Dict[str, int]]:
         ]
         text = "\n".join(code_lines)
         counts: Dict[str, int] = {}
-        for name in ("fstring_sql", "raw_connect", "cursor_execute", "core_text_sql", "read_sql"):
+        for name in ("fstring_sql", "raw_connect", "core_text_sql", "read_sql"):
             n = len(PATTERNS[name].findall(text))
             if n:
                 counts[name] = n
+        # cursor_execute：DB-API 接收者 + session/engine 传裸 SQL（见 classify_execute_calls）
+        n, n_var = classify_execute_calls(text)
+        if n:
+            counts["cursor_execute"] = n
+        if n_var:
+            counts["session_execute_var"] = n_var
         # 派生：P0 细指标 —— 只在"SQL 行"里数引号内插值（值位置注入签名）
         vi = sum(len(QUOTED_INTERP_RX.findall(ln)) for ln in code_lines if SQL_LINE_RX.search(ln))
         if vi:
