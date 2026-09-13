@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code when working with the Agent-DH project.
 
+> **认知入口（先读）**：[agent-dh Wiki](docs/README.md)——子项目说明书与大纲（9 卷：架构/工具契约/账户交易/
+> 数据后端/自主能力/页面插件/需求流水线/运维排障/证据附录），每卷页面可独立读懂并互相链接。
+
 ## Project Overview
 
 **Agent-DH** 是 PI Investment 系统的 DSH (DeepSeek Harness) Profile，提供基于 AI 的投资分析和决策能力。

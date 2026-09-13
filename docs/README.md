@@ -56,7 +56,8 @@ tags: [wiki, index, home]
 
 ### 子项目文档
 
-- [agent-dh 文档](../agent-dh/CLAUDE.md)
+- [agent-dh Wiki（子项目大纲）](../agent-dh/docs/README.md)
+- [agent-dh 开发指令](../agent-dh/CLAUDE.md)
 - [agent-ts 文档](../agent-ts/CLAUDE.md)
 - [quantsys-v2 文档](../quantsys-v2/CLAUDE.md)
 
