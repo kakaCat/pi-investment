@@ -1,3 +1,11 @@
+---
+id: guides-restart-session-safety
+title: 重启防丢 Session 操作手册（Restart Session Safety Runbook）
+type: guide
+status: legacy
+updated: 2026-09-14
+---
+
 # 重启防丢 Session 操作手册（Restart Session Safety Runbook）
 
 > 版本：2026-08-31（基于 :13080 实例 PID 30345、DSH 源码与实测证据）

@@ -1,3 +1,11 @@
+---
+id: guides-startup
+title: Agent-DH 启动指南
+type: guide
+status: legacy
+updated: 2026-09-14
+---
+
 # Agent-DH 启动指南
 
 ## 架构变更

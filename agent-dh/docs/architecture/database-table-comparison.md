@@ -1,3 +1,11 @@
+---
+id: architecture-database-table-comparison
+title: 数据库表设计对比分析报告
+type: architecture
+status: legacy
+updated: 2026-09-14
+---
+
 # 数据库表设计对比分析报告
 
 **分析日期**: 2026-08-25  

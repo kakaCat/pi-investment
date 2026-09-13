@@ -1,3 +1,11 @@
+---
+id: protocols-trade-execution-protocol
+title: 交易执行协议（Trade Execution Protocol）
+type: protocol
+status: legacy
+updated: 2026-09-14
+---
+
 # 交易执行协议（Trade Execution Protocol）
 
 **版本**: v1.0  

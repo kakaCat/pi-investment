@@ -82,6 +82,7 @@ def main() -> int:
         fm_of[rel] = fm
         (wiki_pages if fm else legacy).append((path, rel, text))
 
+    legacy_status = {rel for _p, rel, _t in wiki_pages if fm_of.get(rel, {}).get('status') == 'legacy'}
     wiki_ids = {rel for _p, rel, _t in wiki_pages}
     inbound = {rel: set() for rel in wiki_ids}
     dead, bad_fm, stubs = [], [], []
@@ -103,7 +104,12 @@ def main() -> int:
             if tgt in inbound and tgt != rel:
                 inbound[tgt].add(rel)
 
-    orphans = sorted(rel for rel, src in inbound.items() if not src and os.path.basename(rel) != 'README.md')
+    # status: legacy 的页面（历史迁移中）不计失败，只计数——它们还没接入页面图。
+    # 目标是把 legacy 清零（迁完一页就把 status 改成 living 并挂进首页）。
+    dead = [d for d in dead if d['page'] not in legacy_status]
+    orphans = sorted(rel for rel, src in inbound.items()
+                     if not src and os.path.basename(rel) != 'README.md' and rel not in legacy_status)
+    bad_fm = [b for b in bad_fm if b['page'] not in legacy_status]
     problems = len(dead) + len(orphans) + len(bad_fm)
 
     report = {
@@ -117,7 +123,7 @@ def main() -> int:
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=1))
     else:
-        print(f'wiki 页 {len(wiki_pages)} 个 / 待迁移页 {len(legacy)} 个')
+        print(f'wiki 页 {len(wiki_pages)} 个（其中 legacy 迁移中 {len(legacy_status)} 个）/ 无 front-matter {len(legacy)} 个')
         if dead:
             print(f'死链 {len(dead)} 条（wiki 页内）：')
             for d in dead[:20]:

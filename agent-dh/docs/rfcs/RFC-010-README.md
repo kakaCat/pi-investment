@@ -1,3 +1,11 @@
+---
+id: rfcs-rfc-010-readme
+title: RFC 010 Phase 1 - Window-OS Lifecycle Management
+type: rfc
+status: legacy
+updated: 2026-09-14
+---
+
 # RFC 010 Phase 1 - Window-OS Lifecycle Management
 
 **状态**: ✅ 完成并生产就绪  

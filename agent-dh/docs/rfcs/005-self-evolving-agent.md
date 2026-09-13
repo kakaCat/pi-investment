@@ -1,3 +1,11 @@
+---
+id: rfcs-005-self-evolving-agent
+title: RFC 005: 自进化投资 Agent（Self-Evolving Investment Agent）
+type: rfc
+status: legacy
+updated: 2026-09-14
+---
+
 # RFC 005: 自进化投资 Agent（Self-Evolving Investment Agent）
 
 | 字段 | 值 |

@@ -1,3 +1,11 @@
+---
+id: guides-quantsys-v2-capability-assessment
+title: quantsys-v2 能力诚实评估：真能解决问题吗？
+type: guide
+status: legacy
+updated: 2026-09-14
+---
+
 # quantsys-v2 能力诚实评估：真能解决问题吗？
 
 > 调查：investor @ w-ac60b8e8，2026-09-02

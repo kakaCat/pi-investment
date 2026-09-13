@@ -1,3 +1,11 @@
+---
+id: architecture-why-no-dist
+title: 为什么部分插件没有 dist 目录？
+type: architecture
+status: legacy
+updated: 2026-09-14
+---
+
 # 为什么部分插件没有 dist 目录？
 
 ## 🎯 简短回答

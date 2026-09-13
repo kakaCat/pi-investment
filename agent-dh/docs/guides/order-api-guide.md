@@ -1,3 +1,11 @@
+---
+id: guides-order-api-guide
+title: 订单 API 使用指南
+type: guide
+status: legacy
+updated: 2026-09-14
+---
+
 # 订单 API 使用指南
 
 **更新日期**: 2026-08-25  

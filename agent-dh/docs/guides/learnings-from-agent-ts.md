@@ -1,3 +1,11 @@
+---
+id: guides-learnings-from-agent-ts
+title: 从 agent-ts（PI 投资顾问·TS版）会话学习报告
+type: guide
+status: legacy
+updated: 2026-09-14
+---
+
 # 从 agent-ts（PI 投资顾问·TS版）会话学习报告
 
 > 来源：`/Users/yunpeng/pi-investment/agent-ts/.pi-invest/sessions/20260825T01362_e4f0588c/`

@@ -1,3 +1,11 @@
+---
+id: rfcs-007-genome-manager
+title: RFC 007: P0-2 genome_manager 工具化（版本快照 / 段更新 / 回滚 / changelog）实现方案
+type: rfc
+status: legacy
+updated: 2026-09-14
+---
+
 # RFC 007: P0-2 genome_manager 工具化（版本快照 / 段更新 / 回滚 / changelog）实现方案
 
 | 字段 | 值 |

@@ -1,3 +1,11 @@
+---
+id: guides-quickref
+title: Agent-DH 快速参考卡片
+type: guide
+status: legacy
+updated: 2026-09-14
+---
+
 # Agent-DH 快速参考卡片
 
 ## 🚀 启动/停止

@@ -1,3 +1,11 @@
+---
+id: architecture-legacy-system-deprecation-plan
+title: 旧订单体系废弃计划
+type: architecture
+status: legacy
+updated: 2026-09-14
+---
+
 # 旧订单体系废弃计划
 
 **执行日期**: 2026-08-25  

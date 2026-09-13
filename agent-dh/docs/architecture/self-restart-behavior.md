@@ -1,3 +1,11 @@
+---
+id: architecture-self-restart-behavior
+title: self_restart 工具行为说明
+type: architecture
+status: legacy
+updated: 2026-09-14
+---
+
 # self_restart 工具行为说明
 
 ## 问题背景

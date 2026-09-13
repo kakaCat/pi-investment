@@ -1,3 +1,11 @@
+---
+id: guides-usage-guide
+title: Agent-DH 使用指南
+type: guide
+status: legacy
+updated: 2026-09-14
+---
+
 # Agent-DH 使用指南
 
 **版本**: v0.1.1  

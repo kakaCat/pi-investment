@@ -1,3 +1,11 @@
+---
+id: design-dashboard-implementation-detail
+title: dashboard 页面插件 · 详细实施方案（数据链路实测版）
+type: design
+status: legacy
+updated: 2026-09-14
+---
+
 # dashboard 页面插件 · 详细实施方案（数据链路实测版）
 
 > 日期：2026-09-03 · 作者：investor（w-76653429）

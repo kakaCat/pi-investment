@@ -1,3 +1,11 @@
+---
+id: rfcs-008-validation-gate
+title: RFC 008: P2 验证门（Validation Gate）——回测 + 模拟盘 A/B + 自动裁决
+type: rfc
+status: legacy
+updated: 2026-09-14
+---
+
 # RFC 008: P2 验证门（Validation Gate）——回测 + 模拟盘 A/B + 自动裁决
 
 | 字段 | 值 |

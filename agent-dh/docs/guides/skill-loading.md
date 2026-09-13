@@ -1,3 +1,11 @@
+---
+id: guides-skill-loading
+title: 技能装载机制（Skill Loading）——排障实录与标准流程
+type: guide
+status: legacy
+updated: 2026-09-14
+---
+
 # 技能装载机制（Skill Loading）——排障实录与标准流程
 
 > 2026-09-05 排障定案（w-8366e526）。曾连续 4+ 次重启技能不可见，根因是**改错 home + 误解 skill registry 分层架构**。本文记录真相与正确装载姿势，避免后人重蹈覆辙。

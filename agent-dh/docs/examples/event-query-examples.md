@@ -1,3 +1,11 @@
+---
+id: examples-event-query-examples
+title: 事件查询使用示例（P1-4）
+type: doc
+status: legacy
+updated: 2026-09-14
+---
+
 # 事件查询使用示例（P1-4）
 
 本文档提供事件查询的实战示例，帮助快速上手 `event_calendar_check` 和 `stock_events` 两个工具。

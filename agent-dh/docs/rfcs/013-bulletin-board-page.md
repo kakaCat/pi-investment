@@ -1,3 +1,11 @@
+---
+id: rfcs-013-bulletin-board-page
+title: RFC 013：公告板页面（dashboard-bulletin）
+type: rfc
+status: legacy
+updated: 2026-09-14
+---
+
 # RFC 013：公告板页面（dashboard-bulletin）
 
 - 日期：2026-09-05

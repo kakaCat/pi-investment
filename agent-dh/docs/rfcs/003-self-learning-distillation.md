@@ -1,3 +1,11 @@
+---
+id: rfcs-003-self-learning-distillation
+title: RFC 003: Agent Self-Learning and Distillation System
+type: rfc
+status: legacy
+updated: 2026-09-14
+---
+
 # RFC 003: Agent Self-Learning and Distillation System
 
 ## 摘要
