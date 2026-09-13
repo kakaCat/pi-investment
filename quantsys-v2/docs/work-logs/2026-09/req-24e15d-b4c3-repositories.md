@@ -92,11 +92,55 @@ strategy_performance 的 HEAD 版没有 ORM 类，可同进程直接比。
 
 ## 4. 回归
 
-- 定向：`test_risk_repository` + 5 个 kline 测试 + `test_strategy_performance_repository`
-  + `test_experience_accumulator` + `test_sector_rotation` = **133 passed**；
-- `test_risk_repository.py` 由 **32 passed / 3 skipped → 35 passed / 0 skipped**：
-  3 个写入用例原先**从未真正执行过**（旧 raw SQL 缺可选字段即 `KeyError`，被
-  `pytest.skip` 兜底成"跳过"），迁移后首次跑通。
+### 4.1 定向
+
+`test_risk_repository` + 5 个 kline 测试 + `test_strategy_performance_repository`
++ `test_experience_accumulator` + `test_sector_rotation` = **133 passed**。
+
+`test_risk_repository.py` 由 **32 passed / 3 skipped → 35 passed / 0 skipped**：
+3 个写入用例原先**从未真正执行过**（旧 raw SQL 缺可选字段即 `KeyError`，被
+`pytest.skip` 兜底成"跳过"），迁移后首次跑通。
+
+### 4.2 广度（全量套件，与 HEAD 逐条 diff 失败集）
+
+基线取 `git worktree add --detach /tmp/wt-base b4d3a547`（迁移前），两边跑**同一条命令**：
+
+```
+pytest tests/ -q --no-header -p no:cacheprovider --ignore=tests/test_ml
+```
+
+| | 迁移前 `b4d3a547` | 迁移后 `3ec509f8` |
+|---|---|---|
+| failed | 288 | **287** |
+| errors | 87 | **87** |
+| passed | 5404 | 5417 |
+| skipped | 85 | 81 |
+| FAILED+ERROR 集合大小 | 375 | 374 |
+
+**逐条 diff 失败集（不是比计数）**：
+
+```
+新增：0 条
+消失：1 条  FAILED tests/migration/test_sentiment_parity.py::test_fund_flow
+```
+
+**新增 0 = 本批没有引入任何新失败。** 但消失的那 1 条**不能记成本批的功劳**：
+该用例是**实时网络** parity 测试（文件 docstring 原文："情绪/资金数据为实时网络数据"），
+打的是 `/api/stock/600519/fund-flow`，**不经过本批改动的任何方法**
+（本批的 `get_market_*` 只被 `market_perception_service` 使用）。
+按不在场证据判为网络抖动。
+
+两条必须一起说的口径提醒：
+1. 两次收集的用例数差 **8**（5777 vs 5785），来自**他人窗口的两个未跟踪测试文件**
+   （`tests/test_barra_shrinkage.py` + `tests/test_barra_small_sample.py`，实测正好 8 例）——
+   它们存在于主工作区、不存在于 worktree。所以 **passed/skipped 计数不可直接横比**，
+   可比的是 FAILED+ERROR 集合。
+2. `--ignore=tests/test_ml` **不是可选项**：不带它跑，进程会在
+   `tests/test_ml/test_transformer_predictor.py` 处 **段错误（Segmentation fault）**
+   整个崩掉，连 summary 都不输出（第一次跑就是这样，`FAILED` 计数为 0 是"没有汇总行"、
+   不是"没有失败"——这一点差点被误读成"全绿"）。该文件单独跑 **4 passed**，
+   属全量套件下的原生库崩溃，与本批改动无关（本批只动 4 个仓储文件）。
+   此项**未修**，建议单列。
 
 ## 5. 本批修掉的静默缺陷
 
