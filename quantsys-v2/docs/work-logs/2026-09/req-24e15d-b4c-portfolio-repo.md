@@ -163,6 +163,25 @@ ORM       : {'total_trades': 36, 'buy_trades': 23, 'sell_trades': 13,
   diff(失败集合) → 完全一致  ⇒ 引入 0 个新失败
 ```
 
+**广度回归**（全量除 `tests/test_ml`、`tests/services/test_ai_diagnosis.py`，两边各跑一次）：
+
+```
+HEAD : 336 failed, 5441 passed, 91 skipped, 97 errors  (541.74s)
+MINE : 337 failed, 5448 passed, 91 skipped, 97 errors  (487.79s)
+失败集合 diff（433 vs 434 条）→ 唯一差异：
+  FAILED tests/test_stock_data_fix.py::TestStockDataAPIs::test_07_api_parameters_validation
+```
+
+该差异已定性为 **flaky 网络用例，非本次改动引入**，三条证据：
+1. 单跑 5 次全部通过（1 passed ×5）；
+2. 同一棵树连续两次跑，跳过/通过数自己就在变（6 passed+1 skipped → 7 passed）；
+3. 用例体内直接调用 akshare 实时接口（`stock_individual_notice_report` /
+   `stock_individual_fund_flow` / `stock_lhb_stock_detail_date_em`），且仅在
+   异常信息**不含** "network"/"ssl"/"proxy" 字样时才 `self.fail()`——广域跑那
+   9 分钟里满屏代理错误，它撞上了另一种措辞的网络异常。
+
+另：`+7 passed` 同源于此（同一批网络/数据依赖用例在某次跑中从 skip 变 pass）。
+
 既有失败的根因（与本批无关，已在 HEAD 复现）：
 - `test_order_trade.py` 大量 `AttributeError: Mock object has no attribute 'get_trade_stats'`
   —— MagicMock spec 与接口漂移；
