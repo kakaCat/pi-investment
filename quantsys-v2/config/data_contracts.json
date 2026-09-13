@@ -52,7 +52,27 @@
       "time_column": "trade_date",
       "ttl_days": 5,
       "delete_policy": "append_only",
-      "note": "资金流源表；读路径统一过滤 quality_flag"
+      "note": "资金流源表；读路径统一过滤 quality_flag",
+      "coverage": [
+        {
+          "check": "freshness_gap_days",
+          "threshold": 5,
+          "severity": "fail"
+        },
+        {
+          "check": "per_date_distinct_symbols",
+          "threshold": 3000,
+          "lookback_days": 10,
+          "severity": "warn",
+          "note": "已知缺陷：全市场资金流只有最近约 11 天（逐股历史接口不可达，只能往后攒）——warn 而非 fail，避免每周噪声"
+        },
+        {
+          "check": "per_symbol_rows_p50",
+          "threshold": 60,
+          "severity": "warn",
+          "note": "已知缺陷：每股行数 p50=11；积累到 ≥60 才够做横截面回测"
+        }
+      ]
     },
     {
       "name": "quant.event_calendar",
@@ -62,7 +82,15 @@
       "time_column": "event_date",
       "ttl_days": 7,
       "delete_policy": "append_only",
-      "note": "事件源表（宏观+个股+预约披露日程）"
+      "note": "事件源表（宏观+个股+预约披露日程）",
+      "coverage": [
+        {
+          "check": "freshness_gap_days",
+          "threshold": 7,
+          "severity": "fail",
+          "note": "事件源应每日更新（ingest_events_daily 工作日 17:00）"
+        }
+      ]
     },
     {
       "name": "quant.strategy_configs",
@@ -72,6 +100,30 @@
       "time_column": "updated_at",
       "delete_policy": "soft_preferred",
       "note": "策略主表：删除优先 is_active=false；硬删会制造悬空引用（今天的 800 行孤儿即由此而来）"
+    },
+    {
+      "name": "quant.daily_klines",
+      "kind": "source",
+      "owner": "v2-data",
+      "upstream": [],
+      "time_column": "trade_date",
+      "ttl_days": 5,
+      "delete_policy": "append_only",
+      "note": "全市场日线（所有研究/回测的地基）。2026-09-13 补登记——此前连它都没进契约，属\"没人负责的数据陷阱\"",
+      "coverage": [
+        {
+          "check": "freshness_gap_days",
+          "threshold": 5,
+          "severity": "fail"
+        },
+        {
+          "check": "per_date_distinct_symbols",
+          "threshold": 4000,
+          "lookback_days": 5,
+          "severity": "fail",
+          "note": "全市场每日应覆盖 4000+ 只；骤降=采集中断（同类事故：2026-09-07 资金流只有 216 只）"
+        }
+      ]
     }
   ]
 }

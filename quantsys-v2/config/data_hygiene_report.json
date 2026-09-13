@@ -1,5 +1,5 @@
 {
- "checked_at": "2026-09-13T17:30:14",
+ "checked_at": "2026-09-13T17:42:12",
  "tables": [
   {
    "table": "quant.strategy_stock_matching",
@@ -19,7 +19,26 @@
    "table": "quant.stock_fund_flow",
    "kind": "source",
    "owner": "v2-data",
-   "issues": []
+   "issues": [
+    {
+     "type": "coverage_thin_days",
+     "severity": "warn",
+     "days": [
+      "2026-09-07(216)"
+     ],
+     "threshold": 3000,
+     "detail": "最近 10 个数据日中有 1 天覆盖 < 3000 只：2026-09-07=216",
+     "_severity": "warn"
+    },
+    {
+     "type": "coverage_thin_per_symbol",
+     "severity": "warn",
+     "p50_rows": 11.0,
+     "threshold": 60,
+     "detail": "每股行数中位数 11 < 60（不足以支撑横截面研究）",
+     "_severity": "warn"
+    }
+   ]
   },
   {
    "table": "quant.event_calendar",
@@ -31,6 +50,12 @@
    "table": "quant.strategy_configs",
    "kind": "source",
    "owner": "agent-dh",
+   "issues": []
+  },
+  {
+   "table": "quant.daily_klines",
+   "kind": "source",
+   "owner": "v2-data",
    "issues": []
   }
  ],

@@ -37,6 +37,69 @@ def table_exists(name):
     return int(n or 0) > 0
 
 
+def _severity(spec_item):
+    return 'fail' if spec_item.get('severity') == 'fail' else 'warn'
+
+
+def check_coverage(spec):
+    """数据面覆盖率检查（2026-09-13 新增）。
+
+    为什么需要：本日连着三次踩到「数据/能力悄悄变空」——资金流每股只有 11 天、
+    事件只覆盖 34 只、探针在表被删后崩溃。**基于残缺数据做决策 = 真金白银的错误**，
+    所以覆盖率必须由机器持续盯，而不是等人偶然发现。
+
+    三类检查（契约里按需声明）：
+      · freshness_gap_days        —— 最近一次数据距今多少天（采集是否停了）
+      · per_date_distinct_symbols —— 最近 N 个「数据日」里每天覆盖多少只（有没有缺日/半日）
+      · per_symbol_rows_p50       —— 每股行数中位数（能不能支撑横截面研究）
+    severity=warn 的已知缺陷只提示、不置退出码 1（避免每周噪声把告警训废）；
+    severity=fail 的一旦不达标即退出码 1。
+    """
+    name = spec['name']
+    issues = []
+    for item in spec.get('coverage') or []:
+        kind = item.get('check')
+        sev = _severity(item)
+        thr = item.get('threshold')
+        col = item.get('time_column') or spec.get('time_column') or 'trade_date'
+        try:
+            if kind == 'freshness_gap_days':
+                latest = psql("select coalesce(max(%s)::text,'') from %s" % (col, name))
+                if not latest:
+                    issues.append({'type': 'coverage_no_data', 'severity': sev,
+                                   'detail': '%s 没有任何数据（%s 为空）' % (name, col)})
+                    continue
+                gap = (datetime.now() - datetime.fromisoformat(latest[:19])).days
+                if gap > thr:
+                    issues.append({'type': 'coverage_stale', 'severity': sev, 'gap_days': gap,
+                                   'threshold': thr,
+                                   'detail': '最近数据 %s，已滞后 %d 天（阈值 %d）' % (latest[:10], gap, thr)})
+            elif kind == 'per_date_distinct_symbols':
+                lb = int(item.get('lookback_days') or 10)
+                rows = psql("select %s::text || ':' || count(distinct %s) from %s "
+                            "group by %s order by %s desc limit %d"
+                            % (col, item.get('symbol_column') or 'symbol', name, col, col, lb)).splitlines()
+                bad = [(r.split(':')[0], int(r.split(':')[1])) for r in rows if r and int(r.split(':')[1]) < thr]
+                if bad:
+                    issues.append({'type': 'coverage_thin_days', 'severity': sev,
+                                   'days': ['%s(%d)' % (d, n) for d, n in bad][:5],
+                                   'threshold': thr,
+                                   'detail': '最近 %d 个数据日中有 %d 天覆盖 < %d 只：%s'
+                                             % (len(rows), len(bad), thr,
+                                                ', '.join('%s=%d' % (d, n) for d, n in bad[:3]))})
+            elif kind == 'per_symbol_rows_p50':
+                p50 = psql("with per as (select symbol, count(*) n from %s group by symbol) "
+                           "select coalesce(percentile_disc(0.5) within group (order by n), 0) from per" % name)
+                if p50 and float(p50) < thr:
+                    issues.append({'type': 'coverage_thin_per_symbol', 'severity': sev,
+                                   'p50_rows': float(p50), 'threshold': thr,
+                                   'detail': '每股行数中位数 %.0f < %d（不足以支撑横截面研究）' % (float(p50), thr)})
+        except Exception as exc:
+            issues.append({'type': 'coverage_check_failed', 'severity': sev,
+                           'detail': '%s: %s' % (kind, str(exc)[:120])})
+    return issues
+
+
 def check_table(spec):
     """声明层条目体检。
 
@@ -103,15 +166,27 @@ def main():
     a = ap.parse_args()
     spec = json.loads(CONTRACTS.read_text(encoding="utf-8"))
     results = [check_table(t) for t in spec.get("tables", [])]
-    bad = [r for r in results if r["issues"]]   # dropped 且有备份 = 正常终态，不算问题
+    # 覆盖率检查并入结果（warn 只提示，fail 才置退出码 1）
+    for spec_item, r in zip(spec.get("tables", []), results):
+        for ci in check_coverage(spec_item):
+            ci["_severity"] = ci.get("severity", "warn")
+            r["issues"].append(ci)
+    def _is_fail(i):
+        return i.get("severity", "fail") == "fail"   # 未标 severity 的按 fail（保守）
+    bad = [r for r in results if any(_is_fail(i) for i in r["issues"])]
     print("=== 数据卫生探针（%s）===" % datetime.now().isoformat(timespec="seconds"))
-    print("声明表 %d 张，发现问题 %d 张" % (len(results), len(bad)))
+    n_fail_tbl = sum(1 for r in results if any(i.get("severity", "fail") == "fail" for i in r["issues"]))
+    n_warn_tbl = sum(1 for r in results
+                     if r["issues"] and not any(i.get("severity", "fail") == "fail" for i in r["issues"]))
+    print("声明表 %d 张｜需处置(fail) %d 张｜已知缺陷(warn) %d 张" % (len(results), n_fail_tbl, n_warn_tbl))
     for r in results:
-        flag = "❌" if r["issues"] else "✅"
+        has_fail = any(i.get("severity", "fail") == "fail" for i in r["issues"])
+        flag = "❌" if has_fail else ("⚠️ " if r["issues"] else "✅")
         extra = ("（最近 %s，滞后 %s 天）" % (r.get("latest"), r.get("lag_days"))) if r.get("latest") else ""
         print("  %s %-34s kind=%-8s owner=%-20s%s" % (flag, r["table"], r.get("kind"), r.get("owner"), extra))
         for i in r["issues"]:
-            print("       - [%s] %s" % (i["type"], i.get("detail")))
+            lvl = "需处置" if i.get("severity", "fail") == "fail" else "已知缺陷"
+            print("       - [%s|%s] %s" % (i["type"], lvl, i.get("detail")))
     report = {"checked_at": datetime.now().isoformat(timespec="seconds"), "tables": results,
               "tables_with_issues": len(bad)}
     Path(a.json).write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
