@@ -28,6 +28,8 @@ class TestFactorRepository:
         if hasattr(self.repo, 'db') and self.repo.db:
             self.repo.db.close()
 
+    # 2026-09-14（w-c8cae280）已删除 save_factors_batch 用例：该方法不存在（实测），
+    # 生产调用数 0；现仓库已有 upsert_factor / batch_upsert_factors 承担批量落库，属能力已被取代。
     # ==================== 参数校验测试 ====================
 
     def test_get_factors_invalid_symbol(self):
@@ -135,11 +137,6 @@ class TestFactorRepository:
         except Exception as e:
             # 如果数据库连接失败或权限不足，跳过测试
             pytest.skip(f"数据库写入测试跳过: {str(e)}")
-
-    def test_save_factors_batch_empty(self):
-        """测试批量保存空列表"""
-        count = self.repo.save_factors_batch([])
-        assert count == 0
 
     def test_update_factor(self):
         """测试更新单个因子"""

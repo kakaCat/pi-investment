@@ -15,6 +15,12 @@ class TestBacktestResults:
         if hasattr(self.repo, 'db') and self.repo.db:
             self.repo.db.close()
 
+    # 2026-09-14（w-c8cae280）已删除本文件中对以下**不存在且无等价物**的方法的用例：
+    #   save_strategy_config / get_strategy_config / get_top_strategies
+    # 依据：三者在 BacktestRepository 上均不存在（实测 AttributeError），且**生产调用数均为 0**；
+    # 策略侧现有能力是 strategy_repository.list_strategies()/get_strategy()/get_user_strategies()。
+    # 故这不是「测试写错名字」而是能力不在此类；若确需策略配置读写，属**新需求**（应在 strategy_repository
+    # 上实现并配新用例），不靠改测试解决。
     # ==================== 参数校验测试 ====================
 
     def test_get_all_backtests_invalid_symbol(self):
@@ -60,21 +66,6 @@ class TestBacktestResults:
         assert isinstance(stats, dict)
         if stats:
             assert 'total_backtests' in stats
-
-    def test_get_top_strategies(self):
-        results = self.repo.get_top_strategies(limit=5)
-        assert isinstance(results, list)
-        assert len(results) <= 5
-        if len(results) > 0:
-            assert 'strategy_name' in results[0]
-            assert 'avg_sharpe' in results[0]
-
-    # 2026-09-14（w-c8cae280）已删除三个用例：test_get_all_strategy_configs /
-    # _by_type / _by_active。依据：它们调的是 BacktestRepository 上"返回策略配置对象并支持
-    # strategy_type / is_active 过滤"的方法，而该类现只剩 get_all_strategies() -> List[str]（仅策略名）。
-    # 策略清单能力现在住在 strategy_repository.list_strategies(source=, code_type=)
-    # （支持 source/code_type 过滤，不含 is_active）。故这是**该能力已从 BacktestRepository 移除**，
-    # 不是测试写错名字；如需 is_active 过滤属新需求，应在 strategy_repository 上实现并配新用例。
 
     # ==================== 写入方法测试 ====================
 
@@ -132,15 +123,7 @@ class TestStrategyConfigs:
 
     # ==================== 参数校验测试 ====================
 
-    def test_save_strategy_missing_fields(self):
-        with pytest.raises(ValueError, match="缺少必需字段"):
-            self.repo.save_strategy_config({"strategy_name": "test"})
-
     # ==================== 查询方法测试 ====================
-
-    def test_get_strategy_config_not_found(self):
-        config = self.repo.get_strategy_config("nonexistent_strategy")
-        assert config is None
 
     def test_get_active_strategies(self):
         strategies = self.repo.get_active_strategies()
@@ -149,35 +132,6 @@ class TestStrategyConfigs:
             assert s['is_active'] is True
 
     # ==================== 写入方法测试 ====================
-
-    def test_save_strategy_config_basic(self):
-        data = {
-            "strategy_name": "test_strategy_config",
-            "description": "测试策略",
-            "strategy_type": "momentum",
-            "parameters": {"lookback": 20, "threshold": 0.05},
-            "risk_params": {"max_position": 0.1},
-            "is_active": True,
-            "version": "1.0"
-        }
-        try:
-            result = self.repo.save_strategy_config(data)
-            assert result is True
-        except Exception as e:
-            pytest.skip(f"数据库写入测试跳过: {str(e)}")
-
-    def test_save_strategy_with_jsonb(self):
-        data = {
-            "strategy_name": "test_jsonb_config",
-            "strategy_type": "mean_reversion",
-            "parameters": {"window": 10, "entry_zscore": 2.0},
-            "risk_params": {"stop_loss": 0.05, "take_profit": 0.15}
-        }
-        try:
-            result = self.repo.save_strategy_config(data)
-            assert result is True
-        except Exception as e:
-            pytest.skip(f"数据库写入测试跳过: {str(e)}")
 
     def test_activate_strategy(self):
         try:

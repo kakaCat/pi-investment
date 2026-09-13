@@ -10,6 +10,9 @@ def repo():
     return SignalExecutionORMRepository()
 
 
+    # 2026-09-14（w-c8cae280）已删除 get_executions_by_symbol 相关用例（含非法入参那组）：
+    # signal_executions 表**没有 symbol 列**（只有 signal_id + relationship），按标的查需 join 信号表；
+    # 仓库层已有 get_executions_by_signal(signal_id)，且生产调用数 0 → 属数据模型决定的能力边界。
 class TestExecutionValidation:
     def test_create_missing_required_fields(self, repo):
         with pytest.raises(ValueError, match="signal_id"):
@@ -205,29 +208,6 @@ class TestExecutionStats:
 
 
 class TestExecutionSymbolValidation:
-    def test_invalid_symbol(self, repo):
-        with pytest.raises(ValueError, match="股票代码格式错误"):
-            repo.get_executions_by_symbol('BAD', '2024-01-01', '2024-01-31')
-
-    def test_invalid_date_format(self, repo):
-        with pytest.raises(ValueError, match="Invalid date format"):
-            repo.get_executions_by_symbol('000001.SZ', '01-01-2024', '2024-01-31')
-
-    def test_invalid_end_date(self, repo):
-        with pytest.raises(ValueError, match="Invalid date format"):
-            repo.get_executions_by_symbol('000001.SZ', '2024-01-01', 'invalid')
-
-    def test_valid_symbol_formats(self, repo):
-        """Various valid symbol formats."""
-        for sym in ['000001.SZ', '000001.SH', '000001', '000001']:
-            try:
-                repo.get_executions_by_symbol(sym, '2024-01-01', '2024-01-31')
-            except ValueError as e:
-                if '格式' in str(e) or '格式错误' in str(e):
-                    pytest.fail(f"Symbol {sym} should be valid: {e}")
-            except Exception:
-                pass  # DB error OK
-
     def test_close_execution_invalid_date(self, repo):
         with pytest.raises(ValueError, match="Invalid date format"):
             repo.close_execution(1, '07-15-2024', 35.00)
