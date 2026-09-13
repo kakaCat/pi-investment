@@ -7,7 +7,7 @@
  * 3. wrap - 包装返回数据
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { portfolioTradePrompt, PortfolioTradeParams, PortfolioTradeResult } from './prompt';
@@ -213,7 +213,7 @@ export class PortfolioTradeTool extends BaseTool<PortfolioTradeParams, Portfolio
    * Phase 2: 执行任务（完整业务逻辑）
    */
   protected async execute(args: PortfolioTradeParams, _context: ToolContext): Promise<PortfolioTradeResult> {
-    const accountName = args.account_name || 'agent_brain';
+    const accountName = args.account_name || DEFAULT_AGENT_ACCOUNT;
 
     // 宪法第 1 条硬校验：非交易时段拒单。
     // 例外（2026-09-01）：execute_at='market_open' 盘前挂单——委托提交发生在盘前，

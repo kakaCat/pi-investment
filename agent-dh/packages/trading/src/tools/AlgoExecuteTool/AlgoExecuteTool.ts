@@ -2,7 +2,7 @@
  * AlgoExecuteTool - 算法交易工具
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { algoExecutePrompt, AlgoExecuteParams, AlgoExecuteResult } from './prompt';
@@ -179,7 +179,7 @@ export class AlgoExecuteTool extends BaseTool<AlgoExecuteParams, AlgoExecuteResu
       quantity: args.quantity,
       algo: args.algo || 'TWAP',
       duration: args.duration || 30,
-      account_name: args.account_name || 'agent_brain',
+      account_name: args.account_name || DEFAULT_AGENT_ACCOUNT,
     });
     return result as unknown as AlgoExecuteResult;
   }

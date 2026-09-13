@@ -2,7 +2,7 @@
  * AccountInfoTool - 账户信息工具
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { accountInfoPrompt, AccountInfoParams, AccountInfoResult } from './prompt';
@@ -62,7 +62,7 @@ export class AccountInfoTool extends BaseTool<AccountInfoParams, AccountInfoResu
    * Phase 2: 执行任务
    */
   protected async execute(args: AccountInfoParams, _context: ToolContext): Promise<AccountInfoResult> {
-    const accountName = args.account_name || 'agent_brain';
+    const accountName = args.account_name || DEFAULT_AGENT_ACCOUNT;
     const result = await this.qv2.getPortfolioSummary(accountName);
     return result as AccountInfoResult;
   }

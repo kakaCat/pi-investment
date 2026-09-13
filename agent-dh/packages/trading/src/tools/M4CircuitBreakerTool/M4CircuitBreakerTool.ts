@@ -7,7 +7,7 @@
  * 3. wrap - 包装返回数据
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import {
@@ -106,7 +106,7 @@ export class M4CircuitBreakerTool extends BaseTool<CircuitBreakerCheckParams, Ci
     args: CircuitBreakerCheckParams,
     context: ToolContext
   ): Promise<CircuitBreakerCheckResult> {
-    const accountName = args.account_name || 'agent_brain';
+    const accountName = args.account_name || DEFAULT_AGENT_ACCOUNT;
     const now = new Date().toISOString();
 
     // 1. 计算 60 日最大回撤（错误兜底：API 不可用时降级为 0 不触发熔断）

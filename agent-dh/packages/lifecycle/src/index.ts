@@ -762,8 +762,8 @@ v2_event_json: ${JSON.stringify(data)}
    * Agent 身份注册表（2026-08-21）：每个 agent 有唯一 id 和名字，提高自我认知。
    * 读 profileDir/agents.json；当前 agent 按 cfg.agentId 匹配，alias_of 归并到主身份。
    */
-  private loadIdentity(): { id: string; name: string; role: string; instance: string; port: number } {
-    const fallback = { id: this.cfg.agentId, name: this.cfg.agentId, role: '未注册角色', instance: 'unknown', port: this.cfg.port };
+  private loadIdentity(): { id: string; name: string; role: string; instance: string; port: number; account: string } {
+    const fallback = { id: this.cfg.agentId, name: this.cfg.agentId, role: '未注册角色', instance: 'unknown', port: this.cfg.port, account: '' };
     try {
       const registry = JSON.parse(readFileSync(join(this.cfg.profileDir, 'agents.json'), 'utf-8'));
       const agents: any[] = registry.agents || [];
@@ -779,6 +779,11 @@ v2_event_json: ${JSON.stringify(data)}
         role: me.role,
         instance: registry.instance?.name ?? registry.instance?.id ?? 'unknown',
         port: registry.instance?.port ?? this.cfg.port,
+        // 2026-09-13（w-c8cae280）：本实例投资账户——**唯一事实源**。
+        // 之前 13 条例行任务的 prompt 各自写死账户名（agent_virtual / agent_brain），
+        // 换账户要改 N 处、漏一处就"用别人的账下单"（R-019 的由来）。
+        // 现由此处读 agents.json，注入系统提示词，任务与提示词一律不再写死账户名。
+        account: String(me.account ?? registry.instance?.account ?? '').trim(),
       };
     } catch {
       return fallback;
@@ -806,6 +811,14 @@ v2_event_json: ${JSON.stringify(data)}
       }
     });
 
+    // 2026-09-13（w-c8cae280）：投资账户来自 agents.json（唯一事实源），不写死在任务提示词里。
+    const accountLines = i.account
+      ? [
+          `**本实例投资账户：${i.account}**（唯一事实源 = profileDir/agents.json 的 instance.account）。`,
+          `纪律：账户类工具调用必须显式传这个账户名；**任何任务提示词/文档都不许写死账户名**（换账户只改 agents.json 一处，不改 N 个任务）。`,
+        ]
+      : [];
+
     (this.ctx as any).systemPrompt?.section({
       name: 'agent:identity',
       order: 5,
@@ -816,6 +829,7 @@ v2_event_json: ${JSON.stringify(data)}
         ``,
         `你是「${i.name}」（角色 ID: ${i.id}），${i.role}。`,
         `所属实例：${i.instance}（端口 ${i.port}）。`,
+        ...accountLines,
         `**本窗口唯一编码：{{window_id}}**——每个窗口（会话）都是独立个体，同角色不同窗口编码不同。`,
         `你的所有分析、交易决策、经验记录都带角色 ID + 窗口编码双署名；与其他窗口/分身协作或复盘归因时，用窗口编码精确区分"是谁说的"。`,
       ].join('\n'),

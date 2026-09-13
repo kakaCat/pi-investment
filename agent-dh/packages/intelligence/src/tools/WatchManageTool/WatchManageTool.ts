@@ -1,4 +1,4 @@
-import { BaseTool, ToolResponse, ValidationResult, ErrorType, sanitizeLossless } from '@pi-investment/core-tool';
+import { BaseTool, ToolResponse, ValidationResult, ErrorType, sanitizeLossless, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { watchManagePrompt, type WatchManageParams } from './prompt';
@@ -99,7 +99,7 @@ export class WatchManageTool extends BaseTool<WatchManageParams, any> {
       const isPnl = /^\s*pnl_pct/.test(params.condition ?? '');
       if (isPnl && !params.cost_price) {
         // 自动取持仓成本（对标 agent-ts"持仓补位止损"场景）
-        const account = params.account || 'agent_brain';
+        const account = params.account || DEFAULT_AGENT_ACCOUNT;
         const positions = await this.qv2Client.getPositions(account);
         const pos = (positions || []).find((p: any) => p.symbol === params.symbol);
         const cost = pos?.avgCost ?? pos?.avg_cost ?? pos?.costPrice;

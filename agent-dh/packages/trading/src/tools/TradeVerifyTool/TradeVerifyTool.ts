@@ -2,7 +2,7 @@
  * TradeVerifyTool - 交易对账工具
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { tradeVerifyPrompt, TradeVerifyParams, TradeVerifyResult } from './prompt';
@@ -69,7 +69,7 @@ export class TradeVerifyTool extends BaseTool<TradeVerifyParams, TradeVerifyResu
     // 逻辑与本地版一致：重复成交/字段缺失/非法值/持仓勾稽+迁移缺腿降级）。
     // 本地替代实现（2026-08-23 起的 performLocalVerify）已退役。
     const raw: any = await this.qv2.verifyTrades({
-      account_name: args.account_name || 'agent_brain',
+      account_name: args.account_name || DEFAULT_AGENT_ACCOUNT,
       ...(args.date ? { date: args.date } : {}),
     });
 

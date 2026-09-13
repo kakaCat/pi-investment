@@ -2,7 +2,7 @@
  * TradeMonitorTool - 交易监控工具
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { tradeMonitorPrompt, TradeMonitorParams, TradeMonitorResult } from './prompt';
@@ -65,7 +65,7 @@ export class TradeMonitorTool extends BaseTool<TradeMonitorParams, TradeMonitorR
    * Phase 2: 执行任务
    */
   protected async execute(args: TradeMonitorParams, _context: ToolContext): Promise<TradeMonitorResult> {
-    const account = args.account_name || 'agent_brain';
+    const account = args.account_name || DEFAULT_AGENT_ACCOUNT;
     const result = await this.qv2.getTradeHistory({
       account_name: account,
       order_id: args.order_id,

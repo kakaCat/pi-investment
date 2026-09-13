@@ -1,0 +1,22 @@
+{
+  "_comment": "身份注册表模板（2026-09-13 w-c8cae280）。运行时实际读取的是 profileDir/agents.json（在 .dsh-home/ 下，属部署状态、不入库）；本文件是可入库的形态说明。",
+  "_account_source_of_truth": "instance.account 是本实例投资账户的唯一事实源：lifecycle 读它并注入系统提示词 agent:identity 段；例行任务与文档一律引用该段（占位符 <agent:identity 段账户名>），禁止写死账户名。agent 条目可用 account 覆盖。代码侧的兜底常量是 core-tool 的 DEFAULT_AGENT_ACCOUNT（环境变量 DSH_INVESTMENT_ACCOUNT 可覆盖）。",
+  "instance": {
+    "id": "investment",
+    "name": "PI 投资顾问",
+    "port": 13080,
+    "account": "agent_brain",
+    "account_label": "投资脑自营盘",
+    "dsh_home": "<repo>/agent-dh/.dsh-home",
+    "genome_dir": "<repo>/agent-dh/.dsh-data/genome"
+  },
+  "agents": [
+    { "id": "investor", "name": "PI 投资顾问·投资脑", "role": "投资决策与分析：市场感知、交易执行、复盘归因", "primary": true },
+    { "id": "agent-dh", "name": "PI 投资顾问·工程脑", "role": "代码维护、自修复、自进化工程（agent-dh 仓库）", "alias_of": "investor" }
+  ],
+  "rules": {
+    "identity_in_prompt": true,
+    "sign_outputs": true,
+    "account_source_of_truth": "instance.account（可在 agent 条目上用 account 覆盖）；例行任务与提示词禁止写死账户名"
+  }
+}

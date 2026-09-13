@@ -2,7 +2,7 @@
  * RegimePositionLimitTool - 市场状态仓位限制工具
  */
 
-import { BaseTool, assessBreakerTrigger, BREAKER_THRESHOLD_PCT } from '@pi-investment/core-tool';
+import { BaseTool, assessBreakerTrigger, BREAKER_THRESHOLD_PCT, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { regimePositionLimitPrompt, RegimePositionLimitParams, RegimePositionLimitResult } from './prompt';
@@ -61,7 +61,7 @@ export class RegimePositionLimitTool extends BaseTool<RegimePositionLimitParams,
    * Phase 2: 执行任务
    */
   protected async execute(args: RegimePositionLimitParams, _context: ToolContext): Promise<RegimePositionLimitResult> {
-    const accountName = args.account_name || 'agent_brain';
+    const accountName = args.account_name || DEFAULT_AGENT_ACCOUNT;
 
     // 1. 读最新 regime 记录（忽略已弃用）
     const res = await this.memoryClient.searchMemory({ q: 'regime', scope: 'market:regime', limit: 10 });

@@ -2,7 +2,7 @@
  * RotationExecuteTool - 轮动执行工具
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { rotationExecutePrompt, RotationExecuteParams, RotationExecuteResult } from './prompt';
@@ -91,7 +91,7 @@ export class RotationExecuteTool extends BaseTool<RotationExecuteParams, Rotatio
   ): Promise<RotationExecuteResult> {
     return this.qv2.executeRotation({
       proposals: args.proposals,
-      account_name: args.account_name || 'agent_brain',
+      account_name: args.account_name || DEFAULT_AGENT_ACCOUNT,
       dry_run: args.dry_run || false,
     }) as any;
   }

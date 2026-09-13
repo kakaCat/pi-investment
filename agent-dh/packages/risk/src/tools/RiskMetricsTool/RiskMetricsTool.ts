@@ -2,7 +2,7 @@
  * RiskMetricsTool - 风险指标工具
  */
 
-import { BaseTool } from '@pi-investment/core-tool';
+import { BaseTool, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { riskMetricsPrompt, RiskMetricsParams, RiskMetricsResult } from './prompt';
@@ -38,7 +38,7 @@ export class RiskMetricsTool extends BaseTool<RiskMetricsParams, RiskMetricsResu
    */
   protected async execute(args: RiskMetricsParams, _context: ToolContext): Promise<RiskMetricsResult> {
     const days = args.days || 60;
-    const account = args.account_name || 'agent_brain';
+    const account = args.account_name || DEFAULT_AGENT_ACCOUNT;
 
     // 1) 账户口径基础指标（拿到 navPoints / returnsSource，用于基准对齐）
     const base: any = await this.qv2.getRiskMetrics({ account_name: account, days });

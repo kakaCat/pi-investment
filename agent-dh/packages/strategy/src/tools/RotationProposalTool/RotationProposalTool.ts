@@ -2,7 +2,7 @@
  * RotationProposalTool - 轮动方案建议工具
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { rotationProposalPrompt, RotationProposalParams, RotationProposalResult } from './prompt';
@@ -60,7 +60,7 @@ export class RotationProposalTool extends BaseTool<RotationProposalParams, Rotat
     // strategy_id/strategy_name）。此前工具 as any 透传整个后端对象，与声明的
     // proposals 个股语义（symbol/buy/sell）不符——此处规范化为契约结构并保留 meta。
     const raw: any = await this.qv2.generateRotationProposal({
-      account_name: args.account_name || 'agent_brain',
+      account_name: args.account_name || DEFAULT_AGENT_ACCOUNT,
       mode: args.mode || 'balanced',
       max_positions: args.max_positions || 10,
     });

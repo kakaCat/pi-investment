@@ -6,7 +6,7 @@
  *             profitLossPct（百分数，0.73=+0.73%；client.mapPosition 已把后端 profit_total_rate 小数 ×100）, priceStale? }
  */
 
-import { BaseTool, ErrorType, sanitizeLossless } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, sanitizeLossless, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { portfolioAnalyzePrompt, PortfolioAnalyzeParams } from './prompt';
@@ -58,7 +58,7 @@ export class PortfolioAnalyzeTool extends BaseTool<PortfolioAnalyzeParams, any> 
   }
 
   protected async execute(args: PortfolioAnalyzeParams, _context: ToolContext): Promise<any> {
-    const account = args.account_name || 'agent_brain';
+    const account = args.account_name || DEFAULT_AGENT_ACCOUNT;
     const [positions, summary] = await Promise.all([
       this.qv2.getPositions(account),
       this.qv2.getPortfolioSummary(account),

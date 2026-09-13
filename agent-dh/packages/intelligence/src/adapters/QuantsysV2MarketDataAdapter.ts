@@ -6,6 +6,7 @@
 
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import type {
+import { DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
   MarketDataProvider,
   PriceData,
   TradeExecution,
@@ -120,7 +121,7 @@ export class QuantsysV2MarketDataAdapter implements MarketDataProvider {
    */
   async getCurrentPosition(
     symbol: string,
-    accountName: string = 'agent_brain'
+    accountName: string = DEFAULT_AGENT_ACCOUNT
   ): Promise<Position | null> {
     try {
       const response = await this.qv2Client.getPositionList({

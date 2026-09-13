@@ -2,7 +2,7 @@
  * PositionListTool - 持仓列表工具
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { positionListPrompt, PositionListParams, PositionListResult } from './prompt';
@@ -62,7 +62,7 @@ export class PositionListTool extends BaseTool<PositionListParams, PositionListR
    * Phase 2: 执行任务
    */
   protected async execute(args: PositionListParams, _context: ToolContext): Promise<PositionListResult> {
-    const accountName = args.account_name || 'agent_brain';
+    const accountName = args.account_name || DEFAULT_AGENT_ACCOUNT;
     const result = await this.qv2.getPositions(accountName);
     return result as unknown as PositionListResult;
   }

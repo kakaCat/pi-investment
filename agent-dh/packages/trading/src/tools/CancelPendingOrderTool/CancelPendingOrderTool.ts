@@ -6,7 +6,7 @@
  * POST /api/simulation/accounts/{account}/pending-orders/{orderId}/cancel。
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { cancelPendingOrderPrompt, CancelPendingOrderParams, CancelPendingOrderResult } from './prompt';
@@ -88,7 +88,7 @@ export class CancelPendingOrderTool extends BaseTool<CancelPendingOrderParams, C
    * 不依赖后端兜底），确认后再调用 cancel，返回被撤单详情快照供审计。
    */
   protected async execute(args: CancelPendingOrderParams, _context: ToolContext): Promise<CancelPendingOrderResult> {
-    const account = args.account_name || 'agent_brain';
+    const account = args.account_name || DEFAULT_AGENT_ACCOUNT;
 
     // 前置确认：目标单必须存在且处于 pending
     const pending = await this.qv2.listPendingOrders(account, 'pending');

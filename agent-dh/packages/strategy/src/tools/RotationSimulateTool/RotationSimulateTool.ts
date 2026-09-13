@@ -2,7 +2,7 @@
  * RotationSimulateTool - 轮动模拟工具
  */
 
-import { BaseTool, ErrorType } from '@pi-investment/core-tool';
+import { BaseTool, ErrorType, DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 import type { ToolMetadata, ToolContext, ToolResponse, ValidationResult } from '@pi-investment/core-tool';
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { rotationSimulatePrompt, RotationSimulateParams, RotationSimulateResult } from './prompt';
@@ -60,7 +60,7 @@ export class RotationSimulateTool extends BaseTool<RotationSimulateParams, Rotat
     // 此处做字段映射，同时保留原始明细供上层参考。
     const raw = await this.qv2.simulateRotation({
       proposals: args.proposals,
-      account_name: args.account_name || 'agent_brain',
+      account_name: args.account_name || DEFAULT_AGENT_ACCOUNT,
       check_constraints: args.check_constraints !== false,
     });
 
