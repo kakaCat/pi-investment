@@ -99,13 +99,13 @@ tags: [wiki, index, home, agent-dh]
 
 ### 卷 4 · 账户与交易
 
-- 🟡 P0 `architecture/accounts-and-boundaries.md` —— 账户模型与边界（agent_brain 自营 / agent_virtual 只读 / 策略线账户）
-- 🟡 P0 `guides/trading-constraints.md` —— 交易约束速查：T+1、100 股整数倍、仓位/行业/现金上限、止损档位
+- ✅ P0 [账户模型与边界](architecture/accounts-and-boundaries.md) —— 账户清单/归属/发现方式/默认值链路（agents.json → 常量 → 后端）
+- ✅ P0 [交易约束速查](guides/trading-constraints.md) —— 硬约束表 + regime 上限 + 下单前后动作清单
 - ✅ [下单 API 指南](guides/order-api-guide.md)
 
 ### 卷 5 · 数据与后端
 
-- 🟡 P0 `architecture/data-contracts-and-freshness.md` —— 数据契约、新鲜度与降级（R-020、静默失效的教训）
+- ✅ P0 [数据契约与新鲜度](architecture/data-contracts-and-freshness.md) —— 契约字段/新鲜度三招/降级标注/两起事故
 - ✅ [quantsys-v2 能力评估](guides/quantsys-v2-capability-assessment.md)
 - ✅ [事件查询最佳实践](guides/event-query-best-practices.md)
 - ✅ [数据库表对照](architecture/database-table-comparison.md)
@@ -160,6 +160,7 @@ tags: [wiki, index, home, agent-dh]
 | 2026-09-13 | [插件模型](architecture/plugin-model.md) · [身份系统](architecture/identity-and-agents-json.md) | 建 stub（问题清单 + 素材位置） | w-1cee2467 |
 | 2026-09-13 | [需求看板实操](guides/reqboard-workflow.md) · [故障排查手册](guides/troubleshooting.md) · [定时巡检清单](guides/routine-checks.md) | B1 落地（卷 8、卷 9 的 P0/P1 页） | w-1cee2467 |
 | 2026-09-13 | [插件模型与装载](architecture/plugin-model.md) · [身份系统与 agents.json](architecture/identity-and-agents-json.md) | B2 起：两个 stub 补成正式页（待写债清零） | w-1cee2467 |
+| 2026-09-13 | [账户模型与边界](architecture/accounts-and-boundaries.md) · [交易约束速查](guides/trading-constraints.md) · [数据契约与新鲜度](architecture/data-contracts-and-freshness.md) | B2 续：卷 4、卷 5 的 P0 页 | w-1cee2467 |
 
 ## 怎么维护
 
