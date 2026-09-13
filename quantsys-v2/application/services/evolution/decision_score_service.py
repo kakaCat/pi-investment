@@ -12,6 +12,7 @@
 import logging
 from datetime import date, datetime
 from typing import Any, Callable, Dict, Optional
+from domain.common.dates import as_date, as_datetime, as_date_str
 
 from application.services.evolution.score_calculator import compute_trade_score
 from application.services.evolution.lesson_generator import generate_lesson
@@ -24,6 +25,10 @@ SCORABLE_TYPES = {'trade_buy': 'buy', 'trade_sell': 'sell',
 
 
 def _as_date(value) -> Optional[date]:
+    return as_date(value)
+
+
+def _as_date_legacy(value) -> Optional[date]:   # 保留原实现供对照，已无调用方
     if isinstance(value, datetime):
         return value.date()
     if isinstance(value, date):

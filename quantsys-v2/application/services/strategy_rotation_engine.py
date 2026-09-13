@@ -15,6 +15,7 @@
     engine.execute_rotation(proposal)  # Agent 确认后执行
 """
 from __future__ import annotations
+from domain.common.dates import as_date, as_datetime, as_date_str
 
 from domain.ports import IAgentIntelligenceRepository, ISimulationRepository, IStrategyPerformanceRepository, IStrategyRepository
 
@@ -860,10 +861,17 @@ class StrategyRotationEngine:
                     default=None
                 )
                 if latest_update:
-                    if isinstance(latest_update, str):
-                        self._last_rotation_date = datetime.fromisoformat(latest_update).date()
-                    elif isinstance(latest_update, datetime):
-                        self._last_rotation_date = latest_update.date()
+                    # 2026-09-13（w-c8cae280）：原实现只处理 str / datetime 两种形态，
+                    # **date 形态直接静默落空** —— _last_rotation_date 保持旧值、无错误也无日志，
+                    # 轮动节流会据此误判"刚轮动过"或"从未轮动"。同一列在不同驱动/路径下可能是 date
+                    # （core_plan 的透镜就因 date/Timestamp 双类型崩过一次）。
+                    # 现统一走 domain.common.dates.as_date，且不可解析时**显式告警**，不再静默。
+                    _d = as_date(latest_update)
+                    if _d is not None:
+                        self._last_rotation_date = _d
+                    else:
+                        logger.warning("rotation_state_updated_at_unparsable",
+                                       updated_at=repr(latest_update))
 
             logger.info(
                 "rotation_state_loaded",

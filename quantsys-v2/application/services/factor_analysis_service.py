@@ -7,6 +7,7 @@ import numpy as np
 from typing import Dict, List, Optional, Union, Tuple
 import structlog
 from io import BytesIO
+from domain.common.dates import as_date, as_datetime, as_date_str
 
 logger = structlog.get_logger(__name__)
 
@@ -377,7 +378,10 @@ class FactorAnalysisService:
                     if date_factor is not None:
                         date_total = len(date_factor)
                         date_valid = date_factor.notna().sum() if hasattr(date_factor, 'notna') else date_total
-                        coverage_by_date[str(date.date())] = float(date_valid / date_total) if date_total > 0 else 0.0
+                        # 2026-09-13：该索引元素可能是 Timestamp，也可能是 datetime.date（object dtype），
+                        # 后者没有 .date() 方法 → 直接崩。统一走 as_date_str。
+                        coverage_by_date[as_date_str(date, default=str(date))] = (
+                            float(date_valid / date_total) if date_total > 0 else 0.0)
 
                 result['coverage_by_date'] = coverage_by_date
 

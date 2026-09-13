@@ -11,6 +11,7 @@ RFC 016 §4.5：市况的**唯一对外入口**。应用层只做编排，不做
 使用方一律经本服务取市况，**不得**再自算时段或 weekday。
 """
 from __future__ import annotations
+from domain.common.dates import as_date, as_datetime, as_date_str
 
 from datetime import date, datetime, time, timedelta
 from typing import Optional, Union
@@ -38,7 +39,10 @@ class MarketSessionService:
     # ---------------------------------------------------------------- 快照
     def current(self, now: Optional[datetime] = None) -> MarketSession:
         """当前市况快照（日级判定 + 时段判定 → 值对象）"""
-        at = now or self._clock.now()
+        # 2026-09-13（w-c8cae280）：now 若传 date / 'YYYY-MM-DD' 字符串，at.date() 直接 AttributeError
+        # （本文件 is_trading_day 的 2026-09-12 审查注释已记录过同一陷阱，但 current() 一直是裸调用）。
+        # 归一为 datetime：None → 时钟；datetime → 原样（保留 tzinfo）；date/str → 当日 00:00。
+        at = self._clock.now() if now is None else as_datetime(now, default=self._clock.now())
         verdict = TradingDayGuard.check(at.date())
         return self._policy.evaluate(
             at,
@@ -76,7 +80,7 @@ class MarketSessionService:
 
     def next_boundary_at(self, now: Optional[datetime] = None) -> Optional[datetime]:
         """下一个相位边界的完整时刻（当日无更晚边界时返回 None）"""
-        at = now or self._clock.now()
+        at = self._clock.now() if now is None else as_datetime(now, default=self._clock.now())
         # 非交易日没有相位边界——与 current().next_boundary_at 保持一致（曾一个填值一个置空）
         if not TradingDayGuard.is_trading_day(at.date()):
             return None

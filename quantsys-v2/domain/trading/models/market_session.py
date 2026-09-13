@@ -7,6 +7,7 @@ RFC 016 §4.5（2026-09-12）：把"当前处于哪个交易相位、是否开�
 领域层零外部依赖（仅 dataclasses / enum / datetime）。
 """
 from __future__ import annotations
+from domain.common.dates import as_date, as_datetime, as_date_str
 
 from dataclasses import dataclass
 from datetime import date, datetime, time
@@ -15,20 +16,13 @@ from typing import Optional
 
 
 def _as_date(value) -> Optional[date]:
-    """把 'YYYY-MM-DD' / 'YYYY-MM-DDTHH:MM[:SS]' / date / datetime 归一为 date；不可解析 → None"""
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, date):
-        return value
-    if not value:
-        return None
-    text = str(value).strip()
-    if not text:
-        return None
-    try:
-        return date.fromisoformat(text[:10])
-    except ValueError:
-        return None
+    """薄封装：实现已收口到 domain.common.dates.as_date（2026-09-13 w-c8cae280）。
+
+    收口原因：全库曾有 **4 份**各自实现的 _as_date（本文件 / decision_score_service /
+    check_data_contracts / akshare_unlock），守卫各写各的、逐步漂移 —— 于是"对 date 调 .date()"
+    这类 AttributeError（或静默落空）反复出现。保留本名字只为兼容既有调用方。
+    """
+    return as_date(value)
 
 
 class SessionPhase(str, Enum):
