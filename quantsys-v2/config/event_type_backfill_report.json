@@ -1,0 +1,17 @@
+{
+ "total": 683,
+ "reclassified": 216,
+ "by_type": {
+  "product_approval": 4,
+  "equity_incentive": 10,
+  "related_party": 22,
+  "governance": 130,
+  "financing": 10,
+  "earnings": 4,
+  "insider": 13,
+  "buyback": 18,
+  "pledge": 2,
+  "m_and_a": 3
+ },
+ "note": "event_type 与 evidence_hash 同步更新（R1 hash 含 type）"
+}

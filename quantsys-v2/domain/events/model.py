@@ -74,6 +74,19 @@ class EventType(str, Enum):
     REGULATORY = 'regulatory'                  # 监管措施/问询/处罚/诉讼仲裁
     DIVIDEND = 'dividend'                      # 分红/送转/除权除息
     OTHER = 'other'                            # 其他公告
+    # 2026-09-13（w-a9ec14d7）新增：实测 300 条 other 标题 **100% 无法归类** —— 原枚举只覆盖
+    # 「政策/解禁/财报/分红/股东会/监管」六类，而公告流主力其实是下面这些。
+    # 追加而非重排：新类型排在词表末尾（优先级最低），既有 7 类的判定行为保持不变。
+    BUYBACK = 'buyback'                        # 回购股份
+    EQUITY_INCENTIVE = 'equity_incentive'      # 股权激励/期权/员工持股
+    PLEDGE = 'pledge'                          # 质押/冻结（含银行账户冻结）
+    M_AND_A = 'm_and_a'                        # 并购重组/收购/股权转让/对外投资
+    PRODUCT_APPROVAL = 'product_approval'      # 药品器械注册批准、临床试验
+    FINANCING = 'financing'                    # 债券/融资券/中票发行（区别于股权再融资）
+    RELATED_PARTY = 'related_party'            # 关联交易
+    GOVERNANCE = 'governance'                  # 董事会/监事会决议、章程管理办法、会计政策变更
+    INSIDER = 'insider'                        # 控股股东/董监高增持或减持（真信号，非噪声）
+
 
     @classmethod
     def parse(cls, value: 'EventType | str | None') -> 'EventType':
@@ -94,17 +107,31 @@ class EventType(str, Enum):
             'dividend': cls.DIVIDEND, '分红': cls.DIVIDEND, '送转': cls.DIVIDEND,
             'other': cls.OTHER, '其他': cls.OTHER,
         }
-        if key not in aliases:
+        if key in aliases:
+            return aliases[key]
+        # 2026-09-13（w-a9ec14d7）：枚举值兜底。
+        # 原实现是"别名表里没有就抛错"，而别名表是**手工维护**的 ——
+        # 本次新增 8 个 EventType 成员后忘记同步别名表，实测 parse('product_approval') 直接 ValueError，
+        # 会打断采集链路（build_event 对 provider 给的 type 会走 parse）。
+        # 改为先查别名、再用枚举值兜底：以后新增类型只需改枚举一处。
+        try:
+            return cls(key)
+        except ValueError:
             raise ValueError(f"无法识别的事件类型: {value!r}")
-        return aliases[key]
 
     @property
     def label(self) -> str:
+        # 2026-09-13：与 parse 同样的隐患——字典缺失会 KeyError。补全新类型，并留兜底。
         return {
             EventType.POLICY: '政策', EventType.EARNINGS: '财报', EventType.UNLOCK: '解禁',
             EventType.PLACEMENT: '定增', EventType.SHAREHOLDER_MEETING: '股东会',
             EventType.REGULATORY: '监管', EventType.DIVIDEND: '分红', EventType.OTHER: '其他',
-        }[self]
+            EventType.BUYBACK: '回购', EventType.EQUITY_INCENTIVE: '股权激励',
+            EventType.PLEDGE: '质押冻结', EventType.M_AND_A: '并购重组',
+            EventType.PRODUCT_APPROVAL: '产品获批', EventType.FINANCING: '债权融资',
+            EventType.RELATED_PARTY: '关联交易', EventType.GOVERNANCE: '治理决议',
+            EventType.INSIDER: '增持减持',
+        }.get(self, str(self.value))
 
 
 # ── 源权威度（冲突裁决用；数值越高越权威）─────────────────────────────
