@@ -64,6 +64,11 @@ def load(symbols, start):
     close = df.pivot_table(index="trade_date", columns="symbol", values="close")
     open_ = df.pivot_table(index="trade_date", columns="symbol", values="open")
     amount = df.pivot_table(index="trade_date", columns="symbol", values="amount")
+
+    # 2026-09-13 修复（w-c8cae280）：停牌/缺 K 线时 close 为 NaN，原实现按"当日无价→不计市值"
+    # 处理 ⇒ 持仓在净值里凭空消失，产生假暴跌（实测某些方案假回撤 -80%~-89%）。
+    # 估值必须用**前值填充后**的价格序列；成交仍用当日真实 open（无 bar 则不交易）。
+    close = close.ffill()
     return close, open_, amount
 
 
