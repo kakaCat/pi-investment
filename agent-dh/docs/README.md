@@ -42,8 +42,8 @@ tags: [wiki, index, home, agent-dh]
 ### 卷 0 · 说明书（Overview）
 
 - ✅ [项目说明书（项目级 L1）](../../docs/architecture/project-manual.md)
-- 🟡 P0 `overview/agent-dh-what-is.md` —— agent-dh 是什么：profile / 插件树 / 目录地图 / 运行形态（素材：CLAUDE.md）
-- 🟡 P0 `overview/glossary.md` —— agent-dh 术语表（profile、插件、工具、基因组、reqboard、页面插件…）
+- ✅ [agent-dh 是什么](architecture/agent-dh-overview.md) —— profile / 运行形态 / 目录地图 / 运行时拼装
+- ✅ [术语表](architecture/glossary.md) —— 最易混的词：profile、host/client 半、dist/src、regime、降级、trade_guard…
 
 ### 卷 1 · 技术要求规范（Engineering Standards，**强制**）
 
@@ -51,44 +51,44 @@ tags: [wiki, index, home, agent-dh]
 > 违反的后果是**代码审查拒绝、门禁失败或线上静默失效**。每页必须写清"依据是什么、怎么自检"。
 > 改任何代码之前先读完本卷的相关页。
 
-- 🟡 **P0** `standards/tool-development.md` —— 工具开发规范：`defineTool` + Service 模式；
+- ✅ **P0** [工具开发规范](standards/tool-development.md) —— 工具开发规范：`defineTool` + Service 模式；
   **schema 铁律**（每个 `type: 'object'` 节点显式 `additionalProperties`；必填只用 `required: true`；
   只允许 type/properties/additionalProperties+注解键；违反 → DSH 启动即崩）；
   返回结构/错误码（`code` + 消息自带 code 文本）；**诚实失败**（禁止静默兜底把"没生效"伪装成"在工作"）；
   写完跑 `npx vitest run tests/plugin-schema.smoke.test.ts`
-- 🟡 **P0** `standards/build-and-release.md` —— 构建与发版：**`pnpm build` 不是部署、`pnpm install` 更不是**；
+- ✅ **P0** [构建与发版规范](standards/build-and-release.md) —— 构建与发版：**`pnpm build` 不是部署、`pnpm install` 更不是**；
   多数包从 `dist/` 加载（只有 evolver/learning/core-tool/agent-os-manager/quantsys-v2-manager/solve-kit 走 src）；
   `scripts/relink-profile.py`（硬链接断链 = 静默停在旧版本）；`scripts/restart-with-build.sh`；
   :13080 由 launchd 托管（禁 `kill`，只能 `kickstart -k`）；构建后**校验产物**（文件在 + 关键符号 grep 命中）
-- 🟡 **P0** `standards/testing.md` —— 测试与门禁：单测（vitest）+ schema 冒烟；
+- ✅ **P0** [测试与门禁规范](standards/testing.md) —— 测试与门禁：单测（vitest）+ schema 冒烟；
   **字段假设必须用真实数据核实**；**故障注入**（只测成功路径等于没测）；
   **源码级绿灯 ≠ 线上生效**（必须取线上证据：工具能绑定/接口返回/页面渲染）
-- 🟡 **P0** `standards/coding.md` —— 编码与协作：TS 约定、命名（kebab-case / `NNN-title.md`）、
+- ✅ **P0** [编码与协作规范](standards/coding.md) —— 编码与协作：TS 约定、命名（kebab-case / `NNN-title.md`）、
   文件放置（文档决策树）、注释写"为什么"（事故与取舍）；**worktree 隔离**（不在共享主工作区做 feature 提交、
   不覆盖他人脏改动）；提交信息格式
-- 🟡 **P0** `standards/data-and-degradation.md` —— 数据规范：派生数据登记进
+- ✅ **P0** [数据与降级规范](standards/data-and-degradation.md) —— 数据规范：派生数据登记进
   `quantsys-v2/config/data_contracts.json`；**新鲜度必须先校验**（跨源交叉验证/窗口一致性/与账户事实对照）；
   降级必须显式标注、禁止冒充实时；引用数据标注**来源 + 时点**（R-013）
-- 🟡 **P1** `standards/account-and-trading.md` —— 账户与交易纪律：账户边界（`agents.json` 单一事实源，
+- ✅ **P1** [账户与交易纪律](standards/account-and-trading.md) —— 账户与交易纪律：账户边界（`agents.json` 单一事实源，
   账户名不得硬编码）；下单前 R-001/R-002（价格/可卖/额度/止损）；`reason` 必填（规则 ID + 理由）；
   regime 仓位映射与三重钳制（R-006）
-- 🟡 **P1** `standards/audit-and-docs.md` —— 留痕与文档规范：`decision_audit` / `memory_write` /
+- ✅ **P1** [留痕与文档规范](standards/audit-and-docs.md) —— 留痕与文档规范：`decision_audit` / `memory_write` /
   `board_post` 分档（什么该写哪里、什么不要写）；文档放置决策树；wiki 页面模型；
   归档合并矩阵（不同需求类型去哪、不许自创目录）
-- 🟡 **P1** `standards/plugin-and-pages.md` —— 插件与页面插件规范：Service/`inject`/Config；
+- ✅ **P1** [插件与页面插件规范](standards/plugin-and-pages.md) —— 插件与页面插件规范：Service/`inject`/Config；
   页面插件 host 半（tsx 直载，改完重启）与 client 半（tsdown 打包 `lib/`，刷新即生效）的分工与产物校验；
   样式复用全站令牌（不造第二套按钮/色板）
-- 🟡 **P2** `standards/security-and-boundaries.md` —— 边界与安全：多实例停止铁律（禁模糊 `pkill`、
+- ✅ **P2** [边界与安全规范](standards/security-and-boundaries.md) —— 边界与安全：多实例停止铁律（禁模糊 `pkill`、
   必带 `-sTCP:LISTEN`）；只读账户不得写入；沙箱与权限降级路径必须显式
 
 ### 卷 2 · 架构与生命周期
 
-- 🟡 P0 `architecture/plugin-model.md` —— 插件模型与装载：cordis、service/inject、schema 铁律、页面插件 host/client 两半
+- 🟡 P0 [插件模型与装载](architecture/plugin-model.md)（stub：问题清单与素材已备）
 - ✅ [自修复重启行为](architecture/self-restart-behavior.md)
 - ✅ [某些包为何没有 dist](architecture/WHY-NO-DIST.md)
 - ✅ [工具清单](architecture/TOOLS_INVENTORY.md)
 - 🟡 P1 `architecture/profile-and-dsh-home.md` —— profile / DSH_HOME / 软链与发版（relink-profile、dist 陈旧陷阱）
-- 🟡 P1 `architecture/identity-and-agents-json.md` —— 身份系统：agents.json、窗口编码、多实例边界
+- 🟡 P1 [身份系统与 agents.json](architecture/identity-and-agents-json.md)（stub）
 
 ### 卷 3 · 工具与协议
 
@@ -155,6 +155,9 @@ tags: [wiki, index, home, agent-dh]
 |---|---|---|---|
 | 2026-09-13 | 本页 | 建立 agent-dh wiki 首页与大纲（9 卷） | w-1cee2467 |
 | 2026-09-13 | 本页 | 补 **卷 1 技术要求规范（强制）**，大纲扩为 10 卷并重编号 | w-1cee2467 |
+| 2026-09-13 | [卷 1 规范 9 页](standards/tool-development.md) | 写全：工具/构建/测试/编码/数据/账户/留痕/插件/边界 | w-1cee2467 |
+| 2026-09-13 | [agent-dh 是什么](architecture/agent-dh-overview.md) · [术语表](architecture/glossary.md) | 卷 0 落地 | w-1cee2467 |
+| 2026-09-13 | [插件模型](architecture/plugin-model.md) · [身份系统](architecture/identity-and-agents-json.md) | 建 stub（问题清单 + 素材位置） | w-1cee2467 |
 
 ## 怎么维护
 

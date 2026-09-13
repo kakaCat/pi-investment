@@ -38,6 +38,11 @@ tags: [wiki, index, home]
 - [ADR-001: 六边形架构](adr/001-hexagonal-architecture.md)
 - [ADR-002: 调度器归属拆分](adr/002-scheduler-ownership-split.md)
 
+### 规范 standards/
+
+- [agent-dh 技术要求规范](../agent-dh/docs/standards/tool-development.md)（9 页：工具开发 / 构建发版 / 测试门禁 /
+  编码协作 / 数据降级 / 账户交易 / 留痕文档 / 插件页面 / 边界安全）
+
 ### 指南 guides/
 
 - [通知系统迁移](guides/notification-migration.md)

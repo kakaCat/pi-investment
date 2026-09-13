@@ -301,7 +301,7 @@ tags: [archive, reqboard]
 |---|---|---|---|
 | **L0 入口** | 一行指引：去哪儿找认知 | `CLAUDE.md`（根 / 子项目） | agent 每次启动 |
 | **L1 说明书** | 项目是什么 / 三层架构 / 术语表 / 怎么跑 / 指针 / 最近更新 | `docs/architecture/project-manual.md` + `docs/README.md`（导航） | 人：新人；agent：接手任何任务之前 |
-| **L2 领域篇** | 一个主题一篇：架构、指南、决策(ADR)、提案(RFC)、研究 | `architecture/`、`guides/`、`adr/`、`rfcs/`、`strategy-research/` | 做具体事情时按需读 |
+| **L2 领域篇** | 一个主题一篇：架构、指南、规范、决策(ADR)、提案(RFC)、研究 | `architecture/`、`guides/`、`standards/`、`adr/`、`rfcs/`、`strategy-research/` | 做具体事情时按需读 |
 | **L3 证据档案** | 需求档案（requirement/plan/verification/retro）、工作日志 | `requirements/REQ-xxxxxx/`、`work-logs/YYYY-MM/` | 只用于追溯"当时为什么" |
 
 **生长规则（归档时执行，代码校验）**：
@@ -367,6 +367,10 @@ tags: [archive, reqboard]
 
 这是使用指南吗？
 ├─ 是 → docs/guides/topic.md
+└─ 否 ↓
+
+这是必须遵守的技术规范/标准吗（工程纪律、门禁、接口契约）？
+├─ 是 → docs/standards/topic.md（子项目：<subproject>/docs/standards/topic.md）
 └─ 否 ↓
 
 这是工作记录吗？
