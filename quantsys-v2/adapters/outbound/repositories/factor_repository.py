@@ -498,6 +498,40 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
 
     # ==================== 统计方法 ====================
 
+    def get_freshness_by_factor(self) -> List[Dict]:
+        """逐因子的最新日期与覆盖标的数（因子新鲜度门禁的取数口）。
+
+        2026-09-14（w-32314d00，REQ-24e15d B2）：原实现在
+        adapters/inbound/fastapi_app/routes/data_quality_async.py 里写裸 text() SQL
+        （SELECT factor_name, MAX(factor_date), COUNT(DISTINCT symbol) FROM
+        quant.factor_values GROUP BY factor_name）。路由层不该有 SQL，收口到这里。
+
+        Returns:
+            [{'factor_name': str, 'latest_date': str|None, 'coverage': int}, ...]
+        """
+        try:
+            rows = (
+                self.session.query(
+                    FactorValue.factor_name,
+                    func.max(FactorValue.factor_date),
+                    func.count(func.distinct(FactorValue.symbol)),
+                )
+                .group_by(FactorValue.factor_name)
+                .all()
+            )
+            return [
+                {
+                    'factor_name': r[0],
+                    'latest_date': str(r[1]) if r[1] is not None else None,
+                    'coverage': int(r[2] or 0),
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting factor freshness: {e}")
+            return []
+
     def get_factor_names(self) -> List[str]:
         """获取所有因子名称
 

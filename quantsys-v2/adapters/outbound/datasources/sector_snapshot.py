@@ -15,14 +15,15 @@
         return {'success': True, 'data': snapshot, 'degraded': True, ...}
     return result
 """
-import json
 import logging
 from datetime import date
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-_TABLE = 'quant.sector_snapshot'
+# 2026-09-14（w-32314d00，REQ-24e15d B2）：原先这里有个 _TABLE = 'quant.sector_snapshot'
+# 常量，被 f-string 插进三处 SQL —— 表名写错只会被 except 吞成"无快照"。
+# 现在表名由 ORM 模型（models/sector_snapshot.py）唯一确定，常量与 json 依赖一并删除。
 
 
 def _extract_industries_concepts(data) -> Optional[Dict]:
@@ -55,34 +56,18 @@ def save_snapshot(data, source: str = 'eastmoney') -> bool:
             logger.warning('sector 快照：无可保存数据（industries/concepts 均为空）')
             return False
 
-        from infrastructure.persistence.orm.config import get_session
-        from sqlalchemy import text
-
-        session = get_session()
-        try:
-            session.execute(
-                text(f"""
-                    INSERT INTO {_TABLE}
-                        (snapshot_date, industries, concepts, total, source, updated_at)
-                    VALUES (:d, :ind, :con, :total, :src, now())
-                    ON CONFLICT (snapshot_date) DO UPDATE SET
-                        industries = EXCLUDED.industries,
-                        concepts = EXCLUDED.concepts,
-                        total = EXCLUDED.total,
-                        source = EXCLUDED.source,
-                        updated_at = now()
-                """),
-                {
-                    'd': date.today(),
-                    'ind': json.dumps(extracted['industries'], ensure_ascii=False),
-                    'con': json.dumps(extracted['concepts'], ensure_ascii=False),
-                    'total': extracted['total'],
-                    'src': source or 'eastmoney',
-                },
-            )
-            session.commit()
-        finally:
-            session.close()
+        # 2026-09-14（w-32314d00，REQ-24e15d B2）：裸 text() SQL → SectorSnapshotRepository
+        # （表名此前走模块常量插值，写错只会静默失败；现在表名由 ORM 模型唯一确定）。
+        from adapters.outbound.repositories.sector_snapshot_repository import SectorSnapshotRepository
+        ok = SectorSnapshotRepository().upsert_snapshot(
+            industries=extracted['industries'],
+            concepts=extracted['concepts'],
+            total=extracted['total'],
+            source=source or 'eastmoney',
+            snapshot_date=date.today(),
+        )
+        if not ok:
+            return False
         logger.info(f'sector 快照已保存: {extracted["total"]} 个板块 (source={source})')
         return True
     except Exception as e:  # noqa: BLE001 缓存失败不影响主链路
@@ -97,22 +82,8 @@ def load_snapshot() -> Optional[Dict]:
     data.data.industries / data.data.concepts / total / industry_count / concept_count。
     """
     try:
-        from infrastructure.persistence.orm.config import get_session
-        from sqlalchemy import text
-
-        session = get_session()
-        try:
-            row = session.execute(
-                text(f"""
-                    SELECT snapshot_date, industries, concepts, total, source
-                    FROM {_TABLE}
-                    ORDER BY snapshot_date DESC, updated_at DESC
-                    LIMIT 1
-                """)
-            ).mappings().first()
-        finally:
-            session.close()
-
+        from adapters.outbound.repositories.sector_snapshot_repository import SectorSnapshotRepository
+        row = SectorSnapshotRepository().get_latest()
         if not row:
             return None
 
@@ -143,29 +114,8 @@ def load_snapshots(limit: int = 5) -> List[Dict]:
     返回 [{'snapshot_date','industries','concepts'}]；无表/失败返回 []。
     """
     try:
-        from infrastructure.persistence.orm.config import get_session
-        from sqlalchemy import text
-
-        session = get_session()
-        try:
-            rows = session.execute(
-                text(f"SELECT snapshot_date, industries, concepts FROM {_TABLE} "
-                     f"ORDER BY snapshot_date DESC, updated_at DESC LIMIT :n"),
-                {'n': int(limit)},
-            ).mappings().all()
-        finally:
-            session.close()
-
-        out: List[Dict] = []
-        for r in rows:
-            inds = r['industries']
-            cons = r['concepts']
-            out.append({
-                'snapshot_date': str(r['snapshot_date']),
-                'industries': json.loads(inds) if isinstance(inds, str) else (inds or []),
-                'concepts': json.loads(cons) if isinstance(cons, str) else (cons or []),
-            })
-        return out
+        from adapters.outbound.repositories.sector_snapshot_repository import SectorSnapshotRepository
+        return SectorSnapshotRepository().list_recent(limit)
     except Exception as e:  # noqa: BLE001
         logger.warning(f'sector 快照历史读取失败: {e}')
         return []

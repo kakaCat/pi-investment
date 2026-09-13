@@ -28,28 +28,24 @@ def _factor_freshness_check(max_stale_trading_days: int = 5) -> Dict[str, Any]:
     覆盖外股票的资金流零值）。失败时返回带 error 字段的空结果，不影响主报告。
     """
     try:
-        from sqlalchemy import text
-        from infrastructure.persistence.orm import get_session
+        # 2026-09-14（w-32314d00，REQ-24e15d B2）：路由层的两段裸 text() SQL 收口到仓储
+        # —— 路由不该持有 SQL 文本，也不该自己拿 session。
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository
+        from adapters.outbound.repositories.factor_repository import FactorORMRepository
 
-        session = get_session()
-        trade_dates = [str(r[0]) for r in session.execute(text("""
-            SELECT DISTINCT trade_date FROM quant.daily_klines
-            WHERE trade_date > CURRENT_DATE - INTERVAL '120 days'
-            ORDER BY trade_date
-        """)).fetchall()]
+        trade_dates = KlineORMRepository().get_recent_trading_days(120)
         if not trade_dates:
             return {'error': 'no trade dates', 'factors': [], 'stale_factors': []}
         ref_date = trade_dates[-1]
 
-        rows = session.execute(text("""
-            SELECT factor_name, MAX(factor_date) AS latest, COUNT(DISTINCT symbol) AS coverage
-            FROM quant.factor_values GROUP BY factor_name
-        """)).fetchall()
+        rows = FactorORMRepository().get_freshness_by_factor()
 
         factors = []
         stale = []
-        for name, latest, coverage in rows:
-            latest = str(latest)
+        for item in rows:
+            name = item['factor_name']
+            latest = item['latest_date']
+            coverage = item['coverage']
             # 交易日差距：因子最新日期之后还有多少个交易日
             import bisect
             age = len(trade_dates) - bisect.bisect_right(trade_dates, latest)

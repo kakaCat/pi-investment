@@ -6,9 +6,12 @@
 
 import structlog
 from typing import Dict, List, Optional
-from infrastructure.persistence.database.engine import db_cursor
 
 from domain.scoring.ports import IndustryDataPort
+
+# 2026-09-14（w-32314d00，REQ-24e15d B2）：db_cursor 与内联 SQL 已全部收敛到
+# StockORMRepository（get_by_symbol / list_symbols_by_sector / get_column_values），
+# 本适配器只保留"白名单校验 + 缓存"两件事。
 
 logger = structlog.get_logger(__name__)
 
@@ -58,16 +61,13 @@ class IndustryDataAdapter(IndustryDataPort):
             return self._sector_cache[symbol]
         
         # 从数据库查询
+        # 2026-09-14（w-32314d00，REQ-24e15d B2）：db_cursor + 裸 SQL → StockORMRepository
         try:
-            with db_cursor() as cursor:
-                cursor.execute(
-                    "SELECT sector FROM quant.stocks WHERE symbol = %s",
-                    (symbol,)
-                )
-                result = cursor.fetchone()
-                sector = result['sector'] if result else '未知'
-                self._sector_cache[symbol] = sector
-                return sector
+            from adapters.outbound.repositories.stock_repository import StockORMRepository
+            stock = StockORMRepository().get_by_symbol(symbol)
+            sector = (getattr(stock, 'sector', None) or '未知') if stock else '未知'
+            self._sector_cache[symbol] = sector
+            return sector
         except Exception as e:
             logger.warning(f"获取 {symbol} 行业失败: {e}")
             return '未知'
@@ -83,13 +83,8 @@ class IndustryDataAdapter(IndustryDataPort):
             List[str]: 股票代码列表
         """
         try:
-            with db_cursor() as cursor:
-                cursor.execute(
-                    "SELECT symbol FROM quant.stocks WHERE sector = %s",
-                    (sector,)
-                )
-                results = cursor.fetchall()
-                return [row['symbol'] for row in results]
+            from adapters.outbound.repositories.stock_repository import StockORMRepository
+            return StockORMRepository().list_symbols_by_sector(sector)
         except Exception as e:
             logger.warning(f"获取 {sector} 行业股票列表失败: {e}")
             return []
@@ -117,33 +112,21 @@ class IndustryDataAdapter(IndustryDataPort):
             return self._factor_cache[cache_key]
         
         # 从数据库查询
+        # 2026-09-14（w-32314d00，REQ-24e15d B2）：db_cursor + f-string 列名 SQL → 仓储方法。
+        # 列名白名单**双保险**保留：适配器先校验（_validated_factor_column），
+        # 仓储再校验一次（allowed_columns）——列名无法参数化，白名单是唯一正解。
         try:
-            with db_cursor() as cursor:
-                # 构建查询（使用 stocks 表，它有 pe, roe, revenue_growth 字段）
-                # 列名经白名单校验后才允许进 SQL 文本；取值一律走绑定参数。
-                column = _validated_factor_column(factor_name)
-                if symbols:
-                    # 查询指定股票：= ANY(%s) 由 psycopg2 适配 Python list → text[]，
-                    # 不再把代码拼进 SQL 文本（原写法 symbol IN ('{symbol_list}') 是注入面）。
-                    cursor.execute(
-                        f"SELECT {column} FROM quant.stocks "
-                        f"WHERE symbol = ANY(%s) AND {column} IS NOT NULL",
-                        (list(symbols),)
-                    )
-                else:
-                    # 查询整个行业
-                    cursor.execute(
-                        f"SELECT {column} FROM quant.stocks "
-                        f"WHERE sector = %s AND {column} IS NOT NULL",
-                        (sector,)
-                    )
-                
-                results = cursor.fetchall()
-                values = [float(row[factor_name]) for row in results if row[factor_name] is not None]
-                
-                # 缓存结果
-                self._factor_cache[cache_key] = values
-                return values
+            from adapters.outbound.repositories.stock_repository import StockORMRepository
+            column = _validated_factor_column(factor_name)
+            values = StockORMRepository().get_column_values(
+                column,
+                symbols=list(symbols) if symbols else None,
+                sector=None if symbols else sector,
+                allowed_columns=_ALLOWED_FACTOR_COLUMNS,
+            )
+            # 缓存结果
+            self._factor_cache[cache_key] = values
+            return values
         except Exception as e:
             logger.warning(f"获取 {sector} 行业 {factor_name} 因子值失败: {e}")
             return []

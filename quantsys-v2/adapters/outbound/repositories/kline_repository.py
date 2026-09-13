@@ -731,6 +731,33 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             logger.error(f"Error getting kline stats for {symbol}: {e}")
             return {}
 
+    def get_recent_trading_days(self, days: int = 120) -> List[str]:
+        """最近 N 个**自然日**内有数据的交易日（升序字符串列表）。
+
+        2026-09-14（w-32314d00，REQ-24e15d B2）：原实现在
+        adapters/inbound/fastapi_app/routes/data_quality_async.py 的因子新鲜度门禁里，
+        是 session.execute(text("SELECT DISTINCT trade_date FROM quant.daily_klines
+        WHERE trade_date > CURRENT_DATE - INTERVAL '120 days' ORDER BY trade_date"))。
+        注意边界语义是 **严格大于** today-N 天（不是 >=），故这里照搬 ">"，
+        不复用 get_trading_days（那个是闭区间 >= / <=），以免安静地多算一天、
+        进而让 stale_days 差 1。
+        """
+        from datetime import date as _date, timedelta as _timedelta
+        cutoff = _date.today() - _timedelta(days=days)
+        try:
+            rows = (
+                self.session.query(DailyKline.trade_date)
+                .filter(DailyKline.trade_date > cutoff)
+                .distinct()
+                .order_by(DailyKline.trade_date.asc())
+                .all()
+            )
+            return [str(r[0]) for r in rows]
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting recent trading days: {e}")
+            return []
+
     def get_trading_days(
         self,
         start_date: str,

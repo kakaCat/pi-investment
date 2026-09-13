@@ -430,6 +430,69 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
             logger.error(f"Error updating financial columns for {symbol}: {e}")
             raise
 
+    def list_symbols_by_sector(self, sector: str) -> List[str]:
+        """某行业（sector 列）下的全部代码。
+
+        2026-09-14（w-32314d00，REQ-24e15d B2）：原实现在
+        infrastructure/adapters/industry_data_adapter.py 里以 db_cursor 执行
+        "SELECT symbol FROM quant.stocks WHERE sector = %s"，收口到仓储。
+        """
+        try:
+            rows = (
+                self.session.query(Stock.symbol)
+                .filter(Stock.sector == sector)
+                .all()
+            )
+            return [str(r[0]) for r in rows]
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error listing symbols by sector {sector}: {e}")
+            return []
+
+    def get_column_values(
+        self,
+        column: str,
+        symbols: Optional[List[str]] = None,
+        sector: Optional[str] = None,
+        allowed_columns: Optional[Set[str]] = None,
+    ) -> List[float]:
+        """取 quant.stocks 某一列的非空数值（可按代码集合或行业过滤）。
+
+        2026-09-14（w-32314d00，REQ-24e15d B2）：原实现（industry_data_adapter）用
+        db_cursor 拼 "SELECT {column} FROM quant.stocks WHERE ..."，列名走白名单。
+
+        **列名不能用绑定参数**，所以白名单是唯一正解：调用方必须传 allowed_columns，
+        或保证 column 已自行校验；本方法在 allowed_columns 非空时再校验一次。
+
+        Args:
+            column: 列名（须在白名单内）
+            symbols: 代码集合（与 sector 二选一，优先 symbols）
+            sector: 行业名
+            allowed_columns: 允许的列集合
+
+        Returns:
+            非空数值列表（保持数据库返回顺序）
+        """
+        if allowed_columns is not None and column not in allowed_columns:
+            raise ValueError(f'不支持的因子列: {column!r}')
+        attr = getattr(Stock, column, None)
+        if attr is None:
+            raise ValueError(f'quant.stocks 无此列: {column!r}')
+        try:
+            query = self.session.query(attr)
+            if symbols:
+                query = query.filter(Stock.symbol.in_(list(symbols)))
+            elif sector is not None:
+                query = query.filter(Stock.sector == sector)
+            else:
+                raise ValueError('get_column_values 需要 symbols 或 sector 之一')
+            rows = query.filter(attr.isnot(None)).all()
+            return [float(r[0]) for r in rows if r[0] is not None]
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting column {column} values: {e}")
+            return []
+
     def get_latest_financial_update_time(self, market: str = 'A') -> Optional[datetime]:
         """最近一次财务数据更新时间（顺带证明"财务确实落过库"，用于时效性体检）。
 

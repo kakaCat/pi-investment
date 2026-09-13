@@ -27,39 +27,58 @@ def test_factor_column_whitelist_rejects_unknown(bad):
         ida._validated_factor_column(bad)
 
 
-class _CapturingCursor:
-    def __init__(self, sink):
-        self.sink = sink
-
-    def execute(self, sql, params=None):
-        self.sink.append((sql, params))
-
-    def fetchall(self):
-        return []
-
-
 @contextlib.contextmanager
 def _fake_db_cursor(sink):
     yield _CapturingCursor(sink)
 
 
-def test_symbols_are_bound_parameters_not_interpolated(monkeypatch):
-    sink = []
-    monkeypatch.setattr(ida, 'db_cursor', lambda: _fake_db_cursor(sink), raising=True)
+class _SpyStockRepository:
+    """替身仓储：记录被调用时收到的实参，不碰数据库。"""
+
+    calls: list = []
+
+    def __init__(self, *a, **kw):
+        pass
+
+    def get_column_values(self, column, symbols=None, sector=None, allowed_columns=None):
+        type(self).calls.append({
+            'column': column, 'symbols': symbols,
+            'sector': sector, 'allowed_columns': allowed_columns,
+        })
+        return [1.0]
+
+
+# 2026-09-14（w-32314d00，REQ-24e15d B2）适配：industry_data_adapter 的内联 SQL
+# 已整体收敛到 StockORMRepository（不再有 db_cursor / f-string SQL），
+# 故断言边界随之下移到"适配器 → 仓储"的调用上。**不变量不变**且更强：
+# 恶意取值只会作为**数据**传给仓储（绝不进入任何 SQL 文本），
+# 非白名单列名根本到不了仓储。
+
+def test_symbols_are_passed_as_data_not_interpolated(monkeypatch):
+    from adapters.outbound.repositories import stock_repository as sr
+    _SpyStockRepository.calls = []
+    monkeypatch.setattr(sr, 'StockORMRepository', _SpyStockRepository)
+
+    payload = "000001' OR '1'='1"
     adapter = ida.IndustryDataAdapter()
-    adapter.get_sector_factor_values('医药', 'pe', symbols=['600519', "000001' OR '1'='1"])
-    sql, params = sink[0]
-    assert '= ANY(%s)' in sql, '取值必须走绑定参数'
-    assert "OR '1'='1" not in sql, 'symbol 不得进入 SQL 文本'
-    assert params == (["600519", "000001' OR '1'='1"],)
+    adapter.get_sector_factor_values('医药', 'pe', symbols=['600519', payload])
+
+    assert len(_SpyStockRepository.calls) == 1
+    call = _SpyStockRepository.calls[0]
+    assert call['symbols'] == ['600519', payload], '取值必须原样作为数据传递'
+    assert call['column'] == 'pe'
+    assert call['allowed_columns'] is ida._ALLOWED_FACTOR_COLUMNS, '白名单必须一并发给仓储做二次校验'
 
 
 def test_unknown_factor_name_never_reaches_sql(monkeypatch):
-    sink = []
-    monkeypatch.setattr(ida, 'db_cursor', lambda: _fake_db_cursor(sink), raising=True)
+    from adapters.outbound.repositories import stock_repository as sr
+    _SpyStockRepository.calls = []
+    monkeypatch.setattr(sr, 'StockORMRepository', _SpyStockRepository)
+
     adapter = ida.IndustryDataAdapter()
-    assert adapter.get_sector_factor_values('医药', 'pe; DROP TABLE quant.stocks', symbols=['600519']) == []
-    assert sink == []
+    assert adapter.get_sector_factor_values(
+        '医药', 'pe; DROP TABLE quant.stocks', symbols=['600519']) == []
+    assert _SpyStockRepository.calls == [], '非白名单列名不得到达仓储（更不得到达 SQL）'
 
 
 # ═══════════════ financial_data_update_job ═══════════════
