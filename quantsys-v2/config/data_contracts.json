@@ -1,0 +1,74 @@
+{
+  "generated_note": "数据契约登记（2026-09-13 w-a9ec14d7）：声明每张表的 owner/类型/上游/新鲜度/删除策略 + 软引用检查。孤儿探针 data_hygiene_probe.py 按此文件巡检。",
+  "tables": [
+    {
+      "name": "quant.strategy_stock_matching",
+      "kind": "derived",
+      "owner": "legacy(2026-05-31)",
+      "upstream": [
+        "quant.strategy_configs"
+      ],
+      "ref_checks": [
+        {
+          "column": "best_strategy_id",
+          "target": "quant.strategy_configs",
+          "target_column": "id",
+          "cast": "text"
+        }
+      ],
+      "ttl_days": 30,
+      "time_column": "matched_at",
+      "delete_policy": "drop_after_backup",
+      "note": "2026-09-13 实测 800 行 100% 指向已删策略；表自 2026-05-31 起未更新 → 废弃派生表"
+    },
+    {
+      "name": "quant.pool_change_log",
+      "kind": "audit",
+      "owner": "agent-dh",
+      "upstream": [
+        "quant.stock_pools"
+      ],
+      "ref_checks": [
+        {
+          "column": "pool_id",
+          "target": "quant.stock_pools",
+          "target_column": "id",
+          "cast": "int",
+          "allow_null": true
+        }
+      ],
+      "time_column": "changed_at",
+      "delete_policy": "never（审计须比聚合活得久：外键已 ON DELETE SET NULL）",
+      "note": "审计表；pool_id 允许悬空，用 pool_name 冗余保留身份"
+    },
+    {
+      "name": "quant.stock_fund_flow",
+      "kind": "source",
+      "owner": "v2-data",
+      "upstream": [],
+      "time_column": "trade_date",
+      "ttl_days": 5,
+      "delete_policy": "append_only",
+      "note": "资金流源表；读路径统一过滤 quality_flag"
+    },
+    {
+      "name": "quant.event_calendar",
+      "kind": "source",
+      "owner": "v2-data",
+      "upstream": [],
+      "time_column": "event_date",
+      "ttl_days": 7,
+      "delete_policy": "append_only",
+      "note": "事件源表（宏观+个股+预约披露日程）"
+    },
+    {
+      "name": "quant.strategy_configs",
+      "kind": "source",
+      "owner": "agent-dh",
+      "upstream": [],
+      "time_column": "updated_at",
+      "delete_policy": "soft_preferred",
+      "note": "策略主表：删除优先 is_active=false；硬删会制造悬空引用（今天的 800 行孤儿即由此而来）"
+    }
+  ]
+}
