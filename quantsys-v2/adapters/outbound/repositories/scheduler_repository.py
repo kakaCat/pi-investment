@@ -22,6 +22,25 @@ from infrastructure.scheduler.scheduler import next_run_time as _calc_next_run_t
 logger = logging.getLogger(__name__)
 
 
+def _json_safe(value: Any) -> Any:
+    """把 handler 返回值转成 JSONB 可写形态（date/datetime/Decimal/dataclass → 可序列化）。
+
+    失败时退回 str(value)，绝不因为"记录写不进去"把成功任务记成失败。
+    """
+    if value is None:
+        return None
+    try:
+        from adapters.shared.json_helpers import sanitize_for_json
+        return sanitize_for_json(value)
+    except Exception:
+        try:
+            import json as _json
+            _json.dumps(value, ensure_ascii=False)
+            return value
+        except (TypeError, ValueError):
+            return str(value)
+
+
 class SchedulerRepository(ISchedulerRepository):
     """调度任务仓储 - SQLAlchemy ORM 实现"""
 
@@ -44,6 +63,22 @@ class SchedulerRepository(ISchedulerRepository):
         return {c.key: getattr(row, c.key) for c in row.__table__.columns}
 
     # ── Task CRUD ──
+
+    @staticmethod
+    def _is_soft_deleted(config) -> bool:
+        """软删除判定：DELETE 路由写 params._deleted_at；个别旧路径可能写 deleted_at 列。
+
+        两处都要看：只看一处在数据形态变化时会静默漏判，于是又回到"名字被隐形占用"。
+        """
+        if getattr(config, 'deleted_at', None):
+            return True
+        p = getattr(config, 'params', None)
+        if isinstance(p, str):
+            try:
+                p = json.loads(p)
+            except (json.JSONDecodeError, TypeError):
+                p = {}
+        return bool((p or {}).get('_deleted_at'))
 
     def add_task(
         self,
@@ -68,7 +103,33 @@ class SchedulerRepository(ISchedulerRepository):
 
         existing = self.session.query(SchedulerTaskConfig).filter_by(name=name).first()
         if existing is not None:
-            raise ValueError(f"Task name {name!r} already exists")
+            # 2026-09-13（w-a9ec14d7）：DELETE 路由只做**软删除**（params._deleted_at + is_enabled=False），
+            # 名称却仍被占用 —— 于是"删掉再建同名"会报 already exists，而那条被删的任务在列表里
+            # 又看不见（_list_visible_tasks 会过滤软删除）→ 用户面对的是一个**隐形的名字占用**。
+            # 处理：同名任务若已被软删除，则**复活该行**（复用 id，避免出现同名两行）而不是报错。
+            if not self._is_soft_deleted(existing):
+                raise ValueError(f"Task name {name!r} already exists")
+            _next = None
+            if task_type == 'cron' and not _is_agent_os_placeholder:
+                _next = _calc_next_run_time(cron_expression)
+            _params = dict(existing.params or {})
+            _params.pop('_deleted_at', None)
+            existing.description = description
+            existing.cron_expression = cron_expression
+            existing.command = command
+            existing.params = _params
+            existing.is_enabled = True
+            existing.task_type = task_type
+            existing.next_run_at = _next
+            try:
+                self.session.commit()
+                self.session.refresh(existing)
+                logger.info("Task %r revived (id=%s, was soft-deleted) instead of raising already-exists",
+                            name, existing.id)
+                return existing.id
+            except Exception:
+                self.session.rollback()
+                raise
 
         # 延迟任务和一次性任务不需要计算 next_run（由 APScheduler 管理）
         next_run = None
@@ -261,7 +322,13 @@ class SchedulerRepository(ISchedulerRepository):
                 return False
             run.status = status
             run.completed_at = now
-            run.result = result
+            # result 列是 JSONB，而 handler 返回值常含 date/datetime/Decimal/dataclass——
+            # 直接赋值会让 SQLAlchemy 的 json 序列化抛 TypeError（实测 2026-09-13：
+            # ingest_events_daily 的 712 条事件结果里带 datetime.date → UPDATE 失败
+            # → **任务本身成功却被记成 failed**，并刷出 6 张"date is not JSON serializable"
+            # 错误事件卡；同类 autoflush/StatementError 也由此而来）。
+            # 统一先过 sanitize_for_json（adapters.shared.json_helpers）。
+            run.result = _json_safe(result)
             run.error = error
             if run.started_at:
                 run.duration_ms = int((now - run.started_at).total_seconds() * 1000)
