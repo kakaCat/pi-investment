@@ -239,6 +239,12 @@ export function shouldIncludeOsTask(t: {
 
 export class DataAggregationService {
   private readonly opts: AggregatorOptions;
+
+  /** 生效 genome 目录（opts.genomeDir 支持惰性解析：genome 插件晚注入也能跟上） */
+  private get genomeDir(): string {
+    const d = this.opts.genomeDir;
+    return typeof d === 'function' ? d() : d;
+  }
   private readonly now: Date;
   private readonly today: string;
   private readonly weekday: number;
@@ -764,17 +770,17 @@ export class DataAggregationService {
     const state: GenomeMap = {};
     let error: string | undefined;
     for (const file of files) {
-      const fp = path.join(this.opts.genomeDir, file);
+      const fp = path.join(this.genomeDir, file);
       try {
         const st = await fsp.stat(fp);
         const d = st.mtime;
         state[file] = { date: toLocalDate(d) };
       } catch {
-        state[file] = { missing: true, statErr: file + ' 文件缺失（' + this.opts.genomeDir + '）' };
+        state[file] = { missing: true, statErr: file + ' 文件缺失（' + this.genomeDir + '）' };
       }
     }
     if (!state['candidates.json']?.date && !state['genome.json']?.date) {
-      error = 'genome 目录不可读: ' + this.opts.genomeDir;
+      error = 'genome 目录不可读: ' + this.genomeDir;
     }
     return { state, error };
   }

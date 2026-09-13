@@ -12,6 +12,7 @@ import * as path from 'node:path';
 import { DataAggregationService } from './services/data-aggregation.js';
 import { createBoardHandler, createErrorActionHandler, createErrorEventsHandler, createOrphanedTaskCleanupHandler } from './routes/dashboard-routes.js';
 import { createSolveHandler, type ActionTarget } from '@pi-investment/solve-kit';
+import { pickGenomeDir, readGenomeServiceDir } from './shared/genome-dir.js';
 
 export const name = 'dashboard-execution';
 
@@ -26,7 +27,11 @@ interface PluginConfig {
   agentId?: string;
 }
 
-function resolveOptions(config: PluginConfig | undefined) {
+// genomeDir 解析：显式 config > 运行中 genome 插件目录 > env 链（见 src/shared/genome-dir.ts）
+export { pickGenomeDir, readGenomeServiceDir } from './shared/genome-dir.js';
+export type { GenomeDirSource, ResolvedGenomeDir } from './shared/genome-dir.js';
+
+function resolveOptions(config: PluginConfig | undefined, liveGenomeDir: () => string) {
   const home = os.homedir();
   const profileDir = config?.profileDir || path.join(home, '.dsh', 'profiles', 'investment');
   const v2BaseURL = (config?.v2BaseURL || process.env.QUANTSYS_V2_API_URL || 'http://127.0.0.1:5001').replace(/\/$/, '');
@@ -36,7 +41,8 @@ function resolveOptions(config: PluginConfig | undefined) {
   return {
     v2BaseURL,
     osBaseURL,
-    genomeDir: config?.genomeDir || path.join(home, '.dsh-agent-dh', 'genome'),
+    // 惰性解析：genome 服务晚于本插件 apply 注入也能即时生效
+    genomeDir: () => pickGenomeDir(config?.genomeDir, liveGenomeDir()).dir,
     profileStateDir: path.join(profileDir, 'state'),
     requestTimeoutMs: config?.requestTimeoutMs ?? 4000,
     agentId: config?.agentId || process.env.AGENT_ID || 'investor',
@@ -44,9 +50,22 @@ function resolveOptions(config: PluginConfig | undefined) {
 }
 
 export function apply(ctx: Context, config?: PluginConfig): void {
-  const options = resolveOptions(config);
-  const aggregator = new DataAggregationService(options);
   const logger = ctx.logger(name);
+  // genome 插件实际目录（惰性注入后填充）→ 本页 genome 检查点与 agent 真正在用的基因组同源
+  let liveGenomeDir = '';
+  (ctx as unknown as { inject?: (services: string[], cb: (gctx: any) => void, label?: string) => void }).inject?.(
+    ['genome'],
+    (gctx: { genome?: unknown }) => {
+      liveGenomeDir = readGenomeServiceDir(gctx.genome);
+      logger.info(`genome plugin dir = ${liveGenomeDir || '(读取失败，退回解析链)'} (page follows it)`);
+    },
+    name + ': genome',
+  );
+
+  const options = resolveOptions(config, () => liveGenomeDir);
+  const aggregator = new DataAggregationService(options);
+  const initialDir = pickGenomeDir(config?.genomeDir, liveGenomeDir);
+  logger.info(`genome data dir = ${initialDir.dir} (source: ${initialDir.source})`);
 
   // 「我来解决」目标会话解析：惰性注入 agents 服务（同 bulletin/agent-self 模式）。
   // agents 服务非本插件声明注入，直接读 (ctx as any).agents 触发 cordis 门禁，故同款捕获。

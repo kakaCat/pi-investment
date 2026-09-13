@@ -16,7 +16,10 @@ import type {
 } from '../types/index.js'
 
 export interface GenomeAggOptions {
-  genomeDir: string
+  /** genome 目录：常量，或惰性解析函数（页面按请求解析 → 运行中换库即时生效，REQ-3952b7） */
+  genomeDir: string | (() => string)
+  /** 目录来源标签（config / genome-plugin / DSH_DATA_DIR …），随响应返回便于判读读的是哪个库 */
+  genomeDirSource?: string | (() => string)
 }
 
 const SECTION_IDS = ['constitution', 'principles', 'rules', 'lessons'] as const
@@ -66,15 +69,26 @@ function readJson<T>(file: string): T | null {
 const DAY_MS = 86_400_000
 
 export class GenomeAggregationService {
-  private readonly genomeDir: string
+  private readonly dirOf: () => string
+  private readonly srcOf: () => string
 
   constructor(opts: GenomeAggOptions) {
-    this.genomeDir = opts.genomeDir
+    const dir = opts.genomeDir
+    this.dirOf = typeof dir === 'function' ? dir : () => dir
+    const src = opts.genomeDirSource
+    this.srcOf = typeof src === 'function' ? src : () => src ?? ''
+  }
+
+  /** 实际读取的 genome 目录（惰性解析：调用即重新求值，所以 genome 服务晚注入也能跟上） */
+  private get genomeDir(): string {
+    return this.dirOf()
   }
 
   async fetchGenomeData(): Promise<GenomeData> {
-    const genome = readJson<RawGenome>(path.join(this.genomeDir, 'genome.json'))
-    const candidates = readJson<RawCandidate[]>(path.join(this.genomeDir, 'candidates.json')) ?? []
+    // 单次聚合内固定目录快照：避免解析中途换库时 genome.json 与 candidates.json 来自不同目录
+    const genomeDir = this.genomeDir
+    const genome = readJson<RawGenome>(path.join(genomeDir, 'genome.json'))
+    const candidates = readJson<RawCandidate[]>(path.join(genomeDir, 'candidates.json')) ?? []
     const now = new Date()
 
     // ---------- ② 段状态矩阵 ----------
@@ -98,7 +112,7 @@ export class GenomeAggregationService {
       // 段全文：sections/{id}.md（读失败降级空串，不阻断看板）
       let content = ''
       try {
-        content = fs.readFileSync(path.join(this.genomeDir, 'sections', `${id}.md`), 'utf8')
+        content = fs.readFileSync(path.join(genomeDir, 'sections', `${id}.md`), 'utf8')
       } catch {
         content = ''
       }
@@ -175,7 +189,7 @@ export class GenomeAggregationService {
     // C3 原子写残留
     let tmpFiles: string[] = []
     try {
-      tmpFiles = fs.readdirSync(this.genomeDir).filter((f) => f.endsWith('.tmp'))
+      tmpFiles = fs.readdirSync(genomeDir).filter((f) => f.endsWith('.tmp'))
     } catch {
       tmpFiles = []
     }
@@ -229,6 +243,9 @@ export class GenomeAggregationService {
       })
 
     return {
+      // REQ-3952b7：把「读的是哪个库、凭什么选的」写进响应，读错库不再无声
+      genomeDir,
+      genomeDirSource: this.srcOf(),
       genomeVersion: genome?.genome_version ?? '(文件缺失)',
       createdAt: genome?.created_at ?? '',
       updatedAt: genome?.updated_at ?? '',

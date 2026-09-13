@@ -1,5 +1,7 @@
 // @pi-investment/dashboard-genome · 共享类型（host 聚合输出 = client 渲染输入）
-// 数据域：~/.dsh-agent-dh/genome/ 下 genome.json + candidates.json（本地文件，无 DB 通道）。
+// 数据域：genome 数据目录下的 genome.json + candidates.json（本地文件，无 DB 通道）。
+// 目录解析见 ../index.ts 的 pickGenomeDir()：显式 config > 运行中 genome 插件目录 > env 链。
+// 生效目录随响应返回（GenomeData.genomeDir / genomeDirSource）——REQ-3952b7 起「读哪个库」可见。
 // 结构以真实文件为准（2026-09-06 取证）：
 //   genome.json  顶层 { genome_version, created_at, updated_at, sections{constitution|principles|rules|lessons}, history[] }
 //                 history 条目 { version:gN, section, section_version, parent?, type:update|rollback|promote,
@@ -87,6 +89,10 @@ export interface HistoryEntry {
 }
 
 export interface GenomeData {
+  /** 本次聚合实际读取的 genome 目录（REQ-3952b7：2026-09-13 曾因页面与插件目录分叉，页面静默读到 g1 空库） */
+  genomeDir?: string
+  /** 目录来源：config / genome-plugin / DSH_GENOME_DIR / DSH_DATA_DIR / DSH_HOME / legacy-default */
+  genomeDirSource?: string
   genomeVersion: string
   createdAt: string
   updatedAt: string

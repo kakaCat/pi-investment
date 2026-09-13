@@ -3,7 +3,10 @@
 DSH GUI 双半插件，把 **Autonomy 线（自进化系统）能力设计层**从黑盒变白盒：
 **"改了什么规则 / 什么在试运行、何时出结果 / 进化链路有无卡住"** 一页看清。
 
-数据域 = 提示词基因组 `~/.dsh-agent-dh/genome/`（genome.json + candidates.json），
+数据域 = 提示词基因组目录（genome.json + candidates.json），目录由 `pickGenomeDir()` 解析：
+**显式 config.genomeDir > 运行中 genome 插件实际目录 > DSH_GENOME_DIR > <DSH_DATA_DIR>/genome > <DSH_HOME>/genome > ~/.dsh-agent-dh/genome**。
+页面默认**跟随 genome 插件**（同源，不再各自硬编码）；生效目录与来源随 API 返回（`genomeDir`/`genomeDirSource`），
+读错库不会再无声（2026-09-13 REQ-3952b7：迁移后本页仍读旧 home，④⑤ 曾静默读到 g1 空库）。
 F1 哨兵（2026-09-06 状态一致性核验，与 `ValidationGateTool.runConsistencyCheck`
 同源规则）即本页的日常可视化仪表——g16 类"观察版滞留/登记断链"漂移进门可见。
 
@@ -62,3 +65,6 @@ lib/client.js                构建产物（tsdown CJS + wrap-client.mjs 模块�
 
 - 2026-09-06 w-a8a89c6a：F1（A 步 skill 哨兵 + B 步 gate 诊断腿）落地后，用户要求 Autonomy 线
   能力设计层可视化；设计确认（5 区域单页）后实现本包。
+- 2026-09-13 w-57873eb8（REQ-3952b7）：修「页面读 g1 空库」——原默认值硬编码 `~/.dsh-agent-dh/genome`，
+  DSH_HOME 迁移后与 genome 插件（.dsh-data/genome）静默分叉。改为运行时跟随 genome 插件 + env 链兜底，
+  并把生效目录/来源打进 API 与启动日志。

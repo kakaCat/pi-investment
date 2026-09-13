@@ -171,7 +171,8 @@ export interface ApiResponse<T = unknown> {
 export interface AggregatorOptions {
   v2BaseURL: string;
   osBaseURL: string;
-  genomeDir: string;                 // genome 目录（candidates.json/genome.json）
+  /** genome 目录（candidates.json/genome.json）：常量或惰性解析函数（跟随 genome 插件，REQ-3952b7） */
+  genomeDir: string | (() => string);
   profileStateDir: string;           // ~/.dsh/profiles/investment/state
   requestTimeoutMs?: number;
 }
