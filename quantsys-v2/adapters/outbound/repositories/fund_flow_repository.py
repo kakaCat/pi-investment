@@ -52,8 +52,19 @@ class FundFlow(Base):
 
 
 class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
-    """ORM Repository for stock_fund_flow"""
+    """ORM Repository for stock_fund_flow
+
+    2026-09-13（w-a9ec14d7）修复：本文件此前在注释里写着“消费者应 filter quality_flag IS NULL”，
+    但**所有读方法都没有过滤** —— 被标记 close_mismatch_vs_kline 的 14,314 行污染数据
+    一直在经 /api/fund-flow 与 fund_flow 工具对外输出（实测：可疑集合 100% 命中主表读取结果）。
+    把纪律写在注释里等于没有纪律：过滤必须落在**读路径**，且收敛到一处，防止新增方法漏掉。
+    """
     model = FundFlow
+
+    @classmethod
+    def _clean(cls, q):
+        """统一施加数据质量过滤：只返回 quality_flag IS NULL 的干净行。"""
+        return q.filter(cls.model.quality_flag.is_(None))
 
     def list_all(self, limit: int = 100) -> List:
         try:
@@ -66,7 +77,7 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
     def get_fund_flow(self, symbol: str, start_date: Optional[str] = None,
                       end_date: Optional[str] = None) -> List[Dict[str, Any]]:
         try:
-            q = self.session.query(self.model)
+            q = self._clean(self.session.query(self.model))
             if symbol:
                 q = q.filter(self.model.symbol == symbol)
             if start_date:
@@ -83,7 +94,7 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
     def get_latest_fund_flow(self, symbol: str, days: int = 5) -> List[Dict[str, Any]]:
         """获取个股最近 N 条资金流（按交易日倒序），供 FundFlowDataSource 缓存层使用"""
         try:
-            rows = (self.session.query(self.model)
+            rows = (self._clean(self.session.query(self.model))
                     .filter(self.model.symbol == symbol)
                     .order_by(self.model.trade_date.desc())
                     .limit(days)
@@ -105,7 +116,7 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
         if not symbols:
             return {}
         try:
-            rows = (self.session.query(self.model)
+            rows = (self._clean(self.session.query(self.model))
                     .filter(self.model.symbol.in_(symbols))
                     .order_by(self.model.symbol,
                               self.model.trade_date.desc())
@@ -174,7 +185,7 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
         """
         try:
             m = self.model
-            rows = (self.session.query(
+            rows = (self._clean(self.session.query(
                         m.trade_date,
                         func.sum(m.main_net_inflow).label('total_main_flow'),
                         func.sum(m.small_net_inflow).label('total_small_flow'),
@@ -185,7 +196,7 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
                     .filter(m.trade_date >= start_date, m.trade_date <= end_date)
                     .group_by(m.trade_date)
                     .order_by(m.trade_date)
-                    .all())
+                    .all()))
             return [{
                 'trade_date': r.trade_date,
                 'total_main_flow': float(r.total_main_flow or 0),
@@ -214,6 +225,7 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
                         func.sum(m.main_net_inflow).label('main_net_inflow'),
                     )
                     .join(Stock, Stock.symbol == m.symbol)
+                    .filter(m.quality_flag.is_(None))   # 2026-09-13：聚合同样只算干净行
                     .filter(m.trade_date == trade_date)
                     .filter(Stock.industry.isnot(None), Stock.industry != '')
                     .group_by(Stock.industry)
