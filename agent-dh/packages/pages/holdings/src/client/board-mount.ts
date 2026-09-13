@@ -8,7 +8,7 @@
 import { ACTIVE_ATTR, ACTIVATE_EVENT, BOARD_VIEW_SELECTOR, PANEL_NAME, OTHER_ACTIVE_ATTRS } from './dom.js'
 import { buildHistoryCard, buildView, buildWatchCardHtml, HISTORY_PAGE_SIZE } from './view.js'
 import type { HoldingsData } from './types.js'
-import { pickParts, refreshModeFor } from '../services/parts.js'
+import { pickParts, fetchPlanFor } from '../services/parts.js'
 import {
   createSolveKit, type SolveCandidate, type SolveIdentity, type SolveKit, type SolveSnapshot,
 } from '@pi-investment/solve-kit/client'
@@ -20,8 +20,6 @@ export interface BoardController {
   toggleBoard(): void
   getSnapshot(): { boardOpen: boolean }
   refresh(): void
-  /** 挂载预热（看板此时未打开）：只拉 hot，避免"没看也拉全量" */
-  primeOnMount(): void
   /** 打开看板时的刷新：冷块不在手 → full，否则 hot */
   refreshOnOpen(): void
   switchAccount(accountName: string): void
@@ -47,7 +45,13 @@ export function createBoardController(): BoardController {
   //    → 整天没点开看板也白拉一次 77 KB；原注释"第 1 次（打开看板）必为全量"并不成立
   //    （refresh 是在 mount 调用的，不是 open）。
   // ② 打开看板反而不取数（没接 onOpen）→ 看到的是挂载那一刻的旧数据。
-  // 现在：mount 只预热 hot；open 按"冷块是否在手"决定 full/hot；轮询沿用每 4 次补一次 full。
+  // 现在：open 按"冷块是否在手"决定 full/hot；轮询沿用每 4 次补一次 full。
+  //
+  // 2026-09-13 三次修正（w-ae7eb4c0，REQ-6cbbf7）：上一版把"没看也拉全量"改成"挂载预热 hot"，
+  // 但**挂载本身就不是用户在看**（容器启动即挂载，靠 html[data-dsh-hld-active] 显隐），
+  // 未点击就发请求 = 仍然是"打开前加载"；且 parts=hot 只缩小响应体，host 仍扇出 4 个上游，
+  // 这 2.6 KB 换不来任何服务端节省。故**挂载不再取数**：取数时机统一由 fetchPlanFor 决定
+  // （mount → null），首次打开时 lastData=undefined → 判成 full，一次把整包拿齐（看板不会空）。
   let pollTick = 0
   // 请求序号：只有最后一次发出的请求允许落地（防止旧响应覆盖新响应）
   let fetchSeq = 0
@@ -195,20 +199,17 @@ export function createBoardController(): BoardController {
     getSnapshot: () => ({ boardOpen: shellRef?.isActive() ?? false }),
     refresh: () => {
       pollTick += 1
-      const mode = refreshModeFor(pollTick, lastData)
+      const mode = fetchPlanFor('poll', pollTick, lastData)
+      if (mode === null) return
       console.log('[dashboard-holdings] refresh (' + mode + ')')
       fetchAndRender(currentAccount, mode)
     },
-    // 挂载预热：容器在中心栏里一直挂着（显隐靠 html[data-dsh-hld-active]），
-    // 挂载 ≠ 用户在看 → 只拉 hot（约 2.6 KB），不再"一挂载就拉 77 KB 全量"
-    primeOnMount: () => {
-      console.log('[dashboard-holdings] mount prime (hot)')
-      fetchAndRender(currentAccount, 'hot')
-    },
-    // 打开看板：冷块（盯盘规则/成交明细）不在手 → full 补齐；已在手 → 只拉 hot
+    // 打开看板：冷块（盯盘规则/成交明细）不在手 → full 补齐；已在手 → 只拉 hot。
+    // 首次打开 lastData=undefined → hasColdParts=false → full，一次把整包拿齐。
     refreshOnOpen: () => {
       pollTick = 0
-      const mode = refreshModeFor(1, lastData)
+      const mode = fetchPlanFor('open', 1, lastData)
+      if (mode === null) return
       console.log('[dashboard-holdings] open refresh (' + mode + ')')
       fetchAndRender(currentAccount, mode)
     },
@@ -253,10 +254,10 @@ export function mountBoard(controller: BoardController): () => void {
       el.className = 'dsh-hld-view'
       return el
     },
-    onMount: () => {
-      controller.primeOnMount()
-      return undefined
-    },
+    // 挂载不取数（REQ-6cbbf7）：容器由 page-kit 在启动时就挂进中心栏（显隐只靠
+    // html[data-dsh-hld-active]），"挂载"≠"用户在看"——启动阶段发请求＝打开前加载。
+    // 首次取数交给 onOpen（fetchPlanFor('open') → 冷块不在手 → full）。
+    onMount: () => undefined,
     onOpen: () => controller.refreshOnOpen(),
     onPoll: () => controller.refresh(),
   })

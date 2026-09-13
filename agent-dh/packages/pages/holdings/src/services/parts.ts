@@ -47,20 +47,41 @@ export function hasColdParts(payload: { parts?: string[] } | undefined): boolean
   return COLD_PARTS.every((k) => got.includes(k))
 }
 
+/** 取数模式：hot=只拉高频小块；full=整包（含盯盘规则/成交明细等冷块） */
+export type RefreshMode = 'full' | 'hot'
+
 /**
  * 轮询/打开看板时的刷新模式：
  * - 冷块不在手 → full（必须补齐，否则盯盘规则/成交明细卡片永远是空的）
  * - 冷块在手  → 每 4 次补一次 full（15s × 4 ≈ 60s），其余 hot
- *
- * ⚠️ **挂载（mount）时的首次取数不走这里**：容器在中心栏里一直是挂着的，靠
- * `html[data-dsh-hld-active]` 控制显隐，"挂载"不等于"用户在看"——挂载只预热 hot（约 2.6 KB），
- * 真正需要全量的是"打开"那一刻（board-mount 的 refreshOnOpen）。
- * 依据：2026-09-13 复核发现旧代码在 mount 时调 refresh()，而 refresh 的第 1 次恰好判成 full，
- * 于是"整天没点开看板也白拉一次 77 KB"，且打开时反而不取数（没接 onOpen）。
  */
-export function refreshModeFor(tick: number, payload?: { parts?: string[] }): 'full' | 'hot' {
+export function refreshModeFor(tick: number, payload?: { parts?: string[] }): RefreshMode {
   if (!hasColdParts(payload)) return 'full'
   return tick % 4 === 0 ? 'full' : 'hot'
+}
+
+/** 取数时机：mount=容器挂载（启动）｜open=用户打开看板｜poll=轮询 */
+export type FetchEvent = 'mount' | 'open' | 'poll'
+/** null = 本次不取数 */
+export type FetchMode = RefreshMode | null
+
+/**
+ * 取数时机契约（2026-09-13 三次修正，w-ae7eb4c0 / REQ-6cbbf7）：
+ *
+ * 实测缺陷：容器由 page-kit 在**启动时**就同步挂进中心栏（createBoardShell 内 ensureMounted，
+ * 另有 MutationObserver 兜底），显隐只靠 `html[data-dsh-hld-active]`；而我们在 onMount 里
+ * 主动拉了一次 hot → **用户没点开看板，启动就发了请求**（用户 2026-09-13 报告：未点击时控制台
+ * 即出现 `[dashboard-holdings] mount prime (hot)` 与 `已渲染：账户=…，账户数=…，持仓行=…`）。
+ * 且这次预取并不省成本：parts=hot 只缩小响应体，host 侧照样扇出 4 个上游
+ * （v2 账户 / v2 账户状态含持仓与实时行情 / v2 调度任务 / Agent OS 任务）。
+ *
+ * 定档：**挂载不取数**——取数只发生在"打开"与"轮询"两个真实交互节点。
+ * mount → null 由本函数 + tests/parts.test.ts 一起锁死（防止后人再给挂载加取数）。
+ */
+export function fetchPlanFor(event: FetchEvent, tick: number, payload?: { parts?: string[] }): FetchMode {
+  if (event === 'mount') return null
+  if (event === 'open') return refreshModeFor(1, payload)
+  return refreshModeFor(tick, payload)
 }
 
 /** 只从 payload 里取本次实际请求到的块，避免用空数组把已加载的大块擦掉 */

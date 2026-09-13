@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseParts, pickParts, HOT_PARTS, COLD_PARTS, ALL_PARTS, hasColdParts, refreshModeFor } from '../src/services/parts'
+import { parseParts, pickParts, HOT_PARTS, COLD_PARTS, ALL_PARTS, hasColdParts, refreshModeFor, fetchPlanFor } from '../src/services/parts'
 
 /**
  * 分块契约锁（2026-09-13，w-adb088f2）
@@ -88,5 +88,34 @@ describe('refreshModeFor / hasColdParts', () => {
     expect(hasColdParts({ parts: ['watchRules', 'tradeHistory'] })).toBe(false)
     expect(hasColdParts({ parts: [...COLD_PARTS] })).toBe(true)
     expect(hasColdParts(undefined)).toBe(false)
+  })
+})
+
+/**
+ * 取数时机契约锁（2026-09-13 三次修正，w-ae7eb4c0 / REQ-6cbbf7）
+ *
+ * 实证缺陷：容器由 page-kit 在**启动时**就同步挂载（显隐靠 html[data-dsh-hld-active]，
+ * 挂载 ≠ 用户在看），而 board-mount 的 onMount 里主动拉了一次 hot
+ * → 用户没点开看板，启动就发了请求（控制台可见 mount prime (hot) + 已渲染）。
+ * 契约：**mount 永不取数**（返回 null）；open 首次为 full（一次拿齐冷块）；poll 沿用每 4 次补一次 full。
+ */
+describe('fetchPlanFor', () => {
+  it('mount 恒不取数（冷块在手/不在手都返回 null）——启动阶段零请求', () => {
+    expect(fetchPlanFor('mount', 1, undefined)).toBeNull()
+    expect(fetchPlanFor('mount', 1, { parts: [...ALL_PARTS] })).toBeNull()
+    expect(fetchPlanFor('mount', 4, { parts: [...HOT_PARTS] })).toBeNull()
+  })
+
+  it('open：冷块不在手 → full（首次打开一次拿齐）；已在手 → hot', () => {
+    expect(fetchPlanFor('open', 1, undefined)).toBe('full')
+    expect(fetchPlanFor('open', 1, { parts: [...HOT_PARTS] })).toBe('full')
+    expect(fetchPlanFor('open', 1, { parts: [...ALL_PARTS] })).toBe('hot')
+  })
+
+  it('poll：沿用 refreshModeFor（每 4 次补一次 full）', () => {
+    const all = { parts: [...ALL_PARTS] }
+    expect(fetchPlanFor('poll', 1, all)).toBe('hot')
+    expect(fetchPlanFor('poll', 4, all)).toBe('full')
+    expect(fetchPlanFor('poll', 2, undefined)).toBe('full')
   })
 })
