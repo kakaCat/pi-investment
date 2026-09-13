@@ -22,8 +22,9 @@
 | `strategy_industry_mom.py` | 行业动量轮动 | 倾斜效应 ≈ +0.29pp（噪声级）；多空价差 −0.14%/月 |
 | `strategy_fund.py` | 基本面（ROE/估值）选股 | 无超额 |
 | `strategy_tilt_ab.py` | 风格倾斜 A/B | 无法检验（本库仅 8 行风格数据，样本不足） |
+| `placebo_diagnostic.py` | **方法自检**：度量本身是否有偏 | 随机 (标的,起始日) 20 日超额 = −0.004% → 度量无偏（安慰剂的高基线来自票池本身，不是度量 bug） |
 | `event_study.py` | 财报事件（PEAD） | 事件 +1.43% vs **安慰剂 +0.75%** → 伪影 |
-| `event_type_study.py` | 公告事件类型（并购/增减持/监管/定增） | 均值正但**中位数全为负 + 头部贡献 118%~2945%** → 伪影 |
+| `event_type_study_v2.py` | 公告事件类型（**全样本 + 样本外 + 双向聚类**，取代 v1） | 无任何做多类型可复现；唯一稳健结论是 **regulatory 显著为负** |
 
 ## 运行方式
 
@@ -34,3 +35,11 @@ python tests/research/event_type_study.py --help
 
 > 依赖本地 `quant_investment` 库与 min_bars 足够的历史数据。
 > 注意：这些脚本的 `ROOT` 已随目录迁移改为 `parents[2]`（迁移时踩到过路径基准漂移）。
+
+## 版本治理（2026-09-13）
+
+- `event_type_study.py`（v1，薄样本）**已删除** —— 它跑在 m_and_a 70 条/27 个事件日的样本上，
+  结论不足以定论；`event_type_study_v2.py` 用全样本（去重后 4.85 万条 / 207 事件日）取代，
+  并补上了样本外切分与双向聚类。**保留旧版只会让人误引薄样本结论。**
+- 全部脚本已逐个验证可执行（py_compile + argparse/import 链），结论索引见
+  `docs/work-logs/2026-09/strategy-research-journal.md`。
