@@ -12,7 +12,9 @@
                             —— 这一类是真正必须修的：取值必须走绑定参数。
   P0 raw_connect          ：psycopg2/sqlite3 直接 connect（绕过 session 管理与 session_guard）。
   P1 cursor_execute       ：cursor.execute(...) 原生 SQL（含仓储内；目标逐层清零）。
-  P1 core_text_sql        ：session.execute(text(...)) —— SQLAlchemy Core，属"半 ORM"，逐处评估。
+  P1 core_text_sql        ：<任意接收者>.execute(text(...)) —— SQLAlchemy Core，属"半 ORM"，逐处评估。
+                            （2026-09-14 修正口径，见下方 PATTERNS 处的说明：原正则写死 session.
+                              实测系统性漏计 conn.execute(text(...)) / c.execute(text(...))。）
   P2 fstring_sql          ：**粗指标**，任何 f-string 里的 SQL。其中「标识符插值」（列名/表名，
                             如 f"SELECT {column} FROM ..."）无法用绑定参数、只能白名单校验，
                             属正当写法 —— 因此该指标**不应作为 t1 的验收值**（不会也不需要归零）。
@@ -50,7 +52,14 @@ PATTERNS = {
     "fstring_sql": re.compile(r"""(?:f|F)["'][^"']*\b(?:SELECT|INSERT|UPDATE|DELETE)\b"""),
     "raw_connect": re.compile(r"\b(?:psycopg2|sqlite3)\.connect\("),
     "cursor_execute": re.compile(r"\bcursor\.execute\("),  # 兼容保留；实际口径见 ANY_EXECUTE_RX
-    "core_text_sql": re.compile(r"session\.execute\(\s*text\("),
+    # 2026-09-14（w-32314d00，B4-c4 前置）：原口径 session\.execute\(\s*text\( ——
+    # **只认接收者恰好叫 session** 的调用，实测系统性漏计 conn.execute(text(...)) /
+    # cur.execute(text(...))（daily_jobs_bootstrap 一个文件就漏计 11 处真实 SQL）。
+    # 漏计方向最危险：这些点改完指标**纹丝不动**，等于"改了也不记功"；
+    # 而漏计同时意味着验收看着绿、实际没改完（与 B1 修正 cursor_execute 同因同果）。
+    # 现改为任意接收者；与 classify_execute_calls 里"execute(text(...)) 不算 cursor_execute"
+    # 的分工不变 —— 同一个调用只会计入 core_text_sql 一次，不会重复计数。
+    "core_text_sql": re.compile(r"\.execute\(\s*text\("),
     "read_sql": re.compile(r"\bread_sql(?:_query)?\("),
     "psql_subprocess": re.compile(r"subprocess\.[A-Za-z_]+\("),  # 与下一行联合判定
 }
