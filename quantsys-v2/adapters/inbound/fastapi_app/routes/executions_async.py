@@ -82,7 +82,8 @@ def list_executions(status: Optional[str] = Query(None), limit: int = Query(200)
         if status:
             results = execution_repo.get_executions_by_status(status, limit=limit)
         else:
-            results = execution_repo.get_all_executions(limit=limit)
+            # offset 此前被静默忽略（路由声明了却没用 = 分页是假的）；现传下去。
+            results = execution_repo.get_all_executions(limit=limit, offset=offset)
     except ValueError as e:
         return error_response({'error': str(e)}, 400)
     mapped = [_map_execution(r) for r in results]
@@ -92,7 +93,27 @@ def list_executions(status: Optional[str] = Query(None), limit: int = Query(200)
 @router.post('/api/executions')
 def create_execution(payload: Optional[Dict[str, Any]] = Body(None)):
     try:
-        exec_id = execution_repo.create_execution(payload or {})
+        # 2026-09-14（w-c8cae280）修**线上 500**：本路由原样把 payload 这个 dict 传给
+        # execution_repo.create_execution(...)，而该方法的签名是
+        #   create_execution(signal_id, execution_date, execution_price, quantity, commission=0.0, status='pending')
+        # → TypeError: missing 3 required positional arguments → 被 except Exception 包成 500。
+        # 实测复现：create_execution({'signal_id': 1, 'execution_date': '2024-01-01'}) → TypeError。
+        # 现按真实签名解包并显式校验，缺字段返回 400（而不是伪装成服务器错误）。
+        data = payload or {}
+        signal_id = data.get('signal_id')
+        execution_date = data.get('execution_date') or data.get('date')
+        execution_price = data.get('execution_price', data.get('price'))
+        quantity = data.get('quantity', data.get('shares'))
+        missing = [k for k, v in (('signal_id', signal_id), ('execution_date', execution_date),
+                                  ('execution_price', execution_price), ('quantity', quantity)) if v is None]
+        if missing:
+            return error_response({'error': '缺少必需参数: ' + ', '.join(missing)}, 400)
+        try:
+            exec_id = execution_repo.create_execution(
+                int(signal_id), str(execution_date), float(execution_price), int(quantity),
+                float(data.get('commission') or 0.0), str(data.get('status') or 'pending'))
+        except (TypeError, ValueError) as e:
+            return error_response({'error': str(e)}, 400)
         return error_response({'id': exec_id, 'message': 'Execution created'}, 201)
     except ValueError as e:
         return error_response({'error': str(e)}, 400)
@@ -118,7 +139,20 @@ def close_execution(execution_id: int, payload: Optional[Dict[str, Any]] = Body(
     if not close_date or close_price is None:
         return error_response({'error': 'close_date and close_price are required'}, 400)
     try:
-        ok = execution_repo.close_execution(execution_id, close_date, float(close_price))
+        # 2026-09-14（w-c8cae280）修**线上 500**：仓库签名是
+        #   close_execution(execution_id, close_date, close_price, pnl)
+        # 而本路由只传了前 3 个 → TypeError: missing 1 required positional argument: 'pnl' → 500。
+        # pnl 优先取请求体；未提供则由**已存执行记录**推算（(平仓价-执行价)×数量），
+        # 不在路由里凭空写 0 —— 那会让盈亏统计静默失真。
+        _pnl = data.get('pnl')
+        if _pnl is None:
+            _ex = execution_repo.get_execution(execution_id)
+            if _ex is None:
+                return error_response({'error': 'Execution not found'}, 404)
+            _entry = float(getattr(_ex, 'execution_price', 0) or 0)
+            _qty = float(getattr(_ex, 'execution_amount', 0) or 0)
+            _pnl = (float(close_price) - _entry) * _qty
+        ok = execution_repo.close_execution(execution_id, close_date, float(close_price), float(_pnl))
         if not ok:
             return error_response({'error': 'Execution not found'}, 404)
         updated = execution_repo.get_execution(execution_id)

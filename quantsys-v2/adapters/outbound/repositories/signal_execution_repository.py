@@ -132,11 +132,14 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
             logger.error(f"Error getting pending executions: {e}")
             return []
 
-    def get_all_executions(self, limit: int = 200) -> List[SignalExecution]:
+    def get_all_executions(self, limit: int = 200, offset: int = 0) -> List[SignalExecution]:
         """获取所有执行记录（兼容方法名）
 
         Args:
             limit: 返回数量限制
+            offset: 跳过条数（2026-09-14 w-c8cae280 补）——
+                GET /api/executions 一直声明 offset 参数却从未使用（分页是假的），
+                补上后路由才能真正分页。
 
         Returns:
             SignalExecution列表
@@ -144,7 +147,7 @@ class SignalExecutionORMRepository(BaseORMRepository[SignalExecution], ISignalEx
         try:
             return self.session.query(SignalExecution).order_by(
                 SignalExecution.created_at.desc()
-            ).limit(limit).all()
+            ).offset(max(0, int(offset or 0))).limit(limit).all()
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error getting all executions: {e}")
