@@ -98,35 +98,26 @@ class SmartSchedulerService:
         execution_time_ms: Optional[int] = None,
         error_message: Optional[str] = None
     ):
-        """更新任务执行状态"""
+        """更新任务执行状态。
+
+        2026-09-13（w-32314d00，REQ-24e15d t3）：原先在此手写两条裸 SQL（SELECT run_id / UPDATE runs），
+        现上收到 AutomationRunRepository —— 服务层不再直连 SQL；同时避免该路径再受
+        「ORM 列名映射错（run_metadata vs metadata）」类问题影响（该问题本次已修）。
+        """
+        from datetime import datetime
+
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
+            from adapters.outbound.repositories.automation_repository import AutomationRunRepository
 
-            # 查找对应的 run_id
-            cursor.execute("""
-                SELECT run_id FROM quant.automation_runs
-                WHERE metadata->>'job_id' = %s
-                AND status = 'running'
-                ORDER BY started_at DESC
-                LIMIT 1
-            """, (job_id,))
-
-            row = cursor.fetchone()
-            if row:
-                run_id = row[0]
-                cursor.execute("""
-                    UPDATE quant.automation_runs
-                    SET status = %s,
-                        completed_at = NOW(),
-                        execution_time_ms = %s,
-                        error_message = %s
-                    WHERE run_id = %s
-                """, (status, execution_time_ms, error_message, run_id))
-                conn.commit()
-
-            cursor.close()
-            conn.close()
+            repo = AutomationRunRepository()
+            run_id = repo.find_running_run_id_by_job_id(job_id)
+            if run_id:
+                repo.update_run(run_id, {
+                    'status': status,
+                    'completed_at': datetime.now(),
+                    'execution_time_ms': execution_time_ms,
+                    'error_message': error_message,
+                })
         except Exception as e:
             logger.error(f"Failed to update run status: {e}")
 
@@ -210,25 +201,20 @@ class SmartSchedulerService:
         start_time = datetime.now()
 
         # 记录开始执行
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO quant.automation_runs (
-                task_id, run_id, trigger_type, trigger_by,
-                started_at, status, metadata
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (
-            task_id,
-            run_id,
-            'scheduled',
-            'system',
-            start_time,
-            'running',
-            {'job_id': f"task_{task_id}"}
-        ))
-        conn.commit()
-        cursor.close()
-        conn.close()
+        # （2026-09-13，w-32314d00，REQ-24e15d t3：裸 INSERT 上收到仓储；
+        #   同时删掉上收后残留的 `conn = get_db_connection()` —— 它已无人使用，
+        #   留着等于白开一条连接，正是本 REQ 要消灭的那类占用。）
+        from adapters.outbound.repositories.automation_repository import AutomationRunRepository
+
+        AutomationRunRepository().create_run({
+            'task_id': task_id,
+            'run_id': run_id,
+            'trigger_type': 'scheduled',
+            'trigger_by': 'system',
+            'started_at': start_time,
+            'status': 'running',
+            'run_metadata': {'job_id': f'task_{task_id}'},
+        })
 
         # 执行任务
         try:
@@ -239,27 +225,23 @@ class SmartSchedulerService:
             end_time = datetime.now()
             execution_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE quant.automation_runs
-                SET status = 'success',
-                    completed_at = %s,
-                    execution_time_ms = %s,
-                    result = %s
-                WHERE run_id = %s
-            """, (end_time, execution_time_ms, result, run_id))
+            # 2026-09-13（w-32314d00，REQ-24e15d t3）：成功路径两条裸 UPDATE 上收到仓储。
+            # 取数前已核对：ORM 模型 AutomationTask 含 last_run_at（与真实库列一致），
+            # 故 update_task 的 setattr 不会静默跳过（这类"属性未映射→静默不改"是必须防的坑）。
+            from adapters.outbound.repositories.automation_repository import (
+                AutomationRunRepository,
+                AutomationTaskRepository,
+            )
 
-            # 更新任务最后执行时间
-            cursor.execute("""
-                UPDATE quant.automation_tasks
-                SET last_run_at = %s
-                WHERE id = %s
-            """, (start_time, task_id))
+            AutomationRunRepository().update_run(run_id, {
+                'status': 'success',
+                'completed_at': end_time,
+                'execution_time_ms': execution_time_ms,
+                'result': result,
+            })
 
-            conn.commit()
-            cursor.close()
-            conn.close()
+            # 更新任务最后执行时间（按任务名更新，服务侧本来就以 task_name 为键）
+            AutomationTaskRepository().update_task(task_name, {'last_run_at': start_time})
 
             logger.info(f"Task completed: {task_name} (run_id={run_id}, time={execution_time_ms}ms)")
             return result
@@ -271,19 +253,15 @@ class SmartSchedulerService:
 
             logger.error(f"Task failed: {task_name} (run_id={run_id}), error: {e}")
 
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE quant.automation_runs
-                SET status = 'failed',
-                    completed_at = %s,
-                    execution_time_ms = %s,
-                    error_message = %s
-                WHERE run_id = %s
-            """, (end_time, execution_time_ms, str(e), run_id))
-            conn.commit()
-            cursor.close()
-            conn.close()
+            # 2026-09-13（w-32314d00，REQ-24e15d t3）：失败路径的裸 UPDATE 上收到仓储。
+            from adapters.outbound.repositories.automation_repository import AutomationRunRepository
+
+            AutomationRunRepository().update_run(run_id, {
+                'status': 'failed',
+                'completed_at': end_time,
+                'execution_time_ms': execution_time_ms,
+                'error_message': str(e),
+            })
 
             raise
 
@@ -312,18 +290,17 @@ class SmartSchedulerService:
 
         run_id = f"run_{uuid.uuid4().hex[:12]}"
 
-        # 记录手动触发
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO quant.automation_runs (
-                task_id, run_id, trigger_type, trigger_by,
-                started_at, status
-            ) VALUES (%s, %s, %s, %s, %s, %s)
-        """, (task_id, run_id, 'manual', 'user', datetime.now(), 'pending'))
-        conn.commit()
-        cursor.close()
-        conn.close()
+        # 记录手动触发（2026-09-13，w-32314d00，REQ-24e15d t3：裸 INSERT 上收到仓储 —— 本文件最后一处）
+        from adapters.outbound.repositories.automation_repository import AutomationRunRepository
+
+        AutomationRunRepository().create_run({
+            'task_id': task_id,
+            'run_id': run_id,
+            'trigger_type': 'manual',
+            'trigger_by': 'user',
+            'started_at': datetime.now(),
+            'status': 'pending',
+        })
 
         # 异步执行
         from concurrent.futures import ThreadPoolExecutor

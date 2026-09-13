@@ -49,9 +49,17 @@ def is_index_symbol(symbol: str) -> bool:
     if s not in INDEX_WHITELIST:
         return False
     try:
-        from adapters.shared.services import get_stock_repo
-        stock = get_stock_repo().get_by_symbol(s)
-        if stock is not None and getattr(stock, 'list_date', None) is not None:
+        # 2026-09-13（w-32314d00，REQ-24e15d t2 / 泄漏事件 a6780ec3 复发）：
+        # 这里原先走 ORM 仓储 get_stock_repo().get_by_symbol(s) —— 在 ThreadPoolExecutor 工作线程上会打开
+        # thread-local session 且无人关闭 → idle in transaction → 约 337s 被 DB 强杀并报 session_leak_detected。
+        # 实证 traceback：data_backfiller.backfill_symbol → manager.get_klines → _ensure_amount
+        #   → is_pseudo_symbol → is_index_symbol → get_by_symbol → get_session（22:08 那条泄漏）。
+        # 该判定只读一行、且处在热路径，改用**池化游标**（借完即还，不占用 thread-local session）。
+        from infrastructure.persistence.database.engine import db_cursor
+        with db_cursor() as cur:
+            cur.execute('select list_date from quant.stocks where symbol = %s', (s,))
+            row = cur.fetchone()
+        if row is not None and row.get('list_date') is not None:
             return False
     except Exception as e:  # noqa: BLE001 - 查表失败保守按指数处理
         logger.warning(f"is_index_symbol stocks 校验失败 {s}: {e}")

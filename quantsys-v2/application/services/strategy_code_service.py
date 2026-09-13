@@ -452,11 +452,14 @@ class StrategyCodeService:
         if is_active is not None:
             update_data['is_active'] = is_active
 
-        return self.strategy_repo.update(strategy_id, update_data)
+        # 显式调用用户策略写方法（2026-09-13，w-32314d00）：原来调 self.strategy_repo.update(...)
+        # 会撞上 BaseORMRepository 的通用 update(obj, commit)——参数被当成 ORM 对象，
+        # session.merge("163") 抛 UnmappedInstanceError → /api/strategies/stop|update/{id} 500。
+        return self.strategy_repo.update_user_strategy(strategy_id, update_data)
 
     def delete_strategy(self, strategy_id: int) -> bool:
-        """删除策略"""
-        return self.strategy_repo.delete(strategy_id)
+        """删除策略（用户策略表 quant.strategy_configs）"""
+        return self.strategy_repo.delete_user_strategy(strategy_id)
 
     # ==================== 辅助验证方法 ====================
 

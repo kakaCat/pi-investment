@@ -42,6 +42,12 @@ DEFAULT_REPORT_DATE = '20260630'
 # yjbb 空结果时视为数据源无数据（不静默成功）
 MIN_ROWS = 100
 
+# 本 job 允许写入 quant.stocks 的列白名单 —— 与文件头「落库」清单一致。
+# 2026-09-13（w-32314d00，REQ-24e15d t1）：SET 子句的列名无法用绑定参数，
+# 原先直接拼上游 dict 的 key；上游一旦改名/带出异常 key，就是「列名注入 + 静默写错列」。
+# 现在未知列一律显式报错（宁可按失败暴露，也不静默写偏）。
+WRITABLE_STOCK_COLUMNS = frozenset({'roe', 'gross_margin', 'net_profit_growth', 'revenue_growth'})
+
 
 def execute(**params) -> Dict[str, Any]:
     """
@@ -188,6 +194,13 @@ def execute(**params) -> Dict[str, Any]:
             if s not in records or s not in exist_set:
                 continue
             vals = records[s]
+            # 列名不能参数化，只能白名单校验（2026-09-13，w-32314d00，REQ-24e15d t1）：
+            # 原实现把上游 dict 的 key 直接拼进 SET 子句；上游一旦改名/带出异常 key，
+            # 就是"列名注入 + 静默写错列"。这里显式拒绝未知列（宁可按失败暴露）。
+            unknown = [c for c in vals if c not in WRITABLE_STOCK_COLUMNS]
+            if unknown:
+                raise ValueError(
+                    f'{s}: 财务更新含未知列 {unknown}；允许写入的列见 WRITABLE_STOCK_COLUMNS')
             params_sql = dict(vals)
             params_sql['symbol'] = s
             params_sql['updated_at'] = now

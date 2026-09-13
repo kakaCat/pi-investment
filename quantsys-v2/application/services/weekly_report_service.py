@@ -20,17 +20,18 @@ class WeeklyReportService:
     """周报生成服务"""
     
     def __init__(self, db_connection=None):
-        self.db = db_connection
-        if not self.db:
-            import psycopg2
-            self.db = psycopg2.connect(
-                dbname="quant_investment",
-                user="yunpeng",
-                host="localhost"
-            )
-            self._owns_connection = True
-        else:
-            self._owns_connection = False
+        # 同 AttributionService（2026-09-13，w-32314d00，REQ-24e15d t2）：不持有长寿命裸连接，
+        # 改为「注入优先，否则每次操作从连接池借、用完即还」，避免 idle-in-transaction 被强杀。
+        self._injected = db_connection
+        self._owns_connection = False
+
+    def _acquire_cursor(self):
+        """返回 (cursor, pooled_connection|None)；tuple 行语义不变（调用方用 row[0]）。"""
+        if self._injected is not None:
+            return self._injected.cursor(), None
+        from infrastructure.persistence.database.engine import get_engine
+        pooled = get_engine().connect()
+        return pooled.connection.cursor(), pooled
     
     def generate_weekly_report(
         self,
@@ -78,7 +79,7 @@ class WeeklyReportService:
         
         # 2. 规则归因
         from application.services.attribution_service import AttributionService
-        attribution_service = AttributionService(self.db)
+        attribution_service = AttributionService(self._injected)
         attribution = attribution_service.analyze_rule_performance(
             start_date=week_start,
             end_date=week_end,
@@ -132,7 +133,7 @@ class WeeklyReportService:
     
     def _get_signals_stats(self, start_date: str, end_date: str) -> Dict[str, Any]:
         """获取信号统计"""
-        cursor = self.db.cursor()
+        cursor, _pooled = self._acquire_cursor()
         
         try:
             cursor.execute("""
@@ -162,7 +163,9 @@ class WeeklyReportService:
         
         finally:
             cursor.close()
-    
+            if _pooled is not None:
+                _pooled.connection.rollback()  # 读操作显式结束事务后再还池
+                _pooled.close()    
     def _get_regime_changes(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
         """获取 Regime 变化记录
         

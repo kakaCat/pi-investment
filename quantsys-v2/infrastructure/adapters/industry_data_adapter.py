@@ -12,6 +12,22 @@ from domain.scoring.ports import IndustryDataPort
 
 logger = structlog.get_logger(__name__)
 
+# 可按因子取值的列白名单（列名**不能**用绑定参数，只能用白名单校验）。
+# 2026-09-13（w-32314d00，REQ-24e15d t1）：原实现把 factor_name 与 symbols 直接拼进 SQL 文本
+#（f"SELECT {factor_name} ... WHERE symbol IN ('{symbol_list}')"）——列名与取值双重注入面。
+_ALLOWED_FACTOR_COLUMNS = frozenset({
+    'pe', 'pb', 'roe', 'revenue_growth', 'net_profit_growth', 'gross_margin', 'debt_ratio',
+    'market_cap', 'total_mv', 'circulating_mv', 'avg_turnover_rate', 'avg_volume', 'avg_amount',
+})
+
+
+def _validated_factor_column(factor_name: str) -> str:
+    """校验因子列名在白名单内；不在则显式报错（不猜、不放行）。"""
+    name = str(factor_name or '').strip()
+    if name not in _ALLOWED_FACTOR_COLUMNS:
+        raise ValueError(f'不支持的因子列: {factor_name!r}（白名单：{sorted(_ALLOWED_FACTOR_COLUMNS)}）')
+    return name
+
 
 class IndustryDataAdapter(IndustryDataPort):
     """
@@ -104,16 +120,21 @@ class IndustryDataAdapter(IndustryDataPort):
         try:
             with db_cursor() as cursor:
                 # 构建查询（使用 stocks 表，它有 pe, roe, revenue_growth 字段）
+                # 列名经白名单校验后才允许进 SQL 文本；取值一律走绑定参数。
+                column = _validated_factor_column(factor_name)
                 if symbols:
-                    # 查询指定股票
-                    symbol_list = "', '".join(symbols)
+                    # 查询指定股票：= ANY(%s) 由 psycopg2 适配 Python list → text[]，
+                    # 不再把代码拼进 SQL 文本（原写法 symbol IN ('{symbol_list}') 是注入面）。
                     cursor.execute(
-                        f"SELECT {factor_name} FROM quant.stocks WHERE symbol IN ('{symbol_list}') AND {factor_name} IS NOT NULL"
+                        f"SELECT {column} FROM quant.stocks "
+                        f"WHERE symbol = ANY(%s) AND {column} IS NOT NULL",
+                        (list(symbols),)
                     )
                 else:
                     # 查询整个行业
                     cursor.execute(
-                        f"SELECT {factor_name} FROM quant.stocks WHERE sector = %s AND {factor_name} IS NOT NULL",
+                        f"SELECT {column} FROM quant.stocks "
+                        f"WHERE sector = %s AND {column} IS NOT NULL",
                         (sector,)
                     )
                 

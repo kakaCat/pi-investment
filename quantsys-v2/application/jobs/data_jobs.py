@@ -124,6 +124,10 @@ class DataUpdateJob(Job):
 
             stocks = StockORMRepository().get_all(limit=500)
             symbols = [s['symbol'] for s in stocks]
+            # 读后立即归还会话（2026-09-13，w-32314d00，事件 a6780ec3）：本函数跑在
+            # asyncio.to_thread 的池化线程上，get_all 的 autobegin 事务不清就会一直占连接
+            # （session_guard 实测 asyncio_0 线程因 data_jobs._run → stock_repository.get_all 被判泄漏）。
+            close_session()
             if not symbols:
                 return {"skipped": True, "reason": "no symbols"}
 

@@ -19,17 +19,21 @@ class AttributionService:
     """归因分析服务"""
     
     def __init__(self, db_connection=None):
-        self.db = db_connection
-        if not self.db:
-            import psycopg2
-            self.db = psycopg2.connect(
-                dbname="quant_investment",
-                user="yunpeng",
-                host="localhost"
-            )
-            self._owns_connection = True
-        else:
-            self._owns_connection = False
+        # 2026-09-13（w-32314d00，REQ-24e15d t2）：不再在构造时 psycopg2.connect 持有**长寿命裸连接**。
+        # 该写法有两个真实后果（同源事故 9c8ebd29 / a6780ec3 / add453c0）：
+        #   ① 读出的事务不结束 → 连接挂在 idle in transaction，超阈值被 DB 强杀；
+        #   ② 不走连接池/session_guard，连接泄漏无人可见。
+        # 现改为：注入连接（测试/复用）优先，否则**每次操作从连接池借、用完即还**。
+        self._injected = db_connection
+        self._owns_connection = False
+
+    def _acquire_cursor(self):
+        """返回 (cursor, pooled_connection|None)。tuple 行语义保持不变（不换 RealDictCursor）。"""
+        if self._injected is not None:
+            return self._injected.cursor(), None
+        from infrastructure.persistence.database.engine import get_engine
+        pooled = get_engine().connect()
+        return pooled.connection.cursor(), pooled
     
     def analyze_rule_performance(
         self,
@@ -66,7 +70,7 @@ class AttributionService:
                 "unattributed_signals": 20
             }
         """
-        cursor = self.db.cursor()
+        cursor, _pooled = self._acquire_cursor()
         
         try:
             # 默认时间范围：最近30天
@@ -99,7 +103,15 @@ class AttributionService:
             signals = []
             columns = [desc[0] for desc in cursor.description]
             for row in cursor.fetchall():
-                signals.append(dict(zip(columns, row)))
+                rec = dict(zip(columns, row))
+                # Postgres numeric → decimal.Decimal；下游按 float 累加
+                # （stats['total_return_5d'] += …）会抛 TypeError。
+                # 实测（2026-09-13，w-32314d00）：只要有带历史收益的信号，本方法直接崩 ——
+                # 属既有缺陷，本次因「真的把它跑起来」才暴露，故在取数边界统一转 float。
+                for _num_col in ('price', 'return_5d', 'return_10d', 'return_20d'):
+                    if rec.get(_num_col) is not None:
+                        rec[_num_col] = float(rec[_num_col])
+                signals.append(rec)
             
             # 2. 提取规则引用并统计
             rule_stats = {}
@@ -231,7 +243,11 @@ class AttributionService:
         
         finally:
             cursor.close()
-    
+            if _pooled is not None:
+                # 读操作也要显式结束事务再还池（psycopg2 默认事务模式，SELECT 同样开事务，
+                # 不 rollback 归还会留下 idle-in-transaction 残影 —— 这正是被 DB 强杀的那条路径）。
+                _pooled.connection.rollback()
+                _pooled.close()    
     def _extract_rule_ids(self, reason: str) -> List[str]:
         """从 reason 字段提取规则 ID
         

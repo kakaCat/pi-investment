@@ -67,11 +67,15 @@ class SignalTestLog:
 
     @staticmethod
     def _get_conn():
-        """获取数据库连接"""
-        dsn = _resolve_db_dsn()
-        if not dsn:
-            raise RuntimeError("No database DSN configured (set PGDATABASE or DATABASE_URL)")
-        return psycopg2.connect(dsn)
+        """获取数据库连接（池化）。
+
+        2026-09-13（w-32314d00，REQ-24e15d t2）：原先每次 `psycopg2.connect(dsn)` 直连，
+        绕开连接池与 session_guard；现返回 `PooledConnection` —— 调用方仍是
+        `conn.cursor()/commit()/close()` 的旧写法，但 close() 是**归还连接池**，
+        且归还前对未提交事务显式 rollback（避免 idle-in-transaction 残影）。
+        """
+        from infrastructure.persistence.database.engine import PooledConnection
+        return PooledConnection()
 
     # ═══════════════════════════════════════════════════════
     # 表管理

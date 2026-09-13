@@ -89,40 +89,15 @@ class VerificationJob:
         from adapters.outbound.repositories.kline_repository import KlineORMRepository as KlineRepository
         kline_repo = KlineRepository()
 
-        # 获取起始价格
-        cursor = kline_repo.session.connection().connection.cursor()
-        cursor.execute(
-            """
-            SELECT close FROM quant.daily_klines
-            WHERE symbol = %s AND trade_date >= %s
-            ORDER BY trade_date ASC LIMIT 1
-            """,
-            (symbol, start_date)
-        )
-        start_row = cursor.fetchone()
-
-        if not start_row:
-            cursor.close()
+        # 2026-09-13（w-32314d00，REQ-24e15d t4）：原先是"先取仓储 session 再手写裸 SQL"的半迁移写法，
+        # 现改为调用仓储方法（查询收口到 kline_repository，作业层不再出现 SQL 文本）。
+        start_price = kline_repo.get_first_close_on_or_after(symbol, start_date)
+        if not start_price:
             return 0.0
 
-        start_price = start_row[0]
-
-        # 获取结束价格
-        cursor.execute(
-            """
-            SELECT close FROM quant.daily_klines
-            WHERE symbol = %s AND trade_date <= %s
-            ORDER BY trade_date DESC LIMIT 1
-            """,
-            (symbol, end_date)
-        )
-        end_row = cursor.fetchone()
-        cursor.close()
-
-        if not end_row:
+        end_price = kline_repo.get_last_close_on_or_before(symbol, end_date)
+        if not end_price:
             return 0.0
-
-        end_price = end_row[0]
 
         # 计算收益率
         return (end_price - start_price) / start_price

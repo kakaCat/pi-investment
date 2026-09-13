@@ -54,7 +54,11 @@ class AutomationRun(Base):
     error_message = Column(Text)
     execution_time_ms = Column(Integer)
     retry_count = Column(Integer, default=0)
-    run_metadata = Column('run_metadata', JSONB, default={})
+    # 2026-09-13（w-32314d00，REQ-24e15d t3 前置核查）：原映射为 Column('run_metadata', ...)，
+    # 但库里真实列名是 **metadata**（information_schema 实测）——ORM 生成的所有语句都会引用
+    # 不存在的 run_metadata 列，本仓储因而在真实库上不可用（select 全模型即 UndefinedColumn）。
+    # 属性名保留 run_metadata（避开 SQLAlchemy 自带的 .metadata），列名对齐真实库。
+    run_metadata = Column('metadata', JSONB, default={})
 
 
 class AutomationTaskRepository(BaseORMRepository[AutomationTask]):
@@ -179,6 +183,26 @@ class AutomationRunRepository(BaseORMRepository[AutomationRun]):
             self.session.rollback()
             logger.error(f"Error updating run: {e}")
             return False
+
+    def find_running_run_id_by_job_id(self, job_id: str) -> Optional[str]:
+        """按 metadata->>'job_id' 找最新一条 status=running 的 run_id。
+
+        等价于 SmartScheduler._update_run_status 里原先手写的那条 SQL ——
+        2026-09-13（w-32314d00，REQ-24e15d t3）：把服务层裸 SQL 上收到仓储。
+        """
+        try:
+            row = (
+                self.session.query(self.model.run_id)
+                .filter(self.model.run_metadata['job_id'].astext == job_id)
+                .filter(self.model.status == 'running')
+                .order_by(self.model.started_at.desc())
+                .first()
+            )
+            return row[0] if row else None
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error finding running run by job_id {job_id}: {e}")
+            return None
 
     def get_task_history(self, task_id: int, limit: int = 50) -> List[AutomationRun]:
         """获取任务执行历史"""

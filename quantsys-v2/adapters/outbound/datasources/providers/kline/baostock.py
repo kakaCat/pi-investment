@@ -8,6 +8,7 @@ K线网络源首选。
 """
 import logging
 import threading
+import time
 from typing import List, Optional
 from datetime import datetime
 
@@ -51,6 +52,12 @@ _DAILY_FIELDS = 'date,code,open,high,low,close,volume,amount,turn'
 # 会话中断后几千只股票全部「网络接收错误」，provider 缓存会话从不重登）
 _SESSION_ERROR_MARKERS = ('网络接收错误', '接收数据异常', 'Broken pipe', 'Connection aborted', 'RemoteDisconnected', 'Bad file descriptor')
 
+# 登录可重试判定（2026-09-13，看板事件 79aaf17d）：会话类错误 + 超时/连接类。
+# 与 _SESSION_ERROR_MARKERS 分开：后者决定「是否重置会话重登」，本组决定「登录是否值得重试」。
+_LOGIN_RETRYABLE_MARKERS = _SESSION_ERROR_MARKERS + (
+    'TimeoutError', 'timed out', 'timeout', 'Connection reset', 'Connection refused',
+)
+
 
 class BaostockKlineProvider(KlineProvider):
     """Kline provider using baostock TCP service (daily only)"""
@@ -77,28 +84,55 @@ class BaostockKlineProvider(KlineProvider):
             return f'bj.{symbol}'
         return None
 
+    _LOGIN_ATTEMPTS = 3
+    _LOGIN_BACKOFF_SEC = (0.5, 1.5)
+
     def _ensure_login(self):
-        """lazy 登录，进程内复用会话。返回 baostock 模块或 None"""
+        """lazy 登录，进程内复用会话。返回 baostock 模块或 None
+
+        2026-09-13（w-32314d00，看板事件 79aaf17d）：旧实现登录对上游瞬时抖动**零重试**
+        —— baostock 返回 error_msg='网络接收错误。' 时直接 return None，调用方随即把该标的
+        判为失败。实证：09-10 22:02 ~ 09-12 01:21（夜间批量回填窗口）累计 93 条同类日志、
+        去重后 37 次事件。现对可重试类错误做有限重试：最多 3 次、退避 0.5s/1.5s；
+        中间尝试打 WARNING、仅最终失败打 ERROR，避免一次上游抖动刷满错误台账。
+        不可重试错误（服务端明确拒绝等）仍立即返回，不白等。
+        """
         if self._bs is not None:
             return self._bs
         try:
             import baostock as bs
-            lg = _with_socket_timeout(bs.login)
-            if lg.error_code != '0':
-                self.last_error = f"baostock 登录失败: {lg.error_msg}"
-                logger.error(self.last_error)
-                return None
-            self._bs = bs
-            logger.info("baostock 登录成功")
-            return bs
         except ImportError:
             self.last_error = "baostock 未安装（pip install baostock）"
             logger.error(self.last_error)
             return None
-        except Exception as e:
-            self.last_error = f"baostock 登录异常: {type(e).__name__}: {e}"
-            logger.error(self.last_error)
-            return None
+
+        last_msg = ""
+        last_was_exc = False
+        for attempt in range(self._LOGIN_ATTEMPTS):
+            try:
+                lg = _with_socket_timeout(bs.login)
+                if lg.error_code == '0':
+                    self._bs = bs
+                    logger.info("baostock 登录成功")
+                    return bs
+                last_msg = str(getattr(lg, 'error_msg', '') or '登录失败（无 error_msg）')
+                last_was_exc = False
+            except Exception as e:  # noqa: BLE001 - 网络/超时类都要能被重试判定看到
+                last_msg = f"{type(e).__name__}: {e}"
+                last_was_exc = True
+
+            retryable = any(m in last_msg for m in _LOGIN_RETRYABLE_MARKERS)
+            if not retryable or attempt == self._LOGIN_ATTEMPTS - 1:
+                break
+            logger.warning(
+                f"baostock 登录失败（第 {attempt + 1}/{self._LOGIN_ATTEMPTS} 次）：{last_msg}"
+                f" —— 退避 {self._LOGIN_BACKOFF_SEC[attempt]}s 后重试")
+            time.sleep(self._LOGIN_BACKOFF_SEC[attempt])
+
+        prefix = "baostock 登录异常: " if last_was_exc else "baostock 登录失败: "
+        self.last_error = f"{prefix}{last_msg}"
+        logger.error(self.last_error)
+        return None
 
     def _reset_session(self):
         """会话失效后重置（logout 旧会话并清空缓存），下次 _ensure_login 重新登录"""
@@ -112,6 +146,26 @@ class BaostockKlineProvider(KlineProvider):
     @staticmethod
     def _is_session_error(msg: str) -> bool:
         return any(m in msg for m in _SESSION_ERROR_MARKERS)
+
+    @staticmethod
+    def _normalize_date(value: str) -> str:
+        """把日期归一为 baostock 要求的 YYYY-MM-DD（容忍 YYYYMMDD）。
+
+        2026-09-13（w-32314d00，事件 d9361056）：data_backfiller 走
+        start_date.replace("-", "") 传 **YYYYMMDD**，而 baostock 只认 ISO 格式——
+        实测（本机复现，见 work-log）：
+            YYYYMMDD -> query 返回 None（baostock 仅打印「日期格式不正确，请修改。」）
+            ISO      -> error_code=0，正常返回数据
+        返回 None 时旧代码直接取 rs.error_code → AttributeError: NoneType object has no
+        attribute error_code，被当成「provider 失败」→ 3 分钟 150 条错误日志，
+        且 baostock（抗网页 WAF 的独立 TCP 源）在这条链路里等于不可用。
+        现在在 provider 边界做格式归一，调用方传哪种都行。
+        """
+        s = str(value or "").strip()
+        if len(s) == 8 and s.isdigit():
+            return f"{s[:4]}-{s[4:6]}-{s[6:8]}"
+        return s
+
 
     def get_klines(
         self,
@@ -134,6 +188,9 @@ class BaostockKlineProvider(KlineProvider):
             logger.warning(f"Cannot map symbol to baostock code: {symbol}")
             return None
 
+        start_date = self._normalize_date(start_date)
+        end_date = self._normalize_date(end_date)
+
         # 查询（会话级错误重登重试一次；永久错误/空数据不重试）
         rs = None
         for attempt in range(2):
@@ -154,7 +211,17 @@ class BaostockKlineProvider(KlineProvider):
                 self.last_error = f"查询/解析异常: {type(e).__name__}: {e}"
                 logger.error(f"Baostock kline provider failed for {symbol}: {e}")
                 return None
-            if rs.error_code != '0':
+            if rs is None:
+                # baostock 在入参非法（如日期格式）时**直接返回 None** 而不给 error_code，
+                # 旧代码在此 AttributeError（事件 d9361056 的 150 条日志来源）。
+                # None 属永久错误：不重试，给出可读原因（格式归一后此分支基本不再走到）。
+                self.last_error = (
+                    f"baostock 未返回结果集（入参非法或无数据）: "
+                    f"symbol={symbol}, {start_date}~{end_date}"
+                )
+                logger.warning(self.last_error)
+                return None
+            if rs.error_code != "0":
                 if attempt == 0 and self._is_session_error(rs.error_msg):
                     logger.warning(f"baostock 会话失效（{rs.error_msg}），重登后重试 {symbol}")
                     self._reset_session()

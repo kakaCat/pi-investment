@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.pi-investment.index-daily-refresh-final</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yunpeng/pi-investment/quantsys-v2/venv/bin/python</string>
+        <string>/Users/yunpeng/pi-investment/quantsys-v2/tools/backfill_index_daily.py</string>
+        <string>--days</string>
+        <string>30</string>
+        <string>--require-fresh</string>
+        <string>--retry-until</string>
+        <string>23:15</string>
+        <string>--retry-interval</string>
+        <string>900</string>
+    </array>
+    <key>WorkingDirectory</key><string>/Users/yunpeng/pi-investment/quantsys-v2</string>
+    <!-- 指数日线"收尾"采集（2026-09-13 立，w-32314d00）：修事件 81d8f56c / 397def4e244c4d71。
+         原作业只在工作日 16:30 跑一次，实测 2026-09-11 16:30 新浪尚未发布当日指数 EOD，
+         脚本把"截至 09-10"照单全收并 exit 0 → quant.index_daily 静默停在 09-10，
+         数据契约 freshness(market_latest, max_lag_days=0) 在 09-11/09-12 两次判 high。
+         本作业：工作日 20:50 启动，带 --require-fresh --retry-until 23:15 --retry-interval 900 ——
+         每 15 分钟重采一次（upsert 幂等），直到追平 quant.daily_klines 的 market_latest，
+         或到 23:15 仍未追平则 exit 3（fail-loud，launchctl 状态与日志可见）。
+         这样不必猜"新浪几点发布当日指数 EOD"：发布即采到；且 23:15 早于契约判定器（23:40）。
+         16:30 的 best-effort 作业（com.pi-investment.index-daily-refresh）保留不改。 -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>20</integer><key>Minute</key><integer>50</integer></dict>
+        <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>20</integer><key>Minute</key><integer>50</integer></dict>
+        <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>20</integer><key>Minute</key><integer>50</integer></dict>
+        <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>20</integer><key>Minute</key><integer>50</integer></dict>
+        <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>20</integer><key>Minute</key><integer>50</integer></dict>
+    </array>
+    <key>StandardOutPath</key><string>/Users/yunpeng/pi-investment/logs/index-daily-refresh-final.log</string>
+    <key>StandardErrorPath</key><string>/Users/yunpeng/pi-investment/logs/index-daily-refresh-final.err.log</string>
+</dict>
+</plist>

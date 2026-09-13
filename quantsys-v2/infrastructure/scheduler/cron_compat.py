@@ -96,13 +96,40 @@ def convert_standard_dow(field: str) -> str:
     return ','.join(n for n in _APS_ORDER if n in names)
 
 
-def build_cron_trigger(cron_expr: str, tz: str = 'Asia/Shanghai') -> CronTrigger:
-    """按标准 cron 语义构造 CronTrigger（仅翻译 DOW，其余字段原样透传）。"""
-    fields = str(cron_expr).split()
+def validate_cron(cron_expr: str) -> None:
+    """校验 cron 表达式为标准的 **5 段**（分 时 日 月 周）。
+
+    2026-09-13（w-32314d00，看板事件 435f0c0a / 26737737 / c488fdad）：
+    任务行被写成 **6 段**（Agent OS / robfig-cron 风格，首位是秒）时，写入与任务注册都成功，
+    直到 APScheduler 加载才抛 ValueError: Wrong number of fields; got 6, expected 5 ——
+    表现是「任务根本没进调度器」：scheduler_runs 里查不到任何失败，只有一行加载日志。
+    故把校验提前到写入点，并给出直指修法的错误信息。
+
+    Raises:
+        ValueError: 段数不为 5（Agent OS 托管伪任务 managed_by_agent_* 除外）。
+    """
+    expr = str(cron_expr or '').strip()
+    if not expr:
+        raise ValueError('cron 表达式为空')
+    if expr.startswith('managed_by_agent_'):
+        return  # Agent OS 托管伪任务：不参与 APScheduler 排期，加载阶段按托管跳过
+    fields = expr.split()
     if len(fields) != 5:
-        logger.warning("非 5 字段 cron，DOW 语义未转换，按原样交给 from_crontab: %r", cron_expr)
-        return CronTrigger.from_crontab(cron_expr, timezone=tz)
-    minute, hour, dom, month, dow = fields
+        raise ValueError(
+            f'cron 只接受 5 段（分 时 日 月 周），收到 {len(fields)} 段: {expr!r}'
+            '；若来自 Agent OS（6 段、首位是秒），请去掉秒位后再写入')
+
+
+def build_cron_trigger(cron_expr: str, tz: str = 'Asia/Shanghai') -> CronTrigger:
+    """按标准 cron 语义构造 CronTrigger（仅翻译 DOW，其余字段原样透传）。
+
+    非 5 段表达式不再「原样透传」（旧行为把 croniter 的短错误抛进加载日志，
+    极易被当成无关警告略过），改为在这里显式拒绝。
+    """
+    validate_cron(cron_expr)
+    if str(cron_expr).strip().startswith('managed_by_agent_'):
+        raise ValueError(f'Agent OS 托管伪任务不应构造 APScheduler 触发器: {cron_expr!r}')
+    minute, hour, dom, month, dow = str(cron_expr).split()
     return CronTrigger(
         minute=minute, hour=hour, day=dom, month=month,
         day_of_week=convert_standard_dow(dow), timezone=tz,

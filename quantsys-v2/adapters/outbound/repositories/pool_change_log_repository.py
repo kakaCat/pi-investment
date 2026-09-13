@@ -23,7 +23,11 @@ class PoolChangeLog(Base):
     pool_id = Column(Integer)
     changed_at = Column(DateTime, default=datetime.now)
     action = Column(String(20), nullable=False)
-    symbol = Column(String(20))
+    # symbol 存的是**批量摘要**（'_log_change' 写 ','.join(symbols[:50])），不是单个代码：
+    # 原为 String(20)，一张 5 只票的池子 refresh 就会写 35 字符 → StringDataRightTruncation，
+    # 变更日志整条写不进去（2026-09-13 w-32314d00，看板事件 c4cade93 / bcea3fe8，共 6 次）。
+    # 单只票的 add/remove 记录（heatmap 依赖）仍是单代码，兼容不变。
+    symbol = Column(Text)
     reason = Column(Text)
     triggered_by = Column(String(50))
     agent_decision_id = Column(String(50))

@@ -68,6 +68,35 @@ def _rows_to_df(rows: list, schema: dict) -> pl.DataFrame:
     return pl.DataFrame(rows, schema=sub_schema)
 
 
+def filter_index_rows(klines: List[DailyKline]) -> 'tuple[List[DailyKline], List[str]]':
+    """剔除指数行 —— daily_klines 有约束 chk_daily_klines_no_indexrows。
+
+    约束定义：symbol !~ '^399' AND symbol <> ALL(ARRAY['000300','399300'])。
+    指数价格按 2026-09-11 分表设计存 quant.index_daily（键带市场后缀，如 399001.SZ），
+    本表只放个股。任何调用方漏过滤指数码时，upsert 都会撞约束 → CheckViolation →
+    整批回滚 + 日志刷 error（实证：2026-09-11 18:40 与 2026-09-12 00:25-00:26 共 11 次，
+    看板事件 bc64397b / d0f549d1 / bbb56df6 / 585f5a3f / f1b3a7f8）。
+
+    收口放在本模块，是为了让所有写入路径（save_kline_data / save_klines /
+    save_daily_klines / batch_insert_daily_klines 的直接调用方）都拿到同一道闸门。
+
+    Args:
+        klines: DailyKline 对象列表
+
+    Returns:
+        (保留的行, 被剔除的指数代码去重列表)
+    """
+    if not klines:
+        return [], []
+    from utils.symbol_classifier import is_index_symbol
+    # 先取唯一代码再判定：is_index_symbol 对白名单码要查 stocks 表，按行判会放大查询次数
+    unique_symbols = {str(getattr(k, 'symbol', '') or '').strip() for k in klines}
+    index_symbols = {s for s in unique_symbols if s and is_index_symbol(s)}
+    if not index_symbols:
+        return list(klines), []
+    kept = [k for k in klines if str(getattr(k, 'symbol', '') or '').strip() not in index_symbols]
+    return kept, sorted(index_symbols)
+
 class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
     """K线ORM Repository
 
@@ -810,6 +839,45 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
 
     # ==================== 批量写入 ====================
 
+    def get_first_close_on_or_after(self, symbol: str, start_date) -> Optional[float]:
+        """返回 >= start_date 的**第一个交易日**收盘价；无数据返回 None。
+
+        2026-09-13（w-32314d00，REQ-24e15d t4）：`infrastructure/jobs/verification_job.py` 与
+        `weekly_report_job.py` 原先各自手写 `SELECT close FROM quant.daily_klines … LIMIT 1`，
+        且是"先拿仓储的 session 再写裸 SQL"的半迁移写法 —— 这里把该查询收进仓储。
+        """
+        try:
+            row = (
+                self.session.query(DailyKline.close)
+                .filter(DailyKline.symbol == self._normalize_symbol(symbol))
+                .filter(DailyKline.trade_date >= start_date)
+                .order_by(DailyKline.trade_date.asc())
+                .limit(1)
+                .first()
+            )
+            return float(row[0]) if row and row[0] is not None else None
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting first close for {symbol}: {e}")
+            return None
+
+    def get_last_close_on_or_before(self, symbol: str, end_date) -> Optional[float]:
+        """返回 <= end_date 的**最后一个交易日**收盘价；无数据返回 None。"""
+        try:
+            row = (
+                self.session.query(DailyKline.close)
+                .filter(DailyKline.symbol == self._normalize_symbol(symbol))
+                .filter(DailyKline.trade_date <= end_date)
+                .order_by(DailyKline.trade_date.desc())
+                .limit(1)
+                .first()
+            )
+            return float(row[0]) if row and row[0] is not None else None
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting last close for {symbol}: {e}")
+            return None
+
     def batch_insert_daily_klines(self, klines: List[DailyKline]) -> bool:
         """批量插入日K线数据（使用 upsert 避免重复键冲突）
 
@@ -820,6 +888,18 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             成功返回True
         """
         if not klines:
+            return True
+
+        # 统一收口：指数行不入 daily_klines（约束 chk_daily_klines_no_indexrows）。
+        # 必须在下方 auto-create stocks 元数据之前剔除——指数不是股票，
+        # 提前放行会为指数造出假个股行，再撞约束整批回滚。
+        klines, skipped_index = filter_index_rows(klines)
+        if skipped_index:
+            logger.warning(
+                f"Skip index rows for daily_klines (约束 chk_daily_klines_no_indexrows): "
+                f"{skipped_index} —— 指数价格请写 quant.index_daily")
+        if not klines:
+            # 全部都是指数行：无事可做，不是失败（调用方不必因此重试）
             return True
 
         try:

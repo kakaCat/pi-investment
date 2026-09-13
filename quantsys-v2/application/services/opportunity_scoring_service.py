@@ -405,6 +405,16 @@ class OpportunityScoringService:
         except Exception as e:
             logger.error(f"{symbol}: 评分失败 - {e}", exc_info=True)
             return {'_skipped': 'error'}
+        finally:
+            # 线程池 worker 必须自行归还会话（2026-09-13，w-32314d00，事件 a6780ec3）：
+            # 池化线程（ThreadPoolExecutor-N）长期存活，读操作 autobegin 的事务不清会一直占着
+            # 连接（idle in transaction）。session_guard 实测 39 次 session_leak_detected 中，
+            # 本路径（_score_single_stock → stock_repository.get_by_symbol）占 10+ 次。
+            try:
+                from infrastructure.persistence.orm import close_session
+                close_session()
+            except Exception:
+                pass
 
     @staticmethod
     def _map_fundamental_keys(fundamental: Dict) -> Dict:

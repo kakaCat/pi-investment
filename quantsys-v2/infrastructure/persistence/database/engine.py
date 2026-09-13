@@ -284,3 +284,48 @@ def db_cursor(commit: bool = False):
             cursor.close()
     finally:
         conn.close()
+
+
+class PooledConnection:
+    """把池化连接包装成 psycopg2 风格的 `cursor()/commit()/rollback()/close()`。
+
+    用途（2026-09-13，w-32314d00，REQ-24e15d t2）：把 legacy 的「构造时 psycopg2.connect 长期持有」
+    调用点**零改动**地切到连接池 —— 调用方仍写 `conn = ...; cursor = conn.cursor(); ...; conn.commit();
+    conn.close()`，但底层换成了池化连接，`close()` 归还连接池而不是真的关闭 DB 连接。
+    为什么必须改：长寿命裸连接超出 idle-in-transaction 阈值会被 DB 强杀（同源事故 9c8ebd29 / a6780ec3），
+    且不走连接池，泄漏无人可见。
+
+    `close()` 时对未提交事务显式 rollback：psycopg2 默认事务模式，连 SELECT 都开事务，
+    不结束就归还同样会留下 idle-in-transaction 残影。
+    """
+
+    def __init__(self):
+        self._pooled = get_engine().connect()
+        self._raw = self._pooled.connection
+
+    @property
+    def closed(self) -> bool:
+        return bool(getattr(self._raw, "closed", 0)) or bool(getattr(self._pooled, "closed", False))
+
+    def cursor(self, *args, **kwargs):
+        if kwargs.get("cursor_factory") is None:
+            kwargs.pop("cursor_factory", None)
+        return self._raw.cursor(*args, **kwargs)
+
+    def commit(self) -> None:
+        self._raw.commit()
+
+    def rollback(self) -> None:
+        self._raw.rollback()
+
+    def close(self) -> None:
+        try:
+            if not self.closed:
+                self._raw.rollback()  # 未提交的事务显式结束，避免 idle-in-transaction 残影
+        except Exception:  # noqa: BLE001 - 关闭期的清理异常不应外溢
+            pass
+        finally:
+            try:
+                self._pooled.close()   # 归还连接池（不是真的关连接）
+            except Exception:  # noqa: BLE001
+                pass

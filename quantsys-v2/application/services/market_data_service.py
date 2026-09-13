@@ -748,6 +748,55 @@ class MarketDataService:
                 'data': None
             }
 
+    def _index_daily_from_db(
+        self,
+        symbol: str,
+        start_date: str,
+        end_date: str
+    ) -> List[Dict[str, Any]]:
+        """从 quant.index_daily 读指数日线（DB-first 路径）。
+
+        键与 provider 路径**完全一致**（date/open/high/low/close/volume/amount），
+        保证调用方（benchmark_comparison 等）无需改动；符号规范化交给
+        utils.symbol_classifier.resolve_index_symbol（'sh000300' / '000300.SH' / '000300'
+        → '000300.SH'；与指数同码的深市个股返回 None → 本路径放弃，交回 provider 语义）。
+
+        任何异常都返回 []（调用方回退 provider），绝不因本地库问题阻断取数。
+        """
+        try:
+            from utils.symbol_classifier import resolve_index_symbol
+            canonical = resolve_index_symbol(symbol)
+        except Exception as e:
+            self.logger.warning(f"指数符号规范化失败({symbol})，回退 provider: {e}")
+            return []
+        if not canonical:
+            return []
+        try:
+            from adapters.outbound.repositories.kline_repository import KlineORMRepository
+            rows = KlineORMRepository().get_index_daily_klines(
+                canonical, start_date or '1990-01-01', end_date or '2999-12-31')
+        except Exception as e:
+            self.logger.warning(f"本地指数库读取失败({canonical})，回退 provider: {e}")
+            return []
+        out: List[Dict[str, Any]] = []
+        for r in rows:
+            d = r.get('trade_date') or r.get('date')
+            row = {
+                'date': str(d)[:10],
+                'open': r.get('open'),
+                'high': r.get('high'),
+                'low': r.get('low'),
+                'close': r.get('close'),
+                'volume': r.get('volume'),
+            }
+            # amount 只在真有时带上：指数表里 0 表示"源未提供"（新浪指数接口无成交额列，
+            # 采集时按 0 落库），照搬 0.0 会误导成"成交额为 0"；而 provider 路径本来就没有该键。
+            amt = r.get('amount')
+            if amt:
+                row['amount'] = amt
+            out.append(row)
+        return out
+
     def get_index_history(
         self,
         symbol: str = "sh000300",
@@ -768,6 +817,27 @@ class MarketDataService:
         try:
 
             self.logger.info(f"获取指数历史: symbol={symbol}, start={start_date}, end={end_date}")
+
+            # ① DB-first（2026-09-13，w-32314d00，错误事件 222154a8）：quant.index_daily 已有指数日线，
+            #    且由采集通道（launchd index-daily-refresh-final）每日刷新 —— 没必要每次都打外网。
+            #    实测 2026-09-13 10:59 一次机器级 DNS 抖动（Failed to resolve 'finance.sina.com.cn'，
+            #    同一分钟 qt.gtimg.cn 也解析失败）就让"基准指数"整段不可用，
+            #    而库里 000300.SH 数据本来是好的 → 白白丢掉 alpha/beta 基准。
+            db_klines = self._index_daily_from_db(symbol, start_date, end_date)
+            if db_klines:
+                self.logger.info(f"指数历史数据(本地库): {len(db_klines)} 条")
+                return {
+                    'success': True,
+                    'data': {
+                        'symbol': symbol,
+                        'klines': db_klines,
+                        'total': len(db_klines),
+                        'start_date': start_date,
+                        'end_date': end_date,
+                        'source': 'db:quant.index_daily',
+                        'update_time': datetime.now().isoformat()
+                    }
+                }
 
             try:
                 # 2026-09-05 修复：call_akshare 方法不存在，改走

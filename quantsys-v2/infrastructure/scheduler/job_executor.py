@@ -61,6 +61,42 @@ def classify_job_result(result: Any) -> Optional[str]:
     return None
 
 
+_RESULT_MARKER_KEYS = ("success", "status")
+
+
+def find_result_failure(result: Any, depth: int = 0) -> Optional[str]:
+    """在 handler 返回值里**下钻**查找内层失败（classify_job_result 的嵌套版）。
+
+    2026-09-13（w-32314d00）：假成功审计发现，失败常常藏在嵌套 dict 里而外层看起来正常——
+    实证 `quant.inprocess_job_runs` 中 evening_pipeline 2026-09-03/04/07/08/09 五天记 success，
+    结果里却是 `{'kline_sync': {'status': 'error', 'error': 'column "updated_at" does not exist'}}`；
+    `quant.scheduler_runs` 里也有 7 条 success 的 run 结果带失败标记
+    （task 323 'regime_daily' 属性错、task 258 'list_pools' 属性错、task 232 "name 'datetime' is not defined"）。
+    外层只看有没有抛异常 → 任务台账一片绿，真实失败没人看见。
+
+    口径（与 classify_job_result 同源，宁少报不误报）：
+      1. 先按 classify_job_result 判当前层；
+      2. 只下钻"结果形状"的嵌套 dict（含 success/status 键），最多 2 层——
+         诊断类字段（如失败的 job 清单）不参与判定，避免误报；
+      3. 显式 `skipped=True` 不算失败（非交易日/幂等跳过是正常语义）。
+    """
+    if depth > 2:
+        return None
+    if isinstance(result, dict) and result.get("skipped") is True:
+        return None
+    err = classify_job_result(result)
+    if err:
+        return err
+    if isinstance(result, dict):
+        for key, value in result.items():
+            if not isinstance(value, dict) or not any(k in value for k in _RESULT_MARKER_KEYS):
+                continue
+            sub = find_result_failure(value, depth + 1)
+            if sub:
+                return f"{key}: {sub}"
+    return None
+
+
 def execute_scheduled_job(task_id: int):
     """APScheduler 调用入口（REQ-a42aa4 Batch C 包装：设/清任务上下文后执行）。
 

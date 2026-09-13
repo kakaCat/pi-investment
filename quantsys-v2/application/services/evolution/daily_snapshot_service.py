@@ -237,9 +237,21 @@ class EquitySnapshotJob:
     def _has_bar(self, target: date) -> bool:
         from domain.ports import IKlineRepository
         from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-        klines = EnhancedServiceFactory.resolve(IKlineRepository).get_daily_klines(
-            symbol=_SNAPSHOT_REF_SYMBOL,
-            start_date=target.isoformat(), end_date=target.isoformat())
+        try:
+            klines = EnhancedServiceFactory.resolve(IKlineRepository).get_daily_klines(
+                symbol=_SNAPSHOT_REF_SYMBOL,
+                start_date=target.isoformat(), end_date=target.isoformat())
+        finally:
+            # 只读查询也必须归还会话（2026-09-13 18:26，w-32314d00，看板事件 a6780ec3）：
+            # kline_repository 的读走 self.session，autobegin 的事务不结束就把连接挂在
+            # idle in transaction（337s 后被 DB 强杀 → session_leak_detected）。
+            # 按会话来源聚合 40 次泄漏：本路径是**其余来源修完后唯一剩下的**
+            #（其余 6 条末次出现均停在各自修前）。
+            try:
+                from infrastructure.persistence.orm import close_session
+                close_session()
+            except Exception:  # noqa: BLE001 - 归还会话失败不应影响 has_bar 判定
+                pass
         if klines is None:
             return False
         if hasattr(klines, "is_empty"):

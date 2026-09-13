@@ -187,7 +187,11 @@ class FinancialORMRepository(BaseORMRepository[IncomeStatement], IFinancialRepos
                     'source')
             rows = []
             for r in records:
-                row = {k: r.get(k) for k in cols if r.get(k) is not None}
+                # 键必须整齐（缺的补 None）：SQLAlchemy 多行 VALUES 要求每行键集合一致，
+                # 否则整批报 "INSERT value for column ... is explicitly rendered as a
+                # boundparameter"（2026-09-13 实测：新增 eps_diluted 后每批 upsert 全灭，
+                # 且函数只 return 0 + 打 ERROR，调用方以为"没数据"——静默丢数据）。
+                row = {k: r.get(k) for k in cols}
                 row['updated_at'] = now
                 rows.append(row)
 
@@ -206,6 +210,60 @@ class FinancialORMRepository(BaseORMRepository[IncomeStatement], IFinancialRepos
             return len(rows)
         except SQLAlchemyError as e:
             logger.error(f"Error upserting income statements: {e}")
+            self.session.rollback()
+            return 0
+
+    def upsert_balance_sheets(self, records: List[Dict[str, Any]]) -> int:
+        """批量 upsert 资产负债表记录（按 symbol+report_date+period_type 去重）
+
+        2026-09-13（w-32314d00）：本表此前**没有任何写入通道**——
+        quant.balance_sheets 最新报告期停在 2026-03-31（1200 行，来自历史 bulk 导入），
+        而数据契约/时效性巡检正是以它为口径 → 每个交易日 09:00 都判"财报超期"却无人能修
+        （用户手动跑 financial_data_update_job 也只刷 quant.stocks 的指标列，修不到这里）。
+        现补齐写入通道，由 financial_statement_update_job 与利润表同批 upsert。
+
+        Args:
+            records: [{symbol, report_date, period_type, total_assets, current_assets,
+                       non_current_assets, total_liabilities, current_liabilities,
+                       non_current_liabilities, total_equity, parent_equity, source}]
+
+        Returns:
+            写入条数
+        """
+        if not records:
+            return 0
+        try:
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+            now = datetime.now()
+            cols = ('symbol', 'report_date', 'period_type', 'total_assets',
+                    'current_assets', 'non_current_assets', 'total_liabilities',
+                    'current_liabilities', 'non_current_liabilities', 'total_equity',
+                    'parent_equity', 'source')
+            rows = []
+            for r in records:
+                # 键必须**整齐**（缺的补 None）：SQLAlchemy 的 pg_insert 多行 VALUES
+                # 要求每行键集合一致，否则报 "explicitly rendered as a boundparameter"
+                # （2026-09-13 实测：5 只里 2 只因 non_current_liabilities 缺失整批失败）
+                row = {k: r.get(k) for k in cols}
+                row['updated_at'] = now
+                rows.append(row)
+
+            stmt = pg_insert(BalanceSheet).values(rows)
+            update_cols = {c: getattr(stmt.excluded, c) for c in
+                           ('total_assets', 'current_assets', 'non_current_assets',
+                            'total_liabilities', 'current_liabilities',
+                            'non_current_liabilities', 'total_equity',
+                            'parent_equity', 'source', 'updated_at')}
+            stmt = stmt.on_conflict_do_update(
+                index_elements=['symbol', 'report_date', 'period_type'],
+                set_=update_cols,
+            )
+            self.session.execute(stmt)
+            self.session.commit()
+            return len(rows)
+        except SQLAlchemyError as e:
+            logger.error(f"Error upserting balance sheets: {e}")
             self.session.rollback()
             return 0
 

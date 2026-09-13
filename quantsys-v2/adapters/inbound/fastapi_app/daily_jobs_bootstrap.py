@@ -32,11 +32,16 @@ from typing import Any, Callable, Dict, List, Optional
 
 import structlog
 
+# 失败判定口径唯一来源（含嵌套下钻）：与 APScheduler 路径共用，避免两套标准
+from infrastructure.scheduler.job_executor import find_result_failure
+
 logger = structlog.get_logger(__name__)
 
 _TICK_SEC = 60
 _RUNNING_STALE_HOURS = 3  # running 状态超过 3 小时视为死亡，允许重跑
 _FAILED_RETRY_HOURS = 2   # failed 超过 2 小时自动重试一次（探活门控下失败 pass 很便宜）
+_ORPHAN_GRACE_MINUTES = 5  # 宿主启动时，早于该时长仍在 running 的行 = 上一进程遗留（判死）
+_CATCHUP_WINDOW_DAYS = 3   # 跨日补跑窗口：某任务近 N 天内失败且今天不是它的排班日 → 补跑一次
 
 # ── 任务定义 ─────────────────────────────────────────────────
 
@@ -856,6 +861,30 @@ def _run_job(job: JobDef, run_date: str) -> None:
         logger.info("inprocess_job_start", job=job.job_id, date=run_date)
         _send_feishu(f"▶️ 每日任务开始：{job.job_id}\n{job.description}\n时间: {datetime.now().strftime('%H:%M')}")
         result = job.handler()
+
+        # 结果契约（2026-09-13，w-32314d00）：**只看有没有抛异常 = 假成功工厂**。
+        # 实证（近 30 天 quant.inprocess_job_runs）：evening_pipeline 09-03/04/07/08/09
+        # 五天记 success，结果里却是 {'kline_sync': {'status':'error', 'error':
+        # 'column "updated_at" does not exist'}}；financial_statements 09-05 记 success
+        # 但结果是 {'success': False}。APScheduler 路径早有 classify_job_result 判内层失败，
+        # 宿主这一条漏了 → 现在统一走 find_result_failure（含嵌套下钻），失败即记 failed。
+        inner_error = find_result_failure(result)
+        if inner_error:
+            elapsed = time.time() - t0
+            logger.error("inprocess_job_inner_failed", job=job.job_id, date=run_date,
+                         error=inner_error)
+            scheduler_job_runs_total.labels(job=job.job_id, status='failed').inc()
+            scheduler_job_duration_seconds.labels(job=job.job_id, phase='execution').observe(elapsed)
+            try:
+                _mark_done(job.job_id, run_date, 'failed', result=result, error=inner_error)
+            except Exception:
+                logger.error("inprocess_job_mark_failed_error", job=job.job_id)
+            _send_feishu(
+                f"🚨 每日任务失败：{job.job_id}\n{job.description}\n"
+                f"（handler 未抛异常但返回失败态）错误: {inner_error[:300]}"
+            )
+            return
+
         elapsed = time.time() - t0
         
         _mark_done(job.job_id, run_date, 'success', result=result)
@@ -889,15 +918,105 @@ def _run_job(job: JobDef, run_date: str) -> None:
 
 # ── 宿主循环 ─────────────────────────────────────────────────
 
+def catchup_due(job: JobDef, now: datetime, has_recent_failure: bool) -> bool:
+    """跨日补跑判定（纯函数，便于单测）。
+
+    2026-09-13（w-32314d00）：is_due 只认"今天是不是它的排班日"——周六任务周六失败后
+    要等到下周六才重试（一周空窗）。用户要求"需要自动重跑"，故对**失败过**的任务
+    在窗口期内允许跨日补跑一次：非排班日 + 已过该任务当天的执行时刻 + 近 3 天内有 failed。
+    """
+    if now.weekday() in job.weekdays:
+        return False           # 排班日交给 is_due（含 2h 失败重试）
+    if now.time() < job.run_at:
+        return False           # 未到该任务当天的执行时刻
+    return bool(has_recent_failure)
+
+
+def _recent_failed_run(job_id: str, days: int = _CATCHUP_WINDOW_DAYS) -> Optional[Dict[str, Any]]:
+    """近 N 天内最近一条 failed 记录（跨日补跑判定用）。"""
+    from infrastructure.persistence.database.engine import get_engine
+    from sqlalchemy import text
+    engine = get_engine()
+    with engine.connect() as conn:
+        row = conn.execute(text(
+            "SELECT run_date, started_at, error FROM quant.inprocess_job_runs "
+            "WHERE job_id=:j AND status='failed' AND run_date < CURRENT_DATE "
+            "  AND run_date >= CURRENT_DATE - :d "
+            "ORDER BY run_date DESC LIMIT 1"
+        ), {'j': job_id, 'd': days}).fetchone()
+    if not row:
+        return None
+    return {'run_date': str(row[0]), 'started_at': row[1], 'error': row[2]}
+
+
+def _reap_orphan_runs(now: Optional[datetime] = None) -> int:
+    """把上一进程遗留的 running 行判死（启动时调用一次）。
+
+    2026-09-13（w-32314d00）：is_due 只查**当天**的 run 行、_job_failure_watch 只看 failed，
+    于是"进程被杀/任务僵死在 running"的行既不会被重跑也不会被告警——永久隐形。
+    实证：financial_statements 2026-09-12 23:00 起 running 12h+（正是财报数据超期的那个 job）。
+    本函数在宿主启动时把早于宽限期的 running 行标 failed，使其进入失败巡检（看门狗可见 +
+    次日 freshness_guard 的失败残留告警），并允许 is_due 按失败冷却重跑。
+    """
+    from infrastructure.persistence.database.engine import get_engine
+    from sqlalchemy import text
+    now = now or datetime.now()
+    cutoff = now - timedelta(minutes=_ORPHAN_GRACE_MINUTES)
+    engine = get_engine()
+    with engine.begin() as conn:
+        rows = conn.execute(text(
+            "SELECT job_id, run_date FROM quant.inprocess_job_runs "
+            "WHERE status='running' AND started_at < :cutoff"
+        ), {'cutoff': cutoff}).fetchall()
+        if rows:
+            conn.execute(text(
+                "UPDATE quant.inprocess_job_runs "
+                "SET status='failed', finished_at=now(), "
+                "    error=COALESCE(error, '宿主重启导致中断（孤儿 running 行，进程已不在）') "
+                "WHERE status='running' AND started_at < :cutoff"
+            ), {'cutoff': cutoff})
+    if rows:
+        # 2026-09-13（w-32314d00，事件 c0e69791）：这里**刻意用 warning 而非 error**——
+        # 孤儿 running 是"已被本函数发现并收尾"的既成事实，不是当前进程的失败：
+        #   · 事故记录已落在 quant.inprocess_job_runs（status=failed + error 原因），
+        #     并可被 _job_failure_watch 巡检（次日 freshness_guard 飞书告警）；
+        #   · 用 error 级会在每次实例重启时生成一条需要人工闭环的 error_events 卡片，
+        #     把"已经处理好的事"变成待办噪声（实测 11:37 重启即产生 c0e69791）。
+        # 一条聚合 warning 带明细，日志里照样看得见，但不再制造待闭环事件。
+        logger.warning(
+            "inprocess_job_orphans_reaped",
+            count=len(rows),
+            jobs=[f"{job_id}@{run_date}" for job_id, run_date in rows],
+        )
+    return len(rows)
+
+
 def _jobs_loop(stop_event: threading.Event) -> None:
     _ensure_table()
+    try:
+        _reap_orphan_runs()   # 明细 warning 由 _reap_orphan_runs 内部输出（聚合一条）
+    except Exception as e:  # 判死失败不能阻断宿主
+        logger.error("inprocess_job_orphan_reap_error", error=str(e))
     while not stop_event.is_set():
         now = datetime.now()
         today = now.strftime('%Y-%m-%d')
         for job in JOBS:
             try:
                 last = _get_run(job.job_id, today)
-                if is_due(job, now, last):
+                catchup = False
+                if not is_due(job, now, last) and last is None:
+                    # 跨日补跑（2026-09-13，w-32314d00）：失败过的任务不必等下一个排班日。
+                    # 只在"今天还没有任何记录"时判定，跑完即写今天的行 → 天然每天最多一次。
+                    try:
+                        recent = _recent_failed_run(job.job_id)
+                    except Exception as e:
+                        recent = None
+                        logger.error("inprocess_job_catchup_query_error", job=job.job_id, error=str(e))
+                    catchup = catchup_due(job, now, recent is not None)
+                    if catchup:
+                        logger.warning("inprocess_job_catchup", job=job.job_id,
+                                       description=job.description, run_date=today)
+                if is_due(job, now, last) or catchup:
                     threading.Thread(
                         target=_run_job, args=(job, today),
                         name=f"job-{job.job_id}", daemon=True,

@@ -234,6 +234,16 @@ def create_scheduler_task(payload: Optional[Dict[str, Any]] = Body(None)):
     cron_expr = _schedule_kind_to_cron(
         schedule_kind, task_data.get('schedule_expr'), task_data.get('every_seconds'),
         task_data.get('schedule_at'), task_data.get('delay_seconds'))
+    # cron 段数校验（2026-09-13，w-32314d00，看板事件 435f0c0a / 26737737 / c488fdad）：
+    # 6 段（Agent OS 风格带秒）表达式能写进库、任务注册也返回成功，但 APScheduler 的
+    # from_crontab 只接受 5 段 → 任务**静默不进调度器**，运行记录里查不到任何失败。
+    # 故在写入前拒绝，错误信息直指修法。
+    if task_type == 'cron' and cron_expr:
+        from infrastructure.scheduler.cron_compat import validate_cron
+        try:
+            validate_cron(cron_expr)
+        except ValueError as e:
+            return error_response({'success': False, 'error': str(e)}, 400)
 
     pl = task_data.get('payload', {})
     command = task_data.get('command') or pl.get('command') or 'data_update'
@@ -257,6 +267,14 @@ def create_scheduler_task(payload: Optional[Dict[str, Any]] = Body(None)):
         # 延迟任务和一次性任务默认执行后删除
         params['_delete_after_run'] = True
 
+    # 六域打标（2026-09-13, REQ-c970e5）：创建路径此前完全不接 domain → 新建任务必然 NULL，
+    # 看板「v2 侧 domain 缺 N」因此反复变脏。非法值当场 400；不传 = 未打标（保持 NULL，不猜）。
+    from infrastructure.scheduler.task_fields import validate_domain
+    try:
+        domain = validate_domain(task_data.get('domain'))
+    except ValueError as e:
+        return error_response({'success': False, 'error': str(e)}, 400)
+
     try:
         task_id = _scheduler.add_task(
             name=name,
@@ -264,7 +282,8 @@ def create_scheduler_task(payload: Optional[Dict[str, Any]] = Body(None)):
             command=command,
             params=params,
             description=description,
-            task_type=task_type
+            task_type=task_type,
+            domain=domain,
         )
         task = _scheduler.get_task(task_id)
     except ValueError as e:
@@ -284,6 +303,12 @@ def update_scheduler_task(task_id: str, payload: Optional[Dict[str, Any]] = Body
     if 'name' in task_data:
         updates['name'] = task_data['name']
     if 'cron_expression' in task_data:
+        # 同上：写入前校验段数（6 段会导致任务静默不进调度器）
+        from infrastructure.scheduler.cron_compat import validate_cron
+        try:
+            validate_cron(task_data['cron_expression'])
+        except ValueError as e:
+            return error_response({'success': False, 'error': str(e)}, 400)
         updates['cron_expression'] = task_data['cron_expression']
     if 'command' in task_data:
         updates['command'] = task_data['command']
@@ -299,12 +324,24 @@ def update_scheduler_task(task_id: str, payload: Optional[Dict[str, Any]] = Body
         updates['params'] = task_data['params']
     if 'is_enabled' in task_data:
         updates['is_enabled'] = task_data['is_enabled']
+    if 'domain' in task_data:
+        # 同上：六域白名单校验（2026-09-13, REQ-c970e5）—— 更新路径同样支持补标/纠错
+        from infrastructure.scheduler.task_fields import validate_domain
+        try:
+            updates['domain'] = validate_domain(task_data['domain'])
+        except ValueError as e:
+            return error_response({'success': False, 'error': str(e)}, 400)
     if 'schedule_kind' in task_data or 'schedule_expr' in task_data:
         task = _scheduler.get_task(tid)
         if task:
             cron_expr = _schedule_kind_to_cron(
                 task_data.get('schedule_kind', 'cron'), task_data.get('schedule_expr'),
                 task_data.get('every_seconds'), task_data.get('schedule_at'), task_data.get('delay_seconds'))
+            from infrastructure.scheduler.cron_compat import validate_cron
+            try:
+                validate_cron(cron_expr)
+            except ValueError as e:
+                return error_response({'success': False, 'error': str(e)}, 400)
             updates['cron_expression'] = cron_expr
     if updates:
         _scheduler.update_task(tid, **updates)

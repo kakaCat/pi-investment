@@ -1346,7 +1346,7 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
             logger.warning(f"发送通知失败: {e}")
         
         return result_dict
-        
+
     except Exception as e:
         logger.error(f"模型训练失败: {e}", exc_info=True)
         result_dict = {
@@ -1363,6 +1363,13 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
             logger.warning(f"发送通知失败: {e_notify}")
         
         return result_dict
+
+    finally:
+        # 训练全程归还会话（2026-09-13，w-32314d00，事件 a6780ec3）：本函数跑在
+        # asyncio.to_thread 的池化线程上，训练动辄数分钟且中途有大量读操作（autobegin 事务），
+        # 不释放就会一直占连接。此前只在 _check_train_needed 内做了一个检查点
+        # （提前 return 的分支覆盖不到），这里补统一的出口释放。
+        _release_thread_session()
 
 
 _TASK_HANDLERS: Dict[str, Callable] = {

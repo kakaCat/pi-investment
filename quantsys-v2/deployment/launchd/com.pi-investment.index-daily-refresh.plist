@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.pi-investment.index-daily-refresh</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yunpeng/pi-investment/quantsys-v2/venv/bin/python</string>
+        <string>/Users/yunpeng/pi-investment/quantsys-v2/tools/backfill_index_daily.py</string>
+        <string>--days</string>
+        <string>30</string>
+    </array>
+    <key>WorkingDirectory</key><string>/Users/yunpeng/pi-investment/quantsys-v2</string>
+    <!-- 指数日线每日刷新（2026-09-11 立，w-f4aa1f6a）：指数与个股已分表（quant.index_daily），
+         必须有独立采集通道，否则又会像 CSI300 那样在库里冻结 9 个交易日而无人察觉。
+         工作日 16:30（收盘后）执行；失败不阻断，由 benchmark-freshness-check 兜底告警。 -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>30</integer></dict>
+        <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>30</integer></dict>
+        <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>30</integer></dict>
+        <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>30</integer></dict>
+        <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>30</integer></dict>
+    </array>
+    <key>StandardOutPath</key><string>/Users/yunpeng/pi-investment/logs/index-daily-refresh.log</string>
+    <key>StandardErrorPath</key><string>/Users/yunpeng/pi-investment/logs/index-daily-refresh.err.log</string>
+</dict>
+</plist>

@@ -121,41 +121,15 @@ class WeeklyReportJob:
         kline_repo = KlineRepository()
 
         for pos in positions:
-            cursor = kline_repo.session.connection().connection.cursor()
-
-            # 获取期初价格
-            cursor.execute(
-                """
-                SELECT close FROM quant.daily_klines
-                WHERE symbol = %s AND trade_date >= %s
-                ORDER BY trade_date ASC LIMIT 1
-                """,
-                (pos.symbol, start_date)
-            )
-            start_row = cursor.fetchone()
-
-            if not start_row:
-                cursor.close()
+            # 2026-09-13（w-32314d00，REQ-24e15d t4）：与 verification_job 同源写法（先取仓储 session
+            # 再手写裸 SQL），现改为调用仓储方法，作业层不再出现 SQL 文本。
+            start_price = kline_repo.get_first_close_on_or_after(pos.symbol, start_date)
+            if not start_price:
                 continue
 
-            start_price = start_row[0]
-
-            # 获取期末价格
-            cursor.execute(
-                """
-                SELECT close FROM quant.daily_klines
-                WHERE symbol = %s AND trade_date <= %s
-                ORDER BY trade_date DESC LIMIT 1
-                """,
-                (pos.symbol, end_date)
-            )
-            end_row = cursor.fetchone()
-            cursor.close()
-
-            if not end_row:
+            end_price = kline_repo.get_last_close_on_or_before(pos.symbol, end_date)
+            if not end_price:
                 continue
-
-            end_price = end_row[0]
 
             ret = (end_price - start_price) / start_price
             returns.append(ret)
