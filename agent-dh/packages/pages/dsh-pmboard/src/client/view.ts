@@ -469,12 +469,27 @@ function isTerminal(status: string): boolean {
  * 但 client 也必须能独立兜底，绝不编造中间状态。
  */
 function eventsOf(
-  rec: { createdAt: number; statusHistory?: StatusEvent[] },
+  rec: { status?: string; createdAt: number; updatedAt?: number; updatedBy?: { kind: 'human' | 'agent' | 'system'; sessionId?: string }; statusHistory?: StatusEvent[] },
   initial: string,
 ): StatusEvent[] {
   const hist = rec.statusHistory
   if (hist !== undefined && hist.length > 0) return hist
-  return [{ status: initial, at: rec.createdAt, by: { kind: 'human' } }]
+  // 升级前的老记录（host 侧尚未迁移）也要渲染得体面且诚实：只有一个「创建」点 + 由
+  // updatedAt 推导的当前态，两者都标 inferred（UI 显示「回填」），中间态一律留空 ——
+  // 绝不按时间戳线性插值编造出「评审 09-10 完成 09-11」这种看起来精确的假时间线。
+  const out: StatusEvent[] = [
+    { status: initial, at: rec.createdAt, by: { kind: 'human' }, reason: '创建', inferred: true },
+  ]
+  if (rec.status !== undefined && rec.status !== initial && rec.updatedAt !== undefined) {
+    out.push({
+      status: rec.status,
+      at: Math.max(rec.updatedAt, rec.createdAt),
+      by: rec.updatedBy ?? { kind: 'human' },
+      reason: '按 updatedAt 回填（当时无事件留痕）',
+      inferred: true,
+    })
+  }
+  return out
 }
 
 /** 时间线表：每个里程碑的进入时间 + 该段停留时长 + 操作者（回填事件显式标注）。 */

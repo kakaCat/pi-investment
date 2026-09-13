@@ -436,11 +436,16 @@ describe('需求时间线（各状态进入时间 + 停留时长）', () => {
     expect(buildReqDetail(req, [], T0 + 2 * HOUR)).toContain('回填')
   })
 
-  it('老记录无 statusHistory → 退化为创建单点，不编造中间态', () => {
+  it('老记录无 statusHistory → 只渲染「创建 + 由 updatedAt 推导的当前态」，中间态留空（不编造）', () => {
     const req = makeReq({ status: 'implementing' })
     const html = buildReqDetail(req, [], T0 + HOUR)
     expect(html).toContain('dsh-pm-timeline')
-    expect(html.match(/dsh-pm-tl-row pending/g)?.length).toBeGreaterThanOrEqual(6)
+    // 7 个里程碑 - 已知 2 个（立项/实施）= 5 个未到达
+    expect(html.match(/dsh-pm-tl-row pending/g)?.length).toBe(5)
+    expect(html).toContain('回填')
+    // 评审/拆分等中间态必须是「—」，不得按时间戳插值编造出精确时间
+    expect(html).toContain('data-status="reviewing"><span class="dsh-pm-tl-label">评审</span><span class="dsh-pm-tl-time">—</span>')
+    expect(html).toContain('data-status="decomposing"><span class="dsh-pm-tl-label">拆分</span><span class="dsh-pm-tl-time">—</span>')
   })
 
   it('任务详情也有时间线（含执行段耗时）', () => {
