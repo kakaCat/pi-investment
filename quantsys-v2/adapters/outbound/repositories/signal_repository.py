@@ -575,6 +575,53 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             logger.error(f"Error getting signal stats: {e}")
             return {}
 
+    def get_signal_stats(self, start_date: str, end_date: str) -> Dict[str, Any]:
+        """信号统计：total / by_action / by_strategy / avg_confidence。
+
+        2026-09-14（w-c8cae280）**补实现** —— 本方法此前**不存在**，但：
+          - 生产路由 adapters/inbound/fastapi_app/routes/signals_async.py:38 直接调用它
+            → GET /api/signals/history 必然 500（AttributeError 被该路由的 except 包成 500）；
+          - tests/test_signal_repository.py 有 5 处调用，且把契约写得很完整
+            （total:int / by_action / by_strategy / avg_confidence），并明确要求非法日期抛 ValueError。
+        查证过程（决定"改调用方还是改测试"的依据）：生产调用 1 处、测试调用 5 处，且仓库里
+        只有 get_signal_stats_by_strategy（另一个方法），说明是**接口缺失**而非调用方写错。
+
+        口径：action 在库里是**大写契约**（BUY/SELL/HOLD），对外统计统一转小写键；
+        by_strategy 用 strategy_id；avg_confidence 为置信度算术平均（无置信度则 0.0）。
+        """
+        for _d in (start_date, end_date):
+            try:
+                datetime.strptime(str(_d), '%Y-%m-%d')
+            except (TypeError, ValueError) as exc:
+                raise ValueError("日期必须为 YYYY-MM-DD 格式，收到：%r" % (_d,)) from exc
+        try:
+            signals = self.get_signals_by_date_range(start_date, end_date)
+        except Exception as e:            # noqa: BLE001
+            self._safe_rollback()
+            logger.error("Error getting signal stats: %s", e)
+            return {'total': 0, 'by_action': {}, 'by_strategy': {}, 'avg_confidence': 0.0}
+
+        by_action: Dict[str, int] = {}
+        by_strategy: Dict[str, int] = {}
+        conf_sum, conf_n = 0.0, 0
+        for s in signals:
+            act = str(getattr(s, 'action', '') or '').strip().lower()
+            if act:
+                by_action[act] = by_action.get(act, 0) + 1
+            stg = str(getattr(s, 'strategy_id', '') or '').strip()
+            if stg:
+                by_strategy[stg] = by_strategy.get(stg, 0) + 1
+            conf = getattr(s, 'confidence', None)
+            if conf is not None:
+                conf_sum += float(conf)
+                conf_n += 1
+        return {
+            'total': len(signals),
+            'by_action': by_action,
+            'by_strategy': by_strategy,
+            'avg_confidence': (conf_sum / conf_n) if conf_n else 0.0,
+        }
+
     # ==================== 删除方法 ====================
 
     def delete_signals_by_date(self, signal_date: str) -> int:
