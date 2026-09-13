@@ -30,9 +30,36 @@ def psql(sql):
     return (r.stdout or "").strip()
 
 
+def table_exists(name):
+    schema, _, table = name.partition(".")
+    n = psql("select count(*) from information_schema.tables where table_schema='%s' and table_name='%s'"
+             % (schema, table))
+    return int(n or 0) > 0
+
+
 def check_table(spec):
+    """声明层条目体检。
+
+    2026-09-13（w-a9ec14d7）健壮性修复：原实现直接对声明的表跑查询，
+    表被 drop（按契约正常处置）后整个探针**直接崩溃**（RuntimeError 冒到 main），
+    每周任务会因此报失败——**比没有探针更糟**。现在：
+      · status=dropped 的条目跳过巡检，但校验其 backup_table 是否还在（可回滚性）；
+      · 表缺失/改名 → 记为 declared_table_missing（issue，不崩），提示契约与实现脱节。
+    """
     name = spec["name"]
     out = {"table": name, "kind": spec.get("kind"), "owner": spec.get("owner"), "issues": []}
+    if not table_exists(name):
+        if spec.get("status") == "dropped":
+            backup = spec.get("backup_table")
+            if backup:
+                out["backup_ok"] = table_exists(backup)
+                if not out["backup_ok"]:
+                    out["issues"].append({"type": "backup_missing", "detail": "已 drop 但备份表 %s 不存在（不可回滚）" % backup})
+            out["note"] = "已按契约 drop（status=dropped），跳过巡检"
+            return out
+        out["issues"].append({"type": "declared_table_missing",
+                              "detail": "契约声明的表 %s 不存在——契约与实现脱节，请更新 data_contracts.json" % name})
+        return out
     for ref in spec.get("ref_checks") or []:
         col = ref["column"]
         target = ref["target"]
@@ -76,7 +103,7 @@ def main():
     a = ap.parse_args()
     spec = json.loads(CONTRACTS.read_text(encoding="utf-8"))
     results = [check_table(t) for t in spec.get("tables", [])]
-    bad = [r for r in results if r["issues"]]
+    bad = [r for r in results if r["issues"]]   # dropped 且有备份 = 正常终态，不算问题
     print("=== 数据卫生探针（%s）===" % datetime.now().isoformat(timespec="seconds"))
     print("声明表 %d 张，发现问题 %d 张" % (len(results), len(bad)))
     for r in results:

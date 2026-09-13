@@ -1,29 +1,13 @@
 {
- "checked_at": "2026-09-13T17:14:42",
+ "checked_at": "2026-09-13T17:30:14",
  "tables": [
   {
    "table": "quant.strategy_stock_matching",
    "kind": "derived",
    "owner": "legacy(2026-05-31)",
-   "issues": [
-    {
-     "type": "dangling_reference",
-     "column": "best_strategy_id",
-     "target": "quant.strategy_configs",
-     "rows": 800,
-     "total_rows": 800,
-     "detail": "800/800 行的 best_strategy_id 指向上游不存在的数据"
-    },
-    {
-     "type": "stale_derived_table",
-     "column": "matched_at",
-     "lag_days": 105,
-     "ttl_days": 30,
-     "detail": "派生表 105 天未更新（TTL 30 天）"
-    }
-   ],
-   "latest": "2026-05-31 00:42:55.965468",
-   "lag_days": 105
+   "issues": [],
+   "backup_ok": true,
+   "note": "已按契约 drop（status=dropped），跳过巡检"
   },
   {
    "table": "quant.pool_change_log",
@@ -50,5 +34,5 @@
    "issues": []
   }
  ],
- "tables_with_issues": 1
+ "tables_with_issues": 0
 }
