@@ -1,0 +1,30 @@
+{
+ "strategies": [
+  {
+   "strategy_id": "720",
+   "name": "zz-loop-e2e",
+   "source": "buyhold",
+   "registered_at": "2026-09-13T12:31:55",
+   "forced": true,
+   "gate": {
+    "median_cagr": 0.1634,
+    "worst_cagr": -0.0814,
+    "worst_dd": -0.2093,
+    "median_sharpe": 0.71,
+    "trades": 0,
+    "control_median_cagr": -0.0077
+   },
+   "checks": {
+    "median_cagr": true,
+    "worst_cagr": false,
+    "worst_dd": false,
+    "median_sharpe": false,
+    "min_trades": false,
+    "control_median_cagr": false
+   },
+   "status": "deleted",
+   "retired_at": "2026-09-13T12:31:58",
+   "reason": "闭环连通性验证完成，探针即删"
+  }
+ ]
+}

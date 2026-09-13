@@ -41,3 +41,6 @@
 - 评估器：`quantsys-v2/scripts/strategy_lab.py`（T+1、次日开盘成交、含成本、篮子等权、IS/OOS、screen 批量）
 - 候选与对照：`quantsys-v2/scripts/lab_strategies/`（buyhold 基准、trend_resonance_atr_v1、trend_following_v2/v3、trend_pullback_reversal_v4）
 - 清理脚本：`quantsys-v2/scripts/cleanup_strategies.py`（备份 + 事务删除）
+- [2026-09-13 12:31] 退役策略 718（删除）：已停用（此前用 curl 建的探针）
+- [2026-09-13 12:31] 注册策略 720 zz-loop-e2e（门槛：强制登记，指标 {"median_cagr": 0.1634, "worst_cagr": -0.0814, "worst_dd": -0.2093, "median_sharpe": 0.71, "trades": 0, "control_median_cagr": -0.0077}）
+- [2026-09-13 12:31] 退役策略 720（删除）：闭环连通性验证完成，探针即删
