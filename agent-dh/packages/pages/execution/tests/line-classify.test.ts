@@ -42,8 +42,8 @@ describe('分类：字段优先 → 名单兜底 → 未归类显式', () => {
     expect(c.unclassified).toBe(true);
   });
 
-  it('已知「其它」前缀不算未归类（board-/geer-/v2_health_check）', () => {
-    for (const n of ['board-3341a342-verify', 'geer-take-profit-0901', 'v2_health_check']) {
+  it('已知「其它」前缀/名单不算未归类（board-/geer-/v2_health_check/session-probe）', () => {
+    for (const n of ['board-3341a342-verify', 'geer-take-profit-0901', 'v2_health_check', 'session-probe']) {
       expect(classifyTask({ name: n }).unclassified).toBe(false);
     }
   });
@@ -119,5 +119,44 @@ describe('对账 computeTaskCoverage', () => {
     expect(c.os?.apiTotal).toBe(27);
     expect(c.os?.excluded).toBe(7);
     expect(c.os?.byReason.disabled).toBe(3);
+  });
+});
+
+/**
+ * REQ-eeb38c（2026-09-13 w-a1402b8c）：v2 侧 11 个任务落 other 被对账标记「未归类」的防复发钉子。
+ * 名单是过渡兜底：v2 接口没有业务线字段，只能靠名；本用例把这 11 个名字的归类锁死。
+ */
+describe('REQ-eeb38c：11 个 v2 任务名兜底归类', () => {
+  const EXPECTED: Array<[string, 'engine' | 'autonomy' | 'other']> = [
+    ['ingest_events_daily', 'engine'],
+    ['ingest_events_policy', 'engine'],
+    ['ingest_events_history', 'engine'],
+    ['ingest_disclosure_calendar', 'engine'],
+    ['minute_kline_sync', 'engine'],
+    ['industry_chain_refresh', 'engine'],
+    ['equity_snapshot_daily', 'engine'],
+    ['core_plan_generate', 'engine'],
+    ['strategy_loop_weekly', 'engine'],
+    ['data_hygiene_probe', 'autonomy'],
+    ['session-probe', 'other'],
+  ];
+
+  it('11 个名字各自归到预期业务线，且都不再标未归类', () => {
+    for (const [name, line] of EXPECTED) {
+      const c = classifyTask({ name });
+      expect(c.line, name).toBe(line);
+      expect(c.unclassified, name).toBe(false);
+    }
+  });
+
+  it('对账层面：这 11 个名字进入 computeTaskCoverage 后 unclassified 为空', () => {
+    const c = computeTaskCoverage(EXPECTED.map(([name]) => ({ name, src: 'v2', agentLine: null })));
+    expect(c.total).toBe(11);
+    expect(c.unclassified).toEqual([]);
+    expect(c.byLine).toMatchObject({ engine: 9, autonomy: 1, other: 1 });
+  });
+
+  it('session-probe 走「已知其它」而非名单兜底失败', () => {
+    expect(classifyTask({ name: 'session-probe' })).toEqual({ line: 'other', source: 'name', unclassified: false });
   });
 });

@@ -8,6 +8,8 @@
  * 分类优先级（2026-09-12 定的口径）：
  *   ① 任务自带字段（OS 的 agent_line / v2 的 domain）—— **事实优先**
  *   ② 回退到任务名名单（历史口径，兼容字段尚未在接口暴露的过渡期）
+ *      —— 2026-09-13 补录 11 个 v2 任务（REQ-eeb38c）：v2 侧至今没有业务线字段，
+ *      新建任务必然落 other 并对账告警；能对上 OS 侧孪生任务的，以孪生自带的 agent_line 为准。
  *   ③ 都认不出 → 'other' 且标记 unclassified=true（供对账显式暴露，不静默）
  *
  * 已知现状（2026-09-12 实测）：DB 里 public.tasks.agent_line 已存在（22 profit_engine / 5 autonomy），
@@ -50,6 +52,17 @@ const ENGINE_KEYS = new Set<string>([
   'pre-market-routine', 'afternoon-open-check-live', 'm4-circuit-breaker-live', 'post-market-routine-live',
   'data-quality-monitor-daily', 'event-calendar-check',
   'attribution-daily', 'intraday-surge-scan-am', 'intraday-surge-scan-pm', 'equity-snapshot-daily',
+  // ── 2026-09-13 补录（REQ-eeb38c）：v2 侧任务无业务线字段，只能靠名单兜底 ──
+  // 依据：①与 OS 侧孪生任务自带的 agent_line 对齐（字段优先于名单）②无孪生时按任务性质归类。
+  // 数据地基类（RFC 015：事件入库/披露日历/分钟线/产业链）—— 与上方 chan_scan / market_* 同属生产链
+  'ingest_events_daily', 'ingest_events_policy', 'ingest_events_history', 'ingest_disclosure_calendar',
+  'minute_kline_sync', 'industry_chain_refresh',
+  // equity_snapshot_daily：OS 孪生 equity-snapshot-daily 的 agent_line=profit_engine（同为 15:35 净值稠密化）
+  'equity_snapshot_daily',
+  // core_plan_generate：引擎侧 core 建仓计划生成（只出计划不下单）；其消费者 agent-brain-core-plan 属账户线
+  'core_plan_generate',
+  // strategy_loop_weekly：OS 孪生 strategy-loop-weekly 的 agent_line=profit_engine（同一策略闭环周度复核）
+  'strategy_loop_weekly',
 ]);
 const AUTONOMY_KEYS = new Set<string>([
   'daily-strategy-validation', 'daily_strategy_validation', 'v13-verification', 'v13_verification',
@@ -61,6 +74,8 @@ const AUTONOMY_KEYS = new Set<string>([
   'evolution-distill-daily', 'evolution-gate-adjudicate', 'evolution-weekly-variant',
   'meta-learning-weekly', 'weekly-report-m6',
   'weekly_evolution', 'weekly_memory_distill', 'daily_ai_review', 'daily_recall_audit', 'weekly_tool_roi_review',
+  // 2026-09-13 补录（REQ-eeb38c）：data_hygiene_probe 的 OS 孪生 data-hygiene-weekly 的 agent_line=autonomy
+  'data_hygiene_probe',
 ]);
 const ACCOUNT_KEYS = new Set<string>(['v13-simulation-trading', 'v13_simulation_trading', 'v14-simulation-trading']);
 
@@ -74,8 +89,11 @@ export function lineOfName(name: unknown): LineKey {
 }
 
 /** 已知的"其它"类前缀：归 other 属正常，不算未归类 */
+/** 已知的"其它"名单（精确名）：归 other 属正常，不算未归类。2026-09-13 补录 session-probe（REQ-eeb38c） */
+const OTHER_KEYS = new Set<string>(['session-probe']);
+
 function isKnownOther(n: string): boolean {
-  return n.startsWith('board-') || n.startsWith('geer-') || n === 'v2_health_check';
+  return OTHER_KEYS.has(n) || n.startsWith('board-') || n.startsWith('geer-') || n === 'v2_health_check';
 }
 
 export interface Classified {
