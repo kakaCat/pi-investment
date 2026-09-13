@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-13T13:18:49",
+ "generated_at": "2026-09-13T13:22:26",
  "account": "agent_brain",
  "mode": "PLAN_ONLY（不下单）",
  "account_total": 98922.97,
@@ -7,10 +7,10 @@
  "exposure": {
   "target_pct": 0.175,
   "first_phase_cap_pct": 0.35,
-  "core_realized_vol_ann": 0.1352,
+  "core_realized_vol_ann": 0.1252,
   "vol_target": 0.15,
   "w_vol": 1.0,
-  "core_drawdown": -0.2735,
+  "core_drawdown": -0.1609,
   "dd_gate": 0.5
  },
  "holdings": [
@@ -18,60 +18,90 @@
    "symbol": "002085",
    "close": 10.12,
    "amount_def_avg": 2614505668.058547,
-   "target_weight_pct": 10.0
-  },
-  {
-   "symbol": "601012",
-   "close": 11.32,
-   "amount_def_avg": 2323450759.068376,
+   "industry": "制造业-汽车制造业",
+   "roe": 5.3,
+   "pe": 30.6,
    "target_weight_pct": 10.0
   },
   {
    "symbol": "601857",
    "close": 11.24,
    "amount_def_avg": 1950778427.794872,
-   "target_weight_pct": 10.0
-  },
-  {
-   "symbol": "000002",
-   "close": 3.06,
-   "amount_def_avg": 1744627367.9988892,
+   "industry": "采矿业-石油和天然气开采业",
+   "roe": 6.3,
+   "pe": 14.0,
    "target_weight_pct": 10.0
   },
   {
    "symbol": "601919",
    "close": 16.19,
    "amount_def_avg": 1639445114.7008548,
-   "target_weight_pct": 10.0
-  },
-  {
-   "symbol": "600733",
-   "close": 4.65,
-   "amount_def_avg": 1584094276.7620509,
-   "target_weight_pct": 10.0
-  },
-  {
-   "symbol": "002456",
-   "close": 7.0,
-   "amount_def_avg": 1570578257.126239,
+   "industry": "交通运输、仓储和邮政业-水上运输业",
+   "roe": 5.7,
+   "pe": 7.5,
    "target_weight_pct": 10.0
   },
   {
    "symbol": "601288",
    "close": 6.97,
    "amount_def_avg": 1557979736.1311967,
+   "industry": "金融业-货币金融服务",
+   "roe": 5.1,
+   "pe": 7.7,
    "target_weight_pct": 10.0
   },
   {
    "symbol": "000099",
    "close": 13.35,
    "amount_def_avg": 1543122875.0527349,
+   "industry": "交通运输、仓储和邮政业-航空运输业",
+   "roe": 2.3,
+   "pe": 43.4,
    "target_weight_pct": 10.0
   },
   {
-   "symbol": "002129",
-   "close": 8.69,
-   "amount_def_avg": 1444175996.8349578,
+   "symbol": "000100",
+   "close": 4.64,
+   "amount_def_avg": 1280034707.4496577,
+   "industry": "制造业-计算机、通信和其他电子设备制造业",
+   "roe": 6.2,
+   "pe": 19.9,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "601136",
+   "close": 14.5,
+   "amount_def_avg": 1131924767.8717096,
+   "industry": "金融业-资本市场服务",
+   "roe": 4.7,
+   "pe": 42.7,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "601600",
+   "close": 9.6,
+   "amount_def_avg": 1090930682.8119657,
+   "industry": "制造业-有色金属冶炼和压延加工业",
+   "roe": 14.7,
+   "pe": 15.5,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "601668",
+   "close": 4.35,
+   "amount_def_avg": 1083371933.974359,
+   "industry": "建筑业-土木工程建筑业",
+   "roe": 4.6,
+   "pe": 4.0,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "601901",
+   "close": 6.79,
+   "amount_def_avg": 1010601642.1282052,
+   "industry": "金融业-资本市场服务",
+   "roe": 5.7,
+   "pe": 11.2,
    "target_weight_pct": 10.0
   }
  ],
