@@ -4,6 +4,11 @@ FactorRepository单元测试
 import pytest
 import math
 from adapters.outbound.repositories import FactorORMRepository
+# 2026-09-14（w-c8cae280）**测试对齐（已核实为同一能力，非放宽断言）**：
+# get_factors(symbol, date) → get_factors_by_symbol(symbol, start_date, end_date, factor_names=None)。
+# 二者都是"取某只股票在某时点的因子值"，差别只在现接口按**区间**取数 —— 故单日调用改为
+# 起止同日（date, date），断言与意图不变；参数校验（非法代码/非法日期应抛 ValueError）也照旧生效。
+
 # 2026-09-14（w-c8cae280）**测试对齐（已核实为等价重命名，非放宽断言）**：
 # get_factor_history(symbol, factor, start, end) → 现名 get_factor_time_series(symbol, factor_name, start_date, end_date)，
 # 两者参数个数/次序/语义一致（都返回该因子在该区间的时间序列，list）。
@@ -28,18 +33,18 @@ class TestFactorRepository:
     def test_get_factors_invalid_symbol(self):
         """测试无效股票代码"""
         with pytest.raises(ValueError, match="股票代码"):
-            self.repo.get_factors("INVALID", "2024-01-01")
+            self.repo.get_factors_by_symbol("INVALID", "2024-01-01", "2024-01-01")
 
     def test_get_factors_invalid_date(self):
         """测试无效日期格式"""
         with pytest.raises(ValueError, match="Invalid date format"):
-            self.repo.get_factors("000001.SZ", "2024/01/01")
+            self.repo.get_factors_by_symbol("000001.SZ", "2024/01/01", "2024/01/01")
 
     # ==================== 查询方法测试 ====================
 
     def test_get_factors_basic(self):
         """测试基本因子查询"""
-        factors = self.repo.get_factors("000001.SZ", "2024-01-02")
+        factors = self.repo.get_factors_by_symbol("000001.SZ", "2024-01-02", "2024-01-02")
 
         if factors:
             assert isinstance(factors, dict)
@@ -50,7 +55,7 @@ class TestFactorRepository:
 
     def test_get_factors_no_data(self):
         """测试不存在的数据"""
-        factors = self.repo.get_factors("999999.SZ", "2024-01-01")
+        factors = self.repo.get_factors_by_symbol("999999.SZ", "2024-01-01", "2024-01-01")
         assert factors is None
 
     def test_get_factors_batch(self):
@@ -219,7 +224,7 @@ class TestFactorRepository:
 
     def test_get_factors_future_date(self):
         """测试未来日期"""
-        factors = self.repo.get_factors("000001.SZ", "2030-01-01")
+        factors = self.repo.get_factors_by_symbol("000001.SZ", "2030-01-01", "2030-01-01")
         # 未来日期应该返回None
         assert factors is None
 
