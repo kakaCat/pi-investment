@@ -1,7 +1,7 @@
 {
   "name": "@pi-investment/solve-kit",
   "version": "0.1.0",
-  "description": "「我来解决」公用能力包（2026-09-08, w-752decf5）：host 投递路由工厂 createSolveHandler + client 窗口选择器 createSolveKit —— execution/holdings 双页复用同一套「我来解决」语义（只投递不建帖）",
+  "description": "「我来解决」公用能力包（2026-09-08 w-752decf5 立；2026-09-14 w-61022a21 增公告板档）：host 路由工厂 createSolveHandler（执行/持仓档 task|error 快照）+ createBoardSolveHandler（公告板档：统一 board API 认领 + 投递）+ 共用原语 http.ts/target.ts + client 窗口选择器 createSolveKit —— execution/holdings/bulletin 复用同一套「我来解决」语义与信封",
   "type": "module",
   "main": "./src/host.ts",
   "exports": {

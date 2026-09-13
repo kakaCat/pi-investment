@@ -7,20 +7,16 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { randomUUID } from 'node:crypto'
+import { json, readBody } from './http.js'
+import { windowCode, deliverMessage } from './target.js'
+import type { ActionTarget, SolveKitHostDeps } from './target.js'
 
-export interface ActionTarget {
-  /** 目标 agent（root 会话），含 followup 投递能力 */
-  agent: unknown
-  sessionId: string
-  /** 展示用窗口标签（session-<uuid> → w-<前8>，余者原样） */
-  window: string
-}
-
-export interface SolveKitHostDeps {
-  /** 解析目标会话 → 在线 agent；无 to_session 时回退 from_session（默认当前窗口），
-   *  再回退主 root；查无 → null。to_session 传 true=精确命中（投递指定窗口禁止回退） */
-  resolveAgent: (sessionId?: string, exactOnly?: boolean) => ActionTarget | null
-}
+// 目标解析/投递/信封原语自 2026-09-14 起迁至 ./target.js + ./http.js，由执行档（本文件）与
+// 公告板档（./board-solve.js）共用；此处保留再导出，调用方（execution/holdings）无需改动。
+export { windowCode, deliverMessage }
+export type { ActionTarget, SolveKitHostDeps }
+export { createBoardSolveHandler } from './board-solve.js'
+export type { BoardPort, BoardPostSnapshot, BoardSolveDeps } from './board-solve.js'
 
 export interface SolveKitHostOptions {
   /** 面板短名（消息标题前缀），如 '执行看板' / '持仓看板' */
@@ -34,27 +30,6 @@ export interface SolveKitHostOptions {
   /** 收单盯梢检查点（分钟），默认 [8, 25, 50]（最多 3 次催办）；传 [] 关闭。
    *  限制：内存计时器，宿主进程（DSH）重启即丢失——超时兜底由 agent-os 侧机制负责 */
   watchDelaysMin?: number[]
-}
-
-function json(res: ServerResponse, status: number, body: unknown): void {
-  const text = JSON.stringify(body)
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-  })
-  res.end(text)
-}
-
-function readBody(req: IncomingMessage): Promise<any> {
-  return new Promise((resolve, reject) => {
-    let raw = ''
-    req.on('data', (c) => { raw += c; if (raw.length > 64 * 1024) { reject(new Error('body too large')); req.destroy() } })
-    req.on('end', () => {
-      if (!raw.trim()) return resolve({})
-      try { resolve(JSON.parse(raw)) } catch { reject(new Error('请求体不是合法 JSON')) }
-    })
-    req.on('error', reject)
-  })
 }
 
 /** 快照时间 → 展示文本（GMT+8） */
@@ -118,20 +93,6 @@ function buildSolveMessage(b: { kind: 'task' | 'error'; title: string; lines: st
   }
 }
 
-async function deliverMessage(target: ActionTarget | null, message: unknown): Promise<{ delivered: boolean; error?: string; target?: { sessionId: string; window: string } }> {
-  if (!target) return { delivered: false, error: '目标窗口不在线（未解析到 agent）' }
-  const agent = target.agent as any
-  if (typeof agent?.followup !== 'function') {
-    return { delivered: false, error: '目标 agent 无 followup 投递能力', target: { sessionId: target.sessionId, window: target.window } }
-  }
-  try {
-    await agent.followup(message)
-    return { delivered: true, target: { sessionId: target.sessionId, window: target.window } }
-  } catch (e) {
-    return { delivered: false, error: '投递失败：' + (e instanceof Error ? e.message : String(e)), target: { sessionId: target.sessionId, window: target.window } }
-  }
-}
-
 /** 查事件当前状态（盯梢用）；查不到（已删除/列表外）视为已终态 */
 async function fetchEventStatus(osBaseURL: string, eventId: string): Promise<string | null> {
   const resp = await fetch(osBaseURL + '/api/v1/scheduler/error-events?limit=200', { signal: AbortSignal.timeout(5000) })
@@ -188,10 +149,6 @@ function watchResolution(
 }
 
 /** 会话 id → 窗口标签（与 lifecycle/bulletin 同口径：session- 前缀取中段 8 位） */
-export function windowCode(id: string): string {
-  return id.startsWith('session-') ? 'w-' + id.slice(8, 16) : id
-}
-
 /** 「我来解决」投递路由工厂：deps.resolveAgent 由宿主页面提供（agents 服务注入解析）。 */
 export function createSolveHandler(deps: SolveKitHostDeps, opts: SolveKitHostOptions) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {

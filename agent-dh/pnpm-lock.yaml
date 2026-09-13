@@ -392,6 +392,9 @@ importers:
       '@pi-investment/core-tool':
         specifier: workspace:*
         version: link:../core-tool
+      '@pi-investment/evolver':
+        specifier: workspace:*
+        version: link:../evolver
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -634,9 +637,15 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
         version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
+      '@pi-investment/agent-os-client':
+        specifier: workspace:*
+        version: link:../../../../agent-os-client
       '@pi-investment/page-kit':
         specifier: workspace:*
         version: link:../page-kit
+      '@pi-investment/solve-kit':
+        specifier: workspace:*
+        version: link:../../solve-kit
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
