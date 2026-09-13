@@ -66,3 +66,37 @@ profile 配置**零改动**（两页仍 `config: {}`）：目录不再由配置�
   列为待办：要么把该 profile 的 genomeDir 对齐 `.dsh-data/genome`，要么让该 profile 不再加载 genome 插件。
 - `packages/genome/src/index.ts:32`（dist 加载）默认值仍是硬编码旧 home。本次未动（要重建 dist，
   且现役 profile 已显式配置）。若要彻底收敛，建议把 `genome-dir.ts` 的解析链提为共享模块并让 genome 插件复用。
+- 配置层已把全部入口对齐 `.dsh-data/genome`（见第七节）；`~/.dsh-agent-dh/genome` 空库仍在磁盘、
+  已无任何配置指向它，是否删除待定。
+## 七、配置层对齐（2026-09-13 追加 · 用户裁定「cordis 里配置就可以」）
+
+放弃改 `packages/genome` 的 dist 代码（默认值 + 门禁 + 公开访问器），改走**纯配置**路线：不动 dist，
+不会触发「构建失败清空 dist」的风险。
+
+先查清 genomeDir 的声明源共 3 类：
+
+1. **仓库模板 `config/cordis.yml`** —— start.sh 的脚手架源。⚠️ `_ensure_from()` 只在目标**缺失**时复制，
+   已存在的 profile 一律保留（2026-09-12 加固，防手改被冲掉）→ **改模板不影响存量 profile**，
+   每个 profile 的 `cordis.patch.yml` 必须单独改。
+2. 各 profile 的 `cordis.patch.yml`（运行时真正生效的那份）。
+3. `agents.json` 的 `instance.genome_dir`（**当前无任何代码读取**，纯声明；与 `instance.account` 不同，
+   后者由 lifecycle 注入提示词）。
+
+现役投资脑 profile 三处本就一致（`.dsh-data/genome`）。本次把其余入口补齐（全改 `.dsh-agent-dh` → `.dsh-data/genome`）：
+
+| 文件 | 说明 |
+|---|---|
+| `.dsh-home/profiles/agent-dh/cordis.patch.yml` | 休眠 profile（PID 66817 已暂停 20h、仍在 LISTEN :13081）；原配置会让它把规则进化写进空库 |
+| `~/.dsh/profiles/investment/cordis.patch.yml` | 不带 `DSH_HOME` 直接 `dsh --profile investment` 时的入口 |
+| `.dsh-data/profiles/investment/cordis.patch.yml` | 2026-09-12 那份未启用副本 |
+
+未动：`*.bak*`、`state/*backup*`、`config-backup-auto`（由 restarter 每次重启刷新，属运行时产物）。
+
+**生效时机**：genomeDir 在**进程启动时**读取。:13080 已于 16:25 重启（新配置本就是对的，无需再动）；
+:13081 那个暂停进程需**重启**才会读到新值——`SIGCONT` 恢复不会重读配置，仍会用内存里的旧目录。
+
+**残余风险（本次明确接受）**：配置文件是唯一防线——新 profile 若忘写 `genomeDir`，插件仍会按硬编码默认值
+落到 `~/.dsh-agent-dh/genome` 并**静默 git init 出一个空基因组**（`initializeFromTemplates()`，只打一行 info 日志）。
+靠 `config/cordis.yml` 模板 + start.sh 脚手架兜住新建路径；若日后要治本，再考虑给 `packages/genome` 加“找不到
+基因组要响”的门禁（那需要重建 dist）。
+
