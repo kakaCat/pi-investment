@@ -128,6 +128,22 @@ def test_write_failure_counted_as_error():
     assert result['scored'] == 0
 
 
+def test_uppercase_trade_type_scored():
+    """2026-09-13 回归（w-c8cae280）：成交自动审计写的是 trade_{action}，action 为大写
+    'BUY'/'SELL' ⇒ 落库成 trade_BUY / trade_SELL，而 SCORABLE_TYPES 只有小写键 ——
+    这些成交决策**永远不被打分**（实测 agent_brain 的 DEC-20260911112419-a07cbe59
+    = trade_SELL 挂着 pending）。归一大小写后应可扫描并打分。"""
+    df = _kline_df([10.0] + [9.0] * 19 + [8.0])  # 卖出后 -20%
+    svc, repo = _service([_decision(decision_type='trade_SELL')], df, _bench([100.0] * 30))
+    result = svc.score_mature_decisions()
+    assert result['scanned'] == 1, '大写 trade_SELL 应被识别为可打分决策'
+    assert result['scored'] == 1
+    args = repo.update_score.call_args
+    # sell 方向反向：股票 -20%、基准 0% → 躲过下跌 = +20% 超额 → 满分
+    assert args[0][1] == 1.0
+    assert args[0][2] == 'big_win'
+
+
 def test_missed_opportunity_scored():
     # P0b：missed_opportunity 决策成熟后按 miss 方向打分（信号后涨=负分）
     df = _kline_df([10.0] + [11.0] * 19 + [11.0])  # 信号后第20根收盘 11.0（+10%）

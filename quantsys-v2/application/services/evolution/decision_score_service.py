@@ -71,7 +71,14 @@ class DecisionScoreService:
             result = {'scanned': 0, 'scored': 0, 'skipped_unmature': 0,
                       'skipped_invalid': 0, 'errors': 0}
             for decision in pending:
-                action = SCORABLE_TYPES.get(decision.get('decision_type'))
+                # 2026-09-13（w-c8cae280）：大小写归一。
+                # 成交自动审计（account_trading_service._auto_record_decision）写的是
+                # f'trade_{action}'，action 为 'BUY'/'SELL' 大写 ⇒ 落库成 trade_BUY /
+                # trade_SELL，而 SCORABLE_TYPES 只有小写键 ⇒ 这些决策**永远不被打分**
+                # （实测：agent_brain 的 DEC-20260911112419-a07cbe59 = trade_SELL，
+                #  status=pending 挂在那；同表 trade_buy 却能打分）。归一后历史行也一起修复。
+                dtype = str(decision.get('decision_type') or '').strip().lower()
+                action = SCORABLE_TYPES.get(dtype)
                 if action is None:
                     continue
                 result['scanned'] += 1

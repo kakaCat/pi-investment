@@ -549,7 +549,10 @@ class AccountTradingService:
         try:
             from infrastructure.services.service_factory import ServiceFactory
             ServiceFactory.get_decision_service().record_decision({
-                'decision_type': f'trade_{action}',
+                # 2026-09-13（w-c8cae280）：action 是 'BUY'/'SELL' 大写，原样拼进
+                # decision_type 会落库成 trade_BUY / trade_SELL，与打分器的小写口径
+                # （SCORABLE_TYPES）不匹配 ⇒ 成交决策永远进不了评分。统一小写。
+                'decision_type': f'trade_{str(action).lower()}',
                 'reasoning': reason or '',
                 'context': {'account': account_name, 'auto_recorded': True},
                 'parameters': {
