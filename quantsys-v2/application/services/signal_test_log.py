@@ -46,13 +46,11 @@ Date: 2026-05-25
 
 from datetime import datetime, date, timedelta
 from typing import Dict, List, Optional, Any
-import json
 import structlog
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
-
-from infrastructure.persistence.database.engine import _resolve_db_dsn
+# 2026-09-14（w-32314d00，REQ-24e15d B3-b）：psycopg2 / RealDictCursor / _resolve_db_dsn
+# 三个依赖已随"9 处裸 SQL → SignalTestLogRepository"一并移除（本类不再自己连库）。
+# json 也只剩 jsonb 列的原生 dict 传递，不再需要手工序列化。
 
 logger = structlog.get_logger(__name__)
 
@@ -63,69 +61,28 @@ class SignalTestLog:
     TABLE_NAME = 'quant.signal_test_log'
 
     def __init__(self):
-        self._ensure_table()
+        self._repo().create_table_if_missing()
 
     @staticmethod
-    def _get_conn():
-        """获取数据库连接（池化）。
+    def _repo():
+        """信号测试日志仓储。
 
-        2026-09-13（w-32314d00，REQ-24e15d t2）：原先每次 `psycopg2.connect(dsn)` 直连，
-        绕开连接池与 session_guard；现返回 `PooledConnection` —— 调用方仍是
-        `conn.cursor()/commit()/close()` 的旧写法，但 close() 是**归还连接池**，
-        且归还前对未提交事务显式 rollback（避免 idle-in-transaction 残影）。
+        2026-09-14（w-32314d00，REQ-24e15d B3-b）：本类原先直接持有池化连接与 9 处裸 SQL
+        （含运行时 DDL、三处 f-string 拼 WHERE 的聚合、手工游标生命周期），现统一收敛到
+        SignalTestLogRepository —— 本类只保留业务判定（盈亏计算、胜负口径）与日志。
         """
-        from infrastructure.persistence.database.engine import PooledConnection
-        return PooledConnection()
+        from adapters.outbound.repositories.signal_test_log_repository import SignalTestLogRepository
+        return SignalTestLogRepository()
 
     # ═══════════════════════════════════════════════════════
     # 表管理
     # ═══════════════════════════════════════════════════════
 
-    def _ensure_table(self):
-        """确保测试表存在"""
-        ddl = f"""
-        CREATE TABLE IF NOT EXISTS {self.TABLE_NAME} (
-            id              SERIAL PRIMARY KEY,
-            symbol          VARCHAR(20)    NOT NULL,
-            name            VARCHAR(100),
-            strategy_name   VARCHAR(100)   NOT NULL,
-            signal_date     DATE           NOT NULL,
-            action          VARCHAR(10)    NOT NULL,
-            confidence      DOUBLE PRECISION,
-            signal_price    DOUBLE PRECISION,
-            entry_price     DOUBLE PRECISION,
-            stop_loss       DOUBLE PRECISION,
-            reason          TEXT,
-            details         JSONB,
-            status          VARCHAR(20)    DEFAULT 'pending',
-            verify_date     DATE,
-            current_price   DOUBLE PRECISION,
-            pnl_pct         DOUBLE PRECISION,
-            hit_stop_loss   BOOLEAN        DEFAULT FALSE,
-            hit_target_1    BOOLEAN        DEFAULT FALSE,
-            hit_target_2    BOOLEAN        DEFAULT FALSE,
-            hit_target_3    BOOLEAN        DEFAULT FALSE,
-            max_pnl_pct     DOUBLE PRECISION,
-            max_loss_pct    DOUBLE PRECISION,
-            holding_days    INT,
-            created_at      TIMESTAMPTZ    DEFAULT NOW(),
-            updated_at      TIMESTAMPTZ    DEFAULT NOW()
-        );
-        """
-        conn = self._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor()
-            cursor.execute(ddl)
-            conn.commit()
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+    # _ensure_table 已删除（2026-09-14，REQ-24e15d B3-b）：
+    # 原实现是一段裸 CREATE TABLE IF NOT EXISTS，现由
+    # SignalTestLogRepository.create_table_if_missing()（metadata.create_all + checkfirst）
+    # 承担，语义等价且幂等；表结构由 ORM 模型唯一确定。
 
-    # ═══════════════════════════════════════════════════════
-    # 写入
-    # ═══════════════════════════════════════════════════════
 
     def record_signal(self, signal: Dict[str, Any]) -> int:
         """
@@ -150,39 +107,21 @@ class SignalTestLog:
         Returns:
             插入的记录ID
         """
-        conn = self._get_conn()
-        cursor = conn.cursor()
-
-        sql = f"""
-        INSERT INTO {self.TABLE_NAME}
-            (symbol, name, strategy_name, signal_date, action,
-             confidence, signal_price, entry_price, stop_loss,
-             reason, details)
-        VALUES
-            (%s, %s, %s, %s, %s,
-             %s, %s, %s, %s,
-             %s, %s)
-        RETURNING id
-        """
-
-        cursor.execute(sql, (
-            signal['symbol'],
-            signal.get('name', ''),
-            signal['strategy_name'],
-            self._to_date(signal.get('signal_date', datetime.now().date())),
-            signal['action'],
-            signal.get('confidence', 0.0),
-            signal.get('signal_price'),
-            signal.get('entry_price'),
-            signal.get('stop_loss'),
-            signal.get('reason', ''),
-            json.dumps(signal.get('details', {})),
-        ))
-
-        record_id = cursor.fetchone()[0]
-        conn.commit()
-        cursor.close()
-        conn.close()
+        # 2026-09-14（w-32314d00，REQ-24e15d B3-b）：裸 INSERT → 仓储方法。
+        # details 直接传 dict（jsonb 列由 SQLAlchemy 适配），不再手工 json.dumps。
+        record_id = self._repo().insert_signal({
+            'symbol': signal['symbol'],
+            'name': signal.get('name', ''),
+            'strategy_name': signal['strategy_name'],
+            'signal_date': self._to_date(signal.get('signal_date', datetime.now().date())),
+            'action': signal['action'],
+            'confidence': signal.get('confidence', 0.0),
+            'signal_price': signal.get('signal_price'),
+            'entry_price': signal.get('entry_price'),
+            'stop_loss': signal.get('stop_loss'),
+            'reason': signal.get('reason', ''),
+            'details': signal.get('details') or {},
+        })
 
         logger.info(
             "Signal recorded: id=%s symbol=%s strategy=%s action=%s",
@@ -222,20 +161,12 @@ class SignalTestLog:
                 'by_strategy': {strategy_name: {win_rate, avg_pnl}},
             }
         """
-        conn = self._get_conn()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        # 2026-09-14（w-32314d00，REQ-24e15d B3-b）：两处裸 SQL → 仓储方法。
+        repo = self._repo()
 
         # 获取待验证信号
         cutoff_date = date.today() - timedelta(days=days_after)
-        cursor.execute(f"""
-            SELECT * FROM {self.TABLE_NAME}
-            WHERE status = 'pending'
-              AND signal_date <= %s
-              AND action = 'buy'
-            ORDER BY signal_date DESC
-        """, (cutoff_date,))
-
-        pending = cursor.fetchall()
+        pending = repo.list_pending(cutoff_date)
         verified_count = 0
         results = []
 
@@ -262,24 +193,14 @@ class SignalTestLog:
                 hit_stop = current_price <= record['stop_loss']
 
             # 更新记录
-            cursor.execute(f"""
-                UPDATE {self.TABLE_NAME}
-                SET status = 'verified',
-                    verify_date = %s,
-                    current_price = %s,
-                    pnl_pct = %s,
-                    hit_stop_loss = %s,
-                    holding_days = %s,
-                    updated_at = NOW()
-                WHERE id = %s
-            """, (
-                date.today(),
-                current_price,
-                round(pnl_pct, 4),
-                hit_stop,
-                days_held,
-                record['id'],
-            ))
+            repo.mark_verified(
+                record_id=record['id'],
+                verify_date=date.today(),
+                current_price=current_price,
+                pnl_pct=round(pnl_pct, 4),
+                hit_stop_loss=hit_stop,
+                holding_days=days_held,
+            )
 
             results.append({
                 'symbol': record['symbol'],
@@ -291,9 +212,7 @@ class SignalTestLog:
             })
             verified_count += 1
 
-        conn.commit()
-        cursor.close()
-        conn.close()
+        repo.commit()
 
         # ── 汇总统计 ──
         wins = [r for r in results if r['win']]
@@ -342,61 +261,16 @@ class SignalTestLog:
                 'records': [...],
                 'pagination': { 'page': 1, 'page_size': 20, 'total': int }
             }
+
+        2026-09-14（w-32314d00，REQ-24e15d B3-b）：COUNT + 分页两段 f-string 拼 WHERE 的
+        裸 SQL → 仓储 list_records（条件构造与聚合查询共用同一套）；
+        日期转字符串与 details 反序列化也随之不再需要 —— 仓储按 ORM 列取值直接给字符串。
         """
-        conn = self._get_conn()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-        conditions = []
-        params = []
-
-        if strategy_name:
-            conditions.append("strategy_name = %s")
-            params.append(strategy_name)
-        if action:
-            conditions.append("action = %s")
-            params.append(action)
-        if symbol:
-            conditions.append("symbol = %s")
-            params.append(symbol)
-        if status:
-            conditions.append("status = %s")
-            params.append(status)
-
-        where = ' AND '.join(conditions) if conditions else '1=1'
-        offset = (page - 1) * page_size
-
-        # 总数
-        cursor.execute(f"""
-            SELECT COUNT(*) as cnt FROM {self.TABLE_NAME} WHERE {where}
-        """, params)
-        total = cursor.fetchone()['cnt']
-
-        # 分页查询
-        cursor.execute(f"""
-            SELECT * FROM {self.TABLE_NAME}
-            WHERE {where}
-            ORDER BY created_at DESC
-            LIMIT %s OFFSET %s
-        """, params + [page_size, offset])
-
-        records = []
-        for row in cursor.fetchall():
-            r = dict(row)
-            # 日期转为字符串
-            for f in ('signal_date', 'verify_date', 'created_at', 'updated_at'):
-                if r.get(f):
-                    r[f] = str(r[f])
-            if r.get('details') and isinstance(r['details'], str):
-                try:
-                    import json
-                    r['details'] = json.loads(r['details'])
-                except Exception:
-                    pass
-            records.append(r)
-
-        cursor.close()
-        conn.close()
-
+        records, total = self._repo().list_records(
+            page=page, page_size=page_size,
+            strategy_name=strategy_name, action=action,
+            symbol=symbol, status=status,
+        )
         return {
             'records': records,
             'pagination': {
@@ -405,6 +279,7 @@ class SignalTestLog:
                 'total': total,
             }
         }
+
 
     def get_stats(
         self,
@@ -427,72 +302,17 @@ class SignalTestLog:
                 'hit_stop_loss_rate': float,
                 'monthly_breakdown': [...],
             }
+
+        2026-09-14（w-32314d00，REQ-24e15d B3-b）：三段 f-string 拼 WHERE 的聚合 SQL
+        → 仓储方法（总体 / 按月 / 按策略）。口径与返回值键名**完全不变**。
         """
-        conn = self._get_conn()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-        conditions = ["status = 'verified'"]
-        params = []
-
-        if strategy_name:
-            conditions.append("strategy_name = %s")
-            params.append(strategy_name)
-        if start_date:
-            conditions.append("signal_date >= %s")
-            params.append(start_date)
-        if end_date:
-            conditions.append("signal_date <= %s")
-            params.append(end_date)
-
-        where = ' AND '.join(conditions)
-
-        cursor.execute(f"""
-            SELECT
-                COUNT(*) as total,
-                AVG(pnl_pct) as avg_pnl,
-                MAX(pnl_pct) as max_pnl,
-                MIN(pnl_pct) as max_loss,
-                AVG(holding_days) as avg_days,
-                SUM(CASE WHEN pnl_pct > 0 THEN 1 ELSE 0 END)::FLOAT / COUNT(*) as win_rate,
-                SUM(CASE WHEN hit_stop_loss THEN 1 ELSE 0 END)::FLOAT / COUNT(*) as stop_loss_rate
-            FROM {self.TABLE_NAME}
-            WHERE {where}
-        """, params)
-
-        overall = cursor.fetchone()
-
-        # 月度分布
-        cursor.execute(f"""
-            SELECT
-                TO_CHAR(signal_date, 'YYYY-MM') as month,
-                COUNT(*) as count,
-                AVG(pnl_pct) as avg_pnl,
-                SUM(CASE WHEN pnl_pct > 0 THEN 1 ELSE 0 END)::FLOAT / COUNT(*) as win_rate
-            FROM {self.TABLE_NAME}
-            WHERE {where}
-            GROUP BY 1
-            ORDER BY 1 DESC
-            LIMIT 12
-        """, params)
-
-        monthly = [dict(r) for r in cursor.fetchall()]
-
-        # ── 按策略统计 ──
-        cursor.execute(f"""
-            SELECT
-                strategy_name,
-                COUNT(*) as total,
-                AVG(pnl_pct) as avg_pnl,
-                SUM(CASE WHEN pnl_pct > 0 THEN 1 ELSE 0 END)::FLOAT / COUNT(*) as win_rate
-            FROM {self.TABLE_NAME}
-            WHERE {where}
-            GROUP BY strategy_name
-            ORDER BY strategy_name
-        """, params)
-        by_strategy = [dict(r) for r in cursor.fetchall()]
-
-        cursor.close()
-        conn.close()
+        repo = self._repo()
+        overall = repo.get_overall_stats(
+            strategy_name=strategy_name, start_date=start_date, end_date=end_date)
+        monthly = repo.get_monthly_breakdown(
+            strategy_name=strategy_name, start_date=start_date, end_date=end_date, limit=12)
+        by_strategy = repo.get_by_strategy(
+            strategy_name=strategy_name, start_date=start_date, end_date=end_date)
 
         return {
             'total_signals': overall['total'] or 0,
@@ -506,9 +326,6 @@ class SignalTestLog:
             'by_strategy': by_strategy,
         }
 
-    # ═══════════════════════════════════════════════════════
-    # 辅助
-    # ═══════════════════════════════════════════════════════
 
     @staticmethod
     def _to_date(val) -> date:

@@ -163,52 +163,23 @@ class ExperienceAccumulator:
 
     def _get_paper_stats(self, strategy_name: str, symbol: Optional[str] = None) -> Dict:
         """获取纸面测试统计"""
-        conn = self.signal_log._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor()
+        # 2026-09-14（w-32314d00，REQ-24e15d B3-b）：原先用 signal_log._get_conn()
+        # （已随本批移除的私有访问器）+ f-string 拼 WHERE 查询。现走仓储。
+        stats = self.signal_log._repo().get_paper_stats(strategy_name, symbol)
 
-            conditions = ["strategy_name = %s", "status = 'verified'"]
-            params = [strategy_name]
-
-            if symbol:
-                conditions.append("symbol = %s")
-                params.append(symbol)
-
-            where_clause = " AND ".join(conditions)
-
-            query = f"""
-                SELECT
-                    COUNT(*) as verified_trades,
-                    AVG(pnl_pct) as avg_pnl_pct,
-                    MAX(pnl_pct) as max_pnl_pct,
-                    MIN(pnl_pct) as min_pnl_pct,
-                    SUM(CASE WHEN pnl_pct > 0 THEN 1 ELSE 0 END) as win_trades
-                FROM {self.signal_log.TABLE_NAME}
-                WHERE {where_clause}
-            """
-
-            cursor.execute(query, tuple(params))
-            result = cursor.fetchone()
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
-
-        if not result or result[0] == 0:
+        if not stats.get('verified_trades'):
             return {
                 'verified_trades': 0,
                 'avg_pnl_pct': 0.0,
                 'win_rate': 0.0
             }
 
-        verified_trades = result[0]
-        avg_pnl_pct = float(result[1]) if result[1] is not None else 0.0
-        max_pnl_pct = float(result[2]) if result[2] is not None else 0.0
-        min_pnl_pct = float(result[3]) if result[3] is not None else 0.0
-        win_trades = result[4]
-
-        win_rate = (win_trades / verified_trades * 100) if verified_trades > 0 else 0.0
+        verified_trades = stats['verified_trades']
+        avg_pnl_pct = stats['avg_pnl_pct']
+        max_pnl_pct = stats['max_pnl_pct']
+        min_pnl_pct = stats['min_pnl_pct']
+        win_trades = stats['win_trades']
+        win_rate = stats['win_rate']
 
         return {
             'verified_trades': verified_trades,
@@ -308,24 +279,8 @@ class ExperienceAccumulator:
 
     def _get_strategy_symbol_combinations(self) -> List[tuple]:
         """获取所有策略-标的组合"""
-        conn = self.signal_log._get_conn()
-        cursor = None
-        try:
-            cursor = conn.cursor()
-
-            query = f"""
-                SELECT DISTINCT strategy_name, symbol
-                FROM {self.signal_log.TABLE_NAME}
-                WHERE status = 'verified'
-            """
-
-            cursor.execute(query)
-            results = cursor.fetchall()
-            return [(row[0], row[1]) for row in results]
-        finally:
-            if cursor:
-                cursor.close()
-            conn.close()
+        # 2026-09-14（w-32314d00，REQ-24e15d B3-b）：同上，走仓储。
+        return self.signal_log._repo().list_verified_strategy_symbol_pairs()
 
     def _save_to_file(self, experience: Dict, output_file: str):
         """保存单个经验到文件"""

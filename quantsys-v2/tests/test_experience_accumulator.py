@@ -5,30 +5,31 @@ RED 阶段：编写失败的测试
 """
 import pytest
 from datetime import date, timedelta
+# 2026-09-14（w-32314d00，REQ-24e15d B3-b）：SignalTestLog 的 9 处裸 SQL 已收敛到
+# SignalTestLogRepository，服务不再暴露 _get_conn()。测试只是需要一条可用于
+# 夹具准备/清理的数据库连接，这里直接取平台的池化连接（语义与原先 _get_conn() 返回的
+# 完全一致：cursor()/commit()/close() 可用，且 close() 是归还连接池）。
+from infrastructure.persistence.database.engine import PooledConnection
 import json
 from pathlib import Path
 from application.services.experience_accumulator import ExperienceAccumulator
 from application.services.signal_test_log import SignalTestLog
 from adapters.outbound.repositories import StrategyPerformanceRepository
 
-
 @pytest.fixture
 def accumulator():
     """创建 ExperienceAccumulator 实例"""
     return ExperienceAccumulator()
-
 
 @pytest.fixture
 def signal_log():
     """创建 SignalTestLog 实例"""
     return SignalTestLog()
 
-
 @pytest.fixture
 def perf_repo():
     """创建 StrategyPerformanceRepository 实例"""
     return StrategyPerformanceRepository()
-
 
 @pytest.fixture
 def test_data(signal_log, perf_repo):
@@ -49,7 +50,7 @@ def test_data(signal_log, perf_repo):
         })
 
     # 更新为已验证状态（模拟盈利和亏损）
-    conn = signal_log._get_conn()
+    conn = PooledConnection()
     cursor = conn.cursor()
 
     # 7条盈利，3条亏损
@@ -87,13 +88,12 @@ def test_data(signal_log, perf_repo):
     yield
 
     # 清理测试数据
-    conn = signal_log._get_conn()
+    conn = PooledConnection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM quant.signal_test_log WHERE symbol = '000001.SH'")
     conn.commit()
     cursor.close()
     conn.close()
-
 
 def test_accumulate_creates_experience_entry(accumulator, test_data):
     """测试积累经验时创建经验条目"""
@@ -107,7 +107,6 @@ def test_accumulate_creates_experience_entry(accumulator, test_data):
     assert result['success'] is True
     assert result['experience_created'] is True
     assert 'experience_id' in result
-
 
 def test_accumulate_requires_minimum_samples(accumulator, signal_log):
     """测试需要最小样本数"""
@@ -139,13 +138,12 @@ def test_accumulate_requires_minimum_samples(accumulator, signal_log):
     assert 'insufficient samples' in result['reason'].lower()
 
     # 清理
-    conn = signal_log._get_conn()
+    conn = PooledConnection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM quant.signal_test_log WHERE symbol = '000001.SZ'")
     conn.commit()
     cursor.close()
     conn.close()
-
 
 def test_experience_entry_format(accumulator, test_data):
     """测试经验条目格式正确"""
@@ -178,7 +176,6 @@ def test_experience_entry_format(accumulator, test_data):
     assert outcomes['total_cases'] >= 10
     assert 0 <= outcomes['win_rate'] <= 100
 
-
 def test_recommendation_based_on_performance(accumulator, test_data):
     """测试根据表现生成推荐"""
     result = accumulator.accumulate_from_performance(
@@ -198,7 +195,6 @@ def test_recommendation_based_on_performance(accumulator, test_data):
     else:
         assert experience['recommendation'] in ['cautious', 'avoid']
 
-
 def test_accumulate_all_strategies(accumulator, test_data):
     """测试批量积累所有策略的经验"""
     result = accumulator.accumulate_all(min_samples=10)
@@ -207,7 +203,6 @@ def test_accumulate_all_strategies(accumulator, test_data):
     assert 'total_processed' in result
     assert 'experiences_created' in result
     assert result['total_processed'] >= 1
-
 
 def test_experience_saved_to_file(accumulator, test_data, tmp_path):
     """测试经验保存到文件"""

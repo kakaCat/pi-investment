@@ -12,11 +12,15 @@ Daemon Pipeline Bridge Test — 验证 daemon 桥接层的流水线功能
 """
 import json
 import pytest
+# 2026-09-14（w-32314d00，REQ-24e15d B3-b）：SignalTestLog 的 9 处裸 SQL 已收敛到
+# SignalTestLogRepository，服务不再暴露 _get_conn()。测试只是需要一条可用于
+# 夹具准备/清理的数据库连接，这里直接取平台的池化连接（语义与原先 _get_conn() 返回的
+# 完全一致：cursor()/commit()/close() 可用，且 close() 是归还连接池）。
+from infrastructure.persistence.database.engine import PooledConnection
 import asyncio
 from datetime import date
 
 from infrastructure.daemon.registry import MethodRegistry, register_method, get_global_registry
-
 
 class TestDaemonPipelineBridge:
     """测试 daemon 到后端流水线的桥接"""
@@ -69,7 +73,6 @@ class TestDaemonPipelineBridge:
                 await handler({})
 
         asyncio.run(run())
-
 
 class TestDaemonMethodRegistry:
     """测试 MethodRegistry 基础设施"""
@@ -139,7 +142,6 @@ class TestDaemonMethodRegistry:
         assert registry.get_handler("nonexistent") is None
         assert not registry.has_method("nonexistent")
 
-
 class TestSignalTestLogBridge:
     """测试 SignalTestLog 服务直接调用（非 daemon 层，但验证服务正确性）"""
 
@@ -150,7 +152,7 @@ class TestSignalTestLogBridge:
         signal_log = SignalTestLog()
 
         # 清理测试数据
-        conn = signal_log._get_conn()
+        conn = PooledConnection()
         cursor = conn.cursor()
         cursor.execute(
             "DELETE FROM quant.signal_test_log WHERE reason LIKE '%Bridge Test%'"
@@ -184,7 +186,7 @@ class TestSignalTestLogBridge:
         assert signal['status'] == 'pending'
 
         # 更新状态 — 直接在SQL中更新
-        conn2 = signal_log._get_conn()
+        conn2 = PooledConnection()
         cur2 = conn2.cursor()
         cur2.execute(
             f"UPDATE {signal_log.TABLE_NAME} SET status = 'verified', pnl_pct = 3.5, current_price = 51.75 WHERE id = %s",

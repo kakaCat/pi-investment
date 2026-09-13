@@ -43,6 +43,7 @@ from .job_run import InProcessJobRun
 from .data_quality import KlineDataQuality
 from .sector_snapshot import SectorSnapshot
 from .agent_session import AgentSession, AgentSessionEvent
+from .signal_test_log import SignalTestRecord
 
 __all__ = [
     # 股票相关
@@ -99,4 +100,5 @@ __all__ = [
     'SectorSnapshot',
     'AgentSession',
     'AgentSessionEvent',
+    'SignalTestRecord',
 ]

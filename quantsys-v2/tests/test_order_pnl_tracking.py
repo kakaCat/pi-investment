@@ -5,29 +5,30 @@ RED 阶段：编写失败的测试
 """
 import pytest
 from datetime import date, datetime
+# 2026-09-14（w-32314d00，REQ-24e15d B3-b）：SignalTestLog 的 9 处裸 SQL 已收敛到
+# SignalTestLogRepository，服务不再暴露 _get_conn()。测试只是需要一条可用于
+# 夹具准备/清理的数据库连接，这里直接取平台的池化连接（语义与原先 _get_conn() 返回的
+# 完全一致：cursor()/commit()/close() 可用，且 close() 是归还连接池）。
+from infrastructure.persistence.database.engine import PooledConnection
 from application.services.new_order_service import fill_order, create_order
 from application.services.signal_test_log import SignalTestLog
 from application.services.data_service import DataService
 from adapters.outbound.repositories import StrategyPerformanceRepository
-
 
 @pytest.fixture
 def ds():
     """创建 DataService 实例"""
     return DataService()
 
-
 @pytest.fixture
 def signal_log():
     """创建 SignalTestLog 实例"""
     return SignalTestLog()
 
-
 @pytest.fixture
 def perf_repo():
     """创建 StrategyPerformanceRepository 实例"""
     return StrategyPerformanceRepository()
-
 
 @pytest.fixture
 def cleanup(ds, signal_log, perf_repo):
@@ -40,7 +41,7 @@ def cleanup(ds, signal_log, perf_repo):
         ('000002.SZ', '万科A'),
     ]
 
-    conn = signal_log._get_conn()
+    conn = PooledConnection()
     cursor = conn.cursor()
 
     for symbol, name in test_stocks:
@@ -90,7 +91,7 @@ def cleanup(ds, signal_log, perf_repo):
     # 清理订单和交易（使用测试股票代码）
     test_symbols = ['600000.SH', '000001.SZ', '000001.SH', '000002.SZ']
 
-    conn = signal_log._get_conn()
+    conn = PooledConnection()
     cursor = conn.cursor()
 
     for symbol in test_symbols:
@@ -105,13 +106,12 @@ def cleanup(ds, signal_log, perf_repo):
     cursor.close()
     conn.close()
 
-
 def _mirror_signal_to_signals_table(signal_log, signal_id: int, symbol: str, name: str,
                                     strategy_id: str, action: str):
     """create_order 的信号存在性校验查 quant.signals（生产信号源），
     而本测试信号写 signal_test_log（_update_signal_tracking 回写目标）。
     两表按 id 对齐，这里镜像一行到 signals 表使校验通过。"""
-    conn = signal_log._get_conn()
+    conn = PooledConnection()
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -124,7 +124,6 @@ def _mirror_signal_to_signals_table(signal_log, signal_id: int, symbol: str, nam
     conn.commit()
     cursor.close()
     conn.close()
-
 
 def test_fill_order_updates_signal_test_log_entry_price(ds, signal_log, cleanup):
     """测试订单成交时更新 signal_test_log 的 entry_price"""
@@ -164,7 +163,7 @@ def test_fill_order_updates_signal_test_log_entry_price(ds, signal_log, cleanup)
     assert result['is_full_fill'] is True
 
     # 4. 验证 signal_test_log 的 entry_price 被更新
-    conn = signal_log._get_conn()
+    conn = PooledConnection()
     cursor = conn.cursor()
     cursor.execute(
         f"SELECT entry_price FROM {signal_log.TABLE_NAME} WHERE id = %s",
@@ -177,11 +176,10 @@ def test_fill_order_updates_signal_test_log_entry_price(ds, signal_log, cleanup)
     assert row is not None
     assert row[0] == 10.3  # entry_price 应该被更新为成交价
 
-
 def test_sell_order_updates_signal_test_log_and_performance(ds, signal_log, perf_repo, cleanup):
     """测试卖出订单时更新 signal_test_log 和 strategy_performance"""
     # 0. 先创建持仓记录（卖出需要有持仓）
-    conn = signal_log._get_conn()
+    conn = PooledConnection()
     cursor = conn.cursor()
     # 生产持仓读 quant.portfolio_holdings（PortfolioHolding ORM），不是 quant.positions；
     # 清掉历史测试残留行避免读到脏数据
@@ -233,7 +231,7 @@ def test_sell_order_updates_signal_test_log_and_performance(ds, signal_log, perf
     assert result['is_full_fill'] is True
 
     # 4. 验证 signal_test_log 的 pnl_pct 被更新
-    conn = signal_log._get_conn()
+    conn = PooledConnection()
     cursor = conn.cursor()
     cursor.execute(
         f"SELECT pnl_pct, current_price, status FROM {signal_log.TABLE_NAME} WHERE id = %s",
@@ -263,7 +261,6 @@ def test_sell_order_updates_signal_test_log_and_performance(ds, signal_log, perf
     assert float(record['pnl_pct']) == pytest.approx(9.76, rel=0.01)  # pnl_pct 是 Decimal，转 float 再做近似运算
     assert record['source'] == 'live'
 
-
 def test_fill_order_without_signal_id_does_not_update_log(ds, cleanup):
     """测试没有关联信号的订单成交不会更新 signal_test_log"""
     # 创建订单（不关联信号）
@@ -286,7 +283,6 @@ def test_fill_order_without_signal_id_does_not_update_log(ds, cleanup):
 
     assert result['is_full_fill'] is True
     # 不应该抛出异常，正常完成
-
 
 def test_partial_fill_updates_entry_price_once(ds, signal_log, cleanup):
     """测试部分成交时只在第一次更新 entry_price"""
@@ -327,7 +323,7 @@ def test_partial_fill_updates_entry_price_once(ds, signal_log, cleanup):
     assert result1['is_full_fill'] is False
 
     # 验证 entry_price 被更新
-    conn = signal_log._get_conn()
+    conn = PooledConnection()
     cursor = conn.cursor()
     cursor.execute(
         f"SELECT entry_price FROM {signal_log.TABLE_NAME} WHERE id = %s",
@@ -351,7 +347,7 @@ def test_partial_fill_updates_entry_price_once(ds, signal_log, cleanup):
     assert result2['is_full_fill'] is True
 
     # 验证 entry_price 不变（仍然是第一次成交价）
-    conn = signal_log._get_conn()
+    conn = PooledConnection()
     cursor = conn.cursor()
     cursor.execute(
         f"SELECT entry_price FROM {signal_log.TABLE_NAME} WHERE id = %s",
