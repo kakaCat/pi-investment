@@ -47,6 +47,11 @@ def psql_csv(q):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--names", type=int, default=15)
+    ap.add_argument("--single-cap", type=float, default=0.15)   # 单只上限：core 的 15%
+    ap.add_argument("--min-names", type=int, default=8)          # 持仓数下限
+    ap.add_argument("--growth-sleeve-pct", type=float, default=0.05)  # 成长板独立额度（占总资产）
+    ap.add_argument("--growth-names", type=int, default=3)
+    ap.add_argument("--growth-min-amount", type=float, default=5e7)   # 成长板候选日成交额下限（元）
     ap.add_argument("--target-vol", type=float, default=0.15)
     ap.add_argument("--max-exposure", type=float, default=0.25)   # 首期上限：25%（regime 允许 40% 以内）
     ap.add_argument("--account", default="agent_brain")
@@ -123,6 +128,7 @@ def main():
     target_expo = round(min(a.max_exposure, a.max_exposure * w_vol * gate), 4)
 
     budget_est = total * target_expo / max(a.names, 1)
+    uni_prebudget = uni.copy()   # 成长板子额度用：不受 core 单只预算钳制
     before_px = len(uni)
     uni = uni[uni["close"] * 100 <= budget_est]
     print("整手可负担：%d → %d 只（单只预算 %.0f 元）" % (before_px, len(uni), budget_est))
@@ -216,23 +222,189 @@ def main():
         t["weight_pct_of_core"] = round(t["mult"] / _wsum * 100, 2)
     print("板块风向：市场风格 = %s（置信度 %.2f）；行业动量样本 %d 个行业" % (STYLE, CONF, n_ind))
 
-    # 加权后重算整手：权重不再等权，可能出现"分到的钱买不起 1 手"的标的 → 剔除后重新归一（2026-09-13）
-    _amt_total_pre = total * target_expo
-    _kept = []
-    for _t in tilts:
-        _c = float(_pk[_t["symbol"]]["close"])
-        _lots = int((_amt_total_pre * _t["weight_pct_of_core"] / 100.0) // (_c * 100))
-        if _lots >= 1:
-            _t["lots"] = _lots
-            _kept.append(_t)
-    if _kept and len(_kept) < len(tilts):
-        _wl = sum(x["mult"] for x in _kept) or 1.0
-        for x in _kept:
-            x["weight_pct_of_core"] = round(x["mult"] / _wl * 100, 2)
-            x["lots"] = int((_amt_total_pre * x["weight_pct_of_core"] / 100.0) // (float(_pk[x["symbol"]]["close"]) * 100))
-        print("整手复核：剔除 %d 只买不起 1 手的标的，剩余 %d 只" % (len(tilts) - len(_kept), len(_kept)))
-    tilts = _kept or tilts
+    # ===== 硬约束 1/2 与整手复核联立迭代（2026-09-13）=====
+    # ① 持仓数下限：不足则从合格池补（优先补行业已有成员 <2 的，避免抬高行业集中度）
+    # ② 单只上限：core 的 15%，迭代封顶 + 超额按比例再分配
+    # ③ 整手复核：分到的钱买不起 1 手则剔除，剔除后若跌破下限再补，直到三者同时满足
+    def _apply_cap(ts, cap):
+        ms = [x["mult"] for x in ts]
+        tot = sum(ms) or 1.0
+        w = [m / tot for m in ms]
+        for _ in range(50):
+            over = [i for i, x in enumerate(w) if x > cap + 1e-9]
+            if not over:
+                break
+            ex = sum(w[i] - cap for i in over)
+            for i in over:
+                w[i] = cap
+            free = [i for i in range(len(w)) if w[i] < cap - 1e-9]
+            fs = sum(w[i] for i in free) or 1.0
+            for i in free:
+                w[i] += ex * (w[i] / fs)
+        for x, wv in zip(ts, w):
+            x["weight_pct_of_core"] = round(wv * 100, 2)
 
+    def _refill(ts, used, k):
+        if k <= 0:
+            return 0
+        cnt = {}
+        for x in ts:
+            cnt[x["industry"]] = cnt.get(x["industry"], 0) + 1
+        cand = [r for r in uni.itertuples() if str(r.symbol) not in used]
+        cand.sort(key=lambda r: (cnt.get(str(r.industry), 0), -float(r.amt)))
+        added = 0
+        for _r in cand:
+            if added >= k:
+                break
+            s = str(_r.symbol)
+            if s in used:
+                continue
+            m, n = _tilt(str(_r.industry))
+            ts.append({"symbol": s, "industry": str(_r.industry), "mult": m, "note": n,
+                       "weight_pct_of_core": 0.0})
+            _pk[s] = {"close": _r.close, "roe": _r.roe, "pe": _r.pe, "amt": _r.amt}
+            used.add(s)
+            added += 1
+        return added
+
+    used = {str(x["symbol"]) for x in tilts}
+    _amt_total_pre = total * target_expo
+    dropped_total = 0
+    for _round in range(8):
+        _refill(tilts, used, max(0, a.min_names - len(tilts)))
+        _apply_cap(tilts, a.single_cap)
+        _kept = []
+        for _t in tilts:
+            _c = float(_pk[_t["symbol"]]["close"])
+            _lots = int((_amt_total_pre * _t["weight_pct_of_core"] / 100.0) // (_c * 100))
+            if _lots >= 1:
+                _t["lots"] = _lots
+                _kept.append(_t)
+        _gone = [t for t in tilts if t not in _kept]
+        dropped_total += len(_gone)
+        tilts = _kept
+        if not _gone and len(tilts) >= a.min_names:
+            break
+        if len(used) >= len(uni):
+            break
+    _refill(tilts, used, max(0, a.min_names - len(tilts)))
+    _apply_cap(tilts, a.single_cap)
+    for _t in tilts:
+        _t["lots"] = int((_amt_total_pre * _t["weight_pct_of_core"] / 100.0) // (float(_pk[_t["symbol"]]["close"]) * 100))
+    print("硬约束：持仓 %d 只（下限 %d）｜单只最大权重 %.1f%%（上限 %.0f%%）｜整手剔除累计 %d 只"
+          % (len(tilts), a.min_names, max((x["weight_pct_of_core"] for x in tilts), default=0.0),
+             a.single_cap * 100, dropped_total))
+
+
+    # ===== 成长板独立子额度（方案C：创业板 300/301 + 科创板 688/689）=====
+    # 独立核算：额度 = 总资产 × growth_sleeve_pct（默认 5%）× 波动系数 × 回撤闸门
+    # 候选来自 uni_prebudget（不受 core 单只预算钳制），否则高价的科创板龙头永远进不来
+    _G_PREFIX = ("300", "301", "688", "689")
+    # 池子来源：**全市场** 300/301/688/689，而非 core 的 240 只流动池
+    # 依据：流动池里成长板只有 45 只创业板 + 8 只科创板，且经质量闸门后仅剩 12 只、科创板 0 只（2026-09-13 实测）——
+    # 用 240 只池做成长板子额度等于把子额度饿死。质量闸门与 core 完全一致，另加流动性下限。
+    _gst = st[st["symbol"].astype(str).str.startswith(_G_PREFIX)].copy()
+    _gn0 = len(_gst)
+    _gst = _gst[_gst["roe"].notna() & (_gst["roe"] > 0)]
+    _gst = _gst[_gst["pe"].notna() & (_gst["pe"] > 0) & (_gst["pe"] <= 60)]
+    _gst = _gst[(_gst["is_st"] != True) & (_gst["is_suspended"] != True)]  # noqa: E712
+    _gst = _gst[_gst["list_date"].isna() | (_gst["list_date"] <= pd.Timestamp.now() - pd.Timedelta(days=730))]
+    _gfin = _gst["industry"].fillna("").str.contains("金融", na=False)
+    _gst = _gst[_gfin | _gst["debt_ratio"].isna() | (_gst["debt_ratio"] < 80)]
+    _gper = total * a.growth_sleeve_pct / max(a.growth_names, 1)
+    gw_all = _gst.merge(latest, on="symbol", how="inner").merge(hi, on="symbol", how="left")
+    gw_all["dist_high"] = gw_all["close"] / gw_all["hi52"] - 1
+    gw_all = gw_all[(gw_all["close"] > 0) & (gw_all["dist_high"] <= a.exclude_near_high)
+                    & (gw_all["amount"] >= a.growth_min_amount) & (gw_all["close"] * 100 <= _gper)]
+    gw_all = gw_all.sort_values("amount", ascending=False)
+    gw_pool = gw_all[~gw_all["symbol"].astype(str).isin(used)]
+    print("成长板候选池（全市场 300/301/688/689）：%d → %d 只（质量闸门同 core；日成交额 ≥ %.0f 万；单只 ≤ %.0f 元）"
+          % (_gn0, len(gw_pool), a.growth_min_amount / 1e4, _gper))
+    sleeve, sleeve_meta = [], {}
+    if len(gw_pool) > 0:
+        _gsyms = [str(s) for s in gw_all["symbol"].astype(str).head(150)]
+        _gh = psql_csv("select symbol, trade_date, close from quant.daily_klines where symbol in ("
+                       + ",".join("'" + s + "'" for s in _gsyms)
+                       + ") and trade_date >= '2024-06-01' order by trade_date")
+        _svol, _sdd = float("nan"), 0.0
+        if len(_gh):
+            _gh["trade_date"] = pd.to_datetime(_gh["trade_date"])
+            _gc = _gh.pivot_table(index="trade_date", columns="symbol", values="close").ffill()
+            _gr = _gc.pct_change().mean(axis=1).dropna()
+            if len(_gr) >= 20:
+                _svol = float(_gr.tail(20).std() * np.sqrt(252))
+            _ge = (1 + _gr).cumprod()
+            _sdd = float(_ge.iloc[-1] / _ge.cummax().iloc[-1] - 1) if len(_ge) else 0.0
+        _swvol = min(1.0, a.target_vol / _svol) if _svol and _svol > 0 else 1.0
+        _sgate = 0.5 if _sdd < -0.10 else 1.0
+        _sexpo = round(a.growth_sleeve_pct * _swvol * _sgate, 4)
+        _samt = total * _sexpo
+        # 最小可持结构下限：波动缩放后的金额若装不下"前 N 只各 1 手"，则上抬到刚好装得下（硬顶=5% 额度上限）。
+        # 理由：子额度只有 1 只时 = 100% 单票特质风险，违背"最多 2-3 只"的分散结构（2026-09-13）。
+        _cap_amt = total * a.growth_sleeve_pct
+        _cand, _sind = [], set()
+        _ranked = []
+        for _r in gw_pool.itertuples():
+            _m, _n = _tilt(str(_r.industry))
+            _ranked.append((-_m, -float(_r.amount), _r, _m, _n))
+        _ranked.sort(key=lambda x: (x[0], x[1]))
+        for _m0, _amt0, _r, _m, _n in _ranked:
+            if len(_cand) >= a.growth_names:
+                break
+            _ind = str(_r.industry)
+            if _ind in _sind:
+                continue
+            _cand.append({"symbol": str(_r.symbol), "industry": _ind, "mult": _m, "note": _n,
+                          "close": float(_r.close), "roe": float(_r.roe), "pe": float(_r.pe)})
+            _sind.add(_ind)
+        _top = _cand[:a.growth_names]
+        if _top:
+            _mtt = sum(c["mult"] for c in _top) or 1.0
+            _bneed = max((c["close"] * 100) / (c["mult"] / _mtt) for c in _top)
+            if _bneed > _samt:
+                _samt_adj = min(_bneed, _cap_amt)
+                if _samt_adj > _samt:
+                    print("    最小可持结构下限：子额度 %.0f → %.0f 元（波动缩放值装不下前 %d 只各 1 手；硬顶 %.0f 元 = %.1f%% 总资产）"
+                          % (_samt, _samt_adj, len(_top), _cap_amt, a.growth_sleeve_pct * 100))
+                    _samt = _samt_adj
+                    _sexpo = round(_samt / total, 4)
+                else:
+                    print("    警告：5%% 额度上限（%.0f 元）仍装不下前 %d 只各 1 手，按上限执行" % (_cap_amt, len(_top)))
+        # 贪心整手复核：小额度下 1 手成本是硬门槛。
+        # 逐只试纳入，试探集合内每只按其权重都能买 ≥1 手才接受（避免"先按等分否掉、再归一成单只 100%"的错误）
+        _alive = []
+        for c in _cand:
+            _trial = _alive + [c]
+            _mt = sum(x["mult"] for x in _trial) or 1.0
+            if all(x["close"] * 100 <= _samt * (x["mult"] / _mt) for x in _trial):
+                _alive = _trial
+                if len(_alive) >= a.growth_names:
+                    break
+        _mt2 = sum(c["mult"] for c in _alive) or 1.0
+        for c in _alive:
+            c["weight_pct_of_sleeve"] = round(c["mult"] / _mt2 * 100, 2)
+            c["amount"] = round(_samt * c["weight_pct_of_sleeve"] / 100.0, 0)
+            c["lots"] = int(c["amount"] // (c["close"] * 100))
+        _alive = [c for c in _alive if c["lots"] >= 1]
+        _mt3 = sum(c["mult"] for c in _alive) or 1.0
+        for c in _alive:
+            c["weight_pct_of_sleeve"] = round(c["mult"] / _mt3 * 100, 2)
+            c["amount"] = round(_samt * c["weight_pct_of_sleeve"] / 100.0, 0)
+            c["lots"] = int(c["amount"] // (c["close"] * 100))
+        sleeve = _alive
+        sleeve_meta = {"cap_pct_of_total": a.growth_sleeve_pct, "exposure_pct_of_total": _sexpo,
+                       "amount": round(_samt, 0), "index_vol_ann": round(_svol, 4) if _svol == _svol else None,
+                       "index_drawdown": round(_sdd, 4), "w_vol": round(_swvol, 3), "dd_gate": _sgate,
+                       "candidates": [str(s) for s in gw_pool["symbol"].astype(str).head(10)],
+                       "note": "独立核算子额度；候选池 %d 只成长板标的（不受 core 单只预算钳制）" % len(gw_pool)}
+        print("成长板子额度：上限 %.1f%% 总资产 → 实际暴露 %.2f%%（%.0f 元）｜成长板等权指数 20 日年化波动 %.1f%%｜回撤 %.1f%%→闸门 %.1f｜入选 %d 只"
+              % (a.growth_sleeve_pct * 100, _sexpo * 100, _samt, (_svol or 0) * 100, _sdd * 100, _sgate, len(sleeve)))
+        for c in sleeve:
+            print("    %s  现价 %7.2f  %d 手 ≈ %.0f 元（子额度 %.1f%%）| %s" % (c["symbol"], c["close"], c["lots"], c["amount"], c["weight_pct_of_sleeve"], c["note"]))
+        if not sleeve:
+            print("    子额度不足以买入任何成长板标的 1 手 → 该额度转入现金（诚实记录，不硬凑）")
+    else:
+        print("成长板子额度：合格候选 0 只，跳过")
 
     plan = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
@@ -252,6 +424,7 @@ def main():
              "pe": float(_pk[t["symbol"]]["pe"]), "amount_def_avg": float(_pk[t["symbol"]]["amt"])}
             for t in tilts
         ],
+        "growth_sleeve": {"meta": sleeve_meta, "holdings": sleeve},
         "phase_plan": "分 4 批、每批约 1 周；每批按当时 vol-target 与回撤闸门重算",
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -263,11 +436,17 @@ def main():
           % (target_expo * 100, a.max_exposure * 100, (vol_ann or 0) * 100, w_vol, dd * 100, gate))
     target_amount = total * target_expo
     print("计划投入 %.0f 元，分 4 批（每批约 %.0f 元）" % (target_amount, target_amount / 4))
-    print("目标持仓 %d 只（按板块风向加权；等权基准每只约 %.0f 元）：" % (len(picks), target_amount / max(len(picks), 1)))
+    print("目标持仓 %d 只（按板块风向加权；等权基准每只约 %.0f 元）：" % (len(tilts), target_amount / max(len(tilts), 1)))
     for _t in sorted(tilts, key=lambda x: x["weight_pct_of_core"], reverse=True):
         _c = float(_pk[_t["symbol"]]["close"]); _amt = target_amount * _t["weight_pct_of_core"] / 100.0
         _lots = int(_amt // (_c * 100))
         print("  %s  现价 %6.2f  权重 %5.1f%%  约 %6.0f 元 = %d 手 | %s" % (_t["symbol"], _c, _t["weight_pct_of_core"], _amt, _lots, _t["note"]))
+    _sleeve_amt = float(sleeve_meta.get("amount") or 0) if sleeve else 0.0
+    _sleeve_pct = float(sleeve_meta.get("exposure_pct_of_total") or 0) if sleeve else 0.0
+    print("合计：core %.1f%% + 成长板子额度 %.2f%% = 计划暴露 %.2f%%（约 %.0f 元，占总资产 %.1f%%）"
+          % (target_expo * 100, _sleeve_pct * 100, (target_expo + _sleeve_pct) * 100,
+             target_amount + _sleeve_amt, (target_expo + _sleeve_pct) * 100))
+    print("现金保留 %.1f%%（宪法下限 10%%）" % ((1 - target_expo - _sleeve_pct) * 100))
     print("计划已写入", OUT)
     return 0
 
