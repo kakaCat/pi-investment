@@ -86,17 +86,45 @@ profile 配置**零改动**（两页仍 `config: {}`）：目录不再由配置�
 
 | 文件 | 说明 |
 |---|---|
-| `.dsh-home/profiles/agent-dh/cordis.patch.yml` | 休眠 profile（PID 66817 已暂停 20h、仍在 LISTEN :13081）；原配置会让它把规则进化写进空库 |
+| `.dsh-home/profiles/agent-dh/cordis.patch.yml` | 休眠 profile（PID 66817 已暂停 20h、仍在 LISTEN :13081）；原配置会让它把规则进化写进空库。**该 profile 目录随后按用户指令整体删除（见第八节）** |
 | `~/.dsh/profiles/investment/cordis.patch.yml` | 不带 `DSH_HOME` 直接 `dsh --profile investment` 时的入口 |
 | `.dsh-data/profiles/investment/cordis.patch.yml` | 2026-09-12 那份未启用副本 |
 
 未动：`*.bak*`、`state/*backup*`、`config-backup-auto`（由 restarter 每次重启刷新，属运行时产物）。
 
 **生效时机**：genomeDir 在**进程启动时**读取。:13080 已于 16:25 重启（新配置本就是对的，无需再动）；
-:13081 那个暂停进程需**重启**才会读到新值——`SIGCONT` 恢复不会重读配置，仍会用内存里的旧目录。
+:13081 那个暂停进程本需重启才会读到新值（`SIGCONT` 恢复不重读配置），实际处理是**直接杀掉**（见第八节）。
 
 **残余风险（本次明确接受）**：配置文件是唯一防线——新 profile 若忘写 `genomeDir`，插件仍会按硬编码默认值
 落到 `~/.dsh-agent-dh/genome` 并**静默 git init 出一个空基因组**（`initializeFromTemplates()`，只打一行 info 日志）。
 靠 `config/cordis.yml` 模板 + start.sh 脚手架兜住新建路径；若日后要治本，再考虑给 `packages/genome` 加“找不到
 基因组要响”的门禁（那需要重建 dist）。
+## 八、旧 home 与休眠 profile 清理（2026-09-13 16:42 · 用户指令）
+
+用户指令原文：「~/.dsh-agent-dh 直接删除，profile 目录清掉，一会重启，13081杀死」
+
+**删除前只读勘查**（合计 172K + 28K，无活跃配置指向旧 home；残留引用全是注释与脚本兜底）：
+
+- `~/.dsh-agent-dh/` = 2026-09-13 02:38 误建的空基因组（g1）+ `profiles/investment/state/pending-resume.json`（陈旧）
+- `.dsh-home/profiles/agent-dh/` = 迁移日（9/12 19:15）遗留的休眠 profile，其 `agents.json` 仍自称
+  `instance: investment / port: 13080 / dsh_home ~/.dsh-agent-dh`（旧 home 的过期副本）
+
+**执行**：
+
+1. **杀掉 :13081 残留**：两条进程链均为 SIGSTOP 挂起态，按精确 PID 处理——`66801/66802/66817`（9/12 19:43 起）
+   与 `46468/46469/46484`（9/13 01:10 起，挂在交互 zsh 下）。端口 13081 已释放，全盘无 13081 进程残留。
+2. **归档后删除**（不可逆，故留一份小归档）：`/tmp/dsh-cleanup-20260913/dsh-agent-dh.tgz`（21KB）、
+   `profile-agent-dh.tgz`（4.8KB）；两个目录已从磁盘移除，`.dsh-home/profiles/` 现只剩 `investment`。
+3. **复验**：`:13080` 正常（`genomeDirSource=genome-plugin`、g35 / 14 候选 / 37 谱系）；
+   `relink-profile.py --check` 仍 **25/25 symlink-ok**（legacy 路径被删未影响该门禁）。
+
+**连带影响**：`docs/work-logs/2026-09/dsh-home-migration-20260913.md` §六 的「回滚到旧 home」路径就此失效。
+不过该回滚在本次勘查时已被证伪——旧 home 的 profile 目录早被清空，回滚只会拿到那个 g1 空基因组。
+
+**仍未清理（本次未动，需用户定夺）**：
+
+- `~/.dsh/profiles/investment/`（**387M**，默认 home 下的旧 investment profile 副本；不带 `DSH_HOME` 直接
+  `dsh --profile investment` 时会用到，其 genomeDir 已在第七节对齐 `.dsh-data/genome`）
+- `.dsh-data/profiles/investment/`（2.9M，2026-09-12 那份未启用副本，迁移工作记录已列为遗留）
+
 
