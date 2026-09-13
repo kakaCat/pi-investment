@@ -210,6 +210,13 @@ export const schedulerManagePrompt: ToolPrompt<SchedulerManageParams, SchedulerM
         count: { type: 'number' },
         task_id: { type: 'string' },
         message: { type: 'string' },
+        // 2026-09-13（w-a9ec14d7）：新增字段必须同步到 output schema ——
+        // additionalProperties:false 下漏声明会让**整个工具调用直接失败**
+        // （实测首轮验证即报 "value.stats_available is not a declared property"）。
+        stats_available: { type: 'boolean' },
+        stats_error: { type: 'string' },
+        executions: { type: 'array', items: { type: 'object', additionalProperties: true } },
+        failures: { type: 'array', items: { type: 'object', additionalProperties: true } },
       },
     },
     render: (args, data) => {
@@ -220,14 +227,21 @@ export const schedulerManagePrompt: ToolPrompt<SchedulerManageParams, SchedulerM
           output += `## 📋 定时任务列表\n\n`;
           output += `**任务总数**: ${data.count || 0}\n\n`;
           if (data.tasks && data.tasks.length > 0) {
-            output += `| 任务ID | 名称 | 类型 | 线别 | Cron | 状态 |\n`;
-            output += `|--------|------|------|------|------|------|\n`;
+            output += `| 任务ID | 名称 | 类型 | Cron | 状态 | 运行 | 上次 | 上次结果 |\n`;
+            output += `|--------|------|------|------|------|------|------|----------|\n`;
             for (const task of data.tasks) {
               const status = task.enabled ? '✅ 启用' : '⏸️ 禁用';
               const kind = taskKind(task);
               const name = task.name || task.id;
               const cron = task.cron || task.schedule || '';
-              output += `| ${task.id} | ${name} | ${kind} | ${lineTag(task)} | ${cron} | ${status} |\n`;
+              const runs = task.total_runs === undefined ? '?' : String(task.total_runs);
+              const last = String(task.last_run_at || '-').slice(0, 16);
+              const st = String(task.last_run_status || '-');
+              const stTag = st === 'success' ? '✅' : (st === '?' || st === '-' ? '❔' : '❌ ' + st);
+              output += `| ${task.id} | ${name} | ${kind} | ${cron} | ${status} | ${runs} | ${last} | ${stTag} |\n`;
+            }
+            if (data.stats_available === false) {
+              output += `\n> ⚠️ 执行统计不可用（${data.stats_error || '未知原因'}）——上表"运行/上次结果"为 ?，不代表任务正常。\n`;
             }
           } else {
             output += `*暂无定时任务*\n`;
@@ -285,6 +299,36 @@ export const schedulerManagePrompt: ToolPrompt<SchedulerManageParams, SchedulerM
           break;
 
         case 'enable':
+        case 'runs': {
+          output += `## 🧾 任务执行明细\n\n`;
+          output += `**任务ID**: ${data.task_id}　**返回**: ${data.count || 0} 条\n\n`;
+          const ex = data.executions || [];
+          if (ex.length) {
+            output += `| 开始 | 状态 | 耗时(ms) | 触发 | 错误 |\n|---|---|---|---|---|\n`;
+            for (const e of ex) {
+              output += `| ${String(e.started_at || '-').slice(0, 19)} | ${e.status || '-'} | ${e.duration_ms ?? '-'} | ${e.triggered_by || '-'} | ${String(e.error || '').slice(0, 60) || '-'} |\n`;
+            }
+          } else {
+            output += `（无执行记录）\n`;
+          }
+          break;
+        }
+
+        case 'failures': {
+          output += `## ❌ 最近失败的任务\n\n`;
+          output += `**命中**: ${data.count || 0} 个\n\n`;
+          const fs2 = data.failures || [];
+          if (!fs2.length) {
+            output += `（无——所有任务上次执行均成功）\n`;
+          } else {
+            for (const x of fs2) {
+              output += `- **${x.name}**（${x.id}）\n  - 上次：${String(x.last_run_at || '-').slice(0, 19)} → ${x.last_run_status}（成功率 ${x.success_rate ?? '-'}%，共 ${x.total_runs} 次）\n`;
+              if (x.error) output += `  - 错误：${x.error}\n`;
+            }
+          }
+          break;
+        }
+
         case 'disable':
         case 'update':
         case 'delete':
