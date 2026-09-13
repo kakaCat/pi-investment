@@ -51,6 +51,14 @@ def main():
     ap.add_argument("--min-names", type=int, default=8)          # 持仓数下限
     ap.add_argument("--growth-sleeve-pct", type=float, default=0.05)  # 成长板独立额度（占总资产）
     ap.add_argument("--growth-names", type=int, default=3)
+    # 2026-09-13 证据收敛：行业动量与风格两路 tilt **默认关闭**（保留开关，随时可恢复）。
+    # 依据（docs/work-logs/2026-09/strategy-research-journal.md）：
+    #   · 行业动量：轮动 top20% 费后 CAGR +4.40% vs 同池等权 +22.19%（超额 -17.79pp）；
+    #     多空价差月均 -0.14%（无预测力）；直接 A/B 权重 tilt 的相对贡献仅 +0.29pp CAGR / +0.01 Sharpe（与零无异），
+    #     却每次调仓多付 0.48% 成本 → 是装饰品，不是 edge。
+    #   · 风格：库内风格序列仅 8 条（2026-06-02 起），检验窗口 2024-07 起 → **无法验证**，故不默认启用未验证的调整。
+    ap.add_argument("--momentum-tilt", action="store_true", help="启用行业动量 tilt（默认关，见脚本头注释的证据）")
+    ap.add_argument("--style-tilt", action="store_true", help="启用风格 tilt（默认关：无可用历史序列，未能验证）")
     ap.add_argument("--growth-min-amount", type=float, default=5e7)   # 成长板候选日成交额下限（元）
     ap.add_argument("--target-vol", type=float, default=0.15)
     ap.add_argument("--max-exposure", type=float, default=0.25)   # 首期上限：25%（regime 允许 40% 以内）
@@ -197,9 +205,15 @@ def main():
         if pos is None or n_ind == 0:
             return 1.0, "行业动量未知"
         q = pos / n_ind
-        mult = 1.3 if q < 1 / 3 else (1.0 if q < 2 / 3 else 0.5)
-        note = "行业动量 %s（%d/%d）" % ("强" if q < 1 / 3 else ("中" if q < 2 / 3 else "弱"), pos + 1, n_ind)
-        if CONF >= 0.6 and q >= 1 / 3:      # 动量前 1/3 的行业不套风格惩罚：动量优先于风格标签
+        rank_note = "行业动量 %s（%d/%d）" % ("强" if q < 1 / 3 else ("中" if q < 2 / 3 else "弱"), pos + 1, n_ind)
+        if not a.momentum_tilt:
+            # 证据收敛（2026-09-13）：动量无预测力，默认不参与加权，仅作信息标注
+            mult = 1.0
+            note = rank_note + "（未加权：实测无预测力）"
+        else:
+            mult = 1.3 if q < 1 / 3 else (1.0 if q < 2 / 3 else 0.5)
+            note = rank_note
+        if a.style_tilt and CONF >= 0.6 and q >= 1 / 3:      # 动量前 1/3 的行业不套风格惩罚：动量优先于风格标签
             is_cycle = any(k in ind for k in CYCLE_KW)
             is_growth = any(k in ind for k in GROWTH_KW)
             if STYLE == "growth" and is_cycle:
@@ -447,7 +461,10 @@ def main():
           % (target_expo * 100, a.max_exposure * 100, (vol_ann or 0) * 100, w_vol, dd * 100, gate))
     target_amount = total * target_expo
     print("计划投入 %.0f 元，分 4 批（每批约 %.0f 元）" % (target_amount, target_amount / 4))
-    print("目标持仓 %d 只（按板块风向加权；等权基准每只约 %.0f 元）：" % (len(tilts), target_amount / max(len(tilts), 1)))
+    _wm = "按板块风向加权（动量 %s / 风格 %s）" % ("开" if a.momentum_tilt else "关",
+                                                 "开" if a.style_tilt else "关")
+    print("目标持仓 %d 只（%s；等权基准每只约 %.0f 元）："
+          % (len(tilts), _wm, target_amount / max(len(tilts), 1)))
     for _t in sorted(tilts, key=lambda x: x["weight_pct_of_core"], reverse=True):
         _c = float(_pk[_t["symbol"]]["close"]); _amt = target_amount * _t["weight_pct_of_core"] / 100.0
         _lots = int(_amt // (_c * 100))
