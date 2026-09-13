@@ -45,6 +45,7 @@ ap.add_argument("--start", default="2026-01-01")
 ap.add_argument("--end", default="2026-09-11")
 ap.add_argument("--placebo", type=int, default=5, help="安慰剂重复次数（零分布）")
 ap.add_argument("--alpha", type=float, default=0.05)
+ap.add_argument("--tag", default="", help="落盘后缀，如 is / oos")
 a = ap.parse_args()
 
 # ---------------- 事件样本：全来源 + 跨源去重 ----------------
@@ -164,23 +165,33 @@ def placebo_null(sym_arr, n, B=None):
     return means, medians
 
 
-def clustered_ci(dates_arr, vals, B=2000, alpha=0.05):
-    """按**事件日聚类**的 bootstrap：重采样"日"而不是"观测"。
+def cluster_ci(cluster_arr, vals, B=2000, alpha=0.05):
+    """按某个维度聚类的 bootstrap CI。cluster_arr 给出每个观测所属的簇（事件日 / 个股）。
 
-    为什么必须做（2026-09-13 修正）：同一事件日往往有几十上百只票同时出事件，
-    它们的 20 日窗口高度重叠 → 观测之间**不独立**。直接对观测做 bootstrap 会低估标准误、
-    把 p 值算得过于乐观。聚类到"日"之后，有效样本量 ≈ 事件日数（本例 150 上下），而非条数（几千）。
-    返回 (下界, 上界)。
+    为什么必须做（2026-09-13 修正）：同一事件日有几十上百只票同时出事件、同一只票可能多次出事件，
+    它们的 20 日窗口高度重叠 → 观测之间不独立。直接对观测 bootstrap 会低估标准误、把 p 值算得过于乐观。
     """
-    uniq = np.unique(dates_arr)
+    uniq = np.unique(cluster_arr)
     if len(uniq) < 5:
         return float("nan"), float("nan")
-    buckets = [vals[dates_arr == d] for d in uniq]
+    buckets = [vals[cluster_arr == u] for u in uniq]
     means = np.empty(B)
     for b in range(B):
         pick = rng.integers(0, len(uniq), size=len(uniq))
         means[b] = np.concatenate([buckets[i] for i in pick]).mean()
     return float(np.percentile(means, 100 * alpha / 2)), float(np.percentile(means, 100 * (1 - alpha / 2)))
+
+
+def two_way_ci(dates_arr, syms_arr, vals, B=2000, alpha=0.05):
+    """双向聚类的保守近似：分别按「事件日」与「个股」聚类，取**更宽**的那个区间。
+
+    严格的双向聚类（Cameron-Gelbach-Miller）需要各自的方差矩阵再做修正；
+    这里取两者包络，是**保守**处理（只会让结论更难通过，不会更容易）。
+    """
+    d_lo, d_hi = cluster_ci(dates_arr, vals, B, alpha)
+    s_lo, s_hi = cluster_ci(syms_arr, vals, B, alpha)
+    lo = np.nanmin([d_lo, s_lo]); hi = np.nanmax([d_hi, s_hi])
+    return float(lo), float(hi), float(d_lo), float(d_hi), float(s_lo), float(s_hi)
 
 
 def pvalue(null, observed):
@@ -216,7 +227,8 @@ for t in types:
     # —— 两重筛选必须同时施加到日期上，否则日期与观测错位（聚类 CI 会算错却看不出来）
     dates_kept = g.event_date.values[_keep][np.isfinite(x20a)]
     m_pl = float(np.nanmean(pl_m))
-    ci_lo, ci_hi = clustered_ci(dates_kept, v - m_pl)
+    syms_kept = sym_arr[_keep][np.isfinite(x20a)]
+    ci_lo, ci_hi, d_lo, d_hi, s_lo, s_hi = two_way_ci(dates_kept, syms_kept, v - m_pl)
     results.append({"type": t, "n": len(g), "event_days": int(len(vc)),
                     "max_per_day": int(vc.max()) if len(vc) else 0,
                     "mean1": float(np.nanmean(x1a)), "mean5": float(np.nanmean(x5a)),
@@ -225,7 +237,8 @@ for t in types:
                     "placebo_mean20": float(np.nanmean(pl_m)),
                     "p_mean": p_m, "p_median": p_med, "top5_share": top5,
                     "pre5_median": float(np.nanmedian(pre5)),
-                    "ci_lo": ci_lo, "ci_hi": ci_hi})
+                    "ci_lo": ci_lo, "ci_hi": ci_hi,
+                    "ci_date": [d_lo, d_hi], "ci_symbol": [s_lo, s_hi]})
     sig = "  排除0" if ci_lo > 0 else ("  全负" if ci_hi < 0 else "")
     print("%-20s %6d %6d %+8.2f%% %+8.2f%%   [%+7.2f%%, %+7.2f%%]%s"
           % (t, len(g), int(len(vc)), v.mean() * 100, np.nanmean(pl_m) * 100,
@@ -247,6 +260,7 @@ for r in sorted(results, key=lambda x: -x["n"]):
 
 print()
 print("=== 判定 ===")
+print("（注：CI 为净额=观测−同批标的随机日安慰剂，按事件日与个股双向聚类取更宽者）")
 passed = []
 for r in sorted(results, key=lambda x: -x["n"]):
     reasons = []
@@ -254,9 +268,15 @@ for r in sorted(results, key=lambda x: -x["n"]):
         reasons.append("n=%d<%d" % (r["n"], MIN_EVENTS))
     if r["event_days"] < MIN_EVENT_DAYS:
         reasons.append("事件日 %d<%d" % (r["event_days"], MIN_EVENT_DAYS))
+    # 2026-09-13 修：原判定把"CI 整个为负"也打印成"含 0"（判据只查了 ci_lo>0），
+    # 于是 regulatory 这种**显著为负**的结论被写成"含 0"——标签错会直接误导读表的人。
     if not (np.isfinite(r["ci_lo"]) and r["ci_lo"] > 0):
-        reasons.append("按事件日聚类的 95%%CI 含 0（[%+.2f%%, %+.2f%%]）"
-                       % (r["ci_lo"] * 100, r["ci_hi"] * 100))
+        if np.isfinite(r["ci_hi"]) and r["ci_hi"] < 0:
+            reasons.append("显著为负：95%%CI 全负（[%+.2f%%, %+.2f%%]）"
+                           % (r["ci_lo"] * 100, r["ci_hi"] * 100))
+        else:
+            reasons.append("95%%CI 含 0（[%+.2f%%, %+.2f%%]）"
+                           % (r["ci_lo"] * 100, r["ci_hi"] * 100))
     if r["mean20"] > 0 and r["median20"] <= 0:
         reasons.append("均值正但中位非正（少数股主导）")
     if np.isfinite(r["top5_share"]) and r["top5_share"] > 100:
@@ -278,7 +298,7 @@ _out = {"generated_at": pd.Timestamp.now().isoformat(timespec="seconds"),
         "bonferroni": float(bonf),
         "caliber": "超额 = 个股 T+1开盘进场 - 全样本等权(open->close 对齐) - 20bp；净额 = 观测减同批标的随机日安慰剂均值；CI = 按事件日聚类 bootstrap",
         "results": results, "passed": passed}
-_p = "config/event_type_study_v2.json"
+_p = "config/event_type_study_v2%s.json" % (("_" + a.tag) if a.tag else "")
 with open(_p, "w", encoding="utf-8") as fh:
     _json.dump(_out, fh, ensure_ascii=False, indent=1)
 print("结果已落盘 ->", _p)
