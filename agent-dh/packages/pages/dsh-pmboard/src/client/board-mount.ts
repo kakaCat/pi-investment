@@ -180,6 +180,27 @@ export function mountBoard(controller: BoardController): () => void {
         }
         return
       }
+      case 'plan-approve': {
+        const reqId = el.dataset.id
+        if (reqId) {
+          void api
+            .approvePlan({ id: reqId })
+            .then(() => fetchAll())
+            .catch(e => window.alert(String(e)))
+        }
+        return
+      }
+      case 'plan-reject': {
+        const reqId = el.dataset.id
+        if (!reqId) return
+        const reason = window.prompt('退回理由（窗口会按它重写计划）')
+        if (reason === null) return
+        void api
+          .rejectPlan({ id: reqId, reason: reason.trim() || '（未填理由）' })
+          .then(() => fetchAll())
+          .catch(e => window.alert(String(e)))
+        return
+      }
       case 'triage-confirm': {
         const triageId = el.dataset.triage
         if (!triageId) return

@@ -29,6 +29,30 @@ export interface StatusEvent {
   inferred?: boolean
 }
 
+/** 计划任务条目（plan mode：拆分前就定死的粒度） */
+export interface PlanTask {
+  key: string
+  title: string
+  description?: string
+  phase?: TaskPhase
+  side?: TaskSide
+  dependsOn?: string[]
+  acceptance?: string
+}
+
+/** 实施计划：提交 → 人批准/退回；未批准不允许拆分 */
+export interface PlanRecord {
+  path: string
+  summary: string
+  tasks: PlanTask[]
+  submittedAt: number
+  submittedBy: ActorRef
+  approvedAt?: number
+  approvedBy?: ActorRef
+  rejectedAt?: number
+  rejectedReason?: string
+}
+
 export interface RequirementRecord {
   id: string
   title: string
@@ -43,6 +67,8 @@ export interface RequirementRecord {
   /** 立项来源窗口（agent 会话 id，如 session-<uuid>；人工建卡不填）——窗口↔需求关联锚点 */
   sourceSessionId?: string
   archivePath?: string
+  /** 实施计划（plan mode） */
+  plan?: PlanRecord
   /** 状态事件时间线（创建 + 每次转移） */
   statusHistory?: StatusEvent[]
   comments: CommentRecord[]

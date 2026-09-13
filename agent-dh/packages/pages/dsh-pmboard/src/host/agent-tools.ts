@@ -55,12 +55,9 @@ import {
   ALL_TASK_PHASES,
   ALL_TASK_SIDES,
   ALL_TASK_STATUSES,
-  asDependsOn,
   asReqCategory,
   asReqStatus,
   asScope,
-  asTaskPhase,
-  asTaskSide,
   assertDagAcyclic,
   assertReqTransition,
   assertTaskTransition,
@@ -70,9 +67,12 @@ import {
   newExecutionId,
   newRequirementId,
   newTaskId,
+  normalizePlanTasks,
   normalizeText,
   normalizeTitle,
+  planApproved,
   recordStatus,
+  type PlanTask,
   type TaskRecord,
 } from '../shared/protocol.js';
 
@@ -533,11 +533,12 @@ export function defineDecomposeTool(deps: ReqboardToolDeps) {
   return defineTool({
     name: 'reqboard_decompose',
     description:
-      '真拆分：把本窗口绑定需求的方案拆成任务 DAG 并落库（写台账任务卡）——'
-      + '任务立即出现在看板「任务」页与甘特图里。一次调用落库整批任务，'
-      + 'depends_on 用批次内 key 引用同批任务（也可引用已存在的任务 id）。'
-      + '拆分后需求会自动进入拆分态；任务开工时用 reqboard_task_move 推进任务状态。'
-      + '要求：需求处于评审/拆分/实施态且属于本窗口。',
+      '拆分落库（plan mode 的执行端）：把**已获人批准的实施计划**写成任务卡——'
+      + '任务立即出现在看板「任务」页与甘特图里。默认不传 tasks = 直接落库批准的计划；'
+      + '传 tasks 则 key 集合必须与批准的计划一致（防止「批了 A 落库 B」）。'
+      + '前置条件：需求属于本窗口、处于评审/拆分/实施态，且计划已由人批准——'
+      + '没有计划或计划未批准会被代码级拒绝（REQBOARD_PLAN_NOT_APPROVED）：'
+      + '先 reqboard_plan_submit 提交计划，请人在看板点「批准计划」。',
     parameters: {
       requirement_id: {
         type: 'string',
@@ -545,8 +546,7 @@ export function defineDecomposeTool(deps: ReqboardToolDeps) {
       },
       tasks: {
         type: 'array',
-        description: '任务清单（建议 2-10 条，按可独立交付的粒度拆）',
-        required: true,
+        description: '任务清单（可省略：不传 = 直接落库已批准的计划；传了则 key 必须与批准的计划一致）',
         items: {
           type: 'object',
           additionalProperties: false,
@@ -608,10 +608,9 @@ export function defineDecomposeTool(deps: ReqboardToolDeps) {
       const windowKey = agentIdFromExec(exec)
       requireLiveDriver(deps, exec)
       const a = (args ?? {}) as { requirement_id?: unknown; tasks?: unknown }
-      if (!Array.isArray(a.tasks) || a.tasks.length === 0) {
-        reject('reqboard_decompose 未执行：tasks 必须是非空数组', 'REQBOARD_INVALID_INPUT')
+      if (a.tasks !== undefined && (!Array.isArray(a.tasks) || a.tasks.length === 0)) {
+        reject('reqboard_decompose 未执行：tasks 传了就必须是非空数组（不传 = 直接落库已批准的计划）', 'REQBOARD_INVALID_INPUT')
       }
-      if (a.tasks.length > 50) reject('reqboard_decompose 未执行：单批任务数过多（≤50）', 'REQBOARD_INVALID_INPUT')
       const explicitId = normalizeText(a.requirement_id, 'requirement_id', 64)
 
       const snapshot = deps.store.snapshot()
@@ -633,47 +632,50 @@ export function defineDecomposeTool(deps: ReqboardToolDeps) {
         reject('reqboard_decompose 未执行：需求已处于 ' + target.status + '，不能再拆分', 'REQBOARD_BAD_STATUS')
       }
 
-      // 参数规整（批次内 key 必须唯一；依赖只允许批内 key 或本需求已有任务 id）
-      const existingIds = new Set(snapshot.tasks.filter(t => t.requirementId === target.id).map(t => t.id))
-      const draft: Array<{
-        key: string
-        title: string
-        description: string
-        phase: string
-        side: string
-        acceptance: string
-        context: string
-        dependsOn: string[]
-        skipIntegration?: boolean
-      }> = []
-      const keys = new Set<string>()
-      a.tasks.forEach((raw, i) => {
-        const o = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
-        const key = normalizeText(o.key, 'tasks[].key', 40) || 'k' + (i + 1)
-        if (keys.has(key)) reject('reqboard_decompose 未执行：任务 key 重复（' + key + '）', 'REQBOARD_INVALID_INPUT')
-        keys.add(key)
-        draft.push({
-          key,
-          title: normalizeTitle(o.title),
-          description: normalizeText(o.description, 'tasks[].description'),
-          phase: o.phase === undefined ? 'implement' : asTaskPhase(o.phase),
-          side: o.side === undefined ? 'fullstack' : asTaskSide(o.side),
-          acceptance: normalizeText(o.acceptance, 'tasks[].acceptance', 2000),
-          context: normalizeText(o.context, 'tasks[].context', 2000),
-          dependsOn: asDependsOn(o.depends_on),
-          ...(o.skip_integration !== undefined ? { skipIntegration: Boolean(o.skip_integration) } : {}),
-        })
-      })
-      for (const d of draft) {
-        for (const dep of d.dependsOn) {
-          if (!keys.has(dep) && !existingIds.has(dep)) {
-            reject(
-              'reqboard_decompose 未执行：任务 ' + d.key + ' 依赖了未知目标 ' + dep + '（只能是同批 key 或本需求已有任务 id）',
-              'REQBOARD_INVALID_INPUT',
-            )
-          }
+      // ── 计划闸门（plan mode 的代码级 HARD GATE）──────────────────────────
+      // 拆分不是自由创作：落库的必须是**人已经批准过**的那张任务表。没有计划或计划未
+      // 批准 → 直接拒绝（agent 无法自行越过；人批准是唯一钥匙）。
+      if (!planApproved(target)) {
+        reject(
+          'reqboard_decompose 未执行：该需求还没有已批准的实施计划。'
+          + '计划模式要求：先 reqboard_plan_submit 提交计划（文档路径 + 摘要 + 任务表），'
+          + '请人在项目看板点「批准计划」，批准后才能拆分落库',
+          'REQBOARD_PLAN_NOT_APPROVED',
+        )
+      }
+      const planTasks: PlanTask[] = target.plan?.tasks ?? []
+      if (planTasks.length === 0) {
+        reject('reqboard_decompose 未执行：已批准的计划里没有任务表', 'REQBOARD_PLAN_NOT_APPROVED')
+      }
+      // 显式传 tasks 时，key 集合必须与批准的计划一致——防止「批了 A、落库 B」
+      if (a.tasks !== undefined) {
+        const givenKeys = new Set(
+          (a.tasks as unknown[]).map((raw, i) => {
+            const o = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+            return normalizeText(o.key, 'tasks[].key', 40) || 'k' + (i + 1)
+          }),
+        )
+        const planKeys = new Set(planTasks.map(t => t.key))
+        const same = givenKeys.size === planKeys.size && [...givenKeys].every(k => planKeys.has(k))
+        if (!same) {
+          reject(
+            'reqboard_decompose 未执行：传入的任务表与已批准计划不一致（批准的是 '
+            + [...planKeys].join(', ') + '）。要改拆分方案请重新 reqboard_plan_submit 并让人重新批准',
+            'REQBOARD_PLAN_MISMATCH',
+          )
         }
       }
+      // 落库内容以批准的计划为准
+      const draft = planTasks.map(t => ({
+        key: t.key,
+        title: t.title,
+        description: t.description ?? '',
+        phase: t.phase ?? 'implement',
+        side: t.side ?? 'fullstack',
+        acceptance: t.acceptance ?? '',
+        context: '',
+        dependsOn: [...(t.dependsOn ?? [])],
+      }))
 
       const nowTs = deps.now()
       try {
@@ -700,7 +702,6 @@ export function defineDecomposeTool(deps: ReqboardToolDeps) {
               scope: asScope({}),
               acceptance: d.acceptance,
               context: d.context,
-              ...(d.skipIntegration !== undefined ? { skipIntegration: d.skipIntegration } : {}),
               status: 'todo',
               blocked: false,
               executions: [],
@@ -723,7 +724,11 @@ export function defineDecomposeTool(deps: ReqboardToolDeps) {
           }
           req.comments.push({
             id: newCommentId(),
-            body: '[拆分] 落库 ' + records.length + ' 个任务：\n' + commentLines.join('\n') + '\n（窗口 ' + windowKey + '）',
+            body:
+              '[拆分] 按已批准的实施计划落库 ' + records.length + ' 个任务'
+              + (req.plan !== undefined ? '（计划 ' + req.plan.path + '，批准于 ' + new Date(req.plan.approvedAt ?? 0).toISOString() + '）' : '')
+              + '：\n' + commentLines.join('\n')
+              + '\n（窗口 ' + windowKey + '）',
             createdAt: nowTs,
             createdBy: { kind: 'agent', sessionId: windowKey },
           })
@@ -879,6 +884,139 @@ export function defineTaskMoveTool(deps: ReqboardToolDeps) {
         to: changed.status,
         requirement_status: reqAfter?.status ?? '',
         note: changed.status === to ? '已推进：' + from + ' → ' + to : '已推进：' + from + ' → ' + changed.status,
+      }
+    },
+  } as any)
+}
+
+/**
+ * reqboard_plan_submit —— 计划模式（plan mode）的提交口。
+ *
+ * 为什么需要它（用户要求「superpowers 的 plan 模式版本」）：拆分的闸门必须落在**计划**上，
+ * 而不是落在"已拆分"这个状态上。窗口 agent 先把方案写成实施计划——一段人能读懂的摘要 +
+ * 一份任务表（每项带 phase/side/依赖/验收标准）——提交到需求上；人批准后，decompose 只是
+ * 把批准过的东西落库，不再二次创作。这样人只需要在**一个**点上把关，执行阶段仍然全自动。
+ *
+ * 重新提交 = 旧批准作废（必须重新批准）：改过方案的计划不能沿用上一轮的人点头。
+ */
+export function definePlanSubmitTool(deps: ReqboardToolDeps) {
+  return defineTool({
+    name: 'reqboard_plan_submit',
+    description:
+      '计划模式：把本窗口绑定需求的方案写成「实施计划」并提交给人批准——'
+      + '拆分前必须先有计划且获批（未获批时 reqboard_decompose 会被代码级拒绝）。'
+      + '计划 = 工作区里的计划文档路径 + 一段摘要 + 任务表（每项 key/title/phase/side/depends_on/acceptance）。'
+      + '任务表就是将来要落库的任务卡，粒度在这里定死，人批准计划即批准拆分方案。'
+      + '重新提交会作废旧批准，需要人重新批准。',
+    parameters: {
+      requirement_id: { type: 'string', description: '需求 id（REQ-xxxxxx）；不传默认本窗口绑定的需求' },
+      path: { type: 'string', description: '计划文档路径（工作区相对路径，如 docs/requirements/REQ-xxxxxx/plan.md）', required: true },
+      summary: { type: 'string', description: '计划摘要：目标 + 做法（人读这一段就能判断该不该批）', required: true },
+      tasks: {
+        type: 'array',
+        description: '任务表（拆分即落库这批；1-50 项）',
+        required: true,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            key: { type: 'string', description: '计划内引用键（如 t1；depends_on 用它引用）' },
+            title: { type: 'string', description: '任务标题（动词开头，≤120 字符）' },
+            description: { type: 'string', description: '任务说明（改哪些文件/接口）' },
+            phase: { type: 'string', description: 'doc / ui / analysis / implement / test / review / merge' },
+            side: { type: 'string', description: 'frontend / backend / fullstack / doc' },
+            depends_on: { type: 'array', description: '依赖的计划内 key', items: { type: 'string' } },
+            acceptance: { type: 'string', description: '验收标准（可验证：跑什么、看到什么算过）' },
+          },
+        },
+      },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          success: { type: 'boolean' },
+          requirement_id: { type: 'string' },
+          plan_status: { type: 'string', description: 'pending_approval' },
+          task_count: { type: 'number' },
+          tasks: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                key: { type: 'string' },
+                title: { type: 'string' },
+                depends_on: { type: 'array', items: { type: 'string' } },
+              },
+            },
+          },
+          note: { type: 'string' },
+        },
+      },
+      render: renderJson,
+    },
+    timeoutMs: 15000,
+    execute: async (args: unknown, exec: ToolRunContext) => {
+      const windowKey = agentIdFromExec(exec)
+      requireLiveDriver(deps, exec)
+      const a = (args ?? {}) as { requirement_id?: unknown; path?: unknown; summary?: unknown; tasks?: unknown }
+      const explicitId = normalizeText(a.requirement_id, 'requirement_id', 64)
+      const path = normalizeText(a.path, 'path', 400)
+      const summary = normalizeText(a.summary, 'summary', 4000)
+      if (path.length === 0) reject('reqboard_plan_submit 未执行：path 不能为空', 'REQBOARD_INVALID_INPUT')
+      if (summary.length === 0) reject('reqboard_plan_submit 未执行：summary 不能为空（人要读它来决定批不批）', 'REQBOARD_INVALID_INPUT')
+      const tasks = normalizePlanTasks(a.tasks)
+
+      const snapshot = deps.store.snapshot()
+      const bound = openRequirementsFor(snapshot, windowKey)
+      if (bound.length === 0) reject('reqboard_plan_submit 未执行：本窗口没有绑定中的需求', 'REQBOARD_NO_BOUND_REQ')
+      const target = explicitId.length > 0 ? bound.find(r => r.id === explicitId) : bound[0]
+      if (target === undefined) {
+        reject(
+          'reqboard_plan_submit 未执行：需求 ' + explicitId + ' 不是本窗口绑定的进行中需求',
+          'REQBOARD_NOT_BOUND_TO_WINDOW',
+        )
+      }
+      if (target.status === 'draft' || target.status === 'done' || target.status === 'archived' || target.status === 'canceled') {
+        reject('reqboard_plan_submit 未执行：需求处于 ' + target.status + '，不能提交计划', 'REQBOARD_BAD_STATUS')
+      }
+
+      const nowTs = deps.now()
+      const result = await deps.store.mutate('requirement-updated', (ledger) => {
+        const req = ledger.requirements.find(r => r.id === target.id)
+        if (req === undefined) return undefined
+        req.plan = {
+          path,
+          summary,
+          tasks,
+          submittedAt: nowTs,
+          submittedBy: { kind: 'agent', sessionId: windowKey },
+        }
+        req.comments.push({
+          id: newCommentId(),
+          body:
+            '[计划] 提交实施计划（' + tasks.length + ' 个任务，待人工批准）：' + path
+            + '\n摘要：' + summary
+            + '\n' + tasks.map(t => '- ' + t.key + ' ' + t.title + ((t.dependsOn ?? []).length > 0 ? '（依赖 ' + (t.dependsOn ?? []).join(', ') + '）' : '')).join('\n'),
+          createdAt: nowTs,
+          createdBy: { kind: 'agent', sessionId: windowKey },
+        })
+        req.version += 1
+        req.updatedAt = nowTs
+        req.updatedBy = { kind: 'agent', sessionId: windowKey }
+        return { requirements: [req] }
+      })
+      const changed = result.changed.requirements[0]
+      if (changed === undefined) reject('reqboard_plan_submit 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
+      return {
+        success: true,
+        requirement_id: changed.id,
+        plan_status: 'pending_approval',
+        task_count: tasks.length,
+        tasks: tasks.map(t => ({ key: t.key, title: t.title, depends_on: [...(t.dependsOn ?? [])] })),
+        note: '计划已提交，等待人在项目看板点「批准计划」；批准后用 reqboard_decompose 落库任务卡',
       }
     },
   } as any)

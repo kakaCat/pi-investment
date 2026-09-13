@@ -19,7 +19,14 @@ import { captureSectionText, boundSectionText, windowKeyFromContext, draftRequir
 import { applyPickupAdvance, applyPickupReconcile, applyTaskRollup } from './host/rollup.js';
 import { newCommentId, type RequirementRecord } from './shared/protocol.js';
 import { createSessionEventCaptureHook, type CaptureHookDeps } from './host/capture-hook.js';
-import { defineCreateTool, defineStatusTool, defineMoveTool, defineDecomposeTool, defineTaskMoveTool } from './host/agent-tools.js';
+import {
+  defineCreateTool,
+  defineStatusTool,
+  defineMoveTool,
+  defineDecomposeTool,
+  defineTaskMoveTool,
+  definePlanSubmitTool,
+} from './host/agent-tools.js';
 
 export const name = 'dsh-pmboard';
 
@@ -166,11 +173,12 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         disposers.push(toolsCtx.tools.register(defineCreateTool(toolDeps)));
         disposers.push(toolsCtx.tools.register(defineStatusTool(toolDeps)));
         disposers.push(toolsCtx.tools.register(defineMoveTool(toolDeps)));
+        disposers.push(toolsCtx.tools.register(definePlanSubmitTool(toolDeps)));
         disposers.push(toolsCtx.tools.register(defineDecomposeTool(toolDeps)));
         disposers.push(toolsCtx.tools.register(defineTaskMoveTool(toolDeps)));
       }, name + ': tools');
       logger.info(
-        'agent tools registered: reqboard_create / reqboard_status / reqboard_move / reqboard_decompose / reqboard_task_move',
+        'agent tools registered: reqboard_create / reqboard_status / reqboard_move / reqboard_plan_submit / reqboard_decompose / reqboard_task_move',
       );
     },
   );

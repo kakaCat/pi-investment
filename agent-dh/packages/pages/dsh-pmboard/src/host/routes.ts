@@ -204,6 +204,49 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
     ok(res, result.changed.requirements[0])
   }
 
+  /**
+   * 计划裁决（仅人）：批准 / 退回需求的实施计划。
+   * 这是 plan mode 的唯一人工闸门——批准 = 允许拆分；退回 = 打回重写（附理由）。
+   * 除它之外，评审→拆分→实施→验收全部由窗口 agent 自行推进（2026-09-11 用户裁定）。
+   */
+  async function handlePlanDecision(req: IncomingMessage, res: ServerResponse, approve: boolean): Promise<void> {
+    const body = await readBody(req)
+    const id = normalizeText(body.id, 'id', 64)
+    const reason = normalizeText(body.reason, 'reason', 500)
+    if (!approve && reason.length === 0) {
+      throw Object.assign(new Error('退回计划必须写清理由（reason）'), { code: 'invalid_input' })
+    }
+    const result = await store.mutate('requirement-updated', (ledger) => {
+      const r = ledger.requirements.find(x => x.id === id) ?? notFound("需求 " + id)
+      if (r.plan === undefined) notFound("需求 " + id + " 的实施计划")
+      const plan = r.plan
+      if (approve) {
+        plan.approvedAt = now()
+        plan.approvedBy = { kind: 'human' }
+        delete plan.rejectedAt
+        delete plan.rejectedReason
+      } else {
+        plan.rejectedAt = now()
+        plan.rejectedReason = reason
+        delete plan.approvedAt
+        delete plan.approvedBy
+      }
+      r.comments.push({
+        id: ids.comment(),
+        body: approve
+          ? '[计划] 已批准（人）：' + plan.tasks.length + ' 个任务，窗口可拆分落库'
+          : '[计划] 已退回（人）：' + reason,
+        createdAt: now(),
+        createdBy: { kind: 'human' },
+      })
+      r.version += 1
+      r.updatedAt = now()
+      r.updatedBy = { kind: 'human' }
+      return { requirements: [r] }
+    })
+    ok(res, result.changed.requirements[0])
+  }
+
   async function handleTaskCreate(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const body = await readBody(req)
     const requirementId = normalizeText(body.requirementId, 'requirementId', 64)
@@ -557,6 +600,8 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       if (method === 'POST' && sub === 'req/create') return await handleReqCreate(req, res)
       if (method === 'POST' && sub === 'req/move') return await handleReqMove(req, res)
       if (method === 'POST' && sub === 'req/update') return await handleReqUpdate(req, res)
+      if (method === 'POST' && sub === 'req/plan/approve') return await handlePlanDecision(req, res, true)
+      if (method === 'POST' && sub === 'req/plan/reject') return await handlePlanDecision(req, res, false)
       if (method === 'POST' && sub === 'task/create') return await handleTaskCreate(req, res)
       if (method === 'POST' && sub === 'task/move') return await handleTaskMove(req, res)
       if (method === 'POST' && sub === 'task/update') return await handleTaskUpdate(req, res)

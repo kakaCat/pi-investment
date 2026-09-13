@@ -248,6 +248,87 @@ export function defaultNeedsIntegration(side: TaskSide): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// 实施计划（plan mode —— 拆分前必须先有计划，计划由人批准）
+// ---------------------------------------------------------------------------
+
+/**
+ * 计划中的一个任务条目：**拆分前就定死的粒度**。
+ *
+ * 为什么计划里就带任务表（而不是只写一段散文）：拆分的粒度、依赖、验收标准如果等到
+ * 落库时才由 agent 临时决定，人就失去了唯一的把关点——他能看到的只有「已拆分」这个
+ * 状态。把任务表写进计划，人批准计划 = 批准拆分方案本身；之后的 decompose 只是把批准
+ * 过的东西**落库**，不再二次创作。
+ */
+export interface PlanTask {
+  key: string
+  title: string
+  description?: string
+  phase?: TaskPhase
+  side?: TaskSide
+  /** 依赖（同计划内的 key） */
+  dependsOn?: string[]
+  /** 验收标准：怎么算做完（可验证，不允许"功能正常"这类空话） */
+  acceptance?: string
+}
+
+/**
+ * 需求上的实施计划（plan mode 的载体）。生命周期：
+ *   agent 提交（submittedAt）→ 人批准（approvedAt）或退回（rejectedAt + reason）
+ * 未批准的计划不构成拆分的许可——分解工具会代码级拒绝（HARD GATE）。
+ */
+export interface PlanRecord {
+  /** 计划文档路径（工作区相对路径，如 docs/requirements/REQ-xxxxxx/plan.md） */
+  path: string
+  /** 计划摘要（目标 + 做法，人读这一段就懂） */
+  summary: string
+  /** 计划里的任务表（拆分即落库这批） */
+  tasks: PlanTask[]
+  submittedAt: number
+  submittedBy: ActorRef
+  approvedAt?: number
+  approvedBy?: ActorRef
+  rejectedAt?: number
+  rejectedReason?: string
+}
+
+/** 计划是否已被批准（拆分的代码级前置条件）。 */
+export function planApproved(req: { plan?: PlanRecord }): boolean {
+  return req.plan !== undefined && req.plan.approvedAt !== undefined
+}
+
+/** 计划任务表校验规整（key 唯一；phase/side 合法；标题非空；依赖只能指向计划内 key）。 */
+export function normalizePlanTasks(raw: unknown): PlanTask[] {
+  if (!Array.isArray(raw) || raw.length === 0) bad('计划必须包含至少 1 个任务（tasks 非空数组）')
+  if (raw.length > 50) bad('计划任务过多（≤50）')
+  const keys = new Set<string>()
+  const out: PlanTask[] = []
+  raw.forEach((item, i) => {
+    const o = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>
+    const key = (typeof o.key === 'string' && o.key.trim().length > 0 ? o.key.trim() : 'k' + (i + 1)).slice(0, 40)
+    if (keys.has(key)) bad('计划任务 key 重复：' + key)
+    keys.add(key)
+    const description = o.description === undefined || o.description === null ? '' : String(o.description).trim().slice(0, 4000)
+    const acceptance = o.acceptance === undefined || o.acceptance === null ? '' : String(o.acceptance).trim().slice(0, 2000)
+    out.push({
+      key,
+      title: normalizeTitle(o.title),
+      ...(description.length > 0 ? { description } : {}),
+      phase: o.phase === undefined ? 'implement' : asTaskPhase(o.phase),
+      side: o.side === undefined ? 'fullstack' : asTaskSide(o.side),
+      dependsOn: asDependsOn(o.dependsOn ?? o.depends_on),
+      ...(acceptance.length > 0 ? { acceptance } : {}),
+    })
+  })
+  for (const t of out) {
+    for (const dep of t.dependsOn ?? []) {
+      if (!keys.has(dep)) bad('计划任务 ' + t.key + ' 依赖了计划中不存在的 key：' + dep)
+      if (dep === t.key) bad('计划任务 ' + t.key + ' 不能依赖自身')
+    }
+  }
+  return out
+}
+
+// ---------------------------------------------------------------------------
 // Records
 // ---------------------------------------------------------------------------
 
@@ -304,6 +385,8 @@ export interface RequirementRecord {
    * （inferred=true），新转移一律实时写入真实事件。
    */
   statusHistory?: StatusEvent[]
+  /** 实施计划（plan mode）：拆分前提交、由人批准；未批准不允许拆分 */
+  plan?: PlanRecord
   comments: CommentRecord[]
   version: number
   createdAt: number

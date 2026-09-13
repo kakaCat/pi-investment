@@ -134,9 +134,36 @@ turn/start(新会话)
 4. 需求/任务卡片带会话 Chip 一键跳转（沿用 taskboard 0.5.4 模式）；
 5. 执行会话标题强制 `[REQ-xxx] 任务标题` 前缀，会话列表肉眼可归因。
 
+## 5b. 计划模式（Plan Mode，2026-09-13 修订后新增）
+
+> **用户要求（原文）**：「如何拆分需要 agent 介入的 / 我希望的是 superpowers 这个 skill 的
+> plan 模式版本」——拆分不能是 agent 拿到需求就自由发挥拆卡，而要走**先出计划、人批准、
+> 再落库**的路径（对应 superpowers 的 brainstorming → writing-plans → executing-plans）。
+>
+> **设计**：闸门从"每个中间状态都要人点"（2026-09-11 之前的做法，导致流程停摆）改为
+> **只在计划上闸一次**：
+> - 需求进入 `reviewing` 后，窗口 agent 必须先把方案写成**实施计划**——
+>   工作区计划文档（`docs/requirements/REQ-xxxxxx/plan.md`）+ 一段人能读懂的摘要 +
+>   **任务表**（key/title/phase/side/depends_on/acceptance）；
+> - 计划经 `reqboard_plan_submit` 提交到 ledger，泳道卡面出现「计划待批」；
+> - **人在看板点「批准计划」** = 批准拆分方案本身（`POST /req/plan/approve`，
+>   仅人能调；退回走 `/req/plan/reject` 且必须给理由）；
+> - 未批准时 `reqboard_decompose` **代码级拒绝**（`REQBOARD_PLAN_NOT_APPROVED`）——
+>   HARD GATE 与 superpowers 一致；
+> - 批准后 `reqboard_decompose` 只是把批准过的任务表**落库**（传 tasks 时 key 集合必须与
+>   计划一致，否则 `REQBOARD_PLAN_MISMATCH`：批了 A 不能落库 B）；
+> - **重新提交计划会作废旧批准**（改过的方案不能沿用上一轮点头）。
+>
+> **为什么粒度写在计划里**：如果任务粒度等到落库时才由 agent 临时决定，人唯一的把关点就只剩
+> 「已拆分」这个状态——看到的是结果，看不到取舍。把任务表写进计划，人批的就是拆分方案本身。
+>
+> **配套**：`agent-dh/skills/reqboard-plan/SKILL.md`（plan 模式 SOP：三类路径判定、
+> 计划文档结构、任务 right-sizing、bite-sized 步骤、执行纪律、必须停下来问人的条件、
+> 反模式清单）；绑定窗口的提示段（`capture.ts`）注入同一套纪律。
+
 ## 6. 需求拆分（Decomposition）
 
-- 触发：方案敲定后由**执行窗口 agent** 自己拆（人在看板也可点「+ 任务」手工补卡）。
+- 触发：**计划经人批准后**由执行窗口 agent 落库（人在看板也可点「+ 任务」手工补卡）。未经批准的计划不可拆分。
 - 执行：window agent 调 `reqboard_decompose` 一次性落库整批任务 DAG（自身即 LLM，不需要 host
   另起「分析会话」）；工具负责结构正确性：批次内 `key` → 真实任务 id 映射、依赖只能是同批 key
   或本需求已有任务、落库前过 DAG 校验（无环/无悬空/无自依赖）。
@@ -195,6 +222,7 @@ host 侧服务，订阅 ledger 变化 + 会话事件：
 
 > 实际落地（2026-09-13 现状）：`reqboard_create`（创建即立项，两问弹框作答 = 立项门）/ `reqboard_status`
 > （本窗口绑定 + `next_actions`）/ `reqboard_move`（需求推进）/ `reqboard_decompose`（真拆分：落库任务 DAG）/
+> `reqboard_plan_submit`（计划模式：提交实施计划待人批准）/ `reqboard_decompose`（落库已批准的计划 → 任务 DAG）/
 > `reqboard_task_move`（任务推进）。以下清单为原始设计意图，命名与粒度以代码为准。
 
 - `reqboard_req_list / get / create / update / move` — move 带闸门：取消/归档 **agent 调用直接拒绝**（代码闸）。

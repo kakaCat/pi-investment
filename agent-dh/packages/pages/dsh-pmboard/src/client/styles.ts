@@ -258,6 +258,49 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-triage-actions { display: flex; gap: 8px; }
 .dsh-pm-rebind-host { display: flex; gap: 8px; margin-top: 8px; }
 
+/* ---- 实施计划（plan mode） ---- */
+.dsh-pm-plan {
+  border: 1px solid var(--dsw-border, rgba(128,128,128,.15)); border-radius: 8px;
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.dsh-pm-plan.is-empty {
+  font-size: 13px; color: var(--dsw-text-secondary, #888);
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.05));
+  border-style: dashed; line-height: 1.6;
+}
+.dsh-pm-plan.is-empty code {
+  font-family: ui-monospace, monospace; font-size: 12px; padding: 1px 4px;
+  border-radius: 3px; background: rgba(128,128,128,.12);
+}
+.dsh-pm-plan-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dsh-pm-plan-status {
+  font-size: 11px; padding: 2px 10px; border-radius: 10px;
+  background: rgba(128,128,128,.12); color: var(--dsw-text-primary, #444);
+}
+.dsh-pm-plan-status[data-state="pending"] { background: rgba(240,160,32,.15); color: #b07800; }
+.dsh-pm-plan-status[data-state="approved"] { background: rgba(40,167,69,.15); color: #28a745; }
+.dsh-pm-plan-status[data-state="rejected"] { background: rgba(220,53,69,.12); color: #dc3545; }
+.dsh-pm-plan-path {
+  font-family: ui-monospace, monospace; font-size: 12px; color: var(--dsw-text-primary, #444);
+  background: rgba(128,128,128,.1); padding: 2px 6px; border-radius: 4px;
+}
+.dsh-pm-plan-summary { font-size: 13px; color: var(--dsw-text-primary, #333); white-space: pre-wrap; line-height: 1.6; }
+.dsh-pm-plan-reason { font-size: 12px; color: #dc3545; }
+.dsh-pm-plan-tasks { display: flex; flex-direction: column; gap: 4px; }
+.dsh-pm-plan-task {
+  display: grid; grid-template-columns: 52px 1fr auto; gap: 8px; align-items: center;
+  padding: 4px 8px; border-radius: 6px;
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.05)); font-size: 12px;
+}
+.dsh-pm-plan-key { font-family: ui-monospace, monospace; color: var(--dsw-text-secondary, #999); }
+.dsh-pm-plan-title { color: var(--dsw-text-primary, #333); }
+.dsh-pm-plan-meta { font-size: 11px; color: var(--dsw-text-secondary, #999); }
+.dsh-pm-plan-accept { grid-column: 2 / 4; font-size: 11px; color: var(--dsw-text-secondary, #888); }
+.dsh-pm-plan-accept.missing { color: #b07800; }
+.dsh-pm-flag.plan-pending { background: rgba(240,160,32,.15); color: #b07800; }
+.dsh-pm-flag.plan-ok { background: rgba(40,167,69,.12); color: #28a745; }
+.dsh-pm-flag.plan-rejected { background: rgba(220,53,69,.12); color: #dc3545; }
+
 /* ---- 时间线（需求/任务状态事件） ---- */
 .dsh-pm-card-time { font-size: 11px; color: var(--dsw-text-secondary, #999); }
 .dsh-pm-timeline { display: flex; flex-direction: column; gap: 4px; }

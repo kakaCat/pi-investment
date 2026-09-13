@@ -537,3 +537,67 @@ describe('甘特图与任务页（拆分可视化）', () => {
     expect(html).toContain('&lt;img')
   })
 })
+
+// ---------------------------------------------------------------------------
+// 实施计划（plan mode）——人在这里唯一需要动手的地方
+// ---------------------------------------------------------------------------
+
+describe('实施计划卡（plan mode）', () => {
+  const planTasks = [
+    { key: 'proto', title: '协议层加计划字段', phase: 'implement' as const, side: 'backend' as const, acceptance: 'protocol.ts 单测绿' },
+    { key: 'ui', title: '看板计划卡', phase: 'ui' as const, side: 'frontend' as const, dependsOn: ['proto'] },
+  ]
+  const basePlan = {
+    path: 'docs/requirements/REQ-abc123/plan.md',
+    summary: '目标：加计划模式；做法：先提交计划再拆',
+    tasks: planTasks,
+    submittedAt: T0,
+    submittedBy: { kind: 'agent' as const, sessionId: 'session-1cee2467-x' },
+  }
+
+  it('未提交计划 → 说明计划模式与前置条件（不是空白）', () => {
+    const html = buildReqDetail(makeReq({ status: 'reviewing' }), [], T0)
+    expect(html).toContain('实施计划（plan mode）')
+    expect(html).toContain('reqboard_plan_submit')
+    expect(html).toContain('reqboard_decompose')
+    expect(html).toContain('dsh-pm-plan is-empty')
+  })
+
+  it('待批准 → 状态徽章 + 路径 + 任务表 + 验收标准 + 人可批准/退回；卡面有「计划待批」', () => {
+    const req = makeReq({ id: 'REQ-abc123', status: 'reviewing', plan: basePlan })
+    const detail = buildReqDetail(req, [], T0)
+    expect(detail).toContain('data-state="pending"')
+    expect(detail).toContain('docs/requirements/REQ-abc123/plan.md')
+    expect(detail).toContain('data-action="plan-approve"')
+    expect(detail).toContain('data-action="plan-reject"')
+    expect(detail).toContain('协议层加计划字段')
+    expect(detail).toContain('验收：protocol.ts 单测绿')
+    expect(detail).toContain('缺验收标准') // 第二项没写验收标准 → 显式标黄
+    expect(detail).toContain('依赖 proto')
+
+    const board = buildBoard(makeState({ requirements: [req] }), T0)
+    expect(board).toContain('计划待批')
+  })
+
+  it('已批准 → 显示批准时间、按钮消失、明确「拆分已解锁」；卡面有「计划已批」', () => {
+    const req = makeReq({ id: 'REQ-abc123', status: 'decomposing', plan: { ...basePlan, approvedAt: T0 + HOUR, approvedBy: { kind: 'human' as const } } })
+    const detail = buildReqDetail(req, [], T0 + 2 * HOUR)
+    expect(detail).toContain('data-state="approved"')
+    expect(detail).not.toContain('data-action="plan-approve"')
+    expect(detail).toContain('拆分已解锁')
+    expect(buildBoard(makeState({ requirements: [req] }), T0)).toContain('计划已批')
+  })
+
+  it('被退回 → 退回时间 + 理由原样展示；卡面有「计划被退」', () => {
+    const req = makeReq({
+      id: 'REQ-abc123',
+      status: 'reviewing',
+      plan: { ...basePlan, rejectedAt: T0 + HOUR, rejectedReason: '验收标准太虚，重写' },
+    })
+    const detail = buildReqDetail(req, [], T0 + 2 * HOUR)
+    expect(detail).toContain('data-state="rejected"')
+    expect(detail).toContain('退回理由：验收标准太虚，重写')
+    expect(detail).toContain('data-action="plan-approve"') // 退回后仍可再批
+    expect(buildBoard(makeState({ requirements: [req] }), T0)).toContain('计划被退')
+  })
+})

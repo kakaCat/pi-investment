@@ -118,6 +118,7 @@ function renderReqCard(card: ReqCard, now: number): string {
   const { req, tasks, doneCount, totalCount, readyIds, blocked } = card
   const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
   const cat = req.category ? `<span class="dsh-pm-cat" data-cat="${req.category}">${CATEGORY_LABELS[req.category] ?? req.category}</span>` : ''
+  const planChipHtml = planChip(req)
   const blockedChip = blocked ? '<span class="dsh-pm-flag blocked">阻塞</span>' : ''
   const pausedChip = req.paused ? '<span class="dsh-pm-flag paused">暂停</span>' : ''
   const readyChip = readyIds.length > 0 ? `<span class="dsh-pm-flag ready">${readyIds.length} ready</span>` : ''
@@ -130,7 +131,7 @@ function renderReqCard(card: ReqCard, now: number): string {
     <div class="dsh-pm-card${blocked ? ' is-blocked' : ''}" data-req="${esc(req.id)}" data-action="open-req">
       <div class="dsh-pm-card-top">
         <span class="dsh-pm-card-id">${esc(req.id)}</span>
-        ${cat}${blockedChip}${pausedChip}${readyChip}
+        ${cat}${planChipHtml}${blockedChip}${pausedChip}${readyChip}
       </div>
       <div class="dsh-pm-card-title">${esc(req.title)}</div>
       <div class="dsh-pm-card-progress">
@@ -230,6 +231,10 @@ export function buildReqDetail(req: RequirementRecord, tasks: TaskRecord[], now:
       <h2 class="dsh-pm-detail-title">${esc(req.title)}</h2>
       ${req.description ? `<div class="dsh-pm-detail-desc">${esc(req.description)}</div>` : ''}
       ${gateHint}
+      <div class="dsh-pm-detail-section">
+        <h3>实施计划（plan mode）</h3>
+        ${renderPlanSection(req)}
+      </div>
       <div class="dsh-pm-detail-section">
         <h3>时间线</h3>
         ${renderReqTimeline(req, now)}
@@ -712,4 +717,62 @@ function renderCardTime(req: RequirementRecord, now: number): string {
   }
   if (!isTerminal(cur.status)) parts.push('已停留 ' + fmtDur(now - cur.at))
   return '<div class="dsh-pm-card-time">' + esc(parts.join(' · ')) + '</div>'
+}
+
+/* ------------------------------------------------------------------ 实施计划 */
+
+/**
+ * 计划 chip（泳道卡面）：让「这份需求卡在等人批计划」在泳道上一眼可见，
+ * 而不是要人点进详情页才发现。
+ */
+function planChip(req: RequirementRecord): string {
+  const plan = req.plan
+  if (plan === undefined) return ''
+  if (plan.approvedAt !== undefined) return '<span class="dsh-pm-flag plan-ok" title="实施计划已批准，可拆分落库">计划已批</span>'
+  if (plan.rejectedAt !== undefined) return '<span class="dsh-pm-flag plan-rejected" title="实施计划被退回，待重写">计划被退</span>'
+  return '<span class="dsh-pm-flag plan-pending" title="实施计划已提交，等待人批准后才能拆分">计划待批</span>'
+}
+
+/**
+ * 实施计划区（plan mode 的人机界面）：人在这里**唯一**需要动手的地方——
+ * 批准计划 = 批准拆分方案；退回 = 打回重写（必须给理由）。
+ * 批准之后，拆分/实施/验收全部由窗口 agent 自行推进。
+ */
+function renderPlanSection(req: RequirementRecord): string {
+  const plan = req.plan
+  if (plan === undefined) {
+    return '<div class="dsh-pm-plan is-empty">尚未提交实施计划。计划模式：窗口 agent 用 '
+      + '<code>reqboard_plan_submit</code> 先提交计划（文档路径 + 摘要 + 任务表），'
+      + '人在此处批准后才允许 <code>reqboard_decompose</code> 落库任务卡——'
+      + '拆分的粒度在人点头之前就已写死在计划里。</div>'
+  }
+  const status = plan.approvedAt !== undefined
+    ? '<span class="dsh-pm-plan-status" data-state="approved">已批准 ' + esc(fmtTime(plan.approvedAt)) + '</span>'
+    : plan.rejectedAt !== undefined
+      ? '<span class="dsh-pm-plan-status" data-state="rejected">已退回 ' + esc(fmtTime(plan.rejectedAt)) + '</span>'
+      : '<span class="dsh-pm-plan-status" data-state="pending">待批准</span>'
+  const actions = plan.approvedAt === undefined
+    ? '<button type="button" class="dsh-pm-btn sm primary" data-action="plan-approve" data-id="' + esc(req.id) + '">批准计划</button>'
+      + '<button type="button" class="dsh-pm-btn sm" data-action="plan-reject" data-id="' + esc(req.id) + '">退回计划</button>'
+    : '<span class="dsh-pm-hint">拆分已解锁：窗口可用 reqboard_decompose 按此计划落库任务卡</span>'
+  const tasks = plan.tasks.map(t => {
+    const deps = (t.dependsOn ?? []).length > 0 ? ' · 依赖 ' + esc((t.dependsOn ?? []).join(',')) : ''
+    return '<div class="dsh-pm-plan-task">'
+      + '<span class="dsh-pm-plan-key">' + esc(t.key) + '</span>'
+      + '<span class="dsh-pm-plan-title">' + esc(t.title) + '</span>'
+      + '<span class="dsh-pm-plan-meta">' + esc(PHASE_LABELS[t.phase ?? 'implement'] ?? (t.phase ?? '')) + ' / ' + esc(t.side ?? '') + deps + '</span>'
+      + (t.acceptance !== undefined && t.acceptance.length > 0
+        ? '<span class="dsh-pm-plan-accept">验收：' + esc(t.acceptance) + '</span>'
+        : '<span class="dsh-pm-plan-accept missing">缺验收标准</span>')
+      + '</div>'
+  }).join('')
+  return '<div class="dsh-pm-plan">'
+    + '<div class="dsh-pm-plan-head">' + status
+    + '<code class="dsh-pm-plan-path">' + esc(plan.path) + '</code>'
+    + '<span class="dsh-pm-hint">提交 ' + esc(fmtTime(plan.submittedAt)) + ' · ' + plan.tasks.length + ' 个任务</span>'
+    + actions + '</div>'
+    + '<div class="dsh-pm-plan-summary">' + esc(plan.summary) + '</div>'
+    + (plan.rejectedReason !== undefined ? '<div class="dsh-pm-plan-reason">退回理由：' + esc(plan.rejectedReason) + '</div>' : '')
+    + '<div class="dsh-pm-plan-tasks">' + tasks + '</div>'
+    + '</div>'
 }

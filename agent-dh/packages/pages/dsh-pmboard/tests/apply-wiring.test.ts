@@ -88,6 +88,7 @@ describe('dsh-pmboard apply() 宿主接线（乙流程装配冒烟）', () => {
       'reqboard_create',
       'reqboard_decompose',
       'reqboard_move',
+      'reqboard_plan_submit',
       'reqboard_status',
       'reqboard_task_move',
     ])
