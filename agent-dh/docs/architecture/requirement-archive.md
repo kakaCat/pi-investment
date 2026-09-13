@@ -1,3 +1,13 @@
+---
+id: requirement-archive
+title: 需求归档规范（reqboard 执行细则）
+type: architecture
+status: living
+updated: 2026-09-13
+owners: [w-1cee2467]
+tags: [archive, reqboard, l2]
+---
+
 # 需求归档规范（reqboard · agent-dh 执行细则）
 
 > **上位规范**：文档放置规范 `docs/DOCUMENT-MANAGEMENT-PLAN.md`（项目级）。本文件是它在 reqboard

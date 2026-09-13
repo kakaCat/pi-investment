@@ -1,3 +1,13 @@
+---
+id: project-manual
+title: PI Investment 项目说明书（金字塔 L1）
+type: manual
+status: living
+updated: 2026-09-13
+owners: [w-1cee2467]
+tags: [manual, l1, overview]
+---
+
 # PI Investment 项目说明书（金字塔 L1）
 
 > **这份文档是什么**：读它，你能在 5 分钟里知道这个项目是什么、由哪几块组成、关键概念叫什么、
@@ -16,8 +26,9 @@
 ## 1. 项目是什么
 
 PI Investment 是一个**由 AI agent 自主运行的投资系统**：agent 在真实市场里做分析、决策、下单，
-用「能否持续赚到钱」这一件事衡量自身智能。系统哲学与博弈框架见
-[game-theory-framework.md](../game-theory-framework.md)、[agent-autonomy.md](../agent-autonomy.md)。
+用「能否持续赚到钱」这一件事衡量自身智能。系统哲学、博弈框架与自主运行机制的完整页面**尚未写成**
+（根 CLAUDE.md 引用的 \`docs/game-theory-framework.md\`、\`docs/agent-autonomy.md\` 目前不存在）——
+已登记进 [Wiki 首页](../README.md) 的「待写页」，需要时按页面模型补页。
 
 ## 2. 三层架构（谁负责什么）
 

@@ -1,3 +1,13 @@
+---
+id: rfc-014-requirement-board
+title: RFC 014 需求看板
+type: rfc
+status: living
+updated: 2026-09-13
+owners: [w-1cee2467]
+tags: [reqboard, pipeline, l2]
+---
+
 # RFC 014: 需求看板（Requirement Board）——会话 ↔ 需求打通的需求流水线
 
 - 状态：设计提案（待评审）

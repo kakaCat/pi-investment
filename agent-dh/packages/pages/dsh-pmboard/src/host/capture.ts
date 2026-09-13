@@ -197,7 +197,9 @@ export function boundSectionText(ledger: ReqboardLedger, context: unknown): stri
     '  agent-dh/docs/architecture/requirement-archive.md；缺项会被代码级拒绝；',
     '- 归档材料里写了的合并去向，必须真的把那部分结论写进对应的项目文档；',
     '- 金字塔生长：feature/refactor/spike 必须在材料里申报 manual_updates（更新了哪份文档的哪一节、',
-    '  多了什么认知），说明书是 docs/architecture/project-manual.md；bug/doc/chore 写 manual_note 说明即可。',
+    '  多了什么认知），说明书是 docs/architecture/project-manual.md；bug/doc/chore 写 manual_note 说明即可；',
+    '- docs 按 wiki 维护：新页面要有 front-matter 并挂进首页/上层页，未写的主题进首页「待写页」；',
+    '  收工前可跑 python3 agent-dh/scripts/wiki_probe.py 自检死链/孤儿页。',
   ].join('\n')
 }
 

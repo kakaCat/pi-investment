@@ -247,6 +247,52 @@ docs/work-logs/
 
 ---
 
+---
+
+## Wiki 化：页面模型（2026-09-13 新增）
+
+文档不是"一堆文件"，而是**一个 wiki**：页面是节点，链接是边，front-matter 让机器能索引。
+金字塔（L1 说明书 / L2 领域篇 / L3 档案）说的是**认知的高度**；wiki 说的是**页面之间怎么连**——
+两者一起用：向上提炼认知，横向互相链接。
+
+**页面 = front-matter + 正文 + 相关页面**
+
+```markdown
+---
+id: requirement-archive           # 全仓唯一，kebab-case（链接与检索用）
+title: 需求归档规范
+type: manual | architecture | guide | adr | rfc | research | archive
+status: living | stub | frozen | archived
+updated: 2026-09-13
+owners: [w-1cee2467]
+tags: [archive, reqboard]
+---
+
+# 标题（与人读到的第一句一致）
+…正文…
+
+## 相关页面
+- [项目说明书](project-manual.md)
+- [RFC 014 需求看板](../../../agent-dh/docs/rfcs/014-requirement-board.md)
+```
+
+**规则**
+
+1. **一个概念一页**：同主题归并到一页，别开"XX（二）"；页面太长（约 >300 行）才拆分并互相链接；
+2. **每页必有 front-matter**：`id / title / type / status / updated`（缺了机器索引不到 = 等于没写），
+   `owners / tags` 可选但推荐；
+3. **status 就是待办**：`stub` = 占位页（已被引用但还没写），它是**后续需求的候选**——
+   首页「待写页」区列出它们，立项时优先补；
+4. **双向可达**：新页必须从首页或上层页链到（否则是孤儿页）；页尾写「相关页面」把自己挂回页面图；
+5. **链接用相对路径**（同目录可简写），不要绝对路径；
+6. **巡检而不是靠自觉**：`python3 agent-dh/scripts/wiki_probe.py` 检查死链 / 孤儿页 / 待写页 /
+   front-matter 缺失，退出码 1 = 有问题（可挂定时任务）。历史页面（无 front-matter）只计数、不计失败，
+   迁一个是一个。
+
+**与归档的关系**：归档时除了写 L3 档案与合并进 L2，还要**把新知识挂进页面图**——
+新建页面 → 在首页/上层页登记；改了哪一页 → 在说明书「最近更新」与首页「最近改动」留一行；
+被引用但还没写的主题 → 在首页「待写页」登记为 `stub` 候选。
+
 ## 文档金字塔与项目说明书（2026-09-13 新增）
 
 文档不是平铺的目录，而是**金字塔**——越往上越少、越稳定、越常被读：

@@ -1,145 +1,88 @@
-# PI Investment 文档中心
-
-> **先读这一页**：[项目说明书（project-manual.md）](architecture/project-manual.md)——项目是什么、
-> 三层架构、关键概念、怎么跑、去哪儿找细节。本页是它的导航层。
-
-欢迎来到 PI Investment 文档中心。本目录包含系统架构、技术决策和使用指南。
-
-## 📖 快速导航
-
-### 🏗️ 架构设计 ([architecture/](architecture/))
-
-核心架构文档，描述系统整体设计和关键组件：
-
-- [系统架构总览](architecture/system-overview.md) - Agent OS 三层架构、定位与职责
-- [通知网关设计](architecture/notification-gateway.md) - 统一通知系统架构（参考 OpenClaw）
-- [Agent 集成方案](architecture/agent-integration.md) - quantsys-v2 与 agent-ts 对接分析
-
-### 📝 架构决策记录 ([adr/](adr/))
-
-重大技术决策及理由（ADR - Architecture Decision Records）：
-
-- [ADR-001: Agent OS 定位与网关架构](adr/001-agent-os-gateway.md) - 为什么选择网关架构？
-
-### 📚 使用指南 ([guides/](guides/))
-
-开发、部署和运维指南：
-
-- [通知系统迁移指南](guides/notification-migration.md) - 如何从旧通知系统迁移到新网关
-
-### 💡 RFC - 设计提案 ([rfcs/](rfcs/))
-
-新特性设计提案（实施前讨论）：
-
-- [RFC-001: Agent 模板系统](rfcs/001-agent-template-system.md) - Agent × 通知模板系统业务场景设计
-
-### 📦 工作日志 ([work-logs/](work-logs/))
-
-项目执行过程记录（按月归档，不纳入版本控制）：
-
-- [2026-08/](work-logs/2026-08/) - 8月工作记录：Phase 4、WP-4、Batch 3 等
-
-### 📦 需求归档
-
-- [需求归档索引](../agent-dh/docs/requirements/INDEX.md) - 已归档需求的一句话结论与文档去向
-- [需求归档规范](../agent-dh/docs/architecture/requirement-archive.md) - 档案库结构、合并矩阵（不同需求类型去哪）、人工归档闸门
-
-### 🦸 Superpowers ([superpowers/](superpowers/))
-
-OpenClaw 相关文档：
-
-- [specs/](superpowers/specs/) - 功能规格说明
-- [plans/](superpowers/plans/) - 执行计划
-- [implementation/](superpowers/implementation/) - 实施记录
-
+---
+id: home
+title: PI Investment Wiki（文档首页）
+type: manual
+status: living
+updated: 2026-09-13
+owners: [w-1cee2467]
+tags: [wiki, index, home]
 ---
 
-## 📁 文档分类规则
+# PI Investment Wiki
 
-### 何时创建文档？
+> **怎么用这个 wiki**：想理解项目 → 先读 [项目说明书](architecture/project-manual.md)（L1）；
+> 找某个主题的细节 → 用下面的**按类型页面索引**（L2）；只有追溯"当时为什么这么做"才下沉到
+> 需求档案与工作日志（L3）。每一页都能独立读懂，并且链接回与它相关的页。
 
-| 场景 | 文档类型 | 位置 | 示例 |
-|------|---------|------|------|
-| 重大技术决策 | ADR | `adr/NNN-title.md` | 选择网关架构 |
-| 新特性设计提案 | RFC | `rfcs/NNN-title.md` | Agent 模板系统 |
-| 架构说明 | Architecture | `architecture/topic.md` | 通知网关设计 |
-| 使用指南 | Guide | `guides/topic.md` | 部署指南 |
-| 工作完成记录 | Work Log | `work-logs/YYYY-MM/` | Phase 4 完成报告 |
+## 从哪开始
 
-### 版本控制策略
+- [项目说明书](architecture/project-manual.md) —— 项目是什么 / 三层架构 / 术语表 / 怎么跑 / 去哪找细节
+- [文档规范与 Wiki 约定](DOCUMENT-MANAGEMENT-PLAN.md) —— 页面模型、命名、归档与金字塔
+- [系统架构总览](architecture/system-overview.md) —— 三层架构的细节
+- [需求看板 RFC 014](../agent-dh/docs/rfcs/014-requirement-board.md) —— 需求流水线（立项→头脑风暴→写计划→拆分→执行→验收→完成→归档）
 
-- ✅ **纳入版本控制**：`architecture/`, `adr/`, `rfcs/`, `guides/`
-- ❌ **不纳入版本控制**：`work-logs/`（归档用，避免污染 git 历史）
+## 页面索引（按类型）
 
----
+### 架构 architecture/
 
-## 🔗 相关文档
+- [系统架构总览](architecture/system-overview.md)
+- [通知网关设计](architecture/notification-gateway.md)
+- [项目说明书](architecture/project-manual.md)
+- [自主盈利引擎架构](architecture/profit-engine-autonomy-architecture.md)
+- [信号分级](architecture/signal-grading.md)
+- [策略状态语义](architecture/strategy-status-semantics.md)
 
-- [agent-ts 文档](../agent-ts/CLAUDE.md) - Agent 模块专属文档
-- [quantsys-v2 文档](../quantsys-v2/CLAUDE.md) - 后端服务专属文档
-- [web-frontend 文档](../web-frontend/) - 前端监控面板文档
+### 决策 adr/
 
----
+- [ADR-001: Agent OS 网关](adr/001-agent-os-gateway.md)
+- [ADR-001: 六边形架构](adr/001-hexagonal-architecture.md)
+- [ADR-002: 调度器归属拆分](adr/002-scheduler-ownership-split.md)
 
-## 📋 文档模板
+### 指南 guides/
 
-创建新文档时，请参考以下模板：
+- [通知系统迁移](guides/notification-migration.md)
+- [监控部署](guides/monitoring-deployment.md)
 
-### ADR 模板
-```markdown
-# ADR-NNN: <Title>
+### 提案 rfcs/
 
-Date: YYYY-MM-DD
-Status: Proposed | Accepted | Deprecated
+- [RFC-001: Agent 模板系统](rfcs/001-agent-template-system.md)
+- [RFC-006: 回测有效性与策略验证](rfcs/006-backtest-validity-and-strategy-validation.md)
+- [RFC-014: 需求看板](../agent-dh/docs/rfcs/014-requirement-board.md)
 
-## Context
-背景和问题
+### 需求档案（L3，只读证据层）
 
-## Decision
-决策内容
+- [需求归档索引](../agent-dh/docs/requirements/INDEX.md)
+- [需求归档规范](../agent-dh/docs/architecture/requirement-archive.md)
 
-## Consequences
-影响和权衡
-```
+### 子项目文档
 
-### Architecture 模板
-```markdown
-# <Component> Architecture
+- [agent-dh 文档](../agent-dh/CLAUDE.md)
+- [agent-ts 文档](../agent-ts/CLAUDE.md)
+- [quantsys-v2 文档](../quantsys-v2/CLAUDE.md)
 
-## Overview
-组件概述
+## 最近改动（新知识从这里进来）
 
-## Design Goals
-设计目标
+| 日期 | 页面 | 变更 | 来源 |
+|---|---|---|---|
+| 2026-09-13 | [项目说明书](architecture/project-manual.md) | 新建（金字塔 L1） | w-1cee2467 |
+| 2026-09-13 | [文档规范](DOCUMENT-MANAGEMENT-PLAN.md) | 增「Wiki 化：页面模型」「文档金字塔」「需求归档」三节 | w-1cee2467 |
+| 2026-09-13 | [需求归档规范](../agent-dh/docs/architecture/requirement-archive.md) | 归档=存底+合并；合并去向收敛到规范目录；说明书更新点强制 | w-1cee2467 |
 
-## Components
-关键组件
+## 待写页（stub，后续需求的候选）
 
-## Interaction
-交互方式
-```
+> 这些主题已被反复引用但还没有独立页面。写需求时优先补它们（页面模型见文档规范）。
 
-### Work Log 模板
-```markdown
-# <Project> - <Type>
+- `architecture/agent-ts-architecture.md` —— AI 员工的内部结构（当前散在 agent-ts/CLAUDE.md）
+- `architecture/quantsys-v2-architecture.md` —— 后端分层与数据流
+- `guides/troubleshooting.md` —— 故障排查手册（缺陷类归档的合并去向）
+- `architecture/dsh-plugin-model.md` —— DSH profile / 插件 / 工具装载模型
+- `game-theory-framework.md` —— 博弈框架（根 CLAUDE.md 已引用，实体缺失）
+- `agent-autonomy.md` —— 自主运行机制（同上）
 
-Date: YYYY-MM-DD
+## Wiki 约定（机器也在检查）
 
-## Objectives
-目标
-
-## What Was Done
-完成的工作
-
-## Challenges & Solutions
-问题与解决方案
-```
-
----
-
-## 📞 联系与贡献
-
-- 文档问题？请在项目 Issue 中反馈
-- 文档改进？欢迎提交 Pull Request
-
-**文档管理规范**：详见 [DOCUMENT-MANAGEMENT-PLAN.md](DOCUMENT-MANAGEMENT-PLAN.md)
+- 每页开头有 front-matter：`id / title / type / status / updated / owners / tags`；
+  `status` 取值：`living`（持续维护）/ `stub`（待写）/ `frozen`（冻结）/ `archived`（归档）；
+- 页尾写「相关页面」把自己挂回页面图里；每个论断尽量给代码或下层文档的指针；
+- 巡检（死链 / 孤儿页 / 待写页 / 缺 front-matter）：
+  `python3 agent-dh/scripts/wiki_probe.py`（退出码 1 = wiki 页有问题）。

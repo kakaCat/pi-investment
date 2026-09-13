@@ -124,6 +124,11 @@ reqboard_decompose({})   // 不传 tasks：直接落库已批准的计划
    bug/doc/chore 可写 `manual_note` 说明无认知变化；说明书是 `docs/architecture/project-manual.md`（L1）；
 4. 人点「归档」→ 需求进入 `archived`，写入 `archivePath` 与时间线。
 
+5. **wiki 页面图**（docs 是按 wiki 维护的）：新建/改动的页面要有 front-matter
+   （`id/title/type/status/updated`），并在首页 `docs/README.md` 或上层页登记；
+   被引用但还没写的主题写进首页「待写页」（`status: stub`）当后续需求候选；
+   收工前跑 `python3 agent-dh/scripts/wiki_probe.py`（死链/孤儿页/待写页/缺 front-matter，退出码 1 = 有问题）。
+
 规范文档：`agent-dh/docs/architecture/requirement-archive.md`；
 模板：`agent-dh/docs/requirements/_template/`（requirement / plan / verification / retro / known-issue / research）。
 
