@@ -34,8 +34,10 @@ export const experienceStatsPrompt: ToolPrompt<ExperienceStatsParams> = {
       type: 'object', additionalProperties: true,
       properties: {
         total: { type: 'integer', description: '样本总数' },
-        win_rate: { type: 'number', description: '胜率（%）' },
-        avg_pnl_pct: { type: 'number', description: '平均盈亏（%）' },
+        // 无样本时后端返回 null（胜率/平均盈亏无定义）——schema 必须允许 null，
+        // 否则"样本为空的第一次查询"必然失败（2026-09-13 实测：value.avg_pnl_pct must be a number）。
+        win_rate: { oneOf: [{ type: 'number' }, { type: 'null' }], description: '胜率（%）；无样本为 null' },
+        avg_pnl_pct: { oneOf: [{ type: 'number' }, { type: 'null' }], description: '平均盈亏（%）；无样本为 null' },
       },
       additionalProperties: true,
     },

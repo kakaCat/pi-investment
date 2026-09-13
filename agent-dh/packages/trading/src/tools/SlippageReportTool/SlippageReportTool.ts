@@ -148,11 +148,17 @@ export class SlippageReportTool extends BaseTool<SlippageReportParams, SlippageR
    */
   protected wrap(result: SlippageReportResult, _context: ToolContext): ToolResponse<SlippageReportResult> {
     // 检查必需字段
-    const requiredFields = ['total_fills', 'avg_slippage_pct', 'max_slippage_pct', 'by_symbol'];
+    // ⚠️ 2026-09-13（w-c8cae280）**契约已随数据源迁移，但校验没跟上**：
+    //   本工具的数据源已从"Agent OS 记忆 scope=trade:slippage"改为"v2 挂单记录"（见 execute），
+    //   v2 返回的是 **bps 口径 + records 明细**（avg_slippage_bps / max_slippage_bps / cost_bps_total / records），
+    //   而这里仍要求旧记忆通道的 **pct 口径**字段（avg_slippage_pct / max_slippage_pct / by_symbol）→
+    //   只要走 v2 通道就必然报"返回数据缺少必需字段"，即**工具在正常路径上不可用**（实测）。
+    // 现按当前契约校验：必需 total_fills + records；旧 pct 字段仅在其存在时校验类型（兼容兜底通道）。
+    const requiredFields = ['total_fills', 'records'];
     const missingFields: string[] = [];
 
     for (const field of requiredFields) {
-      if (result[field as keyof SlippageReportResult] === undefined) {
+      if ((result as any)[field] === undefined) {
         missingFields.push(field);
       }
     }
@@ -170,30 +176,33 @@ export class SlippageReportTool extends BaseTool<SlippageReportParams, SlippageR
       };
     }
 
-    // 检查类型
-    if (typeof result.total_fills !== 'number' ||
-        typeof result.avg_slippage_pct !== 'number' ||
-        typeof result.max_slippage_pct !== 'number') {
-      return {
-        success: false,
-        error: {
+    // 检查类型：数字字段允许 null（无成交/无决策价时后端返回 null 是**正常语义**，
+    // 不能因为 null 就判"必须是数字"——schema 必须比数据宽，而不是比数据严）。
+    const numericFields = ['total_fills', 'missing_decision_price', 'avg_slippage_bps',
+                           'max_slippage_bps', 'cost_bps_total', 'avg_slippage_pct', 'max_slippage_pct'];
+    for (const f of numericFields) {
+      const v = (result as any)[f];
+      if (v !== undefined && v !== null && typeof v !== 'number') {
+        return {
           success: false,
-          errorType: ErrorType.OUTPUT_ERROR,
-          field: 'total_fills/avg_slippage_pct/max_slippage_pct',
-          issue: '这些字段必须是数字',
-          expected: 'number',
-        },
-      };
+          error: {
+            success: false,
+            errorType: ErrorType.OUTPUT_ERROR,
+            field: f,
+            issue: '该字段必须是数字或 null',
+            expected: 'number | null',
+          },
+        };
+      }
     }
-
-    if (!Array.isArray(result.by_symbol)) {
+    if ((result as any).records !== undefined && !Array.isArray((result as any).records)) {
       return {
         success: false,
         error: {
           success: false,
           errorType: ErrorType.OUTPUT_ERROR,
-          field: 'by_symbol',
-          issue: 'by_symbol 必须是数组',
+          field: 'records',
+          issue: 'records 必须是数组',
           expected: 'array',
         },
       };
