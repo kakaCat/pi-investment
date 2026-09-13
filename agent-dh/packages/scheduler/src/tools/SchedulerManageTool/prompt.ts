@@ -14,11 +14,15 @@ export type SchedulerAction =
   | 'trigger'
   | 'enable'
   | 'disable'
-  | 'delete';
+  | 'delete'
+  | 'runs'
+  | 'failures';
 
 export interface SchedulerManageParams {
   action: SchedulerAction;
   task_id?: string;
+  /** runs/failures 可选：返回条数上限（runs 默认 20，failures 默认 10） */
+  limit?: number;
   name?: string;
   owner?: string;
   cron?: string;
@@ -43,6 +47,14 @@ export interface SchedulerManageParams {
 export interface SchedulerManageResult {
   success: boolean;
   action: string;
+  /** list：是否成功并上了执行统计（false 时统计不可用，见 stats_error） */
+  stats_available?: boolean;
+  /** list：统计获取失败原因（显式暴露，不静默降级） */
+  stats_error?: string;
+  /** runs：执行明细（status/started_at/finished_at/duration_ms/error/triggered_by） */
+  executions?: any[];
+  /** failures：最近有失败的任务摘要（含 error） */
+  failures?: any[];
   tasks?: any[];
   task?: any;
   count?: number;
