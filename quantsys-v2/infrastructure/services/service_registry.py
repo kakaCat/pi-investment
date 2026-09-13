@@ -269,7 +269,14 @@ def _register_services_hardcoded():
         stock_repo = ServiceFactory.get_stock_repository()
         pool_repo = EnhancedServiceFactory.resolve(IStockPoolRepository)
         scoring_service = EnhancedServiceFactory.resolve(OpportunityScoringService)
-        return StockPoolService(stock_repo, pool_repo=pool_repo, scoring_service=scoring_service)
+        # 2026-09-13（w-a9ec14d7）：注入池变更日志——此前只挂在 DecisionService，
+        # 而池的实际改动都走本服务，导致 quant.pool_change_log 长期 0 行。
+        # ⚠️ 必须用**具体仓储**：IPoolChangeLogRepository 是纯 ABC，实例化会 TypeError
+        # （下面 DecisionService 的装配就是这么坏的，且被静默吞掉 → 那条链路一直没生效）。
+        from adapters.outbound.repositories.pool_change_log_repository import PoolChangeLogRepository
+        change_log_repo = PoolChangeLogRepository()
+        return StockPoolService(stock_repo, pool_repo=pool_repo, scoring_service=scoring_service,
+                                change_log_repo=change_log_repo)
 
     EnhancedServiceFactory.register(
         StockPoolService,
@@ -416,8 +423,16 @@ def _register_services_hardcoded():
     from application.services.decision_service import DecisionService
     from domain.ports.repository_ports_extended import IAgentIntelligenceRepository, IPoolChangeLogRepository
     def create_decision_service():
-        decision_repo = IAgentIntelligenceRepository()
-        change_log_repo = IPoolChangeLogRepository()
+        # 2026-09-13 修：两个都是**纯 ABC**，直接实例化必抛 TypeError（该装配此前一直失败）。
+        # 端口 -> 具体仓储的实现类对应关系在此显式写出；IAgentIntelligenceRepository 若也无实现，
+        # 请把它指向具体的 AgentIntelligenceRepository（见 adapters/outbound/repositories）。
+        from adapters.outbound.repositories.pool_change_log_repository import PoolChangeLogRepository
+        try:
+            decision_repo = IAgentIntelligenceRepository()
+        except TypeError:
+            from adapters.outbound.repositories.agent_intelligence_repository import AgentIntelligenceRepository
+            decision_repo = AgentIntelligenceRepository()
+        change_log_repo = PoolChangeLogRepository()
         return DecisionService(
             decision_repo=decision_repo,
             change_log_repo=change_log_repo

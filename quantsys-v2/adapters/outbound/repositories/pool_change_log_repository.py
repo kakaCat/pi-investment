@@ -27,6 +27,7 @@ class PoolChangeLog(Base):
     reason = Column(Text)
     triggered_by = Column(String(50))
     agent_decision_id = Column(String(50))
+    pool_name = Column(Text)   # 2026-09-13：池名冗余快照（池删除后审计仍可读）
     context = Column(JSON)
     before_state = Column(JSON)
     after_state = Column(JSON)
@@ -41,6 +42,7 @@ class PoolChangeLogRepository(BaseORMRepository[PoolChangeLog]):
         try:
             row = self.model(
                 pool_id=change_data.get('pool_id'),
+                pool_name=change_data.get('pool_name'),
                 action=change_data.get('action', 'unknown'),
                 symbol=change_data.get('symbol'),
                 reason=change_data.get('reason'),

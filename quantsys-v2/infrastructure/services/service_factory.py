@@ -119,10 +119,16 @@ class ServiceFactory:
                 fund_flow_repo=FundFlowORMRepository(),
             )
 
+            # 2026-09-13（w-a9ec14d7）：补注入池变更日志。
+            # ⚠️ 关键事实：实际生效的是**这条回退路径**（启动日志 "StockPoolService initialized (legacy)"），
+            # enhanced 工厂里那条 create_stock_pool_service 并未被使用 —— 所以只改那边等于没改（我踩过）。
+            # 用**具体仓储**：IPoolChangeLogRepository 是纯 ABC，实例化会 TypeError。
+            from adapters.outbound.repositories.pool_change_log_repository import PoolChangeLogRepository
             cls._instances['stock_pool_service'] = StockPoolService(
                 stock_repo,
                 pool_repo=pool_repo,
-                scoring_service=scoring_service
+                scoring_service=scoring_service,
+                change_log_repo=PoolChangeLogRepository(),
             )
             logger.info("StockPoolService initialized (legacy)")
         return cls._instances['stock_pool_service']

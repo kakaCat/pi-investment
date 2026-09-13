@@ -27,7 +27,16 @@ class StockPoolService:
         '000688.SH'   # 科创50
     ]
 
-    def __init__(self, stock_repo: IStockRepository, pool_repo=None, scoring_service=None):
+    def __init__(self, stock_repo: IStockRepository, pool_repo=None, scoring_service=None,
+                 change_log_repo=None):
+        """2026-09-13（w-a9ec14d7）：新增可选的 change_log_repo。
+
+        为什么在这里记录池变更：池的**实际改动都发生在本服务**（pool_manage 工具走这里），
+        而变更日志此前只挂在 DecisionService 上——结果 quant.pool_change_log 长期 **0 行**，
+        导致"历史某日池子里有谁"无法重建（做 point-in-time 回测时只能放弃）。
+        DDD 口径：谁拥有聚合、谁记录它的变更（领域事件由聚合根所在服务发出），
+        而不是指望每个调用方记得额外调一次日志接口——那正是 0 行的成因。
+        """
         """
         初始化股票池服务
 
@@ -39,6 +48,7 @@ class StockPoolService:
         self.stock_repo = stock_repo
         self._pool_repo = pool_repo
         self._scoring_service = scoring_service
+        self._change_log_repo = change_log_repo   # 2026-09-13：池变更日志（可空=不记录）
         self._cache = None
         self._cache_time = 0
         self._cache_ttl = 3600  # 1 hour
@@ -317,6 +327,26 @@ class StockPoolService:
             for s in symbols
         ]
 
+    def _log_change(self, pool_id, action, symbols, reason, before_state=None,
+                    after_state=None, triggered_by='agent', pool_name=None) -> None:
+        """记录池变更（fail-soft 但**不静默**：日志失败只告警，不阻断池操作）。"""
+        repo = getattr(self, '_change_log_repo', None)
+        if repo is None:
+            return
+        try:
+            repo.log_change({
+                'pool_id': pool_id,
+                'pool_name': pool_name,
+                'action': action,
+                'symbol': ','.join(symbols[:50]) if symbols else None,
+                'reason': reason,
+                'triggered_by': triggered_by,
+                'before_state': before_state,
+                'after_state': after_state,
+            })
+        except Exception as exc:  # noqa: BLE001 —— 变更日志失败不得阻断池操作
+            logger.warning('pool_change_log 写入失败 pool=%s action=%s: %s', pool_id, action, exc)
+
     def add_members(self, pool_id: int, symbols: List[str],
                     member_data: dict = None) -> dict:
         """
@@ -356,6 +386,11 @@ class StockPoolService:
             if not updated:
                 raise ValueError(f"Failed to update pool {pool_id}")
 
+        if to_add:
+            self._log_change(pool_id, 'add_members', to_add, pool_name=pool.get('name'),
+                             reason='批量加成员（%d 只）' % len(to_add),
+                             before_state={'symbols': len(existing)},
+                             after_state={'symbols': len(current_symbols)})
         result = {
             'pool': self.get_pool(pool_id),
             'added': to_add,
@@ -393,6 +428,10 @@ class StockPoolService:
                 pool_id, {'symbols': current_symbols, 'members': members})
             if not updated:
                 raise ValueError(f"Failed to update pool {pool_id}")
+            self._log_change(pool_id, 'remove_members', to_remove, pool_name=pool.get('name'),
+                             reason='批量移除成员（%d 只）' % len(to_remove),
+                             before_state={'symbols': len(existing)},
+                             after_state={'symbols': len(current_symbols)})
 
         result = {
             'pool': self.get_pool(pool_id),
@@ -493,8 +532,18 @@ class StockPoolService:
         top_n = template.get('top_n', 50)
         symbols = [s['symbol'] for s in filtered[:top_n]]
 
+        before = set(pool.get('symbols') or [])
+        added = [s for s in symbols if s not in before]
+        removed = [s for s in before if s not in set(symbols)]
         updated = self._pool_repo.update_symbols(pool_id, symbols)
         logger.info(f"Refreshed pool {pool_id}: {len(symbols)} symbols")
+        if added or removed:
+            # 记录差异（而非整表）：point-in-time 重建只需要"什么时候进了谁、出了谁"
+            self._log_change(pool_id, 'refresh', added + removed, pool_name=pool.get('name'),
+                             reason='刷新换血：+%d / -%d' % (len(added), len(removed)),
+                             before_state={'symbols': sorted(before)},
+                             after_state={'symbols': sorted(symbols)},
+                             triggered_by='scheduler')
         return updated
 
     def create_from_scan(self, name: str, pool_type: str, scan_params: dict,
