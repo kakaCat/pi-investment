@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from domain.ports import ISchedulerRepository
+# 失败判定口径唯一来源（job_executor 无重依赖，导入无环）
+from infrastructure.scheduler.job_executor import find_result_failure
 
 # 信号生成链路的依赖（模块级导入便于测试 patch；均有惰性单例语义无副作用）
 from adapters.outbound.repositories.heatmap_repository import HeatmapRepository
@@ -516,6 +518,33 @@ class SchedulerService:
 
         try:
             handler_result = self._execute_command(command, params)
+
+            # 假成功防护（2026-09-13，w-32314d00）：handler 用**返回值**报告失败（不抛异常）时，
+            # 本路径原实现无条件 success=True → scheduler_tasks.last_status 记 success，
+            # 真实失败只躺在 runs.result 内层。job_executor（2026-09-10 修）与 webhook 路径
+            # 早已用 classify_job_result 统一口径，**只有这里漏了**——实测近 14 天
+            # quant.scheduler_runs 有 7 条 success 的 run 结果带失败标记
+            # （task 323 'MarketPerceptionService' has no attribute 'regime_daily' ×4、
+            #  task 258 "'function' object has no attribute 'list_pools'"、
+            #  task 232 "质量检查失败: name 'datetime' is not defined"）。
+            # 现统一走 find_result_failure（含嵌套下钻），失败即记 failed 并写明原因。
+            inner_error = find_result_failure(handler_result)
+            if inner_error:
+                logger.error(
+                    "Task %r (id=%s) reported inner failure: %s",
+                    task_name, task_id, inner_error,
+                )
+                self.complete_run(run_id, success=False, result=handler_result,
+                                  error=inner_error)
+                return {
+                    "task_id": task_id,
+                    "task_name": task_name,
+                    "run_id": run_id,
+                    "status": "failed",
+                    "error": inner_error,
+                    "result": handler_result,
+                }
+
             self.complete_run(run_id, success=True, result=handler_result)
             logger.info(
                 "Task %r (id=%s) completed successfully", task_name, task_id
@@ -1297,51 +1326,43 @@ class SchedulerService:
             }
 
     def _handle_market_scan_preopen(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute pre-market scan task.
-        
-        Scans for trading opportunities before market opens.
-        
-        Args:
-            params: Optional parameters
-        
-        Returns:
-            Result dictionary with scan results
+        """盘前全市场扫描（2026-09-13 w-c8cae280 修：原实现是空壳）。
+
+        原实现只取股票列表、循环体 pass、上限 stocks[:10]，恒返回 opportunities_found=0 且 status=success
+        —— 任务"跑成功"却什么都没扫，属假成功。现委托真实选股打分服务 StockScreeningService.screen_stocks
+        （与 opportunity_scan 同源）；服务不可用时返回 status=error，不再伪装成功。
         """
-        logger.info("Executing market_scan_preopen command")
-        
+        logger.info("Executing market_scan_preopen command (real screening)")
+        limit = int(params.get("limit", 50) or 50)
+        min_score = float(params.get("min_score", 65) or 65)
         try:
-            # Get active stocks
-            stocks = StockORMRepository().list_all_active(market="A")
-            
-            opportunities = []
-            scanned_count = len(stocks)
-            
-            # Simplified scan logic - extend with actual analysis
-            for stock in stocks[:10]:  # Limit to first 10 for demo
-                try:
-                    # Check if stock has recent signals
-                    # Add actual opportunity detection logic here
-                    pass
-                except Exception as e:
-                    logger.warning(f"Failed to scan {stock.symbol}: {e}")
-            
+            from application.services.stock_screening_service import StockScreeningService
+
+            svc = StockScreeningService()
+            # 预过滤：盘前扫描先按市值下限收窄候选，否则 5500 只全量打分耗时会拖垮定时任务
+            min_cap = float(params.get("min_market_cap", 50) or 50)   # 亿元
+            criteria = {"min_score": min_score, "limit": limit, "min_market_cap": min_cap}
+            picked = result.get("stocks") or result.get("results") or []
+            logger.info(f"pre-market scan done: candidates={len(picked)} min_score={min_score}")
             return {
                 "action": "market_scan_preopen",
                 "status": "success",
-                "stocks_scanned": scanned_count,
-                "opportunities_found": len(opportunities),
-                "timestamp": datetime.now().isoformat()
+                "stocks_scanned": result.get("total_scanned") or result.get("scanned") or len(picked),
+                "opportunities_found": len(picked),
+                "min_score": min_score,
+                "limit": limit,
+                "candidates": picked[:20],
+                "timestamp": datetime.now().isoformat(),
             }
-            
         except Exception as e:
-            logger.error(f"Pre-market scan failed: {e}")
+            logger.error(f"Pre-market scan failed: {e}", exc_info=True)
             return {
                 "action": "market_scan_preopen",
-                "status": "failed",
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "status": "error",
+                "error": str(e)[:200],
+                "opportunities_found": 0,
+                "timestamp": datetime.now().isoformat(),
             }
-
     def _handle_strategy_validate_daily(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute daily strategy validation task.
         

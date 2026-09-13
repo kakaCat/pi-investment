@@ -24,6 +24,16 @@ class StockScreeningService:
             from infrastructure.services.service_factory import ServiceFactory
             stock_repo = ServiceFactory.get_stock_repository()
         self.stock_repo = stock_repo
+        # 2026-09-13（w-c8cae280）修：原实现 scoring_service 缺省为 None 且从不解析，
+        # 而 screen_stocks 在 min_score 条件下必然调用它 ⇒ 全市场扫描恒 0 命中（实测每一只都报
+        # "'NoneType' object has no attribute 'calculate_comprehensive_score'"）。现缺省解析真实打分服务。
+        if scoring_service is None:
+            try:
+                # 打分服务需要 kline/stock/factor 三个依赖，直接构造会 TypeError ⇒ 走工厂（与动态池刷新同源）
+                from infrastructure.services.service_factory import ServiceFactory
+                scoring_service = ServiceFactory.get_scoring_service()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(f"评分服务初始化失败（筛选将退化为纯条件筛选）: {exc}")
         self.scoring_service = scoring_service
 
     def screen_stocks(self, criteria: Dict) -> Dict:
@@ -74,7 +84,23 @@ class StockScreeningService:
 
             logger.info(f"开始筛选，总股票数: {total}")
 
-            # 2. 应用筛选条件
+            # 2. 先批量打分（2026-09-13 w-c8cae280 修：原实现逐只调用 score_stocks ⇒ 5500 只必然超时），
+            #    再在循环里查表；评分失败时退化为纯条件筛选并在日志说明，不静默。
+            score_map = {}
+            _min_score = criteria.get('min_score')
+            if _min_score and self.scoring_service is not None:
+                try:
+                    _syms = [s['symbol'] for s in all_stocks if self._match_basic_criteria(s, criteria)]
+                    for _i in range(0, len(_syms), 200):
+                        for _row in (self.scoring_service.score_stocks(_syms[_i:_i + 200], {}) or []):
+                            _sym = str((_row or {}).get('symbol') or '')
+                            _sc = (_row or {}).get('total_score', (_row or {}).get('score', (_row or {}).get('composite_score')))
+                            if _sym and _sc is not None:
+                                score_map[_sym] = float(_sc)
+                    logger.info(f"批量评分完成：候选 {len(_syms)} 只，拿到分数 {len(score_map)} 只")
+                except Exception as _exc:  # noqa: BLE001
+                    logger.warning(f"批量评分失败（退化为纯条件筛选）: {_exc}")
+
             matched_stocks = []
 
             for stock in all_stocks:
@@ -84,12 +110,20 @@ class StockScreeningService:
                         continue
 
                     # 获取评分（如果需要）
-                    score = None
-                    if criteria.get('min_score'):
-                        score_result = self.scoring_service.calculate_comprehensive_score(stock['symbol'])
-                        if 'error' in score_result:
+                    score = score_map.get(str(stock["symbol"])) if _min_score else None
+                    if _min_score and (score is None or score < float(_min_score)):
+                        continue
+                        try:
+                            rows = self.scoring_service.score_stocks([stock['symbol']], {})
+                        except Exception as exc:  # noqa: BLE001
+                            logger.warning(f"筛选 {stock['symbol']} 评分失败: {exc}")
                             continue
-                        score = score_result['total_score']
+                        if not rows:
+                            continue
+                        _r = rows[0] or {}
+                        score = _r.get('total_score', _r.get('score', _r.get('composite_score')))
+                        if score is None:
+                            continue
                         if score < criteria['min_score']:
                             continue
 
