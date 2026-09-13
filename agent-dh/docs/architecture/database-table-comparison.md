@@ -2,7 +2,7 @@
 id: architecture-database-table-comparison
 title: 数据库表设计对比分析报告
 type: architecture
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

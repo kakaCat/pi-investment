@@ -2,7 +2,7 @@
 id: architecture-autonomy-system
 title: Agent-DH 自主能力体系
 type: architecture
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

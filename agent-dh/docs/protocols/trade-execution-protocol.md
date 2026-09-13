@@ -2,7 +2,7 @@
 id: protocols-trade-execution-protocol
 title: 交易执行协议（Trade Execution Protocol）
 type: protocol
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

@@ -2,7 +2,7 @@
 id: guides-skill-loading
 title: 技能装载机制（Skill Loading）——排障实录与标准流程
 type: guide
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

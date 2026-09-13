@@ -2,7 +2,7 @@
 id: guides-restart-session-safety
 title: 重启防丢 Session 操作手册（Restart Session Safety Runbook）
 type: guide
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

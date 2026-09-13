@@ -2,7 +2,7 @@
 id: guides-startup
 title: Agent-DH 启动指南
 type: guide
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

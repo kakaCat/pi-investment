@@ -2,7 +2,7 @@
 id: rfcs-006-prompt-genome-sections
 title: RFC 006: P0-1 提示词基因组切分（宪法层 / 可进化段）实现计划
 type: rfc
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

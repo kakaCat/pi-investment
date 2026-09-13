@@ -2,7 +2,7 @@
 id: architecture-tools-inventory
 title: Agent-DH 工具清单
 type: architecture
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 
@@ -459,6 +459,6 @@ updated: 2026-09-14
 ---
 
 **参考文档**:
-- [重构总计划](REFACTOR_PLAN.md)
-- [Trading Package 重构指南](packages/trading/REFACTOR_GUIDE.md)
-- [Trading Package 测试指南](packages/trading/TESTING_GUIDE.md)
+- 重构总计划（原链接目标已不存在）
+- Trading Package 重构指南（原链接目标已不存在）
+- Trading Package 测试指南（原链接目标已不存在）

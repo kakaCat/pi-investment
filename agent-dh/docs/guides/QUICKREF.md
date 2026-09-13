@@ -2,7 +2,7 @@
 id: guides-quickref
 title: Agent-DH 快速参考卡片
 type: guide
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

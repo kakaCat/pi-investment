@@ -2,7 +2,7 @@
 id: guides-event-query-best-practices
 title: 事件查询最佳实践（P1-4）
 type: guide
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

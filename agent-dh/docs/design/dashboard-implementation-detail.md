@@ -2,7 +2,7 @@
 id: design-dashboard-implementation-detail
 title: dashboard 页面插件 · 详细实施方案（数据链路实测版）
 type: design
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

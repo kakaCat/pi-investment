@@ -2,7 +2,7 @@
 id: release-notes-v0.1.1
 title: 🎊 Agent-DH v0.1.1 发布说明
 type: doc
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

@@ -2,7 +2,7 @@
 id: rfcs-011-tool-web-cards
 title: RFC 011：工具 Web 自定义卡片（Tool Web Cards）统一实现规范
 type: rfc
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

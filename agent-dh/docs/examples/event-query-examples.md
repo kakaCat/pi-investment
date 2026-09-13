@@ -2,7 +2,7 @@
 id: examples-event-query-examples
 title: 事件查询使用示例（P1-4）
 type: doc
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

@@ -2,7 +2,7 @@
 id: rfcs-013-bulletin-board-page
 title: RFC 013：公告板页面（dashboard-bulletin）
 type: rfc
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

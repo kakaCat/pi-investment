@@ -2,7 +2,7 @@
 id: guides-usage-guide
 title: Agent-DH 使用指南
 type: guide
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

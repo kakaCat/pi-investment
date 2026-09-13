@@ -144,6 +144,39 @@ tags: [wiki, index, home, agent-dh]
 
 ### 卷 10 · 附录（L3 证据层）
 
+**历史页（已迁入 wiki，逐页重写后转为 living 并由正文引用）**：
+
+- [RELEASE-NOTES-v0.1.1.md](RELEASE-NOTES-v0.1.1.md)
+- [design/dashboard-implementation-detail.md](design/dashboard-implementation-detail.md)
+- [rfcs/003-self-learning-distillation.md](rfcs/003-self-learning-distillation.md)
+- [rfcs/005-self-evolving-agent.md](rfcs/005-self-evolving-agent.md)
+- [rfcs/006-prompt-genome-sections.md](rfcs/006-prompt-genome-sections.md)
+- [rfcs/007-genome-manager.md](rfcs/007-genome-manager.md)
+- [rfcs/008-validation-gate.md](rfcs/008-validation-gate.md)
+- [rfcs/009-watch-push-dual-channel.md](rfcs/009-watch-push-dual-channel.md)
+- [rfcs/011-tool-web-cards.md](rfcs/011-tool-web-cards.md)
+- [rfcs/013-bulletin-board-page.md](rfcs/013-bulletin-board-page.md)
+- [rfcs/013-decision-evaluation-ddd-refactor.md](rfcs/013-decision-evaluation-ddd-refactor.md)
+- [rfcs/RFC-010-README.md](rfcs/RFC-010-README.md)
+- [architecture/AUTONOMY-SYSTEM.md](architecture/AUTONOMY-SYSTEM.md)
+- [architecture/TOOLS_INVENTORY.md](architecture/TOOLS_INVENTORY.md)
+- [architecture/WHY-NO-DIST.md](architecture/WHY-NO-DIST.md)
+- [architecture/database-table-comparison.md](architecture/database-table-comparison.md)
+- [architecture/legacy-system-deprecation-plan.md](architecture/legacy-system-deprecation-plan.md)
+- [architecture/self-restart-behavior.md](architecture/self-restart-behavior.md)
+- [guides/QUICKREF.md](guides/QUICKREF.md)
+- [guides/STARTUP.md](guides/STARTUP.md)
+- [guides/USAGE-GUIDE.md](guides/USAGE-GUIDE.md)
+- [guides/event-query-best-practices.md](guides/event-query-best-practices.md)
+- [guides/learnings-from-agent-ts.md](guides/learnings-from-agent-ts.md)
+- [guides/order-api-guide.md](guides/order-api-guide.md)
+- [guides/quantsys-v2-capability-assessment.md](guides/quantsys-v2-capability-assessment.md)
+- [guides/restart-session-safety.md](guides/restart-session-safety.md)
+- [guides/skill-loading.md](guides/skill-loading.md)
+- [examples/event-query-examples.md](examples/event-query-examples.md)
+- [protocols/trade-execution-protocol.md](protocols/trade-execution-protocol.md)
+
+
 - ✅ [需求档案索引](requirements/INDEX.md) · [归档规范](architecture/requirement-archive.md)
 - ✅ [历史遗留系统下线计划](architecture/legacy-system-deprecation-plan.md)
 - ✅ [agent-ts 经验](guides/learnings-from-agent-ts.md)

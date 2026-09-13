@@ -2,7 +2,7 @@
 id: guides-learnings-from-agent-ts
 title: 从 agent-ts（PI 投资顾问·TS版）会话学习报告
 type: guide
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

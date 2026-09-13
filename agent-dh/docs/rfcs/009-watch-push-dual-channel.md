@@ -2,7 +2,7 @@
 id: rfcs-009-watch-push-dual-channel
 title: RFC 009：盯盘推送双通道方案（direct 直推 / agent 判断分流）
 type: rfc
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

@@ -2,7 +2,7 @@
 id: architecture-why-no-dist
 title: 为什么部分插件没有 dist 目录？
 type: architecture
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

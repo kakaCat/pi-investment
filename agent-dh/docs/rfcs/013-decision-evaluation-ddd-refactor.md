@@ -2,7 +2,7 @@
 id: rfcs-013-decision-evaluation-ddd-refactor
 title: P1-3: 判断结果自动对账系统 DDD 重构设计
 type: rfc
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

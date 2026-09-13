@@ -2,7 +2,7 @@
 id: architecture-legacy-system-deprecation-plan
 title: 旧订单体系废弃计划
 type: architecture
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 
@@ -379,7 +379,7 @@ psql -d quant_investment -c "\dt quant.orders"
 
 - [订单 API 使用指南](../guides/order-api-guide.md)
 - [数据库表设计对比](../architecture/database-table-comparison.md)
-- [卖出修复报告](../work-logs/2026-08/sell-order-fix-report.md)
+- 卖出修复报告（原链接目标已不存在）
 
 ---
 

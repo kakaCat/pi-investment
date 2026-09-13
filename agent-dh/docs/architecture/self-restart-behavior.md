@@ -2,7 +2,7 @@
 id: architecture-self-restart-behavior
 title: self_restart 工具行为说明
 type: architecture
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 

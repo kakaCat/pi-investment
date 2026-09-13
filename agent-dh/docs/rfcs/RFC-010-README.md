@@ -2,7 +2,7 @@
 id: rfcs-rfc-010-readme
 title: RFC 010 Phase 1 - Window-OS Lifecycle Management
 type: rfc
-status: legacy
+status: living
 updated: 2026-09-14
 ---
 
