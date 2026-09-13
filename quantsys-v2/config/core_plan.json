@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-13T23:49:12",
+ "generated_at": "2026-09-13T23:55:39",
  "data_date": "2026-09-11",
  "account": "agent_brain",
  "mode": "PLAN_ONLY（不下单）",
@@ -54,7 +54,8 @@
    "pe": 30.64,
    "amount_def_avg": 2614505668.0585475,
    "lots": 4,
-   "amount": 4169.0
+   "amount": 4048.0,
+   "target_amount": 4169.0
   },
   {
    "symbol": "300059",
@@ -67,7 +68,8 @@
    "pe": 25.12,
    "amount_def_avg": 2389122273.769231,
    "lots": 2,
-   "amount": 4169.0
+   "amount": 3662.0,
+   "target_amount": 4169.0
   },
   {
    "symbol": "601857",
@@ -79,8 +81,9 @@
    "roe": 6.3,
    "pe": 14.04,
    "amount_def_avg": 1950778427.7948718,
-   "lots": 3,
-   "amount": 4169.0
+   "lots": 4,
+   "amount": 4496.0,
+   "target_amount": 4169.0
   },
   {
    "symbol": "601919",
@@ -93,7 +96,8 @@
    "pe": 7.53,
    "amount_def_avg": 1639445114.7008548,
    "lots": 2,
-   "amount": 4169.0
+   "amount": 3238.0,
+   "target_amount": 4169.0
   },
   {
    "symbol": "600030",
@@ -105,8 +109,9 @@
    "roe": 7.81,
    "pe": 11.95,
    "amount_def_avg": 1573277754.3076923,
-   "lots": 1,
-   "amount": 4169.0
+   "lots": 2,
+   "amount": 5384.0,
+   "target_amount": 4169.0
   },
   {
    "symbol": "601288",
@@ -119,7 +124,8 @@
    "pe": 7.7,
    "amount_def_avg": 1557979736.1311967,
    "lots": 5,
-   "amount": 4169.0
+   "amount": 3485.0,
+   "target_amount": 4169.0
   },
   {
    "symbol": "000099",
@@ -132,7 +138,8 @@
    "pe": 43.35,
    "amount_def_avg": 1543122875.0527349,
    "lots": 3,
-   "amount": 4169.0
+   "amount": 4005.0,
+   "target_amount": 4169.0
   },
   {
    "symbol": "603993",
@@ -145,7 +152,8 @@
    "pe": 18.49,
    "amount_def_avg": 1436821876.1452992,
    "lots": 2,
-   "amount": 4169.0
+   "amount": 3630.0,
+   "target_amount": 4169.0
   },
   {
    "symbol": "002241",
@@ -157,8 +165,9 @@
    "roe": 3.92,
    "pe": 23.29,
    "amount_def_avg": 1280356119.271367,
-   "lots": 1,
-   "amount": 4169.0
+   "lots": 2,
+   "amount": 4448.0,
+   "target_amount": 4169.0
   },
   {
    "symbol": "000100",
@@ -171,7 +180,8 @@
    "pe": 19.94,
    "amount_def_avg": 1280034707.4496577,
    "lots": 8,
-   "amount": 4169.0
+   "amount": 3712.0,
+   "target_amount": 4169.0
   },
   {
    "symbol": "600887",
@@ -183,8 +193,9 @@
    "roe": 10.09,
    "pe": 11.9,
    "amount_def_avg": 1226697630.432735,
-   "lots": 1,
-   "amount": 4169.0
+   "lots": 2,
+   "amount": 5302.0,
+   "target_amount": 4169.0
   },
   {
    "symbol": "601600",
@@ -197,7 +208,8 @@
    "pe": 15.48,
    "amount_def_avg": 1090930682.8119657,
    "lots": 4,
-   "amount": 4169.0
+   "amount": 3840.0,
+   "target_amount": 4169.0
   },
   {
    "symbol": "601668",
@@ -210,7 +222,8 @@
    "pe": 4.0,
    "amount_def_avg": 1083371933.974359,
    "lots": 9,
-   "amount": 4169.0
+   "amount": 3915.0,
+   "target_amount": 4169.0
   },
   {
    "symbol": "601166",
@@ -223,7 +236,8 @@
    "pe": 5.11,
    "amount_def_avg": 1068363832.1772652,
    "lots": 2,
-   "amount": 4169.0
+   "amount": 3626.0,
+   "target_amount": 4169.0
   },
   {
    "symbol": "600895",
@@ -234,9 +248,10 @@
    "close": 28.06,
    "roe": 2.31,
    "pe": 54.87,
-   "amount_def_avg": 1020583979.8576072,
-   "lots": 1,
-   "amount": 4169.0
+   "amount_def_avg": 1020583979.8576071,
+   "lots": 2,
+   "amount": 5612.0,
+   "target_amount": 4169.0
   }
  ],
  "growth_sleeve": {
@@ -273,8 +288,9 @@
     "roe": 7.24,
     "pe": 36.32,
     "weight_pct_of_sleeve": 50.0,
-    "amount": 9158.0,
-    "lots": 1
+    "amount": 9720.0,
+    "lots": 2,
+    "_target_amt": 9158.0
    },
    {
     "symbol": "300456",
@@ -286,12 +302,37 @@
     "roe": 34.07,
     "pe": 23.05,
     "weight_pct_of_sleeve": 50.0,
-    "amount": 9158.0,
-    "lots": 2
+    "amount": 6930.0,
+    "lots": 2,
+    "_target_amt": 9158.0
    }
   ]
  },
  "phase_plan": "分 4 批、每批约 1 周；每批按当时 vol-target 与回撤闸门重算",
+ "realized": {
+  "core": {
+   "target_amount": 62500.0,
+   "actual_amount": 62403.0,
+   "residual_amount": 97.0,
+   "residual_pct": 0.16,
+   "note": "actual=Σ(手数×现价×100) 整手可投；residual=整手取整后投不出去的余额（已用 deploy_residual 尽量再投）"
+  },
+  "growth_sleeve": {
+   "target_amount": 18315.0,
+   "actual_amount": 16650.0,
+   "residual_amount": 1665.0,
+   "residual_pct": 9.09,
+   "note": "actual=Σ(手数×现价×100) 整手可投；residual=整手取整后投不出去的余额（已用 deploy_residual 尽量再投）"
+  },
+  "total": {
+   "target_amount": 80815.0,
+   "actual_amount": 79053.0,
+   "residual_amount": 1762.0,
+   "residual_pct": 2.18,
+   "note": "actual=Σ(手数×现价×100) 整手可投；residual=整手取整后投不出去的余额（已用 deploy_residual 尽量再投）"
+  },
+  "note": "声明暴露 16.16% 是**目标**；actual 才是整手约束下真能投出去的金额。差额=整手取整后的余额（deploy_residual 已尽量再投），不得当成还有额度可买。"
+ },
  "execution_plan": {
   "batches": [
    {
@@ -307,7 +348,7 @@
      {
       "symbol": "300014",
       "bucket": "growth_sleeve",
-      "lots": 1,
+      "lots": 2,
       "close": 48.6,
       "amount": 9158.0
      },
@@ -321,14 +362,14 @@
      {
       "symbol": "600887",
       "bucket": "core",
-      "lots": 1,
+      "lots": 2,
       "close": 26.51,
       "amount": 4169.0
      },
      {
       "symbol": "600895",
       "bucket": "core",
-      "lots": 1,
+      "lots": 2,
       "close": 28.06,
       "amount": 4169.0
      }
@@ -387,21 +428,21 @@
      {
       "symbol": "601857",
       "bucket": "core",
-      "lots": 3,
+      "lots": 4,
       "close": 11.24,
       "amount": 4169.0
      },
      {
       "symbol": "600030",
       "bucket": "core",
-      "lots": 1,
+      "lots": 2,
       "close": 26.92,
       "amount": 4169.0
      },
      {
       "symbol": "002241",
       "bucket": "core",
-      "lots": 1,
+      "lots": 2,
       "close": 22.24,
       "amount": 4169.0
      },

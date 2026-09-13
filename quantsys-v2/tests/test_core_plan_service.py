@@ -505,3 +505,55 @@ class TestRiskLens:
         with patch.object(S, "kline_history", return_value=_fake_klines()):
             r = S.risk_lens({"600000": 0.1, "600001": "bad", "600002": None}, 100000.0)
         assert r["unavailable_reason"], "剔掉非法权重后只剩 1 只 → 应显式降级"
+
+# --------------------------------------------------------------------------- #
+# 10. 整手残差再投（deploy_residual / realized_block）
+# --------------------------------------------------------------------------- #
+class TestDeployResidual:
+    """A股按 100 股整手买入 → 等权目标金额几乎不可能被整除。
+
+    实测：core 目标 62500 元整手后只投出 50906 元（残差 18.6%）、子额度残差 35.6%，
+    合计"声明暴露 16.16%、实际只能投 12.54%"。本组用例钉住"残差要被尽量投出去、且不得超投/超限"。
+    """
+
+    def test_deploys_slack_toward_targets(self):
+        rows = [{"close": 10.0, "lots": 1, "_target_amt": 4000.0},
+                {"close": 20.0, "lots": 1, "_target_amt": 4000.0}]
+        added = S.deploy_residual(rows, 8000.0)
+        deployed = sum(r["close"] * 100 * r["lots"] for r in rows)
+        assert added > 0 and deployed > 3000.0, "残差应被再投出去：%.0f" % deployed
+        assert deployed <= 8000.0 + 1e-9, "不得超投：%.0f" % deployed
+
+    def test_never_exceeds_total_budget(self):
+        rows = [{"close": 3.33, "lots": 0, "_target_amt": 1000.0} for _ in range(3)]
+        S.deploy_residual(rows, 1000.0)
+        deployed = sum(r["close"] * 100 * r["lots"] for r in rows)
+        assert deployed <= 1000.0 + 1e-9
+
+    def test_respects_single_name_cap(self):
+        rows = [{"close": 1.0, "lots": 0, "_target_amt": 0.0},
+                {"close": 1.0, "lots": 0, "_target_amt": 0.0}]
+        S.deploy_residual(rows, 10000.0, cap_pct=30.0)   # 单只 ≤ 30% = 3000 元 = 30 手
+        for r in rows:
+            assert r["close"] * 100 * r["lots"] <= 3000.0 + 1e-9, "超单只上限：%r" % r
+
+    def test_returns_zero_when_nothing_affordable(self):
+        rows = [{"close": 50.0, "lots": 0, "_target_amt": 40.0}]   # 1 手 = 5000 > 预算 100
+        assert S.deploy_residual(rows, 100.0) == 0
+        assert rows[0]["lots"] == 0
+
+    def test_empty_and_zero_budget_are_safe(self):
+        assert S.deploy_residual([], 1000.0) == 0
+        assert S.deploy_residual([{"close": 1.0, "lots": 0}], 0.0) == 0
+
+
+class TestRealizedBlock:
+    def test_reports_residual(self):
+        rows = [{"close": 10.0, "lots": 1}]     # 1000 元
+        rb = S.realized_block(rows, 2000.0)
+        assert rb["actual_amount"] == 1000.0 and rb["residual_amount"] == 1000.0
+        assert rb["residual_pct"] == 50.0
+
+    def test_zero_target_does_not_divide_by_zero(self):
+        rb = S.realized_block([{"close": 10.0, "lots": 1}], 0.0)
+        assert rb["residual_pct"] is None

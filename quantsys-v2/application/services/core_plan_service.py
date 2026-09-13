@@ -289,8 +289,12 @@ def enforce_core_constraints(tilts: list, used: set, pk: dict, uni, tilt_fn,
             % (min_names, single_cap * 100, len(tilts)))
     apply_weight_cap(tilts, single_cap)
     for _t in tilts:
-        _t["lots"] = int((amt_total_pre * _t["weight_pct_of_core"] / 100.0)
-                         // (float(pk[_t["symbol"]]["close"]) * 100))
+        _c = float(pk[_t["symbol"]]["close"])
+        _t["lots"] = int((amt_total_pre * _t["weight_pct_of_core"] / 100.0) // (_c * 100))
+        _t["_target_amt"] = amt_total_pre * _t["weight_pct_of_core"] / 100.0
+        _t["close"] = _c
+    # 整手取整的残差再投（受单只上限约束）——否则"计划 16% 敞口"实际只能投 12%
+    deploy_residual(tilts, amt_total_pre, cap_pct=single_cap * 100)
     return tilts, dropped_total
 
 
@@ -306,6 +310,66 @@ def _fmt_day(x) -> str:
 CONST_SINGLE_PCT = 20.0    # 宪法第 3 条：单股 ≤ 总资产 20%
 CONST_INDUSTRY_PCT = 40.0  # 宪法第 3 条：单行业 ≤ 总资产 40%
 CONST_CASH_MIN_PCT = 10.0  # 宪法第 3 条：现金 ≥ 总资产 10%
+
+
+def deploy_residual(rows: list, amt_total: float, close_key: str = "close",
+                    cap_pct: Optional[float] = None, target_key: str = "_target_amt") -> int:
+    """把"整手取整"后的残差再投出去：给离目标最远、且下一手买得起的标的各加 1 手。
+
+    为什么必须做（2026-09-13 实测）：A股按 100 股整手买入，等权目标金额几乎不可能被整手整除 ——
+    core 目标 62500 元整手后只投出 50906 元（残差 18.6%），子额度残差 35.6%，
+    合计"声明暴露 16.16%、实际只能投 12.54%"。计划写着 16% 敞口却投不出去 3.6pp，
+    且此前**没有任何字段披露**这个差额 —— 与"静默少投"同一类问题，只是成因在整手取整而非权重封顶。
+
+    两条约束都必须守：① 总额不超过 amt_total（不得超投）② 单只不超过 cap_pct（None=不限制）。
+    返回加了多少手（诊断用）。
+    """
+    def _px(r):
+        try:
+            return float(r.get(close_key) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    if not rows or amt_total <= 0:
+        return 0
+    for r in rows:
+        if target_key not in r:
+            r[target_key] = amt_total / max(1, len(rows))
+    total = sum(_px(r) * 100 * int(r.get("lots") or 0) for r in rows)
+    added = 0
+    while added < 5000:
+        remaining = amt_total - total
+        if remaining < 0:
+            break
+        cands = []
+        for r in rows:
+            lot = _px(r) * 100
+            if lot <= 0 or lot > remaining + 1e-9:
+                continue
+            cur = lot * int(r.get("lots") or 0)
+            if cap_pct is not None and (cur + lot) > (cap_pct / 100.0) * amt_total + 1e-9:
+                continue
+            cands.append((float(r.get(target_key) or 0) - cur, r))
+        if not cands:
+            break
+        cands.sort(key=lambda x: -x[0])
+        pick = cands[0][1]
+        pick["lots"] = int(pick.get("lots") or 0) + 1
+        total += _px(pick) * 100
+        added += 1
+    return added
+
+
+def realized_block(rows: list, amt_target: float, close_key: str = "close") -> dict:
+    """披露"目标金额 vs 整手后实际可投金额"——防止计划头部的暴露数字被当成真能投出去的敞口。"""
+    actual = sum(float(r.get(close_key) or 0) * 100 * int(r.get("lots") or 0) for r in rows)
+    return {
+        "target_amount": round(float(amt_target or 0), 0),
+        "actual_amount": round(actual, 0),
+        "residual_amount": round(float(amt_target or 0) - actual, 0),
+        "residual_pct": (round((1 - actual / amt_target) * 100, 2) if amt_target else None),
+        "note": "actual=Σ(手数×现价×100) 整手可投；residual=整手取整后投不出去的余额（已用 deploy_residual 尽量再投）",
+    }
 
 
 def risk_lens(exposure_by_symbol: dict, total_value: float, start: str = "2024-07-01") -> dict:
@@ -743,6 +807,14 @@ def generate(**kwargs) -> dict:
             c["weight_pct_of_sleeve"] = round(c["mult"] / _mt3 * 100, 2)
             c["amount"] = round(_samt * c["weight_pct_of_sleeve"] / 100.0, 0)
             c["lots"] = int(c["amount"] // (c["close"] * 100))
+            c["_target_amt"] = float(c["amount"])
+        # 子额度同样做整手残差再投：实测残差曾达 35.6%（目标 18315 元只投出 11790 元）。
+        # 子额度天然受"总额≤额度"约束，且只有 2-3 只，无需单只上限（cap_pct=None）。
+        _sl_added = deploy_residual(_alive, _samt)
+        for c in _alive:
+            c["amount"] = round(c["close"] * 100 * c["lots"], 0)
+        if _sl_added:
+            print("    子额度残差再投：+%d 手 → 实际可投 %.0f 元（目标 %.0f 元）" % (_sl_added, sum(c["amount"] for c in _alive), _samt))
         sleeve = _alive
         sleeve_meta = {"cap_pct_of_total": a.growth_sleeve_pct, "exposure_pct_of_total": _sexpo,
                        "amount": round(_samt, 0), "index_vol_ann": round(_svol, 4) if _svol == _svol else None,
@@ -768,12 +840,17 @@ def generate(**kwargs) -> dict:
     for _t in tilts:
         _c = float(_pk[_t["symbol"]]["close"])
         _amt = _target_amount * _t["weight_pct_of_core"] / 100.0
+        # ⚠️ 手数必须以 enforce_core_constraints 的结果为**唯一事实源**（_t["lots"]）。
+        # 2026-09-13 踩到：这里原先又按权重 floor 重算一次，把 deploy_residual 刚补的手数**丢掉** ——
+        # 于是"同一只票的手数"在三处（约束求解 / 产物 / 打印）各算一遍，彼此不一致，
+        # 计划里写的是 18.55% 残差、而内存里已是 0.2%。同一量多处计算 = 必然漂移。
+        _lots = int(_t.get("lots") or 0)
         _core_rows.append({
             "symbol": _t["symbol"], "industry": _t["industry"],
             "weight_pct_of_core": _t["weight_pct_of_core"], "tilt_mult": _t["mult"], "tilt_note": _t["note"],
             "close": _c, "roe": float(_pk[_t["symbol"]]["roe"]),
             "pe": float(_pk[_t["symbol"]]["pe"]), "amount_def_avg": float(_pk[_t["symbol"]]["amt"]),
-            "lots": int(_amt // (_c * 100)), "amount": round(_amt, 0),
+            "lots": _lots, "amount": round(_c * 100 * _lots, 0), "target_amount": round(_amt, 0),
         })
 
     plan = {
@@ -801,6 +878,15 @@ def generate(**kwargs) -> dict:
         _expo_map[str(_h["symbol"])] = target_expo * float(_h.get("weight_pct_of_core") or 0) / 100.0
     for _h in sleeve:
         _expo_map[str(_h["symbol"])] = _sl_pct * float(_h.get("weight_pct_of_sleeve") or 0) / 100.0
+    # 披露"整手后实际能投出去多少"——计划头部的暴露数字不等于可执行敞口（2026-09-13 实测差 3.6pp）
+    plan["realized"] = {
+        "core": realized_block(_core_rows, _target_amount),
+        "growth_sleeve": realized_block(sleeve, _sl_amt),
+        "total": realized_block(list(_core_rows) + list(sleeve), _target_amount + _sl_amt),
+        "note": ("声明暴露 %.2f%% 是**目标**；actual 才是整手约束下真能投出去的金额。"
+                 "差额=整手取整后的余额（deploy_residual 已尽量再投），不得当成还有额度可买。"
+                 % ((target_expo + _sl_pct) * 100)),
+    }
     plan["execution_plan"] = build_execution_plan(_core_rows, sleeve, _target_amount, _sl_amt)
     # 透镜金额口径 = 计划实际投入（不是账户总资产），否则日 VaR 金额会被放大到账户级别
     plan["risk_lens"] = risk_lens(_expo_map, _target_amount + _sl_amt)
@@ -821,9 +907,10 @@ def generate(**kwargs) -> dict:
     print("目标持仓 %d 只（%s；等权基准每只约 %.0f 元）："
           % (len(tilts), _wm, target_amount / max(len(tilts), 1)))
     for _t in sorted(tilts, key=lambda x: x["weight_pct_of_core"], reverse=True):
-        _c = float(_pk[_t["symbol"]]["close"]); _amt = target_amount * _t["weight_pct_of_core"] / 100.0
-        _lots = int(_amt // (_c * 100))
-        print("  %s  现价 %6.2f  权重 %5.1f%%  约 %6.0f 元 = %d 手 | %s" % (_t["symbol"], _c, _t["weight_pct_of_core"], _amt, _lots, _t["note"]))
+        _c = float(_pk[_t["symbol"]]["close"])
+        _lots = int(_t.get("lots") or 0)      # 唯一事实源：约束求解的结果（含残差再投）
+        _amt = _c * 100 * _lots
+        print("  %s  现价 %6.2f  权重 %5.1f%%  实际 %6.0f 元 = %d 手 | %s" % (_t["symbol"], _c, _t["weight_pct_of_core"], _amt, _lots, _t["note"]))
     _sleeve_amt = float(sleeve_meta.get("amount") or 0) if sleeve else 0.0
     _sleeve_pct = float(sleeve_meta.get("exposure_pct_of_total") or 0) if sleeve else 0.0
     print("合计：core %.1f%% + 成长板子额度 %.2f%% = 计划暴露 %.2f%%（约 %.0f 元，占总资产 %.1f%%）"
