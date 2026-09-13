@@ -1,10 +1,14 @@
 """投资脑 core 建仓计划服务（2026-09-13 w-a9ec14d7 从 scripts/core_plan.py 上迁）
 
 为什么上迁：用户 2026-09-13 裁定「脚本不能写进 v2 项目，脚本只能测试用」。
-本文件原先在 scripts/core_plan.py，但它是**账户建仓决策的入口**（工作日 09:10 例行任务调用），
+本文件原先在 scripts/core_plan.py，但它是**账户建仓决策的入口**（工作日 09:05 例行任务 core_plan_generate 生成、09:10 由 agent 读取），
 属于生产能力而非一次性脚本 —— 故迁入 application 层，并由 core_plan_generate 定时任务驱动。
 
-⚠️ 已知技术债：内部仍以 subprocess 调 psql 取数（原脚本写法），后续应改为走 engine/仓储。
+数据访问（2026-09-13 B7 收口）：原先以 subprocess 调 psql 取数（原脚本写法），现已全部改走
+infrastructure 的 SQLAlchemy engine + **绑定变量**。为什么必须收口（不是洁癖）：
+  ① psql 是外部二进制 + 依赖 PATH 拼装，在 launchd 托管环境下属"能跑但不可控"的隐式依赖；
+  ② 拼接 SQL 意味着账户名等外部值直接进语句（R-019 要求账户来自 agents.json，不该经字符串进 SQL）；
+  ③ check=True 把数据库侧原始报错压成 CalledProcessError，"查询失败"与"查询成功但为空"难分辨。
 
 原始说明如下 ——
 
@@ -13,47 +17,93 @@
 依据（当日研究结论）：选股型叠层全部负超额；**等权 core + 波动目标 + 回撤闸门**稳健
 （2024-07~2026-09：Sharpe 0.98→1.22、回撤 -17.9%→-10.6%，9 组参数/3 种池子规模一致）。
 
-本脚本产出：
+本服务产出：
   1. 目标暴露 = min(regime 上限, 波动目标暴露 × 回撤闸门系数)，并给出各因子明细；
-  2. 目标持仓 = 流动性 Top 且价格可负担的 N 只等权（A股 100 股整数倍约束下可落地）；
-  3. 与当前持仓的差额（需要买/卖多少股）；
-  4. 写入 quantsys-v2/config/core_plan.json + 打印人类可读摘要。**不下任何委托。**
+  2. 目标持仓 = 流动性 Top 且价格可负担的 N 只等权（A股 100 股整数倍约束下可落地）+ 成长板独立子额度；
+  3. 写入 quantsys-v2/config/core_plan.json + 打印人类可读摘要。**不下任何委托。**
 
-用法：python scripts/core_plan.py [--names 15] [--target-vol 0.15] [--max-exposure 0.25] [--account agent_brain]
+⚠️ 文档/实现对齐（2026-09-13 B7 复核）：原文案第 3 条写"与当前持仓的差额（需要买/卖多少股）"，
+但**代码从未实现**——本服务不读 position_list，产出的 holdings 是"目标组合"而非"待下委托"。
+差额要由消费方（agent）读当前持仓自行比对。此处按实现改正，避免计划文件被当成下单清单。
+
+用法：由定时任务 core_plan_generate 驱动（工作日 09:05，task id 337）。
+      不要用 python 直接跑本模块——它是 application 层服务，不是可执行入口。
+      手动补跑：POST /api/scheduler/tasks/337/trigger
 """
-import argparse, json, os, subprocess, sys
+import decimal
+import json
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
 import pandas as pd
-import io
 
 # ⚠️ 路径基准（2026-09-13 上迁时实测踩到）：本文件从 scripts/ 迁到 application/services/ 后，
 # parents[1] 变成了 application/ 而不是 quantsys-v2/ —— 计划会被写到 application/config/core_plan.json，
 # 而 09:10 的任务读的是 quantsys-v2/config/core_plan.json → **静默读到旧文件**。故用 parents[2]。
 ROOT = Path(__file__).resolve().parents[2]
-ENV = dict(os.environ, PATH="/opt/homebrew/bin:/usr/local/bin:" + os.environ.get("PATH", ""))
 DEF_START, DEF_END = "2024-01-01", "2024-06-30"
 OUT = ROOT / "config" / "core_plan.json"
 
 
-def psql(q):
-    return subprocess.run(["psql", "-d", "quant_investment", "-At", "-c", q],
-                          capture_output=True, text=True, env=ENV, check=True).stdout
+# --------------------------------------------------------------------------- #
+# DB 访问：统一走 engine（B7，2026-09-13 w-a9ec14d7）
+# --------------------------------------------------------------------------- #
+def _engine():
+    from infrastructure.persistence.database.engine import get_engine
+    return get_engine()
 
 
-def psql_csv_plain(q):
-    out = subprocess.run(["psql", "-d", "quant_investment", "-c", "copy (" + q + ") to stdout with csv header"],
-                         capture_output=True, text=True, env=ENV, check=True).stdout
-    return pd.read_csv(io.StringIO(out))
+def _to_float_if_decimal(df: pd.DataFrame) -> pd.DataFrame:
+    """把 Decimal 列收敛为 float64 —— 对齐原 psql 实现的数据形态，**不是**可有可无的美化。
+
+    原实现是 `copy (...) to stdout with csv header` → pd.read_csv，numeric 列一律落 float64；
+    改走 engine 后 psycopg 对 numeric 返回 decimal.Decimal，pandas 落 **object** dtype。
+    object dtype 会让下游的排序/均值/比较出现静默差异（例如 sort_values 能跑但语义变了、
+    pct_change 可能抛错），而"能跑"会掩盖它。故显式对齐。
+    （实测：quant.daily_klines 的 close/amount 是 double precision → 本来就是 float；
+      仅 quant.simulation_account 的 total_value/cash_available 是 numeric → 需要这一步。）
+    """
+    for c in df.columns:
+        if df[c].dtype == object:
+            nn = df[c].dropna()
+            if len(nn) and all(isinstance(v, decimal.Decimal) for v in nn.iloc[:50]):
+                df[c] = df[c].astype("float64")
+    return df
 
 
-def psql_csv(q):
-    out = subprocess.run(["psql", "-d", "quant_investment", "-c", "copy (" + q + ") to stdout with csv header"],
-                         capture_output=True, text=True, env=ENV, check=True).stdout
-    df = pd.read_csv(io.StringIO(out), dtype={"symbol": str})
+def query_df(sql, params: Optional[dict] = None) -> pd.DataFrame:
+    """只读查询 → DataFrame。**绑定变量**，不拼字符串。"""
+    from sqlalchemy import text
+    stmt = text(sql) if isinstance(sql, str) else sql
+    with _engine().connect() as conn:
+        df = pd.read_sql(stmt, conn, params=params or {})
+    return _to_float_if_decimal(df)
+
+
+def query_rows(sql, params: Optional[dict] = None) -> list:
+    from sqlalchemy import text
+    stmt = text(sql) if isinstance(sql, str) else sql
+    with _engine().connect() as conn:
+        return list(conn.execute(stmt, params or {}).fetchall())
+
+
+def kline_history(symbols, start: str) -> pd.DataFrame:
+    """取若干标的的自 start 起日线（按交易日升序）。symbols 走 expanding 绑定变量。
+
+    原实现把 symbol 列表拼进 IN 子句；此处改为绑定变量（列表本身来自库内，风险低，
+    但"拼接"这个形态一旦被复制到别处就是注入面，故不在钱路上留样板）。
+    """
+    from sqlalchemy import bindparam, text
+    syms = [str(s) for s in symbols]
+    if not syms:
+        return pd.DataFrame(columns=["symbol", "trade_date", "close"])
+    stmt = text("select symbol, trade_date, close from quant.daily_klines "
+                "where symbol in :syms and trade_date >= :start order by trade_date"
+                ).bindparams(bindparam("syms", expanding=True))
+    df = query_df(stmt, {"syms": syms, "start": start})
     df["symbol"] = df["symbol"].astype(str).str.zfill(6)
     return df
 
@@ -117,11 +167,12 @@ def generate(**kwargs) -> dict:
     a.account = resolve_account(a.account)
 
     # 1) 候选池：窗口前定义（2024H1）流动性 Top，含价格与流动性明细
-    px = psql_csv("select symbol, max(trade_date)::text as d, avg(amount) as amt from quant.daily_klines "
-                  "where trade_date between '" + DEF_START + "' and '" + DEF_END + "' group by symbol "
-                  "having count(*) >= 100 order by amt desc limit 400")
+    px = query_df("select symbol, max(trade_date)::text as d, avg(amount) as amt from quant.daily_klines "
+                  "where trade_date between :def_start and :def_end group by symbol "
+                  "having count(*) >= 100 order by amt desc limit 400",
+                  {"def_start": DEF_START, "def_end": DEF_END})
     px["symbol"] = px["symbol"].astype(str).str.zfill(6)
-    latest = psql_csv("select symbol, close, amount from quant.daily_klines where trade_date = "
+    latest = query_df("select symbol, close, amount from quant.daily_klines where trade_date = "
                       "(select max(trade_date) from quant.daily_klines)")
     latest["symbol"] = latest["symbol"].astype(str).str.zfill(6)
     uni = px.merge(latest, on="symbol", how="inner", suffixes=("_def", "_now"))
@@ -129,7 +180,7 @@ def generate(**kwargs) -> dict:
     uni = uni.sort_values("amt", ascending=False)
     # 不追高（2026-09-13 基准率检验）：距 52 周高 ≤3% 的标的，未来 20/60 日**中位收益为负**、胜率<50%；
     # 而距高 <-30% 的深跌标的 120 日中位 +11.1%、胜率 66.8%。故默认排除近高标的。
-    hi = psql_csv("select symbol, max(close) as hi52 from quant.daily_klines where trade_date >= "
+    hi = query_df("select symbol, max(close) as hi52 from quant.daily_klines where trade_date >= "
                   "(select max(trade_date) - 365 from quant.daily_klines) group by symbol")
     hi["symbol"] = hi["symbol"].astype(str).str.zfill(6)
     uni = uni.merge(hi, on="symbol", how="left")
@@ -144,7 +195,7 @@ def generate(**kwargs) -> dict:
     # 2) 可投资性：非 ST、非停牌、上市满 2 年（次新勿碰）
     # 3) 杠杆：负债率 < 80%，**金融业豁免**（银行天然 90+）
     # 4) 分红代理：连续亏损必然砍分红，故以"ROE>0 且 PE>0"为代理；库内暂无全市场分红表（已记录，建议数据线补）
-    st = psql_csv("select symbol, name, industry, sector, roe, pe, debt_ratio, is_st, is_suspended, list_date, market_cap "
+    st = query_df("select symbol, name, industry, sector, roe, pe, debt_ratio, is_st, is_suspended, list_date, market_cap "
                   "from quant.stocks")
     st["symbol"] = st["symbol"].astype(str).str.zfill(6)
     for c in ("roe", "pe", "debt_ratio", "market_cap"):
@@ -166,14 +217,19 @@ def generate(**kwargs) -> dict:
     print("质量闸门：ROE>0 %d→%d；0<PE≤60 %d→%d；非ST/停牌 %d→%d；上市≥2年 %d→%d；负债<80%%(金融豁免) %d→%d"
           % (n0, n1, n1, n2, n2, n3, n3, n4, n4, n5))
 
-    acct = psql("select coalesce(total_value,0) || '|' || coalesce(cash_available,0) from quant.simulation_account "
-                "where account_name='" + a.account + "'").strip().split("|")
-    total, cash = float(acct[0] or 0), float(acct[1] or 0)
+    # 账户资金：绑定变量（账户名来自 agents.json，不经 SQL 字符串拼接）
+    # 原实现查不到行时返回空串 → split 只得 1 段 → float(acct[1]) 抛 IndexError（信息量为零）。
+    # 改为显式报错：查不到账户就是**不能出计划**，绝不按 0 元资产继续往下算。
+    _acct_rows = query_rows("select coalesce(total_value,0), coalesce(cash_available,0) "
+                            "from quant.simulation_account where account_name = :acct",
+                            {"acct": a.account})
+    if not _acct_rows:
+        raise ValueError("账户 %r 不在 quant.simulation_account 中，无法生成建仓计划（不猜资金规模）"
+                         % a.account)
+    total, cash = float(_acct_rows[0][0] or 0), float(_acct_rows[0][1] or 0)
 
     # 暴露：波动目标 × 回撤闸门（用最终持仓的日收益重建 core 指数）
-    hist = psql_csv("select symbol, trade_date, close from quant.daily_klines where symbol in ("
-                    + ",".join("'" + str(s) + "'" for s in uni["symbol"].head(200))
-                    + ") and trade_date >= '2024-06-01' order by trade_date")
+    hist = kline_history(uni["symbol"].head(200), "2024-06-01")
     hist["trade_date"] = pd.to_datetime(hist["trade_date"])
     close = hist.pivot_table(index="trade_date", columns="symbol", values="close").ffill()
     core_ret = close.pct_change().mean(axis=1).dropna()
@@ -231,7 +287,7 @@ def generate(**kwargs) -> dict:
         print("行业热度接口不可用（降级为仅库内动量）:", str(_e)[:80])
     ind_mom = {}
     try:
-        _im = psql_csv_plain("""select s.industry, avg(k.close / p.close - 1) as r60
+        _im = query_df("""select s.industry, avg(k.close / p.close - 1) as r60
                         from quant.stocks s
                         join quant.daily_klines k on k.symbol = s.symbol and k.trade_date = (select max(trade_date) from quant.daily_klines)
                         join quant.daily_klines p on p.symbol = s.symbol and p.trade_date = (select max(trade_date) - 60 from quant.daily_klines)
@@ -391,9 +447,7 @@ def generate(**kwargs) -> dict:
     sleeve, sleeve_meta = [], {}
     if len(gw_pool) > 0:
         _gsyms = [str(s) for s in gw_all["symbol"].astype(str).head(150)]
-        _gh = psql_csv("select symbol, trade_date, close from quant.daily_klines where symbol in ("
-                       + ",".join("'" + s + "'" for s in _gsyms)
-                       + ") and trade_date >= '2024-06-01' order by trade_date")
+        _gh = kline_history(_gsyms, "2024-06-01")
         _svol, _sdd = float("nan"), 0.0
         if len(_gh):
             _gh["trade_date"] = pd.to_datetime(_gh["trade_date"])
@@ -529,8 +583,9 @@ def generate(**kwargs) -> dict:
     return plan
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+# 注：原脚本的 `if __name__ == "__main__": raise SystemExit(main())` 已删除 ——
+# main() 从未随上迁一起搬过来，这行是**必然 NameError 的死引用**（import 时不触发，故一直没暴露）。
+# 本模块是被 job 调用的服务，不是可执行入口；要跑它请用 core_plan_generate 任务。
 
 
 
@@ -538,8 +593,8 @@ class CorePlanGenerateJob:
     """core 建仓计划生成定时任务（工作日 09:05，2026-09-13 w-a9ec14d7）
 
     为什么是 job 而不是脚本：用户 2026-09-13 裁定「脚本不能写进 v2 项目，脚本只能测试用」。
-    本能力原先由 scripts/core_plan.py 承担、由 09:10 的 agent 任务用 bash 调脚本 —— 属生产能力，
-    上迁为 application 层服务 + 定时任务后，agent 任务只需**读取**生成的计划文件。
+    本能力原先由 scripts/core_plan.py 承担、由 09:10 的 agent 任务用 bash 调脚本 —— 属生产能力。
+    上迁为 application 层服务 + 定时任务后，本任务 09:05 生成计划，agent 任务 09:10 只需**读取**计划文件。
     """
 
     def __init__(self):
