@@ -1,0 +1,79 @@
+{
+ "generated_at": "2026-09-13T13:15:46",
+ "account": "agent_brain",
+ "mode": "PLAN_ONLY（不下单）",
+ "account_total": 98922.97,
+ "cash": 84842.97,
+ "exposure": {
+  "target_pct": 0.175,
+  "first_phase_cap_pct": 0.35,
+  "core_realized_vol_ann": 0.1061,
+  "vol_target": 0.15,
+  "w_vol": 1.0,
+  "core_drawdown": -0.2118,
+  "dd_gate": 0.5
+ },
+ "holdings": [
+  {
+   "symbol": "002085",
+   "close": 10.12,
+   "amount_def_avg": 2614505668.058547,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "601012",
+   "close": 11.32,
+   "amount_def_avg": 2323450759.068376,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "601857",
+   "close": 11.24,
+   "amount_def_avg": 1950778427.794872,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "000002",
+   "close": 3.06,
+   "amount_def_avg": 1744627367.9988892,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "601919",
+   "close": 16.19,
+   "amount_def_avg": 1639445114.7008548,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "600733",
+   "close": 4.65,
+   "amount_def_avg": 1584094276.762051,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "601398",
+   "close": 8.11,
+   "amount_def_avg": 1576077198.7094016,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "002456",
+   "close": 7.0,
+   "amount_def_avg": 1570578257.126239,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "000001",
+   "close": 11.74,
+   "amount_def_avg": 1569737679.1758118,
+   "target_weight_pct": 10.0
+  },
+  {
+   "symbol": "601288",
+   "close": 6.97,
+   "amount_def_avg": 1557979736.1311967,
+   "target_weight_pct": 10.0
+  }
+ ],
+ "phase_plan": "分 4 批、每批约 1 周；每批按当时 vol-target 与回撤闸门重算"
+}
