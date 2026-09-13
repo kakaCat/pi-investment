@@ -128,10 +128,15 @@ def metrics(eq: pd.Series, trades: list, min_trades: int = 3) -> dict:
 
 def evaluate(code: str, params: dict, symbols, start: str, end: str, label: str) -> dict:
     rows, curves = [], []
+    bh_by_symbol = {}  # 2026-09-13（w-a9ec14d7）：同池等权买入持有基准曲线，用于算**超额**
     for sym in symbols:
         df = load_klines(sym, start, end)
         if len(df) < 60:
             continue
+        c = df["close"].astype(float)
+        # 注意：df["close"] 的索引是整数 RangeIndex，必须重建为 trade_date 索引，
+        # 否则后面 c.reindex(common)（datetime 索引）会全 NaN → dropna 把整段基准丢光（2026-09-13 实测踩到）
+        bh_by_symbol[sym] = pd.Series((c / float(c.iloc[0])).to_numpy(), index=df["trade_date"])
         try:
             sig = extract_signals(run_snippet(code, df, params))
         except Exception as e:  # noqa: BLE001
@@ -162,6 +167,22 @@ def evaluate(code: str, params: dict, symbols, start: str, end: str, label: str)
         agg["cagr_best"] = round(max(cagrs), 4)
         agg["cagr_worst"] = round(min(cagrs), 4)
         agg["pct_positive_symbols"] = round(sum(1 for c in cagrs if c > 0) / len(cagrs), 3)
+
+        # 基准与超额（2026-09-13）：同一批标的、同一窗口的**等权买入持有**。
+        # 单标的择时策略的天然对照就是"不择时地拿着同样的票"；跨截面策略则是同池等权。
+        # 只用相同的 common 时间轴，保证可比。
+        bh_curves = [bh_by_symbol[r["symbol"]] for r in ok if r["symbol"] in bh_by_symbol]
+        if bh_curves:
+            matb = pd.concat([c.reindex(common) for c in bh_curves], axis=1).dropna()
+            if matb.shape[1] and len(matb) >= 30:
+                mb = metrics(matb.mean(axis=1), [], min_trades=0)
+                if mb.get("ok"):
+                    agg["benchmark_cagr"] = mb["cagr"]
+                    agg["benchmark_max_dd"] = mb["max_dd"]
+                    agg["benchmark_sharpe"] = mb["sharpe"]
+                    agg["excess_cagr"] = round(float(agg["cagr"]) - float(mb["cagr"]), 4)
+                    agg["excess_sharpe"] = round(float(agg["sharpe"]) - float(mb["sharpe"]), 2)
+                    agg["benchmark_note"] = "同池等权买入持有（同一批标的、同一窗口、同一时间轴）"
     return {"label": label, "period": f"{start}~{end}", "portfolio": agg, "per_symbol": rows}
 
 

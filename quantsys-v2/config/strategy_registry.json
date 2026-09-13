@@ -25,6 +25,42 @@
    "status": "deleted",
    "retired_at": "2026-09-13T12:31:58",
    "reason": "闭环连通性验证完成，探针即删"
+  },
+  {
+   "strategy_id": null,
+   "name": "core-overlay-v1",
+   "source": "core_plan",
+   "kind": "overlay",
+   "status": "active",
+   "forced": false,
+   "registered_at": "2026-09-13T16:05:46",
+   "gate": {
+    "min_excess_sharpe": 0.2,
+    "min_excess_cagr": -0.06,
+    "max_dd": -0.2
+   },
+   "gate_evidence": {
+    "baseline": {
+     "cagr": 0.2271,
+     "dd": -0.179,
+     "sharpe": 0.98
+    },
+    "overlay": {
+     "cagr": 0.1802,
+     "dd": -0.1061,
+     "sharpe": 1.22
+    },
+    "excess": {
+     "cagr": -0.0469,
+     "sharpe": 0.24,
+     "dd_improvement": 0.0729
+    },
+    "window": "2024-07-01~2026-09-11",
+    "universe": "等权 core（流动性 Top 800，2024H1 定义的最活跃池）"
+   },
+   "plan_file": "quantsys-v2/config/core_plan.json",
+   "evidence_file": "config/core_overlay_evidence.json",
+   "consume_hint": "消费端（agent-brain-candidate-hunt）对 source=core_plan 的条目：读取 plan_file 的 holdings 作为候选，并按 exposure 口径给仓位；不要调用 strategy_execute（本条目不产生单标的买卖信号）。"
   }
  ]
 }

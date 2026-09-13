@@ -12,6 +12,7 @@
 用法：python scripts/strategy_core.py [--target-vol 0.15] [--cand 800]
 """
 import argparse, os, subprocess, sys
+from datetime import datetime as _dt
 import numpy as np
 import pandas as pd
 import io
@@ -73,7 +74,10 @@ def main():
     core = core_all[(core_all.index >= pd.Timestamp(TEST_START)) & (core_all.index <= pd.Timestamp(TEST_END))]
     print("窗口 %s ~ %s，交易日 %d" % (core.index[0].date(), core.index[-1].date(), len(core)))
     print()
-    stats(core, "0) 等权 core（基线）")
+    import json
+    from pathlib import Path as _P
+    res = {}
+    res["baseline"] = stats(core, "0) 等权 core（基线）")
 
     # A. 波动率目标化（月度调整暴露）
     vol20 = core_all.rolling(20).std() * np.sqrt(252)
@@ -92,7 +96,7 @@ def main():
                 cur = new
             prev_key = k
         w[d] = cur
-    stats(core * w - core * 0.0, "A) 波动目标 %.0f%%" % (a.target_vol * 100), turnover=cost_a * 100)
+    res["overlay_a"] = stats(core * w - core * 0.0, "A) 波动目标 %.0f%%" % (a.target_vol * 100), turnover=cost_a * 100)
 
     # B. 回撤闸门
     eq = (1 + core).cumprod()
@@ -105,10 +109,34 @@ def main():
         elif cur == 0.5 and dd[d] > -a.dd_restore:
             cost_b += abs(1.0 - cur) * COST; cur = 1.0
         expo[d] = cur
-    stats(core * expo, "B) 回撤闸门", turnover=cost_b * 100)
+    res["overlay_b"] = stats(core * expo, "B) 回撤闸门", turnover=cost_b * 100)
 
     # C. A+B
-    stats(core * w * expo, "C) 波动目标+回撤闸门", turnover=(cost_a + cost_b) * 100)
+    res["overlay_c"] = stats(core * w * expo, "C) 波动目标+回撤闸门", turnover=(cost_a + cost_b) * 100)
+
+    # 2026-09-13（w-a9ec14d7）：把组合层证据落盘，供 strategy_loop 的 overlay 门槛裁决与注册使用。
+    # 为什么单独落盘：core 是**组合层覆盖**（调暴露，不选股），评估器与单标的信号框架不同源，
+    # 证据必须显式带着"窗口/universe/口径"走，不能靠人记（R-013）。
+    base, ov = res["baseline"], res["overlay_c"]
+    ev = {
+        "name": "core-overlay-v1",
+        "generated_at": _dt.now().isoformat(timespec="seconds"),
+        "kind": "overlay",
+        "window": TEST_START + "~" + TEST_END,
+        "universe": "等权 core（流动性 Top %d，2024H1 定义的最活跃池）" % a.cand,
+        "params": {"target_vol": a.target_vol, "dd_trigger": a.dd_trigger, "dd_restore": a.dd_restore},
+        "baseline": base,
+        "overlay": ov,
+        "excess": {"cagr": round(ov["cagr"] - base["cagr"], 4),
+                   "sharpe": round(ov["sharpe"] - base["sharpe"], 2),
+                   "dd_improvement": round(ov["dd"] - base["dd"], 4)},
+        "cost_note": "A/B 叠层各含一次月度/触发换手成本（单边 %.2f%%）" % (COST * 100),
+        "why_not_alpha_gate": "覆盖层用收益换风险（超额 CAGR 为负、Sharpe 与回撤改善），用 alpha 门槛判它会被误杀——故单列 overlay 门槛",
+    }
+    out = _P(__file__).resolve().parents[1] / "config" / "core_overlay_evidence.json"
+    out.write_text(json.dumps(ev, ensure_ascii=False, indent=1), encoding="utf-8")
+    print()
+    print("证据已写入", out)
     return 0
 
 

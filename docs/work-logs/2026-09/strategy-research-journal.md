@@ -94,3 +94,26 @@
 - [2026-09-13 15:2x] **下一轮待决（有数据支撑）**：子额度当前 3 只 ROE 仅 1.9~4.6%、PE 32~50 —— 质量门槛（ROE>0, PE≤60）
   是为主板 core 设计的，对成长板过松。实测收紧到 **ROE≥5 & PE≤40 仍有 98 只候选**（ROE≥8 有 40 只）⇒ 收紧可行，不建议继续用宽松门槛。JEOF
 echo ok
+## 2026-09-13 16:0x｜策略闭环 A/B/C 补齐（用户同意后执行）· w-a9ec14d7
+
+- **A. 门槛改超额口径（这是最关键的一环）**：旧 GATE 是绝对阈值（median_cagr≥8%、sharpe≥0.8、control 用 30 只任意标的）——
+  在本市场同池等权基准本身就有 +23%/年的情况下，**这种门槛会被 beta 跟随轻易通过**，把 beta 当 alpha 放进来。
+  现在：`strategy_lab.py` 为每个 (universe×window) 格同时算**同池等权买入持有**基准并落 `excess_cagr/excess_sharpe`；
+  门槛改为 median_excess_cagr≥+3pp、worst_excess_cagr≥−2pp、median_excess_sharpe≥0、min_trades≥100、has_benchmark 必须全覆盖；
+  另修一处口径错误：**窗口收敛到 2024-07 起**（2021-2023 库内只有 270/291/300 只标的够 220+ 根日线，跨年回测在混合不同 universe）。
+  验证（对照策略＝双均线，必然跑输买入持有）：4/4 格有基准，超额 −24.7pp/−14.6pp/−30.1pp/+1.7pp → 中位 −14.6pp → **FAIL** ✓
+  途中踩坑：基准曲线用 `df["close"]` 的整数索引去 reindex datetime → 全 NaN → dropna 把 242 行丢光（`matb shape=(0,3)`），已修。
+
+- **B. core 注册为 active 策略（消费端终于有东西可跑）**：core 是**组合层覆盖**，塞不进 code_content 单标的框架 →
+  registry 新增条目类型 `source=core_plan / kind=overlay`（不产生单标的信号，消费端改读 plan 文件的 holdings + exposure）。
+  并单列 **overlay 门槛**（用 alpha 门槛判覆盖层会误杀：它用收益换风险）：min_excess_sharpe≥+0.2、min_excess_cagr≥−6pp、max_dd≥−20%。
+  实测证据（2024-07~2026-09，800 只 2024H1 定义池）：基线 CAGR +22.71%/DD −17.90%/Sharpe 0.98 →
+  覆盖层 +18.02%/−10.61%/**1.22**；超额 CAGR −4.69pp、超额 Sharpe **+0.24**、回撤改善 **+7.29pp** → 三项全 PASS → 已注册 active。
+
+- **C. 自动化**：新建 `strategy-loop-weekly`（每周日 20:30）重新裁决 registry 并退役不合格条目 + journal + 通知；
+  启用被禁用的 `signal_perf_backfill_daily`（此前 20 日表现全为 null，就是因为回填任务被停）。
+  途中发现并修 `cmd_track` 对 overlay 条目 `int(None)` 崩（这正是每周任务要跑的第一个命令），并补 `retire-overlay` 对称命令。
+
+- **闭环现状**：管道 6 环齐全且**自动化**（研究→门槛→注册→消费→跟踪→退役），
+  registry 现有 1 条 active（core-overlay-v1）；alpha 通道为空是**诚实结论**——实测本库没有单标的择时策略具备相对基准的超额。JEOF
+echo appended
