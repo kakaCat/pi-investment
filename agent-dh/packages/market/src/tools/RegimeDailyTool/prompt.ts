@@ -49,8 +49,8 @@ export const regimeDailyPrompt: ToolPrompt<RegimeDailyParams, RegimeDailyResult>
       type: 'object', additionalProperties: true,
       properties: {
         date: { type: 'string', description: '日期（YYYY-MM-DD）' },
-        regime: { type: 'string', description: 'panic / euphoria / risk_on / risk_off / sideways' },
-        evidence: { type: 'object', additionalProperties: true, description: '证据数据' },
+        regime: { type: 'string', description: 'panic / euphoria / risk_on / risk_off / sideways（2026-09-13 起为 v2 quant.market_regime 的镜像：range→sideways / trend_up→risk_on / trend_down→risk_off）' },
+        evidence: { type: 'object', additionalProperties: true, description: '证据数据（source=v2:market_regime 为规范镜像；source=local_fallback 表示 v2 不可达、本值系本地兜底且 data_quality=degraded）' },
         skipped: { type: 'boolean', description: 'true=今日已落库，未重复写入' },
       },
       additionalProperties: true,

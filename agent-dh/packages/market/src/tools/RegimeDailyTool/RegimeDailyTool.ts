@@ -33,6 +33,42 @@ export class RegimeDailyTool extends BaseTool<RegimeDailyParams, RegimeDailyResu
   }
 
   /**
+   * v2 词表 → 本侧词表（唯一映射点）。
+   *
+   * 2026-09-13（w-a9ec14d7）：两套词表此前各自演化、互不知情：
+   *  · v2 quant.market_regime（regime_daily 任务）：range / trend_up / trend_down / panic / euphoria
+   *  · 本工具自算：sideways / risk_on / risk_off / panic / euphoria
+   * 下游 regime_position_limit 的仓位映射表只认后一套 → v2 说 range 时它按"未知"兜底，
+   * 而本地自算说 risk_off 时它按 40% 算 —— 同一个概念两个答案。
+   */
+  private static readonly V2_REGIME_MAP: Record<string, string> = {
+    range: 'sideways',
+    trend_up: 'risk_on',
+    trend_down: 'risk_off',
+    panic: 'panic',
+    euphoria: 'euphoria',
+  };
+
+  /**
+   * 取 **规范源**：v2 的 quant.market_regime（由 market_perception_daily 15:30 落库）。
+   * 端点：GET /api/market/perception/regime?days=1（与其它工具直连 v2 端点的既有做法一致）。
+   * 任何失败都返回 null，由调用方决定是退回本地计算还是放弃 —— 不抛、也不静默冒充成功。
+   */
+  private async fetchCanonicalRegime(): Promise<any | null> {
+    try {
+      const base = process.env.QUANTSYS_V2_API_URL || 'http://127.0.0.1:5001';
+      const res = await fetch(base + '/api/market/perception/regime?days=1');
+      if (!res.ok) return null;
+      const body: any = await res.json();
+      const row = (body?.data || [])[0];
+      if (!row?.regime || !row?.trade_date) return null;
+      return row;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Phase 1: 校验参数
    */
   protected validate(_args: RegimeDailyParams): ValidationResult {
@@ -46,11 +82,21 @@ export class RegimeDailyTool extends BaseTool<RegimeDailyParams, RegimeDailyResu
   protected async execute(_args: RegimeDailyParams, _context: ToolContext): Promise<RegimeDailyResult> {
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' });
 
-    // 幂等检查：今日已落库则跳过
-    const existing = await this.memoryClient.searchMemory({ q: `regime ${today}`, scope: 'market:regime', limit: 3 });
-    const dup = (existing?.items || []).find((it: any) => it.payload?.date === today && it.status !== 'deprecated');
+    // ── 单一事实源：先读 v2 的规范 regime（2026-09-13 w-a9ec14d7）────────────────
+    // 实测 2026-09-11 两源同日给出不同答案：v2 quant.market_regime = range（无降级），
+    // 本地自算写进 memory 的 market:regime = risk_off + degraded，而 regime_position_limit 读的是后者。
+    // 现改为：v2 为唯一事实源，本工具做**镜像**（词表显式映射）；
+    // 仅当 v2 不可达才退回本地计算，并显式标注 source=local_fallback + data_quality=degraded
+    // —— 退化必须可见，不能让下游把兜底值当成规范值。
+    const canonical = await this.fetchCanonicalRegime();
+    const canonicalDate = canonical ? String(canonical.trade_date).slice(0, 10) : today;
+    const mapped = canonical ? (RegimeDailyTool.V2_REGIME_MAP[String(canonical.regime)] ?? 'sideways') : null;
+
+    // 幂等检查：同一天（规范源口径）已落库则跳过
+    const existing = await this.memoryClient.searchMemory({ q: `regime ${canonicalDate}`, scope: 'market:regime', limit: 3 });
+    const dup = (existing?.items || []).find((it: any) => it.payload?.date === canonicalDate && it.status !== 'deprecated');
     if (dup) {
-      return { date: today, regime: dup.payload?.regime, evidence: dup.payload?.evidence, skipped: true };
+      return { date: canonicalDate, regime: dup.payload?.regime, evidence: dup.payload?.evidence, skipped: true };
     }
 
     const s: any = await this.qv2.getMarketSentiment();
@@ -75,7 +121,7 @@ export class RegimeDailyTool extends BaseTool<RegimeDailyParams, RegimeDailyResu
       conflicts.push(`涨跌家数样本仅 ${adSampleSize} 只（全市场 5000+），广度指标非全市场口径`);
     }
 
-    // regime 分类
+    // regime 分类（本地口径；仅当规范源不可用时才真正被采用）
     let regime = 'sideways';
     let reason = '情绪中性区间震荡';
 
@@ -100,7 +146,8 @@ export class RegimeDailyTool extends BaseTool<RegimeDailyParams, RegimeDailyResu
       reason += `（⚠️ 数据降级/指标矛盾，极端判定可信度低）`;
     }
 
-    const evidence = {
+    // 本地口径的 evidence（作为兜底与对照留档，无论是否采用都保留，便于日后核对两套判定的差异）
+    const localEvidence = {
       fearGreedIndex: fg,
       advanceDeclineRatio: adRatio,
       volumeRatio: volRatio,
@@ -112,16 +159,57 @@ export class RegimeDailyTool extends BaseTool<RegimeDailyParams, RegimeDailyResu
       data_gap: '指数K线趋势维度缺失（M0 待补），当前仅情绪+量能维度',
     };
 
+    // 最终落库口径
+    let finalDate = canonicalDate;
+    let finalRegime: string;
+    let evidence: any;
+    if (canonical && mapped) {
+      // 规范源可用：以它为准（镜像）
+      finalRegime = mapped;
+      evidence = {
+        source: 'v2:market_regime',
+        canonical: true,
+        v2_regime: String(canonical.regime),
+        v2_trade_date: canonicalDate,
+        v2_reason: canonical.reason ?? null,
+        v2_indicators: {
+          index_trend_score: canonical.index_trend_score,
+          sentiment_score: canonical.sentiment_score,
+          volume_ratio: canonical.volume_ratio,
+          ad_ratio: canonical.ad_ratio,
+        },
+        reason: `镜像 v2 规范 regime ${canonical.regime} → ${mapped}（${canonical.reason ?? ''}）`,
+        data_quality: 'ok',
+        conflicts: null,
+        local_evidence: localEvidence,
+        note: '本工具自 2026-09-13 起不再自算 regime，只镜像 v2 quant.market_regime（唯一事实源）',
+      };
+    } else {
+      // 规范源不可达：退回本地计算，但**必须标为降级**（下游据此收紧仓位，而不是当成规范值）
+      finalRegime = regime;
+      evidence = {
+        ...localEvidence,
+        source: 'local_fallback',
+        canonical: false,
+        data_quality: 'degraded',
+        conflicts: [
+          ...(conflicts || []),
+          'v2 quant.market_regime 不可达（/api/market/perception/regime 取不到），本值系本地兜底计算，非规范值',
+        ],
+        note: 'v2 规范源不可达时的本地兜底；恢复后应重新拉取覆盖',
+      };
+    }
+
     // 落库 regime
       await this.memoryClient.createMemory({
       kind: 'episode',
       scope: 'market:regime',
-      title: `regime ${today}: ${regime}`,
-      content: `${today} 市场 regime = ${regime}（${reason}）。恐慌贪婪=${fg}，涨跌比=${adRatio}，量能比=${volRatio}。`,
-      payload: { date: today, regime, evidence },
+      title: `regime ${finalDate}: ${finalRegime}`,
+      content: `${finalDate} 市场 regime = ${finalRegime}（${evidence.reason}）。恐慌贪婪=${fg}，涨跌比=${adRatio}，量能比=${volRatio}。`,
+      payload: { date: finalDate, regime: finalRegime, evidence },
       status: 'testing',
-      confidence: degraded || conflicts.length > 0 ? 0.35 : 0.7,
-      source: 'regime_daily',
+      confidence: (!canonical || degraded || (conflicts || []).length > 0) ? 0.35 : 0.7,
+      source: canonical ? 'regime_daily(v2-mirror)' : 'regime_daily(local-fallback)',
       provenance: { channel: 'dsh', session_kind: 'agent' },
     });
 
@@ -143,7 +231,7 @@ export class RegimeDailyTool extends BaseTool<RegimeDailyParams, RegimeDailyResu
       });
     }
 
-    return { date: today, regime, evidence, skipped: false };
+    return { date: finalDate, regime: finalRegime, evidence, skipped: false } as any;
   }
 
   /**
