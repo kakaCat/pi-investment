@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code when working with this multi-project repository.
 
+> **项目认知入口**：动手前先读 [项目说明书](docs/architecture/project-manual.md)（文档金字塔 L1：项目是什么 /
+> 三层架构 / 关键概念 / 怎么跑 / 去哪儿找细节）。细节在 [docs/](docs/README.md) 的领域篇（L2），
+> 追溯历史才下沉到需求档案与工作日志（L3）。
+
 ## Project Overview
 
 **PI Investment** is an intelligent autonomous investment system powered by AI agents. The system operates with minimal human intervention, executing investment strategies and making trading decisions independently.

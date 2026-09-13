@@ -344,6 +344,23 @@ export interface ArchiveDoc {
  * 不同需求类型（category）的必填文档与合并去向由 ARCHIVE_DOC_RULES 规定，
  * 规范文档：agent-dh/docs/architecture/requirement-archive.md。
  */
+/**
+ * 归档对**项目说明书**（金字塔 L1）的更新点。
+ *
+ * 用户要求「归档后应该是金字塔模型，是项目的一个说明书，agent 可以通过这个更了解项目」：
+ * 归档不只是留证据，而是让项目认知**自下而上生长**——L3 证据（需求档案）→ L2 领域篇
+ * （architecture/guides/adr/rfcs）→ L1 说明书（docs/architecture/project-manual.md）。
+ * 改变了项目级认知的需求，必须在归档材料里申报它更新了说明书的哪一节。
+ */
+export interface ManualUpdate {
+  /** 被更新的说明书/领域篇路径（L1 或 L2） */
+  path: string
+  /** 章节标题 */
+  section: string
+  /** 一句话：这一节现在多了什么认知 */
+  summary: string
+}
+
 export interface ArchiveRecord {
   /** 需求目录（工作区相对路径，如 docs/requirements/REQ-xxxxxx） */
   dir: string
@@ -353,6 +370,10 @@ export interface ArchiveRecord {
   mergedInto: string[]
   /** 索引条目：一句话结论（进归档索引，供检索） */
   indexEntry: string
+  /** 对项目说明书（金字塔 L1/L2）的更新点；无项目级认知变化时留空并写 manualNote */
+  manualUpdates?: ManualUpdate[]
+  /** 无手册更新时的理由（如"纯维护，不改变项目认知"） */
+  manualNote?: string
   submittedAt: number
   submittedBy: ActorRef
   archivedAt?: number
@@ -812,6 +833,8 @@ export function backfillTaskHistory(task: TaskRecord): StatusEvent[] | undefined
  * 校验是**代码级**的：缺必填文档或合并去向 → 归档材料提交被拒。
  */
 export interface ArchiveDocRule {
+  /** 是否**必须**申报项目说明书（L1/L2）的更新点——改变项目级认知的类型才要求。 */
+  requireManual: boolean
   /** 需求目录内必填的文档 kind */
   requiredDocs: readonly ArchiveDoc['kind'][]
   /** 必须合并进的项目文档前缀（合并去向必须落在这些目录里） */
@@ -825,32 +848,38 @@ export const ARCHIVE_DOC_RULES: Readonly<Record<RequirementCategory, ArchiveDocR
   // 及其 agent-dh 对应目录）——归档不许自创平行体系（规范见 docs/DOCUMENT-MANAGEMENT-PLAN.md
   // 与 agent-dh/docs/architecture/requirement-archive.md）。
   feature: {
+    requireManual: true,
     requiredDocs: ['requirement', 'plan', 'verification'],
     mergeTargets: ['agent-dh/docs/architecture/', 'agent-dh/docs/guides/', 'docs/architecture/', 'docs/guides/'],
     note: '功能：能力/接口变了 → 必须更新架构或使用指南（否则新人只能读代码）',
   },
   bug: {
+    requireManual: false,
     requiredDocs: ['requirement', 'verification', 'retro'],
     mergeTargets: ['agent-dh/docs/guides/', 'agent-dh/docs/architecture/', 'docs/guides/', 'docs/architecture/'],
     note: '缺陷：根因与防回归写进 guides/（故障排查手册）或 architecture/（机制性根因）——'
       + '规范没有单独的 known-issues 目录，别自创平行体系',
   },
   doc: {
+    requireManual: false,
     requiredDocs: ['requirement', 'verification'],
     mergeTargets: ['agent-dh/docs/', 'docs/'],
     note: '文档类需求：产出本身就是文档，直接合并进 docs/ 相应子目录',
   },
   refactor: {
+    requireManual: true,
     requiredDocs: ['requirement', 'plan', 'verification', 'retro'],
     mergeTargets: ['docs/adr/', 'agent-dh/docs/architecture/', 'docs/architecture/', 'agent-dh/docs/work-logs/', 'docs/work-logs/'],
     note: '重构：重大结构决策进 adr/，架构说明同步更新——否则文档与代码互相说谎',
   },
   spike: {
+    requireManual: true,
     requiredDocs: ['requirement', 'retro'],
     mergeTargets: ['docs/rfcs/', 'agent-dh/docs/rfcs/', 'docs/architecture/', 'agent-dh/docs/architecture/', 'docs/strategy-research/'],
     note: '调研：产物是结论（含被证伪的假设）——成提案进 rfcs/，成认知进 architecture/，策略类进 strategy-research/',
   },
   chore: {
+    requireManual: false,
     requiredDocs: ['requirement', 'verification'],
     mergeTargets: ['agent-dh/docs/work-logs/', 'docs/work-logs/'],
     note: '杂项/维护：留一条工作记录（work-logs，按月归档）即可，别把运维细节塞进架构文档',
@@ -863,7 +892,7 @@ export const REQUIREMENT_DIR_PATTERN = /(?:^|\/)docs\/requirements\/REQ-[0-9a-f]
 /** 归档材料校验（缺项抛 code=invalid_input，消息指明缺什么）。 */
 export function assertArchiveMaterials(
   category: RequirementCategory | undefined,
-  archive: Pick<ArchiveRecord, 'dir' | 'docs' | 'mergedInto' | 'indexEntry'>,
+  archive: Pick<ArchiveRecord, 'dir' | 'docs' | 'mergedInto' | 'indexEntry' | 'manualUpdates' | 'manualNote'>,
 ): void {
   const rule = ARCHIVE_DOC_RULES[category ?? 'feature']
   if (archive.dir.trim().length === 0) bad('归档材料缺少需求目录（dir）')
@@ -886,6 +915,18 @@ export function assertArchiveMaterials(
   for (const target of archive.mergedInto) {
     if (!rule.mergeTargets.some(prefix => target.startsWith(prefix))) {
       bad('合并去向 ' + target + ' 不在本类型允许的位置（应为 ' + rule.mergeTargets.join(' / ') + ' 之下）：' + rule.note)
+    }
+  }
+  // 金字塔生长：改变项目级认知的类型必须申报"说明书更新点"，否则项目认知永远长不上去
+  const manual = archive.manualUpdates ?? []
+  if (rule.requireManual && manual.length === 0) {
+    bad('归档材料缺少项目说明书更新点（manualUpdates）——' + (category ?? 'feature')
+      + ' 类需求改变了项目级认知，必须说明更新了 docs/architecture/project-manual.md（L1）'
+      + '或对应领域篇（L2）的哪一节；确实没有认知变化时改用不需要申报的类型，或先在手册里补一节')
+  }
+  for (const u of manual) {
+    if (u.path.trim().length === 0 || u.section.trim().length === 0 || u.summary.trim().length === 0) {
+      bad('说明书更新点必须写全 path / section / summary（哪一份文档、哪一节、多了什么认知）')
     }
   }
 }

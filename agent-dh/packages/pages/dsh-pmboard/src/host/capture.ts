@@ -195,7 +195,9 @@ export function boundSectionText(ledger: ReqboardLedger, context: unknown): stri
     '- 合并去向与必填文档按需求类型限定（feature→architecture/guides，bug→known-issues，',
     '  spike→research，refactor→architecture/work-logs，chore→work-logs），规范见',
     '  agent-dh/docs/architecture/requirement-archive.md；缺项会被代码级拒绝；',
-    '- 归档材料里写了的合并去向，必须真的把那部分结论写进对应的项目文档。',
+    '- 归档材料里写了的合并去向，必须真的把那部分结论写进对应的项目文档；',
+    '- 金字塔生长：feature/refactor/spike 必须在材料里申报 manual_updates（更新了哪份文档的哪一节、',
+    '  多了什么认知），说明书是 docs/architecture/project-manual.md；bug/doc/chore 写 manual_note 说明即可。',
   ].join('\n')
 }
 

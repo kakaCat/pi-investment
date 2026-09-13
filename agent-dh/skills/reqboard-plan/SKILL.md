@@ -115,10 +115,13 @@ reqboard_decompose({})   // 不传 tasks：直接落库已批准的计划
 1. `reqboard_archive_submit({ dir, docs[], merged_into[], index_entry })`
    —— 需求目录（`docs/requirements/REQ-xxxxxx` 或 `agent-dh/docs/requirements/REQ-xxxxxx`）、
    目录内文档清单、合并去向、一句话索引条目；
-2. 必填文档与合法合并去向**按需求类型**限定（feature→architecture/guides，bug→known-issues，
-   spike→research，refactor→architecture/work-logs，chore→work-logs），缺项被代码级拒绝；
-3. **合并动作要真的做**：材料里写了 `agent-dh/docs/known-issues/x.md`，就得把那条根因与防回归写进去——
+2. 必填文档与合法合并去向**按需求类型**限定（feature→architecture|guides；bug→guides(故障排查)|architecture；
+   doc→docs/；refactor→adr|architecture；spike→rfcs|architecture|strategy-research；chore→work-logs），
+   缺项被代码级拒绝；**合并去向只允许既有规范目录，不许自创**；
+3. **合并动作要真的做**：材料里写了 `agent-dh/docs/guides/troubleshooting.md`，就得把那条根因与防回归写进去——
    只登记不合并，等于没归档；
+4. **金字塔生长**：feature/refactor/spike 类必须申报 `manual_updates`（更新了哪份文档哪一节、多了什么认知），
+   bug/doc/chore 可写 `manual_note` 说明无认知变化；说明书是 `docs/architecture/project-manual.md`（L1）；
 4. 人点「归档」→ 需求进入 `archived`，写入 `archivePath` 与时间线。
 
 规范文档：`agent-dh/docs/architecture/requirement-archive.md`；

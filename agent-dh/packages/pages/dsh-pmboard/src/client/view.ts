@@ -6,7 +6,7 @@
  * @module dsh-pmboard/client/view
  */
 import { esc } from '@pi-investment/page-kit/client'
-import type { BoardState, ReqCard, RequirementRecord, RequirementStatus, StatusEvent, TaskRecord, TaskStatus, TriageRecord } from './types.ts'
+import type { ArchiveRecord, BoardState, ReqCard, RequirementRecord, RequirementStatus, StatusEvent, TaskRecord, TaskStatus, TriageRecord } from './types.ts'
 
 /* ------------------------------------------------------------------ utils */
 
@@ -878,9 +878,24 @@ function renderArchiveSection(req: RequirementRecord): string {
     + '<div class="dsh-pm-block-summary">索引条目：' + esc(a.indexEntry) + '</div>'
     + '<div class="dsh-pm-doc-group"><span class="dsh-pm-hint">需求目录内的文档</span><ul class="dsh-pm-doc-list">' + docs + '</ul></div>'
     + '<div class="dsh-pm-doc-group"><span class="dsh-pm-hint">合并进的项目文档</span><ul class="dsh-pm-doc-list">' + merged + '</ul></div>'
+    + renderManualUpdates(a)
     + '</div>'
 }
 
 const ARCHIVE_DOC_KIND_LABELS: Record<string, string> = {
   requirement: '需求说明', plan: '实施计划', verification: '验收材料', retro: '复盘', notes: '其他',
+}
+
+/** 说明书更新点（金字塔 L1/L2）：归档让项目认知怎么长上去的。 */
+function renderManualUpdates(a: ArchiveRecord): string {
+  const updates = a.manualUpdates ?? []
+  if (updates.length === 0) {
+    return a.manualNote !== undefined
+      ? '<div class="dsh-pm-doc-group"><span class="dsh-pm-hint">项目说明书更新</span><div class="dsh-pm-block-summary">无（' + esc(a.manualNote) + '）</div></div>'
+      : ''
+  }
+  const items = updates.map(u =>
+    '<li><code>' + esc(u.path) + '</code><span class="dsh-pm-doc-kind">' + esc(u.section) + '</span><span>' + esc(u.summary) + '</span></li>').join('')
+  return '<div class="dsh-pm-doc-group"><span class="dsh-pm-hint">项目说明书更新（金字塔向上生长）</span>'
+    + '<ul class="dsh-pm-doc-list">' + items + '</ul></div>'
 }

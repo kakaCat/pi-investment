@@ -692,4 +692,27 @@ describe('验收区与归档区', () => {
     expect(detail).toContain('reqboard_archive_submit')
     expect(detail).toContain('agent-dh/docs/architecture/requirement-archive.md')
   })
+
+  it('归档区展示说明书更新点（金字塔向上生长）；无更新时显示理由', () => {
+    const base = {
+      dir: 'agent-dh/docs/requirements/REQ-abc123',
+      docs: [{ kind: 'requirement' as const, path: 'agent-dh/docs/requirements/REQ-abc123/requirement.md' }],
+      mergedInto: ['agent-dh/docs/architecture/requirement-board.md'],
+      indexEntry: '看板加时间线',
+      submittedAt: T0,
+      submittedBy: { kind: 'agent' as const },
+    }
+    const withManual = makeReq({
+      status: 'done',
+      archive: { ...base, manualUpdates: [{ path: 'docs/architecture/project-manual.md', section: '术语表', summary: '新增两个术语指针' }] },
+    })
+    const html = buildReqDetail(withManual, [], T0)
+    expect(html).toContain('项目说明书更新（金字塔向上生长）')
+    expect(html).toContain('docs/architecture/project-manual.md')
+    expect(html).toContain('新增两个术语指针')
+
+    const noManual = makeReq({ status: 'done', archive: { ...base, manualNote: '纯维护，不改项目认知' } })
+    expect(buildReqDetail(noManual, [], T0)).toContain('无（纯维护，不改项目认知）')
+  })
+
 })

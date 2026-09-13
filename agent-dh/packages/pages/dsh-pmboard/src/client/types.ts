@@ -72,11 +72,20 @@ export interface ArchiveDoc {
 }
 
 /** 归档材料（agent 准备）+ 归档结论（人） */
+/** 归档对项目说明书（金字塔 L1/L2）的更新点 */
+export interface ManualUpdate {
+  path: string
+  section: string
+  summary: string
+}
+
 export interface ArchiveRecord {
   dir: string
   docs: ArchiveDoc[]
   mergedInto: string[]
   indexEntry: string
+  manualUpdates?: ManualUpdate[]
+  manualNote?: string
   submittedAt: number
   submittedBy: ActorRef
   archivedAt?: number

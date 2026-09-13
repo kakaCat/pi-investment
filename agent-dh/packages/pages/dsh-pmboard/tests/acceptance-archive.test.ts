@@ -147,6 +147,9 @@ describe('归档：文档合并规范 + 人工拍板', () => {
     ],
     merged_into: ['agent-dh/docs/architecture/requirement-board.md'],
     index_entry: '需求看板加状态时间线/计划模式/甘特图，拆分为落库已批准计划',
+    manual_updates: [
+      { path: 'docs/architecture/project-manual.md', section: '关键概念（术语表）', summary: '新增"需求看板/计划模式"两个术语的指针' },
+    ],
   }
 
   it('文档规范：不同需求类型有不同必填文档与合法合并去向', () => {
@@ -215,5 +218,66 @@ describe('归档：文档合并规范 + 人工拍板', () => {
   it('未完成（implementing）的需求不能准备归档材料', async () => {
     await seed('implementing')
     await expect(run(archiveTool, goodArchive)).rejects.toThrow(/REQBOARD_BAD_STATUS/)
+  })
+})
+
+describe('文档金字塔：归档让项目认知向上生长', () => {
+  const goodArchive = {
+    dir: 'agent-dh/docs/requirements/REQ-abc123',
+    docs: [
+      { kind: 'requirement', path: 'agent-dh/docs/requirements/REQ-abc123/requirement.md' },
+      { kind: 'plan', path: 'agent-dh/docs/requirements/REQ-abc123/plan.md' },
+      { kind: 'verification', path: 'agent-dh/docs/requirements/REQ-abc123/verification.md' },
+    ],
+    merged_into: ['agent-dh/docs/architecture/requirement-board.md'],
+    index_entry: '一句话结论',
+    manual_updates: [
+      { path: 'docs/architecture/project-manual.md', section: '关键概念（术语表）', summary: '新增两个术语指针' },
+    ],
+  }
+
+  it('改变项目级认知的类型（feature/refactor/spike）必须申报说明书更新点', () => {
+    expect(ARCHIVE_DOC_RULES.feature.requireManual).toBe(true)
+    expect(ARCHIVE_DOC_RULES.refactor.requireManual).toBe(true)
+    expect(ARCHIVE_DOC_RULES.spike.requireManual).toBe(true)
+    expect(ARCHIVE_DOC_RULES.bug.requireManual).toBe(false)
+    const base = {
+      dir: 'agent-dh/docs/requirements/REQ-abc123',
+      docs: [{ kind: 'requirement' as const, path: 'a' }, { kind: 'plan' as const, path: 'b' }, { kind: 'verification' as const, path: 'c' }],
+      mergedInto: ['docs/architecture/x.md'],
+      indexEntry: 'i',
+    }
+    expect(() => assertArchiveMaterials('feature', base)).toThrow(/缺少项目说明书更新点/)
+    expect(() => assertArchiveMaterials('feature', {
+      ...base,
+      manualUpdates: [{ path: 'docs/architecture/project-manual.md', section: '术语表', summary: '多了 X 认知' }],
+    })).not.toThrow()
+    // 更新点必须写全 path/section/summary
+    expect(() => assertArchiveMaterials('feature', {
+      ...base,
+      manualUpdates: [{ path: '', section: 's', summary: 'x' }],
+    })).toThrow(/必须写全 path \/ section \/ summary/)
+    // 不改变认知的类型：不强制申报
+    expect(() => assertArchiveMaterials('chore', {
+      requiredForChore: true, dir: base.dir, docs: [{ kind: 'requirement', path: 'a' }, { kind: 'verification', path: 'c' }],
+      mergedInto: ['docs/work-logs/2026-09/x.md'], indexEntry: 'i',
+    } as never)).not.toThrow()
+  })
+
+  it('归档工具：feature 类不申报说明书更新点会被拒；申报后落库并在评论留痕', async () => {
+    await seed('done')
+    const noManual = {
+      dir: goodArchive.dir,
+      docs: goodArchive.docs,
+      merged_into: goodArchive.merged_into,
+      index_entry: goodArchive.index_entry,
+    }
+    await expect(run(archiveTool, noManual)).rejects.toThrow(/缺少项目说明书更新点/)
+
+    const out = await run(archiveTool, goodArchive)
+    expect(out.success).toBe(true)
+    const req = store.snapshot().requirements[0]
+    expect(req.archive?.manualUpdates?.[0]?.section).toBe('关键概念（术语表）')
+    expect(req.comments.at(-1)?.body).toContain('说明书更新：docs/architecture/project-manual.md#关键概念（术语表）')
   })
 })

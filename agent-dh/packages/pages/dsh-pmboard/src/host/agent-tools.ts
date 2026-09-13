@@ -1178,6 +1178,21 @@ export function defineArchiveSubmitTool(deps: ReqboardToolDeps) {
         items: { type: 'string' },
       },
       index_entry: { type: 'string', description: '一句话结论（进归档索引）', required: true },
+      manual_updates: {
+        type: 'array',
+        description: '项目说明书更新点（金字塔 L1/L2）：feature/refactor/spike 必填——'
+          + '写清更新了哪一份文档的哪一节、多了什么认知',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            path: { type: 'string', description: '文档路径（如 docs/architecture/project-manual.md）' },
+            section: { type: 'string', description: '章节标题' },
+            summary: { type: 'string', description: '一句话：这一节现在多了什么认知' },
+          },
+        },
+      },
+      manual_note: { type: 'string', description: '无手册更新时的理由（bug/doc/chore 可只写这条）' },
     },
     output: {
       schema: {
@@ -1203,6 +1218,8 @@ export function defineArchiveSubmitTool(deps: ReqboardToolDeps) {
         docs?: unknown
         merged_into?: unknown
         index_entry?: unknown
+        manual_updates?: unknown
+        manual_note?: unknown
       }
       const explicitId = normalizeText(a.requirement_id, 'requirement_id', 64)
       const dir = normalizeText(a.dir, 'dir', 400)
@@ -1227,6 +1244,17 @@ export function defineArchiveSubmitTool(deps: ReqboardToolDeps) {
         .map(m => normalizeText(m, 'merged_into[]', 400))
         .filter(m => m.length > 0)
         .slice(0, 10)
+      const manualUpdates = Array.isArray(a.manual_updates)
+        ? (a.manual_updates as unknown[]).map(u => {
+          const o = (typeof u === 'object' && u !== null ? u : {}) as Record<string, unknown>
+          return {
+            path: normalizeText(o.path, 'manual_updates[].path', 400),
+            section: normalizeText(o.section, 'manual_updates[].section', 200),
+            summary: normalizeText(o.summary, 'manual_updates[].summary', 500),
+          }
+        })
+        : []
+      const manualNote = normalizeText(a.manual_note, 'manual_note', 500)
 
       // 归档的对象是**已完成**的需求——它已经不在 open 集合里，所以这里按「本窗口的需求」
       // （sourceSessionId 锚点）判定，而不是按 open 判定（否则归档永远找不到自己的需求）。
@@ -1244,7 +1272,11 @@ export function defineArchiveSubmitTool(deps: ReqboardToolDeps) {
         reject('reqboard_archive_submit 未执行：需求处于 ' + actual.status + '，只有已完成（done）的需求才能归档', 'REQBOARD_BAD_STATUS')
       }
       try {
-        assertArchiveMaterials(actual.category, { dir, docs, mergedInto, indexEntry })
+        assertArchiveMaterials(actual.category, {
+          dir, docs, mergedInto, indexEntry,
+          ...(manualUpdates.length > 0 ? { manualUpdates } : {}),
+          ...(manualNote.length > 0 ? { manualNote } : {}),
+        })
       } catch (err) {
         reject('reqboard_archive_submit 未执行：' + ((err as Error).message ?? String(err)), 'REQBOARD_INVALID_INPUT')
       }
@@ -1253,13 +1285,22 @@ export function defineArchiveSubmitTool(deps: ReqboardToolDeps) {
       const result = await deps.store.mutate('requirement-updated', (ledger) => {
         const req = ledger.requirements.find(r => r.id === actual.id)
         if (req === undefined) return undefined
-        req.archive = { dir, docs, mergedInto, indexEntry, submittedAt: nowTs, submittedBy: { kind: 'agent', sessionId: windowKey } }
+        req.archive = {
+          dir, docs, mergedInto, indexEntry,
+          ...(manualUpdates.length > 0 ? { manualUpdates } : {}),
+          ...(manualNote.length > 0 ? { manualNote } : {}),
+          submittedAt: nowTs,
+          submittedBy: { kind: 'agent', sessionId: windowKey },
+        }
         req.comments.push({
           id: newCommentId(),
           body: '[归档] 材料已备（待人点归档）：' + dir
             + '\n文档：' + docs.map(d => d.kind + '=' + d.path).join('；')
             + '\n合并进：' + mergedInto.join('；')
-            + '\n索引：' + indexEntry,
+            + '\n索引：' + indexEntry
+            + (manualUpdates.length > 0
+              ? '\n说明书更新：' + manualUpdates.map(u => u.path + '#' + u.section + '（' + u.summary + '）').join('；')
+              : (manualNote.length > 0 ? '\n说明书更新：无（' + manualNote + '）' : '')),
           createdAt: nowTs,
           createdBy: { kind: 'agent', sessionId: windowKey },
         })

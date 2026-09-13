@@ -1,5 +1,8 @@
 # PI Investment 文档中心
 
+> **先读这一页**：[项目说明书（project-manual.md）](architecture/project-manual.md)——项目是什么、
+> 三层架构、关键概念、怎么跑、去哪儿找细节。本页是它的导航层。
+
 欢迎来到 PI Investment 文档中心。本目录包含系统架构、技术决策和使用指南。
 
 ## 📖 快速导航

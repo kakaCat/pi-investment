@@ -16,6 +16,22 @@
   再改代码里的 `ARCHIVE_DOC_RULES`，最后才用它归档；
 - 代码会拒绝落在规范外的合并去向（`REQBOARD_INVALID_INPUT`）——这是代码闸门，不是提示词约定。
 
+## 0.5 归档把认知推上金字塔（2026-09-13 追加）
+
+归档不只是留证据，它让**项目认知自下而上生长**：
+
+    L3 证据（需求档案 requirement/plan/verification/retro）
+      → L2 领域篇（architecture / guides / adr / rfcs / strategy-research）
+        → L1 说明书（docs/architecture/project-manual.md：项目是什么/架构/术语/去哪找）
+
+- 每次归档：**L3 必写 + L2 至少一篇**（合并矩阵见 §3）；
+- **改变了项目级认知**的类型（feature / refactor / spike）**必须申报说明书更新点**
+  （`manual_updates`：path / section / summary）——代码会拒绝没有更新点的归档；
+- 不改变认知的类型（bug / doc / chore）写 `manual_note` 说明即可；
+- L1 每次变更要在说明书「最近更新」表追加一行（日期 / 更新点 / 来源 REQ）。
+
+判据：**读完 L1 就该知道"这个项目是什么、现在有哪些关键认知"**；读不懂或找不到指针，说明这一层没维护。
+
 ## 1. 归档是什么：存底 + 合并
 
 归档容易退化成两种失败：**挪目录式归档**（需求目录一挪，半年后没人知道结论）与
