@@ -181,7 +181,16 @@ class WeeklyReportService:
         highlights = []
         
         # 信号质量亮点
-        if signals_stats['total'] > 0:
+        # 2026-09-13（w-c8cae280，执行 weekly-report-m6 例行时实测发现的口径缺陷）：
+        # 原实现只看 total>0，不看"有没有成熟样本"——with_performance=0（信号未满 5 个交易日）时
+        # avg_win_rate_5d 恒为 0，于是输出"⚠️ 本周信号质量偏低：5日胜率 0.0%"，把"还没到 5 日"
+        # 误报成"全亏"。这属**报告口径问题，不是规则问题**，按 SOP 第 2 步归到数据/展示层修。
+        scored = int(signals_stats.get('with_performance') or 0)
+        if signals_stats['total'] > 0 and scored == 0:
+            highlights.append(
+                f"ℹ️ 本周 {signals_stats['total']} 条信号尚无成熟表现样本（未满 5 个交易日）——本周不评判信号质量"
+            )
+        elif signals_stats['total'] > 0:
             win_rate = signals_stats['avg_win_rate_5d']
             if win_rate > 0.7:
                 highlights.append(f"✅ 本周信号质量优秀：5日胜率 {win_rate*100:.1f}%")
@@ -245,8 +254,8 @@ class WeeklyReportService:
 
 - **信号数量**: {report['summary']['total_signals']}
 - **已回填表现**: {report['summary']['signals_with_performance']}
-- **5日胜率**: {report['summary']['avg_win_rate_5d']*100:.1f}%
-- **5日平均收益**: {report['summary']['avg_return_5d']*100:.2f}%
+- **5日胜率**: {f"{report['summary']['avg_win_rate_5d']*100:.1f}%" if report['summary']['signals_with_performance'] else "样本未成熟（0 条已回填，不评判）"}
+- **5日平均收益**: {f"{report['summary']['avg_return_5d']*100:.2f}%" if report['summary']['signals_with_performance'] else "样本未成熟（0 条已回填，不评判）"}
 
 ### 信号分级分布
 - A级（标准仓）: {report['signals']['grade_a']}
