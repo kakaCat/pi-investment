@@ -130,39 +130,9 @@ export class AlgoExecuteTool extends BaseTool<AlgoExecuteParams, AlgoExecuteResu
       }
     }
 
-    // R-019（2026-09-13 w-c8cae280）：写操作必须显式指定账户。
-    // agent-dh 自有账户 = agent_brain；agent_virtual 属 agent-ts（fin-agent），禁止写入。
-    const acct = args.account_name;
-    if (acct === undefined || acct === null || String(acct).trim() === '') {
-      return {
-        success: false,
-        errorType: ErrorType.INPUT_ERROR,
-        field: 'account_name',
-        issue: '写操作必须显式传 account_name（agent-dh 自有账户 = agent_brain）',
-        received: acct,
-        expected: "'agent_brain'",
-        example: 'agent_brain',
-        guide: '默认账户不再隐式作用于写操作；agent_virtual 属 agent-ts，禁止写入',
-      };
-    }
-    // 2026-09-13 独立审阅 M8：拒绝集补上 'default'（已冻结的 legacy 账户）——
-    // 原护栏只拦 agent_virtual，示例里的 account_name:'default' 照写不误。
-    const forbidden = ['agent_virtual', 'default'];
-    if (forbidden.includes(String(acct).trim())) {
-      const a = String(acct).trim();
-      return {
-        success: false,
-        errorType: ErrorType.INPUT_ERROR,
-        field: 'account_name',
-        issue: a === 'agent_virtual'
-          ? 'agent_virtual 属 agent-ts（fin-agent），agent-dh 禁止对其写入'
-          : 'default 是已冻结的 legacy 账户，禁止写入',
-        received: acct,
-        expected: "'agent_brain'",
-        example: 'agent_brain',
-      };
-    }
-
+    // 2026-09-13（用户裁定）：不做拦截——account_name 缺参时按工具层默认账户执行
+    // （agent-dh = DEFAULT_AGENT_ACCOUNT = agent_brain；agent-ts 侧各自维护自己的默认值）。
+    // 账户名不写死：任务/文档引用系统提示词 agent:identity 段的「本实例投资账户」。
     return { success: true };
   }
 

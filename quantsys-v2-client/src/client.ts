@@ -1,13 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import axiosRetry from 'axios-retry';
 import type {
-
-/**
- * 账户单一事实源（2026-09-13 w-c8cae280）：本包不依赖 @pi-investment/core-tool，
- * 故就地定义同名常量；可用环境变量 DSH_INVESTMENT_ACCOUNT 覆盖。
- * 提示词/任务侧的事实源是 profileDir/agents.json 的 instance.account。
- */
-export const DEFAULT_AGENT_ACCOUNT = ((typeof process !== 'undefined' && process.env?.DSH_INVESTMENT_ACCOUNT?.trim()) || 'agent_brain');
   Stock,
   KlineData,
   Strategy,
@@ -76,6 +69,14 @@ export const DEFAULT_AGENT_ACCOUNT = ((typeof process !== 'undefined' && process
   EvolutionEngineRunResult,
   EvolutionEngineRunsResponse,
 } from './types.js';
+
+
+/**
+ * 账户单一事实源（2026-09-13 w-c8cae280）：本包不依赖 @pi-investment/core-tool，
+ * 故就地定义同名常量；可用环境变量 DSH_INVESTMENT_ACCOUNT 覆盖。
+ * 提示词/任务侧的事实源是 profileDir/agents.json 的 instance.account。
+ */
+export const DEFAULT_AGENT_ACCOUNT = ((typeof process !== 'undefined' && process.env?.DSH_INVESTMENT_ACCOUNT?.trim()) || 'agent_brain');
 
 /**
  * QuantsysV2 API Client
@@ -1035,6 +1036,20 @@ export class QuantsysV2Client {
    * 挂单列表（盘前挂单）
    * Real endpoint: GET /api/simulation/accounts/{account}/pending-orders?status=pending|all
    */
+  /**
+   * 账户发现（2026-09-13 w-c8cae280）：列出账户 + 摘要。
+   * 后端 GET /api/simulation/accounts?status=active → {accounts:[{account_name, display_name,
+   * strategy_name, account_type, status, cash_available, cash_frozen, position_value,
+   * total_value, cumulative_return, positions_count}], total}
+   * 用途：让 agent **不必记住/写死账户名**——先查有哪些账户、哪个是本实例账户。
+   */
+  async listAccounts(status: 'active' | 'all' = 'active'): Promise<any[]> {
+    const response = await this.client.get('/api/simulation/accounts', { params: { status } });
+    const data = this.unwrap<any>(response.data, 'listAccounts');
+    const rows = Array.isArray(data) ? data : (data?.accounts ?? []);
+    return Array.isArray(rows) ? rows : [];
+  }
+
   async listPendingOrders(accountName: string = DEFAULT_AGENT_ACCOUNT, status: 'pending' | 'all' = 'pending'): Promise<any[]> {
     const response = await this.client.get(
       `/api/simulation/accounts/${encodeURIComponent(accountName)}/pending-orders`,

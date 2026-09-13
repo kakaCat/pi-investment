@@ -3,6 +3,7 @@ import z from '@deepseek-ai/schemastery';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import { AgentOSClient } from '@pi-investment/agent-os-client';
 import { createAccountInfoTool } from './tools/AccountInfoTool';
+import { createAccountListTool } from './tools/AccountListTool';
 import { createPositionListTool } from './tools/PositionListTool';
 import { createPortfolioTradeTool } from './tools/PortfolioTradeTool';
 import { createM4CircuitBreakerTool } from './tools/M4CircuitBreakerTool';
@@ -134,6 +135,8 @@ export default class TradingPlugin extends Service {
 
     // 1. 账户信息（重构为 BaseTool）
     ctx.tools.register(createAccountInfoTool(qv2));
+    // 账户发现（2026-09-13 w-c8cae280）：让 agent 能查询账户清单，而不是把账户名写死
+    ctx.tools.register(createAccountListTool(qv2));
 
     // 2. 持仓列表（重构为 BaseTool）
     ctx.tools.register(createPositionListTool(qv2));
