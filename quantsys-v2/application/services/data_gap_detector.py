@@ -178,78 +178,10 @@ class DataGapDetector:
         if not symbols:
             return {}
 
-        try:
-            # 使用 PostgreSQL 的 array_agg 聚合函数，一次查询获取所有股票的交易日
-            query = """
-                SELECT symbol, array_agg(trade_date::text ORDER BY trade_date) as dates
-                FROM quant.daily_klines
-                WHERE symbol = ANY(%s)
-                  AND trade_date >= %s
-                  AND trade_date <= %s
-                GROUP BY symbol
-            """
-
-            cursor = None
-            try:
-                cursor = self.kline_repo._get_cursor()
-                cursor.execute(query, (symbols, start_date, end_date))
-                results = cursor.fetchall()
-            finally:
-                if cursor:
-                    cursor.close()
-
-            # 转换为字典
-            actual_days_map = {}
-            for row in results:
-                if isinstance(row, dict):
-                    symbol = row['symbol']
-                    dates = row['dates']
-                else:
-                    symbol = row[0]
-                    dates = row[1]
-                actual_days_map[symbol] = set(dates) if dates else set()
-
-            # 补充没有数据的股票（空集合）
-            for symbol in symbols:
-                if symbol not in actual_days_map:
-                    actual_days_map[symbol] = set()
-
-            return actual_days_map
-
-        except Exception as e:
-            logger.error(f"批量查询实际交易日失败: {e}")
-            # Fallback：逐个查询（使用正确的方法签名）
-            actual_days_map = {}
-            for symbol in symbols:
-                try:
-                    query = """
-                        SELECT trade_date
-                        FROM quant.daily_klines
-                        WHERE symbol = %s
-                          AND trade_date >= %s
-                          AND trade_date <= %s
-                        ORDER BY trade_date ASC
-                    """
-                    cursor = None
-                    try:
-                        cursor = self.kline_repo._get_cursor()
-                        cursor.execute(query, (symbol, start_date, end_date))
-                        results = cursor.fetchall()
-                        # Handle both dict and tuple results
-                        if results and isinstance(results[0], dict):
-                            actual_days_map[symbol] = set(str(row['trade_date']) for row in results)
-                        elif results:
-                            actual_days_map[symbol] = set(str(row[0]) for row in results)
-                        else:
-                            actual_days_map[symbol] = set()
-                    finally:
-                        if cursor:
-                            cursor.close()
-                except Exception as e2:
-                    logger.error(f"查询股票 {symbol} 实际交易日失败: {e2}")
-                    actual_days_map[symbol] = set()
-
-            return actual_days_map
+        # 2026-09-14（w-32314d00，REQ-24e15d B3）：两处裸 SQL（array_agg 批量 + 逐只回退）
+        # 收敛为一个仓储方法。仓储内部已保证"没有数据的股票得到空集合"，
+        # 且不再需要 dict/tuple 双形态兼容分支与手工游标生命周期管理。
+        return self.kline_repo.get_trade_dates_map(symbols, start_date, end_date)
 
     def _calculate_gaps_for_symbol(
         self,

@@ -183,19 +183,14 @@ class TradingDayGuard:
     # ------------------------------------------------------------------
     @staticmethod
     def _kline_stats(day: date):
-        """(该日是否有K线, 最近K线日期)；两条查询均走 daily_klines 索引（实测 0.12ms）。"""
-        from infrastructure.persistence.database.engine import db_cursor
+        """(该日是否有K线, 最近K线日期)。
 
-        with db_cursor() as cursor:
-            cursor.execute(
-                'SELECT EXISTS (SELECT 1 FROM quant.daily_klines WHERE trade_date = %s) AS exists_on_date,'
-                ' (SELECT max(trade_date) FROM quant.daily_klines) AS latest_date',
-                (day,),
-            )
-            row = cursor.fetchone()
+        2026-09-14（w-32314d00，REQ-24e15d B3）：原来把两个子查询塞进一条裸 SQL、
+        再靠 isinstance(row, dict) 兼容两种结果形态；现拆成两个仓储方法，各自只返回一个值。
+        """
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository
 
-        if row is None:
-            return False, None
-        if isinstance(row, dict):
-            return bool(row.get('exists_on_date')), row.get('latest_date')
-        return bool(row[0]), row[1]
+        repo = KlineORMRepository()
+        exists_on_date = repo.has_bar_on_date(day)
+        latest = repo.get_latest_trade_date()
+        return exists_on_date, latest

@@ -266,29 +266,10 @@ class DataValidator:
             }
         """
         try:
-            query = """
-                SELECT trade_date, COUNT(*) as cnt
-                FROM quant.daily_klines
-                WHERE symbol = %s
-                  AND trade_date >= %s
-                  AND trade_date <= %s
-                GROUP BY trade_date
-                HAVING COUNT(*) > 1
-                ORDER BY trade_date
-            """
-
-            cursor = self.kline_repo._get_cursor()
-            cursor.execute(query, (symbol, start_date, end_date))
-            results = cursor.fetchall()
-            cursor.close()
-
-            # Handle both dict and tuple results
-            if results and isinstance(results[0], dict):
-                duplicate_dates = [str(row['trade_date']) for row in results]
-            elif results:
-                duplicate_dates = [str(row[0]) for row in results]
-            else:
-                duplicate_dates = []
+            # 2026-09-14（w-32314d00，REQ-24e15d B3）：裸 SQL + 私有游标（_get_cursor）
+            # → KlineORMRepository.find_duplicate_trade_dates（不再需要兼容 dict/tuple 两种形态）。
+            duplicate_dates = self.kline_repo.find_duplicate_trade_dates(
+                symbol, start_date, end_date)
 
             return {
                 'has_duplicates': len(duplicate_dates) > 0,

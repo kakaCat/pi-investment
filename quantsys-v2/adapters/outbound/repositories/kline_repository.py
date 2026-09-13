@@ -1388,6 +1388,88 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             logger.error(f"Error in get_market_breadth_history: {e}")
             return []
 
+    def has_bar_on_date(self, day) -> bool:
+        """某自然日是否已有日K数据（TradingDayGuard 的"是否已收盘并落库"判据）。
+
+        2026-09-14（w-32314d00，REQ-24e15d B3）：原实现在
+        application/services/trading_day_guard.py 里用 db_cursor 执行
+        "SELECT EXISTS(SELECT 1 FROM quant.daily_klines WHERE trade_date = %s)"，
+        与"(SELECT max(trade_date) …)"合并成一次往返。这里拆成两个仓储方法
+        （可读性优先；两者都走 daily_klines 的索引，实测各 ~0.1ms）。
+        """
+        from datetime import date as _date
+        d = day
+        if isinstance(day, str):
+            try:
+                d = _date.fromisoformat(day[:10])
+            except ValueError:
+                return False
+        try:
+            return self.session.query(DailyKline.trade_date).filter(
+                DailyKline.trade_date == d
+            ).first() is not None
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error checking bar on {day}: {e}")
+            return False
+
+    def get_trade_dates_map(self, symbols: List[str], start_date, end_date) -> Dict[str, set]:
+        """批量取多只股票在区间内**实际有数据**的交易日集合。
+
+        2026-09-14（w-32314d00，REQ-24e15d B3）：原实现在
+        application/services/data_gap_detector.py 里用 array_agg 的裸 SQL 一次查全部，
+        失败再逐只回退。这里用一次 ORM 查询 + Python 侧分组（等价语义，
+        且不再需要"两种结果形态"的兼容分支）。**没有数据的股票会得到空集合**，
+        与调用方原有的"补充空集合"行为一致。
+        """
+        out: Dict[str, set] = {str(s): set() for s in symbols}
+        if not symbols:
+            return out
+        try:
+            rows = (
+                self.session.query(DailyKline.symbol, DailyKline.trade_date)
+                .filter(DailyKline.symbol.in_([str(s) for s in symbols]))
+                .filter(DailyKline.trade_date >= start_date)
+                .filter(DailyKline.trade_date <= end_date)
+                .order_by(DailyKline.symbol.asc(), DailyKline.trade_date.asc())
+                .all()
+            )
+            for sym, d in rows:
+                out.setdefault(str(sym), set()).add(str(d))
+            return out
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting trade dates map: {e}")
+            return out
+
+    def find_duplicate_trade_dates(self, symbol: str, start_date, end_date) -> List[str]:
+        """区间内出现重复行的交易日（数据完整性校验用）。
+
+        2026-09-14（w-32314d00，REQ-24e15d B3）：原实现在
+        application/services/data_validator.py 里用裸 SQL
+        GROUP BY trade_date HAVING COUNT(*) > 1。
+        注意：daily_klines 主键是 (symbol, trade_date)，正常不可能重复——
+        本方法用于校验历史遗留/异常写入，保留其原语义。
+        """
+        try:
+            rows = (
+                self.session.query(
+                    DailyKline.trade_date, func.count().label('cnt')
+                )
+                .filter(DailyKline.symbol == self._normalize_symbol(symbol))
+                .filter(DailyKline.trade_date >= start_date)
+                .filter(DailyKline.trade_date <= end_date)
+                .group_by(DailyKline.trade_date)
+                .having(func.count() > 1)
+                .order_by(DailyKline.trade_date.asc())
+                .all()
+            )
+            return [str(r[0]) for r in rows]
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error finding duplicate trade dates for {symbol}: {e}")
+            return []
+
     def get_latest_trade_date(self) -> Optional[str]:
         """最新交易日（daily_klines 最大 trade_date）。
 
