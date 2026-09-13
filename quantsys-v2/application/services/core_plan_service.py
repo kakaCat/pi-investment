@@ -24,6 +24,7 @@
 import argparse, json, os, subprocess, sys
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -57,6 +58,53 @@ def psql_csv(q):
     return df
 
 
+# --------------------------------------------------------------------------- #
+# 账户事实源解析（R-019：账户名不得写死在任务/提示词/代码里）
+#
+# 背景（2026-09-13 实测）：本服务上迁为 job 后，scheduler 传给 job 的 params 来自任务行
+# （{\"command\": ..., \"description\": ...}），**不含 account** → generate() 直接抛
+#   ValueError: core_plan generate 需要 account 参数
+# 也就是"任务注册成功"并不等于"任务能跑通"：注册只证明 JobRegistry 里有这个类，
+# 参数从哪来只有真触发一次才暴露（本次即由 POST /api/scheduler/tasks/337/trigger 抓到）。
+#
+# 解析顺序（越靠前优先级越高）：
+#   1) 调用方显式传入的 account
+#   2) 环境变量 DSH_INVESTMENT_ACCOUNT
+#   3) profileDir/agents.json 的 instance.account —— **唯一事实源**（R-019）
+#   4) 都没有 → 显式报错（不猜、不写死）
+# profileDir 解析：环境变量 DSH_PROFILE_DIR，否则仓库内默认位置
+#   <repo>/agent-dh/.dsh-home/profiles/investment
+# --------------------------------------------------------------------------- #
+DEFAULT_PROFILE_DIR = ROOT.parent / "agent-dh" / ".dsh-home" / "profiles" / "investment"
+
+
+def resolve_account(explicit: Optional[str] = None) -> str:
+    """按 R-019 解析投资账户名：显式 > 环境变量 > agents.json（唯一事实源）> 报错。"""
+    if explicit:
+        return str(explicit).strip()
+    env = (os.environ.get("DSH_INVESTMENT_ACCOUNT") or "").strip()
+    if env:
+        return env
+    import json as _json
+    profile_dir = Path(os.environ.get("DSH_PROFILE_DIR") or DEFAULT_PROFILE_DIR)
+    agents = profile_dir / "agents.json"
+    if agents.exists():
+        try:
+            doc = _json.loads(agents.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001 —— 读不动就是读不动，不能退回默认值
+            raise ValueError("账户事实源 %s 解析失败：%s" % (agents, exc))
+        acct = ((doc.get("instance") or {}).get("account") or "").strip()
+        if acct:
+            return acct
+        raise ValueError("账户事实源 %s 的 instance.account 为空——请先在 agents.json 指定本实例账户"
+                         % agents)
+    raise ValueError(
+        "无法解析投资账户：未显式传 account、未设 DSH_INVESTMENT_ACCOUNT，且 %s 不存在。"
+        "账户唯一事实源是 profileDir/agents.json 的 instance.account（R-019），本服务不内置默认账户名。"
+        % agents)
+
+
+
 def generate(**kwargs) -> dict:
     class _A:
         pass
@@ -65,8 +113,8 @@ def generate(**kwargs) -> dict:
         setattr(a, k, v)
     for k, v in (kwargs or {}).items():
         setattr(a, k, v)
-    if not a.account:
-        raise ValueError('core_plan generate 需要 account 参数（账户事实源见 agents.json / account_list）')
+    # R-019：账户来自唯一事实源（agents.json），不写死；调度任务 params 里没有 account 也能跑。
+    a.account = resolve_account(a.account)
 
     # 1) 候选池：窗口前定义（2024H1）流动性 Top，含价格与流动性明细
     px = psql_csv("select symbol, max(trade_date)::text as d, avg(amount) as amt from quant.daily_klines "
