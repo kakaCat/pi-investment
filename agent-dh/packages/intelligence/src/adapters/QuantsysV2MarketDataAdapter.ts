@@ -6,12 +6,14 @@
 
 import type { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
 import type {
-import { DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
   MarketDataProvider,
   PriceData,
   TradeExecution,
   Position,
 } from '../domain/evaluation/EvaluationStrategy';
+// 2026-09-13 修复（w-a9ec14d7）：此前改账户默认值时，本行被误插进上面 import type {...}
+// 多行块内部 → 该文件语法错误（TS1003/TS1005），intelligence 包构建必败、dist 无法更新。
+import { DEFAULT_AGENT_ACCOUNT } from '@pi-investment/core-tool';
 
 export class QuantsysV2MarketDataAdapter implements MarketDataProvider {
   constructor(private readonly qv2Client: QuantsysV2Client) {}

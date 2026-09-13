@@ -52,7 +52,15 @@ def enrich_strategy_response(strategy: Dict) -> Dict:
         'code': strategy.get('code_content'),
         'params': strategy.get('parsed_params'),
         'is_active': strategy.get('is_active', True),
+        # 2026-09-13（w-a9ec14d7）：两根轴分开暴露。此前只有一个 validation_status，
+        # 'invalid' 被 status_mapping 映射成用户可见的 'error' → 结构判定冒充运行/可用性判定，
+        # 而 'valid' 又容易被读成"这策略好用"（实测 active+valid 全部跑输基准）。
         'validation_status': strategy.get('validation_status', 'unvalidated'),
+        'structure_status': strategy.get('structure_status') or strategy.get('validation_status', 'unknown'),
+        'performance_status': strategy.get('performance_status') or 'unmeasured',
+        'performance_evidence': strategy.get('performance_evidence'),
+        'performance_checked_at': strategy.get('performance_checked_at'),
+        'status_semantics': ('status 仅由 structure_status 派生（valid→stopped / invalid→error），不代表业绩；判断能不能用请看 performance_status（passing/underperform/failing/unmeasured）'),
         'strategy_profile': strategy_profile,
         'tags': strategy_profile.get('tags', []) if isinstance(strategy_profile.get('tags'), list) else [],
         'performance': None,

@@ -37,8 +37,14 @@ class StrategyConfig(Base):
     favorite_count = Column(Integer)
     strategy_metadata = Column('metadata', JSON)  # 使用别名避免冲突
     strategy_profile = Column(JSON)
-    validation_status = Column(String(50))  # 独立列：验证状态（valid/invalid/pending）
+    validation_status = Column(String(50))  # 【遗留·结构语义】等价 structure_status，保留兼容旧读路径
     validation_errors = Column(Text)  # 独立列：验证错误信息
+    # 2026-09-13（w-a9ec14d7）：把 validation_status 的两种含义拆开——结构有效 vs 业绩有效。
+    # 见 application/services/strategy_status.py（判定规则单一事实源）。
+    structure_status = Column(String(50))  # 代码/参数能否跑通：valid/invalid/pending/unknown
+    performance_status = Column(String(50))  # 相对同池等权基准是否有超额：passing/underperform/failing/unmeasured
+    performance_evidence = Column(JSON)  # 业绩判定证据（年化/夏普/回撤/基准/来源/窗口/规则）
+    performance_checked_at = Column(DateTime)  # 业绩判定时间
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     last_executed_at = Column(DateTime)  # 最后执行时间
@@ -194,6 +200,10 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
                 'strategy_profile': s.strategy_profile,
                 'validation_status': s.validation_status or (s.strategy_metadata or {}).get('validation_status'),
                 'validation_errors': s.validation_errors or (s.strategy_metadata or {}).get('validation_errors'),
+                'structure_status': s.structure_status or (s.strategy_metadata or {}).get('structure_status') or s.validation_status,
+                'performance_status': s.performance_status or (s.strategy_metadata or {}).get('performance_status') or 'unmeasured',
+                'performance_evidence': s.performance_evidence,
+                'performance_checked_at': s.performance_checked_at.isoformat() if s.performance_checked_at else None,
                 'created_at': s.created_at.isoformat() if s.created_at else None,
                 'updated_at': s.updated_at.isoformat() if s.updated_at else None,
             } for s in strategies]
@@ -246,12 +256,86 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
                 'strategy_profile': strategy.strategy_profile,
                 'validation_status': strategy.validation_status or (strategy.strategy_metadata or {}).get('validation_status'),
                 'validation_errors': strategy.validation_errors or (strategy.strategy_metadata or {}).get('validation_errors'),
+                'structure_status': strategy.structure_status or (strategy.strategy_metadata or {}).get('structure_status') or strategy.validation_status,
+                'performance_status': strategy.performance_status or (strategy.strategy_metadata or {}).get('performance_status') or 'unmeasured',
+                'performance_evidence': strategy.performance_evidence,
+                'performance_checked_at': strategy.performance_checked_at.isoformat() if strategy.performance_checked_at else None,
             }
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error getting strategy by id {strategy_id}: {e}")
             return None
 
+    # ── 用户策略（quant.strategy_configs）写路径 ──────────────────────────────
+    # 2026-09-13（w-32314d00，错误事件 e22c1dc2）：本类继承了 BaseORMRepository 的
+    # 通用 update(obj, commit) / delete(obj, commit)，而 StrategyCodeService 按**字典 API**
+    # 调用 update(strategy_id, updates) / delete(strategy_id) —— 方法名撞车，参数被当成 ORM 对象：
+    #   session.merge("163") / session.delete("163")
+    #   → UnmappedInstanceError: Class 'builtins.str' is not mapped
+    #   → 被基类 except 吞掉并打成 "Error updating Strategy: ..."（strategy_repo.update 调用点）
+    #   → /api/strategies/stop/{id}、/api/strategies/update/{id}、/api/strategies/delete/{id} 全 500。
+    # 现补上显式命名的用户策略写方法，服务端同步改调用（不再撞通用 CRUD 的名字）。
+    USER_STRATEGY_UPDATABLE = frozenset({
+        'strategy_name', 'description', 'strategy_type', 'parameters', 'risk_params',
+        'is_active', 'version', 'author', 'code_content', 'code_type', 'parsed_params',
+        'risk_config', 'metadata', 'validation_status', 'validation_errors',
+        'last_executed_at', 'is_public', 'category', 'favorite_count', 'strategy_profile',
+    })
+    _JSONB_COLUMNS = frozenset({
+        'parameters', 'risk_params', 'parsed_params', 'risk_config', 'metadata',
+        'strategy_profile',
+    })
+
+    def update_user_strategy(self, strategy_id: int, updates: Dict[str, Any]) -> bool:
+        """按 id 更新用户策略（quant.strategy_configs），返回是否命中行。
+
+        白名单外的字段忽略并告警（表列由 information_schema 实测，避免把不存在的列写进 SQL）；
+        JSONB 列显式 CAST，None 表示置空。
+        """
+        import json
+        from sqlalchemy import text
+
+        updates = dict(updates or {})
+        if 'strategy_metadata' in updates and 'metadata' not in updates:
+            updates['metadata'] = updates.pop('strategy_metadata')
+        assignments, params = [], {"sid": strategy_id}
+        for key, value in updates.items():
+            if key not in self.USER_STRATEGY_UPDATABLE:
+                logger.warning(f"update_user_strategy: 未知字段 {key!r} 已忽略")
+                continue
+            if key in self._JSONB_COLUMNS:
+                assignments.append(f"{key} = CAST(:{key} AS jsonb)")
+                params[key] = None if value is None else json.dumps(value, ensure_ascii=False, default=str)
+            else:
+                assignments.append(f"{key} = :{key}")
+                params[key] = value
+        try:
+            if not assignments:
+                logger.warning(f"update_user_strategy: 无有效字段可更新 (id={strategy_id})")
+                return False
+            sql = ("UPDATE quant.strategy_configs SET " + ", ".join(assignments)
+                   + ", updated_at = now() WHERE id = :sid")
+            result = self.session.execute(text(sql), params)
+            self.session.commit()
+            return bool(result.rowcount)
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error updating user strategy {strategy_id}: {e}")
+            return False
+
+    def delete_user_strategy(self, strategy_id: int) -> bool:
+        """按 id 删除用户策略（quant.strategy_configs）。"""
+        from sqlalchemy import text
+        try:
+            result = self.session.execute(
+                text("DELETE FROM quant.strategy_configs WHERE id = :sid"),
+                {"sid": strategy_id})
+            self.session.commit()
+            return bool(result.rowcount)
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error deleting user strategy {strategy_id}: {e}")
+            return False
     def update_last_executed(self, strategy_id: int) -> bool:
         """更新策略的最后执行时间
 
@@ -389,6 +473,8 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
             # 独立列（真实 schema 主存储）
             strategy.validation_status = status
             strategy.validation_errors = errors if errors else None
+            # 2026-09-13：结构状态双写（validation_status 的语义就是结构有效，此处起别名，读端不再混用）
+            strategy.structure_status = status
 
             # metadata JSON（兼容历史读路径双写）
             # 注意：JSON 列原地改 dict 再赋回同一对象，SQLAlchemy 比较前后相等会跳过该列 UPDATE，
@@ -419,6 +505,57 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error updating validation status for strategy {strategy_id}: {e}")
+            raise
+
+    def update_performance_status(
+        self,
+        strategy_id: int,
+        performance_status: str,
+        evidence: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """更新策略**业绩状态**（与 structure_status 分离的第二根轴，2026-09-13 w-a9ec14d7）
+
+        背景：原先只有一个 validation_status，'valid' 被读成"这策略好用"——
+        实测 14 条 active+valid 策略 OOS CAGR 中位约 -1%（同期同池等权基准 +23.3%）。
+        结构有效 ≠ 有超额，两根轴必须分开写、分开读。
+
+        Args:
+            strategy_id: 策略 ID
+            performance_status: passing / underperform / failing / unmeasured
+            evidence: 判定证据（年化/夏普/回撤/基准/来源/窗口/规则），由
+                      application.services.strategy_status.performance_evidence() 生成
+
+        Returns:
+            dict: {'strategy_id', 'performance_status', 'performance_evidence'}；策略不存在返回 None
+        Raises:
+            ValueError: 状态非法
+        """
+        from application.services.strategy_status import PERFORMANCE_STATUSES
+        if performance_status not in PERFORMANCE_STATUSES:
+            raise ValueError(
+                f"performance_status 必须是 {', '.join(PERFORMANCE_STATUSES)} 之一，收到: {performance_status}"
+            )
+        try:
+            from datetime import datetime
+            strategy = self.session.query(StrategyConfig).filter_by(id=strategy_id).first()
+            if not strategy:
+                logger.warning(f"Strategy {strategy_id} not found for performance status update")
+                return None
+            strategy.performance_status = performance_status
+            if evidence is not None:
+                strategy.performance_evidence = evidence
+            strategy.performance_checked_at = datetime.now()
+            strategy.updated_at = datetime.now()
+            self.session.commit()
+            logger.info(f"Updated performance status for strategy {strategy_id}: {performance_status}")
+            return {
+                'strategy_id': strategy.id,
+                'performance_status': strategy.performance_status,
+                'performance_evidence': strategy.performance_evidence,
+            }
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error updating performance status for strategy {strategy_id}: {e}")
             raise
 
     def save_validation_report(self, report_data: Dict[str, Any]) -> int:

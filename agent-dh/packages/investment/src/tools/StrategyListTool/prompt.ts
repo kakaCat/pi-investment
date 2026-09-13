@@ -10,7 +10,14 @@ export interface StrategyItem {
   name: string;
   strategyType: string;
   type: string;
+  /** 仅由 structure_status 派生（valid→stopped / invalid→error），**不代表业绩** */
   status: string;
+  /** 结构状态：代码/参数能否跑通（valid/invalid/pending/unknown） */
+  structure_status?: string;
+  /** 业绩状态：相对同池等权基准是否有超额（passing/underperform/failing/unmeasured） */
+  performance_status?: string;
+  /** 业绩判定证据（年化/夏普/回撤/基准/来源/窗口/规则） */
+  performance_evidence?: any;
   description: string | null;
   code: string;
   params: any[];
@@ -26,7 +33,7 @@ export interface StrategyListResult {
 }
 
 export const strategyListPrompt: ToolPrompt<StrategyListParams, StrategyListResult> = {
-  description: '获取交易策略列表：名称、类型、状态、参数配置。策略是具体的交易规则（如均线突破、MACD金叉）。适用于：查看可用策略、执行策略前确认 strategy_id。',
+  description: '获取交易策略列表：名称、类型、状态、参数配置。策略是具体的交易规则（如均线突破、MACD金叉）。适用于：查看可用策略、执行策略前确认 strategy_id。⚠️ 两条独立的状态轴，别混读：【structure_status】代码/参数能否跑通（valid/invalid/pending/unknown）；【performance_status】相对同池等权基准有没有超额（passing/underperform/failing/unmeasured，unmeasured=无证据）。字段 status 只由结构轴派生（valid→stopped / invalid→error），**它不代表业绩**——实测 14 条 active+valid 策略 OOS 年化中位约 -1%，同期同池等权基准 +23.3%，没有一条跑赢。判断"能不能用"只看 performance_status。',
 
   useCases: ['查看可用策略', '执行策略前确认ID'],
 
@@ -61,6 +68,8 @@ export const strategyListPrompt: ToolPrompt<StrategyListParams, StrategyListResu
               strategyType: { type: 'string' },
               type: { type: 'string' },
               status: { type: 'string' },
+              structure_status: { type: 'string' },
+              performance_status: { type: 'string' },
               description: { type: 'string' },
             },
           },

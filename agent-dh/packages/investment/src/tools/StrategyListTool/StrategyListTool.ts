@@ -38,7 +38,9 @@ export class StrategyListTool extends BaseTool<StrategyListParams, StrategyListR
     args: StrategyListParams,
     context: ToolContext
   ): Promise<StrategyListResult> {
-    const result = await this.qv2.listStrategies(args.source, args.code_type);
+    // 2026-09-13 修复：client.listStrategies 的签名是**对象参数**，此前用位置参数调用
+    // （args.source 被当成 params 对象直接发出）→ 只要传 source 就 400，且被工具误报为"后端不可达"。
+    const result = await this.qv2.listStrategies({ source: args.source, code_type: args.code_type });
     // 2026-08-30 修复：后端策略 description/name 可能为 null，而 DSH 输出 schema 要求 string。
     // 在边界处把空值归一化为空字符串，保证 schema 校验通过。
     if (Array.isArray((result as any).items)) {

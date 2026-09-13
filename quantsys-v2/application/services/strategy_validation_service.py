@@ -543,6 +543,28 @@ class StrategyValidationService:
                     errors=d['errors'],
                     deactivate_if_invalid=False,  # 报告性验证：不停用
                 )
+                # 2026-09-13（w-a9ec14d7）：同一份回测证据再算**业绩状态**（相对同池等权基准），
+                # 与结构状态分开写。结构 valid 而业绩 failing 是常态（实测 14 条 active+valid 全部跑输基准），
+                # 只写一个字段就会让 "valid" 被继续误读为"好用"。
+                try:
+                    from application.services.strategy_status import (
+                        classify_performance, performance_evidence,
+                    )
+                    _m = d['metrics']
+                    _perf = classify_performance(_m['annual_return'], _m.get('sharpe_ratio'))
+                    repo.update_performance_status(
+                        strategy_id=d['strategy_id'],
+                        performance_status=_perf,
+                        evidence=performance_evidence(
+                            annual_return=_m['annual_return'],
+                            sharpe=_m.get('sharpe_ratio'),
+                            max_drawdown=_m.get('max_drawdown'),
+                            source='quant.backtest_results（最近落库批量回测）',
+                            window=str(d.get('win_start')) + '~' + str(d.get('win_end')),
+                        ),
+                    )
+                except Exception as e:  # noqa: BLE001 —— 业绩判定失败不得影响验证主流程
+                    logger.warning(f"performance_status 写入失败 strategy={d['strategy_id']}: {e}")
                 # 只为"有证据"的策略写报告（评分有真实数据支撑）
                 repo.save_validation_report({
                     'strategy_id': d['strategy_id'],

@@ -117,7 +117,12 @@ export class QuantsysV2Client {
             ? '后端服务未启动或端口不通——可用 quantsys_v2_status 检查后端健康，必要时 quantsys_v2_restart 拉起'
             : code === 'ECONNABORTED'
               ? '请求超时——后端可能过载或挂死（历史上由事件循环阻塞引起），可用 quantsys_v2_status 确认'
-              : '网络异常——检查后端进程与端口';
+              : code === 'ERR_BAD_REQUEST'
+                // 2026-09-13：axios 1.x 把 4xx 响应的 code 也定为 ERR_BAD_REQUEST。
+                // 此前该分支一律报"网络异常——检查后端进程与端口"，把"参数被后端拒绝"误导成"后端挂了"，
+                // 真实案例：strategy_list 用位置参数调用 listStrategies → 请求畸形 → 400，被误诊为服务不可达。
+                ? 'HTTP 4xx：请求被后端拒绝（参数名/取值问题，非网络故障）——核对参数名与取值范围，必要时直接 curl 同一端点复现'
+                : '网络异常——检查后端进程与端口' + (code ? '（code=' + code + '）' : '');
           error.message = `[quantsys-v2 不可达] ${endpoint} (${code})。${hint}`;
           return Promise.reject(error);
         }
@@ -343,8 +348,17 @@ export class QuantsysV2Client {
     page?: number;
     pageSize?: number;
   }): Promise<StrategyListResponse> {
+    // 2026-09-13 契约防护：本方法取对象参数，历史上被位置参数误用（listStrategies('user')），
+    // 结果是发出畸形请求 → 后端 400 → 上层误判为"后端不可达"。非对象一律显式报错，不静默放行。
+    if (params !== undefined && (params === null || typeof params !== 'object')) {
+      throw new Error(
+        '[listStrategies] 参数必须是对象，如 listStrategies({ source: "user" })，收到: ' + typeof params
+      );
+    }
+    // 后端 query 参数名是 codeType（FastAPI Query('codeType')），此处把 snake_case 映射过去
+    const { code_type, ...rest } = params ?? {};
     const response = await this.client.get('/api/strategies/list', {
-      params,
+      params: { ...rest, ...(code_type ? { codeType: code_type } : {}) },
     });
     return this.unwrap<StrategyListResponse>(response.data, 'listStrategies');
   }
