@@ -85,12 +85,14 @@ describe('dsh-pmboard apply() 宿主接线（乙流程装配冒烟）', () => {
     apply(ctx, { dshHome: dir })
     const names = ctx.tools.map(t => t.name).sort()
     expect(names).toEqual([
+      'reqboard_archive_submit',
       'reqboard_create',
       'reqboard_decompose',
       'reqboard_move',
       'reqboard_plan_submit',
       'reqboard_status',
       'reqboard_task_move',
+      'reqboard_verify_submit',
     ])
   })
 

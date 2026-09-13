@@ -180,6 +180,31 @@ export function mountBoard(controller: BoardController): () => void {
         }
         return
       }
+      case 'verify-pass': {
+        const reqId = el.dataset.id
+        if (reqId) {
+          void api.verifyPass({ id: reqId }).then(() => fetchAll()).catch(e => window.alert(String(e)))
+        }
+        return
+      }
+      case 'verify-rework': {
+        const reqId = el.dataset.id
+        if (!reqId) return
+        const note = window.prompt('退回返工的意见（窗口会按它整改）')
+        if (note === null) return
+        void api
+          .verifyRework({ id: reqId, note: note.trim() || '（未填意见）' })
+          .then(() => fetchAll())
+          .catch(e => window.alert(String(e)))
+        return
+      }
+      case 'archive-req': {
+        const reqId = el.dataset.id
+        if (reqId) {
+          void api.archiveReq({ id: reqId }).then(() => fetchAll()).catch(e => window.alert(String(e)))
+        }
+        return
+      }
       case 'plan-approve': {
         const reqId = el.dataset.id
         if (reqId) {

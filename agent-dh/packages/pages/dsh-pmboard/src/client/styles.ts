@@ -259,6 +259,49 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-triage-actions { display: flex; gap: 8px; }
 .dsh-pm-rebind-host { display: flex; gap: 8px; margin-top: 8px; }
 
+/* ---- 验收 / 归档区块 ---- */
+.dsh-pm-block {
+  border: 1px solid var(--dsw-border, rgba(128,128,128,.15)); border-radius: 8px;
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;
+}
+.dsh-pm-block.is-empty {
+  font-size: 13px; line-height: 1.6; color: var(--dsw-text-secondary, #888);
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.05)); border-style: dashed;
+}
+.dsh-pm-block.is-empty code {
+  font-family: ui-monospace, monospace; font-size: 12px; padding: 1px 4px;
+  border-radius: 3px; background: rgba(128,128,128,.12);
+}
+.dsh-pm-block-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dsh-pm-block-path {
+  font-family: ui-monospace, monospace; font-size: 12px; color: var(--dsw-text-primary, #444);
+  background: rgba(128,128,128,.1); padding: 2px 6px; border-radius: 4px;
+}
+.dsh-pm-block-summary { font-size: 13px; color: var(--dsw-text-primary, #333); line-height: 1.6; }
+.dsh-pm-block-note { font-size: 12px; color: #dc3545; }
+.dsh-pm-review {
+  font-size: 11px; padding: 2px 10px; border-radius: 10px;
+  background: rgba(128,128,128,.12); color: var(--dsw-text-primary, #444);
+}
+.dsh-pm-review[data-state="pending"] { background: rgba(240,160,32,.15); color: #b07800; }
+.dsh-pm-review[data-state="pass"] { background: rgba(40,167,69,.15); color: #28a745; }
+.dsh-pm-review[data-state="rework"] { background: rgba(220,53,69,.12); color: #dc3545; }
+.dsh-pm-evidence { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.dsh-pm-evidence li {
+  font-family: ui-monospace, monospace; font-size: 11px; color: var(--dsw-text-primary, #444);
+  background: rgba(128,128,128,.08); padding: 4px 8px; border-radius: 4px; white-space: pre-wrap;
+}
+.dsh-pm-doc-group { display: flex; flex-direction: column; gap: 4px; }
+.dsh-pm-doc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.dsh-pm-doc-list li { font-size: 12px; display: flex; align-items: center; gap: 8px; }
+.dsh-pm-doc-list code {
+  font-family: ui-monospace, monospace; font-size: 11px; padding: 2px 6px;
+  border-radius: 4px; background: rgba(128,128,128,.1); color: var(--dsw-text-secondary, #666);
+}
+.dsh-pm-doc-kind { font-size: 11px; color: var(--dsw-text-secondary, #888); min-width: 56px; }
+.dsh-pm-flag.verify-pending { background: rgba(23,162,184,.15); color: #17a2b8; }
+.dsh-pm-flag.archive-pending { background: rgba(108,117,125,.15); color: #6c757d; }
+
 /* ---- 实施计划（plan mode） ---- */
 .dsh-pm-plan {
   border: 1px solid var(--dsw-border, rgba(128,128,128,.15)); border-radius: 8px;

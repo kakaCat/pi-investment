@@ -121,7 +121,7 @@ function renderReqCard(card: ReqCard, now: number): string {
   const { req, tasks, doneCount, totalCount, readyIds, blocked } = card
   const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
   const cat = req.category ? `<span class="dsh-pm-cat" data-cat="${req.category}">${CATEGORY_LABELS[req.category] ?? req.category}</span>` : ''
-  const planChipHtml = planChip(req)
+  const planChipHtml = planChip(req) + verifyChip(req) + archiveChip(req)
   const blockedChip = blocked ? '<span class="dsh-pm-flag blocked">阻塞</span>' : ''
   const pausedChip = req.paused ? '<span class="dsh-pm-flag paused">暂停</span>' : ''
   const readyChip = readyIds.length > 0 ? `<span class="dsh-pm-flag ready">${readyIds.length} ready</span>` : ''
@@ -260,6 +260,14 @@ export function buildReqDetail(req: RequirementRecord, tasks: TaskRecord[], now:
       <div class="dsh-pm-detail-section">
         <h3>甘特图</h3>
         ${buildGantt(req, reqTasks, now)}
+      </div>
+      <div class="dsh-pm-detail-section">
+        <h3>验收（人工审核）</h3>
+        ${renderVerifySection(req)}
+      </div>
+      <div class="dsh-pm-detail-section">
+        <h3>归档（文档合并）</h3>
+        ${renderArchiveSection(req)}
       </div>
       <div class="dsh-pm-detail-section">
         <h3>评论（${req.comments.length}）</h3>
@@ -783,4 +791,96 @@ function renderPlanSection(req: RequirementRecord): string {
     + (plan.rejectedReason !== undefined ? '<div class="dsh-pm-plan-reason">退回理由：' + esc(plan.rejectedReason) + '</div>' : '')
     + '<div class="dsh-pm-plan-tasks">' + tasks + '</div>'
     + '</div>'
+}
+
+/* ------------------------------------------------------------------ 验收 / 归档 */
+
+/** 卡面：待人工审核 / 待归档 —— 让"卡在人这里"一眼可见。 */
+function verifyChip(req: RequirementRecord): string {
+  if (req.status !== 'accepting') return ''
+  const v = req.verification
+  return v === undefined
+    ? '<span class="dsh-pm-flag verify-pending" title="验收态但还没提交验收材料">待验收材料</span>'
+    : '<span class="dsh-pm-flag verify-pending" title="验收材料已提交，等人工审核">待人工审核</span>'
+}
+
+function archiveChip(req: RequirementRecord): string {
+  if (req.status !== 'done') return ''
+  return req.archive === undefined
+    ? '<span class="dsh-pm-flag archive-pending" title="已完成，等窗口准备归档材料">待归档材料</span>'
+    : '<span class="dsh-pm-flag archive-pending" title="归档材料已备，等人点归档">待归档</span>'
+}
+
+/**
+ * 验收区：agent 提交的证据 + 人工审核入口。
+ * 人在这里做的事只有一件——**看着证据**点通过或退回（返工必须写意见）。
+ */
+function renderVerifySection(req: RequirementRecord): string {
+  const v = req.verification
+  if (v === undefined) {
+    const waiting = req.status === 'implementing' || req.status === 'accepting'
+    return '<div class="dsh-pm-block is-empty">'
+      + (waiting
+        ? '窗口尚未提交验收材料。人工审核前需要证据：窗口用 <code>reqboard_verify_submit</code> 提交「做了什么 + 怎么验的 + 看到什么结果」。'
+        : '尚未进入验收阶段。')
+      + '</div>'
+  }
+  const state = v.decision === 'pass'
+    ? '<span class="dsh-pm-review" data-state="pass">人工审核通过 ' + esc(v.reviewedAt !== undefined ? fmtTime(v.reviewedAt) : '') + '</span>'
+    : v.decision === 'rework'
+      ? '<span class="dsh-pm-review" data-state="rework">已退回返工 ' + esc(v.reviewedAt !== undefined ? fmtTime(v.reviewedAt) : '') + '</span>'
+      : '<span class="dsh-pm-review" data-state="pending">待人工审核</span>'
+  const actions = req.status === 'accepting'
+    ? '<button type="button" class="dsh-pm-btn sm primary" data-action="verify-pass" data-id="' + esc(req.id) + '">验收通过</button>'
+      + '<button type="button" class="dsh-pm-btn sm" data-action="verify-rework" data-id="' + esc(req.id) + '">退回返工</button>'
+    : ''
+  const evidence = v.evidence.map(e => '<li>' + esc(e) + '</li>').join('')
+  return '<div class="dsh-pm-block">'
+    + '<div class="dsh-pm-block-head">' + state
+    + '<span class="dsh-pm-hint">提交 ' + esc(fmtTime(v.submittedAt)) + '</span>'
+    + actions + '</div>'
+    + '<div class="dsh-pm-block-summary">' + esc(v.summary) + '</div>'
+    + '<ul class="dsh-pm-evidence">' + evidence + '</ul>'
+    + (v.reviewNote !== undefined ? '<div class="dsh-pm-block-note">审核意见：' + esc(v.reviewNote) + '</div>' : '')
+    + '</div>'
+}
+
+/**
+ * 归档区：需求目录 + 文档清单 + 合并去向 + 索引条目。
+ * 归档的实质是**把产出并进项目文档**（合并去向必须落在该需求类型允许的目录里），
+ * 需求目录只是原始材料的存底。
+ */
+function renderArchiveSection(req: RequirementRecord): string {
+  const a = req.archive
+  if (a === undefined) {
+    const archivable = req.status === 'done'
+    return '<div class="dsh-pm-block is-empty">'
+      + (archivable
+        ? '窗口尚未准备归档材料。归档不是挪目录：窗口用 <code>reqboard_archive_submit</code> 提交需求目录、文档清单、'
+          + '合并去向（agent-dh/docs 或 docs 下的 architecture|guides|known-issues|research|work-logs）与一句话索引条目，人再点归档；'
+          + '必填文档与合并去向按需求类型限定，规范见 agent-dh/docs/architecture/requirement-archive.md。'
+        : '归档在需求完成（done）后进行；不同需求类型的必填文档与合并去向见 agent-dh/docs/architecture/requirement-archive.md。')
+      + '</div>'
+  }
+  const state = a.archivedAt !== undefined
+    ? '<span class="dsh-pm-review" data-state="pass">已归档 ' + esc(fmtTime(a.archivedAt)) + '</span>'
+    : '<span class="dsh-pm-review" data-state="pending">待归档（材料已备）</span>'
+  const actions = req.status === 'done' && a.archivedAt === undefined
+    ? '<button type="button" class="dsh-pm-btn sm primary" data-action="archive-req" data-id="' + esc(req.id) + '">归档</button>'
+    : ''
+  const docs = a.docs.map(d => '<li><span class="dsh-pm-doc-kind">' + esc(ARCHIVE_DOC_KIND_LABELS[d.kind] ?? d.kind) + '</span> <code>' + esc(d.path) + '</code></li>').join('')
+  const merged = a.mergedInto.map(m => '<li><code>' + esc(m) + '</code></li>').join('')
+  return '<div class="dsh-pm-block">'
+    + '<div class="dsh-pm-block-head">' + state
+    + '<code class="dsh-pm-block-path">' + esc(a.dir) + '</code>'
+    + '<span class="dsh-pm-hint">材料提交 ' + esc(fmtTime(a.submittedAt)) + '</span>'
+    + actions + '</div>'
+    + '<div class="dsh-pm-block-summary">索引条目：' + esc(a.indexEntry) + '</div>'
+    + '<div class="dsh-pm-doc-group"><span class="dsh-pm-hint">需求目录内的文档</span><ul class="dsh-pm-doc-list">' + docs + '</ul></div>'
+    + '<div class="dsh-pm-doc-group"><span class="dsh-pm-hint">合并进的项目文档</span><ul class="dsh-pm-doc-list">' + merged + '</ul></div>'
+    + '</div>'
+}
+
+const ARCHIVE_DOC_KIND_LABELS: Record<string, string> = {
+  requirement: '需求说明', plan: '实施计划', verification: '验收材料', retro: '复盘', notes: '其他',
 }

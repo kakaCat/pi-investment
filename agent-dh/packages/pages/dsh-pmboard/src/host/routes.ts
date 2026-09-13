@@ -10,6 +10,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { ReqboardStore } from './store.js'
 import {
+  assertArchiveMaterials,
   assertDagAcyclic,
   assertReqTransition,
   assertTaskTransition,
@@ -62,6 +63,11 @@ function fail(res: ServerResponse, err: unknown): void {
     : e.code === 'human_gate' || e.code === 'system_gate' ? 403
     : e.code === 'not_found' ? 404 : 500
   json(res, status, { success: false, error: e.message ?? String(err), ...(e.code ? { code: e.code } : {}) })
+}
+
+/** 入参/流程不满足 → 400（消息即指引）。 */
+function badInput(message: string): never {
+  throw Object.assign(new Error(message), { code: 'invalid_input' })
 }
 
 function notFound(what: string): never {
@@ -242,6 +248,81 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       r.version += 1
       r.updatedAt = now()
       r.updatedBy = { kind: 'human' }
+      return { requirements: [r] }
+    })
+    ok(res, result.changed.requirements[0])
+  }
+
+  /**
+   * 验收人工审核（仅人）：pass → done（完成），rework → implementing（退回返工，必须写意见）。
+   * 前置：需求处于 accepting，且 agent 已提交验收材料（证据）——"过"必须有据可查。
+   */
+  async function handleVerifyDecision(req: IncomingMessage, res: ServerResponse, pass: boolean): Promise<void> {
+    const body = await readBody(req)
+    const id = normalizeText(body.id, 'id', 64)
+    const note = normalizeText(body.note, 'note', 1000)
+    if (!pass && note.length === 0) badInput('退回返工必须写清意见（note）')
+    const result = await store.mutate('requirement-moved', (ledger) => {
+      const r = ledger.requirements.find(x => x.id === id) ?? notFound("需求 " + id)
+      if (r.status !== 'accepting') badInput("需求 " + id + " 当前处于 " + r.status + "，不在验收态（先提交验收）")
+      const v = r.verification
+      if (v === undefined) {
+        badInput("需求 " + id + " 还没有验收材料：窗口需先 reqboard_verify_submit 提交证据（做了什么、怎么验的、看到什么）")
+      }
+      const to = pass ? 'done' : 'implementing'
+      assertReqTransition(r.status, to, 'human')
+      v.reviewedAt = now()
+      v.reviewedBy = { kind: 'human' }
+      v.decision = pass ? 'pass' : 'rework'
+      if (note.length > 0) v.reviewNote = note
+      r.status = to
+      r.version += 1
+      r.updatedAt = now()
+      r.updatedBy = { kind: 'human' }
+      recordStatus(r, to, r.updatedAt, { kind: 'human' }, pass ? '人工验收通过' : '人工验收退回返工：' + note)
+      r.comments.push({
+        id: ids.comment(),
+        body: pass
+          ? '[验收] 人工审核通过（人）：' + v.summary
+          : '[验收] 人工审核退回返工（人）：' + note,
+        createdAt: now(),
+        createdBy: { kind: 'human' },
+      })
+      return { requirements: [r] }
+    })
+    ok(res, result.changed.requirements[0])
+  }
+
+  /**
+   * 归档（仅人）：done → archived。前置：agent 已准备归档材料，且材料符合该需求类型的
+   * 文档规范（必填文档 + 合并去向 + 索引条目）——归档不是挪目录，是把产出并进项目文档。
+   */
+  async function handleArchive(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await readBody(req)
+    const id = normalizeText(body.id, 'id', 64)
+    const result = await store.mutate('requirement-moved', (ledger) => {
+      const r = ledger.requirements.find(x => x.id === id) ?? notFound("需求 " + id)
+      if (r.status !== 'done') badInput("需求 " + id + " 当前处于 " + r.status + "，未完成不能归档")
+      const a = r.archive
+      if (a === undefined) {
+        badInput("需求 " + id + " 还没有归档材料：窗口需先 reqboard_archive_submit 提交需求目录、文档清单、合并去向与索引条目")
+      }
+      assertArchiveMaterials(r.category, a)
+      assertReqTransition('done', 'archived', 'human')
+      a.archivedAt = now()
+      a.archivedBy = { kind: 'human' }
+      r.status = 'archived'
+      r.archivePath = a.dir
+      r.version += 1
+      r.updatedAt = now()
+      r.updatedBy = { kind: 'human' }
+      recordStatus(r, 'archived', r.updatedAt, { kind: 'human' }, '归档：' + a.indexEntry)
+      r.comments.push({
+        id: ids.comment(),
+        body: '[归档] 已归档（人）：' + a.dir + ' → 合并进 ' + a.mergedInto.join(', '),
+        createdAt: now(),
+        createdBy: { kind: 'human' },
+      })
       return { requirements: [r] }
     })
     ok(res, result.changed.requirements[0])
@@ -600,6 +681,9 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       if (method === 'POST' && sub === 'req/create') return await handleReqCreate(req, res)
       if (method === 'POST' && sub === 'req/move') return await handleReqMove(req, res)
       if (method === 'POST' && sub === 'req/update') return await handleReqUpdate(req, res)
+      if (method === 'POST' && sub === 'req/verify/pass') return await handleVerifyDecision(req, res, true)
+      if (method === 'POST' && sub === 'req/verify/rework') return await handleVerifyDecision(req, res, false)
+      if (method === 'POST' && sub === 'req/archive') return await handleArchive(req, res)
       if (method === 'POST' && sub === 'req/plan/approve') return await handlePlanDecision(req, res, true)
       if (method === 'POST' && sub === 'req/plan/reject') return await handlePlanDecision(req, res, false)
       if (method === 'POST' && sub === 'task/create') return await handleTaskCreate(req, res)

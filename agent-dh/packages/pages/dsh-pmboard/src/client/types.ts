@@ -53,6 +53,36 @@ export interface PlanRecord {
   rejectedReason?: string
 }
 
+/** 验收材料（agent 提交）+ 人工审核结论 */
+export interface VerificationRecord {
+  summary: string
+  evidence: string[]
+  submittedAt: number
+  submittedBy: ActorRef
+  reviewedAt?: number
+  reviewedBy?: ActorRef
+  decision?: 'pass' | 'rework'
+  reviewNote?: string
+}
+
+/** 归档文档条目 */
+export interface ArchiveDoc {
+  kind: 'requirement' | 'plan' | 'verification' | 'retro' | 'notes'
+  path: string
+}
+
+/** 归档材料（agent 准备）+ 归档结论（人） */
+export interface ArchiveRecord {
+  dir: string
+  docs: ArchiveDoc[]
+  mergedInto: string[]
+  indexEntry: string
+  submittedAt: number
+  submittedBy: ActorRef
+  archivedAt?: number
+  archivedBy?: ActorRef
+}
+
 export interface RequirementRecord {
   id: string
   title: string
@@ -69,6 +99,10 @@ export interface RequirementRecord {
   archivePath?: string
   /** 实施计划（plan mode） */
   plan?: PlanRecord
+  /** 验收材料（提交+人工审核结论） */
+  verification?: VerificationRecord
+  /** 归档材料（准备+归档结论） */
+  archive?: ArchiveRecord
   /** 状态事件时间线（创建 + 每次转移） */
   statusHistory?: StatusEvent[]
   comments: CommentRecord[]

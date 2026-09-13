@@ -46,13 +46,14 @@ describe('Requirement state machine', () => {
     throwsCode(() => assertReqTransition('archived', 'draft', 'human'), 'invalid_transition')
   })
 
-  it('human gate（2026-09-11 用户裁定后）：仅取消/归档为人工闸门，在途推进 agent 可做', () => {
+  it('human gate：取消/归档/验收通过为人工闸门，其余在途推进 agent 可做', () => {
     // 在途推进：agent 自己就能推（不再需要人点确认方案/确认拆分/验收通过）
     expect(() => assertReqTransition('draft', 'brainstorming', 'agent')).not.toThrow()
     expect(() => assertReqTransition('planning', 'decomposing', 'agent')).not.toThrow()
     expect(() => assertReqTransition('decomposing', 'implementing', 'agent')).not.toThrow()
     expect(() => assertReqTransition('implementing', 'accepting', 'agent')).not.toThrow()
-    expect(() => assertReqTransition('accepting', 'done', 'agent')).not.toThrow()
+    // 验收通过是人工审核（用户裁定：验收 有人工审核）——agent 到不了 done
+    throwsCode(() => assertReqTransition('accepting', 'done', 'agent'), 'human_gate')
     expect(() => assertReqTransition('brainstorming', 'draft', 'agent')).not.toThrow()
     // 破坏性/终态动作仍是人工闸门
     throwsCode(() => assertReqTransition('accepting', 'canceled', 'agent'), 'human_gate')
@@ -69,7 +70,8 @@ describe('Requirement state machine', () => {
     // 白名单外：system 不可发起
     throwsCode(() => assertReqTransition('draft', 'canceled', 'system'), 'human_gate')
     throwsCode(() => assertReqTransition('brainstorming', 'draft', 'system'), 'system_gate')
-    throwsCode(() => assertReqTransition('accepting', 'done', 'system'), 'system_gate')
+    // 验收通过是人工闸门 → 优先级高于 system 白名单
+    throwsCode(() => assertReqTransition('accepting', 'done', 'system'), 'human_gate')
     // 人工闸门优先于 system：取消/归档永不被自动越过
     throwsCode(() => assertReqTransition('done', 'archived', 'system'), 'human_gate')
     throwsCode(() => assertReqTransition('implementing', 'canceled', 'system'), 'human_gate')

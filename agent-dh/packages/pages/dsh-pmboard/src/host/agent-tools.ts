@@ -51,6 +51,8 @@ import type {
 } from '../shared/protocol.js';
 import {
   ALL_REQ_CATEGORIES,
+  ARCHIVE_DOC_RULES,
+  assertArchiveMaterials,
   ALL_REQ_STATUSES,
   ALL_TASK_PHASES,
   ALL_TASK_SIDES,
@@ -1023,6 +1025,257 @@ export function definePlanSubmitTool(deps: ReqboardToolDeps) {
         task_count: tasks.length,
         tasks: tasks.map(t => ({ key: t.key, title: t.title, depends_on: [...(t.dependsOn ?? [])] })),
         note: '计划已提交，等待人在项目看板点「批准计划」；批准后用 reqboard_decompose 落库任务卡',
+      }
+    },
+  } as any)
+}
+
+/**
+ * reqboard_verify_submit —— 提交验收材料（人工审核的依据）。
+ *
+ * 用户要求「验收 有人工审核」：验收不是 agent 说"做完了"就算过——agent 把证据交上来
+ * （做了什么、怎么验的、看到什么结果；可复核的命令/输出/路径），**人看着证据**点通过
+ * 或退回返工。代码级：accepting>done 是人工闸门（本工具只能把人请到桌前，不能替他点头）。
+ */
+export function defineVerifySubmitTool(deps: ReqboardToolDeps) {
+  return defineTool({
+    name: 'reqboard_verify_submit',
+    description:
+      '提交验收材料（供人工审核）：summary=一句话交付结论（做了什么、验了什么），'
+      + 'evidence=证据清单（可复核的命令与输出摘要 / 测试报告路径 / 截图路径，禁止"功能正常"这类空话）。'
+      + '提交后需求进入/停在验收态，等人在项目看板人工审核：通过 → 完成；退回 → 返工（附意见）。'
+      + '前置：需求属于本窗口，处于 implementing（实施）或 accepting（验收）阶段。',
+    parameters: {
+      requirement_id: { type: 'string', description: '需求 id（REQ-xxxxxx）；不传默认本窗口绑定的需求' },
+      summary: { type: 'string', description: '交付结论（≤2000 字符）', required: true },
+      evidence: {
+        type: 'array',
+        description: '证据清单（1-20 条；命令+结果摘要 / 报告路径 / 截图路径）',
+        required: true,
+        items: { type: 'string' },
+      },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          success: { type: 'boolean' },
+          requirement_id: { type: 'string' },
+          status: { type: 'string', description: '提交后的需求状态（accepting=待人工审核）' },
+          tasks_done: { type: 'number' },
+          tasks_total: { type: 'number' },
+          note: { type: 'string' },
+        },
+      },
+      render: renderJson,
+    },
+    timeoutMs: 15000,
+    execute: async (args: unknown, exec: ToolRunContext) => {
+      const windowKey = agentIdFromExec(exec)
+      requireLiveDriver(deps, exec)
+      const a = (args ?? {}) as { requirement_id?: unknown; summary?: unknown; evidence?: unknown }
+      const explicitId = normalizeText(a.requirement_id, 'requirement_id', 64)
+      const summary = normalizeText(a.summary, 'summary', 2000)
+      if (summary.length === 0) reject('reqboard_verify_submit 未执行：summary 不能为空', 'REQBOARD_INVALID_INPUT')
+      if (!Array.isArray(a.evidence)) reject('reqboard_verify_submit 未执行：evidence 必须是数组', 'REQBOARD_INVALID_INPUT')
+      const evidence = (a.evidence as unknown[])
+        .map(e => normalizeText(e, 'evidence[]', 1000))
+        .filter(e => e.length > 0)
+        .slice(0, 20)
+      if (evidence.length === 0) {
+        reject('reqboard_verify_submit 未执行：至少要有一条可复核的证据（命令+输出摘要 / 报告路径 / 截图路径）', 'REQBOARD_INVALID_INPUT')
+      }
+
+      const snapshot = deps.store.snapshot()
+      const bound = openRequirementsFor(snapshot, windowKey)
+      if (bound.length === 0) reject('reqboard_verify_submit 未执行：本窗口没有绑定中的需求', 'REQBOARD_NO_BOUND_REQ')
+      const target = explicitId.length > 0 ? bound.find(r => r.id === explicitId) : bound[0]
+      if (target === undefined) {
+        reject('reqboard_verify_submit 未执行：需求 ' + explicitId + ' 不是本窗口绑定的进行中需求', 'REQBOARD_NOT_BOUND_TO_WINDOW')
+      }
+      if (target.status !== 'implementing' && target.status !== 'accepting') {
+        reject('reqboard_verify_submit 未执行：需求处于 ' + target.status + '，只有执行/验收阶段的交付才能提交验收', 'REQBOARD_BAD_STATUS')
+      }
+
+      const nowTs = deps.now()
+      const result = await deps.store.mutate('requirement-updated', (ledger) => {
+        const req = ledger.requirements.find(r => r.id === target.id)
+        if (req === undefined) return undefined
+        req.verification = {
+          summary,
+          evidence,
+          submittedAt: nowTs,
+          submittedBy: { kind: 'agent', sessionId: windowKey },
+        }
+        req.comments.push({
+          id: newCommentId(),
+          body: '[验收] 提交验收材料（待人工审核）：' + summary
+            + '\n证据：\n' + evidence.map(e => '- ' + e).join('\n'),
+          createdAt: nowTs,
+          createdBy: { kind: 'agent', sessionId: windowKey },
+        })
+        req.version += 1
+        req.updatedAt = nowTs
+        req.updatedBy = { kind: 'agent', sessionId: windowKey }
+        // 任务全完成时顺带推进到验收态（人来了就有东西可审）
+        const advanced = applyTaskRollup(ledger, { now: nowTs, commentId: () => newCommentId() }, req.id)
+        return { requirements: [req, ...advanced] }
+      })
+      const changed = result.changed.requirements[0]
+      if (changed === undefined) reject('reqboard_verify_submit 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
+      const tasks = snapshot.tasks.filter(t => t.requirementId === target.id && t.status !== 'canceled')
+      return {
+        success: true,
+        requirement_id: changed.id,
+        status: changed.status,
+        tasks_done: tasks.filter(t => t.status === 'done').length,
+        tasks_total: tasks.length,
+        note: '验收材料已提交：等人在项目看板人工审核（通过 → 完成；退回 → 返工并附意见）',
+      }
+    },
+  } as any)
+}
+
+/**
+ * reqboard_archive_submit —— 准备归档材料（归档的前置条件）。
+ *
+ * 用户要求「归档 要有项目文档设计，文档如何合并，不同问题如何记录文档」：归档 = 把这次
+ * 需求的产出**并进项目文档**——需求目录留全套原始材料，同时把别人以后要读的那部分
+ * 合并进 architecture / guides / known-issues / research / work-logs，并写一条索引条目。
+ * 不同需求类型（feature/bug/doc/refactor/spike/chore）的必填文档与合并去向由
+ * ARCHIVE_DOC_RULES 规定，本工具落库前逐条校验（代码级，不是提示词约定）。
+ */
+export function defineArchiveSubmitTool(deps: ReqboardToolDeps) {
+  return defineTool({
+    name: 'reqboard_archive_submit',
+    description:
+      '准备归档材料（人再点归档）：dir=需求目录（docs/requirements/REQ-xxxxxx），'
+      + 'docs=目录内的文档清单（kind: requirement/plan/verification/retro/notes + path），'
+      + 'merged_into=合并进的项目文档路径（按需求类型限定在 docs/architecture|guides|known-issues|research|work-logs），'
+      + 'index_entry=一句话结论（进归档索引）。不同需求类型的必填文档与合法去向见 '
+      + 'agent-dh/docs/architecture/requirement-archive.md；缺项会被代码级拒绝。前置：需求已 done。',
+    parameters: {
+      requirement_id: { type: 'string', description: '需求 id；不传默认本窗口绑定的需求' },
+      dir: { type: 'string', description: '需求目录（工作区相对路径）', required: true },
+      docs: {
+        type: 'array',
+        description: '需求目录内的文档清单',
+        required: true,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            kind: { type: 'string', description: 'requirement / plan / verification / retro / notes' },
+            path: { type: 'string', description: '文件路径（工作区相对路径）' },
+          },
+        },
+      },
+      merged_into: {
+        type: 'array',
+        description: '合并进的项目文档路径（1-10 条）',
+        required: true,
+        items: { type: 'string' },
+      },
+      index_entry: { type: 'string', description: '一句话结论（进归档索引）', required: true },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          success: { type: 'boolean' },
+          requirement_id: { type: 'string' },
+          status: { type: 'string' },
+          required_docs: { type: 'array', items: { type: 'string' } },
+          note: { type: 'string' },
+        },
+      },
+      render: renderJson,
+    },
+    timeoutMs: 15000,
+    execute: async (args: unknown, exec: ToolRunContext) => {
+      const windowKey = agentIdFromExec(exec)
+      requireLiveDriver(deps, exec)
+      const a = (args ?? {}) as {
+        requirement_id?: unknown
+        dir?: unknown
+        docs?: unknown
+        merged_into?: unknown
+        index_entry?: unknown
+      }
+      const explicitId = normalizeText(a.requirement_id, 'requirement_id', 64)
+      const dir = normalizeText(a.dir, 'dir', 400)
+      const indexEntry = normalizeText(a.index_entry, 'index_entry', 1000)
+      const kinds = ['requirement', 'plan', 'verification', 'retro', 'notes'] as const
+      if (!Array.isArray(a.docs)) reject('reqboard_archive_submit 未执行：docs 必须是数组', 'REQBOARD_INVALID_INPUT')
+      const docs = (a.docs as unknown[]).map(d => {
+        const o = (typeof d === 'object' && d !== null ? d : {}) as Record<string, unknown>
+        const path = normalizeText(o.path, 'docs[].path', 400)
+        const rawKind = typeof o.kind === 'string' ? o.kind : ''
+        const kind = (kinds as readonly string[]).includes(rawKind) ? (rawKind as (typeof kinds)[number]) : undefined
+        if (kind === undefined) {
+          reject('reqboard_archive_submit 未执行：docs[].kind 必须是 ' + kinds.join(' / '), 'REQBOARD_INVALID_INPUT')
+        }
+        if (path.length === 0) reject('reqboard_archive_submit 未执行：docs[].path 不能为空', 'REQBOARD_INVALID_INPUT')
+        return { kind, path }
+      })
+      if (!Array.isArray(a.merged_into)) {
+        reject('reqboard_archive_submit 未执行：merged_into 必须是数组', 'REQBOARD_INVALID_INPUT')
+      }
+      const mergedInto = (a.merged_into as unknown[])
+        .map(m => normalizeText(m, 'merged_into[]', 400))
+        .filter(m => m.length > 0)
+        .slice(0, 10)
+
+      // 归档的对象是**已完成**的需求——它已经不在 open 集合里，所以这里按「本窗口的需求」
+      // （sourceSessionId 锚点）判定，而不是按 open 判定（否则归档永远找不到自己的需求）。
+      const snapshot = deps.store.snapshot()
+      const mine = snapshot.requirements.filter(r => r.sourceSessionId === windowKey)
+      if (mine.length === 0) reject('reqboard_archive_submit 未执行：本窗口没有需求', 'REQBOARD_NO_BOUND_REQ')
+      const target = explicitId.length > 0
+        ? mine.find(r => r.id === explicitId)
+        : [...mine].sort((a, b) => b.updatedAt - a.updatedAt)[0]
+      if (target === undefined) {
+        reject('reqboard_archive_submit 未执行：需求 ' + explicitId + ' 不是本窗口的需求', 'REQBOARD_NOT_BOUND_TO_WINDOW')
+      }
+      const actual = target
+      if (actual.status !== 'done') {
+        reject('reqboard_archive_submit 未执行：需求处于 ' + actual.status + '，只有已完成（done）的需求才能归档', 'REQBOARD_BAD_STATUS')
+      }
+      try {
+        assertArchiveMaterials(actual.category, { dir, docs, mergedInto, indexEntry })
+      } catch (err) {
+        reject('reqboard_archive_submit 未执行：' + ((err as Error).message ?? String(err)), 'REQBOARD_INVALID_INPUT')
+      }
+
+      const nowTs = deps.now()
+      const result = await deps.store.mutate('requirement-updated', (ledger) => {
+        const req = ledger.requirements.find(r => r.id === actual.id)
+        if (req === undefined) return undefined
+        req.archive = { dir, docs, mergedInto, indexEntry, submittedAt: nowTs, submittedBy: { kind: 'agent', sessionId: windowKey } }
+        req.comments.push({
+          id: newCommentId(),
+          body: '[归档] 材料已备（待人点归档）：' + dir
+            + '\n文档：' + docs.map(d => d.kind + '=' + d.path).join('；')
+            + '\n合并进：' + mergedInto.join('；')
+            + '\n索引：' + indexEntry,
+          createdAt: nowTs,
+          createdBy: { kind: 'agent', sessionId: windowKey },
+        })
+        req.version += 1
+        req.updatedAt = nowTs
+        req.updatedBy = { kind: 'agent', sessionId: windowKey }
+        return { requirements: [req] }
+      })
+      const changed = result.changed.requirements[0]
+      if (changed === undefined) reject('reqboard_archive_submit 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
+      return {
+        success: true,
+        requirement_id: changed.id,
+        status: changed.status,
+        required_docs: [...(ARCHIVE_DOC_RULES[actual.category ?? 'feature'].requiredDocs)],
+        note: '归档材料已备齐：请人在项目看板点「归档」（归档后需求进入 archive 泳道并写入归档索引）',
       }
     },
   } as any)

@@ -26,6 +26,8 @@ import {
   defineDecomposeTool,
   defineTaskMoveTool,
   definePlanSubmitTool,
+  defineVerifySubmitTool,
+  defineArchiveSubmitTool,
 } from './host/agent-tools.js';
 
 export const name = 'dsh-pmboard';
@@ -176,9 +178,12 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         disposers.push(toolsCtx.tools.register(definePlanSubmitTool(toolDeps)));
         disposers.push(toolsCtx.tools.register(defineDecomposeTool(toolDeps)));
         disposers.push(toolsCtx.tools.register(defineTaskMoveTool(toolDeps)));
+        disposers.push(toolsCtx.tools.register(defineVerifySubmitTool(toolDeps)));
+        disposers.push(toolsCtx.tools.register(defineArchiveSubmitTool(toolDeps)));
       }, name + ': tools');
       logger.info(
-        'agent tools registered: reqboard_create / reqboard_status / reqboard_move / reqboard_plan_submit / reqboard_decompose / reqboard_task_move',
+        'agent tools registered: reqboard_create / reqboard_status / reqboard_move / reqboard_plan_submit / '
+        + 'reqboard_decompose / reqboard_task_move / reqboard_verify_submit / reqboard_archive_submit',
       );
     },
   );

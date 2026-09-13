@@ -61,6 +61,20 @@ export function rejectPlan(input: { id: string; reason: string }): Promise<unkno
   return post(BASE + '/req/plan/reject', input)
 }
 
+// -- 验收 / 归档（仅人可裁决）----------------------------------------------
+
+export function verifyPass(input: { id: string }): Promise<unknown> {
+  return post(BASE + '/req/verify/pass', input)
+}
+
+export function verifyRework(input: { id: string; note: string }): Promise<unknown> {
+  return post(BASE + '/req/verify/rework', input)
+}
+
+export function archiveReq(input: { id: string }): Promise<unknown> {
+  return post(BASE + '/req/archive', input)
+}
+
 // -- 任务操作 -------------------------------------------------------------
 
 export function createTask(input: Record<string, unknown>): Promise<unknown> {

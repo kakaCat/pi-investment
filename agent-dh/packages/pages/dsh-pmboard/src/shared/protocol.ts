@@ -126,6 +126,7 @@ export const HUMAN_ONLY_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
   'decomposing>canceled',
   'implementing>canceled',
   'accepting>canceled', // 取消需求（破坏性）
+  'accepting>done', // 验收通过（人工审核：agent 可提交验收，但"过"必须是人点的）
   'done>archived', // 归档
   'canceled>archived', // 取消后归档
 ])
@@ -305,6 +306,59 @@ export interface PlanRecord {
   rejectedReason?: string
 }
 
+/**
+ * 验收材料（agent 提交）+ 人工审核结论。
+ *
+ * 用户要求「验收 有人工审核」：agent 把"做完的证据"交上来（怎么验的、看到什么结果，
+ * 全是可复核的命令/输出/路径，不接受"功能正常"），人**看着证据**决定过还是退回返工。
+ * 代码级：验收通过（accepting>done）是人工闸门；提交验收必须有材料。
+ */
+export interface VerificationRecord {
+  /** 一句话结论：这次交付了什么、验了什么 */
+  summary: string
+  /** 证据清单（命令 + 输出摘要 / 测试报告路径 / 截图路径） */
+  evidence: string[]
+  submittedAt: number
+  submittedBy: ActorRef
+  reviewedAt?: number
+  reviewedBy?: ActorRef
+  /** pass=验收通过；rework=退回返工（附意见） */
+  decision?: 'pass' | 'rework'
+  reviewNote?: string
+}
+
+/** 归档材料里的一条文档。 */
+export interface ArchiveDoc {
+  /** requirement=需求说明 / plan=实施计划 / verification=验收材料 / retro=复盘 / notes=其他 */
+  kind: 'requirement' | 'plan' | 'verification' | 'retro' | 'notes'
+  path: string
+}
+
+/**
+ * 归档材料（agent 准备）+ 归档结论（人拍板）。
+ *
+ * 用户要求「归档 要有项目文档设计，文档如何合并，不同问题如何记录文档」：
+ * 归档不是把目录挪走，而是**把这次需求的产出并进项目文档**——需求目录里留全套原始
+ * 材料（需求/计划/验收/复盘），同时把"别人以后要读的那部分"合并进
+ * docs/architecture|guides|adr|research|known-issues 等既定文档，并写一条索引条目。
+ * 不同需求类型（category）的必填文档与合并去向由 ARCHIVE_DOC_RULES 规定，
+ * 规范文档：agent-dh/docs/architecture/requirement-archive.md。
+ */
+export interface ArchiveRecord {
+  /** 需求目录（工作区相对路径，如 docs/requirements/REQ-xxxxxx） */
+  dir: string
+  /** 目录内保留的文档清单 */
+  docs: ArchiveDoc[]
+  /** 合并进的项目文档路径（架构/指南/ADR/研究/已知问题） */
+  mergedInto: string[]
+  /** 索引条目：一句话结论（进归档索引，供检索） */
+  indexEntry: string
+  submittedAt: number
+  submittedBy: ActorRef
+  archivedAt?: number
+  archivedBy?: ActorRef
+}
+
 /** 计划是否已被批准（拆分的代码级前置条件）。 */
 export function planApproved(req: { plan?: PlanRecord }): boolean {
   return req.plan !== undefined && req.plan.approvedAt !== undefined
@@ -401,6 +455,10 @@ export interface RequirementRecord {
   statusHistory?: StatusEvent[]
   /** 实施计划（plan mode）：拆分前提交、由人批准；未批准不允许拆分 */
   plan?: PlanRecord
+  /** 验收材料（agent 提交）+ 人工审核结论 */
+  verification?: VerificationRecord
+  /** 归档材料（agent 准备）+ 归档结论（人） */
+  archive?: ArchiveRecord
   comments: CommentRecord[]
   version: number
   createdAt: number
@@ -743,4 +801,87 @@ export function migrateRequirementStatusNames(req: RequirementRecord): boolean {
 /** 任务时间线回填（已有事件 → 返回 undefined 不动）。 */
 export function backfillTaskHistory(task: TaskRecord): StatusEvent[] | undefined {
   return backfill(task, 'todo', ALL_TASK_STATUSES as readonly string[], task.statusHistory)
+}
+
+// ---------------------------------------------------------------------------
+// 归档文档规范（不同问题如何记录文档 —— 校验的唯一依据）
+// ---------------------------------------------------------------------------
+
+/**
+ * 需求类型 → 归档时的文档要求。规范文档：agent-dh/docs/architecture/requirement-archive.md。
+ * 校验是**代码级**的：缺必填文档或合并去向 → 归档材料提交被拒。
+ */
+export interface ArchiveDocRule {
+  /** 需求目录内必填的文档 kind */
+  requiredDocs: readonly ArchiveDoc['kind'][]
+  /** 必须合并进的项目文档前缀（合并去向必须落在这些目录里） */
+  mergeTargets: readonly string[]
+  /** 人读的一句话规则说明 */
+  note: string
+}
+
+export const ARCHIVE_DOC_RULES: Readonly<Record<RequirementCategory, ArchiveDocRule>> = {
+  feature: {
+    requiredDocs: ['requirement', 'plan', 'verification'],
+    mergeTargets: ['agent-dh/docs/architecture/', 'agent-dh/docs/guides/', 'docs/architecture/', 'docs/guides/'],
+    note: '功能：能力/接口变了 → 必须更新架构或使用指南（否则新人只能读代码）',
+  },
+  bug: {
+    requiredDocs: ['requirement', 'verification', 'retro'],
+    mergeTargets: ['agent-dh/docs/known-issues/', 'docs/known-issues/'],
+    note: '缺陷：必须留根因与防回归（known-issues 一条 + 复盘），否则同类问题会再来一次',
+  },
+  doc: {
+    requiredDocs: ['requirement', 'verification'],
+    mergeTargets: ['agent-dh/docs/', 'docs/'],
+    note: '文档类需求：产出本身就是文档，直接合并进 docs/ 相应子目录',
+  },
+  refactor: {
+    requiredDocs: ['requirement', 'plan', 'verification', 'retro'],
+    mergeTargets: ['agent-dh/docs/architecture/', 'agent-dh/docs/work-logs/', 'docs/architecture/', 'docs/work-logs/'],
+    note: '重构：结构与边界变了 → 架构说明必须同步，否则文档与代码互相说谎',
+  },
+  spike: {
+    requiredDocs: ['requirement', 'retro'],
+    mergeTargets: ['agent-dh/docs/research/', 'docs/research/', 'docs/strategy-research/'],
+    note: '调研：产物是结论（含被证伪的假设），必须进 research，明确"没有代码要留"',
+  },
+  chore: {
+    requiredDocs: ['requirement', 'verification'],
+    mergeTargets: ['agent-dh/docs/work-logs/', 'docs/work-logs/'],
+    note: '杂项/维护：留一条工作记录即可，别把运维细节塞进架构文档',
+  },
+}
+
+/** 需求目录约定（校验用）：docs/requirements/REQ-xxxxxx 或 agent-dh/docs/requirements/REQ-xxxxxx。 */
+export const REQUIREMENT_DIR_PATTERN = /(?:^|\/)docs\/requirements\/REQ-[0-9a-f]{6}$/
+
+/** 归档材料校验（缺项抛 code=invalid_input，消息指明缺什么）。 */
+export function assertArchiveMaterials(
+  category: RequirementCategory | undefined,
+  archive: Pick<ArchiveRecord, 'dir' | 'docs' | 'mergedInto' | 'indexEntry'>,
+): void {
+  const rule = ARCHIVE_DOC_RULES[category ?? 'feature']
+  if (archive.dir.trim().length === 0) bad('归档材料缺少需求目录（dir）')
+  if (!REQUIREMENT_DIR_PATTERN.test(archive.dir.trim())) {
+    bad('需求目录不符合约定：应为 docs/requirements/REQ-xxxxxx（或 agent-dh/docs/requirements/REQ-xxxxxx），'
+      + '当前是 ' + archive.dir.trim())
+  }
+  if (archive.indexEntry.trim().length === 0) {
+    bad('归档材料缺少索引条目（indexEntry）：一句话说清这次需求解决了什么')
+  }
+  const kinds = new Set(archive.docs.map(d => d.kind))
+  const missing = rule.requiredDocs.filter(k => !kinds.has(k))
+  if (missing.length > 0) {
+    bad('归档材料缺少必填文档：' + missing.join(', ') + '（' + (category ?? 'feature') + ' 类要求）' + rule.note)
+  }
+  if (archive.docs.some(d => d.path.trim().length === 0)) bad('归档文档清单存在空路径')
+  if (archive.mergedInto.length === 0) {
+    bad('归档材料缺少合并去向（mergedInto）——' + rule.note)
+  }
+  for (const target of archive.mergedInto) {
+    if (!rule.mergeTargets.some(prefix => target.startsWith(prefix))) {
+      bad('合并去向 ' + target + ' 不在本类型允许的位置（应为 ' + rule.mergeTargets.join(' / ') + ' 之下）：' + rule.note)
+    }
+  }
 }

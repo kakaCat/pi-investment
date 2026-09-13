@@ -29,8 +29,9 @@ whenToUse: 需求立项后要开工（评审态）、用户问"怎么拆/怎么�
 | `planning` | 写计划 | `reqboard_move` → planning，随后提交计划 | 写计划文档 + 任务表，`reqboard_plan_submit` → 泳道卡面「计划待批」 |
 | `decomposing` | 拆分 | 计划获人批准后 `reqboard_decompose` 落库 → 自动 | 把批准的任务表写成任务卡（DAG） |
 | `implementing` | 执行 | 任务开工自动进入；`reqboard_task_move` 逐项推进 | 按计划一步步做，每步留证据 |
-| `accepting` | 验收 | 任务全 done 自动进入 | 对照计划的验收标准自检 |
-| `done` / `archived` | 完成 / 归档 | 窗口可自报完成；归档仅人 | 交付与归集文档 |
+| `accepting` | 验收（**人工审核**） | 任务全 done 自动进入；窗口提交验收材料 | `reqboard_verify_submit` 交证据 → 等人点「验收通过」或「退回返工」 |
+| `done` | 完成 | 人点验收通过 | 交付达成（agent 到不了 done：验收通过是人工闸门） |
+| `archived` | 归档（文档合并） | 窗口备材料 → 人点归档 | `reqboard_archive_submit`：需求目录 + 文档清单 + 合并去向 + 索引条目 |
 
 铁律：**别越级**。还在 `brainstorming` 就提交计划会被代码级拒绝（`REQBOARD_BAD_STATUS`）；
 没批准的计划拆不了（`REQBOARD_PLAN_NOT_APPROVED`）。
@@ -98,6 +99,30 @@ reqboard_decompose({})   // 不传 tasks：直接落库已批准的计划
 5. 需求交付并自检通过 → `reqboard_move` 到 `accepting`/`done`（取消与归档仍只属于人）。
 
 任务之间用 git worktree 隔离（仓库铁律：每个工作线独立 worktree），合并前跑门禁测试。
+
+## 5.5 验收与归档（交付的后半程）
+
+**验收 = 人工审核，别自己判过。** 交付完成后：
+
+1. `reqboard_verify_submit({ summary, evidence[] })` —— summary 是一句话交付结论，
+   evidence 是**可复核的证据**（命令 + 输出摘要，如 `pnpm vitest run → 178 passed`；报告/截图路径；前后对比数据）。
+   禁止"功能正常""体验良好"，也禁止只贴结论不贴证据。
+2. 需求停在 `accepting` 等人审核。**pass/rework 只有人能点**（agent 调用返回 human_gate）。
+3. 被退回 → 按人的意见返工；改完重新 `reqboard_verify_submit`（会覆盖旧材料，重新进入待审）。
+
+**归档 = 把产出并进项目文档**（不是挪目录）。需求 `done` 后：
+
+1. `reqboard_archive_submit({ dir, docs[], merged_into[], index_entry })`
+   —— 需求目录（`docs/requirements/REQ-xxxxxx` 或 `agent-dh/docs/requirements/REQ-xxxxxx`）、
+   目录内文档清单、合并去向、一句话索引条目；
+2. 必填文档与合法合并去向**按需求类型**限定（feature→architecture/guides，bug→known-issues，
+   spike→research，refactor→architecture/work-logs，chore→work-logs），缺项被代码级拒绝；
+3. **合并动作要真的做**：材料里写了 `agent-dh/docs/known-issues/x.md`，就得把那条根因与防回归写进去——
+   只登记不合并，等于没归档；
+4. 人点「归档」→ 需求进入 `archived`，写入 `archivePath` 与时间线。
+
+规范文档：`agent-dh/docs/architecture/requirement-archive.md`；
+模板：`agent-dh/docs/requirements/_template/`（requirement / plan / verification / retro / known-issue / research）。
 
 ## 6. 什么时候必须停下来问人
 

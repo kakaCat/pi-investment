@@ -183,6 +183,19 @@ export function boundSectionText(ledger: ReqboardLedger, context: unknown): stri
     '  用 reqboard_move 自行推进到 done。',
     '- 只有「取消需求/归档/取消任务」必须人操作（agent 调用会被代码级拒绝）。',
     '- 推进时用 reason 写清做了什么（进需求留痕，供复盘与验收）。',
+    '',
+    '验收（人工审核，别自己判过）：',
+    '- 交付完成 → reqboard_verify_submit（summary = 交付结论；evidence = 可复核的证据：',
+    '  命令+输出摘要 / 报告路径 / 截图路径），需求进入验收态等人审核；',
+    '- 「验收通过」只有人能点；被退回 → 按人的意见返工后再提交。',
+    '',
+    '归档（先备材料，人再点）：',
+    '- 需求完成后 → reqboard_archive_submit（需求目录 docs/requirements/REQ-xxxxxx、',
+    '  目录内文档清单、合并去向 merged_into、一句话索引条目）；',
+    '- 合并去向与必填文档按需求类型限定（feature→architecture/guides，bug→known-issues，',
+    '  spike→research，refactor→architecture/work-logs，chore→work-logs），规范见',
+    '  agent-dh/docs/architecture/requirement-archive.md；缺项会被代码级拒绝；',
+    '- 归档材料里写了的合并去向，必须真的把那部分结论写进对应的项目文档。',
   ].join('\n')
 }
 

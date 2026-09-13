@@ -194,6 +194,21 @@ turn/start(新会话)
 - 兜底：拆分失败不写库（mutator 抛错即整笔回滚，revision 不 bump），需求停在原状态，人可手工建任务——
   主流程永不因拆分失败而卡死。
 
+> **2026-09-13 修订（用户要求「验收 有人工审核」「归档 要有项目文档设计，文档如何合并，
+> 不同问题如何记录文档」）——两处均按代码级闸门落地**：
+>
+> - **验收人工审核**：`accepting>done` 收回为人工闸门（agent 可提交验收材料，但"过"必须人点）。
+>   `reqboard_verify_submit` 提交 summary + evidence（可复核的命令/输出/路径）；
+>   `POST /req/verify/pass|rework`（退回返工必须写意见，需求回 `implementing`）；
+>   没有验收材料时人也不能过（证据闸）。
+> - **归档 = 文档合并 + 人工拍板**：`reqboard_archive_submit` 准备
+>   `{dir, docs[], mergedInto[], indexEntry}`，由 `ARCHIVE_DOC_RULES` 按需求类型校验
+>   （feature→architecture/guides，bug→known-issues + retro，spike→research + retro，
+>   refactor→architecture/work-logs + retro，chore→work-logs；需求目录形状亦校验）；
+>   人点 `POST /req/archive` 才进 `archived`。规范与模板：
+>   `agent-dh/docs/architecture/requirement-archive.md` +
+>   `agent-dh/docs/requirements/_template/`。
+
 ## 6a. 归档层设计（解决 AI 文档混乱，用户明确为一层）
 
 **问题**：AI 执行全程产出大量文档——需求文档、分析稿、review 报告、测试输出、交接说明、复盘——散落在会话记录、工作区各处，事后找不到、对不上号。

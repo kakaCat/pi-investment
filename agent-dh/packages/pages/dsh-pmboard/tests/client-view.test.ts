@@ -602,3 +602,94 @@ describe('实施计划卡（plan mode）', () => {
     expect(buildBoard(makeState({ requirements: [req] }), T0)).toContain('计划被退')
   })
 })
+
+// ---------------------------------------------------------------------------
+// 验收（人工审核）与归档（文档合并）—— 交付的后半程
+// ---------------------------------------------------------------------------
+
+describe('验收区与归档区', () => {
+  it('没有验收材料时说明要交什么（不是空白）', () => {
+    const html = buildReqDetail(makeReq({ status: 'accepting' }), [], T0)
+    expect(html).toContain('验收（人工审核）')
+    expect(html).toContain('reqboard_verify_submit')
+    expect(html).toContain('人工审核前需要证据')
+  })
+
+  it('待人工审核：证据逐条展示 + 通过/退回按钮 + 卡面「待人工审核」', () => {
+    const req = makeReq({
+      status: 'accepting',
+      verification: {
+        summary: '时间线/甘特图已上线',
+        evidence: ['pnpm vitest run → 178 passed / 14 files', '截图 /tmp/board.png'],
+        submittedAt: T0,
+        submittedBy: { kind: 'agent' as const, sessionId: 'session-1cee2467-x' },
+      },
+    })
+    const detail = buildReqDetail(req, [], T0 + HOUR)
+    expect(detail).toContain('data-state="pending"')
+    expect(detail).toContain('待人工审核')
+    expect(detail).toContain('178 passed')
+    expect(detail).toContain('data-action="verify-pass"')
+    expect(detail).toContain('data-action="verify-rework"')
+    expect(buildBoard(makeState({ requirements: [req] }), T0)).toContain('待人工审核')
+  })
+
+  it('人工审核通过：显示通过时间与意见，按钮消失', () => {
+    const req = makeReq({
+      status: 'done',
+      verification: {
+        summary: '已上线', evidence: ['npm test'], submittedAt: T0,
+        submittedBy: { kind: 'agent' as const }, reviewedAt: T0 + HOUR, reviewedBy: { kind: 'human' as const }, decision: 'pass' as const,
+      },
+    })
+    const detail = buildReqDetail(req, [], T0 + 2 * HOUR)
+    expect(detail).toContain('data-state="pass"')
+    expect(detail).not.toContain('data-action="verify-pass"')
+  })
+
+  it('退回返工：审核意见原样展示', () => {
+    const req = makeReq({
+      status: 'implementing',
+      verification: {
+        summary: '做完了', evidence: ['npm test'], submittedAt: T0, submittedBy: { kind: 'agent' as const },
+        reviewedAt: T0 + HOUR, reviewedBy: { kind: 'human' as const }, decision: 'rework' as const, reviewNote: '甘特图缺依赖连线',
+      },
+    })
+    const detail = buildReqDetail(req, [], T0 + 2 * HOUR)
+    expect(detail).toContain('已退回返工')
+    expect(detail).toContain('审核意见：甘特图缺依赖连线')
+  })
+
+  it('归档区：材料已备时列目录/文档/合并去向/索引，并给出人工归档按钮；归档后按钮消失', () => {
+    const archive = {
+      dir: 'agent-dh/docs/requirements/REQ-abc123',
+      docs: [
+        { kind: 'requirement' as const, path: 'agent-dh/docs/requirements/REQ-abc123/requirement.md' },
+        { kind: 'verification' as const, path: 'agent-dh/docs/requirements/REQ-abc123/verification.md' },
+      ],
+      mergedInto: ['agent-dh/docs/architecture/requirement-board.md'],
+      indexEntry: '需求看板加时间线与计划模式',
+      submittedAt: T0,
+      submittedBy: { kind: 'agent' as const },
+    }
+    const ready = makeReq({ status: 'done', archive })
+    const detail = buildReqDetail(ready, [], T0 + HOUR)
+    expect(detail).toContain('agent-dh/docs/requirements/REQ-abc123')
+    expect(detail).toContain('需求说明')
+    expect(detail).toContain('agent-dh/docs/architecture/requirement-board.md')
+    expect(detail).toContain('索引条目：需求看板加时间线与计划模式')
+    expect(detail).toContain('data-action="archive-req"')
+    expect(buildBoard(makeState({ requirements: [ready] }), T0)).toContain('待归档')
+
+    const archived = makeReq({ status: 'archived', archive: { ...archive, archivedAt: T0 + HOUR, archivedBy: { kind: 'human' as const } } })
+    const doneHtml = buildReqDetail(archived, [], T0 + 2 * HOUR)
+    expect(doneHtml).toContain('已归档')
+    expect(doneHtml).not.toContain('data-action="archive-req"')
+  })
+
+  it('未备材料时指向规范文档（人要知道去哪儿看规则）', () => {
+    const detail = buildReqDetail(makeReq({ status: 'done' }), [], T0)
+    expect(detail).toContain('reqboard_archive_submit')
+    expect(detail).toContain('agent-dh/docs/architecture/requirement-archive.md')
+  })
+})
