@@ -22,8 +22,18 @@ class TestBrokerRegistry:
     """测试 BrokerRegistry"""
 
     def setup_method(self):
-        """每个测试前重置注册表"""
+        """每个测试前重置注册表**并重新注册实现**。
+
+        2026-09-14（w-32314d00）修：原实现只 reset() 不注册，而 BrokerRegistry
+        按设计是**空表等待基础设施层注册**（见 broker_registry.instance() docstring：
+        "Brokers must be registered by infrastructure layer after creation.
+         Use infrastructure.brokers.setup.setup_brokers()"）——于是 5 个用例
+        （get/list/has/profiles/data_brokers）必然拿到空注册表而失败。
+        这不是实现坏了，是测试漏了注册这一步。
+        """
         BrokerRegistry.reset()
+        from infrastructure.brokers.setup import setup_brokers
+        setup_brokers(BrokerRegistry.instance())
 
     def test_singleton(self):
         """测试单例模式"""
@@ -157,9 +167,15 @@ class TestTradingTypes:
     """测试交易类型"""
 
     def test_order_side_enum(self):
-        """测试订单方向枚举"""
-        assert OrderSide.BUY.value == 'buy'
-        assert OrderSide.SELL.value == 'sell'
+        """测试订单方向枚举
+
+        2026-09-14（w-32314d00）：原断言写的是小写 'buy'/'sell'，但 49a3caf2
+        「Batch-1: 统一 action 大小写契约为 'BUY'/'SELL'」已把契约**刻意改成大写**
+        （下单链路 _normalize_action、券商适配层都按大写匹配），本测试未同步。
+        断言改为锁定现行契约：**改回去会让下单方向静默失配**。
+        """
+        assert OrderSide.BUY.value == 'BUY'
+        assert OrderSide.SELL.value == 'SELL'
 
     def test_order_type_enum(self):
         """测试订单类型枚举"""
@@ -182,7 +198,8 @@ class TestTradingTypes:
         # 测试转换为字典
         order_dict = order.to_dict()
         assert order_dict['symbol'] == '000001'
-        assert order_dict['side'] == 'buy'
+        # 同上：契约是大写 BUY（49a3caf2）
+        assert order_dict['side'] == 'BUY'
         assert order_dict['price'] == 1800.0
 
     def test_api_response(self):

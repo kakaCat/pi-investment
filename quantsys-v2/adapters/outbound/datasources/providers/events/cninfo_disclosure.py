@@ -42,6 +42,7 @@
 """
 import logging
 import re
+import time
 from datetime import date, datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
@@ -64,7 +65,17 @@ _PAGE_SIZE = 20
 _MAX_SYMBOLS = 20
 _MARKET_PAGE_SIZE = 50
 _ORG_URL = 'http://www.cninfo.com.cn/new/information/topSearch/query'
-_ORG_CACHE: Dict[str, str] = {}   # symbol -> orgId（空串=解析失败也缓存，避免反复打上游）
+# orgId 缓存分两张表（2026-09-14 w-32314d00 修静默降级）：
+#   成功：进程内长期缓存（orgId 基本不变，值得缓存）
+#   失败：**只做短 TTL 缓存**，且每次命中都要再告警一次
+# 为什么拆开：原实现把失败也写成空串长期缓存，于是
+#   ① 一次瞬时网络抖动 → 该标的**整个进程生命周期**都走 searchkey 回退路径
+#      （而回退路径是**已知会少收**的：searchkey 是全文检索，见 fetch_symbol_events 注释）；
+#   ② 更糟的是命中缓存时直接 return，**连日志都不再打**——
+#      降级从"一次告警"变成"永久静默"。这正是本仓反复出现的静默少收模式。
+_ORG_CACHE: Dict[str, str] = {}          # symbol -> orgId（仅缓存成功结果）
+_ORG_FAIL_CACHE: Dict[str, float] = {}   # symbol -> 失败时刻（monotonic 秒）
+_ORG_FAIL_TTL_SECONDS = 600              # 失败后 10 分钟内不重打上游，超时自动重试
 
 
 def _session() -> requests.Session:
@@ -202,6 +213,14 @@ class CninfoDisclosureProvider(IMarketEventProvider):
         """
         if symbol in _ORG_CACHE:
             return _ORG_CACHE[symbol] or None
+        failed_at = _ORG_FAIL_CACHE.get(symbol)
+        if failed_at is not None and (time.monotonic() - failed_at) < _ORG_FAIL_TTL_SECONDS:
+            # 仍在失败 TTL 内：不重打上游，但**必须每次都留下痕迹** ——
+            # 静默降级等于让调用方以为"这只票就是没公告"。
+            logger.warning(
+                'cninfo orgId 仍在上次失败的重试冷却中（%s），本次继续走 searchkey 回退（会少收）',
+                symbol)
+            return None
         try:
             resp = _session().post(
                 _ORG_URL, data={'keyWord': symbol, 'maxNum': 10},
@@ -213,11 +232,18 @@ class CninfoDisclosureProvider(IMarketEventProvider):
                 if str(it.get('code')) == str(symbol):
                     org = str(it.get('orgId') or '')
                     break
-            _ORG_CACHE[symbol] = org or ''
-            return org or None
+            if org:
+                _ORG_CACHE[symbol] = org
+                _ORG_FAIL_CACHE.pop(symbol, None)
+                return org
+            # 上游 200 但没解析出 orgId：同样按失败处理（短 TTL，不永久缓存）
+            logger.warning('cninfo orgId 未命中 %s（topSearch 返回 %s 条，无匹配 code）',
+                           symbol, len(arr or []))
+            _ORG_FAIL_CACHE[symbol] = time.monotonic()
+            return None
         except Exception as exc:  # noqa: BLE001
             logger.warning('cninfo orgId 解析失败 %s: %s', symbol, str(exc)[:120])
-            _ORG_CACHE[symbol] = ''
+            _ORG_FAIL_CACHE[symbol] = time.monotonic()
             return None
 
     def fetch_symbol_history(self, symbols: List[str], start_date: str, end_date: str,

@@ -50,3 +50,6 @@ reports/
 # Temporary test files
 test_dataframe_fix.py
 BUG_FIX_COMMIT_MESSAGE.txt
+
+# MLflow 本地 tracking store（file store 默认落在 CWD，跑测试即生成）
+mlruns/

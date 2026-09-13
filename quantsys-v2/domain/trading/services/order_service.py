@@ -19,6 +19,13 @@ TRANSFER_FEE_RATE = 0.00001    # 过户费
 
 # Valid state transitions
 VALID_TRANSITIONS = {
+    # 2026-09-14（w-32314d00）补 (PENDING, FILLED)：原表缺失这一条，
+    # 而"挂单后一次全部成交"（市价单 / 限价单被一次吃满）是**最常见**的路径 ——
+    # 缺失导致 fill_order 对这种单子恒抛 ValueError("非法状态转换: pending -> filled")，
+    # 即整单成交永远失败（只有先部分成交再成交才走得通）。
+    # 证伪方式：tests/domain/trading/test_order_service.py::test_fill_order_success
+    # 用"PENDING 订单 + 一次全量成交"驱动 fill_order，在修复前 100% 失败。
+    (OrderStatus.PENDING, OrderStatus.FILLED): True,
     (OrderStatus.PENDING, OrderStatus.PARTIAL): True,
     (OrderStatus.PENDING, OrderStatus.CANCELLED): True,
     (OrderStatus.PENDING, OrderStatus.EXPIRED): True,
@@ -170,29 +177,6 @@ class OrderService:
         
         return order
 
-    def _validate_status_transition(
-        self,
-        order_id: int,
-        current_status: OrderStatus,
-        new_status: OrderStatus
-    ) -> None:
-        """校验订单状态转换是否合法
-
-        Args:
-            order_id: 订单ID
-            current_status: 当前状态
-            new_status: 目标状态
-
-        Raises:
-            ValueError: 状态转换不合法
-        """
-        transition = (current_status, new_status)
-        if transition not in VALID_TRANSITIONS:
-            raise ValueError(
-                f"不允许的状态转换: {current_status.value} -> {new_status.value} "
-                f"(order_id={order_id})"
-            )
-
     def fill_order(
         self,
         order_id: int,
@@ -303,36 +287,47 @@ class OrderService:
         total_fees = commission + stamp_duty + transfer_fee
 
         # 更新持仓（调用领域服务）
+        # 2026-09-14（w-32314d00）修**真缺陷**：这里原先调 add_shares / reduce_shares，
+        # 而 PositionService 根本没有这两个方法（真实 API 是 update_on_buy / update_on_sell）
+        # —— 任何真实调用（非 Mock）都会 AttributeError，成交后持仓永远不更新。
+        # 同时把上面已算好的手续费/印花税透传进去：原写法只传了成交价，
+        # 持仓成本**不含费用**，买入成本被系统性低估、卖出也未体现税费。
         if order.action == OrderSide.BUY:
-            self.position_service.add_shares(
+            self.position_service.update_on_buy(
                 account_name=order.account_name,
                 symbol=order.symbol,
-                shares=fill_quantity,
-                cost=fill_price
+                quantity=fill_quantity,
+                price=fill_price,
+                commission=commission,
+                transfer_fee=transfer_fee,
             )
         else:  # SELL
-            self.position_service.reduce_shares(
+            self.position_service.update_on_sell(
                 account_name=order.account_name,
                 symbol=order.symbol,
-                shares=fill_quantity
+                quantity=fill_quantity,
+                price=fill_price,
+                commission=commission,
+                stamp_duty=stamp_duty,
+                transfer_fee=transfer_fee,
             )
 
         # 更新账户资金（调用领域服务）
         if order.action == OrderSide.BUY:
             # 买入：扣减资金
             total_cost = amount + total_fees
-            self.account_service.deduct_funds(
+            # 2026-09-14（w-32314d00）：AccountService 的真实方法是 execute_deduct_cash
+            # （原 deduct_funds 不存在；且真实签名只收 account_name/amount，无 reason）。
+            self.account_service.execute_deduct_cash(
                 account_name=order.account_name,
                 amount=total_cost,
-                reason=f"买入 {order.symbol} {fill_quantity}股"
             )
         else:  # SELL
             # 卖出：增加资金
             net_proceeds = amount - total_fees
-            self.account_service.add_funds(
+            self.account_service.execute_add_cash(
                 account_name=order.account_name,
                 amount=net_proceeds,
-                reason=f"卖出 {order.symbol} {fill_quantity}股"
             )
 
         logger.info(

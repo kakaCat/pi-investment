@@ -81,6 +81,19 @@ class StrategyFactorInjector:
         Returns:
             增强后的K线数据（包含所有因子）
         """
+        # 空输入必须在进入任何因子计算前拦下（2026-09-14 w-32314d00 修严重缺陷）。
+        # 实测证据（受控对比，本机 2026-09-14）：
+        #   · 同一个「空 DataFrame 逐列赋值」pandas 循环，**不调 TA-Lib** 跑 4 次 → 全部 EXIT=0；
+        #   · **调 TA-Lib** 跑 2 次 → 全部 Trace/BPT trap（其后再跑即 SIGABRT/SIGSEGV），
+        #     且崩溃点在不同因子间漂移（willr / trix）——典型的**堆内存被破坏**特征。
+        # 即：把 0 长度数组喂给 TA-Lib（apo/bop/willr/trix…）会破坏堆，最终在
+        # 后面的 pandas 赋值处炸掉整个进程。这不只是"测试挂了"，任何走到这里的
+        # 空 K 线调用都会**杀掉宿主进程**（不是抛异常，是段错误）。
+        # 另：原实现在 klines 为空时还会在末尾执行 klines[0].keys() → IndexError。
+        if not klines:
+            logger.debug("因子注入：K 线为空，直接返回空列表（不进入任何原生计算）")
+            return []
+
         try:
             # 转换为 DataFrame
             df = pd.DataFrame(klines)

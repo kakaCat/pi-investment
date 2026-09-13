@@ -129,6 +129,22 @@ class TechnicalFactorCalculator(BaseCalculator):
     # Data Extraction
     # =========================================================================
 
+    def _require_non_empty(self, klines, what: str = 'klines') -> None:
+        """空输入必须在此拦下，绝不让 0 长度数组到达 TA-Lib 等原生库。
+
+        2026-09-14（w-32314d00）实证：TA-Lib 在 0 长度输入下会**破坏堆内存**——
+        受控对比：同样的 pandas 循环「不调 TA-Lib」4/4 正常结束，「调 TA-Lib」2/2
+        Trace/BPT trap，且崩溃点在不同因子间漂移（willr / trix）＝堆损坏特征；
+        最终崩溃现场却在几层之外的 pandas 列赋值处，**根因与症状相距极远**，
+        极易被误判成"pandas 的 bug"。
+
+        这里抛 InsufficientDataError（而非返回空数组）是刻意的：空数组只会把
+        问题后移到原生库里以内存破坏的形式爆发；提前抛错既保住进程，
+        又能被上层的 per-method try/except 降级成 NaN 因子。
+        """
+        if not klines:
+            raise InsufficientDataError(1, 0, message=f'{what} is empty')
+
     def _extract_closes(self, klines: list[dict]) -> np.ndarray:
         """
         Extract close prices from K-line data.
@@ -139,6 +155,7 @@ class TechnicalFactorCalculator(BaseCalculator):
         Returns:
             numpy array of close prices
         """
+        self._require_non_empty(klines, 'klines(close)')
         return np.array([k['close'] for k in klines], dtype=np.float64)
 
     def _extract_opens(self, klines: list[dict]) -> np.ndarray:
@@ -151,6 +168,7 @@ class TechnicalFactorCalculator(BaseCalculator):
         Returns:
             numpy array of open prices
         """
+        self._require_non_empty(klines, 'klines(open)')
         return np.array([k['open'] for k in klines], dtype=np.float64)
 
     def _extract_highs(self, klines: list[dict]) -> np.ndarray:
@@ -163,6 +181,7 @@ class TechnicalFactorCalculator(BaseCalculator):
         Returns:
             numpy array of high prices
         """
+        self._require_non_empty(klines, 'klines(high)')
         return np.array([k['high'] for k in klines], dtype=np.float64)
 
     def _extract_lows(self, klines: list[dict]) -> np.ndarray:
@@ -175,6 +194,7 @@ class TechnicalFactorCalculator(BaseCalculator):
         Returns:
             numpy array of low prices
         """
+        self._require_non_empty(klines, 'klines(low)')
         return np.array([k['low'] for k in klines], dtype=np.float64)
 
     def _extract_volumes(self, klines: list[dict]) -> np.ndarray:
@@ -187,6 +207,7 @@ class TechnicalFactorCalculator(BaseCalculator):
         Returns:
             numpy array of volumes
         """
+        self._require_non_empty(klines, 'klines(volume)')
         return np.array([k['volume'] for k in klines], dtype=np.float64)
 
     # =========================================================================

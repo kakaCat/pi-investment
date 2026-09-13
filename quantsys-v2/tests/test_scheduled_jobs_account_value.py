@@ -104,6 +104,11 @@ class _FakeKlineDF:
 
 
 class _FakeFactorStage:
+    # handle_factor_compute 会读 stage.DEFAULT_TECHNICAL_FACTORS 做缺失因子统计，
+    # 替身必须提供；否则 AttributeError 会被逐标的 except 吞成 failed
+    # （表现成"算不出因子"，与真实缺陷一模一样，无法区分）
+    DEFAULT_TECHNICAL_FACTORS = ('rsi', 'ma20')
+
     def __init__(self, name, factor_names=None):
         self.factor_names = factor_names
 
@@ -113,25 +118,43 @@ class _FakeFactorStage:
 
 
 class TestHandleFactorCompute:
+    """handle_factor_compute 的接口脱节回归
+
+    ⚠️ 2026-09-14（w-32314d00）修测试与实现的**脱节**：本用例原先把
+    monkeypatch 打在 infrastructure.services.service_factory.get_data_service 上，
+    而该函数**根本不存在**（AttributeError 直接让用例失败）。handle_factor_compute
+    现已改为直接走仓储 —— KlineORMRepository.get_daily_klines /
+    FactorORMRepository.save_factors（2026-09-03 R1 与 2026-09-10 C 两次修复之后），
+    不再经过任何 data_service。故 patch 点必须落回真实调用链；
+    否则这个用例测的是一条早已不存在的路径（就算不报错也是 false green）。
+    """
+
     def test_compute_and_persist_via_factor_stage(self, monkeypatch):
         saved = []
 
-        fake_ds = SimpleNamespace(
-            kline=SimpleNamespace(get_daily_klines=lambda sym, s, e: _FakeKlineDF()),
-            factor=SimpleNamespace(
-                save_factors=lambda sym, dt, factors: saved.append((sym, dt, factors))
-            ),
-        )
-
-        import infrastructure.services.service_factory as sf
+        import application.services.scheduler_tasks as st
         import domain.backtest.stages.factor_stage as fs_mod
+        import adapters.outbound.repositories as repos
 
-        monkeypatch.setattr(sf, 'get_data_service', lambda: fake_ds)
+        # 预筛会查库里每只标的的 K 线根数——本用例只测编排，直接放行
+        monkeypatch.setattr(st, '_filter_factor_universe', lambda syms, s, e: (list(syms), {
+            'delisted': 0, 'st': 0, 'non_equity': 0,
+            'insufficient_bars': 0, 'unknown': [], 'examples': []}))
+        monkeypatch.setattr(repos.KlineORMRepository, 'get_daily_klines',
+                            lambda self, sym, s, e: _FakeKlineDF())
+        monkeypatch.setattr(repos.FactorORMRepository, 'save_factors',
+                            lambda self, sym, dt, factors: saved.append((sym, dt, factors)))
+        # 资金流注入/提取会打库或外部源，与本用例无关。
+        # 注意：这两个是在 handle_factor_compute 的**函数体内**从
+        # adapters.shared.fund_flow_helpers 导入的，所以要 patch 源模块而非 scheduler_tasks。
+        import adapters.shared.fund_flow_helpers as ff
+        monkeypatch.setattr(ff, '_inject_fund_flow_to_klines', lambda klines, sym: klines)
+        monkeypatch.setattr(ff, '_extract_fund_flow_factors', lambda klines: {})
         monkeypatch.setattr(fs_mod, 'FactorStage', _FakeFactorStage)
 
         result = scheduler_tasks.handle_factor_compute({'symbols': ['300001']})
 
         # 修复前：status=failed, error="'FactorAnalysisService' object has no attribute 'compute_factors'"
         assert result['status'] == 'success', result
-        assert result['factors_computed'] == 1
+        assert result['factors_computed'] == 1, result
         assert saved == [('300001', '2026-07-28', {'rsi': 55.0, 'ma20': 10.2})]

@@ -4,8 +4,38 @@ MLflow模型管理 - Team B
 """
 from typing import Dict, Any, List
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+
+# 默认 tracking 后端：本地 filesystem store（本项目没有 MLflow 服务）。
+# 可用 MLFLOW_TRACKING_URI 覆盖（例如换成 sqlite:///mlflow.db）。
+_DEFAULT_TRACKING_URI = 'file:./mlruns'
+
+
+def _ensure_file_store_allowed(tracking_uri: str) -> None:
+    """MLflow 3.x 起，filesystem tracking backend 进入 maintenance mode，**默认直接抛异常**：
+
+        MlflowException: The filesystem tracking backend (e.g., './mlruns') is in
+        maintenance mode and will not receive further updates. ... If the filesystem
+        backend is required for your workflow, set MLFLOW_ALLOW_FILE_STORE=true to
+        opt out of this exception.
+
+    2026-09-14（w-32314d00）修：本仓默认就用 file store，于是在 mlflow 3.15 上
+    构造 MLflowManager 即抛异常（tests/test_ml/test_mlflow_manager.py 5 个用例全 ERROR，
+    且任何真实使用同样起不来）。这里在**确实要用 file store** 时显式 opt-out 并留日志；
+    用户若显式设了 MLFLOW_ALLOW_FILE_STORE（哪怕 =false）则完全尊重，不做覆盖——
+    这样"想按官方建议迁库"的人不会被这里的便利悄悄改掉行为。
+    """
+    if not tracking_uri.startswith('file:'):
+        return
+    if 'MLFLOW_ALLOW_FILE_STORE' in os.environ:
+        return
+    os.environ['MLFLOW_ALLOW_FILE_STORE'] = 'true'
+    logger.warning(
+        "MLflow 3.x 默认拒绝 filesystem tracking backend；已为 %s 设置 "
+        "MLFLOW_ALLOW_FILE_STORE=true。如需改用数据库后端，请设 MLFLOW_TRACKING_URI"
+        "（如 sqlite:///mlflow.db）。", tracking_uri)
 
 # 尝试导入MLflow
 try:
@@ -34,11 +64,14 @@ class MLflowManager:
             tracking_uri: MLflow服务地址
             experiment_name: 实验名称
         """
-        self.tracking_uri = tracking_uri or "file:./mlruns"
+        self.tracking_uri = (
+            tracking_uri or os.environ.get('MLFLOW_TRACKING_URI') or _DEFAULT_TRACKING_URI
+        )
         self.experiment_name = experiment_name
         self.current_run = None
 
         if MLFLOW_AVAILABLE:
+            _ensure_file_store_allowed(self.tracking_uri)
             mlflow.set_tracking_uri(self.tracking_uri)
             mlflow.set_experiment(experiment_name)
             logger.info(f"MLflow initialized: {self.tracking_uri}, experiment={experiment_name}")

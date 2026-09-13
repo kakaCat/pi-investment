@@ -176,7 +176,12 @@ class TestOrderService:
         mock_order_repo.get_order.return_value = order
         
         # Act & Assert
-        with pytest.raises(ValueError, match="只能取消 pending 状态的订单"):
+        # 2026-09-14（w-32314d00）：原断言文案是"只能取消 pending 状态的订单"，
+        # 但那句话本身**与状态机矛盾** —— VALID_TRANSITIONS 明确允许
+        # PARTIAL -> CANCELLED（部分成交的订单当然可以撤）。真正的规则是
+        # "终态不可再撤"，由 _validate_status_transition 统一表达。
+        # 故改为断言状态机拒绝 + 明确报出 filled 这个终态。
+        with pytest.raises(ValueError, match="非法状态转换.*filled.*cancelled"):
             service.cancel_order(1)
     
     def test_fill_order_success(self, service, mock_order_repo, mock_position_service):
