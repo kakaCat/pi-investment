@@ -28,18 +28,33 @@ MAX_LEVEL=${MAX_LEVEL:-20000}   # 合理指数上界
 q() { $PSQL -d "$DB" -t -A -c "$1" 2>/dev/null | tr -d ' '; }
 
 BENCH_LAST=$(q "select coalesce(max(trade_date)::text,'') from quant.index_daily where symbol='$BENCH';")
-REF_LAST=$(q "select coalesce(max(trade_date)::text,'') from quant.daily_klines where symbol='600519';")
+REF=${REF:-600519}             # 市场新鲜度参照标的（当作“最近交易日”基准，避免依赖外部日历）
+REF_LAST=$(q "select coalesce(max(trade_date)::text,'') from quant.daily_klines where symbol='$REF';")
 CLOSE=$(q "select coalesce(close::text,'') from quant.index_daily where symbol='$BENCH' order by trade_date desc limit 1;")
 
-FAIL=""
-[ -z "$BENCH_LAST" ] && FAIL="基准 $BENCH 在库中无任何数据"
-[ -z "$REF_LAST" ] && FAIL="${FAIL}参照标的 600519 无数据（无法判定新鲜度）"
-if [ -z "$FAIL" ] && [ "$BENCH_LAST" < "$REF_LAST" ]; then
-  FAIL="基准滞后：$BENCH 最新=${BENCH_LAST} < 市场最新=${REF_LAST}（归因/相对收益会算出错数）"
-fi
-if [ -z "$FAIL" ] && [ -n "$CLOSE" ]; then
-  OK_LEVEL=$(python3 -c "print(1 if ${MIN_LEVEL} <= ${CLOSE} <= ${MAX_LEVEL} else 0)" 2>/dev/null || echo 1)
-  [ "$OK_LEVEL" = "0" ] && FAIL="基准量级异常：$BENCH 最新收盘=${CLOSE}，不在 [${MIN_LEVEL}, ${MAX_LEVEL}] 区间（疑似代码冲突取到了股票数据）"
+# 滞后比较（2026-09-14，REQ-a458a6 t7）：原为 [ "$a" < "$b" ] —— bash 单括号里的 `<`
+# 是**输入重定向**（stderr 可见 "…line 37: 2026-09-11: No such file or directory"），比较
+# 从未成立、FAIL 始终为空，基准滞后也报 OK（实证 2026-09-13 08:40 日志：基准 2026-09-10
+# vs 市场 2026-09-11 仍输出 OK，而那正是本巡检要抓的场景）。改由 python3 比较；日期为
+# ISO 串，字典序即时间序。
+lag() { python3 -c 'import sys; a,b=sys.argv[1],sys.argv[2]; print(1 if a and b and a < b else 0)' "$1" "$2"; }
+
+# 自检：比较必须双向可用（滞后→1、不滞后→0），否则本巡检会再次退化成「永远 OK」。
+# 不通过时同样走下面的错误事件通道上报——巡检自身坏了也要响。
+SELF_LAG="$(lag 2026-09-10 2026-09-11)$(lag 2026-09-11 2026-09-10)"
+if [ "$SELF_LAG" != "10" ]; then
+  FAIL="巡检自检未通过：滞后比较失效（lag(旧,新) 应为 1/0，实得 '$SELF_LAG'）"
+else
+  FAIL=""
+  [ -z "$BENCH_LAST" ] && FAIL="基准 $BENCH 在库中无任何数据"
+  [ -z "$REF_LAST" ] && FAIL="${FAIL}参照标的 $REF 无数据（无法判定新鲜度）"
+  if [ -z "$FAIL" ] && [ "$(lag "$BENCH_LAST" "$REF_LAST")" = "1" ]; then
+    FAIL="基准滞后：$BENCH 最新=${BENCH_LAST} < 市场最新=${REF_LAST}（归因/相对收益会算出错数）"
+  fi
+  if [ -z "$FAIL" ] && [ -n "$CLOSE" ]; then
+    OK_LEVEL=$(python3 -c "print(1 if ${MIN_LEVEL} <= ${CLOSE} <= ${MAX_LEVEL} else 0)" 2>/dev/null || echo 1)
+    [ "$OK_LEVEL" = "0" ] && FAIL="基准量级异常：$BENCH 最新收盘=${CLOSE}，不在 [${MIN_LEVEL}, ${MAX_LEVEL}] 区间（疑似代码冲突取到了股票数据）"
+  fi
 fi
 
 if [ -z "$FAIL" ]; then

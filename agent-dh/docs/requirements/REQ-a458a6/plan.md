@@ -22,6 +22,7 @@
 | t4 | 删除死代码 `application/services/ml_train_task.py` | implement | backend | - | `grep -rn ml_train_task` 只剩文档注记；全量导入/冒烟测试通过 |
 | t5 | 跳过通知降噪（skipped 不单独推飞书） | implement | backend | t1 | 造一次 skipped 无飞书；造一次 success 有飞书；skipped 仍完整落在 runs |
 | t6 | 验收：故障注入 + 一个训练周期观察 | test | backend | t1,t2,t3,t4,t5 | 见"验收方式"；观测窗口内模型年龄峰值 ≤8 天 |
+| t7 | 修复基准巡检的滞后比较失效（执行期并入，用户两问确认） | implement | backend | - | 正常跑 exit 0 且无 stderr 重定向报错；把比较改坏后必须 `FAIL: 巡检自检未通过` 并投错误事件 |
 
 ## 任务细节
 
@@ -84,12 +85,13 @@
 | t4 死代码 | ✅ | `application/services/ml_train_task.py` 已删（零调用方，含同款 tz 崩溃实现） |
 | t5 通知降噪 | ✅ | skipped 分支不再推送；线上 trigger 后 `notification_logs` 计数未变（320→320） |
 | t6 验收 | 🔶 注入已过、周期观察待满 | 四条故障注入全过（见下）；「≥1 个 7 天训练周期的观察」需等到 09-21/09-22 才能判 |
+| t7 基准巡检比较 | ✅ | 正常跑 exit 0、stderr 干净；故障注入（`lag()`→`echo 0`）→ 自检 FAIL + `error-event ingest HTTP=201` + exit 1 |
 
 **注入结果**（脚本 `/tmp/inject_model_freshness.py`，跑完自动精确复原，DB 已核对复原）：
-1. 全部 lightgbm 行整体前移 11 天 → 外部巡检 FAIL + 事件入库 201；`_model_freshness_alerts()` → `fatal=True`；门控 → `(True, 模型已11.0天未更新（阈值6天）)`；Job 端到端 → `success=False`，高优通知经 Agent OS alerts 渠道投递成功。
+1. 全部 lightgbm 行整体前移 11 天 → 外部巡检 FAIL + 事件入库 201；`_model_freshness_alerts()` → `fatal=True`；门控 → `(True, 模型已11.0天未更新（阈值6.5天）)`；Job 端到端 → `success=False`，高优通知经 Agent OS alerts 渠道投递成功。
    （第一次注入只前移最新一行 → 次新行顶上来当「最新」，外部巡检照样 OK，脚本报的是 0905 的 8.71 天 —— 注入必须整体前移。）
 2. train_date 置空 → `(True, 模型…缺 train_date 元数据，按需重训)`，**不再抛 UnboundLocalError**。
-3. 复原后复核：门控 `(False, 仍有效 (age=0.0d < 6d, acc=0.5975))`、外部巡检 OK。
+3. 复原后复核：门控 `(False, 仍有效 (age=0.0d < 6.5d, acc=0.5975))`、外部巡检 OK。
 
 **执行期偏差（3 处，均已核实理由）**：
 - **t3 落点改了**：原计划改 `daily_jobs_bootstrap._job_freshness_guard`，但该文件此刻有**其他窗口的在途改动**（`git status` 显示 M），配套的 `tests/test_freshness_guard.py` 也被人改着；为不踩踏，把 in-app 检查放到职责更贴的 `application/jobs/model_jobs.py`（干净文件）。
@@ -112,5 +114,9 @@ crontab -l | grep -v cron_train_model.sh | grep -v cron_train_model_force.sh | c
 
 故改为 **6.5**：两种训练时点都稳定落在第 7 天；漏跑一天仍能在次日补上。已加 `test_daily_cadence_is_seven_days_for_both_training_times` 把这个性质钉住（阈值若再被改动而破坏节律，测试会红）。线上复核：runs 3709 reason `仍有效 (age=0.0d < 6.5d, acc=0.5975)`。
 
-**顺带发现（不在本计划范围，待决定）**：`scripts/benchmark-freshness-check.sh:37` 的 `[ "$BENCH_LAST" < "$REF_LAST" ]` 在 bash 单括号里是**输入重定向**（stderr 有 `No such file or directory`），比较从未生效 → 基准滞后也报 OK（09-13 日志实证：基准 2026-09-10 vs 市场 2026-09-11 仍输出 OK）。修法一行。
+### t7 修复基准巡检的滞后比较失效（并入说明）
+- 来源：执行 t1-t6 时顺带读到该脚本与日志，发现它的「新鲜度」一项从未生效：`[ "$BENCH_LAST" < "$REF_LAST" ]` 在 bash 单括号里是**输入重定向**（stderr 可见 `line 37: 2026-09-11: No such file or directory`），比较不成立、FAIL 永远为空 → 基准滞后也报 OK（实证 09-13 08:40 日志：基准 2026-09-10 vs 市场 2026-09-11 仍输出 OK —— 正是本巡检要抓的「归因/相对收益失真」场景）。
+- 并入理由：本窗口已被 reqboard 绑定在 REQ-a458a6（`reqboard_create` 返回 `REQBOARD_WINDOW_BOUND`，第二个需求立不了项）；该缺陷与本次治理属**同一族**（巡检/门控「绿灯其实是坏的」静默失效），且已经用户两问确认（名称「修复 benchmark-freshness-check.sh 的基准滞后比较失效」、类型 bug）。
+- 改法：滞后比较交给 python3（`lag()`：ISO 串字典序），并新增**每次运行都跑的自检**（`lag(旧,新)` 必须给出 1/0）；自检不通过时同样投错误事件，防止巡检再次退化成「永远 OK」。顺带把参照标的提成 `${REF:-600519}` 便于人工换参照。
+- 验收：正常跑 `exit 0` + `[benchmark-check] OK: 000300.SH 最新=2026-09-11（市场最新=2026-09-11）`、stderr 无重定向报错；故障注入（把 `lag()` 换成 `echo 0`）→ `FAIL: 巡检自检未通过：滞后比较失效（lag(旧,新) 应为 1/0，实得 00）` + `error-event ingest HTTP=201` + `exit 1`（已在 /tmp 副本实测）。
 
