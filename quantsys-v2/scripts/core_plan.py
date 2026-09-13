@@ -60,6 +60,12 @@ def main():
     ap.add_argument("--momentum-tilt", action="store_true", help="启用行业动量 tilt（默认关，见脚本头注释的证据）")
     ap.add_argument("--style-tilt", action="store_true", help="启用风格 tilt（默认关：无可用历史序列，未能验证）")
     ap.add_argument("--growth-min-amount", type=float, default=5e7)   # 成长板候选日成交额下限（元）
+    # 2026-09-13（用户裁定"要解决"）：子额度**独立质量门槛**，不再沿用 core 的松门槛。
+    # 依据：收紧前子额度实买 300319(ROE 3.05/PE 31.2)、300413(ROE 0.86/PE 28.5)——
+    # 后者是"几乎不赚钱却给 28 倍估值"，正是用户警告过的价值陷阱画像；而 core 持仓 ROE 中位 5.7。
+    # 门槛 ROE>0/PE<=60 是为主板蓝筹设计的，用在成长板上会持续买入低质量标的。
+    ap.add_argument("--growth-min-roe", type=float, default=5.0)
+    ap.add_argument("--growth-max-pe", type=float, default=40.0)
     ap.add_argument("--target-vol", type=float, default=0.15)
     ap.add_argument("--max-exposure", type=float, default=0.25)   # 首期上限：25%（regime 允许 40% 以内）
     ap.add_argument("--account", default="agent_brain")
@@ -323,8 +329,9 @@ def main():
     _sec_size = st["sector"].value_counts().to_dict()
     _gst = st[st["symbol"].astype(str).str.startswith(_G_PREFIX)].copy()
     _gn0 = len(_gst)
-    _gst = _gst[_gst["roe"].notna() & (_gst["roe"] > 0)]
-    _gst = _gst[_gst["pe"].notna() & (_gst["pe"] > 0) & (_gst["pe"] <= 60)]
+    # 子额度独立质量门槛（比 core 严）：ROE ≥ growth_min_roe 且 0 < PE ≤ growth_max_pe
+    _gst = _gst[_gst["roe"].notna() & (_gst["roe"] >= a.growth_min_roe)]
+    _gst = _gst[_gst["pe"].notna() & (_gst["pe"] > 0) & (_gst["pe"] <= a.growth_max_pe)]
     _gst = _gst[(_gst["is_st"] != True) & (_gst["is_suspended"] != True)]  # noqa: E712
     _gst = _gst[_gst["list_date"].isna() | (_gst["list_date"] <= pd.Timestamp.now() - pd.Timedelta(days=730))]
     _gfin = _gst["industry"].fillna("").str.contains("金融", na=False)

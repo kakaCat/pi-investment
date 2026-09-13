@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-13T16:09:10",
+ "generated_at": "2026-09-13T17:14:05",
  "account": "agent_brain",
  "mode": "PLAN_ONLY（不下单）",
  "account_total": 500000.0,
@@ -51,7 +51,7 @@
    "close": 10.12,
    "roe": 5.35,
    "pe": 30.64,
-   "amount_def_avg": 2614505668.058547
+   "amount_def_avg": 2614505668.0585475
   },
   {
    "symbol": "300059",
@@ -150,7 +150,7 @@
    "close": 4.64,
    "roe": 6.19,
    "pe": 19.94,
-   "amount_def_avg": 1280034707.4496577
+   "amount_def_avg": 1280034707.449658
   },
   {
    "symbol": "600887",
@@ -211,52 +211,52 @@
  "growth_sleeve": {
   "meta": {
    "cap_pct_of_total": 0.05,
-   "exposure_pct_of_total": 0.0377,
-   "amount": 18831.0,
-   "index_vol_ann": 0.3134,
-   "index_drawdown": -0.1449,
-   "w_vol": 0.479,
+   "exposure_pct_of_total": 0.0366,
+   "amount": 18315.0,
+   "index_vol_ann": 0.2237,
+   "index_drawdown": -0.1941,
+   "w_vol": 0.671,
    "dd_gate": 0.5,
    "candidates": [
-    "300285",
-    "300319",
-    "300433",
-    "300413",
-    "300207",
-    "300759",
-    "300017",
     "300014",
     "300124",
-    "300037"
+    "300456",
+    "300442",
+    "688677",
+    "300398",
+    "300850",
+    "300083",
+    "688036",
+    "300697"
    ],
-   "note": "独立核算子额度；候选池 352 只成长板标的（不受 core 单只预算钳制）"
+   "note": "独立核算子额度；候选池 97 只成长板标的（不受 core 单只预算钳制）"
   },
   "holdings": [
    {
-    "symbol": "300319",
+    "symbol": "300014",
+    "industry": "制造业-电气机械和器材制造业",
+    "sector": "制造业",
+    "mult": 1.0,
+    "note": "行业动量 弱（64/77）（未加权：实测无预测力）",
+    "close": 48.6,
+    "roe": 7.24,
+    "pe": 36.32,
+    "weight_pct_of_sleeve": 50.0,
+    "amount": 9158.0,
+    "lots": 1
+   },
+   {
+    "symbol": "300456",
     "industry": "制造业-计算机、通信和其他电子设备制造业",
     "sector": "制造业",
     "mult": 1.0,
     "note": "行业动量 弱（76/77）（未加权：实测无预测力）",
-    "close": 21.06,
-    "roe": 3.05,
-    "pe": 31.18,
+    "close": 34.65,
+    "roe": 34.07,
+    "pe": 23.05,
     "weight_pct_of_sleeve": 50.0,
-    "amount": 9416.0,
-    "lots": 4
-   },
-   {
-    "symbol": "300413",
-    "industry": "信息传输、软件和信息技术服务业-互联网和相关服务",
-    "sector": "信息传输、软件和信息技术服务业",
-    "mult": 1.0,
-    "note": "行业动量 弱（53/77）（未加权：实测无预测力）",
-    "close": 17.77,
-    "roe": 0.86,
-    "pe": 28.49,
-    "weight_pct_of_sleeve": 50.0,
-    "amount": 9416.0,
-    "lots": 5
+    "amount": 9158.0,
+    "lots": 2
    }
   ]
  },
