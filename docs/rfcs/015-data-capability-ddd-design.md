@@ -319,3 +319,55 @@ class TradingStatus:    # 值对象：下单前硬约束
 - **风险**：政策源抓取稳定性（已有东财 WAF 前例）→ 必须 fail-loud + 人工策展兜底
 - **风险**：产业链环节策展有主观性 → 强制带 `evidence` 字段 + 置信度分级，允许质疑
 - **明确边界**：本方案不引入新中间件（Kafka/ES）；分钟线只采自选池+持仓，不全市场入库
+---
+
+## 4. 研究级扩展（设计，2026-09-13 w-a9ec14d7 / investor）
+
+### 4.1 为什么需要（实测缺口）
+
+§3 的设计目的是**归因 + 排雷 + 盯盘联动**，其采集宇宙是"持仓 ∪ 盯盘"。实测现状：
+
+| 项 | 实测 | 研究需要 |
+|---|---|---|
+| 个股事件覆盖 | `individual` 事件仅 **34 只**标的（`default_universe` = 持仓∪盯盘） | 全市场/研究宇宙（800~5000 只），且要"同一事件日的横截面" |
+| 历史深度 | 2026-04 起；全市场模式被 `_MARKET_PAGE_SIZE` 采样上限卡住 | 2024-07+ 全市场按日回补 |
+| 事件类型 | 曾 365/683 = `other`（**100% 无法归类**）；2026-09-13 已补类型体系 → other 降至 149 | 类型可用（已解决） |
+
+**可行性已实测**：巨潮支持历史日期区间 + 全市场（无 searchkey）检索，
+返回字段含 `announce_date`（**实际披露日**）——这正是事件研究避免前视偏差的关键口径，
+优于 `v_key_financial_indicators.report_date`（报告期 ≠ 披露日）。
+
+### 4.2 五层落位（沿用 §3 的限界上下文，不新开）
+
+| 层 | 文件 | 变更 |
+|---|---|---|
+| domain · 端口 | `domain/events/ports/IMarketEventProvider.py` | **新增** `fetch_market_events(start_date, end_date, max_pages) -> List[Dict]`（按日期区间的全市场法定披露流）；保留 `fetch_symbol_events` / `fetch_policy` |
+| domain · 端口 | `domain/events/ports/IMarketEventRepository.py` | **新增** `research_universe(limit)`（研究宇宙：流动性筛选）与 `coverage_stats(start, end)`（覆盖率自检）；`default_universe` 语义收窄为"监控宇宙"——**两个概念必须分开**，混在一个方法里正是覆盖只有 34 只的根因 |
+| adapters · 数据源 | `providers/events/cninfo_disclosure.py`（权威通道） | 实现 `fetch_market_events`：复用 `_query(searchkey="", se_date=区间, page_size, columns=szse/sse)` + **分页**；截断必须显式标注（沿用既有 `truncation_note` 纪律） |
+| adapters · 数据源 | `providers/events/eastmoney_notice.py`（交叉验证通道） | 同签名实现，用于 R3 多源合并与分歧留痕 |
+| application | `application/services/event_feed_service.py` | **新增** `ingest_history(start, end)`（逐日循环 + 幂等 upsert + 失败不静默）+ `IngestEventsBackfillJob` |
+| infrastructure | 调度 / 探针 | 回补走手动一次性 job；新增**覆盖率探针**（每日事件数 / 去重命中率 / 类型分布 → `data_quality_report`）；既有 `ingest_events_daily`(17:00) 与 `ingest_events_policy`(每 4h) 不变 |
+
+### 4.3 研究侧（刻意**不进**领域层）
+
+事件窗口超额检验放研究脚本（`scripts/event_study.py`），不进 `domain/`——
+领域层保持"零 I/O、零外部依赖、可单测"（§3.1 的既定纪律）：
+
+- 按 `(type, announce_date)` 分组，T+1 开盘成交、含成本、N 日窗口（1/5/20）；
+- 对照必须是**同池等权买入持有**（超额口径，与 `strategy_lab` 一致）；
+- 门槛沿用 `strategy_loop` 的超额门槛（alpha 档）；
+- **禁止用 `report_date`（报告期）当事件日**——这是前视偏差的经典来源。
+
+### 4.4 验收标准
+
+1. 回补 2024-07+ 全市场后：**每日事件数 ≥ 100**（交易日）；
+2. `type='other'` 占比 **< 50%**（当前 21%，已达）；
+3. 财报事件覆盖 **≥ 3000 只·次**；解禁事件覆盖未来 90 天全市场；
+4. 覆盖率探针在 `data_quality_report` 可见，且回补中断时**显式失败**（禁止静默空——沿用 §3 对政策源的硬要求）。
+
+### 4.5 明确不做
+
+- 不用 LLM 生成事件类型（不可审计，与 §3 结尾的"不做"一致）；
+- 不把 H股公告/翌日披露报表/投资者关系活动记录表强行归类（噪声，给类型只会污染事件研究分组）；
+- 不改 `event_calendar` 既有列语义（§3.5 的"扩展而非重建"纪律）。RFC4EOF
+tail -4 /Users/yunpeng/pi-investment/docs/rfcs/015-data-capability-ddd-design.md
