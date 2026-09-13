@@ -10,8 +10,30 @@ from unittest.mock import MagicMock, patch, PropertyMock
 from datetime import datetime, timedelta
 
 from application.services.data_service import DataService
-from application.services import new_order_service as order_service
+# 2026-09-14（w-c8cae280）：原先是 new_order_service（**门面**），但它不转发
+# stock_repo/risk_repo/signal_repo/portfolio_repo —— 用例需要注入 mock 仓库，故直接用真实模块。
+from application.services import order_service
 from application.services import trade_service
+
+# 2026-09-14（w-c8cae280）**测试腐烂修复**：本文件原先按旧签名调用
+#   order_service.create_order(ds, symbol, action, order_type, quantity, price=...)
+# 即把 DataService 当第一个位置参数传。而现行签名是
+#   create_order(symbol, action, order_type, quantity, price=..., stock_repo=, risk_repo=, signal_repo=, portfolio_repo=)
+# → 位置错位后 "ds" 占了 symbol 位，price 被同时按位置与关键字传两次：
+#   TypeError: create_order() got multiple values for argument 'price'（本文件约 40 个用例因此全红）。
+# 修法：去掉 ds 这个已不存在的参数，并把 mock 的各子仓库**按其真实名**注入
+# （create_order 体内对每个 repo 都是 "xxx_repo or ServiceFactory.get_...()"，注入即生效，
+#  所以各用例原先对 ds.stock/ds.risk/ds.signal 的 mock 期望仍被真实使用）。
+#
+# ⚠️ 本文件**尚未修完**（2026-09-14 现状：13 passed / 40 failed / 5 skipped）。剩余失败同属一大类
+# ——全文件按旧 ds 注入式 API 编写，而代码已迁移到 repo 注入 + ServiceFactory。按错误分布分 6 簇：
+#   6× Mock object has no attribute 'get_pending...'    → 被调仓库接口名已变（mock 属性名漂移）
+#   6× 'int' object has no attribute 'get_order...'      → 参数顺序漂移（把 order_id 传进了仓库位）
+#   5× ValueError: 股票代码必须是字符串                   → 仍在把 ds/Mock 当 symbol 传
+#   5× fill_order() got multiple values for 'fill_quantity' → 同 create_order 的位置/关键字冲突
+#   5× Mock object has no attribute 'get_trades...'      → 同上接口名漂移
+#   4× psycopg2 can't adapt type 'MagicMock'             → Mock 泄漏进 SQL 参数
+# 修完需要逐用例对齐"该仓库现在的接口名/参数顺序"，不是一次机械替换。
 
 
 # ==================== Helpers ====================
@@ -65,63 +87,55 @@ class TestOrderCreation:
         ds = _make_mock_ds()
 
         with pytest.raises(ValueError, match="股票代码"):
-            order_service.create_order(ds, "INVALID", "buy", "limit", 100, price=10.0)
-
+            order_service.create_order("INVALID", "buy", "limit", 100, price=10.0, stock_repo=ds.stock, risk_repo=ds.risk, signal_repo=ds.signal, portfolio_repo=ds.portfolio)
     def test_empty_symbol(self):
         """空股票代码应抛出 ValueError"""
         ds = _make_mock_ds()
 
         with pytest.raises(ValueError, match="股票代码不能为空"):
-            order_service.create_order(ds, "", "buy", "limit", 100, price=10.0)
-
+            order_service.create_order("", "buy", "limit", 100, price=10.0, stock_repo=ds.stock, risk_repo=ds.risk, signal_repo=ds.signal, portfolio_repo=ds.portfolio)
     def test_negative_quantity(self):
         """负数量应抛出 ValueError"""
         ds = _make_mock_ds()
         ds.stock.get_by_symbol.return_value = {'symbol': '000001.SZ', 'name': '测试'}
 
         with pytest.raises(ValueError, match="quantity"):
-            order_service.create_order(ds, "000001.SZ", "buy", "limit", -100, price=10.0)
-
+            order_service.create_order("000001.SZ", "buy", "limit", -100, price=10.0, stock_repo=ds.stock, risk_repo=ds.risk, signal_repo=ds.signal, portfolio_repo=ds.portfolio)
     def test_zero_quantity(self):
         """零数量应抛出 ValueError"""
         ds = _make_mock_ds()
         ds.stock.get_by_symbol.return_value = {'symbol': '000001.SZ', 'name': '测试'}
 
         with pytest.raises(ValueError, match="quantity"):
-            order_service.create_order(ds, "000001.SZ", "buy", "limit", 0, price=10.0)
-
+            order_service.create_order("000001.SZ", "buy", "limit", 0, price=10.0, stock_repo=ds.stock, risk_repo=ds.risk, signal_repo=ds.signal, portfolio_repo=ds.portfolio)
     def test_invalid_action(self):
         """无效交易方向应抛出 ValueError"""
         ds = _make_mock_ds()
         ds.stock.get_by_symbol.return_value = {'symbol': '000001.SZ', 'name': '测试'}
 
         with pytest.raises(ValueError, match="无效的订单方向"):
-            order_service.create_order(ds, "000001.SZ", "hold", "limit", 100, price=10.0)
-
+            order_service.create_order("000001.SZ", "hold", "limit", 100, price=10.0, stock_repo=ds.stock, risk_repo=ds.risk, signal_repo=ds.signal, portfolio_repo=ds.portfolio)
     def test_invalid_order_type(self):
         """无效订单类型应抛出 ValueError"""
         ds = _make_mock_ds()
         ds.stock.get_by_symbol.return_value = {'symbol': '000001.SZ', 'name': '测试'}
 
         with pytest.raises(ValueError, match="无效的订单类型"):
-            order_service.create_order(ds, "000001.SZ", "buy", "gtd", 100, price=10.0)
-
+            order_service.create_order("000001.SZ", "buy", "gtd", 100, price=10.0, stock_repo=ds.stock, risk_repo=ds.risk, signal_repo=ds.signal, portfolio_repo=ds.portfolio)
     def test_limit_order_requires_price(self):
         """限价单必须提供价格"""
         ds = _make_mock_ds()
         ds.stock.get_by_symbol.return_value = {'symbol': '000001.SZ', 'name': '测试'}
 
         with pytest.raises(ValueError, match="必须提供价格"):
-            order_service.create_order(ds, "000001.SZ", "buy", "limit", 100)
-
+            order_service.create_order("000001.SZ", "buy", "limit", 100, stock_repo=ds.stock, risk_repo=ds.risk, signal_repo=ds.signal, portfolio_repo=ds.portfolio)
     def test_stop_order_requires_price(self):
         """止损单必须提供价格"""
         ds = _make_mock_ds()
         ds.stock.get_by_symbol.return_value = {'symbol': '000001.SZ', 'name': '测试'}
 
         with pytest.raises(ValueError, match="必须提供价格"):
-            order_service.create_order(ds, "000001.SZ", "sell", "stop", 100)
-
+            order_service.create_order("000001.SZ", "sell", "stop", 100, stock_repo=ds.stock, risk_repo=ds.risk, signal_repo=ds.signal, portfolio_repo=ds.portfolio)
     def test_market_buy_order_no_price_rejected(self):
         """市价买单不提供价格应拒绝（无法做资金验证——order_service 有意行为，monorepo 并入前已存在）"""
         ds = _make_mock_ds()
@@ -138,16 +152,14 @@ class TestOrderCreation:
         ds.stock.get_by_symbol.return_value = None
 
         with pytest.raises(RuntimeError, match="股票不存在"):
-            order_service.create_order(ds, "999999.SZ", "buy", "market", 100)
-
+            order_service.create_order("999999.SZ", "buy", "market", 100, stock_repo=ds.stock, risk_repo=ds.risk, signal_repo=ds.signal, portfolio_repo=ds.portfolio)
     def test_negative_price(self):
         """负价格应抛出 ValueError"""
         ds = _make_mock_ds()
         ds.stock.get_by_symbol.return_value = {'symbol': '000001.SZ', 'name': '测试'}
 
         with pytest.raises(ValueError, match="price"):
-            order_service.create_order(ds, "000001.SZ", "buy", "limit", 100, price=-10.0)
-
+            order_service.create_order("000001.SZ", "buy", "limit", 100, price=-10.0, stock_repo=ds.stock, risk_repo=ds.risk, signal_repo=ds.signal, portfolio_repo=ds.portfolio)
     def test_create_order_success(self):
         """成功创建订单"""
         ds = _make_mock_ds()
