@@ -13,7 +13,7 @@
 lab.json 形如：[{"strategy_id": 245, "cagr_oos": -0.0216, "sharpe_oos": -0.49, "dd_oos": -0.0716}]
 """
 import argparse, json, os, sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))  # 归档到 tools/oneoff/ 后多一层
 import psycopg2
 from application.services.strategy_status import (
     classify_structure, classify_performance, performance_evidence,

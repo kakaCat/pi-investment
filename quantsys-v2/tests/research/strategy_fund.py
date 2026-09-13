@@ -37,6 +37,17 @@ def load_fin():
     return df.dropna(subset=["avail_date"]).sort_values("avail_date")
 
 
+
+def candidate_set_pre(n=1000):
+    """候选集合：只用窗口开始前（2021-06~2022-05）的成交额数据定义，避免"今天有财务数据"这类覆盖偏差。"""
+    out = subprocess.run(["psql", "-d", "quant_investment", "-At", "-t", "-c",
+        "select symbol from (select symbol, avg(amount) a, count(*) c from quant.daily_klines "
+        "where trade_date between '2021-06-01' and '2022-05-31' group by symbol having count(*) >= 220) t "
+        "where a is not null order by a desc limit " + str(n)],
+        capture_output=True, text=True, env=ENV, check=True).stdout.split()
+    return [s.strip().zfill(6) for s in out if s.strip()]
+
+
 def load_px(symbols, start):
     syms = ",".join("'" + s + "'" for s in symbols)
     df = psql_csv("select symbol, trade_date, open, close, amount from quant.daily_klines "
@@ -172,6 +183,8 @@ def main():
     ap.add_argument("--end", default="2026-09-11")
     ap.add_argument("--flow-start", default="2025-12-15")
     ap.add_argument("--monthly", action="store_true", default=True)
+    ap.add_argument("--universe", default="fin", choices=["fin", "pre"])
+    ap.add_argument("--cand", type=int, default=1000)
     a = ap.parse_args()
 
     if a.factor == "flow":
@@ -192,7 +205,11 @@ def main():
         return 0
 
     fin = load_fin()
-    syms = sorted(fin["symbol"].unique())
+    if a.universe == "pre":
+        syms = candidate_set_pre(a.cand)          # 窗口前定义，无覆盖偏差
+        print("候选集合（窗口前定义）=%d 只" % len(syms))
+    else:
+        syms = sorted(fin["symbol"].unique())
     close, open_, amount = load_px(syms, "2021-06-01")
     panel = factor_panel(fin, close, None, a.factor)
     print("基本面 universe=%d 只（有财务数据且价格充足），因子=%s，窗口 %s ~ %s"

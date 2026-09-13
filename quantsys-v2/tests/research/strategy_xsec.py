@@ -19,8 +19,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
+ROOT = Path(__file__).resolve().parents[2]   # tests/research/ → quantsys-v2/
+# 2026-09-13：本文件从 scripts/ 移到 tests/research/（用户裁定「脚本只能测试用」）后
+# parents[1] 会变成 tests/ —— 路径基准随移动而变，是本日第二次踩到（见 core_plan 上迁注释）。
 ENV = dict(os.environ, PATH="/opt/homebrew/bin:/usr/local/bin:" + os.environ.get("PATH", ""))
 
 COST_BUY = 7.5 / 10000.0

@@ -15,7 +15,7 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # 归档到 tools/oneoff/ 后多一层
 
 
 def main() -> int:

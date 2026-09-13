@@ -189,3 +189,95 @@ class DailySnapshotService:
     def _last_known(symbol_prices: Mapping[str, float], day: date) -> float:
         earlier = [d for d in symbol_prices if d <= day.isoformat()]
         return symbol_prices[max(earlier)] if earlier else 0.0
+
+
+# --------------------------------------------------------------------------- #
+# 每日净值稠密化定时任务（2026-09-13 w-a9ec14d7 从 scripts/snapshot_daily.py 上迁）
+#
+# 为什么需要：quant.simulation_equity_snapshot 只在账户发生交易/估值活动时写入；
+# DailySnapshotService.snapshot_all_accounts 的 docstring 自称「收盘后逐账户……（每日调度）」，
+# 但全仓检索无任何生产调用方 → **无活动的交易日就没有快照**。
+# 实测 agent_virtual：窗口内 59 个交易日只有 55 条快照（缺 08-10/08-24/08-26/08-27/08-31），
+# 而 risk_metrics 的波动率/alpha/IR 由「相邻快照差分的日收益」算出，
+# 缺口会让跨日涨跌被当成单日收益 → 风险指标失真。
+#
+# 为什么是 job 而不是脚本：用户 2026-09-13 裁定「脚本不能写进 v2 项目，脚本只能测试用」。
+# 本能力此前只有一个 scripts/ 入口 + 一个 tools/ CLI，都不构成**生产调度**；
+# 上迁为 JobRegistry 任务后由 v2 调度器在工作日收盘后驱动，不再依赖任何脚本。
+# --------------------------------------------------------------------------- #
+
+# 参考标的：流动性好、几乎每个交易日都有 K 线（用于"今天到底有没有收盘数据"的判定）
+_SNAPSHOT_REF_SYMBOL = "600519"
+
+
+class EquitySnapshotJob:
+    """每日净值快照稠密化（工作日 15:35，收盘后）
+
+    关键防护（原脚本的立项理由，必须保留）：目标日若尚无 K 线（未收盘或非交易日），
+    snapshot_all_accounts 会用「最近可得收盘价」估值 → 写出「旧价标新日」的**假快照**，
+    比缺快照更糟（会污染日收益序列）。故此处显式跳过：宁可当日不写，也不写错。
+    """
+
+    def __init__(self, service=None):
+        self._name = "equity_snapshot_daily"
+        self._service = service
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def description(self) -> str:
+        return "每日净值快照稠密化：收盘后逐账户重估写快照（无 K 线则跳过，不写假快照）"
+
+    @property
+    def timeout_seconds(self) -> int:
+        return 600
+
+    def _has_bar(self, target: date) -> bool:
+        from domain.ports import IKlineRepository
+        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+        klines = EnhancedServiceFactory.resolve(IKlineRepository).get_daily_klines(
+            symbol=_SNAPSHOT_REF_SYMBOL,
+            start_date=target.isoformat(), end_date=target.isoformat())
+        if klines is None:
+            return False
+        if hasattr(klines, "is_empty"):
+            return not klines.is_empty()
+        try:
+            return len(klines) > 0
+        except TypeError:
+            return True
+
+    def run(self, target_date: Optional[date] = None) -> Dict[str, Any]:
+        """同步执行（供 job 与测试调用）。返回 {skipped_reason|result}。"""
+        from infrastructure.services.service_registry import register_all_services
+        register_all_services()
+        target = target_date or date.today()
+        if not self._has_bar(target):
+            return {"skipped": True, "target_date": target.isoformat(),
+                    "reason": "no kline for %s（非交易日或尚未收盘），跳过以免写入旧价标新日的假快照"
+                              % target.isoformat()}
+        svc = self._service or DailySnapshotService()
+        return {"skipped": False, "target_date": target.isoformat(),
+                "result": svc.snapshot_all_accounts(target_date=target_date)}
+
+    async def execute(self, params=None):
+        import asyncio
+        from application.jobs.job_protocol import JobResult, result_from_dict
+        try:
+            out = await asyncio.to_thread(self.run)
+        except Exception as exc:  # noqa: BLE001 —— 失败必须显式（调度器据此标红）
+            logger.exception("equity_snapshot_daily failed")
+            return JobResult.fail(self._name, "%s: %s" % (type(exc).__name__, exc))
+        if out.get("skipped"):
+            return result_from_dict(self._name, "equity snapshot skipped: " + out["reason"],
+                                    {"skipped": True, "target_date": out["target_date"]})
+        return result_from_dict(self._name, "equity snapshot done: %s" % out.get("result"),
+                                {"skipped": False, "target_date": out["target_date"],
+                                 "result": out.get("result")})
+
+
+def build_equity_snapshot_jobs():
+    """构造净值快照任务（组合根在 main.py 注册进 JobRegistry）"""
+    return [EquitySnapshotJob()]
