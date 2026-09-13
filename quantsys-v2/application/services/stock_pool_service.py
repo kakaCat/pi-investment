@@ -229,6 +229,15 @@ class StockPoolService:
         return updated
 
     def delete_pool(self, pool_id: int) -> bool:
+        """硬删除池子。
+
+        ⚠️ R-020（2026-09-13 实测）：本方法会因**外键**失败——quant.pool_change_log.pool_id
+        原为普通外键，导致「有变更历史的池」DELETE 直接 500（修好变更日志后才暴露）。
+        已改为 ON DELETE SET NULL（审计行存活、pool_id 置空、pool_name 冗余保留身份）。
+        新增任何引用 stock_pools 的表时：要么声明级联/置空策略，要么先清派生数据——
+        否则删除路径会在运行期炸，而不是在写代码时被发现。
+        """
+
         """删除池子。不存在时抛 ValueError。"""
         if not self._pool_repo:
             raise RuntimeError("IStockPoolRepository not configured")

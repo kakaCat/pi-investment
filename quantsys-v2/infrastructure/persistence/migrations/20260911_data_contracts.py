@@ -28,6 +28,13 @@
 用法：
   ./venv/bin/python infrastructure/persistence/migrations/20260911_data_contracts.py
 """
+# ⚠️ R-020 数据卫生（2026-09-13 w-a9ec14d7）——登记纪律：
+#   任何新增的**派生表/审计表/缓存表**都必须在本文件登记（owner / kind / 上游 / TTL / 删除策略），
+#   并同步登记到 quantsys-v2/config/data_contracts.json（供 scripts/data_hygiene_probe.py 巡检）。
+#   未登记的派生表 = 没人负责的数据陷阱。实测代价：quant.strategy_stock_matching 用纯文本
+#   best_strategy_id 引用策略且无外键，策略删除后 800/800 行悬空、自 2026-05-31 起 105 天无人发现；
+#   而审计表 quant.pool_change_log 因外键未声明依赖处理，反而让「有变更历史的池」删不掉（DELETE 500）。
+
 import json
 import os
 import sys

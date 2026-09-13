@@ -275,6 +275,10 @@ def update_strategy(strategy_id: str, payload: Optional[Dict[str, Any]] = Body(N
 @router.post('/api/strategies/delete/{strategy_id}')
 @handle_api_error
 def delete_strategy(strategy_id: str):
+    # ⚠️ R-020（2026-09-13）：删策略前先查「谁还指着它」。本仓历史教训——
+    # quant.strategy_stock_matching 用纯文本 best_strategy_id 引用策略且无外键，
+    # 策略删除后 800/800 行悬空、105 天无人发现（全仓零代码引用）。
+    # 新引用方一律登记 config/data_contracts.json，由 scripts/data_hygiene_probe.py 每周巡检。
     existing = strategy_service.get_strategy(strategy_id)
     if not existing:
         return error_response({'success': False, 'error': '策略不存在'}, 404)

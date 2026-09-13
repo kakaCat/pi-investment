@@ -324,6 +324,22 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
             return False
 
     def delete_user_strategy(self, strategy_id: int) -> bool:
+        """硬删除策略（物理删除）。
+
+        ⚠️ R-020 数据卫生（2026-09-13 实测代价）——**删之前先查「谁还指着它」**：
+        · 本仓历史上（2026-05-31 的 quant.strategy_stock_matching）用**纯文本字段
+          best_strategy_id + 写死列名 ret_162/ret_163/ret_164** 引用策略，且**没有外键**。
+          结果：策略被合法删除后该表仍有 800/800 行指向不存在的策略，静静躺了 105 天
+          （全仓零代码引用 → 不报错、没人更新、也没人看），直到人工追查才撞见。
+        · 对照案例（同一根因的反面）：审计表 quant.pool_change_log 因**有外键**，
+          反而让「有变更历史的池子删不掉」（DELETE 直接 500）。
+        · 正确做法按类型显式选：审计类 → 外键 ON DELETE SET NULL（审计要活得比聚合久，
+          并用冗余字段保留身份，如 pool_change_log.pool_name）；派生类 → 先清或级联；
+          生产类 → 优先软删（is_active=false）而非物理删除。
+        · 新增派生/审计表必须登记 quantsys-v2/config/data_contracts.json；
+          悬空引用由 scripts/data_hygiene_probe.py 每周巡检（退出码 1 = 有问题）。
+        """
+
         """按 id 删除用户策略（quant.strategy_configs）。"""
         from sqlalchemy import text
         try:
