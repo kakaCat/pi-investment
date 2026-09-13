@@ -95,9 +95,17 @@ export class RegimeDailyTool extends BaseTool<RegimeDailyParams, RegimeDailyResu
     // 幂等检查：同一天（规范源口径）已落库则跳过
     const existing = await this.memoryClient.searchMemory({ q: `regime ${canonicalDate}`, scope: 'market:regime', limit: 3 });
     const dup = (existing?.items || []).find((it: any) => it.payload?.date === canonicalDate && it.status !== 'deprecated');
-    if (dup) {
+    // 2026-09-13：幂等只在「已存的就是**规范镜像**」时成立。
+    // 旧口径（本地自算、词表不同）写下的同日记录**不能**阻塞规范镜像 ——
+    // 否则这次单一事实源改造会被旧记录自己挡在门外、永远不生效
+    // （实测：09-11 旧记录为 risk_off/degraded，规范源为 range）。
+    // 消费端（regime_position_limit）按 payload.date 降序且排序稳定，而 memory List 端点按
+    // created_at DESC 返回 → 后写的规范记录胜出，因此无需删除旧记录（不可逆操作，不做）。
+    const dupIsCanonical = dup?.payload?.evidence?.source === 'v2:market_regime';
+    if (dup && dupIsCanonical) {
       return { date: canonicalDate, regime: dup.payload?.regime, evidence: dup.payload?.evidence, skipped: true };
     }
+    const supersededId = dup && !dupIsCanonical ? String(dup?.id ?? '') : '';
 
     const s: any = await this.qv2.getMarketSentiment();
     const fg = Number(s?.fearGreedIndex ?? 50);
@@ -182,6 +190,7 @@ export class RegimeDailyTool extends BaseTool<RegimeDailyParams, RegimeDailyResu
         data_quality: 'ok',
         conflicts: null,
         local_evidence: localEvidence,
+        supersedes: supersededId || null,
         note: '本工具自 2026-09-13 起不再自算 regime，只镜像 v2 quant.market_regime（唯一事实源）',
       };
     } else {
@@ -231,7 +240,7 @@ export class RegimeDailyTool extends BaseTool<RegimeDailyParams, RegimeDailyResu
       });
     }
 
-    return { date: finalDate, regime: finalRegime, evidence, skipped: false } as any;
+    return { date: finalDate, regime: finalRegime, evidence, skipped: false, superseded_id: supersededId || null } as any;
   }
 
   /**
