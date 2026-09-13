@@ -1152,7 +1152,7 @@ export function defineArchiveSubmitTool(deps: ReqboardToolDeps) {
     description:
       '准备归档材料（人再点归档）：dir=需求目录（docs/requirements/REQ-xxxxxx），'
       + 'docs=目录内的文档清单（kind: requirement/plan/verification/retro/notes + path），'
-      + 'merged_into=合并进的项目文档路径（按需求类型限定在 docs/architecture|guides|known-issues|research|work-logs），'
+      + 'merged_into=合并进的项目文档路径（按需求类型限定在 docs/adr|architecture|guides|rfcs|work-logs|strategy-research），'
       + 'index_entry=一句话结论（进归档索引）。不同需求类型的必填文档与合法去向见 '
       + 'agent-dh/docs/architecture/requirement-archive.md；缺项会被代码级拒绝。前置：需求已 done。',
     parameters: {

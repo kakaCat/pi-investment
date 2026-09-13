@@ -36,6 +36,11 @@
 
 - [2026-08/](work-logs/2026-08/) - 8月工作记录：Phase 4、WP-4、Batch 3 等
 
+### 📦 需求归档
+
+- [需求归档索引](../agent-dh/docs/requirements/INDEX.md) - 已归档需求的一句话结论与文档去向
+- [需求归档规范](../agent-dh/docs/architecture/requirement-archive.md) - 档案库结构、合并矩阵（不同需求类型去哪）、人工归档闸门
+
 ### 🦸 Superpowers ([superpowers/](superpowers/))
 
 OpenClaw 相关文档：

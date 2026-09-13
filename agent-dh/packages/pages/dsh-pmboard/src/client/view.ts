@@ -857,7 +857,7 @@ function renderArchiveSection(req: RequirementRecord): string {
     return '<div class="dsh-pm-block is-empty">'
       + (archivable
         ? '窗口尚未准备归档材料。归档不是挪目录：窗口用 <code>reqboard_archive_submit</code> 提交需求目录、文档清单、'
-          + '合并去向（agent-dh/docs 或 docs 下的 architecture|guides|known-issues|research|work-logs）与一句话索引条目，人再点归档；'
+          + '合并去向（只允许既有规范目录：docs/ 或 agent-dh/docs/ 下的 adr|architecture|guides|rfcs|work-logs|strategy-research）与一句话索引条目，人再点归档；'
           + '必填文档与合并去向按需求类型限定，规范见 agent-dh/docs/architecture/requirement-archive.md。'
         : '归档在需求完成（done）后进行；不同需求类型的必填文档与合并去向见 agent-dh/docs/architecture/requirement-archive.md。')
       + '</div>'

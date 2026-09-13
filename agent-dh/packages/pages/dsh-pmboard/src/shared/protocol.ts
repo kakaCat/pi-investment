@@ -821,6 +821,9 @@ export interface ArchiveDocRule {
 }
 
 export const ARCHIVE_DOC_RULES: Readonly<Record<RequirementCategory, ArchiveDocRule>> = {
+  // 合并去向**只允许落在既有文档规范目录内**（docs/adr|architecture|guides|rfcs|work-logs|strategy-research
+  // 及其 agent-dh 对应目录）——归档不许自创平行体系（规范见 docs/DOCUMENT-MANAGEMENT-PLAN.md
+  // 与 agent-dh/docs/architecture/requirement-archive.md）。
   feature: {
     requiredDocs: ['requirement', 'plan', 'verification'],
     mergeTargets: ['agent-dh/docs/architecture/', 'agent-dh/docs/guides/', 'docs/architecture/', 'docs/guides/'],
@@ -828,8 +831,9 @@ export const ARCHIVE_DOC_RULES: Readonly<Record<RequirementCategory, ArchiveDocR
   },
   bug: {
     requiredDocs: ['requirement', 'verification', 'retro'],
-    mergeTargets: ['agent-dh/docs/known-issues/', 'docs/known-issues/'],
-    note: '缺陷：必须留根因与防回归（known-issues 一条 + 复盘），否则同类问题会再来一次',
+    mergeTargets: ['agent-dh/docs/guides/', 'agent-dh/docs/architecture/', 'docs/guides/', 'docs/architecture/'],
+    note: '缺陷：根因与防回归写进 guides/（故障排查手册）或 architecture/（机制性根因）——'
+      + '规范没有单独的 known-issues 目录，别自创平行体系',
   },
   doc: {
     requiredDocs: ['requirement', 'verification'],
@@ -838,18 +842,18 @@ export const ARCHIVE_DOC_RULES: Readonly<Record<RequirementCategory, ArchiveDocR
   },
   refactor: {
     requiredDocs: ['requirement', 'plan', 'verification', 'retro'],
-    mergeTargets: ['agent-dh/docs/architecture/', 'agent-dh/docs/work-logs/', 'docs/architecture/', 'docs/work-logs/'],
-    note: '重构：结构与边界变了 → 架构说明必须同步，否则文档与代码互相说谎',
+    mergeTargets: ['docs/adr/', 'agent-dh/docs/architecture/', 'docs/architecture/', 'agent-dh/docs/work-logs/', 'docs/work-logs/'],
+    note: '重构：重大结构决策进 adr/，架构说明同步更新——否则文档与代码互相说谎',
   },
   spike: {
     requiredDocs: ['requirement', 'retro'],
-    mergeTargets: ['agent-dh/docs/research/', 'docs/research/', 'docs/strategy-research/'],
-    note: '调研：产物是结论（含被证伪的假设），必须进 research，明确"没有代码要留"',
+    mergeTargets: ['docs/rfcs/', 'agent-dh/docs/rfcs/', 'docs/architecture/', 'agent-dh/docs/architecture/', 'docs/strategy-research/'],
+    note: '调研：产物是结论（含被证伪的假设）——成提案进 rfcs/，成认知进 architecture/，策略类进 strategy-research/',
   },
   chore: {
     requiredDocs: ['requirement', 'verification'],
     mergeTargets: ['agent-dh/docs/work-logs/', 'docs/work-logs/'],
-    note: '杂项/维护：留一条工作记录即可，别把运维细节塞进架构文档',
+    note: '杂项/维护：留一条工作记录（work-logs，按月归档）即可，别把运维细节塞进架构文档',
   },
 }
 

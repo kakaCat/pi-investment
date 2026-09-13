@@ -151,18 +151,33 @@ describe('归档：文档合并规范 + 人工拍板', () => {
 
   it('文档规范：不同需求类型有不同必填文档与合法合并去向', () => {
     expect(ARCHIVE_DOC_RULES.bug.requiredDocs).toContain('retro')
-    expect(ARCHIVE_DOC_RULES.bug.mergeTargets).toContain('agent-dh/docs/known-issues/')
+    expect(ARCHIVE_DOC_RULES.bug.mergeTargets).toContain('agent-dh/docs/guides/')
+    // 归档不许自创平行体系：合并去向必须落在（agent-dh/）docs/ 下的既有规范目录内
+    const CANONICAL_SUBDIRS = ['adr/', 'architecture/', 'guides/', 'rfcs/', 'work-logs/', 'strategy-research/', 'requirements/']
+    for (const rule of Object.values(ARCHIVE_DOC_RULES)) {
+      for (const target of rule.mergeTargets) {
+        const m = /^(agent-dh\/)?docs\/(.*)$/.exec(target)
+        expect(m, target).not.toBeNull()
+        const rest = m === null ? '' : m[2]
+        expect(rest === '' || CANONICAL_SUBDIRS.some(prefix => rest.startsWith(prefix)), target).toBe(true)
+      }
+    }
     expect(ARCHIVE_DOC_RULES.spike.requiredDocs).toEqual(['requirement', 'retro'])
     // 缺陷类缺复盘 → 拒
     expect(() => assertArchiveMaterials('bug', {
       dir: 'agent-dh/docs/requirements/REQ-abc123', docs: [{ kind: 'requirement', path: 'a' }, { kind: 'verification', path: 'b' }],
-      mergedInto: ['agent-dh/docs/known-issues/x.md'], indexEntry: 'i',
+      mergedInto: ['agent-dh/docs/nowhere/x.md'], indexEntry: 'i',
     })).toThrow(/缺少必填文档：retro/)
-    // 缺陷类合并进架构文档 → 拒（该去 known-issues）
+    // 合并去向自创平行目录（docs/nowhere/）→ 拒：归档不许绕过文档规范
     expect(() => assertArchiveMaterials('bug', {
       dir: 'agent-dh/docs/requirements/REQ-abc123', docs: [{ kind: 'requirement', path: 'a' }, { kind: 'verification', path: 'b' }, { kind: 'retro', path: 'c' }],
-      mergedInto: ['agent-dh/docs/architecture/x.md'], indexEntry: 'i',
+      mergedInto: ['agent-dh/docs/nowhere/x.md'], indexEntry: 'i',
     })).toThrow(/不在本类型允许的位置/)
+    // 合法去向（缺陷 → guides/ 故障排查）→ 通过
+    expect(() => assertArchiveMaterials('bug', {
+      dir: 'agent-dh/docs/requirements/REQ-abc123', docs: [{ kind: 'requirement', path: 'a' }, { kind: 'verification', path: 'b' }, { kind: 'retro', path: 'c' }],
+      mergedInto: ['agent-dh/docs/guides/troubleshooting.md'], indexEntry: 'i',
+    })).not.toThrow()
     // 缺索引条目 → 拒
     expect(() => assertArchiveMaterials('feature', {
       dir: 'agent-dh/docs/requirements/REQ-abc123', docs: [{ kind: 'requirement', path: 'a' }, { kind: 'plan', path: 'b' }, { kind: 'verification', path: 'c' }],

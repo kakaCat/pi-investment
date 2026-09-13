@@ -243,6 +243,33 @@ docs/work-logs/
 - [quantsys-v2 文档](../quantsys-v2/docs/)
 ```
 
+---
+
+## 需求归档（reqboard，2026-09-13 新增）
+
+需求（REQ）是工作的最小闭环单位。**归档 = 存底 + 合并**，两条同时成立才算归档：
+
+1. **存底（档案）**：`docs/requirements/REQ-xxxxxx/`（或子项目 `agent-dh/docs/requirements/REQ-xxxxxx/`）保留
+   `requirement.md / plan.md / verification.md / retro.md / notes.md`——
+   回答"当时为什么这么做"，**纳入版本控制**（它是"为什么"的唯一证据链）。
+2. **合并（知识）**：把结论并进**本规范既有目录**（不新增目录），并写一条索引：
+   - 索引：`agent-dh/docs/requirements/INDEX.md`（REQ id | 一句话结论 | 类型 | 日期 | 目录 | 合并去向）；
+   - 合并去向按需求类型：
+     功能→`architecture/`|`guides/`；缺陷→`guides/`（故障排查）|`architecture/`（机制性根因）；
+     文档→`docs/` 对应子目录；重构→`adr/`|`architecture/`；调研→`rfcs/`|`architecture/`|`strategy-research/`；
+     杂项→`work-logs/YYYY-MM/`。
+   - **注意**：`work-logs/` 不纳入版本控制 → 耐久结论（架构/决策/排障）绝不允许只落在那里。
+
+**铁律：归档不许自创平行目录**（`known-issues/`、`research/`、`archive/` 之类）。
+要新增一类目录 = 先改本规范 + `docs/README.md`，再改 reqboard 的 `ARCHIVE_DOC_RULES`——
+代码会拒绝落在规范外的合并去向（`REQBOARD_INVALID_INPUT`），不是提示词约定。
+
+**流程**：窗口 `reqboard_archive_submit`（备材料：目录 + 文档清单 + 合并去向 + 索引条目）
+→ 人在看板点「归档」→ 需求进 `archived`（写 archivePath 与时间线）。
+**只登记不合并 = 没归档**：材料里写了的去向必须真的改到位。
+
+细则与合并矩阵：`agent-dh/docs/architecture/requirement-archive.md`
+
 ## 新文档创建规范
 
 ### 何时创建文档？

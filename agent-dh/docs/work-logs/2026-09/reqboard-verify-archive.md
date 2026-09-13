@@ -57,3 +57,27 @@
 
 - client 半（验收区/归档区/chip）→ 刷新页面。
 - host 半（新工具、两个闸门、归档校验）→ 重启 13080。
+
+## 补记（同日）：归档规范对齐项目文档规范（用户追问「归档要有规范，你设计了吗」）
+
+**认账**：第一版只设计了"需求归档时的合并规则"，**没有设计项目归档规范**，而且**擅自新增了
+`known-issues/` 与 `research/` 两个目录**——它们不在项目既有的《文档管理规范》
+（`docs/DOCUMENT-MANAGEMENT-PLAN.md`）里。这正是"自创平行体系"，是归档最容易犯的错。
+
+**改正**：
+
+1. 合并去向**收敛到既有规范目录**（`adr / architecture / guides / rfcs / work-logs / strategy-research`
+   及其 agent-dh 对应目录），删掉自建的 `known-issues/`、`research/`；
+   缺陷类改去 `guides/`（故障排查手册）或 `architecture/`（机制性根因），调研类改去
+   `rfcs/`（成提案）/ `architecture/`（成认知）/ `strategy-research/`（策略类）；
+2. 项目级规范 `docs/DOCUMENT-MANAGEMENT-PLAN.md` 增加「需求归档（reqboard）」一章（档案库 + 合并矩阵 +
+   索引 + 铁律），`docs/README.md` 增加「需求归档」入口；
+3. 执行细则重写：`agent-dh/docs/architecture/requirement-archive.md`（明确上位规范、版本控制提醒：
+   `work-logs/` 不入库 → 耐久结论不许只落在那里）；
+4. 模板改名并改口径：`known-issue.md` → `troubleshooting-entry.md`（落 `guides/` 的一条条目）；
+5. **代码级守卫**：单测断言 `ARCHIVE_DOC_RULES` 的每个合并去向都必须落在
+   `(agent-dh/)docs/` 下的既有规范子目录内——自创目录会被测试与运行时双重拦住。
+
+**教训（值得记）**：规范类需求要先读既有规范再设计。我上一轮只看了代码与需求，没读
+`docs/DOCUMENT-MANAGEMENT-PLAN.md`，结果设计出与项目标准冲突的目录——**"看起来更专业的新目录"
+往往就是规范破坏的第一粒沙**。
