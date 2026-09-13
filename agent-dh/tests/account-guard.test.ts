@@ -80,6 +80,18 @@ describe('R-019 源码不得再把 agent_virtual 当默认账户', () => {
     expect(bad).toEqual([]);
   });
 
+  it('顶层 quantsys-v2-client 也不得把 agent_virtual 当默认账户（2026-09-13 复审补）', () => {
+    // 复审发现：护栏测试原先只扫 packages/{trading,risk,strategy,intelligence}/src，
+    // 漏了插件共同依赖的顶层客户端 —— 它 main 指向 dist，改动需重新构建才生效。
+    const text = readFileSync(join(__dirname, '..', '..', 'quantsys-v2-client', 'src', 'client.ts'), 'utf-8');
+    const bad = text
+      .split('\n')
+      .map((line, i) => [i + 1, line] as const)
+      .filter(([, line]) => /\|\|\s*'agent_virtual'|=\s*'agent_virtual'|\?\?\s*'agent_virtual'/.test(line))
+      .map(([n, line]) => n + ': ' + line.trim());
+    expect(bad).toEqual([]);
+  });
+
   it('账户默认值已落到 agent_brain（抽样 4 个读工具）', () => {
     const files = [
       'trading/src/tools/AccountInfoTool/AccountInfoTool.ts',

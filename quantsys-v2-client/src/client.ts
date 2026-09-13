@@ -885,7 +885,7 @@ export class QuantsysV2Client {
    * 原 /api/portfolio/positions 直读数据库 current_price 快照（陈旧价，曾导致 8/28 旧价）。
    * 响应为 snake_case，映射为工具层期望的 camelCase Position[]。
    */
-  async getPositions(accountName: string = 'agent_virtual'): Promise<Position[]> {
+  async getPositions(accountName: string = 'agent_brain'): Promise<Position[]> {
     const response = await this.client.get(`/api/simulation/accounts/${encodeURIComponent(accountName)}`);
     const data = this.unwrap<SimulationAccountStatus>(response.data, 'getPositions');
     const positions = Array.isArray(data.positions) ? data.positions : [];
@@ -897,7 +897,7 @@ export class QuantsysV2Client {
    * 2026-08-31 修复：同样改调 /api/simulation/accounts/{account}（实时刷新），
    * 原 /api/portfolio/summary 直读数据库快照（account.lastUpdated 曾停更在 8/28）。
    */
-  async getPortfolioSummary(accountName: string = 'agent_virtual'): Promise<PortfolioSummary> {
+  async getPortfolioSummary(accountName: string = 'agent_brain'): Promise<PortfolioSummary> {
     const response = await this.client.get(`/api/simulation/accounts/${encodeURIComponent(accountName)}`);
     const data = this.unwrap<SimulationAccountStatus>(response.data, 'getPortfolioSummary');
     const positions = Array.isArray(data.positions) ? data.positions : [];
@@ -988,7 +988,9 @@ export class QuantsysV2Client {
    * 正确端点：POST /api/simulation/accounts/{account}/trade（立即成交并更新持仓）。
    */
   async executeTrade(params: TradeRequest): Promise<TradeResponse> {
-    const account = params.account_name || 'agent_virtual';
+    // R-019（2026-09-13 w-c8cae280）：默认账户 = agent-dh 自有账户 agent_brain。
+    // agent_virtual 属 agent-ts（fin-agent），本客户端已不再默认指向它。
+    const account = params.account_name || 'agent_brain';
     const body: Record<string, any> = {
       action: params.action,
       symbol: params.symbol,
@@ -1026,7 +1028,7 @@ export class QuantsysV2Client {
    * 挂单列表（盘前挂单）
    * Real endpoint: GET /api/simulation/accounts/{account}/pending-orders?status=pending|all
    */
-  async listPendingOrders(accountName: string = 'agent_virtual', status: 'pending' | 'all' = 'pending'): Promise<any[]> {
+  async listPendingOrders(accountName: string = 'agent_brain', status: 'pending' | 'all' = 'pending'): Promise<any[]> {
     const response = await this.client.get(
       `/api/simulation/accounts/${encodeURIComponent(accountName)}/pending-orders`,
       { params: { status } },
@@ -1340,7 +1342,7 @@ export class QuantsysV2Client {
    */
   async getCircuitBreaker(account_name?: string): Promise<any> {
     const response = await this.client.get('/api/risk/circuit-breaker', {
-      params: { account_name: account_name ?? 'agent_virtual' },
+      params: { account_name: account_name ?? 'agent_brain' },
     });
     return this.unwrap<any>(response.data, 'getCircuitBreaker');
   }

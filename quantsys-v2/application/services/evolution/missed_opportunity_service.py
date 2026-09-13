@@ -153,7 +153,10 @@ class MissedOpportunityService:
         window_end = _as_date(later_rows[self.grace_trading_days - 1]['trade_date'])
         decisions = self.decision_repo.get_decisions_by_entity('stock', symbol, limit=100)
         for d in decisions:
-            if d.get('decision_type') != 'trade_buy':
+            # 2026-09-13（w-c8cae280）：与 decision_score_service 同口径归一——
+            # 成交自动审计历史上写的是 trade_BUY（大写），不归一会把已行动误判为
+            # 未行动，进而重复生成 missed_opportunity 记录。
+            if str(d.get('decision_type') or '').strip().lower() != 'trade_buy':
                 continue
             dd = _as_date(d.get('created_at'))
             if dd is not None and signal_date < dd <= window_end:
