@@ -132,15 +132,15 @@ tags: [wiki, index, home, agent-dh]
 - ✅ [RFC 014 需求看板](rfcs/014-requirement-board.md)
 - ✅ [需求归档规范](architecture/requirement-archive.md)
 - ✅ [需求归档索引](requirements/INDEX.md)
-- 🟡 P0 `guides/reqboard-workflow.md` —— 从立项到归档的实操（含计划模式、验收人工审核、归档材料怎么备）
+- ✅ P0 [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) —— 全流程表 + 各阶段硬要求 + 错误码处置
 
 ### 卷 9 · 运维与排障
 
 - ✅ [自修复重启行为](architecture/self-restart-behavior.md)
 - ✅ [启动](guides/STARTUP.md) · [速查](guides/QUICKREF.md) · [使用指南](guides/USAGE-GUIDE.md)
 - ✅ [重启与会话安全](guides/restart-session-safety.md) · [技能装载](guides/skill-loading.md)
-- 🟡 P0 `guides/troubleshooting.md` —— 故障排查手册（缺陷类归档的既定落点）
-- 🟡 P1 `guides/routine-checks.md` —— 定时巡检清单（数据卫生探针、wiki 探针、调度看门狗…）
+- ✅ P0 [故障排查手册](guides/troubleshooting.md) —— 症状→根因→处置（服务/插件/数据/文档/协作五类）
+- ✅ P1 [定时巡检清单](guides/routine-checks.md) —— 10 项检查 + 命令 + 判据 + 频率（探针绿不打扰）
 
 ### 卷 10 · 附录（L3 证据层）
 
@@ -158,6 +158,7 @@ tags: [wiki, index, home, agent-dh]
 | 2026-09-13 | [卷 1 规范 9 页](standards/tool-development.md) | 写全：工具/构建/测试/编码/数据/账户/留痕/插件/边界 | w-1cee2467 |
 | 2026-09-13 | [agent-dh 是什么](architecture/agent-dh-overview.md) · [术语表](architecture/glossary.md) | 卷 0 落地 | w-1cee2467 |
 | 2026-09-13 | [插件模型](architecture/plugin-model.md) · [身份系统](architecture/identity-and-agents-json.md) | 建 stub（问题清单 + 素材位置） | w-1cee2467 |
+| 2026-09-13 | [需求看板实操](guides/reqboard-workflow.md) · [故障排查手册](guides/troubleshooting.md) · [定时巡检清单](guides/routine-checks.md) | B1 落地（卷 8、卷 9 的 P0/P1 页） | w-1cee2467 |
 
 ## 怎么维护
 
