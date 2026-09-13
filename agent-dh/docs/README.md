@@ -94,7 +94,7 @@ tags: [wiki, index, home, agent-dh]
 
 - ✅ [工具清单](architecture/TOOLS_INVENTORY.md)
 - ✅ [工具契约与 schema 铁律](standards/tool-development.md)（并入规范卷——同一概念不写两页）
-- 🟡 P1 `protocols/tool-audit.md` —— 工具审计清单：声明与实现是否一致、默认账户值、dry_run 真假
+- ✅ P1 [工具审计清单](protocols/tool-audit.md) —— 六步抽查 + 四类典型问题（声明与实现不符最危险）
 - ✅ [交易执行协议](protocols/trade-execution-protocol.md)
 
 ### 卷 4 · 账户与交易
@@ -118,14 +118,14 @@ tags: [wiki, index, home, agent-dh]
 - ✅ [RFC-007 基因组管理](rfcs/007-genome-manager.md)
 - ✅ [RFC-008 验证门](rfcs/008-validation-gate.md)
 - ✅ [RFC-003 学习蒸馏](rfcs/003-self-learning-distillation.md)
-- 🟡 P1 `architecture/memory-and-recall.md` —— 记忆写入/召回与注入率（含 R-008 决策前检索）
+- ✅ P1 [记忆与召回](architecture/memory-and-recall.md) —— 写/读入口、R-008、召回审计、三个常见坑
 
 ### 卷 7 · 页面插件（GUI）
 
 - ✅ [看板实现细节](design/dashboard-implementation-detail.md)
 - ✅ [RFC-011 工具 Web 卡片](rfcs/011-tool-web-cards.md)
 - ✅ [RFC-013 公告板页面](rfcs/013-bulletin-board-page.md)
-- 🟡 P1 `architecture/page-plugin-contract.md` —— 页面插件契约：host/client 两半、打包与刷新时机、全站样式令牌
+- ✅ P1 [页面插件契约](architecture/page-plugin-contract.md) —— 两半分工、产物与交付证据、接口信封、安全默认
 
 ### 卷 8 · 需求流水线与归档（本 wiki 的供料线）
 
@@ -161,6 +161,7 @@ tags: [wiki, index, home, agent-dh]
 | 2026-09-13 | [需求看板实操](guides/reqboard-workflow.md) · [故障排查手册](guides/troubleshooting.md) · [定时巡检清单](guides/routine-checks.md) | B1 落地（卷 8、卷 9 的 P0/P1 页） | w-1cee2467 |
 | 2026-09-13 | [插件模型与装载](architecture/plugin-model.md) · [身份系统与 agents.json](architecture/identity-and-agents-json.md) | B2 起：两个 stub 补成正式页（待写债清零） | w-1cee2467 |
 | 2026-09-13 | [账户模型与边界](architecture/accounts-and-boundaries.md) · [交易约束速查](guides/trading-constraints.md) · [数据契约与新鲜度](architecture/data-contracts-and-freshness.md) | B2 续：卷 4、卷 5 的 P0 页 | w-1cee2467 |
+| 2026-09-13 | [工具审计清单](protocols/tool-audit.md) · [记忆与召回](architecture/memory-and-recall.md) · [页面插件契约](architecture/page-plugin-contract.md) | B3：卷 3/6/7 的 P1 页（大纲 P0/P1 全部落地，剩余仅历史页迁移） | w-1cee2467 |
 
 ## 怎么维护
 
