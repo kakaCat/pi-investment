@@ -155,6 +155,135 @@ def resolve_account(explicit: Optional[str] = None) -> str:
 
 
 
+# --------------------------------------------------------------------------- #
+# 硬约束（模块级纯函数，2026-09-13 从 generate() 内层抽出 —— 抽出的原因只有一个：
+# 内层闭包让"单只≤15%""持仓≥8只""整手买得起"这三条不变量**只能靠跑全量 E2E 验证**，
+# 而 E2E 依赖全市场行情/财务数据、单次要几十秒，CI 里跑不动 → 等于没测试。
+# 抽成模块级后可用纯数据构造用例，把不变量钉死在单测里。
+# --------------------------------------------------------------------------- #
+def apply_weight_cap(ts: list, cap: float) -> None:
+    """单只权重上限：迭代封顶 + 超额按比例再分配给未封顶的（原地修改 weight_pct_of_core）。
+
+    为什么不是简单 clip 后归一：clip+归一 会把超额又推回被截断的标的（归一后可能再次超限），
+    故需迭代至无超限者；封顶按 cap，分配只给 w<cap 的标的。
+    """
+    n = len(ts)
+    if n == 0:
+        return
+    # 可行性前置：N 只 × cap < 100% 时，"单只≤cap"与"权重和为 100%"不可兼得。
+    # 原实现在此情形下**静默丢弃**多余权重（实测 3 只 × 15% → 权重和只剩 45%），
+    # 下游按 weight 算手数 → 计划"看起来做好了"却只投出一半的钱，且无任何报错。
+    # 宁可显式报错也不静默少投（2026-09-13 单测发现，w-c8cae280）。
+    if n * cap < 1 - 1e-9:
+        raise ValueError(
+            "单只上限 %.1f%% 对 %d 只标的不可行（%d×%.1f%%=%.1f%% < 100%%）——"
+            "继续执行会静默少投；请提高持仓数下限或放宽单只上限"
+            % (cap * 100, n, n, cap * 100, n * cap * 100))
+    ms = [x["mult"] for x in ts]
+    tot = sum(ms) or 1.0
+    w = [m / tot for m in ms]
+    for _ in range(50):
+        over = [i for i, x in enumerate(w) if x > cap + 1e-9]
+        if not over:
+            break
+        ex = sum(w[i] - cap for i in over)
+        for i in over:
+            w[i] = cap
+        free = [i for i in range(len(w)) if w[i] < cap - 1e-9]
+        fs = sum(w[i] for i in free) or 1.0
+        for i in free:
+            w[i] += ex * (w[i] / fs)
+    s = sum(w)
+    if abs(s - 1.0) > 1e-6:   # 可行路径下不该发生；发生即说明漏了权重，必须显式暴露
+        raise ValueError("权重封顶后再分配未收敛：权重和=%.6f（应为 1.0）" % s)
+    for x, wv in zip(ts, w):
+        x["weight_pct_of_core"] = round(wv * 100, 2)
+
+
+def refill_core(ts: list, used: set, k: int, uni, pk: dict, tilt_fn) -> int:
+    """持仓数下限的补位：从合格池取 k 只补入（原地修改 ts/used/pk），返回实际补入数。
+
+    排序取 (该行业已有成员数, -成交额)：优先补"行业已有成员少"的标的，
+    避免为了凑够持仓数把行业集中度抬上去（补位不能腐蚀分散度）。
+    """
+    if k <= 0:
+        return 0
+    cnt = {}
+    for x in ts:
+        cnt[x["industry"]] = cnt.get(x["industry"], 0) + 1
+    cand = [r for r in uni.itertuples() if str(r.symbol) not in used]
+    cand.sort(key=lambda r: (cnt.get(str(r.industry), 0), -float(r.amt)))
+    added = 0
+    for _r in cand:
+        if added >= k:
+            break
+        s = str(_r.symbol)
+        if s in used:
+            continue
+        m, n = tilt_fn(str(_r.industry))
+        ts.append({"symbol": s, "industry": str(_r.industry), "mult": m, "note": n,
+                   "weight_pct_of_core": 0.0})
+        pk[s] = {"close": _r.close, "roe": _r.roe, "pe": _r.pe, "amt": _r.amt}
+        used.add(s)
+        added += 1
+    return added
+
+
+def enforce_core_constraints(tilts: list, used: set, pk: dict, uni, tilt_fn,
+                             single_cap: float, min_names: int, amt_total_pre: float,
+                             max_rounds: int = 8):
+    """三条硬约束**联立**迭代：①持仓≥min_names（不足补位）②单只≤single_cap ③每只买得起≥1手。
+
+    为什么要联立而不是顺序执行一遍：三条互相破坏 —— 封顶会改变权重→可能让某只买不起 1 手（被剔除）
+    →剔除后可能跌破持仓下限→补位又改变权重。顺序跑一遍会停在"看似满足、其实有一条被破坏"的状态。
+    实测：单跑一遍时曾出现剔除后只剩 6 只（下限 8）却没回补。
+
+    返回 (tilts, dropped_total)：tilts 含最终 lots；dropped_total=整手剔除累计只数（诊断用）。
+    """
+    # 可行域：单只上限 cap 要求持仓数 ≥ ceil(100/cap)（15% → 7 只）。
+    # 用户批准的"单只≤15% 且 ≥8 只"本身可行（8×15%=120%）；若调用方传了不可行组合，
+    # 这里**向上**修正持仓数下限（补更多标的），而不是放宽上限、也不是静默少投。
+    _need_for_cap = -(-100 // max(1, int(round(single_cap * 100))))
+    min_names = max(int(min_names), int(_need_for_cap))
+    # 前置池量校验：可补入候选（uni 中未被选中的）不足以凑到下限时，直接给出准确诊断。
+    # 放在循环前是刻意的——否则会先撞上 apply_weight_cap 的"不可行"报错，把"池子不够"
+    # 误报成"参数不可行"，排查方向会跑偏。
+    _avail = sum(1 for r in uni.itertuples() if str(r.symbol) not in used)
+    if len(tilts) + _avail < min_names:
+        raise ValueError(
+            "合格池不足：需 ≥%d 只（单只≤%.1f%% 的下限），当前已选 %d 只 + 可补 %d 只 = %d 只"
+            "——计划不可产出（不得降格产出）"
+            % (min_names, single_cap * 100, len(tilts), _avail, len(tilts) + _avail))
+    dropped_total = 0
+    for _round in range(max_rounds):
+        refill_core(tilts, used, max(0, min_names - len(tilts)), uni, pk, tilt_fn)
+        apply_weight_cap(tilts, single_cap)
+        _kept = []
+        for _t in tilts:
+            _c = float(pk[_t["symbol"]]["close"])
+            _lots = int((amt_total_pre * _t["weight_pct_of_core"] / 100.0) // (_c * 100))
+            if _lots >= 1:
+                _t["lots"] = _lots
+                _kept.append(_t)
+        _gone = [t for t in tilts if t not in _kept]
+        dropped_total += len(_gone)
+        tilts = _kept
+        if not _gone and len(tilts) >= min_names:
+            break
+        if len(used) >= len(uni):
+            break
+    refill_core(tilts, used, max(0, min_names - len(tilts)), uni, pk, tilt_fn)
+    if len(tilts) * single_cap < 1 - 1e-9:
+        raise ValueError(
+            "合格池不足：需 ≥%d 只才能满足单只≤%.1f%%，实际仅 %d 只——计划不可产出（不得降格产出）"
+            % (min_names, single_cap * 100, len(tilts)))
+    apply_weight_cap(tilts, single_cap)
+    for _t in tilts:
+        _t["lots"] = int((amt_total_pre * _t["weight_pct_of_core"] / 100.0)
+                         // (float(pk[_t["symbol"]]["close"]) * 100))
+    return tilts, dropped_total
+
+
 def generate(**kwargs) -> dict:
     class _A:
         pass
@@ -352,76 +481,13 @@ def generate(**kwargs) -> dict:
     # ① 持仓数下限：不足则从合格池补（优先补行业已有成员 <2 的，避免抬高行业集中度）
     # ② 单只上限：core 的 15%，迭代封顶 + 超额按比例再分配
     # ③ 整手复核：分到的钱买不起 1 手则剔除，剔除后若跌破下限再补，直到三者同时满足
-    def _apply_cap(ts, cap):
-        ms = [x["mult"] for x in ts]
-        tot = sum(ms) or 1.0
-        w = [m / tot for m in ms]
-        for _ in range(50):
-            over = [i for i, x in enumerate(w) if x > cap + 1e-9]
-            if not over:
-                break
-            ex = sum(w[i] - cap for i in over)
-            for i in over:
-                w[i] = cap
-            free = [i for i in range(len(w)) if w[i] < cap - 1e-9]
-            fs = sum(w[i] for i in free) or 1.0
-            for i in free:
-                w[i] += ex * (w[i] / fs)
-        for x, wv in zip(ts, w):
-            x["weight_pct_of_core"] = round(wv * 100, 2)
-
-    def _refill(ts, used, k):
-        if k <= 0:
-            return 0
-        cnt = {}
-        for x in ts:
-            cnt[x["industry"]] = cnt.get(x["industry"], 0) + 1
-        cand = [r for r in uni.itertuples() if str(r.symbol) not in used]
-        cand.sort(key=lambda r: (cnt.get(str(r.industry), 0), -float(r.amt)))
-        added = 0
-        for _r in cand:
-            if added >= k:
-                break
-            s = str(_r.symbol)
-            if s in used:
-                continue
-            m, n = _tilt(str(_r.industry))
-            ts.append({"symbol": s, "industry": str(_r.industry), "mult": m, "note": n,
-                       "weight_pct_of_core": 0.0})
-            _pk[s] = {"close": _r.close, "roe": _r.roe, "pe": _r.pe, "amt": _r.amt}
-            used.add(s)
-            added += 1
-        return added
-
     used = {str(x["symbol"]) for x in tilts}
     _amt_total_pre = total * target_expo
-    dropped_total = 0
-    for _round in range(8):
-        _refill(tilts, used, max(0, a.min_names - len(tilts)))
-        _apply_cap(tilts, a.single_cap)
-        _kept = []
-        for _t in tilts:
-            _c = float(_pk[_t["symbol"]]["close"])
-            _lots = int((_amt_total_pre * _t["weight_pct_of_core"] / 100.0) // (_c * 100))
-            if _lots >= 1:
-                _t["lots"] = _lots
-                _kept.append(_t)
-        _gone = [t for t in tilts if t not in _kept]
-        dropped_total += len(_gone)
-        tilts = _kept
-        if not _gone and len(tilts) >= a.min_names:
-            break
-        if len(used) >= len(uni):
-            break
-    _refill(tilts, used, max(0, a.min_names - len(tilts)))
-    _apply_cap(tilts, a.single_cap)
-    for _t in tilts:
-        _t["lots"] = int((_amt_total_pre * _t["weight_pct_of_core"] / 100.0) // (float(_pk[_t["symbol"]]["close"]) * 100))
+    tilts, dropped_total = enforce_core_constraints(
+        tilts, used, _pk, uni, _tilt, a.single_cap, a.min_names, _amt_total_pre)
     print("硬约束：持仓 %d 只（下限 %d）｜单只最大权重 %.1f%%（上限 %.0f%%）｜整手剔除累计 %d 只"
           % (len(tilts), a.min_names, max((x["weight_pct_of_core"] for x in tilts), default=0.0),
              a.single_cap * 100, dropped_total))
-
-
     # ===== 成长板独立子额度（方案C：创业板 300/301 + 科创板 688/689）=====
     # 独立核算：额度 = 总资产 × growth_sleeve_pct（默认 5%）× 波动系数 × 回撤闸门
     # 候选来自 uni_prebudget（不受 core 单只预算钳制），否则高价的科创板龙头永远进不来
