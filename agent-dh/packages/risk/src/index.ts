@@ -122,7 +122,7 @@ export default class RiskPlugin extends Service {
     const osMemory = new OsMemoryStore({ baseURL: 'http://localhost:8080', agentId: 'agent-dh' });
 
     // 风险控制
-    ctx.tools.register(createRiskControllerTool(qv2));
+    ctx.tools.register(createRiskControllerTool(qv2, osMemory));
 
     // 风险指标
     ctx.tools.register(createRiskMetricsTool(qv2));

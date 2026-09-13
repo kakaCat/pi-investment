@@ -21,7 +21,7 @@ export class RiskControllerTool extends BaseTool<RiskControllerParams, RiskContr
 
   protected readonly prompt = riskControllerPrompt;
 
-  constructor(private qv2: QuantsysV2Client) {
+  constructor(private qv2: QuantsysV2Client, private osMemory?: any) {
     super();
   }
 
@@ -99,6 +99,64 @@ export class RiskControllerTool extends BaseTool<RiskControllerParams, RiskContr
       price: args.price,
       entry_price: args.entry_price,
     });
+
+    // 2026-09-13（w-c8cae280）R-006 余量感知：position_size 叠加 regime 余量钳制。
+    // 后端只按"账户价值 × 风险比"给静态建议（实测恒为 totalValue×20%、accountValue 写死 100000），
+    // 既不读 regime 仓位上限、也不读当前敞口——实测 agent_brain 敞口 14.2%、上限 40%、
+    // 余量 25.8pp 时，它仍建议单笔 20000 元（=20% 硬顶），等于把 25.8pp 的余量当空气。
+    // 现口径：可下上限 = min(单股 20% 硬顶, regime 剩余可加仓金额)，并把两个来源都摆出来。
+    if (args.command === 'position_size') {
+      const accountName = args.account_name || 'agent_brain';
+      const extra: Record<string, any> = {};
+      try {
+        const [regimeRes, summary] = await Promise.all([
+          this.osMemory
+            ? this.osMemory.searchMemory({ q: 'regime', scope: 'market:regime', limit: 10 })
+            : Promise.resolve({ items: [] }),
+          this.qv2.getPortfolioSummary(accountName),
+        ]);
+        const CAPS: Record<string, number> = { panic: 100, risk_on: 80, sideways: 60, risk_off: 40, euphoria: 30 };
+        const latest = ((regimeRes as any)?.items || [])
+          .filter((it: any) => it.status !== 'deprecated' && it.payload?.date)
+          .sort((a: any, b: any) => String(b.payload.date).localeCompare(String(a.payload.date)))[0];
+        const regime = latest?.payload?.regime ?? 'sideways';
+        const quality = latest?.payload?.evidence?.data_quality ?? 'unknown';
+        const conflicts = latest?.payload?.evidence?.conflicts ?? null;
+        const rawCap = CAPS[regime] ?? 60;
+        let cap = rawCap;
+        let capNote = '';
+        if ((quality === 'degraded' || (Array.isArray(conflicts) && conflicts.length > 0)) && cap > 60) {
+          cap = 60;
+          capNote = `数据降级（${quality}），上限由 ${rawCap}% 收紧至 60%`;
+        }
+        const totalValue = Number((summary as any)?.totalValue ?? 0);
+        const marketValue = Number((summary as any)?.totalMarketValue ?? 0);
+        const currentPct = totalValue > 0 ? +(marketValue / totalValue * 100).toFixed(1) : 0;
+        const headroomPct = +Math.max(0, cap - currentPct).toFixed(1);
+        const headroomAmount = Math.floor(totalValue * headroomPct / 100);
+        const staticSize = Number((raw as any)?.result?.recommendedSize ?? (raw as any)?.recommendedSize ?? 0);
+        const recommendedSize = Math.min(staticSize, headroomAmount);
+        extra.accountValueUsed = totalValue;
+        extra.regime = regime;
+        extra.regimeCapPct = cap;
+        extra.regimeCapNote = capNote;
+        extra.currentPositionPct = currentPct;
+        extra.headroomPct = headroomPct;
+        extra.headroomAmount = headroomAmount;
+        extra.staticRecommendedSize = staticSize;
+        extra.recommendedSize = recommendedSize;
+        extra.cappedBy = recommendedSize < staticSize ? 'regime_headroom' : 'single_stock_cap';
+        extra.source = 'risk_controller(position_size) 与 regime_position_limit 同口径合并（w-c8cae280，2026-09-13）';
+        if (!latest) extra.regimeNote = '无 regime 记录，按震荡档 60% 保守取值（R-006）';
+        if ((raw as any)?.result && typeof (raw as any).result === 'object') Object.assign((raw as any).result, extra);
+        else (raw as any).result = extra;
+        if ((raw as any)?.recommendedSize !== undefined) (raw as any).recommendedSize = recommendedSize;
+      } catch (e: any) {
+        extra.headroomNote =
+          `余量校验降级（${String(e?.message || e).slice(0, 80)}）：recommendedSize 仅为静态建议，未做 regime 余量钳制`;
+        if ((raw as any)?.result && typeof (raw as any).result === 'object') Object.assign((raw as any).result, extra);
+      }
+    }
 
     const sanitized: Record<string, any> = {};
     for (const [k, v] of Object.entries(raw ?? {})) {
