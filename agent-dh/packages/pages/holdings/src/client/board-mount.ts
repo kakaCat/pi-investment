@@ -8,7 +8,7 @@
 import { ACTIVE_ATTR, ACTIVATE_EVENT, BOARD_VIEW_SELECTOR, PANEL_NAME, OTHER_ACTIVE_ATTRS } from './dom.js'
 import { buildHistoryCard, buildView, buildWatchCardHtml, HISTORY_PAGE_SIZE } from './view.js'
 import type { HoldingsData } from './types.js'
-import { pickParts } from '../services/parts.js'
+import { pickParts, refreshModeFor } from '../services/parts.js'
 import {
   createSolveKit, type SolveCandidate, type SolveIdentity, type SolveKit, type SolveSnapshot,
 } from '@pi-investment/solve-kit/client'
@@ -20,6 +20,10 @@ export interface BoardController {
   toggleBoard(): void
   getSnapshot(): { boardOpen: boolean }
   refresh(): void
+  /** 挂载预热（看板此时未打开）：只拉 hot，避免"没看也拉全量" */
+  primeOnMount(): void
+  /** 打开看板时的刷新：冷块不在手 → full，否则 hot */
+  refreshOnOpen(): void
   switchAccount(accountName: string): void
   watchSwitch(key: string): void
   historyPageSwitch(page: number): void
@@ -35,8 +39,15 @@ export function createBoardController(): BoardController {
   let renderRetryTimer: number | undefined
 
   // 2026-09-13（w-adb088f2）：整包 82 KB 里 94.8% 是盯盘规则（54 条），却每 15 秒重传一次，
-  // 页面因此"卡住"。现改为分块拉取：轮询只带 parts=hot（约 4 KB），每第 4 次轮询补一次全量
+  // 页面因此"卡住"。现改为分块拉取：轮询只带 parts=hot（约 2.6 KB），每第 4 次轮询补一次全量
   // （约 60s）以刷新盯盘规则与成交明细。
+  //
+  // 2026-09-13 二次修正（同窗口，同一处）：分块必须和"什么时候取数"一起看——
+  // ① 旧代码在 **mount** 时调 refresh()，而 refresh 第 1 次恰好判成 full（pollTick % 4 === 1）
+  //    → 整天没点开看板也白拉一次 77 KB；原注释"第 1 次（打开看板）必为全量"并不成立
+  //    （refresh 是在 mount 调用的，不是 open）。
+  // ② 打开看板反而不取数（没接 onOpen）→ 看到的是挂载那一刻的旧数据。
+  // 现在：mount 只预热 hot；open 按"冷块是否在手"决定 full/hot；轮询沿用每 4 次补一次 full。
   let pollTick = 0
   // 请求序号：只有最后一次发出的请求允许落地（防止旧响应覆盖新响应）
   let fetchSeq = 0
@@ -184,9 +195,21 @@ export function createBoardController(): BoardController {
     getSnapshot: () => ({ boardOpen: shellRef?.isActive() ?? false }),
     refresh: () => {
       pollTick += 1
-      // 第 1 次（打开看板）必为全量；之后每 4 次轮询补一次全量（15s × 4 ≈ 60s）
-      const mode: 'full' | 'hot' = pollTick % 4 === 1 ? 'full' : 'hot'
+      const mode = refreshModeFor(pollTick, lastData)
       console.log('[dashboard-holdings] refresh (' + mode + ')')
+      fetchAndRender(currentAccount, mode)
+    },
+    // 挂载预热：容器在中心栏里一直挂着（显隐靠 html[data-dsh-hld-active]），
+    // 挂载 ≠ 用户在看 → 只拉 hot（约 2.6 KB），不再"一挂载就拉 77 KB 全量"
+    primeOnMount: () => {
+      console.log('[dashboard-holdings] mount prime (hot)')
+      fetchAndRender(currentAccount, 'hot')
+    },
+    // 打开看板：冷块（盯盘规则/成交明细）不在手 → full 补齐；已在手 → 只拉 hot
+    refreshOnOpen: () => {
+      pollTick = 0
+      const mode = refreshModeFor(1, lastData)
+      console.log('[dashboard-holdings] open refresh (' + mode + ')')
       fetchAndRender(currentAccount, mode)
     },
     switchAccount: (accountName) => {
@@ -194,6 +217,8 @@ export function createBoardController(): BoardController {
       currentAccount = accountName
       watchKey = 'current'
       historyPage = 0
+      pollTick = 0
+      // 冷块按账户过滤（盯盘规则带 account 字段），换账户必须整包重取
       fetchAndRender(accountName)
     },
     watchSwitch,
@@ -220,6 +245,8 @@ export function mountBoard(controller: BoardController): () => void {
     activeAttr: ACTIVE_ATTR,
     otherActiveAttrs: OTHER_ACTIVE_ATTRS,
     pollMs: 15000,
+    // 切到别的标签页/窗口时暂停轮询（兄弟页面 execution、pmboard 都是 true）
+    pauseOnHidden: true,
     buildContainer: () => {
       const el = document.createElement('div')
       el.setAttribute('data-dsh-hld-view', '')
@@ -227,9 +254,10 @@ export function mountBoard(controller: BoardController): () => void {
       return el
     },
     onMount: () => {
-      controller.refresh()
+      controller.primeOnMount()
       return undefined
     },
+    onOpen: () => controller.refreshOnOpen(),
     onPoll: () => controller.refresh(),
   })
 

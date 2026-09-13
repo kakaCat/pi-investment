@@ -17,6 +17,8 @@ from types import SimpleNamespace
 
 import pytest
 
+pytest.importorskip("empyrical", reason="empyrical 未安装")
+
 from adapters.outbound.repositories.simulation_repository import (
     SimulationORMRepository,
     SNAPSHOT_RETURN_SUSPICIOUS,

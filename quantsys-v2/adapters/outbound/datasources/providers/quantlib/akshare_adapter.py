@@ -419,17 +419,17 @@ class AkShareAdapter(BaseMarketAdapter):
             if a_symbols:
                 result.update(self._fetch_a_spot(a_symbols))
         except ImportError:
-            pass
-        except Exception:
-            pass
+            logger.warning("akshare A股行情库不可用，跳过A股实时行情")
+        except Exception as e:
+            logger.error(f"获取A股实时行情失败: {e}", exc_info=True)
 
         try:
             if hk_symbols:
                 result.update(self._fetch_hk_spot(hk_symbols))
         except ImportError:
-            pass
-        except Exception:
-            pass
+            logger.warning("akshare 港股行情库不可用，跳过港股实时行情")
+        except Exception as e:
+            logger.error(f"获取港股实时行情失败: {e}", exc_info=True)
 
         return result
 
@@ -685,26 +685,26 @@ class AkShareAdapter(BaseMarketAdapter):
                                     "source": "cninfo",
                                     "url": "",
                                 })
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"获取公告列表失败: {e}")
             else:
                 # Broad market news — use East Money stock news with a broad symbol
                 try:
                     df = ak.stock_news_em(symbol="")
                     if df is not None and not df.empty:
                         news.extend(self._news_frame_to_list(df))
-                except Exception:
+                except Exception as e:
                     # Fall back: try without symbol parameter
                     try:
                         df = ak.stock_news_em()
                         if df is not None and not df.empty:
                             news.extend(self._news_frame_to_list(df))
-                    except Exception:
-                        pass
+                    except Exception as e2:
+                        logger.warning(f"获取市场新闻失败: {e2}")
         except ImportError:
-            pass
-        except Exception:
-            pass
+            logger.warning("akshare 新闻库不可用，跳过新闻获取")
+        except Exception as e:
+            logger.error(f"获取新闻数据失败: {e}", exc_info=True)
 
         # Deduplicate by title and respect limit
         seen: set[str] = set()

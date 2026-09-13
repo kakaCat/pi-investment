@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Body, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 import structlog
 
 from adapters.inbound.fastapi_app.shared import api_response, error_response, handle_api_error
@@ -24,15 +24,8 @@ router = APIRouter(tags=["Signal Tracking - 信号质量追踪"])
 
 class RecordSignalRequest(BaseModel):
     """记录信号请求"""
-    signal_date: str = Field(..., description="信号日期 YYYY-MM-DD")
-    symbol: str = Field(..., description="股票代码，如 600519")
-    grade: str = Field(..., description="信号级别 A/B/C")
-    source: str = Field(..., description="信号来源：strategy_execute/opportunity_scan/mainline_stocks/watch_rule")
-    price: float = Field(..., description="买入价格")
-    reason: Optional[str] = Field(None, description="信号理由")
-    
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "signal_date": "2024-08-27",
                 "symbol": "600519",
@@ -42,6 +35,14 @@ class RecordSignalRequest(BaseModel):
                 "reason": "主线白酒+技术突破+资金流入"
             }
         }
+    )
+    
+    signal_date: str = Field(..., description="信号日期 YYYY-MM-DD")
+    symbol: str = Field(..., description="股票代码，如 600519")
+    grade: str = Field(..., description="信号级别 A/B/C")
+    source: str = Field(..., description="信号来源：strategy_execute/opportunity_scan/mainline_stocks/watch_rule")
+    price: float = Field(..., description="买入价格")
+    reason: Optional[str] = Field(None, description="信号理由")
 
 
 class UpdatePerformanceRequest(BaseModel):

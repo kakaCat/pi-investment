@@ -3,6 +3,9 @@ Unit tests for Backtrader engine and adapters.
 """
 
 import pytest
+
+pytest.importorskip("backtrader", reason="backtrader 未安装")
+
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta

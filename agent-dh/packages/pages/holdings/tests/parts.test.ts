@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseParts, pickParts, HOT_PARTS, COLD_PARTS, ALL_PARTS } from '../src/services/parts'
+import { parseParts, pickParts, HOT_PARTS, COLD_PARTS, ALL_PARTS, hasColdParts, refreshModeFor } from '../src/services/parts'
 
 /**
  * 分块契约锁（2026-09-13，w-adb088f2）
@@ -54,5 +54,39 @@ describe('pickParts', () => {
   it('未声明 parts 时取全部（保守）', () => {
     const payload = { a: 1, b: 2 }
     expect(pickParts(payload, undefined)).toEqual({ a: 1, b: 2 })
+  })
+})
+
+/**
+ * 取数时机契约（2026-09-13 二次修正，w-adb088f2）
+ *
+ * 实证问题：旧逻辑 refresh() 里 `pollTick % 4 === 1 → full`，而 refresh 是在 **挂载** 时调用的
+ * → 用户整天没点开看板，也白拉一次 77 KB 全量；而打开看板却没有 onOpen 回调，看到的是挂载那刻的旧数据。
+ */
+describe('refreshModeFor / hasColdParts', () => {
+  it('冷块不在手 → 必须 full（否则盯盘/成交卡片永远是空的）', () => {
+    expect(refreshModeFor(1, undefined)).toBe('full')
+    expect(refreshModeFor(1, { parts: [...HOT_PARTS] })).toBe('full')
+    expect(refreshModeFor(1, { parts: ['accounts', 'watchRules'] })).toBe('full')
+  })
+
+  it('冷块在手 → 第 1 次必须是 hot（回归锁：旧写法让首次恒为 77 KB 全量）', () => {
+    const all = { parts: [...ALL_PARTS] }
+    expect(refreshModeFor(1, all)).toBe('hot')
+    expect(refreshModeFor(2, all)).toBe('hot')
+  })
+
+  it('冷块在手 → 每 4 次补一次 full（15s × 4 ≈ 60s）', () => {
+    const all = { parts: [...ALL_PARTS] }
+    expect(refreshModeFor(3, all)).toBe('hot')
+    expect(refreshModeFor(4, all)).toBe('full')
+    expect(refreshModeFor(8, all)).toBe('full')
+  })
+
+  it('冷块判据是「全都到手」而非「有一个就算」', () => {
+    expect(hasColdParts({ parts: ['watchRules'] })).toBe(false)
+    expect(hasColdParts({ parts: ['watchRules', 'tradeHistory'] })).toBe(false)
+    expect(hasColdParts({ parts: [...COLD_PARTS] })).toBe(true)
+    expect(hasColdParts(undefined)).toBe(false)
   })
 })

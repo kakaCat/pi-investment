@@ -435,7 +435,8 @@ class SimulationTrader:
                     prices[symbol] = float(latest['close'][0])
                 else:
                     prices[symbol] = self.portfolio[symbol]['avg_price']
-            except:
+            except (AttributeError, KeyError, IndexError, TypeError) as e:
+                logger.warning(f"获取 {symbol} 最新价格失败，使用均价: {e}")
                 prices[symbol] = self.portfolio[symbol]['avg_price']
 
         # 计算持仓市值

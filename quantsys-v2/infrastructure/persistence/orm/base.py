@@ -2,7 +2,7 @@
 ORM基础配置
 """
 from sqlalchemy import Column, DateTime
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from datetime import datetime
 
 Base = declarative_base()

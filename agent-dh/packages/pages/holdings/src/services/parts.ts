@@ -37,6 +37,32 @@ export function parseParts(raw: string | null | undefined): string[] {
   return valid.length > 0 ? valid : [...ALL_PARTS]
 }
 
+/**
+ * 冷块是否已在手。
+ * 判据用**服务端回显的 parts**，而不是"键是否存在"——空数组也是"已加载"，
+ * 靠键存在与否分辨不出"本次没请求"和"请求了、但确实没有"。
+ */
+export function hasColdParts(payload: { parts?: string[] } | undefined): boolean {
+  const got = Array.isArray(payload?.parts) ? payload.parts : []
+  return COLD_PARTS.every((k) => got.includes(k))
+}
+
+/**
+ * 轮询/打开看板时的刷新模式：
+ * - 冷块不在手 → full（必须补齐，否则盯盘规则/成交明细卡片永远是空的）
+ * - 冷块在手  → 每 4 次补一次 full（15s × 4 ≈ 60s），其余 hot
+ *
+ * ⚠️ **挂载（mount）时的首次取数不走这里**：容器在中心栏里一直是挂着的，靠
+ * `html[data-dsh-hld-active]` 控制显隐，"挂载"不等于"用户在看"——挂载只预热 hot（约 2.6 KB），
+ * 真正需要全量的是"打开"那一刻（board-mount 的 refreshOnOpen）。
+ * 依据：2026-09-13 复核发现旧代码在 mount 时调 refresh()，而 refresh 的第 1 次恰好判成 full，
+ * 于是"整天没点开看板也白拉一次 77 KB"，且打开时反而不取数（没接 onOpen）。
+ */
+export function refreshModeFor(tick: number, payload?: { parts?: string[] }): 'full' | 'hot' {
+  if (!hasColdParts(payload)) return 'full'
+  return tick % 4 === 0 ? 'full' : 'hot'
+}
+
 /** 只从 payload 里取本次实际请求到的块，避免用空数组把已加载的大块擦掉 */
 export function pickParts<T extends Record<string, any>>(payload: T, parts: readonly string[] | undefined): Partial<T> {
   // 未声明 parts（老服务端/异常）时按"取全部"处理：合并场景下宁可多带，也不要把数据丢掉

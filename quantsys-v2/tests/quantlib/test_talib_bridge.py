@@ -1,5 +1,8 @@
 import polars as pl
 import pytest
+
+pytest.importorskip("talib", reason="talib 未安装")
+
 from datetime import date, timedelta
 from domain.quantlib.technical.talib_bridge import TALibBridge
 
