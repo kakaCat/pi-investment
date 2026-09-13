@@ -24,7 +24,7 @@ ENV = dict(os.environ, PATH="/opt/homebrew/bin:/usr/local/bin:" + os.environ.get
 COST_BUY, COST_SELL = 7.5 / 10000.0, 12.5 / 10000.0
 LIQ_MIN = 3e7
 PRE_START, PRE_END = "2021-06-01", "2022-05-31"
-TEST_START, TEST_END = "2022-06-01", "2026-09-11"
+TEST_START, TEST_END = "2024-07-01", "2026-09-11"
 CAND_N = 500
 
 
@@ -41,11 +41,11 @@ def psql(q):
                           capture_output=True, text=True, env=ENV, check=True).stdout.strip()
 
 
-def candidate_set(n=CAND_N):
+def candidate_set(n=CAND_N, min_bars=220):
     """只用窗口开始前的数据挑候选集合（消除"用今天的池成员"这类前视偏差）。"""
     rows = psql("select symbol, avg_amount, bars from (select symbol, avg(amount) avg_amount, count(*) bars "
                 "from quant.daily_klines where trade_date between '" + PRE_START + "' and '" + PRE_END + "' "
-                "group by symbol having count(*) >= 220) t where avg_amount is not null "
+                "group by symbol having count(*) >= " + str(min_bars) + ") t where avg_amount is not null "
                 "order by avg_amount desc limit " + str(n))
     out = []
     for line in rows.split("\n"):
@@ -186,16 +186,19 @@ def main():
     ap.add_argument("--regime", action="store_true")
     ap.add_argument("--stop-loss", type=float, default=None)
     ap.add_argument("--cand", type=int, default=CAND_N)
+    ap.add_argument("--def-start", default=PRE_START)
+    ap.add_argument("--def-end", default=PRE_END)
+    ap.add_argument("--def-min-bars", type=int, default=220)
     a = ap.parse_args()
 
-    syms = candidate_set(a.cand)
-    print("候选集合（仅用 2021-06~2022-05 数据挑，%d 只，避免前视偏差）: %s …" % (len(syms), syms[:5]))
+    globals()["PRE_START"], globals()["PRE_END"] = a.def_start, a.def_end
+    syms = candidate_set(a.cand, a.def_min_bars)
+    print("候选集合（只用 %s~%s 数据挑，%d 只，避免前视偏差）: %s …" % (a.def_start, a.def_end, len(syms), syms[:5]))
     close, open_, amount = load(syms, "2021-06-01")
     print("数据窗口 %s ~ %s，交易日 %d，标的 %d" % (close.index[0].date(), close.index[-1].date(), len(close), close.shape[1]))
 
-    windows = {"全窗口": (TEST_START, TEST_END), "2022H2": ("2022-06-01", "2022-12-31"),
-               "2023": ("2023-01-01", "2023-12-31"), "2024": ("2024-01-01", "2024-12-31"),
-               "2025-26": ("2025-01-01", TEST_END)}
+    windows = {"全窗口": (TEST_START, TEST_END), "2024H2": ("2024-07-01", "2024-12-31"),
+               "2025": ("2025-01-01", "2025-12-31"), "2026": ("2026-01-01", TEST_END)}
     for label, (s, e) in windows.items():
         eq, to = simulate(close, open_, amount, a.mode, a.topn, s, e, regime=a.regime, stop_loss=a.stop_loss)
         st = stats(eq, to)
