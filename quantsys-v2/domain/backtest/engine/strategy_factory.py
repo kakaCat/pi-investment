@@ -39,10 +39,27 @@ class StrategyFactory:
     ]
 
     @classmethod
-    def auto_discover(cls, package_path: str = 'quantlib.engine') -> None:
+    def auto_discover(cls, package_path: str | None = None) -> None:
+        """扫描本包下的策略模块并注册。
+
+        2026-09-13 修复（w-a9ec14d7）：原默认参数把包路径**写死为 quantlib.engine** ——
+        那是索引重构前的包名，本仓早已改为 domain.backtest.engine，于是一直扫不到任何模块：
+        strategy_list(source='builtin') 长期静默返回空（路由拿到空注册表就回 []，
+        上层只能看到「没有内置策略」，看不到「加载失败」）。
+
+        两处根因一起修：
+          ① 包路径从本模块自身推导（__package__），以后再改名也不会失配；
+          ② 失败不再静默：模块文件**存在**但导入失败 → 记入 _load_errors 并告警；
+             模块文件**不存在** → 视为可选策略静默跳过（不制造噪声）。
+        """
+        import os
+        pkg = package_path or __package__ or 'domain.backtest.engine'
+        cls._load_errors = []
+        pkg_dir = os.path.dirname(os.path.abspath(__file__))
         for module_name in cls._STRATEGY_MODULES:
+            exists = os.path.exists(os.path.join(pkg_dir, module_name + '.py'))
             try:
-                module = importlib.import_module(f'{package_path}.{module_name}')
+                module = importlib.import_module(f'{pkg}.{module_name}')
                 for name, obj in inspect.getmembers(module, inspect.isclass):
                     if not name.endswith('Strategy'):
                         continue
@@ -51,8 +68,19 @@ class StrategyFactory:
                     if issubclass(obj, StrategyBase):
                         strategy_type = cls.class_name_to_type(name)
                         cls.register(strategy_type, obj)
+            except ModuleNotFoundError as e:
+                if not exists:
+                    continue  # 可选策略模块本就不存在
+                cls._load_errors.append({'module': module_name, 'error': str(e)})
+                logger.warning('策略模块存在但导入失败 %s.%s: %s', pkg, module_name, e)
             except Exception as e:
-                logger.warning("Failed to load %s: %s", module_name, e)
+                cls._load_errors.append({'module': module_name, 'error': str(e)})
+                logger.warning('Failed to load %s: %s', module_name, e)
+
+    @classmethod
+    def list_load_errors(cls) -> list[dict]:
+        """返回最近一次 auto_discover 的加载失败清单（空注册表不再冒充「没有策略」）。"""
+        return list(getattr(cls, '_load_errors', []))
 
     @classmethod
     def register(cls, strategy_type: str, strategy_class: Type[StrategyBase]):

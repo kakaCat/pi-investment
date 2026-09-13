@@ -101,7 +101,15 @@ def get_strategies_list(source: str = Query('user'), category: Optional[str] = Q
                 })
         if category:
             strategies = [s for s in strategies if s['category'] == category]
-        return api_response({'strategies': strategies, 'total': len(strategies)})
+        # 2026-09-13（w-a9ec14d7）：空注册表不再冒充「没有内置策略」。
+        # 历史上 auto_discover 的包路径写死为重构前的 quantlib.engine → 一直扫不到模块，
+        # 本接口长期静默返回 [] ，上层看到的是"没有策略"而不是"加载失败"。
+        load_errors = StrategyFactory.list_load_errors() if hasattr(StrategyFactory, 'list_load_errors') else []
+        payload = {'strategies': strategies, 'total': len(strategies)}
+        if load_errors:
+            payload['load_errors'] = load_errors
+            payload['note'] = '部分策略模块存在但导入失败，详见 load_errors'
+        return api_response(payload)
 
     code_type = codeType
     if code_type and code_type not in ('indicator', 'script', 'strategy'):
