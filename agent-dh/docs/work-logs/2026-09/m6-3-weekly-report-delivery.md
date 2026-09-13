@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-m6-3-weekly-report-delivery
+title: M6-3 周报自动生成交付（2026-09-01）
+type: worklog
+status: archived
+updated: 2026-09-01
+owners: [w-8366e526]
+tags: [worklog, 2026-09]
+---
+
 # M6-3 周报自动生成交付（2026-09-01）
 
 > 署名：investor w-8366e526

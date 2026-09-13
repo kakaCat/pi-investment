@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-reqboard-pipeline-superpowers
+title: 项目看板：需求流水线对齐 superpowers 三段式（状态即阶段）
+type: worklog
+status: archived
+updated: 2026-09-13
+owners: [w-1cee2467]
+tags: [worklog, 2026-09]
+---
+
 # 项目看板：需求流水线对齐 superpowers 三段式（状态即阶段）
 
 - **日期**：2026-09-13

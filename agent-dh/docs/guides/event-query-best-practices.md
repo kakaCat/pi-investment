@@ -407,3 +407,10 @@ position_list() 然后逐个 stock_events()
 ---
 
 **文档位置**: `docs/guides/event-query-best-practices.md`
+
+---
+
+## 相关页面
+
+- [事件查询指南（工具与字段）](event-query-guide.md)
+- [事件查询示例](../examples/event-query-examples.md)

@@ -1,3 +1,13 @@
+---
+id: wl-2026-08-tools-smoke-report-20260830
+title: 工具全量冒烟测试报告（52 项实测）
+type: worklog
+status: archived
+updated: 2026-09-12
+owners: [w-5e236bc7]
+tags: [worklog, 2026-08]
+---
+
 # 工具全量冒烟测试报告（52 项实测）
 
 - **测试时间**：2026-08-30 20:20-20:31

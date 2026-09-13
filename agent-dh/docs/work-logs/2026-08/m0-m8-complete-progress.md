@@ -1,3 +1,13 @@
+---
+id: wl-2026-08-m0-m8-complete-progress
+title: PI Investment 盈利引擎完整进度报告（M0-M8）
+type: worklog
+status: archived
+updated: 2026-09-01
+owners: [w-8366e526]
+tags: [worklog, 2026-08]
+---
+
 # PI Investment 盈利引擎完整进度报告（M0-M8）
 
 **更新时间**: 2026-09-01（重新梳理：investor w-8366e526 全量核实）

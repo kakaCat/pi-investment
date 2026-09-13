@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-self-finalize-exit-vs-boot-recovery-i3-20260910
+title: self_finalize(exit) 与 boot-recovery I3 语义冲突：exit 会静默清空工作区（修复报告）
+type: worklog
+status: archived
+updated: 2026-09-10
+owners: [w-50fc8c52]
+tags: [worklog, 2026-09]
+---
+
 # self_finalize(exit) 与 boot-recovery I3 语义冲突：exit 会静默清空工作区（修复报告）
 
 - 日期：2026-09-10 21:46 CST

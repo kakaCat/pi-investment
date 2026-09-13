@@ -1,3 +1,13 @@
+---
+id: wl-2026-08-next-steps
+title: 下一步任务清单
+type: worklog
+status: archived
+updated: 2026-08-27
+owners: [agent-dh]
+tags: [worklog, 2026-08]
+---
+
 # 下一步任务清单
 
 **更新时间**: 2026-08-26 01:15  

@@ -1,3 +1,13 @@
+---
+id: wl-2026-08-tools-genome-verification-20260831
+title: Genome 工具验证报告（2026-08-31）
+type: worklog
+status: archived
+updated: 2026-09-12
+owners: [w-9bbe3e64]
+tags: [worklog, 2026-08]
+---
+
 # Genome 工具验证报告（2026-08-31）
 
 **验证对象**: TOOLS_REFACTOR_TRACKER.md 中 #40-45 genome_* 6 个工具（此前标记 🔴 未暴露）

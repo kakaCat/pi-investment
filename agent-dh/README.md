@@ -1,3 +1,13 @@
+---
+id: readme-2
+title: Agent-DH
+type: manual
+status: living
+updated: 2026-09-11
+owners: [agent-dh]
+tags: [manual]
+---
+
 # Agent-DH
 
 **Agent-DH** 是 PI Investment 系统的 DSH (DeepSeek Harness) 投资分析 Profile，提供基于 AI 的投资决策能力。
@@ -279,3 +289,11 @@ MIT
 **Version**: 0.1.1
 
 **Last Updated**: 2026-08-19
+
+---
+
+## 相关页面
+
+- [Wiki 首页](docs/README.md)
+- [agent-dh 是什么](docs/architecture/agent-dh-overview.md)
+- [工作日志索引](docs/work-logs/README.md)

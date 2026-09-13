@@ -1,3 +1,13 @@
+---
+id: pkg-pages-bulletin-readme
+title: @pi-investment/dashboard-bulletin（公告板页面，RFC 013）
+type: package
+status: living
+updated: 2026-09-05
+owners: [agent-dh]
+tags: [package]
+---
+
 # @pi-investment/dashboard-bulletin（公告板页面，RFC 013）
 
 DSH GUI 页面域第三个看板插件，镜像 dashboard-holdings / dashboard-execution 双半插件模式。
@@ -12,3 +22,10 @@ DSH GUI 页面域第三个看板插件，镜像 dashboard-holdings / dashboard-e
 - 宿主路径：/dashboard/api/bulletin/posts（唯一所有者；与 execution /dashboard/api/board、holdings /dashboard/api/holdings 互斥）
 - 客户端命名空间 dsh-bbd-*；视图根 data-dsh-bbd-view；html[data-dsh-bbd-active] 显隐；ACTIVATE_EVENT 互斥
 - 详情见 docs/rfcs/013-bulletin-board-page.md
+
+---
+
+## 相关页面
+
+- [页面插件契约](../../../docs/architecture/page-plugin-contract.md)
+- [设计/来源文档](../../../docs/rfcs/013-bulletin-board-page.md)

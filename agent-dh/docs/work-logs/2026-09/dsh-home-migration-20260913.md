@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-dsh-home-migration-20260913
+title: DSH_HOME 迁入项目内（:13080）
+type: worklog
+status: archived
+updated: 2026-09-12
+owners: [agent-dh]
+tags: [worklog, 2026-09]
+---
+
 # DSH_HOME 迁入项目内（:13080）
 
 **日期**：2026-09-13
@@ -33,7 +43,7 @@
 | dsh-reqboard.json | ✅ 96KB | ❌ 不存在 |
 | attachments/ | ✅ | ❌ 不存在 |
 
-`.dsh-data` 只是 9/12 17:00–19:57 的**部分快照**，服务当晚就回滚到 `~/.dsh-agent-dh` 继续跑至今。`DATA_MIGRATION.md` 的"数据已迁移"不成立。
+`.dsh-data` 只是 9/12 17:00–19:57 的**部分快照**，服务当晚就回滚到 `~/.dsh-agent-dh` 继续跑至今。[数据迁移说明](data-migration-note.md)（原 DATA_MIGRATION.md，已作废）的"数据已迁移"不成立。
 
 另有一个运行时坑：现役 profile 是 `investment`，而 managed 模式缺省是 `agent-dh`（`.dsh-home/profiles/agent-dh` 已存在但从未成功启动过）。
 

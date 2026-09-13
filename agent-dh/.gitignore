@@ -13,3 +13,12 @@ coverage/
 # local backup snapshots
 agent-dh.bak.*/
 CLAUDE.md
+
+# ---- 文档树纳入版本控制（2026-09-14，w-1cee2467）-------------------------------
+# 仓库根 .gitignore 里有一批历史通配规则（*_REPORT.md / *_SUMMARY.md / *-PLAN.md /
+# ARCHITECTURE_*.md / QUICKSTART.md / *-GUIDE.md / *-COMPLETE.md ...），它们当年针对
+# 根 docs/ 下散落的报告文件；但 gitignore 是全路径匹配的，于是把 agent-dh/docs/ 里
+# 的正式文档也按文件名一并忽略了——实证 48 个文件"在磁盘上、不在仓库里"：
+# 换台机器/重新克隆即消失，且被已入库页面（RELEASE-NOTES、TOOLS_INVENTORY 等）链接成死链。
+# 更深层的 .gitignore 规则优先级更高，故在本文件反选回来。
+!docs/**

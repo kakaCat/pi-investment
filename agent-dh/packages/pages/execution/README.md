@@ -1,3 +1,13 @@
+---
+id: pkg-pages-execution-readme
+title: @pi-investment/dashboard-execution
+type: package
+status: living
+updated: 2026-09-04
+owners: [agent-dh]
+tags: [package]
+---
+
 # @pi-investment/dashboard-execution
 
 P1 **双线执行确认看板** —— DSH GUI **双半插件**（标准实现方式，参照 dsh-taskboard：
@@ -57,3 +67,10 @@ curl -s http://127.0.0.1:13080/dashboard/api/board          # board JSON（同�
 # GUI：dsh web shell 侧栏出现「执行看板」入口，点击在中心栏渲染看板视图
 #（不再是 /dashboard/execution HTML 页面 —— 用户纠正：HTML 页面非标准，标准是双半插件挂载）
 ```
+
+---
+
+## 相关页面
+
+- [页面插件契约](../../../docs/architecture/page-plugin-contract.md)
+- [设计/来源文档](../../../docs/design/dashboard-implementation-plan.md)

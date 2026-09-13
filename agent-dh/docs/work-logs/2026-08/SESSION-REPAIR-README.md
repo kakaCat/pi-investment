@@ -1,3 +1,13 @@
+---
+id: wl-2026-08-session-repair-readme
+title: DSH Session Repair Tools
+type: worklog
+status: archived
+updated: 2026-09-12
+owners: [agent-dh]
+tags: [worklog, 2026-08]
+---
+
 # DSH Session Repair Tools
 
 ## 问题描述

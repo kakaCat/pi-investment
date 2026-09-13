@@ -1,3 +1,13 @@
+---
+id: wl-2026-08-code-completion-audit-20260831
+title: 盈利引擎代码完成度审计报告（最新）
+type: worklog
+status: archived
+updated: 2026-08-31
+owners: [w-8366e526]
+tags: [worklog, 2026-08]
+---
+
 # 盈利引擎代码完成度审计报告（最新）
 
 | 字段 | 值 |

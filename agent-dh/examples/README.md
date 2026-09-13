@@ -1,3 +1,13 @@
+---
+id: readme
+title: Agent-DH 示例
+type: example
+status: living
+updated: 2026-08-30
+owners: [agent-dh]
+tags: [example]
+---
+
 # Agent-DH 示例
 
 本目录包含 Agent-DH 的实用示例，帮助你快速上手。
@@ -304,8 +314,8 @@ pnpm build
 
 ## 🔗 相关资源
 
-- [快速开始指南](../QUICKSTART.md)
-- [API 文档](../docs/api-reference.md)（待创建）
+- [快速开始指南](../docs/guides/QUICKSTART.md)
+- [Wiki 首页](../docs/README.md)
 
 ---
 
@@ -320,3 +330,11 @@ pnpm build
 ---
 
 祝你使用愉快！🚀
+
+---
+
+## 相关页面
+
+- [Wiki 首页](../docs/README.md)
+- [快速开始](../docs/guides/QUICKSTART.md)
+- [技能装载](../docs/guides/skill-loading.md)

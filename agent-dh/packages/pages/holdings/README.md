@@ -1,3 +1,13 @@
+---
+id: pkg-pages-holdings-readme
+title: @pi-investment/dashboard-holdings
+type: package
+status: living
+updated: 2026-09-04
+owners: [agent-dh]
+tags: [package]
+---
+
 # @pi-investment/dashboard-holdings
 
 账户持仓看板 — DSH GUI 双半插件（Phase 1）
@@ -269,3 +279,10 @@ curl http://127.0.0.1:5001/api/health
 ## License
 
 MIT
+
+---
+
+## 相关页面
+
+- [页面插件契约](../../../docs/architecture/page-plugin-contract.md)
+- [设计/来源文档](../../../docs/design/page1-holdings-implementation-plan.md)

@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-reqboard-knowledge-pyramid
+title: 文档金字塔与项目说明书（归档让项目认知向上生长）
+type: worklog
+status: archived
+updated: 2026-09-14
+owners: [w-1cee2467]
+tags: [worklog, 2026-09]
+---
+
 # 文档金字塔与项目说明书（归档让项目认知向上生长）
 
 - **日期**：2026-09-13

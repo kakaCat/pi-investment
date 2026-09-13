@@ -1,4 +1,22 @@
+---
+id: wl-2026-09-data-migration-note
+title: Agent-DH 数据迁移说明（2026-09-12 快照）
+type: worklog
+status: superseded
+updated: 2026-09-12
+owners: [agent-dh]
+tags: [worklog, migration, superseded]
+---
+
 # Agent-DH 数据迁移说明
+
+> **状态：已作废（superseded，2026-09-14 标注）。** 本文描述的「数据已迁移到 `.dsh-data/`」**不成立**：
+> 9/12 17:00–19:57 只完成**部分快照**，服务当晚即回滚到 `~/.dsh-agent-dh` 继续运行；
+> profile 目录后来也确定为 `.dsh-home/profiles/investment`（不是本文写的 `profiles/agent-dh`）。
+> 事实与现状见 [DSH_HOME 迁移记录](dsh-home-migration-20260913.md)。
+> 另外：本文「回滚方案」里的 `pkill -f dsh.*agent-dh` **违反多实例生命周期铁律**（会误杀同机其他 dsh 实例），已作废——
+> 停实例一律用该实例的 `stop.sh` / `launchctl bootout`。
+
 
 ## 迁移概述
 

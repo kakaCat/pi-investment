@@ -158,13 +158,18 @@ tags: [wiki, index, home, agent-dh]
 - [rfcs/013-bulletin-board-page.md](rfcs/013-bulletin-board-page.md)
 - [rfcs/013-decision-evaluation-ddd-refactor.md](rfcs/013-decision-evaluation-ddd-refactor.md)
 - [rfcs/RFC-010-README.md](rfcs/RFC-010-README.md)
+- [architecture/ARCHITECTURE_EVOLUTION_prompt_evolver.md](architecture/ARCHITECTURE_EVOLUTION_prompt_evolver.md)
+- [architecture/REFACTOR_PLAN.md](architecture/REFACTOR_PLAN.md)
 - [architecture/AUTONOMY-SYSTEM.md](architecture/AUTONOMY-SYSTEM.md)
 - [architecture/TOOLS_INVENTORY.md](architecture/TOOLS_INVENTORY.md)
 - [architecture/WHY-NO-DIST.md](architecture/WHY-NO-DIST.md)
 - [architecture/database-table-comparison.md](architecture/database-table-comparison.md)
 - [architecture/legacy-system-deprecation-plan.md](architecture/legacy-system-deprecation-plan.md)
 - [architecture/self-restart-behavior.md](architecture/self-restart-behavior.md)
+- [guides/QUICKSTART.md](guides/QUICKSTART.md)
 - [guides/QUICKREF.md](guides/QUICKREF.md)
+- [guides/event-query-guide.md](guides/event-query-guide.md)
+- [guides/weekly-report-push-guide.md](guides/weekly-report-push-guide.md)
 - [guides/STARTUP.md](guides/STARTUP.md)
 - [guides/USAGE-GUIDE.md](guides/USAGE-GUIDE.md)
 - [guides/event-query-best-practices.md](guides/event-query-best-practices.md)
@@ -180,7 +185,13 @@ tags: [wiki, index, home, agent-dh]
 - ✅ [需求档案索引](requirements/INDEX.md) · [归档规范](architecture/requirement-archive.md)
 - ✅ [历史遗留系统下线计划](architecture/legacy-system-deprecation-plan.md)
 - ✅ [agent-ts 经验](guides/learnings-from-agent-ts.md)
-- L3 正文是各需求目录与 `work-logs/`（只读证据，不在此逐条登记）
+- ✅ **L3 档案总入口**：[工作日志索引](work-logs/README.md)（按月列出全部日志）· [需求档案索引](requirements/INDEX.md)（已归档 + 进行中）
+
+**包内入口页（各包 README：写这个包怎么用）**：
+
+- [agent-dh 根 README](../../agent-dh/README.md)｜[profile 模板说明](../../agent-dh/profiles/investment/README.md)｜[示例目录](../../agent-dh/examples/README.md)
+- [core-tool（工具规范包）](../../agent-dh/packages/core-tool/README.md)｜[learning（学习引擎）](../../agent-dh/packages/learning/README.md)
+- 页面包：[holdings](../../agent-dh/packages/pages/holdings/README.md) · [execution](../../agent-dh/packages/pages/execution/README.md) · [bulletin](../../agent-dh/packages/pages/bulletin/README.md) · [genome](../../agent-dh/packages/pages/genome/README.md)
 
 ## 最近改动
 
@@ -195,6 +206,8 @@ tags: [wiki, index, home, agent-dh]
 | 2026-09-13 | [插件模型与装载](architecture/plugin-model.md) · [身份系统与 agents.json](architecture/identity-and-agents-json.md) | B2 起：两个 stub 补成正式页（待写债清零） | w-1cee2467 |
 | 2026-09-13 | [账户模型与边界](architecture/accounts-and-boundaries.md) · [交易约束速查](guides/trading-constraints.md) · [数据契约与新鲜度](architecture/data-contracts-and-freshness.md) | B2 续：卷 4、卷 5 的 P0 页 | w-1cee2467 |
 | 2026-09-13 | [工具审计清单](protocols/tool-audit.md) · [记忆与召回](architecture/memory-and-recall.md) · [页面插件契约](architecture/page-plugin-contract.md) | B3：卷 3/6/7 的 P1 页（大纲 P0/P1 全部落地，剩余仅历史页迁移） | w-1cee2467 |
+| 2026-09-14 | [工作日志索引](work-logs/README.md) · [需求档案索引](requirements/INDEX.md) | L3 档案总入口落地：全部日志按月索引、需求档案（进行中/已归档）统一登记 | w-1cee2467 |
+| 2026-09-14 | 全站历史页 | front-matter 迁移收口（work-logs + 架构/设计/指南 + 包内 README）；修复 .gitignore 历史通配把 48 个文档挡在版本控制之外 | w-1cee2467 |
 
 ## 怎么维护
 

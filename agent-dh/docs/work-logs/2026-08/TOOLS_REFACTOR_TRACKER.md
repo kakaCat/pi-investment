@@ -1,3 +1,13 @@
+---
+id: wl-2026-08-tools-refactor-tracker
+title: Agent-DH 工具重构清单（按工具追踪）
+type: worklog
+status: archived
+updated: 2026-09-12
+owners: [w-a0ef8aca]
+tags: [worklog, 2026-08]
+---
+
 # Agent-DH 工具重构清单（按工具追踪）
 
 **最后更新**: 2026-08-31  

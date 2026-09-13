@@ -1,3 +1,13 @@
+---
+id: pkg-pages-genome-readme
+title: @pi-investment/dashboard-genome · 自主进化看板
+type: package
+status: living
+updated: 2026-09-13
+owners: [agent-dh]
+tags: [package]
+---
+
 # @pi-investment/dashboard-genome · 自主进化看板
 
 DSH GUI 双半插件，把 **Autonomy 线（自进化系统）能力设计层**从黑盒变白盒：
@@ -68,3 +78,10 @@ lib/client.js                构建产物（tsdown CJS + wrap-client.mjs 模块�
 - 2026-09-13 w-57873eb8（REQ-3952b7）：修「页面读 g1 空库」——原默认值硬编码 `~/.dsh-agent-dh/genome`，
   DSH_HOME 迁移后与 genome 插件（.dsh-data/genome）静默分叉。改为运行时跟随 genome 插件 + env 链兜底，
   并把生效目录/来源打进 API 与启动日志。
+
+---
+
+## 相关页面
+
+- [页面插件契约](../../../docs/architecture/page-plugin-contract.md)
+- [设计/来源文档](../../../docs/rfcs/007-genome-manager.md)

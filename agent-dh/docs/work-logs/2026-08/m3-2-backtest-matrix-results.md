@@ -1,3 +1,13 @@
+---
+id: wl-2026-08-m3-2-backtest-matrix-results
+title: M3-2 回测矩阵执行结果
+type: worklog
+status: archived
+updated: 2026-09-01
+owners: [w-8366e526]
+tags: [worklog, 2026-08]
+---
+
 # M3-2 回测矩阵执行结果
 
 > 角色：investor（w-8366e526）｜日期：2026-08-31（09-01 凌晨追加组合策略实证）

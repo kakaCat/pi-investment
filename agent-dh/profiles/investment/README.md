@@ -1,3 +1,13 @@
+---
+id: profile-investment-readme
+title: DSH Investment Profile
+type: profile
+status: living
+updated: 2026-09-11
+owners: [agent-dh]
+tags: [profile]
+---
+
 # DSH Investment Profile
 
 这是 Agent-DH 的 DSH Profile 配置模板。插件以**指向 agent-dh 源码目录的 `file:` 依赖 + 符号链接**方式接入。
@@ -125,3 +135,11 @@ ls -la ~/.dsh/profiles/investment/node_modules/@pi-investment/
 - [Agent-DH README](../../README.md)
 - [Agent-DH CLAUDE.md](../../CLAUDE.md)
 - [DSH 文档](https://github.com/deepseek-ai/dsh)
+
+---
+
+## 相关页面
+
+- [启动与停止](../../docs/guides/STARTUP.md)
+- [构建与发版](../../docs/standards/build-and-release.md)
+- [身份系统与 agents.json](../../docs/architecture/identity-and-agents-json.md)

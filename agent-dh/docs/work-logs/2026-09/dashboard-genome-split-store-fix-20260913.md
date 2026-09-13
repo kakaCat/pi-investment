@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-dashboard-genome-split-store-fix-20260913
+title: 自主进化看板串库修复：④⑤ 读到 g1 空库（REQ-3952b7）
+type: worklog
+status: archived
+updated: 2026-09-13
+owners: [w-57873eb8]
+tags: [worklog, 2026-09]
+---
+
 # 自主进化看板串库修复：④⑤ 读到 g1 空库（REQ-3952b7）
 
 - 日期：2026-09-13

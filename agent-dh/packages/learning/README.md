@@ -1,3 +1,13 @@
+---
+id: pkg-learning-readme
+title: @pi-investment/learning
+type: package
+status: living
+updated: 2026-08-20
+owners: [agent-dh]
+tags: [package]
+---
+
 # @pi-investment/learning
 
 自我学习插件：经验追踪、模式挖掘、知识蒸馏、策略优化
@@ -104,3 +114,11 @@ self_restart → 验证效果 → 合并/回滚
 - [ ] Phase 2: 高级模式挖掘算法
 - [ ] Phase 3: LLM 辅助代码生成
 - [ ] Phase 4: 元学习优化
+
+---
+
+## 相关页面
+
+- [记忆与召回](../../docs/architecture/memory-and-recall.md)
+- [RFC 003 自学习蒸馏](../../docs/rfcs/003-self-learning-distillation.md)
+- [留痕与文档规范](../../docs/standards/audit-and-docs.md)

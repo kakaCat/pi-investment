@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-bulletin-gui-fix-20260908
+title: 公告板 GUI 显示问题修复记录
+type: worklog
+status: archived
+updated: 2026-09-09
+owners: [w-d5f37773]
+tags: [worklog, 2026-09]
+---
+
 # 公告板 GUI 显示问题修复记录
 
 **日期**：2026-09-08 04:10  

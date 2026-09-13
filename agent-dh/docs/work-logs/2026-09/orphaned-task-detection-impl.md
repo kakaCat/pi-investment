@@ -1,3 +1,12 @@
+---
+id: wl-2026-09-orphaned-task-detection-impl
+title: 僵尸任务检测实现方案
+type: worklog
+status: archived
+updated: 2026-09-09
+owners: [agent-dh]
+tags: [worklog, 2026-09]
+---
 
 # 僵尸任务检测实现方案
 

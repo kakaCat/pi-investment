@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-dsh-plugin-loader-failures-20260912
+title: DSH 插件加载失败（15 条 loader 事件）处置与发版闸门核验
+type: worklog
+status: archived
+updated: 2026-09-12
+owners: [w-32314d00]
+tags: [worklog, 2026-09]
+---
+
 # DSH 插件加载失败（15 条 loader 事件）处置与发版闸门核验
 
 - 时间：2026-09-13（本记录）／事件窗口 2026-09-12 15:54–15:57

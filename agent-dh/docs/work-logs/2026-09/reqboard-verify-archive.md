@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-reqboard-verify-archive
+title: 需求看板：验收人工审核 + 归档文档合并规范
+type: worklog
+status: archived
+updated: 2026-09-14
+owners: [w-1cee2467]
+tags: [worklog, 2026-09]
+---
+
 # 需求看板：验收人工审核 + 归档文档合并规范
 
 - **日期**：2026-09-13

@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-reqboard-timeline-tasks-gantt
+title: 项目看板：状态时间线 + 真拆分 + 任务页/甘特图
+type: worklog
+status: archived
+updated: 2026-09-13
+owners: [w-1cee2467]
+tags: [worklog, 2026-09]
+---
+
 # 项目看板：状态时间线 + 真拆分 + 任务页/甘特图
 
 - **日期**：2026-09-13

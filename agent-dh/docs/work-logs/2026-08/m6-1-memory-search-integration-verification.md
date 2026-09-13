@@ -1,3 +1,13 @@
+---
+id: wl-2026-08-m6-1-memory-search-integration-verification
+title: M6-1 决策前检索（R-008）集成验证报告
+type: worklog
+status: archived
+updated: 2026-08-31
+owners: [w-8366e526]
+tags: [worklog, 2026-08]
+---
+
 # M6-1 决策前检索（R-008）集成验证报告
 
 - 日期：2026-08-31

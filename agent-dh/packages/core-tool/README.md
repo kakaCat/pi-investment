@@ -1,3 +1,13 @@
+---
+id: pkg-core-tool-readme
+title: @pi-investment/core-tool-tool
+type: package
+status: living
+updated: 2026-08-30
+owners: [agent-dh]
+tags: [package]
+---
+
 # @pi-investment/core-tool-tool
 
 Agent-DH 工具框架核心规范包。
@@ -239,3 +249,11 @@ packages/trading/src/tools/PortfolioTradeTool/
 ## 相关文档
 
 工具框架设计已完整记录于本文件（三段式接口规范 + 核心类型 + 上述最佳实践）。历史设计迭代文档已移除，避免与当前 `BaseTool` 实现脱节。
+
+---
+
+## 相关页面
+
+- [工具开发规范](../../docs/standards/tool-development.md)
+- [插件模型与装载](../../docs/architecture/plugin-model.md)
+- [工具审计清单](../../docs/protocols/tool-audit.md)

@@ -1,3 +1,13 @@
+---
+id: wl-2026-08-oom-restart-fix
+title: Agent-DH 频繁重启问题 - 根本解决方案
+type: worklog
+status: archived
+updated: 2026-09-12
+owners: [agent-dh]
+tags: [worklog, 2026-08]
+---
+
 # Agent-DH 频繁重启问题 - 根本解决方案
 
 ## 问题现象

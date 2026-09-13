@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-reqboard-plan-mode
+title: 项目看板：计划模式（plan mode）——拆分前必须先有计划且获批
+type: worklog
+status: archived
+updated: 2026-09-11
+owners: [w-1cee2467]
+tags: [worklog, 2026-09]
+---
+
 # 项目看板：计划模式（plan mode）——拆分前必须先有计划且获批
 
 - **日期**：2026-09-13

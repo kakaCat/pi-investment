@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-board-post-tiering-and-genome-canary-20260910
+title: 公告板发帖分档（R-015 v15）+ 基因组金丝雀修复（2026-09-10）
+type: worklog
+status: archived
+updated: 2026-09-10
+owners: [w-50fc8c52]
+tags: [worklog, 2026-09]
+---
+
 # 公告板发帖分档（R-015 v15）+ 基因组金丝雀修复（2026-09-10）
 
 - 角色：investor | 窗口：w-50fc8c52

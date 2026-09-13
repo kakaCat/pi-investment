@@ -1,3 +1,13 @@
+---
+id: wl-2026-08-fix-plan-tool-hang-20260830
+title: 工具调用卡死 6 分钟 —— 根因与修复方案
+type: worklog
+status: archived
+updated: 2026-09-12
+owners: [w-5e236bc7]
+tags: [worklog, 2026-08]
+---
+
 # 工具调用卡死 6 分钟 —— 根因与修复方案
 
 - **日期**：2026-08-30

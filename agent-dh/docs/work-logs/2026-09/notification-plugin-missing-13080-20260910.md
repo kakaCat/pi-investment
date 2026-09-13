@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-notification-plugin-missing-13080-20260910
+title: 13080 实例 feishu_notify / notification_send 缺失根因与修复（2026-09-10）
+type: worklog
+status: archived
+updated: 2026-09-10
+owners: [w-50fc8c52]
+tags: [worklog, 2026-09]
+---
+
 # :13080 实例 feishu_notify / notification_send 缺失根因与修复（2026-09-10）
 
 **执行人**：investor / w-50fc8c52　**触发**：用户问"feishu_notify 在本会话工具集中不存在是什么原因，需要修复"

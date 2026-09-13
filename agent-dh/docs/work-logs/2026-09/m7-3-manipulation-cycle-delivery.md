@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-m7-3-manipulation-cycle-delivery
+title: M7-3 操纵周期识别实战验证交付（2026-09-01）
+type: worklog
+status: archived
+updated: 2026-09-01
+owners: [w-8366e526]
+tags: [worklog, 2026-09]
+---
+
 # M7-3 操纵周期识别实战验证交付（2026-09-01）
 
 > 署名：investor w-8366e526

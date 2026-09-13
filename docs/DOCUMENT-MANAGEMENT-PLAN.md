@@ -261,8 +261,12 @@ docs/work-logs/
 ---
 id: requirement-archive           # 全仓唯一，kebab-case（链接与检索用）
 title: 需求归档规范
-type: manual | architecture | guide | adr | rfc | research | archive
-status: living | stub | frozen | archived
+# type 取闭集（探针会校验，见规则 7）：
+#   L1/L2 认知页：manual | architecture | guide | standard | protocol | adr | rfc | design | research | package | profile | example | doc
+#   L3 档案页：  worklog | requirement | plan | verification | retro | troubleshooting
+#   元页面：      index（目录/索引入口，如 work-logs/README.md、requirements/INDEX.md）| template
+type: architecture
+status: living | stub | frozen | archived | superseded   # superseded=被后来事实/方案取代，保留追溯
 updated: 2026-09-13
 owners: [w-1cee2467]
 tags: [archive, reqboard]
@@ -286,8 +290,21 @@ tags: [archive, reqboard]
 4. **双向可达**：新页必须从首页或上层页链到（否则是孤儿页）；页尾写「相关页面」把自己挂回页面图；
 5. **链接用相对路径**（同目录可简写），不要绝对路径；
 6. **巡检而不是靠自觉**：`python3 agent-dh/scripts/wiki_probe.py` 检查死链 / 孤儿页 / 待写页 /
-   front-matter 缺失，退出码 1 = 有问题（可挂定时任务）。历史页面（无 front-matter）只计数、不计失败，
-   迁一个是一个。
+   front-matter 缺失 / type 与 status 是否在闭集内，退出码 1 = 有问题（可挂定时任务）。
+7. **type 与 status 必须是闭集内的值**（见上面的注释）：`type` 决定这台机器怎么给页面归类，
+   `status` 是**待办**（`stub`=还没写、`living`=现行、`frozen`=暂停推进但仍是结论、
+   `archived`=历史快照、`superseded`=已被取代）。写自由值 = 机器归不了类。
+8. **每个目录必须有索引页**（`type: index`）：`work-logs/README.md`（按月列出全部日志）、
+   `requirements/INDEX.md`（已归档 + 进行中）。**索引页是这些 L3 档案的唯一入口**——
+   否则 80 篇日志就是 80 个孤儿页。
+9. **L3 档案的 front-matter 规则**：
+   - `work-logs/YYYY-MM/*.md`：**要求** front-matter（`type: worklog`、`status: archived`）——
+     它们长期追加、需要被机器索引；
+   - `requirements/REQ-xxxxxx/*.md` 与 `_template/`：**不要求** front-matter——
+     它们是**流水证据**且状态由需求看板管理，加字段 = 制造"两处真相"；由 `INDEX.md` 登记即算可达。
+10. **档案页不回改死链**：`status: archived` / `superseded` 的页面引用的是**当时的路径**，
+    文件后来改名/删除属正常——巡检对它们只报告、不计失败（否则每次都"历史欠债报警"，真正的问题被淹没）。
+    反过来说：**现行页（living）里绝不允许有死链**。
 
 **与归档的关系**：归档时除了写 L3 档案与合并进 L2，还要**把新知识挂进页面图**——
 新建页面 → 在首页/上层页登记；改了哪一页 → 在说明书「最近更新」与首页「最近改动」留一行；
@@ -302,7 +319,7 @@ tags: [archive, reqboard]
 | **L0 入口** | 一行指引：去哪儿找认知 | `CLAUDE.md`（根 / 子项目） | agent 每次启动 |
 | **L1 说明书** | 项目是什么 / 三层架构 / 术语表 / 怎么跑 / 指针 / 最近更新 | `docs/architecture/project-manual.md` + `docs/README.md`（导航） | 人：新人；agent：接手任何任务之前 |
 | **L2 领域篇** | 一个主题一篇：架构、指南、规范、决策(ADR)、提案(RFC)、研究 | `architecture/`、`guides/`、`standards/`、`adr/`、`rfcs/`、`strategy-research/` | 做具体事情时按需读 |
-| **L3 证据档案** | 需求档案（requirement/plan/verification/retro）、工作日志 | `requirements/REQ-xxxxxx/`、`work-logs/YYYY-MM/` | 只用于追溯"当时为什么" |
+| **L3 证据档案** | 需求档案（requirement/plan/verification/retro）、工作日志 | `requirements/REQ-xxxxxx/`（不要求 front-matter，由 `INDEX.md` 登记）、`work-logs/YYYY-MM/`（有 front-matter，由 `work-logs/README.md` 索引） | 只用于追溯"当时为什么" |
 
 **生长规则（归档时执行，代码校验）**：
 
@@ -310,7 +327,9 @@ tags: [archive, reqboard]
 2. 改变项目级认知的需求（feature / refactor / spike）→ **必须申报 L1/L2 的更新点**
    （`manual_updates`：哪一份文档、哪一节、多了什么认知）；代码会拒绝没有更新点的这类归档；
 3. L1 每次变更 → 在说明书「最近更新」表追加一行（日期 / 更新点 / 来源 REQ）；
-4. 不改变项目认知的类型（bug / doc / chore）→ 材料里写 `manual_note` 说明"无认知变化"即可。
+4. 不改变项目认知的类型（bug / doc / chore）→ 材料里写 `manual_note` 说明"无认知变化"即可；
+5. **索引先于内容**：新建 L3 目录/档案时，先在索引页（`work-logs/README.md`、`requirements/INDEX.md`）
+   登记一行，再写正文——"写了没登记"等于没写（孤儿页）。
 
 **读法（省 context）**：L1 能独立读懂；要细节才下钻 L2；只有追溯历史才碰 L3。
 **反模式**：把 L3 细节抄进 L1（说明书变流水账）；结论只留在 L3（项目认知长不上去）；
@@ -340,6 +359,29 @@ tags: [archive, reqboard]
 **只登记不合并 = 没归档**：材料里写了的去向必须真的改到位。
 
 细则与合并矩阵：`agent-dh/docs/architecture/requirement-archive.md`
+
+## 文档与版本控制（`.gitignore` 纪律，2026-09-14 新增）
+
+**文档"在磁盘上"不等于"在仓库里"。** 仓库根 `.gitignore` 里有一批 2026-06 时代的通配规则
+（`*_REPORT.md` / `*_SUMMARY.md` / `*-COMPLETE.md` / `*-PLAN.md` / `ARCHITECTURE_*.md` /
+`QUICKSTART.md` / `*-GUIDE.md` …），它们当时是给根 `docs/` 下散落的报告用的；但 gitignore 是**全路径匹配**的，
+于是把 `agent-dh/docs/` 里同名形状的**正式文档**也一并忽略了。
+
+实证（2026-09-14 排查）：agent-dh 有 **48 个文档在磁盘上、不在版本控制里**（含 `docs/guides/QUICKSTART.md`、
+`docs/architecture/REFACTOR_PLAN.md`、41 篇 `work-logs/` 日志）——换台机器/重新克隆即消失，
+且被**已入库**的页面（RELEASE-NOTES、TOOLS_INVENTORY）链接成死链，而本地看一切正常。
+
+**纪律**：
+
+1. 新增 gitignore 规则时，**先问"它会不会命中已有文档"**：写 `git check-ignore -v <文件>` 验证，别凭形状猜；
+2. 子项目文档树用**更深层的 .gitignore 反选**回来（`agent-dh/.gitignore` 里的 `!docs/**`）——
+   深层规则优先，且不影响其他子项目；
+3. **发布/归档前核对"文档是否真的入库"**：`git status --ignored -- <项目>/docs` 出现 `!!` 且是文档 = 停手检查；
+4. 文档类文件的忽略规则**只允许针对临时/生成物**（`.dsh-data/`、`output/`、`.genome/`、`scripts/_archive/`），
+   不允许按文件名形状忽略 `docs/`。
+
+不纳入 wiki 体系（因此不要求 front-matter）的路径：`node_modules/`、`dist/`、`.dsh-data/`、`.genome/`、
+`output/`、`scripts/_archive/`、指令文件 `CLAUDE.md`。
 
 ## 新文档创建规范
 

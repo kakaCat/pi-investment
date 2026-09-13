@@ -1,3 +1,13 @@
+---
+id: wl-2026-09-m6-2-attribution-delivery
+title: M6-2 归因分析交付（2026-09-01）
+type: worklog
+status: archived
+updated: 2026-09-01
+owners: [w-8366e526]
+tags: [worklog, 2026-09]
+---
+
 # M6-2 归因分析交付（2026-09-01）
 
 > 署名：investor w-8366e526
