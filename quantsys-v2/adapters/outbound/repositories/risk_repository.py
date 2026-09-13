@@ -5,12 +5,14 @@
 """
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime, timedelta
+import json
 import structlog
 
 from sqlalchemy import desc, func
-from infrastructure.persistence.orm import BaseORMRepository, get_session
+from infrastructure.persistence.orm import BaseORMRepository
 from sqlalchemy import Column, Integer, String, Float, Date, Text, BigInteger, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from infrastructure.persistence.orm.base import Base
 
 logger = structlog.get_logger(__name__)
@@ -106,6 +108,50 @@ def _validate_date(date_str: str) -> bool:
         raise ValueError(f"Invalid date format: {date_str}, expected YYYY-MM-DD")
 
 
+def _to_date(value: str) -> date:
+    """把已校验的 YYYY-MM-DD 字符串转 date（ORM 查询/写入参数）"""
+    return datetime.strptime(value, "%Y-%m-%d").date()
+
+
+_BALANCE_COLUMNS = (
+    'id', 'balance_date', 'cash', 'market_value', 'total_assets',
+    'daily_pnl', 'daily_return', 'total_pnl', 'total_return',
+    'position_count', 'created_at',
+)
+
+_RISK_METRIC_COLUMNS = (
+    'id', 'metric_date', 'symbol', 'volatility', 'beta', 'var_95', 'cvar_95',
+    'max_position_ratio', 'concentration_risk', 'sector_exposure',
+    'correlation_matrix', 'created_at',
+)
+
+
+def _balance_to_dict(balance: AccountBalance) -> Dict[str, Any]:
+    """ORM 行 → dict（键与旧 SELECT * 完全一致，含 created_at）"""
+    return {name: getattr(balance, name) for name in _BALANCE_COLUMNS}
+
+
+def _risk_metric_to_dict(metric: RiskMetric) -> Dict[str, Any]:
+    """ORM 行 → dict（键与旧 SELECT * 完全一致，含 created_at）"""
+    return {name: getattr(metric, name) for name in _RISK_METRIC_COLUMNS}
+
+
+def _normalize_jsonb(value: Any) -> Any:
+    """JSONB 列取值归一
+
+    旧 raw SQL 把 dict/list json.dumps 成字符串交给 psycopg2，由 PG 侧解析为
+    jsonb；ORM 的 JSONB 类型会直接序列化 Python 对象，若沿用字符串则会被存成
+    JSON 字符串（多一层引号）。故此处把已序列化字符串还原成对象，保持落库形状
+    与旧实现一致。
+    """
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except (TypeError, ValueError):
+            return value
+    return value
+
+
 def _stop_loss_rule_to_dict(rule: StopLossRule) -> Dict[str, Any]:
     return {
         'id': rule.id,
@@ -126,48 +172,18 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
     """风险管理ORM Repository"""
     model = RiskMetric
 
-    @property
-    def db(self):
-        """向后兼容：返回支持 cursor()/commit()/rollback() 的连接包装器
-
-        恢复的账户资金/风险指标方法沿用旧的 raw SQL 实现（SELECT * 契约），
-        cursor 来自 session 绑定的同一事务，commit/rollback 委托给 session。
-        """
-        class DBWrapper:
-            def __init__(self, session):
-                self._session = session
-
-            def cursor(self):
-                from psycopg2.extras import RealDictCursor
-                raw_conn = self._session.connection().connection
-                return raw_conn.cursor(cursor_factory=RealDictCursor)
-
-            def commit(self):
-                self._session.commit()
-
-            def rollback(self):
-                self._session.rollback()
-
-            def close(self):
-                """兼容旧测试 teardown；连接由 scoped session 统一管理"""
-
-        return DBWrapper(self.session)
-
     # ==================== 账户资金 (account_balance) ====================
 
     def get_balance(self, balance_date: str) -> Optional[Dict]:
         """查询指定日期的账户资金"""
         _validate_date(balance_date)
 
-        query = "SELECT * FROM quant.account_balance WHERE balance_date = %s"
-
-        cursor = self.db.cursor()
-        try:
-            cursor.execute(query, (balance_date,))
-            result = cursor.fetchone()
-            return dict(result) if result else None
-        finally:
-            cursor.close()
+        balance = (
+            self.session.query(AccountBalance)
+            .filter(AccountBalance.balance_date == _to_date(balance_date))
+            .first()
+        )
+        return _balance_to_dict(balance) if balance else None
 
     def get_balance_by_date(self, balance_date: str) -> Optional[Dict]:
         """get_balance 别名（兼容旧调用）"""
@@ -182,21 +198,16 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
         _validate_date(start_date)
         _validate_date(end_date)
 
-        query = """
-            SELECT *
-            FROM quant.account_balance
-            WHERE balance_date >= %s
-              AND balance_date <= %s
-            ORDER BY balance_date ASC
-        """
-
-        cursor = self.db.cursor()
-        try:
-            cursor.execute(query, (start_date, end_date))
-            results = cursor.fetchall()
-            return [dict(row) for row in results]
-        finally:
-            cursor.close()
+        rows = (
+            self.session.query(AccountBalance)
+            .filter(
+                AccountBalance.balance_date >= _to_date(start_date),
+                AccountBalance.balance_date <= _to_date(end_date),
+            )
+            .order_by(AccountBalance.balance_date.asc())
+            .all()
+        )
+        return [_balance_to_dict(row) for row in rows]
 
     def save_balance(self, balance_data: Dict) -> bool:
         """
@@ -204,6 +215,12 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
 
         必需字段: balance_date, cash, market_value, total_assets
         可选字段: daily_pnl, daily_return, total_pnl, total_return, position_count
+
+        注（迁移中修掉的静默缺陷）：旧 raw SQL 用命名参数占位符取 dict，
+        可选字段缺键时 psycopg2 直接抛 KeyError 并被包装成"保存账户资金失败"，
+        于是**所有**写入路径从未被测试真正执行过（3 个写入用例全部靠
+        pytest.skip 兜底）。ORM 版按 docstring 语义把可选字段当可选；
+        冲突分支只更新本次真正提供的列，避免用 NULL 覆盖已有快照中的字段。
         """
         required_fields = ['balance_date', 'cash', 'market_value', 'total_assets']
         for field in required_fields:
@@ -212,37 +229,30 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
 
         _validate_date(balance_data['balance_date'])
 
-        query = """
-            INSERT INTO quant.account_balance (
-                balance_date, cash, market_value, total_assets,
-                daily_pnl, daily_return, total_pnl, total_return, position_count
-            ) VALUES (
-                %(balance_date)s, %(cash)s, %(market_value)s, %(total_assets)s,
-                %(daily_pnl)s, %(daily_return)s, %(total_pnl)s, %(total_return)s,
-                %(position_count)s
-            )
-            ON CONFLICT (balance_date)
-            DO UPDATE SET
-                cash = EXCLUDED.cash,
-                market_value = EXCLUDED.market_value,
-                total_assets = EXCLUDED.total_assets,
-                daily_pnl = EXCLUDED.daily_pnl,
-                daily_return = EXCLUDED.daily_return,
-                total_pnl = EXCLUDED.total_pnl,
-                total_return = EXCLUDED.total_return,
-                position_count = EXCLUDED.position_count
-        """
+        values: Dict[str, Any] = {
+            'balance_date': _to_date(balance_data['balance_date']),
+        }
+        for field in (
+            'cash', 'market_value', 'total_assets', 'daily_pnl',
+            'daily_return', 'total_pnl', 'total_return', 'position_count',
+        ):
+            if field in balance_data:
+                values[field] = balance_data[field]
 
-        cursor = self.db.cursor()
+        stmt = pg_insert(AccountBalance).values(**values)
+        update_cols = {k: stmt.excluded[k] for k in values if k != 'balance_date'}
+        if update_cols:
+            stmt = stmt.on_conflict_do_update(
+                index_elements=['balance_date'], set_=update_cols,
+            )
+
         try:
-            cursor.execute(query, balance_data)
-            self.db.commit()
+            self.session.execute(stmt)
+            self.session.commit()
             return True
         except Exception as e:
-            self.db.rollback()
+            self.session.rollback()
             raise Exception(f"保存账户资金失败: {str(e)}") from e
-        finally:
-            cursor.close()
 
     def get_balance_stats(self, start_date: str, end_date: str) -> Dict:
         """
@@ -254,40 +264,31 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
         """
         _validate_date(start_date)
         _validate_date(end_date)
+        start, end = _to_date(start_date), _to_date(end_date)
+        in_range = (
+            AccountBalance.balance_date >= start,
+            AccountBalance.balance_date <= end,
+        )
 
-        query = """
-            SELECT
-                MAX(total_assets) as max_assets,
-                MIN(total_assets) as min_assets,
-                COALESCE(SUM(daily_pnl), 0) as total_pnl,
-                MAX(total_assets) - MIN(total_assets) as asset_range,
-                AVG(daily_return) as avg_daily_return,
-                STDDEV(daily_return) as std_daily_return
-            FROM quant.account_balance
-            WHERE balance_date >= %s
-              AND balance_date <= %s
-        """
-
-        cursor = self.db.cursor()
-        try:
-            cursor.execute(query, (start_date, end_date))
-            result = cursor.fetchone()
-            stats = dict(result) if result else {}
-        finally:
-            cursor.close()
+        row = self.session.query(
+            func.max(AccountBalance.total_assets).label('max_assets'),
+            func.min(AccountBalance.total_assets).label('min_assets'),
+            func.coalesce(func.sum(AccountBalance.daily_pnl), 0).label('total_pnl'),
+            (func.max(AccountBalance.total_assets)
+             - func.min(AccountBalance.total_assets)).label('asset_range'),
+            func.avg(AccountBalance.daily_return).label('avg_daily_return'),
+            func.stddev(AccountBalance.daily_return).label('std_daily_return'),
+        ).filter(*in_range).one()
+        stats = dict(row._mapping)
 
         # 计算最大回撤 (从峰值到谷底的最大跌幅)
-        cursor = self.db.cursor()
-        try:
-            cursor.execute("""
-                SELECT total_assets
-                FROM quant.account_balance
-                WHERE balance_date >= %s AND balance_date <= %s
-                ORDER BY balance_date ASC
-            """, (start_date, end_date))
-            assets = [row['total_assets'] for row in cursor.fetchall()]
-        finally:
-            cursor.close()
+        assets = [
+            value for (value,) in
+            self.session.query(AccountBalance.total_assets)
+            .filter(*in_range)
+            .order_by(AccountBalance.balance_date.asc())
+            .all()
+        ]
 
         if assets:
             peak = assets[0]
@@ -323,35 +324,17 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
         if not symbol and not metric_date:
             raise ValueError("symbol和metric_date至少需要提供一个")
 
-        conditions = []
-        params = []
+        query = self.session.query(RiskMetric)
 
         if symbol:
             _validate_symbol(symbol)
-            conditions.append("symbol = %s")
-            params.append(symbol)
+            query = query.filter(RiskMetric.symbol == symbol)
         if metric_date:
             _validate_date(metric_date)
-            conditions.append("metric_date = %s")
-            params.append(metric_date)
+            query = query.filter(RiskMetric.metric_date == _to_date(metric_date))
 
-        where_clause = " AND ".join(conditions)
-
-        query = """
-            SELECT *
-            FROM quant.risk_metrics
-            WHERE """ + where_clause + """
-            ORDER BY metric_date DESC
-            LIMIT 1
-        """
-
-        cursor = self.db.cursor()
-        try:
-            cursor.execute(query, params)
-            result = cursor.fetchone()
-            return dict(result) if result else None
-        finally:
-            cursor.close()
+        metric = query.order_by(RiskMetric.metric_date.desc()).first()
+        return _risk_metric_to_dict(metric) if metric else None
 
     def get_risk_history(
         self,
@@ -360,38 +343,22 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
         end_date: str = None
     ) -> List[Dict]:
         """查询风险指标历史（按日期降序）"""
-        conditions = []
-        params = []
+        query = self.session.query(RiskMetric)
 
         if symbol:
             _validate_symbol(symbol)
-            conditions.append("symbol = %s")
-            params.append(symbol)
+            query = query.filter(RiskMetric.symbol == symbol)
         if start_date:
             _validate_date(start_date)
-            conditions.append("metric_date >= %s")
-            params.append(start_date)
+            query = query.filter(RiskMetric.metric_date >= _to_date(start_date))
         if end_date:
             _validate_date(end_date)
-            conditions.append("metric_date <= %s")
-            params.append(end_date)
+            query = query.filter(RiskMetric.metric_date <= _to_date(end_date))
 
-        where_clause = " AND ".join(conditions) if conditions else "1=1"
-
-        query = """
-            SELECT *
-            FROM quant.risk_metrics
-            WHERE """ + where_clause + """
-            ORDER BY metric_date DESC, symbol ASC
-        """
-
-        cursor = self.db.cursor()
-        try:
-            cursor.execute(query, params)
-            results = cursor.fetchall()
-            return [dict(row) for row in results]
-        finally:
-            cursor.close()
+        rows = query.order_by(
+            RiskMetric.metric_date.desc(), RiskMetric.symbol.asc()
+        ).all()
+        return [_risk_metric_to_dict(row) for row in rows]
 
     def get_risk_stats(self, symbol: str = None, start_date: str = None, end_date: str = None) -> Dict:
         """
@@ -401,42 +368,26 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
             {total_records, avg_volatility, avg_var_95, avg_cvar_95,
              avg_beta, max_concentration}
         """
-        conditions = []
-        params = []
+        query = self.session.query(
+            func.count().label('total_records'),
+            func.avg(RiskMetric.volatility).label('avg_volatility'),
+            func.avg(RiskMetric.var_95).label('avg_var_95'),
+            func.avg(RiskMetric.cvar_95).label('avg_cvar_95'),
+            func.avg(RiskMetric.beta).label('avg_beta'),
+            func.max(RiskMetric.concentration_risk).label('max_concentration'),
+        )
 
         if symbol:
             _validate_symbol(symbol)
-            conditions.append("symbol = %s")
-            params.append(symbol)
+            query = query.filter(RiskMetric.symbol == symbol)
         if start_date:
             _validate_date(start_date)
-            conditions.append("metric_date >= %s")
-            params.append(start_date)
+            query = query.filter(RiskMetric.metric_date >= _to_date(start_date))
         if end_date:
             _validate_date(end_date)
-            conditions.append("metric_date <= %s")
-            params.append(end_date)
+            query = query.filter(RiskMetric.metric_date <= _to_date(end_date))
 
-        where_clause = " AND ".join(conditions) if conditions else "1=1"
-
-        query = """
-            SELECT
-                COUNT(*) as total_records,
-                AVG(volatility) as avg_volatility,
-                AVG(var_95) as avg_var_95,
-                AVG(cvar_95) as avg_cvar_95,
-                AVG(beta) as avg_beta,
-                MAX(concentration_risk) as max_concentration
-            FROM quant.risk_metrics
-            WHERE """ + where_clause
-
-        cursor = self.db.cursor()
-        try:
-            cursor.execute(query, params)
-            result = cursor.fetchone()
-            return dict(result) if result else {}
-        finally:
-            cursor.close()
+        return dict(query.one()._mapping)
 
     def save_risk_metrics(self, metrics_data: Dict) -> bool:
         """
@@ -444,10 +395,12 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
 
         必需字段: metric_date, symbol
         可选字段: volatility, beta, var_95, cvar_95, max_position_ratio,
-                 concentration_risk, sector_exposure, correlation_matrix
-        """
-        import json as _json
+                  concentration_risk, sector_exposure, correlation_matrix
 
+        注：与 save_balance 同一类静默缺陷——旧 raw SQL 缺可选字段即 KeyError，
+        写入路径从未真正跑通；ORM 版按 docstring 语义处理，冲突分支只更新本次
+        提供的列，JSONB 交由 ORM 序列化（已序列化字符串先还原，保持旧落库形状）。
+        """
         required_fields = ['metric_date', 'symbol']
         for field in required_fields:
             if field not in metrics_data:
@@ -456,41 +409,38 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
         _validate_date(metrics_data['metric_date'])
         _validate_symbol(metrics_data['symbol'])
 
-        # 处理JSONB字段
-        for json_field in ['sector_exposure', 'correlation_matrix']:
-            if json_field in metrics_data and isinstance(metrics_data[json_field], (dict, list)):
-                metrics_data[json_field] = _json.dumps(metrics_data[json_field])
+        values: Dict[str, Any] = {
+            'metric_date': _to_date(metrics_data['metric_date']),
+            'symbol': metrics_data['symbol'],
+        }
+        jsonb_fields = ('sector_exposure', 'correlation_matrix')
+        for field in (
+            'volatility', 'beta', 'var_95', 'cvar_95', 'max_position_ratio',
+            'concentration_risk', 'sector_exposure', 'correlation_matrix',
+        ):
+            if field in metrics_data:
+                values[field] = (
+                    _normalize_jsonb(metrics_data[field])
+                    if field in jsonb_fields else metrics_data[field]
+                )
 
-        query = """
-            INSERT INTO quant.risk_metrics (
-                metric_date, symbol, volatility, beta, var_95, cvar_95,
-                max_position_ratio, concentration_risk, sector_exposure, correlation_matrix
-            ) VALUES (
-                %(metric_date)s, %(symbol)s, %(volatility)s, %(beta)s, %(var_95)s, %(cvar_95)s,
-                %(max_position_ratio)s, %(concentration_risk)s, %(sector_exposure)s, %(correlation_matrix)s
+        stmt = pg_insert(RiskMetric).values(**values)
+        update_cols = {
+            k: stmt.excluded[k] for k in values
+            if k not in ('metric_date', 'symbol')
+        }
+        if update_cols:
+            stmt = stmt.on_conflict_do_update(
+                index_elements=['metric_date', 'symbol'], set_=update_cols,
             )
-            ON CONFLICT (metric_date, symbol)
-            DO UPDATE SET
-                volatility = EXCLUDED.volatility,
-                beta = EXCLUDED.beta,
-                var_95 = EXCLUDED.var_95,
-                cvar_95 = EXCLUDED.cvar_95,
-                max_position_ratio = EXCLUDED.max_position_ratio,
-                concentration_risk = EXCLUDED.concentration_risk,
-                sector_exposure = EXCLUDED.sector_exposure,
-                correlation_matrix = EXCLUDED.correlation_matrix
-        """
 
-        cursor = self.db.cursor()
         try:
-            cursor.execute(query, metrics_data)
-            self.db.commit()
+            self.session.execute(stmt)
+            self.session.commit()
             return True
         except Exception as e:
-            self.db.rollback()
+            self.session.rollback()
             raise Exception(f"保存风险指标失败: {str(e)}") from e
-        finally:
-            cursor.close()
 
     def get_history(self, days: int = 30) -> List[Dict[str, Any]]:
         """获取账户余额历史记录
@@ -569,25 +519,18 @@ class RiskORMRepository(BaseORMRepository[RiskMetric], IRiskRepository):
         """
         _validate_symbol(symbol)
 
-        query = """
-            SELECT *
-            FROM quant.risk_metrics
-            WHERE symbol = %s
-            ORDER BY metric_date DESC
-            LIMIT 1
-        """
-
-        cursor = self.db.cursor()
         try:
-            cursor.execute(query, (symbol,))
-            result = cursor.fetchone()
-            return dict(result) if result else None
+            metric = (
+                self.session.query(RiskMetric)
+                .filter(RiskMetric.symbol == symbol)
+                .order_by(RiskMetric.metric_date.desc())
+                .first()
+            )
+            return _risk_metric_to_dict(metric) if metric else None
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error getting latest risk metrics for {symbol}: {e}", exc_info=True)
             return None
-        finally:
-            cursor.close()
 
     # ==================== 止损规则 (stop_loss_rules) ====================
     # 注：8f06ae1 DDD 重构误删了这组方法，但 routes/risk.py 与

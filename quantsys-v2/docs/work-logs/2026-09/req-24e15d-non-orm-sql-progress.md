@@ -76,7 +76,7 @@ B1 完成（6 个文件 15 处 → 0，另删死代码 3 处）：
 新增：`adapters/outbound/repositories/kline_sync_repository.py`（选股 + 写入 + 3 个自检）、
 ORM 模型 `IndexDaily`、仓储指数口径方法（`get_index_return` 等）。
 
-## 6. 批次进度总表（截至 2026-09-14 B4-c1）
+## 6. 批次进度总表（截至 2026-09-14 B4-c3）
 
 | 批次 | 提交 | 内容 | 站点 |
 |---|---|---|---|
@@ -88,10 +88,13 @@ ORM 模型 `IndexDaily`、仓储指数口径方法（`get_index_return` 等）�
 | B3-b | `8e51a916` | 信号测试日志落 ORM + 移除私有连接访问器 | 11 |
 | B4-a | `004f4a67` | stock_pool_repository 真正落 ORM | 10 |
 | B4-b | `87850eb0` | 熔断状态服务落 ORM + 修 JSONB NULL 语义陷阱 | 2 |
-| B4-c1 | 本批 | portfolio_repository（trades/holdings 半区 9 处）+ 2 个静默缺陷 | 15→6 |
+| B4-c1 | `54830404` | portfolio_repository（trades/holdings 半区 9 处）+ 2 个静默缺陷 | 15→6 |
+| B4-c2 | `9bb04e65` | 删 legacy 订单栈（A 方案）+ 修好静默失效的信号执行链 | 6→0 |
+| B4-c3 | 本批 | risk + kline + chip + strategy_performance 四仓储落 ORM | 33→0 |
 
 批次日志：`req-24e15d-b1-jobs-layer.md`、`-b2a-`、`-b2b-`、`-b3a-`、`-b3a2-`、
-`-b3b-`、`-b4a-`、`-b4b-`、`-b4c-portfolio-repo.md`。
+`-b3b-`、`-b4a-`、`-b4b-`、`-b4c-portfolio-repo.md`、`-b4c2-delete-legacy-order-stack.md`、
+`-b4c3-repositories.md`。
 
 ## 6.5 B4-c2：legacy 订单栈删除（`9bb04e65`，经用户裁定 A 方案）
 
@@ -102,31 +105,37 @@ ORM 模型 `IndexDaily`、仓储指数口径方法（`get_index_return` 等）�
 - **修好一条静默失效的调度链**：`_batch_create_orders` 里 legacy `create_order` 必抛异常、
   被 except 吞掉 → `trade_signals` 恒空 → **PaperTradingEngine 自 2026-08-25 起一单未执行**。
 
-## 7. 当前闸门状态（B4-c2 后）
+## 7. 当前闸门状态（B4-c3 后）
 
 ```
-P0 fstring_value_interp  本轮范围 0    ✅
-P0 raw_connect           本轮范围 0    ✅
-P1 cursor_execute        本轮范围 51（起点 124）
-P1 core_text_sql         本轮范围 25（起点 35）
-P2 session_execute_var   本轮范围 53（审计桶，人工复核；本仓多为 stmt=select(...)）
-P2 fstring_sql           本轮范围 6（起点 11）
+P0 fstring_value_interp  本轮范围 0     ✅
+P0 raw_connect           本轮范围 0     ✅
+P1 cursor_execute        本轮范围 25（起点 124；B4-c2 后 51 → B4-c3 后 25）
+P1 core_text_sql         本轮范围 11（起点 35；B4-c2 后 25 → B4-c3 后 11）
+P2 session_execute_var   本轮范围 60（审计桶，人工复核——B4-c3 新增的全是
+                                       pg_insert(...)/select(...) 构造后执行的 Core 语句）
+P2 fstring_sql           本轮范围 3（起点 11）
 P2 read_sql              本轮范围 5
 → --gate 退出码 0
 ```
 
 ## 8. 剩余工作（按优先级）
 
-| 文件 | 站点 | 备注 |
+**B4-c3 已完成**：`risk_repository`(10) / `kline_repository`(9) / `chip_repository`(7) /
+`strategy_performance_repository`(7) —— 详见 `req-24e15d-b4c3-repositories.md`。
+`portfolio_repository`(6) 与 `application/services/order_service.py`(5) 已随 B4-c2
+（删 legacy 订单栈，用户裁定 A 方案）**整段删除**，不再是剩余工作。
+
+**B4-c4 候选**（按"应用层/路由层违规优先"，完整清单见 B4-c3 日志 §7）：
+
+| 文件 | 站点 | 层次 |
 |---|---|---|
-| `portfolio_repository.py` | 6 | **⛔ 阻塞**：`quant.orders` 已归档（2026-08-25），见 B4-c 日志"遗留决策" |
-| `risk_repository.py` | 10 | cursor_execute |
-| `kline_repository.py` | 9 | core_text_sql=7 |
-| `chip_repository.py` | 7 | core_text_sql=7 |
-| `strategy_performance_repository.py` | 7 | cursor_execute |
-| `signal_tracking_repository.py` | 6 | cursor_execute |
-| `routes/signals_async.py` | 6 | cursor_execute=5 |
-| `application/services/order_service.py` | 5 | **依赖上面那条阻塞决策** |
+| `application/services/`（weekly_report / attribution / risk_check / data_pipeline / strategy_weight_adjuster / core_plan / strategy_validation / strategy_rotation_engine / data_quality / watch_engine.notifier） | 12 | **应用层违规** |
+| `routes/signals_async.py` | 6 | **路由层违规** |
+| `routes/stock_async.py` + `daily_jobs_bootstrap.py` | 3 | **路由层违规** |
+| `qlib_data_adapter.py` + `strategy_evaluation_service.py` | 4 | **应用层违规（read_sql）** |
+| `signal_tracking_repository.py` | 6 | 仓储内（自带裸连接自愈 + 专门测试固化，需同步处理） |
+| 其余仓储/工具零散 | 7 | 仓储内 |
 
 另有两项**独立既有缺陷**建议单列（均为 HEAD 已复现，非本线引入）：
 1. `signals.action_type` 模型声明 NOT NULL 无默认值 ⇒ 建表列亦无默认值 ⇒

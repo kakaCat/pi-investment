@@ -9,18 +9,60 @@ ExperienceAccumulator 经验积累、StrategyRotationEngine 轮换评估静默�
 对外保留 StrategyPerformanceORMRepository 别名（调用方均用此名）。
 
 2026-08-18 WP-3 迁移：移除 BaseRepository 继承，改用 db_cursor() 现取现还连接。
+
+2026-09-14（w-32314d00，REQ-24e15d B4-c3-d）：改名不副实——文件叫 ORM Repository
+却全程 db_cursor()+裸 SQL（7 处 cursor.execute）。本轮真正落 ORM：新建
+StrategyPerformance 映射真实表（14 列，含 market_style），全部方法走 session。
 """
-from typing import List, Dict, Optional
-import json
 from datetime import date
+from typing import List, Dict, Optional
+
+import structlog
+from sqlalchemy import (
+    Column, Date, DateTime, Integer, Numeric, String, Text, case, cast, func,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+
+from infrastructure.persistence.orm import BaseORMRepository
+from infrastructure.persistence.orm.base import Base
+
+logger = structlog.get_logger(__name__)
 
 
-class StrategyPerformanceRepository:
+class StrategyPerformance(Base):
+    """quant.strategy_performance（单数表）—— 策略表现记录"""
+    __tablename__ = 'strategy_performance'
+    __table_args__ = {'schema': 'quant'}
+
+    id = Column(Integer, primary_key=True)
+    strategy_name = Column(String(100), nullable=False)
+    symbol = Column(String(20), nullable=False)
+    signal_date = Column(Date, nullable=False)
+    entry_price = Column(Numeric, nullable=False)
+    exit_price = Column(Numeric)
+    pnl_pct = Column(Numeric)
+    holding_days = Column(Integer, default=0)
+    scenario_tags = Column(JSONB)
+    params_snapshot = Column(JSONB)
+    source = Column(String(20), default='paper')
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+    market_style = Column(String(20))
+
+
+def _record_to_dict(record: StrategyPerformance) -> Dict:
+    """ORM 行 → dict（键序与旧 SELECT * / RETURNING * 一致）"""
+    return {c.name: getattr(record, c.name) for c in StrategyPerformance.__table__.columns}
+
+
+class StrategyPerformanceRepository(BaseORMRepository[StrategyPerformance]):
     """策略表现 Repository（quant.strategy_performance 表）"""
 
+    model = StrategyPerformance
+
     def __init__(self, db_connection=None):
-        """db_connection 参数仅为向后兼容保留（忽略）。连接按操作现取现还。"""
-        pass
+        """db_connection 参数仅为向后兼容保留（忽略）。session 由 scoped_session 现取。"""
+        super().__init__()
 
     def close(self):
         """兼容旧调用方的 no-op（连接不再由实例持有）。"""
@@ -63,36 +105,28 @@ class StrategyPerformanceRepository:
             source: 来源 ('paper' 或 'live')
 
         Returns:
-            创建的记录
+            创建的记录（全部 14 列，对齐旧 RETURNING *）
         """
-        query = """
-            INSERT INTO quant.strategy_performance (
-                strategy_name, symbol, signal_date, entry_price, exit_price,
-                pnl_pct, holding_days, scenario_tags, params_snapshot, source
+        try:
+            record = StrategyPerformance(
+                strategy_name=strategy_name,
+                symbol=symbol,
+                signal_date=signal_date,
+                entry_price=entry_price,
+                exit_price=exit_price,
+                pnl_pct=pnl_pct,
+                holding_days=holding_days,
+                scenario_tags=scenario_tags,
+                params_snapshot=params_snapshot,
+                source=source,
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING *
-        """
-
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor(commit=True) as cursor:
-            cursor.execute(query, (
-                strategy_name,
-                symbol,
-                signal_date,
-                entry_price,
-                exit_price,
-                pnl_pct,
-                holding_days,
-                json.dumps(scenario_tags) if scenario_tags else None,
-                json.dumps(params_snapshot) if params_snapshot else None,
-                source
-            ))
-            result = cursor.fetchone()
-
-            record = dict(result)
-            # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
-            return record
+            self.session.add(record)
+            self.session.commit()
+            self.session.refresh(record)
+            return _record_to_dict(record)
+        except Exception:
+            self._safe_rollback()
+            raise
 
     # ==================== 更新方法 ====================
 
@@ -113,40 +147,30 @@ class StrategyPerformanceRepository:
         Returns:
             更新后的记录
         """
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor(commit=True) as cursor:
-            # 先获取入场价格
-            cursor.execute(
-                "SELECT entry_price FROM quant.strategy_performance WHERE id = %s",
-                (record_id,)
+        try:
+            record = (
+                self.session.query(StrategyPerformance)
+                .filter(StrategyPerformance.id == record_id)
+                .first()
             )
-            result = cursor.fetchone()
-            if not result:
+            if not record:
                 return None
 
-            entry_price = float(result['entry_price'])
+            entry_price = float(record.entry_price)
             pnl_pct = ((exit_price - entry_price) / entry_price) * 100
 
-            # 更新记录
-            query = """
-                UPDATE quant.strategy_performance
-                SET exit_price = %s,
-                    pnl_pct = %s,
-                    holding_days = %s,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s
-                RETURNING *
-            """
+            record.exit_price = exit_price
+            record.pnl_pct = pnl_pct
+            record.holding_days = holding_days
+            # 旧 SQL 用 CURRENT_TIMESTAMP（服务端时钟）；now() 在 PG 里同为事务时间戳
+            record.updated_at = func.now()
 
-            cursor.execute(query, (exit_price, pnl_pct, holding_days, record_id))
-            result = cursor.fetchone()
-
-            if result:
-                record = dict(result)
-                # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
-                return record
-
-            return None
+            self.session.commit()
+            self.session.refresh(record)
+            return _record_to_dict(record)
+        except Exception:
+            self._safe_rollback()
+            raise
 
     # ==================== 查询方法 ====================
 
@@ -167,38 +191,14 @@ class StrategyPerformanceRepository:
         Returns:
             记录列表
         """
+        query = self.session.query(StrategyPerformance).filter(
+            StrategyPerformance.strategy_name == strategy_name,
+            StrategyPerformance.symbol == symbol,
+        )
         if source:
-            query = """
-                SELECT *
-                FROM quant.strategy_performance
-                WHERE strategy_name = %s
-                  AND symbol = %s
-                  AND source = %s
-                ORDER BY signal_date DESC
-            """
-            params = (strategy_name, symbol, source)
-        else:
-            query = """
-                SELECT *
-                FROM quant.strategy_performance
-                WHERE strategy_name = %s
-                  AND symbol = %s
-                ORDER BY signal_date DESC
-            """
-            params = (strategy_name, symbol)
-
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor() as cursor:
-            cursor.execute(query, params)
-            results = cursor.fetchall()
-
-            records = []
-            for row in results:
-                record = dict(row)
-                # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
-                records.append(record)
-
-            return records
+            query = query.filter(StrategyPerformance.source == source)
+        records = query.order_by(StrategyPerformance.signal_date.desc()).all()
+        return [_record_to_dict(r) for r in records]
 
     def get_recent(
         self,
@@ -217,40 +217,17 @@ class StrategyPerformanceRepository:
         Returns:
             记录列表
         """
-        conditions = []
-        params = []
-
+        query = self.session.query(StrategyPerformance)
         if strategy_name:
-            conditions.append("strategy_name = %s")
-            params.append(strategy_name)
-
+            query = query.filter(StrategyPerformance.strategy_name == strategy_name)
         if symbol:
-            conditions.append("symbol = %s")
-            params.append(symbol)
-
-        where_clause = " AND ".join(conditions) if conditions else "1=1"
-
-        query = f"""
-            SELECT *
-            FROM quant.strategy_performance
-            WHERE {where_clause}
-            ORDER BY signal_date DESC
-            LIMIT %s
-        """
-        params.append(limit)
-
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor() as cursor:
-            cursor.execute(query, tuple(params))
-            results = cursor.fetchall()
-
-            records = []
-            for row in results:
-                record = dict(row)
-                # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
-                records.append(record)
-
-            return records
+            query = query.filter(StrategyPerformance.symbol == symbol)
+        records = (
+            query.order_by(StrategyPerformance.signal_date.desc())
+            .limit(limit)
+            .all()
+        )
+        return [_record_to_dict(r) for r in records]
 
     def get_by_scenario_tag(self, tag: str) -> List[Dict]:
         """
@@ -261,26 +238,17 @@ class StrategyPerformanceRepository:
 
         Returns:
             包含该标签的记录列表
+
+        注：旧 SQL 是 scenario_tags::text LIKE %s（取值绑定参数）；ORM 用
+        cast(jsonb AS TEXT).like(绑定参数)，语义一致（含子串匹配）。
         """
-        query = """
-            SELECT *
-            FROM quant.strategy_performance
-            WHERE scenario_tags::text LIKE %s
-            ORDER BY signal_date DESC
-        """
-
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor() as cursor:
-            cursor.execute(query, (f'%{tag}%',))
-            results = cursor.fetchall()
-
-            records = []
-            for row in results:
-                record = dict(row)
-                # PostgreSQL JSONB 字段已经是 Python 对象，无需 json.loads
-                records.append(record)
-
-            return records
+        records = (
+            self.session.query(StrategyPerformance)
+            .filter(cast(StrategyPerformance.scenario_tags, Text).like(f'%{tag}%'))
+            .order_by(StrategyPerformance.signal_date.desc())
+            .all()
+        )
+        return [_record_to_dict(r) for r in records]
 
     # ==================== 统计方法 ====================
 
@@ -302,49 +270,37 @@ class StrategyPerformanceRepository:
             统计数据（含 total_trades/win_trades/avg_pnl_pct/win_rate 等）；
             无已平仓记录时返回 None
         """
-        conditions = ["strategy_name = %s", "exit_price IS NOT NULL"]
-        params = [strategy_name]
-
+        query = self.session.query(
+            func.count().label('total_trades'),
+            func.sum(case((StrategyPerformance.pnl_pct > 0, 1), else_=0)).label('win_trades'),
+            func.sum(case((StrategyPerformance.pnl_pct <= 0, 1), else_=0)).label('loss_trades'),
+            func.avg(StrategyPerformance.pnl_pct).label('avg_pnl_pct'),
+            func.avg(StrategyPerformance.holding_days).label('avg_holding_days'),
+            func.max(StrategyPerformance.pnl_pct).label('max_pnl_pct'),
+            func.min(StrategyPerformance.pnl_pct).label('min_pnl_pct'),
+        ).filter(
+            StrategyPerformance.strategy_name == strategy_name,
+            StrategyPerformance.exit_price.isnot(None),
+        )
         if symbol:
-            conditions.append("symbol = %s")
-            params.append(symbol)
-
+            query = query.filter(StrategyPerformance.symbol == symbol)
         if source:
-            conditions.append("source = %s")
-            params.append(source)
+            query = query.filter(StrategyPerformance.source == source)
 
-        where_clause = " AND ".join(conditions)
+        result = query.one()
+        stats = dict(result._mapping)
 
-        query = f"""
-            SELECT
-                COUNT(*) as total_trades,
-                SUM(CASE WHEN pnl_pct > 0 THEN 1 ELSE 0 END) as win_trades,
-                SUM(CASE WHEN pnl_pct <= 0 THEN 1 ELSE 0 END) as loss_trades,
-                AVG(pnl_pct) as avg_pnl_pct,
-                AVG(holding_days) as avg_holding_days,
-                MAX(pnl_pct) as max_pnl_pct,
-                MIN(pnl_pct) as min_pnl_pct
-            FROM quant.strategy_performance
-            WHERE {where_clause}
-        """
+        if stats.get('total_trades') == 0:
+            return None
 
-        from infrastructure.persistence.database.engine import db_cursor
-        with db_cursor() as cursor:
-            cursor.execute(query, tuple(params))
-            result = cursor.fetchone()
+        # 转换 Decimal 为 float
+        for key in ['avg_pnl_pct', 'avg_holding_days', 'max_pnl_pct', 'min_pnl_pct']:
+            if stats.get(key) is not None:
+                stats[key] = float(stats[key])
 
-            if not result or result['total_trades'] == 0:
-                return None
+        stats['win_rate'] = (stats['win_trades'] / stats['total_trades']) * 100 if stats['total_trades'] > 0 else 0
 
-            stats = dict(result)
-            # 转换 Decimal 为 float
-            for key in ['avg_pnl_pct', 'avg_holding_days', 'max_pnl_pct', 'min_pnl_pct']:
-                if stats.get(key) is not None:
-                    stats[key] = float(stats[key])
-
-            stats['win_rate'] = (stats['win_trades'] / stats['total_trades']) * 100 if stats['total_trades'] > 0 else 0
-
-            return stats
+        return stats
 
 
 # 兼容别名：调用方（order_service / strategy_weight_adjuster /

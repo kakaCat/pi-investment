@@ -16,11 +16,11 @@ DDD架构：
 - 符合依赖倒置原则
 """
 from typing import Any, List, Dict, Optional
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import polars as pl
 import structlog
 
-from sqlalchemy import desc, and_, func, text
+from sqlalchemy import desc, and_, func, select
 from infrastructure.persistence.orm import BaseORMRepository, get_session
 from infrastructure.persistence.orm.models import DailyKline, IndexDaily, MinuteKline, Stock
 # 指数与个股分表（2026-09-11 w-f4aa1f6a）：指数键带市场后缀，解析统一走 symbol_classifier，
@@ -357,18 +357,26 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
           ② 命名空间——daily_klines 全是裸 6 位码，指数与深市股票同码冲突
              （000001 平安银行 / 000016 *ST康佳A / 000905 厦门港务 …），指数价格实际无处安放。
         调用方应先经 utils.symbol_classifier.resolve_index_symbol 规范化，非指数不要走本方法。
+
+        2026-09-14（w-32314d00，REQ-24e15d B4-c3-b）：由 f-string 拼 SQL + text() 改为
+        Core select()。顺带修一个静默缺陷——旧实现的默认列序取自 **set**（allowed），
+        集合迭代序随进程哈希种子变化，fields 不传时返回的 dict 键序每次运行都可能不同；
+        现固定为确定性元组序。
         """
+        _DEFAULT_COLS = ('symbol', 'trade_date', 'open', 'high', 'low', 'close', 'volume', 'amount')
+        allowed = set(_DEFAULT_COLS)
+        cols = [c for c in (fields or _DEFAULT_COLS) if c in allowed] or list(_DEFAULT_COLS)
         try:
-            allowed = {'symbol', 'trade_date', 'open', 'high', 'low', 'close', 'volume', 'amount'}
-            cols = [c for c in (fields or allowed) if c in allowed] or sorted(allowed)
-            sql = (
-                f"SELECT {', '.join(cols)} FROM quant.index_daily "
-                f"WHERE symbol = :sym AND trade_date BETWEEN :start AND :end "
-                f"ORDER BY trade_date ASC"
+            stmt = (
+                select(*(getattr(IndexDaily, c) for c in cols))
+                .where(
+                    IndexDaily.symbol == index_symbol,
+                    IndexDaily.trade_date >= start_date,
+                    IndexDaily.trade_date <= end_date,
+                )
+                .order_by(IndexDaily.trade_date.asc())
             )
-            rows = self.session.execute(
-                text(sql), {'sym': index_symbol, 'start': start_date, 'end': end_date}
-            ).mappings().all()
+            rows = self.session.execute(stmt).mappings().all()
             out: List[Dict[str, Any]] = []
             for r in rows:
                 d = dict(r)
@@ -541,8 +549,6 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
 
             # 使用子查询获取每只股票的最新日期
             # SELECT DISTINCT ON (symbol) * FROM ... ORDER BY symbol, trade_date DESC
-            from sqlalchemy.sql import text
-
             subquery = self.session.query(
                 DailyKline.symbol,
                 func.max(DailyKline.trade_date).label('max_date')
@@ -1173,33 +1179,46 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         Returns:
             {data_date, up_count, down_count, flat_count, total,
              up_percentage, ratio}；无数据返回 None
-        """
-        from sqlalchemy import text
-        try:
-            rows = self.session.execute(text("""
-                WITH recent AS (
-                    SELECT symbol, trade_date, close,
-                           ROW_NUMBER() OVER (PARTITION BY symbol
-                                              ORDER BY trade_date DESC) AS rn
-                    FROM quant.daily_klines
-                    WHERE trade_date >= CURRENT_DATE - (:days || ' days')::interval
-                )
-                SELECT a.trade_date AS data_date,
-                       COUNT(*) FILTER (WHERE a.close > b.close) AS up_count,
-                       COUNT(*) FILTER (WHERE a.close < b.close) AS down_count,
-                       COUNT(*) FILTER (WHERE a.close = b.close) AS flat_count
-                FROM recent a
-                JOIN recent b ON a.symbol = b.symbol AND b.rn = 2
-                WHERE a.rn = 1
-                GROUP BY a.trade_date
-                ORDER BY a.trade_date DESC
-                LIMIT 1
-            """), {'days': lookback_days}).fetchone()
 
-            if not rows or rows[1] is None:
+        2026-09-14（B4-c3-b）：原 text() CTE 迁为 Core select()。窗口起点仍用
+        **服务端** CURRENT_DATE（不退化为客户端日期），只把 interval 换成绑定参数。
+        """
+        try:
+            cutoff = func.current_date() - timedelta(days=lookback_days)
+            recent = (
+                select(
+                    DailyKline.symbol.label('symbol'),
+                    DailyKline.trade_date.label('trade_date'),
+                    DailyKline.close.label('close'),
+                    func.row_number().over(
+                        partition_by=DailyKline.symbol,
+                        order_by=DailyKline.trade_date.desc(),
+                    ).label('rn'),
+                )
+                .where(DailyKline.trade_date >= cutoff)
+                .subquery('recent')
+            )
+            a = recent.alias('a')
+            b = recent.alias('b')
+
+            row = self.session.execute(
+                select(
+                    a.c.trade_date,
+                    func.count().filter(a.c.close > b.c.close).label('up_count'),
+                    func.count().filter(a.c.close < b.c.close).label('down_count'),
+                    func.count().filter(a.c.close == b.c.close).label('flat_count'),
+                )
+                .join(b, and_(a.c.symbol == b.c.symbol, b.c.rn == 2))
+                .where(a.c.rn == 1)
+                .group_by(a.c.trade_date)
+                .order_by(a.c.trade_date.desc())
+                .limit(1)
+            ).fetchone()
+
+            if not row or row[1] is None:
                 return None
 
-            data_date, up, down, flat = rows[0], int(rows[1]), int(rows[2]), int(rows[3])
+            data_date, up, down, flat = row[0], int(row[1]), int(row[2]), int(row[3])
             total = up + down + flat
             if total == 0:
                 return None
@@ -1226,16 +1245,17 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         Returns:
             [{trade_date, total_volume}]，最新在前
         """
-        from sqlalchemy import text
         try:
-            rows = self.session.execute(text("""
-                SELECT trade_date, SUM(volume) AS total_volume
-                FROM quant.daily_klines
-                WHERE trade_date >= CURRENT_DATE - (:days || ' days')::interval
-                GROUP BY trade_date
-                ORDER BY trade_date DESC
-                LIMIT :days
-            """), {'days': days}).fetchall()
+            rows = self.session.execute(
+                select(
+                    DailyKline.trade_date,
+                    func.sum(DailyKline.volume).label('total_volume'),
+                )
+                .where(DailyKline.trade_date >= func.current_date() - timedelta(days=days))
+                .group_by(DailyKline.trade_date)
+                .order_by(DailyKline.trade_date.desc())
+                .limit(days)
+            ).fetchall()
             return [{'trade_date': r[0].isoformat() if r[0] else None,
                      'total_volume': float(r[1] or 0)} for r in rows]
         except Exception as e:
@@ -1249,23 +1269,32 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         Returns:
             [{trade_date, avg_return}]（小数，非百分比），最新在前
         """
-        from sqlalchemy import text
         try:
-            rows = self.session.execute(text("""
-                WITH k AS (
-                    SELECT symbol, trade_date, close,
-                           LAG(close) OVER (PARTITION BY symbol
-                                            ORDER BY trade_date) AS prev_close
-                    FROM quant.daily_klines
-                    WHERE trade_date >= CURRENT_DATE - (:days || ' days')::interval
+            k = (
+                select(
+                    DailyKline.symbol.label('symbol'),
+                    DailyKline.trade_date.label('trade_date'),
+                    DailyKline.close.label('close'),
+                    func.lag(DailyKline.close).over(
+                        partition_by=DailyKline.symbol,
+                        order_by=DailyKline.trade_date,
+                    ).label('prev_close'),
                 )
-                SELECT trade_date, AVG((close - prev_close) / NULLIF(prev_close, 0)) AS avg_return
-                FROM k
-                WHERE prev_close IS NOT NULL AND prev_close > 0
-                GROUP BY trade_date
-                ORDER BY trade_date DESC
-                LIMIT :days
-            """), {'days': days}).fetchall()
+                .where(DailyKline.trade_date >= func.current_date() - timedelta(days=days))
+                .subquery('k')
+            )
+            rows = self.session.execute(
+                select(
+                    k.c.trade_date,
+                    func.avg(
+                        (k.c.close - k.c.prev_close) / func.nullif(k.c.prev_close, 0)
+                    ).label('avg_return'),
+                )
+                .where(k.c.prev_close.isnot(None), k.c.prev_close > 0)
+                .group_by(k.c.trade_date)
+                .order_by(k.c.trade_date.desc())
+                .limit(days)
+            ).fetchall()
             return [{'trade_date': r[0].isoformat() if r[0] else None,
                      'avg_return': float(r[1]) if r[1] is not None else None}
                     for r in rows]
@@ -1280,27 +1309,37 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
         Returns:
             {data_date, new_high_count, new_low_count}；无数据返回 None
         """
-        from sqlalchemy import text
         try:
-            row = self.session.execute(text("""
-                WITH recent AS (
-                    SELECT symbol, trade_date, close,
-                           MAX(close) OVER (PARTITION BY symbol) AS max_close,
-                           MIN(close) OVER (PARTITION BY symbol) AS min_close,
-                           ROW_NUMBER() OVER (PARTITION BY symbol
-                                              ORDER BY trade_date DESC) AS rn
-                    FROM quant.daily_klines
-                    WHERE trade_date >= CURRENT_DATE - (:days || ' days')::interval
+            recent = (
+                select(
+                    DailyKline.symbol.label('symbol'),
+                    DailyKline.trade_date.label('trade_date'),
+                    DailyKline.close.label('close'),
+                    func.max(DailyKline.close).over(
+                        partition_by=DailyKline.symbol
+                    ).label('max_close'),
+                    func.min(DailyKline.close).over(
+                        partition_by=DailyKline.symbol
+                    ).label('min_close'),
+                    func.row_number().over(
+                        partition_by=DailyKline.symbol,
+                        order_by=DailyKline.trade_date.desc(),
+                    ).label('rn'),
                 )
-                SELECT trade_date AS data_date,
-                       COUNT(*) FILTER (WHERE close >= max_close) AS new_high_count,
-                       COUNT(*) FILTER (WHERE close <= min_close) AS new_low_count
-                FROM recent
-                WHERE rn = 1
-                GROUP BY trade_date
-                ORDER BY trade_date DESC
-                LIMIT 1
-            """), {'days': window_days}).fetchone()
+                .where(DailyKline.trade_date >= func.current_date() - timedelta(days=window_days))
+                .subquery('recent')
+            )
+            row = self.session.execute(
+                select(
+                    recent.c.trade_date.label('data_date'),
+                    func.count().filter(recent.c.close >= recent.c.max_close).label('new_high_count'),
+                    func.count().filter(recent.c.close <= recent.c.min_close).label('new_low_count'),
+                )
+                .where(recent.c.rn == 1)
+                .group_by(recent.c.trade_date)
+                .order_by(recent.c.trade_date.desc())
+                .limit(1)
+            ).fetchone()
 
             if not row:
                 return None
@@ -1320,17 +1359,16 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
 
         用途：index_constituents 为空时，机会扫描热门池的 fallback。
         """
-        from sqlalchemy import text
         try:
-            rows = self.session.execute(text("""
-                SELECT symbol, SUM(volume) AS tv
-                FROM quant.daily_klines
-                WHERE trade_date >= CURRENT_DATE - (:days || ' days')::interval
-                GROUP BY symbol
-                HAVING COUNT(*) >= :min_days
-                ORDER BY tv DESC
-                LIMIT :limit
-            """), {'days': days, 'min_days': min_days, 'limit': limit}).fetchall()
+            total_volume = func.sum(DailyKline.volume).label('tv')
+            rows = self.session.execute(
+                select(DailyKline.symbol, total_volume)
+                .where(DailyKline.trade_date >= func.current_date() - timedelta(days=days))
+                .group_by(DailyKline.symbol)
+                .having(func.count() >= min_days)
+                .order_by(total_volume.desc())
+                .limit(limit)
+            ).fetchall()
             return [r[0] for r in rows]
         except Exception as e:
             self._safe_rollback()
@@ -1347,42 +1385,75 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             [{trade_date, up, down, flat, total_volume, volume_ratio}]，最新在前；
             无数据返回 []
         """
-        from sqlalchemy import text
         try:
-            rows = self.session.execute(text("""
-                WITH px AS (
-                    SELECT symbol, trade_date, close,
-                           LAG(close) OVER (PARTITION BY symbol
-                                            ORDER BY trade_date) AS prev_close,
-                           volume
-                    FROM quant.daily_klines
-                    WHERE trade_date > CURRENT_DATE - (:days * 2 || ' days')::interval
-                ),
-                daily AS (
-                    SELECT trade_date,
-                           COUNT(*) FILTER (WHERE prev_close IS NOT NULL
-                                            AND close > prev_close) AS up,
-                           COUNT(*) FILTER (WHERE prev_close IS NOT NULL
-                                            AND close < prev_close) AS down,
-                           COUNT(*) FILTER (WHERE prev_close IS NOT NULL
-                                            AND close = prev_close) AS flat,
-                           SUM(volume) AS total_volume
-                    FROM px GROUP BY trade_date
+            px = (
+                select(
+                    DailyKline.symbol.label('symbol'),
+                    DailyKline.trade_date.label('trade_date'),
+                    DailyKline.close.label('close'),
+                    func.lag(DailyKline.close).over(
+                        partition_by=DailyKline.symbol,
+                        order_by=DailyKline.trade_date,
+                    ).label('prev_close'),
+                    DailyKline.volume.label('volume'),
                 )
-                SELECT trade_date, up, down, flat, total_volume,
-                       AVG(total_volume) OVER (ORDER BY trade_date
-                           ROWS BETWEEN 4 PRECEDING AND CURRENT ROW)
-                       / NULLIF(AVG(total_volume) OVER (ORDER BY trade_date
-                           ROWS BETWEEN 24 PRECEDING AND 5 PRECEDING), 0) AS vr
-                FROM daily
-                ORDER BY trade_date DESC LIMIT :days
-            """), {'days': days}).fetchall()
-            return [{
-                'trade_date': r[0],
-                'up': int(r[1] or 0), 'down': int(r[2] or 0), 'flat': int(r[3] or 0),
-                'total_volume': float(r[4] or 0),
-                'volume_ratio': float(r[5]) if r[5] is not None else None,
-            } for r in rows]
+                .where(DailyKline.trade_date > func.current_date() - timedelta(days=days * 2))
+                .subquery('px')
+            )
+            daily = (
+                select(
+                    px.c.trade_date.label('trade_date'),
+                    func.count().filter(
+                        px.c.prev_close.isnot(None), px.c.close > px.c.prev_close
+                    ).label('up'),
+                    func.count().filter(
+                        px.c.prev_close.isnot(None), px.c.close < px.c.prev_close
+                    ).label('down'),
+                    func.count().filter(
+                        px.c.prev_close.isnot(None), px.c.close == px.c.prev_close
+                    ).label('flat'),
+                    func.sum(px.c.volume).label('total_volume'),
+                )
+                .group_by(px.c.trade_date)
+                .subquery('daily')
+            )
+            # SQLAlchemy 的 rows 元组语义：负=PRECEDING、0=CURRENT ROW、正=FOLLOWING
+            # （写成正数会渲染成 "4 FOLLOWING AND CURRENT ROW"，PG 直接报 WindowingError）
+            ma5 = func.avg(daily.c.total_volume).over(
+                order_by=daily.c.trade_date, rows=(-4, 0)
+            ).label('ma5')
+            ma20 = func.avg(daily.c.total_volume).over(
+                order_by=daily.c.trade_date, rows=(-24, -5)
+            ).label('ma20')
+            rows = self.session.execute(
+                select(
+                    daily.c.trade_date,
+                    daily.c.up,
+                    daily.c.down,
+                    daily.c.flat,
+                    daily.c.total_volume,
+                    ma5,
+                    ma20,
+                )
+                .order_by(daily.c.trade_date.desc())
+                .limit(days)
+            ).fetchall()
+
+            out: List[Dict] = []
+            for r in rows:
+                # NULLIF(ma20, 0) 的语义放在 Python 侧实现：SQLAlchemy 对 nullif()
+                # 硬编码返回类型 Numeric()，会把除法渲染成 numeric 运算，
+                # 末位精度与旧 raw SQL 的 double precision 除法不一致
+                #（实测 0.9767216403301303 vs 0.9767216403301268）。
+                m5, m20 = r[5], r[6]
+                ratio = float(m5) / float(m20) if (m5 is not None and m20 not in (None, 0)) else None
+                out.append({
+                    'trade_date': r[0],
+                    'up': int(r[1] or 0), 'down': int(r[2] or 0), 'flat': int(r[3] or 0),
+                    'total_volume': float(r[4] or 0),
+                    'volume_ratio': ratio,
+                })
+            return out
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error in get_market_breadth_history: {e}")
