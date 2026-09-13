@@ -226,7 +226,8 @@ def main() -> int:
 
     # 一句话摘要：要么写在 fm.summary，要么在正文写「**这页回答**：…」（索引表靠它）
     no_summary = sorted(rel for _p, rel, text in wiki_pages
-                        if not fm_of.get(rel, {}).get('summary')
+                        if managed(rel)
+                        and not fm_of.get(rel, {}).get('summary')
                         and not ANSWERS_RE.search(text))
 
     index_rc, index_out = check_index(root)

@@ -133,8 +133,13 @@ def iter_pages(root: str):
 
 
 def load(root: str):
+    # 管辖范围与 wiki_probe 一致：从仓库根跑时只索引 agent-dh 的文档树
+    # （其他项目/根 docs 的页面不归本索引管，否则同一份 INDEX.md 会有两种内容）
+    manage_all = not os.path.isdir(os.path.join(root, 'agent-dh'))
     wiki, logs = [], []
     for path, rel in iter_pages(root):
+        if not manage_all and not rel.startswith('agent-dh/'):
+            continue
         text = open(path, encoding='utf-8').read()
         fm = parse_front_matter(text)
         item = {'rel': rel, 'path': path, 'fm': fm, 'summary': derive_summary(text, fm),
