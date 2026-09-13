@@ -83,17 +83,17 @@ tags: [wiki, index, home, agent-dh]
 
 ### 卷 2 · 架构与生命周期
 
-- 🟡 P0 [插件模型与装载](architecture/plugin-model.md)（stub：问题清单与素材已备）
+- ✅ P0 [插件模型与装载](architecture/plugin-model.md) —— 插件是什么/装载链路/两半分工/注册三步/四个真坑
 - ✅ [自修复重启行为](architecture/self-restart-behavior.md)
 - ✅ [某些包为何没有 dist](architecture/WHY-NO-DIST.md)
 - ✅ [工具清单](architecture/TOOLS_INVENTORY.md)
 - 🟡 P1 `architecture/profile-and-dsh-home.md` —— profile / DSH_HOME / 软链与发版（relink-profile、dist 陈旧陷阱）
-- 🟡 P1 [身份系统与 agents.json](architecture/identity-and-agents-json.md)（stub）
+- ✅ P1 [身份系统与 agents.json](architecture/identity-and-agents-json.md) —— 身份登记表/账户事实源/账户边界/窗口与会话
 
 ### 卷 3 · 工具与协议
 
 - ✅ [工具清单](architecture/TOOLS_INVENTORY.md)
-- 🟡 P0 `protocols/tool-contract.md` —— 工具契约：defineTool、schema 铁律、返回结构、错误码、降级与"诚实失败"
+- ✅ [工具契约与 schema 铁律](../standards/tool-development.md)（并入规范卷——同一概念不写两页）
 - 🟡 P1 `protocols/tool-audit.md` —— 工具审计清单：声明与实现是否一致、默认账户值、dry_run 真假
 - ✅ [交易执行协议](protocols/trade-execution-protocol.md)
 
@@ -159,6 +159,7 @@ tags: [wiki, index, home, agent-dh]
 | 2026-09-13 | [agent-dh 是什么](architecture/agent-dh-overview.md) · [术语表](architecture/glossary.md) | 卷 0 落地 | w-1cee2467 |
 | 2026-09-13 | [插件模型](architecture/plugin-model.md) · [身份系统](architecture/identity-and-agents-json.md) | 建 stub（问题清单 + 素材位置） | w-1cee2467 |
 | 2026-09-13 | [需求看板实操](guides/reqboard-workflow.md) · [故障排查手册](guides/troubleshooting.md) · [定时巡检清单](guides/routine-checks.md) | B1 落地（卷 8、卷 9 的 P0/P1 页） | w-1cee2467 |
+| 2026-09-13 | [插件模型与装载](architecture/plugin-model.md) · [身份系统与 agents.json](architecture/identity-and-agents-json.md) | B2 起：两个 stub 补成正式页（待写债清零） | w-1cee2467 |
 
 ## 怎么维护
 
