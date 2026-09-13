@@ -1,6 +1,6 @@
 /**
  * 需求状态自动推进（rollup）单测 —— 派生规则的正确性与闸门不可越性。
- * 覆盖：R1 接手推进（draft→reviewing）、R2 实施完成（implementing→accepting）、
+ * 覆盖：R1 接手推进（draft→brainstorming）、R2 实施完成（implementing→accepting）、
  * 非触发态不动、canceled 任务不计入完成度、人工闸门永不被自动越过。
  */
 import { describe, it, expect } from 'vitest'
@@ -40,19 +40,19 @@ const ctx = { now: 2_000, commentId: () => rid('c') }
 // -- R1 接手推进 -----------------------------------------------------------
 
 describe('applyPickupAdvance（R1 接手推进）', () => {
-  it('draft 需求被窗口接手 → reviewing，并留痕', () => {
+  it('draft 需求被窗口接手 → brainstorming，并留痕', () => {
     const r = req({ status: 'draft', sourceSessionId: 'session-abc' })
     const l = ledger({ requirements: [r] })
     const advanced = applyPickupAdvance(l, r.id, ctx)
     expect(advanced).toBeDefined()
-    expect(l.requirements[0].status).toBe('reviewing')
+    expect(l.requirements[0].status).toBe('brainstorming')
     expect(l.requirements[0].version).toBe(2)
     expect(l.requirements[0].updatedBy.kind).toBe('system')
-    expect(l.requirements[0].comments.at(-1)?.body).toContain('[自动推进] draft → reviewing')
+    expect(l.requirements[0].comments.at(-1)?.body).toContain('[自动推进] draft → brainstorming')
   })
 
   it('非 draft 需求不动（幂等：已在评审/实施的需求不被回拉）', () => {
-    for (const status of ['reviewing', 'decomposing', 'implementing', 'accepting', 'done'] as const) {
+    for (const status of ['brainstorming', 'decomposing', 'implementing', 'accepting', 'done'] as const) {
       const r = req({ status })
       const l = ledger({ requirements: [r] })
       expect(applyPickupAdvance(l, r.id, ctx)).toBeUndefined()
@@ -101,28 +101,28 @@ describe('applyTaskRollup（R2 实施完成 → 验收）', () => {
     expect(applyTaskRollup(l, ctx)).toHaveLength(0)
   })
 
-  it('派生链 R3/R4：reviewing + 有任务 → 一路推进到 accepting（拆分/实施不再要人点）', () => {
-    const r = req({ status: 'reviewing' })
+  it('派生链 R3/R4：planning（计划已批）+ 有任务 → 一路推进到 accepting（拆分/执行不再要人点）', () => {
+    const r = req({ status: 'planning' })
     const l = ledger({ requirements: [r], tasks: [task(r.id, { status: 'done' })] })
     const advanced = applyTaskRollup(l, ctx)
     expect(advanced).toHaveLength(1) // 同一需求只上报一次（避免 change 载荷重复）
     expect(l.requirements[0].status).toBe('accepting')
     // 三步都在留痕里可追溯
     const trail = l.requirements[0].comments.filter(c => c.body.includes('[自动推进]')).map(c => c.body)
-    expect(trail.some(b => b.includes('reviewing → decomposing'))).toBe(true)
+    expect(trail.some(b => b.includes('planning → decomposing'))).toBe(true)
     expect(trail.some(b => b.includes('decomposing → implementing'))).toBe(true)
     expect(trail.some(b => b.includes('implementing → accepting'))).toBe(true)
   })
 
-  it('R3：reviewing + 任务全为 todo → 停在 decomposing（未开工不进实施）', () => {
-    const r = req({ status: 'reviewing' })
+  it('R3：planning + 任务全为 todo → 停在 decomposing（未开工不进执行）', () => {
+    const r = req({ status: 'planning' })
     const l = ledger({ requirements: [r], tasks: [task(r.id, { status: 'todo' })] })
     expect(applyTaskRollup(l, ctx).map(a => a.status)).toEqual(['decomposing'])
     expect(l.requirements[0].status).toBe('decomposing')
   })
 
   it('无任务时任何状态都不动（拆分未落库不进拆分态）', () => {
-    for (const status of ['reviewing', 'decomposing', 'implementing'] as const) {
+    for (const status of ['brainstorming', 'planning', 'decomposing', 'implementing'] as const) {
       const r = req({ status })
       const l = ledger({ requirements: [r] })
       expect(applyTaskRollup(l, ctx)).toHaveLength(0)
@@ -146,13 +146,13 @@ describe('applyTaskRollup（R2 实施完成 → 验收）', () => {
 // -- R0 启动对账 -----------------------------------------------------------
 
 describe('applyPickupReconcile（R0 启动对账）', () => {
-  it('已挂窗口的 draft 需求 → reviewing（带对账留痕）', () => {
+  it('已挂窗口的 draft 需求 → brainstorming（带对账留痕）', () => {
     const bound = req({ status: 'draft', sourceSessionId: 'session-abc' })
     const human = req({ status: 'draft' }) // 人工建卡：无 sourceSessionId
     const l = ledger({ requirements: [bound, human] })
     const advanced = applyPickupReconcile(l, ctx)
     expect(advanced.map(r => r.id)).toEqual([bound.id])
-    expect(l.requirements[0].status).toBe('reviewing')
+    expect(l.requirements[0].status).toBe('brainstorming')
     expect(l.requirements[0].comments.at(-1)?.body).toContain('启动对账')
     expect(l.requirements[1].status).toBe('draft')
   })
@@ -164,7 +164,7 @@ describe('applyPickupReconcile（R0 启动对账）', () => {
       triages: [{ id: 'tri-1', sessionId: 'session-x', status: 'confirmed', resultRequirementId: r0.id } as never],
     })
     expect(applyPickupReconcile(l, ctx)).toHaveLength(1)
-    expect(l.requirements[0].status).toBe('reviewing')
+    expect(l.requirements[0].status).toBe('brainstorming')
   })
 
   it('幂等：第二次跑无变化（已在评审的不再动）', () => {
@@ -174,10 +174,10 @@ describe('applyPickupReconcile（R0 启动对账）', () => {
     expect(applyPickupReconcile(l, ctx)).toHaveLength(0)
   })
 
-  it('非 draft 状态一律不动，且永不越过人工闸门（reviewing 不被自动推成 decomposing）', () => {
-    const r0 = req({ status: 'reviewing', sourceSessionId: 'session-abc' })
+  it('非 draft 状态一律不动，且永不越过人工闸门（brainstorming 不会被 rollup 推走）', () => {
+    const r0 = req({ status: 'brainstorming', sourceSessionId: 'session-abc' })
     const l = ledger({ requirements: [r0] })
     expect(applyPickupReconcile(l, ctx)).toHaveLength(0)
-    expect(l.requirements[0].status).toBe('reviewing')
+    expect(l.requirements[0].status).toBe('brainstorming')
   })
 })

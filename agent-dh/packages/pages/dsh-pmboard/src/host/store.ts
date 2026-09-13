@@ -10,6 +10,7 @@ import {
   REQBOARD_SCHEMA_VERSION,
   backfillRequirementHistory,
   backfillTaskHistory,
+  migrateRequirementStatusNames,
   emptyLedger,
   type ReqboardLedger,
   type RequirementRecord,
@@ -94,6 +95,8 @@ export class ReqboardStore {
         // schema v2 → v3 迁移：老记录没有状态事件表，就地反推回填（inferred=true）。
         // 只在内存里补——下一次 mutate 落盘时自然持久化；读路径永远拿到可用时间线。
         for (const r of requirements) {
+          // 旧状态名迁移（reviewing → brainstorming）先做，再做时间线回填
+          migrateRequirementStatusNames(r)
           const filled = backfillRequirementHistory(r)
           if (filled !== undefined) r.statusHistory = filled
         }

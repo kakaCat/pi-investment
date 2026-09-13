@@ -33,7 +33,7 @@ beforeEach(() => {
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 
-async function seed(status: RequirementStatus = 'reviewing', sourceSessionId: string | undefined = W): Promise<RequirementRecord> {
+async function seed(status: RequirementStatus = 'planning', sourceSessionId: string | undefined = W): Promise<RequirementRecord> {
   const r = {
     id: 'REQ-abc123', title: '看板需求', description: '', status, blocked: false,
     ...(sourceSessionId !== undefined ? { sourceSessionId } : {}),
@@ -73,7 +73,7 @@ describe('reqboard_decompose 边界', () => {
   })
 
   it('越权：不能拆别的窗口的需求', async () => {
-    await seed('reviewing')
+    await seed('planning')
     await planAndApprove()
     await expect(run(decompose, {}, 'session-other')).rejects.toThrow(/REQBOARD_NO_BOUND_REQ/)
     await expect(run(decompose, { requirement_id: 'REQ-ffffff' })).rejects.toThrow(/REQBOARD_NOT_BOUND_TO_WINDOW/)
@@ -81,14 +81,14 @@ describe('reqboard_decompose 边界', () => {
   })
 
   it('传与批准计划不一致的 tasks → 拒绝且不写库', async () => {
-    await seed('reviewing')
+    await seed('planning')
     await planAndApprove()
     await expect(run(decompose, { tasks: [{ key: 'x', title: '计划外' }] })).rejects.toThrow(/REQBOARD_PLAN_MISMATCH/)
     expect(store.snapshot().tasks).toHaveLength(0)
   })
 
   it('按计划落库：key 映射成真实 id、依赖成链、任务验收标准来自计划', async () => {
-    await seed('reviewing')
+    await seed('planning')
     await planAndApprove()
     const out = await run(decompose, {})
     expect(out.created).toHaveLength(2)
@@ -104,7 +104,7 @@ describe('reqboard_decompose 边界', () => {
 
 describe('reqboard_task_move 边界', () => {
   it('越权/不存在/人工闸门一律拒绝', async () => {
-    await seed('reviewing')
+    await seed('planning')
     await planAndApprove()
     const out = await run(decompose, {})
     const a = out.created[0].id
@@ -115,7 +115,7 @@ describe('reqboard_task_move 边界', () => {
   })
 
   it('开工自动开执行段，离开 in_progress 自动结算；全部完成后需求进验收', async () => {
-    await seed('reviewing')
+    await seed('planning')
     await planAndApprove()
     const out = await run(decompose, {})
     const [a, b] = out.created.map((c: { id: string }) => c.id)

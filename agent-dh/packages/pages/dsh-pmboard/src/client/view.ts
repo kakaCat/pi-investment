@@ -11,8 +11,8 @@ import type { BoardState, ReqCard, RequirementRecord, RequirementStatus, StatusE
 /* ------------------------------------------------------------------ utils */
 
 const STATUS_LABELS: Record<RequirementStatus, string> = {
-  draft: '立项', reviewing: '评审', decomposing: '拆分', implementing: '实施',
-  accepting: '验收', done: '完成', archived: '归档', canceled: '取消',
+  draft: '立项', brainstorming: '头脑风暴', planning: '写计划', decomposing: '拆分',
+  implementing: '执行', accepting: '验收', done: '完成', archived: '归档', canceled: '取消',
 }
 
 const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
@@ -29,9 +29,12 @@ const CATEGORY_LABELS: Record<string, string> = {
   feature: '功能', bug: '缺陷', doc: '文档', refactor: '重构', spike: '调研', chore: '杂项',
 }
 
-/** 主链 7 态（泳道列），archived/canceled 走底部归档区 */
+/**
+ * 主链 8 态（泳道列）——状态即阶段，从立项一路走到完成：
+ * 立项 → 头脑风暴 → 写计划 → 拆分 → 执行 → 验收 → 完成（archived/canceled 走底部归档区）。
+ */
 export const LANE_STATUSES: readonly RequirementStatus[] = [
-  'draft', 'reviewing', 'decomposing', 'implementing', 'accepting', 'done',
+  'draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'done',
 ]
 
 /**
@@ -159,15 +162,19 @@ function cardActions(req: RequirementRecord): string {
   let actions = ''
   switch (req.status) {
     case 'draft':
-      actions = btn('reviewing', '提交评审', { primary: true, title: '进入评审；窗口接手开工时会自动进入' })
+      actions = btn('brainstorming', '开始头脑风暴', { primary: true, title: '进入头脑风暴；窗口接手开工时会自动进入' })
         + btn('canceled', '取消', { title: '取消该需求（仅人可操作）' })
       break
-    case 'reviewing':
-      actions = btn('decomposing', '确认方案', { primary: true, title: '进入拆分；窗口 agent 会自行推进，人可在此加速' })
+    case 'brainstorming':
+      actions = btn('planning', '写计划', { primary: true, title: '方案谈定 → 进入写计划阶段（计划在此阶段提交待人批准）' })
         + btn('draft', '退回', { title: '退回立项' })
       break
+    case 'planning':
+      actions = btn('decomposing', '落库拆分', { primary: true, title: '计划获批后落库任务卡；未获批会被代码级拒绝' })
+        + btn('brainstorming', '退回重谈', { title: '方案要改 → 退回头脑风暴' })
+      break
     case 'decomposing':
-      actions = btn('implementing', '确认拆分', { primary: true, title: '进入实施；任务落库/开工时系统会自动推进' })
+      actions = btn('implementing', '开始执行', { primary: true, title: '进入执行；任务开工时系统会自动推进' })
       break
     case 'implementing':
       actions = btn('accepting', '提交验收', { primary: true, title: '进入验收；任务全部完成时系统会自动推进' })
@@ -268,10 +275,11 @@ export function buildReqDetail(req: RequirementRecord, tasks: TaskRecord[], now:
 /** 当前状态的闸门提示（人工闸门标出操作按钮） */
 function gateHintFor(status: RequirementStatus): string {
   const hints: Partial<Record<RequirementStatus, string>> = {
-    draft: '<div class="dsh-pm-gate">已立项：窗口接手开工后自动进入评审 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="reviewing">提交评审</button></div>',
-    reviewing: '<div class="dsh-pm-gate">评审中：窗口 agent 会自行推进到拆分，人可在此加速 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="decomposing">确认方案</button> <button type="button" class="dsh-pm-btn" data-action="move-req" data-to="draft">退回立项</button></div>',
+    draft: '<div class="dsh-pm-gate">已立项：窗口接手开工后自动进入评审 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="brainstorming">提交评审</button></div>',
+    brainstorming: '<div class="dsh-pm-gate">评审中：窗口 agent 会自行推进到拆分，人可在此加速 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="decomposing">确认方案</button> <button type="button" class="dsh-pm-btn" data-action="move-req" data-to="draft">退回立项</button></div>',
     decomposing: '<div class="dsh-pm-gate">拆分中：任务落库/开工后系统自动推进到实施 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="implementing">确认拆分</button></div>',
-    implementing: '<div class="dsh-pm-gate">实施中：任务全部完成时自动进入验收 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="accepting">提交验收</button></div>',
+    planning: '<div class="dsh-pm-gate">写计划：计划提交后请点上面计划卡的「批准计划」——批准前拆分会被告代码级拒绝 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="decomposing">落库拆分</button> <button type="button" class="dsh-pm-btn" data-action="move-req" data-to="brainstorming">退回重谈</button></div>',
+    implementing: '<div class="dsh-pm-gate">执行中：任务全部完成时自动进入验收 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="accepting">提交验收</button></div>',
     accepting: '<div class="dsh-pm-gate">验收中：窗口 agent 交付后可自行完成，人可在此确认 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="done">验收通过</button></div>',
     done: '<div class="dsh-pm-gate">已完成：归档归集文档（仅人可操作）<button type="button" class="dsh-pm-btn" data-action="move-req" data-to="archived">归档</button></div>',
   }
@@ -568,7 +576,7 @@ function renderMilestoneStrip(req: RequirementRecord): string {
 /* ------------------------------------------------------------------ 甘特图 */
 
 const TASK_TIMELINE_STATUSES: readonly TaskStatus[] = ['todo', 'in_progress', 'integrating', 'testing', 'in_review', 'done']
-const REQ_MILESTONE_STATUSES: readonly RequirementStatus[] = ['draft', 'reviewing', 'decomposing', 'implementing', 'accepting', 'done', 'archived']
+const REQ_MILESTONE_STATUSES: readonly RequirementStatus[] = ['draft', 'brainstorming', 'decomposing', 'implementing', 'accepting', 'done', 'archived']
 
 /** 任务的状态分段（甘特条按状态着色；终态段止于末次事件，其余止于 now）。 */
 function ganttSegments(task: TaskRecord, now: number): Array<{ status: string; from: number; to: number }> {

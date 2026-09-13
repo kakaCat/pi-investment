@@ -28,14 +28,14 @@ async function run(status: RequirementRecord['status']) {
 }
 
 describe('reqboard_status.next_actions（窗口可自行推进的动作）', () => {
-  it('reviewing → 可自行推进到 decomposing / 退回 draft（取消不在列）', async () => {
-    const out = await run('reviewing')
-    expect(out.next_actions).toEqual(['decomposing', 'draft'])
+  it('brainstorming → 可自行推进到 planning（写计划）/ 退回 draft（取消不在列）', async () => {
+    const out = await run('brainstorming')
+    expect(out.next_actions).toEqual(['planning', 'draft'])
     expect(out.note).toContain('reqboard_move')
   })
 
   it('draft → 提交评审；implementing → 进验收', async () => {
-    expect((await run('draft')).next_actions).toEqual(['reviewing'])
+    expect((await run('draft')).next_actions).toEqual(['brainstorming'])
     expect((await run('implementing')).next_actions).toEqual(['accepting'])
   })
 

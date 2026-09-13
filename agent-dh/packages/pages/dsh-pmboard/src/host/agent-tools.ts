@@ -392,13 +392,13 @@ export function defineStatusTool(deps: ReqboardToolDeps) {
  * 为什么需要它：台账状态此前只能由人在看板点按钮推进（GUI move-req），窗口 agent
  * 没有任何推进手段——需求建卡后即静止。本工具把「窗口推进自己的需求」变成一次
  * 工具调用，闸门仍然代码级生效：
- *   - 人工闸门（评审通过 reviewing>decomposing / 拆分确认 decomposing>implementing /
+ *   - 人工闸门（评审通过 brainstorming>decomposing / 拆分确认 decomposing>implementing /
  *     验收通过 accepting>done / 归档 done>archived）→ 抛 human_gate，工具返回明确
  *     指引「该转移需人在项目看板点击确认」；
  *   - 非法转移 → invalid_transition；
  *   - 只能推进**本窗口绑定**的需求（防越权推进他窗口需求）。
  *
- * 典型用法：agent 完成方案设计 → move 到 reviewing；人确认方案后 agent 拆分任务卡
+ * 典型用法：agent 完成方案设计 → move 到 brainstorming；人确认方案后 agent 拆分任务卡
  * 落库（task/create）→ 全部任务 done 时 rollup 自动进 accepting（无需调用本工具）。
  *
  * 认证：identity + live driver（与 create 一致），不要求 direct-human——推进是执行
@@ -416,7 +416,7 @@ export function defineMoveTool(deps: ReqboardToolDeps) {
     parameters: {
       to: {
         type: 'string',
-        description: '目标状态：draft / reviewing / decomposing / implementing / accepting / done / archived / canceled',
+        description: '目标状态：draft / brainstorming / decomposing / implementing / accepting / done / archived / canceled',
         required: true,
         enum: [...ALL_REQ_STATUSES],
       },
@@ -626,7 +626,7 @@ export function defineDecomposeTool(deps: ReqboardToolDeps) {
         )
       }
       if (target.status === 'draft') {
-        reject('reqboard_decompose 未执行：需求还在立项态，先 reqboard_move 到 reviewing（方案确认后）再拆', 'REQBOARD_BAD_STATUS')
+        reject('reqboard_decompose 未执行：需求还在立项态，先 reqboard_move 到 brainstorming（方案确认后）再拆', 'REQBOARD_BAD_STATUS')
       }
       if (target.status === 'done' || target.status === 'archived' || target.status === 'canceled') {
         reject('reqboard_decompose 未执行：需求已处于 ' + target.status + '，不能再拆分', 'REQBOARD_BAD_STATUS')
@@ -979,8 +979,14 @@ export function definePlanSubmitTool(deps: ReqboardToolDeps) {
           'REQBOARD_NOT_BOUND_TO_WINDOW',
         )
       }
-      if (target.status === 'draft' || target.status === 'done' || target.status === 'archived' || target.status === 'canceled') {
-        reject('reqboard_plan_submit 未执行：需求处于 ' + target.status + '，不能提交计划', 'REQBOARD_BAD_STATUS')
+      // 流程纪律：计划属于「写计划」（planning）阶段。方案还没谈定就跳去写计划，正是流程要挡的越级。
+      if (target.status !== 'planning') {
+        reject(
+          'reqboard_plan_submit 未执行：需求当前处于 ' + target.status + '，计划只能在 planning（写计划）阶段提交。'
+          + '先把方案谈定 → reqboard_move 到 planning → 再提交计划；'
+          + '已有计划要改，也先回到 planning 重新提交（旧批准自动作废）',
+          'REQBOARD_BAD_STATUS',
+        )
       }
 
       const nowTs = deps.now()

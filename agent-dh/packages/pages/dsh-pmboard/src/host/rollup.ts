@@ -7,7 +7,7 @@
  *    代码级仅人可操作，本模块**不可能**越过（assertReqTransition 会抛 human_gate）。
  *
  * 两条自动推进规则：
- *  R1 接手推进（draft → reviewing）：需求已被绑定窗口接手并继续推进工作
+ *  R1 接手推进（draft → brainstorming）：需求已被绑定窗口接手并继续推进工作
  *     （hook 观察到该窗口出现直接人类消息）→ 立项完成，进入评审。触发在
  *     rollup-hook.ts（唯一信号源是会话事件，不在本模块）。
  *  R2 实施完成（implementing → accepting）：需求处于实施态、且其全部未取消任务
@@ -62,7 +62,7 @@ function advance(
 }
 
 /**
- * R1 接手推进：需求处于 draft 且已被某窗口接手工作 → reviewing。
+ * R1 接手推进：需求处于 draft 且已被某窗口接手工作 → brainstorming。
  * 返回被推进的需求（未推进 → undefined）。窗口绑定校验由调用方负责
  * （rollup-hook 只对本窗口 sourceSessionId 匹配的需求调用）。
  */
@@ -73,7 +73,7 @@ export function applyPickupAdvance(
 ): RequirementRecord | undefined {
   const req = ledger.requirements.find(r => r.id === reqId)
   if (req === undefined || req.status !== 'draft') return undefined
-  return advance(req, 'reviewing', '需求已被绑定窗口接手并继续推进工作，自动进入评审（人工确认方案后进入拆分）', ctx)
+  return advance(req, 'brainstorming', '需求已被绑定窗口接手并继续推进工作，自动进入头脑风暴（探边界 → 写计划 → 待人批准）', ctx)
 }
 
 /**
@@ -95,7 +95,7 @@ export function applyPickupReconcile(ledger: ReqboardLedger, ctx: RollupContext)
   for (const req of ledger.requirements) {
     if (req.status !== 'draft' || !bound.has(req.id)) continue
     advanced.push(
-      advance(req, 'reviewing', '启动对账：该需求已由窗口立项并接手，自动提交评审（后续由窗口按里程碑自行推进）', ctx),
+      advance(req, 'brainstorming', '启动对账：该需求已由窗口立项并接手，自动进入头脑风暴（后续由窗口按里程碑自行推进）', ctx),
     )
   }
   return advanced
@@ -103,7 +103,7 @@ export function applyPickupReconcile(ledger: ReqboardLedger, ctx: RollupContext)
 
 /**
  * 任务驱动的派生推进（R2/R3/R4）—— 让需求跟着任务事实自己走，不需要人点中间步骤：
- *  R3 reviewing + 已有任务（拆分结果落库）        → decomposing
+ *  R3 planning + 已有任务（已批准的计划落库）        → decomposing
  *  R4 decomposing + 有任务已进入执行（非 todo）    → implementing
  *  R2 implementing + 全部未取消任务 done（≥1 个）  → accepting
  * 一次调用内循环至稳定（上限 3 步/需求），使「拆分+全部完成」这类跨越在一次 rollup 内收敛。
@@ -117,14 +117,14 @@ export function applyTaskRollup(
   const advanced: RequirementRecord[] = []
   for (const req of ledger.requirements) {
     if (onlyReqId !== undefined && req.id !== onlyReqId) continue
-    if (req.status !== 'reviewing' && req.status !== 'decomposing' && req.status !== 'implementing') continue
+    if (req.status !== 'planning' && req.status !== 'decomposing' && req.status !== 'implementing') continue
     const before = req.status
     for (let step = 0; step < 3; step++) {
       const tasks = activeTasksOf(ledger, req.id)
       if (tasks.length === 0) break
-      if (req.status === 'reviewing') {
-        // 拆分结果落库 = 方案已过、进入拆分（闸门已按用户裁定放开为派生推进）
-        advance(req, 'decomposing', `已落库 ${tasks.length} 个任务，自动进入拆分`, ctx)
+      if (req.status === 'planning') {
+        // 任务能落库 ⇔ 计划已获人批准（decompose 的代码级前置条件）→ 进入拆分态
+        advance(req, 'decomposing', `已按批准的计划落库 ${tasks.length} 个任务，自动进入拆分`, ctx)
         continue
       }
       if (req.status === 'decomposing') {

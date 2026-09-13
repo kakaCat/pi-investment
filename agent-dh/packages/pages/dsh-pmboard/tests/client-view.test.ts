@@ -151,8 +151,8 @@ describe('toReqCards', () => {
 // -- 需求详情 -------------------------------------------------------------
 
 describe('buildReqDetail', () => {
-  it('renders title, status, and gate hint for reviewing', () => {
-    const req = makeReq({ id: 'REQ-000001', status: 'reviewing', title: '评审需求' })
+  it('renders title, status, and gate hint for brainstorming', () => {
+    const req = makeReq({ id: 'REQ-000001', status: 'brainstorming', title: '评审需求' })
     const html = buildReqDetail(req, [])
     expect(html).toContain('评审需求')
     expect(html).toContain('data-detail-req="REQ-000001"')
@@ -338,12 +338,12 @@ describe('窗口关联可见性', () => {
   it('draft 需求给出「提交评审」人工入口（自动推进之外的兜底）', () => {
     const html = buildReqDetail(makeReq({ status: 'draft' }), [])
     expect(html).toContain('data-action="move-req"')
-    expect(html).toContain('data-to="reviewing"')
+    expect(html).toContain('data-to="brainstorming"')
   })
 })
 describe('评审态人工回退口', () => {
-  it('reviewing 详情同时给出「确认方案」与「退回立项」', () => {
-    const html = buildReqDetail(makeReq({ status: 'reviewing' }), [])
+  it('brainstorming 详情同时给出「确认方案」与「退回立项」', () => {
+    const html = buildReqDetail(makeReq({ status: 'brainstorming' }), [])
     expect(html).toContain('data-to="decomposing"')
     expect(html).toContain('data-to="draft"')
   })
@@ -352,17 +352,18 @@ describe('泳道卡面操作按钮（不进详情页即可推进）', () => {
   const actionsOf = (status: RequirementStatus): string =>
     buildBoard(makeState({ requirements: [makeReq({ status })] }))
 
-  it('draft 卡面给「提交评审」并带 data-id（卡面直连 move-req）', () => {
+  it('draft 卡面给「开始头脑风暴」并带 data-id（卡面直连 move-req）', () => {
     const html = actionsOf('draft')
     expect(html).toContain('dsh-pm-card-actions')
     expect(html).toContain('data-action="move-req"')
-    expect(html).toContain('data-to="reviewing"')
+    expect(html).toContain('data-to="brainstorming"')
     expect(html).toMatch(/data-id="REQ-\d{6}"/)
-    expect(html).toContain('提交评审')
+    expect(html).toContain('开始头脑风暴')
   })
 
-  it('每个状态给出对应人工动作：确认方案 / 确认拆分 / 提交验收 / 验收通过 / 归档', () => {
-    expect(actionsOf('reviewing')).toContain('data-to="decomposing"')
+  it('每个状态给出对应动作：写计划 / 落库拆分 / 开始执行 / 提交验收 / 验收通过 / 归档', () => {
+    expect(actionsOf('brainstorming')).toContain('data-to="planning"') // 头脑风暴 → 写计划
+    expect(actionsOf('planning')).toContain('data-to="decomposing"') // 写计划 → 落库拆分
     expect(actionsOf('decomposing')).toContain('data-to="implementing"')
     expect(actionsOf('implementing')).toContain('data-to="accepting"')
     expect(actionsOf('accepting')).toContain('data-to="done"')
@@ -400,7 +401,7 @@ const HOUR = 3600_000
 describe('需求时间线（各状态进入时间 + 停留时长）', () => {
   const hist = [
     { status: 'draft', at: T0, by: { kind: 'human' as const } },
-    { status: 'reviewing', at: T0 + HOUR, by: { kind: 'system' as const } },
+    { status: 'brainstorming', at: T0 + HOUR, by: { kind: 'system' as const } },
     { status: 'decomposing', at: T0 + 3 * HOUR, by: { kind: 'agent' as const, sessionId: 'session-1cee2467-x' } },
   ]
 
@@ -412,25 +413,25 @@ describe('需求时间线（各状态进入时间 + 停留时长）', () => {
     expect(html).toContain('已停留 2 小时 0 分')
   })
 
-  it('详情页时间线：7 个里程碑齐全、未到达显「—」、窗口码与停留时长可见', () => {
+  it('详情页时间线：8 个里程碑齐全（含头脑风暴/写计划）、未到达显「—」、窗口码与停留时长可见', () => {
     const req = makeReq({ status: 'decomposing', statusHistory: hist })
     const html = buildReqDetail(req, [], T0 + 5 * HOUR)
     expect(html).toContain('dsh-pm-timeline')
-    for (const label of ['立项', '评审', '拆分', '实施', '验收', '完成', '归档']) {
+    for (const label of ['立项', '头脑风暴', '写计划', '拆分', '执行', '验收', '完成', '归档']) {
       expect(html).toContain(label)
     }
     expect(html).toContain('dsh-pm-tl-row pending') // 未到达的里程碑
-    expect(html).toContain('停留 2 小时 0 分') // draft → reviewing 段
+    expect(html).toContain('停留 2 小时 0 分') // draft → brainstorming 段
     expect(html).toContain('w-1cee2467') // 操作者窗口码
     expect(html).toContain('至今') // 未完结的需求统计到当前时刻
   })
 
   it('回填事件显式标注「回填」（不把推导值伪装成原始记录）', () => {
     const req = makeReq({
-      status: 'reviewing',
+      status: 'brainstorming',
       statusHistory: [
         { status: 'draft', at: T0, by: { kind: 'human' }, inferred: true },
-        { status: 'reviewing', at: T0 + HOUR, by: { kind: 'system' }, inferred: true },
+        { status: 'brainstorming', at: T0 + HOUR, by: { kind: 'system' }, inferred: true },
       ],
     })
     expect(buildReqDetail(req, [], T0 + 2 * HOUR)).toContain('回填')
@@ -441,10 +442,10 @@ describe('需求时间线（各状态进入时间 + 停留时长）', () => {
     const html = buildReqDetail(req, [], T0 + HOUR)
     expect(html).toContain('dsh-pm-timeline')
     // 7 个里程碑 - 已知 2 个（立项/实施）= 5 个未到达
-    expect(html.match(/dsh-pm-tl-row pending/g)?.length).toBe(5)
+    expect(html.match(/dsh-pm-tl-row pending/g)?.length).toBe(6) // 8 个里程碑 - 已知 2 个（立项/执行）
     expect(html).toContain('回填')
     // 评审/拆分等中间态必须是「—」，不得按时间戳插值编造出精确时间
-    expect(html).toContain('data-status="reviewing"><span class="dsh-pm-tl-label">评审</span><span class="dsh-pm-tl-time">—</span>')
+    expect(html).toContain('data-status="brainstorming"><span class="dsh-pm-tl-label">头脑风暴</span><span class="dsh-pm-tl-time">—</span>')
     expect(html).toContain('data-status="decomposing"><span class="dsh-pm-tl-label">拆分</span><span class="dsh-pm-tl-time">—</span>')
   })
 
@@ -472,7 +473,7 @@ describe('甘特图与任务页（拆分可视化）', () => {
       status: 'implementing',
       statusHistory: [
         { status: 'draft', at: T0, by: { kind: 'human' } },
-        { status: 'reviewing', at: T0 + HOUR, by: { kind: 'system' } },
+        { status: 'brainstorming', at: T0 + HOUR, by: { kind: 'system' } },
         { status: 'decomposing', at: T0 + 2 * HOUR, by: { kind: 'agent' } },
         { status: 'implementing', at: T0 + 3 * HOUR, by: { kind: 'system' } },
       ],
@@ -556,7 +557,7 @@ describe('实施计划卡（plan mode）', () => {
   }
 
   it('未提交计划 → 说明计划模式与前置条件（不是空白）', () => {
-    const html = buildReqDetail(makeReq({ status: 'reviewing' }), [], T0)
+    const html = buildReqDetail(makeReq({ status: 'brainstorming' }), [], T0)
     expect(html).toContain('实施计划（plan mode）')
     expect(html).toContain('reqboard_plan_submit')
     expect(html).toContain('reqboard_decompose')
@@ -564,7 +565,7 @@ describe('实施计划卡（plan mode）', () => {
   })
 
   it('待批准 → 状态徽章 + 路径 + 任务表 + 验收标准 + 人可批准/退回；卡面有「计划待批」', () => {
-    const req = makeReq({ id: 'REQ-abc123', status: 'reviewing', plan: basePlan })
+    const req = makeReq({ id: 'REQ-abc123', status: 'brainstorming', plan: basePlan })
     const detail = buildReqDetail(req, [], T0)
     expect(detail).toContain('data-state="pending"')
     expect(detail).toContain('docs/requirements/REQ-abc123/plan.md')
@@ -591,7 +592,7 @@ describe('实施计划卡（plan mode）', () => {
   it('被退回 → 退回时间 + 理由原样展示；卡面有「计划被退」', () => {
     const req = makeReq({
       id: 'REQ-abc123',
-      status: 'reviewing',
+      status: 'brainstorming',
       plan: { ...basePlan, rejectedAt: T0 + HOUR, rejectedReason: '验收标准太虚，重写' },
     })
     const detail = buildReqDetail(req, [], T0 + 2 * HOUR)

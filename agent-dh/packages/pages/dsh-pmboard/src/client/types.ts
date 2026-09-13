@@ -8,7 +8,7 @@
 // -- 需求 -----------------------------------------------------------------
 
 export type RequirementStatus =
-  | 'draft' | 'reviewing' | 'decomposing' | 'implementing'
+  | 'draft' | 'brainstorming' | 'planning' | 'decomposing' | 'implementing'
   | 'accepting' | 'done' | 'archived' | 'canceled'
 
 export type RequirementCategory = 'feature' | 'bug' | 'doc' | 'refactor' | 'spike' | 'chore'

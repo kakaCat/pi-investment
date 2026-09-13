@@ -65,7 +65,7 @@ describe('isWindowBound', () => {
   it('triage 锚点：confirm 产出仍 open 的 req → bound（bind 场景）', () => {
     const l: ReqboardLedger = {
       ...emptyLedger(),
-      requirements: [req({ id: 'REQ-000002', sourceSessionId: 'other', status: 'reviewing' })],
+      requirements: [req({ id: 'REQ-000002', sourceSessionId: 'other', status: 'brainstorming' })],
       triages: [tri({ sessionId: W, status: 'confirmed', resultRequirementId: 'REQ-000002', resultRequirementIds: ['REQ-000002'] })],
     }
     expect(isWindowBound(l, W)).toBe(true)
@@ -184,11 +184,11 @@ describe('boundSectionText（绑定窗口推进纪律）', () => {
   it('已绑定窗口 → 注入需求清单与推进纪律（窗口不再等人点按钮）', () => {
     const l: ReqboardLedger = {
       ...emptyLedger(),
-      requirements: [req({ id: 'REQ-abc123', title: '修卡片', status: 'reviewing', sourceSessionId: W })],
+      requirements: [req({ id: 'REQ-abc123', title: '修卡片', status: 'brainstorming', sourceSessionId: W })],
     }
     const text = boundSectionText(l, { agent: { id: W } })
     expect(text).toContain('REQ-abc123')
-    expect(text).toContain('reviewing')
+    expect(text).toContain('brainstorming')
     expect(text).toContain('reqboard_move')
     expect(text).toContain('取消需求')
   })

@@ -35,7 +35,7 @@ beforeEach(() => {
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 
-async function seed(status: RequirementStatus = 'reviewing'): Promise<RequirementRecord> {
+async function seed(status: RequirementStatus = 'planning'): Promise<RequirementRecord> {
   const r = {
     id: 'REQ-abc123', title: '看板需求', description: '', status, blocked: false,
     sourceSessionId: W, comments: [], version: 1, createdAt: 1, updatedAt: 1,
@@ -85,13 +85,13 @@ async function post(url: string, body: unknown) {
 
 describe('计划闸门（拆分前必须先有计划且获批）', () => {
   it('未提交计划 → 拆分被拒（REQBOARD_PLAN_NOT_APPROVED）', async () => {
-    await seed('reviewing')
+    await seed('planning')
     await expect(run(decompose, {})).rejects.toThrow(/REQBOARD_PLAN_NOT_APPROVED/)
     expect(store.snapshot().tasks).toHaveLength(0)
   })
 
   it('已提交但未批准 → 仍被拒；落库内容为空', async () => {
-    await seed('reviewing')
+    await seed('planning')
     const out = await submitPlan()
     expect(out.plan_status).toBe('pending_approval')
     expect(out.task_count).toBe(2)
@@ -105,7 +105,7 @@ describe('计划闸门（拆分前必须先有计划且获批）', () => {
   })
 
   it('人批准后 → 落库的正是批准的那张任务表（key 映射成 id、依赖成链、需求自动进拆分态）', async () => {
-    await seed('reviewing')
+    await seed('planning')
     await submitPlan()
     const approved = await post('/req/plan/approve', { id: 'REQ-abc123' })
     expect(approved.statusCode).toBe(200)
@@ -122,7 +122,7 @@ describe('计划闸门（拆分前必须先有计划且获批）', () => {
   })
 
   it('传与批准计划不一致的 tasks → 拒绝（防「批了 A 落库 B」）', async () => {
-    await seed('reviewing')
+    await seed('planning')
     await submitPlan()
     await post('/req/plan/approve', { id: 'REQ-abc123' })
     await expect(
@@ -132,7 +132,7 @@ describe('计划闸门（拆分前必须先有计划且获批）', () => {
   })
 
   it('人退回（附理由）→ 不能拆；重新提交会作废旧批准', async () => {
-    await seed('reviewing')
+    await seed('planning')
     await submitPlan()
     await post('/req/plan/approve', { id: 'REQ-abc123' })
     const rejected = await post('/req/plan/reject', { id: 'REQ-abc123', reason: '验收标准太虚，重写' })
@@ -151,7 +151,7 @@ describe('计划闸门（拆分前必须先有计划且获批）', () => {
   })
 
   it('退回必须给理由；没有计划的需求不能被裁决', async () => {
-    await seed('reviewing')
+    await seed('planning')
     const noPlan = await post('/req/plan/approve', { id: 'REQ-abc123' })
     expect(noPlan.statusCode).toBe(404) // 还没有计划，无从裁决
     await submitPlan()
@@ -161,7 +161,7 @@ describe('计划闸门（拆分前必须先有计划且获批）', () => {
   })
 
   it('计划本身的结构校验：key 重复 / 依赖悬空 / 空标题一律拒绝', async () => {
-    await seed('reviewing')
+    await seed('planning')
     await expect(submitPlan([{ key: 'a', title: 'A' }, { key: 'a', title: 'B' }])).rejects.toThrow(/key 重复/)
     await expect(submitPlan([{ key: 'a', title: 'A', depends_on: ['nope'] }])).rejects.toThrow(/不存在的 key/)
     await expect(submitPlan([{ key: 'a', title: '' }])).rejects.toThrow()
@@ -169,14 +169,14 @@ describe('计划闸门（拆分前必须先有计划且获批）', () => {
   })
 
   it('越权：不能给别的窗口的需求提交计划', async () => {
-    await seed('reviewing')
+    await seed('planning')
     await expect(run(planTool, { path: 'p.md', summary: 's', tasks: PLAN_TASKS }, 'session-other')).rejects.toThrow(/REQBOARD_NO_BOUND_REQ/)
   })
 })
 
 describe('批准后的执行链（计划 → 任务卡 → 自动验收）', () => {
   it('任务按计划逐项 done 后，需求自动进验收', async () => {
-    await seed('reviewing')
+    await seed('planning')
     await submitPlan()
     await post('/req/plan/approve', { id: 'REQ-abc123' })
     const out = await run(decompose, {})

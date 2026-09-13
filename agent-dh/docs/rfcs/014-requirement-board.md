@@ -90,6 +90,28 @@ draft → reviewing → analyzing → implementing → testing → verifying →
 - **第二层人工验收（verifying 状态）**：agent 验收全过后，人做实际功能测试，点「验收通过」才进 merging。
 - 两层都过才允许合并——防止"agent 自己验收自己"的单层风险，也不让人做本可由机器做的机械验收。
 
+> **2026-09-13 修订（用户要求「需求从创建开始就有流程：brainstorming → writing-plans →
+> executing-plans 的中间一部分」）**：需求状态机就是这套流程本身，**状态即阶段**——
+> 原先 `reviewing`（评审）到 `decomposing`（拆分）之间缺了 writing-plans 这一段，
+> 导致"方案谈定"和"开始拆卡"之间没有可见的落点，计划模式只好挂在旧状态上。
+> 现行主链 8 态（泳道一条条对应，代码为准 `shared/protocol.ts`）：
+>
+> | 状态 | 阶段 | 对应 superpowers |
+> |---|---|---|
+> | `draft` | 立项 | 想法落卡 |
+> | `brainstorming`（原 reviewing，旧名自动迁移） | 头脑风暴 | brainstorming |
+> | `planning`（新） | 写计划 | writing-plans（计划在此提交，待人批准） |
+> | `decomposing` | 拆分（落库 DAG） | 任务卡落库 |
+> | `implementing` | 执行 | executing-plans |
+> | `accepting` | 验收 | verification-before-completion |
+> | `done` / `archived` | 完成 / 归档 | finishing-a-development-branch |
+>
+> - 转移表：`brainstorming → planning → decomposing`（原 `brainstorming → decomposing` 直通已移除），
+>   `decomposing → planning` 可退回重写计划；
+> - **计划只能在 planning 阶段提交**（越级提交返回 `REQBOARD_BAD_STATUS`）；
+> - 老台账的 `reviewing` 在 Store 加载时自动迁移为 `brainstorming`（含时间线事件，迁移即真相）；
+> - 「计划待批」仍是 planning 的子状态（`plan.approvedAt` 未写入），看板用卡面 chip 表达，不额外占泳道。
+
 ## 4. 任务状态机
 
 复用 taskboard 五态（已验证）：`backlog / todo / in_progress / in_review / done` + `canceled`，转移表照抄。新增字段：

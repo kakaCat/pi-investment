@@ -18,6 +18,23 @@ whenToUse: 需求立项后要开工（评审态）、用户问"怎么拆/怎么�
 - 批准 = 人在项目看板点「批准计划」；退回 = 人给理由打回，按理由重写后再提交。
 - **方案要改 → 重新 `reqboard_plan_submit`**：重新提交会自动作废旧批准（改过的方案不能沿用上一轮的点头）。
 
+## 0.5 流水线：状态就是阶段（从立项一路走到交付）
+
+需求的生命周期本身就是这套流程，看板泳道一条条对应：
+
+| 状态 | 阶段 | 谁推进 | 做什么 |
+|---|---|---|---|
+| `draft` | 立项 | 人（两问弹框）/ 看板建卡 | 想法落成需求卡 |
+| `brainstorming` | 头脑风暴 | 窗口接手自动进入；窗口自行推进 | 探意图/边界/方案，把方向对清楚（**不写代码**） |
+| `planning` | 写计划 | `reqboard_move` → planning，随后提交计划 | 写计划文档 + 任务表，`reqboard_plan_submit` → 泳道卡面「计划待批」 |
+| `decomposing` | 拆分 | 计划获人批准后 `reqboard_decompose` 落库 → 自动 | 把批准的任务表写成任务卡（DAG） |
+| `implementing` | 执行 | 任务开工自动进入；`reqboard_task_move` 逐项推进 | 按计划一步步做，每步留证据 |
+| `accepting` | 验收 | 任务全 done 自动进入 | 对照计划的验收标准自检 |
+| `done` / `archived` | 完成 / 归档 | 窗口可自报完成；归档仅人 | 交付与归集文档 |
+
+铁律：**别越级**。还在 `brainstorming` 就提交计划会被代码级拒绝（`REQBOARD_BAD_STATUS`）；
+没批准的计划拆不了（`REQBOARD_PLAN_NOT_APPROVED`）。
+
 ## 1. 先分类，并且说出来
 
 动手前先判定这活属于哪一类，并**用一句话告诉用户你按哪条路走**（让他能一句话推翻）：
@@ -49,6 +66,8 @@ whenToUse: 需求立项后要开工（评审态）、用户问"怎么拆/怎么�
 **依赖**：用计划内的 `key` 引用（`depends_on`），形成 DAG；不要用"第 3 步之后"这类描述性顺序。
 
 ## 3. 提交给人批
+
+先把需求推进到 `planning`（`reqboard_move({ to: 'planning', reason: '<方案已谈定>' })`）——计划属于「写计划」阶段，不越级。
 
 ```
 reqboard_plan_submit({
@@ -99,7 +118,7 @@ reqboard_decompose({})   // 不传 tasks：直接落库已批准的计划
 
 | superpowers | 本项目落地 |
 |---|---|
-| brainstorming（HARD GATE：先批准再动手） | 需求 `reviewing` 态 + 本技能第 0 节；方向在聊天里先跟用户对一遍 |
+| brainstorming（HARD GATE：先批准再动手） | 需求 `brainstorming` 态 + 本技能第 0 节；方向在聊天里先跟用户对一遍 |
 | writing-plans（计划文档 + bite-sized 任务） | `reqboard_plan_submit`（文档 + 结构化任务表） |
 | 人批准计划 | 看板「**批准计划**」——全流程唯一需要人点头的地方 |
 | executing-plans / subagent-driven-development | `reqboard_decompose` 落库 → `reqboard_task_move` 逐任务推进（depends_on 即派发顺序） |

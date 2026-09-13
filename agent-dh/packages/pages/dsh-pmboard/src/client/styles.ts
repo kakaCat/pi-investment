@@ -83,7 +83,8 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-lane-head { display: flex; align-items: center; gap: 6px; padding: 2px 4px 6px; }
 .dsh-pm-lane-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .dsh-pm-lane-dot[data-status="draft"] { background: #9aa4b2; }
-.dsh-pm-lane-dot[data-status="reviewing"] { background: #f0a020; }
+.dsh-pm-lane-dot[data-status="brainstorming"] { background: #f0a020; }
+.dsh-pm-lane-dot[data-status="planning"] { background: #c2255c; }
 .dsh-pm-lane-dot[data-status="decomposing"] { background: #8e44ad; }
 .dsh-pm-lane-dot[data-status="implementing"] { background: #4a7dff; }
 .dsh-pm-lane-dot[data-status="accepting"] { background: #17a2b8; }
@@ -322,7 +323,8 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 }
 .dsh-pm-tl-total { font-size: 11px; color: var(--dsw-text-secondary, #999); padding-left: 10px; }
 .dsh-pm-tl-row[data-status="draft"], .dsh-pm-tl-row[data-status="todo"] { border-left-color: #9aa4b2; }
-.dsh-pm-tl-row[data-status="reviewing"], .dsh-pm-tl-row[data-status="testing"] { border-left-color: #f0a020; }
+.dsh-pm-tl-row[data-status="brainstorming"], .dsh-pm-tl-row[data-status="testing"] { border-left-color: #f0a020; }
+.dsh-pm-tl-row[data-status="planning"] { border-left-color: #c2255c; }
 .dsh-pm-tl-row[data-status="decomposing"], .dsh-pm-tl-row[data-status="integrating"] { border-left-color: #8e44ad; }
 .dsh-pm-tl-row[data-status="implementing"], .dsh-pm-tl-row[data-status="in_progress"] { border-left-color: #4a7dff; }
 .dsh-pm-tl-row[data-status="accepting"], .dsh-pm-tl-row[data-status="in_review"] { border-left-color: #17a2b8; }

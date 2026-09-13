@@ -53,7 +53,8 @@ describe('路由层自动推进（R2 实施完成 → 验收）', () => {
     // 建需求 → 手工推进到 implementing（人工闸门由 actor=human 满足）
     const created = await post(handler, '/req/create', { title: '自动推进验证' })
     const reqId = created.payload.data.id
-    await post(handler, '/req/move', { id: reqId, to: 'reviewing', actor: 'human' })
+    await post(handler, '/req/move', { id: reqId, to: 'brainstorming', actor: 'human' })
+    await post(handler, '/req/move', { id: reqId, to: 'planning', actor: 'human' })
     await post(handler, '/req/move', { id: reqId, to: 'decomposing', actor: 'human' })
     await post(handler, '/req/move', { id: reqId, to: 'implementing', actor: 'human' })
 
@@ -87,7 +88,7 @@ describe('路由层自动推进（R2 实施完成 → 验收）', () => {
     const handler = createReqboardHandler({ store, now: () => Date.now() })
     const created = await post(handler, '/req/create', { title: '闸门验证' })
     const reqId = created.payload.data.id
-    for (const to of ['reviewing', 'decomposing', 'implementing']) {
+    for (const to of ['brainstorming', 'planning', 'decomposing', 'implementing']) {
       await post(handler, '/req/move', { id: reqId, to, actor: 'human' })
     }
     const t = await post(handler, '/task/create', { requirementId: reqId, title: '唯一任务', phase: 'implement', side: 'doc', dependsOn: [], scope: { apis: [], tables: [], files: [] } })

@@ -56,7 +56,7 @@ export interface CaptureHookDeps {
   now: () => number
   /**
    * 接手推进回调（R1）：**已绑定**窗口出现直接人类消息 = 该窗口在继续推进其需求 →
-   * 调用方把它绑定的 draft 需求推进到 reviewing。可选（未注入 = 关闭该自动推进）。
+   * 调用方把它绑定的 draft 需求推进到 brainstorming。可选（未注入 = 关闭该自动推进）。
    */
   onBoundWindowActivity?: (windowKey: string, text: string) => void
   logger?: CaptureHookLogger

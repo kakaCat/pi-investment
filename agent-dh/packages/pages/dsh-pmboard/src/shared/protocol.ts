@@ -71,27 +71,41 @@ export function milestoneAt(record: { statusHistory?: StatusEvent[] }, status: s
 // Requirement 状态机（RFC 014 §3）
 // ---------------------------------------------------------------------------
 
+/**
+ * 需求流水线 = superpowers 的三段式落成状态（2026-09-13 用户要求「需求从创建开始就有流程」）：
+ *   立项 → 头脑风暴（brainstorming）→ 写计划（writing-plans）→ 拆分（落库 DAG）
+ *        → 执行（executing-plans）→ 验收 → 完成 → 归档
+ * 「计划待批」不是独立状态：它是 planning 的子状态（plan.approvedAt 未写入），看板用
+ * 卡面 chip 表达——批准是拆分的前置闸门，不额外占一条泳道。
+ */
 export type RequirementStatus =
-  | 'draft'        // 立项
-  | 'reviewing'    // 评审（方案共创：agent 写 proposal，人机交流，人确认）
-  | 'decomposing'  // 拆分（LLM 拆 DAG，人确认落库）
-  | 'implementing' // 进行中（hook 驱动串行调度）
-  | 'accepting'    // 验收（二层：agent 验收证据闸 → 人工验收）
-  | 'done'         // 完成（归档清单齐）
-  | 'archived'     // 归档（文档合并进项目文档）
+  | 'draft'         // 立项：想法落成需求卡
+  | 'brainstorming' // 头脑风暴：探索意图/边界/方案（原 reviewing）
+  | 'planning'      // 写计划：产出实施计划（文档 + 任务表），提交待人批准
+  | 'decomposing'   // 拆分：计划获批后落库任务 DAG
+  | 'implementing'  // 执行：按任务卡逐项执行（executing-plans）
+  | 'accepting'     // 验收
+  | 'done'          // 完成
+  | 'archived'      // 归档
   | 'canceled'
 
 export const MAIN_REQ_STATUSES: readonly RequirementStatus[] = [
-  'draft', 'reviewing', 'decomposing', 'implementing', 'accepting', 'done', 'archived',
+  'draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'done', 'archived',
 ]
+
+/** 旧状态名迁移（2026-09-13：reviewing → brainstorming）。 */
+export const LEGACY_REQ_STATUS_ALIASES: Readonly<Record<string, RequirementStatus>> = {
+  reviewing: 'brainstorming',
+}
 
 export const ALL_REQ_STATUSES: readonly RequirementStatus[] = [...MAIN_REQ_STATUSES, 'canceled']
 
 /** 需求状态合法转移表。 */
 export const REQ_TRANSITIONS: Readonly<Record<RequirementStatus, readonly RequirementStatus[]>> = {
-  draft: ['reviewing', 'canceled'],
-  reviewing: ['decomposing', 'draft', 'canceled'],
-  decomposing: ['implementing', 'reviewing', 'canceled'],
+  draft: ['brainstorming', 'canceled'],
+  brainstorming: ['planning', 'draft', 'canceled'],
+  planning: ['decomposing', 'brainstorming', 'canceled'],
+  decomposing: ['implementing', 'planning', 'canceled'],
   implementing: ['accepting', 'canceled'],
   accepting: ['done', 'implementing', 'canceled'],
   done: ['archived'],
@@ -108,7 +122,7 @@ export const HUMAN_ONLY_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
   // 验收通过」都是人工闸门 → 每个需求都要人点两三次，看板实质静止）。
   // 现在仅保留**终态与破坏性动作**为人工闸门，在途推理由窗口 agent 自行推进：
   'draft>canceled',
-  'reviewing>canceled',
+  'brainstorming>canceled',
   'decomposing>canceled',
   'implementing>canceled',
   'accepting>canceled', // 取消需求（破坏性）
@@ -118,15 +132,15 @@ export const HUMAN_ONLY_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
 
 /**
  * system（rollup）允许自动推进的转移白名单：其余转移 system 一律不可发起。
- *  - draft>reviewing       需求被窗口接手开工（有直接人类消息）的接手推进；
+ *  - draft>brainstorming       需求被窗口接手开工（有直接人类消息）的接手推进；
  *  - implementing>accepting 全部实施任务 done 的 rollup。
- * 人工闸门（reviewing>decomposing / decomposing>implementing / accepting>done /
+ * 人工闸门（brainstorming>decomposing / decomposing>implementing / accepting>done /
  * done>archived）永不在本白名单内 —— 自动推进不可能越过人工闸门。
  */
 export const SYSTEM_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
-  'draft>reviewing', // 窗口接手开工 → 进入评审（方案共创）
-  'reviewing>decomposing', // 拆分结果落库（任务存在）→ 自动进入拆分态
-  'decomposing>implementing', // 任务开始执行 → 自动进入实施
+  'draft>brainstorming', // 窗口接手开工 → 进入头脑风暴（方案共创）
+  'planning>decomposing', // 计划已批准并落库任务 → 自动进入拆分态
+  'decomposing>implementing', // 任务开始执行 → 自动进入执行
   'implementing>accepting', // 全部实施任务 done 的 rollup
 ])
 
@@ -636,8 +650,8 @@ export function newTriageId(rand: () => number = Math.random): string {
 
 /**
  * 从评论正文解析转移目标状态。覆盖历史上的三种留痕格式：
- *   `[自动推进] draft → reviewing：…`（rollup）
- *   `[窗口推进] reviewing → decomposing：…`（reqboard_move 工具）
+ *   `[自动推进] draft → brainstorming：…`（rollup）
+ *   `[窗口推进] brainstorming → decomposing：…`（reqboard_move 工具）
  *   `[状态] decomposing ← 转移说明：…`（需求路由 move，箭头指向新状态）
  *   `[状态] → in_progress：…`（任务路由 move）
  * 解析不出或状态非法 → undefined（宁缺毋滥，绝不猜）。
@@ -696,6 +710,27 @@ function backfill(
 /** 需求时间线回填（已有事件 → 返回 undefined 不动）。 */
 export function backfillRequirementHistory(req: RequirementRecord): StatusEvent[] | undefined {
   return backfill(req, 'draft', ALL_REQ_STATUSES as readonly string[], req.statusHistory)
+}
+
+/**
+ * 旧状态名迁移（2026-09-13）：reviewing → brainstorming（含时间线事件）。
+ * 迁移只改名字，不改语义；返回 true 表示发生过迁移（调用方据此决定是否落盘）。
+ */
+export function migrateRequirementStatusNames(req: RequirementRecord): boolean {
+  let changed = false
+  const alias = LEGACY_REQ_STATUS_ALIASES[req.status as string]
+  if (alias !== undefined) {
+    req.status = alias
+    changed = true
+  }
+  for (const e of req.statusHistory ?? []) {
+    const mapped = LEGACY_REQ_STATUS_ALIASES[e.status]
+    if (mapped !== undefined) {
+      e.status = mapped
+      changed = true
+    }
+  }
+  return changed
 }
 
 /** 任务时间线回填（已有事件 → 返回 undefined 不动）。 */

@@ -26,7 +26,7 @@ import type { ReqboardLedger, RequirementRecord, TriageRecord } from '../shared/
 
 /** 仍处进行中的需求状态（bound 判定用）；done/archived/canceled 视为已结束。 */
 const OPEN_REQ_STATUSES: ReadonlySet<string> = new Set([
-  'draft', 'reviewing', 'decomposing', 'implementing', 'accepting',
+  'draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting',
 ])
 
 /** 从组装 context 提取窗口键：agent.id（'session-<uuid>'）优先，scope 兜底。 */
@@ -159,6 +159,11 @@ export function boundSectionText(ledger: ReqboardLedger, context: unknown): stri
     '',
     '本窗口名下有进行中的需求：',
     ...open.map(r => `- ${r.id}《${r.title}》当前状态：${r.status}`),
+    '',
+    '流水线（状态就是阶段，从立项一路走到交付）：',
+    '- draft 立项 → brainstorming 头脑风暴（探边界/方案）→ planning 写计划 →',
+    '  decomposing 拆分（落库任务 DAG）→ implementing 执行 → accepting 验收 → done 完成；',
+    '- 方案谈定 → reqboard_move 到 planning（写计划属于这个阶段）；',
     '',
     '计划模式（拆分的前置闸门 · 唯一需要人点头的地方）：',
     '- 评审阶段先把方案写成实施计划 → reqboard_plan_submit（path = 工作区计划文档，',

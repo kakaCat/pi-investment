@@ -49,19 +49,19 @@ describe('recordStatus（状态事件写入）', () => {
     const r = req()
     recordStatus(r, 'draft', 1000, { kind: 'human' }, '创建')
     recordStatus(r, 'draft', 1000, { kind: 'human' }, '创建') // 去重
-    recordStatus(r, 'reviewing', 2000, { kind: 'system' }, '启动对账')
+    recordStatus(r, 'brainstorming', 2000, { kind: 'system' }, '启动对账')
     expect(r.statusHistory).toHaveLength(2)
-    expect(r.statusHistory?.map(e => e.status)).toEqual(['draft', 'reviewing'])
+    expect(r.statusHistory?.map(e => e.status)).toEqual(['draft', 'brainstorming'])
     expect(r.statusHistory?.[0]?.reason).toBe('创建')
-    expect(milestoneAt(r, 'reviewing')).toBe(2000)
+    expect(milestoneAt(r, 'brainstorming')).toBe(2000)
     expect(milestoneAt(r, 'done')).toBeUndefined()
   })
 })
 
 describe('parseTransitionTarget（历史留痕解析）', () => {
   it('识别三种历史格式，拒绝非法状态', () => {
-    expect(parseTransitionTarget('[自动推进] draft → reviewing：启动对账', ALL_REQ_STATUSES)).toBe('reviewing')
-    expect(parseTransitionTarget('[窗口推进] reviewing → decomposing：拆完', ALL_REQ_STATUSES)).toBe('decomposing')
+    expect(parseTransitionTarget('[自动推进] draft → brainstorming：启动对账', ALL_REQ_STATUSES)).toBe('brainstorming')
+    expect(parseTransitionTarget('[窗口推进] brainstorming → decomposing：拆完', ALL_REQ_STATUSES)).toBe('decomposing')
     expect(parseTransitionTarget('[状态] implementing ← 转移说明：看板泳道卡面操作', ALL_REQ_STATUSES)).toBe('implementing')
     expect(parseTransitionTarget('[状态] → in_progress：开工', ALL_TASK_STATUSES)).toBe('in_progress')
     expect(parseTransitionTarget('[会话捕获] 来自会话 session-x', ALL_REQ_STATUSES)).toBeUndefined()
@@ -76,12 +76,12 @@ describe('backfill*（老记录时间线回填）', () => {
       updatedAt: 5000,
       comments: [
         { id: 'c1', body: '[会话捕获] 来自会话 session-x', createdAt: 1000, createdBy: { kind: 'human' } },
-        { id: 'c2', body: '[自动推进] draft → reviewing：启动对账', createdAt: 3000, createdBy: { kind: 'system' } },
+        { id: 'c2', body: '[自动推进] draft → brainstorming：启动对账', createdAt: 3000, createdBy: { kind: 'system' } },
       ],
     })
     const hist = backfillRequirementHistory(r)
     expect(hist).toBeDefined()
-    expect(hist?.map(e => e.status)).toEqual(['draft', 'reviewing', 'implementing'])
+    expect(hist?.map(e => e.status)).toEqual(['draft', 'brainstorming', 'implementing'])
     expect(hist?.every(e => e.inferred === true)).toBe(true)
     expect(hist?.[1]?.at).toBe(3000)
     expect(hist?.[2]?.at).toBe(5000)
@@ -111,8 +111,8 @@ describe('Store 加载迁移（v2 → v3）', () => {
       schemaVersion: 2,
       revision: 7,
       requirements: [{
-        id: 'REQ-abc123', title: '老需求', description: '', status: 'reviewing', blocked: false,
-        comments: [{ id: 'c1', body: '[自动推进] draft → reviewing：启动对账', createdAt: 2000, createdBy: { kind: 'system' } }],
+        id: 'REQ-abc123', title: '老需求', description: '', status: 'brainstorming', blocked: false,
+        comments: [{ id: 'c1', body: '[自动推进] draft → brainstorming：启动对账', createdAt: 2000, createdBy: { kind: 'system' } }],
         version: 2, createdAt: 1000, updatedAt: 2000,
         createdBy: { kind: 'human' }, updatedBy: { kind: 'system' },
       }],
@@ -123,7 +123,7 @@ describe('Store 加载迁移（v2 → v3）', () => {
     const store = new ReqboardStore({ file })
     await store.load()
     const loaded = store.snapshot().requirements[0]
-    expect(loaded.statusHistory?.map(e => e.status)).toEqual(['draft', 'reviewing'])
+    expect(loaded.statusHistory?.map(e => e.status)).toEqual(['draft', 'brainstorming'])
     // 触发一次写盘 → 回填结果持久化（不只是内存态）
     await store.mutate('requirement-updated', (ledger) => {
       ledger.requirements[0].title = '改名'
