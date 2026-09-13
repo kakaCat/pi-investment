@@ -11,7 +11,7 @@ def daemon_process():
     """Start daemon process for testing."""
     # Start daemon
     proc = subprocess.Popen(
-        ["python", "-m", "daemon.server"],
+        ["python", "-m", "infrastructure.daemon.server"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

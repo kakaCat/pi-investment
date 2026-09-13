@@ -19,7 +19,7 @@ async def test_get_stock_info_success():
         "sector": "Technology"
     }
     
-    with patch("daemon.handlers.data_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.data_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         
         result = await get_stock_info(params)
@@ -50,7 +50,7 @@ async def test_get_stock_info_api_error():
 
     params = {"symbol": "INVALID"}
 
-    with patch("daemon.handlers.data_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.data_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.side_effect = Exception("Stock not found")
 
         with pytest.raises(Exception) as exc_info:
@@ -78,7 +78,7 @@ async def test_get_stock_price_success():
         ]
     }
 
-    with patch("daemon.handlers.data_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.data_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
 
         result = await get_stock_price(params)
@@ -116,7 +116,7 @@ async def test_get_stock_fundamentals_success():
         "eps": 6.42
     }
 
-    with patch("daemon.handlers.data_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.data_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
 
         result = await get_stock_fundamentals(params)
@@ -154,7 +154,7 @@ async def test_search_stocks_success():
         "total": 1
     }
 
-    with patch("daemon.handlers.data_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.data_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
 
         result = await search_stocks(params)
@@ -192,7 +192,7 @@ async def test_get_market_data_success():
         "timestamp": "2024-01-15T16:00:00Z"
     }
 
-    with patch("daemon.handlers.data_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.data_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
 
         result = await get_market_data(params)
@@ -215,7 +215,7 @@ async def test_update_stock_data_success():
         "message": "Data update triggered for AAPL"
     }
 
-    with patch("daemon.handlers.data_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.data_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
 
         result = await update_stock_data(params)

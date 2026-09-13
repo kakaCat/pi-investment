@@ -323,9 +323,12 @@ def fill_order(
 
     # ========== 更新持仓 ==========
     if order['action'] == 'buy':
-        _update_position_on_buy(ds, order, fill_price, fill_quantity)
+        # 2026-09-14（w-c8cae280）修**真实缺陷**：原调用多传了一个不存在的 ds，
+        # 而真实签名是 (order, fill_price, fill_quantity, portfolio_repo=None)
+        # → 参数整体错位（order 位收到 ds），必抛 NameError；未定义名检查器抓到。
+        _update_position_on_buy(order, fill_price, fill_quantity, portfolio_repo=portfolio_repo)
     elif order['action'] == 'sell':
-        _update_position_on_sell(ds, order, fill_price, fill_quantity)
+        _update_position_on_sell(order, fill_price, fill_quantity, portfolio_repo=portfolio_repo)
 
     logger.info(
         f"订单成交: order_id={order_id} symbol={order['symbol']} "

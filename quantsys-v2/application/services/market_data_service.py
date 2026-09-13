@@ -36,7 +36,9 @@ class MarketDataService:
     def data_source_manager(self):
         """延迟初始化 DataSourceManager"""
         if self._data_source_manager is None:
-            self._data_source_manager = get_data_source_manager()
+            # 2026-09-14（w-c8cae280）：函数已改名 get_data_provider_manager，此处仍是旧名 → NameError。
+            from adapters.outbound.datasources.manager import get_data_provider_manager
+            self._data_source_manager = get_data_provider_manager()
         return self._data_source_manager
 
     def get_market_margin(self) -> Dict[str, Any]:

@@ -12,7 +12,9 @@ def __get_connection_manager():
     """延迟导入 WebSocket 管理器（避免 FastAPI 环境下导入 flask_socketio 失败）"""
     try:
         from adapters.inbound.api.websocket import get_connection_manager
-        return _get_connection_manager()
+        # 2026-09-14（w-c8cae280）：上面导入的是 get_connection_manager，这里却调用
+        # _get_connection_manager() → NameError；且外层只 catch ImportError，NameError 会直接炸出去。
+        return get_connection_manager()
     except ImportError as e:
         logger.debug(f"WebSocket manager not available (expected in FastAPI-only env): {e}")
         return None

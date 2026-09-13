@@ -386,6 +386,9 @@ def _register_services_hardcoded():
 
     # FactorLayeringService - 依赖 IKlineRepository, IStockRepository, StockPoolService
     from application.services.factor_layering_service import FactorLayeringService
+    # 2026-09-14（w-c8cae280）修**真实缺陷**：IStockRepository 在本闭包内使用却从未导入
+    # → 一旦调用 create_factor_layering_service() 就 NameError（IKlineRepository 已导入，故只此一个漏）。
+    from domain.ports.repository_ports import IStockRepository
     def create_factor_layering_service():
         kline_repo = EnhancedServiceFactory.resolve(IKlineRepository)
         stock_repo = EnhancedServiceFactory.resolve(IStockRepository)

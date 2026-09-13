@@ -41,7 +41,7 @@ class TestStrategyOptimizeCommand:
         )
         assert error is None
 
-    @patch('cli.http_client.HTTPClient')
+    @patch('adapters.inbound.cli.http_client.HTTPClient')
     def test_execute_calls_correct_api_endpoint(self, mock_client_class):
         """测试执行调用正确的 API 端点"""
         mock_client = Mock()
@@ -67,7 +67,7 @@ class TestStrategyOptimizeCommand:
         call_args = mock_client.post.call_args
         assert call_args[0][0] == '/api/strategies/optimize'
 
-    @patch('cli.http_client.HTTPClient')
+    @patch('adapters.inbound.cli.http_client.HTTPClient')
     def test_execute_sends_correct_payload(self, mock_client_class):
         """测试执行发送正确的请求体"""
         mock_client = Mock()
@@ -92,7 +92,7 @@ class TestStrategyOptimizeCommand:
         assert payload['endDate'] == '2024-12-31'
         assert payload['paramRanges'] == {'fast': [5, 10], 'slow': [20, 30]}
 
-    @patch('cli.http_client.HTTPClient')
+    @patch('adapters.inbound.cli.http_client.HTTPClient')
     def test_execute_handles_invalid_json(self, mock_client_class):
         """测试执行处理无效 JSON"""
         cmd = StrategyOptimizeCommand()
@@ -105,7 +105,7 @@ class TestStrategyOptimizeCommand:
         assert result.success is False
         assert 'json' in result.error.lower() or '格式' in result.error
 
-    @patch('cli.http_client.HTTPClient')
+    @patch('adapters.inbound.cli.http_client.HTTPClient')
     def test_execute_handles_api_error(self, mock_client_class):
         """测试执行处理 API 错误"""
         mock_client = Mock()

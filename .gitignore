@@ -85,6 +85,11 @@ check-*.sh
 check_*.py
 # 例外：契约监控校验器是常驻交付物（步3 契约驱动监控，2026-09-11 w-f4aa1f6a），必须入库
 !quantsys-v2/tools/check_data_contracts.py
+# 例外：漂移类守卫是常规套件的闸门（2026-09-14 w-c8cae280），必须入库 ——
+# check_module_paths：字符串模块路径当导入验证（防包搬家后字符串静默失效）
+# check_undefined_names：生产代码未定义名（防 NameError 及"崩在 except 里掩盖真实异常"）
+!quantsys-v2/tools/check_module_paths.py
+!quantsys-v2/tools/check_undefined_names.py
 daily_*.sh
 demo-*.js
 demo-*.py

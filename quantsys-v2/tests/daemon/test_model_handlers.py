@@ -20,7 +20,7 @@ async def test_model_train_success():
         "target": "returns_5d"
     }
     mock_response = {"job_id": "train_job_123", "status": "started", "model_name": "momentum_predictor"}
-    with patch("daemon.handlers.model_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.model_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         result = await model_train(params)
         parsed = json.loads(result)
@@ -45,7 +45,7 @@ async def test_model_train_missing_features():
 async def test_model_predict_success():
     params = {"model_name": "momentum_predictor", "symbols": ["AAPL", "GOOGL"], "date": "2024-01-15"}
     mock_response = {"model_name": "momentum_predictor", "predictions": {"AAPL": 0.025, "GOOGL": 0.018}}
-    with patch("daemon.handlers.model_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.model_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         result = await model_predict(params)
         parsed = json.loads(result)
@@ -63,7 +63,7 @@ async def test_model_predict_missing_symbols():
 async def test_model_evaluate_success():
     params = {"model_name": "momentum_predictor", "test_start": "2024-01-01"}
     mock_response = {"model_name": "momentum_predictor", "metrics": {"accuracy": 0.68, "sharpe_ratio": 1.45}}
-    with patch("daemon.handlers.model_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.model_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         result = await model_evaluate(params)
         parsed = json.loads(result)
@@ -74,7 +74,7 @@ async def test_model_evaluate_success():
 async def test_model_list_success():
     params = {}
     mock_response = {"models": [{"name": "momentum_predictor", "status": "trained"}], "total": 1}
-    with patch("daemon.handlers.model_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.model_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         result = await model_list(params)
         parsed = json.loads(result)
@@ -85,7 +85,7 @@ async def test_model_list_success():
 async def test_model_list_with_status_filter():
     params = {"status": "trained"}
     mock_response = {"models": [{"name": "test"}], "total": 1}
-    with patch("daemon.handlers.model_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.model_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         result = await model_list(params)
         parsed = json.loads(result)
@@ -96,7 +96,7 @@ async def test_model_list_with_status_filter():
 async def test_model_monitor_success():
     params = {"model_name": "momentum_predictor", "start_date": "2024-01-01"}
     mock_response = {"model_name": "momentum_predictor", "metrics": {"prediction_count": 1250, "drift_score": 0.08}}
-    with patch("daemon.handlers.model_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.model_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         result = await model_monitor(params)
         parsed = json.loads(result)
@@ -117,7 +117,7 @@ async def test_model_monitor_with_alerts():
         "model_name": "momentum_predictor",
         "metrics": {"drift_score": 0.25, "alerts": [{"type": "drift_warning", "severity": "medium"}]}
     }
-    with patch("daemon.handlers.model_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.model_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         result = await model_monitor(params)
         parsed = json.loads(result)

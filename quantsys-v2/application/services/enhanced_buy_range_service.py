@@ -43,7 +43,9 @@ class EnhancedBuyRangeService:
 
             self.logger.info(f"增强版买入区间分析: symbol={symbol}, periods={periods}")
 
-            manager: IDataProviderManager = get_data_source_manager()
+            # 2026-09-14（w-c8cae280）：函数已改名 get_data_provider_manager，此处仍用旧名 → NameError。
+            from adapters.outbound.datasources.manager import get_data_provider_manager
+            manager: IDataProviderManager = get_data_provider_manager()
             result = {
                 'symbol': symbol,
                 'update_time': datetime.now().isoformat(),

@@ -27,6 +27,10 @@ from itertools import combinations
 import warnings
 
 from domain.quantlib import BaseCalculator, validate_inputs, timing_decorator
+# 2026-09-14（w-c8cae280）修**真实缺陷**：DependencyError 从未导入，而它被用在
+# 'except ImportError: raise DependencyError(...)' 里 —— 一旦真的缺依赖，
+# 抛出的会是 NameError 而不是「请安装 scikit-learn」，把真实原因掩盖掉。
+from domain.quantlib.exceptions import DependencyError
 from domain.quantlib.exceptions import (
     DataValidationError,
     InsufficientDataError,

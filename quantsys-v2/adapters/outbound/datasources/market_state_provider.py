@@ -18,6 +18,45 @@ INDEX_CODES = ("000300.SH", "000001.SH", "399006.SZ", "000852.SH")
 CACHE_TTL_SEC = 60
 
 
+def _as_rows(res):
+    """把行情/池子结果归一为 dict 列表；结构不可识别 → None。
+
+    2026-09-14（w-c8cae280）**补实现**：本函数在此之前**从未定义**，而 _limit_up 直接调用它
+    → NameError（未定义名检查器抓到）；调用点的 docstring 已经写明"两种形态都要归一
+    （2026-09-11 实测报错 \"'MarketData' object is not iterable\"）"，说明当时只写了注释没写函数。
+    归一规则：polars(有 to_dicts) → to_dicts()；pandas DataFrame → to_dict(records)；
+    dict → [dict]；可迭代 → 逐项 asdict/dict 化；其它 → None。
+    """
+    if res is None:
+        return None
+    if hasattr(res, "to_dicts"):            # polars
+        try:
+            return [dict(r) for r in res.to_dicts()]
+        except Exception:                    # noqa: BLE001
+            return None
+    if hasattr(res, "to_dict") and hasattr(res, "columns"):   # pandas DataFrame
+        try:
+            return [dict(r) for r in res.to_dict("records")]
+        except Exception:                    # noqa: BLE001
+            return None
+    if isinstance(res, dict):
+        return [dict(res)]
+    if isinstance(res, (list, tuple)):
+        out = []
+        for x in res:
+            if isinstance(x, dict):
+                out.append(dict(x))
+            elif hasattr(x, "__dataclass_fields__"):
+                from dataclasses import asdict
+                out.append(asdict(x))
+            elif hasattr(x, "__dict__"):
+                out.append(dict(vars(x)))
+            else:
+                return None
+        return out
+    return None
+
+
 class MarketStateProvider:
 
     def __init__(self, index_codes=INDEX_CODES, cache_ttl_sec: int = CACHE_TTL_SEC):

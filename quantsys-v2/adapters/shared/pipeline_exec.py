@@ -12,6 +12,9 @@ from typing import Any, Dict, List, Optional
 from adapters.shared.services import get_kline_repo, get_factor_repo, get_signal_repo, get_risk_repo
 from adapters.shared.stores import _update_pipeline_run, _load_pipeline_runs, _save_pipeline_runs, _get_pipeline_run
 from adapters.shared.tasks import release_task
+# 2026-09-14（w-c8cae280）修**真实缺陷**：sanitize_for_json 从未导入，
+# 而它用在流水线完成时写 metrics 的路径上 → 每次成功收尾都会 NameError。
+from adapters.shared.json_helpers import sanitize_for_json
 
 logger = logging.getLogger(__name__)
 
@@ -274,6 +277,15 @@ def _execute_signal_generate(run_id: str, symbols: List[str], date: Optional[str
     try:
         _ensure_legacy_quant_path()
         from generate_signals import SignalGenerator
+        # 2026-09-14（w-c8cae280）：Database 与 SignalGenerator 同属遗留 quant 项目（由
+        # _ensure_legacy_quant_path() 加进 sys.path），但原先只导了 SignalGenerator，
+        # Database 从未导入 → NameError。此处显式导入；遗留项目缺失时给出可诊断的错误而非裸 NameError。
+        try:
+            from database import Database
+        except ImportError as exc:
+            raise RuntimeError(
+                "遗留 quant 项目的 database.Database 不可用（%s）——该流水线阶段依赖未迁移的遗留代码"
+                % exc) from exc
         db = Database(connect=True)
         generator = SignalGenerator(db)
         if not date:
@@ -363,7 +375,7 @@ def _execute_calibration(
     try:
         _ensure_legacy_quant_path(include_scripts=False)
         output_path = str(_V2_ROOT.parent / 'quant' / '.pi-invest' / 'quant' / 'confidence_config.json')
-        config = run_calibration(
+        config = run_calibration(  # noqa: undefined-name —— 文件头已注明：run_calibration 在原 Flask 代码中即未定义（latent bug），为 parity 原样保留
             forward_days=forward_days, return_threshold=return_threshold,
             max_symbols=max_symbols, lookback_days=lookback_days, output_path=output_path,
         )

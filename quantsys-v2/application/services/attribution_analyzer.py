@@ -8,6 +8,11 @@ from typing import Dict, Any, List
 from datetime import datetime
 from domain.ports import IStockPoolRepository
 
+# 2026-09-14（w-c8cae280）修**真实缺陷**：本模块用了 Optional 却从未导入 → **模块本身就 import 不了**
+# （NameError: name 'Optional' is not defined，因为参数注解在 def 时求值），
+# 而它在 infrastructure/services/service_registry.py 里被注册为服务工厂 → 解析该服务的路径全部失败。
+from typing import Optional
+
 logger = structlog.get_logger(__name__)
 
 

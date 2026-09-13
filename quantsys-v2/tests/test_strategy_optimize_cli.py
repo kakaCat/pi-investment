@@ -17,7 +17,7 @@ class TestStrategyOptimizeCommandV2:
         # RED: 这个测试应该失败，因为当前实现调用的是 v1
         cmd = StrategyOptimizeCommand()
 
-        with patch('cli.http_client.HTTPClient') as mock_client:
+        with patch('adapters.inbound.cli.http_client.HTTPClient') as mock_client:
             mock_response = {
                 'success': True,
                 'data': {
@@ -83,7 +83,7 @@ class TestStrategyOptimizeCommandV2:
         """测试 param_grid JSON 解析"""
         cmd = StrategyOptimizeCommand()
 
-        with patch('cli.http_client.HTTPClient') as mock_client:
+        with patch('adapters.inbound.cli.http_client.HTTPClient') as mock_client:
             mock_client.return_value.post.return_value = {
                 'success': True,
                 'data': {'best': {'params': {}}}
@@ -120,7 +120,7 @@ class TestStrategyOptimizeCommandV2:
         """测试支持可选参数"""
         cmd = StrategyOptimizeCommand()
 
-        with patch('cli.http_client.HTTPClient') as mock_client:
+        with patch('adapters.inbound.cli.http_client.HTTPClient') as mock_client:
             mock_client.return_value.post.return_value = {
                 'success': True,
                 'data': {'best': {'params': {}}}
@@ -147,7 +147,7 @@ class TestStrategyOptimizeCommandV2:
         """测试处理 API 错误"""
         cmd = StrategyOptimizeCommand()
 
-        with patch('cli.http_client.HTTPClient') as mock_client:
+        with patch('adapters.inbound.cli.http_client.HTTPClient') as mock_client:
             mock_client.return_value.post.return_value = {
                 'success': False,
                 'error': '参数组合过多'

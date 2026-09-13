@@ -198,6 +198,9 @@ class MemoryDistiller:
             close_session = False
 
         try:
+            # 2026-09-14（w-c8cae280）修**真实缺陷**：MemoryRepository 从未导入 → NameError。
+            # 用函数内导入：仓储实现在 adapters 层，domain 层顶层 import 会造成层级反向依赖。
+            from adapters.outbound.repositories.memory_repository import MemoryRepository
             memory_service = MemoryService(MemoryRepository())
 
             for item in items:

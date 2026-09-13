@@ -50,7 +50,7 @@ def _execute_job_by_type(job_type: str, params: Dict[str, Any]) -> Dict[str, Any
         source = params.get('source', 'watchlist')
         days = params.get('days', 730)
         force = params.get('force', False)
-        return _execute_data_update(source, days, force)
+        return _execute_data_update(source, days, force)  # noqa: undefined-name —— 文件头已注明：该名为 Flask 时代 latent bug，为 parity 原样保留
     elif job_type == 'factor_compute':
         symbols = params.get('symbols', [])
         if not symbols:

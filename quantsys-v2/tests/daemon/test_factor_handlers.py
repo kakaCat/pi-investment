@@ -15,7 +15,7 @@ from infrastructure.daemon.handlers.factor_handlers import (
 async def test_calculate_factor_success():
     params = {"factor_name": "momentum", "symbols": ["AAPL", "GOOGL"], "date": "2024-01-15"}
     mock_response = {"factor_name": "momentum", "date": "2024-01-15", "values": {"AAPL": 0.15, "GOOGL": 0.08}}
-    with patch("daemon.handlers.factor_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.factor_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         result = await calculate_factor(params)
         parsed = json.loads(result)
@@ -41,7 +41,7 @@ async def test_calculate_factor_missing_symbols():
 async def test_batch_calculate_factors_success():
     params = {"factor_names": ["momentum", "value"], "symbols": ["AAPL"], "date": "2024-01-15"}
     mock_response = {"date": "2024-01-15", "factors": {"momentum": {"AAPL": 0.15}, "value": {"AAPL": -0.05}}}
-    with patch("daemon.handlers.factor_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.factor_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         result = await batch_calculate_factors(params)
         parsed = json.loads(result)
@@ -59,7 +59,7 @@ async def test_batch_calculate_factors_missing_factor_names():
 async def test_get_factor_values_success():
     params = {"factor_name": "momentum", "symbol": "AAPL", "start_date": "2024-01-01"}
     mock_response = {"factor_name": "momentum", "symbol": "AAPL", "values": [{"date": "2024-01-02", "value": 0.12}]}
-    with patch("daemon.handlers.factor_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.factor_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         result = await get_factor_values(params)
         parsed = json.loads(result)
@@ -70,7 +70,7 @@ async def test_get_factor_values_success():
 async def test_list_available_factors_success():
     params = {}
     mock_response = {"factors": [{"name": "momentum", "description": "Price momentum", "category": "technical"}], "total": 1}
-    with patch("daemon.handlers.factor_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.factor_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         result = await list_available_factors(params)
         parsed = json.loads(result)
@@ -81,7 +81,7 @@ async def test_list_available_factors_success():
 async def test_list_available_factors_with_category():
     params = {"category": "technical"}
     mock_response = {"factors": [{"name": "momentum"}], "total": 1}
-    with patch("daemon.handlers.factor_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.factor_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         result = await list_available_factors(params)
         parsed = json.loads(result)
@@ -92,7 +92,7 @@ async def test_list_available_factors_with_category():
 async def test_validate_factor_expression_valid():
     params = {"expression": "close / sma(close, 20) - 1"}
     mock_response = {"valid": True, "message": "Expression is valid"}
-    with patch("daemon.handlers.factor_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.factor_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         result = await validate_factor_expression(params)
         parsed = json.loads(result)
@@ -103,7 +103,7 @@ async def test_validate_factor_expression_valid():
 async def test_validate_factor_expression_invalid():
     params = {"expression": "close / 0"}
     mock_response = {"valid": False, "message": "Division by zero", "errors": ["Division by zero at position 8"]}
-    with patch("daemon.handlers.factor_handlers.call_api", new_callable=AsyncMock) as mock_api:
+    with patch("infrastructure.daemon.handlers.factor_handlers.call_api", new_callable=AsyncMock) as mock_api:
         mock_api.return_value = mock_response
         result = await validate_factor_expression(params)
         parsed = json.loads(result)
