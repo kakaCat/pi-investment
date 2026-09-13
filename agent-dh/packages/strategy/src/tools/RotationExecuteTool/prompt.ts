@@ -55,7 +55,7 @@ export const rotationExecutePrompt: ToolPrompt<RotationExecuteParams, RotationEx
     account_name: {
       type: 'string',
       description: '账户名称',
-      example: 'default',
+      example: 'agent_brain',
     },
     dry_run: {
       type: 'boolean',
@@ -64,8 +64,8 @@ export const rotationExecutePrompt: ToolPrompt<RotationExecuteParams, RotationEx
     },
   },
   examples: [
-    'rotation_execute({ proposals: [{action: "deactivate", strategy_id: 3, strategy_name: "均线突破策略"}], dry_run: true }) // 模拟执行',
-    'rotation_execute({ proposals: [{action: "adjust_weight", strategy_id: 1, new_weight: 0.5}], account_name: "default" }) // 实际执行权重调整',
+    'rotation_execute({ proposals: [{action: "deactivate", strategy_id: 3, strategy_name: "均线突破策略"}], dry_run: true, account_name: "agent_brain" }) // 模拟执行',
+    'rotation_execute({ proposals: [{action: "adjust_weight", strategy_id: 1, new_weight: 0.5}], account_name: "agent_brain" }) // 实际执行权重调整',
   ],
 
   notes: [

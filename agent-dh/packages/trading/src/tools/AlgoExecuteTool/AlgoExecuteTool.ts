@@ -145,12 +145,18 @@ export class AlgoExecuteTool extends BaseTool<AlgoExecuteParams, AlgoExecuteResu
         guide: '默认账户不再隐式作用于写操作；agent_virtual 属 agent-ts，禁止写入',
       };
     }
-    if (String(acct).trim() === 'agent_virtual') {
+    // 2026-09-13 独立审阅 M8：拒绝集补上 'default'（已冻结的 legacy 账户）——
+    // 原护栏只拦 agent_virtual，示例里的 account_name:'default' 照写不误。
+    const forbidden = ['agent_virtual', 'default'];
+    if (forbidden.includes(String(acct).trim())) {
+      const a = String(acct).trim();
       return {
         success: false,
         errorType: ErrorType.INPUT_ERROR,
         field: 'account_name',
-        issue: 'agent_virtual 属 agent-ts（fin-agent），agent-dh 禁止对其写入',
+        issue: a === 'agent_virtual'
+          ? 'agent_virtual 属 agent-ts（fin-agent），agent-dh 禁止对其写入'
+          : 'default 是已冻结的 legacy 账户，禁止写入',
         received: acct,
         expected: "'agent_brain'",
         example: 'agent_brain',

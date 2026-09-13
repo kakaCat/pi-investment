@@ -51,7 +51,7 @@ export const rotationProposalPrompt: ToolPrompt<RotationProposalParams, Rotation
     account_name: {
       type: 'string',
       description: '账户名称',
-      example: 'default',
+      example: 'agent_brain',
     },
     mode: {
       type: 'string',

@@ -45,6 +45,7 @@ export const portfolioTradePrompt: ToolPrompt<PortfolioTradeParams, PortfolioTra
     {
       title: '买入贵州茅台',
       params: {
+        account_name: 'agent_brain',
         action: 'BUY',
         symbol: '600519',
         quantity: 100,
@@ -55,6 +56,7 @@ export const portfolioTradePrompt: ToolPrompt<PortfolioTradeParams, PortfolioTra
     {
       title: '卖出持仓止损',
       params: {
+        account_name: 'agent_brain',
         action: 'SELL',
         symbol: '600519',
         quantity: 100,
@@ -108,7 +110,6 @@ export const portfolioTradePrompt: ToolPrompt<PortfolioTradeParams, PortfolioTra
     account_name: {
       type: 'string',
       description: '账户名称，必填：agent-dh 自有账户 agent_brain（agent_virtual 属 agent-ts，禁止写入）',
-      default: 'agent_brain',
       example: 'agent_brain',
     },
     execute_at: {

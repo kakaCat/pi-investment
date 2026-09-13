@@ -56,7 +56,7 @@ export const rotationSimulatePrompt: ToolPrompt<RotationSimulateParams, Rotation
     account_name: {
       type: 'string',
       description: '账户名称',
-      example: 'default',
+      example: 'agent_brain',
     },
     check_constraints: {
       type: 'boolean',
@@ -69,7 +69,7 @@ export const rotationSimulatePrompt: ToolPrompt<RotationSimulateParams, Rotation
       title: '模拟停用表现差的策略',
       params: {
         proposals: [{ action: 'deactivate', strategy_id: 3, strategy_name: '均线突破策略' }],
-        account_name: 'default',
+        account_name: 'agent_brain',
         check_constraints: true,
       },
       expectedResult: '返回清仓模拟、资金释放、风险变化',

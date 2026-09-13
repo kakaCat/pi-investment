@@ -336,6 +336,7 @@ export class PortfolioAggregationService {
   }
 
   /** 组装当前账户的自动化流程概览（双轨：strategy 引擎账户 ← qv2 引擎任务；agent 账户 ← Agent OS 执行者例行任务）。
+   * 2026-09-13 更新：投资脑账户统一为 agent_brain（R-019），系统巡检 5 条 prompt 已显式传参。
    * agent 分支映射实证（2026-09-08 Agent OS owner 分布）：
    *  - agent_virtual ← fin-agent（TS@3002 交易/复盘链，任务模板实证 account: agent_virtual）；
    *  - agent_brain ← investor（@13080 agent-dh 窗口账户例行：盘前/午后/盘后/熔断/周报——诚实口径：
@@ -578,10 +579,11 @@ const AGENT_EXECUTOR_BY_ACCOUNT: Record<string, AgentExecutorMap> = {
   agent_brain: {
     code: 'dh',
     executor: 'agent-dh · investor 例行',
-    note: 'agent_brain 专属例行 7 条（agent-brain-* 前缀，2026-09-08 上线，交易日 9:00 起跑）+ 系统巡检 5 条（作用于默认账户 agent_virtual）',
+    note: 'agent_brain 专属例行 8 条（agent-brain-* 前缀；2026-09-08 上线，2026-09-13 增补 candidate-hunt 盘前猎取）+ 系统巡检 5 条（2026-09-13 起 prompt 已显式传 account_name=agent_brain）',
     tasks: {
       investor: [
-        // agent_brain 专属买卖/复盘/进化链
+        // agent_brain 专属买卖/复盘/进化链（2026-09-13 增补候选猎取）
+        'agent-brain-candidate-hunt',
         'agent-brain-morning-analysis',
         'agent-brain-realtime-check',
         'agent-brain-daily-review',
@@ -589,7 +591,7 @@ const AGENT_EXECUTOR_BY_ACCOUNT: Record<string, AgentExecutorMap> = {
         'agent-brain-weekly-roi',
         'agent-brain-weekly-evolution',
         'agent-brain-weekly-distill',
-        // 系统巡检（作用于默认账户 agent_virtual，诚实保留）
+        // 系统巡检（2026-09-13 起 prompt 已显式传 agent_brain）
         'pre-market-routine',
         'afternoon-open-check-live',
         'post-market-routine-live',

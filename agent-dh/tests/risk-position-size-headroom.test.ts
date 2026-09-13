@@ -1,15 +1,25 @@
 /**
- * risk_controller(position_size) 余量感知（2026-09-13 w-c8cae280，R-006）
+ * risk_controller(position_size) 余量感知（2026-09-13 w-c8cae280，R-006；同日晚按独立审阅 M1/M2/M3 加固）
  *
- * 后端 position_size 只给"账户价值×风险比"的静态建议（实测恒为 totalValue×20%、
- * accountValue 写死 100000），不看 regime 上限与当前敞口。本测试锁定新口径：
- *   可下上限 = min(单股 20% 硬顶, regime 剩余可加仓金额)
+ * 后端 position_size 只给"账户价值×风险比"的静态建议（account_value 缺省是硬编码 100000），
+ * 不看 regime 上限与当前敞口。新口径：
+ *   可下上限 = min(单股 20% 硬顶, regime 剩余可加仓金额)（总值不可用时降级为静态建议）
  */
 import { describe, it, expect } from 'vitest';
 import { RiskControllerTool } from '../packages/risk/src/tools/RiskControllerTool/RiskControllerTool';
 
-const mkQv2 = (totalValue: number, marketValue: number, staticSize: number) => ({
-  riskControl: async () => ({ command: 'position_size', result: { symbol: '600519', accountValue: 100000, recommendedSize: staticSize, maxPosition: staticSize } }),
+const mkQv2 = (totalValue: number, marketValue: number, staticSize: number, backendAccountValue = 100000) => ({
+  // 形状对齐线上真实返回（tsx 实测）：顶层与 result 内都有 accountValue/recommendedSize ——
+  // 这正是 M2 的现场：顶层 accountValue 是后端 account_value 缺省的硬编码 100000。
+  riskControl: async () => ({
+    command: 'position_size',
+    symbol: '600519',
+    result: { symbol: '600519', accountValue: backendAccountValue, recommendedSize: staticSize, maxPosition: staticSize },
+    accountValue: backendAccountValue,
+    riskPercent: 2,
+    recommendedSize: staticSize,
+    maxPosition: staticSize,
+  }),
   getPortfolioSummary: async () => ({ totalValue, totalMarketValue: marketValue }),
 });
 
@@ -24,7 +34,6 @@ const run = async (qv2: any, mem: any, args: any = {}) => {
 
 describe('risk_controller position_size 余量感知', () => {
   it('余量充足时不被余量钳制（cappedBy=single_stock_cap）', async () => {
-    // 98923 × (40% - 14.2%) = 25522 > 静态 20000 → 取 20000
     const r: any = await run(mkQv2(98923, 14080, 20000), mkMem('risk_off', 'ok'));
     expect(r.result.recommendedSize).toBe(20000);
     expect(r.result.cappedBy).toBe('single_stock_cap');
@@ -33,7 +42,6 @@ describe('risk_controller position_size 余量感知', () => {
   });
 
   it('余量不足时按 regime 余量钳制（cappedBy=regime_headroom）', async () => {
-    // 100000 × (40% - 35%) = 5000 < 静态 20000 → 取 5000
     const r: any = await run(mkQv2(100000, 35000, 20000), mkMem('risk_off', 'ok'));
     expect(r.result.recommendedSize).toBe(5000);
     expect(r.result.cappedBy).toBe('regime_headroom');
@@ -58,10 +66,28 @@ describe('risk_controller position_size 余量感知', () => {
     expect(String(r.result.regimeNote)).toContain('无 regime 记录');
   });
 
-  it('余量校验异常时降级但不阻断（保留静态建议 + 提示）', async () => {
+  it('账户总值缺失（totalValue=0）时降级为静态建议，不误标 regime 钳制（M1）', async () => {
+    const r: any = await run(mkQv2(0, 0, 20000), mkMem('risk_off', 'ok'));
+    expect(r.result.recommendedSize).toBe(20000);
+    expect(r.result.cappedBy).toBe('account_value_unavailable');
+    expect(String(r.result.headroomNote)).toContain('不可用');
+  });
+
+  it('余量校验抛异常时降级但不阻断（同样不误标 regime 钳制）', async () => {
     const bad: any = { riskControl: async () => ({ result: { recommendedSize: 20000 } }), getPortfolioSummary: async () => { throw new Error('boom'); } };
     const r: any = await run(bad, mkMem('risk_off', 'ok'));
-    expect(String(r.result.headroomNote)).toContain('降级');
     expect(r.result.recommendedSize).toBe(20000);
+    expect(r.result.cappedBy).toBe('account_value_unavailable');
+  });
+
+  it('后端硬编码 accountValue 被真实总值覆盖并留痕（M2）', async () => {
+    const r: any = await run(mkQv2(98923, 14080, 20000, 100000), mkMem('risk_off', 'ok'));
+    expect(r.accountValue).toBe(98923);
+    expect(r.backendAccountValueIgnored).toBe(100000);
+  });
+
+  it('返回里带 disclaimer 说明未做多笔预留（M3）', async () => {
+    const r: any = await run(mkQv2(98923, 14080, 20000), mkMem('risk_off', 'ok'));
+    expect(String(r.result.disclaimer)).toContain('未对同时挂出的多笔委托做预留');
   });
 });

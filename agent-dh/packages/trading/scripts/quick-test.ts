@@ -260,7 +260,7 @@ async function testTradeVerifyTool() {
   try {
     const result1 = await dshTool.execute({
       action: 'local',
-      account_name: 'agent_virtual',
+      account_name: 'agent_brain',
     });
 
     if (result1 && result1.status) {
@@ -281,7 +281,7 @@ async function testTradeVerifyTool() {
   try {
     const result2 = await dshTool.execute({
       action: 'remote',
-      account_name: 'agent_virtual',
+      account_name: 'agent_brain',
     });
 
     if (result2) {
@@ -313,7 +313,7 @@ async function testM4CircuitBreakerTool() {
   totalCount++;
   logTestCase(1, '正常情况（回撤 < 8%）');
   const result1 = await tool.call({
-    account_name: 'agent_virtual',
+    account_name: 'agent_brain',
   });
   if (result1.success && !result1.data?.triggered) {
     logResult(true, '熔断检查正常');
@@ -336,7 +336,7 @@ async function testM4CircuitBreakerTool() {
   };
   const tool2 = new M4CircuitBreakerTool(mockQv2Extreme as any, mockOsMemory);
   const result2 = await tool2.call({
-    account_name: 'agent_virtual',
+    account_name: 'agent_brain',
   });
   if (result2.success && result2.data?.triggered) {
     logResult(true, '熔断正确触发');

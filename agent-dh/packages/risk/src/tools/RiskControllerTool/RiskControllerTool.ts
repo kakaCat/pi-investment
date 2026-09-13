@@ -16,7 +16,9 @@ export class RiskControllerTool extends BaseTool<RiskControllerParams, RiskContr
     name: 'risk_controller',
     category: 'risk',
     version: '1.0.0',
-    timeoutMs: 10000,
+    // 独立审阅 H1（2026-09-13）：position_size 需读账户总值（实测单次 ~9.4s，实时刷行情），
+    // 原 10000ms 会间歇性超时（同参连调第 1 次 timeout、第 2 次 9630ms 贴边）→ 提到 30s。
+    timeoutMs: 30000,
   };
 
   protected readonly prompt = riskControllerPrompt;
@@ -91,13 +93,29 @@ export class RiskControllerTool extends BaseTool<RiskControllerParams, RiskContr
    * Phase 2: 执行任务
    */
   protected async execute(args: RiskControllerParams, _context: ToolContext): Promise<RiskControllerResult> {
+    const accountName = args.account_name || 'agent_brain';
+
+    // 独立审阅 H1（2026-09-13）：账户总值只取一次并复用（原实现在 Promise.all 里再调一次）。
+    let summary: any = null;
+    if (args.command === 'position_size') {
+      try {
+        summary = await this.qv2.getPortfolioSummary(accountName);
+      } catch {
+        summary = null;
+      }
+    }
+    const summaryTotalValue = Number(summary?.totalValue ?? 0);
+
     const raw: any = await this.qv2.riskControl({
       command: args.command,
       symbol: args.symbol,
-      account_name: args.account_name || 'agent_brain',
+      account_name: accountName,
       risk_level: args.risk_level,
       price: args.price,
       entry_price: args.entry_price,
+      // 独立审阅 M2：后端 routes/risk_async.py 的 account_value 缺省是硬编码 100000
+      // ⇒ 静态建议恒为 20000。把真实总值传过去，后端的 min(...) 才有意义。
+      ...(summaryTotalValue > 0 ? { account_value: summaryTotalValue } : {}),
     });
 
     // 2026-09-13（w-c8cae280）R-006 余量感知：position_size 叠加 regime 余量钳制。
@@ -106,15 +124,11 @@ export class RiskControllerTool extends BaseTool<RiskControllerParams, RiskContr
     // 余量 25.8pp 时，它仍建议单笔 20000 元（=20% 硬顶），等于把 25.8pp 的余量当空气。
     // 现口径：可下上限 = min(单股 20% 硬顶, regime 剩余可加仓金额)，并把两个来源都摆出来。
     if (args.command === 'position_size') {
-      const accountName = args.account_name || 'agent_brain';
       const extra: Record<string, any> = {};
       try {
-        const [regimeRes, summary] = await Promise.all([
-          this.osMemory
-            ? this.osMemory.searchMemory({ q: 'regime', scope: 'market:regime', limit: 10 })
-            : Promise.resolve({ items: [] }),
-          this.qv2.getPortfolioSummary(accountName),
-        ]);
+        const regimeRes: any = this.osMemory
+          ? await this.osMemory.searchMemory({ q: 'regime', scope: 'market:regime', limit: 10 })
+          : { items: [] };
         const CAPS: Record<string, number> = { panic: 100, risk_on: 80, sideways: 60, risk_off: 40, euphoria: 30 };
         const latest = ((regimeRes as any)?.items || [])
           .filter((it: any) => it.status !== 'deprecated' && it.payload?.date)
@@ -131,11 +145,14 @@ export class RiskControllerTool extends BaseTool<RiskControllerParams, RiskContr
         }
         const totalValue = Number((summary as any)?.totalValue ?? 0);
         const marketValue = Number((summary as any)?.totalMarketValue ?? 0);
-        const currentPct = totalValue > 0 ? +(marketValue / totalValue * 100).toFixed(1) : 0;
-        const headroomPct = +Math.max(0, cap - currentPct).toFixed(1);
-        const headroomAmount = Math.floor(totalValue * headroomPct / 100);
         const staticSize = Number((raw as any)?.result?.recommendedSize ?? (raw as any)?.recommendedSize ?? 0);
-        const recommendedSize = Math.min(staticSize, headroomAmount);
+        // 独立审阅 M1（2026-09-13）：总值为 0 属"账户数据不可用"，不是"没有余量"。
+        // 原实现把它当权威额度算出 0 并误标 cappedBy='regime_headroom' → 现降级为静态建议并说明。
+        const valueAvailable = totalValue > 0;
+        const currentPct = valueAvailable ? +(marketValue / totalValue * 100).toFixed(1) : 0;
+        const headroomPct = valueAvailable ? +Math.max(0, cap - currentPct).toFixed(1) : 0;
+        const headroomAmount = valueAvailable ? Math.floor(totalValue * headroomPct / 100) : 0;
+        const recommendedSize = valueAvailable ? Math.min(staticSize, headroomAmount) : staticSize;
         extra.accountValueUsed = totalValue;
         extra.regime = regime;
         extra.regimeCapPct = cap;
@@ -145,12 +162,28 @@ export class RiskControllerTool extends BaseTool<RiskControllerParams, RiskContr
         extra.headroomAmount = headroomAmount;
         extra.staticRecommendedSize = staticSize;
         extra.recommendedSize = recommendedSize;
-        extra.cappedBy = recommendedSize < staticSize ? 'regime_headroom' : 'single_stock_cap';
+        extra.cappedBy = !valueAvailable
+          ? 'account_value_unavailable'
+          : (recommendedSize < staticSize ? 'regime_headroom' : 'single_stock_cap');
+        if (!valueAvailable) {
+          extra.headroomNote = '账户总值不可用（totalValue=0）：未做 regime 余量钳制，recommendedSize 仅为后端静态建议';
+        }
+        // 独立审阅 M3：本返回值是"单笔上限"，没有对同时挂出的多笔委托做预留。
+        extra.disclaimer = '单笔建议上限，未对同时挂出的多笔委托做预留；多笔下单需自行扣减（真实下单路径 portfolio_trade 会再用 regime_position_limit 复核总敞口）';
         extra.source = 'risk_controller(position_size) 与 regime_position_limit 同口径合并（w-c8cae280，2026-09-13）';
         if (!latest) extra.regimeNote = '无 regime 记录，按震荡档 60% 保守取值（R-006）';
         if ((raw as any)?.result && typeof (raw as any).result === 'object') Object.assign((raw as any).result, extra);
         else (raw as any).result = extra;
         if ((raw as any)?.recommendedSize !== undefined) (raw as any).recommendedSize = recommendedSize;
+        // 独立审阅 M2：返回里并存两个"账户价值"，其中顶层 accountValue 是后端 account_value 缺省
+        // 时的硬编码 100000 → 不改名会让人把虚数当真相。保留原值便于追溯，同时用真实值覆盖展示位。
+        if (valueAvailable && (raw as any)?.accountValue !== undefined && Number((raw as any).accountValue) !== totalValue) {
+          (raw as any).backendAccountValueIgnored = (raw as any).accountValue;
+        }
+        if (valueAvailable) {
+          (raw as any).accountValue = totalValue;
+          if ((raw as any).result && typeof (raw as any).result === 'object') (raw as any).result.accountValue = totalValue;
+        }
       } catch (e: any) {
         extra.headroomNote =
           `余量校验降级（${String(e?.message || e).slice(0, 80)}）：recommendedSize 仅为静态建议，未做 regime 余量钳制`;

@@ -13,7 +13,7 @@ import { QuantsysV2Client } from '../../quantsys-v2-client/dist/index.mjs';
 
 const API_BASE_URL = 'http://127.0.0.1:5001';
 const TEST_SYMBOL = '600519'; // 贵州茅台
-const TEST_ACCOUNT = 'agent_virtual';
+const TEST_ACCOUNT = 'agent_brain';
 
 // ANSI color codes
 const GREEN = '\x1b[32m';

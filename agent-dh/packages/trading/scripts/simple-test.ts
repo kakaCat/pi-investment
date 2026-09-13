@@ -203,7 +203,7 @@ const circuitBreakerTool = new M4CircuitBreakerTool(mockQv2 as any, mockOsMemory
 totalTests++;
 console.log('1️⃣  正常情况（回撤 < 8%）');
 const cbResult1 = await circuitBreakerTool.call({
-  account_name: 'agent_virtual',
+  account_name: 'agent_brain',
 });
 if (cbResult1.success && !cbResult1.data?.triggered) {
   console.log('   ✅ 通过 - 熔断检查正常');
@@ -231,7 +231,7 @@ const mockQv2Extreme = {
 };
 const circuitBreakerTool2 = new M4CircuitBreakerTool(mockQv2Extreme as any, mockOsMemory);
 const cbResult2 = await circuitBreakerTool2.call({
-  account_name: 'agent_virtual',
+  account_name: 'agent_brain',
 });
 if (cbResult2.success && cbResult2.data?.triggered) {
   console.log('   ✅ 通过 - 熔断正确触发');
