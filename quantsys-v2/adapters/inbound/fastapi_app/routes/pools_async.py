@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Query, Body
 import structlog
+from sqlalchemy.exc import IntegrityError
 
 from adapters.inbound.fastapi_app.shared import (
     api_response, error_response, handle_api_error,
@@ -217,6 +218,20 @@ def delete_pool(pool_id: int):
         return {'success': True, 'message': f'Pool {pool_id} deleted'}
     except ValueError as e:
         return error_response({'success': False, 'error': str(e)}, 404)
+    except IntegrityError as e:
+        # 数据依赖阻断 ≠ 服务器故障：返回 409 + 可执行指引，避免以 500 形式进
+        # Agent OS 错误事件（2026-09-13 事件 fc47fb7d：DELETE /api/pools/54 被
+        # pool_change_log 外键挡住 → 500）。同类问题的正确处置是按 R-020 显式声明
+        # 外键删除动作：审计类 ON DELETE SET NULL（保留 pool_name）、派生数据 ON DELETE CASCADE。
+        diag = getattr(getattr(e, 'orig', None), 'diag', None)
+        cname = getattr(diag, 'constraint_name', None) if diag is not None else None
+        logger.error(f"Delete pool blocked by constraint {cname}: {e}")
+        return error_response({
+            'success': False,
+            'error': f'删除被数据依赖阻断（约束 {cname or "unknown"}）',
+            'hint': '该池仍被其他表引用；审计类外键应 ON DELETE SET NULL（配冗余身份字段），'
+                    '派生数据应 ON DELETE CASCADE',
+        }, 409)
     except Exception as e:
         logger.error(f"Delete pool failed: {e}")
         return error_response({'success': False, 'error': str(e)}, 500)
