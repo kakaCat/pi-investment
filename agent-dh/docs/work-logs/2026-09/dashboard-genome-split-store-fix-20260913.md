@@ -113,8 +113,9 @@ profile 配置**零改动**（两页仍 `config: {}`）：目录不再由配置�
 
 1. **杀掉 :13081 残留**：两条进程链均为 SIGSTOP 挂起态，按精确 PID 处理——`66801/66802/66817`（9/12 19:43 起）
    与 `46468/46469/46484`（9/13 01:10 起，挂在交互 zsh 下）。端口 13081 已释放，全盘无 13081 进程残留。
-2. **归档后删除**（不可逆，故留一份小归档）：`/tmp/dsh-cleanup-20260913/dsh-agent-dh.tgz`（21KB）、
+2. **归档后删除**（不可逆，故先留小归档）：`/tmp/dsh-cleanup-20260913/dsh-agent-dh.tgz`（21KB）、
    `profile-agent-dh.tgz`（4.8KB）；两个目录已从磁盘移除，`.dsh-home/profiles/` 现只剩 `investment`。
+   ⚠️ 该归档**随后按用户指令删除**（2026-09-13 17:30）——磁盘上已无任何副本，仅本文件与 git 提交留痕。
 3. **复验**：`:13080` 正常（`genomeDirSource=genome-plugin`、g35 / 14 候选 / 37 谱系）；
    `relink-profile.py --check` 仍 **25/25 symlink-ok**（legacy 路径被删未影响该门禁）。
 
@@ -129,8 +130,9 @@ profile 配置**零改动**（两页仍 `config: {}`）：目录不再由配置�
 | `.dsh-data/profiles/investment/` | 2.9M | 2026-09-12 未启用副本（含 12 个 `cordis.patch.yml*.bak` 历史版本） | 归档后删除 |
 
 - 删前勘查：无进程引用；**无会话/凭据等独有数据**（`sessions`/`.credentials.yaml` 只存在于 `DSH_DATA_DIR`，不在这两份副本里）。
-- 归档：`/tmp/dsh-cleanup-20260913/legacy-home-dsh-profiles-investment.tgz`（3.9M，已排除 node_modules 与 *.log）、
-  `legacy-dsh-data-profiles-investment.tgz`（429K）。
+- 归档：先存 `/tmp/dsh-cleanup-20260913/legacy-home-dsh-profiles-investment.tgz`（3.9M，已排除 node_modules 与 *.log）
+  与 `legacy-dsh-data-profiles-investment.tgz`（429K）；⚠️ **随后按用户指令一并删除**（2026-09-13 17:30）。
+  至此四处遗留副本在磁盘上已无任何副本（含归档），仅本文件与 git 提交留痕。
 - **顺带修掉一处悬空引用**：`scripts/rfc010-quick-start.sh:12` 硬编码 `DSH_DIR="$HOME/.dsh/profiles/investment"`，
   删目录后会直接报「DSH 目录不存在」。已改为从脚本自身位置反推 `../.dsh-home/profiles/investment`，启动提示改成
   `$SCRIPT_DIR/start.sh 13080`（托管布局的 profile 目录里没有 start.sh）——`bash -n` 通过、路径自检解析到现役 profile。
