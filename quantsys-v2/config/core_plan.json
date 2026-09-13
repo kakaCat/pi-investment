@@ -1,9 +1,9 @@
 {
- "generated_at": "2026-09-13T15:11:30",
+ "generated_at": "2026-09-13T15:13:09",
  "account": "agent_brain",
  "mode": "PLAN_ONLY（不下单）",
- "account_total": 98922.97,
- "cash": 84842.97,
+ "account_total": 500000.0,
+ "cash": 485920.0,
  "exposure": {
   "target_pct": 0.175,
   "first_phase_cap_pct": 0.35,
@@ -45,7 +45,7 @@
   {
    "symbol": "002085",
    "industry": "制造业-汽车制造业",
-   "weight_pct_of_core": 8.7,
+   "weight_pct_of_core": 6.58,
    "tilt_mult": 0.5,
    "tilt_note": "行业动量 弱（69/77）；风格顺风(growth)",
    "close": 10.12,
@@ -54,9 +54,20 @@
    "amount_def_avg": 2614505668.058547
   },
   {
+   "symbol": "300059",
+   "industry": "金融业-资本市场服务",
+   "weight_pct_of_core": 5.59,
+   "tilt_mult": 0.425,
+   "tilt_note": "行业动量 弱（73/77）；风格逆风(成长市/周期行业) ×0.85",
+   "close": 18.31,
+   "roe": 8.46,
+   "pe": 25.12,
+   "amount_def_avg": 2389122273.769231
+  },
+  {
    "symbol": "601857",
    "industry": "采矿业-石油和天然气开采业",
-   "weight_pct_of_core": 22.61,
+   "weight_pct_of_core": 17.11,
    "tilt_mult": 1.3,
    "tilt_note": "行业动量 强（4/77）",
    "close": 11.24,
@@ -67,7 +78,7 @@
   {
    "symbol": "601919",
    "industry": "交通运输、仓储和邮政业-水上运输业",
-   "weight_pct_of_core": 22.61,
+   "weight_pct_of_core": 17.11,
    "tilt_mult": 1.3,
    "tilt_note": "行业动量 强（18/77）",
    "close": 16.19,
@@ -76,9 +87,20 @@
    "amount_def_avg": 1639445114.7008548
   },
   {
+   "symbol": "600030",
+   "industry": "金融业-资本市场服务",
+   "weight_pct_of_core": 5.59,
+   "tilt_mult": 0.425,
+   "tilt_note": "行业动量 弱（73/77）；风格逆风(成长市/周期行业) ×0.85",
+   "close": 26.92,
+   "roe": 7.81,
+   "pe": 11.95,
+   "amount_def_avg": 1573277754.3076923
+  },
+  {
    "symbol": "601288",
    "industry": "金融业-货币金融服务",
-   "weight_pct_of_core": 14.78,
+   "weight_pct_of_core": 11.18,
    "tilt_mult": 0.85,
    "tilt_note": "行业动量 中（29/77）；风格逆风(成长市/周期行业) ×0.85",
    "close": 6.97,
@@ -87,9 +109,20 @@
    "amount_def_avg": 1557979736.1311967
   },
   {
+   "symbol": "000099",
+   "industry": "交通运输、仓储和邮政业-航空运输业",
+   "weight_pct_of_core": 6.58,
+   "tilt_mult": 0.5,
+   "tilt_note": "行业动量 弱（67/77）；风格顺风(growth)",
+   "close": 13.35,
+   "roe": 2.26,
+   "pe": 43.35,
+   "amount_def_avg": 1543122875.0527349
+  },
+  {
    "symbol": "603993",
    "industry": "采矿业-有色金属矿采选业",
-   "weight_pct_of_core": 22.61,
+   "weight_pct_of_core": 17.11,
    "tilt_mult": 1.3,
    "tilt_note": "行业动量 强（13/77）",
    "close": 18.15,
@@ -98,15 +131,26 @@
    "amount_def_avg": 1436821876.1452992
   },
   {
+   "symbol": "002241",
+   "industry": "制造业-计算机、通信和其他电子设备制造业",
+   "weight_pct_of_core": 6.58,
+   "tilt_mult": 0.5,
+   "tilt_note": "行业动量 弱（76/77）；风格顺风(growth)",
+   "close": 22.24,
+   "roe": 3.92,
+   "pe": 23.29,
+   "amount_def_avg": 1280356119.271367
+  },
+  {
    "symbol": "000100",
    "industry": "制造业-计算机、通信和其他电子设备制造业",
-   "weight_pct_of_core": 8.7,
+   "weight_pct_of_core": 6.58,
    "tilt_mult": 0.5,
    "tilt_note": "行业动量 弱（76/77）；风格顺风(growth)",
    "close": 4.64,
    "roe": 6.19,
    "pe": 19.94,
-   "amount_def_avg": 1280034707.4496577
+   "amount_def_avg": 1280034707.449658
   }
  ],
  "phase_plan": "分 4 批、每批约 1 周；每批按当时 vol-target 与回撤闸门重算"
