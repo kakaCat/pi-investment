@@ -141,6 +141,10 @@ if [ "$MODE" = "full" ]; then
 else
   echo ""
   echo "[1/6] 跳过停服（--build-only）"
+  echo "  ⚠️  服务保持运行中：构建期间各包 dist/ 会被短暂清空（tsdown 先清后写）。"
+  echo "      若运行中的实例此刻重载插件，会报 Cannot find module '.../dist/index.mjs'"
+  echo "      （2026-09-12 15:54-15:57 的 15 条 loader 失败即此窗口）。"
+  echo "      生产发版请走完整路径（不带 --build-only），它会先停服再构建。"
 fi
 
 echo ""

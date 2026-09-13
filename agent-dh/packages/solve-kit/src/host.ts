@@ -209,6 +209,26 @@ export function createSolveHandler(deps: SolveKitHostDeps, opts: SolveKitHostOpt
         return json(res, 200, { success: false, error: 'kind=error 缺少错误快照 err' })
       }
 
+      // 派单前复核（2026-09-13，w-32314d00）：看板卡片可能来自旧快照，或事件已被其他窗口闭环；
+      // 重复派单只制造噪声——实测同一根因的卡片被重复派了 4 次，处置窗口每次都要重新核验一遍。
+      // 只拦「明确终态」（resolved/ignored）；查不到 / 网络异常一律放行（fail-open，宁多派不误拦）。
+      if (kind === 'error' && opts.osBaseURL) {
+        const preId = String((err as any)?.id ?? '').trim()
+        if (preId) {
+          try {
+            const st = await fetchEventStatus(opts.osBaseURL, preId)
+            if (st === 'resolved' || st === 'ignored') {
+              return json(res, 200, {
+                success: false,
+                error: '事件 ' + preId.slice(0, 8) + ' 已闭环（' + st + '），无需重复派单；'
+                  + '看板卡片可能来自旧快照。如需重开，请先在看板点「复开」。',
+              })
+            }
+          } catch (e) {
+            console.warn('[solve-kit] 派单前状态复核失败（放行）:', e instanceof Error ? e.message : String(e))
+          }
+        }
+      }
       // 目标会话：显式 to_session（精确）→ 否则 from_session（默认当前窗口，可回退主 root）
       const target = to_session && typeof to_session === 'string'
         ? deps.resolveAgent(to_session, true)

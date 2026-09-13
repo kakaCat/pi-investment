@@ -200,25 +200,42 @@ export function createOrphanedTaskCleanupHandler(opts: { osBaseURL: string }) {
         return;
       }
 
-      // 调用 Agent OS API 删除任务
-      const resp = await fetch(
-        `${opts.osBaseURL}/api/v1/scheduler/tasks/${encodeURIComponent(taskId)}`,
-        {
+      // 调用 Agent OS 删除任务。
+      // 2026-09-13（w-32314d00）：原来打的是**通用**任务删除 DELETE /scheduler/tasks/{id}，
+      // 而 Agent OS 对僵尸任务另有专用端点 DELETE /scheduler/orphaned-tasks/{id}
+      //（kernel/scheduler/orphaned_detector.go 的 CleanupOrphanedTask），它带一道安全校验：
+      //「任务仍在调度器中 → 拒绝删除」。用通用端点会绕过这道校验——若看板上的僵尸列表已过期
+      //（该任务随后被重新启用/注册），点「清理」会直接删掉一个**正在调度**的任务。
+      // 现改为优先打专用端点，仅在旧版 Agent OS 无此路由（404）时回退到通用端点。
+      const callDelete = async (path: string) => {
+        const r = await fetch(`${opts.osBaseURL}${path}`, {
           method: 'DELETE',
           signal: AbortSignal.timeout(4000),
-        },
-      );
+        });
+        let body: any = {};
+        try { body = await r.json(); } catch { /* 非 JSON 响应 */ }
+        return { r, body };
+      };
 
-      let data: any = {};
-      try { data = await resp.json(); } catch { /* 非 JSON 响应 */ }
+      let via = 'orphaned';
+      let { r: resp, body: data } = await callDelete(
+        `/api/v1/scheduler/orphaned-tasks/${encodeURIComponent(taskId)}`,
+      );
+      if (resp.status === 404) {
+        // 旧版 Agent OS 没有专用端点：回退通用端点（仅限 404，避免吃掉安全校验的拒绝）
+        via = 'generic';
+        const fallback = await callDelete(`/api/v1/scheduler/tasks/${encodeURIComponent(taskId)}`);
+        resp = fallback.r;
+        data = fallback.body;
+      }
 
       if (!resp.ok || data?.success === false) {
-        json(res, 200, { success: false, error: data?.message || data?.error || `HTTP ${resp.status}` });
+        json(res, 200, { success: false, error: data?.message || data?.error || `HTTP ${resp.status}`, via });
         return;
       }
 
       const message = data?.message || '僵尸任务已清理';
-      json(res, 200, { success: true, data: { message } });
+      json(res, 200, { success: true, data: { message, via } });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       json(res, 500, { success: false, error: msg });
