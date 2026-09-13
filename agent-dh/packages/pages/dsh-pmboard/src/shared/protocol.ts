@@ -681,8 +681,10 @@ function backfill(
     { status: initialStatus, at: record.createdAt, by: record.createdBy, reason: '创建', inferred: true },
   ]
   for (const c of [...record.comments].sort((a, b) => a.createdAt - b.createdAt)) {
-    const target = parseTransitionTarget(c.body, allowed)
-    if (target === undefined) continue
+    const raw = parseTransitionTarget(c.body, allowed)
+    if (raw === undefined) continue
+    // 历史评论里可能写的是旧状态名（reviewing）——按别名表映射回新名，别丢历史
+    const target = LEGACY_REQ_STATUS_ALIASES[raw] ?? raw
     const prev = events[events.length - 1]
     if (prev !== undefined && prev.status === target) continue
     events.push({
@@ -707,9 +709,14 @@ function backfill(
   return events
 }
 
-/** 需求时间线回填（已有事件 → 返回 undefined 不动）。 */
+/** 需求时间线回填（已有事件 → 返回 undefined 不动）。旧状态名（reviewing）一并接受。 */
 export function backfillRequirementHistory(req: RequirementRecord): StatusEvent[] | undefined {
-  return backfill(req, 'draft', ALL_REQ_STATUSES as readonly string[], req.statusHistory)
+  return backfill(
+    req,
+    'draft',
+    [...ALL_REQ_STATUSES, ...Object.keys(LEGACY_REQ_STATUS_ALIASES)],
+    req.statusHistory,
+  )
 }
 
 /**

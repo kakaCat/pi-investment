@@ -88,6 +88,19 @@ describe('backfill*（老记录时间线回填）', () => {
     expect(hist?.[2]?.reason).toContain('updatedAt')
   })
 
+  it('历史评论里的旧状态名（reviewing）映射到新名（brainstorming），不丢历史', () => {
+    const r = req({
+      status: 'planning',
+      updatedAt: 6000,
+      comments: [
+        { id: 'c1', body: '[自动推进] draft → reviewing：启动对账', createdAt: 2000, createdBy: { kind: 'system' } },
+        { id: 'c2', body: '[窗口推进] reviewing → planning：方案谈定', createdAt: 4000, createdBy: { kind: 'agent' } },
+      ],
+    })
+    const hist = backfillRequirementHistory(r)
+    expect(hist?.map(e => e.status)).toEqual(['draft', 'brainstorming', 'planning'])
+  })
+
   it('任务：识别 [状态] → x 格式；已有事件则不动（幂等）', () => {
     const t = task({
       status: 'done',
