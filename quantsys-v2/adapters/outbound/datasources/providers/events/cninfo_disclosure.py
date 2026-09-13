@@ -63,6 +63,8 @@ _WINDOW_FWD_DAYS = 7
 _PAGE_SIZE = 20
 _MAX_SYMBOLS = 20
 _MARKET_PAGE_SIZE = 50
+_ORG_URL = 'http://www.cninfo.com.cn/new/information/topSearch/query'
+_ORG_CACHE: Dict[str, str] = {}   # symbol -> orgId（空串=解析失败也缓存，避免反复打上游）
 
 
 def _session() -> requests.Session:
@@ -163,6 +165,167 @@ class CninfoDisclosureProvider(IMarketEventProvider):
             return None
 
     # ------------------------------------------------------------------ 内部
+
+    def _resolve_org_id(self, symbol: str) -> Optional[str]:
+        """查巨潮 orgId（per-symbol 可靠检索的前提）。
+
+        ⚠️ 2026-09-13 实测两条必须记住的结论：
+        ① stock=<code>（不带 orgId）无效（返回 0 条）——旧文档只写了这一半，
+           其实带 orgId 就有效：stock=000001,gssz0000001 正常返回该股公告；
+        ② orgId 无法按规则推导（实测 gssz/gssh 补零共 7 种拼法全 0），
+           必须查 topSearch/query：300750 -> GD165627、688981 -> gshk0000981。
+        """
+        if symbol in _ORG_CACHE:
+            return _ORG_CACHE[symbol] or None
+        try:
+            resp = _session().post(
+                _ORG_URL, data={'keyWord': symbol, 'maxNum': 10},
+                headers={'User-Agent': _UA, 'Referer': 'http://www.cninfo.com.cn/'},
+                timeout=self.timeout)
+            arr = resp.json() if resp.status_code == 200 else []
+            org = None
+            for it in (arr or []):
+                if str(it.get('code')) == str(symbol):
+                    org = str(it.get('orgId') or '')
+                    break
+            _ORG_CACHE[symbol] = org or ''
+            return org or None
+        except Exception as exc:  # noqa: BLE001
+            logger.warning('cninfo orgId 解析失败 %s: %s', symbol, str(exc)[:120])
+            _ORG_CACHE[symbol] = ''
+            return None
+
+    def fetch_symbol_history(self, symbols: List[str], start_date: str, end_date: str,
+                             page_size: int = 30, max_symbols: int = 0) -> Optional[List[Dict]]:
+        """按 标的 x 日期区间 回补历史公告（研究级回补的可靠路径；RFC 015 §4，2026-09-13）
+
+        为什么需要：日期区间全市场路径实测不可用——巨潮忽略 pageNum/column，
+        一次只返回 30 条（而全市场一天就有 1358 条），无法支撑研究。
+        逐标的路径天然有界（单股单窗口公告数很少），配合按月切片即可完整回补。
+
+        失败语义：单只 orgId 解析失败/查询异常 → 记入 org_unresolved / failed_symbols 并继续，
+        但这些「没查到的」必须让调用方看到——禁止把「没查到」当成「没有公告」
+        （这正是本日反复出现的静默少收模式）。
+        """
+        self.last_error = None
+        self.truncation_note = ''
+        self.failed_symbols = []
+        self.org_unresolved = []
+        se_date = '%s~%s' % (start_date, end_date)
+        targets = [str(s).strip() for s in (symbols or []) if str(s).strip()]
+        if max_symbols and len(targets) > max_symbols:
+            self.truncation_note = ('%s: 请求 %d 只，超过本轮上限 %d 只，仅处理前 %d 只'
+                                    % (self.name, len(targets), max_symbols, max_symbols))
+            targets = targets[:max_symbols]
+        rows: List[Dict] = []
+        seen = set()
+        for symbol in targets:
+            org = self._resolve_org_id(symbol)
+            if not org:
+                self.org_unresolved.append(symbol)
+                continue
+            try:
+                items, _total = self._query_page('szse', '', se_date, page_size, 1,
+                                                 stock='%s,%s' % (symbol, org))
+            except Exception as exc:  # noqa: BLE001
+                self.failed_symbols.append('%s:%s' % (symbol, type(exc).__name__))
+                continue
+            for item in items:
+                row = self._map(item, symbol)   # 过滤：只留该标的自述公告
+                if not row:
+                    continue
+                key = row.get('external_id') or (row.get('title'), row.get('announce_date'))
+                if key in seen:
+                    continue
+                seen.add(key)
+                rows.append(row)
+        self.last_fetched_at = datetime.now().isoformat(timespec='seconds')
+        if self.org_unresolved or self.failed_symbols:
+            self.last_error = ('部分标的不完整：orgId 未解析 %d 只、查询失败 %d 只（%s）'
+                               % (len(self.org_unresolved), len(self.failed_symbols),
+                                  ','.join((self.org_unresolved + self.failed_symbols)[:8])))
+        return rows
+
+    def _query_page(self, column: str, searchkey: str, se_date: str,
+                    page_size: int, page_num: int, stock: str = ''):
+        """单页查询，返回 (items, totalAnnouncement)。
+
+        与 _query 的区别：把 pageNum 暴露出来，供 fetch_market_events 分页
+        （_query 固定 pageNum=1）。**不改 _query 的行为**，避免影响既有调用与测试。
+        """
+        payload = {
+            'pageNum': page_num, 'pageSize': page_size, 'column': column, 'tabName': 'fulltext',
+            'stock': stock, 'searchkey': searchkey, 'secid': '', 'plate': '', 'category': '',
+            'trade': '', 'seDate': se_date, 'sortName': '', 'sortType': '', 'isHLtitle': 'true',
+        }
+        resp = _session().post(_URL, data=payload,
+                               headers={'User-Agent': _UA, 'Referer': 'http://www.cninfo.com.cn/'},
+                               timeout=self.timeout)
+        if resp.status_code != 200:
+            raise RuntimeError(f'HTTP {resp.status_code} from cninfo hisAnnouncement ({column})')
+        body = resp.json()
+        items = body.get('announcements')
+        total = int(body.get('totalAnnouncement') or 0)
+        if items is None:
+            if total == 0:
+                return [], 0
+            raise RuntimeError('响应结构异常：announcements 缺失（上游可能改版）')
+        return items, total
+
+    def fetch_market_events(self, start_date: str, end_date: str,
+                            max_pages: int = 10) -> Optional[List[Dict]]:
+        """按日期区间分页拉取**全市场**法定披露（研究级回补；RFC 015 §4，2026-09-13）
+
+        实现要点（都对应真实踩坑）：
+        · 双通道 szse + sse（巨潮按交易所 column 分开返回）；
+        · 按 announcementId 去重（同一公告可能出现在两通道的边界页）；
+        · **截断显式标注**：翻到 max_pages 仍未取全（累计 < totalAnnouncement）时写
+          self.truncation_note —— "取到一半"与"全市场就这么多"必须可区分，
+          否则研究会系统性低估事件密度；
+        · 失败返回 None 并写 last_error（沿用端口失败/空结果语义分离纪律）。
+        """
+        self.last_error = None
+        self.truncation_note = ''
+        self.last_fetched_at = None
+        se_date = '%s~%s' % (start_date, end_date)
+        rows: List[Dict] = []
+        seen = set()
+        truncated = []
+        try:
+            for column in ('szse', 'sse'):
+                total = None
+                for page in range(1, max(1, max_pages) + 1):
+                    items, total_ann = self._query_page(column, '', se_date,
+                                                        _MARKET_PAGE_SIZE, page)
+                    if total is None:
+                        total = total_ann
+                    if not items:
+                        break
+                    for item in items:
+                        row = self._map(item, '')
+                        if not row:
+                            continue
+                        key = row.get('external_id') or (row.get('title'), row.get('announce_date'))
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        rows.append(row)
+                    if len(items) < _MARKET_PAGE_SIZE:
+                        break
+                # 截断判定：该通道公告总数 > 本次实际抓到的条数
+                if total and len([r for r in rows if True]) < total:
+                    truncated.append('%s: total=%d' % (column, total))
+        except Exception as exc:  # noqa: BLE001
+            self.last_error = '%s: %s' % (type(exc).__name__, str(exc)[:160])
+            if not rows:
+                return None
+            # 部分成功：如实返回已取到的行，并把失败写进 last_error（不静默）
+        if truncated:
+            self.truncation_note = ('%s 日期区间 %s 分页上限 %d 页未取全（%s）；'
+                                    '本次取回 %d 行 —— 做事件密度统计前必须先扩 max_pages'
+                                    % (self.name, se_date, max_pages, '; '.join(truncated), len(rows)))
+        self.last_fetched_at = datetime.now().isoformat(timespec='seconds')
+        return rows
 
     def _query(self, searchkey: str, se_date: str, page_size: int,
                columns=('szse',)) -> List[Dict]:

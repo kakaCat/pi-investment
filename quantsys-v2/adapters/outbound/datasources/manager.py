@@ -1880,6 +1880,54 @@ class DataProviderManager(IDataProviderManager):
             'empty_sources': empty_sources,
         }
 
+    def get_event_symbol_history(self, symbols: List[str], start_date: str, end_date: str,
+                                 max_symbols: int = 0) -> dict:
+        """按标的 × 日期区间回补历史公告扇出（RFC 015 §4，2026-09-13）。
+
+        与 get_event_symbol_events 的差别：那条按 provider 的默认窗口（近 30 天）取，
+        本条把日期区间透传给支持 fetch_symbol_history 的 provider —— 只有能按标的可靠检索的
+        通道才支持（巨潮；东财的日期区间全市场路径实测被上游限流在 30 条/次）。
+        """
+        rows: List[Dict] = []
+        sources: List[str] = []
+        attempted: List[str] = []
+        errors: Dict[str, str] = {}
+        notes: List[str] = []
+        failed = 0
+        providers = [p for p in getattr(self, "event_symbol_providers", [])
+                     if hasattr(p, "fetch_symbol_history")]
+        if not providers:
+            return {"success": False, "error": "No provider supports fetch_symbol_history",
+                    "data": None, "source": None, "attempted_sources": [], "provider_errors": {}}
+        for provider in self._sort_providers_by_health(providers):
+            res = self._try_providers([provider], "fetch_symbol_history",
+                                      symbols, start_date, end_date,
+                                      max_symbols=max_symbols)
+            attempted.extend(res.get("attempted_sources") or [])
+            if res.get("success"):
+                data = res.get("data") or []
+                rows.extend(data)
+                sources.append(res.get("source") or getattr(provider, "name", "?"))
+                for attr in ("org_unresolved", "failed_symbols"):
+                    bad = getattr(provider, attr, None)
+                    if bad:
+                        notes.append("%s.%s=%d(%s)" % (getattr(provider, "name", "?"), attr,
+                                                        len(bad), ",".join(map(str, bad[:5]))))
+                if getattr(provider, "last_error", None):
+                    errors[getattr(provider, "name", "?")] = provider.last_error
+                if getattr(provider, "truncation_note", ""):
+                    notes.append(provider.truncation_note)
+            else:
+                failed += 1
+                errors[getattr(provider, "name", "?")] = res.get("error") or "fetch failed"
+        if not rows and failed == len(providers):
+            return {"success": False, "error": "all symbol-history providers failed",
+                    "data": None, "source": None, "attempted_sources": attempted,
+                    "provider_errors": errors}
+        return {"success": True, "data": rows, "source": "+".join(sources) or None,
+                "attempted_sources": attempted, "provider_errors": errors,
+                "degraded": bool(errors), "empty": not rows, "notes": notes}
+
     def get_event_scheduled_disclosures(self, periods: Optional[List[str]] = None) -> dict:
         """预约披露日程（前瞻性财报日历）扇出。
 

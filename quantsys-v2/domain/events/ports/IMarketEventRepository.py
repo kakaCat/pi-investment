@@ -64,6 +64,13 @@ class IMarketEventRepository(ABC):
         pass
 
     @abstractmethod
+    def research_universe(self, limit: int = 800) -> List[str]:
+        """研究宇宙：按流动性取标的（2026-09-13 RFC 015 §4）
+
+        与 default_universe（监控宇宙=持仓∪盯盘，实测仅 34 只）**刻意分开**：
+        事件研究需要同一事件日的横截面，监控宇宙不成立。"""
+        return []
+
     def default_universe(self, limit: int = 200) -> List[str]:
         """默认个股事件采集池（RFC §3.5 定时任务的标的范围）
 

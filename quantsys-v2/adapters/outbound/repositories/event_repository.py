@@ -318,8 +318,37 @@ class EventRepository(IMarketEventRepository):
         with self.engine.connect() as conn:
             return conn.execute(text(sql), {'code': str(symbol or '')}).fetchone() is not None
 
+    def research_universe(self, limit: int = 800) -> List[str]:
+        """研究宇宙：按流动性取标的（**与 default_universe 的「监控宇宙」是两回事**）。
+
+        2026-09-13（w-a9ec14d7，RFC 015 §4）：此前只有 default_universe = 持仓 ∪ 盯盘规则，
+        实测导致 individual 事件只覆盖 34 只——事件研究需要「同一事件日的横截面」，
+        34 只根本不成立。两个概念必须分开命名，否则永远会被混用。
+        """
+        sql = """
+            SELECT s.symbol
+              FROM quant.stocks s
+              JOIN (SELECT symbol, amount FROM quant.daily_klines
+                     WHERE trade_date = (SELECT max(trade_date) FROM quant.daily_klines)) k
+                ON k.symbol = s.symbol
+             WHERE s.is_st IS NOT TRUE AND s.is_suspended IS NOT TRUE
+               AND k.amount IS NOT NULL
+             ORDER BY k.amount DESC
+             LIMIT :lim
+        """
+        try:
+            rows = self.session.execute(text(sql), {"lim": int(limit)}).fetchall()
+            return [str(r[0]).zfill(6) for r in rows]
+        except Exception as exc:  # noqa: BLE001
+            self._safe_rollback()
+            logger.error("research_universe failed: %s", exc)
+            return []
     def default_universe(self, limit: int = 200) -> List[str]:
-        """默认采集池：持仓 ∪ 盯盘规则（只取 quant.stocks 中真实存在的 6 位代码）"""
+        """监控宇宙（默认采集池）：持仓 ∪ 盯盘规则（只取 quant.stocks 中真实存在的 6 位代码）。
+
+        ⚠️ 2026-09-13：这只是「监控」宇宙，**不要**拿它做事件研究——实测它只有 34 只，
+        研究要用 research_universe()（按流动性取 800 只）。两者混用正是事件覆盖过窄的根因。
+        """
         sql = """
             SELECT DISTINCT u.symbol
               FROM (

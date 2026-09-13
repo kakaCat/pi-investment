@@ -74,6 +74,27 @@ class IMarketEventProvider(ABC):
         """
         pass
 
+    def fetch_market_events(self, start_date: str, end_date: str,
+                            max_pages: int = 10) -> Optional[List[Dict]]:
+        """按**日期区间**拉取全市场事件流（研究级回补；RFC 015 §4，2026-09-13 新增能力）
+
+        为什么必须单列：fetch_symbol_events 是按**标的**检索（只覆盖你给的那几只，
+        实测默认宇宙=持仓∪盯盘 → individual 事件只有 34 只），而事件研究要的是
+        **同一事件日的横截面**（几十~几百只同日事件）。两者取数形态不同，不能互相替代。
+
+        Args:
+            start_date / end_date: YYYY-MM-DD
+            max_pages: 每个通道最多翻多少页（**必须显式声明上限**，禁止无界循环打上游）
+
+        Returns:
+            成功返回 List[dict]（行契约见模块 docstring）；
+            失败返回 None 且写 self.last_error；
+            **因翻页上限而未能取全时**（截断）必须在 self.truncation_note 显式标注——
+            "取到一半"与"全市场只有这么多"必须可区分（否则研究会低估事件密度）。
+            默认实现返回 [] = 本 provider 不支持该能力（沿用端口第 3 条纪律）
+        """
+        return []
+
     def fetch_scheduled_disclosures(self, periods: Optional[List[str]] = None) -> Optional[List[Dict]]:
         """**预约披露日程**（前瞻性财报日历）—— 2026-09-13（w-a9ec14d7）新增能力
 
