@@ -4,7 +4,7 @@
 
 **目标**：让模型训练只剩**一个可观测入口**，并让"该训却没训"在 24 小时内被发现——消除"真正训练的任务不可观测、可观测的任务被门控永久挡住"的错位。
 
-**做法**：保留 in-app 的 `ModelTrainDailyJob`（task 320，有 `quant.scheduler_runs` 台账/watchdog），撤掉系统 crontab 里两条**不可观测**的训练条目；把门控从"floor 天数 > 7"（等价满 8 天、且与 7 天节律自我抵消）改成"实际秒数 ≥ 6 天"，使周节律有 1 天抖动余量；再补一道模型新鲜度巡检（in-app + 外部 launchd 各一处，避免与它要监测的调度同生共死）。
+**做法**：保留 in-app 的 `ModelTrainDailyJob`（task 320，有 `quant.scheduler_runs` 台账/watchdog），撤掉系统 crontab 里两条**不可观测**的训练条目；把门控从"floor 天数 > 7"（等价满 8 天、且与 7 天节律自我抵消）改成"实际秒数 ≥ 6.5 天"（日检查下节律稳定落在第 7 天，见执行记录推演表）；再补一道模型新鲜度巡检（in-app + 外部 launchd 各一处，避免与它要监测的调度同生共死）。
 
 **全局约束**：
 - 只动物业已存在的组件，不新增训练实现；唯一真实训练器仍是 `application/services/scheduler_tasks.handle_model_train_auto`。
@@ -29,7 +29,7 @@
 - Files：Modify `quantsys-v2/application/services/scheduler_tasks.py`（`_check_train_needed`，:1453-1489）；Modify `quantsys-v2/application/jobs/model_jobs.py`（docstring 口径）；Test `quantsys-v2/tests/test_model_train_gate.py`（新建）
 - 现状（已核实）：`days_old = (now - train_date).days` 向下取整 + 判定 `> 7` ⇒ 实际"满 8 天才算过期"。实证：09-13 03:30 那条 `age=7d` 的跳过，模型真实年龄 7.69 天；周一 03:00 训练出来的模型在下周一 03:00 复查只有 6 天 23h59m → 必然跳过（cron 自己也被挡）。
 - 改法：
-  1. 常量 `RETRAIN_MIN_AGE_DAYS = 6`（留 1 天抖动余量，使"每 7 天"节律稳定触发），判定用 `(now_local - train_date).total_seconds() >= RETRAIN_MIN_AGE_DAYS * 86400`；
+  1. 常量 `RETRAIN_MIN_AGE_DAYS = 6.5`（周节律 7 天 + 半天抖动余量），判定经纯函数 `_age_needs_retrain(age_days)`；
   2. `train_date` 缺失 → `return (True, "模型缺 train_date 元数据，按需重训")`（消除 :1489 的 UnboundLocalError）；
   3. reason 文案带一位小数与阈值：`f"模型{version}仍有效（age={age_days:.1f}d < {RETRAIN_MIN_AGE_DAYS}d, acc={test_acc:.4f}）"`；
   4. 删掉 :202 注释里"且数据有更新"半句（代码无此判断，避免二次误导）。
@@ -78,7 +78,7 @@
 
 | 任务 | 状态 | 证据 |
 |---|---|---|
-| t1 门控语义 | ✅ 已生效 | `RETRAIN_MIN_AGE_DAYS=6` + `_model_age_days`；10 条回归测试全过（`tests/test_model_train_gate.py`）；线上 trigger task 320 → runs 3707 reason `仍有效 (age=0.0d < 6d, acc=0.5975)` |
+| t1 门控语义 | ✅ 已生效 | `RETRAIN_MIN_AGE_DAYS=6.5` + `_model_age_days` + `_age_needs_retrain`；11 条回归测试全过（含节律测试，`tests/test_model_train_gate.py`）；线上 trigger task 320 → runs 3709 reason `仍有效 (age=0.0d < 6.5d, acc=0.5975)` |
 | t2 调度去重 | ⚠️ 部分 | 两个 cron 脚本已改为「不训练 / 需显式确认」（行为上训练只剩 task 320）；**crontab 行本身改不动**——macOS TCC 拒写 `/var/at/tmp`（`crontab: tmp/tmp.1646: Operation not permitted`），须人工删行（命令见下方「待人工收尾」） |
 | t3 新鲜度巡检 | ✅ 双线 | in-app：Job 每次运行后复核（runs 3707 含 `freshness_alerts: []`）；外部：launchd 每日 09:05，故障注入实测 `FAIL 模型年龄 11.04 天 > 10 天` + `error-event ingest HTTP=201` |
 | t4 死代码 | ✅ | `application/services/ml_train_task.py` 已删（零调用方，含同款 tz 崩溃实现） |
@@ -100,6 +100,17 @@
 ```bash
 crontab -l | grep -v cron_train_model.sh | grep -v cron_train_model_force.sh | crontab -
 ```
+
+
+**阈值修订记录（同日 04:01，w-4db568de）**：首版取 6.0 天，依据是「每周 cron 检查一次」——但 t2 之后唯一的入口是**日检查**（03:30），节律随之改变。按时间轴推演（`_age_needs_retrain` + 03:30 日检查）：
+
+| 阈值 | 训练于 03:00:11 | 训练于 03:30:11 |
+|---|---|---|
+| 6.0 | 6.02 天（偏早） | 7.00 天 |
+| **6.5** | **7.02 天** | **7.00 天** |
+| 7.0 | 7.02 天 | 8.00 天（偏晚、每次漂一天） |
+
+故改为 **6.5**：两种训练时点都稳定落在第 7 天；漏跑一天仍能在次日补上。已加 `test_daily_cadence_is_seven_days_for_both_training_times` 把这个性质钉住（阈值若再被改动而破坏节律，测试会红）。线上复核：runs 3709 reason `仍有效 (age=0.0d < 6.5d, acc=0.5975)`。
 
 **顺带发现（不在本计划范围，待决定）**：`scripts/benchmark-freshness-check.sh:37` 的 `[ "$BENCH_LAST" < "$REF_LAST" ]` 在 bash 单括号里是**输入重定向**（stderr 有 `No such file or directory`），比较从未生效 → 基准滞后也报 OK（09-13 日志实证：基准 2026-09-10 vs 市场 2026-09-11 仍输出 OK）。修法一行。
 

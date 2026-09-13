@@ -1450,11 +1450,16 @@ def _release_thread_session() -> None:
 
 
 # 重训门控阈值（REQ-a458a6 t1，2026-09-14 w-4db568de）
-# 年龄判据用实际时长做秒级比较：阈值 6 天 / 节律 7 天，留 1 天抖动余量。
-# 原实现用 (now - train_date).days（向下取整）配 `> 7`，等价“满 8 天才算过期”，
-# 且与“每 7 天训一次”的节律自我抵消 —— 03:00:11 训出的模型在下周一 03:00 复查
-# 只有 6d23h59m（floor=6）→ 必然跳过，实测重训周期漂到 8~14 天（REQ-a458a6 实证）。
-RETRAIN_MIN_AGE_DAYS = 6
+# 年龄判据用实际时长做秒级比较（不再用 .days 向下取整）。
+# 原实现 (now - train_date).days 配 `> 7`，等价“满 8 天才算过期”，且与“每 7 天训一次”
+# 的节律自我抵消 —— 03:00:11 训出的模型在下周一 03:00 复查只有 6d23h59m（floor=6）→
+# 必然跳过，实测重训周期漂到 8~14 天（REQ-a458a6 实证）。
+#
+# 阈值取 6.5 = 周节律 7 天 + 半天抖动余量。按日检查（03:30）推演两种训练时点：
+#   阈值 6.0 → 6.02 / 7.00 天（不均匀）
+#   阈值 6.5 → 7.02 / 7.00 天（稳定落在第 7 天）
+#   阈值 7.0 → 7.02 / 8.00 天（不均匀）
+RETRAIN_MIN_AGE_DAYS = 6.5
 RETRAIN_MIN_ACCURACY = 0.55
 
 
@@ -1478,6 +1483,14 @@ def _model_age_days(train_date_str):
     except Exception as e:
         logger.warning(f"模型 train_date 解析失败（按需重训处理）: {train_date_str!r}: {e}")
         return None
+
+
+def _age_needs_retrain(age_days) -> bool:
+    """年龄是否已达重训阈值（纯函数：便于按时间轴推演节律、便于测试）
+
+    age_days=None（缺 train_date / 无法解析）按“需重训”处理。
+    """
+    return age_days is None or age_days >= RETRAIN_MIN_AGE_DAYS
 
 
 def _check_train_needed(model_type: str) -> tuple:
@@ -1512,7 +1525,7 @@ def _check_train_needed(model_type: str) -> tuple:
         # UnboundLocalError（任务以异常结束，连 reason 都拿不到）。改为显式判定。
         return (True, f"模型{latest_version}缺 train_date 元数据，按需重训")
 
-    if age_days >= RETRAIN_MIN_AGE_DAYS:
+    if _age_needs_retrain(age_days):
         return (True, f"模型已{age_days:.1f}天未更新（阈值{RETRAIN_MIN_AGE_DAYS}天）")
 
     test_acc = model.get('test_accuracy')

@@ -45,7 +45,7 @@ def test_fresh_model_skips_with_age_and_threshold(monkeypatch):
     assert ok is False
     assert '仍有效' in reason
     assert '5.9d' in reason, reason       # 一位小数：不再只给 floor 整数
-    assert '6d' in reason and '0.6000' in reason
+    assert '6.5d' in reason and '0.6000' in reason
 
 
 def test_seven_day_old_model_must_train(monkeypatch):
@@ -53,7 +53,7 @@ def test_seven_day_old_model_must_train(monkeypatch):
     ok, reason = _check(monkeypatch, train_date=_days_ago(7.0))
 
     assert ok is True
-    assert '未更新' in reason and '阈值6天' in reason
+    assert '未更新' in reason and '阈值6.5天' in reason
 
 
 def test_age_just_under_threshold_still_skips(monkeypatch):
@@ -61,8 +61,8 @@ def test_age_just_under_threshold_still_skips(monkeypatch):
     assert ok is False
 
 
-def test_age_at_threshold_trains(monkeypatch):
-    ok, _ = _check(monkeypatch, train_date=_days_ago(6.0) - timedelta(seconds=1))
+def test_age_at_threshold_trains(monkeypatch):  # 6.5 天阈值
+    ok, _ = _check(monkeypatch, train_date=_days_ago(6.5) - timedelta(seconds=1))
     assert ok is True
 
 
@@ -107,3 +107,23 @@ def test_naive_train_date_treated_as_local_wall_clock(monkeypatch):
 
     assert ok is False
     assert '3.0d' in reason, reason
+
+
+
+def test_daily_cadence_is_seven_days_for_both_training_times():
+    """节律回归：日检查（03:30）下，无论上次训练在 03:00 还是 03:30，下一次都落在第 7 天。
+
+    阈值 6.0 → 6.02 天（偏早）；7.0 → 8.00 天（偏晚，正是“每次漂一天”的老毛病）；
+    6.5 → 两个时点都是 7.0 天。阈值改动必须先让本测试仍然通过。
+    """
+    for hms in ((3, 0, 11), (3, 30, 11)):
+        t0 = datetime(2026, 9, 14, *hms)
+        nxt = None
+        for d in range(1, 40):
+            check = (t0 + timedelta(days=d)).replace(hour=3, minute=30, second=0, microsecond=0)
+            if st._age_needs_retrain((check - t0).total_seconds() / 86400.0):
+                nxt = check
+                break
+        assert nxt is not None, hms
+        interval = (nxt - t0).total_seconds() / 86400.0
+        assert round(interval, 1) == 7.0, (hms, nxt, interval)
