@@ -30,6 +30,12 @@ def psql(q):
                           capture_output=True, text=True, env=ENV, check=True).stdout
 
 
+def psql_csv_plain(q):
+    out = subprocess.run(["psql", "-d", "quant_investment", "-c", "copy (" + q + ") to stdout with csv header"],
+                         capture_output=True, text=True, env=ENV, check=True).stdout
+    return pd.read_csv(io.StringIO(out))
+
+
 def psql_csv(q):
     out = subprocess.run(["psql", "-d", "quant_investment", "-c", "copy (" + q + ") to stdout with csv header"],
                          capture_output=True, text=True, env=ENV, check=True).stdout
@@ -133,6 +139,88 @@ def main():
             break
     picks = pd.DataFrame([{k: getattr(r, k) for k in ("symbol", "close", "amt", "industry", "roe", "pe")} for r in picks_rows])
 
+    # ===== 板块风向 / 市场风格（2026-09-13 w-c8cae280，用户要求 A）=====
+    # 1) 行业动量：/api/market/sectors 实测返回 0 条（坏接口），改为**库里自算**：
+    #    用 quant.stocks.industry 分组，取成分股近 60 日等权收益中位数作为行业动量并排名。
+    # 2) 市场风格：/api/market/style 可用（当前 growth / 置信度 0.92）。
+    # 3) 权重调整：行业动量前 1/3 → ×1.3；中 1/3 → ×1.0；后 1/3 → ×0.5；
+    #    风格逆风（成长风格下的周期/价值行业，或反之）再 ×0.7；单只权重上限 20% 总资产由宪法保证。
+    import requests as _rq
+    style_info = {}
+    try:
+        _sr = _rq.get("http://127.0.0.1:5001/api/market/style", timeout=20).json()
+        style_info = (_sr.get("data") or {}) if isinstance(_sr, dict) else {}
+    except Exception as _e:  # noqa: BLE001
+        style_info = {"style": "unknown", "confidence": 0.0, "error": str(_e)[:80]}
+
+    ind_mom = {}
+    try:
+        _im = psql_csv_plain("""select s.industry, avg(k.close / p.close - 1) as r60
+                        from quant.stocks s
+                        join quant.daily_klines k on k.symbol = s.symbol and k.trade_date = (select max(trade_date) from quant.daily_klines)
+                        join quant.daily_klines p on p.symbol = s.symbol and p.trade_date = (select max(trade_date) - 60 from quant.daily_klines)
+                        where s.industry is not null
+                        group by s.industry having count(*) >= 3""")
+        ind_mom = {str(r.industry): float(r.r60) for r in _im.itertuples() if pd.notna(r.r60)}
+    except Exception as _e:  # noqa: BLE001
+        print("行业动量计算失败:", str(_e)[:80])
+    ranked = sorted(ind_mom.items(), key=lambda kv: kv[1], reverse=True)
+    n_ind = len(ranked)
+    rank_of = {name: i for i, (name, _v) in enumerate(ranked)}
+    STYLE = str(style_info.get("style", "unknown"))
+    CONF = float(style_info.get("confidence", 0) or 0)
+    CYCLE_KW = ("银行", "保险", "证券", "货币金融", "资本市场", "石油", "煤炭", "有色", "钢铁", "建筑", "土木", "房地产", "航运", "水上运输", "电力", "公用")
+    GROWTH_KW = ("电子", "计算机", "软件", "通信", "医药", "生物", "半导体", "电气机械", "汽车", "军工", "航空", "电池", "医疗")
+
+    def _tilt(industry: str):
+        ind = industry or ""
+        pos = rank_of.get(ind)
+        if pos is None or n_ind == 0:
+            return 1.0, "行业动量未知"
+        q = pos / n_ind
+        mult = 1.3 if q < 1 / 3 else (1.0 if q < 2 / 3 else 0.5)
+        note = "行业动量 %s（%d/%d）" % ("强" if q < 1 / 3 else ("中" if q < 2 / 3 else "弱"), pos + 1, n_ind)
+        if CONF >= 0.6 and q >= 1 / 3:      # 动量前 1/3 的行业不套风格惩罚：动量优先于风格标签
+            is_cycle = any(k in ind for k in CYCLE_KW)
+            is_growth = any(k in ind for k in GROWTH_KW)
+            if STYLE == "growth" and is_cycle:
+                mult *= 0.85; note += "；风格逆风(成长市/周期行业) ×0.85"
+            elif STYLE == "value" and is_growth:
+                mult *= 0.85; note += "；风格逆风(价值市/成长行业) ×0.85"
+            elif STYLE == "cycle" and is_growth:
+                mult *= 0.9; note += "；风格逆风(周期市/成长行业) ×0.9"
+            else:
+                note += "；风格顺风(%s)" % STYLE
+        return mult, note
+
+    _pk = {str(r.symbol): {"close": r.close, "roe": r.roe, "pe": r.pe, "amt": r.amt} for r in picks.itertuples()}
+    tilts = []
+    for r in picks.itertuples():
+        m, note = _tilt(str(r.industry))
+        tilts.append({"symbol": r.symbol, "industry": str(r.industry), "mult": round(m, 3), "note": note})
+    _wsum = sum(t["mult"] for t in tilts) or 1.0
+    for t in tilts:
+        t["weight_pct_of_core"] = round(t["mult"] / _wsum * 100, 2)
+    print("板块风向：市场风格 = %s（置信度 %.2f）；行业动量样本 %d 个行业" % (STYLE, CONF, n_ind))
+
+    # 加权后重算整手：权重不再等权，可能出现"分到的钱买不起 1 手"的标的 → 剔除后重新归一（2026-09-13）
+    _amt_total_pre = total * target_expo
+    _kept = []
+    for _t in tilts:
+        _c = float(_pk[_t["symbol"]]["close"])
+        _lots = int((_amt_total_pre * _t["weight_pct_of_core"] / 100.0) // (_c * 100))
+        if _lots >= 1:
+            _t["lots"] = _lots
+            _kept.append(_t)
+    if _kept and len(_kept) < len(tilts):
+        _wl = sum(x["mult"] for x in _kept) or 1.0
+        for x in _kept:
+            x["weight_pct_of_core"] = round(x["mult"] / _wl * 100, 2)
+            x["lots"] = int((_amt_total_pre * x["weight_pct_of_core"] / 100.0) // (float(_pk[x["symbol"]]["close"]) * 100))
+        print("整手复核：剔除 %d 只买不起 1 手的标的，剩余 %d 只" % (len(tilts) - len(_kept), len(_kept)))
+    tilts = _kept or tilts
+
+
     plan = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "account": a.account, "mode": "PLAN_ONLY（不下单）",
@@ -141,8 +229,15 @@ def main():
                      "core_realized_vol_ann": round(vol_ann, 4) if vol_ann else None,
                      "vol_target": a.target_vol, "w_vol": round(w_vol, 3),
                      "core_drawdown": round(dd, 4), "dd_gate": gate},
-        "holdings": [{"symbol": r.symbol, "close": float(r.close), "amount_def_avg": float(r.amt), "industry": str(r.industry), "roe": round(float(r.roe), 1), "pe": round(float(r.pe), 1),
-                      "target_weight_pct": round(100.0 / len(picks), 2)} for r in picks.itertuples()],
+        "market_style": {"style": STYLE, "confidence": round(CONF, 3), "source": "/api/market/style"},
+        "sector_momentum_note": "行业动量由库内 quant.stocks.industry 分组、近 60 日成分股等权收益中位数自算（/api/market/sectors 实测返回 0 条，不可用）",
+        "holdings": [
+            {"symbol": t["symbol"], "industry": t["industry"],
+             "weight_pct_of_core": t["weight_pct_of_core"], "tilt_mult": t["mult"], "tilt_note": t["note"],
+             "close": float(_pk[t["symbol"]]["close"]), "roe": float(_pk[t["symbol"]]["roe"]),
+             "pe": float(_pk[t["symbol"]]["pe"]), "amount_def_avg": float(_pk[t["symbol"]]["amt"])}
+            for t in tilts
+        ],
         "phase_plan": "分 4 批、每批约 1 周；每批按当时 vol-target 与回撤闸门重算",
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -154,11 +249,11 @@ def main():
           % (target_expo * 100, a.max_exposure * 100, (vol_ann or 0) * 100, w_vol, dd * 100, gate))
     target_amount = total * target_expo
     print("计划投入 %.0f 元，分 4 批（每批约 %.0f 元）" % (target_amount, target_amount / 4))
-    print("目标持仓 %d 只等权（每只约 %.0f 元 ≈ %.0f 股 @现价）：" % (len(picks), target_amount / len(picks), 0))
-    for r in picks.itertuples():
-        lots = int((target_amount / len(picks)) // (float(r.close) * 100))
-        print("  %s  现价 %6.2f  每只 %.0f 元 ≈ %d 手(%d 股)" % (r.symbol, float(r.close),
-              target_amount / len(picks), lots, lots * 100))
+    print("目标持仓 %d 只（按板块风向加权；等权基准每只约 %.0f 元）：" % (len(picks), target_amount / max(len(picks), 1)))
+    for _t in sorted(tilts, key=lambda x: x["weight_pct_of_core"], reverse=True):
+        _c = float(_pk[_t["symbol"]]["close"]); _amt = target_amount * _t["weight_pct_of_core"] / 100.0
+        _lots = int(_amt // (_c * 100))
+        print("  %s  现价 %6.2f  权重 %5.1f%%  约 %6.0f 元 = %d 手 | %s" % (_t["symbol"], _c, _t["weight_pct_of_core"], _amt, _lots, _t["note"]))
     print("计划已写入", OUT)
     return 0
 
