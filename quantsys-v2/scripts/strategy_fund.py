@@ -142,6 +142,28 @@ def stats(eq, turnover):
             "turnover": round(float(turnover), 1)}
 
 
+
+def bench_eq(close, start, end):
+    """基准：同池等权买入持有（窗口首日建仓、此后不动）。用于分离 alpha 与 beta。"""
+    sub = close[(close.index >= pd.Timestamp(start)) & (close.index <= pd.Timestamp(end))].ffill()
+    sub = sub.dropna(axis=1, how="all")
+    base = sub.apply(lambda col: col.dropna().iloc[0] if col.notna().any() else np.nan)
+    rel = sub.divide(base, axis=1).mean(axis=1)
+    return rel.dropna()
+
+
+def bench_stats(close, start, end):
+    eq = bench_eq(close, start, end)
+    if len(eq) < 20:
+        return {}
+    yrs = (eq.index[-1] - eq.index[0]).days / 365.0
+    dd = float((eq / eq.cummax() - 1).min())
+    dr = eq.pct_change().dropna()
+    return {"cagr": round(float((eq.iloc[-1] / eq.iloc[0]) ** (1 / max(yrs, .1)) - 1), 4),
+            "max_dd": round(dd, 4),
+            "sharpe": round(float(dr.mean() / dr.std() * np.sqrt(252)) if dr.std() > 0 else 0, 2)}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--factor", default="roe", choices=["roe", "ey", "debt", "flow"])
@@ -163,7 +185,10 @@ def main():
         print("资金面 universe=%d 只，窗口 %s ~ %s" % (close.shape[1], close.index[0].date(), close.index[-1].date()))
         for lbl, (s, e) in {"全窗口": (a.flow_start, a.end)}.items():
             eq, to = simulate(close, open_, amount, panel, a.topn, s, e, monthly=False)
-            print("%-8s %s" % (lbl, stats(eq, to)))
+            st = stats(eq, to)
+            bs = bench_stats(close, s, e)
+            ex = (round(st.get("cagr", 0) - bs.get("cagr", 0), 4) if bs else None)
+            print("%-8s %s | 基准等权 %s | **超额 %s**" % (lbl, st, bs, ex))
         return 0
 
     fin = load_fin()
@@ -175,7 +200,10 @@ def main():
     for lbl, (s, e) in {"全窗口": (a.start, a.end), "2023": ("2023-01-01", "2023-12-31"),
                         "2024": ("2024-01-01", "2024-12-31"), "2025-26": ("2025-01-01", a.end)}.items():
         eq, to = simulate(close, open_, amount, panel, a.topn, s, e, monthly=a.monthly)
-        print("%-8s %s" % (lbl, stats(eq, to)))
+        st = stats(eq, to)
+        bs = bench_stats(close, s, e)
+        ex = round(st.get("cagr", 0) - bs.get("cagr", 0), 4) if bs else None
+        print("%-8s %s | 基准等权 %s | **超额 %s**" % (lbl, st, bs, ex))
     return 0
 
 
