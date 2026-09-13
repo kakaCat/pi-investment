@@ -93,7 +93,7 @@ tags: [wiki, index, home, agent-dh]
 ### 卷 3 · 工具与协议
 
 - ✅ [工具清单](architecture/TOOLS_INVENTORY.md)
-- ✅ [工具契约与 schema 铁律](../standards/tool-development.md)（并入规范卷——同一概念不写两页）
+- ✅ [工具契约与 schema 铁律](standards/tool-development.md)（并入规范卷——同一概念不写两页）
 - 🟡 P1 `protocols/tool-audit.md` —— 工具审计清单：声明与实现是否一致、默认账户值、dry_run 真假
 - ✅ [交易执行协议](protocols/trade-execution-protocol.md)
 
