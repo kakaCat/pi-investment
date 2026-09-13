@@ -64,48 +64,72 @@ export const corePlanPrompt: ToolPrompt<CorePlanParams, CorePlanResult> = {
   },
 
   output: {
+    // ⚠️ 可空字段必须写 oneOf（DSH schema DSL 不支持 type 数组，见 dsh-tools json-schema.js：
+    //    "type arrays are not supported"，同时 "cannot declare both type and oneOf"）。
+    // 2026-09-13 线上实测（w-c8cae280）：本 schema 原先把 these 声明成 string/number，
+    // 而后端在"计划可用/新鲜/held_only 行"等正常情形下返回 **null** →
+    // 工具调用直接失败："value.unavailable_reason must be a string / target_shares must be a number"。
+    // 也就是说：**schema 比数据更严 = 工具在正常路径上不可用**（与"契约必须与线上数据对齐"同一条教训）。
     schema: {
       type: 'object', additionalProperties: true,
       properties: {
         plan_file: { type: 'string' },
         available: { type: 'boolean' },
-        unavailable_reason: { type: 'string' },
-        account: { type: 'string' },
+        unavailable_reason: {
+          oneOf: [{ type: 'string' }, { type: 'null' }],
+          description: '不可用原因；available=true 时为 null',
+        },
+        account: { oneOf: [{ type: 'string' }, { type: 'null' }] },
         account_mismatch: { type: 'boolean' },
         freshness: {
-          type: 'object', additionalProperties: true,
-          properties: {
-            generated_at: { type: 'string' },
-            data_date: { type: 'string' },
-            is_stale: { type: 'boolean' },
-            stale_reason: { type: 'string' },
-            age_hours: { type: 'number' },
-          },
+          oneOf: [
+            {
+              type: 'object', additionalProperties: true,
+              properties: {
+                generated_at: { oneOf: [{ type: 'string' }, { type: 'null' }] },
+                data_date: { oneOf: [{ type: 'string' }, { type: 'null' }] },
+                is_stale: { type: 'boolean' },
+                stale_reason: {
+                  oneOf: [{ type: 'string' }, { type: 'null' }],
+                  description: '过期原因；新鲜时为 null',
+                },
+                age_hours: { oneOf: [{ type: 'number' }, { type: 'null' }] },
+              },
+            },
+            { type: 'null' },
+          ],
         },
-        plan: { type: 'object', additionalProperties: true },
+        plan: { oneOf: [{ type: 'object', additionalProperties: true }, { type: 'null' }] },
         delta: {
-          type: 'object', additionalProperties: true,
-          properties: {
-            account: { type: 'string' },
-            cash_available: { type: 'number' },
-            summary: { type: 'object', additionalProperties: true },
-            caveats: { type: 'array', items: { type: 'string' } },
-            rows: {
-              type: 'array',
-              items: {
-                type: 'object', additionalProperties: true,
-                properties: {
-                  symbol: { type: 'string' },
-                  bucket: { type: 'string' },
-                  action: { type: 'string' },
-                  target_shares: { type: 'number' },
-                  held_shares: { type: 'number' },
-                  shares_available: { type: 'number' },
-                  delta_shares: { type: 'number' },
+          oneOf: [
+            {
+              type: 'object', additionalProperties: true,
+              properties: {
+                account: { type: 'string' },
+                cash_available: { oneOf: [{ type: 'number' }, { type: 'null' }] },
+                summary: { type: 'object', additionalProperties: true },
+                limit_check: { oneOf: [{ type: 'object', additionalProperties: true }, { type: 'null' }] },
+                caveats: { type: 'array', items: { type: 'string' } },
+                rows: {
+                  type: 'array',
+                  items: {
+                    type: 'object', additionalProperties: true,
+                    properties: {
+                      symbol: { type: 'string' },
+                      bucket: { type: 'string' },
+                      action: { type: 'string' },
+                      // held_only（计划外持仓）行的目标/差额天然为 null —— 这正是线上触发失败的那条
+                      target_shares: { oneOf: [{ type: 'number' }, { type: 'null' }] },
+                      held_shares: { type: 'number' },
+                      shares_available: { type: 'number' },
+                      delta_shares: { oneOf: [{ type: 'number' }, { type: 'null' }] },
+                    },
+                  },
                 },
               },
             },
-          },
+            { type: 'null' },
+          ],
         },
       },
     },
