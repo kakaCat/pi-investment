@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.pi-investment.model-freshness-check</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/yunpeng/pi-investment/scripts/model-freshness-check.sh</string>
+    </array>
+    <key>WorkingDirectory</key><string>/Users/yunpeng/pi-investment</string>
+    <!-- 模型新鲜度常驻巡检（REQ-a458a6 t3，2026-09-14 w-4db568de）：每日 09:05 跑，
+         独立于 v2 进程内的调度（in-app 巡检与它监测的调度同生共死，这条不会）。 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key><integer>9</integer>
+        <key>Minute</key><integer>5</integer>
+    </dict>
+    <key>StandardOutPath</key><string>/Users/yunpeng/pi-investment/logs/model-freshness-check.log</string>
+    <key>StandardErrorPath</key><string>/Users/yunpeng/pi-investment/logs/model-freshness-check.err.log</string>
+</dict>
+</plist>

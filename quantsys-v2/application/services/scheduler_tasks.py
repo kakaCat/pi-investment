@@ -1148,7 +1148,6 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
         if not force_train:
             should_train, reason = _check_train_needed(model_type)
             if not should_train:
-                logger.info(f"跳过训练: {reason}")
                 result_dict = {
                     "action": "model_train_auto",
                     "status": "skipped",
@@ -1156,12 +1155,12 @@ def handle_model_train_auto(params: Dict[str, Any] = None) -> Dict[str, Any]:
                     "timestamp": datetime.now().isoformat()
                 }
                 
-                try:
-                    from application.notification.notification_factory import get_notification_facade
-                    get_notification_facade().send_ml_train_notification(result_dict)
-                except Exception as e:
-                    logger.warning(f"发送通知失败: {e}")
-                
+                # 2026-09-14（REQ-a458a6 t5）：skipped 不再单发飞书 —— 门控未到期时
+                # 每个周期有 6/7 天是 skipped，逐条推送等于噪声（实证：09-06~09-13
+                # 每日一条“跳过原因”）。完整 reason 仍落在 scheduler_runs/result；
+                # success / failed 保持即时推送。
+                logger.info(f"跳过训练（不推送飞书，reason 见 runs）: {reason}")
+
                 return result_dict
         
         # 2. 获取股票列表
@@ -1450,9 +1449,46 @@ def _release_thread_session() -> None:
         logger.debug(f"release thread session failed: {e}")
 
 
+# 重训门控阈值（REQ-a458a6 t1，2026-09-14 w-4db568de）
+# 年龄判据用实际时长做秒级比较：阈值 6 天 / 节律 7 天，留 1 天抖动余量。
+# 原实现用 (now - train_date).days（向下取整）配 `> 7`，等价“满 8 天才算过期”，
+# 且与“每 7 天训一次”的节律自我抵消 —— 03:00:11 训出的模型在下周一 03:00 复查
+# 只有 6d23h59m（floor=6）→ 必然跳过，实测重训周期漂到 8~14 天（REQ-a458a6 实证）。
+RETRAIN_MIN_AGE_DAYS = 6
+RETRAIN_MIN_ACCURACY = 0.55
+
+
+def _model_age_days(train_date_str):
+    """模型年龄（天）；train_date 缺失或无法解析 → None（调用方按“需重训”处理）
+
+    train_date 来自 timestamptz 列（psycopg 返回 tz-aware +08:00），与 naive
+    datetime.now() 直接相减会抛 TypeError（2026-09-05 实证）→ 统一为本地 aware 再算。
+    """
+    if not train_date_str:
+        return None
+    try:
+        import pandas as pd
+
+        train_date = pd.to_datetime(train_date_str)
+        now_local = datetime.now().astimezone()
+        if train_date.tzinfo is None:
+            train_date = train_date.tz_localize(now_local.tzinfo)  # naive 视为本地墙钟
+        train_date = train_date.to_pydatetime().astimezone()  # 统一为本地 aware
+        return (now_local - train_date).total_seconds() / 86400.0
+    except Exception as e:
+        logger.warning(f"模型 train_date 解析失败（按需重训处理）: {train_date_str!r}: {e}")
+        return None
+
+
 def _check_train_needed(model_type: str) -> tuple:
-    """检查是否需要训练"""
-    import pandas as pd
+    """检查是否需要训练
+
+    判定顺序（REQ-a458a6 t1）：
+      · 无模型 / 无元数据 / train_date 缺失或不可解析 → 训练
+      · 实际年龄 ≥ RETRAIN_MIN_AGE_DAYS 天 → 训练
+      · test_accuracy < RETRAIN_MIN_ACCURACY → 训练
+      · 否则跳过（reason 带实际年龄、阈值与准确率，便于复核）
+    """
     from adapters.shared.ml_helpers import _get_model_repo, _resolve_latest_version
     
     latest_version = _resolve_latest_version(model_type)
@@ -1469,24 +1505,22 @@ def _check_train_needed(model_type: str) -> tuple:
         return (True, "模型元数据缺失")
     
     train_date_str = model.get('train_date')
-    if train_date_str:
-        train_date = pd.to_datetime(train_date_str)
-        # train_date 来自 timestamptz 列（psycopg 返回 tz-aware +08:00）；
-        # 与 naive datetime.now() 直接相减会抛 TypeError → 统一为本地 aware 再算
-        now_local = datetime.now().astimezone()
-        if train_date.tzinfo is None:
-            train_date = train_date.tz_localize(now_local.tzinfo)  # naive 视为本地墙钟
-        train_date = train_date.to_pydatetime().astimezone()  # 统一为本地 aware
-        days_old = (now_local - train_date).days
-        
-        if days_old > 7:
-            return (True, f"模型已{days_old}天未更新")
-    
+    age_days = _model_age_days(train_date_str)
+    if age_days is None:
+        # 2026-09-14（REQ-a458a6 t1）：原实现把整段年龄判断放在 `if train_date_str:` 内，
+        # train_date 为空时 days_old 从未赋值却在函数末尾 f-string 中被引用 →
+        # UnboundLocalError（任务以异常结束，连 reason 都拿不到）。改为显式判定。
+        return (True, f"模型{latest_version}缺 train_date 元数据，按需重训")
+
+    if age_days >= RETRAIN_MIN_AGE_DAYS:
+        return (True, f"模型已{age_days:.1f}天未更新（阈值{RETRAIN_MIN_AGE_DAYS}天）")
+
     test_acc = model.get('test_accuracy')
-    if test_acc and test_acc < 0.55:
-        return (True, f"模型性能低 (test_acc={test_acc:.4f})")
-    
-    return (False, f"模型{latest_version}仍有效 (age={days_old}d, acc={test_acc:.4f})")
+    if test_acc and test_acc < RETRAIN_MIN_ACCURACY:
+        return (True, f"模型性能低 (test_acc={test_acc:.4f} < {RETRAIN_MIN_ACCURACY})")
+
+    acc_txt = f"{test_acc:.4f}" if test_acc is not None else "N/A"
+    return (False, f"模型{latest_version}仍有效 (age={age_days:.1f}d < {RETRAIN_MIN_AGE_DAYS}d, acc={acc_txt})")
 
 
 def _try_switch_model(model_type: str, new_version: str, new_test_acc: float) -> bool:
