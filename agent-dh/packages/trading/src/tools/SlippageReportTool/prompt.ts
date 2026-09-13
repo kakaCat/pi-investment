@@ -88,13 +88,17 @@ export const slippageReportPrompt: ToolPrompt<SlippageReportParams, SlippageRepo
     schema: {
       type: 'object', additionalProperties: true,
       properties: {
-        total_fills: { type: 'number', description: '参与统计的成交笔数（决策价与成交价都有值）' },
-        missing_decision_price: { type: 'number', description: '已成交但缺决策价的笔数（单列，不按 0 计入均值）' },
-        avg_slippage_bps: { type: 'number', description: '平均滑点（基点；正=买贵/卖便宜=成本）' },
-        max_slippage_bps: { type: 'number', description: '最大滑点（基点）' },
-        cost_bps_total: { type: 'number', description: '滑点合计（基点）' },
+        // ⚠️ 2026-09-13（w-c8cae280）：**无成交时后端返回 null**（avg/max/total 无定义），
+        // 而这些字段原先声明为 number → 工具在"没有滑点数据"这个最常见的情形下必然失败。
+        // 实测报错：value.avg_slippage_bps / max_slippage_bps / cost_bps_total must be a number。
+        // 规则：**schema 要比数据宽，不能比数据严**（可空字段一律 oneOf [type, null]）。
+        total_fills: { oneOf: [{ type: 'number' }, { type: 'null' }], description: '参与统计的成交笔数（决策价与成交价都有值）' },
+        missing_decision_price: { oneOf: [{ type: 'number' }, { type: 'null' }], description: '已成交但缺决策价的笔数（单列，不按 0 计入均值）' },
+        avg_slippage_bps: { oneOf: [{ type: 'number' }, { type: 'null' }], description: '平均滑点（基点；正=买贵/卖便宜=成本）；无成交为 null' },
+        max_slippage_bps: { oneOf: [{ type: 'number' }, { type: 'null' }], description: '最大滑点（基点）；无成交为 null' },
+        cost_bps_total: { oneOf: [{ type: 'number' }, { type: 'null' }], description: '滑点合计（基点）；无成交为 null' },
         records: { type: 'array', description: '逐笔：决策价/成交价/滑点/来源', items: { type: 'object', additionalProperties: true } },
-        source: { type: 'string', description: '数据来源（v2挂单记录 / Agent OS 记忆兜底）' },
+        source: { oneOf: [{ type: 'string' }, { type: 'null' }], description: '数据来源（v2挂单记录 / Agent OS 记忆兜底）' },
       },
     },
     render: (_args, value) => [{
