@@ -52,3 +52,74 @@ class KlineQualityRepository(BaseORMRepository[KlineDataQuality]):
             # 这正是原 _get_alert_session() 手工模拟的语义，现在收在仓储里。
             self._safe_rollback()
             raise
+
+    def record_check_result(
+        self,
+        symbol: str,
+        start_date: Optional[str],
+        end_date: Optional[str],
+        original_count: int,
+        cleaned_count: int,
+        removed_count: int,
+        fixed_count: int,
+        error_count: int,
+        warning_count: int,
+        errors_json,
+        warnings_json,
+        cleaning_operations_json,
+        completeness_score: float,
+        consistency_score: float,
+        accuracy_score: float,
+        overall_score: float,
+        grade: str,
+        duration_ms: int,
+        period: str = 'daily',
+    ) -> None:
+        """写入一条 K 线清洗质量审计（public.kline_data_quality）。
+
+        2026-09-14（REQ-24e15d）：原实现是
+        application/services/data_quality_service.py 里的 session.execute(text("INSERT INTO
+        kline_data_quality (...) VALUES (..., NOW())"), {...})。现收口到此，改成 ORM insert。
+
+        逐值对齐要点：
+        · **不带 schema 前缀**的旧写法靠的是 search_path（实测 = "$user", public），
+          落到的是 public.kline_data_quality —— 模型的 __table_args__ 显式写死 schema='public'，
+          两边同一张表（不是 quant.kline_data_quality，后者不存在）；
+        · created_at 显式传 func.now()：与原 SQL 的 NOW() 同为"事务时间戳"，
+          不依赖列默认值（两者结果相同，显式传是为了让语义写在代码里而不是藏在 DDL 里）；
+        · errors_json / warnings_json / cleaning_operations_json 是 **jsonb** 列：
+          旧写法传 json.dumps(...) 生成的字符串（PG 隐式 text→jsonb），
+          这里传 Python 列表由 JSONB 类型序列化 —— 落库的 jsonb 值逐值一致
+          （已用真实写入 + jsonb::text 比对验证）；
+        · 异常向上抛：调用方（_persist_quality_result）自己 try/except 记 warning 且不阻断主流程，
+          仓储不吞异常；失败时先 rollback，避免把同线程 scoped_session 毒化成
+          "current transaction is aborted"（原实现没有回滚，属既有缺陷，见报告）。
+        """
+        record = KlineDataQuality(
+            symbol=symbol,
+            period=period,
+            start_date=start_date,
+            end_date=end_date,
+            original_count=original_count,
+            cleaned_count=cleaned_count,
+            removed_count=removed_count,
+            fixed_count=fixed_count,
+            error_count=error_count,
+            warning_count=warning_count,
+            errors_json=errors_json,
+            warnings_json=warnings_json,
+            cleaning_operations_json=cleaning_operations_json,
+            completeness_score=completeness_score,
+            consistency_score=consistency_score,
+            accuracy_score=accuracy_score,
+            overall_score=overall_score,
+            grade=grade,
+            duration_ms=duration_ms,
+            created_at=func.now(),
+        )
+        try:
+            self.session.add(record)
+            self.session.commit()
+        except Exception:
+            self._safe_rollback()
+            raise

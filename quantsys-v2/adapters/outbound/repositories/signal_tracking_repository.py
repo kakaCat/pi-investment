@@ -323,3 +323,111 @@ class SignalTrackingRepository:
             # idle_in_transaction_session_timeout 杀掉（本事件 21ee9ab6 的真实起点）。
             self._end_read()
             cursor.close()
+
+
+    def get_signal_stats(self, start_date: str, end_date: str) -> Dict[str, Any]:
+        """信号聚合统计（按 signal_date 闭区间）。
+
+        2026-09-14（w-32314d00，REQ-24e15d）：原实现是
+        application/services/weekly_report_service.py 的 `_get_signals_stats`
+        （裸 cursor + 一条 COUNT/AVG/CASE WHEN 聚合，返回值按**下标** row[0]..row[6] 取）。
+        聚合语义逐字照搬，返回值即原来那个 dict（调用方不再按下标取值）：
+          · total            = COUNT(*)                （**无** grade/时间之外的过滤）
+          · with_performance = COUNT(return_5d 非空)
+          · avg_win_rate_5d  = AVG(hit_5d = TRUE → 1.0, 否则 0.0)，**NULL 计入 0.0**
+                               —— 与"只对已有表现的样本求均值"不同，属既有口径，不改
+          · avg_return_5d    = AVG(return_5d)
+          · grade_a/b/c      = COUNT(grade = 'A'/'B'/'C')
+        0/None 归一化（`or 0`）与 `round(..., 3)/(..., 4)` 均与原实现一致；
+        聚合恒返回 1 行，故不额外判 fetchone() 为 None（与原实现同样会抛）。
+
+        依赖：本方法沿用本仓储既有的 `_ensure_connection` 自愈连接 + `_end_read`
+        事务收尾机制（REQ-24e15d 本批**不动**该连接机制，只加方法）。
+        """
+        cursor = self._ensure_connection().cursor()
+
+        try:
+            cursor.execute("""
+                SELECT 
+                    COUNT(*) as total,
+                    COUNT(CASE WHEN return_5d IS NOT NULL THEN 1 END) as with_performance,
+                    AVG(CASE WHEN hit_5d = true THEN 1.0 ELSE 0.0 END) as avg_win_rate_5d,
+                    AVG(return_5d) as avg_return_5d,
+                    COUNT(CASE WHEN grade = 'A' THEN 1 END) as grade_a,
+                    COUNT(CASE WHEN grade = 'B' THEN 1 END) as grade_b,
+                    COUNT(CASE WHEN grade = 'C' THEN 1 END) as grade_c
+                FROM quant.signal_tracking
+                WHERE signal_date >= %s AND signal_date <= %s
+            """, (start_date, end_date))
+
+            row = cursor.fetchone()
+
+            return {
+                'total': row[0] or 0,
+                'with_performance': row[1] or 0,
+                'avg_win_rate_5d': round(float(row[2] or 0), 3),
+                'avg_return_5d': round(float(row[3] or 0), 4),
+                'grade_a': row[4] or 0,
+                'grade_b': row[5] or 0,
+                'grade_c': row[6] or 0
+            }
+
+        finally:
+            # 统一收尾：无论读写，退出前结束事务——长寿命连接空闲在事务中会被 PG
+            # idle_in_transaction_session_timeout 杀掉（事件 21ee9ab6）。
+            self._end_read()
+            cursor.close()
+
+    def list_signals_between(self, start_date: str, end_date: str) -> List[Dict]:
+        """按 signal_date 闭区间取信号明细（供 M6-1 归因分析）。
+
+        2026-09-14（w-32314d00，REQ-24e15d）：原实现是
+        application/services/attribution_service.py 里的一段裸 cursor 查询。
+
+        **列顺序与列名即契约**：下游原本用 `cursor.description` 拼 dict，
+        这里仍按 description 组装 —— 列名/顺序与原 SELECT 完全一致
+        （id, signal_date, symbol, grade, source, price, reason,
+          return_5d, return_10d, return_20d, hit_5d, hit_10d, hit_20d），
+        未取到的列为 None（psycopg2 的 NULL → None 语义不变）。
+        ORDER BY signal_date DESC（同日期内顺序不定，与原实现一致）。
+
+        注意：数值列（price/return_*）是 PG numeric → `decimal.Decimal`，
+        原实现在服务层边界统一转 float（既有缺陷的边界修复），**不在仓储改**。
+        """
+        cursor = self._ensure_connection().cursor()
+
+        try:
+            cursor.execute("""
+                SELECT 
+                    id,
+                    signal_date,
+                    symbol,
+                    grade,
+                    source,
+                    price,
+                    reason,
+                    return_5d,
+                    return_10d,
+                    return_20d,
+                    hit_5d,
+                    hit_10d,
+                    hit_20d
+                FROM quant.signal_tracking
+                WHERE signal_date >= %s AND signal_date <= %s
+                ORDER BY signal_date DESC
+            """, (start_date, end_date))
+
+            columns = [desc[0] for desc in cursor.description]
+            results = []
+
+            for row in cursor.fetchall():
+                results.append(dict(zip(columns, row)))
+
+            return results
+
+        finally:
+            # 统一收尾：无论读写，退出前结束事务——长寿命连接空闲在事务中会被 PG
+            # idle_in_transaction_session_timeout 杀掉（事件 21ee9ab6）。
+            self._end_read()
+            cursor.close()
+

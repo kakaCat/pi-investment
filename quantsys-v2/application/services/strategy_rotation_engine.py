@@ -746,19 +746,25 @@ class StrategyRotationEngine:
     # ==================== 辅助方法（工具链支持） ====================
 
     def _get_style_history(self, limit: int = 5) -> List[Dict]:
-        """获取最近 N 次风格变化记录"""
+        """获取最近 N 次风格变化记录
+
+        2026-09-14（w-32314d00，REQ-24e15d）：裸 SQL 收口到
+        MarketStyleORMRepository.get_recent_style_history（按 created_at 倒序）。
+        注意：表里没有 detected_at 列（实际为 created_at），用错列名会被
+        下面 except 吞掉导致风格历史恒为空——2026-08-04 修复。
+        confidence 的 0/None → 0 归一化与 date 的 str() 口径均保持原样。
+        """
         try:
-            from infrastructure.persistence.orm import get_session
-            from sqlalchemy import text
-            session = get_session()
-            # 注意：表里没有 detected_at 列（实际为 created_at），用错列名会被
-            # 下面 except 吞掉导致风格历史恒为空——2026-08-04 修复
-            rows = session.execute(text(
-                "SELECT style, confidence, created_at FROM quant.market_style_state "
-                "ORDER BY created_at DESC LIMIT :limit"
-            ), {'limit': limit}).fetchall()
+            from adapters.outbound.repositories.market_style_repository import (
+                MarketStyleORMRepository,
+            )
+            rows = MarketStyleORMRepository().get_recent_style_history(limit=limit)
             return [
-                {'style': r[0], 'confidence': float(r[1]) if r[1] else 0, 'date': str(r[2])}
+                {
+                    'style': r['style'],
+                    'confidence': float(r['confidence']) if r['confidence'] else 0,
+                    'date': str(r['created_at']),
+                }
                 for r in rows
             ]
         except Exception:

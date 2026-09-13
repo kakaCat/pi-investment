@@ -62,6 +62,39 @@ class PositionORMRepository(BaseORMRepository[Position], IPositionRepository):
             logger.error(f"Error getting positions for {portfolio_name}: {e}")
             return []
 
+    def get_open_positions(self) -> List[Dict[str, Any]]:
+        """**跨账户**取全部当前持仓（status='open'），按开仓日倒序。
+
+        与 get_positions 的差别：后者按单个 account_id 过滤，本方法不筛账户 ——
+        供 GET /api/stocks/my-stocks 的"我的股票"下拉使用（该端点语义就是
+        "我这个终端里所有在仓的标的"，与原内联 SQL 一致）。
+
+        迁移背景（2026-09-14，w-32314d00，REQ-24e15d B4-c4）：
+            原实现是路由自己 `ds.portfolio.db.cursor()` 查 information_schema 判断
+            quant.positions 是否存在，再 `SELECT symbol, name FROM quant.positions
+            WHERE status = 'open' ORDER BY entry_date DESC`。
+            实测（2026-09-14）`ds.portfolio` 恒为 **None**（DataService 已切 ORM 模式，
+            不再暴露 .portfolio），该属性访问必抛 AttributeError，而整个代码块被
+            `except Exception: pass` 吞掉 —— 于是该端点**长期静默返回 positions=[]
+            的空列表**（同一时刻 quant.positions 有 12 行 status='open'）。
+            改为本方法后，取数不再依赖 .db 这个已消失的接口，静默失效随之消除。
+
+        契约（与原 SQL 逐值一致，已在真实库上比对）：
+            · 只取 status='open'；entry_date DESC（NULL 排最后，与 PG 默认一致）；
+            · 不做 LIMIT（原 SQL 没有）；
+            · 失败**不抛**：返回 []（调用方的容错语义就是"拿不到就当空"）。
+        """
+        try:
+            rows = (self.session.query(self.model)
+                    .filter(self.model.status == 'open')
+                    .order_by(self.model.entry_date.desc())
+                    .all())
+            return [self._to_dict(r) for r in rows]
+        except SQLAlchemyError as e:
+            self._safe_rollback()
+            logger.error(f"Error getting open positions: {e}")
+            return []
+
     def list_all(self, limit: int = 100) -> List:
         try:
             return self.session.query(self.model).limit(limit).all()

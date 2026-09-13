@@ -544,6 +544,28 @@ class FactorORMRepository(BaseORMRepository[FactorValue], IFactorRepository):
             logger.error(f"Error getting factor freshness: {e}")
             return []
 
+    def get_max_factor_date(self):
+        """全表最新因子日期（quant.factor_values 的 MAX(factor_date)）。
+
+        迁移背景（2026-09-14，w-32314d00，REQ-24e15d B4-c4）：原实现是
+        daily_jobs_bootstrap._job_freshness_guard 里的
+        session/conn.execute(text("SELECT max(factor_date) FROM quant.factor_values"))，
+        属 inbound 层的裸 SQL，收口到这里。
+
+        语义注意：**这是全表 MAX，不是全市场覆盖度** —— 只要有一只票有当日因子，
+        它就算"新鲜"。设计如此（因子侧另有逐因子新鲜度门禁 get_freshness_by_factor），
+        迁移时按原样保留，不做"顺手升级"。
+
+        Returns:
+            datetime.date，或 None（表空）。
+        """
+        try:
+            return self.session.query(func.max(FactorValue.factor_date)).scalar()
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting max factor date: {e}")
+            raise
+
     def get_factor_names(self) -> List[str]:
         """获取所有因子名称
 

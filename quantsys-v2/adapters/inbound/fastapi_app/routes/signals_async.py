@@ -48,67 +48,12 @@ def get_signals_statistics(request: Request):
     start_date = params.get('start_date', '2024-01-01')
     end_date = params.get('end_date', '2026-12-31')
 
+    # 取数收口到仓储（2026-09-14，w-32314d00，REQ-24e15d B4-c4）：
+    # 原先此处 SignalORMRepository() 后直接 _get_cursor() 拿**私有裸游标**、内联三段 SQL ——
+    # 路由既越层访问数据，又依赖 _get_cursor 这个"向后兼容垫片"。
+    # 现由 SignalORMRepository.get_signal_statistics 承担，路由只做参数与响应。
     from adapters.outbound.repositories import SignalORMRepository
-    signal_repo = SignalORMRepository()
-    cursor = signal_repo._get_cursor()
-
-    cursor.execute("""
-        SELECT
-            COUNT(*) as total,
-            COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
-            COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
-            COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected,
-            COUNT(CASE WHEN status = 'error' THEN 1 END) as error,
-            COUNT(CASE WHEN status = 'executed' THEN 1 END) as executed
-        FROM quant.signals
-        WHERE signal_date >= %s AND signal_date <= %s
-    """, (start_date, end_date))
-    status_result = cursor.fetchone()
-
-    cursor.execute("""
-        SELECT AVG(confidence) as avg_confidence FROM quant.signals
-        WHERE signal_date >= %s AND signal_date <= %s AND confidence IS NOT NULL
-    """, (start_date, end_date))
-    confidence_result = cursor.fetchone()
-    avg_confidence = float(confidence_result['avg_confidence'] or 0.0) if isinstance(confidence_result, dict) else float(confidence_result[0] or 0.0)
-
-    cursor.execute("""
-        SELECT action, COUNT(*) as total,
-            COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_count
-        FROM quant.signals WHERE signal_date >= %s AND signal_date <= %s GROUP BY action
-    """, (start_date, end_date))
-    accuracy_results = cursor.fetchall()
-
-    buy_accuracy = 0.0
-    sell_accuracy = 0.0
-    for row in accuracy_results:
-        if isinstance(row, dict):
-            if row['total'] > 0 and row.get('approved_count', 0) > 0:
-                accuracy = (row['approved_count'] / row['total']) * 100
-                if row['action'] == 'BUY':  # signals 大写契约（08-13）
-                    buy_accuracy = accuracy
-                elif row['action'] == 'SELL':
-                    sell_accuracy = accuracy
-        else:
-            if row[1] > 0 and row[2] > 0:
-                accuracy = (row[2] / row[1]) * 100
-                if row[0] == 'BUY':
-                    buy_accuracy = accuracy
-                elif row[0] == 'SELL':
-                    sell_accuracy = accuracy
-    cursor.close()
-
-    if status_result:
-        stats = {
-            'total': status_result['total'], 'pending': status_result['pending'],
-            'approved': status_result['approved'], 'rejected': status_result['rejected'],
-            'error': status_result['error'], 'executed': status_result['executed'],
-            'avg_confidence': round(avg_confidence, 2),
-            'buy_approved_rate': round(buy_accuracy, 2), 'sell_approved_rate': round(sell_accuracy, 2),
-        }
-    else:
-        stats = {'total': 0, 'pending': 0, 'approved': 0, 'rejected': 0, 'error': 0,
-                 'executed': 0, 'avg_confidence': 0.0, 'buy_approved_rate': 0.0, 'sell_approved_rate': 0.0}
+    stats = SignalORMRepository().get_signal_statistics(start_date, end_date)
     return api_response(stats)
 
 
@@ -539,58 +484,40 @@ def get_signals(request: Request):
 @router.get('/api/agent/logs')
 @handle_api_error
 def get_agent_logs(request: Request):
-    from infrastructure.persistence.database.engine import db_cursor
+    # 取数收口到仓储（2026-09-14，w-32314d00，REQ-24e15d B4-c4）：
+    # 原先路由自己 db_cursor() + f-string 拼 WHERE 子句查 quant.agent_logs ——
+    # 该表此前**没有 ORM 模型**，全仓唯一入口就是这个路由。
+    # 现由 AgentLogRepository + models/agent_log.py 承担；路由只做展示映射。
+    # 注意：查询参数 limit 在原实现里就**声明了但从未使用**（实际用 page_size），
+    # 本批按原样保留该行为，不在重构批里悄悄改接口语义。
+    from adapters.outbound.repositories.agent_log_repository import AgentLogRepository
     params = get_query_params_snake_case(request)
     start_date = params.get('start_date')
     end_date = params.get('end_date')
     action = params.get('action')
     status = params.get('status')
-    limit = min(int(params.get('limit', 20)), 100)
     page = max(1, int(params.get('page', 1)))
     page_size = min(int(params.get('page_size', 20)), 100)
 
-    with db_cursor() as cursor:
-        conditions = []
-        query_params = []
-        if start_date:
-            conditions.append('timestamp >= %s::date')
-            query_params.append(start_date)
-        if end_date:
-            conditions.append("timestamp < (%s::date + interval '1 day')")
-            query_params.append(end_date)
-        if action:
-            conditions.append('action_type = %s')
-            query_params.append(action)
-        if status:
-            conditions.append('status = %s')
-            query_params.append(status)
-        where_clause = ' AND '.join(conditions) if conditions else 'TRUE'
+    repo = AgentLogRepository()
+    total = repo.count_logs(start_date, end_date, action, status)
+    offset = (page - 1) * page_size
+    rows = repo.list_logs(start_date, end_date, action, status,
+                          limit=page_size, offset=offset)
 
-        cursor.execute(f'SELECT COUNT(*) FROM quant.agent_logs WHERE {where_clause}', query_params)
-        count_result = cursor.fetchone()
-        total = count_result['count'] if isinstance(count_result, dict) else count_result[0]
-
-        offset = (page - 1) * page_size
-        cursor.execute(f'''
-            SELECT id, timestamp, action_type, symbol, details, result, status, duration_ms, created_at
-            FROM quant.agent_logs WHERE {where_clause} ORDER BY timestamp DESC LIMIT %s OFFSET %s
-        ''', query_params + [page_size, offset])
-        rows = cursor.fetchall()
-
-        items = []
-        for row in rows:
-            r = dict(row)
-            details = r.get('details') or {}
-            res = r.get('result') or {}
-            items.append({
-                'id': str(r['id']),
-                'timestamp': r['timestamp'].isoformat() if hasattr(r['timestamp'], 'isoformat') else str(r['timestamp']),
-                'action': f"{r['action_type']} {r['symbol']}",
-                'description': str(details.get('reason', details.get('summary', res.get('summary', '')))),
-                'status': 'success' if r['status'] == 'success' else ('failed' if r['status'] == 'failed' else 'pending'),
-                'details': sanitize_for_json(details),
-                'signal_id': str(res.get('signal_id', '')) if res.get('signal_id') else None,
-            })
-        total_pages = math.ceil(total / page_size) if page_size > 0 else 0
-        return api_response({'items': items, 'total': total, 'page': page,
-                             'page_size': page_size, 'total_pages': total_pages})
+    items = []
+    for r in rows:
+        details = r.get('details') or {}
+        res = r.get('result') or {}
+        items.append({
+            'id': str(r['id']),
+            'timestamp': r['timestamp'].isoformat() if hasattr(r['timestamp'], 'isoformat') else str(r['timestamp']),
+            'action': f"{r['action_type']} {r['symbol']}",
+            'description': str(details.get('reason', details.get('summary', res.get('summary', '')))),
+            'status': 'success' if r['status'] == 'success' else ('failed' if r['status'] == 'failed' else 'pending'),
+            'details': sanitize_for_json(details),
+            'signal_id': str(res.get('signal_id', '')) if res.get('signal_id') else None,
+        })
+    total_pages = math.ceil(total / page_size) if page_size > 0 else 0
+    return api_response({'items': items, 'total': total, 'page': page,
+                         'page_size': page_size, 'total_pages': total_pages})

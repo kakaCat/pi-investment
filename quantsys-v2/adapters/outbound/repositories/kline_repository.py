@@ -15,7 +15,7 @@ DDD架构：
 - 实现 domain.ports.IKlineRepository 接口
 - 符合依赖倒置原则
 """
-from typing import Any, List, Dict, Optional
+from typing import Any, List, Dict, Optional, Set
 from datetime import date, datetime, timedelta
 import polars as pl
 import structlog
@@ -991,6 +991,63 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             logger.error(f"Error getting last close for {symbol}: {e}")
             return None
 
+    def get_latest_close(self, symbol: str) -> Optional[float]:
+        """最新一个交易日的收盘价（按 trade_date 倒序第一条）；无数据/收盘为 NULL → None。
+
+        2026-09-14（w-32314d00，REQ-24e15d）：原实现是
+        application/services/opportunity_to_watch_rule_service.py 的
+        `_latest_close_from_db`（裸 SQL：SELECT close FROM quant.daily_klines
+        WHERE symbol=:s ORDER BY trade_date DESC LIMIT 1）。
+
+        与 get_last_close_on_or_before 的差异（勿合并）：本方法
+          · **不加 trade_date <= end_date 过滤**；
+          · **不做后缀归一化**（原 SQL 的 symbol 原样匹配，调用方传的就是 6 位码）。
+        返回值口径与原实现逐值一致：`float(row[0]) if row and row[0] is not None else None`。
+
+        异常策略：**回滚后上抛**——调用方的 `except → logger.warning('读取最新收盘价失败')
+        → return None` 是既有容错路径，仓储吞异常会让该留痕静默消失。
+        """
+        try:
+            row = (
+                self.session.query(DailyKline.close)
+                .filter(DailyKline.symbol == symbol)
+                .order_by(DailyKline.trade_date.desc())
+                .limit(1)
+                .first()
+            )
+        except Exception:
+            self._safe_rollback()
+            raise
+        return float(row[0]) if row and row[0] is not None else None
+
+    def list_distinct_trade_dates_since(self, start_date) -> Set[date]:
+        """`trade_date >= start_date` 的全部交易日（DISTINCT，去重集合）。
+
+        2026-09-14（w-32314d00，REQ-24e15d）：原实现是
+        application/services/data_pipeline_service.py 的 `load_trading_calendar_from_db`
+        在 quant.trading_calendar 为空时的回退路径（裸 SQL：SELECT DISTINCT trade_date
+        FROM quant.daily_klines WHERE trade_date >= %s ORDER BY trade_date）。
+
+        语义对齐：返回 **set[datetime.date]**（原实现 `_rows_to_set` 的结果类型），
+        边界是闭区间 `>=`；ORDER BY 对 set 无影响，保留以对齐 SQL 文本。
+
+        异常策略：**回滚后上抛**——调用方有外层 `except Exception → set()` 与
+        `logger.warning('trading_calendar_unavailable')`，吞异常会让"日历不可用"
+        失去留痕、并把故障伪装成"空日历"（正是 2026-09-11 那类静默降级）。
+        """
+        try:
+            rows = (
+                self.session.query(DailyKline.trade_date)
+                .filter(DailyKline.trade_date >= start_date)
+                .distinct()
+                .order_by(DailyKline.trade_date.asc())
+                .all()
+            )
+        except Exception:
+            self._safe_rollback()
+            raise
+        return {r[0] for r in rows}
+
     def batch_insert_daily_klines(self, klines: List[DailyKline]) -> bool:
         """批量插入日K线数据（使用 upsert 避免重复键冲突）
 
@@ -1540,6 +1597,84 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             self._safe_rollback()
             logger.error(f"Error finding duplicate trade dates for {symbol}: {e}")
             return []
+
+    def get_kline_coverage(self, expected: str) -> Dict[str, Any]:
+        """按标的统计日K线覆盖度（迁移自 daily_jobs_bootstrap._kline_coverage）。
+
+        2026-09-10 的原始修复背景：原判定用全局 max(trade_date)，只要有一只票有当日
+        数据就认定"全市场新鲜" → evening_pipeline 直接跳过同步；实测 2026-09-10 时
+        5150/5542 只（93%）停在 09-02，缺口被固化近 8 个交易日无人发现。故改为
+        按标的覆盖度 + 最陈旧标的日期。
+
+        口径（与原 SQL 逐值一致，已在真实库上比对）：
+          · 宇宙 = quant.stocks 中 NOT is_delisted 且 name 不含 退/ST 的标的；
+          · covered = 该宇宙中"存在 trade_date >= expected 的日K线"的标的数；
+          · oldest_stale = 每只票的 max(trade_date) 中，为 NULL 或 < expected 的**最小值**
+            （即"最陈旧的那只票停在哪天"）；全市场都新鲜时为 None；
+          · 注意 NOT is_delisted / NOT (name LIKE ...) 遇 NULL 时为 NULL 会被过滤掉 ——
+            这是 PG 的三值逻辑，与本方法 .is_(False)/notlike 的语义一致。
+
+        Returns:
+            {total, covered, stale, coverage, oldest_stale}
+            —— coverage 在 total=0 时取 1.0（无标的口径下不算"不新鲜"）。
+        """
+        uni_filters = (
+            Stock.is_delisted.is_(False),
+            Stock.name.notlike('%退%'),
+            Stock.name.notlike('%ST%'),
+        )
+        try:
+            universe = (
+                select(Stock.symbol.label('symbol'))
+                .where(*uni_filters)
+                .subquery()
+            )
+            total_q = select(func.count()).select_from(universe)
+            covered_q = (
+                select(func.count())
+                .select_from(universe)
+                .where(
+                    select(1)
+                    .select_from(DailyKline)
+                    .where(DailyKline.symbol == universe.c.symbol,
+                           DailyKline.trade_date >= expected)
+                    .exists()
+                )
+            )
+            per_symbol_max = (
+                select(Stock.symbol.label('symbol'),
+                       func.max(DailyKline.trade_date).label('mx'))
+                .select_from(Stock)
+                .outerjoin(DailyKline, DailyKline.symbol == Stock.symbol)
+                .where(*uni_filters)
+                .group_by(Stock.symbol)
+                .subquery()
+            )
+            oldest_q = (
+                select(func.min(per_symbol_max.c.mx))
+                .where((per_symbol_max.c.mx.is_(None))
+                       | (per_symbol_max.c.mx < expected))
+            )
+            row = self.session.execute(
+                select(total_q.scalar_subquery().label('total'),
+                       covered_q.scalar_subquery().label('covered'),
+                       oldest_q.scalar_subquery().label('oldest_stale'))
+            ).mappings().first()
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error in get_kline_coverage: {e}")
+            raise
+
+        total = int(row['total'] or 0)
+        covered = int(row['covered'] or 0)
+        oldest = row['oldest_stale']
+        return {
+            'total': total,
+            'covered': covered,
+            'stale': total - covered,
+            'coverage': (covered / total) if total else 1.0,
+            'oldest_stale': str(oldest) if oldest else None,
+        }
 
     def get_latest_trade_date(self) -> Optional[str]:
         """最新交易日（daily_klines 最大 trade_date）。

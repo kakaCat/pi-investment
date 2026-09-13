@@ -2,7 +2,9 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Numeric, Text, ForeignKey, or_
+from sqlalchemy import (
+    Column, Integer, String, Boolean, DateTime, Numeric, Text, ForeignKey, or_, func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 
 from infrastructure.persistence.orm import BaseORMRepository
@@ -283,6 +285,30 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
             import structlog
             structlog.get_logger(__name__).warning("批量触发统计读取失败", error=str(e))
         return out
+
+    def get_last_triggered_at(self, rule_id: int):
+        """某规则最近一次触发时间（无触发返回 None）。
+
+        迁移背景（2026-09-14，w-32314d00，REQ-24e15d B4-c4）：原实现是
+        daily_jobs_bootstrap._watch_rule_health 里的
+        SELECT MAX(triggered_at) FROM quant.watch_triggers WHERE rule_id = :rid，
+        属 inbound 层裸 SQL，收口到这里。
+
+        「无触发」有两种原因：该规则从未触发（无行）→ None；有行但 triggered_at 全为
+        NULL → 也是 None。调用方据此区分"从未触发"与"30 天未触发"，与原来
+        trigger_row[0] if trigger_row else None 的取值完全一致。
+        """
+        try:
+            return (
+                self.session.query(func.max(WatchTrigger.triggered_at))
+                .filter(WatchTrigger.rule_id == rule_id)
+                .scalar()
+            )
+        except Exception as e:  # noqa: BLE001
+            self._safe_rollback()
+            import structlog
+            structlog.get_logger(__name__).warning("读取规则最近触发时间失败", rule_id=rule_id, error=str(e))
+            raise
 
     def list_triggers(self, symbol: Optional[str] = None,
                       disposition: Optional[str] = None,

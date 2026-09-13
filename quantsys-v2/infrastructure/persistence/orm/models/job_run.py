@@ -13,7 +13,7 @@
       实测外层 success 而 result 里嵌套着失败（见 job_executor.classify_job_result 的下钻逻辑）；
     · run_date 是**自然日**，不是交易日（非交易日也可能跑）。
 """
-from sqlalchemy import Column, Date, DateTime, Index, Text
+from sqlalchemy import Column, Date, DateTime, Index, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 
 from ..base import Base
@@ -28,14 +28,20 @@ class InProcessJobRun(Base):
     主键：(job_id, run_date)
     """
     __tablename__ = 'inprocess_job_runs'
-    # 真实表的索引除主键外还有 run_date 上的查询索引；这里只声明 schema，
-    # 避免 create_all 建出线上不存在的结构。
+    # 2026-09-14（w-32314d00，B4-c4）：本模型现在是**建表的唯一真源** ——
+    # handle: daily_jobs_bootstrap._ensure_table 原先内联一份手写 _DDL，
+    # 与模型重复定义同一张表（改一处不改另一处就漂）。现已改为
+    # InProcessJobRun.__table__.create(checkfirst=True)，_DDL 删除。
+    # 因此这里声明的列/默认值必须与线上表逐列一致 —— 已用 information_schema 比对过。
     __table_args__ = {'schema': 'quant'}
 
     job_id = Column(Text, primary_key=True, comment='任务标识')
     run_date = Column(Date, primary_key=True, comment='运行日（自然日）')
     status = Column(Text, nullable=False, comment='任务级状态')
-    started_at = Column(DateTime(timezone=True), nullable=False, comment='开始时间')
+    # server_default 必须保留：原手写 DDL 是 timestamptz NOT NULL DEFAULT now()，
+    # 不声明则 checkfirst 建出来的表会少这个默认值（新环境与老环境结构不一致）。
+    started_at = Column(DateTime(timezone=True), nullable=False,
+                        server_default=text('now()'), comment='开始时间')
     finished_at = Column(DateTime(timezone=True), nullable=True, comment='结束时间')
     result = Column(JSONB, nullable=True, comment='handler 返回值')
     error = Column(Text, nullable=True, comment='错误摘要')

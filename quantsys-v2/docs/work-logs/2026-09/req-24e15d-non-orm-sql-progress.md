@@ -90,11 +90,27 @@ ORM 模型 `IndexDaily`、仓储指数口径方法（`get_index_return` 等）�
 | B4-b | `87850eb0` | 熔断状态服务落 ORM + 修 JSONB NULL 语义陷阱 | 2 |
 | B4-c1 | `54830404` | portfolio_repository（trades/holdings 半区 9 处）+ 2 个静默缺陷 | 15→6 |
 | B4-c2 | `9bb04e65` | 删 legacy 订单栈（A 方案）+ 修好静默失效的信号执行链 | 6→0 |
-| B4-c3 | 本批 | risk + kline + chip + strategy_performance 四仓储落 ORM | 33→0 |
+| B4-c3 | `3ec509f8` | risk + kline + chip + strategy_performance 四仓储落 ORM | 33→0 |
+| 度量 | `d698dc89` | **扫描器口径修正**：`core_text_sql` 漏计 `conn.execute(text(...))`（11→39，+32 全为既有漏计） | — |
+| B4-c4 | 本批 | **应用层（读 6 + 写 6）+ 路由层 3 文件**全部收口到仓储 | 26→0 |
 
 批次日志：`req-24e15d-b1-jobs-layer.md`、`-b2a-`、`-b2b-`、`-b3a-`、`-b3a2-`、
 `-b3b-`、`-b4a-`、`-b4b-`、`-b4c-portfolio-repo.md`、`-b4c2-delete-legacy-order-stack.md`、
-`-b4c3-repositories.md`。
+`-b4c3-repositories.md`、`-b4c4-app-routing-layers.md`。
+
+## 6.6 B4-c4：应用层 + 路由层收口（本批）
+
+详见 `req-24e15d-b4c4-app-routing-layers.md`。要点：
+
+- **路由层 3 文件**：`signals_async.py`(6) / `stock_async.py`(2) / `daily_jobs_bootstrap.py`(1 计数 + **11 处扫描器漏计**) → 0；
+- **应用层 12 文件**：读路径 6（notifier / strategy_rotation_engine / opportunity_to_watch_rule_service /
+  weekly_report_service / attribution_service / data_pipeline_service）+ 写路径 6（risk_check_service /
+  strategy_weight_adjuster / strategy_validation_service / data_quality_service / strategy_lifecycle_service /
+  qlib_data_adapter）；
+- **新建 3 个 ORM 模型**（`agent_log` / `trading_calendar` / `strategy_validation`）+ 3 个仓储；
+- **修好一个长期静默失效的接口**：`GET /api/stocks/my-stocks` 恒返回空持仓（`ds.portfolio` 已为 None，
+  `ds.portfolio.db` 必抛 AttributeError 被 `except Exception: pass` 吞掉，而 `quant.positions` 有 12 行 open）；
+- **等价性全部在真实库上比结果**，且有**负对照**证明比对脚本不是恒真（变异 3 处 → 恰好检出 3 段）。
 
 ## 6.5 B4-c2：legacy 订单栈删除（`9bb04e65`，经用户裁定 A 方案）
 
@@ -110,12 +126,19 @@ ORM 模型 `IndexDaily`、仓储指数口径方法（`get_index_return` 等）�
 ```
 P0 fstring_value_interp  本轮范围 0     ✅
 P0 raw_connect           本轮范围 0     ✅
-P1 cursor_execute        本轮范围 25（起点 124；B4-c2 后 51 → B4-c3 后 25）
-P1 core_text_sql         本轮范围 11（起点 35；B4-c2 后 25 → B4-c3 后 11）
-P2 session_execute_var   本轮范围 60（审计桶，人工复核——B4-c3 新增的全是
+P1 cursor_execute        本轮范围 13（起点 124；B4-c3 后 25 → B4-c4 后 13）
+P1 core_text_sql         **两个尺子必须都读**（口径在 B4-c4 中途修正过）：
+                           旧尺子（只认 session. 接收者）本轮范围  7
+                           新尺子（任意接收者，= d698dc89 起）   本轮范围 39
+                         39 里 +32 是**纯度量变化**暴露的既有漏计，不是本批新增；
+                         反过来，本批修掉的 11 处 conn.execute(text(...)) 旧尺子根本数不到。
+P2 session_execute_var   本轮范围 68（审计桶，人工复核——新增的全是
                                        pg_insert(...)/select(...) 构造后执行的 Core 语句）
-P2 fstring_sql           本轮范围 3（起点 11）
+P2 fstring_sql           本轮范围 3（起点 11；其中 qlib_repository 那 1 处是
+                                       **标识符插值**（模块级常量 _FEATURE_COLUMNS），
+                                       属扫描器文档明示的正当写法；值插值 P0 仍为 0）
 P2 read_sql              本轮范围 5
+unparseable（语法坏文件） 本轮范围 [] —— 无一文件不可解析（见 §10 新增口径）
 → --gate 退出码 0
 ```
 
@@ -126,16 +149,23 @@ P2 read_sql              本轮范围 5
 `portfolio_repository`(6) 与 `application/services/order_service.py`(5) 已随 B4-c2
 （删 legacy 订单栈，用户裁定 A 方案）**整段删除**，不再是剩余工作。
 
-**B4-c4 候选**（按"应用层/路由层违规优先"，完整清单见 B4-c3 日志 §7）：
+**B4-c4 已完成**（本批）：应用层 12 文件 + 路由层 3 文件全部收口 ——
+详见 `req-24e15d-b4c4-app-routing-layers.md`。**应用层与路由层已无裸 SQL**。
 
-| 文件 | 站点 | 层次 |
+**B4-c5 候选**（收口后重新扫描，排除 `session_execute_var` 审计桶；22 文件 / 61 站点）：
+
+| 文件 | 站点 | 说明 |
 |---|---|---|
-| `application/services/`（weekly_report / attribution / risk_check / data_pipeline / strategy_weight_adjuster / core_plan / strategy_validation / strategy_rotation_engine / data_quality / watch_engine.notifier） | 12 | **应用层违规** |
-| `routes/signals_async.py` | 6 | **路由层违规** |
-| `routes/stock_async.py` + `daily_jobs_bootstrap.py` | 3 | **路由层违规** |
-| `qlib_data_adapter.py` + `strategy_evaluation_service.py` | 4 | **应用层违规（read_sql）** |
-| `signal_tracking_repository.py` | 6 | 仓储内（自带裸连接自愈 + 专门测试固化，需同步处理） |
-| 其余仓储/工具零散 | 7 | 仓储内 |
+| `adapters/outbound/repositories/event_repository.py` | 12 | 仓储内，但 `core_text_sql` 11 处集中在此，最大单点 |
+| `signal_tracking_repository.py` | 8 | **有 6 处是既有裸连接自愈机制**：动它必须连带处理 `tests/test_signal_tracking_connection.py`（该测试固化了机制本身） |
+| `watch_state_repository.py` | 6 | 仓储内 Core text() |
+| `infrastructure/persistence/database/async_base_repository.py` | 5 | 异步基座，改动面广，需单独评估 |
+| `qlib_repository.py` | 4 | **src 是坏的**（见 B4-c4 日志 §9.1：打全库不存在的 `klines` 表），先裁决数据源再迁 |
+| `competition_repository.py` / `strategy_repository.py` | 3+3 | 仓储内 |
+| `core_plan_service.py` / `data_hygiene_service.py` / `strategy_evaluation_service.py` / `scheduler_tasks.py` | 2+2+2+2 | **通用 SQL 助手**（`query_rows/query_df/query_scalar` 共 6 处、27 个调用点）：需先设计一个类型化查询端口，再逐调用点改造，属**设计题不是机械题** |
+| 其余零散（`ml_model_repository` / `scheduler_repository` / `strategy_evolution_run_repository` / `portfolio_repository` / `watch_rule_repository` / `v13_use_case` / `fund_flow_update_job` / `market_state_provider` / `dependency_check` / `symbol_classifier` / `test_cron_parsing`） | 各 1 | 逐个处理 |
+
+**范围外 78**（`scripts/` / `tools/` / `live_trading/`）另行裁决。
 
 另有两项**独立既有缺陷**建议单列（均为 HEAD 已复现，非本线引入）：
 1. `signals.action_type` 模型声明 NOT NULL 无默认值 ⇒ 建表列亦无默认值 ⇒
@@ -155,3 +185,14 @@ P2 read_sql              本轮范围 5
   **不要拿 111 当起点**，否则会算出"凭空多出来 13 处"。
 - 判定"是否引入新失败"必须用 `git worktree add /tmp/wt-head HEAD` 跑同一组用例并
   **diff 失败集合**，不能只比数量、更不能看"像不像既有问题"。
+- **`core_text_sql` 口径修正过两次，跨会话引用数字前先看这个文件顶部的口径说明**：
+  1. `cursor_execute`：111 → 124（只认变量名叫 `cursor` → 认任意 DB-API 接收者，B1 前置）
+  2. `core_text_sql`：只认 `session.` 接收者 → 认任意接收者（B4-c4 前置，`d698dc89`）。
+     修正后本轮范围 11 → 39，**+32 全是既有漏计**。引用历史数字时务必注明用的是哪个尺子，
+     否则会把"度量变化"算成"活干了"或反过来。
+- **扫描器对语法坏文件的行为变了**（B4-c4）：原先 `SyntaxError` 时 docstring 集合返回空 ⇒
+  整个文件的 docstring 被当代码扫 ⇒ 指标**向上虚高**。现在这类文件计入 `unparseable` 并**不计入任何指标**，
+  报告会显式告警。**"某文件 0 命中"与"某文件没量到"是两件事**，看报告时要分清。
+- **等价性验证要带负对照**：只跑"老==新"无法排除"比对脚本恒真"。做法见 B4-c4 日志 §4.1
+  （把老实现定向变异 3 处，差异段必须恰好等于被变异段）。B4-c4 期间这道防线拦下 2 次假"通过"。
+  **worktree 里没有 `venv`（gitignore）**，要 `ln -s` 主树 venv 进去，否则 `./venv/bin/python` 直接 No such file。

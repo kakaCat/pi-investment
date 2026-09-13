@@ -19,7 +19,7 @@ from typing import List, Dict, Optional
 
 import structlog
 from sqlalchemy import (
-    Column, Date, DateTime, Integer, Numeric, String, Text, case, cast, func,
+    Column, Date, DateTime, Float, Integer, Numeric, String, Text, case, cast, func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -301,6 +301,57 @@ class StrategyPerformanceRepository(BaseORMRepository[StrategyPerformance]):
         stats['win_rate'] = (stats['win_trades'] / stats['total_trades']) * 100 if stats['total_trades'] > 0 else 0
 
         return stats
+
+    def get_market_style_aggregates(self, strategy_name: str) -> List[Dict]:
+        """按 scenario_tags 首标签（市场风格）聚合已平仓记录的表现。
+
+        2026-09-14（REQ-24e15d）：原实现是
+        application/services/strategy_weight_adjuster.py 的 _get_performance_by_style()，
+        用 performance_repo._get_cursor() 裸 psycopg2 游标执行一段聚合 SQL，现收口到此。
+
+        逐值对齐原 SQL（口径一处都不能改）：
+            SELECT scenario_tags->>0 AS market_style, COUNT(*) AS total_trades,
+                   AVG(pnl_pct) AS avg_return,
+                   STDDEV(pnl_pct) AS std_return,
+                   SUM(CASE WHEN pnl_pct > 0 THEN 1 ELSE 0 END)::FLOAT / COUNT(*) AS win_rate
+            FROM quant.strategy_performance
+            WHERE strategy_name = %s AND scenario_tags IS NOT NULL AND exit_price IS NOT NULL
+            GROUP BY scenario_tags->>0
+        · STDDEV 用 stddev_samp：PostgreSQL 的 stddev(x) 就是 stddev_samp(x)（样本标准差，
+          分母 n-1），**不是** stddev_pop；样本量为 1 时返回 NULL（服务层保留 "NULL→1.0" 兜底）。
+        · win_rate 两侧都显式 CAST 成 FLOAT：原式 SUM(...)::FLOAT / COUNT(*) 在 PG 里按
+          float8/bigint → float8 解析，这里 CAST(count(*) AS FLOAT) 后仍是 float8/float8，
+          取值与类型逐位一致（避免变成 numeric 除法改变结果类型）。
+        · 不排序：原 SQL 没有 ORDER BY（分组顺序由 PG 决定），下游按 market_style 建 dict，与顺序无关。
+
+        Returns:
+            行字典列表，键与原 RealDictCursor 一致：
+            market_style / total_trades / avg_return / std_return / win_rate。
+            无匹配行返回空列表。
+        """
+        style_col = StrategyPerformance.scenario_tags[0].astext
+        stmt = (
+            self.session.query(
+                style_col.label('market_style'),
+                func.count().label('total_trades'),
+                func.avg(StrategyPerformance.pnl_pct).label('avg_return'),
+                func.stddev_samp(StrategyPerformance.pnl_pct).label('std_return'),
+                (
+                    cast(
+                        func.sum(case((StrategyPerformance.pnl_pct > 0, 1), else_=0)),
+                        Float,
+                    )
+                    / cast(func.count(), Float)
+                ).label('win_rate'),
+            )
+            .filter(
+                StrategyPerformance.strategy_name == strategy_name,
+                StrategyPerformance.scenario_tags.isnot(None),
+                StrategyPerformance.exit_price.isnot(None),
+            )
+            .group_by(style_col)
+        )
+        return [dict(row._mapping) for row in stmt.all()]
 
 
 # 兼容别名：调用方（order_service / strategy_weight_adjuster /

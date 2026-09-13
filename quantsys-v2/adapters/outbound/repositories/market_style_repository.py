@@ -86,6 +86,42 @@ class MarketStyleORMRepository(BaseORMRepository[MarketStyleState], IMarketStyle
             logger.error(f"Error listing market style history: {e}")
             return []
 
+    def get_recent_style_history(self, limit: int = 5) -> List[Dict[str, Any]]:
+        """最近 N 条风格记录，按 **created_at** 倒序（逐值对齐原裸 SQL）。
+
+        2026-09-14（w-32314d00，REQ-24e15d）：原实现是
+        application/services/strategy_rotation_engine.py 的 `_get_style_history`：
+            SELECT style, confidence, created_at FROM quant.market_style_state
+            ORDER BY created_at DESC LIMIT :limit
+
+        与同文件的 get_style_history 的**关键差异**（勿合并）：
+          · 本方法按 **created_at** 排序（原 SQL 如此），get_style_history 按 trade_date；
+          · 本方法只取 3 列，不返回 id/metrics/trade_date；
+          · created_at 允许为 NULL —— PG 的 DESC 默认 NULLS FIRST，
+            ORM 生成的 `ORDER BY created_at DESC` 与其完全一致（不加 nullslast）。
+
+        Returns:
+            [{'style': str, 'confidence': float|None, 'created_at': datetime|None}, ...]
+            注意 confidence 的 0/None 归一化保留在调用方（原实现是
+            `float(r[1]) if r[1] else 0`，0.0 会落到 else 分支返回 int 0）。
+
+        异常策略：**回滚后上抛**——调用方 `except Exception: return []` 的容错语义
+        （含把列名写错这类错误静默吞掉的历史行为）在服务层保持不变。
+        """
+        try:
+            rows = (
+                self.session.query(self.model)
+                .order_by(self.model.created_at.desc())
+                .limit(limit).all()
+            )
+        except Exception:
+            self._safe_rollback()
+            raise
+        return [
+            {'style': r.style, 'confidence': r.confidence, 'created_at': r.created_at}
+            for r in rows
+        ]
+
     def list_all(self, limit: int = 100) -> List:
         try:
             return self.session.query(self.model).limit(limit).all()

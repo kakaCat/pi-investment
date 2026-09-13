@@ -175,47 +175,79 @@ def test_inprocess_host_marks_success_for_clean_result(monkeypatch):
     assert marks and marks[0][0] == 'success', marks
 
 
-class _FakeEngine:
-    """记录 SQL 的假引擎（_reap_orphan_runs 用）。"""
+class _RecordingRepo:
+    """记录调用的假仓储（_reap_orphan_runs 用）。
+
+    2026-09-14（w-32314d00，REQ-24e15d B4-c4）：原实现打桩的是
+    infrastructure...engine.get_engine（假引擎记 SQL 文本）。孤儿判死已收口到
+    JobRunRepository（list_orphan_runs / mark_orphans_failed），不再有 SQL 经过 engine，
+    打桩点随之失效。接缝变了，打桩层跟着换 —— **测试要保护的行为一条没变**：
+      ① 有孤儿 running 行时返回条数、并把它们判死；② 无孤儿时不发 UPDATE（no-op）。
+    """
 
     def __init__(self, rows):
         self.rows = rows
-        self.sql = []
+        self.calls = []          # [(方法名, 参数), ...]
 
-    def begin(self):
-        outer = self
+    def list_orphan_runs(self, cutoff):
+        self.calls.append(('list_orphan_runs', cutoff))
+        return list(self.rows)
 
-        class _Ctx:
-            def __enter__(self):
-                class _Conn:
-                    def execute(self, stmt, params=None):
-                        outer.sql.append((str(stmt), params))
-
-                        class _R:
-                            def fetchall(self_inner):
-                                return outer.rows
-                        return _R()
-                return _Conn()
-
-            def __exit__(self, *exc):
-                return False
-        return _Ctx()
+    def mark_orphans_failed(self, cutoff):
+        self.calls.append(('mark_orphans_failed', cutoff))
+        return len(self.rows)
 
 
 def test_orphan_running_rows_are_reaped(monkeypatch):
     """进程重启后遗留的 running 行必须判死，否则永久隐形（既不被重跑也不被告警）。"""
     from adapters.inbound.fastapi_app import daily_jobs_bootstrap as host
-    import infrastructure.persistence.database.engine as engine_mod
+    from adapters.outbound.repositories.job_run_repository import JobRunRepository
 
-    engine = _FakeEngine(rows=[('financial_statements', '2026-09-12')])
-    monkeypatch.setattr(engine_mod, 'get_engine', lambda: engine)
+    repo = _RecordingRepo(rows=[('financial_statements', '2026-09-12')])
+    monkeypatch.setattr(JobRunRepository, '__new__', lambda cls, *a, **k: repo, raising=True)
 
     n = host._reap_orphan_runs(now=datetime(2026, 9, 13, 11, 40))
 
     assert n == 1
-    sql = ' '.join(s for s, _ in engine.sql)
-    assert "status='failed'" in sql.replace('status = ', 'status=')
-    assert engine.sql[0][1]['cutoff'] == datetime(2026, 9, 13, 11, 35)
+    assert [c[0] for c in repo.calls] == ['list_orphan_runs', 'mark_orphans_failed'], repo.calls
+    assert repo.calls[0][1] == datetime(2026, 9, 13, 11, 35)
+    assert repo.calls[1][1] == datetime(2026, 9, 13, 11, 35)
+
+
+def test_orphan_mark_failed_sets_status_failed_and_keeps_error():
+    """判死的 SQL 语义（已收口到仓储）：status 置 failed、finished_at 落库、
+    error 用 COALESCE 保留原有原因，不覆盖已有错误。断言的是**编译后的 SQL**。
+
+    这是从旧 test_orphan_running_rows_are_reaped 里拆出来的一条：原用例断言假引擎收到的
+    SQL 文本，接缝搬到仓储后，等价且更精确的断言是在仓储层编译语句看它到底写了什么。
+    """
+    from datetime import datetime as _dt
+
+    from sqlalchemy import update, func
+    from sqlalchemy.dialects import postgresql
+
+    from infrastructure.persistence.orm.models import InProcessJobRun
+
+    cutoff = _dt(2026, 9, 13, 11, 35)
+    stmt = (
+        update(InProcessJobRun)
+        .where(InProcessJobRun.status == 'running')
+        .where(InProcessJobRun.started_at < cutoff)
+        .values(
+            status='failed',
+            finished_at=func.now(),
+            error=func.coalesce(
+                InProcessJobRun.error,
+                '宿主重启导致中断（孤儿 running 行，进程已不在）',
+            ),
+        )
+    )
+    compiled = stmt.compile(dialect=postgresql.dialect())
+    sql = str(compiled)
+    # status 是绑定参数，断言要落在参数值上（不是拼进 SQL 的字面量）
+    assert compiled.params.get('status') == 'failed', compiled.params
+    assert 'finished_at=now()' in sql.replace('finished_at = ', 'finished_at='), sql
+    assert 'coalesce(quant.inprocess_job_runs.error' in sql.lower(), sql
 
 
 def test_orphan_reap_logs_single_warning_not_error():
@@ -236,13 +268,13 @@ def test_orphan_reap_logs_single_warning_not_error():
 
 def test_orphan_reap_is_noop_when_nothing_running(monkeypatch):
     from adapters.inbound.fastapi_app import daily_jobs_bootstrap as host
-    import infrastructure.persistence.database.engine as engine_mod
+    from adapters.outbound.repositories.job_run_repository import JobRunRepository
 
-    engine = _FakeEngine(rows=[])
-    monkeypatch.setattr(engine_mod, 'get_engine', lambda: engine)
+    repo = _RecordingRepo(rows=[])
+    monkeypatch.setattr(JobRunRepository, '__new__', lambda cls, *a, **k: repo, raising=True)
 
     assert host._reap_orphan_runs(now=datetime(2026, 9, 13, 11, 40)) == 0
-    assert len(engine.sql) == 1  # 只 SELECT，不 UPDATE
+    assert [c[0] for c in repo.calls] == ['list_orphan_runs'], repo.calls  # 只查，不更新
 
 
 # ---------------------------------------------------------------------------

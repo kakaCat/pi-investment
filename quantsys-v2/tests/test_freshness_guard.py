@@ -15,41 +15,17 @@ import pytest
 import adapters.inbound.fastapi_app.daily_jobs_bootstrap as m
 
 
-class _FakeResult:
-    def __init__(self, value):
-        self._value = value
-
-    def scalar(self):
-        return self._value
-
-
-class _FakeConn:
-    def __init__(self, value):
-        self._value = value
-
-    def execute(self, *args, **kwargs):
-        return _FakeResult(self._value)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc):
-        return False
-
-
-class _FakeEngine:
-    def __init__(self, value):
-        self._value = value
-
-    def connect(self):
-        return _FakeConn(self._value)
-
-
+# 2026-09-14（w-32314d00，REQ-24e15d B4-c4）：原来的 _FakeEngine 打桩的是
+# infrastructure...engine.get_engine —— 但因子最新日期已收口到 FactorORMRepository，
+# 巡检不再经由 engine 取数，打桩点随之失效（表现为"数据新鲜"分支拿到真实 factor_latest
+# 而误判 stale）。接缝变了，打桩点必须跟着换：现在直接给仓储方法打桩。
+# **测试保护的断言一条没改** —— 仍是三条分支各自的 status / 告警与不告警。
 def _patch(monkeypatch, *, factor_latest, coverage, failed_jobs=None):
-    """打桩数据源与飞书，返回 (sent_alerts, ) 便于断言是否发告警。"""
-    import infrastructure.persistence.database.engine as engine_mod
+    """打桩仓储数据源与飞书，返回 (sent_alerts, ) 便于断言是否发告警。"""
+    from adapters.outbound.repositories.factor_repository import FactorORMRepository
 
-    monkeypatch.setattr(engine_mod, 'get_engine', lambda: _FakeEngine(factor_latest), raising=True)
+    monkeypatch.setattr(FactorORMRepository, 'get_max_factor_date',
+                        lambda self: factor_latest, raising=True)
     monkeypatch.setattr(m, '_last_trading_day', lambda _d: '2026-09-10', raising=True)
     monkeypatch.setattr(m, '_kline_coverage', lambda _engine, _expected: coverage, raising=True)
     monkeypatch.setattr(m, '_job_failure_watch', lambda _engine: (failed_jobs or []), raising=True)

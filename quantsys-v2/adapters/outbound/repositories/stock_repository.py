@@ -131,6 +131,35 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
             logger.error(f"Error getting stock by symbol {symbol}: {e}")
             return None
 
+    def get_name(self, symbol: str) -> Optional[str]:
+        """只取股票名称（columns 裁剪，不加载整行）。
+
+        来源（2026-09-14，w-32314d00，REQ-24e15d）：原实现是
+        application/services/watch_engine/notifier.py 的 `_lookup_stock_name` 里的裸 SQL
+        `SELECT name FROM quant.stocks WHERE symbol = :s LIMIT 1`。
+
+        语义对齐（逐值一致）：
+          · symbol **原样匹配**（不做后缀归一化）——notifier 侧已先做 `_norm_symbol`，
+            仓储再归一化会掩盖调用方的错误输入；
+          · 无匹配返回 None；命中但 name 为 NULL 时同样返回 None（与 `row[0]` 一致）。
+
+        异常策略：**回滚后上抛**，不吞异常。调用方（notifier._lookup_stock_name）自带
+        except → 返回 None 的兜底路径与 `logger.debug('股票名称兜底查询失败')` 留痕；
+        仓储若在这里吞掉异常，该留痕会静默消失（本仓其它方法的"吞异常返回 None"
+        风格在此处会改变可观测行为）。
+        """
+        try:
+            row = (
+                self.session.query(Stock.name)
+                .filter(Stock.symbol == symbol)
+                .limit(1)
+                .first()
+            )
+        except Exception:
+            self._safe_rollback()
+            raise
+        return row[0] if row else None
+
     def list_by_market(
         self,
         market: Optional[str] = None,

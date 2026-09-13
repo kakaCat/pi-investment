@@ -199,23 +199,23 @@ def get_peers(symbol: str):
 def get_my_stocks():
     positions: List[Dict] = []
     watchlist: List[Dict] = []
+    # 取数收口到仓储（2026-09-14，w-32314d00，REQ-24e15d B4-c4）。
+    #
+    # 原实现：ds.portfolio.db.cursor() → 查 information_schema 判断 quant.positions
+    # 是否存在 → 内联 SELECT ... WHERE status='open'，整段被 except Exception: pass 吞掉。
+    #
+    # 实测缺陷（本次迁移发现并修好）：ds.portfolio 恒为 None（DataService 已切 ORM 模式，
+    # 不再暴露 .portfolio），因此 ds.portfolio.db 必抛 AttributeError 并被静默吞掉 ——
+    # 该端点**长期返回 positions=[] 的空列表**，而 quant.positions 有 12 行 status='open'。
+    # 修复前实测证据（2026-09-14，curl http://127.0.0.1:5001/api/stocks/my-stocks）：
+    #   {"success":true,"data":{"positions":[],"watchlist":[...]}}
+    # 改为仓储后不再依赖已消失的 .db 接口，静默失效随之消除。
     try:
-        db = ds.portfolio.db
-        if db:
-            cursor = db.cursor()
-            cursor.execute("""SELECT EXISTS (SELECT FROM information_schema.tables
-                              WHERE table_schema = 'quant' AND table_name = 'positions')""")
-            has_new_schema = cursor.fetchone()['exists']
-            if has_new_schema:
-                cursor.execute("""SELECT symbol, name FROM quant.positions
-                                  WHERE status = 'open' ORDER BY entry_date DESC""")
-                positions = [{'symbol': r['symbol'], 'name': r.get('name', '')} for r in cursor.fetchall()]
-            else:
-                holdings = ds.portfolio.get_all_holdings()
-                positions = [{'symbol': h['symbol'], 'name': h.get('name', '')} for h in holdings]
-            cursor.close()
+        from adapters.outbound.repositories.position_repository import PositionORMRepository
+        positions = [{'symbol': p['symbol'], 'name': p.get('name') or ''}
+                     for p in PositionORMRepository().get_open_positions()]
     except Exception:
-        pass
+        logger.exception('读取持仓列表失败（positions 将为空）')
     try:
         wl = _read_watchlist()
         watchlist = [{'symbol': i['symbol'], 'name': i.get('name', '')} for i in wl.get('items', [])]

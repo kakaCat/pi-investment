@@ -32,16 +32,15 @@ def _norm_symbol(symbol: str) -> str:
 
 
 def _lookup_stock_name(symbol: str) -> Optional[str]:
-    """兜底查股票名称（quant.stocks）。失败返回 None，不影响主流程。"""
+    """兜底查股票名称（quant.stocks）。失败返回 None，不影响主流程。
+
+    2026-09-14（w-32314d00，REQ-24e15d）：裸 SQL 收口到
+    StockORMRepository.get_name（仓储返回 None / 上抛异常两种情形都由下面的
+    except 兜住，**兜底语义与留痕不变**）。
+    """
     try:
-        from infrastructure.persistence.orm import get_session
-        from sqlalchemy import text
-        session = get_session()
-        row = session.execute(
-            text("SELECT name FROM quant.stocks WHERE symbol = :s LIMIT 1"),
-            {"s": _norm_symbol(symbol)},
-        ).fetchone()
-        return row[0] if row else None
+        from adapters.outbound.repositories.stock_repository import StockORMRepository
+        return StockORMRepository().get_name(_norm_symbol(symbol))
     except Exception as e:
         logger.debug('股票名称兜底查询失败', symbol=symbol, error=str(e))
         return None

@@ -521,3 +521,51 @@ class BacktestORMRepository(BaseORMRepository[BacktestResult], IBacktestReposito
             self._safe_rollback()
             logger.error(f"Error comparing strategies: {e}")
             return []
+
+    def get_strategy_evidence_since(self, since) -> List[Dict[str, Any]]:
+        """按 strategy_name 聚合 since 之后落库的批量回测证据（一条策略一行）。
+
+        2026-09-14（REQ-24e15d）：原实现是
+        application/services/strategy_validation_service.py 里的
+        session.execute(text(<聚合 SQL>), {'since': since}).fetchall() ——
+        SQL 原文见下方「口径逐值对齐原 SQL」段（不在 docstring 里内联三引号，
+        否则会提前终止 docstring 并把后面几行变成代码，2026-09-14 实测踩过）。现收口到此 ——
+        下游原先按属性名取值（r.strategy_name），改为按同名键取字典值，数值逐值不变。
+
+        口径逐值对齐原 SQL：
+            SELECT br.strategy_name, MAX(br.created_at) AS evidence_at,
+                   AVG(br.annual_return) AS annual_return, AVG(br.sharpe_ratio) AS sharpe_ratio,
+                   AVG(br.max_drawdown) AS max_drawdown, AVG(br.win_rate) AS win_rate,
+                   AVG(br.profit_factor) AS profit_factor, COUNT(*) AS backtest_count,
+                   MIN(br.start_date) AS win_start, MAX(br.end_date) AS win_end
+            FROM quant.backtest_results br
+            WHERE br.created_at >= :since GROUP BY br.strategy_name ORDER BY br.strategy_name
+        · 保留 ORDER BY strategy_name（下游据此建 dict 的键序，虽有 sorted() 兜底也不改）；
+        · COUNT(*) 用 func.count()（不带列名），避免把 NULL 行漏计成「COUNT(列)」口径。
+
+        Args:
+            since: 时间下界（与 created_at 比较，通常为 datetime.now() - timedelta(days=N)）
+
+        Returns:
+            行字典列表，键与原 Core Row 的 label 一致：
+            strategy_name / evidence_at / annual_return / sharpe_ratio / max_drawdown /
+            win_rate / profit_factor / backtest_count / win_start / win_end。无匹配返回空列表。
+        """
+        stmt = (
+            self.session.query(
+                BacktestResult.strategy_name.label('strategy_name'),
+                func.max(BacktestResult.created_at).label('evidence_at'),
+                func.avg(BacktestResult.annual_return).label('annual_return'),
+                func.avg(BacktestResult.sharpe_ratio).label('sharpe_ratio'),
+                func.avg(BacktestResult.max_drawdown).label('max_drawdown'),
+                func.avg(BacktestResult.win_rate).label('win_rate'),
+                func.avg(BacktestResult.profit_factor).label('profit_factor'),
+                func.count().label('backtest_count'),
+                func.min(BacktestResult.start_date).label('win_start'),
+                func.max(BacktestResult.end_date).label('win_end'),
+            )
+            .filter(BacktestResult.created_at >= since)
+            .group_by(BacktestResult.strategy_name)
+            .order_by(BacktestResult.strategy_name)
+        )
+        return [dict(row._mapping) for row in stmt.all()]

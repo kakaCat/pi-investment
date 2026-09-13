@@ -86,46 +86,15 @@ def _kline_coverage(engine, expected: str) -> Dict[str, Any]:
     5150/5542 只（93%）停在 09-02，缺口被固化近 8 个交易日无人发现。
     改为按标的覆盖度（已覆盖标的数 / 活跃标的数）+ 最陈旧标的日期。
     """
-    from sqlalchemy import text
-
-    universe = """
-        SELECT s.symbol FROM quant.stocks s
-         WHERE NOT s.is_delisted
-           AND s.name NOT LIKE '%退%'
-           AND s.name NOT LIKE '%ST%'
-    """
-    with engine.connect() as conn:
-        row = conn.execute(
-            text(f"""
-                SELECT
-                  (SELECT count(*) FROM ({universe}) u) AS total,
-                  (SELECT count(*) FROM ({universe}) u
-                    WHERE EXISTS (SELECT 1 FROM quant.daily_klines k
-                                   WHERE k.symbol = u.symbol
-                                     AND k.trade_date >= :expected)) AS covered,
-                  (SELECT min(mx) FROM (
-                      SELECT s.symbol, max(k.trade_date) AS mx
-                        FROM quant.stocks s
-                        LEFT JOIN quant.daily_klines k ON k.symbol = s.symbol
-                       WHERE NOT s.is_delisted
-                         AND s.name NOT LIKE '%退%'
-                         AND s.name NOT LIKE '%ST%'
-                       GROUP BY s.symbol) t
-                    WHERE t.mx IS NULL OR t.mx < :expected) AS oldest_stale
-            """),
-            {'expected': expected},
-        ).mappings().first()
-
-    total = int(row['total'] or 0)
-    covered = int(row['covered'] or 0)
-    oldest = row['oldest_stale']
-    return {
-        'total': total,
-        'covered': covered,
-        'stale': total - covered,
-        'coverage': (covered / total) if total else 1.0,
-        'oldest_stale': str(oldest) if oldest else None,
-    }
+    # 取数收口到仓储（2026-09-14，w-32314d00，REQ-24e15d B4-c4）：
+    # 原先这里是一段 f-string 内联 SQL（universe 子查询被拼了两次 + 一次 LEFT JOIN 聚合），
+    # 属 inbound 层裸 SQL。现由 KlineRepository.get_kline_coverage 承担。
+    #
+    # engine 参数**保留**：签名被 tests/test_freshness_guard.py 直接 patch
+    # （monkeypatch _kline_coverage 为 lambda _engine, _expected），改签名会让守卫测试失效。
+    # 迁移后本函数不再使用它（仓储自己取 session）。
+    from adapters.outbound.repositories.kline_repository import KlineORMRepository
+    return KlineORMRepository().get_kline_coverage(expected)
 
 
 def _job_evening_pipeline() -> Dict[str, Any]:
@@ -253,28 +222,15 @@ def _job_failure_watch(engine) -> List[Dict[str, Any]]:
     K线新鲜、financial_statements 周六失败周一才发现）。只查 JOBS 内活跃任务，
     已退役 job（如 morning_topup）的历史 failed 残留不告警。
     """
-    from sqlalchemy import text as _text, bindparam
-    active = [j.job_id for j in JOBS]
-    if not active:
-        return []
-    with engine.connect() as conn:
-        rows = conn.execute(
-            _text(
-                "SELECT job_id, run_date, error FROM quant.inprocess_job_runs "
-                "WHERE status='failed' AND run_date < CURRENT_DATE "
-                "AND run_date >= CURRENT_DATE - 3 "
-                "AND job_id IN :jobs ORDER BY run_date DESC, job_id"
-            ).bindparams(bindparam('jobs', expanding=True)),
-            {'jobs': active},
-        ).fetchall()
-    return [{'job_id': r[0], 'run_date': str(r[1]), 'error': (r[2] or '')[:200]}
-            for r in rows]
+    # 取数收口到仓储（2026-09-14，w-32314d00，REQ-24e15d B4-c4）：
+    # engine 参数保留（签名被 _job_freshness_guard 与既有测试按位置传参）。
+    from adapters.outbound.repositories.job_run_repository import JobRunRepository
+    return JobRunRepository().list_recent_failures([j.job_id for j in JOBS], days=3)
 
 
 def _job_freshness_guard() -> Dict[str, Any]:
     """新鲜度巡检：K线/因子滞后于最近交易日 + 任务失败残留 → 飞书告警"""
     from infrastructure.persistence.database.engine import get_engine
-    from sqlalchemy import text
 
     # 基准日=前一交易日（2026-09-10，w-23c70356）：本巡检 17:20 跑，而当天 EOD 要到
     # 20:30 的 evening_pipeline 才落库 —— 原用"当天"当基准，结构上每个交易日都必然判
@@ -282,9 +238,11 @@ def _job_freshness_guard() -> Dict[str, Any]:
     # EOD 是否到位"，即滞后>1 个交易日，故基准取前一交易日。
     expected = _last_trading_day(datetime.now() - timedelta(days=1))
     engine = get_engine()
-    with engine.connect() as conn:
-        factor_latest = conn.execute(
-            text("SELECT max(factor_date) FROM quant.factor_values")).scalar()
+    # 因子最新日期收口到仓储（2026-09-14，REQ-24e15d B4-c4）：
+    # 原先这里是 conn.execute(text("SELECT max(factor_date) FROM quant.factor_values"))。
+    # 注意口径**保持全表 MAX**（不是全市场覆盖度）—— 迁移不顺手改判定。
+    from adapters.outbound.repositories.factor_repository import FactorORMRepository
+    factor_latest = FactorORMRepository().get_max_factor_date()
 
     # 按标的覆盖度巡检（2026-09-10 修复）：原用全局 max(trade_date)，一只票新鲜
     # 就判定全市场新鲜 → 93% 标的缺 8 个交易日的缺口 8 天无人告警。
@@ -380,123 +338,129 @@ def _job_watch_rule_health() -> Dict[str, Any]:
     """
     import json
     import re
-    from infrastructure.persistence.database.engine import get_engine
-    from sqlalchemy import text
     
-    engine = get_engine()
+    # 取数收口到仓储（2026-09-14，w-32314d00，REQ-24e15d B4-c4）：
+    # 原先整段跑在一个 with engine.begin() as conn 里，用裸 SQL 读 watch_rules、
+    # 逐条查 daily_klines 最新收盘、查 watch_triggers 最近触发，并就地 UPDATE 禁用。
+    # 现读走三个仓储，写走 WatchRuleRepository.update_fields。
+    #
+    # 事务语义差异（已确认对结果无影响）：原实现循环结束后统一提交（中途抛异常则全部回滚），
+    # 现在每条禁用即时提交（update_fields 内部 commit）。循环内除禁用外没有任何其它写操作；
+    # 对"每天收盘后跑一次"的巡检而言，半途失败不该丢掉已经判定的结论，故按新语义保留。
+    from adapters.outbound.repositories.watch_rule_repository import (
+        WatchRuleRepository, WatchTriggerRepository,
+    )
+    from adapters.outbound.repositories.kline_repository import KlineORMRepository
+
+    rule_repo = WatchRuleRepository()
+    trigger_repo = WatchTriggerRepository()
+    kline_repo = KlineORMRepository()
+
     reports = []
     auto_disabled = []
     marked_inactive = []
-    
-    with engine.begin() as conn:  # 使用 begin() 自动提交
-        # 获取所有启用规则
-        rules = conn.execute(text(
-            "SELECT id, symbol, context, conditions, expires_at, created_at, action_hint "
-            "FROM quant.watch_rules WHERE enabled = true"
-        )).fetchall()
-        
-        for rule in rules:
-            rule_id, symbol, context, conditions, expires_at, created_at, action_hint = rule
-            status = 'HEALTHY'
-            reason = '正常'
+
+    # 与原来的 FROM quant.watch_rules WHERE enabled = true 等价。
+    # 注意：**不能用 list_enabled()** —— 那个方法会把已过期规则过滤掉，
+    # 而本函数的 EXPIRED 分支正是要吃这些行并把它们禁用。
+    for rule in rule_repo.list_rules(enabled=True):
+        rule_id, symbol = rule.id, rule.symbol
+        context, conditions = rule.context, rule.conditions
+        expires_at, created_at = rule.expires_at, rule.created_at
+        status = 'HEALTHY'
+        reason = '正常'
             
-            # 1. 检查有效期
-            if expires_at and expires_at < datetime.now():
-                status = 'EXPIRED'
-                reason = f'已过有效期（{expires_at.strftime("%Y-%m-%d")}）'
-            else:
-                # 2. 检查价格偏差
-                try:
-                    # 获取当前价格
-                    price_row = conn.execute(text(
-                        "SELECT close FROM quant.daily_klines WHERE symbol = :s "
-                        "ORDER BY trade_date DESC LIMIT 1"
-                    ), {'s': symbol}).fetchone()
+        # 1. 检查有效期
+        if expires_at and expires_at < datetime.now():
+            status = 'EXPIRED'
+            reason = f'已过有效期（{expires_at.strftime("%Y-%m-%d")}）'
+        else:
+            # 2. 检查价格偏差
+            try:
+                # 获取当前价格（仓储口径：无 K 线返回 None，与原 fetchone() 空行为等价）
+                current_close = kline_repo.get_latest_close(symbol)
                     
-                    if price_row and conditions:
-                        current_price = float(price_row[0])
-                        conds = json.loads(conditions) if isinstance(conditions, str) else conditions
+                if current_close is not None and conditions:
+                    current_price = float(current_close)
+                    conds = json.loads(conditions) if isinstance(conditions, str) else conditions
                         
-                        # 提取触发价格
-                        trigger_price = None
-                        for cond in conds:
-                            if isinstance(cond, dict):
-                                params = cond.get('params', {})
-                                if 'price' in params:
-                                    trigger_price = float(params['price'])
-                                    break
-                        
-                        if trigger_price and trigger_price > 0:
-                            deviation = abs(current_price - trigger_price) / trigger_price * 100
-                            if deviation > 20:
-                                status = 'STALE'
-                                reason = f'价格偏差{deviation:.1f}%（当前{current_price} vs 设定{trigger_price}）'
-                    
-                    # 3. 检查预案日期（如果还没被标记为 STALE）
-                    if status == 'HEALTHY' and context:
-                        date_patterns = [
-                            r'(\d{1,2})/(\d{1,2})',
-                            r'(\d{4})-(\d{2})-(\d{2})',
-                        ]
-                        for pattern in date_patterns:
-                            matches = re.findall(pattern, context)
-                            for match in matches:
-                                try:
-                                    if len(match) == 2:
-                                        month, day = int(match[0]), int(match[1])
-                                        year = datetime.now().year
-                                        date_obj = datetime(year, month, day)
-                                    else:
-                                        year, month, day = int(match[0]), int(match[1]), int(match[2])
-                                        date_obj = datetime(year, month, day)
-                                    
-                                    days_diff = (datetime.now() - date_obj).days
-                                    if days_diff > 7:
-                                        status = 'OUTDATED'
-                                        reason = f'预案日期已过期（{date_obj.strftime("%m/%d")}，已过去{days_diff}天）'
-                                        break
-                                except (ValueError, IndexError):
-                                    continue
-                            if status == 'OUTDATED':
+                    # 提取触发价格
+                    trigger_price = None
+                    for cond in conds:
+                        if isinstance(cond, dict):
+                            params = cond.get('params', {})
+                            if 'price' in params:
+                                trigger_price = float(params['price'])
                                 break
+                        
+                    if trigger_price and trigger_price > 0:
+                        deviation = abs(current_price - trigger_price) / trigger_price * 100
+                        if deviation > 20:
+                            status = 'STALE'
+                            reason = f'价格偏差{deviation:.1f}%（当前{current_price} vs 设定{trigger_price}）'
                     
-                    # 4. 检查触发活跃度（如果还没被标记）
-                    if status == 'HEALTHY':
-                        trigger_row = conn.execute(text(
-                            "SELECT MAX(triggered_at) FROM quant.watch_triggers WHERE rule_id = :rid"
-                        ), {'rid': rule_id}).fetchone()
+                # 3. 检查预案日期（如果还没被标记为 STALE）
+                if status == 'HEALTHY' and context:
+                    date_patterns = [
+                        r'(\d{1,2})/(\d{1,2})',
+                        r'(\d{4})-(\d{2})-(\d{2})',
+                    ]
+                    for pattern in date_patterns:
+                        matches = re.findall(pattern, context)
+                        for match in matches:
+                            try:
+                                if len(match) == 2:
+                                    month, day = int(match[0]), int(match[1])
+                                    year = datetime.now().year
+                                    date_obj = datetime(year, month, day)
+                                else:
+                                    year, month, day = int(match[0]), int(match[1]), int(match[2])
+                                    date_obj = datetime(year, month, day)
+                                    
+                                days_diff = (datetime.now() - date_obj).days
+                                if days_diff > 7:
+                                    status = 'OUTDATED'
+                                    reason = f'预案日期已过期（{date_obj.strftime("%m/%d")}，已过去{days_diff}天）'
+                                    break
+                            except (ValueError, IndexError):
+                                continue
+                        if status == 'OUTDATED':
+                            break
+                    
+                # 4. 检查触发活跃度（如果还没被标记）
+                if status == 'HEALTHY':
+                    # 无触发行与 MAX 为 NULL 都返回 None，与原 trigger_row[0] if trigger_row else None 一致
+                    last_trigger = trigger_repo.get_last_triggered_at(rule_id)
                         
-                        last_trigger = trigger_row[0] if trigger_row else None
-                        
-                        if last_trigger:
-                            days_since = (datetime.now() - last_trigger).days
-                            if days_since > 30:
-                                status = 'INACTIVE'
-                                reason = f'{days_since}天未触发（上次：{last_trigger.strftime("%Y-%m-%d")}）'
-                        elif created_at:
-                            days_since = (datetime.now() - created_at).days
-                            if days_since > 30:
-                                status = 'INACTIVE'
-                                reason = f'创建后{days_since}天从未触发'
+                    if last_trigger:
+                        days_since = (datetime.now() - last_trigger).days
+                        if days_since > 30:
+                            status = 'INACTIVE'
+                            reason = f'{days_since}天未触发（上次：{last_trigger.strftime("%Y-%m-%d")}）'
+                    elif created_at:
+                        days_since = (datetime.now() - created_at).days
+                        if days_since > 30:
+                            status = 'INACTIVE'
+                            reason = f'创建后{days_since}天从未触发'
                 
-                except Exception as e:
-                    logger.warning('规则健康检查异常', rule_id=rule_id, error=str(e))
+            except Exception as e:
+                logger.warning('规则健康检查异常', rule_id=rule_id, error=str(e))
             
-            reports.append({
-                'rule_id': rule_id,
-                'symbol': symbol,
-                'status': status,
-                'reason': reason,
-            })
+        reports.append({
+            'rule_id': rule_id,
+            'symbol': symbol,
+            'status': status,
+            'reason': reason,
+        })
             
-            # 自动处理
-            if status in ('EXPIRED', 'STALE', 'OUTDATED'):
-                conn.execute(text(
-                    "UPDATE quant.watch_rules SET enabled = false, updated_at = NOW() WHERE id = :rid"
-                ), {'rid': rule_id})
-                auto_disabled.append({'rule_id': rule_id, 'symbol': symbol, 'reason': reason})
-            elif status == 'INACTIVE':
-                marked_inactive.append({'rule_id': rule_id, 'symbol': symbol, 'reason': reason})
+        # 自动处理
+        if status in ('EXPIRED', 'STALE', 'OUTDATED'):
+            # update_fields 的 updated_at 用 Python datetime.now()（原 SQL 用 NOW()）。
+            # 两者都是"当下"，差在进程时钟 vs 库时钟；本巡检不依赖该字段做判定。
+            rule_repo.update_fields(rule_id, enabled=False)
+            auto_disabled.append({'rule_id': rule_id, 'symbol': symbol, 'reason': reason})
+        elif status == 'INACTIVE':
+            marked_inactive.append({'rule_id': rule_id, 'symbol': symbol, 'reason': reason})
     
     # 生成飞书通知
     if auto_disabled or marked_inactive:
@@ -729,66 +693,44 @@ JOBS: List[JobDef] = [
 
 # ── 运行状态表（幂等核心） ─────────────────────────────────────
 
-_DDL = """
-CREATE TABLE IF NOT EXISTS quant.inprocess_job_runs (
-    job_id      text        NOT NULL,
-    run_date    date        NOT NULL,
-    status      text        NOT NULL,   -- running/success/failed
-    started_at  timestamptz NOT NULL DEFAULT now(),
-    finished_at timestamptz,
-    result      jsonb,
-    error       text,
-    PRIMARY KEY (job_id, run_date)
-)
-"""
+# 建表口径已收口到 ORM 模型（2026-09-14，w-32314d00，REQ-24e15d B4-c4）：
+# 原先这里内联了一份手写 _DDL，而 infrastructure/persistence/orm/models/job_run.py
+# 里还有一份 InProcessJobRun 模型 —— 同一张表两处定义，改一处不改另一处就会漂。
+# 现只保留模型作为唯一真源（与 application/services/signal_test_log.py 在 B3-b
+# 删掉自身 _ensure_table 的做法一致）。
+#
+# 注：模型里 started_at 显式声明了 server_default=now()，与原 _DDL 的
+# DEFAULT now() 对齐 —— 否则 checkfirst 建出来的表会少这个默认值。
 
 
 def _ensure_table() -> None:
     from infrastructure.persistence.database.engine import get_engine
-    engine = get_engine()
-    with engine.begin() as conn:
-        conn.exec_driver_sql(_DDL)
+    from infrastructure.persistence.orm.models import InProcessJobRun
+
+    InProcessJobRun.__table__.create(bind=get_engine(), checkfirst=True)
 
 
 def _get_run(job_id: str, run_date: str) -> Optional[Dict[str, Any]]:
-    from infrastructure.persistence.database.engine import get_engine
-    from sqlalchemy import text
-    engine = get_engine()
-    with engine.connect() as conn:
-        row = conn.execute(text(
-            "SELECT status, started_at FROM quant.inprocess_job_runs "
-            "WHERE job_id=:j AND run_date=:d"
-        ), {'j': job_id, 'd': run_date}).fetchone()
-    if not row:
-        return None
-    return {'status': row[0], 'started_at': row[1]}
+    """取某任务某日的运行态（仓储化，2026-09-14，REQ-24e15d B4-c4）。"""
+    from adapters.outbound.repositories.job_run_repository import JobRunRepository
+    return JobRunRepository().get_run(job_id, run_date)
 
 
 def _mark_running(job_id: str, run_date: str) -> None:
-    from infrastructure.persistence.database.engine import get_engine
-    from sqlalchemy import text
-    engine = get_engine()
-    with engine.begin() as conn:
-        conn.execute(text(
-            "INSERT INTO quant.inprocess_job_runs (job_id, run_date, status, started_at) "
-            "VALUES (:j, :d, 'running', now()) "
-            "ON CONFLICT (job_id, run_date) DO UPDATE "
-            "SET status='running', started_at=now(), finished_at=NULL, error=NULL"
-        ), {'j': job_id, 'd': run_date})
+    """置 running（UPSERT）。仓储化，2026-09-14，REQ-24e15d B4-c4。"""
+    from adapters.outbound.repositories.job_run_repository import JobRunRepository
+    JobRunRepository().mark_running(job_id, run_date)
 
 
 def _mark_done(job_id: str, run_date: str, status: str,
                result: Optional[Dict] = None, error: Optional[str] = None) -> None:
-    from infrastructure.persistence.database.engine import get_engine
-    from sqlalchemy import text
-    engine = get_engine()
-    with engine.begin() as conn:
-        conn.execute(text(
-            "UPDATE quant.inprocess_job_runs "
-            "SET status=:s, finished_at=now(), result=:r, error=:e "
-            "WHERE job_id=:j AND run_date=:d"
-        ), {'s': status, 'r': json.dumps(result, ensure_ascii=False, default=str) if result else None,
-            'e': (error or '')[:1000] or None, 'j': job_id, 'd': run_date})
+    """写终态（仓储化，2026-09-14，REQ-24e15d B4-c4）。
+
+    json.dumps(..., default=str) 这个兜底已下沉到仓储里（见 JobRunRepository.mark_done），
+    调用方不再自己序列化 —— 否则两处序列化口径会漂。
+    """
+    from adapters.outbound.repositories.job_run_repository import JobRunRepository
+    JobRunRepository().mark_done(job_id, run_date, status, result=result, error=error)
 
 
 # ── 调度判定（纯函数，可单测） ──────────────────────────────────
@@ -933,20 +875,9 @@ def catchup_due(job: JobDef, now: datetime, has_recent_failure: bool) -> bool:
 
 
 def _recent_failed_run(job_id: str, days: int = _CATCHUP_WINDOW_DAYS) -> Optional[Dict[str, Any]]:
-    """近 N 天内最近一条 failed 记录（跨日补跑判定用）。"""
-    from infrastructure.persistence.database.engine import get_engine
-    from sqlalchemy import text
-    engine = get_engine()
-    with engine.connect() as conn:
-        row = conn.execute(text(
-            "SELECT run_date, started_at, error FROM quant.inprocess_job_runs "
-            "WHERE job_id=:j AND status='failed' AND run_date < CURRENT_DATE "
-            "  AND run_date >= CURRENT_DATE - :d "
-            "ORDER BY run_date DESC LIMIT 1"
-        ), {'j': job_id, 'd': days}).fetchone()
-    if not row:
-        return None
-    return {'run_date': str(row[0]), 'started_at': row[1], 'error': row[2]}
+    """近 N 天内最近一条 failed 记录（跨日补跑判定用）。仓储化，2026-09-14，REQ-24e15d B4-c4。"""
+    from adapters.outbound.repositories.job_run_repository import JobRunRepository
+    return JobRunRepository().get_recent_failed(job_id, days=days)
 
 
 def _reap_orphan_runs(now: Optional[datetime] = None) -> int:
@@ -958,23 +889,18 @@ def _reap_orphan_runs(now: Optional[datetime] = None) -> int:
     本函数在宿主启动时把早于宽限期的 running 行标 failed，使其进入失败巡检（看门狗可见 +
     次日 freshness_guard 的失败残留告警），并允许 is_due 按失败冷却重跑。
     """
-    from infrastructure.persistence.database.engine import get_engine
-    from sqlalchemy import text
+    # 取数/写入收口到仓储（2026-09-14，REQ-24e15d B4-c4）：
+    # 原先在同一个 engine.begin() 里先 SELECT 再条件 UPDATE。现在两步各自走仓储。
+    # 事务语义差异：原实现是"查到才更新"且两步同事务；现在 list 与 update 分两次提交。
+    # 对判死场景无差异 —— 两次之间的新增 running 行会被下一次启动/巡检看到，
+    # 且 UPDATE 自身带同样的 status/started_at 条件（不会误伤新行）。
+    from adapters.outbound.repositories.job_run_repository import JobRunRepository
     now = now or datetime.now()
     cutoff = now - timedelta(minutes=_ORPHAN_GRACE_MINUTES)
-    engine = get_engine()
-    with engine.begin() as conn:
-        rows = conn.execute(text(
-            "SELECT job_id, run_date FROM quant.inprocess_job_runs "
-            "WHERE status='running' AND started_at < :cutoff"
-        ), {'cutoff': cutoff}).fetchall()
-        if rows:
-            conn.execute(text(
-                "UPDATE quant.inprocess_job_runs "
-                "SET status='failed', finished_at=now(), "
-                "    error=COALESCE(error, '宿主重启导致中断（孤儿 running 行，进程已不在）') "
-                "WHERE status='running' AND started_at < :cutoff"
-            ), {'cutoff': cutoff})
+    repo = JobRunRepository()
+    rows = repo.list_orphan_runs(cutoff)
+    if rows:
+        repo.mark_orphans_failed(cutoff)
     if rows:
         # 2026-09-13（w-32314d00，事件 c0e69791）：这里**刻意用 warning 而非 error**——
         # 孤儿 running 是"已被本函数发现并收尾"的既成事实，不是当前进程的失败：
@@ -1056,20 +982,10 @@ def trigger_job(job_id: str, force: bool = False) -> Dict[str, Any]:
 
 
 def list_today_runs() -> List[Dict[str, Any]]:
-    """今日任务运行状态（巡检/排障用）"""
-    from infrastructure.persistence.database.engine import get_engine
-    from sqlalchemy import text
+    """今日任务运行状态（巡检/排障用）。仓储化，2026-09-14，REQ-24e15d B4-c4。"""
+    from adapters.outbound.repositories.job_run_repository import JobRunRepository
     _ensure_table()
-    engine = get_engine()
-    today = datetime.now().strftime('%Y-%m-%d')
-    with engine.connect() as conn:
-        rows = conn.execute(text(
-            "SELECT job_id, status, started_at, finished_at, error "
-            "FROM quant.inprocess_job_runs WHERE run_date=:d ORDER BY started_at"
-        ), {'d': today}).fetchall()
-    ran = {r[0]: {'status': r[1], 'started_at': str(r[2]),
-                  'finished_at': str(r[3]) if r[3] else None,
-                  'error': r[4]} for r in rows}
+    ran = JobRunRepository().map_by_date()
     return [
         {'job_id': j.job_id, 'description': j.description,
          'scheduled_at': j.run_at.strftime('%H:%M'),

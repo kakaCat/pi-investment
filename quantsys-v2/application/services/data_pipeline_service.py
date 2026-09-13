@@ -24,55 +24,41 @@ def load_trading_calendar_from_db(exchange: str):
 
     作为 calendar_loader 注入 TimeAlignmentStage(domain 层不直接访问 DB)。
 
+    2026-09-14（w-32314d00，REQ-24e15d）：两处裸 SQL（日历查询 + 空表回退的
+    DISTINCT daily_klines 查询）收口到
+    TradingCalendarORMRepository.list_trading_days 与
+    KlineORMRepository.list_distinct_trade_dates_since。
+    **编排语义逐字保留**：日历为空 → 记一条
+    `trading_calendar_empty_fallback_to_klines` error 日志 → 回退 K 线真源；
+    任一环节异常 → 记 `trading_calendar_unavailable` warning → 返回空集合。
+
     Returns:
         Set[date]: 交易日集合
     """
-    from infrastructure.persistence.database.engine import db_cursor
-
     from datetime import date as _date, timedelta as _timedelta
 
-    def _rows_to_set(results):
-        if results and isinstance(results[0], dict):
-            return {row['trade_date'] for row in results}
-        if results:
-            return {row[0] for row in results}
-        return set()
+    from adapters.outbound.repositories.kline_repository import KlineORMRepository
+    from adapters.outbound.repositories.trading_calendar_repository import (
+        TradingCalendarORMRepository,
+    )
 
     try:
-        with db_cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT trade_date
-                FROM quant.trading_calendar
-                WHERE exchange = %s AND is_trading_day = TRUE
-                """,
-                (exchange,),
-            )
-            days = _rows_to_set(cursor.fetchall())
-            if days:
-                return days
+        days = TradingCalendarORMRepository().list_trading_days(exchange)
+        if days:
+            return days
 
-            # 2026-09-11（w-f4aa1f6a 步2）：空表**不再静默返回空日历**。
-            # 实测 quant.trading_calendar 长期 0 行（无人写入），而本函数是
-            # TimeAlignmentStage 的 calendar_loader → 管道一直在用空日历对齐。
-            # 现回退到唯一真源（K 线数据），并显式报错留痕（同时已由数据契约
-            # 「quant.trading_calendar 行数下限」持续监控该表是否被真正填充）。
-            logger.error(
-                "trading_calendar_empty_fallback_to_klines",
-                exchange=exchange,
-                hint="quant.trading_calendar 为空，已回退 daily_klines 真源；请检查日历刷新任务",
-            )
-            bound = _date.today() - _timedelta(days=365 * 5)
-            cursor.execute(
-                """
-                SELECT DISTINCT trade_date
-                FROM quant.daily_klines
-                WHERE trade_date >= %s
-                ORDER BY trade_date
-                """,
-                (bound,),
-            )
-            return _rows_to_set(cursor.fetchall())
+        # 2026-09-11（w-f4aa1f6a 步2）：空表**不再静默返回空日历**。
+        # 实测 quant.trading_calendar 长期 0 行（无人写入），而本函数是
+        # TimeAlignmentStage 的 calendar_loader → 管道一直在用空日历对齐。
+        # 现回退到唯一真源（K 线数据），并显式报错留痕（同时已由数据契约
+        # 「quant.trading_calendar 行数下限」持续监控该表是否被真正填充）。
+        logger.error(
+            "trading_calendar_empty_fallback_to_klines",
+            exchange=exchange,
+            hint="quant.trading_calendar 为空，已回退 daily_klines 真源；请检查日历刷新任务",
+        )
+        bound = _date.today() - _timedelta(days=365 * 5)
+        return KlineORMRepository().list_distinct_trade_dates_since(bound)
     except Exception as e:
         logger.warning("trading_calendar_unavailable", exchange=exchange, error=str(e))
         return set()

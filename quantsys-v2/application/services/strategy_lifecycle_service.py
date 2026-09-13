@@ -202,15 +202,14 @@ class StrategyLifecycleService:
         故返回值里带 backup 快照，调用方负责落盘/留痕。
         """
         sid = int(sid)
-        rows = ev.query_rows("select coalesce(json_agg(t),'[]'::json) from "
-                             "(select * from quant.strategy_configs where id = :sid) t", {"sid": sid})
-        backup = rows[0][0] if rows else []
-        from sqlalchemy import text
-        with ev._engine().begin() as conn:
-            conn.execute(text("update quant.strategy_configs set is_active=false, updated_at=now() "
-                              "where id = :sid"), {"sid": sid})
-            if delete:
-                conn.execute(text("delete from quant.strategy_configs where id = :sid"), {"sid": sid})
+        # 2026-09-14（REQ-24e15d）：原先这里三句裸 SQL（备份 select json_agg + update + delete），
+        # 现全部收口到 StrategyORMRepository：
+        #   · 备份（行数组 JSON）必须在 update/delete **之前**取 —— 顺序不变；
+        #   · update 与 delete 仍走**同一事务**（仓储方法内单次 commit），原子性与旧 begin() 块一致。
+        from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
+        repo = StrategyORMRepository()
+        backup = repo.get_strategy_config_snapshot(sid)
+        repo.retire_strategy_config(sid, delete=delete)
         reg = self.load_registry()
         for s in reg.get("strategies", []):
             if str(s.get("strategy_id")) == str(sid):

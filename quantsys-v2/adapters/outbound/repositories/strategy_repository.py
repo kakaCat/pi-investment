@@ -1,8 +1,12 @@
 """策略ORM Repository - 快速迁移版本"""
 from typing import List, Dict, Optional, Any
 from infrastructure.persistence.orm import BaseORMRepository, get_session
-from sqlalchemy import Column, Integer, String, Float, Date, Text, BigInteger, JSON, Boolean, DateTime
+from sqlalchemy import (
+    Column, Integer, String, Float, Date, Text, BigInteger, JSON, Boolean, DateTime, func,
+    delete as sa_delete, literal_column, select, update as sa_update,
+)
 from infrastructure.persistence.orm.base import Base
+from infrastructure.persistence.orm.models.strategy_validation import StrategyValidationReport
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -30,6 +34,15 @@ class StrategyConfig(Base):
     code_type = Column(String(50))  # 'indicator' or 'script'
     parameters = Column(JSON)
     parsed_params = Column(JSON)
+    # 2026-09-14（REQ-24e15d）：补上模型漏掉的 3 列。它们是**表里真实存在**的列
+    # （information_schema 实读：risk_params jsonb / risk_config jsonb / version text default '1.0'），
+    # 且本类 USER_STRATEGY_UPDATABLE 白名单与 _JSONB_COLUMNS 里早已列出 —— 只补模型，
+    # 不改任何调用方（get_user_strategies/get_by_id 都是显式列字典，不受影响）。
+    # 补的原因：strategy_lifecycle_service.retire() 的备份语义是 select *（行数组 JSON），
+    # 模型缺列会让 json_agg 出来的备份少 3 个字段（实测 missing=['risk_config','risk_params','version']）。
+    risk_params = Column(JSON)
+    version = Column(Text)
+    risk_config = Column(JSON)
     is_active = Column(Boolean)
     is_public = Column(Boolean)
     category = Column(String(50))
@@ -632,4 +645,91 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error saving validation report: {e}")
+            raise
+
+    def has_validation_report_since(self, strategy_id: int, since) -> bool:
+        """该策略在 since 之后是否已有验证报告（当日幂等判定）。
+
+        2026-09-14（REQ-24e15d）：原实现是
+        application/services/strategy_validation_service.py 里的
+        session.execute(text("SELECT COUNT(*) FROM quant.strategy_validation_reports
+        WHERE strategy_id = :sid AND validation_date >= :today")).scalar()，
+        下游按 if exists: 判真假。现收口到此，走 StrategyValidationReport 模型。
+
+        口径逐值对齐原 SQL：同样是 validation_date >= :today 的**计数 > 0** 判定
+        （注意不是 = 某时刻：服务层传的是当天零点），保留 COUNT 口径而不改写为
+        LIMIT 1 / EXISTS —— 语义等价，但不动它以免引入可见性差异。
+
+        Args:
+            strategy_id: 策略 ID
+            since: 时间下界（通常为当天 00:00:00）
+
+        Returns:
+            True = 已存在当日报告（调用方应跳过，防 reports 表膨胀）
+        """
+        count = (
+            self.session.query(func.count(StrategyValidationReport.id))
+            .filter(
+                StrategyValidationReport.strategy_id == strategy_id,
+                StrategyValidationReport.validation_date >= since,
+            )
+            .scalar()
+        )
+        return bool(count)
+
+    def get_strategy_config_snapshot(self, strategy_id: int) -> List[Dict[str, Any]]:
+        """取一条策略配置的**全列快照**（行数组的 JSON，供退役前备份）。
+
+        2026-09-14（REQ-24e15d）：原实现是 application/services/strategy_lifecycle_service.py
+        retire() 里的
+            select coalesce(json_agg(t),'[]'::json)
+            from (select * from quant.strategy_configs where id = :sid) t
+        （经 strategy_evaluation_service.query_rows 的裸游标执行），现收口到此。
+
+        逐值对齐要点：
+        · json_agg(t) 里 t 是**子查询别名**，产出的 JSON 由 PostgreSQL 自己序列化
+          （时间戳按 PG 的 ISO 格式、jsonb 嵌套成对象、整型成数字）——这里保持同一写法
+          （SQLAlchemy Core 的 literal_column('t')），**不**在 Python 侧重新拼字典，
+          以免 Decimal/datetime 的序列化口径与原实现不一致；
+        · 无匹配行时 json_agg 返回 NULL（旧写的 coalesce 兜成 '[]'::json），这里
+          在 Python 侧返回 [] —— 最终值相同（空列表），语义等价；
+        · 形状：list[dict]，一行一 dict，键 = strategy_configs 的全部 27 列（模型必须逐列齐全，
+          故本文件补上了 risk_params / version / risk_config 三列）。
+        """
+        subq = (
+            select(StrategyConfig.__table__)
+            .where(StrategyConfig.__table__.c.id == strategy_id)
+            .subquery('t')
+        )
+        stmt = select(func.json_agg(literal_column('t'))).select_from(subq)
+        value = self.session.execute(stmt).scalar()
+        return value if value is not None else []
+
+    def retire_strategy_config(self, strategy_id: int, delete: bool = False) -> None:
+        """退役策略行：停用（is_active=false, updated_at=now()），delete=True 时同事务物理删除。
+
+        2026-09-14（REQ-24e15d）：原实现是 strategy_lifecycle_service.retire() 里
+        ev._engine().begin() 上的两条 text() 裸 SQL：
+            update quant.strategy_configs set is_active=false, updated_at=now() where id = :sid
+            delete from quant.strategy_configs where id = :sid      -- 仅 delete=True
+        这里收口成仓储方法，并**刻意保持"两条语句同一事务"**：单条 commit 提交两者，
+        与旧 begin() 块的原子性一致（若拆成两个方法各自 commit，delete 失败时 update 已被提交 —— 行为会变）。
+
+        ⚠️ 与本类既有的 update_user_strategy / delete_user_strategy 的区别：那两个**吞异常返回 bool**
+        （0 行命中与出错都返回 False），而这里的调用方（retire）原本是**异常向上抛**的语义，
+        故本方法失败时先 _safe_rollback() 再 raise，不把错误静默成 False。
+        """
+        try:
+            self.session.execute(
+                sa_update(StrategyConfig)
+                .where(StrategyConfig.id == strategy_id)
+                .values(is_active=False, updated_at=func.now())
+            )
+            if delete:
+                self.session.execute(
+                    sa_delete(StrategyConfig).where(StrategyConfig.id == strategy_id)
+                )
+            self.session.commit()
+        except Exception:
+            self._safe_rollback()
             raise

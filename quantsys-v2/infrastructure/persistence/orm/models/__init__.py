@@ -45,6 +45,9 @@ from .sector_snapshot import SectorSnapshot
 from .agent_session import AgentSession, AgentSessionEvent
 from .signal_test_log import SignalTestRecord
 from .portfolio_circuit_breaker import PortfolioCircuitBreaker
+from .agent_log import AgentLog
+from .trading_calendar import TradingCalendar
+from .strategy_validation import StrategyValidationReport
 
 __all__ = [
     # 股票相关
@@ -103,4 +106,13 @@ __all__ = [
     'AgentSessionEvent',
     'SignalTestRecord',
     'PortfolioCircuitBreaker',
+
+    # Agent 操作日志（REQ-24e15d B4-c4，2026-09-14）
+    'AgentLog',
+
+    # 交易日历（REQ-24e15d，2026-09-14）
+    'TradingCalendar',
+
+    # 策略验证报告（REQ-24e15d B4-c3-d，2026-09-14）
+    'StrategyValidationReport',
 ]

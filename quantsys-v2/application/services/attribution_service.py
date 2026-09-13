@@ -70,184 +70,158 @@ class AttributionService:
                 "unattributed_signals": 20
             }
         """
-        cursor, _pooled = self._acquire_cursor()
+        # 默认时间范围：最近30天
+        if not start_date:
+            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        if not end_date:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+
+        # 1. 从 signal_tracking 获取信号记录
+        # 2026-09-14（w-32314d00，REQ-24e15d）：裸 cursor 查询收口到
+        # SignalTrackingRepository.list_signals_between（列名/列顺序/ORDER BY 不变，
+        # 未取到的列仍为 None）。该仓储自带连接自愈机制，本批未改动它，只新增方法；
+        # 注入的 db_connection 依旧优先（与 _acquire_cursor 的注入语义一致）。
+        from adapters.outbound.repositories.signal_tracking_repository import SignalTrackingRepository
+        signals = SignalTrackingRepository(self._injected).list_signals_between(start_date, end_date)
+
+        # Postgres numeric → decimal.Decimal；下游按 float 累加
+        # （stats['total_return_5d'] += …）会抛 TypeError。
+        # 实测（2026-09-13，w-32314d00）：只要有带历史收益的信号，本方法直接崩 ——
+        # 属既有缺陷，本次因「真的把它跑起来」才暴露，故在取数边界统一转 float。
+        # （边界归一化仍留在服务层：仓储只负责取数，不改数值类型契约。）
+        for rec in signals:
+            for _num_col in ('price', 'return_5d', 'return_10d', 'return_20d'):
+                if rec.get(_num_col) is not None:
+                    rec[_num_col] = float(rec[_num_col])
+            
+        # 2. 提取规则引用并统计
+        rule_stats = {}
+        unattributed_count = 0
         
-        try:
-            # 默认时间范围：最近30天
-            if not start_date:
-                start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-            if not end_date:
-                end_date = datetime.now().strftime('%Y-%m-%d')
+        for signal in signals:
+            reason = signal.get('reason', '') or ''
             
-            # 1. 从 signal_tracking 获取信号记录
-            cursor.execute("""
-                SELECT 
-                    id,
-                    signal_date,
-                    symbol,
-                    grade,
-                    source,
-                    price,
-                    reason,
-                    return_5d,
-                    return_10d,
-                    return_20d,
-                    hit_5d,
-                    hit_10d,
-                    hit_20d
-                FROM quant.signal_tracking
-                WHERE signal_date >= %s AND signal_date <= %s
-                ORDER BY signal_date DESC
-            """, (start_date, end_date))
+            # 提取规则 ID
+            rule_ids = self._extract_rule_ids(reason)
             
-            signals = []
-            columns = [desc[0] for desc in cursor.description]
-            for row in cursor.fetchall():
-                rec = dict(zip(columns, row))
-                # Postgres numeric → decimal.Decimal；下游按 float 累加
-                # （stats['total_return_5d'] += …）会抛 TypeError。
-                # 实测（2026-09-13，w-32314d00）：只要有带历史收益的信号，本方法直接崩 ——
-                # 属既有缺陷，本次因「真的把它跑起来」才暴露，故在取数边界统一转 float。
-                for _num_col in ('price', 'return_5d', 'return_10d', 'return_20d'):
-                    if rec.get(_num_col) is not None:
-                        rec[_num_col] = float(rec[_num_col])
-                signals.append(rec)
+            if not rule_ids:
+                unattributed_count += 1
+                continue
             
-            # 2. 提取规则引用并统计
-            rule_stats = {}
-            unattributed_count = 0
-            
-            for signal in signals:
-                reason = signal.get('reason', '') or ''
+            # 为每个引用的规则记录统计
+            for rule_id in rule_ids:
+                if rule_id not in rule_stats:
+                    rule_stats[rule_id] = {
+                        'rule_id': rule_id,
+                        'count': 0,
+                        'hits_5d': 0,
+                        'hits_10d': 0,
+                        'hits_20d': 0,
+                        'total_return_5d': 0.0,
+                        'total_return_10d': 0.0,
+                        'total_return_20d': 0.0,
+                        'samples_5d': 0,
+                        'samples_10d': 0,
+                        'samples_20d': 0,
+                        'signals': []
+                    }
                 
-                # 提取规则 ID
-                rule_ids = self._extract_rule_ids(reason)
+                stats = rule_stats[rule_id]
+                stats['count'] += 1
+                stats['signals'].append(signal)
                 
-                if not rule_ids:
-                    unattributed_count += 1
-                    continue
+                # 5日表现
+                if signal.get('return_5d') is not None:
+                    stats['samples_5d'] += 1
+                    stats['total_return_5d'] += signal['return_5d']
+                    if signal.get('hit_5d'):
+                        stats['hits_5d'] += 1
                 
-                # 为每个引用的规则记录统计
-                for rule_id in rule_ids:
-                    if rule_id not in rule_stats:
-                        rule_stats[rule_id] = {
-                            'rule_id': rule_id,
-                            'count': 0,
-                            'hits_5d': 0,
-                            'hits_10d': 0,
-                            'hits_20d': 0,
-                            'total_return_5d': 0.0,
-                            'total_return_10d': 0.0,
-                            'total_return_20d': 0.0,
-                            'samples_5d': 0,
-                            'samples_10d': 0,
-                            'samples_20d': 0,
-                            'signals': []
-                        }
-                    
-                    stats = rule_stats[rule_id]
-                    stats['count'] += 1
-                    stats['signals'].append(signal)
-                    
-                    # 5日表现
-                    if signal.get('return_5d') is not None:
-                        stats['samples_5d'] += 1
-                        stats['total_return_5d'] += signal['return_5d']
-                        if signal.get('hit_5d'):
-                            stats['hits_5d'] += 1
-                    
-                    # 10日表现
-                    if signal.get('return_10d') is not None:
-                        stats['samples_10d'] += 1
-                        stats['total_return_10d'] += signal['return_10d']
-                        if signal.get('hit_10d'):
-                            stats['hits_10d'] += 1
-                    
-                    # 20日表现
-                    if signal.get('return_20d') is not None:
-                        stats['samples_20d'] += 1
-                        stats['total_return_20d'] += signal['return_20d']
-                        if signal.get('hit_20d'):
-                            stats['hits_20d'] += 1
+                # 10日表现
+                if signal.get('return_10d') is not None:
+                    stats['samples_10d'] += 1
+                    stats['total_return_10d'] += signal['return_10d']
+                    if signal.get('hit_10d'):
+                        stats['hits_10d'] += 1
+                
+                # 20日表现
+                if signal.get('return_20d') is not None:
+                    stats['samples_20d'] += 1
+                    stats['total_return_20d'] += signal['return_20d']
+                    if signal.get('hit_20d'):
+                        stats['hits_20d'] += 1
+        
+        # 3. 计算派生指标并生成建议
+        rule_list = []
+        for rule_id, stats in rule_stats.items():
+            count = stats['count']
             
-            # 3. 计算派生指标并生成建议
-            rule_list = []
-            for rule_id, stats in rule_stats.items():
-                count = stats['count']
-                
-                # 5日指标
-                win_rate_5d = stats['hits_5d'] / stats['samples_5d'] if stats['samples_5d'] > 0 else None
-                avg_return_5d = stats['total_return_5d'] / stats['samples_5d'] if stats['samples_5d'] > 0 else None
-                
-                # 10日指标
-                win_rate_10d = stats['hits_10d'] / stats['samples_10d'] if stats['samples_10d'] > 0 else None
-                avg_return_10d = stats['total_return_10d'] / stats['samples_10d'] if stats['samples_10d'] > 0 else None
-                
-                # 20日指标
-                win_rate_20d = stats['hits_20d'] / stats['samples_20d'] if stats['samples_20d'] > 0 else None
-                avg_return_20d = stats['total_return_20d'] / stats['samples_20d'] if stats['samples_20d'] > 0 else None
-                
-                # 生成建议（基于 5 日表现）
-                recommendation = self._generate_recommendation(
-                    stats['samples_5d'], 
-                    win_rate_5d or 0, 
-                    avg_return_5d or 0, 
-                    min_samples
-                )
-                
-                rule_list.append({
-                    'rule_id': rule_id,
-                    'count': count,
-                    'samples_5d': stats['samples_5d'],
-                    'win_rate_5d': round(win_rate_5d, 3) if win_rate_5d is not None else None,
-                    'avg_return_5d': round(avg_return_5d, 4) if avg_return_5d is not None else None,
-                    'win_rate_10d': round(win_rate_10d, 3) if win_rate_10d is not None else None,
-                    'avg_return_10d': round(avg_return_10d, 4) if avg_return_10d is not None else None,
-                    'win_rate_20d': round(win_rate_20d, 3) if win_rate_20d is not None else None,
-                    'avg_return_20d': round(avg_return_20d, 4) if avg_return_20d is not None else None,
-                    'recommendation': recommendation
-                })
+            # 5日指标
+            win_rate_5d = stats['hits_5d'] / stats['samples_5d'] if stats['samples_5d'] > 0 else None
+            avg_return_5d = stats['total_return_5d'] / stats['samples_5d'] if stats['samples_5d'] > 0 else None
             
-            # 按 5 日平均收益排序
-            rule_list.sort(key=lambda x: x['avg_return_5d'] if x['avg_return_5d'] is not None else -999, reverse=True)
+            # 10日指标
+            win_rate_10d = stats['hits_10d'] / stats['samples_10d'] if stats['samples_10d'] > 0 else None
+            avg_return_10d = stats['total_return_10d'] / stats['samples_10d'] if stats['samples_10d'] > 0 else None
             
-            # 4. 生成摘要
-            total_signals = len(signals)
-            signals_with_rules = total_signals - unattributed_count
-            unique_rules = len(rule_stats)
+            # 20日指标
+            win_rate_20d = stats['hits_20d'] / stats['samples_20d'] if stats['samples_20d'] > 0 else None
+            avg_return_20d = stats['total_return_20d'] / stats['samples_20d'] if stats['samples_20d'] > 0 else None
             
-            result = {
-                'date_range': {
-                    'start': start_date,
-                    'end': end_date
-                },
-                'summary': {
-                    'total_signals': total_signals,
-                    'signals_with_rules': signals_with_rules,
-                    'unattributed_signals': unattributed_count,
-                    'unique_rules': unique_rules,
-                    'attribution_rate': round(signals_with_rules / total_signals, 3) if total_signals > 0 else 0
-                },
-                'rule_stats': rule_list,
-                'recommendations': self._summarize_recommendations(rule_list)
-            }
-            
-            logger.info(
-                "attribution_analysis_complete",
-                total_signals=total_signals,
-                unique_rules=unique_rules,
-                attribution_rate=result['summary']['attribution_rate']
+            # 生成建议（基于 5 日表现）
+            recommendation = self._generate_recommendation(
+                stats['samples_5d'], 
+                win_rate_5d or 0, 
+                avg_return_5d or 0, 
+                min_samples
             )
             
-            return result
+            rule_list.append({
+                'rule_id': rule_id,
+                'count': count,
+                'samples_5d': stats['samples_5d'],
+                'win_rate_5d': round(win_rate_5d, 3) if win_rate_5d is not None else None,
+                'avg_return_5d': round(avg_return_5d, 4) if avg_return_5d is not None else None,
+                'win_rate_10d': round(win_rate_10d, 3) if win_rate_10d is not None else None,
+                'avg_return_10d': round(avg_return_10d, 4) if avg_return_10d is not None else None,
+                'win_rate_20d': round(win_rate_20d, 3) if win_rate_20d is not None else None,
+                'avg_return_20d': round(avg_return_20d, 4) if avg_return_20d is not None else None,
+                'recommendation': recommendation
+            })
         
-        finally:
-            cursor.close()
-            if _pooled is not None:
-                # 读操作也要显式结束事务再还池（psycopg2 默认事务模式，SELECT 同样开事务，
-                # 不 rollback 归还会留下 idle-in-transaction 残影 —— 这正是被 DB 强杀的那条路径）。
-                _pooled.connection.rollback()
-                _pooled.close()    
+        # 按 5 日平均收益排序
+        rule_list.sort(key=lambda x: x['avg_return_5d'] if x['avg_return_5d'] is not None else -999, reverse=True)
+        
+        # 4. 生成摘要
+        total_signals = len(signals)
+        signals_with_rules = total_signals - unattributed_count
+        unique_rules = len(rule_stats)
+        
+        result = {
+            'date_range': {
+                'start': start_date,
+                'end': end_date
+            },
+            'summary': {
+                'total_signals': total_signals,
+                'signals_with_rules': signals_with_rules,
+                'unattributed_signals': unattributed_count,
+                'unique_rules': unique_rules,
+                'attribution_rate': round(signals_with_rules / total_signals, 3) if total_signals > 0 else 0
+            },
+            'rule_stats': rule_list,
+            'recommendations': self._summarize_recommendations(rule_list)
+        }
+        
+        logger.info(
+            "attribution_analysis_complete",
+            total_signals=total_signals,
+            unique_rules=unique_rules,
+            attribution_rate=result['summary']['attribution_rate']
+        )
+        
+        return result
+
     def _extract_rule_ids(self, reason: str) -> List[str]:
         """从 reason 字段提取规则 ID
         

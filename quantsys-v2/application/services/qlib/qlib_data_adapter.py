@@ -71,7 +71,10 @@ class QuantsysV2DataProvider(BaseProvider):
 
         # 使用全局 SQLAlchemy Engine(与 BaseRepository 统一)
         from infrastructure.persistence.database.engine import get_engine
+        from adapters.outbound.repositories.qlib_repository import QlibDataRepository
         self.engine = get_engine()
+        # 取数出口（REQ-24e15d）：三处 read_sql 已收口到该仓储，engine 与仓储同源（同一个全局 Engine）
+        self._repo = QlibDataRepository()
 
         self.logger.info("QuantsysV2DataProvider initialized (using global Engine)")
 
@@ -148,33 +151,11 @@ class QuantsysV2DataProvider(BaseProvider):
         Returns:
             DataFrame with columns: symbol, trade_date, open, high, low, close, volume
         """
-        # 构建 SQL 查询
-        symbols_str = ','.join(f"'{s}'" for s in symbols)
-
-        query = f"""
-        SELECT
-            symbol,
-            trade_date,
-            open,
-            high,
-            low,
-            close,
-            volume,
-            amount
-        FROM klines
-        WHERE symbol IN ({symbols_str})
-        """
-
-        if start_date:
-            query += f" AND trade_date >= '{start_date}'"
-        if end_date:
-            query += f" AND trade_date <= '{end_date}'"
-
-        query += " ORDER BY symbol, trade_date"
-
-        # 执行查询
+        # 2026-09-14（REQ-24e15d）：原先在这里用 f-string 把 symbol 列表与日期值拼进 SQL
+        # （值位置注入），现收口到 QlibDataRepository.get_features，取值一律绑定参数。
+        # 表名仍是 klines（原有事实，未改）；异常语义也保持：这里仍吞异常返回空 DataFrame。
         try:
-            df = pd.read_sql(query, self.engine)
+            df = QlibDataRepository().get_features(symbols, start_date, end_date)
             self.logger.info(f"Fetched {len(df)} rows from database")
             return df
         except Exception as e:
@@ -303,22 +284,14 @@ class QuantsysV2DataProvider(BaseProvider):
             交易日数组
         """
         # 查询数据库中的唯一交易日
-        query = """
-        SELECT DISTINCT trade_date
-        FROM klines
-        WHERE 1=1
-        """
-
+        # 2026-09-14（REQ-24e15d）：SQL 收口到 QlibDataRepository.get_calendar（绑定参数）。
+        # ⚠️ 这里**没有** try/except：与旧实现一致，查询失败异常向上抛（不静默返回空日历）。
         if start_time:
             start_time = pd.Timestamp(start_time).strftime('%Y-%m-%d')
-            query += f" AND trade_date >= '{start_time}'"
         if end_time:
             end_time = pd.Timestamp(end_time).strftime('%Y-%m-%d')
-            query += f" AND trade_date <= '{end_time}'"
 
-        query += " ORDER BY trade_date"
-
-        df = pd.read_sql(query, self.engine)
+        df = QlibDataRepository().get_calendar(start_time, end_time)
         dates = pd.to_datetime(df['trade_date']).values
 
         return dates
@@ -338,9 +311,9 @@ class QuantsysV2DataProvider(BaseProvider):
         Returns:
             股票代码列表
         """
-        query = "SELECT DISTINCT symbol FROM klines ORDER BY symbol"
-
-        df = pd.read_sql(query, self.engine)
+        # 2026-09-14（REQ-24e15d）：SQL 收口到 QlibDataRepository.get_instruments。
+        # ⚠️ 这里同样**没有** try/except：与旧实现一致，失败即抛。
+        df = QlibDataRepository().get_instruments()
         symbols = df['symbol'].tolist()
 
         # 按市场过滤

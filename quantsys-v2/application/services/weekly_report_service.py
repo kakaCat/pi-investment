@@ -132,40 +132,17 @@ class WeeklyReportService:
         return report
     
     def _get_signals_stats(self, start_date: str, end_date: str) -> Dict[str, Any]:
-        """获取信号统计"""
-        cursor, _pooled = self._acquire_cursor()
-        
-        try:
-            cursor.execute("""
-                SELECT 
-                    COUNT(*) as total,
-                    COUNT(CASE WHEN return_5d IS NOT NULL THEN 1 END) as with_performance,
-                    AVG(CASE WHEN hit_5d = true THEN 1.0 ELSE 0.0 END) as avg_win_rate_5d,
-                    AVG(return_5d) as avg_return_5d,
-                    COUNT(CASE WHEN grade = 'A' THEN 1 END) as grade_a,
-                    COUNT(CASE WHEN grade = 'B' THEN 1 END) as grade_b,
-                    COUNT(CASE WHEN grade = 'C' THEN 1 END) as grade_c
-                FROM quant.signal_tracking
-                WHERE signal_date >= %s AND signal_date <= %s
-            """, (start_date, end_date))
-            
-            row = cursor.fetchone()
-            
-            return {
-                'total': row[0] or 0,
-                'with_performance': row[1] or 0,
-                'avg_win_rate_5d': round(float(row[2] or 0), 3),
-                'avg_return_5d': round(float(row[3] or 0), 4),
-                'grade_a': row[4] or 0,
-                'grade_b': row[5] or 0,
-                'grade_c': row[6] or 0
-            }
-        
-        finally:
-            cursor.close()
-            if _pooled is not None:
-                _pooled.connection.rollback()  # 读操作显式结束事务后再还池
-                _pooled.close()    
+        """获取信号统计
+
+        2026-09-14（w-32314d00，REQ-24e15d）：聚合 SQL（COUNT/AVG/CASE WHEN）
+        收口到 SignalTrackingRepository.get_signal_stats —— 该仓储自带连接自愈
+        （_ensure_connection/_end_read），本批**未改动其连接机制**，只是新增方法。
+        注入的 db_connection 依旧优先（与 _acquire_cursor 的注入语义一致）。
+        返回 dict 的键与 0/None 归一化口径完全不变。
+        """
+        from adapters.outbound.repositories.signal_tracking_repository import SignalTrackingRepository
+        return SignalTrackingRepository(self._injected).get_signal_stats(start_date, end_date)
+
     def _get_regime_changes(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
         """获取 Regime 变化记录
         

@@ -17,17 +17,16 @@
 - escalation_policy: 默认（价格偏差>5%或触发频率异常时升级L2）
 - expires_at: 30天后
 """
-import json
 import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 import structlog
-from sqlalchemy import text
 
+# 2026-09-14（w-32314d00，REQ-24e15d）：json / sqlalchemy.text / get_engine 随
+# 两处裸 SQL（SELECT close…、UPDATE watch_rules…）一起下线，现全部走仓储。
 from adapters.outbound.repositories.watch_rule_repository import WatchRuleRepository
 from domain.watch.models import EscalationPolicy
-from infrastructure.persistence.database.engine import get_engine
 
 logger = structlog.get_logger(__name__)
 
@@ -205,21 +204,16 @@ class OpportunityToWatchRuleService:
         return rule
     
     def _latest_close_from_db(self, symbol: str) -> Optional[float]:
-        """从日K线库取该标的最新收盘价（2026-09-11 新增：载荷本身不含价格字段）"""
+        """从日K线库取该标的最新收盘价（2026-09-11 新增：载荷本身不含价格字段）
+
+        2026-09-14（w-32314d00，REQ-24e15d）：裸 SQL 收口到
+        KlineORMRepository.get_latest_close（同过滤/同排序/同 None 语义）。
+        """
         if not symbol:
             return None
         try:
-            with get_engine().connect() as conn:
-                row = conn.execute(
-                    text(
-                        'SELECT close FROM quant.daily_klines WHERE symbol = :s '
-                        'ORDER BY trade_date DESC LIMIT 1'
-                    ),
-                    {'s': symbol},
-                ).fetchone()
-            if row and row[0] is not None:
-                return float(row[0])
-            return None
+            from adapters.outbound.repositories.kline_repository import KlineORMRepository
+            return KlineORMRepository().get_latest_close(symbol)
         except Exception as e:  # noqa: BLE001
             logger.warning('读取最新收盘价失败', symbol=symbol, error=str(e))
             return None
@@ -284,9 +278,15 @@ class OpportunityToWatchRuleService:
         return '\n'.join(lines)
     
     def _update_rule_meta(self, rule_id: int, action_hint: Dict, escalation_policy: EscalationPolicy):
-        """更新规则的 action_hint 和 escalation_policy"""
-        engine = get_engine()
-        
+        """更新规则的 action_hint 和 escalation_policy
+
+        2026-09-14（w-32314d00，REQ-24e15d）：裸 UPDATE 收口到
+        WatchRuleRepository.update_fields（ORM，列白名单由仓储维护）。
+        落库口径与原 `UPDATE ... SET action_hint=:ah, escalation_policy=:ep,
+        updated_at=NOW()` 一致：只改这 3 列、jsonb 走 ORM JSONB 绑定
+        （旧实现传 json.dumps 字符串，PG 侧同样按 jsonb 归一化，落库值一致）；
+        规则不存在时两边都是**静默无操作、不抛异常**（旧：0 行受影响；新：get_by_id 返回 None）。
+        """
         # 统一序列化 escalation_policy（支持 dataclass 和 dict）
         if isinstance(escalation_policy, dict):
             ep_dict = escalation_policy
@@ -299,13 +299,8 @@ class OpportunityToWatchRuleService:
                 'multi_rule_confluence': escalation_policy.multi_rule_confluence,
             }
         
-        with engine.begin() as conn:
-            conn.execute(text(
-                "UPDATE quant.watch_rules "
-                "SET action_hint = :ah, escalation_policy = :ep, updated_at = NOW() "
-                "WHERE id = :rid"
-            ), {
-                'rid': rule_id,
-                'ah': json.dumps(action_hint),
-                'ep': json.dumps(ep_dict),
-            })
+        self.rule_repo.update_fields(
+            rule_id,
+            action_hint=action_hint,
+            escalation_policy=ep_dict,
+        )

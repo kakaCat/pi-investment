@@ -19,7 +19,8 @@ from typing import List, Optional, Dict, Any
 from datetime import date, datetime
 import structlog
 
-from sqlalchemy import and_, or_, func, desc
+from sqlalchemy import and_, or_, func, desc, case, cast, Date, select
+from sqlalchemy.exc import SQLAlchemyError
 from infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import Signal, SignalExecution
 from domain.ports import ISignalRepository
@@ -621,6 +622,82 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             'by_strategy': by_strategy,
             'avg_confidence': (conf_sum / conf_n) if conf_n else 0.0,
         }
+
+    def get_signal_statistics(self, start_date: str, end_date: str) -> Dict[str, Any]:
+        """信号状态分布 + BUY/SELL 通过率（GET /api/signals/statistics 的取数口）。
+
+        迁移背景（2026-09-14，w-32314d00，REQ-24e15d B4-c4）：
+            本方法原先**不存在** —— 路由 adapters/inbound/fastapi_app/routes/signals_async.py
+            自己 `SignalORMRepository()._get_cursor()` 拿**私有裸游标**，内联三段 SQL。
+            改为仓储方法后，路由不再触碰 cursor，也不再依赖 _get_cursor 这个兼容垫片。
+
+        契约（逐值对齐迁移前的内联 SQL，已在真实库上比对过）：
+          - total/pending/approved/rejected/error/executed：一次条件聚合（signal_date 闭区间）；
+          - avg_confidence：**只统计 confidence IS NOT NULL 的行**，全空则 0.0，结果 round 2；
+          - buy/sell_approved_rate = 该 action 的 approved 数 / 总数 × 100，round 2；
+            **原实现只在 total>0 且 approved>0 时才赋值**（approved=0 时保持初值 0.0）——
+            两者数值同为 0.0，此处按同一分支逻辑保留，避免留下"看起来等价但分母口径不同"的写法；
+          - action 是**大写契约**（models/action_norm.py），此处只认 'BUY'/'SELL'，其它 action 不参与；
+          - 异常**不吞**：原路由交给 handle_api_error 转 500，此处回滚后原样上抛。
+        """
+        try:
+            date_conds = (
+                Signal.signal_date >= cast(start_date, Date),
+                Signal.signal_date <= cast(end_date, Date),
+            )
+
+            row = self.session.execute(
+                select(
+                    func.count().label('total'),
+                    func.count(case((Signal.status == 'pending', 1))).label('pending'),
+                    func.count(case((Signal.status == 'approved', 1))).label('approved'),
+                    func.count(case((Signal.status == 'rejected', 1))).label('rejected'),
+                    func.count(case((Signal.status == 'error', 1))).label('error'),
+                    func.count(case((Signal.status == 'executed', 1))).label('executed'),
+                ).select_from(Signal).where(*date_conds)
+            ).mappings().first()
+
+            avg_confidence = self.session.execute(
+                select(func.avg(Signal.confidence))
+                .select_from(Signal)
+                .where(*date_conds, Signal.confidence.isnot(None))
+            ).scalar()
+
+            action_rows = self.session.execute(
+                select(
+                    Signal.action.label('action'),
+                    func.count().label('total'),
+                    func.count(case((Signal.status == 'approved', 1))).label('approved_count'),
+                ).select_from(Signal).where(*date_conds).group_by(Signal.action)
+            ).mappings().all()
+        except SQLAlchemyError:
+            self._safe_rollback()
+            raise
+
+        buy_accuracy = 0.0
+        sell_accuracy = 0.0
+        for r in action_rows:
+            total = r['total'] or 0
+            approved = r['approved_count'] or 0
+            if total > 0 and approved > 0:
+                accuracy = (approved / total) * 100
+                if r['action'] == 'BUY':
+                    buy_accuracy = accuracy
+                elif r['action'] == 'SELL':
+                    sell_accuracy = accuracy
+
+        if row:
+            return {
+                'total': row['total'], 'pending': row['pending'],
+                'approved': row['approved'], 'rejected': row['rejected'],
+                'error': row['error'], 'executed': row['executed'],
+                'avg_confidence': round(float(avg_confidence or 0.0), 2),
+                'buy_approved_rate': round(buy_accuracy, 2),
+                'sell_approved_rate': round(sell_accuracy, 2),
+            }
+        return {'total': 0, 'pending': 0, 'approved': 0, 'rejected': 0, 'error': 0,
+                'executed': 0, 'avg_confidence': 0.0,
+                'buy_approved_rate': 0.0, 'sell_approved_rate': 0.0}
 
     # ==================== 删除方法 ====================
 

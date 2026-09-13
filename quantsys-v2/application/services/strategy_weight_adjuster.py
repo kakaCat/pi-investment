@@ -207,42 +207,27 @@ class StrategyWeightAdjuster:
         """
         try:
             # 查询按 market_style 分组的统计
-            query = """
-                SELECT
-                    scenario_tags->>0 as market_style,
-                    COUNT(*) as total_trades,
-                    AVG(pnl_pct) as avg_return,
-                    STDDEV(pnl_pct) as std_return,
-                    SUM(CASE WHEN pnl_pct > 0 THEN 1 ELSE 0 END)::FLOAT / COUNT(*) as win_rate
-                FROM quant.strategy_performance
-                WHERE strategy_name = %s
-                  AND scenario_tags IS NOT NULL
-                  AND exit_price IS NOT NULL
-                GROUP BY scenario_tags->>0
-            """
+            # 2026-09-14（REQ-24e15d）：原先在这里用 self.performance_repo._get_cursor()
+            # 拿裸 psycopg2 游标跑聚合 SQL，现收口到
+            # StrategyPerformanceRepository.get_market_style_aggregates（口径逐值对齐原 SQL）。
+            results = self.performance_repo.get_market_style_aggregates(strategy_name)
 
-            cursor = self.performance_repo._get_cursor()
-            cursor.execute(query, (strategy_name,))
-            results = cursor.fetchall()
-            cursor.close()
-
+            # 2026-09-14（w-32314d00 复核）：此处原有「dict 行 / tuple 行」两个分支，
+            # tuple 分支已**删除** —— 仓储 get_market_style_aggregates 的契约恒为 list[dict]，
+            # 旧实现走 psycopg2 RealDictCursor 时同样只产出 dict，该分支两条路径下都到不了。
+            # 删它的理由不是"清理死代码"，而是那个分支**注释里的索引顺序是错的**：
+            #   注释写 (market_style, avg_return, std_return, win_rate, count)
+            #   旧 SELECT 真实顺序是 (market_style, total_trades, avg_return, std_return, win_rate)
+            # 一旦后人"恢复 tuple 支持"，row[1] 会把**笔数**当收益率、row[3] 会把**标准差**当胜率，
+            # 静默算出错的夏普。留着它就是留一个带说明书的陷阱。
             perf_by_style = {}
             for row in results:
-                if isinstance(row, dict):
-                    style = row['market_style']
-                    if not style:
-                        continue
-                    avg_return = float(row['avg_return']) if row['avg_return'] else 0.0
-                    std_return = float(row['std_return']) if row['std_return'] else 1.0
-                    win_rate = float(row['win_rate']) if row['win_rate'] else 0.0
-                else:
-                    # Tuple format: (market_style, avg_return, std_return, win_rate, count)
-                    style = row[0]
-                    if not style:
-                        continue
-                    avg_return = float(row[1]) if row[1] else 0.0
-                    std_return = float(row[2]) if row[2] else 1.0
-                    win_rate = float(row[3]) if row[3] else 0.0
+                style = row['market_style']
+                if not style:
+                    continue
+                avg_return = float(row['avg_return']) if row['avg_return'] else 0.0
+                std_return = float(row['std_return']) if row['std_return'] else 1.0
+                win_rate = float(row['win_rate']) if row['win_rate'] else 0.0
 
                 # 计算夏普比率（简化版：年化假设 252 个交易日）
                 sharpe = (avg_return / std_return) * (252 ** 0.5) if std_return > 0 else 0.0

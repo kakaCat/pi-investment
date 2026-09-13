@@ -38,10 +38,9 @@ def mock_data_service():
     ds.portfolio.get_holding = Mock(return_value=None)
     ds.portfolio.get_all_holdings = Mock(return_value=[])
 
-    # Mock cursor for trade limit check
-    mock_cursor = Mock()
-    mock_cursor.fetchall = Mock(return_value=[])
-    ds.portfolio._get_cursor = Mock(return_value=mock_cursor)
+    # Mock 日内交易次数查询（REQ-24e15d：旧裸游标 _get_cursor 已收口为
+    # PortfolioORMRepository.get_trades_by_date_and_symbol，mock 跟随新接口）
+    ds.portfolio.get_trades_by_date_and_symbol = Mock(return_value=[])
 
     # Mock stock repository
     ds.stock = Mock()
@@ -314,10 +313,9 @@ def test_check_sector_concentration(mock_data_service):
 
 def test_check_daily_trade_limit(mock_data_service):
     """测试日内交易次数限制"""
-    # Mock今日已有5笔交易
-    mock_cursor = Mock()
-    mock_cursor.fetchall = Mock(return_value=[1, 2, 3, 4, 5])
-    mock_data_service.portfolio._get_cursor = Mock(return_value=mock_cursor)
+    # Mock今日已有5笔交易（REQ-24e15d：mock 新仓储方法返回 5 行）
+    mock_data_service.portfolio.get_trades_by_date_and_symbol = Mock(
+        return_value=[1, 2, 3, 4, 5])
 
     service = RiskCheckService(**mock_data_service.repo_kwargs)
 

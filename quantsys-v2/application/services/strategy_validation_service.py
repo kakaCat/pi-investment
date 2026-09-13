@@ -442,42 +442,29 @@ class StrategyValidationService:
                 'dry_run': bool,
             }
         """
-        from sqlalchemy import text
         from adapters.outbound.repositories.strategy_repository import StrategyORMRepository
+        from adapters.outbound.repositories.backtest_repository import BacktestORMRepository
         from datetime import datetime, timedelta
 
         start = time.time()
         repo = StrategyORMRepository()
-        session = repo.session
 
         # 1) 拉取最近 N 天每个策略的批量回测证据（聚合指标：每年化收益/夏普/回撤/胜率/盈亏比）
+        # 2026-09-14（REQ-24e15d）：原先是 session.execute(text(...)) 的裸聚合 SQL，
+        # 现收口到 BacktestORMRepository.get_strategy_evidence_since（口径逐值对齐原 SQL）。
+        # 返回类型由 Core Row（属性访问 r.strategy_name）改为同名列名的 dict（键访问）。
         since = datetime.now() - timedelta(days=lookback_days)
-        rows = session.execute(text("""
-            SELECT br.strategy_name,
-                   MAX(br.created_at) AS evidence_at,
-                   AVG(br.annual_return)  AS annual_return,
-                   AVG(br.sharpe_ratio)   AS sharpe_ratio,
-                   AVG(br.max_drawdown)   AS max_drawdown,
-                   AVG(br.win_rate)       AS win_rate,
-                   AVG(br.profit_factor)  AS profit_factor,
-                   COUNT(*)               AS backtest_count,
-                   MIN(br.start_date)     AS win_start,
-                   MAX(br.end_date)       AS win_end
-            FROM quant.backtest_results br
-            WHERE br.created_at >= :since
-            GROUP BY br.strategy_name
-            ORDER BY br.strategy_name
-        """), {'since': since}).fetchall()
-        evidence = {r.strategy_name: {
-            'annual_return': float(r.annual_return or 0.0),
-            'sharpe_ratio': float(r.sharpe_ratio or 0.0),
-            'max_drawdown': float(r.max_drawdown or 0.0),
-            'win_rate': float(r.win_rate or 0.0),
-            'profit_factor': float(r.profit_factor or 0.0),
-            'backtest_count': int(r.backtest_count or 0),
-            'evidence_at': r.evidence_at.isoformat() if r.evidence_at else None,
-            'win_start': r.win_start.isoformat() if r.win_start else None,
-            'win_end': r.win_end.isoformat() if r.win_end else None,
+        rows = BacktestORMRepository().get_strategy_evidence_since(since)
+        evidence = {r['strategy_name']: {
+            'annual_return': float(r['annual_return'] or 0.0),
+            'sharpe_ratio': float(r['sharpe_ratio'] or 0.0),
+            'max_drawdown': float(r['max_drawdown'] or 0.0),
+            'win_rate': float(r['win_rate'] or 0.0),
+            'profit_factor': float(r['profit_factor'] or 0.0),
+            'backtest_count': int(r['backtest_count'] or 0),
+            'evidence_at': r['evidence_at'].isoformat() if r['evidence_at'] else None,
+            'win_start': r['win_start'].isoformat() if r['win_start'] else None,
+            'win_end': r['win_end'].isoformat() if r['win_end'] else None,
         } for r in rows}
 
         # 2) 获取全部策略配置（匹配 strategy_configs）
@@ -530,11 +517,9 @@ class StrategyValidationService:
         if not dry_run and details:
             today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             for d in details:
-                exists = session.execute(text("""
-                    SELECT COUNT(*) FROM quant.strategy_validation_reports
-                    WHERE strategy_id = :sid AND validation_date >= :today
-                """), {'sid': d['strategy_id'], 'today': today}).scalar()
-                if exists:
+                # 2026-09-14（REQ-24e15d）：原先是 session.execute(text(...)) 的 COUNT 裸 SQL，
+                # 现收口到 StrategyORMRepository.has_validation_report_since（走 ORM 模型）。
+                if repo.has_validation_report_since(d['strategy_id'], today):
                     skipped_duplicate += 1
                     continue
                 repo.update_validation_status(

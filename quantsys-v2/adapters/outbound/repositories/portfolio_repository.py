@@ -794,6 +794,33 @@ class PortfolioORMRepository(BaseORMRepository[PortfolioHolding], IPortfolioRepo
         ).all()
         return [self._trade_to_raw_dict(t) for t in trades]
 
+    def get_trades_by_date_and_symbol(self, trade_date: date, symbol: str) -> List[Dict[str, Any]]:
+        """按「交易日 + 标的」查交易记录（走 PostgreSQL 函数 quant.get_trades_by_date_and_symbol）。
+
+        2026-09-14（REQ-24e15d）：原实现是 application/services/risk_check_service.py 里
+        self.portfolio_repo._get_cursor() 拿裸 psycopg2 游标执行
+        SELECT * FROM quant.get_trades_by_date_and_symbol(%s, %s)。该函数是 plpgsql
+        （RETURNS TABLE(id, symbol, action, quantity, price, trade_date, created_at)，
+        内部 WHERE trade_date = p_date AND symbol = p_symbol ORDER BY created_at DESC），
+        **无法用 ORM 表达**，故按仓储契约在这里用 session.execute(text(...)) —— 仓储是放 SQL 的地方。
+        取值一律绑定参数，不做任何插值。
+
+        Args:
+            trade_date: 交易日（datetime.date；与函数签名 p_date date 对齐）
+            symbol: 标的代码（与 p_symbol varchar 对齐）
+
+        Returns:
+            行字典列表（键 = 函数的 RETURNS TABLE 列），顺序与函数内 ORDER BY 一致。
+            无记录返回空列表（**不是 None**），调用方用 len() 计数。
+        """
+        from sqlalchemy import text
+
+        rows = self.session.execute(
+            text("SELECT * FROM quant.get_trades_by_date_and_symbol(:trade_date, :symbol)"),
+            {"trade_date": trade_date, "symbol": symbol},
+        ).fetchall()
+        return [dict(row._mapping) for row in rows]
+
     def record_trade(self, trade_data: Dict) -> int:
         """
         记录一笔交易

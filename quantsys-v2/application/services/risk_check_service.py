@@ -356,21 +356,16 @@ class RiskCheckService:
         }
 
     def _check_daily_trade_limit(self, symbol: str) -> Dict:
-        """检查日内交易次数限制"""
+        """检查日内交易次数限制
+
+        2026-09-14（REQ-24e15d）：原先在这里用 self.portfolio_repo._get_cursor()
+        拿裸 psycopg2 游标执行 SELECT * FROM quant.get_trades_by_date_and_symbol(%s,%s)，
+        现收口到 PortfolioORMRepository.get_trades_by_date_and_symbol（该 PG 函数
+        无法用 ORM 表达，SQL 留在仓储内）。服务层只做编排与文案：仍按 len() 计数。
+        """
         today = date.today()
 
-        # 使用PostgreSQL函数查询
-        cursor = None
-        try:
-            cursor = self.portfolio_repo._get_cursor()
-            cursor.execute(
-                "SELECT * FROM quant.get_trades_by_date_and_symbol(%s, %s)",
-                (today, symbol)
-            )
-            trades_today = cursor.fetchall()
-        finally:
-            if cursor:
-                cursor.close()
+        trades_today = self.portfolio_repo.get_trades_by_date_and_symbol(today, symbol)
 
         trade_count = len(trades_today)
         max_trades = int(self.config['max_single_stock_trades'])
