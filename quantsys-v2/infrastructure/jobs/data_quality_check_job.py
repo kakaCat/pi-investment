@@ -376,20 +376,10 @@ def _release_db_session(stage: str) -> None:
         logger.warning(f"释放 DB 会话失败（{stage}）: {e}")
 
 
-def _get_alert_session():
-    """取可用于告警查询的 Session：先回滚挂起事务，异常则丢弃重建"""
-    from infrastructure.persistence.orm.config import get_session
-    session = get_session()
-    try:
-        session.rollback()
-    except Exception as e:
-        logger.warning(f"告警查询前回滚失败，重建会话: {e}")
-        try:
-            session.close()
-        except Exception:
-            pass
-        session = get_session()
-    return session
+# 2026-09-14（w-32314d00，REQ-24e15d B2）：原 _get_alert_session() 已删除。
+# 它存在的唯一理由是"告警查询前先回滚挂起事务、失败则丢弃重建会话"，
+# 而这正是 KlineQualityRepository.count_by_grade_on 内部 _safe_rollback 的职责；
+# 收口后它变成无人调用的死代码，留着只会诱导后来者再写一套会话修补。
 
 
 def _check_quality_alerts(result: Dict[str, Any], quality_threshold: float = 90.0) -> None:
@@ -407,27 +397,18 @@ def _check_quality_alerts(result: Dict[str, Any], quality_threshold: float = 90.
         quality_score = summary.get('data_quality_score', 100)
 
         # 计算 D 级股票数量
-        from infrastructure.persistence.orm.config import get_session
-        from sqlalchemy import text
-
-        session = _get_alert_session()
-        _d_grade_sql = text("""
-            SELECT COUNT(*)
-            FROM kline_data_quality
-            WHERE DATE(created_at) = CURRENT_DATE
-              AND grade = 'D'
-        """)
+        # 2026-09-14（w-32314d00，REQ-24e15d B2）：裸 SQL + 手工会话修补 → 仓储方法。
+        # 原先这里是 text() 拼的 SQL 配一段"回滚/丢弃重建会话"的补丁代码
+        # （_get_alert_session + 失败重试），根因是长流水线末尾同线程事务可能已 aborted。
+        # 该语义已收进 KlineQualityRepository.count_by_grade_on（失败先 _safe_rollback 再抛），
+        # 所以这里只需"重试一次"，不再由作业层碰 session。
+        from adapters.outbound.repositories.kline_quality_repository import KlineQualityRepository
         try:
-            d_grade_count = session.execute(_d_grade_sql).scalar() or 0
+            d_grade_count = KlineQualityRepository().count_by_grade_on('D')
         except Exception as q_err:
-            # 连接可能已被服务端回收（实测 idle-in-transaction timeout）→ 丢弃重建重试一次
-            logger.warning(f"告警查询失败，重建会话重试一次: {q_err}")
-            try:
-                session.close()
-            except Exception:
-                pass
-            session = get_session()
-            d_grade_count = session.execute(_d_grade_sql).scalar() or 0
+            # 连接可能已被服务端回收（实测 idle-in-transaction timeout）→ 重试一次
+            logger.warning(f"告警查询失败，重试一次: {q_err}")
+            d_grade_count = KlineQualityRepository().count_by_grade_on('D')
 
         # 回填失败率
         backfill_summary = result.get('backfill_summary')

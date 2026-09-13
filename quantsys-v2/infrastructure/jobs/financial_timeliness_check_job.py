@@ -42,15 +42,11 @@ _REMEDIATION_TEXT = {
 
 def _already_attempted_today() -> bool:
     """今天是否已经触发过（宿主台账里当天有记录即算）。"""
+    # 2026-09-14（w-32314d00，REQ-24e15d B2）：裸 SQL → JobRunRepository（含 ORM 模型）。
+    # 语义不变：**当天有记录就算跑过**（失败也算），避免同一天无限重试。
     try:
-        from infrastructure.persistence.orm.config import get_session
-        from sqlalchemy import text
-        session = get_session()
-        row = session.execute(text(
-            "SELECT status FROM quant.inprocess_job_runs "
-            "WHERE job_id = :j AND run_date = CURRENT_DATE LIMIT 1"
-        ), {'j': _HOST_JOB_ID}).fetchone()
-        return row is not None
+        from adapters.outbound.repositories.job_run_repository import JobRunRepository
+        return JobRunRepository().exists(_HOST_JOB_ID)
     except Exception as e:  # 台账不可读时不阻断补救（宁可多跑一次也不静默不修）
         logger.warning("读取 inprocess_job_runs 失败，跳过当天去重判断: %s", e)
         return False
@@ -108,34 +104,26 @@ def execute(**params) -> Dict[str, Any]:
         logger.info("="*70)
 
         # 1. 查询当前最新财报数据更新时间
-        from infrastructure.persistence.orm.config import get_session
-        from sqlalchemy import text
+        # 2026-09-14（w-32314d00，REQ-24e15d B2）：裸 SQL → StockORMRepository。
+        # 口径不变：只统计 roe 非空的 A 股行（roe 为空 = 该行从未被财务更新覆盖）。
+        from adapters.outbound.repositories.stock_repository import StockORMRepository
+        last_update = StockORMRepository().get_latest_financial_update_time('A')
 
-        session = get_session()
-        result = session.execute(text("""
-            SELECT MAX(updated_at) as last_update
-            FROM quant.stocks
-            WHERE market = 'A' AND roe IS NOT NULL
-        """)).fetchone()
-
-        if not result or not result[0]:
+        if not last_update:
             logger.warning("无法确定最新财务数据更新时间")
             return {
                 'success': False,
                 'error': 'Unable to determine latest financial data update time'
             }
 
-        last_update = result[0]
-
         # 2. 计算预期报告期和披露截止日期
         today = date.today()
         expected_report_date, disclosure_deadline = _calculate_expected_report(today)
 
         # 3. 查询实际最新报告期（从 balance_sheets 推断）
-        actual_report = session.execute(text("""
-            SELECT MAX(report_date) as latest_report
-            FROM quant.balance_sheets
-        """)).scalar()
+        # 2026-09-14（w-32314d00，REQ-24e15d B2）：裸 SQL → FinancialORMRepository。
+        from adapters.outbound.repositories.financial_repository import FinancialORMRepository
+        actual_report = FinancialORMRepository().get_latest_report_date('balance_sheets')
 
         # 4. 判断是否超期
         grace_days = 7  # 缓冲期

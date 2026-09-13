@@ -146,22 +146,18 @@ def execute(**params) -> Dict[str, Any]:
     logger.info(f"有效记录 {len(records)} 只（含财务数值）")
 
     # 4. 确定更新范围：仅 stocks 表存在且 market='A' 的股票
-    from infrastructure.persistence.orm.config import get_session
-    from sqlalchemy import text
-
-    session = get_session()
+    # 2026-09-14（w-32314d00，REQ-24e15d B2）：会话与 SQL 收口到 StockORMRepository
+    # —— 作业层不再持有 session、不再出现 SQL 文本（含下面写库的列名拼接）。
+    from adapters.outbound.repositories.stock_repository import StockORMRepository
+    stock_repo = StockORMRepository()
     try:
-        exist = session.execute(text(
-            "SELECT symbol FROM quant.stocks WHERE market='A'"
-        )).fetchall()
+        exist_set = stock_repo.list_symbols_by_market('A')
     except Exception as e:
         logger.error(f"查询 stocks 表失败: {e}")
         return {'success': False, 'report_date': report_date,
                 'fetched': fetched, 'updated': 0, 'skipped': 0,
                 'error': f'stocks query failed: {e}',
                 'elapsed_s': int(time.time() - started)}
-
-    exist_set = {str(r[0]) for r in exist}
     universe = symbols if symbols else sorted(exist_set)
     candidates = [(s, records[s]) for s in universe
                   if s in records and s in exist_set]
@@ -201,17 +197,18 @@ def execute(**params) -> Dict[str, Any]:
             if unknown:
                 raise ValueError(
                     f'{s}: 财务更新含未知列 {unknown}；允许写入的列见 WRITABLE_STOCK_COLUMNS')
-            params_sql = dict(vals)
-            params_sql['symbol'] = s
-            params_sql['updated_at'] = now
-            set_clause = ', '.join(f'{c} = :{c}' for c in vals)
-            session.execute(text(
-                f"UPDATE quant.stocks SET {set_clause}, updated_at = :updated_at "
-                f"WHERE symbol = :symbol AND market='A'"
-            ), params_sql)
+            # 仓储侧做同一条白名单校验（双保险：作业层先拦，仓储再拦一次），
+            # 且**默认不提交** —— 保持原实现的"单事务"语义：
+            # 全部成功才 commit，任一行失败整体 rollback（不会出现半批入库）。
+            stock_repo.update_financial_columns(
+                symbol=s,
+                values=vals,
+                updated_at=now,
+                allowed_columns=WRITABLE_STOCK_COLUMNS,
+            )
             updated += 1
     except Exception as e:
-        session.rollback()
+        stock_repo.rollback()
         logger.error(f"批量写库失败: {type(e).__name__}: {e}")
         return {'success': False, 'report_date': report_date, 'fetched': fetched,
                 'universe': len(universe), 'updated': updated,
@@ -219,7 +216,7 @@ def execute(**params) -> Dict[str, Any]:
                 'error': f'bulk update failed: {e}',
                 'elapsed_s': int(time.time() - started)}
 
-    session.commit()
+    stock_repo.commit()
     elapsed = int(time.time() - started)
     result = {
         'success': updated > 0,

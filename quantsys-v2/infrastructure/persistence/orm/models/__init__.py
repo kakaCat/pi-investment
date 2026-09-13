@@ -39,6 +39,8 @@ from .condition_rule import ConditionRule, ConditionResult
 from .index_constituent import IndexConstituent
 from .orchestrator import DailyOrchestratorState
 from .market_perception import MarketRegime, MarketSentimentDaily, MarketTheme
+from .job_run import InProcessJobRun
+from .data_quality import KlineDataQuality
 
 __all__ = [
     # 股票相关
@@ -88,4 +90,8 @@ __all__ = [
     'MarketRegime',
     'MarketSentimentDaily',
     'MarketTheme',
+
+    # 任务台账 / 数据质量审计（REQ-24e15d B2，2026-09-14）
+    'InProcessJobRun',
+    'KlineDataQuality',
 ]

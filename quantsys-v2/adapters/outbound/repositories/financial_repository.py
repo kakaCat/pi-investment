@@ -7,7 +7,7 @@ Financial ORM Repository - 财务报表仓储
   - 补齐 get_income_statements / get_balance_sheets / get_financial_data
 """
 from infrastructure.persistence.orm import BaseORMRepository
-from sqlalchemy import Column, Integer, String, Float, Date, DateTime
+from sqlalchemy import Column, Integer, String, Float, Date, DateTime, func
 from sqlalchemy.exc import SQLAlchemyError
 from infrastructure.persistence.orm.base import Base
 from domain.ports import IFinancialRepository
@@ -274,6 +274,31 @@ class FinancialORMRepository(BaseORMRepository[IncomeStatement], IFinancialRepos
             self._safe_rollback()
             logger.error(f"Error listing: {e}")
             return []
+
+    def get_latest_report_date(self, table: str = 'balance_sheets'):
+        """最新报告期（从资产负债表/利润表推断）。
+
+        2026-09-14（w-32314d00，REQ-24e15d B2）：原实现在
+        infrastructure/jobs/financial_timeliness_check_job.py 里以
+        text("SELECT MAX(report_date) FROM quant.balance_sheets") 直接查库，
+        现收口到仓储。财报时效性体检用它判断"最新披露期是否已达预期"。
+
+        Args:
+            table: balance_sheets（默认，与原实现一致）/ income_statements
+
+        Returns:
+            date 或 None（表内无数据/查询失败）
+        """
+        model = BalanceSheet if table == 'balance_sheets' else IncomeStatement
+        try:
+            return (
+                self.session.query(func.max(model.report_date))
+                .scalar()
+            )
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting latest report date from {table}: {e}")
+            return None
 
 
 # 兼容旧命名

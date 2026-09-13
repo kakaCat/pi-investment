@@ -11,9 +11,11 @@
 
 迁移状态：✅ 已完成ORM迁移
 """
-from typing import List, Optional, Dict, Any
-from datetime import date
+from typing import List, Optional, Dict, Any, Set
+from datetime import date, datetime
 import structlog
+
+from sqlalchemy import func, update as sa_update
 
 from infrastructure.persistence.orm import BaseORMRepository, get_session
 from infrastructure.persistence.orm.models import Stock
@@ -352,6 +354,98 @@ class StockORMRepository(BaseORMRepository[Stock], IStockRepository):
             logger.error(f"Error updating stock metrics for {symbol}: {e}")
             self.session.rollback()
             return False
+
+    # ==================== 财务批量写入（REQ-24e15d B2，2026-09-14） ====================
+    # 原实现（infrastructure/jobs/financial_data_update_job.py）在作业层直接
+    # session.execute(text("SELECT symbol FROM quant.stocks WHERE market='A'")) 与
+    # f"UPDATE quant.stocks SET {set_clause} ..." —— 后者是**列名拼接**，
+    # 作业层自己加了一层白名单（WRITABLE_STOCK_COLUMNS）兜底。收口到仓储后，
+    # 白名单仍然保留在仓储里（列名无法参数化，白名单是唯一正解），
+    # 但 SQL 文本与拼接逻辑不再散落在作业里。
+
+    def list_symbols_by_market(self, market: str = 'A') -> Set[str]:
+        """按市场取**全部**代码集合。
+
+        注意与 list_by_market 的语义差异：后者默认排除停牌/退市且返回完整对象；
+        本方法只取 code，且**不过滤停牌/退市** —— 与调用方
+        （财务批量更新的 A 股宇宙）原 SQL 的语义严格一致，不夹带额外过滤。
+        """
+        try:
+            rows = (
+                self.session.query(Stock.symbol)
+                .filter(Stock.market == market)
+                .all()
+            )
+            return {str(r[0]) for r in rows}
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error listing symbols by market: {e}")
+            raise
+
+    def update_financial_columns(
+        self,
+        symbol: str,
+        values: Dict[str, Any],
+        updated_at: Optional[datetime] = None,
+        market: str = 'A',
+        allowed_columns: Optional[Set[str]] = None,
+        commit: bool = False,
+    ) -> bool:
+        """按列更新 quant.stocks 的财务字段（列名走白名单，值走绑定参数）。
+
+        Args:
+            symbol: 股票代码
+            values: {列名: 新值}，列名必须已通过白名单
+            updated_at: 一起刷新 updated_at（None 表示不动）
+            market: 限定市场（与原 SQL 的 market='A' 一致）
+            allowed_columns: 未传时不做列校验（调用方已校验）；传了则在此**再校验一次**
+            commit: 是否立即提交。默认 False —— 批量导入场景需要**单事务**
+                （全部成功才提交，任一行失败整体回滚），由调用方在循环结束后
+                用 repo.commit() / repo.rollback() 收口
+
+        Raises:
+            ValueError: 含白名单外的列名（宁可按失败暴露，不静默写错列）
+        """
+        if not values:
+            return True
+        if allowed_columns is not None:
+            unknown = [c for c in values if c not in allowed_columns]
+            if unknown:
+                raise ValueError(f'{symbol}: 含白名单外的列 {unknown}')
+        try:
+            stmt = (
+                sa_update(Stock)
+                .where(Stock.symbol == symbol)
+                .where(Stock.market == market)
+                .values(**values)
+            )
+            if updated_at is not None:
+                stmt = stmt.values(updated_at=updated_at)
+            self.session.execute(stmt)
+            if commit:
+                self.session.commit()
+            return True
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error updating financial columns for {symbol}: {e}")
+            raise
+
+    def get_latest_financial_update_time(self, market: str = 'A') -> Optional[datetime]:
+        """最近一次财务数据更新时间（顺带证明"财务确实落过库"，用于时效性体检）。
+
+        与原 SQL 一致：只统计 roe 非空的 A 股行（roe 为空说明这行没被财务更新覆盖过）。
+        """
+        try:
+            return (
+                self.session.query(func.max(Stock.updated_at))
+                .filter(Stock.market == market)
+                .filter(Stock.roe.isnot(None))
+                .scalar()
+            )
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error getting latest financial update time: {e}")
+            return None
 
     def batch_create(self, stocks: List[Stock]) -> bool:
         """批量创建股票
