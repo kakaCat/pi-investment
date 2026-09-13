@@ -144,11 +144,19 @@ def iter_py_files() -> List[pathlib.Path]:
     return sorted(out)
 
 
-def docstring_lines(source: str) -> set:
-    """返回 docstring 覆盖的行号集合（1-based）。
+def docstring_lines(source: str):
+    """返回 (docstring 行号集合, 是否解析成功)。
 
     只认「模块/类/函数体的第一个语句且是字符串常量」—— 这是 Python 对 docstring 的定义；
     其余字符串字面量（含多行 SQL）**照常计入**，避免漏计真实 SQL。
+
+    2026-09-14（w-32314d00，B4-c4 复核）：原实现在 SyntaxError 时 `return set()` ——
+    **返回空集等于断言"这个文件没有 docstring"**，于是文件里所有 docstring 都会被当成代码行扫，
+    指标**向上虚高**（旧实现下一个语法坏掉的文件会被报出更多"裸 SQL"）。
+    这正是最难查的方向：你恰好在排查一个坏文件时，尺子自己先撒谎了。
+    实测场景：并发窗口把 backtest_repository.py 的 docstring 写坏时，该文件的命中会假性增加。
+    现改为显式返回解析失败标志，由 scan() 跳过该文件并单列报告 —— 宁可说"这个文件没量到"，
+    也不要给一个看起来有数、实际是错的数。
     """
     import ast
 
@@ -161,7 +169,7 @@ def docstring_lines(source: str) -> set:
             warnings.simplefilter("ignore")
             tree = ast.parse(source)
     except SyntaxError:
-        return set()
+        return set(), False
     skip = set()
     for node in ast.walk(tree):
         if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -175,11 +183,16 @@ def docstring_lines(source: str) -> set:
             start = getattr(first.value, "lineno", 1)
             end = getattr(first.value, "end_lineno", start) or start
             skip.update(range(start, end + 1))
-    return skip
+    return skip, True
 
 
-def scan() -> Dict[str, Dict[str, int]]:
+def scan():
+    """返回 (per-file counts, 无法解析的文件列表)。
+
+    无法解析的文件**不产出任何计数**（而不是产出虚高的计数）—— 见 docstring_lines 的说明。
+    """
     result: Dict[str, Dict[str, int]] = {}
+    unparseable: List[str] = []
     for path in iter_py_files():
         rel = str(path.relative_to(ROOT))
         source = path.read_text(encoding="utf-8", errors="replace")
@@ -188,7 +201,11 @@ def scan() -> Dict[str, Dict[str, int]]:
         # 会被算成命中（2026-09-13 实测两次踩到）。
         # 关键：用 AST 精确识别 docstring，**不能**按三引号粗暴跳过 ——
         # 本仓大量 SQL 写在 `cursor.execute("""...""")` 的多行字面量里，那样会漏计真实 SQL。
-        skip = docstring_lines(source)
+        skip, parse_ok = docstring_lines(source)
+        if not parse_ok:
+            # 语法坏掉的文件量不准：docstring 边界无从判定，任何计数都是猜的。
+            unparseable.append(rel)
+            continue
         code_lines = [
             ln for i, ln in enumerate(raw_lines, 1)
             if i not in skip and not ln.lstrip().startswith("#")
@@ -214,7 +231,7 @@ def scan() -> Dict[str, Dict[str, int]]:
             counts["psql_subprocess"] = n
         if counts:
             result[rel] = counts
-    return result
+    return result, unparseable
 
 
 def in_scope(rel: str) -> bool:
@@ -227,7 +244,7 @@ def main() -> int:
     ap.add_argument("--gate", action="store_true", help="P0 非 0 时退出码 1")
     args = ap.parse_args()
 
-    data = scan()
+    data, unparseable = scan()
     totals: Dict[str, int] = {k: 0 for k in METRIC_ORDER}
     scoped: Dict[str, int] = {k: 0 for k in METRIC_ORDER}
     oos_totals: Dict[str, int] = {k: 0 for k in METRIC_ORDER}
@@ -238,11 +255,17 @@ def main() -> int:
 
     if args.json:
         print(json.dumps({"files": data, "totals": totals, "in_scope": scoped,
-                          "out_of_scope": oos_totals, "scope_prefixes": list(OUT_OF_SCOPE_TOP)},
+                          "out_of_scope": oos_totals, "scope_prefixes": list(OUT_OF_SCOPE_TOP),
+                          "unparseable": unparseable, "scanned_files": len(iter_py_files())},
                          ensure_ascii=False, indent=2))
     else:
         print(f"扫描根：{ROOT}")
         print(f"扫描文件：{len(iter_py_files())} 个（已排除 venv/tests/migrations/oneoff）")
+        if unparseable:
+            # 不静默：这些文件量不到，谁都不该把它们当成 0 命中。
+            print(f"⚠️ 无法解析（语法错误）{len(unparseable)} 个，本次**未计入任何指标**：")
+            for rel in unparseable:
+                print(f"     {rel}")
         print("")
         print("指标（本轮范围 = 非 scripts|tools|live_trading）:")
         for name in METRIC_ORDER:
