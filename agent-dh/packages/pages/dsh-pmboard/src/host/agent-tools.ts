@@ -52,15 +52,28 @@ import type {
 import {
   ALL_REQ_CATEGORIES,
   ALL_REQ_STATUSES,
+  ALL_TASK_PHASES,
+  ALL_TASK_SIDES,
+  ALL_TASK_STATUSES,
+  asDependsOn,
   asReqCategory,
   asReqStatus,
+  asScope,
+  asTaskPhase,
+  asTaskSide,
+  assertDagAcyclic,
   assertReqTransition,
+  assertTaskTransition,
   HUMAN_ONLY_REQ_TRANSITIONS,
   REQ_TRANSITIONS,
   newCommentId,
+  newExecutionId,
   newRequirementId,
+  newTaskId,
   normalizeText,
   normalizeTitle,
+  recordStatus,
+  type TaskRecord,
 } from '../shared/protocol.js';
 
 /** 结构化认证失败：message 自带（CODE）文本；code 属性仅测试/直接执行消费。 */
@@ -474,6 +487,7 @@ export function defineMoveTool(deps: ReqboardToolDeps) {
         req.version += 1
         req.updatedAt = deps.now()
         req.updatedBy = { kind: 'agent', sessionId: windowKey }
+        recordStatus(req, to, req.updatedAt, { kind: 'agent', sessionId: windowKey }, reason || undefined)
         req.comments.push({
           id: newCommentId(),
           body: `[窗口推进] ${from} → ${to}${reason ? `：${reason}` : ''}（窗口 ${windowKey}）`,
@@ -497,6 +511,374 @@ export function defineMoveTool(deps: ReqboardToolDeps) {
           changed.status === to
             ? `已推进：${from} → ${to}`
             : `已推进：${from} → ${changed.status}（派生规则顺带推进）`,
+      }
+    },
+  } as any)
+}
+
+/**
+ * reqboard_decompose —— 真拆分：把绑定需求拆成任务 DAG 并**落库**。
+ *
+ * 为什么需要它（用户提问「拆分是真拆分吗」）：拆分态此前只是一个状态名——没有任何
+ * 代码把需求变成任务，台账 tasks 恒为 0，看板任务页与甘特图自然无从谈起。本工具把
+ * 「拆」变成一次真实写入：一次调用落库 N 张任务卡（含 DAG 依赖），随后 rollup 自动
+ * 把需求推进到拆分/实施态，任务页与甘特图立即有数据。
+ *
+ * 拆分粒度由窗口 agent 自己决定（它就是干活的人），工具只负责**结构正确**：
+ *   - 只能对**本窗口绑定**需求拆分（防越权）；
+ *   - 状态必须是评审/拆分/实施（draft 说明方案还没讨论；终态不可再拆）；
+ *   - 依赖用批次内 key 引用（工具负责映射成真实任务 id），落库前过 DAG 校验（无环/无悬空）。
+ */
+export function defineDecomposeTool(deps: ReqboardToolDeps) {
+  return defineTool({
+    name: 'reqboard_decompose',
+    description:
+      '真拆分：把本窗口绑定需求的方案拆成任务 DAG 并落库（写台账任务卡）——'
+      + '任务立即出现在看板「任务」页与甘特图里。一次调用落库整批任务，'
+      + 'depends_on 用批次内 key 引用同批任务（也可引用已存在的任务 id）。'
+      + '拆分后需求会自动进入拆分态；任务开工时用 reqboard_task_move 推进任务状态。'
+      + '要求：需求处于评审/拆分/实施态且属于本窗口。',
+    parameters: {
+      requirement_id: {
+        type: 'string',
+        description: '需求 id（REQ-xxxxxx）；不传则默认本窗口绑定的那条需求',
+      },
+      tasks: {
+        type: 'array',
+        description: '任务清单（建议 2-10 条，按可独立交付的粒度拆）',
+        required: true,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            key: { type: 'string', description: '批次内引用键（如 t1；depends_on 用它引用）' },
+            title: { type: 'string', description: '任务标题（≤120 字符，动词开头）' },
+            description: { type: 'string', description: '任务说明' },
+            phase: {
+              type: 'string',
+              description: '流水线阶段：doc / ui / analysis / implement / test / review / merge',
+              enum: [...ALL_TASK_PHASES],
+            },
+            side: {
+              type: 'string',
+              description: '端侧：frontend / backend / fullstack / doc',
+              enum: [...ALL_TASK_SIDES],
+            },
+            depends_on: {
+              type: 'array',
+              description: '依赖：同批任务的 key 或已存在任务 id（无依赖不传）',
+              items: { type: 'string' },
+            },
+            acceptance: { type: 'string', description: '验收标准（怎么算做完）' },
+            context: { type: 'string', description: '需求背景摘要（自足执行用）' },
+            skip_integration: { type: 'boolean', description: '是否跳过联调（默认按 side 推导）' },
+          },
+        },
+      },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          success: { type: 'boolean' },
+          requirement_id: { type: 'string' },
+          requirement_status: { type: 'string', description: '拆分后需求状态（rollup 可能已推进）' },
+          created: {
+            type: 'array',
+            description: '落库的任务（key → 真实任务 id）',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                key: { type: 'string' },
+                id: { type: 'string' },
+                title: { type: 'string' },
+                depends_on: { type: 'array', items: { type: 'string' } },
+              },
+            },
+          },
+          note: { type: 'string' },
+        },
+      },
+      render: renderJson,
+    },
+    timeoutMs: 20000,
+    execute: async (args: unknown, exec: ToolRunContext) => {
+      const windowKey = agentIdFromExec(exec)
+      requireLiveDriver(deps, exec)
+      const a = (args ?? {}) as { requirement_id?: unknown; tasks?: unknown }
+      if (!Array.isArray(a.tasks) || a.tasks.length === 0) {
+        reject('reqboard_decompose 未执行：tasks 必须是非空数组', 'REQBOARD_INVALID_INPUT')
+      }
+      if (a.tasks.length > 50) reject('reqboard_decompose 未执行：单批任务数过多（≤50）', 'REQBOARD_INVALID_INPUT')
+      const explicitId = normalizeText(a.requirement_id, 'requirement_id', 64)
+
+      const snapshot = deps.store.snapshot()
+      const bound = openRequirementsFor(snapshot, windowKey)
+      if (bound.length === 0) {
+        reject('reqboard_decompose 未执行：本窗口没有绑定中的需求', 'REQBOARD_NO_BOUND_REQ')
+      }
+      const target = explicitId.length > 0 ? bound.find(r => r.id === explicitId) : bound[0]
+      if (target === undefined) {
+        reject(
+          'reqboard_decompose 未执行：需求 ' + explicitId + ' 不是本窗口绑定的进行中需求（只能拆自己的需求）',
+          'REQBOARD_NOT_BOUND_TO_WINDOW',
+        )
+      }
+      if (target.status === 'draft') {
+        reject('reqboard_decompose 未执行：需求还在立项态，先 reqboard_move 到 reviewing（方案确认后）再拆', 'REQBOARD_BAD_STATUS')
+      }
+      if (target.status === 'done' || target.status === 'archived' || target.status === 'canceled') {
+        reject('reqboard_decompose 未执行：需求已处于 ' + target.status + '，不能再拆分', 'REQBOARD_BAD_STATUS')
+      }
+
+      // 参数规整（批次内 key 必须唯一；依赖只允许批内 key 或本需求已有任务 id）
+      const existingIds = new Set(snapshot.tasks.filter(t => t.requirementId === target.id).map(t => t.id))
+      const draft: Array<{
+        key: string
+        title: string
+        description: string
+        phase: string
+        side: string
+        acceptance: string
+        context: string
+        dependsOn: string[]
+        skipIntegration?: boolean
+      }> = []
+      const keys = new Set<string>()
+      a.tasks.forEach((raw, i) => {
+        const o = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+        const key = normalizeText(o.key, 'tasks[].key', 40) || 'k' + (i + 1)
+        if (keys.has(key)) reject('reqboard_decompose 未执行：任务 key 重复（' + key + '）', 'REQBOARD_INVALID_INPUT')
+        keys.add(key)
+        draft.push({
+          key,
+          title: normalizeTitle(o.title),
+          description: normalizeText(o.description, 'tasks[].description'),
+          phase: o.phase === undefined ? 'implement' : asTaskPhase(o.phase),
+          side: o.side === undefined ? 'fullstack' : asTaskSide(o.side),
+          acceptance: normalizeText(o.acceptance, 'tasks[].acceptance', 2000),
+          context: normalizeText(o.context, 'tasks[].context', 2000),
+          dependsOn: asDependsOn(o.depends_on),
+          ...(o.skip_integration !== undefined ? { skipIntegration: Boolean(o.skip_integration) } : {}),
+        })
+      })
+      for (const d of draft) {
+        for (const dep of d.dependsOn) {
+          if (!keys.has(dep) && !existingIds.has(dep)) {
+            reject(
+              'reqboard_decompose 未执行：任务 ' + d.key + ' 依赖了未知目标 ' + dep + '（只能是同批 key 或本需求已有任务 id）',
+              'REQBOARD_INVALID_INPUT',
+            )
+          }
+        }
+      }
+
+      const nowTs = deps.now()
+      try {
+        const result = await deps.store.mutate('task-created', (ledger) => {
+          const req = ledger.requirements.find(r => r.id === target.id)
+          if (req === undefined) return undefined
+          const used = new Set(ledger.tasks.map(t => t.id))
+          const idByKey = new Map<string, string>()
+          const records: TaskRecord[] = []
+          const commentLines: string[] = []
+          for (const d of draft) {
+            let id = newTaskId()
+            for (let guard = 0; guard < 50 && used.has(id); guard++) id = newTaskId()
+            used.add(id)
+            idByKey.set(d.key, id)
+            const record: TaskRecord = {
+              id,
+              requirementId: req.id,
+              title: d.title,
+              description: d.description,
+              phase: d.phase as TaskRecord['phase'],
+              side: d.side as TaskRecord['side'],
+              dependsOn: d.dependsOn.map(dep => idByKey.get(dep) ?? dep),
+              scope: asScope({}),
+              acceptance: d.acceptance,
+              context: d.context,
+              ...(d.skipIntegration !== undefined ? { skipIntegration: d.skipIntegration } : {}),
+              status: 'todo',
+              blocked: false,
+              executions: [],
+              statusHistory: [],
+              comments: [],
+              version: 1,
+              createdAt: nowTs,
+              updatedAt: nowTs,
+              createdBy: { kind: 'agent', sessionId: windowKey },
+              updatedBy: { kind: 'agent', sessionId: windowKey },
+            }
+            recordStatus(record, 'todo', nowTs, { kind: 'agent', sessionId: windowKey }, '拆分落库（reqboard_decompose）')
+            records.push(record)
+          }
+          assertDagAcyclic([...ledger.tasks, ...records], req.id)
+          ledger.tasks.push(...records)
+          for (const r of records) {
+            const deps = r.dependsOn.length > 0 ? '（依赖 ' + r.dependsOn.join(', ') + '）' : ''
+            commentLines.push('- ' + r.id + ' ' + r.title + deps)
+          }
+          req.comments.push({
+            id: newCommentId(),
+            body: '[拆分] 落库 ' + records.length + ' 个任务：\n' + commentLines.join('\n') + '\n（窗口 ' + windowKey + '）',
+            createdAt: nowTs,
+            createdBy: { kind: 'agent', sessionId: windowKey },
+          })
+          req.version += 1
+          req.updatedAt = nowTs
+          req.updatedBy = { kind: 'agent', sessionId: windowKey }
+          const advanced = applyTaskRollup(ledger, { now: nowTs, commentId: () => newCommentId() }, req.id)
+          return { tasks: records, requirements: [req, ...advanced] }
+        })
+        const req = result.changed.requirements[0]
+        const created = result.changed.tasks.map((t, i) => ({
+          key: draft[i]?.key ?? '',
+          id: t.id,
+          title: t.title,
+          depends_on: [...t.dependsOn],
+        }))
+        return {
+          success: true,
+          requirement_id: target.id,
+          requirement_status: req?.status ?? target.status,
+          created,
+          note: '已落库 ' + created.length + ' 个任务；任务开工/完成用 reqboard_task_move 推进（任务全部完成后需求自动进入验收）',
+        }
+      } catch (err) {
+        const code = (err as { code?: string }).code ?? 'REQBOARD_INVALID_INPUT'
+        reject('reqboard_decompose 未执行：' + ((err as Error).message ?? String(err)), code)
+      }
+    },
+  } as any)
+}
+
+/**
+ * reqboard_task_move —— 窗口推进**自己需求下**的任务状态。
+ *
+ * 为什么需要它：任务是干活的单位，没有它，agent 拆完任务就只能停在 todo——
+ * 需求也就永远进不了验收（rollup 看的是任务事实）。人工闸门仅剩「取消/复活」。
+ * 顺带结算执行段（进入 in_progress 开一段执行记录，离开时闭合），甘特图与耗时
+ * 统计依赖这段真实数据。
+ */
+export function defineTaskMoveTool(deps: ReqboardToolDeps) {
+  return defineTool({
+    name: 'reqboard_task_move',
+    description:
+      '推进本窗口需求下的任务状态（todo → in_progress → integration/testing → in_review → done）。'
+      + '开工时移到 in_progress（自动开一段执行记录），完成时移到 done；'
+      + '任务全部 done 后需求会自动进入验收。'
+      + '只有「取消任务/复活已取消任务」是人工闸门。',
+    parameters: {
+      task_id: { type: 'string', description: '任务 id（t-xxxxxx）', required: true },
+      to: {
+        type: 'string',
+        description: '目标状态：todo / in_progress / integrating / testing / in_review / done / canceled',
+        required: true,
+        enum: [...ALL_TASK_STATUSES],
+      },
+      reason: { type: 'string', description: '推进理由（≤500 字符；写入任务留痕）' },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          success: { type: 'boolean' },
+          task_id: { type: 'string' },
+          requirement_id: { type: 'string' },
+          from: { type: 'string' },
+          to: { type: 'string' },
+          requirement_status: { type: 'string' },
+          note: { type: 'string' },
+        },
+      },
+      render: renderJson,
+    },
+    timeoutMs: 15000,
+    execute: async (args: unknown, exec: ToolRunContext) => {
+      const windowKey = agentIdFromExec(exec)
+      requireLiveDriver(deps, exec)
+      const a = (args ?? {}) as { task_id?: unknown; to?: unknown; reason?: unknown }
+      const taskId = normalizeText(a.task_id, 'task_id', 64)
+      const to = normalizeText(a.to, 'to', 32)
+      const reason = normalizeText(a.reason, 'reason', 500)
+      if (!(ALL_TASK_STATUSES as readonly string[]).includes(to)) {
+        reject('reqboard_task_move 未执行：任务状态必须是 ' + ALL_TASK_STATUSES.join(', '), 'REQBOARD_INVALID_INPUT')
+      }
+      const snapshot = deps.store.snapshot()
+      const task = snapshot.tasks.find(t => t.id === taskId)
+      if (task === undefined) reject('reqboard_task_move 未执行：任务 ' + taskId + ' 不存在', 'REQBOARD_TASK_NOT_FOUND')
+      const bound = openRequirementsFor(snapshot, windowKey)
+      if (!bound.some(r => r.id === task.requirementId)) {
+        reject('reqboard_task_move 未执行：任务 ' + taskId + ' 不属于本窗口绑定的需求', 'REQBOARD_NOT_BOUND_TO_WINDOW')
+      }
+      const from = task.status
+      try {
+        assertTaskTransition(from, to as TaskRecord['status'], 'agent')
+      } catch (err) {
+        const code = (err as { code?: string }).code ?? 'invalid_transition'
+        if (code === 'human_gate') {
+          reject('reqboard_task_move 未执行：' + from + ' → ' + to + ' 是人工闸门（仅人可操作）', 'REQBOARD_HUMAN_GATE')
+        }
+        reject('reqboard_task_move 未执行：' + ((err as Error).message ?? String(err)), code)
+      }
+      const nowTs = deps.now()
+      const result = await deps.store.mutate('task-moved', (ledger) => {
+        const t = ledger.tasks.find(x => x.id === taskId)
+        if (t === undefined) return undefined
+        assertTaskTransition(t.status, to as TaskRecord['status'], 'agent')
+        t.status = to as TaskRecord['status']
+        t.version += 1
+        t.updatedAt = nowTs
+        t.updatedBy = { kind: 'agent', sessionId: windowKey }
+        if (to === 'in_progress') {
+          t.claimedBy = windowKey
+          t.claimedAt = nowTs
+          t.executions.push({
+            id: newExecutionId(),
+            sessionId: windowKey,
+            trigger: 'manual',
+            startedAt: nowTs,
+            outcome: 'running',
+          })
+        } else {
+          for (const e of t.executions) {
+            if (e.outcome === 'running') {
+              e.endedAt = nowTs
+              e.outcome = to === 'canceled' || to === 'todo' ? 'cancelled' : 'succeeded'
+            }
+          }
+        }
+        if (to === 'todo' || to === 'done' || to === 'canceled') {
+          delete t.claimedBy
+          delete t.claimedAt
+        }
+        recordStatus(t, to, nowTs, { kind: 'agent', sessionId: windowKey }, reason || undefined)
+        if (reason.length > 0) {
+          t.comments.push({
+            id: newCommentId(),
+            body: '[状态] → ' + to + '：' + reason + '（窗口 ' + windowKey + '）',
+            createdAt: nowTs,
+            createdBy: { kind: 'agent', sessionId: windowKey },
+          })
+        }
+        const advanced = applyTaskRollup(ledger, { now: nowTs, commentId: () => newCommentId() }, t.requirementId)
+        return { tasks: [t], requirements: advanced }
+      })
+      const changed = result.changed.tasks[0]
+      if (changed === undefined) reject('reqboard_task_move 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
+      const reqAfter = result.changed.requirements.find(r => r.id === changed.requirementId)
+      return {
+        success: true,
+        task_id: changed.id,
+        requirement_id: changed.requirementId,
+        from,
+        to: changed.status,
+        requirement_status: reqAfter?.status ?? '',
+        note: changed.status === to ? '已推进：' + from + ' → ' + to : '已推进：' + from + ' → ' + changed.status,
       }
     },
   } as any)

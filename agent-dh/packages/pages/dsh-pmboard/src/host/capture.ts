@@ -161,10 +161,13 @@ export function boundSectionText(ledger: ReqboardLedger, context: unknown): stri
     ...open.map(r => `- ${r.id}《${r.title}》当前状态：${r.status}`),
     '',
     '状态推进纪律（由窗口自己维护，不需要用户手动点按钮）：',
-    '- 方案/拆解完成 → reqboard_move 到 decomposing；任务开始执行 → implementing；',
-    '- 工作交付并自检通过 → accepting（进入验收）；',
-    '- 任务全部完成时系统会自动 implementing → accepting，无需手动。',
-    '- 只有「取消需求」「归档」必须人操作（agent 调用会被代码级拒绝）。',
+    '- 方案敲定 → reqboard_decompose 把需求拆成任务 DAG 落库（真拆分：写台账任务卡，',
+    '  看板「任务」页与甘特图据此渲染；depends_on 用批次内 key 引用同批任务）；',
+    '- 拆分后需求会自动进入拆分态；任务开工/完成用 reqboard_task_move 推进',
+    '  （todo → in_progress → testing → in_review → done；开工时会自动记一段执行时间）；',
+    '- 任务全部 done 时系统自动把需求推进到 accepting（验收）；交付并自检通过后',
+    '  用 reqboard_move 自行推进到 done。',
+    '- 只有「取消需求/归档/取消任务」必须人操作（agent 调用会被代码级拒绝）。',
     '- 推进时用 reason 写清做了什么（进需求留痕，供复盘与验收）。',
   ].join('\n')
 }

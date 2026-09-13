@@ -8,6 +8,8 @@ import { mkdir, open, readFile, rename } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import {
   REQBOARD_SCHEMA_VERSION,
+  backfillRequirementHistory,
+  backfillTaskHistory,
   emptyLedger,
   type ReqboardLedger,
   type RequirementRecord,
@@ -89,6 +91,16 @@ export class ReqboardStore {
           if (!ok) console.warn('[reqboard] dropping implausible triage on load:', (entry as { id?: unknown })?.id)
           return ok
         }) as import('../shared/protocol.js').TriageRecord[] : []
+        // schema v2 → v3 迁移：老记录没有状态事件表，就地反推回填（inferred=true）。
+        // 只在内存里补——下一次 mutate 落盘时自然持久化；读路径永远拿到可用时间线。
+        for (const r of requirements) {
+          const filled = backfillRequirementHistory(r)
+          if (filled !== undefined) r.statusHistory = filled
+        }
+        for (const t of tasks) {
+          const filled = backfillTaskHistory(t)
+          if (filled !== undefined) t.statusHistory = filled
+        }
         this.ledger = { schemaVersion: REQBOARD_SCHEMA_VERSION, revision: parsed.revision, requirements, tasks, triages }
       }
     } catch (error) {

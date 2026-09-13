@@ -21,6 +21,7 @@
 
 import {
   assertReqTransition,
+  recordStatus,
   type ReqboardLedger,
   type RequirementRecord,
   type RequirementStatus,
@@ -50,6 +51,7 @@ function advance(
   req.version += 1
   req.updatedAt = ctx.now
   req.updatedBy = { kind: 'system' }
+  recordStatus(req, to, ctx.now, { kind: 'system' }, reason)
   req.comments.push({
     id: ctx.commentId(),
     body: `[自动推进] ${from} → ${to}：${reason}`,

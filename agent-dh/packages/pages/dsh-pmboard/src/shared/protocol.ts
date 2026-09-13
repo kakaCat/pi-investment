@@ -22,6 +22,52 @@ export interface ActorRef {
 }
 
 // ---------------------------------------------------------------------------
+// 状态事件（时间线）
+// ---------------------------------------------------------------------------
+
+/**
+ * 一次状态进入事件（时间线的原子单位）。需求与任务共用形状。
+ *
+ * 为什么必须有它：此前记录上只有 createdAt/updatedAt 两个时间戳，「评审/拆分/实施/
+ * 验收/归档发生在什么时候、每一段停留多久」在台账里根本不存在——看板问"需求没有
+ * 对应的时间"时无法回答，也无法做停留时长/流程瓶颈分析。状态事件让时间成为一等
+ * 数据：每次转移写入一条 {status, at, by, reason}。
+ *
+ * inferred=true 表示该条为**历史回填**（升级前的老记录没有事件表，由 createdAt +
+ * 评论里的转移留痕逐条反推），不是当时真实记录的事件——UI 必须显式标注，避免把
+ * 推导值当成原始数据（R-013：数据来源与时点必须可核验）。
+ */
+export interface StatusEvent {
+  status: string
+  at: number
+  by: ActorRef
+  reason?: string
+  /** true=从历史评论/时间戳反推的回填事件（非原始记录）。 */
+  inferred?: boolean
+}
+
+/** 就地追加一条状态事件（相邻同状态去重；返回被写入的事件）。 */
+export function recordStatus(
+  record: { statusHistory?: StatusEvent[] },
+  status: string,
+  at: number,
+  by: ActorRef,
+  reason?: string,
+): StatusEvent {
+  const history = (record.statusHistory ??= [])
+  const last = history[history.length - 1]
+  if (last !== undefined && last.status === status && last.at === at) return last
+  const event: StatusEvent = { status, at, by, ...(reason !== undefined && reason.length > 0 ? { reason } : {}) }
+  history.push(event)
+  return event
+}
+
+/** 某状态首次进入的时间（未进入过 → undefined）。 */
+export function milestoneAt(record: { statusHistory?: StatusEvent[] }, status: string): number | undefined {
+  return record.statusHistory?.find(e => e.status === status)?.at
+}
+
+// ---------------------------------------------------------------------------
 // Requirement 状态机（RFC 014 §3）
 // ---------------------------------------------------------------------------
 
@@ -145,8 +191,21 @@ export const TASK_TRANSITIONS: Readonly<Record<TaskStatus, readonly TaskStatus[]
   canceled: ['todo'],
 }
 
-/** 任务人工闸门：验收通过（done 仅人）。 */
-export const HUMAN_ONLY_TASK_TRANSITIONS: ReadonlySet<string> = new Set(['in_review>done'])
+/**
+ * 任务人工闸门（代码级仅人）。
+ * 2026-09-13 用户裁定（与需求闸门同一口径）：agent 必须能自己把任务跑完——
+ * 此前 in_review>done 仅人可操作，而任务完成又驱动需求 rollup，导致任务卡停在
+ * 「验收」、需求进不了验收，看板再次静止。现仅保留**取消/复活**这类破坏性动作
+ * 为人工闸门，正常流水线（含任务完成）由执行窗口自行推进。
+ */
+export const HUMAN_ONLY_TASK_TRANSITIONS: ReadonlySet<string> = new Set([
+  'todo>canceled',
+  'in_progress>canceled',
+  'integrating>canceled',
+  'testing>canceled',
+  'in_review>canceled',
+  'canceled>todo', // 复活已取消任务：仅人
+])
 
 /** system 允许的任务转移（执行结算用）：开始执行与退回。 */
 export const SYSTEM_TASK_TRANSITIONS: ReadonlySet<string> = new Set([
@@ -240,6 +299,11 @@ export interface RequirementRecord {
   sourceSessionId?: string
   /** 归档后的目录路径 */
   archivePath?: string
+  /**
+   * 状态事件时间线（创建 + 每次转移一条）。老记录首次加载时由 backfill* 反推补齐
+   * （inferred=true），新转移一律实时写入真实事件。
+   */
+  statusHistory?: StatusEvent[]
   comments: CommentRecord[]
   version: number
   createdAt: number
@@ -278,6 +342,8 @@ export interface TaskRecord {
   claimedBy?: string
   claimedAt?: number
   executions: ExecutionRecord[]
+  /** 状态事件时间线（创建 + 每次转移一条；甘特图据此按状态分段着色） */
+  statusHistory?: StatusEvent[]
   comments: CommentRecord[]
   version: number
   createdAt: number
@@ -290,7 +356,7 @@ export interface TaskRecord {
 // Ledger
 // ---------------------------------------------------------------------------
 
-export const REQBOARD_SCHEMA_VERSION = 2
+export const REQBOARD_SCHEMA_VERSION = 3
 
 export interface ReqboardLedger {
   schemaVersion: number
@@ -481,3 +547,75 @@ export function newTriageId(rand: () => number = Math.random): string {
   return `tri-${Math.floor(rand() * 0xffffff).toString(16).padStart(6, '0')}`
 }
 
+// ---------------------------------------------------------------------------
+// 历史回填（升级迁移：老记录没有事件表 → 从 createdAt + 评论留痕反推）
+// ---------------------------------------------------------------------------
+
+/**
+ * 从评论正文解析转移目标状态。覆盖历史上的三种留痕格式：
+ *   `[自动推进] draft → reviewing：…`（rollup）
+ *   `[窗口推进] reviewing → decomposing：…`（reqboard_move 工具）
+ *   `[状态] decomposing ← 转移说明：…`（需求路由 move，箭头指向新状态）
+ *   `[状态] → in_progress：…`（任务路由 move）
+ * 解析不出或状态非法 → undefined（宁缺毋滥，绝不猜）。
+ */
+export function parseTransitionTarget(body: string, allowed: readonly string[]): string | undefined {
+  const candidates: Array<{ re: RegExp; group: number }> = [
+    { re: /\[(?:自动推进|窗口推进|人工推进)\]\s*\w+\s*→\s*(\w+)/, group: 1 },
+    { re: /\[状态\]\s*(\w+)\s*←/, group: 1 },
+    { re: /\[状态\]\s*→\s*(\w+)/, group: 1 },
+  ]
+  for (const { re, group } of candidates) {
+    const m = re.exec(body)
+    const hit = m?.[group]
+    if (hit !== undefined && allowed.includes(hit)) return hit
+  }
+  return undefined
+}
+
+function backfill(
+  record: { status: string; createdAt: number; updatedAt: number; createdBy: ActorRef; updatedBy: ActorRef; comments: CommentRecord[] },
+  initialStatus: string,
+  allowed: readonly string[],
+  statusHistory: StatusEvent[] | undefined,
+): StatusEvent[] | undefined {
+  if (statusHistory !== undefined && statusHistory.length > 0) return undefined
+  const events: StatusEvent[] = [
+    { status: initialStatus, at: record.createdAt, by: record.createdBy, reason: '创建', inferred: true },
+  ]
+  for (const c of [...record.comments].sort((a, b) => a.createdAt - b.createdAt)) {
+    const target = parseTransitionTarget(c.body, allowed)
+    if (target === undefined) continue
+    const prev = events[events.length - 1]
+    if (prev !== undefined && prev.status === target) continue
+    events.push({
+      status: target,
+      at: c.createdAt,
+      by: c.createdBy ?? { kind: 'system' },
+      reason: (c.body.split('\n')[0] ?? '').slice(0, 120),
+      inferred: true,
+    })
+  }
+  const tail = events[events.length - 1]
+  if (tail === undefined || tail.status !== record.status) {
+    // 评论里没有该状态的留痕（老格式/直接改库）→ 用 updatedAt 兜底并标注不可考
+    events.push({
+      status: record.status,
+      at: Math.max(record.updatedAt, record.createdAt),
+      by: record.updatedBy,
+      reason: '按 updatedAt 回填（当时无事件留痕）',
+      inferred: true,
+    })
+  }
+  return events
+}
+
+/** 需求时间线回填（已有事件 → 返回 undefined 不动）。 */
+export function backfillRequirementHistory(req: RequirementRecord): StatusEvent[] | undefined {
+  return backfill(req, 'draft', ALL_REQ_STATUSES as readonly string[], req.statusHistory)
+}
+
+/** 任务时间线回填（已有事件 → 返回 undefined 不动）。 */
+export function backfillTaskHistory(task: TaskRecord): StatusEvent[] | undefined {
+  return backfill(task, 'todo', ALL_TASK_STATUSES as readonly string[], task.statusHistory)
+}

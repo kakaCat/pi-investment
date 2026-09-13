@@ -95,10 +95,16 @@ describe('Task state machine', () => {
     throwsCode(() => assertTaskTransition('done', 'todo', 'human'), 'invalid_transition')
   })
 
-  it('human gate: done only by human', () => {
-    throwsCode(() => assertTaskTransition('in_review', 'done', 'agent'), 'human_gate')
-    throwsCode(() => assertTaskTransition('in_review', 'done', 'system'), 'human_gate')
-    expect(() => assertTaskTransition('in_review', 'done', 'human')).not.toThrow()
+  it('human gate: 2026-09-13 起仅取消/复活是人工闸门（agent 可把任务跑完）', () => {
+    // 用户裁定：任务完成若仅人可点，任务卡停在验收 → 需求永远进不了验收（看板静止）
+    expect(() => assertTaskTransition('in_review', 'done', 'agent')).not.toThrow()
+    expect(() => assertTaskTransition('todo', 'in_progress', 'agent')).not.toThrow()
+    // 破坏性动作仍是代码级人工闸门
+    throwsCode(() => assertTaskTransition('in_progress', 'canceled', 'agent'), 'human_gate')
+    throwsCode(() => assertTaskTransition('in_review', 'canceled', 'agent'), 'human_gate')
+    throwsCode(() => assertTaskTransition('canceled', 'todo', 'agent'), 'human_gate')
+    // system 仍受白名单限制（只有开始/退回执行）
+    throwsCode(() => assertTaskTransition('in_review', 'done', 'system'), 'system_gate')
   })
 })
 

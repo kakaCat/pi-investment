@@ -17,6 +17,18 @@ export interface ActorRef { kind: 'human' | 'agent' | 'system'; sessionId?: stri
 
 export interface CommentRecord { id: string; body: string; createdAt: number; createdBy?: ActorRef }
 
+/**
+ * 状态事件（时间线）：需求/任务每次进入某状态的记录。
+ * inferred=true 表示升级前老记录由 createdAt + 评论反推的**回填**事件（非原始记录）。
+ */
+export interface StatusEvent {
+  status: string
+  at: number
+  by: ActorRef
+  reason?: string
+  inferred?: boolean
+}
+
 export interface RequirementRecord {
   id: string
   title: string
@@ -31,6 +43,8 @@ export interface RequirementRecord {
   /** 立项来源窗口（agent 会话 id，如 session-<uuid>；人工建卡不填）——窗口↔需求关联锚点 */
   sourceSessionId?: string
   archivePath?: string
+  /** 状态事件时间线（创建 + 每次转移） */
+  statusHistory?: StatusEvent[]
   comments: CommentRecord[]
   version: number
   createdAt: number
@@ -76,6 +90,8 @@ export interface TaskRecord {
   claimedBy?: string
   claimedAt?: number
   executions: ExecutionRecord[]
+  /** 状态事件时间线（甘特图按状态分段着色） */
+  statusHistory?: StatusEvent[]
   comments: CommentRecord[]
   version: number
   createdAt: number

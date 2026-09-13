@@ -27,6 +27,7 @@ import {
   normalizeText,
   normalizeTitle,
   readyTasks,
+  recordStatus,
   type ActorRef,
   type CommentRecord,
   type RequirementRecord,
@@ -152,6 +153,7 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       createdBy: actor,
       updatedBy: actor,
     }
+    recordStatus(record, 'draft', nowTs, actor, '创建（看板人工建卡）')
     await store.mutate('requirement-created', (ledger) => {
       ledger.requirements.push(record)
       return { requirements: [record] }
@@ -172,6 +174,7 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       req.version += 1
       req.updatedAt = now()
       req.updatedBy = { kind: actor }
+      recordStatus(req, to, req.updatedAt, { kind: actor }, reason || undefined)
       if (reason) {
         req.comments.push({ id: ids.comment(), body: `[状态] ${req.status} ← 转移说明：${reason}`, createdAt: now(), createdBy: { kind: actor } })
       }
@@ -227,6 +230,7 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       createdBy: { kind: 'human' },
       updatedBy: { kind: 'human' },
     }
+    recordStatus(record, 'todo', nowTs, { kind: 'human' }, '创建（看板人工建卡）')
     await store.mutate('task-created', (ledger) => {
       if (!ledger.requirements.some(r => r.id === requirementId)) notFound(`需求 ${requirementId}`)
       assertDagAcyclic([...ledger.tasks, record], requirementId)
@@ -261,6 +265,16 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
         delete task.claimedBy
         delete task.claimedAt
       }
+      // 执行段闭合：离开 in_progress 时结算运行中的执行记录（甘特图与耗时统计依赖）
+      if (to !== 'in_progress') {
+        for (const exec of task.executions) {
+          if (exec.outcome === 'running') {
+            exec.endedAt = now()
+            exec.outcome = to === 'canceled' || to === 'todo' ? 'cancelled' : 'succeeded'
+          }
+        }
+      }
+      recordStatus(task, to, task.updatedAt, { kind: actor, ...(sessionId ? { sessionId } : {}) }, reason || undefined)
       if (reason) {
         task.comments.push({ id: ids.comment(), body: `[状态] → ${to}：${reason}`, createdAt: now(), createdBy: { kind: actor } })
       }

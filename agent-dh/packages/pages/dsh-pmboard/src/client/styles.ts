@@ -257,6 +257,90 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-triage-edit .dsh-pm-input[data-role="triage-category"] { flex: 0 0 auto; }
 .dsh-pm-triage-actions { display: flex; gap: 8px; }
 .dsh-pm-rebind-host { display: flex; gap: 8px; margin-top: 8px; }
+
+/* ---- 时间线（需求/任务状态事件） ---- */
+.dsh-pm-card-time { font-size: 11px; color: var(--dsw-text-secondary, #999); }
+.dsh-pm-timeline { display: flex; flex-direction: column; gap: 4px; }
+.dsh-pm-tl-row {
+  display: grid; grid-template-columns: 60px 92px 108px 96px auto; align-items: center; gap: 10px;
+  padding: 4px 10px; border-radius: 6px; font-size: 12px;
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.05));
+  border-left: 3px solid transparent;
+}
+.dsh-pm-tl-row.pending { opacity: .45; }
+.dsh-pm-tl-row.current { background: rgba(74,125,255,.08); }
+.dsh-pm-tl-label { font-weight: 600; color: var(--dsw-text-primary, #333); }
+.dsh-pm-tl-time { font-family: ui-monospace, monospace; color: var(--dsw-text-primary, #444); }
+.dsh-pm-tl-dur { color: var(--dsw-text-secondary, #888); }
+.dsh-pm-tl-by { color: var(--dsw-text-secondary, #999); font-size: 11px; }
+.dsh-pm-tl-inferred {
+  font-size: 10px; padding: 1px 6px; border-radius: 4px;
+  background: rgba(240,160,32,.15); color: #b07800; justify-self: start;
+}
+.dsh-pm-tl-total { font-size: 11px; color: var(--dsw-text-secondary, #999); padding-left: 10px; }
+.dsh-pm-tl-row[data-status="draft"], .dsh-pm-tl-row[data-status="todo"] { border-left-color: #9aa4b2; }
+.dsh-pm-tl-row[data-status="reviewing"], .dsh-pm-tl-row[data-status="testing"] { border-left-color: #f0a020; }
+.dsh-pm-tl-row[data-status="decomposing"], .dsh-pm-tl-row[data-status="integrating"] { border-left-color: #8e44ad; }
+.dsh-pm-tl-row[data-status="implementing"], .dsh-pm-tl-row[data-status="in_progress"] { border-left-color: #4a7dff; }
+.dsh-pm-tl-row[data-status="accepting"], .dsh-pm-tl-row[data-status="in_review"] { border-left-color: #17a2b8; }
+.dsh-pm-tl-row[data-status="done"] { border-left-color: #28a745; }
+.dsh-pm-tl-row[data-status="archived"] { border-left-color: #6c757d; }
+.dsh-pm-tl-row[data-status="canceled"] { border-left-color: #dc3545; }
+
+/* ---- 甘特图 ---- */
+.dsh-pm-gantt-wrap { width: 100%; overflow-x: auto; }
+.dsh-pm-gantt { display: block; min-width: 620px; }
+.dsh-pm-gantt-grid { stroke: var(--dsw-border, rgba(128,128,128,.15)); stroke-width: 1; }
+.dsh-pm-gantt-axis { font-size: 10px; fill: var(--dsw-text-secondary, #999); }
+.dsh-pm-gantt-mile { stroke: rgba(240,160,32,.55); stroke-width: 1; stroke-dasharray: 3 3; }
+.dsh-pm-gantt-mile[data-status="implementing"] { stroke: rgba(74,125,255,.55); }
+.dsh-pm-gantt-mile[data-status="done"] { stroke: rgba(40,167,69,.55); }
+.dsh-pm-gantt-now { stroke: #dc3545; stroke-width: 1.2; }
+.dsh-pm-gantt-rowlabel { font-size: 11px; fill: var(--dsw-text-primary, #444); }
+.dsh-pm-gantt-track { fill: rgba(128,128,128,.08); }
+.dsh-pm-gantt-bar { fill: #9aa4b2; }
+.dsh-pm-gantt-bar[data-status="todo"] { fill: #9aa4b2; }
+.dsh-pm-gantt-bar[data-status="in_progress"] { fill: #4a7dff; }
+.dsh-pm-gantt-bar[data-status="integrating"] { fill: #8e44ad; }
+.dsh-pm-gantt-bar[data-status="testing"] { fill: #f0a020; }
+.dsh-pm-gantt-bar[data-status="in_review"] { fill: #17a2b8; }
+.dsh-pm-gantt-bar[data-status="done"] { fill: #28a745; }
+.dsh-pm-gantt-bar[data-status="canceled"] { fill: #dc3545; }
+.dsh-pm-gantt-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--dsw-text-secondary, #999); padding-top: 4px; }
+.dsh-pm-gantt-legend-item { display: inline-flex; align-items: center; gap: 4px; }
+.dsh-pm-gantt-legend-item i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; background: #9aa4b2; }
+.dsh-pm-gantt-legend-item i[data-status="in_progress"] { background: #4a7dff; }
+.dsh-pm-gantt-legend-item i[data-status="integrating"] { background: #8e44ad; }
+.dsh-pm-gantt-legend-item i[data-status="testing"] { background: #f0a020; }
+.dsh-pm-gantt-legend-item i[data-status="in_review"] { background: #17a2b8; }
+.dsh-pm-gantt-legend-item i[data-status="done"] { background: #28a745; }
+.dsh-pm-gantt-legend-item i.mile { background: transparent; width: 12px; height: 0; border-top: 2px dashed #f0a020; border-radius: 0; }
+
+/* ---- 任务页 ---- */
+.dsh-pm-tasks-page { padding: 16px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+.dsh-pm-tasks-group {
+  border: 1px solid var(--dsw-border, rgba(128,128,128,.15)); border-radius: 10px;
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.dsh-pm-tasks-group-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dsh-pm-tasks-group-title { font-size: 14px; font-weight: 600; color: var(--dsw-text-primary, #222); }
+.dsh-pm-section-head { display: flex; align-items: center; gap: 10px; }
+.dsh-pm-strip { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; color: var(--dsw-text-secondary, #888); }
+.dsh-pm-strip-item b { font-family: ui-monospace, monospace; color: var(--dsw-text-primary, #444); font-weight: 500; }
+.dsh-pm-strip-arrow { color: var(--dsw-text-secondary, #bbb); }
+.dsh-pm-ttable { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dsh-pm-ttable th {
+  text-align: left; font-weight: 600; color: var(--dsw-text-secondary, #888);
+  padding: 4px 8px; border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.15));
+}
+.dsh-pm-ttable td {
+  padding: 5px 8px; border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+  color: var(--dsw-text-primary, #333);
+}
+.dsh-pm-trow { cursor: pointer; }
+.dsh-pm-trow:hover { background: var(--dsw-hover, rgba(128,128,128,.08)); }
+.dsh-pm-tid { font-family: ui-monospace, monospace; color: var(--dsw-text-secondary, #999); }
+.dsh-pm-tdeps { font-family: ui-monospace, monospace; font-size: 11px; color: var(--dsw-text-secondary, #999); }
 `
 
 export function injectStyles(): void {

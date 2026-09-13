@@ -10,7 +10,7 @@ import {
   BOARD_VIEW_SELECTOR, PANEL_NAME, ACTIVE_ATTR, OTHER_ACTIVE_ATTRS,
 } from './dom.ts'
 import {
-  buildBoard, buildEmpty, buildError, buildReqDetail, buildTaskDetail, buildTriage,
+  buildBoard, buildEmpty, buildError, buildReqDetail, buildTaskDetail, buildTasksPage, buildTriage,
 } from './view.ts'
 import * as api from './api.ts'
 import { jumpToSession, windowServiceAccess } from './session-jump.ts'
@@ -22,6 +22,7 @@ type ViewMode =
   | { kind: 'board' }
   | { kind: 'req'; reqId: string }
   | { kind: 'task'; taskId: string }
+  | { kind: 'tasks' }
   | { kind: 'triage' }
 
 export interface BoardController {
@@ -70,6 +71,9 @@ export function mountBoard(controller: BoardController): () => void {
         if (!task) mode = { kind: 'board' }
         break
       }
+      case 'tasks':
+        viewEl.innerHTML = buildTasksPage(state)
+        break
       case 'triage':
         viewEl.innerHTML = buildTriage(triages, state)
         break
@@ -120,6 +124,23 @@ export function mountBoard(controller: BoardController): () => void {
       case 'open-task':
         if (el.dataset.task) { mode = { kind: 'task', taskId: el.dataset.task }; render() }
         return
+      case 'open-tasks':
+        mode = { kind: 'tasks' }
+        render()
+        return
+      case 'new-task': {
+        // 人工建卡（agent 走 reqboard_decompose 批量拆分）；建完留在详情页由 fetchAll 重绘
+        const reqId = el.dataset.id
+        if (!reqId) return
+        const title = window.prompt('任务标题')
+        if (title && title.trim()) {
+          void api
+            .createTask({ requirementId: reqId, title: title.trim(), phase: 'implement', side: 'fullstack' })
+            .then(() => fetchAll())
+            .catch(e => window.alert(String(e)))
+        }
+        return
+      }
       case 'back':
         mode = { kind: 'board' }; render()
         return

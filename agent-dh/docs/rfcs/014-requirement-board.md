@@ -67,6 +67,24 @@ draft → reviewing → analyzing → implementing → testing → verifying →
 > 现行规则以 `shared/protocol.ts` 的 `HUMAN_ONLY_REQ_TRANSITIONS` / `SYSTEM_REQ_TRANSITIONS`
 > 与 `host/rollup.ts` 为准（代码即事实）。
 
+> **2026-09-13 修订（用户裁定，第二轮实盘反馈）**：用户指出三处「看起来有了、其实没有」：
+> ①「需求没有对应的时间」——记录上只有 `createdAt/updatedAt`，评审/拆分/实施/验收/归档
+> 各自发生在什么时候、每段停留多久，台账里**根本不存在**；
+> ②「拆分是真拆分吗」——`decomposing` 只是一个状态名，没有任何代码把需求变成任务
+> （实测台账 `tasks` 恒为 0，任务页/甘特图自然无从谈起）；
+> ③「有任务页面吗、任务有甘特图吗」——没有。
+> 本轮补齐（代码为准）：
+> - **状态事件时间线**（`StatusEvent` + `statusHistory`，schemaVersion 3）：每次转移写入
+>   `{status, at, by, reason}`；老记录在 Store 加载时由 `createdAt` + 评论留痕反推回填并标
+>   `inferred=true`（UI 显式标注「回填」，不把推导值伪装成原始记录）；
+> - **真拆分** `reqboard_decompose`：一次调用落库整批任务 DAG（批次内 key 引用 → 真实任务 id，
+>   落库前过无环/悬空校验），需求由 rollup 自动进入拆分/实施态；
+> - **任务推进** `reqboard_task_move` + 任务闸门与需求同口径：仅「取消/复活」为人工闸门，
+>   正常流水线（含任务完成）由执行窗口自行推进（此前 `in_review>done` 仅人可点 → 任务卡永远停在
+>   验收 → 需求永远进不了验收，看板再次静止）；
+> - **任务页 + 甘特图**：任务总览页（按需求分组：里程碑条 + 甘特图 + 任务清单表）；甘特条按
+>   状态分段着色、叠需求里程碑竖线、执行段真实耗时来自 `executions`。
+
 **设计决策二：验收是二层的（用户明确）——先 agent 验收，再人工验收。**
 - **第一层 agent 验收（testing 状态）**：独立 review 会话做代码 review + 单元测试任务跑测试，两者都要交出证据（review 报告 + 单测输出，写入 checklist note）。**证据闸是代码级的**：证据不齐，需求不允许从 testing 前进，agent 也无法伪造（证据要附真实命令输出）。
 - **第二层人工验收（verifying 状态）**：agent 验收全过后，人做实际功能测试，点「验收通过」才进 merging。
@@ -74,7 +92,7 @@ draft → reviewing → analyzing → implementing → testing → verifying →
 
 ## 4. 任务状态机
 
-复用 taskboard 五态（已验证）：`backlog / todo / in_progress / in_review / done` + `canceled`，转移表照抄（含 agent 永远到不了 done 的代码闸）。新增字段：
+复用 taskboard 五态（已验证）：`backlog / todo / in_progress / in_review / done` + `canceled`，转移表照抄。新增字段：
 
 - `requirementId: string` — 所属需求（必填）
 - `phase: 'doc' | 'ui' | 'analysis' | 'implement' | 'test' | 'review' | 'merge'` — 流水线阶段
@@ -82,6 +100,12 @@ draft → reviewing → analyzing → implementing → testing → verifying →
 - `evidence.required: string[]` — 阶段证据要求（如 test 任务必须附单测输出）
 
 **并行/串行语义**：串行 = dependsOn 链；并行 = 同 phase 且互无依赖。调度器只派 `ready` 任务（status==todo 且所有 dependsOn 均 done），并发上限沿用 `MAX_CONCURRENT` 模式。
+
+> **2026-09-13 修订（任务闸门与需求同口径）**：原文「agent 永远到不了 done 的代码闸」在实盘被证明与
+> 需求 rollup 直接冲突——任务完成是「需求进验收」的唯一事实来源，把它锁成人操作等于让流程再次停摆。
+> 现行 `HUMAN_ONLY_TASK_TRANSITIONS` 仅保留**破坏性动作**：`todo|in_progress|integrating|testing|in_review > canceled`
+> 与 `canceled>todo`（复活）；任务完成（`in_review>done`）由执行窗口自行推进，且离开
+> `in_progress` 时自动结算执行段（`endedAt` + outcome），甘特图与耗时统计依赖这段真实数据。
 
 ## 5. 会话归属判定（核心创新，对 taskboard 的主要增量）
 
@@ -112,10 +136,14 @@ turn/start(新会话)
 
 ## 6. 需求拆分（Decomposition）
 
-- 触发：评审通过后人点「拆分」（或设置项开启自动拆分）。
-- 执行：host 创建"分析会话"（可指定 preset/模型），喂入需求全文 + 拆分协议 → 要求输出结构化任务 DAG（JSON，schema 校验：title/phase/dependsOn/验收清单/预估）。
-- **人工确认闸门**：DAG 落库前人在看板确认/编辑（可加删任务、改依赖）；落库时无环校验 + phase 合法性校验。
-- 兜底：LLM 拆分失败/输出非法 → 需求停在 analyzing，人手工建任务，主流程永不因 LLM 失败而卡死。
+- 触发：方案敲定后由**执行窗口 agent** 自己拆（人在看板也可点「+ 任务」手工补卡）。
+- 执行：window agent 调 `reqboard_decompose` 一次性落库整批任务 DAG（自身即 LLM，不需要 host
+  另起「分析会话」）；工具负责结构正确性：批次内 `key` → 真实任务 id 映射、依赖只能是同批 key
+  或本需求已有任务、落库前过 DAG 校验（无环/无悬空/无自依赖）。
+- **不设确认闸门**：拆分粒度是干活的人自己的判断，落库即进拆分态（`reviewing → decomposing` 由
+  rollup 自动完成）；人仍可随时取消需求或改依赖。
+- 兜底：拆分失败不写库（mutator 抛错即整笔回滚，revision 不 bump），需求停在原状态，人可手工建任务——
+  主流程永不因拆分失败而卡死。
 
 ## 6a. 归档层设计（解决 AI 文档混乱，用户明确为一层）
 
@@ -148,18 +176,28 @@ host 侧服务，订阅 ledger 变化 + 会话事件：
 
 ## 8. 存储
 
-`dsh-reqboard.json`（DSH 主目录）：`{ schemaVersion, revision, requirements[], tasks[] }`。照抄 TaskStore 模式：串行写队列、原子写（temp+fsync+rename）、损坏隔离、深冻快照、订阅 → SSE。需求与任务同账本（一致性优于拆两文件，量级无压力）。
+`dsh-reqboard.json`（DSH 主目录）：`{ schemaVersion, revision, requirements[], tasks[], triages[] }`。照抄 TaskStore 模式：串行写队列、原子写（temp+fsync+rename）、损坏隔离、深冻快照、订阅 → SSE。需求与任务同账本（一致性优于拆两文件，量级无压力）。
+
+**schemaVersion 3（2026-09-13）**：需求与任务各带 `statusHistory: StatusEvent[]`（创建 + 每次转移一条）。
+加载时对缺字段的老记录就地回填（`backfillRequirementHistory` / `backfillTaskHistory`，全部标
+`inferred=true`），下一次写盘自然持久化——迁移不阻塞启动，也不静默改写历史语义。
 
 ## 9. 路由与 UI
 
 - 路由：`/dashboard/api/reqboard/*` REST + SSE（与 execution 插件的 `/dashboard/api/board*` 命名空间错开）。
-- client 看板：**需求泳道视图**（行=需求，列=需求状态，卡上显示任务进度 n/m + 流水线阶段条）；需求详情页 = 任务 DAG 图 + 任务五列小看板 + 评论/执行记录/证据/合并块。
+- client 看板：**需求泳道视图**（行=需求，列=需求状态，卡上显示任务进度 n/m + 流水线阶段条 + 创建时间/当前态停留时长）；需求详情页 = **时间线** + 任务 DAG 图 + 任务五列小看板 + **甘特图** + 评论/执行记录/证据/合并块。
+- **任务页**（页头「任务」入口）：跨需求任务总览——按需求分组，每组给里程碑条 + 甘特图 + 任务清单表（id/标题/状态/阶段/端侧/依赖/创建/耗时），行可点进任务详情。
+- **甘特图**：横轴时间、每行一个任务、条形**按状态分段着色**（数据源就是 `statusHistory`），叠加需求里程碑竖线与「现在」线，悬停显示某段状态的起止与时长；执行段耗时来自 `executions` 真实记录。
 - 「待归类」区：pending_bind 会话 + draft 需求，确认/改绑/删除操作。
 - 新会话 picker（增强，需验证 DSH client 扩展点）：在新会话对话框注入"归属需求/任务"下拉；若扩展点不可用，fallback = 看板内「绑定会话」操作 + `#REQ-xxx` 消息标记。
 
 ## 10. Agent 工具（reqboard_*）与协议
 
-- `reqboard_req_list / get / create / update / move` — move 带闸门：评审通过/功能验收/归档 **agent 调用直接拒绝**（代码闸）。
+> 实际落地（2026-09-13 现状）：`reqboard_create`（创建即立项，两问弹框作答 = 立项门）/ `reqboard_status`
+> （本窗口绑定 + `next_actions`）/ `reqboard_move`（需求推进）/ `reqboard_decompose`（真拆分：落库任务 DAG）/
+> `reqboard_task_move`（任务推进）。以下清单为原始设计意图，命名与粒度以代码为准。
+
+- `reqboard_req_list / get / create / update / move` — move 带闸门：取消/归档 **agent 调用直接拒绝**（代码闸）。
 - `reqboard_task_list / get / create / update / move / checklist / report` — 沿用 taskboard 语义，done 仅人。
 - `reqboard_bind_session`（手动绑定/改绑，留痕）/ `reqboard_classify`（手动触发重判）。
 - `reqboard_decompose`（触发拆分 / 确认拆分结果）。

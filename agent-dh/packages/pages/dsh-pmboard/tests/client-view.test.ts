@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  buildBoard, buildReqDetail, buildTaskDetail, buildTriage, buildEmpty, buildError,
+  buildBoard, buildReqDetail, buildTaskDetail, buildTasksPage, buildTriage, buildEmpty, buildError,
   toReqCards, LANE_STATUSES,
 } from '../src/client/view.ts'
 import type { BoardState, RequirementRecord, RequirementStatus, TaskRecord, TriageRecord } from '../src/client/types.ts'
@@ -387,5 +387,148 @@ describe('卡面按钮视觉一致性（复用 .dsh-pm-btn 体系）', () => {
     const html = buildBoard(makeState({ requirements: [makeReq({ status: 'draft' })] }))
     expect(html).toContain('class="dsh-pm-btn sm primary"')
     expect(html).not.toContain('dsh-pm-card-btn')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 时间线 / 甘特图 / 任务页（用户反馈：需求没有对应的时间、拆分是不是真拆、有没有任务页）
+// ---------------------------------------------------------------------------
+
+const T0 = 1700000000000 // 固定基准，避免测试依赖当前时间
+const HOUR = 3600_000
+
+describe('需求时间线（各状态进入时间 + 停留时长）', () => {
+  const hist = [
+    { status: 'draft', at: T0, by: { kind: 'human' as const } },
+    { status: 'reviewing', at: T0 + HOUR, by: { kind: 'system' as const } },
+    { status: 'decomposing', at: T0 + 3 * HOUR, by: { kind: 'agent' as const, sessionId: 'session-1cee2467-x' } },
+  ]
+
+  it('泳道卡面直接显示创建时间与当前态停留时长', () => {
+    const req = makeReq({ status: 'decomposing', statusHistory: hist })
+    const html = buildBoard(makeState({ requirements: [req] }), T0 + 5 * HOUR)
+    expect(html).toContain('dsh-pm-card-time')
+    expect(html).toContain('创建 ')
+    expect(html).toContain('已停留 2 小时 0 分')
+  })
+
+  it('详情页时间线：7 个里程碑齐全、未到达显「—」、窗口码与停留时长可见', () => {
+    const req = makeReq({ status: 'decomposing', statusHistory: hist })
+    const html = buildReqDetail(req, [], T0 + 5 * HOUR)
+    expect(html).toContain('dsh-pm-timeline')
+    for (const label of ['立项', '评审', '拆分', '实施', '验收', '完成', '归档']) {
+      expect(html).toContain(label)
+    }
+    expect(html).toContain('dsh-pm-tl-row pending') // 未到达的里程碑
+    expect(html).toContain('停留 2 小时 0 分') // draft → reviewing 段
+    expect(html).toContain('w-1cee2467') // 操作者窗口码
+    expect(html).toContain('至今') // 未完结的需求统计到当前时刻
+  })
+
+  it('回填事件显式标注「回填」（不把推导值伪装成原始记录）', () => {
+    const req = makeReq({
+      status: 'reviewing',
+      statusHistory: [
+        { status: 'draft', at: T0, by: { kind: 'human' }, inferred: true },
+        { status: 'reviewing', at: T0 + HOUR, by: { kind: 'system' }, inferred: true },
+      ],
+    })
+    expect(buildReqDetail(req, [], T0 + 2 * HOUR)).toContain('回填')
+  })
+
+  it('老记录无 statusHistory → 退化为创建单点，不编造中间态', () => {
+    const req = makeReq({ status: 'implementing' })
+    const html = buildReqDetail(req, [], T0 + HOUR)
+    expect(html).toContain('dsh-pm-timeline')
+    expect(html.match(/dsh-pm-tl-row pending/g)?.length).toBeGreaterThanOrEqual(6)
+  })
+
+  it('任务详情也有时间线（含执行段耗时）', () => {
+    const t = makeTask({
+      status: 'done',
+      updatedAt: T0 + 2 * HOUR,
+      statusHistory: [
+        { status: 'todo', at: T0, by: { kind: 'agent' } },
+        { status: 'in_progress', at: T0 + HOUR, by: { kind: 'agent' } },
+        { status: 'done', at: T0 + 2 * HOUR, by: { kind: 'agent' } },
+      ],
+    })
+    const html = buildTaskDetail(t, undefined, T0 + 3 * HOUR)
+    expect(html).toContain('时间线')
+    expect(html).toContain('停留 1 小时 0 分')
+  })
+})
+
+describe('甘特图与任务页（拆分可视化）', () => {
+  function fixture() {
+    const req = makeReq({
+      id: 'REQ-abc123',
+      title: '看板需求',
+      status: 'implementing',
+      statusHistory: [
+        { status: 'draft', at: T0, by: { kind: 'human' } },
+        { status: 'reviewing', at: T0 + HOUR, by: { kind: 'system' } },
+        { status: 'decomposing', at: T0 + 2 * HOUR, by: { kind: 'agent' } },
+        { status: 'implementing', at: T0 + 3 * HOUR, by: { kind: 'system' } },
+      ],
+    })
+    const t1 = makeTask({
+      id: 't-000001', requirementId: req.id, title: '协议层加时间线', phase: 'doc', side: 'doc',
+      status: 'done', createdAt: T0 + 2 * HOUR, updatedAt: T0 + 4 * HOUR,
+      statusHistory: [
+        { status: 'todo', at: T0 + 2 * HOUR, by: { kind: 'agent' } },
+        { status: 'in_progress', at: T0 + 3 * HOUR, by: { kind: 'agent' } },
+        { status: 'done', at: T0 + 4 * HOUR, by: { kind: 'agent' } },
+      ],
+    })
+    const t2 = makeTask({
+      id: 't-000002', requirementId: req.id, title: '客户端甘特图', phase: 'ui', side: 'frontend',
+      dependsOn: ['t-000001'], status: 'in_progress', createdAt: T0 + 4 * HOUR, updatedAt: T0 + 5 * HOUR,
+      statusHistory: [
+        { status: 'todo', at: T0 + 4 * HOUR, by: { kind: 'agent' } },
+        { status: 'in_progress', at: T0 + 5 * HOUR, by: { kind: 'agent' } },
+      ],
+    })
+    return { req, t1, t2, now: T0 + 6 * HOUR }
+  }
+
+  it('甘特图：按状态分段着色 + 需求里程碑竖线 + 现在线 + 图例', () => {
+    const { req, t1, t2, now } = fixture()
+    const html = buildReqDetail(req, [t1, t2], now)
+    expect(html).toContain('<svg class="dsh-pm-gantt"')
+    expect(html).toContain('dsh-pm-gantt-bar" data-status="done"')
+    expect(html).toContain('dsh-pm-gantt-bar" data-status="in_progress"')
+    expect(html).toContain('dsh-pm-gantt-mile" data-status="implementing"')
+    expect(html).toContain('dsh-pm-gantt-now')
+    expect(html).toContain('dsh-pm-gantt-legend')
+    expect(html).toContain('t-000001 协议层加时间线') // 行标签
+  })
+
+  it('任务页：按需求分组 + 里程碑条 + 甘特图 + 任务表（含耗时列）', () => {
+    const { req, t1, t2, now } = fixture()
+    const html = buildTasksPage(makeState({ requirements: [req], tasks: [t1, t2] }), now)
+    expect(html).toContain('任务')
+    expect(html).toContain('dsh-pm-tasks-group')
+    expect(html).toContain('REQ-abc123')
+    expect(html).toContain('dsh-pm-strip-item')
+    expect(html).toContain('dsh-pm-gantt')
+    expect(html).toContain('dsh-pm-ttable')
+    expect(html).toContain('共 2 小时 0 分') // t1 已完成的真实耗时
+    expect(html).toContain('已用 2 小时 0 分') // t2 进行中（创建至今）
+    expect(html).toContain('data-action="open-task"')
+  })
+
+  it('任务页空态给出两种真实来源（人工建卡 / agent 真拆分）', () => {
+    const html = buildTasksPage(makeState({ requirements: [makeReq()] }), T0)
+    expect(html).toContain('还没有任务')
+    expect(html).toContain('reqboard_decompose')
+  })
+
+  it('任务页与甘特图中的用户文本经转义（XSS 防线不因新视图失效）', () => {
+    const { req, t1, now } = fixture()
+    const evil = { ...t1, title: '<img src=x onerror=alert(1)>' }
+    const html = buildTasksPage(makeState({ requirements: [req], tasks: [evil] }), now)
+    expect(html).not.toContain('<img src=x')
+    expect(html).toContain('&lt;img')
   })
 })

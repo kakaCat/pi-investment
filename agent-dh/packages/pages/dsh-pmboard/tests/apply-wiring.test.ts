@@ -1,7 +1,8 @@
 /**
  * 宿主接线冒烟：以 stub ctx 执行 apply()，验证捕获/立项三件套真正注册：
  *   1) systemPrompt capture section（reqboard:capture / order 60 / 函数式求值）
- *   2) 两个 agent 工具（reqboard_create / reqboard_status）
+ *   2) 五个 agent 工具（reqboard_create / reqboard_status / reqboard_move /
+ *      reqboard_decompose / reqboard_task_move）
  *   3) webServer 前缀路由（/dashboard/api/reqboard）
  * 以及 dispose 清理不抛错。这是无需重启 :13080 的最强接线验证
  * （等价于启动时插件装配路径：inject → effect → section/register）。
@@ -83,7 +84,13 @@ describe('dsh-pmboard apply() 宿主接线（乙流程装配冒烟）', () => {
     const ctx = stubCtx()
     apply(ctx, { dshHome: dir })
     const names = ctx.tools.map(t => t.name).sort()
-    expect(names).toEqual(['reqboard_create', 'reqboard_move', 'reqboard_status'])
+    expect(names).toEqual([
+      'reqboard_create',
+      'reqboard_decompose',
+      'reqboard_move',
+      'reqboard_status',
+      'reqboard_task_move',
+    ])
   })
 
   it('注册看板路由：/dashboard/api/reqboard 前缀', () => {

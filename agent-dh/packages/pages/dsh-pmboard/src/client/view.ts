@@ -6,7 +6,7 @@
  * @module dsh-pmboard/client/view
  */
 import { esc } from '@pi-investment/page-kit/client'
-import type { BoardState, ReqCard, RequirementRecord, RequirementStatus, TaskRecord, TaskStatus, TriageRecord } from './types.ts'
+import type { BoardState, ReqCard, RequirementRecord, RequirementStatus, StatusEvent, TaskRecord, TaskStatus, TriageRecord } from './types.ts'
 
 /* ------------------------------------------------------------------ utils */
 
@@ -76,11 +76,11 @@ export function toReqCards(state: BoardState): ReqCard[] {
 
 /* ------------------------------------------------------------------ 泳道看板 */
 
-export function buildBoard(state: BoardState): string {
+export function buildBoard(state: BoardState, now: number = Date.now()): string {
   const cards = toReqCards(state)
   const lanes = LANE_STATUSES.map(status => {
     const inLane = cards.filter(c => c.req.status === status)
-    const cardsHtml = inLane.map(c => renderReqCard(c)).join('')
+    const cardsHtml = inLane.map(c => renderReqCard(c, now)).join('')
     return `
       <div class="dsh-pm-lane" data-lane="${status}">
         <div class="dsh-pm-lane-head">
@@ -106,6 +106,7 @@ export function buildBoard(state: BoardState): string {
         <h1 class="dsh-pm-title">项目看板</h1>
         <span class="dsh-pm-rev">rev ${state.revision}</span>
         <button type="button" class="dsh-pm-btn" data-action="refresh" title="刷新">刷新</button>
+        <button type="button" class="dsh-pm-btn" data-action="open-tasks" title="任务总览与甘特图">任务</button>
         <button type="button" class="dsh-pm-btn primary" data-action="new-req" title="新建需求">+ 需求</button>
       </div>
       <div class="dsh-pm-lanes">${lanes}</div>
@@ -113,7 +114,7 @@ export function buildBoard(state: BoardState): string {
     </div>`
 }
 
-function renderReqCard(card: ReqCard): string {
+function renderReqCard(card: ReqCard, now: number): string {
   const { req, tasks, doneCount, totalCount, readyIds, blocked } = card
   const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
   const cat = req.category ? `<span class="dsh-pm-cat" data-cat="${req.category}">${CATEGORY_LABELS[req.category] ?? req.category}</span>` : ''
@@ -121,6 +122,7 @@ function renderReqCard(card: ReqCard): string {
   const pausedChip = req.paused ? '<span class="dsh-pm-flag paused">暂停</span>' : ''
   const readyChip = readyIds.length > 0 ? `<span class="dsh-pm-flag ready">${readyIds.length} ready</span>` : ''
   // 窗口 chip：立项来源窗口（窗口↔需求关联）+ 最近执行会话
+  const timeLine = renderCardTime(req, now)
   const sessionChip = renderWindowChip(req) + renderSessionChip(tasks)
   const actions = cardActions(req)
 
@@ -135,6 +137,7 @@ function renderReqCard(card: ReqCard): string {
         <div class="dsh-pm-card-bar"><div class="dsh-pm-card-bar-fill" style="width:${pct}%"></div></div>
         <span class="dsh-pm-card-pct">${progress(doneCount, totalCount)}</span>
       </div>
+      ${timeLine}
       ${sessionChip}
       ${actions}
     </div>`
@@ -207,7 +210,7 @@ function renderSessionChip(tasks: TaskRecord[]): string {
 
 /* ------------------------------------------------------------------ 需求详情 */
 
-export function buildReqDetail(req: RequirementRecord, tasks: TaskRecord[]): string {
+export function buildReqDetail(req: RequirementRecord, tasks: TaskRecord[], now: number = Date.now()): string {
   const reqTasks = tasks.filter(t => t.requirementId === req.id)
   const dag = buildDag(reqTasks)
   const taskCols = buildTaskColumns(reqTasks)
@@ -228,12 +231,23 @@ export function buildReqDetail(req: RequirementRecord, tasks: TaskRecord[]): str
       ${req.description ? `<div class="dsh-pm-detail-desc">${esc(req.description)}</div>` : ''}
       ${gateHint}
       <div class="dsh-pm-detail-section">
+        <h3>时间线</h3>
+        ${renderReqTimeline(req, now)}
+      </div>
+      <div class="dsh-pm-detail-section">
         <h3>任务 DAG</h3>
         ${dag}
       </div>
       <div class="dsh-pm-detail-section">
-        <h3>任务（${reqTasks.length}）</h3>
+        <div class="dsh-pm-section-head">
+          <h3>任务（${reqTasks.length}）</h3>
+          <button type="button" class="dsh-pm-btn sm" data-action="new-task" data-id="${esc(req.id)}" title="人工建任务卡（窗口 agent 走 reqboard_decompose 批量拆分）">+ 任务</button>
+        </div>
         ${taskCols}
+      </div>
+      <div class="dsh-pm-detail-section">
+        <h3>甘特图</h3>
+        ${buildGantt(req, reqTasks, now)}
       </div>
       <div class="dsh-pm-detail-section">
         <h3>评论（${req.comments.length}）</h3>
@@ -321,7 +335,7 @@ function renderComments(comments: CommentRecord[]): string {
 
 /* ------------------------------------------------------------------ 任务详情 */
 
-export function buildTaskDetail(task: TaskRecord, req: RequirementRecord | undefined): string {
+export function buildTaskDetail(task: TaskRecord, req: RequirementRecord | undefined, now: number = Date.now()): string {
   const execs = task.executions.map(e => `
     <div class="dsh-pm-exec" data-outcome="${e.outcome}">
       <span class="dsh-pm-exec-outcome">${e.outcome}</span>
@@ -348,6 +362,10 @@ export function buildTaskDetail(task: TaskRecord, req: RequirementRecord | undef
           <span>依赖</span><span>${task.dependsOn.length > 0 ? task.dependsOn.map(esc).join(', ') : '无'}</span>
           <span>验收标准</span><span>${esc(task.acceptance)}</span>
         </div>
+      </div>
+      <div class="dsh-pm-detail-section">
+        <h3>时间线</h3>
+        ${renderTaskTimeline(task, now)}
       </div>
       <div class="dsh-pm-detail-section">
         <h3>执行记录（${task.executions.length}）</h3>
@@ -426,4 +444,257 @@ export function buildEmpty(): string {
 
 export function buildError(message: string): string {
   return `<div class="dsh-pm-board"><div class="dsh-pm-error">加载失败：${esc(message)}</div></div>`
+}
+/* ------------------------------------------------------------------ 时间线 */
+
+/** 时长人类可读（时间线停留 / 任务耗时用）。 */
+function fmtDur(ms: number): string {
+  const total = Math.max(0, ms)
+  const min = Math.floor(total / 60000)
+  if (min < 60) return min + ' 分'
+  const hours = Math.floor(min / 60)
+  if (hours < 24) return hours + ' 小时 ' + (min % 60) + ' 分'
+  const days = Math.floor(hours / 24)
+  return days + ' 天 ' + (hours % 24) + ' 小时'
+}
+
+/** 终态（不再累计停留时长）。 */
+function isTerminal(status: string): boolean {
+  return status === 'done' || status === 'archived' || status === 'canceled'
+}
+
+/**
+ * 状态事件序列（时间线的数据源）。
+ * 老记录（升级前落库、无 statusHistory）退化为「创建单点」——host 加载时会回填，
+ * 但 client 也必须能独立兜底，绝不编造中间状态。
+ */
+function eventsOf(
+  rec: { createdAt: number; statusHistory?: StatusEvent[] },
+  initial: string,
+): StatusEvent[] {
+  const hist = rec.statusHistory
+  if (hist !== undefined && hist.length > 0) return hist
+  return [{ status: initial, at: rec.createdAt, by: { kind: 'human' } }]
+}
+
+/** 时间线表：每个里程碑的进入时间 + 该段停留时长 + 操作者（回填事件显式标注）。 */
+function renderTimeline(
+  rec: { status: string; createdAt: number; statusHistory?: StatusEvent[] },
+  milestones: readonly string[],
+  labels: Record<string, string>,
+  initial: string,
+  now: number,
+): string {
+  const events = eventsOf(rec, initial)
+  const at = new Map<string, number>()
+  events.forEach((e, i) => { if (!at.has(e.status)) at.set(e.status, i) })
+  const extra = events
+    .map((e, i) => ({ e, i }))
+    .filter(x => !milestones.includes(x.e.status))
+    .map(x => x.e.status)
+  const rowFor = (status: string, idx: number | undefined): string => {
+    if (idx === undefined) {
+      return '<div class="dsh-pm-tl-row pending" data-status="' + status + '">'
+        + '<span class="dsh-pm-tl-label">' + (labels[status] ?? status) + '</span>'
+        + '<span class="dsh-pm-tl-time">—</span>'
+        + '<span class="dsh-pm-tl-dur"></span>'
+        + '</div>'
+    }
+    const e = events[idx]!
+    const next = events[idx + 1]
+    const isLast = idx === events.length - 1
+    const dur = (next?.at ?? now) - e.at
+    const durText = isLast ? (isTerminal(e.status) ? '' : '已停留 ' + fmtDur(dur)) : '停留 ' + fmtDur(dur)
+    const byText = e.by.kind + (e.by.sessionId !== undefined ? ' ' + windowCodeFromSessionId(e.by.sessionId) : '')
+    return '<div class="dsh-pm-tl-row' + (isLast ? ' current' : '') + '" data-status="' + esc(e.status) + '">'
+      + '<span class="dsh-pm-tl-label">' + (labels[status] ?? status) + '</span>'
+      + '<span class="dsh-pm-tl-time">' + esc(fmtTime(e.at)) + '</span>'
+      + '<span class="dsh-pm-tl-dur">' + esc(durText) + '</span>'
+      + '<span class="dsh-pm-tl-by">' + esc(byText) + '</span>'
+      + (e.inferred === true ? '<span class="dsh-pm-tl-inferred" title="历史回填：老记录无事件留痕，由创建时间与评论反推">回填</span>' : '')
+      + '</div>'
+  }
+  const rows = milestones.map(s => rowFor(s, at.get(s))).join('') + extra.map(s => rowFor(s, at.get(s))).join('')
+  const start = events[0]!.at
+  const tail = events[events.length - 1]!
+  const total = (isTerminal(tail.status) ? tail.at : now) - start
+  return '<div class="dsh-pm-timeline">' + rows
+    + '<div class="dsh-pm-tl-total">创建 ' + esc(fmtTime(start))
+    + (isTerminal(tail.status) ? ' · 总耗时 ' : ' · 至今 ') + esc(fmtDur(total)) + '</div></div>'
+}
+
+/** 需求时间线（7 个里程碑）。 */
+function renderReqTimeline(req: RequirementRecord, now: number): string {
+  return renderTimeline(req, LANE_STATUSES.concat(['archived']), STATUS_LABELS, 'draft', now)
+}
+
+/** 任务时间线。 */
+function renderTaskTimeline(task: TaskRecord, now: number): string {
+  return renderTimeline(task, TASK_TIMELINE_STATUSES, TASK_STATUS_LABELS, 'todo', now)
+}
+
+/** 里程碑紧凑条（任务页分组头用）：只列已发生的里程碑。 */
+function renderMilestoneStrip(req: RequirementRecord): string {
+  const events = eventsOf(req, 'draft')
+  const first = new Map<string, StatusEvent>()
+  for (const e of events) if (!first.has(e.status)) first.set(e.status, e)
+  const items = [...first.values()].map(e =>
+    '<span class="dsh-pm-strip-item" data-status="' + esc(e.status) + '">'
+    + (STATUS_LABELS[e.status as RequirementStatus] ?? e.status)
+    + ' <b>' + esc(fmtTime(e.at)) + '</b></span>')
+  return items.length === 0 ? '' : '<div class="dsh-pm-strip">' + items.join('<span class="dsh-pm-strip-arrow">→</span>') + '</div>'
+}
+
+/* ------------------------------------------------------------------ 甘特图 */
+
+const TASK_TIMELINE_STATUSES: readonly TaskStatus[] = ['todo', 'in_progress', 'integrating', 'testing', 'in_review', 'done']
+const REQ_MILESTONE_STATUSES: readonly RequirementStatus[] = ['draft', 'reviewing', 'decomposing', 'implementing', 'accepting', 'done', 'archived']
+
+/** 任务的状态分段（甘特条按状态着色；终态段止于末次事件，其余止于 now）。 */
+function ganttSegments(task: TaskRecord, now: number): Array<{ status: string; from: number; to: number }> {
+  const events = eventsOf(task, 'todo')
+  const terminal = isTerminal(task.status)
+  return events.map((e, i) => {
+    const next = events[i + 1]
+    const end = next?.at ?? (terminal ? Math.max(task.updatedAt, e.at) : now)
+    return { status: e.status, from: e.at, to: end }
+  })
+}
+
+function short(text: string, max: number): string {
+  return text.length > max ? text.slice(0, max) + '…' : text
+}
+
+/**
+ * 甘特图（SVG，零依赖）：横轴时间，每行一个任务，条形按状态分段着色，
+ * 叠需求里程碑竖线（评审/拆分/实施/验收/完成）与「当前时刻」线。
+ * 数据全部来自真实状态事件——没有事件就不画（不编造进度）。
+ */
+function buildGantt(req: RequirementRecord, tasks: TaskRecord[], now: number): string {
+  if (tasks.length === 0) return '<div class="dsh-pm-empty">尚未拆分任务</div>'
+  const labelW = 190
+  const chartW = 620
+  const rowH = 22
+  const top = 34
+  const bottom = 10
+  const ordered = [...tasks].sort((a, b) => a.createdAt - b.createdAt)
+  const times: number[] = [now]
+  for (const t of ordered) for (const e of eventsOf(t, 'todo')) times.push(e.at)
+  for (const e of eventsOf(req, 'draft')) times.push(e.at)
+  const min = Math.min(...times)
+  const max = Math.max(...times)
+  const span = Math.max(max - min, 3600000)
+  const px = (t: number): number => labelW + ((t - min) / span) * chartW
+  const height = top + ordered.length * rowH + bottom
+  const width = labelW + chartW + 12
+  const parts: string[] = []
+  parts.push('<svg class="dsh-pm-gantt" viewBox="0 0 ' + width + ' ' + height + '" width="100%" height="' + height + '" preserveAspectRatio="xMinYMin meet" role="img" aria-label="任务甘特图">')
+  for (let i = 0; i <= 4; i++) {
+    const t = min + (span * i) / 4
+    const x = px(t).toFixed(1)
+    parts.push('<line class="dsh-pm-gantt-grid" x1="' + x + '" y1="' + (top - 8) + '" x2="' + x + '" y2="' + (height - bottom) + '" />')
+    parts.push('<text class="dsh-pm-gantt-axis" x="' + x + '" y="' + (top - 14) + '" text-anchor="middle">' + esc(fmtTime(t)) + '</text>')
+  }
+  for (const e of eventsOf(req, 'draft')) {
+    if (!REQ_MILESTONE_STATUSES.includes(e.status as RequirementStatus)) continue
+    const x = px(e.at).toFixed(1)
+    parts.push('<line class="dsh-pm-gantt-mile" data-status="' + esc(e.status) + '" x1="' + x + '" y1="' + (top - 6) + '" x2="' + x + '" y2="' + (height - bottom) + '">')
+    parts.push('<title>' + esc(req.id + ' ' + (STATUS_LABELS[e.status as RequirementStatus] ?? e.status) + ' ' + fmtTime(e.at)) + '</title></line>')
+  }
+  ordered.forEach((t, i) => {
+    const y = top + i * rowH
+    parts.push('<text class="dsh-pm-gantt-rowlabel" x="6" y="' + (y + 13) + '">' + esc(short(t.id + ' ' + t.title, 24)) + '</text>')
+    parts.push('<rect class="dsh-pm-gantt-track" x="' + labelW + '" y="' + (y + 4) + '" width="' + chartW + '" height="' + (rowH - 9) + '" rx="3" />')
+    for (const seg of ganttSegments(t, now)) {
+      const x1 = px(seg.from)
+      const w = Math.max(2, px(seg.to) - x1)
+      parts.push('<rect class="dsh-pm-gantt-bar" data-status="' + esc(seg.status) + '" x="' + x1.toFixed(1) + '" y="' + (y + 4) + '" width="' + w.toFixed(1) + '" height="' + (rowH - 9) + '" rx="3">')
+      parts.push('<title>' + esc(t.id + ' ' + t.title + '｜' + (TASK_STATUS_LABELS[seg.status as TaskStatus] ?? seg.status) + ' ' + fmtTime(seg.from) + ' → ' + fmtTime(seg.to) + '（' + fmtDur(seg.to - seg.from) + '）') + '</title></rect>')
+    }
+  })
+  if (now >= min && now <= max) {
+    const nx = px(now).toFixed(1)
+    parts.push('<line class="dsh-pm-gantt-now" x1="' + nx + '" y1="' + (top - 6) + '" x2="' + nx + '" y2="' + (height - bottom) + '"><title>现在</title></line>')
+  }
+  parts.push('</svg>')
+  const legend = '<div class="dsh-pm-gantt-legend">' + TASK_TIMELINE_STATUSES.map(s =>
+    '<span class="dsh-pm-gantt-legend-item"><i data-status="' + s + '"></i>' + TASK_STATUS_LABELS[s] + '</span>').join('')
+    + '<span class="dsh-pm-gantt-legend-item"><i class="mile"></i>需求里程碑</span></div>'
+  return '<div class="dsh-pm-gantt-wrap">' + parts.join('') + '</div>' + legend
+}
+
+/* ------------------------------------------------------------------ 任务页 */
+
+/** 任务清单表（id/标题/状态/阶段/端侧/依赖/创建/耗时）。 */
+function renderTaskTable(tasks: TaskRecord[], now: number): string {
+  const rows = [...tasks].sort((a, b) => a.createdAt - b.createdAt).map(t => {
+    const hist = eventsOf(t, 'todo')
+    const start = hist[0]!.at
+    const tail = hist[hist.length - 1]!
+    const doneAt = hist.find(e => e.status === 'done')?.at
+    const elapsed = isTerminal(t.status)
+      ? '共 ' + fmtDur((doneAt ?? tail.at) - start)
+      : '已用 ' + fmtDur(now - start)
+    return '<tr class="dsh-pm-trow" data-task="' + esc(t.id) + '" data-action="open-task">'
+      + '<td class="dsh-pm-tid">' + esc(t.id) + '</td>'
+      + '<td class="dsh-pm-ttitle">' + esc(t.title) + '</td>'
+      + '<td><span class="dsh-pm-status" data-status="' + esc(t.status) + '">' + (TASK_STATUS_LABELS[t.status] ?? t.status) + '</span></td>'
+      + '<td>' + esc(PHASE_LABELS[t.phase] ?? t.phase) + '</td>'
+      + '<td>' + esc(t.side) + '</td>'
+      + '<td class="dsh-pm-tdeps">' + (t.dependsOn.length > 0 ? esc(t.dependsOn.join(' ')) : '—') + '</td>'
+      + '<td>' + esc(fmtTime(start)) + '</td>'
+      + '<td>' + esc(elapsed) + '</td>'
+      + '</tr>'
+  }).join('')
+  return '<table class="dsh-pm-ttable"><thead><tr>'
+    + '<th>任务</th><th>标题</th><th>状态</th><th>阶段</th><th>端侧</th><th>依赖</th><th>创建</th><th>耗时</th>'
+    + '</tr></thead><tbody>' + rows + '</tbody></table>'
+}
+
+/** 任务总览页（跨需求）：需求分组 → 里程碑条 + 甘特图 + 任务表。 */
+export function buildTasksPage(state: BoardState, now: number = Date.now()): string {
+  const groups = state.requirements
+    .map(req => ({ req, tasks: state.tasks.filter(t => t.requirementId === req.id) }))
+    .filter(g => g.tasks.length > 0)
+    .sort((a, b) => b.req.updatedAt - a.req.updatedAt)
+  const head = '<div class="dsh-pm-head">'
+    + '<button type="button" class="dsh-pm-btn" data-action="back" title="返回泳道看板">← 看板</button>'
+    + '<h1 class="dsh-pm-title">任务</h1>'
+    + '<span class="dsh-pm-rev">' + state.tasks.length + ' 个任务 · ' + groups.length + ' 个需求 · rev ' + state.revision + '</span>'
+    + '<button type="button" class="dsh-pm-btn" data-action="refresh" title="刷新">刷新</button>'
+    + '</div>'
+  if (groups.length === 0) {
+    return '<div class="dsh-pm-board">' + head
+      + '<div class="dsh-pm-empty">还没有任务。两种来源：① 需求详情页点「+ 任务」人工建卡；② 窗口 agent 调用 reqboard_decompose 真拆分落库（推荐，含依赖 DAG）</div></div>'
+  }
+  const sections = groups.map(g => {
+    const done = g.tasks.filter(t => t.status === 'done').length
+    return '<div class="dsh-pm-tasks-group">'
+      + '<div class="dsh-pm-tasks-group-head">'
+      + '<span class="dsh-pm-card-id">' + esc(g.req.id) + '</span>'
+      + '<span class="dsh-pm-status" data-status="' + esc(g.req.status) + '">' + (STATUS_LABELS[g.req.status] ?? g.req.status) + '</span>'
+      + '<span class="dsh-pm-tasks-group-title">' + esc(g.req.title) + '</span>'
+      + '<span class="dsh-pm-hint">' + done + '/' + g.tasks.length + ' 完成</span>'
+      + '<button type="button" class="dsh-pm-btn sm" data-action="open-req" data-req="' + esc(g.req.id) + '">打开需求</button>'
+      + '</div>'
+      + renderMilestoneStrip(g.req)
+      + '<div class="dsh-pm-detail-section"><h3>甘特图</h3>' + buildGantt(g.req, g.tasks, now) + '</div>'
+      + '<div class="dsh-pm-detail-section"><h3>任务清单</h3>' + renderTaskTable(g.tasks, now) + '</div>'
+      + '</div>'
+  }).join('')
+  return '<div class="dsh-pm-board">' + head + '<div class="dsh-pm-tasks-page">' + sections + '</div></div>'
+}
+
+
+/** 卡面时间行：创建时间 + 当前状态进入时间 + 当前态停留时长（时间不埋在详情页）。 */
+function renderCardTime(req: RequirementRecord, now: number): string {
+  const events = eventsOf(req, 'draft')
+  const first = events[0]!
+  const cur = events[events.length - 1]!
+  const parts = ['创建 ' + fmtTime(first.at)]
+  if (cur.status !== first.status) {
+    parts.push((STATUS_LABELS[cur.status as RequirementStatus] ?? cur.status) + ' ' + fmtTime(cur.at))
+  }
+  if (!isTerminal(cur.status)) parts.push('已停留 ' + fmtDur(now - cur.at))
+  return '<div class="dsh-pm-card-time">' + esc(parts.join(' · ')) + '</div>'
 }
