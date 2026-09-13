@@ -1,5 +1,5 @@
 {
- "checked_at": "2026-09-13T18:21:16",
+ "checked_at": "2026-09-13T19:13:45",
  "tables": [
   {
    "table": "quant.strategy_stock_matching",
@@ -57,12 +57,213 @@
    "kind": "source",
    "owner": "v2-data",
    "issues": []
+  },
+  {
+   "table": "quant.stocks",
+   "kind": "source",
+   "owner": "v2-data",
+   "issues": []
+  },
+  {
+   "table": "quant.trading_calendar",
+   "kind": "source",
+   "owner": "v2-data",
+   "issues": []
+  },
+  {
+   "table": "quant.index_daily",
+   "kind": "source",
+   "owner": "v2-data",
+   "issues": []
+  },
+  {
+   "table": "quant.minute_klines",
+   "kind": "source",
+   "owner": "v2-data",
+   "issues": []
+  },
+  {
+   "table": "quant.income_statements",
+   "kind": "source",
+   "owner": "v2-data",
+   "issues": []
+  },
+  {
+   "table": "quant.balance_sheets",
+   "kind": "source",
+   "owner": "v2-data",
+   "issues": []
+  },
+  {
+   "table": "quant.factor_values",
+   "kind": "derived",
+   "owner": "v2-data",
+   "issues": [],
+   "latest": "2026-09-11",
+   "lag_days": 2
+  },
+  {
+   "table": "quant.chip_metrics",
+   "kind": "derived",
+   "owner": "v2-data",
+   "issues": [],
+   "latest": "2026-09-11",
+   "lag_days": 2
+  },
+  {
+   "table": "quant.chip_distribution_state",
+   "kind": "derived",
+   "owner": "v2-data",
+   "issues": [],
+   "latest": "2026-09-11",
+   "lag_days": 2
+  },
+  {
+   "table": "quant.signals",
+   "kind": "derived",
+   "owner": "v2-strategy",
+   "issues": [
+    {
+     "type": "dangling_reference",
+     "column": "strategy_id",
+     "target": "quant.strategy_configs",
+     "rows": 18401,
+     "total_rows": 18401,
+     "detail": "18401/18401 行的 strategy_id 指向上游不存在的数据"
+    }
+   ],
+   "latest": "2026-09-12",
+   "lag_days": 1
+  },
+  {
+   "table": "quant.agent_decisions",
+   "kind": "audit",
+   "owner": "agent-dh",
+   "issues": []
+  },
+  {
+   "table": "quant.watch_rules",
+   "kind": "source",
+   "owner": "agent-dh",
+   "issues": []
+  },
+  {
+   "table": "quant.watch_triggers",
+   "kind": "audit",
+   "owner": "agent-dh",
+   "issues": []
+  },
+  {
+   "table": "quant.simulation_equity_snapshot",
+   "kind": "audit",
+   "owner": "agent-dh",
+   "issues": []
+  },
+  {
+   "table": "quant.market_regime",
+   "kind": "derived",
+   "owner": "v2-data",
+   "issues": [],
+   "latest": "2026-09-11",
+   "lag_days": 2
+  },
+  {
+   "table": "quant.scheduler_tasks",
+   "kind": "source",
+   "owner": "agent-dh",
+   "issues": []
+  },
+  {
+   "table": "quant.stock_pools",
+   "kind": "source",
+   "owner": "agent-dh",
+   "issues": []
   }
  ],
- "tables_total": 6,
- "tables_with_issues": 0,
- "tables_failed": 0,
+ "registry_coverage": {
+  "schema": "quant",
+  "tables_total": 136,
+  "registered": 22,
+  "unregistered": 114,
+  "backup_or_temp": 27,
+  "backup_or_temp_rows": 4306603,
+  "backup_or_temp_tables": [
+   "bak_amtfix_w23c70356",
+   "bak_index_rows_w_f4aa1f6a",
+   "bak_indexamt_w23c70356",
+   "bak_starvol_vol_w23c70356",
+   "bak_testpseudo_w23c70356_daily_klines",
+   "bak_testpseudo_w23c70356_factor_values",
+   "bak_testpseudo_w23c70356_stocks",
+   "daily_klines_amount_backup_20260910",
+   "daily_klines_amt_backup_20260910",
+   "daily_klines_polluted_backup_20260901",
+   "daily_klines_vol_backup_20260910",
+   "event_calendar_type_backup_20260913",
+   "signal_tracking_invalid_backup_20260911",
+   "sim_calibration_backup_20260723",
+   "sim_snapshot_backup_20260911_wc41",
+   "simulation_account_backup_20260629",
+   "simulation_account_backup_final",
+   "simulation_positions_backup_20260629",
+   "simulation_positions_backup_final",
+   "simulation_trades_backup_20260629",
+   "simulation_trades_backup_final",
+   "stock_fund_flow_backup_20260911",
+   "stock_fund_flow_quality_backup_20260913",
+   "stock_fund_flow_suspect",
+   "stocks_backup_20260530",
+   "strategy_stock_matching_backup_20260913",
+   "tmp_volfix_noamount"
+  ],
+  "top_unregistered": [
+   {
+    "table": "minute_daily_agg_20260910",
+    "rows": 492099
+   },
+   {
+    "table": "daily_klines_vol_backup2_20260910",
+    "rows": 36547
+   },
+   {
+    "table": "daily_klines_vol_backup3_20260910",
+    "rows": 1612
+   },
+   {
+    "table": "scheduler_runs",
+    "rows": 874
+   },
+   {
+    "table": "evolution_fitness",
+    "rows": 246
+   },
+   {
+    "table": "scheduler_watchdog_log",
+    "rows": 159
+   },
+   {
+    "table": "industry_chain_member",
+    "rows": 103
+   },
+   {
+    "table": "evolution_strategy_runs",
+    "rows": 94
+   },
+   {
+    "table": "memory_recall_audit",
+    "rows": 59
+   },
+   {
+    "table": "inprocess_job_runs",
+    "rows": 51
+   }
+  ]
+ },
+ "tables_total": 23,
+ "tables_with_issues": 1,
+ "tables_failed": 1,
  "tables_warned": 1,
- "failed": false,
+ "failed": true,
+ "registry_coverage_note": "登记面自检：quant 表 136 张 / 已登记 22 张 / 未登记 114 张，其中备份或临时残留 27 张（4306603 行）。未登记不等于必须登记（备份残留更该清），但决策路径上的表必须有人负责 —— 见 R-020。",
  "coverage_note": "severity=fail 才置 failed（需处置）；warn 只提示（避免已知缺陷把告警训废）"
 }

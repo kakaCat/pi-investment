@@ -1,129 +1,350 @@
 {
-  "generated_note": "数据契约登记（2026-09-13 w-a9ec14d7）：声明每张表的 owner/类型/上游/新鲜度/删除策略 + 软引用检查。孤儿探针 data_hygiene_probe.py 按此文件巡检。",
-  "tables": [
+ "generated_note": "数据契约（R-020）：每张决策相关表声明 owner / kind / 上游 / TTL / 删除策略 / 软引用检查。2026-09-13（w-a9ec14d7）扩登记面：quant schema 实测 136 张表而契约仅 6 张，治理面过窄使探测形同摆设；本次补 17 张决策路径上的表，并把\"登记面本身\"纳入探针自检（未登记表数 + 备份/临时残留表数，见 data_hygiene_report.registry_coverage）。",
+ "tables": [
+  {
+   "name": "quant.strategy_stock_matching",
+   "kind": "derived",
+   "owner": "legacy(2026-05-31)",
+   "upstream": [
+    "quant.strategy_configs"
+   ],
+   "ref_checks": [
     {
-      "name": "quant.strategy_stock_matching",
-      "kind": "derived",
-      "owner": "legacy(2026-05-31)",
-      "upstream": [
-        "quant.strategy_configs"
-      ],
-      "ref_checks": [
-        {
-          "column": "best_strategy_id",
-          "target": "quant.strategy_configs",
-          "target_column": "id",
-          "cast": "text"
-        }
-      ],
-      "ttl_days": 30,
-      "time_column": "matched_at",
-      "delete_policy": "drop_after_backup",
-      "note": "2026-09-13 实测 800 行 100% 指向已删策略；表自 2026-05-31 起未更新 → 废弃派生表；2026-09-13 按契约 delete_policy=drop_after_backup 处置：先备份 800 行再 drop。条目保留（status=dropped）以留下这次教训，探针跳过它但会校验备份表是否可回滚。",
-      "status": "dropped",
-      "dropped_at": "2026-09-13",
-      "backup_table": "quant.strategy_stock_matching_backup_20260913"
-    },
-    {
-      "name": "quant.pool_change_log",
-      "kind": "audit",
-      "owner": "agent-dh",
-      "upstream": [
-        "quant.stock_pools"
-      ],
-      "ref_checks": [
-        {
-          "column": "pool_id",
-          "target": "quant.stock_pools",
-          "target_column": "id",
-          "cast": "int",
-          "allow_null": true
-        }
-      ],
-      "time_column": "changed_at",
-      "delete_policy": "never（审计须比聚合活得久：外键已 ON DELETE SET NULL）",
-      "note": "审计表；pool_id 允许悬空，用 pool_name 冗余保留身份"
-    },
-    {
-      "name": "quant.stock_fund_flow",
-      "kind": "source",
-      "owner": "v2-data",
-      "upstream": [],
-      "time_column": "trade_date",
-      "ttl_days": 5,
-      "delete_policy": "append_only",
-      "note": "资金流源表；读路径统一过滤 quality_flag",
-      "coverage": [
-        {
-          "check": "freshness_gap_days",
-          "threshold": 5,
-          "severity": "fail"
-        },
-        {
-          "check": "per_date_distinct_symbols",
-          "threshold": 3000,
-          "lookback_days": 10,
-          "severity": "warn",
-          "note": "已知缺陷：全市场资金流只有最近约 11 天（逐股历史接口不可达，只能往后攒）——warn 而非 fail，避免每周噪声"
-        },
-        {
-          "check": "per_symbol_rows_p50",
-          "threshold": 60,
-          "severity": "warn",
-          "note": "已知缺陷：每股行数 p50=11；积累到 ≥60 才够做横截面回测"
-        }
-      ]
-    },
-    {
-      "name": "quant.event_calendar",
-      "kind": "source",
-      "owner": "v2-data",
-      "upstream": [],
-      "time_column": "event_date",
-      "ttl_days": 7,
-      "delete_policy": "append_only",
-      "note": "事件源表（宏观+个股+预约披露日程）",
-      "coverage": [
-        {
-          "check": "freshness_gap_days",
-          "threshold": 7,
-          "severity": "fail",
-          "note": "事件源应每日更新（ingest_events_daily 工作日 17:00）"
-        }
-      ]
-    },
-    {
-      "name": "quant.strategy_configs",
-      "kind": "source",
-      "owner": "agent-dh",
-      "upstream": [],
-      "time_column": "updated_at",
-      "delete_policy": "soft_preferred",
-      "note": "策略主表：删除优先 is_active=false；硬删会制造悬空引用（今天的 800 行孤儿即由此而来）"
-    },
-    {
-      "name": "quant.daily_klines",
-      "kind": "source",
-      "owner": "v2-data",
-      "upstream": [],
-      "time_column": "trade_date",
-      "ttl_days": 5,
-      "delete_policy": "append_only",
-      "note": "全市场日线（所有研究/回测的地基）。2026-09-13 补登记——此前连它都没进契约，属\"没人负责的数据陷阱\"",
-      "coverage": [
-        {
-          "check": "freshness_gap_days",
-          "threshold": 5,
-          "severity": "fail"
-        },
-        {
-          "check": "per_date_distinct_symbols",
-          "threshold": 4000,
-          "lookback_days": 5,
-          "severity": "fail",
-          "note": "全市场每日应覆盖 4000+ 只；骤降=采集中断（同类事故：2026-09-07 资金流只有 216 只）"
-        }
-      ]
+     "column": "best_strategy_id",
+     "target": "quant.strategy_configs",
+     "target_column": "id",
+     "cast": "text"
     }
-  ]
+   ],
+   "ttl_days": 30,
+   "time_column": "matched_at",
+   "delete_policy": "drop_after_backup",
+   "note": "2026-09-13 实测 800 行 100% 指向已删策略；表自 2026-05-31 起未更新 → 废弃派生表；2026-09-13 按契约 delete_policy=drop_after_backup 处置：先备份 800 行再 drop。条目保留（status=dropped）以留下这次教训，探针跳过它但会校验备份表是否可回滚。",
+   "status": "dropped",
+   "dropped_at": "2026-09-13",
+   "backup_table": "quant.strategy_stock_matching_backup_20260913"
+  },
+  {
+   "name": "quant.pool_change_log",
+   "kind": "audit",
+   "owner": "agent-dh",
+   "upstream": [
+    "quant.stock_pools"
+   ],
+   "ref_checks": [
+    {
+     "column": "pool_id",
+     "target": "quant.stock_pools",
+     "target_column": "id",
+     "cast": "int",
+     "allow_null": true
+    }
+   ],
+   "time_column": "changed_at",
+   "delete_policy": "never（审计须比聚合活得久：外键已 ON DELETE SET NULL）",
+   "note": "审计表；pool_id 允许悬空，用 pool_name 冗余保留身份"
+  },
+  {
+   "name": "quant.stock_fund_flow",
+   "kind": "source",
+   "owner": "v2-data",
+   "upstream": [],
+   "time_column": "trade_date",
+   "ttl_days": 5,
+   "delete_policy": "append_only",
+   "note": "资金流源表；读路径统一过滤 quality_flag",
+   "coverage": [
+    {
+     "check": "freshness_gap_days",
+     "threshold": 5,
+     "severity": "fail"
+    },
+    {
+     "check": "per_date_distinct_symbols",
+     "threshold": 3000,
+     "lookback_days": 10,
+     "severity": "warn",
+     "note": "已知缺陷：全市场资金流只有最近约 11 天（逐股历史接口不可达，只能往后攒）——warn 而非 fail，避免每周噪声"
+    },
+    {
+     "check": "per_symbol_rows_p50",
+     "threshold": 60,
+     "severity": "warn",
+     "note": "已知缺陷：每股行数 p50=11；积累到 ≥60 才够做横截面回测"
+    }
+   ]
+  },
+  {
+   "name": "quant.event_calendar",
+   "kind": "source",
+   "owner": "v2-data",
+   "upstream": [],
+   "time_column": "event_date",
+   "ttl_days": 7,
+   "delete_policy": "append_only",
+   "note": "事件源表（宏观+个股+预约披露日程）",
+   "coverage": [
+    {
+     "check": "freshness_gap_days",
+     "threshold": 7,
+     "severity": "fail",
+     "note": "事件源应每日更新（ingest_events_daily 工作日 17:00）"
+    }
+   ]
+  },
+  {
+   "name": "quant.strategy_configs",
+   "kind": "source",
+   "owner": "agent-dh",
+   "upstream": [],
+   "time_column": "updated_at",
+   "delete_policy": "soft_preferred",
+   "note": "策略主表：删除优先 is_active=false；硬删会制造悬空引用（今天的 800 行孤儿即由此而来）"
+  },
+  {
+   "name": "quant.daily_klines",
+   "kind": "source",
+   "owner": "v2-data",
+   "upstream": [],
+   "time_column": "trade_date",
+   "ttl_days": 5,
+   "delete_policy": "append_only",
+   "note": "全市场日线（所有研究/回测的地基）。2026-09-13 补登记——此前连它都没进契约，属\"没人负责的数据陷阱\"",
+   "coverage": [
+    {
+     "check": "freshness_gap_days",
+     "threshold": 5,
+     "severity": "fail"
+    },
+    {
+     "check": "per_date_distinct_symbols",
+     "threshold": 4000,
+     "lookback_days": 5,
+     "severity": "fail",
+     "note": "全市场每日应覆盖 4000+ 只；骤降=采集中断（同类事故：2026-09-07 资金流只有 216 只）"
+    }
+   ]
+  },
+  {
+   "name": "quant.stocks",
+   "kind": "source",
+   "owner": "v2-data",
+   "upstream": [],
+   "delete_policy": "soft_preferred",
+   "note": "主数据表（symbol/name/industry/market_cap/pe/pb/is_st/is_suspended/list_date）。选股与风控前置校验的事实源；删除个股前须确认 signals/positions 等派生表的引用处置。"
+  },
+  {
+   "name": "quant.trading_calendar",
+   "kind": "source",
+   "owner": "v2-data",
+   "upstream": [],
+   "time_column": "trade_date",
+   "ttl_days": 30,
+   "delete_policy": "append_only",
+   "note": "交易日历；下单前的可交易性判定依据（宪法第1条）。"
+  },
+  {
+   "name": "quant.index_daily",
+   "kind": "source",
+   "owner": "v2-data",
+   "upstream": [],
+   "time_column": "trade_date",
+   "ttl_days": 7,
+   "delete_policy": "append_only",
+   "coverage": [
+    {
+     "check": "freshness_gap_days",
+     "threshold": 7,
+     "severity": "warn"
+    }
+   ],
+   "note": "指数日线（000300 等）。归因基准来源。"
+  },
+  {
+   "name": "quant.minute_klines",
+   "kind": "source",
+   "owner": "v2-data",
+   "upstream": [],
+   "time_column": "trade_datetime",
+   "ttl_days": 5,
+   "delete_policy": "append_only",
+   "coverage": [
+    {
+     "check": "freshness_gap_days",
+     "threshold": 5,
+     "severity": "warn",
+     "note": "曾断更至 2026-05-29；已由 minute_kline_sync 任务接上"
+    }
+   ],
+   "note": "分钟线；盘中择时与拆单参考（R-003）。"
+  },
+  {
+   "name": "quant.income_statements",
+   "kind": "source",
+   "owner": "v2-data",
+   "upstream": [],
+   "time_column": "report_date",
+   "ttl_days": 180,
+   "delete_policy": "append_only",
+   "note": "利润表（=财报排雷的输入之一）。"
+  },
+  {
+   "name": "quant.balance_sheets",
+   "kind": "source",
+   "owner": "v2-data",
+   "upstream": [],
+   "time_column": "report_date",
+   "ttl_days": 180,
+   "delete_policy": "append_only",
+   "note": "资产负债表。"
+  },
+  {
+   "name": "quant.factor_values",
+   "kind": "derived",
+   "owner": "v2-data",
+   "upstream": [
+    "quant.daily_klines"
+   ],
+   "time_column": "factor_date",
+   "ttl_days": 10,
+   "delete_policy": "drop_after_backup",
+   "coverage": [
+    {
+     "check": "freshness_gap_days",
+     "threshold": 10,
+     "severity": "warn"
+    }
+   ],
+   "note": "因子值（约 370 万行）。派生自日线；daily-factor-compute 任务每日重算。"
+  },
+  {
+   "name": "quant.chip_metrics",
+   "kind": "derived",
+   "owner": "v2-data",
+   "upstream": [
+    "quant.daily_klines"
+   ],
+   "time_column": "trade_date",
+   "ttl_days": 10,
+   "delete_policy": "drop_after_backup",
+   "note": "筹码分布结果（获利盘/集中度/支撑压力）。"
+  },
+  {
+   "name": "quant.chip_distribution_state",
+   "kind": "derived",
+   "owner": "v2-data",
+   "upstream": [
+    "quant.daily_klines"
+   ],
+   "time_column": "last_trade_date",
+   "ttl_days": 30,
+   "delete_policy": "drop_after_backup",
+   "note": "筹码分布中间状态。"
+  },
+  {
+   "name": "quant.signals",
+   "kind": "derived",
+   "owner": "v2-strategy",
+   "upstream": [
+    "quant.strategy_configs"
+   ],
+   "time_column": "signal_date",
+   "ttl_days": 30,
+   "delete_policy": "soft_preferred",
+   "ref_checks": [
+    {
+     "column": "strategy_id",
+     "target": "quant.strategy_configs",
+     "target_column": "id",
+     "cast": "text"
+    }
+   ],
+   "note": "策略信号。**软引用 strategy_configs**：删策略前必须处理本表引用（这正是 strategy_stock_matching 800 行孤儿事故的同型风险）。",
+   "ref_disposition": "悬空引用处置（2026-09-13 首次实测触发：18401/18401 行 strategy_id 指向已删策略）：strategy_id 是**软引用**，策略行本身已不存在 —— 按 delete_policy=soft_preferred 的精神，**保留 signal 行**（信号是历史事实、被 signal_tracking 消费），把指向已删策略的 strategy_id 置 NULL，并在 indicators 里保留原 id 文本以便追溯；不要物理删除 signals 行（那会一并抹掉信号质量统计的样本）。执行前必须备份，且需用户确认（涉及 1.8 万行历史数据）。",
+   "ref_disposition_status": "pending_user_confirmation"
+  },
+  {
+   "name": "quant.agent_decisions",
+   "kind": "audit",
+   "owner": "agent-dh",
+   "upstream": [],
+   "time_column": "created_at",
+   "ttl_days": null,
+   "delete_policy": "never",
+   "note": "决策审计（reasoning/context/evaluation）。**审计表不删**（宪法\"透明记录\"原则的载体）。"
+  },
+  {
+   "name": "quant.watch_rules",
+   "kind": "source",
+   "owner": "agent-dh",
+   "upstream": [],
+   "delete_policy": "soft_preferred",
+   "note": "盯盘规则（含止损规则）。持仓风控的载体；删除规则前须确认 watch_triggers 的引用处置。"
+  },
+  {
+   "name": "quant.watch_triggers",
+   "kind": "audit",
+   "owner": "agent-dh",
+   "upstream": [
+    "quant.watch_rules"
+   ],
+   "time_column": "triggered_at",
+   "ttl_days": null,
+   "delete_policy": "never",
+   "ref_checks": [
+    {
+     "column": "rule_id",
+     "target": "quant.watch_rules",
+     "target_column": "id",
+     "cast": "text"
+    }
+   ],
+   "note": "盯盘触发历史。审计表，规则删除后仍应保留（软引用须可探测）。"
+  },
+  {
+   "name": "quant.simulation_equity_snapshot",
+   "kind": "audit",
+   "owner": "agent-dh",
+   "upstream": [],
+   "time_column": "snapshot_date",
+   "ttl_days": null,
+   "delete_policy": "never",
+   "note": "账户净值快照。risk_metrics 的波动率/alpha 由相邻快照差分算出 → **缺日会让跨日涨跌被当成单日收益**；已由 equity_snapshot_daily 任务在工作日收盘后稠密化（无 K 线则跳过，不写假快照）。"
+  },
+  {
+   "name": "quant.market_regime",
+   "kind": "derived",
+   "owner": "v2-data",
+   "upstream": [
+    "quant.market_sentiment_daily"
+   ],
+   "time_column": "trade_date",
+   "ttl_days": 5,
+   "delete_policy": "append_only",
+   "coverage": [
+    {
+     "check": "freshness_gap_days",
+     "threshold": 5,
+     "severity": "warn"
+    }
+   ],
+   "note": "市场 regime 的**唯一事实源**（2026-09-13 统一）：DSH 的 regime_daily 工具自该日起只做镜像（range→sideways / trend_up→risk_on / trend_down→risk_off），v2 不可达才本地兜底并标 degraded。"
+  },
+  {
+   "name": "quant.scheduler_tasks",
+   "kind": "source",
+   "owner": "agent-dh",
+   "upstream": [],
+   "delete_policy": "soft_preferred",
+   "note": "调度任务定义。**DELETE 是软删除**（params._deleted_at + is_enabled=false）→ 名称仍被占用；2026-09-13 起 add_task 对已软删除的同名任务改为\"复活该行\"而非报 already exists（A5）。"
+  },
+  {
+   "name": "quant.stock_pools",
+   "kind": "source",
+   "owner": "agent-dh",
+   "upstream": [],
+   "delete_policy": "soft_preferred",
+   "note": "股票池（博弈战场）。成员变更写 pool_change_log；删池用 ON DELETE SET NULL 保留审计。"
+  }
+ ]
 }

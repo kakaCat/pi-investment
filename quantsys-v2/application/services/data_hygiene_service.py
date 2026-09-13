@@ -215,6 +215,50 @@ class DataHygieneService:
                     pass
         return out
 
+    # ---------------- 契约治理自检 ---------------- #
+    # 备份/临时残留的命名特征（历次事故修复留下的 bak_*/tmp_*/*_backup_*/​*_suspect）
+    _DEBRIS_RE = None
+
+    @staticmethod
+    def _debris_re():
+        import re
+        if DataHygieneService._DEBRIS_RE is None:
+            DataHygieneService._DEBRIS_RE = re.compile(
+                r"^(bak_|tmp_)|(_backup_|_suspect$|_bak$|_old$|_test$|_polluted)", re.I)
+        return DataHygieneService._DEBRIS_RE
+
+    def check_registry_coverage(self) -> dict:
+        """**登记面本身**的自检：库里有多少表没被登记，其中多少是备份/临时残留。
+
+        为什么需要（2026-09-13 w-a9ec14d7）：R-020 说"未登记的派生表等于没人负责的数据陷阱"，
+        但**没人会主动去数库里到底有多少张表没登记** —— 实测 quant schema 有 136 张表而契约只登记了 6 张，
+        治理面窄到探测形同摆设。故把"登记面"也纳入探测：数字每周摆出来，
+        小于某比例才算健康，而不是靠人偶然发现。
+        """
+        spec = json.loads(self.contracts_path.read_text(encoding="utf-8"))
+        registered = {str(t.get("name", "")).split(".")[-1] for t in spec.get("tables", [])}
+        rows = query_rows(
+            "select c.relname, pg_stat_get_live_tuples(c.oid) "
+            "from pg_class c join pg_namespace n on n.oid = c.relnamespace "
+            "where n.nspname = 'quant' and c.relkind = 'r' order by 1")
+        all_tabs = [(r[0], int(r[1] or 0)) for r in rows]
+        unreg = [(n, c) for n, c in all_tabs if n not in registered]
+        rx = self._debris_re()
+        debris = [(n, c) for n, c in unreg if rx.search(n)]
+        return {
+            "schema": "quant",
+            "tables_total": len(all_tabs),
+            "registered": len(registered & {n for n, _ in all_tabs}),
+            "unregistered": len(unreg),
+            "backup_or_temp": len(debris),
+            "backup_or_temp_rows": sum(c for _, c in debris),
+            "backup_or_temp_tables": sorted(n for n, _ in debris)[:30],
+            "top_unregistered": [
+                {"table": n, "rows": c}
+                for n, c in sorted([x for x in unreg if not rx.search(x[0])], key=lambda x: -x[1])[:10]
+            ],
+        }
+
     # ---------------- 全量巡检 ---------------- #
     def probe(self) -> dict:
         """跑全部声明表 → 落报告。返回报告 dict。
@@ -237,14 +281,21 @@ class DataHygieneService:
         fail_tables = [r for r in results if any(_is_fail(i) for i in r["issues"])]
         n_warn_tbl = sum(1 for r in results
                          if r["issues"] and not any(_is_fail(i) for i in r["issues"]))
+        registry = self.check_registry_coverage()
         report = {
             "checked_at": datetime.now().isoformat(timespec="seconds"),
             "tables": results,
+            "registry_coverage": registry,
             "tables_total": len(results),
             "tables_with_issues": len(fail_tables),
             "tables_failed": len(fail_tables),
             "tables_warned": n_warn_tbl,
             "failed": bool(fail_tables),
+            "registry_coverage_note": (
+                "登记面自检：quant 表 %d 张 / 已登记 %d 张 / 未登记 %d 张，其中备份或临时残留 %d 张（%d 行）。"
+                "未登记不等于必须登记（备份残留更该清），但决策路径上的表必须有人负责 —— 见 R-020。"
+                % (registry["tables_total"], registry["registered"], registry["unregistered"],
+                   registry["backup_or_temp"], registry["backup_or_temp_rows"])),
             "coverage_note": "severity=fail 才置 failed（需处置）；warn 只提示（避免已知缺陷把告警训废）",
         }
         self.report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -267,6 +318,13 @@ class DataHygieneService:
             for i in r["issues"]:
                 lvl = "需处置" if i.get("severity", "fail") == "fail" else "已知缺陷"
                 lines.append("       - [%s|%s] %s" % (i["type"], lvl, i.get("detail")))
+        rc = report.get("registry_coverage") or {}
+        if rc:
+            lines.append("  [登记面] quant 表 %d 张 / 已登记 %d 张 / 未登记 %d 张；"
+                         "备份或临时残留 %d 张（%d 行）"
+                         % (rc.get("tables_total", 0), rc.get("registered", 0),
+                            rc.get("unregistered", 0), rc.get("backup_or_temp", 0),
+                            rc.get("backup_or_temp_rows", 0)))
         return lines
 
 
