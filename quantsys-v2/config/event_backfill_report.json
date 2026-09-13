@@ -1,0 +1,201 @@
+{
+ "start": "2026-01-01",
+ "end": "2026-09-11",
+ "universe": 800,
+ "months": 9,
+ "fetched": 68798,
+ "merged": 54844,
+ "inserted": 50544,
+ "updated": 4300,
+ "per_month": [
+  {
+   "window": "2026-01-01~2026-01-31",
+   "counts": {
+    "universe": 800,
+    "chunks": 27,
+    "fetched": 5687,
+    "parsed": 5687,
+    "deduped": 5675,
+    "merged": 4883,
+    "rejected": 0,
+    "inserted": 4883,
+    "updated": 0,
+    "skipped": 0,
+    "errors": []
+   },
+   "notes": [
+    "cninfo_disclosure.org_unresolved=1(600585)"
+   ],
+   "success": true
+  },
+  {
+   "window": "2026-02-01~2026-02-28",
+   "counts": {
+    "universe": 800,
+    "chunks": 27,
+    "fetched": 3331,
+    "parsed": 3331,
+    "deduped": 3321,
+    "merged": 2797,
+    "rejected": 0,
+    "inserted": 2797,
+    "updated": 0,
+    "skipped": 0,
+    "errors": []
+   },
+   "notes": [
+    "cninfo_disclosure.org_unresolved=1(600585)"
+   ],
+   "success": true
+  },
+  {
+   "window": "2026-03-01~2026-03-31",
+   "counts": {
+    "universe": 800,
+    "chunks": 27,
+    "fetched": 9654,
+    "parsed": 9654,
+    "deduped": 9624,
+    "merged": 7120,
+    "rejected": 0,
+    "inserted": 7120,
+    "updated": 0,
+    "skipped": 0,
+    "errors": []
+   },
+   "notes": [
+    "cninfo_disclosure.failed_symbols=1(601166:ReadTimeout)",
+    "cninfo_disclosure.failed_symbols=1(601628:ReadTimeout)",
+    "cninfo_disclosure.org_unresolved=1(600585)"
+   ],
+   "success": true
+  },
+  {
+   "window": "2026-04-01~2026-04-30",
+   "counts": {
+    "universe": 800,
+    "chunks": 27,
+    "fetched": 18794,
+    "parsed": 18794,
+    "deduped": 18735,
+    "merged": 13875,
+    "rejected": 0,
+    "inserted": 13875,
+    "updated": 0,
+    "skipped": 0,
+    "errors": []
+   },
+   "notes": [
+    "cninfo_disclosure.failed_symbols=1(301511:ReadTimeout)",
+    "cninfo_disclosure.failed_symbols=1(603938:ReadTimeout)",
+    "cninfo_disclosure.failed_symbols=1(002585:ReadTimeout)",
+    "cninfo_disclosure.org_unresolved=1(600585)"
+   ],
+   "success": true
+  },
+  {
+   "window": "2026-05-01~2026-05-31",
+   "counts": {
+    "universe": 800,
+    "chunks": 27,
+    "fetched": 6276,
+    "parsed": 6276,
+    "deduped": 6257,
+    "merged": 5339,
+    "rejected": 0,
+    "inserted": 5336,
+    "updated": 3,
+    "skipped": 0,
+    "errors": []
+   },
+   "notes": [
+    "cninfo_disclosure.failed_symbols=1(300657:ReadTimeout)",
+    "cninfo_disclosure.org_unresolved=1(600585)"
+   ],
+   "success": true
+  },
+  {
+   "window": "2026-06-01~2026-06-30",
+   "counts": {
+    "universe": 800,
+    "chunks": 27,
+    "fetched": 6702,
+    "parsed": 6702,
+    "deduped": 6683,
+    "merged": 5635,
+    "rejected": 0,
+    "inserted": 5616,
+    "updated": 19,
+    "skipped": 0,
+    "errors": []
+   },
+   "notes": [
+    "cninfo_disclosure.org_unresolved=1(600585)"
+   ],
+   "success": true
+  },
+  {
+   "window": "2026-07-01~2026-07-31",
+   "counts": {
+    "universe": 800,
+    "chunks": 27,
+    "fetched": 5556,
+    "parsed": 5556,
+    "deduped": 5540,
+    "merged": 4794,
+    "rejected": 0,
+    "inserted": 4766,
+    "updated": 28,
+    "skipped": 0,
+    "errors": []
+   },
+   "notes": [
+    "cninfo_disclosure.org_unresolved=1(600585)"
+   ],
+   "success": true
+  },
+  {
+   "window": "2026-08-01~2026-08-31",
+   "counts": {
+    "universe": 800,
+    "chunks": 27,
+    "fetched": 10456,
+    "parsed": 10456,
+    "deduped": 10419,
+    "merged": 8388,
+    "rejected": 0,
+    "inserted": 5027,
+    "updated": 3361,
+    "skipped": 0,
+    "errors": []
+   },
+   "notes": [
+    "cninfo_disclosure.failed_symbols=1(600104:ReadTimeout)",
+    "cninfo_disclosure.failed_symbols=1(688260:ReadTimeout)",
+    "cninfo_disclosure.org_unresolved=1(600585)"
+   ],
+   "success": true
+  },
+  {
+   "window": "2026-09-01~2026-09-11",
+   "counts": {
+    "universe": 800,
+    "chunks": 27,
+    "fetched": 2342,
+    "parsed": 2342,
+    "deduped": 2333,
+    "merged": 2013,
+    "rejected": 0,
+    "inserted": 1124,
+    "updated": 889,
+    "skipped": 0,
+    "errors": []
+   },
+   "notes": [
+    "cninfo_disclosure.org_unresolved=1(600585)",
+    "cninfo_disclosure.failed_symbols=1(000017:ReadTimeout)"
+   ],
+   "success": true
+  }
+ ]
+}
