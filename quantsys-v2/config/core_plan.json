@@ -1,5 +1,6 @@
 {
- "generated_at": "2026-09-13T18:21:14",
+ "generated_at": "2026-09-13T20:11:51",
+ "data_date": "2026-09-11",
  "account": "agent_brain",
  "mode": "PLAN_ONLY（不下单）",
  "account_total": 500000.0,
@@ -51,7 +52,9 @@
    "close": 10.12,
    "roe": 5.35,
    "pe": 30.64,
-   "amount_def_avg": 2614505668.0585475
+   "amount_def_avg": 2614505668.058547,
+   "lots": 4,
+   "amount": 4169.0
   },
   {
    "symbol": "300059",
@@ -62,7 +65,9 @@
    "close": 18.31,
    "roe": 8.46,
    "pe": 25.12,
-   "amount_def_avg": 2389122273.769231
+   "amount_def_avg": 2389122273.769231,
+   "lots": 2,
+   "amount": 4169.0
   },
   {
    "symbol": "601857",
@@ -73,7 +78,9 @@
    "close": 11.24,
    "roe": 6.3,
    "pe": 14.04,
-   "amount_def_avg": 1950778427.794872
+   "amount_def_avg": 1950778427.7948718,
+   "lots": 3,
+   "amount": 4169.0
   },
   {
    "symbol": "601919",
@@ -84,7 +91,9 @@
    "close": 16.19,
    "roe": 5.7,
    "pe": 7.53,
-   "amount_def_avg": 1639445114.7008548
+   "amount_def_avg": 1639445114.7008548,
+   "lots": 2,
+   "amount": 4169.0
   },
   {
    "symbol": "600030",
@@ -95,7 +104,9 @@
    "close": 26.92,
    "roe": 7.81,
    "pe": 11.95,
-   "amount_def_avg": 1573277754.3076923
+   "amount_def_avg": 1573277754.3076923,
+   "lots": 1,
+   "amount": 4169.0
   },
   {
    "symbol": "601288",
@@ -106,7 +117,9 @@
    "close": 6.97,
    "roe": 5.07,
    "pe": 7.7,
-   "amount_def_avg": 1557979736.1311967
+   "amount_def_avg": 1557979736.1311967,
+   "lots": 5,
+   "amount": 4169.0
   },
   {
    "symbol": "000099",
@@ -117,7 +130,9 @@
    "close": 13.35,
    "roe": 2.26,
    "pe": 43.35,
-   "amount_def_avg": 1543122875.0527349
+   "amount_def_avg": 1543122875.0527349,
+   "lots": 3,
+   "amount": 4169.0
   },
   {
    "symbol": "603993",
@@ -128,7 +143,9 @@
    "close": 18.15,
    "roe": 18.29,
    "pe": 18.49,
-   "amount_def_avg": 1436821876.1452992
+   "amount_def_avg": 1436821876.1452992,
+   "lots": 2,
+   "amount": 4169.0
   },
   {
    "symbol": "002241",
@@ -139,7 +156,9 @@
    "close": 22.24,
    "roe": 3.92,
    "pe": 23.29,
-   "amount_def_avg": 1280356119.271367
+   "amount_def_avg": 1280356119.271367,
+   "lots": 1,
+   "amount": 4169.0
   },
   {
    "symbol": "000100",
@@ -150,7 +169,9 @@
    "close": 4.64,
    "roe": 6.19,
    "pe": 19.94,
-   "amount_def_avg": 1280034707.449658
+   "amount_def_avg": 1280034707.4496577,
+   "lots": 8,
+   "amount": 4169.0
   },
   {
    "symbol": "600887",
@@ -161,7 +182,9 @@
    "close": 26.51,
    "roe": 10.09,
    "pe": 11.9,
-   "amount_def_avg": 1226697630.432735
+   "amount_def_avg": 1226697630.432735,
+   "lots": 1,
+   "amount": 4169.0
   },
   {
    "symbol": "601600",
@@ -172,7 +195,9 @@
    "close": 9.6,
    "roe": 14.67,
    "pe": 15.48,
-   "amount_def_avg": 1090930682.8119657
+   "amount_def_avg": 1090930682.8119657,
+   "lots": 4,
+   "amount": 4169.0
   },
   {
    "symbol": "601668",
@@ -183,7 +208,9 @@
    "close": 4.35,
    "roe": 4.61,
    "pe": 4.0,
-   "amount_def_avg": 1083371933.974359
+   "amount_def_avg": 1083371933.974359,
+   "lots": 9,
+   "amount": 4169.0
   },
   {
    "symbol": "601166",
@@ -194,7 +221,9 @@
    "close": 18.13,
    "roe": 4.79,
    "pe": 5.11,
-   "amount_def_avg": 1068363832.1772648
+   "amount_def_avg": 1068363832.1772652,
+   "lots": 2,
+   "amount": 4169.0
   },
   {
    "symbol": "600895",
@@ -205,7 +234,9 @@
    "close": 28.06,
    "roe": 2.31,
    "pe": 54.87,
-   "amount_def_avg": 1020583979.8576072
+   "amount_def_avg": 1020583979.8576072,
+   "lots": 1,
+   "amount": 4169.0
   }
  ],
  "growth_sleeve": {

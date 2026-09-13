@@ -172,6 +172,13 @@ def generate(**kwargs) -> dict:
                   "having count(*) >= 100 order by amt desc limit 400",
                   {"def_start": DEF_START, "def_end": DEF_END})
     px["symbol"] = px["symbol"].astype(str).str.zfill(6)
+    # 计划的数据时点（R-013）：写进产物，让计划**自描述**它基于哪天的行情算出来。
+    # 为什么必要：产物原先只有 generated_at（生成时刻），没有 data_date（行情时点）——
+    # 计划在周末/节假日重跑或行情未同步时，生成时刻是新的、行情却可能是旧的，
+    # 只看 generated_at 无法发现。这与"signals.strategy_id 应自描述策略名"是同一条教训。
+    _dd = query_rows("select max(trade_date)::text from quant.daily_klines")
+    data_date = (_dd[0][0] if _dd else None)
+
     latest = query_df("select symbol, close, amount from quant.daily_klines where trade_date = "
                       "(select max(trade_date) from quant.daily_klines)")
     latest["symbol"] = latest["symbol"].astype(str).str.zfill(6)
@@ -535,8 +542,27 @@ def generate(**kwargs) -> dict:
     else:
         print("成长板子额度：合格候选 0 只，跳过")
 
+    # 把每只的目标手数/金额**写进产物**（B8，2026-09-13）：
+    # 原先只存 weight_pct_of_core，手数仅在下方打印时算一遍就丢了 → 消费方（core-plan 任务）
+    # 拿不到"目标股数"，它要求的"与当前持仓的差额"**根本无从算起**，只能每次手工推导；
+    # live-order-test 任务也不得不自己按 1 手成本挑标的。存下来即消除这类重复推导。
+    # 口径与打印循环完全一致：_amt = 总资产 × 目标暴露 × 权重；手数 = floor(_amt / (价×100))。
+    _target_amount = total * target_expo
+    _core_rows = []
+    for _t in tilts:
+        _c = float(_pk[_t["symbol"]]["close"])
+        _amt = _target_amount * _t["weight_pct_of_core"] / 100.0
+        _core_rows.append({
+            "symbol": _t["symbol"], "industry": _t["industry"],
+            "weight_pct_of_core": _t["weight_pct_of_core"], "tilt_mult": _t["mult"], "tilt_note": _t["note"],
+            "close": _c, "roe": float(_pk[_t["symbol"]]["roe"]),
+            "pe": float(_pk[_t["symbol"]]["pe"]), "amount_def_avg": float(_pk[_t["symbol"]]["amt"]),
+            "lots": int(_amt // (_c * 100)), "amount": round(_amt, 0),
+        })
+
     plan = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "data_date": data_date,
         "account": a.account, "mode": "PLAN_ONLY（不下单）",
         "account_total": total, "cash": cash,
         "exposure": {"target_pct": target_expo, "first_phase_cap_pct": a.max_exposure,
@@ -546,13 +572,7 @@ def generate(**kwargs) -> dict:
         "market_style": {"style": STYLE, "confidence": round(CONF, 3), "source": "/api/market/style"},
         "sector_heat_top5": sorted(api_sectors.items(), key=lambda kv: kv[1], reverse=True)[:5],
         "sector_momentum_note": "行业动量由库内 quant.stocks.industry 分组、近 60 日成分股等权收益中位数自算（/api/market/sectors 实测返回 0 条，不可用）",
-        "holdings": [
-            {"symbol": t["symbol"], "industry": t["industry"],
-             "weight_pct_of_core": t["weight_pct_of_core"], "tilt_mult": t["mult"], "tilt_note": t["note"],
-             "close": float(_pk[t["symbol"]]["close"]), "roe": float(_pk[t["symbol"]]["roe"]),
-             "pe": float(_pk[t["symbol"]]["pe"]), "amount_def_avg": float(_pk[t["symbol"]]["amt"])}
-            for t in tilts
-        ],
+        "holdings": _core_rows,
         "growth_sleeve": {"meta": sleeve_meta, "holdings": sleeve},
         "phase_plan": "分 4 批、每批约 1 周；每批按当时 vol-target 与回撤闸门重算",
     }
@@ -587,6 +607,179 @@ def generate(**kwargs) -> dict:
 # main() 从未随上迁一起搬过来，这行是**必然 NameError 的死引用**（import 时不触发，故一直没暴露）。
 # 本模块是被 job 调用的服务，不是可执行入口；要跑它请用 core_plan_generate 任务。
 
+
+
+# --------------------------------------------------------------------------- #
+# 只读视图：计划 + 新鲜度 + 与当前持仓的机械差额（B8，2026-09-13 w-a9ec14d7）
+#
+# 为什么需要：计划落盘在 config/core_plan.json，三个例行任务靠**硬编码文件路径**直接读它
+# （agent-brain-core-plan 09:10 / agent-brain-candidate-hunt 08:45 / live-order-test）。
+# 直接读文件有三个问题：
+#   ① 路径知识散落在各任务提示词里，改一处要改 N 处；
+#   ② **读不出"陈不陈"**——周五的计划周一照样读得出来，内容看着完全正常，
+#      而 core-plan 任务自己要用 generated_at 手工判新鲜度（这正是最容易被跳过的一步）；
+#   ③ 该任务第 2 步要求"核对与当前持仓的差额"，而服务端**从未产出过这个差额**
+#      （见本文件顶部"文档/实现对齐"说明），只能靠 agent 每次手工比对。
+# 本视图把这三件事一次给全。**只读**：不触发重新生成（生成参数集是已审批的，不该由查询侧启动）。
+# --------------------------------------------------------------------------- #
+
+# 例行任务约定：计划须**当天生成且不早于 09:00**（core_plan_generate 的 cron 是 09:05）。
+# 这里只做机械判定并给出**理由文本**，不替调用方决定要不要停。
+PLAN_DEADLINE_HHMM = "09:00"
+
+# 差额的固有限制——写在返回值里，避免"看到一张差额表就当委托清单"。
+DELTA_CAVEATS = [
+    "price 用的是**计划生成时的收盘价**（plan_close），不是实时价；下单前必须 data_fetch_quote(source=realtime) 重新取价（R-013）。",
+    "未做 T+1 校验：卖出可用量看 shares_available（当日买入次日才可卖，宪法第2条）。",
+    "未做 regime/止损复检：下单前必须走 R-001（regime_position_limit + account_info + 风控仓位）与 R-002（止损价）。",
+    "本表是「目标组合 vs 当前持仓」的**机械差额**，不含分批节奏——计划本身是分 4 批执行的（见 plan.phase_plan），一次打满是误用。",
+    "in_plan=false 的持仓**不等于应卖出**：本计划是建仓计划，不含退出判断；处置走 R-002 止损与组合复核。",
+    "未校验单股≤20%/单行业≤40%/现金≥10%（宪法第3条）——机械差额可能超限，下单前必须复核。",
+]
+
+
+def _plan_freshness(plan: dict, now: Optional[datetime] = None) -> dict:
+    """计划新鲜度（机械判定 + 理由）。锚点是"今天"，因为例行任务的口径就是"当天生成"。"""
+    now = now or datetime.now()
+    ga = plan.get("generated_at")
+    info = {
+        "generated_at": ga, "data_date": plan.get("data_date"),
+        "deadline_hhmm": PLAN_DEADLINE_HHMM,
+        "age_hours": None, "generated_today": False, "generated_after_deadline": False,
+        "is_stale": True, "stale_reason": None,
+    }
+    if not ga:
+        info["stale_reason"] = "计划缺少 generated_at 字段，无法判定新鲜度"
+        return info
+    try:
+        t = datetime.fromisoformat(str(ga))
+    except Exception:  # noqa: BLE001
+        info["stale_reason"] = "generated_at 无法解析：%r" % (ga,)
+        return info
+    info["age_hours"] = round((now - t).total_seconds() / 3600.0, 2)
+    info["generated_today"] = (t.date() == now.date())
+    info["generated_after_deadline"] = bool(
+        info["generated_today"] and t.strftime("%H:%M") >= PLAN_DEADLINE_HHMM)
+    reasons = []
+    if not info["generated_today"]:
+        reasons.append("generated_at=%s 不是今天（%s）" % (ga, now.date().isoformat()))
+    elif not info["generated_after_deadline"]:
+        reasons.append("generated_at=%s 早于当天 %s" % (ga, PLAN_DEADLINE_HHMM))
+    info["is_stale"] = bool(reasons)
+    info["stale_reason"] = "；".join(reasons) if reasons else None
+    return info
+
+
+def _plan_delta(plan: dict, account: str) -> dict:
+    """目标组合 vs 当前持仓的机械差额。只读：不刷行情、不下单、不改库。"""
+    from adapters.outbound.repositories.simulation_position_repository import SimulationPositionRepository
+
+    positions = SimulationPositionRepository().get_all_positions(account) or []
+    held = {}
+    for p in positions:
+        held[str(p.symbol).zfill(6)] = p
+
+    rows = query_rows("select coalesce(cash_available,0) from quant.simulation_account "
+                      "where account_name = :a", {"a": account})
+    cash = float(rows[0][0] or 0) if rows else None
+
+    targets = []
+    for h in (plan.get("holdings") or []):
+        targets.append(("core", h))
+    for h in ((plan.get("growth_sleeve") or {}).get("holdings") or []):
+        targets.append(("growth_sleeve", h))
+
+    out_rows, seen = [], set()
+    for bucket, h in targets:
+        sym = str(h.get("symbol") or "").zfill(6)
+        if not sym or sym in seen:
+            continue
+        seen.add(sym)
+        close = float(h.get("close") or 0)
+        tgt = int(h.get("lots") or 0) * 100
+        p = held.get(sym)
+        hv = int(getattr(p, "shares_total", 0) or 0) if p else 0
+        av = int(getattr(p, "shares_available", 0) or 0) if p else 0
+        d = tgt - hv
+        out_rows.append({
+            "symbol": sym, "bucket": bucket, "in_plan": True,
+            "plan_close": close, "target_lots": int(h.get("lots") or 0), "target_shares": tgt,
+            "held_shares": hv, "shares_available": av, "delta_shares": d,
+            "action": ("BUY" if d > 0 else ("SELL" if d < 0 else "NONE")),
+            "est_amount": round(abs(d) * close, 0),
+        })
+    for sym in sorted(held):
+        if sym in seen:
+            continue
+        p = held[sym]
+        out_rows.append({
+            "symbol": sym, "bucket": "held_only", "in_plan": False,
+            "plan_close": None, "target_lots": None, "target_shares": None,
+            "held_shares": int(getattr(p, "shares_total", 0) or 0),
+            "shares_available": int(getattr(p, "shares_available", 0) or 0),
+            "delta_shares": None, "action": "REVIEW", "est_amount": None,
+        })
+
+    buys = [r for r in out_rows if r["action"] == "BUY"]
+    sells = [r for r in out_rows if r["action"] == "SELL"]
+    est_buy = round(sum(r["est_amount"] for r in buys), 0)
+    return {
+        "account": account,
+        "cash_available": cash,
+        "rows": out_rows,
+        "summary": {
+            "buy_count": len(buys), "sell_count": len(sells),
+            "hold_count": sum(1 for r in out_rows if r["action"] == "NONE"),
+            "review_count": sum(1 for r in out_rows if r["action"] == "REVIEW"),
+            "est_buy_amount": est_buy,
+            "cash_after_full_delta": (round(cash - est_buy, 0) if cash is not None else None),
+            "cash_sufficient": (cash is not None and cash >= est_buy),
+        },
+        "caveats": DELTA_CAVEATS,
+    }
+
+
+def plan_snapshot(account: Optional[str] = None, path: Optional[Path] = None) -> dict:
+    """建仓计划的只读视图：计划全文 + 新鲜度 + 与当前持仓的机械差额。
+
+    account 缺省 = 计划文件自身记录的账户（**不是** resolve_account 的默认值）——
+    计划只服务一个账户，问别的账户的差额没有意义，故显式传入不同账户时**不给差额**并说明原因。
+    """
+    p = Path(path) if path else OUT
+    base = {
+        "plan_file": str(p), "available": False, "unavailable_reason": None,
+        "account": None, "requested_account": account, "account_mismatch": False,
+        "freshness": None, "plan": None, "delta": None,
+    }
+    if not p.exists():
+        base["unavailable_reason"] = (
+            "计划文件不存在：%s。通常意味着 core_plan_generate（工作日 09:05）从未成功运行。"
+            "不要手工造计划——生成参数集是已审批的，补跑请 POST /api/scheduler/tasks/337/trigger。" % p)
+        return base
+    try:
+        plan = json.loads(p.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        base["unavailable_reason"] = "计划文件无法解析：%s: %s" % (type(exc).__name__, exc)
+        return base
+
+    plan_account = (plan.get("account") or "").strip() or None
+    base.update({"available": True, "plan": plan, "account": plan_account,
+                 "freshness": _plan_freshness(plan)})
+
+    if account and plan_account and str(account).strip() != plan_account:
+        base["account_mismatch"] = True
+        base["unavailable_reason"] = (
+            "计划文件属于账户 %r，与请求的 %r 不一致——本计划只覆盖单一账户，"
+            "不计算跨账户差额。" % (plan_account, str(account).strip()))
+        return base
+
+    target = plan_account or (str(account).strip() if account else None) or resolve_account(None)
+    base["account"] = target
+    try:
+        base["delta"] = _plan_delta(plan, target)
+    except Exception as exc:  # noqa: BLE001 —— 差额失败不该让"读计划"整体失败
+        base["unavailable_reason"] = "差额计算失败（计划本身仍可用）：%s: %s" % (type(exc).__name__, exc)
+    return base
 
 
 class CorePlanGenerateJob:

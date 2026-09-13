@@ -67,6 +67,7 @@ import type {
   StockNewsItem,
   EvolutionEngineRunRequest,
   EvolutionEngineRunResult,
+  CorePlanSnapshot,
   EvolutionEngineRunsResponse,
 } from './types.js';
 
@@ -973,6 +974,29 @@ export class QuantsysV2Client {
       priceUpdatedAt: p.price_updated_at || account.last_updated || null,
       priceStale: Boolean(account.price_stale),
     } as Position;
+  }
+
+  // ==================== Core Plan APIs（建仓计划，B8 2026-09-13） ====================
+
+  /**
+   * 读取投资脑 core 建仓计划（**只读**）。
+   *
+   * 返回 {available, unavailable_reason, freshness, plan, delta}：
+   *   · plan      计划全文（与 config/core_plan.json 结构一致，**蛇形 key 原样返回**）
+   *   · freshness 新鲜度（generated_at/data_date/is_stale/stale_reason）——
+   *               直读文件时**看不出**计划陈不陈，周五的计划周一读出来一模一样
+   *   · delta     目标组合 vs 当前持仓的机械差额（含 shares_available 供 T+1 校验）
+   *
+   * ⚠️ delta 不是委托清单：价格是计划时收盘价、未做 regime/止损复检、未做分批节奏。
+   *    下单前仍须走 R-001/R-002。详见返回的 delta.caveats。
+   * ⚠️ 不触发重新生成（生成参数集已审批）；补跑用 POST /api/scheduler/tasks/337/trigger。
+   */
+  async getCorePlan(account?: string): Promise<CorePlanSnapshot> {
+    const qs = new URLSearchParams();
+    if (account) qs.set('account', account);
+    const url = qs.toString() ? `/api/core-plan?${qs.toString()}` : '/api/core-plan';
+    const response = await this.client.get(url);
+    return this.unwrap<CorePlanSnapshot>(response.data, 'getCorePlan');
   }
 
   // ==================== Evolution APIs ====================

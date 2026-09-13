@@ -958,6 +958,15 @@ def register_routes():
         optional_failed.append("market_style")
         logger.warning(f"⚠️ Failed to import market_style_async: {e}")
 
+    # core 建仓计划只读（计划 + 新鲜度 + 与当前持仓的差额；B8，2026-09-13）
+    try:
+        from adapters.inbound.fastapi_app.routes.core_plan_async import router as core_plan_router
+        app.include_router(core_plan_router)
+        logger.info("✅ Registered: core_plan (只读建仓计划)")
+    except ImportError as e:
+        optional_failed.append("core_plan")
+        logger.warning(f"⚠️ Failed to import core_plan_async: {e}")
+
     # 时间序列分析（timeseries 域，agent 迁移）
     try:
         from adapters.inbound.fastapi_app.routes.timeseries_async import router as timeseries_router

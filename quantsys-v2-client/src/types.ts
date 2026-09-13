@@ -1105,3 +1105,71 @@ export interface EvolutionEngineRunRow {
 export interface EvolutionEngineRunsResponse {
   runs: EvolutionEngineRunRow[];
 }
+
+// ==================== Core Plan（建仓计划，B8 2026-09-13） ====================
+// ⚠️ 这些结构**刻意保持蛇形 key**：后端 /api/core-plan 原样返回 config/core_plan.json 的结构，
+// 与三个读文件的例行任务看到的一致。切勿在此"顺手"改成驼峰——那会让同一份计划出现两套
+// key 词汇表（"同一状态两种定义"，本仓已因此出过真实故障）。
+
+/** 计划新鲜度（机械判定 + 理由） */
+export interface CorePlanFreshness {
+  generated_at: string | null;
+  data_date: string | null;
+  deadline_hhmm: string;
+  age_hours: number | null;
+  generated_today: boolean;
+  generated_after_deadline: boolean;
+  is_stale: boolean;
+  stale_reason: string | null;
+  [key: string]: any;
+}
+
+/** 目标 vs 现状的一行机械差额 */
+export interface CorePlanDeltaRow {
+  symbol: string;
+  /** core | growth_sleeve | held_only */
+  bucket: string;
+  in_plan: boolean;
+  plan_close: number | null;
+  target_lots: number | null;
+  target_shares: number | null;
+  held_shares: number;
+  shares_available: number;
+  delta_shares: number | null;
+  /** BUY | SELL | NONE | REVIEW（REVIEW=持仓但不在计划内，**不是**卖出建议） */
+  action: string;
+  est_amount: number | null;
+  [key: string]: any;
+}
+
+export interface CorePlanDelta {
+  account: string;
+  cash_available: number | null;
+  rows: CorePlanDeltaRow[];
+  summary: {
+    buy_count: number;
+    sell_count: number;
+    hold_count: number;
+    review_count: number;
+    est_buy_amount: number;
+    cash_after_full_delta: number | null;
+    cash_sufficient: boolean;
+    [key: string]: any;
+  };
+  caveats: string[];
+  [key: string]: any;
+}
+
+/** GET /api/core-plan 的 data 部分 */
+export interface CorePlanSnapshot {
+  plan_file: string;
+  available: boolean;
+  unavailable_reason: string | null;
+  account: string | null;
+  requested_account: string | null;
+  account_mismatch: boolean;
+  freshness: CorePlanFreshness | null;
+  plan: Record<string, any> | null;
+  delta: CorePlanDelta | null;
+  [key: string]: any;
+}
