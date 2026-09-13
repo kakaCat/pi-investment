@@ -1,5 +1,5 @@
 {
- "checked_at": "2026-09-13T19:13:45",
+ "checked_at": "2026-09-13T19:16:08",
  "tables": [
   {
    "table": "quant.strategy_stock_matching",
@@ -127,9 +127,10 @@
      "type": "dangling_reference",
      "column": "strategy_id",
      "target": "quant.strategy_configs",
-     "rows": 18401,
+     "severity": "warn",
+     "rows": 18397,
      "total_rows": 18401,
-     "detail": "18401/18401 行的 strategy_id 指向上游不存在的数据"
+     "detail": "18397/18401 行的 strategy_id 指向 quant.strategy_configs.strategy_name 中不存在的数据"
     }
    ],
    "latest": "2026-09-12",
@@ -260,10 +261,10 @@
   ]
  },
  "tables_total": 23,
- "tables_with_issues": 1,
- "tables_failed": 1,
- "tables_warned": 1,
- "failed": true,
+ "tables_with_issues": 0,
+ "tables_failed": 0,
+ "tables_warned": 2,
+ "failed": false,
  "registry_coverage_note": "登记面自检：quant 表 136 张 / 已登记 22 张 / 未登记 114 张，其中备份或临时残留 27 张（4306603 行）。未登记不等于必须登记（备份残留更该清），但决策路径上的表必须有人负责 —— 见 R-020。",
  "coverage_note": "severity=fail 才置 failed（需处置）；warn 只提示（避免已知缺陷把告警训废）"
 }

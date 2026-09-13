@@ -255,13 +255,11 @@
     {
      "column": "strategy_id",
      "target": "quant.strategy_configs",
-     "target_column": "id",
-     "cast": "text"
+     "target_column": "strategy_name",
+     "severity": "warn"
     }
    ],
-   "note": "策略信号。**软引用 strategy_configs**：删策略前必须处理本表引用（这正是 strategy_stock_matching 800 行孤儿事故的同型风险）。",
-   "ref_disposition": "悬空引用处置（2026-09-13 首次实测触发：18401/18401 行 strategy_id 指向已删策略）：strategy_id 是**软引用**，策略行本身已不存在 —— 按 delete_policy=soft_preferred 的精神，**保留 signal 行**（信号是历史事实、被 signal_tracking 消费），把指向已删策略的 strategy_id 置 NULL，并在 indicators 里保留原 id 文本以便追溯；不要物理删除 signals 行（那会一并抹掉信号质量统计的样本）。执行前必须备份，且需用户确认（涉及 1.8 万行历史数据）。",
-   "ref_disposition_status": "pending_user_confirmation"
+   "note": "策略信号。**strategy_id 存的是策略名（字符串标签），不是外键** —— 2026-09-13 实测：它取值 grid_trading/turtle/donchian_channel 等内建策略名，而 strategy_configs.id 是整数（我的第一版 ref_check 拿名字比整数 → 100% 假阳性，已修）。按 strategy_name 正确口径：18397/18401 行指向**未入库的内建策略**，根因是 main.py 的 ENABLE_STRATEGY_SYNC 默认关闭（2026-08-30 因疑似启动阻塞被禁用），内建策略行从未落库，而这些信号最后日期停在 2026-05/06。**处置方向不是把 strategy_id 置 NULL**（那会毁掉\"这条信号出自哪个策略\"这一自描述信息），而是二选一：①开启内建策略同步，让引用重新解析得到；②承认 signals 是\"历史事实表、strategy_id 是标签\"并据此登记（不再当引用校验）。severity=warn：该缺口属于已知缺陷，不是新发生的悬空。"
   },
   {
    "name": "quant.agent_decisions",

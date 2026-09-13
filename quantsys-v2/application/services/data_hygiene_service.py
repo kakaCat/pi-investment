@@ -193,9 +193,13 @@ class DataHygieneService:
                 continue
             total = int(query_scalar("select count(*) from " + name) or 0)
             if n > 0:
+                # 2026-09-13：ref_check 支持 severity —— 已知的、有解释的缺口应为 warn，
+                # 否则每周都报 fail 会把告警训废；但**必须写清为什么已知**（见契约 note）。
+                sev = "fail" if ref.get("severity") != "warn" else "warn"
                 out["issues"].append({"type": "dangling_reference", "column": col, "target": target,
-                                      "rows": n, "total_rows": total,
-                                      "detail": "%d/%d 行的 %s 指向上游不存在的数据" % (n, total, col)})
+                                      "severity": sev, "rows": n, "total_rows": total,
+                                      "detail": "%d/%d 行的 %s 指向 %s.%s 中不存在的数据"
+                                                % (n, total, col, target, tcol)})
 
         ttl = spec.get("ttl_days")
         tcol2 = spec.get("time_column")
