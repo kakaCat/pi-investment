@@ -670,6 +670,129 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
   font-size: 12px; color: var(--dsw-text-secondary, #666);
   font-family: ui-monospace, monospace;
 }
+
+/* 文档节点 - 文档列表 */
+.dsh-pm-doc-list {
+  list-style: none; padding: 0; margin: 0;
+}
+.dsh-pm-doc-list li {
+  padding: 8px 12px; border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+}
+.dsh-pm-doc-list li:last-child { border-bottom: none; }
+
+/* 文档节点 - API 列表 */
+.dsh-pm-api-list {
+  list-style: none; padding: 0; margin: 0;
+}
+.dsh-pm-api-list li {
+  padding: 8px 12px; display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+}
+.dsh-pm-api-list li:last-child { border-bottom: none; }
+.dsh-pm-api-method {
+  padding: 2px 6px; border-radius: 4px;
+  font-size: 11px; font-weight: 600; color: #fff;
+  font-family: ui-monospace, monospace;
+}
+.dsh-pm-api-method[data-method="GET"] { background: #28a745; }
+.dsh-pm-api-method[data-method="POST"] { background: #4a7dff; }
+.dsh-pm-api-method[data-method="PUT"] { background: #f0a020; }
+.dsh-pm-api-method[data-method="DELETE"] { background: #dc3545; }
+.dsh-pm-api-method[data-method="PATCH"] { background: #8e44ad; }
+
+/* 文档节点 - 完成度 */
+.dsh-pm-completeness { display: flex; flex-direction: column; gap: 8px; }
+.dsh-pm-completeness-bar { display: flex; flex-direction: column; gap: 4px; }
+.dsh-pm-completeness-label {
+  font-size: 12px; color: var(--dsw-text-secondary, #666);
+}
+.dsh-pm-completeness-value {
+  font-size: 16px; font-weight: 600; color: var(--dsw-text-primary, #333);
+}
+.dsh-pm-completeness-track {
+  height: 10px; background: var(--dsw-bg-secondary, rgba(128,128,128,.15));
+  border-radius: 5px; overflow: hidden;
+}
+.dsh-pm-completeness-fill {
+  height: 100%; background: linear-gradient(90deg, #4a7dff, #17a2b8);
+  transition: width .3s ease;
+}
+.dsh-pm-completeness-detail {
+  font-size: 12px; color: var(--dsw-text-secondary, #666);
+  text-align: center;
+}
+
+/* UI 节点 - 设计列表 */
+.dsh-pm-design-list {
+  list-style: none; padding: 0; margin: 0;
+}
+.dsh-pm-design-list li {
+  padding: 8px 12px; border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+}
+.dsh-pm-design-list li:last-child { border-bottom: none; }
+
+/* UI 节点 - 组件列表 */
+.dsh-pm-component-list {
+  list-style: none; padding: 0; margin: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.dsh-pm-component-list li {
+  padding: 8px 12px; background: var(--dsw-bg-secondary, rgba(128,128,128,.06));
+  border-radius: 6px; font-size: 13px; text-align: center;
+}
+
+/* 分析节点 - 方案对比 */
+.dsh-pm-options { display: flex; flex-direction: column; gap: 8px; }
+.dsh-pm-option {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 12px; background: var(--dsw-bg-secondary, rgba(128,128,128,.06));
+  border-radius: 6px;
+}
+.dsh-pm-option-name {
+  font-size: 14px; font-weight: 500; color: var(--dsw-text-primary, #333);
+}
+.dsh-pm-option-score {
+  font-size: 16px; color: #f0a020;
+}
+
+/* 分析节点 - 推荐方案 */
+.dsh-pm-recommendation {
+  padding: 16px; background: rgba(40, 167, 69, .1);
+  border: 2px solid #28a745; border-radius: 8px;
+}
+.dsh-pm-recommendation-title {
+  font-size: 16px; font-weight: 600; color: #28a745;
+}
+
+/* 分析节点 - 风险列表 */
+.dsh-pm-risk-list {
+  list-style: none; padding: 0; margin: 0;
+}
+.dsh-pm-risk-list li {
+  padding: 10px 12px; border-left: 4px solid #f0a020;
+  background: rgba(240, 160, 32, .05); margin-bottom: 8px;
+  border-radius: 4px; font-size: 13px;
+}
+.dsh-pm-risk-list li::before {
+  content: '⚠️ '; margin-right: 4px;
+}
+
+/* 分析节点 - 参考资料 */
+.dsh-pm-reference-list {
+  list-style: none; padding: 0; margin: 0;
+}
+.dsh-pm-reference-list li {
+  padding: 8px 12px; border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+}
+.dsh-pm-reference-list li:last-child { border-bottom: none; }
+.dsh-pm-reference-list a {
+  color: var(--dsw-accent, #4a7dff); text-decoration: none;
+  font-family: ui-monospace, monospace; font-size: 12px;
+}
+.dsh-pm-reference-list a:hover {
+  text-decoration: underline;
+}
 `
 
 export function injectStyles(): void {

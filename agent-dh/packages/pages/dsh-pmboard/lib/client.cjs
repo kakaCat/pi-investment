@@ -380,7 +380,145 @@ Object.defineProperty(exports,Symbol.toStringTag,{value:`Module`});let e=require
       </div>
     </div>
     ${f}
-    ${p}`}function ie(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">文档节点内容待实现（P2）</div></div>`}function ae(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">UI节点内容待实现（P2）</div></div>`}function oe(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">分析节点内容待实现（P2）</div></div>`}function se(e,t){let n=e.filter(e=>e.status===`pending`),i=t.requirements.filter(e=>e.status!==`archived`&&e.status!==`canceled`),a=n.map(e=>{let t=e.suggestedAction===`create_req`&&!e.suggestedTargetId,n=e.suggestedTargetId?`${e.suggestedAction===`bind_req`?`绑定需求`:e.suggestedAction===`bind_task`?`绑定任务`:`新建需求`} ${r(e.suggestedTargetId)}`:e.suggestedAction===`create_req`?`新建需求${e.suggestedCategory?` · ${d[e.suggestedCategory]??e.suggestedCategory}`:``}`:``,i=t?`
+    ${p}`}function ie(e){let t=e.executions[e.executions.length-1],n=[],i=[],a={defined:0,total:0};if(t?.evidence&&t.evidence.forEach(e=>{e.match(/\.(md|txt|pdf|html)$/i)&&n.push(e),e.match(/^(GET|POST|PUT|DELETE|PATCH)\s+\//)&&i.push(e);let t=e.match(/(\d+)\/(\d+)\s*.*?completed/i);t&&(a.defined=parseInt(t[1],10),a.total=parseInt(t[2],10))}),i.length===0&&e.description){let t=e.description.match(/(GET|POST|PUT|DELETE|PATCH)\s+\/[^\s\n]+/g);t&&i.push(...t)}let o=a.total>0?Math.round(a.defined/a.total*100):0,s=n.length>0?`
+    <div class="dsh-pm-detail-section">
+      <h3>📄 文档内容</h3>
+      <ul class="dsh-pm-doc-list">
+        ${n.map(e=>`<li><code>${r(e)}</code></li>`).join(``)}
+      </ul>
+    </div>`:``,c=i.length>0?`
+    <div class="dsh-pm-detail-section">
+      <h3>🔗 关联接口（${i.length} 个）</h3>
+      <ul class="dsh-pm-api-list">
+        ${i.map(e=>{let[t,n]=e.split(/\s+/);return`<li><span class="dsh-pm-api-method" data-method="${t}">${t}</span> <code>${r(n)}</code></li>`}).join(``)}
+      </ul>
+    </div>`:``,l=a.total>0?`
+    <div class="dsh-pm-detail-section">
+      <h3>📊 完成度</h3>
+      <div class="dsh-pm-completeness">
+        <div class="dsh-pm-completeness-bar">
+          <span class="dsh-pm-completeness-label">整体进度</span>
+          <span class="dsh-pm-completeness-value">${o}%</span>
+          <div class="dsh-pm-completeness-track">
+            <div class="dsh-pm-completeness-fill" style="width: ${o}%"></div>
+          </div>
+        </div>
+        <div class="dsh-pm-completeness-detail">
+          已完成 ${a.defined} / ${a.total} 部分
+        </div>
+      </div>
+    </div>`:``;return`
+    <div class="dsh-pm-detail-section dsh-pm-specialized">
+      <h3>📝 文档概览</h3>
+      <div class="dsh-pm-stats">
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">文档文件</span>
+          <span class="dsh-pm-stat-value">${n.length} 个</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">关联接口</span>
+          <span class="dsh-pm-stat-value">${i.length} 个</span>
+        </div>
+        ${a.total>0?`
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">完成度</span>
+          <span class="dsh-pm-stat-value">${o}%</span>
+        </div>`:``}
+      </div>
+    </div>
+    ${s}
+    ${c}
+    ${l}`}function ae(e){let t=e.executions[e.executions.length-1],n=[],i=[],a={};if(t?.evidence&&t.evidence.forEach(e=>{if(e.match(/\.(fig|sketch|xd|png|jpg|svg)$/i)&&n.push(e),e.includes(`component`)||e.includes(`组件`)){let t=e.replace(/components?[:\s]*/i,``).split(/[,，]/).map(e=>e.trim());i.push(...t)}let t=e.match(/^(color|font|spacing|radius)[:\s]+(.+)/i);t&&(a[t[1].toLowerCase()]=t[2].trim())}),i.length===0&&e.description){let t=e.description.match(/组件[：:]\s*([^\n]+)/);if(t){let e=t[1].split(/[,，、]/).map(e=>e.trim());i.push(...e)}}let o=n.length>0?`
+    <div class="dsh-pm-detail-section">
+      <h3>🖼️ 设计稿</h3>
+      <ul class="dsh-pm-design-list">
+        ${n.map(e=>`<li><code>${r(e)}</code></li>`).join(``)}
+      </ul>
+    </div>`:``,s=Object.keys(a).length>0?`
+    <div class="dsh-pm-detail-section">
+      <h3>🎯 设计规范</h3>
+      <div class="dsh-pm-kv">
+        ${Object.entries(a).map(([e,t])=>`
+          <span>${e===`color`?`主色调`:e===`font`?`字体`:e===`spacing`?`间距`:`圆角`}</span>
+          <span><code>${r(t)}</code></span>
+        `).join(``)}
+      </div>
+    </div>`:``,c=i.length>0?`
+    <div class="dsh-pm-detail-section">
+      <h3>📱 组件清单</h3>
+      <ul class="dsh-pm-component-list">
+        ${i.map(e=>`<li>${r(e)}</li>`).join(``)}
+      </ul>
+    </div>`:``;return`
+    <div class="dsh-pm-detail-section dsh-pm-specialized">
+      <h3>🎨 UI 设计</h3>
+      <div class="dsh-pm-stats">
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">设计文件</span>
+          <span class="dsh-pm-stat-value">${n.length} 个</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">组件数量</span>
+          <span class="dsh-pm-stat-value">${i.length} 个</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">设计规范</span>
+          <span class="dsh-pm-stat-value">${Object.keys(a).length} 项</span>
+        </div>
+      </div>
+    </div>
+    ${o}
+    ${s}
+    ${c}`}function oe(e){let t=e.executions[e.executions.length-1],n=``,i=[],a=[],o=[];if(t?.evidence&&t.evidence.forEach(e=>{e.match(/^recommended?[:\s]+/i)&&(n=e.replace(/^recommended?[:\s]+/i,``).trim());let t=e.match(/^(.+?)[:：]\s*(?:(\d+)\/5|([⭐★]+))/);if(t){let e=t[1].trim(),n=t[2]?parseInt(t[2],10):t[3]?.length||0;i.push({name:e,score:n})}e.match(/^risk[:\s]+/i)&&a.push(e.replace(/^risk[:\s]+/i,``).trim()),e.match(/^https?:\/\//)&&o.push(e)}),!n&&e.description){let t=e.description.match(/推荐[方案]?[：:]\s*([^\n]+)/);t&&(n=t[1].trim())}let s=i.length>0?`
+    <div class="dsh-pm-detail-section">
+      <h3>📊 方案对比</h3>
+      <div class="dsh-pm-options">
+        ${i.map(e=>{let t=`⭐`.repeat(e.score)+`☆`.repeat(5-e.score);return`
+            <div class="dsh-pm-option">
+              <span class="dsh-pm-option-name">${r(e.name)}</span>
+              <span class="dsh-pm-option-score">${t}</span>
+            </div>`}).join(``)}
+      </div>
+    </div>`:``,c=n?`
+    <div class="dsh-pm-detail-section">
+      <h3>✅ 推荐方案</h3>
+      <div class="dsh-pm-recommendation">
+        <div class="dsh-pm-recommendation-title">${r(n)}</div>
+      </div>
+    </div>`:``,l=a.length>0?`
+    <div class="dsh-pm-detail-section">
+      <h3>⚠️ 风险点（${a.length} 项）</h3>
+      <ul class="dsh-pm-risk-list">
+        ${a.map(e=>`<li>${r(e)}</li>`).join(``)}
+      </ul>
+    </div>`:``,u=o.length>0?`
+    <div class="dsh-pm-detail-section">
+      <h3>📚 参考资料</h3>
+      <ul class="dsh-pm-reference-list">
+        ${o.map(e=>`<li><a href="${r(e)}" target="_blank" rel="noopener">${r(e)}</a></li>`).join(``)}
+      </ul>
+    </div>`:``;return`
+    <div class="dsh-pm-detail-section dsh-pm-specialized">
+      <h3>🔍 分析结果</h3>
+      <div class="dsh-pm-stats">
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">对比方案</span>
+          <span class="dsh-pm-stat-value">${i.length} 个</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">风险点</span>
+          <span class="dsh-pm-stat-value">${a.length} 项</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">参考资料</span>
+          <span class="dsh-pm-stat-value">${o.length} 个</span>
+        </div>
+      </div>
+    </div>
+    ${c}
+    ${s}
+    ${l}
+    ${u}`}function se(e,t){let n=e.filter(e=>e.status===`pending`),i=t.requirements.filter(e=>e.status!==`archived`&&e.status!==`canceled`),a=n.map(e=>{let t=e.suggestedAction===`create_req`&&!e.suggestedTargetId,n=e.suggestedTargetId?`${e.suggestedAction===`bind_req`?`绑定需求`:e.suggestedAction===`bind_task`?`绑定任务`:`新建需求`} ${r(e.suggestedTargetId)}`:e.suggestedAction===`create_req`?`新建需求${e.suggestedCategory?` · ${d[e.suggestedCategory]??e.suggestedCategory}`:``}`:``,i=t?`
         <div class="dsh-pm-triage-edit">
           <input type="text" class="dsh-pm-input" data-role="triage-title" value="${r(e.suggestedTitle??e.firstMessageText.slice(0,120))}" placeholder="需求名称（可编辑）" />
           <select class="dsh-pm-input" data-role="triage-category">
@@ -1097,5 +1235,128 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-ci-details {
   font-size: 12px; color: var(--dsw-text-secondary, #666);
   font-family: ui-monospace, monospace;
+}
+
+/* 文档节点 - 文档列表 */
+.dsh-pm-doc-list {
+  list-style: none; padding: 0; margin: 0;
+}
+.dsh-pm-doc-list li {
+  padding: 8px 12px; border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+}
+.dsh-pm-doc-list li:last-child { border-bottom: none; }
+
+/* 文档节点 - API 列表 */
+.dsh-pm-api-list {
+  list-style: none; padding: 0; margin: 0;
+}
+.dsh-pm-api-list li {
+  padding: 8px 12px; display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+}
+.dsh-pm-api-list li:last-child { border-bottom: none; }
+.dsh-pm-api-method {
+  padding: 2px 6px; border-radius: 4px;
+  font-size: 11px; font-weight: 600; color: #fff;
+  font-family: ui-monospace, monospace;
+}
+.dsh-pm-api-method[data-method="GET"] { background: #28a745; }
+.dsh-pm-api-method[data-method="POST"] { background: #4a7dff; }
+.dsh-pm-api-method[data-method="PUT"] { background: #f0a020; }
+.dsh-pm-api-method[data-method="DELETE"] { background: #dc3545; }
+.dsh-pm-api-method[data-method="PATCH"] { background: #8e44ad; }
+
+/* 文档节点 - 完成度 */
+.dsh-pm-completeness { display: flex; flex-direction: column; gap: 8px; }
+.dsh-pm-completeness-bar { display: flex; flex-direction: column; gap: 4px; }
+.dsh-pm-completeness-label {
+  font-size: 12px; color: var(--dsw-text-secondary, #666);
+}
+.dsh-pm-completeness-value {
+  font-size: 16px; font-weight: 600; color: var(--dsw-text-primary, #333);
+}
+.dsh-pm-completeness-track {
+  height: 10px; background: var(--dsw-bg-secondary, rgba(128,128,128,.15));
+  border-radius: 5px; overflow: hidden;
+}
+.dsh-pm-completeness-fill {
+  height: 100%; background: linear-gradient(90deg, #4a7dff, #17a2b8);
+  transition: width .3s ease;
+}
+.dsh-pm-completeness-detail {
+  font-size: 12px; color: var(--dsw-text-secondary, #666);
+  text-align: center;
+}
+
+/* UI 节点 - 设计列表 */
+.dsh-pm-design-list {
+  list-style: none; padding: 0; margin: 0;
+}
+.dsh-pm-design-list li {
+  padding: 8px 12px; border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+}
+.dsh-pm-design-list li:last-child { border-bottom: none; }
+
+/* UI 节点 - 组件列表 */
+.dsh-pm-component-list {
+  list-style: none; padding: 0; margin: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.dsh-pm-component-list li {
+  padding: 8px 12px; background: var(--dsw-bg-secondary, rgba(128,128,128,.06));
+  border-radius: 6px; font-size: 13px; text-align: center;
+}
+
+/* 分析节点 - 方案对比 */
+.dsh-pm-options { display: flex; flex-direction: column; gap: 8px; }
+.dsh-pm-option {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 12px; background: var(--dsw-bg-secondary, rgba(128,128,128,.06));
+  border-radius: 6px;
+}
+.dsh-pm-option-name {
+  font-size: 14px; font-weight: 500; color: var(--dsw-text-primary, #333);
+}
+.dsh-pm-option-score {
+  font-size: 16px; color: #f0a020;
+}
+
+/* 分析节点 - 推荐方案 */
+.dsh-pm-recommendation {
+  padding: 16px; background: rgba(40, 167, 69, .1);
+  border: 2px solid #28a745; border-radius: 8px;
+}
+.dsh-pm-recommendation-title {
+  font-size: 16px; font-weight: 600; color: #28a745;
+}
+
+/* 分析节点 - 风险列表 */
+.dsh-pm-risk-list {
+  list-style: none; padding: 0; margin: 0;
+}
+.dsh-pm-risk-list li {
+  padding: 10px 12px; border-left: 4px solid #f0a020;
+  background: rgba(240, 160, 32, .05); margin-bottom: 8px;
+  border-radius: 4px; font-size: 13px;
+}
+.dsh-pm-risk-list li::before {
+  content: '⚠️ '; margin-right: 4px;
+}
+
+/* 分析节点 - 参考资料 */
+.dsh-pm-reference-list {
+  list-style: none; padding: 0; margin: 0;
+}
+.dsh-pm-reference-list li {
+  padding: 8px 12px; border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+}
+.dsh-pm-reference-list li:last-child { border-bottom: none; }
+.dsh-pm-reference-list a {
+  color: var(--dsw-accent, #4a7dff); text-decoration: none;
+  font-family: ui-monospace, monospace; font-size: 12px;
+}
+.dsh-pm-reference-list a:hover {
+  text-decoration: underline;
 }
 `,document.head.appendChild(e)}const We=[`slots`,`sessions`,`workspaces`];function Ge(e){try{Ve(),Ue(),window.__dshReqboardClient?.dispose(),window.__dshPmCtx=e,window.__dshPmSessions=e.sessions,window.__dshPmWorkspaces=e.workspaces;let t=ze(),n=Be(t),r=e=>{e.detail?.open===!0?t.getSnapshot().boardOpen?t.closeBoard():t.openBoard():t.toggleBoard()};window.addEventListener(Z,r),window.__dshReqboardClient={dispose:()=>{window.removeEventListener(Z,r),n(),t.closeBoard(),delete window.__dshPmCtx,delete window.__dshPmSessions,delete window.__dshPmWorkspaces}};let i=e.slots;i?i.inject(`sidebar.footer.action`,()=>i.register({name:`sidebar.footer.action`,id:a,order:110,label:o},He)):console.warn(`[dsh-pmboard] ctx.slots unavailable`)}catch(e){console.error(`[dsh-pmboard] client half failed to start:`,e)}}exports.apply=Ge,exports.inject=We,exports.name=`dsh-pmboard/client`;
