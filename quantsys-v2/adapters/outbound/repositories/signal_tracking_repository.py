@@ -191,8 +191,8 @@ class SignalTrackingRepository:
             
             columns = [desc[0] for desc in cursor.description]
             results = []
-            
-            for row in cursor.fetchall():
+            # 内存安全：流式迭代替代 fetchall()
+            for row in cursor:
                 results.append(dict(zip(columns, row)))
             
             return results
@@ -222,8 +222,8 @@ class SignalTrackingRepository:
             
             columns = [desc[0] for desc in cursor.description]
             results = []
-            
-            for row in cursor.fetchall():
+            # 内存安全：流式迭代替代 fetchall()
+            for row in cursor:
                 results.append(dict(zip(columns, row)))
             
             return results
@@ -283,8 +283,8 @@ class SignalTrackingRepository:
             
             columns = [desc[0] for desc in cursor.description]
             results = []
-            
-            for row in cursor.fetchall():
+            # 内存安全：流式迭代替代 fetchall()
+            for row in cursor:
                 results.append(dict(zip(columns, row)))
             
             return results
@@ -419,8 +419,8 @@ class SignalTrackingRepository:
 
             columns = [desc[0] for desc in cursor.description]
             results = []
-
-            for row in cursor.fetchall():
+            # 内存安全：流式迭代替代 fetchall()
+            for row in cursor:
                 results.append(dict(zip(columns, row)))
 
             return results

@@ -1312,9 +1312,10 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                 .group_by(DailyKline.trade_date)
                 .order_by(DailyKline.trade_date.desc())
                 .limit(days)
-            ).fetchall()
+            )
+            # 内存安全：流式迭代替代 fetchall()，虽然聚合结果集小但统一模式
             return [{'trade_date': r[0].isoformat() if r[0] else None,
-                     'total_volume': float(r[1] or 0)} for r in rows]
+                     'total_volume': float(r[1] or 0)} for r in result]
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error in get_market_turnover_by_day: {e}")
@@ -1351,10 +1352,11 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                 .group_by(k.c.trade_date)
                 .order_by(k.c.trade_date.desc())
                 .limit(days)
-            ).fetchall()
+            )
+            # 内存安全：流式迭代替代 fetchall()
             return [{'trade_date': r[0].isoformat() if r[0] else None,
                      'avg_return': float(r[1]) if r[1] is not None else None}
-                    for r in rows]
+                    for r in result]
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error in get_market_daily_returns: {e}")
@@ -1425,8 +1427,9 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                 .having(func.count() >= min_days)
                 .order_by(total_volume.desc())
                 .limit(limit)
-            ).fetchall()
-            return [r[0] for r in rows]
+            )
+            # 内存安全：流式迭代替代 fetchall()
+            return [r[0] for r in result]
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error in get_active_symbols: {e}")
@@ -1494,10 +1497,10 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
                 )
                 .order_by(daily.c.trade_date.desc())
                 .limit(days)
-            ).fetchall()
-
+            )
+            # 内存安全：流式迭代替代 fetchall()
             out: List[Dict] = []
-            for r in rows:
+            for r in result:
                 # NULLIF(ma20, 0) 的语义放在 Python 侧实现：SQLAlchemy 对 nullif()
                 # 硬编码返回类型 Numeric()，会把除法渲染成 numeric 运算，
                 # 末位精度与旧 raw SQL 的 double precision 除法不一致
