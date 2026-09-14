@@ -31,8 +31,12 @@ ORM 却定义在 SimulationOrder 上 → 两侧都错位：
 
 * 只断言"**模型有、库没有**"（真会 500 的方向）。库里多出来的列（如两张订单表上的
   genome_version）不报错——多列不影响 ORM 写入，报出来只会变噪声。
-* 比对集 = models 包声明的表；同库里由仓储层重复定义的表（如 p2_async_repositories 里
-  extend_existing 的 automation_tasks）不在门禁范围内，属已知同类隐患（见工作日志遗留）。
+* 比对集 = models 包声明的表 + **仓储层内联模型**（2026-09-14 w-2129d492 补盲区）。
+  原先只比对 models 包，于是 quant.market_style_state / quant.risk_metrics 两处"同名表
+  分叉 + EAV 错结构"长期逃过门禁 —— 前者异步模型声明了 4 个不存在的列，后者异步模型
+  至今是 metric_name/metric_value 的错结构（同步版早已修正，异步版没人发现）。
+  现由 test_repository_inline_models_match_database + test_no_table_declared_by_two_models
+  + test_no_extend_existing_flag 三条共同覆盖。
 * 测试库是**部分镜像**：脚下面 _ENV_ONLY_MISSING 里的列经核对"生产在位、测试库缺"，
   豁免但打印；硬缺列一律失败。
 """
@@ -70,6 +74,19 @@ _ENV_ONLY_MISSING = frozenset({
 
 # 允许"没有测试库也能跑"的唯一出口：显式环境变量。默认不允许静默跳过。
 _ALLOW_MISSING_DB_ENV = 'DSH_ALLOW_MISSING_TEST_DB'
+
+# extend_existing 基线（2026-09-14，w-2129d492）：已收敛 6 处，仅剩这 1 处**活路由**上的
+# 遗留，属"需要产品决策"而非纯技术债，故显式登记而不是让门禁变红或被无视。
+#
+#   sentiment_async_repository.py：模型指向 quant.sentiment_data —— 该表在库中**从未存在**。
+#     它是**活路由**（/api/sentiment/market、/api/sentiment/stock/{symbol}），实测
+#     恒返回 {"success":true,"data":{}} / {"success":true,"data":null}（假成功，非报错）。
+#     库里只有市场级的 quant.market_sentiment_daily（无 symbol 列），**撑不起个股情绪**语义；
+#     要真正修好需先定：个股情绪的数据源是什么？是否下线该端点？属产品决策。
+#     本基线只挡"新增同类写法"，不代表这处已修 —— 详见工作日志遗留清单。
+_EXTEND_EXISTING_BASELINE = frozenset({
+    'adapters/outbound/repositories/sentiment_async_repository.py',
+})
 
 
 def _load_models():
@@ -262,3 +279,147 @@ def test_decision_quality_columns_live_on_pending_order_model_only():
         assert col in pending_cols, (
             'SimulationPendingOrder（挂单）缺 %s：create_pending_order 会传它，缺列即 TypeError' % col
         )
+
+# ===========================================================================
+# 盲区补齐（2026-09-14，w-2129d492）：仓储层内联模型 + 同名表分叉
+#
+# 背景：本仓出现过三次**同一根因**的线上静默故障 —— 同一张表被声明两遍，且带
+# extend_existing=True，第二次声明会把列**追加**到已存在的 Table 对象上，污染第一个
+# 模型的 __table__，查询遍历 table.columns 时撞上未被映射的列 → 被 except 吞掉 → 接口恒空：
+#   · ffc221de  /api/ml/models 恒返回空且日志刷 AttributeError
+#   · f00fd8fe  /api/positions、/api/data-quality/report 恒返回空列表
+#   · risk_repository 的 EAV 错结构（metric_name/metric_value）→ 风险指标查询恒空
+# 此前门禁只比对 models 包，以上三处全在门外。以下三条即是那道门。
+# ===========================================================================
+
+REPO_PACKAGE = 'adapters.outbound.repositories'
+
+
+def _import_repository_modules():
+    """导入仓储层全部模块（否则 _class_registry 里没有内联模型）。
+
+    返回导入失败的模块列表 —— 不静默吞掉：少 import 一个模块就可能少覆盖一张表。
+    """
+    import importlib
+    import pkgutil
+
+    failures = []
+    pkg = importlib.import_module(REPO_PACKAGE)
+    for mod in pkgutil.walk_packages(pkg.__path__, pkg.__name__ + '.'):
+        try:
+            importlib.import_module(mod.name)
+        except Exception as e:  # noqa: BLE001
+            failures.append('%s: %s' % (mod.name, e))
+    return failures
+
+
+def _load_all_models():
+    """全部 mapped class → {(schema, table): {(module, class): set(列名)}}。
+
+    用 Base.registry 而不是遍历模块属性：这样同一个类无论被 import 多少次都只算一条，
+    不会把"重复 import"误报成"重复定义"。
+    """
+    from infrastructure.persistence.orm.base import Base
+
+    out = {}
+    for cls in list(Base.registry._class_registry.values()):
+        if not isinstance(cls, type) or not hasattr(cls, '__mapper__'):
+            continue
+        try:
+            mapper = class_mapper(cls)
+        except Exception:  # noqa: BLE001 - 未完成映射的类跳过
+            continue
+        table = mapper.persist_selectable
+        key = (table.schema or 'public', table.name)
+        out.setdefault(key, {})[(cls.__module__, cls.__name__)] = {
+            c.name for c in mapper.columns
+        }
+    return out
+
+
+def test_no_table_declared_by_two_models():
+    """同一张表不得被两个模型类声明（同名表分叉 = 三次静默故障的共同根因）。"""
+    failures = _import_repository_modules()
+    models = _load_all_models()
+    assert len(models) >= 40, (
+        '只发现 %d 张被模型声明的表，疑似仓储模块没导入成功（否则覆盖形同虚设）。'
+        '导入失败：%s' % (len(models), failures or '无')
+    )
+    dupes = {k: v for k, v in models.items() if len(v) > 1}
+    if dupes:
+        lines = []
+        for (schema, table), defs in sorted(dupes.items()):
+            lines.append('  %s.%s（%d 个定义）' % (schema, table, len(defs)))
+            for (mod, cn) in sorted(defs):
+                lines.append('      - %s.%s' % (mod, cn))
+            colsets = [frozenset(c) for c in defs.values()]
+            if len(set(colsets)) > 1:
+                lines.append('      ⚠️ 列集合不一致 —— 这正是会静默污染 __table__ 的形态')
+        pytest.fail(
+            '同名表被重复声明（必须收敛为单一事实源：异步仓储从权威仓储 import 模型）:'
+            + chr(10) + chr(10).join(lines)
+        )
+
+
+def test_no_extend_existing_flag():
+    """全仓不得再出现 extend_existing=True。
+
+    它是同名表分叉的**开关**：没有它，SQLAlchemy 会在第二个定义处直接抛
+    "Table X is already defined"，错误当场暴露；有了它，错误被静默吞掉，
+    变成"接口恒返回空"。禁止它 = 让这类 bug 在启动时就炸，而不是在用户侧静默。
+    """
+    offenders = []
+    for path in sorted((REPO_ROOT / 'adapters').rglob('*.py')):
+        if '__pycache__' in path.parts:
+            continue
+        rel = str(path.relative_to(REPO_ROOT))
+        if rel in _EXTEND_EXISTING_BASELINE:
+            continue
+        for lineno, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
+            if 'extend_existing' in line and not line.lstrip().startswith('#'):
+                offenders.append('%s:%d' % (rel, lineno))
+    assert not offenders, (
+        '检测到 extend_existing（同名表静默分叉的开关），请改为 import 单一模型定义:'
+        + chr(10) + '  - ' + (chr(10) + '  - ').join(offenders)
+    )
+
+
+def test_repository_inline_models_match_database(engine, migrations_applied):
+    """仓储层内联模型的列也必须真实存在于数据库（models 包之外的第二类模型）。"""
+    from sqlalchemy import inspect
+
+    failures = _import_repository_modules()
+    models = _load_all_models()
+    insp = inspect(engine)
+    missing, absent, inline_seen, env_only = [], [], 0, set()
+
+    for (schema, table), defs in sorted(models.items()):
+        repo_defs = {k: v for k, v in defs.items() if k[0].startswith(REPO_PACKAGE)}
+        if not repo_defs:
+            continue
+        inline_seen += 1
+        if not insp.has_table(table, schema=schema):
+            absent.append('%s.%s（%s）' % (
+                schema, table, ', '.join(cn for _, cn in sorted(repo_defs))))
+            continue
+        db_cols = {c['name'] for c in insp.get_columns(table, schema=schema)}
+        for (mod, cn), cols in sorted(repo_defs.items()):
+            for col in sorted(cols - db_cols):
+                key = '%s.%s.%s' % (schema, table, col)
+                # 与 models 包门禁同一豁免口径：测试库是部分镜像，这些列生产在位
+                if key in _ENV_ONLY_MISSING:
+                    env_only.add(key)
+                else:
+                    missing.append('%s  ← %s.%s' % (key, mod, cn))
+
+    if env_only:
+        print('测试库镜像不全（DB 侧已核对生产在位，非漂移）：%s' % ', '.join(sorted(env_only)))
+    assert inline_seen >= 20, (
+        '只覆盖到 %d 个仓储内联模型，疑似导入不全。导入失败：%s' % (inline_seen, failures or '无')
+    )
+    assert not missing, (
+        '仓储内联模型声明了数据库不存在的列（查询必炸/被吞成空）:' + chr(10) + '  - '
+        + (chr(10) + '  - ').join(missing)
+        + chr(10) + chr(10) + '已比对 %d 个内联模型；测试库未建表 %d 张（跳过）：%s'
+        % (inline_seen, len(absent), ', '.join(absent) if absent else '无')
+    )
