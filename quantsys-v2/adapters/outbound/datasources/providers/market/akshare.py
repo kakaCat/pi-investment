@@ -46,103 +46,19 @@ def _fetch_lhb_market_df(start_date: str, end_date: str):
     return df
 
 
-# ── 股东 / 基金 / 千股千评 全市场 DataFrame 缓存（2026-09-14，REQ-48d896） ────
-# stock_inner_trade_xq(2.5万行) / stock_comment_em(5196行) / stock_report_fund_hold(5225行)
-# 都是「全市场」接口，单股调用只是本地过滤；不缓存则每个请求都打一次上游。
-_SENTIMENT_CACHE: dict = {}
-_SENTIMENT_CACHE_LOCK = threading.Lock()
-_SENTIMENT_CACHE_TTLS = {
-    'inner_trades': 300.0,    # 内部人交易按日更新
-    'stock_comment': 600.0,   # 千股千评盘中会变
-    'fund_hold': 1800.0,      # 基金持仓按季度披露
-}
-
-
-def _cached_market_df(name: str, loader):
-    """按 name 做 TTL 缓存的全市场 DataFrame 获取；失败/空**不写入**缓存（下次重试）。"""
-    ttl = _SENTIMENT_CACHE_TTLS.get(name, 600.0)
-    now = _time.monotonic()
-    with _SENTIMENT_CACHE_LOCK:
-        hit = _SENTIMENT_CACHE.get(name)
-        if hit and now - hit[0] < ttl:
-            return hit[1]
-    df = loader()
-    if df is None or df.empty:
-        return None
-    with _SENTIMENT_CACHE_LOCK:
-        _SENTIMENT_CACHE[name] = (now, df)
-    return df
-
-
-# 传输类异常（真故障）vs 数据/解析类异常（该期间无数据）必须区分：
-# akshare 在「报告期无数据」时抛的是解析异常（ValueError/KeyError），不是网络异常。
-# 把「无数据」当故障会让熔断器误伤健康源；把「网络挂」当无数据就是假成功。
-_TRANSPORT_ERROR_TYPES = (ConnectionError, TimeoutError)
-
-
-def _is_transport_error(exc: BaseException) -> bool:
-    if isinstance(exc, _TRANSPORT_ERROR_TYPES):
-        return True
-    mod = type(exc).__module__ or ''
-    return mod.startswith(('requests', 'urllib3', 'http', 'socket', 'ssl'))
-
-
-def _recent_report_periods(count: int = 4) -> list:
-    """最近 count 个候选财报报告期（YYYYMMDD，新→旧）。
-
-    披露有滞后（年报次年 4/30 前、季报次月底前），故这里只给候选序列，
-    由调用方按序回退取到数据为止 —— 不猜「哪个已披露」。
-    """
-    today = datetime.now().date()
-    cands = []
-    for y in (today.year, today.year - 1, today.year - 2):
-        for md in ('1231', '0930', '0630', '0331'):
-            d = datetime(int(y), int(md[:2]), int(md[2:])).date()
-            if d <= today:
-                cands.append(d)
-    return [d.strftime('%Y%m%d') for d in sorted(set(cands), reverse=True)[:count]]
-
-
-def _em_prefixed_lower(symbol: str) -> str:
-    """600519 → sh600519（东财小写前缀）。
-
-    复用 industry_chain 已有的 market_prefixed（全仓前缀规则唯一实现），
-    本处只做大小写转换 —— 不重写一份前缀规则。
-    """
-    from adapters.outbound.datasources.providers.industry_chain.eastmoney_revenue import (
-        market_prefixed,
-    )
-    return market_prefixed(symbol).lower()
-
-
-def _df_records(df) -> list:
-    """DataFrame → JSON 安全 records。
-
-    日期/时间列必须转成字符串：`datetime.date` 不是 JSON 可序列化类型，
-    直接塞进响应会让路由在编码阶段 500（get_index_daily 早已在其内部 stringify，
-    这里是同一个坑的通用解法）。
-    """
-    records = df.astype(object).where(df.notna(), None).to_dict('records')
-    for rec in records:
-        for key, val in rec.items():
-            if hasattr(val, 'isoformat'):
-                rec[key] = val.isoformat()
-    return records
-
-
-def _normalize_quarter(quarter) -> Optional[str]:
-    """'2024Q4' / '20241231' / '2024-12-31' → 'YYYY-MM-DD'；无法解析返回 None。"""
-    if not quarter:
-        return None
-    q = str(quarter).strip().upper().replace('-', '')
-    qmap = {'Q1': '0331', 'Q2': '0630', 'Q3': '0930', 'Q4': '1231'}
-    if q.endswith(tuple(qmap)):  # 2024Q4
-        year, qn = q[:4], q[-2:]
-        if year.isdigit() and qn in qmap:
-            q = year + qmap[qn]
-    if len(q) == 8 and q.isdigit():
-        return '%s-%s-%s' % (q[:4], q[4:6], q[6:])
-    return None
+# ── 股东 / 基金 / 千股千评 的共用辅助（2026-09-14，REQ-48d896）──────────────
+# 缓存 / 前缀 / 报告期 / JSON 安全 / 失败判定都已在 market/_common.py 统一实现：
+# **东财直连源（eastmoney.py）与本文件共用同一份**，避免两个源各自演化出口径差异。
+# 这里按旧私有名 import，保证本文件其余实现零改动。
+from adapters.outbound.datasources.providers.market._common import (  # noqa: E402
+    SENTIMENT_CACHE as _SENTIMENT_CACHE,
+    cached_df as _cached_market_df,
+    df_records as _df_records,
+    em_prefixed_lower as _em_prefixed_lower,
+    is_transport_error as _is_transport_error,
+    normalize_quarter as _normalize_quarter,
+    recent_report_periods as _recent_report_periods,
+)
 
 
 class AkshareMarketProvider(MarketProvider):
@@ -606,11 +522,13 @@ class AkshareMarketProvider(MarketProvider):
         报告期不支持时 akshare 抛解析异常（属「该期无数据」，非传输故障）→
         回退到更早的报告期；四个候选期都取不到 → 健康空。
         """
+        self.last_error = None  # 每次调用重置：框架按它判「真故障」
         try:
             import akshare as ak
 
             prefixed = _em_prefixed_lower(symbol)
             if not prefixed:
+                self.last_error = 'get_top_holders 无法识别市场前缀 %s' % symbol
                 logger.warning(f"{self.name} get_top_holders: 无法识别市场前缀 symbol={symbol}")
                 return None
 
@@ -623,6 +541,7 @@ class AkshareMarketProvider(MarketProvider):
                     df = fetcher(symbol=prefixed, date=period)
                 except Exception as e:  # noqa: BLE001
                     if _is_transport_error(e):
+                        self.last_error = 'get_top_holders 传输故障: %s' % str(e)[:160]
                         logger.warning(f"{self.name} get_top_holders {symbol} 传输故障: {e}")
                         return None
                     continue  # 该报告期无数据，回退更早期间
@@ -650,11 +569,13 @@ class AkshareMarketProvider(MarketProvider):
                 timestamp=datetime.now().isoformat(),
             )
         except Exception as e:
+            self.last_error = 'get_top_holders: %s' % str(e)[:180]
             logger.warning(f"{self.name} get_top_holders failed: {e}")
             return None
 
     def get_holder_changes(self, symbol: str, periods: int = 4) -> Optional[MarketData]:
         """股东户数变化（东财 stock_zh_a_gdhs_detail_em），最新在前。"""
+        self.last_error = None  # 每次调用重置：框架按它判「真故障」
         try:
             import akshare as ak
 
@@ -681,6 +602,7 @@ class AkshareMarketProvider(MarketProvider):
                 timestamp=datetime.now().isoformat(),
             )
         except Exception as e:
+            self.last_error = 'get_holder_changes: %s' % str(e)[:180]
             logger.warning(f"{self.name} get_holder_changes failed: {e}")
             return None
 
@@ -689,6 +611,7 @@ class AkshareMarketProvider(MarketProvider):
 
         quarter: '2024Q4' / '20241231' / '2024-12-31' / None（全部）；仅本地过滤。
         """
+        self.last_error = None  # 每次调用重置：框架按它判「真故障」
         try:
             import akshare as ak
 
@@ -731,6 +654,7 @@ class AkshareMarketProvider(MarketProvider):
                 timestamp=datetime.now().isoformat(),
             )
         except Exception as e:
+            self.last_error = 'get_fund_holdings: %s' % str(e)[:180]
             logger.warning(f"{self.name} get_fund_holdings failed: {e}")
             return None
 
@@ -740,6 +664,7 @@ class AkshareMarketProvider(MarketProvider):
         返回列含「持有基金家数 / 持股总数 / 持股市值」—— 与旧契约
         fundCount / totalShares / totalValue 同义。
         """
+        self.last_error = None  # 每次调用重置：框架按它判「真故障」
         try:
             import akshare as ak
 
@@ -760,6 +685,7 @@ class AkshareMarketProvider(MarketProvider):
                     )
                 except Exception as e:  # noqa: BLE001
                     if _is_transport_error(e):
+                        self.last_error = 'get_top_fund_stocks 传输故障: %s' % str(e)[:160]
                         logger.warning(f"{self.name} get_top_fund_stocks 传输故障: {e}")
                         return None
                     continue
@@ -792,6 +718,10 @@ class AkshareMarketProvider(MarketProvider):
                 codes = df[col].astype(str).str.replace(r'\.0$', '', regex=True)
                 valid = codes.str.fullmatch(r'\d{6}')
                 if not bool(valid.all()):
+                    self.last_error = (
+                        'get_top_fund_stocks 上游 %s 列错位（%s 列非 6 位代码，样例 %r）'
+                        % (report_symbol, col, df[col].head(3).tolist())
+                    )
                     logger.error(
                         "%s get_top_fund_stocks: 上游 %s 列错位（%s 列非 6 位代码，"
                         "实测样例 %r）——拒绝返回不可信数据",
@@ -808,6 +738,7 @@ class AkshareMarketProvider(MarketProvider):
                 timestamp=datetime.now().isoformat(),
             )
         except Exception as e:
+            self.last_error = 'get_top_fund_stocks: %s' % str(e)[:180]
             logger.warning(f"{self.name} get_top_fund_stocks failed: {e}")
             return None
 
@@ -817,6 +748,7 @@ class AkshareMarketProvider(MarketProvider):
         返回的是**机构参与度 / 综合得分 / 换手率 / 市盈率 / 主力成本**等指标 ——
         这是指标的来源，调用方不得把它描述成「情绪分类」。
         """
+        self.last_error = None  # 每次调用重置：框架按它判「真故障」
         try:
             import akshare as ak
 
@@ -846,6 +778,7 @@ class AkshareMarketProvider(MarketProvider):
                 timestamp=datetime.now().isoformat(),
             )
         except Exception as e:
+            self.last_error = 'get_stock_comment: %s' % str(e)[:180]
             logger.warning(f"{self.name} get_stock_comment failed: {e}")
             return None
 
