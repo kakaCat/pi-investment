@@ -29,7 +29,8 @@ dsh-web-app 的 cordis.patch.yml 明确：
 
 - skill **registry** 在 host plane，按 scope 分层（tools-registry shape）。
 - **host 层的 skill-filesystem / tool-skill 被 dsh-web-app 禁用**（`- id: skill-filesystem / disabled: true`）——preset 层负责各 preset 的 agent。
-- 每个 preset（内置 standard/cordis/ptc、第三方 liangshen）在自己的 `agent.cordis.yml` composition 里声明 `skill-filesystem`（无 realm，注册进该 preset 的 layer）+ `tool-skill`（给 agent catalog 与 loader）。
+- 每个 preset（内置 standard/cordis/ptc、自建 investment）在自己的 `agent.cordis.yml` composition 里声明 `skill-filesystem`（无 realm，注册进该 preset 的 layer）+ `tool-skill`（给 agent catalog 与 loader）。
+  （第三方 preset `liangshen`／梁神模式已于 2026-09-14 从本仓库删除，本文下方对它的提及是当时排障现场的历史记录。）
 - agent 读其 scope chain 选中的 merged catalog。
 
 **推论**：在本 profile 的 `cordis.patch.yml` 顶层覆盖 skill-filesystem 注册的是 **host 层（被禁用）→ 无效**。正确注入点是 agent 实际挂载的 **preset composition**。

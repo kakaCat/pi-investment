@@ -215,13 +215,14 @@ if [ "$MANAGED_HOME" = "1" ]; then
   # 拷入自建 agent preset。仓库 config/agent-presets/ 是**唯一来源**：
   #   investment —— 内置 standard 去掉 delegation 组（内置 standard 含 delegation，
   #                 会因 host 层 modelSelectionSettings 缺失而整体挂载失败）
-  #   liangshen  —— 梁神模式（phase1 双工具锚定，晋升后切 PTC Mode）
+  # （梁神模式 liangshen 已于 2026-09-14 删除：agent-dh 不使用。它是第三方
+  #   xiaobright/dsh-anchored-standard 的改编，需要时从 git 历史 17c71503 取回。）
   # 发现规则（dsh-agent-presets）：preset = $DSH_HOME/.agent-presets/<id>/agent.cordis.yml，
   # **目录名即 id，且只允许 ^[a-z0-9][a-z0-9-]*$**（大写/下划线/点的目录不会被发现）。
   # 缺 preset 不是"降级"而是硬失败：新建会话、恢复记录了该 preset 的老会话都会报
   #   agent-presets: preset "<id>" not found (available: …)
-  # （2026-09-13 事故：settings.yaml 的默认 preset 还是 liangshen，而迁移后的
-  #   DSH_HOME 里只拷了 investment —— 老会话与新建会话全部 resume failed。）
+  # （2026-09-13 事故：settings.yaml 的默认 preset 指向一个迁移后没拷过去的 preset，
+  #   而迁移后的 DSH_HOME 里只有 investment —— 老会话与新建会话全部 resume failed。）
   # 这里是**拷贝**而非符号链接：改仓库 preset 需重启实例才生效（discovery 在进程内热读
   # 文件，但 DSH_HOME 下这份副本只在启动时刷新）。目标下已有的其它 preset 一律保留。
   if [ -d "$PROJECT_ROOT/config/agent-presets" ]; then
@@ -241,7 +242,7 @@ if [ "$MANAGED_HOME" = "1" ]; then
         [!a-z0-9]*|*[!a-z0-9-]*)
           echo "  警告: 仓库 preset 目录名 ${_preset_id} 不是合法 preset id" >&2
           echo "        （只允许小写字母/数字/横线，且首位是字母或数字）——实例永远不会发现它。" >&2
-          echo "        处置：改名成合法 id（如 liangshen），并同步改引用它的默认值与老会话。" >&2
+          echo "        处置：改名成合法 id（如 investment），并同步改引用它的默认值与老会话。" >&2
           ;;
       esac
       if cp -R "$_preset_src" "$DSH_HOME/.agent-presets/"; then
