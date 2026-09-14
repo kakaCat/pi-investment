@@ -3,15 +3,11 @@
 
 # ========== DSH 核心插件 ==========
 
-# 设置管理
-# path 显式指向唯一一份真身：插件默认落在 $DSH_HOME/settings.yaml，而托管模式下
-# $DSH_HOME 只是脚手架目录、真身在 .dsh-data。不能让两处都存在 —— 该插件写盘用
-# writeFileAtomic（临时文件 + rename），rename 会把符号链接替换成普通文件，
-# 于是 $DSH_HOME/settings.yaml 会变成第二份真身，与这份互相覆盖（2026-09-14 实测）。
+# 设置管理：不配 path —— 用插件缺省（$DSH_HOME/settings.yaml）。
+# 2026-09-14 起 DSH_HOME 就是数据目录 .dsh-data（见 config/cordis.yml 的说明与
+# scripts/start.sh 的合并注释），缺省解析即落在唯一那份上。
 - id: settings
   name: '@deepseek-ai/dsh-settings-file'
-  config:
-    path: /Users/yunpeng/pi-investment/agent-dh/.dsh-data/settings.yaml
 
 # 凭证管理（从环境变量读取 DEEPSEEK_API_KEY）
 - id: credentials
@@ -120,9 +116,8 @@
       agentId: agent-dh
 
 # 基因组管理
-# genomeDir 的插件默认值是硬编码的 ~/.dsh-agent-dh/genome（旧 home），不会跟随
-# DSH_HOME，所以必须显式指定。2026-09-13 DSH_HOME 迁入项目内 .dsh-home 后，
-# 基因组随数据落到 .dsh-data/genome。
+# genomeDir 的插件默认值是硬编码的 ~/.dsh-agent-dh/genome（旧 home，已删除），
+# **不会跟随 DSH_HOME**，所以必须显式指定。
 - id: genome
   name: '@pi-investment/genome'
   config:

@@ -56,16 +56,27 @@ FIXABLE = ("copy", "symlink-bad", "missing")
 DRIFT = ("copy", "symlink-bad", "symlink-dangling", "missing", "outside-repo")
 
 
-def project_profile(profile_name="investment"):
+def current_profile_name():
+    """现役 profile 名 —— 与 start.sh 同一规则：DSH_PROFILE 环境变量，缺省 agent-dh。
+
+    2026-09-14：此前这里硬编码 "investment"，而 start.sh 的缺省是 "agent-dh"，
+    :13080 实跑的是 agent-dh —— 于是本脚本一直体检的是那个休眠的 investment 目录。
+    两个来源不一致 = 又一次"体检对象整个是错的"，所以只保留 start.sh 那一个来源。
+    """
+    return os.environ.get("DSH_PROFILE") or "agent-dh"
+
+
+def project_profile(profile_name=None):
     """项目内托管布局的 profile 目录 —— 2026-09-13 起 :13080 的现役布局。
 
-    从脚本自身位置反推（scripts/ -> agent-dh/ -> .dsh-home/profiles/<name>），
+    从脚本自身位置反推（scripts/ -> agent-dh/ -> .dsh-data/profiles/<name>），
     **不硬编码 home**：硬编码正是 2026-09-13 那次漂移的成因 —— 本脚本当时指着
     ~/.dsh-agent-dh 体检，给出一句 "OK 29 个符号链接"，而真正在跑的是 .dsh-home，
     体检对象整个是错的，且没有任何迹象。
+    （2026-09-14 合并：.dsh-home 已并入 .dsh-data，profile 随之下沉到此。）
     """
     agent_dh = os.path.dirname(HERE)
-    return os.path.join(agent_dh, ".dsh-home", "profiles", profile_name)
+    return os.path.join(agent_dh, ".dsh-data", "profiles", profile_name or current_profile_name())
 
 
 def resolve_profile(cli=None):
@@ -77,7 +88,7 @@ def resolve_profile(cli=None):
     cands = []
     dsh_home = os.environ.get("DSH_HOME")
     if dsh_home:
-        cands.append(os.path.join(dsh_home, "profiles", "investment"))
+        cands.append(os.path.join(dsh_home, "profiles", current_profile_name()))
     cands.append(project_profile())
     for c in cands:
         if os.path.isfile(os.path.join(c, "package.json")):

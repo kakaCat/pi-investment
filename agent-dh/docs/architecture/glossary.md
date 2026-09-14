@@ -18,7 +18,7 @@ tags: [overview, glossary]
 | **插件 / 工具** | 插件（package）向框架注册工具（tool）；工具是模型能调用的能力 | [工具开发规范](../standards/tool-development.md) |
 | **host 半 / client 半** | 页面插件分两半：host 跑在服务端（需重启），client 打进浏览器包（刷新即生效） | [插件与页面插件规范](../standards/plugin-and-pages.md) |
 | **dist / src 加载** | 包的 `main` 指向 `dist/index.mjs`（需构建）或 `src`（tsx 直载） | [构建与发版规范](../standards/build-and-release.md) |
-| **DSH_HOME** | 运行时根目录（`agent-dh/.dsh-home`）：profile、台账、技能、会话 | [agent-dh 是什么](agent-dh-overview.md) |
+| **DSH_HOME** | 运行时根目录（`agent-dh/.dsh-data`）：profile、台账、技能、会话 | [agent-dh 是什么](agent-dh-overview.md) |
 | **窗口 / 窗口编码** | 一个 DSH 会话 = 一个"窗口"；编码形如 `w-1cee2467`（会话 id 前 8 位） | [身份与 agents.json](identity-and-agents-json.md)（待写） |
 | **基因组（genome）** | agent 的宪法/原则/规则/教训四段提示词；可进化、有版本、过验证门才转正 | [自主能力总览](../architecture/AUTONOMY-SYSTEM.md) |
 | **决策审计（decision_audit）** | 决策台账：记录 + 事后评估（观察/跳过/交易各有评估策略） | [留痕与文档规范](../standards/audit-and-docs.md) |

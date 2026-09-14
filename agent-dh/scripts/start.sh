@@ -142,85 +142,56 @@ fi
 # 兼容现役旧布局时由 launchd 显式传 DSH_PROFILE=investment。
 DSH_PROFILE="${DSH_PROFILE:-agent-dh}"
 
-# 托管模式（未显式传 DSH_HOME）：用项目内 .dsh-home，本脚本负责生成 profile 脚手架，
-#   数据落项目内 .dsh-data。
-# 外部模式（显式传了 DSH_HOME 且不是项目内的 .dsh-home，如回滚到旧 home 时）：
-#   本脚本**只负责启动**，绝不创建/覆盖/改链那份 home 的任何内容。
+# 托管模式（未显式传 DSH_HOME）：**DSH_HOME 就是数据目录本身**（.dsh-data），
+#   本脚本负责生成 profile 脚手架。
+# 外部模式（显式传了 DSH_HOME 且不等于数据目录，如回滚到旧 home 时）：
+#   本脚本**只负责启动**，绝不创建/覆盖那份 home 的任何内容。
 #   理由：外部 home 下有 sessions、genome/、dsh-reqboard.json、skills/、attachments/
-#   等全部活数据；脚手架里的 rm -rf + 符号链接会把它们静默搬走 = 数据丢失。
+#   等全部活数据，脚手架不该去动它们。
 #   （2026-09-13 起 launchd 不再传 DSH_HOME，走下面的托管模式。）
-if [ -n "${DSH_HOME:-}" ] && [ "$DSH_HOME" != "$PROJECT_ROOT/.dsh-home" ]; then
+#
+# 2026-09-14 合并：原先分两层 —— DSH_HOME=.dsh-home（脚手架）+ DSH_DATA_DIR=.dsh-data
+#   （真数据），再由 _link_dir/_link_file 把数据挂进 home。**这层已撤除**，理由是它
+#   自己会坏：三个文件级挂载点（dsh-reqboard.json / .credentials.yaml / pet.json）的
+#   写盘方全部用原子写（临时文件 + rename），而 **rename 会把符号链接换成普通文件** ——
+#   于是每次写盘都在 home 里长出一个新的"真身"，数据目录里那份变成看不出问题的死副本。
+#   实测已炸：.dsh-home/dsh-reqboard.json 成为 250KB 活文件（实例持有），
+#   .dsh-data/dsh-reqboard.json 冻结在 2 天前的 96KB —— 备份数据目录会漏掉真实台账。
+#   （同样的引信还装在 .credentials.yaml 上：一旦在 UI 改凭证，就会长出第二份凭证库，
+#     两份 = 两套 cookie 签名密钥 = 反复 401。）
+#   合并后没有链接，也就没有可被 rename 破坏的东西；两层本来也只是"home 曾在仓库外"
+#   时代的遗留，两个目录现在都在 agent-dh/ 下。
+export DSH_DATA_DIR="${DSH_DATA_DIR:-$PROJECT_ROOT/.dsh-data}"
+if [ -n "${DSH_HOME:-}" ] && [ "$DSH_HOME" != "$DSH_DATA_DIR" ]; then
   MANAGED_HOME=0
 else
   MANAGED_HOME=1
-  export DSH_HOME="$PROJECT_ROOT/.dsh-home"
+  export DSH_HOME="$DSH_DATA_DIR"
 fi
 mkdir -p "$DSH_HOME"
-
-# 项目内数据/簿记目录：pidfile、以及托管模式下的 sessions/storages 都在这儿（已 gitignore）
-export DSH_DATA_DIR="${DSH_DATA_DIR:-$PROJECT_ROOT/.dsh-data}"
 mkdir -p "$DSH_DATA_DIR/state"
 
-# 非破坏性目录链接：已是指向同处的符号链接 → 跳过；已是有内容的真实目录 → **拒绝替换**并告警。
-# （2026-09-12 立：原实现无条件 rm -rf + ln -s，遇到含 67 项活 state 的真实目录会直接抹掉。）
-_link_dir() {  # $1=目标路径  $2=源路径  $3=说明
-  local dst="$1" src="$2" label="$3"
-  if [ -L "$dst" ]; then
-    [ "$(readlink "$dst")" = "$src" ] || \
-      echo "  警告: $label 已是指向 $(readlink "$dst") 的符号链接（预期 ${src}），保持不变" >&2
-    return 0
-  fi
-  if [ -e "$dst" ] && [ -n "$(ls -A "$dst" 2>/dev/null)" ]; then
-    echo "  警告: $label 是含内容的真实目录（$(ls -A "$dst" | wc -l | tr -d ' ') 项），拒绝替换为符号链接。" >&2
-    echo "        如确要迁到项目数据目录，请先人工归档：mv <dst> <dst>.bak-<时间戳> 后再启动。" >&2
-    return 0
-  fi
-  rm -rf "$dst"
-  ln -s "$src" "$dst"
-}
-
-# 单文件版的非破坏性链接。文件不存在则跳过（不建悬空链接）；已是同处符号链接则跳过；
-# 已是有内容的真实文件则**拒绝替换**并告警（与 _link_dir 同一策略，防静默丢数据）。
-_link_file() {  # $1=目标路径  $2=源路径  $3=说明
-  local dst="$1" src="$2" label="$3"
-  [ -e "$src" ] || return 0
-  if [ -L "$dst" ]; then
-    [ "$(readlink "$dst")" = "$src" ] || \
-      echo "  警告: $label 已是指向 $(readlink "$dst") 的符号链接（预期 ${src}），保持不变" >&2
-    return 0
-  fi
-  if [ -e "$dst" ] && [ -s "$dst" ]; then
-    echo "  警告: $label 是含内容的真实文件，拒绝替换为符号链接。" >&2
-    echo "        如确要迁到项目数据目录，请先人工归档：mv <dst> <dst>.bak-<时间戳> 后再启动。" >&2
-    return 0
-  fi
-  rm -f "$dst"
-  ln -s "$src" "$dst"
-}
+# 上一层布局的残留检测：.dsh-home 若还有内容，它**一份都不参与加载**（DSH_HOME 已不是它）。
+# 静默的旧副本比报错危险得多 —— 所以这里必须喊出来。
+PRE_MERGE_HOME="$PROJECT_ROOT/.dsh-home"
+if [ -d "$PRE_MERGE_HOME" ] && [ -n "$(ls -A "$PRE_MERGE_HOME" 2>/dev/null)" ]; then
+  echo "警告: $PRE_MERGE_HOME 仍有内容，但合并后它已不参与加载（DSH_HOME=${DSH_HOME}）。" >&2
+  echo "      如果那是合并前的遗留，请人工核对后归档；否则它会被误当成「备份」。" >&2
+  echo "      核对入口：ls -A ${PRE_MERGE_HOME}" >&2
+fi
 
 if [ "$MANAGED_HOME" = "1" ]; then
   echo "运行模式: 项目内托管（DSH_HOME=${DSH_HOME} profile=${DSH_PROFILE}）"
   mkdir -p "$DSH_DATA_DIR/data"
 
-  # settings.yaml **不再做符号链接**（2026-09-14）：加载路径改由 config/cordis.yml 的
-  #   - id: settings / config.path: $DSH_DATA_DIR/settings.yaml
-  # 直接指定，$DSH_DATA_DIR 那份是唯一真身。
-  #
-  # 为什么不链接（当天实测踩到）：dsh-settings-file 写盘走 writeFileAtomic（临时文件 +
-  # rename），**rename 会把符号链接替换成普通文件**。一次 UI 改设置（如换模型）之后
-  # $DSH_HOME/settings.yaml 就变成第二份真身，UI 的写入落它身上；而下面这段原先的
-  # `ln -sf` 又会在下次启动时**静默覆盖**它 —— 两份文档互相打架且全程无报错。
-  # 残留的旧链接必须清掉，否则它看起来仍像权威配置；含内容的真实文件只告警不删。
+  # settings.yaml：不加任何链接、也不指定 config.path —— DSH_HOME 就是数据目录，
+  # 插件缺省解析 join(resolveDshHome(), "settings.yaml") 自然落到唯一那份。
+  # （2026-09-14 起不再需要在 config/cordis.yml 里写绝对路径覆盖：那个覆盖当初是为了
+  #   绕开"链接会被原子写打断"的问题，合并后链接没有了，覆盖也就多余了。）
+  # 上一层布局可能留下链接或真文件，两者都只会误导人，所以在这里点破。
   if [ -L "$DSH_HOME/settings.yaml" ]; then
-    rm -f "$DSH_HOME/settings.yaml"
-    echo "  已移除 settings.yaml 符号链接（改由 config.path 指向 ${DSH_DATA_DIR} 那份）"
-  elif [ -s "$DSH_HOME/settings.yaml" ]; then
-    echo "  警告: $DSH_HOME/settings.yaml 是含内容的真实文件，但它已不参与加载。" >&2
-    echo "        唯一真身是 $DSH_DATA_DIR/settings.yaml；确认无误后请手工删除前者。" >&2
-  fi
-
-  if [ -f "$DSH_DATA_DIR/.credentials.yaml" ]; then
-    ln -sf "$DSH_DATA_DIR/.credentials.yaml" "$DSH_HOME/.credentials.yaml"
+    echo "  警告: $DSH_HOME/settings.yaml 是符号链接（上一层布局的残留）。" >&2
+    echo "        合并后 DSH_HOME 即数据目录，唯一真身就是 $DSH_DATA_DIR/settings.yaml。" >&2
   fi
 
   # ── agent preset 分发（2026-09-13 加固）────────────────────────────────
@@ -299,22 +270,14 @@ if [ "$MANAGED_HOME" = "1" ]; then
     done
   fi
 
-  # 会话与 storages 常驻项目数据目录（.dsh-data），DSH_HOME 内用符号链接指过去。
-  # 这样 .dsh-home 被重建时，历史会话与工作区登记不会丢。
-  mkdir -p "$DSH_DATA_DIR/sessions" "$DSH_DATA_DIR/storages"
-  _link_dir "$DSH_HOME/sessions" "$DSH_DATA_DIR/sessions" "sessions"
-  _link_dir "$DSH_HOME/storages" "$DSH_DATA_DIR/storages" "storages"
-
-  # DSH_HOME 顶层其余状态项：插件与框架按 `$DSH_HOME/<名字>` 取数，不挂 = 实例读到空数据。
-  #   dsh-reqboard.json —— dsh-pmboard 的台账（LEDGER_FILE，按 DSH_HOME 解析）
+  # 会话、storages 与其余顶层状态项**不再需要挂载**：DSH_HOME 就是数据目录，
+  # 插件按 `$DSH_HOME/<名字>` 取到的本来就是数据目录里的那份。
+  # 这里只保留 mkdir：目录先建好，插件自己也不会因为缺目录而走异常分支。
+  #   sessions/ · storages/ —— 会话与工作区登记
   #   skills/ · attachments/ —— skill 根与附件对象库
-  #   pet.json —— 实例图标状态
-  # （2026-09-13 立：DSH_HOME 迁入项目内时只挂了 sessions/storages，
-  #   导致 pmboard 台账在运行实例里消失——数据在 .dsh-data 里，实例却看不见。）
-  _link_file "$DSH_HOME/dsh-reqboard.json" "$DSH_DATA_DIR/dsh-reqboard.json" "dsh-reqboard.json"
-  _link_file "$DSH_HOME/pet.json"          "$DSH_DATA_DIR/pet.json"          "pet.json"
-  _link_dir  "$DSH_HOME/skills"            "$DSH_DATA_DIR/skills"            "skills"
-  _link_dir  "$DSH_HOME/attachments"       "$DSH_DATA_DIR/attachments"       "attachments"
+  #   dsh-reqboard.json / pet.json / .credentials.yaml —— 各自插件的单文件状态，首次写盘时生成
+  mkdir -p "$DSH_DATA_DIR/sessions" "$DSH_DATA_DIR/storages"
+  mkdir -p "$DSH_DATA_DIR/skills" "$DSH_DATA_DIR/attachments"
 else
   echo "运行模式: 外部 DSH_HOME（只启动，不生成 profile 脚手架）: $DSH_HOME"
 fi
@@ -419,13 +382,14 @@ EOF
   echo "  生成 package.json"
 fi
 
-# 创建 state 目录的符号链接，指向项目数据目录
+# profile 内的 state/ 与 data/ 仍指向数据根的对应目录（lifecycle 等插件按
+# `$PROFILE_DIR/state` 找状态文件）。合并后 PROFILE_DIR 已在 DSH_DATA_DIR 内，
+# 这两条是**同树内**的目录链接 —— 目录链接不会被原子写破坏，保留无害。
 if [ ! -L "$PROFILE_DIR/state" ]; then
   rm -rf "$PROFILE_DIR/state"
   ln -s "$DSH_DATA_DIR/state" "$PROFILE_DIR/state"
 fi
 
-# 创建 data 目录的符号链接
 if [ ! -L "$PROFILE_DIR/data" ]; then
   rm -rf "$PROFILE_DIR/data"
   ln -s "$DSH_DATA_DIR/data" "$PROFILE_DIR/data"

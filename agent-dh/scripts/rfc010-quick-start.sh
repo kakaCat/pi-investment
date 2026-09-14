@@ -11,8 +11,9 @@ echo ""
 AGENT_OS_DIR="/Users/yunpeng/pi-investment/agent-os"
 # 2026-09-13：旧布局 ~/.dsh/profiles/investment 已随遗留清理删除；现役为项目内托管布局，
 # 从脚本自身位置反推，不再硬编码 home（同 scripts/restart-with-build.sh 的做法）。
+# 2026-09-14 合并：.dsh-home 已并入 .dsh-data，profile 名与 start.sh 同规则（缺省 agent-dh）。
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DSH_DIR="$(cd "$SCRIPT_DIR/.." && pwd)/.dsh-home/profiles/investment"
+DSH_DIR="$(cd "$SCRIPT_DIR/.." && pwd)/.dsh-data/profiles/${DSH_PROFILE:-agent-dh}"
 
 if [ ! -d "$AGENT_OS_DIR" ]; then
     echo "❌ Agent OS 目录不存在: $AGENT_OS_DIR"

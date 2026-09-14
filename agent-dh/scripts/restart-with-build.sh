@@ -28,7 +28,9 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # 项目内托管布局（2026-09-13 起 :13080 的现役布局）：从脚本自身位置反推，不硬编码 home。
 # 原来写死 ~/.dsh-agent-dh/profiles/investment —— 切换后那份已是历史副本，本脚本会去
 # relink/体检一个没人跑的 home，再用它那份旧 start.sh 去撞 13080 端口。
-PROFILE_DIR="${DSH_INVESTMENT_PROFILE:-$PROJECT_ROOT/.dsh-home/profiles/investment}"
+# 2026-09-14 合并：.dsh-home 已并入 .dsh-data（DSH_HOME 即数据目录），profile 随之下沉；
+# profile 名与 start.sh 保持同一规则（DSH_PROFILE，缺省 agent-dh）。
+PROFILE_DIR="${DSH_INVESTMENT_PROFILE:-$PROJECT_ROOT/.dsh-data/profiles/${DSH_PROFILE:-agent-dh}}"
 
 LAUNCHD_LABEL="com.pi-investment.dsh"
 LAUNCHD_PLIST="$HOME/Library/LaunchAgents/$LAUNCHD_LABEL.plist"

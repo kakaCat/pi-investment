@@ -14,7 +14,7 @@ tags: [architecture, identity, accounts]
 
 ## 结论先行
 
-1. **身份登记表 = 运行时 profile 目录下的 `agents.json`**（本实例：`agent-dh/.dsh-home/profiles/investment/agents.json`），结构为 `{ instance, agents[], rules }`。
+1. **身份登记表 = 运行时 profile 目录下的 `agents.json`**（本实例：`agent-dh/.dsh-data/profiles/agent-dh/agents.json`；单一来源是 `.dsh-data/agents.json`，start.sh 只在 profile 缺该文件时拷过去），结构为 `{ instance, agents[], rules }`。
 2. **账户的唯一事实源是 `instance.account`**（agent 条目可用 `account` 覆盖）；**任务、提示词、代码里禁止写死账户名**——换账户只改这一处。本实例为 `agent_brain`（投资脑自营盘）。
 3. **身份进提示词但不进基因组**：lifecycle 插件注册 `agent:identity` 段（order 5，在宪法段之前），因此身份**不参与进化**、不会被基因组更新覆盖。
 4. **窗口 = DSH 会话**：会话 id 形如 `session-<uuid>`，窗口码取前 8 位（如 `w-1cee2467`）；同角色不同窗口是**独立个体**，协作与归因都要带窗口码。
@@ -30,7 +30,7 @@ tags: [architecture, identity, accounts]
     "port": 13080,
     "account": "agent_brain",
     "account_label": "投资脑自营盘",
-    "dsh_home": "<repo>/agent-dh/.dsh-home",
+    "dsh_home": "<repo>/agent-dh/.dsh-data",
     "genome_dir": "<repo>/agent-dh/.dsh-data/genome"
   },
   "agents": [
