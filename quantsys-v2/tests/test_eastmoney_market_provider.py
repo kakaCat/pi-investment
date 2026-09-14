@@ -465,3 +465,40 @@ def test_m1_insider_last_error_no_stale(monkeypatch):
     assert p.get_insider_trades('600519') is None
     assert p.last_error and p.last_error != 'STALE-FROM-OTHER-CALL', \
         'last_error 串味：应是本次失败原因'
+
+def test_m3_success_branch_surfaces_provider_errors():
+    """M3：成功分支必须透出 provider_errors —— 调用方要能回答「数据是首选源给的，
+    还是降级后备源给的、以及首选源为什么没给」。
+
+    原实现成功分支不返回该键（审查指出），于是 shared.provider_payload 拿不到、
+    providerErrors 恒空，degraded 也只能靠 attempted>1 推断。
+
+    这里直接给 _try_providers 一个**受控的源列表**（审查者 L3 验证亦用此方式），
+    避免受健康排序影响（实测走真实源列表时 akshare 可能因健康分靠后被跳过，
+    导致断言不稳定）。
+    """
+    from adapters.outbound.datasources import get_data_provider_manager
+    from adapters.outbound.datasources.models import MarketData
+
+    class _Boom:
+        name = 'boom'
+        last_error = '首选源故障（模拟）'
+
+        def get_x(self):
+            return None
+
+    class _Good:
+        name = 'good'
+        last_error = None
+
+        def get_x(self):
+            return MarketData(data_type='x', data={'ok': 1}, source='good',
+                              timestamp='2026-09-14T00:00:00')
+
+    res = get_data_provider_manager()._try_providers([_Boom(), _Good()], 'get_x')
+    assert res['success'] is True, res
+    assert res['source'] == 'good'
+    assert res['attempted_sources'] == ['boom', 'good']
+    errors = res.get('provider_errors') or {}
+    assert 'boom' in errors, '成功分支必须带上失败源的原因'
+    assert '首选源故障' in errors['boom']

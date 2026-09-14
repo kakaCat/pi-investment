@@ -86,7 +86,7 @@ def get_market_sentiment(
                     "success": True,
                     "data": {
                         "requestedDate": requested.isoformat(),
-                        "requested_date_missing": True,
+                        "requestedDateMissing": True,
                         "empty": True,
                         "degraded": True,
                         "source": "quant.market_sentiment_daily",
