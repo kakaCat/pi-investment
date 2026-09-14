@@ -7,45 +7,28 @@
 from infrastructure.persistence.orm.async_base import AsyncBaseORMRepository
 from sqlalchemy import Column, BigInteger, String, Float, Date, Text, DateTime, JSON, Integer, Boolean, select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
-from infrastructure.persistence.orm.base import Base
 from typing import List, Optional, Dict, Any
 import structlog
 
+# ---------------------------------------------------------------------------
+# 唯一事实源：本文件的模型一律从各自仓储 import，**不再重复声明同名表**。
+#
+# 为什么必须这样（本仓已因此发生三次线上静默故障）：
+#   「同名表 + extend_existing=True」在第二次声明时会把新列**追加**到已存在的
+#   Table 对象上，污染第一个模型的 __table__；查询遍历 table.columns 时撞上
+#   未被映射的列 → AttributeError / UndefinedColumn → 被 except 吞掉 → 接口恒空。
+#     · ffc221de  /api/ml/models 恒返回空
+#     · f00fd8fe  /api/positions、/api/data-quality/report 恒返回空列表
+#     · risk_repository 曾被建成 EAV 错结构（metric_name/metric_value）
+#
+# 2026-09-14（w-2129d492）：删除本文件的 4 份重复定义，改为 import 权威模型。
+# ---------------------------------------------------------------------------
+from adapters.outbound.repositories.data_quality_repository import DataQualityRecord as DataQuality
+from adapters.outbound.repositories.fund_flow_repository import FundFlow
+from adapters.outbound.repositories.ml_model_repository import MlModel as MLModel
+from adapters.outbound.repositories.position_repository import Position
+
 logger = structlog.get_logger(__name__)
-
-
-# ==================== MLModel ====================
-class MLModel(Base):
-    """机器学习模型ORM（对齐线上 quant.ml_models 真实结构）
-
-    2026-09-10 修复（错误事件 ffc221de 根因，w-8f2c4cc5）：原声明 model_name /
-    model_version / model_data / accuracy / created_at 五列在线上表中**不存在**，
-    而 __table_args__ 用了 extend_existing=True —— 同名 Table 已存在时会**把不存在的
-    列追加到该 Table 对象**上，污染 ml_model_repository.MlModel.__table__；后者
-    _to_dict 遍历 table.columns 取值时撞上未被映射的 model_name →
-    AttributeError → /api/ml/models 恒返回空且日志持续刷错（launchd-stdout.log）。
-    现按线上表列对齐（与 ml_model_repository.MlModel 列集完全一致，杜绝同名表分叉）。
-    """
-    __tablename__ = 'ml_models'
-    __table_args__ = {'schema': 'quant', 'extend_existing': True}
-
-    id = Column(Integer, primary_key=True)
-    model_type = Column(String(50))
-    version = Column(String(50))
-    model_path = Column(Text)
-    train_accuracy = Column(Float)
-    test_accuracy = Column(Float)
-    precision = Column(Float)
-    recall = Column(Float)
-    f1_score = Column(Float)
-    roc_auc = Column(Float)
-    feature_count = Column(Integer)
-    train_samples = Column(Integer)
-    feature_importance = Column(Text, default='{}')
-    training_params = Column(Text, default='{}')
-    training_report = Column(Text, default='{}')
-    status = Column(String(20), default='ready')
-    train_date = Column(DateTime(timezone=True))
 
 
 class MLModelAsyncRepository(AsyncBaseORMRepository[MLModel]):
@@ -72,31 +55,6 @@ class MLModelAsyncRepository(AsyncBaseORMRepository[MLModel]):
         except Exception as e:
             logger.error(f"Error getting models: {e}")
             return []
-
-
-# ==================== Position ====================
-class Position(Base):
-    """持仓ORM（对齐线上 quant.positions 真实结构）
-
-    2026-09-10 修复（错误事件 f00fd8fe 连带）：原映射 id=BigInteger、成本列 cost_price
-    与线上表（id 为 uuid、成本列 cost_basis）不一致，select 抛 UndefinedColumn 后被
-    AsyncBaseORMRepository 吞掉 → /api/positions 恒返回 success:true + 空列表（静默空数据）。
-    """
-    __tablename__ = 'positions'
-    __table_args__ = {'schema': 'quant', 'extend_existing': True}
-
-    id = Column(String(36), primary_key=True)   # uuid 列
-    account_id = Column(String(50))
-    symbol = Column(String(20))
-    name = Column(String(50))
-    quantity = Column(Integer)
-    cost_basis = Column(Float)                  # 线上列名（原误写 cost_price）
-    current_price = Column(Float)
-    market_value = Column(Float)
-    unrealized_pnl = Column(Float)
-    unrealized_pnl_pct = Column(Float)
-    status = Column(String(20))
-    updated_at = Column(DateTime(timezone=True))
 
 
 class PositionAsyncRepository(AsyncBaseORMRepository[Position]):
@@ -129,24 +87,6 @@ class PositionAsyncRepository(AsyncBaseORMRepository[Position]):
                  'status': p.status,
                  'updated_at': p.updated_at.isoformat() if p.updated_at else None}
                 for p in positions]
-
-
-# ==================== FundFlow ====================
-class FundFlow(Base):
-    """资金流向ORM（quant.stock_fund_flow，金额单位：万元）"""
-    __tablename__ = 'stock_fund_flow'
-    __table_args__ = {'schema': 'quant', 'extend_existing': True}
-
-    id = Column(Integer, primary_key=True)
-    symbol = Column(String(20))
-    trade_date = Column(Date)
-    close_price = Column(Float)
-    change_pct = Column(Float)
-    main_net_inflow = Column(Float)
-    large_net_inflow = Column(Float)
-    big_net_inflow = Column(Float)
-    medium_net_inflow = Column(Float)
-    small_net_inflow = Column(Float)
 
 
 class FundFlowAsyncRepository(AsyncBaseORMRepository[FundFlow]):
@@ -182,36 +122,6 @@ class FundFlowAsyncRepository(AsyncBaseORMRepository[FundFlow]):
         except Exception as e:
             logger.error(f"Error getting flows: {e}")
             return []
-
-
-# ==================== DataQuality ====================
-class DataQuality(Base):
-    """数据质量ORM（对齐线上 quant.data_quality_records）
-
-    2026-09-10 修复（错误事件 f00fd8fe 连带）：原映射指向不存在的 quant.data_quality_checks
-    （线上真表为 data_quality_records，列也完全不同），查询抛 UndefinedTable 后被基类吞掉
-    → /api/data-quality/report 恒返回 success:true + checks:[]（静默空数据）。
-    """
-    __tablename__ = 'data_quality_records'
-    __table_args__ = {'schema': 'quant', 'extend_existing': True}
-
-    id = Column(BigInteger, primary_key=True)
-    symbol = Column(String(20))
-    period = Column(String(20))
-    check_date = Column(Date)
-    original_count = Column(Integer)
-    cleaned_count = Column(Integer)
-    removed_count = Column(Integer)
-    fixed_count = Column(Integer)
-    error_count = Column(Integer)
-    warning_count = Column(Integer)
-    completeness_score = Column(Float)
-    consistency_score = Column(Float)
-    accuracy_score = Column(Float)
-    overall_score = Column(Float)
-    grade = Column(String(10))
-    duration_ms = Column(Integer)
-    created_at = Column(DateTime)
 
 
 class DataQualityAsyncRepository(AsyncBaseORMRepository[DataQuality]):

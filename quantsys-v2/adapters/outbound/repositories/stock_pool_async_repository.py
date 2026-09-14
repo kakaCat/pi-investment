@@ -6,32 +6,14 @@ Stock Pool 异步ORM Repository
 from infrastructure.persistence.orm.async_base import AsyncBaseORMRepository
 from sqlalchemy import Column, Integer, String, Float, Date, Text, BigInteger, JSON, Boolean, DateTime, select, ARRAY
 from sqlalchemy.ext.asyncio import AsyncSession
-from infrastructure.persistence.orm.base import Base
 from typing import List, Optional, Dict, Any
 import structlog
 
+# 唯一事实源：StockPool 从同步仓储 import，不再本地重复声明同名表
+# （理由见 p2_async_repositories.py 头部说明：同名表 + extend_existing 会污染 __table__）
+from adapters.outbound.repositories.stock_pool_repository import StockPool
+
 logger = structlog.get_logger(__name__)
-
-
-class StockPool(Base):
-    """股票池ORM模型 - 匹配实际数据库表结构"""
-    __tablename__ = 'stock_pools'
-    __table_args__ = {'schema': 'quant', 'extend_existing': True}
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    pool_type = Column(String(10), nullable=False)  # 'static', 'dynamic'
-    description = Column(Text)
-    symbols = Column(ARRAY(Text))  # text[] 数组
-    filter_template = Column(JSON)  # jsonb
-    refresh_interval = Column(String(20))  # 'daily', 'weekly'
-    last_refreshed_at = Column(DateTime)
-    last_validation = Column(JSON)  # jsonb
-    created_at = Column(DateTime)
-    updated_at = Column(DateTime)
-    members = Column(JSON)  # jsonb - 成员列表
-    scan_enabled = Column(Boolean, default=True)
-    last_signal_scan = Column(JSON)  # jsonb
 
 
 class StockPoolAsyncRepository(AsyncBaseORMRepository[StockPool]):
