@@ -213,7 +213,7 @@ if [ "$MANAGED_HOME" = "1" ]; then
   # 残留的旧链接必须清掉，否则它看起来仍像权威配置；含内容的真实文件只告警不删。
   if [ -L "$DSH_HOME/settings.yaml" ]; then
     rm -f "$DSH_HOME/settings.yaml"
-    echo "  已移除 settings.yaml 符号链接（改由 config.path 指向 $DSH_DATA_DIR）"
+    echo "  已移除 settings.yaml 符号链接（改由 config.path 指向 ${DSH_DATA_DIR} 那份）"
   elif [ -s "$DSH_HOME/settings.yaml" ]; then
     echo "  警告: $DSH_HOME/settings.yaml 是含内容的真实文件，但它已不参与加载。" >&2
     echo "        唯一真身是 $DSH_DATA_DIR/settings.yaml；确认无误后请手工删除前者。" >&2
