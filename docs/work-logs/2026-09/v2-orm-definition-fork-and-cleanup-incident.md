@@ -202,3 +202,56 @@ tests/adapters/outbound/repositories           35 passed, 3 failed（3 个在 ma
 5. **29 张备份表数据不可恢复**（见 §2.5）。
 6. 大时序表（`minute_klines` 1.16 亿行等）**刻意不做 ORM**：走原生 SQL + 分块读取，
    见同时期 `fix/memory-safe-orm`（chunksize / 流式迭代）。
+
+---
+
+## 六、门禁加固 + 剩余悬空模型的交叉判别（同日追加）
+
+### 6.1 原门禁的洞：悬空模型"只打印不失败"
+
+原 `test_orm_columns_all_exist_in_database` 对"模型映射的表不在库里"只写进消息文本、
+**不 assert** —— 于是 3 个悬空模型长期逃逸。已改为**硬失败**，仅显式登记项豁免：
+
+```python
+_KNOWN_DANGLING_TABLES = {'public.audit_log', 'quant.async_factors', 'quant.sentiment_data'}
+```
+
+故障注入验证（清空基线 → 门禁变红并精确报出悬空表；恢复 → 6 passed）：
+```
+E   AssertionError: 仓储内联模型映射了数据库中不存在的表…:
+E       - public.audit_log
+E       - quant.sentiment_data
+```
+
+### 6.2 生产库 × 测试库交叉判别（这一步才有结论）
+
+改成硬失败后立刻多抓出 `quant.evolution_strategy_runs`。两库交叉核对才发现它**不是**漂移：
+
+| 表 | quant_investment（生产） | quant_test（测试） | 判定 |
+|---|---|---|---|
+| `public.audit_log` | 无 | 无 | **真悬空**（从未存在，无迁移创建） |
+| `quant.sentiment_data` | 无 | 无 | **真悬空** |
+| `quant.async_factors` | **无** | **有** | **生产必炸、测试能过** |
+| `quant.evolution_strategy_runs` | **有** | 无 | 测试库镜像不全（生产正常） |
+
+### 6.3 由此暴露的门禁盲区（诚实登记在测试文件里）
+
+本门禁以**测试库**为准，因此"测试库有、生产没有"的表它**看不见** ——
+`quant.async_factors` 正是此形态：`FactorAnalysisAsyncService.get_factors` 会捕获异常
+返回 `{}`（假成功），但因为在测试库能查到，门禁放行。
+
+两个口径互补、不可互替：
+- 门禁（pytest，DSN=quant_test）：挡"模型与库不符"的**通用**回归；
+- 只读探针（`tools/oneoff/orm_drift_probe.py`，DSN=quant_investment）：挡**生产特有**缺口。
+
+→ **遗留建议**：给探针也加一条以生产为口径的定时/CI 检查，否则这类"只在生产炸"的缺陷仍无闸门。
+
+### 6.4 剩余悬空模型的实际后果（逐一实测）
+
+| 模型 | 后果 | 证据 |
+|---|---|---|
+| `SentimentData` | **2 个活端点恒假成功** | `/api/sentiment/market` → `{"success":true,"data":{}}`；`/api/sentiment/stock/600519` → `{"success":true,"data":null}` |
+| `AuditLog` | 策略线（v13/v14）决策审计**从未落库** | `log_decision` 上抛、调用方 `_log_to_db` 降级为 warning；无任何迁移创建过 `public.audit_log` |
+| `AsyncFactor` | 因子服务返回 `{}`（假成功），且**只在生产失败** | `core_async_services.FactorAnalysisAsyncService.get_factors` 捕获后返回 `{}` |
+
+三者都需先定产品口径（数据源 / 是否下线端点），不在"机械收敛"范围内。

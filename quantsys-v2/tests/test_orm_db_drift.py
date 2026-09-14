@@ -88,6 +88,41 @@ _EXTEND_EXISTING_BASELINE = frozenset({
     'adapters/outbound/repositories/sentiment_async_repository.py',
 })
 
+# 「模型指向不存在的表」基线（2026-09-14，w-2129d492）。
+#
+# 原先这个方向**只打印不失败** —— "测试库未建表 N 张（跳过）"正是这 3 个长期逃逸的原因：
+# 模型映射一张从未存在的表，查询抛 UndefinedTable 被基类 except 吞掉，
+# 接口返回 success:true + 空数据（假成功），而门禁一声不吭。
+# 现在改为硬失败，仅这 3 个显式豁免；**新增任何悬空模型都会立刻红**。
+#
+#   public.audit_log      ← AuditLog      策略线（v13/v14）决策审计的唯一写入目标，
+#                                        但没有任何迁移创建过它 → log_decision 必然上抛，
+#                                        被 _log_to_db 降级成 warning → 审计轨迹从未落库。
+#   quant.async_factors   ← AsyncFactor   FactorAnalysisAsyncService 捕获后返回 {}（假成功）。
+#   quant.sentiment_data  ← SentimentData 活路由 /api/sentiment/market 与
+#                                        /api/sentiment/stock/{symbol} 恒返回假成功。
+#
+# 三者都要先定产品口径（数据源/是否下线），不在本次机械收敛范围内。
+_KNOWN_DANGLING_TABLES = frozenset({
+    'public.audit_log',
+    'quant.async_factors',
+    'quant.sentiment_data',
+})
+
+# 「仅测试库缺、生产在位」的表（2026-09-14 交叉核对 quant_investment vs quant_test）：
+#   quant.evolution_strategy_runs —— 生产存在，测试库镜像没建 → 是本文件顶部已说明的
+#   "测试库是部分镜像"问题，不是模型-库漂移。豁免但打印。
+_ENV_ONLY_ABSENT_TABLES = frozenset({
+    'quant.evolution_strategy_runs',
+})
+
+# ⚠️ 本门禁的已知盲区（诚实登记）：它以**测试库**为准，因此当一张表
+# "测试库有、生产没有"时它看不见 —— 实测 quant.async_factors 正是这种：
+#   PROD: 不存在      TEST: 存在
+# 即模型在测试里能用、在生产必炸，而本门禁会放行。该形态只能靠以生产为口径的
+# 只读探针（tools/oneoff/orm_drift_probe.py）发现。两者的 DSN 口径不同，互为补充，
+# 不能互相替代。
+
 
 def _load_models():
     """返回 {表名: Table}，只含 **models 包自己声明**的表。
@@ -245,6 +280,18 @@ def test_orm_columns_all_exist_in_database(engine, migrations_applied):
         + chr(10) + '修复：加一条 migrations/*.sql 显式 ALTER TABLE，或把该列从模型里删掉。'
     )
     assert checked, '没有可比对的表：测试库疑似未初始化'
+    env_absent = [t for t in absent if t in _ENV_ONLY_ABSENT_TABLES]
+    if env_absent:
+        print('仅测试库缺表（生产在位，非漂移）：%s' % ', '.join(env_absent))
+    unexpected_absent = [
+        t for t in absent
+        if t not in _KNOWN_DANGLING_TABLES and t not in _ENV_ONLY_ABSENT_TABLES
+    ]
+    assert not unexpected_absent, (
+        '模型映射了数据库中不存在的表（查询抛 UndefinedTable 会被静默吞成"假成功"）:'
+        + chr(10) + '  - ' + (chr(10) + '  - ').join(unexpected_absent)
+        + chr(10) + '修好模型或补迁移；确属已知悬空请显式登记进 _KNOWN_DANGLING_TABLES。'
+    )
 
 
 def test_order_tables_carry_execution_quality_columns(engine, migrations_applied):
@@ -391,7 +438,7 @@ def test_repository_inline_models_match_database(engine, migrations_applied):
     failures = _import_repository_modules()
     models = _load_all_models()
     insp = inspect(engine)
-    missing, absent, inline_seen, env_only = [], [], 0, set()
+    missing, absent, absent_detail, inline_seen, env_only = [], [], [], 0, set()
 
     for (schema, table), defs in sorted(models.items()):
         repo_defs = {k: v for k, v in defs.items() if k[0].startswith(REPO_PACKAGE)}
@@ -399,7 +446,8 @@ def test_repository_inline_models_match_database(engine, migrations_applied):
             continue
         inline_seen += 1
         if not insp.has_table(table, schema=schema):
-            absent.append('%s.%s（%s）' % (
+            absent.append('%s.%s' % (schema, table))
+            absent_detail.append('%s.%s（%s）' % (
                 schema, table, ', '.join(cn for _, cn in sorted(repo_defs))))
             continue
         db_cols = {c['name'] for c in insp.get_columns(table, schema=schema)}
@@ -420,6 +468,18 @@ def test_repository_inline_models_match_database(engine, migrations_applied):
     assert not missing, (
         '仓储内联模型声明了数据库不存在的列（查询必炸/被吞成空）:' + chr(10) + '  - '
         + (chr(10) + '  - ').join(missing)
-        + chr(10) + chr(10) + '已比对 %d 个内联模型；测试库未建表 %d 张（跳过）：%s'
-        % (inline_seen, len(absent), ', '.join(absent) if absent else '无')
+        + chr(10) + chr(10) + '已比对 %d 个内联模型；测试库未建表 %d 张：%s'
+        % (inline_seen, len(absent_detail), ', '.join(absent_detail) if absent_detail else '无')
+    )
+    env_absent = [t for t in absent if t in _ENV_ONLY_ABSENT_TABLES]
+    if env_absent:
+        print('仅测试库缺表（生产在位，非漂移）：%s' % ', '.join(env_absent))
+    unexpected_absent = [
+        t for t in absent
+        if t not in _KNOWN_DANGLING_TABLES and t not in _ENV_ONLY_ABSENT_TABLES
+    ]
+    assert not unexpected_absent, (
+        '仓储内联模型映射了数据库中不存在的表（查询抛 UndefinedTable 被吞成"假成功"）:'
+        + chr(10) + '  - ' + (chr(10) + '  - ').join(unexpected_absent)
+        + chr(10) + '修好模型或补迁移；确属已知悬空请显式登记进 _KNOWN_DANGLING_TABLES。'
     )
