@@ -236,3 +236,101 @@ market 域现有 3 源（`akshare` 12 方法 / `sina` 3 / `ths` 4）。
 2. 多源现状更正为：#2–#6 中 **4 个方法有 2 个源**（akshare + eastmoney），
    `get_fund_holdings` 1 个源。**不再有"单源无兜底"的数据类型**（除该条）。
 3. `public.audit_log`、`quant.async_factors` 两个悬空模型仍在门禁豁免名单（需产品决策）。
+
+---
+
+## 九、独立审查与整改（2026-09-14 深夜）
+
+**触发**：用户追问"验收前是否 review 和测试了"。诚实回答：测试做了、**独立审查没做** ——
+我提交 reqboard_verify_submit 时手里只有自审，而本仓此前（ORM 改造）正是用独立 subagent 审出
+5 个真问题的。作为补救，先自己做了对抗性检查，再启动独立只读审查。
+
+### 9.1 自查（对抗性检查）查出 3 个真 bug
+
+「6 类畸形上游响应 × 4 方法」打下来，问题全在**我自己的新代码**：
+
+| # | Bug | 危害 |
+|---|---|---|
+| 1 | **全 None 记录冒充数据** —— 东财源是显式字段映射，上游改名后产出「结构在、值全 None」的记录并报 total=10 | 调用方看到 10 条、每格 None，而上游其实已换字段 —— 正是本需求要消灭的"用空值冒充数据"，且静默掩盖 schema 漂移 |
+| 2 | **schema 漂移被归为"健康空"**（第一版修复） | empty 在框架里=「该源确实没数据」，不记故障 → 字段改名后该源永远安静返回空 |
+| 3 | **本地合成字段掩盖漂移** —— top_fund_stocks 的「序号」由我生成、恒非 None，让"全 None"判定永远为假 | 实测漏判：改名后仍报 total=1 |
+
+修法：区分「真的没有行 → 健康空」与「有行却映射不出 → 真故障」；合成字段不计入内容判定。
+（另有：未使用的 import、我引入后未使用的辅助函数、漂移日志用了过滤后行数 —— 一并清掉。）
+
+### 9.2 独立审查（subagent，只读）的核心发现
+
+审查者在 **HEAD=e1d142fe** 上核验，全程只读（探针写在 /tmp）。结论 **2 严重 + 5 中 + 8 低**。
+**H1 是真的、而且是我这轮最该发现却没发现的**：
+
+> **H1：akshare 的「健康空」吞掉解析/字段漂移失败，并短路掉新加的东财兜底源。**
+> akshare 对「报告期无数据」与「接口改名/结构变更」**都抛解析异常**，旧实现一律 continue，
+> 四期全败后返回 `empty:True` 且 `last_error=None` → manager 走成功分支 →
+> **东财兜底源根本不被尝试**。而接口改名正是这个形态 → 该源会永远安静返回空。
+> 更要命的是：**我自己的测试把这个错误行为锁成了期望值**
+> （`test_top_holders_all_periods_missing_is_healthy_empty`）。
+
+其余：H2（`?date=X` 静默回退到最近一天）、M1（insider 的 last_error 串味）、
+M2（/sentiment/stock 忽略顶层 empty）、M3（两源键集不等价而 docstring 声称相同）、
+M4（`degraded` 是死字段）、M5（状态码不一致）、L1–L8。
+
+审查同时**独立核实**了我"仓内零消费者"的声称：**字段级成立**（无任何代码解析旧伪造英文键、
+无 bullish/bearish/neutral/total 读取方），但**我发现 agent-ts 的端点注册表仍可经通用派发
+调用这些端点** → 我原先"端点不可达"的说法不准确，已在验收材料中更正。
+
+### 9.3 逐条整改
+
+| 编号 | 整改 |
+|---|---|
+| H1 | 报告期循环改**锁存**：任一期报过非网络异常 → 最终无数据即按故障上报（触发 failover、原因可见）；只有四期"干净地空"才算健康空。同步把锁错行为的测试拆成「失败」与「干净空」两条 |
+| H2 | 显式请求的日期取不到 → 返回 requestedDate + requestedDateMissing + empty + degraded，**不回退** |
+| M1 | insider_trades 补 last_error（重置 + 三条失败路径，含"代码列改名"） |
+| M2 | /sentiment/stock 统一走 provider_payload（认顶层 empty），并补 null 键保持契约稳定 |
+| M3 | akshare 侧 docstring 写明多出「股份类型」及与东财的差异；**manager 成功分支补 provider_errors**（原只在全失败分支返回 → 线上实测恒空） |
+| M4 | `degraded` = 有源失败/空过（或 attempted>1）。**线上实测已由恒 false 变为 true** |
+| M5 | /sentiment/stock 失败改 502（与其余 6 个端点一致） |
+| L1 | TTL 改为**前缀匹配**（`fund_hold:<type>:<period>` 此前永不命中 1800s 配置） |
+| L2 | stock_comment 两条失败路径补 last_error |
+| L3 | **更正我写错的技术论断**：声称"_try_providers 只捕获超时、其它异常会穿透"是错的 —— manager.py:411 有兜底 except Exception。不外抛的收益是**保原因**，不是防崩溃 |
+| L4 | provider_payload 透出 fetched_at（注释说明其为取数时间、上限=TTL） |
+| L5 | /market 无数据与 partial（coverage 不足）标 degraded |
+| L6 | 未知 fund_type 显式失败（原静默降级为基金持仓）；注明「all」本源等价「基金持仓」 |
+| L7 | /market 由 async def 改普通 def（FastAPI 放 threadpool，不阻塞事件循环） |
+| L8 | insider 的 days 过滤改为解析成 date 再比；**解析不出的行保留**并单列 undated_records |
+
+**测试质量**（审查点名"改了实现仍全绿"）：补了 H2、M2 的用例，另加 H1 端到端 failover、
+M1 串味、M5 502、L1 前缀 TTL、L6 未知类型、L8 日期、M3 键差异/provider_errors 透出。
+
+### 9.4 我自己引入并修掉的测试污染（值得单记）
+
+新用例曾**直接赋值 `em.requests.get`**（未用 monkeypatch、无还原）→ 污染全局
+→ 组合运行时把 3 个 `tests/migration` parity 用例带崩，**而隔离跑却全绿**。
+这正是"隔离绿、组合红"的经典形态。已改回 monkeypatch，并加正则自查确认无残留。
+
+### 9.5 整改验证：与基线**同命令对照**
+
+```
+同一条组合命令（我的 5 个套件 + tests/migration）:
+  worktree(含改动)  15 failed / 650 passed
+  main(基线)        15 failed / 641 passed     ← 失败集完全相同，零新增失败
+  （差 9 例 = 我新增的测试）
+
+目标套件: test_eastmoney_market_provider 23 + test_sentiment_real_data 28
+          + test_orm_db_drift 6 = 57 passed
+tests/migration 单独跑: worktree 与 main 同为 12 failed（既有）
+
+线上（重启后）:
+  /api/sentiment/top-fund-stocks → providerErrors={'akshare': "上游 基金持仓 列错位
+    （股票代码 列非 6 位代码，样例 [141398625194.02, ...]）"}  ← M3 修复前恒为空
+    degraded:true / attemptedSources:['akshare','eastmoney']    ← M4 修复前恒 false
+  /api/sentiment/market?date=2020-01-01 → requestedDate=2020-01-01,
+    requestedDateMissing:true, empty:true, degraded:true        ← H2 修复前会回退到 09-12
+  7 个端点全部 200
+```
+
+### 9.6 审查未能覆盖的（诚实转述）
+
+审查者明确列出**没能验证**的部分：未实测 akshare `stock_gdfx_free_top_10_em` 的键集；
+未做并发/压测（L7 阻塞事件循环的实际影响、冷缓存时全市场接口 2.5 万行/5196 行在请求路径上的
+延迟与内存）；未查生产库 `market_sentiment_daily` 的真实数据分布（partial/volatility 是否 NaN）；
+无法验证上游长期行为（限流/字段改名）与线上真实响应。**这些仍是未知，未因为我改了就消失。**

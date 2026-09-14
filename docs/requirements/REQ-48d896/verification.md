@@ -175,3 +175,75 @@ tests/test_eastmoney_market_provider.py  10 passed
 - `get_fund_holdings` 单源（见 §5.3，上游独立，非缺口）；
 - `public.audit_log`、`quant.async_factors` 两个悬空模型仍在门禁豁免名单（需产品决策）；
 - 门禁以测试库为口径，"测试库有、生产没有"仍看不见。
+
+---
+
+## 六、独立审查结果与整改（2026-09-14 深夜，覆盖 §一–§五 的"已验证"口径）
+
+> ⚠️ 前五节写于**独立审查之前**，其"已验证"只代表**自审 + 自动化测试**水平。
+> 本节是审查后的更正与补充，**以本节为准**。
+
+### 6.1 审查结论：2 严重 + 5 中 + 8 低，其中 H1 是我最该发现却漏掉的
+
+**H1（严重，需求核心失败模式仍在）**：akshare 对「报告期无数据」与「接口改名」**都抛解析异常**，
+旧实现一律 continue → 四期全败返回 `empty:True` 且 `last_error=None` → manager 走成功分支 →
+**东财兜底源根本不被尝试**；且**我自己的测试把该错误行为锁成了期望值**。
+
+**H2（严重）**：`/api/sentiment/market?date=X` 在库中无该日期时**静默回退到最近一天**返回。
+
+### 6.2 整改后逐条线上复验
+
+```
+# H1：修复后 akshare 解析失败会触发 failover（不再被吞成"健康空"）
+providerErrors = {'akshare': "get_top_fund_stocks 上游 基金持仓 列错位
+                              （股票代码 列非 6 位代码，样例 [141398625194.02, ...]）"}
+source = eastmoney, attemptedSources = ['akshare', 'eastmoney']
+
+# M4：degraded 由"恒 false 的死字段"变为真实反映降级
+degraded = true          ← 修复前 false（即便 data 来自备源）
+
+# H2：显式缺失日期不再回退
+GET /api/sentiment/market?date=2020-01-01 →
+  {"requestedDate":"2020-01-01","requestedDateMissing":true,"empty":true,
+   "degraded":true,"note":"所请求日期…无记录；未回退到其它日期"}
+
+# 7 个端点全部 200（top-holders / holder-changes / fund-holdings / insider-trades /
+#   sentiment/market / sentiment/stock/{symbol} / sentiment/top-fund-stocks）
+```
+
+### 6.3 更正 §一–§五 中**不准确**的表述
+
+| 原文说法 | 更正 |
+|---|---|
+| "独立审查未做" → 现已完成 | 已于本轮回合完成，由独立 subagent 只读审查，结论见 §6.1 |
+| "仓内**零消费者**，且端点不可达" | **字段级零消费者成立**；但 **agent-ts 端点注册表**（`quant-v2-client.ts:251-257,269`）经通用派发 `runQuantV2` **仍可调用**这些端点 → "端点不可达"**不成立**，且响应形状变更无任何测试锁定（parity 只断言 status<500） |
+| "异常绝不外抛（否则会穿透 failover）" | **论断有误**：manager.py:411 有兜底 `except Exception`，异常不会穿透。不外抛的真实收益是**保留可读的失败原因**（不设 last_error 会被记成 _INVALID_RESULT_MARKER） |
+| 两源"返回**相同的键**" | 并非逐字相同：akshare 的 get_top_holders 多「股份类型」、get_stock_comment 多「序号」；东财源如实省略。已在 docstring 写明差异 |
+
+### 6.4 测试证据（整改后）
+
+```
+tests/test_eastmoney_market_provider.py    23 passed（新增 H1/H2/M2/M3/M5/L1/L6/L8 回归）
+tests/test_sentiment_real_data.py          28 passed（H1 原"锁错行为"的用例已改为正确语义）
+tests/test_orm_db_drift.py                  6 passed
+────────────────────────────────────────────────────
+合计                                       57 passed
+
+同一条组合命令与基线对照（关键：零新增失败）:
+  worktree(含改动)  15 failed / 650 passed
+  main(基线)        15 failed / 641 passed   ← 失败集完全相同
+```
+
+### 6.5 本轮新增的一类缺陷：**测试污染**
+
+我的新用例曾直接赋值 `em.requests.get`（未 monkeypatch）→ 全局污染 →
+**组合运行时**带崩 3 个 `tests/migration` parity 用例，隔离跑却全绿。
+已改回 monkeypatch + 正则自查。**这也是"隔离绿不等于组合绿"的一次实证。**
+
+### 6.6 审查明确列出、仍然未知的部分（未因整改而消失）
+
+- 未实测 akshare `stock_gdfx_free_top_10_em` 的键集；
+- 未做并发/压测：async 路由改 def 后的实际影响、冷缓存时全市场接口（2.5 万行/5196 行）
+  在请求路径上的延迟与内存；
+- 未查**生产库** `quant.market_sentiment_daily` 的真实数据分布（partial/volatility 是否 NaN）；
+- 无法验证上游长期行为（限流、字段改名）与线上真实响应。

@@ -73,16 +73,32 @@ def test_top_holders_stringifies_date_columns(monkeypatch, provider):
     assert isinstance(val, str) and val == '2026-06-30'
 
 
-def test_top_holders_all_periods_missing_is_healthy_empty(monkeypatch, provider):
-    """报告期无数据 → 解析异常（非传输故障）→ 健康空，不是硬失败。"""
+def test_top_holders_all_periods_parse_error_is_failure(monkeypatch, provider):
+    """★ 独立审查 H1 修正：四期全部**解析失败** → 必须按故障上报，不是健康空。
+
+    原实现把解析异常一律 continue，最后返回 empty:True 且 last_error=None →
+    manager 走成功分支 → **东财兜底源根本不会被尝试**。而"接口改名/结构变更"
+    正是以解析异常的形式出现，于是该源会永远安静返回空。
+    （本测试此前断言的正是那个错误行为 —— 即"把 bug 锁成期望值"。）
+    """
     def boom(**kw):
         raise ValueError('Length mismatch: Expected axis has 1 elements')
 
     _install(monkeypatch, stock_gdfx_top_10_em=boom)
     md = provider.get_top_holders('600519')
-    assert md is not None, '数据缺失不该被判成故障（会误伤熔断）'
+    assert md is None, '四期全解析失败必须报故障（否则 failover 不触发）'
+    assert provider.last_error, '必须给出原因，便于排障与 provider_errors 展示'
+
+
+def test_top_holders_all_periods_clean_empty_is_healthy_empty(monkeypatch, provider):
+    """四期都"干净地空"（无异常）→ 才是健康空（与上一条严格区分）。"""
+    _install(monkeypatch, stock_gdfx_top_10_em=lambda **kw: pd.DataFrame())
+
+    md = provider.get_top_holders('600519')
+    assert md is not None
     assert md.data['holders'] == [] and md.data['total'] == 0
-    assert md.data['report_date'] is None
+    assert md.data['empty'] is True
+    assert provider.last_error is None, '干净空不是故障'
 
 
 def test_top_holders_transport_error_is_hard_failure(monkeypatch, provider):

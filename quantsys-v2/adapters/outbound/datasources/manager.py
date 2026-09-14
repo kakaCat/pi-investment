@@ -386,6 +386,10 @@ class DataProviderManager(IDataProviderManager):
                         # 空结果语义对齐（2026-09-11）：降级链上先经过的「健康无数据」源
                         # 同样要透出，否则调用方无法回答「这个数据绕过了几个空源」。
                         'empty_sources': empty_sources,
+                        # 2026-09-14（独立审查 M3）：成功分支此前**不返回 provider_errors**，
+                        # 于是调用方无法回答"这个数据是首选源给的，还是降级后由备源给的、
+                        # 以及首选源为什么没给"。纯增量键，不影响既有消费者。
+                        'provider_errors': provider_errors,
                         'empty': False,
                     }
 

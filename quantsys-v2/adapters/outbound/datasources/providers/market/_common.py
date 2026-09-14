@@ -21,13 +21,27 @@ SENTIMENT_CACHE_LOCK = threading.Lock()
 SENTIMENT_CACHE_TTLS = {
     'inner_trades': 300.0,    # 内部人交易按日更新
     'stock_comment': 600.0,   # 千股千评盘中会变
-    'fund_hold': 1800.0,      # 基金/机构持仓按季度披露
+    'fund_hold': 1800.0,      # 基金/机构持仓按季度披露（**前缀**，实际 key 为 fund_hold:<type>:<period>）
 }
+_DEFAULT_TTL_SECONDS = 600.0
+
+
+def ttl_for(name: str) -> float:
+    """按**前缀**取 TTL。
+
+    2026-09-14（独立审查 L1 修复）：原实现用精确匹配，而基金持仓的实际 key 是
+    fund_hold:<type>:<period>，与配置键 fund_hold 永不相等 → 配置的 1800s 是**死配置**、
+    永远落默认 600s（审查实测）。改为"精确或前缀"匹配。
+    """
+    for prefix, ttl in SENTIMENT_CACHE_TTLS.items():
+        if name == prefix or name.startswith(prefix + ':'):
+            return ttl
+    return _DEFAULT_TTL_SECONDS
 
 
 def cached_df(name: str, loader):
     """按 name 做 TTL 缓存的 DataFrame 获取；失败/空**不写入**缓存（下次重试）。"""
-    ttl = SENTIMENT_CACHE_TTLS.get(name, 600.0)
+    ttl = ttl_for(name)
     now = _time.monotonic()
     with SENTIMENT_CACHE_LOCK:
         hit = SENTIMENT_CACHE.get(name)
@@ -96,7 +110,7 @@ def secucode(symbol: str) -> str:
 def df_records(df) -> list:
     """DataFrame → JSON 安全 records。
 
-    日期/时间列必须转成字符串：\`datetime.date\` 不是 JSON 可序列化类型，
+    日期/时间列必须转成字符串：`datetime.date` 不是 JSON 可序列化类型，
     直接塞进响应会让路由在编码阶段 500。
     """
     records = df.astype(object).where(df.notna(), None).to_dict('records')

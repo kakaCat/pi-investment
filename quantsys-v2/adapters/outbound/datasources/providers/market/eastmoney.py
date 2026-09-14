@@ -148,9 +148,15 @@ class EastmoneyMarketProvider(BaseDataProvider[MarketData]):
     def _fail(self, exc: BaseException, what: str) -> None:
         """记录故障原因。
 
-        `last_error` 是框架判定「真故障」的唯一依据（manager.py：provider 自报
-        last_error 才计故障；否则 None 会被当成"非空但无效"）。**例外绝不外抛** ——
-        `_try_providers` 只捕获超时，其它异常会穿透整个 failover 循环。
+        `last_error` 是框架判定「真故障」的**主要**依据（provider 自报 last_error 才计故障
+        且原因可见；否则 None 会被记成 _INVALID_RESULT_MARKER，**具体原因丢失**）。
+
+        本方法仍坚持"不外抛"，但理由是**保原因**，不是"否则会穿透" ——
+        2026-09-14（独立审查 L3 更正）：此前这里声称「_try_providers 只捕获超时，
+        其它异常会穿透整个 failover 循环」**是错的**。manager.py:411 有兜底
+        `except Exception`，会记录 provider_errors 并继续下一个源（审查实测：
+        `_try_providers([Boom(), Good()], 'get_x')` → success=True, source=good）。
+        外抛的代价是**丢失可读原因**（只剩「类名: msg」），不是崩溃。
         """
         self.last_error = '%s: %s' % (what, str(exc)[:180])
         logger.warning('%s.%s 失败: %s', self.name, what, exc)
@@ -295,8 +301,19 @@ class EastmoneyMarketProvider(BaseDataProvider[MarketData]):
         self.last_error = None
         try:
             key = str(fund_type or 'all')
-            type_id = _ZLSJ_TYPE.get(key) or _ZLSJ_TYPE.get(key.lower()) or '1'
-            type_name = _ZLSJ_TYPE_NAME.get(type_id, '基金持仓')
+            # 2026-09-14（独立审查 L6 修复）：未知 fund_type 此前**静默降级**为基金持仓，
+            # 调用方以为查的是 QFII/社保却拿到基金数据。现改为显式失败。
+            # 另注：「all」在本数据源里等价于「基金持仓」（东财该页签默认口径），
+            # 不是"全部机构"——已在路由 docstring 与响应 fundType 字段中写明。
+            type_id = _ZLSJ_TYPE.get(key) or _ZLSJ_TYPE.get(key.lower())
+            if type_id is None:
+                self.last_error = (
+                    'get_top_fund_stocks 未知 fund_type=%r（可选：%s）'
+                    % (fund_type, '、'.join(sorted(set(_ZLSJ_TYPE_NAME.values()))))
+                )
+                logger.warning('%s.%s %s', self.name, 'get_top_fund_stocks', self.last_error)
+                return None
+            type_name = _ZLSJ_TYPE_NAME[type_id]
 
             rows, used_period = [], None
             last_exc = None

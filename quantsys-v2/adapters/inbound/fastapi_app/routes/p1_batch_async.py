@@ -4,9 +4,17 @@ P1中频API批量异步路由集合
 包含多个中频业务API的异步版本
 """
 from fastapi import APIRouter, Query, Body
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import structlog
+
+from adapters.inbound.fastapi_app.shared import (
+    api_response,
+    error_response,
+    provider_payload,
+    sanitize_for_json,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -45,9 +53,18 @@ class ApiResponse(BaseModel):
 
 
 @sentiment_router.get("/market", response_model=ApiResponse, summary="市场情绪")
-async def get_market_sentiment(
+def get_market_sentiment(
     date: Optional[str] = Query(None, description="日期")
 ):
+    # 2026-09-14（独立审查修复）：
+    #   L7 —— 原为 async def 却做**同步** scoped_session 查询（改造前用的是 async session
+    #          context + await），会在事件循环里阻塞。改普通 def：FastAPI 会把它放进
+    #          threadpool 执行，不阻塞事件循环。
+    #   H2 —— 原实现：请求了库中没有的日期时会**静默回退到最近一天**并返回
+    #         empty:false/degraded:false，调用方拿不到"你要的那天没有数据"（实测
+    #         ?date=2020-01-01 → tradeDate=2026-09-12）。现改为：显式请求的日期取不到
+    #         就报 empty + requested_date_missing，不再回退。
+    #   L5 —— 无数据 / partial（coverage 不足）时给出 degraded 标记（对齐计划 t3 验收）。
     """市场整体情绪 —— 读 quant.market_sentiment_daily（真实数据）。
 
     真实口径：涨跌家数 / 涨跌家数比 / 新高新低 / 量能比 / 总成交额 / 波动率 / 恐贪指数。
@@ -58,21 +75,35 @@ async def get_market_sentiment(
             MarketSentimentDailyRepository,
         )
 
-        target = None
-        if date:
-            target = _dt.fromisoformat(str(date)).date()
-
         repo = MarketSentimentDailyRepository()
-        row = repo.get_by_date(target) if target else None
-        if row is None:
+        requested = None
+        if date:
+            requested = _dt.fromisoformat(str(date)).date()
+            row = repo.get_by_date(requested)
+            if row is None:
+                # H2：显式请求的日期没有数据 → 如实报告，**不回退**到别的日期
+                return {
+                    "success": True,
+                    "data": {
+                        "requestedDate": requested.isoformat(),
+                        "requestedDateMissing": True,
+                        "empty": True,
+                        "degraded": True,
+                        "source": "quant.market_sentiment_daily",
+                        "note": "所请求日期在 quant.market_sentiment_daily 中无记录；"
+                                "未回退到其它日期（回退会让调用方误以为拿到了当天数据）",
+                    },
+                }
+        else:
             recent = repo.get_recent(days=5) or []
             row = recent[0] if recent else None
+
         if row is None:
             return {
                 "success": True,
                 "data": {
                     "empty": True,
-                    "degraded": False,
+                    "degraded": True,
                     "source": "quant.market_sentiment_daily",
                     "note": "库中暂无市场情绪数据（非假成功：确实无记录）",
                 },
@@ -94,6 +125,8 @@ async def get_market_sentiment(
                 "fearGreedIndex": row.fear_greed_index,
                 "coverage": row.coverage,
                 "partial": row.partial,
+                # L5：coverage 不足（partial）说明该日只有部分样本落库 → 标注降级
+                "degraded": bool(row.partial),
                 # 旧契约键（绑定在幻觉表上）——保留但明确标注，避免调用方误读
                 "bullish": None,
                 "bearish": None,
@@ -122,26 +155,33 @@ async def get_stock_sentiment(symbol: str):
         from adapters.outbound.datasources import get_data_provider_manager
 
         result = get_data_provider_manager().get_stock_comment(symbol)
+        # 2026-09-14（独立审查 M2/M5 修复）：
+        #   M5 —— 失败原返回 200+success:false，与其余 6 个端点（502）不一致 → 改 502；
+        #   M2 —— 原只看内层 empty，忽略 manager 顶层 empty/empty_sources；当 manager 报
+        #         success=True + data=[] + empty=True（形状空）时会输出 empty:false/comment:null，
+        #         与本次要消灭的「success:true + 空」同型。现与其余端点统一走 provider_payload。
         if not result.get('success'):
-            return {
-                "success": False,
-                "error": result.get('error') or "个股情绪数据源不可用",
-                "attempted_sources": list(result.get('attempted_sources') or []),
-            }
+            return JSONResponse(
+                content=sanitize_for_json({
+                    "success": False,
+                    "error": result.get('error') or "个股情绪数据源不可用",
+                    "attempted_sources": list(result.get('attempted_sources') or []),
+                    "provider_errors": result.get('provider_errors') or {},
+                }),
+                status_code=502,
+            )
 
-        inner = getattr(result.get('data'), 'data', None) or {}
-        comment = inner.get('comment')
-        return {
-            "success": True,
-            "data": {
-                "symbol": symbol,
-                "comment": comment,
-                "empty": bool(inner.get('empty')),
-                "source": result.get('source'),
-                "sourceNote": "东财千股千评（机构参与度/综合得分等指标），非情绪分类",
-                "degraded": False,
-            },
-        }
+        payload = provider_payload(result)
+        payload.setdefault('symbol', symbol)
+        # 契约稳定性：manager 报"形状空"时 data 是 []，provider_payload 不会带 comment 键。
+        # 这里显式补 null，保证调用方看到的键集恒定（而不是"有时有 comment、有时没有"）。
+        payload.setdefault('comment', None)
+        payload['source_note'] = "东财千股千评（机构参与度/综合得分等指标），非情绪分类"
+        if payload.get('empty') or payload.get('comment') is None:
+            # 明确区分「该股无千股千评数据」与「有数据」——不再用 success:true 掩盖
+            payload['empty'] = True
+        # 与其余 6 个端点一致：走 api_response 统一 camelCase + sanitize
+        return api_response(payload)
     except Exception as e:
         logger.exception(f"Get stock sentiment failed: {e}")
         return {"success": False, "error": str(e)}
