@@ -290,6 +290,21 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️ WatchEngine disabled via DISABLE_WATCH_ENGINE")
 
+    # 交易日判定降级 → 主动外发告警接线（2026-09-14）：
+    # orchestrator 的 tick / resume_from_breakpoint 用的是 is_trading_day() 布尔值，
+    # 降级（数据源读不到 / 判定器自身异常）会表现为"今天不用干活"——整天的盘前撮合与
+    # T1 结算静默跳过；09-14 那次事故就是这样发生的（无告警，事后靠翻日志才发现）。
+    # 这里把守卫的降级输出接到通知门面（飞书）；守卫本身不依赖通知栈（端口注入）。
+    try:
+        from application.services.trading_day_guard import (
+            install_degraded_alert_notifier,
+            notify_degraded,
+        )
+        install_degraded_alert_notifier(notify_degraded)
+        logger.info("✅ 交易日判定降级告警已接线（飞书）")
+    except Exception as e:
+        logger.error(f"❌ 交易日判定降级告警接线失败: {e}")
+
     # 启动 DailyOrchestrator/IntradayMonitor tick 线程（2026-08-13 起唯一宿主，
     # 原 scheduler_daemon 已下线该职责——daemon 08-05 停跑致 T+1 结转静默中断 8 天；
     # pytest 下不启动，避免测试进程拉起调度循环）。

@@ -139,3 +139,34 @@ psycopg2 直接返回 `date`），而 `judge_trading_day` 要做 `(today - lates
 - 本仓仍无迁移框架/CI 门禁；`tests/test_orm_db_drift.py` 是事后闸门，**挡不住**"模型改了、迁移没写、直接重启上线"。
 - 真实下单端到端（DSH `portfolio_trade` → HTTP → service → DB）与 9:31 盘前撮合链仍未实测。
 - `p2_async_repositories` 重复定义 `quant.automation_tasks`（详见上）——同类漂移，未修。
+
+## 七、降级升级为主动外发告警（飞书，2026-09-14 用户放行）
+
+守卫的降级此前只写 launchd 日志 —— **日志没人盯就不算告警**。09-14 那次事故正是"整天不动且无人知晓"。
+本次把降级接到主动外发，同时守住两个原则：**不刷屏**、**不因告警失败影响判定**。
+
+### 设计
+
+- **通道注入，不硬依赖**：守卫是热路径模块，不 import 通知栈。启动期一行接线
+  （`adapters/inbound/fastapi_app/main.py` → `install_degraded_alert_notifier(notify_degraded)`），
+  通道实现 `notify_degraded()` 放守卫模块（延迟 import `NotificationFacade`，按 CLAUDE.md 通知架构规范走门面）。
+- **触发点**：`is_trading_day()` 消费到 degraded 判定时（覆盖 orchestrator tick / resume_from_breakpoint /
+  watch_engine / kline 等 10 余处布尔调用方）。判定本身不受影响。
+- **去噪与升级**：每【日+来源】最多 2 条 ——
+  `compute-error`（判定器自身异常 = 代码 bug）**首发即 high**；
+  `unavailable`（数据源读不到）首发 normal，**持续 ≥30 分钟仍未恢复**升 high 再报一次。
+- **失败隔离**：通道抛异常只记 `trading_day_guard_alert_send_failed`，`is_trading_day` 结果不变（有测试锁死）。
+
+### 验证
+
+| 项 | 证据 |
+|---|---|
+| 通道真实可达 | `send_card` 返回 True，耗时 0.61s；链路日志 `通知发送成功 channel=agent delivered=True → Agent OS 投递成功 os_channel=alerts`（自检消息标题带 `[自检]`，已明确标注非真实降级）|
+| 单元测试 | 守卫用例 23 → **28**：首发 high（bug）/ normal 后 30 分钟升 high / 每分钟不重复打扰 / 超过 2 条上限不再发 / 通道异常不影响判定 / 未注入通道不外发 / 正常判定无告警 |
+| 回归 | 100 passed（守卫 + 漂移门禁 + market_session + 交易时段 + orchestrator 两套 + 多账户）|
+
+### 仍未做
+
+- 告警只覆盖"交易日判定降级"这一条链。其它静默失效路径（如 data_contracts 探针、scheduler watchdog）
+  各有自己的巡检，未统一到本通道。
+- 若飞书通道本身挂了，降级告警会退化为日志（已在 `notify_degraded` 里记 error），没有第二通道兜底。

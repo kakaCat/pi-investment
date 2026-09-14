@@ -30,7 +30,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import structlog
 
@@ -55,10 +55,59 @@ SOURCE_COMPUTE_ERROR = 'compute-error'
 # 降级日的 Loud 留痕去重：tick 每分钟一次，不能把同一件事刷成日志洪水。
 _DEGRADED_LOUD_KEY: set = set()
 
+# ── 降级 → 主动外发告警（2026-09-14，用户放行）────────────────────────────────
+# 为什么需要：09-14 的事故是"整天的盘前撮合/T1 结算被跳过而无人知晓"。光有 ERROR 日志
+# 不够——日志没人盯就不算告警。这里把降级升级为主动外发（飞书），并做去噪与升级：
+#   · 判定器自身异常（compute-error）= 代码 bug → 首次即 **high**；
+#   · 数据源不可用（unavailable）→ 首次 normal，**持续超过 30 分钟仍未恢复**升 high 再报一次；
+#   · 每个【日+来源】最多外发 2 条（首发 + 一次升级），避免 tick 每分钟刷屏。
+_ALERT_COOLDOWN_SECONDS = 30 * 60
+_ALERT_MAX_PER_DAY = 2
+_degraded_alert_state: Dict[Tuple[str, str], Dict[str, Any]] = {}
+
+# 外发通道（依赖注入，默认 None = 不主动外发）。
+# 守卫是热路径模块，不自己 import 通知栈：由应用启动时注入
+# （adapters/inbound/fastapi_app/main.py → install_degraded_alert_notifier）。
+_degraded_alert_sink: Optional[Callable[[str, str, str], bool]] = None
+
+
+def install_degraded_alert_notifier(sink: Optional[Callable[[str, str, str], bool]]) -> None:
+    """注入降级告警的外发通道。
+
+    sink(title, content, urgency) -> bool；传 None 可关闭外发（测试/离线环境）。
+    签名里只有原始类型，守卫不需要认识 NotificationFacade/领域模型。
+    """
+    global _degraded_alert_sink
+    _degraded_alert_sink = sink
+
 
 def reset_degraded_loud_log() -> None:
-    """清空"降级 Loud 留痕"去重表（测试用；也便于运维手工复位）。"""
+    """清空"降级 Loud 留痕"与"降级外发"去重表（测试用；也便于运维手工复位）。"""
     _DEGRADED_LOUD_KEY.clear()
+    _degraded_alert_state.clear()
+
+
+def _now_seconds() -> float:
+    return time.time()
+
+
+def notify_degraded(title: str, content: str, urgency: str) -> bool:
+    """生产用降级告警通道：经 NotificationFacade 发飞书（失败只记日志，绝不抛出）。
+
+    为什么放在守卫模块而不是 main：通道实现属于"守卫的输出端口"，放这里让
+    install_degraded_alert_notifier(notify_degraded) 成为启动期一行接线，
+    同时保持守卫核心（判定/去重）不依赖通知栈——延迟 import，调用时才解析。
+    """
+    try:
+        from application.notification import get_notification_facade
+
+        return bool(get_notification_facade().send_card(
+            title=title, content=content,
+            urgency='high' if urgency == 'high' else 'normal',
+        ))
+    except Exception as e:  # noqa: BLE001 - 告警失败不影响判定
+        logger.error('trading_day_guard_alert_notify_failed', error=str(e)[:200])
+        return False
 
 
 def judge_trading_day(
@@ -225,6 +274,7 @@ class TradingDayGuard:
         verdict = cls.check(day)
         if verdict.degraded:
             cls._log_degraded_loud(verdict)
+            cls._alert_degraded(verdict)
         return verdict.is_trading_day
 
     @classmethod
@@ -241,6 +291,59 @@ class TradingDayGuard:
             note='该判定为"保守视为非交易日"，依赖它的工作当天会被跳过；'
                  '需要区分处置请改用 check() 取 verdict',
         )
+
+    @classmethod
+    def _alert_degraded(cls, verdict: 'TradingDayVerdict') -> None:
+        """把降级通过注入的通道主动外发（飞书）。未注入/失败都只留痕，绝不影响判定。
+
+        去噪规则见模块常量：每【日+来源】首发 1 条；数据源类问题持续 30 分钟仍降级再升
+        一次 high；最多 2 条/天。判定器自身异常（可能是代码 bug）首发即 high。
+        """
+        sink = _degraded_alert_sink
+        if sink is None:
+            return
+        key = (verdict.day.isoformat(), verdict.source)
+        state = _degraded_alert_state.get(key)
+        now = _now_seconds()
+        is_bug = verdict.source == SOURCE_COMPUTE_ERROR
+
+        if state is None:
+            urgency = 'high' if is_bug else 'normal'
+        elif state.get('count', 0) >= _ALERT_MAX_PER_DAY:
+            return
+        elif not is_bug and now - float(state.get('last', 0)) >= _ALERT_COOLDOWN_SECONDS:
+            urgency = 'high'          # 持续未恢复 → 升级再报一次
+        else:
+            return
+
+        content = (
+            '交易日判定已降级为「保守视为非交易日」，依赖它的工作今天会被跳过'
+            '（盘前撮合 / T1 结算 / 盯盘轮转）。这与 2026-09-14 那次"或与全天不动"同类，'
+            '请尽快确认。\n\n'
+            '日期: %s\n'
+            '来源: %s\n'
+            '原因: %s\n'
+            '判定结果: is_trading_day=%s / degraded=%s\n\n'
+            '处置建议: 来源为 compute-error 时优先查代码/入参；为 unavailable 时先查数据库与行情源连通性。'
+            % (verdict.day.isoformat(), verdict.source, verdict.reason,
+               verdict.is_trading_day, verdict.degraded)
+        )
+        try:
+            ok = bool(sink('交易日判定降级（判定层异常/数据源不可用）', content, urgency))
+        except Exception as e:  # noqa: BLE001 - 告警失败绝不能反过来影响判定
+            logger.warning('trading_day_guard_alert_send_failed',
+                           day=verdict.day.isoformat(), source=verdict.source, error=str(e)[:200])
+            return
+
+        _degraded_alert_state[key] = {
+            'count': (state or {}).get('count', 0) + 1,
+            'last': now,
+            'urgency': urgency,
+        }
+        logger.info('trading_day_guard_degraded_alert_sent',
+                    day=verdict.day.isoformat(), source=verdict.source,
+                    urgency=urgency, delivered=ok,
+                    alert_seq=_degraded_alert_state[key]['count'])
 
     @classmethod
     def should_write_daily(cls, day: Union[None, str, date, datetime] = None) -> TradingDayVerdict:

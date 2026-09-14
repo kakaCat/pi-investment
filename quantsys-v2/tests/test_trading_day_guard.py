@@ -355,3 +355,104 @@ def test_simulation_trader_reexport_still_works():
         date(2026, 9, 10), kline_exists_on_date=True,
         latest_kline_date=date(2026, 9, 10), today=date(2026, 9, 11),
     ) is True
+
+# ── 2.3 降级主动外发告警（飞书）────────────────────────────────
+# 守卫热路径不 import 通知栈：通道由应用启动注入（install_degraded_alert_notifier）。
+# 这里用替身通道验证"发不发/发几条/什么紧急度/失败是否影响判定"。
+@pytest.fixture
+def _fake_alert_sink(monkeypatch):
+    from application.services import trading_day_guard as mod
+
+    sent = []
+
+    def sink(title, content, urgency):
+        sent.append({'title': title, 'content': content, 'urgency': urgency})
+        return True
+
+    mod.install_degraded_alert_notifier(sink)
+    reset_degraded_loud_log()
+    yield sent
+    mod.install_degraded_alert_notifier(None)
+    reset_degraded_loud_log()
+
+
+def test_degraded_compute_error_alerts_high_immediately(monkeypatch, _fake_alert_sink):
+    """判定器自身异常 = 代码 bug → 首次就 high，不能等 30 分钟。"""
+    monkeypatch.setattr(
+        TradingDayGuard, '_compute',
+        classmethod(lambda cls, d: (_ for _ in ()).throw(TypeError('boom'))),
+    )
+    assert TradingDayGuard.is_trading_day('2026-09-11') is False
+    assert len(_fake_alert_sink) == 1
+    assert _fake_alert_sink[0]['urgency'] == 'high'
+    assert SOURCE_COMPUTE_ERROR in _fake_alert_sink[0]['content']
+
+
+def test_degraded_datasource_alerts_normal_then_escalates(monkeypatch, _fake_alert_sink):
+    """数据源不可用：首发 normal；持续超过冷却期仍未恢复 → 升 high 再报一次。"""
+    from application.services import trading_day_guard as mod
+
+    monkeypatch.setattr(
+        TradingDayGuard, '_kline_stats',
+        staticmethod(lambda day: (_ for _ in ()).throw(RuntimeError('db down'))),
+    )
+    clock = {'t': 1_000_000.0}
+    monkeypatch.setattr(mod, '_now_seconds', lambda: clock['t'])
+
+    assert TradingDayGuard.is_trading_day('2026-09-11') is False
+    assert len(_fake_alert_sink) == 1 and _fake_alert_sink[0]['urgency'] == 'normal'
+
+    clock['t'] += 60          # 只过了一分钟：不重复打扰
+    TradingDayGuard.is_trading_day('2026-09-11')
+    assert len(_fake_alert_sink) == 1
+
+    clock['t'] += 31 * 60     # 持续未恢复：升级一次
+    TradingDayGuard.is_trading_day('2026-09-11')
+    assert len(_fake_alert_sink) == 2 and _fake_alert_sink[1]['urgency'] == 'high'
+
+    clock['t'] += 61 * 60     # 已达上限：不再刷屏
+    TradingDayGuard.is_trading_day('2026-09-11')
+    assert len(_fake_alert_sink) == 2
+
+
+def test_alert_sink_failure_does_not_break_verdict(monkeypatch):
+    """告警通道炸了也不能影响判定结果（告警是旁路，不是依赖）。"""
+    from application.services import trading_day_guard as mod
+
+    def boom(title, content, urgency):
+        raise RuntimeError('feishu down')
+
+    mod.install_degraded_alert_notifier(boom)
+    reset_degraded_loud_log()
+    monkeypatch.setattr(
+        TradingDayGuard, '_kline_stats',
+        staticmethod(lambda day: (_ for _ in ()).throw(RuntimeError('db down'))),
+    )
+    try:
+        assert TradingDayGuard.is_trading_day('2026-09-11') is False
+    finally:
+        mod.install_degraded_alert_notifier(None)
+        reset_degraded_loud_log()
+
+
+def test_no_alert_when_sink_not_installed(monkeypatch, _fake_guard_logger):
+    """未注入通道（离线/测试环境）时只留痕不外发——不得因缺通道而报错。"""
+    from application.services import trading_day_guard as mod
+
+    assert mod._degraded_alert_sink is None
+    monkeypatch.setattr(
+        TradingDayGuard, '_kline_stats',
+        staticmethod(lambda day: (_ for _ in ()).throw(RuntimeError('db down'))),
+    )
+    assert TradingDayGuard.is_trading_day('2026-09-11') is False
+
+
+def test_no_alert_for_normal_verdicts(monkeypatch, _fake_alert_sink):
+    """正常交易日/周末都不许外发告警。"""
+    monkeypatch.setattr(
+        TradingDayGuard, '_kline_stats',
+        staticmethod(lambda day: (True, date(2026, 9, 10))),
+    )
+    assert TradingDayGuard.is_trading_day('2026-09-10') is True
+    assert TradingDayGuard.is_trading_day('2026-08-08') is False
+    assert _fake_alert_sink == []
