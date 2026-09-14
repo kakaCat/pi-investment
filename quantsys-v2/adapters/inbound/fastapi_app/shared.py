@@ -90,7 +90,15 @@ def provider_payload(result: Dict) -> Dict:
       · attempted_sources 尝试过的源（多源故障转移时 >1）
       · empty_sources     健康但无数据的源
       · empty             是否为空结果（源正常、标的确实无数据）
-      · degraded          是否降级（false=真实数据）
+      · provider_errors   各源失败/空结果原因（**成功分支也透出**：调用方据此知道
+                          数据是首选源给的，还是 failover 后由备源给的）
+      · degraded          是否**发生过降级**：只要有源失败/空过（provider_errors 非空）
+                          即为 true。注意语义修正（2026-09-14 独立审查 M4）：原实现写
+                          `not success`，而本函数只在成功分支被调用 → 恒为 false，
+                          连"akshare 挂了、东财兜底"这种真降级也报 false（死字段）。
+      · fetched_at        本次**取数时间**（非数据时点）。受 TTL 缓存影响，
+                          它可能晚于数据实际从上游拉取的时刻，**上限 = 该 key 的 TTL**；
+                          需要严格数据时点的调用方应结合数据自身的日期字段使用（L4）。
     api_response 会把这些键统一转成 camelCase。
     """
     payload: Dict[str, Any] = {}
@@ -109,7 +117,11 @@ def provider_payload(result: Dict) -> Dict:
     payload['empty'] = bool(result.get('empty')) or bool(
         isinstance(inner, dict) and inner.get('empty')
     )
-    payload['degraded'] = not bool(result.get('success'))
+    errors = result.get('provider_errors') or {}
+    payload['provider_errors'] = {k: str(v)[:200] for k, v in errors.items()}
+    # degraded = 本次有源失败/空过（即发生过 failover），而不是"请求失败"
+    payload['degraded'] = bool(errors) or len(payload['attempted_sources']) > 1
+    payload['fetched_at'] = getattr(md, 'timestamp', None)
     if result.get('error'):
         payload['error'] = str(result.get('error'))[:300]
     return payload

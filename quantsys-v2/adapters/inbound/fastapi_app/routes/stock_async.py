@@ -186,7 +186,7 @@ def get_insider_trades_v2(symbol: str, days: int = Query(30)):
     与董监高关系/董监高职务
     """
     from adapters.outbound.datasources import get_data_provider_manager
-    from datetime import date as _date, timedelta as _td
+    from datetime import date as _date, datetime as _dt, timedelta as _td
 
     result = get_data_provider_manager().get_insider_trades(symbol)
     if not result.get('success'):
@@ -198,12 +198,36 @@ def get_insider_trades_v2(symbol: str, days: int = Query(30)):
 
     payload = provider_payload(result)
     records = payload.get('records') or []
+
+    # 2026-09-14（独立审查 L8 修复）：原实现用**字符串比较**筛日期，两个问题：
+    #   1) 非 ISO 格式（如 '2026/09/01'）会恒大于 '2026-08-15'（'/' > '-'）→ 过滤失效；
+    #   2) 变动日期为 None 的行被一律丢弃 → 静默少数据。
+    # 现改为：解析成 date 再比；**解析不出来的行一律保留**并单独计数，
+    # 让"没筛掉"这件事可见，而不是静默丢行。
     if records and days:
-        cutoff = (_date.today() - _td(days=max(1, int(days)))).isoformat()
-        kept = [r for r in records if str(r.get('变动日期') or '') >= cutoff]
+        cutoff = _date.today() - _td(days=max(1, int(days)))
+        kept, undated = [], 0
+        for r in records:
+            raw = r.get('变动日期')
+            parsed = None
+            if isinstance(raw, _date):
+                parsed = raw
+            elif raw:
+                for fmt in ('%Y-%m-%d', '%Y/%m/%d', '%Y%m%d'):
+                    try:
+                        parsed = _dt.strptime(str(raw)[:10], fmt).date()
+                        break
+                    except ValueError:
+                        continue
+            if parsed is None:
+                kept.append(r)      # 日期缺失/无法解析 → 保留（不静默丢）
+                undated += 1
+            elif parsed >= cutoff:
+                kept.append(r)
         payload['records'] = kept
         payload['total'] = len(kept)
         payload['days'] = days
+        payload['undated_records'] = undated
     return api_response(payload)
 
 

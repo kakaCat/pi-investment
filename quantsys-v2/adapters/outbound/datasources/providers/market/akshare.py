@@ -469,6 +469,11 @@ class AkshareMarketProvider(MarketProvider):
         Returns:
             MarketData(data={'records': [...]}) or None if failed
         """
+        # 2026-09-14（独立审查 M1 修复）：本方法此前既不重置也不设置 last_error ——
+        # provider 是长寿命实例，上一次调用的失败原因会串到本次（provider_errors 里出现
+        # 别的方法的原因，误导排障）；恰为 None 时则落 _INVALID_RESULT_MARKER，原因同样丢失。
+        # 该端点已被 REQ-48d896 接上（stock_async.py），不再是无关代码。
+        self.last_error = None
         try:
             import akshare as ak
 
@@ -480,12 +485,20 @@ class AkshareMarketProvider(MarketProvider):
             df = _cached_market_df('inner_trades', ak.stock_inner_trade_xq)
 
             if df is None or df.empty:
+                self.last_error = 'get_insider_trades 上游全市场表为空/不可用'
                 return None
 
             bare = symbol.split('.')[0]
             code_col = '股票代码' if '股票代码' in df.columns else None
-            if code_col:
-                df = df[df[code_col].astype(str).str.replace('.', '').str.contains(bare, na=False)]
+            if not code_col:
+                # 代码列改名 → schema 漂移必须可见（否则每只股票都会被判成"无记录"）
+                self.last_error = (
+                    'get_insider_trades 未找到代码列（疑字段改名），实际列=%s'
+                    % list(df.columns)[:8]
+                )
+                logger.warning('%s.%s %s', self.name, 'get_insider_trades', self.last_error)
+                return None
+            df = df[df[code_col].astype(str).str.replace('.', '').str.contains(bare, na=False)]
 
             if df.empty:
                 # 无内部人交易记录是正常结果（非失败），返回空记录集
@@ -505,6 +518,7 @@ class AkshareMarketProvider(MarketProvider):
             )
 
         except Exception as e:
+            self.last_error = 'get_insider_trades: %s' % str(e)[:180]
             logger.warning(f"{self.name} get_insider_trades failed: {e}")
             return None
 
@@ -519,8 +533,14 @@ class AkshareMarketProvider(MarketProvider):
     def get_top_holders(self, symbol: str, holder_type: str = 'top10') -> Optional[MarketData]:
         """十大股东（holder_type='top10'）或十大流通股东（'free'）。
 
-        报告期不支持时 akshare 抛解析异常（属「该期无数据」，非传输故障）→
-        回退到更早的报告期；四个候选期都取不到 → 健康空。
+        报告期不支持时 akshare 抛解析异常 → 回退到更早的报告期。
+        ⚠️ 语义边界（2026-09-14 独立审查 M3）：**四个候选期全部解析失败 → 视为故障**
+        （接口改名/结构变更正是这个形态，不能吞成"无数据"，否则 failover 不触发）；
+        只有四期都"干净地空"才算健康空。
+
+        ⚠️ 与东财直连源的**键集差异**：本源随 akshare 返回其原生列，含「股份类型」；
+        东财 RPT_F10_EH_HOLDERS / RPT_F10_EH_HOLDERS_FREE 无该字段，故东财源省略。
+        两源其余键（名次/股东名称/持股数/占比/增减/变动比率）语义一致。
         """
         self.last_error = None  # 每次调用重置：框架按它判「真故障」
         try:
@@ -536,6 +556,13 @@ class AkshareMarketProvider(MarketProvider):
             fetcher = ak.stock_gdfx_free_top_10_em if want_free else ak.stock_gdfx_top_10_em
             kind = 'free' if want_free else 'top10'
 
+            # 2026-09-14（独立审查 H1 修复）：**解析失败必须锁存**，不能吞成"健康空"。
+            # akshare 在「报告期无数据」与「接口改名/结构变更」两种情形下都抛解析异常，
+            # 无法区分。若一律当"无数据"，接口一改名该源就会永远安静返回空、且 manager
+            # 走成功分支 → **东财兜底源根本不会被尝试**（审查实测复现）。改用"锁存"：
+            # 只要任一报告期报过非网络异常，最终无数据就按**故障**上报，让 failover 生效、
+            # 原因可见；只有四期都"干净地空"才算健康空。
+            had_error = False
             for period in _recent_report_periods(4):
                 try:
                     df = fetcher(symbol=prefixed, date=period)
@@ -544,6 +571,7 @@ class AkshareMarketProvider(MarketProvider):
                         self.last_error = 'get_top_holders 传输故障: %s' % str(e)[:160]
                         logger.warning(f"{self.name} get_top_holders {symbol} 传输故障: {e}")
                         return None
+                    had_error = True
                     continue  # 该报告期无数据，回退更早期间
                 if df is None or df.empty:
                     continue
@@ -561,6 +589,13 @@ class AkshareMarketProvider(MarketProvider):
                     timestamp=datetime.now().isoformat(),
                 )
 
+            if had_error:
+                self.last_error = (
+                    'get_top_holders 全部报告期解析失败（疑接口改名/结构变更）——'
+                    '按故障上报以触发 failover，不当作"无数据"'
+                )
+                logger.warning('%s.%s %s', self.name, 'get_top_holders', self.last_error)
+                return None
             return MarketData(
                 data_type='top_holders',
                 data={'symbol': symbol, 'holder_type': kind,
@@ -677,6 +712,7 @@ class AkshareMarketProvider(MarketProvider):
             report_symbol = type_map.get(key) or type_map.get(str(fund_type)) or '基金持仓'
 
             df = None
+            had_error = False   # 同 H1：解析失败锁存，避免吞成"健康空"并短路兜底源
             for period in _recent_report_periods(4):
                 try:
                     cand = _cached_market_df(
@@ -688,11 +724,19 @@ class AkshareMarketProvider(MarketProvider):
                         self.last_error = 'get_top_fund_stocks 传输故障: %s' % str(e)[:160]
                         logger.warning(f"{self.name} get_top_fund_stocks 传输故障: {e}")
                         return None
+                    had_error = True
                     continue
                 if cand is not None and not cand.empty:
                     df = cand
                     break
             if df is None or df.empty:
+                if had_error:
+                    self.last_error = (
+                        'get_top_fund_stocks 全部报告期解析失败（疑接口改名/结构变更）——'
+                        '按故障上报以触发 failover，不当作"无数据"'
+                    )
+                    logger.warning('%s.%s %s', self.name, 'get_top_fund_stocks', self.last_error)
+                    return None
                 return MarketData(
                     data_type='top_fund_stocks',
                     data={'fund_type': report_symbol, 'report_date': None,
@@ -754,12 +798,18 @@ class AkshareMarketProvider(MarketProvider):
 
             df = _cached_market_df('stock_comment', ak.stock_comment_em)
             if df is None or df.empty:
+                self.last_error = 'get_stock_comment 上游全市场表为空/不可用'
                 return None
 
             bare = str(symbol or '').split('.')[0]
             code_cols = [c for c in df.columns if str(c) in ('代码', '股票代码')]
             if not code_cols:
-                logger.warning(f"{self.name} get_stock_comment: 未找到代码列 {list(df.columns)[:6]}")
+                # 代码列改名 → schema 漂移：按故障上报（否则每只股票都"无数据"）
+                self.last_error = (
+                    'get_stock_comment 未找到代码列（疑字段改名），实际列=%s'
+                    % list(df.columns)[:8]
+                )
+                logger.warning('%s.%s %s', self.name, 'get_stock_comment', self.last_error)
                 return None
             col = code_cols[0]
             sub = df[df[col].astype(str).str.zfill(6) == bare]
