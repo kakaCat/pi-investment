@@ -79,6 +79,15 @@ class StateManager:
         rule_ids.add(rule_id)  # 含本次：共振 = 本条 + 同标的其他规则
         return len(rule_ids)
 
+    # ── 价格历史缓冲（velocity 条件用）──────────────────────
+    def push_history(self, symbol: str, ts: datetime, price: float,
+                     history_minutes: int = 30) -> None:
+        """追加一个价格点 + 裁剪超出窗口的部分"""
+        buf = self.history.setdefault(symbol, [])
+        buf.append((ts, price))
+        cutoff = ts - timedelta(minutes=history_minutes)
+        self.history[symbol] = [(t, p) for t, p in buf if t >= cutoff]
+
     # ── 跨天重置 ────────────────────────────────────────────
     def reset_daily(self, now: datetime, active_rule_ids=None, active_symbols=None) -> None:
         """跨天重置。active_* 为 None 时不做按规则/标的的裁剪（测试便利）。"""
