@@ -542,6 +542,14 @@ class SimulationPendingOrder(Base):
             'status': self.status,
             'fail_reason': self.fail_reason,
             'executed_trade_id': self.executed_trade_id,
+            # 执行质量字段（2026-09-14 w-0f022172 复查 m4）：/accounts/{a}/pending-orders
+            # 走本方法，此前只吐队列状态、看不到决策价/成交价/滑点，与 slippage-report
+            # 端点口径不一致。Numeric → float，保持与上面 amount/price_limit 同款处理。
+            'decision_price': float(self.decision_price) if self.decision_price is not None else None,
+            'decision_at': self.decision_at.isoformat() if self.decision_at else None,
+            'price_source': self.price_source,
+            'fill_price': float(self.fill_price) if self.fill_price is not None else None,
+            'slippage_bps': float(self.slippage_bps) if self.slippage_bps is not None else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

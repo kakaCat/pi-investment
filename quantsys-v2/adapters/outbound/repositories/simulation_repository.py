@@ -454,7 +454,9 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             execute_at=execute_at,
             status='pending',
             decision_price=decision_price,
-            decision_at=datetime.now() if decision_price else None,
+            # is not None 而非真值判断（2026-09-14 w-0f022172 复查 m5）：
+            # 决策价 0.0（极端行情/坏数据）会被 falsy 判成"没取到价"，把时间戳一起丢掉。
+            decision_at=datetime.now() if decision_price is not None else None,
             price_source=price_source,
         )
         self.session.add(order)

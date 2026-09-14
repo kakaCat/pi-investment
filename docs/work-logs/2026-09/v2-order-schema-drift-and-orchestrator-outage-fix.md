@@ -92,3 +92,41 @@ psycopg2 直接返回 `date`），而 `judge_trading_day` 要做 `(today - lates
 - `signal_executions` 补列是"防患"而非常用路径，启用该表前需补集成测试。
 - 立即单表虽已补 5 列，但 ORM 侧不声明、埋点也不写——M5 原意（挂单全生命周期可追溯）
   只在挂单路径生效；若要覆盖立即单需另行设计。
+
+---
+
+## 五、独立审查（w-0f022172）与逐条处置
+
+审查方式：fresh-context subagent，实际读文件 + git 历史 + 跑测试/建 scratch 库做伪证。
+提 1 BLOCKER + 4 MAJOR + 5 MINOR。**B1/M1/M2/M3 我均独立复现后确认属实**（不是照单执行）。
+
+| 编号 | 问题 | 处置 |
+|---|---|---|
+| **B1** BLOCKER | 迁移整文件一个 BEGIN…COMMIT：段 1 打 `quant.simulation_order`，而**本仓没有任何 SQL 建过这张表** → 新库 42P01 → 整文件回滚 → 连必需的挂单 5 列一起丢（新环境比修复前更差） | **已修**：每段独立事务 + `DO` 块 `to_regclass` 缺表即跳过；实证：新建空库按序应用全部迁移 → 挂单表 5 列**全部在位**（原版同场景 0/5）；生产重复应用仍幂等 |
+| **M1** MAJOR | 门禁比对集取决于 import 历史：全套跑（import 73 个仓储）metadata 40→79 张表 → 假红；隔离跑绿 | **已修**：按"声明该表的 mapped class 是否属于 models 包"过滤；实测污染场景下恒为 40 张、3 passed |
+| **M2** MAJOR | 库不可达时静默全绿（`1 passed, 2 skipped`），唯一挡复现的用例等于不存在 | **已修**：未配置/连不上/无迁移目录一律 fail；仅 `DSH_ALLOW_MISSING_TEST_DB=1` 可 skip |
+| **M3** MAJOR | fixture 会对 `QUANT_DATABASE_URL` 指向的任意库重放 migrations 的 DDL（可能打到生产） | **已修**：库名必须以 `_test` 结尾，否则 fail（本仓首个会写 DDL 的测试，自设闸门） |
+| **M4** MAJOR | 兜底降级把"代码 bug"伪装成"今天不是交易日"，而 orchestrator 用 `is_trading_day()` 丢掉了 degraded | **部分修**：降级结论的 reason 写明是判定异常；畸形日期入参也走降级（`check('')`/`check('garbage')` 原本仍抛 ValueError，实测已改为降级返回）。**orchestrator 改调 `check()` 保留 degraded 未做**——见"遗留" |
+| m1 MINOR | `_normalize` 在 try 之外，脏日期仍击穿 | **已修**（见 M4 处置） |
+| m2 MINOR | signal_executions 段属 scope creep 且放大 B1 | **已修**（分段独立事务后不再是放大器） |
+| m3 MINOR | 立即单 5 列无写入方，门禁却为死状态背书 | 保留列 + 断言，迁移注释写明"供后续立即单执行质量设计使用"，避免误读为在用 |
+| m4 MINOR | `to_dict()` 不暴露执行质量字段，`/pending-orders` 口径不一致 | **已修**：5 字段入 to_dict（Numeric→float，与既有字段同款） |
+| m5 MINOR | `decision_at=datetime.now() if decision_price else None`，0.0 被 falsy 吞 | **已修**：改 `is not None` |
+
+**审查确认"无问题"的部分**（可免重复劳动）：全仓这 5 列无漏改调用点；`update_pending_order_status` 确实消费 fill_price/slippage_bps；
+迁移列类型与 ORM 一致（TIMESTAMPTZ / NUMERIC(10,2) / TEXT）；门禁在"模型加列不写迁移"时确实会红（伪证实验：加 zz_probe_col → FAILED）。
+
+**审查顺带发现（不在本次 diff，未处置，建议另开需求）**：
+`adapters/outbound/repositories/p2_async_repositories.py:248-258` 用 `extend_existing=True` 重复定义 `quant.automation_tasks`
+（enabled/last_run/schedule），与 `automation_repository.py` 的 is_enabled/last_run_at/schedule_config **并存** → metadata 多出
+3 个两库都不存在的列；该表生产有 3 行且被 `smart_scheduler` 使用 → 任何 ORM 读写都会踩 09-14 同类 500。
+`market_style_state` / `risk_metrics` 同类。
+
+## 六、遗留（更新）
+
+- **orchestrator 侧未做**（M4 后半）：`daily_orchestrator.py` 正被另一会话的"编排器账户通用化"重构
+  （main 44b469c0，-329 行），此时改会造成三方冲突；正确做法是给 tick/启动外层加 try/except（任何异常都不许打死
+  tick 线程）+ degraded 时告警，而不是让"交易日判定"这一层独自承担可用性。
+- 本仓仍无迁移框架/CI 门禁；`tests/test_orm_db_drift.py` 是事后闸门，**挡不住**"模型改了、迁移没写、直接重启上线"。
+- 真实下单端到端（DSH `portfolio_trade` → HTTP → service → DB）与 9:31 盘前撮合链仍未实测。
+- `p2_async_repositories` 重复定义 `quant.automation_tasks`（详见上）——同类漂移，未修。

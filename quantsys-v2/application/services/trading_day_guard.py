@@ -105,6 +105,17 @@ def _normalize(day: Union[None, str, date, datetime]) -> date:
     return datetime.strptime(str(day)[:10], '%Y-%m-%d').date()
 
 
+def _best_effort_day(day) -> date:
+    """归一化失败时，给降级结论挑一个**能被解释**的日期：能解析出就用它，否则用今天。
+
+    仅用于 TradingDayVerdict.day 的展示/留痕；判定结果恒为 False（保守）。
+    """
+    try:
+        return _normalize(day)
+    except Exception:  # noqa: BLE001 - 此处只需一个可用日期
+        return datetime.now().date()
+
+
 class TradingDayGuard:
     """交易日判断唯一入口。"""
 
@@ -120,7 +131,19 @@ class TradingDayGuard:
         use_cache=True 时按"日期"缓存 60 秒（高频 tick 场景）；写入型路径需要
         实时判定时可传 use_cache=False。
         """
-        d = _normalize(day)
+        try:
+            d = _normalize(day)
+        except Exception as e:  # noqa: BLE001
+            # 归一化失败同样不许击穿调用方（2026-09-14 w-0f022172 复查 m1）：
+            # _normalize 对畸形输入会抛 ValueError（实测 check('')、check('2026/09/14')、
+            # check('garbage')），而它在 try 之外 —— 调度器传进脏日期就会 500/整天跳过。
+            # 保守下限：判非交易日 + 标降级 + 留痕。
+            logger.warning('trading_day_guard_normalize_failed', raw=repr(day),
+                           error=f'{type(e).__name__}: {e}')
+            return TradingDayVerdict(
+                _best_effort_day(day), False, SOURCE_UNAVAILABLE, True,
+                f'日期入参无法解析（{day!r}: {e}）→ 保守判非交易日',
+            )
         if use_cache:
             hit = _verdict_cache.get(d)
             if hit and (time.time() - hit[0]) < _CACHE_TTL_SECONDS:

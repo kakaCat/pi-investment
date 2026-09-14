@@ -15,13 +15,26 @@ ORM 却定义在 SimulationOrder 上 → 两侧都错位：
 模型与 DDL 是两份人工产物、没有任何一致性校验。这个测试就是那道缺失的校验：
 凡是"模型声明了、库里没有"的列，一律失败。
 
+## 独立性审查发现的三个坑（2026-09-14 w-0f022172 复查，均已在此修掉）
+
+1. **比对集曾取决于 import 历史**：Base 被 models 包与 adapters/**/repositories/* 共用，
+   只"补 import"没法排除别的模块先注册进来的表 —— 全套跑（import 73 个仓储）时
+   metadata 有 79 张表、隔离跑只有 40 张，于是同一份代码在全套里红、在隔离里绿。
+   现在按"**声明该表的 mapped class 是否属于 models 包**"过滤，实测两种场景都恒为 40 张。
+2. **库不可达时静默全绿**：原来 pytest.skip，唯一能挡本次复现的用例等于不存在。
+   现在：未配置 → fail；连不上 → fail（明确写清原因）；只有显式
+   DSH_ALLOW_MISSING_TEST_DB=1 才允许 skip。
+3. **fixture 会对 QUANT_DATABASE_URL 指向的任意库执行 DDL**：会重放 migrations/*.sql。
+   现在要求库名以 _test 结尾，否则直接 fail —— 该 fixture 的写副作用只允许落在测试库。
+
 ## 覆盖范围与诚实边界
 
 * 只断言"**模型有、库没有**"（真会 500 的方向）。库里多出来的列（如两张订单表上的
   genome_version）不报错——多列不影响 ORM 写入，报出来只会变噪声。
-* 测试库（.env.test → quant_test）按 migrations/*.sql 幂等升级后再比对：这既是
-  "测试库口径 = 迁移声明口径"，也逼着新列必须落成迁移文件（改了模型不写迁移 → 这里红）。
-* 测试库里不存在的表跳过（计数写进断言消息）——没建表 ≠ 漂移，但也不假装覆盖了。
+* 比对集 = models 包声明的表；同库里由仓储层重复定义的表（如 p2_async_repositories 里
+  extend_existing 的 automation_tasks）不在门禁范围内，属已知同类隐患（见工作日志遗留）。
+* 测试库是**部分镜像**：脚下面 _ENV_ONLY_MISSING 里的列经核对"生产在位、测试库缺"，
+  豁免但打印；硬缺列一律失败。
 """
 from __future__ import annotations
 
@@ -29,34 +42,43 @@ import os
 from pathlib import Path
 
 import pytest
+from sqlalchemy.engine import make_url
+from sqlalchemy.orm import class_mapper
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS_DIR = REPO_ROOT / 'migrations'
+MODELS_PACKAGE = 'infrastructure.persistence.orm.models'
 
-# 测试库（quant_test）是部分镜像，以下两处模型列只在 quant_investment 建过、测试库里没有。
-# DB 侧已核对：生产 quant_investment 两处都在位，缺的只是测试库 → 属"测试库镜像不全"，
-# 不是模型-库漂移，故在此豁免（同时打印出来，避免它变成新的静默盲区）。
-# quant.pool_change_log.pool_name / quant.strategy_configs.performance_{status,evidence,checked_at} /
-# quant.strategy_configs.structure_status
+DECISION_QUALITY_COLUMNS = (
+    'decision_price', 'decision_at', 'price_source', 'fill_price', 'slippage_bps',
+)
+
+# 测试库（quant_test）是部分镜像，以下模型列只在 quant_investment 建过、测试库里没有。
+# DB 侧已核对：生产 quant_investment 这些列**全部在位** → 属"测试库镜像不全"，不是
+# 模型-库漂移，故豁免（同时打印，避免它变成新的静默盲区）。
 _ENV_ONLY_MISSING = frozenset({
     'quant.pool_change_log.pool_name',
     'quant.strategy_configs.performance_status',
     'quant.strategy_configs.performance_evidence',
     'quant.strategy_configs.performance_checked_at',
     'quant.strategy_configs.structure_status',
+    'quant.event_calendar.evidence_hash',
+    'quant.event_calendar.scope',
+    'quant.event_calendar.source_url',
+    'quant.event_calendar.symbols',
 })
 
-DECISION_QUALITY_COLUMNS = (
-    'decision_price', 'decision_at', 'price_source', 'fill_price', 'slippage_bps',
-)
+# 允许"没有测试库也能跑"的唯一出口：显式环境变量。默认不允许静默跳过。
+_ALLOW_MISSING_DB_ENV = 'DSH_ALLOW_MISSING_TEST_DB'
 
 
 def _load_models():
-    """导入全部 ORM 模型并返回 {表名: Table}。
+    """返回 {表名: Table}，只含 **models 包自己声明**的表。
 
-    必须显式 import 该包的**每一个**模块：只 import 包名时，模型注册到什么程度取决于
-    收集顺序（谁先 import 了别的仓储/服务）——实测先跑 tests/test_trade_cash_race.py
-    会让比对从 35 张表变 59 张，同一份代码给出两种结论。门禁必须确定。
+    不能直接用 Base.metadata：Base 被 models 包与 adapters/**/repositories/* 共用，
+    别的模块 import 进来多少，metadata 就有多少张表 —— 同一份代码在全套跑与隔离跑
+    会得到不同的比对集（实测 79 vs 40）。这里按"声明该表的 mapped class 的
+    __module__ 是否属于 models 包"过滤，两种场景恒为同一集合。
     """
     import importlib
     import pkgutil
@@ -67,10 +89,22 @@ def _load_models():
     for mod in pkgutil.iter_modules(models_pkg.__path__):
         importlib.import_module('%s.%s' % (models_pkg.__name__, mod.name))
 
-    return {t.name: t for t in Base.metadata.tables.values()}
+    tables = {}
+    for cls in list(Base.registry._class_registry.values()):
+        if not hasattr(cls, '__mapper__'):
+            continue
+        if not str(getattr(cls, '__module__', '')).startswith(MODELS_PACKAGE):
+            continue
+        try:
+            table = class_mapper(cls).persist_selectable
+        except Exception:  # noqa: BLE001 - 未完成映射的类跳过
+            continue
+        tables[table.name] = table
+    return tables
 
 
 def _resolve_dsn():
+    """测试库 DSN。缺配置返回 None（调用方 fail/按显式开关 skip）。"""
     if os.environ.get('QUANT_DATABASE_URL'):
         return os.environ['QUANT_DATABASE_URL']
     if os.environ.get('PGDATABASE'):
@@ -81,19 +115,34 @@ def _resolve_dsn():
     return None
 
 
+def _require_test_dsn():
+    """取 DSN 并校验；拿不到或指向非测试库一律 fail（不静默）。"""
+    dsn = _resolve_dsn()
+    if not dsn:
+        if os.environ.get(_ALLOW_MISSING_DB_ENV) == '1':
+            pytest.skip('未配置测试库，且 %s=1（显式允许）' % _ALLOW_MISSING_DB_ENV)
+        pytest.fail('未配置测试库（QUANT_DATABASE_URL / PGDATABASE）。'
+                    '本门禁必须连库才有意义；确实无库时请显式设 %s=1' % _ALLOW_MISSING_DB_ENV)
+    db_name = (make_url(dsn).database or '')
+    if not db_name.endswith('_test'):
+        pytest.fail(
+            '拒绝在非测试库上跑本门禁：DSN 指向 %r（要求库名以 _test 结尾）。'
+            '本 fixture 会重放 migrations/*.sql 的 DDL，只允许打在测试库上。' % db_name
+        )
+    return dsn
+
+
 @pytest.fixture(scope='module')
 def engine():
     from sqlalchemy import create_engine
 
-    dsn = _resolve_dsn()
-    if not dsn:
-        pytest.skip('未配置测试库（QUANT_DATABASE_URL / PGDATABASE）')
+    dsn = _require_test_dsn()
     try:
         eng = create_engine(dsn)
         with eng.connect():
             pass
     except Exception as e:  # noqa: BLE001
-        pytest.skip('测试库不可达：%s' % e)
+        pytest.fail('测试库不可达（%s）：%s。本门禁不允许"无库=通过"。' % (dsn, e))
     return eng
 
 
@@ -101,11 +150,11 @@ def engine():
 def migrations_applied(engine):
     """把 migrations/*.sql 幂等应用到测试库（测试库口径 = 迁移声明口径）。"""
     if not MIGRATIONS_DIR.is_dir():
-        pytest.skip('没有 migrations 目录')
-    dsn = _resolve_dsn()
+        pytest.fail('没有 migrations 目录：无法确认测试库口径来自何处')
+    dsn = _require_test_dsn()
     sql_files = sorted(MIGRATIONS_DIR.glob('*.sql'))
     if not sql_files:
-        pytest.skip('没有迁移文件')
+        pytest.fail('没有迁移文件：无法确认测试库口径来自何处')
     applied, skipped = [], []
     for path in sql_files:
         outcome = _apply_migration(dsn, path)
@@ -119,8 +168,7 @@ def migrations_applied(engine):
 
 # 迁移脚本面向生产库的**全量** schema，测试库是部分镜像；且历史上并非每条迁移都写成
 # 幂等（已有 ALTER 不带 IF NOT EXISTS）。这几类"环境/既有对象"错误不算漂移：
-#   42P01 引用对象不存在（如 public.tasks 在测试库没有）
-#   42703 列不存在、42P07 表已存在、42701 列已存在、42P16 约束/索引已存在
+#   42P01 引用对象不存在、42703 列不存在、42P07 表已存在、42701 列已存在、42P16 约束/索引已存在
 _BENIGN_SQLSTATE = {'42P01', '42703', '42P07', '42701', '42P16'}
 
 
@@ -148,7 +196,7 @@ def _apply_migration(dsn, path) -> str:
 
 
 def test_orm_columns_all_exist_in_database(engine, migrations_applied):
-    """所有 ORM 表：模型声明的每一列都必须真实存在于数据库。"""
+    """models 包声明的每一列都必须真实存在于数据库。"""
     from sqlalchemy import inspect
 
     tables = _load_models()
@@ -175,7 +223,7 @@ def test_orm_columns_all_exist_in_database(engine, migrations_applied):
     assert not hard_missing, (
         'ORM 声明了数据库不存在的列（写入必炸：INSERT 会带上全列）:' + chr(10) + '  - '
         + (chr(10) + '  - ').join(hard_missing)
-        + chr(10) + chr(10) + '已比对 %d 张表；测试库未建表 %d 张（跳过）：%s'
+        + chr(10) + chr(10) + '已比对 %d 张表（models 包声明集）；测试库未建表 %d 张（跳过）：%s'
         % (len(checked), len(absent), ', '.join(absent) if absent else '无')
         + chr(10) + '修复：加一条 migrations/*.sql 显式 ALTER TABLE，或把该列从模型里删掉。'
     )
@@ -198,8 +246,10 @@ def test_order_tables_carry_execution_quality_columns(engine, migrations_applied
 def test_decision_quality_columns_live_on_pending_order_model_only():
     """方向断言：立即单模型不得声明这 5 列（埋点全在挂单路径上）。
 
-    立即单表加列是为了两张表口径一致；但**模型**侧声明它们会让 SQLAlchemy 把
-    quant.simulation_order 的 INSERT 带上这 5 列——那正是 09-14 的 500 根因。
+    立即单**表**加列是为了两张表口径一致（该列的写入方是后续"立即单执行质量"设计）；
+    但**模型**侧声明它们会让 SQLAlchemy 把 quant.simulation_order 的 INSERT 带上这 5 列
+    ——那正是 09-14 的 500 根因。这条断言是本次复现的唯一硬闸门：全模型比对在"迁移
+    已应用"的库上抓不到它（列被迁移补上了）。
     """
     tables = _load_models()
     order_cols = {c.name for c in tables['simulation_order'].columns}
