@@ -168,6 +168,8 @@ class FundFlow(Base):                    # p2_async_repositories.py ← 第二�
 - `test_repository_inline_models_match_database` —— 仓储内联模型也要列列对齐（覆盖 36 个）
 
 **顺带修正**：`cleanup_zombie_tables*.sql` 从 `migrations/` 移到 `scripts/maintenance/`
+（**2026-09-15 更新**：这两个文件已整体删除 —— 见 §七。理由：一次性破坏性脚本留在仓库里
+就是一颗可被重跑的地雷，本仓已因它出过一次线上事故；脚本不应作为项目代码存在。）
 （`migrations/` 会被门禁重放，不是放一次性破坏性脚本的地方）。
 
 ### 4.3 验证

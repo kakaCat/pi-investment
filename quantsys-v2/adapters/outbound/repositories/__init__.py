@@ -37,7 +37,6 @@ from .traceability_repository import TraceabilityORMRepository
 from .agent_intelligence_repository import AgentIntelligenceORMRepository, AgentDecisionRepository
 from .pool_change_log_repository import PoolChangeLogRepository
 from .signal_execution_log_repository import SignalExecutionLogORMRepository
-from .async_factor_repository import AsyncFactorORMRepository
 from .market_perception_repository import (
     MarketRegimeRepository, MarketSentimentDailyRepository, MarketThemeRepository,
 )
@@ -80,7 +79,6 @@ __all__ = [
     'AgentDecisionRepository',
     'PoolChangeLogRepository',
     'SignalExecutionLogORMRepository',
-    'AsyncFactorORMRepository',
     'MarketRegimeRepository',
     'MarketSentimentDailyRepository',
     'MarketThemeRepository',
