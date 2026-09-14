@@ -19,7 +19,8 @@ Daily workflow (:meth:`XGBoostStrategyUseCase.execute`):
 """
 from __future__ import annotations
 
-import json
+# 2026-09-14（REQ-24e15d B4-c5）：import json 随 _log_to_db 的裸 SQL 一起下线 ——
+# payload 的 json.dumps 已移入 AuditLogORMRepository.log_decision（ruff F 规则集开着）。
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
@@ -292,26 +293,19 @@ class XGBoostStrategyUseCase:
                 log_decision(record)
                 return
 
-            from infrastructure.persistence.database.engine import get_engine
-            from sqlalchemy import text
+            # 2026-09-14（REQ-24e15d B4-c5）：原为裸 SQL。
+            #     INSERT INTO audit_log (event_type, account_name, strategy, version,
+            #                            event_date, payload, created_at)
+            #     VALUES (:event_type, ..., NOW())
+            # 现在由 AuditLogORMRepository 承担；列/取值/now() 默认值逐字保留
+            # （见该仓储的 docstring）。留痕提醒：audit_log 表在当前库**不存在**，
+            # 这里仍会抛 UndefinedTable 并被下面的 except 记成 warning ——
+            # 与迁移前逐字一致（既有缺陷，只登记不修）。
+            from adapters.outbound.repositories.audit_log_repository import (
+                AuditLogORMRepository,
+            )
 
-            with get_engine().connect() as conn:
-                conn.execute(
-                    text(
-                        "INSERT INTO audit_log "
-                        "(event_type, account_name, strategy, version, event_date, payload, created_at) "
-                        "VALUES (:event_type, :account_name, :strategy, :version, :event_date, :payload, NOW())"
-                    ),
-                    {
-                        "event_type": "strategy_daily_check",
-                        "account_name": record["account_name"],
-                        "strategy": record["strategy"],
-                        "version": record["version"],
-                        "event_date": record["date"],
-                        "payload": json.dumps(record, ensure_ascii=False, default=str),
-                    },
-                )
-                conn.commit()
+            AuditLogORMRepository().log_decision(record)
         except Exception as exc:  # noqa: BLE001
             logger.warning("%s: audit_log persist failed (non-fatal): %s", type(self).__name__, exc)
 

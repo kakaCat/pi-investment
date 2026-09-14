@@ -3,8 +3,9 @@ from typing import List, Dict, Optional, Any
 from infrastructure.persistence.orm import BaseORMRepository, get_session
 from sqlalchemy import (
     Column, Integer, String, Float, Date, Text, BigInteger, JSON, Boolean, DateTime, func,
-    delete as sa_delete, literal_column, select, update as sa_update,
+    bindparam, cast, delete as sa_delete, literal_column, select, update as sa_update,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from infrastructure.persistence.orm.base import Base
 from infrastructure.persistence.orm.models.strategy_validation import StrategyValidationReport
 import structlog
@@ -299,36 +300,63 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
         'strategy_profile',
     })
 
+    # 外部字段名 → ORM 属性名。只有 metadata 需要映射：模型里它是
+    # StrategyConfig.metadata 的别名（declarative Base 已占用 metadata 这个名字，
+    # 故属性名是 strategy_metadata，列名仍是 metadata）。
+    _ORM_ATTR_ALIAS = {'metadata': 'strategy_metadata'}
+
     def update_user_strategy(self, strategy_id: int, updates: Dict[str, Any]) -> bool:
         """按 id 更新用户策略（quant.strategy_configs），返回是否命中行。
 
         白名单外的字段忽略并告警（表列由 information_schema 实测，避免把不存在的列写进 SQL）；
         JSONB 列显式 CAST，None 表示置空。
+
+        2026-09-14（w-8b43d3b8，REQ-24e15d B4-c5）：原实现把白名单字段**拼成
+        "col = :col" 字符串**再 text(sql) 执行（列名无法参数化，只能字符串拼接）。
+        现改为 ORM update()：字段集合仍由 USER_STRATEGY_UPDATABLE 白名单决定
+        （既不放宽也不收紧），JSONB 列保持与原写完全同形的
+        CAST(:key AS jsonb) —— 用 String 类型的 bindparam 送**预先 json.dumps 好的文本**
+        （ensure_ascii=False / default=str 口径逐字保留），避免 JSON 类型二次序列化；
+        updated_at = now() 仍显式写入（不依赖 ORM 的 onupdate，行为不变）。
         """
         import json
-        from sqlalchemy import text
 
         updates = dict(updates or {})
         if 'strategy_metadata' in updates and 'metadata' not in updates:
             updates['metadata'] = updates.pop('strategy_metadata')
-        assignments, params = [], {"sid": strategy_id}
+        values: Dict[str, Any] = {}
         for key, value in updates.items():
             if key not in self.USER_STRATEGY_UPDATABLE:
                 logger.warning(f"update_user_strategy: 未知字段 {key!r} 已忽略")
                 continue
             if key in self._JSONB_COLUMNS:
-                assignments.append(f"{key} = CAST(:{key} AS jsonb)")
-                params[key] = None if value is None else json.dumps(value, ensure_ascii=False, default=str)
+                # 与原写**逐字同形**：CAST(:key AS jsonb)，参数是"预先 json.dumps 好的
+                # 文本"（String 类型 → 直发文本，不被 JSON 类型二次序列化）。
+                # ⚠️ None 也必须走这条 CAST 分支：若直接 values(col=None)，SQLAlchemy 的
+                # JSON 类型默认 none_as_null=False，会写入 **JSON 的 'null'**（jsonb 非
+                # SQL NULL），与原 SQL 的 CAST(NULL AS jsonb) 不是一回事（实测差异：
+                # risk_params 由 SQL NULL 变成 jsonb 'null'）。
+                expr = cast(
+                    bindparam(
+                        key,
+                        None if value is None else json.dumps(value, ensure_ascii=False, default=str),
+                        type_=String,
+                    ),
+                    JSONB,
+                )
             else:
-                assignments.append(f"{key} = :{key}")
-                params[key] = value
+                expr = value
+            values[self._ORM_ATTR_ALIAS.get(key, key)] = expr
         try:
-            if not assignments:
+            if not values:
                 logger.warning(f"update_user_strategy: 无有效字段可更新 (id={strategy_id})")
                 return False
-            sql = ("UPDATE quant.strategy_configs SET " + ", ".join(assignments)
-                   + ", updated_at = now() WHERE id = :sid")
-            result = self.session.execute(text(sql), params)
+            values['updated_at'] = func.now()
+            result = self.session.execute(
+                sa_update(StrategyConfig)
+                .where(StrategyConfig.id == strategy_id)
+                .values(**values)
+            )
             self.session.commit()
             return bool(result.rowcount)
         except Exception as e:
@@ -351,14 +379,15 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
           生产类 → 优先软删（is_active=false）而非物理删除。
         · 新增派生/审计表必须登记 quantsys-v2/config/data_contracts.json；
           悬空引用由 scripts/data_hygiene_probe.py 每周巡检（退出码 1 = 有问题）。
-        """
 
-        """按 id 删除用户策略（quant.strategy_configs）。"""
-        from sqlalchemy import text
+        2026-09-14（w-8b43d3b8，REQ-24e15d B4-c5）：原实现是
+        text("DELETE FROM quant.strategy_configs WHERE id = :sid")，现改 ORM delete()。
+        逐值一致：命中行数仍用 rowcount 判（0 行命中与出错都返回 False），异常仍吞掉记日志。
+        """
         try:
             result = self.session.execute(
-                text("DELETE FROM quant.strategy_configs WHERE id = :sid"),
-                {"sid": strategy_id})
+                sa_delete(StrategyConfig).where(StrategyConfig.id == strategy_id)
+            )
             self.session.commit()
             return bool(result.rowcount)
         except Exception as e:
@@ -601,45 +630,45 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
 
         Returns:
             int: 新报告 ID
+
+        2026-09-14（w-8b43d3b8，REQ-24e15d B4-c5）：原实现是一条
+        text("INSERT INTO quant.strategy_validation_reports (...) VALUES (...)
+        RETURNING id") + result.scalar()。现改 ORM：构造 StrategyValidationReport
+        对象 add + flush（flush 时发 INSERT ... RETURNING id 并回填主键，
+        与旧实现同样是一行一次往返），commit 前取 id，避免 commit 后过期重查。
+        逐值一致：列/取值口径（validation_date 与 created_at 同为同一个 now；
+        start_date/end_date 仍经 _parse_date 归一成 date）逐字保留；
+        失败仍 _safe_rollback() 后 raise（不静默成 False）。
         """
         try:
             from datetime import datetime, date as date_cls
-            from sqlalchemy import text as sa_text
 
             def _parse_date(v):
                 if isinstance(v, date_cls):
                     return v
                 return date_cls.fromisoformat(str(v)) if v else None
 
-            insert_sql = sa_text("""
-                INSERT INTO quant.strategy_validation_reports
-                (strategy_id, validation_date, score, status,
-                 annual_return, sharpe_ratio, max_drawdown, win_rate, profit_factor,
-                 backtest_count, error_count, start_date, end_date, created_at)
-                VALUES (:strategy_id, :validation_date, :score, :status,
-                        :annual_return, :sharpe_ratio, :max_drawdown, :win_rate, :profit_factor,
-                        :backtest_count, :error_count, :start_date, :end_date, :created_at)
-                RETURNING id
-            """)
             now = datetime.now()
-            result = self.session.execute(insert_sql, {
-                'strategy_id': report_data.get('strategy_id'),
-                'validation_date': now,
-                'score': report_data.get('score'),
-                'status': report_data.get('status'),
-                'annual_return': report_data.get('annual_return'),
-                'sharpe_ratio': report_data.get('sharpe_ratio'),
-                'max_drawdown': report_data.get('max_drawdown'),
-                'win_rate': report_data.get('win_rate'),
-                'profit_factor': report_data.get('profit_factor'),
-                'backtest_count': report_data.get('backtest_count', 0),
-                'error_count': report_data.get('error_count', 0),
-                'start_date': _parse_date(report_data.get('start_date')),
-                'end_date': _parse_date(report_data.get('end_date')),
-                'created_at': now,
-            })
+            report = StrategyValidationReport(
+                strategy_id=report_data.get('strategy_id'),
+                validation_date=now,
+                score=report_data.get('score'),
+                status=report_data.get('status'),
+                annual_return=report_data.get('annual_return'),
+                sharpe_ratio=report_data.get('sharpe_ratio'),
+                max_drawdown=report_data.get('max_drawdown'),
+                win_rate=report_data.get('win_rate'),
+                profit_factor=report_data.get('profit_factor'),
+                backtest_count=report_data.get('backtest_count', 0),
+                error_count=report_data.get('error_count', 0),
+                start_date=_parse_date(report_data.get('start_date')),
+                end_date=_parse_date(report_data.get('end_date')),
+                created_at=now,
+            )
+            self.session.add(report)
+            self.session.flush()
+            report_id = report.id
             self.session.commit()
-            report_id = result.scalar()
             logger.info(f"Saved validation report for strategy {report_data.get('strategy_id')}: id={report_id} score={report_data.get('score')}")
             return int(report_id)
         except Exception as e:

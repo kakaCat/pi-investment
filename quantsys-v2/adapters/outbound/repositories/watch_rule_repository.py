@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime, Numeric, Text, ForeignKey, or_, func,
+    bindparam, case, update as sa_update,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -223,6 +224,51 @@ class WatchRuleRepository(BaseORMRepository[WatchRule]):
         rule.updated_at = datetime.now()
         return self.update(rule)
 
+    def apply_intervention_ledger(self, rule_id: int, cost_delta: float,
+                                  valuable: bool, commit: bool = False) -> None:
+        """把一次介入的成本/价值记到规则的价值账本（quant.watch_rules）。
+
+        迁移背景（2026-09-14，w-8b43d3b8，REQ-24e15d B4-c5）：原实现是
+        adapters/outbound/repositories/watch_state_repository.py 里
+        WatchInterventionRepository.record() 内联在介入 INSERT 之后的
+        UPDATE quant.watch_rules（裸 SQL）。它写的是 **watch_rules** 而不是介入表，
+        语义上属本仓储，故收口到这里；调用方与那次介入行共享同一事务。
+
+        本仓此前**没有**任何方法承担这条账本自增（唯一写点就是那段裸 SQL），
+        因此这里是新增方法而非复用既有方法。
+
+        口径逐值对齐旧 SQL：
+            interventions = COALESCE(interventions, 0) + 1
+            tokens_cost   = COALESCE(tokens_cost, 0) + :cost
+            last_value_at = CASE WHEN :valuable THEN NOW() ELSE last_value_at END
+
+        Args:
+            rule_id: 规则 id（调用方保证非 None）
+            cost_delta: 本次介入成本（元），累加到 tokens_cost
+            valuable: 本次介入是否"有价值"（outcome in handled/reviewed），
+                      为真时把 last_value_at 推到数据库当前时间
+            commit: 是否立即提交。**默认 False** —— 调用方（介入记账）必须与介入行
+                    同事务提交，否则会出现"介入行回滚了、账本却已自增"。
+        """
+        stmt = (
+            sa_update(WatchRule)
+            .where(WatchRule.id == rule_id)
+            .values(
+                interventions=func.coalesce(WatchRule.interventions, 0) + 1,
+                # 不显式给类型：NullType 直通，psycopg2 按 float8 发送，
+                # 与旧 SQL 的裸 :cost 参数同形（避免被 Numeric 强转）。
+                tokens_cost=func.coalesce(WatchRule.tokens_cost, 0)
+                + bindparam('cost_delta', cost_delta),
+                last_value_at=case(
+                    (bindparam('valuable', valuable, type_=Boolean), func.now()),
+                    else_=WatchRule.last_value_at,
+                ),
+            )
+        )
+        self.session.execute(stmt)
+        if commit:
+            self.session.commit()
+
 
 class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
     model = WatchTrigger
@@ -268,20 +314,37 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
         """批量触发统计（元触发复核用，避免 N+1）：{rule_id: {today, last_at}}
 
         对应 domain/watch/ports.ITriggerHistoryRepository 的批量口径扩展。
+
+        迁移背景（2026-09-14，w-8b43d3b8，REQ-24e15d B4-c5）：原实现用
+        get_engine().connect() 自己开一条连接跑裸聚合——
+            SELECT rule_id,
+                   count(*) FILTER (WHERE triggered_at >= CURRENT_DATE) AS today_cnt,
+                   max(triggered_at) AS last_at
+              FROM quant.watch_triggers GROUP BY rule_id
+        现改走 self.session + ORM 聚合：func.count().filter(...) 编出同形状的
+        count(*) FILTER (WHERE ...)，CURRENT_DATE 仍由数据库求值
+        （func.current_date()，不用应用时钟，避免时区/时钟差改变"今日"口径）。
+        ⚠️ 刻意保留逐行 int(r[0]) 的取值方式及其边界：rule_id 为 NULL 的分组会让
+        int(None) 抛 TypeError，被下面的 except 捕获后返回**已累计的部分结果**——
+        这是旧实现的行为，本轮不修（另在报告中登记为既有缺陷）。
         """
-        from sqlalchemy import text
-        from infrastructure.persistence.database.engine import get_engine
         out = {}
         try:
-            with get_engine().connect() as conn:
-                rows = conn.execute(text(
-                    "SELECT rule_id, count(*) FILTER (WHERE triggered_at >= CURRENT_DATE) AS today_cnt,"
-                    "       max(triggered_at) AS last_at"
-                    "  FROM quant.watch_triggers GROUP BY rule_id"
-                )).fetchall()
+            rows = (
+                self.session.query(
+                    WatchTrigger.rule_id,
+                    func.count()
+                    .filter(WatchTrigger.triggered_at >= func.current_date())
+                    .label('today_cnt'),
+                    func.max(WatchTrigger.triggered_at).label('last_at'),
+                )
+                .group_by(WatchTrigger.rule_id)
+                .all()
+            )
             for r in rows:
                 out[int(r[0])] = {"today": int(r[1] or 0), "last_at": r[2]}
         except Exception as e:
+            self._safe_rollback()
             import structlog
             structlog.get_logger(__name__).warning("批量触发统计读取失败", error=str(e))
         return out

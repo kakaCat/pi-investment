@@ -91,24 +91,31 @@ class MarketStateProvider:
 
     # ── 指数（quant.index_daily：最近两个交易日算涨跌幅）──
     def _indices(self, degraded) -> Dict[str, Dict[str, Any]]:
-        from infrastructure.persistence.database.engine import get_engine
-        from sqlalchemy import text
+        # 2026-09-14（REQ-24e15d B4-c5）：原为裸 SQL
+        #     SELECT trade_date, close FROM quant.index_daily
+        #      WHERE symbol = :s ORDER BY trade_date DESC LIMIT 2
+        # 收进 KlineORMRepository.get_latest_index_quotes()（口径逐字保留，见其 docstring）。
+        #
+        # 分层判断：datasources 与 repositories 是 adapters/outbound 下的**兄弟适配器**，
+        # 本仓已有先例（datasources/manager.py、fund_flow_source.py、sector_snapshot.py
+        # 都从 datasources 直接取仓储），且本模块本就在函数内惰性 import 应用层服务
+        # （market_sentiment_service）——因此这里取仓储不构成新的反向依赖。
+        # 取仓储的 strict 变体（失败回滚并上抛）：下面 except 要把 index_daily 记进
+        # degraded；仓储若吞异常，降级信号会静默消失。
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository
         out: Dict[str, Dict[str, Any]] = {}
         try:
-            with get_engine().connect() as conn:
-                for code in self.index_codes:
-                    rows = conn.execute(text(
-                        "SELECT trade_date, close FROM quant.index_daily "
-                        "WHERE symbol = :s ORDER BY trade_date DESC LIMIT 2"
-                    ), {"s": code}).fetchall()
-                    if not rows:
-                        continue
-                    last_close = float(rows[0][1]) if rows[0][1] is not None else None
-                    prev_close = float(rows[1][1]) if len(rows) > 1 and rows[1][1] is not None else None
-                    chg = ((last_close - prev_close) / prev_close * 100) if (last_close and prev_close) else None
-                    out[code] = {"close": last_close, "prev_close": prev_close,
-                                 "change_pct": round(chg, 2) if chg is not None else None,
-                                 "trade_date": str(rows[0][0])}
+            repo = KlineORMRepository()
+            for code in self.index_codes:
+                rows = repo.get_latest_index_quotes(code, 2)
+                if not rows:
+                    continue
+                last_close = float(rows[0][1]) if rows[0][1] is not None else None
+                prev_close = float(rows[1][1]) if len(rows) > 1 and rows[1][1] is not None else None
+                chg = ((last_close - prev_close) / prev_close * 100) if (last_close and prev_close) else None
+                out[code] = {"close": last_close, "prev_close": prev_close,
+                             "change_pct": round(chg, 2) if chg is not None else None,
+                             "trade_date": str(rows[0][0])}
         except Exception as e:
             logger.warning("指数取数失败", error=str(e))
             degraded.append("index_daily")

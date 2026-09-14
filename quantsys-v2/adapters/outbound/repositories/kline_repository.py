@@ -1690,3 +1690,166 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             self._safe_rollback()
             logger.error(f"Error in get_latest_trade_date: {e}")
             return None
+
+    def get_latest_trade_date_strict(self) -> Optional[str]:
+        """最新交易日（daily_klines 最大 trade_date），'YYYY-MM-DD'；无数据返回 None。
+
+        **与 get_latest_trade_date 的唯一差异 = 异常策略**：读失败时回滚并**上抛**，不吞。
+
+        2026-09-14（REQ-24e15d B4-c5）：application/services/scheduler_tasks.py 的
+        handle_data_update 原先自己拼裸 SQL（缩进块，非 SQL 字面量，仅供阅读）：
+
+            SELECT max(trade_date) FROM quant.daily_klines
+
+        该查询失败时走它自己的 except 分支，返回 {"status": "error"}。若改用会吞异常的
+        get_latest_trade_date，读失败会被静默降级成 {"status": "stale"} —— 把"读不到"
+        伪装成"数据滞后"，与本仓反复踩过的静默失效同类。
+
+        返回值口径与原 .scalar() 逐值一致：None（表空/全 NULL）或 'YYYY-MM-DD'。
+        """
+        try:
+            d = self.session.query(func.max(DailyKline.trade_date)).scalar()
+            return d.isoformat() if d else None
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error in get_latest_trade_date_strict: {e}")
+            raise
+
+    def count_bars_by_symbol(
+        self,
+        symbols: List[str],
+        start_date: str,
+        end_date: str,
+    ) -> List[Dict[str, Any]]:
+        """按标的统计 [start_date, end_date] 内的日K线根数（stocks LEFT JOIN daily_klines）。
+
+        2026-09-14（REQ-24e15d B4-c5）：application/services/scheduler_tasks.py 的
+        _filter_factor_universe（因子计算前的标的预筛）原为裸 SQL，等价形态：
+
+            SELECT s.symbol, s.name, s.is_delisted, s.is_st, count(k.trade_date) AS bars
+              FROM quant.stocks s
+              LEFT JOIN quant.daily_klines k
+                     ON k.symbol = s.symbol
+                    AND k.trade_date BETWEEN :start AND :end
+             WHERE s.symbol = ANY(:syms)
+             GROUP BY s.symbol, s.name, s.is_delisted, s.is_st
+
+        口径逐字保留：
+          · LEFT JOIN ⇒ 区间内无 K 线的标的**仍出一行**、bars = 0（0 与"缺行"必须可区分）；
+          · 日期条件留在 **ON** 子句里（放进 WHERE 会把 LEFT JOIN 退化成 INNER JOIN）；
+          · 只回主表中存在的 symbol；不在主表的代码不出现在结果里（调用方据此判 unknown）；
+          · 分组键 = symbol, name, is_delisted, is_st。
+
+        symbol 过滤走绑定参数（expanding IN，与原来的 = ANY(:syms) 同义）；空列表在入口短路
+        返回 []，既不产生空的 IN 列表这种非法 SQL，语义也与"没有任何标的命中"一致。
+
+        异常策略：回滚后**上抛** —— 调用方 handle_factor_compute 的 except 会把它记成任务失败；
+        吞异常会把"读不到标的池"变成"预筛后 0 只入选"的假成功。
+
+        Returns:
+            [{'symbol','name','is_delisted','is_st','bars'}]（bars 为 int，恒非 None）
+        """
+        if not symbols:
+            return []
+        try:
+            rows = self.session.execute(
+                select(
+                    Stock.symbol.label('symbol'),
+                    Stock.name.label('name'),
+                    Stock.is_delisted.label('is_delisted'),
+                    Stock.is_st.label('is_st'),
+                    func.count(DailyKline.trade_date).label('bars'),
+                )
+                .select_from(Stock)
+                .outerjoin(
+                    DailyKline,
+                    and_(
+                        DailyKline.symbol == Stock.symbol,
+                        DailyKline.trade_date.between(start_date, end_date),
+                    ),
+                )
+                .where(Stock.symbol.in_(list(symbols)))
+                .group_by(
+                    Stock.symbol, Stock.name, Stock.is_delisted, Stock.is_st,
+                )
+            ).mappings().all()
+            return [dict(r) for r in rows]
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error in count_bars_by_symbol: {e}")
+            raise
+
+    def get_latest_index_quotes(
+        self,
+        index_symbol: str,
+        limit: int = 2,
+    ) -> List[tuple]:
+        """最近 N 个交易日的指数 (trade_date, close)，按 trade_date **倒序**；无数据返回 []。
+
+        2026-09-14（REQ-24e15d B4-c5）：adapters/outbound/datasources/market_state_provider.py
+        的 _indices 原为裸 SQL：
+
+            SELECT trade_date, close FROM quant.index_daily
+             WHERE symbol = :s ORDER BY trade_date DESC LIMIT 2
+
+        口径逐字保留：
+          · symbol **原样匹配**，不经 resolve_index_symbol / _resolve_index_key 归一化 ——
+            调用方传的就是 index_daily 的键（带市场后缀）；而归一化会去查 stocks 表做
+            歧义裁决（000001.SH 上证指数 vs 000001 平安银行），既多一次 DB 往返，
+            又可能把命中行判成"非指数"（= 静默少一行），与迁移前的命中集合不一致；
+          · close 为 NULL 时原样返回 None（调用方自己判 None，不用 0 冒充）；
+          · 返回 (trade_date, close) 元组列表，保持原来的位置访问语义。
+
+        异常策略：回滚后**上抛** —— 调用方 except 会把 index_daily 记进 MarketState.degraded；
+        仓储吞异常会让该降级信号静默消失。
+        """
+        try:
+            rows = self.session.execute(
+                select(IndexDaily.trade_date, IndexDaily.close)
+                .where(IndexDaily.symbol == index_symbol)
+                .order_by(IndexDaily.trade_date.desc())
+                .limit(limit)
+            ).all()
+            return [(r[0], r[1]) for r in rows]
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error in get_latest_index_quotes for {index_symbol}: {e}")
+            raise
+
+    def get_closes_on_date(
+        self,
+        symbols: List[str],
+        trade_date: str,
+    ) -> Dict[str, float]:
+        """指定交易日、指定标的的收盘价映射 {symbol: close}（只含 close 非 NULL 的行）。
+
+        2026-09-14（REQ-24e15d B4-c5）：infrastructure/jobs/fund_flow_update_job.py 的
+        _load_reference_closes 原为裸 SQL：
+
+            SELECT symbol, close FROM quant.daily_klines
+             WHERE trade_date = :d AND symbol = ANY(:syms) AND close IS NOT NULL
+
+        口径逐字保留：等值日期 + expanding IN（保留 ANY(:syms) 的语义）+ close IS NOT NULL；
+        symbol **原样匹配**（不做后缀归一化）；值为 float(close)。
+
+        空 symbols 恒返回 {}（入口短路，与调用方的 if not symbols: return {} 一致，
+        也避免生成空的 IN 列表）。
+
+        异常策略：回滚后**上抛** —— 调用方有自己的 except（记 warning、本次跳过一致性校验）；
+        仓储吞异常会让那条留痕消失。
+        """
+        if not symbols:
+            return {}
+        try:
+            rows = self.session.execute(
+                select(DailyKline.symbol, DailyKline.close).where(
+                    DailyKline.trade_date == trade_date,
+                    DailyKline.symbol.in_(list(symbols)),
+                    DailyKline.close.isnot(None),
+                )
+            ).all()
+            return {str(r[0]): float(r[1]) for r in rows}
+        except Exception as e:
+            self._safe_rollback()
+            logger.error(f"Error in get_closes_on_date({trade_date}): {e}")
+            raise

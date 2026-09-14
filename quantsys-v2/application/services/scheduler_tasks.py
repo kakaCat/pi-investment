@@ -66,13 +66,14 @@ def handle_data_update(params: Dict[str, Any] = None) -> Dict[str, Any]:
     expected = None
     # 新鲜度检查：已新鲜则跳过（幂等，不重复拉全市场）
     try:
-        from infrastructure.persistence.database.engine import get_engine
-        from sqlalchemy import text
+        # 2026-09-14（REQ-24e15d B4-c5）：原为裸 SQL
+        #     SELECT max(trade_date) FROM quant.daily_klines
+        # 收进 KlineORMRepository.get_latest_trade_date_strict()。用 strict 变体（读失败回滚并
+        # 上抛，走下面 except → status=error），而不是会吞异常的 get_latest_trade_date
+        # （那会把"读失败"静默降级成"数据滞后" = stale）。
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository
         from adapters.inbound.fastapi_app.daily_jobs_bootstrap import _last_trading_day
-        engine = get_engine()
-        with engine.connect() as conn:
-            kline_latest = conn.execute(
-                text("SELECT max(trade_date) FROM quant.daily_klines")).scalar()
+        kline_latest = KlineORMRepository().get_latest_trade_date_strict()
         expected = _last_trading_day(datetime.now())
         if kline_latest and str(kline_latest) >= expected:
             return {
@@ -477,8 +478,10 @@ def _filter_factor_universe(symbols, start_date: str, end_date: str):
 
     返回 (kept, dropped)；dropped 为统计 dict，供调用方日志留痕。
     """
-    from infrastructure.persistence.database.engine import get_engine
-    from sqlalchemy import text
+    # 2026-09-14（REQ-24e15d B4-c5）：原为裸 SQL（stocks LEFT JOIN daily_klines 统计 bars，
+    # 日期条件在 ON 子句、symbol = ANY(:syms) 绑定列表），收进
+    # KlineORMRepository.count_bars_by_symbol()，口径逐字保留（见该方法 docstring）。
+    from adapters.outbound.repositories.kline_repository import KlineORMRepository
 
     dropped = {
         'delisted': 0, 'st': 0, 'non_equity': 0, 'insufficient_bars': 0,
@@ -487,21 +490,7 @@ def _filter_factor_universe(symbols, start_date: str, end_date: str):
     if not symbols:
         return [], dropped
 
-    engine = get_engine()
-    with engine.connect() as conn:
-        rows = conn.execute(
-            text("""
-                SELECT s.symbol, s.name, s.is_delisted, s.is_st,
-                       count(k.trade_date) AS bars
-                  FROM quant.stocks s
-                  LEFT JOIN quant.daily_klines k
-                         ON k.symbol = s.symbol
-                        AND k.trade_date BETWEEN :start AND :end
-                 WHERE s.symbol = ANY(:syms)
-                 GROUP BY s.symbol, s.name, s.is_delisted, s.is_st
-            """),
-            {'start': start_date, 'end': end_date, 'syms': list(symbols)},
-        ).mappings().all()
+    rows = KlineORMRepository().count_bars_by_symbol(symbols, start_date, end_date)
     known = {r['symbol']: r for r in rows}
 
     kept = []

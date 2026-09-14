@@ -48,6 +48,7 @@ from .portfolio_circuit_breaker import PortfolioCircuitBreaker
 from .agent_log import AgentLog
 from .trading_calendar import TradingCalendar
 from .strategy_validation import StrategyValidationReport
+from .watch_state import WatchDigestState, WatchIntervention
 
 __all__ = [
     # 股票相关
@@ -115,4 +116,8 @@ __all__ = [
 
     # 策略验证报告（REQ-24e15d B4-c3-d，2026-09-14）
     'StrategyValidationReport',
+
+    # 盯盘摘要状态 / 介入记账（REQ-24e15d B4-c5，2026-09-14）
+    'WatchDigestState',
+    'WatchIntervention',
 ]

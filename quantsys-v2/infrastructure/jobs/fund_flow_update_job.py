@@ -34,15 +34,14 @@ def _load_reference_closes(symbols: List[str], trade_date: str) -> Dict[str, flo
     if not symbols:
         return {}
     try:
-        from sqlalchemy import text
+        # 2026-09-14（REQ-24e15d B4-c5）：原为裸 SQL
+        #     SELECT symbol, close FROM quant.daily_klines
+        #      WHERE trade_date = :d AND symbol = ANY(:syms) AND close IS NOT NULL
+        # 收进 KlineORMRepository.get_closes_on_date()：等值日期 + expanding IN
+        # （保留 ANY(:syms) 语义）+ close IS NOT NULL，返回同一份 {symbol: float}。
+        from adapters.outbound.repositories.kline_repository import KlineORMRepository
 
-        from infrastructure.persistence.database.engine import get_engine
-        with get_engine().connect() as conn:
-            rows = conn.execute(text("""
-                SELECT symbol, close FROM quant.daily_klines
-                WHERE trade_date = :d AND symbol = ANY(:syms) AND close IS NOT NULL
-            """), {'d': trade_date, 'syms': list(symbols)}).fetchall()
-        return {str(r[0]): float(r[1]) for r in rows}
+        return KlineORMRepository().get_closes_on_date(symbols, trade_date)
     except Exception as exc:      # 参照系取不到不阻断主流程，由 detail 如实暴露
         logger.warning(f"取 K 线参照价失败（本次跳过一致性校验）: {exc}")
         return {}

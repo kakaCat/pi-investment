@@ -7,8 +7,9 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import structlog
-from sqlalchemy import Column, DateTime, Float, Integer, String, Text, text
+from sqlalchemy import Column, DateTime, Float, Integer, String, Text, func, select
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import aliased
 
 from infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.base import Base
@@ -77,21 +78,32 @@ class StrategyEvolutionRunORMRepository(BaseORMRepository[EvolutionStrategyRun])
         fitness NULL（整批 degraded 的 run）时取该 run 最近一条 degraded 行，
         让 leaderboard 同时暴露"进化过但诚实失败"的记录。时间倒序、limit 限制 run 数。
         """
-        sql = text("""
-            SELECT * FROM (
-                SELECT t.*, ROW_NUMBER() OVER (
-                    PARTITION BY run_id
-                    ORDER BY fitness DESC NULLS LAST, computed_at DESC
-                ) AS rn
-                FROM quant.evolution_strategy_runs t
-                WHERE strategy_id = :sid
-            ) ranked
-            WHERE rn = 1
-            ORDER BY computed_at DESC
-            LIMIT :lim
-        """)
+        # 2026-09-14（REQ-24e15d B4-c5）：由 Core text() 裸 SQL 改为 ORM/Core 表达式，
+        # 口径逐字保留：内层 ROW_NUMBER() OVER (PARTITION BY run_id
+        # ORDER BY fitness DESC NULLS LAST, computed_at DESC)，外层 rn = 1、
+        # ORDER BY computed_at DESC、LIMIT :lim。
+        # 注：row_number() 不看窗口帧（无 rows= 子句），故不涉及 PRECEDING/FOLLOWING 的帧语义坑。
+        _rn = func.row_number().over(
+            partition_by=EvolutionStrategyRun.run_id,
+            order_by=[
+                EvolutionStrategyRun.fitness.desc().nullslast(),
+                EvolutionStrategyRun.computed_at.desc(),
+            ],
+        ).label('rn')
+        ranked = (
+            select(EvolutionStrategyRun, _rn)
+            .where(EvolutionStrategyRun.strategy_id == int(strategy_id))
+            .subquery()
+        )
+        # 把实体映射到子查询列（ranked.id / ranked.run_id / …），保证下面 _to_dict 拿到的
+        # 仍是带完整映射属性的行对象（与原来的 SELECT * 行一一对应；多出的 rn 列被忽略）。
+        row_source = aliased(EvolutionStrategyRun, ranked)
         rows = self.session.execute(
-            sql, {'sid': int(strategy_id), 'lim': limit}).fetchall()
+            select(row_source)
+            .where(ranked.c.rn == 1)
+            .order_by(ranked.c.computed_at.desc())
+            .limit(limit)
+        ).scalars().all()
         return [self._to_dict(r) for r in rows]
 
     def get_run(self, run_id: str) -> List[Dict[str, Any]]:

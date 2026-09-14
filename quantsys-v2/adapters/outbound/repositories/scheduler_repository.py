@@ -8,8 +8,26 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
 
-from sqlalchemy import and_, case, func, or_, text
+from sqlalchemy import Float, String, and_, case, column, func, or_, select, table
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+
+# APScheduler 自己的 jobstore 表（public.apscheduler_jobs）。**刻意不建 ORM 模型**：
+#   · 建表/迁移归 APScheduler（SQLAlchemyJobStore.start() 自己 CREATE TABLE IF NOT EXISTS），
+#     本仓只读它的一行状态 —— 映射进 Base 等于给同一张表造第二个 owner；
+#   · 本仓 scripts/migrate_*.py 会调 Base.metadata.create_all(engine)，一旦加入模型，
+#     这些脚本就会按我们的猜测去 CREATE 一张第三方表（schema 漂移风险外溢）；
+#   · APScheduler 大版本升级会改 jobstore 的 DDL（3.x 为 id varchar(191) /
+#     next_run_time double precision / job_state bytea），冻结成模型后漂移只在运行期暴露；
+#   · 本表只有一条只读探测语句，且调用方已有 except 兜底（失败退回严格检查）。
+# 因此用 Core 的轻量 table()/column() 表达：不进 Base.metadata（无 create_all 副作用）、
+# 无 ORM 身份/脏检查语义，SQL 由 Core 生成（非字符串拼接），取值仍走绑定参数。
+_APSCHEDULER_JOBS = table(
+    'apscheduler_jobs',
+    column('id', String(191)),
+    column('next_run_time', Float),
+    schema='public',
+)
 
 from domain.ports import ISchedulerRepository
 from infrastructure.persistence.orm import get_session
@@ -519,12 +537,16 @@ class SchedulerRepository(ISchedulerRepository):
             now_epoch = datetime.now(timezone.utc).timestamp()
             scheduled_task_ids: set = set()
             try:
+                # 2026-09-14（REQ-24e15d B4-c5）：原为 Core text() 裸 SQL
+                #     SELECT id FROM public.apscheduler_jobs
+                #      WHERE id LIKE 'task_%' AND next_run_time > :now_epoch
+                # 改为 Core 表达式（见 _APSCHEDULER_JOBS 处的判断说明）：同样的过滤、
+                # 同样的绑定参数（now_epoch 仍是 Python float）、同样的 public schema 限定。
                 rows = self.session.execute(
-                    text(
-                        "SELECT id FROM public.apscheduler_jobs "
-                        "WHERE id LIKE 'task_%' AND next_run_time > :now_epoch"
-                    ),
-                    {"now_epoch": now_epoch},
+                    select(_APSCHEDULER_JOBS.c.id).where(
+                        _APSCHEDULER_JOBS.c.id.like('task_%'),
+                        _APSCHEDULER_JOBS.c.next_run_time > now_epoch,
+                    )
                 ).fetchall()
                 scheduled_task_ids = {
                     int(r[0].split("_", 1)[1]) for r in rows if "_" in r[0]
