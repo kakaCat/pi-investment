@@ -191,11 +191,18 @@ def package_fingerprint(real_dir):
 
 
 def plugin_dirs(profile):
-    """profile 里 @pi-investment/* 依赖解析到的仓库目录（跟随符号链接）。"""
+    """@pi-investment/* 依赖解析到的仓库目录（跟随符号链接）。
+
+    托管布局（2026-09-14 起现役）：profile 的 package.json 不声明 file: 依赖，插件是按包名
+    从**进程 cwd** 的 node_modules 解析的（start.sh `cd "$PROJECT_ROOT"` + NODE_PATH），
+    所以 profile 内没有这个作用域目录 —— 此时改看运行时解析根，否则 L2 新鲜度层会静默空转。
+    """
     pkg_dir = os.path.join(profile, "node_modules", PKG_SCOPE)
+    if not os.path.isdir(pkg_dir):
+        pkg_dir = os.path.join(os.path.dirname(HERE), "node_modules", PKG_SCOPE)
     dirs = {}
     if not os.path.isdir(pkg_dir):
-        return dirs
+        return dirs, []
     skipped = []
     for short in sorted(os.listdir(pkg_dir)):
         if ".bak" in short:

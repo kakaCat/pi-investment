@@ -12,6 +12,9 @@ coverage/
 
 # local backup snapshots
 agent-dh.bak.*/
+# relink-profile.py / deploy-verify.py 的备份落点，以及一次性迁移的人工留档
+# （2026-09-14 合并迁移在这里留了 15MB，未 ignore 时有被整包提交的风险）
+.deploy-backup/
 CLAUDE.md
 
 # ---- 文档树纳入版本控制（2026-09-14，w-1cee2467）-------------------------------

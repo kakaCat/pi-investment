@@ -230,6 +230,24 @@ def load_plan(profile):
             target = idx.get(name)
             plan.append((name, installed, target, _state_of(installed, target)))
 
+    # ②′ 运行时解析根（托管布局）：profile 的 package.json **不声明**任何 file:/link: 依赖，
+    #     插件是按包名从**进程 cwd** 的 node_modules 解析的 —— start.sh 最后 `cd "$PROJECT_ROOT"`
+    #     且导出 NODE_PATH="$PROJECT_ROOT/node_modules"，PROJECT_ROOT 就是 agent-dh/。
+    #     此时 ①② 都扫不到东西，检查集为空。空 ≠ 没问题：那说明验错了对象。
+    #     所以把该解析根纳入同一套检查/修复逻辑（同样的 _state_of 判据、同样的自动修复）。
+    agent_dh = os.path.dirname(HERE)
+    runtime_scope = os.path.join(agent_dh, "node_modules", PKG_SCOPE)
+    if not plan and not residue and os.path.isdir(runtime_scope):
+        print(f"ℹ️ profile 内无插件安装条目，改验运行时解析根：{runtime_scope}")
+        for short in sorted(os.listdir(runtime_scope)):
+            installed = os.path.join(runtime_scope, short)
+            if any(p in short for p in RESIDUE_PREFIXES):
+                residue.append((PKG_SCOPE + "/" + short, installed))
+                continue
+            name = PKG_SCOPE + "/" + short
+            seen.add(installed)
+            plan.append((name, installed, idx.get(name), _state_of(installed, idx.get(name))))
+
     # ③ cordis.patch.yml 引用的插件（补非 @pi-investment 作用域，如 dsh-pmboard）
     patch = os.path.join(profile, "cordis.patch.yml")
     referenced = []
@@ -278,6 +296,8 @@ def main():
 
     if not plan:
         print("❌ 未发现任何可检查的插件安装条目 —— 这不代表没问题，而是本脚本对该 profile 没有校验能力。")
+        print(f"   已尝试：profile 内 node_modules/{PKG_SCOPE}/、"
+              f"{os.path.join(os.path.dirname(HERE), 'node_modules', PKG_SCOPE)}/")
         print(f"   请确认 --profile 指向真实运行的 profile（当前：{profile}）")
         return 1
 
