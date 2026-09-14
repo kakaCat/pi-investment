@@ -26,7 +26,7 @@ window.__ModuleLoader__.load({
 		      </div>
 		      <div class="dsh-pm-lanes">${i}</div>
 		      ${o}
-		    </div>`}function v(e,t){let{req:n,tasks:i,doneCount:a,totalCount:o,readyIds:s,blocked:c}=e,l=o>0?Math.round(a/o*100):0,u=n.category?`<span class="dsh-pm-cat" data-cat="${n.category}">${d[n.category]??n.category}</span>`:``,f=ce(n)+ue(n)+R(n),p=c?`<span class="dsh-pm-flag blocked">阻塞</span>`:``,m=n.paused?`<span class="dsh-pm-flag paused">暂停</span>`:``,g=s.length>0?`<span class="dsh-pm-flag ready">${s.length} ready</span>`:``,_=se(n,t),v=b(n)+x(i),S=y(n);return`
+		    </div>`}function v(e,t){let{req:n,tasks:i,doneCount:a,totalCount:o,readyIds:s,blocked:c}=e,l=o>0?Math.round(a/o*100):0,u=n.category?`<span class="dsh-pm-cat" data-cat="${n.category}">${d[n.category]??n.category}</span>`:``,f=ge(n)+ve(n)+ye(n),p=c?`<span class="dsh-pm-flag blocked">阻塞</span>`:``,m=n.paused?`<span class="dsh-pm-flag paused">暂停</span>`:``,g=s.length>0?`<span class="dsh-pm-flag ready">${s.length} ready</span>`:``,_=he(n,t),v=b(n)+x(i),S=y(n);return`
 		    <div class="dsh-pm-card${c?` is-blocked`:``}" data-req="${r(n.id)}" data-action="open-req">
 		      <div class="dsh-pm-card-top">
 		        <span class="dsh-pm-card-id">${r(n.id)}</span>
@@ -55,11 +55,11 @@ window.__ModuleLoader__.load({
 		      ${l}
 		      <div class="dsh-pm-detail-section">
 		        <h3>实施计划（plan mode）</h3>
-		        ${le(e)}
+		        ${_e(e)}
 		      </div>
 		      <div class="dsh-pm-detail-section">
 		        <h3>时间线</h3>
-		        ${ee(e,n)}
+		        ${ue(e,n)}
 		      </div>
 		      <div class="dsh-pm-detail-section">
 		        <h3>任务 DAG</h3>
@@ -74,15 +74,15 @@ window.__ModuleLoader__.load({
 		      </div>
 		      <div class="dsh-pm-detail-section">
 		        <h3>甘特图</h3>
-		        ${L(e,i,n)}
+		        ${H(e,i,n)}
 		      </div>
 		      <div class="dsh-pm-detail-section">
 		        <h3>验收（人工审核）</h3>
-		        ${z(e)}
+		        ${be(e)}
 		      </div>
 		      <div class="dsh-pm-detail-section">
 		        <h3>归档（文档合并）</h3>
-		        ${B(e)}
+		        ${xe(e)}
 		      </div>
 		      <div class="dsh-pm-detail-section">
 		        <h3>评论（${e.comments.length}）</h3>
@@ -114,7 +114,19 @@ window.__ModuleLoader__.load({
 		    <div class="dsh-pm-comment">
 		      <span class="dsh-pm-comment-meta">${r(e.createdBy?.kind??`human`)} · ${m(e.createdAt)}</span>
 		      <div class="dsh-pm-comment-body">${r(e.body)}</div>
-		    </div>`).join(``)+`</div>`}function D(e,t,n=Date.now()){let i=e.executions.map(e=>`
+		    </div>`).join(``)+`</div>`}function D(e){let t=e.title.toLowerCase();if(t.includes(`拆分`)||t.includes(`decompose`))return`decompose`;if(e.status===`integrating`||t.includes(`集成`)||t.includes(`联调`))return`merge`;switch(e.phase){case`doc`:return`doc`;case`ui`:return`ui`;case`analysis`:return`analysis`;case`implement`:return`implement`;case`test`:return`test`;case`review`:return`review`;case`merge`:return`merge`;default:return`generic`}}const O={decompose:`🔀`,implement:`⚙️`,test:`🧪`,review:`👀`,merge:`🔀`,doc:`📝`,ui:`🎨`,analysis:`🔍`,generic:`📋`},k={decompose:`拆分任务`,implement:`实施任务`,test:`测试任务`,review:`评审任务`,merge:`合并任务`,doc:`文档任务`,ui:`UI设计`,analysis:`分析任务`,generic:`任务`};function A(e,t,n=Date.now(),i=[]){let a=D(e),o=O[a],s=k[a],c=j(e,a,t,i),u=M(e,n);return`
+		    <div class="dsh-pm-taskdetail" data-detail-task="${r(e.id)}" data-node-type="${a}">
+		      <div class="dsh-pm-detail-head">
+		        <button type="button" class="dsh-pm-btn" data-action="back-req" data-req="${r(e.requirementId)}" title="返回需求">← ${r(e.requirementId)}</button>
+		        <span class="dsh-pm-card-id">${r(e.id)}</span>
+		        <span class="dsh-pm-status" data-status="${e.status}">${l[e.status]}</span>
+		        <span class="dsh-pm-node-badge" title="${s}">${o} ${s}</span>
+		      </div>
+		      <h2 class="dsh-pm-detail-title">${r(e.title)}</h2>
+		      ${e.description?`<div class="dsh-pm-detail-desc">${r(e.description)}</div>`:``}
+		      ${c}
+		      ${u}
+		    </div>`}function j(e,t,n,r){switch(t){case`decompose`:return ee(e,n,r);case`implement`:return te(e);case`test`:return ne(e);case`review`:return re(e);case`merge`:return N(e);case`doc`:return ie(e);case`ui`:return ae(e);case`analysis`:return oe(e);default:return``}}function M(e,t){let n=e.executions.map(e=>`
 		    <div class="dsh-pm-exec" data-outcome="${e.outcome}">
 		      <span class="dsh-pm-exec-outcome">${e.outcome}</span>
 		      <span>${m(e.startedAt)}</span>
@@ -122,14 +134,8 @@ window.__ModuleLoader__.load({
 		      ${e.error?`<div class="dsh-pm-exec-error">${r(e.error)}</div>`:``}
 		      ${e.evidence&&e.evidence.length>0?`<div class="dsh-pm-exec-evidence">${e.evidence.map(e=>`<code>${r(e)}</code>`).join(` `)}</div>`:``}
 		    </div>`).join(``);return`
-		    <div class="dsh-pm-taskdetail" data-detail-task="${r(e.id)}">
-		      <div class="dsh-pm-detail-head">
-		        <button type="button" class="dsh-pm-btn" data-action="back-req" data-req="${r(e.requirementId)}" title="返回需求">← ${r(e.requirementId)}</button>
-		        <span class="dsh-pm-card-id">${r(e.id)}</span>
-		        <span class="dsh-pm-status" data-status="${e.status}">${l[e.status]}</span>
-		      </div>
-		      <h2 class="dsh-pm-detail-title">${r(e.title)}</h2>
-		      ${e.description?`<div class="dsh-pm-detail-desc">${r(e.description)}</div>`:``}
+		    <details class="dsh-pm-common-details">
+		      <summary class="dsh-pm-common-summary">通用信息（属性、时间线、执行记录、评论）</summary>
 		      <div class="dsh-pm-detail-section">
 		        <h3>属性</h3>
 		        <div class="dsh-pm-kv">
@@ -141,11 +147,11 @@ window.__ModuleLoader__.load({
 		      </div>
 		      <div class="dsh-pm-detail-section">
 		        <h3>时间线</h3>
-		        ${te(e,n)}
+		        ${de(e,t)}
 		      </div>
 		      <div class="dsh-pm-detail-section">
 		        <h3>执行记录（${e.executions.length}）</h3>
-		        ${i||`<div class="dsh-pm-empty">暂无执行</div>`}
+		        ${n||`<div class="dsh-pm-empty">暂无执行</div>`}
 		      </div>
 		      <div class="dsh-pm-detail-section">
 		        <h3>评论（${e.comments.length}）</h3>
@@ -155,7 +161,131 @@ window.__ModuleLoader__.load({
 		          <button type="button" class="dsh-pm-btn" data-action="add-comment" data-target="task" data-id="${r(e.id)}">发送</button>
 		        </div>
 		      </div>
-		    </div>`}function O(e,t){let n=e.filter(e=>e.status===`pending`),i=t.requirements.filter(e=>e.status!==`archived`&&e.status!==`canceled`),a=n.map(e=>{let t=e.suggestedAction===`create_req`&&!e.suggestedTargetId,n=e.suggestedTargetId?`${e.suggestedAction===`bind_req`?`绑定需求`:e.suggestedAction===`bind_task`?`绑定任务`:`新建需求`} ${r(e.suggestedTargetId)}`:e.suggestedAction===`create_req`?`新建需求${e.suggestedCategory?` · ${d[e.suggestedCategory]??e.suggestedCategory}`:``}`:``,i=t?`
+		    </details>`}function ee(e,t,n){if(!t)return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">需求数据不可用</div></div>`;let i=n.filter(e=>e.requirementId===t.id),a=i.length,o=i.filter(e=>e.status===`done`).length,s={};return i.forEach(e=>{let t=e.side===`frontend`?`UI 轨道`:e.side===`backend`?`后端轨道`:e.side===`doc`?`文档轨道`:`全栈轨道`;s[t]||(s[t]=[]),s[t].push(e)}),`
+		    <div class="dsh-pm-detail-section dsh-pm-specialized">
+		      <h3>📊 拆分结果</h3>
+		      <div class="dsh-pm-stats">
+		        <div class="dsh-pm-stat">
+		          <span class="dsh-pm-stat-label">总计任务</span>
+		          <span class="dsh-pm-stat-value">${a} 个</span>
+		        </div>
+		        <div class="dsh-pm-stat">
+		          <span class="dsh-pm-stat-label">并行轨道</span>
+		          <span class="dsh-pm-stat-value">${Object.keys(s).length} 个</span>
+		        </div>
+		        <div class="dsh-pm-stat">
+		          <span class="dsh-pm-stat-label">预计工期</span>
+		          <span class="dsh-pm-stat-value">${a>0?(a*.5).toFixed(1):`0`} 天</span>
+		        </div>
+		        <div class="dsh-pm-stat">
+		          <span class="dsh-pm-stat-label">完成进度</span>
+		          <span class="dsh-pm-stat-value">${o}/${a}</span>
+		        </div>
+		      </div>
+		    </div>
+		    <div class="dsh-pm-detail-section">
+		      <h3>📋 拆分清单</h3>
+		      ${Object.entries(s).map(([e,t])=>`
+		    <div class="dsh-pm-track">
+		      <div class="dsh-pm-track-head">${e} - ${t.length} 任务</div>
+		      <ul class="dsh-pm-track-list">
+		        ${t.map(e=>`<li><button type="button" class="dsh-pm-task-link" data-action="open-task" data-task="${r(e.id)}">${r(e.id)}</button> ${r(e.title)}</li>`).join(``)}
+		      </ul>
+		    </div>`).join(``)||`<div class="dsh-pm-empty">暂无任务</div>`}
+		    </div>
+		    <div class="dsh-pm-detail-section">
+		      <h3>🌳 依赖关系 DAG</h3>
+		      ${w(i)}
+		    </div>`}function te(e){let t=[],n=e.executions[e.executions.length-1];n?.evidence&&n.evidence.forEach(e=>{let n=e.match(/^(.+?)\s*\(?\+(\d+)(?:,\s*-(\d+))?\)?$/);n&&t.push({path:n[1].trim(),added:parseInt(n[2],10),deleted:parseInt(n[3]||`0`,10)})});let i=t.reduce((e,t)=>e+t.added,0),a=t.reduce((e,t)=>e+t.deleted,0),o=t.length>0?t.map(e=>`
+		    <div class="dsh-pm-file-change">
+		      <code class="dsh-pm-file-path">${r(e.path)}</code>
+		      <span class="dsh-pm-file-stats">
+		        <span class="dsh-pm-stat-add">+${e.added}</span>
+		        ${e.deleted>0?`<span class="dsh-pm-stat-del">-${e.deleted}</span>`:``}
+		      </span>
+		    </div>`).join(``):`<div class="dsh-pm-empty">暂无文件变更记录</div>`,s=`未知`;if(n?.evidence){let e=n.evidence.find(e=>e.includes(`coverage`)||e.includes(`覆盖率`));if(e){let t=e.match(/(\d+)%/);t&&(s=t[1]+`%`)}}let c=e.executions.map(e=>`<div class="dsh-pm-exec-brief">${e.outcome===`succeeded`?`✅`:e.outcome===`failed`?`❌`:e.outcome===`running`?`⏳`:`⚠️`} ${m(e.startedAt)} - ${e.outcome}</div>`).join(``);return`
+		    <div class="dsh-pm-detail-section dsh-pm-specialized">
+		      <h3>📁 修改文件</h3>
+		      <div class="dsh-pm-file-summary">
+		        <span>${t.length} 个文件</span>
+		        <span class="dsh-pm-stat-add">+${i} 行</span>
+		        ${a>0?`<span class="dsh-pm-stat-del">-${a} 行</span>`:``}
+		      </div>
+		      ${o}
+		    </div>
+		    <div class="dsh-pm-detail-section">
+		      <h3>🔍 执行记录（${e.executions.length} 次）</h3>
+		      ${c||`<div class="dsh-pm-empty">暂无执行</div>`}
+		    </div>
+		    <div class="dsh-pm-detail-section">
+		      <h3>📊 质量指标</h3>
+		      <div class="dsh-pm-kv">
+		        <span>测试覆盖率</span><span>${s}</span>
+		        <span>代码复杂度</span><span>未知</span>
+		        <span>类型安全</span><span>通过</span>
+		      </div>
+		    </div>`}function ne(e){let t=0,n=0,i=0,a=0,o=[],s=e.executions[e.executions.length-1];s?.evidence&&s.evidence.forEach(e=>{let r=e.match(/(\d+)\s*passed.*?(\d+)\s*failed.*?(\d+)\s*skipped/i);r&&(n=parseInt(r[1],10),i=parseInt(r[2],10),a=parseInt(r[3],10),t=n+i+a)}),s?.error&&s.error.split(`
+		`).forEach(e=>{let t=e.match(/(.+?):(\d+)\s*Expected:\s*(.+?)\s*Actual:\s*(.+)/);t&&o.push({name:`测试用例`,file:t[1]+`:`+t[2],expected:t[3],actual:t[4]})});let c=t>0?(n/t*100).toFixed(1):`0`,l=o.length>0?o.map(e=>`
+		    <div class="dsh-pm-test-fail">
+		      <div class="dsh-pm-test-fail-name">${r(e.name)}</div>
+		      <div class="dsh-pm-test-fail-detail">
+		        <span>预期：<code>${r(e.expected)}</code></span>
+		        <span>实际：<code>${r(e.actual)}</code></span>
+		        <span>文件：<code>${r(e.file)}</code></span>
+		      </div>
+		    </div>`).join(``):`<div class="dsh-pm-empty">所有测试通过</div>`,u=0,d=0,f=0,p=0;if(s?.evidence){let e=s.evidence.find(e=>e.includes(`coverage`));if(e){let t=e.match(/statements?:\s*(\d+)%/i),n=e.match(/branches?:\s*(\d+)%/i),r=e.match(/functions?:\s*(\d+)%/i),i=e.match(/lines?:\s*(\d+)%/i);t&&(u=parseInt(t[1],10)),n&&(d=parseInt(n[1],10)),r&&(f=parseInt(r[1],10)),i&&(p=parseInt(i[1],10))}}return`
+		    <div class="dsh-pm-detail-section dsh-pm-specialized">
+		      <h3>📊 测试概况</h3>
+		      <div class="dsh-pm-stats">
+		        <div class="dsh-pm-stat">
+		          <span class="dsh-pm-stat-label">总计</span>
+		          <span class="dsh-pm-stat-value">${t} 个</span>
+		        </div>
+		        <div class="dsh-pm-stat dsh-pm-stat-success">
+		          <span class="dsh-pm-stat-label">通过</span>
+		          <span class="dsh-pm-stat-value">${n} 个 (${c}%)</span>
+		        </div>
+		        <div class="dsh-pm-stat dsh-pm-stat-error">
+		          <span class="dsh-pm-stat-label">失败</span>
+		          <span class="dsh-pm-stat-value">${i} 个</span>
+		        </div>
+		        <div class="dsh-pm-stat">
+		          <span class="dsh-pm-stat-label">跳过</span>
+		          <span class="dsh-pm-stat-value">${a} 个</span>
+		        </div>
+		      </div>
+		    </div>
+		    ${i>0?`
+		    <div class="dsh-pm-detail-section">
+		      <h3>❌ 失败的测试</h3>
+		      ${l}
+		    </div>`:``}
+		    ${u>0?`
+		    <div class="dsh-pm-detail-section">
+		      <h3>📈 覆盖率报告</h3>
+		      <div class="dsh-pm-coverage">
+		        <div class="dsh-pm-coverage-bar">
+		          <span class="dsh-pm-coverage-label">语句覆盖率</span>
+		          <span class="dsh-pm-coverage-value">${u}%</span>
+		          <div class="dsh-pm-coverage-track"><div class="dsh-pm-coverage-fill" style="width: ${u}%"></div></div>
+		        </div>
+		        <div class="dsh-pm-coverage-bar">
+		          <span class="dsh-pm-coverage-label">分支覆盖率</span>
+		          <span class="dsh-pm-coverage-value">${d}%</span>
+		          <div class="dsh-pm-coverage-track"><div class="dsh-pm-coverage-fill" style="width: ${d}%"></div></div>
+		        </div>
+		        <div class="dsh-pm-coverage-bar">
+		          <span class="dsh-pm-coverage-label">函数覆盖率</span>
+		          <span class="dsh-pm-coverage-value">${f}%</span>
+		          <div class="dsh-pm-coverage-track"><div class="dsh-pm-coverage-fill" style="width: ${f}%"></div></div>
+		        </div>
+		        <div class="dsh-pm-coverage-bar">
+		          <span class="dsh-pm-coverage-label">行覆盖率</span>
+		          <span class="dsh-pm-coverage-value">${p}%</span>
+		          <div class="dsh-pm-coverage-track"><div class="dsh-pm-coverage-fill" style="width: ${p}%"></div></div>
+		        </div>
+		      </div>
+		    </div>`:``}`}function re(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">评审节点内容待实现（P1）</div></div>`}function N(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">合并节点内容待实现（P1）</div></div>`}function ie(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">文档节点内容待实现（P2）</div></div>`}function ae(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">UI节点内容待实现（P2）</div></div>`}function oe(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">分析节点内容待实现（P2）</div></div>`}function se(e,t){let n=e.filter(e=>e.status===`pending`),i=t.requirements.filter(e=>e.status!==`archived`&&e.status!==`canceled`),a=n.map(e=>{let t=e.suggestedAction===`create_req`&&!e.suggestedTargetId,n=e.suggestedTargetId?`${e.suggestedAction===`bind_req`?`绑定需求`:e.suggestedAction===`bind_task`?`绑定任务`:`新建需求`} ${r(e.suggestedTargetId)}`:e.suggestedAction===`create_req`?`新建需求${e.suggestedCategory?` · ${d[e.suggestedCategory]??e.suggestedCategory}`:``}`:``,i=t?`
 		        <div class="dsh-pm-triage-edit">
 		          <input type="text" class="dsh-pm-input" data-role="triage-title" value="${r(e.suggestedTitle??e.firstMessageText.slice(0,120))}" placeholder="需求名称（可编辑）" />
 		          <select class="dsh-pm-input" data-role="triage-category">
@@ -188,7 +318,7 @@ window.__ModuleLoader__.load({
 		        </select>
 		        <button type="button" class="dsh-pm-btn primary" data-action="triage-rebind-confirm">确认改绑</button>
 		      </div>
-		    </div>`}function k(){return`<div class="dsh-pm-board"><div class="dsh-pm-empty">暂无数据 — 点击「+ 需求」创建第一个需求</div></div>`}function A(e){return`<div class="dsh-pm-board"><div class="dsh-pm-error">加载失败：${r(e)}</div></div>`}function j(e){let t=Math.floor(Math.max(0,e)/6e4);if(t<60)return t+` 分`;let n=Math.floor(t/60);return n<24?n+` 小时 `+t%60+` 分`:Math.floor(n/24)+` 天 `+n%24+` 小时`}function M(e){return e===`done`||e===`archived`||e===`canceled`}function N(e,t){let n=e.statusHistory;if(n!==void 0&&n.length>0)return n;let r=[{status:t,at:e.createdAt,by:{kind:`human`},reason:`创建`,inferred:!0}];return e.status!==void 0&&e.status!==t&&e.updatedAt!==void 0&&r.push({status:e.status,at:Math.max(e.updatedAt,e.createdAt),by:e.updatedBy??{kind:`human`},reason:`按 updatedAt 回填（当时无事件留痕）`,inferred:!0}),r}function P(e,t,n,i,a){let o=N(e,i),s=new Map;o.forEach((e,t)=>{s.has(e.status)||s.set(e.status,t)});let c=o.map((e,t)=>({e,i:t})).filter(e=>!t.includes(e.e.status)).map(e=>e.e.status),l=(e,t)=>{if(t===void 0)return`<div class="dsh-pm-tl-row pending" data-status="`+e+`"><span class="dsh-pm-tl-label">`+(n[e]??e)+`</span><span class="dsh-pm-tl-time">—</span><span class="dsh-pm-tl-dur"></span></div>`;let i=o[t],s=o[t+1],c=t===o.length-1,l=(s?.at??a)-i.at,u=c?M(i.status)?``:`已停留 `+j(l):`停留 `+j(l),d=i.by.kind+(i.by.sessionId===void 0?``:` `+p(i.by.sessionId));return`<div class="dsh-pm-tl-row`+(c?` current`:``)+`" data-status="`+r(i.status)+`"><span class="dsh-pm-tl-label">`+(n[e]??e)+`</span><span class="dsh-pm-tl-time">`+r(m(i.at))+`</span><span class="dsh-pm-tl-dur">`+r(u)+`</span><span class="dsh-pm-tl-by">`+r(d)+`</span>`+(i.inferred===!0?`<span class="dsh-pm-tl-inferred" title="历史回填：老记录无事件留痕，由创建时间与评论反推">回填</span>`:``)+`</div>`},u=t.map(e=>l(e,s.get(e))).join(``)+c.map(e=>l(e,s.get(e))).join(``),d=o[0].at,f=o[o.length-1],h=(M(f.status)?f.at:a)-d;return`<div class="dsh-pm-timeline">`+u+`<div class="dsh-pm-tl-total">创建 `+r(m(d))+(M(f.status)?` · 总耗时 `:` · 至今 `)+r(j(h))+`</div></div>`}function ee(e,t){return P(e,f.concat([`archived`]),c,`draft`,t)}function te(e,t){return P(e,I,l,`todo`,t)}function F(e){let t=N(e,`draft`),n=new Map;for(let e of t)n.has(e.status)||n.set(e.status,e);let i=[...n.values()].map(e=>`<span class="dsh-pm-strip-item" data-status="`+r(e.status)+`">`+(c[e.status]??e.status)+` <b>`+r(m(e.at))+`</b></span>`);return i.length===0?``:`<div class="dsh-pm-strip">`+i.join(`<span class="dsh-pm-strip-arrow">→</span>`)+`</div>`}const I=[`todo`,`in_progress`,`integrating`,`testing`,`in_review`,`done`],ne=[`draft`,`brainstorming`,`decomposing`,`implementing`,`accepting`,`done`,`archived`];function re(e,t){let n=N(e,`todo`),r=M(e.status);return n.map((i,a)=>{let o=n[a+1]?.at??(r?Math.max(e.updatedAt,i.at):t);return{status:i.status,from:i.at,to:o}})}function ie(e,t){return e.length>t?e.slice(0,t)+`…`:e}function L(e,t,n){if(t.length===0)return`<div class="dsh-pm-empty">尚未拆分任务</div>`;let i=[...t].sort((e,t)=>e.createdAt-t.createdAt),a=[n];for(let e of i)for(let t of N(e,`todo`))a.push(t.at);for(let t of N(e,`draft`))a.push(t.at);let o=Math.min(...a),s=Math.max(...a),u=Math.max(s-o,36e5),d=e=>190+(e-o)/u*620,f=34+i.length*22+10,p=[];p.push(`<svg class="dsh-pm-gantt" viewBox="0 0 822 `+f+`" width="100%" height="`+f+`" preserveAspectRatio="xMinYMin meet" role="img" aria-label="任务甘特图">`);for(let e=0;e<=4;e++){let t=o+u*e/4,n=d(t).toFixed(1);p.push(`<line class="dsh-pm-gantt-grid" x1="`+n+`" y1="26" x2="`+n+`" y2="`+(f-10)+`" />`),p.push(`<text class="dsh-pm-gantt-axis" x="`+n+`" y="20" text-anchor="middle">`+r(m(t))+`</text>`)}for(let t of N(e,`draft`)){if(!ne.includes(t.status))continue;let n=d(t.at).toFixed(1);p.push(`<line class="dsh-pm-gantt-mile" data-status="`+r(t.status)+`" x1="`+n+`" y1="28" x2="`+n+`" y2="`+(f-10)+`">`),p.push(`<title>`+r(e.id+` `+(c[t.status]??t.status)+` `+m(t.at))+`</title></line>`)}if(i.forEach((e,t)=>{let i=34+t*22;p.push(`<text class="dsh-pm-gantt-rowlabel" x="6" y="`+(i+13)+`">`+r(ie(e.id+` `+e.title,24))+`</text>`),p.push(`<rect class="dsh-pm-gantt-track" x="190" y="`+(i+4)+`" width="620" height="13" rx="3" />`);for(let t of re(e,n)){let n=d(t.from),a=Math.max(2,d(t.to)-n);p.push(`<rect class="dsh-pm-gantt-bar" data-status="`+r(t.status)+`" x="`+n.toFixed(1)+`" y="`+(i+4)+`" width="`+a.toFixed(1)+`" height="13" rx="3">`),p.push(`<title>`+r(e.id+` `+e.title+`｜`+(l[t.status]??t.status)+` `+m(t.from)+` → `+m(t.to)+`（`+j(t.to-t.from)+`）`)+`</title></rect>`)}}),n>=o&&n<=s){let e=d(n).toFixed(1);p.push(`<line class="dsh-pm-gantt-now" x1="`+e+`" y1="28" x2="`+e+`" y2="`+(f-10)+`"><title>现在</title></line>`)}p.push(`</svg>`);let h=`<div class="dsh-pm-gantt-legend">`+I.map(e=>`<span class="dsh-pm-gantt-legend-item"><i data-status="`+e+`"></i>`+l[e]+`</span>`).join(``)+`<span class="dsh-pm-gantt-legend-item"><i class="mile"></i>需求里程碑</span></div>`;return`<div class="dsh-pm-gantt-wrap">`+p.join(``)+`</div>`+h}function ae(e,t){return`<table class="dsh-pm-ttable"><thead><tr><th>任务</th><th>标题</th><th>状态</th><th>阶段</th><th>端侧</th><th>依赖</th><th>创建</th><th>耗时</th></tr></thead><tbody>`+[...e].sort((e,t)=>e.createdAt-t.createdAt).map(e=>{let n=N(e,`todo`),i=n[0].at,a=n[n.length-1],o=n.find(e=>e.status===`done`)?.at,s=M(e.status)?`共 `+j((o??a.at)-i):`已用 `+j(t-i);return`<tr class="dsh-pm-trow" data-task="`+r(e.id)+`" data-action="open-task"><td class="dsh-pm-tid">`+r(e.id)+`</td><td class="dsh-pm-ttitle">`+r(e.title)+`</td><td><span class="dsh-pm-status" data-status="`+r(e.status)+`">`+(l[e.status]??e.status)+`</span></td><td>`+r(u[e.phase]??e.phase)+`</td><td>`+r(e.side)+`</td><td class="dsh-pm-tdeps">`+(e.dependsOn.length>0?r(e.dependsOn.join(` `)):`—`)+`</td><td>`+r(m(i))+`</td><td>`+r(s)+`</td></tr>`}).join(``)+`</tbody></table>`}function oe(e,t=Date.now()){let n=e.requirements.map(t=>({req:t,tasks:e.tasks.filter(e=>e.requirementId===t.id)})).filter(e=>e.tasks.length>0).sort((e,t)=>t.req.updatedAt-e.req.updatedAt),i=`<div class="dsh-pm-head"><button type="button" class="dsh-pm-btn" data-action="back" title="返回泳道看板">← 看板</button><h1 class="dsh-pm-title">任务</h1><span class="dsh-pm-rev">`+e.tasks.length+` 个任务 · `+n.length+` 个需求 · rev `+e.revision+`</span><button type="button" class="dsh-pm-btn" data-action="refresh" title="刷新">刷新</button></div>`;if(n.length===0)return`<div class="dsh-pm-board">`+i+`<div class="dsh-pm-empty">还没有任务。两种来源：① 需求详情页点「+ 任务」人工建卡；② 窗口 agent 调用 reqboard_decompose 真拆分落库（推荐，含依赖 DAG）</div></div>`;let a=n.map(e=>{let n=e.tasks.filter(e=>e.status===`done`).length;return`<div class="dsh-pm-tasks-group"><div class="dsh-pm-tasks-group-head"><span class="dsh-pm-card-id">`+r(e.req.id)+`</span><span class="dsh-pm-status" data-status="`+r(e.req.status)+`">`+(c[e.req.status]??e.req.status)+`</span><span class="dsh-pm-tasks-group-title">`+r(e.req.title)+`</span><span class="dsh-pm-hint">`+n+`/`+e.tasks.length+` 完成</span><button type="button" class="dsh-pm-btn sm" data-action="open-req" data-req="`+r(e.req.id)+`">打开需求</button></div>`+F(e.req)+`<div class="dsh-pm-detail-section"><h3>甘特图</h3>`+L(e.req,e.tasks,t)+`</div><div class="dsh-pm-detail-section"><h3>任务清单</h3>`+ae(e.tasks,t)+`</div></div>`}).join(``);return`<div class="dsh-pm-board">`+i+`<div class="dsh-pm-tasks-page">`+a+`</div></div>`}function se(e,t){let n=N(e,`draft`),i=n[0],a=n[n.length-1],o=[`创建 `+m(i.at)];return a.status!==i.status&&o.push((c[a.status]??a.status)+` `+m(a.at)),M(a.status)||o.push(`已停留 `+j(t-a.at)),`<div class="dsh-pm-card-time">`+r(o.join(` · `))+`</div>`}function ce(e){let t=e.plan;return t===void 0?``:t.approvedAt===void 0?t.rejectedAt===void 0?`<span class="dsh-pm-flag plan-pending" title="实施计划已提交，等待人批准后才能拆分">计划待批</span>`:`<span class="dsh-pm-flag plan-rejected" title="实施计划被退回，待重写">计划被退</span>`:`<span class="dsh-pm-flag plan-ok" title="实施计划已批准，可拆分落库">计划已批</span>`}function le(e){let t=e.plan;if(t===void 0)return`<div class="dsh-pm-plan is-empty">尚未提交实施计划。计划模式：窗口 agent 用 <code>reqboard_plan_submit</code> 先提交计划（文档路径 + 摘要 + 任务表），人在此处批准后才允许 <code>reqboard_decompose</code> 落库任务卡——拆分的粒度在人点头之前就已写死在计划里。</div>`;let n=t.approvedAt===void 0?t.rejectedAt===void 0?`<span class="dsh-pm-plan-status" data-state="pending">待批准</span>`:`<span class="dsh-pm-plan-status" data-state="rejected">已退回 `+r(m(t.rejectedAt))+`</span>`:`<span class="dsh-pm-plan-status" data-state="approved">已批准 `+r(m(t.approvedAt))+`</span>`,i=t.approvedAt===void 0?`<button type="button" class="dsh-pm-btn sm primary" data-action="plan-approve" data-id="`+r(e.id)+`">批准计划</button><button type="button" class="dsh-pm-btn sm" data-action="plan-reject" data-id="`+r(e.id)+`">退回计划</button>`:`<span class="dsh-pm-hint">拆分已解锁：窗口可用 reqboard_decompose 按此计划落库任务卡</span>`,a=t.tasks.map(e=>{let t=(e.dependsOn??[]).length>0?` · 依赖 `+r((e.dependsOn??[]).join(`,`)):``;return`<div class="dsh-pm-plan-task"><span class="dsh-pm-plan-key">`+r(e.key)+`</span><span class="dsh-pm-plan-title">`+r(e.title)+`</span><span class="dsh-pm-plan-meta">`+r(u[e.phase??`implement`]??e.phase??``)+` / `+r(e.side??``)+t+`</span>`+(e.acceptance!==void 0&&e.acceptance.length>0?`<span class="dsh-pm-plan-accept">验收：`+r(e.acceptance)+`</span>`:`<span class="dsh-pm-plan-accept missing">缺验收标准</span>`)+`</div>`}).join(``);return`<div class="dsh-pm-plan"><div class="dsh-pm-plan-head">`+n+`<code class="dsh-pm-plan-path">`+r(t.path)+`</code><span class="dsh-pm-hint">提交 `+r(m(t.submittedAt))+` · `+t.tasks.length+` 个任务</span>`+i+`</div><div class="dsh-pm-plan-summary">`+r(t.summary)+`</div>`+(t.rejectedReason===void 0?``:`<div class="dsh-pm-plan-reason">退回理由：`+r(t.rejectedReason)+`</div>`)+`<div class="dsh-pm-plan-tasks">`+a+`</div></div>`}function ue(e){return e.status===`accepting`?e.verification===void 0?`<span class="dsh-pm-flag verify-pending" title="验收态但还没提交验收材料">待验收材料</span>`:`<span class="dsh-pm-flag verify-pending" title="验收材料已提交，等人工审核">待人工审核</span>`:``}function R(e){return e.status===`done`?e.archive===void 0?`<span class="dsh-pm-flag archive-pending" title="已完成，等窗口准备归档材料">待归档材料</span>`:`<span class="dsh-pm-flag archive-pending" title="归档材料已备，等人点归档">待归档</span>`:``}function z(e){let t=e.verification;if(t===void 0)return`<div class="dsh-pm-block is-empty">`+(e.status===`implementing`||e.status===`accepting`?`窗口尚未提交验收材料。人工审核前需要证据：窗口用 <code>reqboard_verify_submit</code> 提交「做了什么 + 怎么验的 + 看到什么结果」。`:`尚未进入验收阶段。`)+`</div>`;let n=t.decision===`pass`?`<span class="dsh-pm-review" data-state="pass">人工审核通过 `+r(t.reviewedAt===void 0?``:m(t.reviewedAt))+`</span>`:t.decision===`rework`?`<span class="dsh-pm-review" data-state="rework">已退回返工 `+r(t.reviewedAt===void 0?``:m(t.reviewedAt))+`</span>`:`<span class="dsh-pm-review" data-state="pending">待人工审核</span>`,i=e.status===`accepting`?`<button type="button" class="dsh-pm-btn sm primary" data-action="verify-pass" data-id="`+r(e.id)+`">验收通过</button><button type="button" class="dsh-pm-btn sm" data-action="verify-rework" data-id="`+r(e.id)+`">退回返工</button>`:``,a=t.evidence.map(e=>`<li>`+r(e)+`</li>`).join(``);return`<div class="dsh-pm-block"><div class="dsh-pm-block-head">`+n+`<span class="dsh-pm-hint">提交 `+r(m(t.submittedAt))+`</span>`+i+`</div><div class="dsh-pm-block-summary">`+r(t.summary)+`</div><ul class="dsh-pm-evidence">`+a+`</ul>`+(t.reviewNote===void 0?``:`<div class="dsh-pm-block-note">审核意见：`+r(t.reviewNote)+`</div>`)+`</div>`}function B(e){let t=e.archive;if(t===void 0)return`<div class="dsh-pm-block is-empty">`+(e.status===`done`?`窗口尚未准备归档材料。归档不是挪目录：窗口用 <code>reqboard_archive_submit</code> 提交需求目录、文档清单、合并去向（只允许既有规范目录：docs/ 或 agent-dh/docs/ 下的 adr|architecture|guides|rfcs|work-logs|strategy-research）与一句话索引条目，人再点归档；必填文档与合并去向按需求类型限定，规范见 agent-dh/docs/architecture/requirement-archive.md。`:`归档在需求完成（done）后进行；不同需求类型的必填文档与合并去向见 agent-dh/docs/architecture/requirement-archive.md。`)+`</div>`;let n=t.archivedAt===void 0?`<span class="dsh-pm-review" data-state="pending">待归档（材料已备）</span>`:`<span class="dsh-pm-review" data-state="pass">已归档 `+r(m(t.archivedAt))+`</span>`,i=e.status===`done`&&t.archivedAt===void 0?`<button type="button" class="dsh-pm-btn sm primary" data-action="archive-req" data-id="`+r(e.id)+`">归档</button>`:``,a=t.docs.map(e=>`<li><span class="dsh-pm-doc-kind">`+r(V[e.kind]??e.kind)+`</span> <code>`+r(e.path)+`</code></li>`).join(``),o=t.mergedInto.map(e=>`<li><code>`+r(e)+`</code></li>`).join(``);return`<div class="dsh-pm-block"><div class="dsh-pm-block-head">`+n+`<code class="dsh-pm-block-path">`+r(t.dir)+`</code><span class="dsh-pm-hint">材料提交 `+r(m(t.submittedAt))+`</span>`+i+`</div><div class="dsh-pm-block-summary">索引条目：`+r(t.indexEntry)+`</div><div class="dsh-pm-doc-group"><span class="dsh-pm-hint">需求目录内的文档</span><ul class="dsh-pm-doc-list">`+a+`</ul></div><div class="dsh-pm-doc-group"><span class="dsh-pm-hint">合并进的项目文档</span><ul class="dsh-pm-doc-list">`+o+`</ul></div>`+H(t)+`</div>`}const V={requirement:`需求说明`,plan:`实施计划`,verification:`验收材料`,retro:`复盘`,notes:`其他`};function H(e){let t=e.manualUpdates??[];return t.length===0?e.manualNote===void 0?``:`<div class="dsh-pm-doc-group"><span class="dsh-pm-hint">项目说明书更新</span><div class="dsh-pm-block-summary">无（`+r(e.manualNote)+`）</div></div>`:`<div class="dsh-pm-doc-group"><span class="dsh-pm-hint">项目说明书更新（金字塔向上生长）</span><ul class="dsh-pm-doc-list">`+t.map(e=>`<li><code>`+r(e.path)+`</code><span class="dsh-pm-doc-kind">`+r(e.section)+`</span><span>`+r(e.summary)+`</span></li>`).join(``)+`</ul></div>`}const U=8e3;var W=class extends Error{code;constructor(e,t){super(e),this.code=t}};async function G(e){let t=await e;if(!t.ok)throw new W(`HTTP `+t.status);let n=await t.json().catch(()=>({}));if(n.success!==!0)throw new W(n.error??`API 返回失败`,n.code);return n.data}const K=e=>G(fetch(e,{signal:AbortSignal.timeout(U)})),q=(e,t)=>G(fetch(e,{method:`POST`,headers:{"Content-Type":`application/json`},body:JSON.stringify(t),signal:AbortSignal.timeout(U)})),de=()=>K(`/dashboard/api/reqboard/`),fe=()=>K(`/dashboard/api/reqboard/triage`);function pe(e){return q(`/dashboard/api/reqboard/req/create`,e)}function me(e){return q(`/dashboard/api/reqboard/req/move`,e)}function he(e){return q(`/dashboard/api/reqboard/req/plan/approve`,e)}function ge(e){return q(`/dashboard/api/reqboard/req/plan/reject`,e)}function _e(e){return q(`/dashboard/api/reqboard/req/verify/pass`,e)}function ve(e){return q(`/dashboard/api/reqboard/req/verify/rework`,e)}function ye(e){return q(`/dashboard/api/reqboard/req/archive`,e)}function be(e){return q(`/dashboard/api/reqboard/task/create`,e)}function xe(e){return q(`/dashboard/api/reqboard/comment`,e)}function J(e){return q(`/dashboard/api/reqboard/triage/confirm`,e)}function Se(e){return q(`/dashboard/api/reqboard/triage/rebind`,e)}function Ce(e){return q(`/dashboard/api/reqboard/triage/reject`,e)}function we(e){let t=new EventSource(`/dashboard/api/reqboard/events`);return t.onmessage=t=>{try{let n=JSON.parse(t.data);e(n.revision,n.kind)}catch{}},()=>t.close()}function Te(){let e=()=>window;return{getSessions:()=>{try{let t=e().__dshPmSessions??e().__dshPmCtx?.sessions;if(t&&typeof t.open==`function`&&t.list)return t}catch{}},getWorkspaces:()=>{try{let t=e().__dshPmWorkspaces??e().__dshPmCtx?.workspaces;if(t&&t.list)return t}catch{}}}}async function Ee(e,t){let n=e.getSessions();if(n===void 0)return`unavailable`;let r=e=>{try{return n.list.getSnapshot().byId[e]!==void 0}catch{return!1}};if(r(t))return(e.getWorkspaces()?.list.getSnapshot().archivedSessionIds??[]).includes(t)?`archived`:(n.open(t),`opened`);try{await n.refresh()}catch{}return r(t)?(e.getWorkspaces()?.list.getSnapshot().archivedSessionIds??[]).includes(t)?`archived`:(n.open(t),`opened`):`missing`}function De(){return{openBoard:()=>{},closeBoard:()=>{},toggleBoard:()=>{},getSnapshot:()=>({boardOpen:!1}),refresh:()=>{}}}function Y(e){let t,n=[],r={kind:`board`},o,c,l=()=>{if(o!==void 0){if(t===void 0){o.innerHTML=k();return}switch(r.kind){case`board`:o.innerHTML=_(t);break;case`req`:{let e=t.requirements.find(e=>e.id===r.reqId);o.innerHTML=e?S(e,t.tasks):_(t),e||(r={kind:`board`});break}case`task`:{let e=t.tasks.find(e=>e.id===r.taskId),n=e?t.requirements.find(t=>t.id===e.requirementId):void 0;o.innerHTML=e?D(e,n):_(t),e||(r={kind:`board`});break}case`tasks`:o.innerHTML=oe(t);break;case`triage`:o.innerHTML=O(n,t)}}},u=async()=>{try{let[e,r]=await Promise.all([de(),fe()]);t=e,n=r.pending,l()}catch(e){o!==void 0&&(o.innerHTML=A(String(e)))}},d=()=>{c?.(),c=we(()=>{u()})},f=e=>{let i=e.target.closest(`[data-action]`);if(i!==null&&t!==void 0)switch(i.dataset.action??``){case`refresh`:u();return;case`new-req`:{let e=window.prompt(`需求标题`);e&&e.trim()&&pe({title:e.trim()}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`open-req`:i.dataset.req&&(r={kind:`req`,reqId:i.dataset.req},l());return;case`open-task`:i.dataset.task&&(r={kind:`task`,taskId:i.dataset.task},l());return;case`open-tasks`:r={kind:`tasks`},l();return;case`new-task`:{let e=i.dataset.id;if(!e)return;let t=window.prompt(`任务标题`);t&&t.trim()&&be({requirementId:e,title:t.trim(),phase:`implement`,side:`fullstack`}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`back`:r={kind:`board`},l();return;case`back-req`:r={kind:`req`,reqId:i.dataset.req??``},l();return;case`move-req`:{let e=i.dataset.id??(r.kind===`req`?r.reqId:void 0),t=i.dataset.to;e&&t&&me({id:e,to:t,actor:`human`,reason:i.dataset.id?`看板泳道卡面操作`:`需求详情页操作`}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`add-comment`:{let e=(o?.querySelector(`[data-role="comment-input"]`))?.value.trim();e&&i.dataset.target&&i.dataset.id&&xe({target:i.dataset.target,id:i.dataset.id,body:e,actor:`human`}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`jump-session`:{let e=i.dataset.sid;e&&Ee(Te(),e).then(e=>{e===`archived`?window.alert(`该会话已归档（日志保留，侧栏不可见）`):e===`missing`?window.alert(`该会话不在当前列表（可能已删除）`):e===`unavailable`&&window.alert(`会话服务暂不可用`)});return}case`verify-pass`:{let e=i.dataset.id;e&&_e({id:e}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`verify-rework`:{let e=i.dataset.id;if(!e)return;let t=window.prompt(`退回返工的意见（窗口会按它整改）`);if(t===null)return;ve({id:e,note:t.trim()||`（未填意见）`}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`archive-req`:{let e=i.dataset.id;e&&ye({id:e}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`plan-approve`:{let e=i.dataset.id;e&&he({id:e}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`plan-reject`:{let e=i.dataset.id;if(!e)return;let t=window.prompt(`退回理由（窗口会按它重写计划）`);if(t===null)return;ge({id:e,reason:t.trim()||`（未填理由）`}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`triage-confirm`:{let e=i.dataset.triage;if(!e)return;let t=n.find(t=>t.id===e);if(t?.suggestedAction===`bind_req`&&t.suggestedTargetId)J({triageId:e,action:`bind_req`,targetId:t.suggestedTargetId}).then(()=>u()).catch(e=>window.alert(String(e)));else{let t=i.closest(`.dsh-pm-triage`),n=t?.querySelector(`[data-role="triage-title"]`)?.value.trim(),r=t?.querySelector(`[data-role="triage-category"]`)?.value;J({triageId:e,action:`create_req`,...n?{title:n}:{},...r?{category:r}:{}}).then(()=>u()).catch(e=>window.alert(String(e)))}return}case`triage-rebind`:{let e=o?.querySelector(`.dsh-pm-rebind-host`);e&&(e.style.display=`flex`,e.dataset.triage=i.dataset.triage??``);return}case`triage-rebind-confirm`:{let e=o?.querySelector(`.dsh-pm-rebind-host`),t=e?.dataset.triage,n=e?.querySelector(`[data-role="rebind-select"]`);t&&n?.value&&Se({triageId:t,targetId:n.value}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`triage-reject`:{let e=i.dataset.triage;e&&Ce({triageId:e}).then(()=>u()).catch(e=>window.alert(String(e)));return}}},p=i({prefix:`dsh-pm`,panelName:a,activeAttr:`data-dsh-pm-active`,otherActiveAttrs:s,pollMs:2e4,pauseOnHidden:!0,buildContainer:()=>{let e=document.createElement(`div`);return e.dataset.dshPmView=``,e.className=`dsh-pm-view`,e},onMount:e=>(o=e,e.addEventListener(`click`,f),u(),d(),()=>{e.removeEventListener(`click`,f),c?.(),c=void 0,o=void 0}),onPoll:()=>{u()},onOpen:()=>{u()}}),m=e;return m.openBoard=p.open,m.closeBoard=p.close,m.toggleBoard=p.toggle,m.getSnapshot=()=>({boardOpen:p.isActive()}),m.refresh=()=>{u()},()=>{p.dispose()}}const X=`dsh-pmboard/footer-action.css`,Z=`dsh-pmboard:open-board`,Q=(0,e.createElement)(`svg`,{viewBox:`0 0 16 16`,width:`16`,height:`16`,fill:`none`,stroke:`currentColor`,"stroke-width":`1.4`,"stroke-linecap":`round`,"stroke-linejoin":`round`,"aria-hidden":`true`},(0,e.createElement)(`rect`,{x:`2`,y:`2`,width:`5`,height:`5`,rx:`1`}),(0,e.createElement)(`rect`,{x:`9`,y:`2`,width:`5`,height:`5`,rx:`1`}),(0,e.createElement)(`rect`,{x:`2`,y:`9`,width:`5`,height:`5`,rx:`1`}),(0,e.createElement)(`rect`,{x:`9`,y:`9`,width:`5`,height:`5`,rx:`1`}));function Oe(){if(typeof document>`u`||document.querySelector(`style[data-plugin-css="${X}"]`))return;let e=document.createElement(`style`);e.dataset.pluginCss=X,e.textContent=`
+		    </div>`}function ce(){return`<div class="dsh-pm-board"><div class="dsh-pm-empty">暂无数据 — 点击「+ 需求」创建第一个需求</div></div>`}function le(e){return`<div class="dsh-pm-board"><div class="dsh-pm-error">加载失败：${r(e)}</div></div>`}function P(e){let t=Math.floor(Math.max(0,e)/6e4);if(t<60)return t+` 分`;let n=Math.floor(t/60);return n<24?n+` 小时 `+t%60+` 分`:Math.floor(n/24)+` 天 `+n%24+` 小时`}function F(e){return e===`done`||e===`archived`||e===`canceled`}function I(e,t){let n=e.statusHistory;if(n!==void 0&&n.length>0)return n;let r=[{status:t,at:e.createdAt,by:{kind:`human`},reason:`创建`,inferred:!0}];return e.status!==void 0&&e.status!==t&&e.updatedAt!==void 0&&r.push({status:e.status,at:Math.max(e.updatedAt,e.createdAt),by:e.updatedBy??{kind:`human`},reason:`按 updatedAt 回填（当时无事件留痕）`,inferred:!0}),r}function L(e,t,n,i,a){let o=I(e,i),s=new Map;o.forEach((e,t)=>{s.has(e.status)||s.set(e.status,t)});let c=o.map((e,t)=>({e,i:t})).filter(e=>!t.includes(e.e.status)).map(e=>e.e.status),l=(e,t)=>{if(t===void 0)return`<div class="dsh-pm-tl-row pending" data-status="`+e+`"><span class="dsh-pm-tl-label">`+(n[e]??e)+`</span><span class="dsh-pm-tl-time">—</span><span class="dsh-pm-tl-dur"></span></div>`;let i=o[t],s=o[t+1],c=t===o.length-1,l=(s?.at??a)-i.at,u=c?F(i.status)?``:`已停留 `+P(l):`停留 `+P(l),d=i.by.kind+(i.by.sessionId===void 0?``:` `+p(i.by.sessionId));return`<div class="dsh-pm-tl-row`+(c?` current`:``)+`" data-status="`+r(i.status)+`"><span class="dsh-pm-tl-label">`+(n[e]??e)+`</span><span class="dsh-pm-tl-time">`+r(m(i.at))+`</span><span class="dsh-pm-tl-dur">`+r(u)+`</span><span class="dsh-pm-tl-by">`+r(d)+`</span>`+(i.inferred===!0?`<span class="dsh-pm-tl-inferred" title="历史回填：老记录无事件留痕，由创建时间与评论反推">回填</span>`:``)+`</div>`},u=t.map(e=>l(e,s.get(e))).join(``)+c.map(e=>l(e,s.get(e))).join(``),d=o[0].at,f=o[o.length-1],h=(F(f.status)?f.at:a)-d;return`<div class="dsh-pm-timeline">`+u+`<div class="dsh-pm-tl-total">创建 `+r(m(d))+(F(f.status)?` · 总耗时 `:` · 至今 `)+r(P(h))+`</div></div>`}function ue(e,t){return L(e,f.concat([`archived`]),c,`draft`,t)}function de(e,t){return L(e,R,l,`todo`,t)}function fe(e){let t=I(e,`draft`),n=new Map;for(let e of t)n.has(e.status)||n.set(e.status,e);let i=[...n.values()].map(e=>`<span class="dsh-pm-strip-item" data-status="`+r(e.status)+`">`+(c[e.status]??e.status)+` <b>`+r(m(e.at))+`</b></span>`);return i.length===0?``:`<div class="dsh-pm-strip">`+i.join(`<span class="dsh-pm-strip-arrow">→</span>`)+`</div>`}const R=[`todo`,`in_progress`,`integrating`,`testing`,`in_review`,`done`],z=[`draft`,`brainstorming`,`decomposing`,`implementing`,`accepting`,`done`,`archived`];function B(e,t){let n=I(e,`todo`),r=F(e.status);return n.map((i,a)=>{let o=n[a+1]?.at??(r?Math.max(e.updatedAt,i.at):t);return{status:i.status,from:i.at,to:o}})}function V(e,t){return e.length>t?e.slice(0,t)+`…`:e}function H(e,t,n){if(t.length===0)return`<div class="dsh-pm-empty">尚未拆分任务</div>`;let i=[...t].sort((e,t)=>e.createdAt-t.createdAt),a=[n];for(let e of i)for(let t of I(e,`todo`))a.push(t.at);for(let t of I(e,`draft`))a.push(t.at);let o=Math.min(...a),s=Math.max(...a),u=Math.max(s-o,36e5),d=e=>190+(e-o)/u*620,f=34+i.length*22+10,p=[];p.push(`<svg class="dsh-pm-gantt" viewBox="0 0 822 `+f+`" width="100%" height="`+f+`" preserveAspectRatio="xMinYMin meet" role="img" aria-label="任务甘特图">`);for(let e=0;e<=4;e++){let t=o+u*e/4,n=d(t).toFixed(1);p.push(`<line class="dsh-pm-gantt-grid" x1="`+n+`" y1="26" x2="`+n+`" y2="`+(f-10)+`" />`),p.push(`<text class="dsh-pm-gantt-axis" x="`+n+`" y="20" text-anchor="middle">`+r(m(t))+`</text>`)}for(let t of I(e,`draft`)){if(!z.includes(t.status))continue;let n=d(t.at).toFixed(1);p.push(`<line class="dsh-pm-gantt-mile" data-status="`+r(t.status)+`" x1="`+n+`" y1="28" x2="`+n+`" y2="`+(f-10)+`">`),p.push(`<title>`+r(e.id+` `+(c[t.status]??t.status)+` `+m(t.at))+`</title></line>`)}if(i.forEach((e,t)=>{let i=34+t*22;p.push(`<text class="dsh-pm-gantt-rowlabel" x="6" y="`+(i+13)+`">`+r(V(e.id+` `+e.title,24))+`</text>`),p.push(`<rect class="dsh-pm-gantt-track" x="190" y="`+(i+4)+`" width="620" height="13" rx="3" />`);for(let t of B(e,n)){let n=d(t.from),a=Math.max(2,d(t.to)-n);p.push(`<rect class="dsh-pm-gantt-bar" data-status="`+r(t.status)+`" x="`+n.toFixed(1)+`" y="`+(i+4)+`" width="`+a.toFixed(1)+`" height="13" rx="3">`),p.push(`<title>`+r(e.id+` `+e.title+`｜`+(l[t.status]??t.status)+` `+m(t.from)+` → `+m(t.to)+`（`+P(t.to-t.from)+`）`)+`</title></rect>`)}}),n>=o&&n<=s){let e=d(n).toFixed(1);p.push(`<line class="dsh-pm-gantt-now" x1="`+e+`" y1="28" x2="`+e+`" y2="`+(f-10)+`"><title>现在</title></line>`)}p.push(`</svg>`);let h=`<div class="dsh-pm-gantt-legend">`+R.map(e=>`<span class="dsh-pm-gantt-legend-item"><i data-status="`+e+`"></i>`+l[e]+`</span>`).join(``)+`<span class="dsh-pm-gantt-legend-item"><i class="mile"></i>需求里程碑</span></div>`;return`<div class="dsh-pm-gantt-wrap">`+p.join(``)+`</div>`+h}function pe(e,t){return`<table class="dsh-pm-ttable"><thead><tr><th>任务</th><th>标题</th><th>状态</th><th>阶段</th><th>端侧</th><th>依赖</th><th>创建</th><th>耗时</th></tr></thead><tbody>`+[...e].sort((e,t)=>e.createdAt-t.createdAt).map(e=>{let n=I(e,`todo`),i=n[0].at,a=n[n.length-1],o=n.find(e=>e.status===`done`)?.at,s=F(e.status)?`共 `+P((o??a.at)-i):`已用 `+P(t-i);return`<tr class="dsh-pm-trow" data-task="`+r(e.id)+`" data-action="open-task"><td class="dsh-pm-tid">`+r(e.id)+`</td><td class="dsh-pm-ttitle">`+r(e.title)+`</td><td><span class="dsh-pm-status" data-status="`+r(e.status)+`">`+(l[e.status]??e.status)+`</span></td><td>`+r(u[e.phase]??e.phase)+`</td><td>`+r(e.side)+`</td><td class="dsh-pm-tdeps">`+(e.dependsOn.length>0?r(e.dependsOn.join(` `)):`—`)+`</td><td>`+r(m(i))+`</td><td>`+r(s)+`</td></tr>`}).join(``)+`</tbody></table>`}function me(e,t=Date.now()){let n=e.requirements.map(t=>({req:t,tasks:e.tasks.filter(e=>e.requirementId===t.id)})).filter(e=>e.tasks.length>0).sort((e,t)=>t.req.updatedAt-e.req.updatedAt),i=`<div class="dsh-pm-head"><button type="button" class="dsh-pm-btn" data-action="back" title="返回泳道看板">← 看板</button><h1 class="dsh-pm-title">任务</h1><span class="dsh-pm-rev">`+e.tasks.length+` 个任务 · `+n.length+` 个需求 · rev `+e.revision+`</span><button type="button" class="dsh-pm-btn" data-action="refresh" title="刷新">刷新</button></div>`;if(n.length===0)return`<div class="dsh-pm-board">`+i+`<div class="dsh-pm-empty">还没有任务。两种来源：① 需求详情页点「+ 任务」人工建卡；② 窗口 agent 调用 reqboard_decompose 真拆分落库（推荐，含依赖 DAG）</div></div>`;let a=n.map(e=>{let n=e.tasks.filter(e=>e.status===`done`).length;return`<div class="dsh-pm-tasks-group"><div class="dsh-pm-tasks-group-head"><span class="dsh-pm-card-id">`+r(e.req.id)+`</span><span class="dsh-pm-status" data-status="`+r(e.req.status)+`">`+(c[e.req.status]??e.req.status)+`</span><span class="dsh-pm-tasks-group-title">`+r(e.req.title)+`</span><span class="dsh-pm-hint">`+n+`/`+e.tasks.length+` 完成</span><button type="button" class="dsh-pm-btn sm" data-action="open-req" data-req="`+r(e.req.id)+`">打开需求</button></div>`+fe(e.req)+`<div class="dsh-pm-detail-section"><h3>甘特图</h3>`+H(e.req,e.tasks,t)+`</div><div class="dsh-pm-detail-section"><h3>任务清单</h3>`+pe(e.tasks,t)+`</div></div>`}).join(``);return`<div class="dsh-pm-board">`+i+`<div class="dsh-pm-tasks-page">`+a+`</div></div>`}function he(e,t){let n=I(e,`draft`),i=n[0],a=n[n.length-1],o=[`创建 `+m(i.at)];return a.status!==i.status&&o.push((c[a.status]??a.status)+` `+m(a.at)),F(a.status)||o.push(`已停留 `+P(t-a.at)),`<div class="dsh-pm-card-time">`+r(o.join(` · `))+`</div>`}function ge(e){let t=e.plan;return t===void 0?``:t.approvedAt===void 0?t.rejectedAt===void 0?`<span class="dsh-pm-flag plan-pending" title="实施计划已提交，等待人批准后才能拆分">计划待批</span>`:`<span class="dsh-pm-flag plan-rejected" title="实施计划被退回，待重写">计划被退</span>`:`<span class="dsh-pm-flag plan-ok" title="实施计划已批准，可拆分落库">计划已批</span>`}function _e(e){let t=e.plan;if(t===void 0)return`<div class="dsh-pm-plan is-empty">尚未提交实施计划。计划模式：窗口 agent 用 <code>reqboard_plan_submit</code> 先提交计划（文档路径 + 摘要 + 任务表），人在此处批准后才允许 <code>reqboard_decompose</code> 落库任务卡——拆分的粒度在人点头之前就已写死在计划里。</div>`;let n=t.approvedAt===void 0?t.rejectedAt===void 0?`<span class="dsh-pm-plan-status" data-state="pending">待批准</span>`:`<span class="dsh-pm-plan-status" data-state="rejected">已退回 `+r(m(t.rejectedAt))+`</span>`:`<span class="dsh-pm-plan-status" data-state="approved">已批准 `+r(m(t.approvedAt))+`</span>`,i=t.approvedAt===void 0?`<button type="button" class="dsh-pm-btn sm primary" data-action="plan-approve" data-id="`+r(e.id)+`">批准计划</button><button type="button" class="dsh-pm-btn sm" data-action="plan-reject" data-id="`+r(e.id)+`">退回计划</button>`:`<span class="dsh-pm-hint">拆分已解锁：窗口可用 reqboard_decompose 按此计划落库任务卡</span>`,a=t.tasks.map(e=>{let t=(e.dependsOn??[]).length>0?` · 依赖 `+r((e.dependsOn??[]).join(`,`)):``;return`<div class="dsh-pm-plan-task"><span class="dsh-pm-plan-key">`+r(e.key)+`</span><span class="dsh-pm-plan-title">`+r(e.title)+`</span><span class="dsh-pm-plan-meta">`+r(u[e.phase??`implement`]??e.phase??``)+` / `+r(e.side??``)+t+`</span>`+(e.acceptance!==void 0&&e.acceptance.length>0?`<span class="dsh-pm-plan-accept">验收：`+r(e.acceptance)+`</span>`:`<span class="dsh-pm-plan-accept missing">缺验收标准</span>`)+`</div>`}).join(``);return`<div class="dsh-pm-plan"><div class="dsh-pm-plan-head">`+n+`<code class="dsh-pm-plan-path">`+r(t.path)+`</code><span class="dsh-pm-hint">提交 `+r(m(t.submittedAt))+` · `+t.tasks.length+` 个任务</span>`+i+`</div><div class="dsh-pm-plan-summary">`+r(t.summary)+`</div>`+(t.rejectedReason===void 0?``:`<div class="dsh-pm-plan-reason">退回理由：`+r(t.rejectedReason)+`</div>`)+`<div class="dsh-pm-plan-tasks">`+a+`</div></div>`}function ve(e){return e.status===`accepting`?e.verification===void 0?`<span class="dsh-pm-flag verify-pending" title="验收态但还没提交验收材料">待验收材料</span>`:`<span class="dsh-pm-flag verify-pending" title="验收材料已提交，等人工审核">待人工审核</span>`:``}function ye(e){return e.status===`done`?e.archive===void 0?`<span class="dsh-pm-flag archive-pending" title="已完成，等窗口准备归档材料">待归档材料</span>`:`<span class="dsh-pm-flag archive-pending" title="归档材料已备，等人点归档">待归档</span>`:``}function be(e){let t=e.verification;if(t===void 0)return`<div class="dsh-pm-block is-empty">`+(e.status===`implementing`||e.status===`accepting`?`窗口尚未提交验收材料。人工审核前需要证据：窗口用 <code>reqboard_verify_submit</code> 提交「做了什么 + 怎么验的 + 看到什么结果」。`:`尚未进入验收阶段。`)+`</div>`;let n=t.decision===`pass`?`<span class="dsh-pm-review" data-state="pass">人工审核通过 `+r(t.reviewedAt===void 0?``:m(t.reviewedAt))+`</span>`:t.decision===`rework`?`<span class="dsh-pm-review" data-state="rework">已退回返工 `+r(t.reviewedAt===void 0?``:m(t.reviewedAt))+`</span>`:`<span class="dsh-pm-review" data-state="pending">待人工审核</span>`,i=e.status===`accepting`?`<button type="button" class="dsh-pm-btn sm primary" data-action="verify-pass" data-id="`+r(e.id)+`">验收通过</button><button type="button" class="dsh-pm-btn sm" data-action="verify-rework" data-id="`+r(e.id)+`">退回返工</button>`:``,a=t.evidence.map(e=>`<li>`+r(e)+`</li>`).join(``);return`<div class="dsh-pm-block"><div class="dsh-pm-block-head">`+n+`<span class="dsh-pm-hint">提交 `+r(m(t.submittedAt))+`</span>`+i+`</div><div class="dsh-pm-block-summary">`+r(t.summary)+`</div><ul class="dsh-pm-evidence">`+a+`</ul>`+(t.reviewNote===void 0?``:`<div class="dsh-pm-block-note">审核意见：`+r(t.reviewNote)+`</div>`)+`</div>`}function xe(e){let t=e.archive;if(t===void 0)return`<div class="dsh-pm-block is-empty">`+(e.status===`done`?`窗口尚未准备归档材料。归档不是挪目录：窗口用 <code>reqboard_archive_submit</code> 提交需求目录、文档清单、合并去向（只允许既有规范目录：docs/ 或 agent-dh/docs/ 下的 adr|architecture|guides|rfcs|work-logs|strategy-research）与一句话索引条目，人再点归档；必填文档与合并去向按需求类型限定，规范见 agent-dh/docs/architecture/requirement-archive.md。`:`归档在需求完成（done）后进行；不同需求类型的必填文档与合并去向见 agent-dh/docs/architecture/requirement-archive.md。`)+`</div>`;let n=t.archivedAt===void 0?`<span class="dsh-pm-review" data-state="pending">待归档（材料已备）</span>`:`<span class="dsh-pm-review" data-state="pass">已归档 `+r(m(t.archivedAt))+`</span>`,i=e.status===`done`&&t.archivedAt===void 0?`<button type="button" class="dsh-pm-btn sm primary" data-action="archive-req" data-id="`+r(e.id)+`">归档</button>`:``,a=t.docs.map(e=>`<li><span class="dsh-pm-doc-kind">`+r(Se[e.kind]??e.kind)+`</span> <code>`+r(e.path)+`</code></li>`).join(``),o=t.mergedInto.map(e=>`<li><code>`+r(e)+`</code></li>`).join(``);return`<div class="dsh-pm-block"><div class="dsh-pm-block-head">`+n+`<code class="dsh-pm-block-path">`+r(t.dir)+`</code><span class="dsh-pm-hint">材料提交 `+r(m(t.submittedAt))+`</span>`+i+`</div><div class="dsh-pm-block-summary">索引条目：`+r(t.indexEntry)+`</div><div class="dsh-pm-doc-group"><span class="dsh-pm-hint">需求目录内的文档</span><ul class="dsh-pm-doc-list">`+a+`</ul></div><div class="dsh-pm-doc-group"><span class="dsh-pm-hint">合并进的项目文档</span><ul class="dsh-pm-doc-list">`+o+`</ul></div>`+Ce(t)+`</div>`}const Se={requirement:`需求说明`,plan:`实施计划`,verification:`验收材料`,retro:`复盘`,notes:`其他`};function Ce(e){let t=e.manualUpdates??[];return t.length===0?e.manualNote===void 0?``:`<div class="dsh-pm-doc-group"><span class="dsh-pm-hint">项目说明书更新</span><div class="dsh-pm-block-summary">无（`+r(e.manualNote)+`）</div></div>`:`<div class="dsh-pm-doc-group"><span class="dsh-pm-hint">项目说明书更新（金字塔向上生长）</span><ul class="dsh-pm-doc-list">`+t.map(e=>`<li><code>`+r(e.path)+`</code><span class="dsh-pm-doc-kind">`+r(e.section)+`</span><span>`+r(e.summary)+`</span></li>`).join(``)+`</ul></div>`}const U=8e3;var W=class extends Error{code;constructor(e,t){super(e),this.code=t}};async function G(e){let t=await e;if(!t.ok)throw new W(`HTTP `+t.status);let n=await t.json().catch(()=>({}));if(n.success!==!0)throw new W(n.error??`API 返回失败`,n.code);return n.data}const K=e=>G(fetch(e,{signal:AbortSignal.timeout(U)})),q=(e,t)=>G(fetch(e,{method:`POST`,headers:{"Content-Type":`application/json`},body:JSON.stringify(t),signal:AbortSignal.timeout(U)})),we=()=>K(`/dashboard/api/reqboard/`),Te=()=>K(`/dashboard/api/reqboard/triage`);function Ee(e){return q(`/dashboard/api/reqboard/req/create`,e)}function De(e){return q(`/dashboard/api/reqboard/req/move`,e)}function Oe(e){return q(`/dashboard/api/reqboard/req/plan/approve`,e)}function ke(e){return q(`/dashboard/api/reqboard/req/plan/reject`,e)}function Ae(e){return q(`/dashboard/api/reqboard/req/verify/pass`,e)}function je(e){return q(`/dashboard/api/reqboard/req/verify/rework`,e)}function Me(e){return q(`/dashboard/api/reqboard/req/archive`,e)}function Ne(e){return q(`/dashboard/api/reqboard/task/create`,e)}function Pe(e){return q(`/dashboard/api/reqboard/comment`,e)}function J(e){return q(`/dashboard/api/reqboard/triage/confirm`,e)}function Fe(e){return q(`/dashboard/api/reqboard/triage/rebind`,e)}function Ie(e){return q(`/dashboard/api/reqboard/triage/reject`,e)}function Le(e){let t=new EventSource(`/dashboard/api/reqboard/events`);return t.onmessage=t=>{try{let n=JSON.parse(t.data);e(n.revision,n.kind)}catch{}},()=>t.close()}function Re(){let e=()=>window;return{getSessions:()=>{try{let t=e().__dshPmSessions??e().__dshPmCtx?.sessions;if(t&&typeof t.open==`function`&&t.list)return t}catch{}},getWorkspaces:()=>{try{let t=e().__dshPmWorkspaces??e().__dshPmCtx?.workspaces;if(t&&t.list)return t}catch{}}}}async function Y(e,t){let n=e.getSessions();if(n===void 0)return`unavailable`;let r=e=>{try{return n.list.getSnapshot().byId[e]!==void 0}catch{return!1}};if(r(t))return(e.getWorkspaces()?.list.getSnapshot().archivedSessionIds??[]).includes(t)?`archived`:(n.open(t),`opened`);try{await n.refresh()}catch{}return r(t)?(e.getWorkspaces()?.list.getSnapshot().archivedSessionIds??[]).includes(t)?`archived`:(n.open(t),`opened`):`missing`}function ze(){return{openBoard:()=>{},closeBoard:()=>{},toggleBoard:()=>{},getSnapshot:()=>({boardOpen:!1}),refresh:()=>{}}}function Be(e){let t,n=[],r={kind:`board`},o,c,l=()=>{if(o!==void 0){if(t===void 0){o.innerHTML=ce();return}switch(r.kind){case`board`:o.innerHTML=_(t);break;case`req`:{let e=t.requirements.find(e=>e.id===r.reqId);o.innerHTML=e?S(e,t.tasks):_(t),e||(r={kind:`board`});break}case`task`:{let e=t.tasks.find(e=>e.id===r.taskId),n=e?t.requirements.find(t=>t.id===e.requirementId):void 0;o.innerHTML=e?A(e,n,Date.now(),t.tasks):_(t,Date.now(),boardView,listOpts(),archivedSids()),e||(r={kind:`board`});break}case`tasks`:o.innerHTML=me(t);break;case`triage`:o.innerHTML=se(n,t)}}},u=async()=>{try{let[e,r]=await Promise.all([we(),Te()]);t=e,n=r.pending,l()}catch(e){o!==void 0&&(o.innerHTML=le(String(e)))}},d=()=>{c?.(),c=Le(()=>{u()})},f=e=>{let i=e.target.closest(`[data-action]`);if(i!==null&&t!==void 0)switch(i.dataset.action??``){case`refresh`:u();return;case`new-req`:{let e=window.prompt(`需求标题`);e&&e.trim()&&Ee({title:e.trim()}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`open-req`:i.dataset.req&&(r={kind:`req`,reqId:i.dataset.req},l());return;case`open-task`:i.dataset.task&&(r={kind:`task`,taskId:i.dataset.task},l());return;case`open-tasks`:r={kind:`tasks`},l();return;case`new-task`:{let e=i.dataset.id;if(!e)return;let t=window.prompt(`任务标题`);t&&t.trim()&&Ne({requirementId:e,title:t.trim(),phase:`implement`,side:`fullstack`}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`back`:r={kind:`board`},l();return;case`back-req`:r={kind:`req`,reqId:i.dataset.req??``},l();return;case`move-req`:{let e=i.dataset.id??(r.kind===`req`?r.reqId:void 0),t=i.dataset.to;e&&t&&De({id:e,to:t,actor:`human`,reason:i.dataset.id?`看板泳道卡面操作`:`需求详情页操作`}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`add-comment`:{let e=(o?.querySelector(`[data-role="comment-input"]`))?.value.trim();e&&i.dataset.target&&i.dataset.id&&Pe({target:i.dataset.target,id:i.dataset.id,body:e,actor:`human`}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`jump-session`:{let e=i.dataset.sid;e&&Y(Re(),e).then(e=>{e===`archived`?window.alert(`该会话已归档（日志保留，侧栏不可见）`):e===`missing`?window.alert(`该会话不在当前列表（可能已删除）`):e===`unavailable`&&window.alert(`会话服务暂不可用`)});return}case`verify-pass`:{let e=i.dataset.id;e&&Ae({id:e}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`verify-rework`:{let e=i.dataset.id;if(!e)return;let t=window.prompt(`退回返工的意见（窗口会按它整改）`);if(t===null)return;je({id:e,note:t.trim()||`（未填意见）`}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`archive-req`:{let e=i.dataset.id;e&&Me({id:e}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`plan-approve`:{let e=i.dataset.id;e&&Oe({id:e}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`plan-reject`:{let e=i.dataset.id;if(!e)return;let t=window.prompt(`退回理由（窗口会按它重写计划）`);if(t===null)return;ke({id:e,reason:t.trim()||`（未填理由）`}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`triage-confirm`:{let e=i.dataset.triage;if(!e)return;let t=n.find(t=>t.id===e);if(t?.suggestedAction===`bind_req`&&t.suggestedTargetId)J({triageId:e,action:`bind_req`,targetId:t.suggestedTargetId}).then(()=>u()).catch(e=>window.alert(String(e)));else{let t=i.closest(`.dsh-pm-triage`),n=t?.querySelector(`[data-role="triage-title"]`)?.value.trim(),r=t?.querySelector(`[data-role="triage-category"]`)?.value;J({triageId:e,action:`create_req`,...n?{title:n}:{},...r?{category:r}:{}}).then(()=>u()).catch(e=>window.alert(String(e)))}return}case`triage-rebind`:{let e=o?.querySelector(`.dsh-pm-rebind-host`);e&&(e.style.display=`flex`,e.dataset.triage=i.dataset.triage??``);return}case`triage-rebind-confirm`:{let e=o?.querySelector(`.dsh-pm-rebind-host`),t=e?.dataset.triage,n=e?.querySelector(`[data-role="rebind-select"]`);t&&n?.value&&Fe({triageId:t,targetId:n.value}).then(()=>u()).catch(e=>window.alert(String(e)));return}case`triage-reject`:{let e=i.dataset.triage;e&&Ie({triageId:e}).then(()=>u()).catch(e=>window.alert(String(e)));return}}},p=i({prefix:`dsh-pm`,panelName:a,activeAttr:`data-dsh-pm-active`,otherActiveAttrs:s,pollMs:2e4,pauseOnHidden:!0,buildContainer:()=>{let e=document.createElement(`div`);return e.dataset.dshPmView=``,e.className=`dsh-pm-view`,e},onMount:e=>(o=e,e.addEventListener(`click`,f),u(),d(),()=>{e.removeEventListener(`click`,f),c?.(),c=void 0,o=void 0}),onPoll:()=>{u()},onOpen:()=>{u()}}),m=e;return m.openBoard=p.open,m.closeBoard=p.close,m.toggleBoard=p.toggle,m.getSnapshot=()=>({boardOpen:p.isActive()}),m.refresh=()=>{u()},()=>{p.dispose()}}const X=`dsh-pmboard/footer-action.css`,Z=`dsh-pmboard:open-board`,Q=(0,e.createElement)(`svg`,{viewBox:`0 0 16 16`,width:`16`,height:`16`,fill:`none`,stroke:`currentColor`,"stroke-width":`1.4`,"stroke-linecap":`round`,"stroke-linejoin":`round`,"aria-hidden":`true`},(0,e.createElement)(`rect`,{x:`2`,y:`2`,width:`5`,height:`5`,rx:`1`}),(0,e.createElement)(`rect`,{x:`9`,y:`2`,width:`5`,height:`5`,rx:`1`}),(0,e.createElement)(`rect`,{x:`2`,y:`9`,width:`5`,height:`5`,rx:`1`}),(0,e.createElement)(`rect`,{x:`9`,y:`9`,width:`5`,height:`5`,rx:`1`}));function Ve(){if(typeof document>`u`||document.querySelector(`style[data-plugin-css="${X}"]`))return;let e=document.createElement(`style`);e.dataset.pluginCss=X,e.textContent=`
 		.dsh-reqboard-foot {
 		  display: flex; align-items: center; gap: 8px;
 		  border: none; background: transparent; color: var(--dsw-text-secondary, inherit);
@@ -208,7 +338,7 @@ window.__ModuleLoader__.load({
 		.dsh-reqboard-foot-icon { display: inline-flex; flex: none; }
 		.dsh-reqboard-foot.rail .dsh-reqboard-foot-label { display: none; }
 		.dsh-reqboard-foot-icon svg { width: 16px; height: 16px; }
-		`,document.head.appendChild(e)}function ke(t){let{wide:n}=t,r=o;return(0,e.createElement)(`button`,{type:`button`,className:n?`dsh-reqboard-foot wide`:`dsh-reqboard-foot rail`,title:r,"aria-label":r,onClick:()=>{window.dispatchEvent(new CustomEvent(Z,{detail:{open:!0}}))}},n?[(0,e.createElement)(`span`,{className:`dsh-reqboard-foot-icon`,key:`i`},Q),(0,e.createElement)(`span`,{className:`dsh-reqboard-foot-label`,key:`l`},r)]:(0,e.createElement)(`span`,{className:`dsh-reqboard-foot-icon`,key:`i`},Q))}const $=`dsh-pmboard/styles.css`;function Ae(){if(typeof document>`u`||document.querySelector(`style[data-plugin-css="${$}"]`))return;let e=document.createElement(`style`);e.dataset.pluginCss=$,e.textContent=`
+		`,document.head.appendChild(e)}function He(t){let{wide:n}=t,r=o;return(0,e.createElement)(`button`,{type:`button`,className:n?`dsh-reqboard-foot wide`:`dsh-reqboard-foot rail`,title:r,"aria-label":r,onClick:()=>{window.dispatchEvent(new CustomEvent(Z,{detail:{open:!0}}))}},n?[(0,e.createElement)(`span`,{className:`dsh-reqboard-foot-icon`,key:`i`},Q),(0,e.createElement)(`span`,{className:`dsh-reqboard-foot-label`,key:`l`},r)]:(0,e.createElement)(`span`,{className:`dsh-reqboard-foot-icon`,key:`i`},Q))}const $=`dsh-pmboard/styles.css`;function Ue(){if(typeof document>`u`||document.querySelector(`style[data-plugin-css="${$}"]`))return;let e=document.createElement(`style`);e.dataset.pluginCss=$,e.textContent=`
 		/* ---- 侧栏入口（footer-action 同款，保留原类名以兼容既有注入） ---- */
 		.dsh-reqboard-foot {
 		  display: flex; align-items: center; gap: 8px;
@@ -632,7 +762,134 @@ window.__ModuleLoader__.load({
 		.dsh-pm-trow:hover { background: var(--dsw-hover, rgba(128,128,128,.08)); }
 		.dsh-pm-tid { font-family: ui-monospace, monospace; color: var(--dsw-text-secondary, #999); }
 		.dsh-pm-tdeps { font-family: ui-monospace, monospace; font-size: 11px; color: var(--dsw-text-secondary, #999); }
-		`,document.head.appendChild(e)}const je=[`slots`,`sessions`,`workspaces`];function Me(e){try{Oe(),Ae(),window.__dshReqboardClient?.dispose(),window.__dshPmCtx=e,window.__dshPmSessions=e.sessions,window.__dshPmWorkspaces=e.workspaces;let t=De(),n=Y(t),r=e=>{e.detail?.open===!0?t.getSnapshot().boardOpen?t.closeBoard():t.openBoard():t.toggleBoard()};window.addEventListener(Z,r),window.__dshReqboardClient={dispose:()=>{window.removeEventListener(Z,r),n(),t.closeBoard(),delete window.__dshPmCtx,delete window.__dshPmSessions,delete window.__dshPmWorkspaces}};let i=e.slots;i?i.inject(`sidebar.footer.action`,()=>i.register({name:`sidebar.footer.action`,id:a,order:110,label:o},ke)):console.warn(`[dsh-pmboard] ctx.slots unavailable`)}catch(e){console.error(`[dsh-pmboard] client half failed to start:`,e)}}exports.apply=Me,exports.inject=je,exports.name=`dsh-pmboard/client`;
+		
+		/* ---- 节点差异化展示 ---- */
+		.dsh-pm-node-badge {
+		  display: inline-flex; align-items: center; gap: 4px;
+		  padding: 3px 8px; border-radius: 4px;
+		  background: var(--dsw-bg-secondary, rgba(128,128,128,.1));
+		  font-size: 12px; color: var(--dsw-text-secondary, #666);
+		}
+		
+		/* 专属内容区域 */
+		.dsh-pm-specialized { background: var(--dsw-bg-secondary, rgba(128,128,128,.04)); border-radius: 8px; }
+		
+		/* 通用信息折叠区 */
+		.dsh-pm-common-details { margin-top: 20px; border-top: 1px solid var(--dsw-border, rgba(128,128,128,.15)); padding-top: 16px; }
+		.dsh-pm-common-summary {
+		  cursor: pointer; font-size: 13px; font-weight: 500;
+		  color: var(--dsw-text-secondary, #666);
+		  padding: 8px 12px; border-radius: 6px;
+		  list-style: none; user-select: none;
+		}
+		.dsh-pm-common-summary::-webkit-details-marker { display: none; }
+		.dsh-pm-common-summary:hover { background: var(--dsw-hover, rgba(128,128,128,.08)); }
+		
+		/* 统计卡片网格 */
+		.dsh-pm-stats {
+		  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+		  gap: 12px; padding: 12px;
+		}
+		.dsh-pm-stat {
+		  display: flex; flex-direction: column; gap: 4px;
+		  padding: 12px; border-radius: 6px;
+		  background: var(--dsw-bg-primary, #fff);
+		  border: 1px solid var(--dsw-border, rgba(128,128,128,.1));
+		}
+		.dsh-pm-stat-label { font-size: 11px; color: var(--dsw-text-secondary, #999); text-transform: uppercase; }
+		.dsh-pm-stat-value { font-size: 18px; font-weight: 600; color: var(--dsw-text-primary, #222); }
+		.dsh-pm-stat-success { border-color: #28a745; }
+		.dsh-pm-stat-success .dsh-pm-stat-value { color: #28a745; }
+		.dsh-pm-stat-error { border-color: #dc3545; }
+		.dsh-pm-stat-error .dsh-pm-stat-value { color: #dc3545; }
+		
+		/* 拆分节点 - 轨道列表 */
+		.dsh-pm-track { margin-bottom: 12px; }
+		.dsh-pm-track-head {
+		  font-size: 13px; font-weight: 600; color: var(--dsw-text-primary, #333);
+		  padding: 8px 12px; background: var(--dsw-bg-secondary, rgba(128,128,128,.08));
+		  border-radius: 6px; margin-bottom: 6px;
+		}
+		.dsh-pm-track-list { list-style: none; padding: 0; margin: 0; }
+		.dsh-pm-track-list li {
+		  padding: 6px 12px; font-size: 13px; color: var(--dsw-text-primary, #333);
+		  border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+		}
+		.dsh-pm-track-list li:last-child { border-bottom: none; }
+		.dsh-pm-task-link {
+		  background: none; border: none; color: var(--dsw-accent, #4a7dff);
+		  font-family: ui-monospace, monospace; font-size: 12px;
+		  cursor: pointer; padding: 0; text-decoration: underline;
+		}
+		.dsh-pm-task-link:hover { opacity: .8; }
+		
+		/* 实施节点 - 文件变更 */
+		.dsh-pm-file-summary {
+		  display: flex; gap: 12px; align-items: center;
+		  padding: 8px 12px; margin-bottom: 8px;
+		  background: var(--dsw-bg-secondary, rgba(128,128,128,.06));
+		  border-radius: 6px; font-size: 12px;
+		}
+		.dsh-pm-file-change {
+		  display: flex; justify-content: space-between; align-items: center;
+		  padding: 6px 12px; border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+		}
+		.dsh-pm-file-change:last-child { border-bottom: none; }
+		.dsh-pm-file-path {
+		  font-family: ui-monospace, monospace; font-size: 12px;
+		  color: var(--dsw-text-primary, #333);
+		}
+		.dsh-pm-file-stats { display: flex; gap: 8px; font-size: 11px; font-weight: 600; }
+		.dsh-pm-stat-add { color: #28a745; }
+		.dsh-pm-stat-del { color: #dc3545; }
+		
+		/* 执行记录简报 */
+		.dsh-pm-exec-brief {
+		  padding: 6px 12px; font-size: 12px;
+		  border-left: 3px solid var(--dsw-border, rgba(128,128,128,.2));
+		  margin-bottom: 4px;
+		}
+		
+		/* 测试节点 - 失败用例 */
+		.dsh-pm-test-fail {
+		  padding: 12px; margin-bottom: 8px;
+		  border: 1px solid #dc3545; border-radius: 6px;
+		  background: rgba(220, 53, 69, .05);
+		}
+		.dsh-pm-test-fail-name {
+		  font-size: 13px; font-weight: 600; color: #dc3545;
+		  margin-bottom: 6px;
+		}
+		.dsh-pm-test-fail-detail {
+		  display: flex; flex-direction: column; gap: 4px;
+		  font-size: 12px; color: var(--dsw-text-primary, #333);
+		}
+		.dsh-pm-test-fail-detail code {
+		  background: var(--dsw-bg-secondary, rgba(128,128,128,.1));
+		  padding: 2px 6px; border-radius: 3px;
+		  font-family: ui-monospace, monospace; font-size: 11px;
+		}
+		
+		/* 测试节点 - 覆盖率 */
+		.dsh-pm-coverage { display: flex; flex-direction: column; gap: 12px; }
+		.dsh-pm-coverage-bar { display: flex; flex-direction: column; gap: 4px; }
+		.dsh-pm-coverage-label {
+		  font-size: 12px; color: var(--dsw-text-secondary, #666);
+		  display: inline-block; min-width: 100px;
+		}
+		.dsh-pm-coverage-value {
+		  font-size: 14px; font-weight: 600; color: var(--dsw-text-primary, #333);
+		  margin-left: auto;
+		}
+		.dsh-pm-coverage-track {
+		  height: 8px; background: var(--dsw-bg-secondary, rgba(128,128,128,.15));
+		  border-radius: 4px; overflow: hidden; position: relative;
+		}
+		.dsh-pm-coverage-fill {
+		  height: 100%; background: linear-gradient(90deg, #28a745, #20c997);
+		  transition: width .3s ease;
+		}
+		`,document.head.appendChild(e)}const We=[`slots`,`sessions`,`workspaces`];function Ge(e){try{Ve(),Ue(),window.__dshReqboardClient?.dispose(),window.__dshPmCtx=e,window.__dshPmSessions=e.sessions,window.__dshPmWorkspaces=e.workspaces;let t=ze(),n=Be(t),r=e=>{e.detail?.open===!0?t.getSnapshot().boardOpen?t.closeBoard():t.openBoard():t.toggleBoard()};window.addEventListener(Z,r),window.__dshReqboardClient={dispose:()=>{window.removeEventListener(Z,r),n(),t.closeBoard(),delete window.__dshPmCtx,delete window.__dshPmSessions,delete window.__dshPmWorkspaces}};let i=e.slots;i?i.inject(`sidebar.footer.action`,()=>i.register({name:`sidebar.footer.action`,id:a,order:110,label:o},He)):console.warn(`[dsh-pmboard] ctx.slots unavailable`)}catch(e){console.error(`[dsh-pmboard] client half failed to start:`,e)}}exports.apply=Ge,exports.inject=We,exports.name=`dsh-pmboard/client`;
 			return module.exports;
 		}
 	});

@@ -429,6 +429,133 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-trow:hover { background: var(--dsw-hover, rgba(128,128,128,.08)); }
 .dsh-pm-tid { font-family: ui-monospace, monospace; color: var(--dsw-text-secondary, #999); }
 .dsh-pm-tdeps { font-family: ui-monospace, monospace; font-size: 11px; color: var(--dsw-text-secondary, #999); }
+
+/* ---- 节点差异化展示 ---- */
+.dsh-pm-node-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 4px;
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.1));
+  font-size: 12px; color: var(--dsw-text-secondary, #666);
+}
+
+/* 专属内容区域 */
+.dsh-pm-specialized { background: var(--dsw-bg-secondary, rgba(128,128,128,.04)); border-radius: 8px; }
+
+/* 通用信息折叠区 */
+.dsh-pm-common-details { margin-top: 20px; border-top: 1px solid var(--dsw-border, rgba(128,128,128,.15)); padding-top: 16px; }
+.dsh-pm-common-summary {
+  cursor: pointer; font-size: 13px; font-weight: 500;
+  color: var(--dsw-text-secondary, #666);
+  padding: 8px 12px; border-radius: 6px;
+  list-style: none; user-select: none;
+}
+.dsh-pm-common-summary::-webkit-details-marker { display: none; }
+.dsh-pm-common-summary:hover { background: var(--dsw-hover, rgba(128,128,128,.08)); }
+
+/* 统计卡片网格 */
+.dsh-pm-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px; padding: 12px;
+}
+.dsh-pm-stat {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 12px; border-radius: 6px;
+  background: var(--dsw-bg-primary, #fff);
+  border: 1px solid var(--dsw-border, rgba(128,128,128,.1));
+}
+.dsh-pm-stat-label { font-size: 11px; color: var(--dsw-text-secondary, #999); text-transform: uppercase; }
+.dsh-pm-stat-value { font-size: 18px; font-weight: 600; color: var(--dsw-text-primary, #222); }
+.dsh-pm-stat-success { border-color: #28a745; }
+.dsh-pm-stat-success .dsh-pm-stat-value { color: #28a745; }
+.dsh-pm-stat-error { border-color: #dc3545; }
+.dsh-pm-stat-error .dsh-pm-stat-value { color: #dc3545; }
+
+/* 拆分节点 - 轨道列表 */
+.dsh-pm-track { margin-bottom: 12px; }
+.dsh-pm-track-head {
+  font-size: 13px; font-weight: 600; color: var(--dsw-text-primary, #333);
+  padding: 8px 12px; background: var(--dsw-bg-secondary, rgba(128,128,128,.08));
+  border-radius: 6px; margin-bottom: 6px;
+}
+.dsh-pm-track-list { list-style: none; padding: 0; margin: 0; }
+.dsh-pm-track-list li {
+  padding: 6px 12px; font-size: 13px; color: var(--dsw-text-primary, #333);
+  border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+}
+.dsh-pm-track-list li:last-child { border-bottom: none; }
+.dsh-pm-task-link {
+  background: none; border: none; color: var(--dsw-accent, #4a7dff);
+  font-family: ui-monospace, monospace; font-size: 12px;
+  cursor: pointer; padding: 0; text-decoration: underline;
+}
+.dsh-pm-task-link:hover { opacity: .8; }
+
+/* 实施节点 - 文件变更 */
+.dsh-pm-file-summary {
+  display: flex; gap: 12px; align-items: center;
+  padding: 8px 12px; margin-bottom: 8px;
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.06));
+  border-radius: 6px; font-size: 12px;
+}
+.dsh-pm-file-change {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 12px; border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+}
+.dsh-pm-file-change:last-child { border-bottom: none; }
+.dsh-pm-file-path {
+  font-family: ui-monospace, monospace; font-size: 12px;
+  color: var(--dsw-text-primary, #333);
+}
+.dsh-pm-file-stats { display: flex; gap: 8px; font-size: 11px; font-weight: 600; }
+.dsh-pm-stat-add { color: #28a745; }
+.dsh-pm-stat-del { color: #dc3545; }
+
+/* 执行记录简报 */
+.dsh-pm-exec-brief {
+  padding: 6px 12px; font-size: 12px;
+  border-left: 3px solid var(--dsw-border, rgba(128,128,128,.2));
+  margin-bottom: 4px;
+}
+
+/* 测试节点 - 失败用例 */
+.dsh-pm-test-fail {
+  padding: 12px; margin-bottom: 8px;
+  border: 1px solid #dc3545; border-radius: 6px;
+  background: rgba(220, 53, 69, .05);
+}
+.dsh-pm-test-fail-name {
+  font-size: 13px; font-weight: 600; color: #dc3545;
+  margin-bottom: 6px;
+}
+.dsh-pm-test-fail-detail {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 12px; color: var(--dsw-text-primary, #333);
+}
+.dsh-pm-test-fail-detail code {
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.1));
+  padding: 2px 6px; border-radius: 3px;
+  font-family: ui-monospace, monospace; font-size: 11px;
+}
+
+/* 测试节点 - 覆盖率 */
+.dsh-pm-coverage { display: flex; flex-direction: column; gap: 12px; }
+.dsh-pm-coverage-bar { display: flex; flex-direction: column; gap: 4px; }
+.dsh-pm-coverage-label {
+  font-size: 12px; color: var(--dsw-text-secondary, #666);
+  display: inline-block; min-width: 100px;
+}
+.dsh-pm-coverage-value {
+  font-size: 14px; font-weight: 600; color: var(--dsw-text-primary, #333);
+  margin-left: auto;
+}
+.dsh-pm-coverage-track {
+  height: 8px; background: var(--dsw-bg-secondary, rgba(128,128,128,.15));
+  border-radius: 4px; overflow: hidden; position: relative;
+}
+.dsh-pm-coverage-fill {
+  height: 100%; background: linear-gradient(90deg, #28a745, #20c997);
+  transition: width .3s ease;
+}
 `
 
 export function injectStyles(): void {

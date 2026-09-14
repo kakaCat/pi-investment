@@ -67,7 +67,9 @@ export function mountBoard(controller: BoardController): () => void {
       case 'task': {
         const task = state.tasks.find(t => t.id === mode.taskId)
         const req = task ? state.requirements.find(r => r.id === task.requirementId) : undefined
-        viewEl.innerHTML = task ? buildTaskDetail(task, req) : buildBoard(state)
+        viewEl.innerHTML = task
+          ? buildTaskDetail(task, req, Date.now(), state.tasks)
+          : buildBoard(state, Date.now(), boardView, listOpts(), archivedSids())
         if (!task) mode = { kind: 'board' }
         break
       }
