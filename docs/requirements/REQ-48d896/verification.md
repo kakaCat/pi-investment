@@ -59,9 +59,10 @@ $ python -m pytest tests/test_sentiment_real_data.py -q
 $ python -m pytest tests/test_orm_db_drift.py -q
 6 passed
 
-$ python -m pytest tests/test_sentiment_real_data.py tests/test_orm_db_drift.py \
-    tests/integration/test_provider_failover.py tests/adapters/outbound/datasources -q
-343 passed, 3 failed
+$ python -m pytest tests/test_eastmoney_market_provider.py tests/test_sentiment_real_data.py \
+    tests/test_orm_db_drift.py tests/integration/test_provider_failover.py \
+    tests/adapters/outbound/datasources -q
+355 passed, 3 failed
 ```
 3 个失败为**既有**：在 `main`（不含本改动，`grep get_top_holders manager.py = 0`）上同样失败
 （`TestCircuitBreaker` 3 例，熔断状态跨测试泄漏）。
@@ -103,3 +104,74 @@ $ python -m pytest tests/test_sentiment_real_data.py tests/test_orm_db_drift.py 
 - 工作日志：`docs/work-logs/2026-09/v2-sentiment-real-data-source.md`
 - 实施计划：`docs/requirements/REQ-48d896/plan.md`
 - 项目说明书更新：`docs/architecture/project-manual.md`（新增 provider 框架术语 + 本需求更新点）
+
+---
+
+## 五、t9 追加交付：东财直连第二源（含"修好被阻塞的端点"）
+
+### 5.1 关键成果：`/api/sentiment/top-fund-stocks` 从 502 恢复为 200
+
+**根因**：akshare 对该接口用**位置式列名**（N 个名字按顺序硬套到东财返回的数组上），
+东财字段一变就整体错位 —— 实测映射错位表：
+
+| akshare 列名 | akshare 给的值 | 东财真实字段 |
+|---|---|---|
+| 股票简称 | `'300308'`（其实是代码） | SECURITY_CODE |
+| 持有基金家数 | `'01'`（其实是机构类型） | ORG_TYPE |
+| 持股总数 | `3578`（其实是家数） | HOULD_NUM |
+| 股票代码 | `141398625194.02`（其实是持股市值） | — |
+
+**修复**：东财直连按**字段名**取值，结构上不可能错位。线上复验：
+
+```
+GET /api/sentiment/top-fund-stocks?limit=2 → 200
+{"success":true,"data":{"fundType":"基金持仓","reportDate":"2026-06-30","stocks":[
+  {"序号":1,"股票代码":"300308","股票简称":"中际旭创","持有基金家数":3578,
+   "持股总数":214732617,"持股市值":272710423590,"持股变化":"减仓",
+   "持股变动数值":-15877661,"持股变动比例":-6.89},
+  {"序号":2,"股票代码":"603293","股票简称":"埃泰克","持有基金家数":31...}]}}
+```
+
+### 5.2 failover 实测（kacceptance：拔掉 akshare 自动切换）
+
+```
+akshare get_top_fund_stocks: 上游 基金持仓 列错位（股票代码 列非 6 位代码，
+  实测样例 [141398625194.02, 14600642.8800004, -34423004720.08]）——拒绝返回不可信数据
+get_top_fund_stocks  success=True  source=eastmoney  attempted=['akshare','eastmoney']
+```
+`attempted_sources` 如实含**两个源**，成功由第二个源提供。
+
+### 5.3 覆盖与不覆盖（诚实声明）
+
+| 方法 | akshare | eastmoney | 源数 |
+|---|---|---|---|
+| get_top_holders | ✅ | ✅ | 2 |
+| get_holder_changes | ✅ | ✅ | 2 |
+| get_top_fund_stocks | ⚠️（错位，拒收） | ✅ | 2 |
+| get_stock_comment | ✅ | ✅ | 2 |
+| get_fund_holdings | ✅（**新浪**上游） | ✖（东财报表混装机构且 ORG_TYPE_NAME 为 None，筛不可靠） | 1 |
+
+→ 除 `get_fund_holdings`（其上游本就是新浪，与东财不同通道）外，**不再有"单源无兜底"的数据类型**。
+
+### 5.4 t9 测试
+
+```
+tests/test_eastmoney_market_provider.py  10 passed
+```
+覆盖：字段映射语义正确（重点 top_fund_stocks 的代码/简称归位）、多报告期取最新、
+`last_error` 必设（框架据此判真故障）、**异常绝不出抛**（`_try_providers` 只捕获超时，
+其它异常会穿透 failover 循环）、健康空、拔掉 akshare 自动切换、上游错位场景兜底为正确数据。
+
+### 5.5 顺带修正的分类缺陷
+
+框架只在 provider **自报 `last_error`** 时才判真故障；否则 `None` 会被归为
+「非空但无效」且**错误原因丢失**。上一轮的完整性拒收未设 `last_error`，
+线上显示成 `"数据校验未通过（非空但无效，不计入健康分）"` —— 分类错误。
+本次给 akshare 源补齐 `last_error` 纪律（14 处，含每次调用开头重置）。
+
+### 5.6 变更后的遗留（相较 §三 前提）
+
+- ~~`/api/sentiment/top-fund-stocks` 不可用~~ → **已修复**（东财直连兜底）；
+- `get_fund_holdings` 单源（见 §5.3，上游独立，非缺口）；
+- `public.audit_log`、`quant.async_factors` 两个悬空模型仍在门禁豁免名单（需产品决策）；
+- 门禁以测试库为口径，"测试库有、生产没有"仍看不见。

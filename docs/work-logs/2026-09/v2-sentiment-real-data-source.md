@@ -161,3 +161,78 @@ market 域现有 3 源（`akshare` 12 方法 / `sina` 3 / `ths` 4）。
 2. `public.audit_log`、`quant.async_factors` 两个悬空模型仍在门禁豁免名单（各自需产品决策）。
 3. 兄弟源 `fund_flow_source` / `margin_data_source` 仍是顶层单上游包装，**未迁入框架**（不在本需求范围）。
 4. 门禁以**测试库**为口径，"测试库有、生产没有"的形态看不见（已知盲区，已登记在测试文件注释）。
+
+---
+
+## 八、t9：东财直连第二源（同日追加）
+
+### 8.1 为什么加（第二个理由比"多一个源"更重要）
+
+1. **多源故障转移**：这些数据此前只有 akshare 一个源，第三方包失效即无兜底；
+2. **修上游解析缺陷**：akshare 对这几个接口用**位置式列名**——把 N 个名字按顺序硬套到
+   东财返回的数组上，东财字段一变就整体错位。实测 `stock_report_fund_hold`：
+
+   | 列名 | akshare 给的值 | 东财真实字段 |
+   |---|---|---|
+   | 股票简称 | `'300308'`（其实是代码） | SECURITY_CODE |
+   | 持有基金家数 | `'01'`（其实是机构类型） | ORG_TYPE |
+   | 持股总数 | `3578`（其实是家数） | HOULD_NUM |
+   | 股票代码 | `141398625194.02`（其实是持股市值） | — |
+
+   直连按**字段名**取值，从结构上不可能发生错位 → **修好了此前被我判为"上游不可用"的
+   `/api/sentiment/top-fund-stocks`**。
+
+### 8.2 实现
+
+| 方法 | 东财接口 | 实测 |
+|---|---|---|
+| `get_top_holders` | `RPT_F10_EH_HOLDERS` / `RPT_F10_EH_FREEHOLDERS` | ✅ 茅台集团 54.5%（取最新报告期+按名次排序） |
+| `get_holder_changes` | `RPT_HOLDERNUM_DET` | ✅ 296404（与 akshare 一致） |
+| `get_top_fund_stocks` | `dataapi/zlsj/list` | ✅ **中际旭创 300308 / 3578 只基金 / 2727 亿**（语义正确） |
+| `get_stock_comment` | `RPT_DMSK_TS_STOCKNEW` | ✅ 机构参与度 0.4675 / 综合得分 75.2 |
+
+**不覆盖 `get_fund_holdings`**：东财 `RPT_MAINDATA_MAIN_POSITIONDETAILS` 混装银行/保险/券商
+所有机构类型，且 `ORG_TYPE_NAME` 实测为 None，无法可靠筛出"基金"——硬筛会改契约语义；
+而 akshare 那条走的是**新浪**（`vip.stock.finance.sina.com.cn`），上游本就独立，无兜底缺口。
+
+### 8.3 两个设计决定
+
+1. **抽 `providers/market/_common.py`**：缓存/前缀/报告期/JSON 安全/失败判定两源**共用一份**。
+   若各写一份，两个源会演化出不同口径 —— 本仓"平行实现"已出过多次事故。
+2. **刻意不继承 `MarketProvider`**：那个 ABC 强制 `get_market_overview`/`get_lhb_stock`/`get_lhb_daily`。
+   为满足 ABC 写"返回 None"的空实现，会让每次行情/龙虎榜查询都调用它并记一次失败 → 污染健康分。
+   改继承 `BaseDataProvider[MarketData]`，`_try_providers` 的 `hasattr` 会正确跳过本源。
+3. **注册在末位**：正常时 akshare 先服务（行为不变），仅在其失败/拒绝返回时兜底。
+
+### 8.4 顺带修的分类缺陷
+
+框架只在 provider **自报 `last_error`** 时才判「真故障」（`manager.py:396`）；
+否则 `None` 会被归为「非空但无效」，**错误原因丢失**。我上一轮的完整性拒收没设 `last_error`，
+线上因此显示成 `"数据校验未通过（非空但无效，不计入健康分）"` —— 分类错误。
+本次给 akshare 源补齐 `last_error` 纪律（14 处，含每次调用开头重置，避免上次失败串到本次）。
+
+### 8.5 验证
+
+```
+实测 failover（akshare 因错位拒收 → eastmoney 兜底）:
+  get_top_fund_stocks  success=True  source=eastmoney  attempted=['akshare','eastmoney']
+  首条 {"股票代码":"300308","股票简称":"中际旭创","持有基金家数":3578,...}
+
+线上（重启后）:
+  GET /api/sentiment/top-fund-stocks → 200  ← 修复前是 502
+  {"fundType":"基金持仓","reportDate":"2026-06-30","stocks":[{"序号":1,"股票代码":"300308",
+   "股票简称":"中际旭创","持有基金家数":3578,"持股总数":214732617,"持股市值":272710423590}]}
+  其余 7 个端点均 200；两次调用一致；source/attemptedSources/empty/degraded 标记在位
+
+测试:
+  tests/test_eastmoney_market_provider.py  10 passed（字段映射语义/最新报告期/last_error 必设/
+    异常绝不出抛/健康空/拔掉 akshare 自动切换/错位场景兜底为正确数据）
+  回归 355 passed（3 failed 在 main 上同样失败 → 既有）
+```
+
+### 8.6 遗留（t9 完成后）
+
+1. `get_fund_holdings` 仍是 akshare 单源（但那是新浪上游，与东财不同通道）；
+2. 多源现状更正为：#2–#6 中 **4 个方法有 2 个源**（akshare + eastmoney），
+   `get_fund_holdings` 1 个源。**不再有"单源无兜底"的数据类型**（除该条）。
+3. `public.audit_log`、`quant.async_factors` 两个悬空模型仍在门禁豁免名单（需产品决策）。
