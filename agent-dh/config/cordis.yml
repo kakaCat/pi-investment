@@ -256,15 +256,19 @@
           baseURL: http://localhost:5001
         observeDays: 5
 
-    # - id: lifecycle
-    #   name: '@pi-investment/lifecycle'
-    #   config:
-    #     repoRoot: /Users/yunpeng/pi-investment
-    #     agentDhRoot: /Users/yunpeng/pi-investment/agent-dh
-    #     profileDir: /Users/yunpeng/.dsh/profiles/investment
-    #     port: 13080
-    #     agentId: investor
-    #     maxRestartsPerHour: 10
+    - id: lifecycle
+      name: '@pi-investment/lifecycle'
+      config:
+        repoRoot: /Users/yunpeng/pi-investment
+        agentDhRoot: /Users/yunpeng/pi-investment/agent-dh
+        # 2026-09-15 修复：原为 ~/.dsh/profiles/investment（已废弃空目录），
+        # 迁移后正确路径 = profileDir/agents.json 与 profileDir/state 所在处
+        profileDir: /Users/yunpeng/pi-investment/agent-dh/.dsh-data/profiles/agent-dh
+        # 必须显式配：startScript 缺省 = profileDir/start.sh，而新 profileDir 下无该脚本
+        startScript: /Users/yunpeng/pi-investment/agent-dh/scripts/start.sh
+        port: 13080
+        agentId: investor
+        maxRestartsPerHour: 10
 
     - id: notification
       name: '@pi-investment/notification'
