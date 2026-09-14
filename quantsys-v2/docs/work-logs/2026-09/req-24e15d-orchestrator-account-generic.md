@@ -151,3 +151,52 @@
   `update_position_prices` 只覆盖传入的 symbol，重跑不产生重复行。
 - 单点放大：估值/快照由 1 只账户扩到 7 只，DB 写次数上升；取价已收敛为**一次批量查询**
   （原实现是"每账户每持仓一次"）。
+
+## 8. 全量回归（广度验证，2026-09-14 13:06–13:51）
+
+脚本 `/tmp/regress_orch.sh`：先跑 `HEAD~` 的临时 worktree（`/tmp/wt-orch-nc`，detached at `44567fec`，**本批改动之前**），
+再跑主树；两边同一命令 `pytest tests/ -q --ignore=tests/test_ml -p no:cacheprovider`，各自抽 `^(FAILED|ERROR)` 行、`sort -u`，最后 `comm`。
+
+**先修了比对口径本身**：第一版把 pytest 日志捕获行（`ERROR    logger:file:line {...}`）也当结果行收进来，
+而这类行含**绝对路径**（`/private/tmp/wt-orch-nc/...` vs `/Users/yunpeng/pi-investment/...`）与**时间戳**，
+于是两边天然全不相等 → `comm` 输出 40 + 48 条噪声。加过滤 `^(FAILED|ERROR) [^ ]` 后干净：
+基线 384 条、本批 376 条。
+
+### 8.1 差异（按**失败集合逐条 diff**，不比数量）
+
+**消失 13 条 —— 全部是新增测试文件 `test_orchestrator_account_generic.py`：**
+
+    GONE = 该文件的 13 个用例，在基线（旧实现）上 13 failed，在本批上 13 passed
+
+即**负向对照在整套回归里复现**：这些测试在旧实现上确实会挂，不是自证。
+
+**新增 5 条：**
+
+    FAILED tests/infrastructure/data_providers/providers/test_sector_providers.py::TestSectorStocks::test_no_proxy_bypass
+    FAILED tests/test_api_smoke.py::test_backtest_run
+    FAILED tests/test_api_smoke.py::test_portfolio_positions
+    FAILED tests/test_api_smoke.py::test_risk_metrics
+    FAILED tests/test_api_smoke.py::test_simulation_trade_sell_validation
+
+### 8.2 对新增 5 条的归因：**判为环境/瞬时，不判为本批引入**
+
+证据（按强度排序）：
+
+1. **在本批代码上复跑 5 条 → 全过**；再整文件复跑 `test_sector_providers.py` + `test_api_smoke.py` → **15 passed / 5.94s**（同库、同 `:5001`）。同一个二进制不可能既引入又自愈；
+2. **`test_api_smoke.py` 测的是 `:5001` 上的活服务**（`BASE_URL = http://localhost:5001`，走 HTTP），
+   而该进程在**本轮跑到一半时被重启过**（实测 13:52 时 uptime 仅 9 分钟 ⇒ 约 13:43 起的新进程），
+   基线那一轮（13:06–13:26）跑的是**另一个进程**。两轮**不是同一个被测对象**，本就不可直接比；
+3. `test_no_proxy_bypass` 是**纯单测**（`patch('requests.get')`，只断言 `proxies == {'http': None, 'https': None}`），
+   且当前**无任何 proxy 环境变量**；它不 import 编排器，与本批唯一源码改动
+   （`application/services/daily_orchestrator.py`）无调用关系；
+4. 本批改动面 = 1 个服务文件 + 1 个测试文件，5 条失败用例**无一**触及账户/编排路径。
+
+**诚实标注**：无法给出"失败原因"的原文 —— 见 §8.3。故此为**高置信度归因，不是证明**。
+
+### 8.3 本比对方法的两个缺陷（下次必须改）
+
+1. **脚本把失败原因删掉了**：`sed "s/ - .*//"` 让 `FAILED tests/x.py::y - AssertionError: ...` 只剩用例名，
+   于是**新增失败无法从产物里诊断**，只能靠事后复跑。应保留原因到**单独一份**文件（只存新增项的原因即可）。
+2. **把活服务依赖的用例混进了 worktree-vs-主树 的比对**：`test_api_smoke.py` 这类用例测的是
+   `:5001` 上跑的**主树代码**，对 worktree 侧而言两边被测对象相同、且与"本批源码"无关；
+   一旦服务在比对期间重启，结论随机翻转。此类用例应**排除**或改用固定 server 实例。
