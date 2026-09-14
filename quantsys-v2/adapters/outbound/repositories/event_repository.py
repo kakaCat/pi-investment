@@ -1,49 +1,70 @@
-"""市场事件仓储实现（ORM/Core SQL，表：quant.event_calendar）
+"""市场事件仓储实现（ORM，表：quant.event_calendar）
 
 RFC 015 §3.5（2026-09-11，REQ-cf627b，P3）：**扩展现有表**而非重建——
-既有 67 行宏观事件（cpi_ppi/pmi/lpr/fomc/nbs/futures_delivery）保持不变，
-新增 4 列承载政策与个股事件：scope / symbols(jsonb) / source_url / evidence_hash。
+既有宏观事件（cpi_ppi/pmi/lpr/fomc/nbs/futures_delivery）保持不变，
+2026-09-12 迁移新增 4 列承载政策与个股事件：scope / symbols(jsonb) / source_url / evidence_hash。
 
-## 为什么用 SQLAlchemy Core（text()）而不是新增 ORM 映射类
-既有 ORM 类 `EventCalendar` 定义在 adapters/outbound/repositories/event_calendar_repository.py，
-它**没有** extend_existing 标记。若本模块再声明一个同表映射类，两个类的导入顺序会决定谁先
-定义 Table：一旦本模块先被导入，旧类再导入就会抛
-"Table 'event_calendar' is already defined for this MetaData instance" —— 一个纯粹的
-**导入顺序炸弹**（谁先 import 谁活）。Core SQL 完全绕开映射冲突，且 upsert 语义（按
-evidence_hash 幂等）用原生 SQL 表达更直接、更可审计。
+## 为什么以前用 SQLAlchemy Core（text()），以及为什么现在改成 ORM
+（2026-09-14，w-32314d00，REQ-24e15d B4-c5）
+
+原模块 docstring 记的理由是**导入顺序炸弹**：同一个 Base 上若声明**两个**映射同一张表的类，
+谁先被导入谁定义 Table，后导入的那个会抛
+"Table 'event_calendar' is already defined for this MetaData instance"。
+
+该理由只对「**再声明一个同表映射类**」成立。本次收口改为**复用本仓已有的唯一映射类**
+EventCalendar（定义在 adapters/outbound/repositories/event_calendar_repository.py）——
+全仓只有一个类，炸弹前提消失，Core SQL 不再必要。
+
+同时修掉一个真实缺陷：EventCalendar 原先只有 14 列，而线上表有 18 列，
+**scope / symbols / source_url / evidence_hash 四列没进模型**。任何走该模型的全列读写
+都会静默丢掉这 4 列（与 B4-c4 的 StrategyConfig 缺 3 列同一类陷阱）。已补齐并逐列核对。
 
 ## 幂等（RFC §5 验收项）
-- 数据库层：`uq_event_calendar_evidence_hash` 局部唯一索引（WHERE evidence_hash IS NOT NULL，
-  兼容既有 67 行 NULL）——重复 ingest 在**数据库层面**不可能产生重复行。
-- 应用层：upsert 先按 hash 查再插/改，并如实返回 inserted/updated/skipped 计数；
-  并发撞唯一键时捕获 IntegrityError 降级为重试 UPDATE（不吞异常、不重复插入）。
+- 数据库层：uq_event_calendar_evidence_hash 局部唯一索引（WHERE evidence_hash IS NOT NULL，
+  兼容既有 NULL 行）——重复 ingest 在**数据库层面**不可能产生重复行。
+- 应用层：upsert 先按 hash 查再插/改，并如实返回 inserted/updated/skipped 计数。
+  单行坏数据/单行异常如实计入 errors，不炸整批、不静默丢。
 
 ## 事件 status 口径（重要，防通知噪声）
-机器 ingest 的事件一律写 `status='collected'`（已采集终态），**不写 pending**：
-既有的每日 16:45 `event_calendar_check` 任务会对 status ∈ (pending, notified) 且
-importance ≥ 2 的近期事件发飞书提醒——若个股事件写成 pending，一次 ingest 就会把
-几十条解禁/财报提醒灌给用户。事件→提醒的联动由应用层 link_to_watchlist 产出建议、
-经人或 agent 复核后另行挂规则（RFC §3.2），不在本层偷偷触发。
+机器 ingest 的事件一律写 status='collected'（已采集终态），**不写 pending**：
+每日 16:45 的 event_calendar_check 任务会对 status ∈ (pending, notified) 且 importance >= 2
+的近期事件发飞书提醒——若个股事件写成 pending，一次 ingest 就会把几十条解禁/财报提醒灌给用户。
+
+## upsert 的受控更新（行为契约，勿改）
+已存在（同 evidence_hash）时只更新**事件内容字段**，**不动 status**：status 可能已被
+人工/任务推进到 notified/reviewed，覆盖它等于把提醒流水线打回去。
 """
 import logging
 from datetime import date, datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import text
+from sqlalchemy import func, literal_column, or_, select
+from sqlalchemy.exc import IntegrityError
 
+from infrastructure.persistence.orm import BaseORMRepository
+from infrastructure.persistence.orm.models import DailyKline, Stock
 from domain.events.ports.IMarketEventRepository import IMarketEventRepository
+from adapters.outbound.repositories.event_calendar_repository import EventCalendar
+from adapters.outbound.repositories.position_repository import Position
+from adapters.outbound.repositories.watch_rule_repository import WatchRule
 
 logger = logging.getLogger(__name__)
-
-_COLUMNS = ('id, event_type, event_date, title, description, symbol, market, importance, '
-            'status, source, meta, scope, symbols, source_url, evidence_hash, created_at, updated_at')
 
 # 机器采集的事件状态（见模块 docstring：不进 pending 提醒流水线）
 INGESTED_STATUS = 'collected'
 
+#: 数字化的标的代码表达式（去除非数字字符）。原 Core SQL 用
+#: regexp_replace(symbol, '[^0-9]', '', 'g')，这里用同一个函数，口径不变。
+def _digits(column):
+    return func.regexp_replace(column, '[^0-9]', '', 'g')
+
 
 def _row_to_dict(row) -> Dict:
-    """DB 行 → 事件 dict（应用层/入站适配器消费的统一形态）"""
+    """DB 行/ORM 对象 → 事件 dict（应用层/入站适配器消费的统一形态）
+
+    属性访问对 Core Row 与 ORM 实例都成立（Row 有 _mapping/属性同名），
+    故本函数在迁移前后逐字未改。
+    """
     meta = row.meta if isinstance(row.meta, dict) else {}
     symbols = row.symbols if isinstance(row.symbols, list) else []
     if not symbols and row.symbol:
@@ -77,19 +98,10 @@ def _row_to_dict(row) -> Dict:
     }
 
 
-class EventRepository(IMarketEventRepository):
+class EventRepository(BaseORMRepository[EventCalendar], IMarketEventRepository):
     """quant.event_calendar 读写（宏观/政策/个股同一张表，按 scope 区分）"""
 
-    def __init__(self, engine=None):
-        """Args: engine —— SQLAlchemy Engine（缺省走进程级单例，便于测试注入）"""
-        self._engine = engine
-
-    @property
-    def engine(self):
-        if self._engine is None:
-            from infrastructure.persistence.database.engine import get_engine
-            self._engine = get_engine()
-        return self._engine
+    model = EventCalendar
 
     # ------------------------------------------------------------------ 写入
 
@@ -118,42 +130,84 @@ class EventRepository(IMarketEventRepository):
                 skipped += 1
                 errors.append(f"upsert failed {params['title'][:40]!r}: {type(exc).__name__}: {exc}")
                 logger.warning('event upsert failed: %s', exc)
+                self._safe_rollback()
         return {'inserted': inserted, 'updated': updated, 'skipped': skipped, 'errors': errors}
 
     def _upsert_one(self, params: Dict) -> str:
-        """单条 upsert：存在则受控更新（不覆盖人工维护的 status），否则插入"""
-        with self.engine.begin() as conn:
-            existing = conn.execute(
-                text('SELECT id, status FROM quant.event_calendar WHERE evidence_hash = :h'),
-                {'h': params['evidence_hash']},
-            ).fetchone()
-            if existing:
-                # 只更新事件内容字段；status 若已被人工/任务推进（notified/reviewed）则保持不动
-                conn.execute(text("""
-                    UPDATE quant.event_calendar SET
-                        event_type = :event_type, event_date = :event_date, title = :title,
-                        description = :description, symbol = :symbol, market = :market,
-                        importance = :importance, source = :source, meta = :meta,
-                        scope = :scope, symbols = :symbols, source_url = :source_url,
-                        updated_at = now()
-                    WHERE evidence_hash = :evidence_hash
-                """), params)
-                return 'updated'
-            row = conn.execute(text("""
-                INSERT INTO quant.event_calendar
-                    (event_type, event_date, event_time, title, description, symbol, market,
-                     importance, status, source, meta, scope, symbols, source_url, evidence_hash,
-                     created_at, updated_at)
-                VALUES
-                    (:event_type, :event_date, NULL, :title, :description, :symbol, :market,
-                     :importance, :status, :source, :meta, :scope, :symbols, :source_url,
-                     :evidence_hash, now(), now())
-                RETURNING id
-            """), params)
-            return 'inserted' if row.fetchone() else 'inserted'
+        """单条 upsert：存在则受控更新（不覆盖人工维护的 status），否则插入。
+
+        并发撞唯一键（uq_event_calendar_evidence_hash）时降级为重试 UPDATE ——
+        不吞异常、不重复插入，返回 'updated' 而不是 'inserted'（如实反映实际发生的事）。
+        """
+        session = self.session
+        hash_value = params['evidence_hash']
+        existing = (
+            session.query(EventCalendar.id)
+            .filter(EventCalendar.evidence_hash == hash_value)
+            .first()
+        )
+        if existing:
+            self._update_content(params)
+            session.commit()
+            return 'updated'
+        try:
+            row = EventCalendar(
+                event_type=params['event_type'],
+                event_date=params['event_date'],
+                event_time=None,
+                title=params['title'],
+                description=params['description'],
+                symbol=params['symbol'],
+                market=params['market'],
+                importance=params['importance'],
+                status=params['status'],
+                source=params['source'],
+                meta=params['meta'],
+                scope=params['scope'],
+                symbols=params['symbols'],
+                source_url=params['source_url'],
+                evidence_hash=hash_value,
+                created_at=func.now(),
+                updated_at=func.now(),
+            )
+            session.add(row)
+            session.commit()
+            return 'inserted'
+        except IntegrityError:
+            # 并发下另一个写入者刚插了同一 hash：回滚后按"已存在"处理（受控更新）
+            self._safe_rollback()
+            self._update_content(params)
+            session.commit()
+            return 'updated'
+
+    def _update_content(self, params: Dict) -> None:
+        """只更新事件内容字段；**不碰 status**（见模块 docstring 的受控更新契约）。"""
+        (self.session.query(EventCalendar)
+         .filter(EventCalendar.evidence_hash == params['evidence_hash'])
+         .update({
+             EventCalendar.event_type: params['event_type'],
+             EventCalendar.event_date: params['event_date'],
+             EventCalendar.title: params['title'],
+             EventCalendar.description: params['description'],
+             EventCalendar.symbol: params['symbol'],
+             EventCalendar.market: params['market'],
+             EventCalendar.importance: params['importance'],
+             EventCalendar.source: params['source'],
+             EventCalendar.meta: params['meta'],
+             EventCalendar.scope: params['scope'],
+             EventCalendar.symbols: params['symbols'],
+             EventCalendar.source_url: params['source_url'],
+             EventCalendar.updated_at: func.now(),
+         }, synchronize_session=False))
 
     def _to_params(self, event: Dict) -> Dict:
-        """事件 dict → SQL 参数（含类型/日期校验；非法即抛，由 upsert 如实计入 skipped）"""
+        """事件 dict → 列值（含类型/日期校验；非法即抛，由 upsert 如实计入 skipped）
+
+        2026-09-14：meta / symbols 由"json.dumps 字符串"改为**直接给 Python 对象**
+        （JSONB 列由 SQLAlchemy 序列化）。原实现靠 json.dumps(..., default=str) 兜底
+        不可序列化对象，这里保留同一兜底（见 _jsonable）。
+        """
+        import json
         evidence_hash = str(event.get('evidence_hash') or '').strip()
         effective = str(event.get('effective_date') or '').strip()[:10]
         title = str(event.get('title') or '').strip()
@@ -181,7 +235,6 @@ class EventRepository(IMarketEventRepository):
             importance = 1
         if importance not in (1, 2, 3):
             raise ValueError(f'importance 越界: {importance}（契约 1-3）')
-        import json
         return {
             'event_type': str(event.get('type') or event.get('event_type') or 'other')[:32],
             'event_date': event_date,
@@ -193,44 +246,38 @@ class EventRepository(IMarketEventRepository):
             'importance': importance,
             'status': str(event.get('status') or INGESTED_STATUS)[:16],
             'source': str(event.get('source') or '')[:50],
-            'meta': json.dumps(meta, ensure_ascii=False, default=str),
+            'meta': _jsonable(meta),
             'scope': str(event.get('scope') or 'macro')[:16],
-            'symbols': json.dumps(symbols, ensure_ascii=False),
+            'symbols': _jsonable(symbols),
             'source_url': str(event.get('url') or '')[:1000],
             'evidence_hash': evidence_hash[:64],
         }
 
     # ------------------------------------------------------------------ 查询
 
-    def _query(self, where: str, params: Dict, limit: int, order: str = 'event_date ASC') -> List[Dict]:
-        sql = f'SELECT {_COLUMNS} FROM quant.event_calendar'
-        if where:
-            sql += f' WHERE {where}'
-        sql += f' ORDER BY {order} LIMIT :limit'
-        params = dict(params)
-        params['limit'] = int(limit)
-        with self.engine.connect() as conn:
-            rows = conn.execute(text(sql), params).fetchall()
-        return [_row_to_dict(r) for r in rows]
+    def _select(self, filters=None, order_by=None, limit: int = 200) -> List[Any]:
+        """统一取数：过滤 + 排序 + 限量。返回 ORM 实例列表。"""
+        q = self.session.query(EventCalendar)
+        for f in (filters or []):
+            q = q.filter(f)
+        for o in (order_by or []):
+            q = q.order_by(o)
+        return q.limit(int(limit)).all()
 
     def list(self, scope: Optional[str] = None, type: Optional[str] = None,
              date_from: Optional[str] = None, date_to: Optional[str] = None,
              limit: int = 200) -> List[Dict]:
-        clauses, params = [], {}
+        filters = []
         if scope:
-            clauses.append('scope = :scope')
-            params['scope'] = scope
+            filters.append(EventCalendar.scope == scope)
         if type:
-            clauses.append('event_type = :type')
-            params['type'] = type
+            filters.append(EventCalendar.event_type == type)
         if date_from:
-            clauses.append('event_date >= :date_from')
-            params['date_from'] = date_from
+            filters.append(EventCalendar.event_date >= date_from)
         if date_to:
-            clauses.append('event_date <= :date_to')
-            params['date_to'] = date_to
-        where = ' AND '.join(clauses)
-        return self._query(where, params, limit)
+            filters.append(EventCalendar.event_date <= date_to)
+        rows = self._select(filters, [EventCalendar.event_date.asc()], limit)
+        return [_row_to_dict(r) for r in rows]
 
     #: 查询某标的时附带的全市场（macro）事件窗口（天）：只取"近期相关"的宏观事件，
     #: 不把 2026-01 的 CPI 也塞进个股排雷结果里
@@ -241,7 +288,7 @@ class EventRepository(IMarketEventRepository):
         """某标的的事件：**先**该标的自己的事件，**再**近期宏观事件（两段各自限量）
 
         为什么分两段查（2026-09-11 实测踩坑）：原来用一条
-        `(symbols @> needle OR scope='macro') ORDER BY event_date ASC LIMIT n` 查询，
+        (symbols @> needle OR scope='macro') ORDER BY event_date ASC LIMIT n 查询，
         宏观事件日期最早，会把 limit 全部占满——600150 明明有 15 条个股事件，
         for_symbol 却返回 0 条（应用层再按窗口过滤后为空）。多类别混排 + 全局 limit
         是经典的"一类数据挤掉另一类"陷阱，必须按类别分别限量。
@@ -249,74 +296,73 @@ class EventRepository(IMarketEventRepository):
         code = str(symbol or '').strip()
         if not code:
             return []
-        # 注意：写成 CAST(:needle AS jsonb) 而不是 :needle::jsonb —— SQLAlchemy 的 text() 会把
-        # ':needle::jsonb' 里的双冒号误判成绑定参数的一部分（实测报 syntax error at or near ":"）。
-        symbol_rows = self._query(
-            'symbols @> CAST(:needle AS jsonb)',
-            {'needle': f'["{code}"]'},
+        # symbols @> '["600176"]' —— JSONB 的 contains 语义，SQLAlchemy 的 JSONB 比较器
+        # 会生成 @>。原实现写 CAST(:needle AS jsonb) 是为了绕开 text() 把 ::jsonb 误判成
+        # 绑定参数；改用 ORM 表达式后该问题不复存在。
+        symbol_rows = self._select(
+            [EventCalendar.symbols.contains([code])],
+            [EventCalendar.event_date.desc()],
             limit,
-            order='event_date DESC',
         )
         today = date.today()
-        macro_rows = self._query(
-            "scope = 'macro' AND event_date >= :start AND event_date <= :end",
-            {
-                'start': (today - timedelta(days=self.MACRO_WINDOW_BACK_DAYS)).isoformat(),
-                'end': (today + timedelta(days=self.MACRO_WINDOW_FWD_DAYS)).isoformat(),
-            },
+        macro_rows = self._select(
+            [
+                EventCalendar.scope == 'macro',
+                EventCalendar.event_date >= (today - timedelta(days=self.MACRO_WINDOW_BACK_DAYS)),
+                EventCalendar.event_date <= (today + timedelta(days=self.MACRO_WINDOW_FWD_DAYS)),
+            ],
+            [EventCalendar.event_date.asc()],
             min(limit, 30),
-            order='event_date ASC',
         )
-        return symbol_rows + macro_rows
+        return [_row_to_dict(r) for r in symbol_rows] + [_row_to_dict(r) for r in macro_rows]
 
     def upcoming(self, days: int = 7, limit: int = 100) -> List[Dict]:
         """未来 N 天内即将发生的事件（含今天）"""
         today = date.today()
         end = today + timedelta(days=max(0, int(days or 0)))
-        return self._query(
-            'event_date >= :start AND event_date <= :end',
-            {'start': today.isoformat(), 'end': end.isoformat()},
+        rows = self._select(
+            [EventCalendar.event_date >= today, EventCalendar.event_date <= end],
+            [EventCalendar.event_date.asc(), EventCalendar.importance.desc()],
             limit,
-            order='event_date ASC, importance DESC',
         )
+        return [_row_to_dict(r) for r in rows]
 
     def exists_by_hash(self, evidence_hash: str) -> bool:
         value = str(evidence_hash or '').strip()
         if not value:
             return False
-        with self.engine.connect() as conn:
-            row = conn.execute(
-                text('SELECT 1 FROM quant.event_calendar WHERE evidence_hash = :h LIMIT 1'),
-                {'h': value},
-            ).fetchone()
-        return row is not None
+        return (self.session.query(EventCalendar.id)
+                .filter(EventCalendar.evidence_hash == value)
+                .first()) is not None
 
     def is_in_default_universe(self, symbol: str) -> bool:
         """该标的是否在默认采集池内（持仓 ∪ 启用中的盯盘规则）
 
-        为什么需要（2026-09-11，w-f436d4ea）：个股事件通道**只采集 default_universe**
-        （实测仅 24 只标的有个股事件），池外标的的 for_symbol 只能返回宏观事件。
-        调用方（买入前排雷）必须能区分两种截然不同的结论：
+        为什么需要（2026-09-11，w-f436d4ea）：个股事件通道**只采集 default_universe**，
+        池外标的的 for_symbol 只能返回宏观事件。调用方（买入前排雷）必须能区分两种截然不同的结论：
           · 在池内且无个股事件 → 确实没有（可放心）
           · 不在池内           → **未知**（不是"没有"，是"没抓过"）
         混合成同一个空结果，就是拿"没查"冒充"没问题"。
 
         判据与 default_universe 同源，避免两处各写一套范围定义。
         """
-        sql = """
-            SELECT 1 FROM (
-                SELECT regexp_replace(symbol, '[^0-9]', '', 'g') AS symbol
-                  FROM quant.positions WHERE quantity > 0
-                UNION
-                SELECT regexp_replace(symbol, '[^0-9]', '', 'g') AS symbol
-                  FROM quant.watch_rules WHERE enabled = true
-            ) u
-            WHERE u.symbol = regexp_replace(:code, '[^0-9]', '', 'g')
-              AND length(u.symbol) = 6
-            LIMIT 1
-        """
-        with self.engine.connect() as conn:
-            return conn.execute(text(sql), {'code': str(symbol or '')}).fetchone() is not None
+        universe = self._universe_subquery()
+        code = _digits(literal_column('u.symbol'))
+        row = (self.session.query(literal_column('1'))
+               .select_from(universe)
+               .filter(code == _digits(str(symbol or '')), func.length(universe.c.symbol) == 6)
+               .limit(1)
+               .first())
+        return row is not None
+
+    @staticmethod
+    def _universe_subquery():
+        """持仓(quantity>0) ∪ 启用中盯盘规则 —— 代码数字化后的去重子查询。"""
+        pos = (select(_digits(Position.symbol).label('symbol'))
+               .where(Position.quantity > 0))
+        rules = (select(_digits(WatchRule.symbol).label('symbol'))
+                 .where(WatchRule.enabled.is_(True)))
+        return pos.union(rules).subquery('u')
 
     def research_universe(self, limit: int = 800) -> List[str]:
         """研究宇宙：按流动性取标的（**与 default_universe 的「监控宇宙」是两回事**）。
@@ -325,24 +371,19 @@ class EventRepository(IMarketEventRepository):
         实测导致 individual 事件只覆盖 34 只——事件研究需要「同一事件日的横截面」，
         34 只根本不成立。两个概念必须分开命名，否则永远会被混用。
         """
-        sql = """
-            SELECT s.symbol
-              FROM quant.stocks s
-              JOIN (SELECT symbol, amount FROM quant.daily_klines
-                     WHERE trade_date = (SELECT max(trade_date) FROM quant.daily_klines)) k
-                ON k.symbol = s.symbol
-             WHERE s.is_st IS NOT TRUE AND s.is_suspended IS NOT TRUE
-               AND k.amount IS NOT NULL
-             ORDER BY k.amount DESC
-             LIMIT :lim
-        """
         try:
-            # 本类用 engine.begin() 拿连接（没有 self.session —— 那是 ORM 仓储的模式，
-            # 我第一版照抄了 ORM 写法导致 AttributeError）。这里只读，用 engine.connect()。
-            with self.engine.connect() as conn:
-                rows = conn.execute(text(sql), {"lim": int(limit)}).fetchall()
+            latest = (select(func.max(DailyKline.trade_date)).scalar_subquery())
+            rows = (self.session.query(Stock.symbol)
+                    .join(DailyKline, DailyKline.symbol == Stock.symbol)
+                    .filter(DailyKline.trade_date == latest)
+                    .filter(Stock.is_st.isnot(True), Stock.is_suspended.isnot(True))
+                    .filter(DailyKline.amount.isnot(None))
+                    .order_by(DailyKline.amount.desc())
+                    .limit(int(limit))
+                    .all())
             return [str(r[0]).zfill(6) for r in rows]
         except Exception as exc:  # noqa: BLE001
+            self._safe_rollback()
             logger.error("research_universe failed: %s", exc)
             return []
 
@@ -352,42 +393,46 @@ class EventRepository(IMarketEventRepository):
         ⚠️ 2026-09-13：这只是「监控」宇宙，**不要**拿它做事件研究——实测它只有 34 只，
         研究要用 research_universe()（按流动性取 800 只）。两者混用正是事件覆盖过窄的根因。
         """
-        sql = """
-            SELECT DISTINCT u.symbol
-              FROM (
-                    SELECT regexp_replace(symbol, '[^0-9]', '', 'g') AS symbol
-                      FROM quant.positions WHERE quantity > 0
-                    UNION
-                    SELECT regexp_replace(symbol, '[^0-9]', '', 'g') AS symbol
-                      FROM quant.watch_rules WHERE enabled = true
-                   ) u
-              JOIN quant.stocks s ON s.symbol = u.symbol
-             WHERE length(u.symbol) = 6
-             ORDER BY u.symbol
-             LIMIT :limit
-        """
-        with self.engine.connect() as conn:
-            rows = conn.execute(text(sql), {'limit': int(limit)}).fetchall()
+        universe = self._universe_subquery()
+        rows = (self.session.query(universe.c.symbol)
+                .select_from(universe)
+                .join(Stock, Stock.symbol == universe.c.symbol)
+                .filter(func.length(universe.c.symbol) == 6)
+                .order_by(universe.c.symbol.asc())
+                .limit(int(limit))
+                .all())
         return [r[0] for r in rows]
 
     # ------------------------------------------------------------------ 统计
 
     def stats(self) -> Dict:
         """按 scope/type 的库存统计（体检探针用：事件新鲜度与覆盖面）"""
-        with self.engine.connect() as conn:
-            by_scope = conn.execute(text(
-                'SELECT scope, count(*) FROM quant.event_calendar GROUP BY scope ORDER BY scope'
-            )).fetchall()
-            by_type = conn.execute(text(
-                'SELECT event_type, count(*) FROM quant.event_calendar GROUP BY event_type '
-                'ORDER BY count(*) DESC LIMIT 20'
-            )).fetchall()
-            latest = conn.execute(text('SELECT max(updated_at) FROM quant.event_calendar')).scalar()
+        by_scope = (self.session.query(EventCalendar.scope, func.count())
+                    .group_by(EventCalendar.scope)
+                    .order_by(EventCalendar.scope)
+                    .all())
+        by_type = (self.session.query(EventCalendar.event_type, func.count())
+                   .group_by(EventCalendar.event_type)
+                   .order_by(func.count().desc())
+                   .limit(20)
+                   .all())
+        latest = self.session.query(func.max(EventCalendar.updated_at)).scalar()
         return {
             'by_scope': {r[0]: r[1] for r in by_scope},
             'by_type': {r[0]: r[1] for r in by_type},
             'latest_updated_at': latest.isoformat() if latest else None,
         }
+
+
+def _jsonable(value):
+    """把值过一遍 json 序列化（保留原实现 json.dumps(..., default=str) 的兜底）。
+
+    原实现把 meta/symbols 以 json 字符串写库；改用 JSONB 列后必须给 Python 对象。
+    但直接给对象会丢掉 default=str 这个兜底（datetime 等不可序列化对象原本会被
+    转成字符串，现在会抛 TypeError）—— 故先 dumps 再 loads，语义完全一致。
+    """
+    import json
+    return json.loads(json.dumps(value, ensure_ascii=False, default=str))
 
 
 _repo: Optional[EventRepository] = None

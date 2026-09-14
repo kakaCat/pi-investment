@@ -6,7 +6,7 @@
 from datetime import datetime, date, time as dtime
 from typing import List, Optional
 
-from sqlalchemy import Column, Integer, String, SmallInteger, DateTime, Date, Time, Text
+from sqlalchemy import Column, Integer, String, SmallInteger, DateTime, Date, Time, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 
 from infrastructure.persistence.orm import BaseORMRepository
@@ -31,6 +31,14 @@ class EventCalendar(Base):
     meta = Column(JSONB)                                 # 扩展：预期/前值/采集结果/影响评估
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now)
+    # ── 2026-09-12 迁移（RFC 015 §3.5）新增 4 列 ──────────────────────────
+    # 2026-09-14（w-32314d00，REQ-24e15d B4-c5）：这 4 列此前**只在库里、没进模型** ——
+    # 实测线上 18 列、模型 14 列。任何走本模型的全列读写都会**静默丢掉这 4 列**
+    # （与 B4-c4 的 StrategyConfig 缺 3 列是同一类陷阱）。补齐后模型与线上逐列一致。
+    scope = Column(String(16), nullable=False, server_default=text("'macro'"))
+    symbols = Column(JSONB, server_default=text("'[]'::jsonb"))
+    source_url = Column(Text)
+    evidence_hash = Column(String(64))
 
 
 def event_to_dict(ev: EventCalendar) -> dict:
