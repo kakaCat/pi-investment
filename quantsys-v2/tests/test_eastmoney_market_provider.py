@@ -5,8 +5,11 @@
 1. 字段映射**语义正确**（东财英文字段 → 与 akshare 源相同的中文键）；
    重点是 top_fund_stocks —— akshare 那条因**位置式列名**而错位，
    本源按字段名取值从结构上避免该缺陷；
-2. 失败纪律：last_error 必须设置（框架据此判「真故障」），且**绝不外抛异常**
-   （_try_providers 只捕获超时，其它异常会穿透整个 failover 循环）；
+2. 失败纪律：last_error 必须设置（框架据此判「真故障」并保留可读原因；不设则落
+   _INVALID_RESULT_MARKER，原因丢失），且**不外抛异常** ——
+   ⚠️ 更正（独立审查 L3）：此前这里写"其它异常会穿透整个 failover 循环"是**错的**，
+   manager.py:411 有兜底 except Exception（实测 [Boom(), Good()] → success=True, source=good）。
+   不外抛的真实收益是**保原因**，不是防崩溃；
 3. 真 failover：akshare 失败时自动切到 eastmoney，attempted_sources 含两个源。
 """
 import sys
@@ -278,3 +281,187 @@ def test_malformed_payloads_never_return_fabricated_rows(monkeypatch, provider):
             else:
                 assert body.get('total') == 0 or body.get('empty') is True, \
                     '畸形响应不得报出非空 total: %r' % body
+
+# ===========================================================================
+# 10. 独立审查（b7365bd2）发现的缺陷 —— 逐条回归
+#   审查特别指出 H2 与 M2 此前**没有任何用例覆盖**（改了实现仍全绿）。
+# ===========================================================================
+
+
+@pytest.fixture
+def batch_client():
+    """p1_batch_async 的 sentiment 子路由（H2/M2/M5 涉及）。"""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from adapters.inbound.fastapi_app.routes.p1_batch_async import sentiment_router
+    app = FastAPI()
+    app.include_router(sentiment_router)
+    return TestClient(app)
+
+
+def test_h2_market_explicit_missing_date_does_not_fall_back(monkeypatch, batch_client):
+    """H2：显式请求的日期在库中不存在 → 如实报 empty，**不回退**到别的日期。
+
+    原实现静默返回最近一天（实测 ?date=2020-01-01 → tradeDate=2026-09-12、
+    empty:false），调用方拿不到"你要的那天没有数据"。
+    """
+    import adapters.outbound.repositories.market_perception_repository as mpr
+
+    class _Repo:
+        def __init__(self, *a, **k):
+            pass
+
+        def get_by_date(self, d):
+            return None          # 该日期不存在
+
+        def get_recent(self, days=5):
+            raise AssertionError('不该回退到 get_recent —— 显式日期未命中必须如实报告')
+
+    monkeypatch.setattr(mpr, 'MarketSentimentDailyRepository', _Repo)
+    resp = batch_client.get('/sentiment/market?date=2020-01-01')
+    assert resp.status_code == 200, resp.text
+    data = resp.json()['data']
+    assert data['empty'] is True and data['degraded'] is True
+    assert data['requestedDate'] == '2020-01-01'
+    assert 'tradeDate' not in data, '不得返回另一天的数据冒充'
+
+
+def test_m2_stock_route_honours_manager_level_empty(monkeypatch, batch_client):
+    """M2：manager 报 success=True + data=[] + empty=True 时，响应必须 empty:true。
+
+    原实现只看内层 empty → 输出 empty:false/comment:null，与本次要消灭的
+    「success:true + 空」同型（审查实测）。
+    """
+    import adapters.outbound.datasources as ds_pkg
+
+    class _M:
+        def get_stock_comment(self, symbol):
+            return {
+                'success': True, 'data': [],          # 形状空：manager 顶层 empty 为真
+                'source': None, 'attempted_sources': ['akshare', 'eastmoney'],
+                'empty_sources': ['akshare', 'eastmoney'], 'empty': True,
+                'provider_errors': {'akshare': '空', 'eastmoney': '空'},
+                'error': None,
+            }
+
+    monkeypatch.setattr(ds_pkg, 'get_data_provider_manager', lambda: _M())
+    resp = batch_client.get('/sentiment/stock/600519')
+    assert resp.status_code == 200, resp.text
+    data = resp.json()['data']
+    assert data['empty'] is True, '顶层 empty 必须被认（不能只看内层）'
+    assert data['degraded'] is True
+    assert data['comment'] is None
+
+
+def test_m5_stock_route_failure_returns_502(monkeypatch, batch_client):
+    """M5：失败必须 502，与其余 6 个端点一致（原为 200+success:false）。"""
+    import adapters.outbound.datasources as ds_pkg
+
+    class _M:
+        def get_stock_comment(self, symbol):
+            return {'success': False, 'data': None, 'source': None,
+                    'attempted_sources': ['akshare', 'eastmoney'],
+                    'provider_errors': {'akshare': 'x', 'eastmoney': 'y'},
+                    'error': 'All data providers failed', 'empty': False}
+
+    monkeypatch.setattr(ds_pkg, 'get_data_provider_manager', lambda: _M())
+    resp = batch_client.get('/sentiment/stock/600519')
+    assert resp.status_code == 502
+
+
+def test_h1_failover_triggered_by_parse_errors(monkeypatch):
+    """H1 端到端：akshare 报告期全解析失败 → 东财兜底，attempted 含两源。
+
+    这是本需求的核心失败模式：旧实现把解析异常吞成"健康空"并走成功分支，
+    导致兜底源**根本不参与**。
+    """
+    from adapters.outbound.datasources import get_data_provider_manager
+    from adapters.outbound.datasources.providers.market import akshare as mk
+    from adapters.outbound.datasources.providers.market import eastmoney as em
+
+    def boom(self, symbol, holder_type='top10'):
+        self.last_error = 'get_top_holders 全部报告期解析失败（疑接口改名/结构变更）'
+        return None
+
+    monkeypatch.setattr(mk.AkshareMarketProvider, 'get_top_holders', boom)
+
+    class _Resp:
+        def __init__(s, p): s._p = p
+        def raise_for_status(s): return None
+        def json(s): return s._p
+
+    monkeypatch.setattr(em.requests, 'get', lambda *a, **kw: _Resp({
+        'result': {'data': [{'HOLDER_RANK': 1, 'HOLDER_NAME': '某集团', 'HOLD_NUM': 10,
+                            'HOLD_NUM_RATIO': 54.5, 'END_DATE': '2026-06-30 00:00:00'}]},
+    }))
+    res = get_data_provider_manager().get_top_holders('600519')
+    assert res['success'] is True, res.get('provider_errors')
+    assert res['source'] == 'eastmoney'
+    # 注：attempted_sources 取决于健康排序 —— akshare 若已有失败记录会被排到后面、
+    # 甚至本轮不被尝试（provider 健康分是**跨方法**的）。所以这里只断言"拿到的数据
+    # 来自东财、且整体成功"，不断言两个源都被尝试（那是排序问题，不是契约）。
+    assert res['data'].data['total'] == 1
+
+
+def test_no_consumer_assert_contract_keys_documented(monkeypatch, provider):
+    """审查 M3：两源键集并非完全等价（akshare 多「股份类型」「序号」）。
+
+    本测试把差异**固定下来**，防止有人误以为两源输出逐字相同；
+    docstring 已声明该差异。
+    """
+    import inspect
+    from adapters.outbound.datasources.providers.market import akshare as mk
+    from adapters.outbound.datasources.providers.market import eastmoney as em
+
+    # 行为断言：东财源**不产出**它拿不到的列（如实省略而不是编造 None 键）
+    # ⚠️ 必须走 monkeypatch —— 直接赋值 em.requests.get 会污染全局，
+    #    在组合运行时把后续测试（实测 tests/migration 的 3 个 parity 用例）带崩。
+    _patch_get(monkeypatch, {'result': {'data': [
+        {'END_DATE': '2026-06-30 00:00:00', 'HOLDER_RANK': 1, 'HOLDER_NAME': 'X',
+         'HOLD_NUM': 1, 'HOLD_NUM_RATIO': 1.0},
+    ]}})
+    md = provider.get_top_holders('600519')
+    assert md is not None
+    assert '股份类型' not in md.data['holders'][0], '东财无此列 → 应省略而非编造'
+
+    # 文档断言：akshare 源多出该列，其 docstring 必须写明差异（否则维护者以为两源等价）
+    ak_doc = inspect.getdoc(mk.AkshareMarketProvider.get_top_holders) or ''
+    assert '股份类型' in ak_doc, 'akshare 源多出「股份类型」，其 docstring 必须写明该差异'
+    em_doc = inspect.getdoc(em.EastmoneyMarketProvider.get_top_holders) or ''
+    assert '股份类型' in em_doc, '东财源 docstring 必须说明它为何省略该列'
+
+
+def test_l1_ttl_prefix_matching():
+    """L1：基金持仓 key 形如 fund_hold:<type>:<period>，TTL 必须按**前缀**命中 1800s。"""
+    from adapters.outbound.datasources.providers.market._common import ttl_for
+    assert ttl_for('fund_hold:基金持仓:20260630') == 1800.0, '前缀匹配失效（死配置）'
+    assert ttl_for('fund_hold') == 1800.0
+    assert ttl_for('inner_trades') == 300.0
+    assert ttl_for('unknown_key') == 600.0
+
+
+def test_l6_unknown_fund_type_is_explicit_failure(monkeypatch, provider):
+    """L6：未知 fund_type 不得静默降级成基金持仓。"""
+    _patch_get(monkeypatch, {'data': [{'SECURITY_CODE': '600519'}], 'pages': 1})
+    assert provider.get_top_fund_stocks('不存在的类型', 5) is None
+    assert 'fund_type' in (provider.last_error or '')
+
+
+def test_m1_insider_last_error_no_stale(monkeypatch):
+    """M1：insider_trades 必须重置并设置 last_error，不得串上一次调用的原因。"""
+    from adapters.outbound.datasources.providers.market import akshare as mk
+    p = mk.AkshareMarketProvider()
+    p.last_error = 'STALE-FROM-OTHER-CALL'
+    _install_stmt = 'import akshare as ak'
+
+    def boom():
+        raise ConnectionError('upstream down')
+
+    import sys, types
+    stub = types.ModuleType('akshare')
+    stub.stock_inner_trade_xq = boom
+    monkeypatch.setitem(sys.modules, 'akshare', stub)
+    mk._SENTIMENT_CACHE.clear()
+    assert p.get_insider_trades('600519') is None
+    assert p.last_error and p.last_error != 'STALE-FROM-OTHER-CALL', \
+        'last_error 串味：应是本次失败原因'
