@@ -206,3 +206,75 @@ def test_manager_recovers_top_fund_stocks_via_eastmoney(monkeypatch):
     assert res['source'] == 'eastmoney'
     row = res['data'].data['stocks'][0]
     assert row['股票代码'] == '600519' and row['股票简称'] == '贵州茅台'
+
+# ---------------------------------------------------------------------------
+# 4. 上游 schema 漂移：必须报真故障，不得静默成「无数据」或返回全 None 记录
+# ---------------------------------------------------------------------------
+
+def _run_all(provider, payload):
+    """把同一份畸形响应喂给 4 个方法，返回 {方法: 结果分类}。"""
+    out = {}
+    for name, fn, args in [('top_holders', provider.get_top_holders, ('600519',)),
+                           ('holder_changes', provider.get_holder_changes, ('600519',)),
+                           ('fund_stocks', provider.get_top_fund_stocks, ('fund', 5)),
+                           ('comment', provider.get_stock_comment, ('600519',))]:
+        out[name] = fn(*args)
+    return out
+
+
+def test_fields_renamed_is_hard_failure_not_empty(monkeypatch, provider):
+    """上游把字段改名 → 必须 `None` + last_error（真故障），**不是** empty。
+
+    若当成 empty，这个源会永远安静地返回空、直到有人发现指标全没了 —— 静默 schema 漂移。
+    """
+    _patch_get(monkeypatch, {'result': {'data': [{'RANK_NEW': 1, 'NAME_NEW': 'x'}]}})
+    assert provider.get_top_holders('600519') is None
+    assert '无一字段可映射' in (provider.last_error or '')
+
+    _patch_get(monkeypatch, {'result': {'data': [{'DATE_NEW': '2026-06-30', 'NUM_NEW': 1}]}})
+    assert provider.get_holder_changes('600519') is None
+    assert provider.last_error
+
+    _patch_get(monkeypatch, {'result': {'data': [{'CODE_NEW': '600519'}]}})
+    assert provider.get_stock_comment('600519') is None
+    assert provider.last_error
+
+
+def test_synthesized_field_must_not_mask_drift(monkeypatch, provider):
+    """回归：top_fund_stocks 的「序号」是本地合成的、恒非 None。
+
+    若把它计入"上游是否有内容"的判定，字段改名后仍会报 total=1（实测漏判过）。
+    """
+    _patch_get(monkeypatch, {'data': [{'CODE_NEW': '600519', 'NAME_NEW': 'X'}], 'pages': 1})
+    assert provider.get_top_fund_stocks('fund', 5) is None, \
+        '本地合成的「序号」不得让漂移检测失效'
+    assert '无一字段可映射' in (provider.last_error or '')
+
+
+def test_truly_no_rows_is_healthy_empty(monkeypatch, provider):
+    """真的没有数据行 → 健康空（empty=True，无 last_error），与漂移严格区分。"""
+    _patch_get(monkeypatch, {'data': [], 'pages': 0})
+    md = provider.get_top_fund_stocks('fund', 5)
+    assert md is not None and md.data['empty'] is True and md.data['total'] == 0
+    assert provider.last_error is None
+
+    _patch_get(monkeypatch, {'result': {'data': []}})
+    md2 = provider.get_holder_changes('600519')
+    assert md2 is not None and md2.data['empty'] is True
+    assert provider.last_error is None
+
+
+def test_malformed_payloads_never_return_fabricated_rows(monkeypatch, provider):
+    """畸形响应绝不产出"结构在、值全 None"的伪记录。"""
+    for payload in ({'result': None}, {'result': {'data': None}}, {},
+                    {'result': {'data': [{}]}}, {'data': None}):
+        _patch_get(monkeypatch, payload)
+        for res in _run_all(provider, payload).values():
+            if res is None:
+                continue
+            body = dict(res.data)
+            if 'comment' in body:
+                assert body['comment'] is None or body.get('empty') is True
+            else:
+                assert body.get('total') == 0 or body.get('empty') is True, \
+                    '畸形响应不得报出非空 total: %r' % body

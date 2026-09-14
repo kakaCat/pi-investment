@@ -39,7 +39,6 @@ import requests
 from adapters.outbound.datasources.base import BaseDataProvider
 from adapters.outbound.datasources.models import MarketData
 from adapters.outbound.datasources.providers.market._common import (
-    cached_df,
     is_transport_error,
     recent_report_periods,
     secucode,
@@ -68,6 +67,30 @@ _ZLSJ_TYPE_NAME = {
     '1': '基金持仓', '2': 'QFII持仓', '3': '社保持仓',
     '4': '券商持仓', '5': '保险持仓', '6': '信托持仓',
 }
+
+
+_SCHEMA_DRIFT_MSG = (
+    '上游返回了 %d 行但**无一字段可映射**（疑似字段改名/结构变更）——拒绝当作"无数据"静默处理'
+)
+
+
+def _strip_empty_records(records: list, synthesized: tuple = ()) -> list:
+    """丢掉**上游字段全为 None** 的记录。
+
+    为什么必须这么做：本 provider 是**显式字段映射**（东财英文字段 → 中文键）。
+    一旦上游把字段改名（或换了返回结构），映射结果就是「结构存在、值全 None」的记录。
+    照原样返回等于**用空值冒充数据**：调用方看到 total=10、每格却都是 None，
+    而上游其实已经换了字段 —— 典型的静默 schema 漂移，正是本需求要消灭的东西。
+
+    ⚠️ `synthesized` 必须排除**本地合成**的字段（如「序号」）：它们恒非 None，
+    会让"全 None"判定永远为假、漂移检测失效（实测漏判：top_fund_stocks 因「序号」恒有值，
+    字段改名后仍报 total=1）。
+    """
+    out = []
+    for rec in records:
+        if any(v is not None for k, v in rec.items() if k not in synthesized):
+            out.append(rec)
+    return out
 
 
 def _iso(value) -> Optional[str]:
@@ -169,6 +192,7 @@ class EastmoneyMarketProvider(BaseDataProvider[MarketData]):
                 report, '(SECUCODE="%s")' % code,
                 {'sortColumns': 'END_DATE,HOLDER_RANK', 'sortTypes': '-1,1'},
             )
+            raw_count = len(rows)   # 报告期过滤会缩减 rows；漂移判定要用**上游原始行数**
             if not rows:
                 return self._empty('top_holders', {
                     'symbol': symbol, 'holder_type': 'free' if want_free else 'top10',
@@ -179,14 +203,19 @@ class EastmoneyMarketProvider(BaseDataProvider[MarketData]):
             rows.sort(key=lambda r: (r.get('HOLDER_RANK') or 999))
             ratio_key = '占总流通股本持股比例' if want_free else '占总股本持股比例'
             ratio_field = 'FREE_HOLDNUM_RATIO' if want_free else 'HOLD_NUM_RATIO'
-            holders = [{
+            holders = _strip_empty_records([{
                 '名次': r.get('HOLDER_RANK'),
                 '股东名称': r.get('HOLDER_NAME'),
                 '持股数': r.get('HOLD_NUM'),
                 ratio_key: r.get(ratio_field),
                 '增减': r.get('HOLD_NUM_CHANGE'),
                 '变动比率': r.get('CHANGE_RATIO'),
-            } for r in rows]
+            } for r in rows])
+            if not holders:
+                # 行在、字段全对不上 → 上游 schema 漂移：报真故障（不静默成"无数据"）
+                self.last_error = _SCHEMA_DRIFT_MSG % raw_count
+                logger.error('%s.%s %s', self.name, 'get_top_holders', self.last_error)
+                return None
             return self._ok('top_holders', {
                 'symbol': symbol, 'holder_type': 'free' if want_free else 'top10',
                 'report_date': latest or None, 'holders': holders, 'total': len(holders),
@@ -215,6 +244,7 @@ class EastmoneyMarketProvider(BaseDataProvider[MarketData]):
                 'RPT_HOLDERNUM_DET', '(SECUCODE="%s")' % code,
                 {'sortColumns': 'END_DATE', 'sortTypes': '-1'},
             )
+            raw_count = len(rows)
             if not rows:
                 return self._empty('holder_changes', {
                     'symbol': symbol, 'periods': [], 'total': 0,
@@ -238,6 +268,11 @@ class EastmoneyMarketProvider(BaseDataProvider[MarketData]):
                 '代码': r.get('SECURITY_CODE'),
                 '名称': r.get('SECURITY_NAME_ABBR'),
             } for r in rows]
+            records = _strip_empty_records(records)
+            if not records:
+                self.last_error = _SCHEMA_DRIFT_MSG % raw_count
+                logger.error('%s.%s %s', self.name, 'get_holder_changes', self.last_error)
+                return None
             return self._ok('holder_changes', {
                 'symbol': symbol, 'periods': records, 'total': len(records),
             })
@@ -290,6 +325,7 @@ class EastmoneyMarketProvider(BaseDataProvider[MarketData]):
                     'fund_type': type_name, 'report_date': None, 'stocks': [], 'total': 0,
                 })
 
+            raw_count = len(rows)
             n = max(1, int(limit or 50))
             records = [{
                 '序号': i + 1,
@@ -302,6 +338,12 @@ class EastmoneyMarketProvider(BaseDataProvider[MarketData]):
                 '持股变动数值': r.get('HOLDCHA_NUM'),
                 '持股变动比例': r.get('HOLDCHA_RATIO'),
             } for i, r in enumerate(rows[:n])]
+            # 「序号」是本地合成的，不能计入"上游是否有内容"的判定
+            records = _strip_empty_records(records, synthesized=('序号',))
+            if not records:
+                self.last_error = _SCHEMA_DRIFT_MSG % raw_count
+                logger.error('%s.%s %s', self.name, 'get_top_fund_stocks', self.last_error)
+                return None
             return self._ok('top_fund_stocks', {
                 'fund_type': type_name, 'report_date': used_period,
                 'stocks': records, 'total': len(records),
@@ -348,6 +390,10 @@ class EastmoneyMarketProvider(BaseDataProvider[MarketData]):
                 '关注指数': r.get('FOCUS'),
                 '交易日': _iso(r.get('TRADE_DATE')),
             }
+            if not any(v is not None for v in comment.values()):
+                self.last_error = _SCHEMA_DRIFT_MSG % len(rows)  # 单行查询，rows 即原始行
+                logger.error('%s.%s %s', self.name, 'get_stock_comment', self.last_error)
+                return None
             return self._ok('stock_comment', {
                 'symbol': symbol, 'comment': comment, 'empty': False,
             })
