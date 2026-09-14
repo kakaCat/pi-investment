@@ -575,7 +575,7 @@ class AkshareMarketProvider(MarketProvider):
                 # 无内部人交易记录是正常结果（非失败），返回空记录集
                 return MarketData(
                     data_type='insider_trades',
-                    data={'symbol': symbol, 'records': [], 'total': 0},
+                    data={'symbol': symbol, 'records': [], 'total': 0, 'empty': True},
                     source=self.name,
                     timestamp=datetime.now().isoformat()
                 )
@@ -645,7 +645,7 @@ class AkshareMarketProvider(MarketProvider):
             return MarketData(
                 data_type='top_holders',
                 data={'symbol': symbol, 'holder_type': kind,
-                      'report_date': None, 'holders': [], 'total': 0},
+                      'report_date': None, 'holders': [], 'total': 0, 'empty': True},
                 source=self.name,
                 timestamp=datetime.now().isoformat(),
             )
@@ -663,7 +663,7 @@ class AkshareMarketProvider(MarketProvider):
             if df is None or df.empty:
                 return MarketData(
                     data_type='holder_changes',
-                    data={'symbol': symbol, 'periods': [], 'total': 0},
+                    data={'symbol': symbol, 'periods': [], 'total': 0, 'empty': True},
                     source=self.name,
                     timestamp=datetime.now().isoformat(),
                 )
@@ -697,7 +697,8 @@ class AkshareMarketProvider(MarketProvider):
             if df is None or df.empty:
                 return MarketData(
                     data_type='fund_holdings',
-                    data={'symbol': symbol, 'quarter': None, 'holdings': [], 'total': 0},
+                    data={'symbol': symbol, 'quarter': None, 'holdings': [], 'total': 0,
+                          'empty': True},
                     source=self.name,
                     timestamp=datetime.now().isoformat(),
                 )
@@ -715,7 +716,8 @@ class AkshareMarketProvider(MarketProvider):
                 if df.empty:
                     return MarketData(
                         data_type='fund_holdings',
-                        data={'symbol': symbol, 'quarter': applied, 'holdings': [], 'total': 0},
+                        data={'symbol': symbol, 'quarter': applied, 'holdings': [], 'total': 0,
+                              'empty': True},
                         source=self.name,
                         timestamp=datetime.now().isoformat(),
                     )
@@ -768,7 +770,7 @@ class AkshareMarketProvider(MarketProvider):
                 return MarketData(
                     data_type='top_fund_stocks',
                     data={'fund_type': report_symbol, 'report_date': None,
-                          'stocks': [], 'total': 0},
+                          'stocks': [], 'total': 0, 'empty': True},
                     source=self.name,
                     timestamp=datetime.now().isoformat(),
                 )
