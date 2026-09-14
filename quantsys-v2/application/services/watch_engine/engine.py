@@ -16,6 +16,7 @@ from application.services.watch_engine.trigger_judge import TriggerJudge
 from domain.watch.services.disposition import DEDUP_WINDOW_SEC, normalize_symbol
 from application.services.watch_engine.deduplication_manager import DeduplicationManager
 from application.services.watch_engine.disposition_engine import DispositionEngine
+from application.services.watch_engine.escalation_coordinator import EscalationCoordinator
 from domain.watch.services.escalation_checker import EscalationChecker
 from domain.watch.models import QuoteData
 from domain.trading.services.market_session_policy import (
@@ -82,6 +83,8 @@ class WatchEngine:
             position_value_provider=position_value_provider,
             account_total_provider=account_total_provider,
         )
+        # 升级协调（频率/共振统计 + 调用 domain EscalationChecker）→ EscalationCoordinator
+        self.escalation = EscalationCoordinator(self.state, self.now_fn, escalation_checker)
         # 增量门（同标的同议题 4h 冷却）与当日介入计数 → StateManager
         # 摘要门（REQ-f08def P2/P4）：何时唤醒 agent 的判据由本服务负责，
         # 挂在引擎 loop 里——引擎本就是盯盘唯一宿主，无需外部定时器/脚本。
@@ -227,31 +230,9 @@ class WatchEngine:
                 if not self.judge.should_emit(rule.id, idx, result.triggered, cond, now):
                     continue
                 
-                # 升级检查：L0/L1 触发满足条件时自动升级为 L2
-                escalation_reason = None
+                # 升级检查：L0/L1 触发满足条件时自动升级为 L2（委托 EscalationCoordinator）
+                escalation_reason = self.escalation.check(rule, cond, quote, result, now)
                 trigger_level = self._get_trigger_level(rule)
-                
-                if trigger_level in ('L0', 'L1'):
-                    # 查询触发频率和并发触发数
-                    recent_count = self._get_recent_trigger_count(rule.id)
-                    concurrent_count = self._get_concurrent_trigger_count(rule.symbol, rule.id)
-                    
-                    quote_data = QuoteData(
-                        symbol=rule.symbol,
-                        price=float(quote.price),
-                        change_pct=getattr(quote, 'change_pct', None),
-                        volume=getattr(quote, 'volume', None),
-                        prev_close=getattr(quote, 'prev_close', None),
-                    )
-                    
-                    escalation_reason = self.escalation_checker.should_escalate(
-                        rule=rule,
-                        condition=cond,
-                        quote=quote_data,
-                        result=result,
-                        recent_trigger_count=recent_count,
-                        concurrent_trigger_count=concurrent_count,
-                    )
                 
                 # ── 处置决策（REQ-f08def）─────────────────────────────
                 # 机械优先：去重合并 / observe 类归档当场收敛（零 LLM），
@@ -415,43 +396,18 @@ class WatchEngine:
         return self.judge.in_cooldown(rule_id, cond_idx, cond, now)
 
     def _get_trigger_level(self, rule) -> str:
-        """获取规则的触发层级（L0/L1/L2）"""
-        action_hint = getattr(rule, 'action_hint', None)
-        if not action_hint:
-            return 'L1'  # 默认 L1
-        
-        import json
-        try:
-            if isinstance(action_hint, str):
-                ah = json.loads(action_hint)
-            else:
-                ah = action_hint
-            return ah.get('trigger_level', 'L1')
-        except Exception:
-            return 'L1'
+        """委托 EscalationCoordinator（保留入口名）"""
+        return self.escalation._get_trigger_level(rule)
 
     def _record_trigger_event(self, now: datetime, rule_id: int, symbol: str) -> None:
         """委托 StateManager（保留薄封装：既有调用点与测试直接用它）"""
         self.state.record_trigger_event(now, rule_id, symbol)
 
     def _get_recent_trigger_count(self, rule_id: int, window_minutes: int = 10) -> int:
-        """该规则近 window_minutes 分钟内的触发次数（含本次触达）
-
-        2026-09-14 修正：原实现遍历 _last_triggered 统计「不同条件的最新触发」，
-        同一条件多次触发只算 1。实测 45 条启用规则中 36 条只有 1 个条件，而
-        policy 的 max_triggers_per_window.count 为 3 —— 该路径恒达不到阈值，
-        「触发频率升级」整体失效。
-        """
+        """委托 StateManager（保留薄封装）"""
         return self.state.recent_trigger_count(self.now_fn(), rule_id, window_minutes)
 
     def _get_concurrent_trigger_count(self, symbol: str, rule_id: int,
                                       window_seconds: int = 60) -> int:
-        """同标的近 window_seconds 秒内触发过的**不同规则数**（含本次）
-
-        2026-09-14 修正：原实现是占位（恒返回 0，注释自述「实际实现需要查询
-        trigger_repo」），导致 escalation_policy.multi_rule_confluence 命中后
-        永远等不到 concurrent_trigger_count >= 2，「多规则共振升级」整体失效。
-        现从事件日志按 symbol 去重统计 rule_id，并计入本次当前规则。
-        """
-        return self.state.concurrent_trigger_count(self.now_fn(), symbol, rule_id,
-                                                   window_seconds)
+        """委托 StateManager（保留薄封装）"""
+        return self.state.concurrent_trigger_count(self.now_fn(), symbol, rule_id, window_seconds)
