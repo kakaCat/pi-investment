@@ -204,6 +204,7 @@ tags: [wiki, index, home, agent-dh]
 | 日期 | 页面 | 一句话 |
 |---|---|---|
 | 2026-09-14 | [工作日志索引（L3 证据档案）](work-logs/README.md) | 某个时间点「当时做了什么、为什么这么做、结论是什么」。按月份倒序列出全部工作日志。 |
+| 2026-09-14 | [构建与发版规范（改了不等于生效）](standards/build-and-release.md) | 改完代码怎么让它真正生效；哪些"看起来部署了"其实没有。 |
 | 2026-09-14 | [RFC 010 Phase 1 - Window-OS Lifecycle Management](rfcs/RFC-010-README.md) | RFC 010 Phase 1：多窗口协同（窗口注册、角色化派单、窗口间消息、心跳容错）。 |
 | 2026-09-14 | [P1-3: 判断结果自动对账系统 DDD 重构设计](rfcs/013-decision-evaluation-ddd-refactor.md) | RFC 013：决策评估 DDD 重构（decision_audit 评估引擎 + agent_decisions 表）。 |
 | 2026-09-14 | [RFC 013：公告板页面（dashboard-bulletin）](rfcs/013-bulletin-board-page.md) | RFC 013：公告板页面插件设计（双半插件，与 board_* 工具同源）。 |
@@ -215,9 +216,8 @@ tags: [wiki, index, home, agent-dh]
 | 2026-09-14 | [RFC 005: 自进化投资 Agent（Self-Evolving Investment Agent）](rfcs/005-self-evolving-agent.md) | RFC 005：自进化 Agent 设计（Phase 1-3 已落地，Phase 4 元学习待启动）。 |
 | 2026-09-14 | [RFC 003: Agent Self-Learning and Distillation System](rfcs/003-self-learning-distillation.md) | RFC 003：经验追踪 → 知识蒸馏 → 规则转正的自学习系统设计。 |
 | 2026-09-14 | [交易执行协议（Trade Execution Protocol）](protocols/trade-execution-protocol.md) | 交易打标协议 v1.0：每笔交易如何带 genome_version / rules_used 进经验库。 |
+| 2026-09-14 | [故障排查手册（症状 → 根因 → 处置）](guides/troubleshooting.md) | 遇到这些症状，先看哪里、大概率是什么、怎么修。 |
 | 2026-09-14 | [技能装载机制（Skill Loading）——排障实录与标准流程](guides/skill-loading.md) | 技能为什么看不见：两个 dsh home + skill registry 分层，以及正确的装载姿势。 |
-| 2026-09-14 | [重启防丢 Session 操作手册（Restart Session Safety Runbook）](guides/restart-session-safety.md) | 重启（含 self_restart）后会话历史为什么不丢、怎么保证——附 PID 与源码级证据。 |
-| 2026-09-14 | [quantsys-v2 能力诚实评估：真能解决问题吗？](guides/quantsys-v2-capability-assessment.md) | v2 后端能力诚实评估：哪些真能用、哪些是「接口通但链路死」（2026-09-02 全链路实测）。 |
 
 > 自动生成（`docs_index.py`）：按 front-matter 的 updated 倒序取前 15 页。
 <!-- AUTO:recent END -->

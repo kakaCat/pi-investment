@@ -3,7 +3,7 @@ id: plugin-model
 title: 插件模型与装载
 type: architecture
 status: living
-updated: 2026-09-13
+updated: 2026-09-14
 owners: [w-1cee2467]
 tags: [architecture, plugin, cordis]
 ---
@@ -53,6 +53,7 @@ DSH 框架（cordis 容器）
 - **启动即崩（UNSUPPORTED_SCHEMA）**：工具 schema 缺 `additionalProperties` → 见 [工具开发规范](../standards/tool-development.md)。
 - **页面按钮/面板不出现**：client 半没重新打包，或产物没提交 → 重新打包并 grep 校验。
 - **构建"成功"但内容没进去**：构建失败会先清空 dist → 必须校验产物（文件在 + 符号命中）。
+- **配置分叉 → 插件"从来没有"注册**：同机多实例各有**一份** `cordis.patch.yml`（:3080 主实例 vs :13080 investment），改一份不影响另一份。实测 :13080 **从来没有**注册 notification 插件（包、依赖、符号链接三件齐备，只缺 patch 里的 `- insert:` 块）→ R-010「完成后通知」长期无工具可调，而 `Object.keys(tools)` 里没有该工具**不等于包坏了**。判据：包存在 + 依赖在 + 链接在 → 去查**那份 profile 的 patch**。[复盘](../work-logs/2026-09/notification-plugin-missing-13080-20260910.md)
 
 ## 依据
 

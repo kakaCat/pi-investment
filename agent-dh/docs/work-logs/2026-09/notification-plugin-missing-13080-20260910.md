@@ -6,9 +6,12 @@ status: archived
 updated: 2026-09-10
 owners: [w-50fc8c52]
 tags: [worklog, 2026-09]
+distilled_into: docs/architecture/plugin-model.md
 ---
 
 # :13080 实例 feishu_notify / notification_send 缺失根因与修复（2026-09-10）
+
+> **结论已合并进 L2**：[插件模型与装载](../../architecture/plugin-model.md)（2026-09-14 提炼自本篇）。本页保留为**过程证据**；要结论请看上层页面，本页只用于追溯。
 
 **执行人**：investor / w-50fc8c52　**触发**：用户问"feishu_notify 在本会话工具集中不存在是什么原因，需要修复"
 **性质**：配置分叉缺陷（非代码 bug），修复后已实测送达。

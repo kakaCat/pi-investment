@@ -6,9 +6,12 @@ status: archived
 updated: 2026-09-12
 owners: [agent-dh]
 tags: [worklog, 2026-09]
+distilled_into: docs/guides/STARTUP.md
 ---
 
 # DSH_HOME 迁入项目内（:13080）
+
+> **结论已合并进 L2**：[Agent-DH 启动指南](../../guides/STARTUP.md)（2026-09-14 提炼自本篇）。本页保留为**过程证据**；要结论请看上层页面，本页只用于追溯。
 
 **日期**：2026-09-13
 **触发**：GUI `http://127.0.0.1:13080/` 反复打不开（401），排查发现根因是**签名密钥漂移**，顺势完成 2026-09-12 预留的"数据搬进项目内"迁移。

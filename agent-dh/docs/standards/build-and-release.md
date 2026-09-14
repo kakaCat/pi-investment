@@ -3,7 +3,7 @@ id: std-build-and-release
 title: 构建与发版规范（改了不等于生效）
 type: standard
 status: living
-updated: 2026-09-13
+updated: 2026-09-14
 owners: [w-1cee2467]
 tags: [standards, build, release]
 ---
@@ -60,6 +60,7 @@ launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh
 - 2026-09-11：`pnpm install` 造成硬链接副本 → 部署静默停在旧版本（写成 agent-dh/CLAUDE.md 的铁律）；
 - "改了源码却以为已生效"事故：新增工具在 dist 里出现 0 次 → 工具从未注册成功；
 - 构建失败清空 dist 事故（intelligence 的 dts 推断类型报错）。
+- **2026-09-14：体检对象错了、且把空集当通过。** 体检脚本的 profile 名写死 `investment`，而实跑的是 `agent-dh`（`ps eww` 无 `DSH_PROFILE`）→ **一直在体检那个休眠的 profile**；改对之后又暴露出「0 个安装条目」这种空检查集。规矩：**体检前先确认对象（profile / 端口 / 目录）是对的，且检查集非空——空集不是通过。** 复盘见 [.dsh-home 并入 .dsh-data](../work-logs/2026-09/dsh-home-data-merge.md)。
 
 ## 自检清单
 
@@ -67,6 +68,7 @@ launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh
 - [ ] build 之后 `dist` 里的关键符号 grep 得到吗？退出码是 0 就够了吗（不够）？
 - [ ] 这次要不要重启？重启方式是不是 kickstart（不是 kill）？
 - [ ] 重启会影响哪些并行窗口？我有没有先问过？
+- [ ] 我这次体检/校验的**对象**对吗（profile 名 / 端口 / 目录）？检查集是空的吗？（**空集 ≠ 通过**）
 
 ## 相关页面
 

@@ -115,9 +115,37 @@ child.unref();
 
 这样设计，重启器才能在 DSH 被杀后继续工作。
 
+## 退出语义：`exit` 为什么危险（2026-09-10 P0 修复）
+
+**同一状态被两处赋予相反含义 = 必然误判。** `self_finalize(action='exit')` 的清场逻辑是「清
+pending → 退出」，**不回干线**；而启动自愈 `boot-recovery` 的不变量 I3 是「HEAD 停在
+`agent-self/*` 且无 pending → 判为崩溃滞留 → 自动 `checkout` 干线」。于是 exit 眼里那是
+「按设计退出的正常态」，I3 眼里那是「崩溃留下的孤儿态」。
+
+后果链（**全程静默、无任何报错**）：`self_restart` 把未提交改动（含**其他窗口**改到一半的文件）
+检查点化到 `agent-self/*` → 以 exit 退出 → launchd 拉起新进程 → I3 判孤儿 → `checkout` 干线
+→ **只存在于 wip 提交上的文件从磁盘消失**；而 stranded-wip 看门狗因「HEAD 已不是 `agent-self/*`」
+短路 → **没有人被告知**。实测（2026-09-10）：本实例 `self_restart` 后，工作区里另一个窗口的 5 个
+执行看板文件消失——内容还在 wip 分支，**丢的是磁盘态与知情权**，这正是它「静默」的定义。
+
+**修复后的规矩（不可回退）**：
+
+1. `exit` 退出前**显式收尾**：wip 相对干线有独有内容 → 归档到具名分支
+   `wip/rescued-<原分支 slug>-<MMDD-HHmm>` → **先 `checkout(base)` 再回填**（顺序不可交换：
+   先回填则文件与 HEAD 相同、紧接着被 checkout 覆盖）→ 按路径取回并 `restore --staged` 保持未提交形态
+   → 删除**已归档**的检查点分支；
+2. **归档失败绝不删分支**（那时 wip 是独有内容的唯一载体）；
+3. `boot-recovery` 切回干线**之前**先做同样救援（归档失败不阻断启动）；
+4. 任何破坏性恢复（checkout / 清空 / 覆盖）**执行前必须归档到具名 ref 并主动播报**，绝不静默。
+
+复盘：[self_finalize(exit) 与 boot-recovery I3 语义冲突](../work-logs/2026-09/self-finalize-exit-vs-boot-recovery-i3-20260910.md)
+
 ## 结论
 
-**无需修复代码逻辑，只需优化提示词。**
+**（2026-08-30 结论，只对「表象失败」那层成立）无需修复代码逻辑，只需优化提示词。**
+
+> 2026-09-10 又查出**真实 P0 代码缺陷**——`exit` 与启动自愈 I3 的语义冲突（见上一节），已修复并回归。
+> 所以本页原结论只覆盖提示词层；**代码层问题以最新小节为准**。
 
 修改已完成：
 - ✅ 更新 `packages/lifecycle/src/index.ts` 的 `self_restart` description

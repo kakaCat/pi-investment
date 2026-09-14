@@ -19,9 +19,9 @@ tags: [worklog, index, l3]
 - **提炼**：结论一旦合并进 L2，就在日志 fm 里填 `distilled_into: docs/...`——**待提炼队列 = 没填这个字段的**；队列才是要干的活，其余不必读。
 
 <!-- AUTO:ledger BEGIN -->
-合计 **80** 篇。**提炼去向**（`distilled_into`）为空的都在「待提炼队列」里——那才是要干的活，其余不必读。
+合计 **81** 篇。**提炼去向**（`distilled_into`）为空的都在「待提炼队列」里——那才是要干的活，其余不必读。
 
-### 2026-09（35 篇）
+### 2026-09（36 篇）
 
 | 日期 | 日志 | 提炼去向 |
 |---|---|---|
@@ -30,13 +30,14 @@ tags: [worklog, index, l3]
 | 2026-09-14 | [Page-kit 公共组件库实现审计报告](2026-09/page-kit-audit-report.md) | ⏳ 待提炼 |
 | 2026-09-14 | [P1-5 部署指南](2026-09/p1-5-deployment-guide.md) | ⏳ 待提炼 |
 | 2026-09-14 | [P0+P1 修复完成总结](2026-09/p0-p1-fix-complete.md) | ⏳ 待提炼 |
+| 2026-09-14 | [.dsh-home 并入 .dsh-data：撤除挂载层](2026-09/dsh-home-data-merge.md) | ✅ [STARTUP](../guides/STARTUP.md) |
 | 2026-09-13 | [项目看板：状态时间线 + 真拆分 + 任务页/甘特图](2026-09/reqboard-timeline-tasks-gantt.md) | ⏳ 待提炼 |
 | 2026-09-13 | [项目看板：需求流水线对齐 superpowers 三段式（状态即阶段）](2026-09/reqboard-pipeline-superpowers.md) | ⏳ 待提炼 |
-| 2026-09-13 | [自主进化看板串库修复：④⑤ 读到 g1 空库（REQ-3952b7）](2026-09/dashboard-genome-split-store-fix-20260913.md) | ⏳ 待提炼 |
+| 2026-09-13 | [自主进化看板串库修复：④⑤ 读到 g1 空库（REQ-3952b7）](2026-09/dashboard-genome-split-store-fix-20260913.md) | ✅ [page-plugin-contract](../architecture/page-plugin-contract.md) |
 | 2026-09-12 | [P1-5 Barra 小样本路径完成报告](2026-09/p1-5-barra-small-sample-complete.md) | ⏳ 待提炼 |
 | 2026-09-12 | [P1-5.1 收缩协方差法完成报告](2026-09/p1-5-1-shrinkage-covariance-complete.md) | ⏳ 待提炼 |
 | 2026-09-12 | [DSH 插件加载失败（15 条 loader 事件）处置与发版闸门核验](2026-09/dsh-plugin-loader-failures-20260912.md) | ✅ [build-and-release](../standards/build-and-release.md) |
-| 2026-09-12 | [DSH_HOME 迁入项目内（:13080）](2026-09/dsh-home-migration-20260913.md) | ⏳ 待提炼 |
+| 2026-09-12 | [DSH_HOME 迁入项目内（:13080）](2026-09/dsh-home-migration-20260913.md) | ✅ [STARTUP](../guides/STARTUP.md) |
 | 2026-09-12 | [Agent-DH 数据迁移说明（2026-09-12 快照）](2026-09/data-migration-note.md) | ⏳ 待提炼 |
 | 2026-09-11 | [项目看板：计划模式（plan mode）——拆分前必须先有计划且获批](2026-09/reqboard-plan-mode.md) | ⏳ 待提炼 |
 | 2026-09-11 | [P1-4 事件双轨合流 - 完成总结](2026-09/p1-4-event-dual-track-merge-complete.md) | ⏳ 待提炼 |
@@ -47,8 +48,8 @@ tags: [worklog, index, l3]
 | 2026-09-11 | [🎊 P1-3 判断结果自动对账系统 DDD 重构 - 最终完成报告](2026-09/p1-3-final-report.md) | ⏳ 待提炼 |
 | 2026-09-11 | [🎉 P1-3 判断结果自动对账系统 DDD 重构 - 完成总结](2026-09/p1-3-complete-summary.md) | ⏳ 待提炼 |
 | 2026-09-11 | [P0 数据质量探针修复完成报告](2026-09/p0-data-quality-probe-fix-complete.md) | ⏳ 待提炼 |
-| 2026-09-10 | [self_finalize(exit) 与 boot-recovery I3 语义冲突：exit 会静默清空工作区（修复报告）](2026-09/self-finalize-exit-vs-boot-recovery-i3-20260910.md) | ⏳ 待提炼 |
-| 2026-09-10 | [13080 实例 feishu_notify / notification_send 缺失根因与修复（2026-09-10）](2026-09/notification-plugin-missing-13080-20260910.md) | ⏳ 待提炼 |
+| 2026-09-10 | [self_finalize(exit) 与 boot-recovery I3 语义冲突：exit 会静默清空工作区（修复报告）](2026-09/self-finalize-exit-vs-boot-recovery-i3-20260910.md) | ✅ [self-restart-behavior](../architecture/self-restart-behavior.md) |
+| 2026-09-10 | [13080 实例 feishu_notify / notification_send 缺失根因与修复（2026-09-10）](2026-09/notification-plugin-missing-13080-20260910.md) | ✅ [plugin-model](../architecture/plugin-model.md) |
 | 2026-09-10 | [公告板发帖分档（R-015 v15）+ 基因组金丝雀修复（2026-09-10）](2026-09/board-post-tiering-and-genome-canary-20260910.md) | ⏳ 待提炼 |
 | 2026-09-09 | [僵尸任务检测实现方案](2026-09/orphaned-task-detection-impl.md) | ⏳ 待提炼 |
 | 2026-09-09 | [僵尸任务清理机制实现方案](2026-09/orphaned-task-cleanup-plan.md) | ⏳ 待提炼 |

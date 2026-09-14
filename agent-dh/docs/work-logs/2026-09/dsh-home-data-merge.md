@@ -1,4 +1,17 @@
+---
+id: wl-2026-09-dsh-home-data-merge
+title: .dsh-home 并入 .dsh-data：撤除挂载层
+type: worklog
+status: archived
+updated: 2026-09-14
+owners: [agent-dh]
+tags: [worklog, 2026-09, layout, migration]
+distilled_into: docs/guides/STARTUP.md
+---
+
 # .dsh-home 并入 .dsh-data：撤除挂载层
+
+> **结论已合并进 L2**：[Agent-DH 启动指南](../../guides/STARTUP.md)（布局与现状）、[构建与发版规范](../../standards/build-and-release.md)（体检对象 / 空集教训）（2026-09-14 提炼）。本页保留为过程证据。
 
 **日期**：2026-09-14
 **提交**：`414383f8`（布局改造）、（本文件所在提交，发版工具链收口）
