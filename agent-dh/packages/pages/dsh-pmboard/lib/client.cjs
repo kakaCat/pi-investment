@@ -279,7 +279,108 @@ Object.defineProperty(exports,Symbol.toStringTag,{value:`Module`});let e=require
           <div class="dsh-pm-coverage-track"><div class="dsh-pm-coverage-fill" style="width: ${p}%"></div></div>
         </div>
       </div>
-    </div>`:``}`}function re(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">评审节点内容待实现（P1）</div></div>`}function N(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">合并节点内容待实现（P1）</div></div>`}function ie(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">文档节点内容待实现（P2）</div></div>`}function ae(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">UI节点内容待实现（P2）</div></div>`}function oe(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">分析节点内容待实现（P2）</div></div>`}function se(e,t){let n=e.filter(e=>e.status===`pending`),i=t.requirements.filter(e=>e.status!==`archived`&&e.status!==`canceled`),a=n.map(e=>{let t=e.suggestedAction===`create_req`&&!e.suggestedTargetId,n=e.suggestedTargetId?`${e.suggestedAction===`bind_req`?`绑定需求`:e.suggestedAction===`bind_task`?`绑定任务`:`新建需求`} ${r(e.suggestedTargetId)}`:e.suggestedAction===`create_req`?`新建需求${e.suggestedCategory?` · ${d[e.suggestedCategory]??e.suggestedCategory}`:``}`:``,i=t?`
+    </div>`:``}`}function re(e){let t=e.comments.filter(e=>e.createdBy?.kind===`agent`||e.createdBy?.kind===`human`),n=e.executions[e.executions.length-1],i=!1,a=`待评审`,o=[],s=[];n?.evidence&&n.evidence.forEach(e=>{(e.toLowerCase().includes(`approved`)||e.toLowerCase().includes(`通过`))&&(i=!0,a=`已批准`),(e.toLowerCase().includes(`rejected`)||e.toLowerCase().includes(`退回`))&&(a=`已退回`),(e.startsWith(`✓`)||e.startsWith(`✅`))&&s.push(e.replace(/^[✓✅]\s*/,``));let t=e.match(/^(.+?):(\d+)\s*\[(\w+)\]\s*(.+)/);t&&o.push({file:t[1],line:t[2],severity:t[3],message:t[4],resolved:!1})});let c={low:`低`,medium:`中`,high:`高`},l={low:`#28a745`,medium:`#f0a020`,high:`#dc3545`},u=s.length>0?`
+    <div class="dsh-pm-detail-section">
+      <h3>✅ 通过项</h3>
+      <ul class="dsh-pm-review-list">
+        ${s.map(e=>`<li class="dsh-pm-review-pass">${r(e)}</li>`).join(``)}
+      </ul>
+    </div>`:``,d=o.length>0?`
+    <div class="dsh-pm-detail-section">
+      <h3>⚠️ 改进建议（${o.length} 项）</h3>
+      <div class="dsh-pm-suggestions">
+        ${o.map((e,t)=>`
+          <div class="dsh-pm-suggestion" data-severity="${e.severity}">
+            <div class="dsh-pm-suggestion-head">
+              <span class="dsh-pm-suggestion-num">${t+1}</span>
+              <code class="dsh-pm-file-path">${r(e.file)}:${e.line}</code>
+              <span class="dsh-pm-severity-badge" data-severity="${e.severity}" style="background: ${l[e.severity]}">
+                严重性：${c[e.severity]}
+              </span>
+            </div>
+            <div class="dsh-pm-suggestion-body">${r(e.message)}</div>
+          </div>`).join(``)}
+      </div>
+    </div>`:``,f=t.length>0?`
+    <div class="dsh-pm-detail-section">
+      <h3>💬 评审讨论（${t.length} 条）</h3>
+      ${E(t)}
+    </div>`:``;return`
+    <div class="dsh-pm-detail-section dsh-pm-specialized">
+      <h3>📊 评审结果</h3>
+      <div class="dsh-pm-review-status" data-status="${i?`approved`:`pending`}">
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">状态</span>
+          <span class="dsh-pm-stat-value">${a}</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">通过项</span>
+          <span class="dsh-pm-stat-value">${s.length} 项</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">改进建议</span>
+          <span class="dsh-pm-stat-value">${o.length} 项</span>
+        </div>
+      </div>
+    </div>
+    ${u}
+    ${d}
+    ${f}`}function N(e){let t=e.executions[e.executions.length-1],n=`未知`,i=`main`,a=0,o=0,s=0,c=0,l=`进行中`,u=[],d=[];t?.evidence&&t.evidence.forEach(e=>{let t=e.match(/(.+?)\s*[→->]\s*(.+)/);t&&(n=t[1].trim(),i=t[2].trim());let r=e.match(/(\d+)\s*commits?/i);r&&(a=parseInt(r[1],10));let f=e.match(/(\d+)\s*files?\s*changed/i);f&&(o=parseInt(f[1],10));let p=e.match(/\+(\d+)\s*-(\d+)/);p&&(s=parseInt(p[1],10),c=parseInt(p[2],10)),(e.toLowerCase().includes(`merged`)||e.toLowerCase().includes(`合并成功`))&&(l=`✅ 合并成功`),e.toLowerCase().includes(`conflict`)&&(l=`⚠️ 存在冲突`);let m=e.match(/conflict:\s*(.+?)\s*-\s*(.+)/i);m&&u.push({file:m[1].trim(),description:m[2].trim(),resolution:`待解决`});let h=e.match(/^([✓✅❌⏳])\s*(.+?):\s*(.+)/);if(h){let e=h[1]===`✓`||h[1]===`✅`?`pass`:h[1]===`❌`?`fail`:`pending`;d.push({name:h[2].trim(),status:e,details:h[3].trim()})}});let f=u.length>0?`
+    <div class="dsh-pm-detail-section">
+      <h3>⚠️ 冲突解决（${u.length} 个）</h3>
+      <div class="dsh-pm-conflicts">
+        ${u.map((e,t)=>`
+          <div class="dsh-pm-conflict">
+            <div class="dsh-pm-conflict-num">${t+1}</div>
+            <div class="dsh-pm-conflict-body">
+              <code class="dsh-pm-file-path">${r(e.file)}</code>
+              <div class="dsh-pm-conflict-desc">冲突：${r(e.description)}</div>
+              <div class="dsh-pm-conflict-resolution">解决：${r(e.resolution)}</div>
+            </div>
+          </div>`).join(``)}
+      </div>
+    </div>`:``,p=d.length>0?`
+    <div class="dsh-pm-detail-section">
+      <h3>✅ CI/CD 检查</h3>
+      <div class="dsh-pm-ci-checks">
+        ${d.map(e=>{let t=e.status===`pass`?`✅`:e.status===`fail`?`❌`:`⏳`;return`
+            <div class="dsh-pm-ci-check" data-status="${e.status}">
+              <span class="dsh-pm-ci-icon">${t}</span>
+              <span class="dsh-pm-ci-name">${r(e.name)}</span>
+              <span class="dsh-pm-ci-details">${r(e.details||``)}</span>
+            </div>`}).join(``)}
+      </div>
+    </div>`:``;return`
+    <div class="dsh-pm-detail-section dsh-pm-specialized">
+      <h3>📊 合并状态</h3>
+      <div class="dsh-pm-merge-header">
+        <div class="dsh-pm-merge-branch">
+          <code>${r(n)}</code>
+          <span class="dsh-pm-merge-arrow">→</span>
+          <code>${r(i)}</code>
+        </div>
+        <div class="dsh-pm-merge-status">${l}</div>
+      </div>
+      <div class="dsh-pm-stats">
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">提交数</span>
+          <span class="dsh-pm-stat-value">${a} commits</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">变更文件</span>
+          <span class="dsh-pm-stat-value">${o} 个</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">代码变更</span>
+          <span class="dsh-pm-stat-value">
+            <span class="dsh-pm-stat-add">+${s}</span>
+            <span class="dsh-pm-stat-del">-${c}</span>
+          </span>
+        </div>
+      </div>
+    </div>
+    ${f}
+    ${p}`}function ie(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">文档节点内容待实现（P2）</div></div>`}function ae(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">UI节点内容待实现（P2）</div></div>`}function oe(e){return`<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">分析节点内容待实现（P2）</div></div>`}function se(e,t){let n=e.filter(e=>e.status===`pending`),i=t.requirements.filter(e=>e.status!==`archived`&&e.status!==`canceled`),a=n.map(e=>{let t=e.suggestedAction===`create_req`&&!e.suggestedTargetId,n=e.suggestedTargetId?`${e.suggestedAction===`bind_req`?`绑定需求`:e.suggestedAction===`bind_task`?`绑定任务`:`新建需求`} ${r(e.suggestedTargetId)}`:e.suggestedAction===`create_req`?`新建需求${e.suggestedCategory?` · ${d[e.suggestedCategory]??e.suggestedCategory}`:``}`:``,i=t?`
         <div class="dsh-pm-triage-edit">
           <input type="text" class="dsh-pm-input" data-role="triage-title" value="${r(e.suggestedTitle??e.firstMessageText.slice(0,120))}" placeholder="需求名称（可编辑）" />
           <select class="dsh-pm-input" data-role="triage-category">
@@ -882,5 +983,119 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-coverage-fill {
   height: 100%; background: linear-gradient(90deg, #28a745, #20c997);
   transition: width .3s ease;
+}
+
+/* 评审节点 - 评审结果 */
+.dsh-pm-review-status { display: flex; gap: 12px; padding: 12px; }
+.dsh-pm-review-status[data-status="approved"] {
+  background: rgba(40, 167, 69, .1); border: 1px solid #28a745; border-radius: 6px;
+}
+.dsh-pm-review-status[data-status="pending"] {
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.06));
+}
+.dsh-pm-review-list {
+  list-style: none; padding: 0; margin: 0;
+}
+.dsh-pm-review-list li {
+  padding: 8px 12px; font-size: 13px;
+  border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+}
+.dsh-pm-review-list li:last-child { border-bottom: none; }
+.dsh-pm-review-pass {
+  color: #28a745; display: flex; align-items: center; gap: 6px;
+}
+.dsh-pm-review-pass::before { content: '✓'; font-weight: bold; }
+
+/* 评审节点 - 改进建议 */
+.dsh-pm-suggestions { display: flex; flex-direction: column; gap: 12px; }
+.dsh-pm-suggestion {
+  padding: 12px; border-radius: 6px;
+  border-left: 4px solid var(--dsw-border, rgba(128,128,128,.3));
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.04));
+}
+.dsh-pm-suggestion[data-severity="high"] { border-left-color: #dc3545; background: rgba(220, 53, 69, .05); }
+.dsh-pm-suggestion[data-severity="medium"] { border-left-color: #f0a020; background: rgba(240, 160, 32, .05); }
+.dsh-pm-suggestion[data-severity="low"] { border-left-color: #17a2b8; background: rgba(23, 162, 184, .05); }
+.dsh-pm-suggestion-head {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.dsh-pm-suggestion-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--dsw-accent, #4a7dff); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; flex: none;
+}
+.dsh-pm-severity-badge {
+  padding: 2px 8px; border-radius: 12px;
+  font-size: 11px; color: #fff; font-weight: 500;
+  margin-left: auto;
+}
+.dsh-pm-suggestion-body {
+  font-size: 13px; color: var(--dsw-text-primary, #333);
+  padding-left: 32px;
+}
+
+/* 合并节点 - 合并状态 */
+.dsh-pm-merge-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px; margin-bottom: 12px;
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.06));
+  border-radius: 6px;
+}
+.dsh-pm-merge-branch {
+  display: flex; align-items: center; gap: 8px;
+  font-family: ui-monospace, monospace; font-size: 13px;
+}
+.dsh-pm-merge-branch code {
+  background: var(--dsw-bg-primary, #fff);
+  padding: 4px 8px; border-radius: 4px;
+  border: 1px solid var(--dsw-border, rgba(128,128,128,.2));
+}
+.dsh-pm-merge-arrow { color: var(--dsw-text-secondary, #999); font-weight: bold; }
+.dsh-pm-merge-status {
+  font-size: 14px; font-weight: 600;
+  padding: 4px 12px; border-radius: 6px;
+  background: var(--dsw-bg-primary, #fff);
+  border: 1px solid var(--dsw-border, rgba(128,128,128,.2));
+}
+
+/* 合并节点 - 冲突列表 */
+.dsh-pm-conflicts { display: flex; flex-direction: column; gap: 12px; }
+.dsh-pm-conflict {
+  display: flex; gap: 12px; padding: 12px;
+  border: 1px solid #f0a020; border-radius: 6px;
+  background: rgba(240, 160, 32, .05);
+}
+.dsh-pm-conflict-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #f0a020; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; flex: none;
+}
+.dsh-pm-conflict-body { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.dsh-pm-conflict-desc { font-size: 13px; color: var(--dsw-text-primary, #333); }
+.dsh-pm-conflict-resolution {
+  font-size: 12px; color: var(--dsw-text-secondary, #666);
+  font-style: italic;
+}
+
+/* 合并节点 - CI 检查 */
+.dsh-pm-ci-checks { display: flex; flex-direction: column; gap: 8px; }
+.dsh-pm-ci-check {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: 6px;
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.04));
+  border: 1px solid var(--dsw-border, rgba(128,128,128,.15));
+}
+.dsh-pm-ci-check[data-status="pass"] { border-color: #28a745; background: rgba(40, 167, 69, .05); }
+.dsh-pm-ci-check[data-status="fail"] { border-color: #dc3545; background: rgba(220, 53, 69, .05); }
+.dsh-pm-ci-icon { font-size: 16px; flex: none; }
+.dsh-pm-ci-name {
+  font-size: 13px; font-weight: 500; color: var(--dsw-text-primary, #333);
+  flex: none; min-width: 120px;
+}
+.dsh-pm-ci-details {
+  font-size: 12px; color: var(--dsw-text-secondary, #666);
+  font-family: ui-monospace, monospace;
 }
 `,document.head.appendChild(e)}const We=[`slots`,`sessions`,`workspaces`];function Ge(e){try{Ve(),Ue(),window.__dshReqboardClient?.dispose(),window.__dshPmCtx=e,window.__dshPmSessions=e.sessions,window.__dshPmWorkspaces=e.workspaces;let t=ze(),n=Be(t),r=e=>{e.detail?.open===!0?t.getSnapshot().boardOpen?t.closeBoard():t.openBoard():t.toggleBoard()};window.addEventListener(Z,r),window.__dshReqboardClient={dispose:()=>{window.removeEventListener(Z,r),n(),t.closeBoard(),delete window.__dshPmCtx,delete window.__dshPmSessions,delete window.__dshPmWorkspaces}};let i=e.slots;i?i.inject(`sidebar.footer.action`,()=>i.register({name:`sidebar.footer.action`,id:a,order:110,label:o},He)):console.warn(`[dsh-pmboard] ctx.slots unavailable`)}catch(e){console.error(`[dsh-pmboard] client half failed to start:`,e)}}exports.apply=Ge,exports.inject=We,exports.name=`dsh-pmboard/client`;

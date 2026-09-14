@@ -556,6 +556,120 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
   height: 100%; background: linear-gradient(90deg, #28a745, #20c997);
   transition: width .3s ease;
 }
+
+/* 评审节点 - 评审结果 */
+.dsh-pm-review-status { display: flex; gap: 12px; padding: 12px; }
+.dsh-pm-review-status[data-status="approved"] {
+  background: rgba(40, 167, 69, .1); border: 1px solid #28a745; border-radius: 6px;
+}
+.dsh-pm-review-status[data-status="pending"] {
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.06));
+}
+.dsh-pm-review-list {
+  list-style: none; padding: 0; margin: 0;
+}
+.dsh-pm-review-list li {
+  padding: 8px 12px; font-size: 13px;
+  border-bottom: 1px solid var(--dsw-border, rgba(128,128,128,.08));
+}
+.dsh-pm-review-list li:last-child { border-bottom: none; }
+.dsh-pm-review-pass {
+  color: #28a745; display: flex; align-items: center; gap: 6px;
+}
+.dsh-pm-review-pass::before { content: '✓'; font-weight: bold; }
+
+/* 评审节点 - 改进建议 */
+.dsh-pm-suggestions { display: flex; flex-direction: column; gap: 12px; }
+.dsh-pm-suggestion {
+  padding: 12px; border-radius: 6px;
+  border-left: 4px solid var(--dsw-border, rgba(128,128,128,.3));
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.04));
+}
+.dsh-pm-suggestion[data-severity="high"] { border-left-color: #dc3545; background: rgba(220, 53, 69, .05); }
+.dsh-pm-suggestion[data-severity="medium"] { border-left-color: #f0a020; background: rgba(240, 160, 32, .05); }
+.dsh-pm-suggestion[data-severity="low"] { border-left-color: #17a2b8; background: rgba(23, 162, 184, .05); }
+.dsh-pm-suggestion-head {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.dsh-pm-suggestion-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--dsw-accent, #4a7dff); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; flex: none;
+}
+.dsh-pm-severity-badge {
+  padding: 2px 8px; border-radius: 12px;
+  font-size: 11px; color: #fff; font-weight: 500;
+  margin-left: auto;
+}
+.dsh-pm-suggestion-body {
+  font-size: 13px; color: var(--dsw-text-primary, #333);
+  padding-left: 32px;
+}
+
+/* 合并节点 - 合并状态 */
+.dsh-pm-merge-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px; margin-bottom: 12px;
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.06));
+  border-radius: 6px;
+}
+.dsh-pm-merge-branch {
+  display: flex; align-items: center; gap: 8px;
+  font-family: ui-monospace, monospace; font-size: 13px;
+}
+.dsh-pm-merge-branch code {
+  background: var(--dsw-bg-primary, #fff);
+  padding: 4px 8px; border-radius: 4px;
+  border: 1px solid var(--dsw-border, rgba(128,128,128,.2));
+}
+.dsh-pm-merge-arrow { color: var(--dsw-text-secondary, #999); font-weight: bold; }
+.dsh-pm-merge-status {
+  font-size: 14px; font-weight: 600;
+  padding: 4px 12px; border-radius: 6px;
+  background: var(--dsw-bg-primary, #fff);
+  border: 1px solid var(--dsw-border, rgba(128,128,128,.2));
+}
+
+/* 合并节点 - 冲突列表 */
+.dsh-pm-conflicts { display: flex; flex-direction: column; gap: 12px; }
+.dsh-pm-conflict {
+  display: flex; gap: 12px; padding: 12px;
+  border: 1px solid #f0a020; border-radius: 6px;
+  background: rgba(240, 160, 32, .05);
+}
+.dsh-pm-conflict-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #f0a020; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; flex: none;
+}
+.dsh-pm-conflict-body { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.dsh-pm-conflict-desc { font-size: 13px; color: var(--dsw-text-primary, #333); }
+.dsh-pm-conflict-resolution {
+  font-size: 12px; color: var(--dsw-text-secondary, #666);
+  font-style: italic;
+}
+
+/* 合并节点 - CI 检查 */
+.dsh-pm-ci-checks { display: flex; flex-direction: column; gap: 8px; }
+.dsh-pm-ci-check {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: 6px;
+  background: var(--dsw-bg-secondary, rgba(128,128,128,.04));
+  border: 1px solid var(--dsw-border, rgba(128,128,128,.15));
+}
+.dsh-pm-ci-check[data-status="pass"] { border-color: #28a745; background: rgba(40, 167, 69, .05); }
+.dsh-pm-ci-check[data-status="fail"] { border-color: #dc3545; background: rgba(220, 53, 69, .05); }
+.dsh-pm-ci-icon { font-size: 16px; flex: none; }
+.dsh-pm-ci-name {
+  font-size: 13px; font-weight: 500; color: var(--dsw-text-primary, #333);
+  flex: none; min-width: 120px;
+}
+.dsh-pm-ci-details {
+  font-size: 12px; color: var(--dsw-text-secondary, #666);
+  font-family: ui-monospace, monospace;
+}
 `
 
 export function injectStyles(): void {
