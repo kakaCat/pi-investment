@@ -21,6 +21,7 @@ tags: [manual, l1, overview]
 
 | 日期 | 更新点 | 来源 |
 |---|---|---|
+| 2026-09-14 | **多源 provider 框架是取数唯一入口**：新增数据能力应加在 `providers/<域>/` + `manager`（自动获得故障转移/熔断/诚实标记），不要另写单例数据源；sentiment 域 7 个端点据此去 mock | REQ-48d896 |
 | 2026-09-13 | 文档金字塔与需求归档规范确立（存底 + 合并 + 说明书更新点） | 需求看板归档线（w-1cee2467） |
 
 ## 1. 项目是什么
@@ -50,6 +51,8 @@ PI Investment 是一个**由 AI agent 自主运行的投资系统**：agent 在�
 | 计划模式（plan mode） | 拆分前置闸门：先写实施计划（含任务表）、人批准、才能落库任务卡 | [RFC 014 §5b](../../agent-dh/docs/rfcs/014-requirement-board.md) |
 | 基因组（genome） | agent 的宪法/原则/规则/教训四段提示词，可进化、有版本与验证门 | [agent-dh/CLAUDE.md](../../agent-dh/CLAUDE.md) |
 | 文档金字塔 | L1 说明书 / L2 领域篇 / L3 证据档案；归档让认知自下而上生长 | [DOCUMENT-MANAGEMENT-PLAN.md](../DOCUMENT-MANAGEMENT-PLAN.md) |
+| **多源 provider 框架** | quantsys-v2 取数的**唯一入口**：`_try_providers()` 做故障转移/熔断/健康排序，并返回 `source/attempted_sources/empty_sources` 诚实标记；「空结果≠故障」 | `quantsys-v2/adapters/outbound/datasources/manager.py` |
+| 诚实降级 | 无数据→显式 `empty:true`；上游损坏→拒绝返回；传输故障→`None`（进熔断）；**任何情况下都不返回无来源标记的数据** | [work-log](../work-logs/2026-09/v2-sentiment-real-data-source.md) |
 
 ## 4. 怎么跑起来
 

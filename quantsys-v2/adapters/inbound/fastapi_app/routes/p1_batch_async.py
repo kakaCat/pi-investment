@@ -24,23 +24,87 @@ class ApiResponse(BaseModel):
     error: Optional[str] = None
 
 
+# ===========================================================================
+# 市场 / 个股情绪（2026-09-14，w-2129d492，REQ-48d896）
+#
+# 改造前：两个端点走 `SentimentAsyncRepository` → `quant.sentiment_data`。
+# 该表**没有任何迁移创建过**、唯一写入方 save_sentiment **零调用**，
+# 所以端点恒返回 {"success":true,"data":{}} / data:null —— 典型假成功。
+#
+# 改造后：
+#   · /market  只读**已在库的真实表** quant.market_sentiment_daily
+#              （不新建取数链 —— 数据早就在，只是以前没人读它）；
+#   · /stock/{symbol} 用 provider 框架的千股千评（机构参与度/综合得分等）。
+#
+# ⚠️ 契约变更：旧 data 是 {"bullish","bearish","neutral","total"}（按个股情绪分类计数），
+#    那是绑定在幻觉表上的口径。新 data 是**真实市场级指标**
+#    （up_count/down_count/ad_ratio/fear_greed_index/volume_ratio/...）；
+#    个股端点返回的是**千股千评指标**，不是"情绪分类"。
+#    仓内消费方为零，故按真实口径输出。旧键已在响应里标注 deprecated。
+# ===========================================================================
+
+
 @sentiment_router.get("/market", response_model=ApiResponse, summary="市场情绪")
 async def get_market_sentiment(
     date: Optional[str] = Query(None, description="日期")
 ):
-    """获取市场整体情绪"""
+    """市场整体情绪 —— 读 quant.market_sentiment_daily（真实数据）。
+
+    真实口径：涨跌家数 / 涨跌家数比 / 新高新低 / 量能比 / 总成交额 / 波动率 / 恐贪指数。
+    """
     try:
-        from adapters.outbound.repositories.sentiment_async_repository import SentimentAsyncRepository
-        from infrastructure.persistence.orm.async_config import get_async_session_context
-        from datetime import date as dt
+        from datetime import date as dt, datetime as _dt, timedelta as _td
+        from adapters.outbound.repositories.market_perception_repository import (
+            MarketSentimentDailyRepository,
+        )
 
-        target_date = date or dt.today().isoformat()
+        target = None
+        if date:
+            target = _dt.fromisoformat(str(date)).date()
 
-        async with get_async_session_context() as session:
-            sentiment_repo = SentimentAsyncRepository(session)
-            summary = await sentiment_repo.get_market_sentiment_summary(target_date)
+        repo = MarketSentimentDailyRepository()
+        row = repo.get_by_date(target) if target else None
+        if row is None:
+            recent = repo.get_recent(days=5) or []
+            row = recent[0] if recent else None
+        if row is None:
+            return {
+                "success": True,
+                "data": {
+                    "empty": True,
+                    "degraded": False,
+                    "source": "quant.market_sentiment_daily",
+                    "note": "库中暂无市场情绪数据（非假成功：确实无记录）",
+                },
+            }
 
-            return {"success": True, "data": summary}
+        return {
+            "success": True,
+            "data": {
+                "tradeDate": row.trade_date.isoformat() if row.trade_date else None,
+                "upCount": row.up_count,
+                "downCount": row.down_count,
+                "flatCount": row.flat_count,
+                "adRatio": row.ad_ratio,
+                "newHighCount": row.new_high_count,
+                "newLowCount": row.new_low_count,
+                "volumeRatio": row.volume_ratio,
+                "totalTurnover": row.total_turnover,
+                "volatility": row.volatility,
+                "fearGreedIndex": row.fear_greed_index,
+                "coverage": row.coverage,
+                "partial": row.partial,
+                # 旧契约键（绑定在幻觉表上）——保留但明确标注，避免调用方误读
+                "bullish": None,
+                "bearish": None,
+                "neutral": None,
+                "total": None,
+                "deprecated": ["bullish", "bearish", "neutral", "total"],
+                "source": "quant.market_sentiment_daily",
+                "degraded": False,
+                "empty": False,
+            },
+        }
     except Exception as e:
         logger.exception(f"Get market sentiment failed: {e}")
         return {"success": False, "error": str(e)}
@@ -48,16 +112,36 @@ async def get_market_sentiment(
 
 @sentiment_router.get("/stock/{symbol}", response_model=ApiResponse, summary="个股情绪")
 async def get_stock_sentiment(symbol: str):
-    """获取个股情绪数据"""
+    """个股情绪 —— 来源为东财**千股千评**（机构参与度/综合得分/换手率/市盈率/主力成本）。
+
+    2026-09-14（REQ-48d896）：原实现读幻觉表 quant.sentiment_data，恒返回 null。
+    现复用 provider 框架的 get_stock_comment；**不把千股千评冒充成"情绪分类"**。
+    未覆盖的标的显式返回 empty:true（而非 null + success:true 的假成功）。
+    """
     try:
-        from adapters.outbound.repositories.sentiment_async_repository import SentimentAsyncRepository
-        from infrastructure.persistence.orm.async_config import get_async_session_context
+        from adapters.outbound.datasources import get_data_provider_manager
 
-        async with get_async_session_context() as session:
-            sentiment_repo = SentimentAsyncRepository(session)
-            sentiment = await sentiment_repo.get_latest_sentiment(symbol)
+        result = get_data_provider_manager().get_stock_comment(symbol)
+        if not result.get('success'):
+            return {
+                "success": False,
+                "error": result.get('error') or "个股情绪数据源不可用",
+                "attempted_sources": list(result.get('attempted_sources') or []),
+            }
 
-            return {"success": True, "data": sentiment}
+        inner = getattr(result.get('data'), 'data', None) or {}
+        comment = inner.get('comment')
+        return {
+            "success": True,
+            "data": {
+                "symbol": symbol,
+                "comment": comment,
+                "empty": bool(inner.get('empty')),
+                "source": result.get('source'),
+                "sourceNote": "东财千股千评（机构参与度/综合得分等指标），非情绪分类",
+                "degraded": False,
+            },
+        }
     except Exception as e:
         logger.exception(f"Get stock sentiment failed: {e}")
         return {"success": False, "error": str(e)}

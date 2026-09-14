@@ -93,20 +93,19 @@ _EXTEND_EXISTING_BASELINE = frozenset({
 # 原先这个方向**只打印不失败** —— "测试库未建表 N 张（跳过）"正是这 3 个长期逃逸的原因：
 # 模型映射一张从未存在的表，查询抛 UndefinedTable 被基类 except 吞掉，
 # 接口返回 success:true + 空数据（假成功），而门禁一声不吭。
-# 现在改为硬失败，仅这 3 个显式豁免；**新增任何悬空模型都会立刻红**。
+# 现在改为硬失败，仅显式豁免项例外；**新增任何悬空模型都会立刻红**。
 #
 #   public.audit_log      ← AuditLog      策略线（v13/v14）决策审计的唯一写入目标，
 #                                        但没有任何迁移创建过它 → log_decision 必然上抛，
 #                                        被 _log_to_db 降级成 warning → 审计轨迹从未落库。
 #   quant.async_factors   ← AsyncFactor   FactorAnalysisAsyncService 捕获后返回 {}（假成功）。
-#   quant.sentiment_data  ← SentimentData 活路由 /api/sentiment/market 与
-#                                        /api/sentiment/stock/{symbol} 恒返回假成功。
 #
-# 三者都要先定产品口径（数据源/是否下线），不在本次机械收敛范围内。
+# 已收敛（2026-09-14，REQ-48d896）：quant.sentiment_data ← SentimentData
+#   该模型与 SentimentAsyncRepository 已删除（无迁移建表、写方零调用），
+#   两个端点改读真实数据（market_sentiment_daily / 千股千评 provider）。
 _KNOWN_DANGLING_TABLES = frozenset({
     'public.audit_log',
     'quant.async_factors',
-    'quant.sentiment_data',
 })
 
 # 「仅测试库缺、生产在位」的表（2026-09-14 交叉核对 quant_investment vs quant_test）：

@@ -46,6 +46,105 @@ def _fetch_lhb_market_df(start_date: str, end_date: str):
     return df
 
 
+# ── 股东 / 基金 / 千股千评 全市场 DataFrame 缓存（2026-09-14，REQ-48d896） ────
+# stock_inner_trade_xq(2.5万行) / stock_comment_em(5196行) / stock_report_fund_hold(5225行)
+# 都是「全市场」接口，单股调用只是本地过滤；不缓存则每个请求都打一次上游。
+_SENTIMENT_CACHE: dict = {}
+_SENTIMENT_CACHE_LOCK = threading.Lock()
+_SENTIMENT_CACHE_TTLS = {
+    'inner_trades': 300.0,    # 内部人交易按日更新
+    'stock_comment': 600.0,   # 千股千评盘中会变
+    'fund_hold': 1800.0,      # 基金持仓按季度披露
+}
+
+
+def _cached_market_df(name: str, loader):
+    """按 name 做 TTL 缓存的全市场 DataFrame 获取；失败/空**不写入**缓存（下次重试）。"""
+    ttl = _SENTIMENT_CACHE_TTLS.get(name, 600.0)
+    now = _time.monotonic()
+    with _SENTIMENT_CACHE_LOCK:
+        hit = _SENTIMENT_CACHE.get(name)
+        if hit and now - hit[0] < ttl:
+            return hit[1]
+    df = loader()
+    if df is None or df.empty:
+        return None
+    with _SENTIMENT_CACHE_LOCK:
+        _SENTIMENT_CACHE[name] = (now, df)
+    return df
+
+
+# 传输类异常（真故障）vs 数据/解析类异常（该期间无数据）必须区分：
+# akshare 在「报告期无数据」时抛的是解析异常（ValueError/KeyError），不是网络异常。
+# 把「无数据」当故障会让熔断器误伤健康源；把「网络挂」当无数据就是假成功。
+_TRANSPORT_ERROR_TYPES = (ConnectionError, TimeoutError)
+
+
+def _is_transport_error(exc: BaseException) -> bool:
+    if isinstance(exc, _TRANSPORT_ERROR_TYPES):
+        return True
+    mod = type(exc).__module__ or ''
+    return mod.startswith(('requests', 'urllib3', 'http', 'socket', 'ssl'))
+
+
+def _recent_report_periods(count: int = 4) -> list:
+    """最近 count 个候选财报报告期（YYYYMMDD，新→旧）。
+
+    披露有滞后（年报次年 4/30 前、季报次月底前），故这里只给候选序列，
+    由调用方按序回退取到数据为止 —— 不猜「哪个已披露」。
+    """
+    today = datetime.now().date()
+    cands = []
+    for y in (today.year, today.year - 1, today.year - 2):
+        for md in ('1231', '0930', '0630', '0331'):
+            d = datetime(int(y), int(md[:2]), int(md[2:])).date()
+            if d <= today:
+                cands.append(d)
+    return [d.strftime('%Y%m%d') for d in sorted(set(cands), reverse=True)[:count]]
+
+
+def _em_prefixed_lower(symbol: str) -> str:
+    """600519 → sh600519（东财小写前缀）。
+
+    复用 industry_chain 已有的 market_prefixed（全仓前缀规则唯一实现），
+    本处只做大小写转换 —— 不重写一份前缀规则。
+    """
+    from adapters.outbound.datasources.providers.industry_chain.eastmoney_revenue import (
+        market_prefixed,
+    )
+    return market_prefixed(symbol).lower()
+
+
+def _df_records(df) -> list:
+    """DataFrame → JSON 安全 records。
+
+    日期/时间列必须转成字符串：`datetime.date` 不是 JSON 可序列化类型，
+    直接塞进响应会让路由在编码阶段 500（get_index_daily 早已在其内部 stringify，
+    这里是同一个坑的通用解法）。
+    """
+    records = df.astype(object).where(df.notna(), None).to_dict('records')
+    for rec in records:
+        for key, val in rec.items():
+            if hasattr(val, 'isoformat'):
+                rec[key] = val.isoformat()
+    return records
+
+
+def _normalize_quarter(quarter) -> Optional[str]:
+    """'2024Q4' / '20241231' / '2024-12-31' → 'YYYY-MM-DD'；无法解析返回 None。"""
+    if not quarter:
+        return None
+    q = str(quarter).strip().upper().replace('-', '')
+    qmap = {'Q1': '0331', 'Q2': '0630', 'Q3': '0930', 'Q4': '1231'}
+    if q.endswith(tuple(qmap)):  # 2024Q4
+        year, qn = q[:4], q[-2:]
+        if year.isdigit() and qn in qmap:
+            q = year + qmap[qn]
+    if len(q) == 8 and q.isdigit():
+        return '%s-%s-%s' % (q[:4], q[4:6], q[6:])
+    return None
+
+
 class AkshareMarketProvider(MarketProvider):
     """Akshare market data provider"""
 
@@ -148,7 +247,7 @@ class AkshareMarketProvider(MarketProvider):
                 return None
 
             # NaN → None，保证 JSON 可序列化
-            records = df.astype(object).where(df.notna(), None).to_dict('records')
+            records = _df_records(df)
 
             return MarketData(
                 data_type='market_spot',
@@ -239,7 +338,7 @@ class AkshareMarketProvider(MarketProvider):
             if df.empty:
                 return None
 
-            records = df.astype(object).where(df.notna(), None).to_dict('records')
+            records = _df_records(df)
             return MarketData(
                 data_type='lhb_detail',
                 data={'symbol': symbol, 'records': records, 'total': len(records)},
@@ -268,7 +367,7 @@ class AkshareMarketProvider(MarketProvider):
             if df is None or df.empty:
                 return None
 
-            records = df.astype(object).where(df.notna(), None).to_dict('records')
+            records = _df_records(df)
             return MarketData(
                 data_type='zt_pool',
                 data={'date': date, 'records': records, 'total': len(records)},
@@ -342,7 +441,7 @@ class AkshareMarketProvider(MarketProvider):
             if df is None or df.empty:
                 return None
 
-            records = df.astype(object).where(df.notna(), None).to_dict('records')
+            records = _df_records(df)
             return MarketData(
                 data_type='sector_fund_flow',
                 data={'records': records, 'total': len(records)},
@@ -405,7 +504,7 @@ class AkshareMarketProvider(MarketProvider):
             if df is None or df.empty:
                 return None
 
-            records = df.astype(object).where(df.notna(), None).to_dict('records')
+            records = _df_records(df)
             return MarketData(
                 data_type='market_news',
                 data={'records': records, 'total': len(records)},
@@ -433,7 +532,7 @@ class AkshareMarketProvider(MarketProvider):
 
             df = df.copy()
             df['date'] = df['date'].astype(str)
-            records = df.astype(object).where(df.notna(), None).to_dict('records')
+            records = _df_records(df)
             return MarketData(
                 data_type='index_daily',
                 data={'records': records, 'total': len(records)},
@@ -460,7 +559,9 @@ class AkshareMarketProvider(MarketProvider):
             # 2026-09-01 修复：原实现 stock_dzjy_hygtj(symbol=代码) 是 latent bug——
             # 该接口 symbol 参数是周期（'近三月'），传股票代码必 KeyError。
             # 真正的内部人交易接口是 stock_inner_trade_xq()（全市场，按代码筛选）。
-            df = ak.stock_inner_trade_xq()
+            # 2026-09-14（REQ-48d896）：加 5 分钟 TTL 缓存 —— 该接口返回全市场
+            # 2.5 万行，单股调用只做本地过滤，不缓存等于每个请求都打一次上游。
+            df = _cached_market_df('inner_trades', ak.stock_inner_trade_xq)
 
             if df is None or df.empty:
                 return None
@@ -474,12 +575,12 @@ class AkshareMarketProvider(MarketProvider):
                 # 无内部人交易记录是正常结果（非失败），返回空记录集
                 return MarketData(
                     data_type='insider_trades',
-                    data={'symbol': symbol, 'records': [], 'total': 0},
+                    data={'symbol': symbol, 'records': [], 'total': 0, 'empty': True},
                     source=self.name,
                     timestamp=datetime.now().isoformat()
                 )
 
-            records = df.astype(object).where(df.notna(), None).to_dict('records')
+            records = _df_records(df)
             return MarketData(
                 data_type='insider_trades',
                 data={'symbol': symbol, 'records': records, 'total': len(records)},
@@ -489,6 +590,263 @@ class AkshareMarketProvider(MarketProvider):
 
         except Exception as e:
             logger.warning(f"{self.name} get_insider_trades failed: {e}")
+            return None
+
+    # ── 股东 / 基金 / 千股千评（2026-09-14，w-2129d492，REQ-48d896）──────────
+    # 替换 adapters/outbound/datasources/sentiment_data_source.py 里 random 生成的
+    # 伪造实现（该文件已删除）。契约与框架一致：
+    #   · 硬失败（网络/传输）→ 返回 None → 计入熔断与 attempted_sources；
+    #   · 健康空（源正常但该标的确实无数据）→ 返回 records=[] 的 MarketData
+    #     → 计入 empty_sources，不误伤熔断；
+    #   · 绝不返回无来源标记的数据。
+
+    def get_top_holders(self, symbol: str, holder_type: str = 'top10') -> Optional[MarketData]:
+        """十大股东（holder_type='top10'）或十大流通股东（'free'）。
+
+        报告期不支持时 akshare 抛解析异常（属「该期无数据」，非传输故障）→
+        回退到更早的报告期；四个候选期都取不到 → 健康空。
+        """
+        try:
+            import akshare as ak
+
+            prefixed = _em_prefixed_lower(symbol)
+            if not prefixed:
+                logger.warning(f"{self.name} get_top_holders: 无法识别市场前缀 symbol={symbol}")
+                return None
+
+            want_free = str(holder_type or '').lower() in ('free', 'circulating', 'free_float')
+            fetcher = ak.stock_gdfx_free_top_10_em if want_free else ak.stock_gdfx_top_10_em
+            kind = 'free' if want_free else 'top10'
+
+            for period in _recent_report_periods(4):
+                try:
+                    df = fetcher(symbol=prefixed, date=period)
+                except Exception as e:  # noqa: BLE001
+                    if _is_transport_error(e):
+                        logger.warning(f"{self.name} get_top_holders {symbol} 传输故障: {e}")
+                        return None
+                    continue  # 该报告期无数据，回退更早期间
+                if df is None or df.empty:
+                    continue
+                records = _df_records(df)
+                return MarketData(
+                    data_type='top_holders',
+                    data={
+                        'symbol': symbol,
+                        'holder_type': kind,
+                        'report_date': '%s-%s-%s' % (period[:4], period[4:6], period[6:]),
+                        'holders': records,
+                        'total': len(records),
+                    },
+                    source=self.name,
+                    timestamp=datetime.now().isoformat(),
+                )
+
+            return MarketData(
+                data_type='top_holders',
+                data={'symbol': symbol, 'holder_type': kind,
+                      'report_date': None, 'holders': [], 'total': 0, 'empty': True},
+                source=self.name,
+                timestamp=datetime.now().isoformat(),
+            )
+        except Exception as e:
+            logger.warning(f"{self.name} get_top_holders failed: {e}")
+            return None
+
+    def get_holder_changes(self, symbol: str, periods: int = 4) -> Optional[MarketData]:
+        """股东户数变化（东财 stock_zh_a_gdhs_detail_em），最新在前。"""
+        try:
+            import akshare as ak
+
+            bare = str(symbol or '').split('.')[0]
+            df = ak.stock_zh_a_gdhs_detail_em(symbol=bare)
+            if df is None or df.empty:
+                return MarketData(
+                    data_type='holder_changes',
+                    data={'symbol': symbol, 'periods': [], 'total': 0, 'empty': True},
+                    source=self.name,
+                    timestamp=datetime.now().isoformat(),
+                )
+            # 最新在前：上游返回的是升序（实测首行为 2013-03-22）
+            date_cols = [c for c in df.columns if '截止日' in str(c) or '统计' in str(c)]
+            if date_cols:
+                df = df.sort_values(date_cols[0], ascending=False)
+            n = max(1, int(periods or 4))
+            df = df.head(n)
+            records = _df_records(df)
+            return MarketData(
+                data_type='holder_changes',
+                data={'symbol': symbol, 'periods': records, 'total': len(records)},
+                source=self.name,
+                timestamp=datetime.now().isoformat(),
+            )
+        except Exception as e:
+            logger.warning(f"{self.name} get_holder_changes failed: {e}")
+            return None
+
+    def get_fund_holdings(self, symbol: str, quarter=None) -> Optional[MarketData]:
+        """基金持股明细（东财 stock_fund_stock_holder）：哪些基金持有该股。
+
+        quarter: '2024Q4' / '20241231' / '2024-12-31' / None（全部）；仅本地过滤。
+        """
+        try:
+            import akshare as ak
+
+            bare = str(symbol or '').split('.')[0]
+            df = ak.stock_fund_stock_holder(symbol=bare)
+            if df is None or df.empty:
+                return MarketData(
+                    data_type='fund_holdings',
+                    data={'symbol': symbol, 'quarter': None, 'holdings': [], 'total': 0,
+                          'empty': True},
+                    source=self.name,
+                    timestamp=datetime.now().isoformat(),
+                )
+
+            want = _normalize_quarter(quarter)
+            applied = want
+            if want:
+                date_cols = [c for c in df.columns if '截止' in str(c) or '日期' in str(c)]
+                if date_cols:
+                    col = date_cols[0]
+                    df = df[df[col].astype(str).str.replace('/', '-').str.startswith(want)]
+                else:
+                    # 没有日期列就无法按季度过滤 —— 如实置 None，不假装过滤成功
+                    applied = None
+                if df.empty:
+                    return MarketData(
+                        data_type='fund_holdings',
+                        data={'symbol': symbol, 'quarter': applied, 'holdings': [], 'total': 0,
+                              'empty': True},
+                        source=self.name,
+                        timestamp=datetime.now().isoformat(),
+                    )
+
+            records = _df_records(df)
+            return MarketData(
+                data_type='fund_holdings',
+                data={'symbol': symbol, 'quarter': applied,
+                      'holdings': records, 'total': len(records)},
+                source=self.name,
+                timestamp=datetime.now().isoformat(),
+            )
+        except Exception as e:
+            logger.warning(f"{self.name} get_fund_holdings failed: {e}")
+            return None
+
+    def get_top_fund_stocks(self, fund_type: str = 'all', limit: int = 50) -> Optional[MarketData]:
+        """机构重仓股排行（东财 stock_report_fund_hold）。
+
+        返回列含「持有基金家数 / 持股总数 / 持股市值」—— 与旧契约
+        fundCount / totalShares / totalValue 同义。
+        """
+        try:
+            import akshare as ak
+
+            type_map = {
+                'all': '基金持仓', 'fund': '基金持仓', '基金': '基金持仓',
+                'qfii': 'QFII持仓', 'social_security': '社保持仓', 'social': '社保持仓',
+                'broker': '券商持仓', 'insurance': '保险持仓', 'trust': '信托持仓',
+            }
+            key = str(fund_type or 'all').lower()
+            report_symbol = type_map.get(key) or type_map.get(str(fund_type)) or '基金持仓'
+
+            df = None
+            for period in _recent_report_periods(4):
+                try:
+                    cand = _cached_market_df(
+                        'fund_hold:%s:%s' % (report_symbol, period),
+                        lambda p=period: ak.stock_report_fund_hold(symbol=report_symbol, date=p),
+                    )
+                except Exception as e:  # noqa: BLE001
+                    if _is_transport_error(e):
+                        logger.warning(f"{self.name} get_top_fund_stocks 传输故障: {e}")
+                        return None
+                    continue
+                if cand is not None and not cand.empty:
+                    df = cand
+                    break
+            if df is None or df.empty:
+                return MarketData(
+                    data_type='top_fund_stocks',
+                    data={'fund_type': report_symbol, 'report_date': None,
+                          'stocks': [], 'total': 0, 'empty': True},
+                    source=self.name,
+                    timestamp=datetime.now().isoformat(),
+                )
+
+            # ── 上游完整性校验（2026-09-14，REQ-48d896）──────────────────────
+            # ak.stock_report_fund_hold 当前返回**列名与值错位**的表：
+            #   · 「股票代码」列是 1.4e11 这类浮点（实测 -42049165018.7）
+            #   · 「股票简称」列装的才是 6 位代码（300308/600519）
+            #   · 「持有基金家数」是 '01'、「持股变动比例」是 -20784953
+            # 已试过换报告期（20241231/20250331/20260630 均错位）、换函数
+            # （fund_report_stock_cninfo KeyError 'records'；fund_portfolio_hold_em
+            # 是按基金的）——**没有可信替代源**。
+            # 错位表绝不能当数据返回（这正是本需求要消灭的"假数据"，只是来源换成上游）。
+            # 因此：检测到「股票代码列不是 6 位代码」即判定上游损坏 → 硬失败 None，
+            # 让端点诚实报错；上游修好后本方法自动恢复。
+            code_cols = [c for c in df.columns if str(c) in ('股票代码', '代码')]
+            if code_cols:
+                col = code_cols[0]
+                codes = df[col].astype(str).str.replace(r'\.0$', '', regex=True)
+                valid = codes.str.fullmatch(r'\d{6}')
+                if not bool(valid.all()):
+                    logger.error(
+                        "%s get_top_fund_stocks: 上游 %s 列错位（%s 列非 6 位代码，"
+                        "实测样例 %r）——拒绝返回不可信数据",
+                        self.name, report_symbol, col, df[col].head(3).tolist(),
+                    )
+                    return None
+
+            df = df.head(max(1, int(limit or 50)))
+            records = _df_records(df)
+            return MarketData(
+                data_type='top_fund_stocks',
+                data={'fund_type': report_symbol, 'stocks': records, 'total': len(records)},
+                source=self.name,
+                timestamp=datetime.now().isoformat(),
+            )
+        except Exception as e:
+            logger.warning(f"{self.name} get_top_fund_stocks failed: {e}")
+            return None
+
+    def get_stock_comment(self, symbol: str) -> Optional[MarketData]:
+        """个股千股千评（东财 stock_comment_em，全市场 5196 行按代码过滤）。
+
+        返回的是**机构参与度 / 综合得分 / 换手率 / 市盈率 / 主力成本**等指标 ——
+        这是指标的来源，调用方不得把它描述成「情绪分类」。
+        """
+        try:
+            import akshare as ak
+
+            df = _cached_market_df('stock_comment', ak.stock_comment_em)
+            if df is None or df.empty:
+                return None
+
+            bare = str(symbol or '').split('.')[0]
+            code_cols = [c for c in df.columns if str(c) in ('代码', '股票代码')]
+            if not code_cols:
+                logger.warning(f"{self.name} get_stock_comment: 未找到代码列 {list(df.columns)[:6]}")
+                return None
+            col = code_cols[0]
+            sub = df[df[col].astype(str).str.zfill(6) == bare]
+            if sub.empty:
+                return MarketData(
+                    data_type='stock_comment',
+                    data={'symbol': symbol, 'comment': None, 'empty': True},
+                    source=self.name,
+                    timestamp=datetime.now().isoformat(),
+                )
+            row = sub.astype(object).where(sub.notna(), None).iloc[0].to_dict()
+            return MarketData(
+                data_type='stock_comment',
+                data={'symbol': symbol, 'comment': row, 'empty': False},
+                source=self.name,
+                timestamp=datetime.now().isoformat(),
+            )
+        except Exception as e:
+            logger.warning(f"{self.name} get_stock_comment failed: {e}")
             return None
 
     def get_lhb_daily(self, date: str) -> Optional[MarketData]:

@@ -329,4 +329,4 @@ IS 净额 CI [−9.16%, −0.29%]、OOS [−11.24%, −2.57%]，且**事件前 5
 **顺带修掉一个误导读表人的标签错**：判定打印里原先把"CI 整个为负"也写成"含 0"
 （判据只查了 `ci_lo > 0`），于是 regulatory 这种**显著为负**的结论被标成"含 0"。已区分"显著为负 / 含 0"。
 
-产物：`config/event_type_study_v2_{full,is,oos}.json`。
+产物：`config/event_type_study_v2_{full,is,oos}.json`。- [2026-09-13 20:15] 周度复核：复核 1 条 active，动作 0 个

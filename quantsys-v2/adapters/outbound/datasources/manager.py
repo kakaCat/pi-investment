@@ -951,6 +951,42 @@ class DataProviderManager(IDataProviderManager):
         """股东增减持数据（内幕交易替代指标）"""
         return self._try_providers(self.market_providers, 'get_insider_trades', symbol)
 
+    # ── 股东 / 基金 / 千股千评（2026-09-14，w-2129d492，REQ-48d896）──────────
+    # 均走 _try_providers：自动获得故障转移、熔断、健康排序与诚实标记
+    # （source / attempted_sources / empty_sources / provider_errors / empty）。
+    # 说明：这些数据类型目前只有 akshare 一个真源，故今天是「框架就绪的单源」，
+    # attempted_sources 只会是 ['akshare'] —— 不是多源故障转移；加第二源即自动参与。
+
+    def get_top_holders(self, symbol: str, holder_type: str = 'top10') -> dict:
+        """十大股东 / 十大流通股东（holder_type: 'top10' | 'free'）"""
+        return self._try_providers(
+            self.market_providers, 'get_top_holders', symbol, holder_type
+        )
+
+    def get_holder_changes(self, symbol: str, periods: int = 4) -> dict:
+        """股东户数变化（最新在前）"""
+        return self._try_providers(
+            self.market_providers, 'get_holder_changes', symbol, periods
+        )
+
+    def get_fund_holdings(self, symbol: str, quarter=None) -> dict:
+        """基金持股明细（哪些基金持有该股）"""
+        return self._try_providers(
+            self.market_providers, 'get_fund_holdings', symbol, quarter
+        )
+
+    def get_top_fund_stocks(self, fund_type: str = 'all', limit: int = 50) -> dict:
+        """机构重仓股排行（基金/QFII/社保/券商/保险/信托 持仓）"""
+        return self._try_providers(
+            self.market_providers, 'get_top_fund_stocks', fund_type, limit
+        )
+
+    def get_stock_comment(self, symbol: str) -> dict:
+        """个股千股千评（机构参与度/综合得分/换手率/市盈率/主力成本）"""
+        return self._try_providers(
+            self.market_providers, 'get_stock_comment', symbol
+        )
+
     def get_market_margin(self) -> dict:
         """全市场融资融券余额（sh 历史 + sz 当日）"""
         return self._try_providers(self.market_providers, 'get_market_margin')
