@@ -415,6 +415,75 @@ class TestExecuteTradeV2PendingOrder:
 
         mock_repo.create_pending_order.assert_called_once()
 
+    def test_pending_order_records_decision_price(self):
+        """挂单必须把「决策时价 + 来源」写进挂单表（M5 执行质量闭环）。
+
+        回归锚点（2026-09-14 w-2129d492）：原有用例只断言 create_pending_order 被调用，
+        Mock 不校验参数 → 该路径把 decision_price 传给一个**没有该列的模型**时
+        （构造即 TypeError），测试照样是绿的。
+        """
+        mock_repo = Mock()
+        mock_repo.get_account.return_value = MockAccount('test', status='active')
+        mock_repo.get_pending_orders.return_value = []
+        mock_pending = Mock()
+        mock_pending.id = 7
+        mock_repo.create_pending_order.return_value = mock_pending
+
+        mock_calendar = Mock()
+        mock_calendar.is_trading_day.return_value = True
+
+        service = AccountTradingService(
+            repo=mock_repo,
+            calendar=mock_calendar,
+            now_fn=lambda: datetime(2026, 9, 1, 16, 0, 0),   # 盘后 → 走挂单
+        )
+        service._get_price = Mock(return_value=12.34)
+
+        result = service.execute_trade(
+            account_name='test', action='buy', symbol='600000.SH', shares=100,
+            reason='测试挂单决策价理由至少十个字', execute_at='market_open',
+        )
+
+        assert result['status'] == 'pending'
+        kwargs = mock_repo.create_pending_order.call_args.kwargs
+        assert kwargs['decision_price'] == 12.34, '挂单必须记录决策时价（滑点基准）'
+        assert kwargs['price_source'], '决策价来源必须可追溯（R-013）'
+
+    def test_execute_pending_orders_records_slippage(self):
+        """撮合后必须回填 fill_price 与方向归一后的 slippage_bps。
+
+        正数 = 买贵/卖便宜 = 成本；缺决策价时留 None，绝不拿成交价自比冒充 0 滑点。
+        """
+        po = Mock()
+        po.id = 11
+        po.account_name = 'test'
+        po.action = 'BUY'
+        po.symbol = '600000.SH'
+        po.shares = 100
+        po.amount = None
+        po.price_limit = None
+        po.reason = '测试撮合理由至少十个字'
+        po.decision_price = 10.0
+
+        mock_repo = Mock()
+        mock_repo.get_pending_orders.return_value = [po]
+
+        service = AccountTradingService(
+            repo=mock_repo,
+            calendar=Mock(is_trading_day=Mock(return_value=True)),
+            now_fn=lambda: datetime(2026, 9, 1, 9, 31, 0),
+        )
+        service.execute_trade = Mock(return_value={'price': 10.05, 'trade_id': 99})
+
+        out = service.execute_pending_orders()
+
+        assert out['executed'] == 1
+        call = mock_repo.update_pending_order_status.call_args
+        assert call.args[0] == 11, '回填必须落在该挂单行上'
+        assert call.args[1] == 'executed'
+        assert call.kwargs['fill_price'] == 10.05
+        assert call.kwargs['slippage_bps'] == 50.0, '买入成交价高于决策价 → 正滑点（成本）'
+
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

@@ -126,7 +126,21 @@ class TradingDayGuard:
             if hit and (time.time() - hit[0]) < _CACHE_TTL_SECONDS:
                 return hit[1]
 
-        verdict = cls._compute(d)
+        try:
+            verdict = cls._compute(d)
+        except Exception as e:  # noqa: BLE001
+            # 最后一道兜底（2026-09-14 w-2129d492）：本 Guard 的契约是"数据源不可用 →
+            # 保守判非交易日 + 标注降级"，**不是**把异常抛给调用方。_compute 只兜了取数异常，
+            # 判定阶段的异常曾漏网：一次 TypeError 沿 resume_from_breakpoint →
+            # start_orchestrator 上抛，把 orchestrator 的 tick 线程打死（09-14 全天 255 次
+            # tick error，盘前撮合与 T1 结算全天未执行）。保护性判定不允许变成可用性故障，
+            # 故此处兜底为"不可用/降级"并强制留痕，绝不静默。
+            logger.warning('trading_day_guard_compute_failed',
+                           day=d.isoformat(), error=f'{type(e).__name__}: {e}')
+            verdict = TradingDayVerdict(
+                d, False, SOURCE_UNAVAILABLE, True,
+                f'交易日判定异常（{type(e).__name__}: {e}）→ 保守判非交易日',
+            )
         _verdict_cache[d] = (time.time(), verdict)
         if len(_verdict_cache) > 32:  # 只保留最近 32 个日期，防长期驻留
             for stale_day in sorted(_verdict_cache)[:-32]:
@@ -192,5 +206,11 @@ class TradingDayGuard:
 
         repo = KlineORMRepository()
         exists_on_date = repo.has_bar_on_date(day)
-        latest = repo.get_latest_trade_date()
+        # 类型契约（2026-09-14 w-2129d492）：judge_trading_day 要拿它做日期相减
+        # （today - latest_kline_date），必须是 date 而不是字符串。重构前裸 SQL 经 psycopg2
+        # 直接回 date 对象；换成仓储后 get_latest_trade_date() 回 'YYYY-MM-DD' 字符串
+        # → "今天 + 近 7 日有K线"的盘中启发式分支直接 TypeError（09-14 orchestrator 停摆根因）。
+        # 无论取数层回 date / datetime / 字符串，都在此归一到 date（None 仍为 None）。
+        raw_latest = repo.get_latest_trade_date()
+        latest = _normalize(raw_latest) if raw_latest is not None else None
         return exists_on_date, latest

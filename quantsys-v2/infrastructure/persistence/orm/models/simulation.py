@@ -355,15 +355,12 @@ class SimulationOrder(Base):
     symbol = Column(String(20), nullable=False, comment='股票代码')
     shares = Column(Integer, nullable=False, comment='委托数量')
     price_limit = Column(Numeric(10, 2), comment='限价')
-    # ── 执行质量闭环（2026-09-13 w-a9ec14d7，M5 补完）────────────────────────────
-    # 为什么记在挂单行上：这一行本身就是订单全生命周期的审计载体（决策→排队→成交→滑点），
-    # 不新建表就能让"决策价 vs 成交价"永久可追溯。此前 slippage_report 工具读 Agent OS 的
-    # trade:slippage 记忆，但**全仓没有任何写入方** → 该工具恒返回 0 条（能力存在但没接线）。
-    decision_price = Column(Numeric(10, 2), comment='决策时价（滑点基准）')
-    decision_at = Column(DateTime(timezone=True), comment='决策时刻')
-    price_source = Column(Text, comment='决策价来源（R-013 可追溯）')
-    fill_price = Column(Numeric(10, 2), comment='实际成交价')
-    slippage_bps = Column(Numeric(10, 2), comment='滑点基点（正=买贵/卖便宜=成本）')
+    # 注（2026-09-14 w-2129d492）：本表**不放**决策价/滑点列。
+    # M5（cedfb4ed）曾把 decision_price/decision_at/price_source/fill_price/slippage_bps
+    # 定义在这里，但埋点的代码（create_pending_order 入参、execute_pending_orders 回填）
+    # 全部作用在挂单表 → 模型与表两侧都错位：本表被 ORM flush 带上 5 个 DB 不存在的列
+    # （立即单 INSERT 必 500），挂单表则 DB 有列、模型没有（构造即 TypeError）。
+    # 见 migrations/add_execution_quality_columns.sql 与 tests/test_orm_db_drift.py。
     status = Column(String(20), nullable=False, default='submitted',
                     comment='submitted/filled/partially_filled/cancelled/rejected')
     filled_shares = Column(Integer, default=0, comment='已成交数量')
@@ -503,6 +500,17 @@ class SimulationPendingOrder(Base):
     shares = Column(Integer, comment='委托数量（可空，与 amount 二选一）')
     amount = Column(Numeric(15, 2), comment='委托金额（可空，与 shares 二选一）')
     price_limit = Column(Numeric(10, 2), comment='限价')
+    # ── 执行质量闭环（2026-09-13 w-a9ec14d7，M5 补完；2026-09-14 w-2129d492 归位）──────
+    # 为什么记在挂单行上：这一行本身就是订单全生命周期的审计载体（决策→排队→成交→滑点），
+    # 不新建表就能让"决策价 vs 成交价"永久可追溯。此前 slippage_report 工具读 Agent OS 的
+    # trade:slippage 记忆，但**全仓没有任何写入方** → 该工具恒返回 0 条（能力存在但没接线）。
+    # 埋点位置：create_pending_order 记 decision_price/price_source；execute_pending_orders
+    # 撮合后回填 fill_price 与 slippage_bps（方向归一：正=买贵/卖便宜=成本）。
+    decision_price = Column(Numeric(10, 2), comment='决策时价（滑点基准）')
+    decision_at = Column(DateTime(timezone=True), comment='决策时刻')
+    price_source = Column(Text, comment='决策价来源（R-013 可追溯）')
+    fill_price = Column(Numeric(10, 2), comment='实际成交价')
+    slippage_bps = Column(Numeric(10, 2), comment='滑点基点（正=买贵/卖便宜=成本）')
     reason = Column(Text, comment='交易理由')
     execute_at = Column(String(20), nullable=False, default='market_open',
                         comment='撮合时机（market_open）')

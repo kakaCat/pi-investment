@@ -131,6 +131,95 @@ def test_check_datasource_failure_is_conservative_and_visible(monkeypatch):
     assert v.source == SOURCE_UNAVAILABLE and v.degraded is True
 
 
+# ── 2.1 取数层类型契约（2026-09-14 w-2129d492 回归锚点）────────
+# 事故：B3 重构把裸 SQL（psycopg2 直回 date 对象）换成仓储后，
+# get_latest_trade_date() 回 'YYYY-MM-DD' 字符串，而 judge_trading_day 要拿它做
+# (today - latest_kline_date).days → TypeError。异常沿 resume_from_breakpoint →
+# start_orchestrator 上抛，把 orchestrator 的 tick 线程打死一整天（255 次 tick error，
+# 盘前撮合与 T1 结算全天未执行）。
+# 既有用例都直接喂 date 对象，所以一个都没红——这两条专测"取数层回字符串"。
+
+
+class _FakeKlineRepo:
+    """替身仓储：模拟 get_latest_trade_date 回 ISO 字符串（真实行为）。"""
+
+    latest = '2026-09-10'
+    has_bar = False
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def has_bar_on_date(self, day):
+        return type(self).has_bar
+
+    def get_latest_trade_date(self):
+        return type(self).latest
+
+
+@pytest.fixture
+def _fake_kline_repo(monkeypatch):
+    import adapters.outbound.repositories.kline_repository as repo_mod
+
+    monkeypatch.setattr(repo_mod, 'KlineORMRepository', _FakeKlineRepo)
+
+    def _set(has_bar: bool, latest):
+        _FakeKlineRepo.has_bar = has_bar
+        _FakeKlineRepo.latest = latest
+
+    return _set
+
+
+def test_kline_stats_coerces_string_latest_date_to_date(_fake_kline_repo):
+    """取数层回字符串时，_kline_stats 必须把它归一成 date（否则下游相减就炸）。"""
+    from application.services.trading_day_guard import TradingDayGuard
+
+    _fake_kline_repo(has_bar=False, latest='2026-09-11')
+    exists, latest = TradingDayGuard._kline_stats(date(2026, 9, 14))
+    assert exists is False
+    assert isinstance(latest, date), '取数层的字符串日期必须在此归一为 date'
+    assert latest == date(2026, 9, 11)
+
+
+def test_today_intraday_heuristic_works_with_string_repo_date(_fake_kline_repo):
+    """端到端复现：今天无K线 + 取数层回字符串 → 必须给出判定而不是抛 TypeError。"""
+    from application.services.trading_day_guard import TradingDayGuard
+
+    _fake_kline_repo(has_bar=False, latest=date.today().isoformat())
+    v = TradingDayGuard.check(date.today(), use_cache=False)   # 不得抛异常
+    assert v.is_trading_day is True
+    assert v.source == SOURCE_INTRADAY and v.degraded is True
+
+
+def test_check_tolerates_string_from_stats_even_if_coercion_is_lost(monkeypatch):
+    """契约级兜底：即使将来 _kline_stats 又回字符串，check() 也不得抛异常。
+
+    与上两条的分工：上面测"归一化在不在"，这条测"就算归一化被后人删掉，
+    击穿调用方的路径也不存在"——09-14 的事故形态就是异常直接上抛踢死 orchestrator。
+    """
+    from application.services.trading_day_guard import TradingDayGuard
+
+    monkeypatch.setattr(
+        TradingDayGuard, '_kline_stats',
+        staticmethod(lambda day: (False, date.today().isoformat())),   # 故意回字符串
+    )
+    v = TradingDayGuard.check(date.today(), use_cache=False)   # 不得抛
+    assert v.is_trading_day is False
+    assert v.source == SOURCE_UNAVAILABLE and v.degraded is True
+
+
+def test_compute_failure_degrades_instead_of_raising(monkeypatch):
+    """判定阶段任何异常都不许击穿调用方：必须降级为"不可用"并留痕。"""
+    from application.services.trading_day_guard import TradingDayGuard
+
+    def _boom(day):
+        raise TypeError("unsupported operand type(s) for -: 'datetime.date' and 'str'")
+
+    monkeypatch.setattr(TradingDayGuard, '_compute', classmethod(lambda cls, d: _boom(d)))
+    v = TradingDayGuard.check('2026-09-10', use_cache=False)   # orchestrator 场景：不许抛
+    assert v.is_trading_day is False
+    assert v.source == SOURCE_UNAVAILABLE and v.degraded is True
+
+
 # ── 3. 写入型守卫 ────────────────────────────────────────────
 def test_should_write_daily_blocks_weekend():
     v = TradingDayGuard.should_write_daily('2026-08-08')
