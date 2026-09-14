@@ -92,7 +92,8 @@ ORM 模型 `IndexDaily`、仓储指数口径方法（`get_index_return` 等）�
 | B4-c2 | `9bb04e65` | 删 legacy 订单栈（A 方案）+ 修好静默失效的信号执行链 | 6→0 |
 | B4-c3 | `3ec509f8` | risk + kline + chip + strategy_performance 四仓储落 ORM | 33→0 |
 | 度量 | `d698dc89` | **扫描器口径修正**：`core_text_sql` 漏计 `conn.execute(text(...))`（11→39，+32 全为既有漏计） | — |
-| B4-c4 | 本批 | **应用层（读 6 + 写 6）+ 路由层 3 文件**全部收口到仓储 | 26→0 |
+| B4-c4 | `090efa02` | **应用层（读 6 + 写 6）+ 路由层 3 文件**全部收口到仓储 | 26→0 |
+| B4-c5 | `d87321ce`+`df57a042` | event_repository(12) + 仓储层 13 + 基础设施/作业/服务边缘 7 | 32→0 |
 
 批次日志：`req-24e15d-b1-jobs-layer.md`、`-b2a-`、`-b2b-`、`-b3a-`、`-b3a2-`、
 `-b3b-`、`-b4a-`、`-b4b-`、`-b4c-portfolio-repo.md`、`-b4c2-delete-legacy-order-stack.md`、
@@ -121,26 +122,38 @@ ORM 模型 `IndexDaily`、仓储指数口径方法（`get_index_return` 等）�
 - **修好一条静默失效的调度链**：`_batch_create_orders` 里 legacy `create_order` 必抛异常、
   被 except 吞掉 → `trade_signals` 恒空 → **PaperTradingEngine 自 2026-08-25 起一单未执行**。
 
-## 7. 当前闸门状态（B4-c3 后）
+## 6.7 B4-c5：仓储层 + 基础设施层（本批）
+
+详见 `req-24e15d-b4c5-repo-infra.md`。要点：
+
+- **32 处归零**：event_repository(12，含修 EventCalendar 模型缺 4 列) + 仓储层 13 + 基础设施/作业/服务边缘 7；
+- **61 里有 9 处按设计就是 SQL**（通用异步执行器原语 / PG 函数 / `SELECT 1` 探针 / 扫描器误报），
+  **本批没动**，交用户裁决"行级豁免标注"还是"常驻计数"——不单方面改验收口径；
+- **一个"拒绝清零"的判断**：`public.apscheduler_jobs` 是 APScheduler 自己的表，不建 ORM 模型
+  （会造第二个 owner + 让 `create_all` 去 CREATE 三方表），改用 Core `table()/column()+select()`；
+- **抓到 2 个自引入偏差**：JSONB 置 None 写成字面量 `null`（应 SQL NULL）、
+  `get_industry_totals(None)` 返回 int 0（应 0.0）；
+- 等价性 IDENTICAL + 负对照 6 处变异全检出；失败集合与基线 **逐条 diff：新增 0 / 消失 0**。
+
+## 7. 当前闸门状态（B4-c5 后）
 
 ```
-P0 fstring_value_interp  本轮范围 0     ✅
-P0 raw_connect           本轮范围 0     ✅
-P1 cursor_execute        本轮范围 13（起点 124；B4-c3 后 25 → B4-c4 后 13）
+P0 fstring_value_interp  本轮范围 0     OK
+P0 raw_connect           本轮范围 0     OK
+P1 cursor_execute        本轮范围 11（起点 124；B4-c4 后 13）
 P1 core_text_sql         **两个尺子必须都读**（口径在 B4-c4 中途修正过）：
                            旧尺子（只认 session. 接收者）本轮范围  7
-                           新尺子（任意接收者，= d698dc89 起）   本轮范围 39
-                         39 里 +32 是**纯度量变化**暴露的既有漏计，不是本批新增；
-                         反过来，本批修掉的 11 处 conn.execute(text(...)) 旧尺子根本数不到。
-P2 session_execute_var   本轮范围 68（审计桶，人工复核——新增的全是
-                                       pg_insert(...)/select(...) 构造后执行的 Core 语句）
-P2 fstring_sql           本轮范围 3（起点 11；其中 qlib_repository 那 1 处是
-                                       **标识符插值**（模块级常量 _FEATURE_COLUMNS），
-                                       属扫描器文档明示的正当写法；值插值 P0 仍为 0）
+                           新尺子（任意接收者，= d698dc89 起）   本轮范围 10
+P2 session_execute_var   本轮范围 72（审计桶，人工复核）
+P2 fstring_sql           本轮范围 2
 P2 read_sql              本轮范围 5
-unparseable（语法坏文件） 本轮范围 [] —— 无一文件不可解析（见 §10 新增口径）
-→ --gate 退出码 0
+psql_subprocess          本轮范围 1（test_cron_parsing.py，见 §8）
+unparseable（语法坏文件） 本轮范围 []
+-> --gate 退出码 0
 ```
+
+**剩余 29 站点里，9 处经逐条形态分析判定为"按设计就是 SQL"**（见 `-b4c5-` 日志 §0），
+不再视为待迁工作；其余 20 处需要**裁决或设计**（见 §8）。
 
 ## 8. 剩余工作（按优先级）
 
@@ -152,18 +165,18 @@ unparseable（语法坏文件） 本轮范围 [] —— 无一文件不可解析
 **B4-c4 已完成**（本批）：应用层 12 文件 + 路由层 3 文件全部收口 ——
 详见 `req-24e15d-b4c4-app-routing-layers.md`。**应用层与路由层已无裸 SQL**。
 
-**B4-c5 候选**（收口后重新扫描，排除 `session_execute_var` 审计桶；22 文件 / 61 站点）：
+**B4-c5 已完成**（本批）：32 处归零 —— 详见 `req-24e15d-b4c5-repo-infra.md`。
 
-| 文件 | 站点 | 说明 |
+**B4-c6 候选（29 站点，全部需要裁决或设计，不是机械活）**：
+
+| 项 | 站点 | 需要什么 |
 |---|---|---|
-| `adapters/outbound/repositories/event_repository.py` | 12 | 仓储内，但 `core_text_sql` 11 处集中在此，最大单点 |
-| `signal_tracking_repository.py` | 8 | **有 6 处是既有裸连接自愈机制**：动它必须连带处理 `tests/test_signal_tracking_connection.py`（该测试固化了机制本身） |
-| `watch_state_repository.py` | 6 | 仓储内 Core text() |
-| `infrastructure/persistence/database/async_base_repository.py` | 5 | 异步基座，改动面广，需单独评估 |
-| `qlib_repository.py` | 4 | **src 是坏的**（见 B4-c4 日志 §9.1：打全库不存在的 `klines` 表），先裁决数据源再迁 |
-| `competition_repository.py` / `strategy_repository.py` | 3+3 | 仓储内 |
-| `core_plan_service.py` / `data_hygiene_service.py` / `strategy_evaluation_service.py` / `scheduler_tasks.py` | 2+2+2+2 | **通用 SQL 助手**（`query_rows/query_df/query_scalar` 共 6 处、27 个调用点）：需先设计一个类型化查询端口，再逐调用点改造，属**设计题不是机械题** |
-| 其余零散（`ml_model_repository` / `scheduler_repository` / `strategy_evolution_run_repository` / `portfolio_repository` / `watch_rule_repository` / `v13_use_case` / `fund_flow_update_job` / `market_state_provider` / `dependency_check` / `symbol_classifier` / `test_cron_parsing`） | 各 1 | 逐个处理 |
+| `signal_tracking_repository.py` | 8 | 它持有**刻意的**裸连接（自愈 + 借还），且 `tests/test_signal_tracking_connection.py` 把该机制固化。改 ORM = 拆机制，须连同测试重新设计 |
+| `async_base_repository.py` x5 + `dependency_check.py` x2 + `ml_model_repository.py` x1 + `portfolio_repository.py` x1 | 9 | **按设计就是 SQL**（原语 / PG 函数 / `SELECT 1` 探针 / 扫描器误报）。需裁决：加**必须写理由**的行级豁免标注，还是让它常驻计数 |
+| `qlib_repository.py` | 4 | 源表 `klines` **全库不存在** → `get_features` 永远静默返回空 DataFrame。改表名 = 换数据源，需先裁决 |
+| `core_plan_service` / `data_hygiene_service` / `strategy_evaluation_service` | 6 | 通用 SQL 助手，**27 个调用点**。需先设计**类型化查询端口** |
+| `symbol_classifier.py` | 1 | 注释写明**故意**不用 ORM：曾致 `idle in transaction` ~337s 被 DB 强杀 |
+| `test_cron_parsing.py` | 1 | 仓库根目录的**一次性运维脚本**（非测试）。建议改造成 `tests/` 下的正式 pytest |
 
 **范围外 78**（`scripts/` / `tools/` / `live_trading/`）另行裁决。
 
