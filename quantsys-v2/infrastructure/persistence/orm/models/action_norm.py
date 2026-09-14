@@ -48,3 +48,24 @@ def normalize_signal_action(action: str) -> str:
     if normalized not in ('BUY', 'SELL', 'HOLD'):
         raise ValueError(f"非法信号方向: {action!r}（期望 buy/sell/hold）")
     return normalized
+
+
+# quant.signals.action_type 的 action → 代码映射（2026-09-15 收敛到本模块）。
+#
+# 口径来源：原字面量散在 adapters/outbound/repositories/signal_repository.py 的
+#   {'buy': 1, 'sell': 2}.get(str(action).lower(), 0)
+# 生产实测（quant_investment，2026-09-15）：BUY→1（10793 行）、SELL→2（7434 行），
+# 与该映射一致。另有 HOLD→1（124 行）与 SELL→1（50 行）的历史异常值，**不是**本映射
+# 的产物（HOLD 落在默认 0 上，那 124 行来自 strategy_executor 硬编码 action_type=1
+# 的另一条写入路径）——这里照搬既有口径，不改写历史。
+SIGNAL_ACTION_TYPE = {'BUY': 1, 'SELL': 2}
+
+
+def signal_action_type(action: str) -> int:
+    """由 action 推导 quant.signals.action_type 代码；未知/空值一律 0。
+
+    **不抛异常**是有意的：本函数同时用作 ORM 列缺省值（见 models/signal.py），
+    在那里抛错会把"漏传 action_type"从 NotNullViolation 换成一个更难定位的
+    ValueError。非法 action 由 @validates 与 DB CHECK 约束在更早/更外层拦住。
+    """
+    return SIGNAL_ACTION_TYPE.get((action or '').strip().upper(), 0)

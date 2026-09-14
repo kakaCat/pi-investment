@@ -57,20 +57,17 @@ DECISION_QUALITY_COLUMNS = (
     'decision_price', 'decision_at', 'price_source', 'fill_price', 'slippage_bps',
 )
 
-# 测试库（quant_test）是部分镜像，以下模型列只在 quant_investment 建过、测试库里没有。
-# DB 侧已核对：生产 quant_investment 这些列**全部在位** → 属"测试库镜像不全"，不是
-# 模型-库漂移，故豁免（同时打印，避免它变成新的静默盲区）。
-_ENV_ONLY_MISSING = frozenset({
-    'quant.pool_change_log.pool_name',
-    'quant.strategy_configs.performance_status',
-    'quant.strategy_configs.performance_evidence',
-    'quant.strategy_configs.performance_checked_at',
-    'quant.strategy_configs.structure_status',
-    'quant.event_calendar.evidence_hash',
-    'quant.event_calendar.scope',
-    'quant.event_calendar.source_url',
-    'quant.event_calendar.symbols',
-})
+# 测试库（quant_test）是部分镜像：某些模型列只在 quant_investment 存在过。
+# 保留这个豁免机制（未来仍可能出现"生产在位、测试库没建"的环境差），但**当前条目已清空**。
+#
+# 2026-09-15（w-2129d492，chore/v2-orm-residual）清空 9 条 —— 走的是**补迁移**而不是继续豁免：
+#   原先这 9 列被本测试豁免（"测试库镜像不全，非漂移"）。但豁免**只让门禁不报，没让测试能跑**：
+#   ORM flush 会带上模型声明的全部列，于是针对 quant_test 的集成测试直接炸 ——
+#   test_heatmap_repository_events/ test_heatmap_service 共 17 例 ERROR：
+#   UndefinedColumn: column "pool_name" of relation "pool_change_log" does not exist。
+#   已补 migrations/add_missing_orm_columns.sql（9 列全量、IF NOT EXISTS、生产为 no-op），
+#   本 fixture 每次运行都会重放它 → 测试库收敛，豁免随之作废（"豁免不是修复"）。
+_ENV_ONLY_MISSING = frozenset()
 
 # 允许"没有测试库也能跑"的唯一出口：显式环境变量。默认不允许静默跳过。
 _ALLOW_MISSING_DB_ENV = 'DSH_ALLOW_MISSING_TEST_DB'
