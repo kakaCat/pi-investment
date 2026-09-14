@@ -104,7 +104,11 @@ def provider_payload(result: Dict) -> Dict:
     payload['source'] = result.get('source')
     payload['attempted_sources'] = list(result.get('attempted_sources') or [])
     payload['empty_sources'] = list(result.get('empty_sources') or [])
-    payload['empty'] = bool(result.get('empty'))
+    # 内层 empty 也要认：provider 返回「源正常但该标的无数据」时，
+    # manager 走的是 success 分支（不会置 empty），标记只在内层 data 里。
+    payload['empty'] = bool(result.get('empty')) or bool(
+        isinstance(inner, dict) and inner.get('empty')
+    )
     payload['degraded'] = not bool(result.get('success'))
     if result.get('error'):
         payload['error'] = str(result.get('error'))[:300]

@@ -432,3 +432,30 @@ def test_market_sentiment_route_honest_empty(monkeypatch, batch_client):
     assert body['success'] is True
     assert body['data']['empty'] is True
     assert 'note' in body['data']
+
+# ---------------------------------------------------------------------------
+# 9. 「健康空」必须自描述（empty 标记）
+# ---------------------------------------------------------------------------
+
+def test_healthy_empty_carries_empty_flag(monkeypatch, provider):
+    """源正常但该标的无数据 → records 为空**且** empty=True。
+
+    只给 total=0 而不给 empty 标记，调用方无法区分「无数据」与「字段没返回」。
+    """
+    _install(monkeypatch, stock_zh_a_gdhs_detail_em=lambda **kw: pd.DataFrame())
+    md = provider.get_holder_changes('600519')
+    assert md is not None
+    assert md.data['total'] == 0 and md.data['empty'] is True
+
+
+def test_route_surfaces_inner_empty_flag(monkeypatch, sentiment_client):
+    """内层 empty 必须冒泡到响应顶层（manager 的 empty 在成功分支不会置位）。"""
+    _patch_manager(monkeypatch, 'get_fund_holdings', _manager_result(
+        {'symbol': '600519', 'holdings': [], 'total': 0, 'empty': True}
+    ))
+    resp = sentiment_client.get('/api/stock/600519/fund-holdings')
+    assert resp.status_code == 200
+    body = resp.json()['data']
+    assert body['empty'] is True
+    assert body['degraded'] is False
+    assert body['source'] == 'akshare'
