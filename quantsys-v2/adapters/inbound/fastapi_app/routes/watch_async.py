@@ -182,7 +182,7 @@ def trigger_disposition_stats(date: Optional[str] = Query(None)):
     legacy_unknown（状态机上线前的历史数据）不计入分母，避免美化指标。
     agent_wakeups_estimate = escalated + L2 触发的去重合并数（估算实际唤醒量级）。
     """
-    from application.services.watch_engine.disposition import UNRESOLVED, is_resolved
+    from domain.watch.services.disposition import UNRESOLVED, is_resolved
     trigger_repo = WatchTriggerRepository()
     rows = trigger_repo.list_triggers(limit=200)
     day = date or datetime.now().strftime('%Y-%m-%d')
@@ -207,7 +207,7 @@ def trigger_disposition_stats(date: Optional[str] = Query(None)):
 @router.get('/api/watch/triggers/unresolved')
 def list_unresolved_triggers(date: Optional[str] = Query(None), limit: Optional[str] = Query(None)):
     """盘后未处置清单（pending/escalated）——把"触发后没人管"变成可追的待办。"""
-    from application.services.watch_engine.disposition import UNRESOLVED
+    from domain.watch.services.disposition import UNRESOLVED
     trigger_repo = WatchTriggerRepository()
     day = date or datetime.now().strftime('%Y-%m-%d')
     rows = trigger_repo.list_triggers(dispositions=UNRESOLVED, limit=_limit_of(limit, 200))
@@ -259,7 +259,7 @@ def trigger_digest(since: Optional[str] = Query(None), limit: Optional[str] = Qu
     2) 载荷里带 `text`（紧凑文本）：唤醒提示词可直接内嵌，agent 无需再发工具调用取数（省 token）。
     3) 按标的聚合：一次跌穿常产生同标的多条触发，聚合后 agent 按"标的"而不是按"触发"决策。
     """
-    from application.services.watch_engine.disposition import UNRESOLVED
+    from domain.watch.services.disposition import UNRESOLVED
     trigger_repo = WatchTriggerRepository()
     rule_repo = WatchRuleRepository()
     rows = trigger_repo.list_triggers(dispositions=UNRESOLVED, limit=_limit_of(limit, 200))

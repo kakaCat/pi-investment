@@ -110,3 +110,28 @@ def test_list_filter_by_symbol(client, created_rule):
     rules = resp.json()['data']['rules']
     assert len(rules) > 0
     assert all(r['symbol'] == '000001.SZ' for r in rules)
+
+
+# ── 回归守护（2026-09-14）：处置类端点曾整体 500 ──────────────────────
+# 背景：这三个端点的函数体里 import 的是
+#   application.services.watch_engine.disposition   ← 该模块不存在
+# 正确路径是 domain.watch.services.disposition。
+# 因路由层此前无任何测试覆盖，线上 500 持续 3 天（89a42a99 引入）才被人工核查发现。
+# 本测试的价值不在业务断言，而在**强制路由真正执行到底**：
+# 错误导入、缺符号、函数体异常都会在此暴露，而不是等线上 500。
+DISPOSITION_ENDPOINTS = [
+    '/api/watch/triggers/stats',
+    '/api/watch/triggers/unresolved',
+    '/api/watch/triggers/digest',
+]
+
+
+@pytest.mark.parametrize('path', DISPOSITION_ENDPOINTS)
+def test_disposition_endpoints_reachable(path):
+    """处置类端点必须返回 200（守护：错误导入路径曾使其整体 500）"""
+    app = FastAPI()
+    app.include_router(router)
+    # raise_server_exceptions=False：让 500 以状态码呈现，便于断言与定位
+    resp = TestClient(app, raise_server_exceptions=False).get(path)
+    assert resp.status_code == 200, f'{path} -> {resp.status_code}: {resp.text[:200]}'
+    assert resp.json().get('success') is True

@@ -279,7 +279,7 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
                dup_of=None) -> WatchTrigger:
         """落一条触发 + 其处置初态（REQ-f08def）。
 
-        disposition 由 application/services/watch_engine/disposition.decide() 决定：
+        disposition 由 domain/watch/services/disposition.decide() 决定：
         机械可判的（observe/message 类、去重合并）当场收敛，不唤醒 agent。
         """
         trigger = WatchTrigger(
