@@ -1217,9 +1217,9 @@ def register_routes():
         app.include_router(p2_batch1_async.dividends_router, prefix="/api")
         app.include_router(p2_batch1_async.financial_router, prefix="/api")
         app.include_router(p2_batch1_async.fund_flow_router, prefix="/api")
-        app.include_router(p2_batch1_async.automation_router, prefix="/api")
-        app.include_router(p2_batch1_async.agent_intelligence_router, prefix="/api")
-        logger.info("✅ Registered: p2_batch1 (diagnosis, dividends, financial, fund_flow, automation, agent_intelligence)")
+        # automation / agent_intelligence 两个路由已于 2026-09-14 删除（死接口 + 恒假成功，
+        # 执行器 smart_scheduler 无启动入口、全仓零消费者；详见 p2_batch1_async.py 注释）
+        logger.info("✅ Registered: p2_batch1 (diagnosis, dividends, financial, fund_flow)")
     except ImportError as e:
         optional_failed.append("p2_batch1")
         logger.warning(f"⚠️ Failed to import p2_batch1_async: {e}")

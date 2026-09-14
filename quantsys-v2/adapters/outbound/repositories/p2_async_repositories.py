@@ -244,73 +244,17 @@ class DataQualityAsyncRepository(AsyncBaseORMRepository[DataQuality]):
                 for c in checks]
 
 
-# ==================== Automation ====================
-class AutomationTask(Base):
-    """自动化任务ORM"""
-    __tablename__ = 'automation_tasks'
-    __table_args__ = {'schema': 'quant', 'extend_existing': True}
-
-    id = Column(BigInteger, primary_key=True)
-    task_name = Column(String(100))
-    task_type = Column(String(50))
-    schedule = Column(String(50))
-    enabled = Column(Boolean, default=True)
-    last_run = Column(DateTime)
-
-
-class AutomationAsyncRepository(AsyncBaseORMRepository[AutomationTask]):
-    """异步自动化任务Repository"""
-    model = AutomationTask
-
-    def __init__(self, session: AsyncSession):
-        super().__init__(session)
-
-    async def get_enabled_tasks(self) -> List[Dict[str, Any]]:
-        try:
-            tasks = await self.find_by_condition(enabled=True)
-            return [{'id': t.id, 'task_name': t.task_name, 'schedule': t.schedule,
-                     'last_run': t.last_run.isoformat() if t.last_run else None} for t in tasks]
-        except Exception as e:
-            logger.error(f"Error getting enabled tasks: {e}")
-            return []
-
-
-# ==================== AgentIntelligence ====================
-class AgentIntelligence(Base):
-    """智能体知识ORM"""
-    __tablename__ = 'agent_intelligence'
-    __table_args__ = {'schema': 'quant', 'extend_existing': True}
-
-    id = Column(BigInteger, primary_key=True)
-    knowledge_type = Column(String(50))
-    knowledge_key = Column(String(100))
-    knowledge_value = Column(JSON)
-    confidence = Column(Float)
-    created_at = Column(DateTime)
-
-
-class AgentIntelligenceAsyncRepository(AsyncBaseORMRepository[AgentIntelligence]):
-    """异步智能体知识Repository"""
-    model = AgentIntelligence
-
-    def __init__(self, session: AsyncSession):
-        super().__init__(session)
-
-    async def get_knowledge(
-        self,
-        knowledge_type: Optional[str] = None,
-        limit: int = 100
-    ) -> List[Dict[str, Any]]:
-        try:
-            if knowledge_type:
-                knowledge = await self.find_by_condition(knowledge_type=knowledge_type)
-            else:
-                knowledge = await self.list_all(limit=limit)
-            return [{'id': k.id, 'knowledge_type': k.knowledge_type, 'knowledge_key': k.knowledge_key,
-                     'confidence': k.confidence} for k in knowledge]
-        except Exception as e:
-            logger.error(f"Error getting knowledge: {e}")
-            return []
+# ==================== 【已删除】Automation / AgentIntelligence ====================
+# 2026-09-14（w-2129d492）：删掉重复定义的两个模型类及其 async 仓储。
+# 删除理由：它们是"同名表 + extend_existing=True"的第二份声明，用到它们的两个只读路由
+# （/api/automation/tasks、/api/agent-intelligence/knowledge）已确认是死接口：
+#   · AutomationTask 的列名与真库不符（enabled/last_run/schedule vs is_enabled/last_run_at/
+#     schedule_config）→ 查询报 UndefinedColumn 被 except 吞掉 → 恒返回空（假成功）；
+#   · AgentIntelligence 的 quant.agent_intelligence 表在库中从未存在过 → 同样恒返回空。
+# 本仓已有同因先例：2026-09-10 MLModel 因同一写法造成 /api/ml/models 恒空，当时是**对齐列名**修好的。
+# 这里选择删除而非对齐，因为**没有消费者、也没有执行器**（详见 p2_batch1_async.py 顶部注释）。
+# ⚠️ 注意区分：adapters/outbound/repositories/agent_intelligence_repository.py 是**活代码**，
+#    它映射的是 quant.agent_decisions（决策审计/评分/教训），与本次删除无关。
 
 
 __all__ = [
@@ -318,6 +262,4 @@ __all__ = [
     'PositionAsyncRepository',
     'FundFlowAsyncRepository',
     'DataQualityAsyncRepository',
-    'AutomationAsyncRepository',
-    'AgentIntelligenceAsyncRepository',
 ]

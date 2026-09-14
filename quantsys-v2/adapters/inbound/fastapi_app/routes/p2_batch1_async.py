@@ -165,90 +165,28 @@ async def get_market_fund_flow(
         return {"success": False, "error": str(e)}
 
 
-# ==================== 自动化任务 API ====================
-automation_router = APIRouter(
-    prefix="/automation",
-    tags=["Automation - 自动化任务"]
-)
+# ==================== 【已删除】自动化任务 API ====================
+# 2026-09-14（w-2129d492）：整段删除 /api/automation/* 与 /api/agent-intelligence/*。
+# 删除理由（实测核验，非"看起来没人用"）：
+#   · 业务归属 = 旧 Agent OS 自动化系统的读面板：其执行器 smart_scheduler.py 已无任何启动入口，
+#     调度 9 月初收敛到 UnifiedScheduler + quant.scheduler_tasks（另一张表）；
+#     quant.automation_tasks 里 3 条启用任务的 last_run_at 全部停在 2026-06-27，automation_runs 仅 1 条。
+#   · 无消费者：前端（web-frontend / agent-dh 页面）、agent-ts、agent-os(Go)、文档 全仓零调用；
+#     唯一引用方就是本文件与两处注册点（main.py / route_registrar.py）。
+#   · 恒假成功：AutomationAsyncRepository 查的是不存在的列（enabled/last_run/schedule，
+#     真库为 is_enabled/last_run_at/schedule_config）→ UndefinedColumn 被 except 吞掉 →
+#     /api/automation/tasks 恒返回 {"tasks":[],"count":0}；/tasks/{id} 更是硬编码"示例任务"。
+#     /api/agent-intelligence/knowledge 同理：quant.agent_intelligence 表在库中从未存在过。
+#   · 唯一"对接了真实表"的自动化代码是 adapters/outbound/repositories/automation_repository.py
+#     与 application/services/smart_scheduler.py（后者同样无启动入口），不在本文件内。
+# 若将来要重启"自动化任务面板"，请重新设计并直接读 quant.automation_tasks 的真实列，
+# 不要复活这段（原文见 git 历史：git log -p -- <本文件>）。
 
 
-@automation_router.get("/tasks", response_model=ApiResponse, summary="任务列表")
-async def list_automation_tasks():
-    """列出自动化任务"""
-    try:
-        from adapters.outbound.repositories.p2_async_repositories import AutomationAsyncRepository
-        from infrastructure.persistence.orm.async_config import get_async_session_context
-
-        async with get_async_session_context() as session:
-            repo = AutomationAsyncRepository(session)
-            tasks = await repo.get_enabled_tasks()
-
-            return {
-                "success": True,
-                "data": {
-                    "tasks": tasks,
-                    "count": len(tasks)
-                }
-            }
-    except Exception as e:
-        logger.exception(f"List tasks failed: {e}")
-        return {"success": False, "error": str(e)}
-
-
-@automation_router.get("/tasks/{task_id}", response_model=ApiResponse, summary="任务详情")
-async def get_automation_task(task_id: int):
-    """获取任务详情"""
-    try:
-        task = {
-            "id": task_id,
-            "name": "示例任务",
-            "status": "enabled"
-        }
-        return {"success": True, "data": task}
-    except Exception as e:
-        logger.exception(f"Get task failed: {e}")
-        return {"success": False, "error": str(e)}
-
-
-# ==================== 智能体知识 API ====================
-agent_intelligence_router = APIRouter(
-    prefix="/agent-intelligence",
-    tags=["Agent Intelligence - 智能体知识"]
-)
-
-
-@agent_intelligence_router.get("/knowledge", response_model=ApiResponse, summary="知识库")
-async def get_knowledge(
-    knowledge_type: Optional[str] = Query(None, description="知识类型"),
-    limit: int = Query(50, description="返回数量")
-):
-    """获取知识库"""
-    try:
-        from adapters.outbound.repositories.p2_async_repositories import AgentIntelligenceAsyncRepository
-        from infrastructure.persistence.orm.async_config import get_async_session_context
-
-        async with get_async_session_context() as session:
-            repo = AgentIntelligenceAsyncRepository(session)
-            knowledge = await repo.get_knowledge(knowledge_type, limit)
-
-            return {
-                "success": True,
-                "data": {
-                    "knowledge": knowledge,
-                    "count": len(knowledge)
-                }
-            }
-    except Exception as e:
-        logger.exception(f"Get knowledge failed: {e}")
-        return {"success": False, "error": str(e)}
-
-
-# 导出所有路由
+# 导出所有路由（automation_router / agent_intelligence_router 已于 2026-09-14 删除，见上）
 __all__ = [
     'diagnosis_router',
     'dividends_router',
     'financial_router',
     'fund_flow_router',
-    'automation_router',
-    'agent_intelligence_router'
 ]

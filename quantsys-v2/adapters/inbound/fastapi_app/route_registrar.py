@@ -358,9 +358,8 @@ class RouteRegistrar:
             self.app.include_router(p2_batch1_async.dividends_router, prefix="/api")
             self.app.include_router(p2_batch1_async.financial_router, prefix="/api")
             self.app.include_router(p2_batch1_async.fund_flow_router, prefix="/api")
-            self.app.include_router(p2_batch1_async.automation_router, prefix="/api")
-            self.app.include_router(p2_batch1_async.agent_intelligence_router, prefix="/api")
-            logger.info("✅ Registered: p2_batch1 (6 routers)")
+            # automation / agent_intelligence 两个路由已于 2026-09-14 删除（同 main.py 说明）
+            logger.info("✅ Registered: p2_batch1 (4 routers)")
         except ImportError as e:
             logger.warning(f"⚠️ Failed to import p2_batch1_async: {e}")
             self.optional_failed.append("p2_batch1")
