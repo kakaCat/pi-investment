@@ -15,6 +15,7 @@ import structlog
 from application.services.watch_engine.conditions import (
     DEFAULT_COOLDOWN_SEC, EvalContext, evaluate,
 )
+from application.services.watch_engine.state_manager import StateManager
 from domain.watch.services.disposition import (
     DEDUP_WINDOW_SEC, GateContext, InterventionConfig,
     decide as decide_disposition, dedup_key, normalize_symbol,
@@ -75,23 +76,17 @@ class WatchEngine:
         self._avg_volume_consec_fail = 0
         self._avg_volume_blocked_until: Optional[datetime] = None
         self._avg_volume_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix='avgvol')
-        self._history: Dict[str, List[Tuple[datetime, float]]] = {}
-        self._last_triggered: Dict[Tuple[int, int], datetime] = {}
-        self._latched: set = set()
-        # 去重窗（REQ-f08def）：key=(归一化标的,方向) -> (最近一次触发时间, 触发记录 id)
-        # 同标的同向在该窗内只通知一次，重复的仍落库（disposition='deduped' + dup_of）
-        # key -> (最近触发时间, 触发记录 id, 规则 id)。带 rule_id 才能分辨
-        # 同一条规则多条件重复（物理去重，保留）与跨规则重叠（业务问题，转治理）
-        self._recent_notified: Dict[Tuple[str, str], Tuple[datetime, int, int]] = {}
-        self._overlap_reported: set = set()
+        # 触发/去重/介入状态收敛到 StateManager（2026-09-14 重构 P1，行为等价迁移）：
+        # 原先 9 个状态字段散在本类，既无法整体快照（线上定位靠猜），也无法脱离
+        # 引擎实例单测。搬入后由 snapshot() 统一观测。
         self.dedup_window_sec = DEDUP_WINDOW_SEC
+        self.state = StateManager(event_retention_min=30,
+                                  dedup_window_sec=self.dedup_window_sec)
         # 介入判据（REQ-f08def P3，RFC 014 v3 §3）：金额门/增量门/经济门/预算门所需的注入
         self._position_value_provider = position_value_provider
         self._account_total_provider = account_total_provider
         self._intervention_cfg = InterventionConfig()
-        # 增量门（同标的同议题 4h 冷却）：key=(归一化标的,意图) -> 最近介入时间
-        self._last_intervention: Dict[Tuple[str, str], datetime] = {}
-        self._interventions_today: int = 0
+        # 增量门（同标的同议题 4h 冷却）与当日介入计数 → StateManager
         # 摘要门（REQ-f08def P2/P4）：何时唤醒 agent 的判据由本服务负责，
         # 挂在引擎 loop 里——引擎本就是盯盘唯一宿主，无需外部定时器/脚本。
         self.digest_service = digest_service
@@ -105,15 +100,8 @@ class WatchEngine:
         self._last_lifecycle_date = None
         # 市场级盯盘（P6）：指数/涨停家数/情绪/量能/板块——盯盘是紧盯市场的工具
         self.market_watch_service = market_watch_service
-        self._avg_volume_cache: Dict[str, float] = {}
-        # 触发事件日志（2026-09-14）：供「频率升级」与「多规则共振」统计的**单一事实源**。
-        # 此前两条路径共用 _last_triggered，而它是按 (rule_id, cond_idx) **覆盖写**的
-        # 「最新触发时间」——① 同一条件的多次触发只留最后一次，无法累计次数；
-        # ② 不含 symbol，并发统计无从按标的聚合。详见两个 _get_*_trigger_count。
-        self._trigger_events: List[Tuple[datetime, int, str]] = []  # (time, rule_id, symbol)
-        # 事件日志保留窗口：需 ≥ 两个统计窗口（频率 10min / 共振 60s）的最大值
-        self._event_retention_min: int = 30
-        self._state_date = None
+        # （原此处重复声明 _avg_volume_cache，已随 P1 清理；
+        #   触发事件日志与跨天日期已移入 StateManager）
         self.fast_mode = False
         self._stopped = False
 
@@ -130,6 +118,20 @@ class WatchEngine:
 
     def stop(self):
         self._stopped = True
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """引擎运行指标（只读，无副作用）
+
+        2026-09-14 重构 P1：StateManager.snapshot() 的出口。此前引擎状态
+        全散在实例字段里，线上排障只能靠在日志里猜；现在可一次性读出
+        各状态规模与日期，便于判断"状态是否在正常增长/是否跨天重置"。
+        """
+        return {
+            **self.state.snapshot(),
+            'fast_mode': self.fast_mode,
+            'base_interval': self.base_interval,
+            'fast_interval': self.fast_interval,
+        }
 
     # ── 主循环 ──────────────────────────────────────────────
 
@@ -199,7 +201,7 @@ class WatchEngine:
         # 预算计数每 tick 从库刷新一次（不每规则查，避免 N+1）；库不可用时沿用内存值
         if self.ledger is not None:
             try:
-                self._interventions_today = self.ledger.count_today()
+                self.state.interventions_today = self.ledger.count_today()
             except Exception:
                 pass
         rules = self.rule_repo.list_enabled()
@@ -226,9 +228,9 @@ class WatchEngine:
                     fast = True
                 if not result.triggered:
                     # 条件回到未触发状态 → 解除闩锁，重新武装（允许下次穿越再报）
-                    self._latched.discard((rule.id, idx))
+                    self.state.latched.discard((rule.id, idx))
                     continue
-                if (rule.id, idx) in self._latched:
+                if (rule.id, idx) in self.state.latched:
                     # 条件持续成立（电平保持）→ 不重复推送，等重新武装
                     continue
                 if self._in_cooldown(rule.id, idx, cond, now):
@@ -273,7 +275,7 @@ class WatchEngine:
                     # 使「哪条升级路径命中」在库里不可考（核查时曾被此误导）。
                     escalation_reason=escalation_reason)
                 dup_of = None
-                prev = self._recent_notified.get(key)
+                prev = self.state.recent_notified.get(key)
                 if prev is not None and (now - prev[0]).total_seconds() < self.dedup_window_sec:
                     disposition = 'deduped'
                     disposition_reason = (
@@ -286,8 +288,8 @@ class WatchEngine:
                     prev_rule_id = prev[2] if len(prev) > 2 else None
                     if prev_rule_id is not None and prev_rule_id != rule.id:
                         pair = tuple(sorted((int(prev_rule_id), int(rule.id))))
-                        if pair not in self._overlap_reported:
-                            self._overlap_reported.add(pair)
+                        if pair not in self.state.overlap_reported:
+                            self.state.overlap_reported.add(pair)
                             reason = ('规则重叠：规则 #%s 与 #%s 在同一事件（%s/%s）上重复表达 → '
                                       '建议合并为一条多档规则、调阈值或退役其一' %
                                       (pair[0], pair[1], key[0], key[1]))
@@ -313,23 +315,23 @@ class WatchEngine:
                     logger.error('通知发送失败', rule_id=rule.id, cond=cond, error=str(e))
                     continue
                 if disposition != 'deduped':
-                    self._recent_notified[key] = (
+                    self.state.recent_notified[key] = (
                         now, getattr(trigger, 'id', 0) or 0, int(getattr(rule, 'id', 0) or 0))
                 if disposition == 'escalated':
                     # 增量门 + 预算记账：escalated = 进 agent 摘要队列 = 一次潜在介入
                     norm = normalize_symbol(rule.symbol)
                     intent = str(getattr(rule, 'intent', '') or '') or                         str((rule.action_hint or {}).get('action_on_trigger', '') if isinstance(getattr(rule, 'action_hint', None), dict) else '')
-                    self._last_intervention[(norm, intent or 'unknown')] = now
-                    self._interventions_today += 1
+                    self.state.last_intervention[(norm, intent or 'unknown')] = now
+                    self.state.interventions_today += 1
                     if self.ledger is not None:
                         self.ledger.record(
                             symbol=rule.symbol, intent=(intent or None), rule_id=rule.id,
                             trigger_kind='price', outcome='escalated',
                             trigger_ids=[getattr(trigger, 'id', None)],
                         )
-                self._last_triggered[(rule.id, idx)] = now
+                self.state.last_triggered[(rule.id, idx)] = now
                 self._record_trigger_event(now, rule.id, rule.symbol)
-                self._latched.add((rule.id, idx))
+                self.state.latched.add((rule.id, idx))
                 # 可观测性（2026-09-11，w-aebfddcd E2E 发现）：事件必须带**处置结论**，
                 # 否则调用方无法区分"命中并通知"与"命中但被去重/被预算压掉"，只能回查库。
                 # disposition 即答案：escalated/pending=进队列并推送；deduped=只归档不打扰；
@@ -345,12 +347,8 @@ class WatchEngine:
                                'notified': disposition not in ('deduped', 'auto_observed',
                                                                'ignored', 'expired')})
 
-        # 去重窗裁剪：清掉已过期的键，避免长跑进程内的无界增长
-        if self._recent_notified:
-            cutoff = now.timestamp() - self.dedup_window_sec
-            self._recent_notified = {
-                k: v for k, v in self._recent_notified.items() if v[0].timestamp() >= cutoff
-            }
+        # 去重窗裁剪：清掉已过期的键，避免长跑进程内的无界增长（委托 StateManager）
+        self.state.prune_dedup(now)
 
         # 市场级规则扫描（P6）：与个股 tick 分开的数据通道；服务自带节流与闩锁
         try:
@@ -387,10 +385,10 @@ class WatchEngine:
         return GateContext(
             intent=intent or None,
             amount_yuan=amount,
-            last_intervention_at=self._last_intervention.get((norm, topic)),
+            last_intervention_at=self.state.last_intervention.get((norm, topic)),
             expected_value_yuan=ev,
             trigger_kind='price',
-            daily_wake_count=self._interventions_today,
+            daily_wake_count=self.state.interventions_today,
             change_pct=getattr(quote, 'change_pct', None),
         )
 
@@ -412,26 +410,20 @@ class WatchEngine:
             return None
 
     def _reset_daily_state_if_needed(self, now: datetime):
-        """跨天重置：均量缓存过期 + 清理已删除规则的残留状态"""
-        current_date = now.date()
-        if self._state_date == current_date:
+        """跨天重置：均量缓存过期 + 清理已删除规则的残留状态
+
+        状态部分委托 StateManager.reset_daily；规则列表只查一次（原实现为
+        last_triggered 与 history 各查一次，同一 tick 内结果相同）。
+        """
+        if self.state.current_date == now.date():
             return
-        self._state_date = current_date
         self._avg_volume_cache.clear()
-        # 跨天全量重新武装：新的一天允许持续成立的条件再报一次（每日最多一次）
-        self._latched.clear()
-        self._recent_notified.clear()
-        self._overlap_reported.clear()
-        self._last_intervention.clear()
-        self._interventions_today = 0
-        active_ids = {r.id for r in self.rule_repo.list_enabled()}
-        self._last_triggered = {k: v for k, v in self._last_triggered.items()
-                                if k[0] in active_ids}
-        # 事件日志同清：跨天的频率/共振计数不应把昨天的触发带进今天
-        self._trigger_events = []
-        active_symbols = {r.symbol for r in self.rule_repo.list_enabled()}
-        self._history = {s: buf for s, buf in self._history.items()
-                         if s in active_symbols}
+        active = self.rule_repo.list_enabled()
+        self.state.reset_daily(
+            now,
+            active_rule_ids={r.id for r in active},
+            active_symbols={r.symbol for r in active},
+        )
 
     def _in_active_window(self, rule, now: datetime) -> bool:
         windows = getattr(rule, 'active_window', None)
@@ -452,16 +444,16 @@ class WatchEngine:
         cost = getattr(rule, 'cost_price', None)
         return EvalContext(
             cost_price=float(cost) if cost is not None else None,
-            price_history=tuple(self._history.get(rule.symbol, ())),
+            price_history=tuple(self.state.history.get(rule.symbol, ())),
             avg_volume_20d=self._get_avg_volume(rule.symbol),
             elapsed_fraction=elapsed_trading_fraction(now),
         )
 
     def _push_history(self, symbol: str, ts: datetime, price: float):
-        buf = self._history.setdefault(symbol, [])
+        buf = self.state.history.setdefault(symbol, [])
         buf.append((ts, price))
         cutoff = ts - timedelta(minutes=self.history_minutes)
-        self._history[symbol] = [(t, p) for t, p in buf if t >= cutoff]
+        self.state.history[symbol] = [(t, p) for t, p in buf if t >= cutoff]
 
     def _get_avg_volume(self, symbol: str) -> Optional[float]:
         """20 日均量（供 volume_surge 类条件）：按日缓存 + 硬超时 + 失败熔断
@@ -519,7 +511,7 @@ class WatchEngine:
             logger.warning('均量取数失败（按无均量处理）', symbol=symbol, reason=why)
 
     def _in_cooldown(self, rule_id: int, cond_idx: int, cond: dict, now: datetime) -> bool:
-        last = self._last_triggered.get((rule_id, cond_idx))
+        last = self.state.last_triggered.get((rule_id, cond_idx))
         if last is None:
             return False
         cooldown = cond.get('cooldown_sec', DEFAULT_COOLDOWN_SEC)
@@ -542,15 +534,8 @@ class WatchEngine:
             return 'L1'
 
     def _record_trigger_event(self, now: datetime, rule_id: int, symbol: str) -> None:
-        """记一条触发事件（频率/共振统计的唯一事实源）
-
-        2026-09-14：原先两条升级路径都从 _last_triggered 取数，而那是
-        (rule_id, cond_idx) → 最新时间的**覆盖写**映射，既不能累计同一条件的
-        多次触发，也不含 symbol。改为按「每次触发一条」追加 + 按保留窗口裁剪。
-        """
-        self._trigger_events.append((now, rule_id, symbol))
-        cutoff = now - timedelta(minutes=self._event_retention_min)
-        self._trigger_events = [e for e in self._trigger_events if e[0] >= cutoff]
+        """委托 StateManager（保留薄封装：既有调用点与测试直接用它）"""
+        self.state.record_trigger_event(now, rule_id, symbol)
 
     def _get_recent_trigger_count(self, rule_id: int, window_minutes: int = 10) -> int:
         """该规则近 window_minutes 分钟内的触发次数（含本次触达）
@@ -560,12 +545,7 @@ class WatchEngine:
         policy 的 max_triggers_per_window.count 为 3 —— 该路径恒达不到阈值，
         「触发频率升级」整体失效。
         """
-        now = self.now_fn()
-        cutoff = now - timedelta(minutes=window_minutes)
-        history = sum(1 for t, rid, _ in self._trigger_events
-                      if rid == rule_id and t >= cutoff)
-        # +1 = 本次：本方法在本次事件写进事件日志之前被调用
-        return history + 1
+        return self.state.recent_trigger_count(self.now_fn(), rule_id, window_minutes)
 
     def _get_concurrent_trigger_count(self, symbol: str, rule_id: int,
                                       window_seconds: int = 60) -> int:
@@ -576,9 +556,5 @@ class WatchEngine:
         永远等不到 concurrent_trigger_count >= 2，「多规则共振升级」整体失效。
         现从事件日志按 symbol 去重统计 rule_id，并计入本次当前规则。
         """
-        now = self.now_fn()
-        cutoff = now - timedelta(seconds=window_seconds)
-        rule_ids = {rid for t, rid, sym in self._trigger_events
-                    if sym == symbol and t >= cutoff}
-        rule_ids.add(rule_id)  # 含本次：共振 = 本条 + 同标的其他规则
-        return len(rule_ids)
+        return self.state.concurrent_trigger_count(self.now_fn(), symbol, rule_id,
+                                                   window_seconds)

@@ -329,14 +329,14 @@ class TestEscalationCounters:
 
     def test_event_log_survives_same_day(self):
         e = make_engine([], {})
-        e._record_trigger_event(NOW, 1, '600519.SH')
-        e._state_date = NOW.date()            # 模拟"今日已初始化"
-        e._reset_daily_state_if_needed(NOW)   # 同一天 → 不清空
-        assert len(e._trigger_events) == 1
+        e._record_trigger_event(NOW, 1, '600519.SH')   # 顺带覆盖 engine 的委托
+        e.state.current_date = NOW.date()              # 模拟"今日已初始化"
+        e._reset_daily_state_if_needed(NOW)            # 同一天 → 不清空
+        assert len(e.state.trigger_events) == 1
 
     def test_event_log_cleared_cross_day(self):
         e = make_engine([], {})
         e._record_trigger_event(NOW, 1, '600519.SH')
-        e._state_date = NOW.date()
+        e.state.current_date = NOW.date()
         e._reset_daily_state_if_needed(NOW + timedelta(days=1))  # 跨天 → 清空
-        assert e._trigger_events == []
+        assert e.state.trigger_events == []
