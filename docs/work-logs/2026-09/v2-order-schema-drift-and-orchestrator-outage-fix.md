@@ -124,9 +124,18 @@ psycopg2 直接返回 `date`），而 `judge_trading_day` 要做 `(today - lates
 
 ## 六、遗留（更新）
 
-- **orchestrator 侧未做**（M4 后半）：`daily_orchestrator.py` 正被另一会话的"编排器账户通用化"重构
-  （main 44b469c0，-329 行），此时改会造成三方冲突；正确做法是给 tick/启动外层加 try/except（任何异常都不许打死
-  tick 线程）+ degraded 时告警，而不是让"交易日判定"这一层独自承担可用性。
+- **orchestrator 侧告警已由守卫侧承接（M4 后半，2026-09-14 落地）**：不改 `daily_orchestrator.py`
+  （该文件仍在被另一会话的"编排器账户通用化"迭代），改为在**守卫自身**解决"降级被布尔入口吞掉"：
+  · 新增独立来源 `SOURCE_COMPUTE_ERROR='compute-error'`，与 `unavailable`（数据源不可用）区分——
+    "判定器自己的 bug"不再被读成"今天真的不是交易日"；
+  · `TradingDayGuard.is_trading_day()` 一旦消费到降级判定，按【日+来源】去重补一条留痕
+    （数据源问题 warning、判定器异常 **error**）——orchestrator / watch_engine / kline 等 10 余处
+    布尔调用方从此不再把"判不了"静默成"今天不用干活"。tick 每分钟一次，故必须去重，否则刷屏。
+  · 测试用 **logger 替身**而非 caplog：本模块走 structlog(console renderer) 直写 stdout，
+    caplog 抓不到 → 用 caplog 写的断言会恒空（假验证）。测试日期也必须选"过去的工作日"，
+    否则周末/未来日期在判定前提前 return，测不到降级分支（第一版就踩了这个）。
+  · **仍未做**：把降级升级为主动外发告警（飞书）。当前 ERROR 留痕落在 launchd 日志，可被
+    现有 ops 巡检消费；要不要再加一级主动告警需要定"连续降级 N 次"的阈值与去噪策略，另开需求。
 - 本仓仍无迁移框架/CI 门禁；`tests/test_orm_db_drift.py` 是事后闸门，**挡不住**"模型改了、迁移没写、直接重启上线"。
 - 真实下单端到端（DSH `portfolio_trade` → HTTP → service → DB）与 9:31 盘前撮合链仍未实测。
 - `p2_async_repositories` 重复定义 `quant.automation_tasks`（详见上）——同类漂移，未修。

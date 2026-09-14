@@ -11,6 +11,7 @@ from datetime import date
 import pytest
 
 from application.services.trading_day_guard import (
+    SOURCE_COMPUTE_ERROR,
     SOURCE_INTRADAY,
     SOURCE_KLINE,
     SOURCE_NO_DATA,
@@ -18,6 +19,7 @@ from application.services.trading_day_guard import (
     SOURCE_WEEKEND,
     TradingDayGuard,
     judge_trading_day,
+    reset_degraded_loud_log,
 )
 
 
@@ -204,7 +206,7 @@ def test_check_tolerates_string_from_stats_even_if_coercion_is_lost(monkeypatch)
     )
     v = TradingDayGuard.check(date.today(), use_cache=False)   # 不得抛
     assert v.is_trading_day is False
-    assert v.source == SOURCE_UNAVAILABLE and v.degraded is True
+    assert v.source == SOURCE_COMPUTE_ERROR and v.degraded is True
 
 
 def test_compute_failure_degrades_instead_of_raising(monkeypatch):
@@ -217,7 +219,114 @@ def test_compute_failure_degrades_instead_of_raising(monkeypatch):
     monkeypatch.setattr(TradingDayGuard, '_compute', classmethod(lambda cls, d: _boom(d)))
     v = TradingDayGuard.check('2026-09-10', use_cache=False)   # orchestrator 场景：不许抛
     assert v.is_trading_day is False
-    assert v.source == SOURCE_UNAVAILABLE and v.degraded is True
+    # 与"数据源不可用"区分：这是判定器自身的 bug，不是行情问题（复查 M4）
+    assert v.source == SOURCE_COMPUTE_ERROR and v.degraded is True
+
+
+# ── 2.2 降级必须吵（复查 M4）：布尔入口不许把"判不了"静默成"今天不是交易日" ──
+class _FakeLogger:
+    """捕获 structlog 调用的假 logger。
+
+    为什么不caplog：本模块用 structlog（console renderer 直写 stdout），
+    pytest 的 caplog 抓不到 —— 用 caplog 写的断言会"恒空 = 恒真/恒假"，
+    正是本仓反复踩的假验证。这里直接盯住 logger 的调用。
+    """
+
+    def __init__(self):
+        self.calls = []
+
+    def _record(self, level):
+        def _fn(event, **kw):
+            self.calls.append({'level': level, 'event': event, **kw})
+        return _fn
+
+    def __getattr__(self, name):
+        return self._record(name)
+
+
+@pytest.fixture
+def _fake_guard_logger(monkeypatch):
+    from application.services import trading_day_guard as mod
+
+    fake = _FakeLogger()
+    monkeypatch.setattr(mod, 'logger', fake)
+    reset_degraded_loud_log()
+    yield fake
+    reset_degraded_loud_log()
+
+
+def test_is_trading_day_logs_loud_when_degraded(monkeypatch, _fake_guard_logger):
+    """orchestrator 等调用方拿的是布尔值 → 降级必须自己发出声音。"""
+    monkeypatch.setattr(
+        TradingDayGuard, '_kline_stats',
+        staticmethod(lambda day: (_ for _ in ()).throw(RuntimeError('db down'))),
+    )
+    assert TradingDayGuard.is_trading_day('2026-09-10') is False
+    loud = [c for c in _fake_guard_logger.calls
+            if c['event'] == 'trading_day_guard_degraded_verdict_consumed_as_bool']
+    assert loud, '降级经布尔入口消费时必须留痕'
+    assert loud[0]['level'] == 'warning'      # 数据源问题 → warning
+    assert loud[0]['source'] == SOURCE_UNAVAILABLE
+
+
+def test_compute_error_degradation_is_error_level(monkeypatch, _fake_guard_logger):
+    """判定器自身 bug 要比数据源问题更响（error）。"""
+    monkeypatch.setattr(
+        TradingDayGuard, '_compute',
+        classmethod(lambda cls, d: (_ for _ in ()).throw(TypeError('boom'))),
+    )
+    TradingDayGuard.is_trading_day('2026-09-11')   # 必须是过去/当天：未来日期会提前 return
+    loud = [c for c in _fake_guard_logger.calls
+            if c['event'] == 'trading_day_guard_degraded_verdict_consumed_as_bool']
+    assert loud and loud[0]['level'] == 'error'
+    assert loud[0]['source'] == SOURCE_COMPUTE_ERROR
+
+
+def test_is_trading_day_degraded_log_is_deduped_per_day(monkeypatch, _fake_guard_logger):
+    """tick 每分钟一次：同一天同一来源只吵一次，不能刷屏。"""
+    monkeypatch.setattr(
+        TradingDayGuard, '_kline_stats',
+        staticmethod(lambda day: (_ for _ in ()).throw(RuntimeError('db down'))),
+    )
+    for _ in range(3):
+        # 必须选"过去的工作日"：周末/未来日期会在判定前提前 return，根本到不了降级分支
+        # （我第一版就写成了 09-12 周六，测试因此假失败——日期选择本身就是个坑）
+        TradingDayGuard.is_trading_day('2026-09-11')   # 上周五
+    hits = [c for c in _fake_guard_logger.calls
+            if c['event'] == 'trading_day_guard_degraded_verdict_consumed_as_bool']
+    assert len(hits) == 1, '同一天同一来源应只留痕一次，实际 %d' % len(hits)
+
+
+def test_is_trading_day_does_not_log_for_normal_verdicts(monkeypatch, _fake_guard_logger):
+    """正常判定（交易日/周末）不许产生降级留痕噪声。"""
+    monkeypatch.setattr(
+        TradingDayGuard, '_kline_stats',
+        staticmethod(lambda day: (True, date(2026, 9, 10))),
+    )
+    assert TradingDayGuard.is_trading_day('2026-09-10') is True
+    assert TradingDayGuard.is_trading_day('2026-08-08') is False   # 周末：非降级
+    assert not [c for c in _fake_guard_logger.calls
+                if c['event'] == 'trading_day_guard_degraded_verdict_consumed_as_bool']
+
+
+def test_compute_error_is_distinguishable_from_datasource_unavailable(monkeypatch):
+    """两种降级必须可区分：数据源不可用 vs 判定器异常（前者是行情，后者是 bug）。"""
+    from application.services.trading_day_guard import TradingDayGuard
+
+    monkeypatch.setattr(
+        TradingDayGuard, '_kline_stats',
+        staticmethod(lambda day: (_ for _ in ()).throw(RuntimeError('db down'))),
+    )
+    v_src = TradingDayGuard.check('2026-09-10', use_cache=False)
+    assert v_src.source == SOURCE_UNAVAILABLE
+
+    monkeypatch.setattr(
+        TradingDayGuard, '_compute',
+        classmethod(lambda cls, d: (_ for _ in ()).throw(TypeError('boom'))),
+    )
+    v_bug = TradingDayGuard.check('2026-09-10', use_cache=False)
+    assert v_bug.source == SOURCE_COMPUTE_ERROR
+    assert v_bug.source != v_src.source
 
 
 # ── 3. 写入型守卫 ────────────────────────────────────────────

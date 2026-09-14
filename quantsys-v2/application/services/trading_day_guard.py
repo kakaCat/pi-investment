@@ -48,6 +48,17 @@ SOURCE_KLINE = 'kline-data'
 SOURCE_INTRADAY = 'intraday-recent-market'
 SOURCE_NO_DATA = 'no-kline-data'
 SOURCE_UNAVAILABLE = 'unavailable'
+# 判定器自身异常（既非"数据说不是交易日"，也非"数据源不可用"）。2026-09-14（复查 M4）：
+# 与 SOURCE_UNAVAILABLE 分开，避免"代码 bug"被读成"今天真的不是交易日"。
+SOURCE_COMPUTE_ERROR = 'compute-error'
+
+# 降级日的 Loud 留痕去重：tick 每分钟一次，不能把同一件事刷成日志洪水。
+_DEGRADED_LOUD_KEY: set = set()
+
+
+def reset_degraded_loud_log() -> None:
+    """清空"降级 Loud 留痕"去重表（测试用；也便于运维手工复位）。"""
+    _DEGRADED_LOUD_KEY.clear()
 
 
 def judge_trading_day(
@@ -141,7 +152,7 @@ class TradingDayGuard:
             logger.warning('trading_day_guard_normalize_failed', raw=repr(day),
                            error=f'{type(e).__name__}: {e}')
             return TradingDayVerdict(
-                _best_effort_day(day), False, SOURCE_UNAVAILABLE, True,
+                _best_effort_day(day), False, SOURCE_COMPUTE_ERROR, True,
                 f'日期入参无法解析（{day!r}: {e}）→ 保守判非交易日',
             )
         if use_cache:
@@ -161,7 +172,7 @@ class TradingDayGuard:
             logger.warning('trading_day_guard_compute_failed',
                            day=d.isoformat(), error=f'{type(e).__name__}: {e}')
             verdict = TradingDayVerdict(
-                d, False, SOURCE_UNAVAILABLE, True,
+                d, False, SOURCE_COMPUTE_ERROR, True,
                 f'交易日判定异常（{type(e).__name__}: {e}）→ 保守判非交易日',
             )
         _verdict_cache[d] = (time.time(), verdict)
@@ -201,7 +212,35 @@ class TradingDayGuard:
 
     @classmethod
     def is_trading_day(cls, day: Union[None, str, date, datetime] = None) -> bool:
-        return cls.check(day).is_trading_day
+        """布尔便捷入口。
+
+        2026-09-14（复查 M4）：**降级时不再静默**。调用方（orchestrator 的 tick /
+        resume_from_breakpoint、watch_engine、kline/job 等 10 余处）拿到的只是布尔值，
+        degraded/reason 在这一层被丢弃 —— 于是"数据源不可读"或"判定器异常"会表现为
+        "今天不用干活"，整天的盘前撮合/T1 结算静默跳过，表面与正常休市无异。
+        其代价与 09-14 那次事故等价，只是更安静。
+        这里按日 + 来源去重补一条 ERROR 留痕（tick 每分钟一次，不能刷屏）；
+        需要按降级原因分流处置的调用方请直接用 check() 拿 verdict。
+        """
+        verdict = cls.check(day)
+        if verdict.degraded:
+            cls._log_degraded_loud(verdict)
+        return verdict.is_trading_day
+
+    @classmethod
+    def _log_degraded_loud(cls, verdict: 'TradingDayVerdict') -> None:
+        key = (verdict.day.isoformat(), verdict.source)
+        if key in _DEGRADED_LOUD_KEY:
+            return
+        _DEGRADED_LOUD_KEY.add(key)
+        # 计算型降级（判定器自身异常）比数据源降级更严重：它是代码 bug，不是行情问题。
+        emit = logger.error if verdict.source == SOURCE_COMPUTE_ERROR else logger.warning
+        emit(
+            'trading_day_guard_degraded_verdict_consumed_as_bool',
+            day=verdict.day.isoformat(), source=verdict.source, reason=verdict.reason,
+            note='该判定为"保守视为非交易日"，依赖它的工作当天会被跳过；'
+                 '需要区分处置请改用 check() 取 verdict',
+        )
 
     @classmethod
     def should_write_daily(cls, day: Union[None, str, date, datetime] = None) -> TradingDayVerdict:
