@@ -69,8 +69,10 @@ class QlibDataRepository:
         sql += " ORDER BY symbol, trade_date"
 
         stmt = text(sql).bindparams(bindparam('symbols', expanding=True))
-        # 仍用 pandas.read_sql 取数：DataFrame 的 dtype/列序与旧实现逐位一致
-        return pd.read_sql(stmt, self.engine, params=params)
+        # 内存安全：使用 chunksize 流式读取，避免一次性加载海量 K 线数据
+        # 典型场景：symbols=全市场 5000 只 × 250 天 = 125 万行，chunksize=50000 分 25 批
+        chunks = pd.read_sql(stmt, self.engine, params=params, chunksize=50000)
+        return pd.concat(chunks, ignore_index=True)
 
     def get_calendar(
         self,
@@ -94,13 +96,19 @@ class QlibDataRepository:
             params['end_time'] = end_time
         sql += " ORDER BY trade_date"
 
-        return pd.read_sql(text(sql), self.engine, params=params)
+        # 内存安全：虽然交易日历结果集小（几百行），但统一使用 chunksize 模式
+        chunks = pd.read_sql(text(sql), self.engine, params=params, chunksize=10000)
+        return pd.concat(chunks, ignore_index=True)
 
     def get_instruments(self) -> pd.DataFrame:
         """取全部标的（DISTINCT + 升序）。
 
         旧 SQL：SELECT DISTINCT symbol FROM klines ORDER BY symbol
         """
-        return pd.read_sql(
-            text("SELECT DISTINCT symbol FROM klines ORDER BY symbol"), self.engine
+        # 内存安全：全市场标的约 5000 行，使用 chunksize 统一模式
+        chunks = pd.read_sql(
+            text("SELECT DISTINCT symbol FROM klines ORDER BY symbol"), 
+            self.engine,
+            chunksize=10000
         )
+        return pd.concat(chunks, ignore_index=True)
