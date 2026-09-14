@@ -4,8 +4,14 @@
 # ========== DSH 核心插件 ==========
 
 # 设置管理
+# path 显式指向唯一一份真身：插件默认落在 $DSH_HOME/settings.yaml，而托管模式下
+# $DSH_HOME 只是脚手架目录、真身在 .dsh-data。不能让两处都存在 —— 该插件写盘用
+# writeFileAtomic（临时文件 + rename），rename 会把符号链接替换成普通文件，
+# 于是 $DSH_HOME/settings.yaml 会变成第二份真身，与这份互相覆盖（2026-09-14 实测）。
 - id: settings
   name: '@deepseek-ai/dsh-settings-file'
+  config:
+    path: /Users/yunpeng/pi-investment/agent-dh/.dsh-data/settings.yaml
 
 # 凭证管理（从环境变量读取 DEEPSEEK_API_KEY）
 - id: credentials

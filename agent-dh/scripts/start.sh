@@ -202,9 +202,21 @@ if [ "$MANAGED_HOME" = "1" ]; then
   echo "运行模式: 项目内托管（DSH_HOME=${DSH_HOME} profile=${DSH_PROFILE}）"
   mkdir -p "$DSH_DATA_DIR/data"
 
-  # 在 DSH_HOME 创建配置文件符号链接，让 DSH 读取项目内的配置
-  if [ -f "$DSH_DATA_DIR/settings.yaml" ]; then
-    ln -sf "$DSH_DATA_DIR/settings.yaml" "$DSH_HOME/settings.yaml"
+  # settings.yaml **不再做符号链接**（2026-09-14）：加载路径改由 config/cordis.yml 的
+  #   - id: settings / config.path: $DSH_DATA_DIR/settings.yaml
+  # 直接指定，$DSH_DATA_DIR 那份是唯一真身。
+  #
+  # 为什么不链接（当天实测踩到）：dsh-settings-file 写盘走 writeFileAtomic（临时文件 +
+  # rename），**rename 会把符号链接替换成普通文件**。一次 UI 改设置（如换模型）之后
+  # $DSH_HOME/settings.yaml 就变成第二份真身，UI 的写入落它身上；而下面这段原先的
+  # `ln -sf` 又会在下次启动时**静默覆盖**它 —— 两份文档互相打架且全程无报错。
+  # 残留的旧链接必须清掉，否则它看起来仍像权威配置；含内容的真实文件只告警不删。
+  if [ -L "$DSH_HOME/settings.yaml" ]; then
+    rm -f "$DSH_HOME/settings.yaml"
+    echo "  已移除 settings.yaml 符号链接（改由 config.path 指向 $DSH_DATA_DIR）"
+  elif [ -s "$DSH_HOME/settings.yaml" ]; then
+    echo "  警告: $DSH_HOME/settings.yaml 是含内容的真实文件，但它已不参与加载。" >&2
+    echo "        唯一真身是 $DSH_DATA_DIR/settings.yaml；确认无误后请手工删除前者。" >&2
   fi
 
   if [ -f "$DSH_DATA_DIR/.credentials.yaml" ]; then
