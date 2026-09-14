@@ -28,6 +28,19 @@
 排除：venv/、tests/、infrastructure/persistence/migrations/（DDL 与数据迁移本就该用原生 SQL）、
       tools/oneoff/（一次性运维脚本，单独评估）。
       scripts/ 与 tools/ 下的诊断脚本**计入统计但不属本轮范围**（单列在报告末尾）。
+
+**「未迁移」与「按设计即 SQL」必须分开**（2026-09-15，chore/v2-orm-residual）：
+
+  报告里的「本轮范围」是**总量**，其中一部分**无法也不应**改成 ORM —— 通用执行器原语、
+  连通性探针（SELECT 1）、PG 专有构造、以及"改回 ORM 反而会引入连接泄漏"的历史修复点。
+  把它们和真债堆在同一个数字里，结果是：数字永远归不了零，每个新人都要把这十处重查一遍。
+
+  故引入 EXEMPTIONS（显式基线）：登记为豁免的处数从「未迁移」里扣除，并**逐条打印理由**。
+  基线自身受三条硬校验（空理由 / 数量多于登记 / 数量少于登记 → --gate 一律失败），
+  见 exemption_problems()。这样「未迁移 = 0」才是可证伪的陈述，而不是靠人记性好。
+
+  ⚠️ 审计桶 session_execute_var **不计入「未迁移」**：正则无法判定 session.execute(<标识符>)
+     装的是 select() 还是裸 text()，单列供人工复核（本仓实测 63 处，绝大多数是 stmt=select(...)）。
 """
 from __future__ import annotations
 
@@ -234,6 +247,84 @@ def scan():
     return result, unparseable
 
 
+# ── 按设计即 SQL 的豁免登记（2026-09-15，w-2129d492，chore/v2-orm-residual）──────────
+#
+# 判定标准（三条全满足才可登记）：该处的裸 SQL
+#   ① 无法或不应改成 ORM/Core（改了要么更差、要么把 ORM 写进调用点）；
+#   ② 不构成本需求要消灭的**风险**：裸连接长期持有 / idle-in-transaction / 值位置注入；
+#   ③ 连接由框架管理（Session / AsyncConnection / 池化游标），执行完即归还。
+#
+# EXEMPTIONS 是**显式基线**，不是静默忽略 —— 三条自维护纪律：
+#   · 必须写理由：理由为空 → --gate 失败（空理由=不想解释，那就别豁免）；
+#   · 数量必须**精确匹配**：实际 > 登记 → 豁免文件里混进了新的未迁移 SQL，失败；
+#     实际 < 登记 → 登记过期（多半已迁移完），同样失败，提醒删掉这一条。
+#   · 全部逐条打印在报告里 —— 豁免表本身就是被审阅的对象，不藏在代码里。
+# 约定与 tests/test_orm_db_drift.py 的 _KNOWN_DANGLING_TABLES / _EXTEND_EXISTING_BASELINE
+# 一致：宁可让基线显式、可审计，也不让它变成一个没人敢碰的常驻计数。
+EXEMPTIONS = {
+    ('infrastructure/persistence/database/async_base_repository.py', 'core_text_sql'): (
+        5,
+        '通用异步执行器原语：fetchall/fetchrow/fetchval/execute/executemany 的方法签名就是'
+        '「执行调用方传进来的 SQL」—— 用 ORM 表达等于把 ORM 塞进每个调用点。全部经 '
+        '_connection_context()/AsyncConnection 执行，连接由 SQLAlchemy 管理、执行完即归还，'
+        '不存在裸连接长期持有或 idle-in-transaction。',
+    ),
+    ('infrastructure/diagnostics/dependency_check.py', 'core_text_sql'): (
+        1,
+        '依赖自检的连通性探针（SELECT 1）。探针要回答的正是「能不能连上并执行一条语句」，'
+        '用 ORM 表达不增加任何信息量。',
+    ),
+    ('infrastructure/diagnostics/dependency_check.py', 'fstring_sql'): (
+        1,
+        '同上探针的 f-string 形态。本指标是**粗指标**，不区分标识符插值与取值插值 —— '
+        '该处不含引号内取值插值（P0 fstring_value_interp 本轮范围=0 即为证），故不是注入面。',
+    ),
+    ('adapters/outbound/repositories/ml_model_repository.py', 'cursor_execute'): (
+        1,
+        '会话健康探针 self.session.execute(sql_text(SELECT 1))。经 SQLAlchemy Session 执行'
+        '（不是裸游标）、连接受框架管理；且探针语义无法用 ORM 表达。',
+    ),
+    ('adapters/outbound/repositories/portfolio_repository.py', 'core_text_sql'): (
+        1,
+        '该文件内已写明此处「无法用 ORM 表达」（PG 专有构造），故按仓储契约（SQL 只允许出现在'
+        '仓储层）用 session.execute(text(...)) 实现。经 Session 执行，无裸连接。',
+    ),
+    ('utils/symbol_classifier.py', 'cursor_execute'): (
+        1,
+        '代码注释已写明**故意**不用 ORM：走 ORM 会在 ThreadPoolExecutor 线程上开 thread-local '
+        'session 且不关闭，实测造成 session_leak_detected 与 idle in transaction ~337s 被 DB 强杀'
+        '（REQ-24e15d t2 改用池化游标修复）。把它改回 ORM 是**回退**那次修复。',
+    ),
+}
+
+
+def exempted_by_metric() -> Dict[str, int]:
+    """按豁免登记汇总「本轮范围内每个指标被豁免掉多少处」。"""
+    out: Dict[str, int] = {k: 0 for k in METRIC_ORDER}
+    for (_rel, metric), (n, _reason) in EXEMPTIONS.items():
+        out[metric] += n
+    return out
+
+
+def exemption_problems(data: Dict[str, Dict[str, int]]) -> List[str]:
+    """校验豁免表自身：空理由 / 登记过期 / 豁免文件混入新债 —— 三者任一即失败。"""
+    problems: List[str] = []
+    for (rel, metric), (expected, reason) in sorted(EXEMPTIONS.items()):
+        if not (reason or '').strip():
+            problems.append('%s 的 %s：豁免理由为空（空理由不得豁免）' % (rel, metric))
+        actual = data.get(rel, {}).get(metric, 0)
+        if actual > expected:
+            problems.append(
+                '%s 的 %s：实际 %d > 登记 %d —— 同文件同指标混入了**新的**未迁移 SQL；'
+                '请迁移它，或确认同属「按设计即 SQL」后上调登记并写明理由'
+                % (rel, metric, actual, expected))
+        elif actual < expected:
+            problems.append(
+                '%s 的 %s：实际 %d < 登记 %d —— **登记过期**（多半已迁移完），请删除该条豁免'
+                % (rel, metric, actual, expected))
+    return problems
+
+
 def in_scope(rel: str) -> bool:
     return not rel.startswith(OUT_OF_SCOPE_TOP)
 
@@ -241,7 +332,8 @@ def in_scope(rel: str) -> bool:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", action="store_true", help="机器可读输出")
-    ap.add_argument("--gate", action="store_true", help="P0 非 0 时退出码 1")
+    ap.add_argument("--gate", action="store_true",
+                    help="P0（扣除豁免后）非 0，或豁免表自身不合法时退出码 1")
     args = ap.parse_args()
 
     data, unparseable = scan()
@@ -253,39 +345,95 @@ def main() -> int:
             totals[k] += v
             (scoped if in_scope(rel) else oos_totals)[k] += v
 
+    exempted = exempted_by_metric()
+    # 「未迁移」= 本轮范围 − 已登记为「按设计即 SQL」的豁免。这才是剩余工作量。
+    unmigrated = {k: scoped[k] - exempted[k] for k in METRIC_ORDER}
+    problems = exemption_problems(data)
+
     if args.json:
-        print(json.dumps({"files": data, "totals": totals, "in_scope": scoped,
-                          "out_of_scope": oos_totals, "scope_prefixes": list(OUT_OF_SCOPE_TOP),
-                          "unparseable": unparseable, "scanned_files": len(iter_py_files())},
-                         ensure_ascii=False, indent=2))
+        print(json.dumps({
+            "files": data, "totals": totals, "in_scope": scoped,
+            "exempted": exempted, "unmigrated": unmigrated,
+            "exemptions": [
+                {"file": rel, "metric": metric, "count": n, "reason": reason}
+                for (rel, metric), (n, reason) in sorted(EXEMPTIONS.items())
+            ],
+            "exemption_problems": problems,
+            "out_of_scope": oos_totals, "scope_prefixes": list(OUT_OF_SCOPE_TOP),
+            "unparseable": unparseable, "scanned_files": len(iter_py_files()),
+        }, ensure_ascii=False, indent=2))
     else:
-        print(f"扫描根：{ROOT}")
-        print(f"扫描文件：{len(iter_py_files())} 个（已排除 venv/tests/migrations/oneoff）")
+        print("扫描根：" + str(ROOT))
+        print("扫描文件：%d 个（已排除 venv/tests/migrations/oneoff）" % len(iter_py_files()))
         if unparseable:
             # 不静默：这些文件量不到，谁都不该把它们当成 0 命中。
-            print(f"⚠️ 无法解析（语法错误）{len(unparseable)} 个，本次**未计入任何指标**：")
+            print("⚠️ 无法解析（语法错误）%d 个，本次**未计入任何指标**：" % len(unparseable))
             for rel in unparseable:
-                print(f"     {rel}")
+                print("     " + rel)
         print("")
         print("指标（本轮范围 = 非 scripts|tools|live_trading）:")
         for name in METRIC_ORDER:
             tag = "P0" if name in P0 else "P1" if name in ("cursor_execute", "core_text_sql") else "P2"
-            print(f"  [{tag}] {name:22s} 合计 {totals[name]:5d}   本轮范围 {scoped[name]:5d}")
+            if name in AUDIT_ONLY:
+                # 审计桶：正则无法判定 session.execute(<标识符>) 装的是 select() 还是裸 SQL，
+                # 故**不算入未迁移**，只作人工复核入口（与旧口径一致，避免虚增剩余量）。
+                print("  [%s] %-22s 合计 %5d   本轮范围 %5d   已豁免 %3d   (审计桶，未判定)"
+                      % (tag, name, totals[name], scoped[name], exempted[name]))
+            else:
+                print("  [%s] %-22s 合计 %5d   本轮范围 %5d   已豁免 %3d   **未迁移 %5d**"
+                      % (tag, name, totals[name], scoped[name], exempted[name], unmigrated[name]))
         print("")
-        print("本轮范围内按文件：")
-        for rel, counts in sorted(((r, c) for r, c in data.items() if in_scope(r)),
-                                  key=lambda kv: -sum(kv[1].values())):
-            detail = ", ".join(f"{k}={v}" for k, v in sorted(counts.items()))
-            print(f"  {sum(counts.values()):4d}  {rel}  ({detail})")
+        print("按设计即 SQL 的豁免（显式基线，逐条可审）:")
+        if not EXEMPTIONS:
+            print("  (无)")
+        for (rel, metric), (n, reason) in sorted(EXEMPTIONS.items()):
+            print("  %s  [%s x%d]" % (rel, metric, n))
+            print("      理由：%s" % reason)
+        if problems:
+            print("")
+            print("⚠️ 豁免表自身有问题 %d 条：" % len(problems))
+            for p in problems:
+                print("     - " + p)
         print("")
-        print(f"范围外（{", ".join(OUT_OF_SCOPE_TOP)}）合计：{sum(oos_totals.values())}（本轮不改，另议）")
+        print("**未迁移**（本轮范围 − 豁免）按文件 —— 这才是剩余工作量:")
+        rows = []
+        for rel, counts in data.items():
+            if not in_scope(rel):
+                continue
+            leftover = {}
+            for k, v in counts.items():
+                if k in AUDIT_ONLY:
+                    continue          # 审计桶单列在表尾，不混进"剩余工作量"
+                ex = sum(n for (r2, m2), (n, _r) in EXEMPTIONS.items() if r2 == rel and m2 == k)
+                if v - ex > 0:
+                    leftover[k] = v - ex
+            if leftover:
+                rows.append((rel, leftover))
+        for rel, leftover in sorted(rows, key=lambda kv: -sum(kv[1].values())):
+            detail = ", ".join("%s=%d" % (k, v) for k, v in sorted(leftover.items()))
+            print("  %4d  %s  (%s)" % (sum(leftover.values()), rel, detail))
+        if not rows:
+            print("  (无：本轮范围内已无未迁移的裸 SQL)")
+        pending = sum(v for r, c in data.items() if in_scope(r)
+                      for k, v in c.items() if k not in AUDIT_ONLY)
+        pending -= sum(n for (_r, m), (n, _x) in EXEMPTIONS.items() if m not in AUDIT_ONLY)
+        print("  " + "-" * 66)
+        print("  未迁移合计 %d 处（不含审计桶）；审计桶 session_execute_var %d 处需人工复核"
+              % (pending, scoped.get("session_execute_var", 0)))
+        print("")
+        joined = ", ".join(OUT_OF_SCOPE_TOP)
+        print("范围外（%s）合计：%d（本轮不改，另议）" % (joined, sum(oos_totals.values())))
 
     if args.gate:
-        bad = {k: scoped[k] for k in P0 if scoped[k]}
+        bad = {k: unmigrated[k] for k in P0 if unmigrated[k]}
         if bad:
-            print(f"\n❌ P0 未清零（本轮范围）：{bad}", file=sys.stderr)
+            print("\n❌ P0 未清零（本轮范围，已扣除豁免）：%s" % bad, file=sys.stderr)
             return 1
-        print("\n✅ P0 已清零（值位置注入 / 裸连接）")
+        if problems:
+            print("\n❌ 豁免表自身不合法（%d 条，见上）" % len(problems), file=sys.stderr)
+            return 1
+        print("\n✅ P0 已清零（值位置注入 / 裸连接）；豁免 %d 条均带理由且数量精确匹配"
+              % len(EXEMPTIONS))
     return 0
 
 

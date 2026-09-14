@@ -23,6 +23,7 @@ from sqlalchemy import and_, or_, func, desc, case, cast, Date, select
 from sqlalchemy.exc import SQLAlchemyError
 from infrastructure.persistence.orm import BaseORMRepository
 from infrastructure.persistence.orm.models import Signal, SignalExecution
+from infrastructure.persistence.orm.models.action_norm import signal_action_type
 from domain.ports import ISignalRepository
 
 logger = structlog.get_logger(__name__)
@@ -107,7 +108,9 @@ class SignalORMRepository(BaseORMRepository[Signal], ISignalRepository):
             action = signal_data.get('action')
             action_type = signal_data.get('action_type')
             if action_type is None and action:
-                action_type = {'buy': 1, 'sell': 2}.get(str(action).lower(), 0)
+                # 2026-09-15：映射收敛到 models/action_norm.signal_action_type
+                # （原先这里的字面量是第二份事实源，与模型缺省值必须一致却无从保证）。
+                action_type = signal_action_type(action)
 
             # 幂等：唯一键 (symbol, signal_date, strategy_id) 已存在则跳过
             existing = (

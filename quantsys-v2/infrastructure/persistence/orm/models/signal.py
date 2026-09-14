@@ -14,9 +14,27 @@ from sqlalchemy.orm import relationship, validates
 from datetime import datetime
 
 from ..base import Base
-from .action_norm import normalize_signal_action
+from .action_norm import normalize_signal_action, signal_action_type
 
 __all__ = ['Signal', 'SignalExecution']
+
+
+def _derive_action_type(ctx=None):
+    """quant.signals.action_type 的列缺省值：由同一条 INSERT 的 action 推导。
+
+    为什么把缺省值放在**模型**上（2026-09-15 实测缺陷）：
+    原先只有 signal_repository.create_signal 一处会推导 action_type，任何**别的**
+    ORM 写入漏传它就撞 NotNullViolation（null value in column action_type of
+    relation signals）。实测后果：test_heatmap_service（10）+
+    test_heatmap_repository_events（7）共 **17 个用例 ERROR** —— 夹具直接构造
+    Signal(...) 而不传 action_type 即全灭。
+
+    放在列上 = 写入方不可能忘（与 ORM @validates 强制 action 大小写同一思路）。
+    注意 DB 侧该列 NOT NULL 且**无 server default**（2026-09-15 生产实测），
+    故这里只是 Python 侧缺省，不改变任何 DDL；显式传入的 action_type 永远优先。
+    """
+    params = getattr(ctx, 'current_parameters', None) or {}
+    return signal_action_type(params.get('action'))
 
 
 class Signal(Base):
@@ -64,7 +82,12 @@ class Signal(Base):
 
     # 信号详情
     action = Column(Text, nullable=False, comment='操作类型(BUY/SELL/HOLD，大写契约)')
-    action_type = Column(Integer, nullable=False, comment='操作类型代码')
+    action_type = Column(
+        Integer,
+        nullable=False,
+        default=_derive_action_type,
+        comment='操作类型代码(BUY=1/SELL=2，缺省由 action 推导)'
+    )
     price = Column(Float, comment='信号价格')
     confidence = Column(Float, comment='置信度(0-1)')
     reason = Column(Text, comment='信号原因')
