@@ -6,9 +6,12 @@ status: archived
 updated: 2026-09-10
 owners: [w-50fc8c52]
 tags: [worklog, 2026-09]
+distilled_into: docs/architecture/self-restart-behavior.md
 ---
 
 # self_finalize(exit) 与 boot-recovery I3 语义冲突：exit 会静默清空工作区（修复报告）
+
+> **结论已合并进 L2**：[self_restart 工具行为说明](../../architecture/self-restart-behavior.md)（2026-09-14 提炼自本篇）。本页保留为**过程证据**；要结论请看上层页面，本页只用于追溯。
 
 - 日期：2026-09-10 21:46 CST
 - 角色/窗口：investor / w-50fc8c52（实例 :13080）

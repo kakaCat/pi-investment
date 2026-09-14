@@ -40,8 +40,8 @@ tags: [index, wiki]
 | [身份系统与 agents.json](architecture/identity-and-agents-json.md) | architecture | living | 我是谁、账户从哪来、多窗口与多实例怎么区分。 | 2026-09-13 |
 | [旧订单体系废弃计划](architecture/legacy-system-deprecation-plan.md) | architecture | living | 旧 orders/holdings 体系的安全废弃计划与已删端点清单（2026-08-25）。 | 2026-09-14 |
 | [记忆与召回](architecture/memory-and-recall.md) | architecture | living | 结论写进哪、下次怎么被想起来、怎么知道检索有没有在工作。 | 2026-09-13 |
-| [页面插件契约](architecture/page-plugin-contract.md) | architecture | living | 做一个 DSH 页面插件（GUI）要满足哪些契约；改动怎么生效。 | 2026-09-13 |
-| [插件模型与装载](architecture/plugin-model.md) | architecture | living | agent-dh 的插件是什么、怎么被加载、改完怎么才能生效、常见坑在哪。 | 2026-09-13 |
+| [页面插件契约](architecture/page-plugin-contract.md) | architecture | living | 做一个 DSH 页面插件（GUI）要满足哪些契约；改动怎么生效。 | 2026-09-14 |
+| [插件模型与装载](architecture/plugin-model.md) | architecture | living | agent-dh 的插件是什么、怎么被加载、改完怎么才能生效、常见坑在哪。 | 2026-09-14 |
 | [需求归档规范（reqboard 执行细则）](architecture/requirement-archive.md) | architecture | living | 需求归档执行细则：归档要备哪些材料、合并去向怎么定、代码在哪校验。 | 2026-09-13 |
 | [self_restart 工具行为说明](architecture/self-restart-behavior.md) | architecture | living | self_restart 工具的行为说明与失败排查（状态文件、门控、常见误判）。 | 2026-09-14 |
 
@@ -51,7 +51,7 @@ tags: [index, wiki]
 |---|---|---|---|---|
 | [账户与交易纪律（边界 / 下单前检查 / reason）](standards/account-and-trading.md) | standard | living | 动钱之前必须满足什么；账户名从哪来。 | 2026-09-13 |
 | [留痕与文档规范（写哪里 / 不写哪里）](standards/audit-and-docs.md) | standard | living | 一次工作做完，结论该写进哪个系统；什么内容不该写。 | 2026-09-13 |
-| [构建与发版规范（改了不等于生效）](standards/build-and-release.md) | standard | living | 改完代码怎么让它真正生效；哪些"看起来部署了"其实没有。 | 2026-09-13 |
+| [构建与发版规范（改了不等于生效）](standards/build-and-release.md) | standard | living | 改完代码怎么让它真正生效；哪些"看起来部署了"其实没有。 | 2026-09-14 |
 | [编码与协作规范（命名 / 放置 / worktree / 注释写为什么）](standards/coding.md) | standard | living | 写代码与文档时的命名、放置、协作约定；违反会造成什么。 | 2026-09-13 |
 | [数据与降级规范（契约 / 新鲜度 / 不许静默降级）](standards/data-and-degradation.md) | standard | living | 数据从哪来、什么样的数据不能用来决策、降级时怎么写才算诚实。 | 2026-09-13 |
 | [插件与页面插件规范（Service / 两半 / 样式令牌）](standards/plugin-and-pages.md) | standard | living | 写一个新的 agent-dh 插件（或有 GUI 的页面插件）要遵守什么。 | 2026-09-13 |
@@ -66,14 +66,15 @@ tags: [index, wiki]
 | [工具审计清单](protocols/tool-audit.md) | protocol | living | 怎么查一个工具"说到的"是不是"做到的"（定期抽查 / 接手陌生插件时用）。 | 2026-09-13 |
 | [交易执行协议（Trade Execution Protocol）](protocols/trade-execution-protocol.md) | protocol | living | 交易打标协议 v1.0：每笔交易如何带 genome_version / rules_used 进经验库。 | 2026-09-14 |
 
-### 指南（怎么做 / 怎么排障） · `docs/guides`（16 页）
+### 指南（怎么做 / 怎么排障） · `docs/guides`（17 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
 | [Agent-DH 快速参考卡片](guides/QUICKREF.md) | guide | living | 常用命令速查卡片：启停实例、看日志、跑巡检（含「别用 kill」红线）。 | 2026-09-14 |
 | [Agent-DH 快速开始指南](guides/QUICKSTART.md) | guide | living | 5 分钟把 agent-dh 跑起来：前置依赖、启动步骤、验证方法。 | 2026-09-13 |
-| [Agent-DH 启动指南](guides/STARTUP.md) | guide | living | 启动/停止实例的实操步骤与启动配置位置（agent-dh 独立应用形态）。 | 2026-09-14 |
+| [Agent-DH 启动指南](guides/STARTUP.md) | guide | living | 运行目录与 profile 现状（DSH_HOME=.dsh-data）、启停与 launchd，含 GUI 401 根因与迁移/布局合并的坑。 | 2026-09-14 |
 | [Agent-DH 使用指南](guides/USAGE-GUIDE.md) | guide | living | v0.1.1 时代的使用说明：可用性状态与日常操作入口（历史，部分已被新规范取代）。 | 2026-09-14 |
+| [DSH 内存看门狗与「反复重启」判别（10 分钟一轮）](guides/dsh-heap-watch-and-restart-loop.md) | guide | living | 每 10 分钟整点重启 = dsh-heap-watch 超阈值自动重启，不是崩溃；含机制、2026-09-14 实测根因、退避围栏与处置步骤。 | 2026-09-14 |
 | [事件查询最佳实践（P1-4）](guides/event-query-best-practices.md) | guide | living | 事件查询最佳实践：盘前用两个事件工具查什么、怎么查、别踩什么坑。 | 2026-09-14 |
 | [事件查询统一指南（P1-4）](guides/event-query-guide.md) | guide | living | 两个事件查询工具怎么选、字段怎么读（统一指南）。 | 2026-09-13 |
 | [从 agent-ts（PI 投资顾问·TS版）会话学习报告](guides/learnings-from-agent-ts.md) | guide | living | 从 agent-ts（TS 版投顾）的会话里学到的回答模板与经验。 | 2026-09-14 |
@@ -84,7 +85,7 @@ tags: [index, wiki]
 | [定时巡检清单（有问题才打扰）](guides/routine-checks.md) | guide | living | 哪些检查该定期跑、跑什么命令、什么算有问题、出了问题找谁。 | 2026-09-13 |
 | [技能装载机制（Skill Loading）——排障实录与标准流程](guides/skill-loading.md) | guide | living | 技能为什么看不见：两个 dsh home + skill registry 分层，以及正确的装载姿势。 | 2026-09-14 |
 | [交易约束速查](guides/trading-constraints.md) | guide | living | 下单前要过的硬约束，一张表查完（完整纪律见 账户与交易纪律）。 | 2026-09-13 |
-| [故障排查手册（症状 → 根因 → 处置）](guides/troubleshooting.md) | guide | living | 遇到这些症状，先看哪里、大概率是什么、怎么修。 | 2026-09-13 |
+| [故障排查手册（症状 → 根因 → 处置）](guides/troubleshooting.md) | guide | living | 遇到这些症状，先看哪里、大概率是什么、怎么修。 | 2026-09-14 |
 | [M6 周报推送使用指南](guides/weekly-report-push-guide.md) | guide | living | 周报推送到飞书的配置与使用步骤。 | 2026-09-13 |
 
 ### 设计与实施方案（历史） · `docs/design`（3 页）
