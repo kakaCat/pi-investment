@@ -378,7 +378,8 @@ class StrategyORMRepository(BaseORMRepository[Strategy], IStrategyRepository):
           并用冗余字段保留身份，如 pool_change_log.pool_name）；派生类 → 先清或级联；
           生产类 → 优先软删（is_active=false）而非物理删除。
         · 新增派生/审计表必须登记 quantsys-v2/config/data_contracts.json；
-          悬空引用由 scripts/data_hygiene_probe.py 每周巡检（退出码 1 = 有问题）。
+          悬空引用由 data-hygiene-weekly 例行每周巡检（JobRegistry 的 data_hygiene_probe，
+          2026-09-13 从 scripts/ 上迁为服务；有问题的表会被写进 config/data_hygiene_report.json）。
 
         2026-09-14（w-8b43d3b8，REQ-24e15d B4-c5）：原实现是
         text("DELETE FROM quant.strategy_configs WHERE id = :sid")，现改 ORM delete()。
