@@ -19,6 +19,7 @@ from adapters.outbound.datasources.providers.dividend.eastmoney import Eastmoney
 from adapters.outbound.datasources.providers.market.akshare import AkshareMarketProvider
 from adapters.outbound.datasources.providers.market.ths import ThsMarketProvider
 from adapters.outbound.datasources.providers.market.sina import SinaMarketProvider
+from adapters.outbound.datasources.providers.market.eastmoney import EastmoneyMarketProvider
 from adapters.outbound.datasources.providers.kline.database import DatabaseKlineProvider
 from adapters.outbound.datasources.providers.kline.sina import SinaKlineProvider
 from adapters.outbound.datasources.providers.kline.tencent import TencentKlineProvider
@@ -122,6 +123,12 @@ class DataProviderManager(IDataProviderManager):
             AkshareMarketProvider(),
             ThsMarketProvider(),   # 2026-09-01 备用：东财 WAF 封禁时的板块资金流（同花顺）
             SinaMarketProvider(),  # 2026-09-01 备用：东财龙虎榜异常时的 failover（新浪）
+            # 2026-09-14（REQ-48d896 t9）：东财直连，为股东/基金/千股千评类数据提供第二源。
+            # 放在末位是刻意的：正常时 akshare 先服务（行为不变），只有在 akshare 失败
+            # 或拒绝返回时才由它兜底 —— 实测 dataapi/zlsj/list 那条 akshare 会返回错位表，
+            # 本源按字段名取值因此**修好了 /api/sentiment/top-fund-stocks**。
+            # 另两个源未实现这些方法，_try_providers 会按 hasattr 跳过。
+            EastmoneyMarketProvider(),
         ]
         self.sector_providers = [
             EastmoneySectorProvider(),
