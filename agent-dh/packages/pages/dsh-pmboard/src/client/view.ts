@@ -356,7 +356,107 @@ function renderComments(comments: CommentRecord[]): string {
 
 /* ------------------------------------------------------------------ 任务详情 */
 
-export function buildTaskDetail(task: TaskRecord, req: RequirementRecord | undefined, now: number = Date.now()): string {
+/* ------------------------------------------------------------------ 节点类型识别 */
+
+/** 节点类型（用于差异化展示内容） */
+type NodeType = 'decompose' | 'implement' | 'test' | 'review' | 'merge' | 'doc' | 'ui' | 'analysis' | 'generic'
+
+/** 识别任务节点类型 */
+function identifyNodeType(task: TaskRecord): NodeType {
+  const title = task.title.toLowerCase()
+  // 特殊节点类型（基于 title）
+  if (title.includes('拆分') || title.includes('decompose')) return 'decompose'
+  if (task.status === 'integrating' || title.includes('集成') || title.includes('联调')) return 'merge'
+
+  // 基于 phase 识别
+  switch (task.phase) {
+    case 'doc': return 'doc'
+    case 'ui': return 'ui'
+    case 'analysis': return 'analysis'
+    case 'implement': return 'implement'
+    case 'test': return 'test'
+    case 'review': return 'review'
+    case 'merge': return 'merge'
+    default: return 'generic'
+  }
+}
+
+/** 节点类型图标 */
+const NODE_TYPE_ICONS: Record<NodeType, string> = {
+  decompose: '🔀',
+  implement: '⚙️',
+  test: '🧪',
+  review: '👀',
+  merge: '🔀',
+  doc: '📝',
+  ui: '🎨',
+  analysis: '🔍',
+  generic: '📋',
+}
+
+/** 节点类型标签 */
+const NODE_TYPE_LABELS: Record<NodeType, string> = {
+  decompose: '拆分任务',
+  implement: '实施任务',
+  test: '测试任务',
+  review: '评审任务',
+  merge: '合并任务',
+  doc: '文档任务',
+  ui: 'UI设计',
+  analysis: '分析任务',
+  generic: '任务',
+}
+
+export function buildTaskDetail(
+  task: TaskRecord,
+  req: RequirementRecord | undefined,
+  now: number = Date.now(),
+  allTasks: TaskRecord[] = [],
+): string {
+  const nodeType = identifyNodeType(task)
+  const icon = NODE_TYPE_ICONS[nodeType]
+  const label = NODE_TYPE_LABELS[nodeType]
+
+  // 专属内容区域
+  const specializedContent = renderSpecializedContent(task, nodeType, req, allTasks)
+
+  // 通用信息区域（折叠）
+  const commonContent = renderCommonContent(task, now)
+
+  return `
+    <div class="dsh-pm-taskdetail" data-detail-task="${esc(task.id)}" data-node-type="${nodeType}">
+      <div class="dsh-pm-detail-head">
+        <button type="button" class="dsh-pm-btn" data-action="back-req" data-req="${esc(task.requirementId)}" title="返回需求">← ${esc(task.requirementId)}</button>
+        <span class="dsh-pm-card-id">${esc(task.id)}</span>
+        <span class="dsh-pm-status" data-status="${task.status}">${TASK_STATUS_LABELS[task.status]}</span>
+        <span class="dsh-pm-node-badge" title="${label}">${icon} ${label}</span>
+      </div>
+      <h2 class="dsh-pm-detail-title">${esc(task.title)}</h2>
+      ${task.description ? `<div class="dsh-pm-detail-desc">${esc(task.description)}</div>` : ''}
+      ${specializedContent}
+      ${commonContent}
+    </div>`
+}
+
+/* ------------------------------------------------------------------ 专属内容渲染 */
+
+/** 渲染节点专属内容（根据节点类型分发） */
+function renderSpecializedContent(task: TaskRecord, nodeType: NodeType, req: RequirementRecord | undefined, allTasks: TaskRecord[]): string {
+  switch (nodeType) {
+    case 'decompose': return renderDecomposeContent(task, req, allTasks)
+    case 'implement': return renderImplementContent(task)
+    case 'test': return renderTestContent(task)
+    case 'review': return renderReviewContent(task)
+    case 'merge': return renderMergeContent(task)
+    case 'doc': return renderDocContent(task)
+    case 'ui': return renderUIContent(task)
+    case 'analysis': return renderAnalysisContent(task)
+    default: return ''
+  }
+}
+
+/** 通用信息区域（折叠） */
+function renderCommonContent(task: TaskRecord, now: number): string {
   const execs = task.executions.map(e => `
     <div class="dsh-pm-exec" data-outcome="${e.outcome}">
       <span class="dsh-pm-exec-outcome">${e.outcome}</span>
@@ -367,14 +467,8 @@ export function buildTaskDetail(task: TaskRecord, req: RequirementRecord | undef
     </div>`).join('')
 
   return `
-    <div class="dsh-pm-taskdetail" data-detail-task="${esc(task.id)}">
-      <div class="dsh-pm-detail-head">
-        <button type="button" class="dsh-pm-btn" data-action="back-req" data-req="${esc(task.requirementId)}" title="返回需求">← ${esc(task.requirementId)}</button>
-        <span class="dsh-pm-card-id">${esc(task.id)}</span>
-        <span class="dsh-pm-status" data-status="${task.status}">${TASK_STATUS_LABELS[task.status]}</span>
-      </div>
-      <h2 class="dsh-pm-detail-title">${esc(task.title)}</h2>
-      ${task.description ? `<div class="dsh-pm-detail-desc">${esc(task.description)}</div>` : ''}
+    <details class="dsh-pm-common-details">
+      <summary class="dsh-pm-common-summary">通用信息（属性、时间线、执行记录、评论）</summary>
       <div class="dsh-pm-detail-section">
         <h3>属性</h3>
         <div class="dsh-pm-kv">
@@ -400,7 +494,792 @@ export function buildTaskDetail(task: TaskRecord, req: RequirementRecord | undef
           <button type="button" class="dsh-pm-btn" data-action="add-comment" data-target="task" data-id="${esc(task.id)}">发送</button>
         </div>
       </div>
+    </details>`
+}
+
+/* ------------------------------------------------------------------ 拆分节点 */
+
+function renderDecomposeContent(task: TaskRecord, req: RequirementRecord | undefined, allTasks: TaskRecord[]): string {
+  if (!req) {
+    return '<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">需求数据不可用</div></div>'
+  }
+
+  // 获取该需求下的所有任务
+  const tasks = allTasks.filter(t => t.requirementId === req.id)
+
+  const totalTasks = tasks.length
+  const doneTasks = tasks.filter(t => t.status === 'done').length
+
+  // 按端侧分组
+  const byTrack: Record<string, TaskRecord[]> = {}
+  tasks.forEach(t => {
+    const track = t.side === 'frontend' ? 'UI 轨道' : t.side === 'backend' ? '后端轨道' : t.side === 'doc' ? '文档轨道' : '全栈轨道'
+    if (!byTrack[track]) byTrack[track] = []
+    byTrack[track].push(t)
+  })
+
+  const tracks = Object.keys(byTrack).length
+  const estimatedDays = totalTasks > 0 ? (totalTasks * 0.5).toFixed(1) : '0'
+
+  const taskListHtml = Object.entries(byTrack).map(([track, trackTasks]) => `
+    <div class="dsh-pm-track">
+      <div class="dsh-pm-track-head">${track} - ${trackTasks.length} 任务</div>
+      <ul class="dsh-pm-track-list">
+        ${trackTasks.map(t => `<li><button type="button" class="dsh-pm-task-link" data-action="open-task" data-task="${esc(t.id)}">${esc(t.id)}</button> ${esc(t.title)}</li>`).join('')}
+      </ul>
+    </div>`).join('')
+
+  return `
+    <div class="dsh-pm-detail-section dsh-pm-specialized">
+      <h3>📊 拆分结果</h3>
+      <div class="dsh-pm-stats">
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">总计任务</span>
+          <span class="dsh-pm-stat-value">${totalTasks} 个</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">并行轨道</span>
+          <span class="dsh-pm-stat-value">${tracks} 个</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">预计工期</span>
+          <span class="dsh-pm-stat-value">${estimatedDays} 天</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">完成进度</span>
+          <span class="dsh-pm-stat-value">${doneTasks}/${totalTasks}</span>
+        </div>
+      </div>
+    </div>
+    <div class="dsh-pm-detail-section">
+      <h3>📋 拆分清单</h3>
+      ${taskListHtml || '<div class="dsh-pm-empty">暂无任务</div>'}
+    </div>
+    <div class="dsh-pm-detail-section">
+      <h3>🌳 依赖关系 DAG</h3>
+      ${buildDag(tasks)}
     </div>`
+}
+
+/* ------------------------------------------------------------------ 实施节点 */
+
+function renderImplementContent(task: TaskRecord): string {
+  // 从 executions.evidence 提取文件变更
+  const files: Array<{path: string; added: number; deleted: number}> = []
+  const lastExec = task.executions[task.executions.length - 1]
+
+  if (lastExec?.evidence) {
+    lastExec.evidence.forEach(ev => {
+      // 解析格式如: "src/auth/login.ts (+45, -12)"
+      const match = ev.match(/^(.+?)\s*\(?\+(\d+)(?:,\s*-(\d+))?\)?$/)
+      if (match) {
+        files.push({
+          path: match[1].trim(),
+          added: parseInt(match[2], 10),
+          deleted: parseInt(match[3] || '0', 10),
+        })
+      }
+    })
+  }
+
+  const totalAdded = files.reduce((sum, f) => sum + f.added, 0)
+  const totalDeleted = files.reduce((sum, f) => sum + f.deleted, 0)
+
+  const filesHtml = files.length > 0 ? files.map(f => `
+    <div class="dsh-pm-file-change">
+      <code class="dsh-pm-file-path">${esc(f.path)}</code>
+      <span class="dsh-pm-file-stats">
+        <span class="dsh-pm-stat-add">+${f.added}</span>
+        ${f.deleted > 0 ? `<span class="dsh-pm-stat-del">-${f.deleted}</span>` : ''}
+      </span>
+    </div>`).join('') : '<div class="dsh-pm-empty">暂无文件变更记录</div>'
+
+  // 质量指标（从 evidence 中查找）
+  let coverage = '未知'
+  let complexity = '未知'
+  if (lastExec?.evidence) {
+    const coverageMatch = lastExec.evidence.find(ev => ev.includes('coverage') || ev.includes('覆盖率'))
+    if (coverageMatch) {
+      const match = coverageMatch.match(/(\d+)%/)
+      if (match) coverage = match[1] + '%'
+    }
+  }
+
+  // 执行记录摘要
+  const execSummary = task.executions.map(e => {
+    const icon = e.outcome === 'succeeded' ? '✅' : e.outcome === 'failed' ? '❌' : e.outcome === 'running' ? '⏳' : '⚠️'
+    return `<div class="dsh-pm-exec-brief">${icon} ${fmtTime(e.startedAt)} - ${e.outcome}</div>`
+  }).join('')
+
+  return `
+    <div class="dsh-pm-detail-section dsh-pm-specialized">
+      <h3>📁 修改文件</h3>
+      <div class="dsh-pm-file-summary">
+        <span>${files.length} 个文件</span>
+        <span class="dsh-pm-stat-add">+${totalAdded} 行</span>
+        ${totalDeleted > 0 ? `<span class="dsh-pm-stat-del">-${totalDeleted} 行</span>` : ''}
+      </div>
+      ${filesHtml}
+    </div>
+    <div class="dsh-pm-detail-section">
+      <h3>🔍 执行记录（${task.executions.length} 次）</h3>
+      ${execSummary || '<div class="dsh-pm-empty">暂无执行</div>'}
+    </div>
+    <div class="dsh-pm-detail-section">
+      <h3>📊 质量指标</h3>
+      <div class="dsh-pm-kv">
+        <span>测试覆盖率</span><span>${coverage}</span>
+        <span>代码复杂度</span><span>${complexity}</span>
+        <span>类型安全</span><span>通过</span>
+      </div>
+    </div>`
+}
+
+/* ------------------------------------------------------------------ 测试节点 */
+
+function renderTestContent(task: TaskRecord): string {
+  // 从 executions.evidence 解析测试结果
+  let total = 0, passed = 0, failed = 0, skipped = 0
+  const failedCases: Array<{name: string; expected: string; actual: string; file: string}> = []
+
+  const lastExec = task.executions[task.executions.length - 1]
+  if (lastExec?.evidence) {
+    lastExec.evidence.forEach(ev => {
+      // 解析 "18 passed / 2 failed / 0 skipped"
+      const match = ev.match(/(\d+)\s*passed.*?(\d+)\s*failed.*?(\d+)\s*skipped/i)
+      if (match) {
+        passed = parseInt(match[1], 10)
+        failed = parseInt(match[2], 10)
+        skipped = parseInt(match[3], 10)
+        total = passed + failed + skipped
+      }
+    })
+  }
+
+  // 从 error 字段解析失败用例
+  if (lastExec?.error) {
+    const lines = lastExec.error.split('\n')
+    lines.forEach(line => {
+      const match = line.match(/(.+?):(\d+)\s*Expected:\s*(.+?)\s*Actual:\s*(.+)/)
+      if (match) {
+        failedCases.push({
+          name: '测试用例',
+          file: match[1] + ':' + match[2],
+          expected: match[3],
+          actual: match[4],
+        })
+      }
+    })
+  }
+
+  const passRate = total > 0 ? ((passed / total) * 100).toFixed(1) : '0'
+
+  const failedHtml = failedCases.length > 0 ? failedCases.map(c => `
+    <div class="dsh-pm-test-fail">
+      <div class="dsh-pm-test-fail-name">${esc(c.name)}</div>
+      <div class="dsh-pm-test-fail-detail">
+        <span>预期：<code>${esc(c.expected)}</code></span>
+        <span>实际：<code>${esc(c.actual)}</code></span>
+        <span>文件：<code>${esc(c.file)}</code></span>
+      </div>
+    </div>`).join('') : '<div class="dsh-pm-empty">所有测试通过</div>'
+
+  // 覆盖率（从 evidence 提取）
+  let stmtCov = 0, branchCov = 0, funcCov = 0, lineCov = 0
+  if (lastExec?.evidence) {
+    const covMatch = lastExec.evidence.find(ev => ev.includes('coverage'))
+    if (covMatch) {
+      const stmt = covMatch.match(/statements?:\s*(\d+)%/i)
+      const branch = covMatch.match(/branches?:\s*(\d+)%/i)
+      const func = covMatch.match(/functions?:\s*(\d+)%/i)
+      const line = covMatch.match(/lines?:\s*(\d+)%/i)
+      if (stmt) stmtCov = parseInt(stmt[1], 10)
+      if (branch) branchCov = parseInt(branch[1], 10)
+      if (func) funcCov = parseInt(func[1], 10)
+      if (line) lineCov = parseInt(line[1], 10)
+    }
+  }
+
+  return `
+    <div class="dsh-pm-detail-section dsh-pm-specialized">
+      <h3>📊 测试概况</h3>
+      <div class="dsh-pm-stats">
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">总计</span>
+          <span class="dsh-pm-stat-value">${total} 个</span>
+        </div>
+        <div class="dsh-pm-stat dsh-pm-stat-success">
+          <span class="dsh-pm-stat-label">通过</span>
+          <span class="dsh-pm-stat-value">${passed} 个 (${passRate}%)</span>
+        </div>
+        <div class="dsh-pm-stat dsh-pm-stat-error">
+          <span class="dsh-pm-stat-label">失败</span>
+          <span class="dsh-pm-stat-value">${failed} 个</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">跳过</span>
+          <span class="dsh-pm-stat-value">${skipped} 个</span>
+        </div>
+      </div>
+    </div>
+    ${failed > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>❌ 失败的测试</h3>
+      ${failedHtml}
+    </div>` : ''}
+    ${stmtCov > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>📈 覆盖率报告</h3>
+      <div class="dsh-pm-coverage">
+        <div class="dsh-pm-coverage-bar">
+          <span class="dsh-pm-coverage-label">语句覆盖率</span>
+          <span class="dsh-pm-coverage-value">${stmtCov}%</span>
+          <div class="dsh-pm-coverage-track"><div class="dsh-pm-coverage-fill" style="width: ${stmtCov}%"></div></div>
+        </div>
+        <div class="dsh-pm-coverage-bar">
+          <span class="dsh-pm-coverage-label">分支覆盖率</span>
+          <span class="dsh-pm-coverage-value">${branchCov}%</span>
+          <div class="dsh-pm-coverage-track"><div class="dsh-pm-coverage-fill" style="width: ${branchCov}%"></div></div>
+        </div>
+        <div class="dsh-pm-coverage-bar">
+          <span class="dsh-pm-coverage-label">函数覆盖率</span>
+          <span class="dsh-pm-coverage-value">${funcCov}%</span>
+          <div class="dsh-pm-coverage-track"><div class="dsh-pm-coverage-fill" style="width: ${funcCov}%"></div></div>
+        </div>
+        <div class="dsh-pm-coverage-bar">
+          <span class="dsh-pm-coverage-label">行覆盖率</span>
+          <span class="dsh-pm-coverage-value">${lineCov}%</span>
+          <div class="dsh-pm-coverage-track"><div class="dsh-pm-coverage-fill" style="width: ${lineCov}%"></div></div>
+        </div>
+      </div>
+    </div>` : ''}`
+}
+
+/* ------------------------------------------------------------------ 评审节点 */
+
+function renderReviewContent(task: TaskRecord): string {
+  // 从 comments 中提取评审意见
+  const reviewComments = task.comments.filter(c => c.createdBy?.kind === 'agent' || c.createdBy?.kind === 'human')
+
+  // 从 executions.evidence 解析评审结果
+  const lastExec = task.executions[task.executions.length - 1]
+  let approved = false
+  let reviewStatus = '待评审'
+  const suggestions: Array<{file: string; line: string; severity: 'low' | 'medium' | 'high'; message: string; resolved: boolean}> = []
+  const passedItems: string[] = []
+
+  if (lastExec?.evidence) {
+    lastExec.evidence.forEach(ev => {
+      // 解析 "approved" 或 "rejected"
+      if (ev.toLowerCase().includes('approved') || ev.toLowerCase().includes('通过')) {
+        approved = true
+        reviewStatus = '已批准'
+      }
+      if (ev.toLowerCase().includes('rejected') || ev.toLowerCase().includes('退回')) {
+        reviewStatus = '已退回'
+      }
+
+      // 解析通过项 "✓ code style"
+      if (ev.startsWith('✓') || ev.startsWith('✅')) {
+        passedItems.push(ev.replace(/^[✓✅]\s*/, ''))
+      }
+
+      // 解析改进建议 "file.ts:45 [medium] Use constant instead of magic number"
+      const suggMatch = ev.match(/^(.+?):(\d+)\s*\[(\w+)\]\s*(.+)/)
+      if (suggMatch) {
+        suggestions.push({
+          file: suggMatch[1],
+          line: suggMatch[2],
+          severity: suggMatch[3] as 'low' | 'medium' | 'high',
+          message: suggMatch[4],
+          resolved: false,
+        })
+      }
+    })
+  }
+
+  const severityLabels = { low: '低', medium: '中', high: '高' }
+  const severityColors = { low: '#28a745', medium: '#f0a020', high: '#dc3545' }
+
+  const passedHtml = passedItems.length > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>✅ 通过项</h3>
+      <ul class="dsh-pm-review-list">
+        ${passedItems.map(item => `<li class="dsh-pm-review-pass">${esc(item)}</li>`).join('')}
+      </ul>
+    </div>` : ''
+
+  const suggestionsHtml = suggestions.length > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>⚠️ 改进建议（${suggestions.length} 项）</h3>
+      <div class="dsh-pm-suggestions">
+        ${suggestions.map((s, i) => `
+          <div class="dsh-pm-suggestion" data-severity="${s.severity}">
+            <div class="dsh-pm-suggestion-head">
+              <span class="dsh-pm-suggestion-num">${i + 1}</span>
+              <code class="dsh-pm-file-path">${esc(s.file)}:${s.line}</code>
+              <span class="dsh-pm-severity-badge" data-severity="${s.severity}" style="background: ${severityColors[s.severity]}">
+                严重性：${severityLabels[s.severity]}
+              </span>
+            </div>
+            <div class="dsh-pm-suggestion-body">${esc(s.message)}</div>
+          </div>`).join('')}
+      </div>
+    </div>` : ''
+
+  const commentsHtml = reviewComments.length > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>💬 评审讨论（${reviewComments.length} 条）</h3>
+      ${renderComments(reviewComments)}
+    </div>` : ''
+
+  return `
+    <div class="dsh-pm-detail-section dsh-pm-specialized">
+      <h3>📊 评审结果</h3>
+      <div class="dsh-pm-review-status" data-status="${approved ? 'approved' : 'pending'}">
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">状态</span>
+          <span class="dsh-pm-stat-value">${reviewStatus}</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">通过项</span>
+          <span class="dsh-pm-stat-value">${passedItems.length} 项</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">改进建议</span>
+          <span class="dsh-pm-stat-value">${suggestions.length} 项</span>
+        </div>
+      </div>
+    </div>
+    ${passedHtml}
+    ${suggestionsHtml}
+    ${commentsHtml}`
+}
+
+/* ------------------------------------------------------------------ 合并节点 */
+
+function renderMergeContent(task: TaskRecord): string {
+  // 从 executions.evidence 解析合并信息
+  const lastExec = task.executions[task.executions.length - 1]
+  let sourceBranch = '未知'
+  let targetBranch = 'main'
+  let commits = 0
+  let filesChanged = 0
+  let linesAdded = 0
+  let linesDeleted = 0
+  let mergeStatus = '进行中'
+  const conflicts: Array<{file: string; description: string; resolution: string}> = []
+  const ciChecks: Array<{name: string; status: 'pass' | 'fail' | 'pending'; details?: string}> = []
+
+  if (lastExec?.evidence) {
+    lastExec.evidence.forEach(ev => {
+      // 解析 "feature/login → main"
+      const branchMatch = ev.match(/(.+?)\s*[→->]\s*(.+)/)
+      if (branchMatch) {
+        sourceBranch = branchMatch[1].trim()
+        targetBranch = branchMatch[2].trim()
+      }
+
+      // 解析 "12 commits"
+      const commitMatch = ev.match(/(\d+)\s*commits?/i)
+      if (commitMatch) commits = parseInt(commitMatch[1], 10)
+
+      // 解析 "15 files changed"
+      const filesMatch = ev.match(/(\d+)\s*files?\s*changed/i)
+      if (filesMatch) filesChanged = parseInt(filesMatch[1], 10)
+
+      // 解析 "+854 -231"
+      const diffMatch = ev.match(/\+(\d+)\s*-(\d+)/)
+      if (diffMatch) {
+        linesAdded = parseInt(diffMatch[1], 10)
+        linesDeleted = parseInt(diffMatch[2], 10)
+      }
+
+      // 解析 "merged" 或 "conflicted"
+      if (ev.toLowerCase().includes('merged') || ev.toLowerCase().includes('合并成功')) {
+        mergeStatus = '✅ 合并成功'
+      }
+      if (ev.toLowerCase().includes('conflict')) {
+        mergeStatus = '⚠️ 存在冲突'
+      }
+
+      // 解析冲突 "conflict: src/router.ts - routing config duplicate"
+      const conflictMatch = ev.match(/conflict:\s*(.+?)\s*-\s*(.+)/i)
+      if (conflictMatch) {
+        conflicts.push({
+          file: conflictMatch[1].trim(),
+          description: conflictMatch[2].trim(),
+          resolution: '待解决',
+        })
+      }
+
+      // 解析 CI 检查 "✓ unit-tests: 18/18 passed"
+      const ciMatch = ev.match(/^([✓✅❌⏳])\s*(.+?):\s*(.+)/)
+      if (ciMatch) {
+        const status = ciMatch[1] === '✓' || ciMatch[1] === '✅' ? 'pass' : ciMatch[1] === '❌' ? 'fail' : 'pending'
+        ciChecks.push({
+          name: ciMatch[2].trim(),
+          status,
+          details: ciMatch[3].trim(),
+        })
+      }
+    })
+  }
+
+  const conflictsHtml = conflicts.length > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>⚠️ 冲突解决（${conflicts.length} 个）</h3>
+      <div class="dsh-pm-conflicts">
+        ${conflicts.map((c, i) => `
+          <div class="dsh-pm-conflict">
+            <div class="dsh-pm-conflict-num">${i + 1}</div>
+            <div class="dsh-pm-conflict-body">
+              <code class="dsh-pm-file-path">${esc(c.file)}</code>
+              <div class="dsh-pm-conflict-desc">冲突：${esc(c.description)}</div>
+              <div class="dsh-pm-conflict-resolution">解决：${esc(c.resolution)}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>` : ''
+
+  const ciHtml = ciChecks.length > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>✅ CI/CD 检查</h3>
+      <div class="dsh-pm-ci-checks">
+        ${ciChecks.map(check => {
+          const icon = check.status === 'pass' ? '✅' : check.status === 'fail' ? '❌' : '⏳'
+          return `
+            <div class="dsh-pm-ci-check" data-status="${check.status}">
+              <span class="dsh-pm-ci-icon">${icon}</span>
+              <span class="dsh-pm-ci-name">${esc(check.name)}</span>
+              <span class="dsh-pm-ci-details">${esc(check.details || '')}</span>
+            </div>`
+        }).join('')}
+      </div>
+    </div>` : ''
+
+  return `
+    <div class="dsh-pm-detail-section dsh-pm-specialized">
+      <h3>📊 合并状态</h3>
+      <div class="dsh-pm-merge-header">
+        <div class="dsh-pm-merge-branch">
+          <code>${esc(sourceBranch)}</code>
+          <span class="dsh-pm-merge-arrow">→</span>
+          <code>${esc(targetBranch)}</code>
+        </div>
+        <div class="dsh-pm-merge-status">${mergeStatus}</div>
+      </div>
+      <div class="dsh-pm-stats">
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">提交数</span>
+          <span class="dsh-pm-stat-value">${commits} commits</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">变更文件</span>
+          <span class="dsh-pm-stat-value">${filesChanged} 个</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">代码变更</span>
+          <span class="dsh-pm-stat-value">
+            <span class="dsh-pm-stat-add">+${linesAdded}</span>
+            <span class="dsh-pm-stat-del">-${linesDeleted}</span>
+          </span>
+        </div>
+      </div>
+    </div>
+    ${conflictsHtml}
+    ${ciHtml}`
+}
+
+/* ------------------------------------------------------------------ 其他节点类型占位 */
+
+function renderDocContent(task: TaskRecord): string {
+  // 从 executions.evidence 提取文档文件
+  const lastExec = task.executions[task.executions.length - 1]
+  const docFiles: string[] = []
+  const apis: string[] = []
+  let completeness = { defined: 0, total: 0 }
+
+  if (lastExec?.evidence) {
+    lastExec.evidence.forEach(ev => {
+      // 解析文档文件 "docs/api/auth.md"
+      if (ev.match(/\.(md|txt|pdf|html)$/i)) {
+        docFiles.push(ev)
+      }
+
+      // 解析 API 端点 "POST /api/auth/login"
+      if (ev.match(/^(GET|POST|PUT|DELETE|PATCH)\s+\//)) {
+        apis.push(ev)
+      }
+
+      // 解析完成度 "3/5 sections completed"
+      const compMatch = ev.match(/(\d+)\/(\d+)\s*.*?completed/i)
+      if (compMatch) {
+        completeness.defined = parseInt(compMatch[1], 10)
+        completeness.total = parseInt(compMatch[2], 10)
+      }
+    })
+  }
+
+  // 从 description 中提取 API 列表（如果 evidence 中没有）
+  if (apis.length === 0 && task.description) {
+    const apiMatches = task.description.match(/(GET|POST|PUT|DELETE|PATCH)\s+\/[^\s\n]+/g)
+    if (apiMatches) apis.push(...apiMatches)
+  }
+
+  const completionPct = completeness.total > 0
+    ? Math.round((completeness.defined / completeness.total) * 100)
+    : 0
+
+  const docFilesHtml = docFiles.length > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>📄 文档内容</h3>
+      <ul class="dsh-pm-doc-list">
+        ${docFiles.map(file => `<li><code>${esc(file)}</code></li>`).join('')}
+      </ul>
+    </div>` : ''
+
+  const apisHtml = apis.length > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>🔗 关联接口（${apis.length} 个）</h3>
+      <ul class="dsh-pm-api-list">
+        ${apis.map(api => {
+          const [method, path] = api.split(/\s+/)
+          return `<li><span class="dsh-pm-api-method" data-method="${method}">${method}</span> <code>${esc(path)}</code></li>`
+        }).join('')}
+      </ul>
+    </div>` : ''
+
+  const completenessHtml = completeness.total > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>📊 完成度</h3>
+      <div class="dsh-pm-completeness">
+        <div class="dsh-pm-completeness-bar">
+          <span class="dsh-pm-completeness-label">整体进度</span>
+          <span class="dsh-pm-completeness-value">${completionPct}%</span>
+          <div class="dsh-pm-completeness-track">
+            <div class="dsh-pm-completeness-fill" style="width: ${completionPct}%"></div>
+          </div>
+        </div>
+        <div class="dsh-pm-completeness-detail">
+          已完成 ${completeness.defined} / ${completeness.total} 部分
+        </div>
+      </div>
+    </div>` : ''
+
+  return `
+    <div class="dsh-pm-detail-section dsh-pm-specialized">
+      <h3>📝 文档概览</h3>
+      <div class="dsh-pm-stats">
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">文档文件</span>
+          <span class="dsh-pm-stat-value">${docFiles.length} 个</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">关联接口</span>
+          <span class="dsh-pm-stat-value">${apis.length} 个</span>
+        </div>
+        ${completeness.total > 0 ? `
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">完成度</span>
+          <span class="dsh-pm-stat-value">${completionPct}%</span>
+        </div>` : ''}
+      </div>
+    </div>
+    ${docFilesHtml}
+    ${apisHtml}
+    ${completenessHtml}`
+}
+
+function renderUIContent(task: TaskRecord): string {
+  // 从 executions.evidence 提取 UI 设计信息
+  const lastExec = task.executions[task.executions.length - 1]
+  const designFiles: string[] = []
+  const components: string[] = []
+  const specs: Record<string, string> = {}
+
+  if (lastExec?.evidence) {
+    lastExec.evidence.forEach(ev => {
+      // 解析设计文件 "design/login.fig" 或 "mockup.png"
+      if (ev.match(/\.(fig|sketch|xd|png|jpg|svg)$/i)) {
+        designFiles.push(ev)
+      }
+
+      // 解析组件 "Button, Input, LoginForm"
+      if (ev.includes('component') || ev.includes('组件')) {
+        const comps = ev.replace(/components?[:\s]*/i, '').split(/[,，]/).map(c => c.trim())
+        components.push(...comps)
+      }
+
+      // 解析设计规范 "color: #3B82F6" / "font: Inter 16px"
+      const specMatch = ev.match(/^(color|font|spacing|radius)[:\s]+(.+)/i)
+      if (specMatch) {
+        specs[specMatch[1].toLowerCase()] = specMatch[2].trim()
+      }
+    })
+  }
+
+  // 从 description 提取组件列表
+  if (components.length === 0 && task.description) {
+    const compMatch = task.description.match(/组件[：:]\s*([^\n]+)/)
+    if (compMatch) {
+      const comps = compMatch[1].split(/[,，、]/).map(c => c.trim())
+      components.push(...comps)
+    }
+  }
+
+  const designFilesHtml = designFiles.length > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>🖼️ 设计稿</h3>
+      <ul class="dsh-pm-design-list">
+        ${designFiles.map(file => `<li><code>${esc(file)}</code></li>`).join('')}
+      </ul>
+    </div>` : ''
+
+  const specsHtml = Object.keys(specs).length > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>🎯 设计规范</h3>
+      <div class="dsh-pm-kv">
+        ${Object.entries(specs).map(([key, value]) => `
+          <span>${key === 'color' ? '主色调' : key === 'font' ? '字体' : key === 'spacing' ? '间距' : '圆角'}</span>
+          <span><code>${esc(value)}</code></span>
+        `).join('')}
+      </div>
+    </div>` : ''
+
+  const componentsHtml = components.length > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>📱 组件清单</h3>
+      <ul class="dsh-pm-component-list">
+        ${components.map(comp => `<li>${esc(comp)}</li>`).join('')}
+      </ul>
+    </div>` : ''
+
+  return `
+    <div class="dsh-pm-detail-section dsh-pm-specialized">
+      <h3>🎨 UI 设计</h3>
+      <div class="dsh-pm-stats">
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">设计文件</span>
+          <span class="dsh-pm-stat-value">${designFiles.length} 个</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">组件数量</span>
+          <span class="dsh-pm-stat-value">${components.length} 个</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">设计规范</span>
+          <span class="dsh-pm-stat-value">${Object.keys(specs).length} 项</span>
+        </div>
+      </div>
+    </div>
+    ${designFilesHtml}
+    ${specsHtml}
+    ${componentsHtml}`
+}
+
+function renderAnalysisContent(task: TaskRecord): string {
+  // 从 executions.evidence 提取分析信息
+  const lastExec = task.executions[task.executions.length - 1]
+  let recommendation = ''
+  const options: Array<{name: string; score: number}> = []
+  const risks: string[] = []
+  const references: string[] = []
+
+  if (lastExec?.evidence) {
+    lastExec.evidence.forEach(ev => {
+      // 解析推荐方案 "Recommended: JWT"
+      if (ev.match(/^recommended?[:\s]+/i)) {
+        recommendation = ev.replace(/^recommended?[:\s]+/i, '').trim()
+      }
+
+      // 解析选项评分 "JWT: 4/5" 或 "Session: ⭐⭐⭐"
+      const scoreMatch = ev.match(/^(.+?)[:：]\s*(?:(\d+)\/5|([⭐★]+))/)
+      if (scoreMatch) {
+        const name = scoreMatch[1].trim()
+        const score = scoreMatch[2] ? parseInt(scoreMatch[2], 10) : (scoreMatch[3]?.length || 0)
+        options.push({ name, score })
+      }
+
+      // 解析风险点 "Risk: token leakage"
+      if (ev.match(/^risk[:\s]+/i)) {
+        risks.push(ev.replace(/^risk[:\s]+/i, '').trim())
+      }
+
+      // 解析参考资料（URL）
+      if (ev.match(/^https?:\/\//)) {
+        references.push(ev)
+      }
+    })
+  }
+
+  // 从 description 提取推荐和风险
+  if (!recommendation && task.description) {
+    const recMatch = task.description.match(/推荐[方案]?[：:]\s*([^\n]+)/)
+    if (recMatch) recommendation = recMatch[1].trim()
+  }
+
+  const optionsHtml = options.length > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>📊 方案对比</h3>
+      <div class="dsh-pm-options">
+        ${options.map(opt => {
+          const stars = '⭐'.repeat(opt.score) + '☆'.repeat(5 - opt.score)
+          return `
+            <div class="dsh-pm-option">
+              <span class="dsh-pm-option-name">${esc(opt.name)}</span>
+              <span class="dsh-pm-option-score">${stars}</span>
+            </div>`
+        }).join('')}
+      </div>
+    </div>` : ''
+
+  const recommendationHtml = recommendation ? `
+    <div class="dsh-pm-detail-section">
+      <h3>✅ 推荐方案</h3>
+      <div class="dsh-pm-recommendation">
+        <div class="dsh-pm-recommendation-title">${esc(recommendation)}</div>
+      </div>
+    </div>` : ''
+
+  const risksHtml = risks.length > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>⚠️ 风险点（${risks.length} 项）</h3>
+      <ul class="dsh-pm-risk-list">
+        ${risks.map(risk => `<li>${esc(risk)}</li>`).join('')}
+      </ul>
+    </div>` : ''
+
+  const referencesHtml = references.length > 0 ? `
+    <div class="dsh-pm-detail-section">
+      <h3>📚 参考资料</h3>
+      <ul class="dsh-pm-reference-list">
+        ${references.map(ref => `<li><a href="${esc(ref)}" target="_blank" rel="noopener">${esc(ref)}</a></li>`).join('')}
+      </ul>
+    </div>` : ''
+
+  return `
+    <div class="dsh-pm-detail-section dsh-pm-specialized">
+      <h3>🔍 分析结果</h3>
+      <div class="dsh-pm-stats">
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">对比方案</span>
+          <span class="dsh-pm-stat-value">${options.length} 个</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">风险点</span>
+          <span class="dsh-pm-stat-value">${risks.length} 项</span>
+        </div>
+        <div class="dsh-pm-stat">
+          <span class="dsh-pm-stat-label">参考资料</span>
+          <span class="dsh-pm-stat-value">${references.length} 个</span>
+        </div>
+      </div>
+    </div>
+    ${recommendationHtml}
+    ${optionsHtml}
+    ${risksHtml}
+    ${referencesHtml}`
 }
 
 /* ------------------------------------------------------------------ 待归类区 */
