@@ -173,12 +173,6 @@ class IAsyncKlineRepository(ABC):
                                     end_date: Optional[str] = None) -> pl.DataFrame:
         pass
 
-class IAsyncFactorRepository(ABC):
-    """异步因子仓储接口"""
-    @abstractmethod
-    async def get_factor_data_async(self, symbol: str, factor_names: Optional[List[str]] = None) -> pl.DataFrame:
-        pass
-
 class ISchedulerConfigRepository(ABC):
     """调度器配置仓储接口"""
     @abstractmethod

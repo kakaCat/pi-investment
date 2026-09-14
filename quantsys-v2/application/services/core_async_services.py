@@ -3,7 +3,7 @@
 
 包含10+个核心Service的异步版本
 """
-from domain.ports import IAsyncFactorRepository, IAsyncKlineRepository, IBacktestRepository, IPortfolioRepository, IRiskRepository, ISignalRepository, IStockRepository, IStrategyRepository
+from domain.ports import IAsyncKlineRepository, IBacktestRepository, IPortfolioRepository, IRiskRepository, ISignalRepository, IStockRepository, IStrategyRepository
 from typing import Tuple, Dict, List, Optional, Any
 from datetime import datetime, date
 import structlog
@@ -270,39 +270,6 @@ class MarketDataAsyncService:
         }
 
 
-# ==================== FactorAnalysisAsyncService ====================
-class FactorAnalysisAsyncService:
-    """因子分析服务 - 异步版本"""
-
-    async def get_factors(
-        self,
-        symbol: str,
-        factor_names: Optional[List[str]] = None
-    ) -> Dict[str, float]:
-        """获取因子值"""
-        try:
-            async with get_async_session_context() as session:
-                factor_repo = IAsyncFactorRepository(session)
-                factors = await factor_repo.get_latest_factors(symbol, factor_names)
-                return factors
-        except Exception as e:
-            logger.error(f"获取因子失败: {e}")
-            return {}
-
-    async def batch_get_factors(
-        self,
-        symbols: List[str],
-        factor_name: str
-    ) -> Dict[str, float]:
-        """批量获取因子"""
-        result = {}
-        for symbol in symbols:
-            factors = await self.get_factors(symbol, [factor_name])
-            if factor_name in factors:
-                result[symbol] = factors[factor_name]
-        return result
-
-
 # ==================== PerformanceAnalysisAsyncService ====================
 class PerformanceAnalysisAsyncService:
     """绩效分析服务 - 异步版本"""
@@ -346,6 +313,5 @@ __all__ = [
     'DataAsyncService',
     'PortfolioAsyncService',
     'MarketDataAsyncService',
-    'FactorAnalysisAsyncService',
     'PerformanceAnalysisAsyncService',
 ]

@@ -27,7 +27,6 @@ REPOSITORY_MAPPING = {
     # 异步仓储
     'SignalAsyncRepository': 'ISignalRepository',
     'DailyKlineAsyncRepository': 'IAsyncKlineRepository',
-    'FactorAsyncRepository': 'IAsyncFactorRepository',
     'BacktestAsyncRepository': 'IBacktestRepository',
     'StockAsyncRepository': 'IStockRepository',
     'StockPoolAsyncRepository': 'IStockPoolRepository',

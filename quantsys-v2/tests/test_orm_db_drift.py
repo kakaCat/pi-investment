@@ -98,14 +98,19 @@ _EXTEND_EXISTING_BASELINE = frozenset({
 #   public.audit_log      ← AuditLog      策略线（v13/v14）决策审计的唯一写入目标，
 #                                        但没有任何迁移创建过它 → log_decision 必然上抛，
 #                                        被 _log_to_db 降级成 warning → 审计轨迹从未落库。
-#   quant.async_factors   ← AsyncFactor   FactorAnalysisAsyncService 捕获后返回 {}（假成功）。
 #
 # 已收敛（2026-09-14，REQ-48d896）：quant.sentiment_data ← SentimentData
 #   该模型与 SentimentAsyncRepository 已删除（无迁移建表、写方零调用），
 #   两个端点改读真实数据（market_sentiment_daily / 千股千评 provider）。
+#
+# 已收敛（2026-09-15，chore/script-hygiene-and-dead-code）：quant.async_factors ← AsyncFactor
+#   该模型与 AsyncFactorORMRepository 一并删除，故**移出豁免名单**（再出现就红）。
+#   处置依据（与 audit_log 反向，不是"补迁移"）：端口 IAsyncFactorRepository 的唯一调用方
+#   FactorAnalysisAsyncService **全仓无人实例化**、DI 也未注册 → 整条链是死代码；
+#   且该表只存在于测试库（create_all 顺带建的），生产从来没有。
+#   补迁移只会往库里再钉一张永久空表 —— 正是本轮要清走的那类。
 _KNOWN_DANGLING_TABLES = frozenset({
     'public.audit_log',
-    'quant.async_factors',
 })
 
 # 「仅测试库缺、生产在位」的表（2026-09-14 交叉核对 quant_investment vs quant_test）：
@@ -116,8 +121,8 @@ _ENV_ONLY_ABSENT_TABLES = frozenset({
 })
 
 # ⚠️ 本门禁的已知盲区（诚实登记）：它以**测试库**为准，因此当一张表
-# "测试库有、生产没有"时它看不见 —— 实测 quant.async_factors 正是这种：
-#   PROD: 不存在      TEST: 存在
+# "测试库有、生产没有"时它看不见。2026-09-15 之前的实测样本正是 quant.async_factors
+#   （PROD: 不存在 / TEST: 存在）—— 该模型已随死代码删除，但**盲区本身未消除**：
 # 即模型在测试里能用、在生产必炸，而本门禁会放行。该形态只能靠以生产为口径的
 # 只读探针（tools/oneoff/orm_drift_probe.py）发现。两者的 DSN 口径不同，互为补充，
 # 不能互相替代。
