@@ -106,6 +106,13 @@ class WatchEngine:
         # 市场级盯盘（P6）：指数/涨停家数/情绪/量能/板块——盯盘是紧盯市场的工具
         self.market_watch_service = market_watch_service
         self._avg_volume_cache: Dict[str, float] = {}
+        # 触发事件日志（2026-09-14）：供「频率升级」与「多规则共振」统计的**单一事实源**。
+        # 此前两条路径共用 _last_triggered，而它是按 (rule_id, cond_idx) **覆盖写**的
+        # 「最新触发时间」——① 同一条件的多次触发只留最后一次，无法累计次数；
+        # ② 不含 symbol，并发统计无从按标的聚合。详见两个 _get_*_trigger_count。
+        self._trigger_events: List[Tuple[datetime, int, str]] = []  # (time, rule_id, symbol)
+        # 事件日志保留窗口：需 ≥ 两个统计窗口（频率 10min / 共振 60s）的最大值
+        self._event_retention_min: int = 30
         self._state_date = None
         self.fast_mode = False
         self._stopped = False
@@ -233,8 +240,8 @@ class WatchEngine:
                 
                 if trigger_level in ('L0', 'L1'):
                     # 查询触发频率和并发触发数
-                    recent_count = self._get_recent_trigger_count(rule.id, cond)
-                    concurrent_count = self._get_concurrent_trigger_count(rule.symbol, now)
+                    recent_count = self._get_recent_trigger_count(rule.id)
+                    concurrent_count = self._get_concurrent_trigger_count(rule.symbol, rule.id)
                     
                     quote_data = QuoteData(
                         symbol=rule.symbol,
@@ -260,7 +267,11 @@ class WatchEngine:
                 gate_ctx = self._build_gate_ctx(rule, cond, quote)
                 disposition, disposition_reason = decide_disposition(
                     rule, cond, escalated=bool(escalation_reason),
-                    gate=gate_ctx, cfg=self._intervention_cfg)
+                    gate=gate_ctx, cfg=self._intervention_cfg,
+                    # 2026-09-14：把原始升级原因带进处置结论。此前 decide() 只收到
+                    # escalated 布尔，固定回一句「升级策略命中（L1→L2）」，
+                    # 使「哪条升级路径命中」在库里不可考（核查时曾被此误导）。
+                    escalation_reason=escalation_reason)
                 dup_of = None
                 prev = self._recent_notified.get(key)
                 if prev is not None and (now - prev[0]).total_seconds() < self.dedup_window_sec:
@@ -317,6 +328,7 @@ class WatchEngine:
                             trigger_ids=[getattr(trigger, 'id', None)],
                         )
                 self._last_triggered[(rule.id, idx)] = now
+                self._record_trigger_event(now, rule.id, rule.symbol)
                 self._latched.add((rule.id, idx))
                 # 可观测性（2026-09-11，w-aebfddcd E2E 发现）：事件必须带**处置结论**，
                 # 否则调用方无法区分"命中并通知"与"命中但被去重/被预算压掉"，只能回查库。
@@ -415,6 +427,8 @@ class WatchEngine:
         active_ids = {r.id for r in self.rule_repo.list_enabled()}
         self._last_triggered = {k: v for k, v in self._last_triggered.items()
                                 if k[0] in active_ids}
+        # 事件日志同清：跨天的频率/共振计数不应把昨天的触发带进今天
+        self._trigger_events = []
         active_symbols = {r.symbol for r in self.rule_repo.list_enabled()}
         self._history = {s: buf for s, buf in self._history.items()
                          if s in active_symbols}
@@ -527,22 +541,44 @@ class WatchEngine:
         except Exception:
             return 'L1'
 
-    def _get_recent_trigger_count(self, rule_id: int, cond: dict) -> int:
-        """获取规则近 10 分钟内的触发次数"""
-        # 从 _last_triggered 中统计
-        count = 0
-        window = timedelta(minutes=10)
-        now = self.now_fn()
-        for (rid, idx), ts in self._last_triggered.items():
-            if rid == rule_id and (now - ts) < window:
-                count += 1
-        return count
+    def _record_trigger_event(self, now: datetime, rule_id: int, symbol: str) -> None:
+        """记一条触发事件（频率/共振统计的唯一事实源）
 
-    def _get_concurrent_trigger_count(self, symbol: str, now: datetime) -> int:
-        """获取同 symbol 近 60 秒内的并发触发规则数"""
-        count = 0
-        window = timedelta(seconds=60)
-        # 从 _last_triggered 中统计（需要知道 symbol，但 _last_triggered 只存 rule_id）
-        # 简化：从 events 中统计或从 trigger_repo 查询
-        # 这里简化实现：返回 0（实际实现需要查询 trigger_repo）
-        return count
+        2026-09-14：原先两条升级路径都从 _last_triggered 取数，而那是
+        (rule_id, cond_idx) → 最新时间的**覆盖写**映射，既不能累计同一条件的
+        多次触发，也不含 symbol。改为按「每次触发一条」追加 + 按保留窗口裁剪。
+        """
+        self._trigger_events.append((now, rule_id, symbol))
+        cutoff = now - timedelta(minutes=self._event_retention_min)
+        self._trigger_events = [e for e in self._trigger_events if e[0] >= cutoff]
+
+    def _get_recent_trigger_count(self, rule_id: int, window_minutes: int = 10) -> int:
+        """该规则近 window_minutes 分钟内的触发次数（含本次触达）
+
+        2026-09-14 修正：原实现遍历 _last_triggered 统计「不同条件的最新触发」，
+        同一条件多次触发只算 1。实测 45 条启用规则中 36 条只有 1 个条件，而
+        policy 的 max_triggers_per_window.count 为 3 —— 该路径恒达不到阈值，
+        「触发频率升级」整体失效。
+        """
+        now = self.now_fn()
+        cutoff = now - timedelta(minutes=window_minutes)
+        history = sum(1 for t, rid, _ in self._trigger_events
+                      if rid == rule_id and t >= cutoff)
+        # +1 = 本次：本方法在本次事件写进事件日志之前被调用
+        return history + 1
+
+    def _get_concurrent_trigger_count(self, symbol: str, rule_id: int,
+                                      window_seconds: int = 60) -> int:
+        """同标的近 window_seconds 秒内触发过的**不同规则数**（含本次）
+
+        2026-09-14 修正：原实现是占位（恒返回 0，注释自述「实际实现需要查询
+        trigger_repo」），导致 escalation_policy.multi_rule_confluence 命中后
+        永远等不到 concurrent_trigger_count >= 2，「多规则共振升级」整体失效。
+        现从事件日志按 symbol 去重统计 rule_id，并计入本次当前规则。
+        """
+        now = self.now_fn()
+        cutoff = now - timedelta(seconds=window_seconds)
+        rule_ids = {rid for t, rid, sym in self._trigger_events
+                    if sym == symbol and t >= cutoff}
+        rule_ids.add(rule_id)  # 含本次：共振 = 本条 + 同标的其他规则
+        return len(rule_ids)

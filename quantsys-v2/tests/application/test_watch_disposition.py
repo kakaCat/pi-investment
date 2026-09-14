@@ -132,3 +132,26 @@ def test_dedup_key_unifies_symbol_forms():
     assert dedup_key(_rule(), _cond('below')) == dedup_key(
         SimpleNamespace(id=2, symbol='600150.SH', intent=None, conditions=[], action_hint=None), _cond('below'))
     assert dedup_key(_rule(), _cond('below')) != dedup_key(_rule(), _cond('above'))
+
+
+# ── 2026-09-14：升级原因必须可考 ────────────────────────────────────
+def test_escalation_reason_is_carried_into_disposition():
+    """升级命中的原始原因必须落进处置结论。
+
+    此前 decide() 只收到 escalated 布尔，固定回一句「升级策略命中（L1→L2）」，
+    于是「究竟哪条升级路径命中」（频率/价格偏差/核心区域/量能/共振）在库里不可考
+    —— 核查线上数据时曾被这句统一文案误导，误以为共振路径从未生效。
+    """
+    d, reason = decide(_rule(intent='exit_take_profit', level='L1'), _cond(),
+                       escalated=True,
+                       escalation_reason='多规则共振（2 条规则近 60 秒内触发）')
+    assert d == DISPOSITION_ESCALATED
+    assert '原始原因' in reason
+    assert '多规则共振' in reason
+
+
+def test_escalation_reason_optional_backward_compatible():
+    """不传原始原因时保持旧文案（market_watch_service 等调用方不受影响）"""
+    d, reason = decide(_rule(intent='exit_take_profit', level='L1'), _cond(), escalated=True)
+    assert d == DISPOSITION_ESCALATED
+    assert '原始原因' not in reason

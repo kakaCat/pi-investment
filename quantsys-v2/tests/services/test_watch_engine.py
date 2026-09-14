@@ -273,3 +273,70 @@ class TestElapsedFraction:
 
     def test_close(self):
         assert elapsed_trading_fraction(datetime(2026, 7, 21, 15, 0)) == pytest.approx(1.0)
+
+
+# ── 2026-09-14：两条升级路径的计数修复（原本双双失效）────────────────
+class TestEscalationCounters:
+    """频率升级与多规则共振升级的计数事实源。
+
+    修复前两条路径都从 _last_triggered（按 (rule_id, cond_idx) **覆盖写**的最新
+    时间）取数：
+      ① 同一条件多次触发只算 1 次 —— 实测 45 条启用规则中 36 条只有 1 个条件，
+         而 policy 的 max_triggers_per_window.count 为 3，该路径恒达不到阈值；
+      ② 该结构不含 symbol，_get_concurrent_trigger_count 是占位实现（恒返回 0），
+         multi_rule_confluence 命中后永远等不到 concurrent >= 2，共振升级失效。
+    现统一由「触发事件日志」供给，下列用例锁死这两个语义。
+    """
+
+    def test_recent_accumulates_same_condition(self):
+        e = make_engine([], {})
+        e._record_trigger_event(NOW - timedelta(minutes=2), 7, '600519.SH')
+        e._record_trigger_event(NOW - timedelta(minutes=1), 7, '600519.SH')
+        # 历史 2 次 + 本次 = 3 → 够到 count=3；旧实现恒为 1
+        assert e._get_recent_trigger_count(7) == 3
+
+    def test_recent_excludes_out_of_window(self):
+        e = make_engine([], {})
+        e._record_trigger_event(NOW - timedelta(minutes=30), 7, '600519.SH')
+        assert e._get_recent_trigger_count(7, window_minutes=10) == 1  # 只剩本次
+
+    def test_recent_isolated_per_rule(self):
+        e = make_engine([], {})
+        e._record_trigger_event(NOW, 7, '600519.SH')
+        assert e._get_recent_trigger_count(8) == 1
+
+    def test_concurrent_counts_distinct_rules_same_symbol(self):
+        e = make_engine([], {})
+        e._record_trigger_event(NOW, 1, '600519.SH')
+        # 历史 rule1 + 本次 rule2 = 2 → 命中 >= 2；旧实现恒为 0
+        assert e._get_concurrent_trigger_count('600519.SH', 2) == 2
+
+    def test_concurrent_ignores_other_symbols(self):
+        e = make_engine([], {})
+        e._record_trigger_event(NOW, 1, '000001.SZ')
+        assert e._get_concurrent_trigger_count('600519.SH', 2) == 1  # 只剩本次
+
+    def test_concurrent_dedupes_repeated_rule(self):
+        e = make_engine([], {})
+        e._record_trigger_event(NOW, 1, '600519.SH')
+        e._record_trigger_event(NOW, 1, '600519.SH')
+        assert e._get_concurrent_trigger_count('600519.SH', 1) == 1
+
+    def test_concurrent_excludes_out_of_window(self):
+        e = make_engine([], {})
+        e._record_trigger_event(NOW - timedelta(seconds=120), 1, '600519.SH')
+        assert e._get_concurrent_trigger_count('600519.SH', 2, window_seconds=60) == 1
+
+    def test_event_log_survives_same_day(self):
+        e = make_engine([], {})
+        e._record_trigger_event(NOW, 1, '600519.SH')
+        e._state_date = NOW.date()            # 模拟"今日已初始化"
+        e._reset_daily_state_if_needed(NOW)   # 同一天 → 不清空
+        assert len(e._trigger_events) == 1
+
+    def test_event_log_cleared_cross_day(self):
+        e = make_engine([], {})
+        e._record_trigger_event(NOW, 1, '600519.SH')
+        e._state_date = NOW.date()
+        e._reset_daily_state_if_needed(NOW + timedelta(days=1))  # 跨天 → 清空
+        assert e._trigger_events == []

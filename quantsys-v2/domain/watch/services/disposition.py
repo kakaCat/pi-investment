@@ -135,8 +135,14 @@ def _intent_of(rule) -> str:
 
 
 def decide(rule, condition, escalated: bool = False,
-           gate: Optional[GateContext] = None, cfg: Optional[InterventionConfig] = None):
-    """介入判据（RFC 014 v3 §3.2）。返回 (disposition, reason)。"""
+           gate: Optional[GateContext] = None, cfg: Optional[InterventionConfig] = None,
+           escalation_reason: Optional[str] = None):
+    """介入判据（RFC 014 v3 §3.2）。返回 (disposition, reason)。
+
+    escalation_reason（2026-09-14 新增）：引擎升级命中的原始原因。此前 decide()
+    只收到 escalated 布尔，固定回一句「升级策略命中（L1→L2）」，使「究竟哪条
+    升级路径命中」（频率/价格偏差/核心区域/量能/共振）在库里不可考。
+    """
     cfg = cfg or InterventionConfig()
     gate = gate or GateContext()
     intent = _intent_of(rule)
@@ -154,7 +160,8 @@ def decide(rule, condition, escalated: bool = False,
 
     # 2. 引擎升级（escalation_policy 命中）→ 摘要队列
     if escalated:
-        return DISPOSITION_ESCALATED, '升级策略命中（L1→L2）→ 进 agent 摘要队列'
+        detail = f'｜原始原因：{escalation_reason}' if escalation_reason else ''
+        return DISPOSITION_ESCALATED, '升级策略命中（L1→L2）→ 进 agent 摘要队列' + detail
 
     # 3. 规则分级 L2 → 摘要队列（买卖节点必须 agent 终判）
     if level == 'L2':
