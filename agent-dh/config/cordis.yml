@@ -294,8 +294,11 @@
 # ========== 系统提示词 ==========
 - id: system-prompt
   config:
-    persona: ''
-    # persona 内容已迁移至 genome 插件管理的基因组段落
+    # dsh 0.1.5 起 persona 拆成 personaPrefix（主体，首段）/ personaSuffix（尾段）；
+    # 旧的单键 persona 已不再被 schema 接受。两侧均留空：persona 内容已迁移至
+    # genome 插件管理的基因组段落
+    personaPrefix: ''
+    personaSuffix: ''
     # constitution.md（宪法层，锁定） + principles.md（决策原则，可进化）
 
 # ========== Agent 配置 ==========

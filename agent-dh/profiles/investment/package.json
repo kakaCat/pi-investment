@@ -2,7 +2,7 @@
   "name": "dsh-profile-investment",
   "private": true,
   "dependencies": {
-    "@deepseek-ai/dsh": "0.1.2-rc.1",
+    "@deepseek-ai/dsh": "0.1.5-rc.1",
     "@pi-investment/agent-os-client": "link:../../../pi-investment/agent-os-client",
     "@pi-investment/agent-os-manager": "link:../../../pi-investment/agent-dh/packages/agent-os-manager",
     "@pi-investment/competition": "link:../../../pi-investment/agent-dh/packages/competition",

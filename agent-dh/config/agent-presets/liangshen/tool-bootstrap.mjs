@@ -55,13 +55,19 @@ export const name = 'anchored-tool-bootstrap'
 export const inject = ['systemPrompt', 'tools']
 
 /**
- * Prompt section names that carry the preset persona. The `dsh-persona` row
- * registers the preset persona as `deployment:persona` (the PERSONA_SECTION
- * name of `@deepseek-ai/dsh-system-prompt`), shadowing the deployment
- * default for the preset scope; `persona` is the legacy name kept for older
- * harnesses that registered the persona section without the prefix.
+ * Prompt section names that carry the preset persona. Since dsh 0.1.5 the
+ * `dsh-persona` row registers the preset persona as `deployment:persona-prefix`
+ * (the PERSONA_PREFIX_SECTION name of `@deepseek-ai/dsh-system-prompt`) plus an
+ * optional `deployment:persona-suffix`; `deployment:persona` is the pre-0.1.5
+ * name and `persona` the legacy one, both kept so the filter still finds the
+ * persona on an older harness.
  */
-const PERSONA_SECTION_NAMES = new Set(['deployment:persona', 'persona'])
+const PERSONA_SECTION_NAMES = new Set([
+  'deployment:persona-prefix',
+  'deployment:persona-suffix',
+  'deployment:persona',
+  'persona',
+])
 
 /**
  * Workspace line a promoted persona gains. Phase 1 keeps the exact one-line
