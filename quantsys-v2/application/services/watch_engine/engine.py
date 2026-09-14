@@ -14,9 +14,9 @@ from application.services.watch_engine.rule_evaluator import RuleEvaluator
 from application.services.watch_engine.state_manager import StateManager
 from application.services.watch_engine.trigger_judge import TriggerJudge
 from domain.watch.services.disposition import (
-    DEDUP_WINDOW_SEC, GateContext, InterventionConfig,
-    decide as decide_disposition, dedup_key, normalize_symbol,
+    DEDUP_WINDOW_SEC, dedup_key, normalize_symbol,
 )
+from application.services.watch_engine.disposition_engine import DispositionEngine
 from domain.watch.services.escalation_checker import EscalationChecker
 from domain.watch.models import QuoteData
 from domain.trading.services.market_session_policy import (
@@ -75,9 +75,12 @@ class WatchEngine:
         # 触发判据（闩锁/冷却/标记）→ TriggerJudge（2026-09-14 重构 P1）
         self.judge = TriggerJudge(self.state)
         # 介入判据（REQ-f08def P3，RFC 014 v3 §3）：金额门/增量门/经济门/预算门所需的注入
-        self._position_value_provider = position_value_provider
-        self._account_total_provider = account_total_provider
-        self._intervention_cfg = InterventionConfig()
+        # 处置决策（GateContext 组装 + domain decide）→ DispositionEngine
+        self.disposition = DispositionEngine(
+            state=self.state,
+            position_value_provider=position_value_provider,
+            account_total_provider=account_total_provider,
+        )
         # 增量门（同标的同议题 4h 冷却）与当日介入计数 → StateManager
         # 摘要门（REQ-f08def P2/P4）：何时唤醒 agent 的判据由本服务负责，
         # 挂在引擎 loop 里——引擎本就是盯盘唯一宿主，无需外部定时器/脚本。
@@ -253,13 +256,11 @@ class WatchEngine:
                 # 机械优先：去重合并 / observe 类归档当场收敛（零 LLM），
                 # 只有 L2 或升级触发才进 agent 摘要队列（用户硬约束：token 成本）。
                 key = dedup_key(rule, cond)
-                gate_ctx = self._build_gate_ctx(rule, cond, quote)
-                disposition, disposition_reason = decide_disposition(
-                    rule, cond, escalated=bool(escalation_reason),
-                    gate=gate_ctx, cfg=self._intervention_cfg,
-                    # 2026-09-14：把原始升级原因带进处置结论。此前 decide() 只收到
-                    # escalated 布尔，固定回一句「升级策略命中（L1→L2）」，
-                    # 使「哪条升级路径命中」在库里不可考（核查时曾被此误导）。
+                # escalation_reason 带进处置结论（2026-09-14）：此前 decide() 只收到
+                # escalated 布尔，固定回一句「升级策略命中（L1→L2）」，使「哪条升级
+                # 路径命中」在库里不可考（核查时曾被此误导）。
+                disposition, disposition_reason = self.disposition.decide(
+                    rule, cond, quote, escalated=bool(escalation_reason),
                     escalation_reason=escalation_reason)
                 dup_of = None
                 prev = self.state.recent_notified.get(key)
@@ -347,52 +348,17 @@ class WatchEngine:
 
     # ── 内部 ────────────────────────────────────────────────
 
-    def _build_gate_ctx(self, rule, cond, quote) -> GateContext:
-        '''构建介入判据上下文（RFC 014 v3 §3.2）。数据不足时留 None → 对应门跳过。'''
-        ah = rule.action_hint if isinstance(getattr(rule, 'action_hint', None), dict) else {}
-        intent = str(getattr(rule, 'intent', '') or ah.get('action_on_trigger') or '').strip()
-        norm = normalize_symbol(rule.symbol)
-        topic = intent or ah.get('action_on_trigger') or 'unknown'
-        amount = None
-        ev = None
-        if intent in ('exit_stop', 'exit_take_profit', 'exit_reduce', 'add_position', 't_trade'):
-            # 持仓级动作：金额 = 持仓市值
-            amount = self._position_value(rule)
-            if amount is not None:
-                ev = amount * 0.05  # 粗估：一个 5% 动作的利害关系
-        elif intent == 'entry':
-            # 买入意向金额：action_hint.max_position_pct × 账户总资产（若有）
-            mpp = ah.get('max_position_pct')
-            total = self._account_total(rule)
-            if mpp and total:
-                amount = float(mpp) / 100.0 * float(total)
-                ev = amount * 0.03
-        return GateContext(
-            intent=intent or None,
-            amount_yuan=amount,
-            last_intervention_at=self.state.last_intervention.get((norm, topic)),
-            expected_value_yuan=ev,
-            trigger_kind='price',
-            daily_wake_count=self.state.interventions_today,
-            change_pct=getattr(quote, 'change_pct', None),
-        )
+    def _build_gate_ctx(self, rule, cond, quote):
+        """委托 DispositionEngine（保留入口名）"""
+        return self.disposition.build_gate(rule, cond, quote)
 
     def _position_value(self, rule) -> Optional[float]:
-        if self._position_value_provider is None:
-            return None
-        try:
-            return self._position_value_provider(rule)
-        except Exception:
-            return None
+        """委托 DispositionEngine（tick 的 action_amount_yuan 仍走这里）"""
+        return self.disposition.position_value(rule)
 
     def _account_total(self, rule=None) -> Optional[float]:
-        # 2026-09-13（w-c8cae280）：透传规则，让金额门按规则归属账户取值。
-        if self._account_total_provider is None:
-            return None
-        try:
-            return self._account_total_provider(rule)
-        except Exception:
-            return None
+        """委托 DispositionEngine"""
+        return self.disposition.account_total(rule)
 
     def _reset_daily_state_if_needed(self, now: datetime):
         """跨天重置：均量缓存过期 + 清理已删除规则的残留状态
