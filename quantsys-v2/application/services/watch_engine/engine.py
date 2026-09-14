@@ -9,11 +9,10 @@ from typing import Any, Callable, Dict, List, Optional
 
 import structlog
 
-from application.services.watch_engine.conditions import (
-    DEFAULT_COOLDOWN_SEC, EvalContext, evaluate,
-)
+from application.services.watch_engine.conditions import EvalContext, evaluate
 from application.services.watch_engine.rule_evaluator import RuleEvaluator
 from application.services.watch_engine.state_manager import StateManager
+from application.services.watch_engine.trigger_judge import TriggerJudge
 from domain.watch.services.disposition import (
     DEDUP_WINDOW_SEC, GateContext, InterventionConfig,
     decide as decide_disposition, dedup_key, normalize_symbol,
@@ -73,6 +72,8 @@ class WatchEngine:
         # 失败熔断移入 RuleEvaluator；引擎保留 _get_avg_volume 薄封装（测试与
         # e2e monkeypatch 依赖该入口名）。
         self.evaluator = RuleEvaluator(avg_volume_provider=avg_volume_provider)
+        # 触发判据（闩锁/冷却/标记）→ TriggerJudge（2026-09-14 重构 P1）
+        self.judge = TriggerJudge(self.state)
         # 介入判据（REQ-f08def P3，RFC 014 v3 §3）：金额门/增量门/经济门/预算门所需的注入
         self._position_value_provider = position_value_provider
         self._account_total_provider = account_total_provider
@@ -217,14 +218,9 @@ class WatchEngine:
                     continue
                 if result.distance_ratio is not None and result.distance_ratio <= self.buffer_ratio:
                     fast = True
-                if not result.triggered:
-                    # 条件回到未触发状态 → 解除闩锁，重新武装（允许下次穿越再报）
-                    self.state.latched.discard((rule.id, idx))
-                    continue
-                if (rule.id, idx) in self.state.latched:
-                    # 条件持续成立（电平保持）→ 不重复推送，等重新武装
-                    continue
-                if self._in_cooldown(rule.id, idx, cond, now):
+                # 三段判定（闩锁/冷却）委托 TriggerJudge：未触发→重新武装、
+                # 持续成立→不重复、冷却内→跳过
+                if not self.judge.should_emit(rule.id, idx, result.triggered, cond, now):
                     continue
                 
                 # 升级检查：L0/L1 触发满足条件时自动升级为 L2
@@ -320,9 +316,7 @@ class WatchEngine:
                             trigger_kind='price', outcome='escalated',
                             trigger_ids=[getattr(trigger, 'id', None)],
                         )
-                self.state.last_triggered[(rule.id, idx)] = now
-                self._record_trigger_event(now, rule.id, rule.symbol)
-                self.state.latched.add((rule.id, idx))
+                self.judge.mark_emitted(rule.id, idx, now, rule.symbol)
                 # 可观测性（2026-09-11，w-aebfddcd E2E 发现）：事件必须带**处置结论**，
                 # 否则调用方无法区分"命中并通知"与"命中但被去重/被预算压掉"，只能回查库。
                 # disposition 即答案：escalated/pending=进队列并推送；deduped=只归档不打扰；
@@ -458,11 +452,8 @@ class WatchEngine:
         self.evaluator.note_failure(symbol, now, why)
 
     def _in_cooldown(self, rule_id: int, cond_idx: int, cond: dict, now: datetime) -> bool:
-        last = self.state.last_triggered.get((rule_id, cond_idx))
-        if last is None:
-            return False
-        cooldown = cond.get('cooldown_sec', DEFAULT_COOLDOWN_SEC)
-        return (now - last).total_seconds() < cooldown
+        """委托 TriggerJudge（保留入口名：tick 与既有测试路径不变）"""
+        return self.judge.in_cooldown(rule_id, cond_idx, cond, now)
 
     def _get_trigger_level(self, rule) -> str:
         """获取规则的触发层级（L0/L1/L2）"""
