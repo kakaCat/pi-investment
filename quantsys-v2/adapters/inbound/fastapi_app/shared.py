@@ -61,7 +61,7 @@ __all__ = [
     "signal_to_opportunity", "get_query_params_snake_case", "_safe_float",
     "_load_pipeline_runs", "_save_pipeline_runs", "_get_pipeline_run", "_update_pipeline_run",
     "acquire_task", "release_task", "get_running_tasks_snapshot",
-    "api_response", "error_response", "handle_api_error",
+    "api_response", "error_response", "handle_api_error", "provider_payload",
     "signal_repo", "stock_repo", "kline_repo", "portfolio_repo", "factor_repo", "risk_repo", "execution_repo", "backtest_repo", "simulation_repo",
 ]
 
@@ -75,6 +75,40 @@ def api_response(data: Any, success: bool = True, message: Optional[str] = None)
     if message:
         response["message"] = message
     return response
+
+
+def provider_payload(result: Dict) -> Dict:
+    """把 DataProviderManager 的返回解包成 API 的 data 段，**并保留诚实标记**。
+
+    manager 返回：{success, data(MarketData|None), source, attempted_sources,
+                   empty_sources, provider_errors, empty, error}
+
+    2026-09-14（REQ-48d896）：新增。此前 sentiment 域的路由直接把
+    `SentimentDataSource` 的 random 结果当数据返回，响应里既没有数据来源、
+    也没有"空/降级"标记 —— 调用方无法分辨真假。本函数保证每个响应都带：
+      · source            实际出数的源（如 'akshare'）
+      · attempted_sources 尝试过的源（多源故障转移时 >1）
+      · empty_sources     健康但无数据的源
+      · empty             是否为空结果（源正常、标的确实无数据）
+      · degraded          是否降级（false=真实数据）
+    api_response 会把这些键统一转成 camelCase。
+    """
+    payload: Dict[str, Any] = {}
+    md = result.get('data')
+    inner = getattr(md, 'data', None)
+    if isinstance(inner, dict):
+        payload.update(inner)
+    elif inner is not None:
+        payload['records'] = inner
+
+    payload['source'] = result.get('source')
+    payload['attempted_sources'] = list(result.get('attempted_sources') or [])
+    payload['empty_sources'] = list(result.get('empty_sources') or [])
+    payload['empty'] = bool(result.get('empty'))
+    payload['degraded'] = not bool(result.get('success'))
+    if result.get('error'):
+        payload['error'] = str(result.get('error'))[:300]
+    return payload
 
 
 def error_response(payload: Dict, status_code: int) -> JSONResponse:

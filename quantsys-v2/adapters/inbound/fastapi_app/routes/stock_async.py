@@ -8,7 +8,7 @@ from fastapi import APIRouter, Query, Body
 import structlog
 
 from adapters.inbound.fastapi_app.shared import (
-    ds, api_response, error_response, handle_api_error,
+    ds, api_response, error_response, handle_api_error, provider_payload,
     sanitize_for_json, _read_watchlist,
     acquire_task, get_running_tasks_snapshot, _load_pipeline_runs, _save_pipeline_runs,
 )
@@ -174,14 +174,37 @@ def get_batch_quotes_v2(payload: Dict[str, Any] = Body(default_factory=dict)):
 @router.get('/api/stock/{symbol}/insider-trades')
 @handle_api_error
 def get_insider_trades_v2(symbol: str, days: int = Query(30)):
-    # 注意：Flask 中 sentiment.py 与 stock.py 重复注册了该路径，实际生效的是
-    # sentiment.py 的版本（SentimentDataSource，返回 summary/sentiment）。
-    # 为与 Flask 实际行为保持 parity，此处复制 sentiment.py 的实现。
-    # TODO(P-sentiment): sentiment 域迁移时将此端点并入 sentiment_async 并去重。
-    from adapters.outbound.datasources.sentiment_data_source import SentimentDataSource
-    source = SentimentDataSource()
-    result = source.get_insider_trades(symbol, days)
-    return api_response(result)
+    """内部人交易 / 高管增减持（东财 stock_inner_trade_xq）。
+
+    2026-09-14（REQ-48d896）：原实现走 `SentimentDataSource.get_insider_trades`，
+    是 random 生成的伪造数据。该数据的**真实实现本仓早已存在** ——
+    `providers/market/akshare.py::get_insider_trades` + `manager.get_insider_trades`
+    （provider 端点 /api/provider/stock/{symbol}/insider-trades 也在用它）。
+    本处因此**不新增任何取数实现**，只把路由改指向已有方法，并按 days 过滤变动日期。
+
+    原生列：股票代码/股票名称/变动日期/变动人/变动股数/成交均价/变动后持股数/
+    与董监高关系/董监高职务
+    """
+    from adapters.outbound.datasources import get_data_provider_manager
+    from datetime import date as _date, timedelta as _td
+
+    result = get_data_provider_manager().get_insider_trades(symbol)
+    if not result.get('success'):
+        return error_response({
+            'success': False,
+            'error': result.get('error') or '数据源不可用',
+            'attempted_sources': list(result.get('attempted_sources') or []),
+        }, 502)
+
+    payload = provider_payload(result)
+    records = payload.get('records') or []
+    if records and days:
+        cutoff = (_date.today() - _td(days=max(1, int(days)))).isoformat()
+        kept = [r for r in records if str(r.get('变动日期') or '') >= cutoff]
+        payload['records'] = kept
+        payload['total'] = len(kept)
+        payload['days'] = days
+    return api_response(payload)
 
 
 @router.get('/api/stock/{symbol}/peers')
