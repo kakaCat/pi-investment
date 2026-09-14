@@ -209,3 +209,56 @@ unparseable（语法坏文件） 本轮范围 []
 - **等价性验证要带负对照**：只跑"老==新"无法排除"比对脚本恒真"。做法见 B4-c4 日志 §4.1
   （把老实现定向变异 3 处，差异段必须恰好等于被变异段）。B4-c4 期间这道防线拦下 2 次假"通过"。
   **worktree 里没有 `venv`（gitignore）**，要 `ln -s` 主树 venv 进去，否则 `./venv/bin/python` 直接 No such file。
+---
+
+## 11. 独立复核（2026-09-14 13:50，w-32314d00）
+
+用户问"没有走 ORM 的修复现在进行到哪里"，故**不引用日志、直接重跑扫描器复核**（可复跑命令同 §1）：
+
+```
+./venv/bin/python tools/non_orm_sql_scan.py --json   # 明细
+./venv/bin/python tools/non_orm_sql_scan.py --gate   # 退出码 0
+```
+
+**本轮范围（非 scripts/tools/live_trading）= 101 处**，其中：
+
+| 桶 | 处数 | 性质 |
+|---|---|---|
+| `session_execute_var` | **72** | **审计桶，未判定**（`session.execute(<变量>)` 静态分不清是 `select()` 还是 `text()`）——不是"确认未迁"，需人工复核 |
+| `cursor_execute` | 11 | 确认未迁 |
+| `core_text_sql` | 10 | 确认未迁 |
+| `read_sql` | 5 | 确认未迁 |
+| `fstring_sql` | 2 | 标识符插值，**非验收值** |
+| `psql_subprocess` | 1 | 一次性运维脚本 |
+
+**去掉审计桶后剩 29 处 / 11 文件**，与 §8 一致（复核确认）：
+
+```
+ 8  adapters/outbound/repositories/signal_tracking_repository.py   cursor_execute
+ 5  infrastructure/persistence/database/async_base_repository.py   core_text_sql
+ 4  adapters/outbound/repositories/qlib_repository.py              fstring_sql 1 + read_sql 3
+ 2  application/services/core_plan_service.py                      read_sql 1 + cursor_execute 1
+ 2  application/services/data_hygiene_service.py                   core_text_sql 2
+ 2  application/services/strategy_evaluation_service.py            core_text_sql 1 + read_sql 1
+ 2  infrastructure/diagnostics/dependency_check.py                 fstring_sql 1 + core_text_sql 1
+ 1  adapters/outbound/repositories/ml_model_repository.py          cursor_execute
+ 1  adapters/outbound/repositories/portfolio_repository.py         core_text_sql
+ 1  test_cron_parsing.py                                           psql_subprocess
+ 1  utils/symbol_classifier.py                                     cursor_execute
+```
+
+**两处分层结论（本轮实测，用于推进看板任务状态）**：
+
+- `adapters/inbound/`（路由层）本轮范围命中 **0** —— t3 的路由半区达成；
+- `infrastructure/jobs` 与 `infrastructure/adapters` 本轮范围命中 **0** —— t4 验收项达成，任务已 done。
+
+**口径更正**：§8 末写的"范围外 78"与实测不符 —— 现在实测 `out_of_scope` = **124**
+（`fstring_value_interp` 1 / `raw_connect` 14 / `cursor_execute` 45 / `core_text_sql` 50 / `fstring_sql` 14）。
+已核扫描器未误扫 `.claude/worktrees/`（该目录被 .gitignore 命中，`files` 明细里 0 条可疑路径），
+故 124 是真实计数，以本节为准。
+
+**看板同步**：`t-d4bd5b`（作业/适配器层）→ done；`t-35681e`（仓储内）→ in_progress。
+`t-cd19d2`（应用/路由层）**保持 in_progress**：路由半区已 0，但应用层仍有 6 处
+（core_plan 2 / data_hygiene 2 / strategy_evaluation 2，即 §8 的"通用 SQL 助手、27 个调用点"），
+验收项"应用+路由层 cursor_execute 清零"**未满足**，卡在"类型化查询端口"设计，不标记完成。
+
