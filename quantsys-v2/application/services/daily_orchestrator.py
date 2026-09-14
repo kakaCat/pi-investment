@@ -17,7 +17,7 @@ IDLE → PRE_MARKET → MARKET_OPEN → INTRADAY → MARKET_CLOSE → POST_MARKE
 from __future__ import annotations
 
 import structlog
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Iterable, Set
 from datetime import datetime, date, time
 from enum import Enum
 
@@ -65,8 +65,19 @@ PHASE_ORDER = [
     Phase.REVIEW,
 ]
 
-# 唯一交易账本（2026-07-24 盈利闭环改造）
+# 对外契约口径账户（2026-07-24 盈利闭环改造引入，原名"唯一交易账本"）
+#
+# 2026-09-14（w-32314d00，REQ-24e15d 账户通用化）：本常量**不再是"唯一"账户**。
+# 它现在的唯一职责是「事件载荷的口径账户」—— signals_ready / daily_review 载荷里
+# 携带哪只账户的数据（agent-ts 的 wake-adapter 契约与测试锁定了这个名字）。
+# 账户级"维护类"动作（T+1 结转 / 持仓估值 / 净值快照 / 复盘取数）一律按
+# ACCOUNT_STATUS_ACTIVE 口径**遍历全部账户**，见 _active_accounts()。
 TRADING_ACCOUNT = 'agent_virtual'
+
+# 账户级动作的遍历口径（唯一来源：quant.simulation_account.status）
+# 与 SimulationORMRepository.settle_t1_all / list_accounts(status=...) 同一口径，
+# 不另立一套；换口径只改这一处。
+ACCOUNT_STATUS_ACTIVE = 'active'
 
 
 # ============================================================
@@ -315,12 +326,7 @@ class DailyOrchestrator:
         本阶段只负责"信号准备 + 事件推送"。
         """
         # 开盘前 T+1 结转：前日买入的持仓转为可卖（9:25 结转，9:30 开盘即可卖）
-        if self._simulation_repo is None:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            from domain.ports import ISimulationRepository
-            simulation_repo = EnhancedServiceFactory.resolve(ISimulationRepository)
-        else:
-            simulation_repo = self._simulation_repo
+        simulation_repo = self._sim_repo()
 
         # 2026-09-05 修复：原硬编码 settle_t1(TRADING_ACCOUNT) 只结转 agent_virtual，
         # 导致其他账户（agent_brain 等）T+1 永不结转（华兰 002007 可卖恒 0 事故）。
@@ -375,14 +381,49 @@ class DailyOrchestrator:
         # 这里只做标记
         return {'status': 'monitoring', 'note': 'IntradayMonitor handles this phase'}
 
+    # ==================== 账户口径（2026-09-14 账户通用化）====================
+
+    def _sim_repo(self):
+        """现取模拟交易仓储：依赖注入优先，否则由工厂解析。
+
+        原实现把这段 if/else 抄了三遍（market_open / market_close / review）。
+        """
+        if self._simulation_repo is not None:
+            return self._simulation_repo
+        from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
+        from domain.ports import ISimulationRepository
+        return EnhancedServiceFactory.resolve(ISimulationRepository)
+
+    def _active_accounts(self, repo) -> List[str]:
+        """参与**账户级**动作的账户清单。
+
+        口径唯一来源 = SimulationAccount.status == ACCOUNT_STATUS_ACTIVE
+        （与 settle_t1_all 同一口径）。取不到时回退 [TRADING_ACCOUNT]，
+        保证任何异常下行为都不比通用化之前更差。
+
+        注意：**市场级**动作（数据更新 / 风格检测 / 信号生成 / 因子计算）不属于
+        本清单的适用范围 —— 那些动作全市场只应跑一次，跑 N 遍会重复生成信号。
+        """
+        try:
+            accounts = repo.list_accounts(status=ACCOUNT_STATUS_ACTIVE)
+            names = [getattr(a, 'account_name', None) for a in (accounts or [])]
+            names = [n for n in names if n]
+            if names:
+                return names
+            logger.warning("orchestrator: no active account, fallback to TRADING_ACCOUNT")
+        except Exception as e:
+            logger.warning("orchestrator: list_accounts failed, fallback to TRADING_ACCOUNT",
+                           error=str(e))
+        return [TRADING_ACCOUNT]
+
     def _phase_market_close(self, state: DailyOrchestratorState) -> Dict[str, Any]:
-        """收盘阶段：T+1 结转 + 最终市值更新"""
-        if self._simulation_repo is None:
-            from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-            from domain.ports import ISimulationRepository
-            repo = EnhancedServiceFactory.resolve(ISimulationRepository)
-        else:
-            repo = self._simulation_repo
+        """收盘阶段：T+1 结转 + 全账户最终市值更新
+
+        2026-09-14（w-32314d00）账户通用化：原实现只对 TRADING_ACCOUNT(agent_virtual)
+        估值，其余 active 账户的持仓市值/账户总资产长期停在"最后一次交易时"的值。
+        现按 active 账户循环，口径与 settle_t1_all 对齐。
+        """
+        repo = self._sim_repo()
 
         # T+1 结转：今日买入的股票明日才可卖出（2026-09-05 起全 active 账户）
         if hasattr(repo, 'settle_t1_all'):
@@ -390,65 +431,189 @@ class DailyOrchestrator:
         else:
             settled = {TRADING_ACCOUNT: repo.settle_t1(TRADING_ACCOUNT)}
 
-        # 更新最终市值（使用收盘价）
+        accounts = self._active_accounts(repo)
+        updated = self._revalue_positions(accounts)
+
+        logger.info("market_close: positions revalued",
+                    accounts=len(accounts), revalued_total=sum(updated.values()))
+        return {'settled_positions': settled,
+                'positions_updated': sum(updated.values()),
+                'positions_updated_by_account': updated}
+
+    def _revalue_positions(self, accounts: List[str]) -> Dict[str, int]:
+        """按"最近可得收盘价"重估各账户持仓市值并刷新账户总资产。
+
+        取价一次做完：先并集全部账户的持仓 symbol，再批量查一次最新日线
+        （原实现是"每账户每持仓一次 get_latest_daily_kline"，7 账户会放大成数百次查询）。
+
+        口径声明（R-013）：价格源是 kline 库里的**最近一根日线**，不是当日实时价；
+        当日 K 线由 evening_pipeline(20:30) 落库，故 15:00 收盘阶段拿到的是上一交易日
+        收盘价。此口径与原单账户实现**完全一致**（原实现同样用 get_latest_daily_kline），
+        本次只是把适用账户从 1 个扩到全部 —— 未新增也未消除该滞后性。
+        """
         from application.trading.paper_trading_engine import PaperTradingEngine
-        engine = PaperTradingEngine(account_name=TRADING_ACCOUNT)
 
-        # 获取持仓并更新价格
-        positions = engine.get_current_positions()
-        if positions:
-            from infrastructure.services.service_factory import ServiceFactory
-            kline_repo = ServiceFactory.get_kline_repository()
-            prices = {}
-            for p in positions:
-                try:
-                    kline = kline_repo.get_latest_daily_kline(p['symbol'])
-                    if kline:
-                        prices[p['symbol']] = float(kline['close'])
-                except Exception:
-                    pass
-            if prices:
-                engine._update_position_values(prices)
+        engines: Dict[str, Any] = {}
+        held_by_account: Dict[str, set] = {}
+        symbols = set()
+        for name in accounts:
+            try:
+                # 构造一次即复用：PaperTradingEngine.__init__ 会查/建账户，
+                # 每次 _update 都新建会把查询量翻倍。
+                engines[name] = PaperTradingEngine(account_name=name)
+                positions = engines[name].get_current_positions() or []
+            except Exception as e:
+                logger.warning("market_close: load positions failed", account=name, error=str(e))
+                continue
+            held = {p.get('symbol') for p in positions if p.get('symbol')}
+            held_by_account[name] = held
+            symbols |= held
 
-        return {'settled_positions': settled, 'positions_updated': len(positions)}
+        prices: Dict[str, float] = {}
+        if symbols:
+            try:
+                from infrastructure.services.service_factory import ServiceFactory
+                kline_repo = ServiceFactory.get_kline_repository()
+                batch = kline_repo.get_latest_daily_klines_batch(sorted(symbols)) or {}
+                for sym, row in batch.items():
+                    if row and row.get('close') is not None:
+                        prices[sym] = float(row['close'])
+            except Exception as e:
+                logger.warning("market_close: batch price fetch failed", error=str(e))
+
+        updated: Dict[str, int] = {}
+        for name, held in held_by_account.items():
+            acct_prices = {s: prices[s] for s in held if s in prices}
+            if not acct_prices:
+                updated[name] = 0
+                continue
+            try:
+                engines[name]._update_position_values(acct_prices)
+                updated[name] = len(acct_prices)
+            except Exception as e:
+                logger.warning("market_close: revalue failed", account=name, error=str(e))
+                updated[name] = 0
+        return updated
 
     def _phase_post_market(self, state: DailyOrchestratorState) -> Dict[str, Any]:
-        """盘后阶段：绩效统计 + 净值快照 + 因子重算"""
+        """盘后阶段：净值快照 + 绩效统计（按账户）+ 因子重算（全市场一次）
+
+        2026-09-14（w-32314d00）账户通用化：快照与绩效原只覆盖 TRADING_ACCOUNT。
+        因子重算属**市场级**动作，仍然只跑一次。
+
+        载荷兼容：daily_review 事件与 state.context['performance'] 继续用
+        TRADING_ACCOUNT 的口径（③ 逐账户投递改造前不改对外契约），全账户明细分列
+        snapshots_by_account / performance_by_account，供后续消费方使用。
+        """
         from application.trading.paper_trading_engine import PaperTradingEngine
         from application.services.scheduler_tasks import handle_factor_compute
 
-        engine = PaperTradingEngine(account_name=TRADING_ACCOUNT)
+        accounts = self._active_accounts(self._sim_repo())
 
-        # 1. 拍摄每日净值快照
-        snapshot = engine.take_daily_snapshot()
+        # 1+2. 逐账户拍摄净值快照 + 生成绩效报告
+        #      take_daily_snapshot 走 upsert_equity_snapshot（同账户同日覆盖写，幂等），
+        #      因此进程重启/resume 重跑不会产生重复行。
+        snapshots: Dict[str, Any] = {}
+        performances: Dict[str, Any] = {}
+        for name in accounts:
+            try:
+                engine = PaperTradingEngine(account_name=name)
+                snapshots[name] = engine.take_daily_snapshot()
+                report = engine.get_performance_report() or {}
+                performances[name] = {
+                    'total_value': report.get('total_value'),
+                    'cumulative_return': report.get('cumulative_return'),
+                    'cumulative_return_pct': report.get('cumulative_return_pct'),
+                    'today_pnl': report.get('today_pnl'),
+                    'open_positions': report.get('open_positions'),
+                }
+            except Exception as e:
+                logger.warning("post_market: account stats failed", account=name, error=str(e))
+                snapshots[name] = {'error': str(e)[:200]}
+                performances[name] = {}
 
-        # 2. 生成绩效报告
-        report = engine.get_performance_report()
-
-        # 3. 因子重算（为明日准备）
+        # 3. 因子重算（为明日准备）—— 市场级，单次
         logger.info("post_market: factor_compute")
         factor_result = handle_factor_compute()
 
+        primary_perf = performances.get(TRADING_ACCOUNT) or {}
+        primary_snap = snapshots.get(TRADING_ACCOUNT) or {}
+
         # 保存到上下文
         self._update_context(state, {
-            'daily_snapshot': snapshot,
-            'performance': {
-                'total_value': report.get('total_value'),
-                'cumulative_return': report.get('cumulative_return'),
-                'today_pnl': report.get('today_pnl'),
-                'open_positions': report.get('open_positions'),
-            },
+            'daily_snapshot': primary_snap,
+            'performance': primary_perf,
+            'snapshots_by_account': snapshots,
+            'performance_by_account': performances,
         })
 
         return {
-            'snapshot': snapshot,
+            'snapshot': primary_snap,
+            'snapshots_by_account': snapshots,
             'performance_summary': {
-                'total_value': report.get('total_value'),
-                'cumulative_return_pct': report.get('cumulative_return_pct'),
-                'today_pnl': report.get('today_pnl'),
+                'total_value': primary_perf.get('total_value'),
+                'cumulative_return_pct': primary_perf.get('cumulative_return_pct'),
+                'today_pnl': primary_perf.get('today_pnl'),
             },
+            'accounts_snapshotted': len(snapshots),
             'factor_compute': factor_result.get('status', 'unknown'),
         }
+
+    # ==================== 复盘唤醒幂等（per-account 形态）====================
+
+    def _notified_accounts(self, context: Dict[str, Any]) -> Set[str]:
+        """已推送过复盘唤醒的账户集合。
+
+        兼容两种历史形态：
+          · 旧：daily_review_notified = True          （全局布尔，2026-09-08 引入）
+          · 新：daily_review_notified = {"<acct>": True, ...}   （per-account）
+        旧布尔的语义等于"当时唯一的对外口径账户已推送"，故映射为 {TRADING_ACCOUNT}。
+        """
+        raw = (context or {}).get('daily_review_notified')
+        if raw is True:
+            return {TRADING_ACCOUNT}
+        if isinstance(raw, dict):
+            return {k for k, v in raw.items() if v}
+        return set()
+
+    def _mark_review_notified(self, state: DailyOrchestratorState,
+                              accounts: Iterable[str]) -> None:
+        """把账户并入"已推送"集合（保留既有条目，不整体覆盖）。"""
+        merged = {a: True for a in sorted(self._notified_accounts(state.context or {})
+                                          | set(accounts))}
+        self._update_context(state, {'daily_review_notified': merged})
+
+    def _collect_today_trades(self, repo, accounts: List[str],
+                              trade_date) -> Dict[str, List[Dict[str, Any]]]:
+        """按账户取当日成交（原实现硬编码只取 TRADING_ACCOUNT）。
+
+        顺带修一个**静默缺陷**：原实现用 t.get('symbol') / t.get('side') 去读
+        SimulationTrade 的 **ORM 对象** —— ORM 对象没有 .get()，且字段名是 action
+        不是 side。异常被紧跟的裸 except 吞掉，于是 daily_review 载荷里的
+        today_trades **恒为空列表**（实体证据：SimulationTrade(id=167, ...) 无 get 属性）。
+        现改为属性访问，字段名用真实的 action。
+        """
+        result: Dict[str, List[Dict[str, Any]]] = {}
+        for name in accounts:
+            try:
+                trades = repo.get_trades_by_account(
+                    name,
+                    start_date=str(trade_date),
+                    end_date=str(trade_date),
+                ) or []
+                result[name] = [
+                    {
+                        'symbol': getattr(t, 'symbol', None),
+                        'action': getattr(t, 'action', None),
+                        'amount': (float(t.amount)
+                                   if getattr(t, 'amount', None) is not None else None),
+                    }
+                    for t in list(trades)[:10]
+                ]
+            except Exception as e:
+                logger.warning("review_phase: trades query failed", account=name, error=str(e))
+                result[name] = []
+        return result
 
     def _phase_review(self, state: DailyOrchestratorState) -> Dict[str, Any]:
         """复盘阶段：进化引擎 + Agent 智能复盘（2026-09-03 P0 修复）"""
@@ -507,34 +672,30 @@ class DailyOrchestrator:
             evolution_results['evolution_fitness'] = {'status': 'failed', 'error': str(e)[:200]}
 
         # ==================== Agent 智能复盘（原有逻辑）====================
-        # 获取今日交易数据
-        today_trades = []
-        today_pnl = context.get('performance', {}).get('today_pnl', 0)
-        try:
-            if self._simulation_repo is None:
-                from infrastructure.services.enhanced_service_factory import EnhancedServiceFactory
-                from domain.ports import ISimulationRepository
-                sim_repo = EnhancedServiceFactory.resolve(ISimulationRepository)
-            else:
-                sim_repo = self._simulation_repo
-            trades = sim_repo.get_trades_by_account(
-                TRADING_ACCOUNT,
-                start_date=str(state.trade_date),
-                end_date=str(state.trade_date),
-            )
-            today_trades = [
-                {'symbol': t.get('symbol'), 'action': t.get('side'), 'amount': t.get('amount')}
-                for t in (trades or [])[:10]
-            ]
-        except Exception:
-            pass
-
         # 幂等检查：避免同日重复推送（2026-09-08 修复：9/2 推 3 次、8/13 推 4 次）
-        if context.get('daily_review_notified'):
+        # 2026-09-14（w-32314d00）改为 per-account 形态。
+        # 为什么现在改形态而不改行为：投递仍是**单次**且口径账户仍是 TRADING_ACCOUNT，
+        # 所以门位必须按 TRADING_ACCOUNT 判 —— 若此时就按"全部账户"判，单次投递会被
+        # 放大成 N 次（正是 2026-09-08 修掉的重复推送）。per-account 形态是为
+        # 逐账户投递（③）准备的原语：③ 落地时只需把下面这行换成逐账户循环，
+        # 不会踩到"第一个账户把其余全部抑制掉"的坑。
+        notified = self._notified_accounts(context)
+        if TRADING_ACCOUNT in notified:
             logger.info("review_phase: daily_review already notified today, skip",
-                       trade_date=str(state.trade_date))
-            return {'status': 'already_notified', 'skipped': True}
-        
+                        trade_date=str(state.trade_date), notified=sorted(notified))
+            return {'status': 'already_notified', 'skipped': True,
+                    'notified_accounts': sorted(notified)}
+
+        # 获取今日交易数据（2026-09-14 账户通用化：按 active 账户循环取数）
+        # 放在幂等门之后：resume_from_breakpoint 每次进程重启都会重跑阶段，
+        # 已推送时不该再白跑一遍全账户取数。
+        repo = self._sim_repo()
+        accounts = self._active_accounts(repo)
+        trades_by_account = self._collect_today_trades(repo, accounts, state.trade_date)
+        # 载荷兼容：daily_review 仍携带 TRADING_ACCOUNT 的当日成交（③ 逐账户投递前不改契约）
+        today_trades = trades_by_account.get(TRADING_ACCOUNT, [])
+        today_pnl = context.get('performance', {}).get('today_pnl', 0)
+
         # 唤醒 Agent 做复盘决策（工具链引导 + 进化结果）
         self._notify_agent('daily_review', {
             'trade_date': str(state.trade_date),
@@ -559,7 +720,9 @@ class DailyOrchestrator:
         })
         
         # 标记已推送（防止重复，2026-09-08 修复：9/2 推 3 次、8/13 推 4 次）
-        self._update_context(state, {'daily_review_notified': True})
+        # 只标记**真正被推送进载荷**的口径账户；逐账户投递（③）落地后
+        # 这里变成"每推送一只账户就标一只"。
+        self._mark_review_notified(state, [TRADING_ACCOUNT])
 
         return {
             'status': 'completed',
