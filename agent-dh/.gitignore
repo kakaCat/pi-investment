@@ -1,5 +1,8 @@
 node_modules/
 dist/
+# restart-with-build.sh ⑬ 的 dist 暂存/换装回滚目录（包内、与 dist/ 同级）
+.dist-stage-*/
+.dist-old-*/
 .DS_Store
 *.log
 *.omo/
