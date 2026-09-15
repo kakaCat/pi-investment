@@ -334,6 +334,15 @@ _ensure_from() {  # $1=源文件  $2=目标文件  $3=说明
     echo "  --force-config: 已备份 $label → $(basename "$bak")，再用 config/ 覆盖"
     return 0
   fi
+  # 2026-09-14（w-40abbc91）：副本与源不一致时**大声告警**，不再静默保留。
+  # 事故：profile 双副本（agent-dh / investment）+ 此处"存在即保留"= 陈旧配置缓存——
+  # launchd 托管实例加载了滞后 28 小时的 cordis.patch.yml，而全程无任何提示。
+  if ! cmp -s "$src" "$dst"; then
+    echo "  ⚠️ 警告: $label 与源文件内容不一致（副本是启动缓存，可能已陈旧）。" >&2
+    echo "        副本: $dst" >&2
+    echo "        源:   $src" >&2
+    echo "        处置: 以仓库源为准则 $SELF --force-config 刷新；以副本为准则先回写源文件。" >&2
+  fi
   echo "  保留已有 $label: $dst"
 }
 

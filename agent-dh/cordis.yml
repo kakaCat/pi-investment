@@ -170,6 +170,11 @@
     feishuWebhooks:
       '*': https://open.feishu.cn/open-apis/bot/v2/hook/b24be3a5-35fc-4142-90c2-3a3933172829
 
+
+# 项目看板（需求流水线）
+- id: pmboard
+  name: 'dsh-pmboard'
+
 # ========== Agent 配置 ==========
 
 # Agent 循环驱动 + 预创建 investor Agent

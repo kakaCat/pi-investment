@@ -29,6 +29,7 @@ import {
   normalizeTitle,
   readyTasks,
   recordStatus,
+  windowCodeFromSessionId,
   type ActorRef,
   type CommentRecord,
   type RequirementRecord,
@@ -36,6 +37,8 @@ import {
   type TriageRecord,
 } from '../shared/protocol.js'
 import { applyTaskRollup } from './rollup.js'
+import { readFile } from 'node:fs/promises'
+import { resolve, sep } from 'node:path'
 
 export interface ReqboardRouteDeps {
   store: ReqboardStore
@@ -666,6 +669,160 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
     ok(res, result.changed.triages[0])
   }
 
+  // -- 会话进度 / 需求摘要（2026-09-15：会话顶部进度条 + 侧边栏下拉）------------
+
+  /** 仍处进行中的需求状态（会话进度锚点用）。 */
+  const OPEN_STATUSES: ReadonlySet<string> = new Set([
+    'draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting',
+  ])
+
+  /** 任务状态在流水线上的显示顺序（客户端按此分组渲染）。 */
+  const TASK_ORDER = ['in_progress', 'integrating', 'testing', 'in_review', 'todo', 'done', 'canceled']
+
+  /**
+   * GET /dashboard/api/reqboard/requirements/summary
+   * 进行中需求的紧凑摘要（侧边栏下拉 / 列表视图共用）：
+   * 标题 / 状态 / 来源窗口码 / 任务进度。按「越靠后越靠前」排序。
+   */
+  async function handleRequirementsSummary(res: ServerResponse): Promise<void> {
+    const ledger = await store.read(l => l)
+    const rank: Record<string, number> = {
+      implementing: 0, accepting: 1, decomposing: 2, planning: 3, brainstorming: 4, draft: 5, done: 6,
+    }
+    const summaries = ledger.requirements
+      .filter(r => r.status !== 'archived' && r.status !== 'canceled')
+      .map(req => {
+        const tasks = ledger.tasks.filter(t => t.requirementId === req.id)
+        const done = tasks.filter(t => t.status === 'done').length
+        const active = tasks.filter(t => t.status !== 'todo' && t.status !== 'done' && t.status !== 'canceled').length
+        return {
+          id: req.id,
+          title: req.title,
+          status: req.status,
+          category: req.category ?? null,
+          sourceSessionId: req.sourceSessionId ?? null,
+          windowCode: req.sourceSessionId !== undefined ? windowCodeFromSessionId(req.sourceSessionId) : null,
+          tasksDone: done,
+          tasksActive: active,
+          tasksTotal: tasks.length,
+          percentage: tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0,
+          updatedAt: req.updatedAt,
+        }
+      })
+      .sort((a, b) => {
+        const ra = rank[a.status] ?? 99
+        const rb = rank[b.status] ?? 99
+        return ra !== rb ? ra - rb : b.updatedAt - a.updatedAt
+      })
+    ok(res, { requirements: summaries, total: summaries.length })
+  }
+
+  /**
+   * GET /dashboard/api/reqboard/session/:sessionId/progress
+   * 某会话关联的需求进度（会话顶部进度条数据源）。
+   *
+   * 锚点两级：① 需求 sourceSessionId（立项窗口）；② 任务执行记录 sessionId（接手窗口）。
+   * 状态两级：① **进行中**需求优先（进度条主用途）；② 没有进行中的，回退到该会话
+   * **最近关联过的需求**（含 done/archived，closed=true）——用户核心诉求是「agent 跑久了
+   * 我总忘记之前做了什么」，会话结束后留一条「最近完成」锚点比什么都不显示有用得多。
+   * 完全无关联 → { hasRequirement: false }（前端不渲染，零噪音）。
+   */
+  async function handleSessionProgress(res: ServerResponse, sessionId: string): Promise<void> {
+    const ledger = await store.read(l => l)
+
+    // 该会话关联的全部需求 id（来源窗口 ∪ 任务执行会话）
+    const isOpen = (s: string): boolean => OPEN_STATUSES.has(s)
+    const taskAnchoredIds = new Set<string>()
+    for (const t of ledger.tasks) {
+      if (t.executions.some(e => e.sessionId === sessionId)) taskAnchoredIds.add(t.requirementId)
+    }
+    const anchored = ledger.requirements.filter(
+      r => r.sourceSessionId === sessionId || taskAnchoredIds.has(r.id),
+    )
+    const byRecent = (a: RequirementRecord, b: RequirementRecord): number => b.updatedAt - a.updatedAt
+
+    const target = anchored.filter(r => isOpen(r.status)).sort(byRecent)[0]
+      ?? anchored.slice().sort(byRecent)[0]
+
+    if (target === undefined) {
+      ok(res, { hasRequirement: false, sessionId })
+      return
+    }
+
+    const tasks = ledger.tasks.filter(t => t.requirementId === target.id)
+    const done = tasks.filter(t => t.status === 'done').length
+    const byStatus: Record<string, number> = {}
+    for (const s of TASK_ORDER) byStatus[s] = 0
+    for (const t of tasks) byStatus[t.status] = (byStatus[t.status] ?? 0) + 1
+
+    ok(res, {
+      hasRequirement: true,
+      sessionId,
+      /** true = 该会话没有进行中需求，展示的是最近关联过的已完成需求 */
+      closed: !isOpen(target.status),
+      requirement: {
+        id: target.id,
+        title: target.title,
+        description: target.description,
+        status: target.status,
+        category: target.category ?? null,
+        blocked: target.blocked,
+        paused: target.paused === true,
+        sourceSessionId: target.sourceSessionId ?? null,
+        updatedAt: target.updatedAt,
+      },
+      progress: {
+        total: tasks.length,
+        done,
+        active: tasks.filter(t => t.status !== 'todo' && t.status !== 'done' && t.status !== 'canceled').length,
+        percentage: tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0,
+        byStatus,
+      },
+      // 状态时间线（谁在什么时候推进到哪一步）——折叠展开后的「做了什么」主线
+      timeline: (target.statusHistory ?? []).map(e => ({
+        status: e.status, at: e.at, by: e.by, reason: e.reason ?? null, inferred: e.inferred === true,
+      })),
+      tasks: tasks
+        .slice()
+        .sort((a, b) => (TASK_ORDER.indexOf(a.status) - TASK_ORDER.indexOf(b.status)) || (a.createdAt - b.createdAt))
+        .map(t => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+          phase: t.phase,
+          side: t.side,
+          acceptance: t.acceptance,
+          updatedAt: t.updatedAt,
+          durationMs: t.executions.reduce((s, e) => s + Math.max(0, (e.endedAt ?? e.startedAt) - e.startedAt), 0),
+        })),
+    })
+  }
+
+  /**
+   * GET /dashboard/api/reqboard/file?path=xxx
+   * 读取工作区 docs/ 下的文档（需求详情页「文档记录」弹窗打开用）。
+   * 安全：只允许相对路径、禁止 ../ 与绝对路径、解析后必须落在 docs/ 内。
+   */
+  async function handleFileRead(res: ServerResponse, rawPath: string): Promise<void> {
+    const rel = (rawPath ?? '').trim()
+    if (!rel) return badInput('缺少 path 参数')
+    if (rel.startsWith('/') || rel.includes('..') || rel.includes('\\')) {
+      return json(res, 403, { success: false, error: '仅允许访问工作区 docs/ 目录', code: 'forbidden' })
+    }
+    const cwd = process.cwd()
+    const docsRoot = resolve(cwd, 'docs')
+    const target = resolve(cwd, rel)
+    if (target !== docsRoot && !target.startsWith(docsRoot + sep)) {
+      return json(res, 403, { success: false, error: '仅允许访问工作区 docs/ 目录', code: 'forbidden' })
+    }
+    try {
+      const content = await readFile(target, 'utf8')
+      ok(res, { path: rel, content })
+    } catch {
+      return json(res, 404, { success: false, error: '文件不存在：' + rel, code: 'not_found' })
+    }
+  }
+
   // -- 分发 ----------------------------------------------------------------
 
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -677,6 +834,16 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       if (method === 'GET' && (sub === '' || sub === 'state')) return await handleState(res)
       if (method === 'GET' && sub === 'events') return handleEvents(req, res)
       if (method === 'GET' && sub === 'health') return ok(res, { status: 'ok' })
+      if (method === 'GET' && sub === 'file') {
+        const p = url.searchParams.get('path') ?? ''
+        return await handleFileRead(res, p)
+      }
+      if (method === 'GET' && sub === 'requirements/summary') return await handleRequirementsSummary(res)
+      if (method === 'GET' && sub.startsWith('session/') && sub.endsWith('/progress')) {
+        const sid = decodeURIComponent(sub.slice('session/'.length, sub.length - '/progress'.length))
+        if (sid.length === 0) return json(res, 400, { success: false, error: '缺少 sessionId', code: 'invalid_input' })
+        return await handleSessionProgress(res, sid)
+      }
 
       if (method === 'POST' && sub === 'req/create') return await handleReqCreate(req, res)
       if (method === 'POST' && sub === 'req/move') return await handleReqMove(req, res)

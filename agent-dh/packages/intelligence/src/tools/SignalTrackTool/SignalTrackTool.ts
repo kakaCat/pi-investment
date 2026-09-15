@@ -39,8 +39,8 @@ export class SignalTrackTool extends BaseTool<SignalTrackParams, any> {
         };
       }
 
-      // source 校验
-      const validSources = ['strategy_execute', 'opportunity_scan', 'mainline_stocks', 'watch_rule'];
+      // source 校验（REQ-ac5282：与 prompt.ts enum 对齐，补 manual——investor 手动记录观察信号）
+      const validSources = ['strategy_execute', 'opportunity_scan', 'mainline_stocks', 'watch_rule', 'manual'];
       if (!validSources.includes(source)) {
         return {
           success: false,
@@ -56,43 +56,91 @@ export class SignalTrackTool extends BaseTool<SignalTrackParams, any> {
   /**
    * 价格/日期真实性校验（2026-09-11，REQ-342799）：与当日真实K线对账。
    * 规则：①该日必须存在K线（非交易日/无数据 → 拒绝）②|price/close-1| ≤ 15%（离谱价 → 拒绝）。
-   * 取数通道异常时不阻塞写入，但返回 close=undefined 让调用方看到『未校验』。
+   * 2026-09-15（REQ-ac5282）修复：signal_date 为今天/未来（当日尚未收盘）时，单日查询必 404，
+   * 原 fail-closed 会误拒一切盘前/盘中信号记录。改为：今天/未来 → 回退最近已收盘交易日对账
+   * （记录『当日信号』的正常场景）；过去日期无K线 → 仍拒绝（保留防周末假记录语义）。
    */
   private async checkPriceSanity(
     symbol: string,
     date: string,
     price: number,
-  ): Promise<{ ok: boolean; reason?: string; close?: number }> {
+  ): Promise<{ ok: boolean; reason?: string; close?: number; fallback?: boolean }> {
+    const today = new Date().toISOString().slice(0, 10);
+    const isTodayOrFuture = date >= today; // YYYY-MM-DD 字典序即时间序
+
     try {
       const raw: any = await (this.qv2Client as any).getKlines(symbol, date, date, 'daily');
       const rows: any[] = Array.isArray(raw) ? raw : (raw?.klines ?? []);
       const close = Number(rows?.[0]?.close);
       const rowDate = String(rows?.[0]?.trade_date ?? rows?.[0]?.date ?? '');
+
+      if (rows.length && Number.isFinite(close) && close > 0) {
+        // 后端对非交易日可能回退返回邻近交易日的K线 → 必须比对日期。
+        if (rowDate && rowDate !== date && !isTodayOrFuture) {
+          return {
+            ok: false,
+            reason: '请求日期 ' + date + ' 但后端返回的是 ' + rowDate + ' 的K线（日期不匹配，疑似非交易日回退）',
+            close,
+          };
+        }
+        const dev = Math.abs(price / close - 1);
+        if (dev > 0.15) {
+          return {
+            ok: false,
+            reason: 'price=' + price + ' 与 ' + (rowDate || date) + ' 收盘 ' + close + ' 偏离 ' + (dev * 100).toFixed(1) + '%（阈值 15%）',
+            close,
+          };
+        }
+        return { ok: true, close };
+      }
+
+      // 单日无K线（rows 空 / close 非法）
+      if (isTodayOrFuture) {
+        return this.checkAgainstLatestTradingDay(symbol, date, price);
+      }
+      return { ok: false, reason: '日期 ' + date + ' 无 ' + symbol + ' 的K线（非交易日或数据缺失），无法与行情对账' };
+    } catch (e: any) {
+      // fail-closed（2026-09-11 实测修正）：无法与行情对账的记录一律不写入。
+      // 但今天/未来单日 404 是『尚未收盘』的正常情况，回退最近交易日对账。
+      if (isTodayOrFuture) {
+        return this.checkAgainstLatestTradingDay(symbol, date, price);
+      }
+      return { ok: false, reason: '校验取数失败（fail-closed，无法对账则不写入）：' + String(e?.message ?? e).slice(0, 80) };
+    }
+  }
+
+  /**
+   * 回退对账（REQ-ac5282）：signal_date 为今天/未来（当日尚未收盘）时，单日查询无K线，
+   * 改查最近 N 个自然日的区间，取最后一个已收盘交易日的收盘价对账（保证价格不离谱）。
+   */
+  private async checkAgainstLatestTradingDay(
+    symbol: string,
+    date: string,
+    price: number,
+  ): Promise<{ ok: boolean; reason?: string; close?: number; fallback?: boolean }> {
+    try {
+      const d = new Date(date);
+      d.setDate(d.getDate() - 12); // 12 自然日，覆盖长假
+      const start = d.toISOString().slice(0, 10);
+      const raw: any = await (this.qv2Client as any).getKlines(symbol, start, date, 'daily');
+      const rows: any[] = Array.isArray(raw) ? raw : (raw?.klines ?? []);
+      const last: any = rows[rows.length - 1];
+      const close = Number(last?.close);
       if (!rows.length || !Number.isFinite(close) || close <= 0) {
-        return { ok: false, reason: '日期 ' + date + ' 无 ' + symbol + ' 的K线（非交易日或数据缺失），无法与行情对账' };
+        return { ok: false, reason: '回退查询 [' + start + '~' + date + '] 仍取不到 ' + symbol + ' 的K线，无法对账' };
       }
-      // 后端对非交易日可能回退返回邻近交易日的K线 → 必须比对日期，否则周末照样能写入。
-      if (rowDate && rowDate !== date) {
-        return {
-          ok: false,
-          reason: '请求日期 ' + date + ' 但后端返回的是 ' + rowDate + ' 的K线（日期不匹配，疑似非交易日回退）',
-          close,
-        };
-      }
+      const lastDate = String(last?.trade_date ?? last?.date ?? '');
       const dev = Math.abs(price / close - 1);
       if (dev > 0.15) {
         return {
           ok: false,
-          reason: 'price=' + price + ' 与 ' + date + ' 真实收盘 ' + close + ' 偏离 ' + (dev * 100).toFixed(1) + '%（阈值 15%）',
+          reason: 'price=' + price + ' 与最近交易日 ' + lastDate + ' 收盘 ' + close + ' 偏离 ' + (dev * 100).toFixed(1) + '%（阈值 15%）',
           close,
         };
       }
-      return { ok: true, close };
+      return { ok: true, close, fallback: true };
     } catch (e: any) {
-      // fail-closed（2026-09-11 实测修正）：原实现 catch 后返回 ok:true 属 fail-open，
-      // 而真实后端对非交易日返回 {error:'No kline data'} → client 抛错 → 被当成『通道故障』放行，
-      // 实测确实写入了 1 条周末假记录。无法与行情对账的记录一律不写入。
-      return { ok: false, reason: '校验取数失败（fail-closed，无法对账则不写入）：' + String(e?.message ?? e).slice(0, 80) };
+      return { ok: false, reason: '回退对账取数失败（fail-closed）：' + String(e?.message ?? e).slice(0, 80) };
     }
   }
   protected async execute(params: SignalTrackParams, context: ToolContext): Promise<any> {

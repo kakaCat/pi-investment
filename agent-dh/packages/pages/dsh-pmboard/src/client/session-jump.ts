@@ -45,6 +45,20 @@ export function windowServiceAccess(): SessionServiceAccess {
 }
 
 /**
+ * 已归档会话 id 集合（工作区服务不可用 / 字段缺失 → 空集）。
+ *
+ * 用途：归档会话「日志保留、侧栏不可见」——跳过去也打不开，所以 UI 把对应的
+ * **窗口按钮置灰不可点**，而不是让人点了再弹「该会话已归档」。渲染层与下拉菜单
+ * 共用本函数，保证判定口径一致。
+ */
+export function archivedSessionIds(access: SessionServiceAccess = windowServiceAccess()): ReadonlySet<string> {
+  try {
+    const ids = access.getWorkspaces()?.list.getSnapshot().archivedSessionIds ?? []
+    return new Set<string>(ids)
+  } catch { return new Set<string>() }
+}
+
+/**
  * 尝试打开会话。id 未命中时先 refresh() 重拉一次列表镜像再判
  * （镜像可能滞后：重连补拉/晚挂载）。
  */

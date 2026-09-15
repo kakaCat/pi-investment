@@ -154,12 +154,52 @@ export function boundSectionText(ledger: ReqboardLedger, context: unknown): stri
   if (windowKey === undefined) return ''
   const open = openRequirementsFor(ledger, windowKey)
   if (open.length === 0) return ''
-  return [
+  // 基础需求列表
+  const lines: string[] = [
     `## 项目看板（reqboard · 本窗口 ${windowKey.slice(0, 16)} 已绑定需求）`,
     '',
     '本窗口名下有进行中的需求：',
     ...open.map(r => `- ${r.id}《${r.title}》当前状态：${r.status}`),
     '',
+  ]
+  
+  // ========== implementing 阶段注入当前任务执行指引 ==========
+  const implementingReq = open.find(r => r.status === 'implementing')
+  if (implementingReq) {
+    const inProgressTasks = ledger.tasks.filter(
+      t => t.requirementId === implementingReq.id && t.status === 'in_progress'
+    )
+    
+    if (inProgressTasks.length > 0) {
+      const task = inProgressTasks[0]
+      lines.push('## 【当前任务执行中】')
+      lines.push('')
+      lines.push(`任务：${task.title}`)
+      lines.push('')
+      lines.push('**任务说明**：')
+      lines.push(task.description || '（无）')
+      lines.push('')
+      lines.push('**需求背景**：')
+      lines.push(task.context || '（无）')
+      lines.push('')
+      lines.push('**验收标准**：')
+      lines.push(task.acceptance || '（无）')
+      lines.push('')
+      lines.push(`**阶段**：${task.phase} | **端侧**：${task.side}`)
+      lines.push('')
+      lines.push('---')
+      lines.push('请按照任务说明执行。完成后推进任务状态：')
+      lines.push(`- 开发完成 → reqboard_task_move({ task_id: '${task.id}', to: 'integrating', reason: '...' })`)
+      lines.push(`- 联调完成 → reqboard_task_move({ task_id: '${task.id}', to: 'testing', reason: '...' })`)
+      lines.push(`- 测试通过 → reqboard_task_move({ task_id: '${task.id}', to: 'in_review', reason: '...' })`)
+      lines.push('')
+      lines.push('查看所有任务：reqboard_task_detail()')
+      lines.push('')
+    }
+  }
+  // ========== 任务执行指引结束 ==========
+  
+  lines.push(
     '流水线（状态就是阶段，从立项一路走到交付）：',
     '- draft 立项 → brainstorming 头脑风暴（探边界/方案）→ planning 写计划 →',
     '  decomposing 拆分（落库任务 DAG）→ implementing 执行 → accepting 验收 → done 完成；',
@@ -200,7 +240,9 @@ export function boundSectionText(ledger: ReqboardLedger, context: unknown): stri
     '  多了什么认知），说明书是 docs/architecture/project-manual.md；bug/doc/chore 写 manual_note 说明即可；',
     '- docs 按 wiki 维护：新页面要有 front-matter 并挂进首页/上层页，未写的主题进首页「待写页」；',
     '  收工前可跑 python3 agent-dh/scripts/wiki_probe.py 自检死链/孤儿页。',
-  ].join('\n')
+  )
+  
+  return lines.join('\n')
 }
 
 /**

@@ -6,6 +6,7 @@
  */
 import { createBoardController, mountBoard } from './board-mount.ts'
 import { ReqboardFooterAction, injectFooterStyles, OPEN_EVENT } from './footer-action.ts'
+import { RequirementProgressAction } from './conversation-progress.ts'
 import { injectStyles } from './styles.ts'
 import { PANEL_NAME, PANEL_LABEL } from './dom.ts'
 
@@ -76,6 +77,21 @@ export function apply(ctx: ApplyContext): void {
         slots.register(
           { name: 'sidebar.footer.action', id: PANEL_NAME, order: 110, label: PANEL_LABEL },
           ReqboardFooterAction,
+        ),
+      )
+
+      // 会话标题栏的「需求进度」流程图：session 作用域槽位会把 sessionId 交给 inject，
+      // 组件据此查该会话绑定的需求进度（无绑定需求 → 渲染 null，槽位不占位）。
+      // order: 5 让它显示在模式选择器后面（模式选择器通常是 order: 10）
+      slots.inject('conversation.session.header.utilities', () =>
+        slots.register(
+          {
+            name: 'conversation.session.header.utilities',
+            id: PANEL_NAME + ':progress',
+            order: 5,
+            inject: (sessionId: string) => ({ sessionId }),
+          },
+          RequirementProgressAction,
         ),
       )
     } else {
