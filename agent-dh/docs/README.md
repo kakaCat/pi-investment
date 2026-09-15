@@ -130,6 +130,7 @@ tags: [wiki, index, home, agent-dh]
 - ✅ [RFC-011 工具 Web 卡片](rfcs/011-tool-web-cards.md)
 - ✅ [RFC-013 公告板页面](rfcs/013-bulletin-board-page.md)
 - ✅ P1 [页面插件契约](architecture/page-plugin-contract.md) —— 两半分工、产物与交付证据、接口信封、安全默认
+- ✅ [web-liveness 页面自愈](../../agent-dh/packages/pages/web-liveness/README.md) —— 重启后已开标签页自动刷新（`/plugins/events` 的 graph.rev vs `__DSH_BOOT__.rev`）
 
 ### 卷 8 · 需求流水线与归档（本 wiki 的供料线）
 
@@ -196,13 +197,15 @@ tags: [wiki, index, home, agent-dh]
 
 - [agent-dh 根 README](../../agent-dh/README.md)｜[profile 模板说明](../../agent-dh/profiles/investment/README.md)｜[示例目录](../../agent-dh/examples/README.md)
 - [core-tool（工具规范包）](../../agent-dh/packages/core-tool/README.md)｜[learning（学习引擎）](../../agent-dh/packages/learning/README.md)
-- 页面包：[holdings](../../agent-dh/packages/pages/holdings/README.md) · [execution](../../agent-dh/packages/pages/execution/README.md) · [bulletin](../../agent-dh/packages/pages/bulletin/README.md) · [genome](../../agent-dh/packages/pages/genome/README.md)
+- 页面包：[holdings](../../agent-dh/packages/pages/holdings/README.md) · [execution](../../agent-dh/packages/pages/execution/README.md) · [bulletin](../../agent-dh/packages/pages/bulletin/README.md) · [genome](../../agent-dh/packages/pages/genome/README.md) · [web-liveness](../../agent-dh/packages/pages/web-liveness/README.md)
 
 ## 最近改动
 
 <!-- AUTO:recent BEGIN -->
 | 日期 | 页面 | 一句话 |
 |---|---|---|
+| 2026-09-16 | [@pi-investment/web-liveness · 页面自愈（重启后标签页不再变砖）](../packages/pages/web-liveness/README.md) | 监听框架免鉴权的 /plugins/events SSE，发现服务端换过进程就自动刷新已打开的标签页。 |
+| 2026-09-16 | [全站页面索引（机器可读入口）](INDEX.md) | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 |
 | 2026-09-14 | [工作日志索引（L3 证据档案）](work-logs/README.md) | 某个时间点「当时做了什么、为什么这么做、结论是什么」。按月份倒序列出全部工作日志。 |
 | 2026-09-14 | [构建与发版规范（改了不等于生效）](standards/build-and-release.md) | 改完代码怎么让它真正生效；哪些"看起来部署了"其实没有。 |
 | 2026-09-14 | [RFC 010 Phase 1 - Window-OS Lifecycle Management](rfcs/RFC-010-README.md) | RFC 010 Phase 1：多窗口协同（窗口注册、角色化派单、窗口间消息、心跳容错）。 |
@@ -216,8 +219,6 @@ tags: [wiki, index, home, agent-dh]
 | 2026-09-14 | [RFC 005: 自进化投资 Agent（Self-Evolving Investment Agent）](rfcs/005-self-evolving-agent.md) | RFC 005：自进化 Agent 设计（Phase 1-3 已落地，Phase 4 元学习待启动）。 |
 | 2026-09-14 | [RFC 003: Agent Self-Learning and Distillation System](rfcs/003-self-learning-distillation.md) | RFC 003：经验追踪 → 知识蒸馏 → 规则转正的自学习系统设计。 |
 | 2026-09-14 | [交易执行协议（Trade Execution Protocol）](protocols/trade-execution-protocol.md) | 交易打标协议 v1.0：每笔交易如何带 genome_version / rules_used 进经验库。 |
-| 2026-09-14 | [故障排查手册（症状 → 根因 → 处置）](guides/troubleshooting.md) | 遇到这些症状，先看哪里、大概率是什么、怎么修。 |
-| 2026-09-14 | [技能装载机制（Skill Loading）——排障实录与标准流程](guides/skill-loading.md) | 技能为什么看不见：两个 dsh home + skill registry 分层，以及正确的装载姿势。 |
 
 > 自动生成（`docs_index.py`）：按 front-matter 的 updated 倒序取前 15 页。
 <!-- AUTO:recent END -->

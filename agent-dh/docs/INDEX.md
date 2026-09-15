@@ -3,7 +3,7 @@ id: docs-index
 title: 全站页面索引（机器可读入口）
 type: index
 status: living
-updated: 2026-09-14
+updated: 2026-09-16
 owners: [agent-dh]
 tags: [index, wiki]
 ---
@@ -18,7 +18,7 @@ tags: [index, wiki]
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
-| [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-09-14 |
+| [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-09-16 |
 | [agent-dh Wiki（归档文档首页 / 大纲）](README.md) | manual | living | agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。 | 2026-09-13 |
 | [🎊 Agent-DH v0.1.1 发布说明](RELEASE-NOTES-v0.1.1.md) | doc | living | v0.1.1（2026-08-18）发布说明：稳定性与可靠性改进清单（历史版本记录）。 | 2026-09-14 |
 | [工作日志索引（L3 证据档案）](work-logs/README.md) | index | living | 某个时间点「当时做了什么、为什么这么做、结论是什么」。按月份倒序列出全部工作日志。 | 2026-09-14 |
@@ -88,13 +88,21 @@ tags: [index, wiki]
 | [故障排查手册（症状 → 根因 → 处置）](guides/troubleshooting.md) | guide | living | 遇到这些症状，先看哪里、大概率是什么、怎么修。 | 2026-09-14 |
 | [M6 周报推送使用指南](guides/weekly-report-push-guide.md) | guide | living | 周报推送到飞书的配置与使用步骤。 | 2026-09-13 |
 
-### 设计与实施方案（历史） · `docs/design`（3 页）
+### 设计与实施方案（历史） · `docs/design`（11 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
 | [dashboard 页面插件 · 详细实施方案（数据链路实测版）](design/dashboard-implementation-detail.md) | design | living | 看板页面插件的数据链路实测细化（端点/参数/返回字段，2026-09-03 curl 打样）。 | 2026-09-14 |
 | [看板插件实现方案 · dashboard-holdings / dashboard-execution（双插件）](design/dashboard-implementation-plan.md) | design | archived | 双看板（holdings/execution）方案稿（已落地，形态后被纠正为双半插件；历史设计）。 | 2026-09-13 |
 | [page1 账户持仓看板（dashboard-holdings）实施方案](design/page1-holdings-implementation-plan.md) | design | archived | holdings 独立包补齐方案（已实施）：当时「包从未创建」缺口是怎么闭合的。 | 2026-09-13 |
+| [pmboard-final-status.md](design/pmboard-final-status.md) | — | — | 用户反馈："项目任务页的变化我没看见" | — |
+| [pmboard-node-content-design.md](design/pmboard-node-content-design.md) | — | — | 当前点击 DAG 图中的任何节点，都显示相同的任务详情页面（执行记录、评论、时间线等）。这种"一刀切"的展示方式不够直观，无法突出不同节点类型的核心信息。 | — |
+| [pmboard-task-page-delivery.md](design/pmboard-task-page-delivery.md) | — | — | ✅ 统计卡片区 | — |
+| [pmboard-task-page-implementation-complete.md](design/pmboard-task-page-implementation-complete.md) | — | — | 1. toggle-section - 折叠/展开章节 | — |
+| [pmboard-task-page-implementation-summary.md](design/pmboard-task-page-implementation-summary.md) | — | — | 需要修改 packages/pages/dsh-pmboard/src/client/board-mount.ts： | — |
+| [pmboard-task-page-test-plan.md](design/pmboard-task-page-test-plan.md) | — | — | 1. 打开 http://127.0.0.1:13080 | — |
+| [pmboard-task-page-ui-improvement.md](design/pmboard-task-page-ui-improvement.md) | — | — | 基于用户反馈，当前任务页存在以下问题： | — |
+| [pmboard-task-page-ui-preview.md](design/pmboard-task-page-ui-preview.md) | — | — | — | — |
 
 ### RFC 设计提案 · `docs/rfcs`（11 页）
 
@@ -118,7 +126,7 @@ tags: [index, wiki]
 |---|---|---|---|---|
 | [事件查询使用示例（P1-4）](examples/event-query-examples.md) | doc | living | 事件查询两个工具的实战示例（盘前例行、个股排雷等）。 | 2026-09-14 |
 
-### 包内入口页（怎么用这个包） · `packages`（6 页）
+### 包内入口页（怎么用这个包） · `packages`（7 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
@@ -128,6 +136,7 @@ tags: [index, wiki]
 | [@pi-investment/dashboard-execution](../packages/pages/execution/README.md) | package | living | 双线执行确认看板包：v2/os 健康 + 调度任务 + 检查点与时间轴。 | 2026-09-04 |
 | [@pi-investment/dashboard-genome · 自主进化看板](../packages/pages/genome/README.md) | package | living | 自主进化看板包：基因组目录、候选状态与进化链路的可视化。 | 2026-09-13 |
 | [@pi-investment/dashboard-holdings](../packages/pages/holdings/README.md) | package | living | 账户持仓看板包：多账户摘要、持仓明细、合规监控、盯盘中心。 | 2026-09-04 |
+| [@pi-investment/web-liveness · 页面自愈（重启后标签页不再变砖）](../packages/pages/web-liveness/README.md) | package | living | 监听框架免鉴权的 /plugins/events SSE，发现服务端换过进程就自动刷新已打开的标签页。 | 2026-09-16 |
 
 ### 示例目录 · `examples`（1 页）
 
