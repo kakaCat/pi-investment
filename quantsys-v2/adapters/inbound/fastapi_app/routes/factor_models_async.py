@@ -310,6 +310,11 @@ def barra_calculate(payload: Optional[Dict[str, Any]] = Body(None)):
             'portfolio_exposures': value.get('portfolio_exposures', {}),
             'n_factors': int(value.get('n_factors', 0)),
             'n_stocks': int(value.get('n_stocks', 0)),
+            # Small-sample mode fields (P1-5 & P1-5.1)
+            'degraded': bool(value.get('degraded', False)),
+            'method': value.get('method', 'full'),
+            'warning': value.get('warning'),
+            'shrinkage_intensity': value.get('shrinkage_intensity'),  # P1-5.1: Ledoit-Wolf shrinkage parameter
         }
 
         return api_response(serializable_result)
