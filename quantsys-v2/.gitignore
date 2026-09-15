@@ -18,6 +18,15 @@ htmlcov/
 *.db
 .pi-invest/
 
+# 例行任务自动重写的运行时报告/计划（core_plan_generate / data-hygiene-weekly /
+# strategy_loop 等每次运行即重写，generated_at/checked_at 时间戳噪声；
+# 非手动维护配置，不应入库。手动配置如 data_contracts/scheduler_jobs/services.* 仍跟踪）
+config/core_plan.json
+config/_ab_new_core_plan.json
+config/core_overlay_evidence.json
+config/data_hygiene_report.json
+config/strategy_loop_report.json
+
 # One-off scripts & tools
 scripts/
 quantlib/tools/
