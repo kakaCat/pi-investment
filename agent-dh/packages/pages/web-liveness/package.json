@@ -1,0 +1,33 @@
+{
+  "name": "@pi-investment/web-liveness",
+  "version": "0.1.0",
+  "description": "web-liveness — 浏览器标签页与服务端进程的活性对齐插件（client-only）：订阅框架免鉴权的 /plugins/events，用 graph.rev 与页面加载时的 __DSH_BOOT__.rev 比对，判定「服务端换进程了 / 客户端代码换版了」→ 停机出横幅、恢复后自动刷新。host 半是空壳（无路由、无工具）",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./client": "./lib/client.js"
+  },
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "build:client": "node ../../../node_modules/tsdown/dist/run.mjs -c tsdown.client.config.ts && node scripts/wrap-client.mjs && node scripts/verify-client-build.mjs"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "vitest": "^2.0.0"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  }
+}
