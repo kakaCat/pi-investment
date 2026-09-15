@@ -1315,7 +1315,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             )
             # 内存安全：流式迭代替代 fetchall()，虽然聚合结果集小但统一模式
             return [{'trade_date': r[0].isoformat() if r[0] else None,
-                     'total_volume': float(r[1] or 0)} for r in result]
+                     'total_volume': float(r[1] or 0)} for r in rows]
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error in get_market_turnover_by_day: {e}")
@@ -1356,7 +1356,7 @@ class KlineORMRepository(BaseORMRepository[DailyKline], IKlineRepository):
             # 内存安全：流式迭代替代 fetchall()
             return [{'trade_date': r[0].isoformat() if r[0] else None,
                      'avg_return': float(r[1]) if r[1] is not None else None}
-                    for r in result]
+                    for r in rows]
         except Exception as e:
             self._safe_rollback()
             logger.error(f"Error in get_market_daily_returns: {e}")

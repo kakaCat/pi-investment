@@ -192,11 +192,11 @@ class FundFlowORMRepository(BaseORMRepository[FundFlow], IFundFlowRepository):
                         func.sum(m.medium_net_inflow).label('total_medium_flow'),
                         func.sum(m.large_net_inflow).label('total_large_flow'),
                         func.sum(m.big_net_inflow).label('total_big_flow'),
-                    )
+                    ))
                     .filter(m.trade_date >= start_date, m.trade_date <= end_date)
                     .group_by(m.trade_date)
                     .order_by(m.trade_date)
-                    .all()))
+                    .all())
             return [{
                 'trade_date': r.trade_date,
                 'total_main_flow': float(r.total_main_flow or 0),
