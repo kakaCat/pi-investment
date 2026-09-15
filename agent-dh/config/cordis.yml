@@ -140,6 +140,12 @@
       name: 'dsh-pmboard'
       config: {}
 
+    # 页面自愈：监听框架免鉴权的 /plugins/events SSE，发现服务端换过进程就刷新标签页
+    # （2026-09-16 事故：重启后已开标签页能开、消息发不出去）。host 半为空壳。
+    - id: web-liveness
+      name: '@pi-investment/web-liveness'
+      config: {}
+
     - id: investment
       name: '@pi-investment/investment'
       config:
