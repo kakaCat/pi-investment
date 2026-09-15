@@ -23,6 +23,7 @@ tags: [reqboard, archive, index, l3]
 | REQ id | 主题 | 类型 | 档案目录 |
 |---|---|---|---|
 | REQ-1bb221 | 公告板「我来解决」动作路由统一到公共库（与智能执行同款） | bug | [REQ-1bb221](REQ-1bb221/) |
+| REQ-283168 | 项目看板双视图+会话进度条样式丢失恢复（stash 未 pop 根因，已合并回主干） | bug | [REQ-283168](REQ-283168/) |
 | REQ-24e15d | quantsys-v2 裸 SQL 全量迁 ORM | refactor | [REQ-24e15d](REQ-24e15d/) |
 | REQ-6cbbf7 | 持仓看板去掉启动预取（改为打开时才加载） | bug | [REQ-6cbbf7](REQ-6cbbf7/) |
 | REQ-a458a6 | 模型训练自动化治理（门控语义 / 唯一入口 / 新鲜度巡检 / 降噪） | feature | [REQ-a458a6](REQ-a458a6/) |
