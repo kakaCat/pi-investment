@@ -164,7 +164,7 @@ export function renderCommonContent(task: TaskRecord, now: number, archived: Rea
 
 /* ------------------------------------------------------------------ 拆分节点 */
 
-export function renderDecomposeContent(task: TaskRecord, req: RequirementRecord | undefined, allTasks: TaskRecord[]): string {
+export function renderDecomposeContent(_task: TaskRecord, req: RequirementRecord | undefined, allTasks: TaskRecord[]): string {
   if (!req) {
     return '<div class="dsh-pm-detail-section"><div class="dsh-pm-empty">需求数据不可用</div></div>'
   }

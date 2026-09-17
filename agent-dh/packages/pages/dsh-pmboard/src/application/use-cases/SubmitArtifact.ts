@@ -7,26 +7,18 @@
  */
 import type { UseCaseDeps } from '../ports.js'
 import {
-  ALL_ARTIFACT_KINDS, ALL_REQ_CATEGORIES, ARTIFACT_CONFIRM_GATES, canReqTransition, ARCHIVE_DOC_RULES,
-  assertArchiveMaterials, ALL_REQ_STATUSES, ALL_TASK_PHASES, ALL_TASK_SIDES, ALL_TASK_STATUSES,
-  asReqCategory, asReqStatus, asScope, assertDagAcyclic, assertReqTransition, assertTaskTransition,
-  HUMAN_ONLY_REQ_TRANSITIONS, agentNextActions, newCommentId, newExecutionId, newRequirementId, newTaskId,
-  normalizePlanTasks, normalizeText, normalizeTitle, planApproved, recordStatus,
-  type PlanTask, type VerificationSheet, type TaskRecord, type ReqboardLedger,
-  type RequirementCategory, type RequirementRecord, type RequirementStatus, type StageArtifact, type TriageRecord,
+  normalizePlanTasks,
+  normalizeText,
+  type StageArtifact,
 } from '../../shared/protocol.js'
-import { buildSheet } from '../../domain/workflow/AcceptanceSheetSpec.js'
-import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'
-import { checkDecomposeIdempotency } from '../../domain/workflow/DecomposeSpec.js'
-import { applyDocSync, clearDocSync, docSyncDownstream, docSyncPendingOf, docSyncSummary } from '../../domain/workflow/DocSyncSpec.js'
-import { openRequirementsFor, pendingSuggestionFor } from '../internal/window.js'
-import { applyTaskRollup } from '../internal/rollup.js'
-import { registerArtifact, assertArtifactGates, artifactNotifyText } from '../internal/artifact-gates.js'
-import { applyVerdicts } from '../internal/verdicts.js'
+import { applyDocSync, clearDocSync, docSyncDownstream } from '../../domain/workflow/DocSyncSpec.js'
+import { openRequirementsFor } from '../internal/window.js'
+import { registerArtifact } from '../internal/artifact-gates.js'
 import {
-  reject, agentIdFromExec, requireLiveDriver, requireDirectHuman, notifyArtifactRegistered,
-  assertDoneEvidence, rollupBlockersOf, workspacePathCandidates, gateQuestionCard, findPending,
-  createRequirementDirect, projectRequirement,
+  reject,
+  agentIdFromExec,
+  requireLiveDriver,
+  notifyArtifactRegistered,
 } from '../internal/support.js'
 
 export async function submitRequirementArtifact(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
@@ -131,7 +123,7 @@ export async function submitRequirementArtifact(deps: UseCaseDeps, args: unknown
         }
         return { requirements: [req] }
       })
-      const changed = result.changed.requirements[0]
+      const changed = (result.changed.requirements ?? [])[0]
       if (changed === undefined) reject('reqboard_requirement_submit 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
       const registered = !alreadyRegistered
       if (registered) notifyArtifactRegistered(deps, changed.id, artifact)
@@ -229,7 +221,7 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
         req.updatedBy = { kind: 'agent', sessionId: windowKey }
         return { requirements: [req] }
       })
-      const changed = result.changed.requirements[0]
+      const changed = (result.changed.requirements ?? [])[0]
       if (changed === undefined) reject('reqboard_plan_submit 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
       // ── 产物登记（REQ-31e11f t4）：plan 产物 = 计划文档 ──────────────────
       const planArtifact: StageArtifact = {

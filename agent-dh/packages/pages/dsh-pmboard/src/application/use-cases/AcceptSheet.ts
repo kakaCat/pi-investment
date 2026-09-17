@@ -7,29 +7,18 @@
  */
 import type { UseCaseDeps } from '../ports.js'
 import {
-  ALL_ARTIFACT_KINDS, ALL_REQ_CATEGORIES, ARTIFACT_CONFIRM_GATES, canReqTransition, ARCHIVE_DOC_RULES,
-  assertArchiveMaterials, ALL_REQ_STATUSES, ALL_TASK_PHASES, ALL_TASK_SIDES, ALL_TASK_STATUSES,
-  asReqCategory, asReqStatus, asScope, assertDagAcyclic, assertReqTransition, assertTaskTransition,
-  HUMAN_ONLY_REQ_TRANSITIONS, agentNextActions, newCommentId, newExecutionId, newRequirementId, newTaskId,
-  normalizePlanTasks, normalizeText, normalizeTitle, planApproved, recordStatus,
-  type PlanTask, type VerificationSheet, type TaskRecord, type ReqboardLedger,
-  type RequirementCategory, type RequirementRecord, type RequirementStatus, type StageArtifact, type TriageRecord,
+  normalizeText,
+  recordStatus,
 } from '../../shared/protocol.js'
 import { ACCEPT_ITEM_OPTIONS, FINAL_DECLINE_LABEL, FINAL_PASS_LABEL } from '../../domain/text/labels.js'
 import { fmt } from '../../domain/text/fmt.js'
 import { LIMITS } from '../../domain/limits.js'
-import { buildSheet } from '../../domain/workflow/AcceptanceSheetSpec.js'
-import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'
-import { checkDecomposeIdempotency } from '../../domain/workflow/DecomposeSpec.js'
-import { applyDocSync, clearDocSync, docSyncDownstream, docSyncPendingOf, docSyncSummary } from '../../domain/workflow/DocSyncSpec.js'
-import { openRequirementsFor, pendingSuggestionFor } from '../internal/window.js'
-import { applyTaskRollup } from '../internal/rollup.js'
-import { registerArtifact, assertArtifactGates, artifactNotifyText } from '../internal/artifact-gates.js'
+import { openRequirementsFor } from '../internal/window.js'
 import { applyVerdicts } from '../internal/verdicts.js'
 import {
-  reject, agentIdFromExec, requireLiveDriver, requireDirectHuman, notifyArtifactRegistered,
-  assertDoneEvidence, rollupBlockersOf, workspacePathCandidates, gateQuestionCard, findPending,
-  createRequirementDirect, projectRequirement,
+  reject,
+  agentIdFromExec,
+  requireLiveDriver,
 } from '../internal/support.js'
 
 export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
@@ -118,7 +107,7 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
         }).catch((err: unknown) => {
           reject('reqboard_accept_sheet 归档失败：' + ((err as Error).message ?? String(err)), (err as { code?: string }).code ?? 'REQBOARD_STORE_INCONSISTENT')
         })
-        const movedReq = moved.changed.requirements[0]
+        const movedReq = (moved.changed.requirements ?? [])[0]
         return {
           success: true, recorded: 0, pending: 0, passed, failed: 0,
           archived: true, status: movedReq?.status ?? 'archived',
@@ -206,13 +195,13 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
           reject('reqboard_accept_sheet 记录失败：' + ((err as Error).message ?? String(err)), (err as { code?: string }).code ?? 'REQBOARD_INVALID_INPUT')
         }
       })
-      const changed = result.changed.requirements[0]
+      const changed = (result.changed.requirements ?? [])[0]
       if (changed === undefined) reject('reqboard_accept_sheet 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
       const after = deps.repo.snapshot().requirements.find(r => r.id === targetReq.id)
       const s = after?.verification?.sheet
       const pending = s?.items.filter(i => i.status === 'pending').length ?? 0
       const failed = s?.items.filter(i => i.status === 'failed').length ?? 0
-      const reworkIds = result.changed.tasks.map(t => t.id)
+      const reworkIds = (result.changed.tasks ?? []).map(t => t.id)
       // 本批记录后若已全过 → 直接接着弹最终「验收通过并归档」确认（闭环）
       if (pending === 0 && failed === 0 && reworkIds.length === 0) {
         const fin2 = await finalizeIfAllPassed(s?.items.filter(i => i.status === 'passed').length ?? 0, 0)

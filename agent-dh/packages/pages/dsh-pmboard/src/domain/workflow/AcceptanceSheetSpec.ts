@@ -195,7 +195,8 @@ export function applyVerdicts(
     if (verdict.status === 'failed') failedItems.push(item)
   }
   const reworkTasks: ReworkTaskSpec[] = failedItems.map((item) => {
-    const orig = item.source.kind === 'task' ? tasks.find(t => t.id === item.source.taskId) : undefined
+    const src = item.source
+    const orig = src.kind === 'task' ? tasks.find(t => t.id === src.taskId) : undefined
     return {
       title: fmt('返工：{title}', { title: (orig?.title ?? item.criterion).slice(0, 60) }),
       description: fmt('验收不通过项返工（v{version} 项 {itemId}）：{criterion}', { version: sheet.version, itemId: item.id, criterion: item.criterion }),

@@ -35,6 +35,15 @@ export type RequirementStatus =
 export type StageKey = Exclude<RequirementStatus, 'canceled'>
 
 /**
+ * 流水线主节点键（7 个）= MAIN 状态：不含 legacy done 与 canceled。
+ *
+ * 为什么需要它：done 只作老台账兼容（见 RequirementStatus.done 注释），
+ * 不在流程图节点（MAIN_REQ_STATUSES / ALL_STAGE_KEYS）里；节点标签表与渲染
+ * 注册表按主节点为键，用 MainStageKey 才能如实表达「done 没有渲染器/标签」。
+ */
+export type MainStageKey = Exclude<StageKey, 'done'>
+
+/**
  * 领域状态常量（REQ-47939a t7 收口）：适配层不得写状态字面量，一律引用这些常量。
  * 它们表达的是**领域知识**——"新需求从哪开始""验收通过去哪""返工回哪"——不该由路由决定。
  */

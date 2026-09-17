@@ -176,7 +176,7 @@ export function defineSubmitTool(deps: UseCaseDeps) {
     },
     timeoutMs: LIMITS.timeoutWriteMs,
     execute: async (args: unknown, exec: ToolRunContext) => {
-      const kind = normalizeText((args ?? {}).kind, 'kind', 32)
+      const kind = normalizeText(((args ?? {}) as { kind?: unknown }).kind, 'kind', 32)
       const run = SUBMIT_DISPATCH[kind]
       if (run === undefined) {
         reject('reqboard_submit 未执行：kind 必须是 ' + SUBMIT_KINDS.join(' / '), 'REQBOARD_INVALID_INPUT')

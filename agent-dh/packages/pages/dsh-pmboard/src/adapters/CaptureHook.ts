@@ -44,19 +44,15 @@ import { stageEnabledFor } from '../shared/protocol.js'
 import { isIgnoredSession, extractUserMessageText, cleanUserMessageText } from './SessionMessageFilter.js'
 import {
   isWindowBound,
-  hasPendingSuggestion,
   openRequirementsFor,
   shouldCaptureWindow,
-  type PendingCaptureMessage,
 } from '../application/internal/window.js'
+import type { PendingCaptureMessage } from '../application/internal/capture-section.js'
 import { STAGE_PROMPTS } from '../domain/stage/StagePromptSpec.js'
 import { findStaleUnconfirmedArtifact } from '../domain/workflow/MilestoneSpec.js'
 import {
   recordToolTrace,
   recordRecentUserMsg,
-  CONFIRM_EVIDENCE_WINDOW_MS,
-  RECENT_USER_MSG_CAP,
-  TOOL_TRACE_CAP,
   type RecentUserMsg,
   type ToolTraceEntry,
 } from './SessionProbeAdapter.js'

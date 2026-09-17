@@ -8,20 +8,27 @@
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
-  assertArchiveMaterials, assertDagAcyclic, assertReqTransition, assertTaskTransition,
-  asActor, asDependsOn, asReqStatus, asStageKey, asScope, asTaskPhase, asTaskSide, asTaskStatus,
-  newCommentId, newExecutionId, newRequirementId, newTaskId,
-  normalizeText, normalizeTitle, readyTasks, recordStatus, windowCodeFromSessionId,
-  type ActorRef, type CommentRecord, type RequirementRecord, type TaskRecord, type TriageRecord,
+  assertDagAcyclic,
+  assertTaskTransition,
+  asActor,
+  asDependsOn,
+  asScope,
+  asTaskPhase,
+  asTaskSide,
+  asTaskStatus,
+  newExecutionId,
+  normalizeText,
+  normalizeTitle,
+  recordStatus,
+  type TaskRecord,
 } from '../../shared/protocol.js'
 import { applyTaskRollup } from '../../application/internal/rollup.js'
-import { assertArtifactGates } from '../../application/internal/artifact-gates.js'
 import { endsExecutionSegment, isRollbackOrCancel, startsExecutionSegment } from '../../domain/status/Predicates.js'
 import { INITIAL_TASK_STATUS } from '../../domain/task/TaskStatus.js'
 import type { RouterCtx } from './shared.js'
 
 export function createTasksRouter(ctx: RouterCtx) {
-  const { store, now, ids, mintId, ok, fail, json, readBody, badInput, notFound, deps } = ctx
+  const { store, now, ids, mintId, ok, readBody, notFound } = ctx
 
   async function handleTaskCreate(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const body = await readBody(req)

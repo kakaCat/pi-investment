@@ -12,7 +12,7 @@ import type { UseCaseDeps } from '../../application/ports.js'
 import { executeDecompose } from '../../application/use-cases/Decompose.js'
 import { DECOMPOSE_PROMPT } from './prompt.js'
 import { renderJson } from '../shared.js'
-import { ALL_REQ_CATEGORIES, ALL_REQ_STATUSES, ALL_TASK_PHASES, ALL_TASK_SIDES, ALL_TASK_STATUSES } from '../../shared/protocol.js'
+import { ALL_TASK_PHASES, ALL_TASK_SIDES } from '../../shared/protocol.js'
 
 export function defineDecomposeTool(deps: UseCaseDeps) {
   return defineTool({

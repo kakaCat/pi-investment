@@ -4,6 +4,10 @@
  *
  * @module dsh-pmboard/client/types
  */
+import type { StageArtifact } from '../shared/protocol.ts'
+
+// 产物/节点键等跨端共享类型复用 protocol 的单一定义（client 不另抄一份）。
+export type { ArtifactKind, StageArtifact, StageKey } from '../shared/protocol.ts'
 
 // -- 需求 -----------------------------------------------------------------
 
@@ -129,6 +133,8 @@ export interface RequirementRecord {
   /** 立项来源窗口（agent 会话 id，如 session-<uuid>；人工建卡不填）——窗口↔需求关联锚点 */
   sourceSessionId?: string
   archivePath?: string
+  /** 已登记产物（五道人工确认门的判定输入；缺省=未登记，见 shared/protocol.ts） */
+  artifacts?: StageArtifact[]
   /** 实施计划（plan mode） */
   plan?: PlanRecord
   /** 验收材料（提交+人工审核结论） */

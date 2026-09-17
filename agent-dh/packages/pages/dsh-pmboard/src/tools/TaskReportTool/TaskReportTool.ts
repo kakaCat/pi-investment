@@ -12,7 +12,6 @@ import type { UseCaseDeps } from '../../application/ports.js'
 import { executeReportTask } from '../../application/use-cases/ReportTask.js'
 import { TASK_REPORT_PROMPT } from './prompt.js'
 import { renderJson } from '../shared.js'
-import { ALL_REQ_CATEGORIES, ALL_REQ_STATUSES, ALL_TASK_PHASES, ALL_TASK_SIDES, ALL_TASK_STATUSES } from '../../shared/protocol.js'
 
 export function defineTaskReportTool(deps: UseCaseDeps) {
   return defineTool({

@@ -8,15 +8,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import {
-  defineRequirementSubmitTool, definePlanSubmitTool, defineDecomposeTool,
-  defineTaskMoveTool, defineConfirmArtifactTool, defineMoveTool,
+  defineRequirementSubmitTool, definePlanSubmitTool, defineDecomposeTool, defineMoveTool,
 } from './helpers/tool-deps.js'
 import type { RequirementRecord } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
 let root: string
 let store: ReqboardStore
-let reqSubmit: any, planTool: any, decompose: any, taskMove: any, confirm: any, move: any
+let reqSubmit: any, planTool: any, decompose: any, move: any
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'pmboard-docsync-'))
@@ -25,8 +24,6 @@ beforeEach(() => {
   reqSubmit = defineRequirementSubmitTool(deps)
   planTool = definePlanSubmitTool(deps)
   decompose = defineDecomposeTool(deps)
-  taskMove = defineTaskMoveTool(deps)
-  confirm = defineConfirmArtifactTool(deps)
   move = defineMoveTool(deps)
 })
 afterEach(() => { rmSync(root, { recursive: true, force: true }) })

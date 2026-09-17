@@ -13,8 +13,8 @@ import { archiveChip, verifyChip } from './verification.ts'
 
 /* ------------------------------------------------------------------ 产物 chips（五道人工确认门，REQ-31e11f t7） */
 
-/** 产物种类中文标签（与 stage-panel.ts 保持一致）。 */
-export const ARTIFACT_KIND_LABELS: Record<ArtifactKind, string> = {
+/** 产物种类中文标签（与 stage-panel.ts 保持一致；部分映射，调用方 ?? kind 兜底）。 */
+export const ARTIFACT_KIND_LABELS: Partial<Record<ArtifactKind, string>> = {
   requirement: '需求文档',
   plan: '实施计划',
   decomposition: '拆分方案',

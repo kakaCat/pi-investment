@@ -12,7 +12,6 @@ import type { UseCaseDeps } from '../../application/ports.js'
 import { queryState } from '../../application/query/QueryState.js'
 import { STATUS_PROMPT } from './prompt.js'
 import { renderJson } from '../shared.js'
-import { ALL_REQ_CATEGORIES, ALL_REQ_STATUSES, ALL_TASK_PHASES, ALL_TASK_SIDES, ALL_TASK_STATUSES } from '../../shared/protocol.js'
 
 export function defineStatusTool(deps: UseCaseDeps) {
   return defineTool({

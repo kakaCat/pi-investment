@@ -16,16 +16,16 @@ import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import {
   definePlanSubmitTool, defineDecomposeTool, defineTaskMoveTool, defineTaskReportTool,
-  defineAskConfirmTool, defineMoveTool,
+  defineAskConfirmTool,
 } from './helpers/tool-deps.js'
 import { syncReqArtifacts, reqDirRel } from '../src/adapters/ArtifactSync.js'
 import { recordToolTrace, type ToolTraceEntry } from '../src/adapters/SessionProbeAdapter.js'
-import type { RequirementRecord, VerificationItem } from '../src/shared/protocol.js'
+import type { RequirementRecord } from '../src/shared/protocol.js'
 
 const W = 'session-fi-001'
 let root: string
 let store: ReqboardStore
-let planTool: any, decompose: any, taskMove: any, report: any, askConfirm: any, move: any
+let planTool: any, decompose: any, taskMove: any, report: any
 let trace: Map<string, ToolTraceEntry[]>
 
 beforeEach(() => {
@@ -37,8 +37,6 @@ beforeEach(() => {
   decompose = defineDecomposeTool(deps)
   taskMove = defineTaskMoveTool(deps)
   report = defineTaskReportTool(deps)
-  askConfirm = defineAskConfirmTool(deps)
-  move = defineMoveTool(deps)
 })
 afterEach(() => { rmSync(root, { recursive: true, force: true }) })
 

@@ -8,7 +8,7 @@
  * 本文件 mock 一律返回「真 Promise<Response>」，与浏览器 fetch 语义一致；
  * 在旧 buggy unwrap 下 fetchState 会抛 'HTTP undefined'，本测试即失败。
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 
 // 每个用例独立替换全局 fetch
 const origFetch = globalThis.fetch

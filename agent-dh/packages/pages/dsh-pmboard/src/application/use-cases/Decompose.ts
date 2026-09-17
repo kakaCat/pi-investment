@@ -7,26 +7,24 @@
  */
 import type { UseCaseDeps } from '../ports.js'
 import {
-  ALL_ARTIFACT_KINDS, ALL_REQ_CATEGORIES, ARTIFACT_CONFIRM_GATES, canReqTransition, ARCHIVE_DOC_RULES,
-  assertArchiveMaterials, ALL_REQ_STATUSES, ALL_TASK_PHASES, ALL_TASK_SIDES, ALL_TASK_STATUSES,
-  asReqCategory, asReqStatus, asScope, assertDagAcyclic, assertReqTransition, assertTaskTransition,
-  HUMAN_ONLY_REQ_TRANSITIONS, agentNextActions, newCommentId, newExecutionId, newRequirementId, newTaskId,
-  normalizePlanTasks, normalizeText, normalizeTitle, planApproved, recordStatus,
-  type PlanTask, type VerificationSheet, type TaskRecord, type ReqboardLedger,
-  type RequirementCategory, type RequirementRecord, type RequirementStatus, type StageArtifact, type TriageRecord,
+  asScope,
+  assertDagAcyclic,
+  normalizePlanTasks,
+  normalizeText,
+  planApproved,
+  recordStatus,
+  type PlanTask,
+  type TaskRecord,
 } from '../../shared/protocol.js'
-import { buildSheet } from '../../domain/workflow/AcceptanceSheetSpec.js'
-import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'
 import { checkDecomposeIdempotency } from '../../domain/workflow/DecomposeSpec.js'
-import { applyDocSync, clearDocSync, docSyncDownstream, docSyncPendingOf, docSyncSummary } from '../../domain/workflow/DocSyncSpec.js'
-import { openRequirementsFor, pendingSuggestionFor } from '../internal/window.js'
+import { clearDocSync } from '../../domain/workflow/DocSyncSpec.js'
+import { openRequirementsFor } from '../internal/window.js'
 import { applyTaskRollup } from '../internal/rollup.js'
-import { registerArtifact, assertArtifactGates, artifactNotifyText } from '../internal/artifact-gates.js'
-import { applyVerdicts } from '../internal/verdicts.js'
+import { registerArtifact } from '../internal/artifact-gates.js'
 import {
-  reject, agentIdFromExec, requireLiveDriver, requireDirectHuman, notifyArtifactRegistered,
-  assertDoneEvidence, rollupBlockersOf, workspacePathCandidates, gateQuestionCard, findPending,
-  createRequirementDirect, projectRequirement,
+  reject,
+  agentIdFromExec,
+  requireLiveDriver,
 } from '../internal/support.js'
 
 export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
@@ -215,8 +213,8 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
           const advanced = applyTaskRollup(ledger, { now: nowTs, commentId: () => deps.ids.comment() }, req.id)
           return { tasks: records, requirements: [req, ...advanced] }
         })
-        const req = result.changed.requirements[0]
-        const created = result.changed.tasks.map((t, i) => ({
+        const req = (result.changed.requirements ?? [])[0]
+        const created = (result.changed.tasks ?? []).map((t, i) => ({
           key: draft[i]?.key ?? '',
           id: t.id,
           title: t.title,
@@ -234,7 +232,7 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
           '| 计划 key | 任务 id | 标题 | 阶段 | 端侧 | 依赖 | 验收标准 |',
           '|---------|--------|------|------|------|------|---------|',
           ...created.map(c => {
-            const t = result.changed.tasks.find(x => x.id === c.id)!
+            const t = (result.changed.tasks ?? []).find(x => x.id === c.id)!
             return '| ' + c.key + ' | ' + c.id + ' | ' + t.title + ' | ' + t.phase + ' | ' + t.side + ' | ' + (c.depends_on.join(', ') || '-') + ' | ' + (t.acceptance || '-') + ' |'
           }),
           '',
@@ -245,11 +243,11 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
         }
         // 生成每任务自足任务卡骨架
         for (const c of created) {
-          const t = result.changed.tasks.find(x => x.id === c.id)!
+          const t = (result.changed.tasks ?? []).find(x => x.id === c.id)!
           const taskPath = reqDir + '/tasks/' + c.id + '.md'
           if (!docs.exists(taskPath)) {
             const depTitles = c.depends_on.map(depId => {
-              const dep = result.changed.tasks.find(x => x.id === depId)
+              const dep = (result.changed.tasks ?? []).find(x => x.id === depId)
               return dep ? dep.title : depId
             })
             const taskContent = [

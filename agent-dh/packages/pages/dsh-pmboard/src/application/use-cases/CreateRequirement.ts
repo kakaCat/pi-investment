@@ -7,26 +7,15 @@
  */
 import type { UseCaseDeps } from '../ports.js'
 import {
-  ALL_ARTIFACT_KINDS, ALL_REQ_CATEGORIES, ARTIFACT_CONFIRM_GATES, canReqTransition, ARCHIVE_DOC_RULES,
-  assertArchiveMaterials, ALL_REQ_STATUSES, ALL_TASK_PHASES, ALL_TASK_SIDES, ALL_TASK_STATUSES,
-  asReqCategory, asReqStatus, asScope, assertDagAcyclic, assertReqTransition, assertTaskTransition,
-  HUMAN_ONLY_REQ_TRANSITIONS, agentNextActions, newCommentId, newExecutionId, newRequirementId, newTaskId,
-  normalizePlanTasks, normalizeText, normalizeTitle, planApproved, recordStatus,
-  type PlanTask, type VerificationSheet, type TaskRecord, type ReqboardLedger,
-  type RequirementCategory, type RequirementRecord, type RequirementStatus, type StageArtifact, type TriageRecord,
+  asReqCategory,
+  normalizeText,
+  normalizeTitle,
 } from '../../shared/protocol.js'
-import { buildSheet } from '../../domain/workflow/AcceptanceSheetSpec.js'
-import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'
-import { checkDecomposeIdempotency } from '../../domain/workflow/DecomposeSpec.js'
-import { applyDocSync, clearDocSync, docSyncDownstream, docSyncPendingOf, docSyncSummary } from '../../domain/workflow/DocSyncSpec.js'
-import { openRequirementsFor, pendingSuggestionFor } from '../internal/window.js'
-import { applyTaskRollup } from '../internal/rollup.js'
-import { registerArtifact, assertArtifactGates, artifactNotifyText } from '../internal/artifact-gates.js'
-import { applyVerdicts } from '../internal/verdicts.js'
 import {
-  reject, agentIdFromExec, requireLiveDriver, requireDirectHuman, notifyArtifactRegistered,
-  assertDoneEvidence, rollupBlockersOf, workspacePathCandidates, gateQuestionCard, findPending,
-  createRequirementDirect, projectRequirement,
+  agentIdFromExec,
+  requireLiveDriver,
+  requireDirectHuman,
+  createRequirementDirect,
 } from '../internal/support.js'
 
 export async function executeCreateRequirement(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {

@@ -7,27 +7,17 @@
  */
 import type { UseCaseDeps } from '../ports.js'
 import {
-  ALL_ARTIFACT_KINDS, ALL_REQ_CATEGORIES, ARTIFACT_CONFIRM_GATES, canReqTransition, ARCHIVE_DOC_RULES,
-  assertArchiveMaterials, ALL_REQ_STATUSES, ALL_TASK_PHASES, ALL_TASK_SIDES, ALL_TASK_STATUSES,
-  asReqCategory, asReqStatus, asScope, assertDagAcyclic, assertReqTransition, assertTaskTransition,
-  HUMAN_ONLY_REQ_TRANSITIONS, agentNextActions, newCommentId, newExecutionId, newRequirementId, newTaskId,
-  normalizePlanTasks, normalizeText, normalizeTitle, planApproved, recordStatus,
-  type PlanTask, type VerificationSheet, type TaskRecord, type ReqboardLedger,
-  type RequirementCategory, type RequirementRecord, type RequirementStatus, type StageArtifact, type TriageRecord,
+  ALL_ARTIFACT_KINDS,
+  canReqTransition,
+  normalizeText,
+  recordStatus,
 } from '../../shared/protocol.js'
 import { DEFAULT_CONFIRM_OPTIONS } from '../../domain/text/labels.js'
-import { buildSheet } from '../../domain/workflow/AcceptanceSheetSpec.js'
-import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'
-import { checkDecomposeIdempotency } from '../../domain/workflow/DecomposeSpec.js'
-import { applyDocSync, clearDocSync, docSyncDownstream, docSyncPendingOf, docSyncSummary } from '../../domain/workflow/DocSyncSpec.js'
-import { openRequirementsFor, pendingSuggestionFor } from '../internal/window.js'
-import { applyTaskRollup } from '../internal/rollup.js'
-import { registerArtifact, assertArtifactGates, artifactNotifyText } from '../internal/artifact-gates.js'
-import { applyVerdicts } from '../internal/verdicts.js'
+import { openRequirementsFor } from '../internal/window.js'
 import {
-  reject, agentIdFromExec, requireLiveDriver, requireDirectHuman, notifyArtifactRegistered,
-  assertDoneEvidence, rollupBlockersOf, workspacePathCandidates, gateQuestionCard, findPending,
-  createRequirementDirect, projectRequirement,
+  reject,
+  agentIdFromExec,
+  requireLiveDriver,
 } from '../internal/support.js'
 
 // 工厂级常量（从 defineAskConfirmTool 随代码搬入）：允许 ask_confirm 自动推进的转移
@@ -131,7 +121,7 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
 
       // ── 肯定项：落章（与 reqboard_confirm_artifact 同语义）────────────────
       const evidence = '用户在 reqboard_ask_confirm 弹框（问题："' + question + '"）中选择"' + picked + '"'
-      const confirmResult = await deps.repo.mutate('requirement-updated', (ledger) => {
+      await deps.repo.mutate('requirement-updated', (ledger) => {
         const req = ledger.requirements.find(r => r.id === targetReq.id)
         if (req === undefined) return undefined
         if (targetKind === 'artifact') {

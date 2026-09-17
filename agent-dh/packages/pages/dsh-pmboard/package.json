@@ -13,6 +13,7 @@
   },
   "scripts": {
     "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "build:client": "node ../../../node_modules/tsdown/dist/run.mjs -c tsdown.client.config.ts && node scripts/wrap-client.mjs && node scripts/verify-client-build.mjs",
     "verify:client": "node scripts/verify-client-build.mjs"
   },

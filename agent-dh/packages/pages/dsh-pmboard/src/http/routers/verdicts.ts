@@ -8,11 +8,13 @@
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
-  assertArchiveMaterials, assertDagAcyclic, assertReqTransition, assertTaskTransition,
-  asActor, asDependsOn, asReqStatus, asStageKey, asScope, asTaskPhase, asTaskSide, asTaskStatus,
-  newCommentId, newExecutionId, newRequirementId, newTaskId,
-  normalizeText, normalizeTitle, readyTasks, recordStatus, windowCodeFromSessionId,
-  type ActorRef, type CommentRecord, type RequirementRecord, type TaskRecord, type TriageRecord,
+  assertReqTransition,
+  asScope,
+  newTaskId,
+  normalizeText,
+  recordStatus,
+  type TaskRecord,
+  type VerificationItem,
 } from '../../shared/protocol.js'
 import {
   countFailedItems, countPassedItems, countPendingItems, isAccepting, isAcceptingStage,
@@ -23,7 +25,7 @@ import { INITIAL_TASK_STATUS } from '../../domain/task/TaskStatus.js'
 import type { RouterCtx } from './shared.js'
 
 export function createVerdictsRouter(ctx: RouterCtx) {
-  const { store, now, ids, mintId, ok, fail, json, readBody, badInput, notFound, deps } = ctx
+  const { store, now, ids, ok, readBody, badInput, notFound } = ctx
 
   /**
    * 验收人工审核（仅人）：pass → done（完成），rework → implementing（退回返工，必须写意见）。
@@ -39,7 +41,7 @@ export function createVerdictsRouter(ctx: RouterCtx) {
       if (!isAccepting(r)) badInput("需求 " + id + " 当前处于 " + r.status + "，不在验收态（先提交验收）")
       const v = r.verification
       if (v === undefined) {
-        badInput("需求 " + id + " 还没有验收材料：窗口需先 reqboard_verify_submit 提交证据（做了什么、怎么验的、看到什么）")
+        ctx.badInput("需求 " + id + " 还没有验收材料：窗口需先 reqboard_verify_submit 提交证据（做了什么、怎么验的、看到什么）")
       }
       // REQ-9f4a44：验收通过 → 直接归档（无 done 中转）；退回仍回 implementing
       const to = pass ? ACCEPTED_REQ_STATUS : REWORK_REQ_STATUS
@@ -101,7 +103,7 @@ export function createVerdictsRouter(ctx: RouterCtx) {
       if (!isDecidableItemStatus(status)) badInput('verdicts[].status 只能是 passed 或 failed')
       const opinion = normalizeText(o.opinion, 'verdicts[].opinion', 1000)
       if (isFailedItem(status) && opinion.length === 0) badInput('不通过的验收项必须写意见（opinion）')
-      return { itemId, status, opinion }
+      return { itemId, status: status as VerificationItem['status'], opinion }
     })
     const nowTs = now()
     const result = await store.mutate('requirement-updated', (ledger) => {
@@ -110,7 +112,7 @@ export function createVerdictsRouter(ctx: RouterCtx) {
         badInput('需求 ' + id + ' 当前处于 ' + r.status + '，不在验收/返工态（先提交验收单）')
       }
       const v = r.verification
-      if (v === undefined || v.sheet === undefined) badInput('需求 ' + id + ' 还没有验收单（先 reqboard_verify_submit）')
+      if (v === undefined || v.sheet === undefined) ctx.badInput('需求 ' + id + ' 还没有验收单（先 reqboard_verify_submit）')
       const sheet = v.sheet
       if (sheet.version !== version) badInput('验收单版本不匹配：当前 v' + sheet.version + '，收到 v' + version + '（防并发错版）')
       const failed: { item: typeof sheet.items[number] }[] = []

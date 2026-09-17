@@ -105,7 +105,7 @@ describe('路由层自动推进（R2 实施完成 → 验收）', () => {
       tasks: [{ key: 'a', title: '任务A', phase: 'implement', side: 'backend', acceptance: '单测通过', implementation: '改 a.ts' }],
     }, { agent: { id: 'session-test' } })
     await post(handler, '/req/plan/approve', { id: reqId })
-    const out = await decomposeTool.execute({}, { agent: { id: 'session-test' } })
+    const out = (await decomposeTool.execute({}, { agent: { id: 'session-test' } } as never)) as { requirement_status: string }
     expect(out.requirement_status).toBe('decomposing')
     // 五门裁定：decomposing>implementing 须人确认拆分清单
     const req = await store.read(l => l.requirements.find(r => r.id === reqId)!)

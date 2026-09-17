@@ -191,7 +191,6 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
   const req = data?.requirement
   if (data === null || data.hasRequirement !== true || req === undefined || req === null) return null
 
-  const pct = data.progress?.percentage ?? 0
   const done = data.progress?.done ?? 0
   const total = data.progress?.total ?? 0
   const status = req.status ?? 'draft'

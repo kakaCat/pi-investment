@@ -6,7 +6,7 @@
  * @module dsh-pmboard/client/render/dom-utils
  */
 import { esc } from '@pi-investment/page-kit/client'
-import type { RequirementRecord, RequirementStatus, TaskRecord, TaskStatus } from '../types.ts'
+import type { CommentRecord, RequirementRecord, RequirementStatus, TaskRecord, TaskStatus } from '../types.ts'
 
 /* ------------------------------------------------------------------ utils */
 

@@ -8,19 +8,22 @@
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
-  assertArchiveMaterials, assertDagAcyclic, assertReqTransition, assertTaskTransition,
-  asActor, asDependsOn, asReqStatus, asStageKey, asScope, asTaskPhase, asTaskSide, asTaskStatus,
-  newCommentId, newExecutionId, newRequirementId, newTaskId,
-  normalizeText, normalizeTitle, readyTasks, recordStatus, windowCodeFromSessionId,
-  type ActorRef, type CommentRecord, type RequirementRecord, type TaskRecord, type TriageRecord,
+  assertReqTransition,
+  asActor,
+  asReqStatus,
+  normalizeText,
+  normalizeTitle,
+  recordStatus,
+  type ActorRef,
+  type CommentRecord,
+  type RequirementRecord,
 } from '../../shared/protocol.js'
-import { applyTaskRollup } from '../../application/internal/rollup.js'
 import { assertArtifactGates } from '../../application/internal/artifact-gates.js'
 import { INITIAL_REQ_STATUS } from '../../domain/requirement/RequirementStatus.js'
 import type { RouterCtx } from './shared.js'
 
 export function createRequirementsRouter(ctx: RouterCtx) {
-  const { store, now, ids, mintId, ok, fail, json, readBody, badInput, notFound, deps } = ctx
+  const { store, now, ids, mintId, ok, readBody, badInput, notFound } = ctx
 
   async function handleReqCreate(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const body = await readBody(req)
@@ -110,8 +113,7 @@ export function createRequirementsRouter(ctx: RouterCtx) {
     }
     const result = await store.mutate('requirement-updated', (ledger) => {
       const r = ledger.requirements.find(x => x.id === id) ?? notFound("需求 " + id)
-      if (r.plan === undefined) notFound("需求 " + id + " 的实施计划")
-      const plan = r.plan
+      const plan = r.plan ?? notFound("需求 " + id + " 的实施计划")
       if (approve) {
         plan.approvedAt = now()
         plan.approvedBy = { kind: 'human' }
@@ -154,9 +156,7 @@ export function createRequirementsRouter(ctx: RouterCtx) {
     const result = await store.mutate('requirement-updated', (ledger) => {
       const r = ledger.requirements.find(x => x.id === id) ?? notFound("需求 " + id)
       const artifact = (r.artifacts ?? []).find(a => a.kind === kind)
-      if (artifact === undefined) {
-        badInput("需求 " + id + " 没有 kind=" + kind + " 的产物（须先由工具登记）")
-      }
+        ?? badInput("需求 " + id + " 没有 kind=" + kind + " 的产物（须先由工具登记）")
       artifact.confirmedAt = now()
       artifact.confirmedBy = { kind: 'human' }
       artifact.confirmedVia = 'board'

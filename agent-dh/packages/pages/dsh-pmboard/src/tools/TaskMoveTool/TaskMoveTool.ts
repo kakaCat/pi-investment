@@ -12,7 +12,7 @@ import type { UseCaseDeps } from '../../application/ports.js'
 import { executeMoveTask } from '../../application/use-cases/MoveTask.js'
 import { TASK_MOVE_PROMPT } from './prompt.js'
 import { renderJson } from '../shared.js'
-import { ALL_REQ_CATEGORIES, ALL_REQ_STATUSES, ALL_TASK_PHASES, ALL_TASK_SIDES, ALL_TASK_STATUSES } from '../../shared/protocol.js'
+import { ALL_TASK_STATUSES } from '../../shared/protocol.js'
 
 export function defineTaskMoveTool(deps: UseCaseDeps) {
   return defineTool({

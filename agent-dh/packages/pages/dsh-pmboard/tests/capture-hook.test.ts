@@ -298,7 +298,7 @@ describe('里程碑超时提醒（REQ-2e9473 t09）', () => {
     const d = deps()
     const testNow = 2000000000000 // 固定时间避免 deps.now() 为 1000 导致负数
     d.deps.now = () => testNow
-    d.deps.onStagePrompt = (w, text) => { injected.push(text) }
+    d.deps.onStagePrompt = (_w, text) => { injected.push(text) }
     const h = createSessionEventCaptureHook(d.deps)
     d.setLedger({
       ...emptyLedger(),
@@ -331,7 +331,7 @@ describe('里程碑超时提醒（REQ-2e9473 t09）', () => {
     const d = deps()
     const testNow = 2000000000000
     d.deps.now = () => testNow
-    d.deps.onStagePrompt = (w, text) => { injected.push(text) }
+    d.deps.onStagePrompt = (_w, text) => { injected.push(text) }
     const h = createSessionEventCaptureHook(d.deps)
     d.setLedger({
       ...emptyLedger(),
@@ -355,7 +355,7 @@ describe('里程碑超时提醒（REQ-2e9473 t09）', () => {
     const d = deps()
     const testNow = 2000000000000
     d.deps.now = () => testNow
-    d.deps.onStagePrompt = (w, text) => { injected.push(text) }
+    d.deps.onStagePrompt = (_w, text) => { injected.push(text) }
     const h = createSessionEventCaptureHook(d.deps)
     d.setLedger({
       ...emptyLedger(),
@@ -378,7 +378,7 @@ describe('里程碑超时提醒（REQ-2e9473 t09）', () => {
     const d = deps()
     const testNow = 2000000000000
     d.deps.now = () => testNow
-    d.deps.onStagePrompt = (w, text) => { injected.push(text) }
+    d.deps.onStagePrompt = (_w, text) => { injected.push(text) }
     const h = createSessionEventCaptureHook(d.deps)
     d.setLedger({
       ...emptyLedger(),

@@ -8,11 +8,10 @@
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
-  assertArchiveMaterials, assertDagAcyclic, assertReqTransition, assertTaskTransition,
-  asActor, asDependsOn, asReqStatus, asStageKey, asScope, asTaskPhase, asTaskSide, asTaskStatus,
-  newCommentId, newExecutionId, newRequirementId, newTaskId,
-  normalizeText, normalizeTitle, readyTasks, recordStatus, windowCodeFromSessionId,
-  type ActorRef, type CommentRecord, type RequirementRecord, type TaskRecord, type TriageRecord,
+  asStageKey,
+  readyTasks,
+  windowCodeFromSessionId,
+  type RequirementRecord,
 } from '../../shared/protocol.js'
 import { syncAllReqArtifacts, syncReqArtifacts } from '../../adapters/ArtifactSync.js'
 import { assembleStageDetail, assembleStageOverview } from '../../application/query/QueryStageDetail.js'
@@ -21,7 +20,7 @@ import { TASK_STATUS_ORDER } from '../../domain/task/TaskStatus.js'
 import type { RouterCtx } from './shared.js'
 
 export function createStagesRouter(ctx: RouterCtx) {
-  const { store, now, ids, mintId, ok, fail, json, readBody, badInput, notFound, deps } = ctx
+  const { store, ok, deps } = ctx
 
   async function handleState(res: ServerResponse): Promise<void> {
     // 产物自动发现（REQ-2e9473 t11/W4）：渲染前同步需求目录，落盘即产物

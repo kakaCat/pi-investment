@@ -216,7 +216,8 @@ export async function createRequirementDirect(
     ledger.requirements.push(req)
     return { requirements: [req] }
   })
-  if (result.changed.requirements.length > 0) return result.changed.requirements[0]
+  const createdReqs = result.changed.requirements ?? []
+  if (createdReqs.length > 0) return createdReqs[0]
   if (openRequirementsFor(deps.repo.snapshot(), windowKey).length > 0) {
     reject('reqboard_create 未写入：本窗口已绑定进行中需求，勿重复立项', 'REQBOARD_WINDOW_BOUND')
   }

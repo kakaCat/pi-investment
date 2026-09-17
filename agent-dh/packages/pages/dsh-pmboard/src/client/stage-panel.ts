@@ -26,6 +26,7 @@ import {
   type StageArtifact,
   type StageTaskExecution,
   type ArtifactKind,
+  type MainStageKey,
   type StatusEvent,
   STAGE_ARTIFACT_REQUIREMENTS,
   CATEGORY_FLOW_PROFILES,
@@ -40,20 +41,20 @@ import { esc } from '@pi-investment/page-kit/client'
 // 常量
 // ---------------------------------------------------------------------------
 
-/** 节点中文标签（与 conversation-progress FLOW 一致）。 */
-export const STAGE_LABELS: Record<StageKey, string> = {
+/** 节点中文标签（与 conversation-progress FLOW 一致）。键域=7 个主节点（legacy done 无标签）。 */
+export const STAGE_LABELS: Record<MainStageKey, string> = {
   draft: '立项',
   brainstorming: '需求分析',
   planning: '技术设计',
   decomposing: '拆分',
   implementing: '实施',
   accepting: '验收',
-  // REQ-9f4a44：done 不再是流水线节点（StageKey 已移除）
+  // REQ-9f4a44：done 不再是流水线节点（legacy 兼容，不在 MainStageKey 里）
   archived: '归档',
 }
 
-/** 产物种类中文标签。 */
-const ARTIFACT_KIND_LABELS: Record<ArtifactKind, string> = {
+/** 产物种类中文标签。部分映射：notes/task_output 无专属中文名（调用方 ?? kind 兜底）。 */
+const ARTIFACT_KIND_LABELS: Partial<Record<ArtifactKind, string>> = {
   requirement: '需求文档',
   plan: '实施计划',
   decomposition: '拆分方案',
@@ -96,10 +97,6 @@ const TASK_STATUS_GLYPH: Record<string, string> = {
 
 /** 节点行状态。 */
 export type StageRowState = 'done' | 'current' | 'pending' | 'skipped'
-
-const ROW_STATE_GLYPH: Record<StageRowState, string> = {
-  done: '✓', current: '●', pending: '○', skipped: '—',
-}
 
 // ---------------------------------------------------------------------------
 // 内部工具
@@ -407,16 +404,6 @@ const renderAcceptingBody: StageBodyRenderer = (payload) => {
   )
 }
 
-const renderDoneBody: StageBodyRenderer = (payload) => {
-  const body = (payload as Extract<StageDetail, { stage: 'done' }>).body
-  const lines = [
-    body.completedAt ? '完成于 ' + fmtTime(body.completedAt) : '',
-    body.verificationDecision ? '验收结论：' + (body.verificationDecision === 'pass' ? '通过' : '返工') : '',
-  ].filter(s => s.length > 0)
-  if (lines.length === 0) return '<div class="dsh-pm-sn-body" data-stage="done"><div class="dsh-pm-sn-empty">—</div></div>'
-  return '<div class="dsh-pm-sn-body" data-stage="done">' + lines.map(l => '<div class="dsh-pm-sn-text">' + esc(l) + '</div>').join('') + '</div>'
-}
-
 const renderArchivedBody: StageBodyRenderer = (payload) => {
   const body = (payload as Extract<StageDetail, { stage: 'archived' }>).body
   if (!body.archive) {
@@ -439,7 +426,7 @@ const renderArchivedBody: StageBodyRenderer = (payload) => {
 // StageRenderers 注册表（template method 的变体部分）
 // ---------------------------------------------------------------------------
 
-export const StageRenderers: Record<StageKey, { renderBody: StageBodyRenderer }> = {
+export const StageRenderers: Record<MainStageKey, { renderBody: StageBodyRenderer }> = {
   draft: { renderBody: renderDraftBody },
   brainstorming: { renderBody: renderBrainstormBody },
   planning: { renderBody: renderPlanningBody },
@@ -461,7 +448,7 @@ function renderEvents(timeline: StatusEvent[]): string {
   if (timeline.length === 0) return ''
   const rows = timeline.slice(-5).reverse().map(ev => {
     const actor = actorShort(ev.by)
-    const reason = ev.reason !== undefined && ev.reason.length > 0 ? ev.reason : (STAGE_LABELS[ev.status as StageKey] ?? ev.status)
+    const reason = ev.reason !== undefined && ev.reason.length > 0 ? ev.reason : (STAGE_LABELS[ev.status as MainStageKey] ?? ev.status)
     const inferred = ev.inferred === true ? ' <span class="dsh-pm-sn-dim">(回填)</span>' : ''
     const whoLine = [actor, fmtRel(ev.at)].filter(s => s.length > 0).join(' · ')
     return (
@@ -533,8 +520,9 @@ function renderTraceChain(payload: StageDetail): string {
 // 面板头状态一句话
 // ---------------------------------------------------------------------------
 
-/** 面板头：这一步干了什么 / 进行到什么程度（一句话）。 */
-export function stageHeadSummary(payload: StageDetail): string {
+/** 面板头：这一步干了什么 / 进行到什么程度（一句话）。
+ *  返回 string | undefined：legacy done 节点不在流水线里，没有专属一句话（运行期原样）。 */
+export function stageHeadSummary(payload: StageDetail): string | undefined {
   if (!payload.enabled) return '本分类跳过'
   switch (payload.stage) {
     case 'draft': return '已立项'
@@ -574,7 +562,8 @@ export function stageHeadSummary(payload: StageDetail): string {
       if (b.verification.decision === 'rework') return '验收被退回返工'
       return '待人工审核'
     }
-    // REQ-9f4a44：done 节点已移除
+    // REQ-9f4a44：done 节点已移除（legacy 兼容分支，不在 MainStageKey 里）
+    case 'done': return undefined
     case 'archived': return '已归档'
   }
 }
@@ -593,9 +582,7 @@ export interface StagePanelOptions {
  * 骨架：面板头（状态一句话+时间）→ 追溯链（置顶）→ 待确认警示 → 节点专属内容 → 产物文档行 → 动态。
  */
 export function renderStagePanel(payload: StageDetail, opts: StagePanelOptions = {}): string {
-  const label = STAGE_LABELS[payload.stage] ?? payload.stage
   const state: StageRowState = payload.enabled ? (opts.state ?? 'current') : 'skipped'
-  const glyph = ROW_STATE_GLYPH[state]
   const summary = stageHeadSummary(payload)
   const latestAt = payload.timeline.length > 0 ? payload.timeline[payload.timeline.length - 1].at : undefined
 
@@ -603,7 +590,8 @@ export function renderStagePanel(payload: StageDetail, opts: StagePanelOptions =
     ? '<div class="dsh-pm-sn-warn">⚠ 有产物待人工确认</div>'
     : ''
 
-  const renderer = StageRenderers[payload.stage]
+  // done 无渲染器（legacy 节点）：显式短路，与注册表里没有该键的运行期行为一致
+  const renderer = payload.stage === 'done' ? undefined : StageRenderers[payload.stage]
   const bodyHtml = payload.enabled
     ? (renderer ? renderer.renderBody(payload) : '<div class="dsh-pm-sn-empty">未知阶段</div>')
     : '<div class="dsh-pm-sn-body" data-stage="' + esc(payload.stage) + '"><div class="dsh-pm-sn-empty">该阶段在当前分类流程中不适用</div></div>'
@@ -630,8 +618,8 @@ export function renderStagePanel(payload: StageDetail, opts: StagePanelOptions =
 export function stageRowState(ov: StageOverview, stage: StageKey): StageRowState {
   const payload = ov.stages.find(s => s.stage === stage)
   if (payload === undefined || !payload.enabled) return 'skipped'
-  const curIdx = ALL_STAGE_KEYS.indexOf(ov.currentStage as StageKey)
-  const idx = ALL_STAGE_KEYS.indexOf(stage)
+  const curIdx = (ALL_STAGE_KEYS as readonly string[]).indexOf(ov.currentStage)
+  const idx = (ALL_STAGE_KEYS as readonly string[]).indexOf(stage)
   if (curIdx >= 0 && idx < curIdx) return 'done'
   if (idx === curIdx) return 'current'
   return 'pending'

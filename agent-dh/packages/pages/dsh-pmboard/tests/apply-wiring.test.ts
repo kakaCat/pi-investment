@@ -70,7 +70,7 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }))
 describe('dsh-pmboard apply() 宿主接线（乙流程装配冒烟）', () => {
   it('注册 capture section：reqboard:capture / order 60 / text 函数式', () => {
     const ctx = stubCtx()
-    apply(ctx, { dshHome: dir })
+    apply(ctx as never, { dshHome: dir })
     const sec = ctx.sections.find(x => x.name === 'reqboard:capture')
     expect(sec).toBeDefined()
     expect(sec!.order).toBe(60)
@@ -82,7 +82,7 @@ describe('dsh-pmboard apply() 宿主接线（乙流程装配冒烟）', () => {
 
   it('注册全部 agent 工具（REQ-47939a t8：13→9 收敛后的 9 个入口）', () => {
     const ctx = stubCtx()
-    apply(ctx, { dshHome: dir })
+    apply(ctx as never, { dshHome: dir })
     const names = ctx.tools.map(t => t.name).sort()
     expect(names).toEqual([
       'reqboard_accept_sheet',
@@ -102,7 +102,7 @@ describe('dsh-pmboard apply() 宿主接线（乙流程装配冒烟）', () => {
 
   it('注册看板路由：/dashboard/api/reqboard 前缀', () => {
     const ctx = stubCtx()
-    apply(ctx, { dshHome: dir })
+    apply(ctx as never, { dshHome: dir })
     const route = ctx.routes.find(r => r.path === '/dashboard/api/reqboard')
     expect(route).toBeDefined()
     expect(route!.kind).toBe('prefix')
@@ -110,7 +110,7 @@ describe('dsh-pmboard apply() 宿主接线（乙流程装配冒烟）', () => {
 
   it('dispose 清理全部注册（幂等不抛错）', () => {
     const ctx = stubCtx()
-    apply(ctx, { dshHome: dir })
+    apply(ctx as never, { dshHome: dir })
     expect(ctx.disposeHooks.length).toBeGreaterThan(0)
     for (const hook of ctx.disposeHooks) expect(() => hook()).not.toThrow()
     for (const d of (ctx as any).__disposers) expect(() => d()).not.toThrow()

@@ -19,7 +19,7 @@
  *   12. 分类流程生效                    → CATEGORY_FLOW_PROFILES + artifact-gates
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
@@ -30,15 +30,12 @@ import { renderStagePanel } from '../src/client/stage-panel.js'
 import {
   definePlanSubmitTool,
   defineDecomposeTool,
-  defineVerifySubmitTool,
-  defineArchiveSubmitTool,
   defineTaskReportTool,
 } from './helpers/tool-deps.js'
 import {
   CATEGORY_FLOW_PROFILES,
   ALL_STAGE_KEYS,
   ARTIFACT_CONFIRM_GATES,
-  STAGE_ARTIFACT_REQUIREMENTS,
   flowProfileFor,
   stageEnabledFor,
   confirmGateKindFor,
@@ -308,8 +305,9 @@ describe('验收 4：老台账兼容加载（历史字段透传，不做破坏�
     const freshStore = new ReqboardStore({ file })
     await freshStore.load()
     const loaded = freshStore.snapshot().requirements[0]
-    expect(loaded.projectId).toBeUndefined()
-    expect(loaded.parentId).toBeUndefined()
+    const legacy = loaded as { projectId?: unknown; parentId?: unknown }
+    expect(legacy.projectId).toBeUndefined()
+    expect(legacy.parentId).toBeUndefined()
     // schemaVersion 升级到当前契约版本（REQ-47939a t10 / C1：4 → 5）
     expect(freshStore.snapshot().schemaVersion).toBe(5)
   })
@@ -452,13 +450,13 @@ describe('验收 8：task_report 汇报 = 实施产物文档', () => {
       if (r.plan !== undefined) { r.plan.approvedAt = 100; r.plan.approvedBy = { kind: 'human' } }
       return { requirements: [r] }
     })
-    const decOut = await decomposeTool.execute({}, { agent: { id: W } })
+    const decOut = (await decomposeTool.execute({}, { agent: { id: W } } as never)) as { created: Array<{ id: string }> }
     const taskId = decOut.created[0].id as string
 
     // 汇报
-    const report = await reportTool.execute({
+    const report = (await reportTool.execute({
       task_id: taskId, summary: '完成', completed: ['X'], files_changed: ['a.ts'], next_step: '',
-    }, { agent: { id: W } })
+    }, { agent: { id: W } } as never)) as { success: boolean }
     expect(report.success).toBe(true)
 
     // 推进到 implementing 后，StageDetail.implementing 含 task_detail 产物

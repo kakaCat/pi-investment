@@ -3,7 +3,7 @@
  * 运行：cd agent-dh && npx vitest run packages/pages/dsh-pmboard/tests/
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -11,10 +11,6 @@ import {
   assertTaskTransition,
   assertDagAcyclic,
   readyTasks,
-  newRequirementId,
-  newTaskId,
-  emptyLedger,
-  type RequirementRecord,
   type TaskRecord,
 } from '../src/shared/protocol.js'
 

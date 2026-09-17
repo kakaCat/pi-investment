@@ -26,8 +26,8 @@ export type MutableLedger = ReqboardLedger
 
 /** 一次 mutate 的变更集：只有这两个键（据此与"工具响应"区分，见 output-contract 扫描口径）。 */
 export interface LedgerChange {
-  requirements?: RequirementRecord[]
-  tasks?: TaskRecord[]
+  requirements?: readonly RequirementRecord[]
+  tasks?: readonly TaskRecord[]
 }
 
 /** 一次 mutate 的结果。 */

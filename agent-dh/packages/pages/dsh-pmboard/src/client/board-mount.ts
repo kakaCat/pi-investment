@@ -7,7 +7,9 @@
  */
 import type { BoardState, TriageRecord } from './types.ts'
 import {
-  BOARD_VIEW_SELECTOR, PANEL_NAME, ACTIVE_ATTR, OTHER_ACTIVE_ATTRS,
+  PANEL_NAME,
+  ACTIVE_ATTR,
+  OTHER_ACTIVE_ATTRS,
 } from './dom.ts'
 import {
   buildBoard, buildEmpty, buildError, buildReqDetail, buildTaskDetail, buildTasksPage, buildTriage,
@@ -160,12 +162,14 @@ export function mountBoard(controller: BoardController): () => void {
   const render = (): void => {
     if (viewEl === undefined) return
     if (state === undefined) { viewEl.innerHTML = buildEmpty(); return }
-    switch (mode.kind) {
+    // mode 在闭包内可被事件回调改写，直接 switch 无法做判别收窄；取 const 快照后再收窄（类型层修复，无行为变化）
+    const cur = mode
+    switch (cur.kind) {
       case 'board':
         viewEl.innerHTML = buildBoard(state, Date.now(), boardView, listOpts(), archivedSids())
         break
       case 'req': {
-        const req = state.requirements.find(r => r.id === mode.reqId)
+        const req = state.requirements.find(r => r.id === cur.reqId)
         viewEl.innerHTML = req
           ? buildReqDetail(req, state.tasks, Date.now(), archivedSids())
           : buildBoard(state, Date.now(), boardView, listOpts(), archivedSids())
@@ -179,7 +183,7 @@ export function mountBoard(controller: BoardController): () => void {
         break
       }
       case 'task': {
-        const task = state.tasks.find(t => t.id === mode.taskId)
+        const task = state.tasks.find(t => t.id === cur.taskId)
         const req = task ? state.requirements.find(r => r.id === task.requirementId) : undefined
         viewEl.innerHTML = task
           ? buildTaskDetail(task, req, Date.now(), state.tasks, archivedSids())

@@ -6,20 +6,13 @@
  *
  * @module dsh-pmboard/http/routers/Artifacts
  */
-import type { IncomingMessage, ServerResponse } from 'node:http'
-import {
-  assertArchiveMaterials, assertDagAcyclic, assertReqTransition, assertTaskTransition,
-  asActor, asDependsOn, asReqStatus, asStageKey, asScope, asTaskPhase, asTaskSide, asTaskStatus,
-  newCommentId, newExecutionId, newRequirementId, newTaskId,
-  normalizeText, normalizeTitle, readyTasks, recordStatus, windowCodeFromSessionId,
-  type ActorRef, type CommentRecord, type RequirementRecord, type TaskRecord, type TriageRecord,
-} from '../../shared/protocol.js'
+import type { ServerResponse } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { resolve, sep } from 'node:path'
 import type { RouterCtx } from './shared.js'
 
 export function createArtifactsRouter(ctx: RouterCtx) {
-  const { store, now, ids, mintId, ok, fail, json, readBody, badInput, notFound, deps } = ctx
+  const { ok, json, badInput } = ctx
 
   /**
    * GET /dashboard/api/reqboard/file?path=xxx

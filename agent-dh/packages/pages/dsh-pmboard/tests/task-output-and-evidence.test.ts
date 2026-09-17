@@ -8,10 +8,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import {
-  definePlanSubmitTool, defineDecomposeTool, defineTaskReportTool,
-  defineTaskMoveTool, defineVerifySubmitTool, defineArchiveSubmitTool,
+  defineTaskReportTool, defineVerifySubmitTool, defineArchiveSubmitTool,
 } from './helpers/tool-deps.js'
-import { recordToolTrace, type ToolTraceEntry } from '../src/adapters/SessionProbeAdapter.js'
+import { type ToolTraceEntry } from '../src/adapters/SessionProbeAdapter.js'
 import type { RequirementRecord, RequirementStatus } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
@@ -20,9 +19,6 @@ let store: ReqboardStore
 let report: { execute: (a: unknown, e: unknown) => Promise<any> }
 let verify: { execute: (a: unknown, e: unknown) => Promise<any> }
 let archive: { execute: (a: unknown, e: unknown) => Promise<any> }
-let planTool: { execute: (a: unknown, e: unknown) => Promise<any> }
-let decompose: { execute: (a: unknown, e: unknown) => Promise<any> }
-let taskMove: { execute: (a: unknown, e: unknown) => Promise<any> }
 let trace: Map<string, ToolTraceEntry[]>
 
 beforeEach(() => {
@@ -30,10 +26,7 @@ beforeEach(() => {
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
   trace = new Map()
   const deps = { store, now: () => Date.now(), toolTrace: trace, doneThrottleMs: 0 } as never
-  planTool = definePlanSubmitTool(deps) as never
-  decompose = defineDecomposeTool(deps) as never
   report = defineTaskReportTool(deps) as never
-  taskMove = defineTaskMoveTool(deps) as never
   verify = defineVerifySubmitTool(deps) as never
   archive = defineArchiveSubmitTool(deps) as never
 })

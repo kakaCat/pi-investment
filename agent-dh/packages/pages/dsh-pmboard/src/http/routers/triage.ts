@@ -8,18 +8,19 @@
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
-  assertArchiveMaterials, assertDagAcyclic, assertReqTransition, assertTaskTransition,
-  asActor, asDependsOn, asReqStatus, asStageKey, asScope, asTaskPhase, asTaskSide, asTaskStatus,
-  newCommentId, newExecutionId, newRequirementId, newTaskId,
-  normalizeText, normalizeTitle, readyTasks, recordStatus, windowCodeFromSessionId,
-  type ActorRef, type CommentRecord, type RequirementRecord, type TaskRecord, type TriageRecord,
+  newRequirementId,
+  normalizeText,
+  normalizeTitle,
+  type ActorRef,
+  type RequirementRecord,
+  type TriageRecord,
 } from '../../shared/protocol.js'
 import { isDraft, isNotArchived, isPendingTriage, isResolvedTriage } from '../../domain/status/Predicates.js'
 import { CANCELED_REQ_STATUS, INITIAL_REQ_STATUS } from '../../domain/requirement/RequirementStatus.js'
 import type { RouterCtx } from './shared.js'
 
 export function createTriageRouter(ctx: RouterCtx) {
-  const { store, now, ids, mintId, ok, fail, json, readBody, badInput, notFound, deps } = ctx
+  const { store, now, ids, ok, readBody, notFound } = ctx
 
   async function handleTriageList(res: ServerResponse): Promise<void> {
     const ledger = await store.read(l => l)

@@ -19,6 +19,7 @@ import { acceptSheet } from '../../src/application/use-cases/AcceptSheet.js'
 import { queryState } from '../../src/application/query/QueryState.js'
 import { queryStageDetail } from '../../src/application/query/QueryStageDetail.js'
 import { queryStageOverview } from '../../src/application/query/QueryStageOverview.js'
+import type { PlanRecord } from '../../src/shared/protocol.js'
 
 const EXEC = { agent: { id: 'session-w-001' } }
 
@@ -123,7 +124,7 @@ describe('t6 · ConfirmArtifact / AskConfirm', () => {
 })
 
 describe('t6 · Decompose', () => {
-  const approvedPlan = {
+  const approvedPlan: PlanRecord = {
     path: 'docs/requirements/REQ-000001/plan.md', summary: 's', approvedAt: 1,
     submittedAt: 1, submittedBy: { kind: 'agent' as const },
     tasks: [{ key: 't1', title: '做A', description: 'd', phase: 'implement', side: 'backend', dependsOn: [], acceptance: '跑测试看到绿', implementation: '改 a.ts' }],

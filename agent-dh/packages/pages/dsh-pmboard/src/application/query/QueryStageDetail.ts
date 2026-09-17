@@ -30,7 +30,6 @@ import {
   type ImplementStageBody,
   type PlanningStageBody,
   type PlanTask,
-  type ReqboardLedger,
   type RequirementRecord,
   type StageArtifact,
   type StageDetail,
@@ -41,12 +40,12 @@ import {
   type StatusEvent,
   type TaskRecord,
 } from '../../shared/protocol.js'
-import type { UseCaseDeps } from '../ports.js'
+import type { LedgerView, UseCaseDeps } from '../ports.js'
 
 /** 装配器上下文：需求 + 台账（取任务/时间线切片用）。 */
 export interface AssembleContext {
   req: RequirementRecord
-  ledger: Pick<ReqboardLedger, 'tasks'>
+  ledger: Pick<LedgerView, 'tasks'>
 }
 
 /**
@@ -76,7 +75,7 @@ abstract class StageDetailAssembler {
   /** 可变步：各节点装配器实现，产出 StageDetail 判别联合对应 body 成员。 */
   protected abstract buildBody(
     req: RequirementRecord,
-    ledger: Pick<ReqboardLedger, 'tasks'>,
+    ledger: Pick<LedgerView, 'tasks'>,
   ): StageDetail['body']
 }
 
@@ -173,7 +172,7 @@ class DecomposeStageAssembler extends StageDetailAssembler {
   readonly stage = 'decomposing' as const
   protected buildBody(
     req: RequirementRecord,
-    ledger: Pick<ReqboardLedger, 'tasks'>,
+    ledger: Pick<LedgerView, 'tasks'>,
   ): DecomposeStageBody {
     const tasks = ledger.tasks.filter(t => t.requirementId === req.id)
     const decompositionDoc = (req.artifacts ?? []).find(
@@ -192,7 +191,7 @@ class ImplementStageAssembler extends StageDetailAssembler {
   readonly stage = 'implementing' as const
   protected buildBody(
     req: RequirementRecord,
-    ledger: Pick<ReqboardLedger, 'tasks'>,
+    ledger: Pick<LedgerView, 'tasks'>,
   ): ImplementStageBody {
     const tasks = ledger.tasks
       .filter(t => t.requirementId === req.id)
@@ -299,7 +298,7 @@ const ASSEMBLERS: Readonly<Record<StageKey, StageDetailAssembler>> = {
  */
 export function assembleStageDetail(
   req: RequirementRecord | undefined,
-  ledger: Pick<ReqboardLedger, 'tasks'>,
+  ledger: Pick<LedgerView, 'tasks'>,
   stage: StageKey,
 ): StageDetail {
   if (req === undefined) {
@@ -314,7 +313,7 @@ export function assembleStageDetail(
  */
 export function assembleStageOverview(
   req: RequirementRecord | undefined,
-  ledger: Pick<ReqboardLedger, 'tasks'>,
+  ledger: Pick<LedgerView, 'tasks'>,
 ): StageOverview {
   if (req === undefined) {
     throw Object.assign(new Error('需求不存在'), { code: 'not_found' })

@@ -9,10 +9,12 @@
  * @module dsh-pmboard/application/internal/window
  */
 import { isOpenRequirement } from '../../domain/status/Predicates.js'
-import type { ReqboardLedger, RequirementRecord, TriageRecord } from '../../shared/protocol.js'
+import type { LedgerView } from '../ports.js'
+import type { RequirementRecord, TriageRecord } from '../../shared/protocol.js'
 
-/** 只读台账视图（用例实际拿到的是 LedgerView；此别名让本模块对两种形状都可用）。 */
-type View = Pick<ReqboardLedger, 'requirements' | 'triages'>
+/** 只读台账视图：直接取 ports 的 LedgerView 投影（此前 Pick<ReqboardLedger,...> 要求可变数组，
+ *  与 repo.snapshot()/read() 返回的只读视图不兼容——收敛为同一类型，消除两套口径）。 */
+type View = Pick<LedgerView, 'requirements' | 'triages'>
 
 // 进行中判据已单点至 domain（REQ-47939a 返工修复：此前此处私下定义 OPEN_REQ_STATUSES，
 // 路由层却引用了不存在的 OPEN_STATUSES → /session/:id/progress 运行时 500、会话框流程节点不显示）

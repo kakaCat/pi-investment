@@ -12,7 +12,7 @@ import type { UseCaseDeps } from '../../application/ports.js'
 import { executeCreateRequirement } from '../../application/use-cases/CreateRequirement.js'
 import { CREATE_PROMPT } from './prompt.js'
 import { renderJson } from '../shared.js'
-import { ALL_REQ_CATEGORIES, ALL_REQ_STATUSES, ALL_TASK_PHASES, ALL_TASK_SIDES, ALL_TASK_STATUSES } from '../../shared/protocol.js'
+import { ALL_REQ_CATEGORIES } from '../../shared/protocol.js'
 
 export function defineCreateTool(deps: UseCaseDeps) {
   return defineTool({

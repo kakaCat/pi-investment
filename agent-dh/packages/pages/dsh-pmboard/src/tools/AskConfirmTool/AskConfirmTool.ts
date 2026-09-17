@@ -56,7 +56,7 @@ export function defineAskConfirmTool(deps: UseCaseDeps) {
     },
     timeoutMs: LIMITS.timeoutInteractiveMs,
     execute: async (args: unknown, exec: ToolRunContext) => {
-      const evidence = normalizeText((args ?? {}).evidence, 'evidence', 2000)
+      const evidence = normalizeText(((args ?? {}) as { evidence?: unknown }).evidence, 'evidence', 2000)
       return evidence.length > 0 ? confirmArtifact(deps, args, exec) : askConfirm(deps, args, exec)
     },
   } as any)

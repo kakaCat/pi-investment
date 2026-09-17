@@ -23,4 +23,3 @@ declare global {
 declare function apply(ctx: ApplyContext): void;
 //#endregion
 export { apply, inject, name };
-//# sourceMappingURL=client.d.cts.map

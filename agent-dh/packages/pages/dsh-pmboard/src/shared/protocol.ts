@@ -16,7 +16,7 @@
 // 与宿主判定用同一份表，消除"前端口径与后端口径漂移"（architecture.md §2 注释）。
 // 规则常量与类型从 domain 再导出后，既有 20 个引用方的 import 路径保持不变。
 import type { ActorKind, ActorRef } from '../domain/actor.js'
-import type { RequirementStatus, StageKey } from '../domain/requirement/RequirementStatus.js'
+import type { MainStageKey, RequirementStatus, StageKey } from '../domain/requirement/RequirementStatus.js'
 import type { TaskStatus } from '../domain/task/TaskStatus.js'
 import type { RequirementCategory } from '../domain/requirement/Requirement.js'
 import type { ArtifactKind, ArchiveDoc, ArchiveDocRule } from '../domain/artifact/ArtifactSpec.js'
@@ -46,7 +46,7 @@ import {
 
 // 类型再导出（保持既有 import 路径）
 export type { ActorKind, ActorRef }
-export type { RequirementStatus, StageKey }
+export type { MainStageKey, RequirementStatus, StageKey }
 export type { TaskStatus }
 export type { RequirementCategory }
 export type { ArtifactKind, ArchiveDoc, ArchiveDocRule }
@@ -132,7 +132,7 @@ export function milestoneAt(record: { statusHistory?: StatusEvent[] }, status: s
  * 注：`done` 仍保留在 RequirementStatus 类型与 ALL_REQ_STATUSES 中（legacy 兼容），
  * 但不在 MAIN 里，因此不参与流程图节点、分类档案与阶段提示词键。
  */
-export const MAIN_REQ_STATUSES: readonly RequirementStatus[] = [
+export const MAIN_REQ_STATUSES: readonly MainStageKey[] = [
   'draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'archived',
 ]
 
@@ -204,9 +204,10 @@ export function defaultNeedsIntegration(side: TaskSide): boolean {
 // ---------------------------------------------------------------------------
 
 /** 流水线节点键 = 需求主状态（除 canceled）。会话框进度条、节点详情、产物闸门共用。 */
-// StageKey 类型迁至 domain/requirement/RequirementStatus.ts（t2），顶部再导出；ALL_STAGE_KEYS
-// 是 MAIN_REQ_STATUSES 的过滤投影，仍留在本文件（消费方为 CATEGORY_FLOW_PROFILES / asStageKey）。
-export const ALL_STAGE_KEYS: readonly StageKey[] = MAIN_REQ_STATUSES.filter((s): s is StageKey => s !== 'canceled')
+// StageKey/MainStageKey 类型迁至 domain/requirement/RequirementStatus.ts（t2），顶部再导出；
+// ALL_STAGE_KEYS 就是 MAIN_REQ_STATUSES（7 个主节点，不含 legacy done/canceled），仍留在本文件
+// （消费方为 CATEGORY_FLOW_PROFILES / asStageKey / 客户端节点渲染）。
+export const ALL_STAGE_KEYS: readonly MainStageKey[] = MAIN_REQ_STATUSES
 
 export function asStageKey(raw: unknown): StageKey {
   if (typeof raw !== 'string' || !(ALL_STAGE_KEYS as readonly string[]).includes(raw)) {
@@ -294,6 +295,7 @@ export const CATEGORY_FLOW_PROFILES: Readonly<Record<RequirementCategory, Catego
 }
 
 export function flowProfileFor(category: RequirementCategory | undefined): CategoryFlowProfile {
+  if (category === undefined) return CATEGORY_FLOW_PROFILES['feature']
   return CATEGORY_FLOW_PROFILES[category] ?? CATEGORY_FLOW_PROFILES['feature']
 }
 
@@ -756,6 +758,8 @@ export interface TaskRecord {
   lastReport?: TaskReportSummary
   /** 执行方式提示（decompose 从 PlanTask 透传） */
   executorHint?: ExecutorHint
+  /** 自足任务卡文档（decompose 生成骨架，task_report 追加汇报；同 StageTaskRef.cardDoc） */
+  cardDoc?: string
   skipIntegration?: boolean
   status: TaskStatus
   blocked: boolean
@@ -836,7 +840,7 @@ export function normalizeTitle(raw: unknown): string {
   return t
 }
 
-export function normalizeText(raw: unknown, field: string, max = LIMITS.textMax): string {
+export function normalizeText(raw: unknown, field: string, max: number = LIMITS.textMax): string {
   if (raw === undefined || raw === null) return ''
   if (typeof raw !== 'string') bad(`${field} 必须是字符串`)
   const t = raw.trim()

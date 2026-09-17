@@ -34,6 +34,7 @@ tags: [standards, testing, gates]
 | 数据卫生探针 | `python3 quantsys-v2/scripts/data_hygiene_probe.py`（退出码 1 = 有问题） | 悬空引用 / 数据契约违约 |
 | 文档 wiki 探针 | `cd <repo-root> && python3 agent-dh/scripts/wiki_probe.py`（**必须从仓库根跑**：从 `agent-dh/` 跑会把相对链接双前缀化，报出 `docs/INDEX.md -> work-logs/README.md` 这类**假死链**——实测 2 条，换 cwd 即消失） | 死链 / 孤儿页 / 缺 front-matter。判读要点：**只有"现行页"的死链/孤儿计数才计失败**，档案页（work-logs）的只报告不计失败；`exit=1` 可能来自历史档案缺 front-matter（与死链无关，别混为一谈） |
 | 文档索引重生 | `cd <repo-root> && python3 agent-dh/scripts/docs_index.py`（**必须从仓库根跑，且连跑两次**：首轮刷新 README 自动区会改变 INDEX 的输入，二轮才收敛） | 索引与文档不一致（探针会提示"跑一次"，但一次不够） |
+| **类型检查（页面插件）** | `cd packages/pages/dsh-pmboard && pnpm typecheck`（等价 `npx tsc --noEmit -p tsconfig.json`） | 引用不存在的名字（TS2304）/ 类型不匹配 / 必填字段缺失。**这是唯一能在"运行前"拦住整类错误的门**——见下方事故 |
 | 工具输出契约审计（全仓） | `node agent-dh/scripts/audit-tool-output-contract.mjs`（退出码 1 = 有可疑项；`--list` 自证覆盖） | 工具返回键未在 `output.schema` 声明 → 绑定层拒收，**副作用发生了但回执丢给调用方** |
 | 层边界机械检查（页面插件） | `cd packages/pages/dsh-pmboard && npx vitest run tests/layer-boundary.test.ts` | 依赖方向倒置 / 适配层复写状态判断 |
 
@@ -43,6 +44,14 @@ tags: [standards, testing, gates]
 - 金丝雀还原路径必败未被发现（无故障注入）；
 - dist 陈旧时"源码测试全绿但线上没有该工具"的误判；
 - 样本不足（4 < 7）时自动蒸馏给的结论被规则层拒绝采纳（R-016）；
+- **"既有测试全绿"不等于"没坏"：没有类型门禁 + 没有接口级冒烟 = 重构盲区**（2026-09-17，REQ-47939a）：
+  dsh-pmboard 分层重构后，`src/http/routers/stages.ts` 引用了两个**不存在的符号**
+  （`OPEN_STATUSES`——状态集合被搬走并改名；`TASK_ORDER`——从未定义）。三个门全部漏过：
+  ① **没有 tsconfig、没有 tsc 门禁**——tsx 剥类型、vitest 不跑类型检查，TS2304 这类错误**运行前无人拦**；
+  ② **该接口零测试覆盖**——`GET /dashboard/api/reqboard/session/:id/progress` 从没被测过，所以"全绿"是假象；
+  ③ 注意力被"既有测试全绿"占据。后果：**会话框上的流程节点整块不显示**（运行时 500），由用户发现。
+  补测后立刻又抓出同一处理器里的**第二个**同类符号——即"补一个接口冒烟测试"本身就是最高性价比的投入。
+  纪律：**改动了某条请求路径，就必须给它补一个接口级冒烟测试；引入新包/新目录，就必须配 tsconfig + 类型门禁。**
 - **工具输出契约三次踩同一个坑**（2026-09-17，dsh-pmboard）：`output.schema` 是
   `additionalProperties: false` 时，返回体多一个字段就被绑定层整条拒收——用户已经确认、
   台账已经改了，agent 只收到一条 `invalid output` 错误。共 6 个工具中招（ask_confirm 的

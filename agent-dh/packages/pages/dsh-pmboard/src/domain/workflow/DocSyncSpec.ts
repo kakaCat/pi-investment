@@ -34,11 +34,6 @@ export interface DocSyncReqLike {
   artifacts?: readonly DocSyncArtifactLike[]
 }
 
-/** 某产物种类是否已登记。 */
-function hasArtifact(req: DocSyncReqLike, kind: string): boolean {
-  return (req.artifacts ?? []).some(x => x.kind === kind)
-}
-
 /**
  * 上游变更 → 下游待同步种类。
  * requirement 变更 → 已登记的 plan / decomposition；plan 变更 → 已登记的 decomposition。

@@ -23,7 +23,7 @@ import {
   defineVerifySubmitTool,
   defineArchiveSubmitTool,
 } from './helpers/tool-deps.js'
-import type { RequirementRecord, RequirementStatus, StageArtifact } from '../src/shared/protocol.js'
+import type { RequirementRecord, RequirementStatus } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
 let dir: string
@@ -338,7 +338,7 @@ describe('分类过滤', () => {
 
 describe('t8 补充：五门两级校验（全量）', () => {
   // 辅助：先登记一个无关产物让需求非 legacy（触发硬拦），再测具体门
-  async function makeNonLegacy(reqId: string = 'REQ-abc123') {
+  async function makeNonLegacy(_reqId: string = 'REQ-abc123') {
     await store.mutate('requirement-updated', (l) => {
       const r = l.requirements[0]
       r.artifacts = [{ stage: 'draft', kind: 'requirement', path: 'docs/requirements/REQ-abc123/requirement.md', registeredAt: 1, registeredBy: { kind: 'agent' } }]

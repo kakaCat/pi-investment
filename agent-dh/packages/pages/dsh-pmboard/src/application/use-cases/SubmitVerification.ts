@@ -7,26 +7,20 @@
  */
 import type { UseCaseDeps } from '../ports.js'
 import {
-  ALL_ARTIFACT_KINDS, ALL_REQ_CATEGORIES, ARTIFACT_CONFIRM_GATES, canReqTransition, ARCHIVE_DOC_RULES,
-  assertArchiveMaterials, ALL_REQ_STATUSES, ALL_TASK_PHASES, ALL_TASK_SIDES, ALL_TASK_STATUSES,
-  asReqCategory, asReqStatus, asScope, assertDagAcyclic, assertReqTransition, assertTaskTransition,
-  HUMAN_ONLY_REQ_TRANSITIONS, agentNextActions, newCommentId, newExecutionId, newRequirementId, newTaskId,
-  normalizePlanTasks, normalizeText, normalizeTitle, planApproved, recordStatus,
-  type PlanTask, type VerificationSheet, type TaskRecord, type ReqboardLedger,
-  type RequirementCategory, type RequirementRecord, type RequirementStatus, type StageArtifact, type TriageRecord,
+  normalizeText,
+  type VerificationSheet,
 } from '../../shared/protocol.js'
 import { buildSheet } from '../../domain/workflow/AcceptanceSheetSpec.js'
-import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'
-import { checkDecomposeIdempotency } from '../../domain/workflow/DecomposeSpec.js'
-import { applyDocSync, clearDocSync, docSyncDownstream, docSyncPendingOf, docSyncSummary } from '../../domain/workflow/DocSyncSpec.js'
-import { openRequirementsFor, pendingSuggestionFor } from '../internal/window.js'
+import { docSyncSummary } from '../../domain/workflow/DocSyncSpec.js'
+import { openRequirementsFor } from '../internal/window.js'
 import { applyTaskRollup } from '../internal/rollup.js'
-import { registerArtifact, assertArtifactGates, artifactNotifyText } from '../internal/artifact-gates.js'
-import { applyVerdicts } from '../internal/verdicts.js'
+import { registerArtifact } from '../internal/artifact-gates.js'
 import {
-  reject, agentIdFromExec, requireLiveDriver, requireDirectHuman, notifyArtifactRegistered,
-  assertDoneEvidence, rollupBlockersOf, workspacePathCandidates, gateQuestionCard, findPending,
-  createRequirementDirect, projectRequirement,
+  reject,
+  agentIdFromExec,
+  requireLiveDriver,
+  rollupBlockersOf,
+  workspacePathCandidates,
 } from '../internal/support.js'
 
 export async function submitVerification(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
@@ -110,7 +104,7 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
         const advanced = applyTaskRollup(ledger, { now: nowTs, commentId: () => deps.ids.comment() }, req.id)
         return { requirements: [req, ...advanced] }
       })
-      const changed = result.changed.requirements[0]
+      const changed = (result.changed.requirements ?? [])[0]
       if (changed === undefined) reject('reqboard_verify_submit 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
       // ── 产物登记（REQ-31e11f t4）：verification 产物 ─────────────────────
       const verPath = 'docs/requirements/' + target.id + '/verification.md'

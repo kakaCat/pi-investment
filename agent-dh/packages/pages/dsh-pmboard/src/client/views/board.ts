@@ -5,8 +5,8 @@
  * @module dsh-pmboard/client/views/board
  */
 import { esc, renderPagination } from '@pi-investment/page-kit/client'
-import type { BoardState, ReqCard, TaskStatus, TriageRecord } from '../types.ts'
-import { CATEGORY_LABELS, LANE_STATUSES, NO_ARCHIVED, STATUS_LABELS, TASK_STATUS_LABELS, fmtTime, sessionChipHtml, windowCodeFromSessionId } from '../render/dom-utils.ts'
+import type { BoardState, ReqCard, TriageRecord } from '../types.ts'
+import { CATEGORY_LABELS, LANE_STATUSES, NO_ARCHIVED, STATUS_LABELS, fmtTime, sessionChipHtml, windowCodeFromSessionId } from '../render/dom-utils.ts'
 import { cardActions, renderReqCard } from './artifacts.ts'
 
 /** 需求卡片投影（视图层聚合，避免全量渲染） */
@@ -242,7 +242,7 @@ export function renderListToolbar(
 }
 
 /** 单条需求卡片（列表视图行）。 */
-export function renderListCard(card: ReqCard, now: number, archived: ReadonlySet<string> = NO_ARCHIVED): string {
+export function renderListCard(card: ReqCard, _now: number, archived: ReadonlySet<string> = NO_ARCHIVED): string {
     const { req, tasks, doneCount, totalCount, blocked } = card
     const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
     const active = tasks.filter(t => t.status !== 'todo' && t.status !== 'done' && t.status !== 'canceled').length
@@ -261,19 +261,6 @@ export function renderListCard(card: ReqCard, now: number, archived: ReadonlySet
           archived: sidArchived,
         })
       : '<span class="dsh-pm-list-nowindow">人工建卡</span>'
-
-    // 任务状态条：一眼看出卡在开发/联调/测试/评审哪一段
-    const statusStrip = tasks.length === 0
-      ? '<span class="dsh-pm-list-strip-empty">尚未拆分任务</span>'
-      : (() => {
-          const counts: Record<string, number> = {}
-          for (const t of tasks) counts[t.status] = (counts[t.status] ?? 0) + 1
-          const order = ['in_progress', 'integrating', 'testing', 'in_review', 'todo', 'done']
-          return order
-            .filter(s => (counts[s] ?? 0) > 0)
-            .map(s => `<span class="dsh-pm-list-seg" data-status="${s}">${TASK_STATUS_LABELS[s as TaskStatus] ?? s} ${counts[s]}</span>`)
-            .join('')
-        })()
 
     // REQ-9f4a44：验收通过即 archived，材料随后补齐——未提交归档材料时给看板可见标记
     const archivePendingChip = req.status === 'archived' && req.archive === undefined
