@@ -14,9 +14,9 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ReqboardStore } from '../src/host/store.js'
-import { createReqboardHandler } from '../src/host/routes.js'
-import { assembleStageDetail } from '../src/host/stage-detail.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { createReqboardHandler } from '../src/http/routes.js'
+import { assembleStageDetail } from '../src/application/query/index.js'
 import type {
   ActorRef,
   RequirementRecord,

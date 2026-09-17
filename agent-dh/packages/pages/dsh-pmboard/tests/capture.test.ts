@@ -8,15 +8,17 @@
 import { describe, it, expect } from 'vitest'
 import {
   boundSectionText,
-  windowKeyFromContext,
-  isWindowBound,
-  hasPendingSuggestion,
   captureSectionText,
   captureGuidanceText,
   capturePromptForMessage,
+} from '../src/application/internal/capture-section.js'
+import {
+  windowKeyFromContext,
+  isWindowBound,
+  hasPendingSuggestion,
   pendingSuggestionFor,
   openRequirementsFor,
-} from '../src/host/capture.js'
+} from '../src/application/internal/window.js'
 import { emptyLedger, type ReqboardLedger, type RequirementRecord, type TriageRecord } from '../src/shared/protocol.js'
 
 function req(over: Partial<RequirementRecord>): RequirementRecord {

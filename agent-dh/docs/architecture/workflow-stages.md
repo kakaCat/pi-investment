@@ -115,6 +115,25 @@ from constants.workflow import WORKFLOW_STAGES
 
 ---
 
+## 工具面（2026-09-17 收敛后：13 → 9）
+
+REQ-47939a 把 reqboard 的 13 个工具收敛为 9 个。**收敛只改入口数量**——每个入口的语义、拒绝条件、
+错误码与消息文案与收敛前逐一对应。本节是**现行 API 面**的唯一描述；本文件与 RFC/work-logs 里
+历史叙述中出现的旧工具名（`reqboard_plan_submit`/`reqboard_verify_submit` 等）是**当时的事实记录**，
+按"history 只增不改"原则不予改写。
+
+| 收敛后工具 | 覆盖原入口 |
+|-----------|-----------|
+| `reqboard_create` | create |
+| `reqboard_status` | status |
+| `reqboard_move` | move |
+| `reqboard_decompose` | decompose |
+| `reqboard_task_move` | task_move |
+| `reqboard_task_report` | task_report |
+| `reqboard_submit(kind=requirement\|plan\|verification\|archive)` | requirement_submit / plan_submit / verify_submit / archive_submit —— 壳合并，**内里仍是四个独立用例**，按 kind 表驱动分派（不是一个大 if；由 `tests/tools-dispatch.test.ts` 断言） |
+| `reqboard_ask_confirm` | ask_confirm + confirm_artifact（弹框落章与文字证据落章合并为一条路） |
+| `reqboard_accept_sheet` | accept_sheet（逐项弹框验收 + 断点续验 + 未过项自动返工） |
+
 ## 各阶段职责规范（REQ-2e9473 t18/W7 · 六要素）
 
 > 每阶段六要素：**目标 / 入口 / 活动 / 产物 / 出口门 / 禁止事项**。
@@ -164,7 +183,7 @@ from constants.workflow import WORKFLOW_STAGES
 ### 6 验收 accepting（逐项验收单 + 断点续验）
 - **目标**：人对证据**逐项**裁决
 - **入口**：全部任务 done 自动进入
-- **活动**：①`reqboard_verify_submit` 生成逐项验收单（每任务验收标准+需求级标准，逐项带证据）②人逐项打勾（通过/不通过+意见）③不通过项 → 打回 + 自动生成返工任务
+- **活动**：①`reqboard_submit(kind=verification)` 生成逐项验收单（每任务验收标准+需求级标准，逐项带证据）②人逐项打勾（通过/不通过+意见；`reqboard_accept_sheet` 逐项弹框）③不通过项 → 打回 + 自动生成返工任务
 - **产物**：版本化验收单（v1/v2…，历史进 sheetHistory）
 - **出口门**：全过 → 人工门「验收通过」→ 直接归档；有未过 → 打回 implementing
 - **禁止**：agent 自判通过；空话证据；编造证据路径（代码级校验）
@@ -172,7 +191,7 @@ from constants.workflow import WORKFLOW_STAGES
 ### 7 归档 archived
 - **目标**：知识沉淀进项目文档
 - **入口**：验收通过（自动进入，无需人再点）
-- **活动**：`reqboard_archive_submit` 补材料（目录/文档清单/合并去向/索引/说明书更新点）
+- **活动**：`reqboard_submit(kind=archive)` 补材料（目录/文档清单/合并去向/索引/说明书更新点）
 - **产物**：归档材料 + merged_into **真实写入**对应项目文档
 - **出口门**：材料齐（代码级必填项校验）
 - **禁止**：只挪目录不合并内容；漏登目录内文件（返回 unlisted_files 警告）

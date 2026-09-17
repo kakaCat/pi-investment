@@ -15,14 +15,14 @@ import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
-import { ReqboardStore } from '../src/host/store.js'
-import { createReqboardHandler } from '../src/host/routes.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { createReqboardHandler } from '../src/http/routes.js'
 import {
   definePlanSubmitTool,
   defineDecomposeTool,
   defineVerifySubmitTool,
   defineArchiveSubmitTool,
-} from '../src/host/agent-tools.js'
+} from './helpers/tool-deps.js'
 import type { RequirementRecord, RequirementStatus, StageArtifact } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'

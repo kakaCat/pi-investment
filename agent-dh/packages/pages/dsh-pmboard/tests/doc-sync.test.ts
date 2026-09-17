@@ -6,11 +6,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ReqboardStore } from '../src/host/store.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import {
   defineRequirementSubmitTool, definePlanSubmitTool, defineDecomposeTool,
   defineTaskMoveTool, defineConfirmArtifactTool, defineMoveTool,
-} from '../src/host/agent-tools.js'
+} from './helpers/tool-deps.js'
 import type { RequirementRecord } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'

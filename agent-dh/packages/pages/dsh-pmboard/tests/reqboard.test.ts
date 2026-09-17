@@ -22,7 +22,7 @@ import {
 function throwsCode(fn: () => void, expectedCode: string): void {
   try { fn(); expect.fail('期望抛错但未抛') } catch (e: any) { expect(e.code).toBe(expectedCode) }
 }
-import { ReqboardStore } from '../src/host/store.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 
 // ---------------------------------------------------------------------------
 // Requirement 状态机
@@ -271,175 +271,31 @@ describe('ReqboardStore', () => {
 
 
 // ---------------------------------------------------------------------------
-// M2: 三层分类架构（显式标记 → LLM 精准+需求分类 → 启发式兜底）
+// REQ-47939a t9 删除记录（例外：删死代码，非断言削弱）：
+// 原「M2: 三层分类架构」四个 describe 共 11 例被删除，逐条清单——
+//   Explicit marker detection（3）：detects #REQ-xxx / detects #t-xxx / returns undefined when no marker
+//   Heuristic classifier（2）：suggests bind_req when title matches / suggests create_req when no match
+//   LLM classifier with category（3）：binds req by semantic match / creates req with category for bug / creates req with category for doc
+//   Session sync with explicit marker（3）：directly binds via explicit #REQ marker without LLM /
+//     creates triage and runs LLM for unmarked messages / ignores subagent sessions
+// 删除依据：它们测的是**已退役且不再装配**的 M2 自动分类机制（SessionSyncService / classifySessionHeuristic /
+// classifySessionLlm / extractExplicitId）。该机制自 2026-09 起不再装配（src/index.ts 注释：
+// "M2 的自动分类 LLM（SessionSyncService）自 2026-09 起不再装配（修正 #1/#3：无第二 LLM、人在 loop）"），
+// 其符号在 src 内除彼此外无任何非测试引用——随 host/ 收口一并删除。
+// 其中断言的是**活行为**的部分（消息清洗 / 忽略会话判定 / 用户消息抽取）已在
+// tests/adapters/session-message-filter.test.ts 里逐条重建，断言未削弱。
 // ---------------------------------------------------------------------------
-
-import { extractExplicitId, classifySessionHeuristic, classifySessionLlm } from '../src/host/classifier.js'
-import { SessionSyncService, extractUserMessageText, isIgnoredSession } from '../src/host/session-sync.js'
-
-describe('Explicit marker detection', () => {
-  it('detects #REQ-xxx', () => {
-    const r = extractExplicitId('请查看 #REQ-000001 的需求')
-    expect(r).toEqual({ kind: 'req', id: 'REQ-000001' })
-  })
-  it('detects #t-xxx', () => {
-    const r = extractExplicitId('继续 #t-000002 的任务')
-    expect(r).toEqual({ kind: 'task', id: 't-000002' })
-  })
-  it('returns undefined when no marker', () => {
-    expect(extractExplicitId('普通消息')).toBeUndefined()
-  })
-})
-
-describe('Heuristic classifier', () => {
-  const reqs: RequirementRecord[] = [
-    { id: 'REQ-000001', title: '持仓看板 CSV 导出', description: '给持仓看板增加导出功能', status: 'draft', blocked: false, comments: [], version: 1, createdAt: 0, updatedAt: 0, createdBy: { kind: 'human' }, updatedBy: { kind: 'human' } },
-  ]
-  const tasks: TaskRecord[] = [
-    { id: 't-000001', requirementId: 'REQ-000001', title: '后端导出接口', phase: 'implement', side: 'backend', dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance: '', context: '', status: 'todo', blocked: false, executions: [], comments: [], version: 1, createdAt: 0, updatedAt: 0, createdBy: { kind: 'human' }, updatedBy: { kind: 'human' } },
-  ]
-
-  it('suggests bind_req when title matches', () => {
-    const r = classifySessionHeuristic('持仓看板 CSV 导出功能', reqs, tasks)
-    expect(r.action).toBe('bind_req')
-    expect(r.targetId).toBe('REQ-000001')
-  })
-
-  it('suggests create_req when no match', () => {
-    const r = classifySessionHeuristic('完全无关的内容', reqs, tasks)
-    expect(r.action).toBe('create_req')
-    expect(r.score).toBe(0)
-  })
-})
-
-describe('LLM classifier with category', () => {
-  it('binds req by semantic match', async () => {
-    const r = await classifySessionLlm({
-      firstMessage: '持仓看板 CSV 导出怎么做',
-      requirements: [{ id: 'REQ-001', title: '持仓看板 CSV 导出', description: '', status: 'draft' }],
-      tasks: [],
-    })
-    expect(r.action).toBe('bind_req')
-    expect(r.targetId).toBe('REQ-001')
-  })
-
-  it('creates req with category for bug', async () => {
-    const r = await classifySessionLlm({
-      firstMessage: '主力资金流数据源报错，需要修复',
-      requirements: [],
-      tasks: [],
-    })
-    expect(r.action).toBe('create_req')
-    expect(r.category).toBe('bug')
-    expect(r.suggestedTitle).toBeDefined()
-  })
-
-  it('creates req with category for doc', async () => {
-    const r = await classifySessionLlm({
-      firstMessage: '更新 README 文档，补充部署说明',
-      requirements: [],
-      tasks: [],
-    })
-    expect(r.action).toBe('create_req')
-    expect(r.category).toBe('doc')
-  })
-})
-
-describe('Session sync with explicit marker', () => {
-  let store: ReqboardStore
-  let tmpDir: string
-  let busHandlers: Array<(...args: any[]) => void> = []
-
-  beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'reqboard-m2-'))
-    store = new ReqboardStore({ file: join(tmpDir, 'reqboard.json') })
-    busHandlers = []
-  })
-
-  afterEach(() => {
-    try { rmSync(tmpDir, { recursive: true, force: true }) } catch { /* ignore */ }
-  })
-
-  function emit(sessionId: string, event: { type: string; data?: unknown }, meta?: unknown) {
-    busHandlers.forEach(h => h({ id: sessionId }, event, meta))
-  }
-
-  /**
-   * 轮询直到条件成立（上限 ~3s）再断言。
-   * 会话同步的落库走串行队列 + 原子 fs 写，全量并行跑用例时固定 setTimeout
-   * 等待会偶发不足（曾出现 bind_req 尚未落库就断言 → 假红）。轮询只消除时序抖动，
-   * 不改变任何断言与覆盖范围。
-   */
-  async function waitFor(cond: () => boolean): Promise<void> {
-    for (let i = 0; i < 150; i++) {
-      if (cond()) return
-      await new Promise(r => setTimeout(r, 20))
-    }
-  }
-
-  it('directly binds via explicit #REQ marker without LLM', async () => {
-    await store.mutate('requirement-created', (ledger) => {
-      ledger.requirements.push({
-        id: 'REQ-000001', title: '持仓导出', description: '', status: 'draft', blocked: false,
-        comments: [], version: 1, createdAt: 0, updatedAt: 0,
-        createdBy: { kind: 'human' }, updatedBy: { kind: 'human' },
-      })
-      return { requirements: ledger.requirements }
-    })
-
-    const svc = new SessionSyncService(
-      { store, now: () => Date.now() },
-      { on: (_evt, h) => { busHandlers.push(h); return () => {} } },
-    )
-    emit('session-abc', { type: 'turn/start' })
-    emit('session-abc', { type: 'user/message', data: { content: '查看 #REQ-000001 的进度' } })
-    await waitFor(() => store.snapshot().triages[0]?.suggestedAction === 'bind_req')
-
-    const tri = store.snapshot().triages[0]
-    expect(tri.suggestedAction).toBe('bind_req')
-    expect(tri.suggestedTargetId).toBe('REQ-000001')
-    expect(tri.score).toBe(100)
-    expect(tri.comments.some(c => c.body.includes('[显式标记]'))).toBe(true)
-    svc.dispose()
-  })
-
-  it('creates triage and runs LLM for unmarked messages', async () => {
-    const svc = new SessionSyncService(
-      { store, now: () => Date.now() },
-      { on: (_evt, h) => { busHandlers.push(h); return () => {} } },
-    )
-    emit('session-def', { type: 'turn/start' })
-    emit('session-def', { type: 'user/message', data: { content: '发现一个 bug，登录页面崩溃' } })
-    await waitFor(() => store.snapshot().triages[0]?.comments.some(c => c.body.includes('[LLM 分类]')) === true)
-
-    const tri = store.snapshot().triages[0]
-    expect(tri.firstMessageText).toBe('发现一个 bug，登录页面崩溃')
-    expect(tri.comments.some(c => c.body.includes('[LLM 分类]'))).toBe(true)
-    svc.dispose()
-  })
-
-  it('ignores subagent sessions', async () => {
-    const svc = new SessionSyncService(
-      { store, now: () => Date.now() },
-      { on: (_evt, h) => { busHandlers.push(h); return () => {} } },
-    )
-    emit('subagent-xyz', { type: 'turn/start' })
-    await new Promise(r => setTimeout(r, 50))
-    expect(store.snapshot().triages.length).toBe(0)
-    svc.dispose()
-  })
-})
 
 describe('Triage routes with category', () => {
   let store: ReqboardStore
   let tmpDir: string
-  let handler: ReturnType<typeof import('../src/host/routes.js').createReqboardHandler>
+  let handler: ReturnType<typeof import('../src/http/routes.js').createReqboardHandler>
 
   beforeEach(async () => {
     tmpDir = mkdtempSync(join(tmpdir(), 'reqboard-triage-'))
     store = new ReqboardStore({ file: join(tmpDir, 'reqboard.json') })
     await store.load()
-    const { createReqboardHandler } = await import('../src/host/routes.js')
+    const { createReqboardHandler } = await import('../src/http/routes.js')
     handler = createReqboardHandler({ store, now: () => Date.now() })
   })
 

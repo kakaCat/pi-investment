@@ -14,14 +14,14 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ReqboardStore } from '../src/host/store.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import {
   definePlanSubmitTool,
   defineDecomposeTool,
   defineTaskMoveTool,
   defineTaskReportTool,
-} from '../src/host/agent-tools.js'
-import { assembleStageDetail } from '../src/host/stage-detail.js'
+} from './helpers/tool-deps.js'
+import { assembleStageDetail } from '../src/application/query/index.js'
 import type { RequirementRecord, RequirementStatus } from '../src/shared/protocol.js'
 
 const WINDOW_A = 'session-aaaa1111-2222-3333-4444-555555555555'

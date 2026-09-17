@@ -11,9 +11,9 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ReqboardStore } from '../src/host/store.js'
-import { createReqboardHandler } from '../src/host/routes.js'
-import { definePlanSubmitTool, defineDecomposeTool, defineTaskMoveTool, defineTaskReportTool } from '../src/host/agent-tools.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { createReqboardHandler } from '../src/http/routes.js'
+import { definePlanSubmitTool, defineDecomposeTool, defineTaskMoveTool, defineTaskReportTool } from './helpers/tool-deps.js'
 import type { RequirementRecord, RequirementStatus } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
@@ -24,7 +24,7 @@ let decompose: { execute: (a: unknown, e: unknown) => Promise<any> }
 let taskMove: { execute: (a: unknown, e: unknown) => Promise<any> }
 let handler: ReturnType<typeof createReqboardHandler>
 let reportTool: { execute: (a: unknown, e: unknown) => Promise<any> }
-let trace: Map<string, import('../src/host/capture-hook.js').ToolTraceEntry[]>
+let trace: Map<string, import('../src/adapters/SessionProbeAdapter.js').ToolTraceEntry[]>
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-plan-'))
@@ -191,7 +191,7 @@ describe('批准后的执行链（计划 → 任务卡 → 自动验收）', () 
     expect(started.requirement_status).toBe('decomposing')
     for (const to of ['testing', 'in_review']) await run(taskMove, { task_id: proto, to })
     // done 凭证门（t06）：汇报+痕迹后才能关
-    const { recordToolTrace } = await import('../src/host/capture-hook.js')
+    const { recordToolTrace } = await import('../src/adapters/SessionProbeAdapter.js')
     recordToolTrace(trace, W, 'edit', Date.now())
     await run(reportTool, { task_id: proto, summary: '协议层完成', completed: ['protocol.ts 改完'] })
     await run(taskMove, { task_id: proto, to: 'done' })
@@ -205,7 +205,7 @@ describe('批准后的执行链（计划 → 任务卡 → 自动验收）', () 
     })
 
     for (const to of ['in_progress', 'testing', 'in_review']) await run(taskMove, { task_id: ui, to })
-    const { recordToolTrace: rec2 } = await import('../src/host/capture-hook.js')
+    const { recordToolTrace: rec2 } = await import('../src/adapters/SessionProbeAdapter.js')
     rec2(trace, W, 'edit', Date.now())
     await run(reportTool, { task_id: ui, summary: 'UI 完成', completed: ['view.ts 改完'] })
     await run(taskMove, { task_id: ui, to: 'done' })

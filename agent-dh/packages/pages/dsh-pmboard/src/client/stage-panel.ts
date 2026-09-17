@@ -350,7 +350,7 @@ const renderImplementingBody: StageBodyRenderer = (payload) => {
  */
 function renderVerificationSheet(
   payload: StageDetail,
-  v: { sheet?: { version: number; items: { id: string; source: string; criterion: string; status: string; opinion?: string }[]; reworkOnly?: boolean } },
+  v: { sheet?: { version: number; items: { id: string; source: { kind: 'requirement' } | { kind: 'task'; taskId: string }; criterion: string; status: string; opinion?: string }[]; reworkOnly?: boolean } },
 ): string {
   const sheet = v.sheet
   if (sheet === undefined || sheet.items.length === 0) return ''
@@ -358,10 +358,11 @@ function renderVerificationSheet(
   const badge: Record<string, string> = { pending: '⬜ 待验', passed: '✅ 通过', failed: '❌ 不通过' }
   const rows = sheet.items.map((it) => {
     const decided = it.status !== 'pending'
-    return '<div class="dsh-pm-vitem" data-item-id="' + esc(it.id) + '" data-source="' + esc(it.source) + '">' +
+    const sourceKey = it.source.kind === 'requirement' ? 'requirement' : it.source.taskId
+    return '<div class="dsh-pm-vitem" data-item-id="' + esc(it.id) + '" data-source="' + esc(sourceKey) + '">' +
       '<div class="dsh-pm-vitem-head">' +
         '<span class="dsh-pm-vitem-badge">' + (badge[it.status] ?? esc(it.status)) + '</span>' +
-        '<span class="dsh-pm-vitem-src">' + esc(it.source === 'requirement' ? '需求级' : it.source) + '</span>' +
+        '<span class="dsh-pm-vitem-src">' + esc(it.source.kind === 'requirement' ? '需求级' : it.source.taskId) + '</span>' +
       '</div>' +
       '<div class="dsh-pm-sn-text">' + esc(truncate(it.criterion, 200)) + '</div>' +
       (decided

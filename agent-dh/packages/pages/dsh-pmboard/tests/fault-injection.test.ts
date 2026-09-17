@@ -13,13 +13,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ReqboardStore } from '../src/host/store.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import {
   definePlanSubmitTool, defineDecomposeTool, defineTaskMoveTool, defineTaskReportTool,
   defineAskConfirmTool, defineMoveTool,
-} from '../src/host/agent-tools.js'
-import { syncReqArtifacts, reqDirRel } from '../src/host/sync-artifacts.js'
-import { recordToolTrace, type ToolTraceEntry } from '../src/host/capture-hook.js'
+} from './helpers/tool-deps.js'
+import { syncReqArtifacts, reqDirRel } from '../src/adapters/ArtifactSync.js'
+import { recordToolTrace, type ToolTraceEntry } from '../src/adapters/SessionProbeAdapter.js'
 import type { RequirementRecord, VerificationItem } from '../src/shared/protocol.js'
 
 const W = 'session-fi-001'

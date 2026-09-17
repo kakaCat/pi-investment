@@ -23,9 +23,9 @@ import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
-import { ReqboardStore } from '../src/host/store.js'
-import { createReqboardHandler } from '../src/host/routes.js'
-import { assembleStageDetail } from '../src/host/stage-detail.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { createReqboardHandler } from '../src/http/routes.js'
+import { assembleStageDetail } from '../src/application/query/index.js'
 import { renderStagePanel } from '../src/client/stage-panel.js'
 import {
   definePlanSubmitTool,
@@ -33,7 +33,7 @@ import {
   defineVerifySubmitTool,
   defineArchiveSubmitTool,
   defineTaskReportTool,
-} from '../src/host/agent-tools.js'
+} from './helpers/tool-deps.js'
 import {
   CATEGORY_FLOW_PROFILES,
   ALL_STAGE_KEYS,
@@ -267,11 +267,11 @@ describe('验收 3：验收+归档节点内容', () => {
 })
 
 // ────────────────────────────────────────────────────────────────────────────
-// 标准 4：预留字段就位且老台账兼容加载
+// 标准 4：老台账兼容加载（t10 起 projectId/parentId 已从契约删除，读路径仍不改写历史数据）
 // ────────────────────────────────────────────────────────────────────────────
 
-describe('验收 4：预留字段（projectId/parentId）+ 老台账兼容', () => {
-  it('带 projectId/parentId 的记录正常加载且字段保留', async () => {
+describe('验收 4：老台账兼容加载（历史字段透传，不做破坏性读改写）', () => {
+  it('带历史预留字段（projectId/parentId）的记录正常加载，字段原样透传', async () => {
     const file = join(dir, 'dsh-reqboard.json')
     const ledgerWithReserved = {
       schemaVersion: 4, revision: 1,
@@ -286,7 +286,9 @@ describe('验收 4：预留字段（projectId/parentId）+ 老台账兼容', () 
     writeFileSync(file, JSON.stringify(ledgerWithReserved), 'utf8')
     const freshStore = new ReqboardStore({ file })
     await freshStore.load()
-    const loaded = freshStore.snapshot().requirements[0]
+    // C6：这两个字段已从 RequirementRecord 契约删除（全仓引用 0），但**读路径不得改写历史数据**
+    // （旧台账若残留该键，加载后应原样带出——不静默丢数据是迁移相邻改动的底线）。
+    const loaded = freshStore.snapshot().requirements[0] as unknown as { projectId?: string; parentId?: string }
     expect(loaded.projectId).toBe('proj-001')
     expect(loaded.parentId).toBe('REQ-parent')
   })
@@ -308,8 +310,8 @@ describe('验收 4：预留字段（projectId/parentId）+ 老台账兼容', () 
     const loaded = freshStore.snapshot().requirements[0]
     expect(loaded.projectId).toBeUndefined()
     expect(loaded.parentId).toBeUndefined()
-    // schemaVersion 升级到 4
-    expect(freshStore.snapshot().schemaVersion).toBe(4)
+    // schemaVersion 升级到当前契约版本（REQ-47939a t10 / C1：4 → 5）
+    expect(freshStore.snapshot().schemaVersion).toBe(5)
   })
 })
 
@@ -481,8 +483,8 @@ describe('验收 8：task_report 汇报 = 实施产物文档', () => {
 
 describe('验收 9：阶段提示词注入', () => {
   it('capture.ts boundSectionText 按当前阶段注入对应提示词', async () => {
-    const { boundSectionText } = await import('../src/host/capture.js')
-    const { STAGE_PROMPTS } = await import('../src/host/stage-prompts.js')
+    const { boundSectionText } = await import('../src/application/internal/capture-section.js')
+    const { STAGE_PROMPTS } = await import('../src/domain/stage/StagePromptSpec.js')
     const l = emptyLedger()
     l.requirements.push({
       id: 'REQ-acc001', title: 't', description: '', status: 'brainstorming', blocked: false,
@@ -495,8 +497,8 @@ describe('验收 9：阶段提示词注入', () => {
   })
 
   it('capture-hook onStagePrompt 在 bound 窗口收到消息时触发', async () => {
-    const { createSessionEventCaptureHook } = await import('../src/host/capture-hook.js')
-    const { STAGE_PROMPTS } = await import('../src/host/stage-prompts.js')
+    const { createSessionEventCaptureHook } = await import('../src/adapters/CaptureHook.js')
+    const { STAGE_PROMPTS } = await import('../src/domain/stage/StagePromptSpec.js')
     const prompts: string[] = []
     const ledger = emptyLedger()
     ledger.requirements.push({

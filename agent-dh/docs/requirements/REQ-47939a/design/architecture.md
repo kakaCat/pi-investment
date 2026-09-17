@@ -25,7 +25,18 @@
 | 层 | 允许 import | 禁止 import |
 |----|------------|------------|
 | `domain/` | `domain/**`、TS 标准库 | 任何 `node:*`、`@deepseek-ai/*`、`@pi-investment/*`、`../application|adapters|tools|http|client`、`store`、`ctx` |
-| `application/` | `domain/**`、`application/ports.ts` | `node:*`、`../adapters/**`、`../tools/**`、`../http/**`、`cordis` |
+| `application/` | `domain/**`、`application/ports.ts`、`../shared/protocol.js`（**目标态仅 type**） | `node:*`、`../adapters/**`、`../tools/**`、`../http/**`、`@deepseek-ai/*` |
+
+> **实测偏差留痕（2026-09-17，t6 复核）**：目标态是 application 只从 shared 取**类型**，ID/时间一律走
+> `UseCaseDeps.ids`/`clock` 端口（t1 定义它们就是为了让用例可复现）。但 t6 落地时，用例还直接调用了
+> shared 的既有运行时纯函数（`normalizeText`/`assertReqTransition`/`newCommentId`/`newTaskId` 等）——
+> 与"零行为变更"一致（这些正是搬走前的实现），但**端口注入未完全落地**（`IdFactory`/`Clock` 尚未贯穿）。
+> **实测计数（2026-09-17）**：用例里走注入端口的 `deps.ids` **28 处**；残留直接调用全局 ID 生成器
+> **2 处**、直接 `Date.now()` **1 处**。即"端口注入"已基本落地，只剩少量残留。
+> 处置：不追溯改（无行为收益、且会引入 churn），列入 **t9 收口 / t13 文档** 的待办：把残留 3 处改为经
+> `deps.ids`/`deps.clock`，并把 shared 收敛为纯契约（类型 + 常量），运行时工具函数归位 domain/adapters。
+> 层边界门禁目前只约束"禁止项"（node:/adapters/tools/http），不检查"仅 type"这一 nuance——若要让
+> "仅 type"成为硬约束，需另加一条（检查 `import type` vs 值导入），本期不做。
 | `adapters/` | `application/ports.ts`、`domain/**`、`node:*`、`@deepseek-ai/*` | `../tools/**`、`../http/**`、`../client/**` |
 | `shared/` | `domain/**`（单向）、TS 标准库 | `node:*`、`application/`、`adapters/`、`tools/`、`http/` |
 | `tools/` `http/` `client/` | 任意下层 | 互相直接 import（`tools` 不得 import `http`，反之亦然） |

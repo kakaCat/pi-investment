@@ -1,0 +1,228 @@
+/**
+ * AcceptSheet 用例（REQ-47939a t6）——从 host/agent-tools.ts 的 defineAcceptSheetTool / reqboard_accept_sheet 工厂**逐字搬入**编排。
+ *
+ * 零行为变更：拒绝条件、错误码与消息文案与搬迁前一致；规则仍单点于 domain/。
+ *
+ * @module dsh-pmboard/application/use-cases/AcceptSheet
+ */
+import type { UseCaseDeps } from '../ports.js'
+import {
+  ALL_ARTIFACT_KINDS, ALL_REQ_CATEGORIES, ARTIFACT_CONFIRM_GATES, canReqTransition, ARCHIVE_DOC_RULES,
+  assertArchiveMaterials, ALL_REQ_STATUSES, ALL_TASK_PHASES, ALL_TASK_SIDES, ALL_TASK_STATUSES,
+  asReqCategory, asReqStatus, asScope, assertDagAcyclic, assertReqTransition, assertTaskTransition,
+  HUMAN_ONLY_REQ_TRANSITIONS, agentNextActions, newCommentId, newExecutionId, newRequirementId, newTaskId,
+  normalizePlanTasks, normalizeText, normalizeTitle, planApproved, recordStatus,
+  type PlanTask, type VerificationSheet, type TaskRecord, type ReqboardLedger,
+  type RequirementCategory, type RequirementRecord, type RequirementStatus, type StageArtifact, type TriageRecord,
+} from '../../shared/protocol.js'
+import { buildSheet } from '../../domain/workflow/AcceptanceSheetSpec.js'
+import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'
+import { checkDecomposeIdempotency } from '../../domain/workflow/DecomposeSpec.js'
+import { applyDocSync, clearDocSync, docSyncDownstream, docSyncPendingOf, docSyncSummary } from '../../domain/workflow/DocSyncSpec.js'
+import { openRequirementsFor, pendingSuggestionFor } from '../internal/window.js'
+import { applyTaskRollup } from '../internal/rollup.js'
+import { registerArtifact, assertArtifactGates, artifactNotifyText } from '../internal/artifact-gates.js'
+import { applyVerdicts } from '../internal/verdicts.js'
+import {
+  reject, agentIdFromExec, requireLiveDriver, requireDirectHuman, notifyArtifactRegistered,
+  assertDoneEvidence, rollupBlockersOf, workspacePathCandidates, gateQuestionCard, findPending,
+  createRequirementDirect, projectRequirement,
+} from '../internal/support.js'
+
+export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
+      const windowKey = agentIdFromExec(deps, exec)
+      requireLiveDriver(deps, exec)
+      const a = (args ?? {}) as { requirement_id?: unknown; batch_size?: unknown; version?: unknown }
+      const explicitId = normalizeText(a.requirement_id, 'requirement_id', 64)
+      const batchSize = Math.min(Math.max(Number(a.batch_size ?? 5) || 5, 1), 10)
+
+      const snapshot = deps.repo.snapshot()
+      const bound = openRequirementsFor(snapshot, windowKey)
+      if (bound.length === 0) reject('reqboard_accept_sheet 未执行：本窗口没有绑定中的需求', 'REQBOARD_NO_BOUND_REQ')
+      const targetReq = explicitId.length > 0 ? bound.find(r => r.id === explicitId) : bound[0]
+      if (targetReq === undefined) {
+        reject('reqboard_accept_sheet 未执行：需求 ' + explicitId + ' 不是本窗口绑定的进行中需求', 'REQBOARD_NOT_BOUND_TO_WINDOW')
+      }
+      const sheet = targetReq.verification?.sheet
+      if (sheet === undefined) reject('reqboard_accept_sheet 未执行：该需求还没有验收单（先 reqboard_verify_submit）', 'REQBOARD_NO_SHEET')
+      if (a.version !== undefined && Number(a.version) !== sheet.version) {
+        reject('reqboard_accept_sheet 未执行：验收单版本不匹配（当前 v' + sheet.version + '）', 'REQBOARD_VERSION_MISMATCH')
+      }
+
+      /**
+       * 全部通过 → 直接弹「验收通过并归档」确认（REQ-2e9473 W6 闭环，用户指出）：
+       * 逐项全过后不再要求人去点看板——同一次会话里接着弹最终确认，确认即归档。
+       */
+      const finalizeIfAllPassed = async (passed: number, failed: number): Promise<Record<string, unknown> | undefined> => {
+        if (failed > 0) return undefined
+        const cur = deps.repo.snapshot().requirements.find(r => r.id === targetReq.id)
+        if (cur === undefined || cur.status !== 'accepting') return undefined
+        const curSheet = cur.verification?.sheet
+        if (curSheet !== undefined && curSheet.items.some(i => i.status !== 'passed')) return undefined
+        if (!deps.questions.available()) {
+          return { success: false, fallback: 'board', note: '全部 ' + passed + ' 项通过，但弹框通道不可用：请在看板点「验收通过」归档' }
+        }
+        const FINAL_YES = '✅ 验收通过并归档'
+        let ans: { answers?: { id?: string; selected?: string[] }[] } | undefined
+        try {
+          ans = { answers: [...await deps.questions.ask([{
+              id: 'final-pass',
+              header: '验收通过',
+              question: '全部 ' + passed + ' 项验收通过——是否验收通过并归档？',
+              options: [
+                { label: FINAL_YES, description: '需求进入归档态，随后补归档材料' },
+                { label: '暂不归档', description: '保持验收态，稍后再定' },
+              ],
+            }], {
+              ...(exec.agent !== undefined ? { agent: exec.agent } : {}),
+              signal: (exec as { signal?: unknown }).signal,
+            })] }
+        } catch (err) {
+          const code = (err as { code?: string }).code ?? ''
+          if (code === 'DELEGATED_CALLER' || code === 'CALLER_NOT_LIVE') {
+            return { success: false, fallback: 'board', note: '全部通过，但当前调用方无弹框权限：请在看板点「验收通过」' }
+          }
+          return { success: false, passed, failed: 0, note: '用户未作答最终确认：需求保持验收态（可重新调用本工具或看板确认）' }
+        }
+        if ((ans?.answers?.[0]?.selected?.[0] ?? '') !== FINAL_YES) {
+          return { success: true, recorded: 0, pending: 0, passed, failed: 0, note: '用户选择暂不归档：需求保持验收态' }
+        }
+        const nowTs2 = deps.clock.now()
+        const moved = await deps.repo.mutate('requirement-moved', (ledger) => {
+          const r = ledger.requirements.find(x => x.id === targetReq.id)
+          if (r === undefined) return undefined
+          if (r.status !== 'accepting') {
+            throw Object.assign(new Error('需求当前处于 ' + r.status + '，不在验收态'), { code: 'bad_status' })
+          }
+          const v = r.verification
+          if (v !== undefined) {
+            v.reviewedAt = nowTs2
+            v.reviewedBy = { kind: 'human', sessionId: windowKey }
+            v.decision = 'pass'
+          }
+          r.status = 'archived'
+          r.version += 1
+          r.updatedAt = nowTs2
+          r.updatedBy = { kind: 'human', sessionId: windowKey }
+          recordStatus(r, 'archived', nowTs2, { kind: 'human', sessionId: windowKey }, '验收通过（弹框逐项全通过 → 会话确认）')
+          r.comments.push({
+            id: deps.ids.comment(),
+            body: '[验收] 人工审核通过（弹框确认，' + passed + ' 项全通过）→ 自动归档',
+            createdAt: nowTs2,
+            createdBy: { kind: 'human', sessionId: windowKey },
+          })
+          return { requirements: [r] }
+        }).catch((err: unknown) => {
+          reject('reqboard_accept_sheet 归档失败：' + ((err as Error).message ?? String(err)), (err as { code?: string }).code ?? 'REQBOARD_STORE_INCONSISTENT')
+        })
+        const movedReq = moved.changed.requirements[0]
+        return {
+          success: true, recorded: 0, pending: 0, passed, failed: 0,
+          archived: true, status: movedReq?.status ?? 'archived',
+          note: '✅ 验收通过 → 已归档：请调 reqboard_archive_submit 补归档材料（目录/清单/合并去向/索引）',
+        }
+      }
+
+      const pendingItems = sheet.items.filter(i => i.status === 'pending').slice(0, batchSize)
+      if (pendingItems.length === 0) {
+        const passedN = sheet.items.filter(i => i.status === 'passed').length
+        const failedN = sheet.items.filter(i => i.status === 'failed').length
+        const fin = await finalizeIfAllPassed(passedN, failedN)
+        if (fin !== undefined) return fin as never
+        return {
+          success: true, requirement_id: targetReq.id, sheet_version: sheet.version,
+          recorded: 0, pending: 0, passed: passedN, failed: failedN,
+          note: failedN > 0 ? '有未过项：需求已打回返工（修复后重交验收单，v2 只验未过项）' : '全部已裁决（等待验收通过）',
+        } as never
+      }
+
+      if (!deps.questions.available()) {
+        return {
+          success: false, fallback: 'board',
+          note: '弹框通道不可用（userQuestions 服务缺失）：请用户到项目看板验收面板逐项勾选（看板通道等效）',
+        } as never
+      }
+      const OPT_PASS = '✅ 通过'
+      const OPT_FIX = '🛠 改进（需修改）'
+      const OPT_OTHER = '❓ 其他'
+      let answers: { id?: string; selected?: string[]; custom?: string }[] = []
+      try {
+        answers = [...await deps.questions.ask(pendingItems.map(it => ({
+            id: it.id,
+            header: it.source.kind === 'requirement' ? '需求级验收' : ('验收项 ' + it.source.taskId),
+            question: it.criterion + (it.evidence.length > 0 ? '\n（证据：' + it.evidence.slice(0, 2).join('；') + '）' : ''),
+            options: [
+              { label: OPT_PASS, description: '该验收项通过' },
+              { label: OPT_FIX, description: '需修改——请在自定义输入写意见' },
+              { label: OPT_OTHER, description: '其他结论——请在自定义输入说明' },
+            ],
+          })), {
+          ...(exec.agent !== undefined ? { agent: exec.agent } : {}),
+          signal: (exec as { signal?: unknown }).signal,
+        })]
+      } catch (err) {
+        const code = (err as { code?: string }).code ?? ''
+        if (code === 'DELEGATED_CALLER' || code === 'CALLER_NOT_LIVE') {
+          return { success: false, fallback: 'board', note: '当前调用方无弹框权限：请用户到项目看板验收面板逐项勾选' } as never
+        }
+        return { success: false, note: '用户未作答（取消/暂离）：未记录任何裁决，稍后可重新调用' } as never
+      }
+
+      const byId = new Map(answers.map(ans => [ans.id ?? '', ans]))
+      const verdicts: { itemId: string; status: 'passed' | 'failed'; opinion?: string }[] = []
+      for (const it of pendingItems) {
+        const ans = byId.get(it.id)
+        if (ans === undefined) continue // 未作答 → 保持 pending（挂起点）
+        const picked = ans.selected?.[0] ?? ''
+        const custom = (ans.custom ?? '').trim()
+        if (picked === OPT_PASS) {
+          verdicts.push({ itemId: it.id, status: 'passed' })
+        } else {
+          const opinion = custom.length > 0 ? custom : (picked.replace(/^[^\w\u4e00-\u9fa5]+/, '') || '需修改')
+          verdicts.push({ itemId: it.id, status: 'failed', opinion })
+        }
+      }
+      if (verdicts.length === 0) {
+        return { success: false, note: '用户未选择任何项：未记录裁决（挂起）' } as never
+      }
+
+      const nowTs = deps.clock.now()
+      const result = await deps.repo.mutate('requirement-updated', (ledger) => {
+        try {
+          const applied = applyVerdicts(
+            ledger, targetReq.id, sheet.version, verdicts,
+            { kind: 'human', sessionId: windowKey }, nowTs, () => deps.ids.comment(),
+          )
+          return { requirements: [applied.requirement], tasks: applied.reworkTasks }
+        } catch (err) {
+          reject('reqboard_accept_sheet 记录失败：' + ((err as Error).message ?? String(err)), (err as { code?: string }).code ?? 'REQBOARD_INVALID_INPUT')
+        }
+      })
+      const changed = result.changed.requirements[0]
+      if (changed === undefined) reject('reqboard_accept_sheet 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
+      const after = deps.repo.snapshot().requirements.find(r => r.id === targetReq.id)
+      const s = after?.verification?.sheet
+      const pending = s?.items.filter(i => i.status === 'pending').length ?? 0
+      const failed = s?.items.filter(i => i.status === 'failed').length ?? 0
+      const reworkIds = result.changed.tasks.map(t => t.id)
+      // 本批记录后若已全过 → 直接接着弹最终「验收通过并归档」确认（闭环）
+      if (pending === 0 && failed === 0 && reworkIds.length === 0) {
+        const fin2 = await finalizeIfAllPassed(s?.items.filter(i => i.status === 'passed').length ?? 0, 0)
+        if (fin2 !== undefined) return fin2 as never
+      }
+      return {
+        success: true,
+        requirement_id: targetReq.id,
+        sheet_version: sheet.version,
+        recorded: verdicts.length,
+        pending,
+        passed: s?.items.filter(i => i.status === 'passed').length ?? 0,
+        failed,
+        ...(reworkIds.length > 0 ? { rework_tasks: reworkIds } : {}),
+        note: reworkIds.length > 0
+          ? '有不通过项：需求已打回 implementing，生成 ' + reworkIds.length + ' 个返工任务；修复后重新 verify_submit（v2 只含未过项）'
+          : (pending > 0
+              ? '本批已记录（剩 ' + pending + ' 项待验）：再次调 reqboard_accept_sheet 从断点继续'
+              : '全部通过 → 请点「验收通过」归档（人工门）'),
+      } as never
+    }

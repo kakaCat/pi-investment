@@ -4,8 +4,8 @@
  * capture.ts systemPrompt 组装注入（boundSectionText）、跳过阶段不注入。
  */
 import { describe, it, expect } from 'vitest'
-import { STAGE_PROMPTS, stagePromptFor } from '../src/host/stage-prompts.js'
-import { boundSectionText } from '../src/host/capture.js'
+import { STAGE_PROMPTS, stagePromptFor } from '../src/domain/stage/StagePromptSpec.js'
+import { boundSectionText } from '../src/application/internal/capture-section.js'
 import { ALL_STAGE_PROMPT_KEYS, emptyLedger, type ReqboardLedger, type RequirementRecord } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'

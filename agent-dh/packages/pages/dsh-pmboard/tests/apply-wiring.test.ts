@@ -80,27 +80,24 @@ describe('dsh-pmboard apply() 宿主接线（乙流程装配冒烟）', () => {
     expect(text).toContain('reqboard_create')
   })
 
-  it('注册全部 agent 工具（含 REQ-ff20ca 新增的 requirement_submit / confirm_artifact）', () => {
+  it('注册全部 agent 工具（REQ-47939a t8：13→9 收敛后的 9 个入口）', () => {
     const ctx = stubCtx()
     apply(ctx, { dshHome: dir })
     const names = ctx.tools.map(t => t.name).sort()
     expect(names).toEqual([
       'reqboard_accept_sheet',
-      'reqboard_archive_submit',
+      // CONFIRM：ask_confirm + confirm_artifact 合并（evidence 路径自动分派）
       'reqboard_ask_confirm',
-      // REQ-ff20ca t2：会话确认落章（四道人工确认门通用）
-      'reqboard_confirm_artifact',
       'reqboard_create',
       'reqboard_decompose',
       'reqboard_move',
-      'reqboard_plan_submit',
-      // REQ-ff20ca t1：需求文档产物登记（补 brainstorming 阶段缺口）
-      'reqboard_requirement_submit',
       'reqboard_status',
+      // SUBMIT：requirement_submit / plan_submit / verify_submit / archive_submit 合并（kind 分派）
+      'reqboard_submit',
       'reqboard_task_move',
       'reqboard_task_report',
-      'reqboard_verify_submit',
     ])
+    expect(names).toHaveLength(9)
   })
 
   it('注册看板路由：/dashboard/api/reqboard 前缀', () => {

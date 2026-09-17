@@ -3,7 +3,7 @@
  * 用户反馈「agent 自己不能推进吗」——窗口必须能从工具输出里直接看到可推进项。
  */
 import { describe, it, expect } from 'vitest'
-import { defineStatusTool } from '../src/host/agent-tools.js'
+import { defineStatusTool } from './helpers/tool-deps.js'
 import { emptyLedger, type ReqboardLedger, type RequirementRecord } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'

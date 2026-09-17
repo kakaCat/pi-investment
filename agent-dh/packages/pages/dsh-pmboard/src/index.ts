@@ -13,12 +13,14 @@
 import { Context } from '@deepseek-ai/cordis';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { ReqboardStore } from './host/store.js';
-import { createReqboardHandler } from './host/routes.js';
-import { captureSectionText, boundSectionText, windowKeyFromContext, draftRequirementsFor } from './host/capture.js';
-import { applyPickupAdvance, applyPickupReconcile, applyTaskRollup } from './host/rollup.js';
+import { JsonLedgerRepository as ReqboardStore } from './adapters/JsonLedgerRepository.js';
+import { createReqboardHandler } from './http/routes.js';
+import { captureSectionText, boundSectionText } from './application/internal/capture-section.js';
+import { windowKeyFromContext, draftRequirementsFor } from './application/internal/window.js';
+import { applyPickupAdvance, applyPickupReconcile, applyTaskRollup } from './application/internal/rollup.js';
 import { newCommentId, type RequirementRecord } from './shared/protocol.js';
-import { createSessionEventCaptureHook, type CaptureHookDeps, type ToolTraceEntry } from './host/capture-hook.js';
+import { createSessionEventCaptureHook, type CaptureHookDeps } from './adapters/CaptureHook.js';
+import type { ToolTraceEntry } from './adapters/SessionProbeAdapter.js';
 
 import {
   defineCreateTool,
@@ -26,15 +28,17 @@ import {
   defineMoveTool,
   defineDecomposeTool,
   defineTaskMoveTool,
-  definePlanSubmitTool,
-  defineRequirementSubmitTool,
-  defineConfirmArtifactTool,
+  defineTaskReportTool,
+  defineSubmitTool,
   defineAskConfirmTool,
   defineAcceptSheetTool,
-  defineVerifySubmitTool,
-  defineArchiveSubmitTool,
-  defineTaskReportTool,
-} from './host/agent-tools.js';
+} from './tools/index.js';
+import { FileDocRepository } from './adapters/FileDocRepository.js';
+import { SystemClock } from './adapters/SystemClock.js';
+import { RandomIdFactory } from './adapters/RandomIdFactory.js';
+import { UserQuestionsAdapter } from './adapters/UserQuestionsAdapter.js';
+import { SessionProbeAdapter } from './adapters/SessionProbeAdapter.js';
+import type { UseCaseDeps } from './application/ports.js';
 
 export const name = 'dsh-pmboard';
 
@@ -125,7 +129,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   // 工具痕迹表（REQ-2e9473 t05）：窗口 → tool/call 事件序列，done 凭证门（t06）读取。
   const toolTrace = new Map<string, ToolTraceEntry[]>();
   // 最近用户消息缓冲（REQ-2e9473 t10）：窗口 → 清洗后用户消息，confirm_artifact 文字确认核验读取。
-  const recentUserMsgs = new Map<string, import('./host/capture-hook.js').RecentUserMsg[]>();
+  const recentUserMsgs = new Map<string, import('./adapters/SessionProbeAdapter.js').RecentUserMsg[]>();
   const captureHookDeps: CaptureHookDeps = {
     snapshot: () => store.snapshot(),
     pending: pendingCapture,
@@ -197,36 +201,39 @@ export function apply(ctx: Context, config?: PluginConfig): void {
 
   // agent 工具：reqboard_create（先两问弹框确认、用户作答即立项 → 直接建 REQ）/
   // reqboard_status（窗口绑定状态，立项前自查）。direct-human 门在工具内认证。
-  const toolDeps = {
-    store,
-    now,
-    agents: () => agentsSvc,
-    sessionProjections: () => projectionsSvc,
-    toolTrace,
-    recentUserMsgs,
-    userQuestions: () => userQuestionsSvc,
+  // 用例依赖（REQ-47939a t8）：组合根装配 adapters → application 用例；工具壳只做协议转换。
+  const useCaseDeps: UseCaseDeps = {
+    repo: store,
+    docs: new FileDocRepository(),
+    clock: new SystemClock(),
+    ids: new RandomIdFactory(),
+    session: new SessionProbeAdapter({
+      toolTrace,
+      recentUserMsgs,
+      agents: () => agentsSvc,
+      sessionProjections: () => projectionsSvc,
+      now,
+    }),
+    questions: new UserQuestionsAdapter(() => userQuestionsSvc),
   };
   ;(ctx as unknown as { inject?: (services: string[], cb: (c: any) => void) => void }).inject?.(
     ['tools'],
     (toolsCtx: { effect?: (fn: () => void, label?: string) => void; tools?: any }) => {
       toolsCtx.effect?.(() => {
-        disposers.push(toolsCtx.tools.register(defineCreateTool(toolDeps)));
-        disposers.push(toolsCtx.tools.register(defineStatusTool(toolDeps)));
-        disposers.push(toolsCtx.tools.register(defineMoveTool(toolDeps)));
-        disposers.push(toolsCtx.tools.register(definePlanSubmitTool(toolDeps)));
-    disposers.push(toolsCtx.tools.register(defineRequirementSubmitTool(toolDeps)));
-    disposers.push(toolsCtx.tools.register(defineConfirmArtifactTool(toolDeps)));
-        disposers.push(toolsCtx.tools.register(defineAskConfirmTool(toolDeps)));
-        disposers.push(toolsCtx.tools.register(defineAcceptSheetTool(toolDeps)));
-        disposers.push(toolsCtx.tools.register(defineDecomposeTool(toolDeps)));
-        disposers.push(toolsCtx.tools.register(defineTaskMoveTool(toolDeps)));
-        disposers.push(toolsCtx.tools.register(defineVerifySubmitTool(toolDeps)));
-        disposers.push(toolsCtx.tools.register(defineArchiveSubmitTool(toolDeps)));
-        disposers.push(toolsCtx.tools.register(defineTaskReportTool(toolDeps)));
+        // 9 个工具（REQ-47939a t8：13→9 收敛后）
+        disposers.push(toolsCtx.tools.register(defineCreateTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineStatusTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineMoveTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineDecomposeTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineTaskMoveTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineTaskReportTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineSubmitTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineAskConfirmTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineAcceptSheetTool(useCaseDeps)));
       }, name + ': tools');
       logger.info(
-        'agent tools registered: reqboard_create / reqboard_status / reqboard_move / reqboard_plan_submit / reqboard_requirement_submit / reqboard_confirm_artifact / '
-        + 'reqboard_decompose / reqboard_task_move / reqboard_task_report / reqboard_verify_submit / reqboard_archive_submit',
+        'agent tools registered (9): reqboard_create / reqboard_status / reqboard_move / reqboard_decompose / reqboard_task_move / '
+        + 'reqboard_task_report / reqboard_submit(kind) / reqboard_ask_confirm / reqboard_accept_sheet',
       );
     },
   );

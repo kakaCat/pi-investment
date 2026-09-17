@@ -32,14 +32,25 @@ tags: [standards, testing, gates]
 | 类型检查 | `cd agent-dh && npx tsc --noEmit`（与基线逐条比对**差异**，不是看绝对数） | 新引入的类型错误（基线噪声要与 main 对比） |
 | 产物校验 | `ls dist/... && grep -c <符号>` | 构建"假成功" |
 | 数据卫生探针 | `python3 quantsys-v2/scripts/data_hygiene_probe.py`（退出码 1 = 有问题） | 悬空引用 / 数据契约违约 |
-| 文档 wiki 探针 | `python3 agent-dh/scripts/wiki_probe.py` | 死链 / 孤儿页 / 缺 front-matter |
+| 文档 wiki 探针 | `cd <repo-root> && python3 agent-dh/scripts/wiki_probe.py`（**必须从仓库根跑**：从 `agent-dh/` 跑会把相对链接双前缀化，报出 `docs/INDEX.md -> work-logs/README.md` 这类**假死链**——实测 2 条，换 cwd 即消失） | 死链 / 孤儿页 / 缺 front-matter。判读要点：**只有"现行页"的死链/孤儿计数才计失败**，档案页（work-logs）的只报告不计失败；`exit=1` 可能来自历史档案缺 front-matter（与死链无关，别混为一谈） |
+| 文档索引重生 | `cd <repo-root> && python3 agent-dh/scripts/docs_index.py`（**必须从仓库根跑，且连跑两次**：首轮刷新 README 自动区会改变 INDEX 的输入，二轮才收敛） | 索引与文档不一致（探针会提示"跑一次"，但一次不够） |
+| 工具输出契约审计（全仓） | `node agent-dh/scripts/audit-tool-output-contract.mjs`（退出码 1 = 有可疑项；`--list` 自证覆盖） | 工具返回键未在 `output.schema` 声明 → 绑定层拒收，**副作用发生了但回执丢给调用方** |
+| 层边界机械检查（页面插件） | `cd packages/pages/dsh-pmboard && npx vitest run tests/layer-boundary.test.ts` | 依赖方向倒置 / 适配层复写状态判断 |
 
 ## 依据
 
 - 字段假设事故：多处"解析失败 → 静默回退默认值 → 看起来在工作"；
 - 金丝雀还原路径必败未被发现（无故障注入）；
 - dist 陈旧时"源码测试全绿但线上没有该工具"的误判；
-- 样本不足（4 < 7）时自动蒸馏给的结论被规则层拒绝采纳（R-016）。
+- 样本不足（4 < 7）时自动蒸馏给的结论被规则层拒绝采纳（R-016）；
+- **工具输出契约三次踩同一个坑**（2026-09-17，dsh-pmboard）：`output.schema` 是
+  `additionalProperties: false` 时，返回体多一个字段就被绑定层整条拒收——用户已经确认、
+  台账已经改了，agent 只收到一条 `invalid output` 错误。共 6 个工具中招（ask_confirm 的
+  `requirement_id`、move/decompose/task_move/confirm_artifact/verify_submit 的条件字段）。
+  两个教训：① 契约测试必须覆盖**成功路径**（此前只测拒绝路径，所以成功回执坏了没人知道）；
+  ② 静态扫描必须能看见**条件展开字段** `...(cond ? { k } : {})` 与**回调实参区**（mutate 回调
+  也 return 对象，但不属于工具响应）。两条都已固化为 `tests/output-contract.test.ts` 内
+  带自证断言的扫描器 + 本页的全仓审计脚本。
 
 ## 自检清单
 

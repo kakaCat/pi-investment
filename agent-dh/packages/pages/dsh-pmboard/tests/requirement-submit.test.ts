@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { defineRequirementSubmitTool } from '../src/host/agent-tools.js'
+import { defineRequirementSubmitTool } from './helpers/tool-deps.js'
 import { emptyLedger, type ReqboardLedger, type RequirementRecord } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'

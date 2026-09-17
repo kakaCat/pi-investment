@@ -7,8 +7,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ReqboardStore } from '../src/host/store.js'
-import { discoverArtifacts, kindForRelPath, syncReqArtifacts, syncAllReqArtifacts, reqDirRel } from '../src/host/sync-artifacts.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { discoverArtifacts, syncReqArtifacts, syncAllReqArtifacts, reqDirRel } from '../src/adapters/ArtifactSync.js'
+import { kindForRelPath } from '../src/domain/artifact/ArtifactSpec.js'
 import type { RequirementRecord, StageArtifact } from '../src/shared/protocol.js'
 
 let dir: string

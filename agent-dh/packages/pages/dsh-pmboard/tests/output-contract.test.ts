@@ -13,22 +13,26 @@
  * 第 ② 道是根治手段：① 只能覆盖测到的路径，漏掉的分支就是下次的事故。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, readdirSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ReqboardStore } from '../src/host/store.js'
-import * as agentTools from '../src/host/agent-tools.js'
-import {
-  defineArchiveSubmitTool, defineVerifySubmitTool, defineAskConfirmTool,
-} from '../src/host/agent-tools.js'
+import { fileURLToPath } from 'node:url'
+import { JsonLedgerRepository } from '../src/adapters/JsonLedgerRepository.js'
+import { FileDocRepository } from '../src/adapters/FileDocRepository.js'
+import { SystemClock } from '../src/adapters/SystemClock.js'
+import { RandomIdFactory } from '../src/adapters/RandomIdFactory.js'
+import { SessionProbeAdapter } from '../src/adapters/SessionProbeAdapter.js'
+import { UserQuestionsAdapter } from '../src/adapters/UserQuestionsAdapter.js'
+import * as toolModules from '../src/tools/index.js'
+import { defineSubmitTool, defineAskConfirmTool } from '../src/tools/index.js'
 import type { RequirementRecord } from '../src/shared/protocol.js'
 
 const W = 'session-oc-001'
 let root: string
-let store: ReqboardStore
+let store: JsonLedgerRepository
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'pmboard-outcontract-'))
-  store = new ReqboardStore({ file: join(root, 'dsh-reqboard.json') })
+  store = new JsonLedgerRepository({ file: join(root, 'dsh-reqboard.json') })
 })
 afterEach(() => { rmSync(root, { recursive: true, force: true }) })
 
@@ -42,8 +46,17 @@ async function seed(status: string, extra: Record<string, unknown> = {}): Promis
   } as unknown as RequirementRecord
   await store.mutate('seed', (l) => { l.requirements.push(r); return { requirements: [r] } })
 }
-const depsWith = (extra: Record<string, unknown> = {}) =>
-  ({ store, now: () => Date.now(), doneThrottleMs: 0, ...extra }) as never
+/** 真适配器构造 UseCaseDeps（t8 起工具壳吃 application 端口，不再吃旧的 ReqboardToolDeps）。 */
+const depsWith = (extra: { userQuestions?: unknown } = {}) =>
+  ({
+    repo: store,
+    docs: new FileDocRepository(),
+    clock: new SystemClock(),
+    ids: new RandomIdFactory(),
+    session: new SessionProbeAdapter({}),
+    questions: new UserQuestionsAdapter(() => extra.userQuestions),
+    doneThrottleMs: 0,
+  }) as never
 const run = (tool: any, args: unknown) => tool.execute(args, { agent: { id: W } })
 
 /** 工具声明的输出字段集合。 */
@@ -171,7 +184,7 @@ function matchPair(src: string, start: number, open: string, close: string): num
  */
 function callbackSpans(src: string): [number, number][] {
   const spans: [number, number][] = []
-  const re = /(?:\.map|\.filter|\.forEach|\.catch|\.then|store\.mutate)\s*\(/g
+  const re = /(?:\.map|\.filter|\.forEach|\.catch|\.then|\.mutate)\s*\(/g
   let m: RegExpExecArray | null
   while ((m = re.exec(src)) !== null) {
     const open = m.index + m[0].length - 1
@@ -227,10 +240,11 @@ describe('输出契约：返回字段 ⊆ output.schema 声明', () => {
     mkdirSync(reqDir, { recursive: true })
     writeFileSync(join(reqDir, 'requirement.md'), 'x')
     writeFileSync(join(reqDir, 'prototype.html'), 'x') // 未列入清单 → warning 路径
-    const tool = defineArchiveSubmitTool(depsWith())
+    const tool = defineSubmitTool(depsWith())
     let out: any
     try {
       out = await run(tool, {
+        kind: 'archive',
         dir: 'docs/requirements/' + REQ,
         docs: [
           { kind: 'requirement', path: 'docs/requirements/' + REQ + '/requirement.md' },
@@ -251,8 +265,8 @@ describe('输出契约：返回字段 ⊆ output.schema 声明', () => {
 
   it('verify_submit（含 sheet 摘要路径）', async () => {
     await seed('implementing')
-    const tool = defineVerifySubmitTool(depsWith())
-    const out = await run(tool, { summary: '交付', evidence: ['npx vitest run 全绿'] })
+    const tool = defineSubmitTool(depsWith())
+    const out = await run(tool, { kind: 'verification', summary: '交付', evidence: ['npx vitest run 全绿'] })
     assertKeysDeclared(tool, out, 'verify_submit')
   })
 
@@ -261,7 +275,7 @@ describe('输出契约：返回字段 ⊆ output.schema 声明', () => {
       artifacts: [{ kind: 'requirement', path: 'docs/requirements/' + REQ + '/requirement.md' }],
     })
     const uq = { ask: async () => ({ answers: [{ id: 'confirm', selected: ['好'] }] }) }
-    const tool = defineAskConfirmTool(depsWith({ userQuestions: () => uq }))
+    const tool = defineAskConfirmTool(depsWith({ userQuestions: uq }))
     const out = await run(tool, { target: 'artifact', kind: 'requirement', question: '确认？', options: ['好', '不'] })
     assertKeysDeclared(tool, out, 'ask_confirm(success)')
     expect((out as any).confirmed).toBe(true)
@@ -273,7 +287,7 @@ describe('输出契约：返回字段 ⊆ output.schema 声明', () => {
       artifacts: [{ kind: 'requirement', path: 'docs/requirements/' + REQ + '/requirement.md' }],
     })
     const uq = { ask: async () => ({ answers: [{ id: 'confirm', selected: ['不'] }] }) }
-    const tool = defineAskConfirmTool(depsWith({ userQuestions: () => uq }))
+    const tool = defineAskConfirmTool(depsWith({ userQuestions: uq }))
     const out = await run(tool, { target: 'artifact', kind: 'requirement', question: '确认？', options: ['好', '不'] })
     assertKeysDeclared(tool, out, 'ask_confirm(declined)')
     expect((out as any).confirmed).toBe(false)
@@ -288,26 +302,67 @@ describe('输出契约：返回字段 ⊆ output.schema 声明', () => {
   })
 })
 
-describe('输出契约·静态扫描：每个工具的全部 return 分支键都必须已声明', () => {
-  const source = readFileSync(new URL('../src/host/agent-tools.ts', import.meta.url), 'utf8')
-  // 工具工厂：export function define<Name>Tool(deps: ReqboardToolDeps)
-  const re = /export function define(\w+)Tool\(deps: ReqboardToolDeps\)/g
-  const sites: { name: string; at: number }[] = []
-  let m: RegExpExecArray | null
-  while ((m = re.exec(source)) !== null) sites.push({ name: m[1]!, at: m.index })
+/** 递归列出目录下全部 .ts（扫描器覆盖全部工具文件，而非只读一个文件）。 */
+function listTs(dir: string): string[] {
+  if (!existsSync(dir)) return []
+  const out: string[] = []
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name)
+    if (e.isDirectory()) out.push(...listTs(p))
+    else if (e.name.endsWith('.ts')) out.push(p)
+  }
+  return out
+}
 
-  it('至少发现 13 个工具工厂（防止扫描器自身失效而静默通过）', () => {
-    expect(sites.length).toBeGreaterThanOrEqual(13)
+/**
+ * 工具工厂 → 其响应体所在源文件（t8 起工具壳只委托用例，响应字面量在 application 用例里）。
+ * 新增工具必须在此补映射，否则该工具的契约检查会因缺映射而红。
+ */
+const RESPONSE_SOURCES: Record<string, string[]> = {
+  Create: ['application/use-cases/CreateRequirement.ts'],
+  Status: ['application/query/QueryState.ts'],
+  Move: ['application/use-cases/MoveRequirement.ts'],
+  Decompose: ['application/use-cases/Decompose.ts'],
+  TaskMove: ['application/use-cases/MoveTask.ts'],
+  TaskReport: ['application/use-cases/ReportTask.ts'],
+  Submit: [
+    'application/use-cases/SubmitArtifact.ts',
+    'application/use-cases/SubmitVerification.ts',
+    'application/use-cases/SubmitArchive.ts',
+  ],
+  AskConfirm: ['application/use-cases/AskConfirm.ts', 'application/use-cases/ConfirmArtifact.ts'],
+  AcceptSheet: ['application/use-cases/AcceptSheet.ts'],
+}
+
+describe('输出契约·静态扫描：每个工具的全部 return 分支键都必须已声明', () => {
+  const ROOT = fileURLToPath(new URL('../src', import.meta.url))
+  const toolFiles = listTs(join(ROOT, 'tools'))
+  // 工具工厂：export function define<Name>Tool(deps: UseCaseDeps)
+  const re = /export function define(\w+)Tool\(deps: UseCaseDeps\)/g
+  const sites: { name: string; file: string; at: number }[] = []
+  for (const f of toolFiles) {
+    const text = readFileSync(f, 'utf8')
+    let mm: RegExpExecArray | null
+    while ((mm = re.exec(text)) !== null) sites.push({ name: mm[1]!, file: f, at: mm.index })
+  }
+
+  it('扫描器覆盖全部工具文件，且至少发现 9 个工具工厂（少一个即红——防退化为只覆盖部分）', () => {
+    // 遍历 src/tools/**/*.ts：覆盖下限 9；t9 删除 host/agent-tools.ts 后本扫描不受影响
+    expect(toolFiles.length).toBeGreaterThanOrEqual(9)
+    expect(sites.length).toBeGreaterThanOrEqual(9)
+    // 工厂名唯一（同名的第二个工具会静默覆盖第一个）
+    expect(new Set(sites.map(s => s.name)).size).toBe(sites.length)
   })
 
   for (const site of sites) {
     it('define' + site.name + 'Tool：所有 return 分支键均已声明', () => {
-      const next = sites.find(s => s.at > site.at)
-      const body = source.slice(site.at, next === undefined ? source.length : next.at)
-      const keys = returnKeys(body)
+      const srcs = RESPONSE_SOURCES[site.name]
+      expect(srcs, 'define' + site.name + 'Tool 缺少响应源映射（新增工具必须补 RESPONSE_SOURCES）').toBeDefined()
+      const keys: string[] = [...returnKeys(readFileSync(site.file, 'utf8'))]
+      for (const rel of srcs ?? []) keys.push(...returnKeys(readFileSync(join(ROOT, rel), 'utf8')))
       // 扫描器可信度：每个工具体至少应抓到一个键
       expect(keys.length, 'define' + site.name + 'Tool 未扫到任何 return 键，扫描器可能失效').toBeGreaterThan(0)
-      const factory = (agentTools as unknown as Record<string, (d: unknown) => any>)['define' + site.name + 'Tool']
+      const factory = (toolModules as unknown as Record<string, (d: unknown) => any>)['define' + site.name + 'Tool']
       expect(typeof factory, 'define' + site.name + 'Tool 未导出').toBe('function')
       const declared = declaredKeys(factory({} as never))
       const missing = [...new Set(keys)].filter(k => !declared.has(k))

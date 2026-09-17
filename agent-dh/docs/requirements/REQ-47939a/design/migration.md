@@ -15,6 +15,35 @@
 | 含 `artifacts` 的需求 | 17 |
 | 含 `verification.sheet` 的需求 | 0（历史需求的验收单未落 ledger，落在 verification 记录内） |
 
+## 1.1 冻结样本实测（2026-09-17，t10 前置）
+
+已把当时台账冻结为 `packages/pages/dsh-pmboard/tests/fixtures/ledger-v4-sample.json`（**t10 测试的稳定输入**；运行中的台账每推进一个需求就变，晚冻等于没有基准）：
+
+| 实测项 | 值 |
+|--------|----|
+| schemaVersion / revision | 4 / 889 |
+| requirements / tasks / triages | 34 / 97 / 2 |
+| 文件大小 | 778,743 B |
+| 需求状态分布 | done 18 · archived 8 · planning 6 · decomposing 1 · implementing 1 |
+| 含 `statusHistory` | **34 / 34** |
+| 含 `plan` / 含 `verification.sheet` | 17 / **1** |
+| 含 `projectId`/`parentId` | **0** |
+| tasks 含 `scope` | **97 / 97** |
+| `dependsOn` 悬空引用 | **0** |
+
+**结论（修正下列变更的预期影响，避免 t10 去追不存在的数据变更）**：
+
+| 变更 | 文档原预期 | 实测影响 |
+|------|-----------|---------|
+| C3 删 legacy 状态别名 | 需归一历史状态名 | **空操作**（状态分布全是现行名） |
+| C4 `statusHistory` 必填 | 需 backfill | **空操作**（34/34 已存在） |
+| C6 删 `projectId`/`parentId` | 需删字段 | **空操作**（0 条含这些字段——它们从来只是类型声明，没落过盘） |
+| C7 `sheet.items[].source` 判别联合 | 全量改写 | 仅 **1** 条需求有 sheet |
+| C8 `task.scope` 补默认 | 需补 | **空操作**（97/97 已有） |
+| C9 剔除悬空依赖 | 需剔 | **空操作**（0 条悬空） |
+
+**这反而印证了 v5 的价值定位**：它的收益主要在**代码删除**（C3/C4 让读路径的兼容分支可以整块删掉），而不在数据搬迁——所以 A4「白名单外 diff = 0」应当**轻松通过**，而真正需要证据的是"删掉兼容分支后旧台账仍可读"这一点（必须用冻结样本回归，不能只看新写入的台账）。守卫仍然按 §4 逐路径校验，不得因为"看起来不会变"就跳过校验。
+
 ## 2. v5 变更清单（每项都有理由与证据）
 
 | # | 变更 | 理由 / 证据 |
@@ -43,12 +72,21 @@
 ⑤ 复核      重新加载 → 断言 schemaVersion=5 且记录数 34/84/2 不变 → 写 migration-report.md
 ```
 
-**脚本**：`packages/pages/dsh-pmboard/scripts/migrate-ledger.mjs`（Node 内置模块，不依赖 tsx，可在实例停机时执行）
+**脚本**：`packages/pages/dsh-pmboard/scripts/migrate-ledger.ts`（**经 tsx 运行**，见下方 D-8 裁定）
 ```
-node scripts/migrate-ledger.mjs --file <ledger> --dry-run     # 只报告
-node scripts/migrate-ledger.mjs --file <ledger> --apply       # 备份 + 迁移 + 复核
-node scripts/migrate-ledger.mjs --file <ledger> --verify      # 只核对现网台账是否已是 v5 且无损
+node --import tsx/esm packages/pages/dsh-pmboard/scripts/migrate-ledger.ts --file <ledger> --dry-run   # 只报告
+node --import tsx/esm packages/pages/dsh-pmboard/scripts/migrate-ledger.ts --file <ledger> --apply     # 备份 + 迁移 + 复核
+node --import tsx/esm packages/pages/dsh-pmboard/scripts/migrate-ledger.ts --file <ledger> --verify    # 只核对现网台账是否已是 v5 且无损
 ```
+
+### 3.1 D-8 裁定：脚本用 tsx 而非纯 .mjs（2026-09-17，实施前发现卡面自相矛盾）
+
+任务卡 t10 写"脚本用 Node 内置模块，不依赖 tsx"，同一份卡又要求"statusHistory 补齐**复用** backfill 算法"。两者不可同时成立：
+
+- 运行时补齐逻辑是 `shared/protocol.ts` 的 `backfillRequirementHistory` / `backfillTaskHistory` + 内部 `parseTransitionTarget`（从历史评论文本里反推状态转移）。纯 `.mjs` 无法 import TS，只能**重抄一份**——那就造出第二套时间线语义，恰是本仓反复吃过的亏（"同一状态两种相反定义=必然误判"）。
+- tsx 在本仓是既有运行方式（DSH 实例本身、`scripts/*.ts` 都走它），"实例停机时执行"不受影响——tsx 只是加载器，不需要实例在跑。
+
+**裁定：脚本用 `.ts` + `node --import tsx/esm` 运行，直接 import 运行时同一实现。** 卡面的"不依赖 tsx"按其目的（停机也能跑）作废，不按字面执行。此偏离记入 t10 汇报。
 脚本**幂等**：已是 v5 时 `--apply` 无操作并以 0 退出（可重跑）。
 
 ## 4. 校验口径（"无损"的可机械判定）

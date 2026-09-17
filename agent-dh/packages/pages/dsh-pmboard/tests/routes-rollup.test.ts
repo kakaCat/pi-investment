@@ -8,8 +8,8 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ReqboardStore } from '../src/host/store.js'
-import { createReqboardHandler } from '../src/host/routes.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { createReqboardHandler } from '../src/http/routes.js'
 
 let dir: string
 let store: ReqboardStore
@@ -97,7 +97,7 @@ describe('路由层自动推进（R2 实施完成 → 验收）', () => {
     await post(handler, '/req/move', { id: reqId, to: 'brainstorming', actor: 'human' })
     await post(handler, '/req/move', { id: reqId, to: 'planning', actor: 'human' })
     // 提交计划并批准
-    const { definePlanSubmitTool, defineDecomposeTool } = await import('../src/host/agent-tools.js')
+    const { definePlanSubmitTool, defineDecomposeTool } = await import('./helpers/tool-deps.js')
     const planTool = definePlanSubmitTool({ store, now: () => Date.now() } as never)
     const decomposeTool = defineDecomposeTool({ store, now: () => Date.now() } as never)
     await planTool.execute({

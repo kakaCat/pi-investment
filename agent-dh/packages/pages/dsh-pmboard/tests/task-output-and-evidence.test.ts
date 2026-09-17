@@ -6,12 +6,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ReqboardStore } from '../src/host/store.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import {
   definePlanSubmitTool, defineDecomposeTool, defineTaskReportTool,
   defineTaskMoveTool, defineVerifySubmitTool, defineArchiveSubmitTool,
-} from '../src/host/agent-tools.js'
-import { recordToolTrace, type ToolTraceEntry } from '../src/host/capture-hook.js'
+} from './helpers/tool-deps.js'
+import { recordToolTrace, type ToolTraceEntry } from '../src/adapters/SessionProbeAdapter.js'
 import type { RequirementRecord, RequirementStatus } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
@@ -67,11 +67,11 @@ describe('任务文件上浮（t12）', () => {
     })
     await run(report, {
       task_id: 't-abc123', summary: '改了文件', completed: ['x'],
-      files_changed: ['packages/pages/dsh-pmboard/src/host/agent-tools.ts', 'docs/a.md'],
+      files_changed: ['packages/pages/dsh-pmboard/src/tools/StatusTool/StatusTool.ts', 'docs/a.md'],
     })
     const arts = store.snapshot().requirements[0].artifacts ?? []
     const outs = arts.filter(a => a.kind === 'task_output')
-    expect(outs.map(a => a.path).sort()).toEqual(['docs/a.md', 'packages/pages/dsh-pmboard/src/host/agent-tools.ts'])
+    expect(outs.map(a => a.path).sort()).toEqual(['docs/a.md', 'packages/pages/dsh-pmboard/src/tools/StatusTool/StatusTool.ts'])
   })
 })
 

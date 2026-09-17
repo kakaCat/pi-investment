@@ -11,17 +11,19 @@ import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  backfillRequirementHistory,
-  backfillTaskHistory,
   milestoneAt,
-  parseTransitionTarget,
   recordStatus,
   ALL_REQ_STATUSES,
   ALL_TASK_STATUSES,
   type RequirementRecord,
   type TaskRecord,
 } from '../src/shared/protocol.js'
-import { ReqboardStore } from '../src/host/store.js'
+import {
+  backfillRequirementHistory,
+  backfillTaskHistory,
+  parseTransitionTarget,
+} from '../src/domain/legacy/LegacyStatus.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 
 function req(over: Partial<RequirementRecord> = {}): RequirementRecord {
   return {
@@ -113,12 +115,14 @@ describe('backfill*（老记录时间线回填）', () => {
   })
 })
 
-describe('Store 加载迁移（v2 → v3）', () => {
+describe('Store 加载（t10 后读路径零 legacy 兼容）', () => {
   let dir: string
   beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'pmboard-migrate-')) })
   afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 
-  it('老台账装载即补时间线，且下一次写盘持久化', async () => {
+  // t10 硬约束：状态名归一与 statusHistory 回填**移出运行时读路径**（改由迁移脚本一次性固化）。
+  // 本用例锁死这条新契约（若有人把回填加回 load()，断言立即变红）。
+  it('老台账装载不再回填时间线；写盘按当前契约版本（5）落盘', async () => {
     const file = join(dir, 'dsh-reqboard.json')
     const legacy = {
       schemaVersion: 2,
@@ -136,14 +140,15 @@ describe('Store 加载迁移（v2 → v3）', () => {
     const store = new ReqboardStore({ file })
     await store.load()
     const loaded = store.snapshot().requirements[0]
-    expect(loaded.statusHistory?.map(e => e.status)).toEqual(['draft', 'brainstorming'])
-    // 触发一次写盘 → 回填结果持久化（不只是内存态）
+    // 读路径不再反推（此前 load() 会补 ['draft','brainstorming'] 并标 inferred）
+    expect(loaded.statusHistory).toBeUndefined()
+    // 触发一次写盘：未回填的状态原样保留，版本按当前契约常量落盘
     await store.mutate('requirement-updated', (ledger) => {
       ledger.requirements[0].title = '改名'
       return { requirements: [ledger.requirements[0]] }
     })
     const onDisk = JSON.parse(readFileSync(file, 'utf8'))
-    expect(onDisk.schemaVersion).toBe(4) // 2026-09-14 REQ-31e11f t1：schema 3→4
-    expect(onDisk.requirements[0].statusHistory).toHaveLength(2)
+    expect(onDisk.schemaVersion).toBe(5) // REQ-47939a t10 / C1：schema 4 → 5
+    expect(onDisk.requirements[0].statusHistory).toBeUndefined()
   })
 })

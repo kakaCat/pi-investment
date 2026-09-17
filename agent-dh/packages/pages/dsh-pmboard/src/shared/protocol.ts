@@ -9,17 +9,69 @@
  */
 
 // ---------------------------------------------------------------------------
+// 领域规则的唯一实现处迁至 src/domain/**（REQ-47939a t2）
+// ---------------------------------------------------------------------------
+// 本文件继续作为 host 与 client 共用的事实契约枢纽，但状态机 / 可证伪验收 / 产物规约的
+// **数据与判定**不再在这里定义，而是从 domain 单向再导出——客户端渲染"下一步可推进哪"
+// 与宿主判定用同一份表，消除"前端口径与后端口径漂移"（architecture.md §2 注释）。
+// 规则常量与类型从 domain 再导出后，既有 20 个引用方的 import 路径保持不变。
+import type { ActorKind, ActorRef } from '../domain/actor.js'
+import type { RequirementStatus, StageKey } from '../domain/requirement/RequirementStatus.js'
+import type { TaskStatus } from '../domain/task/TaskStatus.js'
+import type { RequirementCategory } from '../domain/requirement/Requirement.js'
+import type { ArtifactKind, ArchiveDoc, ArchiveDocRule } from '../domain/artifact/ArtifactSpec.js'
+import {
+  REQ_TRANSITIONS,
+  HUMAN_ONLY_REQ_TRANSITIONS,
+  SYSTEM_REQ_TRANSITIONS,
+  canReqTransition,
+  assertReqTransition,
+  agentNextActions,
+} from '../domain/requirement/RequirementStatus.js'
+import {
+  TASK_TRANSITIONS,
+  HUMAN_ONLY_TASK_TRANSITIONS,
+  SYSTEM_TASK_TRANSITIONS,
+  canTaskTransition,
+  assertTaskTransition,
+} from '../domain/task/TaskStatus.js'
+import { checkAcceptance, checkPlanTaskReferences } from '../domain/task/Acceptability.js'
+import type { VerificationItemSource } from '../domain/workflow/AcceptanceSheetSpec.js'
+import {
+  ALL_ARTIFACT_KINDS,
+  STAGE_ARTIFACT_REQUIREMENTS,
+  ARTIFACT_CONFIRM_GATES,
+  ARCHIVE_DOC_RULES,
+} from '../domain/artifact/ArtifactSpec.js'
+
+// 类型再导出（保持既有 import 路径）
+export type { ActorKind, ActorRef }
+export type { RequirementStatus, StageKey }
+export type { TaskStatus }
+export type { RequirementCategory }
+export type { ArtifactKind, ArchiveDoc, ArchiveDocRule }
+export type { VerificationItemSource }
+// 规则常量 / 判定函数再导出
+export {
+  REQ_TRANSITIONS,
+  HUMAN_ONLY_REQ_TRANSITIONS,
+  SYSTEM_REQ_TRANSITIONS,
+  canReqTransition,
+  assertReqTransition,
+  agentNextActions,
+}
+export {
+  TASK_TRANSITIONS,
+  HUMAN_ONLY_TASK_TRANSITIONS,
+  SYSTEM_TASK_TRANSITIONS,
+  canTaskTransition,
+  assertTaskTransition,
+}
+export { ALL_ARTIFACT_KINDS, STAGE_ARTIFACT_REQUIREMENTS, ARTIFACT_CONFIRM_GATES, ARCHIVE_DOC_RULES }
+
+// ---------------------------------------------------------------------------
 // Actors
 // ---------------------------------------------------------------------------
-
-/** 操作者：human=人在看板操作；agent=agent 会话；system=编排器 rollup 自动推进。 */
-export type ActorKind = 'human' | 'agent' | 'system'
-
-export interface ActorRef {
-  kind: ActorKind
-  /** agent 操作时的会话 id（审计用） */
-  sessionId?: string
-}
 
 // ---------------------------------------------------------------------------
 // 状态事件（时间线）
@@ -71,23 +123,7 @@ export function milestoneAt(record: { statusHistory?: StatusEvent[] }, status: s
 // Requirement 状态机（RFC 014 §3）
 // ---------------------------------------------------------------------------
 
-/**
- * 需求流水线 = superpowers 的三段式落成状态（2026-09-13 用户要求「需求从创建开始就有流程」）：
- *   立项 → 头脑风暴（brainstorming）→ 写计划（writing-plans）→ 拆分（落库 DAG）
- *        → 执行（executing-plans）→ 验收 → 完成 → 归档
- * 「计划待批」不是独立状态：它是 planning 的子状态（plan.approvedAt 未写入），看板用
- * 卡面 chip 表达——批准是拆分的前置闸门，不额外占一条泳道。
- */
-export type RequirementStatus =
-  | 'draft'         // 立项：想法落成需求卡
-  | 'brainstorming' // 头脑风暴：探索意图/边界/方案（原 reviewing）
-  | 'planning'      // 写计划：产出实施计划（文档 + 任务表），提交待人批准
-  | 'decomposing'   // 拆分：计划获批后落库任务 DAG
-  | 'implementing'  // 执行：按任务卡逐项执行（executing-plans）
-  | 'accepting'     // 验收
-  | 'done'          // 【legacy】历史"完成"态：REQ-9f4a44 起不再进入，仅用于老台账兼容读取
-  | 'archived'      // 归档
-  | 'canceled'
+// RequirementStatus 类型与状态机迁至 domain/requirement/RequirementStatus.ts（REQ-47939a t2）。
 
 /**
  * 流水线主状态（REQ-9f4a44：**移除 done**）。
@@ -100,64 +136,15 @@ export const MAIN_REQ_STATUSES: readonly RequirementStatus[] = [
   'draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'archived',
 ]
 
-/** 旧状态名迁移（2026-09-13：reviewing → brainstorming）。 */
-export const LEGACY_REQ_STATUS_ALIASES: Readonly<Record<string, RequirementStatus>> = {
-  reviewing: 'brainstorming',
-}
+// LEGACY_REQ_STATUS_ALIASES 已随迁移收口移出运行时契约（REQ-47939a t10）：
+// 别名表 + 历史时间线回填 + 旧状态名归一现在都在 src/domain/legacy/LegacyStatus.ts，
+// 只由迁移脚本/迁移用例复用；运行时读路径不再做别名兜底（数据已在 v5 迁移时归一）。
 
 /** 全部可读状态（含 legacy `done`）——用于载入校验，保证老台账不被丢弃。 */
 export const ALL_REQ_STATUSES: readonly RequirementStatus[] = [...MAIN_REQ_STATUSES, 'done', 'canceled']
 
-/** 需求状态合法转移表。 */
-export const REQ_TRANSITIONS: Readonly<Record<RequirementStatus, readonly RequirementStatus[]>> = {
-  draft: ['brainstorming', 'canceled'],
-  brainstorming: ['planning', 'draft', 'canceled'],
-  planning: ['decomposing', 'brainstorming', 'canceled'],
-  decomposing: ['implementing', 'planning', 'canceled'],
-  implementing: ['accepting', 'canceled'],
-  // REQ-9f4a44：验收通过 → 直接归档（无 done 中转）
-  accepting: ['archived', 'implementing', 'canceled'],
-  done: [], // 【legacy】不再进入，也不允许从它转出（历史记录保持原样）
-  canceled: ['draft', 'archived'],
-  archived: [],
-}
-
-/**
- * 人工闸门转移（代码级仅人）：方案确认 / 拆分确认 / 人工验收 / 归档。
- * 键格式 'from>to'。agent 与 system 对这些转移一律拒绝。
- */
-export const HUMAN_ONLY_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
-  // 2026-09-11 用户裁定：agent 必须能自己推进在途需求（此前「确认方案/确认拆分/
-  // 验收通过」都是人工闸门 → 每个需求都要人点两三次，看板实质静止）。
-  // 2026-09-14 用户裁定（REQ-31e11f，部分回调 09-11）：**五道人工确认门**——
-  // 产物存在 ≠ 人已审阅，关键节点产物必须人确认后才放行（看板一键确认+登记即通知
-  // 保流速）。新增两道在途硬门：需求文档（brainstorming>planning）、
-  // 拆分清单（decomposing>implementing）。
-  'brainstorming>planning', // 需求文档人工确认（五门之一）
-  'decomposing>implementing', // 拆分清单人工确认（五门之一）
-  'draft>canceled',
-  'brainstorming>canceled',
-  'decomposing>canceled',
-  'implementing>canceled',
-  'accepting>canceled', // 取消需求（破坏性）
-  // REQ-9f4a44：验收通过（人工审核）——agent 可提交验收材料，但"过"必须是人点的；
-  // 通过即直接归档（原先拆成 accepting>done + done>archived 两道，现合并为一道）。
-  'accepting>archived',
-  'canceled>archived', // 取消后归档
-])
-
-/**
- * system（rollup）允许自动推进的转移白名单：其余转移 system 一律不可发起。
- *  - draft>brainstorming       需求被窗口接手开工（有直接人类消息）的接手推进；
- *  - implementing>accepting 全部实施任务 done 的 rollup。
- * 人工闸门永不在本白名单内 —— 自动推进不可能越过人工闸门。
- * 2026-09-14：decomposing>implementing 已入人工门（五门裁定），从本白名单移除。
- */
-export const SYSTEM_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
-  'draft>brainstorming', // 窗口接手开工 → 进入头脑风暴（方案共创）
-  'planning>decomposing', // 计划已批准并落库任务 → 自动进入拆分态
-  'implementing>accepting', // 全部实施任务 done 的 rollup
-])
+// REQ_TRANSITIONS / HUMAN_ONLY_REQ_TRANSITIONS / SYSTEM_REQ_TRANSITIONS 迁至
+// domain/requirement/RequirementStatus.ts（REQ-47939a t2），本文件顶部再导出。
 
 /**
  * 会话 id → 窗口码（人类可读的短标识）。规则与 DSH 窗口编码一致：
@@ -170,38 +157,13 @@ export function windowCodeFromSessionId(sessionId: string): string {
   return `w-${head.slice(0, 8)}`
 }
 
-export function canReqTransition(from: RequirementStatus, to: RequirementStatus): boolean {
-  return REQ_TRANSITIONS[from].includes(to)
-}
-
-/**
- * 需求转移闸门校验。抛出带 code 的 Error：invalid_transition / human_gate / system_gate。
- */
-export function assertReqTransition(from: RequirementStatus, to: RequirementStatus, actor: ActorKind): void {
-  if (!canReqTransition(from, to)) {
-    throw Object.assign(new Error(`需求状态不允许从 ${from} 转移到 ${to}`), { code: 'invalid_transition' })
-  }
-  const key = `${from}>${to}`
-  if (HUMAN_ONLY_REQ_TRANSITIONS.has(key) && actor !== 'human') {
-    throw Object.assign(new Error(`转移 ${from} → ${to} 是人工闸门，仅人可操作`), { code: 'human_gate' })
-  }
-  if (actor === 'system' && !SYSTEM_REQ_TRANSITIONS.has(key)) {
-    throw Object.assign(new Error(`system 不可发起转移 ${from} → ${to}`), { code: 'system_gate' })
-  }
-}
+// canReqTransition / assertReqTransition 迁至 domain/requirement/RequirementStatus.ts（t2）。
 
 // ---------------------------------------------------------------------------
 // Task 状态机（RFC 014 §4）
 // ---------------------------------------------------------------------------
 
-export type TaskStatus =
-  | 'todo'        // 待办（自足任务卡落库）
-  | 'in_progress' // 进行中（执行会话绑定）
-  | 'integrating' // 联调（前后端汇合，可跳过）
-  | 'testing'     // 测试（单测输出证据）
-  | 'in_review'   // 验收（等人）
-  | 'done'        // 完成（仅人）
-  | 'canceled'
+// TaskStatus 类型与状态机迁至 domain/task/TaskStatus.ts（REQ-47939a t2）。
 
 export const MAIN_TASK_STATUSES: readonly TaskStatus[] = [
   'todo', 'in_progress', 'integrating', 'testing', 'in_review', 'done',
@@ -209,55 +171,8 @@ export const MAIN_TASK_STATUSES: readonly TaskStatus[] = [
 
 export const ALL_TASK_STATUSES: readonly TaskStatus[] = [...MAIN_TASK_STATUSES, 'canceled']
 
-export const TASK_TRANSITIONS: Readonly<Record<TaskStatus, readonly TaskStatus[]>> = {
-  todo: ['in_progress', 'canceled'],
-  // in_progress→testing 直通 = 跳过联调（skipIntegration 或人工跳过，均留痕）
-  in_progress: ['integrating', 'testing', 'todo', 'canceled'],
-  integrating: ['testing', 'in_progress', 'canceled'],
-  testing: ['in_review', 'in_progress', 'canceled'],
-  in_review: ['done', 'in_progress', 'canceled'],
-  done: [],
-  canceled: ['todo'],
-}
-
-/**
- * 任务人工闸门（代码级仅人）。
- * 2026-09-13 用户裁定（与需求闸门同一口径）：agent 必须能自己把任务跑完——
- * 此前 in_review>done 仅人可操作，而任务完成又驱动需求 rollup，导致任务卡停在
- * 「验收」、需求进不了验收，看板再次静止。现仅保留**取消/复活**这类破坏性动作
- * 为人工闸门，正常流水线（含任务完成）由执行窗口自行推进。
- */
-export const HUMAN_ONLY_TASK_TRANSITIONS: ReadonlySet<string> = new Set([
-  'todo>canceled',
-  'in_progress>canceled',
-  'integrating>canceled',
-  'testing>canceled',
-  'in_review>canceled',
-  'canceled>todo', // 复活已取消任务：仅人
-])
-
-/** system 允许的任务转移（执行结算用）：开始执行与退回。 */
-export const SYSTEM_TASK_TRANSITIONS: ReadonlySet<string> = new Set([
-  'todo>in_progress',
-  'in_progress>todo',
-])
-
-export function canTaskTransition(from: TaskStatus, to: TaskStatus): boolean {
-  return TASK_TRANSITIONS[from].includes(to)
-}
-
-export function assertTaskTransition(from: TaskStatus, to: TaskStatus, actor: ActorKind): void {
-  if (!canTaskTransition(from, to)) {
-    throw Object.assign(new Error(`任务状态不允许从 ${from} 转移到 ${to}`), { code: 'invalid_transition' })
-  }
-  const key = `${from}>${to}`
-  if (HUMAN_ONLY_TASK_TRANSITIONS.has(key) && actor !== 'human') {
-    throw Object.assign(new Error('任务验收（→ done）仅人可操作'), { code: 'human_gate' })
-  }
-  if (actor === 'system' && !SYSTEM_TASK_TRANSITIONS.has(key)) {
-    throw Object.assign(new Error(`system 不可发起任务转移 ${from} → ${to}`), { code: 'system_gate' })
-  }
-}
+// TASK_TRANSITIONS / HUMAN_ONLY_TASK_TRANSITIONS / SYSTEM_TASK_TRANSITIONS /
+// canTaskTransition / assertTaskTransition 迁至 domain/task/TaskStatus.ts（t2），顶部再导出。
 
 // ---------------------------------------------------------------------------
 // Task 分类字段
@@ -281,7 +196,8 @@ export function defaultNeedsIntegration(side: TaskSide): boolean {
 // ---------------------------------------------------------------------------
 
 /** 流水线节点键 = 需求主状态（除 canceled）。会话框进度条、节点详情、产物闸门共用。 */
-export type StageKey = Exclude<RequirementStatus, 'canceled'>
+// StageKey 类型迁至 domain/requirement/RequirementStatus.ts（t2），顶部再导出；ALL_STAGE_KEYS
+// 是 MAIN_REQ_STATUSES 的过滤投影，仍留在本文件（消费方为 CATEGORY_FLOW_PROFILES / asStageKey）。
 export const ALL_STAGE_KEYS: readonly StageKey[] = MAIN_REQ_STATUSES.filter((s): s is StageKey => s !== 'canceled')
 
 export function asStageKey(raw: unknown): StageKey {
@@ -291,12 +207,7 @@ export function asStageKey(raw: unknown): StageKey {
   return raw as StageKey
 }
 
-/**
- * 产物种类。前六类 = 六道节点必备产物（闸门依赖）；notes = 过程产物兜底
- * （REQ-2e9473 t11 自动发现：原型 html / 笔记等不属必备门禁的文件），不参与任何 stage 闸门。
- */
-export type ArtifactKind = 'requirement' | 'plan' | 'decomposition' | 'task_detail' | 'verification' | 'archive' | 'notes' | 'task_output'
-export const ALL_ARTIFACT_KINDS: readonly ArtifactKind[] = ['requirement', 'plan', 'decomposition', 'task_detail', 'verification', 'archive', 'notes', 'task_output']
+// ArtifactKind / ALL_ARTIFACT_KINDS 迁至 domain/artifact/ArtifactSpec.ts（t2），顶部再导出。
 
 export function asArtifactKind(raw: unknown): ArtifactKind {
   if (typeof raw !== 'string' || !(ALL_ARTIFACT_KINDS as readonly string[]).includes(raw)) {
@@ -333,28 +244,8 @@ export interface StageArtifact {
   fileSize?: number
 }
 
-/** 每节点必备产物（feature 全流水线基准；分类档案可再裁剪）。 */
-export const STAGE_ARTIFACT_REQUIREMENTS: Readonly<Partial<Record<StageKey, readonly ArtifactKind[]>>> = {
-  brainstorming: ['requirement'],
-  planning: ['plan'],
-  decomposing: ['decomposition'],
-  implementing: ['task_detail'], // 粒度=每任务一份 tasks/t-xxx.md；task_report 汇报追加
-  accepting: ['verification'],
-  archived: ['archive'],
-}
-
-/**
- * 五道人工确认门（2026-09-14 用户裁定）：'from>to' → 须已确认的产物 kind。
- * 语义：产物存在 ≠ 人已审阅——产物登记即发通知请人审阅，人看文档/交流改进后
- * 在看板一键确认（confirmedAt/confirmedBy），才放行对应转移。
- */
-export const ARTIFACT_CONFIRM_GATES: Readonly<Record<string, ArtifactKind>> = {
-  'brainstorming>planning': 'requirement',
-  'planning>decomposing': 'plan',
-  'decomposing>implementing': 'decomposition',
-  // REQ-9f4a44：验收通过 = 直接归档，故本门挂在 accepting>archived 上
-  'accepting>archived': 'verification',
-}
+// STAGE_ARTIFACT_REQUIREMENTS / ARTIFACT_CONFIRM_GATES 迁至 domain/artifact/ArtifactSpec.ts（t2），
+// 顶部再导出（CATEGORY_FLOW_PROFILES / confirmGateKindFor 仍在本文件消费它们）。
 
 /** 分类流程档案：不同立项分类走不同流程形状（跳过阶段不产生物/不设门/不注入提示词）。 */
 export interface CategoryFlowProfile {
@@ -487,9 +378,9 @@ export interface StageOverview {
   stages: StageDetail[]
 }
 
-/** 阶段提示词键（stage-prompts.ts 常量索引；注入点按它取词）。 */
-export type StagePromptKey = 'brainstorming' | 'planning' | 'decomposing' | 'implementing' | 'accepting' | 'archived'
-export const ALL_STAGE_PROMPT_KEYS: readonly StagePromptKey[] = ['brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'archived']
+// 阶段提示词键与常量表迁至 domain/stage/StagePromptSpec.ts（REQ-47939a t9），此处再导出。
+export type { StagePromptKey } from '../domain/stage/StagePromptSpec.js'
+export { ALL_STAGE_PROMPT_KEYS } from '../domain/stage/StagePromptSpec.js'
 
 /** 执行方式提示：该任务该换上下文执行（handoff 意图落成数据）。 */
 export type ExecutorHint = 'fresh-window' | 'subagent' | 'current'
@@ -573,8 +464,12 @@ export interface PlanRecord {
 export interface VerificationItem {
   /** 稳定 id（v1-1, v1-2…；跨版本复用时保留） */
   id: string
-  /** 来源：任务 id 或 'requirement'（需求级标准） */
-  source: string
+  /**
+   * 来源（v5 判别联合，migration.md C7）：任务项带 taskId，需求级项 kind='requirement'。
+   * 旧账本的字符串 source（任务 id / 'requirement'）不落在 ledger——实测含 sheet 的需求为 0，
+   * 故本类型不做字符串兼容读。
+   */
+  source: VerificationItemSource
   /** 验收标准原文（怎么算过） */
   criterion: string
   /** 该项对应的证据（产物路径/命令输出摘要/截图） */
@@ -629,12 +524,7 @@ export interface DocSyncPending {
   at: number
 }
 
-/** 归档材料里的一条文档。 */
-export interface ArchiveDoc {
-  /** requirement=需求说明 / plan=实施计划 / verification=验收材料 / retro=复盘 / notes=其他 */
-  kind: 'requirement' | 'plan' | 'verification' | 'retro' | 'notes'
-  path: string
-}
+// ArchiveDoc 类型迁至 domain/artifact/ArtifactSpec.ts（t2），顶部再导出。
 
 /**
  * 归档材料（agent 准备）+ 归档结论（人拍板）。
@@ -687,23 +577,8 @@ export function planApproved(req: { plan?: PlanRecord }): boolean {
   return req.plan !== undefined && req.plan.approvedAt !== undefined
 }
 
-/** 空话验收标准的显式黑名单（命中即拒，不管有没有锚点）。 */
-const VACUOUS_ACCEPTANCE = /^(功能)?正常$|^(没|无)问题$|一切正常|运行正常|正常使用|正常工作|没什么问题|看起来没问题/
-/** 可验证锚点：文件路径 / 命令 / 断言关键词——验收标准必须至少含一个，否则无法证伪。 */
-const VERIFIABLE_ANCHOR = /\.(ts|tsx|js|mjs|cjs|md|html|json|py|go|css)\b|\b(npx|npm|pnpm|vitest|node|curl|grep|python3?|bash)\b|通过|拒绝|报错|可见|显示|包含|返回|等于|失败|成功|截图|输出|存在|被拒|拦截|告警|提示|落库|推进|不变|一致|单测|全绿|绿/
-
-/** 验收标准可证伪校验（REQ-2e9473 t03）：空话打回。 */
-function assertVerifiableAcceptance(key: string, acceptance: string): void {
-  if (acceptance.length === 0) {
-    bad('计划任务 ' + key + ' 缺验收标准（acceptance）——"怎么算做完"必须可验证（跑什么命令、看什么输出/路径）')
-  }
-  if (VACUOUS_ACCEPTANCE.test(acceptance)) {
-    bad('计划任务 ' + key + ' 的验收标准是空话（"' + acceptance + '"）——必须可证伪：写清跑什么命令、看到什么算过（如"npx vitest run 全绿"、"详情页含 8 个进度点"）')
-  }
-  if (!VERIFIABLE_ANCHOR.test(acceptance)) {
-    bad('计划任务 ' + key + ' 的验收标准缺少可验证锚点（"' + acceptance + '"）——至少含一项：文件路径（.ts/.md/…）、命令（npx/vitest/curl/…）或断言（通过/拒绝/可见/包含/返回/一致/不变…）')
-  }
-}
+// VACUOUS_ACCEPTANCE / VERIFIABLE_ANCHOR 与可证伪判定迁至
+// domain/task/Acceptability.ts（REQ-47939a t2）：checkAcceptance(key, acceptance)。
 
 /** 计划任务表校验规整（key 唯一；phase/side 合法；标题非空；依赖只能指向**前面已定义**的计划内 key——落库按数组顺序解析，前向引用会在 decompose 时炸（REQ-2e9473 事故 G）；acceptance 可证伪；implementation 必填）。 */
 export function normalizePlanTasks(raw: unknown): PlanTask[] {
@@ -712,14 +587,12 @@ export function normalizePlanTasks(raw: unknown): PlanTask[] {
   // 两遍校验：第一遍结构（key 唯一/标题/字段规整），第二遍依赖与内容——
   // 保持"key 重复/依赖悬空"优先于"验收标准/实施方案缺失"的报错顺序（向后兼容）。
   const keys = new Set<string>()
-  const keyIndex = new Map<string, number>()
   const out: PlanTask[] = []
   raw.forEach((item, i) => {
     const o = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>
     const key = (typeof o.key === 'string' && o.key.trim().length > 0 ? o.key.trim() : 'k' + (i + 1)).slice(0, 40)
     if (keys.has(key)) bad('计划任务 key 重复：' + key)
     keys.add(key)
-    keyIndex.set(key, i)
     const description = o.description === undefined || o.description === null ? '' : String(o.description).trim().slice(0, 4000)
     const acceptance = o.acceptance === undefined || o.acceptance === null ? '' : String(o.acceptance).trim().slice(0, 2000)
     const implementation = o.implementation === undefined || o.implementation === null ? '' : String(o.implementation).trim().slice(0, 4000)
@@ -736,19 +609,12 @@ export function normalizePlanTasks(raw: unknown): PlanTask[] {
       ...(executorHint !== undefined ? { executorHint } : {}),
     })
   })
+  // 第二遍依赖引用校验（自依赖/悬空/前向引用）——规则在 domain/task/Acceptability.ts（t2）。
+  const refCheck = checkPlanTaskReferences(out.map(t => ({ key: t.key, dependsOn: t.dependsOn ?? [] })))
+  if (!refCheck.ok) bad(refCheck.reason)
   for (const t of out) {
-    for (const dep of t.dependsOn ?? []) {
-      if (dep === t.key) bad('计划任务 ' + t.key + ' 不能依赖自身')
-      if (!keys.has(dep)) bad('计划任务 ' + t.key + ' 依赖了计划中不存在的 key：' + dep)
-      // 事故 G：decompose 按任务表顺序把 key 解析为真实 id，前向引用解析不到 → invalid_dag
-      // 落库时才炸。提交时就把顺序问题打回，顺带给出修法。
-      if ((keyIndex.get(dep) ?? -1) > (keyIndex.get(t.key) ?? -1)) {
-        bad('计划任务 ' + t.key + ' 依赖了后定义的 key：' + dep + '（前向引用）——decompose 按任务表顺序解析依赖，请把被依赖任务排在前面')
-      }
-    }
-  }
-  for (const t of out) {
-    assertVerifiableAcceptance(t.key, t.acceptance ?? '')
+    const acc = checkAcceptance(t.key, t.acceptance ?? '')
+    if (!acc.ok) bad(acc.reason)
     if ((t.implementation ?? '').length === 0) {
       bad('计划任务 ' + t.key + ' 缺实施方案（implementation）——拆分卡 ≠ 实施卡：写清改哪些文件、步骤、验证方式，批准计划即批准怎么做')
     }
@@ -779,7 +645,7 @@ export interface ExecutionRecord {
   evidence?: string[]
 }
 
-export type RequirementCategory = 'feature' | 'bug' | 'doc' | 'refactor' | 'spike' | 'chore'
+// RequirementCategory 类型迁至 domain/requirement/Requirement.ts（t2），顶部再导出。
 export const ALL_REQ_CATEGORIES: readonly RequirementCategory[] = ['feature', 'bug', 'doc', 'refactor', 'spike', 'chore']
 
 export function asReqCategory(raw: unknown): RequirementCategory {
@@ -806,17 +672,18 @@ export interface RequirementRecord {
   reviewSessionId?: string
   /** 立项来源窗口（自动立项时写入；人工建卡不填）——窗口↔需求 n:n 的需求侧锚点 */
   sourceSessionId?: string
-  /** 项目分组锚点（预留：一个项目几个需求；字段就位、UI 暂忽略） */
-  projectId?: string
-  /** 父需求谱系（预留：大需求拆子需求） */
-  parentId?: string
+  // C6（REQ-47939a t10）：预留字段 projectId / parentId 已删除——全仓引用 0、从未落过盘，
+  // 只有类型声明会让读代码的人以为功能存在（design/migration.md §2 C6）。历史数据里若残留
+  // 这两个键，由迁移脚本删除（scripts/migrate-ledger.ts C6）。
   /** 节点产物登记（t4 钩子写入；五道人工确认门的确认状态在此） */
   artifacts?: StageArtifact[]
   /** 归档后的目录路径 */
   archivePath?: string
   /**
-   * 状态事件时间线（创建 + 每次转移一条）。老记录首次加载时由 backfill* 反推补齐
-   * （inferred=true），新转移一律实时写入真实事件。
+   * 状态事件时间线（创建 + 每次转移一条）。新转移一律实时写入真实事件；
+   * **老记录由 v4→v5 迁移一次性补齐**（inferred=true，算法见 domain/legacy/LegacyStatus.ts）——
+   * t10 起运行时读路径不再做回填（此前每次 load 都补，见 design/migration.md C4）。
+   * 仍标可选：未迁移的 v4 台账必须继续可载入（§5 兼容读策略）。
    */
   statusHistory?: StatusEvent[]
   /** 实施计划（plan mode）：拆分前提交、由人批准；未批准不允许拆分 */
@@ -902,7 +769,11 @@ export interface TaskRecord {
 // Ledger
 // ---------------------------------------------------------------------------
 
-export const REQBOARD_SCHEMA_VERSION = 4
+// C1（REQ-47939a t10）：账本契约版本 4 → 5。改的是**契约版本常量**，不是读路径兼容分支——
+// 迁移后文件里写的就是 5，常量必须与之一致，否则 load 会把 5 报告成 4、并在下一次写盘时把
+// 版本回退（迁移成果被静默抹掉）。⚠️ 运行时**不自动迁移**（见 design/migration.md §5）：
+// v4 台账仍可载入（字段缺失处按可选处理），迁移由人工跑 scripts/migrate-ledger.ts 完成。
+export const REQBOARD_SCHEMA_VERSION = 5
 
 export interface ReqboardLedger {
   schemaVersion: number
@@ -910,6 +781,11 @@ export interface ReqboardLedger {
   requirements: RequirementRecord[]
   tasks: TaskRecord[]
   triages: TriageRecord[]
+  /**
+   * 迁移留痕（C2，REQ-47939a t10）：这份台账何时被谁升到过哪个版本。
+   * 迁移脚本写入；运行时只读不写。
+   */
+  migrations?: { from: number; to: number; at: number; by: string }[]
 }
 
 export function emptyLedger(): ReqboardLedger {
@@ -1093,168 +969,16 @@ export function newTriageId(rand: () => number = Math.random): string {
   return `tri-${Math.floor(rand() * 0xffffff).toString(16).padStart(6, '0')}`
 }
 
-// ---------------------------------------------------------------------------
-// 历史回填（升级迁移：老记录没有事件表 → 从 createdAt + 评论留痕反推）
-// ---------------------------------------------------------------------------
-
-/**
- * 从评论正文解析转移目标状态。覆盖历史上的三种留痕格式：
- *   `[自动推进] draft → brainstorming：…`（rollup）
- *   `[窗口推进] brainstorming → decomposing：…`（reqboard_move 工具）
- *   `[状态] decomposing ← 转移说明：…`（需求路由 move，箭头指向新状态）
- *   `[状态] → in_progress：…`（任务路由 move）
- * 解析不出或状态非法 → undefined（宁缺毋滥，绝不猜）。
- */
-export function parseTransitionTarget(body: string, allowed: readonly string[]): string | undefined {
-  const candidates: Array<{ re: RegExp; group: number }> = [
-    { re: /\[(?:自动推进|窗口推进|人工推进)\]\s*\w+\s*→\s*(\w+)/, group: 1 },
-    { re: /\[状态\]\s*(\w+)\s*←/, group: 1 },
-    { re: /\[状态\]\s*→\s*(\w+)/, group: 1 },
-  ]
-  for (const { re, group } of candidates) {
-    const m = re.exec(body)
-    const hit = m?.[group]
-    if (hit !== undefined && allowed.includes(hit)) return hit
-  }
-  return undefined
-}
-
-function backfill(
-  record: { status: string; createdAt: number; updatedAt: number; createdBy: ActorRef; updatedBy: ActorRef; comments: CommentRecord[] },
-  initialStatus: string,
-  allowed: readonly string[],
-  statusHistory: StatusEvent[] | undefined,
-): StatusEvent[] | undefined {
-  if (statusHistory !== undefined && statusHistory.length > 0) return undefined
-  const events: StatusEvent[] = [
-    { status: initialStatus, at: record.createdAt, by: record.createdBy, reason: '创建', inferred: true },
-  ]
-  for (const c of [...record.comments].sort((a, b) => a.createdAt - b.createdAt)) {
-    const raw = parseTransitionTarget(c.body, allowed)
-    if (raw === undefined) continue
-    // 历史评论里可能写的是旧状态名（reviewing）——按别名表映射回新名，别丢历史
-    const target = LEGACY_REQ_STATUS_ALIASES[raw] ?? raw
-    const prev = events[events.length - 1]
-    if (prev !== undefined && prev.status === target) continue
-    events.push({
-      status: target,
-      at: c.createdAt,
-      by: c.createdBy ?? { kind: 'system' },
-      reason: (c.body.split('\n')[0] ?? '').slice(0, 120),
-      inferred: true,
-    })
-  }
-  const tail = events[events.length - 1]
-  if (tail === undefined || tail.status !== record.status) {
-    // 评论里没有该状态的留痕（老格式/直接改库）→ 用 updatedAt 兜底并标注不可考
-    events.push({
-      status: record.status,
-      at: Math.max(record.updatedAt, record.createdAt),
-      by: record.updatedBy,
-      reason: '按 updatedAt 回填（当时无事件留痕）',
-      inferred: true,
-    })
-  }
-  return events
-}
-
-/** 需求时间线回填（已有事件 → 返回 undefined 不动）。旧状态名（reviewing）一并接受。 */
-export function backfillRequirementHistory(req: RequirementRecord): StatusEvent[] | undefined {
-  return backfill(
-    req,
-    'draft',
-    [...ALL_REQ_STATUSES, ...Object.keys(LEGACY_REQ_STATUS_ALIASES)],
-    req.statusHistory,
-  )
-}
-
-/**
- * 旧状态名迁移（2026-09-13）：reviewing → brainstorming（含时间线事件）。
- * 迁移只改名字，不改语义；返回 true 表示发生过迁移（调用方据此决定是否落盘）。
- */
-export function migrateRequirementStatusNames(req: RequirementRecord): boolean {
-  let changed = false
-  const alias = LEGACY_REQ_STATUS_ALIASES[req.status as string]
-  if (alias !== undefined) {
-    req.status = alias
-    changed = true
-  }
-  for (const e of req.statusHistory ?? []) {
-    const mapped = LEGACY_REQ_STATUS_ALIASES[e.status]
-    if (mapped !== undefined) {
-      e.status = mapped
-      changed = true
-    }
-  }
-  return changed
-}
-
-/** 任务时间线回填（已有事件 → 返回 undefined 不动）。 */
-export function backfillTaskHistory(task: TaskRecord): StatusEvent[] | undefined {
-  return backfill(task, 'todo', ALL_TASK_STATUSES as readonly string[], task.statusHistory)
-}
+// 历史回填（parseTransitionTarget / backfill* / migrateRequirementStatusNames）已迁至
+// src/domain/legacy/LegacyStatus.ts（REQ-47939a t10）——只由迁移脚本/用例复用；
+// 运行时读路径不再做时间线回填与状态名兜底（v5 台账已固化）。
 
 // ---------------------------------------------------------------------------
 // 归档文档规范（不同问题如何记录文档 —— 校验的唯一依据）
 // ---------------------------------------------------------------------------
 
-/**
- * 需求类型 → 归档时的文档要求。规范文档：agent-dh/docs/architecture/requirement-archive.md。
- * 校验是**代码级**的：缺必填文档或合并去向 → 归档材料提交被拒。
- */
-export interface ArchiveDocRule {
-  /** 是否**必须**申报项目说明书（L1/L2）的更新点——改变项目级认知的类型才要求。 */
-  requireManual: boolean
-  /** 需求目录内必填的文档 kind */
-  requiredDocs: readonly ArchiveDoc['kind'][]
-  /** 必须合并进的项目文档前缀（合并去向必须落在这些目录里） */
-  mergeTargets: readonly string[]
-  /** 人读的一句话规则说明 */
-  note: string
-}
-
-export const ARCHIVE_DOC_RULES: Readonly<Record<RequirementCategory, ArchiveDocRule>> = {
-  // 合并去向**只允许落在既有文档规范目录内**（docs/adr|architecture|guides|rfcs|work-logs|strategy-research
-  // 及其 agent-dh 对应目录）——归档不许自创平行体系（规范见 docs/DOCUMENT-MANAGEMENT-PLAN.md
-  // 与 agent-dh/docs/architecture/requirement-archive.md）。
-  feature: {
-    requireManual: true,
-    requiredDocs: ['requirement', 'plan', 'verification'],
-    mergeTargets: ['agent-dh/docs/architecture/', 'agent-dh/docs/guides/', 'docs/architecture/', 'docs/guides/'],
-    note: '功能：能力/接口变了 → 必须更新架构或使用指南（否则新人只能读代码）',
-  },
-  bug: {
-    requireManual: false,
-    requiredDocs: ['requirement', 'verification', 'retro'],
-    mergeTargets: ['agent-dh/docs/guides/', 'agent-dh/docs/architecture/', 'docs/guides/', 'docs/architecture/'],
-    note: '缺陷：根因与防回归写进 guides/（故障排查手册）或 architecture/（机制性根因）——'
-      + '规范没有单独的 known-issues 目录，别自创平行体系',
-  },
-  doc: {
-    requireManual: false,
-    requiredDocs: ['requirement', 'verification'],
-    mergeTargets: ['agent-dh/docs/', 'docs/'],
-    note: '文档类需求：产出本身就是文档，直接合并进 docs/ 相应子目录',
-  },
-  refactor: {
-    requireManual: true,
-    requiredDocs: ['requirement', 'plan', 'verification', 'retro'],
-    mergeTargets: ['docs/adr/', 'agent-dh/docs/architecture/', 'docs/architecture/', 'agent-dh/docs/work-logs/', 'docs/work-logs/'],
-    note: '重构：重大结构决策进 adr/，架构说明同步更新——否则文档与代码互相说谎',
-  },
-  spike: {
-    requireManual: true,
-    requiredDocs: ['requirement', 'retro'],
-    mergeTargets: ['docs/rfcs/', 'agent-dh/docs/rfcs/', 'docs/architecture/', 'agent-dh/docs/architecture/', 'docs/strategy-research/'],
-    note: '调研：产物是结论（含被证伪的假设）——成提案进 rfcs/，成认知进 architecture/，策略类进 strategy-research/',
-  },
-  chore: {
-    requireManual: false,
-    requiredDocs: ['requirement', 'verification'],
-    mergeTargets: ['agent-dh/docs/work-logs/', 'docs/work-logs/'],
-    note: '杂项/维护：留一条工作记录（work-logs，按月归档）即可，别把运维细节塞进架构文档',
-  },
-}
+// ArchiveDocRule 接口与 ARCHIVE_DOC_RULES 迁至 domain/artifact/ArtifactSpec.ts（t2），
+// 顶部再导出（assertArchiveMaterials 仍在本文件消费它）。
 
 /** 需求目录约定（校验用）：docs/requirements/REQ-xxxxxx 或 agent-dh/docs/requirements/REQ-xxxxxx。 */
 export const REQUIREMENT_DIR_PATTERN = /(?:^|\/)docs\/requirements\/REQ-[0-9a-f]{6}$/

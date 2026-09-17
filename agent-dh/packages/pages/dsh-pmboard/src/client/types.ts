@@ -71,7 +71,8 @@ export interface VerificationRecord {
 /** 验收单单项（逐项裁决）。 */
 export interface VerificationItem {
   id: string
-  source: string
+  /** 来源（v5 判别联合）：需求级 / 具体任务 */
+  source: { kind: 'requirement' } | { kind: 'task'; taskId: string }
   criterion: string
   evidence: string[]
   status: 'pending' | 'passed' | 'failed'

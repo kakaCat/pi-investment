@@ -31,3 +31,7 @@ tags: [overview, glossary]
 | **降级 / 新鲜度** | 数据源不可用时的兜底状态；风控与决策前必须先校验新鲜度 | [数据与降级规范](../standards/data-and-degradation.md) |
 | **trade_guard** | 后端下单风控（总仓硬顶等），所有委托都过它 | [下单 API 指南](../guides/order-api-guide.md) |
 | **skill（技能）** | 按需加载的 SOP 文档（`skills/<name>/SKILL.md`），模型用 skill 工具取用 | [技能装载](../guides/skill-loading.md) |
+| **四层分层（domain / application / adapters / tools·http）** | 页面插件内部按 DDD 分层：domain 纯规则（零 I/O）、application 用例（只依赖端口）、adapters 唯一 I/O 入口、tools 与 http 是薄适配。依赖单向向内 | [RFC 014 §15](../rfcs/014-requirement-board.md) |
+| **端口 / 用例（port / use case）** | 端口 = 用例依赖的抽象（仓储/文档/时钟/ID/会话/弹框）；用例 = 一个动作一个模块，只编排不判定 | [RFC 014 §15](../rfcs/014-requirement-board.md) |
+| **机械门禁（layer-boundary / size-budget / output-contract）** | 用可失败的测试把架构约束钉死：依赖方向、文件行数上限（带"必须仍超限"的白名单）、工具返回键必须已声明。**门禁必须能证明自己扫到了东西**（带命中下限自检）并与故障注入配套 | [测试与门禁规范](../standards/testing.md) |
+| **续版验收（验收单 v2）** | 返工后重交的验收单只含上一版的**未过项 + 未裁决项**；上一版无未过项时重新生成全新单（不进续版） | [各阶段职责规范](workflow-stages.md) |

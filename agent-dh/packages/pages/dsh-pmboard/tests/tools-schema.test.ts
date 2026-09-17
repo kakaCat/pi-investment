@@ -4,7 +4,7 @@
  * 本测试仅构造两个工具（不执行），锁定 schema 铁律合规。
  */
 import { describe, expect, it } from 'vitest';
-import { defineCreateTool, defineStatusTool, defineMoveTool } from '../src/host/agent-tools.js';
+import { defineCreateTool, defineStatusTool, defineMoveTool } from './helpers/tool-deps.js';
 
 // defineTool 编译 schema 不触碰 deps 执行路径；构造用最小 stub 即可
 const deps = {

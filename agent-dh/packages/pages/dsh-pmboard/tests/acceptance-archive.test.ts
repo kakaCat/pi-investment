@@ -14,9 +14,9 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ReqboardStore } from '../src/host/store.js'
-import { createReqboardHandler } from '../src/host/routes.js'
-import { definePlanSubmitTool, defineDecomposeTool, defineVerifySubmitTool, defineArchiveSubmitTool } from '../src/host/agent-tools.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { createReqboardHandler } from '../src/http/routes.js'
+import { definePlanSubmitTool, defineDecomposeTool, defineVerifySubmitTool, defineArchiveSubmitTool } from './helpers/tool-deps.js'
 import {
   ARCHIVE_DOC_RULES,
   assertArchiveMaterials,

@@ -4,7 +4,7 @@
  * 非触发态不动、canceled 任务不计入完成度、人工闸门永不被自动越过。
  */
 import { describe, it, expect } from 'vitest'
-import { applyPickupAdvance, applyPickupReconcile, applyTaskRollup } from '../src/host/rollup.js'
+import { applyPickupAdvance, applyPickupReconcile, applyTaskRollup } from '../src/application/internal/rollup.js'
 import { emptyLedger, type ReqboardLedger, type RequirementRecord, type TaskRecord } from '../src/shared/protocol.js'
 
 let seq = 0

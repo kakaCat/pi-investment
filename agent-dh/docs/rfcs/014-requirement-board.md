@@ -328,6 +328,56 @@ requirement 产物无入口 → 看板确认按钮 400 → 门永远过不去）
 
 ---
 
+## 15. 分层重构与工具收敛（REQ-47939a，2026-09-17）
+
+**背景**：插件长到 15,413 行后暴露六类债务（单文件垄断 2,946 行 / 规则散布四处 / 用例不可复用 /
+规则无法独立单测 / 客户端膨胀 / 既有资产未复用）。根因是**领域规则没有独立归属地**——只能跟着
+调用者长，第一个调用者写在工具里，第二个调用者（HTTP）只好再写一遍。
+
+**做法**：按 DDD 拆四层，依赖单向向内，并把"适配层不得含领域规则"变成**可失败的机械门禁**。
+
+```
+domain/（纯规则，零 I/O）← application/（用例，只依赖 ports.ts）← adapters/（I/O 唯一入口）
+                                          ↑
+                        tools/ · http/ · client/（薄适配）
+```
+
+**同期收敛**：13 个 agent 工具 → 9 个（入口数量变化，语义逐一对应）。收敛后工具面：
+
+| 收敛后工具 | 覆盖原入口 |
+|-----------|-----------|
+| `reqboard_create` | create |
+| `reqboard_status` | status |
+| `reqboard_move` | move |
+| `reqboard_decompose` | decompose |
+| `reqboard_task_move` | task_move |
+| `reqboard_task_report` | task_report |
+| `reqboard_submit(kind=requirement\|plan\|verification\|archive)` | 四个 submit —— 壳合并、内里四个独立用例、表驱动分派 |
+| `reqboard_ask_confirm` | ask_confirm + confirm_artifact |
+| `reqboard_accept_sheet` | accept_sheet |
+
+规范表述见 [各阶段职责规范](../architecture/workflow-stages.md) 的「工具面」一节；本节前的 §10 描述的是
+收敛**之前**的 API，作为当时记录保留（history 只增不改）。
+
+**四条可复用的经验**（都来自本需求的实测，不是设计推演）：
+
+1. **门禁必须能证明自己扫到了东西**。契约扫描器一度因漏掉"条件展开字段" `...(cond ? {k} : {})`
+   而假绿；层边界门禁一度只匹配 `===`，于是 `src/http/` 的 8 处 `status !== '...'` 全部漏过。
+   两次都不是"没写检查"，而是"检查没看"。故所有门禁都带**命中下限自检**并与**故障注入**配套
+   （注入原洞形态必须变红）。
+2. **"换个花样的绕过"比不写更危险**。把 `statusIs(x, 'accepting')` 这类**通用比较器**放进 domain，
+   只是搬走了运算符、规则仍留在适配层。最终口径取最粗暴的一条：**适配层不得出现任何独立的
+   状态名字面量**，判定一律用按意图命名的领域函数（`isAccepting`/`isVerifiableStage`/…）。
+3. **续版/派生语义要问"没被处理过的去哪了"**。验收单返工续版原只带 failed 项，pending（未裁决）
+   项被静默丢弃 → 极端路径"返工后全过即可归档，而若干项从未被裁决"。凡"上一版存在但新一版不出现"
+   的字段，都要确认它是"已完成"还是"被丢弃"。
+4. **卡面里的"复用 X 实现"与"不依赖 X 的运行环境"可能不可兼得**。迁移脚本被要求"纯 .mjs 不依赖 tsx"
+   又"复用运行时 backfill 算法"——纯 .mjs 只能重抄一份，等于造第二套时间线语义。开工前先验证
+   这类组合能否同时成立，否则只剩"语义分叉"或"偷偷绕开"两条错路。
+
+**产物索引**：需求档案 `docs/requirements/REQ-47939a/`（requirement.md · plan.md · design/ 四份 ·
+decomposition.md · implementation.md · verification.md · migration-report.md）。
+
 ## 14. 执行链加固（REQ-2e9473，2026-09-17）
 
 **背景**：REQ-6f39b5（看板详情页优化）复盘暴露七类执行链缺陷（详见 REQ-2e9473 需求文档

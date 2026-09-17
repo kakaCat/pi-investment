@@ -8,9 +8,9 @@ import { EventEmitter } from 'node:events'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ReqboardStore } from '../src/host/store.js'
-import { createReqboardHandler } from '../src/host/routes.js'
-import { defineVerifySubmitTool } from '../src/host/agent-tools.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { createReqboardHandler } from '../src/http/routes.js'
+import { defineVerifySubmitTool } from './helpers/tool-deps.js'
 import type { RequirementRecord } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
@@ -86,7 +86,7 @@ describe('验收单逐项裁决（t14）', () => {
   it('有未过项 → 打回 implementing + 生成关联返工任务（含意见）', async () => {
     await seedAcceptingWithSheet()
     const sheet = store.snapshot().requirements[0].verification!.sheet!
-    const target = sheet.items.find(i => i.source === 't-vd0002')!
+    const target = sheet.items.find(i => i.source.kind === 'task' && i.source.taskId === 't-vd0002')!
     const res = await post('/req/verdicts', {
       id: 'REQ-vd1234', version: sheet.version,
       verdicts: [

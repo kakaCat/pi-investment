@@ -6,8 +6,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ReqboardStore } from '../src/host/store.js'
-import { defineVerifySubmitTool } from '../src/host/agent-tools.js'
+import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { defineVerifySubmitTool } from './helpers/tool-deps.js'
 import type { RequirementRecord, VerificationItem } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
@@ -50,14 +50,19 @@ describe('验收单生成（t13）', () => {
     expect(out.sheet_items).toBe(3) // 2 任务 + 1 需求级
     const sheet = store.snapshot().requirements[0].verification!.sheet!
     expect(sheet.version).toBe(1)
-    expect(sheet.items.map(i => i.source)).toEqual(['t-aaaaaa', 't-bbbbbb', 'requirement'])
+    // v5（REQ-47939a t4）：source 由字符串改为判别联合
+    expect(sheet.items.map(i => i.source)).toEqual([
+      { kind: 'task', taskId: 't-aaaaaa' },
+      { kind: 'task', taskId: 't-bbbbbb' },
+      { kind: 'requirement' },
+    ])
     expect(sheet.items.map(i => i.criterion)).toEqual(['单测绿', '截图可见', expect.stringMatching(/需求级/)])
     expect(sheet.items.every(i => i.status === 'pending')).toBe(true)
     expect(sheet.items.every(i => i.evidence.length === 1)).toBe(true)
     expect(sheet.items.every(i => /^v1-\d+$/.test(i.id))).toBe(true)
   })
 
-  it('返工续验：上一版有未过项 → v2 只含未过项且 rework_only=true', async () => {
+  it('返工续验：上一版有未过项 → v2 带过「未过项 + 未裁决项」且 rework_only=true', async () => {
     await seedWithTasks()
     await run({ summary: '交付完成', evidence: ['npx vitest run 全绿'] })
     // 模拟用户裁决：第 2 项不通过
@@ -72,11 +77,15 @@ describe('验收单生成（t13）', () => {
     const out2 = await run({ summary: '修复后重交', evidence: ['新截图路径'] })
     expect(out2.sheet_version).toBe(2)
     expect(out2.rework_only).toBe(true)
-    expect(out2.sheet_items).toBe(1)
+    // D-7 修复后：v2 = 未过项（t-bbbbbb）+ 未裁决的需求级项 —— 未验项不许被静默丢弃
+    expect(out2.sheet_items).toBe(2)
     const v2 = store.snapshot().requirements[0].verification!.sheet!
-    expect(v2.items).toHaveLength(1)
-    expect(v2.items[0].source).toBe('t-bbbbbb')
-    expect(v2.items[0].status).toBe('pending')
+    expect(v2.items).toHaveLength(2)
+    expect(v2.items.map(i => i.source)).toEqual([
+      { kind: 'task', taskId: 't-bbbbbb' },
+      { kind: 'requirement' },
+    ])
+    expect(v2.items.every(i => i.status === 'pending')).toBe(true)
     expect(v2.items[0].opinion).toBeUndefined()
     // 历史留痕：v1 进 sheetHistory
     const hist = store.snapshot().requirements[0].verification!.sheetHistory!

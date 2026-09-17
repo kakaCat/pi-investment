@@ -6,15 +6,14 @@
  */
 import { describe, it, expect } from 'vitest'
 import { emptyLedger, type ReqboardLedger } from '../src/shared/protocol.js'
+import { createSessionEventCaptureHook, type CaptureHookDeps } from '../src/adapters/CaptureHook.js'
+import { shouldCaptureWindow } from '../src/application/internal/window.js'
 import {
-  createSessionEventCaptureHook,
-  shouldCaptureWindow,
   recordToolTrace,
   toolActivitySince,
   TOOL_TRACE_CAP,
-  type CaptureHookDeps,
   type ToolTraceEntry,
-} from '../src/host/capture-hook.js'
+} from '../src/adapters/SessionProbeAdapter.js'
 
 const W = 'session-abc-123'
 
