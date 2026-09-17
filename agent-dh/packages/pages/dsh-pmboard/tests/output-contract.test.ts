@@ -111,7 +111,24 @@ function topLevelKeys(body: string): string[] {
       if (expectKey) {
         const m = /^([A-Za-z_$][\w$]*)\s*:/.exec(body.slice(i))
         if (m !== null) { keys.push(m[1]!); expectKey = false; i += m[0].length; continue }
-        if (body.startsWith('...', i)) { expectKey = false; i += 3; continue }
+        if (body.startsWith('...', i)) {
+          // 条件字段：...(cond ? { a, b } : {}) —— 展开表达式里的对象字面量键也是响应字段。
+          // 不处理它会漏掉"只在某条路径上返回的键"（2026-09-17 实测：task_move 的
+          // task_card / blockers / warning 正是这样漏过静态扫描，上线后绑定层拒收回执）。
+          let j = i + 3
+          while (j < body.length && /\s/.test(body[j]!)) j++
+          if (body[j] === '(') {
+            const close = matchPair(body, j, '(', ')')
+            const re = /\{([^{}]*)\}/g
+            let mm: RegExpExecArray | null
+            while ((mm = re.exec(body.slice(j + 1, close))) !== null) keys.push(...topLevelKeys(mm[1]!))
+            i = close + 1
+          } else {
+            i += 3
+          }
+          expectKey = false
+          continue
+        }
         if (/\s/.test(c)) { i++; continue }
         expectKey = false; i++; continue
       }
