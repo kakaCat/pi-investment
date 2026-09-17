@@ -34,6 +34,7 @@ tags: [standards, testing, gates]
 | 数据卫生探针 | `python3 quantsys-v2/scripts/data_hygiene_probe.py`（退出码 1 = 有问题） | 悬空引用 / 数据契约违约 |
 | 文档 wiki 探针 | `cd <repo-root> && python3 agent-dh/scripts/wiki_probe.py`（**必须从仓库根跑**：从 `agent-dh/` 跑会把相对链接双前缀化，报出 `docs/INDEX.md -> work-logs/README.md` 这类**假死链**——实测 2 条，换 cwd 即消失） | 死链 / 孤儿页 / 缺 front-matter。判读要点：**只有"现行页"的死链/孤儿计数才计失败**，档案页（work-logs）的只报告不计失败；`exit=1` 可能来自历史档案缺 front-matter（与死链无关，别混为一谈） |
 | 文档索引重生 | `cd <repo-root> && python3 agent-dh/scripts/docs_index.py`（**必须从仓库根跑，且连跑两次**：首轮刷新 README 自动区会改变 INDEX 的输入，二轮才收敛） | 索引与文档不一致（探针会提示"跑一次"，但一次不够） |
+| **注入文本 × 工具注册表一致性** | `cd packages/pages/dsh-pmboard && npx vitest run tests/stage-prompts.test.ts` | 注入给 agent 的**阶段纪律文本与捕获引导段**里提到的 `reqboard_*` 工具名，必须都在实际注册集合内——改名后文本没跟上 = agent 照纪律去调不存在的工具 |
 | **类型检查（页面插件）** | `cd packages/pages/dsh-pmboard && pnpm typecheck`（等价 `npx tsc --noEmit -p tsconfig.json`） | 引用不存在的名字（TS2304）/ 类型不匹配 / 必填字段缺失。**这是唯一能在"运行前"拦住整类错误的门**——见下方事故 |
 | 工具输出契约审计（全仓） | `node agent-dh/scripts/audit-tool-output-contract.mjs`（退出码 1 = 有可疑项；`--list` 自证覆盖） | 工具返回键未在 `output.schema` 声明 → 绑定层拒收，**副作用发生了但回执丢给调用方** |
 | 层边界机械检查（页面插件） | `cd packages/pages/dsh-pmboard && npx vitest run tests/layer-boundary.test.ts` | 依赖方向倒置 / 适配层复写状态判断 |
@@ -44,6 +45,15 @@ tags: [standards, testing, gates]
 - 金丝雀还原路径必败未被发现（无故障注入）；
 - dist 陈旧时"源码测试全绿但线上没有该工具"的误判；
 - 样本不足（4 < 7）时自动蒸馏给的结论被规则层拒绝采纳（R-016）；
+- **改名要连"给 agent 看的注入文本"一起改；断言工具名时要与注册表对齐**（2026-09-17，REQ-47939a）：
+  13→9 工具收敛把 4 个 submit 合并为 `reqboard_submit(kind=…)`、`confirm_artifact` 并入 `reqboard_ask_confirm`。
+  当时**同步了给人看的文档**（workflow-stages / RFC 014），**漏了给 agent 看的注入文本**——
+  `domain/stage/StagePromptSpec.ts` 与 `application/internal/capture-section.ts` 里 10 处仍是旧名，
+  另有 1 处 `reqboard_task_detail()` 是**从未存在过的工具**（历史错写）。后果：agent 严格照阶段纪律执行时会去调
+  不存在的工具。**为什么没被发现**：两条既有断言恰好把旧名 `toContain` 钉死——测试成了 stale 的帮凶。
+  纪律：① 工具改名 = 三处同改（注册、给人看的文档、**给 agent 看的注入文本**）；
+  ② 断言"该调哪个入口"时与注册表**对齐**，不要硬编码一个名字；
+  ③ 新增门禁：注入文本里出现的工具名必须 ∈ 注册集合（本页门禁表最后一行），并在改名前先跑它。
 - **"既有测试全绿"不等于"没坏"：没有类型门禁 + 没有接口级冒烟 = 重构盲区**（2026-09-17，REQ-47939a）：
   dsh-pmboard 分层重构后，`src/http/routers/stages.ts` 引用了两个**不存在的符号**
   （`OPEN_STATUSES`——状态集合被搬走并改名；`TASK_ORDER`——从未定义）。三个门全部漏过：
