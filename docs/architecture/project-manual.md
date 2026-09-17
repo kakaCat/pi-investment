@@ -3,7 +3,7 @@ id: project-manual
 title: PI Investment 项目说明书（金字塔 L1）
 type: manual
 status: living
-updated: 2026-09-13
+updated: 2026-09-17
 owners: [w-1cee2467]
 tags: [manual, l1, overview]
 ---
@@ -21,6 +21,8 @@ tags: [manual, l1, overview]
 
 | 日期 | 更新点 | 来源 |
 |---|---|---|
+| 2026-09-17 | **阶段提示词按「节点 × 难度 × 类型」路由注入**：分片库 + 5 级回退链（**难度优先于类型**）+ 单次 24000 字符预算；heavy 档用 superpowers 原文（v6.3.0 / MIT），light 档自写；六条门禁每条可红 | REQ-422af1 |
+| 2026-09-17 | **项目看板流程节点统一定义**：立项→需求分析→技术设计→拆分→实施→验收→归档（7 态），唯一事实源 `workflow-stages.md`，前后端/原型/文档禁止散落定义 | REQ-6f39b5 |
 | 2026-09-14 | **多源 provider 框架是取数唯一入口**：新增数据能力应加在 `providers/<域>/` + `manager`（自动获得故障转移/熔断/诚实标记），不要另写单例数据源；sentiment 域 7 个端点据此去 mock | REQ-48d896 |
 | 2026-09-13 | 文档金字塔与需求归档规范确立（存底 + 合并 + 说明书更新点） | 需求看板归档线（w-1cee2467） |
 
@@ -47,7 +49,8 @@ PI Investment 是一个**由 AI agent 自主运行的投资系统**：agent 在�
 | 术语 | 一句话解释 | 细节在哪 |
 |---|---|---|
 | Profile / 插件 | DSH 的装载单元；插件用 @Q@defineTool@Q@ 注册工具 | [agent-dh/CLAUDE.md](../../agent-dh/CLAUDE.md) |
-| 需求看板（reqboard） | 需求 → 任务两级流水线：立项 → 头脑风暴 → 写计划 → 拆分 → 执行 → 验收 → 完成 → 归档 | [RFC 014](../../agent-dh/docs/rfcs/014-requirement-board.md) |
+| 需求看板（reqboard） | 需求 → 任务两级流水线：立项 → 需求分析 → 技术设计 → 拆分 → 实施 → 验收 → 归档（7 态，REQ-9f4a44 起验收通过直归档，无 done 中转） | [workflow-stages.md](../../agent-dh/docs/architecture/workflow-stages.md)（唯一事实源）、[RFC 014](../../agent-dh/docs/rfcs/014-requirement-board.md) |
+| **提示词加载路由** | 状态机选中哪个节点，就注入哪份阶段提示词（**节点即选择器，无需 skill 匹配**；披露 = 按节点注入）：按 `stage/difficulty/category` 解析、5 级回退（难度优先于类型）、单次注入 ≤ 24000 字符 | [workflow-stages.md「提示词加载路由」](../../agent-dh/docs/architecture/workflow-stages.md) |
 | 计划模式（plan mode） | 拆分前置闸门：先写实施计划（含任务表）、人批准、才能落库任务卡 | [RFC 014 §5b](../../agent-dh/docs/rfcs/014-requirement-board.md) |
 | 基因组（genome） | agent 的宪法/原则/规则/教训四段提示词，可进化、有版本与验证门 | [agent-dh/CLAUDE.md](../../agent-dh/CLAUDE.md) |
 | 文档金字塔 | L1 说明书 / L2 领域篇 / L3 证据档案；归档让认知自下而上生长 | [DOCUMENT-MANAGEMENT-PLAN.md](../DOCUMENT-MANAGEMENT-PLAN.md) |

@@ -11,9 +11,13 @@
  * @module dsh-pmboard/application/internal/capture-section
  */
 import type { ReqboardLedger } from '../../shared/protocol.js'
-import { stageEnabledFor, type StagePromptKey } from '../../shared/protocol.js'
+import { stageEnabledFor } from '../../shared/protocol.js'
 import type { StageKey } from '../../domain/requirement/RequirementStatus.js'
-import { STAGE_PROMPTS } from '../../domain/stage/StagePromptSpec.js'
+import { resolveStagePrompt, isPromptStage } from '../../domain/prompt/index.js'
+import {
+  injectionLogInputFromResolved,
+  type InjectionLogPort,
+} from './injection-log.js'
 import { isImplementing } from '../../domain/status/Predicates.js'
 import { isInProgressTask } from '../../domain/status/Predicates.js'
 import {
@@ -68,7 +72,11 @@ export function captureSectionText(
  * 「agent 自己不能推进吗，还需要用户手动推进」）。本段把「状态由窗口自己维护」
  * 变成提示词里的明确纪律，窗口在里程碑处主动调 reqboard_move。
  */
-export function boundSectionText(ledger: ReqboardLedger, context: unknown): string {
+export function boundSectionText(
+  ledger: ReqboardLedger,
+  context: unknown,
+  injectionLog?: InjectionLogPort,
+): string {
   const windowKey = windowKeyFromContext(context as { agent?: { id?: unknown }; scope?: unknown })
   if (windowKey === undefined) return ''
   const open = openRequirementsFor(ledger, windowKey)
@@ -123,12 +131,16 @@ export function boundSectionText(ledger: ReqboardLedger, context: unknown): stri
   // 不注入提示词。同一窗口多个 open 需求时，取最近更新的那条。
   const stageReq = [...open].sort((a, b) => b.updatedAt - a.updatedAt)[0]
   if (stageReq !== undefined) {
-    const stage = stageReq.status as StagePromptKey
-    if (stageEnabledFor(stageReq.category, stage as StageKey)) {
-      const prompt = STAGE_PROMPTS[stage]
-      if (prompt !== undefined && prompt.length > 0) {
+    const stage = stageReq.status
+    // draft/done/canceled 不是可注入节点（types.ts）：先过闸，避免只捞到 ⑤ 铁律而被当成有提示词。
+    if (isPromptStage(stage) && stageEnabledFor(stageReq.category, stage as StageKey)) {
+      // INV-1：取词唯一入口（分片库 + 回退链 + 预算）；不再直取常量表。
+      const resolved = resolveStagePrompt({ stage, category: stageReq.category })
+      if (resolved.text.length > 0) {
         lines.push('')
-        lines.push(prompt)
+        lines.push(resolved.text)
+        // INV-6：注入即留痕（本次到底注入了什么，可被看板/人核查）。
+        injectionLog?.record(injectionLogInputFromResolved(resolved, windowKey))
       }
     }
   }

@@ -21,6 +21,7 @@ import { openDocInSidebar, resolveCurrentSessionId } from './open-doc.ts'
 import { archivedSessionIds, jumpToSession, windowServiceAccess, type SessionJumpResult } from './session-jump.ts'
 import { createBoardShell } from '@pi-investment/page-kit/client'
 import { renderStageNode } from './stage-panel.ts'
+import { hasInjectionWindow, renderInjectionInfo } from './injection-info.ts'
 import type { StageOverview, StageKey } from '../shared/protocol.ts'
 
 const POLL_MS = 20000
@@ -179,6 +180,8 @@ export function mountBoard(controller: BoardController): () => void {
           void verifyDocExistence()
           // REQ-6f39b5：节点导航已删除，概览 Tab「当前阶段详情」进入即自动加载当前阶段
           void loadStageDetail(req.id, req.status)
+          // REQ-422af1 t11：「本次注入了什么」只读块（按来源窗口回查留痕）
+          void loadInjectionInfo(req.sourceSessionId)
         }
         break
       }
@@ -583,6 +586,26 @@ export function mountBoard(controller: BoardController): () => void {
       }
     } catch (e) {
       container.innerHTML = '<div class="dsh-pm-empty">详情加载失败：' + String(e) + '</div>'
+    }
+  }
+
+  /**
+   * 加载「本次注入」只读信息块（REQ-422af1 t11）。
+   * 留痕不可用（端口未装配 / 接口失败）时不报错、不留白：渲染明确的空态「尚无记录」。
+   */
+  const loadInjectionInfo = async (sourceSessionId: string | undefined): Promise<void> => {
+    const container = document.getElementById('dsh-pm-injection-info-container')
+    if (container === null) return
+    // 无来源窗口（人工建卡）→ 没有"本次注入"可言：保持空态，不拿全量留痕冒充本需求的注入。
+    if (!hasInjectionWindow(sourceSessionId)) {
+      container.innerHTML = renderInjectionInfo([])
+      return
+    }
+    try {
+      const info = await api.fetchInjectionInfo(sourceSessionId)
+      container.innerHTML = renderInjectionInfo(info.available ? info.entries : [])
+    } catch {
+      container.innerHTML = renderInjectionInfo([])
     }
   }
 

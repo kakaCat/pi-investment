@@ -33,7 +33,13 @@ import {
   defineAskConfirmTool,
   defineAcceptSheetTool,
 } from './tools/index.js';
-import { FileDocRepository } from './adapters/FileDocRepository.js';
+import { FileDocRepository } from './adapters/FileDocRepository.js'
+import { InjectionLogFile } from './adapters/InjectionLogFile.js'
+import { IsolationTraceFile } from './adapters/IsolationTraceFile.js'
+import { NodeIsolationAdapter } from './adapters/NodeIsolationAdapter.js'
+import { INJECTION_LOG_REL } from './application/internal/injection-log.js';
+import { ISOLATION_TRACE_REL } from './application/internal/isolation-trace.js';
+import { createNodeSettlementDispatcher } from './application/internal/node-settlement.js';
 import { SystemClock } from './adapters/SystemClock.js';
 import { RandomIdFactory } from './adapters/RandomIdFactory.js';
 import { UserQuestionsAdapter } from './adapters/UserQuestionsAdapter.js';
@@ -52,6 +58,11 @@ export const CAPTURE_SECTION_ORDER = 60;
 interface PluginConfig {
   /** DSH 主目录（默认 ~/.dsh） */
   dshHome?: string;
+  /**
+   * 节点隔离开关（REQ-422af1 t10）。**默认关**：关闭时隔离代码路径执行 0 次，
+   * 行为完全等同改造前（design/migration.md §3）。显式配置优先于环境变量。
+   */
+  nodeIsolation?: boolean;
 }
 
 export function dshHomePath(config: PluginConfig | undefined, file: string): string {
@@ -59,12 +70,55 @@ export function dshHomePath(config: PluginConfig | undefined, file: string): str
   return path.join(home, file);
 }
 
+/**
+ * 节点隔离开关（REQ-422af1 t10 / design/migration.md §3）：**默认关**。
+ * 优先级：显式配置 nodeIsolation > 环境变量 NODE_ISOLATION(=1/true/on/yes) > 默认 false。
+ * 关闭时 createNodeSettlementDispatcher 的 enabled=false 分支直接返回——
+ * 不调度、不建端口、不触会话（stats 四项计数全 0 即其可执行证明）。
+ */
+export function nodeIsolationEnabled(
+  config?: PluginConfig,
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  if (config?.nodeIsolation !== undefined) return config.nodeIsolation;
+  const raw = env.NODE_ISOLATION;
+  if (raw === undefined) return false;
+  return ['1', 'true', 'on', 'yes'].includes(raw.trim().toLowerCase());
+}
+
+/**
+ * 轮次边界判定（隔离纪律③「只在轮次边界执行」）：用 sessionProjections 的 turnBoundary
+ * 投影——openTurnStartSeq 为 null 即"无 open turn"＝ agent 空闲，可安全做 surface 整段替换。
+ * 投影/服务不可得（无 agent-loop、测试环境）或探测抛错 → 判不出，**保守返回 false**
+ * （不替换 + 留痕 skipped/agent_busy）——活动轮次替换会被框架硬拒（D-15），
+ * 宁可跳过也不猜（响亮失败优于静默猜测）。
+ */
+function turnBoundaryIdle(projectionsSvc: unknown, session: unknown): boolean {
+  const projections = projectionsSvc as {
+    stateOf?: (s: unknown, kind: string) => { openTurnStartSeq?: unknown } | undefined
+  } | undefined;
+  if (typeof projections?.stateOf !== 'function') return false;
+  try {
+    const boundary = projections.stateOf(session, 'turnBoundary');
+    if (boundary === undefined) return false;
+    return boundary.openTurnStartSeq === null;
+  } catch {
+    return false;
+  }
+}
+
 export function apply(ctx: Context, config?: PluginConfig): void {
   const logger = ctx.logger(name);
   const store = new ReqboardStore({ file: dshHomePath(config, LEDGER_FILE) });
   // 急加载：fresh boot 时让首个 GET /state 见到台账而非空板（load 永不抛——损坏即隔离）
   void store.load();
-  const now = () => Date.now();
+  const now = () => Date.now()
+  // 注入留痕（REQ-422af1 t6，INV-6）：<dshHome>/state/prompt-injection-log.json（ring buffer 500 条，原子写）。
+  const injectionLog = new InjectionLogFile(
+    dshHomePath(config, INJECTION_LOG_REL),
+    now,
+    (err) => logger.warn('reqboard 注入留痕写入失败:', err),
+  );
 
   // 启动对账（R0 + R2）：台账装载后跑一次派生推进，让升级前积压的 draft 需求
   // （窗口立项、无人推进）立刻进入评审，并结算已完成实施的需求。无变化时不写盘
@@ -117,6 +171,42 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     },
   );
 
+  // ── 节点结算 → 隔离执行分发（REQ-422af1 t10，默认关）───────────────────────
+  // 开关优先级：config.nodeIsolation > env NODE_ISOLATION > 默认 false。关时隔离代码路径
+  // 执行 0 次。两个端口的唯一 I/O 实现都在 adapters（application 层禁 import @deepseek-ai/*）：
+  //   isolation → NodeIsolationAdapter（surface 原语 + tool 配对边界检查，t9）
+  //   trace     → IsolationTraceFile（state/node-isolation-log.json，ring buffer 原子写）
+  const nodeIsolation = nodeIsolationEnabled(config);
+  const docs = new FileDocRepository();
+  const clock = new SystemClock();
+  const isolationTrace = new IsolationTraceFile(
+    dshHomePath(config, ISOLATION_TRACE_REL),
+    (err) => logger.warn('reqboard 隔离留痕写入失败（只告警，不影响流水线）:', err),
+  );
+  const settlement = createNodeSettlementDispatcher({
+    enabled: nodeIsolation,
+    isolationFor: (session, _settle) => new NodeIsolationAdapter(session, {
+      idle: () => turnBoundaryIdle(projectionsSvc, session),
+      plugin: name,
+    }),
+    trace: isolationTrace,
+    repo: store,
+    docs,
+    clock,
+    // 纪律①「先落盘再遗弃」：先把写队列排空（read 走同一条串行队列）再取持久化 revision
+    // （JsonLedgerRepository 在 persistAtomic 成功后才 bump，故 revision 即"已落盘"证据指针）。
+    persistArtifacts: async () => {
+      await store.read(() => undefined);
+      return store.snapshot().revision;
+    },
+    warn: (message) => logger.warn(message),
+  });
+  logger.info(
+    nodeIsolation
+      ? 'reqboard 节点隔离已开启（NODE_ISOLATION）：节点结算点经 setImmediate 异步边界执行 surface 整段替换'
+      : 'reqboard 节点隔离关闭（默认）：结算点只发信号，隔离代码路径执行 0 次',
+  );
+
   const disposers: Array<() => void> = [];
 
   // ── 确定性消息捕获 hook（用户裁定 #2/#3）─────────────────────────────
@@ -161,6 +251,9 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     },
     toolTrace,
     recentUserMsgs,
+    injectionLog,
+    // REQ-422af1 t10：节点结算信号 → 隔离分发（开关关时 dispatcher 一次都不执行）。
+    onNodeSettled: (settle, session) => settlement.onSettle(settle, session),
     logger: { info: (m) => logger.info(m), debug: (m) => logger.debug(m) },
   };
   const captureHandler = createSessionEventCaptureHook(captureHookDeps);
@@ -191,7 +284,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
             const sectionText = captureSectionText(store.snapshot(), assembleContext, pending);
             if (sectionText.length > 0) return sectionText;
             // 已绑定窗口：注入「推进纪律」（状态由窗口自己维护，不必等人点按钮）
-            return boundSectionText(store.snapshot(), assembleContext);
+            return boundSectionText(store.snapshot(), assembleContext, injectionLog);
           },
         }));
       }, name + ': capture');
@@ -204,8 +297,8 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   // 用例依赖（REQ-47939a t8）：组合根装配 adapters → application 用例；工具壳只做协议转换。
   const useCaseDeps: UseCaseDeps = {
     repo: store,
-    docs: new FileDocRepository(),
-    clock: new SystemClock(),
+    docs,
+    clock,
     ids: new RandomIdFactory(),
     session: new SessionProbeAdapter({
       toolTrace,
@@ -246,7 +339,8 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         webCtx.webServer.register({
           kind: 'prefix',
           path: '/dashboard/api/reqboard',
-          handler: createReqboardHandler({ store, now }),
+          // injectionLog 只以**只读端口**身份进入路由（t11）：看板能读「本次注入了什么」，不能写。
+          handler: createReqboardHandler({ store, now, injectionLog }),
         });
       }, name + ': api');
       logger.info('routes registered: /dashboard/api/reqboard/* (state/events/req/task/triage CRUD + 人工确认立项)');

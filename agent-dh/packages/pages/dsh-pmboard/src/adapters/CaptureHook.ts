@@ -39,7 +39,7 @@
  * @module dsh-pmboard/adapters/CaptureHook
  */
 
-import type { ReqboardLedger, StageKey, StagePromptKey } from '../shared/protocol.js'
+import type { ReqboardLedger, StageKey } from '../shared/protocol.js'
 import { stageEnabledFor } from '../shared/protocol.js'
 import { isIgnoredSession, extractUserMessageText, cleanUserMessageText } from './SessionMessageFilter.js'
 import {
@@ -48,7 +48,12 @@ import {
   shouldCaptureWindow,
 } from '../application/internal/window.js'
 import type { PendingCaptureMessage } from '../application/internal/capture-section.js'
-import { STAGE_PROMPTS } from '../domain/stage/StagePromptSpec.js'
+import type { NodeSettlement } from '../application/internal/node-settlement.js'
+import { resolveStagePrompt, isPromptStage } from '../domain/prompt/index.js'
+import {
+  injectionLogInputFromResolved,
+  type InjectionLogPort,
+} from '../application/internal/injection-log.js'
 import { findStaleUnconfirmedArtifact } from '../domain/workflow/MilestoneSpec.js'
 import {
   recordToolTrace,
@@ -87,6 +92,17 @@ export interface CaptureHookDeps {
   toolTrace?: Map<string, ToolTraceEntry[]>
   /** 最近用户消息缓冲（REQ-2e9473 t10）：hook 写入，confirm_artifact 文字确认核验读取。可选。 */
   recentUserMsgs?: Map<string, RecentUserMsg[]>
+  /** 注入留痕端口（REQ-422af1 t6）：状态转移注入后调用 record。可选（未注入 = 不留痕）。 */
+  injectionLog?: InjectionLogPort
+  /**
+   * 节点结算回调（REQ-422af1 t10）：绑定窗口的**回合结束**（turn/end）且该回合登记过
+   * 「可注入节点结算」时发信号，并携带会话句柄（隔离端口由组合根按会话构造）。
+   * **本回调不得在事件派发内做会话写操作**（D-17：监听器内同步 append 会被框架拒绝
+   * "session append cannot reenter while another append is being published"）——
+   * hook 只发信号，真正执行的异步边界在 application/internal/node-settlement.ts。
+   * 可选（未注入 = 关闭结算信号）。
+   */
+  onNodeSettled?: (settle: NodeSettlement, session: unknown) => void
   logger?: CaptureHookLogger
 }
 
@@ -144,6 +160,11 @@ export function createSessionEventCaptureHook(deps: CaptureHookDeps): (session: 
   // 里程碑提醒去重（t09）：每产物只提醒一次（确认后 stage/confirmedAt 变化自然失效）。
   const remindedAt = new Map<string, number>()
 
+  // 节点结算（REQ-422af1 t10）：窗口 → 本回合登记的结算；turn/end（轮次边界）时消费。
+  // 去重键 = 窗口:节点——同一节点只结算一次，否则每个回合都会遗弃一次上下文。
+  const pendingSettlements = new Map<string, NodeSettlement>()
+  const settledNodes = new Set<string>()
+
   return (session: unknown, event: unknown): void => {
     const sessionObj = (typeof session === 'object' && session !== null ? session : {}) as { id?: unknown }
     const windowKey = typeof sessionObj.id === 'string' && sessionObj.id.length > 0 ? sessionObj.id : ''
@@ -162,10 +183,20 @@ export function createSessionEventCaptureHook(deps: CaptureHookDeps): (session: 
       return
     }
 
-    // 回合结束 → 消费完毕，清除待捕获候选（防跨回合/跨 step 重复 nag）。
+    // 回合结束 → 消费完毕，清除待捕获候选（防跨回合/跨 step 重复 nag）；
+    // 同时是**节点结算点**（REQ-422af1 t10）：本回合登记过结算则在此发信号。
     if (type === 'turn/end') {
       if (pending.delete(windowKey)) {
         debug(`reqboard-capture: turn/end clears pending capture for ${windowKey.slice(0, 16)}`)
+      }
+      // D-17：这里**只发信号**，不做任何会话写操作（监听器内同步 append 会被框架拒绝）；
+      // 真正的隔离动作由组合根经异步边界（setImmediate）执行，且开关默认关。
+      const settle = pendingSettlements.get(windowKey)
+      if (settle !== undefined) {
+        pendingSettlements.delete(windowKey)
+        settledNodes.add(windowKey + ':' + settle.stage)
+        deps.onNodeSettled?.(settle, session)
+        debug(`reqboard-settle: node ${settle.stage} settled at turn/end (${windowKey.slice(0, 16)})`)
       }
       return
     }
@@ -215,11 +246,25 @@ export function createSessionEventCaptureHook(deps: CaptureHookDeps): (session: 
         const open = openRequirementsFor(ledger, windowKey)
         const stageReq = [...open].sort((a, b) => b.updatedAt - a.updatedAt)[0]
         if (stageReq !== undefined) {
-          const stage = stageReq.status as StagePromptKey
-          if (stageEnabledFor(stageReq.category, stage as StageKey)) {
-            const prompt = STAGE_PROMPTS[stage]
-            if (prompt !== undefined && prompt.length > 0) {
-              deps.onStagePrompt?.(windowKey, prompt)
+          const stage = stageReq.status
+          // draft/done/canceled 不是可注入节点（types.ts）：先过闸，避免只捞到 ⑤ 铁律而误触发注入。
+          if (isPromptStage(stage) && stageEnabledFor(stageReq.category, stage as StageKey)) {
+            // INV-1：与 capture-section 同一取词入口（resolveStagePrompt）。
+            const resolved = resolveStagePrompt({ stage, category: stageReq.category })
+            if (resolved.text.length > 0) {
+              deps.onStagePrompt?.(windowKey, resolved.text)
+              // INV-6：注入即留痕（与 capture-section 同一组装入口）。
+              deps.injectionLog?.record(injectionLogInputFromResolved(resolved, windowKey))
+              // REQ-422af1 t10：登记「本节点结算」——到 turn/end（轮次边界）才发信号并执行隔离。
+              // 已结算过的节点不再登记（同一节点只遗弃一次上下文）；回合内重复消息只覆盖登记。
+              if (deps.onNodeSettled !== undefined && !settledNodes.has(windowKey + ':' + stage)) {
+                pendingSettlements.set(windowKey, {
+                  windowKey,
+                  stage,
+                  requirementId: stageReq.id,
+                  ...(stageReq.category === undefined ? {} : { category: stageReq.category }),
+                })
+              }
             }
           }
         }

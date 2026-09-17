@@ -35,6 +35,16 @@ SKIP_DIRS = {'.git', 'node_modules', '.claude', 'dist', 'lib', '__pycache__',
              '.dsh-data', '.dsh-home', 'worktrees', '.pnpm', '.deploy-backup',
              '.genome', 'output', '_archive', '.idea', '.pytest_cache'}
 
+# 非 wiki 内容（按路径片段排除）：提示词分片源与 vendored 第三方原文都**不是认知页**。
+# 理由（REQ-422af1 t12）：
+#   ① fragments/** 是构建期被内联进 generated/fragments.ts 的**数据源**，不是文档页；
+#   ② vendor/** 是 superpowers 第三方原文（逐字节锁定，由 tests/prompt-tiers.test.ts 与
+#      scripts/check-prompt-fragments.mjs 双保险）。它自带上游 YAML front-matter，会被本探针
+#      误当成我们的 wiki 页 → 上游指向未 vendor 文件的相对链接被报成"死链"、页面被报成"孤儿"、
+#      还缺 id/title/type/status/updated。为过 wiki 检查而改写第三方原文会破坏逐字一致门禁，
+#      故按路径排除，而不是往 vendored 内容里塞我们的 front-matter。
+NON_WIKI_PATH_PARTS = ('src/domain/prompt/fragments/', 'src/domain/prompt/vendor/')
+
 # 扫描根（相对 --root；从仓库根或从 agent-dh/ 运行都命中，不存在则跳过）
 WIKI_ROOTS = ['docs', 'agent-dh/docs',
               'packages', 'agent-dh/packages',
@@ -73,7 +83,10 @@ def iter_pages(root: str):
                 if path in seen:
                     continue
                 seen.add(path)
-                yield path, os.path.relpath(path, root)
+                rel = os.path.relpath(path, root)
+                if any(part in rel.replace(os.sep, '/') for part in NON_WIKI_PATH_PARTS):
+                    continue
+                yield path, rel
     for rel in EXTRA_FILES:
         path = os.path.join(root, rel)
         if os.path.isfile(path) and path not in seen:

@@ -1,10 +1,20 @@
 /**
- * stage-prompts.ts 阶段提示词常量单测（REQ-31e11f t5）。
- * 覆盖：五份常量非空且含关键纪律词、StagePromptKey 全覆盖、
+ * 阶段提示词单测（REQ-31e11f t5；REQ-422af1 t7 迁移）。
+ *
+ * t7 迁移说明：P0 期本文件 import 兼容视图 `STAGE_PROMPTS` / `stagePromptFor`（P0 判决 a：
+ * 冻结测试不动），P1 起断言全部迁到唯一取词入口 `resolveStagePrompt`，兼容壳已删除。
+ * 覆盖：注入文本工具名一致门禁、六节点 light/heavy 要素、文案措辞锁定、
  * capture.ts systemPrompt 组装注入（boundSectionText）、跳过阶段不注入。
  */
 import { describe, it, expect } from 'vitest'
-import { STAGE_PROMPTS, stagePromptFor } from '../src/domain/stage/StagePromptSpec.js'
+import {
+  resolveStagePrompt,
+  PROMPT_STAGES,
+  DIFFICULTIES,
+  STAGE_CHAIN,
+  type Difficulty,
+  type PromptStage,
+} from '../src/domain/prompt/index.js'
 import { boundSectionText } from '../src/application/internal/capture-section.js'
 import { ALL_STAGE_PROMPT_KEYS, emptyLedger, type ReqboardLedger, type RequirementRecord } from '../src/shared/protocol.js'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -13,12 +23,37 @@ import { join } from 'node:path'
 
 const W = 'session-abc-123'
 
+/** 生产注入点用缺省难度（light）；此处同口径取文本用于对照。 */
+function lightText(stage: PromptStage, difficulty: Difficulty = 'light'): string {
+  return resolveStagePrompt({ stage, difficulty }).text
+}
+
 function req(over: Partial<RequirementRecord>): RequirementRecord {
   return {
     id: 'REQ-000001', title: 't', description: '', status: 'draft', blocked: false,
     version: 1, createdAt: 1, updatedAt: 1,
     ...over,
   } as RequirementRecord
+}
+
+/** 每节点 heavy 必须命中的"heavy 独有要素"关键词（逐字来自 vendor 原文 / 自写完整档）。 */
+const HEAVY_ELEMENTS: Readonly<Record<PromptStage, readonly string[]>> = {
+  brainstorming: ['Three Paths', 'YAGNI', 'Red Flags', 'Spike', 'Bounded', 'Architectural'],
+  planning: ['Bite-Sized Task Granularity', 'No Placeholders', 'Self-Review'],
+  decomposing: ['变更盘点', '批次与依赖', '边界校验'],
+  implementing: ['Load plan, review critically', 'When to Stop and Ask for Help'],
+  accepting: ['The Iron Law', 'Rationalization Prevention'],
+  archived: ['Present Options', 'Common Rationalizations'],
+}
+
+/** 每节点 heavy 必须含的本仓工具化措辞（overrides / 自写档）。 */
+const REQ_SPECIFIC: Readonly<Record<PromptStage, readonly string[]>> = {
+  brainstorming: ['reqboard_ask_confirm', 'requirement.md', 'artifact_not_confirmed'],
+  planning: ['reqboard_submit(kind=plan)', 'reqboard_ask_confirm'],
+  decomposing: ['reqboard_decompose', 'reqboard_ask_confirm'],
+  implementing: ['reqboard_task_report', 'reqboard_task_move'],
+  accepting: ['reqboard_submit(kind=verification)', 'reqboard_accept_sheet'],
+  archived: ['ARCHIVE_DOC_RULES', 'reqboard_submit(kind=archive)'],
 }
 
 /**
@@ -45,18 +80,21 @@ describe('注入文本里的工具名必须都在注册集合内', () => {
     }
     return names
   }
-  /** 注入文本里出现的 reqboard_* 名字（排除注释行，避免把说明文字当违规）。 */
+  /** 注入文本里出现的 reqboard_* 名字。 */
   function referenced(text: string): string[] {
     return [...text.matchAll(/reqboard_[a-z_]+/g)].map(m => m[0])
   }
 
-  it('阶段纪律文本（会被注入）只提到已注册的工具', () => {
+  it('六节点 light/heavy 的注入文本只提到已注册的工具', () => {
     const registered = registeredNames()
     expect(registered.size, '扫描到的注册工具数应 ≥9（防扫描器失效而假绿）').toBeGreaterThanOrEqual(9)
     const bad: string[] = []
-    for (const [key, prompt] of Object.entries(STAGE_PROMPTS)) {
-      for (const name of referenced(prompt)) {
-        if (!registered.has(name)) bad.push(key + ' → ' + name)
+    for (const stage of PROMPT_STAGES) {
+      for (const difficulty of DIFFICULTIES) {
+        const prompt = resolveStagePrompt({ stage, difficulty }).text
+        for (const name of referenced(prompt)) {
+          if (!registered.has(name)) bad.push(stage + '/' + difficulty + ' → ' + name)
+        }
       }
     }
     expect(bad, '提示词提到的工具不存在（改名后文本没跟上）：\n' + bad.join('\n')).toEqual([])
@@ -75,93 +113,76 @@ describe('注入文本里的工具名必须都在注册集合内', () => {
   })
 })
 
-describe('STAGE_PROMPTS 常量表', () => {
-  it('五份常量非空且含关键纪律词', () => {
-    for (const key of ALL_STAGE_PROMPT_KEYS) {
-      const prompt = STAGE_PROMPTS[key]
-      expect(prompt, key).toBeTruthy()
-      expect(prompt.length, key).toBeGreaterThan(50)
-      expect(prompt, key).toContain('REQ-31e11f stage-prompts')
-    }
-    // brainstorming（t18 superpowers 方法论）：一次一个问题 / 方案对比 / 分节 / HARD-GATE
-    expect(STAGE_PROMPTS.brainstorming).toContain('一次一个问题')
-    expect(STAGE_PROMPTS.brainstorming).toContain('2-3 个方案对比')
-    expect(STAGE_PROMPTS.brainstorming).toContain('分节呈现设计')
-    expect(STAGE_PROMPTS.brainstorming).toContain('HARD-GATE')
-    expect(STAGE_PROMPTS.brainstorming).toContain('探索项目上下文')
-    expect(STAGE_PROMPTS.brainstorming).toContain('范围评估先行')
-    // planning（t18 W7 代码层面设计 / 一套文档 / 不含 DAG）
-    expect(STAGE_PROMPTS.planning).toContain('改表')
-    expect(STAGE_PROMPTS.planning).toContain('框架选型')
-    expect(STAGE_PROMPTS.planning).toContain('提交前自查')
-    expect(STAGE_PROMPTS.planning).toContain('测试用例')
-    expect(STAGE_PROMPTS.planning).toContain('不产出最终任务 DAG')
-    // decomposing（t18 新增）：变更盘点 / 任务卡四要素 / 确认门
-    expect(STAGE_PROMPTS.decomposing).toContain('变更盘点')
-    expect(STAGE_PROMPTS.decomposing).toContain('任务卡四要素')
-    expect(STAGE_PROMPTS.decomposing).toContain('reqboard_ask_confirm')
-    // implementing（t18 文档驱动 + 验收文档）
-    expect(STAGE_PROMPTS.implementing).toContain('实施文档')
-    expect(STAGE_PROMPTS.implementing).toContain('reqboard_task_report')
-    expect(STAGE_PROMPTS.implementing).toContain('新窗口或 subagent')
-    expect(STAGE_PROMPTS.implementing).toContain('验收文档')
-    // accepting（t18 逐项验收单 + 断点续验）
-    expect(STAGE_PROMPTS.accepting).toContain('证据先行')
-    expect(STAGE_PROMPTS.accepting).toContain('功能正常')
-    expect(STAGE_PROMPTS.accepting).toContain('逐项')
-    expect(STAGE_PROMPTS.accepting).toContain('断点续验')
-    // archived：按分类核对 / ARCHIVE_DOC_RULES
-    expect(STAGE_PROMPTS.archived).toContain('按分类核对文档清单')
-    expect(STAGE_PROMPTS.archived).toContain('ARCHIVE_DOC_RULES')
-  })
+describe('六节点 light/heavy 要素（REQ-422af1 t7）', () => {
+  for (const stage of PROMPT_STAGES) {
+    it(stage + ' light 非空且含链声明「下一步：」', () => {
+      const light = resolveStagePrompt({ stage, difficulty: 'light' }).text
+      expect(light.length).toBeGreaterThan(50)
+      expect(light).toContain('下一步：')
+      expect(light, 'light 的「下一步」必须与 STAGE_CHAIN 一致').toContain(STAGE_CHAIN[stage].label)
+    })
 
-  // ── REQ-2e9473 t08：落章型确认一律指向 reqboard_ask_confirm（措辞锁定，防回退）──
+    it(stage + ' heavy 命中 heavy 独有要素关键词', () => {
+      const heavy = resolveStagePrompt({ stage, difficulty: 'heavy' }).text
+      for (const kw of HEAVY_ELEMENTS[stage]) {
+        expect(heavy, stage + ' heavy 缺要素「' + kw + '」').toContain(kw)
+      }
+    })
+
+    it(stage + ' heavy 含本仓工具化措辞', () => {
+      const heavy = resolveStagePrompt({ stage, difficulty: 'heavy' }).text
+      for (const kw of REQ_SPECIFIC[stage]) {
+        expect(heavy, stage + ' heavy 缺本仓措辞「' + kw + '」').toContain(kw)
+      }
+    })
+  }
+
+  // ── REQ-2e9473 t08 / REQ-422af1 t7：落章型确认一律指向 reqboard_ask_confirm（措辞锁定，防回退）──
   it('落章型确认纪律均指向 reqboard_ask_confirm（普通征询仍可用 ask_user_question）', () => {
-    for (const key of ['brainstorming', 'planning', 'implementing', 'accepting'] as const) {
-      expect(STAGE_PROMPTS[key], key).toContain('reqboard_ask_confirm')
+    for (const stage of ['brainstorming', 'planning', 'implementing', 'accepting'] as const) {
+      for (const difficulty of DIFFICULTIES) {
+        expect(resolveStagePrompt({ stage, difficulty }).text, stage + '/' + difficulty)
+          .toContain('reqboard_ask_confirm')
+      }
     }
-    // archived 的"取舍拍板"是普通征询，仍用 ask_user_question
-    expect(STAGE_PROMPTS.archived).toContain('ask_user_question')
+    // archived 的"取舍拍板"是普通征询，仍用 ask_user_question（light 档给出）
+    expect(resolveStagePrompt({ stage: 'archived', difficulty: 'light' }).text).toContain('ask_user_question')
   })
 
   it('brainstorming 含产物登记 + 弹框确认指引（ask_confirm 原子化）', () => {
     // 13→9 收敛后入口改名为 reqboard_submit(kind=…)——此处曾**钉死旧工具名**，导致改名后提示词与工具面
     // 长期不一致（agent 会照纪律去调不存在的工具）。教训：断言"调用了哪个入口"时，要跟注册表对齐。
-    expect(STAGE_PROMPTS.brainstorming).toContain('reqboard_submit(kind=requirement)')
-    expect(STAGE_PROMPTS.brainstorming).toContain('reqboard_ask_confirm')
-    expect(STAGE_PROMPTS.brainstorming).toContain('kind=requirement')
+    for (const difficulty of DIFFICULTIES) {
+      const text = resolveStagePrompt({ stage: 'brainstorming', difficulty }).text
+      expect(text).toContain('reqboard_submit(kind=requirement)')
+      expect(text).toContain('reqboard_ask_confirm')
+      expect(text).toContain('kind=requirement')
+    }
   })
 
   it('planning 含计划批准弹框指引（ask_confirm 与看板双通道）', () => {
-    expect(STAGE_PROMPTS.planning).toContain('reqboard_ask_confirm')
-    expect(STAGE_PROMPTS.planning).toContain('target=plan')
-    expect(STAGE_PROMPTS.planning).toContain('批准计划')
+    const text = resolveStagePrompt({ stage: 'planning', difficulty: 'heavy' }).text
+    expect(text).toContain('reqboard_ask_confirm')
+    expect(text).toContain('target=plan')
+    expect(resolveStagePrompt({ stage: 'planning', difficulty: 'light' }).text).toContain('target=plan')
   })
 
   it('accepting 含验收确认弹框指引', () => {
-    expect(STAGE_PROMPTS.accepting).toContain('reqboard_ask_confirm')
-    expect(STAGE_PROMPTS.accepting).toContain('kind=verification')
+    const text = resolveStagePrompt({ stage: 'accepting', difficulty: 'heavy' }).text
+    expect(text).toContain('reqboard_ask_confirm')
+    expect(text).toContain('kind=verification')
   })
 
   it('archived 说明归档已自动完成、本阶段是材料补齐（REQ-9f4a44）', () => {
-    expect(STAGE_PROMPTS.archived).toContain('归档已自动完成')
-    expect(STAGE_PROMPTS.archived).toContain('reqboard_submit(kind=archive)')
+    const text = resolveStagePrompt({ stage: 'archived', difficulty: 'heavy' }).text
+    expect(text).toContain('归档')
+    expect(text).toContain('reqboard_submit(kind=archive)')
   })
 
-  it('StagePromptKey 全覆盖（ALL_STAGE_PROMPT_KEYS 每个键都有非空常量）', () => {
+  it('StagePromptKey 全覆盖（ALL_STAGE_PROMPT_KEYS 每个键都有非空注入）', () => {
+    expect([...ALL_STAGE_PROMPT_KEYS].sort()).toEqual([...PROMPT_STAGES].sort())
     for (const key of ALL_STAGE_PROMPT_KEYS) {
-      expect(STAGE_PROMPTS[key], key).toBeDefined()
-      expect(typeof STAGE_PROMPTS[key], key).toBe('string')
-      expect(STAGE_PROMPTS[key].length, key).toBeGreaterThan(0)
-    }
-    // 反向：STAGE_PROMPTS 的键集合与 ALL_STAGE_PROMPT_KEYS 一致
-    const keys = Object.keys(STAGE_PROMPTS).sort()
-    expect(keys).toEqual([...ALL_STAGE_PROMPT_KEYS].sort())
-  })
-
-  it('stagePromptFor 取值与直接索引一致', () => {
-    for (const key of ALL_STAGE_PROMPT_KEYS) {
-      expect(stagePromptFor(key)).toBe(STAGE_PROMPTS[key])
+      expect(resolveStagePrompt({ stage: key }).text.length, key).toBeGreaterThan(0)
     }
   })
 })
@@ -175,8 +196,7 @@ describe('capture.ts systemPrompt 组装注入', () => {
     const text = boundSectionText(l, { agent: { id: W } })
     expect(text).toContain('REQ-000001')
     expect(text).toContain('brainstorming')
-    expect(text).toContain(STAGE_PROMPTS.brainstorming)
-    expect(text).toContain('一次一个问题')
+    expect(text).toContain(lightText('brainstorming'))
   })
 
   it('bound 窗口处于 planning → 注入 planning 提示词', () => {
@@ -185,8 +205,7 @@ describe('capture.ts systemPrompt 组装注入', () => {
       requirements: [req({ sourceSessionId: W, status: 'planning', category: 'feature' })],
     }
     const text = boundSectionText(l, { agent: { id: W } })
-    expect(text).toContain(STAGE_PROMPTS.planning)
-    expect(text).toContain('提交前自查')
+    expect(text).toContain(lightText('planning'))
   })
 
   it('bound 窗口处于 implementing → 注入 implementing 提示词', () => {
@@ -195,7 +214,7 @@ describe('capture.ts systemPrompt 组装注入', () => {
       requirements: [req({ sourceSessionId: W, status: 'implementing', category: 'feature' })],
     }
     const text = boundSectionText(l, { agent: { id: W } })
-    expect(text).toContain(STAGE_PROMPTS.implementing)
+    expect(text).toContain(lightText('implementing'))
     expect(text).toContain('reqboard_task_report')
   })
 
@@ -205,8 +224,8 @@ describe('capture.ts systemPrompt 组装注入', () => {
       requirements: [req({ sourceSessionId: W, status: 'accepting', category: 'feature' })],
     }
     const text = boundSectionText(l, { agent: { id: W } })
-    expect(text).toContain(STAGE_PROMPTS.accepting)
-    expect(text).toContain('证据先行')
+    expect(text).toContain(lightText('accepting'))
+    expect(text).toContain('验收')
   })
 
   it('archived 需求不算 open → boundSectionText 返回空（归档提示词经 capture-hook 事件注入）', () => {
@@ -239,8 +258,7 @@ describe('分类档案跳过阶段不注入', () => {
     }
     const text = boundSectionText(l, { agent: { id: W } })
     // bug 分类的 stages 不含 brainstorming → 不注入提示词
-    expect(text).not.toContain(STAGE_PROMPTS.brainstorming)
-    expect(text).not.toContain('一次一个问题')
+    expect(text).not.toContain(lightText('brainstorming'))
   })
 
   it('spike 分类跳过 planning → 不注入 planning 提示词', () => {
@@ -249,8 +267,7 @@ describe('分类档案跳过阶段不注入', () => {
       requirements: [req({ sourceSessionId: W, status: 'planning', category: 'spike' })],
     }
     const text = boundSectionText(l, { agent: { id: W } })
-    expect(text).not.toContain(STAGE_PROMPTS.planning)
-    expect(text).not.toContain('提交前自查')
+    expect(text).not.toContain(lightText('planning'))
   })
 
   it('spike 分类处于 implementing（未跳过）→ 注入 implementing 提示词', () => {
@@ -259,7 +276,9 @@ describe('分类档案跳过阶段不注入', () => {
       requirements: [req({ sourceSessionId: W, status: 'implementing', category: 'spike' })],
     }
     const text = boundSectionText(l, { agent: { id: W } })
-    expect(text).toContain(STAGE_PROMPTS.implementing)
+    // REQ-422af1 t8：注入文本按 category 分化（spike 带 spike 类型档），
+    // 故此处对照"同 category 的解析结果"——lightText 的缺省 category 是 feature。
+    expect(text).toContain(resolveStagePrompt({ stage: 'implementing', category: 'spike' }).text)
   })
 
   it('feature 分类 open 阶段均注入（archived 除外，经 capture-hook 事件注入）', () => {
@@ -269,7 +288,7 @@ describe('分类档案跳过阶段不注入', () => {
         requirements: [req({ sourceSessionId: W, status, category: 'feature' })],
       }
       const text = boundSectionText(l, { agent: { id: W } })
-      expect(text, status).toContain(STAGE_PROMPTS[status])
+      expect(text, status).toContain(lightText(status))
     }
   })
 })

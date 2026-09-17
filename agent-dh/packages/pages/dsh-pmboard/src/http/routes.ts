@@ -13,6 +13,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { JsonLedgerRepository as ReqboardStore } from '../adapters/JsonLedgerRepository.js'
 import { newCommentId, newRequirementId, newTaskId } from '../shared/protocol.js'
+import type { InjectionLogReadPort } from '../application/internal/injection-log.js'
 import type { RouterCtx } from './routers/shared.js'
 import { createRequirementsRouter } from './routers/requirements.js'
 import { createTasksRouter } from './routers/tasks.js'
@@ -20,10 +21,13 @@ import { createStagesRouter } from './routers/stages.js'
 import { createVerdictsRouter } from './routers/verdicts.js'
 import { createArtifactsRouter } from './routers/artifacts.js'
 import { createTriageRouter } from './routers/triage.js'
+import { createInjectionRouter } from './routers/injection.js'
 
 export interface ReqboardRouteDeps {
   store: ReqboardStore
   now: () => number
+  /** 注入留痕**只读**端口（REQ-422af1 t11）：看板「本次注入了什么」的数据源；缺省则接口返回空清单。 */
+  injectionLog?: InjectionLogReadPort
   /** 可注入 id 生成器（测试用） */
   ids?: {
     requirement?: () => string
@@ -103,7 +107,10 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
   const ctx: RouterCtx = {
     store,
     now,
-    deps: { ...(deps.cwd !== undefined ? { cwd: deps.cwd } : {}) },
+    deps: {
+      ...(deps.cwd !== undefined ? { cwd: deps.cwd } : {}),
+      ...(deps.injectionLog !== undefined ? { injectionLog: deps.injectionLog } : {}),
+    },
     ids,
     mintId,
     json,
@@ -119,6 +126,7 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
   const verdicts = createVerdictsRouter(ctx)
   const artifacts = createArtifactsRouter(ctx)
   const triage = createTriageRouter(ctx)
+  const injection = createInjectionRouter(ctx)
 
   // -- 分发 ----------------------------------------------------------------
 
@@ -131,6 +139,8 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       if (method === 'GET' && (sub === '' || sub === 'state')) return await stages.handleState(res)
       if (method === 'GET' && sub === 'events') return stages.handleEvents(req, res)
       if (method === 'GET' && sub === 'health') return ok(res, { status: 'ok' })
+      // 注入留痕只读回查（REQ-422af1 t11）：看板「本次注入了什么」的唯一数据源
+      if (method === 'GET' && sub === 'injection-log') return await injection.handleInjectionLog(res, url)
       if (method === 'GET' && sub === 'file') {
         const p = url.searchParams.get('path') ?? ''
         return await artifacts.handleFileRead(res, p)

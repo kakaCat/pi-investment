@@ -137,7 +137,9 @@ REQ-47939a 把 reqboard 的 13 个工具收敛为 9 个。**收敛只改入口�
 ## 各阶段职责规范（REQ-2e9473 t18/W7 · 六要素）
 
 > 每阶段六要素：**目标 / 入口 / 活动 / 产物 / 出口门 / 禁止事项**。
-> 本规范与代码实现同源于 `src/host/stage-prompts.ts`（STAGE_PROMPTS）与 host 工具闸门；
+> 本规范是**流程语义**的事实源；其**提示词文本载体**自 REQ-422af1 起迁到分片库
+> `packages/pages/dsh-pmboard/src/domain/prompt/`（唯一取词入口 `resolveStagePrompt()`，见下节
+> 「提示词加载路由」）；旧的 `STAGE_PROMPTS` 直取路径已物理删除（双入口会绕过路由）。
 > 修改流程语义时两处必须同步（代码是执行体，本文件是事实源）。
 
 ### 1 立项 draft
@@ -199,4 +201,138 @@ REQ-47939a 把 reqboard 的 13 个工具收敛为 9 个。**收敛只改入口�
 ---
 
 **新增/更新**：2026-09-17（REQ-2e9473 t18/W7）；与 STAGE_PROMPTS + host 闸门同源。
+2026-09-17（REQ-422af1 t12）：补「提示词加载路由」一节，并注明阶段提示词文本载体已从 STAGE_PROMPTS 迁到分片库。
+
+---
+
+## 提示词加载路由（REQ-422af1 · 2026-09-17 落地）
+
+> 本节是"每个节点注入哪份提示词"的**现行事实源**。实现细节见
+> [design/architecture.md](../requirements/REQ-422af1/design/architecture.md)（§4 回退链 / §7 门禁）与
+> [design/fragments.md](../requirements/REQ-422af1/design/fragments.md)（§6 类型差异写法 / §8 预算 / §9 编写规范）；
+> 拆分口径见 [decomposition.md](../requirements/REQ-422af1/decomposition.md)（§5 t7 口径 / §8 落地记录）。
+> 代码在 `packages/pages/dsh-pmboard/src/domain/prompt/`，注入点只调唯一入口 `resolveStagePrompt()`。
+
+### 1 语义：节点即选择器，不需要 skill 匹配
+
+状态机已经决定"当前是哪个节点"，因此**不需要任何 skill 检索/匹配机制**——到哪个节点就注入
+哪个节点的内容（**披露 = 按节点注入**：按节点分批、注入时按预算裁剪）。这对应"仪式强度"由
+**难度**决定（同一节点两档），与节点身份无关：heavy 档直接采用 superpowers **原文**（vendor，
+不改写），light 档为自写精简。附属 skill（TDD / subagent-driven-development / worktrees /
+dispatching-parallel-agents / requesting+receiving-code-review / systematic-debugging /
+writing-skills / using-superpowers）设计为挂在**节点内子步骤**上按需披露；本阶段**只落盘、尚未注册为分片**
+（注册即需被路由或 include 命中，否则违反门禁 4"无孤岛"）。
+
+### 2 路由键与 5 级回退链（难度优先于类型）
+
+路由键 = `stage/difficulty/category`（示例 `brainstorming/heavy/feature`；未指定的维度写 `*`）：
+**stage** ∈ 六节点（brainstorming / planning / decomposing / implementing / accepting / archived）；
+**difficulty** ∈ `light` / `heavy`；**category** ∈ `feature` / `bug` / `doc` / `refactor` / `spike` / `chore`。
+
+回退链按表顺序取**首个命中**层；**② 先于 ③ = 难度优先于类型**：
+
+| 层 | 路由 | 含义 |
+|---|------|------|
+| ① | `(stage, difficulty, category)` | 精确命中 |
+| ② | `(stage, difficulty, *)` | 该类型无专属 → 用**难度档** |
+| ③ | `(stage, *, category)` | 该难度无专属 → 用**类型档** |
+| ④ | `(stage, *, *)` | 该节点兜底档 |
+| ⑤ | `(*, *, *)` | **全局铁律——恒并入（合并，不是替代）**，且永远排在 ①-④ 选中内容之后 |
+
+①-④ 命中层级记 1-4，只有 ①-④ 全空才记 5。同 id 片段只注入一次（include 展开后去重）；
+include 指向不存在的 id 时**响亮抛错**，不静默跳过。分片元数据契约（id/stage/difficulty/category/
+priority/text/include）见 `docs/requirements/REQ-422af1/design/fragments.md` §1。
+
+### 3 分片目录结构
+
+    packages/pages/dsh-pmboard/src/domain/prompt/
+      index.ts  router.ts  budget.ts  types.ts  chain.ts   唯一入口 + 回退解析 + 预算 + 类型 + 链声明
+      fragments/brainstorming/light.md                    六节点轻档（自写；另有 planning|decomposing|implementing|accepting|archived）
+      fragments/brainstorming/heavy.md                    六节点重档（5 节点 = vendor 原文逐字节镜像；decomposing 自写完整档）
+      fragments/brainstorming/heavy/overrides.md          附加片段（floor；5 节点有，decomposing 无）
+      fragments/common/iron-rules.md                      ⑤ 全局铁律（floor）
+      vendor/superpowers/brainstorming/SKILL.md           superpowers 原文 14 份（逐字节，不改写）
+      vendor/superpowers/ATTRIBUTION.md                   来源 / 版本 / 许可 / 抓取时点
+      generated/fragments.ts                              构建期内联产物（运行时只读内存，不读盘）
+    scripts/inline-prompt-fragments.mjs                   生成器（md → 内联 TS）
+    scripts/check-prompt-fragments.mjs                    源/产物同步门禁
+
+分片 **id = 路径去扩展名**（如 `brainstorming/heavy`、`brainstorming/heavy/overrides`、`common/iron-rules`）；
+每个分片至少被一条路由命中（否则门禁 4 判孤岛）。作者态是 md、构建期内联为常量，两者由门禁 6 锁死。
+
+### 4 vendor 来源（superpowers）
+
+| 项 | 值 |
+|---|---|
+| 仓库 | `obra/superpowers`（`origin/main`） |
+| commit / tag | `b36e0829c6d0140e93cfef2ca599b1b07d4a7797` = **v6.3.0** |
+| 许可 | **MIT**（Copyright (c) 2025 Jesse Vincent），全文见 `packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/ATTRIBUTION.md` |
+| 份数 | **14 份** `SKILL.md`（该仓 skills/ 全量） |
+| 抓取时点 | **2026-09-17 22:42:44 CST**（`git show origin/main:<skill>/SKILL.md` 逐字节落盘，无改写） |
+| heavy 主 skill 映射 | brainstorming→brainstorming；planning→writing-plans；implementing→executing-plans；accepting→verification-before-completion；archived→finishing-a-development-branch |
+| 口径例外 | **decomposing 在 14 份里无对应 skill**（没有"拆分/任务 DAG/卡质量"内容）→ heavy 为**自写完整档**，不做"与原文逐字一致"断言 |
+
+### 5 注入顺序与单次注入预算
+
+单次注入顺序**固定三段**：
+
+1. **vendor 原文**（heavy 主 skill 全文，**不裁**）或轻档自写内容；
+2. **overrides 附加片段**（`priority=floor`，不可裁）——承载本仓口径：节点交棒行、落盘路径、
+   **显式否掉 server/http 与浏览器本体**、把 skill 里的 create-a-task 映射到 reqboard 任务卡、闸门与节点归属；
+3. **`packages/pages/dsh-pmboard/src/domain/prompt/fragments/common/iron-rules.md` 铁律**（floor，永不裁）。
+
+**单次注入预算 `DEFAULT_PROMPT_BUDGET = 24000` 字符**（口径 = 字符数，token 的代理指标）。由来：
+heavy 档**主 skill 全文不裁**（裁正文等于把 heavy 降回"要点版"），实测最大解析结果 **17,193 字符**
+（`brainstorming/heavy/feature`，tsx 实测 2026-09-17），P0 期的 **8000** 装不下 → T7 上调为 **24000**
+（= 实测上限 + 余量），并已回写 `docs/requirements/REQ-422af1/design/fragments.md` §8。裁剪只作用于非 floor 片段，按优先级从低到高裁；
+**连保底（floor）都超预算时返回结构化 `overBudget`（reason=floor-exceeds-budget）而不静默裁保底**——
+响亮失败优于静默降级。
+
+### 6 六条门禁（`packages/pages/dsh-pmboard/tests/prompt-gates.test.ts`，每条都能变红）
+
+| # | 门禁 | 判据 |
+|---|------|------|
+| 1 | 覆盖完整 | 6×2×6 全部解析非空（0 例空串）；⑤ 铁律层存在且每次解析都并入 |
+| 2 | 工具名一致 | 注入文本里的 `reqboard_*` ⊆ 实际注册集合（∩ 上方「工具面」的 9 个入口） |
+| 3 | 预算上限 | 默认预算下 charCount ≤ 24000；极小预算返回结构化 `overBudget` 而非静默裁保底 |
+| 4 | 片段唯一 + 无孤岛 | 分片 id 不重复；每个分片至少被一条路由命中 |
+| 5 | 链声明完整 | 每节点有「下一步：<next> —— 用 <tool>」声明，且 next ∈ 状态机合法后继（`packages/pages/dsh-pmboard/src/domain/prompt/chain.ts` 与分片文本一致） |
+| 6 | 源/产物同步 | `packages/pages/dsh-pmboard/src/domain/prompt/fragments/**/*.md` 与 `packages/pages/dsh-pmboard/src/domain/prompt/generated/fragments.ts` 逐字节一致；每份 `packages/pages/dsh-pmboard/src/domain/prompt/fragments/<stage>/heavy.md` 与 vendor 原文逐字节一致 |
+
+> `docs/requirements/REQ-422af1/design/architecture.md` §7 另列第 7 条「自足性」（节点产物含五字段头部），检查对象是**节点产物**
+> 而非本取词链，由产物门禁承担；既有四条机械门禁（layer-boundary / size-budget / typecheck / message-hygiene）继续必须绿。
+
+### 7 六节点两档实现状态（REQ-422af1 t7，2026-09-17 落地）
+
+| 节点 | light | heavy | heavy 来源 | light 字符 | heavy 字符 |
+|------|:----:|:----:|-----------|----------:|----------:|
+| brainstorming | ✅ | ✅ | vendor brainstorming | 1,218 | 17,193 |
+| planning | ✅ | ✅ | vendor writing-plans | 946 | 8,207 |
+| decomposing | ✅ | ✅ | **自写完整档**（无对应 skill） | 855 | 1,641 |
+| implementing | ✅ | ✅ | vendor executing-plans | 925 | 3,723 |
+| accepting | ✅ | ✅ | vendor verification-before-completion | 922 | 4,701 |
+| archived | ✅ | ✅ | vendor finishing-a-development-branch | 897 | 8,956 |
+
+字符数 = `resolveStagePrompt({stage, difficulty})` 的 `charCount`（含 overrides + 铁律；tsx 实测 2026-09-17）。
+分片记录共 **126 条** = 18 份源分片（6 light + 6 heavy + 5 overrides + 1 铁律，`category='*'`、`priority='floor'`）
++ **36 份类型档正文**（③ 层，六节点 × bug/refactor/feature/spike/doc/chore）+ **72 条 ① 层路由壳**
+（`text=''` + `include=[节点档(, overrides), 类型档]`）。
+
+因此：`(stage, difficulty, *)` 命中 ②（难度档）；`(stage, difficulty, category)` 命中 ① 并合成
+**节点内容 + 类型差异 + ⑤ 铁律**；`(stage, *, category)` 命中 ③（类型兜底）。
+类型档已于 **t8 落地**——本页初稿写"属 P2 尚未落地"是当时的中间状态，t12 复核时已按实际产物更正。
+六节点 light(855-1,218) < heavy(1,641-17,193) 6/6。
+
+### 8 注入点与本路由的关系
+
+注入点只有两处，**都调 `resolveStagePrompt()`**（INV-1 单点化）：
+`packages/pages/dsh-pmboard/src/application/internal/capture-section.ts`（每回合 systemPrompt 组装）
+与 `packages/pages/dsh-pmboard/src/adapters/CaptureHook.ts`（状态转移后即时注入）；
+`STAGE_PROMPTS` / `stagePromptFor` 直取写法已**物理删除**（双入口会绕过路由），
+现仅保留键类型与常量（`packages/pages/dsh-pmboard/src/domain/stage/StagePromptSpec.ts`）。
+每次注入按十字段留痕到**运行时文件** `<dshHome>/state/prompt-injection-log.json`（ring buffer 保留最近 500 条、
+原子写；该文件运行时生成，不在仓库内）：`at / windowKey / stage / difficulty / category / routeKey / hitLevel / fragmentIds / charCount / trimmed`，
+让"这次到底注入了什么"可被人核查。
+
+---
 

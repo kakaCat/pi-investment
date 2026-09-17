@@ -9,6 +9,7 @@ import { PROGRESS_DOT_STAGES, WORKFLOW_STAGES, getStageOrder } from '../workflow
 import { NO_ARCHIVED, PHASE_LABELS, STATUS_LABELS, TASK_STATUS_LABELS, fmtTime, renderComments, renderMarkdown, renderWindowChip, windowCodeFromSessionId } from '../render/dom-utils.ts'
 import { renderReqTimeline } from './timeline.ts'
 import { renderArchiveSection, renderDocSection, renderVerifySection } from './verification.ts'
+import { renderInjectionInfo } from '../injection-info.ts'
 
 // ---------------------------------------------------------------------------
 // 需求详情页：8 态进度点 + 4 Tab 分组（REQ-6f39b5）
@@ -81,6 +82,10 @@ export function buildTabContents(
           <div class="dsh-pm-stage-current-title">${STATUS_LABELS[req.status]}（${req.status}）</div>
           <div class="dsh-pm-stage-detail" id="dsh-pm-stage-detail-container"></div>
         </div>
+      </details>
+      <details class="dsh-pm-fold">
+        <summary class="dsh-pm-section-title">💉 本次注入（只读）</summary>
+        <div class="dsh-pm-section-content" id="dsh-pm-injection-info-container">${renderInjectionInfo([])}</div>
       </details>
       <details class="dsh-pm-fold">
         <summary class="dsh-pm-section-title">📁 文档记录</summary>

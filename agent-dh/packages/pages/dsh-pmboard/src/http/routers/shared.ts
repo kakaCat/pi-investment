@@ -8,11 +8,13 @@
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { JsonLedgerRepository } from '../../adapters/JsonLedgerRepository.js'
+import type { InjectionLogReadPort } from '../../application/internal/injection-log.js'
 
 export interface RouterCtx {
   store: JsonLedgerRepository
   now: () => number
-  deps: { cwd?: string }
+  /** 路由可选依赖：cwd=产物扫描根；injectionLog=注入留痕**只读**端口（看板信息块用）。 */
+  deps: { cwd?: string; injectionLog?: InjectionLogReadPort }
   ids: { requirement: () => string; task: () => string; comment: () => string }
   mintId: (kind: 'requirement' | 'task') => Promise<string>
   json: (res: ServerResponse, status: number, body: unknown) => void

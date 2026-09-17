@@ -36,6 +36,7 @@ const must = [
   'dsh-pm-artifact-chip',    // t7 产物 chip
   'dsh-pm-confirm-artifact', // t7 卡面确认按钮
   'dsh-pm-sn-task',          // v4 任务执行列表行（单节点工作记录）
+  'dsh-pm-injection-info',   // REQ-422af1 t11 「本次注入了什么」只读块
 ]
 const missing = must.filter((k) => !bundle.includes(k))
 if (missing.length > 0) fail('产物缺少关键符号：' + missing.join(', '))

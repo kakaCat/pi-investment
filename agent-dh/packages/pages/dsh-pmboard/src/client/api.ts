@@ -6,6 +6,7 @@
  */
 import type { BoardState, TriageList } from './types.ts'
 import type { StageDetail, StageOverview } from '../shared/protocol.ts'
+import type { InjectionInfoResponse } from './injection-info.ts'
 
 const BASE = '/dashboard/api/reqboard'
 const TIMEOUT_MS = 8000
@@ -37,6 +38,16 @@ const post = <T>(path: string, body: unknown): Promise<T> =>
 
 export const fetchState = (): Promise<BoardState> => get<BoardState>(BASE + '/')
 export const fetchTriage = (): Promise<TriageList> => get<TriageList>(BASE + '/triage')
+
+/**
+ * 注入留痕只读回查（REQ-422af1 t11）：看板「本次注入了什么」的数据源。
+ * windowKey 缺省（人工建卡无来源窗口）→ 不带 window 参数，由服务端返回全量最近 k 条。
+ */
+export function fetchInjectionInfo(windowKey: string | undefined, k = 20): Promise<InjectionInfoResponse> {
+  const qs = new URLSearchParams({ k: String(k) })
+  if (windowKey !== undefined && windowKey.length > 0) qs.set('window', windowKey)
+  return get<InjectionInfoResponse>(BASE + '/injection-log?' + qs.toString())
+}
 
 // -- 需求操作 -------------------------------------------------------------
 
