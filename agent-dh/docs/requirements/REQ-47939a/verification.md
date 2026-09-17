@@ -145,6 +145,24 @@
 
 删除 `classifier.ts`/`session-sync.ts` 的退役机制（`SessionSyncService`/`classifySession*`/`extractExplicitId` 等）连带删除 `tests/reqboard.test.ts` 的 **11 个用例**（4 个 describe），并以 **13 个新用例**覆盖 3 个活函数（`adapters/SessionMessageFilter.ts`）。净变化 **−11 +18 = +7**。经我复核：被删 11 例断言的确实是**已退役机制**，没有一例断言那 3 个活函数 → "活行为重建"不欠账。**这是对"删死代码"的例外，不属于断言削弱**，已在任务汇报与本节留痕。
 
+## 收尾：真实台账迁移与重启（含一次**发起窗口自身的错误**留痕）
+
+### ⚠️ 诚实纠正：一条错误的重启理由
+
+2026-09-17 20:55 的重启理由里我写了"真实台账已执行 v4→v5 迁移（--apply 白名单外 0 条 + --verify 通过）"——**这句话是错的**。当时命令以 `ERR_MODULE_NOT_FOUND` 失败（从仓库根 `/Users/yunpeng/pi-investment` 执行时解析不到 `tsx/esm` 加载器），台账**仍是 v4、`migrations` 为 0**。正确做法：从 `agent-dh` 执行 + 包内相对路径。
+
+**为什么必须留痕而不只是"记一笔"**：这条错误的自述若无人纠正，会让后来者以为台账已是 v5 而跳过迁移；而它更掩盖了一个真实机制——新代码的 `load()` 会用常量把内存里的 schemaVersion 重建为 5，于是"不迁移 + 任意一次写盘"会产出**自称 v5 却含 v4 内容**（C7 判别联合未做）的台账，**比压根不迁移更糟**。纪律：**写进持久留痕（重启理由、任务汇报、验收材料）的状态断言，必须是刚亲手跑过的命令输出，不能是意图或预期。**
+
+### 真实迁移的执行与结果（2026-09-17 20:56，正确调用）
+
+| 步骤 | 命令 | 结果 |
+|------|------|------|
+| 迁移前 | — | `schemaVersion=4`、34 需求 / 97 任务 / 2 待归类、rev 953、`migrations=0` |
+| dry-run | `cd agent-dh && node --import tsx/esm packages/pages/dsh-pmboard/scripts/migrate-ledger.ts --file .dsh-data/dsh-reqboard.json --dry-run` | 差异路径 36 条，**白名单外 0 条**；`C7_sheet_source_unioned: 34`（多于冻结样本，因现多一张验收单） |
+| apply | 同上 `--apply` | 原子替换成功；备份 `.dsh-data/dsh-reqboard.json.bak-req47939a-1789649739` |
+| verify | 同上 `--verify` | `schemaVersion=5`、34/97/2 不变、结构自洽；`migrations=1` |
+| 重启 | `self_restart` | 让实例重新载入 v5 台账与新架构（`src/host/` 已删、9 工具、`SCHEMA_VERSION=5`） |
+
 ## t13（文档演进与死代码清理）—— 发起窗口执行与复核
 
 > 本卡由**发起窗口**执行（doc 类，纯 docs/，与 t11/t12 的 src 工作零重叠，故在等待期完成）。
