@@ -130,6 +130,29 @@ describe('reqboard_decompose 边界', () => {
     expect(store.snapshot().tasks).toHaveLength(2)
   })
 
+  it('回归（2026-09-17）：批准计划后自动进入 decomposing 且尚无任务 —— 必须允许拆分', async () => {
+    // 事故现场：reqboard_ask_confirm(target=plan) 批准后自动 planning → decomposing，
+    // 紧接着调 decompose 被"状态=decomposing 即视为已拆过"的守卫拒死（REQBOARD_ALREADY_DECOMPOSED），
+    // 而台账里一个任务都没有 —— 审批流水线自锁。
+    await seed('decomposing')
+    await store.mutate('seed-plan', (l) => {
+      const r = l.requirements[0]
+      r.plan = { path: 'p.md', summary: 's', tasks: [], submittedAt: 1, approvedAt: 1000, approvedBy: { kind: 'human' } } as never
+      return { requirements: [r] }
+    })
+    const out = await run(decompose, {
+      tasks: [
+        { key: 't1', title: '协议层加时间线', phase: 'implement', side: 'backend', acceptance: 'npx vitest run tests/reqboard.test.ts 全绿', implementation: 'src/shared/protocol.ts 加字段并由 tests/reqboard.test.ts 验证' },
+        { key: 't2', title: '客户端渲染甘特图', phase: 'ui', side: 'frontend', depends_on: ['t1'], acceptance: 'tests/client-view.test.ts 全绿', implementation: 'src/client/view.ts 加 buildGantt() 并由 tests/client-view.test.ts 断言' },
+      ],
+    })
+    expect(out.created).toHaveLength(2)
+    expect(store.snapshot().tasks).toHaveLength(2)
+    // 拆完后重复拆分仍被拒（防线②）：无幽灵任务
+    await expect(run(decompose, { tasks: [{ key: 't1', title: 'x' }] })).rejects.toThrow(/REQBOARD_ALREADY_DECOMPOSED/)
+    expect(store.snapshot().tasks).toHaveLength(2)
+  })
+
   it('幂等守卫：implementing/accepting 状态一律拒绝重复拆分', async () => {
     for (const st of ['implementing', 'accepting'] as const) {
       await seed(st)
