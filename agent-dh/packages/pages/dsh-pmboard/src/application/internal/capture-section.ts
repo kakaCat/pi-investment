@@ -112,7 +112,7 @@ export function boundSectionText(ledger: ReqboardLedger, context: unknown): stri
       lines.push(`- 联调完成 → reqboard_task_move({ task_id: '${task.id}', to: 'testing', reason: '...' })`)
       lines.push(`- 测试通过 → reqboard_task_move({ task_id: '${task.id}', to: 'in_review', reason: '...' })`)
       lines.push('')
-      lines.push('查看所有任务：reqboard_task_detail()')
+      lines.push('查看所有任务：reqboard_status()')
       lines.push('')
     }
   }
@@ -141,13 +141,13 @@ export function boundSectionText(ledger: ReqboardLedger, context: unknown): stri
     '- 方案谈定 → reqboard_move 到 planning（写计划属于这个阶段）；',
     '',
     '计划模式（拆分的前置闸门 · 唯一需要人点头的地方）：',
-    '- 评审阶段先把方案写成实施计划 → reqboard_plan_submit（path = 工作区计划文档，',
+    '- 评审阶段先把方案写成实施计划 → reqboard_submit(kind=plan)（path = 工作区计划文档，',
     '  summary = 一段人能读懂的目标+做法，tasks = 将来要落库的任务表：',
     '  key/title/phase/side/depends_on/acceptance，粒度与依赖在这里定死）；',
     '- 提交后请人在项目看板点「批准计划」——未批准时 reqboard_decompose 被代码级拒绝；',
     '- 获批后 reqboard_decompose 落库任务卡（不传 tasks = 直接落库批准的计划；',
     '  传了 tasks 则必须与计划 key 一致，防止「批了 A 落库 B」）；',
-    '- 方案要改 → 重新 reqboard_plan_submit（旧批准自动作废，需重新批准）。',
+    '- 方案要改 → 重新 reqboard_submit(kind=plan)（旧批准自动作废，需重新批准）。',
     '',
     '状态推进纪律（计划批准之后，其余都由窗口自己维护，不需要用户手动点按钮）：',
     '- 方案敲定 → reqboard_decompose 把需求拆成任务 DAG 落库（真拆分：写台账任务卡，',
@@ -160,12 +160,12 @@ export function boundSectionText(ledger: ReqboardLedger, context: unknown): stri
     '- 推进时用 reason 写清做了什么（进需求留痕，供复盘与验收）。',
     '',
     '验收（人工审核，别自己判过）：',
-    '- 交付完成 → reqboard_verify_submit（summary = 交付结论；evidence = 可复核的证据：',
+    '- 交付完成 → reqboard_submit(kind=verification)（summary = 交付结论；evidence = 可复核的证据：',
     '  命令+输出摘要 / 报告路径 / 截图路径），需求进入验收态等人审核；',
     '- 「验收通过」只有人能点；被退回 → 按人的意见返工后再提交。',
     '',
     '归档（先备材料，人再点）：',
-    '- 需求完成后 → reqboard_archive_submit（需求目录 docs/requirements/REQ-xxxxxx、',
+    '- 需求完成后 → reqboard_submit(kind=archive)（需求目录 docs/requirements/REQ-xxxxxx、',
     '  目录内文档清单、合并去向 merged_into、一句话索引条目）；',
     '- 合并去向与必填文档按需求类型限定（feature→architecture/guides，bug→known-issues，',
     '  spike→research，refactor→architecture/work-logs，chore→work-logs），规范见',

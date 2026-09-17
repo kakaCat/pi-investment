@@ -7,6 +7,9 @@ import { describe, it, expect } from 'vitest'
 import { STAGE_PROMPTS, stagePromptFor } from '../src/domain/stage/StagePromptSpec.js'
 import { boundSectionText } from '../src/application/internal/capture-section.js'
 import { ALL_STAGE_PROMPT_KEYS, emptyLedger, type ReqboardLedger, type RequirementRecord } from '../src/shared/protocol.js'
+import { readdirSync, readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 
 const W = 'session-abc-123'
 
@@ -17,6 +20,60 @@ function req(over: Partial<RequirementRecord>): RequirementRecord {
     ...over,
   } as RequirementRecord
 }
+
+/**
+ * 注入文本 × 工具注册表一致性门禁（REQ-47939a 补）。
+ *
+ * 事故：13→9 收敛把 4 个 submit 合并为 `reqboard_submit(kind=…)`、`confirm_artifact` 并入
+ * `reqboard_ask_confirm`，但**真正会被注入给 agent 的阶段纪律文本**仍写着旧名——文档同步了、
+ * 注入文本漏了，于是 agent 照纪律执行会去调不存在的工具。且旧断言恰好把旧名钉死，改名时毫无提示。
+ *
+ * 本门禁把"文本里提到的工具"与"实际注册的工具"对起来：任何一处不一致即红。
+ */
+describe('注入文本里的工具名必须都在注册集合内', () => {
+  const SRC = fileURLToPath(new URL('../src', import.meta.url))
+  /** 实际注册的工具名：静态扫 src/tools 下的 name: 'reqboard_x'（与运行时注册同源）。 */
+  function registeredNames(): Set<string> {
+    const names = new Set<string>()
+    for (const dir of readdirSync(join(SRC, 'tools'), { withFileTypes: true })) {
+      if (!dir.isDirectory()) continue
+      for (const f of readdirSync(join(SRC, 'tools', dir.name))) {
+        if (!f.endsWith('.ts')) continue
+        const text = readFileSync(join(SRC, 'tools', dir.name, f), 'utf8')
+        for (const m of text.matchAll(/name:\s*'(reqboard_[a-z_]+)'/g)) names.add(m[1]!)
+      }
+    }
+    return names
+  }
+  /** 注入文本里出现的 reqboard_* 名字（排除注释行，避免把说明文字当违规）。 */
+  function referenced(text: string): string[] {
+    return [...text.matchAll(/reqboard_[a-z_]+/g)].map(m => m[0])
+  }
+
+  it('阶段纪律文本（会被注入）只提到已注册的工具', () => {
+    const registered = registeredNames()
+    expect(registered.size, '扫描到的注册工具数应 ≥9（防扫描器失效而假绿）').toBeGreaterThanOrEqual(9)
+    const bad: string[] = []
+    for (const [key, prompt] of Object.entries(STAGE_PROMPTS)) {
+      for (const name of referenced(prompt)) {
+        if (!registered.has(name)) bad.push(key + ' → ' + name)
+      }
+    }
+    expect(bad, '提示词提到的工具不存在（改名后文本没跟上）：\n' + bad.join('\n')).toEqual([])
+  })
+
+  it('捕获引导段源码里的工具名同样只指向已注册工具', () => {
+    const registered = registeredNames()
+    const text = readFileSync(join(SRC, 'application/internal/capture-section.ts'), 'utf8')
+    const bad: string[] = []
+    for (const line of text.split('\n')) {
+      const t = line.trim()
+      if (t.startsWith('*') || t.startsWith('//')) continue
+      for (const name of referenced(line)) if (!registered.has(name)) bad.push(name + '  ← ' + t.slice(0, 60))
+    }
+    expect(bad, '捕获引导段引用了不存在的工具：\n' + bad.join('\n')).toEqual([])
+  })
+})
 
 describe('STAGE_PROMPTS 常量表', () => {
   it('五份常量非空且含关键纪律词', () => {
@@ -68,7 +125,9 @@ describe('STAGE_PROMPTS 常量表', () => {
   })
 
   it('brainstorming 含产物登记 + 弹框确认指引（ask_confirm 原子化）', () => {
-    expect(STAGE_PROMPTS.brainstorming).toContain('reqboard_requirement_submit')
+    // 13→9 收敛后入口改名为 reqboard_submit(kind=…)——此处曾**钉死旧工具名**，导致改名后提示词与工具面
+    // 长期不一致（agent 会照纪律去调不存在的工具）。教训：断言"调用了哪个入口"时，要跟注册表对齐。
+    expect(STAGE_PROMPTS.brainstorming).toContain('reqboard_submit(kind=requirement)')
     expect(STAGE_PROMPTS.brainstorming).toContain('reqboard_ask_confirm')
     expect(STAGE_PROMPTS.brainstorming).toContain('kind=requirement')
   })
@@ -86,7 +145,7 @@ describe('STAGE_PROMPTS 常量表', () => {
 
   it('archived 说明归档已自动完成、本阶段是材料补齐（REQ-9f4a44）', () => {
     expect(STAGE_PROMPTS.archived).toContain('归档已自动完成')
-    expect(STAGE_PROMPTS.archived).toContain('reqboard_archive_submit')
+    expect(STAGE_PROMPTS.archived).toContain('reqboard_submit(kind=archive)')
   })
 
   it('StagePromptKey 全覆盖（ALL_STAGE_PROMPT_KEYS 每个键都有非空常量）', () => {
