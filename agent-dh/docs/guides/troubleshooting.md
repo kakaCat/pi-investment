@@ -3,7 +3,7 @@ id: guide-troubleshooting
 title: 故障排查手册（症状 → 根因 → 处置）
 type: guide
 status: living
-updated: 2026-09-14
+updated: 2026-09-15
 owners: [w-1cee2467]
 tags: [guide, troubleshooting, ops]
 ---
@@ -61,6 +61,7 @@ tags: [guide, troubleshooting, ops]
 | worktree 里测试全挂（模块找不到） | worktree 缺包级 `node_modules`（本地链接） | 给 worktree 建符号链接指向主仓的包级 `node_modules` |
 | 测试跑得出来但依赖解析失败 | 跑在 worktree 而依赖指向主仓（或反之） | 明确 cwd 与符号链接指向；**在哪个树里改就在哪个树里验证** |
 | `git merge` 报 "local changes would be overwritten" | 主工作区有他人未提交改动 | **停手**：不要 checkout / restore 批量覆盖；先把自己的分支 rebase 到 main 再 ff 合并 |
+| 页面上「之前有」的功能不见了（视图/按钮/面板消失，无报错） | 实现被 `git stash` 暂存后未 pop，后续提交把它覆盖沉没；或功能文件 untracked 从未入库 | `git stash list` + `git reflog` + `git fsck --lost-found` 三路找回；恢复后连 untracked 文件一起入库；**stash 即负债**——跨会话暂存转分支，清 stash 前先导出 patch 备份（REQ-283168） |
 
 ## 依据
 
@@ -68,7 +69,8 @@ tags: [guide, troubleshooting, ops]
 - K 线冻结期的假熔断（-10.71% vs 真实 -6.77%）；
 - `strategy_stock_matching` 800/800 行悬空引用、105 天无人发现；
 - 工具 schema 缺字段导致全量启动崩溃；
-- 本轮实踩：client 半产物未重建 → 新按钮不出现；worktree 缺 node_modules → 测试全挂；主仓脏改动 → merge 被拒。
+- 本轮实踩：client 半产物未重建 → 新按钮不出现；worktree 缺 node_modules → 测试全挂；主仓脏改动 → merge 被拒；
+- 2026-09-15：看板双视图被 stash@{0} 沉没数月（暂存后未 pop + P0/P1/P2 覆盖），`conversation-progress.ts` 以 untracked 状态裸奔（REQ-283168）。
 
 ## 相关页面
 
