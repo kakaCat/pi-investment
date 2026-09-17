@@ -7,6 +7,7 @@
  * @module dsh-pmboard/tools/StatusTool
  */
 import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
+import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { queryState } from '../../application/query/QueryState.js'
 import { STATUS_PROMPT } from './prompt.js'
@@ -52,7 +53,7 @@ export function defineStatusTool(deps: UseCaseDeps) {
       },
       render: renderJson,
     },
-    timeoutMs: 15000,
+    timeoutMs: LIMITS.timeoutReadMs,
     execute: async (args: unknown, exec: ToolRunContext) => queryState(deps, args, exec),
   } as any)
 }

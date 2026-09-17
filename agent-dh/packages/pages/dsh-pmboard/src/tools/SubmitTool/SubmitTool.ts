@@ -8,6 +8,7 @@
  * @module dsh-pmboard/tools/SubmitTool
  */
 import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
+import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { submitRequirementArtifact, submitPlanArtifact } from '../../application/use-cases/SubmitArtifact.js'
 import { submitVerification } from '../../application/use-cases/SubmitVerification.js'
@@ -173,7 +174,7 @@ export function defineSubmitTool(deps: UseCaseDeps) {
       },
       render: renderJson,
     },
-    timeoutMs: 20000,
+    timeoutMs: LIMITS.timeoutWriteMs,
     execute: async (args: unknown, exec: ToolRunContext) => {
       const kind = normalizeText((args ?? {}).kind, 'kind', 32)
       const run = SUBMIT_DISPATCH[kind]

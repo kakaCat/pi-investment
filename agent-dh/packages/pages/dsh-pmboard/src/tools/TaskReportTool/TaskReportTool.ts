@@ -7,6 +7,7 @@
  * @module dsh-pmboard/tools/TaskReportTool
  */
 import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
+import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { executeReportTask } from '../../application/use-cases/ReportTask.js'
 import { TASK_REPORT_PROMPT } from './prompt.js'
@@ -48,7 +49,7 @@ export function defineTaskReportTool(deps: UseCaseDeps) {
       },
       render: renderJson,
     },
-    timeoutMs: 15000,
+    timeoutMs: LIMITS.timeoutReadMs,
     execute: async (args: unknown, exec: ToolRunContext) => executeReportTask(deps, args, exec),
   } as any)
 }

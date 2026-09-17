@@ -13,6 +13,7 @@
  * 纯函数：零 I/O、不碰时间与随机数；返回结构化原因（调用方拼 'reqboard_decompose 未执行：' 前缀）。
  */
 
+import { fmt } from '../text/fmt.js'
 import type { RequirementStatus } from '../requirement/RequirementStatus.js'
 
 /** 已有任务的最小投影（清单提示用）。 */
@@ -35,8 +36,7 @@ export function checkDecomposeIdempotency(
     return {
       ok: false,
       code: 'REQBOARD_ALREADY_DECOMPOSED',
-      reason: '需求已处于 ' + status + '（拆分已完成），'
-        + '重复拆分会产生重复任务。要调整任务请逐任务修改，或人工取消后重拆',
+      reason: fmt('需求已处于 {status}（拆分已完成），重复拆分会产生重复任务。要调整任务请逐任务修改，或人工取消后重拆', { status }),
     }
   }
   if (existingTasks.length > 0) {
@@ -44,7 +44,7 @@ export function checkDecomposeIdempotency(
     return {
       ok: false,
       code: 'REQBOARD_ALREADY_DECOMPOSED',
-      reason: '该需求已落库 ' + existingTasks.length + ' 个未取消任务，禁止重复拆分。已有任务：' + list,
+      reason: fmt('该需求已落库 {count} 个未取消任务，禁止重复拆分。已有任务：{list}', { count: existingTasks.length, list }),
     }
   }
   return { ok: true }

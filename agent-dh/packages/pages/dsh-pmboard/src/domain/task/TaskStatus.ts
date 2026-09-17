@@ -18,6 +18,15 @@ export type TaskStatus =
   | 'done'        // 完成（仅人）
   | 'canceled'
 
+/**
+ * 任务状态的**展示顺序**（看板按此排序：未开始 → 进行中 → 待复核 → 完成）。
+ * 适配层此前直接引用一个不存在的 `TASK_ORDER`（运行时 ReferenceError → 500），
+ * 现单点于此并带类型。
+ */
+export const TASK_STATUS_ORDER: readonly TaskStatus[] = [
+  'todo', 'in_progress', 'integrating', 'testing', 'in_review', 'done', 'canceled',
+]
+
 /** 任务初始状态（新任务一律从此开始——领域常量，适配层不得写字面量）。 */
 export const INITIAL_TASK_STATUS: TaskStatus = 'todo'
 

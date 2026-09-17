@@ -8,19 +8,15 @@
  *
  * @module dsh-pmboard/application/internal/window
  */
+import { isOpenRequirement } from '../../domain/status/Predicates.js'
 import type { ReqboardLedger, RequirementRecord, TriageRecord } from '../../shared/protocol.js'
 
 /** 只读台账视图（用例实际拿到的是 LedgerView；此别名让本模块对两种形状都可用）。 */
 type View = Pick<ReqboardLedger, 'requirements' | 'triages'>
 
-/** 仍处进行中的需求状态（bound 判定用）；done/archived/canceled 视为已结束。 */
-const OPEN_REQ_STATUSES: ReadonlySet<string> = new Set([
-  'draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting',
-])
-
-function isOpenReq(req: RequirementRecord): boolean {
-  return OPEN_REQ_STATUSES.has(req.status)
-}
+// 进行中判据已单点至 domain（REQ-47939a 返工修复：此前此处私下定义 OPEN_REQ_STATUSES，
+// 路由层却引用了不存在的 OPEN_STATUSES → /session/:id/progress 运行时 500、会话框流程节点不显示）
+const isOpenReq = isOpenRequirement
 
 /**
  * 该窗口是否已绑定进行中的需求。规则（B：从需求记录判断）：

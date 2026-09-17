@@ -16,6 +16,7 @@
 
 import type { ActorRef } from '../actor.js'
 import { REQBOARD_ERROR_CODES, domainError } from '../errors.js'
+import { fmt } from '../text/fmt.js'
 
 /** 验收项来源（v5 判别联合）。 */
 export type VerificationItemSource = { kind: 'requirement' } | { kind: 'task'; taskId: string }
@@ -105,7 +106,7 @@ export function buildSheet(input: SheetBuildInput): SheetBuildResult {
         ...input.tasks.map((t, idx) => ({
           id: 'v' + version + '-' + (idx + 1),
           source: { kind: 'task', taskId: t.id } as VerificationItemSource,
-          criterion: t.acceptance.length > 0 ? t.acceptance : (t.title + '：交付完成'),
+          criterion: t.acceptance.length > 0 ? t.acceptance : fmt('{title}：交付完成', { title: t.title }),
           evidence: [...input.evidence],
           status: 'pending' as const,
         })),
@@ -182,10 +183,10 @@ export function applyVerdicts(
   for (const verdict of verdicts) {
     const item = sheet.items.find(i => i.id === verdict.itemId)
     if (item === undefined) {
-      throw domainError(REQBOARD_ERROR_CODES.invalidInput, '验收项 ' + verdict.itemId + ' 不存在')
+      throw domainError(REQBOARD_ERROR_CODES.invalidInput, fmt('验收项 {itemId} 不存在', { itemId: verdict.itemId }))
     }
     if (verdict.status === 'failed' && (verdict.opinion ?? '').length === 0) {
-      throw domainError(REQBOARD_ERROR_CODES.invalidInput, '不通过的验收项必须写意见（' + item.id + '）')
+      throw domainError(REQBOARD_ERROR_CODES.invalidInput, fmt('不通过的验收项必须写意见（{itemId}）', { itemId: item.id }))
     }
     item.status = verdict.status
     if ((verdict.opinion ?? '').length > 0) item.opinion = verdict.opinion
@@ -196,15 +197,17 @@ export function applyVerdicts(
   const reworkTasks: ReworkTaskSpec[] = failedItems.map((item) => {
     const orig = item.source.kind === 'task' ? tasks.find(t => t.id === item.source.taskId) : undefined
     return {
-      title: '返工：' + (orig?.title ?? item.criterion).slice(0, 60),
-      description: '验收不通过项返工（v' + sheet.version + ' 项 ' + item.id + '）：' + item.criterion,
+      title: fmt('返工：{title}', { title: (orig?.title ?? item.criterion).slice(0, 60) }),
+      description: fmt('验收不通过项返工（v{version} 项 {itemId}）：{criterion}', { version: sheet.version, itemId: item.id, criterion: item.criterion }),
       phase: orig?.phase ?? 'implement',
       side: orig?.side ?? 'fullstack',
       scope: orig?.scope ?? { apis: [], tables: [], files: [] },
       acceptance: item.criterion,
-      implementation: '按验收意见修复：' + (item.opinion ?? '（见验收单）'),
-      context: '承接自 ' + (item.source.kind === 'requirement' ? '需求级验收项' : '任务 ' + item.source.taskId)
-        + '；验收意见：' + (item.opinion ?? ''),
+      implementation: fmt('按验收意见修复：{opinion}', { opinion: item.opinion ?? '（见验收单）' }),
+      context: fmt('承接自 {origin}；验收意见：{opinion}', {
+        origin: item.source.kind === 'requirement' ? '需求级验收项' : fmt('任务 {taskId}', { taskId: item.source.taskId }),
+        opinion: item.opinion ?? '',
+      }),
       opinion: item.opinion ?? '',
     }
   })

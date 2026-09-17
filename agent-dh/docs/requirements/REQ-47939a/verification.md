@@ -145,6 +145,36 @@
 
 删除 `classifier.ts`/`session-sync.ts` 的退役机制（`SessionSyncService`/`classifySession*`/`extractExplicitId` 等）连带删除 `tests/reqboard.test.ts` 的 **11 个用例**（4 个 describe），并以 **13 个新用例**覆盖 3 个活函数（`adapters/SessionMessageFilter.ts`）。净变化 **−11 +18 = +7**。经我复核：被删 11 例断言的确实是**已退役机制**，没有一例断言那 3 个活函数 → "活行为重建"不欠账。**这是对"删死代码"的例外，不属于断言削弱**，已在任务汇报与本节留痕。
 
+## 返工 t-69ea73：按用户验收意见引入「拼接 / 魔数 / 文案」三件抽象
+
+**用户原话（验收第 1 项不通过的意见）**：
+> `options: [{ label: OPT_PASS, ... }, { label: OPT_FIX, ... }, { label: OPT_OTHER, ... }]` 这个样魔法数字比较多，可以抽象专门解决拼接和魔法数字问题吗
+
+意见指出的是**真实缺陷**（我应在交付前自查发现）：交付里到处是 `'需求 ' + id + ' 当前处于 ' + status + '，不在验收态'` 这类拼接（实测 **domain 29 / application 142 / tools 47 / http 21 / client 98 / shared 10 ≈ 347 处**），以及散落的魔数（工具超时 15000/20000/600000/900000 等）；且**弹框选项文案在 host 与 client 各写一份**（`AcceptSheet.ts` 的 `OPT_PASS` 与 `stage-panel.ts` 徽章表）——两处靠人肉保持一致，改一处漏一处就是静默不一致。
+
+### 三件抽象（都建在 domain，作为唯一来源）
+
+| 抽象 | 文件 | 解决什么 |
+|------|------|---------|
+| `fmt(template, vars)` | `packages/pages/dsh-pmboard/src/domain/text/fmt.ts` | **拼接**：`fmt('需求 {id} 当前处于 {status}，不在验收态', {id, status})`。整句可读、变量具名、**缺变量直接抛错**（拼接会静默产出 "undefined" 脏文案——对齐"诚实失败"） |
+| `LIMITS` | `packages/pages/dsh-pmboard/src/domain/limits.ts` | **魔数**：标题 120、文本 4000、证据 1–20、批次 5/10、done 节流 60s、未确认提醒 30min、证据窗 60min、三类工具超时。数值语义写在名字上，同一条上限只有一处 |
+| `ACCEPT_ITEM_OPTIONS` / `ITEM_STATUS_BADGE` / `FINAL_PASS_LABEL` / `DEFAULT_CONFIRM_OPTIONS` | `packages/pages/dsh-pmboard/src/domain/text/labels.ts`（经 `shared/protocol.ts` 再导出给 client） | **会漂移的文案**：host 判定与 client 渲染**引用同一常量**，改文案只需改一处 |
+
+### 迁移与门禁
+
+- **规则层做到 0**：`src/domain/` 的拼接式消息从 29 → **0**（Acceptability 7 / AcceptanceSheetSpec 7 / DoneEvidenceSpec 8 / DecomposeSpec 3 / RollupSpec 2 / DocSyncSpec 1 / ArtifactSpec 1，逐条改为 fmt；消息**逐字不变**，由断言消息内容的既有测试守住）。
+- **文案单点落地**：`AcceptSheet` 受 `FINAL_PASS_LABEL`/`FINAL_DECLINE_LABEL`/`ACCEPT_ITEM_OPTIONS`；`AskConfirm` 受 `DEFAULT_CONFIRM_OPTIONS`；client `stage-panel` 徽章受 `ITEM_STATUS_BADGE`（host/client 不再各一份）。
+- **魔数落地**：9 个工具定义的 `timeoutMs` 改 `LIMITS.*`；AcceptSheet 批次改 `LIMITS.sheetBatchDefault/Max`；protocol 的标题/文本上限改 `LIMITS.titleMax/textMax`。
+- **新门禁** `packages/pages/dsh-pmboard/tests/message-hygiene.test.ts`（5 例，全绿）：
+  ① `src/domain/**` 拼接**必须为 0**（硬）；
+  ② 其余层**棘轮**——基线 application 140 / adapters 5 / tools 47 / http 21 / client 98 / shared 11，只许降不许升；
+  ③ 工具 `timeoutMs` 不得写裸数字；④ 批次缺省/上限不得写裸数字；⑤ 六条用户可见文案只允许定义在 `labels.ts`。
+- **故障注入实测（三条都红）**：往 domain 放拼接探针 → 红「domain 仍有拼接式消息」；往 client 放 `'✅ 通过'` 探针 → 红「必须引用 labels.ts」；往 tools 放 `timeoutMs: 15000` 探针 → 红。探针已删，全量 **621 passed / 1 failed**（基线项）。
+
+### 诚实边界（未做完的部分）
+
+上层仍有拼接（棘轮基线里那 322 处），本次**未逐条迁移**：它们的收益低于规则层，且一次性改动 300+ 处消息的回归面过大。门禁已把"只会更少"钉住；逐层下降（application → tools/http → client）可在后续卡按同一模式推进。**这一取舍写在这里，避免验收时被当成"已全部解决"。**
+
 ## 收尾：真实台账迁移与重启（含一次**发起窗口自身的错误**留痕）
 
 ### ⚠️ 诚实纠正：一条错误的重启理由

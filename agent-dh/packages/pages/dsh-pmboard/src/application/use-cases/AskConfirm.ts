@@ -15,6 +15,7 @@ import {
   type PlanTask, type VerificationSheet, type TaskRecord, type ReqboardLedger,
   type RequirementCategory, type RequirementRecord, type RequirementStatus, type StageArtifact, type TriageRecord,
 } from '../../shared/protocol.js'
+import { DEFAULT_CONFIRM_OPTIONS } from '../../domain/text/labels.js'
 import { buildSheet } from '../../domain/workflow/AcceptanceSheetSpec.js'
 import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'
 import { checkDecomposeIdempotency } from '../../domain/workflow/DecomposeSpec.js'
@@ -59,7 +60,7 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
       if (targetKind === 'artifact' && !(ALL_ARTIFACT_KINDS as readonly string[]).includes(kindRaw)) {
         reject('reqboard_ask_confirm 未执行：kind 必须是 ' + ALL_ARTIFACT_KINDS.join(' / '), 'REQBOARD_INVALID_INPUT')
       }
-      const optionLabels = options.length > 0 ? options : ['确认，推进到下一阶段 (Recommended)', '需要修改', '暂停']
+      const optionLabels = options.length > 0 ? options : [...DEFAULT_CONFIRM_OPTIONS]
 
       const snapshot = deps.repo.snapshot()
       const bound = openRequirementsFor(snapshot, windowKey)

@@ -8,6 +8,7 @@
  * 注释随代码搬；纯数据 + 纯函数（零 import 副作用、不碰时间与随机数）。
  */
 
+import { fmt } from '../text/fmt.js'
 import type { RequirementCategory } from '../requirement/Requirement.js'
 import type { StageKey } from '../requirement/RequirementStatus.js'
 
@@ -77,8 +78,7 @@ export const ARCHIVE_DOC_RULES: Readonly<Record<RequirementCategory, ArchiveDocR
     requireManual: false,
     requiredDocs: ['requirement', 'verification', 'retro'],
     mergeTargets: ['agent-dh/docs/guides/', 'agent-dh/docs/architecture/', 'docs/guides/', 'docs/architecture/'],
-    note: '缺陷：根因与防回归写进 guides/（故障排查手册）或 architecture/（机制性根因）——'
-      + '规范没有单独的 known-issues 目录，别自创平行体系',
+    note: fmt('缺陷：根因与防回归写进 guides/（故障排查手册）或 architecture/（机制性根因）——规范没有单独的 known-issues 目录，别自创平行体系', {}),
   },
   doc: {
     requireManual: false,

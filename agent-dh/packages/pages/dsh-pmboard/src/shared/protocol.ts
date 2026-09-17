@@ -159,6 +159,14 @@ export function windowCodeFromSessionId(sessionId: string): string {
 
 // canReqTransition / assertReqTransition 迁至 domain/requirement/RequirementStatus.ts（t2）。
 
+// 用户可见文案单点（REQ-47939a 返工）：弹框选项/徽章此前 host 与 client 各写一份会静默漂移，
+// 现由 domain/text/labels.ts 单点定义、此处再导出给 client 复用。
+export {
+  ACCEPT_ITEM_OPTIONS, FINAL_PASS_LABEL, FINAL_DECLINE_LABEL,
+  ITEM_STATUS_BADGE, DEFAULT_CONFIRM_OPTIONS,
+} from '../domain/text/labels.js'
+import { LIMITS } from '../domain/limits.js'
+
 // ---------------------------------------------------------------------------
 // Task 状态机（RFC 014 §4）
 // ---------------------------------------------------------------------------
@@ -824,11 +832,11 @@ export function normalizeTitle(raw: unknown): string {
   if (typeof raw !== 'string') bad('title 必须是字符串')
   const t = raw.trim()
   if (t.length === 0) bad('title 不能为空')
-  if (t.length > 120) bad('title 超长（≤120 字符）')
+  if (t.length > LIMITS.titleMax) bad('title 超长（≤' + LIMITS.titleMax + ' 字符）')
   return t
 }
 
-export function normalizeText(raw: unknown, field: string, max = 4000): string {
+export function normalizeText(raw: unknown, field: string, max = LIMITS.textMax): string {
   if (raw === undefined || raw === null) return ''
   if (typeof raw !== 'string') bad(`${field} 必须是字符串`)
   const t = raw.trim()

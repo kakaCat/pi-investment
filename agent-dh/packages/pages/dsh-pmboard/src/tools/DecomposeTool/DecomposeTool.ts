@@ -7,6 +7,7 @@
  * @module dsh-pmboard/tools/DecomposeTool
  */
 import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
+import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { executeDecompose } from '../../application/use-cases/Decompose.js'
 import { DECOMPOSE_PROMPT } from './prompt.js'
@@ -84,7 +85,7 @@ export function defineDecomposeTool(deps: UseCaseDeps) {
       },
       render: renderJson,
     },
-    timeoutMs: 20000,
+    timeoutMs: LIMITS.timeoutWriteMs,
     execute: async (args: unknown, exec: ToolRunContext) => executeDecompose(deps, args, exec),
   } as any)
 }

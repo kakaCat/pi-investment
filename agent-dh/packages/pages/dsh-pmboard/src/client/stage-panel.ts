@@ -33,6 +33,7 @@ import {
   windowCodeFromSessionId,
   ALL_STAGE_KEYS,
 } from '../shared/protocol.js'
+import { ITEM_STATUS_BADGE } from '../shared/protocol.js'
 import { esc } from '@pi-investment/page-kit/client'
 
 // ---------------------------------------------------------------------------
@@ -355,7 +356,8 @@ function renderVerificationSheet(
   const sheet = v.sheet
   if (sheet === undefined || sheet.items.length === 0) return ''
   const reqId = (payload as { requirementId?: string }).requirementId ?? ''
-  const badge: Record<string, string> = { pending: '⬜ 待验', passed: '✅ 通过', failed: '❌ 不通过' }
+  // 文案单点（REQ-47939a 返工）：与 host 判定用的 ACCEPT_ITEM_OPTIONS 同源，避免两处漂移
+  const badge: Record<string, string> = { ...ITEM_STATUS_BADGE }
   const rows = sheet.items.map((it) => {
     const decided = it.status !== 'pending'
     const sourceKey = it.source.kind === 'requirement' ? 'requirement' : it.source.taskId

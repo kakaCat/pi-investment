@@ -24,6 +24,7 @@
  * 纯函数（零 I/O、零副作用、不碰时间与随机数）：入参 Object.freeze 后调用不抛。
  */
 
+import { fmt } from '../text/fmt.js'
 import type { RequirementStatus } from '../requirement/RequirementStatus.js'
 import type { TaskStatus } from '../task/TaskStatus.js'
 
@@ -136,7 +137,7 @@ export function planRollup(view: RollupView, onlyReqId?: string): RollupMove[] {
           from: 'planning',
           to: 'decomposing',
           rule: 'R3',
-          reason: '已按批准的计划落库 ' + tasks.length + ' 个任务，自动进入拆分',
+          reason: fmt('已按批准的计划落库 {count} 个任务，自动进入拆分', { count: tasks.length }),
         })
         // 与搬迁前的循环等价：推进后下一轮命中 decomposing → break（decomposing>implementing 是人工门）
         break
@@ -153,7 +154,7 @@ export function planRollup(view: RollupView, onlyReqId?: string): RollupMove[] {
         from: 'implementing',
         to: 'accepting',
         rule: 'R2',
-        reason: '全部 ' + tasks.length + ' 个实施任务已完成，自动进入验收',
+        reason: fmt('全部 {count} 个实施任务已完成，自动进入验收', { count: tasks.length }),
       })
       break
     }

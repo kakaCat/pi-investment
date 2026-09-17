@@ -7,6 +7,7 @@
  * @module dsh-pmboard/tools/CreateTool
  */
 import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
+import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { executeCreateRequirement } from '../../application/use-cases/CreateRequirement.js'
 import { CREATE_PROMPT } from './prompt.js'
@@ -53,7 +54,7 @@ export function defineCreateTool(deps: UseCaseDeps) {
       },
       render: renderJson,
     },
-    timeoutMs: 15000,
+    timeoutMs: LIMITS.timeoutReadMs,
     execute: async (args: unknown, exec: ToolRunContext) => executeCreateRequirement(deps, args, exec),
   } as any)
 }

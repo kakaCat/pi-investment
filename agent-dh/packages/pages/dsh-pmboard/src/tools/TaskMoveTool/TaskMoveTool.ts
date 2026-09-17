@@ -7,6 +7,7 @@
  * @module dsh-pmboard/tools/TaskMoveTool
  */
 import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
+import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { executeMoveTask } from '../../application/use-cases/MoveTask.js'
 import { TASK_MOVE_PROMPT } from './prompt.js'
@@ -71,7 +72,7 @@ export function defineTaskMoveTool(deps: UseCaseDeps) {
       },
       render: renderJson,
     },
-    timeoutMs: 15000,
+    timeoutMs: LIMITS.timeoutReadMs,
     execute: async (args: unknown, exec: ToolRunContext) => executeMoveTask(deps, args, exec),
   } as any)
 }

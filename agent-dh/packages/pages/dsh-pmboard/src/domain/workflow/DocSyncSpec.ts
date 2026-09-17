@@ -11,6 +11,7 @@
  */
 
 /** 变更源。 */
+import { fmt } from '../text/fmt.js'
 export type DocSyncSource = 'requirement' | 'plan'
 /** 可被标记为待同步的下游产物。 */
 export type DocSyncDownstream = 'plan' | 'decomposition'
@@ -72,5 +73,8 @@ export function docSyncPendingOf(req: DocSyncReqLike): DocSyncPendingLike[] {
 
 /** 待同步警告正文（调用方按需追加提示尾巴）。 */
 export function docSyncSummary(req: DocSyncReqLike): string {
-  return '⏳ 文档待同步：' + (req.docSyncPending ?? []).map(p => p.source + '→' + (p.downstream.join('/') || '-')).join('；')
+  const detail = (req.docSyncPending ?? [])
+    .map(p => fmt('{source}→{downstream}', { source: p.source, downstream: p.downstream.join('/') || '-' }))
+    .join('；')
+  return fmt('⏳ 文档待同步：{detail}', { detail })
 }

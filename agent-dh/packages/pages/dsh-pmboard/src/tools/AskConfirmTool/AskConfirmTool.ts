@@ -8,6 +8,7 @@
  * @module dsh-pmboard/tools/AskConfirmTool
  */
 import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
+import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { askConfirm } from '../../application/use-cases/AskConfirm.js'
 import { confirmArtifact } from '../../application/use-cases/ConfirmArtifact.js'
@@ -53,7 +54,7 @@ export function defineAskConfirmTool(deps: UseCaseDeps) {
       },
       render: renderJson,
     },
-    timeoutMs: 600000,
+    timeoutMs: LIMITS.timeoutInteractiveMs,
     execute: async (args: unknown, exec: ToolRunContext) => {
       const evidence = normalizeText((args ?? {}).evidence, 'evidence', 2000)
       return evidence.length > 0 ? confirmArtifact(deps, args, exec) : askConfirm(deps, args, exec)

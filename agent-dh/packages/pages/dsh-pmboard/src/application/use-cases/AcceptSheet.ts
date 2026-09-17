@@ -15,6 +15,9 @@ import {
   type PlanTask, type VerificationSheet, type TaskRecord, type ReqboardLedger,
   type RequirementCategory, type RequirementRecord, type RequirementStatus, type StageArtifact, type TriageRecord,
 } from '../../shared/protocol.js'
+import { ACCEPT_ITEM_OPTIONS, FINAL_DECLINE_LABEL, FINAL_PASS_LABEL } from '../../domain/text/labels.js'
+import { fmt } from '../../domain/text/fmt.js'
+import { LIMITS } from '../../domain/limits.js'
 import { buildSheet } from '../../domain/workflow/AcceptanceSheetSpec.js'
 import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'
 import { checkDecomposeIdempotency } from '../../domain/workflow/DecomposeSpec.js'
@@ -34,7 +37,7 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
       requireLiveDriver(deps, exec)
       const a = (args ?? {}) as { requirement_id?: unknown; batch_size?: unknown; version?: unknown }
       const explicitId = normalizeText(a.requirement_id, 'requirement_id', 64)
-      const batchSize = Math.min(Math.max(Number(a.batch_size ?? 5) || 5, 1), 10)
+      const batchSize = Math.min(Math.max(Number(a.batch_size ?? LIMITS.sheetBatchDefault) || LIMITS.sheetBatchDefault, 1), LIMITS.sheetBatchMax)
 
       const snapshot = deps.repo.snapshot()
       const bound = openRequirementsFor(snapshot, windowKey)
@@ -62,7 +65,7 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
         if (!deps.questions.available()) {
           return { success: false, fallback: 'board', note: '全部 ' + passed + ' 项通过，但弹框通道不可用：请在看板点「验收通过」归档' }
         }
-        const FINAL_YES = '✅ 验收通过并归档'
+        const FINAL_YES = FINAL_PASS_LABEL
         let ans: { answers?: { id?: string; selected?: string[] }[] } | undefined
         try {
           ans = { answers: [...await deps.questions.ask([{
@@ -71,7 +74,7 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
               question: '全部 ' + passed + ' 项验收通过——是否验收通过并归档？',
               options: [
                 { label: FINAL_YES, description: '需求进入归档态，随后补归档材料' },
-                { label: '暂不归档', description: '保持验收态，稍后再定' },
+                { label: FINAL_DECLINE_LABEL, description: '保持验收态，稍后再定' },
               ],
             }], {
               ...(exec.agent !== undefined ? { agent: exec.agent } : {}),
@@ -142,15 +145,20 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
           note: '弹框通道不可用（userQuestions 服务缺失）：请用户到项目看板验收面板逐项勾选（看板通道等效）',
         } as never
       }
-      const OPT_PASS = '✅ 通过'
-      const OPT_FIX = '🛠 改进（需修改）'
-      const OPT_OTHER = '❓ 其他'
+      // 文案单点（REQ-47939a 返工）：与 client 徽章同源，不再各写一份
+      const OPT_PASS = ACCEPT_ITEM_OPTIONS.pass
+      const OPT_FIX = ACCEPT_ITEM_OPTIONS.fix
+      const OPT_OTHER = ACCEPT_ITEM_OPTIONS.other
       let answers: { id?: string; selected?: string[]; custom?: string }[] = []
       try {
         answers = [...await deps.questions.ask(pendingItems.map(it => ({
             id: it.id,
-            header: it.source.kind === 'requirement' ? '需求级验收' : ('验收项 ' + it.source.taskId),
-            question: it.criterion + (it.evidence.length > 0 ? '\n（证据：' + it.evidence.slice(0, 2).join('；') + '）' : ''),
+            header: it.source.kind === 'requirement'
+              ? '需求级验收'
+              : fmt('验收项 {taskId}', { taskId: it.source.taskId }),
+            question: it.criterion + (it.evidence.length > 0
+              ? fmt('\n（证据：{evidence}）', { evidence: it.evidence.slice(0, 2).join('；') })
+              : ''),
             options: [
               { label: OPT_PASS, description: '该验收项通过' },
               { label: OPT_FIX, description: '需修改——请在自定义输入写意见' },

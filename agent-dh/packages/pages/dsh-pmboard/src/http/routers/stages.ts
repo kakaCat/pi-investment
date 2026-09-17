@@ -16,7 +16,8 @@ import {
 } from '../../shared/protocol.js'
 import { syncAllReqArtifacts, syncReqArtifacts } from '../../adapters/ArtifactSync.js'
 import { assembleStageDetail, assembleStageOverview } from '../../application/query/QueryStageDetail.js'
-import { countDoneTasks, countUnfinishedTasks, isActiveRequirement } from '../../domain/status/Predicates.js'
+import { countDoneTasks, countUnfinishedTasks, isActiveRequirement, isOpenRequirement } from '../../domain/status/Predicates.js'
+import { TASK_STATUS_ORDER } from '../../domain/task/TaskStatus.js'
 import type { RouterCtx } from './shared.js'
 
 export function createStagesRouter(ctx: RouterCtx) {
@@ -106,7 +107,8 @@ export function createStagesRouter(ctx: RouterCtx) {
     const ledger = await store.read(l => l)
 
     // 该会话关联的全部需求 id（来源窗口 ∪ 任务执行会话）
-    const isOpen = (s: string): boolean => OPEN_STATUSES.has(s)
+    // 进行中判据取自 domain（此前这里引用未定义的 OPEN_STATUSES → 运行时 500）
+    const isOpen = (s: string): boolean => isOpenRequirement({ status: s })
     const taskAnchoredIds = new Set<string>()
     for (const t of ledger.tasks) {
       if (t.executions.some(e => e.sessionId === sessionId)) taskAnchoredIds.add(t.requirementId)
@@ -127,7 +129,7 @@ export function createStagesRouter(ctx: RouterCtx) {
     const tasks = ledger.tasks.filter(t => t.requirementId === target.id)
     const done = countDoneTasks(tasks)
     const byStatus: Record<string, number> = {}
-    for (const s of TASK_ORDER) byStatus[s] = 0
+    for (const s of TASK_STATUS_ORDER) byStatus[s] = 0
     for (const t of tasks) byStatus[t.status] = (byStatus[t.status] ?? 0) + 1
 
     ok(res, {
@@ -159,7 +161,7 @@ export function createStagesRouter(ctx: RouterCtx) {
       })),
       tasks: tasks
         .slice()
-        .sort((a, b) => (TASK_ORDER.indexOf(a.status) - TASK_ORDER.indexOf(b.status)) || (a.createdAt - b.createdAt))
+        .sort((a, b) => (TASK_STATUS_ORDER.indexOf(a.status) - TASK_STATUS_ORDER.indexOf(b.status)) || (a.createdAt - b.createdAt))
         .map(t => ({
           id: t.id,
           title: t.title,

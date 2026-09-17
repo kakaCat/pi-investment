@@ -52,6 +52,17 @@ export function isActiveRequirement(req: HasStatus): boolean {
   return req.status !== 'archived' && req.status !== 'canceled'
 }
 
+/**
+ * 是否处于**进行中**（未进入终态 done/archived/canceled）。
+ * 窗口绑定判定与"会话框流程节点"选目标需求共用此判据——此前 `OPEN_STATUSES` 在
+ * application/internal/window.ts 私下定义、路由层却引用了一个**不存在的名字**，
+ * 结果 /session/:id/progress 运行时 ReferenceError（HTTP 500 → 流程节点不显示）。
+ * 现单点于此。
+ */
+export function isOpenRequirement(req: HasStatus): boolean {
+  return req.status !== 'done' && req.status !== 'archived' && req.status !== 'canceled'
+}
+
 /** 是否处于立项态。 */
 export function isDraft(req: HasStatus): boolean {
   return req.status === 'draft'

@@ -7,6 +7,7 @@
  * @module dsh-pmboard/tools/AcceptSheetTool
  */
 import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
+import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { acceptSheet } from '../../application/use-cases/AcceptSheet.js'
 import { ACCEPT_SHEET_PROMPT } from './prompt.js'
@@ -43,7 +44,7 @@ export function defineAcceptSheetTool(deps: UseCaseDeps) {
       },
       render: renderJson,
     },
-    timeoutMs: 900000,
+    timeoutMs: LIMITS.timeoutSheetMs,
     execute: async (args: unknown, exec: ToolRunContext) => acceptSheet(deps, args, exec),
   } as any)
 }

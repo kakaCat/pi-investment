@@ -14,6 +14,8 @@
  */
 
 /** 同需求、60s 内被 agent 关闭的其他任务（节流命中的清单项）。 */
+import { fmt } from '../text/fmt.js'
+
 export interface RecentDoneTaskLike {
   id: string
   title: string
@@ -73,8 +75,7 @@ export function checkDoneEvidence(input: DoneEvidenceInput): DoneEvidenceVerdict
     return {
       ok: false,
       code: 'REQBOARD_NO_REPORT',
-      reason: 'reqboard_task_move 未执行：done 凭证门——该任务还没有 reqboard_task_report 汇报。'
-        + '先汇报（summary/completed/files_changed）再关闭（REQ-2e9473 W2，事故 C 修复）',
+      reason: fmt('reqboard_task_move 未执行：done 凭证门——该任务还没有 reqboard_task_report 汇报。先汇报（summary/completed/files_changed）再关闭（REQ-2e9473 W2，事故 C 修复）', {}),
     }
   }
   if (input.reportFilesChanged.length === 0 && input.reportCompleted.length === 0) {
@@ -89,8 +90,7 @@ export function checkDoneEvidence(input: DoneEvidenceInput): DoneEvidenceVerdict
     return {
       ok: false,
       code: 'REQBOARD_NO_EVIDENCE',
-      reason: 'reqboard_task_move 未执行：done 凭证门——开工以来无干活类工具动作，且汇报声明的改动文件不存在或早于开工时间。'
-        + '凭证不足不能关闭（25ms 速通拦截）',
+      reason: fmt('reqboard_task_move 未执行：done 凭证门——开工以来无干活类工具动作，且汇报声明的改动文件不存在或早于开工时间。凭证不足不能关闭（25ms 速通拦截）', {}),
     }
   }
   // ③ 批量关闭节流：同需求 60s 内已有其他任务被 agent 关闭
@@ -98,8 +98,7 @@ export function checkDoneEvidence(input: DoneEvidenceInput): DoneEvidenceVerdict
     return {
       ok: false,
       code: 'REQBOARD_BULK_CLOSE',
-      reason: 'reqboard_task_move 未执行：done 凭证门——60 秒内刚关闭了任务 ' + input.recentDoneTask.id
-        + '（' + input.recentDoneTask.title + '）。禁止批量关闭：逐任务验收，稍后再试（事故 C 修复）',
+      reason: fmt('reqboard_task_move 未执行：done 凭证门——60 秒内刚关闭了任务 {id}（{title}）。禁止批量关闭：逐任务验收，稍后再试（事故 C 修复）', { id: input.recentDoneTask.id, title: input.recentDoneTask.title }),
     }
   }
   // ④ 页面插件构建新鲜度（事故 D）
@@ -109,16 +108,14 @@ export function checkDoneEvidence(input: DoneEvidenceInput): DoneEvidenceVerdict
       return {
         ok: false,
         code: 'REQBOARD_STALE_BUILD',
-        reason: 'reqboard_task_move 未执行：done 凭证门——页面插件任务未构建：packages/pages/' + pkg + '/lib/client.js 不存在。'
-          + '先 cd packages/pages/' + pkg + ' && pnpm build:client（事故 D：改了源码 ≠ 已生效）',
+        reason: fmt('reqboard_task_move 未执行：done 凭证门——页面插件任务未构建：packages/pages/{pkg}/lib/client.js 不存在。先 cd packages/pages/{pkg} && pnpm build:client（事故 D：改了源码 ≠ 已生效）', { pkg }),
       }
     }
     if (input.clientBuildMtime < input.newestPagesSrcMtime) {
       return {
         ok: false,
         code: 'REQBOARD_STALE_BUILD',
-        reason: 'reqboard_task_move 未执行：done 凭证门——构建产物陈旧：packages/pages/' + pkg + '/lib/client.js 旧于 src 最新改动。'
-          + '先重新 pnpm build:client 再关任务（事故 D：改了源码 ≠ 已生效）',
+        reason: fmt('reqboard_task_move 未执行：done 凭证门——构建产物陈旧：packages/pages/{pkg}/lib/client.js 旧于 src 最新改动。先重新 pnpm build:client 再关任务（事故 D：改了源码 ≠ 已生效）', { pkg }),
       }
     }
   }
