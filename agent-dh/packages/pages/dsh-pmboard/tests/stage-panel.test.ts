@@ -1,0 +1,549 @@
+/**
+ * stage-panel.ts v4 渲染单元测试（REQ-31e11f 节点详情重设计：单节点工作记录）。
+ *
+ * 覆盖：
+ *   1. 8 个节点渲染器各自产出非空 HTML（含 dsh-pm-stage-body {stage} 锚点）
+ *   2. 面板头：状态符 + 节点名 + 状态一句话（stageHeadSummary 逐节点）
+ *   3. 实施列表：执行者（w-xxx 窗口 / sub w-xxx subagent）+ 时间 + 失败标红
+ *   4. 产物文档行：可点击链接（data-action="open-doc"）；缺失必备产物红字
+ *   5. 动态：相对时间 + 操作者（人/窗口/subagent）
+ *   6. 追溯链可见（requirement → plan → … 顺序）
+ *   7. 分类跳过节点（enabled=false → skipped）
+ *   8. renderStageNode：行状态推导 + 面板渲染
+ *   9. 健壮性：body 字段缺失不抛错
+ */
+import { describe, it, expect } from 'vitest'
+import {
+  renderStagePanel,
+  renderStageNode,
+  stageRowState,
+  stageHeadSummary,
+  StageRenderers,
+  STAGE_LABELS,
+  isStageSkippedForCategory,
+  getStagesForCategory,
+} from '../src/client/stage-panel.js'
+import type {
+  StageDetail,
+  StageOverview,
+  StageArtifact,
+  StageKey,
+  StageTaskExecution,
+} from '../src/shared/protocol.js'
+import { ALL_STAGE_KEYS } from '../src/shared/protocol.js'
+
+// ---------------------------------------------------------------------------
+// 测试工厂
+// ---------------------------------------------------------------------------
+
+function makeArtifact(overrides: Partial<StageArtifact> = {}): StageArtifact {
+  return {
+    stage: 'brainstorming',
+    kind: 'requirement',
+    path: 'docs/requirements/REQ-test/requirement.md',
+    registeredAt: 1693000000000,
+    registeredBy: { kind: 'agent', sessionId: 'session-test' },
+    ...overrides,
+  }
+}
+
+function makeStageDetail(overrides: Partial<StageDetail> = {}): StageDetail {
+  return {
+    stage: 'draft',
+    enabled: true,
+    artifacts: [],
+    pendingConfirmation: false,
+    timeline: [],
+    body: { title: '测试需求', description: '测试描述' },
+    ...overrides,
+  } as StageDetail
+}
+
+function makeTask(overrides: Partial<StageTaskExecution> = {}): StageTaskExecution {
+  return {
+    id: 't-aaa001', title: '任务一', status: 'todo', phase: 'implement', side: 'backend',
+    dependsOn: [], acceptance: '', executions: [],
+    ...overrides,
+  } as StageTaskExecution
+}
+
+function makeOverview(currentStage: StageKey = 'implementing'): StageOverview {
+  const bodies: Record<string, unknown> = {
+    draft: { title: '测试需求', category: 'feature', description: 'd', createdAt: 1693000000000 },
+    brainstorming: { requirementDoc: 'docs/requirements/REQ-test/requirement.md', comments: [] },
+    planning: { plan: { summary: 's', path: 'docs/requirements/REQ-test/plan.md', tasks: [{ key: 't1', title: '任务一' }], submittedAt: 1693000000000, approvedAt: 1693000100000 } },
+    decomposing: { tasks: [makeTask()], planTasks: [] },
+    implementing: { tasks: [makeTask({ status: 'done' }), makeTask({ id: 't-bbb002', title: '任务二构建部署', status: 'in_progress', executions: [{ id: 'e1', sessionId: 'session-8913546f-bd1a-4ca5-a737-deb0b429e5bf', trigger: 'manual', startedAt: Date.now() - 120000, outcome: 'running' }] })], byWindow: {} },
+    accepting: {},
+    archived: {},
+  }
+  return {
+    requirementId: 'REQ-test',
+    category: 'feature',
+    currentStage,
+    stages: ALL_STAGE_KEYS.map(stage => ({
+      stage, enabled: true, artifacts: [], pendingConfirmation: false, timeline: [],
+      body: bodies[stage],
+    }) as unknown as StageDetail),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 测试：注册表与标签
+// ---------------------------------------------------------------------------
+
+describe('StageRenderers 注册表', () => {
+  it('包含全部 8 个节点渲染器', () => {
+    for (const stage of ALL_STAGE_KEYS) {
+      expect(StageRenderers[stage]).toBeDefined()
+      expect(typeof StageRenderers[stage].renderBody).toBe('function')
+    }
+  })
+
+  it('STAGE_LABELS 包含全部 7 个节点标签', () => {
+    expect(Object.keys(STAGE_LABELS)).toHaveLength(7)
+    expect(STAGE_LABELS.draft).toBe('立项')
+    expect(STAGE_LABELS.implementing).toBe('实施')
+    expect(STAGE_LABELS.archived).toBe('归档')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 测试：面板骨架
+// ---------------------------------------------------------------------------
+
+describe('renderStagePanel 骨架', () => {
+  it('产出 dsh-pm-stage-panel 根 + 面板头（节点名 + 状态一句话）', () => {
+    const html = renderStagePanel(makeStageDetail())
+    expect(html).toContain('dsh-pm-stage-panel')
+    expect(html).toContain('dsh-pm-sn-head')
+    expect(html).toContain('已立项')
+  })
+
+  it('面板头右侧带最近动态时间（相对时间）', () => {
+    const html = renderStagePanel(makeStageDetail({
+      timeline: [{ status: 'draft', at: Date.now() - 5 * 60000, by: { kind: 'human' } }],
+    }))
+    expect(html).toContain('dsh-pm-sn-time')
+    expect(html).toContain('5 分钟前')
+  })
+
+  it('pendingConfirmation → 红色警示行', () => {
+    const html = renderStagePanel(makeStageDetail({ pendingConfirmation: true }))
+    expect(html).toContain('dsh-pm-sn-warn')
+    expect(html).toContain('有产物待人工确认')
+  })
+
+  it('分类跳过节点：data-state=skipped + 不适用提示', () => {
+    const html = renderStagePanel(makeStageDetail({ stage: 'brainstorming', enabled: false, body: {} as never }))
+    expect(html).toContain('data-state="skipped"')
+    expect(html).toContain('该阶段在当前分类流程中不适用')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 测试：各节点专属内容
+// ---------------------------------------------------------------------------
+
+describe('各节点专属内容', () => {
+  it('draft：标题 + 分类 + 描述', () => {
+    const html = renderStagePanel(makeStageDetail({
+      body: { title: '我的需求', category: 'feature', description: '详细描述' },
+    }))
+    expect(html).toContain('data-stage="draft"')
+    expect(html).toContain('我的需求')
+    expect(html).toContain('feature')
+    expect(html).toContain('详细描述')
+  })
+
+  it('brainstorming：评论流（操作者 + 文本）', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'brainstorming',
+      body: { comments: [{ id: 'c1', body: '这个方案边界再想想', createdAt: 1, createdBy: { kind: 'human' } }] },
+    }))
+    expect(html).toContain('data-stage="brainstorming"')
+    expect(html).toContain('这个方案边界再想想')
+    expect(html).toContain('data-actor="human"')
+  })
+
+  it('brainstorming：无评论 → 暂无评论', () => {
+    const html = renderStagePanel(makeStageDetail({ stage: 'brainstorming', body: { comments: [] } }))
+    expect(html).toContain('暂无评论')
+  })
+
+  it('planning：无计划 → 尚未提交实施计划', () => {
+    const html = renderStagePanel(makeStageDetail({ stage: 'planning', body: {} }))
+    expect(html).toContain('尚未提交实施计划')
+  })
+
+  it('planning：已批准 → 任务数 + 批准时间', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'planning',
+      body: { plan: { summary: '目标做法', path: 'p.md', tasks: [{ key: 't1', title: 'x' }], submittedAt: 1693000000000, submittedBy: { kind: 'agent' }, approvedAt: 1693000100000, approvedBy: { kind: 'human' } } },
+    }))
+    expect(html).toContain('目标做法')
+    expect(html).toContain('1 个任务')
+    expect(html).toContain('批准：人')
+  })
+
+  it('decomposing：任务 + 依赖链', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'decomposing',
+      body: { tasks: [makeTask({ dependsOn: ['t-aaa000'] })], planTasks: [] },
+    }))
+    expect(html).toContain('data-stage="decomposing"')
+    expect(html).toContain('t-aaa001')
+    expect(html).toContain('dsh-pm-sn-dag-layer')
+    expect(html).toContain('第 2 层')
+  })
+
+  it('decomposing：无任务 → 尚未拆分任务', () => {
+    const html = renderStagePanel(makeStageDetail({ stage: 'decomposing', body: { tasks: [], planTasks: [] } }))
+    expect(html).toContain('尚未拆分任务')
+  })
+
+  it('accepting：无材料 → 尚未提交验收材料', () => {
+    const html = renderStagePanel(makeStageDetail({ stage: 'accepting', body: {} }))
+    expect(html).toContain('尚未提交验收材料')
+  })
+
+  it('accepting：结论摘要 + 证据列表 + 审核意见', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'accepting',
+      body: { verification: { summary: '交付结论', evidence: ['npx vitest run → 384 过', 'curl :13080 → 200'], submittedAt: 1, submittedBy: { kind: 'agent' }, decision: 'rework', reviewNote: '样式需要重做' } },
+    }))
+    expect(html).toContain('交付结论')
+    expect(html).toContain('npx vitest run')
+    expect(html).toContain('审核意见')
+    expect(html).toContain('样式需要重做')
+  })
+
+  // REQ-9f4a44：done 节点已移除，原「done：完成时间 + 验收结论」用例随之删除
+
+  it('archived：目录 + 索引 + 合并去向链接', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'archived',
+      body: { archive: { dir: 'docs/requirements/REQ-test', docs: [], mergedInto: ['docs/architecture/x.md'], indexEntry: '一句话索引', submittedAt: 1, submittedBy: { kind: 'agent' } } },
+    }))
+    expect(html).toContain('docs/requirements/REQ-test')
+    expect(html).toContain('一句话索引')
+    expect(html).toContain('data-action="open-doc"')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 测试：实施列表（核心：做到哪/做了多少/还剩多少 + 谁做的）
+// ---------------------------------------------------------------------------
+
+describe('实施列表（执行者追溯）', () => {
+  it('任务行：状态符 + id + 标题 + 执行者 + 时间', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'implementing',
+      body: {
+        tasks: [makeTask({
+          status: 'done',
+          executions: [{ id: 'e1', sessionId: 'session-8913546f-bd1a-4ca5-a737-deb0b429e5bf', trigger: 'manual', startedAt: 1, endedAt: 1693000000000, outcome: 'succeeded' }],
+        })],
+        byWindow: {},
+      },
+    }))
+    expect(html).toContain('dsh-pm-sn-task')
+    expect(html).toContain('t-aaa001')
+    expect(html).toContain('w-8913546f')
+    expect(html).toContain('完成')
+  })
+
+  it('subagent 执行的任务：执行者标 sub 前缀', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'implementing',
+      body: {
+        tasks: [makeTask({
+          status: 'done',
+          executions: [{ id: 'e1', sessionId: 'subagent-xyz', trigger: 'auto', startedAt: 1, endedAt: 1693000000000, outcome: 'succeeded' }],
+        })],
+        byWindow: {},
+      },
+    }))
+    expect(html).toContain('sub w-subagent')
+  })
+
+  it('进行中任务：is-current 高亮 + 相对起点', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'implementing',
+      body: {
+        tasks: [makeTask({
+          status: 'in_progress',
+          executions: [{ id: 'e1', sessionId: 'session-8913546f-bd1a-4ca5-a737-deb0b429e5bf', trigger: 'manual', startedAt: Date.now() - 5 * 60000, outcome: 'running' }],
+        })],
+        byWindow: {},
+      },
+    }))
+    expect(html).toContain('is-current')
+    expect(html).toContain('开发中')
+    expect(html).toContain('5 分钟前')
+  })
+
+  it('失败任务：标红 + 失败次数（追溯问题）', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'implementing',
+      body: {
+        tasks: [makeTask({
+          status: 'in_progress',
+          executions: [
+            { id: 'e1', sessionId: 's1', trigger: 'auto', startedAt: 1, endedAt: 2, outcome: 'failed' },
+            { id: 'e2', sessionId: 's1', trigger: 'auto', startedAt: 3, endedAt: 4, outcome: 'failed' },
+            { id: 'e3', sessionId: 's1', trigger: 'auto', startedAt: 5, outcome: 'running' },
+          ],
+        })],
+        byWindow: {},
+      },
+    }))
+    expect(html).toContain('is-failed')
+    expect(html).toContain('失败 2 次')
+  })
+
+  it('待开始任务：待开始', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'implementing',
+      body: { tasks: [makeTask()], byWindow: {} },
+    }))
+    expect(html).toContain('待开始')
+  })
+
+  it('多窗口分工：窗口分工汇总行', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'implementing',
+      body: {
+        tasks: [makeTask()],
+        byWindow: { 'w-aaa': ['t-1'], 'w-bbb': ['t-2', 't-3'] },
+      },
+    }))
+    expect(html).toContain('窗口分工')
+    expect(html).toContain('w-aaa 1 任务')
+    expect(html).toContain('w-bbb 2 任务')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 测试：产物文档行 / 动态 / 追溯链
+// ---------------------------------------------------------------------------
+
+describe('产物文档行', () => {
+  it('已登记产物 → 可点击链接', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'brainstorming',
+      artifacts: [makeArtifact()],
+      body: { comments: [] },
+    }))
+    expect(html).toContain('dsh-pm-trace-chain')
+    expect(html).toContain('data-action="open-doc"')
+    expect(html).toContain('data-path="docs/requirements/REQ-test/requirement.md"')
+    expect(html).toContain('需求文档')
+  })
+
+  it('缺失必备产物 → 红字标记', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'brainstorming',
+      artifacts: [],
+      body: { comments: [] },
+    }))
+    expect(html).toContain('is-missing')
+    expect(html).toContain('缺失')
+  })
+
+  it('无产物且无必备 → 不渲染产物行', () => {
+    const html = renderStagePanel(makeStageDetail({ stage: 'draft' }))
+    expect(html).not.toContain('dsh-pm-sn-docs')
+  })
+})
+
+describe('动态', () => {
+  it('事件行：相对时间 + 操作者 + 内容', () => {
+    const html = renderStagePanel(makeStageDetail({
+      timeline: [
+        { status: 'draft', at: Date.now() - 3600000, by: { kind: 'human' }, reason: '立项：需求详情页操作' },
+        { status: 'draft', at: Date.now() - 60000, by: { kind: 'agent', sessionId: 'session-8913546f-bd1a-4ca5-a737-deb0b429e5bf' } },
+      ],
+    }))
+    expect(html).toContain('动态')
+    expect(html).toContain('1 小时前')
+    expect(html).toContain('立项：需求详情页操作')
+    expect(html).toContain('w-8913546f')
+  })
+
+  it('无事件 → 不渲染动态块', () => {
+    const html = renderStagePanel(makeStageDetail())
+    expect(html).not.toContain('dsh-pm-sn-time2')
+  })
+})
+
+describe('追溯链', () => {
+  it('按 requirement → plan → task_detail 顺序渲染', () => {
+    const artifacts = [
+      makeArtifact({ kind: 'requirement', path: 'docs/requirements/REQ-test/requirement.md', stage: 'brainstorming' }),
+      makeArtifact({ kind: 'plan', path: 'docs/requirements/REQ-test/plan.md', stage: 'planning' }),
+      makeArtifact({ kind: 'task_detail', path: 'docs/requirements/REQ-test/tasks/t-1.md', stage: 'implementing' }),
+    ]
+    const html = renderStagePanel(makeStageDetail({ artifacts }))
+    expect(html).toContain('dsh-pm-trace-chain')
+    expect(html).toContain('dsh-pm-trace-arrow')
+    const reqIdx = html.indexOf('requirement.md')
+    const planIdx = html.indexOf('plan.md')
+    const taskIdx = html.indexOf('任务卡×')
+    expect(reqIdx).toBeGreaterThan(-1)
+    expect(planIdx).toBeGreaterThan(reqIdx)
+    expect(taskIdx).toBeGreaterThan(planIdx)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 测试：面板头一句话（stageHeadSummary）
+// ---------------------------------------------------------------------------
+
+describe('stageHeadSummary 面板头一句话', () => {
+  it('implementing：x/y 完成 · 剩 z 个 · 进行中 id', () => {
+    const text = stageHeadSummary(makeStageDetail({
+      stage: 'implementing',
+      body: {
+        tasks: [
+          makeTask({ status: 'done' }),
+          makeTask({ id: 't-bbb002', status: 'in_progress' }),
+          makeTask({ id: 't-ccc003' }),
+        ],
+        byWindow: {},
+      },
+    }))
+    expect(text).toBe('1/3 完成 · 剩 2 个 · 进行中 t-bbb002')
+  })
+
+  it('planning：已批准/待批准/被退回/待提交', () => {
+    const mk = (plan: unknown) => stageHeadSummary(makeStageDetail({ stage: 'planning', body: { plan } as never }))
+    expect(mk(undefined)).toBe('待提交计划')
+    expect(mk({ tasks: [], submittedAt: 1 })).toBe('计划待批准')
+    expect(mk({ tasks: [], submittedAt: 1, approvedAt: 2 })).toBe('计划已批准')
+    expect(mk({ tasks: [], submittedAt: 1, rejectedAt: 2 })).toBe('计划被退回')
+  })
+
+  it('accepting：待提交/待审核/通过/返工', () => {
+    const mk = (v: unknown) => stageHeadSummary(makeStageDetail({ stage: 'accepting', body: { verification: v } as never }))
+    expect(mk(undefined)).toBe('待提交验收材料')
+    expect(mk({ evidence: [], submittedAt: 1 })).toBe('待人工审核')
+    expect(mk({ evidence: [], submittedAt: 1, decision: 'pass' })).toBe('验收通过')
+    expect(mk({ evidence: [], submittedAt: 1, decision: 'rework' })).toBe('验收被退回返工')
+  })
+
+  it('分类跳过 → 本分类跳过', () => {
+    expect(stageHeadSummary(makeStageDetail({ enabled: false }))).toBe('本分类跳过')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 测试：renderStageNode + stageRowState
+// ---------------------------------------------------------------------------
+
+describe('renderStageNode / stageRowState', () => {
+  it('行状态推导：当前=current，之前=done，之后=pending', () => {
+    const ov = makeOverview('implementing')
+    expect(stageRowState(ov, 'draft')).toBe('done')
+    expect(stageRowState(ov, 'planning')).toBe('done')
+    expect(stageRowState(ov, 'implementing')).toBe('current')
+    expect(stageRowState(ov, 'accepting')).toBe('pending')
+    expect(stageRowState(ov, 'archived')).toBe('pending')
+  })
+
+  it('分类跳过节点 → skipped', () => {
+    const ov = makeOverview('implementing')
+    ov.stages = ov.stages.map(s => s.stage === 'brainstorming' ? { ...s, enabled: false } : s)
+    expect(stageRowState(ov, 'brainstorming')).toBe('skipped')
+  })
+
+  it('渲染指定节点面板：data-stage + data-state + 该节点内容', () => {
+    const ov = makeOverview('implementing')
+    const html = renderStageNode(ov, 'implementing')
+    expect(html).toContain('data-stage="implementing"')
+    expect(html).toContain('data-state="current"')
+    expect(html).toContain('1/2 完成')
+    expect(html).toContain('w-8913546f')
+  })
+
+  it('点已完成节点：绿✓状态', () => {
+    const html = renderStageNode(makeOverview('implementing'), 'planning')
+    expect(html).toContain('data-state="done"')
+    expect(html).toContain('计划已批准')
+  })
+
+  it('点未开始节点：pending 状态', () => {
+    const html = renderStageNode(makeOverview('implementing'), 'accepting')
+    expect(html).toContain('data-state="pending"')
+    expect(html).toContain('待提交验收材料')
+  })
+
+  it('stage 不存在（如 canceled）→ 回退第一个节点不抛错', () => {
+    const html = renderStageNode(makeOverview('implementing'), 'canceled' as StageKey)
+    expect(html).toContain('dsh-pm-stage-panel')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 测试：健壮性（body 字段缺失不抛错）
+// ---------------------------------------------------------------------------
+
+describe('健壮性', () => {
+  it('implementing body.tasks 为 undefined → 不抛错', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'implementing',
+      body: { tasks: undefined as never, byWindow: {} },
+    }))
+    expect(html).toContain('暂无执行任务')
+  })
+
+  it('decomposing body.tasks 为 undefined → 不抛错', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'decomposing',
+      body: { tasks: undefined as never, planTasks: [] },
+    }))
+    expect(html).toContain('尚未拆分任务')
+  })
+
+  it('brainstorming body.comments 为 undefined → 不抛错', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'brainstorming',
+      body: { comments: undefined as never },
+    }))
+    expect(html).toContain('暂无评论')
+  })
+
+  it('7 节点空 body 均产出非空 HTML（含节点锚点类）', () => {
+    const bodies: Record<string, Record<string, unknown>> = {
+      draft: { title: 'T', description: 'D' },
+      brainstorming: { comments: [] },
+      planning: {},
+      decomposing: { tasks: [], planTasks: [] },
+      implementing: { tasks: [], byWindow: {} },
+      accepting: {},
+      archived: {},
+    }
+    for (const stage of ALL_STAGE_KEYS) {
+      const html = renderStagePanel(makeStageDetail({ stage, body: bodies[stage] as never }))
+      expect(html.length, stage).toBeGreaterThan(50)
+      expect(html, stage).toContain('data-stage="' + stage + '"')
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 测试：分类流程辅助
+// ---------------------------------------------------------------------------
+
+describe('分类流程辅助', () => {
+  it('bug 分类跳过「需求分析」节点', () => {
+    expect(isStageSkippedForCategory('bug', 'brainstorming')).toBe(true)
+    expect(isStageSkippedForCategory('feature', 'brainstorming')).toBe(false)
+  })
+
+  it('getStagesForCategory 返回分类启用节点', () => {
+    expect(getStagesForCategory('feature')).toEqual(ALL_STAGE_KEYS)
+    expect(getStagesForCategory('bug')).not.toContain('brainstorming')
+    expect(getStagesForCategory(undefined)).toEqual(ALL_STAGE_KEYS)
+  })
+})

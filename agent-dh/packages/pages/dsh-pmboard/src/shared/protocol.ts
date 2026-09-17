@@ -85,12 +85,19 @@ export type RequirementStatus =
   | 'decomposing'   // 拆分：计划获批后落库任务 DAG
   | 'implementing'  // 执行：按任务卡逐项执行（executing-plans）
   | 'accepting'     // 验收
-  | 'done'          // 完成
+  | 'done'          // 【legacy】历史"完成"态：REQ-9f4a44 起不再进入，仅用于老台账兼容读取
   | 'archived'      // 归档
   | 'canceled'
 
+/**
+ * 流水线主状态（REQ-9f4a44：**移除 done**）。
+ *
+ * 验收通过 ⇒ 直接归档，中间不再有"完成"节点——done 只是"验收通过"的落点，语义重复。
+ * 注：`done` 仍保留在 RequirementStatus 类型与 ALL_REQ_STATUSES 中（legacy 兼容），
+ * 但不在 MAIN 里，因此不参与流程图节点、分类档案与阶段提示词键。
+ */
 export const MAIN_REQ_STATUSES: readonly RequirementStatus[] = [
-  'draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'done', 'archived',
+  'draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'archived',
 ]
 
 /** 旧状态名迁移（2026-09-13：reviewing → brainstorming）。 */
@@ -98,7 +105,8 @@ export const LEGACY_REQ_STATUS_ALIASES: Readonly<Record<string, RequirementStatu
   reviewing: 'brainstorming',
 }
 
-export const ALL_REQ_STATUSES: readonly RequirementStatus[] = [...MAIN_REQ_STATUSES, 'canceled']
+/** 全部可读状态（含 legacy `done`）——用于载入校验，保证老台账不被丢弃。 */
+export const ALL_REQ_STATUSES: readonly RequirementStatus[] = [...MAIN_REQ_STATUSES, 'done', 'canceled']
 
 /** 需求状态合法转移表。 */
 export const REQ_TRANSITIONS: Readonly<Record<RequirementStatus, readonly RequirementStatus[]>> = {
@@ -107,8 +115,9 @@ export const REQ_TRANSITIONS: Readonly<Record<RequirementStatus, readonly Requir
   planning: ['decomposing', 'brainstorming', 'canceled'],
   decomposing: ['implementing', 'planning', 'canceled'],
   implementing: ['accepting', 'canceled'],
-  accepting: ['done', 'implementing', 'canceled'],
-  done: ['archived'],
+  // REQ-9f4a44：验收通过 → 直接归档（无 done 中转）
+  accepting: ['archived', 'implementing', 'canceled'],
+  done: [], // 【legacy】不再进入，也不允许从它转出（历史记录保持原样）
   canceled: ['draft', 'archived'],
   archived: [],
 }
@@ -120,14 +129,20 @@ export const REQ_TRANSITIONS: Readonly<Record<RequirementStatus, readonly Requir
 export const HUMAN_ONLY_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
   // 2026-09-11 用户裁定：agent 必须能自己推进在途需求（此前「确认方案/确认拆分/
   // 验收通过」都是人工闸门 → 每个需求都要人点两三次，看板实质静止）。
-  // 现在仅保留**终态与破坏性动作**为人工闸门，在途推理由窗口 agent 自行推进：
+  // 2026-09-14 用户裁定（REQ-31e11f，部分回调 09-11）：**五道人工确认门**——
+  // 产物存在 ≠ 人已审阅，关键节点产物必须人确认后才放行（看板一键确认+登记即通知
+  // 保流速）。新增两道在途硬门：需求文档（brainstorming>planning）、
+  // 拆分清单（decomposing>implementing）。
+  'brainstorming>planning', // 需求文档人工确认（五门之一）
+  'decomposing>implementing', // 拆分清单人工确认（五门之一）
   'draft>canceled',
   'brainstorming>canceled',
   'decomposing>canceled',
   'implementing>canceled',
   'accepting>canceled', // 取消需求（破坏性）
-  'accepting>done', // 验收通过（人工审核：agent 可提交验收，但"过"必须是人点的）
-  'done>archived', // 归档
+  // REQ-9f4a44：验收通过（人工审核）——agent 可提交验收材料，但"过"必须是人点的；
+  // 通过即直接归档（原先拆成 accepting>done + done>archived 两道，现合并为一道）。
+  'accepting>archived',
   'canceled>archived', // 取消后归档
 ])
 
@@ -135,13 +150,12 @@ export const HUMAN_ONLY_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
  * system（rollup）允许自动推进的转移白名单：其余转移 system 一律不可发起。
  *  - draft>brainstorming       需求被窗口接手开工（有直接人类消息）的接手推进；
  *  - implementing>accepting 全部实施任务 done 的 rollup。
- * 人工闸门（brainstorming>decomposing / decomposing>implementing / accepting>done /
- * done>archived）永不在本白名单内 —— 自动推进不可能越过人工闸门。
+ * 人工闸门永不在本白名单内 —— 自动推进不可能越过人工闸门。
+ * 2026-09-14：decomposing>implementing 已入人工门（五门裁定），从本白名单移除。
  */
 export const SYSTEM_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
   'draft>brainstorming', // 窗口接手开工 → 进入头脑风暴（方案共创）
   'planning>decomposing', // 计划已批准并落库任务 → 自动进入拆分态
-  'decomposing>implementing', // 任务开始执行 → 自动进入执行
   'implementing>accepting', // 全部实施任务 done 的 rollup
 ])
 
@@ -263,6 +277,233 @@ export function defaultNeedsIntegration(side: TaskSide): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// 流水线节点契约（REQ-31e11f：节点详情/产物闸门/分类流程/提示词键 共用）
+// ---------------------------------------------------------------------------
+
+/** 流水线节点键 = 需求主状态（除 canceled）。会话框进度条、节点详情、产物闸门共用。 */
+export type StageKey = Exclude<RequirementStatus, 'canceled'>
+export const ALL_STAGE_KEYS: readonly StageKey[] = MAIN_REQ_STATUSES.filter((s): s is StageKey => s !== 'canceled')
+
+export function asStageKey(raw: unknown): StageKey {
+  if (typeof raw !== 'string' || !(ALL_STAGE_KEYS as readonly string[]).includes(raw)) {
+    bad(`节点键必须是：${ALL_STAGE_KEYS.join(', ')}`)
+  }
+  return raw as StageKey
+}
+
+/**
+ * 产物种类。前六类 = 六道节点必备产物（闸门依赖）；notes = 过程产物兜底
+ * （REQ-2e9473 t11 自动发现：原型 html / 笔记等不属必备门禁的文件），不参与任何 stage 闸门。
+ */
+export type ArtifactKind = 'requirement' | 'plan' | 'decomposition' | 'task_detail' | 'verification' | 'archive' | 'notes' | 'task_output'
+export const ALL_ARTIFACT_KINDS: readonly ArtifactKind[] = ['requirement', 'plan', 'decomposition', 'task_detail', 'verification', 'archive', 'notes', 'task_output']
+
+export function asArtifactKind(raw: unknown): ArtifactKind {
+  if (typeof raw !== 'string' || !(ALL_ARTIFACT_KINDS as readonly string[]).includes(raw)) {
+    bad(`产物种类必须是：${ALL_ARTIFACT_KINDS.join(', ')}`)
+  }
+  return raw as ArtifactKind
+}
+
+/** 节点产物登记（t4 钩子写入；五道人工确认门的确认状态在此）。 */
+export interface StageArtifact {
+  stage: StageKey
+  kind: ArtifactKind
+  /** 产物文档路径（工作区相对路径） */
+  path: string
+  registeredAt: number
+  registeredBy: ActorRef
+  /** 五道人工确认门：人确认后写入（看板一键确认，或会话经 ask_user_question 落章） */
+  confirmedAt?: number
+  confirmedBy?: ActorRef
+  /**
+   * 确认来源（REQ-ff20ca t2）：board=看板一键确认 / session=会话经 ask_user_question 落章。
+   * 缺省视为 board（存量记录向后兼容）。
+   */
+  confirmedVia?: 'board' | 'session'
+  /** 会话确认的审计凭据：用户在 ask_user_question 中的答复原文（仅 via=session 时写入） */
+  confirmedEvidence?: string
+  /**
+   * 自动发现标记（REQ-2e9473 t11/W4）：true = 由 syncReqArtifacts 扫描需求目录补登，
+   * 非工具显式登记。看板文档记录区据此显示「自动发现」徽标。
+   */
+  autoDiscovered?: boolean
+  /** 自动发现时的文件 mtime / 大小（审计与新鲜度展示用）。 */
+  fileMtime?: number
+  fileSize?: number
+}
+
+/** 每节点必备产物（feature 全流水线基准；分类档案可再裁剪）。 */
+export const STAGE_ARTIFACT_REQUIREMENTS: Readonly<Partial<Record<StageKey, readonly ArtifactKind[]>>> = {
+  brainstorming: ['requirement'],
+  planning: ['plan'],
+  decomposing: ['decomposition'],
+  implementing: ['task_detail'], // 粒度=每任务一份 tasks/t-xxx.md；task_report 汇报追加
+  accepting: ['verification'],
+  archived: ['archive'],
+}
+
+/**
+ * 五道人工确认门（2026-09-14 用户裁定）：'from>to' → 须已确认的产物 kind。
+ * 语义：产物存在 ≠ 人已审阅——产物登记即发通知请人审阅，人看文档/交流改进后
+ * 在看板一键确认（confirmedAt/confirmedBy），才放行对应转移。
+ */
+export const ARTIFACT_CONFIRM_GATES: Readonly<Record<string, ArtifactKind>> = {
+  'brainstorming>planning': 'requirement',
+  'planning>decomposing': 'plan',
+  'decomposing>implementing': 'decomposition',
+  // REQ-9f4a44：验收通过 = 直接归档，故本门挂在 accepting>archived 上
+  'accepting>archived': 'verification',
+}
+
+/** 分类流程档案：不同立项分类走不同流程形状（跳过阶段不产生物/不设门/不注入提示词）。 */
+export interface CategoryFlowProfile {
+  /** 启用节点（按流水线序） */
+  stages: readonly StageKey[]
+  /** 生效的人工确认门（'from>to'，ARTIFACT_CONFIRM_GATES 子集） */
+  confirmGates: readonly string[]
+  note: string
+}
+
+export const CATEGORY_FLOW_PROFILES: Readonly<Record<RequirementCategory, CategoryFlowProfile>> = {
+  feature: { stages: ALL_STAGE_KEYS, confirmGates: Object.keys(ARTIFACT_CONFIRM_GATES), note: '全流水线，五门全开' },
+  bug: {
+    stages: ['draft', 'planning', 'decomposing', 'implementing', 'accepting', 'archived'],
+    confirmGates: ['planning>decomposing', 'decomposing>implementing', 'accepting>archived'],
+    note: '免需求分析门：业务文档+复现定位即上下文，并入修复方案产物',
+  },
+  refactor: {
+    stages: ['draft', 'planning', 'decomposing', 'implementing', 'accepting', 'archived'],
+    confirmGates: ['planning>decomposing', 'decomposing>implementing', 'accepting>archived'],
+    note: '免需求分析：现状+目标态并入技术设计',
+  },
+  spike: {
+    stages: ['draft', 'implementing', 'accepting', 'archived'],
+    confirmGates: ['accepting>archived'],
+    note: '研究即实施，产物=研究报告',
+  },
+  doc: {
+    stages: ['draft', 'implementing', 'accepting', 'archived'],
+    confirmGates: ['accepting>archived'],
+    note: '写作即实施',
+  },
+  chore: {
+    stages: ['draft', 'implementing', 'accepting', 'archived'],
+    confirmGates: ['accepting>archived'],
+    note: '最简流程',
+  },
+}
+
+export function flowProfileFor(category: RequirementCategory | undefined): CategoryFlowProfile {
+  return CATEGORY_FLOW_PROFILES[category] ?? CATEGORY_FLOW_PROFILES['feature']
+}
+
+export function stageEnabledFor(category: RequirementCategory | undefined, stage: StageKey): boolean {
+  return flowProfileFor(category).stages.includes(stage)
+}
+
+/** 该分类下此转移的人工确认门要求（无门 → undefined）。 */
+export function confirmGateKindFor(
+  category: RequirementCategory | undefined,
+  from: RequirementStatus,
+  to: RequirementStatus,
+): ArtifactKind | undefined {
+  const key = `${from}>${to}`
+  if (!flowProfileFor(category).confirmGates.includes(key)) return undefined
+  return ARTIFACT_CONFIRM_GATES[key]
+}
+
+// ---------------------------------------------------------------------------
+// 节点详情契约（模板模式：骨架固定，body 可变；host 装配器与 client 渲染器共用）
+// ---------------------------------------------------------------------------
+
+/** 节点详情公共骨架。 */
+export interface StageDetailBase {
+  stage: StageKey
+  /** false=本分类跳过该节点（UI 标灰"本分类跳过"，不算缺失） */
+  enabled: boolean
+  /** 该节点已登记的产物 */
+  artifacts: StageArtifact[]
+  /** 该节点有产物待人工确认（五门对准且未 confirmed） */
+  pendingConfirmation: boolean
+  /** 该阶段状态事件切片（谁/何时/为什么） */
+  timeline: StatusEvent[]
+}
+
+/** 任务引用（拆分/实施节点共用；handoff 自足任务卡）。 */
+export interface StageTaskRef {
+  id: string
+  title: string
+  status: TaskStatus
+  phase: TaskPhase
+  side: TaskSide
+  dependsOn: string[]
+  /** 上游产出摘要（下游窗口不读上游会话） */
+  dependsSummary?: string
+  acceptance: string
+  /** 自足任务卡文档（decompose 生成骨架，task_report 追加汇报） */
+  cardDoc?: string
+  executorHint?: ExecutorHint
+}
+
+export interface StageTaskExecution extends StageTaskRef {
+  claimedBy?: string
+  executions: ExecutionRecord[]
+}
+
+export interface DraftStageBody { title: string; category?: RequirementCategory; description: string; sourceWindow?: string; createdAt?: number }
+export interface BrainstormStageBody { requirementDoc?: string; reviewSessionId?: string; comments: CommentRecord[] }
+export interface PlanningStageBody { plan?: PlanRecord }
+export interface DecomposeStageBody { decompositionDoc?: string; tasks: StageTaskRef[]; planTasks: PlanTask[] }
+export interface ImplementStageBody {
+  tasks: StageTaskExecution[]
+  /** 窗口码 → 任务 id 列表（上下文分担可见化） */
+  byWindow: Record<string, string[]>
+}
+export interface AcceptStageBody { verification?: VerificationRecord }
+export interface DoneStageBody { completedAt?: number; verificationDecision?: 'pass' | 'rework' }
+export interface ArchiveStageBody { archive?: ArchiveRecord }
+
+export type StageDetail =
+  | (StageDetailBase & { stage: 'draft'; body: DraftStageBody })
+  | (StageDetailBase & { stage: 'brainstorming'; body: BrainstormStageBody })
+  | (StageDetailBase & { stage: 'planning'; body: PlanningStageBody })
+  | (StageDetailBase & { stage: 'decomposing'; body: DecomposeStageBody })
+  | (StageDetailBase & { stage: 'implementing'; body: ImplementStageBody })
+  | (StageDetailBase & { stage: 'accepting'; body: AcceptStageBody })
+  | (StageDetailBase & { stage: 'done'; body: DoneStageBody })
+  | (StageDetailBase & { stage: 'archived'; body: ArchiveStageBody })
+
+/**
+ * 全流程一览（REQ-31e11f 节点详情重设计：监控视角，一眼看全）。
+ * 一次返回全部节点详情 + 当前节点，client 渲染竖向时间线（每节点一行摘要 + 就地展开）。
+ */
+export interface StageOverview {
+  requirementId: string
+  category?: RequirementCategory
+  /** 需求当前状态（= 当前节点；canceled 时各节点按既有完成度推导状态） */
+  currentStage: RequirementStatus
+  /** 全部节点（含 enabled=false 的跳过节点），按 ALL_STAGE_KEYS 顺序 */
+  stages: StageDetail[]
+}
+
+/** 阶段提示词键（stage-prompts.ts 常量索引；注入点按它取词）。 */
+export type StagePromptKey = 'brainstorming' | 'planning' | 'decomposing' | 'implementing' | 'accepting' | 'archived'
+export const ALL_STAGE_PROMPT_KEYS: readonly StagePromptKey[] = ['brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'archived']
+
+/** 执行方式提示：该任务该换上下文执行（handoff 意图落成数据）。 */
+export type ExecutorHint = 'fresh-window' | 'subagent' | 'current'
+export const ALL_EXECUTOR_HINTS: readonly ExecutorHint[] = ['fresh-window', 'subagent', 'current']
+
+export function asExecutorHint(raw: unknown): ExecutorHint | undefined {
+  if (raw === undefined || raw === null || raw === '') return undefined
+  if (typeof raw !== 'string' || !(ALL_EXECUTOR_HINTS as readonly string[]).includes(raw)) {
+    bad('executorHint 必须是：' + ALL_EXECUTOR_HINTS.join(', '))
+  }
+  return raw as ExecutorHint
+}
+
+// ---------------------------------------------------------------------------
 // 实施计划（plan mode —— 拆分前必须先有计划，计划由人批准）
 // ---------------------------------------------------------------------------
 
@@ -284,6 +525,14 @@ export interface PlanTask {
   dependsOn?: string[]
   /** 验收标准：怎么算做完（可验证，不允许"功能正常"这类空话） */
   acceptance?: string
+  /**
+   * 实施方案（REQ-2e9473 W5）：拆分卡 ≠ 实施卡——本字段回答"怎么做"：
+   * 改哪些文件、步骤、验证方式。REQ-6f39b5 事故 F 的教训：薄卡（只有 title+acceptance）
+   * 让 agent 凭印象自由发挥，8 处偏离技术设计。批准计划 = 同时批准做什么与怎么做。
+   */
+  implementation?: string
+  /** 执行方式提示：该任务该换上下文执行（fresh-window/subagent/current） */
+  executorHint?: ExecutorHint
 }
 
 /**
@@ -302,6 +551,10 @@ export interface PlanRecord {
   submittedBy: ActorRef
   approvedAt?: number
   approvedBy?: ActorRef
+  /** 批准来源（REQ-ff20ca t2）：board=看板 / session=会话经 ask_user_question；缺省视为 board */
+  approvedVia?: 'board' | 'session'
+  /** 会话批准的审计凭据：用户答复原文（仅 via=session 时写入） */
+  approvedEvidence?: string
   rejectedAt?: number
   rejectedReason?: string
 }
@@ -313,6 +566,40 @@ export interface PlanRecord {
  * 全是可复核的命令/输出/路径，不接受"功能正常"），人**看着证据**决定过还是退回返工。
  * 代码级：验收通过（accepting>done）是人工闸门；提交验收必须有材料。
  */
+/**
+ * 验收单单项（REQ-2e9473 t13/W6）：一个可独立裁决的验收点。
+ * 来源 = 任务验收标准（source=taskId）或需求级标准（source='requirement'）。
+ */
+export interface VerificationItem {
+  /** 稳定 id（v1-1, v1-2…；跨版本复用时保留） */
+  id: string
+  /** 来源：任务 id 或 'requirement'（需求级标准） */
+  source: string
+  /** 验收标准原文（怎么算过） */
+  criterion: string
+  /** 该项对应的证据（产物路径/命令输出摘要/截图） */
+  evidence: string[]
+  /** 裁决状态（挂起/续验持久化核心）：pending=待验 / passed=通过 / failed=不通过 */
+  status: 'pending' | 'passed' | 'failed'
+  /** 用户裁决意见（不通过时必填） */
+  opinion?: string
+  decidedAt?: number
+  decidedBy?: ActorRef
+}
+
+/**
+ * 验收单（版本化，REQ-2e9473 t13/W6）：逐项打勾的载体，可挂起/续验。
+ * v2+ 只含上一版未过项（已过项保留结论，不重验）。
+ */
+export interface VerificationSheet {
+  version: number
+  items: VerificationItem[]
+  generatedAt: number
+  generatedBy: ActorRef
+  /** 本轮是否只含上一版未过项（返工续验标记） */
+  reworkOnly?: boolean
+}
+
 export interface VerificationRecord {
   /** 一句话结论：这次交付了什么、验了什么 */
   summary: string
@@ -320,11 +607,26 @@ export interface VerificationRecord {
   evidence: string[]
   submittedAt: number
   submittedBy: ActorRef
+  /** 当前验收单（逐项裁决；REQ-2e9473 t13） */
+  sheet?: VerificationSheet
+  /** 历史验收单（v1/v2…；版本化留痕，供复盘与归档） */
+  sheetHistory?: VerificationSheet[]
   reviewedAt?: number
   reviewedBy?: ActorRef
   /** pass=验收通过；rework=退回返工（附意见） */
   decision?: 'pass' | 'rework'
   reviewNote?: string
+}
+
+/** 下游待同步标记（REQ-2e9473 t19/W8）。 */
+export interface DocSyncPending {
+  /** 变更源（'requirement' | 'plan'） */
+  source: string
+  /** 待同步的下游产物种类（'plan' | 'decomposition'） */
+  downstream: string[]
+  /** 变更原因（人读） */
+  reason: string
+  at: number
 }
 
 /** 归档材料里的一条文档。 */
@@ -385,19 +687,43 @@ export function planApproved(req: { plan?: PlanRecord }): boolean {
   return req.plan !== undefined && req.plan.approvedAt !== undefined
 }
 
-/** 计划任务表校验规整（key 唯一；phase/side 合法；标题非空；依赖只能指向计划内 key）。 */
+/** 空话验收标准的显式黑名单（命中即拒，不管有没有锚点）。 */
+const VACUOUS_ACCEPTANCE = /^(功能)?正常$|^(没|无)问题$|一切正常|运行正常|正常使用|正常工作|没什么问题|看起来没问题/
+/** 可验证锚点：文件路径 / 命令 / 断言关键词——验收标准必须至少含一个，否则无法证伪。 */
+const VERIFIABLE_ANCHOR = /\.(ts|tsx|js|mjs|cjs|md|html|json|py|go|css)\b|\b(npx|npm|pnpm|vitest|node|curl|grep|python3?|bash)\b|通过|拒绝|报错|可见|显示|包含|返回|等于|失败|成功|截图|输出|存在|被拒|拦截|告警|提示|落库|推进|不变|一致|单测|全绿|绿/
+
+/** 验收标准可证伪校验（REQ-2e9473 t03）：空话打回。 */
+function assertVerifiableAcceptance(key: string, acceptance: string): void {
+  if (acceptance.length === 0) {
+    bad('计划任务 ' + key + ' 缺验收标准（acceptance）——"怎么算做完"必须可验证（跑什么命令、看什么输出/路径）')
+  }
+  if (VACUOUS_ACCEPTANCE.test(acceptance)) {
+    bad('计划任务 ' + key + ' 的验收标准是空话（"' + acceptance + '"）——必须可证伪：写清跑什么命令、看到什么算过（如"npx vitest run 全绿"、"详情页含 8 个进度点"）')
+  }
+  if (!VERIFIABLE_ANCHOR.test(acceptance)) {
+    bad('计划任务 ' + key + ' 的验收标准缺少可验证锚点（"' + acceptance + '"）——至少含一项：文件路径（.ts/.md/…）、命令（npx/vitest/curl/…）或断言（通过/拒绝/可见/包含/返回/一致/不变…）')
+  }
+}
+
+/** 计划任务表校验规整（key 唯一；phase/side 合法；标题非空；依赖只能指向**前面已定义**的计划内 key——落库按数组顺序解析，前向引用会在 decompose 时炸（REQ-2e9473 事故 G）；acceptance 可证伪；implementation 必填）。 */
 export function normalizePlanTasks(raw: unknown): PlanTask[] {
   if (!Array.isArray(raw) || raw.length === 0) bad('计划必须包含至少 1 个任务（tasks 非空数组）')
   if (raw.length > 50) bad('计划任务过多（≤50）')
+  // 两遍校验：第一遍结构（key 唯一/标题/字段规整），第二遍依赖与内容——
+  // 保持"key 重复/依赖悬空"优先于"验收标准/实施方案缺失"的报错顺序（向后兼容）。
   const keys = new Set<string>()
+  const keyIndex = new Map<string, number>()
   const out: PlanTask[] = []
   raw.forEach((item, i) => {
     const o = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>
     const key = (typeof o.key === 'string' && o.key.trim().length > 0 ? o.key.trim() : 'k' + (i + 1)).slice(0, 40)
     if (keys.has(key)) bad('计划任务 key 重复：' + key)
     keys.add(key)
+    keyIndex.set(key, i)
     const description = o.description === undefined || o.description === null ? '' : String(o.description).trim().slice(0, 4000)
     const acceptance = o.acceptance === undefined || o.acceptance === null ? '' : String(o.acceptance).trim().slice(0, 2000)
+    const implementation = o.implementation === undefined || o.implementation === null ? '' : String(o.implementation).trim().slice(0, 4000)
+    const executorHint = asExecutorHint(o.executorHint ?? o.executor_hint)
     out.push({
       key,
       title: normalizeTitle(o.title),
@@ -406,12 +732,25 @@ export function normalizePlanTasks(raw: unknown): PlanTask[] {
       side: o.side === undefined ? 'fullstack' : asTaskSide(o.side),
       dependsOn: asDependsOn(o.dependsOn ?? o.depends_on),
       ...(acceptance.length > 0 ? { acceptance } : {}),
+      ...(implementation.length > 0 ? { implementation } : {}),
+      ...(executorHint !== undefined ? { executorHint } : {}),
     })
   })
   for (const t of out) {
     for (const dep of t.dependsOn ?? []) {
-      if (!keys.has(dep)) bad('计划任务 ' + t.key + ' 依赖了计划中不存在的 key：' + dep)
       if (dep === t.key) bad('计划任务 ' + t.key + ' 不能依赖自身')
+      if (!keys.has(dep)) bad('计划任务 ' + t.key + ' 依赖了计划中不存在的 key：' + dep)
+      // 事故 G：decompose 按任务表顺序把 key 解析为真实 id，前向引用解析不到 → invalid_dag
+      // 落库时才炸。提交时就把顺序问题打回，顺带给出修法。
+      if ((keyIndex.get(dep) ?? -1) > (keyIndex.get(t.key) ?? -1)) {
+        bad('计划任务 ' + t.key + ' 依赖了后定义的 key：' + dep + '（前向引用）——decompose 按任务表顺序解析依赖，请把被依赖任务排在前面')
+      }
+    }
+  }
+  for (const t of out) {
+    assertVerifiableAcceptance(t.key, t.acceptance ?? '')
+    if ((t.implementation ?? '').length === 0) {
+      bad('计划任务 ' + t.key + ' 缺实施方案（implementation）——拆分卡 ≠ 实施卡：写清改哪些文件、步骤、验证方式，批准计划即批准怎么做')
     }
   }
   return out
@@ -457,7 +796,7 @@ export interface RequirementRecord {
   /** 需求分类（LLM 在新建时自动标注） */
   category?: RequirementCategory
   /** 文档链接（需求文档/UI/方案），相对工作区路径或 URL */
-  docLinks?: { requirement?: string; ui?: string; proposal?: string }
+  docLinks?: { requirement?: string; ui?: string; proposal?: string; extras?: Array<{ label: string; path: string }> }
   status: RequirementStatus
   blocked: boolean
   blockedReason?: string
@@ -467,6 +806,12 @@ export interface RequirementRecord {
   reviewSessionId?: string
   /** 立项来源窗口（自动立项时写入；人工建卡不填）——窗口↔需求 n:n 的需求侧锚点 */
   sourceSessionId?: string
+  /** 项目分组锚点（预留：一个项目几个需求；字段就位、UI 暂忽略） */
+  projectId?: string
+  /** 父需求谱系（预留：大需求拆子需求） */
+  parentId?: string
+  /** 节点产物登记（t4 钩子写入；五道人工确认门的确认状态在此） */
+  artifacts?: StageArtifact[]
   /** 归档后的目录路径 */
   archivePath?: string
   /**
@@ -476,6 +821,12 @@ export interface RequirementRecord {
   statusHistory?: StatusEvent[]
   /** 实施计划（plan mode）：拆分前提交、由人批准；未批准不允许拆分 */
   plan?: PlanRecord
+  /**
+   * 文档演进留痕（REQ-2e9473 t19/W8）：上游文档变更 → 下游文档"待同步"标记。
+   * 上游 requirement 变更 → plan/decomposition 待同步；plan 变更 → decomposition 待同步。
+   * 下游重交（plan_submit/decompose）后销标；未销标时推进/验收给出警告。
+   */
+  docSyncPending?: DocSyncPending[]
   /** 验收材料（agent 提交）+ 人工审核结论 */
   verification?: VerificationRecord
   /** 归档材料（agent 准备）+ 归档结论（人） */
@@ -486,6 +837,14 @@ export interface RequirementRecord {
   updatedAt: number
   createdBy: ActorRef
   updatedBy: ActorRef
+}
+
+/** task_report 的结构化摘要（done 凭证门读取）。 */
+export interface TaskReportSummary {
+  at: number
+  reportIndex: number
+  filesChanged: string[]
+  completed: string[]
 }
 
 export interface TaskScope {
@@ -509,8 +868,19 @@ export interface TaskRecord {
   scope: TaskScope
   /** 验收标准（TBD 模板化，v1 自由文本） */
   acceptance: string
+  /** 实施方案（REQ-2e9473 W5，decompose 从 PlanTask 透传）：怎么做——改哪些文件、步骤、验证方式 */
+  implementation?: string
   /** 需求背景摘要（自足执行用） */
   context: string
+  /** 上游产出摘要（handoff：下游窗口不读上游会话） */
+  dependsSummary?: string
+  /**
+   * 最近一次 task_report 的结构化摘要（REQ-2e9473 t06 done 凭证门的证据源）：
+   * 汇报即留痕——转 done 前必须存在且 filesChanged/completed 至少其一非空。
+   */
+  lastReport?: TaskReportSummary
+  /** 执行方式提示（decompose 从 PlanTask 透传） */
+  executorHint?: ExecutorHint
   skipIntegration?: boolean
   status: TaskStatus
   blocked: boolean
@@ -532,7 +902,7 @@ export interface TaskRecord {
 // Ledger
 // ---------------------------------------------------------------------------
 
-export const REQBOARD_SCHEMA_VERSION = 3
+export const REQBOARD_SCHEMA_VERSION = 4
 
 export interface ReqboardLedger {
   schemaVersion: number

@@ -279,6 +279,28 @@ host 侧服务，订阅 ledger 变化 + 会话事件：
 - `reqboard_decompose`（触发拆分 / 确认拆分结果）。
 - 系统提示词 section 注入流水线工作协议（照抄 protocol-text 模式：认领纪律、证据要求、交接时序、失败回退路径）。
 
+### 10a. 人工确认门：双通道落章（REQ-ff20ca，2026-09-16）
+
+五道人工确认门（`ARTIFACT_CONFIRM_GATES`）的确认动作支持**两个等效通道**：
+
+| 通道 | 入口 | 落库字段 |
+|---|---|---|
+| 看板一键确认 | 需求卡按钮（`POST req/artifact/confirm`、`req/plan/approve`） | `confirmedVia/approvedVia = 'board'` |
+| **会话确认** | agent 用 `ask_user_question` 请人确认 → `reqboard_confirm_artifact` 落章 | `confirmedVia/approvedVia = 'session'` + `evidence`（用户答复原文）+ `sessionId` |
+
+**为什么需要会话通道**：回路的第一环是「人看文档 → 对话交流改进」，若确认只能在看板点，
+agent 拿到用户的口头确认也无法落章（`REQBOARD_HUMAN_GATE`），回路断在最后一米。
+审计不变量：`evidence` + `sessionId` 必须落库——agent 不能"自称已确认"而不留痕。
+
+**门禁判定同步改造**：`brainstorming>planning`、`decomposing>implementing` 从
+"谁调用"（仅人）改为**"产物是否已确认"**（来源不限）；未确认仍拒绝并给出两条通道提示。
+取消 / 验收通过 / 归档类决定**仍只能由人操作**。agent 侧同时补上了产物闸门校验
+（此前只有看板 API 有——agent 可绕过，属实现缺口）。
+
+**补登记入口**：`reqboard_requirement_submit` 补上 brainstorming 阶段产物登记
+（此前 `registerArtifact` 只在 decompose/plan_submit/verify_submit/task_report 中调用，
+requirement 产物无入口 → 看板确认按钮 400 → 门永远过不去）。
+
 ## 11. 与 dsh-taskboard 的关系
 
 - 新插件独立运行，**不依赖** taskboard；复制其验证过的模块模式（store / protocol / session-events / execution / git face），数据模型升级为两级。Apache-2.0 许可允许。
@@ -303,3 +325,73 @@ host 侧服务，订阅 ledger 变化 + 会话事件：
 4. **新会话对话框 client 扩展点**是否开放未验证 → §9 fallback 保底。
 5. **需求级 vs 任务级分支**合并复杂度（多任务分支先后合回需求分支再合主干）→ M5 先用任务分支直合主干 + 需求分支可选，E2E 后再定。
 6. 本仓库多会话并行开发纪律：实现时必须独立 worktree（`feat/reqboard`），合回 main 前端口/IP 固定值复查。
+
+---
+
+## 14. 执行链加固（REQ-2e9473，2026-09-17）
+
+**背景**：REQ-6f39b5（看板详情页优化）复盘暴露七类执行链缺陷（详见 REQ-2e9473 需求文档
+§1 A-G）。本节记录加固后的**行为约定**——实现见 `packages/pages/dsh-pmboard/`，
+阶段语义事实源见 `docs/architecture/workflow-stages.md`。
+
+### 14.1 确认通道（三通道原则）
+
+关键确认（节点推进/计划批准/验收/产物确认）的落章依据必须是**系统能独立见证的用户行为**：
+
+| 通道 | 形式 | 说明 |
+|---|---|---|
+| 弹框（首选） | `reqboard_ask_confirm` | 一次调用原子完成「弹框 → 落章 → 推进」；用户点肯定项即推进 |
+| 看板按钮（永久兜底） | 需求卡「确认产物/批准计划/验收通过」 | agent 未发起弹框时人可主动点，永不死锁 |
+| 文字确认（核验后有效） | `reqboard_confirm_artifact` | evidence 必须引用 60min 窗内真实用户消息原文（capture-hook 核验） |
+
+- `reqboard_move` 被人门拒绝时返回**问题卡**（含可直接喂给 ask_confirm 的参数）。
+- 产物登记超 30min 未确认 → capture-hook 向绑定窗口注入里程碑提醒。
+- subagent/无 UI 通道时 ask_confirm 返回 `fallback=board`（降级不死锁）。
+
+### 14.2 实施防假完成（done 凭证门）
+
+`reqboard_task_move → done` 四重校验（代码级拒绝）：
+
+1. **汇报前置**：必须有 `reqboard_task_report` 且 completed/files_changed 至少其一非空；
+2. **真实动作**：开工以来有干活类工具痕迹，或汇报文件真实存在且 mtime 晚于开工；
+3. **批量关闭节流**：同需求 60s 内已有其他任务被关闭 → 拒（`deps.doneThrottleMs` 可配）；
+4. **构建新鲜度**：页面插件任务（`packages/pages/*/src/`）转 done 前要求 `lib/client.js`
+   存在且新于 src 最新改动。
+
+### 14.3 阶段产物边界（W7）
+
+- **planning（技术设计）**：代码层面设计（改表/设计模式/框架选型/代码规范/UI/测试用例），
+  产物是**一套文档**；`plan_submit` 的 tasks **可省略**（不含最终任务 DAG）。
+- **decomposing（拆分）**：代码层面**新增/修改/删除**盘点 + 工作流划分/工作量预估 +
+  任务卡创作（四要素：做什么/怎么做[implementation]/可证伪 acceptance/依赖）。
+  计划空表时 `decompose` **必须传 tasks**（REQBOARD_TASKS_REQUIRED）。
+- 任务卡质量由 `normalizePlanTasks` 强制：缺 implementation 或 acceptance 空话/缺锚点 → 拒；
+  依赖按数组顺序解析，**前向引用提交时即打回**（防落库时 invalid_dag）。
+
+### 14.4 验收单与返工回路（W6）
+
+- `reqboard_verify_submit` 生成**逐项验收单**（VerificationSheet：每任务验收标准 + 需求级标准，
+  逐项带证据）；evidence 中的工作区路径**校验真实存在**。
+- `POST /dashboard/api/reqboard/req/verdicts`：人逐项裁决（passed/failed + 意见，版本匹配防并发错版）。
+- 有不通过项 → 需求打回 implementing + 为每个未过项**自动生成关联返工任务**（承接原任务
+  phase/side/scope + 验收意见）；修复后重交，v2 只含未过项（**断点续验**，已过项不重验）。
+
+### 14.5 产物自动登记（W4）
+
+- `docs/requirements/<REQ>/` **落盘即产物**：board 状态端点与 stage 详情渲染前
+  `syncReqArtifacts` 扫描补登（`autoDiscovered` 标记 + mtime + size）。
+- `task_report` 的 files_changed 自动上浮为需求级 `task_output` 产物。
+- `archive_submit` 对目录内未列入清单的文件返回 `unlisted_files` 警告。
+
+### 14.6 文档演进留痕（W8）
+
+- 需求文档/计划**已确认/已批准后再重交** = 变更 → `change_note` **必填**
+  （REQBOARD_CHANGELOG_REQUIRED），变更即作废旧确认/旧批准并记 changelog。
+- 上游变更自动标记下游"待同步"（requirement→plan/decomposition；plan→decomposition）；
+  下游重交销标；未销标时 `reqboard_move`/`verify_submit` 返回 `doc_sync_warning`。
+
+### 14.7 回归防线
+
+`tests/fault-injection.test.ts` 逐条复现七类事故（A-G）并断言硬门拦截；
+`tests/stage-prompts.test.ts` 对阶段纪律做**措辞锁定**（防回退）。
+

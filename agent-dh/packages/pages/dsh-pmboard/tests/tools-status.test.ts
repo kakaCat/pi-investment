@@ -28,9 +28,11 @@ async function run(status: RequirementRecord['status']) {
 }
 
 describe('reqboard_status.next_actions（窗口可自行推进的动作）', () => {
-  it('brainstorming → 可自行推进到 planning（写计划）/ 退回 draft（取消不在列）', async () => {
+  it('brainstorming → planning 已入人工门（五门裁定），agent 仅可退回 draft', async () => {
     const out = await run('brainstorming')
-    expect(out.next_actions).toEqual(['planning', 'draft'])
+    // 2026-09-14 五门裁定：需求文档确认 brainstorming>planning 是人工确认门，
+    // agent 的 next_actions 不再含 planning（人确认需求文档后由看板推进）
+    expect(out.next_actions).toEqual(['draft'])
     expect(out.note).toContain('reqboard_move')
   })
 

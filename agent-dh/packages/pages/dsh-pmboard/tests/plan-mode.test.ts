@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ReqboardStore } from '../src/host/store.js'
 import { createReqboardHandler } from '../src/host/routes.js'
-import { definePlanSubmitTool, defineDecomposeTool, defineTaskMoveTool } from '../src/host/agent-tools.js'
+import { definePlanSubmitTool, defineDecomposeTool, defineTaskMoveTool, defineTaskReportTool } from '../src/host/agent-tools.js'
 import type { RequirementRecord, RequirementStatus } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
@@ -23,14 +23,18 @@ let planTool: { execute: (a: unknown, e: unknown) => Promise<any> }
 let decompose: { execute: (a: unknown, e: unknown) => Promise<any> }
 let taskMove: { execute: (a: unknown, e: unknown) => Promise<any> }
 let handler: ReturnType<typeof createReqboardHandler>
+let reportTool: { execute: (a: unknown, e: unknown) => Promise<any> }
+let trace: Map<string, import('../src/host/capture-hook.js').ToolTraceEntry[]>
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-plan-'))
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
-  const deps = { store, now: () => Date.now() } as never
+  trace = new Map()
+  const deps = { store, now: () => Date.now(), toolTrace: trace, doneThrottleMs: 0 } as never
   planTool = definePlanSubmitTool(deps) as never
   decompose = defineDecomposeTool(deps) as never
   taskMove = defineTaskMoveTool(deps) as never
+  reportTool = defineTaskReportTool(deps) as never
   handler = createReqboardHandler({ store, now: () => Date.now() })
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
@@ -50,8 +54,8 @@ const run = (tool: { execute: (a: unknown, e: unknown) => Promise<any> }, args: 
   tool.execute(args, { agent: { id: agent } })
 
 const PLAN_TASKS = [
-  { key: 'proto', title: '协议层加计划字段', phase: 'implement', side: 'backend', acceptance: 'protocol.ts 单测绿' },
-  { key: 'ui', title: '看板计划卡与批准按钮', phase: 'ui', side: 'frontend', depends_on: ['proto'], acceptance: '截图可见' },
+  { key: 'proto', title: '协议层加计划字段', phase: 'implement', side: 'backend', acceptance: 'protocol.ts 单测绿', implementation: 'protocol.ts 加 PlanRecord + 单测验证' },
+  { key: 'ui', title: '看板计划卡与批准按钮', phase: 'ui', side: 'frontend', depends_on: ['proto'], acceptance: '截图可见', implementation: 'view.ts 加计划卡渲染与批准按钮' },
 ]
 
 const submitPlan = (tasks: unknown = PLAN_TASKS) =>
@@ -141,7 +145,7 @@ describe('计划闸门（拆分前必须先有计划且获批）', () => {
     await expect(run(decompose, {})).rejects.toThrow(/REQBOARD_PLAN_NOT_APPROVED/)
 
     // 重写后再提交：旧批准（此处为退回态）不影响，新计划仍需重新批准
-    await submitPlan([{ key: 'solo', title: '重写后的单任务', acceptance: 'run x 输出 ok' }])
+    await submitPlan([{ key: 'solo', title: '重写后的单任务', acceptance: 'run x 输出 ok', implementation: '改 x.ts 后跑 run x 验证输出' }])
     const after = store.snapshot().requirements[0]
     expect(after.plan?.approvedAt).toBeUndefined()
     await expect(run(decompose, {})).rejects.toThrow(/REQBOARD_PLAN_NOT_APPROVED/)
@@ -183,11 +187,28 @@ describe('批准后的执行链（计划 → 任务卡 → 自动验收）', () 
     const [proto, ui] = out.created.map((c: { id: string }) => c.id)
 
     const started = await run(taskMove, { task_id: proto, to: 'in_progress', reason: '开工' })
-    expect(started.requirement_status).toBe('implementing')
-    for (const to of ['testing', 'in_review', 'done']) await run(taskMove, { task_id: proto, to })
-    expect(store.snapshot().requirements[0].status).toBe('implementing')
+    // 2026-09-14 五门裁定：任务开工不再自动 decomposing>implementing，需求停等人工确认拆分清单
+    expect(started.requirement_status).toBe('decomposing')
+    for (const to of ['testing', 'in_review']) await run(taskMove, { task_id: proto, to })
+    // done 凭证门（t06）：汇报+痕迹后才能关
+    const { recordToolTrace } = await import('../src/host/capture-hook.js')
+    recordToolTrace(trace, W, 'edit', Date.now())
+    await run(reportTool, { task_id: proto, summary: '协议层完成', completed: ['protocol.ts 改完'] })
+    await run(taskMove, { task_id: proto, to: 'done' })
+    expect(store.snapshot().requirements[0].status).toBe('decomposing')
 
-    for (const to of ['in_progress', 'testing', 'in_review', 'done']) await run(taskMove, { task_id: ui, to })
+    // 模拟人确认拆分清单（human gate 通过）→ 需求进入实施态，任务事实驱动 R2 进验收
+    await store.mutate('human-confirm', (l) => {
+      const r = l.requirements.find(x => x.id === 'REQ-abc123')!
+      r.status = 'implementing'
+      return { requirements: [r] }
+    })
+
+    for (const to of ['in_progress', 'testing', 'in_review']) await run(taskMove, { task_id: ui, to })
+    const { recordToolTrace: rec2 } = await import('../src/host/capture-hook.js')
+    rec2(trace, W, 'edit', Date.now())
+    await run(reportTool, { task_id: ui, summary: 'UI 完成', completed: ['view.ts 改完'] })
+    await run(taskMove, { task_id: ui, to: 'done' })
     expect(store.snapshot().requirements[0].status).toBe('accepting')
     // 任务的验收标准来自计划，一路带进任务卡
     expect(store.snapshot().tasks.map(t => t.acceptance)).toEqual(['protocol.ts 单测绿', '截图可见'])

@@ -102,10 +102,11 @@ export function applyPickupReconcile(ledger: ReqboardLedger, ctx: RollupContext)
 }
 
 /**
- * 任务驱动的派生推进（R2/R3/R4）—— 让需求跟着任务事实自己走，不需要人点中间步骤：
+ * 任务驱动的派生推进（R2/R3）—— 让需求跟着任务事实自己走，不需要人点中间步骤：
  *  R3 planning + 已有任务（已批准的计划落库）        → decomposing
- *  R4 decomposing + 有任务已进入执行（非 todo）    → implementing
  *  R2 implementing + 全部未取消任务 done（≥1 个）  → accepting
+ * 2026-09-14 五门裁定（REQ-31e11f）：decomposing>implementing 已入人工确认门
+ * （拆分清单须人确认），R4 自动推进移除——需求停在拆分态等人确认，不再随任务开工自动推进。
  * 一次调用内循环至稳定（上限 3 步/需求），使「拆分+全部完成」这类跨越在一次 rollup 内收敛。
  * 返回被推进的需求列表（含同一需求的多步推进记录）。
  */
@@ -128,9 +129,9 @@ export function applyTaskRollup(
         continue
       }
       if (req.status === 'decomposing') {
-        if (!tasks.some(t => t.status !== 'todo')) break
-        advance(req, 'implementing', '任务已开始执行，自动进入实施', ctx)
-        continue
+        // 2026-09-14 五门裁定：decomposing>implementing 是人工确认门（拆分清单须人确认），
+        // 不再自动推进。需求停在拆分态，等人确认拆分清单后由看板/reqboard_move 推进。
+        break
       }
       // implementing
       if (!tasks.every(t => t.status === 'done')) break

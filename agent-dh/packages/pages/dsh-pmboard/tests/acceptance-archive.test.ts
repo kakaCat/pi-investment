@@ -82,9 +82,9 @@ async function seed(status: RequirementStatus, category: RequirementRecord['cate
 }
 
 describe('验收：人工审核 + 证据闸', () => {
-  it('agent 不能自己把验收点过（accepting>done 是人工闸门）', async () => {
+  it('agent 不能自己把验收点过（accepting>archived 是人工闸门）', async () => {
     await seed('accepting')
-    const res = await post('/req/move', { id: 'REQ-abc123', to: 'done', actor: 'agent' })
+    const res = await post('/req/move', { id: 'REQ-abc123', to: 'archived', actor: 'agent' })
     expect(res.statusCode).toBe(403)
     expect(res.payload.code).toBe('human_gate')
     expect(store.snapshot().requirements[0].status).toBe('accepting')
@@ -97,17 +97,18 @@ describe('验收：人工审核 + 证据闸', () => {
     expect(res.payload.error).toContain('还没有验收材料')
   })
 
-  it('agent 提交验收材料 → 待人工审核 → 人点通过 → done（时间线留痕）', async () => {
+  it('agent 提交验收材料 → 待人工审核 → 人点通过 → 直接 archived（时间线留痕，REQ-9f4a44）', async () => {
     await seed('accepting')
     const out = await run(verifyTool, { summary: '时间线/甘特图已上线', evidence: ['pnpm vitest run → 168 passed', '截图 /tmp/board.png'] })
     expect(out.status).toBe('accepting')
 
     const pass = await post('/req/verify/pass', { id: 'REQ-abc123' })
     expect(pass.statusCode).toBe(200)
-    expect(pass.payload.data.status).toBe('done')
+    // REQ-9f4a44：验收通过 → 直接归档（无 done 中转）
+    expect(pass.payload.data.status).toBe('archived')
     expect(pass.payload.data.verification.decision).toBe('pass')
     expect(pass.payload.data.verification.reviewedBy.kind).toBe('human')
-    expect(pass.payload.data.statusHistory.map((e: { status: string }) => e.status)).toEqual(['accepting', 'done'])
+    expect(pass.payload.data.statusHistory.map((e: { status: string }) => e.status)).toEqual(['accepting', 'archived'])
   })
 
   it('人工退回返工：必须写意见，需求回到 implementing，意见留在验收记录里', async () => {
@@ -188,31 +189,23 @@ describe('归档：文档合并规范 + 人工拍板', () => {
     })).toThrow(/索引条目/)
   })
 
-  it('归档材料：agent 准备 → 人点归档 → archived + archivePath + 时间线', async () => {
-    await seed('done')
+  it('归档材料：agent 在 archived 下补齐 → archivePath 落库（REQ-9f4a44 自动归档）', async () => {
+    // 验收通过即已 archived（无 done 中转），agent 随后补材料
+    await seed('archived')
     const out = await run(archiveTool, goodArchive)
     expect(out.success).toBe(true)
     expect(out.required_docs).toEqual(['requirement', 'plan', 'verification'])
 
-    // 材料不齐时人点归档也过不去（同一套规范再校验一次）
-    const archived = await post('/req/archive', { id: 'REQ-abc123' })
-    expect(archived.statusCode).toBe(200)
-    expect(archived.payload.data.status).toBe('archived')
-    expect(archived.payload.data.archivePath).toBe('agent-dh/docs/requirements/REQ-abc123')
-    expect(archived.payload.data.archive.archivedBy.kind).toBe('human')
-    expect(archived.payload.data.archive.mergedInto).toEqual(['agent-dh/docs/architecture/requirement-board.md'])
-    expect(archived.payload.data.statusHistory.at(-1).status).toBe('archived')
+    const req = store.snapshot().requirements[0]
+    expect(req.archive?.dir).toBe('agent-dh/docs/requirements/REQ-abc123')
+    expect(req.archivePath).toBe('agent-dh/docs/requirements/REQ-abc123')
+    expect(req.archive?.mergedInto).toEqual(['agent-dh/docs/architecture/requirement-board.md'])
   })
 
-  it('没有材料不能归档；未完成不能归档；材料不合规当场被拒', async () => {
-    await seed('done')
-    const noMaterials = await post('/req/archive', { id: 'REQ-abc123' })
-    expect(noMaterials.statusCode).toBe(400)
-    expect(noMaterials.payload.error).toContain('还没有归档材料')
-
+  it('材料不合规当场被拒（合并去向超出本类型允许位置）', async () => {
+    await seed('archived')
     await expect(run(archiveTool, { ...goodArchive, merged_into: ['docs/known-issues/x.md'] }))
       .rejects.toThrow(/不在本类型允许的位置/)
-
   })
 
   it('未完成（implementing）的需求不能准备归档材料', async () => {

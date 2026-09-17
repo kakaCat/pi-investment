@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>项目看板需求详情页 - v3（流程节点对齐）</title>
+  <!--
+    流程节点定义（唯一事实源）：docs/architecture/workflow-stages.md
+    7态：立项 → 需求分析 → 技术设计 → 拆分 → 实施 → 验收 → 归档
+  -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: #f5f6f8;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .dsh-pm-detail {
+      max-width: 1200px;
+      margin: 20px auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+      overflow: hidden;
+    }
+    
+    .dsh-pm-detail-head {
+      padding: 24px 32px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dsh-pm-detail-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .dsh-pm-detail-id {
+      font-size: 13px;
+      color: #6b7280;
+      font-family: ui-monospace, monospace;
+    }
+    
+    .dsh-pm-cat {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      background: rgba(74,125,255,.12);
+      color: #4a7dff;
+      font-weight: 500;
+    }
+    
+    .dsh-pm-status-badge {
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(74,125,255,.12);
+      color: #4a7dff;
+    }
+    
+    .dsh-pm-detail-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 16px;
+    }
+    
+    /* 8态进度点（7态 + 完成过渡态） */
+    .dsh-pm-progress-dots {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      padding: 12px 0;
+    }
+    
+    .dsh-pm-dot-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+    
+    .dsh-pm-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #d1d5db;
+      opacity: .4;
+      transition: all .3s;
+    }
+    
+    .dsh-pm-dot.completed {
+      opacity: 1;
+      background: #28a745;
+    }
+    
+    .dsh-pm-dot.current {
+      width: 14px;
+      height: 14px;
+      opacity: 1;
+      background: #4a7dff;
+      box-shadow: 0 0 0 4px rgba(74,125,255,.15);
+    }
+    
+    .dsh-pm-dot-label {
+      font-size: 11px;
+      color: #6b7280;
+      white-space: nowrap;
+      text-align: center;
+    }
+    
+    .dsh-pm-dot-wrapper.current .dsh-pm-dot-label {
+      color: #4a7dff;
+      font-weight: 600;
+    }
+    
+    .dsh-pm-dot-wrapper.completed .dsh-pm-dot-label {
+      color: #28a745;
+      font-weight: 500;
+    }
+    
+    .dsh-pm-action-bar {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .dsh-pm-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: #374151;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    
+    .dsh-pm-btn:hover {
+      background: #f9fafb;
+      border-color: #9ca3af;
+    }
+    
+    .dsh-pm-btn.primary {
+      background: #4a7dff;
+      border-color: #4a7dff;
+      color: #fff;
+    }
+    
+    .dsh-pm-btn.primary:hover {
+      background: #3b6de8;
+    }
+    
+    .dsh-pm-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 0 32px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .dsh-pm-tab {
+      padding: 12px 24px;
+      border: none;
+      background: none;
+      color: #6b7280;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all .2s;
+    }
+    
+    .dsh-pm-tab:hover {
+      background: rgba(74,125,255,.05);
+      color: #374151;
+    }
+    
+    .dsh-pm-tab.active {
+      color: #4a7dff;
+      border-bottom-color: #4a7dff;
+      font-weight: 600;
+    }
+    
+    .dsh-pm-tab-content {
+      padding: 32px;
+      display: none;
+    }
+    
+    .dsh-pm-tab-content.active {
+      display: block;
+    }
+    
+    .dsh-pm-section {
+      margin-bottom: 32px;
+    }
+    
+    .dsh-pm-section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .dsh-pm-section-content {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+    }
+    
+    .dsh-pm-stage-current {
+      background: linear-gradient(135deg, rgba(74,125,255,.08) 0%, rgba(74,125,255,.02) 100%);
+      border: 1px solid rgba(74,125,255,.2);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    
+    .dsh-pm-stage-current-title {
+      font-size: 14px;
+      color: #4a7dff;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    
+    .dsh-pm-task-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .dsh-pm-task-table th {
+      background: #f9fafb;
+      padding: 12px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .dsh-pm-task-table td {
+      padding: 14px 12px;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 14px;
+    }
+    
+    .dsh-pm-task-table tr:hover {
+      background: #f9fafb;
+    }
+    
+    .dsh-pm-task-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .dsh-pm-task-status.todo {
+      background: rgba(156,163,175,.12);
+      color: #6b7280;
+    }
+    
+    .dsh-pm-task-status.in_progress {
+      background: rgba(74,125,255,.12);
+      color: #4a7dff;
+    }
+    
+    .dsh-pm-task-status.done {
+      background: rgba(40,167,69,.12);
+      color: #28a745;
+    }
+    
+    .dsh-pm-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .dsh-pm-stat {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    
+    .dsh-pm-stat-label {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    
+    .dsh-pm-stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #111827;
+    }
+    
+    .dsh-pm-stat-success .dsh-pm-stat-value {
+      color: #28a745;
+    }
+    
+    .dsh-pm-dag {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    
+    .dsh-pm-dag-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .dsh-pm-dag-layers {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .dsh-pm-dag-layer {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    
+    .dsh-pm-dag-layer-label {
+      font-size: 11px;
+      color: #9ca3af;
+      font-weight: 600;
+      min-width: 30px;
+      font-family: ui-monospace, monospace;
+    }
+    
+    .dsh-pm-dag-nodes {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+    
+    .dsh-pm-dag-node {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    
+    .dsh-pm-dag-node:hover {
+      background: rgba(74,125,255,.08);
+      border-color: #4a7dff;
+    }
+    
+    .dsh-pm-dag-node.done {
+      background: rgba(40,167,69,.08);
+      border-color: #28a745;
+      color: #28a745;
+    }
+    
+    .dsh-pm-dag-node.in_progress {
+      background: rgba(74,125,255,.08);
+      border-color: #4a7dff;
+      color: #4a7dff;
+    }
+    
+    .dsh-pm-timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .dsh-pm-timeline-item {
+      display: flex;
+      gap: 16px;
+      padding: 12px;
+      background: #f9fafb;
+      border-radius: 8px;
+      border-left: 3px solid #4a7dff;
+    }
+    
+    .dsh-pm-timeline-time {
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      color: #6b7280;
+      min-width: 120px;
+    }
+    
+    .dsh-pm-timeline-content {
+      flex: 1;
+      font-size: 14px;
+    }
+    
+    .dsh-pm-empty {
+      padding: 40px;
+      text-align: center;
+      color: #9ca3af;
+      font-size: 14px;
+    }
+    
+    .dsh-pm-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="dsh-pm-detail">
+    <div class="dsh-pm-detail-head">
+      <div class="dsh-pm-detail-meta">
+        <span class="dsh-pm-detail-id">REQ-6f39b5</span>
+        <span class="dsh-pm-cat">重构</span>
+        <span class="dsh-pm-status-badge">实施中</span>
+        <span style="margin-left: auto; font-size: 13px; color: #6b7280;">更新于 2 小时前</span>
+      </div>
+      
+      <h1 class="dsh-pm-detail-title">项目看板需求详情页界面优化</h1>
+      
+      <!-- 8态进度点：7个流程节点 + 1个过渡态（完成） -->
+      <div class="dsh-pm-progress-dots">
+        <div class="dsh-pm-dot-wrapper completed">
+          <div class="dsh-pm-dot"></div>
+          <span class="dsh-pm-dot-label">立项</span>
+        </div>
+        <div class="dsh-pm-dot-wrapper completed">
+          <div class="dsh-pm-dot"></div>
+          <span class="dsh-pm-dot-label">需求分析</span>
+        </div>
+        <div class="dsh-pm-dot-wrapper completed">
+          <div class="dsh-pm-dot"></div>
+          <span class="dsh-pm-dot-label">技术设计</span>
+        </div>
+        <div class="dsh-pm-dot-wrapper completed">
+          <div class="dsh-pm-dot"></div>
+          <span class="dsh-pm-dot-label">拆分</span>
+        </div>
+        <div class="dsh-pm-dot-wrapper current">
+          <div class="dsh-pm-dot"></div>
+          <span class="dsh-pm-dot-label">实施</span>
+        </div>
+        <div class="dsh-pm-dot-wrapper">
+          <div class="dsh-pm-dot"></div>
+          <span class="dsh-pm-dot-label">验收</span>
+        </div>
+        <div class="dsh-pm-dot-wrapper">
+          <div class="dsh-pm-dot"></div>
+          <span class="dsh-pm-dot-label">完成</span>
+        </div>
+        <div class="dsh-pm-dot-wrapper">
+          <div class="dsh-pm-dot"></div>
+          <span class="dsh-pm-dot-label">归档</span>
+        </div>
+      </div>
+      
+      <div class="dsh-pm-action-bar">
+        <button class="dsh-pm-btn primary">提交验收</button>
+        <button class="dsh-pm-btn">暂停</button>
+        <button class="dsh-pm-btn">···</button>
+      </div>
+    </div>
+    
+    <div class="dsh-pm-tabs">
+      <button class="dsh-pm-tab active" onclick="switchTab('overview')">📋 概览</button>
+      <button class="dsh-pm-tab" onclick="switchTab('execution')">⚙️ 执行</button>
+      <button class="dsh-pm-tab" onclick="switchTab('timeline')">📅 时间线</button>
+      <button class="dsh-pm-tab" onclick="switchTab('archive')">📦 归档</button>
+    </div>
+    
+    <div id="tab-overview" class="dsh-pm-tab-content active">
+      <div class="dsh-pm-section">
+        <h2 class="dsh-pm-section-title">📄 需求描述</h2>
+        <div class="dsh-pm-section-content">
+          <p>优化项目看板中需求详情页的界面设计和用户体验，解决当前 Tab 和折叠区功能重复的问题，改进信息展示方式、交互流程等，使其更清晰易用。</p>
+        </div>
+      </div>
+      
+      <div class="dsh-pm-section">
+        <h2 class="dsh-pm-section-title">🎯 当前阶段详情</h2>
+        <div class="dsh-pm-stage-current">
+          <div class="dsh-pm-stage-current-title">实施中 (implementing)</div>
+          <p style="margin-bottom: 12px; font-size: 14px; color: #374151;">
+            任务执行中，已完成 3/8 个任务。当前无阻塞，预计 2 天内完成剩余任务。
+          </p>
+          <div style="display: flex; gap: 12px;">
+            <span class="dsh-pm-tag">前端重构进行中</span>
+            <span class="dsh-pm-tag">样式优化待开始</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="dsh-pm-section">
+        <h2 class="dsh-pm-section-title">📁 文档记录</h2>
+        <div class="dsh-pm-section-content">
+          <ul style="list-style: none;">
+            <li style="margin-bottom: 8px;">
+              <a href="#" style="color: #4a7dff; text-decoration: none;">📝 需求文档 (requirement.md)</a>
+            </li>
+            <li style="margin-bottom: 8px;">
+              <a href="#" style="color: #4a7dff; text-decoration: none;">📐 技术方案 (plan.md)</a>
+            </li>
+            <li>
+              <a href="#" style="color: #4a7dff; text-decoration: none;">🎨 设计原型 (prototype.html)</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div id="tab-execution" class="dsh-pm-tab-content">
+      <div class="dsh-pm-stats">
+        <div class="dsh-pm-stat">
+          <div class="dsh-pm-stat-label">总任务</div>
+          <div class="dsh-pm-stat-value">8</div>
+        </div>
+        <div class="dsh-pm-stat dsh-pm-stat-success">
+          <div class="dsh-pm-stat-label">已完成</div>
+          <div class="dsh-pm-stat-value">3</div>
+        </div>
+        <div class="dsh-pm-stat">
+          <div class="dsh-pm-stat-label">进行中</div>
+          <div class="dsh-pm-stat-value">2</div>
+        </div>
+        <div class="dsh-pm-stat">
+          <div class="dsh-pm-stat-label">待办</div>
+          <div class="dsh-pm-stat-value">3</div>
+        </div>
+      </div>
+      
+      <div class="dsh-pm-dag">
+        <div class="dsh-pm-dag-title">🔀 任务依赖关系</div>
+        <div class="dsh-pm-dag-layers">
+          <div class="dsh-pm-dag-layer">
+            <div class="dsh-pm-dag-layer-label">L0</div>
+            <div class="dsh-pm-dag-nodes">
+              <div class="dsh-pm-dag-node done">t-001 重写 buildDetail</div>
+            </div>
+          </div>
+          <div class="dsh-pm-dag-layer">
+            <div class="dsh-pm-dag-layer-label">L1</div>
+            <div class="dsh-pm-dag-nodes">
+              <div class="dsh-pm-dag-node done">t-002 实现 Tab 组件</div>
+              <div class="dsh-pm-dag-node done">t-003 删除节点导航</div>
+            </div>
+          </div>
+          <div class="dsh-pm-dag-layer">
+            <div class="dsh-pm-dag-layer-label">L2</div>
+            <div class="dsh-pm-dag-nodes">
+              <div class="dsh-pm-dag-node in_progress">t-004 任务表格</div>
+              <div class="dsh-pm-dag-node in_progress">t-005 优化样式</div>
+              <div class="dsh-pm-dag-node">t-006 进度点</div>
+            </div>
+          </div>
+          <div class="dsh-pm-dag-layer">
+            <div class="dsh-pm-dag-layer-label">L3</div>
+            <div class="dsh-pm-dag-nodes">
+              <div class="dsh-pm-dag-node">t-007 响应式</div>
+            </div>
+          </div>
+          <div class="dsh-pm-dag-layer">
+            <div class="dsh-pm-dag-layer-label">L4</div>
+            <div class="dsh-pm-dag-nodes">
+              <div class="dsh-pm-dag-node">t-008 测试</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="dsh-pm-section">
+        <h2 class="dsh-pm-section-title">📋 任务列表</h2>
+        <table class="dsh-pm-task-table">
+          <thead>
+            <tr>
+              <th>状态</th>
+              <th>任务</th>
+              <th>阶段</th>
+              <th>依赖</th>
+              <th>负责人</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="dsh-pm-task-status done">✓ 完成</span></td>
+              <td>重写 buildDetail 函数</td>
+              <td>实施</td>
+              <td>-</td>
+              <td>w-b8de6c05</td>
+              <td><a href="#" style="color: #4a7dff; font-size: 13px;">查看</a></td>
+            </tr>
+            <tr>
+              <td><span class="dsh-pm-task-status done">✓ 完成</span></td>
+              <td>实现 4 个 Tab 组件</td>
+              <td>实施</td>
+              <td>t-001</td>
+              <td>w-b8de6c05</td>
+              <td><a href="#" style="color: #4a7dff; font-size: 13px;">查看</a></td>
+            </tr>
+            <tr>
+              <td><span class="dsh-pm-task-status done">✓ 完成</span></td>
+              <td>删除 8 个节点导航</td>
+              <td>实施</td>
+              <td>t-002</td>
+              <td>w-b8de6c05</td>
+              <td><a href="#" style="color: #4a7dff; font-size: 13px;">查看</a></td>
+            </tr>
+            <tr>
+              <td><span class="dsh-pm-task-status in_progress">◐ 进行中</span></td>
+              <td>实现任务表格组件</td>
+              <td>实施</td>
+              <td>t-003</td>
+              <td>w-b8de6c05</td>
+              <td><a href="#" style="color: #4a7dff; font-size: 13px;">查看</a></td>
+            </tr>
+            <tr>
+              <td><span class="dsh-pm-task-status in_progress">◐ 进行中</span></td>
+              <td>优化 Tab 样式</td>
+              <td>实施</td>
+              <td>t-002</td>
+              <td>w-a8a89c6a</td>
+              <td><a href="#" style="color: #4a7dff; font-size: 13px;">查看</a></td>
+            </tr>
+            <tr>
+              <td><span class="dsh-pm-task-status todo">○ 待办</span></td>
+              <td>实现 8 态进度点</td>
+              <td>实施</td>
+              <td>t-003</td>
+              <td>-</td>
+              <td><a href="#" style="color: #4a7dff; font-size: 13px;">查看</a></td>
+            </tr>
+            <tr>
+              <td><span class="dsh-pm-task-status todo">○ 待办</span></td>
+              <td>适配响应式布局</td>
+              <td>实施</td>
+              <td>t-004,t-005</td>
+              <td>-</td>
+              <td><a href="#" style="color: #4a7dff; font-size: 13px;">查看</a></td>
+            </tr>
+            <tr>
+              <td><span class="dsh-pm-task-status todo">○ 待办</span></td>
+              <td>E2E 测试</td>
+              <td>测试</td>
+              <td>t-006</td>
+              <td>-</td>
+              <td><a href="#" style="color: #4a7dff; font-size: 13px;">查看</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <div id="tab-timeline" class="dsh-pm-tab-content">
+      <div class="dsh-pm-section">
+        <h2 class="dsh-pm-section-title">📅 状态变更记录</h2>
+        <div class="dsh-pm-timeline">
+          <div class="dsh-pm-timeline-item">
+            <div class="dsh-pm-timeline-time">01-15 14:30</div>
+            <div class="dsh-pm-timeline-content">
+              <strong>推进到实施阶段</strong><br>
+              <span style="font-size: 13px; color: #6b7280;">由 w-b8de6c05 操作</span>
+            </div>
+          </div>
+          <div class="dsh-pm-timeline-item">
+            <div class="dsh-pm-timeline-time">01-15 11:20</div>
+            <div class="dsh-pm-timeline-content">
+              <strong>批准技术方案</strong><br>
+              <span style="font-size: 13px; color: #6b7280;">由人工确认</span>
+            </div>
+          </div>
+          <div class="dsh-pm-timeline-item">
+            <div class="dsh-pm-timeline-time">01-15 10:05</div>
+            <div class="dsh-pm-timeline-content">
+              <strong>提交技术方案</strong><br>
+              <span style="font-size: 13px; color: #6b7280;">由 w-b8de6c05 操作</span>
+            </div>
+          </div>
+          <div class="dsh-pm-timeline-item">
+            <div class="dsh-pm-timeline-time">01-14 16:40</div>
+            <div class="dsh-pm-timeline-content">
+              <strong>推进到技术设计阶段</strong><br>
+              <span style="font-size: 13px; color: #6b7280;">由 w-b8de6c05 操作</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div id="tab-archive" class="dsh-pm-tab-content">
+      <div class="dsh-pm-empty">该需求尚未进入归档阶段</div>
+    </div>
+  </div>
+  
+  <script>
+    function switchTab(tabName) {
+      document.querySelectorAll('.dsh-pm-tab-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      
+      document.querySelectorAll('.dsh-pm-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      document.getElementById('tab-' + tabName).classList.add('active');
+      event.target.classList.add('active');
+    }
+  </script>
+</body>
+</html>

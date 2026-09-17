@@ -59,10 +59,32 @@ export interface VerificationRecord {
   evidence: string[]
   submittedAt: number
   submittedBy: ActorRef
+  /** 验收单（REQ-2e9473 t14/W6 逐项确认） */
+  sheet?: VerificationSheet
+  sheetHistory?: VerificationSheet[]
   reviewedAt?: number
   reviewedBy?: ActorRef
   decision?: 'pass' | 'rework'
   reviewNote?: string
+}
+
+/** 验收单单项（逐项裁决）。 */
+export interface VerificationItem {
+  id: string
+  source: string
+  criterion: string
+  evidence: string[]
+  status: 'pending' | 'passed' | 'failed'
+  opinion?: string
+  decidedAt?: number
+}
+
+/** 验收单（版本化，可挂起/续验）。 */
+export interface VerificationSheet {
+  version: number
+  items: VerificationItem[]
+  generatedAt: number
+  reworkOnly?: boolean
 }
 
 /** 归档文档条目 */
@@ -97,7 +119,7 @@ export interface RequirementRecord {
   title: string
   description: string
   category?: RequirementCategory
-  docLinks?: { requirement?: string; ui?: string; proposal?: string }
+  docLinks?: { requirement?: string; ui?: string; proposal?: string; extras?: Array<{ label: string; path: string }> }
   status: RequirementStatus
   blocked: boolean
   blockedReason?: string

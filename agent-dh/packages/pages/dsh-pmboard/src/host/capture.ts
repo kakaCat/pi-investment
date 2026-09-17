@@ -22,7 +22,9 @@
  * @module dsh-pmboard/host/capture
  */
 
-import type { ReqboardLedger, RequirementRecord, TriageRecord } from '../shared/protocol.js'
+import type { ReqboardLedger, RequirementRecord, StageKey, TriageRecord } from '../shared/protocol.js'
+import { stageEnabledFor, type StagePromptKey } from '../shared/protocol.js'
+import { STAGE_PROMPTS } from './stage-prompts.js'
 
 /** 仍处进行中的需求状态（bound 判定用）；done/archived/canceled 视为已结束。 */
 const OPEN_REQ_STATUSES: ReadonlySet<string> = new Set([
@@ -199,6 +201,22 @@ export function boundSectionText(ledger: ReqboardLedger, context: unknown): stri
   }
   // ========== 任务执行指引结束 ==========
   
+  // ========== 阶段提示词注入（REQ-31e11f t5：按当前阶段注入纪律提示词）==========
+  // 被分类档案跳过的阶段（stageEnabledFor=false）不注入——跳过阶段不产生物、不设门、
+  // 不注入提示词。同一窗口多个 open 需求时，取最近更新的那条。
+  const stageReq = [...open].sort((a, b) => b.updatedAt - a.updatedAt)[0]
+  if (stageReq !== undefined) {
+    const stage = stageReq.status as StagePromptKey
+    if (stageEnabledFor(stageReq.category, stage as StageKey)) {
+      const prompt = STAGE_PROMPTS[stage]
+      if (prompt !== undefined && prompt.length > 0) {
+        lines.push('')
+        lines.push(prompt)
+      }
+    }
+  }
+  // ========== 阶段提示词注入结束 ==========
+
   lines.push(
     '流水线（状态就是阶段，从立项一路走到交付）：',
     '- draft 立项 → brainstorming 头脑风暴（探边界/方案）→ planning 写计划 →',

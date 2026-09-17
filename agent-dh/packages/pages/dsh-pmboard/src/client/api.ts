@@ -5,6 +5,7 @@
  * @module dsh-pmboard/client/api
  */
 import type { BoardState, TriageList } from './types.ts'
+import type { StageDetail, StageOverview } from '../shared/protocol.ts'
 
 const BASE = '/dashboard/api/reqboard'
 const TIMEOUT_MS = 8000
@@ -71,8 +72,42 @@ export function verifyRework(input: { id: string; note: string }): Promise<unkno
   return post(BASE + '/req/verify/rework', input)
 }
 
+/** 验收单逐项裁决（REQ-2e9473 t14/W6）：逐项 passed/failed + 意见。 */
+export function submitVerdicts(input: {
+  id: string
+  version: number
+  verdicts: { itemId: string; status: 'passed' | 'failed'; opinion?: string }[]
+}): Promise<unknown> {
+  return post(BASE + '/req/verdicts', input)
+}
+
 export function archiveReq(input: { id: string }): Promise<unknown> {
   return post(BASE + '/req/archive', input)
+}
+
+// -- 节点详情（REQ-31e11f：会话框进度条/看板同源的消费端）-------------------
+
+export function fetchStageDetail(reqId: string, stage: string): Promise<StageDetail> {
+  return get<StageDetail>(BASE + '/requirements/' + encodeURIComponent(reqId) + '/stage/' + encodeURIComponent(stage))
+}
+
+/** 全流程一览（REQ-31e11f 重设计）：一次取全部节点详情，监控时间线一次渲染。 */
+export function fetchStageOverview(reqId: string): Promise<StageOverview> {
+  return get<StageOverview>(BASE + '/requirements/' + encodeURIComponent(reqId) + '/stages')
+}
+
+/** 读取产物/文档全文（工作区相对路径），供节点详情超链接点击展开。 */
+export async function fetchReqFile(path: string): Promise<string> {
+  const res = await fetch(BASE + '/file?path=' + encodeURIComponent(path), { signal: AbortSignal.timeout(TIMEOUT_MS) })
+  if (!res.ok) throw new ApiError('HTTP ' + res.status)
+  const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { content?: string }; error?: string }
+  if (json.success !== true) throw new ApiError(json.error ?? '读取文档失败')
+  return json.data?.content ?? ''
+}
+
+/** 产物人工确认（五道人工确认门）：人在看板一键确认某 kind 的产物。 */
+export function confirmArtifact(input: { id: string; kind: string }): Promise<unknown> {
+  return post(BASE + '/req/artifact/confirm', input)
 }
 
 // -- 任务操作 -------------------------------------------------------------

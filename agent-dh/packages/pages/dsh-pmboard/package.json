@@ -13,11 +13,13 @@
   },
   "scripts": {
     "test": "vitest run --passWithNoTests",
-    "build:client": "node ../../../node_modules/tsdown/dist/run.mjs -c tsdown.client.config.ts && node scripts/wrap-client.mjs"
+    "build:client": "node ../../../node_modules/tsdown/dist/run.mjs -c tsdown.client.config.ts && node scripts/wrap-client.mjs && node scripts/verify-client-build.mjs",
+    "verify:client": "node scripts/verify-client-build.mjs"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@pi-investment/page-kit": "workspace:*"
+    "@pi-investment/page-kit": "workspace:*",
+    "marked": "^18.0.13"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

@@ -35,8 +35,8 @@ describe('Requirement state machine', () => {
     expect(() => assertReqTransition('planning', 'decomposing', 'human')).not.toThrow()
     expect(() => assertReqTransition('decomposing', 'implementing', 'human')).not.toThrow()
     expect(() => assertReqTransition('implementing', 'accepting', 'system')).not.toThrow()
-    expect(() => assertReqTransition('accepting', 'done', 'human')).not.toThrow()
-    expect(() => assertReqTransition('done', 'archived', 'human')).not.toThrow()
+    // REQ-9f4a44：验收通过 → 直接归档（done 节点已移除）
+    expect(() => assertReqTransition('accepting', 'archived', 'human')).not.toThrow()
     expect(() => assertReqTransition('canceled', 'archived', 'human')).not.toThrow()
   })
 
@@ -46,34 +46,36 @@ describe('Requirement state machine', () => {
     throwsCode(() => assertReqTransition('archived', 'draft', 'human'), 'invalid_transition')
   })
 
-  it('human gate：取消/归档/验收通过为人工闸门，其余在途推进 agent 可做', () => {
-    // 在途推进：agent 自己就能推（不再需要人点确认方案/确认拆分/验收通过）
+  it('human gate：取消/归档/验收通过/需求文档确认/拆分清单确认为人工闸门，其余在途推进 agent 可做', () => {
+    // 在途推进：agent 自己就能推（2026-09-11 裁定；2026-09-14 五门裁定部分回调——
+    // 需求文档确认 brainstorming>planning 与拆分清单确认 decomposing>implementing 入人工门）
     expect(() => assertReqTransition('draft', 'brainstorming', 'agent')).not.toThrow()
     expect(() => assertReqTransition('planning', 'decomposing', 'agent')).not.toThrow()
-    expect(() => assertReqTransition('decomposing', 'implementing', 'agent')).not.toThrow()
     expect(() => assertReqTransition('implementing', 'accepting', 'agent')).not.toThrow()
-    // 验收通过是人工审核（用户裁定：验收 有人工审核）——agent 到不了 done
-    throwsCode(() => assertReqTransition('accepting', 'done', 'agent'), 'human_gate')
+    // 五门裁定（2026-09-14）：两道在途硬门，agent 不可越过
+    throwsCode(() => assertReqTransition('brainstorming', 'planning', 'agent'), 'human_gate')
+    throwsCode(() => assertReqTransition('decomposing', 'implementing', 'agent'), 'human_gate')
+    // 验收通过是人工审核（用户裁定：验收 有人工审核）——agent 到不了 archived
+    throwsCode(() => assertReqTransition('accepting', 'archived', 'agent'), 'human_gate')
     expect(() => assertReqTransition('brainstorming', 'draft', 'agent')).not.toThrow()
     // 破坏性/终态动作仍是人工闸门
     throwsCode(() => assertReqTransition('accepting', 'canceled', 'agent'), 'human_gate')
-    throwsCode(() => assertReqTransition('done', 'archived', 'agent'), 'human_gate')
     throwsCode(() => assertReqTransition('canceled', 'archived', 'agent'), 'human_gate')
   })
 
-  it('system gate: 派生链四条放行、白名单外一律拒绝、人工闸门优先', () => {
-    // 白名单：接手推进 + 任务驱动链（拆分/实施/验收）
+  it('system gate: 派生链放行、白名单外一律拒绝、人工闸门优先', () => {
+    // 白名单：接手推进 + 任务驱动链（拆分/验收）；2026-09-14 五门裁定移除 decomposing>implementing
     expect(() => assertReqTransition('draft', 'brainstorming', 'system')).not.toThrow()
     expect(() => assertReqTransition('planning', 'decomposing', 'system')).not.toThrow()
-    expect(() => assertReqTransition('decomposing', 'implementing', 'system')).not.toThrow()
     expect(() => assertReqTransition('implementing', 'accepting', 'system')).not.toThrow()
+    // 五门裁定：拆分清单确认是人工闸门 → system 不可自动越过
+    throwsCode(() => assertReqTransition('decomposing', 'implementing', 'system'), 'human_gate')
     // 白名单外：system 不可发起
     throwsCode(() => assertReqTransition('draft', 'canceled', 'system'), 'human_gate')
     throwsCode(() => assertReqTransition('brainstorming', 'draft', 'system'), 'system_gate')
-    // 验收通过是人工闸门 → 优先级高于 system 白名单
-    throwsCode(() => assertReqTransition('accepting', 'done', 'system'), 'human_gate')
+    // 验收通过（accepting>archived）是人工闸门 → 优先级高于 system 白名单
+    throwsCode(() => assertReqTransition('accepting', 'archived', 'system'), 'human_gate')
     // 人工闸门优先于 system：取消/归档永不被自动越过
-    throwsCode(() => assertReqTransition('done', 'archived', 'system'), 'human_gate')
     throwsCode(() => assertReqTransition('implementing', 'canceled', 'system'), 'human_gate')
   })
 })
@@ -362,6 +364,19 @@ describe('Session sync with explicit marker', () => {
     busHandlers.forEach(h => h({ id: sessionId }, event, meta))
   }
 
+  /**
+   * 轮询直到条件成立（上限 ~3s）再断言。
+   * 会话同步的落库走串行队列 + 原子 fs 写，全量并行跑用例时固定 setTimeout
+   * 等待会偶发不足（曾出现 bind_req 尚未落库就断言 → 假红）。轮询只消除时序抖动，
+   * 不改变任何断言与覆盖范围。
+   */
+  async function waitFor(cond: () => boolean): Promise<void> {
+    for (let i = 0; i < 150; i++) {
+      if (cond()) return
+      await new Promise(r => setTimeout(r, 20))
+    }
+  }
+
   it('directly binds via explicit #REQ marker without LLM', async () => {
     await store.mutate('requirement-created', (ledger) => {
       ledger.requirements.push({
@@ -378,7 +393,7 @@ describe('Session sync with explicit marker', () => {
     )
     emit('session-abc', { type: 'turn/start' })
     emit('session-abc', { type: 'user/message', data: { content: '查看 #REQ-000001 的进度' } })
-    await new Promise(r => setTimeout(r, 50))
+    await waitFor(() => store.snapshot().triages[0]?.suggestedAction === 'bind_req')
 
     const tri = store.snapshot().triages[0]
     expect(tri.suggestedAction).toBe('bind_req')
@@ -395,7 +410,7 @@ describe('Session sync with explicit marker', () => {
     )
     emit('session-def', { type: 'turn/start' })
     emit('session-def', { type: 'user/message', data: { content: '发现一个 bug，登录页面崩溃' } })
-    await new Promise(r => setTimeout(r, 100))
+    await waitFor(() => store.snapshot().triages[0]?.comments.some(c => c.body.includes('[LLM 分类]')) === true)
 
     const tri = store.snapshot().triages[0]
     expect(tri.firstMessageText).toBe('发现一个 bug，登录页面崩溃')

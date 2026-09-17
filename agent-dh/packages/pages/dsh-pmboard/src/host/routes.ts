@@ -17,6 +17,7 @@ import {
   asActor,
   asDependsOn,
   asReqStatus,
+  asStageKey,
   asScope,
   asTaskPhase,
   asTaskSide,
@@ -37,6 +38,9 @@ import {
   type TriageRecord,
 } from '../shared/protocol.js'
 import { applyTaskRollup } from './rollup.js'
+import { assembleStageDetail, assembleStageOverview } from './stage-detail.js'
+import { syncReqArtifacts, syncAllReqArtifacts } from './sync-artifacts.js'
+import { assertArtifactGates } from './artifact-gates.js'
 import { readFile } from 'node:fs/promises'
 import { resolve, sep } from 'node:path'
 
@@ -49,6 +53,8 @@ export interface ReqboardRouteDeps {
     task?: () => string
     comment?: () => string
   }
+  /** 工作区根（REQ-2e9473 t11 产物自动发现扫描 docs/requirements/ 用；缺省 process.cwd()）。 */
+  cwd?: string
 }
 
 function json(res: ServerResponse, status: number, body: unknown): void {
@@ -62,7 +68,8 @@ function ok(res: ServerResponse, data: unknown): void {
 
 function fail(res: ServerResponse, err: unknown): void {
   const e = err as { message?: string; code?: string }
-  const status = e.code === 'invalid_input' || e.code === 'invalid_transition' || e.code === 'invalid_dag' ? 400
+  const status = e.code === 'invalid_input' || e.code === 'invalid_transition' || e.code === 'invalid_dag'
+    || e.code === 'missing_artifact' || e.code === 'artifact_not_confirmed' ? 400
     : e.code === 'human_gate' || e.code === 'system_gate' ? 403
     : e.code === 'not_found' ? 404 : 500
   json(res, status, { success: false, error: e.message ?? String(err), ...(e.code ? { code: e.code } : {}) })
@@ -115,6 +122,8 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
   // -- 子路由实现 ----------------------------------------------------------
 
   async function handleState(res: ServerResponse): Promise<void> {
+    // 产物自动发现（REQ-2e9473 t11/W4）：渲染前同步需求目录，落盘即产物
+    await syncAllReqArtifacts(store, deps.cwd).catch(() => { /* 扫描失败不阻断看板 */ })
     const ledger = await store.read(l => l)
     ok(res, {
       revision: ledger.revision,
@@ -179,6 +188,11 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
     const result = await store.mutate('requirement-moved', (ledger) => {
       const req = ledger.requirements.find(r => r.id === id) ?? notFound(`需求 ${id}`)
       assertReqTransition(req.status, to, actor)
+      // ── 分类感知产物闸门（REQ-31e11f t4）：assertReqTransition 之后、写盘之前 ──
+      const gate = assertArtifactGates(req, req.status, to)
+      if (gate !== undefined) {
+        throw Object.assign(new Error(gate.message), { code: gate.code })
+      }
       req.status = to
       req.version += 1
       req.updatedAt = now()
@@ -232,6 +246,7 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       if (approve) {
         plan.approvedAt = now()
         plan.approvedBy = { kind: 'human' }
+        plan.approvedVia = 'board'
         delete plan.rejectedAt
         delete plan.rejectedReason
       } else {
@@ -272,8 +287,22 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       if (v === undefined) {
         badInput("需求 " + id + " 还没有验收材料：窗口需先 reqboard_verify_submit 提交证据（做了什么、怎么验的、看到什么）")
       }
-      const to = pass ? 'done' : 'implementing'
+      // REQ-9f4a44：验收通过 → 直接归档（无 done 中转）；退回仍回 implementing
+      const to = pass ? 'archived' : 'implementing'
       assertReqTransition(r.status, to, 'human')
+      // ── 分类感知产物闸门（REQ-31e11f t4）──
+      // accepting>done 的确认门由本路由的人工审核替代：人点 pass 本身就是确认 verification 产物。
+      // 所以这里只检查 missing_artifact（产物必须存在），不检查 artifact_not_confirmed。
+      if (pass) {
+        const artifacts = r.artifacts
+        const isLegacy = artifacts === undefined || artifacts.length === 0
+        if (!isLegacy) {
+          const verArtifact = artifacts.find(a => a.stage === 'accepting' && a.kind === 'verification')
+          if (verArtifact === undefined) {
+            throw Object.assign(new Error('节点产物缺失：accepting 阶段须先完成产物（kind=verification）并登记'), { code: 'missing_artifact' })
+          }
+        }
+      }
       v.reviewedAt = now()
       v.reviewedBy = { kind: 'human' }
       v.decision = pass ? 'pass' : 'rework'
@@ -297,39 +326,132 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
   }
 
   /**
-   * 归档（仅人）：done → archived。前置：agent 已准备归档材料，且材料符合该需求类型的
-   * 文档规范（必填文档 + 合并去向 + 索引条目）——归档不是挪目录，是把产出并进项目文档。
+   * POST /dashboard/api/reqboard/req/verdicts
+   * 验收单逐项裁决（REQ-2e9473 t14/W6）：人逐项打勾（passed/failed + 意见）。
+   *  - 全部通过 → 提示人点「验收通过」归档（不自动归档：验收通过是人工门）；
+   *  - 有不通过 → 需求打回 implementing + 为每个未过项自动生成返工任务（关联原任务 + 意见）；
+   *  - 仍有待验项 → 挂起（验收单状态持久化，稍后从断点续验）。
    */
-  async function handleArchive(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  async function handleVerdicts(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const body = await readBody(req)
     const id = normalizeText(body.id, 'id', 64)
-    const result = await store.mutate('requirement-moved', (ledger) => {
-      const r = ledger.requirements.find(x => x.id === id) ?? notFound("需求 " + id)
-      if (r.status !== 'done') badInput("需求 " + id + " 当前处于 " + r.status + "，未完成不能归档")
-      const a = r.archive
-      if (a === undefined) {
-        badInput("需求 " + id + " 还没有归档材料：窗口需先 reqboard_archive_submit 提交需求目录、文档清单、合并去向与索引条目")
-      }
-      assertArchiveMaterials(r.category, a)
-      assertReqTransition('done', 'archived', 'human')
-      a.archivedAt = now()
-      a.archivedBy = { kind: 'human' }
-      r.status = 'archived'
-      r.archivePath = a.dir
-      r.version += 1
-      r.updatedAt = now()
-      r.updatedBy = { kind: 'human' }
-      recordStatus(r, 'archived', r.updatedAt, { kind: 'human' }, '归档：' + a.indexEntry)
-      r.comments.push({
-        id: ids.comment(),
-        body: '[归档] 已归档（人）：' + a.dir + ' → 合并进 ' + a.mergedInto.join(', '),
-        createdAt: now(),
-        createdBy: { kind: 'human' },
-      })
-      return { requirements: [r] }
+    const version = typeof body.version === 'number' ? body.version : NaN
+    if (!Number.isFinite(version)) badInput('version 必须是数字（验收单版本）')
+    const rawVerdicts = Array.isArray(body.verdicts) ? body.verdicts : []
+    if (rawVerdicts.length === 0) badInput('verdicts 不能为空（逐项裁决：itemId/status/opinion）')
+    const verdicts = rawVerdicts.map((v: unknown) => {
+      const o = (typeof v === 'object' && v !== null ? v : {}) as Record<string, unknown>
+      const itemId = normalizeText(o.itemId, 'verdicts[].itemId', 64)
+      const status = normalizeText(o.status, 'verdicts[].status', 16)
+      if (itemId.length === 0) badInput('verdicts[].itemId 不能为空')
+      if (status !== 'passed' && status !== 'failed') badInput('verdicts[].status 只能是 passed 或 failed')
+      const opinion = normalizeText(o.opinion, 'verdicts[].opinion', 1000)
+      if (status === 'failed' && opinion.length === 0) badInput('不通过的验收项必须写意见（opinion）')
+      return { itemId, status, opinion }
     })
-    ok(res, result.changed.requirements[0])
+    const nowTs = now()
+    const result = await store.mutate('requirement-updated', (ledger) => {
+      const r = ledger.requirements.find(x => x.id === id) ?? notFound('需求 ' + id)
+      if (r.status !== 'accepting' && r.status !== 'implementing') {
+        badInput('需求 ' + id + ' 当前处于 ' + r.status + '，不在验收/返工态（先提交验收单）')
+      }
+      const v = r.verification
+      if (v === undefined || v.sheet === undefined) badInput('需求 ' + id + ' 还没有验收单（先 reqboard_verify_submit）')
+      const sheet = v.sheet
+      if (sheet.version !== version) badInput('验收单版本不匹配：当前 v' + sheet.version + '，收到 v' + version + '（防并发错版）')
+      const failed: { item: typeof sheet.items[number] }[] = []
+      for (const verdict of verdicts) {
+        const item = sheet.items.find(i => i.id === verdict.itemId) ?? notFound('验收项 ' + verdict.itemId + ' 不存在')
+        item.status = verdict.status
+        if (verdict.opinion.length > 0) item.opinion = verdict.opinion
+        item.decidedAt = nowTs
+        item.decidedBy = { kind: 'human' }
+        if (verdict.status === 'failed') failed.push({ item })
+      }
+      const pendingCount = sheet.items.filter(i => i.status === 'pending').length
+      // 返工回路：有不通过项 → 打回 implementing + 为每个未过项生成关联返工任务
+      const reworkTaskIds: string[] = []
+      if (failed.length > 0 && r.status === 'accepting') {
+        assertReqTransition(r.status, 'implementing', 'human')
+        for (const { item } of failed) {
+          const orig = ledger.tasks.find(t => t.id === item.source)
+          let tid = newTaskId()
+          for (let g = 0; g < 50 && ledger.tasks.some(t => t.id === tid); g++) tid = newTaskId()
+          reworkTaskIds.push(tid)
+          const task: TaskRecord = {
+            id: tid,
+            requirementId: r.id,
+            title: '返工：' + (orig?.title ?? item.criterion).slice(0, 60),
+            description: '验收不通过项返工（v' + sheet.version + ' 项 ' + item.id + '）：' + item.criterion,
+            phase: (orig?.phase ?? 'implement') as TaskRecord['phase'],
+            side: (orig?.side ?? 'fullstack') as TaskRecord['side'],
+            dependsOn: [],
+            scope: orig?.scope ?? asScope({}),
+            acceptance: item.criterion,
+            implementation: '按验收意见修复：' + (item.opinion ?? '（见验收单）'),
+            context: '承接自 ' + (item.source === 'requirement' ? '需求级验收项' : '任务 ' + item.source) + '；验收意见：' + (item.opinion ?? ''),
+            status: 'todo',
+            blocked: false,
+            executions: [],
+            comments: [],
+            version: 1,
+            createdAt: nowTs,
+            updatedAt: nowTs,
+            createdBy: { kind: 'human' },
+            updatedBy: { kind: 'human' },
+          }
+          recordStatus(task, 'todo', nowTs, { kind: 'human' }, '验收不通过 → 自动生成返工任务（t14）')
+          ledger.tasks.push(task)
+        }
+        r.status = 'implementing'
+        r.version += 1
+        r.updatedAt = nowTs
+        r.updatedBy = { kind: 'human' }
+        recordStatus(r, 'implementing', nowTs, { kind: 'human' }, '验收单 '+failed.length+' 项不通过 → 打回返工（自动生成 ' + reworkTaskIds.length + ' 个返工任务）')
+        r.comments.push({
+          id: ids.comment(),
+          body: '[验收单] v' + sheet.version + ' 逐项裁决：' + failed.length + ' 项不通过 → 打回实施。\n'
+            + failed.map(f => '- ✗ ' + f.item.criterion + '：' + (f.item.opinion ?? '')).join('\n')
+            + '\n返工任务：' + reworkTaskIds.join('、'),
+          createdAt: nowTs,
+          createdBy: { kind: 'human' },
+        })
+      } else {
+        r.version += 1
+        r.updatedAt = nowTs
+        r.updatedBy = { kind: 'human' }
+        const passed = sheet.items.filter(i => i.status === 'passed').length
+        r.comments.push({
+          id: ids.comment(),
+          body: '[验收单] v' + sheet.version + ' 逐项裁决：通过 ' + passed + ' 项，待验 ' + pendingCount + ' 项'
+            + (pendingCount === 0 ? '（全部通过 → 可点「验收通过」归档）' : '（挂起，稍后从断点续验）'),
+          createdAt: nowTs,
+          createdBy: { kind: 'human' },
+        })
+      }
+      return { requirements: [r], tasks: ledger.tasks.filter(t => reworkTaskIds.includes(t.id)) }
+    })
+    const r = result.changed.requirements[0]
+    const sheet = r.verification?.sheet
+    return ok(res, {
+      requirement_id: r.id,
+      status: r.status,
+      sheet_version: sheet?.version ?? 0,
+      pending: sheet?.items.filter(i => i.status === 'pending').length ?? 0,
+      passed: sheet?.items.filter(i => i.status === 'passed').length ?? 0,
+      failed: sheet?.items.filter(i => i.status === 'failed').length ?? 0,
+      rework_tasks: result.changed.tasks.map(t => t.id),
+      note: result.changed.tasks.length > 0
+        ? '有不通过项：需求已打回 implementing，生成 ' + result.changed.tasks.length + ' 个返工任务'
+        : ((sheet?.items.every(i => i.status === 'passed') ?? false)
+            ? '全部通过 → 请点「验收通过」归档（人工门）'
+            : '裁决已记录（挂起中，可稍后从断点续验）'),
+    })
   }
+
+  // （REQ-9f4a44）原 handleArchive（人点归档 done→archived）已移除：
+  // 验收通过即自动归档，归档材料由 reqboard_archive_submit 在 archived 下补齐并落章，
+  // 不再存在"人点归档"这一动作。
 
   async function handleTaskCreate(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const body = await readBody(req)
@@ -823,6 +945,68 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
     }
   }
 
+  /**
+   * GET /dashboard/api/reqboard/requirements/:id/stage/:stage
+   * 节点详情（REQ-31e11f t2）：模板装配器产出 StageDetail 判别联合（含产物与
+   * 确认状态、分类跳过态、时间线切片）。需求不存在 → 404；stage 非法 → 400。
+   * 薄适配：校验 → 读台账 → assembleStageDetail → ok。
+   */
+  async function handleStageDetail(res: ServerResponse, id: string, stageRaw: string): Promise<void> {
+    await syncReqArtifacts(store, id, deps.cwd).catch(() => { /* 扫描失败不阻断详情 */ })
+    const stage = asStageKey(stageRaw) // 非法 → code=invalid_input → 400
+    const detail = await store.read(ledger =>
+      assembleStageDetail(ledger.requirements.find(r => r.id === id), { tasks: ledger.tasks }, stage),
+    )
+    ok(res, detail)
+  }
+
+  /**
+   * GET /dashboard/api/reqboard/requirements/:id/stages
+   * 全流程一览（REQ-31e11f 节点详情重设计）：一次返回全部节点 StageDetail +
+   * 当前节点，client 监控时间线一次渲染，免去逐节点点击加载。需求不存在 → 404。
+   */
+  async function handleStageOverview(res: ServerResponse, id: string): Promise<void> {
+    await syncReqArtifacts(store, id, deps.cwd).catch(() => { /* 扫描失败不阻断概览 */ })
+    const overview = await store.read(ledger =>
+      assembleStageOverview(ledger.requirements.find(r => r.id === id), { tasks: ledger.tasks }),
+    )
+    ok(res, overview)
+  }
+
+  /**
+   * POST /dashboard/api/reqboard/req/artifact/confirm
+   * 产物人工确认（REQ-31e11f t4，五道人工确认门）：人在看板一键确认某 kind 的产物。
+   * 仅 human actor 可调（参照既有 plan/approve 的 human 判定——路由层 actor 默认 human）。
+   * 确认后该门放行：req.artifacts 里该 kind 产物写 confirmedAt=now / confirmedBy={kind:'human'}。
+   */
+  async function handleArtifactConfirm(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await readBody(req)
+    const id = normalizeText(body.id, 'id', 64)
+    const kind = normalizeText(body.kind, 'kind', 64)
+    if (kind.length === 0) badInput('kind 不能为空')
+    const result = await store.mutate('requirement-updated', (ledger) => {
+      const r = ledger.requirements.find(x => x.id === id) ?? notFound("需求 " + id)
+      const artifact = (r.artifacts ?? []).find(a => a.kind === kind)
+      if (artifact === undefined) {
+        badInput("需求 " + id + " 没有 kind=" + kind + " 的产物（须先由工具登记）")
+      }
+      artifact.confirmedAt = now()
+      artifact.confirmedBy = { kind: 'human' }
+      artifact.confirmedVia = 'board'
+      r.comments.push({
+        id: ids.comment(),
+        body: '[产物确认] 人已确认产物（kind=' + kind + '）：' + artifact.path,
+        createdAt: now(),
+        createdBy: { kind: 'human' },
+      })
+      r.version += 1
+      r.updatedAt = now()
+      r.updatedBy = { kind: 'human' }
+      return { requirements: [r] }
+    })
+    ok(res, result.changed.requirements[0])
+  }
+
   // -- 分发 ----------------------------------------------------------------
 
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -839,6 +1023,22 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
         return await handleFileRead(res, p)
       }
       if (method === 'GET' && sub === 'requirements/summary') return await handleRequirementsSummary(res)
+      if (method === 'GET' && /^requirements\/[^/]+\/stages$/.test(sub)) {
+        const id = decodeURIComponent(sub.split('/')[1] ?? '')
+        if (id.length === 0) {
+          return json(res, 400, { success: false, error: '缺少 id 参数', code: 'invalid_input' })
+        }
+        return await handleStageOverview(res, id)
+      }
+      if (method === 'GET' && /^requirements\/[^/]+\/stage\/[^/]+$/.test(sub)) {
+        const parts = sub.split('/')
+        const id = decodeURIComponent(parts[1] ?? '')
+        const stage = decodeURIComponent(parts[3] ?? '')
+        if (id.length === 0 || stage.length === 0) {
+          return json(res, 400, { success: false, error: '缺少 id 或 stage 参数', code: 'invalid_input' })
+        }
+        return await handleStageDetail(res, id, stage)
+      }
       if (method === 'GET' && sub.startsWith('session/') && sub.endsWith('/progress')) {
         const sid = decodeURIComponent(sub.slice('session/'.length, sub.length - '/progress'.length))
         if (sid.length === 0) return json(res, 400, { success: false, error: '缺少 sessionId', code: 'invalid_input' })
@@ -850,9 +1050,12 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       if (method === 'POST' && sub === 'req/update') return await handleReqUpdate(req, res)
       if (method === 'POST' && sub === 'req/verify/pass') return await handleVerifyDecision(req, res, true)
       if (method === 'POST' && sub === 'req/verify/rework') return await handleVerifyDecision(req, res, false)
-      if (method === 'POST' && sub === 'req/archive') return await handleArchive(req, res)
+      // 验收单逐项裁决（REQ-2e9473 t14/W6）
+      if (method === 'POST' && sub === 'req/verdicts') return await handleVerdicts(req, res)
+      // （REQ-9f4a44）req/archive 已移除：归档自动化，无需人工触发
       if (method === 'POST' && sub === 'req/plan/approve') return await handlePlanDecision(req, res, true)
       if (method === 'POST' && sub === 'req/plan/reject') return await handlePlanDecision(req, res, false)
+      if (method === 'POST' && sub === 'req/artifact/confirm') return await handleArtifactConfirm(req, res)
       if (method === 'POST' && sub === 'task/create') return await handleTaskCreate(req, res)
       if (method === 'POST' && sub === 'task/move') return await handleTaskMove(req, res)
       if (method === 'POST' && sub === 'task/update') return await handleTaskUpdate(req, res)

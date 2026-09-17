@@ -18,7 +18,8 @@ import { createReqboardHandler } from './host/routes.js';
 import { captureSectionText, boundSectionText, windowKeyFromContext, draftRequirementsFor } from './host/capture.js';
 import { applyPickupAdvance, applyPickupReconcile, applyTaskRollup } from './host/rollup.js';
 import { newCommentId, type RequirementRecord } from './shared/protocol.js';
-import { createSessionEventCaptureHook, type CaptureHookDeps } from './host/capture-hook.js';
+import { createSessionEventCaptureHook, type CaptureHookDeps, type ToolTraceEntry } from './host/capture-hook.js';
+
 import {
   defineCreateTool,
   defineStatusTool,
@@ -26,8 +27,13 @@ import {
   defineDecomposeTool,
   defineTaskMoveTool,
   definePlanSubmitTool,
+  defineRequirementSubmitTool,
+  defineConfirmArtifactTool,
+  defineAskConfirmTool,
+  defineAcceptSheetTool,
   defineVerifySubmitTool,
   defineArchiveSubmitTool,
+  defineTaskReportTool,
 } from './host/agent-tools.js';
 
 export const name = 'dsh-pmboard';
@@ -82,6 +88,16 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   //   sessionProjections → requireDirectHuman（扫描 user 消息 / 执行窗口状态，缺失放行）
   let agentsSvc: unknown;
   let projectionsSvc: unknown;
+  let userQuestionsSvc: unknown;
+  ;(ctx as unknown as { inject?: (services: string[], cb: (c: any) => void) => void }).inject?.(
+    ['userQuestions'],
+    (uqCtx: { userQuestions?: unknown } | undefined) => {
+      userQuestionsSvc = uqCtx?.userQuestions;
+      if (userQuestionsSvc !== undefined) {
+        logger.debug('userQuestions service ready (reqboard_ask_confirm 弹框通道可用)');
+      }
+    },
+  );
   ;(ctx as unknown as { inject?: (services: string[], cb: (c: any) => void) => void }).inject?.(
     ['agents'],
     (agentsCtx: { agents?: unknown }) => {
@@ -106,6 +122,10 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   // 组装时同引用读取并注入针对性立项提示——hook 只保证确定性触发，立项判定与内容
   // 留给 LLM + 人工（两问弹框作答 = 确认，调 reqboard_create 直接建 REQ）。
   const pendingCapture = new Map<string, { windowKey: string; text: string; capturedAt: number }>();
+  // 工具痕迹表（REQ-2e9473 t05）：窗口 → tool/call 事件序列，done 凭证门（t06）读取。
+  const toolTrace = new Map<string, ToolTraceEntry[]>();
+  // 最近用户消息缓冲（REQ-2e9473 t10）：窗口 → 清洗后用户消息，confirm_artifact 文字确认核验读取。
+  const recentUserMsgs = new Map<string, import('./host/capture-hook.js').RecentUserMsg[]>();
   const captureHookDeps: CaptureHookDeps = {
     snapshot: () => store.snapshot(),
     pending: pendingCapture,
@@ -122,6 +142,21 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         return advanced.length > 0 ? { requirements: advanced } : undefined;
       }).catch((err) => logger.warn('reqboard rollup (pickup advance) failed:', err));
     },
+    // REQ-31e11f t5：状态转移后向绑定会话注入新阶段纪律提示词。
+    // 经 agents.followup 投递（与 lifecycle 续跑同款模式），绑定会话下一回合收到。
+    onStagePrompt: (windowKey, prompt) => {
+      const agents = agentsSvc as { followup?: (id: string, message: string) => void } | undefined;
+      if (typeof agents?.followup === 'function') {
+        try {
+          agents.followup(windowKey, prompt);
+          logger.debug(`reqboard stage-prompt injected → ${windowKey.slice(0, 16)}`);
+        } catch (err) {
+          logger.warn('reqboard stage-prompt inject failed:', err);
+        }
+      }
+    },
+    toolTrace,
+    recentUserMsgs,
     logger: { info: (m) => logger.info(m), debug: (m) => logger.debug(m) },
   };
   const captureHandler = createSessionEventCaptureHook(captureHookDeps);
@@ -167,6 +202,9 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     now,
     agents: () => agentsSvc,
     sessionProjections: () => projectionsSvc,
+    toolTrace,
+    recentUserMsgs,
+    userQuestions: () => userQuestionsSvc,
   };
   ;(ctx as unknown as { inject?: (services: string[], cb: (c: any) => void) => void }).inject?.(
     ['tools'],
@@ -176,14 +214,19 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         disposers.push(toolsCtx.tools.register(defineStatusTool(toolDeps)));
         disposers.push(toolsCtx.tools.register(defineMoveTool(toolDeps)));
         disposers.push(toolsCtx.tools.register(definePlanSubmitTool(toolDeps)));
+    disposers.push(toolsCtx.tools.register(defineRequirementSubmitTool(toolDeps)));
+    disposers.push(toolsCtx.tools.register(defineConfirmArtifactTool(toolDeps)));
+        disposers.push(toolsCtx.tools.register(defineAskConfirmTool(toolDeps)));
+        disposers.push(toolsCtx.tools.register(defineAcceptSheetTool(toolDeps)));
         disposers.push(toolsCtx.tools.register(defineDecomposeTool(toolDeps)));
         disposers.push(toolsCtx.tools.register(defineTaskMoveTool(toolDeps)));
         disposers.push(toolsCtx.tools.register(defineVerifySubmitTool(toolDeps)));
         disposers.push(toolsCtx.tools.register(defineArchiveSubmitTool(toolDeps)));
+        disposers.push(toolsCtx.tools.register(defineTaskReportTool(toolDeps)));
       }, name + ': tools');
       logger.info(
-        'agent tools registered: reqboard_create / reqboard_status / reqboard_move / reqboard_plan_submit / '
-        + 'reqboard_decompose / reqboard_task_move / reqboard_verify_submit / reqboard_archive_submit',
+        'agent tools registered: reqboard_create / reqboard_status / reqboard_move / reqboard_plan_submit / reqboard_requirement_submit / reqboard_confirm_artifact / '
+        + 'reqboard_decompose / reqboard_task_move / reqboard_task_report / reqboard_verify_submit / reqboard_archive_submit',
       );
     },
   );

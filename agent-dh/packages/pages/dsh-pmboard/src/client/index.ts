@@ -11,7 +11,10 @@ import { injectStyles } from './styles.ts'
 import { PANEL_NAME, PANEL_LABEL } from './dom.ts'
 
 export const name = 'dsh-pmboard/client'
-export const inject: string[] = ['slots', 'sessions', 'workspaces']
+// sidebarRight（REQ-ff20ca t5）：官方右侧栏导航面——Cordis 要求服务先声明 inject
+// 才允许访问（否则抛 "cannot get property without inject"）。该服务由 web-app 随
+// 官方 UI 插件组提供，实测存在；声明后插件等待它就绪再激活。
+export const inject: string[] = ['slots', 'sessions', 'workspaces', 'sidebarRight']
 
 interface SlotsService {
   inject(slot: string, thunk: () => unknown): unknown
@@ -73,27 +76,40 @@ export function apply(ctx: ApplyContext): void {
 
     const slots = ctx.slots
     if (slots) {
-      slots.inject('sidebar.footer.action', () =>
-        slots.register(
-          { name: 'sidebar.footer.action', id: PANEL_NAME, order: 110, label: PANEL_LABEL },
-          ReqboardFooterAction,
-        ),
-      )
+      // 侧边栏底部按钮（项目看板入口）
+      try {
+        slots.inject('sidebar.footer.action', () =>
+          slots.register(
+            { name: 'sidebar.footer.action', id: PANEL_NAME, order: 110, label: PANEL_LABEL },
+            ReqboardFooterAction,
+          ),
+        )
+      } catch (e) {
+        console.error('[dsh-pmboard] Failed to register sidebar.footer.action:', e)
+      }
 
       // 会话标题栏的「需求进度」流程图：session 作用域槽位会把 sessionId 交给 inject，
       // 组件据此查该会话绑定的需求进度（无绑定需求 → 渲染 null，槽位不占位）。
       // order: 5 让它显示在模式选择器后面（模式选择器通常是 order: 10）
-      slots.inject('conversation.session.header.utilities', () =>
-        slots.register(
-          {
-            name: 'conversation.session.header.utilities',
-            id: PANEL_NAME + ':progress',
-            order: 5,
-            inject: (sessionId: string) => ({ sessionId }),
-          },
-          RequirementProgressAction,
-        ),
-      )
+      //
+      // FIX: 用 try-catch 包裹槽位注册，避免与 DSH 框架对话节点系统冲突导致
+      // "assistant-step withdrew materialized target 'chat'" 错误影响整个插件加载
+      try {
+        slots.inject('conversation.session.header.utilities', () =>
+          slots.register(
+            {
+              name: 'conversation.session.header.utilities',
+              id: PANEL_NAME + ':progress',
+              order: 5,
+              inject: (sessionId: string) => ({ sessionId }),
+            },
+            RequirementProgressAction,
+          ),
+        )
+      } catch (e) {
+        console.error('[dsh-pmboard] Failed to register conversation.session.header.utilities:', e)
+        // 降级：进度条注册失败不影响主功能（看板依然可用）
+      }
     } else {
       console.warn('[dsh-pmboard] ctx.slots unavailable')
     }

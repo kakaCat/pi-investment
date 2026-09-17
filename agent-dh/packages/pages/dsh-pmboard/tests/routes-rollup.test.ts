@@ -84,7 +84,35 @@ describe('路由层自动推进（R2 实施完成 → 验收）', () => {
     expect(req.comments.some(c => c.body.includes('[自动推进] implementing → accepting'))).toBe(true)
   })
 
-  it('人工闸门仍把守：任务全 done 也不会自动越到 done（验收必须人点）', async () => {
+  it('decompose 后需求停在 decomposing（五门裁定：拆分清单须人确认）', async () => {
+    const handler = createReqboardHandler({ store, now: () => Date.now() })
+    const created = await post(handler, '/req/create', { title: '五门验证' })
+    const reqId = created.payload.data.id
+    // 给需求挂上 sourceSessionId（模拟窗口绑定）
+    await store.mutate('requirement-updated', (l) => {
+      const r = l.requirements.find(x => x.id === reqId)!
+      r.sourceSessionId = 'session-test'
+      return { requirements: [r] }
+    })
+    await post(handler, '/req/move', { id: reqId, to: 'brainstorming', actor: 'human' })
+    await post(handler, '/req/move', { id: reqId, to: 'planning', actor: 'human' })
+    // 提交计划并批准
+    const { definePlanSubmitTool, defineDecomposeTool } = await import('../src/host/agent-tools.js')
+    const planTool = definePlanSubmitTool({ store, now: () => Date.now() } as never)
+    const decomposeTool = defineDecomposeTool({ store, now: () => Date.now() } as never)
+    await planTool.execute({
+      path: 'docs/requirements/' + reqId + '/plan.md', summary: 's',
+      tasks: [{ key: 'a', title: '任务A', phase: 'implement', side: 'backend', acceptance: '单测通过', implementation: '改 a.ts' }],
+    }, { agent: { id: 'session-test' } })
+    await post(handler, '/req/plan/approve', { id: reqId })
+    const out = await decomposeTool.execute({}, { agent: { id: 'session-test' } })
+    expect(out.requirement_status).toBe('decomposing')
+    // 五门裁定：decomposing>implementing 须人确认拆分清单
+    const req = await store.read(l => l.requirements.find(r => r.id === reqId)!)
+    expect(req.status).toBe('decomposing')
+  })
+
+  it('人工闸门仍把守：任务全 done 停在验收；验收通过即直接归档（REQ-9f4a44）', async () => {
     const handler = createReqboardHandler({ store, now: () => Date.now() })
     const created = await post(handler, '/req/create', { title: '闸门验证' })
     const reqId = created.payload.data.id
@@ -104,12 +132,12 @@ describe('路由层自动推进（R2 实施完成 → 验收）', () => {
     const cancel = await post(handler, '/req/move', { id: reqId, to: 'canceled', actor: 'system' })
     expect(cancel.statusCode).toBe(403)
     expect(cancel.payload.code).toBe('human_gate')
-    // 验收通过是人工审核：agent 点不动，只有人能过
-    const agentDone = await post(handler, '/req/move', { id: reqId, to: 'done', actor: 'agent' })
-    expect(agentDone.statusCode).toBe(403)
-    expect(agentDone.payload.code).toBe('human_gate')
-    const done = await post(handler, '/req/move', { id: reqId, to: 'done', actor: 'human' })
-    expect(done.statusCode).toBe(200)
-    expect((await store.read(l => l.requirements.find(r => r.id === reqId)!)).status).toBe('done')
+    // 验收通过是人工审核：agent 点不动，只有人能过；通过后直接 archived（无 done）
+    const agentArchive = await post(handler, '/req/move', { id: reqId, to: 'archived', actor: 'agent' })
+    expect(agentArchive.statusCode).toBe(403)
+    expect(agentArchive.payload.code).toBe('human_gate')
+    const archived = await post(handler, '/req/move', { id: reqId, to: 'archived', actor: 'human' })
+    expect(archived.statusCode).toBe(200)
+    expect((await store.read(l => l.requirements.find(r => r.id === reqId)!)).status).toBe('archived')
   })
 })

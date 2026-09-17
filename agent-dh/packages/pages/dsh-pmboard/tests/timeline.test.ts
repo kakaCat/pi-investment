@@ -143,7 +143,7 @@ describe('Store 加载迁移（v2 → v3）', () => {
       return { requirements: [ledger.requirements[0]] }
     })
     const onDisk = JSON.parse(readFileSync(file, 'utf8'))
-    expect(onDisk.schemaVersion).toBe(3)
+    expect(onDisk.schemaVersion).toBe(4) // 2026-09-14 REQ-31e11f t1：schema 3→4
     expect(onDisk.requirements[0].statusHistory).toHaveLength(2)
   })
 })

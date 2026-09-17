@@ -7,12 +7,25 @@
  */
 import { esc, renderPagination } from '@pi-investment/page-kit/client'
 import type { ArchiveRecord, BoardState, ReqCard, RequirementRecord, RequirementStatus, StatusEvent, TaskRecord, TaskStatus, TriageRecord } from './types.ts'
+import { renderStagePanel, STAGE_LABELS } from './stage-panel.ts'
+import {
+  ALL_STAGE_KEYS,
+  ARTIFACT_CONFIRM_GATES,
+  STAGE_ARTIFACT_REQUIREMENTS,
+  confirmGateKindFor,
+  flowProfileFor,
+  REQ_TRANSITIONS,
+} from '../shared/protocol.ts'
+import type { StageDetail, StageArtifact, ArtifactKind, StageKey } from '../shared/protocol.ts'
+import { WORKFLOW_STAGES, PROGRESS_DOT_STAGES, getStageLabel, getStageOrder } from './workflow-constants.ts'
 
 /* ------------------------------------------------------------------ utils */
 
+// REQ-6f39b5：流程节点名称对齐唯一事实源 docs/architecture/workflow-stages.md
+// 与 stage-panel.ts STAGE_LABELS 保持一致（需求分析/技术设计/实施）
 const STATUS_LABELS: Record<RequirementStatus, string> = {
-  draft: '立项', brainstorming: '头脑风暴', planning: '写计划', decomposing: '拆分',
-  implementing: '执行', accepting: '验收', done: '完成', archived: '归档', canceled: '取消',
+  draft: '立项', brainstorming: '需求分析', planning: '技术设计', decomposing: '拆分',
+  implementing: '实施', accepting: '验收', done: '完成', archived: '归档', canceled: '取消',
 }
 
 const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
@@ -30,11 +43,12 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 /**
- * 主链 8 态（泳道列）——状态即阶段，从立项一路走到完成：
- * 立项 → 头脑风暴 → 写计划 → 拆分 → 执行 → 验收 → 完成（archived/canceled 走底部归档区）。
+ * 泳道列（REQ-6f39b5 对齐 workflow-stages.md）：6 个泳道，从立项走到验收：
+ * 立项 → 需求分析 → 技术设计 → 拆分 → 实施 → 验收。
+ * done（待归档）需求归入验收泳道显示；archived/canceled 走底部归档区。
  */
 export const LANE_STATUSES: readonly RequirementStatus[] = [
-  'draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'done',
+  'draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting',
 ]
 
 /**
@@ -91,7 +105,10 @@ export function buildBoard(
 ): string {
   const cards = toReqCards(state)
   const lanes = LANE_STATUSES.map(status => {
-    const inLane = cards.filter(c => c.req.status === status)
+    // REQ-6f39b5：done（待归档）需求归入验收泳道显示
+    const inLane = status === 'accepting'
+      ? cards.filter(c => c.req.status === 'accepting' || c.req.status === 'done')
+      : cards.filter(c => c.req.status === status)
     const cardsHtml = inLane.map(c => renderReqCard(c, now, archived)).join('')
     return `
       <div class="dsh-pm-lane" data-lane="${status}">
@@ -218,8 +235,9 @@ export function buildListView(
     : LIST_PAGE_SIZE_DEFAULT
 
   const cards = toReqCards(state)
-  const active = cards.filter(c => c.req.status !== 'done')
-  const finished = cards.filter(c => c.req.status === 'done')
+  // REQ-9f4a44：终态是 archived（done 为历史遗留）——两者都归入"完成"区
+  const active = cards.filter(c => c.req.status !== 'done' && c.req.status !== 'archived')
+  const finished = cards.filter(c => c.req.status === 'done' || c.req.status === 'archived')
   const cmp = listComparator(sortKey)
   const sign = sortDir === 'asc' ? 1 : -1
   // 主键相同 → 最近更新在前（稳定、可预期）
@@ -245,10 +263,10 @@ export function buildListView(
   for (let i = 0; i < slice.length; i++) {
     const globalIdx = pageStart + i
     if (active.length > 0 && (globalIdx === 0 || (globalIdx === pageStart && globalIdx < doneStart))) {
-      rowsHtml.push(`<div class="dsh-pm-list-grouphead" data-group="active">进行中 ${active.length}${globalIdx > 0 ? '（续）' : ''}</div>`)
+      rowsHtml.push(`<tr class="dsh-pm-list-grouphead" data-group="active"><td colspan="8">进行中 ${active.length}${globalIdx > 0 ? '（续）' : ''}</td></tr>`)
     }
     if (finished.length > 0 && (globalIdx === doneStart || (globalIdx === pageStart && globalIdx >= doneStart))) {
-      rowsHtml.push(`<div class="dsh-pm-list-grouphead" data-group="done">已完成 ${finished.length}${globalIdx > doneStart ? '（续）' : ''}</div>`)
+      rowsHtml.push(`<tr class="dsh-pm-list-grouphead" data-group="done"><td colspan="8">已完成 ${finished.length}${globalIdx > doneStart ? '（续）' : ''}</td></tr>`)
     }
     rowsHtml.push(renderListCard(slice[i], now, archived))
   }
@@ -259,7 +277,7 @@ export function buildListView(
       })}</div>`
     : ''
 
-  return `<div class="dsh-pm-list">${toolbar}${rowsHtml.join('')}${pager}</div>`
+  return `<div class="dsh-pm-list">${toolbar}<table class="dsh-pm-table"><thead><tr><th>ID</th><th>标题</th><th>分类</th><th>状态</th><th>进度</th><th>负责人</th><th>更新时间</th><th>操作</th></tr></thead><tbody>${rowsHtml.join('')}</tbody></table>${pager}</div>`
 }
 
 /** 列表工具条：排序键按钮（同键切换升降序）+ 每页条数 + 计数。 */
@@ -321,34 +339,139 @@ function renderListCard(card: ReqCard, now: number, archived: ReadonlySet<string
             .join('')
         })()
 
+    // REQ-9f4a44：验收通过即 archived，材料随后补齐——未提交归档材料时给看板可见标记
+    const archivePendingChip = req.status === 'archived' && req.archive === undefined
+      ? '<span class="dsh-pm-chip is-warn">归档材料待补</span>'
+      : ''
+
+    // REQ-6f39b5：列表行改为表格结构（对齐 list-prototype.html）
+    // 列：ID | 标题 | 分类 | 状态 | 进度 | 负责人 | 更新时间 | 操作
+    const rowCls = 'dsh-pm-list-row' + (blocked ? ' is-blocked' : '')
+      + ((req.status === 'done' || req.status === 'archived') ? ' is-archived' : '')
+    const sessionBtn = sid !== undefined && sid.length > 0 && !sidArchived
+      ? `<button type="button" class="dsh-pm-btn sm" data-action="jump-session" data-sid="${esc(sid)}" title="跳转到来源会话">会话</button>`
+      : ''
     return `
-      <div class="dsh-pm-list-card${blocked ? ' is-blocked' : ''}" data-req="${esc(req.id)}">
-        <div class="dsh-pm-list-top">
-          <span class="dsh-pm-card-id">${esc(req.id)}</span>
-          <span class="dsh-pm-status-badge" data-status="${req.status}">${STATUS_LABELS[req.status]}</span>
-          ${cat}${blockedChip}
-          <span class="dsh-pm-list-when">${fmtTime(req.updatedAt)}</span>
-        </div>
-        <div class="dsh-pm-list-title" data-action="open-req" data-req="${esc(req.id)}">${esc(req.title)}</div>
-        <div class="dsh-pm-list-meta">
-          <span class="dsh-pm-list-window-label">来源</span>${windowChip}
-          <span class="dsh-pm-list-seps">·</span>
-          <span class="dsh-pm-list-strip">${statusStrip}</span>
-        </div>
-        <div class="dsh-pm-list-progress">
-          <div class="dsh-pm-card-bar"><div class="dsh-pm-card-bar-fill" style="width:${pct}%"></div></div>
-          <span class="dsh-pm-card-pct">${progress(doneCount, totalCount)}</span>
-          <span class="dsh-pm-list-pct">${pct}%${active > 0 ? `（${active} 进行中）` : ''}</span>
-        </div>
-        <div class="dsh-pm-list-actions">
-          <button type="button" class="dsh-pm-btn sm" data-action="open-req" data-req="${esc(req.id)}">查看详情</button>
-          ${sid !== undefined && sid.length > 0 && !sidArchived
-            ? `<button type="button" class="dsh-pm-btn sm primary" data-action="jump-session" data-sid="${esc(sid)}">跳转会话</button>`
-            : (sidArchived
-                ? '<button type="button" class="dsh-pm-btn sm" disabled title="该需求来自一个已归档的会话：日志保留、侧栏不可见，无法跳转">会话已归档</button>'
-                : '')}
-        </div>
-      </div>`
+      <tr class="${rowCls}" data-req="${esc(req.id)}" data-action="open-req">
+        <td><span class="dsh-pm-card-id">${esc(req.id)}</span></td>
+        <td class="dsh-pm-td-title">
+          <span class="dsh-pm-list-title" data-action="open-req" data-req="${esc(req.id)}">${esc(req.title)}</span>
+          ${blockedChip}${archivePendingChip}
+        </td>
+        <td>${cat}</td>
+        <td><span class="dsh-pm-status-badge" data-status="${req.status}">${STATUS_LABELS[req.status]}</span></td>
+        <td class="dsh-pm-td-progress">
+          <div class="dsh-pm-list-progress">
+            <div class="dsh-pm-card-bar"><div class="dsh-pm-card-bar-fill" style="width:${pct}%"></div></div>
+            <span class="dsh-pm-list-pct">${pct}%${active > 0 ? `（${active} 进行中）` : ''}</span>
+          </div>
+        </td>
+        <td>${windowChip}</td>
+        <td><span class="dsh-pm-list-when">${fmtTime(req.updatedAt)}</span></td>
+        <td><div class="dsh-pm-list-actions">${cardActions(req)}${sessionBtn}</div></td>
+      </tr>`
+}
+
+/* ------------------------------------------------------------------ 产物 chips（五道人工确认门，REQ-31e11f t7） */
+
+/** 产物种类中文标签（与 stage-panel.ts 保持一致）。 */
+const ARTIFACT_KIND_LABELS: Record<ArtifactKind, string> = {
+  requirement: '需求文档',
+  plan: '实施计划',
+  decomposition: '拆分方案',
+  task_detail: '任务卡',
+  verification: '验收材料',
+  archive: '归档材料',
+}
+
+/**
+ * 计算需求在当前分类流程下，各确认门的产物状态。
+ * 返回每个门的 { kind, status: 'confirmed'|'pending'|'missing', artifact? }。
+ */
+function computeGateStatuses(req: RequirementRecord): Array<{
+  kind: ArtifactKind
+  status: 'confirmed' | 'pending' | 'missing'
+  artifact?: StageArtifact
+}> {
+  const profile = flowProfileFor(req.category)
+  const results: Array<{ kind: ArtifactKind; status: 'confirmed' | 'pending' | 'missing'; artifact?: StageArtifact }> = []
+  for (const gateKey of profile.confirmGates) {
+    const kind = ARTIFACT_CONFIRM_GATES[gateKey]
+    if (kind === undefined) continue
+    const artifact = (req.artifacts ?? []).find(a => a.kind === kind)
+    if (artifact === undefined) {
+      results.push({ kind, status: 'missing' })
+    } else if (artifact.confirmedAt !== undefined) {
+      results.push({ kind, status: 'confirmed', artifact })
+    } else {
+      results.push({ kind, status: 'pending', artifact })
+    }
+  }
+  return results
+}
+
+/**
+ * 当前生效的门：从 req.status 找下一态，用 confirmGateKindFor 算出产物 kind。
+ * 无门（如 draft/implementing 或分类跳过）→ undefined。
+ */
+function currentGateKind(req: RequirementRecord): ArtifactKind | undefined {
+  const transitions = REQ_TRANSITIONS[req.status]
+  if (transitions === undefined || transitions.length === 0) return undefined
+  // 找第一个人工确认门对应的 next status
+  for (const to of transitions) {
+    const kind = confirmGateKindFor(req.category, req.status, to)
+    if (kind !== undefined) return kind
+  }
+  return undefined
+}
+
+/** 产物 chip 单行：五门各自的状态一览（已确认=绿✓ / 待确认=橙可点 / 缺失=红）。 */
+function renderArtifactChips(req: RequirementRecord): string {
+  const gates = computeGateStatuses(req)
+  if (gates.length === 0) return ''
+  const chips = gates.map(g => {
+    const label = ARTIFACT_KIND_LABELS[g.kind] ?? g.kind
+    if (g.status === 'confirmed') {
+      return '<span class="dsh-pm-artifact-chip confirmed" title="' + esc(label) + '已确认">✓ ' + esc(label) + '</span>'
+    }
+    if (g.status === 'pending') {
+      return '<button type="button" class="dsh-pm-artifact-chip pending" data-action="confirm-artifact" data-id="' + esc(req.id) + '" data-kind="' + esc(g.kind) + '" title="点击确认' + esc(label) + '">⏳ ' + esc(label) + '</button>'
+    }
+    return '<span class="dsh-pm-artifact-chip missing" title="' + esc(label) + '缺失">✗ ' + esc(label) + '</span>'
+  }).join('')
+  return '<div class="dsh-pm-artifact-chips">' + chips + '</div>'
+}
+
+/**
+ * 卡面「确认产物」主按钮（REQ-31e11f t7 核心：确认入口卡面外置）。
+ * 仅当当前生效门有产物且待确认时渲染——一键确认，不用开抽屉。
+ */
+function renderConfirmButton(req: RequirementRecord): string {
+  const kind = currentGateKind(req)
+  if (kind === undefined) return ''
+  const artifact = (req.artifacts ?? []).find(a => a.kind === kind)
+  if (artifact === undefined || artifact.confirmedAt !== undefined) return ''
+  const label = ARTIFACT_KIND_LABELS[kind] ?? kind
+  return '<button type="button" class="dsh-pm-btn sm primary dsh-pm-confirm-artifact" data-action="confirm-artifact" data-id="' + esc(req.id) + '" data-kind="' + esc(kind) + '" title="一键确认' + esc(label) + '，放行下一阶段">确认产物</button>'
+}
+
+/** 派生展示：当前阶段产物完成度 + 待确认门数。 */
+function renderArtifactDerived(req: RequirementRecord): string {
+  const profile = flowProfileFor(req.category)
+  const allRequired: ArtifactKind[] = []
+  for (const stage of profile.stages) {
+    const kinds = STAGE_ARTIFACT_REQUIREMENTS[stage as StageKey]
+    if (kinds !== undefined) allRequired.push(...kinds)
+  }
+  const present = (req.artifacts ?? []).length
+  const total = allRequired.length
+  const gates = computeGateStatuses(req)
+  const pendingCount = gates.filter(g => g.status === 'pending').length
+  if (total === 0 && pendingCount === 0) return ''
+  const parts: string[] = []
+  if (total > 0) parts.push('产物 ' + present + '/' + total)
+  if (pendingCount > 0) parts.push(pendingCount + ' 门待确认')
+  return '<div class="dsh-pm-artifact-derived">' + parts.join(' · ') + '</div>'
 }
 
 function renderReqCard(card: ReqCard, now: number, archived: ReadonlySet<string> = NO_ARCHIVED): string {
@@ -363,9 +486,12 @@ function renderReqCard(card: ReqCard, now: number, archived: ReadonlySet<string>
   const timeLine = renderCardTime(req, now)
   const sessionChip = renderWindowChip(req, archived) + renderSessionChip(tasks, archived)
   const actions = cardActions(req)
+  const artifactChips = renderArtifactChips(req)
+  const confirmBtn = renderConfirmButton(req)
+  const artifactDerived = renderArtifactDerived(req)
 
   return `
-    <div class="dsh-pm-card${blocked ? ' is-blocked' : ''}" data-req="${esc(req.id)}" data-action="open-req">
+    <div class="dsh-pm-card${blocked ? ' is-blocked' : ''}${req.status === 'done' ? ' is-archived' : ''}" data-req="${esc(req.id)}" data-action="open-req">
       <div class="dsh-pm-card-top">
         <span class="dsh-pm-card-id">${esc(req.id)}</span>
         ${cat}${planChipHtml}${blockedChip}${pausedChip}${readyChip}
@@ -375,8 +501,11 @@ function renderReqCard(card: ReqCard, now: number, archived: ReadonlySet<string>
         <div class="dsh-pm-card-bar"><div class="dsh-pm-card-bar-fill" style="width:${pct}%"></div></div>
         <span class="dsh-pm-card-pct">${progress(doneCount, totalCount)}</span>
       </div>
+      ${artifactChips}
+      ${artifactDerived}
       ${timeLine}
       ${sessionChip}
+      ${confirmBtn}
       ${actions}
     </div>`
 }
@@ -394,30 +523,33 @@ function cardActions(req: RequirementRecord): string {
     return `<button type="button" class="${cls}" data-action="move-req" data-to="${to}" data-id="${esc(req.id)}"${title}>${label}</button>`
   }
   let actions = ''
+  // REQ-6f39b5：推进按钮统一为「→ [下一阶段]」格式，阶段名对齐 workflow-stages.md
   switch (req.status) {
     case 'draft':
-      actions = btn('brainstorming', '开始头脑风暴', { primary: true, title: '进入头脑风暴；窗口接手开工时会自动进入' })
+      actions = btn('brainstorming', '→ 需求分析', { primary: true, title: '进入需求分析；窗口接手开工时会自动进入' })
         + btn('canceled', '取消', { title: '取消该需求（仅人可操作）' })
       break
     case 'brainstorming':
-      actions = btn('planning', '写计划', { primary: true, title: '方案谈定 → 进入写计划阶段（计划在此阶段提交待人批准）' })
+      actions = btn('planning', '→ 技术设计', { primary: true, title: '方案谈定 → 进入技术设计阶段（计划在此阶段提交待人批准）' })
         + btn('draft', '退回', { title: '退回立项' })
       break
     case 'planning':
-      actions = btn('decomposing', '落库拆分', { primary: true, title: '计划获批后落库任务卡；未获批会被代码级拒绝' })
-        + btn('brainstorming', '退回重谈', { title: '方案要改 → 退回头脑风暴' })
+      actions = btn('decomposing', '→ 拆分', { primary: true, title: '计划获批后落库任务卡；未获批会被代码级拒绝' })
+        + btn('brainstorming', '退回重谈', { title: '方案要改 → 退回需求分析' })
       break
     case 'decomposing':
-      actions = btn('implementing', '开始执行', { primary: true, title: '进入执行；任务开工时系统会自动推进' })
+      actions = btn('implementing', '→ 实施', { primary: true, title: '进入实施；任务开工时系统会自动推进' })
       break
     case 'implementing':
-      actions = btn('accepting', '提交验收', { primary: true, title: '进入验收；任务全部完成时系统会自动推进' })
+      actions = btn('accepting', '→ 验收', { primary: true, title: '进入验收；任务全部完成时系统会自动推进' })
       break
     case 'accepting':
-      actions = btn('done', '验收通过', { primary: true, title: '完成该需求；窗口 agent 交付后也可自行完成' })
+      // REQ-9f4a44：验收通过直接归档（accepting → archived），无 done 中转
+      actions = btn('archived', '→ 归档', { primary: true, title: '验收通过并归档（归集文档）' })
       break
     case 'done':
-      actions = btn('archived', '归档', { title: '归档归集文档（仅人可操作）' })
+      // done 为 legacy 死状态（REQ_TRANSITIONS: done: []），历史记录只读，不给操作
+      actions = ''
       break
     default:
       actions = ''
@@ -432,8 +564,8 @@ function cardActions(req: RequirementRecord): string {
  */
 /**
  * 已归档会话 id 集合的默认值（工作区服务不可用时使用）。
- * 归档会话「日志保留、侧栏不可见」——跳过去也打不开，所以对应的窗口按钮**置灰不可点**，
- * 而不是让人点了再弹一个「该会话已归档」的告警。
+ * 归档会话「日志保留、侧栏不可见」——跳过去也打不开，所以窗口按钮**置灰**但仍可点：
+ * 点击给出「已归档，无法跳转」的明确原因，而不是静默无反应。
  */
 export const NO_ARCHIVED: ReadonlySet<string> = new Set<string>()
 
@@ -443,8 +575,13 @@ function isArchived(sid: string, archived: ReadonlySet<string>): boolean {
 }
 
 /**
- * 窗口/会话跳转按钮的统一渲染：可跳转 → button[data-action=jump-session]；
- * 已归档 → 灰色 span（无 data-action，点了不会触发跳转/告警）。
+ * 窗口/会话跳转按钮的统一渲染（REQ-31e11f #5）。
+ *
+ * 可跳转 → button[data-action=jump-session]；
+ * 已归档 → **仍是可点按钮**（灰色 + data-archived="true"）。
+ * 旧实现把已归档渲染成无 data-action 的灰 span → 点了完全没反应，
+ * 正是「列表的窗口点击不跳转」的真因；现在点击由 board-mount 直接给出
+ * 明确原因（该会话已归档、侧栏不可见），不做静默。
  */
 function sessionChipHtml(opts: {
   sid: string
@@ -456,12 +593,13 @@ function sessionChipHtml(opts: {
   archived: boolean
 }): string {
   const { sid, label, cls, kind, archived } = opts
-  if (archived) {
-    return `<span class="${cls} is-archived" aria-disabled="true" `
-      + `title="${kind}已归档（${esc(sid)}）：日志保留、侧栏不可见，无法跳转">${label} · 已归档</span>`
-  }
-  return `<button type="button" class="${cls}" data-action="jump-session" data-sid="${esc(sid)}" `
-    + `title="${kind}（点击跳转到该会话）：${esc(sid)}">${label}</button>`
+  const classes = archived ? `${cls} is-archived` : cls
+  const title = archived
+    ? `${kind}已归档（${esc(sid)}）：日志保留、侧栏不可见，点击查看说明`
+    : `${kind}（点击跳转到该会话）：${esc(sid)}`
+  return `<button type="button" class="${classes}" data-action="jump-session" data-sid="${esc(sid)}" `
+    + (archived ? 'data-archived="true" ' : '')
+    + `title="${title}">${archived ? label + ' · 已归档' : label}</button>`
 }
 
 function renderWindowChip(req: RequirementRecord, archived: ReadonlySet<string> = NO_ARCHIVED): string {
@@ -574,12 +712,32 @@ const DOC_KIND_META: Record<string, { icon: string; label: string }> = {
   ui: { icon: '🎨', label: 'UI 文档' },
   proposal: { icon: '📐', label: '设计文档' },
   plan: { icon: '📝', label: '实施计划' },
+  decomposition: { icon: '🧩', label: '拆分方案' },
+  task_detail: { icon: '🗂️', label: '任务卡' },
   verification: { icon: '✅', label: '验收材料' },
+  archive: { icon: '📦', label: '归档材料' },
   retro: { icon: '🔁', label: '复盘' },
   notes: { icon: '📒', label: '其他' },
 }
 
-/** 收集需求关联的全部文档（docLinks + plan.path + archive.docs），去重。 */
+/** 产物 stage 的流水线序（未知/缺省排在最后，不改变其余相对顺序）。 */
+function stageRankOf(stage: StageKey | string | undefined): number {
+  const idx = stage === undefined ? -1 : (ALL_STAGE_KEYS as readonly string[]).indexOf(stage)
+  return idx < 0 ? ALL_STAGE_KEYS.length : idx
+}
+
+/**
+ * 收集需求关联的全部文档，去重。
+ *
+ * 来源与顺序（REQ-31e11f #6/#7：立项过程的文件必须全部进文档区）：
+ *   ① req.artifacts（t4 登记的节点产物：requirement/plan/decomposition/task_detail/verification/archive）
+ *      —— 按 stage 流水线顺序排列，这样 requirement.md → plan.md → decomposition.md →
+ *      tasks/*.md → verification.md → archive 在文档区一眼连成一条链；
+ *   ② docLinks（requirement/ui/proposal）；
+ *   ③ plan.path（实施计划文档）；
+ *   ④ archive.docs（归档文档清单）。
+ * 路径去重：同一文件既登记产物又出现在 docLinks/archive 时只展示一次（保留首次出现的口径）。
+ */
 function collectReqDocs(req: RequirementRecord): Array<{ icon: string; label: string; path: string }> {
   const docs: Array<{ icon: string; label: string; path: string }> = []
   const seen = new Set<string>()
@@ -590,13 +748,24 @@ function collectReqDocs(req: RequirementRecord): Array<{ icon: string; label: st
     const meta = DOC_KIND_META[kind]
     docs.push({ icon: meta?.icon ?? '📒', label: meta?.label ?? kind, path: p })
   }
-  // 需求文档 / UI 文档 / 设计文档（docLinks）
+  // ① 节点产物（t4 登记的 pipeline 产物），按 stage 顺序
+  const artifacts = [...(req.artifacts ?? [])]
+    .sort((a, b) => stageRankOf(a.stage) - stageRankOf(b.stage))
+  for (const a of artifacts) push(a.kind, a.path)
+  // ② 需求文档 / UI 文档 / 设计文档（docLinks）
   if (req.docLinks?.requirement) push('requirement', req.docLinks.requirement)
   if (req.docLinks?.ui) push('ui', req.docLinks.ui)
   if (req.docLinks?.proposal) push('proposal', req.docLinks.proposal)
-  // 实施计划（plan.path）
+  // REQ-6f39b5：extras 额外成果文件（如 HTML 原型——关键成果必须可见）
+  for (const e of req.docLinks?.extras ?? []) {
+    const p = (e.path ?? '').trim()
+    if (!p || seen.has(p)) continue
+    seen.add(p)
+    docs.push({ icon: '🎁', label: e.label || '成果文件', path: p })
+  }
+  // ③ 实施计划（plan.path）
   if (req.plan?.path) push('plan', req.plan.path)
-  // 归档文档清单（archive.docs）
+  // ④ 归档文档清单（archive.docs）
   for (const d of req.archive?.docs ?? []) push(d.kind, d.path)
   return docs
 }
@@ -616,23 +785,137 @@ function renderDocSection(req: RequirementRecord): string {
   ).join('') + '</ul>'
 }
 
+// ---------------------------------------------------------------------------
+// 需求详情页：8 态进度点 + 4 Tab 分组（REQ-6f39b5）
+// ---------------------------------------------------------------------------
+
+/**
+ * 渲染 8 态进度点
+ * @param currentStatus 当前需求状态
+ * @returns 进度点 HTML
+ */
+function buildProgressDots(currentStatus: RequirementStatus): string {
+  const currentOrder = getStageOrder(currentStatus as any)
+  
+  return `<div class="dsh-pm-progress-dots">${
+    PROGRESS_DOT_STAGES.map(stage => {
+      const { label, order } = WORKFLOW_STAGES[stage]
+      const state = order < currentOrder ? 'completed' 
+                  : order === currentOrder ? 'current' 
+                  : ''
+      return `
+        <div class="dsh-pm-dot-wrapper ${state}">
+          <div class="dsh-pm-dot"></div>
+          <span class="dsh-pm-dot-label">${esc(label)}</span>
+        </div>`
+    }).join('')
+  }</div>`
+}
+
+/**
+ * 渲染 4 个 Tab 按钮
+ * @returns Tab 导航 HTML
+ */
+function buildTabs(): string {
+  return `
+    <div class="dsh-pm-tabs">
+      <button type="button" class="dsh-pm-tab active" data-action="switch-tab" data-tab="overview">📋 概览</button>
+      <button type="button" class="dsh-pm-tab" data-action="switch-tab" data-tab="execution">⚙️ 执行</button>
+      <button type="button" class="dsh-pm-tab" data-action="switch-tab" data-tab="timeline">📅 时间线</button>
+      <button type="button" class="dsh-pm-tab" data-action="switch-tab" data-tab="archive">📦 归档</button>
+    </div>`
+}
+
+/**
+ * 渲染 4 个 Tab 内容区（REQ-6f39b5）。
+ * 内容映射（对照原型 prototype.html，原折叠区全部迁移，禁止功能丢失）：
+ * - 概览：需求描述(markdown) + 文档记录 + 当前阶段详情(动态加载)
+ * - 执行：进度条 + 任务看板(+任务按钮) + DAG + 甘特图 + 实施计划
+ * - 时间线：状态时间线 + 评论(含表单)
+ * - 归档：验收 + 归档材料
+ */
+function buildTabContents(
+  req: RequirementRecord,
+  tasks: TaskRecord[],
+  dag: string,
+  comments: string,
+  now: number
+): string {
+  return `
+    <!-- 📋 概览 Tab（默认显示；REQ-6f39b5 对齐 prototype：描述 → 当前阶段高亮卡 → 文档）-->
+    <div class="dsh-pm-tab-content active" data-tab-content="overview">
+      <div class="dsh-pm-section">
+        <h3 class="dsh-pm-section-title">📄 需求描述</h3>
+        <div class="dsh-pm-section-content">
+          ${req.description ? `<div class="dsh-pm-md">${renderMarkdown(req.description)}</div>` : '<div class="dsh-pm-empty">暂无描述</div>'}
+        </div>
+      </div>
+      <details class="dsh-pm-fold" open>
+        <summary class="dsh-pm-section-title">🎯 当前阶段详情</summary>
+        <div class="dsh-pm-stage-current">
+          <div class="dsh-pm-stage-current-title">${STATUS_LABELS[req.status]}（${req.status}）</div>
+          <div class="dsh-pm-stage-detail" id="dsh-pm-stage-detail-container"></div>
+        </div>
+      </details>
+      <details class="dsh-pm-fold">
+        <summary class="dsh-pm-section-title">📁 文档记录</summary>
+        <div class="dsh-pm-section-content">${renderDocSection(req)}</div>
+      </details>
+    </div>
+
+    <!-- ⚙️ 执行 Tab（REQ-6f39b5 严格对齐 prototype：统计卡片 + DAG + 任务表格）-->
+    <div class="dsh-pm-tab-content" data-tab-content="execution">
+      <div class="dsh-pm-stats">
+        <div class="dsh-pm-stat"><div class="dsh-pm-stat-label">总任务</div><div class="dsh-pm-stat-value">${tasks.length}</div></div>
+        <div class="dsh-pm-stat dsh-pm-stat-success"><div class="dsh-pm-stat-label">已完成</div><div class="dsh-pm-stat-value">${tasks.filter(t => t.status === 'done').length}</div></div>
+        <div class="dsh-pm-stat"><div class="dsh-pm-stat-label">进行中</div><div class="dsh-pm-stat-value">${tasks.filter(t => t.status === 'in_progress').length}</div></div>
+        <div class="dsh-pm-stat"><div class="dsh-pm-stat-label">待办</div><div class="dsh-pm-stat-value">${tasks.filter(t => t.status === 'todo').length}</div></div>
+      </div>
+      ${dag}
+      <div class="dsh-pm-section">
+        <h3 class="dsh-pm-section-title">📋 任务列表</h3>
+        ${buildTaskTable(tasks)}
+      </div>
+    </div>
+
+    <!-- 📅 时间线 Tab -->
+    <div class="dsh-pm-tab-content" data-tab-content="timeline">
+      <div class="dsh-pm-section">
+        <h3 class="dsh-pm-section-title">📅 状态变更记录</h3>
+        <div class="dsh-pm-section-content">${renderReqTimeline(req, now)}</div>
+      </div>
+      <div class="dsh-pm-section">
+        <h3 class="dsh-pm-section-title">💬 评论<span class="dsh-pm-fold-count">${req.comments.length} 条</span></h3>
+        <div class="dsh-pm-section-content">
+          ${comments}
+          <div class="dsh-pm-comment-form" data-actor="human">
+            <input type="text" class="dsh-pm-input" data-role="comment-input" placeholder="写评论（以「人」身份记录）…" />
+            <button type="button" class="dsh-pm-btn" data-action="add-comment" data-target="req" data-id="${esc(req.id)}">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 📦 归档 Tab -->
+    <div class="dsh-pm-tab-content" data-tab-content="archive">
+      <div class="dsh-pm-section">
+        <h3 class="dsh-pm-section-title">✅ 验收（人工审核）</h3>
+        <div class="dsh-pm-section-content">${renderVerifySection(req)}</div>
+      </div>
+      <div class="dsh-pm-section">
+        <h3 class="dsh-pm-section-title">📦 归档（文档合并）</h3>
+        <div class="dsh-pm-section-content">${renderArchiveSection(req)}</div>
+      </div>
+    </div>`
+}
+
+
 export function buildReqDetail(req: RequirementRecord, tasks: TaskRecord[], now: number = Date.now(), archived: ReadonlySet<string> = NO_ARCHIVED): string {
   const reqTasks = tasks.filter(t => t.requirementId === req.id)
-  const doneCount = reqTasks.filter(t => t.status === 'done').length
-  const totalCount = reqTasks.length
-  const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
   const dag = buildDag(reqTasks)
-  const taskCols = buildTaskColumns(reqTasks)
   const comments = renderComments(req.comments)
   const gateHint = gateHintFor(req.status)
-
-  // 进度条（监控优先：一眼看到完成度）
-  const progressHtml = totalCount > 0
-    ? `<div class="dsh-pm-req-progress">
-        <div class="dsh-pm-progress-bar"><div class="dsh-pm-progress-fill${pct >= 100 ? ' full' : ''}" style="width:${pct}%"></div></div>
-        <span class="dsh-pm-progress-text"><b>${doneCount}/${totalCount}</b> 完成 <span class="dsh-pm-progress-pct">${pct}%</span></span>
-      </div>`
-    : '<div class="dsh-pm-req-progress"><span class="dsh-pm-progress-text">尚未拆分任务</span></div>'
+  const actionBar = renderActionBar(req)
 
   return `
     <div class="dsh-pm-detail" data-detail-req="${esc(req.id)}">
@@ -643,74 +926,107 @@ export function buildReqDetail(req: RequirementRecord, tasks: TaskRecord[], now:
         ${req.blocked ? '<span class="dsh-pm-flag blocked">阻塞</span>' : ''}
         ${renderWindowChip(req, archived)}
         <span class="dsh-pm-detail-updated">${fmtTime(req.updatedAt)}</span>
+        <h1 class="dsh-pm-detail-title">${esc(req.title)}</h1>
+        ${buildProgressDots(req.status)}
       </div>
+      ${actionBar}
       ${gateHint}
-      <details class="dsh-pm-fold" open>
-        <summary>📄 需求描述</summary>
-        <div class="dsh-pm-fold-body">
-          <h2 class="dsh-pm-detail-title">${esc(req.title)}</h2>
-          ${req.description ? `<div class="dsh-pm-markdown">${renderMarkdown(req.description)}</div>` : '<div class="dsh-pm-empty">暂无描述</div>'}
-        </div>
-      </details>
-      <details class="dsh-pm-fold" open>
-        <summary>📁 文档记录</summary>
-        <div class="dsh-pm-fold-body">${renderDocSection(req)}</div>
-      </details>
-      <details class="dsh-pm-fold">
-        <summary>📅 时间线</summary>
-        <div class="dsh-pm-fold-body">${renderReqTimeline(req, now)}</div>
-      </details>
-      ${progressHtml}
-      <details class="dsh-pm-fold">
-        <summary>📋 任务看板<span class="dsh-pm-fold-count">${totalCount} 个任务</span></summary>
-        <div class="dsh-pm-fold-body">
-          <div class="dsh-pm-section-head">
-            <button type="button" class="dsh-pm-btn sm" data-action="new-task" data-id="${esc(req.id)}" title="人工建任务卡（窗口 agent 走 reqboard_decompose 批量拆分）">+ 任务</button>
-          </div>
-          ${taskCols}
-        </div>
-      </details>
-      <details class="dsh-pm-fold">
-        <summary>🔀 任务 DAG</summary>
-        <div class="dsh-pm-fold-body">${dag}</div>
-      </details>
-      <details class="dsh-pm-fold">
-        <summary>📝 实施计划（plan mode）</summary>
-        <div class="dsh-pm-fold-body">${renderPlanSection(req)}</div>
-      </details>
-      <details class="dsh-pm-fold">
-        <summary>✅ 验收（人工审核）</summary>
-        <div class="dsh-pm-fold-body">${renderVerifySection(req)}</div>
-      </details>
-      <details class="dsh-pm-fold">
-        <summary>📦 归档（文档合并）</summary>
-        <div class="dsh-pm-fold-body">${renderArchiveSection(req)}</div>
-      </details>
-      <details class="dsh-pm-fold">
-        <summary>💬 评论<span class="dsh-pm-fold-count">${req.comments.length} 条</span></summary>
-        <div class="dsh-pm-fold-body">
-          ${comments}
-          <div class="dsh-pm-comment-form">
-            <input type="text" class="dsh-pm-input" data-role="comment-input" placeholder="写评论…" />
-            <button type="button" class="dsh-pm-btn" data-action="add-comment" data-target="req" data-id="${esc(req.id)}">发送</button>
-          </div>
-        </div>
-      </details>
+      ${buildTabs()}
+      ${buildTabContents(req, reqTasks, dag, comments, now)}
     </div>`
 }
 
-/** 当前状态的闸门提示（人工闸门标出操作按钮） */
+/**
+ * 当前状态的闸门提示（REQ-31e11f #8：只给**文字**说明）。
+ * 操作按钮不在提示里 —— 统一由 renderActionBar 常驻在详情头下方，避免
+ * 「按钮藏在折叠区/两处重复」；提示只说“现在该谁动手”。
+ */
 function gateHintFor(status: RequirementStatus): string {
   const hints: Partial<Record<RequirementStatus, string>> = {
-    draft: '<div class="dsh-pm-gate">已立项：窗口接手开工后自动进入评审 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="brainstorming">提交评审</button></div>',
-    brainstorming: '<div class="dsh-pm-gate">评审中：窗口 agent 会自行推进到拆分，人可在此加速 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="decomposing">确认方案</button> <button type="button" class="dsh-pm-btn" data-action="move-req" data-to="draft">退回立项</button></div>',
-    decomposing: '<div class="dsh-pm-gate">拆分中：任务落库/开工后系统自动推进到实施 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="implementing">确认拆分</button></div>',
-    planning: '<div class="dsh-pm-gate">写计划：计划提交后请点上面计划卡的「批准计划」——批准前拆分会被告代码级拒绝 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="decomposing">落库拆分</button> <button type="button" class="dsh-pm-btn" data-action="move-req" data-to="brainstorming">退回重谈</button></div>',
-    implementing: '<div class="dsh-pm-gate">执行中：任务全部完成时自动进入验收 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="accepting">提交验收</button></div>',
-    accepting: '<div class="dsh-pm-gate">验收中：窗口 agent 交付后可自行完成，人可在此确认 <button type="button" class="dsh-pm-btn primary" data-action="move-req" data-to="done">验收通过</button></div>',
-    done: '<div class="dsh-pm-gate">已完成：归档归集文档（仅人可操作）<button type="button" class="dsh-pm-btn" data-action="move-req" data-to="archived">归档</button></div>',
+    draft: '已立项：窗口接手开工后自动进入需求分析，人可在上方操作条手动催办。',
+    brainstorming: '需求分析中：窗口 agent 会自行推进到技术设计，人可在上方操作条确认方案或退回立项。',
+    planning: '技术设计中：计划提交后请在上方操作条点「批准计划」——批准前拆分会被告代码级拒绝。',
+    decomposing: '拆分中：任务落库/开工后系统自动推进到实施，人可在上方操作条确认拆分。',
+    implementing: '实施中：任务全部完成时自动进入验收，人可在上方操作条提交验收。',
+    accepting: '验收中：看完验收材料后，在上方操作条点「验收通过」或「退回返工」。',
+    done: '已完成（历史状态）：验收通过现已直接归档，此状态仅存在于旧记录。',
   }
-  return hints[status] ?? ''
+  const text = hints[status]
+  return text === undefined ? '' : '<div class="dsh-pm-gate">' + text + '</div>'
+}
+
+/**
+ * 详情头下方的**常驻操作条**（REQ-31e11f #8：审批入口外置）。
+ *
+ * 问题：批准计划 / 验收通过 / 归档 三个按钮原本只存在于「实施计划 / 验收 / 归档」
+ * 三个默认折叠的 <details> 里 —— 用户看不到就等于没有。这里把当前阶段**所有人工
+ * 闸门按钮**正面铺开，折叠区只保留内容（不再是唯一入口）。
+ *
+ * 覆盖四类：① 阶段推进/退回 move-req；② 计划裁决 plan-approve/plan-reject；
+ * ③ 验收裁决 verify-pass/verify-rework；④ 归档 archive-req。
+ * 同一动作只给一次（如验收态已交材料 → 只给 verify-pass，不再给等价的 move→done）。
+ * 无任何可用操作时整条不渲染（不留空壳）。
+ */
+function renderActionBar(req: RequirementRecord): string {
+  const items: string[] = []
+  const add = (action: string, label: string, title: string, isPrimary = false): void => {
+    const cls = isPrimary ? 'dsh-pm-btn primary' : 'dsh-pm-btn'
+    items.push('<button type="button" class="' + cls + '" data-action="' + action
+      + '" data-id="' + esc(req.id) + '" title="' + esc(title) + '">' + label + '</button>')
+  }
+  const move = (to: RequirementStatus, label: string, title: string, isPrimary = false): void => {
+    const cls = isPrimary ? 'dsh-pm-btn primary' : 'dsh-pm-btn'
+    items.push('<button type="button" class="' + cls + '" data-action="move-req" data-to="' + to
+      + '" data-id="' + esc(req.id) + '" title="' + esc(title) + '">' + label + '</button>')
+  }
+
+  // REQ-6f39b5：推进按钮统一为「→ [下一阶段]」格式，阶段名对齐 workflow-stages.md
+  switch (req.status) {
+    case 'draft':
+      move('brainstorming', '→ 需求分析', '进入需求分析；窗口接手开工时会自动进入', true)
+      move('canceled', '取消', '取消该需求（仅人可操作）')
+      break
+    case 'brainstorming':
+      move('planning', '→ 技术设计', '方案谈定 → 进入技术设计；请提交计划并待批准', true)
+      move('draft', '退回立项', '方案要重谈 → 退回立项')
+      break
+    case 'planning':
+      move('decomposing', '→ 拆分', '计划获批后落库任务卡；未获批会被代码级拒绝', true)
+      move('brainstorming', '退回重谈', '方案要改 → 退回需求分析')
+      break
+    case 'decomposing':
+      move('implementing', '→ 实施', '确认拆分，进入实施；任务开工时系统会自动推进', true)
+      break
+    case 'implementing':
+      move('accepting', '→ 验收', '提交验收；任务全部完成时系统会自动推进', true)
+      break
+    case 'accepting':
+      // REQ-9f4a44：验收通过 → 直接归档（accepting>archived），走 verify-pass/rework（下方补）
+      break
+    case 'done':
+      // done 为 legacy 死状态（REQ_TRANSITIONS: done: []），历史记录只读，不给转移按钮
+      break
+    default:
+      break
+  }
+
+  if (req.plan !== undefined && req.plan.approvedAt === undefined) {
+    add('plan-approve', '批准计划', '批准实施计划，解锁 reqboard_decompose 拆分', true)
+    add('plan-reject', '退回计划', '退回实施计划（窗口按理由重写）')
+  }
+  if (req.status === 'accepting' && req.verification !== undefined) {
+    add('verify-pass', '验收通过', '人工审核通过，需求进入完成', true)
+    add('verify-rework', '退回返工', '退回返工（需填写意见）')
+  }
+  if (req.status === 'done' && req.archive !== undefined && req.archive.archivedAt === undefined) {
+    add('archive-req', '归档', '归档：把产出并进项目文档', true)
+  }
+
+  if (items.length === 0) return ''
+  return '<div class="dsh-pm-action-bar" data-req="' + esc(req.id) + '">'
+    + '<span class="dsh-pm-action-bar-label">本阶段操作</span>'
+    + items.join('')
+    + '</div>'
 }
 
 /** 任务 DAG：v1 用分层列表（拓扑层级）表达，节点可点击 */
@@ -733,14 +1049,14 @@ function buildDag(tasks: TaskRecord[]): string {
   const layers: TaskRecord[][] = Array.from({ length: maxDepth + 1 }, () => [])
   tasks.forEach(t => layers[depth.get(t.id)!].push(t))
 
-  return `<div class="dsh-pm-dag">` + layers.map((layer, i) => `
+  return `<div class="dsh-pm-dag"><div class="dsh-pm-dag-title">🔀 任务依赖关系</div><div class="dsh-pm-dag-layers">` + layers.map((layer, i) => `
     <div class="dsh-pm-dag-layer">
       <span class="dsh-pm-dag-layer-label">L${i}</span>
       ${layer.map(t => `
         <span class="dsh-pm-dag-node" data-status="${t.status}" data-action="open-task" data-task="${esc(t.id)}" title="${esc(t.title)}">
           ${esc(t.id)} ${esc(t.title.slice(0, 20))}${t.title.length > 20 ? '…' : ''}
         </span>`).join('')}
-    </div>`).join('') + `</div>`
+    </div>`).join('') + `</div></div>`
 }
 
 /** 任务五列小看板（含 in_review/done） */
@@ -764,13 +1080,67 @@ function buildTaskColumns(tasks: TaskRecord[]): string {
   }).join('') + `</div>`
 }
 
+/**
+ * 任务表格（REQ-6f39b5：对齐 prototype.html 执行 Tab 的 dsh-pm-task-table）。
+ * 列：状态 | 任务 | 阶段 | 依赖 | 负责人 | 操作；行点击进任务详情。
+ */
+function buildTaskTable(tasks: TaskRecord[]): string {
+  if (tasks.length === 0) return '<div class="dsh-pm-empty">暂无任务</div>'
+  const statusIcon = (s: TaskStatus): string =>
+    s === 'done' ? '✓' : s === 'in_progress' ? '◐' : s === 'todo' ? '○' : '◐'
+  const rows = tasks.map(t => {
+    const deps = t.dependsOn.length > 0 ? t.dependsOn.map(x => esc(x)).join(',') : '-'
+    const owner = t.claimedBy !== undefined && t.claimedBy.length > 0
+      ? windowCodeFromSessionId(t.claimedBy)
+      : '-'
+    return `
+      <tr data-action="open-task" data-task="${esc(t.id)}">
+        <td><span class="dsh-pm-task-status ${t.status}">${statusIcon(t.status)} ${TASK_STATUS_LABELS[t.status]}</span></td>
+        <td>${esc(t.title)}</td>
+        <td>${PHASE_LABELS[t.phase] ?? t.phase}</td>
+        <td>${deps}</td>
+        <td>${owner}</td>
+        <td><span class="dsh-pm-link">查看</span></td>
+      </tr>`
+  }).join('')
+  return `
+    <table class="dsh-pm-task-table">
+      <thead><tr><th>状态</th><th>任务</th><th>阶段</th><th>依赖</th><th>负责人</th><th>操作</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`
+}
+
+/**
+ * 评论作者 → 展示口径（REQ-31e11f #9：人机协同双方可区分）。
+ * data-actor 供样式/测试选择；文本给人看（人 / 窗口 w-xxxx / 系统），
+ * 不再直接吐 'human'/'agent' 这种内部枚举值。
+ */
+function commentActorLabel(c: CommentRecord): { actor: 'human' | 'agent' | 'system'; text: string } {
+  const by = c.createdBy
+  const kind = by?.kind ?? 'human'
+  if (kind === 'human') return { actor: 'human', text: '人' }
+  if (kind === 'system') return { actor: 'system', text: '系统' }
+  const sid = by?.sessionId
+  return {
+    actor: 'agent',
+    text: sid !== undefined && sid.length > 0 ? '窗口 ' + windowCodeFromSessionId(sid) : '窗口',
+  }
+}
+
+/**
+ * 评论列表：人工评论（GUI 评论框 POST /comment，actor=human）与窗口 agent 评论
+ * 一视同仁地渲染，用 data-actor 区分来源。空库给明确空态而不是白板。
+ */
 function renderComments(comments: CommentRecord[]): string {
   if (comments.length === 0) return '<div class="dsh-pm-empty">暂无评论</div>'
-  return `<div class="dsh-pm-comments">` + comments.map(c => `
-    <div class="dsh-pm-comment">
-      <span class="dsh-pm-comment-meta">${esc(c.createdBy?.kind ?? 'human')} · ${fmtTime(c.createdAt)}</span>
+  return `<div class="dsh-pm-comments">` + comments.map(c => {
+    const who = commentActorLabel(c)
+    return `
+    <div class="dsh-pm-comment" data-actor="${who.actor}">
+      <span class="dsh-pm-comment-meta"><span class="dsh-pm-comment-who" data-actor="${who.actor}">${esc(who.text)}</span> · ${fmtTime(c.createdAt)}</span>
       <div class="dsh-pm-comment-body">${esc(c.body)}</div>
-    </div>`).join('') + `</div>`
+    </div>`
+  }).join('') + `</div>`
 }
 
 /* ------------------------------------------------------------------ 任务详情 */
@@ -915,8 +1285,8 @@ function renderCommonContent(task: TaskRecord, now: number, archived: ReadonlySe
       <div class="dsh-pm-detail-section">
         <h3>评论（${task.comments.length}）</h3>
         ${renderComments(task.comments)}
-        <div class="dsh-pm-comment-form">
-          <input type="text" class="dsh-pm-input" data-role="comment-input" placeholder="写评论…" />
+        <div class="dsh-pm-comment-form" data-actor="human">
+          <input type="text" class="dsh-pm-input" data-role="comment-input" placeholder="写评论（以「人」身份记录）…" />
           <button type="button" class="dsh-pm-btn" data-action="add-comment" data-target="task" data-id="${esc(task.id)}">发送</button>
         </div>
       </div>
@@ -1866,7 +2236,9 @@ function renderTimeline(
 
 /** 需求时间线（7 个里程碑）。 */
 function renderReqTimeline(req: RequirementRecord, now: number): string {
-  return renderTimeline(req, LANE_STATUSES.concat(['archived']), STATUS_LABELS, 'draft', now)
+  // REQ-6f39b5 用户裁定：时间线里程碑 7 态（不含 done/完成 —— REQ-9f4a44 后验收通过直接归档，
+  // done 为 legacy 死状态，不再作为节点呈现）；archived 归档为最终节点
+  return renderTimeline(req, [...LANE_STATUSES, 'archived'], STATUS_LABELS, 'draft', now)
 }
 
 /** 任务时间线。 */
@@ -2072,9 +2444,9 @@ function renderPlanSection(req: RequirementRecord): string {
     : plan.rejectedAt !== undefined
       ? '<span class="dsh-pm-plan-status" data-state="rejected">已退回 ' + esc(fmtTime(plan.rejectedAt)) + '</span>'
       : '<span class="dsh-pm-plan-status" data-state="pending">待批准</span>'
+  // 审批按钮已外置到详情头常驻操作条（renderActionBar）——折叠区只留状态与内容
   const actions = plan.approvedAt === undefined
-    ? '<button type="button" class="dsh-pm-btn sm primary" data-action="plan-approve" data-id="' + esc(req.id) + '">批准计划</button>'
-      + '<button type="button" class="dsh-pm-btn sm" data-action="plan-reject" data-id="' + esc(req.id) + '">退回计划</button>'
+    ? '<span class="dsh-pm-hint">计划待批：请在详情头「本阶段操作」条点「批准计划」或「退回计划」</span>'
     : '<span class="dsh-pm-hint">拆分已解锁：窗口可用 reqboard_decompose 按此计划落库任务卡</span>'
   const tasks = plan.tasks.map(t => {
     const deps = (t.dependsOn ?? []).length > 0 ? ' · 依赖 ' + esc((t.dependsOn ?? []).join(',')) : ''
@@ -2135,9 +2507,9 @@ function renderVerifySection(req: RequirementRecord): string {
     : v.decision === 'rework'
       ? '<span class="dsh-pm-review" data-state="rework">已退回返工 ' + esc(v.reviewedAt !== undefined ? fmtTime(v.reviewedAt) : '') + '</span>'
       : '<span class="dsh-pm-review" data-state="pending">待人工审核</span>'
+  // 裁决按钮已外置到详情头常驻操作条（renderActionBar）
   const actions = req.status === 'accepting'
-    ? '<button type="button" class="dsh-pm-btn sm primary" data-action="verify-pass" data-id="' + esc(req.id) + '">验收通过</button>'
-      + '<button type="button" class="dsh-pm-btn sm" data-action="verify-rework" data-id="' + esc(req.id) + '">退回返工</button>'
+    ? '<span class="dsh-pm-hint">请在详情头「本阶段操作」条点「验收通过」或「退回返工」</span>'
     : ''
   const evidence = v.evidence.map(e => '<li>' + esc(e) + '</li>').join('')
   return '<div class="dsh-pm-block">'
@@ -2170,8 +2542,9 @@ function renderArchiveSection(req: RequirementRecord): string {
   const state = a.archivedAt !== undefined
     ? '<span class="dsh-pm-review" data-state="pass">已归档 ' + esc(fmtTime(a.archivedAt)) + '</span>'
     : '<span class="dsh-pm-review" data-state="pending">待归档（材料已备）</span>'
+  // 归档按钮已外置到详情头常驻操作条（renderActionBar）
   const actions = req.status === 'done' && a.archivedAt === undefined
-    ? '<button type="button" class="dsh-pm-btn sm primary" data-action="archive-req" data-id="' + esc(req.id) + '">归档</button>'
+    ? '<span class="dsh-pm-hint">请在详情头「本阶段操作」条点「归档」</span>'
     : ''
   const docs = a.docs.map(d => '<li><span class="dsh-pm-doc-kind">' + esc(ARCHIVE_DOC_KIND_LABELS[d.kind] ?? d.kind) + '</span> <code>' + esc(d.path) + '</code></li>').join('')
   const merged = a.mergedInto.map(m => '<li><code>' + esc(m) + '</code></li>').join('')

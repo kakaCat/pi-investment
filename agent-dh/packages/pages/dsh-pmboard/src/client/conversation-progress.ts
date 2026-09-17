@@ -15,6 +15,11 @@
  */
 import { createElement as h, useState, useEffect, useRef, type ReactNode } from 'react'
 import { OPEN_EVENT } from './footer-action.ts'
+import { openDocInSidebar } from './open-doc.ts'
+import { renderStageNode } from './stage-panel.ts'
+import { fetchStageOverview } from './api.ts'
+import type { StageOverview, StageKey } from '../shared/protocol.ts'
+import { CATEGORY_FLOW_PROFILES } from '../shared/protocol.ts'
 
 const BASE = '/dashboard/api/reqboard'
 
@@ -26,21 +31,13 @@ const FLOW: ReadonlyArray<{ key: string; label: string }> = [
   { key: 'decomposing', label: '拆分' },
   { key: 'implementing', label: '实施' },
   { key: 'accepting', label: '验收' },
-  { key: 'done', label: '完成' },
+  // REQ-9f4a44：done 节点已移除（验收通过 → 直接归档）
+  { key: 'archived', label: '归档' },
 ]
 
 const STATUS_LABEL: Record<string, string> = {
   draft: '立项', brainstorming: '需求分析', planning: '技术设计', decomposing: '拆分',
   implementing: '实施中', accepting: '待验收', done: '完成', archived: '归档', canceled: '已取消',
-}
-
-const TASK_ICON: Record<string, string> = {
-  todo: '○', in_progress: '◐', integrating: '⇄', testing: '⚗', in_review: '👁', done: '✓', canceled: '✕',
-}
-
-const TASK_LABEL: Record<string, string> = {
-  todo: '待办', in_progress: '开发中', integrating: '联调中', testing: '测试中',
-  in_review: '待评审', done: '已完成', canceled: '已取消',
 }
 
 interface ProgressPayload {
@@ -81,32 +78,6 @@ function resolveSessionId(injected?: string): string | undefined {
   return undefined
 }
 
-/** 毫秒 → 人类可读时长（用于任务已投入时间）。 */
-function fmtDur(ms: number): string {
-  if (!Number.isFinite(ms) || ms <= 0) return ''
-  const m = Math.floor(ms / 60000)
-  if (m < 60) return `${m}m`
-  const hours = Math.floor(m / 60)
-  return `${hours}h${m % 60 > 0 ? String(m % 60).padStart(2, '0') : ''}`
-}
-
-/** 时间戳 → MM-DD HH:mm。 */
-function fmtWhen(ts: number | undefined): string {
-  if (typeof ts !== 'number' || !Number.isFinite(ts)) return ''
-  const d = new Date(ts)
-  const pad = (n: number): string => String(n).padStart(2, '0')
-  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-/** 操作者 → 短标识（人/窗口/系统）。 */
-function actorLabel(by: { kind?: string; sessionId?: string } | undefined): string {
-  if (by === undefined) return ''
-  if (by.kind === 'human') return '人'
-  if (by.kind === 'system') return '系统'
-  const sid = by.sessionId
-  return typeof sid === 'string' && sid.length > 0 ? `w-${sid.replace(/^session-/, '').slice(0, 8)}` : '窗口'
-}
-
 /** 流程图节点状态：已完成 / 当前 / 未到。 */
 function flowState(index: number, currentIndex: number): 'done' | 'current' | 'pending' {
   if (currentIndex < 0) return 'pending'
@@ -120,6 +91,8 @@ export interface RequirementProgressProps {
   sessionId?: string
 }
 
+
+
 /**
  * 会话标题栏的需求进度流程图。无绑定需求 → 渲染 null（槽位不占位）。
  */
@@ -128,8 +101,13 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
   const [data, setData] = useState<ProgressPayload | null>(null)
   const [detailOpen, setDetailOpen] = useState<boolean>(false)
   const [selectedStage, setSelectedStage] = useState<string | null>(null)
+  // REQ-31e11f 重设计：全流程一览（一次加载全部节点，监控时间线一眼看全）
+  const [stageOverview, setStageOverview] = useState<StageOverview | null>(null)
+  const [stageOverviewLoading, setStageOverviewLoading] = useState<boolean>(false)
+  const [stageOverviewErr, setStageOverviewErr] = useState<string>('')
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const lastSid = useRef<string | undefined>(undefined)
+
 
   // 数据：挂载即拉一次，之后 15s 轮询（进度是辅助信息，失败静默不打扰）。
   // 会话 id 每次求值都走 resolveSessionId —— 槽位注入拿不到时用「当前会话」兜底，
@@ -173,6 +151,43 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
     return () => document.removeEventListener('mousedown', onDoc)
   }, [detailOpen])
 
+  // REQ-31e11f 重设计：展开即加载全流程一览（StageOverview，与看板同源）。
+  // 依赖 req.updatedAt —— 需求有任何推进（状态/任务/评论变化）自动刷新，
+  // 刷新时经 openStagesRef 保留用户手动展开态（真监控，不打断阅读）。
+  const reqIdForStage = data?.requirement?.id
+  const reqUpdatedAt = data?.requirement?.updatedAt
+  useEffect(() => {
+    if (!detailOpen || reqIdForStage === undefined) {
+      setStageOverview(null)
+      return
+    }
+    let alive = true
+    setStageOverviewLoading(true)
+    setStageOverviewErr('')
+    fetchStageOverview(reqIdForStage)
+      .then((d) => { if (alive) setStageOverview(d) })
+      .catch((e) => { if (alive) setStageOverviewErr((e as Error).message) })
+      .finally(() => { if (alive) setStageOverviewLoading(false) })
+    return () => { alive = false }
+  }, [detailOpen, reqIdForStage, reqUpdatedAt])
+
+  // 产物文档链接（注入 HTML 里的 data-action="open-doc"）→ 官方右侧栏打开全文（REQ-ff20ca t5）。
+  // 挂 document 级（wrapRef 在 detailOpen 切换时被 React 重建，挂它上面 listener 会丢）。
+  // 弹窗已按 G2 移除：不再有降级分支，sidebarRight 不可用时由 openDocInSidebar 打印诊断。
+  useEffect(() => {
+    const onClick = (ev: MouseEvent): void => {
+      const t = (ev.target as HTMLElement).closest('[data-action="open-doc"]') as HTMLElement | null
+      if (t === null) return
+      ev.preventDefault()
+      ev.stopPropagation()
+      const path = t.getAttribute('data-path')
+      if (path === null || path.length === 0) return
+      openDocInSidebar(window.__dshPmCtx, path, resolveSessionId(injectedId))
+    }
+    document.addEventListener('click', onClick)
+    return () => document.removeEventListener('click', onClick)
+  }, [injectedId])
+
   const req = data?.requirement
   if (data === null || data.hasRequirement !== true || req === undefined || req === null) return null
 
@@ -185,23 +200,29 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
   const closed = data.closed === true
 
   // ---- 流程图节点（始终可见，可点击）----
+  // 分类差异化流程（REQ-31e11f）：该分类跳过的节点标灰，与缺产物标红区分。
+  const category = (req.category ?? 'feature') as keyof typeof CATEGORY_FLOW_PROFILES
+  const profile = CATEGORY_FLOW_PROFILES[category] ?? CATEGORY_FLOW_PROFILES.feature
+  const skippedStages = new Set(FLOW.filter(f => !(profile.stages as readonly string[]).includes(f.key)).map(f => f.key))
   const flowNodes: ReactNode[] = []
   FLOW.forEach((stage, idx) => {
     const st = flowState(idx, currentIndex)
     const isSelected = selectedStage === stage.key
+    const skipped = skippedStages.has(stage.key)
     flowNodes.push(
       h('div', {
         key: `n-${stage.key}`,
         className: 'dsh-pm-flow-node',
-        'data-state': st,
+        'data-state': skipped ? 'skipped' : st,
         'data-selected': isSelected ? 'true' : undefined,
+        title: skipped ? `本分类（${category}）跳过「${stage.label}」` : undefined,
         onClick: (e: MouseEvent) => {
           e.stopPropagation()
           setSelectedStage(stage.key)
           setDetailOpen(true)
         },
       }, [
-        h('span', { key: 'd', className: 'dsh-pm-flow-dot' }, st === 'done' ? '✓' : st === 'current' ? '●' : idx + 1),
+        h('span', { key: 'd', className: 'dsh-pm-flow-dot' }, skipped ? '—' : st === 'done' ? '✓' : st === 'current' ? '●' : idx + 1),
         h('span', { key: 'l', className: 'dsh-pm-flow-label' }, stage.label),
       ]),
     )
@@ -230,87 +251,23 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
 
   if (!detailOpen) return h('div', { className: 'dsh-pm-cprog', ref: wrapRef }, flowChart)
 
-  // ---- 详情面板：根据选中阶段显示对应内容 ----
-  const tasks = data.tasks ?? []
-  const selectedStageInfo = FLOW.find(f => f.key === selectedStage)
-  const selectedStageLabel = selectedStageInfo?.label ?? '详情'
-
-  // 筛选属于当前选中阶段的任务和时间线
-  const stageTasksMap: Record<string, typeof tasks> = {
-    draft: tasks.filter(t => t.phase === 'draft' || t.status === 'todo'),
-    brainstorming: tasks.filter(t => t.phase === 'brainstorming' || t.phase === 'analysis'),
-    planning: tasks.filter(t => t.phase === 'planning' || t.phase === 'design'),
-    decomposing: tasks.filter(t => t.phase === 'decomposing' || t.phase === 'breakdown'),
-    implementing: tasks.filter(t => t.status === 'in_progress' || t.status === 'integrating' || t.phase === 'implement'),
-    accepting: tasks.filter(t => t.status === 'testing' || t.status === 'in_review' || t.phase === 'review' || t.phase === 'test'),
-    done: tasks.filter(t => t.status === 'done'),
-  }
-
-  const stageTasks = selectedStage ? (stageTasksMap[selectedStage] ?? tasks) : tasks
-  const taskRows = stageTasks.length === 0
-    ? [h('div', { key: 'empty', className: 'dsh-pm-cprog-empty' },
-        selectedStage ? `${selectedStageLabel}阶段暂无任务` : '尚未拆分任务')]
-    : stageTasks.map((t, i) =>
-        h('div', { key: t.id ?? `t${i}`, className: 'dsh-pm-cprog-task', 'data-status': t.status ?? 'todo' }, [
-          h('span', { key: 'i', className: 'dsh-pm-cprog-task-ico' }, TASK_ICON[t.status ?? 'todo'] ?? '○'),
-          h('div', { key: 'b', className: 'dsh-pm-cprog-task-body' }, [
-            h('div', { key: 't', className: 'dsh-pm-cprog-task-title' }, t.title ?? t.id ?? ''),
-            h('div', { key: 'm', className: 'dsh-pm-cprog-task-meta' },
-              [
-                TASK_LABEL[t.status ?? ''] ?? t.status ?? '',
-                t.side !== undefined && t.side.length > 0 ? `· ${t.side}` : '',
-                (() => { const d = fmtDur(t.durationMs ?? 0); return d.length > 0 ? `· 已投入 ${d}` : '' })(),
-              ].filter(s => s.length > 0).join(' ')),
-          ]),
-        ]),
-      )
-
-  const tl = (data.timeline ?? []).slice(-8).reverse()
-  const stageTl = selectedStage
-    ? tl.filter(e => e.status === selectedStage)
-    : tl
-  const timelineRows = stageTl.length === 0
-    ? [h('div', { key: 'empty', className: 'dsh-pm-cprog-empty' },
-        selectedStage ? `${selectedStageLabel}阶段暂无状态记录` : '暂无状态记录')]
-    : stageTl.map((e, i) =>
-        h('div', { key: `tl${i}`, className: 'dsh-pm-cprog-tl-row' }, [
-          h('span', { key: 't', className: 'dsh-pm-cprog-tl-time' }, fmtWhen(e.at)),
-          h('span', { key: 'x', className: 'dsh-pm-cprog-tl-text' },
-            `${STATUS_LABEL[e.status ?? ''] ?? e.status ?? ''}${actorLabel(e.by).length > 0 ? ` by ${actorLabel(e.by)}` : ''}${typeof e.reason === 'string' && e.reason.length > 0 ? ` — ${e.reason}` : ''}${e.inferred === true ? '（回填）' : ''}`),
-        ]),
-      )
-
+  // ---- 详情面板：单节点工作记录（v4：点哪个节点只看哪个，纯文字监控）----
   const panel = h('div', { key: 'panel', className: 'dsh-pm-cprog-detail-panel' }, [
     h('div', { key: 'h', className: 'dsh-pm-cprog-panel-head' }, [
-      h('span', { key: 't', className: 'dsh-pm-cprog-panel-title' },
-        selectedStage ? `${selectedStageLabel} · ${req.id ?? ''}` : `${req.id ?? ''} · ${title}`),
-      h('span', { key: 's', className: 'dsh-pm-status-badge', 'data-status': selectedStage ?? status },
-        selectedStage ? selectedStageLabel : (STATUS_LABEL[status] ?? status)),
+      h('span', { key: 't', className: 'dsh-pm-cprog-panel-title' }, `${req.id ?? ''} · ${title}`),
+      h('span', { key: 's', className: 'dsh-pm-status-badge', 'data-status': status }, STATUS_LABEL[status] ?? status),
     ]),
     closed
       ? h('div', { key: 'closed', className: 'dsh-pm-cprog-panel-note' },
           '本会话已无进行中需求 —— 以上是最近关联的需求（已完成/已归档），可作为「这个会话做了什么」的回顾。')
       : null,
-    typeof req.description === 'string' && req.description.length > 0 && !selectedStage
-      ? h('div', { key: 'd', className: 'dsh-pm-cprog-panel-sub' }, req.description)
-      : null,
-    h('div', { key: 'p', className: 'dsh-pm-cprog-sec' }, [
-      h('b', { key: 'b' }, selectedStage
-        ? `${selectedStageLabel}阶段任务（${stageTasks.filter(t => t.status === 'done').length}/${stageTasks.length} 完成）`
-        : `任务（${done}/${total} 完成，${data.progress?.active ?? 0} 进行中）`),
-      ...taskRows,
-    ]),
-    h('div', { key: 'tl', className: 'dsh-pm-cprog-sec' }, [
-      h('b', { key: 'b' }, selectedStage ? `${selectedStageLabel}阶段时间线` : '状态时间线（最近 8 条）'),
-      ...timelineRows,
+    h('div', { key: 'ov', className: 'dsh-pm-cprog-sec' }, [
+      stageOverviewLoading && stageOverview === null ? h('div', { key: 'ld', className: 'dsh-pm-cprog-empty' }, '详情加载中…')
+        : stageOverviewErr.length > 0 && stageOverview === null ? h('div', { key: 'er', className: 'dsh-pm-cprog-empty' }, '详情暂不可用：' + stageOverviewErr)
+          : stageOverview !== null ? h('div', { key: 'ovr', className: 'dsh-pm-cprog-stage-detail', dangerouslySetInnerHTML: { __html: renderStageNode(stageOverview, (selectedStage ?? stageOverview.currentStage) as StageKey) } })
+            : h('div', { key: 'ne', className: 'dsh-pm-cprog-empty' }, '暂无详情'),
     ]),
     h('div', { key: 'ft', className: 'dsh-pm-cprog-foot' }, [
-      selectedStage
-        ? h('button', {
-            key: 'back', type: 'button', className: 'dsh-pm-btn sm',
-            onClick: () => { setSelectedStage(null) },
-          }, '← 返回全部')
-        : null,
       h('button', {
         key: 'open', type: 'button', className: 'dsh-pm-btn sm',
         onClick: () => { window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { open: true } })) },

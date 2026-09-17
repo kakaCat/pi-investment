@@ -15,8 +15,11 @@ import {
   type BoardViewKind, type ListSortDir, type ListSortKey, type ListViewOpts,
 } from './view.ts'
 import * as api from './api.ts'
-import { archivedSessionIds, jumpToSession, windowServiceAccess } from './session-jump.ts'
+import { openDocInSidebar, resolveCurrentSessionId } from './open-doc.ts'
+import { archivedSessionIds, jumpToSession, windowServiceAccess, type SessionJumpResult } from './session-jump.ts'
 import { createBoardShell } from '@pi-investment/page-kit/client'
+import { renderStageNode } from './stage-panel.ts'
+import type { StageOverview, StageKey } from '../shared/protocol.ts'
 
 const POLL_MS = 20000
 
@@ -78,6 +81,27 @@ export interface BoardController {
   refresh(): void
 }
 
+/**
+ * 会话跳转结果的**明确反馈**（REQ-31e11f #5：不允许点了没反应）。
+ * 'opened' 不打扰（已经跳过去了）；其余结果必须能说清“为什么没跳”。
+ * 导出以便单测覆盖（纯函数，无 DOM 依赖）。
+ */
+export function jumpResultMessage(result: SessionJumpResult, sid: string): string {
+  const short = sid.length > 18 ? sid.slice(0, 18) + '…' : sid
+  switch (result) {
+    case 'archived':
+      return '该会话已归档（' + short + '）：日志保留、侧栏不可见，无法跳转'
+    case 'missing':
+      return '该会话不在当前会话列表（' + short + '）：可能已删除或不在当前工作区'
+    case 'unavailable':
+      return '会话服务暂不可用（页面注入未就绪），请刷新页面后重试'
+    case 'opened':
+      return ''
+    default:
+      return '会话跳转结果未知：' + String(result)
+  }
+}
+
 export function createBoardController(): BoardController {
   const ctrl: BoardController = {
     openBoard: () => {}, closeBoard: () => {}, toggleBoard: () => {},
@@ -99,6 +123,8 @@ export function mountBoard(controller: BoardController): () => void {
   let listSortDir: ListSortDir = listPref.sortDir
   let listPageSize: number = listPref.pageSize
   let listPage = 1
+  // 需求详情里当前选中的阶段节点（分段控件选中态；跨 SSE 重绘保留）
+  let activeStage: string | undefined
   let viewEl: HTMLElement | undefined
   let unsubEvents: (() => void) | undefined
 
@@ -117,6 +143,18 @@ export function mountBoard(controller: BoardController): () => void {
     } catch { /* 忽略 */ }
   }
 
+  /**
+   * 阶段导航（分段控件）选中态：data-active="true" 切到当前 stage，清掉同组其它按钮。
+   * 没有它，分段控件看不出「现在在看哪个节点」（A 的样式已就绪，缺的是这里的状态切换）。
+   */
+  const setStageNavActive = (stage: string | undefined): void => {
+    if (viewEl === undefined) return
+    viewEl.querySelectorAll<HTMLElement>('[data-action="load-stage"]').forEach(btn => {
+      if (stage !== undefined && btn.dataset.stage === stage) btn.setAttribute('data-active', 'true')
+      else btn.removeAttribute('data-active')
+    })
+  }
+
   // ---- 渲染 ------------------------------------------------------------
 
   const render = (): void => {
@@ -132,7 +170,12 @@ export function mountBoard(controller: BoardController): () => void {
           ? buildReqDetail(req, state.tasks, Date.now(), archivedSids())
           : buildBoard(state, Date.now(), boardView, listOpts(), archivedSids())
         if (!req) mode = { kind: 'board' }
-        else void verifyDocExistence()
+        else {
+          setStageNavActive(activeStage)
+          void verifyDocExistence()
+          // REQ-6f39b5：节点导航已删除，概览 Tab「当前阶段详情」进入即自动加载当前阶段
+          void loadStageDetail(req.id, req.status)
+        }
         break
       }
       case 'task': {
@@ -217,8 +260,84 @@ export function mountBoard(controller: BoardController): () => void {
         return
       }
       case 'open-doc': {
+        // REQ-ff20ca t6：看板文档点击同样走官方右侧栏（弹窗已整套删除，无降级）
         const path = el.dataset.path
-        if (path) void openDocModal(path)
+        if (path) openDocInSidebar(window.__dshPmCtx, path, resolveCurrentSessionId())
+        return
+      }
+      // REQ-6f39b5 t-006：Tab 切换
+      case 'switch-tab': {
+        const tab = target.closest<HTMLElement>('.dsh-pm-tab')
+        if (!tab) return
+        const tabName = tab.dataset.tab
+        if (!tabName) return
+        
+        // 切换 Tab active 状态
+        const tabsContainer = tab.closest('.dsh-pm-detail')
+        if (!tabsContainer) return
+        
+        tabsContainer.querySelectorAll('.dsh-pm-tab').forEach(t => {
+          t.classList.remove('active')
+        })
+        tab.classList.add('active')
+        
+        // 切换内容区显示
+        tabsContainer.querySelectorAll('.dsh-pm-tab-content').forEach(content => {
+          content.classList.remove('active')
+        })
+        
+        const targetContent = tabsContainer.querySelector(
+          `.dsh-pm-tab-content[data-tab-content="${tabName}"]`
+        )
+        if (targetContent) {
+          targetContent.classList.add('active')
+        }
+        return
+      }
+      case 'load-stage': {
+        const reqId = el.dataset.req
+        const stage = el.dataset.stage
+        if (reqId && stage) {
+          activeStage = stage
+          setStageNavActive(stage)
+          void loadStageDetail(reqId, stage)
+        }
+        return
+      }
+      case 'confirm-artifact': {
+        const reqId = el.dataset.id
+        const kind = el.dataset.kind
+        if (reqId && kind) {
+          void api.confirmArtifact({ id: reqId, kind })
+            .then(() => fetchAll())
+            .catch(e => window.alert(String(e)))
+        }
+        return
+      }
+      case 'submit-verdicts': {
+        // 验收单逐项裁决（REQ-2e9473 t14）：从 DOM 收集每项 通过/不通过 + 意见
+        const reqId = el.dataset.req
+        const version = Number(el.dataset.version)
+        const sheetEl = el.closest<HTMLElement>('.dsh-pm-vsheet')
+        if (!reqId || !Number.isFinite(version) || sheetEl === null) return
+        const verdicts: { itemId: string; status: 'passed' | 'failed'; opinion?: string }[] = []
+        sheetEl.querySelectorAll<HTMLElement>('.dsh-pm-vitem').forEach((itemEl) => {
+          const itemId = itemEl.dataset.itemId
+          if (itemId === undefined) return
+          const checked = itemEl.querySelector<HTMLInputElement>('input[type="radio"]:checked')
+          if (checked === null) return
+          const opinionEl = itemEl.querySelector<HTMLInputElement>('.dsh-pm-vitem-opinion')
+          const opinion = opinionEl?.value.trim() ?? ''
+          verdicts.push({
+            itemId,
+            status: checked.value === 'passed' ? 'passed' : 'failed',
+            ...(opinion.length > 0 ? { opinion } : {}),
+          })
+        })
+        if (verdicts.length === 0) { window.alert('请先逐项选择 通过/不通过'); return }
+        void api.submitVerdicts({ id: reqId, version, verdicts })
+          .then(() => fetchAll())
+          .catch(e => window.alert(String(e)))
         return
       }
       case 'new-req': {
@@ -229,12 +348,13 @@ export function mountBoard(controller: BoardController): () => void {
         return
       }
       case 'open-req':
-        if (el.dataset.req) { mode = { kind: 'req', reqId: el.dataset.req }; render() }
+        if (el.dataset.req) { activeStage = undefined; mode = { kind: 'req', reqId: el.dataset.req }; render() }
         return
       case 'open-task':
         if (el.dataset.task) { mode = { kind: 'task', taskId: el.dataset.task }; render() }
         return
       case 'open-tasks':
+        activeStage = undefined
         mode = { kind: 'tasks' }
         render()
         return
@@ -252,9 +372,11 @@ export function mountBoard(controller: BoardController): () => void {
         return
       }
       case 'back':
+        activeStage = undefined
         mode = { kind: 'board' }; render()
         return
       case 'back-req':
+        activeStage = undefined
         mode = { kind: 'req', reqId: el.dataset.req ?? '' }; render()
         return
       case 'move-req': {
@@ -281,13 +403,19 @@ export function mountBoard(controller: BoardController): () => void {
       }
       case 'jump-session': {
         const sid = el.dataset.sid
-        if (sid) {
-          void jumpToSession(windowServiceAccess(), sid).then(result => {
-            if (result === 'archived') window.alert('该会话已归档（日志保留，侧栏不可见）')
-            else if (result === 'missing') window.alert('该会话不在当前列表（可能已删除）')
-            else if (result === 'unavailable') window.alert('会话服务暂不可用')
-          })
+        if (!sid) return
+        // 渲染时已知归档（chip 带 data-archived）→ 不发起跳转，直接给原因。
+        // 旧实现把归档 chip 渲染成无 data-action 的灰 span，点击静默无反应（#5 真因）。
+        if (el.dataset.archived === 'true') {
+          window.alert(jumpResultMessage('archived', sid))
+          return
         }
+        void jumpToSession(windowServiceAccess(), sid)
+          .then(result => {
+            const msg = jumpResultMessage(result, sid)
+            if (msg !== '') window.alert(msg)
+          })
+          .catch(e => window.alert('会话跳转失败：' + String(e)))
         return
       }
       case 'verify-pass': {
@@ -403,59 +531,7 @@ export function mountBoard(controller: BoardController): () => void {
     }
   }
 
-  /** 打开文档查看弹窗：fetch 文件内容，在 overlay 弹窗里展示（纯文本 pre-wrap）。 */
-  const openDocModal = async (path: string): Promise<void> => {
-    let content = ''
-    let error = ''
-    try {
-      const res = await fetch('/dashboard/api/reqboard/file?path=' + encodeURIComponent(path))
-      const data = await res.json() as { success?: boolean; data?: { content?: string }; error?: string }
-      if (data.success === true && data.data?.content !== undefined) {
-        content = data.data.content
-      } else {
-        error = data.error ?? '文件打开失败'
-      }
-    } catch (e) {
-      error = '文件打开失败：' + String(e)
-    }
-
-    const overlay = document.createElement('div')
-    overlay.className = 'dsh-pm-doc-modal-overlay'
-
-    const modal = document.createElement('div')
-    modal.className = 'dsh-pm-doc-modal'
-
-    const head = document.createElement('div')
-    head.className = 'dsh-pm-doc-modal-head'
-    const title = document.createElement('span')
-    title.className = 'dsh-pm-doc-modal-title'
-    title.textContent = path
-    const close = document.createElement('button')
-    close.type = 'button'
-    close.className = 'dsh-pm-btn'
-    close.textContent = '关闭'
-    head.append(title, close)
-
-    const body = document.createElement('div')
-    body.className = 'dsh-pm-doc-modal-body'
-    if (error) {
-      body.textContent = error
-    } else {
-      const pre = document.createElement('pre')
-      pre.textContent = content
-      body.append(pre)
-    }
-
-    modal.append(head, body)
-    overlay.append(modal)
-
-    const closeModal = (): void => { overlay.remove() }
-    close.addEventListener('click', closeModal)
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal() })
-    document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') closeModal() }, { once: true })
-
-    document.body.appendChild(overlay)
-  }
+  // （REQ-ff20ca t6）旧文档弹窗已整套删除；文档打开统一走 openDocInSidebar（官方右侧栏）。
 
   /** 校验文档存在性：不存在的文档（未落盘/路径错误）标注缺失并禁止点击，不当作有效文档展示。 */
   const verifyDocExistence = async (): Promise<void> => {
@@ -480,6 +556,30 @@ export function mountBoard(controller: BoardController): () => void {
         }
       }
     }))
+  }
+
+  /** 加载单节点工作记录并渲染（REQ-31e11f v4：点哪个节点只看哪个）。 */
+  const loadStageDetail = async (reqId: string, stage: string): Promise<void> => {
+    const container = document.getElementById('dsh-pm-stage-detail-container')
+    if (container === null) return
+    container.innerHTML = '<div class="dsh-pm-empty">详情加载中…</div>'
+    try {
+      const res = await fetch('/dashboard/api/reqboard/requirements/' + encodeURIComponent(reqId) + '/stages', {
+        signal: AbortSignal.timeout(8000),
+      })
+      if (!res.ok) {
+        container.innerHTML = '<div class="dsh-pm-empty">详情暂不可用（HTTP ' + res.status + '）</div>'
+        return
+      }
+      const json = await res.json() as { success?: boolean; data?: StageOverview }
+      if (json.success === true && json.data !== undefined) {
+        container.innerHTML = renderStageNode(json.data, stage as StageKey)
+      } else {
+        container.innerHTML = '<div class="dsh-pm-empty">详情暂不可用</div>'
+      }
+    } catch (e) {
+      container.innerHTML = '<div class="dsh-pm-empty">详情加载失败：' + String(e) + '</div>'
+    }
   }
 
   // ---- board-shell 生命周期 --------------------------------------------

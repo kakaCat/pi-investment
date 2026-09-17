@@ -130,6 +130,7 @@ tags: [wiki, index, home, agent-dh]
 - ✅ [RFC-011 工具 Web 卡片](rfcs/011-tool-web-cards.md)
 - ✅ [RFC-013 公告板页面](rfcs/013-bulletin-board-page.md)
 - ✅ P1 [页面插件契约](architecture/page-plugin-contract.md) —— 两半分工、产物与交付证据、接口信封、安全默认
+- ✅ [需求节点详情系统](architecture/reqboard-stage-detail.md) —— 节点点开看工作记录：StageDetail 契约 + 模板模式双端 + 产物闸门 + 追溯链 + 接力任务卡 + markdown 弹窗纪律（REQ-31e11f）
 - ✅ [web-liveness 页面自愈](../../agent-dh/packages/pages/web-liveness/README.md) —— 重启后已开标签页自动刷新（`/plugins/events` 的 graph.rev vs `__DSH_BOOT__.rev`）
 
 ### 卷 8 · 需求流水线与归档（本 wiki 的供料线）

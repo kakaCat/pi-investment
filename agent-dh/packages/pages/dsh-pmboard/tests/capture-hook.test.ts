@@ -9,7 +9,11 @@ import { emptyLedger, type ReqboardLedger } from '../src/shared/protocol.js'
 import {
   createSessionEventCaptureHook,
   shouldCaptureWindow,
+  recordToolTrace,
+  toolActivitySince,
+  TOOL_TRACE_CAP,
   type CaptureHookDeps,
+  type ToolTraceEntry,
 } from '../src/host/capture-hook.js'
 
 const W = 'session-abc-123'
@@ -52,6 +56,55 @@ function turnEnd(): unknown {
 function textMsg(text: string, kind?: string): unknown {
   return userMsg([{ type: 'text', text }], kind)
 }
+
+describe('工具痕迹跟踪（REQ-2e9473 t05）', () => {
+  const handler = (depsObj: ReturnType<typeof deps>) => createSessionEventCaptureHook(depsObj.deps)
+  const toolCall = (name: string) => ({ type: 'tool/call', data: { name } })
+
+  it('tool/call 事件按窗口落痕；忽略会话不记', () => {
+    const d = deps()
+    const toolTrace = new Map<string, ToolTraceEntry[]>()
+    d.deps.toolTrace = toolTrace
+    const h = handler(d)
+    h({ id: W }, toolCall('run_code'))
+    h({ id: W }, toolCall('reqboard_task_move'))
+    // subagent 会话不记（isIgnoredSession 认 header.origin='subagent' / delegationDepth>0）
+    h({ id: 'session-sub-1', header: { origin: 'subagent' } }, toolCall('edit'))
+    const act = toolActivitySince(toolTrace, W, 0)
+    expect(act.total).toBe(2)
+    expect(act.byTool).toEqual({ run_code: 1, reqboard_task_move: 1 })
+    expect(act.workLike).toBe(1) // run_code 算干活，reqboard_task_move 不算
+    expect(toolTrace.has('session-sub-1')).toBe(false)
+  })
+
+  it('toolActivitySince 按时间分段（done 凭证门：since=claimedAt）', () => {
+    const trace = new Map<string, ToolTraceEntry[]>()
+    recordToolTrace(trace, W, 'bash', 100)
+    recordToolTrace(trace, W, 'edit', 200)
+    recordToolTrace(trace, W, 'edit', 300)
+    expect(toolActivitySince(trace, W, 200).workLike).toBe(2)
+    expect(toolActivitySince(trace, W, 400).total).toBe(0)
+    // 未知窗口 → 全零，不炸
+    expect(toolActivitySince(trace, 'session-nope', 0).total).toBe(0)
+  })
+
+  it('环形截断：超过 TOOL_TRACE_CAP 只保留最新', () => {
+    const trace = new Map<string, ToolTraceEntry[]>()
+    for (let i = 0; i < TOOL_TRACE_CAP + 50; i++) recordToolTrace(trace, W, 'run_code', i)
+    expect(trace.get(W)).toHaveLength(TOOL_TRACE_CAP)
+    expect(trace.get(W)![0].at).toBe(50) // 最旧的被截掉
+  })
+
+  it('turn/end 不清工具痕迹（只清立项捕获登记）', () => {
+    const d = deps()
+    const toolTrace = new Map<string, ToolTraceEntry[]>()
+    d.deps.toolTrace = toolTrace
+    const h = handler(d)
+    h({ id: W }, toolCall('edit'))
+    h({ id: W }, turnEnd())
+    expect(toolActivitySince(toolTrace, W, 0).total).toBe(1)
+  })
+})
 
 describe('shouldCaptureWindow', () => {
   it('unbound 且无 pending → true；bound / hasPending → false', () => {
@@ -189,5 +242,155 @@ describe('R1 接手推进信号（onBoundWindowActivity）', () => {
     const h = createSessionEventCaptureHook(d.deps)
     d.setLedger({ ...emptyLedger(), requirements: [{ id: 'REQ-1', sourceSessionId: W, status: 'draft' } as never] })
     expect(() => h({ id: W }, textMsg('继续'))).not.toThrow()
+  })
+})
+
+
+describe('REQ-31e11f t5：onStagePrompt 阶段提示词注入', () => {
+  it('bound 窗口收到消息 → 触发 onStagePrompt（带当前阶段提示词）', async () => {
+    const d = deps()
+    const prompts: string[] = []
+    const h = createSessionEventCaptureHook({
+      ...d.deps,
+      onStagePrompt: (_key, prompt) => prompts.push(prompt),
+    })
+    d.setLedger({
+      ...emptyLedger(),
+      requirements: [{ id: 'REQ-1', sourceSessionId: W, status: 'implementing', category: 'feature' } as never],
+    })
+    h({ id: W }, textMsg('继续推进'))
+    expect(prompts).toHaveLength(1)
+    // 提示词含 implementing 阶段纪律关键词
+    expect(prompts[0]).toContain('REQ-31e11f stage-prompts')
+    expect(prompts[0]).toContain('按任务卡执行')
+  })
+
+  it('分类跳过的阶段不触发 onStagePrompt', async () => {
+    const d = deps()
+    const prompts: string[] = []
+    const h = createSessionEventCaptureHook({
+      ...d.deps,
+      onStagePrompt: (_key, prompt) => prompts.push(prompt),
+    })
+    // bug 分类：无 brainstorming 阶段
+    d.setLedger({
+      ...emptyLedger(),
+      requirements: [{ id: 'REQ-1', sourceSessionId: W, status: 'draft', category: 'bug' } as never],
+    })
+    h({ id: W }, textMsg('开始'))
+    // draft 阶段无对应提示词（STAGE_PROMPTS 无 draft 键）→ 不触发
+    expect(prompts).toHaveLength(0)
+  })
+
+  it('未注入 onStagePrompt 回调 → 不抛错（可选依赖）', async () => {
+    const d = deps()
+    const h = createSessionEventCaptureHook(d.deps)
+    d.setLedger({
+      ...emptyLedger(),
+      requirements: [{ id: 'REQ-1', sourceSessionId: W, status: 'implementing', category: 'feature' } as never],
+    })
+    expect(() => h({ id: W }, textMsg('继续'))).not.toThrow()
+  })
+})
+
+describe('里程碑超时提醒（REQ-2e9473 t09）', () => {
+  it('产物登记 >30min 未确认 → 注入提醒，含 reqboard_ask_confirm 调用指引', () => {
+    const injected: string[] = []
+    const d = deps()
+    const testNow = 2000000000000 // 固定时间避免 deps.now() 为 1000 导致负数
+    d.deps.now = () => testNow
+    d.deps.onStagePrompt = (w, text) => { injected.push(text) }
+    const h = createSessionEventCaptureHook(d.deps)
+    d.setLedger({
+      ...emptyLedger(),
+      requirements: [{
+        id: 'REQ-abc',
+        title: 'test',
+        description: '',
+        sourceSessionId: W,
+        status: 'brainstorming',
+        category: 'feature',
+        blocked: false,
+        comments: [],
+        version: 1,
+        createdAt: 1,
+        updatedAt: testNow,
+        createdBy: { kind: 'human' },
+        updatedBy: { kind: 'human' },
+        statusHistory: [],
+        artifacts: [{ stage: 'brainstorming', kind: 'requirement', path: 'r.md', registeredAt: testNow - 31 * 60 * 1000 }],
+      } as never],
+    })
+    h({ id: W }, textMsg('继续'))
+    expect(injected.some(t => t.includes('里程碑提醒'))).toBe(true)
+    expect(injected.some(t => t.includes('reqboard_ask_confirm'))).toBe(true)
+    expect(injected.some(t => t.includes('kind=requirement'))).toBe(true)
+  })
+
+  it('每产物只提醒一次：第二条消息不重复注入', () => {
+    const injected: string[] = []
+    const d = deps()
+    const testNow = 2000000000000
+    d.deps.now = () => testNow
+    d.deps.onStagePrompt = (w, text) => { injected.push(text) }
+    const h = createSessionEventCaptureHook(d.deps)
+    d.setLedger({
+      ...emptyLedger(),
+      requirements: [{
+        id: 'REQ-abc', title: 'test', description: '', sourceSessionId: W, status: 'brainstorming', category: 'feature',
+        blocked: false, comments: [], version: 1, createdAt: 1, updatedAt: testNow,
+        createdBy: { kind: 'human' }, updatedBy: { kind: 'human' }, statusHistory: [],
+        artifacts: [{ stage: 'brainstorming', kind: 'requirement', path: 'r.md', registeredAt: testNow - 31 * 60 * 1000 }],
+      } as never],
+    })
+    h({ id: W }, textMsg('继续'))
+    const count1 = injected.filter(t => t.includes('里程碑提醒')).length
+    h({ id: W }, textMsg('再来'))
+    const count2 = injected.filter(t => t.includes('里程碑提醒')).length
+    expect(count1).toBe(1)
+    expect(count2).toBe(1)
+  })
+
+  it('产物已确认 → 不提醒', () => {
+    const injected: string[] = []
+    const d = deps()
+    const testNow = 2000000000000
+    d.deps.now = () => testNow
+    d.deps.onStagePrompt = (w, text) => { injected.push(text) }
+    const h = createSessionEventCaptureHook(d.deps)
+    d.setLedger({
+      ...emptyLedger(),
+      requirements: [{
+        id: 'REQ-abc', title: 'test', description: '', sourceSessionId: W, status: 'brainstorming', category: 'feature',
+        blocked: false, comments: [], version: 1, createdAt: 1, updatedAt: testNow,
+        createdBy: { kind: 'human' }, updatedBy: { kind: 'human' }, statusHistory: [],
+        artifacts: [{
+          stage: 'brainstorming', kind: 'requirement', path: 'r.md',
+          registeredAt: testNow - 31 * 60 * 1000, confirmedAt: testNow,
+        }],
+      } as never],
+    })
+    h({ id: W }, textMsg('继续'))
+    expect(injected.some(t => t.includes('里程碑提醒'))).toBe(false)
+  })
+
+  it('产物新鲜（<30min）→ 不提醒', () => {
+    const injected: string[] = []
+    const d = deps()
+    const testNow = 2000000000000
+    d.deps.now = () => testNow
+    d.deps.onStagePrompt = (w, text) => { injected.push(text) }
+    const h = createSessionEventCaptureHook(d.deps)
+    d.setLedger({
+      ...emptyLedger(),
+      requirements: [{
+        id: 'REQ-abc', title: 'test', description: '', sourceSessionId: W, status: 'brainstorming', category: 'feature',
+        blocked: false, comments: [], version: 1, createdAt: 1, updatedAt: testNow,
+        createdBy: { kind: 'human' }, updatedBy: { kind: 'human' }, statusHistory: [],
+        artifacts: [{ stage: 'brainstorming', kind: 'requirement', path: 'r.md', registeredAt: testNow - 10 * 60 * 1000 }],
+      } as never],
+    })
+    h({ id: W }, textMsg('继续'))
+    expect(injected.some(t => t.includes('里程碑提醒'))).toBe(false)
   })
 })

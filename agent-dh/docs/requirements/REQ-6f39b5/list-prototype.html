@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>项目看板 - 列表视图（流程节点对齐）</title>
+  <!--
+    流程节点定义（唯一事实源）：docs/architecture/workflow-stages.md
+    7态：立项 → 需求分析 → 技术设计 → 拆分 → 实施 → 验收 → 归档
+  -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: #f5f6f8;
+      color: #333;
+      line-height: 1.6;
+      padding: 20px;
+    }
+    
+    .dsh-pm-board-head {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .dsh-pm-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #111827;
+    }
+    
+    .dsh-pm-stats {
+      display: flex;
+      gap: 20px;
+      margin-left: 24px;
+      padding-left: 24px;
+      border-left: 1px solid #e5e7eb;
+    }
+    
+    .dsh-pm-stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    .dsh-pm-stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #4a7dff;
+    }
+    
+    .dsh-pm-stat-label {
+      font-size: 11px;
+      color: #6b7280;
+      text-transform: uppercase;
+    }
+    
+    .dsh-pm-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 12px;
+    }
+    
+    .dsh-pm-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: #374151;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    
+    .dsh-pm-btn:hover {
+      background: #f9fafb;
+      border-color: #9ca3af;
+    }
+    
+    .dsh-pm-btn.primary {
+      background: #4a7dff;
+      border-color: #4a7dff;
+      color: #fff;
+    }
+    
+    .dsh-pm-filters {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    
+    .dsh-pm-filter-label {
+      font-size: 13px;
+      color: #6b7280;
+      font-weight: 500;
+    }
+    
+    .dsh-pm-filter-select {
+      padding: 6px 32px 6px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8"><path fill="%23666" d="M6 8L0 0h12z"/></svg>') no-repeat right 10px center;
+      cursor: pointer;
+    }
+    
+    .dsh-pm-search {
+      padding: 6px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 13px;
+      flex: 1;
+      max-width: 300px;
+    }
+    
+    .dsh-pm-list {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+      overflow: hidden;
+    }
+    
+    .dsh-pm-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .dsh-pm-table thead {
+      background: #f9fafb;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .dsh-pm-table th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    
+    .dsh-pm-table th.sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .dsh-pm-table th.sortable:hover {
+      background: #f3f4f6;
+    }
+    
+    .dsh-pm-table tbody tr {
+      border-bottom: 1px solid #f3f4f6;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    
+    .dsh-pm-table tbody tr:hover {
+      background: #f9fafb;
+    }
+    
+    .dsh-pm-table tbody tr.archived {
+      opacity: 0.5;
+    }
+    
+    .dsh-pm-table td {
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #374151;
+      vertical-align: middle;
+    }
+    
+    .dsh-pm-list-id {
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      color: #6b7280;
+    }
+    
+    .dsh-pm-list-title {
+      font-weight: 600;
+      color: #111827;
+      max-width: 400px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .dsh-pm-list-cat {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      display: inline-block;
+    }
+    
+    .dsh-pm-list-cat.feature { background: rgba(74,125,255,.12); color: #4a7dff; }
+    .dsh-pm-list-cat.refactor { background: rgba(142,68,173,.12); color: #8e44ad; }
+    .dsh-pm-list-cat.bug { background: rgba(220,53,69,.12); color: #dc3545; }
+    .dsh-pm-list-cat.doc { background: rgba(23,162,184,.12); color: #17a2b8; }
+    
+    .dsh-pm-list-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    
+    .dsh-pm-list-status[data-status="draft"] {
+      background: rgba(154,164,178,.12);
+      color: #9aa4b2;
+    }
+    
+    .dsh-pm-list-status[data-status="brainstorming"] {
+      background: rgba(240,160,32,.12);
+      color: #f0a020;
+    }
+    
+    .dsh-pm-list-status[data-status="planning"] {
+      background: rgba(194,37,92,.12);
+      color: #c2255c;
+    }
+    
+    .dsh-pm-list-status[data-status="decomposing"] {
+      background: rgba(142,68,173,.12);
+      color: #8e44ad;
+    }
+    
+    .dsh-pm-list-status[data-status="implementing"] {
+      background: rgba(74,125,255,.12);
+      color: #4a7dff;
+    }
+    
+    .dsh-pm-list-status[data-status="accepting"] {
+      background: rgba(23,162,184,.12);
+      color: #17a2b8;
+    }
+    
+    .dsh-pm-list-status[data-status="archived"] {
+      background: rgba(40,167,69,.12);
+      color: #28a745;
+    }
+    
+    .dsh-pm-list-owner {
+      color: #6b7280;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: all .2s;
+      display: inline-block;
+    }
+    
+    .dsh-pm-list-owner:hover {
+      background: rgba(74,125,255,.08);
+      color: #4a7dff;
+    }
+    
+    .dsh-pm-list-progress {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 100px;
+    }
+    
+    .dsh-pm-list-progress-bar {
+      flex: 1;
+      height: 6px;
+      background: #f3f4f6;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    
+    .dsh-pm-list-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4a7dff, #28a745);
+      border-radius: 3px;
+    }
+    
+    .dsh-pm-list-progress-text {
+      font-size: 11px;
+      color: #6b7280;
+      white-space: nowrap;
+    }
+    
+    .dsh-pm-list-time {
+      font-size: 12px;
+      color: #9ca3af;
+      font-family: ui-monospace, monospace;
+    }
+    
+    .dsh-pm-list-actions {
+      display: flex;
+      gap: 6px;
+    }
+    
+    .dsh-pm-list-btn {
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: #374151;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    
+    .dsh-pm-list-btn:hover {
+      background: #f9fafb;
+      border-color: #9ca3af;
+    }
+    
+    .dsh-pm-list-btn.primary {
+      background: #4a7dff;
+      border-color: #4a7dff;
+      color: #fff;
+    }
+    
+    .dsh-pm-list-btn.primary:hover {
+      background: #3b6de8;
+    }
+    
+    .dsh-pm-list-btn.success {
+      background: #28a745;
+      border-color: #28a745;
+      color: #fff;
+    }
+    
+    .dsh-pm-list-btn.success:hover {
+      background: #218838;
+    }
+    
+    .dsh-pm-pagination {
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid #e5e7eb;
+    }
+    
+    .dsh-pm-pagination-info {
+      font-size: 13px;
+      color: #6b7280;
+    }
+    
+    .dsh-pm-pagination-btns {
+      display: flex;
+      gap: 6px;
+    }
+    
+    .dsh-pm-pagination-btn {
+      padding: 6px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    
+    .dsh-pm-pagination-btn:hover {
+      background: #f9fafb;
+    }
+    
+    .dsh-pm-pagination-btn.active {
+      background: #4a7dff;
+      border-color: #4a7dff;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="dsh-pm-board-head">
+    <h1 class="dsh-pm-title">项目看板</h1>
+    
+    <div class="dsh-pm-stats">
+      <div class="dsh-pm-stat-item">
+        <span class="dsh-pm-stat-value">11</span>
+        <span class="dsh-pm-stat-label">进行中</span>
+      </div>
+      <div class="dsh-pm-stat-item">
+        <span class="dsh-pm-stat-value">8</span>
+        <span class="dsh-pm-stat-label">已完成</span>
+      </div>
+      <div class="dsh-pm-stat-item">
+        <span class="dsh-pm-stat-value">3</span>
+        <span class="dsh-pm-stat-label">待验收</span>
+      </div>
+    </div>
+    
+    <div class="dsh-pm-actions">
+      <button class="dsh-pm-btn">泳道</button>
+      <button class="dsh-pm-btn">刷新</button>
+      <button class="dsh-pm-btn primary">+ 新需求</button>
+    </div>
+  </div>
+  
+  <div class="dsh-pm-filters">
+    <span class="dsh-pm-filter-label">状态</span>
+    <select class="dsh-pm-filter-select">
+      <option>全部</option>
+      <option>立项</option>
+      <option>需求分析</option>
+      <option>技术设计</option>
+      <option>拆分</option>
+      <option>实施</option>
+      <option>验收</option>
+      <option>归档</option>
+    </select>
+    
+    <span class="dsh-pm-filter-label">分类</span>
+    <select class="dsh-pm-filter-select">
+      <option>全部</option>
+      <option>功能</option>
+      <option>重构</option>
+      <option>缺陷</option>
+      <option>文档</option>
+    </select>
+    
+    <span class="dsh-pm-filter-label">负责人</span>
+    <select class="dsh-pm-filter-select">
+      <option>全部</option>
+      <option>w-b8de6c05</option>
+      <option>w-a1b2c3</option>
+      <option>w-d4e5f6</option>
+    </select>
+    
+    <input type="search" class="dsh-pm-search" placeholder="搜索需求标题..." />
+  </div>
+  
+  <div class="dsh-pm-list">
+    <table class="dsh-pm-table">
+      <thead>
+        <tr>
+          <th class="sortable">ID</th>
+          <th class="sortable">标题</th>
+          <th>分类</th>
+          <th class="sortable">状态</th>
+          <th>进度</th>
+          <th class="sortable">负责人</th>
+          <th class="sortable">更新时间</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- 立项 → 需求分析 -->
+        <tr onclick="alert('跳转到详情页')">
+          <td><span class="dsh-pm-list-id">REQ-abc123</span></td>
+          <td><div class="dsh-pm-list-title">智能信号评分系统</div></td>
+          <td><span class="dsh-pm-list-cat feature">功能</span></td>
+          <td><span class="dsh-pm-list-status" data-status="draft">立项</span></td>
+          <td>-</td>
+          <td><span class="dsh-pm-list-owner" onclick="event.stopPropagation();">w-a1b2c3</span></td>
+          <td><span class="dsh-pm-list-time">2h 前</span></td>
+          <td>
+            <div class="dsh-pm-list-actions">
+              <button class="dsh-pm-list-btn primary" onclick="event.stopPropagation();">→ 需求分析</button>
+              <button class="dsh-pm-list-btn" onclick="event.stopPropagation();">取消</button>
+            </div>
+          </td>
+        </tr>
+        
+        <tr onclick="alert('跳转到详情页')">
+          <td><span class="dsh-pm-list-id">REQ-def456</span></td>
+          <td><div class="dsh-pm-list-title">修复止损规则触发逻辑</div></td>
+          <td><span class="dsh-pm-list-cat bug">缺陷</span></td>
+          <td><span class="dsh-pm-list-status" data-status="draft">立项</span></td>
+          <td>-</td>
+          <td><span class="dsh-pm-list-owner" onclick="event.stopPropagation();">w-d4e5f6</span></td>
+          <td><span class="dsh-pm-list-time">1d 前</span></td>
+          <td>
+            <div class="dsh-pm-list-actions">
+              <button class="dsh-pm-list-btn primary" onclick="event.stopPropagation();">→ 需求分析</button>
+              <button class="dsh-pm-list-btn" onclick="event.stopPropagation();">取消</button>
+            </div>
+          </td>
+        </tr>
+        
+        <!-- 需求分析 → 技术设计 -->
+        <tr onclick="alert('跳转到详情页')">
+          <td><span class="dsh-pm-list-id">REQ-6f39b5</span></td>
+          <td><div class="dsh-pm-list-title">项目看板需求详情页界面优化</div></td>
+          <td><span class="dsh-pm-list-cat refactor">重构</span></td>
+          <td><span class="dsh-pm-list-status" data-status="brainstorming">需求分析</span></td>
+          <td>-</td>
+          <td><span class="dsh-pm-list-owner" onclick="event.stopPropagation();">w-b8de6c05</span></td>
+          <td><span class="dsh-pm-list-time">30m 前</span></td>
+          <td>
+            <div class="dsh-pm-list-actions">
+              <button class="dsh-pm-list-btn primary" onclick="event.stopPropagation();">→ 技术设计</button>
+              <button class="dsh-pm-list-btn" onclick="event.stopPropagation();">需修改</button>
+            </div>
+          </td>
+        </tr>
+        
+        <!-- 技术设计 → 拆分 -->
+        <tr onclick="alert('跳转到详情页')">
+          <td><span class="dsh-pm-list-id">REQ-xyz789</span></td>
+          <td><div class="dsh-pm-list-title">量化策略回测框架重构</div></td>
+          <td><span class="dsh-pm-list-cat feature">功能</span></td>
+          <td><span class="dsh-pm-list-status" data-status="planning">技术设计</span></td>
+          <td>-</td>
+          <td><span class="dsh-pm-list-owner" onclick="event.stopPropagation();">w-g7h8i9</span></td>
+          <td><span class="dsh-pm-list-time">3d 前</span></td>
+          <td>
+            <div class="dsh-pm-list-actions">
+              <button class="dsh-pm-list-btn success" onclick="event.stopPropagation();">→ 拆分</button>
+              <button class="dsh-pm-list-btn" onclick="event.stopPropagation();">退回</button>
+            </div>
+          </td>
+        </tr>
+        
+        <!-- 实施 → 验收 -->
+        <tr onclick="alert('跳转到详情页')">
+          <td><span class="dsh-pm-list-id">REQ-aaa111</span></td>
+          <td><div class="dsh-pm-list-title">决策评分系统 L2 学习飞轮</div></td>
+          <td><span class="dsh-pm-list-cat feature">功能</span></td>
+          <td><span class="dsh-pm-list-status" data-status="implementing">实施</span></td>
+          <td>
+            <div class="dsh-pm-list-progress">
+              <div class="dsh-pm-list-progress-bar">
+                <div class="dsh-pm-list-progress-fill" style="width: 65%;"></div>
+              </div>
+              <span class="dsh-pm-list-progress-text">13/20</span>
+            </div>
+          </td>
+          <td><span class="dsh-pm-list-owner" onclick="event.stopPropagation();">w-j1k2l3</span></td>
+          <td><span class="dsh-pm-list-time">1h 前</span></td>
+          <td>
+            <div class="dsh-pm-list-actions">
+              <button class="dsh-pm-list-btn primary" onclick="event.stopPropagation();">→ 验收</button>
+              <button class="dsh-pm-list-btn" onclick="event.stopPropagation();">暂停</button>
+            </div>
+          </td>
+        </tr>
+        
+        <tr onclick="alert('跳转到详情页')">
+          <td><span class="dsh-pm-list-id">REQ-bbb222</span></td>
+          <td><div class="dsh-pm-list-title">数据管道性能优化</div></td>
+          <td><span class="dsh-pm-list-cat refactor">重构</span></td>
+          <td><span class="dsh-pm-list-status" data-status="implementing">实施</span></td>
+          <td>
+            <div class="dsh-pm-list-progress">
+              <div class="dsh-pm-list-progress-bar">
+                <div class="dsh-pm-list-progress-fill" style="width: 35%;"></div>
+              </div>
+              <span class="dsh-pm-list-progress-text">7/20</span>
+            </div>
+          </td>
+          <td><span class="dsh-pm-list-owner" onclick="event.stopPropagation();">w-m4n5o6</span></td>
+          <td><span class="dsh-pm-list-time">4h 前</span></td>
+          <td>
+            <div class="dsh-pm-list-actions">
+              <button class="dsh-pm-list-btn primary" onclick="event.stopPropagation();">→ 验收</button>
+              <button class="dsh-pm-list-btn" onclick="event.stopPropagation();">暂停</button>
+            </div>
+          </td>
+        </tr>
+        
+        <tr onclick="alert('跳转到详情页')">
+          <td><span class="dsh-pm-list-id">REQ-ccc333</span></td>
+          <td><div class="dsh-pm-list-title">API 文档补全与示例</div></td>
+          <td><span class="dsh-pm-list-cat doc">文档</span></td>
+          <td><span class="dsh-pm-list-status" data-status="implementing">实施</span></td>
+          <td>
+            <div class="dsh-pm-list-progress">
+              <div class="dsh-pm-list-progress-bar">
+                <div class="dsh-pm-list-progress-fill" style="width: 80%;"></div>
+              </div>
+              <span class="dsh-pm-list-progress-text">8/10</span>
+            </div>
+          </td>
+          <td><span class="dsh-pm-list-owner" onclick="event.stopPropagation();">w-p7q8r9</span></td>
+          <td><span class="dsh-pm-list-time">12h 前</span></td>
+          <td>
+            <div class="dsh-pm-list-actions">
+              <button class="dsh-pm-list-btn primary" onclick="event.stopPropagation();">→ 验收</button>
+              <button class="dsh-pm-list-btn" onclick="event.stopPropagation();">暂停</button>
+            </div>
+          </td>
+        </tr>
+        
+        <tr onclick="alert('跳转到详情页')">
+          <td><span class="dsh-pm-list-id">REQ-ddd444</span></td>
+          <td><div class="dsh-pm-list-title">修复实盘滑点统计异常 🚨 有阻塞</div></td>
+          <td><span class="dsh-pm-list-cat bug">缺陷</span></td>
+          <td><span class="dsh-pm-list-status" data-status="implementing">实施</span></td>
+          <td>
+            <div class="dsh-pm-list-progress">
+              <div class="dsh-pm-list-progress-bar">
+                <div class="dsh-pm-list-progress-fill" style="width: 50%;"></div>
+              </div>
+              <span class="dsh-pm-list-progress-text">3/6</span>
+            </div>
+          </td>
+          <td><span class="dsh-pm-list-owner" onclick="event.stopPropagation();">w-s1t2u3</span></td>
+          <td><span class="dsh-pm-list-time">6h 前</span></td>
+          <td>
+            <div class="dsh-pm-list-actions">
+              <button class="dsh-pm-list-btn primary" onclick="event.stopPropagation();">→ 验收</button>
+              <button class="dsh-pm-list-btn" onclick="event.stopPropagation();">暂停</button>
+            </div>
+          </td>
+        </tr>
+        
+        <!-- 验收 → 归档 -->
+        <tr onclick="alert('跳转到详情页')">
+          <td><span class="dsh-pm-list-id">REQ-eee555</span></td>
+          <td><div class="dsh-pm-list-title">风控熔断机制 M4-2</div></td>
+          <td><span class="dsh-pm-list-cat feature">功能</span></td>
+          <td><span class="dsh-pm-list-status" data-status="accepting">验收</span></td>
+          <td>
+            <div class="dsh-pm-list-progress">
+              <div class="dsh-pm-list-progress-bar">
+                <div class="dsh-pm-list-progress-fill" style="width: 100%;"></div>
+              </div>
+              <span class="dsh-pm-list-progress-text">12/12</span>
+            </div>
+          </td>
+          <td><span class="dsh-pm-list-owner" onclick="event.stopPropagation();">w-v4w5x6</span></td>
+          <td><span class="dsh-pm-list-time">2d 前</span></td>
+          <td>
+            <div class="dsh-pm-list-actions">
+              <button class="dsh-pm-list-btn success" onclick="event.stopPropagation();">→ 归档</button>
+              <button class="dsh-pm-list-btn" onclick="event.stopPropagation();">退回</button>
+            </div>
+          </td>
+        </tr>
+        
+        <tr onclick="alert('跳转到详情页')">
+          <td><span class="dsh-pm-list-id">REQ-fff666</span></td>
+          <td><div class="dsh-pm-list-title">股票池自动化维护</div></td>
+          <td><span class="dsh-pm-list-cat refactor">重构</span></td>
+          <td><span class="dsh-pm-list-status" data-status="accepting">验收</span></td>
+          <td>
+            <div class="dsh-pm-list-progress">
+              <div class="dsh-pm-list-progress-bar">
+                <div class="dsh-pm-list-progress-fill" style="width: 100%;"></div>
+              </div>
+              <span class="dsh-pm-list-progress-text">8/8</span>
+            </div>
+          </td>
+          <td><span class="dsh-pm-list-owner" onclick="event.stopPropagation();">w-y7z8a9</span></td>
+          <td><span class="dsh-pm-list-time">1d 前</span></td>
+          <td>
+            <div class="dsh-pm-list-actions">
+              <button class="dsh-pm-list-btn success" onclick="event.stopPropagation();">→ 归档</button>
+              <button class="dsh-pm-list-btn" onclick="event.stopPropagation();">退回</button>
+            </div>
+          </td>
+        </tr>
+        
+        <!-- 已归档（置灰） -->
+        <tr class="archived" onclick="alert('跳转到详情页')">
+          <td><span class="dsh-pm-list-id">REQ-hhh888</span></td>
+          <td><div class="dsh-pm-list-title">M6 学习飞轮周报 📦 已归档</div></td>
+          <td><span class="dsh-pm-list-cat feature">功能</span></td>
+          <td><span class="dsh-pm-list-status" data-status="archived">归档</span></td>
+          <td>-</td>
+          <td><span class="dsh-pm-list-owner" onclick="event.stopPropagation();">w-e4f5g6</span></td>
+          <td><span class="dsh-pm-list-time">5d 前</span></td>
+          <td>-</td>
+        </tr>
+        
+        <tr class="archived" onclick="alert('跳转到详情页')">
+          <td><span class="dsh-pm-list-id">REQ-iii999</span></td>
+          <td><div class="dsh-pm-list-title">修复 K 线数据缓存问题 📦 已归档</div></td>
+          <td><span class="dsh-pm-list-cat bug">缺陷</span></td>
+          <td><span class="dsh-pm-list-status" data-status="archived">归档</span></td>
+          <td>-</td>
+          <td><span class="dsh-pm-list-owner" onclick="event.stopPropagation();">w-h7i8j9</span></td>
+          <td><span class="dsh-pm-list-time">7d 前</span></td>
+          <td>-</td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <div class="dsh-pm-pagination">
+      <div class="dsh-pm-pagination-info">
+        显示 1-12 条，共 19 条需求
+      </div>
+      <div class="dsh-pm-pagination-btns">
+        <button class="dsh-pm-pagination-btn active">1</button>
+        <button class="dsh-pm-pagination-btn">2</button>
+        <button class="dsh-pm-pagination-btn">下一页</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

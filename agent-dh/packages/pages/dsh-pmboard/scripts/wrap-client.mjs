@@ -12,10 +12,10 @@ const root = join(here, '..')
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 const cjs = readFileSync(join(root, 'lib', 'client.cjs'), 'utf8')
 
+// 2026-09-16 修复：不再给每行注入 \t\t 缩进——它会污染 bundle 内
+// 多行模板字符串（marked 的 HTML 输出模板/缩进判断被注入 tab，
+// 导致列表续行被误判为 code block、输出 HTML 带 \t\t）。
 const body = cjs
-  .split('\n')
-  .map((line) => '\t\t' + line)
-  .join('\n')
 
 const out = `window.__ModuleLoader__.load({
 \t\tid: ${JSON.stringify(pkg.name)},

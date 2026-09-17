@@ -101,16 +101,26 @@ describe('applyTaskRollup（R2 实施完成 → 验收）', () => {
     expect(applyTaskRollup(l, ctx)).toHaveLength(0)
   })
 
-  it('派生链 R3/R4：planning（计划已批）+ 有任务 → 一路推进到 accepting（拆分/执行不再要人点）', () => {
+  it('派生链 R3：planning（计划已批）+ 有任务 → 推进到 decomposing 后停等人工确认拆分清单（2026-09-14 五门裁定，R4 移除）', () => {
     const r = req({ status: 'planning' })
     const l = ledger({ requirements: [r], tasks: [task(r.id, { status: 'done' })] })
     const advanced = applyTaskRollup(l, ctx)
     expect(advanced).toHaveLength(1) // 同一需求只上报一次（避免 change 载荷重复）
-    expect(l.requirements[0].status).toBe('accepting')
-    // 三步都在留痕里可追溯
+    // 五门裁定：decomposing>implementing 入人工门，rollup 不再自动越过 → 停在拆分态
+    expect(l.requirements[0].status).toBe('decomposing')
     const trail = l.requirements[0].comments.filter(c => c.body.includes('[自动推进]')).map(c => c.body)
     expect(trail.some(b => b.includes('planning → decomposing'))).toBe(true)
-    expect(trail.some(b => b.includes('decomposing → implementing'))).toBe(true)
+    // R4 不再自动推进：留痕里没有 decomposing → implementing
+    expect(trail.some(b => b.includes('decomposing → implementing'))).toBe(false)
+  })
+
+  it('派生链 R2：implementing + 全部任务 done → accepting（人确认拆分清单后由任务事实推进）', () => {
+    const r = req({ status: 'implementing' })
+    const l = ledger({ requirements: [r], tasks: [task(r.id, { status: 'done' })] })
+    const advanced = applyTaskRollup(l, ctx)
+    expect(advanced).toHaveLength(1)
+    expect(l.requirements[0].status).toBe('accepting')
+    const trail = l.requirements[0].comments.filter(c => c.body.includes('[自动推进]')).map(c => c.body)
     expect(trail.some(b => b.includes('implementing → accepting'))).toBe(true)
   })
 
