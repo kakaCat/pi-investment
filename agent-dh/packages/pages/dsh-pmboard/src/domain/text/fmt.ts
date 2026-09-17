@@ -12,6 +12,11 @@
  */
 import { REQBOARD_ERROR_CODES, domainError } from '../errors.js'
 
+/** 截断到 max 字符（超出加省略号）。用于**弹框题干**等有硬性长度约束的场合。 */
+export function clip(text: string, max: number): string {
+  return text.length <= max ? text : text.slice(0, Math.max(0, max - 1)) + '…'
+}
+
 /** 变量值（消息里只允许这两种标量，避免把对象塞进用户可见文案）。 */
 export type FmtVars = Record<string, string | number>
 

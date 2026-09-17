@@ -30,6 +30,13 @@ export const LIMITS = {
   confirmReminderMs: 30 * 60_000,
   /** 文字确认证据的有效时间窗（毫秒）。 */
   confirmEvidenceWindowMs: 60 * 60_000,
+  /**
+   * 弹框题干长度纪律（2026-09-17 用户实测：卡片限高、题干与选项共享滚动区——
+   * 题干过长会把选项挤出可视区，用户表现为"不能选择"并取消）。
+   */
+  popupCriterionMax: 120,
+  popupEvidenceMax: 40,
+  popupQuestionMax: 220,
   /** 工具超时（毫秒）：读类 / 写入类 / 需人弹框类。 */
   timeoutReadMs: 15_000,
   timeoutWriteMs: 30_000,

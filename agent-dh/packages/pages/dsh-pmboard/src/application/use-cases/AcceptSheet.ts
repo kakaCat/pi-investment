@@ -11,7 +11,7 @@ import {
   recordStatus,
 } from '../../shared/protocol.js'
 import { ACCEPT_ITEM_OPTIONS, FINAL_DECLINE_LABEL, FINAL_PASS_LABEL } from '../../domain/text/labels.js'
-import { fmt } from '../../domain/text/fmt.js'
+import { clip, fmt } from '../../domain/text/fmt.js'
 import { LIMITS } from '../../domain/limits.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { applyVerdicts } from '../internal/verdicts.js'
@@ -145,8 +145,9 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
             header: it.source.kind === 'requirement'
               ? '需求级验收'
               : fmt('验收项 {taskId}', { taskId: it.source.taskId }),
-            question: it.criterion + (it.evidence.length > 0
-              ? fmt('\n（证据：{evidence}）', { evidence: it.evidence.slice(0, 2).join('；') })
+            // 题干长度纪律（LIMITS.popupCriterionMax/EvidenceMax）：宁可少给证据，也不能把选项挤出可视区
+            question: clip(it.criterion, LIMITS.popupCriterionMax) + (it.evidence.length > 0
+              ? fmt('\n（证据：{evidence}）', { evidence: clip(it.evidence[0] ?? '', LIMITS.popupEvidenceMax) })
               : ''),
             options: [
               { label: OPT_PASS, description: '该验收项通过' },
