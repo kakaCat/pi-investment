@@ -1,164 +1,128 @@
-"""
-升级检查器领域服务
+"""升级检查器领域服务（REQ-c9f899 t7 收敛，2026-09-18）
 
-判断 L0/L1 触发是否应自动升级为 L2（agent 介入）。
-纯函数，无 I/O，无外部依赖。
+「什么时候把一条 L0/L1 触发交给 agent」——收敛后只剩三条**可信**路径：
+
+  1) 规则显式声明：action_hint.escalate is True（规则作者说了算）
+  2) 宪法级：intent == 'exit_stop'（止损铁律，无条件）
+  3) 异常波动：|涨跌幅| ≥ 阈值（默认 5.0，按 metric 取数）
+
+已删除（历史五类，均经实证不可信或无人维护）：
+  · 触发频率 —— last_triggered 是覆盖写、无法累计；且「响得多」不是叫 agent 交易的理由。
+    该语义**改写为规则自愈**（R6）：反复触发去修规则，不是去下单。
+    计数能力保留在 StateManager（供自愈使用），本服务不再消费。
+  · 量能异常 —— 不校验 metric，把 price_break 的现价当量比（线上 19 条假「量能异常」，
+    且真放量反而判不出）。真放量应由 volume_surge 条件本身表达。
+  · 价格偏差 —— 「预案位失效」属规则体检范畴（提请退役/调参），不该每触发一次就升级。
+  · 核心区域 —— 需人工维护区间，线上无人填写。
+  · 多规则共振 —— 统计口径脆弱且与去重合并语义重叠，价值未验证。
+
+消费侧契约（t2）：本服务读 result.value 前必须先声明期望 metric（require_metric），
+不符即响亮抛错——这是「现价当量比」不再复发的机制保证。
 """
 from typing import Optional
 
-from domain.watch.models import WatchRule, QuoteData
+# QuoteData / WatchRule 原先由本模块再导出（domain.watch.services.__init__ 与既有 importer 依赖），
+# 本轮收敛保留再导出，避免破坏既有导入路径。
+from domain.watch.models import MetricKind, QuoteData, WatchRule  # noqa: F401
+from domain.watch.services.metric_contract import require_metric
+
+__all__ = ['EscalationChecker', 'QuoteData', 'WatchRule',
+           'DEFAULT_ANOMALY_CHANGE_PCT', 'CONSTITUTIONAL_INTENTS']
+
+#: 异常波动阈值（%）：|涨跌幅| 达到即升级；可按规则覆写 escalation_policy.anomaly_change_pct
+DEFAULT_ANOMALY_CHANGE_PCT = 5.0
+
+#: 宪法级意图：无条件升级（预算豁免由 disposition 的宪法豁免承载）
+CONSTITUTIONAL_INTENTS = ('exit_stop',)
 
 
 class EscalationChecker:
-    """升级检查器
-    
-    职责：
-    1. 检查 L0/L1 触发是否满足升级条件
-    2. 返回升级原因（None=不升级）
-    
-    升级条件（5 类）：
-    - 触发频率：近 N 分钟内触发 ≥M 次
-    - 价格偏差：当前价 vs 规则设定价偏差 >X%
-    - 核心区域：价格进入预设区间
-    - 量能异常：实际 ratio > 阈值 ×Y 倍
-    - 多规则共振：同 symbol 近 Z 秒内 ≥2 条规则触发
-    """
-    
-    def should_escalate(
-        self,
-        rule: WatchRule,
-        condition: dict,
-        quote: QuoteData,
-        result,
-        recent_trigger_count: int = 0,
-        concurrent_trigger_count: int = 0,
-    ) -> Optional[str]:
-        """检查是否应升级"""
-        # 处理 dict 类型的 escalation_policy（从数据库 JSONB 读取）
-        policy = rule.escalation_policy
+    """升级检查器（三条可信路径；无可信路径命中即不打扰 agent）"""
+
+    def __init__(self, anomaly_change_pct: Optional[float] = None):
+        self.anomaly_change_pct = (
+            float(anomaly_change_pct) if anomaly_change_pct is not None
+            else DEFAULT_ANOMALY_CHANGE_PCT)
+
+    def should_escalate(self, rule, condition: dict, quote, result,
+                        recent_trigger_count: int = 0,
+                        concurrent_trigger_count: int = 0) -> Optional[str]:
+        """检查是否应升级，返回原因（None=不升级）
+
+        recent_trigger_count / concurrent_trigger_count 为**兼容参数**，不参与判定
+        （原频率/共振路径已删除；触发计数改供规则自愈 R6 使用）。
+        """
+        policy = getattr(rule, 'escalation_policy', None)
         if isinstance(policy, dict):
-            if not policy or not policy.get('auto_escalate', True):
+            if policy and policy.get('auto_escalate', True) is False:
                 return None
-        elif not policy or not getattr(policy, 'auto_escalate', True):
+        elif policy is not None and getattr(policy, 'auto_escalate', True) is False:
             return None
-        
-        # 1. 触发频率升级
-        reason = self._check_trigger_frequency(policy, recent_trigger_count)
+
+        reason = self._explicit_declaration(rule)
         if reason:
             return reason
-        
-        # 2. 价格偏差升级
-        reason = self._check_price_deviation(policy, condition, quote)
-        if reason:
-            return reason
-        
-        # 3. 核心区域升级
-        reason = self._check_core_zones(policy, quote)
-        if reason:
-            return reason
-        
-        # 4. 量能异常升级
-        reason = self._check_volume_anomaly(policy, condition, result)
-        if reason:
-            return reason
-        
-        # 5. 多规则共振升级
-        reason = self._check_multi_rule_confluence(policy, concurrent_trigger_count)
-        if reason:
-            return reason
-        
+
+        if self._intent_of(rule) in CONSTITUTIONAL_INTENTS:
+            return '宪法级动作（exit_stop）：止损铁律，无条件交 agent 处置'
+
+        return self._check_anomaly(rule, condition, quote, result)
+
+    # ── 内部 ──────────────────────────────────────────────────
+    @staticmethod
+    def _action_hint(rule) -> dict:
+        ah = getattr(rule, 'action_hint', None)
+        if isinstance(ah, str):
+            import json
+            try:
+                ah = json.loads(ah)
+            except Exception:
+                return {}
+        return ah if isinstance(ah, dict) else {}
+
+    def _explicit_declaration(self, rule) -> Optional[str]:
+        if self._action_hint(rule).get('escalate') is True:
+            return '规则显式声明升级（action_hint.escalate=true）：命中即交 agent 处置'
         return None
-    
-    def _get_policy_value(self, policy, key, default=None):
-        """统一获取 policy 值（支持 dict 和 dataclass）"""
+
+    @classmethod
+    def _intent_of(cls, rule) -> str:
+        intent = str(getattr(rule, 'intent', '') or '').strip()
+        if intent:
+            return intent
+        return str(cls._action_hint(rule).get('action_on_trigger') or '').lower()
+
+    def _threshold(self, policy) -> float:
+        value = None
         if isinstance(policy, dict):
-            return policy.get(key, default)
-        return getattr(policy, key, default)
-    
-    def _check_trigger_frequency(self, policy, recent_trigger_count: int) -> Optional[str]:
-        """检查触发频率升级条件"""
-        max_triggers = self._get_policy_value(policy, 'max_triggers_per_window')
-        if not max_triggers:
+            value = policy.get('anomaly_change_pct')
+        elif policy is not None:
+            value = getattr(policy, 'anomaly_change_pct', None)
+        try:
+            return float(value) if value is not None else self.anomaly_change_pct
+        except (TypeError, ValueError):
+            return self.anomaly_change_pct
+
+    def _check_anomaly(self, rule, condition, quote, result) -> Optional[str]:
+        """异常波动判定（metric 契约：pct_change 条件的 value 必须是涨跌幅）"""
+        ctype = str((condition or {}).get('type') or '')
+        if ctype == 'pct_change':
+            require_metric(result, {MetricKind.PCT_CHANGE}, '_check_anomaly')
+            pct = getattr(result, 'value', None)
+        else:
+            pct = getattr(quote, 'change_pct', None)
+            if pct is None:
+                prev = getattr(quote, 'prev_close', None)
+                price = getattr(quote, 'price', None)
+                try:
+                    if prev:
+                        pct = (float(price) - float(prev)) / float(prev) * 100
+                except (TypeError, ValueError, ZeroDivisionError):
+                    pct = None
+
+        if pct is None:
             return None
-        
-        count = max_triggers.get('count', 3) if isinstance(max_triggers, dict) else getattr(max_triggers, 'count', 3)
-        window = max_triggers.get('window_minutes', 10) if isinstance(max_triggers, dict) else getattr(max_triggers, 'window_minutes', 10)
-        
-        if recent_trigger_count >= count:
-            return f"触发频率异常（{window}分钟内{recent_trigger_count}次），可能洗盘/真突破"
-        
-        return None
-    
-    def _check_price_deviation(self, policy, condition: dict, quote: QuoteData) -> Optional[str]:
-        """检查价格偏差升级条件"""
-        deviation_pct = self._get_policy_value(policy, 'price_deviation_pct')
-        if not deviation_pct:
-            return None
-        
-        params = condition.get('params', {})
-        rule_price = params.get('price')
-        
-        if not rule_price or rule_price <= 0:
-            return None
-        
-        deviation = abs(quote.price - rule_price) / rule_price * 100
-        
-        if deviation > deviation_pct:
-            return f"价格偏差{deviation:.1f}%，原预案位置失效"
-        
-        return None
-    
-    def _check_core_zones(self, policy, quote: QuoteData) -> Optional[str]:
-        """检查核心区域升级条件"""
-        core_zones = self._get_policy_value(policy, 'core_zones')
-        if not core_zones:
-            return None
-        
-        for zone in core_zones:
-            if isinstance(zone, dict):
-                low = zone.get('low')
-                high = zone.get('high')
-                reason = zone.get('reason', '关键区域')
-            else:
-                low = getattr(zone, 'low', None)
-                high = getattr(zone, 'high', None)
-                reason = getattr(zone, 'reason', '关键区域')
-            
-            if low is not None and high is not None:
-                if low <= quote.price <= high:
-                    return f"进入核心区域 {low}-{high}（{reason}）"
-        
-        return None
-    
-    def _check_volume_anomaly(self, policy, condition: dict, result) -> Optional[str]:
-        """检查量能异常升级条件"""
-        multiplier = self._get_policy_value(policy, 'volume_ratio_multiplier')
-        if not multiplier:
-            return None
-        
-        if not result.value or result.value <= 0:
-            return None
-        
-        params = condition.get('params', {})
-        threshold = params.get('multiple', 1.5)
-        
-        if result.value > threshold * multiplier:
-            return f"量能异常（{result.value:.1f}x vs 阈值{threshold}x），可能主力异动"
-        
-        return None
-    
-    def _check_multi_rule_confluence(self, policy, concurrent_trigger_count: int) -> Optional[str]:
-        """检查多规则共振升级条件"""
-        confluence = self._get_policy_value(policy, 'multi_rule_confluence')
-        if not confluence:
-            return None
-        
-        enabled = confluence.get('enabled', False) if isinstance(confluence, dict) else getattr(confluence, 'enabled', False)
-        if not enabled:
-            return None
-        
-        if concurrent_trigger_count >= 2:
-            window = confluence.get('window_seconds', 60) if isinstance(confluence, dict) else getattr(confluence, 'window_seconds', 60)
-            return f"多规则共振（{concurrent_trigger_count}条规则近{window}秒内触发），价格剧烈波动"
-        
+        threshold = self._threshold(getattr(rule, 'escalation_policy', None))
+        if abs(float(pct)) >= threshold:
+            return '异常波动：涨跌幅 %.2f%% 达到阈值 %.1f%%' % (float(pct), threshold)
         return None

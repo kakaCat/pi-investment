@@ -48,6 +48,11 @@ class EscalationPolicy:
     配置规则在 L0/L1 层级时，哪些情况下应自动升级为 L2（agent 介入）。
     """
     auto_escalate: bool = True
+
+    #: 异常波动升级阈值（%）：|涨跌幅| 达到即升级（REQ-c9f899 t7 新增；None=用 checker 默认值）
+    anomaly_change_pct: Optional[float] = None
+
+    # ── 以下为历史字段，仅保留以兼容既有 JSONB 解析；REQ-c9f899 t7 起不再被任何判定消费 ──
     
     # 触发频率升级：{count} 次 / {window_minutes} 分钟
     max_triggers_per_window: Optional[Dict[str, int]] = None
@@ -67,13 +72,9 @@ class EscalationPolicy:
     @classmethod
     def default(cls) -> 'EscalationPolicy':
         """默认升级策略"""
-        return cls(
-            auto_escalate=True,
-            max_triggers_per_window={"count": 3, "window_minutes": 10},
-            price_deviation_pct=5.0,
-            volume_ratio_multiplier=2.0,
-            multi_rule_confluence={"enabled": True, "window_seconds": 60}
-        )
+        # REQ-c9f899 t7：收敛后默认策略不再预置历史判据字段（频率/价格偏差/核心区域/量能/共振），
+        # 只留总开关；异常波动阈值取 EscalationChecker.DEFAULT_ANOMALY_CHANGE_PCT。
+        return cls(auto_escalate=True)
 
 
 @dataclass
@@ -149,4 +150,27 @@ class MarketState:
         item = self.indices.get(code) or {}
         v = item.get("change_pct")
         return float(v) if v is not None else None
+
+
+class MetricKind(str, Enum):
+    """判据产出的 metric 类型（REQ-c9f899 t2，2026-09-18）
+
+    EvalResult.value 的语义由本枚举唯一确定——没有它，消费方只能靠假设，
+    于是出现「price_break 的现价（388.5）被当量比 → 量能异常 388.5x」这类误读
+    （线上 19 条假「量能异常」，且真放量反而判不出）。
+    """
+    PRICE = 'price'                        # 价格（元）
+    PCT_CHANGE = 'pct_change'              # 当日涨跌幅（%）
+    PNL_PCT = 'pnl_pct'                    # 持仓盈亏（%）
+    VELOCITY_PCT = 'velocity_pct'          # 窗口内波动幅度（%）
+    VOLUME_RATIO = 'volume_ratio'          # 成交量为同期均量的倍数（x）
+    INDICATOR_VALUE = 'indicator_value'    # 指标值（MA/RSI/MACD 等，t9 阶段引入）
+    EVENT_FLAG = 'event_flag'              # 事件命中标志（t 阶段三引入）
+    SECTOR_STRENGTH = 'sector_strength'    # 板块强度（阶段二引入）
+    COMPOSITE = 'composite'                # 复合条件（子 metric 见 message）
+    UNKNOWN = 'unknown'                    # 未声明（旧结果/无法评估）——不得据此决策
+
+
+class WatchMetricContractViolation(ValueError):
+    """判据 metric 契约被违反（消费方声明的语义与实际产出不符）"""
 

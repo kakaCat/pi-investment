@@ -25,13 +25,14 @@ class EscalationCoordinator:
         self.checker = escalation_checker or EscalationChecker()
 
     def check(self, rule, cond, quote, result, now) -> Optional[str]:
-        """返回 escalation_reason（无则 None）。仅 L0/L1 规则会检查。"""
+        """返回 escalation_reason（无则 None）。仅 L0/L1 规则会检查。
+
+        2026-09-18（REQ-c9f899 t7）：不再收集「频率/共振」计数——那两条路径已删除
+        （反复触发改由规则自愈 R6 处置）。触发计数仍由 StateManager 维护，供自愈消费。
+        """
         level = self._get_trigger_level(rule)
         if level not in ('L0', 'L1'):
             return None
-
-        recent_count = self.state.recent_trigger_count(now, rule.id, window_minutes=10)
-        concurrent_count = self.state.concurrent_trigger_count(now, rule.symbol, rule.id, window_seconds=60)
 
         quote_data = QuoteData(
             symbol=rule.symbol,
@@ -46,8 +47,6 @@ class EscalationCoordinator:
             condition=cond,
             quote=quote_data,
             result=result,
-            recent_trigger_count=recent_count,
-            concurrent_trigger_count=concurrent_count,
         )
 
     def _get_trigger_level(self, rule) -> str:

@@ -21,7 +21,8 @@ import structlog
 
 from application.notification.notification_factory import NotificationFactory
 from application.services.watch_engine.dto import TriggerPayload
-from domain.watch.models import TriggerLevel
+from domain.watch.models import MetricKind, TriggerLevel
+from domain.watch.services.metric_contract import metric_matches
 
 logger = structlog.get_logger(__name__)
 
@@ -82,14 +83,38 @@ class WatchNotifier:
         max_retries: int = 3,
         retry_interval: float = 1.0,
         notification_facade=None,  # 可选：注入 NotificationFacade 实例
+        account_total_provider=None,  # REQ-c9f899 t12：账户总资产取数（金额门），与 factory 同口径
     ):
         self.trigger_repo = trigger_repo
         self.ws_url = ws_url
         self.max_retries = max_retries
         self.retry_interval = retry_interval
+        #: 账户总资产 provider（factory 注入，避免另造第二份取数口径）
+        self._account_total_provider = account_total_provider
         
         # 注入或懒加载 NotificationFacade
         self._notification_facade = notification_facade
+
+    def _account_total_yuan(self, rule):
+        """账户总资产（元）：供金额门判定。provider 缺失/抛错/取不到 → None（门关闭，不抛错）。
+
+        REQ-c9f899 t12（§6 待接线项 2）：金额门在 facade 侧已修好，但 notifier 调用处
+        从未传 account_total_yuan → 生产链路上门仍关闭。此处复用 factory 的
+        account_total_provider（同一取数口径，勿另造）；缺数据时保持门关闭（原行为），
+        绝不因取数失败中断通知（路由/告警不该被数据问题阻断）。
+        """
+        provider = self._account_total_provider
+        if provider is None:
+            return None
+        try:
+            value = provider(rule)
+        except Exception as e:  # noqa: BLE001 - 取数失败不许打挂通知
+            logger.warning('账户总资产取数失败，金额门关闭（None）', error=str(e))
+            return None
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
     
     @property
     def notification_facade(self):
@@ -100,7 +125,7 @@ class WatchNotifier:
 
     def notify(self, rule, condition: dict, quote, result, escalation_reason: str = None,
                disposition: str = None, disposition_reason: str = None,
-               dup_of: int = None, action_amount_yuan: float = None):
+               dup_of: int = None, action_amount_yuan: float = None, level: str = None):
         """触发通知
         
         Args:
@@ -131,7 +156,7 @@ class WatchNotifier:
 
         # 1. 构建 TriggerPayload
         payload = self._build_payload(rule, condition, quote, result, escalation_reason,
-                                      action_amount_yuan=action_amount_yuan)
+                                      action_amount_yuan=action_amount_yuan, level=level)
         
         # 2. 确定通知模式
         trigger_level = payload.trigger_level
@@ -169,6 +194,10 @@ class WatchNotifier:
                 account=payload.account,
                 scope=payload.scope,
                 action_amount_yuan=payload.action_amount_yuan,
+                # REQ-c9f899 t12 §6-项2：金额门取数（缺失=None=门关闭，不抛错）
+                account_total_yuan=self._account_total_yuan(rule),
+                # REQ-c9f899 t12 §6-项1：级别随通知下发（无值走旧渲染，兼容非分级路径）
+                level=payload.level,
             )
             notified = facade_result.success if hasattr(facade_result, 'success') else bool(facade_result)
         except Exception as e:
@@ -185,7 +214,7 @@ class WatchNotifier:
         return trigger
 
     def _build_payload(self, rule, condition, quote, result, escalation_reason: str = None,
-                       action_amount_yuan: float = None) -> TriggerPayload:
+                       action_amount_yuan: float = None, level: str = None) -> TriggerPayload:
         """构建 TriggerPayload"""
         price = float(quote.price)
         
@@ -249,13 +278,16 @@ class WatchNotifier:
             escalation_reason=escalation_reason,
             change_pct=change_pct,
             pnl_pct=pnl_pct,
-            volume_ratio=result.value if hasattr(result, 'value') else None,
+            # 2026-09-18（REQ-c9f899 t2）：只有真正产出 volume_ratio 的判据才能填量比字段；
+            # 此前无条件把 result.value 当量比（price_break 的现价会被渲染成 388.5x 量比）。
+            volume_ratio=(result.value if metric_matches(result, {MetricKind.VOLUME_RATIO}) else None),
             intent=getattr(rule, 'intent', None),
             lifecycle_stage=getattr(rule, 'lifecycle_stage', None),
             next_action_hint=getattr(rule, 'next_action_hint', None),
             account=getattr(rule, 'account', None),
             scope=getattr(rule, 'scope', None),
             action_amount_yuan=action_amount_yuan,
+            level=level,
         )
 
     def record_governance(self, rule, reason: str, detail: dict = None):

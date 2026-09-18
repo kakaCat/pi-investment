@@ -14,7 +14,7 @@ import pytest
 import requests
 
 from adapters.outbound.repositories.watch_rule_repository import (
-    WatchRuleRepository, WatchTrigger, WatchTriggerRepository,
+    WatchRuleRepository, WatchTriggerRepository,
 )
 from application.services.agent_notification_service import AgentNotificationService
 from application.services.watch_engine.digest_service import WatchDigestService
@@ -23,6 +23,16 @@ from application.services.watch_engine.factory import create_watch_engine
 SYMBOL = "600887"          # 伊利：agent_virtual 持仓标的（止损伤痕真实存在）
 ACCOUNT = "agent_virtual"
 TRIGGER_PRICE = 24.00      # 明显低于建仓成本，确保命中
+
+# 本模块用真库 + 真引擎：测试库里的**残留** 600887 规则/触发会与本次新建规则竞争
+# 同一去重键（(600887, below)）——list_enabled() 无 ORDER BY，谁先被处理取决于物理
+# 行序，于是同一命令逐轮漂移（实测 deduped + dup_of=673）。因此：
+#   · serial 标记 + 结构固化 + 协作进程串行锁（REQ-c9f899 返工 D）；
+#   · setup/teardown 里对本标的清场（_purge_watch_symbol_state），使结果只取决于本次数据。
+pytestmark = [
+    pytest.mark.serial,
+    pytest.mark.usefixtures("db_schema_synced", "watch_db_advisory_lock"),
+]
 
 
 class _Quote:
@@ -69,8 +79,67 @@ def captured(monkeypatch):
     return calls
 
 
+def _purge_watch_symbol_state(symbol: str) -> None:
+    """清掉某标的的全部盯盘状态，让 e2e 只依赖本次数据、不依赖库内残留。
+
+    清场对象（存在即删；表缺失则跳过——结构由 session 级 db_schema_synced 保证）：
+      watch_receipts / watch_todos / watch_rule_changes / watch_runtime_state
+      / watch_runtime_dedup / watch_trigger_events / watch_price_history
+      / watch_triggers / watch_rules
+
+    为什么按 symbol 而不是只删本次 rule.id：去重键 = (归一化标的, 方向)，跨规则共享；
+    残留的同标的同向规则会先把键标记为"窗内已通知"，使本次新建规则被合并
+    （disposition=deduped、notified=False），断言随之抖动。
+    """
+    from sqlalchemy import text
+
+    from infrastructure.persistence.orm import get_session
+
+    session = get_session()
+    session.rollback()
+    like = symbol + '%'
+
+    def _table_exists(name: str) -> bool:
+        return bool(session.execute(
+            text("SELECT to_regclass(:n)"), {'n': 'quant.' + name}).scalar())
+
+    rule_ids = [r[0] for r in session.execute(
+        text("SELECT id FROM quant.watch_rules WHERE symbol LIKE :s"),
+        {'s': like}).fetchall()]
+
+    if _table_exists('watch_receipts') and _table_exists('watch_todos'):
+        session.execute(text(
+            "DELETE FROM quant.watch_receipts WHERE todo_id IN ("
+            "SELECT id FROM quant.watch_todos WHERE symbol LIKE :s)"), {'s': like})
+    if _table_exists('watch_todos'):
+        if rule_ids:
+            session.execute(text(
+                "DELETE FROM quant.watch_todos WHERE symbol LIKE :s OR rule_id = ANY(:i)"),
+                {'s': like, 'i': rule_ids})
+        else:
+            session.execute(text(
+                "DELETE FROM quant.watch_todos WHERE symbol LIKE :s"), {'s': like})
+    if rule_ids and _table_exists('watch_rule_changes'):
+        session.execute(text(
+            "DELETE FROM quant.watch_rule_changes WHERE rule_id = ANY(:i)"),
+            {'i': rule_ids})
+    if rule_ids and _table_exists('watch_runtime_state'):
+        session.execute(text(
+            "DELETE FROM quant.watch_runtime_state WHERE rule_id = ANY(:i)"),
+            {'i': rule_ids})
+    for table in ('watch_runtime_dedup', 'watch_trigger_events', 'watch_price_history'):
+        if _table_exists(table):
+            session.execute(
+                text("DELETE FROM quant.%s WHERE symbol LIKE :s" % table), {'s': like})
+    session.execute(text("DELETE FROM quant.watch_triggers WHERE symbol LIKE :s"), {'s': like})
+    session.execute(text("DELETE FROM quant.watch_rules WHERE symbol LIKE :s"), {'s': like})
+    session.commit()
+
+
 @pytest.fixture
 def rule_id():
+    # 清场：移除残留的 600887 规则/触发/运行态，保证去重窗、闩锁、冷却都从零开始
+    _purge_watch_symbol_state(SYMBOL)
     repo = WatchRuleRepository()
     rule = repo.create_rule(
         symbol=SYMBOL,
@@ -82,15 +151,11 @@ def rule_id():
         action_hint={"trigger_level": "L2", "action_on_trigger": "sell"},
     )
     yield rule.id
-    # 清理：触发记录 + 规则
+    # 收场：本次产生的触发/待办/运行态连同规则一并清掉（失败不掩盖用例结论）
     try:
-        trig_repo = WatchTriggerRepository()
-        trig_repo.session.query(WatchTrigger).filter(
-            WatchTrigger.rule_id == rule.id).delete(synchronize_session=False)
-        trig_repo.session.commit()
+        _purge_watch_symbol_state(SYMBOL)
     except Exception:
         pass
-    repo.delete_by_id(rule.id)
 
 
 def test_e2e_rule_to_trigger_to_notification(rule_id, captured):
@@ -150,14 +215,20 @@ def test_e2e_digest_splits_by_account_and_carries_authority(rule_id, captured):
     digest = svc.build_digest()
     seg = svc._segments(digest)
     assert ACCOUNT in seg, "该账户没有独立摘要段：%s" % list(seg)
-    assert str(rule_id) not in seg[ACCOUNT]["text"] or True  # 段内文本含本规则
+    # 强化（返工 D）：断言本规则的触发确实进了该账户段——原断言的结尾是恒真的 or True，
+    # 证伪不了"段内容来自残留数据"。
+    assert ("规则%s" % rule_id) in seg[ACCOUNT]["text"], (
+        "该账户摘要段未含本规则 #%s：%s" % (rule_id, seg[ACCOUNT]["text"]))
 
     res = svc.maybe_wake(now=datetime(2026, 9, 11, 10, 0))
     wakes = [c for c in captured if c["url"].endswith("/wake")]
     assert wakes, "摘要门没有唤醒任何 agent：%s" % res
-    payload = wakes[-1]["json"]["data"]
-    assert payload["account_name"] in (ACCOUNT, None)
-    if payload["account_name"] == ACCOUNT:
-        assert payload["autonomy"] == "autonomous"      # agent 自有账户 → 可自主操作
-        assert "autonomous" in payload["instruction"] or "自主操作" in payload["instruction"]
-        assert payload["target_agent"] == "agent-dh"    # 投送目标（与消息频道解耦）
+    # 只认**本账户**的唤醒：投送按账户一账户一份，wakes[-1] 可能是其它账户/未归属桶，
+    # 取末条会随残留数据抖动（flake 源之一）。
+    acct_wakes = [c for c in wakes
+                  if c["json"]["data"].get("account_name") == ACCOUNT]
+    assert acct_wakes, "未按账户 %s 投送唤醒：%s" % (ACCOUNT, res)
+    payload = acct_wakes[-1]["json"]["data"]
+    assert payload["autonomy"] == "autonomous"      # agent 自有账户 → 可自主操作
+    assert "autonomous" in payload["instruction"] or "自主操作" in payload["instruction"]
+    assert payload["target_agent"] == "agent-dh"    # 投送目标（与消息频道解耦）

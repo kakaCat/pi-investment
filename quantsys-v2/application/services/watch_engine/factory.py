@@ -53,10 +53,48 @@ def make_avg_volume_provider():
     return provider
 
 
+def build_watch_loop_services():
+    """按开关装配闭环服务（REQ-c9f899 t12 §6-项8）——**可单测的纯装配决策**。
+
+    返回 (runtime_store, todo_service, receipt_service, sla_job, self_heal_service)。
+    默认全关（WATCH_TODO_ENABLED=false / WATCH_SELF_HEAL_ENABLED=false /
+    WATCH_RUNTIME_PERSIST_ENABLED=false）→ 全 None，引擎行为与改造前**一致**。
+    与进程外定时任务共用同一份 watch_loop_wiring 装配函数，避免两条真相。
+    任一装配异常都降级（回旧路径/内存态）并记日志，绝不阻断引擎启动。
+    """
+    from application.services.watch_engine import watch_loop_wiring as _wiring
+
+    runtime_store = None
+    if _wiring.watch_runtime_persist_enabled():
+        try:
+            runtime_store = _wiring.build_runtime_store()
+            logger.info('运行态持久化已显式装配（WATCH_RUNTIME_PERSIST_ENABLED=true）')
+        except Exception as e:  # noqa: BLE001 - 装配失败降级为内存态，不阻断启动
+            logger.error('运行态持久化装配失败，降级为内存态（冷却重启会丢）', error=str(e))
+            runtime_store = None
+
+    todo_service = receipt_service = sla_job = self_heal_service = None
+    if _wiring.watch_todo_enabled():
+        try:
+            todo_service = _wiring.build_todo_service()
+            receipt_service = _wiring.build_receipt_service()
+            sla_job = _wiring.build_sla_job(receipt_service=receipt_service)
+            logger.info('盯盘闭环已装配（WATCH_TODO_ENABLED=true）')
+        except Exception as e:  # noqa: BLE001 - 装配失败回旧路径（不建待办），不阻断启动
+            logger.error('盯盘闭环装配失败，降级为旧路径（不建待办）', error=str(e))
+            todo_service = receipt_service = sla_job = None
+        if todo_service is not None and _wiring.watch_self_heal_enabled():
+            try:
+                self_heal_service = _wiring.build_self_heal_service(todo_service)
+                logger.info('规则自愈已装配（WATCH_SELF_HEAL_ENABLED=true）')
+            except Exception as e:  # noqa: BLE001
+                logger.error('规则自愈装配失败（抑噪/修复不可用）', error=str(e))
+                self_heal_service = None
+
+    return runtime_store, todo_service, receipt_service, sla_job, self_heal_service
+
+
 def create_watch_engine() -> WatchEngine:
-    notifier = WatchNotifier(
-        trigger_repo=WatchTriggerRepository(),
-    )
     _pos_repo = SimulationPositionRepository()
 
     def position_value_provider(rule):
@@ -90,6 +128,13 @@ def create_watch_engine() -> WatchEngine:
         except Exception:
             return None
 
+    # 通知器：金额门取数复用**同一个** account_total_provider（REQ-c9f899 t12 §6-项2，
+    # 勿另造第二份账户取数口径；缺数据时 provider 返回 None → 金额门关闭，不抛错）。
+    notifier = WatchNotifier(
+        trigger_repo=WatchTriggerRepository(),
+        account_total_provider=account_total_provider,
+    )
+
     _market_watch = MarketWatchService(
         rule_repo=WatchRuleRepository(),
         trigger_repo=WatchTriggerRepository(),
@@ -120,6 +165,10 @@ def create_watch_engine() -> WatchEngine:
         _structlog.get_logger(__name__).info(
             '摘要门未启用（WATCH_DIGEST_ENABLED != true）—— 触发照常落库归档，但不唤醒 agent')
 
+    # 闭环装配（REQ-c9f899 t12 §6-项8）：默认全关 → 全 None（行为与改造前一致）
+    runtime_store, todo_service, receipt_service, sla_job, self_heal_service = \
+        build_watch_loop_services()
+
     return WatchEngine(
         rule_repo=WatchRuleRepository(),
         quote_service=RealtimeQuoteServiceV2(),
@@ -141,6 +190,12 @@ def create_watch_engine() -> WatchEngine:
         ),
         # P6 市场级盯盘：取数走 IMarketStateProvider 端口，实现是 MarketStateProvider 适配器
         market_watch_service=_market_watch,
+        # 闭环装配（REQ-c9f899 t12）：默认 None → 行为与改造前一致
+        runtime_state_store=runtime_store,
+        todo_service=todo_service,
+        receipt_service=receipt_service,
+        sla_job=sla_job,
+        self_heal_service=self_heal_service,
     )
 
 

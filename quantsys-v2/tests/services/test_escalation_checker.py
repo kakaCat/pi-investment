@@ -1,114 +1,132 @@
-"""EscalationChecker 单元测试"""
+"""EscalationChecker 测试（REQ-c9f899 t7 收敛后语义）
+
+只认三条可信路径：规则显式声明 / 宪法级 / 异常波动。
+历史五类（频率·价格偏差·核心区域·量能·共振）已删除——本文件用一条「旧策略全字段」
+用例把它们钉死为不再生效。
+"""
 import pytest
-from datetime import datetime
-from types import SimpleNamespace
 
-from domain.watch.models import WatchRule, EscalationPolicy, TriggerLevel, ActionHint
-from domain.watch.services.escalation_checker import EscalationChecker, QuoteData
 from application.services.watch_engine.conditions import EvalResult
+from domain.watch.models import (
+    ActionHint, EscalationPolicy, MetricKind, QuoteData, TriggerLevel, WatchMetricContractViolation,
+    WatchRule,
+)
+from domain.watch.services.escalation_checker import EscalationChecker
 
 
-class TestEscalationChecker:
-    """升级检查器测试"""
-    
-    def setup_method(self):
-        self.checker = EscalationChecker()
-        self.rule = WatchRule(
-            id=1,
-            symbol='600219',
-            enabled=True,
-            conditions=[{'type': 'price_break', 'params': {'price': 5.13, 'direction': 'above'}}],
-            action_hint=ActionHint(
-                trigger_level=TriggerLevel.L1_OBSERVATION,
-                action_on_trigger='observe',
-                requires_agent=False,
-            ),
-            escalation_policy=EscalationPolicy.default(),
-        )
-        self.quote = QuoteData(symbol='600219', price=5.15, change_pct=1.2)
-        self.result = EvalResult(triggered=True, value=1.8, distance_ratio=0.1, message='突破5.13')
-    
-    def test_no_escalation_when_policy_disabled(self):
-        """策略关闭时不升级"""
-        self.rule.escalation_policy = EscalationPolicy(auto_escalate=False)
-        reason = self.checker.should_escalate(self.rule, self.rule.conditions[0], self.quote, self.result)
-        assert reason is None
-    
-    def test_no_escalation_when_no_policy(self):
-        """无策略时不升级"""
-        self.rule.escalation_policy = None
-        reason = self.checker.should_escalate(self.rule, self.rule.conditions[0], self.quote, self.result)
-        assert reason is None
-    
-    def test_trigger_frequency_escalation(self):
-        """触发频率升级"""
-        reason = self.checker.should_escalate(
-            self.rule, self.rule.conditions[0], self.quote, self.result,
-            recent_trigger_count=3
-        )
-        assert reason is not None
-        assert '触发频率异常' in reason
-        assert '3次' in reason
-    
-    def test_no_frequency_escalation_when_below_threshold(self):
-        """触发次数不足时不升级"""
-        reason = self.checker.should_escalate(
-            self.rule, self.rule.conditions[0], self.quote, self.result,
-            recent_trigger_count=2
-        )
-        assert reason is None
-    
-    def test_price_deviation_escalation(self):
-        """价格偏差升级"""
-        # 当前价 5.50，设定价 5.13，偏差 7.2% > 5%
-        quote = QuoteData(symbol='600219', price=5.50)
-        reason = self.checker.should_escalate(self.rule, self.rule.conditions[0], quote, self.result)
-        assert reason is not None
-        assert '价格偏差' in reason
-        assert '7.2%' in reason
-    
-    def test_no_price_deviation_when_within_threshold(self):
-        """价格偏差在阈值内不升级"""
-        # 当前价 5.15，设定价 5.13，偏差 0.4% < 5%
-        reason = self.checker.should_escalate(self.rule, self.rule.conditions[0], self.quote, self.result)
-        assert reason is None
-    
-    def test_core_zone_escalation(self):
-        """核心区域升级"""
-        self.rule.escalation_policy = EscalationPolicy(
-            auto_escalate=True,
-            core_zones=[{'low': 4.65, 'high': 5.13, 'reason': '平台震荡区'}]
-        )
-        # 当前价 5.00，在核心区域内
-        quote = QuoteData(symbol='600219', price=5.00)
-        reason = self.checker.should_escalate(self.rule, self.rule.conditions[0], quote, self.result)
-        assert reason is not None
-        assert '核心区域' in reason
-        assert '平台震荡区' in reason
-    
-    def test_volume_anomaly_escalation(self):
-        """量能异常升级"""
-        # volume_surge 阈值 1.5x，实际 3.5x，倍数 2.33 > 2.0
-        result = EvalResult(triggered=True, value=3.5, distance_ratio=0.1, message='放量')
-        condition = {'type': 'volume_surge', 'params': {'multiple': 1.5}}
-        reason = self.checker.should_escalate(self.rule, condition, self.quote, result)
-        assert reason is not None
-        assert '量能异常' in reason
-    
-    def test_multi_rule_confluence_escalation(self):
-        """多规则共振升级"""
-        reason = self.checker.should_escalate(
-            self.rule, self.rule.conditions[0], self.quote, self.result,
-            concurrent_trigger_count=2
-        )
-        assert reason is not None
-        assert '多规则共振' in reason
-    
-    def test_no_escalation_when_healthy(self):
-        """健康状态不升级"""
-        reason = self.checker.should_escalate(
-            self.rule, self.rule.conditions[0], self.quote, self.result,
-            recent_trigger_count=1,
-            concurrent_trigger_count=1
-        )
-        assert reason is None
+def _rule(**over):
+    base = dict(
+        id=1, symbol='600219', enabled=True,
+        conditions=[{'type': 'price_break', 'params': {'price': 5.13, 'direction': 'above'}}],
+        action_hint=ActionHint(trigger_level=TriggerLevel.L1_OBSERVATION,
+                               action_on_trigger='observe', requires_agent=False),
+        escalation_policy=EscalationPolicy.default(),
+    )
+    base.update(over)
+    return WatchRule(**base)
+
+
+LEGACY_POLICY = {
+    'auto_escalate': True,
+    'price_deviation_pct': 5.0,
+    'core_zones': [{'low': 4.65, 'high': 5.13, 'reason': '平台震荡区'}],
+    'volume_ratio_multiplier': 2.0,
+    'max_triggers_per_window': {'count': 3, 'window_minutes': 10},
+    'multi_rule_confluence': {'enabled': True, 'window_seconds': 60},
+}
+
+
+def _res(value=5.15, metric=MetricKind.PRICE):
+    return EvalResult(triggered=True, value=value, distance_ratio=0.1,
+                      message='x', metric=metric)
+
+
+def test_policy_disabled_never_escalates():
+    reason = EscalationChecker().should_escalate(
+        _rule(escalation_policy=EscalationPolicy(auto_escalate=False)),
+        {'type': 'price_break', 'params': {'price': 5.13, 'direction': 'above'}},
+        QuoteData(symbol='600219', price=5.15, change_pct=1.2), _res())
+    assert reason is None
+
+
+def test_no_policy_and_normal_volatility_no_escalation():
+    r = _rule(escalation_policy=None)
+    reason = EscalationChecker().should_escalate(
+        r, r.conditions[0], QuoteData(symbol='600219', price=5.15, change_pct=1.2), _res())
+    assert reason is None
+
+
+def test_explicit_declaration_escalates():
+    r = _rule(action_hint=ActionHint(trigger_level=TriggerLevel.L1_OBSERVATION,
+                                     action_on_trigger='observe', requires_agent=False))
+    r.action_hint = {'trigger_level': 'L1', 'action_on_trigger': 'observe', 'escalate': True}
+    reason = EscalationChecker().should_escalate(
+        r, r.conditions[0], QuoteData(symbol='600219', price=5.15, change_pct=0.1), _res())
+    assert reason is not None and '规则显式声明' in reason
+
+
+def test_constitutional_intent_escalates_unconditionally():
+    # WatchRule（领域模型）无 intent 字段——intent 由仓储映射层提供，判据按鸭子类型读取
+    r = _rule()
+    r.intent = 'exit_stop'
+    reason = EscalationChecker().should_escalate(
+        r, r.conditions[0], QuoteData(symbol='600219', price=5.15, change_pct=0.0), _res())
+    assert reason is not None and '宪法级' in reason
+
+
+def test_anomaly_volatility_escalates():
+    r = _rule()
+    reason = EscalationChecker().should_escalate(
+        r, r.conditions[0], QuoteData(symbol='600219', price=5.5, change_pct=6.3), _res())
+    assert reason is not None and '异常波动' in reason
+
+
+def test_anomaly_volatility_below_threshold_not_escalated():
+    r = _rule()
+    reason = EscalationChecker().should_escalate(
+        r, r.conditions[0], QuoteData(symbol='600219', price=5.5, change_pct=1.2), _res())
+    assert reason is None
+
+
+def test_anomaly_uses_pct_change_metric_when_condition_is_pct_change():
+    cond = {'type': 'pct_change', 'params': {'pct': 5.0, 'direction': 'above'}}
+    r = _rule(conditions=[cond])
+    # quote.change_pct 很小，但判据给出的 metric 值是 6.0 → 应升级
+    reason = EscalationChecker().should_escalate(
+        r, cond, QuoteData(symbol='600219', price=5.5, change_pct=0.1),
+        _res(value=6.0, metric=MetricKind.PCT_CHANGE))
+    assert reason is not None and '异常波动' in reason
+
+
+def test_anomaly_metric_violation_raises():
+    """契约：pct_change 条件却给出非 pct_change 的 metric → 响亮抛错"""
+    cond = {'type': 'pct_change', 'params': {'pct': 5.0, 'direction': 'above'}}
+    r = _rule(conditions=[cond])
+    with pytest.raises(WatchMetricContractViolation):
+        EscalationChecker().should_escalate(
+            r, cond, QuoteData(symbol='600219', price=5.5, change_pct=0.1),
+            _res(value=6.0, metric=MetricKind.PRICE))
+
+
+def test_legacy_five_paths_are_gone():
+    """收敛证明：旧策略全字段齐备，也不再触发任何一条历史升级路径"""
+    cond = {'type': 'price_break', 'params': {'price': 5.13, 'direction': 'above'}}
+    r = _rule(conditions=[cond], escalation_policy=LEGACY_POLICY)
+
+    # ① 旧「频率」：计数远超阈值
+    assert EscalationChecker().should_escalate(
+        r, cond, QuoteData(symbol='600219', price=5.15, change_pct=0.2), _res(),
+        recent_trigger_count=99, concurrent_trigger_count=99) is None
+    # ② 旧「价格偏差」：现价远离设定价 20%
+    assert EscalationChecker().should_escalate(
+        r, cond, QuoteData(symbol='600219', price=6.5, change_pct=0.2), _res()) is None
+    # ③ 旧「核心区域」：价格落在区间内
+    assert EscalationChecker().should_escalate(
+        r, cond, QuoteData(symbol='600219', price=5.0, change_pct=0.2), _res()) is None
+    # ④ 旧「量能异常」：把现价（388.5）当量比的反例（#162 同型）
+    big = _rule(conditions=[{'type': 'price_break', 'params': {'price': 388.75, 'direction': 'below'}}],
+                escalation_policy=LEGACY_POLICY)
+    reason = EscalationChecker().should_escalate(
+        big, big.conditions[0], QuoteData(symbol='002916', price=388.5, change_pct=0.1),
+        _res(value=388.5, metric=MetricKind.PRICE))
+    assert reason is None or '量能异常' not in reason

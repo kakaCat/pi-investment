@@ -61,6 +61,16 @@ class WatchRule(Base):
     tokens_cost = Column(Numeric(12, 4), default=0)
     last_value_at = Column(DateTime)
 
+    # ── 规则自愈抑噪态（REQ-c9f899 R6 / t8，2026-09-18）─────────────────
+    # t1 迁移 20260918 为 watch_rules 加了四个列（noise_state / suppress_until /
+    # self_heal_count / last_repair_at）。引擎判定"是否处于抑噪期"需要前两个：
+    # 不映射则 getattr(rule, 'noise_state') 恒为 None → 抑噪形同虚设（与 2026-09-11
+    # intent/lifecycle_stage 漏映射同一坑）。此处**只读声明**，不改列语义；
+    # self_heal_count / last_repair_at 的读写仍由 watch_rule_noise_repository（本任务）
+    # 用裸 SQL 承担，避免同一张表两处 ORM 映射打架。
+    noise_state = Column(String(16))
+    suppress_until = Column(DateTime)
+
 
 class WatchTrigger(Base):
     __tablename__ = 'watch_triggers'
@@ -83,6 +93,13 @@ class WatchTrigger(Base):
     disposition_by = Column(String(50))
     disposition_at = Column(DateTime)
     dup_of = Column(Integer)
+    # 抑噪标记（REQ-c9f899 R6 / t8）：规则处于抑噪期时触发的触发记录标 true，
+    # 仅供 P3 聚合与复盘，不推送、不进摘要队列。列由 t1 迁移 20260918 添加
+    # （watch_triggers.suppressed BOOLEAN DEFAULT FALSE）。
+    suppressed = Column(Boolean, default=False)
+    # 触发 → 待办的溯源回填（REQ-c9f899 t12）：列由 t1 迁移 20260918 添加
+    # （watch_triggers.todo_id INTEGER），t12 接线后由 WatchTriggerRepository.set_todo_id 写入。
+    todo_id = Column(Integer)
 
 
 def rule_to_dict(rule: WatchRule) -> dict:
@@ -143,6 +160,8 @@ def trigger_to_dict(t: WatchTrigger) -> dict:
         'disposition_by': getattr(t, 'disposition_by', None),
         'disposition_at': t.disposition_at.isoformat() if getattr(t, 'disposition_at', None) else None,
         'dup_of': getattr(t, 'dup_of', None),
+        # 抑噪标记（R6/t8）：true = 该触发产生于规则抑噪期，只进聚合不推送
+        'suppressed': getattr(t, 'suppressed', None),
     }
 
 
@@ -276,11 +295,15 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
     def record(self, rule_id, symbol, condition, trigger_price,
                detail=None, notified=False, disposition='pending',
                disposition_reason=None, disposition_by='system',
-               dup_of=None) -> WatchTrigger:
+               dup_of=None, suppressed=False) -> WatchTrigger:
         """落一条触发 + 其处置初态（REQ-f08def）。
 
         disposition 由 domain/watch/services/disposition.decide() 决定：
         机械可判的（observe/message 类、去重合并）当场收敛，不唤醒 agent。
+
+        suppressed（REQ-c9f899 R6 / t8）：规则处于抑噪期时置 true，表示该触发只进
+        P3 聚合与复盘、不推送不进摘要队列。默认 False —— 既有调用方语义不变
+        （新增 keyword 参数，位置参数顺序未动）。
         """
         trigger = WatchTrigger(
             rule_id=rule_id, symbol=symbol, condition=condition,
@@ -290,8 +313,23 @@ class WatchTriggerRepository(BaseORMRepository[WatchTrigger]):
             disposition_by=disposition_by,
             disposition_at=datetime.now() if disposition not in ('pending', 'escalated') else None,
             dup_of=dup_of,
+            suppressed=bool(suppressed),
         )
         return self.create(trigger)
+
+    def set_todo_id(self, trigger_id: int, todo_id) -> None:
+        """回填触发的 todo_id（触发→待办溯源，REQ-c9f899 t12）。
+
+        同一个 trigger_id 只会有一条待办（引擎侧幂等），回填是溯源增益不是闭环前提；
+        触发已被清理（get_by_id 返回 None）时静默返回，不抛。
+        """
+        if todo_id is None:
+            return
+        trigger = self.get_by_id(trigger_id)
+        if trigger is None:
+            return
+        trigger.todo_id = int(todo_id)
+        self.session.commit()
 
     def update_disposition(self, trigger_id: int, disposition: str,
                            reason: str = None, by: str = 'agent') -> Optional[WatchTrigger]:

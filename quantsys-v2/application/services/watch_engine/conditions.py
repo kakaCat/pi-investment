@@ -11,6 +11,11 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
+from domain.watch.models import MetricKind
+from domain.watch.services.metric_contract import (  # noqa: F401 - 供消费侧复用同一契约
+    metric_matches, metric_of, require_metric,
+)
+
 VALID_TYPES = {'price_break', 'pct_change', 'pnl_pct', 'velocity', 'volume_surge', 'combined'}
 
 DEFAULT_COOLDOWN_SEC = 300
@@ -26,6 +31,11 @@ class EvalResult:
     # 数据缺失无法评估（区别于正常未触发）。子条件 degraded 时不作为 False 阻断
     # 组合（fail-open），但组合触发会继承 degraded 标注，供下游知悉该触发未经完整验证。
     degraded: bool = False
+    # 判据 metric（2026-09-18，REQ-c9f899 t2）：value 的语义由 metric 唯一确定。
+    # 消费方读 value 前必须声明期望 metric（require_metric / metric_matches），
+    # 否则「现价当量比」这类误读会再次发生（线上 19 条假「量能异常」）。
+    metric: MetricKind = MetricKind.UNKNOWN
+    unit: Optional[str] = None
 
 
 @dataclass
@@ -108,8 +118,10 @@ def evaluate(cond: dict, quote, ctx: EvalContext, now: Optional[datetime] = None
 
 
 def _threshold_result(triggered: bool, value: float, threshold: float,
-                      direction: str, message: str) -> EvalResult:
-    """统一构造 above/below 结果和距离"""
+                      direction: str, message: str,
+                      metric: MetricKind = MetricKind.UNKNOWN,
+                      unit: Optional[str] = None) -> EvalResult:
+    """统一构造 above/below 结果和距离（metric 显式声明 value 的语义）"""
     if triggered:
         distance = 0.0
     elif threshold == 0:
@@ -118,7 +130,8 @@ def _threshold_result(triggered: bool, value: float, threshold: float,
         distance = max(0.0, (threshold - value) / abs(threshold))
     else:
         distance = max(0.0, (value - threshold) / abs(threshold))
-    return EvalResult(triggered=triggered, value=value, distance_ratio=distance, message=message)
+    return EvalResult(triggered=triggered, value=value, distance_ratio=distance,
+                      message=message, metric=metric, unit=unit)
 
 
 def _eval_price_break(params, quote, ctx, now) -> EvalResult:
@@ -129,7 +142,8 @@ def _eval_price_break(params, quote, ctx, now) -> EvalResult:
     word = '上破' if direction == 'above' else '下破'
     return _threshold_result(triggered, price, threshold, direction,
                              f'现价 {price} {"≥" if direction == "above" else "≤"} 阈值 {threshold}（{word}）' if triggered
-                             else f'现价 {price} 未{word} {threshold}')
+                             else f'现价 {price} 未{word} {threshold}',
+                             metric=MetricKind.PRICE, unit='元')
 
 
 def _eval_pct_change(params, quote, ctx, now) -> EvalResult:
@@ -144,7 +158,8 @@ def _eval_pct_change(params, quote, ctx, now) -> EvalResult:
     direction = params['direction']
     triggered = pct >= threshold if direction == 'above' else pct <= threshold
     return _threshold_result(triggered, pct, threshold, direction,
-                             f'涨跌幅 {pct:.2f}%（阈值 {direction} {threshold}%）')
+                             f'涨跌幅 {pct:.2f}%（阈值 {direction} {threshold}%）',
+                             metric=MetricKind.PCT_CHANGE, unit='%')
 
 
 def _eval_pnl_pct(params, quote, ctx, now) -> EvalResult:
@@ -155,7 +170,8 @@ def _eval_pnl_pct(params, quote, ctx, now) -> EvalResult:
     direction = params['direction']
     triggered = pnl >= threshold if direction == 'above' else pnl <= threshold
     return _threshold_result(triggered, pnl, threshold, direction,
-                             f'盈亏 {pnl:.2f}%（成本 {ctx.cost_price}，阈值 {direction} {threshold}%）')
+                             f'盈亏 {pnl:.2f}%（成本 {ctx.cost_price}，阈值 {direction} {threshold}%）',
+                             metric=MetricKind.PNL_PCT, unit='%')
 
 
 def _eval_velocity(params, quote, ctx, now) -> EvalResult:
@@ -172,20 +188,23 @@ def _eval_velocity(params, quote, ctx, now) -> EvalResult:
     triggered = change >= threshold
     distance = 0.0 if triggered else max(0.0, (threshold - change) / threshold)
     return EvalResult(triggered, change, distance,
-                      f'{window_min}min 内波动 {change:.2f}%（阈值 {threshold}%）')
+                      f'{window_min}min 内波动 {change:.2f}%（阈值 {threshold}%）',
+                      metric=MetricKind.VELOCITY_PCT, unit='%')
 
 
 def _eval_volume_surge(params, quote, ctx, now) -> EvalResult:
     if not ctx.avg_volume_20d or getattr(quote, 'volume', None) is None:
         # 数据缺失：不是"未放量"，而是"无法评估" → degraded，供组合 fail-open
-        return EvalResult(False, None, None, '无均量或成交量数据，放量维度未评估', degraded=True)
+        return EvalResult(False, None, None, '无均量或成交量数据，放量维度未评估',
+                          degraded=True, metric=MetricKind.VOLUME_RATIO, unit='x')
     baseline = ctx.avg_volume_20d * min(1.0, max(ctx.elapsed_fraction, 0.01))
     ratio = float(quote.volume) / baseline
     multiple = float(params['multiple'])
     triggered = ratio >= multiple
     distance = 0.0 if triggered else max(0.0, (multiple - ratio) / multiple)
     return EvalResult(triggered, ratio, distance,
-                      f'成交量为同期均量 {ratio:.2f}x（阈值 {multiple}x）')
+                      f'成交量为同期均量 {ratio:.2f}x（阈值 {multiple}x）',
+                      metric=MetricKind.VOLUME_RATIO, unit='x')
 
 
 def _eval_combined(params, quote, ctx, now) -> EvalResult:
@@ -239,7 +258,7 @@ def _eval_combined(params, quote, ctx, now) -> EvalResult:
         message += ' ⚠️ 部分维度数据缺失，本次触发未经完整验证，需人工核验'
     
     return EvalResult(triggered=triggered, value=None, distance_ratio=distance,
-                      message=message, degraded=degraded)
+                      message=message, degraded=degraded, metric=MetricKind.COMPOSITE)
 
 
 _HANDLERS = {

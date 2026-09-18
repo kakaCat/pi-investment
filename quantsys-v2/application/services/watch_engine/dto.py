@@ -40,6 +40,7 @@ class TriggerPayload:
     account: Optional[str] = None           # 归属账户（谁的持仓）
     scope: Optional[str] = None             # market/sector/symbol/position（P8 路由用）
     action_amount_yuan: Optional[float] = None  # 动作影响金额（P8：≥账户 5% → 风控频道）
+    level: Optional[str] = None             # 级别 P0..P3（REQ-c9f899 t12：按级别模板渲染用）
     
     def to_notification_variables(self) -> Dict[str, Any]:
         """转换为 NotificationFacade 的 variables 格式"""
@@ -61,6 +62,8 @@ class TriggerPayload:
             'account': self.account,
             'scope': self.scope,
             'action_amount_yuan': self.action_amount_yuan,
+            # REQ-c9f899 t12：级别随 payload 下发；有值 → 渠道走按级别模板（无值走旧渲染，兼容）
+            'level': self.level,
         }
         
         if self.action_hint:

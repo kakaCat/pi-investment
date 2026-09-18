@@ -288,16 +288,15 @@ class OpportunityToWatchRuleService:
         规则不存在时两边都是**静默无操作、不抛异常**（旧：0 行受影响；新：get_by_id 返回 None）。
         """
         # 统一序列化 escalation_policy（支持 dataclass 和 dict）
+        # REQ-c9f899 t7：收敛后只写现行字段（总开关 + 异常波动阈值），不再把已废弃的
+        # 判据字段（频率/价格偏差/核心区域/量能/共振）写进新规则。
         if isinstance(escalation_policy, dict):
             ep_dict = escalation_policy
         else:
-            ep_dict = {
-                'auto_escalate': escalation_policy.auto_escalate,
-                'max_triggers_per_window': escalation_policy.max_triggers_per_window,
-                'price_deviation_pct': escalation_policy.price_deviation_pct,
-                'volume_ratio_multiplier': escalation_policy.volume_ratio_multiplier,
-                'multi_rule_confluence': escalation_policy.multi_rule_confluence,
-            }
+            ep_dict = {'auto_escalate': escalation_policy.auto_escalate}
+            _anomaly = getattr(escalation_policy, 'anomaly_change_pct', None)
+            if _anomaly is not None:
+                ep_dict['anomaly_change_pct'] = _anomaly
         
         self.rule_repo.update_fields(
             rule_id,

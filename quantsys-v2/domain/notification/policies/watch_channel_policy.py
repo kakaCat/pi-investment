@@ -57,11 +57,35 @@ DEFAULT_PHYSICAL_GROUP = {
 
 
 class WatchChannelPolicy:
-    """盯盘通知 → 逻辑频道 的路由策略（无状态、纯决策）"""
+    """盯盘通知 → 逻辑频道 的路由策略（无状态、纯决策）
+
+    **金额门（单笔动作影响金额 ≥ 账户总资产 × amount_alerts_pct → risk_stop）的取数契约**：
+    本策略是纯决策对象，**不自己查库**；账户总资产必须由调用方在构造时注入
+    （application/notification/notification_facade.NotificationFacade.send_watch_triggered
+    的 account_total_yuan 参数）。
+
+    ⚠️ 2026-09-18（REQ-c9f899 t9）修复的**死代码**：门面此前用无参构造
+    （WatchChannelPolicy()），account_total_yuan 恒为 None，金额门判定
+    （_over_amount_threshold）直接返回 False —— 金额门从未生效（单笔超阈值的风控触发被
+    静默路由到普通频道）。修复 = 门面把账户总资产传进来；**缺失时保持原行为
+    （门不触发、不抛错）**，绝不因缺数据而中断路由（路由不该阻断风控告警）。
+    """
 
     def __init__(self, amount_alerts_pct: float = 0.05, account_total_yuan: Optional[float] = None):
         self.amount_alerts_pct = amount_alerts_pct
         self.account_total_yuan = account_total_yuan
+
+    def amount_threshold_yuan(self) -> Optional[float]:
+        """金额门阈值（元）；账户总资产未知/非法/非正时返回 None（= 门关闭，保持原行为）。"""
+        if self.account_total_yuan is None:
+            return None
+        try:
+            total = float(self.account_total_yuan)
+        except (TypeError, ValueError):
+            return None
+        if total <= 0:
+            return None
+        return total * self.alerts_pct_effective()
 
     def resolve(self, intent=None, scope=None, disposition=None, kind=None,
                 is_constitutional: bool = False, action_amount_yuan=None) -> str:
@@ -88,10 +112,14 @@ class WatchChannelPolicy:
         return CH_WATCH_SYMBOL
 
     def _over_amount_threshold(self, amount) -> bool:
-        if amount is None or not self.account_total_yuan:
+        """单笔动作影响金额是否达到金额门阈值（账户总资产未知时门关闭，保持原行为）。"""
+        if amount is None:
+            return False
+        threshold = self.amount_threshold_yuan()
+        if threshold is None:
             return False
         try:
-            return float(amount) >= float(self.account_total_yuan) * self.alerts_pct_effective()
+            return float(amount) >= threshold
         except (TypeError, ValueError):
             return False
 

@@ -97,7 +97,11 @@ class NotificationFactory:
         logger.info("创建领域服务完成")
 
         # 6. 创建门面
-        facade = NotificationFacade(service)
+        # REQ-c9f899 返工项 A：注入既有 AgentNotificationService 单例（wake 通道），
+        # 让 L2 盯盘触发按 target_agent 真实路由（POST {url}/wake）。
+        # 门面内不创建 HTTP 客户端，此处只做装配；惰性导入避免 import 期拉起重依赖。
+        from application.services.agent_notification_service import agent_service
+        facade = NotificationFacade(service, agent_notification_service=agent_service)
         logger.info("通知系统创建完成")
 
         # 健康检查
@@ -226,6 +230,8 @@ class NotificationFactory:
 
         policy = NotificationPolicy()
         service = NotificationService(channels, policy)
+        # 不注入 AgentNotificationService：测试构造不走 wake（测试进程绝不误唤真实 agent）。
+        # 需要验证 L2 目标路由的用例请直接构造 NotificationFacade(svc, agent_notification_service=fake)。
         facade = NotificationFacade(service)
 
         logger.info("测试用通知系统创建完成", channels=len(channels))

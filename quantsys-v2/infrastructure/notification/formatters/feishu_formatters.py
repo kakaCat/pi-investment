@@ -50,8 +50,19 @@ class WatchTriggeredFormatter(FeishuFormatter):
     }
 
     def format(self, notification: Notification) -> Dict[str, Any]:
-        """格式化盯盘触发通知（意图驱动：主体 → 事实 → 为什么提醒 → 预案 → 下一步）"""
+        """格式化盯盘触发通知（意图驱动：主体 → 事实 → 为什么提醒 → 预案 → 下一步）
+
+        REQ-c9f899 t12（§6 待接线项 1）：payload 带级别（watch_level/level）→ 走
+        watch_level_templates 的**按级别渲染**（P0 红卡 / P1 橙卡 / P2 蓝卡 / P3 汇总）；
+        不带级别 → 退回本类旧渲染，**非分级路径与既有非盯盘通知行为不变**。
+        """
         vars = notification.variables
+        watch_level = vars.get('watch_level') or vars.get('level')
+        if watch_level:
+            from infrastructure.notification.formatters.watch_level_templates import (
+                render_watch_variables,
+            )
+            return render_watch_variables(vars)
         symbol = vars.get('symbol', 'N/A')
         name = vars.get('name', '')
         price = vars.get('price', 0)

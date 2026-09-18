@@ -274,6 +274,18 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error(f"❌ APScheduler startup failed: {e}")
 
+    # 影子模式起始时间落地（REQ-c9f899 t12 §6-项9）：WATCH_DIGEST_DRY_RUN_SINCE 此前
+    # 无人写入 → evaluate_shadow_overdue 恒 unknown 不告警（实测影子模式挂了 7 天无人知）。
+    # 注：该值现已落库（quant.watch_runtime_meta.digest_shadow_since，迁移 20260918b），
+    # shadow_mode_clock 走「库优先 → env 兜底」，重启读回真值；仅库不可用时才退化为 env 口径。
+    try:
+        from application.services.watch_engine.shadow_mode_clock import ensure_shadow_since_env
+        _shadow_since = ensure_shadow_since_env()
+        if _shadow_since:
+            logger.info("✅ 影子模式起始时间已落地", since=_shadow_since)
+    except Exception as e:
+        logger.warning(f"⚠️ 影子模式起始时间落地失败（影子超期告警将不可判定）: {e}")
+
     # 启动 WatchEngine 实时盯盘线程（2026-08-12 起唯一宿主，原 scheduler_daemon
     # 已下线该职责；pytest 下不启动，避免测试进程拉起盯盘循环）。
     # 引擎句柄挂到 app.state，lifespan 关闭时优雅停止。
@@ -872,6 +884,33 @@ def register_routes():
     except ImportError as e:
         optional_failed.append("watch")
         logger.warning(f"⚠️ Failed to import watch_async: {e}")
+
+    # 盯盘待办闭环（REQ-c9f899 t12 §6-项1/5/7）：待办 CRUD + 规则自愈 + 最小观测。
+    # 三路由均为**增量**端点（interfaces.md §5），独立注册、单个失败不阻断其它；
+    # 失败进 optional_failed（可由 GET /api/health/routes 发现，不静默）。
+    try:
+        from adapters.inbound.fastapi_app.routes.watch_todo_async import router as watch_todo_router
+        app.include_router(watch_todo_router)
+        logger.info("✅ Registered: watch_todo (REQ-c9f899 待办闭环)")
+    except ImportError as e:
+        optional_failed.append("watch_todo")
+        logger.warning(f"⚠️ Failed to import watch_todo_async: {e}")
+
+    try:
+        from adapters.inbound.fastapi_app.routes.watch_rule_repair_async import router as watch_repair_router
+        app.include_router(watch_repair_router)
+        logger.info("✅ Registered: watch_rule_repair (REQ-c9f899 规则自愈)")
+    except ImportError as e:
+        optional_failed.append("watch_rule_repair")
+        logger.warning(f"⚠️ Failed to import watch_rule_repair_async: {e}")
+
+    try:
+        from adapters.inbound.fastapi_app.routes.watch_metrics_async import router as watch_metrics_router
+        app.include_router(watch_metrics_router)
+        logger.info("✅ Registered: watch_metrics (REQ-c9f899 最小观测)")
+    except ImportError as e:
+        optional_failed.append("watch_metrics")
+        logger.warning(f"⚠️ Failed to import watch_metrics_async: {e}")
 
     # 订单/交易/投资组合（orders 域，P5 迁移）
     try:
