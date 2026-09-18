@@ -212,6 +212,8 @@ func (eb *EventBus) listenLoop(conn *pgxpool.Conn) {
 				return
 			}
 			// Log error and continue
+			// Prevent busy-loop when connection errors occur
+			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 

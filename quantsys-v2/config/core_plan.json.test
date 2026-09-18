@@ -1,0 +1,466 @@
+{
+ "generated_at": "2026-09-17T10:47:37",
+ "data_date": "2026-09-17",
+ "account": "agent_brain",
+ "mode": "PLAN_ONLY（不下单）",
+ "account_total": 499923.0,
+ "cash": 485920.0,
+ "exposure": {
+  "target_pct": 0.125,
+  "first_phase_cap_pct": 0.25,
+  "core_realized_vol_ann": 0.1125,
+  "vol_target": 0.15,
+  "w_vol": 1.0,
+  "core_drawdown": -0.1652,
+  "dd_gate": 0.5
+ },
+ "market_style": {
+  "style": "growth",
+  "confidence": 0.622,
+  "source": "/api/market/style"
+ },
+ "sector_heat_top5": [
+  [
+   "化纤行业",
+   1.5701878235571
+  ],
+  [
+   "酒店旅游",
+   1.5393812584068
+  ],
+  [
+   "传媒娱乐",
+   1.4747039827772
+  ],
+  [
+   "次新股",
+   1.1855443754493
+  ],
+  [
+   "家具行业",
+   1.1144404142354
+  ]
+ ],
+ "sector_momentum_note": "行业动量由库内 quant.stocks.industry 分组、近 60 日成分股等权收益中位数自算（/api/market/sectors 实测返回 0 条，不可用）",
+ "holdings": [
+  {
+   "symbol": "002085",
+   "industry": "制造业-汽车制造业",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 9.55,
+   "roe": 5.35,
+   "pe": 30.64,
+   "amount_def_avg": 2614505668.0585475,
+   "lots": 4,
+   "amount": 3820.0,
+   "target_amount": 4168.0
+  },
+  {
+   "symbol": "300059",
+   "industry": "金融业-资本市场服务",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 18.27,
+   "roe": 8.46,
+   "pe": 25.12,
+   "amount_def_avg": 2389122273.769231,
+   "lots": 2,
+   "amount": 3654.0,
+   "target_amount": 4168.0
+  },
+  {
+   "symbol": "601857",
+   "industry": "采矿业-石油和天然气开采业",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 10.71,
+   "roe": 6.3,
+   "pe": 14.04,
+   "amount_def_avg": 1950778427.7948718,
+   "lots": 4,
+   "amount": 4284.0,
+   "target_amount": 4168.0
+  },
+  {
+   "symbol": "601919",
+   "industry": "交通运输、仓储和邮政业-水上运输业",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 16.22,
+   "roe": 5.7,
+   "pe": 7.53,
+   "amount_def_avg": 1639445114.7008548,
+   "lots": 2,
+   "amount": 3244.0,
+   "target_amount": 4168.0
+  },
+  {
+   "symbol": "600030",
+   "industry": "金融业-资本市场服务",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 26.29,
+   "roe": 7.81,
+   "pe": 11.95,
+   "amount_def_avg": 1573277754.3076923,
+   "lots": 2,
+   "amount": 5258.0,
+   "target_amount": 4168.0
+  },
+  {
+   "symbol": "601288",
+   "industry": "金融业-货币金融服务",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 6.89,
+   "roe": 5.07,
+   "pe": 7.7,
+   "amount_def_avg": 1557979736.1311967,
+   "lots": 6,
+   "amount": 4134.0,
+   "target_amount": 4168.0
+  },
+  {
+   "symbol": "000099",
+   "industry": "交通运输、仓储和邮政业-航空运输业",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 13.03,
+   "roe": 2.26,
+   "pe": 43.35,
+   "amount_def_avg": 1543122875.0527349,
+   "lots": 3,
+   "amount": 3909.0,
+   "target_amount": 4168.0
+  },
+  {
+   "symbol": "603993",
+   "industry": "采矿业-有色金属矿采选业",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 17.59,
+   "roe": 18.29,
+   "pe": 18.49,
+   "amount_def_avg": 1436821876.1452992,
+   "lots": 2,
+   "amount": 3518.0,
+   "target_amount": 4168.0
+  },
+  {
+   "symbol": "002241",
+   "industry": "制造业-计算机、通信和其他电子设备制造业",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 21.45,
+   "roe": 3.92,
+   "pe": 23.29,
+   "amount_def_avg": 1280356119.271367,
+   "lots": 2,
+   "amount": 4290.0,
+   "target_amount": 4168.0
+  },
+  {
+   "symbol": "000100",
+   "industry": "制造业-计算机、通信和其他电子设备制造业",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 4.76,
+   "roe": 6.19,
+   "pe": 19.94,
+   "amount_def_avg": 1280034707.4496577,
+   "lots": 8,
+   "amount": 3808.0,
+   "target_amount": 4168.0
+  },
+  {
+   "symbol": "600887",
+   "industry": "制造业-食品制造业",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 26.03,
+   "roe": 10.09,
+   "pe": 11.9,
+   "amount_def_avg": 1226697630.432735,
+   "lots": 2,
+   "amount": 5206.0,
+   "target_amount": 4168.0
+  },
+  {
+   "symbol": "601600",
+   "industry": "制造业-有色金属冶炼和压延加工业",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 9.23,
+   "roe": 14.67,
+   "pe": 15.48,
+   "amount_def_avg": 1090930682.8119657,
+   "lots": 4,
+   "amount": 3692.0,
+   "target_amount": 4168.0
+  },
+  {
+   "symbol": "601668",
+   "industry": "建筑业-土木工程建筑业",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 4.23,
+   "roe": 4.61,
+   "pe": 4.0,
+   "amount_def_avg": 1083371933.974359,
+   "lots": 10,
+   "amount": 4230.0,
+   "target_amount": 4168.0
+  },
+  {
+   "symbol": "601166",
+   "industry": "金融业-货币金融服务",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 17.82,
+   "roe": 4.79,
+   "pe": 5.11,
+   "amount_def_avg": 1068363832.1772652,
+   "lots": 2,
+   "amount": 3564.0,
+   "target_amount": 4168.0
+  },
+  {
+   "symbol": "600895",
+   "industry": "房地产业-房地产业",
+   "weight_pct_of_core": 6.67,
+   "tilt_mult": 1.0,
+   "tilt_note": "行业动量未知",
+   "close": 28.1,
+   "roe": 2.31,
+   "pe": 54.87,
+   "amount_def_avg": 1020583979.8576072,
+   "lots": 2,
+   "amount": 5620.0,
+   "target_amount": 4168.0
+  }
+ ],
+ "growth_sleeve": {
+  "meta": {},
+  "holdings": []
+ },
+ "phase_plan": "分 4 批、每批约 1 周；每批按当时 vol-target 与回撤闸门重算",
+ "realized": {
+  "core": {
+   "target_amount": 62490.0,
+   "actual_amount": 62231.0,
+   "residual_amount": 259.0,
+   "residual_pct": 0.42,
+   "note": "actual=Σ(手数×现价×100) 整手可投；residual=整手取整后投不出去的余额（已用 deploy_residual 尽量再投）"
+  },
+  "growth_sleeve": {
+   "target_amount": 0.0,
+   "actual_amount": 0,
+   "residual_amount": 0.0,
+   "residual_pct": null,
+   "note": "actual=Σ(手数×现价×100) 整手可投；residual=整手取整后投不出去的余额（已用 deploy_residual 尽量再投）"
+  },
+  "total": {
+   "target_amount": 62490.0,
+   "actual_amount": 62231.0,
+   "residual_amount": 259.0,
+   "residual_pct": 0.42,
+   "note": "actual=Σ(手数×现价×100) 整手可投；residual=整手取整后投不出去的余额（已用 deploy_residual 尽量再投）"
+  },
+  "note": "声明暴露 12.50% 是**目标**；actual 才是整手约束下真能投出去的金额。差额=整手取整后的余额（deploy_residual 已尽量再投），不得当成还有额度可买。"
+ },
+ "execution_plan": {
+  "batches": [
+   {
+    "batch": 1,
+    "amount": 16672.0,
+    "symbols": [
+     "002085",
+     "600030",
+     "002241",
+     "601668"
+    ],
+    "detail": [
+     {
+      "symbol": "002085",
+      "bucket": "core",
+      "lots": 4,
+      "close": 9.55,
+      "amount": 4168.0
+     },
+     {
+      "symbol": "600030",
+      "bucket": "core",
+      "lots": 2,
+      "close": 26.29,
+      "amount": 4168.0
+     },
+     {
+      "symbol": "002241",
+      "bucket": "core",
+      "lots": 2,
+      "close": 21.45,
+      "amount": 4168.0
+     },
+     {
+      "symbol": "601668",
+      "bucket": "core",
+      "lots": 10,
+      "close": 4.23,
+      "amount": 4168.0
+     }
+    ]
+   },
+   {
+    "batch": 2,
+    "amount": 16672.0,
+    "symbols": [
+     "300059",
+     "601288",
+     "000100",
+     "601166"
+    ],
+    "detail": [
+     {
+      "symbol": "300059",
+      "bucket": "core",
+      "lots": 2,
+      "close": 18.27,
+      "amount": 4168.0
+     },
+     {
+      "symbol": "601288",
+      "bucket": "core",
+      "lots": 6,
+      "close": 6.89,
+      "amount": 4168.0
+     },
+     {
+      "symbol": "000100",
+      "bucket": "core",
+      "lots": 8,
+      "close": 4.76,
+      "amount": 4168.0
+     },
+     {
+      "symbol": "601166",
+      "bucket": "core",
+      "lots": 2,
+      "close": 17.82,
+      "amount": 4168.0
+     }
+    ]
+   },
+   {
+    "batch": 3,
+    "amount": 16672.0,
+    "symbols": [
+     "601857",
+     "000099",
+     "600887",
+     "600895"
+    ],
+    "detail": [
+     {
+      "symbol": "601857",
+      "bucket": "core",
+      "lots": 4,
+      "close": 10.71,
+      "amount": 4168.0
+     },
+     {
+      "symbol": "000099",
+      "bucket": "core",
+      "lots": 3,
+      "close": 13.03,
+      "amount": 4168.0
+     },
+     {
+      "symbol": "600887",
+      "bucket": "core",
+      "lots": 2,
+      "close": 26.03,
+      "amount": 4168.0
+     },
+     {
+      "symbol": "600895",
+      "bucket": "core",
+      "lots": 2,
+      "close": 28.1,
+      "amount": 4168.0
+     }
+    ]
+   },
+   {
+    "batch": 4,
+    "amount": 12504.0,
+    "symbols": [
+     "601919",
+     "603993",
+     "601600"
+    ],
+    "detail": [
+     {
+      "symbol": "601919",
+      "bucket": "core",
+      "lots": 2,
+      "close": 16.22,
+      "amount": 4168.0
+     },
+     {
+      "symbol": "603993",
+      "bucket": "core",
+      "lots": 2,
+      "close": 17.59,
+      "amount": 4168.0
+     },
+     {
+      "symbol": "601600",
+      "bucket": "core",
+      "lots": 4,
+      "close": 9.23,
+      "amount": 4168.0
+     }
+    ]
+   }
+  ],
+  "rule": "每批只执行本批名单（批间隔约 1 周）；每批开跑前按**当时**的 vol-target 与回撤闸门重算，不得把机械差额一次性打满。子额度 growth_sleeve 按同批号并行执行、独立核算。"
+ },
+ "risk_lens": {
+  "window": "2024-07-02~2026-09-17",
+  "trading_days": 540,
+  "ann_return": 0.152,
+  "ann_vol": 0.2093,
+  "sharpe": 0.63,
+  "var95_daily": -0.0189,
+  "cvar95_daily": -0.0286,
+  "var95_amount": -1180.0,
+  "mean_pairwise_corr": 0.252,
+  "effective_bets": 6.29,
+  "nominal_bets": 15.0,
+  "max_drawdown": -0.1909,
+  "beta_vs_hs300": 0.9,
+  "alpha_ann": 0.0301,
+  "benchmark": "沪深300（akshare stock_zh_index_daily，日收益率口径，对齐 539 日）",
+  "benchmark_note": null,
+  "unavailable_reason": null,
+  "var95_amount_basis": "按传入的投入金额折算（generate 传计划投入 = core+子额度）",
+  "bets_note": "有效注数=相关矩阵特征值口径（不含权重）；名义注数=1/Σw²（含权重）；两者口径不同，不可直接比大小",
+  "plan_investment_amount": 62490.0,
+  "plan_exposure_pct_of_total": 0.125
+ }
+}

@@ -15,6 +15,7 @@
  *   npx tsx scripts/normalize-ledger-paths.ts --file <ledger.json> --verify
  */
 import { copyFileSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 import { normalizeArtifactPath } from '../src/domain/artifact/ArtifactPath.js'
 
 interface Change { where: string; from: string; to: string; action: 'normalized' | 'dropped' | 'deduped' }
@@ -29,7 +30,12 @@ if (!file) {
   process.exit(2)
 }
 
-const workspaceRoot = process.cwd()
+// 工作区根 = 台账文件的**祖父目录**（<workspace>/.dsh-data/dsh-reqboard.json）。
+// 不能用 process.cwd()：脚本在包目录下跑，会把 packages/pages/dsh-pmboard 当工作区根，
+// 从而把 <workspace>/packages/... 错剥成 src/...（首次 dry-run 实测踩到）。
+// 可用 --root 显式覆盖。
+const rootArg = args.indexOf('--root')
+const workspaceRoot = rootArg >= 0 ? resolve(args[rootArg + 1]!) : resolve(dirname(resolve(file)), '..')
 const ledger = JSON.parse(readFileSync(file, 'utf8')) as {
   requirements?: Array<Record<string, any>>
 }
@@ -129,6 +135,7 @@ for (const req of ledger.requirements ?? []) {
 const byAction = { normalized: 0, dropped: 0, deduped: 0 } as Record<Change['action'], number>
 for (const c of changes) byAction[c.action] += 1
 
+console.log('工作区根：' + workspaceRoot)
 console.log('扫描路径：' + scanned)
 console.log('需变更：' + changes.length + '（normalized=' + byAction.normalized + ', dropped=' + byAction.dropped + ', deduped=' + byAction.deduped + '）')
 for (const c of changes.slice(0, 40)) console.log('  [' + c.action + '] ' + c.where + ': ' + c.from + ' -> ' + c.to)
