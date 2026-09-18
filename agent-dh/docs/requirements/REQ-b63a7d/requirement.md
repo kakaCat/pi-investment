@@ -58,6 +58,14 @@ GET http://127.0.0.1:13080/dashboard/api/reqboard/file?path=agent-dh%2Fdocs%2Far
 - A6 存量扫描"非工作区相对 + 非伪路径"计数为 0
 - A7 `npx vitest run` 全绿 + `build:client` 门禁通过
 
+<!-- reqboard:marks:begin 机器维护，请勿手改 -->
+
+#### 条款接收状态（随卡的生命周期自动更新）
+
+> 本需求文档尚未定义功能点编号。
+
+<!-- reqboard:marks:end -->
+
 ## 7. 附带发现（不同源，登记为线索，不并入本需求范围）
 
 **分类流程档案与门禁强制点口径不一致**：`CATEGORY_FLOW_PROFILES.bug` 声明"免需求分析门"，`confirmGateKindFor()`（protocol.ts:326-333）也是分类感知的；但 `application/use-cases/MoveRequirement.ts:56` 直接用**未过滤**的 `ARTIFACT_CONFIRM_GATES[from>to]`，导致 bug 需求推进时仍被要求 `kind=requirement` 人工确认门（本窗口 2026-09-18 实测被拒：`REQBOARD_HUMAN_GATE`）。与 artifact-gates.ts:127 的判定不同源。建议单独立项，不在本需求内改。
