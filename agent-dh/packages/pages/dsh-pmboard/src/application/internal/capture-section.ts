@@ -135,7 +135,13 @@ export function boundSectionText(
     // draft/done/canceled 不是可注入节点（types.ts）：先过闸，避免只捞到 ⑤ 铁律而被当成有提示词。
     if (isPromptStage(stage) && stageEnabledFor(stageReq.category, stage as StageKey)) {
       // INV-1：取词唯一入口（分片库 + 回退链 + 预算）；不再直取常量表。
-      const resolved = resolveStagePrompt({ stage, category: stageReq.category })
+      // FR-16：带上需求实质，让唯一取词入口按它推断难度（动架构 / 跨子系统 / 改数据模型 → heavy），
+      // 不再静默回落缺省 light——REQ-c9f899 被注入轻档提示词的根因就在这一行。
+      const resolved = resolveStagePrompt({
+        stage,
+        category: stageReq.category,
+        requirement: { title: stageReq.title, description: stageReq.description },
+      })
       if (resolved.text.length > 0) {
         lines.push('')
         lines.push(resolved.text)

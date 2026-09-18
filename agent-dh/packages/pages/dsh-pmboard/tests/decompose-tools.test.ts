@@ -66,8 +66,8 @@ const run = (tool: { execute: (a: unknown, e: unknown) => Promise<any> }, args: 
   tool.execute(args, { agent: { id: agent } })
 
 const TWO_TASKS = [
-  { key: 'a', title: '协议层加时间线', phase: 'implement', side: 'backend', acceptance: '单测绿', implementation: 'protocol.ts 加字段 + 单测验证' },
-  { key: 'b', title: '客户端渲染甘特图', phase: 'ui', side: 'frontend', depends_on: ['a'], acceptance: '截图可见', implementation: 'view.ts 加 buildGantt() 渲染' },
+  { key: 'a', title: '协议层加时间线', phase: 'implement', side: 'backend', acceptance: 'npx vitest run tests/reqboard.test.ts 全绿', implementation: 'protocol.ts 加字段 + 单测验证' },
+  { key: 'b', title: '客户端渲染甘特图', phase: 'ui', side: 'frontend', depends_on: ['a'], acceptance: 'npx vitest run tests/client-view.test.ts 全绿', implementation: 'view.ts 加 buildGantt() 渲染' },
 ]
 
 /** 提交计划并**直接以人身份批准**（本文件不测裁决路径，那在 plan-mode.test.ts）。 */
@@ -177,7 +177,9 @@ describe('reqboard_decompose 边界', () => {
     expect(out.created[1].depends_on).toEqual([out.created[0].id])
     expect(out.requirement_status).toBe('decomposing')
     const ledger = store.snapshot()
-    expect(ledger.tasks.map(t => t.acceptance)).toEqual(['单测绿', '截图可见'])
+    // 迁移（REQ-d3e61a T-9）：占位验收标准换成**可照着验**的真实标准——本断言验的是
+    // "计划任务表正确落库"（语义不变），只是值随门禁要求一起升级。
+    expect(ledger.tasks.map(t => t.acceptance)).toEqual(['npx vitest run tests/reqboard.test.ts 全绿', 'npx vitest run tests/client-view.test.ts 全绿'])
     expect(ledger.tasks[0].statusHistory?.[0]?.by.kind).toBe('agent')
     expect(ledger.requirements[0].statusHistory?.map(e => e.status)).toEqual(['draft', 'decomposing'])
   })
@@ -281,7 +283,7 @@ describe('实施卡透传与开工送达（REQ-2e9473 t04）', () => {
     const start = await run(taskMove, { task_id: out.created[0].id, to: 'in_progress' })
     expect(start.task_card).toBeDefined()
     expect(start.task_card.implementation).toBe('protocol.ts 加字段 + 单测验证')
-    expect(start.task_card.acceptance).toBe('单测绿')
+    expect(start.task_card.acceptance).toBe('npx vitest run tests/reqboard.test.ts 全绿')
     expect(start.task_card.doc_path).toMatch(/tasks\/t-/)
     // 非开工转移不带任务卡
     const next = await run(taskMove, { task_id: out.created[0].id, to: 'testing' })

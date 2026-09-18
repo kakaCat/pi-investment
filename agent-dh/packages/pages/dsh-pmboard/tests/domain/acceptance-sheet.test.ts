@@ -41,7 +41,9 @@ describe('buildSheet：验收单生成', () => {
       { kind: 'task', taskId: 't-bbbbbb' },
       { kind: 'requirement' },
     ])
-    expect(sheet.items.map(i => i.criterion)).toEqual(['单测绿', '任务二：交付完成', REQUIREMENT_LEVEL_CRITERION])
+    // 迁移（REQ-d3e61a T-11）：验收项改为「业务标题 + 怎么验」——本断言验的是
+    // "逐任务一条 + 需求级一条、顺序与来源正确"，语义不变，只是文案按新格式升级。
+    expect(sheet.items.map(i => i.criterion)).toEqual(['【任务一】验收：单测绿', '【任务二】验收：交付完成', REQUIREMENT_LEVEL_CRITERION])
     expect(sheet.items.every(i => i.status === 'pending')).toBe(true)
     expect(sheet.items.every(i => i.evidence.length === 1 && i.evidence[0] === 'npx vitest run 全绿')).toBe(true)
   })

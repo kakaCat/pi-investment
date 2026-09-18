@@ -62,6 +62,28 @@ export interface SheetBuildInput {
   tasks: readonly SheetTaskLike[]
   /** 本轮证据（复制进每一项）。 */
   evidence: readonly string[]
+  /**
+   * 孤儿用例（REQ-d3e61a T-7 / FR-5）：设计文件点名了、但文件头未声明覆盖条款的测试文件。
+   * 按规范这是**警告级**（不阻断），但必须是验收面上**可见的一项**——"靠人记得"正是不该有的形态。
+   * 非空时追加一条需求级验收项。
+   */
+  orphanTestFiles?: readonly string[]
+  /**
+   * 不可照着验、但**从未过计划期锚点门**的验收项（直种/历史数据，REQ-d3e61a T-9）。
+   * 非空时追加一条需求级可见项——不追溯硬拦，但绝不允许静默（"看不见"正是 R9 那类事故的形态）。
+   */
+  unverifiableItems?: readonly string[]
+  /**
+   * E2E 覆盖读数（REQ-d3e61a T-16 / FR-11）：true=有 E2E 场景用例，false=**缺口**。
+   * undefined = 读数未知（需求文档缺失/无测试策略表）→ 不追加可见项，避免噪声。
+   * 只有单元/集成测试必须**作为一个可见验收项**暴露，而不是靠人记得。
+   */
+  e2eCoverage?: boolean
+  /**
+   * 三方一致性缺口（REQ-d3e61a T-8 / FR-9）：做什么 × 怎么做 × 实际做了什么 对不上时的文案。
+   * 非空时追加一条需求级可见项——不一致必须**显式出现**，不允许沉默（R9 的形态就是沉默）。
+   */
+  consistencyGaps?: readonly string[]
   generatedAt: number
   generatedBy: ActorRef
 }
@@ -93,6 +115,42 @@ export function buildSheet(input: SheetBuildInput): SheetBuildResult {
   const carried = reworkOnly
     ? prevItems.filter(i => i.status === 'failed' || i.status === 'pending')
     : []
+  const orphanTestFiles = input.orphanTestFiles ?? []
+  const unverifiable = input.unverifiableItems ?? []
+  const unverifiableItems: SheetItemLike[] = unverifiable.length === 0 ? [] : [{
+    id: 'v' + version + '-' + (input.tasks.length + 3),
+    source: { kind: 'requirement' } as VerificationItemSource,
+    criterion: fmt('验收项不可照着验（历史数据）：以下验收项没写「怎么验」——{list}。请补可执行操作（命令/可查数据/界面路径）；本条不阻断验收，但必须有人看过并决定。', { list: unverifiable.slice(0, 5).join('；') }),
+    evidence: [...input.evidence],
+    status: 'pending' as const,
+  }]
+  const consistency = input.consistencyGaps ?? []
+  const consistencyItems: SheetItemLike[] = consistency.length === 0 ? [] : [{
+    id: 'v' + version + '-' + (input.tasks.length + 5),
+    source: { kind: 'requirement' } as VerificationItemSource,
+    criterion: fmt('三方一致性（做什么 × 怎么做 × 实际做了什么）：以下对不上——{list}。请补设计、补实施、或显式登记为不做。', { list: consistency.slice(0, 6).join('；') }),
+    evidence: [...input.evidence],
+    status: 'pending' as const,
+  }]
+  const e2eItems: SheetItemLike[] = input.e2eCoverage === undefined ? [] : [{
+    id: 'v' + version + '-' + (input.tasks.length + 4),
+    source: { kind: 'requirement' } as VerificationItemSource,
+    criterion: input.e2eCoverage
+      ? 'E2E 覆盖：**有**（存在跨组件跑通完整业务链路的场景用例）'
+      : 'E2E 覆盖：**无（缺口）**——本需求交付涉及多组件串联，但只交了单元/集成测试。请补一条端到端场景用例（断言可观察终态）。',
+    evidence: [...input.evidence],
+    status: 'pending' as const,
+  }]
+  const orphanItems: SheetItemLike[] = orphanTestFiles.length === 0 ? [] : [{
+    id: 'v' + version + '-' + (input.tasks.length + 2),
+    source: { kind: 'requirement' } as VerificationItemSource,
+    criterion: fmt(
+      '孤儿用例（缺映射）：以下测试文件未在文件头声明覆盖的条款/卡——{list}。请补 serves: 声明，或说明为何无需映射。',
+      { list: orphanTestFiles.join('、') },
+    ),
+    evidence: [...input.evidence],
+    status: 'pending' as const,
+  }]
   const items: SheetItemLike[] = reworkOnly
     ? carried.map((it, idx) => ({
         ...it,
@@ -106,7 +164,12 @@ export function buildSheet(input: SheetBuildInput): SheetBuildResult {
         ...input.tasks.map((t, idx) => ({
           id: 'v' + version + '-' + (idx + 1),
           source: { kind: 'task', taskId: t.id } as VerificationItemSource,
-          criterion: t.acceptance.length > 0 ? t.acceptance : fmt('{title}：交付完成', { title: t.title }),
+          // T-11：验收项先说**业务结果**（标题即业务语言，T-10 保证），再说**怎么验**——
+          // 原来直接放 acceptance（一串命令），用户读不出"这项在确认什么"。
+          criterion: fmt('【{title}】验收：{detail}', {
+            title: t.title.length > 0 ? t.title : t.id,
+            detail: t.acceptance.length > 0 ? t.acceptance : '交付完成',
+          }),
           evidence: [...input.evidence],
           status: 'pending' as const,
         })),
@@ -117,6 +180,12 @@ export function buildSheet(input: SheetBuildInput): SheetBuildResult {
           evidence: [...input.evidence],
           status: 'pending' as const,
         },
+        // 孤儿用例 / 不可照着验的项（有则追加；都做成**需求级**项——本就是需求级关切，
+        // 且不动 protocol 的 source 联合，避免碰被占用的 protocol.ts）
+        ...orphanItems,
+        ...unverifiableItems,
+        ...e2eItems,
+        ...consistencyItems,
       ]
   const sheet: SheetLike = {
     version,

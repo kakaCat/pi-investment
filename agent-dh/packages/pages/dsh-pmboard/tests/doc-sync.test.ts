@@ -42,7 +42,12 @@ const run = (tool: any, args: unknown) => tool.execute(args, { agent: { id: W } 
 function writeReqFile(rel: string): void {
   const abs = join(process.cwd(), 'docs/requirements', REQ, rel)
   mkdirSync(join(abs, '..'), { recursive: true })
-  writeFileSync(abs, 'x')
+  // 迁移（REQ-d3e61a T-13）：最小桩也要满足"分类文档集"门禁对根文档必填节的要求。
+  // 本文件不读该内容（原先是占位符 'x'），故只是把桩做成**形态合法**的文档，不影响被测语义。
+  const body = rel.endsWith('requirement.md')
+    ? '# 需求\n\n## 1. 问题\n\n桩。\n\n## 2. 边界\n\n桩。\n\n## 3. 成功标准\n\n桩。\n\n## 4. 产品定义\n\n桩。\n\n## 5. 用户与角色\n\n桩。\n\n## 6. 功能点\n\n桩。\n'
+    : 'x'
+  writeFileSync(abs, body)
 }
 
 describe('文档演进留痕（t19）', () => {
@@ -90,6 +95,10 @@ describe('文档演进留痕（t19）', () => {
 
   it('下游重交（plan_submit）→ 销 plan 标；decompose → 销 decomposition 标', async () => {
     await seed('planning')
+    // 迁移（REQ-d3e61a T-13）：feature 类型要求设计文档齐；本文件不读这些桩的内容，
+    // 只是让桩形态合法（原先依赖上一个用例残留的 requirement.md，design 目录则完全没有）。
+    writeReqFile('requirement.md')
+    for (const d of ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md']) writeReqFile('design/' + d)
     await store.mutate('seed-pending', (l) => {
       const r = l.requirements[0]
       r.docSyncPending = [{ source: 'requirement', downstream: ['plan', 'decomposition'], reason: 'x', at: 1 }]

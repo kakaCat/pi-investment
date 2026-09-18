@@ -36,6 +36,31 @@ export function checkAcceptance(key: string, acceptance: string): AcceptanceVerd
   return { ok: true }
 }
 
+/**
+ * 「怎么验」的**强判据**（REQ-d3e61a T-9 / FR-10）：验收项必须给出**可执行操作**。
+ *
+ * 与 VERIFIABLE_ANCHOR 的分工：那是**计划期**的最低门槛（含断言词"通过"即可放行，避免卡住创作）；
+ * 这是**验收期**的硬门槛——光写"确认可用""应该没问题"不算数，必须写清**怎么动手验**：
+ * 可执行命令 / 可查数据 / 可达界面路径。人照着做就能独立复核，而不是只能选择相信。
+ */
+export const HOW_TO_VERIFY = /\.(ts|tsx|js|mjs|cjs|md|html|json|py|go|css|sh)\b|\b(npx|npm|pnpm|vitest|node|curl|grep|python3?|bash|pytest|sql)\b|打开[^，。；]{0,20}(页|界面|看板|弹框)|访问\s*\/|SELECT\s|diff\s/i
+
+/** 单条「怎么验」判定。key 用于拼拒绝消息。 */
+export function checkHowToVerify(key: string, acceptance: string): AcceptanceVerdict {
+  const text = acceptance.trim()
+  if (text.length === 0) {
+    return { ok: false, code: 'invalid_input', reason: fmt('验收项 {key} 为空——必须写清验什么、怎么验、预期是什么', { key }) }
+  }
+  if (!HOW_TO_VERIFY.test(text)) {
+    return {
+      ok: false,
+      code: 'invalid_input',
+      reason: fmt('验收项 {key} 缺「怎么验」（"{acceptance}"）——只写断言词不算，必须给**可执行操作**：命令（npx/vitest/curl/pytest…）、可查数据（SQL/字段名）、或可达界面路径（打开某页→看什么）。否则验收只能靠相信，等于没验。', { key, acceptance: text }),
+    }
+  }
+  return { ok: true }
+}
+
 /** 计划任务依赖引用的最小投影（有序；key 唯一由调用方第一遍校验保证）。 */
 export interface PlanTaskRef {
   key: string

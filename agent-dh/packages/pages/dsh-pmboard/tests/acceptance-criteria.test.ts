@@ -308,8 +308,8 @@ describe('验收 4：老台账兼容加载（历史字段透传，不做破坏�
     const legacy = loaded as { projectId?: unknown; parentId?: unknown }
     expect(legacy.projectId).toBeUndefined()
     expect(legacy.parentId).toBeUndefined()
-    // schemaVersion 升级到当前契约版本（REQ-47939a t10 / C1：4 → 5）
-    expect(freshStore.snapshot().schemaVersion).toBe(5)
+    // schemaVersion 升级到当前契约版本（REQ-a33899 t3：4 → 5 → 6）
+    expect(freshStore.snapshot().schemaVersion).toBe(6)
   })
 })
 

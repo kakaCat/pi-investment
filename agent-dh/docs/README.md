@@ -131,6 +131,7 @@ tags: [wiki, index, home, agent-dh]
 - ✅ [RFC-013 公告板页面](rfcs/013-bulletin-board-page.md)
 - ✅ P1 [页面插件契约](architecture/page-plugin-contract.md) —— 两半分工、产物与交付证据、接口信封、安全默认
 - ✅ [需求节点详情系统](architecture/reqboard-stage-detail.md) —— 节点点开看工作记录：StageDetail 契约 + 模板模式双端 + 产物闸门 + 追溯链 + 接力任务卡 + markdown 弹窗纪律（REQ-31e11f）
+- ✅ [需求看板的 Token 消耗（过程消耗 + 提示词成本）](architecture/reqboard-token-usage.md) —— 每个流程节点/任务的 token 从哪来、怎么算；固定系统提示词与注入提示词的成本；缺失语义与自检命令（REQ-a33899）
 - ✅ [web-liveness 页面自愈](../../agent-dh/packages/pages/web-liveness/README.md) —— 重启后已开标签页自动刷新（`/plugins/events` 的 graph.rev vs `__DSH_BOOT__.rev`）
 
 ### 卷 8 · 需求流水线与归档（本 wiki 的供料线）
@@ -205,6 +206,7 @@ tags: [wiki, index, home, agent-dh]
 <!-- AUTO:recent BEGIN -->
 | 日期 | 页面 | 一句话 |
 |---|---|---|
+| 2026-09-18 | [需求看板的 Token 消耗（过程消耗 + 提示词成本）](architecture/reqboard-token-usage.md) | 看板怎么记录与展示「每个流程节点/每个任务」的 token 消耗，以及固定系统提示词与 reqboard 注入提示词的成本；含缺失语义与自检命令。 |
 | 2026-09-17 | [需求节点详情系统（stage-detail）](architecture/reqboard-stage-detail.md) | 会话框流程条节点点开看详情：StageDetail 契约 + 模板模式双端装配 + 分类流程档案 + 产物闸门 + 追溯链 + 接力任务卡 + 前端工作记录渲染器。 |
 | 2026-09-17 | [全站页面索引（机器可读入口）](INDEX.md) | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 |
 | 2026-09-16 | [@pi-investment/web-liveness · 页面自愈（重启后标签页不再变砖）](../packages/pages/web-liveness/README.md) | 监听框架免鉴权的 /plugins/events SSE，发现服务端换过进程就自动刷新已打开的标签页。 |
@@ -219,7 +221,6 @@ tags: [wiki, index, home, agent-dh]
 | 2026-09-14 | [RFC 009：盯盘推送双通道方案（direct 直推 / agent 判断分流）](rfcs/009-watch-push-dual-channel.md) | RFC 009：盯盘推送双通道设计（草案）。 |
 | 2026-09-14 | [RFC 008: P2 验证门（Validation Gate）——回测 + 模拟盘 A/B + 自动裁决](rfcs/008-validation-gate.md) | RFC 008：验证门——候选段观察期后对比基准决定转正或回滚（已实施并验收）。 |
 | 2026-09-14 | [RFC 007: P0-2 genome_manager 工具化（版本快照 / 段更新 / 回滚 / changelog）实现方案](rfcs/007-genome-manager.md) | RFC 007：genome_manager 工具化设计提案（段读写、版本与候选）。 |
-| 2026-09-14 | [RFC 006: P0-1 提示词基因组切分（宪法层 / 可进化段）实现计划](rfcs/006-prompt-genome-sections.md) | RFC 006：提示词基因组分段（宪法/原则/规则/教训）设计提案。 |
 
 > 自动生成（`docs_index.py`）：按 front-matter 的 updated 倒序取前 15 页。
 <!-- AUTO:recent END -->

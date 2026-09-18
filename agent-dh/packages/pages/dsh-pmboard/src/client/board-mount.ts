@@ -22,6 +22,8 @@ import { archivedSessionIds, jumpToSession, windowServiceAccess, type SessionJum
 import { createBoardShell } from '@pi-investment/page-kit/client'
 import { renderStageNode } from './stage-panel.ts'
 import { hasInjectionWindow, renderInjectionInfo } from './injection-info.ts'
+import { renderTokenPlaceholder, renderTokenTab } from './token-info.ts'
+import { renderMarksBlock, renderMarksPlaceholder } from './marks-info.ts'
 import type { StageOverview, StageKey } from '../shared/protocol.ts'
 
 const POLL_MS = 20000
@@ -182,6 +184,10 @@ export function mountBoard(controller: BoardController): () => void {
           void loadStageDetail(req.id, req.status)
           // REQ-422af1 t11：「本次注入了什么」只读块（按来源窗口回查留痕）
           void loadInjectionInfo(req.sourceSessionId)
+          // REQ-a33899 t6：Token tab 内容（打开详情即预取，切到该 tab 直接可见）
+          void loadTokenTab(req.id)
+          // REQ-d3e61a T-5：条款接收状态（打开详情即取，红名单第一时间可见）
+          void loadMarksBlock(req.id)
         }
         break
       }
@@ -299,6 +305,23 @@ export function mountBoard(controller: BoardController): () => void {
         if (targetContent) {
           targetContent.classList.add('active')
         }
+        // REQ-a33899 t6：Token tab 首次切到时确保已取数（打开详情时通常已预取）
+        if (tabName === 'token') {
+          const reqId = (tabsContainer as HTMLElement).dataset.detailReq
+          if (reqId !== undefined && reqId.length > 0) void loadTokenTab(reqId)
+        }
+        return
+      }
+      // REQ-a33899 t6：Token 表点节点行 → 展开/收起该阶段任务明细
+      case 'toggle-token-node': {
+        const row = el.closest<HTMLElement>('.dsh-pm-tok-node')
+        const stage = row?.dataset.stage
+        if (row === null || stage === undefined) return
+        const table = row.closest('table')
+        table?.querySelectorAll<HTMLElement>('.dsh-pm-tok-sub').forEach((sub) => {
+          if (sub.dataset.parentStage !== stage) return
+          sub.style.display = sub.style.display === 'none' ? '' : 'none'
+        })
         return
       }
       case 'load-stage': {
@@ -540,29 +563,42 @@ export function mountBoard(controller: BoardController): () => void {
 
   // （REQ-ff20ca t6）旧文档弹窗已整套删除；文档打开统一走 openDocInSidebar（官方右侧栏）。
 
-  /** 校验文档存在性：不存在的文档（未落盘/路径错误）标注缺失并禁止点击，不当作有效文档展示。 */
+  /**
+   * 校验文档可打开性（REQ-b63a7d t4）：逐条 /file 预检 → **一次批量解析**。
+   *
+   * 为什么必须换：旧实现每个文档发一条 GET，路径只要不在 docs/ 内就被白名单判 403，
+   * 控制台持续刷红（实测 142 条：源码类产物、仓库根相对、跨仓、伪路径全中）。批量端点
+   * 由 host 单点判定（归一层 + fs）且恒 200 → 不再产生任何失败请求；判定原因直接展示，
+   * 跨仓/伪路径不再被含糊地叫「文件不存在」。
+   */
   const verifyDocExistence = async (): Promise<void> => {
     if (viewEl === undefined) return
-    const items = viewEl.querySelectorAll<HTMLElement>('[data-doc-path]')
-    await Promise.all(Array.from(items).map(async (li) => {
-      const path = li.dataset.docPath
-      if (!path) return
-      let exists = false
-      try {
-        const res = await fetch('/dashboard/api/reqboard/file?path=' + encodeURIComponent(path))
-        const data = await res.json() as { success?: boolean }
-        exists = data.success === true
-      } catch { exists = false }
-      if (!exists) {
-        li.classList.add('is-missing')
-        li.setAttribute('title', '文件不存在（未落盘或路径错误）')
-        const btn = li.querySelector<HTMLElement>('[data-action="open-doc"]')
-        if (btn) {
-          btn.removeAttribute('data-action')
-          btn.classList.add('dsh-pm-doc-missing')
-        }
+    const items = Array.from(viewEl.querySelectorAll<HTMLElement>('[data-doc-path]'))
+    if (items.length === 0) return
+    const paths = Array.from(new Set(items.map(li => li.dataset.docPath ?? '').filter(p => p.length > 0)))
+    if (paths.length === 0) return
+    let verdicts: api.DocPathVerdictView[]
+    try {
+      verdicts = (await api.resolveReqDocs(paths)).results ?? []
+    } catch {
+      // 通道不可用 → 不做任何标记（宁可保持可点击，也不误标「缺失」；R-013 诚实降级）
+      return
+    }
+    const byPath = new Map(verdicts.map(v => [v.path, v]))
+    for (const li of items) {
+      const path = li.dataset.docPath ?? ''
+      const v = byPath.get(path)
+      if (v === undefined || v.openable) continue
+      li.classList.add('is-missing')
+      li.setAttribute('title', v.reason ?? '文件不可打开')
+      // 判为不可打开后移除预检锚点：DOM 上不再残留 data-doc-path
+      li.removeAttribute('data-doc-path')
+      const btn = li.querySelector<HTMLElement>('[data-action="open-doc"]')
+      if (btn) {
+        btn.removeAttribute('data-action')
+        btn.classList.add('dsh-pm-doc-missing')
       }
-    }))
+    }
   }
 
   /** 加载单节点工作记录并渲染（REQ-31e11f v4：点哪个节点只看哪个）。 */
@@ -606,6 +642,43 @@ export function mountBoard(controller: BoardController): () => void {
       container.innerHTML = renderInjectionInfo(info.available ? info.entries : [])
     } catch {
       container.innerHTML = renderInjectionInfo([])
+    }
+  }
+
+  /**
+   * 加载「🪙 Token」tab 内容（REQ-a33899 t6）：按当前需求 id 取 /requirements/:id/token。
+   * 幂等（同一需求只取一次）；失败渲染明确空态，不报错不留白。
+   */
+  let tokenLoadedFor: string | undefined
+  const loadTokenTab = async (reqId: string): Promise<void> => {
+    const container = document.getElementById('dsh-pm-token-container')
+    if (container === null) return
+    if (tokenLoadedFor === reqId) return
+    try {
+      container.innerHTML = renderTokenTab(await api.fetchRequirementToken(reqId))
+      tokenLoadedFor = reqId
+    } catch {
+      container.innerHTML = renderTokenPlaceholder('Token 数据暂不可用（接口失败或需求不存在）')
+    }
+  }
+
+  /**
+   * 加载「🏷 条款接收状态」（REQ-d3e61a T-5）：按当前需求 id 取 /requirements/:id/marks。
+   * 不做"按 id 记住已加载"的缓存——详情页每次渲染都会重建容器，那种缓存会让同一需求
+   * 重开时永远停在"加载中…"；这里只挡同一需求的并发重复请求。
+   */
+  let marksInFlight: string | undefined
+  const loadMarksBlock = async (reqId: string): Promise<void> => {
+    const container = document.getElementById('dsh-pm-marks-container')
+    if (container === null) return
+    if (marksInFlight === reqId) return
+    marksInFlight = reqId
+    try {
+      container.innerHTML = renderMarksBlock(await api.fetchRequirementMarks(reqId))
+    } catch {
+      container.innerHTML = renderMarksPlaceholder('接收状态暂不可用（接口失败或需求不存在）')
+    } finally {
+      marksInFlight = undefined
     }
   }
 

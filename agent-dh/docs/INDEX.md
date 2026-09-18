@@ -3,7 +3,7 @@ id: docs-index
 title: 全站页面索引（机器可读入口）
 type: index
 status: living
-updated: 2026-09-17
+updated: 2026-09-18
 owners: [agent-dh]
 tags: [index, wiki]
 ---
@@ -23,7 +23,7 @@ tags: [index, wiki]
 | [🎊 Agent-DH v0.1.1 发布说明](RELEASE-NOTES-v0.1.1.md) | doc | living | v0.1.1（2026-08-18）发布说明：稳定性与可靠性改进清单（历史版本记录）。 | 2026-09-14 |
 | [工作日志索引（L3 证据档案）](work-logs/README.md) | index | living | 某个时间点「当时做了什么、为什么这么做、结论是什么」。按月份倒序列出全部工作日志。 | 2026-09-14 |
 
-### 架构与生命周期 · `docs/architecture`（19 页）
+### 架构与生命周期 · `docs/architecture`（20 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
@@ -43,6 +43,7 @@ tags: [index, wiki]
 | [页面插件契约](architecture/page-plugin-contract.md) | architecture | living | 做一个 DSH 页面插件（GUI）要满足哪些契约；改动怎么生效。 | 2026-09-16 |
 | [插件模型与装载](architecture/plugin-model.md) | architecture | living | agent-dh 的插件是什么、怎么被加载、改完怎么才能生效、常见坑在哪。 | 2026-09-14 |
 | [需求节点详情系统（stage-detail）](architecture/reqboard-stage-detail.md) | architecture | living | 会话框流程条节点点开看详情：StageDetail 契约 + 模板模式双端装配 + 分类流程档案 + 产物闸门 + 追溯链 + 接力任务卡 + 前端工作记录渲染器。 | 2026-09-17 |
+| [需求看板的 Token 消耗（过程消耗 + 提示词成本）](architecture/reqboard-token-usage.md) | architecture | living | 看板怎么记录与展示「每个流程节点/每个任务」的 token 消耗，以及固定系统提示词与 reqboard 注入提示词的成本；含缺失语义与自检命令。 | 2026-09-18 |
 | [需求归档规范（reqboard 执行细则）](architecture/requirement-archive.md) | architecture | living | 需求归档执行细则：归档要备哪些材料、合并去向怎么定、代码在哪校验。 | 2026-09-13 |
 | [self_restart 工具行为说明](architecture/self-restart-behavior.md) | architecture | living | self_restart 工具的行为说明与失败排查（状态文件、门控、常见误判）。 | 2026-09-14 |
 | [workflow-stages.md](architecture/workflow-stages.md) | — | — | 后端数据库可能使用的旧状态名： | — |
@@ -128,13 +129,82 @@ tags: [index, wiki]
 |---|---|---|---|---|
 | [事件查询使用示例（P1-4）](examples/event-query-examples.md) | doc | living | 事件查询两个工具的实战示例（盘前例行、个股排雷等）。 | 2026-09-14 |
 
-### 包内入口页（怎么用这个包） · `packages`（7 页）
+### 包内入口页（怎么用这个包） · `packages`（76 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
 | [@pi-investment/core-tool-tool](../packages/core-tool/README.md) | package | living | core-tool 规范包：只定义三段式工具接口规范，不含具体实现。 | 2026-08-30 |
 | [@pi-investment/learning](../packages/learning/README.md) | package | living | learning 插件：经验追踪 / 模式挖掘 / 知识蒸馏 / 规则转正（RFC 003 落地）。 | 2026-08-20 |
 | [@pi-investment/dashboard-bulletin（公告板页面，RFC 013）](../packages/pages/bulletin/README.md) | package | living | 公告板页面包（双半插件）：与 board_post/board_read 工具同源的看板。 | 2026-09-05 |
+| [bug.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/accepting/bug.md) | — | — | — | — |
+| [chore.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/accepting/chore.md) | — | — | — | — |
+| [doc.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/accepting/doc.md) | — | — | — | — |
+| [feature.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/accepting/feature.md) | — | — | — | — |
+| [heavy.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/accepting/heavy.md) | — | — | If you haven't run the verification command in this message, you cannot claim it passes. | — |
+| [overrides.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/accepting/heavy/overrides.md) | — | — | — | — |
+| [light.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/accepting/light.md) | — | — | （命令 + 输出摘要 / 测试报告路径）。 | — |
+| [refactor.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/accepting/refactor.md) | — | — | — | — |
+| [spike.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/accepting/spike.md) | — | — | — | — |
+| [bug.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/archived/bug.md) | — | — | — | — |
+| [chore.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/archived/chore.md) | — | — | — | — |
+| [doc.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/archived/doc.md) | — | — | — | — |
+| [feature.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/archived/feature.md) | — | — | — | — |
+| [heavy.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/archived/heavy.md) | — | — | Run the project's full test suite (npm test / cargo test / pytest / go test ./...). | — |
+| [overrides.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/archived/heavy/overrides.md) | — | — | — | — |
+| [light.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/archived/light.md) | — | — | （requirement / plan / verification / retro 等）。 | — |
+| [refactor.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/archived/refactor.md) | — | — | — | — |
+| [spike.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/archived/spike.md) | — | — | — | — |
+| [bug.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/brainstorming/bug.md) | — | — | 先复现再改——根因不清不许动手： | — |
+| [chore.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/brainstorming/chore.md) | — | — | — | — |
+| [doc.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/brainstorming/doc.md) | — | — | — | — |
+| [feature.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/brainstorming/feature.md) | — | — | — | — |
+| [heavy.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/brainstorming/heavy.md) | — | — | Help turn ideas into fully formed designs and specs through natural collaborative dialogue. | — |
+| [overrides.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/brainstorming/heavy/overrides.md) | — | — | — | — |
+| [light.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/brainstorming/light.md) | — | — | 判定标准（跑什么、看到什么算完成）。禁止"优化一下""体验更好"这类不可验证的话。 | — |
+| [refactor.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/brainstorming/refactor.md) | — | — | — | — |
+| [spike.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/brainstorming/spike.md) | — | — | — | — |
+| [iron-rules.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/common/iron-rules.md) | — | — | — | — |
+| [bug.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/decomposing/bug.md) | — | — | — | — |
+| [chore.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/decomposing/chore.md) | — | — | — | — |
+| [doc.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/decomposing/doc.md) | — | — | — | — |
+| [feature.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/decomposing/feature.md) | — | — | — | — |
+| [heavy.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/decomposing/heavy.md) | — | — | ＋ 怎么算完（可证伪 acceptance）＋ 依赖。 | — |
+| [light.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/decomposing/light.md) | — | — | reqboard_ask_confirm(kind=decomposition) 请人确认后进入实施。 | — |
+| [refactor.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/decomposing/refactor.md) | — | — | — | — |
+| [spike.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/decomposing/spike.md) | — | — | — | — |
+| [bug.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/bug.md) | — | — | — | — |
+| [chore.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/chore.md) | — | — | — | — |
+| [doc.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/doc.md) | — | — | — | — |
+| [feature.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/feature.md) | — | — | — | — |
+| [heavy.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/heavy.md) | — | — | Load plan, review critically, execute all tasks, report when complete. | — |
+| [overrides.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/heavy/overrides.md) | — | — | — | — |
+| [light.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/light.md) | — | — | 直接改，不临时加功能、不扩范围。 | — |
+| [refactor.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/refactor.md) | — | — | — | — |
+| [spike.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/spike.md) | — | — | — | — |
+| [bug.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/bug.md) | — | — | — | — |
+| [chore.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/chore.md) | — | — | — | — |
+| [doc.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/doc.md) | — | — | — | — |
+| [feature.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/feature.md) | — | — | — | — |
+| [heavy.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/heavy.md) | — | — | Write comprehensive implementation plans assuming the engineer has zero context for our codebas… | — |
+| [overrides.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/heavy/overrides.md) | — | — | — | — |
+| [light.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/light.md) | — | — | 用 reqboard_submit(kind=plan) 提交；计划里不写最终任务 DAG（任务卡属拆分阶段）。 | — |
+| [refactor.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/refactor.md) | — | — | — | — |
+| [spike.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/spike.md) | — | — | — | — |
+| [ATTRIBUTION.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/ATTRIBUTION.md) | — | — | 本目录下的 14 份 <skill>/SKILL.md 是 obra/superpowers 的原文（逐字节落盘、不改写）， | — |
+| [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/brainstorming/SKILL.md) | — | — | Help turn ideas into fully formed designs and specs through natural collaborative dialogue. | — |
+| [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/dispatching-parallel-agents/SKILL.md) | — | — | You delegate tasks to specialized agents with isolated context. By precisely crafting their ins… | — |
+| [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/executing-plans/SKILL.md) | — | — | Load plan, review critically, execute all tasks, report when complete. | — |
+| [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/finishing-a-development-branch/SKILL.md) | — | — | Run the project's full test suite (npm test / cargo test / pytest / go test ./...). | — |
+| [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/receiving-code-review/SKILL.md) | — | — | Code review requires technical evaluation, not emotional performance. | — |
+| [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/requesting-code-review/SKILL.md) | — | — | Dispatch a code reviewer subagent to catch issues before they cascade. The reviewer gets precis… | — |
+| [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/subagent-driven-development/SKILL.md) | — | — | Execute plan by dispatching a fresh implementer subagent per task, a task review (spec complian… | — |
+| [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/systematic-debugging/SKILL.md) | — | — | If you haven't completed Phase 1, you cannot propose fixes. | — |
+| [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/test-driven-development/SKILL.md) | — | — | Write the test first. Watch it fail. Write minimal code to pass. | — |
+| [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/using-git-worktrees/SKILL.md) | — | — | Ensure work happens in an isolated workspace. Prefer your platform's native worktree tools. Fal… | — |
+| [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/using-superpowers/SKILL.md) | — | — | — | — |
+| [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/verification-before-completion/SKILL.md) | — | — | If you haven't run the verification command in this message, you cannot claim it passes. | — |
+| [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/writing-plans/SKILL.md) | — | — | Write comprehensive implementation plans assuming the engineer has zero context for our codebas… | — |
+| [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/writing-skills/SKILL.md) | — | — | You write test cases (pressure scenarios with subagents), watch them fail (baseline behavior), … | — |
 | [@pi-investment/dashboard-execution](../packages/pages/execution/README.md) | package | living | 双线执行确认看板包：v2/os 健康 + 调度任务 + 检查点与时间轴。 | 2026-09-04 |
 | [@pi-investment/dashboard-genome · 自主进化看板](../packages/pages/genome/README.md) | package | living | 自主进化看板包：基因组目录、候选状态与进化链路的可视化。 | 2026-09-13 |
 | [@pi-investment/dashboard-holdings](../packages/pages/holdings/README.md) | package | living | 账户持仓看板包：多账户摘要、持仓明细、合规监控、盯盘中心。 | 2026-09-04 |

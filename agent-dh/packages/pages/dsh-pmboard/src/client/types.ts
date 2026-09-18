@@ -230,6 +230,8 @@ export interface BoardState {
   tasks: TaskRecord[]
   /** 需求 id → ready 任务 id 列表（host 派生） */
   ready: Record<string, string[]>
+  /** REQ-a33899：需求 id → 累计 token（无快照的需求不出现该键；缺失 ≠ 0） */
+  tokenTotals?: Record<string, number>
 }
 
 export interface TriageList {
@@ -245,4 +247,6 @@ export interface ReqCard {
   totalCount: number
   readyIds: string[]
   blocked: boolean
+  /** REQ-a33899：累计 token；undefined = 无快照（不渲染徽章，也不显示 0） */
+  tokenTotal?: number
 }

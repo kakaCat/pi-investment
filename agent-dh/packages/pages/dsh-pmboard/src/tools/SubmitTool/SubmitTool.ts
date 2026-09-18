@@ -110,6 +110,11 @@ export function defineSubmitTool(deps: UseCaseDeps) {
           requirement_id: { type: 'string', description: '需求 id' },
           plan_status: { type: 'string', description: 'kind=plan：pending_approval' },
           task_count: { type: 'number', description: 'kind=plan：任务表条数' },
+          orphan_clauses: {
+            type: 'array',
+            description: 'kind=plan：无任何下游引用的根编号（需求里有、没人接）——应在看板标红；不阻断提交',
+            items: { type: 'string' },
+          },
           tasks: {
             type: 'array',
             description: 'kind=plan：计划任务表（key/title/depends_on）',

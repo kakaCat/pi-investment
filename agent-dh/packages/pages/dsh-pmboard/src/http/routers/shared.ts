@@ -13,8 +13,11 @@ import type { InjectionLogReadPort } from '../../application/internal/injection-
 export interface RouterCtx {
   store: JsonLedgerRepository
   now: () => number
-  /** 路由可选依赖：cwd=产物扫描根；injectionLog=注入留痕**只读**端口（看板信息块用）。 */
-  deps: { cwd?: string; injectionLog?: InjectionLogReadPort }
+  /**
+   * 路由可选依赖：cwd=产物扫描根；injectionLog=注入留痕**只读**端口（看板信息块用）；
+   * systemPrompt=系统提示词装配服务（REQ-a33899 t5，读时折算固定提示词成本；缺省 → unavailable）。
+   */
+  deps: { cwd?: string; injectionLog?: InjectionLogReadPort; systemPrompt?: () => unknown }
   ids: { requirement: () => string; task: () => string; comment: () => string }
   mintId: (kind: 'requirement' | 'task') => Promise<string>
   json: (res: ServerResponse, status: number, body: unknown) => void

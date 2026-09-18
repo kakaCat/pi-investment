@@ -147,6 +147,8 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   let agentsSvc: unknown;
   let projectionsSvc: unknown;
   let userQuestionsSvc: unknown;
+  /** REQ-a33899 t5：系统提示词装配服务（读时折算固定提示词成本）。 */
+  let systemPromptSvc: unknown;
   ;(ctx as unknown as { inject?: (services: string[], cb: (c: any) => void) => void }).inject?.(
     ['userQuestions'],
     (uqCtx: { userQuestions?: unknown } | undefined) => {
@@ -270,6 +272,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   ;(ctx as unknown as { inject?: (services: string[], cb: (c: any) => void) => void }).inject?.(
     ['systemPrompt'],
     (spCtx: { effect?: (fn: () => void, label?: string) => void; systemPrompt?: any }) => {
+      systemPromptSvc = spCtx.systemPrompt;
       spCtx.effect?.(() => {
         disposers.push(spCtx.systemPrompt.section({
           name: CAPTURE_SECTION,
@@ -340,7 +343,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
           kind: 'prefix',
           path: '/dashboard/api/reqboard',
           // injectionLog 只以**只读端口**身份进入路由（t11）：看板能读「本次注入了什么」，不能写。
-          handler: createReqboardHandler({ store, now, injectionLog }),
+          handler: createReqboardHandler({ store, now, injectionLog, systemPrompt: () => systemPromptSvc }),
         });
       }, name + ': api');
       logger.info('routes registered: /dashboard/api/reqboard/* (state/events/req/task/triage CRUD + 人工确认立项)');

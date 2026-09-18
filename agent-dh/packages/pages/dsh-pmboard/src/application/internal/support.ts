@@ -13,13 +13,15 @@ import type { LedgerView, UseCaseDeps } from '../ports.js'
 import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'
 import { artifactNotifyText } from './artifact-gates.js'
 import { isWindowBound, openRequirementsFor, pendingSuggestionFor } from './window.js'
-import type {
-  RequirementCategory,
-  RequirementRecord,
-  StageArtifact,
-  TaskRecord,
-  TriageRecord,
+import {
+  recordStatus,
+  type RequirementCategory,
+  type RequirementRecord,
+  type StageArtifact,
+  type TaskRecord,
+  type TriageRecord,
 } from '../../shared/protocol.js'
+import { captureSnapshot } from './token-usage.js'
 
 /** 结构化认证失败：message 自带（CODE）文本；code 属性仅测试/直接执行消费。 */
 export function reject(message: string, code: string): never {
@@ -213,6 +215,9 @@ export async function createRequirementDirect(
       createdBy: actor,
       updatedBy: actor,
     }
+    // REQ-a33899：立项即记 draft 状态事件 + 写时快照——否则「立项」节点没有进入快照，
+    // 该节点消耗永远算不出来（首段也应当可归因）。
+    recordStatus(req, 'draft', nowTs, actor, undefined, captureSnapshot(deps, windowKey))
     ledger.requirements.push(req)
     return { requirements: [req] }
   })

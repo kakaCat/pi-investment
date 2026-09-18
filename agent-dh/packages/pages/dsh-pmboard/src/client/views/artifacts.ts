@@ -6,7 +6,7 @@
 import { esc } from '@pi-investment/page-kit/client'
 import type { ReqCard, RequirementRecord, RequirementStatus } from '../types.ts'
 import type { ArtifactKind, StageArtifact, StageKey } from '../../shared/protocol.ts'
-import { ARTIFACT_CONFIRM_GATES, REQ_TRANSITIONS, STAGE_ARTIFACT_REQUIREMENTS, confirmGateKindFor, flowProfileFor } from '../../shared/protocol.ts'
+import { ARTIFACT_CONFIRM_GATES, REQ_TRANSITIONS, STAGE_ARTIFACT_REQUIREMENTS, confirmGateKindFor, flowProfileFor, fmtTokens } from '../../shared/protocol.ts'
 import { CATEGORY_LABELS, NO_ARCHIVED, PHASE_LABELS, STATUS_LABELS, fmtDur, fmtTime, isTerminal, progress, renderSessionChip, renderWindowChip } from '../render/dom-utils.ts'
 import { eventsOf } from './timeline.ts'
 import { archiveChip, verifyChip } from './verification.ts'
@@ -139,6 +139,7 @@ export function renderReqCard(card: ReqCard, now: number, archived: ReadonlySet<
       <div class="dsh-pm-card-progress">
         <div class="dsh-pm-card-bar"><div class="dsh-pm-card-bar-fill" style="width:${pct}%"></div></div>
         <span class="dsh-pm-card-pct">${progress(doneCount, totalCount)}</span>
+        ${card.tokenTotal !== undefined ? `<span class="dsh-pm-token-badge" title="累计 Token（会话快照差值合计；口径见详情 Token tab）">🪙 ${esc(fmtTokens(card.tokenTotal))}</span>` : ''}
       </div>
       ${artifactChips}
       ${artifactDerived}

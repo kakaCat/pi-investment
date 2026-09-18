@@ -69,6 +69,12 @@ export interface StagePromptRequest {
   readonly difficulty?: Difficulty
   readonly category?: Category
   readonly budget?: number
+  /**
+   * 需求实质（标题 + 描述）。给了它、且未显式传 difficulty 时，难度**由需求推断**
+   * （FR-16：动架构 / 跨多子系统 / 改数据模型 / 新增子系统 / 规模大 → heavy），
+   * 不再静默回落 DEFAULT_DIFFICULTY。
+   */
+  readonly requirement?: { readonly title?: string; readonly description?: string }
 }
 
 /** 命中层级：1=①精确 / 2=②难度档 / 3=③类型档 / 4=④节点兜底 / 5=⑤全局铁律（合并）。 */
@@ -101,4 +107,6 @@ export interface ResolvedPrompt {
   readonly trimmed: readonly string[]
   /** 连保底都超预算时的结构化超限标记（存在即未静默） */
   readonly overBudget?: BudgetOverflow
+  /** 难度推断依据（FR-16）。非空 = 本次难度按需求实质推断，供注入留痕与看板核查。 */
+  readonly difficultyReasons?: readonly string[]
 }

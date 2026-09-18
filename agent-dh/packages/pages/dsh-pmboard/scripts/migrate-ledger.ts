@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 账本 v4 → v5 迁移（REQ-47939a t10）。
+ * 账本 v4 → v5 → v6 迁移（REQ-47939a t10 的 v4→v5 语义原样保留；REQ-a33899 t3 追加 v5→v6）。
  *
  * 运行（**经 tsx**，见 design/migration.md §3.1 D-8）：
  *   node --import tsx/esm packages/pages/dsh-pmboard/scripts/migrate-ledger.ts --file <ledger> --dry-run
@@ -24,6 +24,8 @@ import {
 } from '../src/domain/legacy/LegacyStatus.js'
 
 const V5 = 5
+/** 现行契约版本（REQ-a33899：token 字段为纯附加，v5→v6 只 bump 版本 + 留痕，不伪造历史快照）。 */
+const V6 = 6
 const USAGE = `用法：--file <ledger> [--dry-run|--apply|--verify]（默认 --dry-run）`
 
 interface Change { count: number; detail: string[] }
@@ -95,9 +97,12 @@ export function migrate(ledger: any, now: number): { next: any; changes: Record<
     }
     if (out.length !== r.artifacts.length) r.artifacts = out
   }
-  // C1 + C2 版本与迁移留痕
-  next.schemaVersion = V5
-  next.migrations = [...(next.migrations ?? []), { from: 4, to: 5, at: now, by: 'migrate-ledger.ts' }]
+  // C1 + C2 版本与迁移留痕（REQ-a33899：链式 v4 → v5 → v6，逐段留痕；已是 v6 则零改动 = 幂等）
+  const from = typeof next.schemaVersion === 'number' ? next.schemaVersion : 4
+  next.migrations = [...(next.migrations ?? [])]
+  if (from <= V5 - 1) next.migrations.push({ from: 4, to: 5, at: now, by: 'migrate-ledger.ts' })
+  if (from <= V5) next.migrations.push({ from: 5, to: 6, at: now, by: 'migrate-ledger.ts' })
+  next.schemaVersion = V6
   return { next, changes }
 }
 
@@ -155,7 +160,7 @@ function main(): void {
   if (mode === 'verify') {
     const reqs: any[] = ledger.requirements ?? []; const tasks: any[] = ledger.tasks ?? []
     const problems: string[] = []
-    if (ledger.schemaVersion !== V5) problems.push('schemaVersion=' + ledger.schemaVersion + '（应为 ' + V5 + '）')
+    if (ledger.schemaVersion !== V6) problems.push('schemaVersion=' + ledger.schemaVersion + '（应为 ' + V6 + '）')
     if (reqs.some((r: any) => !Array.isArray(r.statusHistory) || r.statusHistory.length === 0)) problems.push('存在缺少 statusHistory 的需求')
     if (reqs.some((r: any) => 'projectId' in r || 'parentId' in r)) problems.push('仍有 projectId/parentId 未删')
     if (reqs.some((r: any) => r.category === undefined || r.category === null)) problems.push('存在缺少 category 的需求')
@@ -164,12 +169,12 @@ function main(): void {
     if (tasks.some((t: any) => t.scope === undefined)) problems.push('存在缺少 scope 的任务')
     console.log('── --verify ──\n' + counts(ledger))
     if (problems.length > 0) { console.error('❌ 未达 v5：\n  - ' + problems.join('\n  - ')); process.exit(1) }
-    console.log('✅ 已是 v5 且结构自洽（需求/任务计数见上）')
+    console.log('✅ 已是 v6 且结构自洽（需求/任务计数见上）')
     return
   }
 
-  if (ledger.schemaVersion === V5) {
-    console.log('── 无需迁移 ──\n' + counts(ledger) + '\n✅ 已是 v5，--apply 幂等无操作')
+  if (ledger.schemaVersion === V6) {
+    console.log('── 无需迁移 ──\n' + counts(ledger) + '\n✅ 已是 v6，--apply 幂等无操作')
     return
   }
 

@@ -10,7 +10,9 @@ import {
   normalizeText,
   type StageArtifact,
 } from '../../shared/protocol.js'
+import { normalizeArtifactPath } from '../../domain/artifact/ArtifactPath.js'
 import { openRequirementsFor } from '../internal/window.js'
+import { captureSnapshot, endExecutionToken } from '../internal/token-usage.js'
 import {
   reject,
   agentIdFromExec,
@@ -107,6 +109,8 @@ export async function executeReportTask(deps: UseCaseDeps, args: unknown, exec: 
         registeredAt: nowTs,
         registeredBy: { kind: 'agent', sessionId: windowKey },
       }
+      // REQ-a33899：汇报即刷新本次执行的 token 进度（中途检查点；完工时由 task_move 覆盖终值）。
+      const snap = captureSnapshot(deps, windowKey)
       const result = await deps.repo.mutate('requirement-updated', (ledger) => {
         const r = ledger.requirements.find(x => x.id === req.id)
         if (r === undefined) return undefined
@@ -116,18 +120,32 @@ export async function executeReportTask(deps: UseCaseDeps, args: unknown, exec: 
           tk.lastReport = { at: nowTs, reportIndex, filesChanged: [...filesChanged], completed: [...completed] }
           tk.version += 1
           tk.updatedAt = nowTs
+          for (let i = tk.executions.length - 1; i >= 0; i -= 1) {
+            const e = tk.executions[i]!
+            if (e.outcome !== 'running' || e.sessionId !== windowKey) continue
+            endExecutionToken(e, snap)
+            break
+          }
         }
         r.artifacts ??= []
         const already = r.artifacts.some(x => x.path === artifact.path && x.kind === artifact.kind)
         if (!already) r.artifacts.push(artifact)
         // 任务文件上浮（REQ-2e9473 t12/W4）：汇报的改动文件自动登记到需求级产物清单，
         // 覆盖 REQ 目录之外的源码文件——需求详情页可见"这个需求一共动了哪些文件"。
+        // REQ-b63a7d t2：登记前一律过产物路径归一层。此前原样上浮，仓库根相对
+        // （agent-dh/…）、绝对路径、跨仓相对、brace-glob 伪路径全都进了台账，前端
+        // 存在性预检被文件接口白名单判 403（本实例实测 142 条）。
+        const workspaceRoot = deps.docs.workspaceRoot()
         for (const f of filesChanged) {
-          if (r.artifacts.some(x => x.path === f && x.kind === 'task_output')) continue
+          const norm = normalizeArtifactPath(f, workspaceRoot)
+          if (norm.form === 'pseudo' || norm.path.length === 0) continue
+          // 工作区之外的绝对路径（/etc/... 之类）不是本仓文件，不入产物清单
+          if (norm.form === 'outside' && norm.path.startsWith('/')) continue
+          if (r.artifacts.some(x => x.path === norm.path && x.kind === 'task_output')) continue
           r.artifacts.push({
             stage: 'implementing',
             kind: 'task_output',
-            path: f,
+            path: norm.path,
             registeredAt: nowTs,
             registeredBy: { kind: 'agent', sessionId: windowKey },
           } as StageArtifact)

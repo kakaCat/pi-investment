@@ -55,11 +55,24 @@ export function registerArtifact(
 
 /** 闸门校验结果（成功 → undefined；失败 → 结构化原因）。 */
 export interface GateFailure {
-  code: 'missing_artifact' | 'artifact_not_confirmed'
+  code:
+    | 'missing_artifact'
+    | 'artifact_not_confirmed'
+    // ── 内容闸门（REQ-d3e61a）：读文档**正文**的校验，与上面两级「登记态」正交互补 ──
+    | 'requirement_uncovered'
+    | 'dangling_reference'
+    | 'orphan_clause'
+    | 'design_orphan'
+    | 'no_e2e_case'
+    | 'acceptance_incomplete'
+    | 'task_card_incomplete'
+    | 'tbd_not_cleared'
   /** 缺/待确认的产物 kind */
   kind: ArtifactKind
   /** 提示消息（含产物 path 或缺失说明） */
   message: string
+  /** 结构化缺口（如缺失的根编号清单）：供 agent 精确修复与 UI 标红 */
+  gaps?: string[]
 }
 
 /**

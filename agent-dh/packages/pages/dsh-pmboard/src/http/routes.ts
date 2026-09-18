@@ -28,6 +28,8 @@ export interface ReqboardRouteDeps {
   now: () => number
   /** 注入留痕**只读**端口（REQ-422af1 t11）：看板「本次注入了什么」的数据源；缺省则接口返回空清单。 */
   injectionLog?: InjectionLogReadPort
+  /** 系统提示词装配服务提供者（REQ-a33899 t5）：读时折算固定系统提示词成本；缺省 → unavailable。 */
+  systemPrompt?: () => unknown
   /** 可注入 id 生成器（测试用） */
   ids?: {
     requirement?: () => string
@@ -110,6 +112,7 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
     deps: {
       ...(deps.cwd !== undefined ? { cwd: deps.cwd } : {}),
       ...(deps.injectionLog !== undefined ? { injectionLog: deps.injectionLog } : {}),
+      ...(deps.systemPrompt !== undefined ? { systemPrompt: deps.systemPrompt } : {}),
     },
     ids,
     mintId,
@@ -146,6 +149,21 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
         return await artifacts.handleFileRead(res, p)
       }
       if (method === 'GET' && sub === 'requirements/summary') return await stages.handleRequirementsSummary(res)
+      if (method === 'GET' && /^requirements\/[^/]+\/token$/.test(sub)) {
+        const id = decodeURIComponent(sub.split('/')[1] ?? '')
+        if (id.length === 0) {
+          return json(res, 400, { success: false, error: '缺少 id 参数', code: 'invalid_input' })
+        }
+        return await stages.handleRequirementToken(res, id)
+      }
+      // REQ-d3e61a T-5：需求侧接收标记（看板详情页「未被接收（红）」的数据源）
+      if (method === 'GET' && /^requirements\/[^/]+\/marks$/.test(sub)) {
+        const id = decodeURIComponent(sub.split('/')[1] ?? '')
+        if (id.length === 0) {
+          return json(res, 400, { success: false, error: '缺少 id 参数', code: 'invalid_input' })
+        }
+        return await stages.handleRequirementMarks(res, id)
+      }
       if (method === 'GET' && /^requirements\/[^/]+\/stages$/.test(sub)) {
         const id = decodeURIComponent(sub.split('/')[1] ?? '')
         if (id.length === 0) {
@@ -183,6 +201,8 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       if (method === 'POST' && sub === 'task/move') return await tasks.handleTaskMove(req, res)
       if (method === 'POST' && sub === 'task/update') return await tasks.handleTaskUpdate(req, res)
       if (method === 'POST' && sub === 'comment') return await requirements.handleComment(req, res)
+      // 文档可打开性批量解析（REQ-b63a7d t4）：前端一次请求替代逐条预检
+      if (method === 'POST' && sub === 'docs/resolve') return await artifacts.handleDocsResolve(req, res)
 
       if (method === 'GET' && sub === 'triage') return await triage.handleTriageList(res)
       if (method === 'POST' && sub === 'triage/confirm') return await triage.handleTriageConfirm(req, res)

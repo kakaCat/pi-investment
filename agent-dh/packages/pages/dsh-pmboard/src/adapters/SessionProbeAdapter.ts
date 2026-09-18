@@ -13,6 +13,7 @@
  * @module dsh-pmboard/adapters/SessionProbeAdapter
  */
 import type { SessionProbe } from '../application/ports.js'
+import { emptyBuckets, type TokenBuckets, type TokenSnapshot } from '../shared/protocol.js'
 
 // ---------------------------------------------------------------------------
 // 工具痕迹（REQ-2e9473 t05）：窗口维度记录 tool/call 事件，供 done 凭证门判定"开工以来有无真实工具动作"。
@@ -195,6 +196,43 @@ export class SessionProbeAdapter implements SessionProbe {
     rejectSession('reqboard_create 需要本次直接人工回合的用户消息（自主回合禁止立项）', 'REQBOARD_DIRECT_HUMAN_REQUIRED')
   }
 
+  /**
+   * 执行会话的累计 token 快照（REQ-a33899 t2）。读 sessionProjections 的 tokenUsage 投影；
+   * 任一环节不可得（服务未装配 / 窗口无会话 / 投影未产出）→ source='unavailable' 空桶，**不抛错**。
+   */
+  tokenTotals(windowKey: string): TokenSnapshot {
+    const now = this.opts.now?.() ?? Date.now()
+    const unavailable = (): TokenSnapshot => ({ at: now, totals: emptyBuckets(), source: 'unavailable' })
+    const agents = this.opts.agents?.() as { get?: (id: string) => unknown } | undefined
+    const projections = this.opts.sessionProjections?.() as
+      { stateOf?: (session: unknown, kind: string) => unknown } | undefined
+    if (typeof agents?.get !== 'function' || typeof projections?.stateOf !== 'function') return unavailable()
+    let session: unknown
+    try {
+      session = (agents.get(windowKey) as { session?: unknown } | undefined)?.session
+    } catch {
+      return unavailable()
+    }
+    if (session === undefined || session === null) return unavailable()
+    let state: unknown
+    try {
+      state = projections.stateOf(session, 'tokenUsage')
+    } catch {
+      return unavailable()
+    }
+    const totals = readTokenTotals(state)
+    if (totals === undefined) return unavailable()
+    const sessionId = readSessionId(session)
+    const seq = readSessionSeq(session)
+    return {
+      ...(sessionId !== undefined ? { sessionId } : {}),
+      ...(seq !== undefined ? { seq } : {}),
+      at: now,
+      totals,
+      source: 'projection',
+    }
+  }
+
   /** 某窗口"自 since 以来最后一次真实工具动作"的 workLike 计数；无痕迹表 → 0。 */
   toolActivitySince(windowKey: string, since: number): number {
     if (this.opts.toolTrace === undefined) return 0
@@ -217,3 +255,44 @@ export class SessionProbeAdapter implements SessionProbe {
     return evidenceMatchesRecentUserMsg(this.opts.recentUserMsgs, windowKey, evidence, now)
   }
 }
+
+// ---------------------------------------------------------------------------
+// tokenUsage 投影解析（REQ-a33899 t2）——兼容两种状态形状：{totals:{...}} 包裹 或 直接四桶
+// ---------------------------------------------------------------------------
+
+function readBucketNumber(raw: unknown, key: string): number | undefined {
+  const v = (typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>)[key] : undefined)
+  return typeof v === 'number' && Number.isFinite(v) ? v : undefined
+}
+
+/** 从投影状态读四桶；缺任一桶/形状不符 → undefined（视为不可得，不猜 0）。 */
+export function readTokenTotals(state: unknown): TokenBuckets | undefined {
+  if (typeof state !== 'object' || state === null) return undefined
+  const wrapped = (state as { totals?: unknown }).totals
+  const src = (typeof wrapped === 'object' && wrapped !== null) ? wrapped : state
+  const a = readBucketNumber(src, 'uncachedInputTokens')
+  const o = readBucketNumber(src, 'outputTokens')
+  const r = readBucketNumber(src, 'cacheReadTokens')
+  const w = readBucketNumber(src, 'cacheWriteTokens')
+  if (a === undefined || o === undefined || r === undefined || w === undefined) return undefined
+  return { uncachedInputTokens: a, outputTokens: o, cacheReadTokens: r, cacheWriteTokens: w }
+}
+
+/** 会话 id（缺省 → undefined）。 */
+function readSessionId(session: unknown): string | undefined {
+  const id = (session as { id?: unknown } | undefined)?.id
+  return typeof id === 'string' && id.length > 0 ? id : undefined
+}
+
+/** 会话日志序号（snapshotEvents 末条下标；不可得 → undefined）。 */
+function readSessionSeq(session: unknown): number | undefined {
+  const events = (session as { snapshotEvents?: () => unknown } | undefined)?.snapshotEvents
+  if (typeof events !== 'function') return undefined
+  try {
+    const list = events.call(session) as unknown
+    return Array.isArray(list) && list.length > 0 ? list.length - 1 : undefined
+  } catch {
+    return undefined
+  }
+}
+

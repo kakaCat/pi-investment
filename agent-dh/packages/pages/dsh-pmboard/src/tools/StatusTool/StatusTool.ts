@@ -47,6 +47,24 @@ export function defineStatusTool(deps: UseCaseDeps) {
             description: '本窗口可自行推进的目标状态（agent 合法转移；取消/归档为人工闸门不在此列）',
             items: { type: 'string' },
           },
+          clause_receive_status: {
+            type: 'array',
+            description: '本条需求每条功能点的接收状态（FR-3）：done=已完成+证据 / received=已被任务接收 / skipped=本轮裁剪 / **unreceived=未被接收（红）**',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                clause: { type: 'string' },
+                state: { type: 'string' },
+                by: { type: 'array', items: { type: 'string' } },
+              },
+            },
+          },
+          unreceived_clauses: {
+            type: 'array',
+            description: '未被任何任务接收、也未裁剪的条款（**红**）——存在即为 R9 那类缺口',
+            items: { type: 'string' },
+          },
           note: { type: 'string', description: '下一步指引' },
         },
       },

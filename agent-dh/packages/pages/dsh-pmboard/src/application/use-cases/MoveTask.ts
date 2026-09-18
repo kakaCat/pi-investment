@@ -15,6 +15,7 @@ import {
 } from '../../shared/protocol.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { applyTaskRollup } from '../internal/rollup.js'
+import { beginExecutionToken, captureSnapshot, endExecutionToken } from '../internal/token-usage.js'
 import {
   reject,
   agentIdFromExec,
@@ -61,21 +62,26 @@ export async function executeMoveTask(deps: UseCaseDeps, args: unknown, exec: an
         t.version += 1
         t.updatedAt = nowTs
         t.updatedBy = { kind: 'agent', sessionId: windowKey }
+        // REQ-a33899：任务执行开工/完工各记一次会话快照，消耗 = 两次快照之差（同会话才相减）。
+        const snap = captureSnapshot(deps, windowKey)
         if (to === 'in_progress') {
           t.claimedBy = windowKey
           t.claimedAt = nowTs
-          t.executions.push({
+          const execution = {
             id: deps.ids.execution(),
             sessionId: windowKey,
-            trigger: 'manual',
+            trigger: 'manual' as const,
             startedAt: nowTs,
-            outcome: 'running',
-          })
+            outcome: 'running' as const,
+          }
+          beginExecutionToken(execution, snap)
+          t.executions.push(execution)
         } else {
           for (const e of t.executions) {
             if (e.outcome === 'running') {
               e.endedAt = nowTs
               e.outcome = to === 'canceled' || to === 'todo' ? 'cancelled' : 'succeeded'
+              endExecutionToken(e, snap)
             }
           }
         }
@@ -83,7 +89,7 @@ export async function executeMoveTask(deps: UseCaseDeps, args: unknown, exec: an
           delete t.claimedBy
           delete t.claimedAt
         }
-        recordStatus(t, to, nowTs, { kind: 'agent', sessionId: windowKey }, reason || undefined)
+        recordStatus(t, to, nowTs, { kind: 'agent', sessionId: windowKey }, reason || undefined, snap)
         if (reason.length > 0) {
           t.comments.push({
             id: deps.ids.comment(),

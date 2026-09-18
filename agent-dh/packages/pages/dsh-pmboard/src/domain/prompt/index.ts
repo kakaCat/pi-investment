@@ -7,6 +7,7 @@
  * @module dsh-pmboard/domain/prompt
  */
 import { GENERATED_FRAGMENTS, type GeneratedFragment } from './generated/fragments.js'
+import { inferDifficulty, difficultyMismatch } from './difficulty-inference.js'
 import { resolveFragmentPlan } from './router.js'
 import { fmt } from '../text/fmt.js'
 import {
@@ -64,5 +65,17 @@ export function resolveStagePrompt(
   req: StagePromptRequest,
   library: readonly Fragment[] = FRAGMENT_LIBRARY,
 ): ResolvedPrompt {
-  return resolveFragmentPlan(library, req)
+  // 未给需求实质 → 行为与既有完全一致（向后兼容，零影响）。
+  const inferred = req.requirement === undefined ? undefined : inferDifficulty(req.requirement)
+  if (inferred === undefined) return resolveFragmentPlan(library, req)
+
+  // 未显式指定难度 → 用推断值（这才是"变聪明"：不再静默回落 light）。
+  const effective: StagePromptRequest = req.difficulty === undefined ? { ...req, difficulty: inferred.difficulty } : req
+  const resolved = resolveFragmentPlan(library, effective)
+
+  // 留痕：推断依据必带；显式传的难度与推断冲突时，**响亮但不断流**（写进依据，看板可查）。
+  const reasons = [...inferred.reasons]
+  const warn = req.difficulty === undefined ? undefined : difficultyMismatch(inferred, req.difficulty)
+  if (warn !== undefined) reasons.push(warn)
+  return reasons.length === 0 ? resolved : { ...resolved, difficultyReasons: reasons }
 }

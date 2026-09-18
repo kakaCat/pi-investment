@@ -60,12 +60,14 @@ abstract class StageDetailAssembler {
   assemble(ctx: AssembleContext): StageDetail {
     const { req, ledger } = ctx
     const enabled = stageEnabledFor(req.category, this.stage)
+    const tokens = req.tokenUsage?.byStage?.[this.stage]
     const base = {
       stage: this.stage,
       enabled,
       artifacts: artifactsForStage(req, this.stage),
       pendingConfirmation: pendingConfirmationFor(req, this.stage),
       timeline: timelineForStage(req, this.stage),
+      ...(tokens !== undefined ? { tokens } : {}),
     }
     // 分类跳过：body 给空对象（契约要求对应成员存在），UI 标灰不算缺失
     const body = enabled ? this.buildBody(req, ledger) : ({} as never)

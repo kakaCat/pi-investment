@@ -5,7 +5,7 @@
  * @module dsh-pmboard/client/api
  */
 import type { BoardState, TriageList } from './types.ts'
-import type { StageDetail, StageOverview } from '../shared/protocol.ts'
+import type { RequirementMarksView, RequirementTokenView, StageDetail, StageOverview } from '../shared/protocol.ts'
 import type { InjectionInfoResponse } from './injection-info.ts'
 
 const BASE = '/dashboard/api/reqboard'
@@ -107,6 +107,21 @@ export function fetchStageOverview(reqId: string): Promise<StageOverview> {
   return get<StageOverview>(BASE + '/requirements/' + encodeURIComponent(reqId) + '/stages')
 }
 
+/**
+ * 单需求 token 去向（REQ-a33899 t6）：详情页「🪙 Token」tab 的数据源。
+ */
+export function fetchRequirementToken(reqId: string): Promise<RequirementTokenView> {
+  return get<RequirementTokenView>(BASE + '/requirements/' + encodeURIComponent(reqId) + '/token')
+}
+
+/**
+ * 需求侧逐条接收状态（REQ-d3e61a T-5）：详情页「🏷 条款接收状态」块的数据源。
+ * 判据（条款 + 任务↔条款绑定）都在文档里，client 拿不到，故由服务端装配。
+ */
+export function fetchRequirementMarks(reqId: string): Promise<RequirementMarksView> {
+  return get<RequirementMarksView>(BASE + '/requirements/' + encodeURIComponent(reqId) + '/marks')
+}
+
 /** 读取产物/文档全文（工作区相对路径），供节点详情超链接点击展开。 */
 export async function fetchReqFile(path: string): Promise<string> {
   const res = await fetch(BASE + '/file?path=' + encodeURIComponent(path), { signal: AbortSignal.timeout(TIMEOUT_MS) })
@@ -114,6 +129,25 @@ export async function fetchReqFile(path: string): Promise<string> {
   const json = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { content?: string }; error?: string }
   if (json.success !== true) throw new ApiError(json.error ?? '读取文档失败')
   return json.data?.content ?? ''
+}
+
+/**
+ * 文档可打开性批量解析（REQ-b63a7d t4）——「文档记录」区不再逐条打 /file 预检。
+ * 旧实现每条路径一发 GET：不在 docs/ 内就被白名单判 403，控制台持续刷红（实测 142 条）。
+ * 本端点由 host 单点判定（归一层 + fs），恒 200，且把不可打开的原因一并带回。
+ */
+export interface DocPathVerdictView {
+  /** 原始路径（与请求一一对应，前端据此定位元素） */
+  path: string
+  normalized: string
+  form: 'workspace' | 'outside' | 'pseudo'
+  exists: boolean
+  openable: boolean
+  reason?: string
+}
+
+export function resolveReqDocs(paths: string[]): Promise<{ results: DocPathVerdictView[] }> {
+  return post<{ results: DocPathVerdictView[] }>(BASE + '/docs/resolve', { paths })
 }
 
 /** 产物人工确认（五道人工确认门）：人在看板一键确认某 kind 的产物。 */

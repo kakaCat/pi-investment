@@ -10,13 +10,25 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
   asStageKey,
   readyTasks,
+  totalTokens,
   windowCodeFromSessionId,
   type RequirementRecord,
+  type TaskRecord,
 } from '../../shared/protocol.js'
 import { syncAllReqArtifacts, syncReqArtifacts } from '../../adapters/ArtifactSync.js'
 import { assembleStageDetail, assembleStageOverview } from '../../application/query/QueryStageDetail.js'
+import { assembleRequirementToken, requirementTotalTokens } from '../../application/query/QueryRequirementToken.js'
+import { assembleRequirementMarks } from '../../application/query/QueryRequirementMarks.js'
+import { FileDocRepository } from '../../adapters/FileDocRepository.js'
+import {
+  injectionWindowsOf,
+  summarizeInjections,
+  summarizeSystemPrompt,
+  unavailableSystemPromptCost,
+} from '../../application/internal/prompt-cost.js'
 import { countDoneTasks, countUnfinishedTasks, isActiveRequirement, isOpenRequirement } from '../../domain/status/Predicates.js'
 import { TASK_STATUS_ORDER } from '../../domain/task/TaskStatus.js'
+import { fmt } from '../../domain/text/fmt.js'
 import type { RouterCtx } from './shared.js'
 
 export function createStagesRouter(ctx: RouterCtx) {
@@ -33,6 +45,12 @@ export function createStagesRouter(ctx: RouterCtx) {
       // 派生视图：每个需求的 ready 任务（client 调度提示用）
       ready: Object.fromEntries(
         ledger.requirements.map(r => [r.id, readyTasks(ledger.tasks, r.id).map(t => t.id)]),
+      ),
+      // REQ-a33899：需求卡面累计 token。**无快照的需求不出现该键**（缺失 ≠ 0）。
+      tokenTotals: Object.fromEntries(
+        ledger.requirements
+          .map(r => [r.id, requirementTotalTokens(r)] as const)
+          .filter(([, v]) => v !== undefined),
       ),
     })
   }
@@ -158,6 +176,10 @@ export function createStagesRouter(ctx: RouterCtx) {
       timeline: (target.statusHistory ?? []).map(e => ({
         status: e.status, at: e.at, by: e.by, reason: e.reason ?? null, inferred: e.inferred === true,
       })),
+      // REQ-a33899：每个流程节点的 token。口径与详情页一致：节点有快照用节点差值；
+      // 节点无快照但任务执行有差值时用执行差值兜底——否则功能上线前创建的需求
+      // 在会话顶部一个数字都不显示（用户实测反馈）。total=0 的节点不输出 tokens（避免一排 0）。
+      nodes: nodeTokensOf(target, tasks),
       tasks: tasks
         .slice()
         .sort((a, b) => (TASK_STATUS_ORDER.indexOf(a.status) - TASK_STATUS_ORDER.indexOf(b.status)) || (a.createdAt - b.createdAt))
@@ -202,5 +224,72 @@ export function createStagesRouter(ctx: RouterCtx) {
     ok(res, overview)
   }
 
-  return { handleState, handleEvents, handleRequirementsSummary, handleSessionProgress, handleStageDetail, handleStageOverview }
+  /**
+   * GET /dashboard/api/reqboard/requirements/:id/token
+   * 单需求的 token 去向（REQ-a33899）：byStage + 任务执行下钻；不存在 → 404。
+   */
+  /** 固定系统提示词成本：读时装配；服务不可得或装配抛错 → source=unavailable（不猜）。 */
+  async function systemPromptCostOf(provider: (() => unknown) | undefined) {
+    const svc = provider?.() as { assemble?: (ctx?: unknown) => Promise<unknown> } | undefined
+    if (typeof svc?.assemble !== 'function') return unavailableSystemPromptCost()
+    try {
+      // turns 暂不可得（会话回合统计未接入本接口）→ 不猜累计，只给每回合成本
+      return summarizeSystemPrompt(await svc.assemble(), 0)
+    } catch {
+      return unavailableSystemPromptCost()
+    }
+  }
+
+  async function handleRequirementToken(res: ServerResponse, id: string): Promise<void> {
+    const ledger = await store.read(l => l)
+    const req = ledger.requirements.find(r => r.id === id)
+    if (req === undefined) {
+      throw Object.assign(new Error(fmt('需求 {id}不存在', { id })), { code: 'not_found' })
+    }
+    const view = assembleRequirementToken(req, { tasks: ledger.tasks })
+    // REQ-a33899 t5：提示词成本（读时装配，不落台账）
+    view.systemPrompt = await systemPromptCostOf(deps.systemPrompt)
+    const entries = deps.injectionLog !== undefined ? await deps.injectionLog.readAll().catch(() => []) : []
+    const windows = injectionWindowsOf([
+      req.sourceSessionId,
+      req.reviewSessionId,
+      ...ledger.tasks.filter(t => t.requirementId === req.id).flatMap(t => t.executions.map(e => e.sessionId)),
+    ])
+    const injections = summarizeInjections(entries, windows)
+    const totals = totalTokens(view.totals)
+    if (totals > 0) injections.sharePct = Math.round((injections.estTokens / totals) * 1000) / 10
+    view.injections = injections
+    ok(res, view)
+  }
+
+  /**
+   * 每节点 token（REQ-a33899）：与详情页同口径——节点快照优先，缺失时用该节点任务执行差值兜底。
+   * total=0 的节点只给 key（前端显示节点名，不显示 0）。
+   */
+  function nodeTokensOf(req: RequirementRecord, reqTasks: readonly TaskRecord[]): Array<{ key: string; tokens?: { total: number } }> {
+    const view = assembleRequirementToken(req, { tasks: reqTasks })
+    return view.byStage.map((row) => {
+      const total = row.buckets !== undefined
+        ? totalTokens(row.buckets)
+        : row.executions.reduce((n, e) => n + (e.delta !== undefined ? totalTokens(e.delta) : 0), 0)
+      return total > 0 ? { key: row.stage, tokens: { total } } : { key: row.stage }
+    })
+  }
+
+  /**
+   * 需求侧接收标记（REQ-d3e61a T-5）：逐条功能点显示「谁接了 / 还没人接」。
+   * 判据（条款清单 + 任务↔条款绑定）只存在于文档，client 拿不到，故必须服务端算。
+   */
+  async function handleRequirementMarks(res: ServerResponse, id: string): Promise<void> {
+    const ledger = await store.read(l => l)
+    const req = ledger.requirements.find(r => r.id === id)
+    if (req === undefined) {
+      throw Object.assign(new Error(fmt('需求 {id}不存在', { id })), { code: 'not_found' })
+    }
+    // 路由层的 deps 只有 cwd（无 docs 端口，且不许出现状态字面量——过滤下沉到 application 层）
+    const docs = new FileDocRepository(deps.cwd !== undefined ? { workspaceRoot: deps.cwd } : {})
+    ok(res, await assembleRequirementMarks({ docs }, req, ledger.tasks))
+  }
+
+  return { handleState, handleEvents, handleRequirementsSummary, handleSessionProgress, handleStageDetail, handleStageOverview, handleRequirementToken, handleRequirementMarks }
 }

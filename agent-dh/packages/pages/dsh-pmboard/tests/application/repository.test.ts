@@ -33,14 +33,14 @@ function req(id: string): RequirementRecord {
 }
 
 describe('JsonLedgerRepository：加载 / 写 / 订阅', () => {
-  it('缺文件 → 空台账（schemaVersion=5, revision=0），不抛', async () => {
+  it('缺文件 → 空台账（schemaVersion=6, revision=0），不抛', async () => {
     const repo = new JsonLedgerRepository({ file })
     await repo.load()
     const snap = repo.snapshot()
     expect(snap.requirements).toEqual([])
     expect(snap.revision).toBe(0)
-    // C1（REQ-47939a t10）：契约版本常量 4 → 5（迁移后文件写 5，常量必须一致，否则写盘会把版本回退）
-    expect(snap.schemaVersion).toBe(5)
+    // C1（REQ-a33899 t3）：契约版本常量 4 → 5 → 6（常量必须与迁移后文件一致，否则写盘会把版本回退）
+    expect(snap.schemaVersion).toBe(6)
   })
 
   it('mutate：写盘 + bump revision + 通知订阅者；返回的 changed 含触动的记录', async () => {

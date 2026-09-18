@@ -10,6 +10,8 @@ import { NO_ARCHIVED, PHASE_LABELS, STATUS_LABELS, TASK_STATUS_LABELS, fmtTime, 
 import { renderReqTimeline } from './timeline.ts'
 import { renderArchiveSection, renderDocSection, renderVerifySection } from './verification.ts'
 import { renderInjectionInfo } from '../injection-info.ts'
+import { renderTokenPlaceholder } from '../token-info.ts'
+import { renderMarksPlaceholder } from '../marks-info.ts'
 
 // ---------------------------------------------------------------------------
 // 需求详情页：8 态进度点 + 4 Tab 分组（REQ-6f39b5）
@@ -49,6 +51,7 @@ export function buildTabs(): string {
       <button type="button" class="dsh-pm-tab" data-action="switch-tab" data-tab="execution">⚙️ 执行</button>
       <button type="button" class="dsh-pm-tab" data-action="switch-tab" data-tab="timeline">📅 时间线</button>
       <button type="button" class="dsh-pm-tab" data-action="switch-tab" data-tab="archive">📦 归档</button>
+      <button type="button" class="dsh-pm-tab" data-action="switch-tab" data-tab="token">🪙 Token</button>
     </div>`
 }
 
@@ -124,6 +127,17 @@ export function buildTabContents(
           </div>
         </div>
       </div>
+      <div class="dsh-pm-section">
+        <h3 class="dsh-pm-section-title">🏷 条款接收状态<span class="dsh-pm-fold-count">谁接了 / 还没人接</span></h3>
+        <div class="dsh-pm-section-content">
+          <div id="dsh-pm-marks-container">${renderMarksPlaceholder('加载中…')}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🪙 Token Tab（REQ-a33899 t6）：按需求看 token 去向 + 固定/注入提示词成本 -->
+    <div class="dsh-pm-tab-content" data-tab-content="token">
+      <div id="dsh-pm-token-container">${renderTokenPlaceholder('加载中…')}</div>
     </div>
 
     <!-- 📦 归档 Tab -->

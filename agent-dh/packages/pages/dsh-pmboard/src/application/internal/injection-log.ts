@@ -34,6 +34,8 @@ export interface InjectionLogEntry {
   charCount: number
   /** 因预算被裁掉的片段 id */
   trimmed: string[]
+  /** 难度推断依据（FR-16）。可选：兼容历史条目（当时没有推断）。 */
+  difficultyReasons?: string[]
 }
 
 /** 写入侧入参（不含 at——时间由适配器统一落章）。 */
@@ -74,6 +76,9 @@ export function injectionLogInputFromResolved(resolved: ResolvedPrompt, windowKe
     fragmentIds: [...resolved.fragmentIds],
     charCount: resolved.charCount,
     trimmed: [...resolved.trimmed],
+    ...(resolved.difficultyReasons !== undefined && resolved.difficultyReasons.length > 0
+      ? { difficultyReasons: [...resolved.difficultyReasons] }
+      : {}),
   }
 }
 

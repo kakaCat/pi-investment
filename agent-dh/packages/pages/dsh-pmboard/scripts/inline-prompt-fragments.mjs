@@ -120,9 +120,12 @@ export function typeRouteShells(stage, difficulty, category) {
     throw new Error('类型档路由壳缺少节点难度档：' + nodeId + '.md（' + stage + '/' + category + '.md 依赖它）')
   }
   const include = [nodeId]
-  // heavy 的 overrides（floor）若存在则一并挂上——decomposing 是自写完整档，没有 overrides 文件。
-  if (difficulty === 'heavy' && existsSync(join(FRAGMENTS_DIR, stage, 'heavy', 'overrides.md'))) {
-    include.push(stage + '/heavy/overrides')
+  // <difficulty>/overrides.md（floor）若存在则一并挂上——**不限于 heavy**。
+  // 文件头约定即 <stage>/<difficulty>/overrides.md → (stage, 难度, *) priority=floor；
+  // 原先只挂 heavy 是历史遗留（此前只有 heavy 有 overrides），会让 light 档 overrides 变成孤岛
+  // （tests/prompt-gates.test.ts 门禁 4「每个分片至少被一条路由命中」会红）。
+  if (existsSync(join(FRAGMENTS_DIR, stage, difficulty, 'overrides.md'))) {
+    include.push(stage + '/' + difficulty + '/overrides')
   }
   include.push(stage + '/' + category)
   return { id: stage + '/' + difficulty + '/' + category, stage, difficulty, category, priority: 10, text: '', include }

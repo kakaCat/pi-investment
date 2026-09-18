@@ -96,20 +96,39 @@ export interface StatusEvent {
   reason?: string
   /** true=从历史评论/时间戳反推的回填事件（非原始记录）。 */
   inferred?: boolean
+  /**
+   * 写时 token 快照（REQ-a33899）：进入该状态时**执行会话**的累计 token。
+   * 有了它才能算「这个节点花了多少」= 进入快照 → 离开快照之差（同 sessionId 才相减）。
+   * 缺省 = 当时未取到（如人从看板点按钮推进）→ UI 显示「无快照」，禁止补 0。
+   */
+  tokenSnapshot?: TokenSnapshot
 }
 
-/** 就地追加一条状态事件（相邻同状态去重；返回被写入的事件）。 */
+/**
+ * 就地追加一条状态事件（相邻同状态去重；返回被写入的事件）。
+ * tokenSnapshot（REQ-a33899）：可选写时快照；去重命中时也会补写到已存在事件上。
+ */
 export function recordStatus(
   record: { statusHistory?: StatusEvent[] },
   status: string,
   at: number,
   by: ActorRef,
   reason?: string,
+  tokenSnapshot?: TokenSnapshot,
 ): StatusEvent {
   const history = (record.statusHistory ??= [])
   const last = history[history.length - 1]
-  if (last !== undefined && last.status === status && last.at === at) return last
-  const event: StatusEvent = { status, at, by, ...(reason !== undefined && reason.length > 0 ? { reason } : {}) }
+  if (last !== undefined && last.status === status && last.at === at) {
+    if (tokenSnapshot !== undefined && last.tokenSnapshot === undefined) last.tokenSnapshot = tokenSnapshot
+    return last
+  }
+  const event: StatusEvent = {
+    status,
+    at,
+    by,
+    ...(reason !== undefined && reason.length > 0 ? { reason } : {}),
+    ...(tokenSnapshot !== undefined ? { tokenSnapshot } : {}),
+  }
   history.push(event)
   return event
 }
@@ -329,6 +348,11 @@ export interface StageDetailBase {
   pendingConfirmation: boolean
   /** 该阶段状态事件切片（谁/何时/为什么） */
   timeline: StatusEvent[]
+  /**
+   * 该节点已结算的 token 消耗（REQ-a33899）；**undefined = 无快照**（不是 0）。
+   * 会话顶部进度条与会话内节点面板据此显示每节点消耗。
+   */
+  tokens?: TokenBuckets
 }
 
 /** 任务引用（拆分/实施节点共用；handoff 自足任务卡）。 */
@@ -653,6 +677,8 @@ export interface ExecutionRecord {
   error?: string
   /** 证据路径（测试输出/review 报告等，相对需求目录） */
   evidence?: string[]
+  /** 本次执行的 token 消耗（REQ-a33899）：开工/完工两次快照与差值；缺省=无快照。 */
+  tokenUsage?: ExecutionTokenUsage
 }
 
 // RequirementCategory 类型迁至 domain/requirement/Requirement.ts（t2），顶部再导出。
@@ -696,6 +722,11 @@ export interface RequirementRecord {
    * 仍标可选：未迁移的 v4 台账必须继续可载入（§5 兼容读策略）。
    */
   statusHistory?: StatusEvent[]
+  /**
+   * token 消耗聚合（REQ-a33899）：按节点与合计，写路径增量维护，读路径 O(1)。
+   * 缺省=v5 及更早台账（读路径必须可选解析，缺失 ≠ 0）。
+   */
+  tokenUsage?: RequirementTokenUsage
   /** 实施计划（plan mode）：拆分前提交、由人批准；未批准不允许拆分 */
   plan?: PlanRecord
   /**
@@ -785,7 +816,7 @@ export interface TaskRecord {
 // 迁移后文件里写的就是 5，常量必须与之一致，否则 load 会把 5 报告成 4、并在下一次写盘时把
 // 版本回退（迁移成果被静默抹掉）。⚠️ 运行时**不自动迁移**（见 design/migration.md §5）：
 // v4 台账仍可载入（字段缺失处按可选处理），迁移由人工跑 scripts/migrate-ledger.ts 完成。
-export const REQBOARD_SCHEMA_VERSION = 5
+export const REQBOARD_SCHEMA_VERSION = 6
 
 export interface ReqboardLedger {
   schemaVersion: number
@@ -1036,3 +1067,210 @@ export function assertArchiveMaterials(
     }
   }
 }
+// ---------------------------------------------------------------------------
+// Token 消耗契约（REQ-a33899）
+// ---------------------------------------------------------------------------
+// 两条独立口径，禁止混用：
+//   ① 过程消耗（写时快照，落台账）：节点/任务消耗 = 两次会话快照之差；
+//   ② 提示词成本（读时装配，不落台账）：固定系统提示词 / reqboard 注入提示词，
+//      只有字符数可测 → 用 TOKENS_PER_CHAR 折算（估算，非 provider 上报）。
+
+/** token 四分桶：与 DSH tokenUsage 投影逐字段对齐（禁止重命名，避免口径漂移）。 */
+export interface TokenBuckets {
+  uncachedInputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
+}
+
+/** 全零桶。 */
+export function emptyBuckets(): TokenBuckets {
+  return { uncachedInputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }
+}
+
+/** 逐分量相加。 */
+export function addBuckets(a: TokenBuckets, b: TokenBuckets): TokenBuckets {
+  return {
+    uncachedInputTokens: a.uncachedInputTokens + b.uncachedInputTokens,
+    outputTokens: a.outputTokens + b.outputTokens,
+    cacheReadTokens: a.cacheReadTokens + b.cacheReadTokens,
+    cacheWriteTokens: a.cacheWriteTokens + b.cacheWriteTokens,
+  }
+}
+
+/**
+ * 逐分量相减；**负分量截断为 0**。
+ * 为什么截断而不是报错：跨会话/快照乱序（会话被重置、投影后到）会产生负差，
+ * 此时该段消耗不可知——截断为 0 并由调用方按「无快照」标注，比抛错阻断主流程更合适。
+ */
+export function subBuckets(a: TokenBuckets, b: TokenBuckets): TokenBuckets {
+  const d = (x: number, y: number): number => (x - y > 0 ? x - y : 0)
+  return {
+    uncachedInputTokens: d(a.uncachedInputTokens, b.uncachedInputTokens),
+    outputTokens: d(a.outputTokens, b.outputTokens),
+    cacheReadTokens: d(a.cacheReadTokens, b.cacheReadTokens),
+    cacheWriteTokens: d(a.cacheWriteTokens, b.cacheWriteTokens),
+  }
+}
+
+/** 四桶之和——**展示口径单点**：任何「总 token」都必须走它。 */
+export function totalTokens(b: TokenBuckets): number {
+  return b.uncachedInputTokens + b.outputTokens + b.cacheReadTokens + b.cacheWriteTokens
+}
+
+/**
+ * 字符 → token 估算系数（单点）。取 1/4，与 DSH token-meter 的固定密度启发式
+ * （CHARS_PER_TOKEN = 4）一致，保证同一段文本在框架侧与本看板侧得到相同估算。
+ * 已知偏差：CJK 文本真实密度更高（约 1 token/字），故中文占比高时会**低估**——
+ * UI 必须标注「估算」，不得当作 provider 上报值。
+ */
+export const TOKENS_PER_CHAR = 0.25
+
+/** 字符数 → 估算 token（负数/非有限 → 0；向上取整，与 DSH estimateContent 同口径）。 */
+export function estimateTokensFromChars(chars: number): number {
+  if (!Number.isFinite(chars) || chars <= 0) return 0
+  return Math.ceil(chars * TOKENS_PER_CHAR)
+}
+
+/** token 数 → 紧凑显示：<1000 原数 / N.Nk / N.NM（非正/非有限按 0）。 */
+export function fmtTokens(n: number): string {
+  const v = Number.isFinite(n) && n > 0 ? n : 0
+  if (v < 1000) return String(Math.round(v))
+  if (v < 1000000) return (v / 1000).toFixed(1) + 'k'
+  return (v / 1000000).toFixed(1) + 'M'
+}
+
+/** 金额（人民币）→ ¥N.NN；undefined/null/非有限 → '—'（缺失 ≠ 0）。 */
+export function fmtCny(n: number | undefined | null): string {
+  if (n === undefined || n === null || !Number.isFinite(n)) return '—'
+  return '¥' + n.toFixed(2)
+}
+
+/** 写时快照：某会话在某一刻的累计 token（来源可核验；取不到就缺省，不伪造）。 */
+export interface TokenSnapshot {
+  sessionId?: string
+  /** 快照时该会话投影的日志序号（判断两次快照可否相减） */
+  seq?: number
+  at: number
+  totals: TokenBuckets
+  /** projection=来自 sessionProjections；unavailable=服务不可得，未取到 */
+  source: 'projection' | 'unavailable'
+}
+
+/** 需求级聚合（读路径 O(1)）：按节点与合计。 */
+export interface RequirementTokenUsage {
+  byStage: Partial<Record<StageKey, TokenBuckets>>
+  totals: TokenBuckets
+  costEstimateCny?: number
+  updatedAt: number
+}
+
+/** 任务执行级：起止快照与差值。 */
+export interface ExecutionTokenUsage {
+  start?: TokenSnapshot
+  end?: TokenSnapshot
+  delta?: TokenBuckets
+  costEstimateCny?: number
+}
+
+/** 一段提示词的成本（text 仅在需要展示具体内容时携带，可选以免响应膨胀）。 */
+export interface PromptPartCost {
+  name: string
+  chars: number
+  estTokens: number
+  text?: string
+}
+
+/** 固定系统提示词成本（读时装配，每回合都付）。 */
+export interface SystemPromptCost {
+  perTurnChars: number
+  perTurnEstTokens: number
+  /** 已知的会话回合数；0 = 不可得（此时不给累计，禁止用 0 冒充累计） */
+  turns: number
+  /** 仅当 turns > 0 时给出（每回合成本 × 回合数，估算） */
+  cumulativeEstTokens?: number
+  sections: PromptPartCost[]
+  contexts: PromptPartCost[]
+  toolsChars: number
+  source: 'assembled' | 'unavailable'
+}
+
+/** 一次注入的明细。 */
+export interface InjectionItem {
+  at: number
+  stage: string
+  routeKey: string
+  fragmentIds: string[]
+  chars: number
+  estTokens: number
+  text?: string
+}
+
+/** 一条任务执行消耗行（/requirements/:id/token 的下钻数据；REQ-a33899）。 */
+export interface TokenExecutionRow {
+  taskId: string
+  title: string
+  status: string
+  /** undefined = 两端快照不可得，本次消耗不可算（禁止用单端累计冒充） */
+  delta?: TokenBuckets
+  start?: TokenSnapshot
+  end?: TokenSnapshot
+}
+
+/** 单个流程节点的消耗行。 */
+export interface RequirementTokenStageRow {
+  stage: StageKey
+  /** undefined = 该节点无快照（不是 0） */
+  buckets?: TokenBuckets
+  executions: TokenExecutionRow[]
+}
+
+/** 需求级 token 视图（GET /requirements/:id/token 的 data；host 装配、client 渲染共用）。 */
+export interface RequirementTokenView {
+  requirementId: string
+  totals: TokenBuckets
+  costEstimateCny?: number
+  byStage: RequirementTokenStageRow[]
+  /** true = 存在不可得快照（部分节点/执行显示「无快照」，合计不含缺失段） */
+  degraded: boolean
+  /** 固定系统提示词成本（读时装配；服务不可得 → source=unavailable） */
+  systemPrompt?: SystemPromptCost
+  /** reqboard 注入提示词成本（来自注入留痕） */
+  injections?: InjectionCost
+}
+
+/**
+ * 需求侧接收标记（GET /requirements/:id/marks 的 data；REQ-d3e61a T-5）。
+ *
+ * 逐条功能点显示「谁接了 / 还没人接」。**未被接收（红）必须显眼**——R9 之所以能溜过四个节点，
+ * 正是因为它在任何界面上都没有"没人接"的痕迹。
+ */
+export interface RequirementMarksView {
+  requirementId: string
+  /** 该需求功能点的接收状态（顺序 = 需求文档里的条款顺序） */
+  clauses: ClauseMarkRow[]
+  /** 未被接收、也未裁剪的条款（红名单）——存在即为 R9 那类缺口 */
+  unreceived: string[]
+  /** 读数是否可用：需求文档不存在 → false（UI 应显示"无条款数据"，而不是"全部未接收"） */
+  available: boolean
+}
+
+/** 单条功能点的接收状态（看板渲染用；与 domain 的四态同语义）。 */
+export interface ClauseMarkRow {
+  clause: string
+  /** done=已完成+证据 / received=已被任务接收 / skipped=本轮裁剪 / unreceived=**未被接收（红）** */
+  state: 'done' | 'received' | 'skipped' | 'unreceived'
+  /** 接收它的任务 id（未接收 → 空数组） */
+  by: string[]
+}
+
+/** reqboard 注入提示词成本（按阶段聚合 + 明细）。 */
+export interface InjectionCost {
+  count: number
+  chars: number
+  estTokens: number
+  sharePct?: number
+  byStage: PromptPartCost[]
+  items: InjectionItem[]
+}
+

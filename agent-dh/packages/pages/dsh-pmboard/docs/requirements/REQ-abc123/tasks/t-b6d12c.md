@@ -1,0 +1,34 @@
+# t-b6d12c 协议层加计划字段
+
+> 任务卡骨架（reqboard_decompose 自动生成）；汇报经 reqboard_task_report 追加到本文件
+
+## 目标
+协议层加计划字段
+
+## 背景摘要（context）
+（待补充）
+
+## 范围
+- 阶段：implement
+- 端侧：backend
+
+## 验收标准
+protocol.ts 单测绿
+
+## 实施方案（implementation）
+protocol.ts 加 PlanRecord + 单测验证
+
+## 上游产出摘要（dependsSummary）
+- （无依赖）
+
+## 执行方式提示（executorHint）
+优先新窗口或 subagent 执行；按本卡自足执行，不读会话历史
+## 汇报 1（2026-09-18T14:21:11.954Z，窗口 session-abc-123）
+
+协议层完成
+
+### 完成项
+
+- protocol.ts 改完
+
+---

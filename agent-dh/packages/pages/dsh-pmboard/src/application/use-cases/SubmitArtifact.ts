@@ -14,6 +14,8 @@ import {
 import { applyDocSync, clearDocSync, docSyncDownstream } from '../../domain/workflow/DocSyncSpec.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { registerArtifact } from '../internal/artifact-gates.js'
+import { checkNumberChainGate, checkDesignServesGate } from '../internal/content-gate-wiring.js'
+import { missingCategoryDocs } from '../internal/category-doc-sets.js'
 import {
   reject,
   agentIdFromExec,
@@ -182,6 +184,39 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
           'REQBOARD_CHANGELOG_REQUIRED',
         )
       }
+      // ── 编号串联门禁（REQ-d3e61a T-4 / FR-2）：serves 不得悬空 ────────────────
+      // 悬空（引用了不存在的编号）→ 拒；根编号无下游 → 不拒，随结果返回供看板标红。
+      // 放在 mutate 之前：拒绝时不留任何副作用。
+      const chain = await checkNumberChainGate(deps.docs, target)
+      if (chain.failure !== undefined) {
+        reject(chain.failure.message, chain.failure.code)
+      }
+      // FR-5：每个设计章节都必须标注服务哪条功能点（缺标注 = 孤儿章节）
+      const designServes = await checkDesignServesGate(deps.docs, target)
+      if (designServes !== undefined) {
+        reject(designServes.message, designServes.code)
+      }
+      // ── 分类文档集（REQ-d3e61a T-13 / FR-15）：立项类型决定要哪些文档、每份写什么必填节 ──
+      // 类型只能减少文档**数量**，不能取消**追溯**——故每个类型都要求根文档的必填节。
+      {
+        const reqDir = 'docs/requirements/' + target.id
+        const rootPath = reqDir + '/requirement.md'
+        const rootExists = deps.docs.exists(rootPath)
+        const rootText = rootExists ? await deps.docs.read(rootPath) : ''
+        const designDir = reqDir + '/design'
+        const designNames = (deps.docs.list?.(designDir) ?? [])
+          .filter(e => e.isFile !== false)
+          .map(e => e.name ?? '')
+        const missingDocs = missingCategoryDocs({ category: target.category, rootExists, rootText, designNames })
+        if (missingDocs.length > 0) {
+          reject(
+            'reqboard_plan_submit 未执行：' + target.category + ' 类型的必填文档未交齐——'
+            + missingDocs.join('；') + '。类型只减少文档数量，不取消追溯；确实不适用的请在需求文档 §8 边界写明理由',
+            'REQBOARD_MISSING_REQUIRED_DOC',
+          )
+        }
+      }
+
       const nowTs = deps.clock.now()
       const result = await deps.repo.mutate('requirement-updated', (ledger) => {
         const req = ledger.requirements.find(r => r.id === target.id)
@@ -242,6 +277,7 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
         success: true,
         requirement_id: changed.id,
         plan_status: 'pending_approval',
+        orphan_clauses: chain.orphans,
         task_count: tasks.length,
         tasks: tasks.map(t => ({ key: t.key, title: t.title, depends_on: [...(t.dependsOn ?? [])] })),
         note: '计划已提交' + (tasks.length === 0 ? '（技术设计，未含任务表——任务卡在拆分阶段创作）' : '（含 ' + tasks.length + ' 张预估任务卡）')

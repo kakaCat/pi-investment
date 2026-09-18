@@ -36,7 +36,8 @@ async function seedWithTasks(): Promise<void> {
       status: 'done', blocked: false, executions: [], comments: [], version: 1,
       createdAt: 1, updatedAt: 1, createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
     })
-    l.tasks.push(mk('t-aaaaaa', '任务一', '单测绿') as never, mk('t-bbbbbb', '任务二', '截图可见') as never)
+    // 迁移（REQ-d3e61a T-9）：本文件不引用这两段文本，只求能满足"验收项可照着验"的门禁。
+    l.tasks.push(mk('t-aaaaaa', '任务一', 'npx vitest run tests/reqboard.test.ts 全绿') as never, mk('t-bbbbbb', '任务二', 'npx vitest run tests/client-view.test.ts 全绿') as never)
     return { requirements: [r] }
   })
 }
@@ -56,7 +57,8 @@ describe('验收单生成（t13）', () => {
       { kind: 'task', taskId: 't-bbbbbb' },
       { kind: 'requirement' },
     ])
-    expect(sheet.items.map(i => i.criterion)).toEqual(['单测绿', '截图可见', expect.stringMatching(/需求级/)])
+    // 迁移（REQ-d3e61a T-11）：同 domain/acceptance-sheet.test.ts——验的是顺序与来源，文案随格式升级。
+    expect(sheet.items.map(i => i.criterion)).toEqual(['【任务一】验收：npx vitest run tests/reqboard.test.ts 全绿', '【任务二】验收：npx vitest run tests/client-view.test.ts 全绿', expect.stringMatching(/需求级/)])
     expect(sheet.items.every(i => i.status === 'pending')).toBe(true)
     expect(sheet.items.every(i => i.evidence.length === 1)).toBe(true)
     expect(sheet.items.every(i => /^v1-\d+$/.test(i.id))).toBe(true)

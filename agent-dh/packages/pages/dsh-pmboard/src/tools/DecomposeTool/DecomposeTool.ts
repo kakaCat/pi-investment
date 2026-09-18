@@ -51,6 +51,11 @@ export function defineDecomposeTool(deps: UseCaseDeps) {
             acceptance: { type: 'string', description: '验收标准（可证伪：跑什么、看到什么算过）' },
             implementation: { type: 'string', description: '实施方案（W7 任务卡创作必填：改哪些文件、步骤、验证方式）' },
             context: { type: 'string', description: '需求背景摘要（自足执行用）' },
+            requirement_refs: {
+              type: 'array',
+              description: '本卡交付的需求条款根编号（如 ["FR-1","FR-4"]）。覆盖门禁用它核对「需求每条都有落点」；不填视为未覆盖任何条款',
+              items: { type: 'string' },
+            },
             skip_integration: { type: 'boolean', description: '是否跳过联调（默认按 side 推导）' },
           },
         },

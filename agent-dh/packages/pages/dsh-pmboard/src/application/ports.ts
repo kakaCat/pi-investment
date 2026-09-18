@@ -10,7 +10,7 @@
  * 本任务（t1）只立接口，不提供实现——实现由 t5 落地。
  */
 
-import type { ReqboardLedger, RequirementRecord, TaskRecord, TriageRecord } from '../shared/protocol.js'
+import type { ReqboardLedger, RequirementRecord, TaskRecord, TriageRecord, TokenSnapshot } from '../shared/protocol.js'
 
 /** 只读台账视图（用例读路径的输入）。 */
 export interface LedgerView {
@@ -101,6 +101,12 @@ export interface SessionProbe {
   requireDirectHuman(exec: unknown): void
   /** 某窗口"自 since 以来最后一次真实工具动作"的时间戳；无则 0（done 凭证门用）。 */
   toolActivitySince(windowKey: string, since: number): number
+  /**
+   * 某窗口执行会话的**累计** token 快照（写时快照的唯一读取口，REQ-a33899 t2）。
+   * 服务/会话不可得时返回 source='unavailable' 的空桶快照——**不抛错、不阻断主流程**；
+   * 调用方据此按「无快照」展示，禁止用旧值/记忆值冒充（R-013）。
+   */
+  tokenTotals(windowKey: string): TokenSnapshot
   /**
    * evidence 原文是否命中该窗口近期的真实用户消息（文字确认核验用）。
    * 返回 undefined = 核验通道未注入（搬迁前 deps.recentUserMsgs === undefined 的语义，

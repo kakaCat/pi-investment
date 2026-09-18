@@ -148,7 +148,7 @@ describe('Store 加载（t10 后读路径零 legacy 兼容）', () => {
       return { requirements: [ledger.requirements[0]] }
     })
     const onDisk = JSON.parse(readFileSync(file, 'utf8'))
-    expect(onDisk.schemaVersion).toBe(5) // REQ-47939a t10 / C1：schema 4 → 5
+    expect(onDisk.schemaVersion).toBe(6) // REQ-a33899 t3 / C1：schema 4 → 5 → 6（token 字段为纯附加，只 bump 版本）
     expect(onDisk.requirements[0].statusHistory).toBeUndefined()
   })
 })

@@ -19,7 +19,7 @@ import { openDocInSidebar } from './open-doc.ts'
 import { renderStageNode } from './stage-panel.ts'
 import { fetchStageOverview } from './api.ts'
 import type { StageOverview, StageKey } from '../shared/protocol.ts'
-import { CATEGORY_FLOW_PROFILES } from '../shared/protocol.ts'
+import { CATEGORY_FLOW_PROFILES, fmtTokens } from '../shared/protocol.ts'
 
 const BASE = '/dashboard/api/reqboard'
 
@@ -51,6 +51,8 @@ interface ProgressPayload {
     sourceSessionId?: string | null; updatedAt?: number
   }
   progress?: { total?: number; done?: number; active?: number; percentage?: number; byStatus?: Record<string, number> }
+  /** REQ-a33899：每节点 token（无快照 → 该节点省略 tokens 键，UI 显示「—」） */
+  nodes?: Array<{ key?: string; tokens?: { total?: number } }>
   timeline?: Array<{ status?: string; at?: number; by?: { kind?: string; sessionId?: string }; reason?: string | null; inferred?: boolean }>
   tasks?: Array<{
     id?: string; title?: string; status?: string; phase?: string; side?: string
@@ -203,6 +205,11 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
   const category = (req.category ?? 'feature') as keyof typeof CATEGORY_FLOW_PROFILES
   const profile = CATEGORY_FLOW_PROFILES[category] ?? CATEGORY_FLOW_PROFILES.feature
   const skippedStages = new Set(FLOW.filter(f => !(profile.stages as readonly string[]).includes(f.key)).map(f => f.key))
+  // REQ-a33899：每节点 token。**与节点名同一行水平放置**（既有样式不变：圆点在上、名称在下）
+  const nodeTokens = new Map<string, number>()
+  for (const n of data.nodes ?? []) {
+    if (typeof n.key === 'string' && typeof n.tokens?.total === 'number') nodeTokens.set(n.key, n.tokens.total)
+  }
   const flowNodes: ReactNode[] = []
   FLOW.forEach((stage, idx) => {
     const st = flowState(idx, currentIndex)
@@ -222,7 +229,12 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
         },
       }, [
         h('span', { key: 'd', className: 'dsh-pm-flow-dot' }, skipped ? '—' : st === 'done' ? '✓' : st === 'current' ? '●' : idx + 1),
-        h('span', { key: 'l', className: 'dsh-pm-flow-label' }, stage.label),
+        h('div', { key: 'm', className: 'dsh-pm-flow-meta' }, [
+          h('span', { key: 'l', className: 'dsh-pm-flow-label' }, stage.label),
+          ...(nodeTokens.has(stage.key)
+            ? [h('span', { key: 't', className: 'dsh-pm-flow-token' }, fmtTokens(nodeTokens.get(stage.key)!))]
+            : []),
+        ]),
       ]),
     )
     if (idx < FLOW.length - 1) {

@@ -8,6 +8,7 @@ import { esc, renderPagination } from '@pi-investment/page-kit/client'
 import type { BoardState, ReqCard, TriageRecord } from '../types.ts'
 import { CATEGORY_LABELS, LANE_STATUSES, NO_ARCHIVED, STATUS_LABELS, fmtTime, sessionChipHtml, windowCodeFromSessionId } from '../render/dom-utils.ts'
 import { cardActions, renderReqCard } from './artifacts.ts'
+import { fmtTokens } from '../../shared/protocol.ts'
 
 /** 需求卡片投影（视图层聚合，避免全量渲染） */
 export function toReqCards(state: BoardState): ReqCard[] {
@@ -23,6 +24,7 @@ export function toReqCards(state: BoardState): ReqCard[] {
         totalCount: tasks.length,
         readyIds: state.ready[req.id] ?? [],
         blocked: req.blocked || tasks.some(t => t.blocked),
+        ...(state.tokenTotals?.[req.id] !== undefined ? { tokenTotal: state.tokenTotals[req.id] } : {}),
       }
     })
 }
@@ -279,6 +281,7 @@ export function renderListCard(card: ReqCard, _now: number, archived: ReadonlySe
         <td><span class="dsh-pm-card-id">${esc(req.id)}</span></td>
         <td class="dsh-pm-td-title">
           <span class="dsh-pm-list-title" data-action="open-req" data-req="${esc(req.id)}">${esc(req.title)}</span>
+          ${card.tokenTotal !== undefined ? `<span class="dsh-pm-token-badge" title="累计 Token（会话快照差值合计）">🪙 ${esc(fmtTokens(card.tokenTotal))}</span>` : ''}
           ${blockedChip}${archivePendingChip}
         </td>
         <td>${cat}</td>

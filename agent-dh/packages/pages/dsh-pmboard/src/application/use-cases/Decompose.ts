@@ -21,6 +21,8 @@ import { clearDocSync } from '../../domain/workflow/DocSyncSpec.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { applyTaskRollup } from '../internal/rollup.js'
 import { registerArtifact } from '../internal/artifact-gates.js'
+import { syncRequirementMarks } from './SyncRequirementMarks.js'
+import { assertClauseCoverageGate, requirementRefsOf } from '../internal/content-gate-wiring.js'
 import {
   reject,
   agentIdFromExec,
@@ -149,6 +151,30 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
       // 存量需求（REQ-2e9473 自身即是），故不硬拦、返回 thin_cards 警告提示补实施卡。
       const thinCards = draft.filter(d => d.implementation.length === 0).map(d => d.key + ' ' + d.title)
 
+      // ── 覆盖门禁（REQ-d3e61a T-3 / FR-1）：需求里每条根编号必须有落点 ──────────
+      // 落点 = 被某张任务卡用 requirement_refs 接收，或在该条款旁显式标「本轮不做」。
+      // 拦的是"无记录"，不是"不许多做少做"（这正是 R9 静默丢失的堵口）。
+      // 刻意放在 mutate 之前：拒绝时不留任何副作用。
+      // 任务↔需求编号的绑定**不落库**（TaskRecord 无该字段），故随 decomposition.md 的 RTM
+      // 覆盖表持久化——它本就是规范里的 RTM 核心，且不必改被占用的 protocol.ts。
+      const rawTaskInputs = [
+        ...((a.tasks as unknown[] | undefined) ?? []),
+        ...(planTasks as readonly unknown[]),
+      ]
+      // 取**并集**：同一 key 可能同时出现在显式 tasks 与已批准计划里，后写不能覆盖前写的 refs
+      // （否则"计划携带任务表"这条常见路径上，RTM 表会恒显示"未声明接收任何条款"——E2E 实测踩过）。
+      const refsByKey = new Map<string, string[]>()
+      for (const raw of rawTaskInputs) {
+        const o = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+        if (typeof o.key !== 'string' || o.key.length === 0) continue
+        const merged = new Set([...(refsByKey.get(o.key) ?? []), ...requirementRefsOf(raw)])
+        refsByKey.set(o.key, [...merged])
+      }
+      const coverageFailure = await assertClauseCoverageGate(deps.docs, target, rawTaskInputs)
+      if (coverageFailure !== undefined) {
+        reject(coverageFailure.message, coverageFailure.code)
+      }
+
       const nowTs = deps.clock.now()
       try {
         const result = await deps.repo.mutate('task-created', (ledger) => {
@@ -229,6 +255,19 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
           '',
           '> 自动生成于 reqboard_decompose：计划任务表 ↔ 落库任务 id 对照',
           '',
+          '## §1 RTM 覆盖对照表（根编号 ↔ 任务卡）',
+          '',
+          '| 根编号 | 计划 key | 任务 id | 标题 | 状态 |',
+          '|--------|---------|--------|------|------|',
+          ...created.flatMap(c => {
+            const t = (result.changed.tasks ?? []).find(x => x.id === c.id)!
+            const refs = refsByKey.get(c.key) ?? []
+            const cells = refs.length > 0 ? refs : ['—（未声明接收任何条款）']
+            return cells.map(r => '| ' + r + ' | ' + c.key + ' | ' + c.id + ' | ' + t.title + ' | ' + t.status + ' |')
+          }),
+          '',
+          '## §2 任务清单',
+          '',
           '| 计划 key | 任务 id | 标题 | 阶段 | 端侧 | 依赖 | 验收标准 |',
           '|---------|--------|------|------|------|------|---------|',
           ...created.map(c => {
@@ -283,6 +322,15 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
             ].join('\n')
             await docs.write(taskPath, taskContent)
           }
+        }
+        // 需求文档同步逐条接收状态（T-5 / FR-3）：拆分那次就把「谁接了哪条」落到文档上，
+        // 而不是等第一张卡动起来才出现。回写失败不阻断拆分（文档是留痕面）。
+        try {
+          const snap = deps.repo.snapshot()
+          const r0 = snap.requirements.find(x => x.id === target.id)
+          if (r0 !== undefined) await syncRequirementMarks(deps, r0, snap.tasks)
+        } catch {
+          /* 回写失败不阻断拆分 */
         }
         // 登记产物
         await deps.repo.mutate('requirement-updated', (ledger) => {

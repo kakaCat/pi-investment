@@ -10,9 +10,32 @@ import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { executeMoveTask } from '../../application/use-cases/MoveTask.js'
+import { amendTaskAcceptanceIfRequested } from '../../application/use-cases/AmendTaskAcceptance.js'
+import { syncRequirementMarks } from '../../application/use-cases/SyncRequirementMarks.js'
+import { doneEvidenceAnchorFailure } from '../../application/internal/content-gate-wiring.js'
+import { openRequirementsFor } from '../../application/internal/window.js'
+import { reject, agentIdFromExec } from '../../application/internal/support.js'
 import { TASK_MOVE_PROMPT } from './prompt.js'
 import { renderJson } from '../shared.js'
 import { ALL_TASK_STATUSES } from '../../shared/protocol.js'
+
+/**
+ * 卡的状态变了 → 需求文档同步一次逐条接收状态。找不到卡/需求 → 不动（不是错误）。
+ * 幂等由用例保证：内容未变不写盘；写盘异常在此吞掉并返回空（调用方无需区分）。
+ */
+async function syncMarksAfterMove(deps: UseCaseDeps, taskId: string): Promise<Record<string, unknown>> {
+  const latest = deps.repo.snapshot()
+  const task = latest.tasks.find(t => t.id === taskId)
+  if (task === undefined) return {}
+  const req = latest.requirements.find(r => r.id === task.requirementId)
+  if (req === undefined) return {}
+  try {
+    const r = await syncRequirementMarks(deps, req, latest.tasks)
+    return r.synced ? { marks_synced: true } : {}
+  } catch {
+    return {}
+  }
+}
 
 export function defineTaskMoveTool(deps: UseCaseDeps) {
   return defineTool({
@@ -27,6 +50,10 @@ export function defineTaskMoveTool(deps: UseCaseDeps) {
         enum: [...ALL_TASK_STATUSES],
       },
       reason: { type: 'string', description: '推进理由（≤500 字符；写入任务留痕）' },
+      acceptance: {
+        type: 'string',
+        description: '可选：修订本卡的验收标准（REQ-d3e61a T-9 修订通道）。开工读到卡、发现"怎么验"不可操作时先改卡再干活；修订文本仍须可证伪（空话/无锚点会被拒）',
+      },
     },
     output: {
       schema: {
@@ -68,11 +95,46 @@ export function defineTaskMoveTool(deps: UseCaseDeps) {
           },
           warning: { type: 'string' },
           note: { type: 'string' },
+          acceptance_amended: {
+            type: 'string',
+            description: '本次一并修订后的验收标准（仅当传了 acceptance 时返回）',
+          },
+          marks_synced: {
+            type: 'boolean',
+            description: '本次是否把逐条接收状态写回了需求文档（内容未变 → 不返回该键）',
+          },
         },
       },
       render: renderJson,
     },
     timeoutMs: LIMITS.timeoutReadMs,
-    execute: async (args: unknown, exec: ToolRunContext) => executeMoveTask(deps, args, exec),
+    execute: async (args: unknown, exec: ToolRunContext) => {
+      // 可选修订（T-9 通道）：先改卡再推进——拒绝时不会产生任何状态副作用。
+      const amended = await amendTaskAcceptanceIfRequested(deps, args, exec)
+
+      // ── 结单证据锚定（REQ-d3e61a T-6 / FR-4）：done 之前校验证据可定位 ──────────────
+      // 走薄壳而不是 support.ts 的 assertDoneEvidence——后者正被另一窗口占用。
+      // 读文件是异步的，而真正改台账在 executeMoveTask 的同步回调里，故必须在此先算。
+      // 状态判定与取数都在 application 层（工具壳不许出现状态字面量）；壳只负责调用与拒绝。
+      const a = (args ?? {}) as Record<string, unknown>
+      const snap = deps.repo.snapshot()
+      const gap = await doneEvidenceAnchorFailure(deps.docs, {
+        taskId: typeof a.task_id === 'string' ? a.task_id : '',
+        to: typeof a.to === 'string' ? a.to : '',
+        tasks: snap.tasks,
+        boundRequirementIds: openRequirementsFor(snap, agentIdFromExec(deps, exec)).map(r => r.id),
+      })
+      if (gap !== undefined) {
+        reject('reqboard_task_move 未执行：' + gap + '。请用 reqboard_task_report 补可定位的证据后再结单', 'REQBOARD_NO_EVIDENCE')
+      }
+      const result = (await executeMoveTask(deps, args, exec)) as Record<string, unknown>
+
+      // ── 需求文档同步逐条接收状态（REQ-d3e61a T-5 / FR-3「随卡的生命周期自动更新」）──────
+      // 取消一张卡的交付 → 同一次调用里需求文档对应条回落为「🔴 未被接收」。
+      // 回写失败只降级不阻断：文档是留痕面，不为它回滚已经落库的推进。
+      const marks = await syncMarksAfterMove(deps, typeof a.task_id === 'string' ? a.task_id : '')
+      const withAmend = amended === undefined ? result : { ...result, acceptance_amended: amended }
+      return { ...withAmend, ...marks }
+    },
   } as any)
 }

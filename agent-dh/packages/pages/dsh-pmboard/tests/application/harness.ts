@@ -18,7 +18,7 @@ import type {
   UseCaseDeps,
   UserQuestionPort,
 } from '../../src/application/ports.js'
-import { REQBOARD_SCHEMA_VERSION, type ReqboardLedger, type RequirementRecord, type TaskRecord } from '../../src/shared/protocol.js'
+import { REQBOARD_SCHEMA_VERSION, emptyBuckets, type ReqboardLedger, type RequirementRecord, type TaskRecord, type TokenSnapshot } from '../../src/shared/protocol.js'
 
 export class InMemoryRepo implements ReqboardRepository {
   ledger: ReqboardLedger
@@ -116,6 +116,9 @@ export class FakeSession implements SessionProbe {
   requireLiveDriver(_exec: unknown): void { /* 放行 */ }
   requireDirectHuman(_exec: unknown): void { /* 放行 */ }
   toolActivitySince(_windowKey: string, _since: number): number { return this.activity }
+  /** 默认不可得（测试按需覆盖）；用例可注入具体快照。 */
+  tokenSnapshot: TokenSnapshot = { at: 0, totals: emptyBuckets(), source: 'unavailable' }
+  tokenTotals(_windowKey: string): TokenSnapshot { return this.tokenSnapshot }
   matchesRecentUserMessage(): { ok: boolean; matchedText?: string; reason?: string } | undefined {
     return this.recentMatch
   }

@@ -16,6 +16,15 @@ import { openRequirementsFor } from '../internal/window.js'
 import { applyTaskRollup } from '../internal/rollup.js'
 import { registerArtifact } from '../internal/artifact-gates.js'
 import {
+  collectOrphanTestFiles,
+  e2eCoverageOf,
+  collectNumberedItems,
+  collectTaskRefs,
+  buildConsistencyRows,
+  consistencyGaps,
+} from '../internal/content-gate-wiring.js'
+import { checkHowToVerify, checkAcceptance } from '../../domain/task/Acceptability.js'
+import {
   reject,
   agentIdFromExec,
   requireLiveDriver,
@@ -62,6 +71,49 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
         reject('reqboard_verify_submit 未执行：需求处于 ' + target.status + '，只有执行/验收阶段的交付才能提交验收', 'REQBOARD_BAD_STATUS')
       }
 
+      // ── 孤儿用例检测（REQ-d3e61a T-7 / FR-5）：设计文件点名了、但文件头未声明覆盖的测试文件 ──
+      // 警告级：不阻断提交，但必须成为验收面上**可见的一项**（靠人记得 = 不该有的形态）。
+      // 必须在 mutate 之前算（读文件是异步的，而 mutate 回调是同步的）。
+      // ── 「怎么验」（REQ-d3e61a T-9 / FR-10）：验收项必须能照着动手验 ──────────────
+      // 计划期门槛是"含断言词"（VERIFIABLE_ANCHOR），验收期门槛是"能独立复核"（HOW_TO_VERIFY：
+      // 命令 / 可查数据 / 可达界面路径）。两层之间的**缝**正是本卡要堵的。
+      // 分流（与其它内容闸门同语义）：
+      //   ① 存量需求（artifacts 为空）→ 豁免，不追溯惩罚
+      //   ② 过了计划期锚点但验收期不可操作 → **硬拦**（须先用 reqboard_task_move 的 acceptance
+      //      参数修订——修订通道见 AmendTaskAcceptance.ts，硬拦必须配修复路径，否则是死锁）
+      //   ③ 连锚点都没有（直种/历史数据）→ 只作**可见项**，不允许静默
+      const isLegacyForHow = target.artifacts === undefined || target.artifacts.length === 0
+      const unverifiable: string[] = []
+      const hardUnverifiable: string[] = []
+      if (!isLegacyForHow) {
+        for (const t of snapshot.tasks) {
+          if (t.requirementId !== target.id || t.status === 'canceled') continue
+          const acceptance = t.acceptance ?? ''
+          const key = t.title.length > 0 ? t.title : t.id
+          const how = checkHowToVerify(key, acceptance)
+          if (how.ok) continue
+          if (checkAcceptance(key, acceptance).ok) hardUnverifiable.push(how.reason)
+          else unverifiable.push(how.reason)
+        }
+      }
+      if (hardUnverifiable.length > 0) {
+        reject(
+          'reqboard_verify_submit 未执行：以下验收项无法照着验——' + hardUnverifiable.join('；')
+          + '。可用 reqboard_task_move(task_id, acceptance=...) 修订（修订通道已就位）',
+          'REQBOARD_ACCEPTANCE_NOT_EXECUTABLE',
+        )
+      }
+
+      const orphanTestFiles = await collectOrphanTestFiles(deps.docs, target)
+      // E2E 覆盖读数（FR-11）：读需求文档的测试策略表。读数未知（undefined）时不追加可见项。
+      const e2eCoverage = await e2eCoverageOf(deps.docs, target)
+      // 三方一致性（FR-9）：做什么（需求编号）× 怎么做（设计章节 serves）× 实际做了什么（任务↔编号绑定）。
+      // 绑定从 decomposition.md 的 RTM 表读——没有该表时**不比对**（避免把"没记录"误报成"实施缺失"）。
+      const taskRefs = await collectTaskRefs(deps.docs, target)
+      const consistency = taskRefs.length === 0
+        ? []
+        : consistencyGaps(buildConsistencyRows(await collectNumberedItems(deps.docs, target), taskRefs))
+
       const nowTs = deps.clock.now()
       const result = await deps.repo.mutate('requirement-updated', (ledger) => {
         const req = ledger.requirements.find(r => r.id === target.id)
@@ -75,6 +127,10 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
           ...(prevSheet !== undefined ? { prevSheet } : {}),
           tasks: allTasks.map(t => ({ id: t.id, title: t.title, acceptance: t.acceptance })),
           evidence,
+          ...(orphanTestFiles.length > 0 ? { orphanTestFiles } : {}),
+          ...(unverifiable.length > 0 ? { unverifiableItems: unverifiable } : {}),
+          ...(e2eCoverage !== undefined ? { e2eCoverage } : {}),
+          ...(consistency.length > 0 ? { consistencyGaps: consistency } : {}),
           generatedAt: nowTs,
           generatedBy: { kind: 'agent', sessionId: windowKey },
         })
