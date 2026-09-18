@@ -19,7 +19,24 @@
 
 `--verify` 实测：**OK —— 台账内不存在会被判 403 的路径写法**（0 条）。
 
-## 二、为什么本次**没有 apply**（诚实标注，不静默跳过）
+## 二、apply 实测结果（2026-09-18 执行）
+
+在确认「台账文件 176s 未被写 + 工作区 git 干净」后执行 `--apply`：
+
+```
+工作区根：/Users/yunpeng/pi-investment/agent-dh
+扫描路径：694
+需变更：114（normalized=91, dropped=4, deduped=19）
+已写盘；备份：../../../.dsh-data/dsh-reqboard.json.bak-normalize-1789746666479
+--- verify ---
+verify: OK —— 台账内不存在会被判 403 的路径写法
+--- 二次 dry-run（幂等性）---
+需变更：0（normalized=0, dropped=0, deduped=0）
+```
+
+三条验收口径全部满足：① verify 0 条；② 备份文件存在；③ 二次执行为 0 变更（幂等）。
+
+## 三、apply 的前提与护栏（为什么必须挑窗口）
 
 `JsonLedgerRepository` 把整份台账缓存在内存（`private ledger`），运行中改盘会在下一次
 mutate 时被内存副本**静默覆盖**。本窗口在 t1–t6 关闭过程中刚对台账做过多次 mutate
