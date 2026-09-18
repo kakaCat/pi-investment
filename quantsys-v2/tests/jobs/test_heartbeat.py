@@ -57,6 +57,24 @@ def test_heartbeat_disabled_does_not_alert():
     assert r['verdict'] == 'disabled' and r['should_alert'] is False
 
 
+def test_aware_datetimes_do_not_crash_and_are_normalized():
+    """真库回归：TIMESTAMPTZ 读回来是 aware，与 naive now 相减会 TypeError。
+
+    2026-09-18 线上实测 /api/watch/metrics 因此 500——本用例用 aware 输入钉死这条路。
+    """
+    from datetime import timezone, timedelta as _td
+    aware_now = NOW.replace(tzinfo=timezone(_td(hours=8)))
+    aware_hb = (NOW - timedelta(seconds=30)).replace(tzinfo=timezone(_td(hours=8)))
+    r = evaluate_heartbeat(aware_hb, aware_now)          # 不得抛 TypeError
+    assert r['verdict'] == 'ok' and r['age_sec'] == 30.0
+
+    st = evaluate_heartbeat((NOW - timedelta(seconds=600)).replace(tzinfo=timezone(_td(hours=8))), aware_now)
+    assert st['verdict'] == 'stale'
+
+    sh = evaluate_shadow_overdue(True, (NOW - timedelta(hours=72)).replace(tzinfo=timezone(_td(hours=8))), aware_now)
+    assert sh['verdict'] == 'overdue'
+
+
 def test_shadow_off_and_unknown_and_overdue():
     assert evaluate_shadow_overdue(False, None, NOW)['verdict'] == 'off'
     assert evaluate_shadow_overdue(True, None, NOW)['verdict'] == 'unknown'

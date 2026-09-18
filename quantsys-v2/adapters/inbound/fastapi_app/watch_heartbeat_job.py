@@ -33,6 +33,19 @@ SHADOW_SINCE_ENV = 'WATCH_DIGEST_DRY_RUN_SINCE'
 SHADOW_DRY_RUN_ENV = 'WATCH_DIGEST_DRY_RUN'
 
 
+def as_naive_datetime(value):
+    """把可能带时区的 datetime 归一为 **naive 本地时间**；非 datetime 原样返回。
+
+    为什么必须在消费侧兜一层：DB 的 TIMESTAMPTZ 读回来是 **aware**，而调用方普遍用
+    naive 的 datetime.now()。直接相减会 TypeError——2026-09-18 线上实测
+    /api/watch/metrics 因此 500（同一类错误当天在 shadow_mode_clock 出口也出现过一次）。
+    单测用 naive 假数据，所以这条路只有真库才会暴露。
+    """
+    if not isinstance(value, datetime):
+        return value
+    return value.astimezone().replace(tzinfo=None) if value.tzinfo else value
+
+
 def evaluate_heartbeat(heartbeat_at: Optional[datetime], now: datetime,
                        stale_sec: float = DEFAULT_STALE_SEC,
                        enabled: bool = True) -> Dict[str, Any]:
@@ -43,7 +56,7 @@ def evaluate_heartbeat(heartbeat_at: Optional[datetime], now: datetime,
     if heartbeat_at is None:
         return {'verdict': 'never', 'age_sec': None, 'should_alert': False,
                 'reason': '从未收到心跳（尚未启动/未启用）——不告警，避免冷启动误报'}
-    age = (now - heartbeat_at).total_seconds()
+    age = (as_naive_datetime(now) - as_naive_datetime(heartbeat_at)).total_seconds()
     if age > stale_sec:
         return {'verdict': 'stale', 'age_sec': age, 'should_alert': True,
                 'reason': '心跳已过期 %.0fs > %.0fs：引擎线程可能已死（摘要门/元触发/持仓联动同时失效）'
@@ -62,7 +75,7 @@ def evaluate_shadow_overdue(dry_run: bool, shadow_since: Optional[datetime],
         return {'verdict': 'unknown', 'hours': None, 'should_alert': False,
                 'reason': '不知道影子模式挂了多久（缺 %s）——无法判定超期，不告警'
                           % SHADOW_SINCE_ENV}
-    hours = (now - shadow_since).total_seconds() / 3600.0
+    hours = (as_naive_datetime(now) - as_naive_datetime(shadow_since)).total_seconds() / 3600.0
     if hours > max_hours:
         return {'verdict': 'overdue', 'hours': hours, 'should_alert': True,
                 'reason': '影子模式已挂 %.1fh > %.0fh：请裁决——真开还是关掉（不许无限期挂着）'

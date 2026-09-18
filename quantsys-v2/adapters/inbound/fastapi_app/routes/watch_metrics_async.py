@@ -19,6 +19,7 @@ from fastapi import APIRouter
 
 from adapters.inbound.fastapi_app.watch_heartbeat_job import (
     DEFAULT_STALE_SEC,
+    as_naive_datetime,
     evaluate_heartbeat,
     evaluate_shadow_overdue,
 )
@@ -86,7 +87,8 @@ def build_metrics(now: Optional[datetime] = None, store=None, todo_repo=None,
     if store is not None:
         try:
             meta = store.load_meta() or {}
-            heartbeat_at = meta.get('heartbeat_at')
+            # 归一为 naive：库列是 TIMESTAMPTZ（aware），下游一律按 naive 比较
+            heartbeat_at = as_naive_datetime(meta.get('heartbeat_at'))
         except Exception as e:  # noqa: BLE001
             degraded.append('heartbeat_read_failed: %s' % e)
 
