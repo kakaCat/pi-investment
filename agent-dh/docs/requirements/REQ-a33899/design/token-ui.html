@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REQ-a33899 · Token 消耗 UI 原型 v3</title>
+<!--
+  v3 按用户意见修订：
+   ① 会话顶部沿用现有样式（圆点在上、名称在下），只把 token 与名称**同一行水平**放在名称行；
+   ② Token tab 内容**分块折叠**（沿用既有 details.dsh-pm-fold）；
+   ③ 固定系统提示词**可展开查看具体提示词内容**（每段一个折叠，正文 pre-wrap）。
+-->
+<style>
+:root { --dsw-accent: #4a7dff; --dsw-border: #e5e7eb; --pm-line: #e5e7eb; --pm-line-strong: #cfd4dc;
+        --pm-bg-soft: #f3f4f6; --pm-c-done: #28a745; --pm-c-implementing: #4a7dff; --pm-c-archived: #9aa4b2;
+        --dsw-text-primary: #111827; --dsw-text-secondary: #6b7280; --dsw-hover: #f3f4f6;
+        --dsw-bg: #f5f6f8; --dsw-card: #ffffff; --dsw-warn-bg: #fffaf0; --dsw-warn-bd: #f0c36d; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+       background: var(--dsw-bg); color: #333; line-height: 1.6; padding: 24px; }
+.demo { max-width: 1080px; margin: 0 auto; }
+.demo h2 { font-size: 15px; color: var(--dsw-text-secondary); margin: 28px 0 10px; font-weight: 600; }
+.dsh-pm-detail { background: var(--dsw-card); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); overflow: hidden; }
+.dsh-pm-detail-head { padding: 18px 24px; border-bottom: 1px solid var(--pm-line); }
+.dsh-pm-detail-title { font-size: 18px; font-weight: 700; color: var(--dsw-text-primary); }
+.dsh-pm-tabs { display: flex; gap: 4px; padding: 0 24px; border-bottom: 1px solid var(--pm-line); }
+.dsh-pm-tab { padding: 10px 14px; font-size: 13px; color: var(--dsw-text-secondary); background: none; border: none;
+             border-bottom: 2px solid transparent; cursor: pointer; }
+.dsh-pm-tab:hover { background: var(--dsw-hover); }
+.dsh-pm-tab.active { color: var(--dsw-accent); border-bottom-color: var(--dsw-accent); font-weight: 600; }
+.dsh-pm-tab-content { padding: 18px 24px; display: flex; flex-direction: column; gap: 10px; }
+.dsh-pm-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.dsh-pm-stat { background: var(--dsw-hover); border-radius: 8px; padding: 10px 12px; }
+.dsh-pm-stat-label { font-size: 12px; color: var(--dsw-text-secondary); }
+.dsh-pm-stat-value { font-size: 20px; font-weight: 700; color: var(--dsw-text-primary); font-variant-numeric: tabular-nums; }
+.dsh-pm-stat-value .u { font-size: 12px; font-weight: 500; color: var(--dsw-text-secondary); margin-left: 2px; }
+.dsh-pm-callout { background: var(--dsw-warn-bg); border: 1px solid var(--dsw-warn-bd); border-radius: 8px;
+                 padding: 8px 12px; font-size: 12px; color: #8a6100; }
+/* 折叠块：沿用既有 details.dsh-pm-fold 视觉 */
+details.dsh-pm-fold { border: 1px solid var(--pm-line); border-radius: 8px; background: var(--dsw-card); }
+details.dsh-pm-fold > summary { list-style: none; cursor: pointer; padding: 9px 12px; font-size: 13px; font-weight: 600;
+                                 color: var(--dsw-text-primary); display: flex; align-items: center; gap: 6px; }
+details.dsh-pm-fold > summary::-webkit-details-marker { display: none; }
+details.dsh-pm-fold > summary::before { content: "\25B8"; color: var(--dsw-text-secondary); font-size: 11px; transition: transform .15s ease; }
+details.dsh-pm-fold[open] > summary::before { transform: rotate(90deg); }
+details.dsh-pm-fold > summary:hover { background: var(--dsw-hover); }
+.dsh-pm-fold-count { margin-left: auto; font-size: 11px; font-weight: 400; color: var(--dsw-text-secondary); font-variant-numeric: tabular-nums; }
+.dsh-pm-fold-body { padding: 10px 12px; border-top: 1px solid var(--pm-line); }
+table.dsh-pm-tok-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dsh-pm-tok-table th { text-align: right; font-weight: 600; color: var(--dsw-text-secondary); font-size: 12px;
+                        padding: 6px 8px; border-bottom: 1px solid var(--pm-line); }
+.dsh-pm-tok-table th:first-child, .dsh-pm-tok-table td:first-child { text-align: left; }
+.dsh-pm-tok-table td { padding: 8px; border-bottom: 1px solid var(--pm-line); text-align: right; font-variant-numeric: tabular-nums; }
+.dsh-pm-bar { display: inline-block; width: 84px; height: 6px; border-radius: 3px; background: var(--pm-line); vertical-align: middle; }
+.dsh-pm-bar i { display: block; height: 6px; border-radius: 3px; background: var(--dsw-accent); }
+.dsh-pm-tok-node { cursor: pointer; }
+.dsh-pm-tok-node:hover { background: var(--dsw-hover); }
+.dsh-pm-tok-sub td { font-size: 12px; color: var(--dsw-text-secondary); padding: 6px 8px 6px 28px; text-align: left; background: #fafbfc; }
+.dsh-pm-tok-sub .num { float: right; color: var(--dsw-text-primary); font-variant-numeric: tabular-nums; }
+.dsh-pm-nosnap { color: #b0b4bb; }
+.dsh-pm-sum { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--dsw-text-secondary); margin-bottom: 8px; }
+.dsh-pm-sum b { color: var(--dsw-text-primary); font-variant-numeric: tabular-nums; }
+.dsh-pm-impact-row { display: flex; align-items: center; gap: 10px; font-size: 12px; margin: 6px 0; }
+.dsh-pm-impact-row .name { width: 150px; color: var(--dsw-text-secondary); }
+.dsh-pm-impact-row .bar { flex: 1; height: 8px; background: var(--dsw-hover); border-radius: 4px; overflow: hidden; }
+.dsh-pm-impact-row .bar i { display: block; height: 8px; background: #c2255c; }
+.dsh-pm-impact-row .val { width: 170px; text-align: right; font-variant-numeric: tabular-nums; }
+/* 具体提示词内容：每段一个折叠 */
+details.dsh-pm-prompt { border: 1px solid var(--pm-line); border-radius: 6px; margin: 6px 0; background: #fcfcfd; }
+details.dsh-pm-prompt > summary { list-style: none; cursor: pointer; padding: 7px 10px; font-size: 12px; display: flex; gap: 8px; align-items: center; }
+details.dsh-pm-prompt > summary::-webkit-details-marker { display: none; }
+details.dsh-pm-prompt > summary::before { content: "\25B8"; color: var(--dsw-text-secondary); font-size: 10px; }
+details.dsh-pm-prompt[open] > summary::before { transform: rotate(90deg); }
+details.dsh-pm-prompt > summary:hover { background: var(--dsw-hover); }
+details.dsh-pm-prompt .pname { font-weight: 600; color: var(--dsw-text-primary); }
+details.dsh-pm-prompt .pmeta { margin-left: auto; color: var(--dsw-text-secondary); font-variant-numeric: tabular-nums; }
+.dsh-pm-prompt-text { margin: 0; padding: 10px 12px; border-top: 1px dashed var(--pm-line); background: #fff;
+                    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; line-height: 1.55;
+                    color: #3b4048; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
+/* 会话顶部流程图：保持现有样式（圆点在上、名称在下），名称行内水平放 token */
+.dsh-pm-flow { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding: 10px 0; background: var(--dsw-card);
+               border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.dsh-pm-flow-node { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 58px; }
+.dsh-pm-flow-dot { width: 22px; height: 22px; border-radius: 50%; flex: none; display: flex; align-items: center;
+                   justify-content: center; font-size: 11px; font-weight: 600; background: var(--pm-bg-soft);
+                   color: var(--dsw-text-secondary); border: 1px solid var(--pm-line); }
+.dsh-pm-flow-node[data-state="done"] .dsh-pm-flow-dot { background: var(--pm-c-done); border-color: var(--pm-c-done); color: #fff; }
+.dsh-pm-flow-node[data-state="current"] .dsh-pm-flow-dot { background: var(--pm-c-implementing); border-color: var(--pm-c-implementing); color: #fff; box-shadow: 0 0 0 3px rgba(74,125,255,.25); }
+.dsh-pm-flow-node[data-state="pending"] .dsh-pm-flow-dot { background: transparent; border: 1px solid var(--pm-line-strong); }
+.dsh-pm-flow-meta { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.dsh-pm-flow-label { font-size: 10px; color: var(--dsw-text-secondary); }
+.dsh-pm-flow-node[data-state="done"] .dsh-pm-flow-label { color: #1e7e34; }
+.dsh-pm-flow-node[data-state="current"] .dsh-pm-flow-label { color: #2f5fd0; font-weight: 600; }
+.dsh-pm-flow-token { font-size: 10px; color: var(--dsw-text-primary); font-variant-numeric: tabular-nums; }
+.dsh-pm-flow-token.none { color: #b0b4bb; }
+.dsh-pm-flow-link { width: 16px; height: 2px; border-radius: 1px; margin-top: 10px; flex: none; background: rgba(128,128,128,.22); }
+.dsh-pm-flow-link[data-state="done"] { background: rgba(40,167,69,.6); }
+.dsh-pm-cards { display: flex; gap: 12px; }
+.dsh-pm-card { width: 300px; background: var(--dsw-card); border: 1px solid var(--pm-line); border-radius: 10px; padding: 12px 14px; }
+.dsh-pm-card-id { font-family: ui-monospace, monospace; font-size: 12px; color: var(--dsw-text-secondary); }
+.dsh-pm-card-title { font-size: 14px; font-weight: 600; color: var(--dsw-text-primary); margin: 6px 0 8px; }
+.dsh-pm-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px;
+             border-radius: 10px; background: rgba(194,37,92,.10); color: #c2255c; font-variant-numeric: tabular-nums; }
+.dsh-pm-note { font-size: 12px; color: var(--dsw-text-secondary); margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="demo">
+  <h2>① 需求详情页 · 「🪙 Token」tab（内容分块折叠）</h2>
+  <div class="dsh-pm-detail">
+    <div class="dsh-pm-detail-head"><div class="dsh-pm-detail-title">REQ-a33899 项目看板：记录并展示每个流程节点（阶段过程）的 Token 消耗</div></div>
+    <div class="dsh-pm-tabs">
+      <button class="dsh-pm-tab">📋 概览</button>
+      <button class="dsh-pm-tab">⚙️ 执行</button>
+      <button class="dsh-pm-tab">📅 时间线</button>
+      <button class="dsh-pm-tab">📦 归档</button>
+      <button class="dsh-pm-tab active">🪙 Token</button>
+    </div>
+    <div class="dsh-pm-tab-content">
+      <div class="dsh-pm-stats">
+        <div class="dsh-pm-stat"><div class="dsh-pm-stat-label">总 Token</div><div class="dsh-pm-stat-value">460.0k</div></div>
+        <div class="dsh-pm-stat"><div class="dsh-pm-stat-label">未缓存输入</div><div class="dsh-pm-stat-value">82.3k</div></div>
+        <div class="dsh-pm-stat"><div class="dsh-pm-stat-label">输出</div><div class="dsh-pm-stat-value">41.2k</div></div>
+        <div class="dsh-pm-stat"><div class="dsh-pm-stat-label">缓存读</div><div class="dsh-pm-stat-value">336.5k</div></div>
+        <div class="dsh-pm-stat"><div class="dsh-pm-stat-label">费用估算</div><div class="dsh-pm-stat-value">¥2.31<span class="u">估算</span></div></div>
+      </div>
+      <details class="dsh-pm-fold" open>
+        <summary>📊 按流程节点<span class="dsh-pm-fold-count">7 个节点 · 合计 460.0k</span></summary>
+        <div class="dsh-pm-fold-body">
+          <table class="dsh-pm-tok-table">
+            <thead><tr><th>节点</th><th>Token</th><th>未缓存输入</th><th>输出</th><th>缓存读</th><th>费用</th><th>占比</th></tr></thead>
+            <tbody>
+              <tr class="dsh-pm-tok-node"><td>📝 立项</td><td>3.2k</td><td>1.1k</td><td>0.4k</td><td>1.7k</td><td>¥0.02</td><td><span class="dsh-pm-bar"><i style="width:1%"></i></span> 0.7%</td></tr>
+              <tr class="dsh-pm-tok-node"><td>🔍 需求分析</td><td>18.7k</td><td>5.2k</td><td>2.8k</td><td>10.7k</td><td>¥0.11</td><td><span class="dsh-pm-bar"><i style="width:4%"></i></span> 4.1%</td></tr>
+              <tr class="dsh-pm-tok-node"><td>🧩 技术设计</td><td>6.1k</td><td>2.0k</td><td>0.9k</td><td>3.2k</td><td>¥0.04</td><td><span class="dsh-pm-bar"><i style="width:1%"></i></span> 1.3%</td></tr>
+              <tr class="dsh-pm-tok-node"><td>🪓 拆分</td><td>2.4k</td><td>0.8k</td><td>0.3k</td><td>1.3k</td><td>¥0.01</td><td><span class="dsh-pm-bar"><i style="width:1%"></i></span> 0.5%</td></tr>
+              <tr class="dsh-pm-tok-node"><td>🔨 实施 <span style="color:#6b7280">▼ 点开</span></td><td>428.5k</td><td>72.6k</td><td>36.4k</td><td>319.5k</td><td>¥2.11</td><td><span class="dsh-pm-bar"><i style="width:93%"></i></span> 93.2%</td></tr>
+              <tr class="dsh-pm-tok-sub"><td colspan="7">t1 立 Token 契约与纯函数<span class="num">28.4k · ¥0.14</span></td></tr>
+              <tr class="dsh-pm-tok-sub"><td colspan="7">t3 台账 v6 + 写路径快照与迁移<span class="num">152.3k · ¥0.75</span></td></tr>
+              <tr class="dsh-pm-tok-sub"><td colspan="7">t4 读路径装配与 HTTP 接口<span class="num">110.2k · ¥0.54</span></td></tr>
+              <tr class="dsh-pm-tok-node"><td>✅ 验收</td><td class="dsh-pm-nosnap">无快照</td><td class="dsh-pm-nosnap">—</td><td class="dsh-pm-nosnap">—</td><td class="dsh-pm-nosnap">—</td><td class="dsh-pm-nosnap">—</td><td class="dsh-pm-nosnap">—</td></tr>
+              <tr class="dsh-pm-tok-node"><td>📦 归档</td><td>1.1k</td><td>0.4k</td><td>0.2k</td><td>0.5k</td><td>¥0.01</td><td><span class="dsh-pm-bar"><i style="width:1%"></i></span> 0.2%</td></tr>
+            </tbody>
+          </table>
+          <div class="dsh-pm-note">点节点行展开该阶段任务明细；「无快照」=推进时未取到会话快照，如实标注不补零。</div>
+        </div>
+      </details>
+      <details class="dsh-pm-fold">
+        <summary>🧱 固定系统提示词<span class="dsh-pm-fold-count">每回合 ≈14.2k · 回合 74 · 累计 ≈1.05M（估算）</span></summary>
+        <div class="dsh-pm-fold-body">
+          <div class="dsh-pm-sum"><span>本次装配合计：<b>28,410</b> 字符</span><span>每回合 ≈ <b>14.2k</b> tokens</span><span>会话回合：<b>74</b></span><span>累计 ≈ <b>1.05M</b></span><span>来源：systemPrompt.assemble（实时）</span></div>
+          <div class="dsh-pm-note">点开每一段可看**具体提示词内容**（只读）。</div>
+          <details class="dsh-pm-prompt"><summary><span class="pname">agent:identity（身份）</span><span class="pmeta">412 字符 · 0.2k · 1.5%</span></summary><pre class="dsh-pm-prompt-text">[identity] 你是「PI 投资顾问·投资脑」（角色 ID: investor），所属实例 PI 投资顾问（端口 13080）。本实例投资账户：agent_brain。窗口编码：session-b11b0a40。</pre></details>
+          <details class="dsh-pm-prompt"><summary><span class="pname">genome:constitution（宪法）</span><span class="pmeta">1,208 字符 · 0.6k · 4.3%</span></summary><pre class="dsh-pm-prompt-text">[constitution] 1. 交易时段：仅 9:30-11:30、13:00-15:00 可执行买卖委托…… 2. 交易制度：T+1；买入 100 股整数倍…… 3. 仓位上限：单股 ≤20%，单行业 ≤40%，现金 ≥10%。</pre></details>
+          <details class="dsh-pm-prompt" open><summary><span class="pname">genome:rules（规则）</span><span class="pmeta">4,860 字符 · 2.4k · 17.1%</span></summary><pre class="dsh-pm-prompt-text">R-001 买入前确认…… R-005 下单注明依据…… R-008 决策前检索…… R-013 数据来源标注…… R-015 公告板发帖分档确认…… R-016 学习分析样本门槛…… R-018 会话启动简报……</pre></details>
+          <details class="dsh-pm-prompt"><summary><span class="pname">genome:lessons（教训）</span><span class="pmeta">2,140 字符 · 1.1k · 7.5%</span></summary><pre class="dsh-pm-prompt-text">恐慌市不接飞刀…… 故障路径必须故障注入实测…… 字段假设必须用真实数据验证……</pre></details>
+          <details class="dsh-pm-prompt"><summary><span class="pname">workspace instructions（工作区指令）</span><span class="pmeta">9,300 字符 · 4.7k · 32.7%</span></summary><pre class="dsh-pm-prompt-text"># CLAUDE.md - PI Investment System …（项目说明、多会话并行工作规则、Document Placement Rules 等）</pre></details>
+          <details class="dsh-pm-prompt"><summary><span class="pname">tools SDK 清单（工具 schema）</span><span class="pmeta">9,440 字符 · 4.7k · 33.2%</span></summary><pre class="dsh-pm-prompt-text">run_code / read / write / edit / bash / grep / glob / reqboard_create / reqboard_status / …（工具名与参数 schema）</pre></details>
+        </div>
+      </details>
+      <details class="dsh-pm-fold">
+        <summary>💉 注入提示词<span class="dsh-pm-fold-count">128 次 · 160.8k（估算）· 占本需求 35.0%</span></summary>
+        <div class="dsh-pm-fold-body">
+          <div class="dsh-pm-sum"><span>注入次数：<b>128</b></span><span>累计字符：<b>321,540</b></span><span>估算 Token：<b>160.8k</b></span><span>占本需求总量：<b>35.0%</b></span></div>
+          <div class="dsh-pm-impact-row"><span class="name">需求分析（brainstorming）</span><span class="bar"><i style="width:18%"></i></span><span class="val">28.1k · 17.5%</span></div>
+          <div class="dsh-pm-impact-row"><span class="name">技术设计（planning）</span><span class="bar"><i style="width:22%"></i></span><span class="val">35.4k · 22.0%</span></div>
+          <div class="dsh-pm-impact-row"><span class="name">拆分（decomposing）</span><span class="bar"><i style="width:9%"></i></span><span class="val">14.2k · 8.8%</span></div>
+          <div class="dsh-pm-impact-row"><span class="name">实施（implementing）</span><span class="bar"><i style="width:52%"></i></span><span class="val">83.1k · 51.7%</span></div>
+          <div class="dsh-pm-note">明细（可展开看注入的提示词内容）：</div>
+          <details class="dsh-pm-prompt"><summary><span class="pname">09-18 05:12 · brainstorming/light/feature</span><span class="pmeta">2,480 字符 · 1.2k</span></summary><pre class="dsh-pm-prompt-text"># 需求分析（brainstorming）· 轻档 …… 命中片段：brainstorming.iron-rules, brainstorming.light</pre></details>
+          <details class="dsh-pm-prompt"><summary><span class="pname">09-18 05:31 · planning/heavy/feature</span><span class="pmeta">3,940 字符 · 2.0k</span></summary><pre class="dsh-pm-prompt-text"># 技术设计（planning）· 重档 …… 命中片段：planning.heavy, common.iron-rules</pre></details>
+          <details class="dsh-pm-prompt"><summary><span class="pname">09-18 06:02 · decomposing/light/feature</span><span class="pmeta">2,110 字符 · 1.1k</span></summary><pre class="dsh-pm-prompt-text"># 拆分（decomposing）· 轻档 …… 命中片段：decomposing.light, decomposing.feature</pre></details>
+          <details class="dsh-pm-prompt"><summary><span class="pname">09-18 06:40 · implementing/heavy/feature</span><span class="pmeta">3,620 字符 · 1.8k</span></summary><pre class="dsh-pm-prompt-text"># 实施（implementing）· 重档 …… 命中片段：implementing.heavy, common.iron-rules</pre></details>
+        </div>
+      </details>
+      <details class="dsh-pm-fold">
+        <summary>ℹ️ 口径说明</summary>
+        <div class="dsh-pm-fold-body dsh-pm-callout">过程消耗按「执行该节点/任务的会话」累计值差值统计，可能含同会话其他工作的消耗；费用按模型单价估算；固定系统提示词与注入提示词按字符→token 估算（单点系数），不冒充 provider 上报。缺失段显示「无快照/不可用」，不补零不猜测。</div>
+      </details>
+    </div>
+  </div>
+  <h2>② 会话顶部 · 流程进度条（现有样式不变；token 与名称同行水平）</h2>
+  <div class="dsh-pm-flow">
+    <div class="dsh-pm-flow-node" data-state="done"><div class="dsh-pm-flow-dot">✓</div><div class="dsh-pm-flow-meta"><span class="dsh-pm-flow-label">立项</span><span class="dsh-pm-flow-token">3.2k</span></div></div>
+    <div class="dsh-pm-flow-link" data-state="done"></div>
+    <div class="dsh-pm-flow-node" data-state="done"><div class="dsh-pm-flow-dot">✓</div><div class="dsh-pm-flow-meta"><span class="dsh-pm-flow-label">需求分析</span><span class="dsh-pm-flow-token">18.7k</span></div></div>
+    <div class="dsh-pm-flow-link" data-state="done"></div>
+    <div class="dsh-pm-flow-node" data-state="done"><div class="dsh-pm-flow-dot">✓</div><div class="dsh-pm-flow-meta"><span class="dsh-pm-flow-label">技术设计</span><span class="dsh-pm-flow-token">6.1k</span></div></div>
+    <div class="dsh-pm-flow-link" data-state="done"></div>
+    <div class="dsh-pm-flow-node" data-state="done"><div class="dsh-pm-flow-dot">✓</div><div class="dsh-pm-flow-meta"><span class="dsh-pm-flow-label">拆分</span><span class="dsh-pm-flow-token">2.4k</span></div></div>
+    <div class="dsh-pm-flow-link" data-state="done"></div>
+    <div class="dsh-pm-flow-node" data-state="current"><div class="dsh-pm-flow-dot">●</div><div class="dsh-pm-flow-meta"><span class="dsh-pm-flow-label">实施</span><span class="dsh-pm-flow-token">428.5k</span></div></div>
+    <div class="dsh-pm-flow-link"></div>
+    <div class="dsh-pm-flow-node" data-state="pending"><div class="dsh-pm-flow-dot">6</div><div class="dsh-pm-flow-meta"><span class="dsh-pm-flow-label">验收</span><span class="dsh-pm-flow-token none" title="无快照">—</span></div></div>
+    <div class="dsh-pm-flow-link"></div>
+    <div class="dsh-pm-flow-node" data-state="pending"><div class="dsh-pm-flow-dot">7</div><div class="dsh-pm-flow-meta"><span class="dsh-pm-flow-label">归档</span><span class="dsh-pm-flow-token none">—</span></div></div>
+  </div>
+  <div class="dsh-pm-note">圆点在上、名称在下——**现有样式完全不变**；唯一新增是名称行内的 token 小字（无快照显示—，悬停 title 见四分桶与费用）。</div>
+  <h2>③ 看板卡面 · 累计 token 徽章</h2>
+  <div class="dsh-pm-cards">
+    <div class="dsh-pm-card">
+      <div class="dsh-pm-card-id">REQ-a33899</div>
+      <div class="dsh-pm-card-title">项目看板：记录并展示每个流程节点（阶段过程）的 Token 消耗</div>
+      <span class="dsh-pm-badge" title="未缓存输入 82.3k · 输出 41.2k · 缓存读 336.5k · 费用估算 ¥2.31">🪙 460.0k</span>
+    </div>
+  </div>
+  <div class="dsh-pm-note">无累计快照时不渲染徽章（零噪音）。</div>
+</div>
+</body>
+</html>
