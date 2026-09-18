@@ -121,6 +121,26 @@ def test_strategy_account_and_dangling_go_expired(seeded):
         assert reason and len(reason) > 5          # 必须写明理由，不许空话
 
 
+def test_quiet_mode_expires_history_but_keeps_rule_repair(seeded):
+    """静默口径：历史触发不生成活待办（避免 SLA 上线瞬间炸出上百条超时回执），
+    但「规则重叠」仍生成可执行的修规则待办。"""
+    s = seeded['session']
+    stats = converge(s, apply=True, now=NOW, quiet=True)
+    assert stats['orphaned_scoped'] == 0, stats
+    # 5 条里：3 条普通历史 → expired；1 条 rule_overlap → 活待办；1 条悬空 → expired
+    assert stats['todos_created'] == 1, stats
+    assert stats['expired'] == 4, stats
+
+    rows = s.execute(text(
+        "SELECT disposition FROM quant.watch_triggers WHERE symbol = ANY(:s)"),
+        {'s': [MARK + '_ok', MARK + '_ok2']}).fetchall()
+    assert all(r[0] == 'expired' for r in rows)
+    kept = s.execute(text(
+        "SELECT count(*) FROM quant.watch_todos t JOIN quant.watch_triggers g ON g.id=t.trigger_id "
+        "WHERE g.symbol = :s"), {'s': MARK + '_ok3'}).scalar()
+    assert int(kept) == 1
+
+
 def test_rule_overlap_becomes_rule_change_todo(seeded):
     s = seeded['session']
     converge(s, apply=True, now=NOW)
