@@ -58,11 +58,14 @@ export function apply(ctx: ApplyContext): void {
         controller.openBoard()
         // 如果传入了 req 参数，打开需求详情页
         if (detail.req) {
-          // 等待看板打开后再打开详情
+          // 等待看板打开后，通过触发 data-action="open-req" 事件来打开详情
           setTimeout(() => {
-            // 直接调用 controller 打开详情页
-            controller.openDetail(detail.req)
-          }, 100)
+            const reqCard = document.querySelector(`[data-req="${detail.req}"]`)
+            if (reqCard) {
+              // 模拟点击需求卡片，触发 open-req 事件
+              reqCard.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+            }
+          }, 200)
         }
       } else {
         controller.toggleBoard()
