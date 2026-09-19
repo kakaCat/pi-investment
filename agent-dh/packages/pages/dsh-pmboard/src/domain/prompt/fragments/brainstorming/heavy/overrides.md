@@ -3,7 +3,7 @@
 以下 6+1 条是本仓对 superpowers 原文的接线：原文在前、本仓规则在后，冲突时以本段为准。
 
 - [ ] **覆盖 1 · 交棒**：上文把交棒写成"调用 writing-plans skill"。本仓不用 skill 自主 load：
-      下一步：planning —— 用 reqboard_ask_confirm(target=artifact, kind=requirement) 交棒；未获批准不得进入。
+      下一步：design —— 用 reqboard_ask_confirm(target=artifact, kind=requirement) 交棒；未获批准不得进入。
       肯定答复会**自动落章并推进**；本节点不得直接跳到拆分 / 实施。
 - [ ] **覆盖 2 · 落盘路径**：上文把设计文档存到 docs/superpowers/specs/…。本仓一律落
       `docs/requirements/REQ-xxxxxx/requirement.md`（头部带 REQ id），并用
@@ -21,4 +21,4 @@
 - [ ] **覆盖 6 · 闸门**：HARD-GATE 由 `reqboard_ask_confirm` 承载；"太简单不用走流程"
       由代码级拦截（artifact_not_confirmed）拒绝，不由模型自裁。
 - [ ] **覆盖 7 · 节点归属**：上文 "Cover: architecture, components, data flow, error handling,
-      testing" 在本仓属 **planning** 节点的设计覆盖面；brainstorming 阶段不得越界写技术设计。
+      testing" 在本仓属 **design** 节点的设计覆盖面；brainstorming 阶段不得越界写设计。

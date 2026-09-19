@@ -49,13 +49,13 @@ describe('planRollup（R2/R3）', () => {
     }))).toEqual([])
   })
 
-  it('planning + 已有任务 → R3 decomposing（不再自动越过人工门）', () => {
+  it('design + 已有任务 → R3 decomposing（不再自动越过人工门）', () => {
     const moves = planRollup(view({
-      requirements: [{ id: 'R', status: 'planning' }],
+      requirements: [{ id: 'R', status: 'design' }],
       tasks: [{ requirementId: 'R', status: 'todo' }],
     }))
     expect(moves).toHaveLength(1)
-    expect(moves[0]).toMatchObject({ from: 'planning', to: 'decomposing', rule: 'R3' })
+    expect(moves[0]).toMatchObject({ from: 'design', to: 'decomposing', rule: 'R3' })
     expect(moves[0].reason).toContain('已按批准的计划落库 1 个任务')
   })
 
@@ -77,7 +77,7 @@ describe('planRollup（R2/R3）', () => {
   it('决策只产出 system 白名单内的转移（人工闸门不可越）', () => {
     for (const rule of planRollup(view({
       requirements: [
-        { id: 'A', status: 'planning' }, { id: 'B', status: 'implementing' },
+        { id: 'A', status: 'design' }, { id: 'B', status: 'implementing' },
       ],
       tasks: [{ requirementId: 'A', status: 'todo' }, { requirementId: 'B', status: 'done' }],
     }))) {

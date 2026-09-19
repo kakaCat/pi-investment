@@ -36,6 +36,8 @@ import {
 } from '../shared/protocol.js'
 import { ITEM_STATUS_BADGE } from '../shared/protocol.js'
 import { esc } from '@pi-investment/page-kit/client'
+import { CATEGORY_DELTAS, COMMON_ROOT_SECTIONS } from '../application/internal/category-doc-sets.js'
+import { fmt } from '../domain/text/fmt.js'
 
 // ---------------------------------------------------------------------------
 // 常量
@@ -45,7 +47,7 @@ import { esc } from '@pi-investment/page-kit/client'
 export const STAGE_LABELS: Record<MainStageKey, string> = {
   draft: '立项',
   brainstorming: '需求分析',
-  planning: '技术设计',
+  design: '设计',
   decomposing: '拆分',
   implementing: '实施',
   accepting: '验收',
@@ -56,16 +58,18 @@ export const STAGE_LABELS: Record<MainStageKey, string> = {
 /** 产物种类中文标签。部分映射：notes/task_output 无专属中文名（调用方 ?? kind 兜底）。 */
 const ARTIFACT_KIND_LABELS: Partial<Record<ArtifactKind, string>> = {
   requirement: '需求文档',
-  plan: '实施计划',
+  design: '设计文档',
+  plan: '拆分计划',
   decomposition: '拆分方案',
   task_detail: '任务卡',
   verification: '验收材料',
   archive: '归档材料',
 }
 
-/** 追溯链顺序（requirement → plan → decomposition → task_detail → verification → archive）。 */
+/** 追溯链顺序（requirement → design → plan → decomposition → task_detail → verification → archive）。 */
 const TRACE_CHAIN_ORDER: ArtifactKind[] = [
   'requirement',
+  'design',
   'plan',
   'decomposition',
   'task_detail',
@@ -203,10 +207,46 @@ const renderBrainstormBody: StageBodyRenderer = (payload) => {
   return '<div class="dsh-pm-sn-body" data-stage="brainstorming">' + rows + '</div>'
 }
 
-const renderPlanningBody: StageBodyRenderer = (payload) => {
-  const body = (payload as Extract<StageDetail, { stage: 'planning' }>).body
+const renderDesignBody: StageBodyRenderer = (payload) => {
+  const body = (payload as Extract<StageDetail, { stage: 'design' }>).body
+  
+  // 文档集要求展示（系统负责格式）
+  let docSetHtml = ''
+  if (body.category) {
+    const delta = CATEGORY_DELTAS.find(d => d.category === body.category)
+    if (delta) {
+      const rootSections = [...COMMON_ROOT_SECTIONS, ...delta.rootSectionsDelta]
+      const required = delta.requiredDesignDocs
+
+      const rootList = rootSections.length > 0
+        ? fmt('<div class="dsh-pm-sn-dim">根文档必填节：{sections}</div>', { sections: esc(rootSections.join('、')) })
+        : ''
+
+      // 设计文档逐份交付状态（REQ-81aabd FR-2）：已交 ✅ / 未交 ⬜，比对需求目录里的实际登记
+      // （body.designDocs 由服务端设计节点装配器给出）。字段缺席时退回模板文件名清单。
+      const designList = body.designDocs !== undefined
+        ? (body.designDocs.length > 0
+            ? body.designDocs.map(d => fmt(
+                '<div class="dsh-pm-sn-dim" data-design-doc="{name}" data-submitted="{sub}">{mark} design/{name}</div>',
+                { name: esc(d.name), sub: d.submitted ? 'yes' : 'no', mark: d.submitted ? '✅ 已交' : '⬜ 未交' },
+              )).join('')
+            : '<div class="dsh-pm-sn-dim">设计文档：无（本类型跳过设计文档）</div>')
+        : (required.length > 0
+            ? fmt('<div class="dsh-pm-sn-dim">设计文档：{list}</div>', { list: esc(required.map(d => 'design/' + d).join('、')) })
+            : '<div class="dsh-pm-sn-dim">设计文档：无（本类型跳过设计文档）</div>')
+      
+      docSetHtml = (
+        '<div class="dsh-pm-sn-docset">' +
+          '<div class="dsh-pm-sn-text" style="font-weight: 500;">📋 本类型需要的文档</div>' +
+          rootList +
+          designList +
+        '</div>'
+      )
+    }
+  }
+  
   if (!body.plan) {
-    return '<div class="dsh-pm-sn-body" data-stage="planning"><div class="dsh-pm-sn-empty">尚未提交实施计划</div></div>'
+    return '<div class="dsh-pm-sn-body" data-stage="design">' + docSetHtml + '<div class="dsh-pm-sn-empty">尚未提交拆分计划</div></div>'
   }
   const plan = body.plan
   const statusLine = plan.approvedAt !== undefined
@@ -215,7 +255,8 @@ const renderPlanningBody: StageBodyRenderer = (payload) => {
       ? '退回：' + fmtTime(plan.rejectedAt) + (plan.rejectedReason ? ' · ' + plan.rejectedReason : '')
       : '提交：' + fmtTime(plan.submittedAt) + ' · 待批准'
   return (
-    '<div class="dsh-pm-sn-body" data-stage="planning">' +
+    '<div class="dsh-pm-sn-body" data-stage="design">' +
+      docSetHtml +
       (plan.summary ? '<div class="dsh-pm-sn-text">' + esc(plan.summary) + '</div>' : '') +
       '<div class="dsh-pm-sn-dim">' + plan.tasks.length + ' 个任务 · ' + esc(statusLine) + '</div>' +
     '</div>'
@@ -429,7 +470,7 @@ const renderArchivedBody: StageBodyRenderer = (payload) => {
 export const StageRenderers: Record<MainStageKey, { renderBody: StageBodyRenderer }> = {
   draft: { renderBody: renderDraftBody },
   brainstorming: { renderBody: renderBrainstormBody },
-  planning: { renderBody: renderPlanningBody },
+  design: { renderBody: renderDesignBody },
   decomposing: { renderBody: renderDecomposingBody },
   implementing: { renderBody: renderImplementingBody },
   accepting: { renderBody: renderAcceptingBody },
@@ -529,10 +570,10 @@ export function stageHeadSummary(payload: StageDetail): string | undefined {
     case 'brainstorming': {
       const b = (payload as Extract<StageDetail, { stage: 'brainstorming' }>).body
       const n = b.comments?.length ?? 0
-      return n > 0 ? n + ' 条评论' : '需求分析'
+      return n > 0 ? fmt('{n} 条评论', { n }) : '需求分析'
     }
-    case 'planning': {
-      const b = (payload as Extract<StageDetail, { stage: 'planning' }>).body
+    case 'design': {
+      const b = (payload as Extract<StageDetail, { stage: 'design' }>).body
       if (!b.plan) return '待提交计划'
       if (b.plan.approvedAt !== undefined) return '计划已批准'
       if (b.plan.rejectedAt !== undefined) return '计划被退回'
@@ -541,7 +582,7 @@ export function stageHeadSummary(payload: StageDetail): string | undefined {
     case 'decomposing': {
       const b = (payload as Extract<StageDetail, { stage: 'decomposing' }>).body
       const n = b.tasks?.length ?? 0
-      return n > 0 ? n + ' 个任务' : '待拆分'
+      return n > 0 ? fmt('{n} 个任务', { n }) : '待拆分'
     }
     case 'implementing': {
       const b = (payload as Extract<StageDetail, { stage: 'implementing' }>).body
@@ -550,8 +591,8 @@ export function stageHeadSummary(payload: StageDetail): string | undefined {
       if (total === 0) return '暂无任务'
       const done = tasks.filter(t => t.status === 'done').length
       const active = tasks.find(t => t.status === 'in_progress' || t.status === 'integrating' || t.status === 'testing')
-      let s = done + '/' + total + ' 完成'
-      if (total - done > 0) s += ' · 剩 ' + (total - done) + ' 个'
+      let s = fmt('{done}/{total} 完成', { done, total })
+      if (total - done > 0) s += fmt(' · 剩 {n} 个', { n: total - done })
       if (active !== undefined) s += ' · 进行中 ' + active.id
       return s
     }

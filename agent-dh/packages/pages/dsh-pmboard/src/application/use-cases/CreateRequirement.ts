@@ -22,16 +22,18 @@ export async function executeCreateRequirement(deps: UseCaseDeps, args: unknown,
       const windowKey = agentIdFromExec(deps, exec)
       requireLiveDriver(deps, exec)
       requireDirectHuman(deps, exec)
-      const a = (args ?? {}) as { title?: unknown; category?: unknown; summary?: unknown; reason?: unknown }
+      const a = (args ?? {}) as { title?: unknown; category?: unknown; summary?: unknown; reason?: unknown; prompt_difficulty?: unknown }
       const title = normalizeTitle(a.title)
       const category = asReqCategory(a.category)
       const summary = normalizeText(a.summary, 'summary')
       const reason = normalizeText(a.reason, 'reason')
+      const promptDifficulty = typeof a.prompt_difficulty === 'string' ? a.prompt_difficulty : 'standard'
       const req = await createRequirementDirect(deps, windowKey, {
         title,
         category,
         description: summary.length > 0 ? summary : title,
         reason,
+        promptDifficulty,
       })
       return {
         success: true,

@@ -30,6 +30,8 @@ export interface ReqboardRouteDeps {
   injectionLog?: InjectionLogReadPort
   /** 系统提示词装配服务提供者（REQ-a33899 t5）：读时折算固定系统提示词成本；缺省 → unavailable。 */
   systemPrompt?: () => unknown
+  /** Token 快照提供者（REQ-b545fe t6）：HTTP 任务操作（body.sessionId）可结算快照；缺省 → 无快照。 */
+  tokenSnapshot?: (windowKey: string) => import('../shared/protocol.js').TokenSnapshot | undefined
   /** 可注入 id 生成器（测试用） */
   ids?: {
     requirement?: () => string
@@ -113,6 +115,7 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       ...(deps.cwd !== undefined ? { cwd: deps.cwd } : {}),
       ...(deps.injectionLog !== undefined ? { injectionLog: deps.injectionLog } : {}),
       ...(deps.systemPrompt !== undefined ? { systemPrompt: deps.systemPrompt } : {}),
+      ...(deps.tokenSnapshot !== undefined ? { tokenSnapshot: deps.tokenSnapshot } : {}),
     },
     ids,
     mintId,

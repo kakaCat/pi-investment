@@ -80,7 +80,7 @@ export function createStagesRouter(ctx: RouterCtx) {
   async function handleRequirementsSummary(res: ServerResponse): Promise<void> {
     const ledger = await store.read(l => l)
     const rank: Record<string, number> = {
-      implementing: 0, accepting: 1, decomposing: 2, planning: 3, brainstorming: 4, draft: 5, done: 6,
+      implementing: 0, accepting: 1, decomposing: 2, design: 3, brainstorming: 4, draft: 5, done: 6,
     }
     const summaries = ledger.requirements
       .filter(r => isActiveRequirement(r))

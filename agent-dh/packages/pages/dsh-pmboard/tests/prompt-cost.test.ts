@@ -59,13 +59,13 @@ describe('REQ-a33899 t5 · 注入提示词折算', () => {
     expect(windows.has('w-abc12345')).toBe(true)
     const cost = summarizeInjections([
       entry(),
-      entry({ at: 200, stage: 'planning', charCount: 600 }),
+      entry({ at: 200, stage: 'design', charCount: 600 }),
       entry({ windowKey: 'w-other999', charCount: 9999 }),
     ], windows)
     expect(cost.count).toBe(2)
     expect(cost.chars).toBe(1000)
     expect(cost.estTokens).toBe(estimateTokensFromChars(1000))
-    expect(cost.byStage.map(s => s.name).sort()).toEqual(['brainstorming', 'planning'])
+    expect(cost.byStage.map(s => s.name).sort()).toEqual(['brainstorming', 'design'])
   })
 
   it('没有可匹配窗口 → 不归因（空，不张冠李戴）', () => {
@@ -77,7 +77,7 @@ describe('REQ-a33899 t5 · 注入提示词折算', () => {
 
 function seededLedger(): ReqboardLedger {
   return {
-    schemaVersion: 6, revision: 1,
+    schemaVersion: 7, revision: 1,
     requirements: [{
       id: 'REQ-abc123', title: 'T', description: 'd', category: 'feature', status: 'brainstorming',
       blocked: false, sourceSessionId: 'session-abc12345-0000', comments: [], version: 1, createdAt: 1, updatedAt: 1,

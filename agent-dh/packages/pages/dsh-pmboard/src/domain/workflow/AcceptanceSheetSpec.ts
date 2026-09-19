@@ -51,7 +51,7 @@ export interface SheetTaskLike {
 }
 
 /** 需求级验收标准原文（唯一常量，避免前端/后端各写一份）。 */
-export const REQUIREMENT_LEVEL_CRITERION = '需求级：交付结论可复核（证据齐全、与技术设计一致、无范围蔓延）'
+export const REQUIREMENT_LEVEL_CRITERION = '需求级：交付结论可复核（证据齐全、与设计一致、无范围蔓延）'
 
 export interface SheetBuildInput {
   /** 历史验收单条数（version = history + 上一版 + 1）。 */

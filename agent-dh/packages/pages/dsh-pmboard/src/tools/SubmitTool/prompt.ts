@@ -7,9 +7,9 @@
 export const SUBMIT_PROMPT =
   '提交阶段产物（kind 区分四类，提交后请人确认/审核）：'
   + 'kind=requirement（brainstorming 阶段）：需求文档已落盘 → 登记 requirement 产物，'
-  + '人工确认门（brainstorming→planning）要求该产物已登记且经人确认；path 不传默认 '
+  + '人工确认门（brainstorming→design）要求该产物已登记且经人确认；path 不传默认 '
   + 'docs/requirements/<REQ>/requirement.md，summary 为一句话摘要，change_note 为已确认后重写时的变更原因（必填）。'
-  + 'kind=plan（planning 阶段）：提交实施计划（path=计划文档、summary=目标+做法、tasks=任务表），'
+  + 'kind=plan（design 阶段）：提交拆分计划（path=计划文档、summary=目标+做法、tasks=任务表），'
   + '待人批准后 reqboard_decompose 才能拆分；已批准过再重交必须传 change_note（旧批准作废）。'
   + 'kind=verification（implementing/accepting 阶段）：提交验收材料（summary=交付结论、'
   + 'evidence=可复核证据清单：命令+输出摘要/报告路径/截图路径），需求进入验收态等人工审核。'

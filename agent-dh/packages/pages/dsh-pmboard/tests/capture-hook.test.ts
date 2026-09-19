@@ -259,9 +259,14 @@ describe('REQ-31e11f t5：onStagePrompt 阶段提示词注入', () => {
     })
     h({ id: W }, textMsg('继续推进'))
     expect(prompts).toHaveLength(1)
-    // 提示词含 implementing 阶段纪律关键词
-    expect(prompts[0]).toContain('REQ-31e11f stage-prompts')
-    expect(prompts[0]).toContain('按任务卡执行')
+    // 断言与唯一取词入口同源（旧的 STAGE_PROMPTS 常量表/旧分片名已下线）：
+    // 注入的就是 resolveStagePrompt 按当前阶段+类型+需求实质算出来的那段文本。
+    const { resolveStagePrompt } = await import('../src/domain/prompt/index.js')
+    const expected = resolveStagePrompt({
+      stage: 'implementing', category: 'feature', requirement: { title: undefined, description: undefined },
+    })
+    expect(prompts[0]).toContain(expected.text)
+    expect(expected.text.length).toBeGreaterThan(0)
   })
 
   it('分类跳过的阶段不触发 onStagePrompt', async () => {

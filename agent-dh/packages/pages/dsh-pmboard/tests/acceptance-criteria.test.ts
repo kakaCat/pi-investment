@@ -109,7 +109,7 @@ function reqWithFullArtifacts(): RequirementRecord {
   const now = Date.now()
   const artifacts: StageArtifact[] = [
     { stage: 'brainstorming', kind: 'requirement', path: 'docs/requirements/REQ-acc001/requirement.md', registeredAt: now, registeredBy: { kind: 'agent' } },
-    { stage: 'planning', kind: 'plan', path: 'docs/requirements/REQ-acc001/plan.md', registeredAt: now, registeredBy: { kind: 'agent' } },
+    { stage: 'design', kind: 'plan', path: 'docs/requirements/REQ-acc001/plan.md', registeredAt: now, registeredBy: { kind: 'agent' } },
     { stage: 'decomposing', kind: 'decomposition', path: 'docs/requirements/REQ-acc001/decomposition.md', registeredAt: now, registeredBy: { kind: 'agent' } },
     { stage: 'implementing', kind: 'task_detail', path: 'docs/requirements/REQ-acc001/tasks/t-aaa001.md', registeredAt: now, registeredBy: { kind: 'agent' } },
     { stage: 'accepting', kind: 'verification', path: 'docs/requirements/REQ-acc001/verification.md', registeredAt: now, registeredBy: { kind: 'agent' } },
@@ -139,7 +139,7 @@ describe('验收 1：7 节点点击均展示对应内容', () => {
   it('7 节点 StageDetail 各自返回差异化 body（非空、stage 匹配）', async () => {
     await seed('implementing')
     // REQ-9f4a44：done 节点已移除 → 7 个节点
-    const stages: StageKey[] = ['draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'archived']
+    const stages: StageKey[] = ['draft', 'brainstorming', 'design', 'decomposing', 'implementing', 'accepting', 'archived']
     for (const stage of stages) {
       const res = await get(`/requirements/REQ-acc001/stage/${stage}`)
       expect(res.statusCode, stage).toBe(200)
@@ -156,11 +156,11 @@ describe('验收 1：7 节点点击均展示对应内容', () => {
   })
 
   it('7 节点 stage-panel 渲染各自产出非空 HTML（含节点专属 CSS 类）', () => {
-    const stages: StageKey[] = ['draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'archived']
+    const stages: StageKey[] = ['draft', 'brainstorming', 'design', 'decomposing', 'implementing', 'accepting', 'archived']
     const bodies: Record<string, Record<string, unknown>> = {
       draft: { title: 'T', description: 'D' },
       brainstorming: { comments: [] },
-      planning: {},
+      design: {},
       decomposing: { tasks: [], planTasks: [] },
       implementing: { tasks: [], byWindow: {} },
       accepting: {},
@@ -308,8 +308,8 @@ describe('验收 4：老台账兼容加载（历史字段透传，不做破坏�
     const legacy = loaded as { projectId?: unknown; parentId?: unknown }
     expect(legacy.projectId).toBeUndefined()
     expect(legacy.parentId).toBeUndefined()
-    // schemaVersion 升级到当前契约版本（REQ-a33899 t3：4 → 5 → 6）
-    expect(freshStore.snapshot().schemaVersion).toBe(6)
+    // schemaVersion 升级到当前契约版本（REQ-81aabd：4 → 5 → 6 → 7）
+    expect(freshStore.snapshot().schemaVersion).toBe(7)
   })
 })
 
@@ -332,7 +332,7 @@ describe('验收 5：双端共享同一 StageDetail 契约', () => {
   it('StageDetail 判别联合的 7 个 stage 值与 ALL_STAGE_KEYS 一致', () => {
     expect(ALL_STAGE_KEYS).toHaveLength(7)
     for (const key of ALL_STAGE_KEYS) {
-      expect(['draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'archived']).toContain(key)
+      expect(['draft', 'brainstorming', 'design', 'decomposing', 'implementing', 'accepting', 'archived']).toContain(key)
     }
   })
 })
@@ -394,7 +394,7 @@ describe('验收 6：产物链接 + 缺产物标红', () => {
 
 describe('验收 7：缺产物拦截 + 产物链追溯', () => {
   it('新需求缺产物推进被代码级拦截（missing_artifact）', async () => {
-    // feature 分类：brainstorming → planning 需要 requirement 产物
+    // feature 分类：brainstorming → design 需要 requirement 产物
     await seed('brainstorming', 'feature')
     // 登记一个产物但不确认 → artifact_not_confirmed
     await store.mutate('requirement-updated', (l) => {
@@ -402,7 +402,7 @@ describe('验收 7：缺产物拦截 + 产物链追溯', () => {
       r.artifacts = [{ stage: 'brainstorming', kind: 'requirement', path: 'docs/requirements/REQ-acc001/requirement.md', registeredAt: 1, registeredBy: { kind: 'agent' } }]
       return { requirements: [r] }
     })
-    const res = await post('/req/move', { id: 'REQ-acc001', to: 'planning', actor: 'human' })
+    const res = await post('/req/move', { id: 'REQ-acc001', to: 'design', actor: 'human' })
     expect(res.statusCode).toBe(400)
     expect(res.payload.code).toBe('artifact_not_confirmed')
   })
@@ -435,7 +435,7 @@ describe('验收 7：缺产物拦截 + 产物链追溯', () => {
 
 describe('验收 8：task_report 汇报 = 实施产物文档', () => {
   it('task_report 后 StageDetail.implementing 含 task_detail 产物（可追溯）', async () => {
-    await seed('planning')
+    await seed('design')
     const reportTool = defineTaskReportTool({ store, now: () => Date.now() } as never)
     const planTool = definePlanSubmitTool({ store, now: () => Date.now() } as never)
     const decomposeTool = defineDecomposeTool({ store, now: () => Date.now() } as never)
@@ -482,7 +482,8 @@ describe('验收 8：task_report 汇报 = 实施产物文档', () => {
 describe('验收 9：阶段提示词注入', () => {
   it('capture.ts boundSectionText 按当前阶段注入对应提示词', async () => {
     const { boundSectionText } = await import('../src/application/internal/capture-section.js')
-    const { STAGE_PROMPTS } = await import('../src/domain/stage/StagePromptSpec.js')
+    // REQ-d3e61a FR-16：取词唯一入口 = resolveStagePrompt（旧的 STAGE_PROMPTS 常量表已下线）
+    const { resolveStagePrompt } = await import('../src/domain/prompt/index.js')
     const l = emptyLedger()
     l.requirements.push({
       id: 'REQ-acc001', title: 't', description: '', status: 'brainstorming', blocked: false,
@@ -490,13 +491,17 @@ describe('验收 9：阶段提示词注入', () => {
       createdBy: { kind: 'human' }, updatedBy: { kind: 'human' },
     })
     const text = boundSectionText(l, { agent: { id: W } })
-    expect(text).toContain(STAGE_PROMPTS.brainstorming)
-    expect(text).toContain('一次一个问题')
+    expect(text).toContain(resolveStagePrompt({
+      stage: 'brainstorming', category: 'feature', requirement: { title: 't', description: '' },
+    }).text)
+    // 阶段身份（轻/重档标题都带 brainstorming）——不再钉死某句措辞，措辞会随分片演进
+    expect(text).toContain('brainstorming')
   })
 
   it('capture-hook onStagePrompt 在 bound 窗口收到消息时触发', async () => {
     const { createSessionEventCaptureHook } = await import('../src/adapters/CaptureHook.js')
-    const { STAGE_PROMPTS } = await import('../src/domain/stage/StagePromptSpec.js')
+    // REQ-d3e61a FR-16：取词唯一入口 = resolveStagePrompt（旧的 STAGE_PROMPTS 常量表已下线）
+    const { resolveStagePrompt } = await import('../src/domain/prompt/index.js')
     const prompts: string[] = []
     const ledger = emptyLedger()
     ledger.requirements.push({
@@ -513,7 +518,9 @@ describe('验收 9：阶段提示词注入', () => {
     })
     hook({ id: W }, { type: 'user/message', data: { content: [{ type: 'text', text: '继续' }], source: { kind: 'user' } } })
     expect(prompts).toHaveLength(1)
-    expect(prompts[0]).toBe(STAGE_PROMPTS.implementing)
+    expect(prompts[0]).toBe(resolveStagePrompt({
+      stage: 'implementing', category: 'feature', requirement: { title: 't', description: '' },
+    }).text)
   })
 })
 
@@ -524,8 +531,8 @@ describe('验收 9：阶段提示词注入', () => {
 describe('验收 10：四道人工确认门', () => {
   // REQ-9f4a44：四道门——accepting>archived 合并了原 accepting>done 与 done>archived
   const ALL_FIVE_GATES: Array<[string, string, string]> = [
-    ['brainstorming', 'planning', 'requirement'],
-    ['planning', 'decomposing', 'plan'],
+    ['brainstorming', 'design', 'requirement'],
+    ['design', 'decomposing', 'plan'],
     ['decomposing', 'implementing', 'decomposition'],
     ['accepting', 'archived', 'verification'],
   ]
@@ -560,8 +567,8 @@ describe('验收 10：四道人工确认门', () => {
       return { requirements: [r] }
     })
     // 特殊门处理
-    if (from === 'planning' && to === 'decomposing') {
-      // planning>decomposing 用 planApproved 判定
+    if (from === 'design' && to === 'decomposing') {
+      // design>decomposing 用 planApproved 判定
       await store.mutate('requirement-updated', (l) => {
         const r = l.requirements[0]
         r.plan = { path: 'p.md', summary: 's', tasks: [{ key: 'a', title: 'A' }], submittedAt: 1, submittedBy: { kind: 'agent' }, approvedAt: 2, approvedBy: { kind: 'human' } }
@@ -601,10 +608,10 @@ describe('验收 12：分类差异化流程', () => {
     expect(categories).toContain('chore')
   })
 
-  it('bug 免需求分析门：confirmGates 不含 brainstorming>planning', () => {
+  it('bug 免需求分析门：confirmGates 不含 brainstorming>design', () => {
     const profile = CATEGORY_FLOW_PROFILES.bug
-    expect(profile.confirmGates).not.toContain('brainstorming>planning')
-    expect(profile.confirmGates).toContain('planning>decomposing')
+    expect(profile.confirmGates).not.toContain('brainstorming>design')
+    expect(profile.confirmGates).toContain('design>decomposing')
     // REQ-9f4a44：验收门并入归档门（accepting>archived），故 bug 分类 3 道门
     expect(profile.confirmGates).toContain('accepting>archived')
     expect(profile.confirmGates).toHaveLength(3)
@@ -617,14 +624,14 @@ describe('验收 12：分类差异化流程', () => {
       expect(profile.confirmGates, cat).toHaveLength(1)
       expect(profile.confirmGates, cat).toContain('accepting>archived')
       expect(profile.stages, cat).not.toContain('brainstorming')
-      expect(profile.stages, cat).not.toContain('planning')
+      expect(profile.stages, cat).not.toContain('design')
       expect(profile.stages, cat).not.toContain('decomposing')
     }
   })
 
   it('bug 分类跳过 brainstorming 阶段（stageEnabledFor=false）', () => {
     expect(stageEnabledFor('bug', 'brainstorming')).toBe(false)
-    expect(stageEnabledFor('bug', 'planning')).toBe(true)
+    expect(stageEnabledFor('bug', 'design')).toBe(true)
   })
 
   it('flowProfileFor 对非法分类兜底 feature', () => {
@@ -640,12 +647,12 @@ describe('验收 12：分类差异化流程', () => {
   })
 
   it('confirmGateKindFor 对分类未启用的门返回 undefined', () => {
-    // bug 分类：brainstorming>planning 门未启用
-    expect(confirmGateKindFor('bug', 'brainstorming', 'planning')).toBeUndefined()
+    // bug 分类：brainstorming>design 门未启用
+    expect(confirmGateKindFor('bug', 'brainstorming', 'design')).toBeUndefined()
     // feature 分类：启用
-    expect(confirmGateKindFor('feature', 'brainstorming', 'planning')).toBe('requirement')
-    // spike 分类：planning>decomposing 门未启用
-    expect(confirmGateKindFor('spike', 'planning', 'decomposing')).toBeUndefined()
+    expect(confirmGateKindFor('feature', 'brainstorming', 'design')).toBe('requirement')
+    // spike 分类：design>decomposing 门未启用
+    expect(confirmGateKindFor('spike', 'design', 'decomposing')).toBeUndefined()
   })
 })
 
@@ -670,7 +677,7 @@ describe('全流程一览接口 /requirements/:id/stages', () => {
   })
 
   it('分类跳过节点在一览里 enabled=false（不报错）', async () => {
-    await seed('planning', 'bug') // bug 分类跳过 brainstorming
+    await seed('design', 'bug') // bug 分类跳过 brainstorming
     const res = await get('/requirements/REQ-acc001/stages')
     expect(res.statusCode).toBe(200)
     const ov = res.payload?.data

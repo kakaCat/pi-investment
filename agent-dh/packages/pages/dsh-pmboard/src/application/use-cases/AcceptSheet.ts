@@ -8,13 +8,13 @@
 import type { UseCaseDeps } from '../ports.js'
 import {
   normalizeText,
-  recordStatus,
 } from '../../shared/protocol.js'
 import { ACCEPT_ITEM_OPTIONS, FINAL_DECLINE_LABEL, FINAL_PASS_LABEL } from '../../domain/text/labels.js'
 import { clip, fmt } from '../../domain/text/fmt.js'
 import { LIMITS } from '../../domain/limits.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { applyVerdicts } from '../internal/verdicts.js'
+import { captureSnapshot, transitionRequirement } from '../internal/token-usage.js'
 import {
   reject,
   agentIdFromExec,
@@ -92,11 +92,13 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
             v.reviewedBy = { kind: 'human', sessionId: windowKey }
             v.decision = 'pass'
           }
-          r.status = 'archived'
-          r.version += 1
-          r.updatedAt = nowTs2
-          r.updatedBy = { kind: 'human', sessionId: windowKey }
-          recordStatus(r, 'archived', nowTs2, { kind: 'human', sessionId: windowKey }, '验收通过（弹框逐项全通过 → 会话确认）')
+          // REQ-b545fe t5：使用唯一迁移助手
+          transitionRequirement(r, 'archived', {
+            at: nowTs2,
+            actor: { kind: 'human', sessionId: windowKey },
+            reason: '验收通过（弹框逐项全通过 → 会话确认）',
+            snap: captureSnapshot(deps, windowKey),
+          })
           r.comments.push({
             id: deps.ids.comment(),
             body: '[验收] 人工审核通过（弹框确认，' + passed + ' 项全通过）→ 自动归档',
@@ -190,6 +192,7 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
           const applied = applyVerdicts(
             ledger, targetReq.id, sheet.version, verdicts,
             { kind: 'human', sessionId: windowKey }, nowTs, () => deps.ids.comment(),
+            captureSnapshot(deps, windowKey), // REQ-b545fe t5: 传快照供打回路径结算
           )
           return { requirements: [applied.requirement], tasks: applied.reworkTasks }
         } catch (err) {

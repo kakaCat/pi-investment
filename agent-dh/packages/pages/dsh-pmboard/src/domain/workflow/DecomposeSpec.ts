@@ -6,7 +6,7 @@
  *  ① 状态已**越过**拆分（实施/验收中）→ 说明已拆过，拒绝；
  *  ② 台账已有该需求的未取消任务 → 拒绝并返回已有清单（防状态异常时的漏网）。
  * 2026-09-17 修正（REQ-47939a 自身实测触发）：原守卫把 decomposing 也当作"已拆过"，但计划
- * 批准（reqboard_ask_confirm target=plan）会**自动**把 planning → decomposing，于是正常
+ * 批准（reqboard_ask_confirm target=plan）会**自动**把 design → decomposing，于是正常
  * 路径必然先到 decomposing 再调 decompose → 被自己的守卫拒死，审批流水线自锁。
  * 正解：幽灵任务的唯一判据是"已有任务"（防线②），状态只用于区分"是否已越过拆分"。
  *

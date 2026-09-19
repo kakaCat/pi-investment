@@ -101,15 +101,15 @@ describe('applyTaskRollup（R2 实施完成 → 验收）', () => {
     expect(applyTaskRollup(l, ctx)).toHaveLength(0)
   })
 
-  it('派生链 R3：planning（计划已批）+ 有任务 → 推进到 decomposing 后停等人工确认拆分清单（2026-09-14 五门裁定，R4 移除）', () => {
-    const r = req({ status: 'planning' })
+  it('派生链 R3：design（计划已批）+ 有任务 → 推进到 decomposing 后停等人工确认拆分清单（2026-09-14 五门裁定，R4 移除）', () => {
+    const r = req({ status: 'design' })
     const l = ledger({ requirements: [r], tasks: [task(r.id, { status: 'done' })] })
     const advanced = applyTaskRollup(l, ctx)
     expect(advanced).toHaveLength(1) // 同一需求只上报一次（避免 change 载荷重复）
     // 五门裁定：decomposing>implementing 入人工门，rollup 不再自动越过 → 停在拆分态
     expect(l.requirements[0].status).toBe('decomposing')
     const trail = l.requirements[0].comments.filter(c => c.body.includes('[自动推进]')).map(c => c.body)
-    expect(trail.some(b => b.includes('planning → decomposing'))).toBe(true)
+    expect(trail.some(b => b.includes('design → decomposing'))).toBe(true)
     // R4 不再自动推进：留痕里没有 decomposing → implementing
     expect(trail.some(b => b.includes('decomposing → implementing'))).toBe(false)
   })
@@ -124,15 +124,15 @@ describe('applyTaskRollup（R2 实施完成 → 验收）', () => {
     expect(trail.some(b => b.includes('implementing → accepting'))).toBe(true)
   })
 
-  it('R3：planning + 任务全为 todo → 停在 decomposing（未开工不进执行）', () => {
-    const r = req({ status: 'planning' })
+  it('R3：design + 任务全为 todo → 停在 decomposing（未开工不进执行）', () => {
+    const r = req({ status: 'design' })
     const l = ledger({ requirements: [r], tasks: [task(r.id, { status: 'todo' })] })
     expect(applyTaskRollup(l, ctx).map(a => a.status)).toEqual(['decomposing'])
     expect(l.requirements[0].status).toBe('decomposing')
   })
 
   it('无任务时任何状态都不动（拆分未落库不进拆分态）', () => {
-    for (const status of ['brainstorming', 'planning', 'decomposing', 'implementing'] as const) {
+    for (const status of ['brainstorming', 'design', 'decomposing', 'implementing'] as const) {
       const r = req({ status })
       const l = ledger({ requirements: [r] })
       expect(applyTaskRollup(l, ctx)).toHaveLength(0)

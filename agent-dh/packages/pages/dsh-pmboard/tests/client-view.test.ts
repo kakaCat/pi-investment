@@ -157,7 +157,7 @@ describe('buildReqDetail', () => {
     expect(html).toContain('评审需求')
     expect(html).toContain('data-detail-req="REQ-000001"')
     expect(html).toContain('dsh-pm-gate')
-    expect(html).toContain('data-action="move-req" data-to="planning"')
+    expect(html).toContain('data-action="move-req" data-to="design"')
   })
 
   it('renders DAG layers by dependency depth', () => {
@@ -343,9 +343,9 @@ describe('窗口关联可见性', () => {
   })
 })
 describe('评审态人工回退口', () => {
-  it('brainstorming 详情同时给出「→ 技术设计」与「退回立项」（REQ-6f39b5：对齐 REQ_TRANSITIONS brainstorming>planning）', () => {
+  it('brainstorming 详情同时给出「→ 设计」与「退回立项」（REQ-6f39b5：对齐 REQ_TRANSITIONS brainstorming>design）', () => {
     const html = buildReqDetail(makeReq({ status: 'brainstorming' }), [])
-    expect(html).toContain('data-to="planning"')
+    expect(html).toContain('data-to="design"')
     expect(html).toContain('data-to="draft"')
   })
 })
@@ -353,7 +353,7 @@ describe('泳道卡面操作按钮（不进详情页即可推进）', () => {
   const actionsOf = (status: RequirementStatus): string =>
     buildBoard(makeState({ requirements: [makeReq({ status })] }))
 
-  it('draft 卡面给「开始头脑风暴」并带 data-id（卡面直连 move-req）', () => {
+  it('draft 卡面给「开始需求分析」并带 data-id（卡面直连 move-req）', () => {
     const html = actionsOf('draft')
     expect(html).toContain('dsh-pm-card-actions')
     expect(html).toContain('data-action="move-req"')
@@ -362,9 +362,9 @@ describe('泳道卡面操作按钮（不进详情页即可推进）', () => {
     expect(html).toContain('→ 需求分析') // REQ-6f39b5：按钮统一「→ 下一阶段」格式
   })
 
-  it('每个状态给出对应动作：→ 技术设计 / → 拆分 / → 实施 / → 验收 / → 归档（REQ-6f39b5 箭头格式 + REQ-9f4a44 验收直归档）', () => {
-    expect(actionsOf('brainstorming')).toContain('data-to="planning"') // 需求分析 → 技术设计
-    expect(actionsOf('planning')).toContain('data-to="decomposing"') // 技术设计 → 拆分
+  it('每个状态给出对应动作：→ 设计 / → 拆分 / → 实施 / → 验收 / → 归档（REQ-6f39b5 箭头格式 + REQ-9f4a44 验收直归档）', () => {
+    expect(actionsOf('brainstorming')).toContain('data-to="design"') // 需求分析 → 设计
+    expect(actionsOf('design')).toContain('data-to="decomposing"') // 设计 → 拆分
     expect(actionsOf('decomposing')).toContain('data-to="implementing"')
     expect(actionsOf('implementing')).toContain('data-to="accepting"')
     expect(actionsOf('accepting')).toContain('data-to="archived"') // REQ-9f4a44：验收通过直接归档
@@ -414,11 +414,11 @@ describe('需求时间线（各状态进入时间 + 停留时长）', () => {
     expect(html).toContain('已停留 2 小时 0 分')
   })
 
-  it('详情页时间线：7 个里程碑齐全（含需求分析/技术设计，无完成节点）、未到达显「—」、窗口码与停留时长可见', () => {
+  it('详情页时间线：7 个里程碑齐全（含需求分析/设计，无完成节点）、未到达显「—」、窗口码与停留时长可见', () => {
     const req = makeReq({ status: 'decomposing', statusHistory: hist })
     const html = buildReqDetail(req, [], T0 + 5 * HOUR)
     expect(html).toContain('dsh-pm-timeline')
-    for (const label of ['立项', '需求分析', '技术设计', '拆分', '实施', '验收', '归档']) { // REQ-6f39b5：7 态（用户裁定去掉 done/完成节点）
+    for (const label of ['立项', '需求分析', '设计', '拆分', '实施', '验收', '归档']) { // REQ-6f39b5：7 态（用户裁定去掉 done/完成节点）
       expect(html).toContain(label)
     }
     expect(html).toContain('dsh-pm-tl-row pending') // 未到达的里程碑
@@ -529,10 +529,10 @@ describe('甘特图与任务页（拆分可视化）', () => {
 })
 
 // ---------------------------------------------------------------------------
-// 实施计划（plan mode）——人在这里唯一需要动手的地方
+// 拆分计划（plan mode）——人在这里唯一需要动手的地方
 // ---------------------------------------------------------------------------
 
-describe('实施计划卡面徽章（plan mode；REQ-6f39b5：详情页计划卡已删，徽章保留在泳道卡片）', () => {
+describe('拆分计划卡面徽章（plan mode；REQ-6f39b5：详情页计划卡已删，徽章保留在泳道卡片）', () => {
   const basePlan = {
     path: 'docs/requirements/REQ-abc123/plan.md',
     summary: '目标：加计划模式；做法：先提交计划再拆',

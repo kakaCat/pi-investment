@@ -105,7 +105,16 @@ export function createTasksRouter(ctx: RouterCtx) {
         task.comments.push({ id: ids.comment(), body: `[状态] → ${to}：${reason}`, createdAt: now(), createdBy: { kind: actor } })
       }
       // 派生推进（system）：任务状态落定后重算所属需求（全部实施任务 done → 验收）
-      const advanced = applyTaskRollup(ledger, { now: now(), commentId: () => ids.comment() }, task.requirementId)
+      // REQ-b545fe t6: HTTP 任务操作带 sessionId 时传快照提供者
+      const advanced = applyTaskRollup(
+        ledger,
+        {
+          now: now(),
+          commentId: () => ids.comment(),
+          snapshot: sessionId ? () => ctx.deps.tokenSnapshot?.(sessionId) : undefined,
+        },
+        task.requirementId,
+      )
       return { tasks: [task], requirements: advanced }
     })
     ok(res, result.changed.tasks[0])

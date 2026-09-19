@@ -140,6 +140,9 @@ tags: [wiki, index, home, agent-dh]
 - ✅ [需求归档规范](architecture/requirement-archive.md)
 - ✅ [需求归档索引](requirements/INDEX.md)
 - ✅ P0 [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) —— 全流程表 + 各阶段硬要求 + 错误码处置
+- ✅ **P0** [文档标准：六类文档各写什么](architecture/documentation-standard.md) —— 五层文档链（做什么/怎么做/分几步/照着做/一致吗）；
+  分类文档集（BASE 公共节 + 类型 DELTA，不写六份副本）；统一编号体系与 RTM 覆盖表；验收 = 三方一致性；
+  接入指引见 [标准化接入指引](architecture/documentation-standard-integration-guide.md)（REQ-d3e61a）
 
 ### 卷 9 · 运维与排障
 
@@ -206,9 +209,10 @@ tags: [wiki, index, home, agent-dh]
 <!-- AUTO:recent BEGIN -->
 | 日期 | 页面 | 一句话 |
 |---|---|---|
+| 2026-09-19 | [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) | 一个需求从冒出来到归档，具体敲哪些工具、卡在哪、错了怎么办。 |
+| 2026-09-19 | [全站页面索引（机器可读入口）](INDEX.md) | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 |
 | 2026-09-18 | [需求看板的 Token 消耗（过程消耗 + 提示词成本）](architecture/reqboard-token-usage.md) | 看板怎么记录与展示「每个流程节点/每个任务」的 token 消耗，以及固定系统提示词与 reqboard 注入提示词的成本；含缺失语义与自检命令。 |
 | 2026-09-17 | [需求节点详情系统（stage-detail）](architecture/reqboard-stage-detail.md) | 会话框流程条节点点开看详情：StageDetail 契约 + 模板模式双端装配 + 分类流程档案 + 产物闸门 + 追溯链 + 接力任务卡 + 前端工作记录渲染器。 |
-| 2026-09-17 | [全站页面索引（机器可读入口）](INDEX.md) | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 |
 | 2026-09-16 | [@pi-investment/web-liveness · 页面自愈（重启后标签页不再变砖）](../packages/pages/web-liveness/README.md) | 监听框架免鉴权的 /plugins/events SSE，发现服务端换过进程就自动刷新已打开的标签页。 |
 | 2026-09-16 | [页面插件契约](architecture/page-plugin-contract.md) | 做一个 DSH 页面插件（GUI）要满足哪些契约；改动怎么生效。 |
 | 2026-09-15 | [故障排查手册（症状 → 根因 → 处置）](guides/troubleshooting.md) | 遇到这些症状，先看哪里、大概率是什么、怎么修。 |
@@ -220,7 +224,6 @@ tags: [wiki, index, home, agent-dh]
 | 2026-09-14 | [RFC 011：工具 Web 自定义卡片（Tool Web Cards）统一实现规范](rfcs/011-tool-web-cards.md) | RFC 011：工具调用在 GUI 里的 Web 卡片展示（草案）。 |
 | 2026-09-14 | [RFC 009：盯盘推送双通道方案（direct 直推 / agent 判断分流）](rfcs/009-watch-push-dual-channel.md) | RFC 009：盯盘推送双通道设计（草案）。 |
 | 2026-09-14 | [RFC 008: P2 验证门（Validation Gate）——回测 + 模拟盘 A/B + 自动裁决](rfcs/008-validation-gate.md) | RFC 008：验证门——候选段观察期后对比基准决定转正或回滚（已实施并验收）。 |
-| 2026-09-14 | [RFC 007: P0-2 genome_manager 工具化（版本快照 / 段更新 / 回滚 / changelog）实现方案](rfcs/007-genome-manager.md) | RFC 007：genome_manager 工具化设计提案（段读写、版本与候选）。 |
 
 > 自动生成（`docs_index.py`）：按 front-matter 的 updated 倒序取前 15 页。
 <!-- AUTO:recent END -->

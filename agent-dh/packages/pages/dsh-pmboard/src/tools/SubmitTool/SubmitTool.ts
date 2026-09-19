@@ -36,7 +36,7 @@ export function defineSubmitTool(deps: UseCaseDeps) {
     parameters: {
       kind: {
         type: 'string',
-        description: '提交类型：requirement=需求文档 / plan=实施计划 / verification=验收材料 / archive=归档材料',
+        description: '提交类型：requirement=需求文档 / plan=拆分计划 / verification=验收材料 / archive=归档材料',
         required: true,
         enum: [...SUBMIT_KINDS],
       },

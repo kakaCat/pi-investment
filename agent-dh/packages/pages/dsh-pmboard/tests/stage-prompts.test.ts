@@ -39,7 +39,7 @@ function req(over: Partial<RequirementRecord>): RequirementRecord {
 /** 每节点 heavy 必须命中的"heavy 独有要素"关键词（逐字来自 vendor 原文 / 自写完整档）。 */
 const HEAVY_ELEMENTS: Readonly<Record<PromptStage, readonly string[]>> = {
   brainstorming: ['Three Paths', 'YAGNI', 'Red Flags', 'Spike', 'Bounded', 'Architectural'],
-  planning: ['Bite-Sized Task Granularity', 'No Placeholders', 'Self-Review'],
+  design: ['Bite-Sized Task Granularity', 'No Placeholders', 'Self-Review'],
   decomposing: ['变更盘点', '批次与依赖', '边界校验'],
   implementing: ['Load plan, review critically', 'When to Stop and Ask for Help'],
   accepting: ['The Iron Law', 'Rationalization Prevention'],
@@ -49,7 +49,7 @@ const HEAVY_ELEMENTS: Readonly<Record<PromptStage, readonly string[]>> = {
 /** 每节点 heavy 必须含的本仓工具化措辞（overrides / 自写档）。 */
 const REQ_SPECIFIC: Readonly<Record<PromptStage, readonly string[]>> = {
   brainstorming: ['reqboard_ask_confirm', 'requirement.md', 'artifact_not_confirmed'],
-  planning: ['reqboard_submit(kind=plan)', 'reqboard_ask_confirm'],
+  design: ['reqboard_submit(kind=plan)', 'reqboard_ask_confirm'],
   decomposing: ['reqboard_decompose', 'reqboard_ask_confirm'],
   implementing: ['reqboard_task_report', 'reqboard_task_move'],
   accepting: ['reqboard_submit(kind=verification)', 'reqboard_accept_sheet'],
@@ -139,7 +139,7 @@ describe('六节点 light/heavy 要素（REQ-422af1 t7）', () => {
 
   // ── REQ-2e9473 t08 / REQ-422af1 t7：落章型确认一律指向 reqboard_ask_confirm（措辞锁定，防回退）──
   it('落章型确认纪律均指向 reqboard_ask_confirm（普通征询仍可用 ask_user_question）', () => {
-    for (const stage of ['brainstorming', 'planning', 'implementing', 'accepting'] as const) {
+    for (const stage of ['brainstorming', 'design', 'implementing', 'accepting'] as const) {
       for (const difficulty of DIFFICULTIES) {
         expect(resolveStagePrompt({ stage, difficulty }).text, stage + '/' + difficulty)
           .toContain('reqboard_ask_confirm')
@@ -160,11 +160,11 @@ describe('六节点 light/heavy 要素（REQ-422af1 t7）', () => {
     }
   })
 
-  it('planning 含计划批准弹框指引（ask_confirm 与看板双通道）', () => {
-    const text = resolveStagePrompt({ stage: 'planning', difficulty: 'heavy' }).text
+  it('design 含计划批准弹框指引（ask_confirm 与看板双通道）', () => {
+    const text = resolveStagePrompt({ stage: 'design', difficulty: 'heavy' }).text
     expect(text).toContain('reqboard_ask_confirm')
     expect(text).toContain('target=plan')
-    expect(resolveStagePrompt({ stage: 'planning', difficulty: 'light' }).text).toContain('target=plan')
+    expect(resolveStagePrompt({ stage: 'design', difficulty: 'light' }).text).toContain('target=plan')
   })
 
   it('accepting 含验收确认弹框指引', () => {
@@ -199,13 +199,13 @@ describe('capture.ts systemPrompt 组装注入', () => {
     expect(text).toContain(lightText('brainstorming'))
   })
 
-  it('bound 窗口处于 planning → 注入 planning 提示词', () => {
+  it('bound 窗口处于 design → 注入 design 提示词', () => {
     const l: ReqboardLedger = {
       ...emptyLedger(),
-      requirements: [req({ sourceSessionId: W, status: 'planning', category: 'feature' })],
+      requirements: [req({ sourceSessionId: W, status: 'design', category: 'feature' })],
     }
     const text = boundSectionText(l, { agent: { id: W } })
-    expect(text).toContain(lightText('planning'))
+    expect(text).toContain(lightText('design'))
   })
 
   it('bound 窗口处于 implementing → 注入 implementing 提示词', () => {
@@ -261,13 +261,13 @@ describe('分类档案跳过阶段不注入', () => {
     expect(text).not.toContain(lightText('brainstorming'))
   })
 
-  it('spike 分类跳过 planning → 不注入 planning 提示词', () => {
+  it('spike 分类跳过 design → 不注入 design 提示词', () => {
     const l: ReqboardLedger = {
       ...emptyLedger(),
-      requirements: [req({ sourceSessionId: W, status: 'planning', category: 'spike' })],
+      requirements: [req({ sourceSessionId: W, status: 'design', category: 'spike' })],
     }
     const text = boundSectionText(l, { agent: { id: W } })
-    expect(text).not.toContain(lightText('planning'))
+    expect(text).not.toContain(lightText('design'))
   })
 
   it('spike 分类处于 implementing（未跳过）→ 注入 implementing 提示词', () => {
@@ -282,7 +282,7 @@ describe('分类档案跳过阶段不注入', () => {
   })
 
   it('feature 分类 open 阶段均注入（archived 除外，经 capture-hook 事件注入）', () => {
-    for (const status of ['brainstorming', 'planning', 'implementing', 'accepting'] as const) {
+    for (const status of ['brainstorming', 'design', 'implementing', 'accepting'] as const) {
       const l: ReqboardLedger = {
         ...emptyLedger(),
         requirements: [req({ sourceSessionId: W, status, category: 'feature' })],

@@ -21,14 +21,15 @@ const readSample = () => JSON.parse(readFileSync(SAMPLE, 'utf8'))
 const NOW = 1_700_000_000_000
 
 describe('迁移：真实样本无损（白名单外差异必须为 0）', () => {
-  it('v4 样本 → v6：链式升级（4→5→6）、逐段留痕、需求/任务/待归类计数不变', () => {
+  it('v4 样本 → v7：链式升级（4→5→6→7）、逐段留痕、需求/任务/待归类计数不变', () => {
     const before = readSample()
     const { next } = migrate(before, NOW)
     expect(before.schemaVersion).toBe(4)
-    expect(next.schemaVersion).toBe(6)
-    expect(next.migrations).toHaveLength(2)
+    expect(next.schemaVersion).toBe(7)
+    expect(next.migrations).toHaveLength(3)
     expect(next.migrations[0]).toMatchObject({ from: 4, to: 5 })
     expect(next.migrations[1]).toMatchObject({ from: 5, to: 6 })
+    expect(next.migrations[2]).toMatchObject({ from: 6, to: 7 })
     expect(next.requirements).toHaveLength(before.requirements.length)
     expect(next.tasks).toHaveLength(before.tasks.length)
     expect(next.triages).toHaveLength(before.triages.length)
@@ -45,14 +46,14 @@ describe('迁移：真实样本无损（白名单外差异必须为 0）', () =>
     expect(paths.length).toBeGreaterThan(0) // 至少 schemaVersion/migrations 必变
   })
 
-  it('幂等：对已是 v6 的台账再迁移，内容不变且 migrations 不再叠加', () => {
+  it('幂等：对已是 v7 的台账再迁移，内容不变且 migrations 不再叠加', () => {
     const before = readSample()
     const { next } = migrate(before, NOW)
-    expect(next.migrations).toHaveLength(2)
+    expect(next.migrations).toHaveLength(3)
     const { next: again } = migrate(next, NOW + 1)
     expect(again.requirements).toEqual(next.requirements)
     expect(again.tasks).toEqual(next.tasks)
-    expect(again.migrations).toHaveLength(2)
+    expect(again.migrations).toHaveLength(3)
   })
 })
 
@@ -65,10 +66,10 @@ describe('迁移：逐项语义（合成用例——真实样本多为空操作�
     triages: [] as any[],
   })
   const req = (over: any = {}) => ({
-    id: 'REQ-aaaaaa', title: 't', description: '', category: 'feature', status: 'planning',
+    id: 'REQ-aaaaaa', title: 't', description: '', category: 'feature', status: 'design',
     blocked: false, comments: [], version: 1, createdAt: 1, updatedAt: 1,
     createdBy: { kind: 'human' }, updatedBy: { kind: 'human' },
-    statusHistory: [{ status: 'planning', at: 1, by: { kind: 'human' } }],
+    statusHistory: [{ status: 'design', at: 1, by: { kind: 'human' } }],
     ...over,
   })
 

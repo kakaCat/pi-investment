@@ -28,7 +28,7 @@ import { fmtTime } from './render/dom-utils.ts'
 const STAGE_LABEL: Record<string, string> = {
   draft: '📝 立项',
   brainstorming: '🔍 需求分析',
-  planning: '🧩 技术设计',
+  design: '🧩 设计',
   decomposing: '🪓 拆分',
   implementing: '🔨 实施',
   accepting: '✅ 验收',

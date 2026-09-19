@@ -10,7 +10,7 @@ function view(over: Partial<RequirementTokenView> = {}): RequirementTokenView {
     totals: B(10),
     byStage: [
       { stage: 'draft', buckets: B(3), executions: [] },
-      { stage: 'planning', executions: [] },
+      { stage: 'design', executions: [] },
       { stage: 'implementing', buckets: B(7), executions: [{ taskId: 't-abc123', title: '任务甲', status: 'in_progress', delta: B(3) }] },
     ],
     degraded: false,
@@ -27,8 +27,8 @@ describe('REQ-a33899 t6 · Token tab 渲染', () => {
     expect(html).toContain('t-abc123')
     expect(html).toContain('无快照')
     // 无快照的节点不得渲染 0
-    const planningRow = html.split('<tr').find(r => r.includes('技术设计')) ?? ''
-    expect(planningRow).toContain('无快照')
+    const designRow = html.split('<tr').find(r => r.includes('设计')) ?? ''
+    expect(designRow).toContain('无快照')
   })
 
   it('固定系统提示词：每段可展开看具体内容（pre），不可用明确标注', () => {

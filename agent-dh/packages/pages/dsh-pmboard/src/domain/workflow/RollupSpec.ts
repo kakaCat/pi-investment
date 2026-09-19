@@ -79,7 +79,7 @@ export function planPickupAdvance(view: RollupView, reqId: string): RollupMove |
     from: 'draft',
     to: 'brainstorming',
     rule: 'R1',
-    reason: '需求已被绑定窗口接手并继续推进工作，自动进入头脑风暴（探边界 → 写计划 → 待人批准）',
+    reason: '需求已被绑定窗口接手并继续推进工作，自动进入需求分析（探边界 → 设计 → 待人批准）',
   }
 }
 
@@ -106,7 +106,7 @@ export function planPickupReconcile(view: RollupView): RollupMove[] {
       from: 'draft',
       to: 'brainstorming',
       rule: 'R1',
-      reason: '启动对账：该需求已由窗口立项并接手，自动进入头脑风暴（后续由窗口按里程碑自行推进）',
+      reason: '启动对账：该需求已由窗口立项并接手，自动进入需求分析（后续由窗口按里程碑自行推进）',
     })
   }
   return moves
@@ -114,27 +114,27 @@ export function planPickupReconcile(view: RollupView): RollupMove[] {
 
 /**
  * 任务驱动的派生推进（R2/R3）—— 让需求跟着任务事实自己走，不需要人点中间步骤：
- *  R3 planning + 已有任务（已批准的计划落库）        → decomposing
+ *  R3 design + 已有任务（已批准的计划落库）        → decomposing
  *  R2 implementing + 全部未取消任务 done（≥1 个）  → accepting
  * 2026-09-14 五门裁定（REQ-31e11f）：decomposing>implementing 已入人工确认门
  * （拆分清单须人确认），R4 自动推进移除——需求停在拆分态等人确认，不再随任务开工自动推进。
  * 一次调用内循环至稳定（上限 3 步/需求），使「拆分+全部完成」这类跨越在一次 rollup 内收敛
- * （当前语义下每条需求最多产出 1 步：planning 推进后即停 decomposing；见上方断点）。
+ * （当前语义下每条需求最多产出 1 步：design 推进后即停 decomposing；见上方断点）。
  * 返回推进决策列表（按台账需求顺序）。
  */
 export function planRollup(view: RollupView, onlyReqId?: string): RollupMove[] {
   const moves: RollupMove[] = []
   for (const req of view.requirements) {
     if (onlyReqId !== undefined && req.id !== onlyReqId) continue
-    if (req.status !== 'planning' && req.status !== 'decomposing' && req.status !== 'implementing') continue
+    if (req.status !== 'design' && req.status !== 'decomposing' && req.status !== 'implementing') continue
     for (let step = 0; step < 3; step++) {
       const tasks = activeTasksOf(view, req.id)
       if (tasks.length === 0) break
-      if (req.status === 'planning') {
+      if (req.status === 'design') {
         // 任务能落库 ⇔ 计划已获人批准（decompose 的代码级前置条件）→ 进入拆分态
         moves.push({
           reqId: req.id,
-          from: 'planning',
+          from: 'design',
           to: 'decomposing',
           rule: 'R3',
           reason: fmt('已按批准的计划落库 {count} 个任务，自动进入拆分', { count: tasks.length }),

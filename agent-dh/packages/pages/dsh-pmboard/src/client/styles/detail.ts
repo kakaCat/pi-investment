@@ -1,9 +1,9 @@
 /**
  * pmboard 样式分片 · detail（REQ-47939a t12 从 styles.ts 机械拆分，原文件 400-768 行）。
- * 详情层：实施计划 + 时间线 + 甘特图 + 任务页 + 节点差异化展示（专属内容/统计卡/拆分/实施/测试/评审/合并节点）。
+ * 详情层：拆分计划 + 时间线 + 甘特图 + 任务页 + 节点差异化展示（专属内容/统计卡/拆分/实施/测试/评审/合并节点）。
  * 注意：本文件是原单文件 CSS 模板的**连续区段**，由 styles.ts 按原物理顺序拼接，拼接结果与拆分前逐字节一致。
  */
-export const DETAIL_CSS = `/* ---- 实施计划（plan mode） ---- */
+export const DETAIL_CSS = `/* ---- 拆分计划（plan mode） ---- */
 .dsh-pm-plan {
   border: 1px solid var(--dsw-border, rgba(128,128,128,.15)); border-radius: 8px;
   padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;
@@ -68,7 +68,7 @@ export const DETAIL_CSS = `/* ---- 实施计划（plan mode） ---- */
 .dsh-pm-tl-total { font-size: 11px; color: var(--dsw-text-secondary, #999); padding-left: 10px; }
 .dsh-pm-tl-row[data-status="draft"], .dsh-pm-tl-row[data-status="todo"] { border-left-color: #9aa4b2; }
 .dsh-pm-tl-row[data-status="brainstorming"], .dsh-pm-tl-row[data-status="testing"] { border-left-color: #f0a020; }
-.dsh-pm-tl-row[data-status="planning"] { border-left-color: #c2255c; }
+.dsh-pm-tl-row[data-status="design"] { border-left-color: #c2255c; }
 .dsh-pm-tl-row[data-status="decomposing"], .dsh-pm-tl-row[data-status="integrating"] { border-left-color: #8e44ad; }
 .dsh-pm-tl-row[data-status="implementing"], .dsh-pm-tl-row[data-status="in_progress"] { border-left-color: #4a7dff; }
 .dsh-pm-tl-row[data-status="accepting"], .dsh-pm-tl-row[data-status="in_review"] { border-left-color: #17a2b8; }

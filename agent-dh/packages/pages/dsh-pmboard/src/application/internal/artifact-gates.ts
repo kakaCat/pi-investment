@@ -11,7 +11,7 @@
  * spike/doc/chore 只保留验收+归档门。存量需求（artifacts 字段 undefined/空）不硬拦，
  * 仅标记（向后兼容，避免锁死历史工作）。
  *
- * planning>decomposing 的门用既有 planApproved 判定（plan.approvedAt），
+ * design>decomposing 的门用既有 planApproved 判定（plan.approvedAt），
  * 不重复要求 artifact.confirmedAt——把这道门映射到 planApproved 检查即可。
  *
  * @module dsh-pmboard/host/artifact-gates
@@ -67,6 +67,10 @@ export interface GateFailure {
     | 'acceptance_incomplete'
     | 'task_card_incomplete'
     | 'tbd_not_cleared'
+    // ── 需求文档格式闸门（编号规范强制）──
+    | 'requirement_missing_clauses'
+    | 'requirement_clause_sequence_gap'
+    | 'requirement_clause_duplicates'
   /** 缺/待确认的产物 kind */
   kind: ArtifactKind
   /** 提示消息（含产物 path 或缺失说明） */
@@ -97,7 +101,7 @@ function requiredKindsFor(
  *  ① 产物存在门：该分类启用的 from 阶段必备产物已登记（存量需求不硬拦）；
  *  ② 人工确认门：confirmGateKindFor 返回的 kind，对应产物须 confirmedAt（存量不硬拦）。
  *
- * planning>decomposing 特殊：用既有 planApproved 判定，不查 artifact.confirmedAt。
+ * design>decomposing 特殊：用既有 planApproved 判定，不查 artifact.confirmedAt。
  *
  * @returns GateFailure | undefined（undefined = 通过）
  */
@@ -126,13 +130,13 @@ export function assertArtifactGates(
   // ── 第二级：五道人工确认门 ────────────────────────────────────────────
   const gateKind = confirmGateKindFor(req.category, from, to)
   if (gateKind !== undefined && !isLegacy) {
-    // planning>decomposing 特殊：用既有 planApproved 判定
-    if (from === 'planning' && to === 'decomposing') {
+    // design>decomposing 特殊：用既有 planApproved 判定
+    if (from === 'design' && to === 'decomposing') {
       if (!planApproved(req)) {
         return {
           code: 'artifact_not_confirmed',
           kind: gateKind,
-          message: '实施计划尚未获人批准：请在项目看板点「批准计划」后再拆分落库',
+          message: '拆分计划尚未获人批准：请在项目看板点「批准计划」后再拆分落库',
         }
       }
       return undefined

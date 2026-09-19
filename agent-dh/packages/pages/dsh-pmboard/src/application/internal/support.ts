@@ -157,13 +157,13 @@ export function workspacePathCandidates(evidence: readonly string[]): string[] {
  */
 export function gateQuestionCard(gateKind: string | undefined, from: string, to: string): string {
   const questionByTransition: Record<string, string> = {
-    'brainstorming>planning': '需求文档已完成，是否确认进入技术设计？',
-    'planning>decomposing': '实施计划已提交，是否批准进入拆分？',
+    'brainstorming>design': '需求文档已完成，是否确认进入设计？',
+    'design>decomposing': '拆分计划已提交，是否批准进入拆分？',
     'decomposing>implementing': '拆分清单已落库，是否确认进入实施？',
     'accepting>archived': '验收材料已提交，是否验收通过并归档？',
   }
   const question = questionByTransition[from + '>' + to] ?? ('是否确认推进到 ' + to + '？')
-  const call = gateKind === 'plan' || (from === 'planning' && to === 'decomposing')
+  const call = gateKind === 'plan' || (from === 'design' && to === 'decomposing')
     ? "{ target: 'plan', question: '" + question + "' }"
     : "{ target: 'artifact', kind: '" + (gateKind ?? 'requirement') + "', question: '" + question + "' }"
   return '\n【问题卡】直接调 reqboard_ask_confirm 完成确认（用户点肯定项 → 自动落章并推进 ' + from + ' → ' + to + '）：\n  reqboard_ask_confirm(' + call + ')'
@@ -183,7 +183,7 @@ export function findPending(ledger: LedgerView, windowKey: string): TriageRecord
 export async function createRequirementDirect(
   deps: UseCaseDeps,
   windowKey: string,
-  input: { title: string; category: RequirementCategory; description: string; reason: string },
+  input: { title: string; category: RequirementCategory; description: string; reason: string; promptDifficulty?: string },
 ): Promise<RequirementRecord> {
   const nowTs = deps.clock.now()
   const result = await deps.repo.mutate('requirement-created', (ledger) => {
@@ -194,6 +194,7 @@ export async function createRequirementDirect(
       title: input.title,
       description: input.description,
       category: input.category,
+      promptDifficulty: input.promptDifficulty as any, // 提示词难度级别
       sourceSessionId: windowKey,
       status: 'draft',
       blocked: false,
@@ -201,8 +202,8 @@ export async function createRequirementDirect(
         {
           id: deps.ids.comment(),
           body: [
-            `[会话捕获] 用户经两问弹框确认立项（会话 ${windowKey}）`,
-            `名称/分类为用户确认值：${input.title}（${input.category}）`,
+            `[会话捕获] 用户经三问弹框确认立项（会话 ${windowKey}）`,
+            `名称/分类/难度为用户确认值：${input.title}（${input.category}，提示词难度：${input.promptDifficulty ?? 'standard'}）`,
             ...(input.reason ? [`依据：${input.reason}`] : []),
           ].join('\n'),
           createdAt: nowTs,

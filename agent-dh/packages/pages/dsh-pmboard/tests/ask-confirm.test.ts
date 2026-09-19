@@ -61,18 +61,18 @@ async function seed(status: RequirementStatus, withArtifact = true): Promise<voi
 const run = (tool: { execute: (a: unknown, e: unknown) => Promise<any> }, args: unknown) =>
   tool.execute(args, { agent: { id: W } })
 
-const ARGS = { target: 'artifact', kind: 'requirement', question: '需求文档已完成，是否确认进入技术设计？' }
+const ARGS = { target: 'artifact', kind: 'requirement', question: '需求文档已完成，是否确认进入设计？' }
 
 describe('reqboard_ask_confirm', () => {
-  it('肯定答复 → 落章 + 自动推进（brainstorming → planning），evidence 留痕', async () => {
+  it('肯定答复 → 落章 + 自动推进（brainstorming → design），evidence 留痕', async () => {
     await seed('brainstorming')
     const out = await run(makeTool('yes'), ARGS)
     expect(out.confirmed).toBe(true)
     expect(out.advanced).toBe(true)
     expect(out.from).toBe('brainstorming')
-    expect(out.to).toBe('planning')
+    expect(out.to).toBe('design')
     const req = store.snapshot().requirements[0]
-    expect(req.status).toBe('planning')
+    expect(req.status).toBe('design')
     const art = req.artifacts![0]
     expect(art.confirmedAt).toBeDefined()
     expect(art.confirmedVia).toBe('session')
@@ -113,8 +113,8 @@ describe('reqboard_ask_confirm', () => {
     expect(store.snapshot().requirements[0].status).toBe('brainstorming')
   })
 
-  it('target=plan：肯定答复 → 批准计划 + 推进 planning → decomposing', async () => {
-    await seed('planning', false)
+  it('target=plan：肯定答复 → 批准计划 + 推进 design → decomposing', async () => {
+    await seed('design', false)
     await store.mutate('seed-plan', (l) => {
       const r = l.requirements[0]
       r.plan = {
@@ -136,14 +136,14 @@ describe('reqboard_ask_confirm', () => {
     await seed('brainstorming') // 带 requirement 产物但未确认
     const move = defineMoveTool({ store, now: () => Date.now() } as never) as never as { execute: (a: unknown, e: unknown) => Promise<any> }
     try {
-      await run(move, { to: 'planning' })
+      await run(move, { to: 'design' })
       expect.unreachable('应被闸门拒绝')
     } catch (err) {
       const msg = (err as Error).message
       expect(msg).toMatch(/问题卡/)
       expect(msg).toMatch(/reqboard_ask_confirm/)
       expect(msg).toMatch(/kind: 'requirement'/)
-      expect(msg).toMatch(/是否确认进入技术设计/)
+      expect(msg).toMatch(/是否确认进入设计/)
     }
   })
 

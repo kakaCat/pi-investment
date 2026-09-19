@@ -11,9 +11,9 @@ import type { CommentRecord, RequirementRecord, RequirementStatus, TaskRecord, T
 /* ------------------------------------------------------------------ utils */
 
 // REQ-6f39b5：流程节点名称对齐唯一事实源 docs/architecture/workflow-stages.md
-// 与 stage-panel.ts STAGE_LABELS 保持一致（需求分析/技术设计/实施）
+// 与 stage-panel.ts STAGE_LABELS 保持一致（需求分析/设计/实施）
 export const STATUS_LABELS: Record<RequirementStatus, string> = {
-  draft: '立项', brainstorming: '需求分析', planning: '技术设计', decomposing: '拆分',
+  draft: '立项', brainstorming: '需求分析', design: '设计', decomposing: '拆分',
   implementing: '实施', accepting: '验收', done: '完成', archived: '归档', canceled: '取消',
 }
 
@@ -33,11 +33,11 @@ export const CATEGORY_LABELS: Record<string, string> = {
 
 /**
  * 泳道列（REQ-6f39b5 对齐 workflow-stages.md）：6 个泳道，从立项走到验收：
- * 立项 → 需求分析 → 技术设计 → 拆分 → 实施 → 验收。
+ * 立项 → 需求分析 → 设计 → 拆分 → 实施 → 验收。
  * done（待归档）需求归入验收泳道显示；archived/canceled 走底部归档区。
  */
 export const LANE_STATUSES: readonly RequirementStatus[] = [
-  'draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting',
+  'draft', 'brainstorming', 'design', 'decomposing', 'implementing', 'accepting',
 ]
 
 /**

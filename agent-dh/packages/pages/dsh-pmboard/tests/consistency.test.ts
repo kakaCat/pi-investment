@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
-  buildConsistencyRows, consistencyGaps, taskRefsFromDecomposition, collectTaskRefs,
+  buildConsistencyRows, clauseReceiveStatus, consistencyGaps, taskRefsFromDecomposition, collectTaskRefs,
 } from '../src/application/internal/content-gate-wiring.js'
 import { parseDocument } from '../src/application/internal/content-gates.js'
 import { buildSheet } from '../src/domain/workflow/AcceptanceSheetSpec.js'
@@ -86,9 +86,20 @@ describe('taskRefsFromDecomposition（绑定从 RTM 表读——TaskRecord 不�
 
   it('按任务聚合根编号；未声明的行不计入', () => {
     const refs = taskRefsFromDecomposition(parseDocument(dec))
+    // 语义不变，只是值随"计划键 → 台账任务"解析通道升级：title 是新增的解析凭据
+    // （文档里的任务列可能是计划键 T-1 而非台账 id t-aaa111，靠标题唯一匹配认回去）。
     expect(refs).toEqual([
-      { id: 't-aaa111', requirement_refs: ['FR-1', 'FR-4'] },
+      { id: 't-aaa111', requirement_refs: ['FR-1', 'FR-4'], title: '覆盖门禁' },
     ])
+  })
+
+  it('带标题的 RTM：id 认不出时按标题唯一匹配解析回台账任务（真实需求用计划键）', () => {
+    const refs0 = taskRefsFromDecomposition(parseDocument(dec))
+    const ledger = [{ id: 't-aaa111', status: 'in_progress', title: '覆盖门禁' }]
+    const s = clauseReceiveStatus(['FR-1'], refs0, ledger)
+    expect(s[0]).toEqual({ clause: 'FR-1', state: 'received', by: ['t-aaa111'] })
+    const canceled = [{ id: 't-aaa111', status: 'canceled', title: '覆盖门禁' }]
+    expect(clauseReceiveStatus(['FR-1'], refs0, canceled)[0].state).toBe('unreceived')
   })
 
   it('无 RTM 表 → 空数组（调用方据此判"无法比对"，不误报实施缺失）', async () => {

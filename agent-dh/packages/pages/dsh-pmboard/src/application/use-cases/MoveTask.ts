@@ -98,7 +98,11 @@ export async function executeMoveTask(deps: UseCaseDeps, args: unknown, exec: an
             createdBy: { kind: 'agent', sessionId: windowKey },
           })
         }
-        const advanced = applyTaskRollup(ledger, { now: nowTs, commentId: () => deps.ids.comment() }, t.requirementId)
+        const advanced = applyTaskRollup(
+          ledger,
+          { now: nowTs, commentId: () => deps.ids.comment(), snapshot: () => captureSnapshot(deps, windowKey) },
+          t.requirementId,
+        )
         return { tasks: [t], requirements: advanced }
       })
       const changed = (result.changed.tasks ?? [])[0]
@@ -110,7 +114,7 @@ export async function executeMoveTask(deps: UseCaseDeps, args: unknown, exec: an
       // rollup 阻塞显式化（REQ-2e9473 t02）：需求停在 implementing 且有未完成任务 → 显式列出
       const blockers = reqAfter === undefined ? undefined : rollupBlockersOf(ledgerAfter, reqAfter.id, reqAfter.status)
       // 开工说明书送达（REQ-2e9473 t04/W5）：开工即拿到完整任务卡，不凭记忆回读设计文档——
-      // REQ-6f39b5 事故 F：薄卡 + 不回读 = 8 处偏离技术设计。
+      // REQ-6f39b5 事故 F：薄卡 + 不回读 = 8 处偏离设计。
       const taskCard = to === 'in_progress'
         ? {
             title: changed.title,

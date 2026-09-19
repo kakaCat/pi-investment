@@ -134,7 +134,7 @@ export const PANEL_CSS = `/* 文件不存在的文档按钮（board-mount 运行
   font-family: ui-monospace, monospace; word-break: break-all;
 }
 
-/* 技术设计节点：计划徽标 + 时间 */
+/* 设计节点：计划徽标 + 时间 */
 .dsh-pm-plan-badge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: var(--pm-radius-pill); }
 .dsh-pm-plan-badge.approved { background: rgba(40,167,69,.15); color: #1e7e34; }
 .dsh-pm-plan-badge.rejected { background: rgba(220,53,69,.14); color: var(--pm-c-danger); }

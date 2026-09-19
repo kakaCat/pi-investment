@@ -22,7 +22,7 @@ export function defineAskConfirmTool(deps: UseCaseDeps) {
     description: ASK_CONFIRM_PROMPT,
     parameters: {
       requirement_id: { type: 'string', description: '需求 id（REQ-xxxxxx）；不传默认本窗口绑定的需求' },
-      target: { type: 'string', description: 'artifact（确认产物）| plan（批准实施计划）', required: true },
+      target: { type: 'string', description: 'artifact（确认产物）| plan（批准拆分计划）', required: true },
       kind: { type: 'string', description: '产物类型（target=artifact 时必填）：requirement/plan/decomposition/verification/archive' },
       question: { type: 'string', description: '弹框问题（写清确认什么、确认后会发生什么；弹框路径必填）' },
       options: {
@@ -49,6 +49,8 @@ export function defineAskConfirmTool(deps: UseCaseDeps) {
           kind: { type: 'string', description: '文字证据路径：产物类型' },
           via: { type: 'string', description: '文字证据路径：确认来源（session）' },
           evidence_verified: { type: 'boolean', description: '文字确认是否通过 capture-hook 核验（命中真实用户消息）' },
+          user_choice: { type: 'string', description: '弹框路径（非肯定项）：用户选择的选项文本' },
+          user_feedback: { type: 'string', description: '弹框路径（非肯定项）：用户输入的修改意见或反馈' },
           note: { type: 'string' },
         },
       },

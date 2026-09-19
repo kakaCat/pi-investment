@@ -54,7 +54,7 @@ describe('路由层自动推进（R2 实施完成 → 验收）', () => {
     const created = await post(handler, '/req/create', { title: '自动推进验证' })
     const reqId = created.payload.data.id
     await post(handler, '/req/move', { id: reqId, to: 'brainstorming', actor: 'human' })
-    await post(handler, '/req/move', { id: reqId, to: 'planning', actor: 'human' })
+    await post(handler, '/req/move', { id: reqId, to: 'design', actor: 'human' })
     await post(handler, '/req/move', { id: reqId, to: 'decomposing', actor: 'human' })
     await post(handler, '/req/move', { id: reqId, to: 'implementing', actor: 'human' })
 
@@ -95,7 +95,7 @@ describe('路由层自动推进（R2 实施完成 → 验收）', () => {
       return { requirements: [r] }
     })
     await post(handler, '/req/move', { id: reqId, to: 'brainstorming', actor: 'human' })
-    await post(handler, '/req/move', { id: reqId, to: 'planning', actor: 'human' })
+    await post(handler, '/req/move', { id: reqId, to: 'design', actor: 'human' })
     // 提交计划并批准
     const { definePlanSubmitTool, defineDecomposeTool } = await import('./helpers/tool-deps.js')
     const planTool = definePlanSubmitTool({ store, now: () => Date.now() } as never)
@@ -116,7 +116,7 @@ describe('路由层自动推进（R2 实施完成 → 验收）', () => {
     const handler = createReqboardHandler({ store, now: () => Date.now() })
     const created = await post(handler, '/req/create', { title: '闸门验证' })
     const reqId = created.payload.data.id
-    for (const to of ['brainstorming', 'planning', 'decomposing', 'implementing']) {
+    for (const to of ['brainstorming', 'design', 'decomposing', 'implementing']) {
       await post(handler, '/req/move', { id: reqId, to, actor: 'human' })
     }
     const t = await post(handler, '/task/create', { requirementId: reqId, title: '唯一任务', phase: 'implement', side: 'doc', dependsOn: [], scope: { apis: [], tables: [], files: [] } })

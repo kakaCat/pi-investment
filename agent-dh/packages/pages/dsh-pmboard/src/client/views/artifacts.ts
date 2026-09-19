@@ -1,5 +1,5 @@
 /**
- * 产物 chips / 五道人工确认门 / 卡面操作行 / 实施计划区块（REQ-47939a t11 机械拆分）。
+ * 产物 chips / 五道人工确认门 / 卡面操作行 / 拆分计划区块（REQ-47939a t11 机械拆分）。
  *
  * @module dsh-pmboard/client/views/artifacts
  */
@@ -16,7 +16,8 @@ import { archiveChip, verifyChip } from './verification.ts'
 /** 产物种类中文标签（与 stage-panel.ts 保持一致；部分映射，调用方 ?? kind 兜底）。 */
 export const ARTIFACT_KIND_LABELS: Partial<Record<ArtifactKind, string>> = {
   requirement: '需求文档',
-  plan: '实施计划',
+  design: '设计文档',
+  plan: '拆分计划',
   decomposition: '拆分方案',
   task_detail: '任务卡',
   verification: '验收材料',
@@ -170,10 +171,10 @@ export function cardActions(req: RequirementRecord): string {
         + btn('canceled', '取消', { title: '取消该需求（仅人可操作）' })
       break
     case 'brainstorming':
-      actions = btn('planning', '→ 技术设计', { primary: true, title: '方案谈定 → 进入技术设计阶段（计划在此阶段提交待人批准）' })
+      actions = btn('design', '→ 设计', { primary: true, title: '方案谈定 → 进入设计阶段（计划在此阶段提交待人批准）' })
         + btn('draft', '退回', { title: '退回立项' })
       break
-    case 'planning':
+    case 'design':
       actions = btn('decomposing', '→ 拆分', { primary: true, title: '计划获批后落库任务卡；未获批会被代码级拒绝' })
         + btn('brainstorming', '退回重谈', { title: '方案要改 → 退回需求分析' })
       break
@@ -211,7 +212,7 @@ export function renderCardTime(req: RequirementRecord, now: number): string {
   return '<div class="dsh-pm-card-time">' + esc(parts.join(' · ')) + '</div>'
 }
 
-/* ------------------------------------------------------------------ 实施计划 */
+/* ------------------------------------------------------------------ 拆分计划 */
 
 /**
  * 计划 chip（泳道卡面）：让「这份需求卡在等人批计划」在泳道上一眼可见，
@@ -220,20 +221,20 @@ export function renderCardTime(req: RequirementRecord, now: number): string {
 export function planChip(req: RequirementRecord): string {
   const plan = req.plan
   if (plan === undefined) return ''
-  if (plan.approvedAt !== undefined) return '<span class="dsh-pm-flag plan-ok" title="实施计划已批准，可拆分落库">计划已批</span>'
-  if (plan.rejectedAt !== undefined) return '<span class="dsh-pm-flag plan-rejected" title="实施计划被退回，待重写">计划被退</span>'
-  return '<span class="dsh-pm-flag plan-pending" title="实施计划已提交，等待人批准后才能拆分">计划待批</span>'
+  if (plan.approvedAt !== undefined) return '<span class="dsh-pm-flag plan-ok" title="拆分计划已批准，可拆分落库">计划已批</span>'
+  if (plan.rejectedAt !== undefined) return '<span class="dsh-pm-flag plan-rejected" title="拆分计划被退回，待重写">计划被退</span>'
+  return '<span class="dsh-pm-flag plan-pending" title="拆分计划已提交，等待人批准后才能拆分">计划待批</span>'
 }
 
 /**
- * 实施计划区（plan mode 的人机界面）：人在这里**唯一**需要动手的地方——
+ * 拆分计划区（plan mode 的人机界面）：人在这里**唯一**需要动手的地方——
  * 批准计划 = 批准拆分方案；退回 = 打回重写（必须给理由）。
  * 批准之后，拆分/实施/验收全部由窗口 agent 自行推进。
  */
 export function renderPlanSection(req: RequirementRecord): string {
   const plan = req.plan
   if (plan === undefined) {
-    return '<div class="dsh-pm-plan is-empty">尚未提交实施计划。计划模式：窗口 agent 用 '
+    return '<div class="dsh-pm-plan is-empty">尚未提交拆分计划。计划模式：窗口 agent 用 '
       + '<code>reqboard_plan_submit</code> 先提交计划（文档路径 + 摘要 + 任务表），'
       + '人在此处批准后才允许 <code>reqboard_decompose</code> 落库任务卡——'
       + '拆分的粒度在人点头之前就已写死在计划里。</div>'

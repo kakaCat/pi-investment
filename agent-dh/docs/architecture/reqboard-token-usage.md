@@ -32,13 +32,20 @@ tags: [reqboard, token, page-plugin, observability]
 | 聚合 | `RequirementRecord.tokenUsage.byStage + totals`（写路径增量维护，读路径 O(1)） |
 | 算法 | 节点消耗 = 进入该节点的快照 → 离开该节点的快照之差；**同 sessionId 才相减**，负分量截断为 0 |
 | 台账版本 | `REQBOARD_SCHEMA_VERSION` 5 → 6；新字段**全部可选**，v5 及更早台账直接可载入（读路径不自动迁移） |
+| **唯一写路径** | **REQ-b545fe**: 全部 5 条状态迁移路径统一经 `transitionRequirement` 助手结算快照，消除"改了状态但没结算"的结构性根因 |
 
 **已知边界（诚实标注，不粉饰）**：
 
-- **人从看板点按钮推进没有会话上下文** → 那一段没有快照，显示「无快照」；
+- **人从看板点按钮推进没有会话上下文** → 那一段没有快照，显示「无快照」；**REQ-b545fe 已修复**：HTTP 路由现接入 SessionProbeAdapter，看板任务操作（带 sessionId）也能结算快照；
 - **一个会话同时推进多个需求** → 差值含同期其他工作的消耗（详情 tab 的口径提示条写明）；
 - **subagent 子会话本期不并入**；
 - 历史需求（功能上线前）没有快照 → 详情 tab 显示 `degraded=true`，各节点「无快照」。
+
+**实施细节（REQ-b545fe）**：
+
+- **核心助手** `transitionRequirement(req, to, {at, actor, reason, snap?})`：结算离开节点 + 迁移状态 + 记录事件带快照，三步原子完成；
+- **5 条路径统一**：MoveRequirement（reqboard_move）/ AskConfirm（自动推进）/ rollup（派生推进，扩展可选快照提供者）/ AcceptSheet（归档）/ verdicts（打回）；
+- **HTTP 接入**：`ReqboardRouteDeps.tokenSnapshot` 注入 SessionProbeAdapter，handleTaskMove 读 body.sessionId 传快照。
 
 ## 提示词成本：读时装配
 

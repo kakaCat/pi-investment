@@ -86,7 +86,7 @@ export function resolveFragmentPlan(library: readonly Fragment[], req: StageProm
   }
   // ⑤ 恒并入（全局铁律是保底层，与节点内容并存），且**永远排在节点内容之后**：
   // 注入顺序 = ①-④ 选中片段（按 id 稳定排序，保证 vendor 原文 → overrides）→ ⑤ 全局铁律。
-  // 不能把 ⑤ 与 selected 混在一起按 id 排序——节点名在 'common' 之后的（planning 等）
+  // 不能把 ⑤ 与 selected 混在一起按 id 排序——节点名在 'common' 之后的（design 等）
   // 会让铁律排到节点内容前面，与 design/fragments.md §9 的三段顺序冲突。
   const byId = (a: Fragment, b: Fragment): number => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
   const global = library.filter((f) => matches(f, levels[4]!))

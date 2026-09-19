@@ -3,7 +3,7 @@
  *
  * 现状（本仓实证）：注入按 (stage, difficulty, category) 路由，而 difficulty 缺省
  * DEFAULT_DIFFICULTY = 'light'。于是 REQ-c9f899 这种"动架构、跨多子系统"的重构，
- * 被注入了**轻档**头脑风暴提示词——需求说自己要重构，注入却说"这是小事"。
+ * 被注入了**轻档**需求分析提示词——需求说自己要重构，注入却说"这是小事"。
  *
  * 本模块只做纯推断，并把**推断依据**一并返回（供 injection-log 留痕）；
  * 真正的"不一致时响亮提示"由 difficultyMismatch() 给出，调用方负责播报。

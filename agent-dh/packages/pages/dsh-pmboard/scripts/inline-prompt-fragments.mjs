@@ -38,7 +38,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, relative } from 'node:path'
 
-export const STAGES = ['brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'archived']
+export const STAGES = ['brainstorming', 'design', 'decomposing', 'implementing', 'accepting', 'archived']
 export const DIFFICULTIES = ['light', 'heavy']
 export const CATEGORIES = ['feature', 'bug', 'doc', 'refactor', 'spike', 'chore']
 
@@ -56,7 +56,7 @@ export const VENDOR_DIR = join(PKG_ROOT, 'src/domain/prompt/vendor/superpowers')
  */
 export const VENDOR_MAIN_SKILLS = {
   brainstorming: 'brainstorming',
-  planning: 'writing-plans',
+  design: 'writing-plans',
   implementing: 'executing-plans',
   accepting: 'verification-before-completion',
   archived: 'finishing-a-development-branch',

@@ -486,7 +486,7 @@ export function mountBoard(controller: BoardController): () => void {
       case 'plan-reject': {
         const reqId = el.dataset.id
         if (!reqId) return
-        const reason = window.prompt('退回理由（窗口会按它重写计划）')
+        const reason = window.prompt('退回理由（窗口会按它重写拆分计划）')
         if (reason === null) return
         void api
           .rejectPlan({ id: reqId, reason: reason.trim() || '（未填理由）' })

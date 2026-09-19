@@ -3,7 +3,7 @@
  *
  * 为什么先立这个测试再搬代码：REQ-2e9473 的教训是"只测成功路径等于没测"。分层重构最容易
  * 无声跑偏的方式不是编译错误，而是某天有人顺手在 domain 里 \`import { readFileSync }\` 或
- * 在上层又写一遍 \`status === 'planning'\` —— 编译、测试、review 全都不报，规则却已经两处实现。
+ * 在上层又写一遍 \`status === 'design'\` —— 编译、测试、review 全都不报，规则却已经两处实现。
  * 本测试就是那条会响的线。
  *
  * 口径对齐：design/architecture.md §2 依赖方向表 / INV-2。

@@ -12,7 +12,7 @@ import type { UseCaseDeps } from '../../application/ports.js'
 import { executeCreateRequirement } from '../../application/use-cases/CreateRequirement.js'
 import { CREATE_PROMPT } from './prompt.js'
 import { renderJson } from '../shared.js'
-import { ALL_REQ_CATEGORIES } from '../../shared/protocol.js'
+import { ALL_REQ_CATEGORIES, ALL_PROMPT_DIFFICULTIES } from '../../shared/protocol.js'
 
 export function defineCreateTool(deps: UseCaseDeps) {
   return defineTool({
@@ -37,6 +37,11 @@ export function defineCreateTool(deps: UseCaseDeps) {
       reason: {
         type: 'string',
         description: '立项依据（≤4000 字符）：为什么值得立项，供人工判断',
+      },
+      prompt_difficulty: {
+        type: 'string',
+        description: '提示词难度级别：simple / standard / advanced / expert（默认 standard）',
+        enum: [...ALL_PROMPT_DIFFICULTIES],
       },
     },
     output: {

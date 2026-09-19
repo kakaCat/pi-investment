@@ -54,7 +54,7 @@ function requirement() {
     sourceSessionId: WINDOW,
     artifacts: [
       {
-        stage: 'planning', kind: 'plan', path: 'docs/requirements/REQ-422af1/plan.md',
+        stage: 'design', kind: 'plan', path: 'docs/requirements/REQ-422af1/plan.md',
         registeredAt: 10, registeredBy: { kind: 'agent', sessionId: WINDOW },
         confirmedAt: 11, confirmedBy: { kind: 'human' },
       },
@@ -442,7 +442,7 @@ describe('路线 A 端到端（真实 @deepseek-ai/dsh-session）', () => {
     const iso = new NodeIsolationAdapter(s, { idle: () => true })
     const result = await isolateNodeContext(
       { repo: h.repo, docs: h.docs, clock: h.clock, isolation: iso },
-      { windowKey: WINDOW, stage: 'planning', category: 'feature', persistArtifacts: () => 1 },
+      { windowKey: WINDOW, stage: 'design', category: 'feature', persistArtifacts: () => 1 },
     )
     expect(result.status).toBe('skipped')
     expect(result.code).toBe('no_replaceable_range')

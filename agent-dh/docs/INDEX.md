@@ -3,7 +3,7 @@ id: docs-index
 title: 全站页面索引（机器可读入口）
 type: index
 status: living
-updated: 2026-09-18
+updated: 2026-09-19
 owners: [agent-dh]
 tags: [index, wiki]
 ---
@@ -18,12 +18,12 @@ tags: [index, wiki]
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
-| [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-09-17 |
+| [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-09-19 |
 | [agent-dh Wiki（归档文档首页 / 大纲）](README.md) | manual | living | agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。 | 2026-09-13 |
 | [🎊 Agent-DH v0.1.1 发布说明](RELEASE-NOTES-v0.1.1.md) | doc | living | v0.1.1（2026-08-18）发布说明：稳定性与可靠性改进清单（历史版本记录）。 | 2026-09-14 |
 | [工作日志索引（L3 证据档案）](work-logs/README.md) | index | living | 某个时间点「当时做了什么、为什么这么做、结论是什么」。按月份倒序列出全部工作日志。 | 2026-09-14 |
 
-### 架构与生命周期 · `docs/architecture`（20 页）
+### 架构与生命周期 · `docs/architecture`（23 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
@@ -36,17 +36,20 @@ tags: [index, wiki]
 | [agent-dh 是什么（子项目说明书）](architecture/agent-dh-overview.md) | manual | living | agent-dh 在系统里的位置、运行时长什么样、代码怎么组织、改动怎么生效。 | 2026-09-13 |
 | [数据契约与新鲜度](architecture/data-contracts-and-freshness.md) | architecture | living | 数据从哪来、契约长什么样、怎么判断"这批数能不能用"。 | 2026-09-13 |
 | [数据库表设计对比分析报告](architecture/database-table-comparison.md) | architecture | living | v2 数据库表设计与文档的对比分析（结论：simulation_* 表设计更好），2026-08-25。 | 2026-09-14 |
+| [文档规范融入插件实施指南](architecture/documentation-standard-integration-guide.md) | — | draft | 调用时机（源码注释原话）：在 assertReqTransition 之后、真正写盘之前。 | — |
+| [项目文档规范（需求→设计→实施→测试全链路）](architecture/documentation-standard.md) | — | draft | 即：前后端与测试用例不是独立的层，而是「怎么做」的组成部分——它们是方案，不是步骤。 | — |
 | [agent-dh 术语表](architecture/glossary.md) | manual | living | 这些词分别指什么、去哪看细节。术语按"最容易混"排序。 | 2026-09-13 |
 | [身份系统与 agents.json](architecture/identity-and-agents-json.md) | architecture | living | 我是谁、账户从哪来、多窗口与多实例怎么区分。 | 2026-09-13 |
 | [旧订单体系废弃计划](architecture/legacy-system-deprecation-plan.md) | architecture | living | 旧 orders/holdings 体系的安全废弃计划与已删端点清单（2026-08-25）。 | 2026-09-14 |
 | [记忆与召回](architecture/memory-and-recall.md) | architecture | living | 结论写进哪、下次怎么被想起来、怎么知道检索有没有在工作。 | 2026-09-13 |
 | [页面插件契约](architecture/page-plugin-contract.md) | architecture | living | 做一个 DSH 页面插件（GUI）要满足哪些契约；改动怎么生效。 | 2026-09-16 |
 | [插件模型与装载](architecture/plugin-model.md) | architecture | living | agent-dh 的插件是什么、怎么被加载、改完怎么才能生效、常见坑在哪。 | 2026-09-14 |
+| [reqboard-doc-path-contract.md](architecture/reqboard-doc-path-contract.md) | — | — | 登记产物/文档路径时必须归一，历史遗留的下列写法由归一层在读取时兜底： | — |
 | [需求节点详情系统（stage-detail）](architecture/reqboard-stage-detail.md) | architecture | living | 会话框流程条节点点开看详情：StageDetail 契约 + 模板模式双端装配 + 分类流程档案 + 产物闸门 + 追溯链 + 接力任务卡 + 前端工作记录渲染器。 | 2026-09-17 |
 | [需求看板的 Token 消耗（过程消耗 + 提示词成本）](architecture/reqboard-token-usage.md) | architecture | living | 看板怎么记录与展示「每个流程节点/每个任务」的 token 消耗，以及固定系统提示词与 reqboard 注入提示词的成本；含缺失语义与自检命令。 | 2026-09-18 |
 | [需求归档规范（reqboard 执行细则）](architecture/requirement-archive.md) | architecture | living | 需求归档执行细则：归档要备哪些材料、合并去向怎么定、代码在哪校验。 | 2026-09-13 |
 | [self_restart 工具行为说明](architecture/self-restart-behavior.md) | architecture | living | self_restart 工具的行为说明与失败排查（状态文件、门控、常见误判）。 | 2026-09-14 |
-| [workflow-stages.md](architecture/workflow-stages.md) | — | — | 后端数据库可能使用的旧状态名： | — |
+| [workflow-stages.md](architecture/workflow-stages.md) | — | — | （STAGE_ARTIFACT_REQUIREMENTS.design = ['plan']、ARTIFACT_CONFIRM_GATES['design>decomposing'] = '… | — |
 
 ### 技术要求规范（强制卷） · `docs/standards`（9 页）
 
@@ -83,7 +86,7 @@ tags: [index, wiki]
 | [从 agent-ts（PI 投资顾问·TS版）会话学习报告](guides/learnings-from-agent-ts.md) | guide | living | 从 agent-ts（TS 版投顾）的会话里学到的回答模板与经验。 | 2026-09-14 |
 | [订单 API 使用指南](guides/order-api-guide.md) | guide | living | 两套订单 API 的区别与正确用法（新 API 优先，2026-08-25）。 | 2026-09-14 |
 | [quantsys-v2 能力诚实评估：真能解决问题吗？](guides/quantsys-v2-capability-assessment.md) | guide | living | v2 后端能力诚实评估：哪些真能用、哪些是「接口通但链路死」（2026-09-02 全链路实测）。 | 2026-09-14 |
-| [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) | guide | living | 一个需求从冒出来到归档，具体敲哪些工具、卡在哪、错了怎么办。 | 2026-09-13 |
+| [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) | guide | living | 一个需求从冒出来到归档，具体敲哪些工具、卡在哪、错了怎么办。 | 2026-09-19 |
 | [重启防丢 Session 操作手册（Restart Session Safety Runbook）](guides/restart-session-safety.md) | guide | living | 重启（含 self_restart）后会话历史为什么不丢、怎么保证——附 PID 与源码级证据。 | 2026-09-14 |
 | [定时巡检清单（有问题才打扰）](guides/routine-checks.md) | guide | living | 哪些检查该定期跑、跑什么命令、什么算有问题、出了问题找谁。 | 2026-09-13 |
 | [技能装载机制（Skill Loading）——排障实录与标准流程](guides/skill-loading.md) | guide | living | 技能为什么看不见：两个 dsh home + skill registry 分层，以及正确的装载姿势。 | 2026-09-14 |
@@ -129,13 +132,21 @@ tags: [index, wiki]
 |---|---|---|---|---|
 | [事件查询使用示例（P1-4）](examples/event-query-examples.md) | doc | living | 事件查询两个工具的实战示例（盘前例行、个股排雷等）。 | 2026-09-14 |
 
-### 包内入口页（怎么用这个包） · `packages`（76 页）
+### 包内入口页（怎么用这个包） · `packages`（86 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
 | [@pi-investment/core-tool-tool](../packages/core-tool/README.md) | package | living | core-tool 规范包：只定义三段式工具接口规范，不含具体实现。 | 2026-08-30 |
 | [@pi-investment/learning](../packages/learning/README.md) | package | living | learning 插件：经验追踪 / 模式挖掘 / 知识蒸馏 / 规则转正（RFC 003 落地）。 | 2026-08-20 |
 | [@pi-investment/dashboard-bulletin（公告板页面，RFC 013）](../packages/pages/bulletin/README.md) | package | living | 公告板页面包（双半插件）：与 board_post/board_read 工具同源的看板。 | 2026-09-05 |
+| [all-push-scenarios-review.md](../packages/pages/dsh-pmboard/docs/all-push-scenarios-review.md) | — | — | "其他的推进节点 ask_user_question，也需要补充，你看看还有遗漏场景吗" | — |
+| [ask-confirm-user-feedback.md](../packages/pages/dsh-pmboard/docs/ask-confirm-user-feedback.md) | — | — | 用户在 reqboard_ask_confirm 弹框中选择非肯定项（如"需要修改"）时： | — |
+| [confirm-option-add-content.md](../packages/pages/dsh-pmboard/docs/confirm-option-add-content.md) | — | — | "新增内容那，现在支持吗" | — |
+| [confirm-options-clarification.md](../packages/pages/dsh-pmboard/docs/confirm-options-clarification.md) | — | — | 所有确认弹框选项统一在 domain/text/labels.ts 定义： | — |
+| [requirement-doc-set-display.md](../packages/pages/dsh-pmboard/docs/requirement-doc-set-display.md) | — | — | 在会话流程节点框（reqboard stage detail panel）的 design（设计） 阶段展示： | — |
+| [requirement-format-validation.md](../packages/pages/dsh-pmboard/docs/requirement-format-validation.md) | — | — | ✅ 通过原因： | — |
+| [requirement-validation-improvement-summary.md](../packages/pages/dsh-pmboard/docs/requirement-validation-improvement-summary.md) | — | — | 错误码：requirement_missing_clauses | — |
+| [stage-naming-final.md](../packages/pages/dsh-pmboard/docs/stage-naming-final.md) | — | — | 另有历史状态 done（完成）与 canceled（取消），不属七个主节点。 | — |
 | [bug.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/accepting/bug.md) | — | — | — | — |
 | [chore.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/accepting/chore.md) | — | — | — | — |
 | [doc.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/accepting/doc.md) | — | — | — | — |
@@ -172,6 +183,16 @@ tags: [index, wiki]
 | [light.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/decomposing/light.md) | — | — | reqboard_ask_confirm(kind=decomposition) 请人确认后进入实施。 | — |
 | [refactor.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/decomposing/refactor.md) | — | — | — | — |
 | [spike.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/decomposing/spike.md) | — | — | — | — |
+| [bug.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/design/bug.md) | — | — | — | — |
+| [chore.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/design/chore.md) | — | — | — | — |
+| [doc.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/design/doc.md) | — | — | — | — |
+| [feature.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/design/feature.md) | — | — | — | — |
+| [heavy.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/design/heavy.md) | — | — | Write comprehensive implementation plans assuming the engineer has zero context for our codebas… | — |
+| [overrides.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/design/heavy/overrides.md) | — | — | — | — |
+| [light.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/design/light.md) | — | — | 用 reqboard_submit(kind=plan) 提交；计划里不写最终任务 DAG（任务卡属拆分阶段）。 | — |
+| [overrides.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/design/light/overrides.md) | — | — | — | — |
+| [refactor.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/design/refactor.md) | — | — | — | — |
+| [spike.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/design/spike.md) | — | — | — | — |
 | [bug.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/bug.md) | — | — | — | — |
 | [chore.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/chore.md) | — | — | — | — |
 | [doc.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/doc.md) | — | — | — | — |
@@ -179,17 +200,9 @@ tags: [index, wiki]
 | [heavy.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/heavy.md) | — | — | Load plan, review critically, execute all tasks, report when complete. | — |
 | [overrides.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/heavy/overrides.md) | — | — | — | — |
 | [light.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/light.md) | — | — | 直接改，不临时加功能、不扩范围。 | — |
+| [overrides.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/light/overrides.md) | — | — | — | — |
 | [refactor.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/refactor.md) | — | — | — | — |
 | [spike.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/implementing/spike.md) | — | — | — | — |
-| [bug.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/bug.md) | — | — | — | — |
-| [chore.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/chore.md) | — | — | — | — |
-| [doc.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/doc.md) | — | — | — | — |
-| [feature.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/feature.md) | — | — | — | — |
-| [heavy.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/heavy.md) | — | — | Write comprehensive implementation plans assuming the engineer has zero context for our codebas… | — |
-| [overrides.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/heavy/overrides.md) | — | — | — | — |
-| [light.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/light.md) | — | — | 用 reqboard_submit(kind=plan) 提交；计划里不写最终任务 DAG（任务卡属拆分阶段）。 | — |
-| [refactor.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/refactor.md) | — | — | — | — |
-| [spike.md](../packages/pages/dsh-pmboard/src/domain/prompt/fragments/planning/spike.md) | — | — | — | — |
 | [ATTRIBUTION.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/ATTRIBUTION.md) | — | — | 本目录下的 14 份 <skill>/SKILL.md 是 obra/superpowers 的原文（逐字节落盘、不改写）， | — |
 | [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/brainstorming/SKILL.md) | — | — | Help turn ideas into fully formed designs and specs through natural collaborative dialogue. | — |
 | [SKILL.md](../packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/dispatching-parallel-agents/SKILL.md) | — | — | You delegate tasks to specialized agents with isolated context. By precisely crafting their ins… | — |

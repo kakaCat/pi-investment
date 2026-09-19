@@ -19,7 +19,7 @@
  * 现权威定义在此，依赖方向为 prompt → stage（提示词域反向引用本模块）。
  */
 export const ALL_STAGE_PROMPT_KEYS = [
-  'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'archived',
+  'brainstorming', 'design', 'decomposing', 'implementing', 'accepting', 'archived',
 ] as const
 
 /** 键类型（从常量推导，避免第二事实源）。 */

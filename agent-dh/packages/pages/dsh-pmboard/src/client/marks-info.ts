@@ -8,6 +8,7 @@
  */
 import { esc } from '@pi-investment/page-kit/client'
 import type { ClauseMarkRow, RequirementMarksView } from '../shared/protocol.ts'
+import { fmt } from '../domain/text/fmt.ts'
 
 /** 四态显示文案与颜色类（与 domain 的四态同语义；unreceived 是唯一带 alert 的）。 */
 const STATE_LABEL: Record<ClauseMarkRow['state'], { text: string; cls: string }> = {
@@ -32,9 +33,9 @@ export function renderMarksBlock(view: RequirementMarksView): string {
   }
   const red = view.unreceived.length
   const summary = red === 0
-    ? '<div class="dsh-pm-mk-sum">共 ' + String(view.clauses.length) + ' 条功能点，全部有落点。</div>'
-    : '<div class="dsh-pm-mk-sum dsh-pm-mk-alert">🔴 未被接收 ' + String(red) + ' 条：'
-      + esc(view.unreceived.join('、')) + '</div>'
+    ? fmt('<div class="dsh-pm-mk-sum">共 {n} 条功能点，全部有落点。</div>', { n: view.clauses.length })
+    : fmt('<div class="dsh-pm-mk-sum dsh-pm-mk-alert">🔴 未被接收 {n} 条：{list}</div>',
+      { n: red, list: esc(view.unreceived.join('、')) })
   const rows = view.clauses.map(c => {
     const s = STATE_LABEL[c.state]
     const rowCls = c.state === 'unreceived' ? 'dsh-pm-mk-row is-unreceived' : 'dsh-pm-mk-row'
@@ -43,7 +44,9 @@ export function renderMarksBlock(view: RequirementMarksView): string {
       + '</td><td class="' + s.cls + '">' + s.text
       + '</td><td class="dsh-pm-mk-by">' + by + '</td></tr>'
   })
-  return summary
-    + '<table class="dsh-pm-mk-table"><thead><tr><th>编号</th><th>接收状态</th><th>承载任务</th></tr></thead><tbody>'
-    + rows.join('') + '</tbody></table>'
+  const table = fmt(
+    '<table class="dsh-pm-mk-table"><thead><tr><th>编号</th><th>接收状态</th><th>承载任务</th></tr></thead><tbody>{rows}</tbody></table>',
+    { rows: rows.join('') },
+  )
+  return summary + table
 }

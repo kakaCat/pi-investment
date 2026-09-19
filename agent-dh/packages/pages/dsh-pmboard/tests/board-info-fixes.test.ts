@@ -71,7 +71,7 @@ describe('文档记录并入节点产物（#6/#7）', () => {
     makeArtifact({ stage: 'done', kind: 'archive', path: 'docs/requirements/REQ-x/archive' }),
     makeArtifact({ stage: 'brainstorming', kind: 'requirement', path: 'docs/requirements/REQ-x/requirement.md' }),
     makeArtifact({ stage: 'accepting', kind: 'verification', path: 'docs/requirements/REQ-x/verification.md' }),
-    makeArtifact({ stage: 'planning', kind: 'plan', path: 'docs/requirements/REQ-x/plan.md' }),
+    makeArtifact({ stage: 'design', kind: 'plan', path: 'docs/requirements/REQ-x/plan.md' }),
     makeArtifact({ stage: 'decomposing', kind: 'decomposition', path: 'docs/requirements/REQ-x/decomposition.md' }),
   ]
 
@@ -99,14 +99,14 @@ describe('文档记录并入节点产物（#6/#7）', () => {
 
   it('产物种类带上可读标签（需求文档/拆分方案/任务卡/归档材料）', () => {
     const html = buildReqDetail(makeReq({ status: 'archived', artifacts }), [], T0)
-    for (const label of ['需求文档', '实施计划', '拆分方案', '任务卡', '验收材料', '归档材料']) {
+    for (const label of ['需求文档', '拆分计划', '拆分方案', '任务卡', '验收材料', '归档材料']) {
       expect(html).toContain(label)
     }
   })
 
   it('无 artifacts 时保留既有来源（docLinks + plan.path）', () => {
     const req = makeReq({
-      status: 'planning',
+      status: 'design',
       docLinks: { ui: 'docs/ui.md' },
       plan: basePlan,
     })
@@ -118,7 +118,7 @@ describe('文档记录并入节点产物（#6/#7）', () => {
 
 describe('审批入口外置到常驻操作条（#8）', () => {
   it('计划待批：批准/退回在操作条里，且位于任何折叠区之前；折叠区不再放按钮', () => {
-    const req = makeReq({ id: 'REQ-bar1', status: 'planning', plan: basePlan })
+    const req = makeReq({ id: 'REQ-bar1', status: 'design', plan: basePlan })
     const html = buildReqDetail(req, [], T0)
     expect(html).toContain('dsh-pm-action-bar')
     const bar = actionBar(html)
@@ -144,12 +144,16 @@ describe('审批入口外置到常驻操作条（#8）', () => {
     expect(html.slice(html.indexOf('<details'))).not.toContain('data-action="verify-pass"')
   })
 
-  it('验收态尚未交材料：操作条不给 verify-pass（先补证据），给一键完成兜底', () => {
+  it('验收态尚未交材料：操作条不给 verify-pass，也不给点了必被拒的假出口，而是写清下一步', () => {
     const req = makeReq({ id: 'REQ-bar3', status: 'accepting' })
     const bar = actionBar(buildReqDetail(req, [], T0))
     expect(bar).not.toContain('data-action="verify-pass"')
-    expect(bar).toContain('data-action="move-req"')
-    expect(bar).toContain('data-to="done"')
+    // 语义随状态机升级（不是为了让测试变绿）：REQ-9f4a44 起 done 已是历史遗留状态
+    // （accepting>done 合并进 accepting>archived），且归档门要求验收材料已登记确认——
+    // 所以原断言的"一键完成 data-to=done"兜底既没有合法转移、点了也必被代码级拒绝。
+    // 保留原意图（这个阶段不能没有任何出口）的落地方式 = 操作条写明下一步。
+    expect(bar).not.toContain('data-action="move-req"')
+    expect(bar).toContain('验收材料')
   })
 
   it('已完成且材料已备：操作条给 archive-req，折叠区无重复按钮', () => {

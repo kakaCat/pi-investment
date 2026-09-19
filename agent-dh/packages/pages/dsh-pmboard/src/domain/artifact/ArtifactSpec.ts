@@ -13,16 +13,17 @@ import type { RequirementCategory } from '../requirement/Requirement.js'
 import type { StageKey } from '../requirement/RequirementStatus.js'
 
 /**
- * 产物种类。前六类 = 六道节点必备产物（闸门依赖）；notes = 过程产物兜底
- * （REQ-2e9473 t11 自动发现：原型 html / 笔记等不属必备门禁的文件），不参与任何 stage 闸门。
+ * 产物种类。前六类 = 六道节点必备产物（闸门依赖）；design = 设计文档
+ * （REQ-81aabd：设计节点的交付物，按分类模板逐份核对已交/未交，**不参与任何闸门**）；
+ * notes = 过程产物兜底（REQ-2e9473 t11 自动发现：原型 html / 笔记等不属必备门禁的文件）。
  */
-export type ArtifactKind = 'requirement' | 'plan' | 'decomposition' | 'task_detail' | 'verification' | 'archive' | 'notes' | 'task_output'
-export const ALL_ARTIFACT_KINDS: readonly ArtifactKind[] = ['requirement', 'plan', 'decomposition', 'task_detail', 'verification', 'archive', 'notes', 'task_output']
+export type ArtifactKind = 'requirement' | 'plan' | 'decomposition' | 'design' | 'task_detail' | 'verification' | 'archive' | 'notes' | 'task_output'
+export const ALL_ARTIFACT_KINDS: readonly ArtifactKind[] = ['requirement', 'plan', 'decomposition', 'design', 'task_detail', 'verification', 'archive', 'notes', 'task_output']
 
 /** 每节点必备产物（feature 全流水线基准；分类档案可再裁剪）。 */
 export const STAGE_ARTIFACT_REQUIREMENTS: Readonly<Partial<Record<StageKey, readonly ArtifactKind[]>>> = {
   brainstorming: ['requirement'],
-  planning: ['plan'],
+  design: ['plan'],
   decomposing: ['decomposition'],
   implementing: ['task_detail'], // 粒度=每任务一份 tasks/t-xxx.md；task_report 汇报追加
   accepting: ['verification'],
@@ -35,8 +36,8 @@ export const STAGE_ARTIFACT_REQUIREMENTS: Readonly<Partial<Record<StageKey, read
  * 在看板一键确认（confirmedAt/confirmedBy），才放行对应转移。
  */
 export const ARTIFACT_CONFIRM_GATES: Readonly<Record<string, ArtifactKind>> = {
-  'brainstorming>planning': 'requirement',
-  'planning>decomposing': 'plan',
+  'brainstorming>design': 'requirement',
+  'design>decomposing': 'plan',
   'decomposing>implementing': 'decomposition',
   // REQ-9f4a44：验收通过 = 直接归档，故本门挂在 accepting>archived 上
   'accepting>archived': 'verification',
@@ -44,7 +45,7 @@ export const ARTIFACT_CONFIRM_GATES: Readonly<Record<string, ArtifactKind>> = {
 
 /** 归档材料里的一条文档。 */
 export interface ArchiveDoc {
-  /** requirement=需求说明 / plan=实施计划 / verification=验收材料 / retro=复盘 / notes=其他 */
+  /** requirement=需求说明 / plan=拆分计划 / verification=验收材料 / retro=复盘 / notes=其他 */
   kind: 'requirement' | 'plan' | 'verification' | 'retro' | 'notes'
   path: string
 }
@@ -111,6 +112,7 @@ const NAME_TO_KIND: ReadonlyArray<readonly [RegExp, ArtifactKind]> = [
   [/^requirement\.md$/, 'requirement'],
   [/^plan\.md$/, 'plan'],
   [/^decomposition\.md$/, 'decomposition'],
+  [/^design\/.+\.md$/, 'design'],
   [/^verification\.md$/, 'verification'],
   [/^archive\.md$/, 'archive'],
   [/^tasks\/t-[a-z0-9]+\.md$/, 'task_detail'],

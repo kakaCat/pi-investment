@@ -343,7 +343,19 @@ export function apply(ctx: Context, config?: PluginConfig): void {
           kind: 'prefix',
           path: '/dashboard/api/reqboard',
           // injectionLog 只以**只读端口**身份进入路由（t11）：看板能读「本次注入了什么」，不能写。
-          handler: createReqboardHandler({ store, now, injectionLog, systemPrompt: () => systemPromptSvc }),
+          handler: createReqboardHandler({
+            store,
+            now,
+            injectionLog,
+            systemPrompt: () => systemPromptSvc,
+            tokenSnapshot: (wk) => { // REQ-b545fe t6: 注入快照提供者
+              try {
+                return useCaseDeps.session.tokenTotals(wk);
+              } catch {
+                return undefined;
+              }
+            },
+          }),
         });
       }, name + ': api');
       logger.info('routes registered: /dashboard/api/reqboard/* (state/events/req/task/triage CRUD + 人工确认立项)');

@@ -1,5 +1,6 @@
 /**
  * 需求目录产物自动发现单测（REQ-2e9473 t11/W4，事故 E 修复）。
+ * serves: FR-3, FR-5（REQ-81aabd design 归位与旧条目回填）。
  * 覆盖：文件名→种类推断；目录扫描补登（autoDiscovered 标记）；幂等（重复扫描不重复）；
  * 已登记文件跳过；目录不存在不炸。
  */
@@ -46,6 +47,7 @@ describe('kindForRelPath', () => {
     expect(kindForRelPath('verification.md')).toBe('verification')
     expect(kindForRelPath('archive.md')).toBe('archive')
     expect(kindForRelPath('tasks/t-abc123.md')).toBe('task_detail')
+    expect(kindForRelPath('design/architecture.md')).toBe('design')
     expect(kindForRelPath('prototype.html')).toBe('notes')
     expect(kindForRelPath('lanes-prototype.html')).toBe('notes')
   })
@@ -97,6 +99,36 @@ describe('syncReqArtifacts（落库）', () => {
     const added2 = await syncReqArtifacts(store, REQ, dir)
     expect(added2).toBe(0)
     expect(store.snapshot().requirements.find(r => r.id === REQ)!.artifacts).toHaveLength(1)
+  })
+
+  it('design/*.md 补登为设计文档，归设计节点（FR-1/FR-3）', async () => {
+    await seedReq()
+    writeReqFile('design/architecture.md')
+    expect(await syncReqArtifacts(store, REQ, dir)).toBe(1)
+    const a = store.snapshot().requirements.find(r => r.id === REQ)!.artifacts![0]
+    expect(a.path).toBe(reqDirRel(REQ) + '/design/architecture.md')
+    expect(a.kind).toBe('design')
+    expect(a.stage).toBe('design')
+  })
+
+  it('分类规则升级后回填旧条目种类（notes → design），且幂等', async () => {
+    const p = reqDirRel(REQ) + '/design/architecture.md'
+    await seedReq([{ stage: 'design', kind: 'notes', path: p, autoDiscovered: true, registeredAt: 1, registeredBy: { kind: 'agent' } }])
+    writeReqFile('design/architecture.md')
+    await syncReqArtifacts(store, REQ, dir)
+    const a = store.snapshot().requirements.find(r => r.id === REQ)!.artifacts![0]
+    expect(a.kind).toBe('design')
+    expect(a.stage).toBe('design')
+    // 已回填 + 已登记 → 再跑一次无动作（无新文件、无待回填）
+    expect(await syncReqArtifacts(store, REQ, dir)).toBe(0)
+  })
+
+  it('手工登记的产物不被回填覆盖（只回填 autoDiscovered）', async () => {
+    const p = reqDirRel(REQ) + '/design/architecture.md'
+    await seedReq([{ stage: 'design', kind: 'notes', path: p, registeredAt: 1, registeredBy: { kind: 'agent' } }])
+    writeReqFile('design/architecture.md')
+    await syncReqArtifacts(store, REQ, dir)
+    expect(store.snapshot().requirements.find(r => r.id === REQ)!.artifacts![0].kind).toBe('notes')
   })
 
   it('syncAllReqArtifacts 扫描全部需求', async () => {

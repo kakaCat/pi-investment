@@ -244,7 +244,7 @@ export const FILES_CSS = `/* 文档节点 - 文档列表 */
 .dsh-pm-status-badge[data-status="implementing"] { background: rgba(74,125,255,.18); color: #2f5fd0; }
 .dsh-pm-status-badge[data-status="accepting"] { background: rgba(23,162,184,.18); color: #0e7c8f; }
 .dsh-pm-status-badge[data-status="done"] { background: rgba(40,167,69,.18); color: #1e7e34; }
-.dsh-pm-status-badge[data-status="planning"] { background: rgba(240,160,32,.20); color: #a86a00; }
+.dsh-pm-status-badge[data-status="design"] { background: rgba(240,160,32,.20); color: #a86a00; }
 .dsh-pm-status-badge[data-status="brainstorming"] { background: rgba(142,68,173,.18); color: #6f2f8c; }
 .dsh-pm-list-title {
   font-size: 14px; font-weight: 600; color: var(--dsw-text-primary, #222);

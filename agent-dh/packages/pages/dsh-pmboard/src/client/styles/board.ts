@@ -285,7 +285,7 @@ tr.dsh-pm-list-grouphead td {
 .dsh-pm-stage-panel { display: flex; flex-direction: column; gap: 4px; }
 .dsh-pm-stage-panel[data-stage="draft"] { --pm-stage: var(--pm-c-draft); }
 .dsh-pm-stage-panel[data-stage="brainstorming"] { --pm-stage: var(--pm-c-brainstorming); }
-.dsh-pm-stage-panel[data-stage="planning"] { --pm-stage: var(--pm-c-planning); }
+.dsh-pm-stage-panel[data-stage="design"] { --pm-stage: var(--pm-c-design); }
 .dsh-pm-stage-panel[data-stage="decomposing"] { --pm-stage: var(--pm-c-decomposing); }
 .dsh-pm-stage-panel[data-stage="implementing"] { --pm-stage: var(--pm-c-implementing); }
 .dsh-pm-stage-panel[data-stage="accepting"] { --pm-stage: var(--pm-c-accepting); }
@@ -307,7 +307,7 @@ tr.dsh-pm-list-grouphead td {
 /* 8 类节点专属图标（不依赖文字也能分辨节点类型） */
 .dsh-pm-stage-panel[data-stage="draft"] .dsh-pm-stage-label::before { content: '📌'; }
 .dsh-pm-stage-panel[data-stage="brainstorming"] .dsh-pm-stage-label::before { content: '💡'; }
-.dsh-pm-stage-panel[data-stage="planning"] .dsh-pm-stage-label::before { content: '📐'; }
+.dsh-pm-stage-panel[data-stage="design"] .dsh-pm-stage-label::before { content: '📐'; }
 .dsh-pm-stage-panel[data-stage="decomposing"] .dsh-pm-stage-label::before { content: '🧩'; }
 .dsh-pm-stage-panel[data-stage="implementing"] .dsh-pm-stage-label::before { content: '⚙️'; }
 .dsh-pm-stage-panel[data-stage="accepting"] .dsh-pm-stage-label::before { content: '🧪'; }

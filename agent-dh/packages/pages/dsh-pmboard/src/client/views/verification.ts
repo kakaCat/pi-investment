@@ -16,7 +16,7 @@ export const DOC_KIND_META: Record<string, { icon: string; label: string }> = {
   requirement: { icon: '📄', label: '需求文档' },
   ui: { icon: '🎨', label: 'UI 文档' },
   proposal: { icon: '📐', label: '设计文档' },
-  plan: { icon: '📝', label: '实施计划' },
+  plan: { icon: '📝', label: '拆分计划' },
   decomposition: { icon: '🧩', label: '拆分方案' },
   task_detail: { icon: '🗂️', label: '任务卡' },
   verification: { icon: '✅', label: '验收材料' },
@@ -39,7 +39,7 @@ export function stageRankOf(stage: StageKey | string | undefined): number {
  *      —— 按 stage 流水线顺序排列，这样 requirement.md → plan.md → decomposition.md →
  *      tasks/*.md → verification.md → archive 在文档区一眼连成一条链；
  *   ② docLinks（requirement/ui/proposal）；
- *   ③ plan.path（实施计划文档）；
+ *   ③ plan.path（拆分计划文档）；
  *   ④ archive.docs（归档文档清单）。
  * 路径去重：同一文件既登记产物又出现在 docLinks/archive 时只展示一次（保留首次出现的口径）。
  */
@@ -68,7 +68,7 @@ export function collectReqDocs(req: RequirementRecord): Array<{ icon: string; la
     seen.add(p)
     docs.push({ icon: '🎁', label: e.label || '成果文件', path: p })
   }
-  // ③ 实施计划（plan.path）
+  // ③ 拆分计划（plan.path）
   if (req.plan?.path) push('plan', req.plan.path)
   // ④ 归档文档清单（archive.docs）
   for (const d of req.archive?.docs ?? []) push(d.kind, d.path)
@@ -181,7 +181,7 @@ export function renderArchiveSection(req: RequirementRecord): string {
 }
 
 export const ARCHIVE_DOC_KIND_LABELS: Record<string, string> = {
-  requirement: '需求说明', plan: '实施计划', verification: '验收材料', retro: '复盘', notes: '其他',
+  requirement: '需求说明', plan: '拆分计划', verification: '验收材料', retro: '复盘', notes: '其他',
 }
 
 /** 说明书更新点（金字塔 L1/L2）：归档让项目认知怎么长上去的。 */

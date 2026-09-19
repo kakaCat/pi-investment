@@ -1,5 +1,6 @@
 /**
  * 节点详情装配器与路由测试（REQ-31e11f t2）。
+ * serves: FR-4（REQ-81aabd 设计节点逐份交付状态）。
  *
  * 覆盖：
  *   - 7 节点装配：每节点返回契约块（stage/enabled/artifacts/timeline/body 形状正确）；
@@ -44,7 +45,7 @@ function makeReq(overrides: Partial<RequirementRecord> = {}): RequirementRecord 
     statusHistory: [
       { status: 'draft', at: 1000, by: HUMAN, reason: '创建' },
       { status: 'brainstorming', at: 1100, by: HUMAN },
-      { status: 'planning', at: 1200, by: HUMAN },
+      { status: 'design', at: 1200, by: HUMAN },
       { status: 'decomposing', at: 1300, by: HUMAN },
       { status: 'implementing', at: 1400, by: HUMAN },
     ],
@@ -85,7 +86,7 @@ const LEDGER = { tasks: [] as TaskRecord[] }
 // ---------------------------------------------------------------------------
 
 describe('assembleStageDetail：7 节点装配', () => {
-  const STAGES: StageKey[] = ['draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'archived']
+  const STAGES: StageKey[] = ['draft', 'brainstorming', 'design', 'decomposing', 'implementing', 'accepting', 'archived']
 
   it.each(STAGES)('节点 %s 返回契约块（stage/enabled/artifacts/timeline）', (stage) => {
     const detail = assembleStageDetail(makeReq(), LEDGER, stage)
@@ -123,7 +124,7 @@ describe('assembleStageDetail：7 节点装配', () => {
     expect(detail.body.comments).toHaveLength(1)
   })
 
-  it('planning.body 含 PlanRecord（路径/任务表/批准留痕）', () => {
+  it('design.body 含 PlanRecord（路径/任务表/批准留痕）', () => {
     const req = makeReq({
       plan: {
         path: 'docs/requirements/REQ-a1b2c3/plan.md',
@@ -135,11 +136,33 @@ describe('assembleStageDetail：7 节点装配', () => {
         approvedBy: HUMAN,
       },
     })
-    const detail = assembleStageDetail(req, LEDGER, 'planning')
-    if (detail.stage !== 'planning') throw new Error('narrow')
+    const detail = assembleStageDetail(req, LEDGER, 'design')
+    if (detail.stage !== 'design') throw new Error('narrow')
     expect(detail.body.plan?.path).toBe('docs/requirements/REQ-a1b2c3/plan.md')
     expect(detail.body.plan?.tasks).toHaveLength(1)
     expect(detail.body.plan?.approvedAt).toBe(1250)
+  })
+
+  it('design.body 含设计文档逐份交付状态（已交/未交；纯展示不参与推进）', () => {
+    const req = makeReq({
+      artifacts: [{
+        stage: 'design', kind: 'design',
+        path: 'docs/requirements/REQ-a1b2c3/design/architecture.md',
+        registeredAt: 1, registeredBy: HUMAN,
+      }],
+    })
+    const detail = assembleStageDetail(req, LEDGER, 'design')
+    if (detail.stage !== 'design') throw new Error('narrow')
+    const docs = detail.body.designDocs ?? []
+    expect(docs.map(d => d.name)).toEqual(['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md'])
+    expect(docs.find(d => d.name === 'architecture.md')?.submitted).toBe(true)
+    expect(docs.filter(d => d.submitted)).toHaveLength(1)
+  })
+
+  it('design.body：分类模板无设计文档时为空（bug 类）', () => {
+    const detail = assembleStageDetail(makeReq({ category: 'bug' }), LEDGER, 'design')
+    if (detail.stage !== 'design') throw new Error('narrow')
+    expect(detail.body.designDocs).toEqual([])
   })
 
   it('decomposing.body 含 decompositionDoc + 任务 DAG + planTasks 对照', () => {
@@ -234,15 +257,15 @@ describe('assembleStageDetail：分类跳过', () => {
     expect(detail.body).toEqual({})
   })
 
-  it('bug 类启用 planning → enabled:true', () => {
+  it('bug 类启用 design → enabled:true', () => {
     const req = makeReq({ category: 'bug' })
-    const detail = assembleStageDetail(req, LEDGER, 'planning')
+    const detail = assembleStageDetail(req, LEDGER, 'design')
     expect(detail.enabled).toBe(true)
   })
 
-  it('spike 类跳过 planning/decomposing → enabled:false', () => {
+  it('spike 类跳过 design/decomposing → enabled:false', () => {
     const req = makeReq({ category: 'spike' })
-    for (const stage of ['planning', 'decomposing'] as StageKey[]) {
+    for (const stage of ['design', 'decomposing'] as StageKey[]) {
       const detail = assembleStageDetail(req, LEDGER, stage)
       expect(detail.enabled).toBe(false)
       expect(detail.body).toEqual({})
@@ -253,7 +276,7 @@ describe('assembleStageDetail：分类跳过', () => {
 
   it('feature 类全节点启用', () => {
     const req = makeReq({ category: 'feature' })
-    for (const stage of ['draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'archived'] as StageKey[]) {
+    for (const stage of ['draft', 'brainstorming', 'design', 'decomposing', 'implementing', 'accepting', 'archived'] as StageKey[]) {
       expect(assembleStageDetail(req, LEDGER, stage).enabled).toBe(true)
     }
   })
@@ -370,7 +393,7 @@ describe('路由 GET /requirements/:id/stage/:stage', () => {
       await handler(req, res)
       return res.payload.data as RequirementRecord
     })()
-    const stages: StageKey[] = ['draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'archived']
+    const stages: StageKey[] = ['draft', 'brainstorming', 'design', 'decomposing', 'implementing', 'accepting', 'archived']
     for (const stage of stages) {
       const res = await get(handler, `/requirements/${created.id}/stage/${stage}`)
       expect(res.statusCode).toBe(200)
@@ -411,7 +434,7 @@ describe('路由 GET /requirements/:id/stage/:stage', () => {
     const handler = createReqboardHandler({ store, now: () => Date.now() })
     // 建 bug 类需求（直接写库，绕过默认创建）
     await store.mutate('requirement-created', (l) => {
-      l.requirements.push(makeReq({ id: 'REQ-bug001', category: 'bug', status: 'planning' }))
+      l.requirements.push(makeReq({ id: 'REQ-bug001', category: 'bug', status: 'design' }))
       return { requirements: [l.requirements[l.requirements.length - 1]!] }
     })
     const res = await get(handler, '/requirements/REQ-bug001/stage/brainstorming')

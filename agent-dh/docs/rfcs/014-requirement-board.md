@@ -111,17 +111,17 @@ draft → reviewing → analyzing → implementing → testing → verifying →
 > |---|---|---|
 > | `draft` | 立项 | 想法落卡 |
 > | `brainstorming`（原 reviewing，旧名自动迁移） | 头脑风暴 | brainstorming |
-> | `planning`（新） | 写计划 | writing-plans（计划在此提交，待人批准） |
+> | `design`（新） | 写计划 | writing-plans（计划在此提交，待人批准） |
 > | `decomposing` | 拆分（落库 DAG） | 任务卡落库 |
 > | `implementing` | 执行 | executing-plans |
 > | `accepting` | 验收 | verification-before-completion |
 > | `done` / `archived` | 完成 / 归档 | finishing-a-development-branch |
 >
-> - 转移表：`brainstorming → planning → decomposing`（原 `brainstorming → decomposing` 直通已移除），
->   `decomposing → planning` 可退回重写计划；
-> - **计划只能在 planning 阶段提交**（越级提交返回 `REQBOARD_BAD_STATUS`）；
+> - 转移表：`brainstorming → design → decomposing`（原 `brainstorming → decomposing` 直通已移除），
+>   `decomposing → design` 可退回重写计划；
+> - **计划只能在 design 阶段提交**（越级提交返回 `REQBOARD_BAD_STATUS`）；
 > - 老台账的 `reviewing` 在 Store 加载时自动迁移为 `brainstorming`（含时间线事件，迁移即真相）；
-> - 「计划待批」仍是 planning 的子状态（`plan.approvedAt` 未写入），看板用卡面 chip 表达，不额外占泳道。
+> - 「计划待批」仍是 design 的子状态（`plan.approvedAt` 未写入），看板用卡面 chip 表达，不额外占泳道。
 
 ## 4. 任务状态机
 
@@ -292,7 +292,7 @@ host 侧服务，订阅 ledger 变化 + 会话事件：
 agent 拿到用户的口头确认也无法落章（`REQBOARD_HUMAN_GATE`），回路断在最后一米。
 审计不变量：`evidence` + `sessionId` 必须落库——agent 不能"自称已确认"而不留痕。
 
-**门禁判定同步改造**：`brainstorming>planning`、`decomposing>implementing` 从
+**门禁判定同步改造**：`brainstorming>design`、`decomposing>implementing` 从
 "谁调用"（仅人）改为**"产物是否已确认"**（来源不限）；未确认仍拒绝并给出两条通道提示。
 取消 / 验收通过 / 归档类决定**仍只能由人操作**。agent 侧同时补上了产物闸门校验
 （此前只有看板 API 有——agent 可绕过，属实现缺口）。
@@ -410,7 +410,7 @@ decomposition.md · implementation.md · verification.md · migration-report.md�
 
 ### 14.3 阶段产物边界（W7）
 
-- **planning（技术设计）**：代码层面设计（改表/设计模式/框架选型/代码规范/UI/测试用例），
+- **design（技术设计）**：代码层面设计（改表/设计模式/框架选型/代码规范/UI/测试用例），
   产物是**一套文档**；`plan_submit` 的 tasks **可省略**（不含最终任务 DAG）。
 - **decomposing（拆分）**：代码层面**新增/修改/删除**盘点 + 工作流划分/工作量预估 +
   任务卡创作（四要素：做什么/怎么做[implementation]/可证伪 acceptance/依赖）。

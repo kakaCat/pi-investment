@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * 账本 v4 → v5 → v6 迁移（REQ-47939a t10 的 v4→v5 语义原样保留；REQ-a33899 t3 追加 v5→v6）。
+ * 账本 v4 → v5 → v6 → v7 迁移（REQ-47939a t10 的 v4→v5 语义原样保留；REQ-a33899 t3 追加 v5→v6；
+ * REQ-81aabd 追加 v6→v7：状态键 planning → design，含 requirements[].status / statusHistory[].status /
+ * artifacts[].stage 三处同改——键改名而不迁移存量，等于把 6 条在制需求钉在不存在的主节点上）。
  *
  * 运行（**经 tsx**，见 design/migration.md §3.1 D-8）：
  *   node --import tsx/esm packages/pages/dsh-pmboard/scripts/migrate-ledger.ts --file <ledger> --dry-run
@@ -12,7 +14,7 @@
  * 反推状态转移的 parseTransitionTarget）。纯 .mjs 只能重抄一份 → 第二套时间线语义 → 本仓吃过这个亏。
  *
  * 安全设计：① 迁移前自动备份；② 变更走"临时文件 + rename"原子替换；③ 逐**路径**白名单校验，
- * 出现白名单外的差异即中止且不落盘；④ 幂等（已是 v5 则 --apply 无操作）。
+ * 出现白名单外的差异即中止且不落盘；④ 幂等（已是现行版本则 --apply 无操作）。
  */
 import { copyFileSync, existsSync, readFileSync, renameSync, writeFileSync, unlinkSync } from 'node:fs'
 // t10 收口：这三个函数已从运行时契约（shared/protocol.ts）搬到**迁移专属模块**
@@ -20,12 +22,15 @@ import { copyFileSync, existsSync, readFileSync, renameSync, writeFileSync, unli
 import {
   backfillRequirementHistory,
   backfillTaskHistory,
+  migrateArtifactStageNames,
   migrateRequirementStatusNames,
 } from '../src/domain/legacy/LegacyStatus.js'
 
 const V5 = 5
-/** 现行契约版本（REQ-a33899：token 字段为纯附加，v5→v6 只 bump 版本 + 留痕，不伪造历史快照）。 */
+/** v6（REQ-a33899：token 字段为纯附加，v5→v6 只 bump 版本 + 留痕，不伪造历史快照）。 */
 const V6 = 6
+/** 现行契约版本（REQ-81aabd：设计节点英文键 planning → design，v6→v7 改状态键与产物 stage）。 */
+const V7 = 7
 const USAGE = `用法：--file <ledger> [--dry-run|--apply|--verify]（默认 --dry-run）`
 
 interface Change { count: number; detail: string[] }
@@ -42,8 +47,10 @@ export function migrate(ledger: any, now: number): { next: any; changes: Record<
   const reqs: any[] = next.requirements ?? []
   const tasks: any[] = next.tasks ?? []
 
-  // C3 legacy 状态名归一（reviewing → brainstorming，含时间线事件）
+  // C3 legacy 状态名归一（reviewing → brainstorming；planning → design，含时间线事件）
   for (const r of reqs) if (migrateRequirementStatusNames(r)) bump('C3_legacy_status_renamed', r.id)
+  // C11 产物 stage 字段同键归一（planning → design，与 C3 同一张别名表，避免两套改名名单）
+  for (const r of reqs) if (migrateArtifactStageNames(r)) bump('C11_artifact_stage_renamed', r.id)
   // C4 statusHistory 必填（复用运行时 backfill）
   for (const r of reqs) { const h = backfillRequirementHistory(r); if (h !== undefined) { r.statusHistory = h; bump('C4_status_history_backfilled', r.id) } }
   for (const t of tasks) { const h = backfillTaskHistory(t); if (h !== undefined) { t.statusHistory = h; bump('C4_status_history_backfilled', t.id) } }
@@ -97,12 +104,13 @@ export function migrate(ledger: any, now: number): { next: any; changes: Record<
     }
     if (out.length !== r.artifacts.length) r.artifacts = out
   }
-  // C1 + C2 版本与迁移留痕（REQ-a33899：链式 v4 → v5 → v6，逐段留痕；已是 v6 则零改动 = 幂等）
+  // C1 + C2 版本与迁移留痕（链式 v4 → v5 → v6 → v7，逐段留痕；已是 v7 则零改动 = 幂等）
   const from = typeof next.schemaVersion === 'number' ? next.schemaVersion : 4
   next.migrations = [...(next.migrations ?? [])]
   if (from <= V5 - 1) next.migrations.push({ from: 4, to: 5, at: now, by: 'migrate-ledger.ts' })
   if (from <= V5) next.migrations.push({ from: 5, to: 6, at: now, by: 'migrate-ledger.ts' })
-  next.schemaVersion = V6
+  if (from <= V6) next.migrations.push({ from: 6, to: 7, at: now, by: 'migrate-ledger.ts' })
+  next.schemaVersion = V7
   return { next, changes }
 }
 
@@ -124,11 +132,11 @@ export function diffPaths(a: any, b: any, path = '', out: string[] = []): string
 export const WHITELIST: { re: RegExp; why: string }[] = [
   { re: /^(schemaVersion|migrations)(\.|$)/, why: 'C1/C2' },
   { re: /^revision$|^updatedAt$/, why: 'revision/updatedAt 由写入方 bump，允许变化' },
-  { re: /^requirements\[\d+\]\.(status|statusHistory|category|projectId|parentId|artifacts)(\.|$)/, why: 'C3/C4/C5/C6/C10' },
+  { re: /^requirements\[\d+\]\.(status|statusHistory|category|projectId|parentId|artifacts)(\.|\[|$)/, why: 'C3/C4/C5/C6/C10/C11' },
   { re: /^requirements\[\d+\]\.verification\.(sheet|sheetHistory)\[?\d*\]?\.?items\[\d+\]\.source$/, why: 'C7' },
   { re: /^requirements\[\d+\]\.verification\.sheet\.items$/, why: 'C7（长度不变，逐项比较）' },
   { re: /^requirements\[\d+\]\.verification\.sheetHistory\[\d+\]\.items\[\d+\]\.source$/, why: 'C7' },
-  { re: /^tasks\[\d+\]\.(statusHistory|scope|dependsOn)(\.|$)/, why: 'C4/C8/C9' },
+  { re: /^tasks\[\d+\]\.(statusHistory|scope|dependsOn)(\.|\[|$)/, why: 'C4/C8/C9' },
 ]
 
 export function checkWhitelist(paths: string[]): { ok: string[]; bad: string[] } {
@@ -160,21 +168,23 @@ function main(): void {
   if (mode === 'verify') {
     const reqs: any[] = ledger.requirements ?? []; const tasks: any[] = ledger.tasks ?? []
     const problems: string[] = []
-    if (ledger.schemaVersion !== V6) problems.push('schemaVersion=' + ledger.schemaVersion + '（应为 ' + V6 + '）')
+    if (ledger.schemaVersion !== V7) problems.push('schemaVersion=' + ledger.schemaVersion + '（应为 ' + V7 + '）')
     if (reqs.some((r: any) => !Array.isArray(r.statusHistory) || r.statusHistory.length === 0)) problems.push('存在缺少 statusHistory 的需求')
     if (reqs.some((r: any) => 'projectId' in r || 'parentId' in r)) problems.push('仍有 projectId/parentId 未删')
     if (reqs.some((r: any) => r.category === undefined || r.category === null)) problems.push('存在缺少 category 的需求')
     const badSrc = reqs.some((r: any) => [...(r.verification?.sheet?.items ?? []), ...((r.verification?.sheetHistory ?? []).flatMap((s: any) => s.items ?? []))].some((i: any) => typeof i.source === 'string'))
     if (badSrc) problems.push('仍有字符串型 sheet.items[].source')
     if (tasks.some((t: any) => t.scope === undefined)) problems.push('存在缺少 scope 的任务')
+    if (reqs.some((r: any) => r.status === 'planning' || (r.statusHistory ?? []).some((e: any) => e.status === 'planning'))) problems.push('仍有 planning 状态名未归一为 design')
+    if (reqs.some((r: any) => (r.artifacts ?? []).some((a: any) => a.stage === 'planning'))) problems.push('仍有 artifacts[].stage=planning 未归一为 design')
     console.log('── --verify ──\n' + counts(ledger))
     if (problems.length > 0) { console.error('❌ 未达 v5：\n  - ' + problems.join('\n  - ')); process.exit(1) }
-    console.log('✅ 已是 v6 且结构自洽（需求/任务计数见上）')
+    console.log('✅ 已是 v7 且结构自洽（需求/任务计数见上）')
     return
   }
 
-  if (ledger.schemaVersion === V6) {
-    console.log('── 无需迁移 ──\n' + counts(ledger) + '\n✅ 已是 v6，--apply 幂等无操作')
+  if (ledger.schemaVersion === V7) {
+    console.log('── 无需迁移 ──\n' + counts(ledger) + '\n✅ 已是 v7，--apply 幂等无操作')
     return
   }
 

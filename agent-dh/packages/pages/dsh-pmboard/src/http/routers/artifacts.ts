@@ -20,6 +20,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { existsSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
+import { fmt } from '../../domain/text/fmt.js'
 import { dirname, resolve, sep } from 'node:path'
 import { normalizeArtifactPath, type ArtifactPathForm } from '../../domain/artifact/ArtifactPath.js'
 import type { RouterCtx } from './shared.js'
@@ -112,13 +113,13 @@ export function createArtifactsRouter(ctx: RouterCtx) {
         const content = await readFile(resolve(workspaceRoot(), v.normalized), 'utf8')
         return ok(res, { path: v.normalized, content })
       } catch {
-        return json(res, 404, { success: false, error: '文件不存在：' + raw, code: 'not_found' })
+        return json(res, 404, { success: false, error: fmt('文件不存在：{path}', { path: raw }), code: 'not_found' })
       }
     }
     const status = v.code === 'forbidden' ? 403 : 404
     return json(res, status, {
       success: false,
-      error: v.reason ?? '文件不可打开：' + raw,
+      error: v.reason ?? fmt('文件不可打开：{path}', { path: raw }),
       code: v.code ?? 'not_found',
     })
   }

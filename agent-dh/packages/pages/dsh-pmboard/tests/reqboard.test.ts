@@ -27,8 +27,8 @@ import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedge
 describe('Requirement state machine', () => {
   it('allows legal transitions', () => {
     expect(() => assertReqTransition('draft', 'brainstorming', 'human')).not.toThrow()
-    expect(() => assertReqTransition('brainstorming', 'planning', 'human')).not.toThrow()
-    expect(() => assertReqTransition('planning', 'decomposing', 'human')).not.toThrow()
+    expect(() => assertReqTransition('brainstorming', 'design', 'human')).not.toThrow()
+    expect(() => assertReqTransition('design', 'decomposing', 'human')).not.toThrow()
     expect(() => assertReqTransition('decomposing', 'implementing', 'human')).not.toThrow()
     expect(() => assertReqTransition('implementing', 'accepting', 'system')).not.toThrow()
     // REQ-9f4a44：验收通过 → 直接归档（done 节点已移除）
@@ -44,12 +44,12 @@ describe('Requirement state machine', () => {
 
   it('human gate：取消/归档/验收通过/需求文档确认/拆分清单确认为人工闸门，其余在途推进 agent 可做', () => {
     // 在途推进：agent 自己就能推（2026-09-11 裁定；2026-09-14 五门裁定部分回调——
-    // 需求文档确认 brainstorming>planning 与拆分清单确认 decomposing>implementing 入人工门）
+    // 需求文档确认 brainstorming>design 与拆分清单确认 decomposing>implementing 入人工门）
     expect(() => assertReqTransition('draft', 'brainstorming', 'agent')).not.toThrow()
-    expect(() => assertReqTransition('planning', 'decomposing', 'agent')).not.toThrow()
+    expect(() => assertReqTransition('design', 'decomposing', 'agent')).not.toThrow()
     expect(() => assertReqTransition('implementing', 'accepting', 'agent')).not.toThrow()
     // 五门裁定（2026-09-14）：两道在途硬门，agent 不可越过
-    throwsCode(() => assertReqTransition('brainstorming', 'planning', 'agent'), 'human_gate')
+    throwsCode(() => assertReqTransition('brainstorming', 'design', 'agent'), 'human_gate')
     throwsCode(() => assertReqTransition('decomposing', 'implementing', 'agent'), 'human_gate')
     // 验收通过是人工审核（用户裁定：验收 有人工审核）——agent 到不了 archived
     throwsCode(() => assertReqTransition('accepting', 'archived', 'agent'), 'human_gate')
@@ -62,7 +62,7 @@ describe('Requirement state machine', () => {
   it('system gate: 派生链放行、白名单外一律拒绝、人工闸门优先', () => {
     // 白名单：接手推进 + 任务驱动链（拆分/验收）；2026-09-14 五门裁定移除 decomposing>implementing
     expect(() => assertReqTransition('draft', 'brainstorming', 'system')).not.toThrow()
-    expect(() => assertReqTransition('planning', 'decomposing', 'system')).not.toThrow()
+    expect(() => assertReqTransition('design', 'decomposing', 'system')).not.toThrow()
     expect(() => assertReqTransition('implementing', 'accepting', 'system')).not.toThrow()
     // 五门裁定：拆分清单确认是人工闸门 → system 不可自动越过
     throwsCode(() => assertReqTransition('decomposing', 'implementing', 'system'), 'human_gate')

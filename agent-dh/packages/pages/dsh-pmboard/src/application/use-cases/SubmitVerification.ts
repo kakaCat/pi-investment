@@ -6,6 +6,7 @@
  * @module dsh-pmboard/application/use-cases/SubmitVerification
  */
 import type { UseCaseDeps } from '../ports.js'
+import { fmt } from '../../domain/text/fmt.js'
 import {
   normalizeText,
   type VerificationSheet,
@@ -14,6 +15,7 @@ import { buildSheet } from '../../domain/workflow/AcceptanceSheetSpec.js'
 import { docSyncSummary } from '../../domain/workflow/DocSyncSpec.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { applyTaskRollup } from '../internal/rollup.js'
+import { captureSnapshot } from '../internal/token-usage.js'
 import { registerArtifact } from '../internal/artifact-gates.js'
 import {
   collectOrphanTestFiles,
@@ -54,8 +56,7 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
       const missingPaths = citedPaths.filter(p => !docs.exists(p))
       if (missingPaths.length > 0) {
         reject(
-          'reqboard_verify_submit 未执行：evidence 引用的文件不存在（疑似编造）：'
-          + missingPaths.join('、') + '。请引用真实存在的产物/报告路径，或改用命令+输出摘要',
+          fmt('reqboard_verify_submit 未执行：evidence 引用的文件不存在（疑似编造）：{paths}。请引用真实存在的产物/报告路径，或改用命令+输出摘要', { paths: missingPaths.join('、') }),
           'REQBOARD_EVIDENCE_MISSING',
         )
       }
@@ -65,10 +66,10 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
       if (bound.length === 0) reject('reqboard_verify_submit 未执行：本窗口没有绑定中的需求', 'REQBOARD_NO_BOUND_REQ')
       const target = explicitId.length > 0 ? bound.find(r => r.id === explicitId) : bound[0]
       if (target === undefined) {
-        reject('reqboard_verify_submit 未执行：需求 ' + explicitId + ' 不是本窗口绑定的进行中需求', 'REQBOARD_NOT_BOUND_TO_WINDOW')
+        reject(fmt('reqboard_verify_submit 未执行：需求 {id} 不是本窗口绑定的进行中需求', { id: explicitId }), 'REQBOARD_NOT_BOUND_TO_WINDOW')
       }
       if (target.status !== 'implementing' && target.status !== 'accepting') {
-        reject('reqboard_verify_submit 未执行：需求处于 ' + target.status + '，只有执行/验收阶段的交付才能提交验收', 'REQBOARD_BAD_STATUS')
+        reject(fmt('reqboard_verify_submit 未执行：需求处于 {status}，只有执行/验收阶段的交付才能提交验收', { status: target.status }), 'REQBOARD_BAD_STATUS')
       }
 
       // ── 孤儿用例检测（REQ-d3e61a T-7 / FR-5）：设计文件点名了、但文件头未声明覆盖的测试文件 ──
@@ -98,8 +99,7 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
       }
       if (hardUnverifiable.length > 0) {
         reject(
-          'reqboard_verify_submit 未执行：以下验收项无法照着验——' + hardUnverifiable.join('；')
-          + '。可用 reqboard_task_move(task_id, acceptance=...) 修订（修订通道已就位）',
+          fmt('reqboard_verify_submit 未执行：以下验收项无法照着验——{items}。可用 reqboard_task_move(task_id, acceptance=...) 修订（修订通道已就位）', { items: hardUnverifiable.join('；') }),
           'REQBOARD_ACCEPTANCE_NOT_EXECUTABLE',
         )
       }
@@ -148,8 +148,10 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
         }
         req.comments.push({
           id: deps.ids.comment(),
-          body: '[验收] 提交验收材料（待人工审核）：' + summary
-            + '\n证据：\n' + evidence.map(e => '- ' + e).join('\n'),
+          body: fmt('[验收] 提交验收材料（待人工审核）：{summary}\n证据：\n{evidence}', {
+            summary,
+            evidence: evidence.map(e => '- ' + e).join('\n'),
+          }),
           createdAt: nowTs,
           createdBy: { kind: 'agent', sessionId: windowKey },
         })
@@ -157,7 +159,11 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
         req.updatedAt = nowTs
         req.updatedBy = { kind: 'agent', sessionId: windowKey }
         // 任务全完成时顺带推进到验收态（人来了就有东西可审）
-        const advanced = applyTaskRollup(ledger, { now: nowTs, commentId: () => deps.ids.comment() }, req.id)
+        const advanced = applyTaskRollup(
+          ledger,
+          { now: nowTs, commentId: () => deps.ids.comment(), snapshot: () => captureSnapshot(deps, windowKey) },
+          req.id,
+        )
         return { requirements: [req, ...advanced] }
       })
       const changed = (result.changed.requirements ?? [])[0]
@@ -166,7 +172,7 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
       const verPath = 'docs/requirements/' + target.id + '/verification.md'
       if (!docs.exists(verPath)) {
         const verContent = [
-          '# ' + target.id + ' 验收（verification）',
+          fmt('# {id} 验收（verification）', { id: target.id }),
           '',
           '> 自动生成于 reqboard_verify_submit',
           '',
@@ -193,6 +199,20 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
       const reqNow = ledgerNow.requirements.find(r => r.id === changed.id)
       // rollup 阻塞显式化（REQ-2e9473 t02）：有未完成任务时验收材料虽收，但需求进不了 accepting
       const blockers = reqNow === undefined ? undefined : rollupBlockersOf(ledgerNow, reqNow.id, reqNow.status)
+      // 说明文案与变量**在 return 之外**组装：输出契约门禁静态扫描 return 字面量的顶层键，
+      // 把 fmt 的变量表误读成响应字段（实测被误判为 n/list 两个未声明字段）。不改门禁，改写法。
+      const blockerBlock = blockers === undefined
+        ? {}
+        : {
+            blockers,
+            warning: fmt('⚠️ 需求未进验收（rollup 阻塞）：{n} 个任务未完成——{list}。若为重复拆分产生的幽灵任务，请人工取消后重新提交', {
+              n: blockers.length,
+              list: blockers.map(b => b.id + ' ' + b.title + '（' + b.status + '）').join('；'),
+            }),
+          }
+      const finishNote = blockers === undefined
+        ? '验收材料已提交。下一步：调 reqboard_ask_confirm（target=artifact, kind=verification）弹框请人逐项审核（看板「验收通过/退回」同样是有效通道）'
+        : fmt('验收材料已提交，但需求因 {n} 个未完成任务停在 implementing——见 warning/blockers', { n: blockers.length })
       return {
         success: true,
         requirement_id: changed.id,
@@ -205,16 +225,7 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
         ...(reqNow !== undefined && (reqNow.docSyncPending ?? []).length > 0
           ? { doc_sync_pending: reqNow.docSyncPending, doc_sync_warning: docSyncSummary(reqNow) }
           : {}),
-        ...(blockers !== undefined
-          ? {
-              blockers,
-              warning: '⚠️ 需求未进验收（rollup 阻塞）：' + blockers.length + ' 个任务未完成——'
-                + blockers.map(b => b.id + ' ' + b.title + '（' + b.status + '）').join('；')
-                + '。若为重复拆分产生的幽灵任务，请人工取消后重新提交',
-            }
-          : {}),
-        note: blockers !== undefined
-          ? '验收材料已提交，但需求因 ' + blockers.length + ' 个未完成任务停在 implementing——见 warning/blockers'
-          : '验收材料已提交。下一步：调 reqboard_ask_confirm（target=artifact, kind=verification）弹框请人逐项审核（看板「验收通过/退回」同样是有效通道）',
+        ...blockerBlock,
+        note: finishNote,
       }
     }

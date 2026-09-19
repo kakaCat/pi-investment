@@ -28,7 +28,7 @@ import {
   type DoneStageBody,
   type DraftStageBody,
   type ImplementStageBody,
-  type PlanningStageBody,
+  type DesignStageBody,
   type PlanTask,
   type RequirementRecord,
   type StageArtifact,
@@ -40,6 +40,7 @@ import {
   type StatusEvent,
   type TaskRecord,
 } from '../../shared/protocol.js'
+import { designDocStatus } from '../internal/design-docs.js'
 import type { LedgerView, UseCaseDeps } from '../ports.js'
 
 /** 装配器上下文：需求 + 台账（取任务/时间线切片用）。 */
@@ -94,7 +95,7 @@ function artifactsForStage(req: RequirementRecord, stage: StageKey): StageArtifa
  * pendingConfirmation：该 stage 是某道 ARTIFACT_CONFIRM_GATES 的源头（from 端）且
  * 对应 kind 的产物存在但未 confirmedAt。
  *
- * 例：stage='brainstorming'，门 'brainstorming>planning' 要求 kind='requirement'——
+ * 例：stage='brainstorming'，门 'brainstorming>design' 要求 kind='requirement'——
  * 若 req.artifacts 里有 {stage:'brainstorming', kind:'requirement'} 且未确认 → true。
  */
 function pendingConfirmationFor(req: RequirementRecord, stage: StageKey): boolean {
@@ -159,12 +160,15 @@ class BrainstormStageAssembler extends StageDetailAssembler {
   }
 }
 
-/** 技术设计：计划文档（路径）+ 完整 PlanRecord（含任务表与批准/退回留痕）。 */
-class PlanningStageAssembler extends StageDetailAssembler {
-  readonly stage = 'planning' as const
-  protected buildBody(req: RequirementRecord): PlanningStageBody {
+/** 设计：计划文档（路径）+ 完整 PlanRecord（含任务表与批准/退回留痕）+ 分类（文档集要求）
+ *  + 设计文档逐份交付状态（REQ-81aabd FR-2：已交/未交，纯展示，不影响推进条件）。 */
+class DesignStageAssembler extends StageDetailAssembler {
+  readonly stage = 'design' as const
+  protected buildBody(req: RequirementRecord): DesignStageBody {
     return {
       ...(req.plan !== undefined ? { plan: req.plan } : {}),
+      ...(req.category !== undefined ? { category: req.category } : {}),
+      ...(req.category !== undefined ? { designDocs: designDocStatus(req, req.category) } : {}),
     }
   }
 }
@@ -284,7 +288,7 @@ function toStageTaskExecution(t: TaskRecord): StageTaskExecution {
 const ASSEMBLERS: Readonly<Record<StageKey, StageDetailAssembler>> = {
   draft: new DraftStageAssembler(),
   brainstorming: new BrainstormStageAssembler(),
-  planning: new PlanningStageAssembler(),
+  design: new DesignStageAssembler(),
   decomposing: new DecomposeStageAssembler(),
   implementing: new ImplementStageAssembler(),
   accepting: new AcceptStageAssembler(),

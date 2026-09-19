@@ -63,7 +63,7 @@ export function updateReq(input: { id: string; title?: string; description?: str
   return post(BASE + '/req/update', input)
 }
 
-// -- 实施计划（plan mode，仅人可裁决）--------------------------------------
+// -- 拆分计划（plan mode，仅人可裁决）--------------------------------------
 
 export function approvePlan(input: { id: string }): Promise<unknown> {
   return post(BASE + '/req/plan/approve', input)

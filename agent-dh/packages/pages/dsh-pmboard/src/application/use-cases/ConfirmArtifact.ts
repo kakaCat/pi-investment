@@ -98,7 +98,7 @@ export async function confirmArtifact(deps: UseCaseDeps, args: unknown, exec: an
           })
         } else {
           if (req.plan === undefined) {
-            reject('reqboard_confirm_artifact 未执行：需求 ' + req.id + ' 还没有实施计划', 'REQBOARD_MISSING_PLAN')
+            reject('reqboard_confirm_artifact 未执行：需求 ' + req.id + ' 还没有拆分计划', 'REQBOARD_MISSING_PLAN')
           }
           req.plan.approvedAt = nowTs
           req.plan.approvedBy = { kind: 'human', sessionId: windowKey }

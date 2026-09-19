@@ -16,6 +16,7 @@ import {
   type NumberedItem,
   type ParsedDoc,
 } from './content-gates.js'
+import { fmt } from '../../domain/text/fmt.js'
 
 export const ROOT_PREFIXES_LIKE = ['FR', 'BUG', 'RF', 'SP', 'DOC', 'CH'] as const
 
@@ -60,6 +61,12 @@ export interface ConsistencyTaskLike {
   id: string
   requirement_refs?: readonly string[]
   requirementRefs?: readonly string[]
+  /**
+   * 文档里这一行的任务标题。存在的理由：RTM 表的「任务编号」列在实际需求里可能是**计划键**
+   * （如 T-5）而不是台账 id（如 t-8e3513）——那是人写拆分计划时的编号法。没有它，取消的卡会被
+   * 当成"认不出的外部 id"继续算作已接收，红永远红不出来。
+   */
+  title?: string
 }
 
 /** 一行三方对照。 */
@@ -110,11 +117,11 @@ export function consistencyGaps(rows: readonly ConsistencyRow[]): string[] {
   const out: string[] = []
   for (const r of rows) {
     if (r.verdict === 'consistent') continue
-    if (r.verdict === 'out_of_scope') { out.push(r.taskIds[0] + ' 超范围：没有任何需求编号承接它（做了没说要做的）'); continue }
-    if (r.verdict === 'mismatch') { out.push(r.designIds[0] + ' 悬空引用：它声称服务的编号 ' + r.requirementId + ' 不存在'); continue }
+    if (r.verdict === 'out_of_scope') { out.push(fmt('{task} 超范围：没有任何需求编号承接它（做了没说要做的）', { task: r.taskIds[0] })); continue }
+    if (r.verdict === 'mismatch') { out.push(fmt('{design} 悬空引用：它声称服务的编号 {req} 不存在', { design: r.designIds[0], req: r.requirementId })); continue }
     // 两类缺失分别判定并**各报一条**：R9 的形态正是"既无设计、也无实施"，只报一条会漏掉一半信息
-    if (r.designIds.length === 0) out.push(r.requirementId + ' 设计缺失：没有任何设计章节服务它（知道要做什么，不知道怎么做的）')
-    if (r.taskIds.length === 0) out.push(r.requirementId + ' 实施缺失：没有任何任务卡接收它（设计好了没做）')
+    if (r.designIds.length === 0) out.push(fmt('{req} 设计缺失：没有任何设计章节服务它（知道要做什么，不知道怎么做的）', { req: r.requirementId }))
+    if (r.taskIds.length === 0) out.push(fmt('{req} 实施缺失：没有任何任务卡接收它（设计好了没做）', { req: r.requirementId }))
   }
   return out
 }
@@ -124,23 +131,31 @@ export function consistencyGaps(rows: readonly ConsistencyRow[]): string[] {
  * 为什么从这里读：TaskRecord 不存该绑定，而 RTM 表本就是这个绑定的规范载体（标准 §三）。
  */
 export function taskRefsFromDecomposition(doc: ParsedDoc): ConsistencyTaskLike[] {
-  const byId = new Map<string, Set<string>>()
+  const byId = new Map<string, { roots: Set<string>; title: string }>()
   for (const t of doc.tables) {
     const iRoot = t.header.findIndex(h => h.includes('根编号') || h.includes('需求条款') || h.includes('需求编号'))
     const iTask = t.header.findIndex(h => h.includes('任务') && (h.includes('编号') || h.includes('id') || h.includes('ID')))
     if (iRoot < 0 || iTask < 0) continue
+    // 标题列可有可无：机器生成的 RTM 用「任务 id」，人手写的计划表用「任务编号 + 任务标题」
+    const iTitle = t.header.findIndex(h => h.includes('标题'))
     for (const row of t.rows) {
       const rootCell = (row[iRoot] ?? '').trim()
       if (rootCell.length === 0 || rootCell.startsWith('—')) continue
       const root = collectIds(rootCell).find(isRootKind)
       const taskId = collectIds(row[iTask] ?? '')[0]
       if (root === undefined || taskId === undefined) continue
-      const set = byId.get(taskId) ?? new Set<string>()
-      set.add(root)
-      byId.set(taskId, set)
+      const title = iTitle >= 0 ? (row[iTitle] ?? '').trim().replace(/\*\*/g, '') : ''
+      const cur = byId.get(taskId) ?? { roots: new Set<string>(), title }
+      cur.roots.add(root)
+      if (cur.title.length === 0) cur.title = title
+      byId.set(taskId, cur)
     }
   }
-  return [...byId.entries()].map(([id, roots]) => ({ id, requirement_refs: [...roots].sort() }))
+  return [...byId.entries()].map(([id, v]) => ({
+    id,
+    requirement_refs: [...v.roots].sort(),
+    ...(v.title.length > 0 ? { title: v.title } : {}),
+  }))
 }
 
 /** 读该需求的 RTM 绑定（decomposition.md 缺失 → 空数组，调用方据此判"无法比对"）。 */
@@ -167,6 +182,8 @@ export interface ClauseReceiveStatus {
 export interface ReceiveTaskLike {
   id: string
   status: string
+  /** 台账任务的标题（把文档里的计划键解析回任务 id 用） */
+  title?: string
   lastReport?: { completed?: readonly string[]; filesChanged?: readonly string[] } | undefined
 }
 
@@ -185,14 +202,31 @@ export function clauseReceiveStatus(
 ): ClauseReceiveStatus[] {
   const byId = new Map(tasks.map(t => [t.id, t]))
   const refsOf = (t: ConsistencyTaskLike): string[] => [...(t.requirement_refs ?? []), ...(t.requirementRefs ?? [])]
+  // 文档里的任务标识可能是**计划键**（如 T-5）而不是台账 id（如 t-8e3513）：先按 id 认，认不出再
+  // 用标题做**唯一**匹配解析回台账。两者都认不出时保留原文——宁可不标红，也不要把外来的
+  // 编号误判成"无人接收"（那会把红变成噪声，最后人人无视红）。
+  const titleIndex = new Map<string, string[]>()
+  for (const t of tasks) {
+    const k = t.title
+    if (k === undefined || k.length === 0) continue
+    titleIndex.set(k, [...(titleIndex.get(k) ?? []), t.id])
+  }
+  const resolve = (ref: ConsistencyTaskLike): string => {
+    if (byId.has(ref.id)) return ref.id
+    const k = ref.title
+    if (k !== undefined && k.length > 0) {
+      const ids = titleIndex.get(k)
+      if (ids !== undefined && ids.length === 1) return ids[0]
+    }
+    return ref.id
+  }
   // 已取消的卡**不再算"交付了这条"**（T-5 验收场景原话：取消某张卡对某条的交付 → 该条回落为
   // 未被接收）。只在"台账里确实存在且已取消"时剔除：台账未覆盖该 id 时维持原判定，
   // 否则只传相关卡的调用方会被误判成"无人接收"。
   return roots.map(clause => {
-    const receivers = taskRefs
-      .filter(t => refsOf(t).includes(clause))
-      .map(t => t.id)
-      .filter(id => byId.get(id)?.status !== 'canceled')
+    const receivers = [...new Set(
+      taskRefs.filter(t => refsOf(t).includes(clause)).map(resolve),
+    )].filter(id => byId.get(id)?.status !== 'canceled')
     if (receivers.length === 0) {
       return skipped.includes(clause)
         ? { clause, state: 'skipped' as const, by: [] }

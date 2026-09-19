@@ -37,9 +37,9 @@ const planTask = (key: string, title: string) => ({
 
 const seededReq = (over: Record<string, unknown> = {}, keys: [string, string][] = [['T-1', '覆盖门禁'], ['T-2', '三段可追溯']]) => req({
   status: 'decomposing',
-  artifacts: [{ stage: 'planning', kind: 'plan', path: 'docs/requirements/REQ-000001/plan.md' }],
+  artifacts: [{ stage: 'design', kind: 'plan', path: 'docs/requirements/REQ-000001/plan.md' }],
   plan: {
-    path: 'docs/requirements/REQ-000001/plan.md', summary: '技术设计', submittedAt: 1,
+    path: 'docs/requirements/REQ-000001/plan.md', summary: '设计', submittedAt: 1,
     submittedBy: { kind: 'agent', sessionId: 'session-w-001' },
     tasks: keys.map(([k, title]) => planTask(k, title)),
     approvedAt: 2, approvedBy: { kind: 'human' },
@@ -105,7 +105,7 @@ describe('E2E② 交付 → 三方一致性验收单', () => {
   const verifyingReq = () => seededReq({
     status: 'implementing',
     artifacts: [
-      { stage: 'planning', kind: 'plan', path: 'docs/requirements/REQ-000001/plan.md' },
+      { stage: 'design', kind: 'plan', path: 'docs/requirements/REQ-000001/plan.md' },
       { stage: 'decomposing', kind: 'decomposition', path: 'docs/requirements/REQ-000001/decomposition.md' },
     ],
   })

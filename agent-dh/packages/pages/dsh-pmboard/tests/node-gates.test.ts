@@ -50,7 +50,7 @@ interface Station {
   legacy?: () => Promise<unknown>
 }
 
-const liveReq = { id: 'REQ-t', category: 'feature', artifacts: [{ stage: 'planning', kind: 'plan', path: 'p' }] } as any
+const liveReq = { id: 'REQ-t', category: 'feature', artifacts: [{ stage: 'design', kind: 'plan', path: 'p' }] } as any
 const legacyReq = { id: 'REQ-t', category: 'feature', artifacts: undefined } as any
 
 const BASE_DOCS = {

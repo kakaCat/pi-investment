@@ -13,10 +13,13 @@ import type { UseCaseDeps } from '../ports.js'
 import {
   addBuckets,
   emptyBuckets,
+  recordStatus,
   subBuckets,
+  type ActorRef,
   type ExecutionRecord,
   type ExecutionTokenUsage,
   type RequirementRecord,
+  type RequirementStatus,
   type StageKey,
   type TokenBuckets,
   type TokenSnapshot,
@@ -99,4 +102,46 @@ export function endExecutionToken(execution: ExecutionRecord, snap: TokenSnapsho
   } else {
     delete usage.delta
   }
+}
+
+/**
+ * 需求状态迁移选项（REQ-b545fe t1）。
+ */
+export interface TransitionOpts {
+  /** 迁移时刻 */
+  at: number
+  /** 操作者（agent/human/system + 可选 sessionId） */
+  actor: ActorRef
+  /** 迁移理由（可选） */
+  reason?: string
+  /** 快照（可选；不传 = 调用方无会话上下文 → 不结算不带快照） */
+  snap?: TokenSnapshot
+}
+
+/**
+ * 唯一的需求状态迁移助手（REQ-b545fe t1）：结算离开节点 + 迁移状态 + 记录事件带快照。
+ * 
+ * 全部 5 条状态迁移路径（MoveRequirement/AskConfirm/rollup/AcceptSheet/verdicts）
+ * 必须且只能通过此函数迁移需求状态，消除"改了状态但没结算快照"这一类 bug 的结构性根源。
+ * 
+ * @param req 需求记录（就地修改）
+ * @param to 目标状态
+ * @param opts 迁移选项（时刻/操作者/理由/快照）
+ */
+export function transitionRequirement(
+  req: RequirementRecord,
+  to: RequirementStatus,
+  opts: TransitionOpts,
+): void {
+  // 1. 结算离开节点：快照可得 + entrySnapshotFor 成功 → 累加到 byStage + 更新 totals
+  if (opts.snap !== undefined) {
+    accumulateStageDelta(req, req.status as StageKey, opts.snap)
+  }
+  // 2. 迁移状态
+  req.status = to
+  req.version += 1
+  req.updatedAt = opts.at
+  req.updatedBy = opts.actor
+  // 3. 记录状态事件（带快照 or undefined）
+  recordStatus(req, to, opts.at, opts.actor, opts.reason, opts.snap)
 }

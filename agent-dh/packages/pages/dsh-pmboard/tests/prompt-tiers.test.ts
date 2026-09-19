@@ -31,7 +31,7 @@ const FRAGMENTS_DIR = join(SRC, 'domain/prompt/fragments')
 /** heavy 主 skill 的唯一映射（与 scripts/inline-prompt-fragments.mjs 的 VENDOR_MAIN_SKILLS 同源）。 */
 const VENDOR_MAIN_SKILLS: Readonly<Record<string, string>> = {
   brainstorming: 'brainstorming',
-  planning: 'writing-plans',
+  design: 'writing-plans',
   implementing: 'executing-plans',
   accepting: 'verification-before-completion',
   archived: 'finishing-a-development-branch',
@@ -40,7 +40,7 @@ const VENDOR_MAIN_SKILLS: Readonly<Record<string, string>> = {
 /** 每节点 heavy 独有要素关键词（逐字来自 vendor 原文 / 自写完整档）。 */
 const HEAVY_ONLY: Readonly<Record<PromptStage, readonly string[]>> = {
   brainstorming: ['Three Paths', 'YAGNI', 'Red Flags', 'Spike', 'Bounded', 'Architectural'],
-  planning: ['Bite-Sized Task Granularity', 'No Placeholders', 'Self-Review'],
+  design: ['Bite-Sized Task Granularity', 'No Placeholders', 'Self-Review'],
   decomposing: ['变更盘点', '批次与依赖', '边界校验'],
   implementing: ['Load plan, review critically', 'When to Stop and Ask for Help'],
   accepting: ['The Iron Law', 'Rationalization Prevention'],

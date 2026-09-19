@@ -14,7 +14,7 @@ import {
 import { applyDocSync, clearDocSync, docSyncDownstream } from '../../domain/workflow/DocSyncSpec.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { registerArtifact } from '../internal/artifact-gates.js'
-import { checkNumberChainGate, checkDesignServesGate } from '../internal/content-gate-wiring.js'
+import { checkNumberChainGate, checkDesignServesGate, checkRequirementDocFormatGate } from '../internal/content-gate-wiring.js'
 import { missingCategoryDocs } from '../internal/category-doc-sets.js'
 import {
   reject,
@@ -57,6 +57,13 @@ export async function submitRequirementArtifact(deps: UseCaseDeps, args: unknown
           'reqboard_requirement_submit 未执行：文档不存在 ' + path + '（请先写出需求文档再提交）',
           'REQBOARD_FILE_MISSING',
         )
+      }
+
+      // ── 需求文档格式校验（编号规范强制）────────────────────────────────
+      // 在 mutate 之前校验：系统负责格式，人负责内容。避免让用户确认不合格的文档。
+      const formatFailure = await checkRequirementDocFormatGate(deps.docs, target)
+      if (formatFailure !== undefined) {
+        reject(formatFailure.message, formatFailure.code)
       }
 
       const nowTs = deps.clock.now()
@@ -135,7 +142,7 @@ export async function submitRequirementArtifact(deps: UseCaseDeps, args: unknown
         artifact: { stage: artifact.stage, kind: artifact.kind, path: artifact.path },
         registered,
         note: registered
-          ? '需求文档产物已登记。下一步：调 reqboard_ask_confirm（target=artifact, kind=requirement）弹框请人确认——肯定答复自动落章并推进到 planning（看板一键确认同样是有效通道）'
+          ? '需求文档产物已登记。下一步：调 reqboard_ask_confirm（target=artifact, kind=requirement）弹框请人确认——肯定答复自动落章并推进到 design（看板一键确认同样是有效通道）'
           : '该需求文档此前已登记（幂等命中，未重复登记）',
       }
     }
@@ -150,7 +157,7 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
       const changeNote = normalizeText(a.change_note, 'change_note', 1000)
       if (path.length === 0) reject('reqboard_plan_submit 未执行：path 不能为空', 'REQBOARD_INVALID_INPUT')
       if (summary.length === 0) reject('reqboard_plan_submit 未执行：summary 不能为空（人要读它来决定批不批）', 'REQBOARD_INVALID_INPUT')
-      // REQ-2e9473 t17/W7：任务表改可选——技术设计阶段只交一套设计文档（架构/四视角/风险/
+      // REQ-2e9473 t17/W7：任务表改可选——设计阶段只交一套设计文档（架构/四视角/风险/
       // 工作流划分），最终任务 DAG 由 decomposing 阶段创作。传了 tasks（旧习惯/预估划分）
       // 则仍走严格校验；不传则合法（tasks=[]）。
       const tasks = a.tasks === undefined ? [] : normalizePlanTasks(a.tasks)
@@ -165,12 +172,12 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
           'REQBOARD_NOT_BOUND_TO_WINDOW',
         )
       }
-      // 流程纪律：计划属于「写计划」（planning）阶段。方案还没谈定就跳去写计划，正是流程要挡的越级。
-      if (target.status !== 'planning') {
+      // 流程纪律：拆分计划属于「设计」（design）阶段。方案还没谈定就跳去写设计，正是流程要挡的越级。
+      if (target.status !== 'design') {
         reject(
-          'reqboard_plan_submit 未执行：需求当前处于 ' + target.status + '，计划只能在 planning（写计划）阶段提交。'
-          + '先把方案谈定 → reqboard_move 到 planning → 再提交计划；'
-          + '已有计划要改，也先回到 planning 重新提交（旧批准自动作废）',
+          'reqboard_plan_submit 未执行：需求当前处于 ' + target.status + '，拆分计划只能在 design（设计）阶段提交。'
+          + '先把方案谈定 → reqboard_move 到 design → 再提交计划；'
+          + '已有计划要改，也先回到 design 重新提交（旧批准自动作废）',
           'REQBOARD_BAD_STATUS',
         )
       }
@@ -227,7 +234,7 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
           const downstream = docSyncDownstream('plan', req.artifacts)
           req.comments.push({
             id: deps.ids.comment(),
-            body: '[文档变更] 技术设计（计划）变更：' + changeNote
+            body: '[文档变更] 设计（拆分计划）变更：' + changeNote
               + '\n旧批准已作废（需重新批准）；下游待同步：' + (downstream.join('、') || '（暂无）'),
             createdAt: nowTs,
             createdBy: { kind: 'agent', sessionId: windowKey },
@@ -245,7 +252,7 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
         req.comments.push({
           id: deps.ids.comment(),
           body:
-            '[计划] 提交实施计划（' + tasks.length + ' 个任务，待人工批准）：' + path
+            '[计划] 提交拆分计划（' + tasks.length + ' 个任务，待人工批准）：' + path
             + '\n摘要：' + summary
             + '\n' + tasks.map(t => '- ' + t.key + ' ' + t.title + ((t.dependsOn ?? []).length > 0 ? '（依赖 ' + (t.dependsOn ?? []).join(', ') + '）' : '')).join('\n'),
           createdAt: nowTs,
@@ -260,7 +267,7 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
       if (changed === undefined) reject('reqboard_plan_submit 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
       // ── 产物登记（REQ-31e11f t4）：plan 产物 = 计划文档 ──────────────────
       const planArtifact: StageArtifact = {
-        stage: 'planning',
+        stage: 'design',
         kind: 'plan',
         path,
         registeredAt: nowTs,
@@ -280,7 +287,7 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
         orphan_clauses: chain.orphans,
         task_count: tasks.length,
         tasks: tasks.map(t => ({ key: t.key, title: t.title, depends_on: [...(t.dependsOn ?? [])] })),
-        note: '计划已提交' + (tasks.length === 0 ? '（技术设计，未含任务表——任务卡在拆分阶段创作）' : '（含 ' + tasks.length + ' 张预估任务卡）')
+        note: '计划已提交' + (tasks.length === 0 ? '（设计阶段，未含任务表——任务卡在拆分阶段创作）' : '（含 ' + tasks.length + ' 张预估任务卡）')
           + '。下一步：调 reqboard_ask_confirm（target=plan）弹框请人批准——批准后进拆分，用 reqboard_decompose 创作并落库任务卡（看板「批准计划」同样是有效通道）',
       }
     }

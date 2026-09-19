@@ -20,6 +20,24 @@ import type { MainStageKey, RequirementStatus, StageKey } from '../domain/requir
 import type { TaskStatus } from '../domain/task/TaskStatus.js'
 import type { RequirementCategory } from '../domain/requirement/Requirement.js'
 import type { ArtifactKind, ArchiveDoc, ArchiveDocRule } from '../domain/artifact/ArtifactSpec.js'
+
+// ---------------------------------------------------------------------------
+// 提示词难度级别（用于注入不同复杂度的提示词）
+// ---------------------------------------------------------------------------
+
+/** 提示词难度级别：控制注入到系统提示词中的指导复杂度 */
+export type PromptDifficulty = 'simple' | 'standard' | 'advanced' | 'expert'
+
+/** 所有提示词难度级别 */
+export const ALL_PROMPT_DIFFICULTIES: readonly PromptDifficulty[] = ['simple', 'standard', 'advanced', 'expert']
+
+/** 难度级别说明 */
+export const PROMPT_DIFFICULTY_DESCRIPTIONS: Readonly<Record<PromptDifficulty, string>> = {
+  simple: '简单 - 基础提示，适合快速任务',
+  standard: '标准 - 平衡的提示，适合大多数场景（推荐）',
+  advanced: '进阶 - 详细提示，适合复杂需求',
+  expert: '专家 - 完整提示，包含所有细节和最佳实践'
+}
 import {
   REQ_TRANSITIONS,
   HUMAN_ONLY_REQ_TRANSITIONS,
@@ -152,7 +170,7 @@ export function milestoneAt(record: { statusHistory?: StatusEvent[] }, status: s
  * 但不在 MAIN 里，因此不参与流程图节点、分类档案与阶段提示词键。
  */
 export const MAIN_REQ_STATUSES: readonly MainStageKey[] = [
-  'draft', 'brainstorming', 'planning', 'decomposing', 'implementing', 'accepting', 'archived',
+  'draft', 'brainstorming', 'design', 'decomposing', 'implementing', 'accepting', 'archived',
 ]
 
 // LEGACY_REQ_STATUS_ALIASES 已随迁移收口移出运行时契约（REQ-47939a t10）：
@@ -287,14 +305,14 @@ export interface CategoryFlowProfile {
 export const CATEGORY_FLOW_PROFILES: Readonly<Record<RequirementCategory, CategoryFlowProfile>> = {
   feature: { stages: ALL_STAGE_KEYS, confirmGates: Object.keys(ARTIFACT_CONFIRM_GATES), note: '全流水线，五门全开' },
   bug: {
-    stages: ['draft', 'planning', 'decomposing', 'implementing', 'accepting', 'archived'],
-    confirmGates: ['planning>decomposing', 'decomposing>implementing', 'accepting>archived'],
+    stages: ['draft', 'design', 'decomposing', 'implementing', 'accepting', 'archived'],
+    confirmGates: ['design>decomposing', 'decomposing>implementing', 'accepting>archived'],
     note: '免需求分析门：业务文档+复现定位即上下文，并入修复方案产物',
   },
   refactor: {
-    stages: ['draft', 'planning', 'decomposing', 'implementing', 'accepting', 'archived'],
-    confirmGates: ['planning>decomposing', 'decomposing>implementing', 'accepting>archived'],
-    note: '免需求分析：现状+目标态并入技术设计',
+    stages: ['draft', 'design', 'decomposing', 'implementing', 'accepting', 'archived'],
+    confirmGates: ['design>decomposing', 'decomposing>implementing', 'accepting>archived'],
+    note: '免需求分析：现状+目标态并入设计',
   },
   spike: {
     stages: ['draft', 'implementing', 'accepting', 'archived'],
@@ -378,7 +396,17 @@ export interface StageTaskExecution extends StageTaskRef {
 
 export interface DraftStageBody { title: string; category?: RequirementCategory; description: string; sourceWindow?: string; createdAt?: number }
 export interface BrainstormStageBody { requirementDoc?: string; reviewSessionId?: string; comments: CommentRecord[] }
-export interface PlanningStageBody { plan?: PlanRecord }
+/** 设计文档交付状态（REQ-81aabd FR-2）：设计节点逐份显示已交/未交，不参与闸门。 */
+export interface DesignDocStatus {
+  /** 文件名（如 architecture.md） */
+  name: string
+  /** 工作区相对路径（如 docs/requirements/REQ-x/design/architecture.md） */
+  path: string
+  /** 需求目录里是否已登记该文件（已交） */
+  submitted: boolean
+}
+
+export interface DesignStageBody { plan?: PlanRecord; category?: RequirementCategory; designDocs?: DesignDocStatus[] }
 export interface DecomposeStageBody { decompositionDoc?: string; tasks: StageTaskRef[]; planTasks: PlanTask[] }
 export interface ImplementStageBody {
   tasks: StageTaskExecution[]
@@ -392,7 +420,7 @@ export interface ArchiveStageBody { archive?: ArchiveRecord }
 export type StageDetail =
   | (StageDetailBase & { stage: 'draft'; body: DraftStageBody })
   | (StageDetailBase & { stage: 'brainstorming'; body: BrainstormStageBody })
-  | (StageDetailBase & { stage: 'planning'; body: PlanningStageBody })
+  | (StageDetailBase & { stage: 'design'; body: DesignStageBody })
   | (StageDetailBase & { stage: 'decomposing'; body: DecomposeStageBody })
   | (StageDetailBase & { stage: 'implementing'; body: ImplementStageBody })
   | (StageDetailBase & { stage: 'accepting'; body: AcceptStageBody })
@@ -429,7 +457,7 @@ export function asExecutorHint(raw: unknown): ExecutorHint | undefined {
 }
 
 // ---------------------------------------------------------------------------
-// 实施计划（plan mode —— 拆分前必须先有计划，计划由人批准）
+// 拆分计划（plan mode —— 拆分前必须先有计划，计划由人批准）
 // ---------------------------------------------------------------------------
 
 /**
@@ -453,7 +481,7 @@ export interface PlanTask {
   /**
    * 实施方案（REQ-2e9473 W5）：拆分卡 ≠ 实施卡——本字段回答"怎么做"：
    * 改哪些文件、步骤、验证方式。REQ-6f39b5 事故 F 的教训：薄卡（只有 title+acceptance）
-   * 让 agent 凭印象自由发挥，8 处偏离技术设计。批准计划 = 同时批准做什么与怎么做。
+   * 让 agent 凭印象自由发挥，8 处偏离设计。批准计划 = 同时批准做什么与怎么做。
    */
   implementation?: string
   /** 执行方式提示：该任务该换上下文执行（fresh-window/subagent/current） */
@@ -461,7 +489,7 @@ export interface PlanTask {
 }
 
 /**
- * 需求上的实施计划（plan mode 的载体）。生命周期：
+ * 需求上的拆分计划（plan mode 的载体）。生命周期：
  *   agent 提交（submittedAt）→ 人批准（approvedAt）或退回（rejectedAt + reason）
  * 未批准的计划不构成拆分的许可——分解工具会代码级拒绝（HARD GATE）。
  */
@@ -697,6 +725,8 @@ export interface RequirementRecord {
   description: string
   /** 需求分类（LLM 在新建时自动标注） */
   category?: RequirementCategory
+  /** 提示词难度级别：控制注入到系统提示词中的指导复杂度 */
+  promptDifficulty?: PromptDifficulty
   /** 文档链接（需求文档/UI/方案），相对工作区路径或 URL */
   docLinks?: { requirement?: string; ui?: string; proposal?: string; extras?: Array<{ label: string; path: string }> }
   status: RequirementStatus
@@ -727,7 +757,7 @@ export interface RequirementRecord {
    * 缺省=v5 及更早台账（读路径必须可选解析，缺失 ≠ 0）。
    */
   tokenUsage?: RequirementTokenUsage
-  /** 实施计划（plan mode）：拆分前提交、由人批准；未批准不允许拆分 */
+  /** 拆分计划（plan mode）：拆分前提交、由人批准；未批准不允许拆分 */
   plan?: PlanRecord
   /**
    * 文档演进留痕（REQ-2e9473 t19/W8）：上游文档变更 → 下游文档"待同步"标记。
@@ -816,7 +846,7 @@ export interface TaskRecord {
 // 迁移后文件里写的就是 5，常量必须与之一致，否则 load 会把 5 报告成 4、并在下一次写盘时把
 // 版本回退（迁移成果被静默抹掉）。⚠️ 运行时**不自动迁移**（见 design/migration.md §5）：
 // v4 台账仍可载入（字段缺失处按可选处理），迁移由人工跑 scripts/migrate-ledger.ts 完成。
-export const REQBOARD_SCHEMA_VERSION = 6
+export const REQBOARD_SCHEMA_VERSION = 7
 
 export interface ReqboardLedger {
   schemaVersion: number

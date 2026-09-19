@@ -44,7 +44,7 @@ interface SummaryItem {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  draft: '立项', brainstorming: '需求分析', planning: '技术设计', decomposing: '拆分',
+  draft: '立项', brainstorming: '需求分析', design: '设计', decomposing: '拆分',
   implementing: '实施中', accepting: '待验收', done: '完成',
 }
 
@@ -113,7 +113,7 @@ const STYLES = `
   background: rgba(128,128,128,.16); color: var(--dsw-text-primary, #444); font-weight: 600;
 }
 .dsh-reqboard-badge[data-status="implementing"] { background: rgba(74,125,255,.18); color: #2f5fd0; }
-.dsh-reqboard-badge[data-status="planning"] { background: rgba(240,160,32,.20); color: #a86a00; }
+.dsh-reqboard-badge[data-status="design"] { background: rgba(240,160,32,.20); color: #a86a00; }
 .dsh-reqboard-badge[data-status="brainstorming"] { background: rgba(142,68,173,.18); color: #6f2f8c; }
 .dsh-reqboard-badge[data-status="accepting"] { background: rgba(23,162,184,.18); color: #0e7c8f; }
 .dsh-reqboard-badge[data-status="done"] { background: rgba(40,167,69,.18); color: #1e7e34; }

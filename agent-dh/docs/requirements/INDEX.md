@@ -3,7 +3,7 @@ id: requirements-index
 title: 需求档案索引（L3 证据档案）
 type: index
 status: living
-updated: 2026-09-15
+updated: 2026-09-19
 owners: [agent-dh]
 tags: [reqboard, archive, index, l3]
 ---
@@ -19,6 +19,8 @@ tags: [reqboard, archive, index, l3]
 | REQ-6f39b5 | 项目看板三视图重构：详情页 4Tab+8态进度点、泳道 6 列、列表表格化；流程节点唯一事实源 workflow-stages.md | refactor | 2026-09-17 | [REQ-6f39b5](REQ-6f39b5/) | [architecture/workflow-stages.md](../architecture/workflow-stages.md) |
 | REQ-283168 | 看板双视图+会话进度条因 stash 未 pop 被覆盖丢失，已从 stash 恢复入库；防回归进排查手册§E | bug | 2026-09-15 | [REQ-283168](REQ-283168/) | [guides/troubleshooting.md](../guides/troubleshooting.md) |
 | REQ-31e11f | 会话框流程条 8 节点可点开看工作记录：StageDetail 契约+模板模式双端+产物闸门+追溯链+接力任务卡+markdown 弹窗；与看板同源同渲染器 | feature | 2026-09-17 | [REQ-31e11f](REQ-31e11f/) | [architecture/reqboard-stage-detail.md](../architecture/reqboard-stage-detail.md)、[README 卷 7](../README.md) |
+| REQ-d3e61a | 需求→任务卡「不丢字/看得懂/验得了」：拆分覆盖门禁+统一编号串联+需求侧接收标记（文档面与看板面双红）+验收三方一致性；文档标准从纸面规范落成插件门禁（六类文档+分类文档集+RTM） | feature | 2026-09-18 | [REQ-d3e61a](REQ-d3e61a/) | [architecture/documentation-standard.md](../architecture/documentation-standard.md)、[标准化接入指引](../architecture/documentation-standard-integration-guide.md)、[README 卷 8](../README.md) |
+| REQ-81aabd | 需求流水线阶段键 `planning` 全仓改名 `design`（中文「设计」），设计阶段新增四份设计文档「已交/未交」建模（只展示、不改任何闸门）；台账 schemaVersion 6→7 停机迁移 | feature | 2026-09-19 | [REQ-81aabd](REQ-81aabd/) | [architecture/workflow-stages.md](../architecture/workflow-stages.md)、[guides/reqboard-workflow.md](../guides/reqboard-workflow.md) |
 
 ## 进行中（计划已提交 / 实施中，未归档）
 

@@ -10,9 +10,10 @@ import {
   ALL_ARTIFACT_KINDS,
   canReqTransition,
   normalizeText,
-  recordStatus,
 } from '../../shared/protocol.js'
 import { DEFAULT_CONFIRM_OPTIONS } from '../../domain/text/labels.js'
+import { fmt } from '../../domain/text/fmt.js'
+import { captureSnapshot, transitionRequirement } from '../internal/token-usage.js'
 import { openRequirementsFor } from '../internal/window.js'
 import {
   reject,
@@ -23,8 +24,8 @@ import {
 // 工厂级常量（从 defineAskConfirmTool 随代码搬入）：允许 ask_confirm 自动推进的转移
 // （验收通过与归档不由本工具代办）。
 const ADVANCE_MAP: Readonly<Record<string, string>> = {
-  brainstorming: 'planning',
-  planning: 'decomposing',
+  brainstorming: 'design',
+  design: 'decomposing',
   decomposing: 'implementing',
 }
 
@@ -98,14 +99,18 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
       const affirmative = picked.length > 0 && picked === optionLabels[0]
       const nowTs = deps.clock.now()
 
-      // ── 非肯定项：不推进，留痕 ──────────────────────────────────────────
+      // ── 非肯定项：不推进，留痕，返回用户意见 ──────────────────────────
       if (!affirmative) {
+        // 用户的自定义输入作为修改意见（如果有的话）
+        const userFeedback = answer?.custom?.trim() ?? ''
+        const feedbackNote = userFeedback.length > 0 ? fmt('。用户意见：{fb}', { fb: userFeedback }) : ''
+        
         await deps.repo.mutate('requirement-updated', (ledger) => {
           const req = ledger.requirements.find(r => r.id === targetReq.id)
           if (req === undefined) return undefined
           req.comments.push({
             id: deps.ids.comment(),
-            body: '[确认弹框] 用户未确认（选择：' + (picked || '（未选）') + '）——节点未推进。问题：' + question,
+            body: '[确认弹框] 用户未确认（选择：' + (picked || '（未选）') + '）——节点未推进。问题：' + question + feedbackNote,
             createdAt: nowTs,
             createdBy: { kind: 'human', sessionId: windowKey },
           })
@@ -114,8 +119,15 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
           return { requirements: [req] }
         })
         return {
-          success: true, confirmed: false, advanced: false,
-          note: '用户选择"' + (picked || '（未选）') + '"：未落章、未推进。按用户意见修改后可重新发起确认',
+          success: true, 
+          confirmed: false, 
+          advanced: false,
+          user_choice: picked || '（未选）',
+          user_feedback: userFeedback.length > 0 ? userFeedback : undefined,
+          note: fmt('用户选择"{picked}"：未落章、未推进。{feedback}按用户意见修改后可重新发起确认', {
+            picked: picked || '（未选）',
+            feedback: userFeedback.length > 0 ? fmt('用户反馈：{fb}。', { fb: userFeedback }) : '',
+          }),
         } as never
       }
 
@@ -138,7 +150,7 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
           art.confirmedEvidence = evidence
         } else {
           if (req.plan === undefined) {
-            throw Object.assign(new Error('需求 ' + req.id + ' 还没有实施计划'), { code: 'REQBOARD_MISSING_PLAN' })
+            throw Object.assign(new Error('需求 ' + req.id + ' 还没有拆分计划'), { code: 'REQBOARD_MISSING_PLAN' })
           }
           req.plan.approvedAt = nowTs
           req.plan.approvedBy = { kind: 'human', sessionId: windowKey }
@@ -171,11 +183,13 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
           await deps.repo.mutate('requirement-moved', (ledger) => {
             const req = ledger.requirements.find(r => r.id === targetReq.id)
             if (req === undefined || req.status !== from) return undefined
-            req.status = to as never
-            req.version += 1
-            req.updatedAt = nowTs
-            req.updatedBy = { kind: 'system' }
-            recordStatus(req, to as never, nowTs, { kind: 'human', sessionId: windowKey }, '确认弹框后自动推进（reqboard_ask_confirm）')
+            // REQ-b545fe t3：使用唯一迁移助手
+            transitionRequirement(req, to as never, {
+              at: nowTs,
+              actor: { kind: 'human', sessionId: windowKey },
+              reason: '确认弹框后自动推进（reqboard_ask_confirm）',
+              snap: captureSnapshot(deps, windowKey),
+            })
             req.comments.push({
               id: deps.ids.comment(),
               body: '[自动推进] ' + from + ' → ' + to + '：确认弹框肯定答复（reqboard_ask_confirm 原子推进）',

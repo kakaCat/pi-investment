@@ -151,7 +151,7 @@ describe('A4/A5 伪路径与批量解析端点', () => {
       'docs/not-there.md',
     ])
     expect(res.statusCode).toBe(200)
-    const byPath = new Map(res.payload.data.results.map((r: any) => [r.path, r]))
+    const byPath = new Map<string, any>(res.payload.data.results.map((r: any): [string, any] => [r.path, r]))
     expect(byPath.get('agent-dh/docs/architecture/documentation-standard.md').openable).toBe(true)
     expect(byPath.get('packages/pages/x.ts').openable).toBe(true)
     expect(byPath.get('quantsys-v2/main.py').openable).toBe(false)

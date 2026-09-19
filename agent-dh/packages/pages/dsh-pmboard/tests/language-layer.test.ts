@@ -57,19 +57,19 @@ describe('语言强度按层真的注入了吗（端到端）', () => {
   const dump = (stage: string, difficulty: string, category: string) =>
     JSON.stringify(resolveStagePrompt({ stage, difficulty, category } as any))
 
-  it('planning/light/feature 注入「章节可追溯」与「语言强度按层」', () => {
-    const s = dump('planning', 'light', 'feature')
+  it('design/light/feature 注入「章节可追溯」与「语言强度按层」', () => {
+    const s = dump('design', 'light', 'feature')
     expect(s).toContain('每节必须标注服务哪条功能点')
     expect(s).toContain('语言强度按层')
   })
 
-  it('planning/heavy 也注入（措辞与 light 不同，断言其自身关键词）', () => {
-    const s = dump('planning', 'heavy', 'feature')
+  it('design/heavy 也注入（措辞与 light 不同，断言其自身关键词）', () => {
+    const s = dump('design', 'heavy', 'feature')
     expect(s).toContain('孤儿章节')
     expect(s).toContain('语言强度按层')
   })
 
-  it('不越界：implementing 档不含 planning 的语言强度条目', () => {
+  it('不越界：implementing 档不含 design 的语言强度条目', () => {
     expect(dump('implementing', 'light', 'feature')).not.toContain('语言强度按层')
   })
 })

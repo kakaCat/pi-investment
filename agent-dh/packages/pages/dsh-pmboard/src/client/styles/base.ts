@@ -26,7 +26,7 @@ export const BASE_CSS = `
   /* 8 类节点状态色（与泳道点/甘特条/阶段面板同源，勿各自另立色值） */
   --pm-c-draft: #9aa4b2;
   --pm-c-brainstorming: #f0a020;
-  --pm-c-planning: #c2255c;
+  --pm-c-design: #c2255c;
   --pm-c-decomposing: #8e44ad;
   --pm-c-implementing: #4a7dff;
   --pm-c-accepting: #17a2b8;
@@ -116,7 +116,7 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 }
 .dsh-pm-lane[data-lane="draft"] { --pm-stage: var(--pm-c-draft); }
 .dsh-pm-lane[data-lane="brainstorming"] { --pm-stage: var(--pm-c-brainstorming); }
-.dsh-pm-lane[data-lane="planning"] { --pm-stage: var(--pm-c-planning); }
+.dsh-pm-lane[data-lane="design"] { --pm-stage: var(--pm-c-design); }
 .dsh-pm-lane[data-lane="decomposing"] { --pm-stage: var(--pm-c-decomposing); }
 .dsh-pm-lane[data-lane="implementing"] { --pm-stage: var(--pm-c-implementing); }
 .dsh-pm-lane[data-lane="accepting"] { --pm-stage: var(--pm-c-accepting); }
@@ -138,7 +138,7 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 }
 .dsh-pm-lane-dot[data-status="draft"] { background: #9aa4b2; }
 .dsh-pm-lane-dot[data-status="brainstorming"] { background: #f0a020; }
-.dsh-pm-lane-dot[data-status="planning"] { background: #c2255c; }
+.dsh-pm-lane-dot[data-status="design"] { background: #c2255c; }
 .dsh-pm-lane-dot[data-status="decomposing"] { background: #8e44ad; }
 .dsh-pm-lane-dot[data-status="implementing"] { background: #4a7dff; }
 .dsh-pm-lane-dot[data-status="accepting"] { background: #17a2b8; }

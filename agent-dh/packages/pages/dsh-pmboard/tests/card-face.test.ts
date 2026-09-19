@@ -86,7 +86,7 @@ describe('产物 chips（四道人工确认门）', () => {
       category: 'feature',
       artifacts: [
         makeArtifact({ kind: 'requirement', stage: 'brainstorming' }),
-        makeArtifact({ kind: 'plan', stage: 'planning' }),
+        makeArtifact({ kind: 'plan', stage: 'design' }),
         makeArtifact({ kind: 'decomposition', stage: 'decomposing' }),
         makeArtifact({ kind: 'verification', stage: 'accepting' }),
         // REQ-9f4a44：archive 产物挂在 archived 阶段（done 已移除）
@@ -96,7 +96,7 @@ describe('产物 chips（四道人工确认门）', () => {
     const html = buildBoard(makeState({ requirements: [req] }))
     // REQ-9f4a44：chip 按"门"生成 → 四道门对应四个产物 chip
     expect(html).toContain('需求文档')
-    expect(html).toContain('实施计划')
+    expect(html).toContain('拆分计划')
     expect(html).toContain('拆分方案')
     expect(html).toContain('验收材料')
     // 归档材料不再是门（验收通过即归档），其状态由 archived 泳道的「归档材料待补」标记表达
@@ -163,18 +163,18 @@ describe('确认入口卡面外置', () => {
 // -- 分类差异化 ------------------------------------------------------------
 
 describe('分类差异化：bug 少门', () => {
-  it('bug 分类无需求分析门（brainstorming>planning 门被跳过）', () => {
+  it('bug 分类无需求分析门（brainstorming>design 门被跳过）', () => {
     const req = makeReq({
       id: 'REQ-bug-gates',
-      status: 'planning',
+      status: 'design',
       category: 'bug',
-      artifacts: [makeArtifact({ kind: 'plan', stage: 'planning' })],
+      artifacts: [makeArtifact({ kind: 'plan', stage: 'design' })],
     })
     const html = buildBoard(makeState({ requirements: [req] }))
     // bug 分类不应显示需求文档 chip（该门被跳过）
     expect(html).not.toContain('需求文档')
-    // 但应显示实施计划 chip
-    expect(html).toContain('实施计划')
+    // 但应显示拆分计划 chip
+    expect(html).toContain('拆分计划')
   })
 
   it('spike 分类只有验收归档一门', () => {
@@ -185,9 +185,9 @@ describe('分类差异化：bug 少门', () => {
       artifacts: [],
     })
     const html = buildBoard(makeState({ requirements: [req] }))
-    // spike 不应显示需求文档/实施计划/拆分方案 chip
+    // spike 不应显示需求文档/拆分计划/拆分方案 chip
     expect(html).not.toContain('需求文档')
-    expect(html).not.toContain('实施计划')
+    expect(html).not.toContain('拆分计划')
     expect(html).not.toContain('拆分方案')
   })
 })

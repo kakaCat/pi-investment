@@ -20,6 +20,7 @@ import { join, relative } from 'node:path'
 import { newCommentId } from '../shared/protocol.js'
 import type { ArtifactKind, RequirementRecord, StageArtifact } from '../shared/protocol.js'
 import { kindForRelPath } from '../domain/artifact/ArtifactSpec.js'
+import { fmt } from '../domain/text/fmt.js'
 import { FileDocRepository } from '../adapters/FileDocRepository.js'
 import type { JsonLedgerRepository } from './JsonLedgerRepository.js'
 
@@ -30,8 +31,9 @@ import type { JsonLedgerRepository } from './JsonLedgerRepository.js'
 function stageForKind(kind: ArtifactKind, currentStage: StageKeyLike): StageKeyLike {
   switch (kind) {
     case 'requirement': return 'brainstorming'
-    case 'plan': return 'planning'
+    case 'plan': return 'design'
     case 'decomposition': return 'decomposing'
+    case 'design': return 'design'
     case 'task_detail': return 'implementing'
     case 'verification': return 'accepting'
     case 'archive': return 'archived'
@@ -88,6 +90,20 @@ export function discoverArtifacts(
   return found
 }
 
+/**
+ * 已登记自动发现产物里"种类已过期"的条目（REQ-81aabd FR-3）：产物种类由路径推导，
+ * 分类规则升级后（如 design/*.md 从 notes 改归 design）旧条目要跟着回填，
+ * 否则同一份文件在新旧需求上显示两种种类。仅回填 autoDiscovered 条目——
+ * 手工/Agent 登记的产物其 kind 是显式声明，不覆盖。
+ */
+function staleAutoKind(a: StageArtifact, reqRelPrefix: string): ArtifactKind | undefined {
+  if (a.autoDiscovered !== true) return undefined
+  const prefix = reqRelPrefix + '/'
+  if (!a.path.startsWith(prefix)) return undefined
+  const kind = kindForRelPath(a.path.slice(prefix.length))
+  return kind === a.kind ? undefined : kind
+}
+
 /** 需求目录相对前缀（工作区相对路径）。 */
 export function reqDirRel(reqId: string): string {
   return 'docs/requirements/' + reqId
@@ -107,22 +123,38 @@ export async function syncReqArtifacts(
   const req = snapshot.requirements.find(r => r.id === reqId)
   if (req === undefined) return 0
   const discovered = discoverArtifacts(req, reqRoot, reqDirRel(reqId))
-  if (discovered.length === 0) return 0
+  const stale = (req.artifacts ?? []).some(a => staleAutoKind(a, reqDirRel(reqId)) !== undefined)
+  if (discovered.length === 0 && !stale) return 0
   const result = await store.mutate('requirement-updated', (ledger) => {
     const r = ledger.requirements.find(x => x.id === reqId)
     if (r === undefined) return undefined
     r.artifacts ??= []
+    let reclassified = 0
+    for (const a of r.artifacts) {
+      const kind = staleAutoKind(a, reqDirRel(reqId))
+      if (kind === undefined) continue
+      a.kind = kind
+      a.stage = stageForKind(kind, r.status as StageKeyLike)
+      reclassified += 1
+    }
     const added: StageArtifact[] = []
     for (const a of discovered) {
       if (r.artifacts.some(x => x.path === a.path)) continue
       r.artifacts.push(a)
       added.push(a)
     }
-    if (added.length === 0) return undefined
+    if (added.length === 0 && !stale) return undefined
     r.comments.push({
       id: newCommentId(),
-      body: '[产物自动发现] 扫描需求目录补登 ' + added.length + ' 个过程产物（落进 docs/requirements/'
-        + reqId + '/ 即产物）：\n' + added.map(a => '- ' + a.path + '（' + a.kind + '）').join('\n'),
+      body: fmt(
+        '[产物自动发现] 扫描需求目录：补登 {n} 个过程产物、回填 {m} 个过期种类（落进 docs/requirements/{id}/ 即产物）：\n{list}',
+        {
+          n: added.length,
+          m: reclassified,
+          id: reqId,
+          list: added.map(a => '- ' + a.path + '（' + a.kind + '）').join('\n'),
+        },
+      ),
       createdAt: Date.now(),
       createdBy: { kind: 'system' },
     })

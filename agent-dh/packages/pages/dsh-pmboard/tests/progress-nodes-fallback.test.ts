@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import { createReqboardHandler } from '../src/http/routes.js'
-import { emptyBuckets, type ReqboardLedger, type TokenBuckets } from '../src/shared/protocol.js'
+import { type ReqboardLedger, type TokenBuckets } from '../src/shared/protocol.js'
 
 const SID = 'session-w-001'
 const B = (n: number): TokenBuckets => ({ uncachedInputTokens: n, outputTokens: n * 2, cacheReadTokens: n * 10, cacheWriteTokens: 0 })
@@ -14,7 +14,7 @@ const snap = (n: number) => ({ sessionId: SID, at: n, totals: B(n), source: 'pro
 // 关键场景：需求没有 byStage（功能上线前创建），但任务有真实执行差值
 function ledger(): ReqboardLedger {
   return {
-    schemaVersion: 6, revision: 1,
+    schemaVersion: 7, revision: 1,
     requirements: [{
       id: 'REQ-abc123', title: '旧需求', description: 'd', category: 'feature', status: 'accepting',
       blocked: false, sourceSessionId: SID, comments: [], version: 1, createdAt: 1, updatedAt: 1,

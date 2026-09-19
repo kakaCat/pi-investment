@@ -1,5 +1,6 @@
 /**
  * stage-panel.ts v4 渲染单元测试（REQ-31e11f 节点详情重设计：单节点工作记录）。
+ * serves: FR-4（REQ-81aabd 设计文档 ✅已交/⬜未交 渲染）。
  *
  * 覆盖：
  *   1. 8 个节点渲染器各自产出非空 HTML（含 dsh-pm-stage-body {stage} 锚点）
@@ -71,7 +72,7 @@ function makeOverview(currentStage: StageKey = 'implementing'): StageOverview {
   const bodies: Record<string, unknown> = {
     draft: { title: '测试需求', category: 'feature', description: 'd', createdAt: 1693000000000 },
     brainstorming: { requirementDoc: 'docs/requirements/REQ-test/requirement.md', comments: [] },
-    planning: { plan: { summary: 's', path: 'docs/requirements/REQ-test/plan.md', tasks: [{ key: 't1', title: '任务一' }], submittedAt: 1693000000000, approvedAt: 1693000100000 } },
+    design: { plan: { summary: 's', path: 'docs/requirements/REQ-test/plan.md', tasks: [{ key: 't1', title: '任务一' }], submittedAt: 1693000000000, approvedAt: 1693000100000 } },
     decomposing: { tasks: [makeTask()], planTasks: [] },
     implementing: { tasks: [makeTask({ status: 'done' }), makeTask({ id: 't-bbb002', title: '任务二构建部署', status: 'in_progress', executions: [{ id: 'e1', sessionId: 'session-8913546f-bd1a-4ca5-a737-deb0b429e5bf', trigger: 'manual', startedAt: Date.now() - 120000, outcome: 'running' }] })], byWindow: {} },
     accepting: {},
@@ -171,19 +172,36 @@ describe('各节点专属内容', () => {
     expect(html).toContain('暂无评论')
   })
 
-  it('planning：无计划 → 尚未提交实施计划', () => {
-    const html = renderStagePanel(makeStageDetail({ stage: 'planning', body: {} }))
-    expect(html).toContain('尚未提交实施计划')
+  it('design：无计划 → 尚未提交拆分计划', () => {
+    const html = renderStagePanel(makeStageDetail({ stage: 'design', body: {} }))
+    expect(html).toContain('尚未提交拆分计划')
   })
 
-  it('planning：已批准 → 任务数 + 批准时间', () => {
+  it('design：已批准 → 任务数 + 批准时间', () => {
     const html = renderStagePanel(makeStageDetail({
-      stage: 'planning',
+      stage: 'design',
       body: { plan: { summary: '目标做法', path: 'p.md', tasks: [{ key: 't1', title: 'x' }], submittedAt: 1693000000000, submittedBy: { kind: 'agent' }, approvedAt: 1693000100000, approvedBy: { kind: 'human' } } },
     }))
     expect(html).toContain('目标做法')
     expect(html).toContain('1 个任务')
     expect(html).toContain('批准：人')
+  })
+
+  it('design：逐份显示设计文档已交/未交（REQ-81aabd FR-2）', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'design',
+      body: {
+        category: 'feature',
+        designDocs: [
+          { name: 'architecture.md', path: 'docs/requirements/REQ-x/design/architecture.md', submitted: true },
+          { name: 'data-model.md', path: 'docs/requirements/REQ-x/design/data-model.md', submitted: false },
+        ],
+      },
+    }))
+    expect(html).toContain('data-design-doc="architecture.md" data-submitted="yes"')
+    expect(html).toContain('data-design-doc="data-model.md" data-submitted="no"')
+    expect(html).toContain('✅ 已交')
+    expect(html).toContain('⬜ 未交')
   })
 
   it('decomposing：任务 + 依赖链', () => {
@@ -381,7 +399,7 @@ describe('追溯链', () => {
   it('按 requirement → plan → task_detail 顺序渲染', () => {
     const artifacts = [
       makeArtifact({ kind: 'requirement', path: 'docs/requirements/REQ-test/requirement.md', stage: 'brainstorming' }),
-      makeArtifact({ kind: 'plan', path: 'docs/requirements/REQ-test/plan.md', stage: 'planning' }),
+      makeArtifact({ kind: 'plan', path: 'docs/requirements/REQ-test/plan.md', stage: 'design' }),
       makeArtifact({ kind: 'task_detail', path: 'docs/requirements/REQ-test/tasks/t-1.md', stage: 'implementing' }),
     ]
     const html = renderStagePanel(makeStageDetail({ artifacts }))
@@ -416,8 +434,8 @@ describe('stageHeadSummary 面板头一句话', () => {
     expect(text).toBe('1/3 完成 · 剩 2 个 · 进行中 t-bbb002')
   })
 
-  it('planning：已批准/待批准/被退回/待提交', () => {
-    const mk = (plan: unknown) => stageHeadSummary(makeStageDetail({ stage: 'planning', body: { plan } as never }))
+  it('design：已批准/待批准/被退回/待提交', () => {
+    const mk = (plan: unknown) => stageHeadSummary(makeStageDetail({ stage: 'design', body: { plan } as never }))
     expect(mk(undefined)).toBe('待提交计划')
     expect(mk({ tasks: [], submittedAt: 1 })).toBe('计划待批准')
     expect(mk({ tasks: [], submittedAt: 1, approvedAt: 2 })).toBe('计划已批准')
@@ -445,7 +463,7 @@ describe('renderStageNode / stageRowState', () => {
   it('行状态推导：当前=current，之前=done，之后=pending', () => {
     const ov = makeOverview('implementing')
     expect(stageRowState(ov, 'draft')).toBe('done')
-    expect(stageRowState(ov, 'planning')).toBe('done')
+    expect(stageRowState(ov, 'design')).toBe('done')
     expect(stageRowState(ov, 'implementing')).toBe('current')
     expect(stageRowState(ov, 'accepting')).toBe('pending')
     expect(stageRowState(ov, 'archived')).toBe('pending')
@@ -467,7 +485,7 @@ describe('renderStageNode / stageRowState', () => {
   })
 
   it('点已完成节点：绿✓状态', () => {
-    const html = renderStageNode(makeOverview('implementing'), 'planning')
+    const html = renderStageNode(makeOverview('implementing'), 'design')
     expect(html).toContain('data-state="done"')
     expect(html).toContain('计划已批准')
   })
@@ -517,7 +535,7 @@ describe('健壮性', () => {
     const bodies: Record<string, Record<string, unknown>> = {
       draft: { title: 'T', description: 'D' },
       brainstorming: { comments: [] },
-      planning: {},
+      design: {},
       decomposing: { tasks: [], planTasks: [] },
       implementing: { tasks: [], byWindow: {} },
       accepting: {},

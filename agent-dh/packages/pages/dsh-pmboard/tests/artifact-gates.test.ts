@@ -53,7 +53,7 @@ afterEach(() => {
 })
 
 async function seed(
-  status: RequirementStatus = 'planning',
+  status: RequirementStatus = 'design',
   category: RequirementRecord['category'] = 'feature',
   sourceSessionId: string | undefined = W,
 ): Promise<RequirementRecord> {
@@ -113,19 +113,19 @@ async function post(url: string, body: unknown) {
 // -- 产物登记钩子 ------------------------------------------------------------
 
 describe('产物登记钩子', () => {
-  it('plan_submit 成功时登记 kind=plan 产物（stage=planning）', async () => {
-    await seed('planning')
+  it('plan_submit 成功时登记 kind=plan 产物（stage=design）', async () => {
+    await seed('design')
     await run(planTool, { path: 'docs/requirements/REQ-abc123/plan.md', summary: 's', tasks: TWO_TASKS })
     const req = store.snapshot().requirements[0]
     expect(req.artifacts).toHaveLength(1)
     expect(req.artifacts![0]).toMatchObject({
-      stage: 'planning', kind: 'plan', path: 'docs/requirements/REQ-abc123/plan.md',
+      stage: 'design', kind: 'plan', path: 'docs/requirements/REQ-abc123/plan.md',
     })
     expect(req.artifacts![0].registeredBy).toEqual({ kind: 'agent', sessionId: W })
   })
 
   it('plan_submit 幂等：重复提交不重复登记', async () => {
-    await seed('planning')
+    await seed('design')
     await run(planTool, { path: 'docs/requirements/REQ-abc123/plan.md', summary: 's', tasks: TWO_TASKS })
     await run(planTool, { path: 'docs/requirements/REQ-abc123/plan.md', summary: 's2', tasks: TWO_TASKS })
     const req = store.snapshot().requirements[0]
@@ -133,7 +133,7 @@ describe('产物登记钩子', () => {
   })
 
   it('decompose 成功时自动生成 decomposition.md + 任务卡骨架', async () => {
-    await seed('planning')
+    await seed('design')
     await planAndApprove()
     const out = await run(decompose, {})
     expect(out.success).toBe(true)
@@ -194,7 +194,7 @@ describe('产物登记钩子', () => {
 
 describe('五门两级校验', () => {
   it('missing_artifact：产物缺失时转移被拒', async () => {
-    // feature 分类：brainstorming → planning 需要 requirement 产物
+    // feature 分类：brainstorming → design 需要 requirement 产物
     await seed('brainstorming', 'feature')
     // 手动登记一个 requirement 产物但不确认
     await store.mutate('requirement-updated', (l) => {
@@ -203,7 +203,7 @@ describe('五门两级校验', () => {
       return { requirements: [r] }
     })
     // 未确认 → 拒
-    const res = await post('/req/move', { id: 'REQ-abc123', to: 'planning', actor: 'human' })
+    const res = await post('/req/move', { id: 'REQ-abc123', to: 'design', actor: 'human' })
     expect(res.statusCode).toBe(400)
     expect(res.payload.code).toBe('artifact_not_confirmed')
     expect(res.payload.error).toContain('requirement.md')
@@ -216,7 +216,7 @@ describe('五门两级校验', () => {
       r.artifacts = [{ stage: 'brainstorming', kind: 'requirement', path: 'docs/requirements/REQ-abc123/requirement.md', registeredAt: 1, registeredBy: { kind: 'agent' } }]
       return { requirements: [r] }
     })
-    const res = await post('/req/move', { id: 'REQ-abc123', to: 'planning', actor: 'human' })
+    const res = await post('/req/move', { id: 'REQ-abc123', to: 'design', actor: 'human' })
     expect(res.statusCode).toBe(400)
     expect(res.payload.code).toBe('artifact_not_confirmed')
   })
@@ -234,15 +234,15 @@ describe('五门两级校验', () => {
     expect(confirmRes.payload.data.artifacts![0].confirmedAt).toBeDefined()
     expect(confirmRes.payload.data.artifacts![0].confirmedBy).toEqual({ kind: 'human' })
     // 转移成功
-    const moveRes = await post('/req/move', { id: 'REQ-abc123', to: 'planning', actor: 'human' })
+    const moveRes = await post('/req/move', { id: 'REQ-abc123', to: 'design', actor: 'human' })
     expect(moveRes.statusCode).toBe(200)
-    expect(moveRes.payload.data.status).toBe('planning')
+    expect(moveRes.payload.data.status).toBe('design')
   })
 
   it('存量需求（无 artifacts 字段）不硬拦', async () => {
     // 不设置 artifacts 字段
     await seed('brainstorming', 'feature')
-    const res = await post('/req/move', { id: 'REQ-abc123', to: 'planning', actor: 'human' })
+    const res = await post('/req/move', { id: 'REQ-abc123', to: 'design', actor: 'human' })
     expect(res.statusCode).toBe(200)
   })
 
@@ -253,23 +253,23 @@ describe('五门两级校验', () => {
       r.artifacts = []
       return { requirements: [r] }
     })
-    const res = await post('/req/move', { id: 'REQ-abc123', to: 'planning', actor: 'human' })
+    const res = await post('/req/move', { id: 'REQ-abc123', to: 'design', actor: 'human' })
     expect(res.statusCode).toBe(200)
   })
 
-  it('bug 分类免 requirement 门：brainstorming → planning 直接放行', async () => {
+  it('bug 分类免 requirement 门：brainstorming → design 直接放行', async () => {
     await seed('brainstorming', 'bug')
-    // bug 分类：confirmGates 不含 brainstorming>planning
-    const res = await post('/req/move', { id: 'REQ-abc123', to: 'planning', actor: 'human' })
+    // bug 分类：confirmGates 不含 brainstorming>design
+    const res = await post('/req/move', { id: 'REQ-abc123', to: 'design', actor: 'human' })
     expect(res.statusCode).toBe(200)
   })
 
-  it('planning → decomposing 用 planApproved 判定（不查 artifact.confirmedAt）', async () => {
-    await seed('planning', 'feature')
+  it('design → decomposing 用 planApproved 判定（不查 artifact.confirmedAt）', async () => {
+    await seed('design', 'feature')
     // 提交计划但不批准
     await run(planTool, { path: 'docs/requirements/REQ-abc123/plan.md', summary: 's', tasks: TWO_TASKS })
     // 登记 plan 产物但不确认
-    // planning → decomposing 应该被拒（plan 未批准）
+    // design → decomposing 应该被拒（plan 未批准）
     const res = await post('/req/move', { id: 'REQ-abc123', to: 'decomposing', actor: 'human' })
     expect(res.statusCode).toBe(400)
     expect(res.payload.code).toBe('artifact_not_confirmed')
@@ -306,27 +306,27 @@ describe('human-only confirm 路由', () => {
 // -- 分类过滤 ----------------------------------------------------------------
 
 describe('分类过滤', () => {
-  it('feature 全流水线 5 门：brainstorming>planning 需要 requirement 产物确认', async () => {
+  it('feature 全流水线 5 门：brainstorming>design 需要 requirement 产物确认', async () => {
     await seed('brainstorming', 'feature')
     await store.mutate('requirement-updated', (l) => {
       const r = l.requirements[0]
       r.artifacts = [{ stage: 'brainstorming', kind: 'requirement', path: 'docs/requirements/REQ-abc123/requirement.md', registeredAt: 1, registeredBy: { kind: 'agent' } }]
       return { requirements: [r] }
     })
-    const res = await post('/req/move', { id: 'REQ-abc123', to: 'planning', actor: 'human' })
+    const res = await post('/req/move', { id: 'REQ-abc123', to: 'design', actor: 'human' })
     expect(res.statusCode).toBe(400)
     expect(res.payload.code).toBe('artifact_not_confirmed')
   })
 
   it('spike 分类免 brainstorming 门：直接放行', async () => {
     await seed('brainstorming', 'spike')
-    const res = await post('/req/move', { id: 'REQ-abc123', to: 'planning', actor: 'human' })
+    const res = await post('/req/move', { id: 'REQ-abc123', to: 'design', actor: 'human' })
     expect(res.statusCode).toBe(200)
   })
 
   it('chore 分类免 brainstorming 门：直接放行', async () => {
     await seed('brainstorming', 'chore')
-    const res = await post('/req/move', { id: 'REQ-abc123', to: 'planning', actor: 'human' })
+    const res = await post('/req/move', { id: 'REQ-abc123', to: 'design', actor: 'human' })
     expect(res.statusCode).toBe(200)
   })
 })
@@ -424,10 +424,10 @@ describe('t8 补充：五门两级校验（全量）', () => {
     expect(res.payload.code).toBe('missing_artifact')
   })
 
-  it('refactor 分类：免需求分析门（brainstorming>planning 直接放行）', async () => {
+  it('refactor 分类：免需求分析门（brainstorming>design 直接放行）', async () => {
     await seed('brainstorming', 'refactor')
-    // refactor 的 confirmGates 不含 brainstorming>planning → 直接放行
-    const res = await post('/req/move', { id: 'REQ-abc123', to: 'planning', actor: 'human' })
+    // refactor 的 confirmGates 不含 brainstorming>design → 直接放行
+    const res = await post('/req/move', { id: 'REQ-abc123', to: 'design', actor: 'human' })
     expect(res.statusCode).toBe(200)
   })
 })

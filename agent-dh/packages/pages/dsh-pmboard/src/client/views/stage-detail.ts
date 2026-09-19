@@ -59,7 +59,7 @@ export function buildTabs(): string {
  * 渲染 4 个 Tab 内容区（REQ-6f39b5）。
  * 内容映射（对照原型 prototype.html，原折叠区全部迁移，禁止功能丢失）：
  * - 概览：需求描述(markdown) + 文档记录 + 当前阶段详情(动态加载)
- * - 执行：进度条 + 任务看板(+任务按钮) + DAG + 甘特图 + 实施计划
+ * - 执行：进度条 + 任务看板(+任务按钮) + DAG + 甘特图 + 拆分计划
  * - 时间线：状态时间线 + 评论(含表单)
  * - 归档：验收 + 归档材料
  */
@@ -188,8 +188,8 @@ export function buildReqDetail(req: RequirementRecord, tasks: TaskRecord[], now:
 export function gateHintFor(status: RequirementStatus): string {
   const hints: Partial<Record<RequirementStatus, string>> = {
     draft: '已立项：窗口接手开工后自动进入需求分析，人可在上方操作条手动催办。',
-    brainstorming: '需求分析中：窗口 agent 会自行推进到技术设计，人可在上方操作条确认方案或退回立项。',
-    planning: '技术设计中：计划提交后请在上方操作条点「批准计划」——批准前拆分会被告代码级拒绝。',
+    brainstorming: '需求分析中：窗口 agent 会自行推进到设计，人可在上方操作条确认方案或退回立项。',
+    design: '设计中：计划提交后请在上方操作条点「批准计划」——批准前拆分会被告代码级拒绝。',
     decomposing: '拆分中：任务落库/开工后系统自动推进到实施，人可在上方操作条确认拆分。',
     implementing: '实施中：任务全部完成时自动进入验收，人可在上方操作条提交验收。',
     accepting: '验收中：看完验收材料后，在上方操作条点「验收通过」或「退回返工」。',
@@ -202,7 +202,7 @@ export function gateHintFor(status: RequirementStatus): string {
 /**
  * 详情头下方的**常驻操作条**（REQ-31e11f #8：审批入口外置）。
  *
- * 问题：批准计划 / 验收通过 / 归档 三个按钮原本只存在于「实施计划 / 验收 / 归档」
+ * 问题：批准计划 / 验收通过 / 归档 三个按钮原本只存在于「拆分计划 / 验收 / 归档」
  * 三个默认折叠的 <details> 里 —— 用户看不到就等于没有。这里把当前阶段**所有人工
  * 闸门按钮**正面铺开，折叠区只保留内容（不再是唯一入口）。
  *
@@ -211,8 +211,16 @@ export function gateHintFor(status: RequirementStatus): string {
  * 同一动作只给一次（如验收态已交材料 → 只给 verify-pass，不再给等价的 move→done）。
  * 无任何可用操作时整条不渲染（不留空壳）。
  */
+const BAR_LABEL = '<span class="dsh-pm-action-bar-label">本阶段操作</span>'
+
 export function renderActionBar(req: RequirementRecord): string {
   const items: string[] = []
+  /**
+   * 「本阶段暂时没有可点的按钮」时的说明（REQ-9f4a44 后新增）。
+   * 为什么需要它：整条不渲染 = 人在这个阶段看不到任何出口，会以为看板坏了。
+   * 但也不能给"点了必被代码级拒绝"的假按钮（归档门要求验收材料已登记确认）。
+   */
+  const hints: string[] = []
   const add = (action: string, label: string, title: string, isPrimary = false): void => {
     const cls = isPrimary ? 'dsh-pm-btn primary' : 'dsh-pm-btn'
     items.push('<button type="button" class="' + cls + '" data-action="' + action
@@ -231,10 +239,10 @@ export function renderActionBar(req: RequirementRecord): string {
       move('canceled', '取消', '取消该需求（仅人可操作）')
       break
     case 'brainstorming':
-      move('planning', '→ 技术设计', '方案谈定 → 进入技术设计；请提交计划并待批准', true)
+      move('design', '→ 设计', '方案谈定 → 进入设计；请提交计划并待批准', true)
       move('draft', '退回立项', '方案要重谈 → 退回立项')
       break
-    case 'planning':
+    case 'design':
       move('decomposing', '→ 拆分', '计划获批后落库任务卡；未获批会被代码级拒绝', true)
       move('brainstorming', '退回重谈', '方案要改 → 退回需求分析')
       break
@@ -245,7 +253,11 @@ export function renderActionBar(req: RequirementRecord): string {
       move('accepting', '→ 验收', '提交验收；任务全部完成时系统会自动推进', true)
       break
     case 'accepting':
-      // REQ-9f4a44：验收通过 → 直接归档（accepting>archived），走 verify-pass/rework（下方补）
+      // REQ-9f4a44：验收通过 → 直接归档（accepting>archived），走 verify-pass/rework（下方补）。
+      // 材料还没交时不铺按钮（归档门要材料已确认，铺了也是点了必被拒的假出口），改为写清下一步。
+      if (req.verification === undefined) {
+        hints.push('未提交验收材料：先 reqboard_submit(kind=verification) 交材料，操作条才会出现「验收通过」')
+      }
       break
     case 'done':
       // done 为 legacy 死状态（REQ_TRANSITIONS: done: []），历史记录只读，不给转移按钮
@@ -255,8 +267,8 @@ export function renderActionBar(req: RequirementRecord): string {
   }
 
   if (req.plan !== undefined && req.plan.approvedAt === undefined) {
-    add('plan-approve', '批准计划', '批准实施计划，解锁 reqboard_decompose 拆分', true)
-    add('plan-reject', '退回计划', '退回实施计划（窗口按理由重写）')
+    add('plan-approve', '批准计划', '批准拆分计划，解锁 reqboard_decompose 拆分', true)
+    add('plan-reject', '退回计划', '退回拆分计划（窗口按理由重写）')
   }
   if (req.status === 'accepting' && req.verification !== undefined) {
     add('verify-pass', '验收通过', '人工审核通过，需求进入完成', true)
@@ -266,9 +278,13 @@ export function renderActionBar(req: RequirementRecord): string {
     add('archive-req', '归档', '归档：把产出并进项目文档', true)
   }
 
-  if (items.length === 0) return ''
+  if (items.length === 0 && hints.length === 0) return ''
+  const hintHtml = hints.length === 0
+    ? ''
+    : '<span class="dsh-pm-action-bar-label">' + esc(hints.join('；')) + '</span>'
   return '<div class="dsh-pm-action-bar" data-req="' + esc(req.id) + '">'
-    + '<span class="dsh-pm-action-bar-label">本阶段操作</span>'
+    + BAR_LABEL
+    + hintHtml
     + items.join('')
     + '</div>'
 }

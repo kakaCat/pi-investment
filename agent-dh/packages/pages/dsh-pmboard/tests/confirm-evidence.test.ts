@@ -54,8 +54,8 @@ const ARGS = (evidence: string) => ({ target: 'artifact', kind: 'requirement', e
 describe('confirm_artifact 文字确认核验', () => {
   it('evidence 命中真实用户消息原文 → 落章成功且标 evidence_verified', async () => {
     await seed()
-    recordRecentUserMsg(buf, W, '确认，进入技术设计吧', nowTs - 60_000)
-    const out = await run(makeTool(), ARGS('用户在对话中回复"确认，进入技术设计吧"'))
+    recordRecentUserMsg(buf, W, '确认，进入设计吧', nowTs - 60_000)
+    const out = await run(makeTool(), ARGS('用户在对话中回复"确认，进入设计吧"'))
     expect(out.success).toBe(true)
     expect(out.evidence_verified).toBe(true)
     expect(store.snapshot().requirements[0].artifacts![0].confirmedAt).toBeDefined()
@@ -75,8 +75,8 @@ describe('confirm_artifact 文字确认核验', () => {
 
   it('消息超出 60min 时间窗 → 拒', async () => {
     await seed()
-    recordRecentUserMsg(buf, W, '确认进入技术设计', nowTs - CONFIRM_EVIDENCE_WINDOW_MS - 1000)
-    await expect(run(makeTool(), ARGS('用户回复"确认进入技术设计"'))).rejects.toThrow(/REQBOARD_EVIDENCE_FAKE/)
+    recordRecentUserMsg(buf, W, '确认进入设计', nowTs - CONFIRM_EVIDENCE_WINDOW_MS - 1000)
+    await expect(run(makeTool(), ARGS('用户回复"确认进入设计"'))).rejects.toThrow(/REQBOARD_EVIDENCE_FAKE/)
   })
 
   it('过短消息（<4 字符）不作证', async () => {

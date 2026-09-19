@@ -29,7 +29,7 @@ const W = 'session-injection-info-0001'
 const W2 = 'session-injection-info-0002'
 
 /** 由真实解析结果组装一条留痕（字段与写入路径同源，避免手抄漂移）。 */
-function entryFor(at: number, windowKey: string, stage: 'brainstorming' | 'planning' = 'brainstorming'): InjectionLogEntry {
+function entryFor(at: number, windowKey: string, stage: 'brainstorming' | 'design' = 'brainstorming'): InjectionLogEntry {
   const input = injectionLogInputFromResolved(resolveStagePrompt({ stage, difficulty: 'light', category: 'feature' }), windowKey)
   return { ...input, at }
 }
@@ -133,7 +133,7 @@ describe('GET /injection-log（只读查询接口）', () => {
   it('① 返回条目与写入留痕逐字段相等（含窗口过滤）', async () => {
     const { log } = makeLogFile()
     log.record(injectionLogInputFromResolved(resolveStagePrompt({ stage: 'brainstorming', difficulty: 'light', category: 'feature' }), W))
-    log.record(injectionLogInputFromResolved(resolveStagePrompt({ stage: 'planning', difficulty: 'heavy', category: 'bug' }), W))
+    log.record(injectionLogInputFromResolved(resolveStagePrompt({ stage: 'design', difficulty: 'heavy', category: 'bug' }), W))
     log.record(injectionLogInputFromResolved(resolveStagePrompt({ stage: 'accepting', difficulty: 'light', category: 'feature' }), W2))
     await log.flush()
 

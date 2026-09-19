@@ -13,7 +13,7 @@ const snap = (n: number) => ({ sessionId: 'session-w-001', at: n, totals: B(n), 
 
 function seededLedger(): ReqboardLedger {
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     revision: 1,
     requirements: [{
       id: 'REQ-abc123', title: 'Token 需求', description: 'd', category: 'feature', status: 'implementing',
@@ -76,10 +76,10 @@ describe('REQ-a33899 t4 · assembleRequirementToken 投影', () => {
     const byKey = Object.fromEntries(view.byStage.map(s => [s.stage, s]))
     expect(byKey.draft!.buckets).toEqual(B(3))
     expect(byKey.implementing!.buckets).toEqual(B(7))
-    expect(byKey.planning!.buckets).toBeUndefined()
+    expect(byKey.design!.buckets).toBeUndefined()
     expect(byKey.implementing!.executions).toHaveLength(1)
     expect(byKey.implementing!.executions[0]!.delta).toEqual(B(3))
-    expect(byKey.planning!.executions).toHaveLength(0)
+    expect(byKey.design!.executions).toHaveLength(0)
     expect(view.totals).toEqual(B(10))
     expect(view.degraded).toBe(false)
   })
@@ -126,8 +126,8 @@ describe('REQ-a33899 t4 · HTTP 接口', () => {
     const nodes = res.payload.data.nodes
     expect(Array.isArray(nodes)).toBe(true)
     const draft = nodes.find((n: any) => n.key === 'draft')
-    const planning = nodes.find((n: any) => n.key === 'planning')
+    const design = nodes.find((n: any) => n.key === 'design')
     expect(draft.tokens.total).toBe(39) // B(3) 三桶和 = 13×3
-    expect(planning.tokens).toBeUndefined()
+    expect(design.tokens).toBeUndefined()
   })
 })

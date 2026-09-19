@@ -18,11 +18,12 @@
 
 import {
   assertReqTransition,
-  recordStatus,
   type ReqboardLedger,
   type RequirementRecord,
   type RequirementStatus,
+  type TokenSnapshot,
 } from '../../shared/protocol.js'
+import { transitionRequirement } from './token-usage.js'
 import {
   planPickupAdvance,
   planPickupReconcile,
@@ -35,6 +36,8 @@ export interface RollupContext {
   now: number
   /** 评论 id 生成器（推进留痕用）。 */
   commentId: () => string
+  /** 快照提供者（可选；REQ-b545fe t4）。use-case 调用方传快照函数，启动对账不传。 */
+  snapshot?: (req: RequirementRecord) => TokenSnapshot | undefined
 }
 
 /** 台账 → 决策所需的最小只读投影（RollupSpec 不依赖完整记录类型）。 */
@@ -51,11 +54,13 @@ function advance(
 ): RequirementRecord {
   const from = req.status
   assertReqTransition(from, to, 'system')
-  req.status = to
-  req.version += 1
-  req.updatedAt = ctx.now
-  req.updatedBy = { kind: 'system' }
-  recordStatus(req, to, ctx.now, { kind: 'system' }, reason)
+  // REQ-b545fe t4：使用唯一迁移助手（快照提供者可选）
+  transitionRequirement(req, to, {
+    at: ctx.now,
+    actor: { kind: 'system' },
+    reason,
+    snap: ctx.snapshot?.(req),
+  })
   req.comments.push({
     id: ctx.commentId(),
     body: `[自动推进] ${from} → ${to}：${reason}`,
@@ -113,7 +118,7 @@ export function applyPickupReconcile(ledger: ReqboardLedger, ctx: RollupContext)
 
 /**
  * 任务驱动的派生推进（R2/R3）—— 让需求跟着任务事实自己走，不需要人点中间步骤：
- *  R3 planning + 已有任务（已批准的计划落库）        → decomposing
+ *  R3 design + 已有任务（已批准的计划落库）        → decomposing
  *  R2 implementing + 全部未取消任务 done（≥1 个）  → accepting
  * 2026-09-14 五门裁定（REQ-31e11f）：decomposing>implementing 已入人工确认门
  * （拆分清单须人确认），R4 自动推进移除——需求停在拆分态等人确认，不再随任务开工自动推进。

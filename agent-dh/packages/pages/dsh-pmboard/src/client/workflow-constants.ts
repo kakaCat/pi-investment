@@ -11,13 +11,13 @@
 
 /**
  * 流程节点定义
- * 7 个主态：draft → brainstorming → planning → decomposing → implementing → accepting → archived
+ * 7 个主态：draft → brainstorming → design → decomposing → implementing → accepting → archived
  * 1 个过渡态：done（后端终态，done 但未 archived）
  */
 export const WORKFLOW_STAGES = {
   draft: { label: '立项', color: '#9aa4b2', order: 0 },
   brainstorming: { label: '需求分析', color: '#f0a020', order: 1 },
-  planning: { label: '技术设计', color: '#c2255c', order: 2 },
+  design: { label: '设计', color: '#c2255c', order: 2 },
   decomposing: { label: '拆分', color: '#8e44ad', order: 3 },
   implementing: { label: '实施', color: '#4a7dff', order: 4 },
   accepting: { label: '验收', color: '#17a2b8', order: 5 },
@@ -35,7 +35,7 @@ export type WorkflowStage = keyof typeof WORKFLOW_STAGES
 export const PROGRESS_DOT_STAGES: readonly WorkflowStage[] = [
   'draft',
   'brainstorming',
-  'planning',
+  'design',
   'decomposing',
   'implementing',
   'accepting',
@@ -50,7 +50,7 @@ export const PROGRESS_DOT_STAGES: readonly WorkflowStage[] = [
 export const LANE_STAGES: readonly WorkflowStage[] = [
   'draft',
   'brainstorming',
-  'planning',
+  'design',
   'decomposing',
   'implementing',
   'accepting'

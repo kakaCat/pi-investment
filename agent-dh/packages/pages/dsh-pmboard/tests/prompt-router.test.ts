@@ -66,13 +66,13 @@ describe('回退链：五种命中层级', () => {
 
   it('⑤ 全局铁律是**合并**（不是替代）：节点内容与全局内容并存', () => {
     const lib = [
-      frag({ id: 'planning/default', stage: 'planning', difficulty: '*', category: '*', priority: 'floor' }),
+      frag({ id: 'design/default', stage: 'design', difficulty: '*', category: '*', priority: 'floor' }),
       frag({ id: 'common/iron-rules', stage: '*', difficulty: '*', category: '*', priority: 'floor', text: 'IRON' }),
     ]
-    const r = resolveFragmentPlan(lib, { stage: 'planning', difficulty: 'heavy', category: 'bug' })
+    const r = resolveFragmentPlan(lib, { stage: 'design', difficulty: 'heavy', category: 'bug' })
     expect(r.hitLevel).toBe(4)
     // 顺序契约：①-④ 选中片段在前、⑤ 全局铁律在后（见 router.ts 的顺序说明）
-    expect(r.fragmentIds).toEqual(['planning/default', 'common/iron-rules'])
+    expect(r.fragmentIds).toEqual(['design/default', 'common/iron-rules'])
     expect(r.text).toContain('IRON')
   })
 

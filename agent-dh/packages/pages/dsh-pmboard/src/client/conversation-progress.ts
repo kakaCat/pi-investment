@@ -4,7 +4,7 @@
  * 解决的真实痛点（用户原话）：「agent 时间长，我总忘记之前都做了什么」——
  * 一个会话跑到一半回过头来，人不知道这个需求做到哪一步、还剩什么、谁在什么时候
  * 推进过。本组件把**该会话绑定的进行中需求**的流程图直接展示在模式选择器后面：
- *   - 显示态：流程图（立项→需求分析→技术设计→拆分→实施→验收→完成）始终可见；
+ *   - 显示态：流程图（立项→需求分析→设计→拆分→实施→验收→完成）始终可见；
  *   - 详情展开：点击流程图任意位置展开完整详情面板（任务清单 + 状态时间线）。
  *
  * 数据来源：GET /dashboard/api/reqboard/session/:sessionId/progress（host 侧按
@@ -27,7 +27,7 @@ const BASE = '/dashboard/api/reqboard'
 const FLOW: ReadonlyArray<{ key: string; label: string }> = [
   { key: 'draft', label: '立项' },
   { key: 'brainstorming', label: '需求分析' },
-  { key: 'planning', label: '技术设计' },
+  { key: 'design', label: '设计' },
   { key: 'decomposing', label: '拆分' },
   { key: 'implementing', label: '实施' },
   { key: 'accepting', label: '验收' },
@@ -36,7 +36,7 @@ const FLOW: ReadonlyArray<{ key: string; label: string }> = [
 ]
 
 const STATUS_LABEL: Record<string, string> = {
-  draft: '立项', brainstorming: '需求分析', planning: '技术设计', decomposing: '拆分',
+  draft: '立项', brainstorming: '需求分析', design: '设计', decomposing: '拆分',
   implementing: '实施中', accepting: '待验收', done: '完成', archived: '归档', canceled: '已取消',
 }
 

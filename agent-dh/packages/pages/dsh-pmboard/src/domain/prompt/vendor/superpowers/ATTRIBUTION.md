@@ -23,7 +23,7 @@
 | skill | 字节数 | 行数 | 本仓角色 |
 |-------|-------:|-----:|----------|
 | brainstorming | 15456 | 250 | **heavy 主 skill**：brainstorming（整份 vendor，逐字一致断言对象） |
-| writing-plans | 7053 | 171 | **heavy 主 skill**：planning |
+| writing-plans | 7053 | 171 | **heavy 主 skill**：design |
 | executing-plans | 2305 | 64 | **heavy 主 skill**：implementing |
 | verification-before-completion | 3646 | 120 | **heavy 主 skill**：accepting |
 | finishing-a-development-branch | 7781 | 225 | **heavy 主 skill**：archived |
@@ -51,7 +51,7 @@
 - 验收测试：`tests/prompt-tiers.test.ts`（brainstorming/heavy 与 vendor 原文逐字一致，byte-level）。
 
 镜像关系（唯一映射见 `scripts/inline-prompt-fragments.mjs` 的 `VENDOR_MAIN_SKILLS`）：
-brainstorming→brainstorming；planning→writing-plans；implementing→executing-plans；
+brainstorming→brainstorming；design→writing-plans；implementing→executing-plans；
 accepting→verification-before-completion；archived→finishing-a-development-branch。
 
 ## 4. 许可原文（MIT）

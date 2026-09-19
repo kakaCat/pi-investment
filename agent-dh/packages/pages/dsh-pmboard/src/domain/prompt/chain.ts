@@ -25,11 +25,11 @@ export interface StageChainStep {
 /** 六节点的链声明（顺序 = 流水线）。 */
 export const STAGE_CHAIN: Readonly<Record<PromptStage, StageChainStep>> = {
   brainstorming: {
-    next: 'planning',
+    next: 'design',
     tool: 'reqboard_ask_confirm',
-    label: '下一步：planning —— 用 reqboard_ask_confirm(target=artifact, kind=requirement) 交棒；未获批准不得进入。',
+    label: '下一步：design —— 用 reqboard_ask_confirm(target=artifact, kind=requirement) 交棒；未获批准不得进入。',
   },
-  planning: {
+  design: {
     next: 'decomposing',
     tool: 'reqboard_submit',
     label: '下一步：decomposing —— 用 reqboard_submit(kind=plan) 交棒；未获批准不得进入。',

@@ -154,12 +154,12 @@ export function boundSectionText(
 
   lines.push(
     '流水线（状态就是阶段，从立项一路走到交付）：',
-    '- draft 立项 → brainstorming 头脑风暴（探边界/方案）→ planning 写计划 →',
+    '- draft 立项 → brainstorming 需求分析（探边界/方案）→ design 设计 →',
     '  decomposing 拆分（落库任务 DAG）→ implementing 执行 → accepting 验收 → done 完成；',
-    '- 方案谈定 → reqboard_move 到 planning（写计划属于这个阶段）；',
+    '- 方案谈定 → reqboard_move 到 design（设计属于这个阶段）；',
     '',
     '计划模式（拆分的前置闸门 · 唯一需要人点头的地方）：',
-    '- 评审阶段先把方案写成实施计划 → reqboard_submit(kind=plan)（path = 工作区计划文档，',
+    '- 评审阶段先把方案写成拆分计划 → reqboard_submit(kind=plan)（path = 工作区计划文档，',
     '  summary = 一段人能读懂的目标+做法，tasks = 将来要落库的任务表：',
     '  key/title/phase/side/depends_on/acceptance，粒度与依赖在这里定死）；',
     '- 提交后请人在项目看板点「批准计划」——未批准时 reqboard_decompose 被代码级拒绝；',

@@ -13,8 +13,9 @@
  */
 import {
   asScope, newTaskId, recordStatus,
-  type ActorRef, type ReqboardLedger, type RequirementRecord, type TaskRecord,
+  type ActorRef, type ReqboardLedger, type RequirementRecord, type TaskRecord, type TokenSnapshot,
 } from '../../shared/protocol.js'
+import { transitionRequirement } from './token-usage.js'
 import { hasErrorCode, REQBOARD_ERROR_CODES } from '../../domain/errors.js'
 import {
   applyVerdicts as applySheetVerdicts,
@@ -93,6 +94,7 @@ export function applyVerdicts(
   actor: ActorRef,
   nowTs: number,
   commentId: () => string,
+  snap?: TokenSnapshot, // REQ-b545fe t5: 打回路径快照（可选）
 ): ApplyVerdictsResult {
   const r = ledger.requirements.find(x => x.id === reqId)
   if (r === undefined) throw new VerdictError('需求 ' + reqId + ' 不存在', 'not_found')
@@ -129,11 +131,13 @@ export function applyVerdicts(
     for (const spec of applied.reworkTasks) {
       reworkTasks.push(materializeReworkTask(ledger, r.id, spec, actor, nowTs))
     }
-    r.status = 'implementing'
-    r.version += 1
-    r.updatedAt = nowTs
-    r.updatedBy = actor
-    recordStatus(r, 'implementing', nowTs, actor, '验收单 ' + applied.reworkTasks.length + ' 项不通过 → 打回返工（自动生成 ' + reworkTasks.length + ' 个返工任务）')
+    // REQ-b545fe t5：使用唯一迁移助手
+    transitionRequirement(r, 'implementing', {
+      at: nowTs,
+      actor,
+      reason: '验收单 ' + applied.reworkTasks.length + ' 项不通过 → 打回返工（自动生成 ' + reworkTasks.length + ' 个返工任务）',
+      snap,
+    })
     r.comments.push({
       id: commentId(),
       body: '[验收单] v' + sheet.version + ' 逐项裁决：' + applied.reworkTasks.length + ' 项不通过 → 打回实施。\n'

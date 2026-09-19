@@ -13,10 +13,8 @@ import {
   assertReqTransition,
   HUMAN_ONLY_REQ_TRANSITIONS,
   normalizeText,
-  recordStatus,
-  type StageKey,
 } from '../../shared/protocol.js'
-import { accumulateStageDelta, captureSnapshot } from '../internal/token-usage.js'
+import { captureSnapshot, transitionRequirement } from '../internal/token-usage.js'
 import { docSyncPendingOf, docSyncSummary } from '../../domain/workflow/DocSyncSpec.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { applyTaskRollup } from '../internal/rollup.js'
@@ -108,15 +106,13 @@ export async function executeMoveRequirement(deps: UseCaseDeps, args: unknown, e
         } else {
           assertReqTransition(req.status, to, 'agent')
         }
-        // REQ-a33899：离开当前节点前先结算该节点消耗（进入快照 → 现在快照，同会话才相减），
-        // 再把新节点事件连同快照写入——快照取不到时两端判定自然失败，该段留「无快照」。
-        const snap = captureSnapshot(deps, windowKey)
-        accumulateStageDelta(req, req.status as StageKey, snap)
-        req.status = to
-        req.version += 1
-        req.updatedAt = deps.clock.now()
-        req.updatedBy = { kind: 'agent', sessionId: windowKey }
-        recordStatus(req, to, req.updatedAt, { kind: 'agent', sessionId: windowKey }, reason || undefined, snap)
+        // REQ-b545fe t2：使用唯一迁移助手（结算离开节点+迁移状态+记录事件带快照）
+        transitionRequirement(req, to, {
+          at: deps.clock.now(),
+          actor: { kind: 'agent', sessionId: windowKey },
+          reason: reason || undefined,
+          snap: captureSnapshot(deps, windowKey),
+        })
         req.comments.push({
           id: deps.ids.comment(),
           body: `[窗口推进] ${from} → ${to}${reason ? `：${reason}` : ''}（窗口 ${windowKey}）`,
@@ -124,7 +120,11 @@ export async function executeMoveRequirement(deps: UseCaseDeps, args: unknown, e
           createdBy: { kind: 'agent', sessionId: windowKey },
         })
         // 推进到 implementing 时顺带重算（任务可能已全部完成）
-        const advanced = applyTaskRollup(ledger, { now: deps.clock.now(), commentId: () => deps.ids.comment() }, req.id)
+        const advanced = applyTaskRollup(
+          ledger,
+          { now: deps.clock.now(), commentId: () => deps.ids.comment(), snapshot: () => captureSnapshot(deps, windowKey) },
+          req.id,
+        )
         return { requirements: [req, ...advanced] }
       })
       const changed = (result.changed.requirements ?? [])[0]

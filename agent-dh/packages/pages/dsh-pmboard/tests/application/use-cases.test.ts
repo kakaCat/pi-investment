@@ -36,7 +36,7 @@ describe('t6 · CreateRequirement / QueryState', () => {
   })
 
   it('QueryState：bound/open_count/next_actions 与 domain agentNextActions 同源', async () => {
-    const h = makeHarness({ requirements: [req({ status: 'planning' })] })
+    const h = makeHarness({ requirements: [req({ status: 'design' })] })
     const out: any = await queryState(h.deps, {}, EXEC)
     expect(out.bound).toBe(true)
     expect(out.open_count).toBe(1)
@@ -46,13 +46,13 @@ describe('t6 · CreateRequirement / QueryState', () => {
 })
 
 describe('t6 · MoveRequirement', () => {
-  it('draft → brainstorming 合法推进（agent）；brainstorming → planning 是人工闸门', async () => {
+  it('draft → brainstorming 合法推进（agent）；brainstorming → design 是人工闸门', async () => {
     const h = makeHarness({ requirements: [req({ status: 'draft' })] })
     const out: any = await executeMoveRequirement(h.deps, { to: 'brainstorming', reason: '方案' }, EXEC)
     expect(out.success).toBe(true)
     expect(h.repo.ledger.requirements[0]!.status).toBe('brainstorming')
 
-    await expect(executeMoveRequirement(h.deps, { to: 'planning' }, EXEC))
+    await expect(executeMoveRequirement(h.deps, { to: 'design' }, EXEC))
       .rejects.toMatchObject({ code: 'REQBOARD_HUMAN_GATE' })
   })
 })
@@ -76,8 +76,8 @@ describe('t6 · SubmitArtifact（requirement / plan）', () => {
       .rejects.toMatchObject({ code: 'REQBOARD_FILE_MISSING' })
   })
 
-  it('plan_submit：planning 阶段提交计划 → pending_approval + 登记 plan 产物', async () => {
-    const h = makeHarness({ requirements: [req({ status: 'planning' })] })
+  it('plan_submit：design 阶段提交计划 → pending_approval + 登记 plan 产物', async () => {
+    const h = makeHarness({ requirements: [req({ status: 'design' })] })
     const out: any = await submitPlanArtifact(h.deps, {
       path: 'docs/requirements/REQ-000001/plan.md', summary: '计划',
     }, EXEC)
@@ -119,7 +119,7 @@ describe('t6 · ConfirmArtifact / AskConfirm', () => {
     const out: any = await askConfirm(h.deps, { target: 'artifact', kind: 'requirement', question: '确认？', options: ['好', '不'] }, EXEC)
     expect(out.confirmed).toBe(true)
     expect(out.advanced).toBe(true)
-    expect(h.repo.ledger.requirements[0]!.status).toBe('planning')
+    expect(h.repo.ledger.requirements[0]!.status).toBe('design')
   })
 })
 
@@ -130,12 +130,12 @@ describe('t6 · Decompose', () => {
     tasks: [{ key: 't1', title: '做A', description: 'd', phase: 'implement', side: 'backend', dependsOn: [], acceptance: '跑测试看到绿', implementation: '改 a.ts' }],
   }
   it('未批准计划 → REQBOARD_PLAN_NOT_APPROVED', async () => {
-    const h = makeHarness({ requirements: [req({ status: 'planning', plan: { ...approvedPlan, approvedAt: undefined } })] })
+    const h = makeHarness({ requirements: [req({ status: 'design', plan: { ...approvedPlan, approvedAt: undefined } })] })
     await expect(executeDecompose(h.deps, {}, EXEC)).rejects.toMatchObject({ code: 'REQBOARD_PLAN_NOT_APPROVED' })
   })
 
   it('已批准计划 → 落库任务 + 写 decomposition.md / 任务卡 + 登记产物', async () => {
-    const h = makeHarness({ requirements: [req({ status: 'planning', plan: approvedPlan })] })
+    const h = makeHarness({ requirements: [req({ status: 'design', plan: approvedPlan })] })
     const out: any = await executeDecompose(h.deps, {}, EXEC)
     expect(out.success).toBe(true)
     expect(out.created).toHaveLength(1)
@@ -213,7 +213,7 @@ describe('t6 · SubmitVerification / SubmitArchive / AcceptSheet', () => {
   })
 
   it('archive_submit：非 archived/done → REQBOARD_BAD_STATUS', async () => {
-    const h = makeHarness({ requirements: [req({ status: 'planning' })] })
+    const h = makeHarness({ requirements: [req({ status: 'design' })] })
     await expect(submitArchive(h.deps, { dir: 'd', docs: [], merged_into: [], index_entry: 'x' }, EXEC))
       .rejects.toMatchObject({ code: 'REQBOARD_BAD_STATUS' })
   })

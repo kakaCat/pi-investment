@@ -60,7 +60,7 @@ describe('t8 · 工具面 13→9 收敛', () => {
         if (e.isDirectory()) { walk(p); continue }
         if (!e.name.endsWith('.ts')) continue
         const text = readFileSync(p, 'utf8')
-        if (/status\s*===/.test(text) || /===\s*'(draft|brainstorming|planning|decomposing|implementing|accepting|archived|done|canceled)'/.test(text)) bad.push(p)
+        if (/status\s*===/.test(text) || /===\s*'(draft|brainstorming|design|decomposing|implementing|accepting|archived|done|canceled)'/.test(text)) bad.push(p)
       }
     }
     walk(TOOLS)

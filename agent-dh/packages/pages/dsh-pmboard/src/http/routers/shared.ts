@@ -15,9 +15,15 @@ export interface RouterCtx {
   now: () => number
   /**
    * 路由可选依赖：cwd=产物扫描根；injectionLog=注入留痕**只读**端口（看板信息块用）；
-   * systemPrompt=系统提示词装配服务（REQ-a33899 t5，读时折算固定提示词成本；缺省 → unavailable）。
+   * systemPrompt=系统提示词装配服务（REQ-a33899 t5，读时折算固定提示词成本；缺省 → unavailable）；
+   * tokenSnapshot=Token快照提供者（REQ-b545fe t6，HTTP任务操作可结算快照）。
    */
-  deps: { cwd?: string; injectionLog?: InjectionLogReadPort; systemPrompt?: () => unknown }
+  deps: {
+    cwd?: string
+    injectionLog?: InjectionLogReadPort
+    systemPrompt?: () => unknown
+    tokenSnapshot?: (windowKey: string) => import('../../shared/protocol.js').TokenSnapshot | undefined
+  }
   ids: { requirement: () => string; task: () => string; comment: () => string }
   mintId: (kind: 'requirement' | 'task') => Promise<string>
   json: (res: ServerResponse, status: number, body: unknown) => void

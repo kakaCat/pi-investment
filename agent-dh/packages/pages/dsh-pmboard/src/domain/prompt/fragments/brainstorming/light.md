@@ -9,7 +9,7 @@
       一旦出现以下任一信号**立即停手并升级为重档**：出现第二个未定决策 / 要动架构 /
       要新增子系统 / 要改数据模型。**升级是单向的，不许反向降级。**
 - [ ] **L4 批准闸门 + 下一步**：
-      下一步：planning —— 用 reqboard_ask_confirm(target=artifact, kind=requirement) 交棒；未获批准不得进入。
+      下一步：design —— 用 reqboard_ask_confirm(target=artifact, kind=requirement) 交棒；未获批准不得进入。
 - [ ] **L5 轻档 ≠ 无产物**：requirement.md 仍必须落盘
       （docs/requirements/REQ-xxxxxx/requirement.md，头部带 REQ id），
       用 `reqboard_submit(kind=requirement)` 登记产物，再用 `reqboard_ask_confirm` 请人确认。

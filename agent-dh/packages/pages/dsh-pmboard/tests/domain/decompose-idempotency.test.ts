@@ -26,8 +26,8 @@ describe('checkDecomposeIdempotency', () => {
     expect(checkDecomposeIdempotency('decomposing', [])).toEqual({ ok: true })
   })
 
-  it('draft / brainstorming / planning 且无任务 → 放行', () => {
-    for (const status of ['draft', 'brainstorming', 'planning'] as const) {
+  it('draft / brainstorming / design 且无任务 → 放行', () => {
+    for (const status of ['draft', 'brainstorming', 'design'] as const) {
       expect(checkDecomposeIdempotency(status, []), status).toEqual({ ok: true })
     }
   })

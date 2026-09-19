@@ -19,15 +19,20 @@ import type { ActorRef } from '../actor.js'
 import { REQ_TRANSITIONS, type RequirementStatus } from '../requirement/RequirementStatus.js'
 import { TASK_TRANSITIONS } from '../task/TaskStatus.js'
 
-/** 旧状态名迁移（2026-09-13：reviewing → brainstorming）。迁移只改名字，不改语义。 */
+/**
+ * 旧状态名迁移。迁移只改名字，不改语义。
+ *   2026-09-13：reviewing → brainstorming（状态机第一次改名）
+ *   2026-09-17：planning → design（设计节点英文键与中文名对齐，REQ-81aabd FR-7）
+ */
 export const LEGACY_REQ_STATUS_ALIASES: Readonly<Record<string, RequirementStatus>> = {
   reviewing: 'brainstorming',
+  planning: 'design',
 }
 
 /**
  * 载入校验用的状态名集合。与 shared/protocol 的 ALL_REQ_STATUSES / ALL_TASK_STATUSES **同集合**
  * （前者的唯一事实源是 REQ_TRANSITIONS / TASK_TRANSITIONS 的键，后者是 MAIN+done/canceled），
- * 另加历史别名（reviewing），保证老评论里的旧状态名也能被解析出来。
+ * 另加历史别名（reviewing / planning），保证老评论里的旧状态名也能被解析出来。
  */
 const ALL_REQ_STATUS_NAMES: readonly string[] = [...Object.keys(REQ_TRANSITIONS), ...Object.keys(LEGACY_REQ_STATUS_ALIASES)]
 const ALL_TASK_STATUS_NAMES: readonly string[] = Object.keys(TASK_TRANSITIONS)
@@ -97,7 +102,7 @@ function backfill(
   for (const c of [...record.comments].sort((a, b) => a.createdAt - b.createdAt)) {
     const raw = parseTransitionTarget(c.body, allowed)
     if (raw === undefined) continue
-    // 历史评论里可能写的是旧状态名（reviewing）——按别名表映射回新名，别丢历史
+    // 历史评论里可能写的是旧状态名（reviewing / planning）——按别名表映射回新名，别丢历史
     const target = LEGACY_REQ_STATUS_ALIASES[raw] ?? raw
     const prev = events[events.length - 1]
     if (prev !== undefined && prev.status === target) continue
@@ -123,7 +128,7 @@ function backfill(
   return events
 }
 
-/** 需求时间线回填（已有事件 → 返回 undefined 不动）。旧状态名（reviewing）一并接受。 */
+/** 需求时间线回填（已有事件 → 返回 undefined 不动）。旧状态名（reviewing / planning）一并接受。 */
 export function backfillRequirementHistory(req: LegacyBackfillRecord): LegacyStatusEvent[] | undefined {
   return backfill(
     req,
@@ -134,7 +139,7 @@ export function backfillRequirementHistory(req: LegacyBackfillRecord): LegacySta
 }
 
 /**
- * 旧状态名迁移（2026-09-13）：reviewing → brainstorming（含时间线事件）。
+ * 旧状态名迁移（reviewing → brainstorming、planning → design）：状态字段 + 时间线事件。
  * 迁移只改名字，不改语义；返回 true 表示发生过迁移（调用方据此决定是否落盘）。
  */
 export function migrateRequirementStatusNames(req: LegacyBackfillRecord): boolean {
@@ -150,6 +155,20 @@ export function migrateRequirementStatusNames(req: LegacyBackfillRecord): boolea
       e.status = mapped
       changed = true
     }
+  }
+  return changed
+}
+
+/**
+ * 产物 stage 字段的旧名迁移（planning → design）。台账里 artifacts[].stage 与需求状态同用一套键，
+ * 状态改名时**必须同步改名**，否则「产物归属哪个节点」与「需求处在哪个节点」会指向两个名字。
+ * 返回 true 表示发生过迁移。
+ */
+export function migrateArtifactStageNames(req: { artifacts?: Array<{ stage?: string }> }): boolean {
+  let changed = false
+  for (const a of req.artifacts ?? []) {
+    const mapped = a.stage === undefined ? undefined : LEGACY_REQ_STATUS_ALIASES[a.stage]
+    if (mapped !== undefined) { a.stage = mapped; changed = true }
   }
   return changed
 }

@@ -11,6 +11,7 @@
  * @module dsh-pmboard/application/internal/requirement-marks-doc
  */
 import type { ClauseMarkRow, RequirementMarksView } from '../../shared/protocol.js'
+import { fmt } from '../../domain/text/fmt.js'
 
 /** 机器维护段的起止标记（内容为 HTML 注释，渲染文档时不可见，但 grep/脚本可见）。 */
 export const MARKS_BEGIN = '<!-- reqboard:marks:begin 机器维护，请勿手改 -->'
@@ -53,8 +54,8 @@ export function renderMarksBlock(view: RequirementMarksView): string {
   ]
   lines.push(
     view.unreceived.length === 0
-      ? '> 无未接收条款（' + String(view.clauses.length) + ' 条全部有落点）。'
-      : '> 🔴 **未被接收（' + String(view.unreceived.length) + ' 条）**：' + view.unreceived.join('、'),
+      ? fmt('> 无未接收条款（{n} 条全部有落点）。', { n: view.clauses.length })
+      : fmt('> 🔴 **未被接收（{n} 条）**：{list}', { n: view.unreceived.length, list: view.unreceived.join('、') }),
   )
   lines.push('', MARKS_END)
   return lines.join('\n')

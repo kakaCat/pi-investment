@@ -92,15 +92,15 @@ describe('backfill*（老记录时间线回填）', () => {
 
   it('历史评论里的旧状态名（reviewing）映射到新名（brainstorming），不丢历史', () => {
     const r = req({
-      status: 'planning',
+      status: 'design',
       updatedAt: 6000,
       comments: [
         { id: 'c1', body: '[自动推进] draft → reviewing：启动对账', createdAt: 2000, createdBy: { kind: 'system' } },
-        { id: 'c2', body: '[窗口推进] reviewing → planning：方案谈定', createdAt: 4000, createdBy: { kind: 'agent' } },
+        { id: 'c2', body: '[窗口推进] reviewing → design：方案谈定', createdAt: 4000, createdBy: { kind: 'agent' } },
       ],
     })
     const hist = backfillRequirementHistory(r)
-    expect(hist?.map(e => e.status)).toEqual(['draft', 'brainstorming', 'planning'])
+    expect(hist?.map(e => e.status)).toEqual(['draft', 'brainstorming', 'design'])
   })
 
   it('任务：识别 [状态] → x 格式；已有事件则不动（幂等）', () => {
@@ -148,7 +148,7 @@ describe('Store 加载（t10 后读路径零 legacy 兼容）', () => {
       return { requirements: [ledger.requirements[0]] }
     })
     const onDisk = JSON.parse(readFileSync(file, 'utf8'))
-    expect(onDisk.schemaVersion).toBe(6) // REQ-a33899 t3 / C1：schema 4 → 5 → 6（token 字段为纯附加，只 bump 版本）
+    expect(onDisk.schemaVersion).toBe(7) // C1：schema 4 → 5 → 6 → 7（REQ-81aabd：planning → design 键改名）
     expect(onDisk.requirements[0].statusHistory).toBeUndefined()
   })
 })

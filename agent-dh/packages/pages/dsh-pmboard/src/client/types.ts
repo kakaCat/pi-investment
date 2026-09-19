@@ -12,7 +12,7 @@ export type { ArtifactKind, StageArtifact, StageKey } from '../shared/protocol.t
 // -- 需求 -----------------------------------------------------------------
 
 export type RequirementStatus =
-  | 'draft' | 'brainstorming' | 'planning' | 'decomposing' | 'implementing'
+  | 'draft' | 'brainstorming' | 'design' | 'decomposing' | 'implementing'
   | 'accepting' | 'done' | 'archived' | 'canceled'
 
 export type RequirementCategory = 'feature' | 'bug' | 'doc' | 'refactor' | 'spike' | 'chore'
@@ -44,7 +44,7 @@ export interface PlanTask {
   acceptance?: string
 }
 
-/** 实施计划：提交 → 人批准/退回；未批准不允许拆分 */
+/** 拆分计划：提交 → 人批准/退回；未批准不允许拆分 */
 export interface PlanRecord {
   path: string
   summary: string
@@ -135,7 +135,7 @@ export interface RequirementRecord {
   archivePath?: string
   /** 已登记产物（五道人工确认门的判定输入；缺省=未登记，见 shared/protocol.ts） */
   artifacts?: StageArtifact[]
-  /** 实施计划（plan mode） */
+  /** 拆分计划（plan mode） */
   plan?: PlanRecord
   /** 验收材料（提交+人工审核结论） */
   verification?: VerificationRecord

@@ -13,9 +13,14 @@
  * @module dsh-pmboard/domain/text/labels
  */
 
-/** 验收单项弹框选项（**判定用**：用户点击值需与本常量精确相等）。 */
+/** 验收单项弹框选项（**判定用**：用户点击值需与本常量精确相等）。
+ * 
+ * 当前实现：二态判定（passed / failed），"部分通过"/"推迟验收"等场景通过 opinion 字段补充说明。
+ * 未来扩展：若需要多态判定（partial/deferred 等中间态），需配套修改状态机与归档逻辑。
+ */
 export const ACCEPT_ITEM_OPTIONS = {
   pass: '✅ 通过',
+  clarify: '💬 需要澄清（仍计为"改进"，请在意见中说明）',
   fix: '🛠 改进（需修改）',
   other: '❓ 其他',
 } as const
@@ -33,9 +38,11 @@ export const ITEM_STATUS_BADGE = {
   failed: '❌ 不通过',
 } as const
 
-/** 确认弹框（reqboard_ask_confirm）缺省选项。 */
+/** 确认弹框（reqboard_ask_confirm）缺省选项。理解差异 ≠ 需要修改；新增内容 ≠ 修改现有内容。 */
 export const DEFAULT_CONFIRM_OPTIONS = [
   '确认，推进到下一阶段 (Recommended)',
+  '需要澄清（有疑问，但不一定要改）',
+  '需要补充内容（现有内容对，但不够完整）',
   '需要修改',
   '暂停',
 ] as const

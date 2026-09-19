@@ -120,7 +120,7 @@ export const LIST_SORT_LABELS: ReadonlyArray<{ key: ListSortKey; label: string }
 
 /** 流水线阶段序（越小越靠前：实施中在最上）—— stage 排序用。 */
 export const STAGE_RANK: Record<string, number> = {
-  implementing: 0, accepting: 1, decomposing: 2, planning: 3, brainstorming: 4, draft: 5, done: 6,
+  implementing: 0, accepting: 1, decomposing: 2, design: 3, brainstorming: 4, draft: 5, done: 6,
 }
 
 export function listPct(card: ReqCard): number {

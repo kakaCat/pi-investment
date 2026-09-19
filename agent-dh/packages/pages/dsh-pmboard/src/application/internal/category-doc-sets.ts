@@ -17,6 +17,7 @@
  *
  * @module dsh-pmboard/application/internal/category-doc-sets
  */
+import { fmt } from '../../domain/text/fmt.js'
 
 /** BASE：共同骨架——所有立项类型都必须有的根文档节。**只在这里定义一次**。 */
 export const COMMON_ROOT_SECTIONS: readonly string[] = ['边界']
@@ -98,10 +99,10 @@ export function missingCategoryDocs(input: CategoryDocCheckInput): string[] {
 
   const missing: string[] = []
   for (const sec of requiredRootSectionsFor(input.category, input.base)) {
-    if (!hasRootSection(input.rootText, sec)) missing.push('requirement.md 缺必填节「' + sec + '」')
+    if (!hasRootSection(input.rootText, sec)) missing.push(fmt('requirement.md 缺必填节「{sec}」', { sec }))
   }
   for (const doc of delta.requiredDesignDocs) {
-    if (!input.designNames.includes(doc)) missing.push('design/' + doc + ' 未交')
+    if (!input.designNames.includes(doc)) missing.push(fmt('design/{doc} 未交', { doc }))
   }
   return missing
 }

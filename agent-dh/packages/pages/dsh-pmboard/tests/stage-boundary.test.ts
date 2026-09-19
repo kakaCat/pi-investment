@@ -1,6 +1,6 @@
 /**
- * W7 阶段产物边界单测（REQ-2e9473 t17）：计划可不含任务表（技术设计一套文档）；
- * decompose 承担任务卡创作（薄卡拒落）；未批准计划不得落库（planning 阶段落库被拒）。
+ * W7 阶段产物边界单测（REQ-2e9473 t17）：计划可不含任务表（设计一套文档）；
+ * decompose 承担任务卡创作（薄卡拒落）；未批准计划不得落库（design 阶段落库被拒）。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -25,7 +25,7 @@ beforeEach(() => {
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 
-async function seed(status = 'planning'): Promise<void> {
+async function seed(status = 'design'): Promise<void> {
   const r = {
     id: 'REQ-w7test', title: '阶段边界', description: '', status, category: 'feature', blocked: false,
     sourceSessionId: W, comments: [], version: 1, createdAt: 1, updatedAt: 1,
@@ -42,9 +42,9 @@ const CREATIVE = [
 ]
 
 describe('W7 阶段产物边界（t17）', () => {
-  it('不含任务表的计划可提交（技术设计一套文档）', async () => {
+  it('不含任务表的计划可提交（设计一套文档）', async () => {
     await seed()
-    const out = await run(planTool, { path: 'docs/requirements/REQ-w7test/plan.md', summary: '技术设计：架构+四视角+风险' })
+    const out = await run(planTool, { path: 'docs/requirements/REQ-w7test/plan.md', summary: '设计：架构+四视角+风险' })
     expect(out.plan_status).toBe('pending_approval')
     expect(out.task_count).toBe(0)
     expect(out.note).toMatch(/任务卡在拆分阶段创作/)
@@ -61,7 +61,7 @@ describe('W7 阶段产物边界（t17）', () => {
 
   it('空任务表计划 + 未传 tasks → decompose 拒绝（REQBOARD_TASKS_REQUIRED）', async () => {
     await seed()
-    await run(planTool, { path: 'p.md', summary: '技术设计' })
+    await run(planTool, { path: 'p.md', summary: '设计' })
     await store.mutate('approve', (l) => {
       const r = l.requirements[0]
       r.plan!.approvedAt = 1000
@@ -74,7 +74,7 @@ describe('W7 阶段产物边界（t17）', () => {
 
   it('空任务表计划 + 创作型 tasks → 落库成功（含实施卡，需求进拆分态）', async () => {
     await seed()
-    await run(planTool, { path: 'p.md', summary: '技术设计' })
+    await run(planTool, { path: 'p.md', summary: '设计' })
     await store.mutate('approve', (l) => {
       const r = l.requirements[0]
       r.plan!.approvedAt = 1000
@@ -91,7 +91,7 @@ describe('W7 阶段产物边界（t17）', () => {
 
   it('创作型薄卡（缺 implementation）→ 拒绝落库', async () => {
     await seed()
-    await run(planTool, { path: 'p.md', summary: '技术设计' })
+    await run(planTool, { path: 'p.md', summary: '设计' })
     await store.mutate('approve', (l) => {
       const r = l.requirements[0]
       r.plan!.approvedAt = 1000
@@ -102,9 +102,9 @@ describe('W7 阶段产物边界（t17）', () => {
     expect(store.snapshot().tasks).toHaveLength(0)
   })
 
-  it('计划未批准 → 落库被拒（planning 阶段不得落库，故障注入）', async () => {
+  it('计划未批准 → 落库被拒（design 阶段不得落库，故障注入）', async () => {
     await seed()
-    await run(planTool, { path: 'p.md', summary: '技术设计' })
+    await run(planTool, { path: 'p.md', summary: '设计' })
     await expect(run(decompose, { tasks: CREATIVE })).rejects.toThrow(/REQBOARD_PLAN_NOT_APPROVED/)
     expect(store.snapshot().tasks).toHaveLength(0)
   })
