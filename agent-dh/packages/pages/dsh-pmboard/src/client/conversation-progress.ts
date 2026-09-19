@@ -284,6 +284,10 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
         onClick: () => { window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { open: true } })) },
       }, '打开项目看板'),
       h('button', {
+        key: 'open-req', type: 'button', className: 'dsh-pm-btn sm primary',
+        onClick: () => { window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { open: true, req: req.id } })) },
+      }, '打开需求看板'),
+      h('button', {
         key: 'rf', type: 'button', className: 'dsh-pm-btn sm',
         onClick: () => { setDetailOpen(false); setSelectedStage(null) },
       }, '收起'),

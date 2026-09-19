@@ -53,10 +53,22 @@ export function apply(ctx: ApplyContext): void {
     const disposeBoard = mountBoard(controller)
 
     const onOpen = (event: Event): void => {
-      const detail = (event as CustomEvent<{ open?: boolean }>).detail
+      const detail = (event as CustomEvent<{ open?: boolean; req?: string }>).detail
       if (detail?.open === true) {
-        if (controller.getSnapshot().boardOpen) controller.closeBoard()
-        else controller.openBoard()
+        controller.openBoard()
+        // 如果传入了 req 参数，定位到该需求
+        if (detail.req) {
+          // 等待看板打开后再定位
+          setTimeout(() => {
+            const reqCard = document.querySelector(`[data-req="${detail.req}"]`)
+            if (reqCard) {
+              reqCard.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              // 高亮动画
+              reqCard.classList.add('highlight-flash')
+              setTimeout(() => reqCard.classList.remove('highlight-flash'), 2000)
+            }
+          }, 100)
+        }
       } else {
         controller.toggleBoard()
       }
