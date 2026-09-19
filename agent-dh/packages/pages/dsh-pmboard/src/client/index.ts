@@ -56,17 +56,12 @@ export function apply(ctx: ApplyContext): void {
       const detail = (event as CustomEvent<{ open?: boolean; req?: string }>).detail
       if (detail?.open === true) {
         controller.openBoard()
-        // 如果传入了 req 参数，定位到该需求
+        // 如果传入了 req 参数，打开需求详情页
         if (detail.req) {
-          // 等待看板打开后再定位
+          // 等待看板打开后再打开详情
           setTimeout(() => {
-            const reqCard = document.querySelector(`[data-req="${detail.req}"]`)
-            if (reqCard) {
-              reqCard.scrollIntoView({ behavior: 'smooth', block: 'center' })
-              // 高亮动画
-              reqCard.classList.add('highlight-flash')
-              setTimeout(() => reqCard.classList.remove('highlight-flash'), 2000)
-            }
+            // 直接调用 controller 打开详情页
+            controller.openDetail(detail.req)
           }, 100)
         }
       } else {
