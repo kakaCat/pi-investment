@@ -251,6 +251,17 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
           title: t.title,
           depends_on: [...t.dependsOn],
         }))
+        // 调用 DSH todo_write 工具，注册任务到 DSH 任务系统（REQ-327bdf t-f0e869）。
+        // 为什么放在 mutate **之后**：repo.mutate 的回调是同步契约（返回 LedgerChange），
+        // 在里面 await 会让整个模块无法被 esbuild/vite 解析（实测：31 个测试文件连模块都加载不了）。
+        // 可用性守卫：exec.tools 只在真实 DSH 会话里存在，测试夹具与直连调用没有它——
+        // 注册 todo 是附加动作，不该让"没这个工具"变成 decompose 失败。
+        const tools = (exec as { tools?: { todo_write?: (a: unknown) => Promise<unknown> } } | undefined)?.tools
+        if (tools?.todo_write !== undefined && created.length > 0) {
+          await tools.todo_write({
+            todos: created.map(c => ({ content: c.id + ': ' + c.title, status: 'pending' })),
+          })
+        }
         // ── 产物登记（REQ-31e11f t4）：decomposition + 每任务 task_detail ──
         const reqDir = 'docs/requirements/' + target.id
         const decompPath = reqDir + '/decomposition.md'

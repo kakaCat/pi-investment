@@ -2,8 +2,12 @@
  * 验收单逐项裁决（REQ-2e9473 W6 补充）：路由（看板勾选）与会话工具（弹框答复）
  * 共用的**单一实现**——避免两条通道逻辑漂移。
  *
- * 语义：逐项 passed/failed（不通过必填意见）→ 有不通过项则需求打回 implementing +
- * 为每个未过项自动生成关联返工任务（承接原任务 phase/side/scope + 意见）。
+ * 语义（REQ-a8d582 FR-2 起）：逐项 passed/failed（不通过必填意见）→ **只写验收单**。
+ *
+ * 为什么不再自动打回：以前"有一项不通过就立刻打回 implementing + 批量建返工任务"，等于
+ * 系统替人做了"退回"这个决定，还顺手让看板的「验收通过」按钮消失。现在两条状态迁移都由
+ * 人的动作触发——退回走 handleVerifyDecision(pass=false)（在那里建返工卡，见
+ * materializeReworkFromSheet），通过走 handleVerifyDecision(pass=true)。
  *
  * REQ-47939a t4：**裁决规则**（意见必填 / 项状态更新 / 返工规格）已迁至
  * domain/workflow/AcceptanceSheetSpec.ts；本文件只做台账校验（需求/状态/版本）与
@@ -15,10 +19,10 @@ import {
   asScope, newTaskId, recordStatus,
   type ActorRef, type ReqboardLedger, type RequirementRecord, type TaskRecord, type TokenSnapshot,
 } from '../../shared/protocol.js'
-import { transitionRequirement } from './token-usage.js'
 import { hasErrorCode, REQBOARD_ERROR_CODES } from '../../domain/errors.js'
 import {
   applyVerdicts as applySheetVerdicts,
+  reworkSpecsFor,
   type ReworkTaskSpec,
 } from '../../domain/workflow/AcceptanceSheetSpec.js'
 
@@ -94,7 +98,7 @@ export function applyVerdicts(
   actor: ActorRef,
   nowTs: number,
   commentId: () => string,
-  snap?: TokenSnapshot, // REQ-b545fe t5: 打回路径快照（可选）
+  _snap?: TokenSnapshot, // REQ-b545fe t5 的打回快照随"自动打回"一并移除（REQ-a8d582 FR-2）；入参保留以免改调用方签名
 ): ApplyVerdictsResult {
   const r = ledger.requirements.find(x => x.id === reqId)
   if (r === undefined) throw new VerdictError('需求 ' + reqId + ' 不存在', 'not_found')
@@ -126,44 +130,42 @@ export function applyVerdicts(
     throw err
   }
   const pending = applied.pending
-  const reworkTasks: TaskRecord[] = []
-  if (applied.reworkTasks.length > 0 && r.status === 'accepting') {
-    for (const spec of applied.reworkTasks) {
-      reworkTasks.push(materializeReworkTask(ledger, r.id, spec, actor, nowTs))
-    }
-    // REQ-b545fe t5：使用唯一迁移助手
-    transitionRequirement(r, 'implementing', {
-      at: nowTs,
-      actor,
-      reason: '验收单 ' + applied.reworkTasks.length + ' 项不通过 → 打回返工（自动生成 ' + reworkTasks.length + ' 个返工任务）',
-      snap,
-    })
-    r.comments.push({
-      id: commentId(),
-      body: '[验收单] v' + sheet.version + ' 逐项裁决：' + applied.reworkTasks.length + ' 项不通过 → 打回实施。\n'
-        + applied.reworkTasks.map((s) => '- ✗ ' + s.acceptance + '：' + s.opinion).join('\n')
-        + '\n返工任务：' + reworkTasks.map(t => t.id).join('、'),
-      createdAt: nowTs,
-      createdBy: actor,
-    })
-  } else {
-    r.version += 1
-    r.updatedAt = nowTs
-    r.updatedBy = actor
-    const passed = applied.passed
-    r.comments.push({
-      id: commentId(),
-      body: '[验收单] v' + sheet.version + ' 逐项裁决：通过 ' + passed + ' 项，待验 ' + pending + ' 项'
-        + (pending === 0 ? '（全部通过 → 可点「验收通过」归档）' : '（挂起，稍后从断点续验）'),
-      createdAt: nowTs,
-      createdBy: actor,
-    })
-  }
+  // REQ-a8d582 FR-2：**裁决只记录**——不改需求状态、不建返工任务（原自动打回分支已删除）。
+  r.version += 1
+  r.updatedAt = nowTs
+  r.updatedBy = actor
+  r.comments.push({
+    id: commentId(),
+    body: '[验收单] v' + sheet.version + ' 逐项裁决：通过 ' + applied.passed + ' 项，不通过 ' + applied.failed + ' 项，待验 ' + pending + ' 项'
+      + (applied.failed > 0
+          ? '（需求仍在验收态：由人点「退回返工」生成返工任务，或点「验收通过」带覆盖归档）'
+          : (pending === 0 ? '（全部通过 → 可点「验收通过」归档）' : '（挂起，稍后从断点续验）')),
+    createdAt: nowTs,
+    createdBy: actor,
+  })
   return {
     requirement: r,
-    reworkTasks,
+    reworkTasks: [],
     pending,
     passed: applied.passed,
     failed: applied.failed,
   }
+}
+
+/**
+ * 「退回返工」路径：按当前验收单里**已判不通过**的项生成返工任务（REQ-a8d582 FR-2）。
+ *
+ * 为什么搬到这里：裁决本身不再改状态（见 applyVerdicts），返工卡必须跟着人的"退回"动作走——
+ * 否则会重新出现"人还没决定、系统已经建了一堆卡"。规格仍单点在 domain/workflow/AcceptanceSheetSpec。
+ */
+export function materializeReworkFromSheet(
+  ledger: ReqboardLedger,
+  reqId: string,
+  actor: ActorRef,
+  nowTs: number,
+): TaskRecord[] {
+  const r = ledger.requirements.find(x => x.id === reqId)
+  const sheet = r?.verification?.sheet
+  if (r === undefined || sheet === undefined) return []
+  return reworkSpecsFor(sheet, ledger.tasks).map(spec => materializeReworkTask(ledger, r.id, spec, actor, nowTs))
 }

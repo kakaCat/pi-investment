@@ -5,7 +5,7 @@
  *
  * @module dsh-pmboard/client/board-mount
  */
-import type { BoardState, TriageRecord } from './types.ts'
+import type { BoardState, RequirementRecord, TriageRecord } from './types.ts'
 import {
   PANEL_NAME,
   ACTIVE_ATTR,
@@ -27,6 +27,49 @@ import { renderMarksBlock, renderMarksPlaceholder } from './marks-info.ts'
 import type { StageOverview, StageKey } from '../shared/protocol.ts'
 
 const POLL_MS = 20000
+
+/** 「验收通过」确认文案与覆盖说明（REQ-a8d582 FR-1/FR-4）。 */
+export interface VerifyConfirmCopy {
+  /** 弹给人看的确认文案（含"不通过 / 未裁决"计数）。 */
+  message: string
+  /**
+   * 需要显式覆盖时才给（有不合格项或尚无验收材料）。
+   * 全过且材料齐全时为 undefined —— 那种通过**不是覆盖**，不该在台账留覆盖痕迹。
+   */
+  overrideDetail?: string
+}
+
+/**
+ * 装配「验收通过」的确认文案与覆盖说明（REQ-a8d582 FR-1/FR-4）。
+ *
+ * 为什么区分两种通过：覆盖是一种**例外**，只有"人已知有不合格项 / 尚无验收材料还坚持通过"
+ * 才成立；全过且材料齐全时的通过不该带覆盖记录（否则台账里全是噪声，复盘时读不出例外）。
+ * 覆盖说明由计数与不合格项摘要自动装配——不让人手填：那是"是/否"确认框，不是写作文。
+ */
+export function verifyConfirmCopy(req: RequirementRecord | undefined): VerifyConfirmCopy {
+  const v = req?.verification
+  if (v === undefined) {
+    return {
+      message: '该需求尚无验收材料（本次通过没有验收证据）。\n确认后按「覆盖通过」直接归档，是否继续？',
+      overrideDetail: '看板覆盖通过：尚无验收材料（无验收证据）',
+    }
+  }
+  const items = v.sheet?.items ?? []
+  const passed = items.filter(i => i.status === 'passed').length
+  const failedItems = items.filter(i => i.status === 'failed')
+  const pending = items.filter(i => i.status === 'pending').length
+  const version = v.sheet?.version ?? 0
+  if (failedItems.length === 0 && pending === 0) {
+    return { message: '验收单 v' + version + '：' + passed + ' 项全部通过。\n验收通过即归档，是否继续？' }
+  }
+  const samples = failedItems.slice(0, 3).map(i => '✗ ' + i.criterion.slice(0, 60))
+  return {
+    message: '验收单 v' + version + '：通过 ' + passed + ' / 不通过 ' + failedItems.length + ' / 未裁决 ' + pending + '。\n'
+      + (samples.length > 0 ? samples.join('\n') + '\n' : '')
+      + '确认后按「覆盖通过」归档（会留下覆盖记录），是否继续？',
+    overrideDetail: '看板覆盖通过：验收单 v' + version + '，不通过 ' + failedItems.length + ' 项 / 未裁决 ' + pending + ' 项',
+  }
+}
 
 /** 看板视图偏好的持久键（前端本地，不入台账）。 */
 const VIEW_PREF_KEY = 'dsh-pmboard:view'
@@ -450,9 +493,19 @@ export function mountBoard(controller: BoardController): () => void {
       }
       case 'verify-pass': {
         const reqId = el.dataset.id
-        if (reqId) {
-          void api.verifyPass({ id: reqId }).then(() => fetchAll()).catch(e => window.alert(String(e)))
-        }
+        if (!reqId) return
+        // REQ-a8d582 FR-1：先把「不通过 / 未裁决」摆到人眼前再问是否仍要通过。
+        // 取消 → 直接 return：一个请求都不发（验收标准 2 的"零副作用"就落在这里）。
+        const target = state?.requirements.find(r => r.id === reqId)
+        const copy = verifyConfirmCopy(target)
+        if (!window.confirm(copy.message)) return
+        void api
+          .verifyPass({
+            id: reqId,
+            ...(copy.overrideDetail !== undefined ? { confirm_override: copy.overrideDetail } : {}),
+          })
+          .then(() => fetchAll())
+          .catch(e => window.alert(String(e)))
         return
       }
       case 'verify-rework': {

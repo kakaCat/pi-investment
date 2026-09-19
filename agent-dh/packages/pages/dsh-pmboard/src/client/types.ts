@@ -57,6 +57,19 @@ export interface PlanRecord {
   rejectedReason?: string
 }
 
+/**
+ * 验收覆盖记录（REQ-a8d582 FR-4）：与 shared/protocol.ts 同形，client 侧独立声明。
+ * 挂在需求级：无材料通过时没有 verification 对象可挂。
+ */
+export interface AcceptanceOverride {
+  at: number
+  by: ActorRef
+  detail: string
+  failed: number
+  pending: number
+  noMaterials: boolean
+}
+
 /** 验收材料（agent 提交）+ 人工审核结论 */
 export interface VerificationRecord {
   summary: string
@@ -139,6 +152,8 @@ export interface RequirementRecord {
   plan?: PlanRecord
   /** 验收材料（提交+人工审核结论） */
   verification?: VerificationRecord
+  /** 覆盖式通过留痕（REQ-a8d582 FR-4）：缺省 = 无覆盖 */
+  acceptanceOverride?: AcceptanceOverride
   /** 归档材料（准备+归档结论） */
   archive?: ArchiveRecord
   /** 状态事件时间线（创建 + 每次转移） */

@@ -237,6 +237,41 @@ export interface ApplySheetVerdictsResult {
 }
 
 /**
+ * 单个"不通过"验收项 → 返工任务规格（承接原任务 phase/side/scope 与验收意见）。
+ *
+ * REQ-a8d582 FR-2：本函数从 applyVerdicts 内部**抽出来成为单点**——因为"返工任务何时生成"
+ * 从"裁决时"搬到了"人点退回返工时"，两条路径（裁决批次 / 退回返工）必须用同一套规格，
+ * 各写一份必然漂移。
+ */
+export function reworkSpecFor(
+  item: SheetItemLike,
+  sheet: SheetLike,
+  tasks: readonly ReworkSourceTaskLike[],
+): ReworkTaskSpec {
+  const src = item.source
+  const orig = src.kind === 'task' ? tasks.find(t => t.id === src.taskId) : undefined
+  return {
+    title: fmt('返工：{title}', { title: (orig?.title ?? item.criterion).slice(0, 60) }),
+    description: fmt('验收不通过项返工（v{version} 项 {itemId}）：{criterion}', { version: sheet.version, itemId: item.id, criterion: item.criterion }),
+    phase: orig?.phase ?? 'implement',
+    side: orig?.side ?? 'fullstack',
+    scope: orig?.scope ?? { apis: [], tables: [], files: [] },
+    acceptance: item.criterion,
+    implementation: fmt('按验收意见修复：{opinion}', { opinion: item.opinion ?? '（见验收单）' }),
+    context: fmt('承接自 {origin}；验收意见：{opinion}', {
+      origin: src.kind === 'requirement' ? '需求级验收项' : fmt('任务 {taskId}', { taskId: src.taskId }),
+      opinion: item.opinion ?? '',
+    }),
+    opinion: item.opinion ?? '',
+  }
+}
+
+/** 验收单里**已判不通过**的全部项 → 返工规格（"退回返工"路径用；与裁决路径同源）。 */
+export function reworkSpecsFor(sheet: SheetLike, tasks: readonly ReworkSourceTaskLike[]): ReworkTaskSpec[] {
+  return sheet.items.filter(i => i.status === 'failed').map(i => reworkSpecFor(i, sheet, tasks))
+}
+
+/**
  * 逐项应用裁决（就地修改 sheet.items）。
  * 不通过项缺意见 / 验收项不存在 → 抛 code=invalid_input 的领域错误（调用方可映射传输码）。
  * 返工规格承接原任务 phase/side/scope + 意见；需求级项的 source 不指向任务，故 orig 为空。
@@ -263,24 +298,7 @@ export function applyVerdicts(
     item.decidedBy = actor
     if (verdict.status === 'failed') failedItems.push(item)
   }
-  const reworkTasks: ReworkTaskSpec[] = failedItems.map((item) => {
-    const src = item.source
-    const orig = src.kind === 'task' ? tasks.find(t => t.id === src.taskId) : undefined
-    return {
-      title: fmt('返工：{title}', { title: (orig?.title ?? item.criterion).slice(0, 60) }),
-      description: fmt('验收不通过项返工（v{version} 项 {itemId}）：{criterion}', { version: sheet.version, itemId: item.id, criterion: item.criterion }),
-      phase: orig?.phase ?? 'implement',
-      side: orig?.side ?? 'fullstack',
-      scope: orig?.scope ?? { apis: [], tables: [], files: [] },
-      acceptance: item.criterion,
-      implementation: fmt('按验收意见修复：{opinion}', { opinion: item.opinion ?? '（见验收单）' }),
-      context: fmt('承接自 {origin}；验收意见：{opinion}', {
-        origin: item.source.kind === 'requirement' ? '需求级验收项' : fmt('任务 {taskId}', { taskId: item.source.taskId }),
-        opinion: item.opinion ?? '',
-      }),
-      opinion: item.opinion ?? '',
-    }
-  })
+  const reworkTasks: ReworkTaskSpec[] = failedItems.map(item => reworkSpecFor(item, sheet, tasks))
   return {
     sheet,
     reworkTasks,

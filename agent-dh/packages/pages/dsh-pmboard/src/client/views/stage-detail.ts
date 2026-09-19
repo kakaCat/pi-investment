@@ -253,11 +253,10 @@ export function renderActionBar(req: RequirementRecord): string {
       move('accepting', '→ 验收', '提交验收；任务全部完成时系统会自动推进', true)
       break
     case 'accepting':
-      // REQ-9f4a44：验收通过 → 直接归档（accepting>archived），走 verify-pass/rework（下方补）。
-      // 材料还没交时不铺按钮（归档门要材料已确认，铺了也是点了必被拒的假出口），改为写清下一步。
-      if (req.verification === undefined) {
-        hints.push('未提交验收材料：先 reqboard_submit(kind=verification) 交材料，操作条才会出现「验收通过」')
-      }
+      // REQ-a8d582 FR-3：显示条件**只看阶段**——进入验收态就铺按钮（按钮在下方统一加）。
+      // 旧实现把"验收阶段"与"窗口已交验收材料"混为一谈，未交材料时只给一行提示、按钮不出现。
+      // 用户 2026-09-20 明确订正："是验收阶段按钮就展示"。不合格/缺材料的风险改由
+      // 点击后的确认弹框承担（board-mount 的 verify-pass 分支），不再靠隐藏按钮来回避。
       break
     case 'done':
       // done 为 legacy 死状态（REQ_TRANSITIONS: done: []），历史记录只读，不给转移按钮
@@ -270,8 +269,9 @@ export function renderActionBar(req: RequirementRecord): string {
     add('plan-approve', '批准计划', '批准拆分计划，解锁 reqboard_decompose 拆分', true)
     add('plan-reject', '退回计划', '退回拆分计划（窗口按理由重写）')
   }
-  if (req.status === 'accepting' && req.verification !== undefined) {
-    add('verify-pass', '验收通过', '人工审核通过，需求进入完成', true)
+  if (req.status === 'accepting') {
+    // REQ-a8d582 FR-1/FR-3：只要在验收态就给按钮；有不合格项或未交材料时，点击先弹确认框。
+    add('verify-pass', '验收通过', '人工审核通过（有不合格项或未交材料时会先弹确认框）', true)
     add('verify-rework', '退回返工', '退回返工（需填写意见）')
   }
   if (req.status === 'done' && req.archive !== undefined && req.archive.archivedAt === undefined) {

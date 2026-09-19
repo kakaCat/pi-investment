@@ -58,7 +58,8 @@ function ok(res: ServerResponse, data: unknown): void {
 function fail(res: ServerResponse, err: unknown): void {
   const e = err as { message?: string; code?: string }
   const status = e.code === 'invalid_input' || e.code === 'invalid_transition' || e.code === 'invalid_dag'
-    || e.code === 'missing_artifact' || e.code === 'artifact_not_confirmed' ? 400
+    // verify_override_required（REQ-a8d582 FR-4）：不合规通过缺覆盖说明 → 400（补上说明可重发）
+    || e.code === 'missing_artifact' || e.code === 'artifact_not_confirmed' || e.code === 'verify_override_required' ? 400
     : e.code === 'human_gate' || e.code === 'system_gate' ? 403
     : e.code === 'not_found' ? 404 : 500
   json(res, status, { success: false, error: e.message ?? String(err), ...(e.code ? { code: e.code } : {}) })

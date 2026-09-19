@@ -126,7 +126,9 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
         return {
           success: true, requirement_id: targetReq.id, sheet_version: sheet.version,
           recorded: 0, pending: 0, passed: passedN, failed: failedN,
-          note: failedN > 0 ? '有未过项：需求已打回返工（修复后重交验收单，v2 只验未过项）' : '全部已裁决（等待验收通过）',
+          note: failedN > 0
+            ? '有 ' + failedN + ' 项不通过：需求仍在验收态（REQ-a8d582 FR-2 起不再自动打回）——由人在看板点「退回返工」生成返工卡，或点「验收通过」带覆盖归档'
+            : '全部已裁决（等待验收通过）',
         } as never
       }
 
@@ -219,9 +221,10 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
         pending,
         passed: s?.items.filter(i => i.status === 'passed').length ?? 0,
         failed,
-        ...(reworkIds.length > 0 ? { rework_tasks: reworkIds } : {}),
-        note: reworkIds.length > 0
-          ? '有不通过项：需求已打回 implementing，生成 ' + reworkIds.length + ' 个返工任务；修复后重新 verify_submit（v2 只含未过项）'
+        // REQ-a8d582 FR-2：裁决不再建返工任务，该字段恒为空数组（保留以维持输出契约）。
+        rework_tasks: reworkIds,
+        note: failed > 0
+          ? '有 ' + failed + ' 项不通过：需求仍在验收态（REQ-a8d582 FR-2 起不再自动打回）——由人在看板点「退回返工」生成返工卡，或点「验收通过」带覆盖归档'
           : (pending > 0
               ? '本批已记录（剩 ' + pending + ' 项待验）：再次调 reqboard_accept_sheet 从断点继续'
               : '全部通过 → 请点「验收通过」归档（人工门）'),

@@ -28,6 +28,8 @@ import {
   defineMoveTool,
   defineDecomposeTool,
   defineTaskMoveTool,
+  defineTaskExecuteTool,
+  defineTaskStatusTool,
   defineTaskReportTool,
   defineSubmitTool,
   defineAskConfirmTool,
@@ -326,9 +328,11 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         disposers.push(toolsCtx.tools.register(defineSubmitTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineAskConfirmTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineAcceptSheetTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineTaskExecuteTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineTaskStatusTool(useCaseDeps)));
       }, name + ': tools');
       logger.info(
-        'agent tools registered (9): reqboard_create / reqboard_status / reqboard_move / reqboard_decompose / reqboard_task_move / '
+        'agent tools registered (11): reqboard_create / reqboard_status / reqboard_move / reqboard_decompose / reqboard_task_move / reqboard_task_execute / reqboard_task_status / '
         + 'reqboard_task_report / reqboard_submit(kind) / reqboard_ask_confirm / reqboard_accept_sheet',
       );
     },

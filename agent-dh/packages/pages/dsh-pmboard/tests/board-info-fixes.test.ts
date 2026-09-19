@@ -1,12 +1,15 @@
 /**
- * REQ-31e11f B 类验收问题修补单测（#5/#6/#7/#8/#9）。
+ * serves: FR-1, FR-3
+ *
+ * REQ-31e11f B 类验收问题修补单测（#5/#6/#7/#8/#9）；REQ-a8d582 起承接 FR-1/FR-3 的
+ * 按钮可见性与确认文案用例。
  * 覆盖：文档记录并入 req.artifacts（按 stage 排序去重）/ 审批入口外置到常驻操作条
  * （折叠区不再藏着按钮）/ 评论 data-actor 人机区分 / 窗口 chip 可点且失败有明确反馈。
  * 渲染函数零 DOM 依赖，Node 环境直接跑。
  */
 import { describe, it, expect } from 'vitest'
 import { buildReqDetail, buildListView } from '../src/client/view.ts'
-import { jumpResultMessage } from '../src/client/board-mount.ts'
+import { jumpResultMessage, verifyConfirmCopy } from '../src/client/board-mount.ts'
 import type { BoardState, RequirementRecord, StageArtifact } from '../src/client/types.ts'
 
 const T0 = 1700000000000
@@ -144,16 +147,16 @@ describe('审批入口外置到常驻操作条（#8）', () => {
     expect(html.slice(html.indexOf('<details'))).not.toContain('data-action="verify-pass"')
   })
 
-  it('验收态尚未交材料：操作条不给 verify-pass，也不给点了必被拒的假出口，而是写清下一步', () => {
+  it('验收态尚未交材料：操作条照样给 verify-pass（REQ-a8d582 FR-3 显示条件只看阶段）', () => {
     const req = makeReq({ id: 'REQ-bar3', status: 'accepting' })
     const bar = actionBar(buildReqDetail(req, [], T0))
-    expect(bar).not.toContain('data-action="verify-pass"')
-    // 语义随状态机升级（不是为了让测试变绿）：REQ-9f4a44 起 done 已是历史遗留状态
-    // （accepting>done 合并进 accepting>archived），且归档门要求验收材料已登记确认——
-    // 所以原断言的"一键完成 data-to=done"兜底既没有合法转移、点了也必被代码级拒绝。
-    // 保留原意图（这个阶段不能没有任何出口）的落地方式 = 操作条写明下一步。
+    // 旧实现"未交材料就不铺按钮、只写一行提示"已被用户 2026-09-20 的订正推翻：
+    // 判据是**验收阶段**，不是"已交验收材料"。不合格/缺材料的风险不再靠隐藏按钮回避，
+    // 改由点击后的确认弹框 + 覆盖留痕承担（见 verifyConfirmCopy 的用例）。
+    expect(bar).toContain('data-action="verify-pass"')
+    expect(bar).toContain('data-action="verify-rework"')
+    expect(bar).not.toContain('才会出现「验收通过」')
     expect(bar).not.toContain('data-action="move-req"')
-    expect(bar).toContain('验收材料')
   })
 
   it('已完成且材料已备：操作条给 archive-req，折叠区无重复按钮', () => {
@@ -180,6 +183,58 @@ describe('审批入口外置到常驻操作条（#8）', () => {
       plan: { ...basePlan, approvedAt: T0 + HOUR, approvedBy: { kind: 'human' } },
     })
     expect(buildReqDetail(req, [], T0 + 2 * HOUR)).not.toContain('data-action="plan-approve"')
+  })
+})
+
+// -- REQ-a8d582 FR-1/FR-4：「验收通过」确认文案装配 ---------------------------
+
+describe('「验收通过」二次确认文案（REQ-a8d582 FR-1/FR-4）', () => {
+  const sheetWith = (items: { id: string; status: 'passed' | 'failed' | 'pending' }[]): any => ({
+    version: 3, generatedAt: T0,
+    items: items.map(i => ({
+      id: i.id, source: { kind: 'requirement' as const },
+      criterion: '【任务】验收：跑 npx vitest run 看到全绿', evidence: [], status: i.status,
+    })),
+  })
+
+  it('有不合格项：文案含通过/不通过/未裁决计数，且给出覆盖说明', () => {
+    const req = makeReq({
+      id: 'REQ-vc1', status: 'accepting',
+      verification: {
+        summary: '交付', evidence: ['npx vitest run 全绿'], submittedAt: T0, submittedBy: { kind: 'agent' },
+        sheet: sheetWith([
+          { id: 'v3-1', status: 'passed' },
+          { id: 'v3-2', status: 'failed' },
+          { id: 'v3-3', status: 'pending' },
+        ]),
+      },
+    })
+    const copy = verifyConfirmCopy(req)
+    expect(copy.message).toContain('通过 1')
+    expect(copy.message).toContain('不通过 1')
+    expect(copy.message).toContain('未裁决 1')
+    expect(copy.message).toContain('覆盖通过')
+    expect(copy.overrideDetail).toContain('不通过 1 项 / 未裁决 1 项')
+  })
+
+  it('全过且材料齐全：不是覆盖（不给 overrideDetail），也不出现"不合格/覆盖"字样', () => {
+    const req = makeReq({
+      id: 'REQ-vc2', status: 'accepting',
+      verification: {
+        summary: '交付', evidence: ['npx vitest run 全绿'], submittedAt: T0, submittedBy: { kind: 'agent' },
+        sheet: sheetWith([{ id: 'v3-1', status: 'passed' }, { id: 'v3-2', status: 'passed' }]),
+      },
+    })
+    const copy = verifyConfirmCopy(req)
+    expect(copy.overrideDetail).toBeUndefined()
+    expect(copy.message).not.toContain('不合格')
+    expect(copy.message).not.toContain('覆盖')
+  })
+
+  it('没有验收材料：文案讲清"没有验收证据"，并给出覆盖说明', () => {
+    const copy = verifyConfirmCopy(makeReq({ id: 'REQ-vc3', status: 'accepting' }))
+    expect(copy.message).toContain('没有验收证据')
+    expect(copy.overrideDetail).toContain('尚无验收材料')
   })
 })
 

@@ -557,6 +557,26 @@ export interface VerificationSheet {
   reworkOnly?: boolean
 }
 
+/**
+ * 验收覆盖记录（REQ-a8d582 FR-4）：人在"已知有不合格项 / 尚无验收材料"的前提下坚持通过时，
+ * 必须留下这笔可查记录。
+ *
+ * 为什么挂在**需求级**而不是 verification 里：无材料通过时根本没有 verification 对象，
+ * 挂在它上面这一半情形就写不进去（同一事实两处存必然漂移）。可选字段：旧台账缺省即"无覆盖"。
+ */
+export interface AcceptanceOverride {
+  at: number
+  by: ActorRef
+  /** 覆盖说明原文（前端装配，含计数与不合格项摘要） */
+  detail: string
+  /** 通过时验收单里的"不通过"项数（无验收单时记 0） */
+  failed: number
+  /** 通过时验收单里的"未裁决"项数（无验收单时记 0） */
+  pending: number
+  /** 通过时是否完全没有验收材料 */
+  noMaterials: boolean
+}
+
 export interface VerificationRecord {
   /** 一句话结论：这次交付了什么、验了什么 */
   summary: string
@@ -767,6 +787,8 @@ export interface RequirementRecord {
   docSyncPending?: DocSyncPending[]
   /** 验收材料（agent 提交）+ 人工审核结论 */
   verification?: VerificationRecord
+  /** 覆盖式通过留痕（REQ-a8d582 FR-4）：缺省 = 无覆盖 */
+  acceptanceOverride?: AcceptanceOverride
   /** 归档材料（agent 准备）+ 归档结论（人） */
   archive?: ArchiveRecord
   comments: CommentRecord[]

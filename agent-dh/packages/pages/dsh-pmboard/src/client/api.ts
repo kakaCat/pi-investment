@@ -75,7 +75,12 @@ export function rejectPlan(input: { id: string; reason: string }): Promise<unkno
 
 // -- 验收 / 归档（仅人可裁决）----------------------------------------------
 
-export function verifyPass(input: { id: string }): Promise<unknown> {
+/**
+ * 验收通过（人工门）。
+ * REQ-a8d582 FR-4：有不合格项或尚无验收材料时，后端要求带 `confirm_override`（覆盖说明）；
+ * 全过且材料齐全时**不要**传——那不是覆盖，传了会在台账留多余痕迹。
+ */
+export function verifyPass(input: { id: string; confirm_override?: string }): Promise<unknown> {
   return post(BASE + '/req/verify/pass', input)
 }
 

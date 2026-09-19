@@ -124,7 +124,20 @@ export interface UserQuestionPort {
   available(): boolean
   ask(
     questions: readonly AskQuestion[],
-    opts: { agent?: unknown; signal?: unknown },
+    opts: { 
+      agent?: unknown
+      signal?: unknown
+      /**
+       * 自动继续配置（可选）：用户回答后自动注入继续消息。
+       * 仅用于 pmboard 业务工具（reqboard_ask_confirm / reqboard_accept_sheet）。
+       */
+      autoContinue?: {
+        /** 自动注入的继续消息 */
+        message: string
+        /** 满足什么条件才自动继续（默认：只要用户回答了就继续） */
+        condition?: (answers: readonly AskAnswer[]) => boolean
+      }
+    },
   ): Promise<readonly AskAnswer[]>
 }
 

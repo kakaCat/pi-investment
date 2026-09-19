@@ -77,7 +77,7 @@ describe('reqboard_accept_sheet', () => {
     expect(store.snapshot().requirements[0].status).toBe('accepting')
   })
 
-  it('选"改进"+自定义意见 → 记 failed + 打回 implementing + 生成返工任务（承接原任务与意见）', async () => {
+  it('选"改进"+自定义意见 → 记 failed，但**不自动打回**、不建返工卡（REQ-a8d582 FR-2）', async () => {
     const ids = sheetOf().items.map(i => i.id)
     const out = await run(sheetTool([
       { id: ids[0], selected: ['✅ 通过'] },
@@ -85,12 +85,12 @@ describe('reqboard_accept_sheet', () => {
       { id: ids[2], selected: ['❓ 其他'], custom: '需补充文档' },
     ]), { batch_size: 5 })
     expect(out.failed).toBe(2)
-    expect(out.rework_tasks).toHaveLength(2)
+    // 裁决只记录：退回是**人**的动作（看板点「退回返工」），此处不再动状态、不再建卡
+    expect(out.rework_tasks).toEqual([])
     const snap = store.snapshot()
-    expect(snap.requirements[0].status).toBe('implementing')
-    const rw = snap.tasks.find(t => t.id === out.rework_tasks[0])!
-    expect(rw.implementation).toMatch(/边界没覆盖/)
-    expect(rw.context).toMatch(/t-as0002/)
+    expect(snap.requirements[0].status).toBe('accepting')
+    expect(snap.tasks).toHaveLength(3) // 原有 3 张卡，未新增返工卡
+    expect(out.note).toMatch(/退回返工/)
     // 验收项裁决留痕
     const item = sheetOf().items.find(i => i.id === ids[1])!
     expect(item.status).toBe('failed')
