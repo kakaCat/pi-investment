@@ -15,6 +15,7 @@ import type { GateFailure } from './artifact-gates.js'
 import {
   parseDocument,
   extractClauseDefinitions,
+  extractClauseDefinitionOccurrences,
   extractSkippedClauses,
   checkClauseCoverage,
   checkNumberChain,
@@ -22,6 +23,8 @@ import {
   checkE2ECoverage,
   extractServes,
   collectIds,
+  checkClauseSequence,
+  checkClauseDuplicates,
   type DocsReader,
   type NumberedItem,
   type ParsedDoc,
@@ -89,8 +92,7 @@ export async function assertClauseCoverageGate(
     kind: 'decomposition',
     gaps,
     message: fmt(
-      'reqboard_decompose 未执行：以下需求条款既没有被任何任务卡接收、也没有标「本轮不做」——{gaps}。'
-      + '请给对应任务卡加 requirement_refs=[...]；确需本轮不做的，在该条款旁显式写明「本轮不做」并给出理由。',
+      'reqboard_decompose 未执行：以下需求条款既没有被任何任务卡接收、也没有标「本轮不做」——{gaps}。请给对应任务卡加 requirement_refs=[...]；确需本轮不做的，在该条款旁显式写明「本轮不做」并给出理由。',
       { gaps: gaps.join(', ') },
     ),
   }
@@ -125,11 +127,77 @@ export async function checkDesignServesGate(docs: DocsReader, req: RequirementRe
     kind: 'plan',
     gaps: missing,
     message: fmt(
-      '提交未执行：以下设计章节**没有标注服务哪条功能点**（缺 serves）——{list}。'
-      + '请给每个二级章节补 serves: FR-#（多值逗号分隔）；确实不服务任何条款的章节应删掉或合并。',
+      '提交未执行：以下设计章节**没有标注服务哪条功能点**（缺 serves）——{list}。请给每个二级章节补 serves: FR-#（多值逗号分隔）；确实不服务任何条款的章节应删掉或合并。',
       { list: missing.join('；') },
     ),
   }
+}
+
+/**
+ * 需求文档格式校验门禁（编号规范强制）——在 submit(requirement) 时立即校验，
+ * 避免让用户确认不合格的文档。系统负责格式，人负责内容。
+ *
+ * 校验项：
+ *  1. 必须有根编号（FR-/BUG-/...）
+ *  2. 编号不能跳号（连续性）
+ *  3. 编号不能重复（唯一性）
+ */
+export async function checkRequirementDocFormatGate(
+  docs: DocsReader,
+  req: RequirementRecord,
+): Promise<GateFailure | undefined> {
+  const isLegacy = req.artifacts === undefined || req.artifacts.length === 0
+  if (isLegacy) return undefined
+
+  const path = 'docs/requirements/' + req.id + '/requirement.md'
+  if (!docs.exists(path)) return undefined
+
+  const doc = parseDocument(await docs.read(path))
+  const roots = extractClauseDefinitions(doc)
+  // 判重必须用**不去重**的清单：roots 已 Set 去重，喂给 checkClauseDuplicates 会让计数恒 ≤1（原本的死法）。
+  const occurrences = extractClauseDefinitionOccurrences(doc)
+
+  // 🚨 门禁 1：必须有根编号
+  if (roots.length === 0) {
+    return {
+      code: 'requirement_missing_clauses',
+      kind: 'requirement',
+      message:
+        'reqboard_requirement_submit 未执行：需求文档缺少功能编号。' +
+        '请为每个功能点添加编号（格式：### FR-1: 功能名称 或 **FR-1: 功能名称**）。' +
+        '根据需求类型使用对应前缀：FR（功能）/ BUG（缺陷）/ RF（重构）/ SP（调研）/ DOC（文档）/ CH（维护）',
+    }
+  }
+
+  // 🚨 门禁 2：编号连续性（不能跳号）
+  const sequenceGaps = checkClauseSequence(roots)
+  if (sequenceGaps.length > 0) {
+    return {
+      code: 'requirement_clause_sequence_gap',
+      kind: 'requirement',
+      gaps: sequenceGaps,
+      message:
+        'reqboard_requirement_submit 未执行：需求编号不连续（跳号）——' +
+        sequenceGaps.join('、') +
+        '。请补上缺失的编号，或调整现有编号使其连续（如 FR-1, FR-2, FR-3...）',
+    }
+  }
+
+  // 🚨 门禁 3：编号唯一性（不能重复）
+  const duplicates = checkClauseDuplicates(occurrences)
+  if (duplicates.length > 0) {
+    return {
+      code: 'requirement_clause_duplicates',
+      kind: 'requirement',
+      gaps: duplicates,
+      message:
+        'reqboard_requirement_submit 未执行：需求编号重复——' +
+        duplicates.join('、') +
+        '。每个编号只能出现一次，请检查并合并重复的条款',
+    }
+  }
+
+  return undefined
 }
 
 /**
@@ -293,8 +361,7 @@ export async function checkNumberChainGate(docs: DocsReader, req: RequirementRec
       kind: 'plan',
       gaps: dangling,
       message: fmt(
-        '提交未执行：以下编号引用**悬空**（serves 指向不存在的编号）——{list}。'
-        + '请改为引用真实存在的编号，或先在需求文档补上被引用的那一条。',
+        '提交未执行：以下编号引用**悬空**（serves 指向不存在的编号）——{list}。请改为引用真实存在的编号，或先在需求文档补上被引用的那一条。',
         { list: dangling.join('；') },
       ),
     },

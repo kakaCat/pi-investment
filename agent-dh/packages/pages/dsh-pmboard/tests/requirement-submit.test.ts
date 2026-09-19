@@ -6,7 +6,8 @@
  * 本工具补上该入口，测试覆盖：首次登记 / 幂等 / 文件缺失 / 阶段纪律。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { defineRequirementSubmitTool } from './helpers/tool-deps.js'
 import { emptyLedger, type ReqboardLedger, type RequirementRecord } from '../src/shared/protocol.js'
@@ -14,7 +15,9 @@ import { emptyLedger, type ReqboardLedger, type RequirementRecord } from '../src
 const W = 'session-abc-123'
 const REQ_ID = 'REQ-t1submit'
 const REL_PATH = 'docs/requirements/' + REQ_ID + '/requirement.md'
-const ABS_DIR = join(process.cwd(), 'docs/requirements', REQ_ID)
+// 临时文档根：绝不写进包目录（见 helpers/tool-deps.ts 的 workspaceRoot 说明）
+const TMP_ROOT = mkdtempSync(join(tmpdir(), 'pmboard-reqsubmit-'))
+const ABS_DIR = join(TMP_ROOT, 'docs/requirements', REQ_ID)
 
 function ledgerWith(status: RequirementRecord['status']): ReqboardLedger {
   const req = {
@@ -34,6 +37,7 @@ function makeTool(ledger: ReqboardLedger) {
       mutate: async (_evt: string, fn: (l: ReqboardLedger) => unknown) => ({ changed: fn(ledger) }),
     },
     now: () => 1000,
+    workspaceRoot: TMP_ROOT,
   } as never
   const tool = defineRequirementSubmitTool(deps) as unknown as {
     execute: (a: unknown, e: unknown) => Promise<{ success?: boolean; registered?: boolean; artifact?: Record<string, string> }>
@@ -44,7 +48,8 @@ function makeTool(ledger: ReqboardLedger) {
 describe('reqboard_requirement_submit（t1：brainstorming 产物登记入口）', () => {
   beforeEach(() => {
     mkdirSync(ABS_DIR, { recursive: true })
-    writeFileSync(join(ABS_DIR, 'requirement.md'), '# 需求文档\n', 'utf8')
+    // 形态合法的最小桩：编号门禁要求每个功能点带 FR-N 编号（幂等用例要走第二次提交，会触发校验）
+    writeFileSync(join(ABS_DIR, 'requirement.md'), '# 需求文档\n\n### FR-1: 提交登记\n\n桩。\n', 'utf8')
   })
   afterEach(() => { rmSync(ABS_DIR, { recursive: true, force: true }) })
 

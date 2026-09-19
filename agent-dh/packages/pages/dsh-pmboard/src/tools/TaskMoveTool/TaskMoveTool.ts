@@ -13,7 +13,9 @@ import { executeMoveTask } from '../../application/use-cases/MoveTask.js'
 import { amendTaskAcceptanceIfRequested } from '../../application/use-cases/AmendTaskAcceptance.js'
 import { syncRequirementMarks } from '../../application/use-cases/SyncRequirementMarks.js'
 import { doneEvidenceAnchorFailure } from '../../application/internal/content-gate-wiring.js'
+import { taskCardTriadFailure } from '../../application/internal/content-gate-triad.js'
 import { openRequirementsFor } from '../../application/internal/window.js'
+import { fmt } from '../../domain/text/fmt.js'
 import { reject, agentIdFromExec } from '../../application/internal/support.js'
 import { TASK_MOVE_PROMPT } from './prompt.js'
 import { renderJson } from '../shared.js'
@@ -125,7 +127,21 @@ export function defineTaskMoveTool(deps: UseCaseDeps) {
         boundRequirementIds: openRequirementsFor(snap, agentIdFromExec(deps, exec)).map(r => r.id),
       })
       if (gap !== undefined) {
-        reject('reqboard_task_move 未执行：' + gap + '。请用 reqboard_task_report 补可定位的证据后再结单', 'REQBOARD_NO_EVIDENCE')
+        reject(fmt('reqboard_task_move 未执行：{gap}。请用 reqboard_task_report 补可定位的证据后再结单', { gap }), 'REQBOARD_NO_EVIDENCE')
+      }
+
+      // ── 三要素门禁（REQ-640a55 t-fb5e66 / FR-1）：结单前再核一次，防卡在拆分后被改坏 ──
+      const triadGap = await taskCardTriadFailure(deps.docs, {
+        taskId: typeof a.task_id === 'string' ? a.task_id : '',
+        to: typeof a.to === 'string' ? a.to : '',
+        tasks: snap.tasks,
+        boundRequirementIds: openRequirementsFor(snap, agentIdFromExec(deps, exec)).map(r => r.id),
+      })
+      if (triadGap !== undefined) {
+        reject(
+          fmt('reqboard_task_move 未执行：本卡缺业务三要素（在做什么 / 解决什么问题 / 得到什么结果）——{gap}。请补齐卡上三节后再结单（code=task_card_incomplete）', { gap: triadGap }),
+          'task_card_incomplete',
+        )
       }
       const result = (await executeMoveTask(deps, args, exec)) as Record<string, unknown>
 

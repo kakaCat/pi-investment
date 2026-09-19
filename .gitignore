@@ -227,5 +227,10 @@ venv/
 !README.md
 !CLAUDE.md
 
+# 测试产物兜底：reqboard 工具测试若不隔离文档根，会把需求文档写进包目录
+# （根因已修：tests/helpers/tool-deps.ts 的 workspaceRoot 安全默认值 + 各测试隔离到临时目录；
+#  此规则防止将来再有人忘了传参时把 /tmp 之外的东西写进仓库）
+agent-dh/packages/pages/dsh-pmboard/docs/requirements/
+
 # 工作日志纳入版本控制，作为项目历史归档（见 docs/DOCUMENT-MANAGEMENT-PLAN.md）
 # docs/work-logs/  # 已改为保留

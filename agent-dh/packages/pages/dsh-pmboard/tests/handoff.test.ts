@@ -2,7 +2,7 @@
  * 接力实测（REQ-31e11f t8 核心）——验证 handoff 契约让新窗口零会话历史即可续作。
  *
  * 场景模拟（借鉴 Claude Code Task 模式）：
- *   1. 窗口 A 完成需求分析 + 技术设计 + 拆分（decompose 生成任务卡骨架 tasks/t-xxx.md）；
+ *   1. 窗口 A 完成需求分析 + 设计 + 拆分（decompose 生成任务卡骨架 tasks/t-xxx.md）；
  *   2. 窗口 A 完成任务 t1 并 task_report 汇报；
  *   3. 窗口 B（新窗口/新 agent，零会话历史）仅凭任务卡 + 产物链接手任务 t2；
  *   4. 验证：任务卡自足（含验收标准+上游产出摘要）、task_report 追加后文件仍结构化、
@@ -51,7 +51,7 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-async function seed(status: RequirementStatus = 'planning', sourceSessionId: string | undefined = WINDOW_A): Promise<RequirementRecord> {
+async function seed(status: RequirementStatus = 'design', sourceSessionId: string | undefined = WINDOW_A): Promise<RequirementRecord> {
   const r = {
     id: 'REQ-hand1', title: '接力测试需求', description: '验证 handoff 契约', status, blocked: false,
     category: 'feature',
@@ -73,9 +73,9 @@ const CHAIN_TASKS = [
   { key: 'test', title: '端到端回归测试', phase: 'test', side: 'backend', depends_on: ['ui'], acceptance: 'npx vitest run 全绿', implementation: 'tests/ 加回归用例并跑 npx vitest run' },
 ]
 
-/** 窗口 A：完整走完需求分析 → 技术设计 → 拆分，返回任务 id 列表。 */
+/** 窗口 A：完整走完需求分析 → 设计 → 拆分，返回任务 id 列表。 */
 async function windowACompletesSetup(): Promise<string[]> {
-  await seed('planning')
+  await seed('design')
   await run(planTool, { path: 'docs/requirements/REQ-hand1/plan.md', summary: '目标：加时间线；做法：协议→UI→测试', tasks: CHAIN_TASKS })
   await store.mutate('requirement-updated', (l) => {
     const r = l.requirements[0]
@@ -87,7 +87,7 @@ async function windowACompletesSetup(): Promise<string[]> {
 }
 
 describe('接力实测：任务卡自足（新窗口零会话历史可续作）', () => {
-  it('任务卡骨架含目标/背景/验收/上游摘要/executorHint——新窗口不读历史即可开工', async () => {
+  it('任务卡骨架含业务三要素/上游摘要/executorHint——新窗口不读历史即可开工', async () => {
     const [t1] = await windowACompletesSetup()
 
     // 读任务卡文件（模拟新窗口读文件）
@@ -97,11 +97,20 @@ describe('接力实测：任务卡自足（新窗口零会话历史可续作）'
 
     // 自足性断言：开工必需信息全部在卡上
     expect(card).toContain('协议层加时间线字段')       // 目标（标题）
-    expect(card).toContain('## 背景摘要')              // 背景节
+    expect(card).toContain('## 解决什么问题')          // 解决什么问题（业务三要素之二）
     expect(card).toContain('protocol.ts 单测绿')       // 验收标准
     expect(card).toContain('## 上游产出摘要')          // 上游节
     expect(card).toContain('（无依赖）')               // t1 无上游
     expect(card).toContain('executorHint')             // 执行方式提示
+
+    // 三要素节必须**都在且正文非空**（REQ-640a55 FR-2：骨架直出；空节等于没写）
+    for (const h of ['## 在做什么', '## 解决什么问题', '## 得到什么结果']) {
+      const i = card.indexOf(h)
+      expect(i, '缺少骨架节 ' + h).toBeGreaterThanOrEqual(0)
+      const rest = card.slice(i + h.length)
+      const stop = rest.indexOf('\n## ')
+      expect((stop >= 0 ? rest.slice(0, stop) : rest).trim().length, h + ' 的正文为空').toBeGreaterThan(0)
+    }
     // 任务卡双角色注释（开工说明书 + 完工记录）
     expect(card).toContain('reqboard_task_report')
   })
@@ -168,8 +177,8 @@ describe('接力实测：task_report 追加后文件仍结构化', () => {
     const card = readFileSync(cardPath, 'utf8')
 
     // 结构保持：骨架节仍在
-    expect(card).toContain('## 目标')
-    expect(card).toContain('## 验收标准')
+    expect(card).toContain('## 在做什么')
+    expect(card).toContain('## 得到什么结果')
     expect(card).toContain('## 上游产出摘要')
     // 汇报节追加
     expect(card).toContain('## 汇报 1')
@@ -257,8 +266,8 @@ describe('接力实测：task_report 追加后文件仍结构化', () => {
 
     const card = readFileSync(join(dir, 'docs/requirements/REQ-hand1/tasks', t1 + '.md'), 'utf8')
     // 骨架节仍在
-    expect(card).toContain('## 目标')
-    expect(card).toContain('## 验收标准')
+    expect(card).toContain('## 在做什么')
+    expect(card).toContain('## 得到什么结果')
     // 两段汇报
     expect(card).toContain('## 汇报 1')
     expect(card).toContain('## 汇报 2')

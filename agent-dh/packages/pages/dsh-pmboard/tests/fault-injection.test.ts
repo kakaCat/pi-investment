@@ -32,7 +32,7 @@ beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'pmboard-faultinj-'))
   store = new ReqboardStore({ file: join(root, 'dsh-reqboard.json') })
   trace = new Map()
-  const deps = { store, now: () => Date.now(), toolTrace: trace, doneThrottleMs: 60_000 } as never
+  const deps = { store, now: () => Date.now(), toolTrace: trace, doneThrottleMs: 60_000, workspaceRoot: root } as never
   planTool = definePlanSubmitTool(deps)
   decompose = defineDecomposeTool(deps)
   taskMove = defineTaskMoveTool(deps)
@@ -47,7 +47,7 @@ const GOOD_TASKS = [
 ]
 const run = (tool: any, args: unknown, agent = W) => tool.execute(args, { agent: { id: agent } })
 
-async function seed(status = 'planning'): Promise<void> {
+async function seed(status = 'design'): Promise<void> {
   const r = {
     id: REQ, title: '故障注入', description: '', status, category: 'feature', blocked: false,
     sourceSessionId: W, comments: [], version: 1, createdAt: 1, updatedAt: 1,
@@ -80,19 +80,19 @@ describe('A 弹框确认后节点不推进 → ask_confirm 原子完成', () => 
     } as never
     const tool = defineAskConfirmTool(deps) as never as { execute: (a: unknown, e: unknown) => Promise<any> }
     const out = await tool.execute(
-      { target: 'artifact', kind: 'requirement', question: '是否进入技术设计？' },
+      { target: 'artifact', kind: 'requirement', question: '是否进入设计？' },
       { agent: { id: W } },
     )
     expect(out.confirmed).toBe(true)
     expect(out.advanced).toBe(true)
-    expect(store.snapshot().requirements[0].status).toBe('planning')
+    expect(store.snapshot().requirements[0].status).toBe('design')
     expect(store.snapshot().requirements[0].artifacts![0].confirmedAt).toBeDefined()
   })
 })
 
 describe('B 重复拆分 → 幂等守卫（任务数不变）', () => {
   it('二次 decompose 被拒且任务数保持 2', async () => {
-    await seed('planning')
+    await seed('design')
     await run(planTool, { path: 'p.md', summary: 's', tasks: GOOD_TASKS })
     await approvePlan()
     await run(decompose, {})
@@ -146,23 +146,23 @@ describe('D 改了源码没构建 → STALE_BUILD', () => {
 describe('E 过程文件不进文档 → 目录落盘即产物', () => {
   it('写入需求目录的 html 自动登记（autoDiscovered）', async () => {
     await seed('brainstorming')
-    const abs = join(process.cwd(), reqDirRel(REQ), 'prototype.html')
+    const abs = join(root, reqDirRel(REQ), 'prototype.html')
     mkdirSync(join(abs, '..'), { recursive: true })
     writeFileSync(abs, '<html></html>')
-    const added = await syncReqArtifacts(store, REQ, process.cwd())
+    const added = await syncReqArtifacts(store, REQ, root)
     expect(added).toBeGreaterThanOrEqual(1)
     const arts = store.snapshot().requirements[0].artifacts!
     const html = arts.find(a => a.path.includes('prototype.html'))!
     expect(html).toBeDefined()
     expect(html.autoDiscovered).toBe(true)
     expect(html.kind).toBe('notes')
-    rmSync(join(process.cwd(), reqDirRel(REQ)), { recursive: true, force: true })
+    rmSync(join(root, reqDirRel(REQ)), { recursive: true, force: true })
   })
 })
 
 describe('F 薄卡（无实施卡）→ 拒落', () => {
   it('plan_submit 薄卡 → 缺实施方案', async () => {
-    await seed('planning')
+    await seed('design')
     await expect(run(planTool, {
       path: 'p.md', summary: 's',
       tasks: [{ key: 'a', title: 'x', acceptance: '单测绿' }],
@@ -172,7 +172,7 @@ describe('F 薄卡（无实施卡）→ 拒落', () => {
 
 describe('G 计划前向引用 → 提交时打回', () => {
   it('依赖后定义 key → 前向引用', async () => {
-    await seed('planning')
+    await seed('design')
     await expect(run(planTool, {
       path: 'p.md', summary: 's',
       tasks: [

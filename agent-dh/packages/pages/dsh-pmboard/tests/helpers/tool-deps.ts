@@ -12,6 +12,9 @@
  *
  * @module dsh-pmboard/tests/helpers/tool-deps
  */
+import { mkdtempSync, realpathSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { ToolTraceEntry, RecentUserMsg } from '../../src/adapters/SessionProbeAdapter.js'
 import { SessionProbeAdapter } from '../../src/adapters/SessionProbeAdapter.js'
 import { FileDocRepository } from '../../src/adapters/FileDocRepository.js'
@@ -43,10 +46,50 @@ export interface ReqboardToolDeps {
   toolTrace?: Map<string, ToolTraceEntry[]>
   /** done 批量关闭节流窗口（毫秒，默认 60000；测试可注入 0 关闭）。 */
   doneThrottleMs?: number
+  /**
+   * 文档根（可选）。不传则用**进程级临时目录**（见 testWorkspaceRoot）。
+   *
+   * 为什么必须有默认值：FileDocRepository 不传 root 就按 process.cwd() 解析 docs/，
+   * 而测试进程的 cwd 正是包目录 —— 于是任何"忘了隔离"的用例都会把需求文档写进仓库。
+   * 实测代价：跑一次全量测试多出 44 个文件；历史上有 8717 个这样的产物被提交进仓库。
+   * 安全默认值不依赖调用方记得传参。
+   */
+  workspaceRoot?: string
   /** userQuestions 弹框服务（REQ-2e9473 t07 ask_confirm；缺失 → ask_confirm 降级 fallback=board）。 */
   userQuestions?: () => unknown
   /** 最近用户消息缓冲（REQ-2e9473 t10 文字确认核验；缺失 → 核验降级放行并在返回中注明）。 */
   recentUserMsgs?: Map<string, RecentUserMsg[]>
+}
+
+/**
+ * 测试用的默认文档根（惰性创建，一个 worker 进程一份）。
+ * 存在的唯一目的：让"忘了传 workspaceRoot"的用例写到 /tmp，而不是写进仓库。
+ */
+let wsRootCache: string | undefined
+function testWorkspaceRoot(): string {
+  if (wsRootCache === undefined) wsRootCache = mkdtempSync(join(tmpdir(), 'pmboard-ws-'))
+  return wsRootCache
+}
+
+/**
+ * 解析本次测试的文档根（安全兜底）：
+ *   - 显式传了 workspaceRoot → 用它；
+ *   - cwd 是**包目录**（= 没隔离）→ 用进程级临时目录兜底，绝不写进仓库；
+ *   - 其余 cwd（测试自己 chdir 到了临时目录）→ 照旧用 cwd，保持既有语义。
+ */
+function resolveWorkspaceRoot(explicit: string | undefined): string {
+  if (explicit !== undefined) return explicit
+  // 必须用 realpath 比较：macOS 上 tmpdir() 给 /var/...，而 chdir 后 process.cwd() 是
+  // /private/var/...（/var 是软链）——直接字符串比较会判成"不在临时目录"而误兜底。
+  const real = (p: string): string => {
+    try { return realpathSync(p).replace(/\\/g, '/') } catch { return p.replace(/\\/g, '/') }
+  }
+  const cwd = real(process.cwd())
+  const tmp = real(tmpdir()).replace(/\/+$/, '')
+  // 只有"测试自己 chdir 到的临时目录"才沿用 cwd；**仓库内任何目录一律兜底到临时根**。
+  // 只判"是不是包目录"不够：从 agent-dh 目录跑测试时，产物会写进真实的 agent-dh/docs/requirements/
+  // （实测：一次误从仓库根跑，污染了 120+ 个文件）。
+  return cwd === tmp || cwd.startsWith(tmp + '/') ? process.cwd() : testWorkspaceRoot()
 }
 
 /** 旧 deps → 用例依赖（适配器即 t5 落地的端口实现）。 */
@@ -55,7 +98,7 @@ function toUseCaseDeps(deps: ReqboardToolDeps): UseCaseDeps {
   // （tests/decompose-tools.test.ts:329/439），快照会改变行为。
   const uc: UseCaseDeps = {
     repo: deps.store,
-    docs: new FileDocRepository(),
+    docs: new FileDocRepository({ workspaceRoot: resolveWorkspaceRoot(deps.workspaceRoot) }),
     clock: { now: deps.now },
     ids: new RandomIdFactory(),
     session: new SessionProbeAdapter({

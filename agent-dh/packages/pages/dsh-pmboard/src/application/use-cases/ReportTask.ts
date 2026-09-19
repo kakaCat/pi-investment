@@ -66,13 +66,22 @@ export async function executeReportTask(deps: UseCaseDeps, args: unknown, exec: 
       const nowTs = deps.clock.now()
       const when = new Date(nowTs).toISOString()
 
-      // 骨架头：任务标题 + 验收标准（对应 StageTaskRef.acceptance；开工说明书角色）
+      // 骨架头：业务三要素——与 Decompose 的骨架**同构**（REQ-640a55 FR-2）。
+      // 两条建卡路径都必须产出这三节，否则从本路径出生的卡会在 task_card_incomplete 门禁前卡住。
       if (!docs.exists(docRel)) {
         const header = [
           '# ' + task.id + ' ' + task.title,
           '',
           '> 需求：' + req.id + ' ' + req.title,
-          '> 验收标准：' + (task.acceptance.length > 0 ? task.acceptance : '（未填写）'),
+          '',
+          '## 在做什么',
+          task.title,
+          '',
+          '## 解决什么问题',
+          task.context.length > 0 ? task.context : '（未填写——开工前补充这张卡要解决的业务问题）',
+          '',
+          '## 得到什么结果',
+          task.acceptance.length > 0 ? task.acceptance : '（未填写）',
           '',
           '---',
           '',

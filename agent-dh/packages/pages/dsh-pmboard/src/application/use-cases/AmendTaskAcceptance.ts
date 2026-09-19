@@ -18,6 +18,7 @@ import { reject, agentIdFromExec, requireLiveDriver } from '../internal/support.
 import { openRequirementsFor } from '../internal/window.js'
 import { normalizeText } from '../../shared/protocol.js'
 import { checkAcceptance } from '../../domain/task/Acceptability.js'
+import { fmt } from '../../domain/text/fmt.js'
 
 /** 从 args 里读可选的 acceptance（未传 / 空串 → undefined，表示"不改"）。 */
 export function requestedAcceptance(args: unknown): string | undefined {
@@ -45,14 +46,14 @@ export async function amendTaskAcceptanceIfRequested(
 
   // 修订后的标准至少要过**计划期门槛**（空话/无锚点一律拒），否则等于把弱标准换成更弱的标准
   const verdict = checkAcceptance(taskId, next)
-  if (!verdict.ok) reject('reqboard_task_move 未执行（修订验收标准被拒）：' + verdict.reason, 'REQBOARD_INVALID_INPUT')
+  if (!verdict.ok) reject(fmt('reqboard_task_move 未执行（修订验收标准被拒）：{reason}', { reason: verdict.reason }), 'REQBOARD_INVALID_INPUT')
 
   const snapshot = deps.repo.snapshot()
   const bound = openRequirementsFor(snapshot, windowKey)
   const task = snapshot.tasks.find(t => t.id === taskId)
-  if (task === undefined) reject('reqboard_task_move 未执行：任务 ' + taskId + ' 不存在', 'REQBOARD_TASK_NOT_FOUND')
+  if (task === undefined) reject(fmt('reqboard_task_move 未执行：任务 {id} 不存在', { id: taskId }), 'REQBOARD_TASK_NOT_FOUND')
   if (!bound.some(r => r.id === task.requirementId)) {
-    reject('reqboard_task_move 未执行：任务 ' + taskId + ' 不属于本窗口绑定的需求', 'REQBOARD_NOT_BOUND_TO_WINDOW')
+    reject(fmt('reqboard_task_move 未执行：任务 {id} 不属于本窗口绑定的需求', { id: taskId }), 'REQBOARD_NOT_BOUND_TO_WINDOW')
   }
 
   const nowTs = deps.clock.now()
@@ -67,13 +68,14 @@ export async function amendTaskAcceptanceIfRequested(
     reject('reqboard_task_move 写入失败：修订验收标准后台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
   }
 
-  // 卡文档同步（人读的唯一事实源）：把「## 验收标准」段替换为新文本；无该段则不硬造。
+  // 卡文档同步（人读的唯一事实源）：把「## 得到什么结果」段替换为新文本；无该段则不硬造。
+  // 旧卡（改名前的 ## 验收标准）必须继续命中——存量卡不重写，能改才谈得上兼容（REQ-640a55 FR-5）。
   const docPath = 'docs/requirements/' + task.requirementId + '/tasks/' + taskId + '.md'
   try {
     if (deps.docs.exists(docPath)) {
       const text = await deps.docs.read(docPath)
       const lines = text.split(/\r?\n/)
-      const start = lines.findIndex(l => /^##\s*验收标准/.test(l))
+      const start = lines.findIndex(l => /^##\s*(?:得到什么结果|验收标准)/.test(l))
       if (start >= 0) {
         let end = lines.length
         for (let i = start + 1; i < lines.length; i++) {

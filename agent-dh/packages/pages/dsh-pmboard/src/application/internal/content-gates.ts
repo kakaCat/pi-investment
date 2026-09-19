@@ -8,136 +8,13 @@
  * 关键实现约束：**必须跳过代码围栏块**（三反引号或三波浪线围起来的区域）——
  * 文档里贴一段代码就可能出现行首井号或竖线，那都不是结构，误判会导致门禁乱拦。
  */
+import { fmt } from '../../domain/text/fmt.js'
 
-export interface ParsedHeading { level: number; text: string; line: number }
-export interface ParsedTable { header: string[]; rows: string[][]; line: number }
-export interface ParsedDoc {
-  frontmatter: Record<string, string>
-  headings: ParsedHeading[]
-  tables: ParsedTable[]
-  /** 非代码块正文行（用于识别 **FR-1 ...** 这类定义行）。 */
-  bodyLines: string[]
-}
+import { DEF_LINE_RE, isRootId, naturalSort } from './doc-parse.js'
+import type { NumberedItem, ParsedDoc } from './doc-parse.js'
 
-/** 目录项最小形状（与 ports.DocEntry 结构兼容）。 */
-export interface DocsEntry { readonly name?: string; readonly isFile?: boolean }
+export * from './doc-parse.js'
 
-/**
- * docs 端口的最小形状（只用到这三件，便于测试注入假实现）。
- * 放这里而不是 wiring 模块：它是 gates 与 trace 两个模块的**共同依赖**，下沉即无环。
- */
-export interface DocsReader {
-  exists(relPath: string): boolean
-  read(relPath: string): Promise<string>
-  /** 枚举目录（缺省实现视为空，便于最小假实现）。 */
-  list?(relDir: string): readonly DocsEntry[]
-}
-
-export interface NumberedItem {
-  id: string
-  /** 上游编号（须指向真实存在者） */
-  serves: string[]
-  /** 本编号所属文档类别（需求 / 设计 / 拆分 / 任务 / 用例 / 证据 / 验收）。 */
-  kind?: string
-  title?: string
-}
-
-/** 根编号前缀（按立项类型）——见规范 §0.1 / §八。 */
-export const ROOT_PREFIXES = ['FR', 'BUG', 'RF', 'SP', 'DOC', 'CH'] as const
-/** 下游编号前缀（全类型统一）。 */
-export const CHILD_PREFIXES = ['T', 'D', 'BE', 'FE', 'TC', 'E'] as const
-
-const FENCE_RE = /^\s*(`{3,}|~{3,})/
-const HEADING_RE = /^(#{1,6})\s+(.+)$/
-const FM_DELIM_RE = /^---\s*$/
-const TABLE_ROW_RE = /^\s*\|(.+)\|\s*$/
-const TABLE_SEP_RE = /^\s*\|[\s:|-]+\|\s*$/
-const DEF_LINE_RE = /^\s*(?:[-*+]\s+)?\*\*((?:FR|BUG|RF|SP|DOC|CH)-\d+)\b/
-
-/** 标记每一行是否处于代码围栏内（含围栏行本身）。 */
-export function markCodeFences(lines: readonly string[]): boolean[] {
-  const inFence = new Array<boolean>(lines.length).fill(false)
-  let open: string | undefined
-  for (let i = 0; i < lines.length; i++) {
-    const m = FENCE_RE.exec(lines[i])
-    if (open === undefined) {
-      if (m !== null) { open = m[1][0]; inFence[i] = true }
-    } else {
-      inFence[i] = true
-      if (m !== null && m[1][0] === open) open = undefined
-    }
-  }
-  return inFence
-}
-
-function splitCells(line: string): string[] {
-  const m = TABLE_ROW_RE.exec(line)
-  if (m === null) return []
-  return m[1].split('|').map(s => s.trim())
-}
-
-/** 解析文档为结构（纯函数）。 */
-export function parseDocument(text: string): ParsedDoc {
-  const lines = text.split(/\r?\n/)
-  const inFence = markCodeFences(lines)
-  const frontmatter: Record<string, string> = {}
-  let start = 0
-  if (lines.length > 0 && FM_DELIM_RE.test(lines[0])) {
-    for (let i = 1; i < lines.length; i++) {
-      if (FM_DELIM_RE.test(lines[i])) { start = i + 1; break }
-      const idx = lines[i].indexOf(':')
-      if (idx > 0) {
-        const k = lines[i].slice(0, idx).trim()
-        const v = lines[i].slice(idx + 1).trim()
-        if (k.length > 0) frontmatter[k] = v
-      }
-    }
-  }
-  const headings: ParsedHeading[] = []
-  const tables: ParsedTable[] = []
-  const bodyLines: string[] = []
-  for (let i = start; i < lines.length; i++) {
-    if (inFence[i]) continue
-    bodyLines.push(lines[i])
-    const h = HEADING_RE.exec(lines[i])
-    if (h !== null) headings.push({ level: h[1].length, text: h[2].trim(), line: i + 1 })
-    if (TABLE_ROW_RE.test(lines[i])) {
-      const next = lines[i + 1]
-      if (next !== undefined && !inFence[i + 1] && TABLE_SEP_RE.test(next)) {
-        const rows: string[][] = []
-        let j = i + 2
-        while (j < lines.length && !inFence[j] && TABLE_ROW_RE.test(lines[j])) { rows.push(splitCells(lines[j])); j++ }
-        tables.push({ header: splitCells(lines[i]), rows, line: i + 1 })
-        i = j - 1
-      }
-    }
-  }
-  return { frontmatter, headings, tables, bodyLines }
-}
-
-/** 是否根编号（按立项类型前缀）。 */
-export function isRootId(id: string): boolean {
-  return ROOT_PREFIXES.some(p => id.startsWith(p + '-'))
-}
-
-function idKey(id: string): { prefix: string; domain: string; num: number } {
-  const parts = id.split('-')
-  const last = Number(parts[parts.length - 1])
-  return {
-    prefix: parts[0] ?? '',
-    domain: parts.length > 2 ? (parts[1] ?? '') : '',
-    num: Number.isFinite(last) ? last : 0,
-  }
-}
-
-function naturalSort(ids: readonly string[]): string[] {
-  return [...new Set(ids)].sort((a, b) => {
-    const ka = idKey(a); const kb = idKey(b)
-    if (ka.prefix !== kb.prefix) return ka.prefix < kb.prefix ? -1 : 1
-    if (ka.domain !== kb.domain) return ka.domain < kb.domain ? -1 : 1
-    return ka.num - kb.num
-  })
-}
 
 /** 提取根编号**定义位**（标题 / **FR-1 ...** 定义行）。不扫描泛指引用，避免误报。 */
 export function extractClauseDefinitions(doc: ParsedDoc): string[] {
@@ -153,8 +30,43 @@ export function extractClauseDefinitions(doc: ParsedDoc): string[] {
   return naturalSort([...set])
 }
 
+/**
+ * 提取根编号**定义位**的**全部出现**（同一编号出现几次就返回几次）。
+ *
+ * 为什么必须单独一个函数：extractClauseDefinitions 返回前做了 Set 去重，
+ * 拿它的结果喂 checkClauseDuplicates 会让每个编号的计数恒 ≤1 —— 判重永远不会触发
+ * （结构性死代码，不是阈值问题）。本函数与它解析口径完全一致，唯一差别是去重与否；
+ * 刻意不合并成一个函数带开关，是为了让"判重吃哪一份"在调用处一眼可见。
+ */
+export function extractClauseDefinitionOccurrences(doc: ParsedDoc): string[] {
+  const out: string[] = []
+  for (const h of doc.headings) {
+    const m = DEF_LINE_RE.exec('**' + h.text)
+    if (m !== null) out.push(m[1])
+  }
+  for (const line of doc.bodyLines) {
+    const m = DEF_LINE_RE.exec(line)
+    if (m !== null) out.push(m[1])
+  }
+  return out
+}
+
 /** 显式裁剪标记（R1 允许把条款登记为"本轮裁剪/非目标"，并写明理由）。 */
 export const SKIP_MARKERS = ['本轮不做', '本轮裁剪', '非目标', '本轮不实现', '不做（'] as const
+
+/**
+ * 去掉成对括号内的内容（中英文括号各扫两遍以吃掉嵌套）。
+ *
+ * 为什么必须去：条款定义行常把候选状态**枚举**出来——本需求的 FR-3 写的是
+ * "自身带接收状态（已被任务接收 / 已完成+证据 / **本轮不做** / 未被接收（红））"，其中
+ * "本轮不做"只是四态之一的名字，却被当成"本条已裁剪"，于是最该标红的那条永远标不出红
+ * （实测：取消它的卡后状态是 skipped，不是 unreceived）。括号里是概念，括号外才是声明。
+ */
+function stripParens(text: string): string {
+  let out = text
+  for (let i = 0; i < 2; i++) out = out.replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '')
+  return out
+}
 
 /**
  * 取"已显式裁剪"的根编号：条款**定义行或其紧随 2 行**里出现裁剪标记即算。
@@ -173,7 +85,7 @@ export function extractSkippedClauses(doc: ParsedDoc): string[] {
       if (DEF_LINE_RE.test(lines[j])) break
       win.push(lines[j])
     }
-    if (SKIP_MARKERS.some(k => win.join('\n').includes(k))) out.add(m[1])
+    if (SKIP_MARKERS.some(k => stripParens(win.join('\n')).includes(k))) out.add(m[1])
   })
   return naturalSort([...out])
 }
@@ -211,7 +123,7 @@ export function extractServesFrom(doc: ParsedDoc, opts: { frontmatterKeys?: read
 }
 
 /**
- * 编号模式（单一事实源）：根编号按类型前缀；技术设计编号带「域」段 D-<域>-<n>；
+ * 编号模式（单一事实源）：根编号按类型前缀；设计编号带「域」段 D-<域>-<n>；
  * 其余下游编号单段。**D-ARCH-2 这类必须认**——只写 D-\d+ 会漏掉全部设计章节编号。
  */
 const ID_PATTERN = '(?:FR|BUG|RF|SP|DOC|CH)-\\d+|D-[A-Z]+-\\d+|(?:T|BE|FE|TC|E)-\\d+|t-[0-9a-f]{6}'
@@ -262,14 +174,14 @@ export function checkAcceptanceKit(verification: ParsedDoc): { missing: string[]
   for (const name of ACCEPTANCE_KIT) {
     const i = table.header.findIndex(h => h.includes(name))
     col[name] = i
-    if (i < 0) missing.push('表头缺列：' + name)
+    if (i < 0) missing.push(fmt('表头缺列：{name}', { name }))
   }
   const iRef = col['对应编号']
   table.rows.forEach((row, n) => {
-    const key = iRef >= 0 && (row[iRef] ?? '').length > 0 ? row[iRef] : '第' + (n + 2) + '行'
+    const key = iRef >= 0 && (row[iRef] ?? '').length > 0 ? row[iRef] : fmt('第{n}行', { n: n + 2 })
     for (const name of ACCEPTANCE_KIT) {
       const i = col[name]
-      if (i >= 0 && (row[i] ?? '').trim().length === 0) missing.push(key + '：缺「' + name + '」')
+      if (i >= 0 && (row[i] ?? '').trim().length === 0) missing.push(fmt('{key}：缺「{name}」', { key, name }))
     }
   })
   return { missing }
@@ -335,13 +247,13 @@ export function checkTaskCardTriad(doc: ParsedDoc): { missing: string[]; warning
   const missing: string[] = []
   for (const name of TRIAD) {
     const v = fields[name]
-    if (v === undefined) missing.push('缺字段：' + name)
-    else if (v.length === 0) missing.push('字段为空：' + name)
+    if (v === undefined) missing.push(fmt('缺字段：{name}', { name }))
+    else if (v.length === 0) missing.push(fmt('字段为空：{name}', { name }))
   }
   const warnings: string[] = []
   const title = (doc.frontmatter['title'] ?? doc.headings[0]?.text ?? '').trim()
   if (looksTechnical(title)) {
-    warnings.push('标题像工程名词堆叠（建议改写成业务动作）：' + title)
+    warnings.push(fmt('标题像工程名词堆叠（建议改写成业务动作）：{title}', { title }))
   }
   return { missing, warnings }
 }
@@ -359,7 +271,7 @@ export function checkDesignSectionsHaveServes(doc: ParsedDoc): { missing: string
   const missing: string[] = []
   for (const h of doc.headings) {
     if (h.level < 2) continue
-    if (extractServes(h.text).length === 0) missing.push(h.text.trim().length > 0 ? h.text.trim() : '第' + h.line + '行')
+    if (extractServes(h.text).length === 0) missing.push(h.text.trim().length > 0 ? h.text.trim() : fmt('第{line}行', { line: h.line }))
   }
   return { missing }
 }
@@ -374,4 +286,54 @@ export function checkE2ECoverage(requirement: ParsedDoc): { hasE2E: boolean } {
     }
   }
   return { hasE2E: false }
+}
+
+/**
+ * 检查编号连续性（FR-1, FR-2, FR-3... 不能跳号）。
+ * 按前缀分组检查，每组独立连续。
+ */
+export function checkClauseSequence(roots: readonly string[]): string[] {
+  const byPrefix = new Map<string, number[]>()
+
+  for (const id of roots) {
+    const match = /^([A-Z]+)-(\d+)$/.exec(id)
+    if (match === null) continue
+    const prefix = match[1]
+    const num = parseInt(match[2], 10)
+    if (!byPrefix.has(prefix)) byPrefix.set(prefix, [])
+    byPrefix.get(prefix)!.push(num)
+  }
+
+  const gaps: string[] = []
+  for (const [prefix, nums] of byPrefix) {
+    nums.sort((a, b) => a - b)
+    for (let i = 0; i < nums.length - 1; i++) {
+      const curr = nums[i]
+      const next = nums[i + 1]
+      if (next - curr > 1) {
+        // 跳号
+        for (let missing = curr + 1; missing < next; missing++) {
+          gaps.push(prefix + '-' + missing)
+        }
+      }
+    }
+  }
+
+  return gaps
+}
+
+/**
+ * 检查编号唯一性（同一编号不能出现多次）。
+ *
+ * ⚠️ 入参必须是**未去重**的清单（用 extractClauseDefinitionOccurrences）。
+ * 喂 extractClauseDefinitions 的输出会让计数恒 ≤1，判重静默失效。
+ */
+export function checkClauseDuplicates(roots: readonly string[]): string[] {
+  const seen = new Map<string, number>()
+  for (const id of roots) {
+    seen.set(id, (seen.get(id) ?? 0) + 1)
+  }
+  return [...seen.entries()]
+    .filter(([_, count]) => count > 1)
+    .map(([id, count]) => id + '（出现' + count + '次）')
 }

@@ -47,7 +47,7 @@ describe('amendTaskAcceptanceIfRequested', () => {
     expect(h.repo.ledger.tasks[0].acceptance).toBe(next)
   })
 
-  it('卡文档存在时同步「## 验收标准」段（人读的唯一事实源不落后）', async () => {
+  it('旧卡（改名前的 ## 验收标准）仍能整段替换——存量不重写也要能改', async () => {
     const h = seed()
     const docPath = 'docs/requirements/REQ-000001/tasks/t-000001.md'
     await h.docs.write(docPath, '# t-000001\n\n## 验收标准\n\n旧的弱标准\n\n## 下一步\n\n继续\n')
@@ -57,6 +57,31 @@ describe('amendTaskAcceptanceIfRequested', () => {
     expect(text).toContain(next)
     expect(text).not.toContain('旧的弱标准')
     expect(text).toContain('## 下一步')
+  })
+
+  it('新卡（## 得到什么结果）同样整段替换——改名后 T-9 通道不失效', async () => {
+    const h = seed()
+    const docPath = 'docs/requirements/REQ-000001/tasks/t-000001.md'
+    await h.docs.write(docPath, '# t-000001\n\n## 在做什么\n甲\n\n## 得到什么结果\n\n旧的弱标准\n\n## 下一步\n\n继续\n')
+    const next = '跑 npx vitest run tests/x.test.ts → 3 passed'
+    await amendTaskAcceptanceIfRequested(h.deps, { task_id: 't-000001', acceptance: next }, EXEC)
+    const text = await h.docs.read(docPath)
+    expect(text).toContain(next)
+    expect(text).not.toContain('旧的弱标准')
+    // 整段替换不能吃掉邻节
+    expect(text).toContain('## 在做什么')
+    expect(text).toContain('## 下一步')
+  })
+
+  it('卡上两个标题都没有 → 台账照改、文档不硬造（无该段不是错误）', async () => {
+    const h = seed()
+    const docPath = 'docs/requirements/REQ-000001/tasks/t-000001.md'
+    const original = '# t-000001\n\n## 范围\n\n- 阶段：implement\n'
+    await h.docs.write(docPath, original)
+    const next = '跑 npx vitest run tests/x.test.ts → 3 passed'
+    await amendTaskAcceptanceIfRequested(h.deps, { task_id: 't-000001', acceptance: next }, EXEC)
+    expect(h.repo.ledger.tasks[0].acceptance).toBe(next)
+    expect(await h.docs.read(docPath)).toBe(original)
   })
 
   it('任务不属于本窗口绑定的需求 → 拒绝', async () => {

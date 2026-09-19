@@ -7,12 +7,20 @@
 | 顺序 | 节点名称 | 英文标识 | 说明 | 下一阶段按钮文字 |
 |------|---------|---------|------|-----------------|
 | 1 | 立项 | draft | 需求立项，填写基本信息 | → 需求分析 |
-| 2 | 需求分析 | brainstorming | 分析问题、探讨方案 | → 技术设计 |
-| 3 | 技术设计 | planning | 编写技术方案、实施计划 | → 拆分 |
-| 4 | 拆分 | decomposing | 拆解任务、建立DAG | → 实施 |
+| 2 | 需求分析 | brainstorming | 分析问题、探讨方案 | → 设计 |
+| 3 | 设计 | design | 编写设计文档（design/*.md）；出口提交拆分计划 `plan.md` | → 拆分 |
+| 4 | 拆分 | decomposing | 按已确认的拆分计划落任务卡与任务 DAG（`decomposition.md`） | → 实施 |
 | 5 | 实施 | implementing | 执行任务、开发功能 | → 验收 |
 | 6 | 验收 | accepting | 提交交付物、人工验收 | → 归档 |
 | 7 | 归档 | archived | 归档文档、合并知识库 | - |
+
+**产出归属与时序（与代码一致）**：`design/*.md`（设计文档）与 `plan.md`（拆分计划）都在
+**设计**节点内编写；`plan.md` 是**离开设计节点**的必备产物与人工确认门
+（`STAGE_ARTIFACT_REQUIREMENTS.design = ['plan']`、`ARTIFACT_CONFIRM_GATES['design>decomposing'] = 'plan'`，
+见 `packages/pages/dsh-pmboard/src/domain/artifact/ArtifactSpec.ts`）。语义上"计划属于拆分"——
+计划写的是**怎么拆、按什么步骤做**；落地上它是"拆分的输入"，经人确认后才放行进入拆分节点。
+**拆分**节点的产出是任务卡与任务 DAG（`decomposition.md`）。本次改名（REQ-81aabd）**不动任何闸门**；
+若将来要把 `plan.md` 的闸门位置真正挪到拆分节点，须另立需求并同步改闸门。
 
 ## 状态映射（后端兼容）
 
@@ -22,15 +30,30 @@
 |---------|---------|------|
 | draft | 立项 | - |
 | brainstorming | 需求分析 | 旧名"头脑风暴" |
-| planning | 技术设计 | 旧名"计划" |
+| design | 设计 | 旧名键 `planning`、中文"技术设计"（2026-09-19 键与中文同时改名） |
 | decomposing | 拆分 | - |
 | implementing | 实施 | 旧名"执行" |
 | accepting | 验收 | - |
 | done | 归档 | 旧名"完成"（后端终态） |
 | archived | 归档 | 后端新终态，优先使用 |
 
+**旧键迁移（v6 → v7，REQ-81aabd）**：状态键 `planning` 已由
+`packages/pages/dsh-pmboard/scripts/migrate-ledger.ts` 一次性归一为 `design`
+（覆盖 `requirements[].status` / `statusHistory[].status` / `artifacts[].stage`）；
+运行时读路径**不做旧值兜底**，`planning` 不再是合法入参。正文（评论/证据/验收标准）
+里的历史"planning"措辞原样保留。
+
+**迁移时序（硬约束，2026-09-19 实测）**：`JsonLedgerRepository` 是 load-once
+（`private loaded`，`load()` 早退）+ 每次 `mutate` 全量重写（`persistAtomic`：tmp+fsync+rename），
+且**没有任何 reload API** —— 进程存活期间对台账文件做外部迁移，会被该进程内存里的旧快照在
+下一次写入时静默覆盖（本次实测复现：`--apply` 报成功、`--verify` 通过，随后台账又被写回 v6）。
+所以迁移只能夹在「**进程已停、新进程未起**」的窗口内，编排脚本：
+`agent-dh/scripts/req81aabd-restart-and-migrate.sh`（bootout → `migrate --apply/--verify` →
+bootstrap → 起后复核 + 抓看板设计节点数据），必须 **detached（新会话）运行**，否则会被 bootout
+连坐杀掉；日志 `.dsh-data/req81aabd-restart.log`，抓取结果 `.dsh-data/req81aabd-design-stage.json`。
+
 **前端显示规则**：
-- 前端统一显示新节点名称（立项、需求分析、技术设计、拆分、实施、验收、归档）
+- 前端统一显示新节点名称（立项、需求分析、设计、拆分、实施、验收、归档）
 - 后端返回 `done` 或 `archived` 都显示为"归档"
 - 按钮文字格式：`→ [下一节点名称]`
 
@@ -42,7 +65,7 @@
 |------|------|------|
 | 立项 | #9aa4b2 | 灰色 |
 | 需求分析 | #f0a020 | 橙色 |
-| 技术设计 | #c2255c | 粉红 |
+| 设计 | #c2255c | 粉红 |
 | 拆分 | #8e44ad | 紫色 |
 | 实施 | #4a7dff | 蓝色 |
 | 验收 | #17a2b8 | 青色 |
@@ -51,7 +74,7 @@
 
 ## 泳道视图规则
 
-- **显示6个泳道**：立项、需求分析、技术设计、拆分、实施、验收
+- **显示6个泳道**：立项、需求分析、设计、拆分、实施、验收
 - **不显示"归档"泳道**：已归档需求在"验收"泳道置灰显示
 - **后端状态为 done 的需求**：显示在"验收"泳道，标记"等待归档"
 
@@ -60,7 +83,7 @@
 ### 前端代码
 ```typescript
 // ❌ 错误：硬编码节点名
-const status = '头脑风暴';
+const status = '需求分析';
 
 // ✅ 正确：从常量导入
 import { WORKFLOW_STAGES } from '@/constants/workflow';
@@ -70,7 +93,7 @@ const status = WORKFLOW_STAGES.BRAINSTORMING.label; // "需求分析"
 ### 后端代码
 ```python
 # ❌ 错误：散落的状态定义
-STATUS_CHOICES = [('draft', '立项'), ('brainstorming', '头脑风暴')]
+STATUS_CHOICES = [('draft', '立项'), ('brainstorming', '需求分析')]
 
 # ✅ 正确：引用统一定义
 from constants.workflow import WORKFLOW_STAGES
@@ -83,7 +106,7 @@ from constants.workflow import WORKFLOW_STAGES
 ### 原型/文档
 ```html
 <!-- ❌ 错误：手写节点名 -->
-<span>头脑风暴</span>
+<span>需求分析</span>
 
 <!-- ✅ 正确：注释引用权威定义 -->
 <!-- 流程节点定义见：docs/architecture/workflow-stages.md -->
@@ -156,23 +179,27 @@ REQ-47939a 把 reqboard 的 13 个工具收敛为 9 个。**收敛只改入口�
 - **活动（九步检查表）**：①探索项目上下文 → ②范围评估先行（多子系统先拆）→ ③澄清提问（一次性一个问题，弹框）→ ④2-3 方案对比（带推荐）→ ⑤分节呈现设计（每节确认）→ ⑥写 requirement.md → ⑦文档自查（占位符/矛盾/模糊/蔓延）→ ⑧用户审阅（`reqboard_ask_confirm`）→ ⑨推进
 - **产物**：requirement.md（过程产物落目录即自动登记，W4）
 - **出口门**：人工门——需求文档确认（三通道：弹框/看板/核验后文字）
-- **禁止**：写技术设计、写任务拆分；未经确认不得进入实现动作（HARD-GATE，代码级 artifact_not_confirmed）
+- **禁止**：写设计、写任务拆分；未经确认不得进入实现动作（HARD-GATE，代码级 artifact_not_confirmed）
 
-### 3 技术设计 planning（代码层面的设计，产物是一套文档）
+### 3 设计 design（代码层面的设计，产物是一套文档）
 - **目标**：在代码层面回答"怎么做"
 - **入口**：需求文档已确认
 - **活动**：①数据层（是否改表/schema）②设计模式与框架选型（优先现成框架）③代码规范 ④UI/前端实现与样式 ⑤测试用例内容 ⑥提交前自查
-- **产物**：**一套技术设计文档**（按主题分：design/architecture.md、design/ui.md、design/test-cases.md…）
-- **出口门**：人工门——计划批准（`reqboard_ask_confirm` target=plan）
+- **产物**：**一套设计文档**（按主题分：design/architecture.md、design/ui.md、design/test-cases.md…）。
+  产物种类 `design`（`design/*.md` → `kindForRelPath` 归位；非 .md 仍归 `notes`）；需求目录里已登记 =
+  已交。设计节点面板**逐份**列出分类模板要求的文件（`CATEGORY_DELTAS.requiredDesignDocs`）并标
+  ✅ 已交 / ⬜ 未交（REQ-81aabd，2026-09-17）。**纯展示，不参与任何闸门**——六类里有四类（bug/spike/
+  doc/chore）不要求设计文档，把 design 塞进 `STAGE_ARTIFACT_REQUIREMENTS` 会误伤它们。
+- **出口门**：人工门——拆分计划批准（`reqboard_ask_confirm` target=plan）
 - **禁止**：工作流划分/工作量预估（属拆分）；写实现代码；**产出最终任务 DAG**（W7 边界：任务卡在拆分阶段创作）
 
 ### 4 拆分 decomposing（代码层面变更盘点 + 任务卡创作）
-- **目标**：把技术设计转成可执行任务 DAG
-- **入口**：计划已批准
-- **活动**：①对照需求+技术设计盘点**新增/修改/删除**（接口/功能/文件，精确到模块）②工作流划分+工作量预估 ③任务卡四要素创作（做什么/怎么做[implementation]/可证伪验收标准/依赖）④`reqboard_decompose` 落库
+- **目标**：把设计转成可执行任务 DAG
+- **入口**：拆分计划已批准
+- **活动**：①对照需求+设计盘点**新增/修改/删除**（接口/功能/文件，精确到模块）②工作流划分+工作量预估 ③任务卡四要素创作（做什么/怎么做[implementation]/可证伪验收标准/依赖）④`reqboard_decompose` 落库
 - **产物**：decomposition.md + 任务卡（tasks/t-xxx.md，薄卡被代码级拒绝）
 - **出口门**：人工门——拆分确认（`reqboard_ask_confirm` kind=decomposition；防"批了 A 落库 B"）
-- **禁止**：薄卡落库；与技术设计矛盾时**退回技术设计改计划**，不二次创作
+- **禁止**：薄卡落库；与设计矛盾时**退回设计改设计文档**，不二次创作
 
 ### 5 实施 implementing（文档驱动执行）
 - **目标**：照卡执行并交付
@@ -226,7 +253,7 @@ writing-skills / using-superpowers）设计为挂在**节点内子步骤**上按
 ### 2 路由键与 5 级回退链（难度优先于类型）
 
 路由键 = `stage/difficulty/category`（示例 `brainstorming/heavy/feature`；未指定的维度写 `*`）：
-**stage** ∈ 六节点（brainstorming / planning / decomposing / implementing / accepting / archived）；
+**stage** ∈ 六节点（brainstorming / design / decomposing / implementing / accepting / archived）；
 **difficulty** ∈ `light` / `heavy`；**category** ∈ `feature` / `bug` / `doc` / `refactor` / `spike` / `chore`。
 
 回退链按表顺序取**首个命中**层；**② 先于 ③ = 难度优先于类型**：
@@ -247,7 +274,7 @@ priority/text/include）见 `docs/requirements/REQ-422af1/design/fragments.md` �
 
     packages/pages/dsh-pmboard/src/domain/prompt/
       index.ts  router.ts  budget.ts  types.ts  chain.ts   唯一入口 + 回退解析 + 预算 + 类型 + 链声明
-      fragments/brainstorming/light.md                    六节点轻档（自写；另有 planning|decomposing|implementing|accepting|archived）
+      fragments/brainstorming/light.md                    六节点轻档（自写；另有 design|decomposing|implementing|accepting|archived）
       fragments/brainstorming/heavy.md                    六节点重档（5 节点 = vendor 原文逐字节镜像；decomposing 自写完整档）
       fragments/brainstorming/heavy/overrides.md          附加片段（floor；5 节点有，decomposing 无）
       fragments/common/iron-rules.md                      ⑤ 全局铁律（floor）
@@ -269,7 +296,7 @@ priority/text/include）见 `docs/requirements/REQ-422af1/design/fragments.md` �
 | 许可 | **MIT**（Copyright (c) 2025 Jesse Vincent），全文见 `packages/pages/dsh-pmboard/src/domain/prompt/vendor/superpowers/ATTRIBUTION.md` |
 | 份数 | **14 份** `SKILL.md`（该仓 skills/ 全量） |
 | 抓取时点 | **2026-09-17 22:42:44 CST**（`git show origin/main:<skill>/SKILL.md` 逐字节落盘，无改写） |
-| heavy 主 skill 映射 | brainstorming→brainstorming；planning→writing-plans；implementing→executing-plans；accepting→verification-before-completion；archived→finishing-a-development-branch |
+| heavy 主 skill 映射 | brainstorming→brainstorming；design→writing-plans；implementing→executing-plans；accepting→verification-before-completion；archived→finishing-a-development-branch |
 | 口径例外 | **decomposing 在 14 份里无对应 skill**（没有"拆分/任务 DAG/卡质量"内容）→ heavy 为**自写完整档**，不做"与原文逐字一致"断言 |
 
 ### 5 注入顺序与单次注入预算
@@ -307,7 +334,7 @@ heavy 档**主 skill 全文不裁**（裁正文等于把 heavy 降回"要点版"
 | 节点 | light | heavy | heavy 来源 | light 字符 | heavy 字符 |
 |------|:----:|:----:|-----------|----------:|----------:|
 | brainstorming | ✅ | ✅ | vendor brainstorming | 1,218 | 17,193 |
-| planning | ✅ | ✅ | vendor writing-plans | 946 | 8,207 |
+| design | ✅ | ✅ | vendor writing-plans | 946 | 8,207 |
 | decomposing | ✅ | ✅ | **自写完整档**（无对应 skill） | 855 | 1,641 |
 | implementing | ✅ | ✅ | vendor executing-plans | 925 | 3,723 |
 | accepting | ✅ | ✅ | vendor verification-before-completion | 922 | 4,701 |
@@ -333,6 +360,58 @@ heavy 档**主 skill 全文不裁**（裁正文等于把 heavy 降回"要点版"
 每次注入按十字段留痕到**运行时文件** `<dshHome>/state/prompt-injection-log.json`（ring buffer 保留最近 500 条、
 原子写；该文件运行时生成，不在仓库内）：`at / windowKey / stage / difficulty / category / routeKey / hitLevel / fragmentIds / charCount / trimmed`，
 让"这次到底注入了什么"可被人核查。
+
+---
+
+## 内容门禁：任务卡三要素与编号（REQ-640a55，2026-09-19）
+
+> 与上面的「六条门禁」（提示词分片的选择器门禁）不是一回事：这里说的是**读产物正文**的内容门禁——
+> 它决定"产物写得不合格时能不能过节点"。共同的分层约定：判定是零 IO 纯函数
+> （`application/internal/content-gates.ts`），取数与组装在接线层
+> （`content-gate-wiring.ts` / `content-gate-triad.ts`），工具壳只负责调用与拒绝（`tools/` 内不得出现状态字面量）。
+
+### 1 任务卡三要素（FR-1 / FR-2）
+
+每张任务卡必须让非工程读者看懂三件事，且**两条建卡路径产出同一形状**：
+
+| 节 | 来源字段 | 空值兜底 |
+|---|---|---|
+| `## 在做什么` | 计划任务的 `title` | 无（title 必填） |
+| `## 解决什么问题` | `context` | `（未填写——开工前补充这张卡要解决的业务问题）` |
+| `## 得到什么结果` | `acceptance` | `（未填写）` |
+
+两条建卡路径：`use-cases/Decompose.ts`（拆分时写骨架）与 `use-cases/ReportTask.ts`（卡文件不存在时的兜底骨架头）。
+改名请同步 `use-cases/AmendTaskAcceptance.ts` 的段定位正则——它按 `## 得到什么结果` 找段做整段替换，
+并**同时认旧标题 `## 验收标准`**（存量卡不重写也要能改）。
+
+门禁挂在两个时刻（`application/internal/content-gate-triad.ts`）：
+
+| 时刻 | 调用点 | 拦的是什么 |
+|---|---|---|
+| `decomposing → implementing` 出口 | `tools/MoveTool` | 卡读不懂，**不许开工**（一次扫全部卡） |
+| `task_move(to=done)` 之前 | `tools/TaskMoveTool` | 卡在拆分后被改坏/覆盖 |
+
+命中即 `reject(..., 'task_card_incomplete')`，消息列出**卡 id 与缺的节名**。**不判**的三种情形：
+目标态不是被守的那个 / 卡文件不存在（那是"还没落盘"，别的门禁管落盘）/ 任务所属需求不属本窗口绑定集合。
+口径：字段**缺失**或**为空**硬拦；标题像工程名词堆叠只进 warnings（不阻断，避免形式主义）。
+
+### 2 需求文档编号（FR-3 / FR-4）
+
+`checkRequirementDocFormatGate` 在提交需求文档时校验三条：有根编号、**不跳号**、**不重复**。
+
+- 编号**定义位**正则（`doc-parse.ts` 的 `DEF_LINE_RE`）：行首（可带 `- ` 前缀）的 `**FR-1 ...`；
+  标题式 `### FR-1: x` 亦计入（按 `** + 标题文本` 匹配）。
+- **不跳号**按前缀分组各自连续：`FR-1, FR-3` → 报 `FR-2`；`FR-1` 与 `NFR-1` 各算一组。
+- **不重复**必须吃**未去重**的定义清单：`extractClauseDefinitions` 返回前做了 `Set` 去重，
+  拿它判重计数恒 ≤1（静默失效）；故另有 `extractClauseDefinitionOccurrences`（同源解析、不去重）。
+- 该门禁对**无产物**的需求跳过（存量豁免）。
+
+### 3 反向验证是纪律，不是可选项
+
+这三处的共同前身是「实现了但零调用方」与「判据恒不触发」——都不报错、不告警、测试全绿。
+故每处修复都带**改坏即变红**的用例：骨架节名改回 `## 目标` → handoff 与全链路变红；
+判重改喂去重清单 → 变红；跳号正则改回 `d+` → 变红。回归入口：
+`cd agent-dh/packages/dsh-pmboard && npx vitest run`（REQ-640a55 落地时 100 文件 / 1282 条）。
 
 ---
 

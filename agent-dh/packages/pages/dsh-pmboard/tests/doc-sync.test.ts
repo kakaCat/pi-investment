@@ -20,7 +20,7 @@ let reqSubmit: any, planTool: any, decompose: any, move: any
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'pmboard-docsync-'))
   store = new ReqboardStore({ file: join(root, 'dsh-reqboard.json') })
-  const deps = { store, now: () => Date.now(), doneThrottleMs: 0 } as never
+  const deps = { store, now: () => Date.now(), doneThrottleMs: 0, workspaceRoot: root } as never
   reqSubmit = defineRequirementSubmitTool(deps)
   planTool = definePlanSubmitTool(deps)
   decompose = defineDecomposeTool(deps)
@@ -40,12 +40,12 @@ async function seed(status = 'brainstorming'): Promise<void> {
 }
 const run = (tool: any, args: unknown) => tool.execute(args, { agent: { id: W } })
 function writeReqFile(rel: string): void {
-  const abs = join(process.cwd(), 'docs/requirements', REQ, rel)
+  const abs = join(root, 'docs/requirements', REQ, rel)
   mkdirSync(join(abs, '..'), { recursive: true })
   // 迁移（REQ-d3e61a T-13）：最小桩也要满足"分类文档集"门禁对根文档必填节的要求。
   // 本文件不读该内容（原先是占位符 'x'），故只是把桩做成**形态合法**的文档，不影响被测语义。
   const body = rel.endsWith('requirement.md')
-    ? '# 需求\n\n## 1. 问题\n\n桩。\n\n## 2. 边界\n\n桩。\n\n## 3. 成功标准\n\n桩。\n\n## 4. 产品定义\n\n桩。\n\n## 5. 用户与角色\n\n桩。\n\n## 6. 功能点\n\n桩。\n'
+    ? '# 需求\n\n## 1. 问题\n\n桩。\n\n## 2. 边界\n\n桩。\n\n## 3. 成功标准\n\n桩。\n\n## 4. 产品定义\n\n桩。\n\n## 5. 用户与角色\n\n桩。\n\n## 6. 功能点\n\n### FR-1: 文档留痕\n\n桩。\n'
     : 'x'
   writeFileSync(abs, body)
 }
@@ -60,7 +60,7 @@ describe('文档演进留痕（t19）', () => {
       const r = l.requirements[0]
       const a = r.artifacts!.find(x => x.kind === 'requirement')!
       a.confirmedAt = 1000
-      r.status = 'planning'
+      r.status = 'design'
       return { requirements: [r] }
     })
     // 回 brainstorming 重写（模拟变更）
@@ -77,7 +77,7 @@ describe('文档演进留痕（t19）', () => {
       r.artifacts!.find(x => x.kind === 'requirement')!.confirmedAt = 1000
       // 同时登记 plan/decomposition 产物（模拟下游已存在）
       r.artifacts!.push(
-        { stage: 'planning', kind: 'plan', path: 'p.md', registeredAt: 1, registeredBy: { kind: 'agent' } },
+        { stage: 'design', kind: 'plan', path: 'p.md', registeredAt: 1, registeredBy: { kind: 'agent' } },
         { stage: 'decomposing', kind: 'decomposition', path: 'd.md', registeredAt: 1, registeredBy: { kind: 'agent' } },
       )
       r.status = 'brainstorming'
@@ -94,7 +94,7 @@ describe('文档演进留痕（t19）', () => {
   })
 
   it('下游重交（plan_submit）→ 销 plan 标；decompose → 销 decomposition 标', async () => {
-    await seed('planning')
+    await seed('design')
     // 迁移（REQ-d3e61a T-13）：feature 类型要求设计文档齐；本文件不读这些桩的内容，
     // 只是让桩形态合法（原先依赖上一个用例残留的 requirement.md，design 目录则完全没有）。
     writeReqFile('requirement.md')
@@ -104,7 +104,7 @@ describe('文档演进留痕（t19）', () => {
       r.docSyncPending = [{ source: 'requirement', downstream: ['plan', 'decomposition'], reason: 'x', at: 1 }]
       return { requirements: [r] }
     })
-    await run(planTool, { path: 'p.md', summary: '技术设计 v2' })
+    await run(planTool, { path: 'p.md', summary: '设计 v2' })
     let req = store.snapshot().requirements[0]
     expect((req.docSyncPending ?? []).some(p => p.downstream.includes('plan'))).toBe(false)
     // 拆解销 decomposition 标
@@ -114,7 +114,8 @@ describe('文档演进留痕（t19）', () => {
       r.plan!.approvedBy = { kind: 'human' }
       return { requirements: [r] }
     })
-    await run(decompose, { tasks: [{ key: 'a', title: 'x', acceptance: '单测绿', implementation: '改 x.ts' }] })
+    // 条款覆盖门禁：桩文档有 FR-1，任务卡必须显式接收，否则 requirement_uncovered
+    await run(decompose, { tasks: [{ key: 'a', title: 'x', acceptance: '单测绿', implementation: '改 x.ts', requirement_refs: ['FR-1'] }] })
     req = store.snapshot().requirements[0]
     expect(req.docSyncPending ?? []).toHaveLength(0)
   })
@@ -124,14 +125,14 @@ describe('文档演进留痕（t19）', () => {
     await store.mutate('seed-pending', (l) => {
       const r = l.requirements[0]
       r.docSyncPending = [{ source: 'requirement', downstream: ['plan'], reason: '改了范围', at: 1 }]
-      // 放行闸门：requirement 产物已确认（否则 brainstorming→planning 被人工门拦）
+      // 放行闸门：requirement 产物已确认（否则 brainstorming→design 被人工门拦）
       r.artifacts = [{
         stage: 'brainstorming', kind: 'requirement', path: 'docs/requirements/' + REQ + '/requirement.md',
         registeredAt: 1, registeredBy: { kind: 'agent' }, confirmedAt: 2, confirmedBy: { kind: 'human' },
       } as never]
       return { requirements: [r] }
     })
-    const out = await run(move, { to: 'planning', reason: '推进' })
+    const out = await run(move, { to: 'design', reason: '推进' })
     expect(out.doc_sync_warning).toMatch(/待同步/)
     expect(out.doc_sync_pending).toHaveLength(1)
   })

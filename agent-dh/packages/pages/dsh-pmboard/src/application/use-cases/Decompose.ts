@@ -20,6 +20,7 @@ import { checkDecomposeIdempotency } from '../../domain/workflow/DecomposeSpec.j
 import { clearDocSync } from '../../domain/workflow/DocSyncSpec.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { applyTaskRollup } from '../internal/rollup.js'
+import { captureSnapshot } from '../internal/token-usage.js'
 import { registerArtifact } from '../internal/artifact-gates.js'
 import { syncRequirementMarks } from './SyncRequirementMarks.js'
 import { assertClauseCoverageGate, requirementRefsOf } from '../internal/content-gate-wiring.js'
@@ -62,7 +63,7 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
       //  ① 状态已**越过**拆分（实施/验收中）→ 说明已拆过，拒绝；
       //  ② 台账已有该需求的未取消任务 → 拒绝并返回已有清单（防状态异常时的漏网）。
       // 2026-09-17 修正（本需求自身实测触发）：原守卫把 decomposing 也当作"已拆过"，但计划
-      // 批准（reqboard_ask_confirm target=plan）会**自动**把 planning → decomposing，于是正常
+      // 批准（reqboard_ask_confirm target=plan）会**自动**把 design → decomposing，于是正常
       // 路径必然先到 decomposing 再调 decompose → 被自己的守卫拒死，审批流水线自锁。
       // 正解：幽灵任务的唯一判据是"已有任务"（防线②），状态只用于区分"是否已越过拆分"。
       // 两道防线的判定在 domain/workflow/DecomposeSpec.ts（REQ-47939a t3）。
@@ -77,7 +78,7 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
       // 批准 → 直接拒绝（agent 无法自行越过；人批准是唯一钥匙）。
       if (!planApproved(target)) {
         reject(
-          'reqboard_decompose 未执行：该需求还没有已批准的实施计划。'
+          'reqboard_decompose 未执行：该需求还没有已批准的拆分计划。'
           + '计划模式要求：先 reqboard_plan_submit 提交计划（文档路径 + 摘要 + 任务表），'
           + '请人在项目看板点「批准计划」，批准后才能拆分落库',
           'REQBOARD_PLAN_NOT_APPROVED',
@@ -85,7 +86,7 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
       }
       const planTasks: PlanTask[] = target.plan?.tasks ?? []
       // ── W7 阶段产物边界（REQ-2e9473 t17）：两条路径 ─────────────────────
-      //  路径 A（创作型，W7 新语义）：计划只含技术设计（tasks 空）→ decompose 承担任务卡
+      //  路径 A（创作型，W7 新语义）：计划只含设计（tasks 空）→ decompose 承担任务卡
       //   创作，必须显式传 tasks；任务卡质量（implementation/可证伪 acceptance）由
       //   normalizePlanTasks 强制，人工把关在「拆分确认门」（decomposing→implementing）。
       //  路径 B（计划携带任务表，兼容旧流程）：落库以批准的计划为准；显式传 tasks 时
@@ -97,7 +98,7 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
       if (planTasks.length === 0) {
         if (a.tasks === undefined || !Array.isArray(a.tasks) || a.tasks.length === 0) {
           reject(
-            'reqboard_decompose 未执行：技术设计未含任务表（W7 新语义）——请传入 tasks 创作任务卡'
+            'reqboard_decompose 未执行：设计未含任务表（W7 新语义）——请传入 tasks 创作任务卡'
             + '（每张卡必须含 implementation 与可证伪 acceptance；decompose 即任务卡创作口）',
             'REQBOARD_TASKS_REQUIRED',
           )
@@ -226,7 +227,7 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
           req.comments.push({
             id: deps.ids.comment(),
             body:
-              '[拆分] 按已批准的实施计划落库 ' + records.length + ' 个任务'
+              '[拆分] 按已批准的拆分计划落库 ' + records.length + ' 个任务'
               + (req.plan !== undefined ? '（计划 ' + req.plan.path + '，批准于 ' + new Date(req.plan.approvedAt ?? 0).toISOString() + '）' : '')
               + '：\n' + commentLines.join('\n')
               + '\n（窗口 ' + windowKey + '）',
@@ -236,7 +237,11 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
           req.version += 1
           req.updatedAt = nowTs
           req.updatedBy = { kind: 'agent', sessionId: windowKey }
-          const advanced = applyTaskRollup(ledger, { now: nowTs, commentId: () => deps.ids.comment() }, req.id)
+          const advanced = applyTaskRollup(
+            ledger,
+            { now: nowTs, commentId: () => deps.ids.comment(), snapshot: () => captureSnapshot(deps, windowKey) },
+            req.id,
+          )
           return { tasks: records, requirements: [req, ...advanced] }
         })
         const req = (result.changed.requirements ?? [])[0]
@@ -289,16 +294,19 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
               const dep = (result.changed.tasks ?? []).find(x => x.id === depId)
               return dep ? dep.title : depId
             })
+            // 三要素节（在做什么 / 解决什么问题 / 得到什么结果）是**契约**，不是排版：
+            // REQ-640a55 的三要素门禁按标题行定位这三节，缺任一或正文为空都会被 task_card_incomplete 拦下。
+            // 改名请同步 AmendTaskAcceptance 的段定位正则（它按「## 得到什么结果」找段做整段替换）。
             const taskContent = [
               '# ' + c.id + ' ' + t.title,
               '',
               '> 任务卡骨架（reqboard_decompose 自动生成）；汇报经 reqboard_task_report 追加到本文件',
               '',
-              '## 目标',
+              '## 在做什么',
               t.title,
               '',
-              '## 背景摘要（context）',
-              t.context || '（待补充）',
+              '## 解决什么问题',
+              t.context || '（未填写——开工前补充这张卡要解决的业务问题）',
               '',
               '## 范围',
               '- 阶段：' + t.phase,
@@ -307,8 +315,8 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
                 ? ['- APIs：' + t.scope.apis.join('、'), '- 表：' + t.scope.tables.join('、'), '- 文件：' + t.scope.files.join('、')]
                 : []),
               '',
-              '## 验收标准',
-              t.acceptance || '（待补充）',
+              '## 得到什么结果',
+              t.acceptance || '（未填写）',
               '',
               '## 实施方案（implementation）',
               t.implementation || '（薄卡：未填写——开工前必须先补实施方案）',

@@ -50,7 +50,7 @@ async function seed(status: string, extra: Record<string, unknown> = {}): Promis
 const depsWith = (extra: { userQuestions?: unknown } = {}) =>
   ({
     repo: store,
-    docs: new FileDocRepository(),
+    docs: new FileDocRepository({ workspaceRoot: root }),
     clock: new SystemClock(),
     ids: new RandomIdFactory(),
     session: new SessionProbeAdapter({}),
@@ -236,7 +236,7 @@ function returnKeys(src: string): string[] {
 describe('输出契约：返回字段 ⊆ output.schema 声明', () => {
   it('archive_submit（含 unlisted_files 警告路径）', async () => {
     await seed('archived')
-    const reqDir = join(process.cwd(), 'docs/requirements', REQ)
+    const reqDir = join(root, 'docs/requirements', REQ)
     mkdirSync(reqDir, { recursive: true })
     writeFileSync(join(reqDir, 'requirement.md'), 'x')
     writeFileSync(join(reqDir, 'prototype.html'), 'x') // 未列入清单 → warning 路径

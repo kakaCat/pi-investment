@@ -25,7 +25,7 @@ beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-t12-'))
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
   trace = new Map()
-  const deps = { store, now: () => Date.now(), toolTrace: trace, doneThrottleMs: 0 } as never
+  const deps = { store, now: () => Date.now(), toolTrace: trace, doneThrottleMs: 0, workspaceRoot: dir } as never
   report = defineTaskReportTool(deps) as never
   verify = defineVerifySubmitTool(deps) as never
   archive = defineArchiveSubmitTool(deps) as never
@@ -79,8 +79,10 @@ describe('verify_submit evidence 存在性（t12）', () => {
 
   it('真实路径 → 通过校验（不再报 EVIDENCE_MISSING）', async () => {
     await seed('implementing')
-    // 路径按 cwd 解析（工具约定）；vitest cwd = 包目录 → 用包内真实存在的 tests/ 路径
-    const real = 'tests/task-output-and-evidence.test.ts'
+    // 路径按文档根解析；测试已把文档根隔离到临时目录 → 在临时根下造一个真实文件当证据
+    const real = 'evidence/proof.ts'
+    mkdirSync(join(dir, 'evidence'), { recursive: true })
+    writeFileSync(join(dir, real), '// 证据文件\n')
     try {
       const out = await run(verify, { summary: '交付完成', evidence: ['见 ' + real] })
       expect(out.success).toBe(true)
@@ -93,7 +95,7 @@ describe('verify_submit evidence 存在性（t12）', () => {
 describe('archive_submit 漏登警告（t12）', () => {
   it('目录内有未列入清单的文件 → unlisted_files + warning', async () => {
     await seed('archived')
-    const reqDir = join(process.cwd(), 'docs/requirements/REQ-t12test')
+    const reqDir = join(dir, 'docs/requirements/REQ-t12test')
     mkdirSync(reqDir, { recursive: true })
     writeFileSync(join(reqDir, 'requirement.md'), 'x')
     writeFileSync(join(reqDir, 'prototype.html'), 'x')
