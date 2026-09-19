@@ -55,6 +55,7 @@ export function defineCreateTool(deps: UseCaseDeps) {
           category: { type: 'string', description: '需求分类' },
           status: { type: 'string', description: '需求状态（draft）' },
           note: { type: 'string', description: '后续流程说明' },
+          board_link: { type: 'string', description: '项目看板链接（可在会话中点击跳转）' },
         },
       },
       render: renderJson,

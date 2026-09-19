@@ -66,6 +66,7 @@ export function defineStatusTool(deps: UseCaseDeps) {
             items: { type: 'string' },
           },
           note: { type: 'string', description: '下一步指引' },
+          board_link: { type: 'string', description: '项目看板链接（可在会话中点击跳转）' },
         },
       },
       render: renderJson,

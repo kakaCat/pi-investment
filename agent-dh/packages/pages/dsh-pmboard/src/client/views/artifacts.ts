@@ -173,20 +173,25 @@ export function cardActions(req: RequirementRecord): string {
     case 'brainstorming':
       actions = btn('design', '→ 设计', { primary: true, title: '方案谈定 → 进入设计阶段（计划在此阶段提交待人批准）' })
         + btn('draft', '退回', { title: '退回立项' })
+        + btn('canceled', '取消', { title: '取消该需求（仅人可操作）' })
       break
     case 'design':
       actions = btn('decomposing', '→ 拆分', { primary: true, title: '计划获批后落库任务卡；未获批会被代码级拒绝' })
         + btn('brainstorming', '退回重谈', { title: '方案要改 → 退回需求分析' })
+        + btn('canceled', '取消', { title: '取消该需求（仅人可操作）' })
       break
     case 'decomposing':
       actions = btn('implementing', '→ 实施', { primary: true, title: '进入实施；任务开工时系统会自动推进' })
+        + btn('canceled', '取消', { title: '取消该需求（仅人可操作）' })
       break
     case 'implementing':
       actions = btn('accepting', '→ 验收', { primary: true, title: '进入验收；任务全部完成时系统会自动推进' })
+        + btn('canceled', '取消', { title: '取消该需求（仅人可操作）' })
       break
     case 'accepting':
       // REQ-9f4a44：验收通过直接归档（accepting → archived），无 done 中转
       actions = btn('archived', '→ 归档', { primary: true, title: '验收通过并归档（归集文档）' })
+        + btn('canceled', '取消', { title: '取消该需求（仅人可操作）' })
       break
     case 'done':
       // done 为 legacy 死状态（REQ_TRANSITIONS: done: []），历史记录只读，不给操作

@@ -61,5 +61,6 @@ export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): 
             : pending !== undefined
               ? '存在遗留待确认建议卡（旧流程产物）：可在看板确认/拒绝，或忽略；新立项直接走 reqboard_create'
               : '本窗口未绑定需求：识别到值得立项的新工作 → 先 ask_user_question 弹「两问确认」（需求名称+需求类型）获用户确认，再按确认值调 reqboard_create 直接立项（创建即立项）',
+        board_link: open.length > 0 ? `/dashboard#pmboard?req=${open[0].id}` : '/dashboard#pmboard',
       }
     }

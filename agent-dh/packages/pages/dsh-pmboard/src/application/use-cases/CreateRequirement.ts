@@ -42,5 +42,6 @@ export async function executeCreateRequirement(deps: UseCaseDeps, args: unknown,
         category: req.category ?? category,
         status: req.status,
         note: '已直接立项（创建即立项）：REQ 已在看板 draft 泳道立即可见，本窗口已绑定',
+        board_link: `/dashboard#pmboard?req=${req.id}`,
       }
     }
