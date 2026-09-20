@@ -65,6 +65,8 @@ export class TradeVerifyTool extends BaseTool<TradeVerifyParams, TradeVerifyResu
    * Phase 2: 执行任务
    */
   protected async execute(args: TradeVerifyParams, _context: ToolContext): Promise<TradeVerifyResult> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     // 2026-09-01 E-2 正规化：后端 /api/risk/trade-verify 已重建（服务端权威对账，
     // 逻辑与本地版一致：重复成交/字段缺失/非法值/持仓勾稽+迁移缺腿降级）。
     // 本地替代实现（2026-08-23 起的 performLocalVerify）已退役。

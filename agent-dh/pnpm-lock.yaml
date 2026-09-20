@@ -658,20 +658,19 @@ importers:
         version: 2.1.9(@types/node@20.19.43)
 
   packages/pages/dsh-pmboard:
-    dependencies:
+    devDependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
         version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
-      '@pi-investment/page-kit':
-        specifier: workspace:*
-        version: link:../page-kit
-      marked:
-        specifier: ^18.0.13
-        version: 18.0.13
-    devDependencies:
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.43
+      tsdown:
+        specifier: ^0.22.14
+        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
+      tsx:
+        specifier: ^4.23.12
+        version: 4.23.12
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
@@ -1279,7 +1278,6 @@ packages:
       '@deepseek-ai/cordis-plugin-loader': 1.0.3(@deepseek-ai/cordis@4.0.1)(node-addon-require-builtin@0.1.5)
       '@deepseek-ai/cosmokit': 1.8.3
       js-yaml: 4.3.1
-    dev: false
 
   /@deepseek-ai/cordis-plugin-loader@1.0.3(@deepseek-ai/cordis@4.0.1)(node-addon-require-builtin@0.1.5):
     resolution: {integrity: sha512-YNcHiH7TRFrgnRbQU7qdS1spABUFFHg04QpB9DdboPEjgKLTFfeEAvr6Y7qll3/nGgqywDQdk1tYshqKO0p1WQ==}
@@ -1293,7 +1291,6 @@ packages:
       '@deepseek-ai/cordis': 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
       '@deepseek-ai/cosmokit': 1.8.3
       node-addon-require-builtin: 0.1.5
-    dev: false
 
   /@deepseek-ai/cordis-plugin-timer@1.1.4(@deepseek-ai/cordis@4.0.1):
     resolution: {integrity: sha512-GhxOiU+TF2BbNBKlV2N24zvfv2Kh7RxkFW1hjML6s+DOb+y2zomzbeC5zHIIjsc/rpRwbKpDNucPGSwkH0ChXw==}
@@ -1320,7 +1317,6 @@ packages:
       '@deepseek-ai/cordis-plugin-loader': 1.0.3(@deepseek-ai/cordis@4.0.1)(node-addon-require-builtin@0.1.5)
       '@deepseek-ai/cosmokit': 1.8.3
       '@standard-schema/spec': 1.1.0
-    dev: false
 
   /@deepseek-ai/cosmokit@1.8.2:
     resolution: {integrity: sha512-muBOKtSrUKU5m/xpq8ZXWL6hQ/jgd4PhU2PqH97bcxIiLEJfNwZOGQEx4t/aS/GgxRAR+ra9pMHPMtTHU4sqqA==}
@@ -1328,7 +1324,6 @@ packages:
 
   /@deepseek-ai/cosmokit@1.8.3:
     resolution: {integrity: sha512-qBo+ronVM6Eu2WNVJXi8JcMiqZ19T9BRIpV+5qJUFPXjGH/Z0QKcQMC/IZJ7L394YTOtJgcovbk9qP0w2GsBXQ==}
-    dev: false
 
   /@deepseek-ai/dsh-acp-app@0.1.5-rc.2(@deepseek-ai/cordis-plugin-loader@1.0.3)(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-attachment@0.1.5-rc.2)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-mcp-client@0.1.5-rc.2)(@deepseek-ai/dsh-session-persistence@0.1.5-rc.2)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-token-meter@0.1.5-rc.2)(@deepseek-ai/dsh-user-approval@0.1.5-rc.2)(zod@4.6.2):
     resolution: {integrity: sha512-90SRAmF6haHARulVllv6uh88n+zubdrgDfxvTzmi9+p3ktt7o6oZ6+yKO7I7e04bSskT+Pz/1J0FLugi9l39dw==}
@@ -7732,7 +7727,6 @@ packages:
 
   /@standard-schema/spec@1.1.0:
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
-    dev: false
 
   /@types/estree@1.0.9:
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
@@ -9776,12 +9770,6 @@ packages:
       '@jridgewell/sourcemap-codec': 1.5.5
     dev: true
 
-  /marked@18.0.13:
-    resolution: {integrity: sha512-xTxVzZsBFwunP6HDmtBkabUQEYArnP7/rMDGmPj9SlrKlQ4i8MdYVow+nJL0eOqwpUqhzBoTBRADGN6uYwPyOw==}
-    engines: {node: '>= 20'}
-    hasBin: true
-    dev: false
-
   /math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
@@ -9901,7 +9889,6 @@ packages:
   /node-addon-native-custom-loader@0.1.5:
     resolution: {integrity: sha512-rL0XXRytayIChYf1xaG9/1NzGBRTyFkQTIpn+MDz/hpr0PZw1a9PZIoH9HlYfagNawhXU+jfN650EvoSIvR7Vw==}
     engines: {node: '>=20'}
-    dev: false
 
   /node-addon-require-builtin-darwin-arm64@0.1.5:
     resolution: {integrity: sha512-MZ5RyGhuU7DTbwuNpOQW81/ep8n5Yd5YlZa6dWiEfJEh+01Dl4cCKGmMCWNgb0VtqAImRtAOtmZIPtwngiemKQ==}
@@ -9911,7 +9898,6 @@ packages:
     requiresBuild: true
     dependencies:
       node-addon-native-custom-loader: 0.1.5
-    dev: false
     optional: true
 
   /node-addon-require-builtin-darwin-x64@0.1.5:
@@ -9922,7 +9908,6 @@ packages:
     requiresBuild: true
     dependencies:
       node-addon-native-custom-loader: 0.1.5
-    dev: false
     optional: true
 
   /node-addon-require-builtin-linux-arm64-gnu@0.1.5:
@@ -9934,7 +9919,6 @@ packages:
     requiresBuild: true
     dependencies:
       node-addon-native-custom-loader: 0.1.5
-    dev: false
     optional: true
 
   /node-addon-require-builtin-linux-x64-gnu@0.1.5:
@@ -9946,7 +9930,6 @@ packages:
     requiresBuild: true
     dependencies:
       node-addon-native-custom-loader: 0.1.5
-    dev: false
     optional: true
 
   /node-addon-require-builtin-win32-arm64-msvc@0.1.5:
@@ -9957,7 +9940,6 @@ packages:
     requiresBuild: true
     dependencies:
       node-addon-native-custom-loader: 0.1.5
-    dev: false
     optional: true
 
   /node-addon-require-builtin-win32-ia32-msvc@0.1.5:
@@ -9968,7 +9950,6 @@ packages:
     requiresBuild: true
     dependencies:
       node-addon-native-custom-loader: 0.1.5
-    dev: false
     optional: true
 
   /node-addon-require-builtin-win32-x64-msvc@0.1.5:
@@ -9979,7 +9960,6 @@ packages:
     requiresBuild: true
     dependencies:
       node-addon-native-custom-loader: 0.1.5
-    dev: false
     optional: true
 
   /node-addon-require-builtin@0.1.5:
@@ -9995,7 +9975,6 @@ packages:
       node-addon-require-builtin-win32-arm64-msvc: 0.1.5
       node-addon-require-builtin-win32-ia32-msvc: 0.1.5
       node-addon-require-builtin-win32-x64-msvc: 0.1.5
-    dev: false
 
   /node-domexception@1.0.0:
     resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}

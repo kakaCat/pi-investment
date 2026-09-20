@@ -5,9 +5,9 @@
  *   1. 用户消息到达 unbound 窗口就应触发立项评估；
  *   2. 用户消息到达 → hook 检查该窗口是否需要立项捕获（需要 = 窗口 unbound 且无
  *      遗留 pending 建议卡；旧 pending 建议卡仅旧流程 triage 会残留，新流程不再产生）；
- *   3. hook 检查「需要」后注入提示词，让 LLM 弹「两问确认」弹框（ask_user_question：
- *      需求名称 + 需求类型）——**用户作答即立项确认**——随后调 reqboard_create
- *      直接建 REQ（创建即立项，无待归类/建议卡中间态）。
+ *   3. hook 检查「需要」后注入提示词，让 LLM 调 reqboard_capture（pm 专有立项弹框：
+ *      立项三问 = 需求名称 + 需求类型 + 提示词难度）——**用户作答即立项确认**——
+ *      工具在同一次调用内建 REQ 并绑定窗口（创建即立项，无待归类/建议卡中间态）。
  *
  * 职责边界（与 legacy SessionSyncService 的本质区别）：
  *  - legacy（禁例，已不再装配）：turn/start 无条件建空 triage + 每条 user/message
@@ -16,8 +16,8 @@
  *  - 本 hook：不建空卡、不自动立项、不写评论。它只做**确定性触发 + 窗口条件
  *    判定**：把「需要走立项评估的用户消息」登记为待捕获候选（内存 Map，不进
  *    台账），capture section 在下一 LLM 回合组装时读到并注入针对性立项提示。
- *    立项动作由 LLM 经两问弹框确认后调 reqboard_create 直接完成（弹框作答 =
- *    人工 gate）。
+ *    立项动作由 LLM 经 reqboard_capture 的三问弹框确认后在同一次调用内完成（弹框
+ *    作答 = 人工 gate）。
  *
  * 判定链（全确定性，语义判断——值不值得立项——留给 LLM）：
  *   1. 事件类型 = user/message（用户输入到达 = 确定性触发点）；
@@ -88,6 +88,14 @@ export interface CaptureHookDeps {
    * STAGE_PROMPTS 纪律提示词。可选（未注入 = 关闭该注入）。
    */
   onStagePrompt?: (windowKey: string, prompt: string) => void
+  /**
+   * 回合结束回调（REQ-e3b6a0 t7）：**闸门后置链 Phase B 的唯一时机**。
+   *
+   * 为什么必须挂在这里：弹框作答发生在工具调用内（agent 忙），而压缩/唤醒要求轮次边界；
+   * 且监听器内不得做会话写操作（D-17）——故本回调只发信号，真正的执行由组合根放到异步边界。
+   * 可选（未注入 = 不触发链）。
+   */
+  onTurnEnd?: (windowKey: string, session: unknown) => void
   /** 工具痕迹表（REQ-2e9473 t05）：hook 写入，done 凭证门（t06）读取。可选（未注入 = 关闭跟踪）。 */
   toolTrace?: Map<string, ToolTraceEntry[]>
   /** 最近用户消息缓冲（REQ-2e9473 t10）：hook 写入，confirm_artifact 文字确认核验读取。可选。 */
@@ -186,8 +194,17 @@ export function createSessionEventCaptureHook(deps: CaptureHookDeps): (session: 
     // 回合结束 → 消费完毕，清除待捕获候选（防跨回合/跨 step 重复 nag）；
     // 同时是**节点结算点**（REQ-422af1 t10）：本回合登记过结算则在此发信号。
     if (type === 'turn/end') {
-      if (pending.delete(windowKey)) {
-        debug(`reqboard-capture: turn/end clears pending capture for ${windowKey.slice(0, 16)}`)
+      // REQ-e3b6a0 t-3e11bf（E2E 走查返工）：消费即留痕——"这条立项提示有没有活到本回合结束、
+      // 活了多久"可查。注意 PTC（programmatic tool calling）下 tool/call 事件一律呈现为
+      // run_code（见 SessionProbeAdapter.ToolTraceEntry 注释），**无法从 toolTrace 判定是否
+      // 调过 reqboard_capture**；故这里只记"提示已被消费"，不做"漏执行"判定，避免误报。
+      const consumed = pending.get(windowKey)
+      if (consumed !== undefined) {
+        pending.delete(windowKey)
+        debug(
+          `reqboard-capture: turn/end consumes pending capture for ${windowKey.slice(0, 16)}`
+          + ` (提示存活 ${Math.max(0, now() - consumed.capturedAt)}ms)`,
+        )
       }
       // D-17：这里**只发信号**，不做任何会话写操作（监听器内同步 append 会被框架拒绝）；
       // 真正的隔离动作由组合根经异步边界（setImmediate）执行，且开关默认关。
@@ -198,6 +215,9 @@ export function createSessionEventCaptureHook(deps: CaptureHookDeps): (session: 
         deps.onNodeSettled?.(settle, session)
         debug(`reqboard-settle: node ${settle.stage} settled at turn/end (${windowKey.slice(0, 16)})`)
       }
+      // REQ-e3b6a0 t7：无论有没有节点结算，都问一次「该窗口有没有待处理闸门」——
+      // 闸门作答不一定伴随用户消息，故不能只靠上面的 settlement 分支。
+      deps.onTurnEnd?.(windowKey, session)
       return
     }
 

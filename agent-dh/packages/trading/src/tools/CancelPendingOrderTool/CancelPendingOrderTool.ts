@@ -58,6 +58,8 @@ export class CancelPendingOrderTool extends BaseTool<CancelPendingOrderParams, C
    * 不依赖后端兜底），确认后再调用 cancel，返回被撤单详情快照供审计。
    */
   protected async execute(args: CancelPendingOrderParams, _context: ToolContext): Promise<CancelPendingOrderResult> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     const account = args.account_name || DEFAULT_AGENT_ACCOUNT;
 
     // 前置确认：目标单必须存在且处于 pending

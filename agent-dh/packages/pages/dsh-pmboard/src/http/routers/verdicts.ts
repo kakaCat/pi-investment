@@ -5,8 +5,10 @@
  * （layer-boundary INV-2）。错误 → HTTP 状态码映射集中在本目录 shared.ts 的 fail()。
  *
  * REQ-a8d582 起本文件承载两处语义变更：
- *   - FR-2：逐项裁决**只记录**，不再自动打回实施、不再自动建返工任务；
  *   - FR-3/FR-4：验收通过不再要求"已交材料"，但不合规通过（有不合格项 / 无材料）必须显式覆盖并留痕。
+ *
+ * REQ-308b9a t2/t6：逐项裁决**收敛为委托 applyVerdicts**（原先本文件内联了一份重复实现），
+ * 并**推翻 REQ-a8d582 FR-2**——裁决含 failed 时自动回退实施 + 物化返工卡。
  *
  * @module dsh-pmboard/http/routers/Verdicts
  */
@@ -15,14 +17,14 @@ import {
   assertReqTransition,
   normalizeText,
   recordStatus,
-  type VerificationItem,
 } from '../../shared/protocol.js'
 import {
   countFailedItems, countPassedItems, countPendingItems, isAccepting, isAcceptingStage,
-  isDecidableItemStatus, isEveryItemPassed, isFailedItem, isVerifiableStage,
+  isDecidableItemStatus, isFailedItem, isFullyDecidedItems, isVerifiableStage,
 } from '../../domain/status/Predicates.js'
 import { ACCEPTED_REQ_STATUS, REWORK_REQ_STATUS } from '../../domain/requirement/RequirementStatus.js'
-import { materializeReworkFromSheet } from '../../application/internal/verdicts.js'
+import { applyVerdicts, materializeReworkFromSheet } from '../../application/internal/verdicts.js'
+import { rewriteVerificationDoc } from '../../application/internal/verification-doc-writer.js'
 import type { RouterCtx } from './shared.js'
 
 export function createVerdictsRouter(ctx: RouterCtx) {
@@ -178,10 +180,12 @@ export function createVerdictsRouter(ctx: RouterCtx) {
       const itemId = normalizeText(o.itemId, 'verdicts[].itemId', 64)
       const status = normalizeText(o.status, 'verdicts[].status', 16)
       if (itemId.length === 0) badInput('verdicts[].itemId 不能为空')
-      if (!isDecidableItemStatus(status)) badInput('verdicts[].status 只能是 passed 或 failed')
+      if (!isDecidableItemStatus(status)) badInput('verdicts[].status 只能是 passed / failed / not_verifiable')
       const opinion = normalizeText(o.opinion, 'verdicts[].opinion', 1000)
       if (isFailedItem(status) && opinion.length === 0) badInput('不通过的验收项必须写意见（opinion）')
-      return { itemId, status: status as VerificationItem['status'], opinion }
+      // REQ-308b9a FR-9 / AC-9.2：不可验收同样必须写原因——不允许静默消失。
+      if (status === 'not_verifiable' && opinion.length === 0) badInput('不可验收的验收项必须写原因（opinion）')
+      return { itemId, status, opinion }
     })
     const nowTs = now()
     const result = await store.mutate('requirement-updated', (ledger) => {
@@ -193,33 +197,18 @@ export function createVerdictsRouter(ctx: RouterCtx) {
       if (v === undefined || v.sheet === undefined) ctx.badInput('需求 ' + id + ' 还没有验收单（先 reqboard_verify_submit）')
       const sheet = v.sheet
       if (sheet.version !== version) badInput('验收单版本不匹配：当前 v' + sheet.version + '，收到 v' + version + '（防并发错版）')
-      for (const verdict of verdicts) {
-        const item = sheet.items.find(i => i.id === verdict.itemId) ?? notFound('验收项 ' + verdict.itemId + ' 不存在')
-        item.status = verdict.status
-        if (verdict.opinion.length > 0) item.opinion = verdict.opinion
-        item.decidedAt = nowTs
-        item.decidedBy = { kind: 'human' }
-      }
-      // REQ-a8d582 FR-2：这里**不再**改需求状态、**不再**建返工任务。
-      // 理由：那两条都是"退回"这个决定的后果，而决定权在人——系统替他决定的结果是按钮消失、
-      // 且返工卡在人还没表态时就已建好。现在退回与通过各有自己的入口（见文件头注释）。
-      const pendingCount = countPendingItems(sheet.items)
-      const failedCount = countFailedItems(sheet.items)
-      r.version += 1
-      r.updatedAt = nowTs
-      r.updatedBy = { kind: 'human' }
-      r.comments.push({
-        id: ids.comment(),
-        body: '[验收单] v' + sheet.version + ' 逐项裁决：通过 ' + countPassedItems(sheet.items) + ' 项，不通过 ' + failedCount + ' 项，待验 ' + pendingCount + ' 项'
-          + (failedCount > 0
-              ? '（需求仍在验收态：由人点「退回返工」生成返工任务，或点「验收通过」带覆盖归档）'
-              : (pendingCount === 0 ? '（全部通过 → 可点「验收通过」归档）' : '（挂起，稍后从断点续验）')),
-        createdAt: nowTs,
-        createdBy: { kind: 'human' },
-      })
-      return { requirements: [r] }
+      // ── 单一裁决实现（REQ-308b9a t2/t6 收敛）──────────────────────────────
+      // 此前这里**内联实现了一遍**与 application/internal/verdicts.ts 相同的逻辑，
+      // 而后者文件头却写着"路由与会话工具共用的单一实现"——两处必然漂移。
+      // 现统一委托 applyVerdicts：逐项裁决 + failed 自动回退实施（FR-8）+ 物化返工卡。
+      const applied = applyVerdicts(
+        ledger, r.id, version, verdicts as never, { kind: 'human' }, nowTs, () => ids.comment(),
+      )
+      return { requirements: [applied.requirement], tasks: applied.reworkTasks }
     })
     const r = result.changed.requirements[0]
+    // REQ-308b9a FR-7 / AC-7.7：看板裁决后回填 verification.md 的验收结果表（有 docs 端口才写）。
+    await rewriteVerificationDoc({ repo: store, ...(ctx.deps.docs !== undefined ? { docs: ctx.deps.docs } : {}) }, r.id)
     const sheet = r.verification?.sheet
     const failed = sheet === undefined ? 0 : countFailedItems(sheet.items)
     const pending = sheet === undefined ? 0 : countPendingItems(sheet.items)
@@ -230,12 +219,12 @@ export function createVerdictsRouter(ctx: RouterCtx) {
       pending,
       passed: sheet === undefined ? 0 : countPassedItems(sheet.items),
       failed,
-      // 保留字段（调用方契约）：REQ-a8d582 FR-2 起裁决不再建任务，恒为空数组。
-      rework_tasks: [],
+      // REQ-308b9a FR-8：裁决含 failed 时返回真实生成的返工卡 id 列表。
+      rework_tasks: (result.changed.tasks ?? []).map(t => t.id),
       note: failed > 0
-        ? '有 ' + failed + ' 项不通过：需求仍在验收态——请点「退回返工」（按未过项生成返工卡）或「验收通过」（会要求覆盖确认）'
-        : ((sheet !== undefined && isEveryItemPassed(sheet.items))
-            ? '全部通过 → 请点「验收通过」归档（人工门）'
+        ? '有 ' + failed + ' 项不通过：已自动回退实施并生成 ' + (result.changed.tasks ?? []).length + ' 张返工任务'
+        : ((sheet !== undefined && isFullyDecidedItems(sheet.items))
+            ? '全部已裁决 → 请点「验收通过」归档（人工门）'
             : '裁决已记录（挂起中，可稍后从断点续验）'),
     })
   }

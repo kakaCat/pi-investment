@@ -4,7 +4,7 @@
  *
  * @module dsh-pmboard/client/views/board
  */
-import { esc, renderPagination } from '@pi-investment/page-kit/client'
+import { esc, renderPagination } from '../vendor/page-kit/index.js'
 import type { BoardState, ReqCard, TriageRecord } from '../types.ts'
 import { CATEGORY_LABELS, LANE_STATUSES, NO_ARCHIVED, STATUS_LABELS, fmtTime, sessionChipHtml, windowCodeFromSessionId } from '../render/dom-utils.ts'
 import { cardActions, renderReqCard } from './artifacts.ts'
@@ -13,7 +13,7 @@ import { fmtTokens } from '../../shared/protocol.ts'
 /** 需求卡片投影（视图层聚合，避免全量渲染） */
 export function toReqCards(state: BoardState): ReqCard[] {
   return state.requirements
-    .filter(r => r.status !== 'archived' && r.status !== 'canceled')
+    .filter(r => r.status !== 'archived' && r.status !== 'canceled' && r.status !== 'done')
     .map(req => {
       const tasks = state.tasks.filter(t => t.requirementId === req.id)
       const doneCount = tasks.filter(t => t.status === 'done').length
@@ -43,10 +43,8 @@ export function buildBoard(
 ): string {
   const cards = toReqCards(state)
   const lanes = LANE_STATUSES.map(status => {
-    // REQ-6f39b5：done（待归档）需求归入验收泳道显示
-    const inLane = status === 'accepting'
-      ? cards.filter(c => c.req.status === 'accepting' || c.req.status === 'done')
-      : cards.filter(c => c.req.status === status)
+    // 验收泳道只显示 accepting 状态，done 状态已完成不再显示
+    const inLane = cards.filter(c => c.req.status === status)
     const cardsHtml = inLane.map(c => renderReqCard(c, now, archived)).join('')
     return `
       <div class="dsh-pm-lane" data-lane="${status}">
@@ -58,15 +56,6 @@ export function buildBoard(
         <div class="dsh-pm-lane-cards">${cardsHtml}</div>
       </div>`
   }).join('')
-
-  // 注意：变量名不能叫 archived —— 那是本函数的参数（已归档会话 id 集合）
-  const archivedReqs = state.requirements.filter(r => r.status === 'archived' || r.status === 'canceled')
-  const archivedHtml = archivedReqs.length > 0
-    ? `<div class="dsh-pm-archived-bar">
-         <span class="dsh-pm-archived-label">归档/取消 ${archivedReqs.length}</span>
-         ${archivedReqs.map(r => `<span class="dsh-pm-archived-chip" data-status="${r.status}">${esc(r.id)} ${esc(r.title)}</span>`).join('')}
-       </div>`
-    : ''
 
   const switcher = `
     <div class="dsh-pm-viewswitch" role="tablist" aria-label="看板视图">
@@ -91,7 +80,6 @@ export function buildBoard(
         <button type="button" class="dsh-pm-btn primary" data-action="new-req" title="新建需求">+ 需求</button>
       </div>
       ${body}
-      ${view === 'list' ? '' : archivedHtml}
     </div>`
 }
 

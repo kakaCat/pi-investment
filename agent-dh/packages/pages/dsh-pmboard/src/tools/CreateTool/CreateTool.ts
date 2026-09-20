@@ -21,7 +21,7 @@ export function defineCreateTool(deps: UseCaseDeps) {
     parameters: {
       title: {
         type: 'string',
-        description: '需求名称（用户两问弹框确认值，≤120 字符；人工确认时可改）',
+        description: '需求名称（用户三问弹框确认值，≤120 字符；人工确认时可改）',
         required: true,
       },
       category: {

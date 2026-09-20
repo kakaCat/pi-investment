@@ -3,7 +3,7 @@
  *
  * @module dsh-pmboard/client/views/artifacts
  */
-import { esc } from '@pi-investment/page-kit/client'
+import { esc } from '../vendor/page-kit/index.js'
 import type { ReqCard, RequirementRecord, RequirementStatus } from '../types.ts'
 import type { ArtifactKind, StageArtifact, StageKey } from '../../shared/protocol.ts'
 import { ARTIFACT_CONFIRM_GATES, REQ_TRANSITIONS, STAGE_ARTIFACT_REQUIREMENTS, confirmGateKindFor, flowProfileFor, fmtTokens } from '../../shared/protocol.ts'

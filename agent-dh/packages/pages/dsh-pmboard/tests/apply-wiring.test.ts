@@ -80,7 +80,7 @@ describe('dsh-pmboard apply() 宿主接线（乙流程装配冒烟）', () => {
     expect(text).toContain('reqboard_create')
   })
 
-  it('注册全部 agent 工具（REQ-47939a t8：13→9 收敛后的 9 个入口）', () => {
+  it('注册全部 agent 工具（REQ-47939a 收敛后 9 个 + REQ-327bdf 2 个 + REQ-e3b6a0 的 reqboard_capture）', () => {
     const ctx = stubCtx()
     apply(ctx as never, { dshHome: dir })
     const names = ctx.tools.map(t => t.name).sort()
@@ -88,16 +88,20 @@ describe('dsh-pmboard apply() 宿主接线（乙流程装配冒烟）', () => {
       'reqboard_accept_sheet',
       // CONFIRM：ask_confirm + confirm_artifact 合并（evidence 路径自动分派）
       'reqboard_ask_confirm',
+      // CAPTURE：立项三问 pm 专有弹框（REQ-e3b6a0 t8）
+      'reqboard_capture',
       'reqboard_create',
       'reqboard_decompose',
       'reqboard_move',
       'reqboard_status',
       // SUBMIT：requirement_submit / plan_submit / verify_submit / archive_submit 合并（kind 分派）
       'reqboard_submit',
+      'reqboard_task_execute',
       'reqboard_task_move',
       'reqboard_task_report',
+      'reqboard_task_status',
     ])
-    expect(names).toHaveLength(9)
+    expect(names).toHaveLength(12)
   })
 
   it('注册看板路由：/dashboard/api/reqboard 前缀', () => {

@@ -3,7 +3,7 @@
  *
  * @module dsh-pmboard/client/views/verification
  */
-import { esc } from '@pi-investment/page-kit/client'
+import { esc } from '../vendor/page-kit/index.js'
 import type { ArchiveRecord, RequirementRecord } from '../types.ts'
 import type { StageKey } from '../../shared/protocol.ts'
 import { ALL_STAGE_KEYS } from '../../shared/protocol.ts'
@@ -51,7 +51,9 @@ export function collectReqDocs(req: RequirementRecord): Array<{ icon: string; la
     if (!p || seen.has(p)) return
     seen.add(p)
     const meta = DOC_KIND_META[kind]
-    docs.push({ icon: meta?.icon ?? '📒', label: meta?.label ?? kind, path: p })
+    // 从路径中提取文件名作为 label
+    const fileName = p.split('/').pop() || p
+    docs.push({ icon: meta?.icon ?? '📒', label: fileName, path: p })
   }
   // ① 节点产物（t4 登记的 pipeline 产物），按 stage 顺序
   const artifacts = [...(req.artifacts ?? [])]

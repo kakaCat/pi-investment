@@ -9,7 +9,7 @@
  *
  * @module dsh-pmboard/client/token-info
  */
-import { esc } from '@pi-investment/page-kit/client'
+import { esc } from './vendor/page-kit/index.js'
 import {
   fmtCny,
   fmtTokens,

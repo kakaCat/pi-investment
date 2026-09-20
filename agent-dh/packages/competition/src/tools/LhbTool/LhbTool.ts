@@ -52,6 +52,8 @@ export class LhbTool extends BaseTool<LhbParams, LhbResult> {
   }
 
   protected async execute(args: LhbParams, _context: ToolContext): Promise<LhbResult> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     if (args.symbol) {
       const res = await this.qv2.getLhbDetail(args.symbol);
       const records = res.success ? this.extractRows(res) : [];

@@ -62,6 +62,8 @@ export class AccountInfoTool extends BaseTool<AccountInfoParams, AccountInfoResu
    * Phase 2: 执行任务
    */
   protected async execute(args: AccountInfoParams, _context: ToolContext): Promise<AccountInfoResult> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     const accountName = args.account_name || DEFAULT_AGENT_ACCOUNT;
     const result = await this.qv2.getPortfolioSummary(accountName);
     return result as AccountInfoResult;

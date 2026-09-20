@@ -657,6 +657,9 @@ reqboard_task_move(task_id='t-001', to='done')
 
 ### FR-7: 验收文档生成（阶段 6）
 
+> **落地去向（2026-09-20）**：本条由 [REQ-308b9a](../REQ-308b9a/requirement.md) FR-7 承接；
+> AC-7.1~7.8 已落地于 `DocCompleteness.ts` / `VerificationDoc.ts` / `SubmitVerification.ts`（9 类文档门 + 四段式生成）。
+
 **功能描述**：阶段 6 自动生成 verification.md 验收文档，包含验收列表、操作步骤、预期结果，替代当前只有弹框验收的做法。
 
 **verification.md 结构**：

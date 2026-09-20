@@ -332,6 +332,8 @@ const RESPONSE_SOURCES: Record<string, string[]> = {
   ],
   AskConfirm: ['application/use-cases/AskConfirm.ts', 'application/use-cases/ConfirmArtifact.ts'],
   AcceptSheet: ['application/use-cases/AcceptSheet.ts'],
+  // REQ-e3b6a0 t8：立项三问 pm 专有弹框（响应体在抓化用例里）
+  Capture: ['application/use-cases/CaptureRequirement.ts'],
 }
 
 describe('输出契约·静态扫描：每个工具的全部 return 分支键都必须已声明', () => {

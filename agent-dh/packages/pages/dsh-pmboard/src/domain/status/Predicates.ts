@@ -124,9 +124,14 @@ export function isPendingItem(i: HasStatus): boolean {
   return i.status === 'pending'
 }
 
-/** 是否为可裁决的单项状态（passed / failed；pending 不是裁决结果）。 */
+/** 单项是否不可验收（无法按要求验，须带原因）。REQ-308b9a FR-9。 */
+export function isNotVerifiableItem(i: HasStatus): boolean {
+  return i.status === 'not_verifiable'
+}
+
+/** 是否为可裁决的单项状态（passed / failed / not_verifiable；pending 不是裁决结果）。 */
 export function isDecidableItemStatus(status: string): boolean {
-  return status === 'passed' || status === 'failed'
+  return status === 'passed' || status === 'failed' || status === 'not_verifiable'
 }
 
 /** 待裁决项计数。 */
@@ -144,9 +149,19 @@ export function countFailedItems(items: readonly HasStatus[]): number {
   return items.filter(i => i.status === 'failed').length
 }
 
+/** 不可验收项计数。 */
+export function countNotVerifiableItems(items: readonly HasStatus[]): number {
+  return items.filter(i => i.status === 'not_verifiable').length
+}
+
 /** 是否全部项都已通过（"验收全过"这条规则的唯一实现）。 */
 export function isEveryItemPassed(items: readonly HasStatus[]): boolean {
   return items.every(i => i.status === 'passed')
+}
+
+/** 是否全部项已裁决（无 pending）——REQ-308b9a FR-9 的放行判据。 */
+export function isFullyDecidedItems(items: readonly HasStatus[]): boolean {
+  return items.every(i => i.status !== 'pending')
 }
 
 // ── 任务计数（看板投影用；"done 才算完成"这条规则留在 domain）──────────────

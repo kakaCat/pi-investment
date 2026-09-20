@@ -10,6 +10,7 @@
  * @module dsh-pmboard/application/internal/support
  */
 import type { LedgerView, UseCaseDeps } from '../ports.js'
+import { questionCardFor } from '../../domain/gate/GateCatalog.js'
 import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'
 import { artifactNotifyText } from './artifact-gates.js'
 import { isWindowBound, openRequirementsFor, pendingSuggestionFor } from './window.js'
@@ -154,19 +155,12 @@ export function workspacePathCandidates(evidence: readonly string[]): string[] {
 /**
  * 闸门问题卡（REQ-2e9473 t08）：move 被人工闸门拒绝时，返回可直接喂给 reqboard_ask_confirm
  * 的调用参数——闸门从"只挡不引"升级为"挡并指路"。用户点肯定项即自动落章+推进。
+ *
+ * REQ-e3b6a0 t2：文案与调用表达式已收敛进 `domain/gate/GateCatalog.questionCardFor`
+ * （闸门唯一事实源），本处只做转发以保持既有调用点与输出逐字不变。
  */
 export function gateQuestionCard(gateKind: string | undefined, from: string, to: string): string {
-  const questionByTransition: Record<string, string> = {
-    'brainstorming>design': '需求文档已完成，是否确认进入设计？',
-    'design>decomposing': '拆分计划已提交，是否批准进入拆分？',
-    'decomposing>implementing': '拆分清单已落库，是否确认进入实施？',
-    'accepting>archived': '验收材料已提交，是否验收通过并归档？',
-  }
-  const question = questionByTransition[from + '>' + to] ?? ('是否确认推进到 ' + to + '？')
-  const call = gateKind === 'plan' || (from === 'design' && to === 'decomposing')
-    ? "{ target: 'plan', question: '" + question + "' }"
-    : "{ target: 'artifact', kind: '" + (gateKind ?? 'requirement') + "', question: '" + question + "' }"
-  return '\n【问题卡】直接调 reqboard_ask_confirm 完成确认（用户点肯定项 → 自动落章并推进 ' + from + ' → ' + to + '）：\n  reqboard_ask_confirm(' + call + ')'
+  return questionCardFor(gateKind, from, to)
 }
 
 /** 本窗口最近一条遗留 pending triage（旧流程产物；无则 undefined）。 */

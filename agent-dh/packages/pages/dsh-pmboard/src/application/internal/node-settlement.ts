@@ -55,9 +55,27 @@ export interface NodeSettlementStats {
   failed: number
 }
 
+/**
+ * 闸门后置链触发端口（REQ-e3b6a0 t3）——结算点只关心"跑没跑"，不关心链内部。
+ *
+ * 为什么单独给开关：D1 决策是"链先开、压缩后开"，故链的开关（enabled）与
+ * NODE_ISOLATION（deps.enabled）**相互独立**——链开着时隔离代码路径仍可关闭。
+ */
+export interface GateChainTrigger {
+  /** 链自身开关。缺省视为开（注入即表示调用方要它跑）。 */
+  readonly enabled?: boolean
+  /** Phase B：跑该窗口的待处理闸门。返回 ran 供调用方决定是否跳过遗留隔离路径。 */
+  runPending(windowKey: string, session?: unknown): Promise<{ ran: boolean }>
+}
+
 export interface NodeSettlementDeps {
   /** 开关（NODE_ISOLATION，默认关）。false = 隔离代码路径执行 0 次。 */
   enabled: boolean
+  /**
+   * 闸门后置链（REQ-e3b6a0 t3）：结算点是 Phase B 的唯一时机，故链从这里触发。
+   * 缺省 = 不接链（行为与引入前完全一致）。
+   */
+  chain?: GateChainTrigger
   /** 会话句柄 → 隔离端口（组合根构造 NodeIsolationAdapter）；返回 undefined = 触达不到（D-12 ②）。 */
   isolationFor?: (session: unknown, settle: NodeSettlement) => NodeIsolationPort | undefined
   /** 隔离留痕端口（t9 定义）。 */
@@ -101,6 +119,9 @@ export function createNodeSettlementDispatcher(deps: NodeSettlementDeps): NodeSe
     return Promise.resolve(deps.repo.snapshot().revision)
   })
 
+  /** 链是否生效：注入了 chain 且其开关未显式关闭。 */
+  const chainActive = (): boolean => deps.chain !== undefined && deps.chain.enabled !== false
+
   const notify = (message: string): void => {
     try {
       warn(message)
@@ -111,6 +132,23 @@ export function createNodeSettlementDispatcher(deps: NodeSettlementDeps): NodeSe
 
   const execute = async (settle: NodeSettlement, session: unknown): Promise<void> => {
     counts.executed += 1
+    // ── 闸门后置链（Phase B，REQ-e3b6a0 t3）────────────────────────────────
+    // 链自带全量降级（永不抛），此处 catch 只是最后一道网。
+    // 链跑过（ran=true，说明该窗口确有待处理闸门且已由 H2 压缩）→ 不再走下面的遗留隔离路径，
+    // 否则同一轮会对同一窗口压缩两次。
+    if (chainActive()) {
+      try {
+        const summary = await deps.chain!.runPending(settle.windowKey, session)
+        if (summary.ran) return
+      } catch (error) {
+        counts.failed += 1
+        notify(fmt('闸门后置链执行异常（已忽略，不影响流水线）：{err}', {
+          err: error instanceof Error ? error.message : String(error),
+        }))
+      }
+    }
+    // ── 遗留隔离路径（NODE_ISOLATION；触发源 = 绑定窗口收到用户消息）──────
+    if (!deps.enabled) return
     try {
       const isolation = deps.isolationFor?.(session, settle)
       const useCaseDeps: IsolateNodeContextDeps = {
@@ -148,8 +186,8 @@ export function createNodeSettlementDispatcher(deps: NodeSettlementDeps): NodeSe
 
   return {
     onSettle(settle: NodeSettlement, session?: unknown): void {
-      // 开关关（默认）：隔离代码路径一次都不执行——不调度、不建端口、不触会话。
-      if (!deps.enabled) return
+      // 两个开关都不生效（默认）：一次都不执行——不调度、不建端口、不触会话。
+      if (!deps.enabled && !chainActive()) return
       counts.scheduled += 1
       // D-17：交给异步边界，绝不在 session/event 派发内同步执行。
       schedule(() => {

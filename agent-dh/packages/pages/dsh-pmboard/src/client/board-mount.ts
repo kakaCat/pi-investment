@@ -19,7 +19,7 @@ import {
 import * as api from './api.ts'
 import { openDocInSidebar, resolveCurrentSessionId } from './open-doc.ts'
 import { archivedSessionIds, jumpToSession, windowServiceAccess, type SessionJumpResult } from './session-jump.ts'
-import { createBoardShell } from '@pi-investment/page-kit/client'
+import { createBoardShell } from './vendor/page-kit/index.js'
 import { renderStageNode } from './stage-panel.ts'
 import { hasInjectionWindow, renderInjectionInfo } from './injection-info.ts'
 import { renderTokenPlaceholder, renderTokenTab } from './token-info.ts'

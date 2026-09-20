@@ -35,7 +35,7 @@ import {
   ALL_STAGE_KEYS,
 } from '../shared/protocol.js'
 import { ITEM_STATUS_BADGE } from '../shared/protocol.js'
-import { esc } from '@pi-investment/page-kit/client'
+import { esc } from './vendor/page-kit/index.js'
 import { CATEGORY_DELTAS, COMMON_ROOT_SECTIONS } from '../application/internal/category-doc-sets.js'
 import { fmt } from '../domain/text/fmt.js'
 

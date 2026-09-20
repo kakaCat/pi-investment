@@ -58,6 +58,8 @@ export class PortfolioAnalyzeTool extends BaseTool<PortfolioAnalyzeParams, any> 
   }
 
   protected async execute(args: PortfolioAnalyzeParams, _context: ToolContext): Promise<any> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     const account = args.account_name || DEFAULT_AGENT_ACCOUNT;
     const [positions, summary] = await Promise.all([
       this.qv2.getPositions(account),

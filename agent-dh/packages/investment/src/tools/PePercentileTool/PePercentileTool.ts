@@ -37,6 +37,8 @@ export class PePercentileTool extends BaseTool<PePercentileParams, any> {
   }
 
   protected async execute(args: PePercentileParams, _context: ToolContext): Promise<any> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     const r: any = await this.qv2.getPePercentile(args.symbol);
     // 后端 camelCase → 工具层 snake_case 契约
     return sanitizeLossless({

@@ -75,6 +75,11 @@ export interface StagePromptRequest {
    * 不再静默回落 DEFAULT_DIFFICULTY。
    */
   readonly requirement?: { readonly title?: string; readonly description?: string }
+  /**
+   * 需求**声明**的取词档位（已由 difficultyFromDeclaredPrompt 映射；REQ-e3b6a0 t6）。
+   * 与文本推断冲突时**取重不取轻**（宁可多给纪律）；与显式 `difficulty` 冲突时以显式为准。
+   */
+  readonly declaredDifficulty?: Difficulty
 }
 
 /** 命中层级：1=①精确 / 2=②难度档 / 3=③类型档 / 4=④节点兜底 / 5=⑤全局铁律（合并）。 */

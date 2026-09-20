@@ -25,6 +25,8 @@ import {
   reworkSpecsFor,
   type ReworkTaskSpec,
 } from '../../domain/workflow/AcceptanceSheetSpec.js'
+import { transitionRequirement } from './token-usage.js'
+import { REWORK_REQ_STATUS } from '../../domain/requirement/RequirementStatus.js'
 
 export interface VerdictInput {
   itemId: string
@@ -98,7 +100,8 @@ export function applyVerdicts(
   actor: ActorRef,
   nowTs: number,
   commentId: () => string,
-  _snap?: TokenSnapshot, // REQ-b545fe t5 的打回快照随"自动打回"一并移除（REQ-a8d582 FR-2）；入参保留以免改调用方签名
+  /** token 快照（REQ-308b9a FR-8：自动回退要结算离开 accepting 节点的快照）。 */
+  snap?: TokenSnapshot,
 ): ApplyVerdictsResult {
   const r = ledger.requirements.find(x => x.id === reqId)
   if (r === undefined) throw new VerdictError('需求 ' + reqId + ' 不存在', 'not_found')
@@ -130,22 +133,36 @@ export function applyVerdicts(
     throw err
   }
   const pending = applied.pending
-  // REQ-a8d582 FR-2：**裁决只记录**——不改需求状态、不建返工任务（原自动打回分支已删除）。
+  // REQ-308b9a FR-8（**推翻 REQ-a8d582 FR-2**，用户订正①）：
+  // 出现 failed → **同笔 mutate 内**自动回退实施 + 物化返工卡；不再等人点「退回返工」。
+  // 原子性（AC-8.3）：物化或状态迁移抛错 → 整笔 mutate 回滚，不出现"状态改了卡没建"。
+  const reworkTasks: TaskRecord[] = applied.failed > 0
+    ? materializeReworkFromSheet(ledger, reqId, actor, nowTs)
+    : []
+  if (applied.failed > 0 && r.status !== REWORK_REQ_STATUS) {
+    transitionRequirement(r, REWORK_REQ_STATUS, {
+      at: nowTs,
+      actor,
+      reason: '验收不通过（' + applied.failed + ' 项）→ 自动回退实施并生成 ' + reworkTasks.length + ' 张返工卡（REQ-308b9a FR-8）',
+      ...(snap !== undefined ? { snap } : {}),
+    })
+  }
   r.version += 1
   r.updatedAt = nowTs
   r.updatedBy = actor
   r.comments.push({
     id: commentId(),
-    body: '[验收单] v' + sheet.version + ' 逐项裁决：通过 ' + applied.passed + ' 项，不通过 ' + applied.failed + ' 项，待验 ' + pending + ' 项'
+    body: '[验收单] v' + sheet.version + ' 逐项裁决：通过 ' + applied.passed + ' 项，不通过 ' + applied.failed + ' 项，'
+      + '不可验收 ' + applied.notVerifiable + ' 项，待验 ' + pending + ' 项'
       + (applied.failed > 0
-          ? '（需求仍在验收态：由人点「退回返工」生成返工任务，或点「验收通过」带覆盖归档）'
-          : (pending === 0 ? '（全部通过 → 可点「验收通过」归档）' : '（挂起，稍后从断点续验）')),
+          ? '（已自动回退实施并生成 ' + reworkTasks.length + ' 张返工任务）'
+          : (pending === 0 ? '（全部已裁决 → 可点「验收通过」归档）' : '（挂起，稍后从断点续验）')),
     createdAt: nowTs,
     createdBy: actor,
   })
   return {
     requirement: r,
-    reworkTasks: [],
+    reworkTasks,
     pending,
     passed: applied.passed,
     failed: applied.failed,

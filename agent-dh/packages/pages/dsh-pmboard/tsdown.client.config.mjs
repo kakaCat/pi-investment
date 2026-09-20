@@ -1,0 +1,25 @@
+import { defineConfig } from 'tsdown'
+
+// Client-half bundle config. Plain .mjs on purpose (see tsdown.config.mjs).
+//
+// react is EXTERNAL (served by the DSH shell's module-loader seed). Any bare
+// npm package imported by client code MUST be bundled — the shell's seed map
+// holds ONLY react/react-dom/.../@deepseek-ai/* (see staticModules in
+// @deepseek-ai/dsh-web-frontend), nothing a plugin registers makes a bare
+// package resolvable at runtime. 2026-09-16: shipping 'marked' external broke
+// the whole client half — "require(\"marked\") missed the module table".
+//
+// 2026-09-20: page-kit vendored to src/client/vendor/page-kit and marked no
+// longer imported — today no bare deps remain, but keep this rule in mind
+// before adding any import to src/client/.
+export default defineConfig({
+  entry: { client: 'src/client/index.ts' },
+  format: ['cjs'],
+  outDir: 'lib',
+  clean: false,
+  sourcemap: false,
+  external: ['react', 'react/jsx-runtime'],
+  target: 'chrome120',
+  minify: true,
+  outExtensions: () => ({ js: '.cjs' }),
+})

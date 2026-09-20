@@ -15,6 +15,7 @@ import { LIMITS } from '../../domain/limits.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { applyVerdicts } from '../internal/verdicts.js'
 import { captureSnapshot, transitionRequirement } from '../internal/token-usage.js'
+import { rewriteVerificationDoc } from '../internal/verification-doc-writer.js'
 import {
   reject,
   agentIdFromExec,
@@ -50,7 +51,8 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
         const cur = deps.repo.snapshot().requirements.find(r => r.id === targetReq.id)
         if (cur === undefined || cur.status !== 'accepting') return undefined
         const curSheet = cur.verification?.sheet
-        if (curSheet !== undefined && curSheet.items.some(i => i.status !== 'passed')) return undefined
+        // REQ-308b9a FR-9 / AC-9.3：放行判据 = 无 pending（not_verifiable 算已裁决）。
+        if (curSheet !== undefined && curSheet.items.some(i => i.status === 'pending')) return undefined
         if (!deps.questions.available()) {
           return { success: false, fallback: 'board', note: '全部 ' + passed + ' 项通过，但弹框通道不可用：请在看板点「验收通过」归档' }
         }
@@ -68,6 +70,8 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
             }], {
               ...(exec.agent !== undefined ? { agent: exec.agent } : {}),
               signal: (exec as { signal?: unknown }).signal,
+              // 闸门声明（REQ-e3b6a0 t7）：验收最终归档确认属 G4
+              gate: 'G4',
             })] }
         } catch (err) {
           const code = (err as { code?: string }).code ?? ''
@@ -127,8 +131,8 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
           success: true, requirement_id: targetReq.id, sheet_version: sheet.version,
           recorded: 0, pending: 0, passed: passedN, failed: failedN,
           note: failedN > 0
-            ? '有 ' + failedN + ' 项不通过：需求仍在验收态（REQ-a8d582 FR-2 起不再自动打回）——由人在看板点「退回返工」生成返工卡，或点「验收通过」带覆盖归档'
-            : '全部已裁决（等待验收通过）',
+            ? '有 ' + failedN + ' 项不通过：已自动回退实施并生成返工卡（REQ-308b9a FR-8）'
+            : '全部已裁决（含不可验收项）→ 可点「验收通过」归档',
         } as never
       }
 
@@ -161,6 +165,8 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
           })), {
           ...(exec.agent !== undefined ? { agent: exec.agent } : {}),
           signal: (exec as { signal?: unknown }).signal,
+          // 闸门声明（REQ-e3b6a0 t7）：验收逐项裁决属 G4
+          gate: 'G4',
         })]
       } catch (err) {
         const code = (err as { code?: string }).code ?? ''
@@ -203,6 +209,8 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
       })
       const changed = (result.changed.requirements ?? [])[0]
       if (changed === undefined) reject('reqboard_accept_sheet 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
+      // REQ-308b9a FR-7 / AC-7.7：裁决落库后回填 verification.md 的验收结果表。
+      await rewriteVerificationDoc({ repo: deps.repo, docs: deps.docs }, targetReq.id)
       const after = deps.repo.snapshot().requirements.find(r => r.id === targetReq.id)
       const s = after?.verification?.sheet
       const pending = s?.items.filter(i => i.status === 'pending').length ?? 0
@@ -221,12 +229,12 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
         pending,
         passed: s?.items.filter(i => i.status === 'passed').length ?? 0,
         failed,
-        // REQ-a8d582 FR-2：裁决不再建返工任务，该字段恒为空数组（保留以维持输出契约）。
+        // REQ-308b9a FR-8：裁决含 failed 时返回真实生成的返工卡 id 列表。
         rework_tasks: reworkIds,
         note: failed > 0
-          ? '有 ' + failed + ' 项不通过：需求仍在验收态（REQ-a8d582 FR-2 起不再自动打回）——由人在看板点「退回返工」生成返工卡，或点「验收通过」带覆盖归档'
+          ? '有 ' + failed + ' 项不通过：已自动回退实施并生成 ' + reworkIds.length + ' 张返工卡（REQ-308b9a FR-8）'
           : (pending > 0
               ? '本批已记录（剩 ' + pending + ' 项待验）：再次调 reqboard_accept_sheet 从断点继续'
-              : '全部通过 → 请点「验收通过」归档（人工门）'),
+              : '全部已裁决 → 请点「验收通过」归档（人工门）'),
       } as never
     }

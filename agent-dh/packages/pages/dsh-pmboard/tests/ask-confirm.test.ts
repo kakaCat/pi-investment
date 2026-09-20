@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import { defineAskConfirmTool, defineMoveTool } from './helpers/tool-deps.js'
+import { LIMITS } from '../src/domain/limits.js'
 import type { RequirementRecord, RequirementStatus, StageArtifact } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
@@ -150,5 +151,26 @@ describe('reqboard_ask_confirm', () => {
   it('缺产物时落章失败（kind 对不上）', async () => {
     await seed('brainstorming', false)
     await expect(run(makeTool('yes'), ARGS)).rejects.toThrow(/没有 kind=requirement 的产物/)
+  })
+})
+
+describe('T-E3: 弹框题干长度纪律（REQ-308b9a t5 / AC-7.6）', () => {
+  it('超长题干被截到 popupQuestionMax（防选项被挤出可视区）', async () => {
+    await seed('brainstorming')
+    const seen: string[] = []
+    const deps = {
+      store,
+      now: () => Date.now(),
+      userQuestions: () => ({
+        ask: async (qs: { question?: string }[]) => {
+          seen.push(qs[0]?.question ?? '')
+          return { answers: [{ id: 'confirm', selected: ['确认，推进到下一阶段 (Recommended)'] }] }
+        },
+      }),
+    } as never
+    const tool = defineAskConfirmTool(deps) as never as { execute: (a: unknown, e: unknown) => Promise<any> }
+    await run(tool, { target: 'artifact', kind: 'requirement', question: '很长的题干'.repeat(100) })
+    expect(seen).toHaveLength(1)
+    expect(seen[0].length).toBeLessThanOrEqual(LIMITS.popupQuestionMax)
   })
 })

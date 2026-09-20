@@ -27,7 +27,8 @@ export interface SheetItemLike {
   source: VerificationItemSource
   criterion: string
   evidence: string[]
-  status: 'pending' | 'passed' | 'failed'
+  /** 四值（REQ-308b9a FR-9）：not_verifiable=不可验收/不适用，须带原因，不阻断通过 */
+  status: 'pending' | 'passed' | 'failed' | 'not_verifiable'
   opinion?: string
   decidedAt?: number
   decidedBy?: ActorRef
@@ -200,7 +201,7 @@ export function buildSheet(input: SheetBuildInput): SheetBuildResult {
 /** 逐项裁决入参。 */
 export interface SheetVerdictInput {
   itemId: string
-  status: 'passed' | 'failed'
+  status: 'passed' | 'failed' | 'not_verifiable'
   opinion?: string
 }
 
@@ -234,6 +235,8 @@ export interface ApplySheetVerdictsResult {
   pending: number
   passed: number
   failed: number
+  /** 不可验收项计数（REQ-308b9a FR-9）：不触发返工、不阻断通过。 */
+  notVerifiable: number
 }
 
 /**
@@ -292,6 +295,10 @@ export function applyVerdicts(
     if (verdict.status === 'failed' && (verdict.opinion ?? '').length === 0) {
       throw domainError(REQBOARD_ERROR_CODES.invalidInput, fmt('不通过的验收项必须写意见（{itemId}）', { itemId: item.id }))
     }
+    // REQ-308b9a FR-9 / AC-9.2："不可验收"同样必须有人给出原因——不允许静默消失。
+    if (verdict.status === 'not_verifiable' && (verdict.opinion ?? '').length === 0) {
+      throw domainError(REQBOARD_ERROR_CODES.invalidInput, fmt('不可验收的验收项必须写原因（{itemId}）', { itemId: item.id }))
+    }
     item.status = verdict.status
     if ((verdict.opinion ?? '').length > 0) item.opinion = verdict.opinion
     item.decidedAt = at
@@ -305,10 +312,22 @@ export function applyVerdicts(
     pending: sheet.items.filter(i => i.status === 'pending').length,
     passed: sheet.items.filter(i => i.status === 'passed').length,
     failed: sheet.items.filter(i => i.status === 'failed').length,
+    notVerifiable: sheet.items.filter(i => i.status === 'not_verifiable').length,
   }
 }
 
-/** 是否全部通过（任一 pending/failed → false）。 */
+/** 是否全部通过（任一 pending/failed/not_verifiable → false）。 */
 export function isAllPassed(sheet: SheetLike): boolean {
   return sheet.items.every(i => i.status === 'passed')
+}
+
+/**
+ * 是否全部项已裁决（无 pending）——**"可以走验收通过"这条规则的唯一实现**（REQ-308b9a FR-9 / AC-9.3）。
+ *
+ * 与 isAllPassed 的区别：not_verifiable（不可验收）算已裁决——人已看过并给出原因，
+ * 不允许因为它把整次验收卡死；而 pending 一律不放行（AC-9.5，防未验项静默消失）。
+ * failed 项由 FR-8 自动回退处理，正常到不了这里。
+ */
+export function isFullyDecided(sheet: SheetLike): boolean {
+  return sheet.items.every(i => i.status !== 'pending')
 }

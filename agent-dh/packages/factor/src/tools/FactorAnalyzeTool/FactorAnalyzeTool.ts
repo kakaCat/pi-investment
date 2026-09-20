@@ -67,6 +67,8 @@ export class FactorAnalyzeTool extends BaseTool<FactorAnalyzeParams, FactorAnaly
   }
 
   protected async execute(params: FactorAnalyzeParams, context: ToolContext): Promise<FactorAnalyzeResult> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     const { factor_name } = params;
 
     // 2026-08-30 修复：prompt 文档承诺默认 1 年前~今天，但 execute 直接透传 undefined，

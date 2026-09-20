@@ -24,3 +24,31 @@ verdicts 落地后按新 sheet 重渲染并覆写 docs/requirements/<REQ>/verifi
 
 ## 执行方式提示（executorHint）
 优先新窗口或 subagent 执行；按本卡自足执行，不读会话历史
+## 汇报 1（2026-09-20T02:26:29.122Z，窗口 session-7cfa4169-c6dd-4608-b5c4-fb5af4f69a54）
+
+FR-7 收尾：裁决落库后自动重渲染 verification.md，把「验收结果」表按最新裁决回填（含编号/验收项/状态/验收人/验收时间）。
+
+### 完成项
+
+- application/internal/verification-doc-writer.ts：两通道共用的回填单点（缺 docs 端口则跳过，不阻断裁决）
+- AcceptSheet（弹框路径）与 http/routers/verdicts.ts（看板路径）在裁决后均调用回填
+- RouterCtx.deps / ReqboardRouteDeps 增加可选 docs 端口；index.ts 注入 FileDocRepository
+- tests/verdicts-and-rework.test.ts 新增 T-I9（断言回填后的结果表五列与状态）
+
+### 改动文件
+
+- `packages/pages/dsh-pmboard/src/application/internal/verification-doc-writer.ts`
+- `packages/pages/dsh-pmboard/src/application/use-cases/AcceptSheet.ts`
+- `packages/pages/dsh-pmboard/src/http/routers/verdicts.ts`
+- `packages/pages/dsh-pmboard/src/http/routers/shared.ts`
+- `packages/pages/dsh-pmboard/src/http/routes.ts`
+- `packages/pages/dsh-pmboard/src/index.ts`
+- `packages/pages/dsh-pmboard/tests/verdicts-and-rework.test.ts`
+- `packages/pages/dsh-pmboard/lib/client.js`
+- `packages/pages/dsh-pmboard/lib/client.cjs`
+
+### 下一步
+
+t8 文档同步（t7 门禁受基线 14 个既有失败阻塞，需先还债）
+
+---

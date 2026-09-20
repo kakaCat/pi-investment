@@ -14,7 +14,14 @@ tags: [guide, reqboard, workflow]
 
 ## 结论先行
 
-1. **流程即状态**：立项 → 需求分析 → 设计 → 拆分 → 实施 → 验收（人工审核）→ 归档。状态由窗口自己推，**人工闸门只有四处**：确认需求文档（`brainstorming → design`）、批准拆分计划（`decomposing → implementing`）、验收通过（`accepting → archived`，通过即归档）、取消（`* → canceled`）。
+1. **流程即状态**：立项 → 需求分析 → 设计 → 拆分 → 实施 → 验收（人工审核）→ 归档。状态由窗口自己推；
+   **人工闸门 = 四道产物确认门 + 取消**：确认需求文档（`brainstorming > design`）、批准拆分计划（`design > decomposing`）、
+   确认拆分清单（`decomposing > implementing`）、验收通过（`accepting > archived`，**通过即自动归档**），
+   以及取消（`* > canceled`）与取消后归档（`canceled > archived`）。
+   事实源：`packages/pages/dsh-pmboard/src/domain/gate/GateCatalog.ts`（`GATE_CATALOG`）+
+   `domain/requirement/RequirementStatus.ts`（`HUMAN_ONLY_REQ_TRANSITIONS`，两者由测试互锁一致）。
+   ⚠️ 本节此前有两处错：把「批准拆分计划」的边记成 `decomposing → implementing`（实为 `design → decomposing`），
+   且**漏了 `decomposing > implementing` 这道「确认拆分清单」**——2026-09-20 按代码更正（同文件第 31-33 行的流程表一直是正确的）。
 2. **一个窗口同时只绑一个进行中需求**；立项前先想清楚"这是不是值得立项的工作"。
 3. **拆分不是创作**：落库的是**已批准计划里的任务表**，不许临场发挥。
 4. **验收要有证据**：交"做了什么 + 怎么验的 + 看到什么"，人在看板决定过或退。
@@ -33,7 +40,7 @@ tags: [guide, reqboard, workflow]
 | 拆分 | 窗口 | `reqboard_decompose`（不传 tasks = 落库计划） | 任务卡 + 需求进 `decomposing` |
 | 执行 | 窗口 | 每个任务 `reqboard_task_move`（todo→in_progress→integrating→testing→in_review→done） | 开工自动开执行段；全 done → 自动 `accepting` |
 | 交验收 | 窗口 | `reqboard_submit({kind: "verification", summary, evidence})` | 验收材料入库，生成验收单（逐项待验） |
-| **验收** | **人** | 看板验收单逐项勾「通过 / 改进」（`reqboard_accept_sheet`，一次最多 10 项）；点「验收通过」时先弹不合格项确认框（REQ-a8d582 FR-1） | 全通过 → `accepting → archived`（**通过即归档，无 `done` 中转**）；有未过项 → **只记录**（FR-2：不再自动退回）；由人点「退回返工」才回 `implementing` 并按未过项建返工卡；带不合格或尚无材料的通过须显式覆盖并留痕（FR-4），按钮在验收态即展示（FR-3） |
+| **验收** | **人** | 看板验收单逐项勾「通过 / 改进」（`reqboard_accept_sheet`，一次最多 10 项）；点「验收通过」时先弹不合格项确认框（REQ-a8d582 FR-1） | 全通过 → `accepting → archived`（**通过即归档，无 `done` 中转**）；有未过项 → **自动回退 `implementing` 并生成返工卡**（REQ-308b9a FR-8，推翻 REQ-a8d582 FR-2）；带不合格或尚无材料的通过须显式覆盖并留痕（FR-4），按钮在验收态即展示（FR-3） |
 | 补归档材料 | 窗口 | `reqboard_submit({kind: "archive", dir, docs, merged_into, index_entry, manual_updates})` | 写 `archivePath` + 归档索引（`docs/requirements/INDEX.md`）；ACCEPT→ARCHIVED 已自动完成，**无需再点归档** |
 
 > `done` 是历史遗留状态（代码里 `done: []`——不再进入、也不允许从它转出），存量 `done` 需求按历史记录保留；新流程一律 `accepting → archived`。
@@ -64,7 +71,7 @@ tags: [guide, reqboard, workflow]
 
 - [RFC 014 需求看板](../rfcs/014-requirement-board.md)（状态机与闸门的设计与历次修订）；
 - [需求归档规范](../architecture/requirement-archive.md)（文档合并矩阵与金字塔生长规则）；
-- 2026-09-11 用户裁定：在途状态由 agent 自行推进；2026-09-13：验收通过收回为人工闸门、归档需备材料；2026-09-19：节点键 `planning` 改名 `design`（中文「设计」），旧键由台账迁移 v6→v7 一次性改写（REQ-81aabd）；2026-09-20：REQ-a8d582 —— 验收态即展示「验收通过」、点击先弹不合格项确认框、逐项裁决不再自动打回（退回由人点）、带不合格/无材料的通过须显式覆盖并写 `acceptanceOverride` 留痕。
+- 2026-09-11 用户裁定：在途状态由 agent 自行推进；2026-09-13：验收通过收回为人工闸门、归档需备材料；2026-09-19：节点键 `planning` 改名 `design`（中文「设计」），旧键由台账迁移 v6→v7 一次性改写（REQ-81aabd）；2026-09-20：REQ-a8d582 —— 验收态即展示「验收通过」、点击先弹不合格项确认框、逐项裁决不再自动打回（退回由人点）、带不合格/无材料的通过须显式覆盖并写 `acceptanceOverride` 留痕；2026-09-20：REQ-308b9a —— 验收项新增 `not_verifiable`（不可验收须写原因、不阻断通过）、裁决含 failed 自动回退实施、9 类文档门 + 四段式 `verification.md`（含结果表回填）。
 
 ## 相关页面
 

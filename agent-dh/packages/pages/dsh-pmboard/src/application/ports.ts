@@ -11,6 +11,8 @@
  */
 
 import type { ReqboardLedger, RequirementRecord, TaskRecord, TriageRecord, TokenSnapshot } from '../shared/protocol.js'
+import type { ConfirmContext, GateId } from '../domain/gate/GateSpec.js'
+import type { ChainRunSummary } from './gate/GatePostChain.js'
 
 /** 只读台账视图（用例读路径的输入）。 */
 export interface LedgerView {
@@ -119,24 +121,24 @@ export interface SessionProbe {
   ): { ok: boolean; matchedText?: string; reason?: string } | undefined
 }
 
-/** 弹框端口（reqboard_ask_confirm / accept_sheet 的 UI 通道）。 */
+/**
+ * 弹框端口（reqboard_ask_confirm / accept_sheet / 立项弹框 的 UI 通道）。
+ *
+ * REQ-e3b6a0 t7：原先的 `autoContinue` 桩（作答后回调）**已删除**，改为 `gate` 声明——
+ * 由装饰器 `adapters/GateAwareQuestions.ts` 统一织入"确认后置链"，故新增弹框入口零成本获得能力。
+ */
 export interface UserQuestionPort {
   available(): boolean
   ask(
     questions: readonly AskQuestion[],
-    opts: { 
+    opts: {
       agent?: unknown
       signal?: unknown
       /**
-       * 自动继续配置（可选）：用户回答后自动注入继续消息。
-       * 仅用于 pmboard 业务工具（reqboard_ask_confirm / reqboard_accept_sheet）。
+       * 闸门声明（可选）：这次弹框属于哪道人工闸门。**带它 = 自动获得确认后置链**
+       * （压缩/注入/唤醒/留痕）；不带 = 通用征询，不进链。
        */
-      autoContinue?: {
-        /** 自动注入的继续消息 */
-        message: string
-        /** 满足什么条件才自动继续（默认：只要用户回答了就继续） */
-        condition?: (answers: readonly AskAnswer[]) => boolean
-      }
+      gate?: GateId
     },
   ): Promise<readonly AskAnswer[]>
 }
@@ -157,6 +159,31 @@ export interface AskAnswer {
 }
 
 /** 用例的依赖集合（组合根构造后注入；用例不得自行 new 实现）。 */
+/** 投递结果：三态都要可判（在线 / 离线 / 抛错），且**永不抛**。 */
+export interface DeliveryResult {
+  readonly delivered: boolean
+  readonly reason?: string
+}
+
+/**
+ * 会话投递端口（REQ-e3b6a0 t4 / FR-5）：H4 唤醒与看板通道共用。
+ * 唯一实现 = `adapters/AgentDeliverer.ts`（形状纪律写在那里）。
+ */
+export interface AgentDeliveryPort {
+  deliver(windowKey: string, message: { text: string; plugin?: string }): DeliveryResult
+}
+
+/**
+ * 闸门后置链端口（REQ-e3b6a0 t3 / FR-2）：Phase A `enqueue` 登记、Phase B `runPending` 执行。
+ * 实现 = `application/gate/GatePostChain.ts`（组合根装配）；本端口让用例与适配器只见契约。
+ */
+export interface GatePostChainPort {
+  /** 登记一次闸门作答（幂等键 windowKey+gate+decidedAt）；永不抛。 */
+  enqueue(ctx: ConfirmContext): void
+  /** 跑某窗口的待处理闸门（幂等 / 可降级 / 永不抛）。 */
+  runPending(windowKey: string, session?: unknown): Promise<ChainRunSummary>
+}
+
 export interface UseCaseDeps {
   repo: ReqboardRepository
   docs: DocRepository

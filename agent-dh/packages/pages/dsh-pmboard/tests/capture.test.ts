@@ -116,8 +116,9 @@ describe('captureSectionText 三分支', () => {
   it('unbound 且无 pending → 引导文本（含工具名、不含 {{变量}}）', () => {
     const text = captureSectionText(emptyLedger(), { agent: { id: W } })
     expect(text.length).toBeGreaterThan(0)
-    expect(text).toContain('reqboard_create')
-    expect(text).toContain('ask_user_question') // 两问弹框载体
+    expect(text).toContain('reqboard_capture') // pm 专有立项弹框载体
+    expect(text).toContain('reqboard_create') // 弹框不可用时的文字取值回退路径
+    expect(text).toContain('提示词难度') // 三问口径（名称/类型/难度）
     expect(text).not.toContain('{{')
     expect(captureGuidanceText(W)).toContain(W.slice(0, 16))
   })
@@ -125,13 +126,13 @@ describe('captureSectionText 三分支', () => {
 
 describe('captureSectionText pending 注入（确定性消息 hook 命中）', () => {
   const msg = '帮我加一个告警中心页面，把市场告警做成可视化看板'
-  it('unbound 无 pending + pending 命中本窗口 → 两问弹框立项提示（引用消息原文）', () => {
+  it('unbound 无 pending + pending 命中本窗口 → 三问弹框立项提示（引用消息原文）', () => {
     const text = captureSectionText(emptyLedger(), { agent: { id: W } }, { windowKey: W, text: msg, capturedAt: 1 })
     expect(text).toContain('检测到用户新输入')
-    expect(text).toContain('reqboard_create')
-    expect(text).toContain('ask_user_question') // 两问弹框载体
+    expect(text).toContain('reqboard_capture') // pm 专有立项弹框载体
     expect(text).toContain('需求名称')
     expect(text).toContain('需求类型')
+    expect(text).toContain('提示词难度') // 三问口径
     expect(text).toContain('feature') // 类型选项示例
     expect(text).toContain(msg) // 引用消息原文
     expect(text).not.toContain('{{')
@@ -162,6 +163,13 @@ describe('captureSectionText pending 注入（确定性消息 hook 命中）', (
     const out = capturePromptForMessage(W, long)
     expect(out).toContain('x'.repeat(300))
     expect(out).not.toContain('x'.repeat(301))
+  })
+  it('硬化语在场（t-3e11bf E2E 走查返工）：强制先弹 / 不立项要显式表态 / 不许沉默', () => {
+    const text = captureSectionText(emptyLedger(), { agent: { id: W } }, { windowKey: W, text: msg, capturedAt: 1 })
+    expect(text).toContain('第一个工具调用必须是 reqboard_capture')
+    expect(text).toContain('本条不立项')
+    expect(text).toContain('不许沉默')
+    expect(captureGuidanceText(W)).toContain('弹框问用户')
   })
 })
 

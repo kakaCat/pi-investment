@@ -54,6 +54,8 @@ export class EvolutionLeaderboardTool extends BaseTool<EvolutionLeaderboardParam
   }
 
   protected async execute(params: EvolutionLeaderboardParams, context: ToolContext): Promise<EvolutionLeaderboardResult> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     const strategyId = Number(params.strategy_id);
     const qv2Result: any = await this.qv2.getStrategyEvolutionRuns(strategyId, params.limit ?? 10);
     const runs: any[] = Array.isArray(qv2Result?.runs) ? qv2Result.runs : [];

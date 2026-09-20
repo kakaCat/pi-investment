@@ -4,7 +4,6 @@
 
 import type { WorkflowResult } from './types.js'
 import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
 
 /**
  * 格式化时间戳

@@ -9,6 +9,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { JsonLedgerRepository } from '../../adapters/JsonLedgerRepository.js'
 import type { InjectionLogReadPort } from '../../application/internal/injection-log.js'
+import type { DocRepository } from '../../application/ports.js'
 
 export interface RouterCtx {
   store: JsonLedgerRepository
@@ -23,6 +24,15 @@ export interface RouterCtx {
     injectionLog?: InjectionLogReadPort
     systemPrompt?: () => unknown
     tokenSnapshot?: (windowKey: string) => import('../../shared/protocol.js').TokenSnapshot | undefined
+    /** 文档仓储（REQ-308b9a AC-7.7：看板裁决后回填 verification.md；缺省 → 跳过）。 */
+    docs?: DocRepository
+    /**
+     * 闸门后置链（REQ-e3b6a0 t9 / FR-9）：看板一键确认后触发 Phase B（推进 + 压缩 + 注入 + 唤醒）。
+     * 缺省 → 只落章（行为与改造前完全一致）。
+     */
+    gateChain?: import('../../application/gate/GatePostChain.js').GateChainPort
+    /** 在线 agent 查询（取会话句柄供 H2 用）；缺省 → 视为窗口不在线。 */
+    agents?: () => { get?: (id: string) => unknown } | undefined
   }
   ids: { requirement: () => string; task: () => string; comment: () => string }
   mintId: (kind: 'requirement' | 'task') => Promise<string>

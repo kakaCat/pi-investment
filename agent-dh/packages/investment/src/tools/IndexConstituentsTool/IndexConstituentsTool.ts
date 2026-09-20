@@ -36,6 +36,8 @@ export class IndexConstituentsTool extends BaseTool<IndexConstituentsParams, Ind
   }
 
   protected async execute(args: IndexConstituentsParams, _context: ToolContext): Promise<IndexConstituentsResult> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     const res: any = await (this.qv2 as any).getIndexConstituents(args.symbol);
 
     // 失败必须显式失败：'数据源故障' 与 '该指数无成分' 语义不同，静默返回空清单会导致误判

@@ -36,6 +36,8 @@ export class SectorAnalysisTool extends BaseTool<SectorAnalysisParams, SectorAna
    * Phase 2: 执行任务
    */
   protected async execute(args: SectorAnalysisParams, _context: ToolContext): Promise<SectorAnalysisResult> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     const requestedDays = args.days || 5;
     const result: any = await this.qv2.getSectorAnalysis({
       sector: args.sector,

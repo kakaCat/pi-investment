@@ -40,13 +40,13 @@ export interface PendingCaptureMessage {
 }
 
 /**
- * 该窗口的捕获引导 section 文本（乙：提示 agent 识别新工作 → 两问弹框确认 →
- * reqboard_create 直接立项）。bound / 已有遗留 pending / 无法取 windowKey →
+ * 该窗口的捕获引导 section 文本（乙：提示 agent 识别新工作 → 调 reqboard_capture
+ * 弹立项三问（名称/类型/难度）并在同一次调用内创建即立项）。bound / 已有遗留 pending / 无法取 windowKey →
  * 返回 ''（零噪音）。永不返回 undefined。
  *
  * 第三参 pending 为确定性消息 hook 登记的本窗口「待捕获候选」：命中时返回
  * 引用该用户消息原文的针对性立项提示（用户裁定：消息到达 → hook 检查窗口是否
- * 需要立项捕获 → 注入提示词让 LLM 弹两问确认 → 直接建 REQ），未命中维持静态引导。
+ * 需要立项捕获 → 注入提示词让 LLM 调 reqboard_capture 弹三问 → 直接建 REQ），未命中维持静态引导。
  * 向后兼容：不传 pending 时行为与旧版完全一致（capture.test.ts 三分支不变）。
  */
 export function captureSectionText(
@@ -200,13 +200,21 @@ export function boundSectionText(
 
 /**
  * 针对性立项提示（消息事件 hook 命中时注入）：引用刚到达的用户消息原文，
- * 指示 LLM 判断该输入是否值得立项——值得则【两问弹框 = 立项门 → 直接建 REQ】：
- * 先 ask_user_question 向用户弹两问——「需求名称」（选项由本条消息上下文推导、
- * 最贴切一项置首标注 (Recommended)、允许自定义）与「需求类型」（feature/bug/doc/
- * refactor/spike/chore，同 (Recommended) 置首可改选）；**用户作答即立项确认**，
- * 随后按确认值调 reqboard_create 直接创建 REQ（创建即立项，无待归类/建议卡
- * 中间态，看板立即可见）。只是闲聊 / 追问进度则正常回复，不弹框不立项。
- * 判定留给 LLM（窗口 agent 自身回合），hook 只保证确定性触发。全部字面量。
+ * 指示 LLM 判断该输入是否值得立项——值得则【调 reqboard_capture（pm 专有立项弹框）
+ * 一次完成「立项三问 + 创建 + 绑定」】：三问为「需求名称」（候选由本条消息上下文
+ * 推导、最贴切一项置首推荐、允许自定义输入）「需求类型」（feature/bug/doc/refactor/
+ * spike/chore）「提示词难度」（simple/standard/advanced/expert）；**用户作答即立项确认**，
+ * 工具在同一次调用内创建 REQ 并绑定本窗口（创建即立项，无待归类/建议卡中间态，看板
+ * 立即可见）。
+ *
+ * **措辞已硬化（2026-09-20 t-3e11bf E2E 走查后的返工）**：走查实测（窗口 session-361c2879，
+ * 15:23–15:30 四个回合）——hook 登记、pending 命中、本段注入**全部正常**，但窗口内 35 次
+ * PTC 子调用只有 read/grep，**零次 reqboard_capture**；其中"修复 FR-6 任务状态机"这种
+ * 明确工作意图也被模型判成"对当前审查的追问"而跳过。根因：原文案是"请先判断**可能**包含
+ * 值得立项的意图 / 只是闲聊则正常回复"——二元裁量 + 零后果，模型默认选"先答问题"。
+ * 故改为：①必须显式裁定（判不准按值得立项处理）②值得立项时**本回合第一个工具调用**即
+ * reqboard_capture ③不立项时必须在回复首行写明理由（把沉默变成可审计表态）。
+ * 判定仍留给 LLM（窗口 agent 自身回合），hook 只保证确定性触发。全部字面量。
  */
 export function capturePromptForMessage(windowKey: string, text: string): string {
   const trimmed = text.trim().replace(/\s+/g, ' ')
@@ -214,22 +222,33 @@ export function capturePromptForMessage(windowKey: string, text: string): string
   return [
     `## 项目捕获（reqboard · 本窗口 ${windowKey.slice(0, 16)} 检测到用户新输入）`,
     '',
-    '用户刚刚发来一条消息，其中可能包含值得立项的新工作意图（新功能 / 缺陷修复 /',
-    '文档 / 重构 / 技术调研 / 维护事项）。请先判断该输入是否属于这类工作：',
+    '用户刚发来一条消息。**本回合你必须先做一次显式裁定、再回答用户**——沉默跳过等于',
+    '本回合未完成（会被留痕，走查时按失败计）。',
     '',
-    '- 值得立项 → 先弹「两问确认」（弹框即立项门，作答即立项）：',
-    '  1) 调用 ask_user_question 一次发两个问题向用户确认——',
-    '     问题一「需求名称」：按本条消息上下文给出候选标题选项，最贴切的一项放首位',
-    '       并标注 (Recommended)，允许用户选择或自定义输入最终名称；',
-    '     问题二「需求类型」：选项 feature / bug / doc / refactor / spike / chore，',
-    '       最符合的一项放首位并标注 (Recommended)，允许用户改选或自定义；',
-    '  2) 用户作答后（= 立项确认），立即按用户确认值调 reqboard_create 直接创建需求：',
-    '     title = 用户确认的需求名称，category = 用户选择的需求类型，',
-    '     summary = 本次工作摘要，reason = 立项依据（引用本条消息原文）；',
+    '**判据（只看本条消息里有没有"要动手做的事"，不看它是否夹在提问里）**：',
+    '- 出现「修复 / 改 / 新增 / 实现 / 重构 / 优化 / 补充 / 调研 / 做 / 支持」+ **具体对象**，',
+    '  或用户要求对某个模块 / 功能 / 文档做出改动 → 判为**值得立项**，走下面「值得立项时」；',
+    '- 纯提问、咨询完成度、追问进度、继续之前话题、闲聊 → 判为**不立项**，走「不立项时」。',
     '',
-    '- 只是闲聊、询问进度、继续之前话题或无需立项 → 正常回复即可，不要弹框、不要立项。',
+    '**值得立项时（必须执行）**：',
+    '1) **本回合的第一个工具调用必须是 reqboard_capture**（pm 专有立项弹框）——',
+    '   不要先回答问题、不要先做分析、不要先调别的工具；',
+    '   问题一「需求名称」：把由本条消息推导出的候选标题经 title_options 传入（最多 3 个），',
+    '   最贴切的一项放首位（弹框里标注「推荐」），允许用户改选或自定义输入；',
+    '   问题二「需求类型」：选项 feature / bug / doc / refactor / spike / chore；',
+    '   问题三「提示词难度」：选项 simple / standard / advanced / expert；',
+    '2) 用户作答后（= 立项确认），本工具在**同一次调用内**创建需求并绑定本窗口——',
+    '   不要再另调 reqboard_create，也不要用宿主通用弹框（两段式会在答案与创建之间断链）；',
+    '3) 弹框通道不可用时该工具返回 fallback=board：此时改为文字向用户取值，再调 reqboard_create',
+    '   （title = 需求名称，category = 需求类型，prompt_difficulty = 难度，',
+    '   summary = 本次工作摘要，reason = 立项依据（引用本条消息原文））。',
     '',
-    '本次待判断的用户消息（节选，最多 300 字）：',
+    '**不立项时（同样必须显式表态，不许沉默）**：',
+    '- 在回复的**第一行**写明「本条不立项：<一句话理由>」，然后才正常回答用户；',
+    '- **判不准时按"值得立项"处理**——弹框本身就是一次询问，用户可以在框里选"不需要"；',
+    '  宁可多问一次，也不要替用户决定"这件事不用立项"。',
+    '',
+    '本次待裁定的用户消息（节选，最多 300 字）：',
     '',
     `> ${snippet}${trimmed.length > 300 ? '…' : ''}`,
     '',
@@ -246,13 +265,15 @@ export function captureGuidanceText(windowKey: string): string {
     '',
     '本窗口当前没有进行中的需求记录。若用户在本窗口提出了新的工作意图',
     '（新功能 / 缺陷修复 / 文档 / 重构 / 技术调研 / 维护事项），且该工作值得立项，',
-    '先调用 ask_user_question 弹「两问确认」：问题一「需求名称」（按上下文给出候选',
-    '选项，最贴切一项置首标注 (Recommended)，允许用户自定义）；问题二「需求类型」',
-    '（feature / bug / doc / refactor / spike / chore，同 (Recommended) 置首可改选）。',
-    '用户作答即立项确认——按确认值调 reqboard_create 直接创建 REQ（创建即立项，',
-    '无待归类/建议卡中间态）：title = 确认名称、category = 确认类型、',
-    'summary = 工作摘要、reason = 立项依据。',
+    '直接调 reqboard_capture（pm 专有立项弹框）——一次调用弹出「立项三问」并在同一次调用内',
+    '完成创建与窗口绑定：问题一「需求名称」（可经 title_options 传候选，最贴切一项推荐置首，',
+    '允许自定义输入）；问题二「需求类型」（feature / bug / doc / refactor / spike / chore）；',
+    '问题三「提示词难度」（simple / standard / advanced / expert）。用户作答即立项确认',
+    '（创建即立项，无待归类/建议卡中间态），**不需要**再补调 reqboard_create。',
+    '弹框通道不可用时该工具返回 fallback=board：此时改为文字向用户取值后再调 reqboard_create',
+    '（title / category / prompt_difficulty / summary / reason）。',
     '',
-    '仅闲聊或询问已有需求进度时无需弹框、无需立项。',
+    '判不准是否值得立项时按"值得"处理——直接调 reqboard_capture 弹框问用户（框里可以选"不需要"，',
+    '比沉默跳过安全）；仅闲聊或询问已有需求进度时无需弹框、无需立项。',
   ].join('\n')
 }

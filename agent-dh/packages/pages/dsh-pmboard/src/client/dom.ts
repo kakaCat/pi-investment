@@ -4,7 +4,7 @@
  *
  * @module dsh-pmboard/client/dom
  */
-import { ACTIVATE_EVENT, CONVERSATION_COLUMN_SELECTOR } from '@pi-investment/page-kit/client'
+import { ACTIVATE_EVENT, CONVERSATION_COLUMN_SELECTOR } from './vendor/page-kit/index.js'
 
 export const ENTRY_SELECTOR = '[data-dsh-pm-entry]'
 export const BOARD_VIEW_SELECTOR = '[data-dsh-pm-view]'

@@ -536,8 +536,11 @@ export interface VerificationItem {
   criterion: string
   /** 该项对应的证据（产物路径/命令输出摘要/截图） */
   evidence: string[]
-  /** 裁决状态（挂起/续验持久化核心）：pending=待验 / passed=通过 / failed=不通过 */
-  status: 'pending' | 'passed' | 'failed'
+  /**
+   * 裁决状态（挂起/续验持久化核心）：pending=待验 / passed=通过 / failed=不通过 /
+   * not_verifiable=不可验收（无法按要求验，必填原因）——REQ-308b9a FR-9。
+   */
+  status: 'pending' | 'passed' | 'failed' | 'not_verifiable'
   /** 用户裁决意见（不通过时必填） */
   opinion?: string
   decidedAt?: number
@@ -1028,7 +1031,7 @@ export function readyTasks(tasks: readonly TaskRecord[], requirementId: string):
 }
 // ---------------------------------------------------------------------------
 // Triage（遗留：旧流程「会话捕获待归类建议卡，人工在看板确认」；新流程 2026-09 起
-// 改为创建即立项——两问弹框作答即确认，直接 reqboard_create 建 REQ，不再产生
+// 改为创建即立项——reqboard_capture 三问弹框作答即确认并直接建 REQ，不再产生
 // pending triage。存量 triage 记录保留供回溯，路由仍兼容其 confirm/reject/rebind。）
 // ---------------------------------------------------------------------------
 

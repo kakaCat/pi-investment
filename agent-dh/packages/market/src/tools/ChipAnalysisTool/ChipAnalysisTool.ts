@@ -58,6 +58,8 @@ export class ChipAnalysisTool extends BaseTool<ChipAnalysisParams, ChipAnalysisR
    * Phase 2: 执行任务
    */
   protected async execute(args: ChipAnalysisParams, _context: ToolContext): Promise<ChipAnalysisResult> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     const raw: any = await this.qv2.getChipDistribution(args.symbol);
 
     // 2026-09-11 修复（REQ-342799 数据真实性护栏）

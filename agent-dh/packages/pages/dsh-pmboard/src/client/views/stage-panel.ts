@@ -4,7 +4,7 @@
  *
  * @module dsh-pmboard/client/views/stage-panel
  */
-import { esc } from '@pi-investment/page-kit/client'
+import { esc } from '../vendor/page-kit/index.js'
 import type { RequirementRecord, TaskRecord } from '../types.ts'
 import { NO_ARCHIVED, PHASE_LABELS, TASK_STATUS_LABELS, fmtTime, renderComments, sessionChipHtml } from '../render/dom-utils.ts'
 import { buildDag } from './stage-detail.ts'

@@ -12,6 +12,8 @@ import {
   type VerificationSheet,
 } from '../../shared/protocol.js'
 import { buildSheet } from '../../domain/workflow/AcceptanceSheetSpec.js'
+import { checkDocCompleteness } from '../../domain/workflow/DocCompleteness.js'
+import { renderVerificationDoc } from '../../domain/workflow/VerificationDoc.js'
 import { docSyncSummary } from '../../domain/workflow/DocSyncSpec.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { applyTaskRollup } from '../internal/rollup.js'
@@ -70,6 +72,42 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
       }
       if (target.status !== 'implementing' && target.status !== 'accepting') {
         reject(fmt('reqboard_verify_submit 未执行：需求处于 {status}，只有执行/验收阶段的交付才能提交验收', { status: target.status }), 'REQBOARD_BAD_STATUS')
+      }
+
+      // ── 9 类文档完整性检查（REQ-308b9a FR-7 / AC-7.4、7.5）─────────────────
+      // 口径见 domain/workflow/DocCompleteness.ts（与本仓 feature 流水线产物对齐，不另造清单）。
+      // 缺项 → **拒绝提交**（"缺文档也能过验收"会让文档永远补不上）。
+      const reqDir = 'docs/requirements/' + target.id
+      const collectDir = (sub: string): string[] => docs.list(sub.length > 0 ? reqDir + '/' + sub : reqDir)
+        .filter(e => e.isFile)
+        .map(e => (sub.length > 0 ? sub + '/' + e.name : e.name))
+      const reqFiles = new Set<string>([
+        ...collectDir(''),
+        ...collectDir('design'),
+        ...collectDir('tasks'),
+        ...collectDir('reviews'),
+        ...collectDir('tests'),
+      ])
+      const reqTaskIds = snapshot.tasks
+        .filter(t => t.requirementId === target.id && t.status !== 'canceled')
+        .map(t => t.id)
+      // 存量/直种需求（artifacts 为空）→ 豁免，不追溯惩罚（同 isLegacyForHow 的口径）；
+      // 走新流水线的需求在 requirement/plan/design 各节点已登记产物，故必然被检查。
+      // 两条豁免口径（都指向"不是走新流水线落盘的需求"）：
+      //   ① artifacts 为空 —— 直种/存量数据，不追溯（同 isLegacyForHow）；
+      //   ② 需求目录为空 —— 文档体系根本未建立（测试种子/脏数据）。
+      // 真实需求在 brainstorming 必落 requirement.md，故目录非空、必然受检。
+      // 判据用**盘上是否有 requirement.md**（稳定信号：本流程第一次提交会写 verification.md，
+      // 若用"目录非空"会被自己生成的产物破坏——实测踩过）。真实需求在 brainstorming 必落它。
+      const isLegacyForDocs = target.artifacts === undefined || target.artifacts.length === 0 || !reqFiles.has('requirement.md')
+      const docCheck = isLegacyForDocs
+        ? { passed: true, missing: [] as string[] }
+        : checkDocCompleteness({ files: reqFiles, taskIds: reqTaskIds })
+      if (!docCheck.passed) {
+        reject(
+          fmt('reqboard_verify_submit 未执行：验收前置的 9 类文档未齐——{list}。请补齐后再提交验收（AC-7.5）', { list: docCheck.missing.join('、') }),
+          'REQBOARD_DOC_INCOMPLETE',
+        )
       }
 
       // ── 孤儿用例检测（REQ-d3e61a T-7 / FR-5）：设计文件点名了、但文件头未声明覆盖的测试文件 ──
@@ -169,22 +207,39 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
       const changed = (result.changed.requirements ?? [])[0]
       if (changed === undefined) reject('reqboard_verify_submit 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
       // ── 产物登记（REQ-31e11f t4）：verification 产物 ─────────────────────
-      const verPath = 'docs/requirements/' + target.id + '/verification.md'
-      if (!docs.exists(verPath)) {
-        const verContent = [
-          fmt('# {id} 验收（verification）', { id: target.id }),
-          '',
-          '> 自动生成于 reqboard_verify_submit',
-          '',
-          '## 验收结论',
-          summary,
-          '',
-          '## 证据清单',
-          ...evidence.map(e => '- ' + e),
-          '',
-        ].join('\n')
-        await docs.write(verPath, verContent)
-      }
+      // ── verification.md 结构化生成（FR-7 / AC-7.1~7.3）────────────────────
+      // 四段：验收列表（含派生操作步骤/预期结果）· 测试报告 · 文档完整性检查 · 验收结果表。
+      const verPath = reqDir + '/verification.md'
+      const sheetNow = changed.verification?.sheet
+      const ledgerTasks = deps.repo.snapshot().tasks
+        .filter(t => t.requirementId === target.id && t.status !== 'canceled')
+      const taskById = new Map(ledgerTasks.map(t => [t.id, t]))
+      const docItems = (sheetNow?.items ?? []).map(it => {
+        const src = it.source
+        const t = src.kind === 'task' ? taskById.get(src.taskId) : undefined
+        const who = it.decidedBy === undefined
+          ? undefined
+          : [it.decidedBy.kind, it.decidedBy.sessionId].filter(v => v !== undefined && v !== '').join('/')
+        return {
+          id: it.id,
+          title: src.kind === 'task' ? (t?.title ?? src.taskId) : '需求级验收',
+          criterion: it.criterion,
+          howToVerify: src.kind === 'task' ? (t?.acceptance ?? it.criterion) : it.criterion,
+          status: it.status,
+          ...(it.opinion !== undefined ? { opinion: it.opinion } : {}),
+          ...(who !== undefined ? { decidedBy: who } : {}),
+          ...(it.decidedAt !== undefined ? { decidedAt: it.decidedAt } : {}),
+        }
+      })
+      await docs.write(verPath, renderVerificationDoc({
+        reqId: target.id,
+        title: target.title,
+        summary,
+        sheetVersion: sheetNow?.version ?? 1,
+        items: docItems as never,
+        testReport: evidence,
+        docCheck,
+      }))
       await deps.repo.mutate('requirement-updated', (ledger) => {
         const r = ledger.requirements.find(x => x.id === changed.id)
         if (r === undefined) return undefined

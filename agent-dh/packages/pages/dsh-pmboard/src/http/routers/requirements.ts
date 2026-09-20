@@ -19,11 +19,26 @@ import {
   type RequirementRecord,
 } from '../../shared/protocol.js'
 import { assertArtifactGates } from '../../application/internal/artifact-gates.js'
-import { INITIAL_REQ_STATUS } from '../../domain/requirement/RequirementStatus.js'
+import { transitionRequirement } from '../../application/internal/token-usage.js'
+import { INITIAL_REQ_STATUS, canReqTransition } from '../../domain/requirement/RequirementStatus.js'
+import { gateFromStage } from '../../domain/gate/GateCatalog.js'
+import { fmt } from '../../domain/text/fmt.js'
 import type { RouterCtx } from './shared.js'
 
 export function createRequirementsRouter(ctx: RouterCtx) {
   const { store, now, ids, mintId, ok, readBody, badInput, notFound } = ctx
+
+  /** 解析在线 agent（未装配 / 不在线 / 查询抛错 → undefined，一律视为离线）。 */
+  function onlineAgent(windowKey: string | undefined): unknown {
+    if (windowKey === undefined || windowKey.length === 0) return undefined
+    const agents = ctx.deps.agents?.()
+    if (typeof agents?.get !== 'function') return undefined
+    try {
+      return agents.get(windowKey) ?? undefined
+    } catch {
+      return undefined
+    }
+  }
 
   async function handleReqCreate(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const body = await readBody(req)
@@ -171,7 +186,67 @@ export function createRequirementsRouter(ctx: RouterCtx) {
       r.updatedBy = { kind: 'human' }
       return { requirements: [r] }
     })
-    ok(res, result.changed.requirements[0])
+    const confirmed = result.changed.requirements[0] as RequirementRecord
+
+    // ── 确认即推进 + 链侧投递（REQ-e3b6a0 t9 / FR-9）────────────────────────
+    // 两者都以「绑定窗口在线」为前提：窗口不在线就只落章，并如实说明——不伪造推进成功。
+    const windowKey = confirmed.sourceSessionId
+    const agent = onlineAgent(windowKey)
+    if (agent === undefined) {
+      ok(res, { ...confirmed, advanced: false, delivered: false, note: '窗口不在线，请回会话推进（本次仅落章）' })
+      return
+    }
+
+    const gate = gateFromStage(confirmed.status)
+    let advanced = false
+    // 护栏：确认的产物必须**正是该门要求的产物**（gate.requiredKind === kind）。
+    // 否则二次确认同一产物会顺着新状态的门再推进一次（B 后再点一次 = 连跳两格）。
+    const gateMatches = gate !== undefined && gate.requiredKind === kind
+    if (gateMatches && gate.autoAdvance && gate.from !== undefined && canReqTransition(gate.from, gate.to)) {
+      await store.mutate('requirement-moved', (ledger) => {
+        const r = ledger.requirements.find(x => x.id === id) ?? notFound(fmt('需求 {id}', { id }))
+        if (r.status !== gate.from) return undefined // 并发下已推进过 → 幂等，不重复推进
+        transitionRequirement(r, gate.to, {
+          at: now(),
+          actor: { kind: 'human' },
+          reason: fmt('看板确认即推进（{from} → {to}）', { from: gate.from, to: gate.to }),
+        })
+        r.comments.push({
+          id: ids.comment(),
+          body: fmt('[自动推进] {from} → {to}：看板一键确认产物（kind={kind}）', { from: gate.from, to: gate.to, kind }),
+          createdAt: now(),
+          createdBy: { kind: 'human' },
+        })
+        return { requirements: [r] }
+      })
+      advanced = true
+    }
+
+    let delivered = false
+    let note: string | undefined
+    const chain = ctx.deps.gateChain
+    if (chain === undefined) {
+      note = '闸门后置链未装配：本次仅落章与推进，未触发压缩/注入/唤醒'
+    } else if (!gateMatches || windowKey === undefined) {
+      note = fmt('当前状态 {s} 与已确认产物 kind={kind} 不构成闸门，未触发后置链', { s: confirmed.status, kind })
+    } else {
+      chain.enqueue({
+        windowKey,
+        gate: gate.id,
+        ...(gate.from === undefined ? {} : { from: gate.from }),
+        to: gate.to,
+        requirementId: id,
+        verdict: 'affirmative',
+        answers: [{ id: 'board-confirm', selected: [fmt('确认 {kind}', { kind })] }],
+        decidedAt: now(),
+      })
+      const run = await chain.runPending(windowKey, (agent as { session?: unknown }).session)
+      delivered = run.ran
+      note = delivered ? undefined : '链路未执行（无待处理闸门或幂等命中）'
+    }
+
+    const final = store.snapshot().requirements.find(r => r.id === id) ?? confirmed
+    ok(res, { ...final, advanced, delivered, ...(note === undefined ? {} : { note }) })
   }
 
   async function handleComment(req: IncomingMessage, res: ServerResponse): Promise<void> {

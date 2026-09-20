@@ -58,6 +58,8 @@ export class ModelPredictTool extends BaseTool<ModelPredictParams, any> {
   }
 
   protected async execute(args: ModelPredictParams, _context: ToolContext): Promise<any> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     // 2026-09-02：默认 lightgbm（每日重训、特征与 DB 因子同源）；
     // xgboost 为 2026-05 旧模型，特征名不匹配 → 恒定 0.4659 不可信
     const result = await this.qv2.mlPredict({

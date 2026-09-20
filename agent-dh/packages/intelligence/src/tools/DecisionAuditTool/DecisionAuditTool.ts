@@ -79,6 +79,8 @@ export class DecisionAuditTool extends BaseTool<DecisionAuditParams, any> {
   }
 
   protected async execute(args: DecisionAuditParams, _context: ToolContext): Promise<any> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     if (args.action === 'record') {
       const result = await this.qv2.recordDecision({
         decision_type: args.decision_type,

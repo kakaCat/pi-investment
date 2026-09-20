@@ -9,6 +9,7 @@
  * @module dsh-pmboard/tools
  */
 export { defineCreateTool } from './CreateTool/index.js'
+export { defineCaptureTool } from './CaptureTool/index.js'
 export { defineStatusTool } from './StatusTool/index.js'
 export { defineMoveTool } from './MoveTool/index.js'
 export { defineDecomposeTool } from './DecomposeTool/index.js'

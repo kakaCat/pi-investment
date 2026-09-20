@@ -24,6 +24,7 @@ import type { UseCaseDeps } from '../../src/application/ports.js'
 import type { JsonLedgerRepository } from '../../src/adapters/JsonLedgerRepository.js'
 import {
   defineCreateTool as createTool,
+  defineCaptureTool as captureTool,
   defineStatusTool as statusTool,
   defineMoveTool as moveTool,
   defineDecomposeTool as decomposeTool,
@@ -124,6 +125,7 @@ function submitWrapper(kind: string, deps: ReqboardToolDeps) {
 }
 
 export function defineCreateTool(deps: ReqboardToolDeps) { return createTool(toUseCaseDeps(deps)) }
+export function defineCaptureTool(deps: ReqboardToolDeps) { return captureTool(toUseCaseDeps(deps)) }
 export function defineStatusTool(deps: ReqboardToolDeps) { return statusTool(toUseCaseDeps(deps)) }
 export function defineMoveTool(deps: ReqboardToolDeps) { return moveTool(toUseCaseDeps(deps)) }
 export function defineDecomposeTool(deps: ReqboardToolDeps) { return decomposeTool(toUseCaseDeps(deps)) }

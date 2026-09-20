@@ -12,7 +12,9 @@ import {
   normalizeText,
 } from '../../shared/protocol.js'
 import { DEFAULT_CONFIRM_OPTIONS } from '../../domain/text/labels.js'
-import { fmt } from '../../domain/text/fmt.js'
+import { clip, fmt } from '../../domain/text/fmt.js'
+import { LIMITS } from '../../domain/limits.js'
+import { advanceTargetFor, gateFromStage } from '../../domain/gate/GateCatalog.js'
 import { captureSnapshot, transitionRequirement } from '../internal/token-usage.js'
 import { openRequirementsFor } from '../internal/window.js'
 import {
@@ -21,13 +23,7 @@ import {
   requireLiveDriver,
 } from '../internal/support.js'
 
-// 工厂级常量（从 defineAskConfirmTool 随代码搬入）：允许 ask_confirm 自动推进的转移
-// （验收通过与归档不由本工具代办）。
-const ADVANCE_MAP: Readonly<Record<string, string>> = {
-  brainstorming: 'design',
-  design: 'decomposing',
-  decomposing: 'implementing',
-}
+// 自动推进白名单来自闸门目录（REQ-e3b6a0 t2：原私有 ADVANCE_MAP 已收敛进 domain/gate/GateCatalog）。
 
 export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
       const windowKey = agentIdFromExec(deps, exec)
@@ -39,7 +35,9 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
       const explicitId = normalizeText(a.requirement_id, 'requirement_id', 64)
       const targetKind = normalizeText(a.target, 'target', 32)
       const kindRaw = normalizeText(a.kind, 'kind', 64)
-      const question = normalizeText(a.question, 'question', 2000)
+      // REQ-308b9a t5（AC-7.6 配套）：题干受长度纪律约束——过长会把选项挤出可视区
+      // （用户实测「不能选择」）。accept_sheet 早已 clip，confirm 此前漏了。
+      const question = clip(normalizeText(a.question, 'question', 2000), LIMITS.popupQuestionMax)
       const options = Array.isArray(a.options)
         ? (a.options as unknown[]).map(o => normalizeText(o, 'options[]', 200)).filter(o => o.length > 0).slice(0, 5)
         : []
@@ -69,6 +67,8 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
         } as never
       }
       let answers: { id?: string; selected?: string[]; custom?: string }[] = []
+      // 闸门声明（REQ-e3b6a0 t7）：由「作答前所处阶段」查闸门目录得到，装饰器据此登记后置链。
+      const gateId = gateFromStage(targetReq.status)?.id
       try {
         answers = [...await deps.questions.ask([{
           id: 'confirm',
@@ -78,6 +78,7 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
         }], {
           ...(exec.agent !== undefined ? { agent: exec.agent } : {}),
           signal: (exec as { signal?: unknown }).signal,
+          ...(gateId === undefined ? {} : { gate: gateId }),
         })]
       } catch (err) {
         const code = (err as { code?: string }).code ?? ''
@@ -175,7 +176,7 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
 
       // ── 推进（可选，限白名单转移）───────────────────────────────────────
       const from = targetReq.status
-      const to = ADVANCE_MAP[from]
+      const to = advanceTargetFor(from)
       let advanced = false
       let advanceNote = ''
       if (advance && to !== undefined && canReqTransition(from, to as never)) {

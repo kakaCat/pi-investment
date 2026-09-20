@@ -40,6 +40,12 @@ export interface ReqboardRouteDeps {
   }
   /** 工作区根（REQ-2e9473 t11 产物自动发现扫描 docs/requirements/ 用；缺省 process.cwd()）。 */
   cwd?: string
+  /** 文档仓储（REQ-308b9a AC-7.7：看板裁决后回填 verification.md）。 */
+  docs?: import('../application/ports.js').DocRepository
+  /** 闸门后置链（REQ-e3b6a0 t9 / FR-9）：看板一键确认后触发 Phase B。缺省 → 只落章。 */
+  gateChain?: import('../application/gate/GatePostChain.js').GateChainPort
+  /** 在线 agent 查询（取会话句柄供 H2 用）；缺省 → 视为窗口不在线。 */
+  agents?: () => { get?: (id: string) => unknown } | undefined
 }
 
 function json(res: ServerResponse, status: number, body: unknown): void {
@@ -117,6 +123,9 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       ...(deps.injectionLog !== undefined ? { injectionLog: deps.injectionLog } : {}),
       ...(deps.systemPrompt !== undefined ? { systemPrompt: deps.systemPrompt } : {}),
       ...(deps.tokenSnapshot !== undefined ? { tokenSnapshot: deps.tokenSnapshot } : {}),
+      ...(deps.docs !== undefined ? { docs: deps.docs } : {}),
+      ...(deps.gateChain !== undefined ? { gateChain: deps.gateChain } : {}),
+      ...(deps.agents !== undefined ? { agents: deps.agents } : {}),
     },
     ids,
     mintId,

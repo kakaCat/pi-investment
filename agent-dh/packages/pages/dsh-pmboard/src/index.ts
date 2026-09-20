@@ -2,9 +2,8 @@
 // host 半：reqboard JSON+SSE API（/dashboard/api/reqboard/*）+ 两级状态机台账 +
 // 捕获（用户裁定 · 创建即立项）：确定性消息 hook（session/event user/message 到达 →
 // 检查窗口 unbound 且无遗留 pending → 登记待捕获消息）+ systemPrompt 捕获引导段
-// （命中待捕获则注入引用消息原文的立项提示，让 LLM 弹「两问确认」获用户确认后调
-// reqboard_create 直接建 REQ）+ 两个 agent 工具（reqboard_create / reqboard_status）。
-// 两问弹框（ask_user_question：需求名称 + 需求类型）作答 = 立项门；创建即立项，无
+// （命中待捕获则注入引用消息原文的立项提示，让 LLM 调 pm 专有立项弹框 reqboard_capture）。
+// 三问弹框（需求名称 / 需求类型 / 提示词难度）作答 = 立项门；创建即立项，无
 // 待归类/建议卡中间态。M2 的自动分类 LLM（SessionSyncService）自 2026-09 起不再装配
 // （修正 #1/#3：无第二 LLM、人在 loop）。
 // 模块形状与 dashboard-execution 一致（name + apply 具名导出）；无静态 inject 的
@@ -24,6 +23,7 @@ import type { ToolTraceEntry } from './adapters/SessionProbeAdapter.js';
 
 import {
   defineCreateTool,
+  defineCaptureTool,
   defineStatusTool,
   defineMoveTool,
   defineDecomposeTool,
@@ -45,6 +45,15 @@ import { createNodeSettlementDispatcher } from './application/internal/node-sett
 import { SystemClock } from './adapters/SystemClock.js';
 import { RandomIdFactory } from './adapters/RandomIdFactory.js';
 import { UserQuestionsAdapter } from './adapters/UserQuestionsAdapter.js';
+import { AgentDeliverer } from './adapters/AgentDeliverer.js';
+import { GateAwareQuestions } from './adapters/GateAwareQuestions.js';
+import { createGatePostChain } from './application/gate/GatePostChain.js';
+import { createPendingGateStore } from './application/gate/PendingGate.js';
+import { createH1AdvanceHandler } from './application/gate/handlers/h1-advance.js';
+import { createH2CompactHandler } from './application/gate/handlers/h2-compact.js';
+import { createH3InjectHandler } from './application/gate/handlers/h3-inject.js';
+import { createH4ResumeHandler } from './application/gate/handlers/h4-resume.js';
+import { createH5AuditHandler } from './application/gate/handlers/h5-audit.js';
 import { SessionProbeAdapter } from './adapters/SessionProbeAdapter.js';
 import type { UseCaseDeps } from './application/ports.js';
 
@@ -218,12 +227,45 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   // unbound 且无遗留 pending 建议卡（旧流程 triage 产物）→ 登记「待捕获消息」到
   // pendingCapture；turn/end 清除（该回合 LLM 已消费本次立项评估）。capture section
   // 组装时同引用读取并注入针对性立项提示——hook 只保证确定性触发，立项判定与内容
-  // 留给 LLM + 人工（两问弹框作答 = 确认，调 reqboard_create 直接建 REQ）。
+  // 留给 LLM + 人工（reqboard_capture 三问弹框作答 = 确认，同一次调用内直接建 REQ）。
   const pendingCapture = new Map<string, { windowKey: string; text: string; capturedAt: number }>();
   // 工具痕迹表（REQ-2e9473 t05）：窗口 → tool/call 事件序列，done 凭证门（t06）读取。
   const toolTrace = new Map<string, ToolTraceEntry[]>();
   // 最近用户消息缓冲（REQ-2e9473 t10）：窗口 → 清洗后用户消息，confirm_artifact 文字确认核验读取。
   const recentUserMsgs = new Map<string, import('./adapters/SessionProbeAdapter.js').RecentUserMsg[]>();
+  // 唯一投递实现（REQ-e3b6a0 t4）：状态转移注入、30 分钟催办、后续闸门链 H4 三者共用同一形状。
+  const deliverer = new AgentDeliverer(() => agentsSvc, { plugin: name });
+
+  // ── 闸门后置链（REQ-e3b6a0）：Phase A 由装饰器登记，Phase B 在 turn/end 的异步边界执行 ──
+  // D1：链默认开；压缩（H2）由 NODE_ISOLATION 独立控制且默认关（高风险动作分两步上）。
+  const gateIds = new RandomIdFactory();
+  const gateChain = createGatePostChain({
+    enabled: true,
+    pending: createPendingGateStore(),
+    handlers: [
+      createH1AdvanceHandler({ repo: store }),
+      createH2CompactHandler({
+        repo: store,
+        docs,
+        clock,
+        compactionEnabled: nodeIsolationEnabled(config),
+        isolationFor: (session) => new NodeIsolationAdapter(session, {
+          idle: () => turnBoundaryIdle(projectionsSvc, session),
+          plugin: name,
+        }),
+        trace: isolationTrace,
+      }),
+      createH3InjectHandler({ repo: store, injectionLog }),
+      createH4ResumeHandler({ delivery: deliverer, plugin: name }),
+      createH5AuditHandler({ repo: store, now, newCommentId: () => gateIds.comment() }),
+    ],
+    warn: (message) => logger.warn(message),
+  });
+  logger.info(
+    'reqboard 闸门后置链已装配（H1 校验 → H2 压缩 → H3 注入 → H4 唤醒 → H5 审计）；'
+    + '压缩开关 NODE_ISOLATION=' + String(nodeIsolationEnabled(config)),
+  );
+
   const captureHookDeps: CaptureHookDeps = {
     snapshot: () => store.snapshot(),
     pending: pendingCapture,
@@ -240,17 +282,16 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         return advanced.length > 0 ? { requirements: advanced } : undefined;
       }).catch((err) => logger.warn('reqboard rollup (pickup advance) failed:', err));
     },
-    // REQ-31e11f t5：状态转移后向绑定会话注入新阶段纪律提示词。
-    // 经 agents.followup 投递（与 lifecycle 续跑同款模式），绑定会话下一回合收到。
+    // REQ-31e11f t5 + REQ-e3b6a0 t4：状态转移纪律与产物催办文案向绑定会话投递。
+    // 投递形状统一走 AgentDeliverer（唯一实现）——此前 `agents.followup(id, msg)` 把
+    // AgentRegistry 当 Agent 用，typeof 守卫恒 false，于是"状态转移注入"与"30 分钟催办"
+    // 自诞生起从未投递过（同一根因的另两个受害者）。
     onStagePrompt: (windowKey, prompt) => {
-      const agents = agentsSvc as { followup?: (id: string, message: string) => void } | undefined;
-      if (typeof agents?.followup === 'function') {
-        try {
-          agents.followup(windowKey, prompt);
-          logger.debug(`reqboard stage-prompt injected → ${windowKey.slice(0, 16)}`);
-        } catch (err) {
-          logger.warn('reqboard stage-prompt inject failed:', err);
-        }
+      const result = deliverer.deliver(windowKey, { text: prompt });
+      if (result.delivered) {
+        logger.debug(`reqboard stage-prompt injected → ${windowKey.slice(0, 16)}`);
+      } else {
+        logger.warn(`reqboard stage-prompt 未投递（${windowKey.slice(0, 16)}）：${result.reason ?? '未知原因'}`);
       }
     },
     toolTrace,
@@ -258,6 +299,16 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     injectionLog,
     // REQ-422af1 t10：节点结算信号 → 隔离分发（开关关时 dispatcher 一次都不执行）。
     onNodeSettled: (settle, session) => settlement.onSettle(settle, session),
+    // REQ-e3b6a0 t7：**闸门后置链 Phase B 的唯一时机**。闸门作答不一定伴随用户消息，
+    // 故不能只靠 onNodeSettled；且监听器内不得做会话写操作（D-17）→ 放到异步边界。
+    // （链按 (windowKey, gate, decidedAt) 幂等，与结算路径重复触发也只跑一轮。）
+    onTurnEnd: (windowKey, session) => {
+      setImmediate(() => {
+        void gateChain.runPending(windowKey, session).catch((err) => {
+          logger.warn('reqboard gate-chain run failed:', err);
+        });
+      });
+    },
     logger: { info: (m) => logger.info(m), debug: (m) => logger.debug(m) },
   };
   const captureHandler = createSessionEventCaptureHook(captureHookDeps);
@@ -297,8 +348,8 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     },
   );
 
-  // agent 工具：reqboard_create（先两问弹框确认、用户作答即立项 → 直接建 REQ）/
-  // reqboard_status（窗口绑定状态，立项前自查）。direct-human 门在工具内认证。
+  // agent 工具：reqboard_capture（三问弹框 + 同一次调用内创建即立项）/ reqboard_create
+  // （已明确取值/弹框不可用时的手工路径）/ reqboard_status（立项前自查）。direct-human 门在工具内认证。
   // 用例依赖（REQ-47939a t8）：组合根装配 adapters → application 用例；工具壳只做协议转换。
   const useCaseDeps: UseCaseDeps = {
     repo: store,
@@ -312,14 +363,16 @@ export function apply(ctx: Context, config?: PluginConfig): void {
       sessionProjections: () => projectionsSvc,
       now,
     }),
-    questions: new UserQuestionsAdapter(() => userQuestionsSvc),
+    // 能力的唯一织入点（REQ-e3b6a0 t7）：包装后，任何带 opts.gate 的弹框自动进入后置链。
+    questions: new GateAwareQuestions(new UserQuestionsAdapter(() => userQuestionsSvc), gateChain, { now }),
   };
   ;(ctx as unknown as { inject?: (services: string[], cb: (c: any) => void) => void }).inject?.(
     ['tools'],
     (toolsCtx: { effect?: (fn: () => void, label?: string) => void; tools?: any }) => {
       toolsCtx.effect?.(() => {
-        // 9 个工具（REQ-47939a t8：13→9 收敛后）
+        // 工具面（REQ-47939a t8：13→9 收敛；REQ-327bdf 增 task_execute/task_status；REQ-e3b6a0 t8 增 reqboard_capture）
         disposers.push(toolsCtx.tools.register(defineCreateTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineCaptureTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineStatusTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineMoveTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineDecomposeTool(useCaseDeps)));
@@ -332,7 +385,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         disposers.push(toolsCtx.tools.register(defineTaskStatusTool(useCaseDeps)));
       }, name + ': tools');
       logger.info(
-        'agent tools registered (11): reqboard_create / reqboard_status / reqboard_move / reqboard_decompose / reqboard_task_move / reqboard_task_execute / reqboard_task_status / '
+        'agent tools registered (12): reqboard_create / reqboard_capture / reqboard_status / reqboard_move / reqboard_decompose / reqboard_task_move / reqboard_task_execute / reqboard_task_status / '
         + 'reqboard_task_report / reqboard_submit(kind) / reqboard_ask_confirm / reqboard_accept_sheet',
       );
     },
@@ -350,7 +403,11 @@ export function apply(ctx: Context, config?: PluginConfig): void {
           handler: createReqboardHandler({
             store,
             now,
+            docs,
             injectionLog,
+            // REQ-e3b6a0 t9 / FR-9：看板「确认产物」纳入切面——确认即推进 + 链侧投递（H2 需要会话句柄）。
+            gateChain,
+            agents: () => agentsSvc as { get?: (id: string) => unknown } | undefined,
             systemPrompt: () => systemPromptSvc,
             tokenSnapshot: (wk) => { // REQ-b545fe t6: 注入快照提供者
               try {

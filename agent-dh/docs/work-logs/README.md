@@ -19,9 +19,9 @@ tags: [worklog, index, l3]
 - **提炼**：结论一旦合并进 L2，就在日志 fm 里填 `distilled_into: docs/...`——**待提炼队列 = 没填这个字段的**；队列才是要干的活，其余不必读。
 
 <!-- AUTO:ledger BEGIN -->
-合计 **93** 篇。**提炼去向**（`distilled_into`）为空的都在「待提炼队列」里——那才是要干的活，其余不必读。
+合计 **94** 篇。**提炼去向**（`distilled_into`）为空的都在「待提炼队列」里——那才是要干的活，其余不必读。
 
-### 2026-09（48 篇）
+### 2026-09（49 篇）
 
 | 日期 | 日志 | 提炼去向 |
 |---|---|---|
@@ -64,6 +64,7 @@ tags: [worklog, index, l3]
 | 2026-09-01 | [盈利引擎系统设计完成进度重新梳理（2026-09-01）](2026-09/m0-m8-progress-rebaseline.md) | ⏳ 待提炼 |
 | — | [requirement-progress-implementation.md](2026-09/requirement-progress-implementation.md) | ⏳ 待提炼 |
 | — | [reqboard-pipeline-simplify.md](2026-09/reqboard-pipeline-simplify.md) | ⏳ 待提炼 |
+| — | [position-plan-20260919.md](2026-09/position-plan-20260919.md) | ⏳ 待提炼 |
 | — | [pmboard-optimization-plan.md](2026-09/pmboard-optimization-plan.md) | ⏳ 待提炼 |
 | — | [pmboard-node-diff-implementation.md](2026-09/pmboard-node-diff-implementation.md) | ⏳ 待提炼 |
 | — | [pmboard-new-tools-design.md](2026-09/pmboard-new-tools-design.md) | ⏳ 待提炼 |

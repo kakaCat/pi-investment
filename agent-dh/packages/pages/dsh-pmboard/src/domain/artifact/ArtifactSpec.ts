@@ -31,17 +31,14 @@ export const STAGE_ARTIFACT_REQUIREMENTS: Readonly<Partial<Record<StageKey, read
 }
 
 /**
- * 五道人工确认门（2026-09-14 用户裁定）：'from>to' → 须已确认的产物 kind。
+ * 人工确认门表：`from>to` → 须已确认的产物 kind。
  * 语义：产物存在 ≠ 人已审阅——产物登记即发通知请人审阅，人看文档/交流改进后
  * 在看板一键确认（confirmedAt/confirmedBy），才放行对应转移。
+ *
+ * REQ-e3b6a0 t2：**定义已迁入 `domain/gate/GateCatalog.ts`**（人工闸门唯一事实源），
+ * 本处只做再导出以保持既有调用点（protocol / MoveRequirement / 看板）不变。
  */
-export const ARTIFACT_CONFIRM_GATES: Readonly<Record<string, ArtifactKind>> = {
-  'brainstorming>design': 'requirement',
-  'design>decomposing': 'plan',
-  'decomposing>implementing': 'decomposition',
-  // REQ-9f4a44：验收通过 = 直接归档，故本门挂在 accepting>archived 上
-  'accepting>archived': 'verification',
-}
+export { ARTIFACT_CONFIRM_GATES } from '../gate/GateCatalog.js'
 
 /** 归档材料里的一条文档。 */
 export interface ArchiveDoc {

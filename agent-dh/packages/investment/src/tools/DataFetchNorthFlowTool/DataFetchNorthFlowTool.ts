@@ -32,6 +32,8 @@ export class DataFetchNorthFlowTool extends BaseTool<DataFetchNorthFlowParams, D
   }
 
   protected async execute(
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     args: DataFetchNorthFlowParams,
     context: ToolContext
   ): Promise<DataFetchNorthFlowResult> {

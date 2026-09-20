@@ -36,6 +36,8 @@ export class BarraDecompositionTool extends BaseTool<BarraDecompositionParams, B
    * Phase 2: 执行任务
    */
   protected async execute(args: BarraDecompositionParams, _context: ToolContext): Promise<BarraDecompositionResult> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     const symbols = args.symbols?.length
       ? args.symbols
       : // 2026-09-01：Barra 横截面回归需 ≥ 因子数+5 只股票（5 风格因子 → ≥10），

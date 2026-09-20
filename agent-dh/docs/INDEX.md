@@ -3,7 +3,7 @@ id: docs-index
 title: 全站页面索引（机器可读入口）
 type: index
 status: living
-updated: 2026-09-19
+updated: 2026-09-20
 owners: [agent-dh]
 tags: [index, wiki]
 ---
@@ -18,12 +18,12 @@ tags: [index, wiki]
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
-| [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-09-19 |
+| [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-09-20 |
 | [agent-dh Wiki（归档文档首页 / 大纲）](README.md) | manual | living | agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。 | 2026-09-13 |
 | [🎊 Agent-DH v0.1.1 发布说明](RELEASE-NOTES-v0.1.1.md) | doc | living | v0.1.1（2026-08-18）发布说明：稳定性与可靠性改进清单（历史版本记录）。 | 2026-09-14 |
 | [工作日志索引（L3 证据档案）](work-logs/README.md) | index | living | 某个时间点「当时做了什么、为什么这么做、结论是什么」。按月份倒序列出全部工作日志。 | 2026-09-14 |
 
-### 架构与生命周期 · `docs/architecture`（23 页）
+### 架构与生命周期 · `docs/architecture`（26 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
@@ -32,12 +32,15 @@ tags: [index, wiki]
 | [Agent-DH 工具重构总计划](architecture/REFACTOR_PLAN.md) | architecture | frozen | 2026-08-28 的工具重构总计划（只落地 Phase 1 trading）；现行工具架构以工具开发规范为准。 | 2026-09-13 |
 | [Agent-DH 工具清单](architecture/TOOLS_INVENTORY.md) | architecture | living | 工具清单快照（2026-08-28，约 120 个工具与归属插件）——核对某工具是否存在时用；数字可能滞后。 | 2026-09-14 |
 | [为什么部分插件没有 dist 目录？](architecture/WHY-NO-DIST.md) | architecture | living | 为什么有的包有 dist、有的没有（tsx 直载），以及怎么判断某个包走哪条路。 | 2026-09-14 |
+| [a-grade-signal-auto-execution.md](architecture/a-grade-signal-auto-execution.md) | — | — | 解决当前"信号产生但不执行"的问题，建立A级信号到交易执行的自动化闭环，提高信号转化率从<2%到>50%。 | — |
 | [账户模型与边界](architecture/accounts-and-boundaries.md) | architecture | living | 系统里有哪些账户、是谁的、我怎么知道自己该操作哪个。 | 2026-09-13 |
 | [agent-dh 是什么（子项目说明书）](architecture/agent-dh-overview.md) | manual | living | agent-dh 在系统里的位置、运行时长什么样、代码怎么组织、改动怎么生效。 | 2026-09-13 |
+| [auto-reduce-position-system.md](architecture/auto-reduce-position-system.md) | — | — | 自动识别并执行减仓操作，防止亏损扩大，锁定盈利。 | — |
 | [数据契约与新鲜度](architecture/data-contracts-and-freshness.md) | architecture | living | 数据从哪来、契约长什么样、怎么判断"这批数能不能用"。 | 2026-09-13 |
 | [数据库表设计对比分析报告](architecture/database-table-comparison.md) | architecture | living | v2 数据库表设计与文档的对比分析（结论：simulation_* 表设计更好），2026-08-25。 | 2026-09-14 |
 | [文档规范融入插件实施指南](architecture/documentation-standard-integration-guide.md) | — | draft | 调用时机（源码注释原话）：在 assertReqTransition 之后、真正写盘之前。 | — |
 | [项目文档规范（需求→设计→实施→测试全链路）](architecture/documentation-standard.md) | — | draft | 即：前后端与测试用例不是独立的层，而是「怎么做」的组成部分——它们是方案，不是步骤。 | — |
+| [闸门确认后置链（切面 + 责任链）](architecture/gate-post-chain.md) | architecture | living | 人工闸门被作答之后机器自动做什么：唯一点 join point、两相执行 H1..H5、短路/降级/幂等不变量、新加一道门要改哪里。 | 2026-09-20 |
 | [agent-dh 术语表](architecture/glossary.md) | manual | living | 这些词分别指什么、去哪看细节。术语按"最容易混"排序。 | 2026-09-13 |
 | [身份系统与 agents.json](architecture/identity-and-agents-json.md) | architecture | living | 我是谁、账户从哪来、多窗口与多实例怎么区分。 | 2026-09-13 |
 | [旧订单体系废弃计划](architecture/legacy-system-deprecation-plan.md) | architecture | living | 旧 orders/holdings 体系的安全废弃计划与已删端点清单（2026-08-25）。 | 2026-09-14 |
@@ -72,7 +75,7 @@ tags: [index, wiki]
 | [工具审计清单](protocols/tool-audit.md) | protocol | living | 怎么查一个工具"说到的"是不是"做到的"（定期抽查 / 接手陌生插件时用）。 | 2026-09-13 |
 | [交易执行协议（Trade Execution Protocol）](protocols/trade-execution-protocol.md) | protocol | living | 交易打标协议 v1.0：每笔交易如何带 genome_version / rules_used 进经验库。 | 2026-09-14 |
 
-### 指南（怎么做 / 怎么排障） · `docs/guides`（17 页）
+### 指南（怎么做 / 怎么排障） · `docs/guides`（20 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
@@ -90,9 +93,12 @@ tags: [index, wiki]
 | [重启防丢 Session 操作手册（Restart Session Safety Runbook）](guides/restart-session-safety.md) | guide | living | 重启（含 self_restart）后会话历史为什么不丢、怎么保证——附 PID 与源码级证据。 | 2026-09-14 |
 | [定时巡检清单（有问题才打扰）](guides/routine-checks.md) | guide | living | 哪些检查该定期跑、跑什么命令、什么算有问题、出了问题找谁。 | 2026-09-13 |
 | [技能装载机制（Skill Loading）——排障实录与标准流程](guides/skill-loading.md) | guide | living | 技能为什么看不见：两个 dsh home + skill registry 分层，以及正确的装载姿势。 | 2026-09-14 |
+| [task-execution-migration.md](guides/task-execution-migration.md) | — | — | 本指南说明如何从旧的任务执行方式迁移到基于 DSH Workflow 的新系统。 | — |
 | [交易约束速查](guides/trading-constraints.md) | guide | living | 下单前要过的硬约束，一张表查完（完整纪律见 账户与交易纪律）。 | 2026-09-13 |
 | [故障排查手册（症状 → 根因 → 处置）](guides/troubleshooting.md) | guide | living | 遇到这些症状，先看哪里、大概率是什么、怎么修。 | 2026-09-15 |
 | [M6 周报推送使用指南](guides/weekly-report-push-guide.md) | guide | living | 周报推送到飞书的配置与使用步骤。 | 2026-09-13 |
+| [workflow-migration-guide.md](guides/workflow-migration-guide.md) | — | — | 本指南说明如何从旧的任务执行方式迁移到基于 DSH Workflow 的新系统。 | — |
+| [workflow-tools-guide.md](guides/workflow-tools-guide.md) | — | — | 本指南说明如何使用基于 DSH Workflow 的新任务执行工具。 | — |
 
 ### 设计与实施方案（历史） · `docs/design`（11 页）
 

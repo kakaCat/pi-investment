@@ -14,6 +14,7 @@ import {
   buildSheet,
   applyVerdicts,
   isAllPassed,
+  isFullyDecided,
   REQUIREMENT_LEVEL_CRITERION,
   type SheetLike,
 } from '../../src/domain/workflow/AcceptanceSheetSpec.js'
@@ -176,5 +177,60 @@ describe('applyVerdicts：逐项裁决 + 返工规格', () => {
     expect(isAllPassed(s)).toBe(false)
     applyVerdicts(s, s.items.map(i => ({ itemId: i.id, status: 'passed' as const })), actor, 100, tasks)
     expect(isAllPassed(s)).toBe(true)
+  })
+})
+
+describe('T-U1~T-U4：不可验收项与「全部已裁决」放行判据（REQ-308b9a FR-9）', () => {
+  const actor2 = { kind: 'human', sessionId: 'w-abcdef12' } as const
+  const tasks2 = [{ id: 't-aaaaaa', title: '任务一', phase: 'implement', side: 'backend' }]
+
+  function mkSheet2(): SheetLike {
+    return {
+      version: 1,
+      items: [
+        { id: 'v1-1', source: { kind: 'task', taskId: 't-aaaaaa' }, criterion: '单测绿', evidence: ['e'], status: 'pending' },
+        { id: 'v1-2', source: { kind: 'task', taskId: 't-aaaaaa' }, criterion: '截图可见', evidence: ['e'], status: 'pending' },
+      ],
+      generatedAt: 1,
+      generatedBy: actor2,
+    }
+  }
+
+  it('T-U1: applyVerdicts 对 not_verifiable 缺原因抛 invalid_input（AC-9.2）', () => {
+    const s = mkSheet2()
+    try {
+      applyVerdicts(s, [{ itemId: 'v1-1', status: 'not_verifiable' }], actor2, 100, tasks2)
+      throw new Error('应当抛错')
+    } catch (err) {
+      expect(hasErrorCode(err, REQBOARD_ERROR_CODES.invalidInput)).toBe(true)
+    }
+  })
+
+  it('T-U2: applyVerdicts 对 failed 缺意见抛 invalid_input', () => {
+    const s = mkSheet2()
+    try {
+      applyVerdicts(s, [{ itemId: 'v1-1', status: 'failed' }], actor2, 100, tasks2)
+      throw new Error('应当抛错')
+    } catch (err) {
+      expect(hasErrorCode(err, REQBOARD_ERROR_CODES.invalidInput)).toBe(true)
+    }
+  })
+
+  it('T-U3: passed + not_verifiable（无 pending）→ isFullyDecided=true，且不生成返工（AC-9.3/AC-8.5）', () => {
+    const s = mkSheet2()
+    const r = applyVerdicts(s, [
+      { itemId: 'v1-1', status: 'passed' },
+      { itemId: 'v1-2', status: 'not_verifiable', opinion: '本机无该运行环境' },
+    ], actor2, 100, tasks2)
+    expect(r.notVerifiable).toBe(1)
+    expect(r.pending).toBe(0)
+    expect(isFullyDecided(s)).toBe(true)
+    expect(r.reworkTasks.length).toBe(0)
+  })
+
+  it('T-U4: 仍有 pending → isFullyDecided=false（AC-9.5）', () => {
+    const s = mkSheet2()
+    applyVerdicts(s, [{ itemId: 'v1-1', status: 'passed' }], actor2, 100, tasks2)
+    expect(isFullyDecided(s)).toBe(false)
   })
 })

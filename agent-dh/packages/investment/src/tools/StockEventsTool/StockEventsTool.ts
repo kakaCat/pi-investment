@@ -17,6 +17,8 @@ export class StockEventsTool extends BaseTool<StockEventsParams, any> {
     return { success: true };
   }
   protected async execute(args: StockEventsParams, _c: ToolContext): Promise<any> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     const res: any = await (this.qv2 as any).getSymbolEvents(args.symbol, { days: args.days ?? 90 });
     // 多源失败语义：全源失败 → 显式报错，禁止把失败当"无事件"（排雷场景下这会是致命的假安全）
     if (!res || res.success !== true) {

@@ -32,6 +32,8 @@ export class LimitUpPoolTool extends BaseTool<LimitUpPoolParams, LimitUpPoolResu
   }
 
   protected async execute(args: LimitUpPoolParams, _context: ToolContext): Promise<LimitUpPoolResult> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     const date = args.date || this.todayStr();
     const res = await this.qv2.getLimitUpPool(date);
 

@@ -3,7 +3,7 @@ id: requirements-index
 title: 需求档案索引（L3 证据档案）
 type: index
 status: living
-updated: 2026-09-19
+updated: 2026-09-20
 owners: [agent-dh]
 tags: [reqboard, archive, index, l3]
 ---
@@ -16,6 +16,7 @@ tags: [reqboard, archive, index, l3]
 
 | REQ id | 一句话结论 | 类型 | 归档日期 | 需求目录 | 合并去向 |
 |---|---|---|---|---|---|
+| REQ-e3b6a0 | 闸门确认后置链：五道人工闸门统一织入 H1..H5（推进→压缩→注入→唤醒→留痕）+ pm 专有立项弹框 reqboard_capture + 立项提示硬化 | feature | 2026-09-20 | [REQ-e3b6a0](REQ-e3b6a0/) | [architecture/gate-post-chain.md](../architecture/gate-post-chain.md) |
 | REQ-6f39b5 | 项目看板三视图重构：详情页 4Tab+8态进度点、泳道 6 列、列表表格化；流程节点唯一事实源 workflow-stages.md | refactor | 2026-09-17 | [REQ-6f39b5](REQ-6f39b5/) | [architecture/workflow-stages.md](../architecture/workflow-stages.md) |
 | REQ-283168 | 看板双视图+会话进度条因 stash 未 pop 被覆盖丢失，已从 stash 恢复入库；防回归进排查手册§E | bug | 2026-09-15 | [REQ-283168](REQ-283168/) | [guides/troubleshooting.md](../guides/troubleshooting.md) |
 | REQ-31e11f | 会话框流程条 8 节点可点开看工作记录：StageDetail 契约+模板模式双端+产物闸门+追溯链+接力任务卡+markdown 弹窗；与看板同源同渲染器 | feature | 2026-09-17 | [REQ-31e11f](REQ-31e11f/) | [architecture/reqboard-stage-detail.md](../architecture/reqboard-stage-detail.md)、[README 卷 7](../README.md) |

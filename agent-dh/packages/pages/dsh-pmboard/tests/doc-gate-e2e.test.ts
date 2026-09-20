@@ -130,12 +130,28 @@ describe('E2E② 交付 → 三方一致性验收单', () => {
   )
   const DESIGN = doc('# 架构', '', '## D-ARCH-1 覆盖 `serves: FR-1`', '', '## D-ARCH-2 追溯 `serves: FR-4`')
 
+  /**
+   * 补足"9 类文档"（REQ-308b9a FR-7 / AC-7.5 的验收前置门）。
+   * 本用例只关心**三方一致性**缺口项，故文档内容无关紧要，只为过门。
+   */
+  const seedNineDocs = (hh: any) => {
+    hh.docs.put('docs/requirements/REQ-000001/plan.md', doc('# 计划', '', '| key | 标题 |', '|---|---|', '| T-1 | 覆盖门禁 |'))
+    hh.docs.put('docs/requirements/REQ-000001/design/data-model.md', doc('# 数据模型'))
+    hh.docs.put('docs/requirements/REQ-000001/design/interfaces.md', doc('# 接口'))
+    hh.docs.put('docs/requirements/REQ-000001/design/test-cases.md', doc('# 测试用例'))
+    hh.docs.put('docs/requirements/REQ-000001/reviews/review-1.md', doc('# 评审'))
+    hh.docs.put('docs/requirements/REQ-000001/tests/unit.log', doc('3 passed'))
+    hh.docs.put('docs/requirements/REQ-000001/tasks/t-aaa111.md', doc('# 任务卡 t-aaa111'))
+    hh.docs.put('docs/requirements/REQ-000001/tasks/t-bbb222.md', doc('# 任务卡 t-bbb222'))
+  }
+
   it('需求有编号、**无设计**（FR-4 无设计章节）、**无实施**（RTM 里 FR-4 无卡）→ 验收单出现「三方一致性」缺口项', async () => {
     const hh = makeHarness({ requirements: [verifyingReq()], tasks: [] })
     seedTasks(hh)
     hh.docs.put('docs/requirements/REQ-000001/requirement.md', REQ_MD)
     hh.docs.put('docs/requirements/REQ-000001/decomposition.md', RTM_GAP)
     hh.docs.put('docs/requirements/REQ-000001/design/architecture.md', DESIGN)
+    seedNineDocs(hh)
     const out: any = await submitVerification(hh.deps, { summary: '交付完成', evidence: ['npx vitest run 全绿'] }, EXEC)
     expect(out.success).toBe(true)
     const sheet = hh.repo.ledger.requirements[0].verification?.sheet
@@ -151,9 +167,63 @@ describe('E2E② 交付 → 三方一致性验收单', () => {
     hh.docs.put('docs/requirements/REQ-000001/requirement.md', REQ_MD)
     hh.docs.put('docs/requirements/REQ-000001/decomposition.md', RTM_OK)
     hh.docs.put('docs/requirements/REQ-000001/design/architecture.md', DESIGN)
+    seedNineDocs(hh)
     const out: any = await submitVerification(hh.deps, { summary: '交付完成', evidence: ['npx vitest run 全绿'] }, EXEC)
     expect(out.success).toBe(true)
     const sheet = hh.repo.ledger.requirements[0].verification?.sheet
     expect(sheet?.items.some((i: any) => i.criterion.includes('三方一致性'))).toBe(false)
+  })
+})
+
+describe('T-I7/T-I8: 验收前置 9 类文档门（REQ-308b9a FR-7 / AC-7.5）', () => {
+  const rq = () => seededReq({
+    status: 'implementing',
+    artifacts: [{ stage: 'design', kind: 'plan', path: 'docs/requirements/REQ-000001/plan.md' }],
+  })
+  const seedTask = (hh: any) => {
+    hh.repo.ledger.tasks.push(
+      task({ id: 't-aaa111', status: 'done', acceptance: 'npx vitest run tests/a.test.ts 通过', lastReport: { at: 1, reportIndex: 1, filesChanged: [], completed: ['3 passed'] } }),
+    )
+  }
+  /** 9 类文档逐项（缺哪条由测试删除）。 */
+  const NINE: [string, string][] = [
+    ['requirement.md', '# 需求'],
+    ['plan.md', '# 计划'],
+    ['decomposition.md', '# 拆分'],
+    ['design/architecture.md', '# 架构'],
+    ['design/data-model.md', '# 数据模型'],
+    ['design/interfaces.md', '# 接口'],
+    ['design/test-cases.md', '# 测试用例'],
+    ['reviews/r1.md', '# 评审'],
+    ['tests/unit.log', '3 passed'],
+  ]
+  const putNine = (hh: any, omit?: string) => {
+    for (const [rel, content] of NINE) {
+      if (rel === omit) continue
+      hh.docs.put('docs/requirements/REQ-000001/' + rel, content)
+    }
+    hh.docs.put('docs/requirements/REQ-000001/tasks/t-aaa111.md', '# 任务卡')
+  }
+
+  it('T-I7: 缺 design/interfaces.md → 提交被拒且点名该文件（AC-7.5）', async () => {
+    const hh = makeHarness({ requirements: [rq()], tasks: [] })
+    seedTask(hh)
+    putNine(hh, 'design/interfaces.md')
+    await expect(
+      submitVerification(hh.deps, { summary: '交付完成', evidence: ['npx vitest run 全绿'] }, EXEC),
+    ).rejects.toThrow(/design\/interfaces\.md/)
+  })
+
+  it('T-I8: 9 类齐 → 生成结构化 verification.md（四段齐全，AC-7.1）', async () => {
+    const hh = makeHarness({ requirements: [rq()], tasks: [] })
+    seedTask(hh)
+    putNine(hh)
+    const out: any = await submitVerification(hh.deps, { summary: '交付完成', evidence: ['npx vitest run 全绿'] }, EXEC)
+    expect(out.success).toBe(true)
+    const md = hh.docs.files.get('docs/requirements/REQ-000001/verification.md')?.content ?? ''
+    expect(md, md).toContain('## 1. 验收列表')
+    expect(md, md).toContain('## 2. 测试报告')
+    expect(md, md).toContain('## 3. 文档完整性检查')
+    expect(md, md).toContain('## 4. 验收结果')
   })
 })

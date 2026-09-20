@@ -44,6 +44,8 @@ export class CorePlanTool extends BaseTool<CorePlanParams, CorePlanResult> {
   }
 
   protected async execute(args: CorePlanParams, _context: ToolContext): Promise<CorePlanResult> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     // 账户纪律（R-019）：缺省 = 本实例投资账户（工具层默认），显式传入以传入为准。
     // 后端会把它与**计划文件自身记录的账户**比对：不一致时返回 account_mismatch=true
     // 且不给差额（计划只覆盖单一账户，跨账户算差额是错数据）。不静默。

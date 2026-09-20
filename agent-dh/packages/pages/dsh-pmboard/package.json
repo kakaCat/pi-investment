@@ -1,29 +1,50 @@
 {
   "name": "dsh-pmboard",
   "version": "0.1.0",
-  "description": "项目看板 dsh-pmboard — 需求流水线插件（RFC 014）",
+  "description": "项目看板 dsh-pmboard — DSH 需求流水线页面插件（host: reqboard JSON+SSE API 与 13 个立项/拆分/验收工具；client: GUI 看板视图）",
+  "license": "MIT",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
+    "./package.json": "./package.json",
     ".": {
-      "import": "./src/index.ts",
-      "types": "./src/index.ts"
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
     },
     "./client": "./lib/client.js"
   },
+  "files": [
+    "dist",
+    "lib",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kakaCat/pi-investment.git",
+    "directory": "agent-dh/packages/pages/dsh-pmboard"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
+    "build": "tsdown -c tsdown.config.mjs && pnpm build:client",
+    "build:client": "tsdown -c tsdown.client.config.mjs && node scripts/wrap-client.mjs && node scripts/verify-client-build.mjs",
+    "verify:client": "node scripts/verify-client-build.mjs",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build:client": "node ../../../node_modules/tsdown/dist/run.mjs -c tsdown.client.config.ts && node scripts/wrap-client.mjs && node scripts/verify-client-build.mjs",
-    "verify:client": "node scripts/verify-client-build.mjs"
+    "prepublishOnly": "pnpm build && pnpm typecheck"
   },
-  "dependencies": {
-    "@deepseek-ai/cordis": "^4.0.1",
-    "@pi-investment/page-kit": "workspace:*",
-    "marked": "^18.0.13"
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
   },
   "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
     "@types/node": "^20.11.0",
+    "tsdown": "^0.22.14",
+    "tsx": "^4.23.12",
     "typescript": "^5.3.3",
     "vitest": "^2.0.0"
   },

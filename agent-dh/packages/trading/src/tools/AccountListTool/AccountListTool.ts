@@ -38,6 +38,8 @@ export class AccountListTool extends BaseTool<AccountListParams, AccountListResu
   }
 
   protected async execute(args: AccountListParams, _context: ToolContext): Promise<AccountListResult> {
+    // TODO: 处理非200响应 - 添加错误处理或降级逻辑（404/500等），参考 pe_percentile 改进方案
+    // 每个工具的业务语义不同，需要根据具体场景设计降级策略
     const status = (args.status as string) || 'active';
     const rows = await this.qv2.listAccounts(status as any);
     const accounts = (rows || []).map((a: any) => ({
