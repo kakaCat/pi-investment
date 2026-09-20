@@ -8,7 +8,7 @@
  *   3. 实施列表：执行者（w-xxx 窗口 / sub w-xxx subagent）+ 时间 + 失败标红
  *   4. 产物文档行：可点击链接（data-action="open-doc"）；缺失必备产物红字
  *   5. 动态：相对时间 + 操作者（人/窗口/subagent）
- *   6. 追溯链可见（requirement → plan → … 顺序）
+ *   6. 追溯链可见（requirement → plan → … 顺序）；同类多份（design）显示文件名
  *   7. 分类跳过节点（enabled=false → skipped）
  *   8. renderStageNode：行状态推导 + 面板渲染
  *   9. 健壮性：body 字段缺失不抛错
@@ -411,6 +411,32 @@ describe('追溯链', () => {
     expect(reqIdx).toBeGreaterThan(-1)
     expect(planIdx).toBeGreaterThan(reqIdx)
     expect(taskIdx).toBeGreaterThan(planIdx)
+  })
+
+  it('同类多份（design）：显示各自文件名，不再四份全叫「设计文档」（2026-09-21 用户反馈）', () => {
+    // 设计节点的交付物是一整套文档 → 同一 kind 下多条产物记录
+    const names = ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md']
+    const artifacts = names.map(name =>
+      makeArtifact({ kind: 'design', stage: 'design', path: 'docs/requirements/REQ-test/design/' + name }))
+    const html = renderStagePanel(makeStageDetail({ stage: 'design', artifacts, body: {} as never }))
+    // 每份文档显示自己的名字（按钮文字 = 文件名），点开仍是自己的路径
+    for (const name of names) {
+      expect(html).toContain(
+        'data-path="docs/requirements/REQ-test/design/' + name + '">' + name + '</button>',
+      )
+    }
+    // 同一个词不再重复出现（此前 trace chain 上 4 个按钮全渲染成「设计文档」）
+    expect(html).not.toContain('>设计文档<')
+  })
+
+  it('单份产物仍用种类名（人认的是「这一步交了没」）', () => {
+    const artifacts = [
+      makeArtifact({ kind: 'plan', stage: 'design', path: 'docs/requirements/REQ-test/plan.md' }),
+      makeArtifact({ kind: 'decomposition', stage: 'decomposing', path: 'docs/requirements/REQ-test/decomposition.md' }),
+    ]
+    const html = renderStagePanel(makeStageDetail({ stage: 'design', artifacts, body: {} as never }))
+    expect(html).toContain('>拆分计划</button>')
+    expect(html).toContain('>拆分方案</button>')
   })
 })
 

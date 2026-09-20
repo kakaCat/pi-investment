@@ -66,6 +66,31 @@ const ARTIFACT_KIND_LABELS: Partial<Record<ArtifactKind, string>> = {
   archive: '归档材料',
 }
 
+/**
+ * 「同类多份」产物种类：同一个节点下会有**多条同 kind 的产物记录**，每条是一份独立文档。
+ *
+ * 目前只有 design——设计节点的交付物是**一整套**文档（architecture.md / data-model.md /
+ * interfaces.md / test-cases.md…），同一 kind 下会有多条产物。其余种类一份需求只有一份。
+ * 为什么需要这张表：追溯链按 kind 取显示名，同类多份时全部渲染成同一个词
+ * （设计节点上四份文档全叫「设计文档」），人根本分不出谁是谁——2026-09-21 用户反馈。
+ */
+const MULTI_DOC_KINDS: ReadonlySet<ArtifactKind> = new Set<ArtifactKind>(['design'])
+
+/**
+ * 追溯链上的产物显示名。
+ *
+ * - 单份产物（requirement / plan / decomposition / verification / archive）→ 种类中文名
+ *   （人认的是「这一步交了没」）；
+ * - 同类多份（design）→ **文件名**（architecture.md…），否则同节点多份文档全同名。
+ *   口径与看板「文档记录」区块一致（collectReqDocs 也是取 basename）。
+ */
+function traceNodeLabel(kind: ArtifactKind, path: string): string {
+  const kindLabel = ARTIFACT_KIND_LABELS[kind] ?? kind
+  if (!MULTI_DOC_KINDS.has(kind)) return kindLabel
+  const base = path.split('/').pop() ?? ''
+  return base.length > 0 ? base : kindLabel
+}
+
 /** 追溯链顺序（requirement → design → plan → decomposition → task_detail → verification → archive）。 */
 const TRACE_CHAIN_ORDER: ArtifactKind[] = [
   'requirement',
@@ -530,9 +555,11 @@ function renderTraceChain(payload: StageDetail): string {
       continue
     }
     for (const artifact of list) {
+      // 同类多份（design）用文件名区分，否则同节点四份文档全叫「设计文档」
+      const label = traceNodeLabel(kind, artifact.path)
       chainItems.push(
         '<span class="dsh-pm-trace-node" data-kind="' + esc(kind) + '">' +
-          '<button type="button" class="dsh-pm-sn-doc dsh-pm-trace-path" data-action="open-doc" data-path="' + esc(artifact.path) + '">' + esc(kindLabel) + '</button>' +
+          '<button type="button" class="dsh-pm-sn-doc dsh-pm-trace-path" data-action="open-doc" data-path="' + esc(artifact.path) + '">' + esc(label) + '</button>' +
         '</span>'
       )
     }
