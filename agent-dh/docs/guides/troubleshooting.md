@@ -62,6 +62,7 @@ tags: [guide, troubleshooting, ops]
 | 测试跑得出来但依赖解析失败 | 跑在 worktree 而依赖指向主仓（或反之） | 明确 cwd 与符号链接指向；**在哪个树里改就在哪个树里验证** |
 | `git merge` 报 "local changes would be overwritten" | 主工作区有他人未提交改动 | **停手**：不要 checkout / restore 批量覆盖；先把自己的分支 rebase 到 main 再 ff 合并 |
 | 页面上「之前有」的功能不见了（视图/按钮/面板消失，无报错） | 实现被 `git stash` 暂存后未 pop，后续提交把它覆盖沉没；或功能文件 untracked 从未入库 | `git stash list` + `git reflog` + `git fsck --lost-found` 三路找回；恢复后连 untracked 文件一起入库；**stash 即负债**——跨会话暂存转分支，清 stash 前先导出 patch 备份（REQ-283168） |
+| 提交自称「已构建核验」但线上带失败测试 | 发版核验只跑了构建没跑测试——构建只证产物存在 | **发版核验必含全量测试**；静态扫描器报「扫描器可能失效」时先查源码正则/模板串里的裸反引号（扫描器会把它当模板串起点吞掉后文），别怀疑门禁本身；wip 基线归一前先 diff 视图文件，防新版渲染被旧版盖掉（REQ-f0579a） |
 
 ## 依据
 
@@ -71,6 +72,7 @@ tags: [guide, troubleshooting, ops]
 - 工具 schema 缺字段导致全量启动崩溃；
 - 本轮实踩：client 半产物未重建 → 新按钮不出现；worktree 缺 node_modules → 测试全挂；主仓脏改动 → merge 被拒；
 - 2026-09-15：看板双视图被 stash@{0} 沉没数月（暂存后未 pop + P0/P1/P2 覆盖），`conversation-progress.ts` 以 untracked 状态裸奔（REQ-283168）。
+- 2026-09-20：HEAD 带 17 个失败测试上线（构建核验漏跑测试）；output-contract 扫描器被 TaskStatusTool 正则字面量里的裸反引号致盲；wip 基线归一盖掉三处看板新渲染（REQ-f0579a）。
 
 ## 相关页面
 
