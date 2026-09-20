@@ -3,7 +3,7 @@
  *
  * @module dsh-pmboard/client/views/stage-detail
  */
-import { esc } from '@pi-investment/page-kit/client'
+import { esc } from '../vendor/page-kit/index.js'
 import type { RequirementRecord, RequirementStatus, TaskRecord, TaskStatus } from '../types.ts'
 import { PROGRESS_DOT_STAGES, WORKFLOW_STAGES, getStageOrder } from '../workflow-constants.ts'
 import { NO_ARCHIVED, PHASE_LABELS, STATUS_LABELS, TASK_STATUS_LABELS, fmtTime, renderComments, renderMarkdown, renderWindowChip, windowCodeFromSessionId } from '../render/dom-utils.ts'
@@ -263,6 +263,13 @@ export function renderActionBar(req: RequirementRecord): string {
       break
     default:
       break
+  }
+
+  // 取消需求：*→canceled 是全在途态合法转移（REQ_TRANSITIONS）且仅人可点，
+  // 但操作条此前只在 draft 渲染——其余在途态人找不到取消入口（2026-09-20 用户实测：
+  // decomposing 需求想取消，详情页没有按钮）。draft 已在上方 switch 渲染，此处补其余态。
+  if (req.status !== 'draft' && req.status !== 'done' && req.status !== 'canceled' && req.status !== 'archived') {
+    move('canceled', '取消', '取消该需求（仅人可操作）')
   }
 
   if (req.plan !== undefined && req.plan.approvedAt === undefined) {
