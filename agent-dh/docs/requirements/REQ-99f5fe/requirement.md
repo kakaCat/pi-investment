@@ -17,7 +17,7 @@ risk_level: medium
 | 提出 | 用户 |
 | 分析 | investor / w-b5b8ab06 |
 | 触发实证 | ① 用户原话「CaptureHook 注入的提示词有问题，导致没有让llm 触发创建立项的弹框」；② 用户裁定范围「**业务的 hook 机制统一封装成一个领域**」（不是全量挂载点）；③ 本窗口在已产出多份实施方案的情况下连续多轮讨论**零弹框、零 REQ** |
-| 复核时点 | **2026-09-20 五次复核**：①对齐 e3b6a0 已上线内容；②B2–B5 剔除出 hook 回归程序路径；③改名（CaptureHook → SessionEventIntake）；④补 §1.3 流程图（事件流 / 七节点矩阵 / 目标架构与闸门链接缝）：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径；③按用户裁定改名（CaptureHook → SessionEventIntake，名随职责）：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径（CaptureHook 只处理立项）：本文档已按当前入库状态（`972b2262`）重写——写作期间 REQ-e3b6a0 的闸门链与文案硬化**已上线**，旧版中"三处硬伤/半接线/进行中"等描述已过期 |
+| 复核时点 | **2026-09-20 六次复核**：①对齐 e3b6a0；②B2–B5 剔除出 hook；③改名 SessionEventIntake；④补 §1.3 流程图；⑤按用户问答澄清"闸门为何还有一处 hook"（时点订阅合法 vs 嗅探推断错放），新增 B11 与 timing.turn-end 规则：①对齐 e3b6a0 已上线内容；②B2–B5 剔除出 hook 回归程序路径；③改名（CaptureHook → SessionEventIntake）；④补 §1.3 流程图（事件流 / 七节点矩阵 / 目标架构与闸门链接缝）：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径；③按用户裁定改名（CaptureHook → SessionEventIntake，名随职责）：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径（CaptureHook 只处理立项）：本文档已按当前入库状态（`972b2262`）重写——写作期间 REQ-e3b6a0 的闸门链与文案硬化**已上线**，旧版中"三处硬伤/半接线/进行中"等描述已过期 |
 
 > **本文档只回答「做什么、为什么」。** 分层、模块接口、迁移工序属「怎么做」，在 design 阶段的
 > `design/*.md` 产出（refactor 类型要求 `architecture.md` + `migration.md`）。
@@ -59,6 +59,7 @@ risk_level: medium
 | B7 | 工具痕迹跟踪（done 凭证门） | `tool/call`（非忽略会话） | 工具调用由宿主发起，插件内没有程序点 |
 | B8 | 近期用户消息缓冲（证据核验） | `user/message`（清洗后非空） | 证据核验需要消息流，事件驱动 |
 | B9 | 捕获引导段注入 | systemPrompt 组装 | 渲染时机点，本就是注入钩子 |
+| B11 | **回合收尾时机订阅**（结算分发 + 闸门链 runPending） | `turn/end` | **订阅框架的确定生命周期时点**——Phase B 必须等本回合台账写入落定才能跑（作答与推进隔着用例后半段；作答可能来自看板无调用栈；D-17 禁监听器内会话写）。无语义推断，与 B 类错放有本质区别 |
 
 **B 类 · 错放进 hook 的（有明确业务程序点，应回归程序路径）**：
 
@@ -158,10 +159,11 @@ session/event ──► SessionEventIntake（薄：采集 + 规范化为 HookEve
                       ▼
               runner 跑批 HOOK_RULES（路由表，5 条，每条 = 一行）
                 ├─ capture.pending-register   user/message · 未绑定
-                ├─ capture.clear              turn/end
+                ├─ capture.clear              turn/end · 恒真
                 ├─ evidence.buffer            user/message · 有文本
                 ├─ trace.tool-call            tool/call · 非忽略会话
-                └─ prompt.capture-section     systemPrompt 组装
+                ├─ prompt.capture-section     systemPrompt 组装
+                └─ timing.turn-end            turn/end · 恒真 → 结算分发 + 闸门链收尾
                       │ 每条命中产出 HookAction[]（意图，非副作用）
                       ▼
               applyActions（单一动作出口：台账写 / 投递 / 调度 / 留痕）
@@ -178,6 +180,14 @@ session/event ──► SessionEventIntake（薄：采集 + 规范化为 HookEve
 
 > 模式定位：**本领域是 Dispatcher**（一个事件来了，哪些行为要响应——并行、独立、可多中）；
 > **闸门链是责任链**（一件确认完成后，按序做后续——串行、有序、有依赖）。两者互补不重叠。
+
+> **问：闸门既是程序路径，为何还挂着一处 hook（turn/end → runPending）？**
+> 答：闸门的业务动作不靠 hook（作答 → 用例内联落章推进）。但链的 Phase B（压缩/注入/唤醒）
+> 必须等"本回合台账写入落定"后才能跑（H1 要校验推进结果；作答可能来自看板无调用栈；D-17 禁
+> 监听器内会话写）——这个**执行时机**由 turn/end 时点订阅提供。这是 hook 的合法用法：
+> **订阅框架的确定时点来调度程序模块**，与 B2–B4 的错放（用 user/message **推断**业务事件）有
+> 本质区别。路由化后它是路由表里的 `timing.turn-end` 规则（match 恒真，act = 结算分发 +
+> 链收尾的意图，执行层再映射到闸门链）。
 
 ---
 
@@ -200,7 +210,7 @@ session/event ──► SessionEventIntake（薄：采集 + 规范化为 HookEve
 | **判定收敛度** | 事件型 hook 判定代码所在文件数 | **2**（`CaptureHook.ts` + `index.ts`） | **1**（单一领域目录） |
 | **动作收敛度** | `index.ts` 中承载 hook 动作的闭包/装配块数 | **6**（4 个 CaptureHookDeps 闭包 + gateChain 装配 + onTurnEnd） | **1**（单一动作出口） |
 | **错放程序行为数** | 在消息嗅探 hook 里的程序行为数（§1.1 B 类） | **4**（B2/B3/B4/B5） | **0**（全部回归程序路径） |
-| **行为可见度** | 能由一份规则表回答"hook 会做什么"的事件型行为比例 | **0/5**（无表，要通读代码） | **5/5**（B1/B6/B7/B8/B9 全部登记） |
+| **行为可见度** | 能由一份规则表回答"hook 会做什么"的事件型行为比例 | **0/6**（无表，要通读代码） | **6/6**（B1/B6/B7/B8/B9/B11 全部登记） |
 | **悬空接线** | hook 相关的 `tsc` 报错数 | **0**（本会话已清），但**无门禁防复发** | **0 + 门禁固化** |
 | **可观测率** | 能由决策日志回答"为什么没触发"的 hook 决策占比 | **0%** | **100%** |
 | **回归不变** | 既有 hook 回归通过用例数 | **50**（capture 系列，e3b6a0 硬化后实测） | **≥50** |
@@ -374,7 +384,8 @@ B2/B3/B4/B5 从消息嗅探中取出，挂到各自的业务程序点（用户�
 - **B3 阶段提示注入**：`reqboard_move` / rollup / 验收打回三条迁移路径在用例内直接触发注入
   （或登记进闸门链），不再靠 hook 嗅探兜底。
 - **B4 里程碑提醒**：改为定时检查或闸门链 handler，不再借消息时机顺带检查。
-- **B5 节点隔离**：随 B3 一并回归程序路径；闸门路径已由链 H2 覆盖的部分不重复。
+- **B5 节点隔离**：结算的**判定与登记**随 B3 回归程序路径；`turn/end` 的**分发时机**保留为领域的
+  `timing.turn-end` 规则（B11，时点订阅合法）；闸门路径已由链 H2 覆盖的部分不重复。
 
 - AC1：`grep -c "milestoneReminderFor" src/adapters/CaptureHook.ts` = 0（催办迁出）。
 - AC2：`grep -c "onBoundWindowActivity" src/adapters/CaptureHook.ts` = 0（承接推进迁出）。
