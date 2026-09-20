@@ -394,15 +394,4 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-doc-kind { font-size: 11px; color: var(--dsw-text-secondary, #888); min-width: 56px; }
 .dsh-pm-flag.verify-pending { background: rgba(23,162,184,.15); color: #17a2b8; }
 .dsh-pm-flag.archive-pending { background: rgba(108,117,125,.15); color: #6c757d; }
-
-/* ---- 需求卡片高亮动画（跳转定位时使用） ---- */
-@keyframes highlight-flash {
-  0% { box-shadow: 0 0 0 0 rgba(74,125,255,.6); }
-  50% { box-shadow: 0 0 20px 4px rgba(74,125,255,.4); }
-  100% { box-shadow: 0 0 0 0 rgba(74,125,255,0); }
-}
-.dsh-pm-card.highlight-flash {
-  animation: highlight-flash 2s ease-out;
-}
-
 `

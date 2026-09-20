@@ -3,7 +3,7 @@
  */
 
 import type { WorkflowResult } from './types.js'
-import { WORKFLOW_RUN_STATUS } from '../../domain/task/TaskStatus.js'
+import { isWorkflowRunCompleted } from '../../domain/task/TaskStatus.js'
 import * as fs from 'node:fs/promises'
 
 /**
@@ -34,7 +34,7 @@ function generateExecutionRecord(result: WorkflowResult): string {
 
   // 添加每个阶段的详情
   for (const stage of result.stages) {
-    const stageStatus = stage.status === WORKFLOW_RUN_STATUS.Completed ? '✅' : '❌'
+    const stageStatus = isWorkflowRunCompleted(stage.status) ? '✅' : '❌'
     md += `
 #### ${stageStatus} 阶段 ${stage.stage}：${stage.name}
 

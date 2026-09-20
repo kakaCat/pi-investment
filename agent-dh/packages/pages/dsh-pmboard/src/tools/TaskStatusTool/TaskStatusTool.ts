@@ -3,7 +3,7 @@
  */
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { UseCaseDeps } from '../../application/ports.js'
-import { TASK_STATUS_PROGRESS, WORKFLOW_RUN_STATUS } from '../../domain/task/TaskStatus.js'
+import { TASK_STATUS_PROGRESS, WORKFLOW_RUN_STATUS, isWorkflowRunCompleted } from '../../domain/task/TaskStatus.js'
 import * as fs from 'node:fs/promises'
 
 interface TaskStatusParams {
@@ -79,7 +79,7 @@ function calculateProgress(status: string, workflow?: any): number {
   let progress = (TASK_STATUS_PROGRESS as Record<string, number>)[status] ?? 0
   
   if (workflow?.stages?.length > 0) {
-    const completed = workflow.stages.filter((s: any) => s.status === WORKFLOW_RUN_STATUS.Completed).length
+    const completed = workflow.stages.filter((s: any) => isWorkflowRunCompleted(s.status)).length
     const total = workflow.stages.length
     progress = Math.round((completed / total) * 100)
   }

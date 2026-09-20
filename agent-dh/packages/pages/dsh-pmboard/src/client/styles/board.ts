@@ -387,4 +387,14 @@ tr.dsh-pm-list-grouphead td {
   font: inherit; font-size: 12px; line-height: 1; cursor: pointer;
 }
 .dsh-pm-doc-link:hover { background: rgba(74,125,255,.16); }
+
+/* ---- 需求卡片高亮动画（跳转定位时使用；REQ-f0579a t5 从 base.ts 移入：base 超 400 行门禁） ---- */
+@keyframes highlight-flash {
+  0% { box-shadow: 0 0 0 0 rgba(74,125,255,.6); }
+  50% { box-shadow: 0 0 20px 4px rgba(74,125,255,.4); }
+  100% { box-shadow: 0 0 0 0 rgba(74,125,255,0); }
+}
+.dsh-pm-card.highlight-flash {
+  animation: highlight-flash 2s ease-out;
+}
 `

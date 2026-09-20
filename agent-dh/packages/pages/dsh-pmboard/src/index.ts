@@ -14,8 +14,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { JsonLedgerRepository as ReqboardStore } from './adapters/JsonLedgerRepository.js';
 import { createReqboardHandler } from './http/routes.js';
-import { captureSectionText, boundSectionText } from './application/internal/capture-section.js';
-import { windowKeyFromContext, draftRequirementsFor } from './application/internal/window.js';
+import { draftRequirementsFor } from './application/internal/window.js';
 import { applyPickupAdvance, applyPickupReconcile, applyTaskRollup } from './application/internal/rollup.js';
 import { newCommentId, type RequirementRecord } from './shared/protocol.js';
 import { createSessionEventCaptureHook, type CaptureHookDeps } from './adapters/CaptureHook.js';
@@ -47,13 +46,7 @@ import { RandomIdFactory } from './adapters/RandomIdFactory.js';
 import { UserQuestionsAdapter } from './adapters/UserQuestionsAdapter.js';
 import { AgentDeliverer } from './adapters/AgentDeliverer.js';
 import { GateAwareQuestions } from './adapters/GateAwareQuestions.js';
-import { createGatePostChain } from './application/gate/GatePostChain.js';
-import { createPendingGateStore } from './application/gate/PendingGate.js';
-import { createH1AdvanceHandler } from './application/gate/handlers/h1-advance.js';
-import { createH2CompactHandler } from './application/gate/handlers/h2-compact.js';
-import { createH3InjectHandler } from './application/gate/handlers/h3-inject.js';
-import { createH4ResumeHandler } from './application/gate/handlers/h4-resume.js';
-import { createH5AuditHandler } from './application/gate/handlers/h5-audit.js';
+import { assembleGatePostChain, registerCaptureGuidance } from './gate-wiring.js';
 import { SessionProbeAdapter } from './adapters/SessionProbeAdapter.js';
 import type { UseCaseDeps } from './application/ports.js';
 
@@ -236,35 +229,12 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   // 唯一投递实现（REQ-e3b6a0 t4）：状态转移注入、30 分钟催办、后续闸门链 H4 三者共用同一形状。
   const deliverer = new AgentDeliverer(() => agentsSvc, { plugin: name });
 
-  // ── 闸门后置链（REQ-e3b6a0）：Phase A 由装饰器登记，Phase B 在 turn/end 的异步边界执行 ──
-  // D1：链默认开；压缩（H2）由 NODE_ISOLATION 独立控制且默认关（高风险动作分两步上）。
-  const gateIds = new RandomIdFactory();
-  const gateChain = createGatePostChain({
-    enabled: true,
-    pending: createPendingGateStore(),
-    handlers: [
-      createH1AdvanceHandler({ repo: store }),
-      createH2CompactHandler({
-        repo: store,
-        docs,
-        clock,
-        compactionEnabled: nodeIsolationEnabled(config),
-        isolationFor: (session) => new NodeIsolationAdapter(session, {
-          idle: () => turnBoundaryIdle(projectionsSvc, session),
-          plugin: name,
-        }),
-        trace: isolationTrace,
-      }),
-      createH3InjectHandler({ repo: store, injectionLog }),
-      createH4ResumeHandler({ delivery: deliverer, plugin: name }),
-      createH5AuditHandler({ repo: store, now, newCommentId: () => gateIds.comment() }),
-    ],
-    warn: (message) => logger.warn(message),
+  // 闸门后置链装配（REQ-e3b6a0）：抽到 ./gate-wiring.js（REQ-f0579a t5 尺寸门禁）。
+  const gateChain = assembleGatePostChain({
+    store, docs, clock, now, isolationTrace, injectionLog, deliverer, logger, plugin: name,
+    compactionEnabled: nodeIsolationEnabled(config),
+    idle: (session: unknown) => turnBoundaryIdle(projectionsSvc, session),
   });
-  logger.info(
-    'reqboard 闸门后置链已装配（H1 校验 → H2 压缩 → H3 注入 → H4 唤醒 → H5 审计）；'
-    + '压缩开关 NODE_ISOLATION=' + String(nodeIsolationEnabled(config)),
-  );
 
   const captureHookDeps: CaptureHookDeps = {
     snapshot: () => store.snapshot(),
@@ -319,34 +289,12 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   if (unsubscribeSessionEvents) disposers.push(unsubscribeSessionEvents);
   logger.info('reqboard capture hook registered: session/event user/message → 登记待立项评估（unbound 窗口）');
 
-  // 捕获引导段（B：按窗口条件注入）：为每个 agent 窗口的 systemPrompt 组装求值，
-  // 仅 unbound 且无遗留 pending 建议卡的窗口返回引导文本，其余返回 ''（renderPrompt
-  // 滤空段 → 零噪音）。text 为函数式：每次组装读取 store.snapshot()（同步）判定当前窗口状态。
-  ;(ctx as unknown as { inject?: (services: string[], cb: (c: any) => void) => void }).inject?.(
-    ['systemPrompt'],
-    (spCtx: { effect?: (fn: () => void, label?: string) => void; systemPrompt?: any }) => {
-      systemPromptSvc = spCtx.systemPrompt;
-      spCtx.effect?.(() => {
-        disposers.push(spCtx.systemPrompt.section({
-          name: CAPTURE_SECTION,
-          order: CAPTURE_SECTION_ORDER,
-          text: (assembleContext: unknown) => {
-            // 命中「本窗口待捕获消息」（hook 登记、turn/end 前）→ 注入针对性立项提示；
-            // 否则维持静态引导（bound/有遗留 pending 时两者都返回 ''，零噪音）。
-            const windowKey = windowKeyFromContext(
-              assembleContext as { agent?: { id?: unknown }; scope?: unknown } | undefined,
-            );
-            const pending = windowKey ? pendingCapture.get(windowKey) : undefined;
-            const sectionText = captureSectionText(store.snapshot(), assembleContext, pending);
-            if (sectionText.length > 0) return sectionText;
-            // 已绑定窗口：注入「推进纪律」（状态由窗口自己维护，不必等人点按钮）
-            return boundSectionText(store.snapshot(), assembleContext, injectionLog);
-          },
-        }));
-      }, name + ': capture');
-      logger.info('capture guidance section registered (unbound windows only, per-window eval)');
-    },
-  );
+  // 捕获引导段装配（按窗口条件注入）：抽到 ./gate-wiring.js（REQ-f0579a t5 尺寸门禁）。
+  registerCaptureGuidance(ctx, {
+    disposers, store, pendingCapture, injectionLog, logger, plugin: name,
+    sectionName: CAPTURE_SECTION, sectionOrder: CAPTURE_SECTION_ORDER,
+    onSystemPrompt: (svc) => { systemPromptSvc = svc; },
+  });
 
   // agent 工具：reqboard_capture（三问弹框 + 同一次调用内创建即立项）/ reqboard_create
   // （已明确取值/弹框不可用时的手工路径）/ reqboard_status（立项前自查）。direct-human 门在工具内认证。

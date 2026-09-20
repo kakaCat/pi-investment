@@ -142,6 +142,17 @@ export function renderSessionChip(tasks: TaskRecord[], archived: ReadonlySet<str
 
 /** 轻量 Markdown 渲染（零依赖，安全：先转义 HTML 再应用标记）。
  * 支持：# 标题、**粗体**、*斜体*、`行内代码`、[链接](url)、- 无序列表、1. 有序列表、```代码块``` */
+/**
+ * 链接协议白名单（REQ-f0579a FR-5）：只放行 http/https/mailto 与无协议的相对路径/锚点；
+ * javascript:/data:/vbscript: 等可执行协议不渲染为链接（低危 XSS 面：href 里的 URL 虽经
+ * esc 转义，但 javascript: 协议点击即执行，转义防不住协议本身）。
+ */
+function isSafeLinkUrl(url: string): boolean {
+  const u = url.trim().toLowerCase()
+  if (u.startsWith('http://') || u.startsWith('https://') || u.startsWith('mailto:')) return true
+  return !u.includes(':')
+}
+
 export function renderMarkdown(text: string): string {
   if (!text) return ''
   const lines = text.replace(/\r\n?/g, '\n').split('\n')
@@ -163,7 +174,8 @@ export function renderMarkdown(text: string): string {
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>')
-    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, label, url) =>
+      isSafeLinkUrl(url) ? '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + label + '</a>' : label)
 
   for (const raw of lines) {
     const line = raw.trimEnd()

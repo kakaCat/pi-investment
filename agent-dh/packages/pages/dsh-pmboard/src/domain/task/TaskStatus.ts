@@ -72,6 +72,13 @@ export const WORKFLOW_RUN_STATUS = { Completed: 'completed', Failed: 'failed' } 
 export type WorkflowRunStatus = typeof WORKFLOW_RUN_STATUS[keyof typeof WORKFLOW_RUN_STATUS]
 
 /**
+ * workflow run/stage 是否已完成（REQ-f0579a t4）。
+ * 状态**判断**也是状态语义，单点在 domain：tools-dispatch 门禁禁止工具壳出现任何
+ * `status ===` 比较（即便右值是 domain 常量），适配层一律改调本函数。
+ */
+export const isWorkflowRunCompleted = (status: string): boolean => status === WORKFLOW_RUN_STATUS.Completed
+
+/**
  * 任务状态 → 看板进度百分比（reqboard_task_status 的 progress 语义）。
  * 进度是**展示语义**但词汇表是**状态语义**——键必须是合法 TaskStatus，故单点于此。
  */
