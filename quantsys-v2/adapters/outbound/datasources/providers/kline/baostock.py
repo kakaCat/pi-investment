@@ -22,16 +22,50 @@ logger = logging.getLogger(__name__)
 # provider 返回 None，DataProviderManager 正常降级到下一数据源。
 _BAOSTOCK_CALL_TIMEOUT = 15  # 秒
 
+# 2026-09-20：同一 socket 的「发送 → 收完一帧」必须串行。整个进程只有一个 baostock
+# 会话（manager.py 只 new 一个 BaostockKlineProvider，context 里只有一个
+# default_socket），而评分线程池与夜间回填会并发调用。交叠收发会让 A 线程读到 B 线程
+# 的应答（实测 4 线程全部交叠），也正是「一个线程 logout 关 socket、另一个线程正在
+# recv」→ 对端 FIN → 空转的触发路径。
+_BAOSTOCK_SEND_LOCK = threading.RLock()
+
+# 正在收包中的 socket 对象。看门狗据此关闭**本次调用实际持有的** socket——只关
+# context.default_socket 不够：重新登录会把该全局引用换成新 socket，旧 socket 从此
+# 无人能关，被孤立的调用只能永久阻塞（2026-09-20 三线程 24h 空转的生存机制）。
+_BAOSTOCK_INFLIGHT = set()
+_BAOSTOCK_INFLIGHT_LOCK = threading.Lock()
+
+# 上游收包结束标记（baostock/util/socketutil.py 内联的同一字面量）
+_BS_MSG_TAIL = b"<![CDATA[]]>\n"
+
+
+def _register_inflight(sock):
+    with _BAOSTOCK_INFLIGHT_LOCK:
+        _BAOSTOCK_INFLIGHT.add(sock)
+
+
+def _clear_inflight(sock):
+    with _BAOSTOCK_INFLIGHT_LOCK:
+        _BAOSTOCK_INFLIGHT.discard(sock)
+
 
 def _close_baostock_socket():
-    """关闭 baostock 当前会话 socket（看门狗触发，使阻塞中的 connect/recv 抛错）"""
+    """关闭 baostock 会话 socket（看门狗触发，使阻塞中的 connect/recv 抛错）"""
+    targets = []
     try:
         import baostock.common.context as bs_context
-        sock = getattr(bs_context, 'default_socket', None)
-        if sock is not None:
-            sock.close()
+        cur = getattr(bs_context, 'default_socket', None)
+        if cur is not None:
+            targets.append(cur)
     except Exception:
         pass
+    with _BAOSTOCK_INFLIGHT_LOCK:
+        targets.extend(_BAOSTOCK_INFLIGHT)
+    for sock in targets:
+        try:
+            sock.close()
+        except Exception:
+            pass
 
 
 def _with_socket_timeout(fn, timeout: float = _BAOSTOCK_CALL_TIMEOUT):
@@ -43,6 +77,85 @@ def _with_socket_timeout(fn, timeout: float = _BAOSTOCK_CALL_TIMEOUT):
         return fn()
     finally:
         watchdog.cancel()
+
+
+def _make_patched_send_msg():
+    """构造 send_msg 的修正实现（与原实现的三处差异见下）"""
+    import zlib
+
+    import baostock.common.contants as cons
+    import baostock.common.context as context
+
+    def send_msg(msg):
+        sock = getattr(context, 'default_socket', None) if hasattr(
+            context, 'default_socket') else None
+        if sock is None:
+            print("you don't login.")
+            return None
+        try:
+            with _BAOSTOCK_SEND_LOCK:
+                sock.send(bytes(msg + "\n", encoding='utf-8'))
+                receive = b""
+                _register_inflight(sock)
+                try:
+                    while True:
+                        recv = sock.recv(8192)
+                        if not recv:
+                            # 差异 1（本次修复核心）：对端 FIN 后 recv **立即返回 b""**、
+                            # 永不阻塞，原实现拿 b"" 去比结束标记永远不成立 → while True
+                            # 无限空转。实测 5001 三线程各 58% CPU、sys:user=3.29:1、
+                            # socket 零流量，24h 烧掉约 1.75 核。
+                            # 返回 None 与上游异常路径同形：调用方（history.py/loginout.py）
+                            # 随即置 error_msg="网络接收错误。"，而该文案已在
+                            # _SESSION_ERROR_MARKERS 里 → 既有重登逻辑接管。
+                            print("baostock 连接已被对端关闭（recv 返回空），放弃本次收包")
+                            return None
+                        receive += recv
+                        if receive[-len(_BS_MSG_TAIL):] == _BS_MSG_TAIL:
+                            break
+                finally:
+                    # 差异 2：收包期间登记 socket，使看门狗能关掉**本次调用实际用的
+                    # 那个对象**，而不是被重新登录换掉的全局引用。
+                    _clear_inflight(sock)
+
+            head_bytes = receive[0:cons.MESSAGE_HEADER_LENGTH]
+            head_str = bytes.decode(head_bytes)
+            head_arr = head_str.split(cons.MESSAGE_SPLIT)
+            if head_arr[1] in cons.COMPRESSED_MESSAGE_TYPE_TUPLE:
+                head_inner_length = int(head_arr[2])
+                body_str = bytes.decode(zlib.decompress(
+                    receive[cons.MESSAGE_HEADER_LENGTH:
+                            cons.MESSAGE_HEADER_LENGTH + head_inner_length]))
+                return head_str + body_str
+            return bytes.decode(receive)
+        except Exception as ex:
+            print(ex)
+            print("接收数据异常，请稍后再试。")
+            return None
+
+    return send_msg
+
+
+def _patch_baostock_send_msg():
+    """把修正版 send_msg 装回 baostock.util.socketutil（幂等）
+
+    baostock 的调用点一律是 `import baostock.util.socketutil as sock` 后
+    `sock.send_msg(...)`，替换模块属性即全局生效。pip 里的第三方代码不进仓库、
+    不可改，只能在进程内打补丁。
+    """
+    try:
+        import baostock.util.socketutil as socketutil
+    except ImportError:
+        return False  # 未安装 baostock 时 provider 本就降级，无需补丁
+    if getattr(socketutil.send_msg, '_baostock_eof_fixed', False):
+        return True
+    patched = _make_patched_send_msg()
+    patched._baostock_eof_fixed = True
+    socketutil.send_msg = patched
+    return True
+
+
+_patch_baostock_send_msg()
 
 # 日K 查询字段（baostock 文档）
 _DAILY_FIELDS = 'date,code,open,high,low,close,volume,amount,turn'
