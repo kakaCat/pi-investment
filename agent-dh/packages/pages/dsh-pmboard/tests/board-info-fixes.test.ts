@@ -142,7 +142,12 @@ describe('审批入口外置到常驻操作条（#8）', () => {
     const bar = actionBar(html)
     expect(bar).toContain('data-action="verify-pass"')
     expect(bar).toContain('data-action="verify-rework"')
-    expect(bar).not.toContain('data-action="move-req"')
+    // REQ-f0579a t3 断言精确化：原断言「无任何 move-req」与 2026-09-20「立项取消全在途态渲染置首」
+    // 裁定冲突（b2b37d9b 实现时未同步本断言）。两条裁定合并后的精确语义：
+    // 验收态不给**阶段推进类** move-req（verify-pass 已覆盖），但破坏性的「立项取消」
+    // （data-to=canceled，仅人可操作）允许存在。故只校验 move-req 的 data-to 集合 ⊆ {canceled}。
+    const moveTos = [...bar.matchAll(/data-action="move-req" data-to="([^"]+)"/g)].map(m => m[1])
+    expect(moveTos.every(to => to === 'canceled')).toBe(true)
     expect((bar.match(/data-action="verify-pass"/g) ?? []).length).toBe(1)
     expect(html.slice(html.indexOf('<details'))).not.toContain('data-action="verify-pass"')
   })
@@ -156,7 +161,9 @@ describe('审批入口外置到常驻操作条（#8）', () => {
     expect(bar).toContain('data-action="verify-pass"')
     expect(bar).toContain('data-action="verify-rework"')
     expect(bar).not.toContain('才会出现「验收通过」')
-    expect(bar).not.toContain('data-action="move-req"')
+    // REQ-f0579a t3 断言精确化（同上一条）：不允许推进类 move-req，允许「立项取消」。
+    const moveTos = [...bar.matchAll(/data-action="move-req" data-to="([^"]+)"/g)].map(m => m[1])
+    expect(moveTos.every(to => to === 'canceled')).toBe(true)
   })
 
   it('已完成且材料已备：操作条给 archive-req，折叠区无重复按钮', () => {

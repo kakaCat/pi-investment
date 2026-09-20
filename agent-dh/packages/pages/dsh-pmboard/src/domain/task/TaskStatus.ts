@@ -63,6 +63,28 @@ export const SYSTEM_TASK_TRANSITIONS: ReadonlySet<string> = new Set([
   'in_progress>todo',
 ])
 
+/**
+ * 工作流执行（workflow run / stage）状态词汇（REQ-f0579a t4）。
+ * 此前散在 tools/TaskExecuteTool 与 types.ts 的字面量联合里——layer-boundary 门禁
+ * 要求状态词汇单点在 domain，适配层只引用常量/类型。
+ */
+export const WORKFLOW_RUN_STATUS = { Completed: 'completed', Failed: 'failed' } as const
+export type WorkflowRunStatus = typeof WORKFLOW_RUN_STATUS[keyof typeof WORKFLOW_RUN_STATUS]
+
+/**
+ * 任务状态 → 看板进度百分比（reqboard_task_status 的 progress 语义）。
+ * 进度是**展示语义**但词汇表是**状态语义**——键必须是合法 TaskStatus，故单点于此。
+ */
+export const TASK_STATUS_PROGRESS: Readonly<Record<TaskStatus, number>> = {
+  todo: 0,
+  in_progress: 20,
+  integrating: 50,
+  testing: 70,
+  in_review: 85,
+  done: 100,
+  canceled: 0,
+}
+
 export function canTaskTransition(from: TaskStatus, to: TaskStatus): boolean {
   return TASK_TRANSITIONS[from].includes(to)
 }

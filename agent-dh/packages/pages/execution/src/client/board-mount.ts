@@ -330,6 +330,19 @@ export function mountBoard(controller: BoardController): () => void {
         if (it?.origin === 'subagent') continue
         out.push({ sid, label: String(it.displayTitle ?? it.title ?? sid), current: sid === cur })
       }
+      // 空候选诊断（2026-09-20，w-6faac762）：solve-kit 在 candidates 为空时回退在线清单合成候选，
+      // 这里留下快照结构证据，便于定位是哪一层把候选滤没了
+      if (out.length === 0) {
+        console.warn('[dashboard-execution] 会话候选为空诊断', {
+          hasFac: !!fac, hasList: !!fac?.list,
+          snapKeys: snap ? Object.keys(snap) : null,
+          idsLen: Array.isArray((snap as any)?.ids) ? (snap as any).ids.length : null,
+          itemsLen: Array.isArray((snap as any)?.items) ? (snap as any).items.length : null,
+          byIdLen: (snap as any)?.byId ? Object.keys((snap as any).byId).length : null,
+          rowsLen: rows.length, current: cur || null,
+          archivedLen: archived?.size ?? null,
+        })
+      }
     } catch { }
     return out
   }

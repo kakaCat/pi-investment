@@ -1,6 +1,7 @@
 /**
  * TaskExecuteTool 类型定义
  */
+import type { WorkflowRunStatus } from '../../domain/task/TaskStatus.js'
 
 export interface TaskInfo {
   id: string
@@ -31,7 +32,7 @@ export interface WorkflowResult {
 export interface StageResult {
   stage: number
   name: string
-  status: 'completed' | 'failed'
+  status: WorkflowRunStatus
   output?: any
   error?: string
 }
@@ -45,7 +46,7 @@ export interface ExecuteTaskResult {
   success: boolean
   task_id: string
   workflow_run_id?: string
-  status: 'completed' | 'failed'
+  status: WorkflowRunStatus
   stages?: StageResult[]
   next_step?: string
   error?: string

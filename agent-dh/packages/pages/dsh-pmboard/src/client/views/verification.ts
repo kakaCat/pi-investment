@@ -51,9 +51,11 @@ export function collectReqDocs(req: RequirementRecord): Array<{ icon: string; la
     if (!p || seen.has(p)) return
     seen.add(p)
     const meta = DOC_KIND_META[kind]
-    // 从路径中提取文件名作为 label
+    // REQ-f0579a t2：label = 种类可读名 · 文件名——af8a2ac0 要求显示文档真名
+    // （追溯链不再四份全叫「设计文档」），board-info-fixes 契约要求种类可读名；两者双呈现。
     const fileName = p.split('/').pop() || p
-    docs.push({ icon: meta?.icon ?? '📒', label: fileName, path: p })
+    const kindLabel = meta?.label ?? kind
+    docs.push({ icon: meta?.icon ?? '📒', label: kindLabel + ' · ' + fileName, path: p })
   }
   // ① 节点产物（t4 登记的 pipeline 产物），按 stage 顺序
   const artifacts = [...(req.artifacts ?? [])]

@@ -2,6 +2,8 @@
  * TaskExecuteTool - 使用 DSH Workflow 执行任务
  */
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import { LIMITS } from '../../domain/limits.js'
+import { WORKFLOW_RUN_STATUS } from '../../domain/task/TaskStatus.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import type { ExecuteTaskParams, ExecuteTaskResult, TaskInfo } from './types.js'
 import { generateWorkflowScript } from './generate-workflow-script.js'
@@ -47,13 +49,16 @@ export function defineTaskExecuteTool(deps: UseCaseDeps) {
           task_id: { type: 'string' },
           workflow_run_id: { type: 'string' },
           status: { type: 'string' },
+          stages: { type: 'array', items: { type: 'object', additionalProperties: true } },
+          next_step: { type: 'string' },
+          error: { type: 'string' },
         },
       },
       render: (_args: any, value: any) => [
         { type: 'text', text: JSON.stringify(value, null, 2) }
       ],
     },
-    timeoutMs: 600000, // 10分钟（workflow 可能很长）
+    timeoutMs: LIMITS.timeoutInteractiveMs, // 10 分钟（workflow 可能很长；具名上限单点在 domain/limits.ts）
     async execute(args: ExecuteTaskParams, ctx: any): Promise<ExecuteTaskResult> {
       try {
         // 1. 读取任务信息
@@ -64,7 +69,7 @@ export function defineTaskExecuteTool(deps: UseCaseDeps) {
           return {
             success: false,
             task_id: args.task_id,
-            status: 'failed',
+            status: WORKFLOW_RUN_STATUS.Failed,
             error: `任务不存在: ${args.task_id}`
           }
         }
@@ -108,7 +113,7 @@ export function defineTaskExecuteTool(deps: UseCaseDeps) {
           success: true,
           task_id: task.id,
           workflow_run_id: workflowResult.runId,
-          status: 'completed',
+          status: WORKFLOW_RUN_STATUS.Completed,
           stages: workflowResult.result?.stages
         }
         
@@ -116,7 +121,7 @@ export function defineTaskExecuteTool(deps: UseCaseDeps) {
         return {
           success: false,
           task_id: args.task_id,
-          status: 'failed',
+          status: WORKFLOW_RUN_STATUS.Failed,
           error: error.message,
           next_step: args.resume_from 
             ? '检查错误后重试' 

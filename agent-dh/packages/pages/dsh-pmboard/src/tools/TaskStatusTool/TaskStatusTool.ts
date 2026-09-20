@@ -3,6 +3,7 @@
  */
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { UseCaseDeps } from '../../application/ports.js'
+import { TASK_STATUS_PROGRESS, WORKFLOW_RUN_STATUS } from '../../domain/task/TaskStatus.js'
 import * as fs from 'node:fs/promises'
 
 interface TaskStatusParams {
@@ -49,18 +50,19 @@ async function parseWorkflowFromTaskCard(taskId: string, requirementId: string):
       if (inSection) {
         if (line.startsWith('## ') && !line.includes('Workflow')) break
         
-        const runIdMatch = line.match(/Run ID.*`([^`]+)`/)
+        // 反引号写作 \x60：正则里出现裸 ` 会被 output-contract 静态扫描器误判为模板串起点
+        const runIdMatch = line.match(/Run ID.*\x60([^\x60]+)\x60/)
         if (runIdMatch) workflowInfo.run_id = runIdMatch[1]
         
         if (line.includes('状态')) {
-          workflowInfo.status = line.includes('✅') ? 'completed' : 'failed'
+          workflowInfo.status = line.includes('✅') ? WORKFLOW_RUN_STATUS.Completed : WORKFLOW_RUN_STATUS.Failed
         }
         
         const stageMatch = line.match(/####\s+(✅|❌)\s+阶段\s+(\d+)/)
         if (stageMatch) {
           workflowInfo.stages.push({
             stage: parseInt(stageMatch[2]),
-            status: stageMatch[1] === '✅' ? 'completed' : 'failed'
+            status: stageMatch[1] === '✅' ? WORKFLOW_RUN_STATUS.Completed : WORKFLOW_RUN_STATUS.Failed
           })
         }
       }
@@ -73,19 +75,11 @@ async function parseWorkflowFromTaskCard(taskId: string, requirementId: string):
 }
 
 function calculateProgress(status: string, workflow?: any): number {
-  const statusProgress: Record<string, number> = {
-    'todo': 0,
-    'in_progress': 20,
-    'integrating': 50,
-    'testing': 70,
-    'in_review': 85,
-    'done': 100
-  }
-  
-  let progress = statusProgress[status] ?? 0
+  // 状态 → 进度映射单点在 domain（TASK_STATUS_PROGRESS，REQ-f0579a t4：tools 不得写状态字面量）
+  let progress = (TASK_STATUS_PROGRESS as Record<string, number>)[status] ?? 0
   
   if (workflow?.stages?.length > 0) {
-    const completed = workflow.stages.filter((s: any) => s.status === 'completed').length
+    const completed = workflow.stages.filter((s: any) => s.status === WORKFLOW_RUN_STATUS.Completed).length
     const total = workflow.stages.length
     progress = Math.round((completed / total) * 100)
   }
@@ -113,6 +107,8 @@ export function defineTaskStatusTool(deps: UseCaseDeps) {
           task_id: { type: 'string' },
           status: { type: 'string' },
           progress: { type: 'number' },
+          workflow: { type: 'object', additionalProperties: true },
+          error: { type: 'string' },
         }
       },
       render: (_args: any, value: any) => [

@@ -14,7 +14,9 @@ import { fmtTokens } from '../../shared/protocol.ts'
 /** 需求卡片投影（视图层聚合，避免全量渲染） */
 export function toReqCards(state: BoardState): ReqCard[] {
   return state.requirements
-    .filter(r => r.status !== 'archived' && r.status !== 'canceled' && r.status !== 'done')
+    // REQ-f0579a t2 恢复：done 不排除——REQ-6f39b5 设计为「done（待归档）归入验收泳道」，
+    // 972b2262 基线归一曾把旧版（连 done 一起过滤）盖回，导致已完成需求从看板消失。
+    .filter(r => r.status !== 'archived' && r.status !== 'canceled')
     .map(req => {
       const tasks = state.tasks.filter(t => t.requirementId === req.id)
       const doneCount = tasks.filter(t => t.status === 'done').length
@@ -44,8 +46,10 @@ export function buildBoard(
 ): string {
   const cards = toReqCards(state)
   const lanes = LANE_STATUSES.map(status => {
-    // 验收泳道只显示 accepting 状态，done 状态已完成不再显示
-    const inLane = cards.filter(c => c.req.status === status)
+    // REQ-6f39b5：done（待归档）需求归入验收泳道显示（REQ-f0579a t2 恢复，972b2262 曾丢失）
+    const inLane = status === 'accepting'
+      ? cards.filter(c => c.req.status === 'accepting' || c.req.status === 'done')
+      : cards.filter(c => c.req.status === status)
     const cardsHtml = inLane.map(c => renderReqCard(c, now, archived)).join('')
     return `
       <div class="dsh-pm-lane" data-lane="${status}">
@@ -57,6 +61,16 @@ export function buildBoard(
         <div class="dsh-pm-lane-cards">${cardsHtml}</div>
       </div>`
   }).join('')
+
+  // 注意：变量名不能叫 archived —— 那是本函数的参数（已归档会话 id 集合）。
+  // REQ-f0579a t2 恢复：归档/取消底部条（M3 d6d91dd2 起就在，972b2262 基线归一丢失，CSS 仍在 styles/base.ts）。
+  const archivedReqs = state.requirements.filter(r => r.status === 'archived' || r.status === 'canceled')
+  const archivedHtml = archivedReqs.length > 0
+    ? `<div class="dsh-pm-archived-bar">
+         <span class="dsh-pm-archived-label">归档/取消 ${archivedReqs.length}</span>
+         ${archivedReqs.map(r => `<span class="dsh-pm-archived-chip" data-status="${r.status}">${esc(r.id)} ${esc(r.title)}</span>`).join('')}
+       </div>`
+    : ''
 
   const switcher = `
     <div class="dsh-pm-viewswitch" role="tablist" aria-label="看板视图">
@@ -81,6 +95,7 @@ export function buildBoard(
         <button type="button" class="dsh-pm-btn primary" data-action="new-req" title="新建需求">+ 需求</button>
       </div>
       ${body}
+      ${view === 'list' ? '' : archivedHtml}
     </div>`
 }
 

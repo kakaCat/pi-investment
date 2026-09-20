@@ -49,5 +49,5 @@ export function renderPagination(opts: PaginationOpts): string {
     '<span class="tpg-nums">' + nums.join('') + '</span>' +
     '<button type="button" class="tpg-arr" ' + pageAttr + '="' + (safePage + 1) + '"' +
     (safePage >= total ? ' disabled' : '') + '>' + nextLabel + '</button>' +
-    '<span class="tpg-cnt">第 ' + safePage + '/' + total + ' 页 · 共 ' + totalItems + ' 条</span>'
+    `<span class="tpg-cnt">第 ${safePage}/${total} 页 · 共 ${totalItems} 条</span>`
 }

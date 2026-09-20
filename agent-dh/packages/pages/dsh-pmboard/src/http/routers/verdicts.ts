@@ -6,6 +6,8 @@
  *
  * REQ-a8d582 起本文件承载两处语义变更：
  *   - FR-3/FR-4：验收通过不再要求"已交材料"，但不合规通过（有不合格项 / 无材料）必须显式覆盖并留痕。
+ *   - REQ-327bdf「覆盖即可通过」与 FR-4 的合并语义（REQ-f0579a t1）：覆盖不再走独立早退分支，
+ *     统一走下方路径——confirm_override 免除产物闸门，但必须落 acceptanceOverride 台账留痕。
  *
  * REQ-308b9a t2/t6：逐项裁决**收敛为委托 applyVerdicts**（原先本文件内联了一份重复实现），
  * 并**推翻 REQ-a8d582 FR-2**——裁决含 failed 时自动回退实施 + 物化返工卡。
@@ -46,48 +48,12 @@ export function createVerdictsRouter(ctx: RouterCtx) {
     const result = await store.mutate('requirement-moved', (ledger) => {
       const r = ledger.requirements.find(x => x.id === id) ?? notFound("需求 " + id)
       if (!isAccepting(r)) badInput("需求 " + id + " 当前处于 " + r.status + "，不在验收态（先提交验收）")
-      
-      // ── 强制跳过检查（二次确认覆盖）──
-      // REQ-327bdf 需求：当传入 confirm_override 时，完全跳过验收材料检查，直接通过
-      if (pass && confirmOverride.length > 0) {
-        // 用户已二次确认，直接允许通过
-        const to = ACCEPTED_REQ_STATUS
-        assertReqTransition(r.status, to, 'human')
-        
-        // 创建简化的验收材料记录（标注为覆盖通过）
-        if (r.verification === undefined) {
-          r.verification = {
-            summary: '人工覆盖通过（未提交验收材料）',
-            evidence: [confirmOverride],
-            submittedAt: now(),
-            submittedBy: { kind: 'human' },
-            reviewedAt: now(),
-            reviewedBy: { kind: 'human' },
-            sheet: {
-              version: 1,
-              items: [],
-              generatedAt: now(),
-              generatedBy: { kind: 'human' }
-            },
-            sheetHistory: []
-          }
-        }
-        
-        r.status = to
-        r.version += 1
-        r.updatedAt = now()
-        r.updatedBy = { kind: 'human' }
-        recordStatus(r, to, r.updatedAt, { kind: 'human' }, 
-          '人工验收通过（带覆盖：' + confirmOverride + '）')
-        r.comments.push({
-          id: ids.comment(),
-          body: '[验收] 人工审核通过（带覆盖）：' + confirmOverride + '｜尚无验收材料',
-          createdAt: now(),
-          createdBy: { kind: 'human' },
-        })
-        return { requirements: [r], tasks: [] }
-      }
-      
+
+      // REQ-f0579a t1 修复（2026-09-20）：REQ-327bdf 曾在此设早退分支——带 confirm_override
+      // 即直接归档，但它①从不写 acceptanceOverride（违反 REQ-a8d582 FR-4 三处留痕）②无材料时
+      // 伪造 verification 记录（下游会把合成材料当真证据）③使下方统一校验路径成为死代码。
+      // 已删除：覆盖与正常通过统一走下方路径——不合规通过必须有 confirm_override，
+      // 且覆盖会写进台账 acceptanceOverride + 评论 + 状态事件，三处可查。
       const v = r.verification
       const items = v?.sheet?.items ?? []
       const failed = countFailedItems(items)

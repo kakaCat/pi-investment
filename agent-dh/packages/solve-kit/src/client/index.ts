@@ -135,6 +135,9 @@ export function createSolveKit(deps: SolveKitDeps): SolveKit {
     }
   }
 
+  /** session id → 展示标签（与 host windowCode 同口径：session- 前缀取中段 8 位） */
+  const labelOf = (sid: string): string => (sid.startsWith('session-') ? 'w-' + sid.slice(8, 16) : sid)
+
   /** 点「我来解决」：弹窗口选择器（默认当前窗口在首，current 标记）；无候选时直接投递主窗口 */
   const openPicker = (anchor: HTMLElement, kind: 'task' | 'error', identity: SolveIdentity): void => {
     console.log('[solve-kit] openPicker', { kind, identity })
@@ -142,8 +145,9 @@ export function createSolveKit(deps: SolveKitDeps): SolveKit {
     console.log('[solve-kit] resolveSnapshot', target)
     if (target === null) { toast('⚠ 数据已刷新，请重试', false); return }
     close()
-    const cands = deps.candidates()
-    if (cands.length === 0) { void postSolve(target.kind, target.snap); return }
+    // 同步捕获锚点位置（2026-09-20，w-6faac762）：异步间隙里看板可能重绘（错误事件认领后立即
+    // 静默刷新列表），锚点元素脱离文档后 getBoundingClientRect 归零 → 弹层飞到左上角，用户看不到。
+    const anchorRect = anchor.getBoundingClientRect()
     // 离线防护（2026-09-10）：会话列表含离线历史会话，但投递要求在线 agent（懒加载）。
     // 拉在线窗口列表标注；离线项点击需确认改投当前窗口，避免 exactOnly 投递必败。
     void (async () => {
@@ -152,9 +156,19 @@ export function createSolveKit(deps: SolveKitDeps): SolveKit {
         const ids = await deps.online?.()
         if (Array.isArray(ids)) onlineSet = new Set(ids.map(String))
       } catch { /* 拉取失败 → 不标注，保持原行为 */ }
-      renderPop(onlineSet)
+      let cands = deps.candidates()
+      // 候选为空兜底（2026-09-20，w-6faac762）：会话快照结构漂移/过滤殆尽时 candidates() 返回 []，
+      // 旧行为是跳过选择器直接投递主窗口——用户感知为「不能选窗口」（实证：认领成功但无弹层）。
+      // 改用在线窗口清单合成候选，保证始终能选窗口；在线清单也拿不到才退回直接投递。
+      if (cands.length === 0 && onlineSet !== null && onlineSet.size > 0) {
+        const cur = String(deps.current() ?? '')
+        cands = [...onlineSet].map((sid) => ({ sid: String(sid), label: labelOf(String(sid)), current: String(sid) === cur }))
+        console.warn('[solve-kit] 会话候选为空，回退在线窗口清单合成候选', cands.length)
+      }
+      if (cands.length === 0) { void postSolve(target.kind, target.snap); return }
+      renderPop(cands, onlineSet, anchorRect)
     })()
-    const renderPop = (onlineSet: Set<string> | null): void => {
+    const renderPop = (cands: SolveCandidate[], onlineSet: Set<string> | null, rect: DOMRect): void => {
     const pop = document.createElement('div')
     pop.className = pf + '-solvepop'
     const head = document.createElement('div')
@@ -191,13 +205,13 @@ export function createSolveKit(deps: SolveKitDeps): SolveKit {
     try { hostEl = typeof deps.host === 'function' ? deps.host() : deps.host } catch { hostEl = undefined }
     ;(hostEl ?? document.body).appendChild(pop)
     solvePop = pop
-    // 定位：锚点下方（放不下则上方），视口内
-    const rect = anchor.getBoundingClientRect()
+    // 定位：锚点下方（放不下则上方），视口内（rect 由 openPicker 同步捕获，防异步间隙锚点脱离文档归零）
     const popH = 40 + cands.length * 30 + 32
     let top = rect.bottom + 6
     if (top + popH > window.innerHeight) top = Math.max(6, rect.top - popH - 6)
     pop.style.position = 'fixed'
-    pop.style.left = Math.min(rect.left, Math.max(6, window.innerWidth - 280)) + 'px'
+    // rect.left 为 0（含锚点已脱离文档的兜底场景）时至少留 6px 边距，避免贴死左边缘被侧栏遮住
+    pop.style.left = Math.max(6, Math.min(rect.left, Math.max(6, window.innerWidth - 280))) + 'px'
     pop.style.top = top + 'px'
     // 点开后的任意外部点击关闭
     const onDoc = (ev: MouseEvent): void => {

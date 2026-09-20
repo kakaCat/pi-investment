@@ -22,8 +22,9 @@ This file provides guidance to Claude Code when working with the Agent-DH projec
 └─────────────────────────────────────────────────┘
        ↑ loads
 ┌─────────────────────────────────────────────────┐
-│  Agent-DH Profile (~/.dsh/profiles/investment)  │
-│  • 14 investment plugins (48 tools)             │
+│  Agent-DH Profile（项目内 profile：agent-dh）   │
+│  • 数据目录 = agent-dh/.dsh-data/（DSH_HOME）   │
+│  • 投资插件包（packages/，经 cordis 配置注册）  │
 │  • System prompt for investment analysis        │
 │  • Configuration for quantsys-v2 backend        │
 └─────────────────────────────────────────────────┘
@@ -71,10 +72,11 @@ agent-dh/
 │   │   └── execution/            #   @pi-investment/dashboard-execution 双线执行确认看板
 │   └── agent-os-client/         # Agent OS API 客户端（遗留）
 │
-├── profiles/investment/         # DSH Profile 配置模板
-│   ├── start.sh                # 启动脚本（拷贝到 ~/.dsh/profiles/investment/）
-│   ├── cordis.yml              # 基础配置
-│   └── README.md               # Profile 说明
+├── config/cordis.yml            # Profile 配置模板（start.sh 据此补全 .dsh-data 内的活动配置）
+├── .dsh-data/                   # DSH_HOME = 数据目录（项目内托管，不入库）：
+│   │                            #   agents.json / dsh-reqboard.json / .credentials.yaml / state/
+│   └── profiles/agent-dh/       #   活动 profile 脚手架（start.sh 生成，含活动 cordis.patch.yml）
+├── profiles/investment/         # ⚠️ 历史残留模板（旧 ~/.dsh profile 布局的仓库副本），已不参与加载
 │
 ├── docs/                        # 项目文档
 │   ├── AUTONOMY-SYSTEM.md       # 自主能力总览
@@ -109,19 +111,15 @@ cd packages/investment
 pnpm dev  # If the package has a dev script
 ```
 
-### 2. DSH Profile Installation (~/.dsh/profiles/investment/)
+### 2. 项目内 Profile（agent-dh/.dsh-data/）
 
-The DSH profile at `~/.dsh/profiles/investment/` references these packages:
+**2026-09-14 起 profile 不再放 `~/.dsh/profiles/investment/`**（该目录已清空删除）。现役布局：
 
-```json
-{
-  "dependencies": {
-    "@pi-investment/investment": "file:../../../pi-investment/agent-dh/packages/investment",
-    "@pi-investment/trading": "file:../../../pi-investment/agent-dh/packages/trading",
-    ...
-  }
-}
-```
+- **profile 名 = `agent-dh`**（项目内 profile），DSH_HOME = 数据目录 = `agent-dh/.dsh-data/`；
+- 活动 profile 脚手架在 `.dsh-data/profiles/agent-dh/`，由 `scripts/start.sh` 从 `config/cordis.yml` 模板补全生成；
+- agents.json、dsh-reqboard.json、.credentials.yaml、state/ 等全部活数据都在 `.dsh-data/`。
+
+插件依赖通过 agent-dh 根 `package.json` 的 workspace/file 引用指向 `packages/` 源码：
 
 ⚠️ **`pnpm build` 不是部署，`pnpm install` 更不是。** 别以为改完代码就生效了 —— 2026-09-11 的事故正是这么来的。
 
@@ -146,16 +144,16 @@ launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh
 
 ### 3. DSH Profile Startup
 
-The profile is started via DSH:
+统一启动入口在仓库内（`scripts/start.sh`，也是 launchd 作业与 self-restart 拉起的同一份）：
 
 ```bash
 # Using the start script (recommended)
-cd ~/.dsh/profiles/investment
-./start.sh              # Default port 13080
-./start.sh 13081        # Custom port
+cd agent-dh
+./scripts/start.sh              # Default port 13080
+./scripts/start.sh --port 13081 # Custom port
 
 # Or using dsh command directly
-dsh --profile investment --port 13080
+dsh --profile agent-dh --port 13080
 ```
 
 This launches:
@@ -240,15 +238,16 @@ pnpm build
 
 3. **Restart DSH profile** (if running):
 
-:13080 由 launchd 作业 `com.pi-investment.dsh` 托管（KeepAlive），**不能 kill**——
-kill 会被 launchd 立刻重新拉起，随后再 `./start.sh` 必然 `EADDRINUSE`。正确入口是 kickstart：
+重启统一走仓库内入口 `scripts/start.sh`：当 :13080 由 launchd 作业 `com.pi-investment.dsh`
+托管（KeepAlive）时它会自动转交 `launchctl kickstart -k`——**不要 kill**，kill 会被 launchd
+立刻拉起，随后再手工启动必然 `EADDRINUSE`（2026-09-11 事故）。
 
 ```bash
-# 重启（先杀后拉由 launchctl 负责）
-launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh
+# 重启（托管时脚本内部自动走 kickstart；未托管时直接拉起）
+cd agent-dh && ./scripts/start.sh
 
-# 若确实在手工跑（例如调试用 13081），才走脚本
-cd ~/.dsh/profiles/investment && ./start.sh 13081
+# 调试端口（独立于托管实例）
+./scripts/start.sh --port 13081
 ```
 
 ### Creating a New Plugin Package
@@ -321,72 +320,58 @@ export default class MyPlugin extends Service {
 
 注意遵守上面的 **Schema 铁律**（每个 object 节点显式 `additionalProperties`）。
 
-4. **Add to DSH profile** (`~/.dsh/profiles/investment/package.json`):
+4. **Add to agent-dh 根 `package.json`**（workspace 依赖）:
 
 ```json
 {
   "dependencies": {
-    "@pi-investment/my-plugin": "file:../../../pi-investment/agent-dh/packages/my-plugin"
+    "@pi-investment/my-plugin": "workspace:*"
   }
 }
 ```
 
-5. **Add to profile config** (`~/.dsh/profiles/investment/cordis.patch.yml`):
+5. **Add to 配置模板 `config/cordis.yml`**（start.sh 会据此补全 .dsh-data 内的活动配置）:
 
 ```yaml
-- insert:
-    - id: my-plugin
-      name: '@pi-investment/my-plugin'
-      config:
-        quantsysV2:
-          baseURL: http://localhost:5001
+- id: my-plugin
+  name: '@pi-investment/my-plugin'
+  config:
+    quantsysV2:
+      baseURL: http://localhost:5001
 ```
 
-6. **链接进 profile**（注意：profile 目录不在 agent-dh workspace 内，`pnpm install` 会因 `workspace:^` 协议报错）：
+6. **生成链接并核验**：
 
 ```bash
 # 新插件的依赖链接由 agent-dh 根目录的 pnpm install 生成：
 cd agent-dh && pnpm install
 
-# 装进 profile 并统一成符号链接 —— 别手写 ln，pnpm install 会产生硬链接副本，
+# 统一成符号链接 —— 别手写 ln，pnpm install 可能产生硬链接副本，
 # 而那些副本会在文件被编辑后静默停在旧版本（见上文「⚠️ pnpm build 不是部署」）
 python3 agent-dh/scripts/relink-profile.py
 ```
 
 ## Configuration Files
 
-### agent-dh/cordis.yml (Template - Standalone Format)
+### agent-dh/config/cordis.yml (Template - 配置源)
 
-Located at `agent-dh/cordis.yml`, this is a **reference template** showing all plugins and configurations in standalone format. It defines:
-- DSH core plugins (settings, credentials, LLM)
-- Investment plugins with their configs
-- Agent loop configuration
-- System prompt for investment analysis
+位于 `agent-dh/config/cordis.yml`，是 profile 配置的**唯一来源模板**。它定义：
+- Agent preset（investment：内置 standard 去掉 delegation 组）
+- 投资插件清单及各自 config
+- 禁用有 bug 的插件
+- Agent loop / system prompt 配置
 
-**Note**: This file uses **standalone cordis format** (flat list of plugins) and is **not directly used** by DSH.
+`scripts/start.sh` 启动时把缺失项从本模板补全到活动配置（`--force-config` 强制全覆盖）。
 
-### ~/.dsh/profiles/investment/cordis.patch.yml (Active - Patch Format)
+### agent-dh/cordis.yml (历史参考)
 
-This is the **active configuration** used by DSH when running the investment profile. It uses **patch format** (with `insert:` directives) to overlay plugins on top of DSH base bundles.
+仓库根的旧版 standalone 格式配置，保留作参考，**不直接参与加载**。
 
-**Key differences from cordis.yml**:
-- Uses `- insert:` blocks to add plugins
-- Does NOT include DSH core plugins (settings, credentials, LLM) - those come from `@deepseek-ai/dsh-base` bundle
-- Only includes investment-specific plugins and overrides
+### .dsh-data/profiles/agent-dh/cordis.patch.yml (Active)
 
-**Example patch format**:
-```yaml
-- insert:
-    - id: investment
-      name: '@pi-investment/investment'
-      config:
-        quantsysV2:
-          baseURL: http://localhost:5001
-```
-
-**To update the active configuration**:
-1. Edit `~/.dsh/profiles/investment/cordis.patch.yml` directly (recommended), OR
-2. Regenerate from `cordis.yml` template (requires conversion to patch format)
+DSH 实际加载的活动配置（patch 格式，`- insert:` 叠加在 `@deepseek-ai/dsh-base` bundle 之上），
+由 start.sh 从 `config/cordis.yml` 生成/补全。日常改配置优先改模板 `config/cordis.yml` 再重启；
+紧急情况下可直接改活动配置，但要记得回同步到模板，否则下次 `--force-config` 会被覆盖。
 
 ## Environment Variables
 
@@ -409,9 +394,9 @@ This is the **active configuration** used by DSH when running the investment pro
 cd ../quantsys-v2
 python start_all.py
 
-# Start the DSH investment profile
-cd ~/.dsh/profiles/investment
-./start.sh 13080
+# Start the DSH investment profile（仓库内统一入口）
+cd agent-dh
+./scripts/start.sh 13080
 ```
 
 Access the web UI at `http://localhost:13080`
@@ -420,10 +405,10 @@ Access the web UI at `http://localhost:13080`
 
 ```bash
 # 本实例的专用停机脚本（pidfile + 监听校验；托管端口内部走 launchctl bootout）
-cd ~/.dsh/profiles/investment && ./stop.sh
+cd agent-dh && ./scripts/stop.sh
 
 # 恢复运行
-cd ~/.dsh/profiles/investment && ./start.sh
+cd agent-dh && ./scripts/start.sh
 ```
 
 **不要用 `kill`**：KeepAlive 会立刻把它拉起来，`kill` 看起来成功但服务还在跑（静默失效）。
@@ -452,28 +437,19 @@ ls -la packages/investment/dist/  # Should contain .js files
 
 ### Update Profile Configuration
 
-**Recommended**: Edit the active configuration directly:
-
-```bash
-# Edit the active patch file
-vim ~/.dsh/profiles/investment/cordis.patch.yml
-
-# Restart the profile to apply changes（:13080 由 launchd 托管，kill 会被 KeepAlive 拉起）
-launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh
-```
-
-**Alternative**: Update the template and regenerate (advanced):
+**Recommended**: 改模板后重启（模板是唯一来源，活动配置由 start.sh 生成）:
 
 ```bash
 # 1. Edit the template
-vim agent-dh/cordis.yml
+vim agent-dh/config/cordis.yml
 
-# 2. Convert to patch format and apply (requires manual conversion)
-# Note: cordis.yml uses standalone format, cordis.patch.yml uses patch format
-# You need to wrap plugin entries in "- insert:" blocks
-
-# 3. Restart the profile
+# 2. Restart the profile to apply changes
+cd agent-dh && ./scripts/start.sh        # 托管时自动转 kickstart
+# 需要强制用模板全覆盖活动配置时：./scripts/start.sh --force-config
 ```
+
+**Alternative**: 紧急情况下直接改活动配置 `.dsh-data/profiles/agent-dh/cordis.patch.yml`，
+重启生效——但事后必须回同步到 `config/cordis.yml`，否则下次 `--force-config` 会被模板覆盖。
 
 ## Important Notes
 
@@ -487,8 +463,8 @@ vim agent-dh/cordis.yml
 
 - **DO** develop plugins as DSH plugin packages
 - **DO** use `pnpm build` to compile TypeScript
-- **DO** test via the DSH profile (`~/.dsh/profiles/investment/`)
-- **DO** keep `cordis.yml` in sync with `~/.dsh/profiles/investment/cordis.patch.yml`
+- **DO** test via the DSH profile（`cd agent-dh && ./scripts/start.sh`，数据在 `.dsh-data/`）
+- **DO** keep 配置模板 `config/cordis.yml` 与活动配置 `.dsh-data/profiles/agent-dh/cordis.patch.yml` 语义一致（改活动配置后回同步模板）
 
 ### Architecture Rules (Mandatory)
 
@@ -520,14 +496,14 @@ Agent-DH plugins depend on:
 ### Plugin Not Loading
 
 1. Check if package is built: `ls packages/<plugin>/dist/`
-2. Check if profile links are correct: `cat ~/.dsh/profiles/investment/package.json`
+2. Check if dependency links are correct: `ls -la node_modules/<plugin>`（应为指向 packages/ 的符号链接；体检用 `python3 scripts/relink-profile.py --check`）
 3. Check DSH logs for errors
 
 ### Tool Not Available
 
 1. Verify tool is exported in plugin's `src/index.ts`
-2. Verify plugin is listed in `cordis.patch.yml`
-3. Restart the DSH profile
+2. Verify plugin is listed in `config/cordis.yml`（及活动配置 `.dsh-data/profiles/agent-dh/cordis.patch.yml`）
+3. Restart the DSH profile（`./scripts/start.sh`）
 
 ### QuantsysV2 Connection Failed
 
@@ -553,8 +529,8 @@ lifecycle 插件提供两类能力（共 5 个工具）：
 - **自动续跑**：新进程启动后 lifecycle 插件读 `pending-resume.json`，通过 `ctx.agents` + `agent.followup()` 向 investor 注入续跑消息（与 DSH schedule 包同款投递模式）
 - **收尾**：验证通过调 `self_finalize(merge)` 合回基线并更新 last-known-good；失败可调 `self_finalize(rollback)`
 - **护栏**：每小时最多 10 次重启（2026-08-20 起，原 3 次；高频自修复验证场景下 3 次偏紧）、`restarting.lock` 防重入、同一任务连挂 2 次提示停止自动重试
-- **状态文件**：`~/.dsh/profiles/investment/state/`（pending-resume.json、restart-result.json、last-known-good、restart-counter.json）
-- **配置项**：repoRoot / agentDhRoot / profileDir / port / agentId / maxRestartsPerHour（见 cordis.patch.yml 的 lifecycle 段）
+- **状态文件**：`agent-dh/.dsh-data/state/`（pending-resume.json、restart-result.json、last-known-good、restart-counter.json）
+- **配置项**：repoRoot / agentDhRoot / profileDir / port / agentId / maxRestartsPerHour（见 `config/cordis.yml` 的 lifecycle 段）
 
 设计文档：[docs/rfcs/002-agent-dh-self-restart.md](../../docs/rfcs/002-agent-dh-self-restart.md)
 
@@ -573,10 +549,10 @@ pnpm build
 - [DSH Framework](https://github.com/deepseek-ai/dsh) - DeepSeek Harness documentation
 - [QuantsysV2](../quantsys-v2/CLAUDE.md) - Backend service documentation
 - [PI Investment Root](../CLAUDE.md) - Overall system architecture
-- [Profile README](profiles/investment/README.md) - Profile-specific documentation
 
 ## Version History
 
+- 2026-09-20: profile 布局更新——`~/.dsh/profiles/investment/` 已删除，现役为项目内 profile（名 agent-dh，DSH_HOME=数据目录 `agent-dh/.dsh-data/`）；启动/停机统一走 `scripts/start.sh` / `scripts/stop.sh`；配置源 = `config/cordis.yml`，活动配置 = `.dsh-data/profiles/agent-dh/cordis.patch.yml`
 - 2026-08-19: lifecycle 代码审查修复（50cb6084）：限流检查移到拿锁前（原拒绝路径泄漏锁致永久变砖）；重启器每次拉起前预写 restart-result（原时序竞争会让 rolled_back 误报成功）；锁 >15min stale 接管；状态读容错+原子写；self_finalize 幂等
 - 2026-08-19: 修复 investment/market 插件 schema 缺 additionalProperties 导致的全量启动崩溃；新增 tests/plugin-schema.smoke.test.ts 门禁；重写工具/插件开发样例为 defineTool + Service 模式并记录 Schema 铁律
 - 2026-08-19: Added `@pi-investment/lifecycle` 自修复重启插件（RFC 002，E2E 验证通过）
@@ -586,11 +562,11 @@ pnpm build
 
 ---
 
-**Status**: ✅ Active DSH profile with 14 investment plugins
+**Status**: ✅ Active DSH profile（项目内 profile：agent-dh，:13080）
 
-**Version**: 0.1.1
+**Version**: 0.1.2
 
-**Last Updated**: 2026-08-19
+**Last Updated**: 2026-09-20
 
 ## 自主能力系统（2026-08-20 新增）
 
@@ -645,7 +621,7 @@ Agent-DH 现已完成**完整自主能力体系**的架构设计。
 
 ## 多实例生命周期铁律（2026-08-21 起）
 
-同机运行多个 dsh 实例（主实例 :3080 / investment :13080 / 其他 profile）时，停止实例必须**精确到实例**，历史上模糊停止曾误杀其他 agent：
+同机运行多个 dsh 实例（主实例 :3080 / agent-dh :13080 / 其他 profile）时，停止实例必须**精确到实例**，历史上模糊停止曾误杀其他 agent：
 
 1. **禁止 `pkill -f 'dsh web'` / `killall node`** 等模糊匹配——会命中所有 dsh 实例
 2. **lsof 查端口必须带 `-sTCP:LISTEN`**——不带会把连着该端口页面的浏览器进程（Chrome Helper）也杀掉
@@ -661,7 +637,7 @@ Agent-DH 现已完成**完整自主能力体系**的架构设计。
 
 每个 agent 必须有**唯一 ID 和名字**，提高自我认知与协作可区分性：
 
-- **注册表**：`~/.dsh/profiles/investment/agents.json`（instance + agents[]：id/name/role/primary/alias_of）
+- **注册表**：`agent-dh/.dsh-data/agents.json`（instance + agents[]：id/name/role/primary/alias_of）
 - **提示词**：lifecycle 插件注册 `agent:identity` 段（order 5，宪法段之前），身份不进基因组、不参与进化
 - **self_info**：identity 块来自注册表
 - **经验署名**：learning 自动追踪的 context.agent 带 id/name/instance

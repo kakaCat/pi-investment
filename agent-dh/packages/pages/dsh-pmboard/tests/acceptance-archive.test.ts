@@ -90,13 +90,26 @@ describe('验收：人工审核 + 证据闸', () => {
     await seed('accepting')
     const res = await post('/req/verify/pass', { id: 'REQ-abc123' })
     expect(res.statusCode).toBe(400)
-    expect(res.payload.error).toContain('还没有验收材料')
+    // REQ-a8d582 FR-4（REQ-f0579a t1 更新断言口径）：无材料 = 不合规通过，
+    // 报文统一为 verify_override_required——人仍可以过，但必须带 confirm_override 显式覆盖留痕，
+    // 「先要证据」的默认拒绝语义不变（旧断言只匹配旧文案「还没有验收材料」，与现行契约脱节）。
+    expect(res.payload.code).toBe('verify_override_required')
+    expect(res.payload.error).toContain('尚无验收材料')
   })
 
-  it('agent 提交验收材料 → 待人工审核 → 人点通过 → 直接 archived（时间线留痕，REQ-9f4a44）', async () => {
+  it('agent 提交验收材料 → 待人工审核 → 人逐项裁决全过 → 人点通过 → 直接 archived（时间线留痕，REQ-9f4a44）', async () => {
     await seed('accepting')
     const out = await run(verifyTool, { summary: '时间线/甘特图已上线', evidence: ['pnpm vitest run → 168 passed', '截图 /tmp/board.png'] })
     expect(out.status).toBe('accepting')
+
+    // REQ-a8d582 FR-4（REQ-f0579a t1 补裁决步）：提交材料会生成逐项验收单（含需求级项，初始 pending），
+    // 未裁决 = 不合规通过（须覆盖）。快乐路径必须先逐项裁决全过，再点「验收通过」。
+    const sheet = store.snapshot().requirements[0]!.verification!.sheet!
+    const verdicts = await post('/req/verdicts', {
+      id: 'REQ-abc123', version: sheet.version,
+      verdicts: sheet.items.map(i => ({ itemId: i.id, status: 'passed' })),
+    })
+    expect(verdicts.statusCode).toBe(200)
 
     const pass = await post('/req/verify/pass', { id: 'REQ-abc123' })
     expect(pass.statusCode).toBe(200)

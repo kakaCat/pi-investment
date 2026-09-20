@@ -5,9 +5,10 @@
  * 「看板按钮的文案装配 → HTTP → 台账 → 看板重新渲染」这条链路。
  *
  * 链路：播种"实施完成 + 验收单已交" → 人逐项裁决打 1 项不通过（HTTP /req/verdicts）→
- * 断言**仍在验收态**（FR-2）→ 用**看板按钮自己的** verifyConfirmCopy 装配覆盖说明（FR-1）→
- * HTTP /req/verify/pass（FR-4）→ 台账 archived + 三处留痕 → 用同一台账做客户端渲染，
- * 证明「验收通过」按钮不再出现、人工审核结论可见（FR-3 的终态）。
+ * 断言自动回退实施 + 物化返工卡（REQ-308b9a 已**推翻** REQ-a8d582 FR-2 的"留在验收态"，
+ * REQ-f0579a t1 据此改写本段）→ 模拟返工完成重新提交验收 → 用**看板按钮自己的**
+ * verifyConfirmCopy 装配覆盖说明（FR-1）→ HTTP /req/verify/pass（FR-4）→ 台账 archived +
+ * 三处留痕 → 用同一台账做客户端渲染，证明「验收通过」按钮不再出现、人工审核结论可见（FR-3 的终态）。
  *
  * 边界（诚实标注）：浏览器 leg 覆盖的是**文案装配与渲染函数**；DOM 事件绑定（window.confirm
  * 的点击链路）不在本用例范围，由 tests/board-info-fixes.test.ts 的文案用例与人手实测覆盖。
@@ -98,13 +99,22 @@ describe('端到端：从验收单裁决到覆盖通过归档（TC-9）', () => 
     const sheet = store.snapshot().requirements[0]!.verification!.sheet!
     const item = sheet.items.find(i => i.source.kind === 'task')!
 
-    // ① 鉴别人打"不通过"：不得把需求踢出验收态（FR-2）
+    // ① 鉴别人打"不通过"：REQ-308b9a（推翻 REQ-a8d582 FR-2）——自动回退实施 + 物化返工卡
     const v = await post('/req/verdicts', {
       id: 'REQ-e2e001', version: sheet.version,
       verdicts: [{ itemId: item.id, status: 'failed', opinion: '按钮在无材料时仍然不显示' }],
     })
     expect(v.statusCode).toBe(200)
-    expect(store.snapshot().requirements[0]!.status).toBe('accepting')
+    expect(store.snapshot().requirements[0]!.status).toBe('implementing')
+    const reworkTasks = store.snapshot().tasks.filter(t => t.requirementId === 'REQ-e2e001' && t.id !== 't-e2e001')
+    expect(reworkTasks.length).toBe(1)
+
+    // ①b 模拟执行窗口完成返工并重新提交验收：回到验收态（验收单裁决结果持久——不通过 1 / 未裁决 1）
+    await store.mutate('seed', (l) => {
+      const r = l.requirements[0]!
+      r.status = 'accepting'
+      return { requirements: [r] }
+    })
 
     // ② 看板按钮自己的文案装配（FR-1）
     const clientReq = store.snapshot().requirements[0] as unknown as ClientRequirementRecord
