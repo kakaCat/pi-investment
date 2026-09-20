@@ -5,7 +5,7 @@
  *
  * @module dsh-pmboard/client/render/dom-utils
  */
-import { esc } from '../vendor/page-kit/index.js'
+import { esc } from '../html.js'
 import type { CommentRecord, RequirementRecord, RequirementStatus, TaskRecord, TaskStatus } from '../types.ts'
 
 /* ------------------------------------------------------------------ utils */

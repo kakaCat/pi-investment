@@ -1,9 +1,9 @@
 /**
- * 看板生命周期壳 —— 所有 DSH GUI page 共享。
+ * 看板生命周期壳：容器挂载、面板状态、互斥协议、轮询、外部点击关闭、dispose。
  * 职责：容器挂载（MutationObserver 兜底）、面板状态、互斥协议、轮询、外部点击关闭、dispose。
  * 页面只需提供 buildContainer / onMount / onPoll 等回调。
  *
- * @module page-kit/client/board-shell
+ * @module dsh-pmboard/client/board-shell
  */
 import { conversationColumn, ACTIVATE_EVENT } from './dom.js'
 

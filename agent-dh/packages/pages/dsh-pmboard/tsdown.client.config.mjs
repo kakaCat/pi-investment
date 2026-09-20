@@ -9,9 +9,8 @@ import { defineConfig } from 'tsdown'
 // package resolvable at runtime. 2026-09-16: shipping 'marked' external broke
 // the whole client half — "require(\"marked\") missed the module table".
 //
-// 2026-09-20: page-kit vendored to src/client/vendor/page-kit and marked no
-// longer imported — today no bare deps remain, but keep this rule in mind
-// before adding any import to src/client/.
+// 2026-09-20: this plugin is fully self-contained (no bare npm imports in
+// src/client/) — keep it that way; think twice before adding any import.
 export default defineConfig({
   entry: { client: 'src/client/index.ts' },
   format: ['cjs'],

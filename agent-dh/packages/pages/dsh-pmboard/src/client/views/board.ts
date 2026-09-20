@@ -4,7 +4,8 @@
  *
  * @module dsh-pmboard/client/views/board
  */
-import { esc, renderPagination } from '../vendor/page-kit/index.js'
+import { esc } from '../html.js'
+import { renderPagination } from '../render/pagination.js'
 import type { BoardState, ReqCard, TriageRecord } from '../types.ts'
 import { CATEGORY_LABELS, LANE_STATUSES, NO_ARCHIVED, STATUS_LABELS, fmtTime, sessionChipHtml, windowCodeFromSessionId } from '../render/dom-utils.ts'
 import { cardActions, renderReqCard } from './artifacts.ts'
@@ -146,7 +147,7 @@ export interface ListViewOpts {
  *
  * 排序（阶段/进度/最近更新/创建时间/名称，点同键切换升降序）；
  * 已完成置底（先「进行中 → 已完成」分组，组内再按所选键排序）；
- * 分页（每页 10/20/50，复用 page-kit renderPagination，data-pmpage）。
+ * 分页（每页 10/20/50，复用 render/pagination，data-pmpage）。
  */
 export function buildListView(
   state: BoardState,

@@ -1,5 +1,5 @@
 /**
- * 项目看板 board-mount —— 生命周期委托 page-kit board-shell；
+ * 项目看板 board-mount —— 生命周期委托 ./board-shell；
  * 页面保留视图状态机（board / req-detail / task-detail / triage）、
  * fetch/render、事件委派、SSE 订阅与会话跳转。
  *
@@ -19,7 +19,7 @@ import {
 import * as api from './api.ts'
 import { openDocInSidebar, resolveCurrentSessionId } from './open-doc.ts'
 import { archivedSessionIds, jumpToSession, windowServiceAccess, type SessionJumpResult } from './session-jump.ts'
-import { createBoardShell } from './vendor/page-kit/index.js'
+import { createBoardShell } from './board-shell.js'
 import { renderStageNode } from './stage-panel.ts'
 import { hasInjectionWindow, renderInjectionInfo } from './injection-info.ts'
 import { renderTokenPlaceholder, renderTokenTab } from './token-info.ts'
@@ -275,7 +275,7 @@ export function mountBoard(controller: BoardController): () => void {
 
   const onClick = (ev: MouseEvent): void => {
     const target = ev.target as Element
-    // 分页控件由 page-kit renderPagination 渲染（data-pmpage，无 data-action）
+    // 分页控件由 render/pagination 渲染（data-pmpage，无 data-action）
     const pageEl = target.closest<HTMLElement>('[data-pmpage]')
     if (pageEl !== null && state !== undefined) {
       const p = Number(pageEl.dataset.pmpage)

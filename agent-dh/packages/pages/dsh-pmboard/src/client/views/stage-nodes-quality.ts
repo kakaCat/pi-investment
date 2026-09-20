@@ -3,7 +3,7 @@
  *
  * @module dsh-pmboard/client/views/stage-nodes-quality
  */
-import { esc } from '../vendor/page-kit/index.js'
+import { esc } from '../html.js'
 import type { TaskRecord } from '../types.ts'
 import { renderComments } from '../render/dom-utils.ts'
 

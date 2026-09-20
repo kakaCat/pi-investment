@@ -3,7 +3,7 @@
  *
  * @module dsh-pmboard/client/views/timeline
  */
-import { esc } from '../vendor/page-kit/index.js'
+import { esc } from '../html.js'
 import type { BoardState, RequirementRecord, RequirementStatus, StatusEvent, TaskRecord, TaskStatus } from '../types.ts'
 import { LANE_STATUSES, PHASE_LABELS, STATUS_LABELS, TASK_STATUS_LABELS, fmtDur, fmtTime, isTerminal, short, windowCodeFromSessionId } from '../render/dom-utils.ts'
 

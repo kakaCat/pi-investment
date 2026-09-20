@@ -74,7 +74,7 @@ src/
 ├── adapters/      # 端口实现：JSON 台账、文件文档库、会话探针
 ├── http/          # 路由薄层（组合根 + 错误→状态码唯一映射点）
 ├── tools/         # 13 个 Agent 工具定义
-└── client/        # GUI 半：看板视图（vendor/page-kit 为内联的 DOM 工具库）
+└── client/        # GUI 半：看板视图（自包含，无外部 UI 依赖）
 ```
 
 层边界由 `tests/layer-boundary.test.ts` 静态扫描强制；宿主单文件 ≤400 行由尺寸门禁强制。

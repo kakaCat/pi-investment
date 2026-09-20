@@ -10,7 +10,7 @@
  *
  * @module dsh-pmboard/client/injection-info
  */
-import { esc } from './vendor/page-kit/index.js'
+import { esc } from './html.js'
 import { STATUS_LABELS, fmtTime } from './render/dom-utils.ts'
 
 /** 一条注入留痕（= 服务端 InjectionLogEntry 的只读投影；客户端不 import host 模块）。 */

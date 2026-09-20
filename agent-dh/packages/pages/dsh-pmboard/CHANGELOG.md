@@ -15,6 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/
 - client 半：GUI 侧栏入口 + 中心栏看板视图（泳道/时间线/验收单/归档区）
 
 ### Changed
-- page-kit 工具库内联至 src/client/vendor/page-kit，插件不再依赖 workspace 协议包
+- page-kit 工具库吸收为项目一等代码（client/dom、client/html、client/board-shell、client/render/pagination），插件不再依赖任何 workspace 协议包
 - 服务端入口从 TS 源码改为编译产物 dist/index.mjs（tsdown 构建）
 - 构建脚本去除 monorepo 相对路径，tsdown/tsx 声明为 devDependencies

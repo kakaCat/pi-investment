@@ -304,7 +304,7 @@ export const FILES_CSS = `/* 文档节点 - 文档列表 */
   border-top: 1px dashed var(--dsw-border, rgba(128,128,128,.22));
 }
 
-/* ---- 分页（page-kit renderPagination 的 tpg-* 类）---- */
+/* ---- 分页（render/pagination 的 tpg-* 类）---- */
 .dsh-pm-pager {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   padding: 14px 2px 4px;

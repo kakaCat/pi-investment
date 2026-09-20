@@ -3,7 +3,7 @@
  *
  * @module dsh-pmboard/client/views/verification
  */
-import { esc } from '../vendor/page-kit/index.js'
+import { esc } from '../html.js'
 import type { ArchiveRecord, RequirementRecord } from '../types.ts'
 import type { StageKey } from '../../shared/protocol.ts'
 import { ALL_STAGE_KEYS } from '../../shared/protocol.ts'

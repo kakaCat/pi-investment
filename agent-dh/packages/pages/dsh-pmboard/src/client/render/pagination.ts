@@ -2,7 +2,7 @@
  * 通用分页控件 —— 所有 DSH GUI page 共享。
  * 以 execution 版的智能省略号折叠为标准（支持 aria-current、上一页/下一页、总条数）。
  *
- * @module page-kit/client/pagination
+ * @module dsh-pmboard/client/render/pagination
  */
 
 export interface PaginationOpts {

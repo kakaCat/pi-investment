@@ -6,7 +6,7 @@
  *
  * @module dsh-pmboard/client/marks-info
  */
-import { esc } from './vendor/page-kit/index.js'
+import { esc } from './html.js'
 import type { ClauseMarkRow, RequirementMarksView } from '../shared/protocol.ts'
 import { fmt } from '../domain/text/fmt.ts'
 

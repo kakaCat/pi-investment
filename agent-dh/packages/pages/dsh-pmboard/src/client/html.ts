@@ -1,7 +1,7 @@
 /**
- * HTML 安全工具 —— 所有 DSH GUI page 共享。
+ * HTML 安全工具。
  *
- * @module page-kit/client/html
+ * @module dsh-pmboard/client/html
  */
 
 /** 将文本中的 HTML 特殊字符转义为实体，防止 XSS。 */
