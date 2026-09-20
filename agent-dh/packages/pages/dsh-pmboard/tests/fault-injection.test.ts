@@ -92,7 +92,7 @@ describe('A 弹框确认后节点不推进 → ask_confirm 原子完成', () => 
 
 describe('B 重复拆分 → 幂等守卫（任务数不变）', () => {
   it('二次 decompose 被拒且任务数保持 2', async () => {
-    await seed('design')
+    await seed('decomposing')
     await run(planTool, { path: 'p.md', summary: 's', tasks: GOOD_TASKS })
     await approvePlan()
     await run(decompose, {})
@@ -162,7 +162,7 @@ describe('E 过程文件不进文档 → 目录落盘即产物', () => {
 
 describe('F 薄卡（无实施卡）→ 拒落', () => {
   it('plan_submit 薄卡 → 缺实施方案', async () => {
-    await seed('design')
+    await seed('decomposing')
     await expect(run(planTool, {
       path: 'p.md', summary: 's',
       tasks: [{ key: 'a', title: 'x', acceptance: '单测绿' }],
@@ -172,7 +172,7 @@ describe('F 薄卡（无实施卡）→ 拒落', () => {
 
 describe('G 计划前向引用 → 提交时打回', () => {
   it('依赖后定义 key → 前向引用', async () => {
-    await seed('design')
+    await seed('decomposing')
     await expect(run(planTool, {
       path: 'p.md', summary: 's',
       tasks: [

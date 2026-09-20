@@ -76,14 +76,18 @@ describe('t6 · SubmitArtifact（requirement / plan）', () => {
       .rejects.toMatchObject({ code: 'REQBOARD_FILE_MISSING' })
   })
 
-  it('plan_submit：design 阶段提交计划 → pending_approval + 登记 plan 产物', async () => {
-    const h = makeHarness({ requirements: [req({ status: 'design' })] })
+  it('plan_submit：decomposing 阶段提交拆分计划 → pending_approval + 登记 decomposition 产物（2026-09-21 裁定）', async () => {
+    const h = makeHarness({ requirements: [req({ status: 'decomposing' })] })
     const out: any = await submitPlanArtifact(h.deps, {
-      path: 'docs/requirements/REQ-000001/plan.md', summary: '计划',
+      path: 'docs/requirements/REQ-000001/decomposition.md', summary: '计划',
     }, EXEC)
     expect(out.success).toBe(true)
     expect(out.plan_status).toBe('pending_approval')
-    expect(h.repo.ledger.requirements[0]!.plan?.path).toBe('docs/requirements/REQ-000001/plan.md')
+    expect(h.repo.ledger.requirements[0]!.plan?.path).toBe('docs/requirements/REQ-000001/decomposition.md')
+    // 拆分计划归拆分阶段：design 阶段提交被拒
+    const h2 = makeHarness({ requirements: [req({ status: 'design' })] })
+    await expect(submitPlanArtifact(h2.deps, { path: 'p.md', summary: 's' }, EXEC))
+      .rejects.toMatchObject({ code: 'REQBOARD_BAD_STATUS' })
   })
 })
 

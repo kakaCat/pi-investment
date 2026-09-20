@@ -66,7 +66,7 @@ describe('全链路：需求文档 → 计划批准 → 拆分 → 出口门禁'
       writeFileSync(join(designDir, f), '# ' + f + '\n\n最小 E2E 夹具（不设二级标题）。\n')
     }
     const r = {
-      id: REQ, title: '甲需求', description: '', status: 'design', blocked: false, category: 'feature',
+      id: REQ, title: '甲需求', description: '', status: 'decomposing', blocked: false, category: 'feature',
       sourceSessionId: W, comments: [], version: 1, createdAt: 1, updatedAt: 1,
       createdBy: { kind: 'human' }, updatedBy: { kind: 'human' },
       statusHistory: [{ status: 'design', at: 1, by: { kind: 'human' } }],

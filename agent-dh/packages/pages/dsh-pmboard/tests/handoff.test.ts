@@ -73,10 +73,11 @@ const CHAIN_TASKS = [
   { key: 'test', title: '端到端回归测试', phase: 'test', side: 'backend', depends_on: ['ui'], acceptance: 'npx vitest run 全绿', implementation: 'tests/ 加回归用例并跑 npx vitest run' },
 ]
 
-/** 窗口 A：完整走完需求分析 → 设计 → 拆分，返回任务 id 列表。 */
+/** 窗口 A：完整走完需求分析 → 设计 → 拆分，返回任务 id 列表。
+ *  2026-09-21：拆分计划在拆分阶段提交（设计阶段只写设计文档）。 */
 async function windowACompletesSetup(): Promise<string[]> {
-  await seed('design')
-  await run(planTool, { path: 'docs/requirements/REQ-hand1/plan.md', summary: '目标：加时间线；做法：协议→UI→测试', tasks: CHAIN_TASKS })
+  await seed('decomposing')
+  await run(planTool, { path: 'docs/requirements/REQ-hand1/decomposition.md', summary: '目标：加时间线；做法：协议→UI→测试', tasks: CHAIN_TASKS })
   await store.mutate('requirement-updated', (l) => {
     const r = l.requirements[0]
     if (r.plan !== undefined) { r.plan.approvedAt = 1000; r.plan.approvedBy = { kind: 'human' } }
@@ -334,10 +335,9 @@ describe('接力实测：handoff 契约——新窗口不读历史对话即可�
     // implementing 阶段的产物：task_detail（t1/t2 的汇报产物）
     const kinds = finalDetail.artifacts.map(a => a.kind)
     expect(kinds).toContain('task_detail')
-    // 完整产物链从需求记录追溯：plan → decomposition → task_detail
+    // 完整产物链从需求记录追溯：decomposition（拆分计划，2026-09-21 起替代旧 plan 产物）→ task_detail
     const allArtifacts = reqAfter.artifacts ?? []
     const allKinds = allArtifacts.map(a => a.kind)
-    expect(allKinds).toContain('plan')
     expect(allKinds).toContain('decomposition')
     expect(allKinds).toContain('task_detail')
 

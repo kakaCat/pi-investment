@@ -47,7 +47,8 @@ describe('产物规则表', () => {
   it('每节点必备产物与六道节点一致', () => {
     expect(STAGE_ARTIFACT_REQUIREMENTS).toEqual({
       brainstorming: ['requirement'],
-      design: ['plan'],
+      // 2026-09-21 用户裁定：设计阶段必备产物 = 设计文档（拆分计划归拆分阶段）
+      design: ['design'],
       decomposing: ['decomposition'],
       implementing: ['task_detail'],
       accepting: ['verification'],
@@ -55,12 +56,12 @@ describe('产物规则表', () => {
     })
   })
 
-  it('design 是展示种类，不进任何节点的必备产物（不动门禁，REQ-81aabd 选项 A）', () => {
+  it('design 是设计阶段必备产物与 G2 闸门产物（2026-09-21 用户裁定：设计只写设计文档）', () => {
     expect(ALL_ARTIFACT_KINDS).toContain('design')
-    for (const kinds of Object.values(STAGE_ARTIFACT_REQUIREMENTS)) {
-      expect(kinds).not.toContain('design')
-    }
-    expect(Object.values(ARTIFACT_CONFIRM_GATES)).not.toContain('design')
+    expect(STAGE_ARTIFACT_REQUIREMENTS.design).toContain('design')
+    expect(Object.values(ARTIFACT_CONFIRM_GATES)).toContain('design')
+    // 旧的 plan 门（design>decomposing 锚定 plan）已退役：plan 不再是任何闸门的锚
+    expect(Object.values(ARTIFACT_CONFIRM_GATES)).not.toContain('plan')
   })
 
   it('恰好 4 道人工确认门，且 kind 是合法产物种类', () => {

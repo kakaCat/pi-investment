@@ -30,12 +30,13 @@
 - [ ] 本阶段不二次创作设计：与设计矛盾时**退回设计改计划**
       （重新 `reqboard_submit(kind=plan)` 并重新批准），不在拆分阶段私改设计。
 
-## 5. 落库与确认门
+## 5. 提交与批准门（2026-09-21：拆分计划在拆分阶段写）
 
-- [ ] `reqboard_decompose`（设计未含任务表时**必须传 tasks**——本工具即任务卡创作口）。
-- [ ] `reqboard_ask_confirm(kind=decomposition)` 请人确认任务粒度与卡质量；
-      确认后自动推进到 implementing。
+- [ ] `reqboard_submit(kind=plan)` 提交拆分计划（path=decomposition.md、summary、tasks=任务表）。
+- [ ] `reqboard_ask_confirm(target=plan)` 弹框请人批准——**批准后自动落库任务卡并进入实施**
+      （中途不再打断）；未获批准 reqboard_decompose 被代码级拒绝。
+- [ ] 兜底：计划未含任务表时，`reqboard_decompose` **必须传 tasks**——本工具即任务卡创作口。
 
 ## 6. 交棒
 
-- [ ] 下一步：implementing —— 用 reqboard_decompose 交棒；未获批准不得进入。
+- [ ] 下一步：implementing —— 用 reqboard_ask_confirm(target=plan) 交棒；未获批准不得进入。

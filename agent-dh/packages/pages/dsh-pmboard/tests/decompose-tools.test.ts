@@ -50,7 +50,7 @@ async function honestClose(taskId: string) {
 }
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 
-async function seed(status: RequirementStatus = 'design', sourceSessionId: string | undefined = W): Promise<RequirementRecord> {
+async function seed(status: RequirementStatus = 'decomposing', sourceSessionId: string | undefined = W): Promise<RequirementRecord> {
   const r = {
     id: 'REQ-abc123', title: '看板需求', description: '', status, blocked: false,
     ...(sourceSessionId !== undefined ? { sourceSessionId } : {}),
@@ -90,7 +90,7 @@ describe('reqboard_decompose 边界', () => {
   })
 
   it('越权：不能拆别的窗口的需求', async () => {
-    await seed('design')
+    await seed('decomposing')
     await planAndApprove()
     await expect(run(decompose, {}, 'session-other')).rejects.toThrow(/REQBOARD_NO_BOUND_REQ/)
     await expect(run(decompose, { requirement_id: 'REQ-ffffff' })).rejects.toThrow(/REQBOARD_NOT_BOUND_TO_WINDOW/)
@@ -98,14 +98,14 @@ describe('reqboard_decompose 边界', () => {
   })
 
   it('传与批准计划不一致的 tasks → 拒绝且不写库', async () => {
-    await seed('design')
+    await seed('decomposing')
     await planAndApprove()
     await expect(run(decompose, { tasks: [{ key: 'x', title: '计划外' }] })).rejects.toThrow(/REQBOARD_PLAN_MISMATCH/)
     expect(store.snapshot().tasks).toHaveLength(0)
   })
 
   it('幂等守卫（REQ-2e9473 t01）：重复拆分被拒且任务数不变（事故 B 故障注入）', async () => {
-    await seed('design')
+    await seed('decomposing')
     await planAndApprove()
     const first = await run(decompose, {})
     expect(first.created).toHaveLength(2)
@@ -116,7 +116,7 @@ describe('reqboard_decompose 边界', () => {
   })
 
   it('幂等守卫：状态停在 design 但已有未取消任务时，拒绝并返回已有清单', async () => {
-    await seed('design')
+    await seed('decomposing')
     await planAndApprove()
     await run(decompose, {})
     // 模拟状态异常：任务已落库但需求状态被外部改回 design（绕过状态守卫，考验任务清单防线）
@@ -169,7 +169,7 @@ describe('reqboard_decompose 边界', () => {
   })
 
   it('按计划落库：key 映射成真实 id、依赖成链、任务验收标准来自计划', async () => {
-    await seed('design')
+    await seed('decomposing')
     await planAndApprove()
     const out = await run(decompose, {})
     expect(out.created).toHaveLength(2)
@@ -181,7 +181,9 @@ describe('reqboard_decompose 边界', () => {
     // "计划任务表正确落库"（语义不变），只是值随门禁要求一起升级。
     expect(ledger.tasks.map(t => t.acceptance)).toEqual(['npx vitest run tests/reqboard.test.ts 全绿', 'npx vitest run tests/client-view.test.ts 全绿'])
     expect(ledger.tasks[0].statusHistory?.[0]?.by.kind).toBe('agent')
-    expect(ledger.requirements[0].statusHistory?.map(e => e.status)).toEqual(['draft', 'decomposing'])
+    // 2026-09-21：拆分计划在拆分阶段提交，decompose 不再承担 design>decomposing 推进
+    expect(ledger.requirements[0].status).toBe('decomposing')
+    expect(ledger.requirements[0].statusHistory?.map(e => e.status)).toEqual(['draft'])
   })
 })
 
@@ -192,7 +194,7 @@ describe('plan_submit 三重校验（REQ-2e9473 t03）', () => {
   ]
 
   it('缺 implementation 的任务表被拒', async () => {
-    await seed('design')
+    await seed('decomposing')
     await expect(run(planTool, {
       path: 'p.md', summary: 's',
       tasks: [{ key: 'a', title: 'x', acceptance: '单测绿' }],
@@ -200,7 +202,7 @@ describe('plan_submit 三重校验（REQ-2e9473 t03）', () => {
   })
 
   it('验收标准空话（功能正常）被拒', async () => {
-    await seed('design')
+    await seed('decomposing')
     await expect(run(planTool, {
       path: 'p.md', summary: 's',
       tasks: [{ key: 'a', title: 'x', acceptance: '功能正常', implementation: '改 x.ts' }],
@@ -208,7 +210,7 @@ describe('plan_submit 三重校验（REQ-2e9473 t03）', () => {
   })
 
   it('验收标准缺可验证锚点被拒', async () => {
-    await seed('design')
+    await seed('decomposing')
     await expect(run(planTool, {
       path: 'p.md', summary: 's',
       tasks: [{ key: 'a', title: 'x', acceptance: '做完就行了', implementation: '改 x.ts' }],
@@ -216,7 +218,7 @@ describe('plan_submit 三重校验（REQ-2e9473 t03）', () => {
   })
 
   it('前向引用被拒（事故 G：依赖后定义的 key）', async () => {
-    await seed('design')
+    await seed('decomposing')
     await expect(run(planTool, {
       path: 'p.md', summary: 's',
       tasks: [
@@ -227,7 +229,7 @@ describe('plan_submit 三重校验（REQ-2e9473 t03）', () => {
   })
 
   it('依赖不存在的 key 被拒（原有语义保持）', async () => {
-    await seed('design')
+    await seed('decomposing')
     await expect(run(planTool, {
       path: 'p.md', summary: 's',
       tasks: [{ key: 'a', title: 'x', depends_on: ['ghost'], acceptance: '单测绿', implementation: '改 x.ts' }],
@@ -235,7 +237,7 @@ describe('plan_submit 三重校验（REQ-2e9473 t03）', () => {
   })
 
   it('合法任务表通过且 implementation 落库', async () => {
-    await seed('design')
+    await seed('decomposing')
     const out = await run(planTool, { path: 'p.md', summary: 's', tasks: GOOD })
     expect(out.plan_status).toBe('pending_approval')
     const plan = store.snapshot().requirements[0].plan!
@@ -245,7 +247,7 @@ describe('plan_submit 三重校验（REQ-2e9473 t03）', () => {
 
 describe('实施卡透传与开工送达（REQ-2e9473 t04）', () => {
   it('decompose 把 implementation 透传进 TaskRecord 与任务卡文件', async () => {
-    await seed('design')
+    await seed('decomposing')
     await planAndApprove()
     const out = await run(decompose, {})
     const ledger = store.snapshot()
@@ -254,7 +256,7 @@ describe('实施卡透传与开工送达（REQ-2e9473 t04）', () => {
   })
 
   it('历史批准的薄卡计划：decompose 不硬拦（人批过）但返回 thin_cards 警告', async () => {
-    await seed('design')
+    await seed('decomposing')
     // 模拟规则生效前批准的存量计划：无 implementation
     await store.mutate('legacy-plan', (l) => {
       const r = l.requirements[0]
@@ -272,7 +274,7 @@ describe('实施卡透传与开工送达（REQ-2e9473 t04）', () => {
   })
 
   it('task_move→in_progress 返回任务卡全文（开工说明书送达）', async () => {
-    await seed('design')
+    await seed('decomposing')
     await planAndApprove()
     const out = await run(decompose, {})
     await store.mutate('human-confirm', (l) => {
@@ -294,7 +296,7 @@ describe('实施卡透传与开工送达（REQ-2e9473 t04）', () => {
 describe('rollup 阻塞 blockers 显式化（REQ-2e9473 t02）', () => {
   /** 落库 2 任务并把需求推进到 implementing（模拟拆分确认门已过）。 */
   async function seedImplementingTwoTasks() {
-    await seed('design')
+    await seed('decomposing')
     await planAndApprove()
     const out = await run(decompose, {})
     await store.mutate('human-confirm', (l) => {
@@ -345,7 +347,7 @@ describe('rollup 阻塞 blockers 显式化（REQ-2e9473 t02）', () => {
 describe('done 凭证门（REQ-2e9473 t06/W2，事故 C/D 故障注入）', () => {
   /** 开工到 in_review 的任务（未汇报、无痕迹）。 */
   async function taskInReview() {
-    await seed('design')
+    await seed('decomposing')
     await planAndApprove()
     const out = await run(decompose, {})
     await store.mutate('human-confirm', (l) => {
@@ -377,7 +379,7 @@ describe('done 凭证门（REQ-2e9473 t06/W2，事故 C/D 故障注入）', () =
   })
 
   it('60s 内连续关闭两个任务 → 第二个被 REQBOARD_BULK_CLOSE 节流（事故 C 复现）', async () => {
-    await seed('design')
+    await seed('decomposing')
     await planAndApprove()
     const out = await run(decompose, {})
     await store.mutate('human-confirm', (l) => {
@@ -413,7 +415,7 @@ describe('done 凭证门（REQ-2e9473 t06/W2，事故 C/D 故障注入）', () =
 
 describe('reqboard_task_move 边界', () => {
   it('越权/不存在/人工闸门一律拒绝', async () => {
-    await seed('design')
+    await seed('decomposing')
     await planAndApprove()
     const out = await run(decompose, {})
     const a = out.created[0].id
@@ -424,7 +426,7 @@ describe('reqboard_task_move 边界', () => {
   })
 
   it('开工自动开执行段，离开 in_progress 自动结算；全部完成后需求进验收', async () => {
-    await seed('design')
+    await seed('decomposing')
     await planAndApprove()
     const out = await run(decompose, {})
     const [a, b] = out.created.map((c: { id: string }) => c.id)

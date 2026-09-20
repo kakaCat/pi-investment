@@ -94,7 +94,7 @@ describe('文档演进留痕（t19）', () => {
   })
 
   it('下游重交（plan_submit）→ 销 plan 标；decompose → 销 decomposition 标', async () => {
-    await seed('design')
+    await seed('decomposing') // 2026-09-21：拆分计划在拆分阶段提交
     // 迁移（REQ-d3e61a T-13）：feature 类型要求设计文档齐；本文件不读这些桩的内容，
     // 只是让桩形态合法（原先依赖上一个用例残留的 requirement.md，design 目录则完全没有）。
     writeReqFile('requirement.md')

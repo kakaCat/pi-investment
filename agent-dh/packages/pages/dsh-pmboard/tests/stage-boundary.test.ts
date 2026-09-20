@@ -25,7 +25,7 @@ beforeEach(() => {
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 
-async function seed(status = 'design'): Promise<void> {
+async function seed(status = 'decomposing'): Promise<void> {
   const r = {
     id: 'REQ-w7test', title: '阶段边界', description: '', status, category: 'feature', blocked: false,
     sourceSessionId: W, comments: [], version: 1, createdAt: 1, updatedAt: 1,
@@ -42,12 +42,12 @@ const CREATIVE = [
 ]
 
 describe('W7 阶段产物边界（t17）', () => {
-  it('不含任务表的计划可提交（设计一套文档）', async () => {
+  it('不含任务表的计划可提交（兜底逃生舱：落库时创作任务卡）', async () => {
     await seed()
-    const out = await run(planTool, { path: 'docs/requirements/REQ-w7test/plan.md', summary: '设计：架构+四视角+风险' })
+    const out = await run(planTool, { path: 'docs/requirements/REQ-w7test/decomposition.md', summary: '设计：架构+四视角+风险' })
     expect(out.plan_status).toBe('pending_approval')
     expect(out.task_count).toBe(0)
-    expect(out.note).toMatch(/任务卡在拆分阶段创作/)
+    expect(out.note).toMatch(/落库时由 reqboard_decompose 传 tasks 创作/)
     expect(store.snapshot().requirements[0].plan!.tasks).toHaveLength(0)
   })
 
@@ -102,7 +102,7 @@ describe('W7 阶段产物边界（t17）', () => {
     expect(store.snapshot().tasks).toHaveLength(0)
   })
 
-  it('计划未批准 → 落库被拒（design 阶段不得落库，故障注入）', async () => {
+  it('计划未批准 → 落库被拒（故障注入）', async () => {
     await seed()
     await run(planTool, { path: 'p.md', summary: '设计' })
     await expect(run(decompose, { tasks: CREATIVE })).rejects.toThrow(/REQBOARD_PLAN_NOT_APPROVED/)

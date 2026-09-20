@@ -39,7 +39,7 @@ function req(over: Partial<RequirementRecord>): RequirementRecord {
 /** 每节点 heavy 必须命中的"heavy 独有要素"关键词（逐字来自 vendor 原文 / 自写完整档）。 */
 const HEAVY_ELEMENTS: Readonly<Record<PromptStage, readonly string[]>> = {
   brainstorming: ['Three Paths', 'YAGNI', 'Red Flags', 'Spike', 'Bounded', 'Architectural'],
-  design: ['Bite-Sized Task Granularity', 'No Placeholders', 'Self-Review'],
+  design: ['设计文档集', '接口与数据契约先定死', '不写任务表'], // 2026-09-21：design 改自写档（只写设计文档）
   decomposing: ['变更盘点', '批次与依赖', '边界校验'],
   implementing: ['Load plan, review critically', 'When to Stop and Ask for Help'],
   accepting: ['The Iron Law', 'Rationalization Prevention'],
@@ -160,11 +160,14 @@ describe('六节点 light/heavy 要素（REQ-422af1 t7）', () => {
     }
   })
 
-  it('design 含计划批准弹框指引（ask_confirm 与看板双通道）', () => {
+  it('design 含设计文档确认弹框指引；拆分计划批准指引在 decomposing（2026-09-21 裁定）', () => {
     const text = resolveStagePrompt({ stage: 'design', difficulty: 'heavy' }).text
     expect(text).toContain('reqboard_ask_confirm')
-    expect(text).toContain('target=plan')
-    expect(resolveStagePrompt({ stage: 'design', difficulty: 'light' }).text).toContain('target=plan')
+    expect(text).toContain('kind=design')
+    expect(resolveStagePrompt({ stage: 'design', difficulty: 'light' }).text).toContain('kind=design')
+    // 批准拆分计划（target=plan）的指引已随计划挪到拆分阶段
+    expect(resolveStagePrompt({ stage: 'decomposing', difficulty: 'light' }).text).toContain('target=plan')
+    expect(resolveStagePrompt({ stage: 'decomposing', difficulty: 'heavy' }).text).toContain('target=plan')
   })
 
   it('accepting 含验收确认弹框指引', () => {

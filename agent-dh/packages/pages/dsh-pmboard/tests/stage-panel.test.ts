@@ -172,9 +172,9 @@ describe('各节点专属内容', () => {
     expect(html).toContain('暂无评论')
   })
 
-  it('design：无计划 → 尚未提交拆分计划', () => {
+  it('design：设计阶段只写设计文档（2026-09-21 裁定）', () => {
     const html = renderStagePanel(makeStageDetail({ stage: 'design', body: {} }))
-    expect(html).toContain('尚未提交拆分计划')
+    expect(html).toContain('设计阶段只写设计文档')
   })
 
   it('design：已批准 → 任务数 + 批准时间', () => {
@@ -215,9 +215,9 @@ describe('各节点专属内容', () => {
     expect(html).toContain('第 2 层')
   })
 
-  it('decomposing：无任务 → 尚未拆分任务', () => {
+  it('decomposing：无任务 → 尚未提交拆分计划（2026-09-21 裁定：计划在拆分阶段提交）', () => {
     const html = renderStagePanel(makeStageDetail({ stage: 'decomposing', body: { tasks: [], planTasks: [] } }))
-    expect(html).toContain('尚未拆分任务')
+    expect(html).toContain('尚未提交拆分计划')
   })
 
   it('accepting：无材料 → 尚未提交验收材料', () => {
@@ -435,8 +435,10 @@ describe('追溯链', () => {
       makeArtifact({ kind: 'decomposition', stage: 'decomposing', path: 'docs/requirements/REQ-test/decomposition.md' }),
     ]
     const html = renderStagePanel(makeStageDetail({ stage: 'design', artifacts, body: {} as never }))
+    // 2026-09-21：decomposition 承载拆分计划；旧 plan 产物标「拆分计划（旧版）」
+    expect(html).toContain('>拆分计划（旧版）</button>')
+    expect(html).toContain('data-kind="decomposition"')
     expect(html).toContain('>拆分计划</button>')
-    expect(html).toContain('>拆分方案</button>')
   })
 })
 
@@ -546,7 +548,7 @@ describe('健壮性', () => {
       stage: 'decomposing',
       body: { tasks: undefined as never, planTasks: [] },
     }))
-    expect(html).toContain('尚未拆分任务')
+    expect(html).toContain('尚未提交拆分计划')
   })
 
   it('brainstorming body.comments 为 undefined → 不抛错', () => {

@@ -100,9 +100,9 @@ describe('文档记录并入节点产物（#6/#7）', () => {
     ])
   })
 
-  it('产物种类带上可读标签（需求文档/拆分方案/任务卡/归档材料）', () => {
+  it('产物种类带上可读标签（2026-09-21：decomposition 标签改「拆分计划」，旧 plan 标「拆分计划（旧版）」）', () => {
     const html = buildReqDetail(makeReq({ status: 'archived', artifacts }), [], T0)
-    for (const label of ['需求文档', '拆分计划', '拆分方案', '任务卡', '验收材料', '归档材料']) {
+    for (const label of ['需求文档', '拆分计划（旧版）', '拆分计划', '任务卡', '验收材料', '归档材料']) {
       expect(html).toContain(label)
     }
   })

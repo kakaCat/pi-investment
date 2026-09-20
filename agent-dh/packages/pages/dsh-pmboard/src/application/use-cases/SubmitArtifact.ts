@@ -157,9 +157,10 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
       const changeNote = normalizeText(a.change_note, 'change_note', 1000)
       if (path.length === 0) reject('reqboard_plan_submit 未执行：path 不能为空', 'REQBOARD_INVALID_INPUT')
       if (summary.length === 0) reject('reqboard_plan_submit 未执行：summary 不能为空（人要读它来决定批不批）', 'REQBOARD_INVALID_INPUT')
-      // REQ-2e9473 t17/W7：任务表改可选——设计阶段只交一套设计文档（架构/四视角/风险/
-      // 工作流划分），最终任务 DAG 由 decomposing 阶段创作。传了 tasks（旧习惯/预估划分）
-      // 则仍走严格校验；不传则合法（tasks=[]）。
+      // 2026-09-21 用户裁定（w-2105d331 代录）：拆分计划归**拆分阶段**——设计阶段只交
+      // 一套设计文档（架构/四视角/风险/工作流划分），拆分计划（含任务表）在 decomposing
+      // 阶段提交并批准，批准 = reqboard_decompose 落卡的唯一钥匙。传了 tasks 走严格校验；
+      // 不传则合法（tasks=[]，decompose 时走创作路径兜底）。
       const tasks = a.tasks === undefined ? [] : normalizePlanTasks(a.tasks)
 
       const snapshot = deps.repo.snapshot()
@@ -172,12 +173,13 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
           'REQBOARD_NOT_BOUND_TO_WINDOW',
         )
       }
-      // 流程纪律：拆分计划属于「设计」（design）阶段。方案还没谈定就跳去写设计，正是流程要挡的越级。
-      if (target.status !== 'design') {
+      // 流程纪律（2026-09-21 用户裁定）：拆分计划属于「拆分」（decomposing）阶段——
+      // 设计阶段只写设计文档（design/ 目录，G2 确认设计文档后才进拆分）。
+      if (target.status !== 'decomposing') {
         reject(
-          'reqboard_plan_submit 未执行：需求当前处于 ' + target.status + '，拆分计划只能在 design（设计）阶段提交。'
-          + '先把方案谈定 → reqboard_move 到 design → 再提交计划；'
-          + '已有计划要改，也先回到 design 重新提交（旧批准自动作废）',
+          'reqboard_plan_submit 未执行：需求当前处于 ' + target.status + '，拆分计划只能在 decomposing（拆分）阶段提交。'
+          + '设计阶段只写设计文档 → 确认设计文档后进拆分 → 再提交拆分计划；'
+          + '已有计划要改，也在拆分阶段重新提交（旧批准自动作废）',
           'REQBOARD_BAD_STATUS',
         )
       }
@@ -265,10 +267,12 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
       })
       const changed = (result.changed.requirements ?? [])[0]
       if (changed === undefined) reject('reqboard_plan_submit 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
-      // ── 产物登记（REQ-31e11f t4）：plan 产物 = 计划文档 ──────────────────
+      // ── 产物登记（REQ-31e11f t4）：拆分计划 = 拆分阶段的 decomposition 产物 ──
+      // （2026-09-21：原 stage=design/kind=plan；kind=decomposition 使 G3「批准拆分计划」门
+      //   直接锚定本产物——批准计划即落章 decomposition，无需二次确认拆分清单）
       const planArtifact: StageArtifact = {
-        stage: 'design',
-        kind: 'plan',
+        stage: 'decomposing',
+        kind: 'decomposition',
         path,
         registeredAt: nowTs,
         registeredBy: { kind: 'agent', sessionId: windowKey },
@@ -287,7 +291,7 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
         orphan_clauses: chain.orphans,
         task_count: tasks.length,
         tasks: tasks.map(t => ({ key: t.key, title: t.title, depends_on: [...(t.dependsOn ?? [])] })),
-        note: '计划已提交' + (tasks.length === 0 ? '（设计阶段，未含任务表——任务卡在拆分阶段创作）' : '（含 ' + tasks.length + ' 张预估任务卡）')
-          + '。下一步：调 reqboard_ask_confirm（target=plan）弹框请人批准——批准后进拆分，用 reqboard_decompose 创作并落库任务卡（看板「批准计划」同样是有效通道）',
+        note: '拆分计划已提交' + (tasks.length === 0 ? '（未含任务表——落库时由 reqboard_decompose 传 tasks 创作）' : '（含 ' + tasks.length + ' 张任务卡）')
+          + '。下一步：调 reqboard_ask_confirm（target=plan）弹框请人批准——批准后自动拆分落库并进入实施（看板「批准计划」同样是有效通道）',
       }
     }

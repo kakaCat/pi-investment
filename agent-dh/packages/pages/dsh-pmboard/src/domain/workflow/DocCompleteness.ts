@@ -39,7 +39,7 @@ export const VERIFICATION_DOC_CLASSES: readonly DocClass[] = [
   { key: 'design_data_model', label: 'design/data-model.md（数据模型）', hit: p => p === 'design/data-model.md' },
   { key: 'design_interfaces', label: 'design/interfaces.md（接口）', hit: p => p === 'design/interfaces.md' },
   { key: 'design_test_cases', label: 'design/test-cases.md（测试用例）', hit: p => p === 'design/test-cases.md' },
-  { key: 'decomposition', label: 'decomposition.md（拆分方案）', hit: p => p === 'decomposition.md' },
+  { key: 'decomposition', label: 'decomposition.md（拆分计划）', hit: p => p === 'decomposition.md' },
   { key: 'reviews', label: 'reviews/（评审报告，非空）', hit: p => p.startsWith('reviews/') && p.endsWith('.md') },
   { key: 'tests', label: 'tests/（测试证据，非空）', hit: p => p.startsWith('tests/') },
 ]

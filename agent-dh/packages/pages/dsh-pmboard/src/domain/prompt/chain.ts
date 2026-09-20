@@ -30,14 +30,16 @@ export const STAGE_CHAIN: Readonly<Record<PromptStage, StageChainStep>> = {
     label: '下一步：design —— 用 reqboard_ask_confirm(target=artifact, kind=requirement) 交棒；未获批准不得进入。',
   },
   design: {
+    // 2026-09-21 用户裁定：设计阶段只写设计文档——交棒 = 确认设计文档（不再是提交计划）
     next: 'decomposing',
-    tool: 'reqboard_submit',
-    label: '下一步：decomposing —— 用 reqboard_submit(kind=plan) 交棒；未获批准不得进入。',
+    tool: 'reqboard_ask_confirm',
+    label: '下一步：decomposing —— 用 reqboard_ask_confirm(target=artifact, kind=design) 交棒；未获批准不得进入。',
   },
   decomposing: {
+    // 2026-09-21 用户裁定：拆分计划在拆分阶段写——交棒 = 批准拆分计划（批准即自动拆分+开跑）
     next: 'implementing',
-    tool: 'reqboard_decompose',
-    label: '下一步：implementing —— 用 reqboard_decompose 交棒；未获批准不得进入。',
+    tool: 'reqboard_ask_confirm',
+    label: '下一步：implementing —— 用 reqboard_ask_confirm(target=plan) 交棒；未获批准不得进入。',
   },
   implementing: {
     next: 'accepting',

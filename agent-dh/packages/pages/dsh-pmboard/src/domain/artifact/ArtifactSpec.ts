@@ -14,7 +14,8 @@ import type { StageKey } from '../requirement/RequirementStatus.js'
 
 /**
  * 产物种类。前六类 = 六道节点必备产物（闸门依赖）；design = 设计文档
- * （REQ-81aabd：设计节点的交付物，按分类模板逐份核对已交/未交，**不参与任何闸门**）；
+ * （REQ-81aabd：设计节点的交付物，按分类模板逐份核对已交/未交；
+ *  2026-09-21 用户裁定：design 升格为 G2 闸门产物——设计阶段只写设计文档，拆分计划归拆分阶段）；
  * notes = 过程产物兜底（REQ-2e9473 t11 自动发现：原型 html / 笔记等不属必备门禁的文件）。
  */
 export type ArtifactKind = 'requirement' | 'plan' | 'decomposition' | 'design' | 'task_detail' | 'verification' | 'archive' | 'notes' | 'task_output'
@@ -23,7 +24,8 @@ export const ALL_ARTIFACT_KINDS: readonly ArtifactKind[] = ['requirement', 'plan
 /** 每节点必备产物（feature 全流水线基准；分类档案可再裁剪）。 */
 export const STAGE_ARTIFACT_REQUIREMENTS: Readonly<Partial<Record<StageKey, readonly ArtifactKind[]>>> = {
   brainstorming: ['requirement'],
-  design: ['plan'],
+  // 2026-09-21 用户裁定：design 阶段的必备产物 = 设计文档（不再是 plan）；拆分计划归拆分阶段
+  design: ['design'],
   decomposing: ['decomposition'],
   implementing: ['task_detail'], // 粒度=每任务一份 tasks/t-xxx.md；task_report 汇报追加
   accepting: ['verification'],

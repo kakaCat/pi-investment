@@ -435,7 +435,7 @@ describe('验收 7：缺产物拦截 + 产物链追溯', () => {
 
 describe('验收 8：task_report 汇报 = 实施产物文档', () => {
   it('task_report 后 StageDetail.implementing 含 task_detail 产物（可追溯）', async () => {
-    await seed('design')
+    await seed('decomposing')
     const reportTool = defineTaskReportTool({ store, now: () => Date.now() } as never)
     const planTool = definePlanSubmitTool({ store, now: () => Date.now() } as never)
     const decomposeTool = defineDecomposeTool({ store, now: () => Date.now() } as never)
@@ -530,9 +530,11 @@ describe('验收 9：阶段提示词注入', () => {
 
 describe('验收 10：四道人工确认门', () => {
   // REQ-9f4a44：四道门——accepting>archived 合并了原 accepting>done 与 done>archived
+  // 2026-09-21 用户裁定：design>decomposing 门锚定 design 产物（设计文档），
+  // 拆分计划（decomposition）的批准门在 decomposing>implementing
   const ALL_FIVE_GATES: Array<[string, string, string]> = [
     ['brainstorming', 'design', 'requirement'],
-    ['design', 'decomposing', 'plan'],
+    ['design', 'decomposing', 'design'],
     ['decomposing', 'implementing', 'decomposition'],
     ['accepting', 'archived', 'verification'],
   ]
@@ -566,15 +568,7 @@ describe('验收 10：四道人工确认门', () => {
       }]
       return { requirements: [r] }
     })
-    // 特殊门处理
-    if (from === 'design' && to === 'decomposing') {
-      // design>decomposing 用 planApproved 判定
-      await store.mutate('requirement-updated', (l) => {
-        const r = l.requirements[0]
-        r.plan = { path: 'p.md', summary: 's', tasks: [{ key: 'a', title: 'A' }], submittedAt: 1, submittedBy: { kind: 'agent' }, approvedAt: 2, approvedBy: { kind: 'human' } }
-        return { requirements: [r] }
-      })
-    }
+    // 特殊门处理（2026-09-21：design>decomposing 已改通用 design 产物确认判定，无特判）
     if (from === 'accepting' && to === 'archived') {
       // accepting>archived（验收通过即归档）还需要 verification 记录
       await store.mutate('requirement-updated', (l) => {

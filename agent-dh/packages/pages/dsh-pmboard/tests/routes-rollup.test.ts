@@ -96,12 +96,14 @@ describe('路由层自动推进（R2 实施完成 → 验收）', () => {
     })
     await post(handler, '/req/move', { id: reqId, to: 'brainstorming', actor: 'human' })
     await post(handler, '/req/move', { id: reqId, to: 'design', actor: 'human' })
+    // 2026-09-21：拆分计划在拆分阶段提交（legacy 无产物 → 门不硬拦，可直接推进）
+    await post(handler, '/req/move', { id: reqId, to: 'decomposing', actor: 'human' })
     // 提交计划并批准
     const { definePlanSubmitTool, defineDecomposeTool } = await import('./helpers/tool-deps.js')
     const planTool = definePlanSubmitTool({ store, now: () => Date.now() } as never)
     const decomposeTool = defineDecomposeTool({ store, now: () => Date.now() } as never)
     await planTool.execute({
-      path: 'docs/requirements/' + reqId + '/plan.md', summary: 's',
+      path: 'docs/requirements/' + reqId + '/decomposition.md', summary: 's',
       tasks: [{ key: 'a', title: '任务A', phase: 'implement', side: 'backend', acceptance: '单测通过', implementation: '改 a.ts' }],
     }, { agent: { id: 'session-test' } })
     await post(handler, '/req/plan/approve', { id: reqId })

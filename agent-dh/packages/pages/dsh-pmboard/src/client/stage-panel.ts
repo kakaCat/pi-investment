@@ -59,8 +59,8 @@ export const STAGE_LABELS: Record<MainStageKey, string> = {
 const ARTIFACT_KIND_LABELS: Partial<Record<ArtifactKind, string>> = {
   requirement: '需求文档',
   design: '设计文档',
-  plan: '拆分计划',
-  decomposition: '拆分方案',
+  plan: '拆分计划（旧版）', // 2026-09-21：plan 退役，拆分计划由 decomposition 承载
+  decomposition: '拆分计划',
   task_detail: '任务卡',
   verification: '验收材料',
   archive: '归档材料',
@@ -271,7 +271,7 @@ const renderDesignBody: StageBodyRenderer = (payload) => {
   }
   
   if (!body.plan) {
-    return '<div class="dsh-pm-sn-body" data-stage="design">' + docSetHtml + '<div class="dsh-pm-sn-empty">尚未提交拆分计划</div></div>'
+    return '<div class="dsh-pm-sn-body" data-stage="design">' + docSetHtml + '<div class="dsh-pm-sn-empty">设计阶段只写设计文档（拆分计划在拆分阶段提交）</div></div>'
   }
   const plan = body.plan
   const statusLine = plan.approvedAt !== undefined
@@ -314,7 +314,7 @@ const renderDecomposingBody: StageBodyRenderer = (payload) => {
   const body = (payload as Extract<StageDetail, { stage: 'decomposing' }>).body
   const tasks = body.tasks ?? []
   if (tasks.length === 0) {
-    return '<div class="dsh-pm-sn-body" data-stage="decomposing"><div class="dsh-pm-sn-empty">尚未拆分任务</div></div>'
+    return '<div class="dsh-pm-sn-body" data-stage="decomposing"><div class="dsh-pm-sn-empty">尚未提交拆分计划（提交并获批准后自动拆分任务）</div></div>'
   }
   const layers = topoLevels(tasks)
   const sections: string[] = []

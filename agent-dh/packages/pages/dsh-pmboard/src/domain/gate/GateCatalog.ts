@@ -38,25 +38,29 @@ export const GATE_CATALOG: readonly GateSpec[] = [
     questionCard: '需求文档已完成，是否确认进入设计？',
   },
   {
-    id: 'G2', label: '批准拆分计划',
+    // 2026-09-21 用户裁定（w-2105d331 代录）：设计阶段只写设计文档，拆分计划归拆分阶段。
+    // G2 从「批准拆分计划（kind=plan）」改为「确认设计文档（kind=design）」。
+    id: 'G2', label: '确认设计文档',
     from: 'design', to: 'decomposing',
-    requiredKind: 'plan',
+    requiredKind: 'design',
     channels: ['session', 'board'],
     verdictShape: 'affirmative',
-    // design>decomposing **不在** HUMAN_ONLY：agent 可自行推进，但产物门（plan 已确认）拦着
+    // design>decomposing **不在** HUMAN_ONLY：agent 可自行推进，但产物门（design 已确认）拦着
     humanOnly: false,
     autoAdvance: true,
-    questionCard: '拆分计划已提交，是否批准进入拆分？',
+    questionCard: '设计文档已完成，是否确认进入拆分？',
   },
   {
-    id: 'G3', label: '确认拆分清单',
+    // 2026-09-21 用户裁定：拆分计划（decomposition.md + 任务表）在拆分阶段提交并批准，
+    // 批准 = decompose 落卡的唯一钥匙（批准即自动拆分+开跑，见 AskConfirm 门合并）。
+    id: 'G3', label: '批准拆分计划',
     from: 'decomposing', to: 'implementing',
     requiredKind: 'decomposition',
     channels: ['session', 'board'],
     verdictShape: 'affirmative',
     humanOnly: true,
     autoAdvance: true,
-    questionCard: '拆分清单已落库，是否确认进入实施？',
+    questionCard: '拆分计划已提交，是否批准落库任务卡并进入实施？',
   },
   {
     id: 'G4', label: '验收通过即归档',
@@ -125,7 +129,8 @@ export const ARTIFACT_CONFIRM_GATES: Readonly<Record<string, ArtifactKind>> = Ob
 export function questionCardFor(gateKind: string | undefined, from: string, to: string): string {
   const gate = gateForTransition(from, to)
   const question = gate?.questionCard ?? fmt('是否确认推进到 {to}？', { to })
-  const call = gateKind === 'plan' || (from === 'design' && to === 'decomposing')
+  // 2026-09-21：「批准拆分计划」门已从 design>decomposing 挪到 decomposing>implementing
+  const call = gateKind === 'plan' || (from === 'decomposing' && to === 'implementing')
     ? fmt("{ target: 'plan', question: '{question}' }", { question })
     : fmt("{ target: 'artifact', kind: '{kind}', question: '{question}' }", { kind: gateKind ?? 'requirement', question })
   return fmt('\n【问题卡】直接调 reqboard_ask_confirm 完成确认（用户点肯定项 → 自动落章并推进 {from} → {to}）：\n  reqboard_ask_confirm({call})', { from, to, call })

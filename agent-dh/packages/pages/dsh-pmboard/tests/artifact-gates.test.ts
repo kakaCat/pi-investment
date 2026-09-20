@@ -113,27 +113,27 @@ async function post(url: string, body: unknown) {
 // -- 产物登记钩子 ------------------------------------------------------------
 
 describe('产物登记钩子', () => {
-  it('plan_submit 成功时登记 kind=plan 产物（stage=design）', async () => {
-    await seed('design')
-    await run(planTool, { path: 'docs/requirements/REQ-abc123/plan.md', summary: 's', tasks: TWO_TASKS })
+  it('plan_submit 成功时登记 kind=decomposition 产物（stage=decomposing；2026-09-21 裁定）', async () => {
+    await seed('decomposing')
+    await run(planTool, { path: 'docs/requirements/REQ-abc123/decomposition.md', summary: 's', tasks: TWO_TASKS })
     const req = store.snapshot().requirements[0]
     expect(req.artifacts).toHaveLength(1)
     expect(req.artifacts![0]).toMatchObject({
-      stage: 'design', kind: 'plan', path: 'docs/requirements/REQ-abc123/plan.md',
+      stage: 'decomposing', kind: 'decomposition', path: 'docs/requirements/REQ-abc123/decomposition.md',
     })
     expect(req.artifacts![0].registeredBy).toEqual({ kind: 'agent', sessionId: W })
   })
 
   it('plan_submit 幂等：重复提交不重复登记', async () => {
-    await seed('design')
-    await run(planTool, { path: 'docs/requirements/REQ-abc123/plan.md', summary: 's', tasks: TWO_TASKS })
-    await run(planTool, { path: 'docs/requirements/REQ-abc123/plan.md', summary: 's2', tasks: TWO_TASKS })
+    await seed('decomposing')
+    await run(planTool, { path: 'docs/requirements/REQ-abc123/decomposition.md', summary: 's', tasks: TWO_TASKS })
+    await run(planTool, { path: 'docs/requirements/REQ-abc123/decomposition.md', summary: 's2', tasks: TWO_TASKS })
     const req = store.snapshot().requirements[0]
     expect(req.artifacts).toHaveLength(1)
   })
 
   it('decompose 成功时自动生成 decomposition.md + 任务卡骨架', async () => {
-    await seed('design')
+    await seed('decomposing')
     await planAndApprove()
     const out = await run(decompose, {})
     expect(out.success).toBe(true)
@@ -264,16 +264,22 @@ describe('五门两级校验', () => {
     expect(res.statusCode).toBe(200)
   })
 
-  it('design → decomposing 用 planApproved 判定（不查 artifact.confirmedAt）', async () => {
+  it('design → decomposing 用 design 产物确认判定（2026-09-21 裁定：设计阶段只写设计文档）', async () => {
     await seed('design', 'feature')
-    // 提交计划但不批准
-    await run(planTool, { path: 'docs/requirements/REQ-abc123/plan.md', summary: 's', tasks: TWO_TASKS })
-    // 登记 plan 产物但不确认
-    // design → decomposing 应该被拒（plan 未批准）
+    // 登记 design 产物但不确认 → 转移被拒
+    await store.mutate('requirement-updated', (l) => {
+      const r = l.requirements[0]
+      r.artifacts = [{ stage: 'design', kind: 'design', path: 'docs/requirements/REQ-abc123/design/architecture.md', registeredAt: 1, registeredBy: { kind: 'agent' } }]
+      return { requirements: [r] }
+    })
     const res = await post('/req/move', { id: 'REQ-abc123', to: 'decomposing', actor: 'human' })
     expect(res.statusCode).toBe(400)
     expect(res.payload.code).toBe('artifact_not_confirmed')
-    expect(res.payload.error).toContain('批准')
+    // 人确认设计文档后 → 放行
+    const ok = await post('/req/artifact/confirm', { id: 'REQ-abc123', kind: 'design', actor: 'human' })
+    expect(ok.statusCode).toBe(200)
+    const moved = await post('/req/move', { id: 'REQ-abc123', to: 'decomposing', actor: 'human' })
+    expect(moved.statusCode).toBe(200)
   })
 })
 

@@ -54,9 +54,10 @@ export const VENDOR_DIR = join(PKG_ROOT, 'src/domain/prompt/vendor/superpowers')
  * superpowers 14 份 skill 里没有"拆分/任务 DAG/卡质量"的对应物（对照结论 §4.5 口径例外），
  * 其 heavy 为自写完整档，不做"与 vendor 原文逐字一致"断言。
  */
+// 2026-09-21 用户裁定：设计阶段只写设计文档、不写计划——design 自本表移除，
+// 其 heavy 改为自写档（writing-plans 的写计划纪律迁往 decomposing 档），不再镜像 vendor。
 export const VENDOR_MAIN_SKILLS = {
   brainstorming: 'brainstorming',
-  design: 'writing-plans',
   implementing: 'executing-plans',
   accepting: 'verification-before-completion',
   archived: 'finishing-a-development-branch',
