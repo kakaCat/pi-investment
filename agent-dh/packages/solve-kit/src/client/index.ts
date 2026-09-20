@@ -135,8 +135,12 @@ export function createSolveKit(deps: SolveKitDeps): SolveKit {
     }
   }
 
-  /** session id → 展示标签（与 host windowCode 同口径：session- 前缀取中段 8 位） */
-  const labelOf = (sid: string): string => (sid.startsWith('session-') ? 'w-' + sid.slice(8, 16) : sid)
+  /** session id → 展示标签（取最后一个 'session-' 后的 uuid 前 8 位 → w-XXXXXXXX；
+   *  兼容 'session-<uuid>' 与 'investor-session-<uuid>' 两种形态，其余原样返回） */
+  const labelOf = (sid: string): string => {
+    const i = sid.lastIndexOf('session-')
+    return i >= 0 && sid.length >= i + 16 ? 'w-' + sid.slice(i + 8, i + 16) : sid
+  }
 
   /** 点「我来解决」：弹窗口选择器（默认当前窗口在首，current 标记）；无候选时直接投递主窗口 */
   const openPicker = (anchor: HTMLElement, kind: 'task' | 'error', identity: SolveIdentity): void => {
@@ -177,8 +181,7 @@ export function createSolveKit(deps: SolveKitDeps): SolveKit {
     pop.appendChild(head)
     const list = document.createElement('div')
     list.className = pf + '-solvepop-list'
-    for (const c of cands) {
-      const isOn = onlineSet === null || c.current || onlineSet.has(c.sid)
+    const makeItem = (c: SolveCandidate, isOn: boolean): HTMLButtonElement => {
       const b = document.createElement('button')
       b.type = 'button'
       b.className = pf + '-solvepop-item' + (c.current ? ' cur' : '') + (isOn ? '' : ' off')
@@ -192,7 +195,33 @@ export function createSolveKit(deps: SolveKitDeps): SolveKit {
         }
         close(); void postSolve(target.kind, target.snap, c.sid)
       })
-      list.appendChild(b)
+      return b
+    }
+    // 在线/离线分区（2026-09-20，w-6faac762）：归档/历史会话全是离线项，混在列表里刷屏且点了必败
+    //（用户实测「没有把归档的过滤了」）。默认只列在线窗口（当前窗口置首），
+    // 离线（含已归档）折叠进「显示离线」开关，需要时再展开。
+    const onCands = cands.filter((c) => onlineSet === null || c.current || onlineSet.has(c.sid))
+    const offCands = cands.filter((c) => !(onlineSet === null || c.current || onlineSet.has(c.sid)))
+    onCands.sort((a, b) => Number(b.current) - Number(a.current))
+    for (const c of onCands) list.appendChild(makeItem(c, true))
+    if (offCands.length > 0) {
+      const offBox = document.createElement('div')
+      offBox.style.display = 'none'
+      for (const c of offCands) offBox.appendChild(makeItem(c, false))
+      const toggle = document.createElement('button')
+      toggle.type = 'button'
+      toggle.className = pf + '-solvepop-cancel'
+      const renderToggleText = (expanded: boolean): void => {
+        toggle.textContent = (expanded ? '▾ 收起离线窗口' : '▸ 显示离线/已归档窗口') + '（' + offCands.length + '）'
+      }
+      renderToggleText(false)
+      toggle.addEventListener('click', () => {
+        const expanded = offBox.style.display !== 'none'
+        offBox.style.display = expanded ? 'none' : ''
+        renderToggleText(!expanded)
+      })
+      list.appendChild(toggle)
+      list.appendChild(offBox)
     }
     pop.appendChild(list)
     const cancel = document.createElement('button')
@@ -206,7 +235,7 @@ export function createSolveKit(deps: SolveKitDeps): SolveKit {
     ;(hostEl ?? document.body).appendChild(pop)
     solvePop = pop
     // 定位：锚点下方（放不下则上方），视口内（rect 由 openPicker 同步捕获，防异步间隙锚点脱离文档归零）
-    const popH = 40 + cands.length * 30 + 32
+    const popH = 40 + (onCands.length + (offCands.length > 0 ? 1 : 0)) * 30 + 32
     let top = rect.bottom + 6
     if (top + popH > window.innerHeight) top = Math.max(6, rect.top - popH - 6)
     pop.style.position = 'fixed'
