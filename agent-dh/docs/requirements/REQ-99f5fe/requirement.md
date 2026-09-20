@@ -17,7 +17,7 @@ risk_level: medium
 | 提出 | 用户 |
 | 分析 | investor / w-b5b8ab06 |
 | 触发实证 | ① 用户原话「CaptureHook 注入的提示词有问题，导致没有让llm 触发创建立项的弹框」；② 用户裁定范围「**业务的 hook 机制统一封装成一个领域**」（不是全量挂载点）；③ 本窗口在已产出多份实施方案的情况下连续多轮讨论**零弹框、零 REQ** |
-| 复核时点 | **2026-09-20 四次复核**：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径；③按用户裁定改名（CaptureHook → SessionEventIntake，名随职责）：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径（CaptureHook 只处理立项）：本文档已按当前入库状态（`972b2262`）重写——写作期间 REQ-e3b6a0 的闸门链与文案硬化**已上线**，旧版中"三处硬伤/半接线/进行中"等描述已过期 |
+| 复核时点 | **2026-09-20 五次复核**：①对齐 e3b6a0 已上线内容；②B2–B5 剔除出 hook 回归程序路径；③改名（CaptureHook → SessionEventIntake）；④补 §1.3 流程图（事件流 / 七节点矩阵 / 目标架构与闸门链接缝）：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径；③按用户裁定改名（CaptureHook → SessionEventIntake，名随职责）：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径（CaptureHook 只处理立项）：本文档已按当前入库状态（`972b2262`）重写——写作期间 REQ-e3b6a0 的闸门链与文案硬化**已上线**，旧版中"三处硬伤/半接线/进行中"等描述已过期 |
 
 > **本文档只回答「做什么、为什么」。** 分层、模块接口、迁移工序属「怎么做」，在 design 阶段的
 > `design/*.md` 产出（refactor 类型要求 `architecture.md` + `migration.md`）。
@@ -92,6 +92,92 @@ risk_level: medium
 | 2 | **业务 hook 领域** | 规则类型 / 规则表（A 类 B1/B6/B7/B8/B9 判定集中）/ 跑批器 / 单一动作出口；另含 B 类四条程序行为回归程序路径（RF-9） | 维护者；窗口 agent（间接受益） |
 | 3 | hook 决策留痕 + 只读查询 | 每条规则命中/跳过及原因、动作、耗时；有界 ring buffer + 只读入口 | 排障的人；看板 |
 | 4 | 业务 hook 门禁 | 规则声明与注册一致 / 禁止项不可复活 / 假绿可判红 | CI 与回归 |
+
+### 1.3 流程图：hook 在哪些节点起什么作用
+
+**图 1 · 一次会话回合内的事件流与 hook 作用点（目标态）**
+
+```
+user/message 事件到达
+  │
+  ▼
+门闩（纯函数，共用）：忽略会话？ 非直接人类？ 清洗后为空？ —— 任一命中即丢弃
+  │
+  ├─ B8 证据缓冲：记录真实用户消息（供文字确认核验，防 agent 伪造"用户同意了"）
+  │
+  ├─ 窗口未绑定？──是──► B1 立项捕获登记（pendingCapture）
+  │                         └─► 下回合 systemPrompt 组装时 B9 注入立项引导
+  │                               └─► LLM 显式裁定 → 值得立项 → 本回合首个工具调用
+  │                                     reqboard_capture（pm 弹框，程序路径接管）
+  │
+  │   窗口已绑定？──是──► 【B2/B3/B4 已移出 hook，回归程序路径（RF-9）】
+  │                         B2 承接推进 → 程序点：CaptureRequirement 创建时 inline 推进
+  │                         B3 阶段注入 → 程序点：迁移用例 / 闸门链 H3（闸门路径已覆盖）
+  │                         B4 超时催办 → 程序点：定时检查或链 handler（design 定案）
+  │
+  └─ 并行：tool/call 事件 ──► B7 工具痕迹跟踪（done 凭证门判定"开工以来有无干活"）
+
+turn/end 事件到达
+  ├─ B6 清除待捕获登记（防跨回合重复 nag）
+  ├─ 【B5 节点结算：随 B3 移出 hook（RF-9）；闸门路径压缩已由链 H2 覆盖】
+  └─ 闸门链 runPending（REQ-e3b6a0，B10，本需求不重建）
+```
+
+**图 2 · 流水线七节点 × hook 作用矩阵（目标态）**
+
+```
+ 立项       需求分析        设计          拆分           实施           验收           归档
+ draft → brainstorming → design → decomposing → implementing → accepting → archived
+   │            │            │           │             │             │             │
+ B1+B9       闸门 G1       闸门 G2     闸门 G3       B7 工具痕迹     闸门 G4        —
+ hook 检测    确认需求文档   批准拆分计划  确认拆分清单   （done 凭证门）  逐项裁决        （无 hook）
+ 意图→弹框    │            │           │             │             + 归档拍板
+              ▼            ▼           ▼             ▼             ▼
+              └────── 闸门链（e3b6a0 · B10 · 程序路径，本需求不重建）──────┘
+                     H1 推进 → H2 压缩 → H3 注入 → H4 唤醒 → H5 审计
+
+ 全程贯穿：B8 证据缓冲（hook · user/message）
+```
+
+| 流水线节点 | hook 做什么 | 载体 |
+|-----------|------------|------|
+| 立项（draft） | 检测工作意图 → 注入引导 → 弹三问 | B1+B9（hook）→ `reqboard_capture`（程序） |
+| 需求分析（brainstorming） | 确认需求文档（G1）后的推进/压缩/注入/唤醒/审计 | 闸门链（程序） |
+| 设计（design） | 批准拆分计划（G2）后的同上 | 闸门链（程序） |
+| 拆分（decomposing） | 确认拆分清单（G3）后的同上 | 闸门链（程序） |
+| 实施（implementing） | 工具痕迹跟踪（支撑 done 凭证门） | B7（hook · tool/call） |
+| 验收（accepting） | 逐项裁决 + 归档拍板（G4）；多批续跑核验 | 闸门链 + AcceptSheet（程序） |
+| 归档（archived） | 无 | — |
+| 全程 | 用户消息证据缓冲（文字确认防伪造） | B8（hook · user/message） |
+
+**图 3 · 目标架构：统一入口 + 规则路由 + 单一出口（与闸门链的接缝）**
+
+```
+session/event ──► SessionEventIntake（薄：采集 + 规范化为 HookEvent）
+                      │
+                      ▼
+              runner 跑批 HOOK_RULES（路由表，5 条，每条 = 一行）
+                ├─ capture.pending-register   user/message · 未绑定
+                ├─ capture.clear              turn/end
+                ├─ evidence.buffer            user/message · 有文本
+                ├─ trace.tool-call            tool/call · 非忽略会话
+                └─ prompt.capture-section     systemPrompt 组装
+                      │ 每条命中产出 HookAction[]（意图，非副作用）
+                      ▼
+              applyActions（单一动作出口：台账写 / 投递 / 调度 / 留痕）
+                      │
+                      ▼ 每条规则落 hook_decisions（命中/跳过/原因/耗时）
+
+闸门作答 ──► GateAwareQuestions（e3b6a0 装饰器，声明 gate=G#）
+                      │
+                      ▼
+              GatePostChain（H1→H5 责任链，已上线，本需求不重建）
+              —— 与 hook 领域的接缝：弹框作答事件由装饰器登记进链，
+                 路由表不重复承载（RF-2 AC2 锁死规则表长度 = 5）
+```
+
+> 模式定位：**本领域是 Dispatcher**（一个事件来了，哪些行为要响应——并行、独立、可多中）；
+> **闸门链是责任链**（一件确认完成后，按序做后续——串行、有序、有依赖）。两者互补不重叠。
 
 ---
 
