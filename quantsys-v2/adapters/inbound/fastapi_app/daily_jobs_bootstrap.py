@@ -798,11 +798,22 @@ def interval_due(job: IntervalJobDef, now_monotonic: float,
 
 
 def _run_interval_job(job: IntervalJobDef) -> None:
+    # 2026-09-20（w-6faac762，错误事件 7f0819b1）：interval 路径在独立守护线程跑 handler
+    # 但从不 close_session——handler 一旦触库（如 watch_sla 超时升级查 watch_receipts），
+    # scoped_session 线程本地的 Session 挂着 autobegin 的开放事务随线程终存活，
+    # 300s 后被 session_guard 判 session_leak_detected（44 次/2 天）。
+    # 对齐 _run_job（日任务路径 L988 finally close_session）补齐同一清理。
+    from infrastructure.persistence.orm import close_session
     try:
         result = job.handler()
         logger.info('interval_job_done', job=job.job_id, summary=_summarize_result(result))
     except Exception as e:  # noqa: BLE001 - 单任务失败不许打挂宿主循环
         logger.error('interval_job_failed', job=job.job_id, error=str(e))
+    finally:
+        try:
+            close_session()
+        except Exception:
+            pass
 
 
 def _dispatch_interval_jobs(now_monotonic: float, last: Dict[str, float],
