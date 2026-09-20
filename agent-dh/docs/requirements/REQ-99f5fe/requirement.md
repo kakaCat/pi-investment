@@ -17,7 +17,7 @@ risk_level: medium
 | 提出 | 用户 |
 | 分析 | investor / w-b5b8ab06 |
 | 触发实证 | ① 用户原话「CaptureHook 注入的提示词有问题，导致没有让llm 触发创建立项的弹框」；② 用户裁定范围「**业务的 hook 机制统一封装成一个领域**」（不是全量挂载点）；③ 本窗口在已产出多份实施方案的情况下连续多轮讨论**零弹框、零 REQ** |
-| 复核时点 | **2026-09-20 三次复核**：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径（CaptureHook 只处理立项）：本文档已按当前入库状态（`972b2262`）重写——写作期间 REQ-e3b6a0 的闸门链与文案硬化**已上线**，旧版中"三处硬伤/半接线/进行中"等描述已过期 |
+| 复核时点 | **2026-09-20 四次复核**：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径；③按用户裁定改名（CaptureHook → SessionEventIntake，名随职责）：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径（CaptureHook 只处理立项）：本文档已按当前入库状态（`972b2262`）重写——写作期间 REQ-e3b6a0 的闸门链与文案硬化**已上线**，旧版中"三处硬伤/半接线/进行中"等描述已过期 |
 
 > **本文档只回答「做什么、为什么」。** 分层、模块接口、迁移工序属「怎么做」，在 design 阶段的
 > `design/*.md` 产出（refactor 类型要求 `architecture.md` + `migration.md`）。
@@ -204,16 +204,30 @@ risk_level: medium
   （留真机证据：截图或决策日志）。
 - AC4：不破坏既有回归：`capture.test.ts` / `capture-hook.test.ts` 全绿，既有断言逐条不改。
 
-### RF-2: 事件型业务 hook 聚合成单一领域
+### RF-2: 事件型业务 hook 聚合成单一领域（含重命名）
 
 B1/B6/B7/B8/B9 五条**真正事件驱动**的行为（无程序点，见 §1.1 A 类）收进**一个领域目录**：
-规则类型、规则表、跑批器、单一动作出口；`adapters/CaptureHook.ts` 退化为"规范化 + 执行"薄适配器
-并**复名其责**（只做立项捕获与会话证据），`index.ts` 不再持有散落闭包。
+规则类型、规则表、跑批器、单一动作出口；`index.ts` 不再持有散落闭包。
 
-- AC1：`grep -rn "onBoundWindowActivity\|onStagePrompt\|onNodeSettled\|onTurnEnd" src/index.ts` **无命中**。
-- AC2：`grep -rln "shouldCaptureWindow" src/adapters/CaptureHook.ts` **无命中**（判定已迁出）。
-- AC3：规则表导出为一个数组常量，长度 = 5（B1/B6/B7/B8/B9 全部登记）。
-- AC4：每条规则的判定是纯函数：可单独单测，不依赖 `ctx` / 网络 / fs。
+**重命名（用户裁定：名字必须符合设计）**——`CaptureHook` 早已不只是"立项捕获"，
+名实错位正是 P2 的表征。命名随职责走：
+
+| 现状 | 新名 | 职责 |
+|------|------|------|
+| `adapters/CaptureHook.ts` | `adapters/SessionEventIntake.ts` | **唯一入口**：接收 `session/event` → 规范化 HookEvent → 调跑批器 → 执行动作意图 |
+| `createSessionEventCaptureHook` / `CaptureHookDeps` | `createSessionEventIntake` / `SessionEventIntakeDeps` | 同上 |
+| （无） | `application/internal/hook/`（领域目录） | `types.ts`（HookEvent / HookRule / HookAction / HookDecision）+ `rules.ts`（一行为一条规则）+ `registry.ts`（HOOK_RULES 唯一事实源 / 路由表）+ `runner.ts`（跑批器） |
+| 规则命名空间 | `capture.*` / `evidence.*` / `trace.*` | "立项捕获"只是规则表里的一个命名空间，不再占据整个模块名 |
+| 日志 tag `reqboard-capture` | `reqboard-hook` | 同步 |
+
+**保留不改名的**：`capture-section.ts`（它真的只做立项捕获引导，名实相符）。
+
+- AC1：组合根清零：`grep -rn "onBoundWindowActivity\|onStagePrompt\|onNodeSettled\|onTurnEnd" src/index.ts` **无命中**。
+- AC2：改名完成：`grep -rn "CaptureHook" src/ tests/` **无命中**（`capture-section.ts` 与 `capture.*` 规则命名空间除外——名实相符者保留）。
+- AC3：规则表长度 = 5（B1/B6/B7/B8/B9 全部登记），且每条规则 id 带命名空间前缀。
+- AC4：`grep -rln "shouldCaptureWindow" src/adapters/SessionEventIntake.ts` **无命中**（判定已迁入领域）。
+- AC5：每条规则的判定是纯函数：可单独单测，不依赖 `ctx` / 网络 / fs。
+- AC6：改名与搬迁不夹带行为变化：capture 系列回归既有断言逐条不动（测试文件只允许 import 行跟随改名）。
 
 ### RF-3: 新增 hook 不改组合根
 
@@ -352,7 +366,8 @@ B2/B3/B4/B5 从消息嗅探中取出，挂到各自的业务程序点（用户�
 
 - **分步迁移**，每步独立可验证、独立可回滚（单步 revert 不牵连其他步）；
 - 顺序：RF-1 文案剩余缺口（小步先行，E2E 验证）→ **RF-9 错放行为回归程序路径（先收窄 CaptureHook 职责）** →
-  抽规则表（纯搬迁 A 类 5 条）→ 加决策留痕 → 闸门链核验（RF-5）→ 门禁固化（RF-4/RF-7）；
+  **改名 CaptureHook → SessionEventIntake**（职责收窄后名实相符再动结构，测试 import 跟随）→
+  抽规则表（纯搬迁 A 类 5 条进 `application/internal/hook/`）→ 加决策留痕 → 闸门链核验（RF-5）→ 门禁固化（RF-4/RF-7）；
 - **双向校验**：规则表建立期，用"现有行为集合 vs 规则表集合"的差集证明无遗漏（差集为空才进下一步）；
 - **回滚点**：任一步回归变红即停止并回退该步，不带病推进；
 - **与他需求的时序**：REQ-e3b6a0 已上线；本需求的领域聚合若与其闸门链接线（`index.ts` 装配块）冲突，
