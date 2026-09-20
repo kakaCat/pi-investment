@@ -3,7 +3,7 @@
  *
  * @module dsh-pmboard/client/views/stage-detail
  */
-import { esc } from '../vendor/page-kit/index.js'
+import { esc } from '../html.js'
 import type { RequirementRecord, RequirementStatus, TaskRecord, TaskStatus } from '../types.ts'
 import { PROGRESS_DOT_STAGES, WORKFLOW_STAGES, getStageOrder } from '../workflow-constants.ts'
 import { NO_ARCHIVED, PHASE_LABELS, STATUS_LABELS, TASK_STATUS_LABELS, fmtTime, renderComments, renderMarkdown, renderWindowChip, windowCodeFromSessionId } from '../render/dom-utils.ts'
@@ -232,11 +232,16 @@ export function renderActionBar(req: RequirementRecord): string {
       + '" data-id="' + esc(req.id) + '" title="' + esc(title) + '">' + label + '</button>')
   }
 
+  // 「立项取消」固定排操作条第一位（2026-09-20 用户裁定）：*→canceled 全在途态合法
+  // 且仅人可点（REQ_TRANSITIONS）。此前只在 draft 渲染——在途需求找不到取消入口（实测）。
+  if (req.status !== 'done' && req.status !== 'canceled' && req.status !== 'archived') {
+    move('canceled', '立项取消', '取消该需求立项（仅人可操作）')
+  }
+
   // REQ-6f39b5：推进按钮统一为「→ [下一阶段]」格式，阶段名对齐 workflow-stages.md
   switch (req.status) {
     case 'draft':
       move('brainstorming', '→ 需求分析', '进入需求分析；窗口接手开工时会自动进入', true)
-      move('canceled', '取消', '取消该需求（仅人可操作）')
       break
     case 'brainstorming':
       move('design', '→ 设计', '方案谈定 → 进入设计；请提交计划并待批准', true)
@@ -263,13 +268,6 @@ export function renderActionBar(req: RequirementRecord): string {
       break
     default:
       break
-  }
-
-  // 取消需求：*→canceled 是全在途态合法转移（REQ_TRANSITIONS）且仅人可点，
-  // 但操作条此前只在 draft 渲染——其余在途态人找不到取消入口（2026-09-20 用户实测：
-  // decomposing 需求想取消，详情页没有按钮）。draft 已在上方 switch 渲染，此处补其余态。
-  if (req.status !== 'draft' && req.status !== 'done' && req.status !== 'canceled' && req.status !== 'archived') {
-    move('canceled', '取消', '取消该需求（仅人可操作）')
   }
 
   if (req.plan !== undefined && req.plan.approvedAt === undefined) {

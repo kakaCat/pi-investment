@@ -110,6 +110,12 @@ export function assertArtifactGates(
   from: RequirementStatus,
   to: RequirementStatus,
 ): GateFailure | undefined {
+  // 取消需求（*>canceled）是**放弃路径**，不是节点推进——不适用「节点完成=产物就位」闸门。
+  // 否则形成死锁：想取消一个卡在 decomposing 的需求，却被要求先交出 decomposition 产物
+  // （2026-09-20 实测：REQ-6cbbf7 人工点取消被 missing_artifact 拒绝，看板无法解锁）。
+  // gate-post-chain 早已声明「取消需求不进链」，这里把产物存在门/确认门一并豁免。
+  if (to === 'canceled') return undefined
+
   // 存量需求（无 artifacts 字段或空数组）→ 不硬拦（向后兼容）
   const artifacts = req.artifacts
   const isLegacy = artifacts === undefined || artifacts.length === 0

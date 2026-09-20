@@ -712,3 +712,23 @@ describe('buildReqDetail 进度点与 Tab（REQ-6f39b5，替代 REQ-31e11f 节�
     expect(html).toContain('dsh-pm-stage-detail-container')
   })
 })
+
+// ── 立项取消按钮（2026-09-20：更名置首 + 全在途态渲染，REQ-6cbbf7 解锁配套）──
+describe('立项取消按钮', () => {
+  it('decomposing 详情含「立项取消」且排在「→ 实施」之前', () => {
+    const html = buildReqDetail(makeReq({ status: 'decomposing' }), [])
+    expect(html).toContain('立项取消')
+    expect(html).toContain('→ 实施')
+    expect(html.indexOf('立项取消')).toBeLessThan(html.indexOf('→ 实施'))
+  })
+  it('全部在途态均渲染「立项取消」（draft/brainstorming/design/decomposing/implementing/accepting）', () => {
+    for (const s of ['draft', 'brainstorming', 'design', 'decomposing', 'implementing', 'accepting'] as const) {
+      expect(buildReqDetail(makeReq({ status: s }), [])).toContain('立项取消')
+    }
+  })
+  it('终态不渲染「立项取消」（done/canceled/archived）', () => {
+    for (const s of ['done', 'canceled', 'archived'] as const) {
+      expect(buildReqDetail(makeReq({ status: s }), [])).not.toContain('立项取消')
+    }
+  })
+})

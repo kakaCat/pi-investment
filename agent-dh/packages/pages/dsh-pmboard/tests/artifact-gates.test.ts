@@ -431,3 +431,45 @@ describe('t8 补充：五门两级校验（全量）', () => {
     expect(res.statusCode).toBe(200)
   })
 })
+
+// ── 取消需求豁免产物闸门（2026-09-20 REQ-6cbbf7 死锁修复）────────────────────
+// 现场复刻：需求卡在 decomposing、已登记 1 个 plan 产物但无 decomposition 产物，
+// 人工点「取消」被 missing_artifact 拒绝——放弃路径被「节点完成」闸门锁死。
+describe('取消需求豁免产物闸门（*>canceled 是放弃路径，不进闸）', () => {
+  it('decomposing 缺 decomposition 产物：→ canceled 放行；同现场 → implementing 仍硬拦', async () => {
+    await seed('decomposing', 'bug')
+    await store.mutate('requirement-updated', (l) => {
+      const r = l.requirements[0]
+      r.artifacts = [{ stage: 'design', kind: 'plan', path: 'docs/requirements/REQ-abc123/plan.md', registeredAt: 1, registeredBy: { kind: 'agent' } }]
+      return { requirements: [r] }
+    })
+    // 对照组：推进路径闸门不放松
+    const blocked = await post('/req/move', { id: 'REQ-abc123', to: 'implementing', actor: 'human' })
+    expect(blocked.statusCode).toBe(400)
+    expect(blocked.payload.code).toBe('missing_artifact')
+    // 实验组：放弃路径放行
+    const res = await post('/req/move', { id: 'REQ-abc123', to: 'canceled', actor: 'human' })
+    expect(res.statusCode).toBe(200)
+    expect(res.payload.data.status).toBe('canceled')
+  })
+
+  it('brainstorming 有未确认 requirement 产物：→ canceled 同样放行（确认门一并豁免）', async () => {
+    await seed('brainstorming', 'feature')
+    await store.mutate('requirement-updated', (l) => {
+      const r = l.requirements[0]
+      r.artifacts = [{ stage: 'brainstorming', kind: 'requirement', path: 'docs/requirements/REQ-abc123/requirement.md', registeredAt: 1, registeredBy: { kind: 'agent' } }]
+      return { requirements: [r] }
+    })
+    const res = await post('/req/move', { id: 'REQ-abc123', to: 'canceled', actor: 'human' })
+    expect(res.statusCode).toBe(200)
+    expect(res.payload.data.status).toBe('canceled')
+  })
+
+  it('豁免不放松人工闸门：agent actor 调 → canceled 仍被拒', async () => {
+    await seed('decomposing', 'bug')
+    const res = await post('/req/move', { id: 'REQ-abc123', to: 'canceled', actor: 'agent' })
+    expect(res.statusCode).toBe(403) // 人工闸门：agent 一律 403
+    const req = store.snapshot().requirements[0]
+    expect(req.status).toBe('decomposing')
+  })
+})
