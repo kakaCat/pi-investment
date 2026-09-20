@@ -17,7 +17,7 @@ risk_level: medium
 | 提出 | 用户 |
 | 分析 | investor / w-b5b8ab06 |
 | 触发实证 | ① 用户原话「CaptureHook 注入的提示词有问题，导致没有让llm 触发创建立项的弹框」；② 用户裁定范围「**业务的 hook 机制统一封装成一个领域**」（不是全量挂载点）；③ 本窗口在已产出多份实施方案的情况下连续多轮讨论**零弹框、零 REQ** |
-| 复核时点 | **2026-09-20 六次复核**：①对齐 e3b6a0；②B2–B5 剔除出 hook；③改名 SessionEventIntake；④补 §1.3 流程图；⑤按用户问答澄清"闸门为何还有一处 hook"（时点订阅合法 vs 嗅探推断错放），新增 B11 与 timing.turn-end 规则：①对齐 e3b6a0 已上线内容；②B2–B5 剔除出 hook 回归程序路径；③改名（CaptureHook → SessionEventIntake）；④补 §1.3 流程图（事件流 / 七节点矩阵 / 目标架构与闸门链接缝）：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径；③按用户裁定改名（CaptureHook → SessionEventIntake，名随职责）：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径（CaptureHook 只处理立项）：本文档已按当前入库状态（`972b2262`）重写——写作期间 REQ-e3b6a0 的闸门链与文案硬化**已上线**，旧版中"三处硬伤/半接线/进行中"等描述已过期 |
+| 复核时点 | **2026-09-20 七次复核**：①对齐 e3b6a0；②B2–B5 剔除出 hook；③改名 SessionEventIntake；④补流程图；⑤澄清时点订阅 vs 嗅探推断；⑥按入库代码逐行核对补 §1.4 现状逐段解剖（用户：hook 使用比较乱，需仔细梳理）：①对齐 e3b6a0；②B2–B5 剔除出 hook；③改名 SessionEventIntake；④补 §1.3 流程图；⑤按用户问答澄清"闸门为何还有一处 hook"（时点订阅合法 vs 嗅探推断错放），新增 B11 与 timing.turn-end 规则：①对齐 e3b6a0 已上线内容；②B2–B5 剔除出 hook 回归程序路径；③改名（CaptureHook → SessionEventIntake）；④补 §1.3 流程图（事件流 / 七节点矩阵 / 目标架构与闸门链接缝）：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径；③按用户裁定改名（CaptureHook → SessionEventIntake，名随职责）：①按入库状态（972b2262）对齐 e3b6a0 已上线内容；②按用户裁定把 B2/B3/B4/B5 从 hook 剔除回归程序路径（CaptureHook 只处理立项）：本文档已按当前入库状态（`972b2262`）重写——写作期间 REQ-e3b6a0 的闸门链与文案硬化**已上线**，旧版中"三处硬伤/半接线/进行中"等描述已过期 |
 
 > **本文档只回答「做什么、为什么」。** 分层、模块接口、迁移工序属「怎么做」，在 design 阶段的
 > `design/*.md` 产出（refactor 类型要求 `architecture.md` + `migration.md`）。
@@ -189,6 +189,58 @@ session/event ──► SessionEventIntake（薄：采集 + 规范化为 HookEve
 > 本质区别。路由化后它是路由表里的 `timing.turn-end` 规则（match 恒真，act = 结算分发 +
 > 链收尾的意图，执行层再映射到闸门链）。
 
+### 1.4 现状逐段解剖（按事件源，2026-09-20 按入库代码逐行核对）
+
+**事件源 ① `session/event` · `user/message`**（CaptureHook.ts:224-307）
+
+| 顺序 | 路径 | 判定位置 | 动作位置 | 分类 | 证据 |
+|------|------|---------|---------|------|------|
+| 1 | 门闩：忽略会话 / 非 direct human / 清洗后为空 | CaptureHook.ts:227-246 | —（丢弃） | 合法·共用门闩 | L228 / L235 / L243 |
+| 2 | B8 证据缓冲 | CaptureHook.ts:250-252 | `SessionProbeAdapter.recordRecentUserMsg` | 合法·事件驱动 | 消费方：ConfirmArtifact.ts:41（防伪造核验） |
+| 3 | B1 立项捕获登记（unbound） | CaptureHook.ts:303-307 | `pendingCapture` Map → capture-section 注入 | 合法·事件驱动（无更早程序点） | capture-section.ts |
+| 4 | B2 承接推进（bound） | CaptureHook.ts:259-260 | `index.ts:275-284` 闭包 → `applyPickupAdvance` | **错放** | 程序点已存在：CaptureRequirement.ts:57 inline 推进 |
+| 5 | B3 阶段提示注入（bound） | CaptureHook.ts:266-275 | `index.ts:289-296` 闭包 → `AgentDeliverer` | **错放** | 链 H3 已覆盖闸门路径；move/rollup/verdicts 三路径 0 注入 |
+| 6 | B3' 节点结算登记（**藏在 B3 分支内**） | CaptureHook.ts:280-287 | `pendingSettlements` Map | **错放·耦合** | 不注入就不登记——两个目的耦在一个 if 里 |
+| 7 | B4 里程碑催办（bound） | CaptureHook.ts:293-298 | 同 B3 闭包 → `AgentDeliverer` | **错放** | 触发是"时间到了"，借消息时机顺带检查 |
+
+**事件源 ② `session/event` · `tool/call`**（CaptureHook.ts:186-192）
+
+| 路径 | 判定位置 | 动作位置 | 分类 | 证据 |
+|------|---------|---------|------|------|
+| B7 工具痕迹跟踪 | CaptureHook.ts:186-191 | `SessionProbeAdapter.recordToolTrace` | 合法·事件驱动（工具调用由宿主发起，插件内无程序点） | 消费方：support.ts:102 done 凭证门 |
+
+**事件源 ③ `session/event` · `turn/end`**（CaptureHook.ts:196-221）
+
+| 路径 | 判定位置 | 动作位置 | 分类 | 证据 |
+|------|---------|---------|------|------|
+| B6 清待捕获 + 存活留痕 | CaptureHook.ts:201-208 | `pending` Map | 合法（B1 簿记配套） | e3b6a0 t-3e11bf 加的存活时长留痕 |
+| B5 结算分发 | CaptureHook.ts:211-217 | `onNodeSettled` → node-settlement 异步隔离 | 时点订阅合法；**但登记来源是错放的 B3'（联动错放）** | D-17：监听器内禁会话写 |
+| 闸门链收尾 | CaptureHook.ts:220 | `onTurnEnd` → `setImmediate` → `gateChain.runPending` | 合法·时点订阅 | e3b6a0 t7 |
+
+**事件源 ④ systemPrompt 组装**（`index.ts` 段注册）
+
+| 路径 | 判定位置 | 动作位置 | 分类 |
+|------|---------|---------|------|
+| B9 捕获引导段（unbound）/ 推进纪律段（bound） | capture-section.ts（窗口状态判定） | 渲染返回值 | 合法·渲染钩子 |
+
+**事件源 ⑤ 弹框作答返回**（`UserQuestionPort.ask`）
+
+| 路径 | 判定位置 | 动作位置 | 分类 |
+|------|---------|---------|------|
+| B10 闸门登记 → Phase B（推进/压缩/注入/唤醒/审计） | GateAwareQuestions（装饰器） | GatePostChain.enqueue → 责任链 | 合法·程序点（REQ-e3b6a0 已上线） |
+
+**数据管道（不是业务 hook，本轮不收）**：`repo.subscribe` → SSE（stages.ts:65-72）→ `EventSource`（client/api.ts:212）→ 看板刷新。
+
+**"乱"的七处具体表现（每条有行号证据）**：
+
+1. **一名多职**：CaptureHook 名为立项捕获，实际装 8 种行为（B1–B8）；
+2. **判定与动作分居**：判定在 `CaptureHook.ts`，动作在 `index.ts` 闭包（5 个回调 + gateChain 装配块）；
+3. **合法与错放混居**：B1/B7/B8 是 hook 本职，B2/B3/B4 是程序行为错放——同一函数里两类语义；
+4. **同一目的三条路径**：阶段纪律提示词有三条触发路径——B9（每回合组装）/ B3（hook 嗅探）/ 链 H3（闸门后），口径各自演化，随时漂移；
+5. **时序耦合**：B5 结算登记藏在 B3 注入分支里（CaptureHook.ts:280-287——不注入就不登记）；
+6. **投递链曾整体静默死**：`agents.followup` 形状错误致阶段提示与催办从未投递（e3b6a0 已修 `AgentDeliverer`）；
+7. **无决策留痕**：每条消息走了哪些分支、为什么跳过，无处可查。
+
 ---
 
 ## 2. 用户与角色
@@ -246,7 +298,7 @@ session/event ──► SessionEventIntake（薄：采集 + 规范化为 HookEve
 - B5：登记挂在 B3 的 hook 路径（`CaptureHook.ts:280` 附近）。
 **根因**：每次要加"状态变化后该做的事"，都挂到消息嗅探上，而不是在业务程序点上做。
 **影响**：时机错位（消息不来就不触发/晚触发）、语义错位（CaptureHook 名不副实）、行为发散加速
-（新面还在向组合根堆闭包）。
+（新面还在向组合根堆闭包）。逐段解剖与行号证据见 §1.4。
 
 ### P3 悬空接线已清但无门禁防复发
 
