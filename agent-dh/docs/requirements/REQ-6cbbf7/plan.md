@@ -43,14 +43,15 @@
    `board-mount` 的三处取数入口（open/poll/refresh）统一走它，避免以后再有人给挂载加取数。
 3. 同步更新 `services/parts.ts` 顶部注释与 `board-mount.ts` 生命周期注释（记录本次决策与证据）。
 
-## 4. 任务拆分
+## 4. 任务拆分（bug 类型档：复现卡 → 修复卡 → 回归测试卡）
+
+> 说明：t2 中的 `fetchPlanFor` 纯函数**不是顺手重构**——它是 FR-4 回归锁的可断言支点（没有纯函数，"挂载不取数"只能停留在注释约定，无法被单测锁死）；它同时把 board-mount 的三处取数入口收敛到一处，防止以后再有人给挂载加取数。除此之外不做任何额外清理。
 
 | key | 标题 | phase | side | 依赖 | 验收 |
 |---|---|---|---|---|---|
-| t1 | 移除持仓看板挂载预取 | implement | frontend | — | `packages/pages/holdings/src` 中不存在从 `onMount` 出发的取数路径；`grep -n "primeOnMount" packages/pages/holdings/src` 无结果；`tsc --noEmit` 通过 |
-| t2 | 取数时机收敛为纯函数 fetchPlanFor | implement | frontend | t1 | `services/parts.ts` 导出 `fetchPlanFor`；`board-mount.ts` 的 open/poll/refresh 全部经它取模式；无其它直连 `refreshModeFor` 的调用点 |
-| t3 | 回归测试锁死「挂载不取数」 | test | frontend | t2 | `npx vitest run packages/pages/holdings/tests/parts.test.ts` 全绿；新增用例断言 `fetchPlanFor('mount', …) === null`（含 `payload` 有/无冷块两种情况），且既有用例语义不变 |
-| t4 | 重建 client 产物并线上核验 | merge | fullstack | t3 | `pnpm --filter @pi-investment/dashboard-holdings build:client` 成功，`lib/client.js`/`lib/client.cjs` mtime 更新且 grep 不到旧「挂载预热」文案；刷新 :13080 后**启动阶段控制台无任何 holdings 取数日志**，点击侧栏入口后出现 `[dashboard-holdings] open refresh (full)` + `已渲染：…` |
+| t1 | 改前复现：固定启动预取缺陷签名 | analysis | frontend | — | 刷新 :13080、不点击侧栏，抓取控制台签名（`[dashboard-holdings] mount prime (hot)` 与 `已渲染：…`）落入 `docs/requirements/REQ-6cbbf7/repro-baseline.md`（注明观测时点）；若签名不存在则缺陷不可复现，停卡报告，不得直接进 t2 |
+| t2 | 修复：移除挂载取数，取数时机收敛为 fetchPlanFor | implement | frontend | t1 | ①`grep -rn "primeOnMount" packages/pages/holdings/src` 无结果；②`services/parts.ts` 导出 `fetchPlanFor(event,tick,payload)`（mount→null / open→`refreshModeFor(1,payload)` / poll→`refreshModeFor(tick,payload)`），board-mount 的 open/poll/refresh 统一经它，无其它直连 `refreshModeFor` 的调用点；③`npx tsc --noEmit` 通过；④`pnpm --filter @pi-investment/dashboard-holdings build:client` 成功且 `lib/client.js` grep 不到 "mount prime" |
+| t3 | 回归测试：锁死「挂载不取数」并线上核验 | test | frontend | t2 | ①新增用例断言 `fetchPlanFor('mount', …) === null`（payload 有/无冷块两种），既有用例语义不变；②`npx vitest run packages/pages/holdings/tests/parts.test.ts` 全绿；③线上刷新 :13080：**启动阶段控制台无任何 holdings 取数日志**，点击侧栏「账户持仓」后出现 `[dashboard-holdings] open refresh (full)` + `已渲染：…`——本条是"修好了"的独立证据，不并入 t2 |
 
 ## 5. 可核验签名（改前 / 改后）
 
