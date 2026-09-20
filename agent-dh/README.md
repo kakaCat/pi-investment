@@ -208,7 +208,6 @@ launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh
 ## 📚 文档
 
 - **[CLAUDE.md](./CLAUDE.md)** - 完整的开发指南（推荐阅读）
-- [Profile README](./profiles/investment/README.md) - DSH Profile 说明
 - [RFC 设计提案](./docs/rfcs/) - 003-008 设计史
 - [架构决策](./docs/architecture/) - 数据库/旧体系废弃等
 - [操作指南](./docs/guides/) - 订单 API / 周报推送

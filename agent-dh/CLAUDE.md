@@ -76,7 +76,6 @@ agent-dh/
 ├── .dsh-data/                   # DSH_HOME = 数据目录（项目内托管，不入库）：
 │   │                            #   agents.json / dsh-reqboard.json / .credentials.yaml / state/
 │   └── profiles/agent-dh/       #   活动 profile 脚手架（start.sh 生成，含活动 cordis.patch.yml）
-├── profiles/investment/         # ⚠️ 历史残留模板（旧 ~/.dsh profile 布局的仓库副本），已不参与加载
 │
 ├── docs/                        # 项目文档
 │   ├── AUTONOMY-SYSTEM.md       # 自主能力总览
@@ -637,7 +636,7 @@ Agent-DH 现已完成**完整自主能力体系**的架构设计。
 
 每个 agent 必须有**唯一 ID 和名字**，提高自我认知与协作可区分性：
 
-- **注册表**：`agent-dh/.dsh-data/agents.json`（instance + agents[]：id/name/role/primary/alias_of）
+- **注册表**：`agent-dh/.dsh-data/profiles/agent-dh/agents.json`（= profileDir/agents.json；instance + agents[]：id/name/role/primary/alias_of。注意 `.dsh-data/agents.json` 是旧副本，别读错）
 - **提示词**：lifecycle 插件注册 `agent:identity` 段（order 5，宪法段之前），身份不进基因组、不参与进化
 - **self_info**：identity 块来自注册表
 - **经验署名**：learning 自动追踪的 context.agent 带 id/name/instance

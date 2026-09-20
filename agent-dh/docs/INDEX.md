@@ -239,7 +239,7 @@ tags: [index, wiki]
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
-| [DSH Investment Profile](../profiles/investment/README.md) | profile | living | DSH profile 配置模板：插件以 file: 依赖 + 符号链接接入（含打包流程证伪注记）。 | 2026-09-11 |
+| [Profile 配置模板](../config/cordis.yml) | profile | living | 项目内 profile（agent-dh）配置源：start.sh 据此补全 .dsh-data 内活动配置（旧 profiles/investment/README.md 已随旧布局删除）。 | 2026-09-20 |
 
 ### 仓库入口 · `root`（1 页）
 

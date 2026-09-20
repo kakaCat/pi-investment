@@ -201,7 +201,7 @@ tags: [wiki, index, home, agent-dh]
 
 **包内入口页（各包 README：写这个包怎么用）**：
 
-- [agent-dh 根 README](../../agent-dh/README.md)｜[profile 模板说明](../../agent-dh/profiles/investment/README.md)｜[示例目录](../../agent-dh/examples/README.md)
+- [agent-dh 根 README](../../agent-dh/README.md)｜[示例目录](../../agent-dh/examples/README.md)
 - [core-tool（工具规范包）](../../agent-dh/packages/core-tool/README.md)｜[learning（学习引擎）](../../agent-dh/packages/learning/README.md)
 - 页面包：[holdings](../../agent-dh/packages/pages/holdings/README.md) · [execution](../../agent-dh/packages/pages/execution/README.md) · [bulletin](../../agent-dh/packages/pages/bulletin/README.md) · [genome](../../agent-dh/packages/pages/genome/README.md) · [web-liveness](../../agent-dh/packages/pages/web-liveness/README.md)
 

@@ -123,7 +123,7 @@ export QUANTSYS_V2_API_URL=http://localhost:5001
 
 - **完整开发指南**: `agent-dh/CLAUDE.md`
 - **项目概览**: `agent-dh/README.md`
-- **Profile 说明**: `agent-dh/profiles/investment/README.md`
+- **Profile 配置模板**: `agent-dh/config/cordis.yml`
 
 ## ⚠️ 重要提示
 

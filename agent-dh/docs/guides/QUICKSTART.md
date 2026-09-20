@@ -419,6 +419,6 @@ psql -U your_user -d agent_os -c "SELECT * FROM agent_heartbeats ORDER BY receiv
 ## 相关页面
 
 - [启动与停止（STARTUP）](STARTUP.md)
-- [profile 模板说明](../../profiles/investment/README.md)
+- [profile 配置模板](../../config/cordis.yml)
 - [示例目录](../../examples/README.md)
 - [定时巡检清单](routine-checks.md)
