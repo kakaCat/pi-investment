@@ -47,7 +47,34 @@ launchd 未接管、外部 shell 管道拉起、tail/tee 提前退出。
 
 ## 重启后 E2E 验证
 
-- [ ] 重启后 reqboard-capture-diag.log 出现 EARLY + NODE-1（订阅 SUCCESS）
-- [ ] 本窗口（bound）任意消息触发 NODE-4（pending=NONE）+ NODE-5（windowBound=true）
-- [ ] unbound 窗口发送"修复 XX"→ NODE-2/3/4/5 全链 + DYNAMIC PROMPT（text.length>0）
-- [ ] 该窗口 Agent 第一个工具调用为 reqboard_capture
+- [x] 重启后 reqboard-capture-diag.log 出现 EARLY + NODE-1（订阅 SUCCESS）——已验证（2026-09-21 18:21，`NODE-1: Hook subscription SUCCESS (unsubscribe=function)`）
+- [x] 本窗口（bound）任意消息触发 NODE-4（pending=NONE）+ NODE-5（windowBound=true）——已验证（diag 文件含两条记录，窗口状态判定正确）
+- [x] unbound 链路 NODE-2/3/5 全通 + DYNAMIC PROMPT（text.length=1179>0）——集成验证（scripts/verify-capture-chain.mts，真实源码+真实 ledger，判定 PASS）；真实环境 NODE-2 已由本窗口消息触发
+- [ ] 真实 unbound 窗口 Agent 第一个工具调用为 reqboard_capture——留待 T4 连续测试（需人工开 3 个新窗口配合，见 t-9470a3）
+
+---
+
+## 重启后验证实录（2026-09-21 18:21，PID 经 self_restart 拉起）
+
+诊断文件 `.dsh-data/state/reqboard-capture-diag.log` 实录：
+
+```
+[10:21:04.846Z] reqboard-capture [EARLY]: apply function STARTED
+[10:21:04.847Z] reqboard-capture [NODE-1]: Hook subscription SUCCESS (unsubscribe=function)
+[10:21:07.397Z] reqboard-capture [NODE-4]: systemPrompt assemble (windowKey=session-49bdb1dd, pending=NONE, pendingCapture.size=0)
+[10:21:07.406Z] reqboard-capture [NODE-5]: captureSectionText returns '' (reason: windowBound=true, windowKey=session-49bdb1dd)
+[10:21:07.498Z] reqboard-capture [NODE-2]: user/message event ARRIVED (windowKey=session-49bdb1dd, type=user/message)
+```
+
+集成验证（scripts/verify-capture-chain.mts，真实源码 + 真实 ledger 快照）：
+
+- shouldCaptureWindow(unbound 测试窗) = true
+- handler(NODE-2→3)：pendingCapture SET，text="修复股票池刷新逻辑的 bug"（14 字）
+- captureSectionText(NODE-5) 命中 pending → **DYNAMIC PROMPT 1179 字符**，含强制要求「本回合的第一个工具调用必须是 reqboard_capture」
+- 无 pending → STATIC GUIDANCE 620 字符（unbound 常态引导）
+- bound 窗口 → 空串（零噪音，回归正确）
+- 判定：✅ PASS
+
+**最终结论**：Hook 注入链路（订阅 → 事件 → 填充 → 组装 → 生成）代码层面全程通畅；
+REQ-f6307c 报告的「Agent 跳过立项弹框」**不是链路断链所致**。链路此前不可见的根因是
+观测面失效（stdout 死管道），已由本次文件化诊断通道（captureDiag 双写）根治。
