@@ -50,6 +50,21 @@ export function registerArtifact(
 }
 
 // ---------------------------------------------------------------------------
+// 成组落章（REQ-2d1c74 FR-2/FR-3）
+// ---------------------------------------------------------------------------
+
+/**
+ * 按确认语义收集待落章产物：kind=design **成组**（该需求全部 design 产物一次落章），
+ * 其余 kind 维持首份（历史语义）。三条确认通道（弹框/文字证据/看板一键）共用，
+ * 保证"一次确认设计 = 全部设计文档都有章"的口径全仓只有这一处。
+ * 空数组 = 没有该 kind 产物（调用方按 missing_artifact 处理）。
+ */
+export function artifactsToConfirm(req: RequirementRecord, kind: ArtifactKind): StageArtifact[] {
+  const all = (req.artifacts ?? []).filter(a => a.kind === kind)
+  return kind === 'design' ? all : all.slice(0, 1)
+}
+
+// ---------------------------------------------------------------------------
 // 分类感知闸门（两级校验）
 // ---------------------------------------------------------------------------
 
@@ -71,6 +86,9 @@ export interface GateFailure {
     | 'requirement_missing_clauses'
     | 'requirement_clause_sequence_gap'
     | 'requirement_clause_duplicates'
+    // ── 设计阶段规范化（REQ-2d1c74）：G2 完整性门 + 拆分内容硬门 ──
+    | 'design_doc_incomplete'
+    | 'design_contains_decomposition'
   /** 缺/待确认的产物 kind */
   kind: ArtifactKind
   /** 提示消息（含产物 path 或缺失说明） */
@@ -137,21 +155,27 @@ export function assertArtifactGates(
   // ── 第二级：五道人工确认门 ────────────────────────────────────────────
   const gateKind = confirmGateKindFor(req.category, from, to)
   if (gateKind !== undefined && !isLegacy) {
-    // 通用判定：查 artifact.confirmedAt（design>decomposing 的 planApproved 特判已于
-    // 2026-09-21 移除——设计阶段只写设计文档，拆分计划的批准门在 decomposing>implementing）
-    const artifact = artifacts?.find(a => a.stage === from && a.kind === gateKind)
-    if (artifact === undefined && !isLegacy) {
+    // REQ-2d1c74 FR-2：kind=design 改「成组确认」判定——原来 find 第一份，
+    // 第一份有章就放行，其余 design 产物（含确认后新自动发现的那份）可无章绕过 G2。
+    // 现在 filter 全部、任一未确认即拒，未确认路径进 gaps 供精确修复与 UI 标红。
+    // （design>decomposing 的 planApproved 特判已于 2026-09-21 移除——设计阶段只写设计文档，
+    //   拆分计划的批准门在 decomposing>implementing。）
+    const pool = (artifacts ?? []).filter(a =>
+      gateKind === 'design' ? a.kind === 'design' : (a.stage === from && a.kind === gateKind))
+    if (pool.length === 0) {
       return {
         code: 'missing_artifact',
         kind: gateKind,
         message: '节点产物缺失：' + from + ' 阶段须先完成产物（kind=' + gateKind + '）并登记',
       }
     }
-    if (artifact !== undefined && artifact.confirmedAt === undefined) {
+    const unconfirmed = pool.filter(a => a.confirmedAt === undefined)
+    if (unconfirmed.length > 0) {
       return {
         code: 'artifact_not_confirmed',
         kind: gateKind,
-        message: '产物待确认：' + artifact.path + '（kind=' + gateKind + '）——请人在项目看板一键确认后放行',
+        gaps: unconfirmed.map(a => a.path),
+        message: '产物待确认：' + unconfirmed.map(a => a.path).join('、') + '（kind=' + gateKind + '）——请人在项目看板一键确认后放行',
       }
     }
   }

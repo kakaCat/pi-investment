@@ -62,16 +62,6 @@ export function buildBoard(
       </div>`
   }).join('')
 
-  // 注意：变量名不能叫 archived —— 那是本函数的参数（已归档会话 id 集合）。
-  // REQ-f0579a t2 恢复：归档/取消底部条（M3 d6d91dd2 起就在，972b2262 基线归一丢失，CSS 仍在 styles/base.ts）。
-  const archivedReqs = state.requirements.filter(r => r.status === 'archived' || r.status === 'canceled')
-  const archivedHtml = archivedReqs.length > 0
-    ? `<div class="dsh-pm-archived-bar">
-         <span class="dsh-pm-archived-label">归档/取消 ${archivedReqs.length}</span>
-         ${archivedReqs.map(r => `<span class="dsh-pm-archived-chip" data-status="${r.status}">${esc(r.id)} ${esc(r.title)}</span>`).join('')}
-       </div>`
-    : ''
-
   const switcher = `
     <div class="dsh-pm-viewswitch" role="tablist" aria-label="看板视图">
       <button type="button" role="tab" class="dsh-pm-viewbtn${view === 'lanes' ? ' active' : ''}"
@@ -95,7 +85,6 @@ export function buildBoard(
         <button type="button" class="dsh-pm-btn primary" data-action="new-req" title="新建需求">+ 需求</button>
       </div>
       ${body}
-      ${view === 'list' ? '' : archivedHtml}
     </div>`
 }
 

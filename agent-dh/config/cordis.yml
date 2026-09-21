@@ -118,24 +118,12 @@
 - id: agent-instructions
   disabled: false
 
+# ========== Web 服务器 ==========
+# 注意: webserver 和 web-runtime 都由 @deepseek-ai/dsh-web-app bundle 自动提供
+# 不需要在这里手动配置，bundle 会自动加载
+
 # ========== 投资插件 ==========
 - insert:
-    - id: dashboard-holdings
-      name: '@pi-investment/dashboard-holdings'
-      config: {}
-
-    - id: dashboard-execution
-      name: '@pi-investment/dashboard-execution'
-      config: {}
-
-    - id: dashboard-bulletin
-      name: '@pi-investment/dashboard-bulletin'
-      config: {}
-
-    - id: dashboard-genome
-      name: '@pi-investment/dashboard-genome'
-      config: {}
-
     - id: dsh-pmboard
       name: 'dsh-pmboard'
       config: {}

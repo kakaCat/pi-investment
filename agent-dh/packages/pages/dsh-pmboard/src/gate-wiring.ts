@@ -21,6 +21,7 @@ import type { SystemClock } from './adapters/SystemClock.js';
 import type { AgentDeliverer } from './adapters/AgentDeliverer.js';
 import { captureSectionText, boundSectionText } from './application/internal/capture-section.js';
 import { windowKeyFromContext } from './application/internal/window.js';
+import { captureDiag } from './application/internal/diag-log.js';
 
 export interface GateChainDeps {
   store: JsonLedgerRepository;
@@ -106,6 +107,8 @@ export function registerCaptureGuidance(ctx: Context, deps: CaptureGuidanceDeps)
               assembleContext as { agent?: { id?: unknown }; scope?: unknown } | undefined,
             );
             const pending = windowKey ? deps.pendingCapture.get(windowKey) : undefined;
+            // 【诊断日志-节点4】systemPrompt 组装时的 windowKey 提取与 pending 查询（文件双写，防 stdout 死管道）
+            captureDiag(`reqboard-capture [NODE-4]: systemPrompt assemble (windowKey=${windowKey ? windowKey.slice(0, 16) : 'undefined'}, pending=${pending !== undefined ? 'EXISTS' : 'NONE'}, pendingCapture.size=${deps.pendingCapture.size})`);
             const sectionText = captureSectionText(deps.store.snapshot(), assembleContext, pending);
             if (sectionText.length > 0) return sectionText;
             // 已绑定窗口：注入「推进纪律」（状态由窗口自己维护，不必等人点按钮）

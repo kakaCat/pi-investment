@@ -1,0 +1,281 @@
+/**
+ * 用例共享支撑（REQ-47939a t6）——从 host/agent-tools.ts 逐字搬入的模块级助手。
+ *
+ * 这些助手原本散在工具壳里（认证 / done 凭证门的证据采集 / 闸门问题卡 / 直接立项写入），
+ * 现在移入 application：工具壳与 HTTP 路由共用同一份，不再各自实现一遍。**规则本身仍在
+ * domain/**（DoneEvidenceSpec / RequirementStatus …），本文件只做"取证据 + 调纯判定 + 抛错"。
+ *
+ * 零行为变更：拒绝条件、错误码、消息文案与搬迁前逐字一致。
+ *
+ * @module dsh-pmboard/application/internal/support
+ */
+import type { LedgerView, UseCaseDeps } from '../ports.js'
+import { questionCardFor } from '../../domain/gate/GateCatalog.js'
+import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'
+import { artifactNotifyText } from './artifact-gates.js'
+import { isWindowBound, openRequirementsFor, pendingSuggestionFor } from './window.js'
+import {
+  isSubtask,
+  recordStatus,
+  subtasksOf,
+  type RequirementCategory,
+  type RequirementRecord,
+  type StageArtifact,
+  type TaskRecord,
+  type TriageRecord,
+} from '../../shared/protocol.js'
+import { captureSnapshot } from './token-usage.js'
+import { checkParentSubtasksDone, checkSubtaskEvidence } from './subtask-evidence.js'
+
+/** 结构化认证失败：message 自带（CODE）文本；code 属性仅测试/直接执行消费。 */
+export function reject(message: string, code: string): never {
+  throw Object.assign(new Error(`${message}（${code}）`), { code })
+}
+
+/** 结构化读取调用 agent 的 id（identity 层：exec.agent 必须有 string id）。 */
+export function agentIdFromExec(deps: UseCaseDeps, exec: unknown): string {
+  return deps.session.windowKey(exec)
+}
+
+/** 尽力而为的 live-driver 认证（规则与文案在 SessionProbeAdapter，行为同搬迁前）。 */
+export function requireLiveDriver(deps: UseCaseDeps, exec: unknown): void {
+  deps.session.requireLiveDriver(exec)
+}
+
+/** 直接人工回合认证（规则与文案在 SessionProbeAdapter，行为同搬迁前）。 */
+export function requireDirectHuman(deps: UseCaseDeps, exec: unknown): void {
+  deps.session.requireDirectHuman(exec)
+}
+
+/**
+ * 阶段通知简版（REQ-31e11f t4）：产物登记成功时通知请人审阅。
+ * 用 ctx 里可用的通知通道（feishu_notify）；若无通知服务则 logger.info 降级，不阻断。
+ */
+export function notifyArtifactRegistered(
+  _deps: UseCaseDeps,
+  reqId: string,
+  artifact: StageArtifact,
+): void {
+  try {
+    const text = artifactNotifyText(
+      { id: reqId, title: '' } as RequirementRecord,
+      artifact,
+    )
+    // 尝试通过全局 logger 输出（降级路径，不阻断）
+    const g = globalThis as { console?: typeof console }
+    g.console?.info?.('[reqboard] ' + text)
+  } catch { /* 通知失败不阻断主流程 */ }
+}
+
+/**
+ * rollup 阻塞清单（REQ-2e9473 t02）：需求停在 implementing 但 R2 无法推进（存在未完成任务）
+ * 时，返回阻塞任务清单；否则 undefined。用于 task_move / verify_submit 返回体显式告警——
+ * REQ-6f39b5 事故 B 的教训：幽灵任务卡死 rollup 时静默无提示，agent 与用户都看不见。
+ */
+export function rollupBlockersOf(
+  ledger: LedgerView,
+  reqId: string,
+  reqStatus: string,
+): { id: string; title: string; status: string }[] | undefined {
+  if (reqStatus !== 'implementing') return undefined
+  const open = ledger.tasks.filter(t => t.requirementId === reqId && t.status !== 'canceled' && t.status !== 'done')
+  if (open.length === 0) return undefined
+  return open.map(t => ({ id: t.id, title: t.title, status: t.status }))
+}
+
+/**
+ * done 凭证门（REQ-2e9473 t06/W2，事故 C/D 的硬门）：转 done 前的四重校验——
+ *  ① 汇报前置：必须有 task_report 留痕（lastReport），且 completed/filesChanged 至少其一非空；
+ *  ② 真实动作：开工（claimedAt）以来有干活类工具痕迹（edit/write/bash/run_code，弱信号），
+ *     或汇报声明的文件真实存在且 mtime 新于开工（强信号）——25ms 速通两路都过不了；
+ *  ③ 批量关闭节流：同需求 60s 内已有其他任务被本窗口关闭 → 拒（事故 C：一次调用关 4 个任务）；
+ *  ④ 构建新鲜度：汇报改动涉及 packages/pages/<pkg>/src/ → 该包 lib/client.js 必须存在且
+ *     新于最新 src 改动（事故 D：改了源码没构建，用户看到旧页面）。
+ */
+/** 页面插件构建新鲜度证据（父卡四重校验与子卡新口径共用）。 */
+function pagesBuildEvidence(
+  deps: UseCaseDeps,
+  pagesSrc: readonly string[],
+): { clientBuildExists: boolean; clientBuildMtime: number; newestPagesSrcMtime: number } {
+  if (pagesSrc.length === 0) return { clientBuildExists: false, clientBuildMtime: 0, newestPagesSrcMtime: 0 }
+  const pkg = /^packages\/pages\/([^/]+)\//.exec(pagesSrc[0] ?? '')?.[1] ?? ''
+  const st = deps.docs.stat('packages/pages/' + pkg + '/lib/client.js')
+  return {
+    clientBuildExists: st !== undefined,
+    clientBuildMtime: st?.mtimeMs ?? 0,
+    newestPagesSrcMtime: Math.max(...pagesSrc.map((f) => deps.docs.stat(f)?.mtimeMs ?? 0)),
+  }
+}
+
+export function assertDoneEvidence(
+  deps: UseCaseDeps,
+  windowKey: string,
+  task: TaskRecord,
+  ledger: LedgerView,
+): void {
+  // 规则（四重校验与拒绝文案）在 domain/workflow/DoneEvidenceSpec.ts（REQ-47939a t3）；
+  // 这里只负责取副作用证据（工具痕迹 / 文件 stat / 构建新鲜度）再交给纯判定。
+  const rep = task.lastReport
+  const since = task.claimedAt ?? task.createdAt
+  const filesChangedEarly = rep?.filesChanged ?? []
+
+  // REQ-4842fe t5：子卡走**新口径**（三项 + 构建新鲜度），豁免窗口活动与 60s 节流——
+  // 干活的子代理在别的会话，"本窗口工具活动"对子卡恒不成立。
+  if (isSubtask(task)) {
+    const subPagesSrc = filesChangedEarly.filter((f) => /^packages\/pages\/[^/]+\/src\//.test(f))
+    const build = pagesBuildEvidence(deps, subPagesSrc)
+    const verdictSub = checkSubtaskEvidence({
+      hasReport: rep !== undefined,
+      reportFilesChanged: filesChangedEarly,
+      reportCompleted: rep?.completed ?? [],
+      run: task.lastRun,
+      since,
+      fileMtimes: Object.fromEntries(filesChangedEarly.map((f) => [f, deps.docs.stat(f)?.mtimeMs])),
+      pagesSrcFiles: subPagesSrc,
+      ...build,
+    })
+    if (!verdictSub.ok) reject(verdictSub.reason, verdictSub.code)
+    return
+  }
+
+  // REQ-4842fe t5：父卡收尾门（INV-5）——存在未 done 子卡时父卡不得 done。
+  const subs = subtasksOf(ledger.tasks as readonly TaskRecord[], task.id)
+  if (subs.length > 0) {
+    const verdictParent = checkParentSubtasksDone(subs)
+    if (!verdictParent.ok) reject(verdictParent.reason, verdictParent.code)
+  }
+
+  const activity = deps.session.toolActivitySince(windowKey, since)
+  const hasTraceWork = activity > 0
+  const filesChanged = rep?.filesChanged ?? []
+  const fileEvidence = filesChanged.some((f) => {
+    const st = deps.docs.stat(f)
+    return st !== undefined && st.mtimeMs >= since
+  })
+  const nowTs = deps.clock.now()
+  const recentDoneTask = findRecentAgentDoneTask(
+    ledger.tasks, task.id, task.requirementId, nowTs, deps.doneThrottleMs ?? 60_000,
+  )
+  // ④ 页面插件构建新鲜度（事故 D）
+  const pagesSrc = filesChanged.filter(f => /^packages\/pages\/[^/]+\/src\//.test(f))
+  let clientBuildExists = false
+  let clientBuildMtime = 0
+  let newestPagesSrcMtime = 0
+  if (pagesSrc.length > 0) {
+    const pkg = /^packages\/pages\/([^/]+)\//.exec(pagesSrc[0])?.[1] ?? ''
+    const st = deps.docs.stat('packages/pages/' + pkg + '/lib/client.js')
+    if (st !== undefined) { clientBuildMtime = st.mtimeMs; clientBuildExists = true }
+    newestPagesSrcMtime = Math.max(...pagesSrc.map((f) => deps.docs.stat(f)?.mtimeMs ?? 0))
+  }
+  const verdict = checkDoneEvidence({
+    hasReport: rep !== undefined,
+    reportFilesChanged: filesChanged,
+    reportCompleted: rep?.completed ?? [],
+    hasTraceWork,
+    fileEvidence,
+    ...(recentDoneTask !== undefined ? { recentDoneTask } : {}),
+    pagesSrcFiles: pagesSrc,
+    clientBuildExists,
+    clientBuildMtime,
+    newestPagesSrcMtime,
+  })
+  if (!verdict.ok) reject(verdict.reason, verdict.code)
+}
+
+/**
+ * evidence 中的工作区路径候选（REQ-2e9473 t12）：只认已知根前缀 + 扩展名的 token，
+ * 降低把散文误判成路径的概率（如"packages/x.ts 通过"仅取 packages/x.ts）。
+ */
+export function workspacePathCandidates(evidence: readonly string[]): string[] {
+  // 注意扩展名按长度降序：json 必须在 js 之前，否则 package.json 会被截成 package.js（t12 实测）
+  const re = /(?:^|[\s（(])((?:packages|docs|scripts|tests|agent-dh|profiles|examples)\/[\w./@-]+\.(?:tsx|json|mjs|cjs|jpeg|html|svg|png|jpg|css|ts|js|md))/g
+  const out = new Set<string>()
+  for (const e of evidence) {
+    for (const m of e.matchAll(re)) {
+      if (m[1] !== undefined) out.add(m[1])
+    }
+  }
+  return [...out]
+}
+
+/**
+ * 闸门问题卡（REQ-2e9473 t08）：move 被人工闸门拒绝时，返回可直接喂给 reqboard_ask_confirm
+ * 的调用参数——闸门从"只挡不引"升级为"挡并指路"。用户点肯定项即自动落章+推进。
+ *
+ * REQ-e3b6a0 t2：文案与调用表达式已收敛进 `domain/gate/GateCatalog.questionCardFor`
+ * （闸门唯一事实源），本处只做转发以保持既有调用点与输出逐字不变。
+ */
+export function gateQuestionCard(gateKind: string | undefined, from: string, to: string): string {
+  return questionCardFor(gateKind, from, to)
+}
+
+/** 本窗口最近一条遗留 pending triage（旧流程产物；无则 undefined）。 */
+export function findPending(ledger: LedgerView, windowKey: string): TriageRecord | undefined {
+  return pendingSuggestionFor(ledger, windowKey)
+}
+
+/**
+ * 直接立项写入：store.mutate('requirement-created') push RequirementRecord
+ * （status='draft'，sourceSessionId=windowKey，actor={kind:'human'}——弹框作答
+ * = 用户确认，语义等同看板 confirm）。幂等：mutator 内窗口已 bound → return
+ * undefined 中止；中止后若快照显示已绑定 → REQBOARD_WINDOW_BOUND 拒绝。
+ */
+export async function createRequirementDirect(
+  deps: UseCaseDeps,
+  windowKey: string,
+  input: { title: string; category: RequirementCategory; description: string; reason: string; promptDifficulty?: string; docBasePath?: string },
+): Promise<RequirementRecord> {
+  const nowTs = deps.clock.now()
+  const result = await deps.repo.mutate('requirement-created', (ledger) => {
+    if (isWindowBound(ledger, windowKey)) return undefined // 幂等：已绑定 → 不重复立项
+    const actor = { kind: 'human' } as const
+    const req: RequirementRecord = {
+      id: deps.ids.requirement(),
+      title: input.title,
+      description: input.description,
+      category: input.category,
+      promptDifficulty: input.promptDifficulty as any, // 提示词难度级别
+      sourceSessionId: windowKey,
+      status: 'draft',
+      blocked: false,
+      comments: [
+        {
+          id: deps.ids.comment(),
+          body: [
+            `[会话捕获] 用户经三问弹框确认立项（会话 ${windowKey}）`,
+            `名称/分类/难度为用户确认值：${input.title}（${input.category}，提示词难度：${input.promptDifficulty ?? 'standard'}）`,
+            ...(input.reason ? [`依据：${input.reason}`] : []),
+          ].join('\n'),
+          createdAt: nowTs,
+          createdBy: actor,
+        },
+      ],
+      version: 1,
+      createdAt: nowTs,
+      updatedAt: nowTs,
+      createdBy: actor,
+      updatedBy: actor,
+    }
+    // REQ-a33899：立项即记 draft 状态事件 + 写时快照——否则「立项」节点没有进入快照，
+    // 该节点消耗永远算不出来（首段也应当可归因）。
+    recordStatus(req, 'draft', nowTs, actor, undefined, captureSnapshot(deps, windowKey))
+    ledger.requirements.push(req)
+    return { requirements: [req] }
+  })
+  const createdReqs = result.changed.requirements ?? []
+  if (createdReqs.length > 0) return createdReqs[0]
+  if (openRequirementsFor(deps.repo.snapshot(), windowKey).length > 0) {
+    reject('reqboard_create 未写入：本窗口已绑定进行中需求，勿重复立项', 'REQBOARD_WINDOW_BOUND')
+  }
+  reject('reqboard_create 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
+}
+
+/** 需求简要投影（open_requirements 输出用；不泄漏 comments 等内部字段）。 */
+export function projectRequirement(r: RequirementRecord): { id: string; title: string; status: string; category: string } {
+  return {
+    id: r.id,
+    title: r.title,
+    status: r.status,
+    category: r.category ?? '',
+  }
+}

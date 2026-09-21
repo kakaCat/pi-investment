@@ -14,7 +14,7 @@ import {
 import { applyDocSync, clearDocSync, docSyncDownstream } from '../../domain/workflow/DocSyncSpec.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { registerArtifact } from '../internal/artifact-gates.js'
-import { checkNumberChainGate, checkDesignServesGate, checkRequirementDocFormatGate } from '../internal/content-gate-wiring.js'
+import { checkNumberChainGate, checkDesignServesGate, checkRequirementDocFormatGate, assertArtifactOpenable } from '../internal/content-gate-wiring.js'
 import { missingCategoryDocs } from '../internal/category-doc-sets.js'
 import {
   reject,
@@ -51,13 +51,12 @@ export async function submitRequirementArtifact(deps: UseCaseDeps, args: unknown
         )
       }
 
-      const path = explicitPath.length > 0 ? explicitPath : 'docs/requirements/' + target.id + '/requirement.md'
-      if (!deps.docs.exists(path)) {
-        reject(
-          'reqboard_requirement_submit 未执行：文档不存在 ' + path + '（请先写出需求文档再提交）',
-          'REQBOARD_FILE_MISSING',
-        )
-      }
+      // REQ-2d1c74 FR-5：登记即可打开性校验——不存在/伪路径/越界当场拒（不再等人点看才发现）。
+      // 通过则返回 normalized 工作区相对路径（台账以归一值登记，形态不再漂移）。
+      const path = assertArtifactOpenable(
+        deps.docs,
+        explicitPath.length > 0 ? explicitPath : 'docs/requirements/' + target.id + '/requirement.md',
+      )
 
       // ── 需求文档格式校验（编号规范强制）────────────────────────────────
       // 在 mutate 之前校验：系统负责格式，人负责内容。避免让用户确认不合格的文档。
@@ -193,6 +192,10 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
           'REQBOARD_CHANGELOG_REQUIRED',
         )
       }
+      // REQ-2d1c74 FR-5：plan path 存在性补齐（现状不查——没落盘的计划也能登记，
+      // 用户点看才发现"没有找到文件"）。不存在/伪路径/越界当场拒。
+      const openPath = assertArtifactOpenable(deps.docs, path)
+
       // ── 编号串联门禁（REQ-d3e61a T-4 / FR-2）：serves 不得悬空 ────────────────
       // 悬空（引用了不存在的编号）→ 拒；根编号无下游 → 不拒，随结果返回供看板标红。
       // 放在 mutate 之前：拒绝时不留任何副作用。
@@ -245,7 +248,7 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
         // 销标：plan 重交即完成自身同步
         clearDocSync(req, 'plan')
         req.plan = {
-          path,
+          path: openPath,
           summary,
           tasks,
           submittedAt: nowTs,
@@ -273,7 +276,7 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
       const planArtifact: StageArtifact = {
         stage: 'decomposing',
         kind: 'decomposition',
-        path,
+        path: openPath,
         registeredAt: nowTs,
         registeredBy: { kind: 'agent', sessionId: windowKey },
       }

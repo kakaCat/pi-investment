@@ -17,6 +17,7 @@ import {
 } from '../../shared/protocol.js'
 import { syncAllReqArtifacts, syncReqArtifacts } from '../../adapters/ArtifactSync.js'
 import { assembleStageDetail, assembleStageOverview } from '../../application/query/QueryStageDetail.js'
+import { designDocPolicyOf } from '../../application/internal/design-docs.js'
 import { assembleRequirementToken, requirementTotalTokens } from '../../application/query/QueryRequirementToken.js'
 import { assembleRequirementMarks } from '../../application/query/QueryRequirementMarks.js'
 import { FileDocRepository } from '../../adapters/FileDocRepository.js'
@@ -205,8 +206,12 @@ export function createStagesRouter(ctx: RouterCtx) {
   async function handleStageDetail(res: ServerResponse, id: string, stageRaw: string): Promise<void> {
     await syncReqArtifacts(store, id, deps.cwd).catch(() => { /* 扫描失败不阻断详情 */ })
     const stage = asStageKey(stageRaw) // 非法 → code=invalid_input → 400
+    // REQ-2d1c74 FR-1/FR-2：host 侧读 requirement.md front-matter 注入设计文档策略（client 不碰 fs）
+    const docs = new FileDocRepository(deps.cwd !== undefined ? { workspaceRoot: deps.cwd } : {})
+    const target = (await store.read(l => l)).requirements.find(r => r.id === id)
+    const policy = target === undefined ? undefined : await designDocPolicyOf(docs, target)
     const detail = await store.read(ledger =>
-      assembleStageDetail(ledger.requirements.find(r => r.id === id), { tasks: ledger.tasks }, stage),
+      assembleStageDetail(ledger.requirements.find(r => r.id === id), { tasks: ledger.tasks }, stage, { ...(policy !== undefined ? { designDocPolicy: policy } : {}) }),
     )
     ok(res, detail)
   }
@@ -218,8 +223,11 @@ export function createStagesRouter(ctx: RouterCtx) {
    */
   async function handleStageOverview(res: ServerResponse, id: string): Promise<void> {
     await syncReqArtifacts(store, id, deps.cwd).catch(() => { /* 扫描失败不阻断概览 */ })
+    const docs = new FileDocRepository(deps.cwd !== undefined ? { workspaceRoot: deps.cwd } : {})
+    const target = (await store.read(l => l)).requirements.find(r => r.id === id)
+    const policy = target === undefined ? undefined : await designDocPolicyOf(docs, target)
     const overview = await store.read(ledger =>
-      assembleStageOverview(ledger.requirements.find(r => r.id === id), { tasks: ledger.tasks }),
+      assembleStageOverview(ledger.requirements.find(r => r.id === id), { tasks: ledger.tasks }, { ...(policy !== undefined ? { designDocPolicy: policy } : {}) }),
     )
     ok(res, overview)
   }

@@ -417,6 +417,10 @@ export interface DesignDocStatus {
   path: string
   /** 需求目录里是否已登记该文件（已交） */
   submitted: boolean
+  /** 条件必交标记（REQ-2d1c74 FR-1）：仅在需求声明对应端侧（sides）时必交 */
+  conditional?: 'frontend' | 'backend'
+  /** 豁免理由（REQ-2d1c74 FR-1）：有值 = 该份经 front-matter design_exempt 豁免，不计入缺失 */
+  exempted?: string
 }
 
 export interface DesignStageBody { plan?: PlanRecord; category?: RequirementCategory; designDocs?: DesignDocStatus[] }
@@ -807,6 +811,8 @@ export interface RequirementRecord {
   category?: RequirementCategory
   /** 提示词难度级别：控制注入到系统提示词中的指导复杂度 */
   promptDifficulty?: PromptDifficulty
+  /** 需求文档基础路径（用户在立项时选择，如 docs/requirements/<REQ>/ 或 docs/rfcs/） */
+  docBasePath?: string
   /** 文档链接（需求文档/UI/方案），相对工作区路径或 URL */
   docLinks?: { requirement?: string; ui?: string; proposal?: string; extras?: Array<{ label: string; path: string }> }
   status: RequirementStatus
@@ -1001,11 +1007,24 @@ export function emptyLedger(): ReqboardLedger {
 }
 
 // ---------------------------------------------------------------------------
-// ID 生成（随机 6 位 hex，可读前缀）
+// ID 生成（需求ID含时间戳，其他ID保持随机hex格式）
 // ---------------------------------------------------------------------------
 
+/** 格式化时间戳为 YYMMDDHHmmss（精确到秒）。 */
+function formatTimestamp(date: Date = new Date()): string {
+  const yy = date.getFullYear().toString().slice(-2)
+  const MM = (date.getMonth() + 1).toString().padStart(2, '0')
+  const DD = date.getDate().toString().padStart(2, '0')
+  const HH = date.getHours().toString().padStart(2, '0')
+  const mm = date.getMinutes().toString().padStart(2, '0')
+  const ss = date.getSeconds().toString().padStart(2, '0')
+  return `${yy}${MM}${DD}${HH}${mm}${ss}`
+}
+
 export function newRequirementId(rand: () => number = Math.random): string {
-  return `REQ-${Math.floor(rand() * 0xffffff).toString(16).padStart(6, '0')}`
+  const timestamp = formatTimestamp()
+  const random4 = Math.floor(rand() * 0xffff).toString(16).padStart(4, '0')
+  return `REQ-${timestamp}-${random4}`
 }
 
 export function newTaskId(rand: () => number = Math.random): string {

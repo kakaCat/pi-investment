@@ -20,6 +20,7 @@ import { join, relative } from 'node:path'
 import { newCommentId } from '../shared/protocol.js'
 import type { ArtifactKind, RequirementRecord, StageArtifact } from '../shared/protocol.js'
 import { kindForRelPath } from '../domain/artifact/ArtifactSpec.js'
+import { normalizeArtifactPath } from '../domain/artifact/ArtifactPath.js'
 import { fmt } from '../domain/text/fmt.js'
 import { FileDocRepository } from '../adapters/FileDocRepository.js'
 import type { JsonLedgerRepository } from './JsonLedgerRepository.js'
@@ -72,6 +73,9 @@ export function discoverArtifacts(
       }
       const rel = relative(reqRoot, abs).split(/[\\/]/).join('/')
       const workspacePath = reqRelPrefix + '/' + rel
+      // REQ-2d1c74 FR-5：防御性形态过滤——扫描来源本身保证文件存在，但 brace/越界形态
+      // （如文件名带 {}*）不登记，与 submit 入口的 assertArtifactOpenable 同口径。
+      if (normalizeArtifactPath(workspacePath, '/').form !== 'workspace') continue
       if (alreadyRegistered(req, workspacePath)) continue
       const kind = kindForRelPath(rel)
       found.push({

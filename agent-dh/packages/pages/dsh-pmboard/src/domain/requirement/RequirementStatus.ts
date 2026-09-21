@@ -24,7 +24,7 @@ export type RequirementStatus =
   | 'draft'         // 立项（draft）：想法落成需求卡
   | 'brainstorming' // 需求分析（brainstorming）：探索意图/边界/方案（原 reviewing）
   | 'design'      // 设计（design）：编写设计文档（design/*.md）
-  | 'decomposing'   // 拆分（decomposing）：编写拆分计划（plan.md + 任务表）
+  | 'decomposing'   // 拆分（decomposing）：编写拆分计划（decomposition.md + 任务表）
   | 'implementing'  // 实施（implementing）：按任务卡逐项执行（原 executing-plans）
   | 'accepting'     // 验收（accepting）：提交交付物、人工验收
   | 'done'          // 【legacy】历史"完成"态：REQ-9f4a44 起不再进入，仅用于老台账兼容读取

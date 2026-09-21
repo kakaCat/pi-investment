@@ -70,7 +70,9 @@ function fail(res: ServerResponse, err: unknown): void {
   const e = err as { message?: string; code?: string }
   const status = e.code === 'invalid_input' || e.code === 'invalid_transition' || e.code === 'invalid_dag'
     // verify_override_required（REQ-a8d582 FR-4）：不合规通过缺覆盖说明 → 400（补上说明可重发）
-    || e.code === 'missing_artifact' || e.code === 'artifact_not_confirmed' || e.code === 'verify_override_required' ? 400
+    || e.code === 'missing_artifact' || e.code === 'artifact_not_confirmed' || e.code === 'verify_override_required'
+    // REQ-2d1c74 FR-2/FR-3：G2 完整性门与拆分内容硬门 = 流程不满足（补交/挪内容后可重发）→ 400
+    || e.code === 'design_doc_incomplete' || e.code === 'design_contains_decomposition' ? 400
     : e.code === 'human_gate' || e.code === 'system_gate' ? 403
     : e.code === 'not_found' ? 404 : 500
   json(res, status, { success: false, error: e.message ?? String(err), ...(e.code ? { code: e.code } : {}) })

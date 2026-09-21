@@ -78,7 +78,9 @@ describe('reqboard_requirement_submit（t1：brainstorming 产物登记入口）
   it('文件不存在：拒绝且不写台账', async () => {
     rmSync(ABS_DIR, { recursive: true, force: true })
     const ledger = ledgerWith('brainstorming')
-    await expect(makeTool(ledger)({})).rejects.toThrow(/文档不存在/)
+    // REQ-2d1c74 FR-5：可打开性校验统一口径——消息含 normalized 路径与原因，码仍为 REQBOARD_FILE_MISSING
+    await expect(makeTool(ledger)({})).rejects.toThrow(/文件不存在（normalized=/)
+    await expect(makeTool(ledger)({})).rejects.toThrow(/REQBOARD_FILE_MISSING/)
     expect(ledger.requirements[0].artifacts?.length).toBe(0)
   })
 

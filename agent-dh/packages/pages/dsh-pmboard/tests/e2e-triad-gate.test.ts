@@ -62,7 +62,7 @@ describe('全链路：需求文档 → 计划批准 → 拆分 → 出口门禁'
     // feature 类型的必填设计文档（门禁只查文件存在性；无二级标题 → 不需要 serves 标注）
     const designDir = join(dir, 'docs/requirements', REQ, 'design')
     mkdirSync(designDir, { recursive: true })
-    for (const f of ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md']) {
+    for (const f of ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md', 'use-cases.md']) {
       writeFileSync(join(designDir, f), '# ' + f + '\n\n最小 E2E 夹具（不设二级标题）。\n')
     }
     const r = {
@@ -73,6 +73,8 @@ describe('全链路：需求文档 → 计划批准 → 拆分 → 出口门禁'
     }
     await store.mutate('requirement-created', (l) => { (l.requirements as unknown[]).push(r); return { requirements: [r as never] } })
 
+    // REQ-2d1c74 FR-5：plan_submit 起要求提交路径真实落盘
+    writeFileSync(join(dir, 'docs/requirements', REQ, 'plan.md'), '# 拆分计划\n')
     await plan.execute({ path: 'docs/requirements/' + REQ + '/plan.md', summary: '把甲做出来', tasks: PLAN_TASKS }, exec)
     await store.mutate('requirement-updated', (l) => {
       const req0 = l.requirements[0]

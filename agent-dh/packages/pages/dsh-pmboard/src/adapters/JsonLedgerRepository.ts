@@ -50,7 +50,8 @@ function isPlausibleLedger(raw: unknown): raw is ReqboardLedger {
 function isPlausibleRequirement(raw: unknown): boolean {
   if (typeof raw !== 'object' || raw === null) return false
   const o = raw as Record<string, unknown>
-  return typeof o.id === 'string' && /^REQ-[0-9a-f]{6}$/.test(o.id)
+  // 支持两种格式：旧格式 REQ-xxxxxx (6位hex) 和新格式 REQ-YYMMDDHHmmss-xxxx (时间戳+4位hex)
+  return typeof o.id === 'string' && /^REQ-(?:[0-9a-f]{6}|\d{12}-[0-9a-f]{4})$/.test(o.id)
     && typeof o.title === 'string' && typeof o.status === 'string'
     && typeof o.version === 'number'
 }

@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import {
   defineRequirementSubmitTool, definePlanSubmitTool, defineDecomposeTool, defineMoveTool,
+  stubDocFile,
 } from './helpers/tool-deps.js'
 import type { RequirementRecord } from '../src/shared/protocol.js'
 
@@ -25,6 +26,8 @@ beforeEach(() => {
   planTool = definePlanSubmitTool(deps)
   decompose = defineDecomposeTool(deps)
   move = defineMoveTool(deps)
+  // REQ-2d1c74 FR-5：plan_submit 起要求提交路径真实落盘
+  stubDocFile('p.md', root)
 })
 afterEach(() => { rmSync(root, { recursive: true, force: true }) })
 
@@ -98,7 +101,7 @@ describe('文档演进留痕（t19）', () => {
     // 迁移（REQ-d3e61a T-13）：feature 类型要求设计文档齐；本文件不读这些桩的内容，
     // 只是让桩形态合法（原先依赖上一个用例残留的 requirement.md，design 目录则完全没有）。
     writeReqFile('requirement.md')
-    for (const d of ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md']) writeReqFile('design/' + d)
+    for (const d of ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md', 'use-cases.md']) writeReqFile('design/' + d)
     await store.mutate('seed-pending', (l) => {
       const r = l.requirements[0]
       r.docSyncPending = [{ source: 'requirement', downstream: ['plan', 'decomposition'], reason: 'x', at: 1 }]

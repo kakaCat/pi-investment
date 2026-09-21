@@ -11,6 +11,9 @@ import {
   normalizeText,
 } from '../../shared/protocol.js'
 import { openRequirementsFor } from '../internal/window.js'
+import { fmt } from '../../domain/text/fmt.js'
+import { artifactsToConfirm } from '../internal/artifact-gates.js'
+import { checkDesignDecompositionGate } from '../internal/content-gate-wiring.js'
 import {
   reject,
   agentIdFromExec,
@@ -71,28 +74,40 @@ export async function confirmArtifact(deps: UseCaseDeps, args: unknown, exec: an
         )
       }
 
+      // ── REQ-2d1c74 FR-3：确认 kind=design 落章前扫描拆分内容（三通道之一：文字证据）──
+      if (targetKind === 'artifact' && kindRaw === 'design') {
+        const scan = await checkDesignDecompositionGate(deps.docs, targetReq)
+        if (scan !== undefined) reject(fmt('reqboard_confirm_artifact 未执行：{msg}', { msg: scan.message }), scan.code)
+      }
+
       const nowTs = deps.clock.now()
       const result = await deps.repo.mutate('requirement-updated', (ledger) => {
         const req = ledger.requirements.find(r => r.id === targetReq.id)
         if (req === undefined) return undefined
         if (targetKind === 'artifact') {
-          const art = (req.artifacts ?? []).find(x => x.kind === kindRaw)
-          if (art === undefined) {
+          // REQ-2d1c74 FR-2：kind=design 成组落章（全部 design 产物一次确认）
+          const arts = artifactsToConfirm(req, kindRaw as never)
+          if (arts.length === 0) {
             reject(
               'reqboard_confirm_artifact 未执行：需求 ' + req.id + ' 没有 kind=' + kindRaw
               + ' 的产物（请先提交该阶段产物）',
               'REQBOARD_MISSING_ARTIFACT',
             )
           }
-          art.confirmedAt = nowTs
-          art.confirmedBy = { kind: 'human', sessionId: windowKey }
-          art.confirmedVia = 'session'
-          art.confirmedEvidence = evidence
+          for (const art of arts) {
+            art.confirmedAt = nowTs
+            art.confirmedBy = { kind: 'human', sessionId: windowKey }
+            art.confirmedVia = 'session'
+            art.confirmedEvidence = evidence
+          }
           req.comments.push({
             id: deps.ids.comment(),
-            body:
-              '[产物确认·会话] 人经 ask_user_question 确认产物（kind=' + kindRaw + '）：' + art.path
-              + '\n答复原文：' + evidence,
+            body: fmt('[产物确认·会话] 人经 ask_user_question 确认产物（kind={kind}{group}）：{paths}\n答复原文：{ev}', {
+              kind: kindRaw,
+              group: arts.length > 1 ? fmt('，成组确认 {n} 份', { n: arts.length }) : '',
+              paths: arts.map(x => x.path).join('、'),
+              ev: evidence,
+            }),
             createdAt: nowTs,
             createdBy: { kind: 'human', sessionId: windowKey },
           })

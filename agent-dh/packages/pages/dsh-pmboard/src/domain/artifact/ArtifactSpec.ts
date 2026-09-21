@@ -118,6 +118,14 @@ const NAME_TO_KIND: ReadonlyArray<readonly [RegExp, ArtifactKind]> = [
 ]
 
 /**
+ * 该 kind 是否「设计文档」产物（REQ-2d1c74 FR-3：拆分内容扫描与成组落章都以它判定）。
+ * 单独成函数是因为 http/ 适配层禁止出现状态/种类字面量（layer-boundary INV-2）。
+ */
+export function isDesignArtifactKind(kind: string): boolean {
+  return kind === 'design'
+}
+
+/**
  * 从相对需求目录的路径推断产物种类（REQ-2e9473 t11/W4）。
  * 从 host/sync-artifacts.ts 迁入 domain——分类规则是纯判定，与 fs 扫描解耦后
  * sync-artifacts 只负责遍历目录（INV-7）。

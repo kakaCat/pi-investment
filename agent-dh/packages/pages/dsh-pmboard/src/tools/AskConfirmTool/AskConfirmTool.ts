@@ -52,6 +52,11 @@ export function defineAskConfirmTool(deps: UseCaseDeps) {
           evidence_verified: { type: 'boolean', description: '文字确认是否通过 capture-hook 核验（命中真实用户消息）' },
           user_choice: { type: 'string', description: '弹框路径（非肯定项）：用户选择的选项文本' },
           user_feedback: { type: 'string', description: '弹框路径（非肯定项）：用户输入的修改意见或反馈' },
+          gate_failure: {
+            type: 'object',
+            description: 'REQ-2d1c74 FR-2：G2 文档集完整性闸门未过（落章保留、推进被拦）时的结构化缺口（code/gaps/message）',
+            additionalProperties: true,
+          },
           note: { type: 'string' },
         },
       },

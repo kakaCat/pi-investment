@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import { createReqboardHandler } from '../src/http/routes.js'
-import { defineVerifySubmitTool, defineArchiveSubmitTool } from './helpers/tool-deps.js'
+import { defineVerifySubmitTool, defineArchiveSubmitTool, stubDocFile } from './helpers/tool-deps.js'
 import {
   ARCHIVE_DOC_RULES,
   assertArchiveMaterials,
@@ -38,6 +38,8 @@ beforeEach(() => {
   verifyTool = defineVerifySubmitTool(deps) as never
   archiveTool = defineArchiveSubmitTool(deps) as never
   handler = createReqboardHandler({ store, now: () => Date.now() })
+  // REQ-2d1c74 FR-5：archive 目录与清单内文档须真实落盘（agent-dh/ 前缀为仓库根相对形态）
+  for (const p of ['requirement.md', 'plan.md', 'verification.md']) stubDocFile('agent-dh/docs/requirements/REQ-abc123/' + p)
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 

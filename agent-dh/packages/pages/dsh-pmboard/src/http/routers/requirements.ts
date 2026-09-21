@@ -18,15 +18,28 @@ import {
   type CommentRecord,
   type RequirementRecord,
 } from '../../shared/protocol.js'
-import { assertArtifactGates } from '../../application/internal/artifact-gates.js'
+import { assertArtifactGates, artifactsToConfirm, type GateFailure } from '../../application/internal/artifact-gates.js'
+import { checkDesignCompletenessGate, checkDesignDecompositionGate } from '../../application/internal/content-gate-wiring.js'
+import { isDesignArtifactKind } from '../../domain/artifact/ArtifactSpec.js'
 import { transitionRequirement } from '../../application/internal/token-usage.js'
 import { INITIAL_REQ_STATUS, canReqTransition } from '../../domain/requirement/RequirementStatus.js'
-import { gateFromStage } from '../../domain/gate/GateCatalog.js'
+import { gateForTransition, gateFromStage } from '../../domain/gate/GateCatalog.js'
 import { fmt } from '../../domain/text/fmt.js'
 import type { RouterCtx } from './shared.js'
 
 export function createRequirementsRouter(ctx: RouterCtx) {
   const { store, now, ids, mintId, ok, readBody, badInput, notFound } = ctx
+
+  /** G2 文档集完整性闸门的看板侧调用（REQ-2d1c74 FR-2）。docs 未装配 → fail-closed（"端口没接"不是绕过口）。 */
+  async function g2CompletenessFailure(req: RequirementRecord, gateKind: GateFailure['kind']): Promise<GateFailure | undefined> {
+    // isLegacy 判定不需要 docs：存量需求（artifacts 空/undefined）一律放行（REQ-2d1c74 FR-6）
+    if (req.artifacts === undefined || req.artifacts.length === 0) return undefined
+    const docs = ctx.deps.docs
+    if (docs === undefined) {
+      return { code: 'design_doc_incomplete', kind: gateKind, message: 'design → decomposing 被拦：文档读取端口未装配，无法核验文档集完整性' }
+    }
+    return checkDesignCompletenessGate(docs, req)
+  }
 
   /** 解析在线 agent（未装配 / 不在线 / 查询抛错 → undefined，一律视为离线）。 */
   function onlineAgent(windowKey: string | undefined): unknown {
@@ -72,6 +85,18 @@ export function createRequirementsRouter(ctx: RouterCtx) {
     const to = asReqStatus(body.to)
     const actor = asActor(body.actor ?? 'human')
     const reason = normalizeText(body.reason, 'reason', 500)
+    // mutate 前只读两级校验（REQ-2d1c74 FR-2：与 MoveRequirement 同次序——先产物闸门、后 G2 完整性门；
+    // 预检让两条门的拒绝次序与会话侧一致，mutate 内的复查保留防并发漂移）。
+    const current = store.snapshot().requirements.find(r => r.id === id)
+    if (current !== undefined) {
+      const preGate = assertArtifactGates(current, current.status, to)
+      if (preGate !== undefined) throw Object.assign(new Error(preGate.message), { code: preGate.code })
+      const g2 = gateForTransition(current.status, to)
+      if (g2?.id === 'G2' && g2.requiredKind !== undefined) {
+        const failure = await g2CompletenessFailure(current, g2.requiredKind)
+        if (failure !== undefined) throw Object.assign(new Error(failure.message), { code: failure.code })
+      }
+    }
     const result = await store.mutate('requirement-moved', (ledger) => {
       const req = ledger.requirements.find(r => r.id === id) ?? notFound(`需求 ${id}`)
       assertReqTransition(req.status, to, actor)
@@ -80,6 +105,7 @@ export function createRequirementsRouter(ctx: RouterCtx) {
       if (gate !== undefined) {
         throw Object.assign(new Error(gate.message), { code: gate.code })
       }
+
       req.status = to
       req.version += 1
       req.updatedAt = now()
@@ -168,16 +194,31 @@ export function createRequirementsRouter(ctx: RouterCtx) {
     const id = normalizeText(body.id, 'id', 64)
     const kind = normalizeText(body.kind, 'kind', 64)
     if (kind.length === 0) badInput('kind 不能为空')
+    // REQ-2d1c74 FR-3：确认 kind=design 落章前扫描拆分内容（三通道之一：看板一键）。
+    // 存量无可扫对象放行；非存量且 docs 未装配 → fail-closed（与完整性门同口径）。
+    if (isDesignArtifactKind(kind)) {
+      const target = store.snapshot().requirements.find(x => x.id === id)
+      if (target !== undefined && target.artifacts !== undefined && target.artifacts.length > 0) {
+        if (ctx.deps.docs === undefined) {
+          throw Object.assign(new Error('确认被拦：文档读取端口未装配，无法扫描设计文档拆分内容'), { code: 'design_contains_decomposition' })
+        }
+        const scan = await checkDesignDecompositionGate(ctx.deps.docs, target)
+        if (scan !== undefined) throw Object.assign(new Error(scan.message), { code: scan.code })
+      }
+    }
     const result = await store.mutate('requirement-updated', (ledger) => {
       const r = ledger.requirements.find(x => x.id === id) ?? notFound("需求 " + id)
-      const artifact = (r.artifacts ?? []).find(a => a.kind === kind)
-        ?? badInput("需求 " + id + " 没有 kind=" + kind + " 的产物（须先由工具登记）")
-      artifact.confirmedAt = now()
-      artifact.confirmedBy = { kind: 'human' }
-      artifact.confirmedVia = 'board'
+      // REQ-2d1c74 FR-2：kind=design 成组落章（全部 design 产物一次确认）
+      const arts = artifactsToConfirm(r, kind as never)
+      if (arts.length === 0) badInput("需求 " + id + " 没有 kind=" + kind + " 的产物（须先由工具登记）")
+      for (const artifact of arts) {
+        artifact.confirmedAt = now()
+        artifact.confirmedBy = { kind: 'human' }
+        artifact.confirmedVia = 'board'
+      }
       r.comments.push({
         id: ids.comment(),
-        body: '[产物确认] 人已确认产物（kind=' + kind + '）：' + artifact.path,
+        body: '[产物确认] 人已确认产物（kind=' + kind + (arts.length > 1 ? '，成组确认 ' + arts.length + ' 份' : '') + '）：' + arts.map(a => a.path).join('、'),
         createdAt: now(),
         createdBy: { kind: 'human' },
       })
@@ -203,6 +244,14 @@ export function createRequirementsRouter(ctx: RouterCtx) {
     // 否则二次确认同一产物会顺着新状态的门再推进一次（B 后再点一次 = 连跳两格）。
     const gateMatches = gate !== undefined && gate.requiredKind === kind
     if (gateMatches && gate.autoAdvance && gate.from !== undefined && canReqTransition(gate.from, gate.to)) {
+      // REQ-2d1c74 FR-2：看板确认后自动推进同样先过 G2 完整性闸门（四路径之一；落章保留，推进可拦）。
+      const g2Failure = gate.id === 'G2' && gate.requiredKind !== undefined
+        ? await g2CompletenessFailure(store.snapshot().requirements.find(r => r.id === id) ?? confirmed, gate.requiredKind)
+        : undefined
+      if (g2Failure !== undefined) {
+        ok(res, { ...confirmed, advanced: false, delivered: false, gate_failure: g2Failure, note: '已落章，但 design → decomposing 未推进：' + g2Failure.message })
+        return
+      }
       await store.mutate('requirement-moved', (ledger) => {
         const r = ledger.requirements.find(x => x.id === id) ?? notFound(fmt('需求 {id}', { id }))
         if (r.status !== gate.from) return undefined // 并发下已推进过 → 幂等，不重复推进

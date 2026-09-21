@@ -134,6 +134,23 @@ design→decomposing 转移（含 ask_confirm 自动推进路径与 reqboard_mov
    覆盖 submit 与 ArtifactSync 两条入口）；
 6. `npx vitest run`（dsh-pmboard 包）全绿，含 base-delta/gate-catalog 等既有性质测试。
 
+<!-- reqboard:marks:begin 机器维护，请勿手改 -->
+
+#### 条款接收状态（随卡的生命周期自动更新）
+
+| 编号 | 接收状态 | 承载任务 |
+|------|---------|---------|
+| FR-1 | ✅ 已完成（有证据） | t-892858、t-ffe568、t-a3f3ee |
+| FR-2 | ✅ 已完成（有证据） | t-af0bff、t-ffe568、t-a3f3ee |
+| FR-3 | ✅ 已完成（有证据） | t-0553af、t-ffe568、t-a3f3ee |
+| FR-4 | ✅ 已完成（有证据） | t-065810、t-a3f3ee |
+| FR-5 | ✅ 已完成（有证据） | t-a19c66、t-a3f3ee |
+| FR-6 | ✅ 已完成（有证据） | t-af0bff、t-0553af、t-a19c66、t-a3f3ee |
+
+> 无未接收条款（6 条全部有落点）。
+
+<!-- reqboard:marks:end -->
+
 ## 7. 关键源码索引（调研留证）
 
 - 状态机/闸门：`src/domain/gate/GateCatalog.ts`（G0-G4）、`src/shared/protocol.ts`

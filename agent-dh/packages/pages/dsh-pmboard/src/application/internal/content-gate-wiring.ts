@@ -29,7 +29,7 @@ import {
   type NumberedItem,
   type ParsedDoc,
 } from './content-gates.js'
-import { collectTaskRefs } from './content-trace.js'
+import { collectTaskRefs, taskRefsFromDecomposition } from './content-trace.js'
 import { fmt } from '../../domain/text/fmt.js'
 
 // 分析 API 再导出（调用方继续从本模块 import，不必改）
@@ -82,7 +82,13 @@ export async function assertClauseCoverageGate(
   const roots = extractClauseDefinitions(doc)
   if (roots.length === 0) return undefined
 
-  const covered = rawTasks.flatMap(requirementRefsOf)
+  // FR-1（REQ-84bea5）：从"任务对象 ∪ decomposition.md RTM"读取 refs（双源合并）
+  const refsFromTasks = rawTasks.flatMap(requirementRefsOf)
+  const decompositionPath = 'docs/requirements/' + req.id + '/decomposition.md'
+  const refsFromRTM = docs.exists(decompositionPath)
+    ? taskRefsFromDecomposition(parseDocument(await docs.read(decompositionPath))).flatMap(t => t.requirement_refs ?? [])
+    : []
+  const covered = [...new Set([...refsFromTasks, ...refsFromRTM])]
   const skipped = extractSkippedClauses(doc)
   const { gaps } = checkClauseCoverage(roots, covered, { skipped })
   if (gaps.length === 0) return undefined
@@ -97,6 +103,10 @@ export async function assertClauseCoverageGate(
     ),
   }
 }
+
+// REQ-2d1c74 的闸门独立成模块（尺寸门禁），此处再导出保持既有 import 路径不变
+export { checkDesignCompletenessGate, checkDesignDecompositionGate, assertArtifactOpenable } from './design-gates.js'
+
 
 /**
  * 设计章节可追溯门禁（FR-5，硬拦）：**每个二级章节都必须标注服务哪条功能点**。

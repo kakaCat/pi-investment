@@ -249,12 +249,25 @@ const renderDesignBody: StageBodyRenderer = (payload) => {
 
       // 设计文档逐份交付状态（REQ-81aabd FR-2）：已交 ✅ / 未交 ⬜，比对需求目录里的实际登记
       // （body.designDocs 由服务端设计节点装配器给出）。字段缺席时退回模板文件名清单。
+      // REQ-2d1c74 FR-1/FR-2：条件必交带「条件·端侧」徽标；豁免项灰显并展示理由
+      // （与 G2 完整性闸门共用同一份策略，页面上看到的缺口 = G2 拦截清单）。
       const designList = body.designDocs !== undefined
         ? (body.designDocs.length > 0
-            ? body.designDocs.map(d => fmt(
-                '<div class="dsh-pm-sn-dim" data-design-doc="{name}" data-submitted="{sub}">{mark} design/{name}</div>',
-                { name: esc(d.name), sub: d.submitted ? 'yes' : 'no', mark: d.submitted ? '✅ 已交' : '⬜ 未交' },
-              )).join('')
+            ? body.designDocs.map(d => {
+                if (d.exempted !== undefined) {
+                  return fmt(
+                    '<div class="dsh-pm-sn-dim" data-design-doc="{name}" data-exempted="yes" style="opacity:.55">🚫 design/{name}（已豁免：{reason}）</div>',
+                    { name: esc(d.name), reason: esc(d.exempted) },
+                  )
+                }
+                const badge = d.conditional !== undefined
+                  ? fmt(' <span style="opacity:.75">〔条件·{side}〕</span>', { side: esc(d.conditional) })
+                  : ''
+                return fmt(
+                  '<div class="dsh-pm-sn-dim" data-design-doc="{name}" data-submitted="{sub}">{mark} design/{name}{badge}</div>',
+                  { name: esc(d.name), sub: d.submitted ? 'yes' : 'no', mark: d.submitted ? '✅ 已交' : '⬜ 未交', badge },
+                )
+              }).join('')
             : '<div class="dsh-pm-sn-dim">设计文档：无（本类型跳过设计文档）</div>')
         : (required.length > 0
             ? fmt('<div class="dsh-pm-sn-dim">设计文档：{list}</div>', { list: esc(required.map(d => 'design/' + d).join('、')) })

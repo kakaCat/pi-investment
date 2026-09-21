@@ -11,17 +11,19 @@
  *   - human-only confirm 路由。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { FileDocRepository } from '../src/adapters/FileDocRepository.js'
 import { createReqboardHandler } from '../src/http/routes.js'
 import {
   definePlanSubmitTool,
   defineDecomposeTool,
   defineVerifySubmitTool,
   defineArchiveSubmitTool,
+  stubDocFile,
 } from './helpers/tool-deps.js'
 import type { RequirementRecord, RequirementStatus } from '../src/shared/protocol.js'
 
@@ -45,7 +47,11 @@ beforeEach(() => {
   decompose = defineDecomposeTool(deps) as never
   verifyTool = defineVerifySubmitTool(deps) as never
   archiveTool = defineArchiveSubmitTool(deps) as never
-  handler = createReqboardHandler({ store, now: () => Date.now() })
+  // REQ-2d1c74 FR-2：G2 完整性闸门要求 docs 端口（缺省 = fail-closed 拦截），看板侧必须接
+  handler = createReqboardHandler({ store, now: () => Date.now(), docs: new FileDocRepository({ workspaceRoot: dir }) })
+  // REQ-2d1c74 FR-5：plan_submit 起要求提交路径真实落盘（chdir 后 stub 落进本测试临时目录）。
+  // decomposition.md 不在此落桩——decompose 用例要验证它由拆分动作**生成**。
+  stubDocFile('docs/requirements/REQ-abc123/plan.md')
 })
 afterEach(() => {
   process.chdir(prevCwd)
@@ -115,6 +121,7 @@ async function post(url: string, body: unknown) {
 describe('产物登记钩子', () => {
   it('plan_submit 成功时登记 kind=decomposition 产物（stage=decomposing；2026-09-21 裁定）', async () => {
     await seed('decomposing')
+    stubDocFile('docs/requirements/REQ-abc123/decomposition.md') // FR-5：提交路径须落盘
     await run(planTool, { path: 'docs/requirements/REQ-abc123/decomposition.md', summary: 's', tasks: TWO_TASKS })
     const req = store.snapshot().requirements[0]
     expect(req.artifacts).toHaveLength(1)
@@ -126,6 +133,7 @@ describe('产物登记钩子', () => {
 
   it('plan_submit 幂等：重复提交不重复登记', async () => {
     await seed('decomposing')
+    stubDocFile('docs/requirements/REQ-abc123/decomposition.md') // FR-5：提交路径须落盘
     await run(planTool, { path: 'docs/requirements/REQ-abc123/decomposition.md', summary: 's', tasks: TWO_TASKS })
     await run(planTool, { path: 'docs/requirements/REQ-abc123/decomposition.md', summary: 's2', tasks: TWO_TASKS })
     const req = store.snapshot().requirements[0]
@@ -174,6 +182,8 @@ describe('产物登记钩子', () => {
 
   it('archive_submit 成功时登记 kind=archive 产物', async () => {
     await seed('done')
+    // REQ-2d1c74 FR-5：archive 目录与清单内文档须真实落盘
+    for (const p of ['requirement.md', 'plan.md', 'verification.md']) stubDocFile('docs/requirements/REQ-abc123/' + p)
     await run(archiveTool, {
       dir: 'docs/requirements/REQ-abc123',
       docs: [
@@ -264,20 +274,29 @@ describe('五门两级校验', () => {
     expect(res.statusCode).toBe(200)
   })
 
-  it('design → decomposing 用 design 产物确认判定（2026-09-21 裁定：设计阶段只写设计文档）', async () => {
+  it('design → decomposing：确认门 + 文档集完整性门两层（2026-09-21 裁定 + REQ-2d1c74 FR-2）', async () => {
     await seed('design', 'feature')
-    // 登记 design 产物但不确认 → 转移被拒
+    // REQ-2d1c74：feature 文档集 = 5 份必交；先在磁盘交齐（requirement.md 含必填节）
+    mkdirSync(join(dir, 'docs/requirements/REQ-abc123/design'), { recursive: true })
+    writeFileSync(join(dir, 'docs/requirements/REQ-abc123/requirement.md'),
+      '# 需求\n\n## 边界\nx\n\n## 产品定义\nx\n\n## 用户与角色\nx\n\n## 功能点\n\n### FR-1: 甲\nx\n')
+    const DESIGN5 = ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md', 'use-cases.md']
+    for (const n of DESIGN5) writeFileSync(join(dir, 'docs/requirements/REQ-abc123/design', n), '# ' + n + '\n')
+    // 登记 5 份 design 产物但不确认 → 转移被拒（成组判定：任一未确认即拒）
     await store.mutate('requirement-updated', (l) => {
       const r = l.requirements[0]
-      r.artifacts = [{ stage: 'design', kind: 'design', path: 'docs/requirements/REQ-abc123/design/architecture.md', registeredAt: 1, registeredBy: { kind: 'agent' } }]
+      r.artifacts = DESIGN5.map(n => ({ stage: 'design', kind: 'design', path: 'docs/requirements/REQ-abc123/design/' + n, registeredAt: 1, registeredBy: { kind: 'agent' } }))
       return { requirements: [r] }
     })
     const res = await post('/req/move', { id: 'REQ-abc123', to: 'decomposing', actor: 'human' })
     expect(res.statusCode).toBe(400)
     expect(res.payload.code).toBe('artifact_not_confirmed')
-    // 人确认设计文档后 → 放行
+    expect(res.payload.error).toContain('use-cases.md') // gaps 列出全部未确认路径
+    // 人确认设计文档（REQ-2d1c74 FR-2：kind=design 看板一键 = 成组落章全部 5 份）→ 放行
     const ok = await post('/req/artifact/confirm', { id: 'REQ-abc123', kind: 'design', actor: 'human' })
     expect(ok.statusCode).toBe(200)
+    const stamped = store.snapshot().requirements[0]
+    expect((stamped.artifacts ?? []).filter(a => a.kind === 'design').every(a => a.confirmedAt !== undefined)).toBe(true)
     const moved = await post('/req/move', { id: 'REQ-abc123', to: 'decomposing', actor: 'human' })
     expect(moved.statusCode).toBe(200)
   })

@@ -69,9 +69,9 @@ const stations: Station[] = [
     broken: async () => {
       // 缺陷：根文档缺 feature 的必填节「功能点」
       const bad = REQ_OK.replace('## 功能点', '## 别的')
-      return missingCategoryDocs({ category: 'feature', rootExists: true, rootText: bad, designNames: ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md'] })[0]
+      return missingCategoryDocs({ category: 'feature', rootExists: true, rootText: bad, designNames: ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md', 'use-cases.md'] })[0]
     },
-    ok: async () => missingCategoryDocs({ category: 'feature', rootExists: true, rootText: REQ_OK, designNames: ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md'] })[0],
+    ok: async () => missingCategoryDocs({ category: 'feature', rootExists: true, rootText: REQ_OK, designNames: ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md', 'use-cases.md'] })[0],
   },
   {
     node: '计划（设计章节可追溯 + 编号不悬空）',

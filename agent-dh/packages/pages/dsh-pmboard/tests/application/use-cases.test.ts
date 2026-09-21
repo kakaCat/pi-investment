@@ -78,6 +78,8 @@ describe('t6 · SubmitArtifact（requirement / plan）', () => {
 
   it('plan_submit：decomposing 阶段提交拆分计划 → pending_approval + 登记 decomposition 产物（2026-09-21 裁定）', async () => {
     const h = makeHarness({ requirements: [req({ status: 'decomposing' })] })
+    // REQ-2d1c74 FR-5：plan path 存在性补齐——假 docs 也要落桩
+    h.docs.put('docs/requirements/REQ-000001/decomposition.md')
     const out: any = await submitPlanArtifact(h.deps, {
       path: 'docs/requirements/REQ-000001/decomposition.md', summary: '计划',
     }, EXEC)
@@ -199,6 +201,11 @@ describe('t6 · SubmitVerification / SubmitArchive / AcceptSheet', () => {
   it('archive_submit：archived 需求备材料成功，目录内未列入清单的文件 → unlisted_files 警告', async () => {
     const h = makeHarness({ requirements: [req({ status: 'archived' })], tasks: [task({ status: 'done' })] })
     h.docs.put('docs/requirements/REQ-000001/notes.md')
+    // REQ-2d1c74 FR-5：archive 目录与清单内文档登记前可打开性校验——假 docs 落桩
+    h.docs.put('docs/requirements/REQ-000001')
+    h.docs.put('docs/requirements/REQ-000001/requirement.md')
+    h.docs.put('docs/requirements/REQ-000001/plan.md')
+    h.docs.put('docs/requirements/REQ-000001/verification.md')
     const out: any = await submitArchive(h.deps, {
       dir: 'docs/requirements/REQ-000001',
       docs: [

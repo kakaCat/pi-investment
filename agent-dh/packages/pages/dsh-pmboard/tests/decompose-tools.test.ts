@@ -13,7 +13,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
-import { definePlanSubmitTool, defineDecomposeTool, defineTaskMoveTool, defineVerifySubmitTool, defineTaskReportTool } from './helpers/tool-deps.js'
+import { definePlanSubmitTool, defineDecomposeTool, defineTaskMoveTool, defineVerifySubmitTool, defineTaskReportTool, stubDocFile } from './helpers/tool-deps.js'
 import { recordToolTrace, type ToolTraceEntry } from '../src/adapters/SessionProbeAdapter.js'
 import type { RequirementRecord, RequirementStatus } from '../src/shared/protocol.js'
 
@@ -38,6 +38,8 @@ beforeEach(() => {
   taskMove = defineTaskMoveTool(deps) as never
   verifySubmit = defineVerifySubmitTool(deps) as never
   reportTool = defineTaskReportTool(deps) as never
+  // REQ-2d1c74 FR-5：plan_submit 起要求提交路径真实落盘——本文件的占位路径统一在文档根落桩
+  for (const p of ['p.md', 'docs/requirements/REQ-abc123/plan.md', 'docs/requirements/REQ-abc123/decomposition.md']) stubDocFile(p)
 })
 
 let depsRef: { doneThrottleMs?: number }

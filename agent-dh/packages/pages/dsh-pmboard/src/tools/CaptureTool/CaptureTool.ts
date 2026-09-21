@@ -2,7 +2,7 @@
  * reqboard_capture 工具壳（REQ-e3b6a0 t8 / FR-7）——三段式薄壳：prompt + 元数据/入参/输出
  * + execute 委托 application 用例（CaptureRequirement）。**不含任何领域判定**（规则只在 domain）。
  *
- * 为什么参数是"无（可选补充）"：三问题目由用例内部构造（口径与 schema 同源），
+ * 为什么参数是"无（可选补充）"：四问题目由用例内部构造（口径与 schema 同源），
  * 调用方只可补充分类上下文——候选名称（title_options）与摘要/依据，不参与取值判定。
  *
  * @module dsh-pmboard/tools/CaptureTool
@@ -49,6 +49,7 @@ export function defineCaptureTool(deps: UseCaseDeps) {
               title: { type: 'string', description: '用户确认的需求名称' },
               category: { type: 'string', description: '用户确认的需求类型' },
               difficulty: { type: 'string', description: '用户确认的提示词难度' },
+              docLocation: { type: 'string', description: '用户确认的文档位置' },
             },
           },
           defaults_used: {
@@ -56,6 +57,7 @@ export function defineCaptureTool(deps: UseCaseDeps) {
             description: '走了默认值的问项 id 清单（缺失回落时不静默猜）',
             items: { type: 'string' },
           },
+          doc_location: { type: 'string', description: '需求文档存放位置（如 docs/requirements/<REQ>/）' },
           fallback: { type: 'string', description: 'board = 弹框通道不可用（不伪造立项）' },
           note: { type: 'string', description: '结果说明' },
           board_link: { type: 'string', description: '项目看板链接（可在会话中点击跳转）' },

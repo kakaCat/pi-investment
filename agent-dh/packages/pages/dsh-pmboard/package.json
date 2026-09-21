@@ -37,6 +37,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "prepublishOnly": "pnpm build && pnpm typecheck"
   },
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.5-rc.1"
+  },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1"
   },

@@ -11,6 +11,7 @@
  * @module dsh-pmboard/application/internal/capture-section
  */
 import type { ReqboardLedger } from '../../shared/protocol.js'
+import { captureDiag } from './diag-log.js'
 import { stageEnabledFor } from '../../shared/protocol.js'
 import type { StageKey } from '../../domain/requirement/RequirementStatus.js'
 import { resolveStagePrompt, isPromptStage } from '../../domain/prompt/index.js'
@@ -55,13 +56,28 @@ export function captureSectionText(
   pending?: PendingCaptureMessage | undefined,
 ): string {
   const windowKey = windowKeyFromContext(context as { agent?: { id?: unknown }; scope?: unknown })
-  if (!windowKey) return ''
-  if (isWindowBound(ledger, windowKey)) return ''
-  if (hasPendingSuggestion(ledger, windowKey)) return ''
-  if (pending && pending.windowKey === windowKey && pending.text.trim().length > 0) {
-    return capturePromptForMessage(windowKey, pending.text)
+  if (!windowKey) {
+    // 【诊断日志-节点5】返回空串原因：windowKey undefined
+    captureDiag(`reqboard-capture [NODE-5]: captureSectionText returns '' (reason: windowKey=undefined)`);
+    return '';
   }
-  return captureGuidanceText(windowKey)
+  if (isWindowBound(ledger, windowKey)) {
+    captureDiag(`reqboard-capture [NODE-5]: captureSectionText returns '' (reason: windowBound=true, windowKey=${windowKey.slice(0, 16)})`);
+    return '';
+  }
+  if (hasPendingSuggestion(ledger, windowKey)) {
+    captureDiag(`reqboard-capture [NODE-5]: captureSectionText returns '' (reason: hasPendingSuggestion=true, windowKey=${windowKey.slice(0, 16)})`);
+    return '';
+  }
+  if (pending && pending.windowKey === windowKey && pending.text.trim().length > 0) {
+    const promptText = capturePromptForMessage(windowKey, pending.text);
+    // 【诊断日志-节点5】返回动态提示词
+    captureDiag(`reqboard-capture [NODE-5]: captureSectionText returns DYNAMIC PROMPT (windowKey=${windowKey.slice(0, 16)}, text.length=${promptText.length}, pending.text.length=${pending.text.length})`);
+    return promptText;
+  }
+  const guidanceText = captureGuidanceText(windowKey);
+  captureDiag(`reqboard-capture [NODE-5]: captureSectionText returns STATIC GUIDANCE (windowKey=${windowKey.slice(0, 16)}, text.length=${guidanceText.length})`);
+  return guidanceText;
 }
 
 /**

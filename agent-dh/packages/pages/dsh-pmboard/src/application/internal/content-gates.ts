@@ -322,6 +322,38 @@ export function checkClauseSequence(roots: readonly string[]): string[] {
   return gaps
 }
 
+
+/**
+ * 拆分内容特征检测（REQ-2d1c74 FR-3）：设计文档里出现任务表/拆分章节的证据清单（空 = 干净）。
+ *
+ * 特征集 v1（刻意保守，宁漏勿冤——本需求自己的设计文档也要能过）：
+ *  ① 任务表表头：表头单元格含英文 depends_on，或同时含 acceptance 与 implementation
+ *     （与 normalizePlanTasks 字段同名才算；中文散文提及不命中）；
+ *  ② 拆分章节标题：H2+ 标题含「拆分计划」或「任务 DAG」（标题级强信号；正文提及不命中）。
+ *
+ * 围栏代码块不参与判定——parseDocument 已剥离（讨论本门禁时的示例只许活在代码块里，
+ * 结构性特征（表格/标题）才算证据）。
+ * 已知限制：手写中文表头的任务表漏检，列为后续增强（先保证零误伤）。
+ */
+export function detectDecompositionFeatures(doc: ParsedDoc): string[] {
+  const hits: string[] = []
+  for (const t of doc.tables) {
+    const header = t.header.map(h => h.toLowerCase())
+    if (header.some(h => h.includes('depends_on'))) {
+      hits.push(fmt('任务表表头（depends_on 列，第 {line} 行）', { line: t.line }))
+    } else if (header.some(h => h.includes('acceptance')) && header.some(h => h.includes('implementation'))) {
+      hits.push(fmt('任务表表头（acceptance + implementation 列，第 {line} 行）', { line: t.line }))
+    }
+  }
+  for (const h of doc.headings) {
+    if (h.level < 2) continue
+    if (h.text.includes('拆分计划') || h.text.includes('任务 DAG') || h.text.includes('任务DAG')) {
+      hits.push(fmt('拆分章节标题（「{text}」，第 {line} 行）', { text: h.text, line: h.line }))
+    }
+  }
+  return hits
+}
+
 /**
  * 检查编号唯一性（同一编号不能出现多次）。
  *

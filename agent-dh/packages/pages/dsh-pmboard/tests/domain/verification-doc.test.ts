@@ -21,7 +21,7 @@ describe('T-U7: 9 类文档完整性检查（AC-7.4）', () => {
     const r = checkDocCompleteness({ files, taskIds: ['t-aaaaaa'] })
     expect(r.passed).toBe(true)
     expect(r.missing).toEqual([])
-    expect(VERIFICATION_DOC_CLASSES).toHaveLength(9)
+    expect(VERIFICATION_DOC_CLASSES).toHaveLength(8) // plan.md 已删除（REQ-84bea5 T-4）
   })
 
   it('缺 design/interfaces.md → passed=false 且 missing 精确点名它', () => {

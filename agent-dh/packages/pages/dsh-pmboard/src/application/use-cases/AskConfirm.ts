@@ -14,7 +14,9 @@ import {
 import { DEFAULT_CONFIRM_OPTIONS } from '../../domain/text/labels.js'
 import { clip, fmt } from '../../domain/text/fmt.js'
 import { LIMITS } from '../../domain/limits.js'
-import { advanceTargetFor, gateFromStage } from '../../domain/gate/GateCatalog.js'
+import { advanceTargetFor, gateForTransition, gateFromStage } from '../../domain/gate/GateCatalog.js'
+import { checkDesignCompletenessGate, checkDesignDecompositionGate } from '../internal/content-gate-wiring.js'
+import { artifactsToConfirm, type GateFailure } from '../internal/artifact-gates.js'
 import { captureSnapshot, transitionRequirement } from '../internal/token-usage.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { executeDecompose } from './Decompose.js'
@@ -138,23 +140,33 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
         } as never
       }
 
+      // ── REQ-2d1c74 FR-3：确认 kind=design 落章前扫描拆分内容（三通道之一：会话弹框）──
+      // 用户已作答，但检出拆分内容即拒——不落章、不推进（扫描只读，无副作用）
+      if (targetKind === 'artifact' && kindRaw === 'design') {
+        const scan = await checkDesignDecompositionGate(deps.docs, targetReq)
+        if (scan !== undefined) reject(fmt('reqboard_ask_confirm 未执行：{msg}', { msg: scan.message }), scan.code)
+      }
+
       // ── 肯定项：落章（与 reqboard_confirm_artifact 同语义）────────────────
       const evidence = '用户在 reqboard_ask_confirm 弹框（问题："' + question + '"）中选择"' + picked + '"'
       await deps.repo.mutate('requirement-updated', (ledger) => {
         const req = ledger.requirements.find(r => r.id === targetReq.id)
         if (req === undefined) return undefined
         if (targetKind === 'artifact') {
-          const art = (req.artifacts ?? []).find(x => x.kind === kindRaw)
-          if (art === undefined) {
+          // REQ-2d1c74 FR-2：kind=design 成组落章（全部 design 产物一次确认）
+          const arts = artifactsToConfirm(req, kindRaw as never)
+          if (arts.length === 0) {
             throw Object.assign(
               new Error('需求 ' + req.id + ' 没有 kind=' + kindRaw + ' 的产物（请先提交该阶段产物）'),
               { code: 'REQBOARD_MISSING_ARTIFACT' },
             )
           }
-          art.confirmedAt = nowTs
-          art.confirmedBy = { kind: 'human', sessionId: windowKey }
-          art.confirmedVia = 'session'
-          art.confirmedEvidence = evidence
+          for (const art of arts) {
+            art.confirmedAt = nowTs
+            art.confirmedBy = { kind: 'human', sessionId: windowKey }
+            art.confirmedVia = 'session'
+            art.confirmedEvidence = evidence
+          }
         } else {
           if (req.plan === undefined) {
             throw Object.assign(new Error('需求 ' + req.id + ' 还没有拆分计划'), { code: 'REQBOARD_MISSING_PLAN' })
@@ -188,7 +200,16 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
       // 2026-09-21：批准拆分计划（target=plan 且已在拆分阶段）不走通用推进——
       // 须先拆分落库再进实施（顺序在下方「门合并」块里保证）
       const planInDecomposing = targetKind === 'plan' && from === 'decomposing'
-      if (advance && to !== undefined && !planInDecomposing && canReqTransition(from, to as never)) {
+      // REQ-2d1c74 FR-2：G2 弹框确认后的自动推进先过文档集完整性闸门（四路径之一）。
+      // 落章保留（确认动作有效），推进可拦——缺口经返回体 gate_failure 如实告知。
+      let designGateFailure: GateFailure | undefined
+      if (advance && to !== undefined && !planInDecomposing && gateForTransition(from, to)?.id === 'G2') {
+        const fresh = deps.repo.snapshot().requirements.find(r => r.id === targetReq.id)
+        if (fresh !== undefined) designGateFailure = await checkDesignCompletenessGate(deps.docs, fresh)
+      }
+      if (designGateFailure !== undefined) {
+        advanceNote = '；design → decomposing 未推进：' + designGateFailure.message
+      } else if (advance && to !== undefined && !planInDecomposing && canReqTransition(from, to as never)) {
         try {
           await deps.repo.mutate('requirement-moved', (ledger) => {
             const req = ledger.requirements.find(r => r.id === targetReq.id)
@@ -272,8 +293,41 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
             stop: chain.stopped,
           })
         } catch (err) {
+          const errMsg = String((err as Error).message ?? err)
           autoNote = fmt('；自动拆分/开跑失败（计划已批准，可手动调 reqboard_decompose 重试）：{msg}', {
-            msg: String((err as Error).message ?? err),
+            msg: errMsg,
+          })
+          
+          // FR-2（REQ-84bea5）：失败响亮化——评论+告警+标记
+          await deps.repo.mutate('auto-run-failed', (ledger) => {
+            const req = ledger.requirements.find(x => x.id === targetReq.id)
+            if (req === undefined) return undefined
+            
+            // 写系统评论（含恢复指引）
+            req.comments.push({
+              id: deps.ids.comment(),
+              body: fmt(
+                '[自动开跑失败] {reason}。\n\n恢复路径：修复后手动调用 reqboard_decompose(requirement_id="{reqId}")，或在看板点「拆分」按钮。',
+                { reason: errMsg, reqId: targetReq.id }
+              ),
+              createdAt: nowTs,
+              createdBy: { kind: 'system' },
+            })
+            
+            // 标记 advance.pausedReason
+            if (req.advance === undefined) req.advance = {}
+            req.advance.pausedReason = 'auto_decompose_failed: ' + errMsg
+            
+            req.version += 1
+            req.updatedAt = nowTs
+            return { requirements: [req] }
+          })
+          
+          // 调用 deps.alert 发高优告警
+          deps.alert?.alert({
+            requirementId: targetReq.id,
+            title: '自动开跑失败',
+            content: fmt('需求 {id} 批准计划后自动拆分/开跑失败：{msg}', { id: targetReq.id, msg: errMsg }),
           })
         }
       }
@@ -285,6 +339,7 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
         from,
         to: advanced ? to : from,
         requirement_id: targetReq.id,
+        ...(designGateFailure !== undefined ? { gate_failure: designGateFailure } : {}),
         note: '已落章（via=session）' + (advanced ? '，已推进：' + from + ' → ' + to : '') + advanceNote + autoNote,
       } as never
     }

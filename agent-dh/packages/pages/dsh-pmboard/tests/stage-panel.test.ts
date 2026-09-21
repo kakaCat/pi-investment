@@ -204,6 +204,26 @@ describe('各节点专属内容', () => {
     expect(html).toContain('⬜ 未交')
   })
 
+  it('design：条件必交带「条件·端侧」徽标，豁免项灰显并展示理由（REQ-2d1c74 FR-1）', () => {
+    const html = renderStagePanel(makeStageDetail({
+      stage: 'design',
+      body: {
+        category: 'feature',
+        designDocs: [
+          { name: 'architecture.md', path: 'docs/requirements/REQ-x/design/architecture.md', submitted: true },
+          { name: 'frontend.md', path: 'docs/requirements/REQ-x/design/frontend.md', submitted: false, conditional: 'frontend' },
+          { name: 'use-cases.md', path: 'docs/requirements/REQ-x/design/use-cases.md', submitted: false, exempted: '纯内部工具无用户场景' },
+        ],
+      },
+    }))
+    // 条件必交徽标
+    expect(html).toContain('〔条件·frontend〕')
+    // 豁免项：灰显 + 理由，且**不**按未交渲染（它不是缺口）
+    expect(html).toContain('data-exempted="yes"')
+    expect(html).toContain('已豁免：纯内部工具无用户场景')
+    expect(html).not.toContain('data-design-doc="use-cases.md" data-submitted="no"')
+  })
+
   it('decomposing：任务 + 依赖链', () => {
     const html = renderStagePanel(makeStageDetail({
       stage: 'decomposing',
@@ -574,6 +594,46 @@ describe('健壮性', () => {
       expect(html.length, stage).toBeGreaterThan(50)
       expect(html, stage).toContain('data-stage="' + stage + '"')
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// 测试：成组确认按钮（views/artifacts · REQ-2d1c74 FR-2）
+// ---------------------------------------------------------------------------
+
+describe('renderConfirmButton：kind=design 成组确认文案', () => {
+  it('任一 design 产物无章 → 按钮写明「全部 N 份」；全有章 → 不渲染', async () => {
+    const { renderConfirmButton } = await import('../src/client/views/artifacts.js')
+    const designArts = ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md', 'use-cases.md']
+      .map((n, i) => ({
+        stage: 'design', kind: 'design', path: 'docs/requirements/REQ-x/design/' + n,
+        registeredAt: 1,
+        ...(i === 0 ? {} : { confirmedAt: 1, confirmedBy: { kind: 'human' } }),
+      }))
+    const req = {
+      id: 'REQ-x', title: 'x', description: '', category: 'feature', status: 'design',
+      blocked: false, comments: [], version: 1, createdAt: 1, updatedAt: 1,
+      createdBy: { kind: 'human' }, updatedBy: { kind: 'human' },
+      artifacts: designArts,
+    } as unknown as import('../src/client/types.js').RequirementRecord
+    const html = renderConfirmButton(req)
+    expect(html).toContain('确认产物（全部 5 份）')
+    expect(html).toContain('一键确认全部 5 份设计文档（成组确认）')
+    // 全有章 → 不渲染
+    const done = {
+      ...req,
+      artifacts: designArts.map(a => ({ ...a, confirmedAt: 1, confirmedBy: { kind: 'human' } })),
+    } as unknown as import('../src/client/types.js').RequirementRecord
+    expect(renderConfirmButton(done)).toBe('')
+    // 首份有章但其余无章 → 仍然待确认（成组语义：第一份有章不算完）
+    const partial = {
+      ...req,
+      artifacts: designArts.map((a, i) => ({
+        stage: a.stage, kind: a.kind, path: a.path, registeredAt: 1,
+        ...(i === 0 ? { confirmedAt: 1, confirmedBy: { kind: 'human' } } : {}),
+      })),
+    } as unknown as import('../src/client/types.js').RequirementRecord
+    expect(renderConfirmButton(partial)).toContain('全部 5 份')
   })
 })
 

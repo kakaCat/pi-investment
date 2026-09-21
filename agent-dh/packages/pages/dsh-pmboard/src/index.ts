@@ -42,6 +42,7 @@ import { IsolationTraceFile } from './adapters/IsolationTraceFile.js'
 import { NodeIsolationAdapter } from './adapters/NodeIsolationAdapter.js'
 import { INJECTION_LOG_REL } from './application/internal/injection-log.js';
 import { ISOLATION_TRACE_REL } from './application/internal/isolation-trace.js';
+import { CAPTURE_DIAG_REL, captureDiag, initCaptureDiag } from './application/internal/diag-log.js';
 import { createNodeSettlementDispatcher } from './application/internal/node-settlement.js';
 import { SystemClock } from './adapters/SystemClock.js';
 import { RandomIdFactory } from './adapters/RandomIdFactory.js';
@@ -117,7 +118,11 @@ function turnBoundaryIdle(projectionsSvc: unknown, session: unknown): boolean {
 }
 
 export function apply(ctx: Context, config?: PluginConfig): void {
+  // 【REQ-f6307c T3】文件化诊断通道初始化（stdout 可能进死管道，文件才是可靠观测面）
+  initCaptureDiag(dshHomePath(config, CAPTURE_DIAG_REL));
+  captureDiag('reqboard-capture [EARLY]: apply function STARTED');
   const logger = ctx.logger(name);
+  logger.info('reqboard-capture [EARLY]: apply function STARTED');
   const store = new ReqboardStore({ file: dshHomePath(config, LEDGER_FILE) });
   // 急加载：fresh boot 时让首个 GET /state 见到台账而非空板（load 永不抛——损坏即隔离）
   void store.load();
@@ -302,6 +307,9 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   };
   const unsubscribeSessionEvents = sessionEventCtx.on?.('session/event', captureHandler);
   if (unsubscribeSessionEvents) disposers.push(unsubscribeSessionEvents);
+  // 【诊断日志-节点1】Hook 订阅状态（文件双写，防 stdout 死管道）
+  captureDiag(`reqboard-capture [NODE-1]: Hook subscription ${unsubscribeSessionEvents ? 'SUCCESS' : 'FAILED'} (unsubscribe=${typeof unsubscribeSessionEvents})`);
+  logger.info(`reqboard-capture [NODE-1]: Hook subscription ${unsubscribeSessionEvents ? 'SUCCESS' : 'FAILED'} (unsubscribe=${typeof unsubscribeSessionEvents})`);
   logger.info('reqboard capture hook registered: session/event user/message → 登记待立项评估（unbound 窗口）');
 
   // 捕获引导段装配（按窗口条件注入）：抽到 ./gate-wiring.js（REQ-f0579a t5 尺寸门禁）。

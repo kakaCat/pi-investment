@@ -19,6 +19,8 @@ import { docSyncPendingOf, docSyncSummary } from '../../domain/workflow/DocSyncS
 import { openRequirementsFor } from '../internal/window.js'
 import { applyTaskRollup } from '../internal/rollup.js'
 import { assertArtifactGates } from '../internal/artifact-gates.js'
+import { checkDesignCompletenessGate } from '../internal/content-gate-wiring.js'
+import { gateForTransition } from '../../domain/gate/GateCatalog.js'
 import {
   reject,
   agentIdFromExec,
@@ -89,6 +91,14 @@ export async function executeMoveRequirement(deps: UseCaseDeps, args: unknown, e
           `reqboard_move 未执行：${gateFailure.message}${hint}`,
           gateFailure.code === 'artifact_not_confirmed' ? 'REQBOARD_ARTIFACT_NOT_CONFIRMED' : 'REQBOARD_MISSING_ARTIFACT',
         )
+      }
+
+      // ── REQ-2d1c74 FR-2：G2 文档集完整性闸门（design→decomposing 四条转移路径之一）──
+      if (gateForTransition(from, to)?.id === 'G2') {
+        const completeness = await checkDesignCompletenessGate(deps.docs, target)
+        if (completeness !== undefined) {
+          reject('reqboard_move 未执行：' + completeness.message, completeness.code)
+        }
       }
 
       const result = await deps.repo.mutate('requirement-moved', (ledger) => {

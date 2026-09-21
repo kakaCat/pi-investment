@@ -12,6 +12,7 @@ import {
   normalizeText,
 } from '../../shared/protocol.js'
 import { registerArtifact } from '../internal/artifact-gates.js'
+import { assertArtifactOpenable } from '../internal/content-gate-wiring.js'
 import {
   reject,
   agentIdFromExec,
@@ -95,20 +96,24 @@ export async function submitArchive(deps: UseCaseDeps, args: unknown, exec: any)
       } catch (err) {
         reject('reqboard_archive_submit 未执行：' + ((err as Error).message ?? String(err)), 'REQBOARD_INVALID_INPUT')
       }
+      // REQ-2d1c74 FR-5：归档目录与清单内文档登记前可打开性校验——
+      // 不存在的目录/文档路径当场拒（REQBOARD_FILE_MISSING），伪路径/越界报 REQBOARD_ARTIFACT_NOT_OPENABLE。
+      const openDir = assertArtifactOpenable(deps.docs, dir)
+      for (const d of docs) assertArtifactOpenable(deps.docs, d.path)
 
       const nowTs = deps.clock.now()
       const result = await deps.repo.mutate('requirement-updated', (ledger) => {
         const req = ledger.requirements.find(r => r.id === actual.id)
         if (req === undefined) return undefined
         req.archive = {
-          dir, docs, mergedInto, indexEntry,
+          dir: openDir, docs, mergedInto, indexEntry,
           ...(manualUpdates.length > 0 ? { manualUpdates } : {}),
           ...(manualNote.length > 0 ? { manualNote } : {}),
           submittedAt: nowTs,
           submittedBy: { kind: 'agent', sessionId: windowKey },
         }
         // REQ-9f4a44：材料补齐即归档收尾——写 archivePath（原"人点归档"承担的落章动作）
-        if (req.status === 'archived') req.archivePath = dir
+        if (req.status === 'archived') req.archivePath = openDir
         req.comments.push({
           id: deps.ids.comment(),
           body: '[归档] 材料已备（REQ-9f4a44：验收通过即自动归档，此步为材料补齐）：' + dir
@@ -133,7 +138,7 @@ export async function submitArchive(deps: UseCaseDeps, args: unknown, exec: any)
         const r = ledger.requirements.find(x => x.id === changed.id)
         if (r === undefined) return undefined
         registerArtifact(r, {
-          stage: 'done', kind: 'archive', path: dir,
+          stage: 'done', kind: 'archive', path: openDir,
           registeredAt: nowTs, registeredBy: { kind: 'agent', sessionId: windowKey },
         })
         return { requirements: [r] }

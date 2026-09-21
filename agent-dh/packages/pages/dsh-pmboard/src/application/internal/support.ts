@@ -223,7 +223,7 @@ export function findPending(ledger: LedgerView, windowKey: string): TriageRecord
 export async function createRequirementDirect(
   deps: UseCaseDeps,
   windowKey: string,
-  input: { title: string; category: RequirementCategory; description: string; reason: string; promptDifficulty?: string },
+  input: { title: string; category: RequirementCategory; description: string; reason: string; promptDifficulty?: string; docBasePath?: string },
 ): Promise<RequirementRecord> {
   const nowTs = deps.clock.now()
   const result = await deps.repo.mutate('requirement-created', (ledger) => {
@@ -235,6 +235,7 @@ export async function createRequirementDirect(
       description: input.description,
       category: input.category,
       promptDifficulty: input.promptDifficulty as any, // 提示词难度级别
+      docBasePath: input.docBasePath,
       sourceSessionId: windowKey,
       status: 'draft',
       blocked: false,
@@ -242,7 +243,7 @@ export async function createRequirementDirect(
         {
           id: deps.ids.comment(),
           body: [
-            `[会话捕获] 用户经三问弹框确认立项（会话 ${windowKey}）`,
+            `[会话捕获] 用户经四问弹框确认立项（会话 ${windowKey}）`,
             `名称/分类/难度为用户确认值：${input.title}（${input.category}，提示词难度：${input.promptDifficulty ?? 'standard'}）`,
             ...(input.reason ? [`依据：${input.reason}`] : []),
           ].join('\n'),

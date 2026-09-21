@@ -15,7 +15,7 @@ import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
-import { defineTaskReportTool, defineDecomposeTool, definePlanSubmitTool } from './helpers/tool-deps.js'
+import { defineTaskReportTool, defineDecomposeTool, definePlanSubmitTool, stubDocFile } from './helpers/tool-deps.js'
 import type { RequirementRecord, RequirementStatus } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
@@ -35,6 +35,8 @@ beforeEach(() => {
   report = defineTaskReportTool(deps) as never
   decompose = defineDecomposeTool(deps) as never
   planTool = definePlanSubmitTool(deps) as never
+  // REQ-2d1c74 FR-5：plan_submit 起要求提交路径真实落盘（chdir 后 stub 落进本测试临时目录）
+  stubDocFile('docs/requirements/REQ-abc123/plan.md')
 })
 afterEach(() => {
   process.chdir(prevCwd)

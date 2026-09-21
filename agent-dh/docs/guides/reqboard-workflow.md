@@ -15,13 +15,13 @@ tags: [guide, reqboard, workflow]
 ## 结论先行
 
 1. **流程即状态**：立项 → 需求分析 → 设计 → 拆分 → 实施 → 验收（人工审核）→ 归档。状态由窗口自己推；
-   **人工闸门 = 四道产物确认门 + 取消**：确认需求文档（`brainstorming > design`）、批准拆分计划（`design > decomposing`）、
-   确认拆分清单（`decomposing > implementing`）、验收通过（`accepting > archived`，**通过即自动归档**），
+   **人工闸门 = 四道产物确认门 + 取消**（2026-09-21 用户裁定口径）：
+   确认需求文档 G1（`brainstorming > design`）、**确认设计文档 G2**（`design > decomposing`——设计阶段只写设计文档）、
+   **批准拆分计划 G3**（`decomposing > implementing`——拆分计划只在拆分阶段提交，批准即自动拆分落卡并开跑）、
+   验收通过 G4（`accepting > archived`，**通过即自动归档**），
    以及取消（`* > canceled`）与取消后归档（`canceled > archived`）。
    事实源：`packages/pages/dsh-pmboard/src/domain/gate/GateCatalog.ts`（`GATE_CATALOG`）+
    `domain/requirement/RequirementStatus.ts`（`HUMAN_ONLY_REQ_TRANSITIONS`，两者由测试互锁一致）。
-   ⚠️ 本节此前有两处错：把「批准拆分计划」的边记成 `decomposing → implementing`（实为 `design → decomposing`），
-   且**漏了 `decomposing > implementing` 这道「确认拆分清单」**——2026-09-20 按代码更正（同文件第 31-33 行的流程表一直是正确的）。
 2. **一个窗口同时只绑一个进行中需求**；立项前先想清楚"这是不是值得立项的工作"。
 3. **拆分不是创作**：落库的是**已批准计划里的任务表**，不许临场发挥。
 4. **验收要有证据**：交"做了什么 + 怎么验的 + 看到什么"，人在看板决定过或退。
@@ -35,9 +35,9 @@ tags: [guide, reqboard, workflow]
 | 接手 | 系统 | 窗口在该需求上继续工作时 rollup 自动推进 | `draft → brainstorming` |
 | 需求分析 | 窗口 | 读代码 / 查数据，跟人把方向谈定（**不写代码**） | 需求文档（`docs/requirements/<REQ>/requirement.md`） |
 | **确认需求文档** | **人** | 看板/弹框一键确认（`reqboard_ask_confirm({target: "artifact", kind: "requirement"})`） | `brainstorming → design` 解锁 |
-| 设计 | 窗口 | `reqboard_move({to: "design"})` → 写设计文档（`design/*.md`）+ 拆分计划 → `reqboard_submit({kind: "plan"})` | 设计节点逐份显示设计文档「已交/未交」；卡面出现「拆分计划待批」 |
-| **批准拆分计划** | **人** | 看板点「批准计划」（`POST /req/plan/approve`） | 拆分解锁 |
-| 拆分 | 窗口 | `reqboard_decompose`（不传 tasks = 落库计划） | 任务卡 + 需求进 `decomposing` |
+| 设计 | 窗口 | `reqboard_move({to: "design"})` → 只写设计文档（`design/*.md`，落盘即产物）——**不写拆分计划、不含任务表** | 设计节点逐份显示设计文档「已交/未交」（条件必交带徽标、豁免项灰显） |
+| **确认设计文档（G2）** | **人** | 看板/弹框一键确认（`reqboard_ask_confirm({target: "artifact", kind: "design"})`——一次确认 = 全部设计文档**成组落章**） | 文档集交齐且全确认 → `design → decomposing` 放行；缺交/缺确认被拦（`design_doc_incomplete`）；文档含任务表特征被拦（`design_contains_decomposition`） |
+| 拆分 | 窗口 + 人 | `reqboard_submit({kind: "plan"})`（拆分阶段提交拆分计划）→ **人批准**（`reqboard_ask_confirm({target: "plan"})` 或看板「批准计划」） | 批准即自动 `reqboard_decompose` 落卡 + 进实施开跑（门合并）；任务卡 + 需求进 `decomposing → implementing` |
 | 执行 | 窗口 | 每个任务 `reqboard_task_move`（todo→in_progress→integrating→testing→in_review→done） | 开工自动开执行段；全 done → 自动 `accepting` |
 | 交验收 | 窗口 | `reqboard_submit({kind: "verification", summary, evidence})` | 验收材料入库，生成验收单（逐项待验） |
 | **验收** | **人** | 看板验收单逐项勾「通过 / 改进」（`reqboard_accept_sheet`，一次最多 10 项）；点「验收通过」时先弹不合格项确认框（REQ-a8d582 FR-1） | 全通过 → `accepting → archived`（**通过即归档，无 `done` 中转**）；有未过项 → **自动回退 `implementing` 并生成返工卡**（REQ-308b9a FR-8，推翻 REQ-a8d582 FR-2）；带不合格或尚无材料的通过须显式覆盖并留痕（FR-4），按钮在验收态即展示（FR-3） |
@@ -47,7 +47,8 @@ tags: [guide, reqboard, workflow]
 
 ## 各阶段的硬要求
 
-- **拆分计划**：必须含**任务表**（key / title / phase / side / depends_on / acceptance）；摘要要人能读懂；拆分计划只在 `design` 阶段提交（越级报 `REQBOARD_BAD_STATUS`）。设计阶段还会逐份核对设计文档（`design/architecture.md`、`data-model.md`、`interfaces.md`、`test-cases.md`，按需求类型增减）的「已交/未交」——只展示，不作闸门。
+- **设计文档集（G2 硬门，REQ-2d1c74）**：feature 必交五份（`design/architecture.md`、`data-model.md`、`interfaces.md`、`test-cases.md`、`use-cases.md`）；需求 front-matter 声明 `sides: frontend/backend` 时对应 `frontend.md`/`backend.md` 条件必交；`design_exempt: 文件名=理由` 可豁免（空理由/键名写错不生效）。未交齐或未全部经人确认 → design→decomposing 被代码级拒绝；设计文档含任务表特征（depends_on 表头等）→ 确认被拒，挪到拆分阶段。
+- **拆分计划**：摘要要人能读懂；任务表（key / title / phase / side / depends_on / acceptance / implementation）可随计划提交、也可留到 `reqboard_decompose` 时创作；拆分计划只在 `decomposing` 阶段提交（越级报 `REQBOARD_BAD_STATUS`）；**人批准 = 落卡的唯一钥匙**。
 - **拆分**：落库内容只能等于批准的计划——key 集合不一致报 `REQBOARD_PLAN_MISMATCH`（防止"批了 A 落库 B"）。
 - **任务**：依赖只能指向同需求内任务；`todo → done` 是非法跳步；开工记一段执行时间（甘特图与耗时统计的数据源）。
 - **验收材料**：evidence 必须可复核（命令 + 输出摘要 / 报告路径 / 截图路径），禁止"功能正常"这类空话。
@@ -65,6 +66,9 @@ tags: [guide, reqboard, workflow]
 | `REQBOARD_PLAN_MISMATCH` | 落库内容 ≠ 批准的计划 | 要改方案就重新提交计划并重新批准 |
 | `REQBOARD_HUMAN_GATE` | 撞人工闸门（验收通过 / 取消 / 归档） | 请人操作，agent 不可代替 |
 | `REQBOARD_TASK_NOT_FOUND` | 任务 id 不存在 | 用看板任务页确认 id |
+| `design_doc_incomplete` | 设计文档集未交齐或未全部确认（G2） | 按返回的 gaps 清单补齐 design/*.md 并全部确认 |
+| `design_contains_decomposition` | 设计文档里检出任务表/拆分计划特征 | 把该内容挪到拆分阶段（decomposition.md）后再确认 |
+| `REQBOARD_ARTIFACT_NOT_OPENABLE` / `REQBOARD_FILE_MISSING` | 登记产物路径是伪路径/越界/没落盘 | 先落盘再登记；路径写工作区相对形态（别用 brace/..`） |
 | `invalid_transition` / `invalid_dag` / `invalid_input` / `human_gate` | 路由层同义错误 | 同上；`invalid_dag` 检查依赖是否成环 / 悬空 |
 
 ## 依据

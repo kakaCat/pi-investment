@@ -40,13 +40,16 @@ import {
   type StatusEvent,
   type TaskRecord,
 } from '../../shared/protocol.js'
-import { designDocStatus } from '../internal/design-docs.js'
+import { designDocStatus, designDocPolicyOf, EMPTY_DESIGN_DOC_POLICY } from '../internal/design-docs.js'
+import type { DesignDocPolicy } from '../internal/category-doc-sets.js'
 import type { LedgerView, UseCaseDeps } from '../ports.js'
 
-/** 装配器上下文：需求 + 台账（取任务/时间线切片用）。 */
+/** 装配器上下文：需求 + 台账（取任务/时间线切片用）+ 可选设计文档策略（REQ-2d1c74，host 侧读 front-matter 注入）。 */
 export interface AssembleContext {
   req: RequirementRecord
   ledger: Pick<LedgerView, 'tasks'>
+  /** 设计文档集策略（sides/design_exempt）；缺省 = 空策略（只有必交、无豁免） */
+  designDocPolicy?: DesignDocPolicy
 }
 
 /**
@@ -71,7 +74,7 @@ abstract class StageDetailAssembler {
       ...(tokens !== undefined ? { tokens } : {}),
     }
     // 分类跳过：body 给空对象（契约要求对应成员存在），UI 标灰不算缺失
-    const body = enabled ? this.buildBody(req, ledger) : ({} as never)
+    const body = enabled ? this.buildBody(req, ledger, ctx) : ({} as never)
     return { ...base, body } as StageDetail
   }
 
@@ -79,6 +82,7 @@ abstract class StageDetailAssembler {
   protected abstract buildBody(
     req: RequirementRecord,
     ledger: Pick<LedgerView, 'tasks'>,
+    ctx: AssembleContext,
   ): StageDetail['body']
 }
 
@@ -164,11 +168,13 @@ class BrainstormStageAssembler extends StageDetailAssembler {
  *  + 设计文档逐份交付状态（REQ-81aabd FR-2：已交/未交，纯展示，不影响推进条件）。 */
 class DesignStageAssembler extends StageDetailAssembler {
   readonly stage = 'design' as const
-  protected buildBody(req: RequirementRecord): DesignStageBody {
+  protected buildBody(req: RequirementRecord, _ledger: Pick<LedgerView, 'tasks'>, ctx: AssembleContext): DesignStageBody {
+    // REQ-2d1c74 FR-1/FR-2：投影带条件必交徽标与豁免理由——策略由 host 侧读 requirement.md
+    // front-matter 注入（designDocPolicyOf），缺省空策略时行为与扩展前一致。
     return {
       ...(req.plan !== undefined ? { plan: req.plan } : {}),
       ...(req.category !== undefined ? { category: req.category } : {}),
-      ...(req.category !== undefined ? { designDocs: designDocStatus(req, req.category) } : {}),
+      ...(req.category !== undefined ? { designDocs: designDocStatus(req, req.category, ctx.designDocPolicy ?? EMPTY_DESIGN_DOC_POLICY) } : {}),
     }
   }
 }
@@ -306,11 +312,12 @@ export function assembleStageDetail(
   req: RequirementRecord | undefined,
   ledger: Pick<LedgerView, 'tasks'>,
   stage: StageKey,
+  opts?: { designDocPolicy?: DesignDocPolicy },
 ): StageDetail {
   if (req === undefined) {
     throw Object.assign(new Error('需求不存在'), { code: 'not_found' })
   }
-  return ASSEMBLERS[stage].assemble({ req, ledger })
+  return ASSEMBLERS[stage].assemble({ req, ledger, ...(opts?.designDocPolicy !== undefined ? { designDocPolicy: opts.designDocPolicy } : {}) })
 }
 
 /**
@@ -320,11 +327,12 @@ export function assembleStageDetail(
 export function assembleStageOverview(
   req: RequirementRecord | undefined,
   ledger: Pick<LedgerView, 'tasks'>,
+  opts?: { designDocPolicy?: DesignDocPolicy },
 ): StageOverview {
   if (req === undefined) {
     throw Object.assign(new Error('需求不存在'), { code: 'not_found' })
   }
-  const ctx: AssembleContext = { req, ledger }
+  const ctx: AssembleContext = { req, ledger, ...(opts?.designDocPolicy !== undefined ? { designDocPolicy: opts.designDocPolicy } : {}) }
   return {
     requirementId: req.id,
     category: req.category,
@@ -349,5 +357,7 @@ export async function queryStageDetail(
 ): Promise<StageDetail> {
   const snapshot = deps.repo.snapshot()
   const req = snapshot.requirements.find(r => r.id === requirementId)
-  return assembleStageDetail(req, snapshot, stage)
+  // REQ-2d1c74：host 侧读 requirement.md front-matter 注入设计文档策略（client 不碰 fs）
+  const policy = req === undefined ? undefined : await designDocPolicyOf(deps.docs, req)
+  return assembleStageDetail(req, snapshot, stage, { ...(policy !== undefined ? { designDocPolicy: policy } : {}) })
 }

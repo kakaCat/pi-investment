@@ -239,6 +239,9 @@ describe('输出契约：返回字段 ⊆ output.schema 声明', () => {
     const reqDir = join(root, 'docs/requirements', REQ)
     mkdirSync(reqDir, { recursive: true })
     writeFileSync(join(reqDir, 'requirement.md'), 'x')
+    // REQ-2d1c74 FR-5：archive 清单内文档须真实落盘
+    writeFileSync(join(reqDir, 'plan.md'), 'x')
+    writeFileSync(join(reqDir, 'verification.md'), 'x')
     writeFileSync(join(reqDir, 'prototype.html'), 'x') // 未列入清单 → warning 路径
     const tool = defineSubmitTool(depsWith())
     let out: any

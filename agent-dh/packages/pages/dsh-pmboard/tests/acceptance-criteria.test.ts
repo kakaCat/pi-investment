@@ -19,11 +19,12 @@
  *   12. 分类流程生效                    → CATEGORY_FLOW_PROFILES + artifact-gates
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { FileDocRepository } from '../src/adapters/FileDocRepository.js'
 import { createReqboardHandler } from '../src/http/routes.js'
 import { assembleStageDetail } from '../src/application/query/index.js'
 import { renderStagePanel } from '../src/client/stage-panel.js'
@@ -31,6 +32,7 @@ import {
   definePlanSubmitTool,
   defineDecomposeTool,
   defineTaskReportTool,
+  stubDocFile,
 } from './helpers/tool-deps.js'
 import {
   CATEGORY_FLOW_PROFILES,
@@ -58,7 +60,8 @@ beforeEach(() => {
   prevCwd = process.cwd()
   process.chdir(dir)
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
-  handler = createReqboardHandler({ store, now: () => Date.now() })
+  // REQ-2d1c74 FR-2：G2 完整性闸门需要 docs 端口（非 legacy 时缺省 = fail-closed）
+  handler = createReqboardHandler({ store, now: () => Date.now(), docs: new FileDocRepository({ workspaceRoot: dir }) })
 })
 afterEach(() => {
   process.chdir(prevCwd)
@@ -441,6 +444,8 @@ describe('验收 8：task_report 汇报 = 实施产物文档', () => {
     const decomposeTool = defineDecomposeTool({ store, now: () => Date.now() } as never)
 
     // 走完整链路：提交计划 → 批准 → 拆分 → 汇报
+    // REQ-2d1c74 FR-5：plan_submit 起要求提交路径真实落盘（本文件 chdir 到临时目录）
+    stubDocFile('docs/requirements/REQ-acc001/plan.md')
     await planTool.execute({
       path: 'docs/requirements/REQ-acc001/plan.md', summary: 's',
       tasks: [{ key: 'a', title: '任务A', phase: 'implement', side: 'backend', acceptance: '单测通过', implementation: '改 a.ts' }],
@@ -558,16 +563,35 @@ describe('验收 10：四道人工确认门', () => {
 
   it.each(ALL_FIVE_GATES)('门 %s>%s：产物确认后 → 转移成功', async (from, to, kind) => {
     await seed(from as RequirementStatus, 'feature')
-    await store.mutate('requirement-updated', (l) => {
-      const r = l.requirements[0]
-      r.artifacts = [{
-        stage: from as StageKey, kind: kind as StageArtifact['kind'],
-        path: `docs/requirements/REQ-acc001/${kind}.md`,
-        registeredAt: 1, registeredBy: { kind: 'agent' },
-        confirmedAt: 2, confirmedBy: { kind: 'human' },
-      }]
-      return { requirements: [r] }
-    })
+    // REQ-2d1c74 FR-2：design>decomposing 多了文档集完整性门——feature 五份必交须落盘且全部确认
+    if (from === 'design' && to === 'decomposing') {
+      const DESIGN5 = ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md', 'use-cases.md']
+      mkdirSync(join(dir, 'docs/requirements/REQ-acc001/design'), { recursive: true })
+      writeFileSync(join(dir, 'docs/requirements/REQ-acc001/requirement.md'),
+        '# 需求\n\n## 边界\nx\n\n## 产品定义\nx\n\n## 用户与角色\nx\n\n## 功能点\n\n### FR-1: 甲\nx\n')
+      for (const n of DESIGN5) writeFileSync(join(dir, 'docs/requirements/REQ-acc001/design', n), '# ' + n + '\n')
+      await store.mutate('requirement-updated', (l) => {
+        const r = l.requirements[0]
+        r.artifacts = DESIGN5.map(n => ({
+          stage: 'design', kind: 'design',
+          path: 'docs/requirements/REQ-acc001/design/' + n,
+          registeredAt: 1, registeredBy: { kind: 'agent' },
+          confirmedAt: 2, confirmedBy: { kind: 'human' },
+        }))
+        return { requirements: [r] }
+      })
+    } else {
+      await store.mutate('requirement-updated', (l) => {
+        const r = l.requirements[0]
+        r.artifacts = [{
+          stage: from as StageKey, kind: kind as StageArtifact['kind'],
+          path: `docs/requirements/REQ-acc001/${kind}.md`,
+          registeredAt: 1, registeredBy: { kind: 'agent' },
+          confirmedAt: 2, confirmedBy: { kind: 'human' },
+        }]
+        return { requirements: [r] }
+      })
+    }
     // 特殊门处理（2026-09-21：design>decomposing 已改通用 design 产物确认判定，无特判）
     if (from === 'accepting' && to === 'archived') {
       // accepting>archived（验收通过即归档）还需要 verification 记录

@@ -1,0 +1,53 @@
+# Hook 注入链路诊断日志
+
+## 测试时间
+2026-09-21 15:30（T2 初诊）；2026-09-21 18:00（T3 复诊修正）
+
+## ⚠️ T3 复诊结论：T2 的「apply() 未执行」判定是**观测面错误**，予以推翻
+
+### T2 误诊的三重观测错误
+
+T2 依据「日志里找不到 capture hook registered / NODE-1」判定 pmboard 插件 apply()
+未执行。T3 逐项复核后发现，这是**日志观测面全面失效**导致的误判，真实情况是
+日志根本不在被检查的地方：
+
+| # | T2 检查的观测面 | 实际情况 |
+|---|----------------|---------|
+| 1 | `~/Library/Logs/com.pi-investment.dsh/launchd.out.log` | **路径错误**。launchd plist 配置的 StandardOutPath 实为 `agent-dh/.dsh-data/state/launchd.out.log`，该目录从未有日志写入 |
+| 2 | `.dsh-data/state/launchd.out.log`（配置路径） | **停更于 09-19 18:59**。此后所有重启都由外部 shell 手工 `start.sh` 拉起，未经 launchd，故不写该文件 |
+| 3 | 当前进程 stdout | **死管道**。当时进程由另一个 Claude Code 会话的 `./scripts/start.sh --no-open 2>&1 \| tail -5` 拉起，tail 退出后 stdout 指向无读者的管道，console.log/logger.info 全部蒸发（`lsof -p <pid> -d 1,2` 显示 PIPE，对端无进程） |
+
+### 反证（apply() 其实一直在正常执行）
+
+- reqboard 工具全部可用（reqboard_status / task_move 等均正常返回）——它们与 Hook 订阅在同一个 apply() 里注册；
+- 本窗口（bound）的 systemPrompt 里持续注入「项目看板（reqboard · 本窗口已绑定需求）」段——该段由 registerCaptureGuidance 注册，与 capture 引导段同一装配点；
+- dist/index.mjs 与 node_modules 是符号链接且 inode 相同（排除硬链接副本过期假设）。
+
+### 教训（已沉淀为本次修复的一部分）
+
+**诊断日志必须落文件，禁止只依赖 stdout**。stdout 在以下常见情形全部不可读：
+launchd 未接管、外部 shell 管道拉起、tail/tee 提前退出。
+
+---
+
+## T3 修复动作
+
+新增 `src/application/internal/diag-log.ts`：`captureDiag()` 文件+控制台双写，
+落盘到 `<dshHome>/state/reqboard-capture-diag.log`（512KB 轮转一代），失败静默不挡主流程。
+5 个诊断节点 + EARLY 全部从 console.log/logger 单写切换为 captureDiag 双写：
+
+- EARLY（src/index.ts apply 开头）→ initCaptureDiag + captureDiag
+- 节点1（src/index.ts Hook 订阅）→ captureDiag
+- 节点2（src/adapters/CaptureHook.ts user/message 到达）→ captureDiag
+- 节点3（src/adapters/CaptureHook.ts pendingCapture 填充）→ captureDiag
+- 节点4（src/gate-wiring.ts systemPrompt 组装）→ captureDiag
+- 节点5（src/application/internal/capture-section.ts 提示词生成，5 处分支）→ captureDiag
+
+构建验证：dist/index.mjs 含全部 6 类诊断标记（EARLY×2 / NODE-1×2 / NODE-2 / NODE-3 / NODE-4 / NODE-5×5）。
+
+## 重启后 E2E 验证
+
+- [ ] 重启后 reqboard-capture-diag.log 出现 EARLY + NODE-1（订阅 SUCCESS）
+- [ ] 本窗口（bound）任意消息触发 NODE-4（pending=NONE）+ NODE-5（windowBound=true）
+- [ ] unbound 窗口发送"修复 XX"→ NODE-2/3/4/5 全链 + DYNAMIC PROMPT（text.length>0）
+- [ ] 该窗口 Agent 第一个工具调用为 reqboard_capture

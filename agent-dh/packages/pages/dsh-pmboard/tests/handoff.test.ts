@@ -20,6 +20,7 @@ import {
   defineDecomposeTool,
   defineTaskMoveTool,
   defineTaskReportTool,
+  stubDocFile,
 } from './helpers/tool-deps.js'
 import { assembleStageDetail } from '../src/application/query/index.js'
 import type { RequirementRecord, RequirementStatus } from '../src/shared/protocol.js'
@@ -45,6 +46,8 @@ beforeEach(() => {
   decompose = defineDecomposeTool(deps) as never
   taskMove = defineTaskMoveTool(deps) as never
   taskReport = defineTaskReportTool(deps) as never
+  // REQ-2d1c74 FR-5：plan_submit 起要求提交路径真实落盘（chdir 后 stub 落进本测试临时目录）
+  stubDocFile('docs/requirements/REQ-hand1/decomposition.md')
 })
 afterEach(() => {
   process.chdir(prevCwd)

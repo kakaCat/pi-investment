@@ -49,7 +49,9 @@ const HEAVY_ELEMENTS: Readonly<Record<PromptStage, readonly string[]>> = {
 /** 每节点 heavy 必须含的本仓工具化措辞（overrides / 自写档）。 */
 const REQ_SPECIFIC: Readonly<Record<PromptStage, readonly string[]>> = {
   brainstorming: ['reqboard_ask_confirm', 'requirement.md', 'artifact_not_confirmed'],
-  design: ['reqboard_submit(kind=plan)', 'reqboard_ask_confirm'],
+  // REQ-2d1c74 FR-4：设计阶段旧指令（submit 计划/批准计划）已清除——设计只写设计文档，
+  // 确认设计文档（kind=design 成组落章）后进拆分；计划类指令挪到 decomposing 档（见下 170 行区）。
+  design: ['reqboard_ask_confirm(target=artifact, kind=design)', 'reqboard_ask_confirm'],
   decomposing: ['reqboard_decompose', 'reqboard_ask_confirm'],
   implementing: ['reqboard_task_report', 'reqboard_task_move'],
   accepting: ['reqboard_submit(kind=verification)', 'reqboard_accept_sheet'],

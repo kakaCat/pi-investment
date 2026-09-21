@@ -7,7 +7,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
-import { definePlanSubmitTool, defineDecomposeTool } from './helpers/tool-deps.js'
+import { definePlanSubmitTool, defineDecomposeTool, stubDocFile } from './helpers/tool-deps.js'
 import type { RequirementRecord } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
@@ -22,6 +22,8 @@ beforeEach(() => {
   const deps = { store, now: () => Date.now() } as never
   planTool = definePlanSubmitTool(deps) as never
   decompose = defineDecomposeTool(deps) as never
+  // REQ-2d1c74 FR-5：plan_submit 起要求提交路径真实落盘
+  for (const p of ['p.md', 'docs/requirements/REQ-w7test/decomposition.md']) stubDocFile(p)
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 

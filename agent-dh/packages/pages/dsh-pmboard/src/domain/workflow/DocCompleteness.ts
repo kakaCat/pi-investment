@@ -8,7 +8,7 @@
  * `category-doc-sets.ts` 的 requiredDesignDocs），R-7 示例里的
  * technical-design / frontend-spec / backend-spec / ui-design 在本仓统一收敛为 `design/*.md`：
  *
- *   1 requirement.md      2 plan.md
+
  *   3 design/architecture.md   4 design/data-model.md
  *   5 design/interfaces.md     6 design/test-cases.md
  *   7 decomposition.md    8 tasks/<taskId>.md（每任务一份）
@@ -34,7 +34,7 @@ export const TASK_CARD_CLASS_KEY = 'task_cards'
 
 export const VERIFICATION_DOC_CLASSES: readonly DocClass[] = [
   { key: 'requirement', label: 'requirement.md（需求文档）', hit: p => p === 'requirement.md' },
-  { key: 'plan', label: 'plan.md（拆分计划）', hit: p => p === 'plan.md' },
+
   { key: 'design_architecture', label: 'design/architecture.md（架构）', hit: p => p === 'design/architecture.md' },
   { key: 'design_data_model', label: 'design/data-model.md（数据模型）', hit: p => p === 'design/data-model.md' },
   { key: 'design_interfaces', label: 'design/interfaces.md（接口）', hit: p => p === 'design/interfaces.md' },

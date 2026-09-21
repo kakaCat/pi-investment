@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import { createReqboardHandler } from '../src/http/routes.js'
-import { definePlanSubmitTool, defineDecomposeTool, defineTaskMoveTool, defineTaskReportTool } from './helpers/tool-deps.js'
+import { definePlanSubmitTool, defineDecomposeTool, defineTaskMoveTool, defineTaskReportTool, stubDocFile } from './helpers/tool-deps.js'
 import type { RequirementRecord, RequirementStatus } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
@@ -36,6 +36,8 @@ beforeEach(() => {
   taskMove = defineTaskMoveTool(deps) as never
   reportTool = defineTaskReportTool(deps) as never
   handler = createReqboardHandler({ store, now: () => Date.now() })
+  // REQ-2d1c74 FR-5：plan_submit 起要求提交路径真实落盘
+  for (const p of ['p.md', 'docs/requirements/REQ-abc123/decomposition.md']) stubDocFile(p)
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 

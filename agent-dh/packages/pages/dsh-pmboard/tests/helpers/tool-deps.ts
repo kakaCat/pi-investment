@@ -12,9 +12,9 @@
  *
  * @module dsh-pmboard/tests/helpers/tool-deps
  */
-import { mkdtempSync, realpathSync } from 'node:fs'
+import { mkdtempSync, realpathSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { ToolTraceEntry, RecentUserMsg } from '../../src/adapters/SessionProbeAdapter.js'
 import { SessionProbeAdapter } from '../../src/adapters/SessionProbeAdapter.js'
 import { FileDocRepository } from '../../src/adapters/FileDocRepository.js'
@@ -91,6 +91,18 @@ function resolveWorkspaceRoot(explicit: string | undefined): string {
   // 只判"是不是包目录"不够：从 agent-dh 目录跑测试时，产物会写进真实的 agent-dh/docs/requirements/
   // （实测：一次误从仓库根跑，污染了 120+ 个文件）。
   return cwd === tmp || cwd.startsWith(tmp + '/') ? process.cwd() : testWorkspaceRoot()
+}
+
+/**
+ * 在当前解析出的测试文档根写占位文件（REQ-2d1c74 FR-5：plan/archive 提交起要求
+ * 登记路径真实落盘——存量夹具的 'p.md' / 'docs/requirements/<REQ>/plan.md' 等
+ * 占位路径需要有文件才能过 assertArtifactOpenable）。按调用时的 cwd 解析根，
+ * 故 chdir 到临时目录的测试文件会写进各自目录，绝不写进仓库。
+ */
+export function stubDocFile(relPath: string, root?: string, content = '# 占位（测试夹具落盘）\n'): void {
+  const abs = join(root ?? resolveWorkspaceRoot(undefined), relPath)
+  mkdirSync(dirname(abs), { recursive: true })
+  writeFileSync(abs, content)
 }
 
 /** 旧 deps → 用例依赖（适配器即 t5 落地的端口实现）。 */

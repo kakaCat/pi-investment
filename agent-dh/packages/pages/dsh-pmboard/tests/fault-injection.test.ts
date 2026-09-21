@@ -16,7 +16,7 @@ import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import {
   definePlanSubmitTool, defineDecomposeTool, defineTaskMoveTool, defineTaskReportTool,
-  defineAskConfirmTool,
+  defineAskConfirmTool, stubDocFile,
 } from './helpers/tool-deps.js'
 import { syncReqArtifacts, reqDirRel } from '../src/adapters/ArtifactSync.js'
 import { recordToolTrace, type ToolTraceEntry } from '../src/adapters/SessionProbeAdapter.js'
@@ -37,6 +37,8 @@ beforeEach(() => {
   decompose = defineDecomposeTool(deps)
   taskMove = defineTaskMoveTool(deps)
   report = defineTaskReportTool(deps)
+  // REQ-2d1c74 FR-5：plan_submit 起要求提交路径真实落盘
+  stubDocFile('p.md', root)
 })
 afterEach(() => { rmSync(root, { recursive: true, force: true }) })
 

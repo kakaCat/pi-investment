@@ -8,7 +8,8 @@
 import { describe, expect, it } from 'vitest'
 import { CATEGORY_DELTAS, deltaFor, missingCategoryDocs, requiredRootSectionsFor } from '../src/application/internal/category-doc-sets.js'
 
-const FEATURE_DESIGN = ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md']
+// REQ-2d1c74 FR-1：feature 必交扩为五份（补 use-cases.md）；条件必交 frontend/backend 由 design-doc-policy.test.ts 覆盖
+const FEATURE_DESIGN = ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md', 'use-cases.md']
 const BASE_TEXT = '## 边界\n'
 
 describe('deltaFor / requiredRootSectionsFor（六类齐全，未知类型不拦）', () => {

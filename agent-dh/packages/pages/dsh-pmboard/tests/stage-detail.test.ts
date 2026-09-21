@@ -11,7 +11,7 @@
  *   - 路由：GET /requirements/:id/stage/:stage 200/400/404。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -154,7 +154,7 @@ describe('assembleStageDetail：7 节点装配', () => {
     const detail = assembleStageDetail(req, LEDGER, 'design')
     if (detail.stage !== 'design') throw new Error('narrow')
     const docs = detail.body.designDocs ?? []
-    expect(docs.map(d => d.name)).toEqual(['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md'])
+    expect(docs.map(d => d.name)).toEqual(['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md', 'use-cases.md'])
     expect(docs.find(d => d.name === 'architecture.md')?.submitted).toBe(true)
     expect(docs.filter(d => d.submitted)).toHaveLength(1)
   })
@@ -163,6 +163,17 @@ describe('assembleStageDetail：7 节点装配', () => {
     const detail = assembleStageDetail(makeReq({ category: 'bug' }), LEDGER, 'design')
     if (detail.stage !== 'design') throw new Error('narrow')
     expect(detail.body.designDocs).toEqual([])
+  })
+
+  it('design.body：策略注入——frontend.md 带 conditional=frontend、豁免项带理由（REQ-2d1c74 FR-1）', () => {
+    const detail = assembleStageDetail(makeReq({}), LEDGER, 'design', {
+      designDocPolicy: { sides: ['frontend'], exempt: { 'use-cases.md': '纯内部工具无用户场景' } },
+    })
+    if (detail.stage !== 'design') throw new Error('narrow')
+    const docs = detail.body.designDocs ?? []
+    expect(docs.find(d => d.name === 'frontend.md')?.conditional).toBe('frontend')
+    expect(docs.find(d => d.name === 'backend.md')).toBeUndefined() // 未声明 backend → 不要求
+    expect(docs.find(d => d.name === 'use-cases.md')?.exempted).toBe('纯内部工具无用户场景')
   })
 
   it('decomposing.body 含 decompositionDoc + 任务 DAG + planTasks 对照', () => {
@@ -428,6 +439,22 @@ describe('路由 GET /requirements/:id/stage/:stage', () => {
     const res = await get(handler, `/requirements/${id}/stage/not-a-stage`)
     expect(res.statusCode).toBe(400)
     expect(res.payload.code).toBe('invalid_input')
+  })
+
+  it('design 节点路由：读 requirement.md front-matter 注入策略（conditional/exempted 进投影）', async () => {
+    const handler = createReqboardHandler({ store, now: () => Date.now(), cwd: dir })
+    mkdirSync(join(dir, 'docs/requirements/REQ-a1b2c3'), { recursive: true })
+    writeFileSync(join(dir, 'docs/requirements/REQ-a1b2c3/requirement.md'),
+      '---\nsides: frontend\ndesign_exempt: use-cases.md=纯内部工具无用户场景\n---\n\n# 需求\n')
+    await store.mutate('requirement-created', (l) => {
+      l.requirements.push(makeReq({ status: 'design' }))
+      return { requirements: [l.requirements[l.requirements.length - 1]!] }
+    })
+    const res = await get(handler, '/requirements/REQ-a1b2c3/stage/design')
+    expect(res.statusCode).toBe(200)
+    const docs = res.payload.data.body.designDocs as Array<{ name: string; conditional?: string; exempted?: string }>
+    expect(docs.find(d => d.name === 'frontend.md')?.conditional).toBe('frontend')
+    expect(docs.find(d => d.name === 'use-cases.md')?.exempted).toBe('纯内部工具无用户场景')
   })
 
   it('分类跳过态经路由返回 enabled:false（bug 类 brainstorming）', async () => {

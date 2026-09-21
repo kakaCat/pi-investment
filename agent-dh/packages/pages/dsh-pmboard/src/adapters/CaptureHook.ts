@@ -55,6 +55,7 @@ import {
   type InjectionLogPort,
 } from '../application/internal/injection-log.js'
 import { findStaleUnconfirmedArtifact } from '../domain/workflow/MilestoneSpec.js'
+import { captureDiag } from '../application/internal/diag-log.js'
 import {
   recordToolTrace,
   recordRecentUserMsg,
@@ -222,6 +223,10 @@ export function createSessionEventCaptureHook(deps: CaptureHookDeps): (session: 
     }
 
     // 触发点：仅 user/message（用户输入到达）。
+    // 【诊断日志-节点2】user/message 事件到达
+    if (type === 'user/message') {
+      captureDiag(`reqboard-capture [NODE-2]: user/message event ARRIVED (windowKey=${windowKey.slice(0, 16)}, type=${type})`);
+    }
     if (type !== 'user/message') return
 
     // 忽略会话（子代理/内部会话/父会话派生子会话）。
@@ -302,6 +307,8 @@ export function createSessionEventCaptureHook(deps: CaptureHookDeps): (session: 
 
     const replaced = pending.has(windowKey)
     pending.set(windowKey, { windowKey, text, capturedAt: now() })
+    // 【诊断日志-节点3】pendingCapture 填充状态（文件双写，防 stdout 死管道）
+    captureDiag(`reqboard-capture [NODE-3]: pendingCapture SET (windowKey=${windowKey.slice(0, 16)}, size=${pending.size}, text.length=${text.length}, replaced=${replaced})`);
     logger?.info(
       `reqboard-capture: window ${windowKey.slice(0, 16)} 用户消息到达且需立项评估 → 登记待捕获（len=${text.length}${replaced ? ', 覆盖旧条目' : ''}）`,
     )

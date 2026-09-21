@@ -26,6 +26,7 @@ import {
   collectTaskRefs,
   buildConsistencyRows,
   consistencyGaps,
+  assertArtifactOpenable,
 } from '../internal/content-gate-wiring.js'
 import { checkHowToVerify, checkAcceptance } from '../../domain/task/Acceptability.js'
 import {
@@ -240,6 +241,8 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
         testReport: evidence,
         docCheck,
       }))
+      // REQ-2d1c74 FR-5：写盘后核验可打开性——写盘静默失败时当场响亮，而不是登记一个不存在的产物
+      assertArtifactOpenable(deps.docs, verPath)
       await deps.repo.mutate('requirement-updated', (ledger) => {
         const r = ledger.requirements.find(x => x.id === changed.id)
         if (r === undefined) return undefined

@@ -100,6 +100,7 @@ tags: [wiki, index, home, agent-dh]
 - ✅ [工具契约与 schema 铁律](standards/tool-development.md)（并入规范卷——同一概念不写两页）
 - ✅ P1 [工具审计清单](protocols/tool-audit.md) —— 六步抽查 + 四类典型问题（声明与实现不符最危险）
 - ✅ [交易执行协议](protocols/trade-execution-protocol.md)
+- ✅ [工具 render 人话首行约定（renderSmart）](guides/tool-render-human-summary.md) —— 首行中文摘要 + JSON 明细，业务工具会话框可读性约定（REQ-c48f99）
 
 ### 卷 4 · 账户与交易
 

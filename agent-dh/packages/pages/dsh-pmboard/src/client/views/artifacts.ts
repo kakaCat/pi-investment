@@ -42,6 +42,10 @@ export function computeGateStatuses(req: RequirementRecord): Array<{
     const artifact = (req.artifacts ?? []).find(a => a.kind === kind)
     if (artifact === undefined) {
       results.push({ kind, status: 'missing' })
+    } else if (kind === 'design') {
+      // REQ-2d1c74 FR-2：成组确认语义——任何一份设计文档无章都算待确认
+      const anyUnconfirmed = (req.artifacts ?? []).some(a => a.kind === 'design' && a.confirmedAt === undefined)
+      results.push(anyUnconfirmed ? { kind, status: 'pending', artifact } : { kind, status: 'confirmed', artifact })
     } else if (artifact.confirmedAt !== undefined) {
       results.push({ kind, status: 'confirmed', artifact })
     } else {
@@ -90,6 +94,14 @@ export function renderArtifactChips(req: RequirementRecord): string {
 export function renderConfirmButton(req: RequirementRecord): string {
   const kind = currentGateKind(req)
   if (kind === undefined) return ''
+  // REQ-2d1c74 FR-2：kind=design 是成组确认——任何一份无章即待确认，按钮文案写明「将确认全部 N 份设计文档」
+  if (kind === 'design') {
+    const designArts = (req.artifacts ?? []).filter(a => a.kind === 'design')
+    if (designArts.length === 0 || designArts.every(a => a.confirmedAt !== undefined)) return ''
+    const title = `一键确认全部 ${designArts.length} 份设计文档（成组确认），放行下一阶段`
+    const text = `确认产物（全部 ${designArts.length} 份）`
+    return '<button type="button" class="dsh-pm-btn sm primary dsh-pm-confirm-artifact" data-action="confirm-artifact" data-id="' + esc(req.id) + '" data-kind="' + esc(kind) + '" title="' + title + '">' + text + '</button>'
+  }
   const artifact = (req.artifacts ?? []).find(a => a.kind === kind)
   if (artifact === undefined || artifact.confirmedAt !== undefined) return ''
   const label = ARTIFACT_KIND_LABELS[kind] ?? kind

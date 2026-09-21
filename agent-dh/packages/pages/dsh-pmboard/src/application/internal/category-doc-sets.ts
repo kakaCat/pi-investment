@@ -26,12 +26,69 @@ export const COMMON_ROOT_SECTIONS: readonly string[] = ['边界']
 // feature 的 PRD、bug 的缺陷报告、spike 的调研笔记都得回答它。其余节都是类型专属（见 DELTA）。
 // 骨架条目少不代表约束弱：**删除任何一条都会让六类同时拒绝**（tests/base-delta.test.ts 锁死这条性质）。
 
+/** 条件必交设计文档（REQ-2d1c74 FR-1）：需求声明含对应端侧改动时才要求。 */
+export interface ConditionalDesignDoc {
+  /** 文件名（位于 design/ 目录），目前只有 frontend.md / backend.md */
+  name: string
+  /** 触发条件：需求声明的端侧 */
+  side: 'frontend' | 'backend'
+}
+
 export interface CategoryDocDelta {
   category: string
   /** 类型专属必填节（不含 BASE） */
   rootSectionsDelta: readonly string[]
   /** 必须存在的设计文档（文件名，位于 docs/requirements/<REQ>/design/） */
   requiredDesignDocs: readonly string[]
+  /** 条件必交：需求声明（front-matter sides）含对应端侧时才要求（REQ-2d1c74 FR-1） */
+  conditionalDesignDocs?: readonly ConditionalDesignDoc[]
+}
+
+/**
+ * 设计文档策略（REQ-2d1c74 FR-1）：从 requirement.md front-matter 解析的端侧声明与豁免声明。
+ * 豁免表**原样保留**（含无效条目）——有效性在 missingCategoryDocs 判定时才结论，
+ * 无效豁免要在缺失清单里注明，先过滤就把证据弄丢了。
+ */
+export interface DesignDocPolicy {
+  /** 端侧声明（值域 {frontend, backend}，其余忽略） */
+  sides: readonly string[]
+  /** 豁免表：文件名 → 理由（design_exempt 的 `文件名=理由` 分号分隔表） */
+  exempt: Readonly<Record<string, string>>
+}
+
+const VALID_SIDES: ReadonlySet<string> = new Set(['frontend', 'backend'])
+
+/** 从 requirement.md front-matter 解析端侧声明与豁免声明（纯函数，零 IO）。 */
+export function designDocPolicyFrom(frontmatter: Readonly<Record<string, string>>): DesignDocPolicy {
+  const sides = (frontmatter['sides'] ?? '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(s => VALID_SIDES.has(s))
+  const exempt: Record<string, string> = {}
+  for (const pair of (frontmatter['design_exempt'] ?? '').split(';')) {
+    const trimmed = pair.trim()
+    if (trimmed === '') continue
+    const eq = trimmed.indexOf('=')
+    if (eq <= 0) continue // 无等号或空键 → 畸形条目，跳过（按未豁免处理）
+    const key = trimmed.slice(0, eq).trim()
+    const reason = trimmed.slice(eq + 1).trim()
+    exempt[key] = reason
+  }
+  return { sides, exempt }
+}
+
+/** 该类型 + 端侧声明下的有效设计文档清单（必交 ∪ sides 命中的条件必交），供闸门与呈现投影共用。 */
+export function effectiveDesignDocs(
+  category: string | undefined,
+  sides: readonly string[] = [],
+): { name: string; conditional?: 'frontend' | 'backend' }[] {
+  const delta = deltaFor(category)
+  if (delta === undefined) return []
+  const docs: { name: string; conditional?: 'frontend' | 'backend' }[] = delta.requiredDesignDocs.map(name => ({ name }))
+  for (const c of delta.conditionalDesignDocs ?? []) {
+    if (sides.includes(c.side)) docs.push({ name: c.name, conditional: c.side })
+  }
+  return docs
 }
 
 /**
@@ -44,7 +101,8 @@ export interface CategoryDocDelta {
  *   chore    完成判据（最简）
  */
 export const CATEGORY_DELTAS: readonly CategoryDocDelta[] = [
-  { category: 'feature', rootSectionsDelta: ['产品定义', '用户与角色', '功能点'], requiredDesignDocs: ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md'] },
+  // REQ-2d1c74 FR-1：feature 全套 = 五份必交（补 use-cases.md）+ 端侧条件必交（frontend/backend）。
+  { category: 'feature', rootSectionsDelta: ['产品定义', '用户与角色', '功能点'], requiredDesignDocs: ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md', 'use-cases.md'], conditionalDesignDocs: [{ name: 'frontend.md', side: 'frontend' }, { name: 'backend.md', side: 'backend' }] },
   { category: 'bug', rootSectionsDelta: ['复现步骤', '根因', '回归'], requiredDesignDocs: [] },
   { category: 'refactor', rootSectionsDelta: ['现状', '目标结构', '行为不变式'], requiredDesignDocs: ['architecture.md', 'migration.md'] },
   { category: 'spike', rootSectionsDelta: ['待答问题', '结论'], requiredDesignDocs: [] },
@@ -76,6 +134,10 @@ export interface CategoryDocCheckInput {
   designNames: readonly string[]
   /** 注入 BASE（默认共同骨架）；传 [] 即"把 BASE 删空" */
   base?: readonly string[]
+  /** 端侧声明（REQ-2d1c74 FR-1）：命中后对应条件必交文档转为必交 */
+  sides?: readonly string[]
+  /** 豁免表（REQ-2d1c74 FR-1）：文件名 → 理由；未知键/空理由 = 豁免无效 */
+  exempt?: Readonly<Record<string, string>>
 }
 
 function escapeRe(s: string): string {
@@ -101,8 +163,26 @@ export function missingCategoryDocs(input: CategoryDocCheckInput): string[] {
   for (const sec of requiredRootSectionsFor(input.category, input.base)) {
     if (!hasRootSection(input.rootText, sec)) missing.push(fmt('requirement.md 缺必填节「{sec}」', { sec }))
   }
-  for (const doc of delta.requiredDesignDocs) {
-    if (!input.designNames.includes(doc)) missing.push(fmt('design/{doc} 未交', { doc }))
+  // REQ-2d1c74 FR-1：有效必交 = 必交 ∪ sides 命中的条件必交 − 有效豁免。
+  // 豁免有效性：键命中该类型文档集（必交 ∪ 全部条件必交）且理由非空；
+  // 未知键/空理由 = 豁免无效，按未豁免处理并在缺失清单中注明（数据模型设计 §2）。
+  const knownDocs = new Set([
+    ...delta.requiredDesignDocs,
+    ...(delta.conditionalDesignDocs ?? []).map(c => c.name),
+  ])
+  const exempt = input.exempt ?? {}
+  for (const { name: doc } of effectiveDesignDocs(input.category, input.sides ?? [])) {
+    if (input.designNames.includes(doc)) continue
+    const reason = exempt[doc]
+    if (reason !== undefined && reason.trim() !== '') continue // 有效豁免
+    if (reason !== undefined) {
+      missing.push(fmt('design/{doc} 未交（豁免无效：理由为空）', { doc }))
+    } else {
+      missing.push(fmt('design/{doc} 未交', { doc }))
+    }
+  }
+  for (const key of Object.keys(exempt)) {
+    if (!knownDocs.has(key)) missing.push(fmt('design_exempt 含未知键「{key}」（不在该类型文档集内，豁免不生效）', { key }))
   }
   return missing
 }

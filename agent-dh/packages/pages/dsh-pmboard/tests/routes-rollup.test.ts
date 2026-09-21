@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import { createReqboardHandler } from '../src/http/routes.js'
+import { stubDocFile } from './helpers/tool-deps.js'
 
 let dir: string
 let store: ReqboardStore
@@ -102,6 +103,8 @@ describe('路由层自动推进（R2 实施完成 → 验收）', () => {
     const { definePlanSubmitTool, defineDecomposeTool } = await import('./helpers/tool-deps.js')
     const planTool = definePlanSubmitTool({ store, now: () => Date.now() } as never)
     const decomposeTool = defineDecomposeTool({ store, now: () => Date.now() } as never)
+    // REQ-2d1c74 FR-5：plan_submit 起要求提交路径真实落盘
+    stubDocFile('docs/requirements/' + reqId + '/decomposition.md')
     await planTool.execute({
       path: 'docs/requirements/' + reqId + '/decomposition.md', summary: 's',
       tasks: [{ key: 'a', title: '任务A', phase: 'implement', side: 'backend', acceptance: '单测通过', implementation: '改 a.ts' }],
