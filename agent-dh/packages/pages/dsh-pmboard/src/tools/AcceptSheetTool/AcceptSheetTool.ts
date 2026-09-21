@@ -11,7 +11,8 @@ import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { acceptSheet } from '../../application/use-cases/AcceptSheet.js'
 import { ACCEPT_SHEET_PROMPT } from './prompt.js'
-import { renderJson } from '../shared.js'
+import { renderSmart } from '../shared.js'
+import { acceptSheetSummary } from '../render-summaries.js'
 
 export function defineAcceptSheetTool(deps: UseCaseDeps) {
   return defineTool({
@@ -41,7 +42,7 @@ export function defineAcceptSheetTool(deps: UseCaseDeps) {
           note: { type: 'string' },
         },
       },
-      render: renderJson,
+      render: renderSmart(acceptSheetSummary),
     },
     timeoutMs: LIMITS.timeoutSheetMs,
     execute: async (args: unknown, exec: ToolRunContext) => acceptSheet(deps, args, exec),

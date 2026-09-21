@@ -15,7 +15,9 @@ import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflo
 import { artifactNotifyText } from './artifact-gates.js'
 import { isWindowBound, openRequirementsFor, pendingSuggestionFor } from './window.js'
 import {
+  isSubtask,
   recordStatus,
+  subtasksOf,
   type RequirementCategory,
   type RequirementRecord,
   type StageArtifact,
@@ -23,6 +25,7 @@ import {
   type TriageRecord,
 } from '../../shared/protocol.js'
 import { captureSnapshot } from './token-usage.js'
+import { checkParentSubtasksDone, checkSubtaskEvidence } from './subtask-evidence.js'
 
 /** 结构化认证失败：message 自带（CODE）文本；code 属性仅测试/直接执行消费。 */
 export function reject(message: string, code: string): never {
@@ -89,6 +92,21 @@ export function rollupBlockersOf(
  *  ④ 构建新鲜度：汇报改动涉及 packages/pages/<pkg>/src/ → 该包 lib/client.js 必须存在且
  *     新于最新 src 改动（事故 D：改了源码没构建，用户看到旧页面）。
  */
+/** 页面插件构建新鲜度证据（父卡四重校验与子卡新口径共用）。 */
+function pagesBuildEvidence(
+  deps: UseCaseDeps,
+  pagesSrc: readonly string[],
+): { clientBuildExists: boolean; clientBuildMtime: number; newestPagesSrcMtime: number } {
+  if (pagesSrc.length === 0) return { clientBuildExists: false, clientBuildMtime: 0, newestPagesSrcMtime: 0 }
+  const pkg = /^packages\/pages\/([^/]+)\//.exec(pagesSrc[0] ?? '')?.[1] ?? ''
+  const st = deps.docs.stat('packages/pages/' + pkg + '/lib/client.js')
+  return {
+    clientBuildExists: st !== undefined,
+    clientBuildMtime: st?.mtimeMs ?? 0,
+    newestPagesSrcMtime: Math.max(...pagesSrc.map((f) => deps.docs.stat(f)?.mtimeMs ?? 0)),
+  }
+}
+
 export function assertDoneEvidence(
   deps: UseCaseDeps,
   windowKey: string,
@@ -99,6 +117,34 @@ export function assertDoneEvidence(
   // 这里只负责取副作用证据（工具痕迹 / 文件 stat / 构建新鲜度）再交给纯判定。
   const rep = task.lastReport
   const since = task.claimedAt ?? task.createdAt
+  const filesChangedEarly = rep?.filesChanged ?? []
+
+  // REQ-4842fe t5：子卡走**新口径**（三项 + 构建新鲜度），豁免窗口活动与 60s 节流——
+  // 干活的子代理在别的会话，"本窗口工具活动"对子卡恒不成立。
+  if (isSubtask(task)) {
+    const subPagesSrc = filesChangedEarly.filter((f) => /^packages\/pages\/[^/]+\/src\//.test(f))
+    const build = pagesBuildEvidence(deps, subPagesSrc)
+    const verdictSub = checkSubtaskEvidence({
+      hasReport: rep !== undefined,
+      reportFilesChanged: filesChangedEarly,
+      reportCompleted: rep?.completed ?? [],
+      run: task.lastRun,
+      since,
+      fileMtimes: Object.fromEntries(filesChangedEarly.map((f) => [f, deps.docs.stat(f)?.mtimeMs])),
+      pagesSrcFiles: subPagesSrc,
+      ...build,
+    })
+    if (!verdictSub.ok) reject(verdictSub.reason, verdictSub.code)
+    return
+  }
+
+  // REQ-4842fe t5：父卡收尾门（INV-5）——存在未 done 子卡时父卡不得 done。
+  const subs = subtasksOf(ledger.tasks as readonly TaskRecord[], task.id)
+  if (subs.length > 0) {
+    const verdictParent = checkParentSubtasksDone(subs)
+    if (!verdictParent.ok) reject(verdictParent.reason, verdictParent.code)
+  }
+
   const activity = deps.session.toolActivitySince(windowKey, since)
   const hasTraceWork = activity > 0
   const filesChanged = rep?.filesChanged ?? []

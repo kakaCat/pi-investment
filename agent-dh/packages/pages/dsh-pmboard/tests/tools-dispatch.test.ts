@@ -19,7 +19,7 @@ describe('t8 · 工具面 13→9 收敛', () => {
       .sort()
     // REQ-47939a t8 收敛后 9 个；REQ-327bdf 增 TaskExecuteTool / TaskStatusTool；REQ-e3b6a0 t8 增 CaptureTool。
     expect(dirs).toEqual([
-      'AcceptSheetTool', 'AskConfirmTool', 'CaptureTool', 'CreateTool', 'DecomposeTool', 'MoveTool',
+      'AcceptSheetTool', 'AdvanceTool', 'AskConfirmTool', 'CaptureTool', 'CreateTool', 'DecomposeTool', 'MoveTool',
       'StatusTool', 'SubmitTool', 'TaskExecuteTool', 'TaskMoveTool', 'TaskReportTool', 'TaskStatusTool',
     ])
     // 三段式的例外：REQ-327bdf 的两个工具目录不是三段式（无 prompt.ts/index.ts，

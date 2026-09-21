@@ -8,6 +8,7 @@ import { createBoardController, mountBoard } from './board-mount.ts'
 import { ReqboardFooterAction, injectFooterStyles, OPEN_EVENT } from './footer-action.ts'
 import { RequirementProgressAction } from './conversation-progress.ts'
 import { injectStyles } from './styles.ts'
+import { registerBizToolviews } from './toolviews/index.ts'
 import { PANEL_NAME, PANEL_LABEL } from './dom.ts'
 
 export const name = 'dsh-pmboard/client'
@@ -119,6 +120,15 @@ export function apply(ctx: ApplyContext): void {
       } catch (e) {
         console.error('[dsh-pmboard] Failed to register conversation.session.header.utilities:', e)
         // 降级：进度条注册失败不影响主功能（看板依然可用）
+      }
+
+      // 业务工具定制卡片（REQ-c48f99 FR-1）：tool.call.toolview keyed 插槽，
+      // 逐卡 try/catch 在 registerBizToolviews 内部；整体失败不拖垮看板。
+      try {
+        const n = registerBizToolviews(slots)
+        console.debug('[dsh-pmboard] biz toolviews registered: ' + n)
+      } catch (e) {
+        console.error('[dsh-pmboard] Failed to register biz toolviews:', e)
       }
     } else {
       console.warn('[dsh-pmboard] ctx.slots unavailable')

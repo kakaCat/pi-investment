@@ -32,16 +32,16 @@ export interface FailureAlertWiring {
  * 题干长度纪律见 domain/limits.ts（弹框题干与选项共享滚动区，超限会被挤出可视区）。
  */
 export function popupInstructionFor(title: string, content: string): string {
-  return fmt(
-    '{title}\n{content}\n\n'
-      + '—— 处置指令（给本窗口 LLM，不是给用户阅读的）：\n'
-      + '你绑定需求的实施链已暂停。不要长篇文字汇报，请立即调 ask_user_question（或当前可用的弹框确认工具）向用户弹框：\n'
-      + '· 题干 ≤80 字，说清三件事：哪条需求、停在哪张卡、为什么停（失败类别 + 一句话原因）；\n'
-      + '· 选项固定三项：重跑该卡 / 退回上游重新描述需求 / 取消该任务；\n'
-      + '· 用户点选后立即执行：①重跑=重开该需求 autoRun 并触发一次推进；②退回上游=reqboard_move 需求 implementing→design；③取消=走取消人工闸门。\n'
-      + '· 弹框通道不可用（无 UI）时，只回一行告知用户到项目看板处置，禁止输出长文。',
-    { title, content },
-  )
+  // 逐行数组 + join：沿用消息卫生门禁的口径（禁止 '中文' + 拼接，改用 fmt 承载占位替换）。
+  const instruction = [
+    '—— 处置指令（给本窗口 LLM，不是给用户阅读的）：',
+    '你绑定需求的实施链已暂停。不要长篇文字汇报，请立即调 ask_user_question（或当前可用的弹框确认工具）向用户弹框：',
+    '· 题干 ≤80 字，说清三件事：哪条需求、停在哪张卡、为什么停（失败类别 + 一句话原因）；',
+    '· 选项固定三项：重跑该卡 / 退回上游重新描述需求 / 取消该任务；',
+    '· 用户点选后立即执行：①重跑=重开该需求 autoRun 并触发一次推进；②退回上游=reqboard_move 需求 implementing→design；③取消=走取消人工闸门。',
+    '· 弹框通道不可用（无 UI）时，只回一行告知用户到项目看板处置，禁止输出长文。',
+  ].join('\n')
+  return fmt('{title}\n{content}\n\n{instruction}', { title, content, instruction })
 }
 
 export function createFailureAlert(wire: FailureAlertWiring): FailureAlertPort {

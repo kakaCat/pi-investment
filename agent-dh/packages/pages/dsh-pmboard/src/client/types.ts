@@ -4,10 +4,10 @@
  *
  * @module dsh-pmboard/client/types
  */
-import type { StageArtifact } from '../shared/protocol.ts'
+import type { StageArtifact, StageKind } from '../shared/protocol.ts'
 
 // 产物/节点键等跨端共享类型复用 protocol 的单一定义（client 不另抄一份）。
-export type { ArtifactKind, StageArtifact, StageKey } from '../shared/protocol.ts'
+export type { ArtifactKind, StageArtifact, StageKey, StageKind } from '../shared/protocol.ts'
 
 // -- 需求 -----------------------------------------------------------------
 
@@ -142,6 +142,19 @@ export interface RequirementRecord {
   blocked: boolean
   blockedReason?: string
   paused?: boolean
+  /**
+   * 自动链开关（REQ-4842fe FR-12）：true=自动链运行中；false=暂停（失败/熔断/人工关闭）；
+   * **缺省 = 未开启**（存量需求读出即旧行为，看板据此标 [手动]）。
+   */
+  autoRun?: boolean
+  /** 推进事件运行状态（停滞计数 / 暂停原因 / 事件历史；缺省 = 未跑过自动链） */
+  advance?: {
+    lockAt?: number
+    history?: unknown[]
+    noopStreak?: number
+    failureStreak?: number
+    pausedReason?: string
+  }
   reviewSessionId?: string
   /** 立项来源窗口（agent 会话 id，如 session-<uuid>；人工建卡不填）——窗口↔需求关联锚点 */
   sourceSessionId?: string
@@ -197,6 +210,12 @@ export interface TaskRecord {
   acceptance: string
   context: string
   skipIntegration?: boolean
+  /** 有值 = 子卡（指向父卡 id）；父卡不存子卡列表，由 parentId 反查（单一事实源） */
+  parentId?: string
+  /** 子卡阶段（子卡必填；父卡/存量卡不得有） */
+  stageKind?: StageKind
+  /** 失败重跑次数（缺省 0） */
+  attempt?: number
   status: TaskStatus
   blocked: boolean
   blockedReason?: string

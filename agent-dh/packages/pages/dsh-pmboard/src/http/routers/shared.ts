@@ -33,6 +33,11 @@ export interface RouterCtx {
     gateChain?: import('../../application/gate/GatePostChain.js').GateChainPort
     /** 在线 agent 查询（取会话句柄供 H2 用）；缺省 → 视为窗口不在线。 */
     agents?: () => { get?: (id: string) => unknown } | undefined
+    /**
+     * 推进器（REQ-4842fe FR-12 / t-3be71b）：看板控制面「继续」= 置 autoRun=true **并触发一次推进事件**。
+     * 缺省 → 只置开关并如实说明（不伪造"已续跑"）。
+     */
+    advance?: (requirementId: string) => Promise<{ steps: number; stopped: string }>
   }
   ids: { requirement: () => string; task: () => string; comment: () => string }
   mintId: (kind: 'requirement' | 'task') => Promise<string>

@@ -9,6 +9,7 @@ import type { ArtifactKind, StageArtifact, StageKey } from '../../shared/protoco
 import { ARTIFACT_CONFIRM_GATES, REQ_TRANSITIONS, STAGE_ARTIFACT_REQUIREMENTS, confirmGateKindFor, flowProfileFor, fmtTokens } from '../../shared/protocol.ts'
 import { CATEGORY_LABELS, NO_ARCHIVED, PHASE_LABELS, STATUS_LABELS, fmtDur, fmtTime, isTerminal, progress, renderSessionChip, renderWindowChip } from '../render/dom-utils.ts'
 import { eventsOf } from './timeline.ts'
+import { progressText, renderAutoBadge, renderAutoControls, subtaskProgress } from '../render/subtask-view.ts'
 import { archiveChip, verifyChip } from './verification.ts'
 
 /* ------------------------------------------------------------------ 产物 chips（五道人工确认门，REQ-31e11f t7） */
@@ -17,8 +18,8 @@ import { archiveChip, verifyChip } from './verification.ts'
 export const ARTIFACT_KIND_LABELS: Partial<Record<ArtifactKind, string>> = {
   requirement: '需求文档',
   design: '设计文档',
-  plan: '拆分计划',
-  decomposition: '拆分方案',
+  plan: '拆分计划（旧版）',
+  decomposition: '拆分计划',
   task_detail: '任务卡',
   verification: '验收材料',
   archive: '归档材料',
@@ -121,6 +122,9 @@ export function renderReqCard(card: ReqCard, now: number, archived: ReadonlySet<
   const planChipHtml = planChip(req) + verifyChip(req) + archiveChip(req)
   const blockedChip = blocked ? '<span class="dsh-pm-flag blocked">阻塞</span>' : ''
   const pausedChip = req.paused ? '<span class="dsh-pm-flag paused">暂停</span>' : ''
+  // 自动链徽标 + 子卡进度（REQ-4842fe t-3be71b）：autoRun 缺省 = 存量需求 → 不显示徽标，外观不变
+  const autoChip = req.autoRun !== undefined ? renderAutoBadge(req) : ''
+  const sub = subtaskProgress(tasks)
   const readyChip = readyIds.length > 0 ? `<span class="dsh-pm-flag ready">${readyIds.length} ready</span>` : ''
   // 窗口 chip：立项来源窗口（窗口↔需求关联）+ 最近执行会话
   const timeLine = renderCardTime(req, now)
@@ -134,7 +138,7 @@ export function renderReqCard(card: ReqCard, now: number, archived: ReadonlySet<
     <div class="dsh-pm-card${blocked ? ' is-blocked' : ''}${req.status === 'done' ? ' is-archived' : ''}" data-req="${esc(req.id)}" data-action="open-req">
       <div class="dsh-pm-card-top">
         <span class="dsh-pm-card-id">${esc(req.id)}</span>
-        ${cat}${planChipHtml}${blockedChip}${pausedChip}${readyChip}
+        ${cat}${planChipHtml}${blockedChip}${pausedChip}${readyChip}${autoChip}
       </div>
       <div class="dsh-pm-card-title">${esc(req.title)}</div>
       <div class="dsh-pm-card-progress">
@@ -142,11 +146,13 @@ export function renderReqCard(card: ReqCard, now: number, archived: ReadonlySet<
         <span class="dsh-pm-card-pct">${progress(doneCount, totalCount)}</span>
         ${card.tokenTotal !== undefined ? `<span class="dsh-pm-token-badge" title="累计 Token（会话快照差值合计；口径见详情 Token tab）">🪙 ${esc(fmtTokens(card.tokenTotal))}</span>` : ''}
       </div>
+      ${sub.subtasksTotal > 0 ? `<div class="dsh-pm-card-substat" title="父卡按依赖并行；子卡在父卡内串行">${esc(progressText(sub))}</div>` : ''}
       ${artifactChips}
       ${artifactDerived}
       ${timeLine}
       ${sessionChip}
       ${confirmBtn}
+      ${req.autoRun !== undefined ? renderAutoControls(req) : ''}
       ${actions}
     </div>`
 }
@@ -239,8 +245,8 @@ export function planChip(req: RequirementRecord): string {
 export function renderPlanSection(req: RequirementRecord): string {
   const plan = req.plan
   if (plan === undefined) {
-    return '<div class="dsh-pm-plan is-empty">尚未提交拆分计划。计划模式：窗口 agent 用 '
-      + '<code>reqboard_plan_submit</code> 先提交计划（文档路径 + 摘要 + 任务表），'
+    return '<div class="dsh-pm-plan is-empty">尚未提交拆分计划。拆分计划在拆分（decomposing）阶段提交：窗口 agent 用 '
+      + '<code>reqboard_submit(kind=plan)</code> 提交（decomposition.md + 摘要 + 任务表），'
       + '人在此处批准后才允许 <code>reqboard_decompose</code> 落库任务卡——'
       + '拆分的粒度在人点头之前就已写死在计划里。</div>'
   }

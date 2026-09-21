@@ -20,6 +20,7 @@ import * as api from './api.ts'
 import { openDocInSidebar, resolveCurrentSessionId } from './open-doc.ts'
 import { archivedSessionIds, jumpToSession, windowServiceAccess, type SessionJumpResult } from './session-jump.ts'
 import { createBoardShell } from './board-shell.js'
+import { fmt } from '../domain/text/fmt.js'
 import { renderStageNode } from './stage-panel.ts'
 import { hasInjectionWindow, renderInjectionInfo } from './injection-info.ts'
 import { renderTokenPlaceholder, renderTokenTab } from './token-info.ts'
@@ -377,6 +378,25 @@ export function mountBoard(controller: BoardController): () => void {
         }
         return
       }
+      case 'auto-run-pause':
+      case 'auto-run-resume':
+      case 'auto-run-stop': {
+        // 自动链控制面（REQ-4842fe t-3be71b）：暂停 / 继续 / 终止。
+        // 继续 = 置 autoRun=true 并由服务端**立即触发一次推进事件**（推进器未装配时服务端如实说明）。
+        const reqId = el.dataset.id ?? (mode.kind === 'req' ? mode.reqId : undefined)
+        if (!reqId) return
+        const act = el.dataset.action
+        if (act === 'auto-run-stop' && !window.confirm('终止 = 暂停自动链；在跑/待跑的卡需人工取消（取消是人工闸门）。确定？')) return
+        const on = act === 'auto-run-resume'
+        const verb = act === 'auto-run-pause' ? '暂停' : on ? '继续' : '终止'
+        void api.setAutoRun(reqId, on, fmt('看板控制面：{verb}', { verb }))
+          .then(() => fetchAll())
+          .catch(e => window.alert(String(e)))
+        return
+      }
+      case 'toggle-subtasks':
+        // 子卡区用原生 <details> 自己开合；这里只吃掉这次点击，避免冒泡到卡片的 open-task
+        return
       case 'confirm-artifact': {
         const reqId = el.dataset.id
         const kind = el.dataset.kind

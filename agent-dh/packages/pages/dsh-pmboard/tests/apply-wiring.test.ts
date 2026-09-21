@@ -99,9 +99,11 @@ describe('dsh-pmboard apply() 宿主接线（乙流程装配冒烟）', () => {
       'reqboard_task_execute',
       'reqboard_task_move',
       'reqboard_task_report',
+      // REQ-4842fe t10：事件链执行入口
+      'reqboard_task_run',
       'reqboard_task_status',
     ])
-    expect(names).toHaveLength(12)
+    expect(names).toHaveLength(13)
   })
 
   it('注册看板路由：/dashboard/api/reqboard 前缀', () => {

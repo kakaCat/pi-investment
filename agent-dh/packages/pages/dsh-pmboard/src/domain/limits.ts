@@ -37,6 +37,11 @@ export const LIMITS = {
   popupCriterionMax: 120,
   popupEvidenceMax: 40,
   popupQuestionMax: 220,
+  /** 推进事件链（REQ-4842fe FR-11/FR-12）：单飞锁 stale、连续 noop 熔断、父卡并发上限、单次调用步数上限。 */
+  advanceLockStaleMs: 15 * 60_000,
+  advanceNoopBreaker: 5,
+  advanceMaxParallelParents: 3,
+  advanceMaxStepsPerCall: 20,
   /** 工具超时（毫秒）：读类 / 写入类 / 需人弹框类。 */
   timeoutReadMs: 15_000,
   timeoutWriteMs: 30_000,

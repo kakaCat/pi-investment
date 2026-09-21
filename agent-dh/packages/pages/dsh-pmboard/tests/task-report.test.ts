@@ -41,7 +41,7 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-async function seed(status: RequirementStatus = 'design', sourceSessionId: string | undefined = W): Promise<RequirementRecord> {
+async function seed(status: RequirementStatus = 'decomposing', sourceSessionId: string | undefined = W): Promise<RequirementRecord> {
   const r = {
     id: 'REQ-abc123', title: '看板需求', description: '', status, blocked: false,
     ...(sourceSessionId !== undefined ? { sourceSessionId } : {}),
@@ -72,7 +72,7 @@ async function planAndApprove(tasks: unknown = TWO_TASKS): Promise<void> {
 
 /** 造一个已落库的任务（decompose 走通），返回任务 id。 */
 async function seedTask(): Promise<string> {
-  await seed('design')
+  await seed('decomposing')
   await planAndApprove()
   const out = await run(decompose, {})
   return out.created[0].id as string

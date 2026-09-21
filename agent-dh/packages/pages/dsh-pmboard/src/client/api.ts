@@ -40,6 +40,13 @@ export const fetchState = (): Promise<BoardState> => get<BoardState>(BASE + '/')
 export const fetchTriage = (): Promise<TriageList> => get<TriageList>(BASE + '/triage')
 
 /**
+ * 自动链控制面（REQ-4842fe FR-12 / t-3be71b）：人从看板暂停/继续。
+ * 继续 = 服务端置 autoRun=true **并立即触发一次推进事件**（推进器未装配时服务端如实说明）。
+ */
+export const setAutoRun = (id: string, on: boolean, reason?: string): Promise<BoardState['requirements'][number]> =>
+  post(BASE + '/req/autorun', { id, on, ...(reason !== undefined ? { reason } : {}) })
+
+/**
  * 注入留痕只读回查（REQ-422af1 t11）：看板「本次注入了什么」的数据源。
  * windowKey 缺省（人工建卡无来源窗口）→ 不带 window 参数，由服务端返回全量最近 k 条。
  */

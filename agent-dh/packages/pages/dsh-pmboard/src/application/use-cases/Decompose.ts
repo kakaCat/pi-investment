@@ -19,6 +19,8 @@ import {
 import { checkDecomposeIdempotency } from '../../domain/workflow/DecomposeSpec.js'
 import { clearDocSync } from '../../domain/workflow/DocSyncSpec.js'
 import { openRequirementsFor } from '../internal/window.js'
+import { fmt } from '../../domain/text/fmt.js'
+import { describeConflicts, findWorkSurfaceConflicts } from '../internal/conflict-check.js'
 import { applyTaskRollup } from '../internal/rollup.js'
 import { captureSnapshot } from '../internal/token-usage.js'
 import { registerArtifact } from '../internal/artifact-gates.js'
@@ -79,8 +81,8 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
       if (!planApproved(target)) {
         reject(
           'reqboard_decompose 未执行：该需求还没有已批准的拆分计划。'
-          + '计划模式要求：先 reqboard_plan_submit 提交计划（文档路径 + 摘要 + 任务表），'
-          + '请人在项目看板点「批准计划」，批准后才能拆分落库',
+          + '拆分计划属拆分阶段（2026-09-21 用户裁定）：先 reqboard_submit(kind=plan) 提交拆分计划'
+          + '（decomposition.md + 摘要 + 任务表），请人在项目看板点「批准计划」（或弹框批准），批准后才能拆分落库',
           'REQBOARD_PLAN_NOT_APPROVED',
         )
       }
@@ -151,6 +153,13 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
       // 这里拦的是"规则生效前已被人工批准的历史计划"——人看过这张薄卡并批了，硬拒会锁死
       // 存量需求（REQ-2e9473 自身即是），故不硬拦、返回 thin_cards 警告提示补实施卡。
       const thinCards = draft.filter(d => d.implementation.length === 0).map(d => d.key + ' ' + d.title)
+
+      // ── 冲突拦截（REQ-4842fe t9/FR-10 主防线）────────────────────────────
+      // 互无依赖的父卡若声明同一文件，并行跑会互相覆盖 → 拆分阶段即拒（比运行期事后发现便宜）。
+      const conflicts = findWorkSurfaceConflicts(draft)
+      if (conflicts.length > 0) {
+        reject(fmt('reqboard_decompose 未执行：互无依赖的任务卡声明了同一文件（并行会互相覆盖）——{list}。请重划范围或建立依赖', { list: describeConflicts(conflicts) }), 'REQBOARD_FILE_CONFLICT')
+      }
 
       // ── 覆盖门禁（REQ-d3e61a T-3 / FR-1）：需求里每条根编号必须有落点 ──────────
       // 落点 = 被某张任务卡用 requirement_refs 接收，或在该条款旁显式标「本轮不做」。
@@ -379,7 +388,7 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
                   + '。开工前请先在任务卡补齐「实施方案」段（新计划在 plan_submit 已强制要求）',
               }
             : {}),
-          note: '已落库 ' + created.length + ' 个任务。下一步：调 reqboard_ask_confirm（target=artifact, kind=decomposition）弹框请人确认拆分清单——确认后自动推进到 implementing；任务开工/完成用 reqboard_task_move（任务全部完成后需求自动进入验收）',
+          note: '已落库 ' + created.length + ' 个任务。拆分计划已获批准（decomposition 产物已落章）——需求可推进到 implementing（reqboard_move；经批准弹框路径会自动推进）；任务开工/完成用 reqboard_task_move（任务全部完成后需求自动进入验收）',
         }
       } catch (err) {
         const code = (err as { code?: string }).code ?? 'REQBOARD_INVALID_INPUT'

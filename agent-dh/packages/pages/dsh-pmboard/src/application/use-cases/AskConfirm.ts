@@ -17,6 +17,8 @@ import { LIMITS } from '../../domain/limits.js'
 import { advanceTargetFor, gateFromStage } from '../../domain/gate/GateCatalog.js'
 import { captureSnapshot, transitionRequirement } from '../internal/token-usage.js'
 import { openRequirementsFor } from '../internal/window.js'
+import { executeDecompose } from './Decompose.js'
+import { advanceRequirement } from './AdvanceChain.js'
 import {
   reject,
   agentIdFromExec,
@@ -50,6 +52,10 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
         reject('reqboard_ask_confirm 未执行：kind 必须是 ' + ALL_ARTIFACT_KINDS.join(' / '), 'REQBOARD_INVALID_INPUT')
       }
       const optionLabels = options.length > 0 ? options : [...DEFAULT_CONFIRM_OPTIONS]
+      // REQ-4842fe t10/FR-16：批准计划的弹框必须写明「批准后自动拆分并立即开跑」（拆分确认门并入本门）。
+      const popupQuestion = targetKind === 'plan'
+        ? clip(fmt('{q}（批准后将自动拆分任务卡并立即开跑，中途不再打断；如需干预可在看板暂停或取消）', { q: question }), LIMITS.popupQuestionMax)
+        : question
 
       const snapshot = deps.repo.snapshot()
       const bound = openRequirementsFor(snapshot, windowKey)
@@ -72,7 +78,7 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
       try {
         answers = [...await deps.questions.ask([{
           id: 'confirm',
-          question,
+          question: popupQuestion,
           header: '确认',
           options: optionLabels.map((label, i) => ({ label, ...(i === 0 ? { description: '确认后自动落章并推进' } : {}) })),
         }], {
@@ -179,7 +185,10 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
       const to = advanceTargetFor(from)
       let advanced = false
       let advanceNote = ''
-      if (advance && to !== undefined && canReqTransition(from, to as never)) {
+      // 2026-09-21：批准拆分计划（target=plan 且已在拆分阶段）不走通用推进——
+      // 须先拆分落库再进实施（顺序在下方「门合并」块里保证）
+      const planInDecomposing = targetKind === 'plan' && from === 'decomposing'
+      if (advance && to !== undefined && !planInDecomposing && canReqTransition(from, to as never)) {
         try {
           await deps.repo.mutate('requirement-moved', (ledger) => {
             const req = ledger.requirements.find(r => r.id === targetReq.id)
@@ -207,6 +216,68 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
         advanceNote = '；当前状态 ' + from + ' 无可自动推进的下一阶段（验收/归档走验收单流程）'
       }
 
+      // ── REQ-4842fe t10：批准拆分计划 = 落章 + 拆分落库 + 开跑（门合并，FR-16）────
+      // 2026-09-21 用户裁定（w-2105d331 代录）：拆分计划挪到**拆分阶段**提交与批准——
+      // 本块在 from=decomposing 时生效：先落章 decomposition 产物（拆分计划本体）→
+      // 自动落库任务卡 → 自动进实施 + autoRun=true → 触发首个推进事件，中途不再打断。
+      // （legacy：design 阶段批准的旧计划走通用推进到 decomposing，之后在拆分阶段手动
+      //   reqboard_decompose + 确认 decomposition 产物，退化为门合并前的两步流程。）
+      let autoNote = ''
+      if (targetKind === 'plan' && from === 'decomposing') {
+        try {
+          await deps.repo.mutate('decomposition-confirmed-by-plan', (ledger) => {
+            const req = ledger.requirements.find(x => x.id === targetReq.id)
+            if (req === undefined) return undefined
+            const art = (req.artifacts ?? []).find(x => x.kind === 'decomposition')
+            if (art !== undefined) {
+              art.confirmedAt = nowTs
+              art.confirmedBy = { kind: 'human', sessionId: windowKey }
+              art.confirmedVia = 'session'
+              art.confirmedEvidence = evidence
+            }
+            req.comments.push({
+              id: deps.ids.comment(),
+              body: fmt('[门合并] 批准拆分计划：decomposition 产物自动落章（不再单独弹「确认拆分清单」）', {}),
+              createdAt: nowTs,
+              createdBy: { kind: 'human', sessionId: windowKey },
+            })
+            req.version += 1
+            req.updatedAt = nowTs
+            return { requirements: [req] }
+          })
+          const dec = await executeDecompose(deps, { requirement_id: targetReq.id, reason: '批准拆分计划后自动拆分（门合并）' }, exec) as { created?: unknown[] }
+          const createdCount = Array.isArray(dec?.created) ? dec.created.length : 0
+          await deps.repo.mutate('requirement-moved', (ledger) => {
+            const req = ledger.requirements.find(x => x.id === targetReq.id)
+            if (req === undefined || req.status !== 'decomposing') return undefined
+            transitionRequirement(req, 'implementing', {
+              at: nowTs,
+              actor: { kind: 'human', sessionId: windowKey },
+              reason: '批准拆分计划后自动进入实施（拆分确认门已并入批准门）',
+            })
+            req.autoRun = true
+            req.comments.push({
+              id: deps.ids.comment(),
+              body: fmt('[自动开跑] 批准拆分计划 → 自动拆分 {n} 张卡 → 自动进入实施（autoRun=true），触发首个推进事件', { n: createdCount }),
+              createdAt: nowTs,
+              createdBy: { kind: 'human', sessionId: windowKey },
+            })
+            return { requirements: [req] }
+          })
+          advanced = true
+          const chain = await advanceRequirement(deps, targetReq.id)
+          autoNote = fmt('；已自动拆分 {n} 张任务卡并开跑（推进 {steps} 步，停止于 {stop}）', {
+            n: createdCount,
+            steps: chain.steps.length,
+            stop: chain.stopped,
+          })
+        } catch (err) {
+          autoNote = fmt('；自动拆分/开跑失败（计划已批准，可手动调 reqboard_decompose 重试）：{msg}', {
+            msg: String((err as Error).message ?? err),
+          })
+        }
+      }
+
       return {
         success: true,
         confirmed: true,
@@ -214,6 +285,6 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
         from,
         to: advanced ? to : from,
         requirement_id: targetReq.id,
-        note: '已落章（via=session）' + (advanced ? '，已推进：' + from + ' → ' + to : '') + advanceNote,
+        note: '已落章（via=session）' + (advanced ? '，已推进：' + from + ' → ' + to : '') + advanceNote + autoNote,
       } as never
     }

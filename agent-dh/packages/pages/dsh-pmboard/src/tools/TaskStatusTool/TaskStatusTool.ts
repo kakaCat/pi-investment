@@ -5,6 +5,8 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { TASK_STATUS_PROGRESS, WORKFLOW_RUN_STATUS, isWorkflowRunCompleted } from '../../domain/task/TaskStatus.js'
 import * as fs from 'node:fs/promises'
+import { renderSmart } from '../shared.js'
+import { taskStatusSummary } from '../render-summaries.js'
 
 interface TaskStatusParams {
   task_id: string
@@ -111,9 +113,7 @@ export function defineTaskStatusTool(deps: UseCaseDeps) {
           error: { type: 'string' },
         }
       },
-      render: (_args: any, value: any) => [
-        { type: 'text', text: JSON.stringify(value, null, 2) }
-      ]
+      render: renderSmart(taskStatusSummary)
     },
     async execute(args: TaskStatusParams): Promise<TaskStatusResult> {
       try {

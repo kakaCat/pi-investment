@@ -18,7 +18,9 @@ function stubCtx() {
     tools: { register: () => () => true, list: () => [] },
     on: () => () => true,
     reflect: { provide: () => {} },
-    logger: { info() {}, warn() {}, error() {}, debug() {} },
+    // logger 同时支持两种取用形态：ctx.logger.info(...)（Service 插件）与 ctx.logger(name)（函数插件，
+    // 如 dsh-pmboard 的 apply）——后者需要 logger 本身可调用（REQ-4842fe t-a46239 补）。
+    logger: Object.assign((_name?: string) => ({ info() {}, warn() {}, error() {}, debug() {} }), { info() {}, warn() {}, error() {}, debug() {} }),
     genome: { genomeData: { genome_version: 'g1', sections: {} } },  // P1: evolver 需要
     // genome 插件在构造函数中注册提示词段（P0-1 起）
     systemPrompt: { section: () => () => true, variable: () => () => true, assemble: async () => ({ sections: [], tools: [], variables: {} }) },
@@ -52,14 +54,23 @@ const PLUGINS: Array<[string, () => Promise<any>, () => any]> = [
   ['learning', () => import('../packages/learning/src/index.js'), () => QV2],
   ['quantsys-v2-manager', () => import('../packages/quantsys-v2-manager/src/index.js'), () => ({})],
   ['agent-os-manager', () => import('../packages/agent-os-manager/src/index.js'), () => ({})],
+  // REQ-4842fe t-a46239：dsh-pmboard 此前不在名单里 → 它新注册的工具 schema 无人编译。
+  // dshHome 指到临时目录，避免冒烟读写真实 .dsh-data。
+  ['dsh-pmboard', () => import('../packages/pages/dsh-pmboard/src/index.js'), () => ({ dshHome: stateDir })],
 ];
 
 describe('插件 schema 冒烟（构造即编译所有工具 schema）', () => {
   for (const [name, load, config] of PLUGINS) {
     it(`${name} 插件可构造（所有工具 schema 合法）`, async () => {
       const mod = await load();
+      // 两种插件形态：类插件（default 类，new 即构造）与函数插件（export apply(ctx, config)）。
       const Plugin = mod.default;
-      expect(() => new Plugin(stubCtx(), config())).not.toThrow();
+      if (typeof Plugin === 'function') {
+        expect(() => new Plugin(stubCtx(), config())).not.toThrow();
+        return;
+      }
+      expect(typeof mod.apply).toBe('function');
+      expect(() => mod.apply(stubCtx(), config())).not.toThrow();
     });
   }
 });

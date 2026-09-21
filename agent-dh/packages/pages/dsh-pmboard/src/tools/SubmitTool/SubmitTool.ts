@@ -15,7 +15,8 @@ import { submitVerification } from '../../application/use-cases/SubmitVerificati
 import { submitArchive } from '../../application/use-cases/SubmitArchive.js'
 import { normalizeText, ALL_TASK_PHASES, ALL_TASK_SIDES } from '../../shared/protocol.js'
 import { reject } from '../../application/internal/support.js'
-import { renderJson } from '../shared.js'
+import { renderSmart } from '../shared.js'
+import { submitSummary } from '../render-summaries.js'
 import { SUBMIT_PROMPT } from './prompt.js'
 
 /** 四个 kind（分派表的键集合；错误消息与自检共用）。 */
@@ -177,7 +178,7 @@ export function defineSubmitTool(deps: UseCaseDeps) {
           note: { type: 'string', description: '下一步指引' },
         },
       },
-      render: renderJson,
+      render: renderSmart(submitSummary),
     },
     timeoutMs: LIMITS.timeoutWriteMs,
     execute: async (args: unknown, exec: ToolRunContext) => {

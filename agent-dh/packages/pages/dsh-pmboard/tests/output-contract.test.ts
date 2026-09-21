@@ -334,6 +334,8 @@ const RESPONSE_SOURCES: Record<string, string[]> = {
   AcceptSheet: ['application/use-cases/AcceptSheet.ts'],
   // REQ-e3b6a0 t8：立项三问 pm 专有弹框（响应体在抓化用例里）
   Capture: ['application/use-cases/CaptureRequirement.ts'],
+  // REQ-4842fe t10：事件链对外入口（响应体在工具文件内组装，同 TaskExecute 口径）
+  Advance: ['tools/AdvanceTool/AdvanceTool.ts'],
   // REQ-f0579a t4：任务执行/状态两工具暂无独立用例层（响应体在工具文件内），映射指向自身——
   // 后续若抽出用例（t8 收敛方向），把此处改成 application/use-cases/* 路径即可。
   TaskExecute: ['tools/TaskExecuteTool/TaskExecuteTool.ts'],

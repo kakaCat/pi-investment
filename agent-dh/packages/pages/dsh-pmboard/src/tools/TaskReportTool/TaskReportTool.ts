@@ -11,7 +11,8 @@ import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { executeReportTask } from '../../application/use-cases/ReportTask.js'
 import { TASK_REPORT_PROMPT } from './prompt.js'
-import { renderJson } from '../shared.js'
+import { renderSmart } from '../shared.js'
+import { taskReportSummary } from '../render-summaries.js'
 
 export function defineTaskReportTool(deps: UseCaseDeps) {
   return defineTool({
@@ -46,7 +47,7 @@ export function defineTaskReportTool(deps: UseCaseDeps) {
           note: { type: 'string' },
         },
       },
-      render: renderJson,
+      render: renderSmart(taskReportSummary),
     },
     timeoutMs: LIMITS.timeoutReadMs,
     execute: async (args: unknown, exec: ToolRunContext) => executeReportTask(deps, args, exec),

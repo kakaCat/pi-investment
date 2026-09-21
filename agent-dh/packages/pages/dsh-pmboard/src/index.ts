@@ -16,6 +16,7 @@ import { JsonLedgerRepository as ReqboardStore } from './adapters/JsonLedgerRepo
 import { createReqboardHandler } from './http/routes.js';
 import { draftRequirementsFor } from './application/internal/window.js';
 import { applyPickupAdvance, applyPickupReconcile, applyTaskRollup } from './application/internal/rollup.js';
+import { advanceRequirement } from './application/use-cases/AdvanceChain.js';
 import { newCommentId, type RequirementRecord } from './shared/protocol.js';
 import { createSessionEventCaptureHook, type CaptureHookDeps } from './adapters/CaptureHook.js';
 import type { ToolTraceEntry } from './adapters/SessionProbeAdapter.js';
@@ -28,6 +29,7 @@ import {
   defineDecomposeTool,
   defineTaskMoveTool,
   defineTaskExecuteTool,
+  defineAdvanceTool,
   defineTaskStatusTool,
   defineTaskReportTool,
   defineSubmitTool,
@@ -48,6 +50,9 @@ import { AgentDeliverer } from './adapters/AgentDeliverer.js';
 import { GateAwareQuestions } from './adapters/GateAwareQuestions.js';
 import { assembleGatePostChain, registerCaptureGuidance } from './gate-wiring.js';
 import { SessionProbeAdapter } from './adapters/SessionProbeAdapter.js';
+import { WorkflowEngineRunner } from './adapters/WorkflowEngineRunner.js';
+import { createFailureAlert } from './adapters/FailureAlert.js';
+import { scheduleStartupScan } from './application/internal/startup-scan.js';
 import type { UseCaseDeps } from './application/ports.js';
 
 export const name = 'dsh-pmboard';
@@ -124,9 +129,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     (err) => logger.warn('reqboard 注入留痕写入失败:', err),
   );
 
-  // 启动对账（R0 + R2）：台账装载后跑一次派生推进，让升级前积压的 draft 需求
-  // （窗口立项、无人推进）立刻进入评审，并结算已完成实施的需求。无变化时不写盘
-  // （mutator 返回 undefined → revision 不 bump）。
+  // 启动对账（R0 + R2）：让升级前积压的 draft 需求立刻进入评审，并结算已完成的需求。
   void store
     .load()
     .then(() =>
@@ -167,6 +170,18 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     (agentsCtx: { agents?: unknown }) => {
       agentsSvc = agentsCtx.agents;
       logger.debug('agents service ready (reqboard tools live-driver check enabled)');
+    },
+  );
+  // REQ-4842fe t4：子卡执行引擎（workflow-worker-thread provider，已在位）。缺失时
+  // runner 返回 engine_unavailable → 子卡显式失败，不静默成功。
+  let workflowEngineSvc: unknown;
+  ;(ctx as unknown as { inject?: (services: string[], cb: (c: any) => void) => void }).inject?.(
+    ['workflowEngine'],
+    (wfCtx: { workflowEngine?: unknown }) => {
+      workflowEngineSvc = wfCtx?.workflowEngine;
+      logger.debug(workflowEngineSvc === undefined
+        ? 'workflowEngine service 不可用（子卡执行将显式失败）'
+        : 'workflowEngine service ready (reqboard_task_run 子卡执行可用)');
     },
   );
   ;(ctx as unknown as { inject?: (services: string[], cb: (c: any) => void) => void }).inject?.(
@@ -296,9 +311,8 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     onSystemPrompt: (svc) => { systemPromptSvc = svc; },
   });
 
-  // agent 工具：reqboard_capture（三问弹框 + 同一次调用内创建即立项）/ reqboard_create
-  // （已明确取值/弹框不可用时的手工路径）/ reqboard_status（立项前自查）。direct-human 门在工具内认证。
-  // 用例依赖（REQ-47939a t8）：组合根装配 adapters → application 用例；工具壳只做协议转换。
+  // agent 工具：reqboard_capture（三问弹框 + 创建即立项）/ reqboard_create（手工路径）/
+  // reqboard_status（自查）。用例依赖 = 组合根装配 adapters → application 用例。
   const useCaseDeps: UseCaseDeps = {
     repo: store,
     docs,
@@ -313,7 +327,12 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     }),
     // 能力的唯一织入点（REQ-e3b6a0 t7）：包装后，任何带 opts.gate 的弹框自动进入后置链。
     questions: new GateAwareQuestions(new UserQuestionsAdapter(() => userQuestionsSvc), gateChain, { now }),
+    workflow: new WorkflowEngineRunner(() => workflowEngineSvc as never),
+    alert: createFailureAlert({ log: (m) => logger.error(m), deliver: (wk, text) => { deliverer.deliver(wk, { text }); }, windowFor: (id) => store.snapshot().requirements.find((x) => x.id === id)?.sourceSessionId }),
   };
+
+  // REQ-4842fe t7：启动恢复扫描（崩溃不丢链）。
+  scheduleStartupScan({ load: () => store.load(), deps: useCaseDeps, info: (m) => logger.info(m), warn: (m, err) => logger.warn(m, err) });
   ;(ctx as unknown as { inject?: (services: string[], cb: (c: any) => void) => void }).inject?.(
     ['tools'],
     (toolsCtx: { effect?: (fn: () => void, label?: string) => void; tools?: any }) => {
@@ -330,10 +349,11 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         disposers.push(toolsCtx.tools.register(defineAskConfirmTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineAcceptSheetTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineTaskExecuteTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineAdvanceTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineTaskStatusTool(useCaseDeps)));
       }, name + ': tools');
       logger.info(
-        'agent tools registered (12): reqboard_create / reqboard_capture / reqboard_status / reqboard_move / reqboard_decompose / reqboard_task_move / reqboard_task_execute / reqboard_task_status / '
+        'agent tools registered (13): reqboard_create / reqboard_capture / reqboard_status / reqboard_move / reqboard_decompose / reqboard_task_move / reqboard_task_run / reqboard_task_execute / reqboard_task_status / '
         + 'reqboard_task_report / reqboard_submit(kind) / reqboard_ask_confirm / reqboard_accept_sheet',
       );
     },
@@ -363,7 +383,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
               } catch {
                 return undefined;
               }
-            },
+            }, advance: (reqId: string) => advanceRequirement(useCaseDeps, reqId).then(o => ({ steps: o.steps.length, stopped: o.stopped as string })),
           }),
         });
       }, name + ': api');

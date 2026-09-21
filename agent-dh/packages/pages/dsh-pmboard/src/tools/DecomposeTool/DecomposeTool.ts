@@ -11,7 +11,8 @@ import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { executeDecompose } from '../../application/use-cases/Decompose.js'
 import { DECOMPOSE_PROMPT } from './prompt.js'
-import { renderJson } from '../shared.js'
+import { renderSmart } from '../shared.js'
+import { decomposeSummary } from '../render-summaries.js'
 import { ALL_TASK_PHASES, ALL_TASK_SIDES } from '../../shared/protocol.js'
 
 export function defineDecomposeTool(deps: UseCaseDeps) {
@@ -88,7 +89,7 @@ export function defineDecomposeTool(deps: UseCaseDeps) {
           note: { type: 'string' },
         },
       },
-      render: renderJson,
+      render: renderSmart(decomposeSummary),
     },
     timeoutMs: LIMITS.timeoutWriteMs,
     execute: async (args: unknown, exec: ToolRunContext) => executeDecompose(deps, args, exec),

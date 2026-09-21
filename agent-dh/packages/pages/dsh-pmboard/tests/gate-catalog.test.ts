@@ -19,6 +19,7 @@ import {
   gateIdForTransition,
 } from '../src/domain/gate/GateCatalog.js'
 import { HUMAN_ONLY_REQ_TRANSITIONS } from '../src/domain/requirement/RequirementStatus.js'
+import { MAIN_REQ_STATUSES } from '../src/shared/protocol.js'
 
 // ── 收敛前的旧实现（oracle，逐字抄自 commit 前的 AskConfirm / support）──────────
 const OLD_ADVANCE_MAP: Readonly<Record<string, string>> = {
@@ -26,15 +27,18 @@ const OLD_ADVANCE_MAP: Readonly<Record<string, string>> = {
   design: 'decomposing',
   decomposing: 'implementing',
 }
+// 2026-09-21 用户裁定：G2 改「确认设计文档」（kind=design）、G3 改「批准拆分计划」
+// （kind=decomposition，target=plan 弹框分支随之挪到 decomposing>implementing）——
+// 本 oracle 同步更新为新语义的字面量基准。
 function oldQuestionCard(gateKind: string | undefined, from: string, to: string): string {
   const questionByTransition: Record<string, string> = {
     'brainstorming>design': '需求文档已完成，是否确认进入设计？',
-    'design>decomposing': '拆分计划已提交，是否批准进入拆分？',
-    'decomposing>implementing': '拆分清单已落库，是否确认进入实施？',
+    'design>decomposing': '设计文档已完成，是否确认进入拆分？',
+    'decomposing>implementing': '拆分计划已提交，是否批准落库任务卡并进入实施？',
     'accepting>archived': '验收材料已提交，是否验收通过并归档？',
   }
   const question = questionByTransition[from + '>' + to] ?? ('是否确认推进到 ' + to + '？')
-  const call = gateKind === 'plan' || (from === 'design' && to === 'decomposing')
+  const call = gateKind === 'plan' || (from === 'decomposing' && to === 'implementing')
     ? "{ target: 'plan', question: '" + question + "' }"
     : "{ target: 'artifact', kind: '" + (gateKind ?? 'requirement') + "', question: '" + question + "' }"
   return '\n【问题卡】直接调 reqboard_ask_confirm 完成确认（用户点肯定项 → 自动落章并推进 ' + from + ' → ' + to + '）：\n  reqboard_ask_confirm(' + call + ')'
@@ -53,7 +57,7 @@ describe('闸门目录（GateCatalog）', () => {
   it('四道产物门与收敛前的字面量表逐条等价', () => {
     expect(ARTIFACT_CONFIRM_GATES).toEqual({
       'brainstorming>design': 'requirement',
-      'design>decomposing': 'plan',
+      'design>decomposing': 'design',
       'decomposing>implementing': 'decomposition',
       'accepting>archived': 'verification',
     })
@@ -68,9 +72,19 @@ describe('闸门目录（GateCatalog）', () => {
       const key = g.from + '>' + g.to
       expect(g.humanOnly, key).toBe(HUMAN_ONLY_REQ_TRANSITIONS.has(key))
     }
-    // 反向：闸门相关的人工专属转移都必须被某条闸门覆盖（不含取消类）
+    // 反向：**流水线确认门**类的人工专属转移都必须被某条闸门覆盖。
+    // 排除两类非确认门：① 取消类（*>canceled / canceled>*）；② 回退类（to 在流水线上游，
+    // 如 REQ-4842fe 新增的 implementing>design 返工回上游）——回退是恢复动作，
+    // 走失败处置弹框三选，不是"向下一个节点"的确认门，故不进 GATE_CATALOG。
+    const order = new Map(MAIN_REQ_STATUSES.map((s, i) => [s as string, i]))
     const gateKeys = new Set(GATE_CATALOG.filter(g => g.from).map(g => g.from + '>' + g.to))
-    const humanGateKeys = [...HUMAN_ONLY_REQ_TRANSITIONS].filter(k => !k.endsWith('>canceled') && !k.startsWith('canceled>'))
+    const isForward = (k: string): boolean => {
+      const [from, to] = k.split('>')
+      if (from === undefined || to === undefined) return false
+      if (to === 'canceled' || from === 'canceled') return false
+      return (order.get(to) ?? -1) > (order.get(from) ?? -1)
+    }
+    const humanGateKeys = [...HUMAN_ONLY_REQ_TRANSITIONS].filter(isForward)
     for (const k of humanGateKeys) expect(gateKeys.has(k), k).toBe(true)
   })
 

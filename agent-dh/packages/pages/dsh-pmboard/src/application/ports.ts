@@ -184,6 +184,50 @@ export interface GatePostChainPort {
   runPending(windowKey: string, session?: unknown): Promise<ChainRunSummary>
 }
 
+// ---------------------------------------------------------------------------
+// 叶子执行端口（REQ-4842fe t4 / FR-4）：一张子卡 = 一次独立 workflow run
+// ---------------------------------------------------------------------------
+
+/** 一次 workflow run 的结果投影（stopReason 非 completed → ok:false，永不抛给调用方）。 */
+export interface WorkflowRunOutcome {
+  ok: boolean
+  /** realm 物化后的 lossless JSON（仅 ok=true 时可信）。 */
+  value?: unknown
+  /** 失败原因：stopReason(error/cancelled) / engine_unavailable / start_failed。 */
+  reason?: string
+}
+
+/** 起一次 run 的入参（parent 类型不外泄——端口只透传，adapter 内桥接引擎类型）。 */
+export interface WorkflowStartInput {
+  script: string
+  meta: { name: string; description: string; phases?: string[] }
+  args?: Record<string, unknown>
+  /** 子代理归属（引擎要求 live Agent）；调用方传入 exec.agent。 */
+  parent?: unknown
+  signal?: AbortSignal
+}
+
+/**
+ * WorkflowRunner 端口（唯一实现 = adapters/WorkflowEngineRunner.ts）。
+ *
+ * 为什么要有这个端口：application/domain 层禁止 import 运行时 `@deepseek-ai/*`
+ * （layer-boundary 门禁），而子卡执行必须触达 `ctx.workflowEngine`——端口把
+ * "起一次 run" 收敛成一个方法，引擎类型只在 adapter 内出现。
+ */
+export interface WorkflowRunner {
+  start(input: WorkflowStartInput): Promise<WorkflowRunOutcome>
+}
+
+/**
+ * 实施链失败处置端口（REQ-4842fe FR-13）：**唯一人工交互面 = 会话内弹框**（三选一）；
+ * 不另做告警通道、**不发飞书**、不接通知面（2026-09-21 用户裁定，见 requirement §8 #17）；
+ * 宿主日志仅作排障留痕。
+ * 唯一纪律：**永不抛**（告警失败不得反过来阻断暂停与留痕）。
+ */
+export interface FailureAlertPort {
+  alert(input: { requirementId: string; title: string; content: string }): void
+}
+
 export interface UseCaseDeps {
   repo: ReqboardRepository
   docs: DocRepository
@@ -193,4 +237,11 @@ export interface UseCaseDeps {
   questions: UserQuestionPort
   /** done 批量关闭节流窗口（毫秒，默认 60000；测试可注入 0 关闭）。 */
   doneThrottleMs?: number
+  /**
+   * 子卡执行端口（REQ-4842fe t4）。缺省 = 引擎不可用——执行子卡时**显式失败**
+   * （ok:false, reason=engine_unavailable），绝不静默成功。
+   */
+  workflow?: WorkflowRunner
+  /** 失败告警通道（缺省 = 只留痕不告警，由组合根决定）。 */
+  alert?: FailureAlertPort
 }

@@ -12,13 +12,15 @@ import { FILES_CSS } from './styles/files.ts'
 import { PANEL_CSS } from './styles/panel.ts'
 import { TOKEN_CSS } from './styles/token.ts'
 import { MARKS_CSS } from './styles/marks.ts'
+import { SUBTASK_CSS } from './styles/subtask.ts'
 
 const CSS_TAG = 'dsh-pmboard/styles.css'
 
 // 拼接顺序 = 拆分前模板的物理顺序：base(9-399) → detail(400-768) → files(769-1147) → board(1148-1531) → panel(1532-1876)
 // REQ-a33899 t6：TOKEN_CSS 追加在末尾（纯新增区段，不改既有选择器）
 // REQ-d3e61a T-5：MARKS_CSS 追加在末尾（纯新增区段，不改既有选择器）
-const CSS = BASE_CSS + DETAIL_CSS + FILES_CSS + BOARD_CSS + PANEL_CSS + TOKEN_CSS + MARKS_CSS
+// REQ-4842fe t-3be71b：SUBTASK_CSS 追加在末尾（纯新增区段，不改既有选择器）
+const CSS = BASE_CSS + DETAIL_CSS + FILES_CSS + BOARD_CSS + PANEL_CSS + TOKEN_CSS + MARKS_CSS + SUBTASK_CSS
 
 export function injectStyles(): void {
   if (typeof document === 'undefined') return

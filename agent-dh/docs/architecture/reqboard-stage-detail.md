@@ -1,10 +1,10 @@
 ---
 id: reqboard-stage-detail
 title: 需求节点详情系统（stage-detail）
-summary: 会话框流程条节点点开看详情：StageDetail 契约 + 模板模式双端装配 + 分类流程档案 + 产物闸门 + 追溯链 + 接力任务卡 + 前端工作记录渲染器。
+summary: 会话框流程条节点点开看详情：StageDetail 契约 + 模板模式双端装配 + 分类流程档案 + 产物闸门 + 追溯链 + 接力任务卡 + 前端工作记录渲染器；含子任务层与自动链控制面（REQ-4842fe）。
 type: architecture
 status: living
-updated: 2026-09-17
+updated: 2026-09-21
 owners: [w-8913546f]
 tags: [reqboard, stage-detail, gui, REQ-31e11f]
 ---
@@ -99,6 +99,23 @@ decompose 时为每个任务生成自足任务卡（tasks/t-xxx.md：提示词/�
   孤儿进程占着：先精确 kill 端口进程，再 launchctl bootstrap 重注册。
 - 构建后必须跑 scripts/verify-client-build.mjs（括号配对 + 关键符号），防 styles.ts
   截断事故重演。
+
+## 6. 子任务层与自动链控制面（REQ-4842fe，2026-09-21）
+
+**一句话**：任务卡之下多了「子任务层」，由事件链自动推进；**看板是观察与控制面，不是必经入口**。
+
+- **父卡开工懒展开**：`task_move → in_progress` 同事务按卡类型落子卡链（feature = 研发→联调→复核→测试，
+  review 在前、测试在后；未知类型回退 研发→复核）。父卡**不存**子卡 id，由 `parentId` 反查（单一事实源）。
+- **一张子卡 = 一次独立 workflow run**：`reqboard_task_run` → AdvanceChain → `ctx.workflowEngine`；
+  引擎经端口 `WorkflowRunner` 隔离，引擎类型只出现在 `adapters/WorkflowEngineRunner.ts`（层边界）。
+- **自动链（FR-11/FR-12）**：台账 `RequirementRecord.autoRun` + `advance{history,noopStreak,pausedReason}`；
+  看板徽标四态 **运行中 / 已暂停 / 熔断 / 手动**（`autoRun` 缺省 = 存量需求，外观与推进方式不变）；
+  控制面 `POST /dashboard/api/reqboard/req/autorun`——暂停=关开关；**继续=置开关并立即触发一次推进事件**
+  （推进器未装配时接口如实说明，不伪装"已续跑"）。
+- **门合并**：批准计划即批准拆分清单——批准后自动 decompose + autoRun=true + 触发首个事件，
+  中途不再弹「确认拆分清单」；批准弹框写明"批准后将自动拆分并立即开跑"。
+- **失败语义**：失败即**暂停**（不自动重试）并以**会话内弹框**请人三选一（重跑该卡 / 退回上游重描述 / 取消）；
+  **不发飞书、不接通知面**（requirement §8 #17；弹框指令壳见 §8 #18）。
 
 ## 相关页面
 

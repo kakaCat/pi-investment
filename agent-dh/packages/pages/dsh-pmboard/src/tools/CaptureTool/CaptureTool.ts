@@ -11,7 +11,8 @@ import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { captureRequirement } from '../../application/use-cases/CaptureRequirement.js'
-import { renderJson } from '../shared.js'
+import { renderSmart } from '../shared.js'
+import { captureSummary } from '../render-summaries.js'
 import { CAPTURE_PROMPT } from './prompt.js'
 
 export function defineCaptureTool(deps: UseCaseDeps) {
@@ -60,7 +61,7 @@ export function defineCaptureTool(deps: UseCaseDeps) {
           board_link: { type: 'string', description: '项目看板链接（可在会话中点击跳转）' },
         },
       },
-      render: renderJson,
+      render: renderSmart(captureSummary),
     },
     timeoutMs: LIMITS.timeoutInteractiveMs,
     execute: async (args: unknown, exec: ToolRunContext) => captureRequirement(deps, args, exec),

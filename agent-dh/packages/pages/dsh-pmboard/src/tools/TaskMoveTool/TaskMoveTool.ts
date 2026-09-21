@@ -18,7 +18,8 @@ import { openRequirementsFor } from '../../application/internal/window.js'
 import { fmt } from '../../domain/text/fmt.js'
 import { reject, agentIdFromExec } from '../../application/internal/support.js'
 import { TASK_MOVE_PROMPT } from './prompt.js'
-import { renderJson } from '../shared.js'
+import { renderSmart } from '../shared.js'
+import { taskMoveSummary } from '../render-summaries.js'
 import { ALL_TASK_STATUSES } from '../../shared/protocol.js'
 
 /**
@@ -107,7 +108,7 @@ export function defineTaskMoveTool(deps: UseCaseDeps) {
           },
         },
       },
-      render: renderJson,
+      render: renderSmart(taskMoveSummary),
     },
     timeoutMs: LIMITS.timeoutReadMs,
     execute: async (args: unknown, exec: ToolRunContext) => {

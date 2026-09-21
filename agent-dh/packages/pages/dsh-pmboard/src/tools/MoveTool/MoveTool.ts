@@ -15,7 +15,8 @@ import { openRequirementsFor } from '../../application/internal/window.js'
 import { fmt } from '../../domain/text/fmt.js'
 import { reject, agentIdFromExec } from '../../application/internal/support.js'
 import { MOVE_PROMPT } from './prompt.js'
-import { renderJson } from '../shared.js'
+import { renderSmart } from '../shared.js'
+import { moveSummary } from '../render-summaries.js'
 import { ALL_REQ_STATUSES } from '../../shared/protocol.js'
 
 export function defineMoveTool(deps: UseCaseDeps) {
@@ -63,7 +64,7 @@ export function defineMoveTool(deps: UseCaseDeps) {
           note: { type: 'string' },
         },
       },
-      render: renderJson,
+      render: renderSmart(moveSummary),
     },
     timeoutMs: LIMITS.timeoutReadMs,
     execute: async (args: unknown, exec: ToolRunContext) => {

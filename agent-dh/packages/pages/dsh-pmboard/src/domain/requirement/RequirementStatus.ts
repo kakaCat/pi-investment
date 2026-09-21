@@ -58,7 +58,10 @@ export const REQ_TRANSITIONS: Readonly<Record<RequirementStatus, readonly Requir
   brainstorming: ['design', 'draft', 'canceled'],
   design: ['decomposing', 'brainstorming', 'canceled'],
   decomposing: ['implementing', 'design', 'canceled'],
-  implementing: ['accepting', 'canceled'],
+  // REQ-4842fe t2/FR-14：实施中发现"需求描述不对"时，必须能退回上游重新描述——
+  // 现状缺口是 implementing 没有回退路径（只能硬着头皮验收或取消）。implementing→design
+  // 是**人工闸门**（破坏性：会触发卡片修订），退回后重走 design→批准计划→拆分→实施。
+  implementing: ['accepting', 'design', 'canceled'],
   // REQ-9f4a44：验收通过 → 直接归档（无 done 中转）
   accepting: ['archived', 'implementing', 'canceled'],
   done: [], // 【legacy】不再进入，也不允许从它转出（历史记录保持原样）
@@ -84,6 +87,8 @@ export const HUMAN_ONLY_REQ_TRANSITIONS: ReadonlySet<string> = new Set([
   'decomposing>canceled',
   'implementing>canceled',
   'accepting>canceled', // 取消需求（破坏性）
+  // REQ-4842fe t2/FR-14：返工回上游（实施→设计，重新描述需求）——仅人可发起。
+  'implementing>design',
   // REQ-9f4a44：验收通过（人工审核）——agent 可提交验收材料，但"过"必须是人点的；
   // 通过即直接归档（原先拆成 accepting>done + done>archived 两道，现合并为一道）。
   'accepting>archived',

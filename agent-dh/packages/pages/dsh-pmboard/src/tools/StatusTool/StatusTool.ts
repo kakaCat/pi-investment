@@ -11,7 +11,8 @@ import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { queryState } from '../../application/query/QueryState.js'
 import { STATUS_PROMPT } from './prompt.js'
-import { renderJson } from '../shared.js'
+import { renderSmart } from '../shared.js'
+import { statusSummary } from '../render-summaries.js'
 
 export function defineStatusTool(deps: UseCaseDeps) {
   return defineTool({
@@ -69,7 +70,7 @@ export function defineStatusTool(deps: UseCaseDeps) {
           board_link: { type: 'string', description: '项目看板链接（可在会话中点击跳转）' },
         },
       },
-      render: renderJson,
+      render: renderSmart(statusSummary),
     },
     timeoutMs: LIMITS.timeoutReadMs,
     execute: async (args: unknown, exec: ToolRunContext) => queryState(deps, args, exec),

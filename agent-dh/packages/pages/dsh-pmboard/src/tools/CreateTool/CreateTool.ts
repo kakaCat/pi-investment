@@ -11,7 +11,8 @@ import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { executeCreateRequirement } from '../../application/use-cases/CreateRequirement.js'
 import { CREATE_PROMPT } from './prompt.js'
-import { renderJson } from '../shared.js'
+import { renderSmart } from '../shared.js'
+import { createSummary } from '../render-summaries.js'
 import { ALL_REQ_CATEGORIES, ALL_PROMPT_DIFFICULTIES } from '../../shared/protocol.js'
 
 export function defineCreateTool(deps: UseCaseDeps) {
@@ -58,7 +59,7 @@ export function defineCreateTool(deps: UseCaseDeps) {
           board_link: { type: 'string', description: '项目看板链接（可在会话中点击跳转）' },
         },
       },
-      render: renderJson,
+      render: renderSmart(createSummary),
     },
     timeoutMs: LIMITS.timeoutReadMs,
     execute: async (args: unknown, exec: ToolRunContext) => executeCreateRequirement(deps, args, exec),

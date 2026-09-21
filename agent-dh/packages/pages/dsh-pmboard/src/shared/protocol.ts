@@ -54,6 +54,9 @@ import {
   assertTaskTransition,
 } from '../domain/task/TaskStatus.js'
 import { checkAcceptance, checkPlanTaskReferences } from '../domain/task/Acceptability.js'
+import type { StageKind } from '../domain/task/SubtaskTemplate.js'
+import { validateExplicitStages } from '../domain/task/SubtaskTemplate.js'
+import type { TaskRole } from '../domain/task/TaskStatus.js'
 import type { VerificationItemSource } from '../domain/workflow/AcceptanceSheetSpec.js'
 import {
   ALL_ARTIFACT_KINDS,
@@ -69,6 +72,8 @@ export type { TaskStatus }
 export type { RequirementCategory }
 export type { ArtifactKind, ArchiveDoc, ArchiveDocRule }
 export type { VerificationItemSource }
+export type { StageKind }
+export type { TaskRole }
 // 规则常量 / 判定函数再导出
 export {
   REQ_TRANSITIONS,
@@ -203,6 +208,7 @@ export {
   ITEM_STATUS_BADGE, DEFAULT_CONFIRM_OPTIONS,
 } from '../domain/text/labels.js'
 import { LIMITS } from '../domain/limits.js'
+import { fmt } from '../domain/text/fmt.js'
 
 // ---------------------------------------------------------------------------
 // Task 状态机（RFC 014 §4）
@@ -387,6 +393,13 @@ export interface StageTaskRef {
   /** 自足任务卡文档（decompose 生成骨架，task_report 追加汇报） */
   cardDoc?: string
   executorHint?: ExecutorHint
+  // ── REQ-4842fe：子卡层（全部可缺省——存量卡读出即旧行为） ──
+  /** 有值 = 子卡，指向父卡 id（父卡不存子卡列表，由 parentId 反查，单一事实源） */
+  parentId?: string
+  /** 子卡阶段（受控 StageKind 枚举）；父卡不得有 */
+  stageKind?: StageKind
+  /** 失败重跑次数（默认 0；失败回退时 +1） */
+  attempt?: number
 }
 
 export interface StageTaskExecution extends StageTaskRef {
@@ -486,6 +499,11 @@ export interface PlanTask {
   implementation?: string
   /** 执行方式提示：该任务该换上下文执行（fresh-window/subagent/current） */
   executorHint?: ExecutorHint
+  /**
+   * 显式子卡 stages（REQ-4842fe FR-1b 逃生舱口）：覆盖映射表，受控枚举、非空、去重。
+   * 用于映射表盖不住的新流程；不填 = 按卡类型走默认模板。
+   */
+  stages?: StageKind[]
 }
 
 /**
@@ -682,6 +700,9 @@ export function normalizePlanTasks(raw: unknown): PlanTask[] {
     const acceptance = o.acceptance === undefined || o.acceptance === null ? '' : String(o.acceptance).trim().slice(0, 2000)
     const implementation = o.implementation === undefined || o.implementation === null ? '' : String(o.implementation).trim().slice(0, 4000)
     const executorHint = asExecutorHint(o.executorHint ?? o.executor_hint)
+    const stagesVerdict = o.stages === undefined || o.stages === null ? undefined : validateExplicitStages(o.stages as unknown[])
+    if (stagesVerdict !== undefined && !stagesVerdict.ok) bad(stagesVerdict.error)
+    const stages = stagesVerdict !== undefined && stagesVerdict.ok ? stagesVerdict.value : undefined
     out.push({
       key,
       title: normalizeTitle(o.title),
@@ -692,6 +713,7 @@ export function normalizePlanTasks(raw: unknown): PlanTask[] {
       ...(acceptance.length > 0 ? { acceptance } : {}),
       ...(implementation.length > 0 ? { implementation } : {}),
       ...(executorHint !== undefined ? { executorHint } : {}),
+      ...(stages !== undefined ? { stages } : {}),
     })
   })
   // 第二遍依赖引用校验（自依赖/悬空/前向引用）——规则在 domain/task/Acceptability.ts（t2）。
@@ -742,6 +764,41 @@ export function asReqCategory(raw: unknown): RequirementCategory {
   return raw as RequirementCategory
 }
 
+// ---------------------------------------------------------------------------
+// 推进事件（REQ-4842fe FR-11 / design/interfaces §4、design/observability §1）
+// ---------------------------------------------------------------------------
+
+/** 推进事件类型（一次事件 = 需求上的一小步）。 */
+export type AdvanceEvent = 'OPEN_PARENT' | 'RUN_SUBTASK' | 'FINALIZE_PARENT' | 'ROLLUP' | 'PAUSE'
+
+/** 一次推进事件的留痕（台账 `advance.history[]`；看板与排障消费）。 */
+export interface AdvanceRecord {
+  at: number
+  requirementId: string
+  event: AdvanceEvent
+  parentId?: string
+  subtaskId?: string
+  /** noop = 事件被触发但台账无变化（重复触发 / 无 ready 卡），连续 noop 计入停滞熔断 */
+  outcome: 'ok' | 'failed' | 'skipped' | 'noop'
+  durationMs: number
+  /** 一句话：做了什么、为什么停 */
+  detail: string
+}
+
+/** 需求级推进运行状态（单飞锁 + 历史 + 停滞计数）。 */
+export interface AdvanceState {
+  /** 单飞锁持有时间；超过 stale 阈值视为持有者已死，可被接管 */
+  lockAt?: number
+  /** 事件历史（append-only） */
+  history?: AdvanceRecord[]
+  /** 连续 noop 计数（达阈值触发停滞熔断） */
+  noopStreak?: number
+  /** 连续失败计数（达阈值触发熔断告警） */
+  failureStreak?: number
+  /** 上次暂停原因（fail / stagnation / manual） */
+  pausedReason?: string
+}
+
 export interface RequirementRecord {
   id: string // REQ-xxxxxx
   title: string
@@ -757,6 +814,13 @@ export interface RequirementRecord {
   blockedReason?: string
   /** 手动中断：编排器跳过本需求的自动派发 */
   paused?: boolean
+  /**
+   * 自动链开关（REQ-4842fe FR-12）：true=自动链运行中；false=暂停（失败/熔断/人工关闭）。
+   * 持久化在台账（非内存），重启后由恢复扫描读取；缺省 = 未开启（存量需求读出即旧行为）。
+   */
+  autoRun?: boolean
+  /** 推进事件运行状态（单飞锁 + 事件历史 + 停滞计数；缺省 = 未跑过自动链） */
+  advance?: AdvanceState
   /** 评审共创会话 */
   reviewSessionId?: string
   /** 立项来源窗口（自动立项时写入；人工建卡不填）——窗口↔需求 n:n 的需求侧锚点 */
@@ -819,6 +883,36 @@ export interface TaskScope {
   files: string[]
 }
 
+/**
+ * 卡片修订记录（REQ-4842fe FR-15，design/data-model §6）。
+ *
+ * 为什么需要它：返工回上游时用户裁定"就地更新旧卡 + 留痕"（不重建、不置 canceled）——
+ * 没有修订记录，看板上就只能看到"卡变了"，看不到"为什么变、谁改的、改了哪几个字段"。
+ * append-only：只增不改（INV-6），时间戳单调。
+ */
+export interface CardRevision {
+  at: number
+  by: ActorRef
+  /** update=返工就地更新 / rollback=子卡失败回退 / reopen=done 卡被人工重开 */
+  kind: 'update' | 'rollback' | 'reopen'
+  /** 触发原因（哪次失败 / 哪条需求描述变更 / 人工重开理由） */
+  reason: string
+  /** 字段级变更摘要，如 ["acceptance: ...", "attempt: 0→1"] */
+  changes: string[]
+}
+
+/** 一次子卡 workflow run 的结果证据（REQ-4842fe t5 / design/data-model §4 第③项）。 */
+export interface TaskRunEvidence {
+  at: number
+  /** stopReason === completed */
+  ok: boolean
+  stopReason: string
+  /** realm 物化后的产出非空（不是 null/undefined/空对象） */
+  valueNonEmpty: boolean
+  /** 失败原因（ok=false 时） */
+  reason?: string
+}
+
 export interface TaskRecord {
   id: string // t-xxxxxx
   requirementId: string
@@ -837,6 +931,22 @@ export interface TaskRecord {
   context: string
   /** 上游产出摘要（handoff：下游窗口不读上游会话） */
   dependsSummary?: string
+  // ── REQ-4842fe 子卡层（全部可缺省：旧台账读出即旧行为，不 bump schemaVersion） ──
+  /** 有值 = 子卡，指向父卡 id；无值 = 普通/父卡（存量卡行为不变） */
+  parentId?: string
+  /** 子卡阶段（受控枚举）；子卡必填、父卡不得有（INV-2） */
+  stageKind?: StageKind
+  /** 该卡显式声明子卡 stages（FR-1b 逃生舱口；不填则按卡类型走映射表） */
+  stages?: StageKind[]
+  /** 失败重跑次数（默认 0） */
+  attempt?: number
+  /** 卡片修订记录（append-only，INV-6） */
+  revisions?: CardRevision[]
+  /**
+   * 最近一次 workflow run 的证据（REQ-4842fe t5，子卡完工凭证第③项的持久化载体）。
+   * 子卡凭证门在 done 时读取；父卡不写本字段。
+   */
+  lastRun?: TaskRunEvidence
   /**
    * 最近一次 task_report 的结构化摘要（REQ-2e9473 t06 done 凭证门的证据源）：
    * 汇报即留痕——转 done 前必须存在且 filesChanged/completed 至少其一非空。
@@ -1028,6 +1138,115 @@ export function readyTasks(tasks: readonly TaskRecord[], requirementId: string):
   const inReq = tasks.filter(t => t.requirementId === requirementId)
   const doneIds = new Set(inReq.filter(t => t.status === 'done').map(t => t.id))
   return inReq.filter(t => t.status === 'todo' && t.dependsOn.every(dep => doneIds.has(dep)))
+}
+
+// ---------------------------------------------------------------------------
+// 子卡不变量（REQ-4842fe t3 / design/data-model §8）
+// ---------------------------------------------------------------------------
+
+/** 卡片角色（子卡判定）：有 parentId = 子卡；无 = 普通/父卡（存量兼容）。 */
+export function taskRoleOf(t: Pick<TaskRecord, 'parentId'>): TaskRole {
+  return t.parentId !== undefined && t.parentId !== '' ? 'subtask' : 'legacy'
+}
+
+/**
+ * 角色判定（需台账）：子卡 → subtask；无 parentId 但**名下有子卡** → parent（新式父卡）；
+ * 两者都不是 → legacy（存量卡，走既有五段状态机）。
+ *
+ * 为什么要看台账：父卡与存量卡在自身字段上完全一样（都只有 parentId 缺省），
+ * 唯一区别是"名下有没有子卡"——这是派生事实，不能靠父卡自存字段（会双写漂移）。
+ */
+export function taskRoleIn(
+  tasks: ReadonlyArray<Pick<TaskRecord, 'id' | 'parentId'>>,
+  task: Pick<TaskRecord, 'id' | 'parentId'>,
+): TaskRole {
+  if (isSubtask(task)) return 'subtask'
+  return tasks.some((t) => t.parentId === task.id) ? 'parent' : 'legacy'
+}
+
+/** 是否子卡。 */
+export function isSubtask(t: Pick<TaskRecord, 'parentId'>): boolean {
+  return taskRoleOf(t) === 'subtask'
+}
+
+/** 子卡集合的确定性子集（同一父卡下的子卡，按链序由 dependsOn 表达）。 */
+export function subtasksOf(tasks: readonly TaskRecord[], parentId: string): TaskRecord[] {
+  return tasks.filter(t => t.parentId === parentId)
+}
+
+export interface SubtaskViolation {
+  inv: 'INV-1' | 'INV-2' | 'INV-3' | 'INV-4'
+  message: string
+}
+
+/**
+ * 子卡不变量校验（纯函数，零副作用）：
+ *  - INV-1 子卡的 parentId 必须指向同需求内存在的父卡（悬空子卡 = 违规）；
+ *  - INV-2 角色字段互斥：子卡必须有 stageKind，父卡/普通卡不得有 stageKind；
+ *  - INV-3 同一父卡下的子卡集合是"映射表或显式 stages 的确定性投影"——同一 stageKind
+ *    不得出现两次（重复展开应幂等，不该产生第二套）；
+ *  - INV-4 子卡依赖不跨父卡：子卡→子卡依赖必须同属一个父卡（跨父卡顺序由父卡层 dependsOn 表达）。
+ */
+export function checkSubtaskInvariants(
+  tasks: ReadonlyArray<Pick<TaskRecord, 'id' | 'requirementId' | 'parentId' | 'stageKind'>>,
+  requirementId: string,
+): SubtaskViolation[] {
+  const inReq = tasks.filter(t => t.requirementId === requirementId)
+  const ids = new Set(inReq.map(t => t.id))
+  const violations: SubtaskViolation[] = []
+  const siblings = new Map<string, string[]>()
+  for (const t of inReq) {
+    if (isSubtask(t)) {
+      if (!ids.has(t.parentId as string)) {
+        violations.push({ inv: 'INV-1', message: fmt('子卡 {id} 的 parentId 指向不存在的父卡 {parent}', { id: t.id, parent: String(t.parentId) }) })
+      }
+      if (t.stageKind === undefined) {
+        violations.push({ inv: 'INV-2', message: fmt('子卡 {id} 缺 stageKind', { id: t.id }) })
+      }
+      const list = siblings.get(t.parentId as string) ?? []
+      list.push(t.stageKind ?? '')
+      siblings.set(t.parentId as string, list)
+    } else if (t.stageKind !== undefined) {
+      violations.push({ inv: 'INV-2', message: fmt('父卡/普通卡 {id} 不得有 stageKind', { id: t.id }) })
+    }
+  }
+  // INV-4：子卡之间的依赖必须同父卡（链首继承父卡外部依赖，那些是父卡层任务，不受此限）。
+  const byId = new Map(inReq.map((t) => [t.id, t]))
+  for (const t of inReq) {
+    if (!isSubtask(t)) continue
+    for (const dep of (t as TaskRecord).dependsOn ?? []) {
+      const d = byId.get(dep)
+      if (d !== undefined && isSubtask(d) && d.parentId !== t.parentId) {
+        violations.push({
+          inv: 'INV-4',
+          message: fmt('子卡 {id} 依赖了另一父卡的子卡 {dep}（跨父卡依赖由父卡层表达）', { id: t.id, dep }),
+        })
+      }
+    }
+  }
+  for (const [parent, kinds] of siblings) {
+    const seen = new Set<string>()
+    for (const k of kinds) {
+      if (k === '') continue
+      if (seen.has(k)) {
+        violations.push({ inv: 'INV-3', message: fmt('父卡 {parent} 下 stageKind 重复：{kind}（幂等展开应只落一套）', { parent, kind: k }) })
+      }
+      seen.add(k)
+    }
+  }
+  return violations
+}
+
+/** 不变量校验（违规则抛）：code=subtask_invariant，消息含 INV 编号。 */
+export function assertSubtaskInvariants(
+  tasks: ReadonlyArray<Pick<TaskRecord, 'id' | 'requirementId' | 'parentId' | 'stageKind'>>,
+  requirementId: string,
+): void {
+  const violations = checkSubtaskInvariants(tasks, requirementId)
+  if (violations.length > 0) {
+    const message = violations.map(v => '[' + v.inv + '] ' + v.message).join('；')
+    throw Object.assign(new Error(message), { code: 'subtask_invariant' })
+  }
 }
 // ---------------------------------------------------------------------------
 // Triage（遗留：旧流程「会话捕获待归类建议卡，人工在看板确认」；新流程 2026-09 起

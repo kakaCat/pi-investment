@@ -13,7 +13,8 @@ import type { UseCaseDeps } from '../../application/ports.js'
 import { askConfirm } from '../../application/use-cases/AskConfirm.js'
 import { confirmArtifact } from '../../application/use-cases/ConfirmArtifact.js'
 import { normalizeText } from '../../shared/protocol.js'
-import { renderJson } from '../shared.js'
+import { renderSmart } from '../shared.js'
+import { askConfirmSummary } from '../render-summaries.js'
 import { ASK_CONFIRM_PROMPT } from './prompt.js'
 
 export function defineAskConfirmTool(deps: UseCaseDeps) {
@@ -54,7 +55,7 @@ export function defineAskConfirmTool(deps: UseCaseDeps) {
           note: { type: 'string' },
         },
       },
-      render: renderJson,
+      render: renderSmart(askConfirmSummary),
     },
     timeoutMs: LIMITS.timeoutInteractiveMs,
     execute: async (args: unknown, exec: ToolRunContext) => {

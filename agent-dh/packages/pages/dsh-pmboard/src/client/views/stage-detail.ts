@@ -10,6 +10,7 @@ import { NO_ARCHIVED, PHASE_LABELS, STATUS_LABELS, TASK_STATUS_LABELS, fmtTime, 
 import { renderReqTimeline } from './timeline.ts'
 import { renderArchiveSection, renderDocSection, renderVerifySection } from './verification.ts'
 import { renderInjectionInfo } from '../injection-info.ts'
+import { renderSubtaskChain, subtaskChain } from '../render/subtask-view.ts'
 import { renderTokenPlaceholder } from '../token-info.ts'
 import { renderMarksPlaceholder } from '../marks-info.ts'
 
@@ -244,15 +245,15 @@ export function renderActionBar(req: RequirementRecord): string {
       move('brainstorming', '→ 需求分析', '进入需求分析；窗口接手开工时会自动进入', true)
       break
     case 'brainstorming':
-      move('design', '→ 设计', '方案谈定 → 进入设计；请提交计划并待批准', true)
+      move('design', '→ 设计', '方案谈定 → 进入设计；设计阶段只写设计文档（计划归拆分阶段）', true)
       move('draft', '退回立项', '方案要重谈 → 退回立项')
       break
     case 'design':
-      move('decomposing', '→ 拆分', '计划获批后落库任务卡；未获批会被代码级拒绝', true)
+      move('decomposing', '→ 拆分', '确认设计文档后进入拆分；拆分计划在拆分阶段提交并批准', true)
       move('brainstorming', '退回重谈', '方案要改 → 退回需求分析')
       break
     case 'decomposing':
-      move('implementing', '→ 实施', '确认拆分，进入实施；任务开工时系统会自动推进', true)
+      move('implementing', '→ 实施', '批准拆分计划后落库任务卡并进入实施', true)
       break
     case 'implementing':
       move('accepting', '→ 验收', '提交验收；任务全部完成时系统会自动推进', true)
@@ -271,7 +272,7 @@ export function renderActionBar(req: RequirementRecord): string {
   }
 
   if (req.plan !== undefined && req.plan.approvedAt === undefined) {
-    add('plan-approve', '批准计划', '批准拆分计划，解锁 reqboard_decompose 拆分', true)
+    add('plan-approve', '批准计划', '批准拆分计划 → 自动落库任务卡并进入实施', true)
     add('plan-reject', '退回计划', '退回拆分计划（窗口按理由重写）')
   }
   if (req.status === 'accepting') {
@@ -324,23 +325,37 @@ export function buildDag(tasks: TaskRecord[]): string {
     </div>`).join('') + `</div></div>`
 }
 
-/** 任务五列小看板（含 in_review/done） */
+/**
+ * 任务五列小看板（含 in_review/done）。
+ *
+ * REQ-4842fe t-3be71b：**只有顶层卡进列** —— 子卡挂在自己的父卡下（折叠展开，原生 <details>），
+ * 不再单列（否则同一张子卡既在列里又挂在父卡下，列计数与进度口径都会被重复计）。
+ * 存量卡（无 parentId 且无名下子卡）外观与改造前一致，仅多一枚 [手动] 标。
+ */
 export function buildTaskColumns(tasks: TaskRecord[]): string {
   if (tasks.length === 0) return '<div class="dsh-pm-empty">暂无任务</div>'
   const cols: TaskStatus[] = ['todo', 'in_progress', 'integrating', 'testing', 'in_review', 'done']
+  const top = tasks.filter(t => t.parentId === undefined)
   return `<div class="dsh-pm-taskcols">` + cols.map(status => {
-    const inCol = tasks.filter(t => t.status === status)
+    const inCol = top.filter(t => t.status === status)
     return `
       <div class="dsh-pm-taskcol" data-col="${status}">
         <div class="dsh-pm-taskcol-head">${TASK_STATUS_LABELS[status]} ${inCol.length}</div>
-        ${inCol.map(t => `
-          <div class="dsh-pm-task" data-task="${esc(t.id)}" data-action="open-task">
-            <div class="dsh-pm-task-title">${esc(t.title)}</div>
+        ${inCol.map(t => {
+          const chain = subtaskChain(tasks, t.id)
+          const legacy = chain.length === 0
+          const chainDone = chain.filter(x => x.status === 'done').length
+          return `
+          <div class="dsh-pm-task${legacy ? ' is-legacy' : ' is-parent'}" data-task="${esc(t.id)}" data-action="open-task">
+            <div class="dsh-pm-task-title">${esc(t.title)}${legacy ? '<span class="dsh-pm-manual-chip" title="存量卡：未开启自动链，外观与推进方式与改造前一致">手动</span>' : ''}</div>
             <div class="dsh-pm-task-meta">
               <span class="dsh-pm-phase">${PHASE_LABELS[t.phase] ?? t.phase}</span>
+              ${legacy ? '' : `<span class="dsh-pm-subcount">子卡 ${chainDone}/${chain.length}</span>`}
               ${t.blocked ? '<span class="dsh-pm-flag blocked">阻塞</span>' : ''}
             </div>
-          </div>`).join('')}
+            ${legacy ? '' : renderSubtaskChain(tasks, t)}
+          </div>`
+        }).join('')}
       </div>`
   }).join('') + `</div>`
 }

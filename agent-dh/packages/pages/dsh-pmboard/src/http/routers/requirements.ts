@@ -279,5 +279,59 @@ export function createRequirementsRouter(ctx: RouterCtx) {
     ok(res, { comment, target: result.changed.requirements[0]?.id ?? result.changed.tasks[0]?.id })
   }
 
-  return { handleReqCreate, handleReqMove, handleReqUpdate, handlePlanDecision, handleArtifactConfirm, handleComment }
+  /**
+   * POST /dashboard/api/reqboard/req/autorun
+   * 自动链控制面（REQ-4842fe FR-12 / t-3be71b，仅人）：暂停 / 继续某需求的自动链。
+   * 继续 = 置 autoRun=true **并立即触发一次推进事件**；推进器未装配或触发失败时**如实说明**，
+   * 不把"只置了开关"伪装成"已续跑"（失败要响亮）。
+   */
+  async function handleAutoRun(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await readBody(req)
+    const id = normalizeText(body.id, 'id', 64)
+    const on = body.on === true
+    const reason = normalizeText(body.reason, 'reason', 300)
+    const result = await store.mutate('requirement-updated', (ledger) => {
+      const r = ledger.requirements.find(x => x.id === id) ?? notFound(`需求 ${id}`)
+      r.autoRun = on
+      const adv = (r.advance ??= {})
+      if (on) {
+        adv.pausedReason = undefined
+        adv.noopStreak = 0
+        adv.failureStreak = 0
+      } else {
+        adv.pausedReason = 'manual'
+      }
+      r.comments.push({
+        id: ids.comment(),
+        body: fmt('[自动链] 人已{verb}（autoRun={state}）{why}', {
+          verb: on ? '继续' : '暂停', state: String(on), why: reason.length > 0 ? '：' + reason : '',
+        }),
+        createdAt: now(),
+        createdBy: { kind: 'human' },
+      })
+      r.version += 1
+      r.updatedAt = now()
+      r.updatedBy = { kind: 'human' }
+      return { requirements: [r] }
+    })
+    const updated = result.changed.requirements[0] as RequirementRecord
+
+    let advanceNote: string | undefined
+    if (on) {
+      if (ctx.deps.advance === undefined) {
+        advanceNote = '推进器未装配：已置 autoRun=true，请回会话触发一次推进事件'
+      } else {
+        try {
+          const out = await ctx.deps.advance(id)
+          advanceNote = fmt('已触发一次推进：{steps} 步，停止于 {stop}', { steps: String(out.steps), stop: out.stopped })
+        } catch (err) {
+          advanceNote = '触发推进失败（开关已置）：' + (err instanceof Error ? err.message : String(err))
+        }
+      }
+    }
+    const final = store.snapshot().requirements.find(r => r.id === id) ?? updated
+    ok(res, { ...final, ...(advanceNote === undefined ? {} : { advanceNote }) })
+  }
+
+  return { handleReqCreate, handleReqMove, handleReqUpdate, handlePlanDecision, handleArtifactConfirm, handleComment, handleAutoRun }
 }

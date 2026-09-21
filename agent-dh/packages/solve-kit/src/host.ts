@@ -102,15 +102,28 @@ async function fetchEventStatus(osBaseURL: string, eventId: string): Promise<str
   return ev ? String(ev.status ?? '') : null
 }
 
-/** 收单催办消息（盯梢 followup 给处置窗口） */
-function buildNudgeMessage(p: { eventId: string; title: string; attempt: number; total: number; actorWindow: string; panel: string }): string {
-  return [
+/** 收单催办消息（盯梢 followup 给处置窗口）。
+ *
+ *  形状纪律（REQ-9494f9，2026-09-21 实锤）：@deepseek-ai/dsh-agent 的 followup 收的是
+ *  **UserMessage 信封**（id/role/content/source），不是纯文本。传字符串会让 inbox 里这条
+ *  message.id / message.source 为 undefined——① 第二次入箱被去重校验拒绝（message "undefined"
+ *  is already pending）；② session-controller 的 Host 级 control stream 建基线读
+ *  message.source.kind 时抛 TypeError，**所有浏览器窗口**控制流一起失败。
+ *  故本函数与 buildSolveMessage 保持逐字段同形。 */
+export function buildNudgeMessage(p: { eventId: string; title: string; attempt: number; total: number; actorWindow: string; panel: string; plugin: string }): any {
+  const text = [
     '⏰ 收单催办（' + p.panel + ' · 第 ' + p.attempt + '/' + p.total + ' 次，来自 ' + p.actorWindow + ' 的派单）',
     '你认领的错误事件 ' + p.eventId.slice(0, 8) + '「' + p.title + '」当前仍是 processing，尚未回写终态。',
     '- 已处置 → 立即回写：curl -s -X POST http://127.0.0.1:13080/dashboard/api/board/error-action -H \'Content-Type: application/json\' -d \'{"id":"' + p.eventId + '","action":"resolve","note":"根因=...；动作=...；证据=...（处置窗口署名）"}\'（note ≥10 字；误报改用 "action":"ignore" 并注明为何误报）',
     '- 无法处置 → 回写 "action":"reopen" 并注明卡因，让事件回到待认领池',
     '不回写 = 处置无闭环：事件永久卡 processing 列表，且本盯梢会继续催办直到终态。',
   ].join(NL)
+  return {
+    id: randomUUID(),
+    role: 'user',
+    content: [{ type: 'text', text }],
+    source: { kind: 'plugin', plugin: p.plugin },
+  }
 }
 
 /** 收单盯梢（2026-09-10，w-f4aa1f6a）：错误事件投递成功后启动延迟检查链——
@@ -133,6 +146,7 @@ function watchResolution(
       if (target && typeof (target.agent as any)?.followup === 'function') {
         await (target.agent as any).followup(buildNudgeMessage({
           eventId: p.eventId, title: p.title, attempt, total: delays.length, actorWindow: p.actorWindow, panel: opts.panel,
+          plugin: opts.plugin,
         }))
         console.log('[solve-kit] 收单催办已投递:', p.eventId.slice(0, 8), '第', attempt, '次 →', target.window)
       }
