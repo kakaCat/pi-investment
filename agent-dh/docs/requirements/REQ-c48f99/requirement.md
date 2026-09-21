@@ -2,7 +2,7 @@
 req: REQ-c48f99
 title: 会话框业务工具节点可读性改造（定制卡片 + 人话摘要）
 category: feature
-status: brainstorming
+status: archived
 created: 2026-09-21
 window: w-85447f15
 ---

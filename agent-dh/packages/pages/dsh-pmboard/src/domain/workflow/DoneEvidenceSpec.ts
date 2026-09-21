@@ -98,7 +98,7 @@ export function checkDoneEvidence(input: DoneEvidenceInput): DoneEvidenceVerdict
     return {
       ok: false,
       code: 'REQBOARD_BULK_CLOSE',
-      reason: fmt('reqboard_task_move 未执行：done 凭证门——60 秒内刚关闭了任务 {id}（{title}）。禁止批量关闭：逐任务验收，稍后再试（事故 C 修复）', { id: input.recentDoneTask.id, title: input.recentDoneTask.title }),
+      reason: fmt('reqboard_task_move 未执行：done 凭证门——60 秒内刚关闭了任务 {id}（{title}）。禁止批量关闭：逐任务复核，稍后再试（事故 C 修复）', { id: input.recentDoneTask.id, title: input.recentDoneTask.title }),
     }
   }
   // ④ 页面插件构建新鲜度（事故 D）

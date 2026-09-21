@@ -17,9 +17,11 @@ export const STATUS_LABELS: Record<RequirementStatus, string> = {
   implementing: '实施', accepting: '验收', done: '完成', archived: '归档', canceled: '取消',
 }
 
+// 任务状态标签（2026-09-21 用户裁定）：长式 + in_review=待复核（与需求级「验收」区分）；
+// 与 stage-panel.ts TASK_STATUS_LABELS 保持一致。
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
-  todo: '待办', in_progress: '进行中', integrating: '联调', testing: '测试',
-  in_review: '验收', done: '完成', canceled: '取消',
+  todo: '待开始', in_progress: '开发中', integrating: '联调中', testing: '测试中',
+  in_review: '待复核', done: '已完成', canceled: '已取消',
 }
 
 export const PHASE_LABELS: Record<string, string> = {

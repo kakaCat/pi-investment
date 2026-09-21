@@ -102,13 +102,13 @@ const TRACE_CHAIN_ORDER: ArtifactKind[] = [
   'archive',
 ]
 
-/** 任务状态中文标签。 */
+/** 任务状态中文标签（2026-09-21 用户裁定：in_review=待复核，与需求级「验收」区分）。 */
 const TASK_STATUS_LABELS: Record<string, string> = {
   todo: '待开始',
   in_progress: '开发中',
   integrating: '联调中',
   testing: '测试中',
-  in_review: '待评审',
+  in_review: '待复核',
   done: '已完成',
   canceled: '已取消',
 }

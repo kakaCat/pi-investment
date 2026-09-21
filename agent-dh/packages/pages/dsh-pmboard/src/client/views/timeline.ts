@@ -124,7 +124,7 @@ export function ganttSegments(task: TaskRecord, now: number): Array<{ status: st
 
 /**
  * 甘特图（SVG，零依赖）：横轴时间，每行一个任务，条形按状态分段着色，
- * 叠需求里程碑竖线（评审/拆分/实施/验收/完成）与「当前时刻」线。
+ * 叠需求里程碑竖线（需求分析/拆分/实施/验收/完成）与「当前时刻」线。
  * 数据全部来自真实状态事件——没有事件就不画（不编造进度）。
  */
 export function buildGantt(req: RequirementRecord, tasks: TaskRecord[], now: number): string {

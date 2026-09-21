@@ -33,7 +33,7 @@ const STAGE_LABEL: Record<string, string> = {
   implementing: '🔨 实施',
   accepting: '✅ 验收',
   archived: '📦 归档',
-  done: '✅ 验收',
+  done: '✅ 完成', // legacy 过渡态：done 但未 archived（2026-09-21 前误标为「验收」，与 accepting 撞名）
 }
 
 function stageLabel(stage: string): string {

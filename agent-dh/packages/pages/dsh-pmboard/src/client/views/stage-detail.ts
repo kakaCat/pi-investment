@@ -102,8 +102,8 @@ export function buildTabContents(
       <div class="dsh-pm-stats">
         <div class="dsh-pm-stat"><div class="dsh-pm-stat-label">总任务</div><div class="dsh-pm-stat-value">${tasks.length}</div></div>
         <div class="dsh-pm-stat dsh-pm-stat-success"><div class="dsh-pm-stat-label">已完成</div><div class="dsh-pm-stat-value">${tasks.filter(t => t.status === 'done').length}</div></div>
-        <div class="dsh-pm-stat"><div class="dsh-pm-stat-label">进行中</div><div class="dsh-pm-stat-value">${tasks.filter(t => t.status === 'in_progress').length}</div></div>
-        <div class="dsh-pm-stat"><div class="dsh-pm-stat-label">待办</div><div class="dsh-pm-stat-value">${tasks.filter(t => t.status === 'todo').length}</div></div>
+        <div class="dsh-pm-stat"><div class="dsh-pm-stat-label">开发中</div><div class="dsh-pm-stat-value">${tasks.filter(t => t.status === 'in_progress').length}</div></div>
+        <div class="dsh-pm-stat"><div class="dsh-pm-stat-label">待开始</div><div class="dsh-pm-stat-value">${tasks.filter(t => t.status === 'todo').length}</div></div>
       </div>
       ${dag}
       <div class="dsh-pm-section">

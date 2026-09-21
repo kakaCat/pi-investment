@@ -137,7 +137,7 @@ export const TASK_MOVE_TO: Readonly<Record<string, string>> = {
 
 export const SUBMIT_KIND: Readonly<Record<string, string>> = {
   requirement: '需求文档',
-  plan: '拆分计划',
+  plan: '拆分计划（旧版）', // 与 stage-panel ARTIFACT_KIND_LABELS 一致：plan 退役，拆分计划由 decomposition 承载
   verification: '验收材料',
   archive: '归档材料',
 }

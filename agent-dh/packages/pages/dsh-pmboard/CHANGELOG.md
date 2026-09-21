@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/lang/zh-CN/).
 
+## [Unreleased]
+
+### Changed
+- 页面名词统一（2026-09-21 用户裁定）：任务状态全套统一为长式
+  待开始/开发中/联调中/测试中/**待复核**/已完成/已取消（`in_review` 此前在
+  「验收 / 待评审 / 待复核」三名并存，且与需求级「验收」撞名）；Token tab 的
+  legacy `done` 由「✅ 验收」改「✅ 完成」；toolviews 的 `plan` 产物标签对齐
+  「拆分计划（旧版）」；执行 Tab 统计卡同步为 待开始/开发中；工具提示词与注释里
+  节点 2 的禁用旧名「评审」统一为「需求分析」（workflow-stages.md 口径）
+- 保留口径：会话底部徽标维持「实施中/待验收」；验收节点人工门措辞维持「审核」；
+  评审阶段（task workflow review phase）节点内部状态维持「待评审/已批准/已退回」
+
 ## [0.1.0] - 2026-09-20
 
 ### Added

@@ -103,7 +103,7 @@ export { ALL_ARTIFACT_KINDS, STAGE_ARTIFACT_REQUIREMENTS, ARTIFACT_CONFIRM_GATES
 /**
  * 一次状态进入事件（时间线的原子单位）。需求与任务共用形状。
  *
- * 为什么必须有它：此前记录上只有 createdAt/updatedAt 两个时间戳，「评审/拆分/实施/
+ * 为什么必须有它：此前记录上只有 createdAt/updatedAt 两个时间戳，「需求分析/拆分/实施/
  * 验收/归档发生在什么时候、每一段停留多久」在台账里根本不存在——看板问"需求没有
  * 对应的时间"时无法回答，也无法做停留时长/流程瓶颈分析。状态事件让时间成为一等
  * 数据：每次转移写入一条 {status, at, by, reason}。

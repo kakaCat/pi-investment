@@ -143,7 +143,7 @@ export function createRequirementsRouter(ctx: RouterCtx) {
   /**
    * 计划裁决（仅人）：批准 / 退回需求的拆分计划。
    * 这是 plan mode 的唯一人工闸门——批准 = 允许拆分；退回 = 打回重写（附理由）。
-   * 除它之外，评审→拆分→实施→验收全部由窗口 agent 自行推进（2026-09-11 用户裁定）。
+   * 除它之外，需求分析→拆分→实施→验收全部由窗口 agent 自行推进（2026-09-11 用户裁定）。
    */
   async function handlePlanDecision(req: IncomingMessage, res: ServerResponse, approve: boolean): Promise<void> {
     const body = await readBody(req)

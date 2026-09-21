@@ -10,16 +10,16 @@
 import type { ActorKind } from '../actor.js'
 
 export type TaskStatus =
-  | 'todo'        // 待办（自足任务卡落库）
-  | 'in_progress' // 进行中（执行会话绑定）
-  | 'integrating' // 联调（前后端汇合，可跳过）
-  | 'testing'     // 测试（单测输出证据）
-  | 'in_review'   // 验收（等人）
-  | 'done'        // 完成（仅人）
-  | 'canceled'
+  | 'todo'        // 待开始（自足任务卡落库）
+  | 'in_progress' // 开发中（执行会话绑定）
+  | 'integrating' // 联调中（前后端汇合，可跳过）
+  | 'testing'     // 测试中（单测输出证据）
+  | 'in_review'   // 待复核（等人；2026-09-21 裁定统一为此名，与需求级「验收」区分）
+  | 'done'        // 已完成（仅人）
+  | 'canceled'    // 已取消
 
 /**
- * 任务状态的**展示顺序**（看板按此排序：未开始 → 进行中 → 待复核 → 完成）。
+ * 任务状态的**展示顺序**（看板按此排序：待开始 → 开发中 → 待复核 → 已完成）。
  * 适配层此前直接引用一个不存在的 `TASK_ORDER`（运行时 ReferenceError → 500），
  * 现单点于此并带类型。
  */
@@ -101,7 +101,7 @@ export function taskTransitionsFor(role: TaskRole): Readonly<Record<TaskStatus, 
  * 任务人工闸门（代码级仅人）。
  * 2026-09-13 用户裁定（与需求闸门同一口径）：agent 必须能自己把任务跑完——
  * 此前 in_review>done 仅人可操作，而任务完成又驱动需求 rollup，导致任务卡停在
- * 「验收」、需求进不了验收，看板再次静止。现仅保留**取消/复活**这类破坏性动作
+ * 「待复核」、需求进不了验收，看板再次静止。现仅保留**取消/复活**这类破坏性动作
  * 为人工闸门，正常流水线（含任务完成）由执行窗口自行推进。
  */
 export const HUMAN_ONLY_TASK_TRANSITIONS: ReadonlySet<string> = new Set([
@@ -170,7 +170,9 @@ export function assertTaskTransition(
   }
   const key = `${from}>${to}`
   if (HUMAN_ONLY_TASK_TRANSITIONS.has(key) && actor !== 'human') {
-    throw Object.assign(new Error('任务验收（→ done）仅人可操作'), { code: 'human_gate' })
+    // 2026-09-21：旧文案「任务验收（→ done）仅人可操作」已过时——人工闸门现覆盖取消/复活/重开，
+    // 且 in_review 统一叫「待复核」（与需求级「验收」区分），不再用「验收」指任务状态。
+    throw Object.assign(new Error('该任务转移为人工闸门，仅人可操作'), { code: 'human_gate' })
   }
   if (actor === 'system' && !SYSTEM_TASK_TRANSITIONS.has(key)) {
     throw Object.assign(new Error(`system 不可发起任务转移 ${from} → ${to}`), { code: 'system_gate' })

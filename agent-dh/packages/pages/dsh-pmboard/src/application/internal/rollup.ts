@@ -7,7 +7,7 @@
  *
  * 设计边界（RFC 014 §3 设计决策一：派生 + 闸门混合）：
  *  - **派生**：由台账内客观事实推导、不需要人点头的转移 → 以 system 身份推进；
- *  - **闸门**：评审通过 / 拆分确认 / 人工验收 / 归档 → HUMAN_ONLY_REQ_TRANSITIONS
+ *  - **闸门**：需求文档确认 / 计划批准 / 人工验收 / 归档 → HUMAN_ONLY_REQ_TRANSITIONS
  *    代码级仅人可操作，本文件**不可能**越过（advance 里 assertReqTransition 会抛 human_gate）。
  *
  * 为什么放在这里而不是各路由里散写：状态推导规则必须单点可测——规则增长时只改
