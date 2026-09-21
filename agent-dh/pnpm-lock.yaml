@@ -358,6 +358,9 @@ importers:
       '@pi-investment/trading':
         specifier: workspace:*
         version: link:packages/tools/trading
+      '@pi-investment/web-liveness':
+        specifier: workspace:*
+        version: link:packages/web/web-liveness
       dsh-pmboard:
         specifier: workspace:*
         version: link:packages/web/dsh-pmboard

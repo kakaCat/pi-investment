@@ -65,6 +65,7 @@
     "@pi-investment/solve-kit": "workspace:*",
     "@pi-investment/strategy": "workspace:*",
     "@pi-investment/trading": "workspace:*",
+    "@pi-investment/web-liveness": "workspace:*",
     "dsh-pmboard": "workspace:*",
     "yaml": "^2.3.4"
   },
