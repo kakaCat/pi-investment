@@ -22,7 +22,20 @@
    "note": "2026-09-13 实测 800 行 100% 指向已删策略；表自 2026-05-31 起未更新 → 废弃派生表；2026-09-13 按契约 delete_policy=drop_after_backup 处置：先备份 800 行再 drop。条目保留（status=dropped）以留下这次教训，探针跳过它但会校验备份表是否可回滚。",
    "status": "dropped",
    "dropped_at": "2026-09-13",
-   "backup_table": "quant.strategy_stock_matching_backup_20260913"
+   "backup_table": "quant.strategy_stock_matching_backup_20260913",
+   "backup_status": "missing",
+   "backup_loss": {
+    "detected_at": "2026-09-20T20:45:09",
+    "detected_by": "data_hygiene_probe (v2 job id=339, last_status=success)",
+    "verified_at": "2026-09-20T21:1x",
+    "verified_by": "data-hygiene-weekly (agent task 3c9fb67b, w-a9ec14d7 立)",
+    "recoverable": false,
+    "evidence": "实测 quant 库无任何 strategy_stock_matching* 表（pg_stat_user_tables 0 行）；全库 information_schema 无 %%backup%% 表；backup_table 声明的 quant.strategy_stock_matching_backup_20260913 不存在。drop 后无备份 ∈ 不可逆。",
+    "cause": "未判定——当时处置的 SQL 未留档，无法区分『从未创建备份』与『创建后又删除』；仓库内亦无 strategy_stock_matching_backup 字样（bash grep 全仓 0 命中）。",
+    "impact": "quant.strategy_stock_matching 的 800 行（100% 悬空引用 best_strategy_id，指向已删策略）已永久丢失。该表本已被判为废弃派生表、且内容本身是悬空数据，故业务影响近似为零——但『drop_after_backup 策略被执行成 drop_without_backup』是流程性缺陷，必须留档。",
+    "known_irreversible": true,
+    "policy_note": "本项为「策略执行偏离」而非「策略错误」：delete_policy=drop_after_backup 与 backup_table 声明保持原样，不因丢失而删除备份声明——删掉声明会让探针静默跳过，等于用抹掉证据的方式消灭告警（见 CLAUDE.md 教训『破坏性动作绝不静默』），故探针会继续每周报此 fail 直至人工裁决。"
+   }
   },
   {
    "name": "quant.pool_change_log",
