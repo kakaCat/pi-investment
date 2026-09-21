@@ -16,6 +16,6 @@
   },
   "include": ["src/client"],
   "references": [
-    { "path": "../../packages/agent-dh-client" }
+    { "path": "../../packages/client/agent-dh-client" }
   ]
 }

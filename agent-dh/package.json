@@ -17,9 +17,9 @@
   "scripts": {
     "start": "bash scripts/start.sh",
     "start:dev": "bash scripts/start.sh --verbose",
-    "dev": "vite",
+    "dev": "pnpm --filter @pi-investment/agent-dh-web-frontend dev",
     "build": "pnpm -r build",
-    "build:web": "vite build",
+    "build:web": "pnpm --filter @pi-investment/agent-dh-web-frontend build",
     "build:clients": "pnpm --filter @pi-investment/agent-os-client build && pnpm --filter @pi-investment/quantsys-v2-client build",
     "postinstall": "pnpm build:clients",
     "test": "pnpm -r test",
