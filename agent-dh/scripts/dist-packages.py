@@ -17,7 +17,7 @@ import sys
 
 
 def candidates(root: pathlib.Path):
-    dirs = sorted([d for d in (root / "packages").glob("*/") if d.is_dir()])
+    dirs = sorted([d for d in (root / "packages").glob("*/*/") if d.is_dir()])  # 两级技术域（RFC 015）
     for extra in (root.parent / "agent-os-client", root.parent / "quantsys-v2-client"):
         if (extra / "package.json").exists():
             dirs.append(extra)
