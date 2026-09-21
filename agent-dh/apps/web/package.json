@@ -13,11 +13,8 @@
     "!dist/**/*.map"
   ],
   "scripts": {
-    "start": "node --import tsx/esm src/main.ts",
-    "start:dev": "node --import tsx/esm src/main.ts --verbose",
     "dev": "vite build --watch --no-emptyOutDir",
     "build": "vite build",
-    "build:server": "tsc --project tsconfig.server.json",
     "watch": "vite build --watch --no-emptyOutDir",
     "preview": "vite preview",
     "test": "vitest run"

@@ -14,7 +14,7 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true
   },
-  "include": ["src/client"],
+  "include": ["src"],
   "references": [
     { "path": "../../packages/client/agent-dh-client" }
   ]

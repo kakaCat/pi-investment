@@ -61,8 +61,9 @@ agent-dh/
 │   ├── core/                   # core-tool（三段式接口类型规范）
 │   ├── (quantsys-v2-client 已迁移至仓库顶层 ../../quantsys-v2-client，插件经 file: 依赖引用)
 │
-├── apps/web/                    # Web 应用入口（对齐 deepseek-harness apps/web）：
-│   │                            #   src/main.ts 服务器入口、src/client/ 浏览器入口、
+├── apps/web/                    # Web 应用入口（布局对齐 deepseek-harness apps/web）：
+│   │                            #   src/main.ts 浏览器入口（AppWebEntry + desktop boot 注入）、
+│   │                            #   src/node-module-stub.ts（node:module 浏览器桩，与 dsh 逐字一致）、
 │   │                            #   index.html/public/ vite 构建输入、tests/ 全部测试；
 │   │                            #   dist/ 即 :13080 供应的 shell（pnpm override link:apps/web，
 │   │                            #   dsh-web-app 按包名解析到它）；裸 vite dev 被守卫拒绝是设计

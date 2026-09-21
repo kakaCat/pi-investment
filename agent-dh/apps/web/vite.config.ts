@@ -61,7 +61,7 @@ export default defineConfig({
     // One instance per shared npm identity
     dedupe: ['react', 'react-dom'],
     alias: [
-      { find: /^node:module$/, replacement: src('./src/client/node-module-stub.ts') },
+      { find: /^node:module$/, replacement: src('./src/node-module-stub.ts') },
     ],
   },
   define: {
