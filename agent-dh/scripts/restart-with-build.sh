@@ -165,6 +165,16 @@ if [ "$MODE" = "check" ]; then
   echo "[check] 产物新鲜度 + 依赖链接（只读）..."
   rc=0
   python3 "$SCRIPT_DIR/dist-packages.py" verify "$PROJECT_ROOT" || rc=1
+  if [ -d "$PROJECT_ROOT/apps/web/src" ]; then
+    _web_dist="$PROJECT_ROOT/apps/web/dist"
+    if [ ! -f "$_web_dist/index.html" ]; then
+      echo "FAIL apps/web                 产物缺失：$_web_dist/index.html"; rc=1
+    elif [ -n "$(find "$PROJECT_ROOT/apps/web/src" -name '*.ts' -newer "$_web_dist/index.html" | head -1)" ]; then
+      echo "FAIL apps/web                 产物陈旧（src/ 有比 dist/index.html 新的文件）"; rc=1
+    else
+      echo "OK   apps/web                 dist/index.html"
+    fi
+  fi
   python3 "$SCRIPT_DIR/relink-profile.py" --check --profile "$PROFILE_DIR" || rc=1
   exit $rc
 fi
@@ -227,6 +237,29 @@ except Exception:
   fi
   printf '%s\n' "$dir" >> "$STAGE_LIST"
 done <<< "$DIST_LIST"
+
+# apps/web 的 shell dist 走同一条暂存换装：override（link:apps/web）后 dsh-web-app 供应的
+# 就是 apps/web/dist，不建它 = 发版后供应陈旧/缺失 shell。vite 用 --outDir 指向暂存目录，
+# 事后断言 index.html 落点（同 ⑭ 的"静默写错地方 = 硬失败"原则）。
+WEB_DIR="$PROJECT_ROOT/apps/web"
+if [ -f "$WEB_DIR/package.json" ]; then
+  stage="$WEB_DIR/.dist-stage-$$"
+  rm -rf "$stage"
+  printf '  → %s\n' "apps/web (vite)"
+  if ! (cd "$WEB_DIR" && pnpm exec vite build --outDir "$stage" --emptyOutDir >"$BUILD_LOG" 2>&1); then
+    echo "  ❌ 构建失败：apps/web"
+    tail -20 "$BUILD_LOG" | sed 's/^/      /'
+    echo ""
+    echo "❌ 预构建失败：apps/web"
+    echo "   ✓ 服务未受影响（此刻尚未停服，dist/ 也从未被改动）"
+    exit 1
+  fi
+  if [ ! -f "$stage/index.html" ]; then
+    echo "  ❌ 暂存目录里没有产物：$stage/index.html —— 拒绝继续"
+    exit 1
+  fi
+  printf '%s\n' "$WEB_DIR" >> "$STAGE_LIST"
+fi
 STAGE_N=$(grep -c . "$STAGE_LIST" || true)
 INPLACE_N=$(grep -c . "$INPLACE_LIST" || true)
 echo "  ✓ 已暂存 ${STAGE_N:-0} 个包；${INPLACE_N:-0} 个待停服后就地构建"
@@ -358,6 +391,21 @@ if ! python3 "$SCRIPT_DIR/dist-packages.py" verify "$PROJECT_ROOT"; then
   echo "❌ 产物校验未通过 —— 拒绝以此状态发版（服务已停，退出钩子会拉回）"
   echo "   本次换装前的旧 dist 仍保留在各包 .dist-old-$$，可人工回滚"
   exit 1
+fi
+# apps/web 不在 dist-packages.py 的 packages/*/* 视野内，单独校验：
+# 换装的 dist 必须存在且不比 src/ 陈旧（override 后它就是要被供应的 shell）
+if [ -d "$PROJECT_ROOT/apps/web" ]; then
+  _web_dist="$PROJECT_ROOT/apps/web/dist"
+  _web_newest=$(find "$PROJECT_ROOT/apps/web/src" -name '*.ts' -newer "$_web_dist/index.html" 2>/dev/null | head -1)
+  if [ ! -f "$_web_dist/index.html" ]; then
+    echo "❌ apps/web/dist/index.html 缺失 —— override 后 dsh-web-app 供应的就是它，拒绝发版"
+    exit 1
+  fi
+  if [ -n "$_web_newest" ]; then
+    echo "❌ apps/web/dist 陈旧（源文件比产物新）：$_web_newest —— 拒绝发版"
+    exit 1
+  fi
+  echo "OK   apps/web                 dist/index.html  ($(stat -f%z "$_web_dist/index.html") bytes)"
 fi
 # 校验通过 ⇒ 换装前的旧 dist 备份可以清理（未通过时留着供回滚）
 if [ "${STAGE_N:-0}" -gt 0 ]; then

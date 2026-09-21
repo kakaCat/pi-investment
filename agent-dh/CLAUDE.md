@@ -63,7 +63,11 @@ agent-dh/
 │
 ├── apps/web/                    # Web 应用入口（对齐 deepseek-harness apps/web）：
 │   │                            #   src/main.ts 服务器入口、src/client/ 浏览器入口、
-│   │                            #   index.html/public/ vite 构建输入、tests/ 全部测试
+│   │                            #   index.html/public/ vite 构建输入、tests/ 全部测试；
+│   │                            #   dist/ 即 :13080 供应的 shell（pnpm override link:apps/web，
+│   │                            #   dsh-web-app 按包名解析到它）；裸 vite dev 被守卫拒绝是设计
+│   │                            #   如此，开发走 pnpm dev（= vite build --watch，server stat-poll
+│   │                            #   发现 dist 变化会广播浏览器重载）
 ├── config/cordis.yml            # Profile 配置模板（start.sh 据此补全 .dsh-data 内的活动配置）
 ├── .dsh-data/                   # DSH_HOME = 数据目录（项目内托管，不入库）：
 │   │                            #   agents.json / dsh-reqboard.json / .credentials.yaml / state/
@@ -543,6 +547,10 @@ pnpm build
 
 ## Version History
 
+- 2026-09-22: apps/web 成为 :13080 实际供应的 shell——pnpm.overrides 的 `@deepseek-ai/dsh-web-frontend`
+  改 `link:apps/web`（dsh-web-app 按包名 require.resolve 落到 apps/web）；`pnpm dev` 改 dsh 式
+  watch 构建（裸 vite serve 被 rejectStandaloneServe 守卫拒绝是设计如此）；restart-with-build.sh
+  纳入 apps/web 的 vite 暂存构建/换装/产物校验（含 --check 模式）
 - 2026-09-20: profile 布局更新——`~/.dsh/profiles/investment/` 已删除，现役为项目内 profile（名 agent-dh，DSH_HOME=数据目录 `agent-dh/.dsh-data/`）；启动/停机统一走 `scripts/start.sh` / `scripts/stop.sh`；配置源 = `config/cordis.yml`，活动配置 = `.dsh-data/profiles/agent-dh/cordis.patch.yml`
 - 2026-08-19: lifecycle 代码审查修复（50cb6084）：限流检查移到拿锁前（原拒绝路径泄漏锁致永久变砖）；重启器每次拉起前预写 restart-result（原时序竞争会让 rolled_back 误报成功）；锁 >15min stale 接管；状态读容错+原子写；self_finalize 幂等
 - 2026-08-19: 修复 investment/market 插件 schema 缺 additionalProperties 导致的全量启动崩溃；新增 plugin-schema.smoke.test.ts 门禁（现位于 apps/web/tests/）；重写工具/插件开发样例为 defineTool + Service 模式并记录 Schema 铁律
