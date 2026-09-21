@@ -1,5 +1,5 @@
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
-import { WatchListTool } from './packages/intelligence/src/tools/WatchListTool/WatchListTool';
+import { WatchListTool } from './packages/tools/intelligence/src/tools/WatchListTool/WatchListTool';
 
 const qv2 = new QuantsysV2Client({
   baseURL: 'http://localhost:5001',

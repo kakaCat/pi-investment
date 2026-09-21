@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
-import IntelligencePlugin from '../../packages/intelligence/src/index.js';
+import IntelligencePlugin from '../../packages/tools/intelligence/src/index.js';
 
 describe('M3-3 信号质量追踪', () => {
   let signalTrackTool: any;

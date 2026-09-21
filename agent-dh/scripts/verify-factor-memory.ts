@@ -3,8 +3,8 @@
  * Factor 和 Memory 包重构验证脚本
  */
 
-import { FactorCalculateTool, FactorAnalyzeTool } from '../packages/factor/src/index';
-import { MemorySearchTool, MemoryWriteTool, ExperienceWriteTool } from '../packages/memory/src/index';
+import { FactorCalculateTool, FactorAnalyzeTool } from '../packages/tools/factor/src/index';
+import { MemorySearchTool, MemoryWriteTool, ExperienceWriteTool } from '../packages/tools/memory/src/index';
 
 console.log('=== Factor 和 Memory 包重构验证 ===\n');
 

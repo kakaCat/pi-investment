@@ -14,8 +14,8 @@ import { execSync } from 'child_process';
 import * as dshSession from '@deepseek-ai/dsh-session';
 import * as dshTools from '@deepseek-ai/dsh-tools';
 
-import { QuantsysV2RestartTool } from '../packages/quantsys-v2-manager/src/tools/QuantsysV2RestartTool/QuantsysV2RestartTool';
-import { AgentOsRestartTool } from '../packages/agent-os-manager/src/tools/AgentOsRestartTool/AgentOsRestartTool';
+import { QuantsysV2RestartTool } from '../packages/runtime/quantsys-v2-manager/src/tools/QuantsysV2RestartTool/QuantsysV2RestartTool';
+import { AgentOsRestartTool } from '../packages/runtime/agent-os-manager/src/tools/AgentOsRestartTool/AgentOsRestartTool';
 
 const snapshotJsonValue: any = (dshSession as any).snapshotJsonValue ?? (dshSession as any).default?.snapshotJsonValue;
 const validateJsonSchemaValue: any = (dshTools as any).validateJsonSchemaValue;

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { DataManagerTool } from '../packages/data-manager/src/tools/DataManagerTool/DataManagerTool.js';
+import { DataManagerTool } from '../packages/tools/data-manager/src/tools/DataManagerTool/DataManagerTool.js';
 
 describe('DataManagerTool', () => {
   let tool: DataManagerTool;

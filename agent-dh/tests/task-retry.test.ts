@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { generateStages } from '../packages/pages/dsh-pmboard/src/tools/TaskExecuteTool/generate-stages.js'
-import type { TaskInfo } from '../packages/pages/dsh-pmboard/src/tools/TaskExecuteTool/types.js'
+import { generateStages } from '../packages/web/dsh-pmboard/src/tools/TaskExecuteTool/generate-stages.js'
+import type { TaskInfo } from '../packages/web/dsh-pmboard/src/tools/TaskExecuteTool/types.js'
 
 describe('任务执行失败重试', () => {
   const mockTask: TaskInfo = {

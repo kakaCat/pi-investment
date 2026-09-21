@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { WatchListTool } from '../packages/intelligence/src/tools/WatchListTool/WatchListTool.js';
+import { WatchListTool } from '../packages/tools/intelligence/src/tools/WatchListTool/WatchListTool.js';
 
 // 渲染发生在 execute() 内（不是 wrap——wrap 只负责把结果包成 ToolResponse），
 // 故这里注入桩 client：listWatchRules 返回待渲染规则，listWatchTriggers 返回空

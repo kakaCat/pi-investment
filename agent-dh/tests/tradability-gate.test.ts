@@ -6,7 +6,7 @@
  *   SELL 仅确证停牌拒单；状态未知/涨停/冲突 **不阻塞**（不得阻断减仓与止损）
  */
 import { describe, it, expect } from 'vitest';
-import { checkTradabilityGate } from '../packages/trading/src/utils/tradability.js';
+import { checkTradabilityGate } from '../packages/tools/trading/src/utils/tradability.js';
 
 const stub = (payload: any) => ({ getTradingStatus: async () => payload } as any);
 const ok = (data: any) => stub({ success: true, data });

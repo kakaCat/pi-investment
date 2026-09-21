@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs'
 import { readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
-const ROOT = '/Users/yunpeng/pi-investment/agent-dh/packages/pages/dsh-pmboard'
+const ROOT = '/Users/yunpeng/pi-investment/agent-dh/packages/web/dsh-pmboard'
 
 function walk(dir, out = []) {
   let es = []

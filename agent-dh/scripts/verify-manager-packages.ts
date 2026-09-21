@@ -3,8 +3,8 @@
  * quantsys-v2-manager 和 agent-os-manager 包重构验证脚本
  */
 
-import { QuantsysV2StatusTool, QuantsysV2RestartTool, QuantsysV2LogsTool } from '../packages/quantsys-v2-manager/src/index';
-import { AgentOsStatusTool, AgentOsRestartTool, AgentOsLogsTool } from '../packages/agent-os-manager/src/index';
+import { QuantsysV2StatusTool, QuantsysV2RestartTool, QuantsysV2LogsTool } from '../packages/runtime/quantsys-v2-manager/src/index';
+import { AgentOsStatusTool, AgentOsRestartTool, AgentOsLogsTool } from '../packages/runtime/agent-os-manager/src/index';
 
 console.log('=== quantsys-v2-manager 和 agent-os-manager 包重构验证 ===\n');
 

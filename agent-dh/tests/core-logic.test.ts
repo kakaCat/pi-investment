@@ -20,17 +20,17 @@ import {
   validateVersion,
   checkTradingHours,
   GenomeLock,
-} from '../packages/genome/src/guard.js';
+} from '../packages/tools/genome/src/guard.js';
 import {
   advanceVersion,
   advanceVersionForRollback,
   promoteCandidate,
   getPreviousSectionVersion,
-} from '../packages/genome/src/versioning.js';
-import { computeRuleIdChanges, incrementGenomeVersion } from '../packages/genome/src/store.js';
-import GenomePlugin from '../packages/genome/src/index.js';
-import LearningPlugin from '../packages/learning/src/index.js';
-import { assertTradingHours } from '../packages/trading/src/index.js';
+} from '../packages/tools/genome/src/versioning.js';
+import { computeRuleIdChanges, incrementGenomeVersion } from '../packages/tools/genome/src/store.js';
+import GenomePlugin from '../packages/tools/genome/src/index.js';
+import LearningPlugin from '../packages/tools/learning/src/index.js';
+import { assertTradingHours } from '../packages/tools/trading/src/index.js';
 
 // ---------- genome guard ----------
 

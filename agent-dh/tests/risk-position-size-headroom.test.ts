@@ -6,7 +6,7 @@
  *   可下上限 = min(单股 20% 硬顶, regime 剩余可加仓金额)（总值不可用时降级为静态建议）
  */
 import { describe, it, expect } from 'vitest';
-import { RiskControllerTool } from '../packages/risk/src/tools/RiskControllerTool/RiskControllerTool';
+import { RiskControllerTool } from '../packages/tools/risk/src/tools/RiskControllerTool/RiskControllerTool';
 
 const mkQv2 = (totalValue: number, marketValue: number, staticSize: number, backendAccountValue = 100000) => ({
   // 形状对齐线上真实返回（tsx 实测）：顶层与 result 内都有 accountValue/recommendedSize ——

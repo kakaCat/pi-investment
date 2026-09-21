@@ -13,8 +13,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // 动态导入构建后的包
-const AgentDHClient = (await import('./packages/agent-dh-client/dist/index.mjs')).AgentDHClient;
-const InvestmentAgentLoop = (await import('./packages/investment-agent-loop/dist/index.mjs')).InvestmentAgentLoop;
+const AgentDHClient = (await import('./packages/client/agent-dh-client/dist/index.mjs')).AgentDHClient;
+const InvestmentAgentLoop = (await import('./packages/runtime/investment-agent-loop/dist/index.mjs')).InvestmentAgentLoop;
 const cordis = await import('@deepseek-ai/cordis');
 const Context = cordis.Context;
 

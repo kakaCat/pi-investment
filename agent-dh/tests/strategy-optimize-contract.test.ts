@@ -3,7 +3,7 @@
  * （模拟绑定层校验——lessons：工具 schema 契约必须与线上数据模型对齐）
  */
 import { describe, expect, it, vi } from 'vitest';
-import { StrategyOptimizeTool } from '../packages/strategy/src/tools/StrategyOptimizeTool/StrategyOptimizeTool';
+import { StrategyOptimizeTool } from '../packages/tools/strategy/src/tools/StrategyOptimizeTool/StrategyOptimizeTool';
 
 // 后端真实返回形状（2026-09-01 实测）：{success, results[], totalCombinations, successfulCombinations}
 const BACKEND_SHAPE = {

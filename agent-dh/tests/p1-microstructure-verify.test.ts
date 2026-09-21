@@ -10,8 +10,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
-import { MinuteKlineTool } from '../packages/investment/src/tools/MinuteKlineTool/MinuteKlineTool.js';
-import { TradingStatusTool } from '../packages/investment/src/tools/TradingStatusTool/TradingStatusTool.js';
+import { MinuteKlineTool } from '../packages/tools/investment/src/tools/MinuteKlineTool/MinuteKlineTool.js';
+import { TradingStatusTool } from '../packages/tools/investment/src/tools/TradingStatusTool/TradingStatusTool.js';
 
 const LIVE = process.env.LIVE === '1';
 const ctx = {} as any;

@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { FundFlowTool } from '../packages/competition/src/tools/FundFlowTool/FundFlowTool.js';
+import { FundFlowTool } from '../packages/tools/competition/src/tools/FundFlowTool/FundFlowTool.js';
 
 function makeTool() {
   const mockClient = {} as any;

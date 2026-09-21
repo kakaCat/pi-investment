@@ -36,23 +36,23 @@ const AOS = { agentOS: { baseURL: 'local', agentId: 'test' } };
 
 /** 只列 main 指向 dist 的插件（src-main 的包由 plugin-schema.smoke 覆盖） */
 const DIST_PLUGINS: Array<[string, () => Promise<any>, () => any]> = [
-  ['investment', () => import('../packages/investment/dist/index.mjs'), () => QV2],
-  ['trading', () => import('../packages/trading/dist/index.mjs'), () => QV2],
-  ['intelligence', () => import('../packages/intelligence/dist/index.mjs'), () => QV2],
-  ['competition', () => import('../packages/competition/dist/index.mjs'), () => QV2],
-  ['market', () => import('../packages/market/dist/index.mjs'), () => QV2],
-  ['risk', () => import('../packages/risk/dist/index.mjs'), () => QV2],
-  ['strategy', () => import('../packages/strategy/dist/index.mjs'), () => QV2],
-  ['factor', () => import('../packages/factor/dist/index.mjs'), () => QV2],
-  ['data-manager', () => import('../packages/data-manager/dist/index.mjs'), () => QV2],
-  ['memory', () => import('../packages/memory/dist/index.mjs'), () => ({ ...QV2, ...AOS })],
-  ['evolution', () => import('../packages/evolution/dist/index.mjs'), () => AOS],
-  ['scheduler', () => import('../packages/scheduler/dist/index.mjs'), () => AOS],
-  ['notification', () => import('../packages/notification/dist/index.mjs'), () => AOS],
-  ['lifecycle', () => import('../packages/lifecycle/dist/index.mjs'), () => ({
+  ['investment', () => import('../packages/tools/investment/dist/index.mjs'), () => QV2],
+  ['trading', () => import('../packages/tools/trading/dist/index.mjs'), () => QV2],
+  ['intelligence', () => import('../packages/tools/intelligence/dist/index.mjs'), () => QV2],
+  ['competition', () => import('../packages/tools/competition/dist/index.mjs'), () => QV2],
+  ['market', () => import('../packages/tools/market/dist/index.mjs'), () => QV2],
+  ['risk', () => import('../packages/tools/risk/dist/index.mjs'), () => QV2],
+  ['strategy', () => import('../packages/tools/strategy/dist/index.mjs'), () => QV2],
+  ['factor', () => import('../packages/tools/factor/dist/index.mjs'), () => QV2],
+  ['data-manager', () => import('../packages/tools/data-manager/dist/index.mjs'), () => QV2],
+  ['memory', () => import('../packages/tools/memory/dist/index.mjs'), () => ({ ...QV2, ...AOS })],
+  ['evolution', () => import('../packages/tools/evolution/dist/index.mjs'), () => AOS],
+  ['scheduler', () => import('../packages/tools/scheduler/dist/index.mjs'), () => AOS],
+  ['notification', () => import('../packages/tools/notification/dist/index.mjs'), () => AOS],
+  ['lifecycle', () => import('../packages/tools/lifecycle/dist/index.mjs'), () => ({
     repoRoot: '/tmp', agentDhRoot: '/tmp', profileDir: stateDir,
   })],
-  ['genome', () => import('../packages/genome/dist/index.mjs'), () => ({
+  ['genome', () => import('../packages/tools/genome/dist/index.mjs'), () => ({
     genomeDir: join(stateDir, 'genome-test'),
   })],
 ];

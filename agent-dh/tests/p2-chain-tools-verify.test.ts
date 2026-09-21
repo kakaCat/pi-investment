@@ -10,9 +10,9 @@
  */
 import { describe, it, expect } from 'vitest';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
-import { ChainListTool } from '../packages/market/src/tools/ChainListTool/ChainListTool.js';
-import { ChainScanTool } from '../packages/market/src/tools/ChainScanTool/ChainScanTool.js';
-import { SymbolChainTool } from '../packages/market/src/tools/SymbolChainTool/SymbolChainTool.js';
+import { ChainListTool } from '../packages/tools/market/src/tools/ChainListTool/ChainListTool.js';
+import { ChainScanTool } from '../packages/tools/market/src/tools/ChainScanTool/ChainScanTool.js';
+import { SymbolChainTool } from '../packages/tools/market/src/tools/SymbolChainTool/SymbolChainTool.js';
 
 const LIVE = process.env.LIVE === '1';
 const ctx = {} as any;

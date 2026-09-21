@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-const R = '/Users/yunpeng/pi-investment/agent-dh/packages/pages/dsh-pmboard'
+const R = '/Users/yunpeng/pi-investment/agent-dh/packages/web/dsh-pmboard'
 function walk(dir, out = []) {
   let es = []; try { es = readdirSync(dir, { withFileTypes: true }) } catch { return out }
   for (const e of es) { const p = join(dir, e.name); if (e.isDirectory()) walk(p, out); else if (e.name.endsWith('.ts')) out.push(p) }

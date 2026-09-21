@@ -11,8 +11,7 @@
   },
   "workspaces": [
     "apps/*",
-    "packages/*",
-    "packages/pages/*",
+    "packages/*/*",
     "profiles/*"
   ],
   "scripts": {

@@ -9,8 +9,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
-import { StockEventsTool } from '../packages/investment/src/tools/StockEventsTool/StockEventsTool.js';
-import { EventCalendarTool } from '../packages/investment/src/tools/EventCalendarTool/EventCalendarTool.js';
+import { StockEventsTool } from '../packages/tools/investment/src/tools/StockEventsTool/StockEventsTool.js';
+import { EventCalendarTool } from '../packages/tools/investment/src/tools/EventCalendarTool/EventCalendarTool.js';
 
 const LIVE = process.env.LIVE === '1';
 const ctx = {} as any;

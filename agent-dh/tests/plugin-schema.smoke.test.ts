@@ -31,32 +31,32 @@ const QV2 = { quantsysV2: { baseURL: 'http://localhost:5001' } };
 const AOS = { agentOS: { baseURL: 'local', agentId: 'test' } };
 
 const PLUGINS: Array<[string, () => Promise<any>, () => any]> = [
-  ['investment', () => import('../packages/investment/src/index.js'), () => QV2],
-  ['trading', () => import('../packages/trading/src/index.js'), () => QV2],
-  ['intelligence', () => import('../packages/intelligence/src/index.js'), () => QV2],
-  ['competition', () => import('../packages/competition/src/index.js'), () => QV2],
-  ['market', () => import('../packages/market/src/index.js'), () => QV2],
-  ['risk', () => import('../packages/risk/src/index.js'), () => QV2],
-  ['strategy', () => import('../packages/strategy/src/index.js'), () => QV2],
-  ['factor', () => import('../packages/factor/src/index.js'), () => QV2],
-  ['data-manager', () => import('../packages/data-manager/src/index.js'), () => QV2],
-  ['memory', () => import('../packages/memory/src/index.js'), () => ({ ...QV2, ...AOS })],
-  ['evolution', () => import('../packages/evolution/src/index.js'), () => AOS],
-  ['scheduler', () => import('../packages/scheduler/src/index.js'), () => AOS],
-  ['notification', () => import('../packages/notification/src/index.js'), () => AOS],
-  ['lifecycle', () => import('../packages/lifecycle/src/index.js'), () => ({
+  ['investment', () => import('../packages/tools/investment/src/index.js'), () => QV2],
+  ['trading', () => import('../packages/tools/trading/src/index.js'), () => QV2],
+  ['intelligence', () => import('../packages/tools/intelligence/src/index.js'), () => QV2],
+  ['competition', () => import('../packages/tools/competition/src/index.js'), () => QV2],
+  ['market', () => import('../packages/tools/market/src/index.js'), () => QV2],
+  ['risk', () => import('../packages/tools/risk/src/index.js'), () => QV2],
+  ['strategy', () => import('../packages/tools/strategy/src/index.js'), () => QV2],
+  ['factor', () => import('../packages/tools/factor/src/index.js'), () => QV2],
+  ['data-manager', () => import('../packages/tools/data-manager/src/index.js'), () => QV2],
+  ['memory', () => import('../packages/tools/memory/src/index.js'), () => ({ ...QV2, ...AOS })],
+  ['evolution', () => import('../packages/tools/evolution/src/index.js'), () => AOS],
+  ['scheduler', () => import('../packages/tools/scheduler/src/index.js'), () => AOS],
+  ['notification', () => import('../packages/tools/notification/src/index.js'), () => AOS],
+  ['lifecycle', () => import('../packages/tools/lifecycle/src/index.js'), () => ({
     repoRoot: '/tmp', agentDhRoot: '/tmp', profileDir: stateDir,
   })],
-  ['genome', () => import('../packages/genome/src/index.js'), () => ({
+  ['genome', () => import('../packages/tools/genome/src/index.js'), () => ({
     genomeDir: join(stateDir, 'genome-test'),
   })],
-  ['evolver', () => import('../packages/evolver/src/index.js'), () => ({})],
-  ['learning', () => import('../packages/learning/src/index.js'), () => QV2],
-  ['quantsys-v2-manager', () => import('../packages/quantsys-v2-manager/src/index.js'), () => ({})],
-  ['agent-os-manager', () => import('../packages/agent-os-manager/src/index.js'), () => ({})],
+  ['evolver', () => import('../packages/tools/evolver/src/index.js'), () => ({})],
+  ['learning', () => import('../packages/tools/learning/src/index.js'), () => QV2],
+  ['quantsys-v2-manager', () => import('../packages/runtime/quantsys-v2-manager/src/index.js'), () => ({})],
+  ['agent-os-manager', () => import('../packages/runtime/agent-os-manager/src/index.js'), () => ({})],
   // REQ-4842fe t-a46239：dsh-pmboard 此前不在名单里 → 它新注册的工具 schema 无人编译。
   // dshHome 指到临时目录，避免冒烟读写真实 .dsh-data。
-  ['dsh-pmboard', () => import('../packages/pages/dsh-pmboard/src/index.js'), () => ({ dshHome: stateDir })],
+  ['dsh-pmboard', () => import('../packages/web/dsh-pmboard/src/index.js'), () => ({ dshHome: stateDir })],
 ];
 
 describe('插件 schema 冒烟（构造即编译所有工具 schema）', () => {

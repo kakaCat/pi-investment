@@ -135,7 +135,7 @@ def find_repo_root(profile, declared_targets):
 
 
 def repo_index(root):
-    """仓库内 包名 -> 目录（含 packages 下多层，如 packages/pages/*，以及两个顶层 client）。"""
+    """仓库内 包名 -> 目录（含 packages 下两级域，如 packages/tools/*、packages/web/*，以及两个顶层 client）。"""
     idx = {}
     if not root:
         return idx

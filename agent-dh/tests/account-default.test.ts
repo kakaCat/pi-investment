@@ -13,12 +13,12 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { DEFAULT_AGENT_ACCOUNT } from '../packages/core-tool/src/account';
-import { PortfolioTradeTool } from '../packages/trading/src/tools/PortfolioTradeTool/PortfolioTradeTool';
-import { AlgoExecuteTool } from '../packages/trading/src/tools/AlgoExecuteTool/AlgoExecuteTool';
-import { CancelPendingOrderTool } from '../packages/trading/src/tools/CancelPendingOrderTool/CancelPendingOrderTool';
-import { M4CircuitBreakerTool } from '../packages/trading/src/tools/M4CircuitBreakerTool/M4CircuitBreakerTool';
-import { RotationExecuteTool } from '../packages/strategy/src/tools/RotationExecuteTool/RotationExecuteTool';
+import { DEFAULT_AGENT_ACCOUNT } from '../packages/core/core-tool/src/account';
+import { PortfolioTradeTool } from '../packages/tools/trading/src/tools/PortfolioTradeTool/PortfolioTradeTool';
+import { AlgoExecuteTool } from '../packages/tools/trading/src/tools/AlgoExecuteTool/AlgoExecuteTool';
+import { CancelPendingOrderTool } from '../packages/tools/trading/src/tools/CancelPendingOrderTool/CancelPendingOrderTool';
+import { M4CircuitBreakerTool } from '../packages/tools/trading/src/tools/M4CircuitBreakerTool/M4CircuitBreakerTool';
+import { RotationExecuteTool } from '../packages/tools/strategy/src/tools/RotationExecuteTool/RotationExecuteTool';
 
 const mk = (Ctor: any) => Object.create(Ctor.prototype) as any;
 
