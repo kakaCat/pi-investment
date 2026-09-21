@@ -17,7 +17,7 @@
  * 用法：node scripts/audit-tool-output-contract.mjs [--json]
  * 退出码：0=未发现可疑项；1=发现可疑项（可用于 CI/门禁）。
  *
- * 口径（与 packages/pages/dsh-pmboard/tests/output-contract.test.ts 同源）：
+ * 口径（与 packages/web/dsh-pmboard/tests/output-contract.test.ts 同源）：
  *   · 只认"响应型"字面量：键集不完全属于 {requirements, tasks}（那是 store.mutate 的变更集）
  *   · 跳过回调实参区（.map/.filter/.forEach/.catch/.then/store.mutate）内的 return
  *   · 计入条件展开 \`...(cond ? { k } : {})\` 里的字段
@@ -25,7 +25,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
-const ROOTS = ['packages', 'packages/pages']
+const ROOTS = ['packages']
 const MUTATOR_KEYS = new Set(['requirements', 'tasks'])
 
 function walk(dir) {

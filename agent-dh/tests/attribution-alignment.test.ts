@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { alignByTradingDate } from '../packages/risk/src/tools/RiskMetricsTool/attributionAlignment';
+import { alignByTradingDate } from '../packages/tools/risk/src/tools/RiskMetricsTool/attributionAlignment';
 
 // 按交易日对齐的回归测试（2026-09-11，w-f4aa1f6a）
 // 关键场景：净值序列缺交易日时，旧的 length-based 对齐会错位一天以上；

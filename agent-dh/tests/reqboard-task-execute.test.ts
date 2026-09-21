@@ -3,9 +3,9 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { generateStages } from '../packages/pages/dsh-pmboard/src/tools/TaskExecuteTool/generate-stages.js'
-import { generateWorkflowScript } from '../packages/pages/dsh-pmboard/src/tools/TaskExecuteTool/generate-workflow-script.js'
-import type { TaskInfo } from '../packages/pages/dsh-pmboard/src/tools/TaskExecuteTool/types.js'
+import { generateStages } from '../packages/web/dsh-pmboard/src/tools/TaskExecuteTool/generate-stages.js'
+import { generateWorkflowScript } from '../packages/web/dsh-pmboard/src/tools/TaskExecuteTool/generate-workflow-script.js'
+import type { TaskInfo } from '../packages/web/dsh-pmboard/src/tools/TaskExecuteTool/types.js'
 
 describe('reqboard_task_execute', () => {
   const mockTask: TaskInfo = {

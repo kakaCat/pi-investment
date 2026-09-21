@@ -104,7 +104,7 @@ const report = `# 🧪 TOOLS_REFACTOR_TRACKER 测试报告
 
 **当前实现** (错误):
 \`\`\`typescript
-// packages/genome/src/tools/GenomeListTool/index.ts
+// packages/tools/genome/src/tools/GenomeListTool/index.ts
 export { GenomeListTool } from './GenomeListTool';
 export { genomeListPrompt } from './prompt';
 export type { GenomeListParams, GenomeListResult } from './prompt';
@@ -156,7 +156,7 @@ export type { GenomeListParams, GenomeListResult } from './prompt';
 1. **genome 包的 6 个工具** - 添加工厂函数
    - 影响: 这些工具无法被 Cordis 框架正确注册
    - 估计工作量: 30-60 分钟
-   - 参考模板: \`packages/evolution/src/tools/EvolutionRunTool/index.ts\`
+   - 参考模板: \`packages/tools/evolution/src/tools/EvolutionRunTool/index.ts\`
 
 2. **scheduler 包的 1 个工具** - 添加工厂函数
    - 影响: 同上
@@ -182,12 +182,12 @@ export type { GenomeListParams, GenomeListResult } from './prompt';
 
 \`\`\`bash
 # 1. 编辑 index.ts
-vim packages/genome/src/tools/GenomeListTool/index.ts
+vim packages/tools/genome/src/tools/GenomeListTool/index.ts
 
 # 2. 添加工厂函数（参考上面的正确实现）
 
 # 3. 更新包的主 index.ts
-vim packages/genome/src/index.ts
+vim packages/tools/genome/src/index.ts
 
 # 4. 测试
 npx tsx scripts/test-refactored-tools.ts
@@ -196,7 +196,7 @@ npx tsx scripts/test-refactored-tools.ts
 ### 步骤 2: 修复 scheduler 包工具
 
 \`\`\`bash
-vim packages/scheduler/src/tools/SchedulerManageTool/index.ts
+vim packages/tools/scheduler/src/tools/SchedulerManageTool/index.ts
 # 添加 createSchedulerManageTool 函数
 \`\`\`
 
@@ -211,10 +211,10 @@ vim TOOLS_REFACTOR_TRACKER.md
 
 **选项 B: 重命名目录**
 \`\`\`bash
-cd packages/trading/src/tools
+cd packages/tools/trading/src/tools
 mv M4CircuitBreakerTool M4CircuitBreakerCheckTool
 
-cd packages/risk/src/tools
+cd packages/tools/risk/src/tools
 mv BarraDecompositionTool RiskBarraDecompositionTool
 \`\`\`
 
@@ -264,9 +264,9 @@ npx tsx scripts/test-refactored-tools.ts
 ## 📚 参考资料
 
 - 测试脚本: \`scripts/test-refactored-tools.ts\`
-- 重构指南: \`packages/trading/REFACTOR_GUIDE.md\`
-- BaseTool 定义: \`packages/core-tool/src/BaseTool.ts\`
-- 成功案例: \`packages/evolution/src/tools/EvolutionRunTool/\`
+- 重构指南: \`packages/tools/trading/REFACTOR_GUIDE.md\`
+- BaseTool 定义: \`packages/core/core-tool/src/BaseTool.ts\`
+- 成功案例: \`packages/tools/evolution/src/tools/EvolutionRunTool/\`
 
 ---
 

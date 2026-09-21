@@ -294,80 +294,83 @@ importers:
           0.1.5-rc.1(@deepseek-ai/cordis-plugin-group@1.0.2)(@deepseek-ai/cordis-plugin-hmr@1.0.17)(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent-default-model@0.1.5-rc.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-api-gateway@0.1.5-rc.1)(@deepseek-ai/dsh-atomic-write@0.1.5-rc.1)(@deepseek-ai/dsh-attachment@0.1.5-rc.1)(@deepseek-ai/dsh-brand@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-command-feedback@0.1.5-rc.1)(@deepseek-ai/dsh-commands@0.1.5-rc.1)(@deepseek-ai/dsh-compaction@0.1.5-rc.1)(@deepseek-ai/dsh-credentials@0.1.5-rc.1)(@deepseek-ai/dsh-fs@0.1.5-rc.1)(@deepseek-ai/dsh-home-paths@0.1.5-rc.1)(@deepseek-ai/dsh-host-directory-picker@0.1.5-rc.1)(@deepseek-ai/dsh-http-proxy@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-jobs@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-native-command@0.1.5-rc.1)(@deepseek-ai/dsh-output-retention@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session-persistence@0.1.5-rc.1)(@deepseek-ai/dsh-session-projection@0.1.5-rc.1)(@deepseek-ai/dsh-session-query@0.1.5-rc.1)(@deepseek-ai/dsh-session-title@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-settings@0.1.5-rc.1)(@deepseek-ai/dsh-shell-env@0.1.5-rc.1)(@deepseek-ai/dsh-skill@0.1.5-rc.1)(@deepseek-ai/dsh-spill@0.1.5-rc.1)(@deepseek-ai/dsh-storage-domain@0.1.5-rc.1)(@deepseek-ai/dsh-storage@0.1.5-rc.1)(@deepseek-ai/dsh-subagent@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-timeout@0.1.5-rc.1)(@deepseek-ai/dsh-tools@0.1.5-rc.1)(@deepseek-ai/dsh-typert-protocol@0.1.5-rc.1)(@deepseek-ai/dsh-typert-registry@0.1.5-rc.1)(@deepseek-ai/dsh-util-time@0.1.5-rc.1)(@deepseek-ai/dsh-util-values@0.1.5-rc.1)(@deepseek-ai/dsh-util-workspace-path@0.1.5-rc.1)
       '@pi-investment/agent-os-manager':
         specifier: workspace:*
-        version: link:packages/agent-os-manager
+        version: link:packages/runtime/agent-os-manager
       '@pi-investment/competition':
         specifier: workspace:*
-        version: link:packages/competition
+        version: link:packages/tools/competition
       '@pi-investment/core-tool':
         specifier: workspace:*
-        version: link:packages/core-tool
+        version: link:packages/core/core-tool
       '@pi-investment/data-manager':
         specifier: workspace:*
-        version: link:packages/data-manager
+        version: link:packages/tools/data-manager
       '@pi-investment/evolution':
         specifier: workspace:*
-        version: link:packages/evolution
+        version: link:packages/tools/evolution
       '@pi-investment/evolver':
         specifier: workspace:*
-        version: link:packages/evolver
+        version: link:packages/tools/evolver
       '@pi-investment/factor':
         specifier: workspace:*
-        version: link:packages/factor
+        version: link:packages/tools/factor
       '@pi-investment/genome':
         specifier: workspace:*
-        version: link:packages/genome
+        version: link:packages/tools/genome
       '@pi-investment/intelligence':
         specifier: workspace:*
-        version: link:packages/intelligence
+        version: link:packages/tools/intelligence
       '@pi-investment/investment':
         specifier: workspace:*
-        version: link:packages/investment
+        version: link:packages/tools/investment
       '@pi-investment/investment-agent-loop':
         specifier: workspace:*
-        version: link:packages/investment-agent-loop
+        version: link:packages/runtime/investment-agent-loop
       '@pi-investment/learning':
         specifier: workspace:*
-        version: link:packages/learning
+        version: link:packages/tools/learning
       '@pi-investment/lifecycle':
         specifier: workspace:*
-        version: link:packages/lifecycle
+        version: link:packages/tools/lifecycle
       '@pi-investment/market':
         specifier: workspace:*
-        version: link:packages/market
+        version: link:packages/tools/market
       '@pi-investment/memory':
         specifier: workspace:*
-        version: link:packages/memory
+        version: link:packages/tools/memory
       '@pi-investment/notification':
         specifier: workspace:*
-        version: link:packages/notification
+        version: link:packages/tools/notification
       '@pi-investment/quantsys-v2-manager':
         specifier: workspace:*
-        version: link:packages/quantsys-v2-manager
+        version: link:packages/runtime/quantsys-v2-manager
       '@pi-investment/risk':
         specifier: workspace:*
-        version: link:packages/risk
+        version: link:packages/tools/risk
       '@pi-investment/scheduler':
         specifier: workspace:*
-        version: link:packages/scheduler
+        version: link:packages/tools/scheduler
       '@pi-investment/solve-kit':
         specifier: workspace:*
-        version: link:packages/solve-kit
+        version: link:packages/runtime/solve-kit
       '@pi-investment/strategy':
         specifier: workspace:*
-        version: link:packages/strategy
+        version: link:packages/tools/strategy
       '@pi-investment/trading':
         specifier: workspace:*
-        version: link:packages/trading
+        version: link:packages/tools/trading
+      '@pi-investment/web-liveness':
+        specifier: workspace:*
+        version: link:packages/web/web-liveness
       dsh-pmboard:
         specifier: workspace:*
-        version: link:packages/pages/dsh-pmboard
+        version: link:packages/web/dsh-pmboard
       yaml:
         specifier: ^2.3.4
         version: 2.9.1
     devDependencies:
       '@pi-investment/agent-dh-client':
         specifier: workspace:*
-        version: link:packages/agent-dh-client
+        version: link:packages/client/agent-dh-client
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.4
@@ -514,7 +517,7 @@ importers:
     devDependencies:
       '@pi-investment/agent-dh-client':
         specifier: workspace:*
-        version: link:../../packages/agent-dh-client
+        version: link:../../packages/client/agent-dh-client
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.4
@@ -546,14 +549,14 @@ importers:
         specifier: ^1.2.0
         version: 1.6.1(@types/node@22.20.4)
 
-  packages/agent-dh-client:
+  packages/client/agent-dh-client:
     dependencies:
       '@pi-investment/agent-os-client':
         specifier: workspace:*
-        version: link:../../../agent-os-client
+        version: link:../../../../agent-os-client
       '@pi-investment/quantsys-v2-client':
         specifier: workspace:*
-        version: link:../../../quantsys-v2-client
+        version: link:../../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -568,50 +571,7 @@ importers:
         specifier: ^1.2.0
         version: 1.6.1(@types/node@20.19.43)
 
-  packages/agent-os-manager:
-    dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 4.0.1
-        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
-      '@deepseek-ai/dsh-tools':
-        specifier: 0.1.5-rc.1
-        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
-      '@deepseek-ai/schemastery':
-        specifier: ^3.18.1
-        version: 3.18.1
-      '@pi-investment/core-tool':
-        specifier: workspace:*
-        version: link:../core-tool
-
-  packages/competition:
-    dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 4.0.1
-        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
-      '@deepseek-ai/dsh-tools':
-        specifier: 0.1.5-rc.1
-        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
-      '@deepseek-ai/schemastery':
-        specifier: ^3.18.1
-        version: 3.18.1
-      '@pi-investment/core-tool':
-        specifier: workspace:*
-        version: link:../core-tool
-      '@pi-investment/quantsys-v2-client':
-        specifier: workspace:*
-        version: link:../../../quantsys-v2-client
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.43
-      tsdown:
-        specifier: ^0.22.2
-        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
-  packages/core-tool:
+  packages/core/core-tool:
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -620,7 +580,7 @@ importers:
         specifier: ^1.0.0
         version: 1.6.1(@types/node@22.20.4)
 
-  packages/data-manager:
+  packages/runtime/agent-os-manager:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -630,74 +590,34 @@ importers:
         version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
-        version: 3.18.1
+        version: 3.18.2
       '@pi-investment/core-tool':
         specifier: workspace:*
-        version: link:../core-tool
-      '@pi-investment/quantsys-v2-client':
-        specifier: workspace:*
-        version: link:../../../quantsys-v2-client
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.43
-      tsdown:
-        specifier: ^0.22.2
-        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
+        version: link:../../core/core-tool
 
-  packages/evolution:
+  packages/runtime/investment-agent-loop:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
         version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
-      '@deepseek-ai/dsh-tools':
-        specifier: 0.1.5-rc.1
-        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
-      '@deepseek-ai/schemastery':
-        specifier: ^3.18.1
-        version: 3.18.1
-      '@pi-investment/core-tool':
-        specifier: workspace:*
-        version: link:../core-tool
-      '@pi-investment/quantsys-v2-client':
-        specifier: workspace:*
-        version: link:../../../quantsys-v2-client
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.43
-      tsdown:
-        specifier: ^0.22.2
-        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
-  packages/evolver:
-    dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 4.0.1
-        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
-      '@deepseek-ai/dsh-tools':
-        specifier: 0.1.5-rc.1
-        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
-      '@deepseek-ai/schemastery':
-        specifier: ^3.18.1
-        version: 3.18.1
       '@pi-investment/agent-os-client':
         specifier: workspace:*
-        version: link:../../../agent-os-client
-      '@pi-investment/core-tool':
-        specifier: workspace:*
-        version: link:../core-tool
-      '@pi-investment/quantsys-v2-client':
-        specifier: workspace:*
-        version: link:../../../quantsys-v2-client
+        version: link:../../../../agent-os-client
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.43
+      tsdown:
+        specifier: ^0.22.14
+        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.2.0
+        version: 1.6.1(@types/node@20.19.43)
 
-  packages/factor:
+  packages/runtime/quantsys-v2-manager:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -707,13 +627,40 @@ importers:
         version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
-        version: 3.18.1
+        version: 3.18.2
       '@pi-investment/core-tool':
         specifier: workspace:*
-        version: link:../core-tool
+        version: link:../../core/core-tool
       '@pi-investment/quantsys-v2-client':
         specifier: workspace:*
-        version: link:../../../quantsys-v2-client
+        version: link:../../../../quantsys-v2-client
+
+  packages/runtime/solve-kit:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.43
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/tools/competition:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
+      '@deepseek-ai/dsh-tools':
+        specifier: 0.1.5-rc.1
+        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
+      '@deepseek-ai/schemastery':
+        specifier: ^3.18.1
+        version: 3.18.2
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../../core/core-tool
+      '@pi-investment/quantsys-v2-client':
+        specifier: workspace:*
+        version: link:../../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -725,7 +672,112 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
-  packages/genome:
+  packages/tools/data-manager:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
+      '@deepseek-ai/dsh-tools':
+        specifier: 0.1.5-rc.1
+        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
+      '@deepseek-ai/schemastery':
+        specifier: ^3.18.1
+        version: 3.18.2
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../../core/core-tool
+      '@pi-investment/quantsys-v2-client':
+        specifier: workspace:*
+        version: link:../../../../quantsys-v2-client
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.43
+      tsdown:
+        specifier: ^0.22.2
+        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/tools/evolution:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
+      '@deepseek-ai/dsh-tools':
+        specifier: 0.1.5-rc.1
+        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
+      '@deepseek-ai/schemastery':
+        specifier: ^3.18.1
+        version: 3.18.2
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../../core/core-tool
+      '@pi-investment/quantsys-v2-client':
+        specifier: workspace:*
+        version: link:../../../../quantsys-v2-client
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.43
+      tsdown:
+        specifier: ^0.22.2
+        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/tools/evolver:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
+      '@deepseek-ai/dsh-tools':
+        specifier: 0.1.5-rc.1
+        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
+      '@deepseek-ai/schemastery':
+        specifier: ^3.18.1
+        version: 3.18.2
+      '@pi-investment/agent-os-client':
+        specifier: workspace:*
+        version: link:../../../../agent-os-client
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../../core/core-tool
+      '@pi-investment/quantsys-v2-client':
+        specifier: workspace:*
+        version: link:../../../../quantsys-v2-client
+
+  packages/tools/factor:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
+      '@deepseek-ai/dsh-tools':
+        specifier: 0.1.5-rc.1
+        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
+      '@deepseek-ai/schemastery':
+        specifier: ^3.18.1
+        version: 3.18.2
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../../core/core-tool
+      '@pi-investment/quantsys-v2-client':
+        specifier: workspace:*
+        version: link:../../../../quantsys-v2-client
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.43
+      tsdown:
+        specifier: ^0.22.2
+        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/tools/genome:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -738,10 +790,10 @@ importers:
         version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
-        version: 3.18.1
+        version: 3.18.2
       '@pi-investment/core-tool':
         specifier: workspace:*
-        version: link:../core-tool
+        version: link:../../core/core-tool
       '@pi-investment/evolver':
         specifier: workspace:*
         version: link:../evolver
@@ -753,7 +805,7 @@ importers:
         specifier: ^0.22.14
         version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
 
-  packages/intelligence:
+  packages/tools/intelligence:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -763,13 +815,13 @@ importers:
         version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
-        version: 3.18.1
+        version: 3.18.2
       '@pi-investment/core-tool':
         specifier: workspace:*
-        version: link:../core-tool
+        version: link:../../core/core-tool
       '@pi-investment/quantsys-v2-client':
         specifier: workspace:*
-        version: link:../../../quantsys-v2-client
+        version: link:../../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -781,7 +833,7 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
-  packages/investment:
+  packages/tools/investment:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -791,13 +843,13 @@ importers:
         version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
-        version: 3.18.1
+        version: 3.18.2
       '@pi-investment/core-tool':
         specifier: workspace:*
-        version: link:../core-tool
+        version: link:../../core/core-tool
       '@pi-investment/quantsys-v2-client':
         specifier: workspace:*
-        version: link:../../../quantsys-v2-client
+        version: link:../../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -809,29 +861,7 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
-  packages/investment-agent-loop:
-    dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 4.0.1
-        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
-      '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../../../agent-os-client
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.43
-      tsdown:
-        specifier: ^0.22.14
-        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      vitest:
-        specifier: ^1.2.0
-        version: 1.6.1(@types/node@20.19.43)
-
-  packages/learning:
+  packages/tools/learning:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -841,18 +871,18 @@ importers:
         version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
-        version: 3.18.1
+        version: 3.18.2
       '@pi-investment/agent-os-client':
         specifier: workspace:*
-        version: link:../../../agent-os-client
+        version: link:../../../../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
-        version: link:../core-tool
+        version: link:../../core/core-tool
       '@pi-investment/quantsys-v2-client':
         specifier: workspace:*
-        version: link:../../../quantsys-v2-client
+        version: link:../../../../quantsys-v2-client
 
-  packages/lifecycle:
+  packages/tools/lifecycle:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -871,16 +901,16 @@ importers:
         version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
-        version: 3.18.1
+        version: 3.18.2
       '@pi-investment/agent-os-client':
         specifier: workspace:*
-        version: link:../../../agent-os-client
+        version: link:../../../../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
-        version: link:../core-tool
+        version: link:../../core/core-tool
       '@pi-investment/quantsys-v2-client':
         specifier: workspace:*
-        version: link:../../../quantsys-v2-client
+        version: link:../../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -895,7 +925,7 @@ importers:
         specifier: ^1.2.0
         version: 1.6.1(@types/node@20.19.43)
 
-  packages/market:
+  packages/tools/market:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -905,16 +935,16 @@ importers:
         version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
-        version: 3.18.1
+        version: 3.18.2
       '@pi-investment/agent-os-client':
         specifier: workspace:*
-        version: link:../../../agent-os-client
+        version: link:../../../../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
-        version: link:../core-tool
+        version: link:../../core/core-tool
       '@pi-investment/quantsys-v2-client':
         specifier: workspace:*
-        version: link:../../../quantsys-v2-client
+        version: link:../../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -926,7 +956,7 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
-  packages/memory:
+  packages/tools/memory:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -936,16 +966,16 @@ importers:
         version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
-        version: 3.18.1
+        version: 3.18.2
       '@pi-investment/agent-os-client':
         specifier: workspace:*
-        version: link:../../../agent-os-client
+        version: link:../../../../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
-        version: link:../core-tool
+        version: link:../../core/core-tool
       '@pi-investment/quantsys-v2-client':
         specifier: workspace:*
-        version: link:../../../quantsys-v2-client
+        version: link:../../../../quantsys-v2-client
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -957,7 +987,7 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
-  packages/notification:
+  packages/tools/notification:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -967,13 +997,13 @@ importers:
         version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
       '@deepseek-ai/schemastery':
         specifier: ^3.18.1
-        version: 3.18.1
+        version: 3.18.2
       '@pi-investment/agent-os-client':
         specifier: workspace:*
-        version: link:../../../agent-os-client
+        version: link:../../../../agent-os-client
       '@pi-investment/core-tool':
         specifier: workspace:*
-        version: link:../core-tool
+        version: link:../../core/core-tool
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -985,7 +1015,125 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
-  packages/pages/bulletin:
+  packages/tools/risk:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
+      '@deepseek-ai/dsh-tools':
+        specifier: 0.1.5-rc.1
+        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
+      '@deepseek-ai/schemastery':
+        specifier: ^3.18.1
+        version: 3.18.2
+      '@pi-investment/agent-os-client':
+        specifier: workspace:*
+        version: link:../../../../agent-os-client
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../../core/core-tool
+      '@pi-investment/quantsys-v2-client':
+        specifier: workspace:*
+        version: link:../../../../quantsys-v2-client
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.43
+      tsdown:
+        specifier: ^0.22.2
+        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/tools/scheduler:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
+      '@deepseek-ai/dsh-tools':
+        specifier: 0.1.5-rc.1
+        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
+      '@deepseek-ai/schemastery':
+        specifier: ^3.18.1
+        version: 3.18.2
+      '@pi-investment/agent-os-client':
+        specifier: workspace:*
+        version: link:../../../../agent-os-client
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../../core/core-tool
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.43
+      tsdown:
+        specifier: ^0.22.2
+        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/tools/strategy:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
+      '@deepseek-ai/dsh-tools':
+        specifier: 0.1.5-rc.1
+        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
+      '@deepseek-ai/schemastery':
+        specifier: ^3.18.1
+        version: 3.18.2
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../../core/core-tool
+      '@pi-investment/quantsys-v2-client':
+        specifier: workspace:*
+        version: link:../../../../quantsys-v2-client
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.43
+      tsdown:
+        specifier: ^0.22.2
+        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/tools/trading:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
+      '@deepseek-ai/dsh-tools':
+        specifier: 0.1.5-rc.1
+        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
+      '@deepseek-ai/schemastery':
+        specifier: ^3.18.1
+        version: 3.18.2
+      '@pi-investment/agent-os-client':
+        specifier: workspace:*
+        version: link:../../../../agent-os-client
+      '@pi-investment/core-tool':
+        specifier: workspace:*
+        version: link:../../core/core-tool
+      '@pi-investment/quantsys-v2-client':
+        specifier: workspace:*
+        version: link:../../../../quantsys-v2-client
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.43
+      tsdown:
+        specifier: ^0.22.2
+        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/web/bulletin:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -998,7 +1146,7 @@ importers:
         version: link:../page-kit
       '@pi-investment/solve-kit':
         specifier: workspace:*
-        version: link:../../solve-kit
+        version: link:../../runtime/solve-kit
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -1010,7 +1158,7 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@20.19.43)
 
-  packages/pages/dsh-pmboard:
+  packages/web/dsh-pmboard:
     dependencies:
       '@deepseek-ai/dsh-tools':
         specifier: 0.1.5-rc.1
@@ -1035,7 +1183,7 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@20.19.43)
 
-  packages/pages/execution:
+  packages/web/execution:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -1045,7 +1193,7 @@ importers:
         version: link:../page-kit
       '@pi-investment/solve-kit':
         specifier: workspace:*
-        version: link:../../solve-kit
+        version: link:../../runtime/solve-kit
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -1057,7 +1205,7 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@20.19.43)
 
-  packages/pages/genome:
+  packages/web/genome:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -1079,7 +1227,7 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@20.19.43)
 
-  packages/pages/holdings:
+  packages/web/holdings:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -1089,7 +1237,7 @@ importers:
         version: link:../page-kit
       '@pi-investment/solve-kit':
         specifier: workspace:*
-        version: link:../../solve-kit
+        version: link:../../runtime/solve-kit
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -1101,7 +1249,7 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@20.19.43)
 
-  packages/pages/page-kit:
+  packages/web/page-kit:
     devDependencies:
       '@types/node':
         specifier: ^20.11.0
@@ -1110,7 +1258,7 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
-  packages/pages/web-liveness:
+  packages/web/web-liveness:
     dependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1
@@ -1125,151 +1273,6 @@ importers:
       vitest:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@20.19.43)
-
-  packages/quantsys-v2-manager:
-    dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 4.0.1
-        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
-      '@deepseek-ai/dsh-tools':
-        specifier: 0.1.5-rc.1
-        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
-      '@deepseek-ai/schemastery':
-        specifier: ^3.18.1
-        version: 3.18.1
-      '@pi-investment/core-tool':
-        specifier: workspace:*
-        version: link:../core-tool
-      '@pi-investment/quantsys-v2-client':
-        specifier: workspace:*
-        version: link:../../../quantsys-v2-client
-
-  packages/risk:
-    dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 4.0.1
-        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
-      '@deepseek-ai/dsh-tools':
-        specifier: 0.1.5-rc.1
-        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
-      '@deepseek-ai/schemastery':
-        specifier: ^3.18.1
-        version: 3.18.1
-      '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../../../agent-os-client
-      '@pi-investment/core-tool':
-        specifier: workspace:*
-        version: link:../core-tool
-      '@pi-investment/quantsys-v2-client':
-        specifier: workspace:*
-        version: link:../../../quantsys-v2-client
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.43
-      tsdown:
-        specifier: ^0.22.2
-        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
-  packages/scheduler:
-    dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 4.0.1
-        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
-      '@deepseek-ai/dsh-tools':
-        specifier: 0.1.5-rc.1
-        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
-      '@deepseek-ai/schemastery':
-        specifier: ^3.18.1
-        version: 3.18.1
-      '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../../../agent-os-client
-      '@pi-investment/core-tool':
-        specifier: workspace:*
-        version: link:../core-tool
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.43
-      tsdown:
-        specifier: ^0.22.2
-        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
-  packages/solve-kit:
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.43
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
-  packages/strategy:
-    dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 4.0.1
-        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
-      '@deepseek-ai/dsh-tools':
-        specifier: 0.1.5-rc.1
-        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
-      '@deepseek-ai/schemastery':
-        specifier: ^3.18.1
-        version: 3.18.1
-      '@pi-investment/core-tool':
-        specifier: workspace:*
-        version: link:../core-tool
-      '@pi-investment/quantsys-v2-client':
-        specifier: workspace:*
-        version: link:../../../quantsys-v2-client
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.43
-      tsdown:
-        specifier: ^0.22.2
-        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
-  packages/trading:
-    dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 4.0.1
-        version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
-      '@deepseek-ai/dsh-tools':
-        specifier: 0.1.5-rc.1
-        version: 0.1.5-rc.1(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-agent@0.1.5-rc.1)(@deepseek-ai/dsh-code-runtime@0.1.5-rc.1)(@deepseek-ai/dsh-invariants@0.1.5-rc.1)(@deepseek-ai/dsh-llm@0.1.5-rc.1)(@deepseek-ai/dsh-scope@0.1.5-rc.1)(@deepseek-ai/dsh-session@0.1.5-rc.1)(@deepseek-ai/dsh-system-prompt@0.1.5-rc.1)(@deepseek-ai/dsh-user-approval@0.1.5-rc.1)
-      '@deepseek-ai/schemastery':
-        specifier: ^3.18.1
-        version: 3.18.1
-      '@pi-investment/agent-os-client':
-        specifier: workspace:*
-        version: link:../../../agent-os-client
-      '@pi-investment/core-tool':
-        specifier: workspace:*
-        version: link:../core-tool
-      '@pi-investment/quantsys-v2-client':
-        specifier: workspace:*
-        version: link:../../../quantsys-v2-client
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.0
-        version: 20.19.43
-      tsdown:
-        specifier: ^0.22.2
-        version: 0.22.14(tsx@4.23.12)(typescript@5.9.3)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
 
 packages:
 
@@ -1834,10 +1837,6 @@ packages:
       '@deepseek-ai/cordis-plugin-loader': 1.0.3(@deepseek-ai/cordis@4.0.1)(node-addon-require-builtin@0.1.5)
       '@deepseek-ai/cosmokit': 1.8.3
       '@standard-schema/spec': 1.1.0
-
-  /@deepseek-ai/cosmokit@1.8.2:
-    resolution: {integrity: sha512-muBOKtSrUKU5m/xpq8ZXWL6hQ/jgd4PhU2PqH97bcxIiLEJfNwZOGQEx4t/aS/GgxRAR+ra9pMHPMtTHU4sqqA==}
-    dev: false
 
   /@deepseek-ai/cosmokit@1.8.3:
     resolution: {integrity: sha512-qBo+ronVM6Eu2WNVJXi8JcMiqZ19T9BRIpV+5qJUFPXjGH/Z0QKcQMC/IZJ7L394YTOtJgcovbk9qP0w2GsBXQ==}
@@ -5974,13 +5973,6 @@ packages:
       '@deepseek-ai/node-addon-system-darwin-x64': 0.1.2
       '@deepseek-ai/node-addon-system-linux-arm64': 0.1.2
       '@deepseek-ai/node-addon-system-linux-x64': 0.1.2
-    dev: false
-
-  /@deepseek-ai/schemastery@3.18.1:
-    resolution: {integrity: sha512-Qn0FCSwCQnpnj6SB31I6i2sIKgKWnkbJM8O0EU91Gv2UsYVvtZTl6IA0sCwk2e2MZf5S8w5hpq9QkeVvK9qwxg==}
-    dependencies:
-      '@deepseek-ai/cosmokit': 1.8.2
-      '@standard-schema/spec': 1.1.0
     dev: false
 
   /@deepseek-ai/schemastery@3.18.2:

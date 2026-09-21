@@ -332,7 +332,7 @@ fi
 echo ""
 echo "[4/7] 构建页面插件 client bundle..."
 CLIENT_FAILED=""
-for pkgdir in "$PROJECT_ROOT"/packages/pages/*/; do
+for pkgdir in "$PROJECT_ROOT"/packages/web/*/; do
   [ -f "$pkgdir/package.json" ] || continue
   if grep -q '"build:client"' "$pkgdir/package.json"; then
     name=$(basename "$pkgdir")

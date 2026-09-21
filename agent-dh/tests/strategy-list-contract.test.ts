@@ -11,7 +11,7 @@
  *   ③ code_type 必须映射成后端认的 codeType。
  */
 import { describe, it, expect } from 'vitest';
-import { StrategyListTool } from '../packages/investment/src/tools/StrategyListTool/StrategyListTool';
+import { StrategyListTool } from '../packages/tools/investment/src/tools/StrategyListTool/StrategyListTool';
 import { QuantsysV2Client } from '../../quantsys-v2-client/src/client';
 
 describe('strategy_list 契约', () => {

@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
-import { PoolBattlefieldTool } from '../packages/competition/src/index.js';
+import { PoolBattlefieldTool } from '../packages/tools/competition/src/index.js';
 
 const qv2 = new QuantsysV2Client({ baseURL: 'http://localhost:5001', timeout: 30000 });
 

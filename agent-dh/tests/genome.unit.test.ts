@@ -19,7 +19,7 @@ import {
   extractRuleDefinitions,
   validateVersion,
   checkTradingHours,
-} from '../packages/genome/src/guard';
+} from '../packages/tools/genome/src/guard';
 import {
   incrementGenomeVersion,
   writeGenomeJson,
@@ -28,12 +28,12 @@ import {
   readSection,
   computeRuleIdChanges,
   trimHistory,
-} from '../packages/genome/src/store';
+} from '../packages/tools/genome/src/store';
 import {
   advanceVersion,
   getPreviousSectionVersion,
   promoteCandidate,
-} from '../packages/genome/src/versioning';
+} from '../packages/tools/genome/src/versioning';
 
 let stateDir: string;
 beforeAll(() => { stateDir = mkdtempSync(join(tmpdir(), 'genome-unit-')); });

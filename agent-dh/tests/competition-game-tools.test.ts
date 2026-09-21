@@ -5,9 +5,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { OpponentBehaviorTool } from '../packages/competition/src/tools/OpponentBehaviorTool/OpponentBehaviorTool.js';
-import { ManipulationDetectTool } from '../packages/competition/src/tools/ManipulationDetectTool/ManipulationDetectTool.js';
-import { RetailPanicIndexTool } from '../packages/competition/src/tools/RetailPanicIndexTool/RetailPanicIndexTool.js';
+import { OpponentBehaviorTool } from '../packages/tools/competition/src/tools/OpponentBehaviorTool/OpponentBehaviorTool.js';
+import { ManipulationDetectTool } from '../packages/tools/competition/src/tools/ManipulationDetectTool/ManipulationDetectTool.js';
+import { RetailPanicIndexTool } from '../packages/tools/competition/src/tools/RetailPanicIndexTool/RetailPanicIndexTool.js';
 
 describe('OpponentBehaviorTool', () => {
   let tool: OpponentBehaviorTool;

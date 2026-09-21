@@ -48,29 +48,18 @@ This file provides guidance to Claude Code when working with the Agent-DH projec
 
 ```
 agent-dh/
-├── packages/                    # 14 个投资插件包（TypeScript 源码）
-│   ├── investment/              # 投资数据工具（8个工具）
-│   │   └── src/index.ts        # 行情、K线、财务、股票池、策略等
-│   ├── trading/                 # 交易工具（6个工具）
-│   │   └── src/index.ts        # 账户、持仓、交易执行、监控等
-│   ├── intelligence/            # 智能工具（3个工具）
-│   │   └── src/index.ts        # 盯盘规则、市场告警等
-│   ├── competition/             # 竞争分析（3个工具）
-│   ├── market/                  # 市场分析（3个工具）
-│   ├── risk/                    # 风险控制（3个工具）
-│   ├── strategy/                # 策略工具（6个工具）
-│   ├── factor/                  # 因子分析（2个工具）
-│   ├── model/                   # 模型工具（3个工具）
-│   ├── memory/                  # 记忆系统（3个工具）
-│   ├── evolution/               # 进化系统（2个工具）
-│   ├── scheduler/               # 调度器（1个工具）
-│   ├── notification/            # 通知系统（2个工具）
-│   ├── data-manager/            # 数据管理（2个工具）
+├── packages/                    # 投资插件包（两级技术域，对齐 deepseek-harness，RFC 015）
+│   ├── tools/                  # host 工具插件（17 个）
+│   │   ├── investment/         #   投资数据工具（8个工具）：行情、K线、财务、股票池、策略等
+│   │   ├── trading/            #   交易工具（6个工具）：账户、持仓、交易执行、监控等
+│   │   ├── intelligence/       #   智能工具（3个工具）：盯盘规则、市场告警等
+│   │   ├── competition/ market/ risk/ strategy/ factor/ memory/ evolution/
+│   │   ├── scheduler/ notification/ data-manager/ learning/ genome/ lifecycle/ evolver/
+│   ├── web/                    # 页面插件（7 个）：bulletin/dsh-pmboard/execution/genome/holdings/page-kit/web-liveness
+│   ├── client/                 # API 客户端库（agent-dh-client）
+│   ├── runtime/                # 运行时/管理包（agent-os-manager、investment-agent-loop、quantsys-v2-manager、solve-kit）
+│   ├── core/                   # core-tool（三段式接口类型规范）
 │   ├── (quantsys-v2-client 已迁移至仓库顶层 ../../quantsys-v2-client，插件经 file: 依赖引用)
-│   ├── pages/                    # 页面域（嵌套特例）：agent-dh 自研的 DSH GUI 页面插件
-│   │   ├── holdings/             #   @pi-investment/dashboard-holdings 账户持仓看板
-│   │   └── execution/            #   @pi-investment/dashboard-execution 双线执行确认看板
-│   └── agent-os-client/         # Agent OS API 客户端（遗留）
 │
 ├── config/cordis.yml            # Profile 配置模板（start.sh 据此补全 .dsh-data 内的活动配置）
 ├── .dsh-data/                   # DSH_HOME = 数据目录（项目内托管，不入库）：
@@ -106,7 +95,7 @@ pnpm install
 pnpm build
 
 # Watch mode for development
-cd packages/investment
+cd packages/tools/investment
 pnpm dev  # If the package has a dev script
 ```
 
@@ -194,7 +183,7 @@ This launches:
 
 ### Adding a New Tool to a Plugin
 
-1. **Edit the plugin source** (e.g., `packages/investment/src/index.ts`)，在 `registerTools()` 里注册：
+1. **Edit the plugin source** (e.g., `packages/tools/investment/src/index.ts`)，在 `registerTools()` 里注册：
 
 ```typescript
 import { defineTool } from '@deepseek-ai/dsh-tools';
@@ -231,7 +220,7 @@ ctx.tools.register(defineTool({
 2. **Rebuild the package**（tsx 模式下可选）:
 
 ```bash
-cd packages/investment
+cd packages/tools/investment
 pnpm build
 ```
 
@@ -254,8 +243,8 @@ cd agent-dh && ./scripts/start.sh
 1. **Create package directory**:
 
 ```bash
-mkdir -p packages/my-plugin/src
-cd packages/my-plugin
+mkdir -p packages/tools/my-plugin/src
+cd packages/tools/my-plugin
 ```
 
 2. **Create package.json**:
@@ -281,7 +270,7 @@ cd packages/my-plugin
 }
 ```
 
-3. **Create src/index.ts**（Service 类模式，参照 `packages/scheduler/src/index.ts`）：
+3. **Create src/index.ts**（Service 类模式，参照 `packages/tools/scheduler/src/index.ts`）：
 
 ```typescript
 import { Context, Service } from '@deepseek-ai/cordis';
@@ -431,7 +420,7 @@ pnpm build  # Only needed if you want pre-built .mjs files
 ls -la packages/
 
 # Check if a package is built
-ls -la packages/investment/dist/  # Should contain .js files
+ls -la packages/tools/investment/dist/  # Should contain .js files
 ```
 
 ### Update Profile Configuration

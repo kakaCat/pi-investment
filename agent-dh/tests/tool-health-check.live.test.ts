@@ -9,11 +9,11 @@
  */
 import { describe, it, expect } from 'vitest';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
-import { ChipAnalysisTool } from '../packages/market/src/tools/ChipAnalysisTool/ChipAnalysisTool.js';
-import { BarraDecompositionTool } from '../packages/risk/src/tools/BarraDecompositionTool/BarraDecompositionTool.js';
-import { DataFetchKlineTool } from '../packages/investment/src/tools/DataFetchKlineTool/DataFetchKlineTool.js';
-import { WatchListTool } from '../packages/intelligence/src/tools/WatchListTool/WatchListTool.js';
-import { RiskMetricsTool } from '../packages/risk/src/tools/RiskMetricsTool/RiskMetricsTool.js';
+import { ChipAnalysisTool } from '../packages/tools/market/src/tools/ChipAnalysisTool/ChipAnalysisTool.js';
+import { BarraDecompositionTool } from '../packages/tools/risk/src/tools/BarraDecompositionTool/BarraDecompositionTool.js';
+import { DataFetchKlineTool } from '../packages/tools/investment/src/tools/DataFetchKlineTool/DataFetchKlineTool.js';
+import { WatchListTool } from '../packages/tools/intelligence/src/tools/WatchListTool/WatchListTool.js';
+import { RiskMetricsTool } from '../packages/tools/risk/src/tools/RiskMetricsTool/RiskMetricsTool.js';
 
 const LIVE = process.env.LIVE === '1';
 const ctx = {} as any;
@@ -85,7 +85,7 @@ describe.skipIf(!LIVE)('工具数据真实性体检（真实后端）', () => {
   }, 90000);
 
   it('pool_list：member_count 有值（后端 symbol_count 映射）', async () => {
-    const { PoolListTool } = await import('../packages/investment/src/tools/PoolListTool/PoolListTool.js');
+    const { PoolListTool } = await import('../packages/tools/investment/src/tools/PoolListTool/PoolListTool.js');
     const tool: any = new PoolListTool(client);
     const pools: any[] = await tool.execute({}, ctx);
     const withCount = pools.filter((p) => typeof p?.member_count === 'number' && p.member_count > 0);
@@ -95,7 +95,7 @@ describe.skipIf(!LIVE)('工具数据真实性体检（真实后端）', () => {
   }, 60000);
 
   it('sector_analysis：必须标注后端忽略 days（单一窗口）', async () => {
-    const { SectorAnalysisTool } = await import('../packages/market/src/tools/SectorAnalysisTool/SectorAnalysisTool.js');
+    const { SectorAnalysisTool } = await import('../packages/tools/market/src/tools/SectorAnalysisTool/SectorAnalysisTool.js');
     const tool: any = new SectorAnalysisTool(client);
     const r: any = await tool.execute({ days: 20 }, ctx);
     console.log('[sector] days_requested=' + r.days_requested + ' note=' + String(r.window_note).slice(0, 40));
@@ -103,7 +103,7 @@ describe.skipIf(!LIVE)('工具数据真实性体检（真实后端）', () => {
   }, 60000);
 
   it('data_quality_report：语义探针 pack 可用且能抓到已知失效', async () => {
-    const { DataQualityReportTool } = await import('../packages/data-manager/src/tools/DataQualityReportTool/DataQualityReportTool.js');
+    const { DataQualityReportTool } = await import('../packages/tools/data-manager/src/tools/DataQualityReportTool/DataQualityReportTool.js');
     const tool: any = new DataQualityReportTool(client);
     const r: any = await tool.execute({ data_type: 'all', days: 7 }, ctx);
     console.log('[dq] ' + r.tool_health_summary);
@@ -128,7 +128,7 @@ describe.skipIf(!LIVE)('工具数据真实性体检（真实后端）', () => {
         return await resp.json();
       },
     };
-    const { MemorySearchTool } = await import('../packages/memory/src/tools/MemorySearchTool/MemorySearchTool.js');
+    const { MemorySearchTool } = await import('../packages/tools/memory/src/tools/MemorySearchTool/MemorySearchTool.js');
     const tool: any = new MemorySearchTool(realMemoryClient);
     const multi = await tool.execute({ query: '业绩归因 超额 beta alpha', namespace: 'analysis', top_k: 3 }, ctx);
     // 句子内含已知短语（'业绩归因' 存在于记忆库）→ 期望放宽后命中
@@ -145,7 +145,7 @@ describe.skipIf(!LIVE)('工具数据真实性体检（真实后端）', () => {
   }, 90000);
 
   it('signal_track 写入护栏（真实后端）：非交易日与偏离价必须被拒', async () => {
-    const { SignalTrackTool } = await import('../packages/intelligence/src/tools/SignalTrackTool/SignalTrackTool.js');
+    const { SignalTrackTool } = await import('../packages/tools/intelligence/src/tools/SignalTrackTool/SignalTrackTool.js');
     const tool: any = new SignalTrackTool(client);
     let eSunday = '';
     let ePrice = '';
@@ -158,7 +158,7 @@ describe.skipIf(!LIVE)('工具数据真实性体检（真实后端）', () => {
   }, 60000);
 
   it('risk_metrics：基准（沪深300）接入后 beta/alpha 为真实值，附业绩归因', async () => {
-    const { RiskMetricsTool } = await import('../packages/risk/src/tools/RiskMetricsTool/RiskMetricsTool.js');
+    const { RiskMetricsTool } = await import('../packages/tools/risk/src/tools/RiskMetricsTool/RiskMetricsTool.js');
     const tool: any = new RiskMetricsTool(client);
     const r: any = await tool.execute({ days: 60 }, ctx);
     console.log('[risk-attrib] beta=' + r.beta + ' alpha=' + r.alpha + ' IR=' + r.information_ratio);
@@ -174,7 +174,7 @@ describe.skipIf(!LIVE)('工具数据真实性体检（真实后端）', () => {
   }, 120000);
 
   it('data_fetch_dividend：只允许"显式失败"或"有效数据"，绝不静默返回全 0', async () => {
-    const { DataFetchDividendTool } = await import('../packages/investment/src/tools/DataFetchDividendTool/DataFetchDividendTool.js');
+    const { DataFetchDividendTool } = await import('../packages/tools/investment/src/tools/DataFetchDividendTool/DataFetchDividendTool.js');
     const tool: any = new DataFetchDividendTool(client);
     let threw = '';
     let val: any = null;

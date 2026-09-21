@@ -13,12 +13,12 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { DEFAULT_AGENT_ACCOUNT } from '../packages/core-tool/src/account';
-import { PortfolioTradeTool } from '../packages/trading/src/tools/PortfolioTradeTool/PortfolioTradeTool';
-import { AlgoExecuteTool } from '../packages/trading/src/tools/AlgoExecuteTool/AlgoExecuteTool';
-import { CancelPendingOrderTool } from '../packages/trading/src/tools/CancelPendingOrderTool/CancelPendingOrderTool';
-import { M4CircuitBreakerTool } from '../packages/trading/src/tools/M4CircuitBreakerTool/M4CircuitBreakerTool';
-import { RotationExecuteTool } from '../packages/strategy/src/tools/RotationExecuteTool/RotationExecuteTool';
+import { DEFAULT_AGENT_ACCOUNT } from '../packages/core/core-tool/src/account';
+import { PortfolioTradeTool } from '../packages/tools/trading/src/tools/PortfolioTradeTool/PortfolioTradeTool';
+import { AlgoExecuteTool } from '../packages/tools/trading/src/tools/AlgoExecuteTool/AlgoExecuteTool';
+import { CancelPendingOrderTool } from '../packages/tools/trading/src/tools/CancelPendingOrderTool/CancelPendingOrderTool';
+import { M4CircuitBreakerTool } from '../packages/tools/trading/src/tools/M4CircuitBreakerTool/M4CircuitBreakerTool';
+import { RotationExecuteTool } from '../packages/tools/strategy/src/tools/RotationExecuteTool/RotationExecuteTool';
 
 const mk = (Ctor: any) => Object.create(Ctor.prototype) as any;
 
@@ -98,9 +98,9 @@ describe('账户名不得写死（源码 + dist 产物）', () => {
   it('dist 产物同样没有把 agent_virtual 当默认账户', () => {
     const dists = [
       join(root, '..', 'quantsys-v2-client', 'dist', 'index.mjs'),
-      join(root, 'packages', 'trading', 'dist', 'index.mjs'),
-      join(root, 'packages', 'risk', 'dist', 'index.mjs'),
-      join(root, 'packages', 'strategy', 'dist', 'index.mjs'),
+      join(root, 'packages', 'tools', 'trading', 'dist', 'index.mjs'),
+      join(root, 'packages', 'tools', 'risk', 'dist', 'index.mjs'),
+      join(root, 'packages', 'tools', 'strategy', 'dist', 'index.mjs'),
     ].filter((f) => existsSync(f));
     const bad = dists.filter((f) =>
       /(\|\||\?\?|default\s*[:=]|example\s*:)\s*"agent_virtual"|(?<![=!<>])=\s*"agent_virtual"/.test(readFileSync(f, 'utf-8')));
@@ -109,10 +109,10 @@ describe('账户名不得写死（源码 + dist 产物）', () => {
 
   it('默认值统一来自 DEFAULT_AGENT_ACCOUNT（抽样 4 个读工具）', () => {
     const files = [
-      'trading/src/tools/AccountInfoTool/AccountInfoTool.ts',
-      'trading/src/tools/PositionListTool/PositionListTool.ts',
-      'risk/src/tools/RegimePositionLimitTool/RegimePositionLimitTool.ts',
-      'risk/src/tools/RiskMetricsTool/RiskMetricsTool.ts',
+      'tools/trading/src/tools/AccountInfoTool/AccountInfoTool.ts',
+      'tools/trading/src/tools/PositionListTool/PositionListTool.ts',
+      'tools/risk/src/tools/RegimePositionLimitTool/RegimePositionLimitTool.ts',
+      'tools/risk/src/tools/RiskMetricsTool/RiskMetricsTool.ts',
     ];
     for (const rel of files) {
       expect(readFileSync(join(root, 'packages', rel), 'utf-8')).toContain('|| DEFAULT_AGENT_ACCOUNT');

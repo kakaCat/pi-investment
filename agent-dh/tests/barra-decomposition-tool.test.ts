@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { BarraDecompositionTool } from '../packages/risk/src/tools/BarraDecompositionTool/BarraDecompositionTool.js';
+import { BarraDecompositionTool } from '../packages/tools/risk/src/tools/BarraDecompositionTool/BarraDecompositionTool.js';
 
 describe('BarraDecompositionTool', () => {
   let tool: BarraDecompositionTool;

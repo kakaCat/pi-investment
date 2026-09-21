@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // 动态导入构建后的包
-const AgentDHClient = (await import('./packages/agent-dh-client/dist/index.mjs')).AgentDHClient;
+const AgentDHClient = (await import('./packages/client/agent-dh-client/dist/index.mjs')).AgentDHClient;
 
 console.log('============================================');
 console.log('Agent-DH v0.1.1 简化功能测试');

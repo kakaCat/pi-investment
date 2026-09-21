@@ -8,8 +8,8 @@
  * 3. 参数校验是否生效
  */
 
-import { FactorCalculateTool, FactorAnalyzeTool } from '../packages/factor/src/index.ts';
-import { MemorySearchTool, MemoryWriteTool, ExperienceWriteTool } from '../packages/memory/src/index.ts';
+import { FactorCalculateTool, FactorAnalyzeTool } from '../packages/tools/factor/src/index.ts';
+import { MemorySearchTool, MemoryWriteTool, ExperienceWriteTool } from '../packages/tools/memory/src/index.ts';
 import { QuantsysV2Client } from '../../quantsys-v2-client/src/index.js';
 import { OsMemoryStore } from '../../os-memory/src/index.js';
 

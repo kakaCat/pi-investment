@@ -7,10 +7,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ChipAnalysisTool } from '../packages/market/src/tools/ChipAnalysisTool/ChipAnalysisTool.js';
-import { BarraDecompositionTool } from '../packages/risk/src/tools/BarraDecompositionTool/BarraDecompositionTool.js';
-import { DataFetchKlineTool } from '../packages/investment/src/tools/DataFetchKlineTool/DataFetchKlineTool.js';
-import { WatchListTool } from '../packages/intelligence/src/tools/WatchListTool/WatchListTool.js';
+import { ChipAnalysisTool } from '../packages/tools/market/src/tools/ChipAnalysisTool/ChipAnalysisTool.js';
+import { BarraDecompositionTool } from '../packages/tools/risk/src/tools/BarraDecompositionTool/BarraDecompositionTool.js';
+import { DataFetchKlineTool } from '../packages/tools/investment/src/tools/DataFetchKlineTool/DataFetchKlineTool.js';
+import { WatchListTool } from '../packages/tools/intelligence/src/tools/WatchListTool/WatchListTool.js';
 
 const ctx = {} as any;
 
@@ -152,7 +152,7 @@ describe('watch_list 字段契约（conditions[] + context）', () => {
 
 describe('risk_metrics 诚实性', () => {
   it('后端未计算 beta/alpha 时给出解释字段，而不是让 0 冒充中性', async () => {
-    const { RiskMetricsTool } = await import('../packages/risk/src/tools/RiskMetricsTool/RiskMetricsTool.js');
+    const { RiskMetricsTool } = await import('../packages/tools/risk/src/tools/RiskMetricsTool/RiskMetricsTool.js');
     // 客户端 unwrap() 会剥掉 {success,data} 外层 → tool 收到的是内层 data 对象
     const tool: any = new RiskMetricsTool({ getRiskMetrics: vi.fn().mockResolvedValue(REAL_RISK_METRICS.data) } as any);
     const r = await tool.execute({ days: 60 }, ctx);
@@ -187,7 +187,7 @@ function undeclaredKeys(schema: any, value: any, path = 'value', errs: string[] 
 
 describe('输出 schema 完整性护栏（additionalProperties:false 会静默丢字段）', () => {
   it('data_quality_report 的语义探针字段必须在 schema 中声明', async () => {
-    const { dataQualityReportPrompt } = await import('../packages/data-manager/src/tools/DataQualityReportTool/prompt.js');
+    const { dataQualityReportPrompt } = await import('../packages/tools/data-manager/src/tools/DataQualityReportTool/prompt.js');
     const props: any = (dataQualityReportPrompt as any).output.schema.properties;
     expect(props.tool_health).toBeTruthy();
     expect(props.tool_health_summary).toBeTruthy();
@@ -195,7 +195,7 @@ describe('输出 schema 完整性护栏（additionalProperties:false 会静默�
   });
 
   it('工具真实输出不得含未声明字段（framework-strip 自查）', async () => {
-    const { dataQualityReportPrompt } = await import('../packages/data-manager/src/tools/DataQualityReportTool/prompt.js');
+    const { dataQualityReportPrompt } = await import('../packages/tools/data-manager/src/tools/DataQualityReportTool/prompt.js');
     const schema: any = (dataQualityReportPrompt as any).output.schema;
     const sample = { data_type: 'all', check_date: '2026-09-10', overall_score: 92.5, missing_data: [], delayed_data: [], anomalies: [], summary: 'x', tool_health: [{ probe: 'p', status: 'ok', evidence: 'e' }], tool_health_summary: 's', scope_note: 'n' };
     expect(undeclaredKeys(schema, sample)).toEqual([]);
@@ -204,8 +204,8 @@ describe('输出 schema 完整性护栏（additionalProperties:false 会静默�
 
 describe('kline_daily_sync 输出契约（做完了却报失败）', () => {
   it('后端 total_stocks/elapsed_time 归一化为声明字段，且不含未声明键', async () => {
-    const { KlineDailySyncTool } = await import('../packages/data-manager/src/tools/KlineDailySyncTool/KlineDailySyncTool.js');
-    const { klineDailySyncPrompt } = await import('../packages/data-manager/src/tools/KlineDailySyncTool/prompt.js');
+    const { KlineDailySyncTool } = await import('../packages/tools/data-manager/src/tools/KlineDailySyncTool/KlineDailySyncTool.js');
+    const { klineDailySyncPrompt } = await import('../packages/tools/data-manager/src/tools/KlineDailySyncTool/prompt.js');
     // 2026-09-11 真实后端响应
     const backend = { success: true, sync_date: '2026-09-10', success_count: 1, failed_count: 0, total_stocks: 1, total_rows: 1, elapsed_time: 0.201081, message: 'ok', failed_symbols: [] };
     const tool: any = new KlineDailySyncTool({ syncDailyKlines: vi.fn().mockResolvedValue(backend) } as any);
@@ -220,7 +220,7 @@ describe('kline_daily_sync 输出契约（做完了却报失败）', () => {
 
 describe('signal_track 写入护栏（决策账本防污染）', () => {
   const load = async () => {
-    const { SignalTrackTool } = await import('../packages/intelligence/src/tools/SignalTrackTool/SignalTrackTool.js');
+    const { SignalTrackTool } = await import('../packages/tools/intelligence/src/tools/SignalTrackTool/SignalTrackTool.js');
     return SignalTrackTool;
   };
 
@@ -260,7 +260,7 @@ describe('signal_track 写入护栏（决策账本防污染）', () => {
 });
 describe('pool_list 字段契约（后端为 symbol_count）', () => {
   it('把 symbol_count 映射为 member_count（旧实现恒 undefined）', async () => {
-    const { PoolListTool } = await import('../packages/investment/src/tools/PoolListTool/PoolListTool.js');
+    const { PoolListTool } = await import('../packages/tools/investment/src/tools/PoolListTool/PoolListTool.js');
     const tool: any = new PoolListTool({ listPools: vi.fn().mockResolvedValue([{ id: 41, name: '机器人供应链观察池', symbol_count: 7 }]) } as any);
     const pools: any[] = await tool.execute({}, ctx);
     expect(pools[0].member_count).toBe(7);
@@ -269,7 +269,7 @@ describe('pool_list 字段契约（后端为 symbol_count）', () => {
 
 describe('data_fetch_dividend 数据真实性护栏', () => {
   it('后端返回 success=true 但全 0 / 全 null 时必须显式失败（不得当成"不分红"）', async () => {
-    const { DataFetchDividendTool } = await import('../packages/investment/src/tools/DataFetchDividendTool/DataFetchDividendTool.js');
+    const { DataFetchDividendTool } = await import('../packages/tools/investment/src/tools/DataFetchDividendTool/DataFetchDividendTool.js');
     const zeros = [
       { symbol: '600176', dividend_per_share: 0.0, dividend_yield: null, ex_dividend_date: null },
       { symbol: '600176', dividend_per_share: 0.0, dividend_yield: null, ex_dividend_date: null },
@@ -279,7 +279,7 @@ describe('data_fetch_dividend 数据真实性护栏', () => {
   });
 
   it('有真实分红数据时正常返回', async () => {
-    const { DataFetchDividendTool } = await import('../packages/investment/src/tools/DataFetchDividendTool/DataFetchDividendTool.js');
+    const { DataFetchDividendTool } = await import('../packages/tools/investment/src/tools/DataFetchDividendTool/DataFetchDividendTool.js');
     const rows = [{ symbol: '601398', dividend_per_share: 0.3, ex_dividend_date: '2026-07-10' }];
     const tool: any = new DataFetchDividendTool({ getDividends: vi.fn().mockResolvedValue(rows) } as any);
     const r: any = await tool.execute({ mode: 'history', symbol: '601398' }, ctx);
@@ -290,7 +290,7 @@ describe('data_fetch_dividend 数据真实性护栏', () => {
 
 describe('fund_flow 新鲜度标注', () => {
   it('个股模式补 data_date / staleness_days / freshness_note', async () => {
-    const { FundFlowTool } = await import('../packages/competition/src/tools/FundFlowTool/FundFlowTool.js');
+    const { FundFlowTool } = await import('../packages/tools/competition/src/tools/FundFlowTool/FundFlowTool.js');
     const tool: any = new FundFlowTool({
       getStockFundFlow: vi.fn().mockResolvedValue({ success: true, data: [{ date: '2020-01-02', mainNetInflow: 100 }] }),
       getStockMargin: vi.fn().mockResolvedValue({ success: true, data: [] }),
@@ -306,7 +306,7 @@ describe('sector_analysis 窗口诚实性', () => {
   // 2026-09-11（REQ-733c5e）：上一版写死『后端忽略 days』与后端 data.window 自述矛盾，
   // 现改为透传后端 window + 标注 taxonomy（两套口径会随数据源/快照回退切换）。
   it('透传后端 window 自述并标注 taxonomy，不再写死错误结论', async () => {
-    const { SectorAnalysisTool } = await import('../packages/market/src/tools/SectorAnalysisTool/SectorAnalysisTool.js');
+    const { SectorAnalysisTool } = await import('../packages/tools/market/src/tools/SectorAnalysisTool/SectorAnalysisTool.js');
     const tool: any = new SectorAnalysisTool({ getSectorAnalysis: vi.fn().mockResolvedValue({ data_type: 'sector_list', data: { window: { days_requested: 20, days_computed: 6, basis: 'compounded_daily_snapshots', note: '快照深度不足，实际 6 天' }, industries: [{ code: 'BK0428', name: '电力', change_pct: 1.2 }] } }) } as any);
     const r: any = await tool.execute({ days: 20 }, ctx);
     expect(r.days_requested).toBe(20);
@@ -316,7 +316,7 @@ describe('sector_analysis 窗口诚实性', () => {
     expect(r.taxonomy_note).toContain('两套口径');
   });
   it('legacy new_* 口径被识别为 legacy taxonomy', async () => {
-    const { SectorAnalysisTool } = await import('../packages/market/src/tools/SectorAnalysisTool/SectorAnalysisTool.js');
+    const { SectorAnalysisTool } = await import('../packages/tools/market/src/tools/SectorAnalysisTool/SectorAnalysisTool.js');
     const tool: any = new SectorAnalysisTool({ getSectorAnalysis: vi.fn().mockResolvedValue({ data_type: 'sector_list', data: { industries: [{ code: 'new_dlhy', name: '电力行业', change_pct: 1.38 }] } }) } as any);
     const r: any = await tool.execute({ days: 5 }, ctx);
     expect(r.taxonomy).toMatch(/legacy/);

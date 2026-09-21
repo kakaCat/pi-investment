@@ -8,8 +8,8 @@
  * lessons：工具 schema 契约必须与线上数据模型对齐（qv2 engine 端点 2026-09-05 curl 实测形状）。
  */
 import { describe, expect, it, vi } from 'vitest';
-import { EvolutionRunTool } from '../packages/evolution/src/tools/EvolutionRunTool/EvolutionRunTool';
-import { EvolutionLeaderboardTool } from '../packages/evolution/src/tools/EvolutionLeaderboardTool/EvolutionLeaderboardTool';
+import { EvolutionRunTool } from '../packages/tools/evolution/src/tools/EvolutionRunTool/EvolutionRunTool';
+import { EvolutionLeaderboardTool } from '../packages/tools/evolution/src/tools/EvolutionLeaderboardTool/EvolutionLeaderboardTool';
 import { ErrorType } from '@pi-investment/core-tool';
 
 // qv2 POST /api/evolution/engine/run 真实响应（2026-09-05 curl 实测：camelCase、dataSource）

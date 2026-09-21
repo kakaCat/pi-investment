@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assessBreakerTrigger, recomputeMaxDrawdown } from '../packages/core-tool/src/drawdownTrust';
+import { assessBreakerTrigger, recomputeMaxDrawdown } from '../packages/core/core-tool/src/drawdownTrust';
 
 // 熔断触发规则回归（2026-09-11，agent_brain 假熔断事故固化）
 describe('assessBreakerTrigger', () => {

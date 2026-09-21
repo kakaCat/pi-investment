@@ -12,9 +12,9 @@
  */
 import { describe, it, expect } from 'vitest';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
-import { FactorCalculateTool } from '../packages/factor/src/tools/FactorCalculateTool/FactorCalculateTool.js';
-import { IndexConstituentsTool } from '../packages/investment/src/tools/IndexConstituentsTool/IndexConstituentsTool.js';
-import { RecallAuditTool } from '../packages/memory/src/tools/RecallAuditTool/RecallAuditTool.js';
+import { FactorCalculateTool } from '../packages/tools/factor/src/tools/FactorCalculateTool/FactorCalculateTool.js';
+import { IndexConstituentsTool } from '../packages/tools/investment/src/tools/IndexConstituentsTool/IndexConstituentsTool.js';
+import { RecallAuditTool } from '../packages/tools/memory/src/tools/RecallAuditTool/RecallAuditTool.js';
 
 const LIVE = process.env.LIVE === '1';
 const ctx = {} as any;
@@ -137,7 +137,7 @@ describe.skipIf(!LIVE)('REQ-cf627b 新工具与护栏（真实后端）', () => 
   }, 60000);
 
   it('data_quality_report：新增资金因子探针必须出现在体检结果中', async () => {
-    const { DataQualityReportTool } = await import('../packages/data-manager/src/tools/DataQualityReportTool/DataQualityReportTool.js');
+    const { DataQualityReportTool } = await import('../packages/tools/data-manager/src/tools/DataQualityReportTool/DataQualityReportTool.js');
     const tool: any = new DataQualityReportTool(client);
     const r: any = await tool.call({ data_type: 'all', days: 7 } as any);
     const anomalies: any[] = r?.data?.anomalies ?? [];

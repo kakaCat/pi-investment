@@ -12,8 +12,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { RetailPanicIndexTool } from '../packages/competition/src/tools/RetailPanicIndexTool/RetailPanicIndexTool.js';
-import { retailPanicIndexPrompt } from '../packages/competition/src/tools/RetailPanicIndexTool/prompt.js';
+import { RetailPanicIndexTool } from '../packages/tools/competition/src/tools/RetailPanicIndexTool/RetailPanicIndexTool.js';
+import { retailPanicIndexPrompt } from '../packages/tools/competition/src/tools/RetailPanicIndexTool/prompt.js';
 
 const OUT_SCHEMA: any = (retailPanicIndexPrompt as any).output.schema;
 

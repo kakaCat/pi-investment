@@ -1,6 +1,5 @@
 packages:
-  - 'packages/*'
-  - 'packages/pages/*'   # 页面域（dashboard 等子包嵌套在此）
+  - 'packages/*/*'       # 两级技术域：tools/web/client/runtime/core（RFC 015）
   - 'apps/*'
   - 'skills/*'
   - '../agent-os-client'

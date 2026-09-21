@@ -10,8 +10,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { QuantsysV2Client } from '@pi-investment/quantsys-v2-client';
-import { RetailPanicIndexTool } from '../packages/competition/src/tools/RetailPanicIndexTool/RetailPanicIndexTool.js';
-import { retailPanicIndexPrompt } from '../packages/competition/src/tools/RetailPanicIndexTool/prompt.js';
+import { RetailPanicIndexTool } from '../packages/tools/competition/src/tools/RetailPanicIndexTool/RetailPanicIndexTool.js';
+import { retailPanicIndexPrompt } from '../packages/tools/competition/src/tools/RetailPanicIndexTool/prompt.js';
 
 const LIVE = process.env.LIVE === '1';
 const OUT_SCHEMA: any = (retailPanicIndexPrompt as any).output.schema;
