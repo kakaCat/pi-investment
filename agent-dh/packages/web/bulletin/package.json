@@ -20,7 +20,7 @@
     "@pi-investment/agent-os-client": "workspace:*",
     "@pi-investment/page-kit": "workspace:*",
     "@pi-investment/solve-kit": "workspace:*",
-    "@deepseek-ai/cordis": "^4.0.1"
+    "@deepseek-ai/cordis": "^4.0.2"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

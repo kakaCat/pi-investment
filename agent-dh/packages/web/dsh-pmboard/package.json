@@ -38,13 +38,13 @@
     "prepublishOnly": "pnpm build && pnpm typecheck"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-tools": "0.1.5-rc.1"
+    "@deepseek-ai/dsh-tools": "0.1.6-alpha.2"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "^4.0.1"
+    "@deepseek-ai/cordis": "^4.0.2"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/cordis": "^4.0.2",
     "@types/node": "^20.11.0",
     "tsdown": "^0.22.14",
     "tsx": "^4.23.12",
