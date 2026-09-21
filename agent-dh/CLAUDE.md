@@ -61,6 +61,9 @@ agent-dh/
 │   ├── core/                   # core-tool（三段式接口类型规范）
 │   ├── (quantsys-v2-client 已迁移至仓库顶层 ../../quantsys-v2-client，插件经 file: 依赖引用)
 │
+├── apps/web/                    # Web 应用入口（对齐 deepseek-harness apps/web）：
+│   │                            #   src/main.ts 服务器入口、src/client/ 浏览器入口、
+│   │                            #   index.html/public/ vite 构建输入、tests/ 全部测试
 ├── config/cordis.yml            # Profile 配置模板（start.sh 据此补全 .dsh-data 内的活动配置）
 ├── .dsh-data/                   # DSH_HOME = 数据目录（项目内托管，不入库）：
 │   │                            #   agents.json / dsh-reqboard.json / .credentials.yaml / state/
@@ -215,7 +218,7 @@ ctx.tools.register(defineTool({
 
 1. **每个 `type: 'object'` 节点必须显式写 `additionalProperties: true` 或 `false`**——包括 `parameters`/`output.schema` 的任意嵌套层级（properties 里的、items 里的，无一例外）。自由键值 map 写 `true`。
 2. 对象节点只允许 `type`/`properties`/`additionalProperties` + 注解键（`description`/`title`/`default`/`examples`），其他键（如 `required: []` 数组）不被 DSL 支持；必填在参数属性上用 `required: true` 标记。
-3. 写完必须跑冒烟测试验证：`cd agent-dh && npx vitest run tests/plugin-schema.smoke.test.ts`（构造即编译全部工具 schema，新插件要加进测试里的 PLUGINS 列表）。
+3. 写完必须跑冒烟测试验证：`cd agent-dh && npx vitest run apps/web/tests/plugin-schema.smoke.test.ts`（构造即编译全部工具 schema，新插件要加进测试里的 PLUGINS 列表）。
 
 2. **Rebuild the package**（tsx 模式下可选）:
 
@@ -542,7 +545,7 @@ pnpm build
 
 - 2026-09-20: profile 布局更新——`~/.dsh/profiles/investment/` 已删除，现役为项目内 profile（名 agent-dh，DSH_HOME=数据目录 `agent-dh/.dsh-data/`）；启动/停机统一走 `scripts/start.sh` / `scripts/stop.sh`；配置源 = `config/cordis.yml`，活动配置 = `.dsh-data/profiles/agent-dh/cordis.patch.yml`
 - 2026-08-19: lifecycle 代码审查修复（50cb6084）：限流检查移到拿锁前（原拒绝路径泄漏锁致永久变砖）；重启器每次拉起前预写 restart-result（原时序竞争会让 rolled_back 误报成功）；锁 >15min stale 接管；状态读容错+原子写；self_finalize 幂等
-- 2026-08-19: 修复 investment/market 插件 schema 缺 additionalProperties 导致的全量启动崩溃；新增 tests/plugin-schema.smoke.test.ts 门禁；重写工具/插件开发样例为 defineTool + Service 模式并记录 Schema 铁律
+- 2026-08-19: 修复 investment/market 插件 schema 缺 additionalProperties 导致的全量启动崩溃；新增 plugin-schema.smoke.test.ts 门禁（现位于 apps/web/tests/）；重写工具/插件开发样例为 defineTool + Service 模式并记录 Schema 铁律
 - 2026-08-19: Added `@pi-investment/lifecycle` 自修复重启插件（RFC 002，E2E 验证通过）
 - 2026-08-19: Removed legacy `apps/cli/`, clarified DSH profile architecture
 - 2026-08-18: Initial DSH profile setup with 14 plugins (48 tools)
