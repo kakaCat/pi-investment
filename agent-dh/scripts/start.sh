@@ -388,6 +388,11 @@ if [ ! -f "$PROFILE_DIR/package.json" ] || [ "$FORCE_CONFIG" = "1" ]; then
         "@pi-investment/bundle-platform"
       ]
     }
+  },
+  "dependencies": {
+    "@pi-investment/bundle-stock": "link:../../../packages/bundle/bundle-stock",
+    "@pi-investment/bundle-evolution": "link:../../../packages/bundle/bundle-evolution",
+    "@pi-investment/bundle-platform": "link:../../../packages/bundle/bundle-platform"
   }
 }
 EOF

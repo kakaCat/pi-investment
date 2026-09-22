@@ -376,9 +376,16 @@ python3 agent-dh/scripts/relink-profile.py
 2026-09-22（REQ-260922133113-ebc5）起，21 行投资插件按业务域分三个标准 bundle 加载：
 `bundle-stock`（股票投资 10 行，含盯盘/quantsys-v2 管理）、`bundle-evolution`（学习与进化 6 行）、
 `bundle-platform`（平台通用 5 行：飞书通知/调度/看板/页面自愈/agent-os-manager）。
-profile 清单 `dsh.profile.bundles` 已注册三包。DSH 侧边栏「插件」页据此显示三张业务卡，
-行级可开关（开关写入用户层覆盖）。bundle 包无代码、无 main，只是 patch 载体；
-飞书通知属通用能力，固定在 platform 域，不进业务域。
+profile 清单注册**两处都要写**（2026-09-22 实测踩坑）：
+- `dsh.profile.bundles` —— 决定 bundle 层是否**加载**（boot 组装）
+- `dependencies`（`link:../../../packages/bundle/<包>`）—— 决定插件管理页是否**显示**：
+  客户端过滤为 `!BUILTIN && (installed || optional || error)`，而 `installed` 直接取自
+  profile `dependencies`（官方 OPTIONAL_BUNDLES 硬编码只含两个实验包）。**只写 bundles 不写
+  dependencies = 插件在运行但插件页看不见**（本次故障根因，排查耗时长，勿再踩）。
+
+DSH 侧边栏「插件」页据此显示三张业务卡，行级可开关（开关写入用户层覆盖）。
+bundle 包无代码、无 main，只是 patch 载体；飞书通知属通用能力，固定在 platform 域，不进业务域。
+管理页对这三个包会显示「卸载」按钮（removable），**不要点**——卸载会走 pnpm 改 profile 依赖。
 
 ### .dsh-data/profiles/agent-dh/cordis.patch.yml (Active)
 
