@@ -312,6 +312,9 @@ importers:
       '@pi-investment/data-manager':
         specifier: workspace:*
         version: link:packages/tools/data-manager
+      '@pi-investment/dsh-bundle':
+        specifier: workspace:*
+        version: link:packages/bundle/dsh-bundle
       '@pi-investment/evolution':
         specifier: workspace:*
         version: link:packages/tools/evolution
@@ -649,6 +652,8 @@ importers:
       vitest:
         specifier: ^1.2.0
         version: 1.6.1(@types/node@22.20.4)
+
+  packages/bundle/dsh-bundle: {}
 
   packages/client/agent-dh-client:
     dependencies:
