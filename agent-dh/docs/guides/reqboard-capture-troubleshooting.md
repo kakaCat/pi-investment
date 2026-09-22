@@ -45,3 +45,40 @@ node --import tsx/esm scripts/verify-t4-rounds.mts      # 连续 3 轮 + turn/en
 ```
 
 两者都应输出 PASS。失败时对照上方 5 节点表定位。
+
+---
+
+## 点"不立项"没生效、弹框又弹出来了（REQ-260922012924-2e29 / FR-5，2026-09-22 起修复）
+
+**症状**：capture 弹框点"✖️ 不需要立项"后，弹框再次弹出，需求最终被创建推进。
+
+**根因**：capture 调用方超时/中断后弹框未收回（僵尸框），用户的拒绝答复随死掉的调用静默丢失；agent 不知已拒绝而重弹。
+
+**修复后的行为**：拒绝会落盘留痕到 `state/capture-rejections.json`（窗口+时间戳，ring buffer 50 条）；
+同窗口 30 分钟内再触发 reqboard_capture → 不弹框，直接返回"用户已于 HH:MM 选择不立项"。
+
+**排查**：`cat .dsh-data/state/capture-rejections.json` 看拒绝留痕；30 分钟后粘滞自然过期可重新立项。
+注意僵尸框本身（调用方死亡后弹框未收回）属 DSH 框架 userQuestions 层，pmboard 只能保证行为正确，不能收回旧框。
+
+## 看板/会话进度打不开需求文档（REQ-260922012924-2e29 / FR-4，2026-09-22 起修复）
+
+**症状**：点产物/文档链接没反应或打不开，尤其是工作区非 agent-dh 的会话（如 packages/web/dsh-pmboard 下开的窗口）。
+
+**根因**：文档路径按"当前会话工作区"解析（`dsh-resource://file/session/<sid>/docs/...`），
+会话按工作区分组，dsh-pmboard 工作区下没有 docs/requirements/。
+
+**修复后的行为**：state 端点暴露 `workspaceRoot`（= 服务端进程 cwd = agent-dh）与 `homeDir`；
+客户端打开与显示一律拼绝对路径，任何工作区会话均可打开；产物按钮悬停可见 ~ 缩写绝对路径；
+立项回执 note 直接打印绝对路径。旧服务端无 workspaceRoot 字段时降级为相对解析（不报错）。
+
+## 立项四问选了非默认文档位置，需求文档路径对不上（FR-2）
+
+Q4 选 docs/rfcs/ 等非默认位置时，路径推导（H2 输入包、阶段详情文档链接）现在消费 `docBasePath`：
+含 `<REQ>` 占位符则替换为需求 id；无占位符自动追加 `<id>/` 子目录防碰撞；缺省与默认一致。
+
+## 立项/阶段确认后上下文会不会被压缩（FR-3）
+
+2026-09-22 起 `nodeIsolation: true`（config/cordis.yml 模板，活动配置继承）。行为：
+G0 立项门在 requirement.md 未落盘时 skip(doc_not_ready) 不压（保护立项上下文）；
+后续阶段门（文档已落盘）在轮次边界真压缩并留痕 `state/node-isolation-log.json`。
+回滚：配置改回 false + 重启（30 秒可逆）。

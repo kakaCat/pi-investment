@@ -6,6 +6,7 @@
 - 命令 + 输出摘要：
 - 报告/截图路径：
 - 关键数据（对比前后：延迟、错误率、覆盖率）：
+- 覆盖对照终态：decomposition.md 覆盖对照（N 条款全覆盖、豁免 M 条）+ TC-x 执行结果（通过 N/N）
 
 **文档完整性**：9 类文档口径（requirement / design 四份 / decomposition / tasks 每任务一份 / reviews 非空 / tests 非空）——缺失清单见验收单。
 

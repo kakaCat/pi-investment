@@ -69,9 +69,11 @@ tags: [reqboard, category, flow, gates, l2]
 
 ## 4. 与文档模板的关系
 
-- 六类型各有独立的需求模板：`templates/brainstorming/requirement.<category>.md`
-  （feature/refactor/bug 含"行为改动区"：改动位置流程图 + 改动对比；spike/doc/chore 没有——
-  按"是否改系统行为"分界，对齐专业 PRD 的 "When Needed" 原则）。
+- 六类型各有独立的需求模板，**按"产出它的节点"分目录**（只有 feature 过需求分析节点）：
+  `templates/brainstorming/requirement.feature.md`、`templates/design/requirement.{bug,refactor}.md`、
+  `templates/implementing/requirement.{spike,doc,chore}.md`。
+  feature/refactor/bug 含"行为改动区"（改动位置（文字坐标） + 改动对比）；spike/doc/chore 没有——
+  按"是否改系统行为"分界，对齐专业 PRD 的 "When Needed" 原则。
 - 条款编号前缀按类型分：FR-x / BUG-x / RF-x / SP-x / DOC-x / CH-x（下游任务卡
   requirement_refs 引用，覆盖门禁逐条核对）。
 - 模板落盘时点 = **进入该类型的首个启用节点**（feature=brainstorming；bug/refactor=design；

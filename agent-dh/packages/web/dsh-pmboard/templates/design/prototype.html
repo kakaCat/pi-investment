@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{TITLE}} · 原型（{{REQ_ID}}）</title>
+<!--
+  原型页面骨架（templates/design/prototype.html 生成）。
+  用途：design/frontend.md 的可视化配套——每个功能点一个锚点区块（#FR-1…），
+  需求文档功能点清单表的「配图」列引用本文件对应锚点。
+  纪律：这是**原型**不是交付物——样式从简、重点是结构与交互路径；
+  交互定稿后本文件可被正式视觉稿替换（需求文档配图列同步换路径）。
+-->
+<style>
+  body { font-family: -apple-system, "PingFang SC", sans-serif; margin: 0; background: #f5f6f8; color: #24292f; }
+  header { background: #1f2328; color: #fff; padding: 12px 20px; font-size: 14px; }
+  header .req { opacity: .7; margin-left: 8px; }
+  .fr { background: #fff; margin: 16px auto; max-width: 860px; border: 1px solid #d0d7de;
+        border-radius: 8px; padding: 20px; }
+  .fr h2 { margin: 0 0 4px; font-size: 16px; }
+  .fr .meta { color: #57606a; font-size: 12px; margin-bottom: 12px; }
+  .mock { border: 1px dashed #8c959f; border-radius: 6px; min-height: 160px;
+          display: flex; align-items: center; justify-content: center; color: #57606a; }
+  .flow { font-size: 13px; color: #57606a; margin-top: 12px; }
+</style>
+</head>
+<body>
+<header><strong>{{TITLE}}</strong><span class="req">{{REQ_ID}} · 原型 v0.1 · {{DATE}}</span></header>
+
+<!-- 每个功能点复制一个 .fr 区块；id 与功能点编号一致（配图列引用 #FR-1） -->
+<section class="fr" id="FR-1">
+  <h2>FR-1 （功能点名）</h2>
+  <div class="meta">优先级 P0 · 状态：草图</div>
+  <div class="mock">（界面草图区：布局结构 / 关键控件 / 占位图）</div>
+  <div class="flow">交互路径：1. 触发 → 2. 动作 → 3. 反馈（分支：若…则…）</div>
+</section>
+
+</body>
+</html>
