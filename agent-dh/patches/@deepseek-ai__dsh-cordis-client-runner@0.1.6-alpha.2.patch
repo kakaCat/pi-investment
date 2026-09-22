@@ -1,17 +1,20 @@
 diff --git a/lib/client.js b/lib/client.js
-index 3b2ad75ce66aca5c6468b1f41d8552790238052a..9dd6025eaec47534ef07291838f985afdd0c1cea 100644
+index 3b2ad75ce66aca5c6468b1f41d8552790238052a..01e2137fd8e6b483910bae24e4d4feaebcf2f407 100644
 --- a/lib/client.js
 +++ b/lib/client.js
-@@ -1033,6 +1033,14 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
+@@ -1033,6 +1033,17 @@ call: (method, args = null) => env.invoke(method, args) }, harnessTrap(), ...Obj
  					this.syncChain = this.syncChain.then(async () => {
  						await this.host.sync(manifests);
  					}).catch((error) => {
-+						// @pi-investment patch: 传输层失败（服务重启/断网导致 fetch 根本发不出去）
-+						// 不是业务错误——重连后 connection/reset 会触发 publish() 补发清单。
-+						// 降级为 warn，避免每次服务重启都在 console 里留一条吓人的红错。
++						// @pi-investment patch: 两类失败都不是业务错误——
++						// 1) 传输层中断（服务重启/断网，fetch 根本发不出去）
++						// 2) 在飞调用被 abort（页面 reload/unload 或 transport 重建时取消，
++						//    报 gateway/cancelled: ... was aborted）
++						// 重连或新页面会经 connection/reset 触发 publish() 补发清单，
++						// 一律降级为 warn，避免每次服务重启都在 console 里留红错。
 +						const message = error instanceof Error ? error.message : String(error);
-+						if (/Failed to fetch|fetch failed|ECONNREFUSED|ERR_CONNECTION|NetworkError|carrier (offline|down)|transport (down|offline)/i.test(message)) {
-+							console.warn("[cordis-client-runner] inspect manifest sync deferred: transport down (will re-publish on reconnect)");
++						if (/Failed to fetch|fetch failed|ECONNREFUSED|ERR_CONNECTION|NetworkError|carrier (offline|down)|transport (down|offline)|gateway\/cancelled|was aborted/i.test(message)) {
++							console.warn("[cordis-client-runner] inspect manifest sync deferred: transport down or page unloading (will re-publish on reconnect)");
 +							return;
 +						}
  						console.error("[cordis-client-runner] syncing inspect providers failed:", error);

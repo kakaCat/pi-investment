@@ -1,0 +1,18 @@
+diff --git a/lib/client.js b/lib/client.js
+index e4d46c4930f8a2d6c1be79913635ebde6a74b02e..28a4ce6ac846f2859089631dd33f77f39f328aae 100644
+--- a/lib/client.js
++++ b/lib/client.js
+@@ -1307,6 +1307,13 @@ window.__ModuleLoader__.load({
+ 				}
+ 			};
+ 			const inventory = createCordisInventory(port, (error) => {
++				// @pi-investment patch: 服务重启/断网/页面卸载导致的读取失败是预期内的——
++				// inventory 保留旧行、后续事件会触发 refresh() 重读，降级为 warn。
++				const message = error instanceof Error ? error.message : String(error);
++				if (/Failed to fetch|fetch failed|ECONNREFUSED|ERR_CONNECTION|NetworkError|carrier (offline|down)|transport (down|offline)|gateway\/cancelled|was aborted/i.test(message)) {
++					console.warn("[ui-cordis] Cordis inventory read deferred: transport down or page unloading (will refresh on reconnect)");
++					return;
++				}
+ 				console.error("[ui-cordis] reading the Cordis inventory failed:", error);
+ 			});
+ 			const runner = ctx.dynamicCordisRunner;
