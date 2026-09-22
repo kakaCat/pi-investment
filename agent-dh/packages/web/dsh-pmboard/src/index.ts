@@ -43,6 +43,8 @@ import { NodeIsolationAdapter } from './adapters/NodeIsolationAdapter.js'
 import { INJECTION_LOG_REL } from './application/internal/injection-log.js';
 import { ISOLATION_TRACE_REL } from './application/internal/isolation-trace.js';
 import { CAPTURE_DIAG_REL, captureDiag, initCaptureDiag } from './application/internal/diag-log.js';
+import { CaptureRejectionFile } from './adapters/CaptureRejectionFile.js';
+import { CAPTURE_REJECTION_REL } from './application/internal/capture-rejections.js';
 import { createNodeSettlementDispatcher } from './application/internal/node-settlement.js';
 import { SystemClock } from './adapters/SystemClock.js';
 import { RandomIdFactory } from './adapters/RandomIdFactory.js';
@@ -209,6 +211,11 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     dshHomePath(config, ISOLATION_TRACE_REL),
     (err) => logger.warn('reqboard 隔离留痕写入失败（只告警，不影响流水线）:', err),
   );
+  // REQ-260922012924-2e29 FR-5：立项拒绝留痕（state/capture-rejections.json，ring buffer 原子写）。
+  const captureRejections = new CaptureRejectionFile(
+    dshHomePath(config, CAPTURE_REJECTION_REL),
+    (err) => logger.warn('reqboard 立项拒绝留痕写入失败（只告警，不影响立项路径）:', err),
+  );
   const settlement = createNodeSettlementDispatcher({
     enabled: nodeIsolation,
     isolationFor: (session, _settle) => new NodeIsolationAdapter(session, {
@@ -335,6 +342,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     }),
     // 能力的唯一织入点（REQ-e3b6a0 t7）：包装后，任何带 opts.gate 的弹框自动进入后置链。
     questions: new GateAwareQuestions(new UserQuestionsAdapter(() => userQuestionsSvc), gateChain, { now }),
+    rejections: captureRejections,
     workflow: new WorkflowEngineRunner(() => workflowEngineSvc as never),
     alert: createFailureAlert({ log: (m) => logger.error(m), deliver: (wk, text) => { deliverer.deliver(wk, { text }); }, windowFor: (id) => store.snapshot().requirements.find((x) => x.id === id)?.sourceSessionId }),
   };

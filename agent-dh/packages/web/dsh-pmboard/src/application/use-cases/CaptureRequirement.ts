@@ -18,12 +18,13 @@
  *
  * @module dsh-pmboard/application/use-cases/CaptureRequirement
  */
-import type { AskAnswer, UseCaseDeps } from '../ports.js'
+import type { AskAnswer, CaptureRejection, UseCaseDeps } from '../ports.js'
 import { canReqTransition, normalizeText, normalizeTitle } from '../../shared/protocol.js'
 import { LIMITS } from '../../domain/limits.js'
 import { fmt } from '../../domain/text/fmt.js'
 import { captureSnapshot, transitionRequirement } from '../internal/token-usage.js'
 import { openRequirementsFor } from '../internal/window.js'
+import { recentCaptureRejection } from '../internal/capture-rejections.js'
 import {
   buildCaptureQuestions,
   mapCaptureAnswers,
@@ -103,6 +104,24 @@ export async function captureRequirement(deps: UseCaseDeps, args: unknown, exec:
     reject('reqboard_capture 未执行：本窗口还有遗留待确认建议卡，请先在看板处理或忽略', 'REQBOARD_PENDING_TRIAGE')
   }
 
+  // ①.5 拒绝粘滞（REQ-260922012924-2e29 FR-5）：同窗口 30 分钟内已在弹框选择"不需要立项"
+  // → 不再弹框。场景：上次 capture 调用超时/中断，用户答复随死掉的调用丢失，agent 不知
+  // 已拒绝而重弹（2026-09-21 现场：用户点"不立项"后需求仍被创建推进）。留痕读失败/损坏
+  // 按无记录降级（留痕是增强不是门槛——绝不因留痕故障误拦截）。
+  if (deps.rejections !== undefined) {
+    let rejections: readonly CaptureRejection[] = []
+    try { rejections = await deps.rejections.readAll() } catch { rejections = [] }
+    const recent = recentCaptureRejection(rejections, windowKey, deps.clock.now())
+    if (recent !== undefined) {
+      return notCreated(undefined, {
+        note: fmt(
+          '用户已于 {t} 在弹框选择「不需要立项」（30 分钟内不再弹框，FR-5 拒绝粘滞）。本次未立项；如需立项请用户明确告知后重试。',
+          { t: new Date(recent.at).toISOString() },
+        ),
+      })
+    }
+  }
+
   // ② 弹框（闸门声明 G0：装饰器在此刻登记后置链；本用例不碰链）
   if (!deps.questions.available()) {
     return notCreated(undefined, {
@@ -133,10 +152,13 @@ export async function captureRequirement(deps: UseCaseDeps, args: unknown, exec:
   // ③ 映射（缺项回落默认并记 defaults_used；名称为空 → 响亮失败）
   const mapped = mapCaptureAnswers(answers)
   
-  // ③.5 检测拒绝立项
+  // ③.5 检测拒绝立项（FR-5：落盘留痕，让超时/中断后的重试能看见"用户刚拒绝过"）
   if (mapped.rejected) {
+    try {
+      deps.rejections?.record({ windowKey, at: deps.clock.now() })
+    } catch { /* 留痕失败不阻断「未立项」返回——留痕是增强不是门槛 */ }
     return notCreated(mapped, {
-      note: '用户选择不立项：本次未创建需求。如后续需要立项，可重新发起 reqboard_capture。',
+      note: '用户选择不立项：本次未创建需求（已留痕，30 分钟内本窗口不再弹立项框）。如后续需要立项，请用户明确告知后重新发起 reqboard_capture。',
     })
   }
   
@@ -166,12 +188,14 @@ export async function captureRequirement(deps: UseCaseDeps, args: unknown, exec:
     defaults_used: mapped.defaultsUsed,
     doc_location: mapped.docLocation,
     note: fmt(
-      '已立项并绑定本窗口：{id}（{category} / {difficulty}）。文档将存放在：{docPath}。四问作答即立项，按 brainstorming 阶段纪律继续（无需用户再发消息）。{advanced}',
+      '已立项并绑定本窗口：{id}（{category} / {difficulty}）。文档将存放在：{docPath}（相对路径：{relPath}，根=服务端工作区）。四问作答即立项，按 brainstorming 阶段纪律继续（无需用户再发消息）。{advanced}',
       {
         id: req.id,
         category: mapped.category,
         difficulty: mapped.difficulty,
-        docPath: mapped.docLocation.replace('<REQ>', req.id),
+        // FR-4：回执直接给绝对路径（用户反馈"不知道绝对路径是哪里"）；相对路径口径不变。
+        docPath: deps.docs.resolve(mapped.docLocation.replace('<REQ>', req.id)),
+        relPath: mapped.docLocation.replace('<REQ>', req.id),
         advanced: advanced ? '' : '注意：draft → brainstorming 未推进成功，链会如实记为未推进。',
       },
     ),

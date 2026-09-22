@@ -440,10 +440,10 @@ describe('追溯链', () => {
       makeArtifact({ kind: 'design', stage: 'design', path: 'docs/requirements/REQ-test/design/' + name }))
     const html = renderStagePanel(makeStageDetail({ stage: 'design', artifacts, body: {} as never }))
     // 每份文档显示自己的名字（按钮文字 = 文件名），点开仍是自己的路径
+    // （REQ-260922012924-2e29 FR-4：按钮新增 title=绝对路径属性，断言按 data-path 与标签分别匹配）
     for (const name of names) {
-      expect(html).toContain(
-        'data-path="docs/requirements/REQ-test/design/' + name + '">' + name + '</button>',
-      )
+      expect(html).toContain('data-path="docs/requirements/REQ-test/design/' + name + '"')
+      expect(html).toContain('>' + name + '</button>')
     }
     // 同一个词不再重复出现（此前 trace chain 上 4 个按钮全渲染成「设计文档」）
     expect(html).not.toContain('>设计文档<')

@@ -17,7 +17,7 @@ import {
   type BoardViewKind, type ListSortDir, type ListSortKey, type ListViewOpts,
 } from './view.ts'
 import * as api from './api.ts'
-import { openDocInSidebar, resolveCurrentSessionId } from './open-doc.ts'
+import { openDocInSidebar, resolveCurrentSessionId, setDocWorkspaceContext } from './open-doc.ts'
 import { archivedSessionIds, jumpToSession, windowServiceAccess, type SessionJumpResult } from './session-jump.ts'
 import { createBoardShell } from './board-shell.js'
 import { fmt } from '../domain/text/fmt.js'
@@ -259,6 +259,8 @@ export function mountBoard(controller: BoardController): () => void {
     try {
       const [s, t] = await Promise.all([api.fetchState(), api.fetchTriage()])
       state = s
+      // FR-4：缓存服务端工作区根——open-doc 打开与显示文档统一走绝对路径（与查看会话工作区解耦）
+      setDocWorkspaceContext(s.workspaceRoot, s.homeDir)
       triages = t.pending
       render()
     } catch (err) {

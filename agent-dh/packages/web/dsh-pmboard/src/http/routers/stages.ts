@@ -7,6 +7,7 @@
  * @module dsh-pmboard/http/routers/Stages
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { homedir } from 'node:os'
 import {
   asStageKey,
   readyTasks,
@@ -53,6 +54,11 @@ export function createStagesRouter(ctx: RouterCtx) {
           .map(r => [r.id, requirementTotalTokens(r)] as const)
           .filter(([, v]) => v !== undefined),
       ),
+      // REQ-260922012924-2e29 FR-4：文档路径绝对化的"根"。看板/会话进度打开文档时以它把
+      // 相对路径拼成绝对路径（dsh-resource 协议支持绝对路径），不再依赖查看会话的工作区——
+      // 修复"工作区=dsh-pmboard 的会话打不开需求文档"。旧客户端读不到这两个字段即忽略。
+      workspaceRoot: deps.cwd ?? process.cwd(),
+      homeDir: homedir(),
     })
   }
 
