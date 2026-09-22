@@ -323,6 +323,9 @@
       "@deepseek-ai/dsh-workflow": "0.1.6-alpha.2",
       "@deepseek-ai/dsh-workflow-worker-thread": "0.1.6-alpha.2",
       "@deepseek-ai/dsh-workspace": "0.1.6-alpha.2"
+    },
+    "patchedDependencies": {
+      "@deepseek-ai/dsh-cordis-client-runner@0.1.6-alpha.2": "patches/@deepseek-ai__dsh-cordis-client-runner@0.1.6-alpha.2.patch"
     }
   }
 }
