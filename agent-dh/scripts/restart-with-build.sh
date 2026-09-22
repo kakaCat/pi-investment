@@ -408,9 +408,21 @@ if [ -d "$PROJECT_ROOT/apps/web" ]; then
   echo "OK   apps/web                 dist/index.html  ($(stat -f%z "$_web_dist/index.html") bytes)"
 fi
 # 校验通过 ⇒ 换装前的旧 dist 备份可以清理（未通过时留着供回滚）
+# 清理前先把旧 dist 的 assets/ 并集进新 dist：vite chunk 文件名是内容哈希，
+# 浏览器里还挂着上一代构建的旧标签页（bfcache/休眠/还没来得及被 web-liveness
+# 刷新）会继续按旧哈希请求懒加载 chunk，直接删掉就是 404「Failed to fetch
+# dynamically imported module」（2026-09-22 用户重启后 404 的根因之一）。
+# 同名即同内容，cp -n 不覆盖；cp -p 保留 mtime 供按龄清理。
 if [ "${STAGE_N:-0}" -gt 0 ]; then
   while IFS= read -r dir; do
-    if [ -n "$dir" ]; then rm -rf "$dir/.dist-old-$$"; fi
+    [ -n "$dir" ] || continue
+    if [ -d "$dir/.dist-old-$$/assets" ] && [ -d "$dir/dist/assets" ]; then
+      cp -pn "$dir/.dist-old-$$/assets/"* "$dir/dist/assets/" 2>/dev/null || true
+      # 历史 chunk 只增不减会无限膨胀：30 天前的孤儿 chunk 清掉
+      # （新构建的 assets 是刚生成的，不受影响；一个月前的标签页已不可能活着）
+      find "$dir/dist/assets" -type f -mtime +30 -delete 2>/dev/null || true
+    fi
+    rm -rf "$dir/.dist-old-$$"
   done < "$SWAP_LIST"
 fi
 
