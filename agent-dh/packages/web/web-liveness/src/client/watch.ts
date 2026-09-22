@@ -60,6 +60,36 @@ export const OFFLINE_GRACE_MS = 1_000
 export const STREAM_UNAVAILABLE_MS = 90_000
 
 /**
+ * 开机自检的探测时机：页面加载后等这么久，让页面自己的启动读取先跑完再下结论。
+ *
+ * 背景（2026-09-22 用户事故）：页面在服务未完全就绪的瞬间加载，框架的**一次性读取**
+ * （cordis 插件清单 / 模型列表 / 设置）失败且永不重试 —— 插件页、设置页空白、模型
+ * 选择器不加载、输入发不出去，且此时 rev 与进程一致，SSE 比对不会触发任何刷新。
+ * 探测目标与插件页同源（`POST /api/dynamicCordisRunner/inventory`）：它失败 ⟹ 页面
+ * 自己的启动读取也几乎必然失败过 ⟹ 这页已经半初始化，唯一修复是重载。
+ */
+export const BOOT_CHECK_DELAY_MS = 8_000
+
+/** 开机自检的动作。 */
+export type BootCheckAction =
+  /** 不该探测：offline/stale 由既有 SSE 流程接管（避免"服务重启中把页面刷到错误页"）。 */
+  | 'skip'
+  /** 探测通过：RPC 层就绪，页面完好。 */
+  | 'healthy'
+  /** 探测失败：页面在服务未就绪时加载，已半初始化 —— 重载是唯一修复。 */
+  | 'reload'
+
+/**
+ * 开机自检判定。
+ * @param phase - 当前 SSE 相位（仅 `ok` = 同进程确认后才探测；其余相位自有流程接管）。
+ * @param probeOk - 对 RPC 层的探测是否成功（fetch 网络错误或非 2xx 都算失败）。
+ */
+export function bootCheckDecision(phase: LivenessPhase, probeOk: boolean): BootCheckAction {
+  if (phase !== 'ok') return 'skip'
+  return probeOk ? 'healthy' : 'reload'
+}
+
+/**
  * 读取页面加载时注入的 boot graph 版本号。
  * @param boot - `window.__DSH_BOOT__` 的原始值（形状随框架版本可能变，一律宽容读取）。
  * @returns rev 字符串；读不到则 undefined（调用方据此退化为"只提示、不刷新"）。

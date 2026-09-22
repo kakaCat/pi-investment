@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_QUIET_MS,
   RELOAD_GUARD_MS,
+  bootCheckDecision,
   bootRevOf,
   decideGraph,
   parseFrame,
@@ -107,5 +108,22 @@ describe('reloadAllowed（刷新防抖闸门：防"刷新后仍拿旧 HTML"刷�
 
   it('标记损坏（NaN）→ 视为没刷过，放行', () => {
     expect(reloadAllowed(Number.NaN, now)).toBe(true)
+  })
+})
+
+describe('bootCheckDecision（开机自检：页面在服务未就绪时加载 → 半初始化）', () => {
+  it('同进程确认（ok）+ 探测通过 → healthy，不动', () => {
+    expect(bootCheckDecision('ok', true)).toBe('healthy')
+  })
+
+  it('同进程确认（ok）+ 探测失败 → reload（一次性读取已损坏，重载是唯一修复）', () => {
+    expect(bootCheckDecision('ok', false)).toBe('reload')
+  })
+
+  it('offline/stale → skip：自有流程接管，避免"服务重启中把页面刷到错误页"', () => {
+    expect(bootCheckDecision('offline', false)).toBe('skip')
+    expect(bootCheckDecision('offline', true)).toBe('skip')
+    expect(bootCheckDecision('stale', false)).toBe('skip')
+    expect(bootCheckDecision('stale', true)).toBe('skip')
   })
 })

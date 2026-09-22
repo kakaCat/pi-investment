@@ -21,11 +21,13 @@
 import { createBanner, type Banner } from './banner.js'
 import { injectStyles } from './styles.js'
 import {
+  BOOT_CHECK_DELAY_MS,
   DEFAULT_QUIET_MS,
   OFFLINE_GRACE_MS,
   RELOAD_GUARD_MS,
   RELOAD_POLL_MS,
   STREAM_UNAVAILABLE_MS,
+  bootCheckDecision,
   bootRevOf,
   decideGraph,
   parseFrame,
@@ -44,6 +46,12 @@ const RELOAD_MARK_KEY = 'dsh-wlv-reload-at'
 
 /** 免鉴权的 HMR/插件事件流；连上即推当前进程的 graph 帧。 */
 const EVENTS_PATH = '/plugins/events'
+
+/**
+ * 开机自检的探测端点：插件页的数据源 RPC。它失败 ⟹ 页面启动时框架的一次性读取
+ * （插件清单/模型/设置）也失败过 ⟹ 页面半初始化（空白插件页/模型不加载/输入发不出）。
+ */
+const BOOT_PROBE_PATH = '/api/dynamicCordisRunner/inventory'
 
 const LOG = '[web-liveness]'
 
@@ -104,6 +112,7 @@ export function apply(ctx: { logger?: (name: string) => { info(msg: string): voi
     let reloadBlocked = false
     let reloadPoll: number | undefined
     let offlineGrace: number | undefined
+    let bootCheck: number | undefined
 
     const banner: Banner = createBanner(() => {
       // 手动点按不受"停顿/防抖"限制，但同样写标记，防止连点造成连环刷新。
@@ -158,6 +167,49 @@ export function apply(ctx: { logger?: (name: string) => { info(msg: string): voi
       tick()
     }
 
+    /**
+     * 开机自检：页面加载后探测一次 RPC 层。覆盖的场景是"页面在服务未完全就绪的瞬间
+     * 加载"——rev 与进程一致（SSE 不会触发刷新），但框架的一次性读取已失败且永不重试，
+     * 表现为插件/设置页空白、模型不加载、输入发不出去（2026-09-22 用户事故）。
+     * 只在 phase === 'ok'（同进程确认）时探测：offline/stale 自有流程接管，避免
+     * "服务重启中把页面刷到浏览器错误页"。探测失败 ⟹ 页面半初始化 ⟹ 重载（受防抖闸门）。
+     */
+    const runBootCheck = async (): Promise<void> => {
+      let probeOk = false
+      try {
+        const res = await window.fetch(BOOT_PROBE_PATH, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: '{}',
+        })
+        probeOk = res.ok
+      } catch {
+        probeOk = false
+      }
+      switch (bootCheckDecision(phase, probeOk)) {
+        case 'healthy':
+          log.info(`${LOG} 开机自检通过：RPC 层就绪`)
+          return
+        case 'reload': {
+          const now = Date.now()
+          if (!reloadAllowed(readReloadMark(), now, RELOAD_GUARD_MS)) {
+            // 刚刷过还是坏的（服务仍未就绪）—— 别刷成死循环，转为手动提示。
+            log.warn(`${LOG} 开机自检仍失败且距上次刷新不足 ${String(RELOAD_GUARD_MS)}ms，改为提示手动刷新`)
+            setPhase('stale')
+            return
+          }
+          log.warn(`${LOG} 开机自检失败：页面在服务未就绪时加载（插件/设置/模型读取已损坏），自动刷新`)
+          reload()
+          return
+        }
+        default:
+          return // skip：offline/stale 交给既有流程
+      }
+    }
+    bootCheck = window.setTimeout(() => {
+      void runBootCheck()
+    }, BOOT_CHECK_DELAY_MS)
+
     const es = new EventSource(EVENTS_PATH)
 
     es.onmessage = (event: MessageEvent<string>): void => {
@@ -203,6 +255,10 @@ export function apply(ctx: { logger?: (name: string) => { info(msg: string): voi
       if (offlineGrace !== undefined) {
         window.clearTimeout(offlineGrace)
         offlineGrace = undefined
+      }
+      if (bootCheck !== undefined) {
+        window.clearTimeout(bootCheck)
+        bootCheck = undefined
       }
       es.close()
       banner.dispose()
