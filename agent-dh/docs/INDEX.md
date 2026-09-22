@@ -83,7 +83,6 @@ tags: [index, wiki]
 | [Agent-DH 快速开始指南](guides/QUICKSTART.md) | guide | living | 5 分钟把 agent-dh 跑起来：前置依赖、启动步骤、验证方法。 | 2026-09-13 |
 | [Agent-DH 启动指南](guides/STARTUP.md) | guide | living | 运行目录与 profile 现状（DSH_HOME=.dsh-data）、启停与 launchd，含 GUI 401 根因与迁移/布局合并的坑。 | 2026-09-14 |
 | [Agent-DH 使用指南](guides/USAGE-GUIDE.md) | guide | living | v0.1.1 时代的使用说明：可用性状态与日常操作入口（历史，部分已被新规范取代）。 | 2026-09-14 |
-| [DSH 内存看门狗与「反复重启」判别（10 分钟一轮）](guides/dsh-heap-watch-and-restart-loop.md) | guide | living | 每 10 分钟整点重启 = dsh-heap-watch 超阈值自动重启，不是崩溃；含机制、2026-09-14 实测根因、退避围栏与处置步骤。 | 2026-09-14 |
 | [事件查询最佳实践（P1-4）](guides/event-query-best-practices.md) | guide | living | 事件查询最佳实践：盘前用两个事件工具查什么、怎么查、别踩什么坑。 | 2026-09-14 |
 | [事件查询统一指南（P1-4）](guides/event-query-guide.md) | guide | living | 两个事件查询工具怎么选、字段怎么读（统一指南）。 | 2026-09-13 |
 | [从 agent-ts（PI 投资顾问·TS版）会话学习报告](guides/learnings-from-agent-ts.md) | guide | living | 从 agent-ts（TS 版投顾）的会话里学到的回答模板与经验。 | 2026-09-14 |

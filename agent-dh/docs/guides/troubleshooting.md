@@ -23,10 +23,9 @@ tags: [guide, troubleshooting, ops]
 
 | 症状 | 大概率根因 | 处置 |
 |---|---|---|
-| `./start.sh` 报 **EADDRINUSE** | `:13080` 由 launchd 托管，旧进程还在（`kill` 会被 KeepAlive 秒级拉起） | 重启用 `launchctl kickstart -k gui/$(id -u)/com.pi-investment.dsh`；停止用该实例的 `stop.sh`（内部走 `bootout`） |
+| `./start.sh` 报 **EADDRINUSE** | 旧进程还在监听（2026-09-22 起 launchd 托管已退役，纯手动模式） | 用该实例的 `stop.sh` 停掉旧进程再启动；`stop.sh` 按 pidfile + 监听校验精确停 |
 | 页面打不开 / 白屏 | 进程没起，或 client 半加载失败 | `lsof -nP -iTCP:13080 -sTCP:LISTEN`；看 DSH 日志；确认 `lib/client.js` 是最新产物 |
-| 想停某个实例却把别的实例干掉了 | 用了模糊匹配（`pkill -f "dsh web"`） | 见 [边界与安全规范](../standards/security-and-boundaries.md)：按 pidfile 或 launchd 标签精确停 |
-| **每 10 分钟整点重启一次**（间隔固定） | `dsh-heap-watch` 超内存阈值自动 kickstart，**不是崩溃** | 见 [DSH 内存看门狗与「反复重启」判别](dsh-heap-watch-and-restart-loop.md)：取证据 → 看 `logs/dsh-heap-watch-restarts.tsv` → 退避告警则按处置手册压峰值 |
+| 想停某个实例却把别的实例干掉了 | 用了模糊匹配（`pkill -f "dsh web"`） | 见 [边界与安全规范](../standards/security-and-boundaries.md)：按 pidfile 精确停 |
 
 ## B. 插件与工具
 

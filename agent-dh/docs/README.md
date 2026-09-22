@@ -154,7 +154,6 @@ tags: [wiki, index, home, agent-dh]
 - ✅ [重启与会话安全](guides/restart-session-safety.md) · [技能装载](guides/skill-loading.md)
 - ✅ P0 [故障排查手册](guides/troubleshooting.md) —— 症状→根因→处置（服务/插件/数据/文档/协作五类）
 - ✅ P1 [定时巡检清单](guides/routine-checks.md) —— 10 项检查 + 命令 + 判据 + 频率（探针绿不打扰）
-- ✅ P0 [DSH 内存看门狗与「反复重启」判别](guides/dsh-heap-watch-and-restart-loop.md) —— 10 分钟整点重启是看门狗不是崩溃；退避围栏 + 处置手册（REQ-dfd8b6）
 
 ### 卷 10 · 附录（L3 证据层）
 
