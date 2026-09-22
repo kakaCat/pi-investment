@@ -1,0 +1,42 @@
+# @pi-investment/bundle-platform —— PI Investment「平台通用」业务 bundle
+# 2026-09-22（REQ-260922133113-ebc5）：按业务域拆分的 DSH 标准 bundle
+# （package.json 的 dsh.bundle.patch 指向本文件）。插件页显示为「平台通用」卡，
+# 每行可在 GUI 单独开关（开关 = 往用户层 cordis.patch.yml 写同 id 覆盖行）。
+# 新增属于本域的插件：行加进本文件；跨域归属调整：整行（含注释）搬到对应 bundle。
+- insert:
+    - id: notification
+      name: '@pi-investment/notification'
+      config:
+        agentOS:
+          baseURL: http://localhost:8080
+          agentId: agent-dh
+        # 降级兜底 webhook（方案 C：主路径 Agent OS API 失败/全挂时直发飞书；'*' 为所有渠道共用）
+        feishuWebhooks:
+          '*': https://open.feishu.cn/open-apis/bot/v2/hook/b24be3a5-35fc-4142-90c2-3a3933172829
+
+    - id: scheduler
+      name: '@pi-investment/scheduler'
+      config:
+        agentOS:
+          baseURL: http://localhost:8080
+          agentId: agent-dh
+
+    - id: dsh-pmboard
+      name: 'dsh-pmboard'
+      config:
+        # REQ-260922012924-2e29 FR-3：开启节点压缩（D1 第二步；G0 门在需求文档未落盘时仍会 skip(doc_not_ready) 保护立项上下文）。回滚：改回 false + 重启。
+        nodeIsolation: true
+
+    # 页面自愈：监听框架免鉴权的 /plugins/events SSE，发现服务端换过进程就刷新标签页
+    - id: web-liveness
+      name: '@pi-investment/web-liveness'
+      config: {}
+
+    - id: agent-os-manager
+      name: '@pi-investment/agent-os-manager'
+      config:
+        projectRoot: /Users/yunpeng/pi-investment/agent-os
+        port: 8080
+        healthCheckUrl: http://localhost:8080/health
+        startCommand: ./bin/agent-os serve
+        logDir: logs

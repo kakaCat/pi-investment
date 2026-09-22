@@ -383,7 +383,9 @@ if [ ! -f "$PROFILE_DIR/package.json" ] || [ "$FORCE_CONFIG" = "1" ]; then
       "bundles": [
         "@deepseek-ai/dsh-base",
         "@deepseek-ai/dsh-web-app",
-        "@pi-investment/dsh-bundle"
+        "@pi-investment/bundle-stock",
+        "@pi-investment/bundle-evolution",
+        "@pi-investment/bundle-platform"
       ]
     }
   }

@@ -123,12 +123,14 @@
 # 不需要在这里手动配置，bundle 会自动加载
 
 # ========== 投资插件 ==========
-# 2026-09-22（REQ-260922133113-ebc5）：投资插件行已整体迁入伞 bundle
-#   packages/bundle/dsh-bundle/cordis.patch.yml（@pi-investment/dsh-bundle），
+# 2026-09-22（REQ-260922133113-ebc5）：投资插件行已按业务域迁入三个标准 bundle
+#   股票投资   packages/bundle/bundle-stock/cordis.patch.yml     （10 行，含盯盘/quantsys-v2 管理）
+#   学习与进化 packages/bundle/bundle-evolution/cordis.patch.yml （6 行）
+#   平台通用   packages/bundle/bundle-platform/cordis.patch.yml  （5 行：飞书通知/调度/看板/页面自愈）
 # 经 profile 清单 dsh.profile.bundles 加载，不再以裸 insert 出现在本文件（用户层）。
 # 原因：DSH 插件管理页只认 bundle 层；裸 insert 行不可见且标 unaddressable。
 # 本文件（用户层）只保留对 bundle 行的**覆盖**（disabled 开关、config 微调）。
-# 新增插件 → 加进伞包 patch；GUI 开关某行 → 管理器自动在本文件写同 id 覆盖行。
+# 新增插件 → 加进对应业务域 bundle 的 patch；GUI 开关某行 → 管理器自动在本文件写同 id 覆盖行。
 
 # ========== 定时提醒 ==========
 # 2026-08-25 起：提醒统一走 Agent OS（reminder_create/list/delete，postgres 持久）。

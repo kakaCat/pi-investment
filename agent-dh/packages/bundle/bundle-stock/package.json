@@ -1,0 +1,11 @@
+{
+  "name": "@pi-investment/bundle-stock",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PI Investment「股票投资」bundle：股票投资业务能力全集：行情/财务/股票池/因子/数据质量 + 账户/持仓/交易执行 + 策略/风控/对手博弈 + 盯盘告警 + quantsys-v2 后端管理（REQ-260922133113-ebc5）",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

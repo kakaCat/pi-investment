@@ -1,0 +1,11 @@
+{
+  "name": "@pi-investment/bundle-evolution",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PI Investment「学习与进化」bundle：agent 自主能力：记忆/经验蒸馏/进化运行/提示词基因组/自修复重启与自我认知（REQ-260922133113-ebc5）",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

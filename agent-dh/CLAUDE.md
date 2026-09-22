@@ -69,8 +69,11 @@ agent-dh/
 │   │                            #   dsh-web-app 按包名解析到它）；裸 vite dev 被守卫拒绝是设计
 │   │                            #   如此，开发走 pnpm dev（= vite build --watch，server stat-poll
 │   │                            #   发现 dist 变化会广播浏览器重载）
-├── packages/bundle/dsh-bundle/   # @pi-investment/dsh-bundle 伞包：插件行的 bundle 载体（dsh.bundle.patch），
-│                                 #   插件页「PI Investment」卡片的数据源；新增插件的行加这里（REQ-260922133113-ebc5）
+├── packages/bundle/             # 业务域 bundle（dsh.bundle.patch 载体，无代码）：插件页卡片的数据源，
+│   ├── bundle-stock/           #   「股票投资」10 行：investment/market/factor/data-manager/trading/strategy/risk/competition/intelligence/quantsys-v2-manager
+│   ├── bundle-evolution/       #   「学习与进化」6 行：memory/learning/evolution/evolver/genome/lifecycle
+│   └── bundle-platform/        #   「平台通用」5 行：notification(飞书)/scheduler/dsh-pmboard/web-liveness/agent-os-manager
+│                                 #   新增插件的行加进对应业务域 bundle（REQ-260922133113-ebc5）
 ├── config/cordis.yml            # Profile 配置模板（start.sh 据此补全 .dsh-data 内的活动配置）
 ├── .dsh-data/                   # DSH_HOME = 数据目录（项目内托管，不入库）：
 │   │                            #   agents.json / dsh-reqboard.json / .credentials.yaml / state/
@@ -328,7 +331,7 @@ export default class MyPlugin extends Service {
 }
 ```
 
-5. **Add to 伞包 patch `packages/bundle/dsh-bundle/cordis.patch.yml`**（2026-09-22 起，REQ-260922133113-ebc5）:
+5. **Add to 对应业务域 bundle 的 patch**（2026-09-22 起，REQ-260922133113-ebc5；股票投资→`packages/bundle/bundle-stock/cordis.patch.yml`，自主能力→`bundle-evolution/`，通用能力→`bundle-platform/`）：
 
 ```yaml
     - id: my-plugin
@@ -368,12 +371,14 @@ python3 agent-dh/scripts/relink-profile.py
 
 仓库根的旧版 standalone 格式配置，保留作参考，**不直接参与加载**。
 
-### packages/bundle/dsh-bundle/cordis.patch.yml (Bundle 层 - 投资插件行真身)
+### packages/bundle/*/cordis.patch.yml (Bundle 层 - 投资插件行真身)
 
-2026-09-22（REQ-260922133113-ebc5）起，21 行投资插件（17 工具插件 + dsh-pmboard/web-liveness/
-quantsys-v2-manager/agent-os-manager）作为伞 bundle `@pi-investment/dsh-bundle` 的 patch 层加载，
-profile 清单 `dsh.profile.bundles` 已注册。DSH 侧边栏「插件」页据此显示「PI Investment」卡，
-行级可开关（开关写入用户层覆盖）。bundle 包无代码、无 main，只是 patch 载体。
+2026-09-22（REQ-260922133113-ebc5）起，21 行投资插件按业务域分三个标准 bundle 加载：
+`bundle-stock`（股票投资 10 行，含盯盘/quantsys-v2 管理）、`bundle-evolution`（学习与进化 6 行）、
+`bundle-platform`（平台通用 5 行：飞书通知/调度/看板/页面自愈/agent-os-manager）。
+profile 清单 `dsh.profile.bundles` 已注册三包。DSH 侧边栏「插件」页据此显示三张业务卡，
+行级可开关（开关写入用户层覆盖）。bundle 包无代码、无 main，只是 patch 载体；
+飞书通知属通用能力，固定在 platform 域，不进业务域。
 
 ### .dsh-data/profiles/agent-dh/cordis.patch.yml (Active)
 
@@ -510,7 +515,7 @@ Agent-DH plugins depend on:
 ### Tool Not Available
 
 1. Verify tool is exported in plugin's `src/index.ts`
-2. Verify plugin is listed in 伞包 patch `packages/bundle/dsh-bundle/cordis.patch.yml`（bundle 层；用户层只放覆盖）
+2. Verify plugin is listed in 对应业务域 bundle 的 patch `packages/bundle/<域>/cordis.patch.yml`（bundle 层；用户层只放覆盖）
 3. Restart the DSH profile（`./scripts/start.sh`）
 
 ### QuantsysV2 Connection Failed
@@ -560,9 +565,9 @@ pnpm build
 
 ## Version History
 
-- 2026-09-22: 插件 bundle 化（REQ-260922133113-ebc5）——投资插件行从用户层裸 insert 迁入伞包
-  `packages/bundle/dsh-bundle`（dsh.bundle.patch 规范），接入 DSH 插件管理页；profile 清单注册，
-  start.sh 脚手架同步；config/cordis.yml 用户层只留覆盖项
+- 2026-09-22: 插件 bundle 化（REQ-260922133113-ebc5）——投资插件行从用户层裸 insert 迁入三个
+  业务域 bundle（`packages/bundle/bundle-stock|bundle-evolution|bundle-platform`，dsh.bundle.patch
+  规范），接入 DSH 插件管理页；profile 清单注册，start.sh 脚手架同步；config/cordis.yml 用户层只留覆盖项
 - 2026-09-22: apps/web 成为 :13080 实际供应的 shell——pnpm.overrides 的 `@deepseek-ai/dsh-web-frontend`
   改 `link:apps/web`（dsh-web-app 按包名 require.resolve 落到 apps/web）；`pnpm dev` 改 dsh 式
   watch 构建（裸 vite serve 被 rejectStandaloneServe 守卫拒绝是设计如此）；restart-with-build.sh

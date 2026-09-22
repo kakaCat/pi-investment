@@ -1,0 +1,11 @@
+{
+  "name": "@pi-investment/bundle-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PI Investment「平台通用」bundle：与业务无关的通用能力：飞书通知、调度、需求看板、页面自愈、Agent OS 管理（legacy）（REQ-260922133113-ebc5）",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

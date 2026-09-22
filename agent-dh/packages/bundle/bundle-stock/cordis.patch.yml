@@ -1,0 +1,69 @@
+# @pi-investment/bundle-stock —— PI Investment「股票投资」业务 bundle
+# 2026-09-22（REQ-260922133113-ebc5）：按业务域拆分的 DSH 标准 bundle
+# （package.json 的 dsh.bundle.patch 指向本文件）。插件页显示为「股票投资」卡，
+# 每行可在 GUI 单独开关（开关 = 往用户层 cordis.patch.yml 写同 id 覆盖行）。
+# 新增属于本域的插件：行加进本文件；跨域归属调整：整行（含注释）搬到对应 bundle。
+- insert:
+    - id: investment
+      name: '@pi-investment/investment'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: market
+      name: '@pi-investment/market'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: factor
+      name: '@pi-investment/factor'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: data-manager
+      name: '@pi-investment/data-manager'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: trading
+      name: '@pi-investment/trading'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: strategy
+      name: '@pi-investment/strategy'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: risk
+      name: '@pi-investment/risk'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: competition
+      name: '@pi-investment/competition'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: intelligence
+      name: '@pi-investment/intelligence'
+      config:
+        quantsysV2:
+          baseURL: http://localhost:5001
+
+    - id: quantsys-v2-manager
+      name: '@pi-investment/quantsys-v2-manager'
+      config:
+        projectRoot: /Users/yunpeng/pi-investment/quantsys-v2
+        port: 5001
+        healthCheckUrl: http://localhost:5001/api/health
+        startupScript: adapters/inbound/fastapi_app/main.py
+        activateScript: activate-py313.sh
+        logFile: logs/launchd-stdout.log
