@@ -59,6 +59,18 @@ export const CAPTURE_DEFAULTS = {
 /** 拒绝立项的标记前缀 */
 export const REJECT_PREFIX = '✖️'
 
+/** 类型中文名（弹框选项 description 展示）。
+ *  label 必须保持枚举原值——mapCaptureAnswers 按严格相等校验 selected[0]，
+ *  label 改了（如 feature（功能））就会校验失败、静默回落默认值。 */
+export const CATEGORY_ZH: Readonly<Record<RequirementCategory, string>> = {
+  feature: '功能（新增能力）',
+  bug: '缺陷（修复线上/代码问题）',
+  doc: '文档（只改文档，不产代码）',
+  refactor: '重构（行为不变的结构调整）',
+  spike: '调研（产出是结论，不是留下的代码）',
+  chore: '杂项（维护性小改）',
+}
+
 /** 四问题目（选项顺序即推荐顺序：首个 = 推荐位）。 */
 export function buildCaptureQuestions(titleOptions: readonly string[]): AskQuestion[] {
   // 需求名称选项：拒绝选项 + 用户候选
@@ -89,7 +101,10 @@ export function buildCaptureQuestions(titleOptions: readonly string[]): AskQuest
       id: CAPTURE_QUESTION_IDS.category,
       header: '需求类型',
       question: '需求类型',
-      options: ALL_REQ_CATEGORIES.map((label, i) => ({ label, ...(i === 0 ? { description: '推荐' } : {}) })),
+      options: ALL_REQ_CATEGORIES.map((label, i) => ({
+        label,
+        description: (i === 0 ? '推荐 · ' : '') + CATEGORY_ZH[label],
+      })),
     },
     {
       id: CAPTURE_QUESTION_IDS.difficulty,

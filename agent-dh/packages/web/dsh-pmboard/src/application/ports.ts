@@ -228,6 +228,22 @@ export interface FailureAlertPort {
   alert(input: { requirementId: string; title: string; content: string }): void
 }
 
+/**
+ * 立项拒绝留痕（REQ-260922012924-2e29 FR-5）：「用户在立项弹框选择不立项」的事实。
+ * 用途：capture 调用超时/中断导致答复丢失后，重试仍能看见"用户刚拒绝过"，不再重弹。
+ */
+export interface CaptureRejection {
+  windowKey: string
+  at: number
+  title?: string
+}
+
+/** 拒绝留痕端口：record 同步受理异步落盘（失败只告警不抛）；readAll 缺文件 → []，损坏由调用方降级。 */
+export interface CaptureRejectionPort {
+  record(entry: CaptureRejection): void
+  readAll(): Promise<readonly CaptureRejection[]>
+}
+
 export interface UseCaseDeps {
   repo: ReqboardRepository
   docs: DocRepository
@@ -237,6 +253,8 @@ export interface UseCaseDeps {
   questions: UserQuestionPort
   /** done 批量关闭节流窗口（毫秒，默认 60000；测试可注入 0 关闭）。 */
   doneThrottleMs?: number
+  /** 立项拒绝留痕（FR-5；缺省 = 无粘滞，行为与 FR-5 前一致）。 */
+  rejections?: CaptureRejectionPort
   /**
    * 子卡执行端口（REQ-4842fe t4）。缺省 = 引擎不可用——执行子卡时**显式失败**
    * （ok:false, reason=engine_unavailable），绝不静默成功。

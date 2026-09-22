@@ -126,7 +126,9 @@
 - insert:
     - id: dsh-pmboard
       name: 'dsh-pmboard'
-      config: {}
+      config:
+        # REQ-260922012924-2e29 FR-3：开启节点压缩（D1 第二步；G0 门在需求文档未落盘时仍会 skip(doc_not_ready) 保护立项上下文）。回滚：改回 false + 重启。
+        nodeIsolation: true
 
     # 页面自愈：监听框架免鉴权的 /plugins/events SSE，发现服务端换过进程就刷新标签页
     # （2026-09-16 事故：重启后已开标签页能开、消息发不出去）。host 半为空壳。

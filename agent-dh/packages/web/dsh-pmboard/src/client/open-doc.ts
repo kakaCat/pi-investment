@@ -40,6 +40,38 @@ export function resolveCurrentSessionId(): string | undefined {
   return undefined
 }
 
+// ---------------------------------------------------------------------------
+// REQ-260922012924-2e29 FR-4：文档路径绝对化
+// 相对文档路径（docs/requirements/...）若以"当前会话工作区"为根解析，在非 agent-dh
+// 工作区的会话里必打不开（2026-09-24 用户现场：w-9faaac35 工作区=dsh-pmboard）。
+// 故看板 fetchState 后把服务端 workspaceRoot/homeDir 缓存到这里，打开与显示统一走绝对路径。
+// ---------------------------------------------------------------------------
+
+let cachedWorkspaceRoot: string | undefined
+let cachedHomeDir: string | undefined
+
+/** 缓存服务端工作区根与 homeDir（board-mount 在 fetchState 成功后调用；旧服务端无字段 → 保持 undefined 降级为相对解析）。 */
+export function setDocWorkspaceContext(workspaceRoot: string | undefined, homeDir: string | undefined): void {
+  cachedWorkspaceRoot = typeof workspaceRoot === 'string' && workspaceRoot.length > 0 ? workspaceRoot : undefined
+  cachedHomeDir = typeof homeDir === 'string' && homeDir.length > 0 ? homeDir : undefined
+}
+
+/** 相对路径 → 绝对路径（已是绝对路径原样返回；无缓存根 → 原样返回，相对解析降级）。 */
+export function absolutizeDocPath(path: string): string {
+  if (path.startsWith('/') || /^[A-Za-z]:/.test(path)) return path
+  if (cachedWorkspaceRoot === undefined) return path
+  const root = cachedWorkspaceRoot.split('\\').join('/').replace(/\/+$/, '')
+  const rel = path.split('\\').join('/').replace(/^(?:\.\/)+/, '')
+  return root + '/' + rel
+}
+
+/** 显示用路径：绝对化后把 homeDir 前缀缩写为 ~（无缓存 → 原样）。 */
+export function displayDocPath(path: string): string {
+  const abs = absolutizeDocPath(path)
+  if (cachedHomeDir !== undefined && abs.startsWith(cachedHomeDir + '/')) return '~' + abs.slice(cachedHomeDir.length)
+  return abs
+}
+
 /**
  * 在官方右侧栏打开工作区文档。
  *
@@ -55,7 +87,9 @@ export function openDocInSidebar(ctx: unknown, path: string, sessionId: string |
     console.error('[dsh-pmboard] open-doc: ctx.sidebarRight 不可用（官方右侧栏未加载）', { path })
     return false
   }
-  const address = sessionFileAddress(sessionId, path)
+  // FR-4：相对路径先按服务端工作区根绝对化——dsh-resource 协议支持绝对路径（前导斜杠保留），
+  // Host 按绝对路径读，不再依赖查看会话的工作区。
+  const address = sessionFileAddress(sessionId, absolutizeDocPath(path))
   try {
     sr.openResource(address)
     return true

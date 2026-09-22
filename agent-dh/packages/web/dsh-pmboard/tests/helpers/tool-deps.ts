@@ -60,6 +60,8 @@ export interface ReqboardToolDeps {
   userQuestions?: () => unknown
   /** 最近用户消息缓冲（REQ-2e9473 t10 文字确认核验；缺失 → 核验降级放行并在返回中注明）。 */
   recentUserMsgs?: Map<string, RecentUserMsg[]>
+  /** 立项拒绝留痕端口（REQ-260922012924-2e29 FR-5；缺失 = 无粘滞，与 FR-5 前行为一致）。 */
+  rejections?: UseCaseDeps['rejections']
 }
 
 /**
@@ -122,6 +124,7 @@ function toUseCaseDeps(deps: ReqboardToolDeps): UseCaseDeps {
       now: deps.now,
     }),
     questions: new UserQuestionsAdapter(() => deps.userQuestions?.()),
+    ...(deps.rejections !== undefined ? { rejections: deps.rejections } : {}),
   }
   Object.defineProperty(uc, 'doneThrottleMs', { get: () => deps.doneThrottleMs, enumerable: true, configurable: true })
   return uc

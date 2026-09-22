@@ -8,6 +8,7 @@ import type { ArchiveRecord, RequirementRecord } from '../types.ts'
 import type { StageKey } from '../../shared/protocol.ts'
 import { ALL_STAGE_KEYS } from '../../shared/protocol.ts'
 import { fmtTime } from '../render/dom-utils.ts'
+import { displayDocPath } from '../open-doc.ts'
 
 /* ------------------------------------------------------------------ 文档记录 */
 
@@ -90,7 +91,7 @@ export function renderDocSection(req: RequirementRecord): string {
     '<li data-doc-path="' + esc(d.path) + '">'
     + '<span class="dsh-pm-doc-icon">' + d.icon + '</span>'
     + '<span class="dsh-pm-doc-label">' + esc(d.label) + '</span>'
-    + '<button type="button" class="dsh-pm-doc-path" data-action="open-doc" data-path="' + esc(d.path) + '">' + esc(d.path) + '</button>'
+    + '<button type="button" class="dsh-pm-doc-path" data-action="open-doc" data-path="' + esc(d.path) + '" title="' + esc(displayDocPath(d.path)) + '">' + esc(d.path) + '</button>'
     + '</li>'
   ).join('') + '</ul>'
 }

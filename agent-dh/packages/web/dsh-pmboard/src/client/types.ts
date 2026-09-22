@@ -266,6 +266,10 @@ export interface BoardState {
   ready: Record<string, string[]>
   /** REQ-a33899：需求 id → 累计 token（无快照的需求不出现该键；缺失 ≠ 0） */
   tokenTotals?: Record<string, number>
+  /** REQ-260922012924-2e29 FR-4：服务端工作区根（绝对路径；旧服务端无此字段 → 客户端降级相对解析） */
+  workspaceRoot?: string
+  /** FR-4：服务端 homeDir（~ 缩写显示用） */
+  homeDir?: string
 }
 
 export interface TriageList {

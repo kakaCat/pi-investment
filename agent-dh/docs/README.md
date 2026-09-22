@@ -142,6 +142,7 @@ tags: [wiki, index, home, agent-dh]
 - ✅ [需求归档索引](requirements/INDEX.md)
 - ✅ P0 [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) —— 全流程表 + 各阶段硬要求 + 错误码处置
 - ✅ [闸门确认后置链（切面 + 责任链）](architecture/gate-post-chain.md) —— 人点完弹框后机器自动做什么：唯一点 join point、两相执行 H1..H5、新加一道门要改哪里（REQ-e3b6a0）
+- ✅ [六立项类型的流程差异](architecture/reqboard-category-flows.md) —— 六类各走什么节点/过哪些门；分类感知在表现层全生效、转移层三缺口（跳级转移不存在/人工门走全局表/反向不拦）
 - ✅ **P0** [文档标准：六类文档各写什么](architecture/documentation-standard.md) —— 五层文档链（做什么/怎么做/分几步/照着做/一致吗）；
   分类文档集（BASE 公共节 + 类型 DELTA，不写六份副本）；统一编号体系与 RTM 覆盖表；验收 = 三方一致性；
   接入指引见 [标准化接入指引](architecture/documentation-standard-integration-guide.md)（REQ-d3e61a）

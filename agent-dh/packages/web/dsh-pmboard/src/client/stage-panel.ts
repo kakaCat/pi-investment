@@ -36,6 +36,7 @@ import {
 } from '../shared/protocol.js'
 import { ITEM_STATUS_BADGE } from '../shared/protocol.js'
 import { esc } from './html.js'
+import { displayDocPath } from './open-doc.ts'
 import { CATEGORY_DELTAS, COMMON_ROOT_SECTIONS } from '../application/internal/category-doc-sets.js'
 import { fmt } from '../domain/text/fmt.js'
 
@@ -370,7 +371,7 @@ const renderImplementingBody: StageBodyRenderer = (payload) => {
     const cls = (isActive ? ' is-current' : '') + (time.failed ? ' is-failed' : '')
     const meta = [t.id, executor, time.text].filter(s => s.length > 0).join(' · ')
     const docBtn = t.cardDoc
-      ? ' · <button type="button" class="dsh-pm-sn-doc" data-action="open-doc" data-path="' + esc(t.cardDoc) + '">任务卡</button>'
+      ? ' · <button type="button" class="dsh-pm-sn-doc" data-action="open-doc" data-path="' + esc(t.cardDoc) + '" title="' + esc(displayDocPath(t.cardDoc)) + '">任务卡</button>'
       : ''
     return (
       '<div class="dsh-pm-sn-task' + cls + '" data-status="' + esc(t.status) + '">' +
@@ -490,7 +491,7 @@ const renderArchivedBody: StageBodyRenderer = (payload) => {
   }
   const a = body.archive
   const merged = (a.mergedInto?.length ?? 0) > 0
-    ? '<div class="dsh-pm-sn-dim">合并去向：' + (a.mergedInto ?? []).map(p => '<button type="button" class="dsh-pm-sn-doc" data-action="open-doc" data-path="' + esc(p) + '">' + esc(p) + '</button>').join(' · ') + '</div>'
+    ? '<div class="dsh-pm-sn-dim">合并去向：' + (a.mergedInto ?? []).map(p => '<button type="button" class="dsh-pm-sn-doc" data-action="open-doc" data-path="' + esc(p) + '" title="' + esc(displayDocPath(p)) + '">' + esc(p) + '</button>').join(' · ') + '</div>'
     : ''
   return (
     '<div class="dsh-pm-sn-body" data-stage="archived">' +
@@ -572,7 +573,7 @@ function renderTraceChain(payload: StageDetail): string {
       const label = traceNodeLabel(kind, artifact.path)
       chainItems.push(
         '<span class="dsh-pm-trace-node" data-kind="' + esc(kind) + '">' +
-          '<button type="button" class="dsh-pm-sn-doc dsh-pm-trace-path" data-action="open-doc" data-path="' + esc(artifact.path) + '">' + esc(label) + '</button>' +
+          '<button type="button" class="dsh-pm-sn-doc dsh-pm-trace-path" data-action="open-doc" data-path="' + esc(artifact.path) + '" title="' + esc(displayDocPath(artifact.path)) + '">' + esc(label) + '</button>' +
         '</span>'
       )
     }

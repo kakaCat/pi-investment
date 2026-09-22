@@ -158,10 +158,24 @@ export function buildNodeInputPackage(input: NodeInputPackageInput): NodeInputPa
   return { text, resolved, projection }
 }
 
-/** 需求文档相对路径（显式 docLinks.requirement 优先）。 */
+/**
+ * 需求文档相对路径（REQ-260922012924-2e29 FR-2）。
+ *
+ * 解析优先级：`docLinks.requirement`（显式链接，最高）→ `docBasePath` 拼接 → 缺省
+ * `docs/requirements/<REQ>/`。docBasePath 拼接契约（design/interfaces.md）：
+ *  ① `<REQ>` 占位符全部替换为需求 id；
+ *  ② docBasePath **无** `<REQ>` 时追加 `<id>/` 子目录（防多需求撞同一 requirement.md）；
+ *  ③ 尾部斜杠归一；④文件名恒 `requirement.md`。
+ * 兼容：无 docBasePath 的老记录走缺省分支，输出与改造前逐字节一致。
+ */
 export function requirementDocPath(requirement: RequirementRecord | undefined): string {
   if (requirement === undefined) return ''
-  return requirement.docLinks?.requirement ?? fmt('docs/requirements/{id}/requirement.md', { id: requirement.id })
+  if (requirement.docLinks?.requirement !== undefined) return requirement.docLinks.requirement
+  const raw = requirement.docBasePath ?? 'docs/requirements/<REQ>/'
+  const hasPlaceholder = raw.includes('<REQ>')
+  const base = raw.replaceAll('<REQ>', requirement.id)
+  const withId = hasPlaceholder ? base : base.replace(/\/?$/, '/') + requirement.id + '/'
+  return withId.replace(/\/?$/, '/') + 'requirement.md'
 }
 
 /** D-12 ②：给人可操作的等价路径（开新窗口 + 粘贴输入包）。 */
