@@ -70,6 +70,13 @@ export const STREAM_UNAVAILABLE_MS = 90_000
  */
 export const BOOT_CHECK_DELAY_MS = 8_000
 
+/**
+ * 单次探测的超时。必须设：启动窗口内加载的页面，其请求会在服务端**永不返回**
+ * （僵尸连接，2026-09-22 探针实测复现）——没有超时的 fetch 既不通过也不失败，
+ * 自检形同虚设。本地服务 5s 不响应即视为僵尸/未就绪。
+ */
+export const BOOT_PROBE_TIMEOUT_MS = 5_000
+
 /** 开机自检的动作。 */
 export type BootCheckAction =
   /** 不该探测：offline/stale 由既有 SSE 流程接管（避免"服务重启中把页面刷到错误页"）。 */

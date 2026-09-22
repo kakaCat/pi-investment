@@ -22,6 +22,7 @@ import { createBanner, type Banner } from './banner.js'
 import { injectStyles } from './styles.js'
 import {
   BOOT_CHECK_DELAY_MS,
+  BOOT_PROBE_TIMEOUT_MS,
   DEFAULT_QUIET_MS,
   OFFLINE_GRACE_MS,
   RELOAD_GUARD_MS,
@@ -171,34 +172,49 @@ export function apply(ctx: { logger?: (name: string) => { info(msg: string): voi
      * 开机自检：页面加载后探测一次 RPC 层。覆盖的场景是"页面在服务未完全就绪的瞬间
      * 加载"——rev 与进程一致（SSE 不会触发刷新），但框架的一次性读取已失败且永不重试，
      * 表现为插件/设置页空白、模型不加载、输入发不出去（2026-09-22 用户事故）。
+     * 更糟的是该场景下请求会**永不返回**（僵尸连接，探针实测）：浏览器 6 条连接被占死后
+     * 整个浏览器对本站饿死。所以探测必须带超时，超时一律按失败处理；触发的重载会在
+     * 页面导航时拆掉本标签页的僵尸连接，连接池随之解放。
      * 只在 phase === 'ok'（同进程确认）时探测：offline/stale 自有流程接管，避免
      * "服务重启中把页面刷到浏览器错误页"。探测失败 ⟹ 页面半初始化 ⟹ 重载（受防抖闸门）。
      */
     const runBootCheck = async (): Promise<void> => {
       let probeOk = false
+      const controller = new AbortController()
+      const timeout = window.setTimeout(() => {
+        controller.abort()
+      }, BOOT_PROBE_TIMEOUT_MS)
       try {
         const res = await window.fetch(BOOT_PROBE_PATH, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: '{}',
+          signal: controller.signal,
         })
         probeOk = res.ok
       } catch {
         probeOk = false
+      } finally {
+        window.clearTimeout(timeout)
       }
       switch (bootCheckDecision(phase, probeOk)) {
         case 'healthy':
           log.info(`${LOG} 开机自检通过：RPC 层就绪`)
+          // ctx.logger 走 buffered exporter 不进 console；自检是用户可见的自愈动作，
+          // 同步一份到 console 方便排障（2026-09-22 探针验证时 console 验收扑空的教训）。
+          console.info(`${LOG} 开机自检通过：RPC 层就绪`)
           return
         case 'reload': {
           const now = Date.now()
           if (!reloadAllowed(readReloadMark(), now, RELOAD_GUARD_MS)) {
             // 刚刷过还是坏的（服务仍未就绪）—— 别刷成死循环，转为手动提示。
             log.warn(`${LOG} 开机自检仍失败且距上次刷新不足 ${String(RELOAD_GUARD_MS)}ms，改为提示手动刷新`)
+            console.warn(`${LOG} 开机自检仍失败且距上次刷新不足 ${String(RELOAD_GUARD_MS)}ms，改为提示手动刷新`)
             setPhase('stale')
             return
           }
           log.warn(`${LOG} 开机自检失败：页面在服务未就绪时加载（插件/设置/模型读取已损坏），自动刷新`)
+          console.warn(`${LOG} 开机自检失败：页面在服务未就绪时加载（插件/设置/模型读取已损坏），自动刷新`)
           reload()
           return
         }
