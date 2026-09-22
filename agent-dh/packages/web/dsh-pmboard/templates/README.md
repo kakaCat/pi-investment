@@ -60,7 +60,7 @@ templates/
 | feature | requirement.feature.md | 改动位置（流程图）/ 改动对比 / 产品定义 / 用户与角色 / 功能点（清单表）/ 功能点明细 | FR-x |
 | refactor | requirement.refactor.md | 改动位置（流程图）/ 改动对比 / 现状 / 目标结构 / 行为不变式 | RF-x |
 | bug | requirement.bug.md | 改动位置（流程图）/ 改动对比 / 复现步骤 / 根因 / 回归 | BUG-x |
-| spike | requirement.spike.md | 待答问题 / 结论 | SP-x |
+| spike | requirement.spike.md | 待答问题 / 数据与方法 / 结论 | SP-x |
 | doc | requirement.doc.md | 目标读者 / 大纲 | DOC-x |
 | chore | requirement.chore.md | 完成判据 | CH-x |
 
