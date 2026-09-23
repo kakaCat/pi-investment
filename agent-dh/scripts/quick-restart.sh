@@ -53,8 +53,10 @@ log "start.sh 已拉起（后台），开始健康检查（${HEALTH_TIMEOUT}s �
 
 deadline=$(( $(date +%s) + HEALTH_TIMEOUT ))
 while [ "$(date +%s)" -lt "$deadline" ]; do
-  code=$(curl -s -o /dev/null -w '%{http_code}' -m 3 "http://127.0.0.1:$PORT/" 2>/dev/null || echo 000)
-  if [ "$code" != "000" ]; then
+  # curl 失败时 -w 仍会打印 "000" 且退出码非零——不能再 `|| echo 000`，
+  # 否则会拼出 "000000" 逃过 != "000" 判定，把宕机窗口误报成健康（首跑实测踩中）。
+  code=$(curl -s -o /dev/null -w '%{http_code}' -m 3 "http://127.0.0.1:$PORT/" 2>/dev/null) || code=000
+  if [ "$code" != "000" ] && [ ${#code} -eq 3 ]; then
     log "health ok (HTTP $code)"
     write_result ok "HTTP $code"
     exit 0
