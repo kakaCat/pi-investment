@@ -14,7 +14,7 @@ beforeAll(() => { stateDir = mkdtempSync(join(tmpdir(), 'plugin-smoke-')); });
 afterAll(() => rmSync(stateDir, { recursive: true, force: true }));
 
 function stubCtx() {
-  return {
+  const ctx: any = {
     tools: { register: () => () => true, list: () => [] },
     on: () => () => true,
     reflect: { provide: () => {} },
@@ -24,7 +24,10 @@ function stubCtx() {
     genome: { genomeData: { genome_version: 'g1', sections: {} } },  // P1: evolver 需要
     // genome 插件在构造函数中注册提示词段（P0-1 起）
     systemPrompt: { section: () => () => true, variable: () => () => true, assemble: async () => ({ sections: [], tools: [], variables: {} }) },
-  } as any;
+  };
+  // 函数插件的惰性注入惯例（genome/dsh-pmboard/web-liveness 同款）：立即以本 ctx 回调。
+  ctx.inject = (_services: string[], cb: (c: any) => void) => cb(ctx);
+  return ctx;
 }
 
 const QV2 = { quantsysV2: { baseURL: 'http://localhost:5001' } };
@@ -57,6 +60,8 @@ const PLUGINS: Array<[string, () => Promise<any>, () => any]> = [
   // REQ-4842fe t-a46239：dsh-pmboard 此前不在名单里 → 它新注册的工具 schema 无人编译。
   // dshHome 指到临时目录，避免冒烟读写真实 .dsh-data。
   ['dsh-pmboard', () => import('../../../packages/web/dsh-pmboard/src/index.js'), () => ({ dshHome: stateDir })],
+  // RFC 016：web-liveness host 半注册 quick_restart 工具；agentDhRoot 指到临时目录，避免触碰真实 .dsh-data。
+  ['web-liveness', () => import('../../../packages/web/web-liveness/src/index.js'), () => ({ agentDhRoot: stateDir })],
 ];
 
 describe('插件 schema 冒烟（构造即编译所有工具 schema）', () => {
