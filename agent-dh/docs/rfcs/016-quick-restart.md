@@ -1,6 +1,6 @@
 # RFC 016: quick_restart —— web-liveness 轻量重启工具
 
-- **状态**：已实施（2026-09-23，088ef4e3 + 健康判定修复 278a9e53）
+- **状态**：已实施（2026-09-23，088ef4e3 + 健康判定修复 278a9e53；2026-09-24 增补工作快照+续跑）
 - **作者**：Claude（与用户共创）
 - **关联**：RFC 002（self_restart 发版重启）、2026-09-22 重启入口收敛（42159f56）
 
@@ -33,7 +33,7 @@ agent 可调用的轻量重启工具 `quick_restart`，与 web-liveness 的页�
 
 | 工具 | 场景 | git | 回滚 | 续跑 |
 |---|---|---|---|---|
-| `quick_restart`（本 RFC） | 轻量重启：改动生效、异常自救 | 不动 | 无 | 无 |
+| `quick_restart`（本 RFC） | 轻量重启：改动生效、异常自救 | 不动 | 无 | 工作窗口快照+续跑消息（09-24 增补，见末节） |
 | `self_restart`（lifecycle） | 发版：改代码→验证→合并 | wip 检查点 | 启动失败自动回滚 | pending-resume 注入 |
 
 ### 架构：只编排，不实现
@@ -65,7 +65,8 @@ quick-restart.sh 只是同一入口的"远程遥控器"，不是新的重启路�
 ### agent 使用契约（写进工具描述）
 
 **先把要对用户说的话说完，本工具必须是本轮最后一个动作**——调用后约 10 秒服务断线，
-当前 turn 若还没结束会被杀死（轻量工具无续跑机制）。页面会自动刷新恢复。
+当前 turn 若还没结束会被杀死（09-24 起有工作快照：重启后被打断的窗口会收到续跑消息）。
+页面会自动刷新恢复。
 
 ## 错误处理
 
@@ -89,3 +90,24 @@ quick-restart.sh 只是同一入口的"远程遥控器"，不是新的重启路�
   健康。改为 `|| code=000` + 三位长度校验。教训：curl 的 `-w` 输出与退出码是两条独立通道，不能叠加兜底。
 - **冒烟 stub 连锁**：给 stubCtx 补 `inject` 后，lifecycle 的 webServer 注入回调开始真实执行，
   暴露出 stub 缺 `effect`/`webServer`——已一并补齐。
+
+## 增补（2026-09-24）：工作快照 + 重启后续跑
+
+**动机**：quick_restart 断线会杀死所有窗口的在飞 turn。用户要求：重启前记录哪些窗口还在工作，
+重启后安排它们继续工作。
+
+**设计**：
+
+- **快照口径**：`Agent.status === 'running'`（DSH 权威状态机）。idle 窗口的 inbox 排队消息是
+  持久化的，重启不丢，无需续跑。调用者自己必然在列（它正在执行本工具）。
+- **快照时机**：护栏通过后、spawn 重启器前，枚举 `ctx.agents.roots()` 写
+  `state/quick-restart-resume.json`（原子写）。固有近似：快照到 kill 之间有 10s 宽限，
+  这期间新开始的工作抓不到——不改框架能做到的极限。
+- **续跑投递**：host 启动时读快照文件，逐窗 `agent.followup()` 注入续跑消息（措辞与 lifecycle
+  「自修复续跑」区分）。窗口未存活（Web 会话等用户回来才恢复）→ 挂 `agent/created` 等 30 分钟；
+  条目超 24h 未投递按死信丢弃。每条投递成功即落盘（从 sessions 移除），全空后 rename
+  `.done.json`——崩溃重进幂等续投。
+- **边界**：不写 lifecycle 的 `pending-resume.json`（那套绑定 git 检查点/回滚/self_finalize 语义）；
+  不改 client 半、不改 quick-restart.sh。
+- **实现**：`web-liveness/src/resume.ts`（纯逻辑：selectBusyAgentIds / partitionResumeEntries /
+  renderResumeMessage）+ host 注入清单扩为 `['tools','agents']`。

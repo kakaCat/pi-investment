@@ -26,7 +26,12 @@ function stubCtx() {
     systemPrompt: { section: () => () => true, variable: () => () => true, assemble: async () => ({ sections: [], tools: [], variables: {} }) },
   };
   // 函数插件的惰性注入惯例（genome/dsh-pmboard/web-liveness 同款）：立即以本 ctx 回调。
+  // lifecycle 的 webServer 注入回调会调 ctx.effect(...)（agent-os-trigger/wake-webhook 同款），一并补齐。
   ctx.inject = (_services: string[], cb: (c: any) => void) => cb(ctx);
+  ctx.effect = () => () => true;
+  ctx.webServer = { register: () => () => true };
+  // web-liveness 的 quick_restart 注入清单含 agents（快照枚举 roots / 续跑投递 get）。
+  ctx.agents = { roots: () => [], get: () => undefined };
   return ctx;
 }
 
