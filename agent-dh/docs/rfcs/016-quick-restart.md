@@ -1,6 +1,6 @@
 # RFC 016: quick_restart —— web-liveness 轻量重启工具
 
-- **状态**：实施中（2026-09-23）
+- **状态**：已实施（2026-09-23，088ef4e3 + 健康判定修复 278a9e53）
 - **作者**：Claude（与用户共创）
 - **关联**：RFC 002（self_restart 发版重启）、2026-09-22 重启入口收敛（42159f56）
 
@@ -78,6 +78,14 @@ quick-restart.sh 只是同一入口的"远程遥控器"，不是新的重启路�
 
 ## 测试
 
-- 单测：限流/互斥判定纯函数（`quickRestartAllowed(lastAt, now, minIntervalMs)`、lock 新鲜度）
-- 冒烟：plugin-schema.smoke.test.ts 覆盖新工具 schema（web-liveness 加入 PLUGINS 列表）
-- 活体验证：合并后直接跑一次 `scripts/quick-restart.sh`，确认 10s 断线→自动拉起→HTTP 恢复→结果文件 ok
+- 单测：限流/互斥判定纯函数（`quickRestartAllowed(lastAt, now, minIntervalMs)`、lock 新鲜度）——29/29 通过
+- 冒烟：plugin-schema.smoke.test.ts 覆盖新工具 schema（web-liveness 加入 PLUGINS 列表）——21/21 通过
+- 活体验证：合并后直接跑一次 `scripts/quick-restart.sh`，确认 10s 断线→自动拉起→HTTP 恢复→结果文件 ok——已跑通
+
+## 实施后记（首跑踩坑）
+
+- **健康判定假阳性（278a9e53 已修）**：`code=$(curl ... || echo 000)` 在连接拒绝时拼出 `000000`
+  （curl 的 `-w %{http_code}` 失败也打印 000，退出码非零再触发 `|| echo 000`），`!= "000"` 误判为
+  健康。改为 `|| code=000` + 三位长度校验。教训：curl 的 `-w` 输出与退出码是两条独立通道，不能叠加兜底。
+- **冒烟 stub 连锁**：给 stubCtx 补 `inject` 后，lifecycle 的 webServer 注入回调开始真实执行，
+  暴露出 stub 缺 `effect`/`webServer`——已一并补齐。
