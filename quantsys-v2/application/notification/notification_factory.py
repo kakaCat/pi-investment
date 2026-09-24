@@ -173,8 +173,10 @@ class NotificationFactory:
         else:
             logger.warning("飞书 webhook 未配置，飞书渠道未启用")
 
-        # Agent 渠道
-        if settings.scheduler.agent_os_enabled:
+        # Agent 渠道（通知投递）。REQ-ad0a t7：注册闸门用**投递专用开关**
+        # agent_os_notify_enabled——调度权开关 agent_os_enabled=false（ADR-002，
+        # v2 APScheduler 接管业务任务）不该把通知的「agent 优先」链路一并关掉。
+        if getattr(settings.scheduler, 'agent_os_notify_enabled', True):
             agent_channel = AgentChannel(
                 agent_url=settings.scheduler.agent_os_url,
                 timeout=30,

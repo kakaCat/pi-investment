@@ -243,10 +243,14 @@ class NotificationFacade:
         # Agent OS 不可达时降级直飞书兜底（不丢消息），并在 metadata 如实标注降级。
         result = self.service.send_with_fallback(notification, 'agent', 'feishu')
         if notification.status == NotificationStatus.FALLBACK:
+            # 降级原因如实区分：主渠道未注册（配置/装配问题）≠ Agent OS 不可达（运行时故障）
+            cause = (result.metadata or {}).get('fallback_cause')
+            reason = ('agent_channel_unregistered'
+                      if cause == 'primary_unregistered' else 'agent_os_unreachable')
             result.metadata = {
                 **(result.metadata or {}),
                 'degraded': True,
-                'degraded_reason': 'agent_os_unreachable',
+                'degraded_reason': reason,
                 'delivery': 'feishu_fallback',
             }
         return self._annotate_target_agent(result, target_agent)

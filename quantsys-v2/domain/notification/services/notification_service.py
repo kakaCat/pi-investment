@@ -199,7 +199,19 @@ class NotificationService:
 
         # 尝试主渠道
         primary = self.channels.get(primary_channel)
-        if primary:
+        # REQ-ad0a t7：主渠道未注册也要响亮——此前 None 静默跳过（无日志），
+        # ADR-002 关闭调度旗误伤通知注册的故障因此完全不可见。fallback_cause 随
+        # 结果 metadata 下发，供调用方（facade）如实标注降级原因。
+        fallback_cause = None
+        if primary is None:
+            fallback_cause = 'primary_unregistered'
+            logger.warning(
+                "主渠道未注册，直接降级到备用渠道",
+                notification_id=notification.notification_id,
+                primary=primary_channel,
+                fallback=fallback_channel
+            )
+        elif primary:
             result = self._send_via_channel(notification, primary)
             if result.success:
                 notification.mark_sent()
@@ -213,6 +225,7 @@ class NotificationService:
                 )
                 return result
             else:
+                fallback_cause = 'primary_failed'
                 logger.warning(
                     "主渠道发送失败，降级到备用渠道",
                     notification_id=notification.notification_id,
@@ -231,6 +244,9 @@ class NotificationService:
                 self.repository.save(notification)
 
             if result.success:
+                if fallback_cause:
+                    result.metadata = {**(result.metadata or {}),
+                                       'fallback_cause': fallback_cause}
                 logger.info(
                     "降级渠道发送成功",
                     notification_id=notification.notification_id,
