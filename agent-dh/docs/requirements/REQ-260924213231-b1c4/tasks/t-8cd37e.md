@@ -9,9 +9,9 @@
 （未填写——开工前补充这张卡要解决的业务问题）
 
 ## 得到什么结果
-改动已落盘，相关测试或命令跑通并附输出摘要
 
----
+本卡为该父卡的研发子卡，交付物 = 父卡验收口径：npx vitest run tests/contract-shapes.test.ts tests/output-contract.test.ts 全绿；npx tsc --noEmit -p tsconfig.json 错误数 ≤ 基线 23 且新增文件 0 报错；本卡的改动清单与自测输出见 docs/requirements/REQ-260924213231-b1c4/tasks/t-8cd37e.md
+
 ## 汇报 1（2026-09-24T14:40:06.552Z，窗口 session-a4d082b8-bb32-4506-80a5-876ddd6051ff）
 
 研发子卡对应的工作已在本窗口完成：三类契约类型 + 一个端口落到共享协议层，配套形状测试通过并已合并 main。
