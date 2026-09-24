@@ -152,6 +152,7 @@
 # 现役真身见 agent-dh/.dsh-data/profiles/agent-dh/cordis.patch.yml
 # （本文件是它的源：start.sh 的 _ensure_from 只在目标缺失时拷贝）。
 # 旧路径 ~/.dsh-agent-dh/profiles/investment/ 已是历史副本，仅作回滚用。
+
 - id: skill-filesystem
   name: '@deepseek-ai/dsh-skill-filesystem'
   config:

@@ -46,6 +46,7 @@
     "@pi-investment/agent-os-manager": "workspace:*",
     "@pi-investment/bundle-evolution": "workspace:*",
     "@pi-investment/bundle-platform": "workspace:*",
+    "@pi-investment/bundle-pmboard": "workspace:*",
     "@pi-investment/bundle-stock": "workspace:*",
     "@pi-investment/competition": "workspace:*",
     "@pi-investment/core-tool": "workspace:*",

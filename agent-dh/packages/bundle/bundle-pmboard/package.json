@@ -1,0 +1,11 @@
+{
+  "name": "@pi-investment/bundle-pmboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PI Investment「项目看板」bundle：dsh-pmboard 需求流水线页面插件（独立成卡，REQ 见 REQ-260922012924-2e29）",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

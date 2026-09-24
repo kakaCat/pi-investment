@@ -385,14 +385,16 @@ if [ ! -f "$PROFILE_DIR/package.json" ] || [ "$FORCE_CONFIG" = "1" ]; then
         "@deepseek-ai/dsh-web-app",
         "@pi-investment/bundle-stock",
         "@pi-investment/bundle-evolution",
-        "@pi-investment/bundle-platform"
+        "@pi-investment/bundle-platform",
+        "@pi-investment/bundle-pmboard"
       ]
     }
   },
   "dependencies": {
     "@pi-investment/bundle-stock": "link:../../../packages/bundle/bundle-stock",
     "@pi-investment/bundle-evolution": "link:../../../packages/bundle/bundle-evolution",
-    "@pi-investment/bundle-platform": "link:../../../packages/bundle/bundle-platform"
+    "@pi-investment/bundle-platform": "link:../../../packages/bundle/bundle-platform",
+    "@pi-investment/bundle-pmboard": "link:../../../packages/bundle/bundle-pmboard"
   }
 }
 EOF
