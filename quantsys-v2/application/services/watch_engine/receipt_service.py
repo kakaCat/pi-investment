@@ -185,7 +185,7 @@ class ReceiptService:
             }
 
         message = render_receipt(todo, kind=kind_value, period=period)
-        delivery, sent = self._deliver(todo_id, kind_value, ch, message, period)
+        delivery, sent = self._deliver(todo_id, kind_value, ch, message, period, todo=todo)
 
         receipt = self._repo.record(todo_id, kind_value, channel=ch,
                                     delivery_status=delivery, message_id=None,
@@ -199,7 +199,8 @@ class ReceiptService:
         }
 
     def _deliver(self, todo_id: int, kind: str, channel: str,
-                 message: str, period: str) -> (str, bool):
+                 message: str, period: str,
+                 todo: Any = None) -> (str, bool):
         """发送回执：返回 (delivery_status, sent)。任何 sender 异常都不得抛出。"""
         if self._sender is None:
             # 诚实边界：未接线只记日志，delivery_status 记为 log_only（不是 sent）
@@ -209,6 +210,8 @@ class ReceiptService:
         payload = {
             'todo_id': todo_id, 'kind': kind, 'channel': channel,
             'period': period, 'message': message,
+            # REQ-ad0a t3（FR-3）：级别随载荷下发（P0 → risk_stop 频道）
+            'level': getattr(todo, 'level', None),
         }
         try:
             self._sender(payload)

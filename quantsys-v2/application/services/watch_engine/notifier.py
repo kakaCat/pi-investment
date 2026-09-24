@@ -198,6 +198,8 @@ class WatchNotifier:
                 account_total_yuan=self._account_total_yuan(rule),
                 # REQ-c9f899 t12 §6-项1：级别随通知下发（无值走旧渲染，兼容非分级路径）
                 level=payload.level,
+                # REQ-ad0a FR-10：规则号随通知下发（模板显示真实号；缺失=None=手工）
+                rule_id=getattr(rule, 'id', None),
             )
             notified = facade_result.success if hasattr(facade_result, 'success') else bool(facade_result)
         except Exception as e:

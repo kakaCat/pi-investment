@@ -282,14 +282,15 @@ def test_facade_injects_account_total_into_amount_gate():
     kwargs = dict(symbol='600519', name='贵州茅台', price=1500.0, condition={},
                   message='m', intent='entry', account='agent_brain')
 
+    # REQ-ad0a FR-2：direct 改走降级链 → 通知落在 svc.fallback（agent 优先）
     facade.send_watch_triggered(**kwargs, action_amount_yuan=6_000, account_total_yuan=100_000)
-    assert svc.sent[-1].variables['watch_channel'] == CH_RISK_STOP        # 门命中
+    assert svc.fallback[-1][0].variables['watch_channel'] == CH_RISK_STOP        # 门命中
 
     facade.send_watch_triggered(**kwargs, action_amount_yuan=4_000, account_total_yuan=100_000)
-    assert svc.sent[-1].variables['watch_channel'] == CH_ENTRY_SIGNAL     # 未达阈值
+    assert svc.fallback[-1][0].variables['watch_channel'] == CH_ENTRY_SIGNAL     # 未达阈值
 
     facade.send_watch_triggered(**kwargs, action_amount_yuan=6_000)       # 缺账户总资产
-    assert svc.sent[-1].variables['watch_channel'] == CH_ENTRY_SIGNAL     # 保持原行为，不抛错
+    assert svc.fallback[-1][0].variables['watch_channel'] == CH_ENTRY_SIGNAL     # 保持原行为，不抛错
 
 
 # ── 8. target_agent：承载 + 传输能力如实报告 ─────────────────────────────────
@@ -300,7 +301,7 @@ def test_target_agent_carried_and_transport_reported_unsupported():
         symbol='601600', name='中铝国际', price=26.57, condition={},
         message='m', intent='exit_stop', account='agent_brain',
     )
-    notification = svc.sent[-1]
+    notification = svc.fallback[-1][0]      # REQ-ad0a FR-2：direct 走降级链
     assert notification.variables['target_agent'] == 'agent-dh'   # 按账户解析
     assert notification.metadata['wake_target'] == 'agent-dh'
     assert result.metadata['wake_target'] == 'agent-dh'

@@ -15,6 +15,7 @@ from domain.notification.models.notification import (
     Notification,
     NotificationType,
     NotificationPriority,
+    NotificationStatus,
 )
 from domain.notification.models.channel import ChannelResult
 from domain.notification.services.notification_service import NotificationService
@@ -123,6 +124,7 @@ class NotificationFacade:
         target_agent: str = None,       # ← 处置该事件的 agent（按分类投递，见 WatchDeliveryPolicy）
         account_total_yuan: float = None,   # ← 账户总资产（金额门取数；缺失=门关闭，保持原行为）
         level: str = None,                  # ← 级别 P0..P3（REQ-c9f899 t12：渠道据此选按级别模板）
+        rule_id: int = None,                # ← 规则号（REQ-ad0a FR-10：模板显示真实号；缺失=手工）
         todo_id: str = None,                # ← 关联待办 id（L2 wake 载荷上下文，可选）
         todo: dict = None,                  # ← 关联待办快照（L2 wake 载荷上下文，可选）
     ) -> ChannelResult:
@@ -191,6 +193,7 @@ class NotificationFacade:
                 # REQ-c9f899 t12：级别随通知下发；有值 → FeishuChannel 走按级别模板
                 # （watch_level_templates），无值 → 旧 WatchTriggeredFormatter（兼容，不破坏非分级通知）
                 'watch_level': level,
+                'rule_id': rule_id,
                 'watch_channel': watch_channel,
                 # 处置 agent：投递层（AgentNotificationService）据此选择 wake 端点
                 'target_agent': target_agent,
@@ -234,14 +237,18 @@ class NotificationFacade:
                 todo=todo,
             )
 
-        # 非 L2：行为与改造前一致（L0/L1 直发飞书；notify_mode=agent 走 agent-os→feishu）
-        if notify_mode == 'agent':
-            # Agent 模式：优先 Agent，失败降级飞书
-            result = self.service.send_with_fallback(notification, 'agent', 'feishu')
-        else:
-            # Direct 模式：直接飞书
-            notification.preferred_channels = ['feishu']
-            result = self.service.send(notification)
+        # 非 L2：agent 优先、飞书降级（REQ-260924104605-ad0a FR-2 方案 A）。
+        # direct 与 agent 两种 notify_mode 统一走「agent→feishu」：os_channel 逻辑频道码
+        # 经 AgentChannel 路由到盯盘群（10 个盯盘频道 → 专用 webhook，FR-1 已配置）；
+        # Agent OS 不可达时降级直飞书兜底（不丢消息），并在 metadata 如实标注降级。
+        result = self.service.send_with_fallback(notification, 'agent', 'feishu')
+        if notification.status == NotificationStatus.FALLBACK:
+            result.metadata = {
+                **(result.metadata or {}),
+                'degraded': True,
+                'degraded_reason': 'agent_os_unreachable',
+                'delivery': 'feishu_fallback',
+            }
         return self._annotate_target_agent(result, target_agent)
 
     def _send_l2_via_target_agent(self, notification, target_agent, *, symbol, name,
@@ -679,6 +686,47 @@ class NotificationFacade:
         )
 
         result = self.service.send(notification)
+        return result.success
+
+    def send_watch_receipt(
+        self,
+        title: str,
+        content: str,
+        *,
+        os_channel: str,
+        urgency: str = 'normal'
+    ) -> bool:
+        """盯盘回执投递（REQ-260924104605-ad0a t3，FR-3）
+
+        os_channel（逻辑频道码）写入 variables 直透 AgentChannel —— Agent OS 网关按
+        notification_channels 表路由到盯盘群（timeout/P0 → risk_stop，其余 → watch_symbol）。
+        Agent OS 不可达时降级直飞书兜底（落原群，不丢消息）；与触发路径同一条降级链。
+        失败返回 False——调用方（watch_channels）据此抛错，ReceiptService 如实记
+        delivery_status=failed，绝不假装送达。
+
+        Args:
+            title: 卡片标题
+            content: 卡片内容
+            os_channel: 逻辑频道码（risk_stop / watch_symbol 等，必填）
+            urgency: 紧急程度 'normal' | 'high' | 'critical'
+
+        Returns:
+            bool: 是否发送成功
+        """
+        try:
+            priority_enum = NotificationPriority[urgency.upper()]
+        except KeyError:
+            priority_enum = NotificationPriority.NORMAL
+
+        notification = Notification(
+            notification_type=NotificationType.SYSTEM_ALERT,
+            title=title,
+            content=content,
+            variables={'os_channel': os_channel},
+            priority=priority_enum,
+        )
+
+        result = self.service.send_with_fallback(notification, 'agent', 'feishu')
         return result.success
 
     def send_alert(

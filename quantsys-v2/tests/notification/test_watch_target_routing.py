@@ -149,13 +149,17 @@ def test_l2_wake_failure_degrades_to_feishu_and_marks_degraded(status):
 
 # ── 3. L1 直发 → 不走 wake（行为不变）───────────────────────────────────────
 def test_l1_direct_path_does_not_use_wake():
+    """REQ-ad0a FR-2（方案 A）：direct 也走「agent 优先、飞书降级」——
+    不经 wake（wake 是 L2 专属），但 os_channel 经 AgentChannel 直透盯盘群。"""
     facade, svc, wake = _facade()
     result = facade.send_watch_triggered(**_BASE, trigger_level='L1')
 
     assert wake.calls == []
-    assert svc.fallback == []
-    assert len(svc.sent) == 1
-    assert svc.sent[0].preferred_channels == ['feishu']
+    assert svc.sent == []
+    assert len(svc.fallback) == 1
+    notification, primary, fallback = svc.fallback[0]
+    assert (primary, fallback) == ('agent', 'feishu')          # direct 也走降级链（FR-2）
+    assert notification.variables['os_channel'] == notification.variables['watch_channel']
     # 非 L2 路径的 target 仍只作文本/元数据承载，如实标注渠道层不支持
     assert result.metadata['wake_target_transport'] == TARGET_AGENT_TRANSPORT
 
