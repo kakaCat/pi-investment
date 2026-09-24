@@ -27,6 +27,11 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tupl
 
 from domain.notification.models.notification import NotificationType
 from infrastructure.notification.formatters.feishu_base_formatter import FeishuFormatter
+# INTENT_META/STAGE_LABELS 复用旧意图驱动格式化的同一份表（单一真相，不复制）；
+# feishu_formatters 对本模块是 format() 内的延迟 import，此处模块级 import 无循环。
+from infrastructure.notification.formatters.feishu_formatters import (
+    WatchTriggeredFormatter as _LegacyWatchFormatter,
+)
 
 # ── 级别常量（与 domain/watch/services/level_resolver.py 的 P0..P3 同值）──────────
 P0 = 'P0'
@@ -131,21 +136,127 @@ def _fallback_line(fallback: bool, requested_level: Optional[str]) -> Optional[s
             f'（resolve_level_template 兜底并显式标注，不静默降级）')
 
 
+# ── 意图驱动骨架（REQ-260924104605-ad0a t2，FR-4~7/9/10/12/13）─────────────────
+#: 骨架固定顺序：意图标签 → 触发 → 现价 → 目的 → 预案 → 风控 → 下一步。
+INTENT_META = _LegacyWatchFormatter.INTENT_META
+STAGE_LABELS = _LegacyWatchFormatter.STAGE_LABELS
+
+
+def _intent_meta(item: WatchCardItem) -> Tuple[str, str]:
+    """（意图标签, 目的句）：item.purpose 显式值优先，否则 INTENT_META 映射；
+    未标注意图 → 显式「❓ 未标注意图」（无主规则=烂账，如实暴露不掩饰）。"""
+    label, purpose = INTENT_META.get(
+        (item.intent or '').strip(),
+        ('❓ 未标注意图', '这条规则没有声明意图——建议补 intent（无主规则=烂账）'))
+    return label, (str(item.purpose or '').strip() or purpose)
+
+
+def _intent_emoji(item: WatchCardItem) -> str:
+    """意图标签的 emoji 段（P2 行首用，FR-7）。"""
+    return _intent_meta(item)[0].split(' ')[0]
+
+
+def _rule_ref(item: WatchCardItem) -> str:
+    """规则号引用：有规则显示真实号；无规则（手工创建）显示「手工」——
+    拒绝「规则#-」外露（FR-10）。"""
+    return f'规则#{item.rule_id}' if item.rule_id not in (None, '') else '手工'
+
+
+def _meta_line(item: WatchCardItem) -> str:
+    """阶段 · 归属 · 规则引用。归属缺失 = 「通用观察」（无账户预案，不臆造账户）。"""
+    bits: List[str] = []
+    stage = (item.stage or '').strip()
+    if stage:
+        bits.append(f'阶段：{STAGE_LABELS.get(stage, stage)}')
+    bits.append(f'归属：{item.account or "通用观察"}')
+    bits.append(_rule_ref(item))
+    return ' · '.join(bits)
+
+
+def _price_line(item: WatchCardItem) -> str:
+    """现价行（附带涨跌幅/持仓盈亏；缺失字段不臆造）。"""
+    line = f'**当前**：{item.price_text}'
+    if item.change_pct is not None:
+        line += ' (%+.2f%%)' % item.change_pct
+    if item.pnl_pct is not None:
+        line += '　盈亏 %+.2f%%' % item.pnl_pct
+    return line
+
+
+def _fmt_price_opt(value) -> Optional[str]:
+    try:
+        return '¥%.2f' % float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _risk_line(item: WatchCardItem) -> Optional[str]:
+    """风控行：止损/止盈/有效期任一存在才渲染（全缺 = 隐藏该行，绝不臆造）。"""
+    bits: List[str] = []
+    stop = _fmt_price_opt(item.stop_loss)
+    if stop:
+        bits.append(f'止损 {stop}')
+    take = _fmt_price_opt(item.take_profit)
+    if take:
+        bits.append(f'止盈 {take}')
+    if item.validity_days not in (None, ''):
+        bits.append(f'有效期 {item.validity_days} 天')
+    return f"**风控**：{' ｜ '.join(bits)}" if bits else None
+
+
+def _skeleton_lines(item: WatchCardItem, *, receipt_note: bool = True) -> List[str]:
+    """完整卡的意图驱动骨架（P0/P1 首项用）。
+
+    顺序固定（t2 验收锚点）：意图标签 → 触发 → 现价 → 目的 → 预案 → 风控 → 下一步。
+    「该干什么」只在「下一步」出现一次（FR-9 判重：N=1 时 action 文本出现 1 次）。
+    """
+    label, purpose = _intent_meta(item)
+    lines = [
+        '`🔔 需决策`',
+        f'**{label}｜{item.display}**',
+        _meta_line(item),
+        f'**触发**：{item.condition or "-"}',
+        _price_line(item),
+        f'**这条提醒为了**：{purpose}',
+    ]
+    plan = (item.plan_full or item.plan or '').strip()
+    if plan:
+        lines.append(f'**预案**：{plan}')
+    risk = _risk_line(item)
+    if risk:
+        lines.append(risk)
+    next_line = f'**下一步**：{item.action}'
+    if item.todo_id not in (None, ''):
+        next_line += f'（待办#{item.todo_id}）'
+    if receipt_note:
+        next_line += ' → 处置后必有回执'
+    lines.append(next_line)
+    return lines
+
+
+def _summary_line(item: WatchCardItem) -> str:
+    """P1 其余项的一行摘要：意图 emoji + 标的 + 动作 + 待办# + 归属（FR-6）。"""
+    bits = [item.action]
+    if item.todo_id not in (None, ''):
+        bits.append(f'待办#{item.todo_id}')
+    bits.append(f'归属 {item.account or "通用观察"}')
+    return f'- {_intent_emoji(item)} {item.display} {" · ".join(bits)}'
+
 # ── 四类模板 ──────────────────────────────────────────────────────────────────
 def render_p0(items, *, fallback: bool = False,
               requested_level: Optional[str] = None) -> Dict[str, Any]:
-    """P0 红卡：首行 = @用户 ｜ 标的 现价 → 该干什么；含账户/规则#/级别/条件/预案/待办#。"""
+    """P0 红卡：@所有人 首行 + 意图骨架 + 处置入口；不聚合（每条单独推送）。
+
+    REQ-ad0a t2：骨架 = 意图标签→触发→现价→目的→预案→风控→下一步；
+    风控行含止损/止盈（FR-5）；P0_RECEIPT/不可静默两条硬提示保留。
+    """
     rows = _rows(items)
     lead = rows[0]
-    lines = [
-        f'{MENTION_USER} ｜ {lead.display} 现价 {lead.price_text} → {lead.action}',
-        (f'**级别**：P0 立即处置 ｜ **账户**：{lead.account or "未归属"} ｜ '
-         f'**规则#**：{_id_text(lead.rule_id)} ｜ **待办#**：{_id_text(lead.todo_id)}'),
-        f'**触发条件**：{lead.condition or "-"}',
-        f'**预案**：{lead.plan or "-"}',
-        f'**{P0_NOT_SILENCEABLE_TEXT}**',
-        f'**{P0_RECEIPT_TEXT}**',
-    ]
+    lines = [MENTION_USER]                      # @所有人 首行（FR-5）
+    lines += _skeleton_lines(lead, receipt_note=True)
+    lines.append(f'**{ACTION_ENTRY_TEXT}**')    # 处置入口（FR-5）
+    lines.append(f'**{P0_NOT_SILENCEABLE_TEXT}**')
+    lines.append(f'**{P0_RECEIPT_TEXT}**')
     note = _fallback_line(fallback, requested_level)
     if note:
         lines.append(note)
@@ -161,18 +272,20 @@ def render_p0(items, *, fallback: bool = False,
 
 def render_p1(items, *, fallback: bool = False,
               requested_level: Optional[str] = None) -> Dict[str, Any]:
-    """P1 橙卡：首行 = 有 N 项等你拍板 ｜ 标的 现价（动作）；列 2-3 条摘要 + 处置入口。"""
+    """P1 橙卡：首项完整骨架 + 其余项一行摘要（意图 emoji/待办#/归属）。
+
+    REQ-ad0a t2：N=1 判重——action 只在「下一步」出现一次（FR-9）；
+    N>1 = 1 完整段 + (N-1) 摘要行（FR-6）；多账户分行不合并（FR-4）。
+    """
     rows = _rows(items)
     lead = rows[0]
     total = len(rows)
-    lines = [f'有 {total} 项等你拍板 ｜ {lead.display} {lead.price_text}（{lead.action}）']
-    for idx, row in enumerate(rows[:3], start=1):
-        lines.append(
-            f'{idx}. {row.display} {row.price_text}（{row.action}）'
-            f'· 账户 {row.account or "未归属"} · 规则#{_id_text(row.rule_id)}'
-        )
-    if total > 3:
-        lines.append(f'…另有 {total - 3} 项，见待办看板')
+    lines: List[str] = []
+    if total > 1:
+        lines.append(f'有 {total} 项等你拍板')
+    lines += _skeleton_lines(lead, receipt_note=True)
+    for row in rows[1:]:
+        lines.append(_summary_line(row))
     lines.append(f'**{ACTION_ENTRY_TEXT}**')
     note = _fallback_line(fallback, requested_level)
     if note:
@@ -186,9 +299,13 @@ def render_p1(items, *, fallback: bool = False,
 
 def render_p2(items, *, fallback: bool = False,
               requested_level: Optional[str] = None) -> Dict[str, Any]:
-    """P2 蓝卡：首行 = [知悉] 标的 现价 该干什么；一行一条（支持聚合多条）。"""
+    """P2 蓝卡：一行一条（支持聚合多条）；行首意图 emoji，行尾归属（FR-7）。"""
     rows = _rows(items)
-    lines = [f'[知悉] {row.display} {row.price_text} {row.action}' for row in rows]
+    lines = [
+        (f'{_intent_emoji(row)} [知悉] {row.display} {row.price_text} {row.action}'
+         f' · 归属 {row.account or "通用观察"}')
+        for row in rows
+    ]
     note = _fallback_line(fallback, requested_level)
     if note:
         lines.append(note)
@@ -210,7 +327,7 @@ def render_p3_digest(items, *, fallback: bool = False, requested_level: Optional
     for row in rows[:max_lines]:
         lines.append(
             f'- {row.display} {row.price_text} {row.action}'
-            f' · 账户 {row.account or "未归属"} · 规则#{_id_text(row.rule_id)}'
+            f' · 归属 {row.account or "通用观察"} · {_rule_ref(row)}'
         )
     if len(rows) > max_lines:
         lines.append(f'- …另有 {len(rows) - max_lines} 条')
@@ -328,6 +445,15 @@ def card_item_from_variables(variables: Dict[str, Any]) -> WatchCardItem:
         todo_id=data.get('todo_id'),
         change_pct=data.get('change_pct'),
         pnl_pct=data.get('pnl_pct'),
+        # REQ-ad0a t2：意图骨架字段直取（缺失如实留空/None，模板隐藏该行）
+        intent=str(data.get('intent') or ''),
+        stage=str(data.get('lifecycle_stage') or data.get('stage') or ''),
+        purpose=str(data.get('purpose') or ''),
+        plan_full=str(data.get('plan_full') or ''),
+        stop_loss=data.get('stop_loss'),
+        take_profit=data.get('take_profit'),
+        validity_days=data.get('validity_days'),
+        source=str(data.get('source') or ''),
     )
 
 
