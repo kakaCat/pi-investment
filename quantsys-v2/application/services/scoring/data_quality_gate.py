@@ -10,6 +10,7 @@
 不做：不补历史大段缺口（数据管道职责）、不插值编造、不让修复失败炸掉扫描。
 """
 from typing import Dict, Any, List, Optional, Tuple
+from dataclasses import asdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import logging
@@ -140,8 +141,9 @@ class DataQualityGate:
             new_bars = result.get('data') if result.get('success') else []
             if new_bars:
                 existing = {self._bar_date(b) for b in bars}
-                merged = bars + [b for b in new_bars
-                                 if self._bar_date(b) not in existing]
+                # 修复：将 KlineData 对象转为 Dict (2026-09-23 w-64c01af2)
+                merged = bars + [asdict(b) if hasattr(b, '__dataclass_fields__') else b
+                                 for b in new_bars if self._bar_date(b) not in existing]
                 added = len(merged) - len(bars)
                 if added > 0:
                     self.repair_report['succeeded'] += 1

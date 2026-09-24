@@ -156,7 +156,7 @@ class PositionLifecycleService:
                 rule.id,
                 intent="exit_stop", lifecycle_stage="holding", scope="position",
                 linked_account=pos.get("account"),
-                created_from="position_lifecycle:%s" % sym,
+                created_from=("position_lifecycle:%s" % sym)[:80],
                 action_hint={"trigger_level": "L2", "action_on_trigger": "sell", "requires_agent": True},
             )
             return rule.id

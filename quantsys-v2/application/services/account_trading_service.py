@@ -162,6 +162,7 @@ class AccountTradingService:
         allow_off_hours: bool = False,
         execute_at: Optional[str] = None,
         allow_duplicate: bool = False,
+        submitted_by: Optional[str] = None,
     ) -> Dict:
         """
         重构版交易执行（使用 TradeGuardService）
@@ -291,7 +292,8 @@ class AccountTradingService:
                 account_name=account_name, action=action, symbol=symbol,
                 shares=shares, amount=amount, price_limit=price_limit,
                 reason=reason, execute_at='market_open',
-                decision_price=decision_price, price_source=price_source)
+                decision_price=decision_price, price_source=price_source,
+                submitted_by=submitted_by)
 
             logger.info("pending_order_placed",
                         account=account_name, action=action, symbol=symbol,
@@ -387,6 +389,7 @@ class AccountTradingService:
             order = self.repo.create_order(
                 account_name=account_name, action=action, symbol=symbol,
                 shares=shares, price_limit=price_limit, reason=reason,
+                submitted_by=submitted_by,
                 commit=False)
 
             order.status = 'filled'

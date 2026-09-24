@@ -369,6 +369,7 @@ class SimulationOrder(Base):
     strategy_name = Column(String(50), comment='来源策略')
     signal_id = Column(String(64), comment='来源信号')
     reject_reason = Column(String(500), comment='拒绝原因')
+    submitted_by = Column(String(50), comment='下单窗口编码（如 w-64c01af2）')
     created_at = Column(DateTime(timezone=False), default=datetime.now, comment='创建时间')
     updated_at = Column(DateTime(timezone=False), default=datetime.now,
                         onupdate=datetime.now, comment='更新时间')
@@ -395,6 +396,7 @@ class SimulationOrder(Base):
             'strategy_name': self.strategy_name,
             'signal_id': self.signal_id,
             'reject_reason': self.reject_reason,
+            'submitted_by': self.submitted_by,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -518,6 +520,7 @@ class SimulationPendingOrder(Base):
                     comment='pending/executed/failed/cancelled')
     fail_reason = Column(Text, comment='撮合失败原因（护栏拒绝理由）')
     executed_trade_id = Column(Integer, comment='撮合成功后关联的 simulation_trades.id')
+    submitted_by = Column(String(50), comment='下单窗口编码（如 w-64c01af2）')
     created_at = Column(DateTime(timezone=False), default=datetime.now, comment='创建时间')
     updated_at = Column(DateTime(timezone=False), default=datetime.now,
                         onupdate=datetime.now, comment='更新时间')
@@ -550,6 +553,7 @@ class SimulationPendingOrder(Base):
             'price_source': self.price_source,
             'fill_price': float(self.fill_price) if self.fill_price is not None else None,
             'slippage_bps': float(self.slippage_bps) if self.slippage_bps is not None else None,
+            'submitted_by': self.submitted_by,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

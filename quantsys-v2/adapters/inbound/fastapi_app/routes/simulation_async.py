@@ -89,6 +89,7 @@ async def manual_trade(account_name: str, payload: Dict[str, Any] = Body(...)):
             price=payload.get('price'),
             execute_at=payload.get('execute_at'),  # 条件委托：'market_open' 盘前挂单
             allow_duplicate=bool(payload.get('allow_duplicate', False)),  # 重复挂单确认放行（2026-09-03）
+            submitted_by=payload.get('submitted_by'),  # 下单窗口编码
         )
         return {'success': True, 'data': result}
     except TradingError as e:

@@ -398,6 +398,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         reason: Optional[str] = None,
         strategy_name: Optional[str] = None,
         signal_id: Optional[str] = None,
+        submitted_by: Optional[str] = None,
         commit: bool = True
     ) -> SimulationOrder:
         """创建委托单"""
@@ -413,6 +414,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             reason=reason,
             strategy_name=strategy_name,
             signal_id=signal_id,
+            submitted_by=submitted_by,
         )
         self.session.add(order)
         if commit:
@@ -436,6 +438,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
         execute_at: str = 'market_open',
         decision_price: Optional[float] = None,
         price_source: Optional[str] = None,
+        submitted_by: Optional[str] = None,
         commit: bool = True
     ) -> SimulationPendingOrder:
         # 2026-09-13（w-a9ec14d7，M5 执行质量闭环）：
@@ -458,6 +461,7 @@ class SimulationORMRepository(BaseORMRepository[SimulationAccount], ISimulationR
             # 决策价 0.0（极端行情/坏数据）会被 falsy 判成"没取到价"，把时间戳一起丢掉。
             decision_at=datetime.now() if decision_price is not None else None,
             price_source=price_source,
+            submitted_by=submitted_by,
         )
         self.session.add(order)
         if commit:

@@ -29,7 +29,7 @@ JOBS = [
     {
         "name": "kline_update",
         "owner": "quantsys-v2",
-        "cron": "40 17 * * 1-5",  # 工作日 17:40
+        "cron": "0 40 17 * * 1-5",  # 工作日 17:40
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -45,7 +45,7 @@ JOBS = [
     {
         "name": "index_constituents_update",
         "owner": "quantsys-v2",
-        "cron": "40 15 * * 1-5",  # 工作日 15:40（原 scheduler_task_configs 失传任务重建）
+        "cron": "0 40 15 * * 1-5",  # 工作日 15:40（原 scheduler_task_configs 失传任务重建）
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -61,7 +61,7 @@ JOBS = [
     {
         "name": "chip_distribution_update",
         "owner": "quantsys-v2",
-        "cron": "30 10 * * 1-5",  # 工作日 10:30
+        "cron": "0 30 10 * * 1-5",  # 工作日 10:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -77,7 +77,7 @@ JOBS = [
     {
         "name": "pool_refresh_daily",
         "owner": "quantsys-v2",
-        "cron": "0 2 * * *",  # 每日 02:00
+        "cron": "0 0 2 * * *",  # 每日 02:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -109,7 +109,7 @@ JOBS = [
     {
         "name": "signal_generate_buy",
         "owner": "quantsys-v2",
-        "cron": "0 9 * * 1-5",  # 工作日 09:00
+        "cron": "0 0 9 * * 1-5",  # 工作日 09:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -144,7 +144,7 @@ JOBS = [
     {
         "name": "signal_execution_daily",
         "owner": "quantsys-v2",
-        "cron": "30 7 * * 1-5",  # 工作日 07:30
+        "cron": "0 30 7 * * 1-5",  # 工作日 07:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -160,7 +160,7 @@ JOBS = [
     {
         "name": "factor_compute_daily",
         "owner": "quantsys-v2",
-        "cron": "0 8 * * 1-5",  # 工作日 08:00
+        "cron": "0 0 8 * * 1-5",  # 工作日 08:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -177,7 +177,7 @@ JOBS = [
     {
         "name": "data_quality_check_daily",
         "owner": "quantsys-v2",
-        "cron": "0 16 * * *",  # 每日 16:00
+        "cron": "0 0 16 * * *",  # 每日 16:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -195,7 +195,7 @@ JOBS = [
     {
         "name": "strategy_validate_daily",
         "owner": "quantsys-v2",
-        "cron": "0 13 * * 1-5",  # 工作日 13:00
+        "cron": "0 0 13 * * 1-5",  # 工作日 13:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -215,7 +215,7 @@ JOBS = [
     {
         "name": "v13_daily_check",
         "owner": "quantsys-v2",
-        "cron": "30 14 * * 1-5",  # 工作日 14:30
+        "cron": "0 30 14 * * 1-5",  # 工作日 14:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": False,  # DEPRECATED: replaced by strategy_execute_all
@@ -235,7 +235,7 @@ JOBS = [
     {
         "name": "v13_risk_check",
         "owner": "quantsys-v2",
-        "cron": "0 16 * * 1-5",  # 工作日 16:00
+        "cron": "0 0 16 * * 1-5",  # 工作日 16:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -251,7 +251,7 @@ JOBS = [
     {
         "name": "v13_verification",
         "owner": "quantsys-v2",
-        "cron": "30 16 * * 1-5",  # 工作日 16:30
+        "cron": "0 30 16 * * 1-5",  # 工作日 16:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -271,7 +271,7 @@ JOBS = [
     {
         "name": "strategy_execute_all",
         "owner": "quantsys-v2",
-        "cron": "30 14 * * 1-5",  # 工作日 14:30（沿用 v13_daily_check 时段）
+        "cron": "0 30 14 * * 1-5",  # 工作日 14:30（沿用 v13_daily_check 时段）
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -290,7 +290,7 @@ JOBS = [
     {
         "name": "intraday_risk_1000",
         "owner": "quantsys-v2",
-        "cron": "0 10 * * 1-5",  # 工作日 10:00
+        "cron": "0 0 10 * * 1-5",  # 工作日 10:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",
         "enabled": True,
@@ -304,7 +304,7 @@ JOBS = [
     {
         "name": "intraday_risk_1030",
         "owner": "quantsys-v2",
-        "cron": "30 10 * * 1-5",  # 工作日 10:30
+        "cron": "0 30 10 * * 1-5",  # 工作日 10:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",
         "enabled": True,
@@ -318,7 +318,7 @@ JOBS = [
     {
         "name": "intraday_risk_1100",
         "owner": "quantsys-v2",
-        "cron": "0 11 * * 1-5",  # 工作日 11:00
+        "cron": "0 0 11 * * 1-5",  # 工作日 11:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",
         "enabled": True,
@@ -332,7 +332,7 @@ JOBS = [
     {
         "name": "intraday_risk_1300",
         "owner": "quantsys-v2",
-        "cron": "0 13 * * 1-5",  # 工作日 13:00
+        "cron": "0 0 13 * * 1-5",  # 工作日 13:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",
         "enabled": True,
@@ -346,7 +346,7 @@ JOBS = [
     {
         "name": "intraday_risk_1330",
         "owner": "quantsys-v2",
-        "cron": "30 13 * * 1-5",  # 工作日 13:30
+        "cron": "0 30 13 * * 1-5",  # 工作日 13:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",
         "enabled": True,
@@ -360,7 +360,7 @@ JOBS = [
     {
         "name": "intraday_risk_1400",
         "owner": "quantsys-v2",
-        "cron": "0 14 * * 1-5",  # 工作日 14:00
+        "cron": "0 0 14 * * 1-5",  # 工作日 14:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",
         "enabled": True,
@@ -374,7 +374,7 @@ JOBS = [
     {
         "name": "intraday_risk_1430",
         "owner": "quantsys-v2",
-        "cron": "30 14 * * 1-5",  # 工作日 14:30
+        "cron": "0 30 14 * * 1-5",  # 工作日 14:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",
         "enabled": True,
@@ -390,7 +390,7 @@ JOBS = [
     {
         "name": "financial_statement_update",
         "owner": "quantsys-v2",
-        "cron": "0 20 * * 6",  # 每周六 20:00
+        "cron": "0 0 20 * * 6",  # 每周六 20:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -406,7 +406,7 @@ JOBS = [
     {
         "name": "financial_data_update",
         "owner": "quantsys-v2",
-        "cron": "30 18 * * 6",  # 每周六 18:30
+        "cron": "0 30 18 * * 6",  # 每周六 18:30
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -423,7 +423,7 @@ JOBS = [
     {
         "name": "v13_weekly_report",
         "owner": "quantsys-v2",
-        "cron": "0 10 * * 6",  # 每周六 10:00
+        "cron": "0 0 10 * * 6",  # 每周六 10:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -439,7 +439,7 @@ JOBS = [
     {
         "name": "report_weekly",
         "owner": "quantsys-v2",
-        "cron": "0 10 * * 5",  # 每周五 10:00
+        "cron": "0 0 10 * * 5",  # 每周五 10:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -471,7 +471,7 @@ JOBS = [
     {
         "name": "chan_scan_daily",
         "owner": "quantsys-v2",
-        "cron": "10 10 * * 1-5",  # 工作日 10:10
+        "cron": "0 10 10 * * 1-5",  # 工作日 10:10
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -487,7 +487,7 @@ JOBS = [
     {
         "name": "chan_knowledge_distill_weekly",
         "owner": "quantsys-v2",
-        "cron": "0 12 * * 0",  # 每周日 12:00
+        "cron": "0 0 12 * * 0",  # 每周日 12:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,
@@ -503,7 +503,7 @@ JOBS = [
     {
         "name": "strategy_discover_weekly",
         "owner": "quantsys-v2",
-        "cron": "0 14 * * 0",  # 每周日 14:00
+        "cron": "0 0 14 * * 0",  # 每周日 14:00
         "webhook_url": "http://127.0.0.1:5001/internal/scheduler/webhook",
         "service_name": "quantsys-v2",  # Agent OS ensures v2 is running before triggering
         "enabled": True,

@@ -365,7 +365,7 @@ def batch_reconfigure_rules(payload: Dict[str, Any] = Body(default_factory=dict)
                 meta = {k: act[k] for k in ('intent', 'lifecycle_stage', 'scope', 'target',
                         'linked_account', 'next_action_hint', 'review_interval_days',
                         'action_hint', 'escalation_policy') if k in act}
-                meta['created_from'] = act.get('created_from') or ('trigger:' + str(source_trigger_id))
+                meta['created_from'] = (act.get('created_from') or ('trigger:' + str(source_trigger_id)))[:80]
                 if meta:
                     rule_repo.update_fields(rule.id, **meta)
                 results.append({'index': i, 'success': True, 'op': 'create', 'rule_id': rule.id})

@@ -280,6 +280,8 @@ class WatchEngine:
                         self.digest_service.maybe_wake(now)
                 except Exception as e:
                     logger.error('摘要门异常', error=str(e))
+                finally:
+                    close_session()
                 # 元触发复核：每日一次（规则不能无限期盯下去，RFC 014 v3 §13）
                 try:
                     if (self.meta_review_service is not None
@@ -290,6 +292,8 @@ class WatchEngine:
                             logger.info('元触发复核完成', raised=summary['raised'])
                 except Exception as e:
                     logger.error('元触发复核异常', error=str(e))
+                finally:
+                    close_session()
                 # 持仓生命周期联动：每日一次（买入完成/清仓收摊，RFC 014 v3 §2.3）
                 try:
                     if (self.position_lifecycle_service is not None
@@ -300,6 +304,8 @@ class WatchEngine:
                             logger.info('持仓生命周期联动完成', retired=s['retired'], created=s['created'])
                 except Exception as e:
                     logger.error('持仓生命周期联动异常', error=str(e))
+                finally:
+                    close_session()
                 interval = self.fast_interval if self.fast_mode else self.base_interval
             else:
                 interval = 60  # 非交易时段低频心跳
