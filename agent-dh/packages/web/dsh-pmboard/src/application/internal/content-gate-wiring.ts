@@ -30,6 +30,7 @@ import {
   type ParsedDoc,
 } from './content-gates.js'
 import { collectTaskRefs, taskRefsFromDecomposition } from './content-trace.js'
+import { envelope } from './gate-feedback.js'
 import { fmt } from '../../domain/text/fmt.js'
 
 // 分析 API 再导出（调用方继续从本模块 import，不必改）
@@ -97,10 +98,12 @@ export async function assertClauseCoverageGate(
     code: 'requirement_uncovered',
     kind: 'decomposition',
     gaps,
-    message: fmt(
-      'reqboard_decompose 未执行：以下需求条款既没有被任何任务卡接收、也没有标「本轮不做」——{gaps}。请给对应任务卡加 requirement_refs=[...]；确需本轮不做的，在该条款旁显式写明「本轮不做」并给出理由。',
-      { gaps: gaps.join(', ') },
-    ),
+    message: envelope({
+      lead: 'reqboard_decompose 未执行：',
+      what: fmt('需求条款 {list}', { list: gaps.join('、') }),
+      why: '既没有被任何任务卡接收、也没有标「本轮不做」',
+      how: '给对应任务卡加 requirement_refs=["FR-#"]；确需本轮不做的，在该条款旁显式写明「本轮不做」并给出理由，然后重调 reqboard_decompose',
+    }),
   }
 }
 
@@ -136,10 +139,12 @@ export async function checkDesignServesGate(docs: DocsReader, req: RequirementRe
     code: 'design_orphan',
     kind: 'plan',
     gaps: missing,
-    message: fmt(
-      '提交未执行：以下设计章节**没有标注服务哪条功能点**（缺 serves）——{list}。请给每个二级章节补 serves: FR-#（多值逗号分隔）；确实不服务任何条款的章节应删掉或合并。',
-      { list: missing.join('；') },
-    ),
+    message: envelope({
+      lead: '提交未执行：',
+      what: fmt('设计章节 {list}', { list: missing.join('；') }),
+      why: '该二级章节缺 serves 标注（没说明服务哪条功能点）',
+      how: '在标题行补 serves: FR-#（多值逗号分隔）后重调 reqboard_submit(kind=plan)；不服务任何条款的章节删掉或合并',
+    }),
   }
 }
 
@@ -172,10 +177,12 @@ export async function checkRequirementDocFormatGate(
     return {
       code: 'requirement_missing_clauses',
       kind: 'requirement',
-      message:
-        'reqboard_requirement_submit 未执行：需求文档缺少功能编号。' +
-        '请为每个功能点添加编号（格式：### FR-1: 功能名称 或 **FR-1: 功能名称**）。' +
-        '根据需求类型使用对应前缀：FR（功能）/ BUG（缺陷）/ RF（重构）/ SP（调研）/ DOC（文档）/ CH（维护）',
+      message: envelope({
+        lead: 'reqboard_requirement_submit 未执行：',
+        what: '需求文档的功能编号',
+        why: '文档里没有任何根编号定义（缺 FR-/BUG-/RF-/SP-/DOC-/CH-）',
+        how: '为每个功能点添加编号（格式：### FR-1: 功能名称 或 **FR-1: 功能名称**；前缀按类型：FR 功能 / BUG 缺陷 / RF 重构 / SP 调研 / DOC 文档 / CH 维护），再调 reqboard_submit(kind=requirement)',
+      }),
     }
   }
 
@@ -186,10 +193,12 @@ export async function checkRequirementDocFormatGate(
       code: 'requirement_clause_sequence_gap',
       kind: 'requirement',
       gaps: sequenceGaps,
-      message:
-        'reqboard_requirement_submit 未执行：需求编号不连续（跳号）——' +
-        sequenceGaps.join('、') +
-        '。请补上缺失的编号，或调整现有编号使其连续（如 FR-1, FR-2, FR-3...）',
+      message: envelope({
+        lead: 'reqboard_requirement_submit 未执行：',
+        what: fmt('需求编号 {list}', { list: sequenceGaps.join('、') }),
+        why: '编号不连续（跳号）',
+        how: '补上缺失编号、或调整现有编号使其连续（如 FR-1, FR-2, FR-3），再调 reqboard_submit(kind=requirement)',
+      }),
     }
   }
 
@@ -200,10 +209,12 @@ export async function checkRequirementDocFormatGate(
       code: 'requirement_clause_duplicates',
       kind: 'requirement',
       gaps: duplicates,
-      message:
-        'reqboard_requirement_submit 未执行：需求编号重复——' +
-        duplicates.join('、') +
-        '。每个编号只能出现一次，请检查并合并重复的条款',
+      message: envelope({
+        lead: 'reqboard_requirement_submit 未执行：',
+        what: fmt('需求编号 {list}', { list: duplicates.join('、') }),
+        why: '同一编号被定义多次（每个编号只能出现一次）',
+        how: '合并重复条款、每个编号只留一处，再调 reqboard_submit(kind=requirement)',
+      }),
     }
   }
 
@@ -370,10 +381,12 @@ export async function checkNumberChainGate(docs: DocsReader, req: RequirementRec
       code: 'dangling_reference',
       kind: 'plan',
       gaps: dangling,
-      message: fmt(
-        '提交未执行：以下编号引用**悬空**（serves 指向不存在的编号）——{list}。请改为引用真实存在的编号，或先在需求文档补上被引用的那一条。',
-        { list: dangling.join('；') },
-      ),
+      message: envelope({
+        lead: '提交未执行：',
+        what: fmt('编号引用 {list}', { list: dangling.join('；') }),
+        why: '悬空（serves 指向不存在的编号）',
+        how: '改为引用 requirement.md 里真实存在的 FR-#（或先在需求文档补上被引用的那一条），再调 reqboard_submit(kind=plan)',
+      }),
     },
   }
 }

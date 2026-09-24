@@ -12,15 +12,18 @@ import { join } from 'node:path'
 const TOOLS = fileURLToPath(new URL('../src/tools', import.meta.url))
 
 describe('t8 · 工具面 13→9 收敛', () => {
-  it('src/tools/ 下恰好 12 个工具目录，各含 XxxTool.ts + prompt.ts + index.ts（三段式）', () => {
+  it('src/tools/ 下恰好 13 个工具目录，各含 XxxTool.ts + prompt.ts + index.ts（三段式）', () => {
     const dirs = readdirSync(TOOLS, { withFileTypes: true })
       .filter(e => e.isDirectory())
       .map(e => e.name)
       .sort()
-    // REQ-47939a t8 收敛后 9 个；REQ-327bdf 增 TaskExecuteTool / TaskStatusTool；REQ-e3b6a0 t8 增 CaptureTool。
+    // REQ-47939a t8 收敛后 9 个；REQ-327bdf 增 TaskExecuteTool / TaskStatusTool；REQ-e3b6a0 t8 增 CaptureTool；
+    // REQ-260924213231-b1c4 T-6 增 ConfirmReceiptTool（挂起确认回执，三段式齐全）；
+    // T-9 增 NoteInterruptionTool（断点补写，三段式齐全）。
     expect(dirs).toEqual([
-      'AcceptSheetTool', 'AdvanceTool', 'AskConfirmTool', 'CaptureTool', 'CreateTool', 'DecomposeTool', 'MoveTool',
-      'StatusTool', 'SubmitTool', 'TaskExecuteTool', 'TaskMoveTool', 'TaskReportTool', 'TaskStatusTool',
+      'AcceptSheetTool', 'AdvanceTool', 'AskConfirmTool', 'CaptureTool', 'ConfirmReceiptTool', 'CreateTool',
+      'DecomposeTool', 'MoveTool', 'NoteInterruptionTool', 'StatusTool', 'SubmitTool', 'TaskExecuteTool',
+      'TaskMoveTool', 'TaskReportTool', 'TaskStatusTool',
     ])
     // 三段式的例外：REQ-327bdf 的两个工具目录不是三段式（无 prompt.ts/index.ts，
     // 且外壳含状态字面量——见下面那条门禁的失败清单）。列在此处是为了**显式留债**

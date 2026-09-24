@@ -34,6 +34,11 @@ export interface LedgerProjection {
   next: string
   /** 证据指针：产物路径 */
   evidence: string
+  /**
+   * 断点（T-1 / FR-6）：当前阶段 + 未完成动作 + 中断原因 + 时间；无断点 = 空串。
+   * 输入包据此**条件追加**「## 断点」节——老需求（无字段）输出逐字节不变。
+   */
+  breakpoint: string
 }
 
 const NONE_UPSTREAM = '（无已确认产物）'
@@ -46,7 +51,7 @@ function artifactLabel(a: StageArtifact): string {
 }
 
 /**
- * 台账投影：只从需求记录投影出五字段，**不含任何对话内容**（INV-9）。
+ * 台账投影：从需求记录投影出五字段 + 断点（FR-6），**不含任何对话内容**（INV-9）。
  * requirement 缺失（窗口还没有绑定需求）→ 如实标注"无归属需求"，不静默留空。
  */
 export function projectLedger(requirement: RequirementRecord | undefined, stage: PromptStage): LedgerProjection {
@@ -58,6 +63,7 @@ export function projectLedger(requirement: RequirementRecord | undefined, stage:
       openQuestions: NO_REQUIREMENT,
       next: chain.label,
       evidence: NONE_EVIDENCE,
+      breakpoint: '',
     }
   }
   const artifacts = requirement.artifacts ?? []
@@ -76,7 +82,27 @@ export function projectLedger(requirement: RequirementRecord | undefined, stage:
     openQuestions: [...unconfirmed.map(artifactLabel), ...blockers].join('；') || NONE_OPEN,
     next: chain.label,
     evidence: artifacts.length > 0 ? artifacts.map(a => a.path).join('；') : NONE_EVIDENCE,
+    breakpoint: breakpointText(requirement),
   }
+}
+
+/**
+ * 断点节文本（T-1 / FR-6）：含阶段 / 未完成动作 / 中断原因 / 时间四要素。无断点 → 空串
+ * （调用方据此不追加该节，保证存量需求输出与改造前逐字节一致）。
+ */
+function breakpointText(requirement: RequirementRecord | undefined): string {
+  const bp = requirement?.interruption
+  if (bp === undefined) return ''
+  return fmt(
+    [
+      '## 断点',
+      '- 当前阶段：{stage}',
+      '- 未完成动作：{action}',
+      '- 中断原因：{reason}',
+      '- 记录时间：{at}',
+    ].join('\n'),
+    { stage: bp.stage, action: bp.pendingAction, reason: bp.reason, at: new Date(bp.at).toISOString() },
+  )
 }
 
 export interface NodeInputPackageInput {
@@ -112,6 +138,8 @@ export function buildNodeInputPackage(input: NodeInputPackageInput): NodeInputPa
     ...(input.budget === undefined ? {} : { budget: input.budget }),
   })
   const projection = projectLedger(input.requirement, input.stage)
+  // FR-6：仅当需求带断点时追加该节；无断点 → 空数组（逐字节保持旧输出）。
+  const breakpointSection = projection.breakpoint.length > 0 ? [...projection.breakpoint.split('\n'), ''] : []
   const docText = input.requirementDoc.length > 0
     ? input.requirementDoc
     : fmt(DOC_UNAVAILABLE, { path: input.requirementDocPath })
@@ -131,6 +159,7 @@ export function buildNodeInputPackage(input: NodeInputPackageInput): NodeInputPa
       '## 未决问题',
       '{openQuestions}',
       '',
+      ...breakpointSection,
       '## 下一步',
       '{next}',
       '',

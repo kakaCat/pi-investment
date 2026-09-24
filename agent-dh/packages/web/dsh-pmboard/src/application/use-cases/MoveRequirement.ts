@@ -18,6 +18,7 @@ import { captureSnapshot, transitionRequirement } from '../internal/token-usage.
 import { docSyncPendingOf, docSyncSummary } from '../../domain/workflow/DocSyncSpec.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { applyTaskRollup } from '../internal/rollup.js'
+import { stampCheckpoint } from '../internal/interruption.js'
 import { assertArtifactGates } from '../internal/artifact-gates.js'
 import { checkDesignCompletenessGate } from '../internal/content-gate-wiring.js'
 import { gateForTransition } from '../../domain/gate/GateCatalog.js'
@@ -135,6 +136,8 @@ export async function executeMoveRequirement(deps: UseCaseDeps, args: unknown, e
           { now: deps.clock.now(), commentId: () => deps.ids.comment(), snapshot: () => captureSnapshot(deps, windowKey) },
           req.id,
         )
+        // FR-6 写入器 A：交棒即写 checkpoint（幂等：stage/pendingAction 未变不写）。
+        stampCheckpoint(req, deps.clock.now(), 'reqboard_move')
         return { requirements: [req, ...advanced] }
       })
       const changed = (result.changed.requirements ?? [])[0]

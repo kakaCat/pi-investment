@@ -11,6 +11,8 @@ import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import { discoverArtifacts, syncReqArtifacts, syncAllReqArtifacts, reqDirRel } from '../src/adapters/ArtifactSync.js'
 import { kindForRelPath } from '../src/domain/artifact/ArtifactSpec.js'
+import { discoverArtifactsFrom } from '../src/application/internal/artifact-discovery.js'
+import { FileDocRepository } from '../src/adapters/FileDocRepository.js'
 import type { RequirementRecord, StageArtifact } from '../src/shared/protocol.js'
 
 let dir: string
@@ -137,5 +139,35 @@ describe('syncReqArtifacts（落库）', () => {
     writeReqFile('prototype.html')
     const total = await syncAllReqArtifacts(store, dir)
     expect(total).toBe(2)
+  })
+})
+
+describe('discoverArtifactsFrom（application 核心：只走 DocRepository 端口）', () => {
+  /** 投影掉 registeredAt（Date.now()），只比可复现字段。 */
+  const project = (list: StageArtifact[]) =>
+    list.map(a => ({ path: a.path, kind: a.kind, stage: a.stage, autoDiscovered: a.autoDiscovered, fileSize: a.fileSize }))
+
+  it('经端口扫描需求目录，未登记文件带 autoDiscovered 标记且按名分类', async () => {
+    await seedReq()
+    writeReqFile('requirement.md')
+    writeReqFile('prototype.html')
+    writeReqFile('design/architecture.md')
+    const req = store.snapshot().requirements[0]
+    const found = discoverArtifactsFrom(new FileDocRepository({ workspaceRoot: dir }), req)
+    const byPath = Object.fromEntries(found.map(a => [a.path, a]))
+    expect(byPath[reqDirRel(REQ) + '/requirement.md'].kind).toBe('requirement')
+    expect(byPath[reqDirRel(REQ) + '/prototype.html'].kind).toBe('notes')
+    expect(byPath[reqDirRel(REQ) + '/prototype.html'].autoDiscovered).toBe(true)
+    expect(byPath[reqDirRel(REQ) + '/design/architecture.md'].kind).toBe('design')
+  })
+
+  it('与适配器兼容入口 discoverArtifacts 产出逐字一致（行为零变更）', async () => {
+    await seedReq()
+    writeReqFile('tasks/t-abc123.md')
+    writeReqFile('prototype.html')
+    const req = store.snapshot().requirements[0]
+    const core = discoverArtifactsFrom(new FileDocRepository({ workspaceRoot: dir }), req)
+    const shim = discoverArtifacts(req, join(dir, reqDirRel(REQ)), reqDirRel(REQ))
+    expect(project(core)).toEqual(project(shim))
   })
 })

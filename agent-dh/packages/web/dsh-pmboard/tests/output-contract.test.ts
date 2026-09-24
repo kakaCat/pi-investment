@@ -332,8 +332,14 @@ const RESPONSE_SOURCES: Record<string, string[]> = {
     'application/use-cases/SubmitArtifact.ts',
     'application/use-cases/SubmitVerification.ts',
     'application/use-cases/SubmitArchive.ts',
+    // REQ-260924213231-b1c4 T-3：kind=design 登记用例（返回体 design_docs / registered_count）
+    'application/use-cases/SubmitDesignArtifacts.ts',
   ],
   AskConfirm: ['application/use-cases/AskConfirm.ts', 'application/use-cases/ConfirmArtifact.ts'],
+  // REQ-260924213231-b1c4 T-6：挂起确认回执（返回体在回执用例里）
+  ConfirmReceipt: ['application/use-cases/ConfirmReceipt.ts'],
+  // REQ-260924213231-b1c4 T-9：断点补写（返回体在 NoteInterruption 用例里）
+  NoteInterruption: ['application/use-cases/NoteInterruption.ts'],
   AcceptSheet: ['application/use-cases/AcceptSheet.ts'],
   // REQ-e3b6a0 t8：立项三问 pm 专有弹框（响应体在抓化用例里）
   Capture: ['application/use-cases/CaptureRequirement.ts'],

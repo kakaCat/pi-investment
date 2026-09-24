@@ -24,13 +24,10 @@ import { describeConflicts, findWorkSurfaceConflicts } from '../internal/conflic
 import { applyTaskRollup } from '../internal/rollup.js'
 import { captureSnapshot } from '../internal/token-usage.js'
 import { registerArtifact } from '../internal/artifact-gates.js'
+import { stampCheckpoint } from '../internal/interruption.js'
 import { syncRequirementMarks } from './SyncRequirementMarks.js'
 import { assertClauseCoverageGate, requirementRefsOf } from '../internal/content-gate-wiring.js'
-import {
-  reject,
-  agentIdFromExec,
-  requireLiveDriver,
-} from '../internal/support.js'
+import { reject, agentIdFromExec, requireLiveDriver } from '../internal/support.js'
 
 export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
       const windowKey = agentIdFromExec(deps, exec)
@@ -377,7 +374,7 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
               registeredAt: nowTs, registeredBy: { kind: 'agent', sessionId: windowKey },
             })
           }
-          return { requirements: [r] }
+          stampCheckpoint(r, nowTs, 'reqboard_decompose'); return { requirements: [r] }
         })
         return {
           success: true,

@@ -16,6 +16,7 @@ import {
 } from '../internal/support.js'
 import { parseDocument, extractClauseDefinitions, extractSkippedClauses } from '../internal/content-gates.js'
 import { collectTaskRefs, clauseReceiveStatus } from '../internal/content-gate-wiring.js'
+import { designDocRegistrationOf } from '../internal/design-docs.js'
 
 export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): Promise<unknown> {
       const windowKey = agentIdFromExec(deps, exec)
@@ -25,8 +26,12 @@ export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): 
       // R9 的形态就是"未被接收"，必须在**每次 status 调用**里显眼可见，而不是靠人记得去查。
       let clause_receive_status: unknown[] = []
       let unreceived: string[] = []
+      // 设计文档逐份登记态（FR-1 / I-2，T-4）：磁盘 / 产物簿 / 确认章三源合成——agent 不打开看板
+      // 也能读出「未登记 / 待确认 / 已落章」。与 reqboard_submit(kind=design) 的 design_docs 同源同口径。
+      let design_docs: unknown[] = []
       if (open.length > 0) {
         const boundReq = open[0]
+        design_docs = await designDocRegistrationOf(deps.docs, boundReq)
         const reqPath = 'docs/requirements/' + boundReq.id + '/requirement.md'
         if (deps.docs.exists(reqPath)) {
           const doc = parseDocument(await deps.docs.read(reqPath))
@@ -51,6 +56,7 @@ export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): 
         next_actions: open.length > 0 ? agentNextActions(open[0].status) : [],
         clause_receive_status,
         unreceived_clauses: unreceived,
+        design_docs,
         note:
           open.length > 0
             ? `本窗口已绑定进行中需求（当前 ${open[0].status}）：里程碑处用 reqboard_move 自行推进（${agentNextActions(open[0].status).join(' / ') || '无可推进项'}），勿重复立项`

@@ -334,7 +334,8 @@
     },
     "patchedDependencies": {
       "@deepseek-ai/dsh-cordis-client-runner@0.1.6-alpha.2": "patches/@deepseek-ai__dsh-cordis-client-runner@0.1.6-alpha.2.patch",
-      "@deepseek-ai/dsh-client-ui-cordis@0.1.6-alpha.2": "patches/@deepseek-ai__dsh-client-ui-cordis@0.1.6-alpha.2.patch"
+      "@deepseek-ai/dsh-client-ui-cordis@0.1.6-alpha.2": "patches/@deepseek-ai__dsh-client-ui-cordis@0.1.6-alpha.2.patch",
+      "@deepseek-ai/dsh-ptc-runtime-node@0.1.6-alpha.2": "patches/@deepseek-ai__dsh-ptc-runtime-node@0.1.6-alpha.2.patch"
     }
   }
 }

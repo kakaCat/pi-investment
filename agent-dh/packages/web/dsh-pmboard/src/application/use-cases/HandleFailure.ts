@@ -10,6 +10,7 @@
  */
 import type { UseCaseDeps } from '../ports.js'
 import { fmt } from '../../domain/text/fmt.js'
+import { pmHeader } from '../../domain/text/pm-badge.js'
 import { assertReqTransition, recordStatus } from '../../shared/protocol.js'
 import { advanceRequirement } from './AdvanceChain.js'
 
@@ -38,7 +39,7 @@ export async function openFailurePopup(
   const answers = await deps.questions.ask(
     [{
       id: 'failure-decision',
-      header: '实施链已暂停',
+      header: pmHeader('实施链已暂停'),
       question: fmt('需求 {req} 的实施链因失败暂停，请选择处置方式（重跑 / 退回上游 / 取消）', { req: requirementId }),
       options: (Object.keys(FAILURE_CHOICE_LABELS) as FailureChoice[]).map((k) => ({ label: FAILURE_CHOICE_LABELS[k] })),
     }],

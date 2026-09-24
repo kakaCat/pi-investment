@@ -1,0 +1,13 @@
+diff --git a/lib/process.js b/lib/process.js
+index e7241d1818c703e858125223c3740912de53ffa4..36fd4cc7f9eaf1076b20d469a8ffc4885f283014 100644
+--- a/lib/process.js
++++ b/lib/process.js
+@@ -952,7 +952,7 @@ function makeNamespaces(data, port, pending, nextId, errorClasses = makeBindingE
+ 		const namespace = Object.create(null);
+ 		for (const name of names) Object.defineProperty(namespace, name, {
+ 			enumerable: true,
+-			value: (args) => {
++			value: (args = {}) => {
+ 				let detached;
+ 				try {
+ 					detached = snapshotPtcJsonValue(args);

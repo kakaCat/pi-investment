@@ -10,19 +10,16 @@
 // 页面插件一律走 (ctx as any).inject(...) 惰性注入（genome/dashboard 同款模式）。
 
 import { Context } from '@deepseek-ai/cordis';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveAddressInjection } from './adapters/TemplateRoot.js';
 import { JsonLedgerRepository as ReqboardStore } from './adapters/JsonLedgerRepository.js';
 import { createReqboardHandler } from './http/routes.js';
-import { draftRequirementsFor } from './application/internal/window.js';
-import { applyPickupAdvance, applyPickupReconcile, applyTaskRollup } from './application/internal/rollup.js';
+import { applyPickupReconcile, applyTaskRollup } from './application/internal/rollup.js';
 import { advanceRequirement } from './application/use-cases/AdvanceChain.js';
-import { newCommentId, type RequirementRecord } from './shared/protocol.js';
-import { createSessionEventCaptureHook, type CaptureHookDeps } from './adapters/CaptureHook.js';
-import type { ToolTraceEntry } from './adapters/SessionProbeAdapter.js';
-
+import { newCommentId } from './shared/protocol.js';
+import { dshHomePath, nodeIsolationEnabled, type PluginConfig } from './plugin-config.js';
+import { createCaptureRuntime, assembleCaptureHook } from './wiring/pm-capture-root.js';
 import {
   defineCreateTool,
   defineCaptureTool,
@@ -36,7 +33,9 @@ import {
   defineTaskReportTool,
   defineSubmitTool,
   defineAskConfirmTool,
+  defineConfirmReceiptTool,
   defineAcceptSheetTool,
+  defineNoteInterruptionTool,
 } from './tools/index.js';
 import { FileDocRepository } from './adapters/FileDocRepository.js'
 import { InjectionLogFile } from './adapters/InjectionLogFile.js'
@@ -46,12 +45,12 @@ import { INJECTION_LOG_REL } from './application/internal/injection-log.js';
 import { ISOLATION_TRACE_REL } from './application/internal/isolation-trace.js';
 import { CAPTURE_DIAG_REL, captureDiag, initCaptureDiag } from './application/internal/diag-log.js';
 import { CaptureRejectionFile } from './adapters/CaptureRejectionFile.js';
+import { PendingConfirmRegistry } from './adapters/PendingConfirmRegistry.js';
 import { CAPTURE_REJECTION_REL } from './application/internal/capture-rejections.js';
 import { createNodeSettlementDispatcher } from './application/internal/node-settlement.js';
 import { SystemClock } from './adapters/SystemClock.js';
 import { RandomIdFactory } from './adapters/RandomIdFactory.js';
 import { UserQuestionsAdapter } from './adapters/UserQuestionsAdapter.js';
-import { AgentDeliverer } from './adapters/AgentDeliverer.js';
 import { GateAwareQuestions } from './adapters/GateAwareQuestions.js';
 import { assembleGatePostChain, registerCaptureGuidance } from './gate-wiring.js';
 import { SessionProbeAdapter } from './adapters/SessionProbeAdapter.js';
@@ -69,40 +68,9 @@ export const LEDGER_FILE = 'dsh-reqboard.json';
 export const CAPTURE_SECTION = 'reqboard:capture';
 export const CAPTURE_SECTION_ORDER = 60;
 
-interface PluginConfig {
-  /** DSH 主目录（默认 ~/.dsh） */
-  dshHome?: string;
-  /**
-   * 节点隔离开关（REQ-422af1 t10）。**默认关**：关闭时隔离代码路径执行 0 次，
-   * 行为完全等同改造前（design/migration.md §3）。显式配置优先于环境变量。
-   */
-  nodeIsolation?: boolean;
-  /** 模板根绝对路径（REQ-260922213356-4a45 T-3）；缺省按包根 templates 解析。 */
-  templateRoot?: string;
-  /** 地址段开关（T-3；默认 true；false = 完全回退到改造前注入行为）。 */
-  addressSectionEnabled?: boolean;
-}
-
-export function dshHomePath(config: PluginConfig | undefined, file: string): string {
-  const home = config?.dshHome || process.env.DSH_HOME || path.join(os.homedir(), '.dsh');
-  return path.join(home, file);
-}
-
-/**
- * 节点隔离开关（REQ-422af1 t10 / design/migration.md §3）：**默认关**。
- * 优先级：显式配置 nodeIsolation > 环境变量 NODE_ISOLATION(=1/true/on/yes) > 默认 false。
- * 关闭时 createNodeSettlementDispatcher 的 enabled=false 分支直接返回——
- * 不调度、不建端口、不触会话（stats 四项计数全 0 即其可执行证明）。
- */
-export function nodeIsolationEnabled(
-  config?: PluginConfig,
-  env: Record<string, string | undefined> = process.env,
-): boolean {
-  if (config?.nodeIsolation !== undefined) return config.nodeIsolation;
-  const raw = env.NODE_ISOLATION;
-  if (raw === undefined) return false;
-  return ['1', 'true', 'on', 'yes'].includes(raw.trim().toLowerCase());
-}
+// 兼容再导出（REQ-260924213231-b1c4 T-12）：既有 import { dshHomePath | nodeIsolationEnabled }
+// 仍从 './index.js' 可用（实现在 ./plugin-config.ts），行为不变。
+export { dshHomePath, nodeIsolationEnabled };
 
 /**
  * 轮次边界判定（隔离纪律③「只在轮次边界执行」）：用 sessionProjections 的 turnBoundary
@@ -215,6 +183,9 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   const address = resolveAddressInjection(config, path.dirname(fileURLToPath(import.meta.url)), (m) => logger.warn(m));
   const docs = new FileDocRepository();
   const clock = new SystemClock();
+  // REQ-260924213231-b1c4 T-6（FR-3）：挂起确认注册表（内存 ticket → 状态）——弹框超宽限时
+  // 登记 ticket，人作答后由后台落章并回填，agent 用 reqboard_confirm_receipt 取回执。
+  const pendingConfirms = new PendingConfirmRegistry();
   const isolationTrace = new IsolationTraceFile(
     dshHomePath(config, ISOLATION_TRACE_REL),
     (err) => logger.warn('reqboard 隔离留痕写入失败（只告警，不影响流水线）:', err),
@@ -251,19 +222,12 @@ export function apply(ctx: Context, config?: PluginConfig): void {
 
   const disposers: Array<() => void> = [];
 
-  // ── 确定性消息捕获 hook（用户裁定 #2/#3）─────────────────────────────
-  // 订阅 session/event：用户消息到达（user/message，direct human）→ 若该窗口
-  // unbound 且无遗留 pending 建议卡（旧流程 triage 产物）→ 登记「待捕获消息」到
-  // pendingCapture；turn/end 清除（该回合 LLM 已消费本次立项评估）。capture section
-  // 组装时同引用读取并注入针对性立项提示——hook 只保证确定性触发，立项判定与内容
-  // 留给 LLM + 人工（reqboard_capture 三问弹框作答 = 确认，同一次调用内直接建 REQ）。
-  const pendingCapture = new Map<string, { windowKey: string; text: string; capturedAt: number }>();
-  // 工具痕迹表（REQ-2e9473 t05）：窗口 → tool/call 事件序列，done 凭证门（t06）读取。
-  const toolTrace = new Map<string, ToolTraceEntry[]>();
-  // 最近用户消息缓冲（REQ-2e9473 t10）：窗口 → 清洗后用户消息，confirm_artifact 文字确认核验读取。
-  const recentUserMsgs = new Map<string, import('./adapters/SessionProbeAdapter.js').RecentUserMsg[]>();
-  // 唯一投递实现（REQ-e3b6a0 t4）：状态转移注入、30 分钟催办、后续闸门链 H4 三者共用同一形状。
-  const deliverer = new AgentDeliverer(() => agentsSvc, { plugin: name });
+  // 捕获根运行时（REQ-260924213231-b1c4 T-12：三张共享表 + 唯一投递实现抽到
+  // ./wiring/pm-capture-root.js，组合根只留装配顺序；hook 装配见下方 assembleCaptureHook）。
+  const { pendingCapture, toolTrace, recentUserMsgs, deliverer } = createCaptureRuntime({
+    plugin: name,
+    getAgents: () => agentsSvc,
+  });
 
   // 闸门后置链装配（REQ-e3b6a0）：抽到 ./gate-wiring.js（REQ-f0579a t5 尺寸门禁）。
   const gateChain = assembleGatePostChain({
@@ -273,62 +237,17 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     address,
   });
 
-  const captureHookDeps: CaptureHookDeps = {
-    snapshot: () => store.snapshot(),
-    pending: pendingCapture,
-    now,
-    address,
-    // R1 接手推进：已绑定窗口出现直接人类消息 = 该窗口仍在推进其需求 → 其 draft 需求
-    // 自动进评审（人工闸门仍在：方案确认/拆分确认/验收均为人工，代码级不可越过）。
-    onBoundWindowActivity: (windowKey) => {
-      const drafts = draftRequirementsFor(store.snapshot(), windowKey);
-      if (drafts.length === 0) return;
-      void store.mutate('requirement-moved', (ledger) => {
-        const advanced = drafts
-          .map((d) => applyPickupAdvance(ledger, d.id, { now: now(), commentId: () => newCommentId() }))
-          .filter((r): r is RequirementRecord => r !== undefined);
-        return advanced.length > 0 ? { requirements: advanced } : undefined;
-      }).catch((err) => logger.warn('reqboard rollup (pickup advance) failed:', err));
-    },
-    // REQ-31e11f t5 + REQ-e3b6a0 t4：状态转移纪律与产物催办文案向绑定会话投递。
-    // 投递形状统一走 AgentDeliverer（唯一实现）——此前 `agents.followup(id, msg)` 把
-    // AgentRegistry 当 Agent 用，typeof 守卫恒 false，于是"状态转移注入"与"30 分钟催办"
-    // 自诞生起从未投递过（同一根因的另两个受害者）。
-    onStagePrompt: (windowKey, prompt) => {
-      const result = deliverer.deliver(windowKey, { text: prompt });
-      if (result.delivered) {
-        logger.debug(`reqboard stage-prompt injected → ${windowKey.slice(0, 16)}`);
-      } else {
-        logger.warn(`reqboard stage-prompt 未投递（${windowKey.slice(0, 16)}）：${result.reason ?? '未知原因'}`);
-      }
-    },
-    toolTrace,
-    recentUserMsgs,
-    injectionLog,
-    // REQ-422af1 t10：节点结算信号 → 隔离分发（开关关时 dispatcher 一次都不执行）。
+  // 确定性消息捕获 hook 装配（订阅 session/event）：抽到 ./wiring/pm-capture-root.js
+  // （REQ-260924213231-b1c4 T-12 尺寸门禁；回调链、注释与节点-1 诊断日志随代码搬）。
+  // useCaseDeps 尚未构造 → 以惰性 getter 传入（hook 只在 turn/end 异步边界取用）。
+  const unsubscribeSessionEvents = assembleCaptureHook({
+    ctx, store, runtime: { pendingCapture, toolTrace, recentUserMsgs, deliverer },
+    now, address, injectionLog, gateChain,
     onNodeSettled: (settle, session) => settlement.onSettle(settle, session),
-    // REQ-e3b6a0 t7：**闸门后置链 Phase B 的唯一时机**。闸门作答不一定伴随用户消息，
-    // 故不能只靠 onNodeSettled；且监听器内不得做会话写操作（D-17）→ 放到异步边界。
-    // （链按 (windowKey, gate, decidedAt) 幂等，与结算路径重复触发也只跑一轮。）
-    onTurnEnd: (windowKey, session) => {
-      setImmediate(() => {
-        void gateChain.runPending(windowKey, session).catch((err) => {
-          logger.warn('reqboard gate-chain run failed:', err);
-        });
-      });
-    },
-    logger: { info: (m) => logger.info(m), debug: (m) => logger.debug(m) },
-  };
-  const captureHandler = createSessionEventCaptureHook(captureHookDeps);
-  const sessionEventCtx = ctx as unknown as {
-    on?: (event: string, listener: (session: unknown, event: unknown) => void) => (() => void) | void;
-  };
-  const unsubscribeSessionEvents = sessionEventCtx.on?.('session/event', captureHandler);
+    useCaseDeps: () => useCaseDeps,
+    logger, plugin: name,
+  });
   if (unsubscribeSessionEvents) disposers.push(unsubscribeSessionEvents);
-  // 【诊断日志-节点1】Hook 订阅状态（文件双写，防 stdout 死管道）
-  captureDiag(`reqboard-capture [NODE-1]: Hook subscription ${unsubscribeSessionEvents ? 'SUCCESS' : 'FAILED'} (unsubscribe=${typeof unsubscribeSessionEvents})`);
-  logger.info(`reqboard-capture [NODE-1]: Hook subscription ${unsubscribeSessionEvents ? 'SUCCESS' : 'FAILED'} (unsubscribe=${typeof unsubscribeSessionEvents})`);
-  logger.info('reqboard capture hook registered: session/event user/message → 登记待立项评估（unbound 窗口）');
 
   // 捕获引导段装配（按窗口条件注入）：抽到 ./gate-wiring.js（REQ-f0579a t5 尺寸门禁）。
   registerCaptureGuidance(ctx, {
@@ -357,6 +276,8 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     workflow: new WorkflowEngineRunner(() => workflowEngineSvc as never),
     // REQ-260923222557-d3b0 FR-2/FR-3：事件型 worktree 提示词复用同一投递实现。
     delivery: deliverer,
+    // REQ-260924213231-b1c4 T-6（FR-3）：装配非阻塞弹框能力（缺省 = 保持旧阻塞语义）。
+    pendingConfirms,
     alert: createFailureAlert({ log: (m) => logger.error(m), deliver: (wk, text) => { deliverer.deliver(wk, { text }); }, windowFor: (id) => store.snapshot().requirements.find((x) => x.id === id)?.sourceSessionId }),
   };
 
@@ -376,14 +297,17 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         disposers.push(toolsCtx.tools.register(defineTaskReportTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineSubmitTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineAskConfirmTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineConfirmReceiptTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineAcceptSheetTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineTaskExecuteTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineAdvanceTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineTaskStatusTool(useCaseDeps)));
+        // REQ-260924213231-b1c4 T-9（FR-6 / I-8）：断点显式兜底（B′ 入口）。
+        disposers.push(toolsCtx.tools.register(defineNoteInterruptionTool(useCaseDeps)));
       }, name + ': tools');
       logger.info(
-        'agent tools registered (13): reqboard_create / reqboard_capture / reqboard_status / reqboard_move / reqboard_decompose / reqboard_task_move / reqboard_task_run / reqboard_task_execute / reqboard_task_status / '
-        + 'reqboard_task_report / reqboard_submit(kind) / reqboard_ask_confirm / reqboard_accept_sheet',
+        'agent tools registered (15): reqboard_create / reqboard_capture / reqboard_status / reqboard_move / reqboard_decompose / reqboard_task_move / reqboard_task_run / reqboard_task_execute / reqboard_task_status / '
+        + 'reqboard_task_report / reqboard_submit(kind) / reqboard_ask_confirm / reqboard_confirm_receipt / reqboard_accept_sheet / reqboard_note_interruption',
       );
     },
   );

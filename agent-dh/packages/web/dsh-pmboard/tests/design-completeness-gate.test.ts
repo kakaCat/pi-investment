@@ -154,18 +154,18 @@ describe('缺文档（use-cases.md 未交）→ 四条转移路径全拒 design_
   })
 })
 
-describe('任一 design 产物未确认 → 拒（UC-4：磁盘有但无确认章）', () => {
-  it('四路径全拒，gaps 含未确认路径', async () => {
-    // 5 份落盘但只登记并确认了 4 份——第 5 份（use-cases.md）是确认后新落盘的
+describe('磁盘有但未登记 → 拒（UC-4 / FR-2：未登记 ≠ 待确认）', () => {
+  it('四路径全拒，gaps 含未登记路径（不再与「待确认」同文案）', async () => {
+    // 5 份落盘但只登记并确认了 4 份——第 5 份（use-cases.md）是确认后新落盘的（产物簿无此条）
     writeDocset(DESIGN5)
     await seed({ registered: DESIGN4 })
 
     await expect(run(moveTool(), { to: 'decomposing' })).rejects.toThrow(/design_doc_incomplete/)
-    await expect(run(moveTool(), { to: 'decomposing' })).rejects.toThrow(/use-cases\.md 未确认/)
+    await expect(run(moveTool(), { to: 'decomposing' })).rejects.toThrow(/use-cases\.md 未登记/)
 
     const out = await run(askTool(), ASK_ARGS)
     expect(out.advanced).toBe(false)
-    expect((out.gate_failure?.gaps ?? []).join(' ')).toContain('use-cases.md 未确认')
+    expect((out.gate_failure?.gaps ?? []).join(' ')).toContain('use-cases.md 未登记')
 
     const mv = await post(board(), '/dashboard/api/reqboard/req/move', { id: REQ, to: 'decomposing', actor: 'human' })
     expect(mv.statusCode).toBe(400)
@@ -173,7 +173,7 @@ describe('任一 design 产物未确认 → 拒（UC-4：磁盘有但无确认�
 
     const cf = await post(board(), '/dashboard/api/reqboard/req/artifact/confirm', { id: REQ, kind: 'design' })
     expect(cf.payload.data.advanced).toBe(false)
-    expect((cf.payload.data.gate_failure?.gaps ?? []).join(' ')).toContain('use-cases.md 未确认')
+    expect((cf.payload.data.gate_failure?.gaps ?? []).join(' ')).toContain('use-cases.md 未登记')
   })
 
   it('已登记但未确认 → assertArtifactGates 成组判定先拦（artifact_not_confirmed，gaps 列未确认路径）', async () => {

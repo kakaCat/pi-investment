@@ -247,6 +247,9 @@ patchedDependencies:
   '@deepseek-ai/dsh-cordis-client-runner@0.1.6-alpha.2':
     hash: 6m2jqg2crlso67zj7vd2uhf2ay
     path: patches/@deepseek-ai__dsh-cordis-client-runner@0.1.6-alpha.2.patch
+  '@deepseek-ai/dsh-ptc-runtime-node@0.1.6-alpha.2':
+    hash: ancxltpwmrosis3cqkonlvi6xu
+    path: patches/@deepseek-ai__dsh-ptc-runtime-node@0.1.6-alpha.2.patch
 
 importers:
 
@@ -2469,7 +2472,7 @@ packages:
       '@deepseek-ai/dsh-plan-mode': 0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-agent@0.1.6-alpha.2)(@deepseek-ai/dsh-commands@0.1.6-alpha.2)(@deepseek-ai/dsh-invariants@0.1.6-alpha.2)(@deepseek-ai/dsh-llm@0.1.6-alpha.2)(@deepseek-ai/dsh-session-projection@0.1.6-alpha.2)(@deepseek-ai/dsh-session@0.1.6-alpha.2)(@deepseek-ai/dsh-system-prompt@0.1.6-alpha.2)(@deepseek-ai/dsh-tools@0.1.6-alpha.2)(@deepseek-ai/dsh-user-questions@0.1.6-alpha.2)
       '@deepseek-ai/dsh-plugin-manager': 0.1.6-alpha.2(@deepseek-ai/cordis-plugin-group@1.0.2)(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-brand@0.1.6-alpha.2)(@deepseek-ai/dsh-hmr@0.1.6-alpha.2)(@deepseek-ai/dsh-home-paths@0.1.6-alpha.2)(@deepseek-ai/dsh-host-plugin-inventory@0.1.6-alpha.2)(@deepseek-ai/dsh-launch-environment@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox-policy@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox@0.1.6-alpha.2)(@deepseek-ai/dsh-subprocess@0.1.6-alpha.2)(@deepseek-ai/dsh-system-prompt@0.1.6-alpha.2)(@deepseek-ai/dsh-tools@0.1.6-alpha.2)(@deepseek-ai/dsh-typert-protocol@0.1.6-alpha.2)(@deepseek-ai/dsh-user-approval@0.1.6-alpha.2)
       '@deepseek-ai/dsh-plugin-package-inventory-deepseek': 0.1.6-alpha.2(@deepseek-ai/cordis-plugin-loader@1.0.3)(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-agent-presets@0.1.6-alpha.2)(@deepseek-ai/dsh-agent@0.1.6-alpha.2)(@deepseek-ai/dsh-deepseek-llm-api-extensions@0.1.6-alpha.2)(@deepseek-ai/dsh-session@0.1.6-alpha.2)
-      '@deepseek-ai/dsh-ptc-runtime-node': 0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-fs@0.1.6-alpha.2)(@deepseek-ai/dsh-ptc-runtime@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox-policy@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox@0.1.6-alpha.2)(@deepseek-ai/dsh-session@0.1.6-alpha.2)(@deepseek-ai/dsh-subprocess@0.1.6-alpha.2)(@deepseek-ai/dsh-timeout@0.1.6-alpha.2)
+      '@deepseek-ai/dsh-ptc-runtime-node': 0.1.6-alpha.2(patch_hash=ancxltpwmrosis3cqkonlvi6xu)(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-fs@0.1.6-alpha.2)(@deepseek-ai/dsh-ptc-runtime@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox-policy@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox@0.1.6-alpha.2)(@deepseek-ai/dsh-session@0.1.6-alpha.2)(@deepseek-ai/dsh-subprocess@0.1.6-alpha.2)(@deepseek-ai/dsh-timeout@0.1.6-alpha.2)
       '@deepseek-ai/dsh-pwsh-sandbox': 0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-pwsh-local@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox-policy@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox@0.1.6-alpha.2)(@deepseek-ai/dsh-shell@0.1.6-alpha.2)
       '@deepseek-ai/dsh-repeat-tool-reminder': 0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-agent@0.1.6-alpha.2)(@deepseek-ai/dsh-tools@0.1.6-alpha.2)
       '@deepseek-ai/dsh-sandbox-local': 0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-llm@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox@0.1.6-alpha.2)(@deepseek-ai/dsh-session@0.1.6-alpha.2)(@deepseek-ai/dsh-subprocess@0.1.6-alpha.2)
@@ -4230,7 +4233,7 @@ packages:
       '@deepseek-ai/schemastery': 3.18.2
     dev: false
 
-  /@deepseek-ai/dsh-ptc-runtime-node@0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-fs@0.1.6-alpha.2)(@deepseek-ai/dsh-ptc-runtime@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox-policy@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox@0.1.6-alpha.2)(@deepseek-ai/dsh-session@0.1.6-alpha.2)(@deepseek-ai/dsh-subprocess@0.1.6-alpha.2)(@deepseek-ai/dsh-timeout@0.1.6-alpha.2):
+  /@deepseek-ai/dsh-ptc-runtime-node@0.1.6-alpha.2(patch_hash=ancxltpwmrosis3cqkonlvi6xu)(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-fs@0.1.6-alpha.2)(@deepseek-ai/dsh-ptc-runtime@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox-policy@0.1.6-alpha.2)(@deepseek-ai/dsh-sandbox@0.1.6-alpha.2)(@deepseek-ai/dsh-session@0.1.6-alpha.2)(@deepseek-ai/dsh-subprocess@0.1.6-alpha.2)(@deepseek-ai/dsh-timeout@0.1.6-alpha.2):
     resolution: {integrity: sha512-FlK57VIkE0LOfiE/R5ESbB34uXOO7caEomRQhxkJKv/5qbaueaySYl9dSBggERO6FCmjypx/SNs1DxmYYLE1Pg==}
     peerDependencies:
       '@deepseek-ai/cordis': 4.0.2
@@ -4253,6 +4256,7 @@ packages:
       '@deepseek-ai/dsh-util-values': 0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)
       '@deepseek-ai/schemastery': 3.18.2
     dev: false
+    patched: true
 
   /@deepseek-ai/dsh-ptc-runtime@0.1.6-alpha.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-sandbox@0.1.6-alpha.2):
     resolution: {integrity: sha512-A5WjgPaEGqjzbe3Qq6Q4Dxh7FMmiki6beFEDmR9M64n6+g97eHPWF7jA7HRTEJ3rYD0kOno6bRWd84tngA5NWQ==}

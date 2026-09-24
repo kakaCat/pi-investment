@@ -25,6 +25,9 @@ import {
 } from '../../shared/protocol.js'
 import { captureSnapshot } from './token-usage.js'
 import { checkParentSubtasksDone, checkSubtaskEvidence } from './subtask-evidence.js'
+// REQ-260924213231-b1c4 FR-7：降级路径（reqboard_create）复用弹框路径的文档位置缺省口径（单一事实源）。
+import { CAPTURE_DEFAULTS } from './capture-mapping.js'
+import { LIMITS } from '../../domain/limits.js'
 
 /** 结构化认证失败：message 自带（CODE）文本；code 属性仅测试/直接执行消费。 */
 export function reject(message: string, code: string): never {
@@ -209,6 +212,43 @@ export function gateQuestionCard(gateKind: string | undefined, from: string, to:
 }
 
 /**
+ * 文档位置取值与回落标记（REQ-260924213231-b1c4 T-10 / FR-7 / UC-4）——立项**降级路径**
+ * （`reqboard_create`：弹框通道不可用、用户在对话里给三值时）与弹框路径共用同一份缺省口径
+ * （`CAPTURE_DEFAULTS.docLocation`），堵住"降级丢第四问"。
+ *
+ * 规则：未传 / 空串 → 回落默认并标记 `usedDefault=true`（返回体 `defaults_used` 据此如实留痕，
+ * 不静默猜）；形态非法（非字符串 / 绝对路径 / 含 `..` 上跳段）→ `REQBOARD_INVALID_INPUT`，
+ * **不静默改路径**（design/use-cases.md UC-4 异常流）。
+ */
+export function resolveDocBasePath(raw: unknown): { docBasePath: string; usedDefault: boolean } {
+  if (raw === undefined || raw === null) {
+    return { docBasePath: CAPTURE_DEFAULTS.docLocation, usedDefault: true }
+  }
+  if (typeof raw !== 'string') {
+    reject('reqboard_create 未执行：doc_location 必须是工作区相对目录（字符串）', 'REQBOARD_INVALID_INPUT')
+  }
+  const p = raw.trim()
+  if (p.length === 0) return { docBasePath: CAPTURE_DEFAULTS.docLocation, usedDefault: true }
+  if (p.length > LIMITS.pathMax) {
+    reject(`reqboard_create 未执行：doc_location 超长（≤${LIMITS.pathMax} 字符）`, 'REQBOARD_INVALID_INPUT')
+  }
+  if (!isWorkspaceRelativeDir(p)) {
+    reject(
+      `reqboard_create 未执行：doc_location 必须是工作区相对目录（收到 ${p}）——绝对路径与含 .. 的路径一律不接受，不静默改路径`,
+      'REQBOARD_INVALID_INPUT',
+    )
+  }
+  return { docBasePath: p, usedDefault: false }
+}
+
+/** 工作区相对目录判定：拒绝绝对路径（POSIX / Windows 盘符 / UNC / ~）与 `..` 上跳段。 */
+function isWorkspaceRelativeDir(p: string): boolean {
+  if (p.startsWith('/') || p.startsWith('~') || p.startsWith('\\')) return false
+  if (/^[A-Za-z]:[\\/]/.test(p)) return false
+  return !p.split(/[\\/]+/).includes('..')
+}
+
+/**
  * 直接立项写入：store.mutate('requirement-created') push RequirementRecord
  * （status='draft'，sourceSessionId=windowKey，actor={kind:'human'}——弹框作答
  * = 用户确认，语义等同看板 confirm）。幂等：mutator 内窗口已 bound → return
@@ -220,6 +260,9 @@ export async function createRequirementDirect(
   input: { title: string; category: RequirementCategory; description: string; reason: string; promptDifficulty?: string; docBasePath?: string },
 ): Promise<RequirementRecord> {
   const nowTs = deps.clock.now()
+  // REQ-260924213231-b1c4 FR-7：docBasePath 缺省时写既有默认值——回落要**落在台账**（不只留在返回体），
+  // 否则"降级路径丢第四问"只是换了地方丢。与 requirementDocPath() 的缺省分支同值。
+  const docBasePath = (input.docBasePath ?? '').trim() || CAPTURE_DEFAULTS.docLocation
   const result = await deps.repo.mutate('requirement-created', (ledger) => {
     if (isWindowBound(ledger, windowKey)) return undefined // 幂等：已绑定 → 不重复立项
     const actor = { kind: 'human' } as const
@@ -229,7 +272,7 @@ export async function createRequirementDirect(
       description: input.description,
       category: input.category,
       promptDifficulty: input.promptDifficulty as any, // 提示词难度级别
-      docBasePath: input.docBasePath,
+      docBasePath,
       sourceSessionId: windowKey,
       status: 'draft',
       blocked: false,

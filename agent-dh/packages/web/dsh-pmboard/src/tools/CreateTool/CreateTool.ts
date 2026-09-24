@@ -44,6 +44,11 @@ export function defineCreateTool(deps: UseCaseDeps) {
         description: '提示词难度级别：simple / standard / advanced / expert（默认 standard）',
         enum: [...ALL_PROMPT_DIFFICULTIES],
       },
+      doc_location: {
+        type: 'string',
+        description:
+          '需求文档存放位置（工作区相对目录，如 docs/requirements/<REQ>/ 或 docs/rfcs/）；不传 / 空串 → 回落 docs/requirements/<REQ>/ 并在 defaults_used 标注（降级路径的第四问）',
+      },
     },
     output: {
       schema: {
@@ -55,6 +60,12 @@ export function defineCreateTool(deps: UseCaseDeps) {
           title: { type: 'string', description: '需求名称' },
           category: { type: 'string', description: '需求分类' },
           status: { type: 'string', description: '需求状态（draft）' },
+          doc_location: { type: 'string', description: '需求文档存放位置（不传时回落默认值，见 defaults_used）' },
+          defaults_used: {
+            type: 'array',
+            description: '走了默认值的问项 id 清单（缺失回落时不静默猜）',
+            items: { type: 'string' },
+          },
           note: { type: 'string', description: '后续流程说明' },
           board_link: { type: 'string', description: '项目看板链接（可在会话中点击跳转）' },
         },

@@ -14,8 +14,10 @@ import {
 import { applyDocSync, clearDocSync, docSyncDownstream } from '../../domain/workflow/DocSyncSpec.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { registerArtifact } from '../internal/artifact-gates.js'
+import { stampCheckpoint } from '../internal/interruption.js'
 import { checkNumberChainGate, checkDesignServesGate, checkRequirementDocFormatGate, assertArtifactOpenable } from '../internal/content-gate-wiring.js'
 import { missingCategoryDocs } from '../internal/category-doc-sets.js'
+import { envelope } from '../internal/gate-feedback.js'
 import {
   reject,
   agentIdFromExec,
@@ -129,6 +131,9 @@ export async function submitRequirementArtifact(deps: UseCaseDeps, args: unknown
           req.updatedAt = nowTs
           req.updatedBy = { kind: 'agent', sessionId: windowKey }
         }
+        // REQ-260924213231-b1c4 T-9（FR-6 写入器 A）：交棒即写 checkpoint——断点永远
+        // 等于「最后一步做完后的下一步」，即使随后被上游超时掐断也有据可续。
+        stampCheckpoint(req, nowTs, 'reqboard_submit')
         return { requirements: [req] }
       })
       const changed = (result.changed.requirements ?? [])[0]
@@ -221,9 +226,14 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
           .map(e => e.name ?? '')
         const missingDocs = missingCategoryDocs({ category: target.category, rootExists, rootText, designNames })
         if (missingDocs.length > 0) {
+          // REQ-260924213231-b1c4 FR-2/I-9：文案走统一信封（what —— why。补齐：how），判定不动。
           reject(
-            'reqboard_plan_submit 未执行：' + target.category + ' 类型的必填文档未交齐——'
-            + missingDocs.join('；') + '。类型只减少文档数量，不取消追溯；确实不适用的请在需求文档 §8 边界写明理由',
+            envelope({
+              lead: 'reqboard_plan_submit 未执行：',
+              what: target.category + ' 类型的必填文档 ' + missingDocs.join('；'),
+              why: '该类型的必填文档未交齐（类型只减少文档数量，不取消追溯）',
+              how: '按 templates/design/*.md 生成缺失设计文档、并按模板补 requirement.md 必填节，落盘后重调 reqboard_submit(kind=plan)；确实不适用的在需求 front-matter 写 design_exempt=<文件名>=理由',
+            }),
             'REQBOARD_MISSING_REQUIRED_DOC',
           )
         }
@@ -266,6 +276,7 @@ export async function submitPlanArtifact(deps: UseCaseDeps, args: unknown, exec:
         req.version += 1
         req.updatedAt = nowTs
         req.updatedBy = { kind: 'agent', sessionId: windowKey }
+        stampCheckpoint(req, nowTs, 'reqboard_submit')
         return { requirements: [req] }
       })
       const changed = (result.changed.requirements ?? [])[0]

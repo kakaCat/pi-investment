@@ -20,6 +20,7 @@ import {
   type RequirementCategory,
 } from '../../shared/protocol.js'
 import { LIMITS } from '../../domain/limits.js'
+import { pmHeader } from '../../domain/text/pm-badge.js'
 
 /** 四问的稳定 id（答案按 id 回收，不靠顺序）。 */
 export const CAPTURE_QUESTION_IDS = {
@@ -95,7 +96,7 @@ export function buildCaptureIntentQuestions(titleOptions: readonly string[]): As
   return [
     {
       id: CAPTURE_QUESTION_IDS.name,
-      header: '需求名称',
+      header: pmHeader('需求名称'),
       question: titleOptions.length > 0
         ? '需求名称（可选候选、自定义输入，或选择"不需要立项"）'
         : '需求名称（自定义输入，或选择"不需要立项"）',
@@ -109,7 +110,7 @@ export function buildCaptureDetailQuestions(): AskQuestion[] {
   return [
     {
       id: CAPTURE_QUESTION_IDS.category,
-      header: '需求类型',
+      header: pmHeader('需求类型'),
       question: '需求类型',
       options: ALL_REQ_CATEGORIES.map((label, i) => ({
         label,
@@ -118,7 +119,7 @@ export function buildCaptureDetailQuestions(): AskQuestion[] {
     },
     {
       id: CAPTURE_QUESTION_IDS.difficulty,
-      header: '提示词难度',
+      header: pmHeader('提示词难度'),
       question: '提示词难度',
       options: ALL_PROMPT_DIFFICULTIES.map(label => ({
         label,
@@ -127,7 +128,7 @@ export function buildCaptureDetailQuestions(): AskQuestion[] {
     },
     {
       id: CAPTURE_QUESTION_IDS.doc_location,
-      header: '需求文档位置',
+      header: pmHeader('需求文档位置'),
       question: '需求文档存放位置（选择预设路径或自定义输入）',
       options: DOC_LOCATION_OPTIONS.map((opt, i) => ({
         ...opt,

@@ -64,6 +64,23 @@ export function defineStatusTool(deps: UseCaseDeps) {
             description: '未被任何任务接收、也未裁剪的条款（**红**）——存在即为 R9 那类缺口',
             items: { type: 'string' },
           },
+          design_docs: {
+            type: 'array',
+            description: '本条需求设计文档逐份登记态（FR-1）：未登记=on_disk&&!registered / 待确认=registered&&!confirmed / 已落章=confirmed',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                name: { type: 'string', description: '文件名（如 architecture.md）' },
+                path: { type: 'string', description: '工作区相对路径' },
+                on_disk: { type: 'boolean', description: '磁盘上是否真实存在' },
+                registered: { type: 'boolean', description: '产物簿是否有该条（kind=design）' },
+                confirmed: { type: 'boolean', description: '是否已落章（confirmedAt !== undefined）' },
+                exempted: { type: 'string', description: '有效豁免理由（front-matter design_exempt）' },
+                conditional: { type: 'string', description: '条件必交标记：frontend / backend' },
+              },
+            },
+          },
           note: { type: 'string', description: '下一步指引' },
           board_link: { type: 'string', description: '项目看板链接（可在会话中点击跳转）' },
         },

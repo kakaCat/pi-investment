@@ -12,11 +12,13 @@ import {
 } from '../../shared/protocol.js'
 import { ACCEPT_ITEM_OPTIONS, FINAL_DECLINE_LABEL, FINAL_PASS_LABEL } from '../../domain/text/labels.js'
 import { clip, fmt } from '../../domain/text/fmt.js'
+import { pmHeader } from '../../domain/text/pm-badge.js'
 import { LIMITS } from '../../domain/limits.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { applyVerdicts } from '../internal/verdicts.js'
 import { captureSnapshot, transitionRequirement } from '../internal/token-usage.js'
 import { rewriteVerificationDoc } from '../internal/verification-doc-writer.js'
+import { stampCheckpoint } from '../internal/interruption.js'
 import {
   reject,
   agentIdFromExec,
@@ -62,7 +64,7 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
         try {
           ans = { answers: [...await deps.questions.ask([{
               id: 'final-pass',
-              header: '验收通过',
+              header: pmHeader('验收通过'),
               question: '全部 ' + passed + ' 项验收通过——是否验收通过并归档？',
               options: [
                 { label: FINAL_YES, description: '需求进入归档态，随后补归档材料' },
@@ -110,6 +112,8 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
             createdAt: nowTs2,
             createdBy: { kind: 'human', sessionId: windowKey },
           })
+          // FR-6 写入器 A（T-9）：交棒即写 checkpoint（终态 → pendingAction=reqboard_status）
+          stampCheckpoint(r, nowTs2, 'reqboard_accept_sheet')
           return { requirements: [r] }
         }).catch((err: unknown) => {
           reject('reqboard_accept_sheet 归档失败：' + ((err as Error).message ?? String(err)), (err as { code?: string }).code ?? 'REQBOARD_STORE_INCONSISTENT')
@@ -155,9 +159,9 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
       try {
         answers = [...await deps.questions.ask(pendingItems.map(it => ({
             id: it.id,
-            header: it.source.kind === 'requirement'
+            header: pmHeader(it.source.kind === 'requirement'
               ? '需求级验收'
-              : fmt('验收项 {taskId}', { taskId: it.source.taskId }),
+              : fmt('验收项 {taskId}', { taskId: it.source.taskId })),
             // 题干长度纪律（LIMITS.popupCriterionMax/EvidenceMax）：宁可少给证据，也不能把选项挤出可视区
             question: clip(it.criterion, LIMITS.popupCriterionMax) + (it.evidence.length > 0
               ? fmt('\n（证据：{evidence}）', { evidence: clip(it.evidence[0] ?? '', LIMITS.popupEvidenceMax) })
@@ -207,6 +211,8 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
             { kind: 'human', sessionId: windowKey }, nowTs, () => deps.ids.comment(),
             captureSnapshot(deps, windowKey), // REQ-b545fe t5: 传快照供打回路径结算
           )
+          // FR-6 写入器 A（T-9）：裁决落库即写 checkpoint（挂起续验的下一步 = 再调本工具）
+          stampCheckpoint(applied.requirement, nowTs, 'reqboard_accept_sheet')
           return { requirements: [applied.requirement], tasks: applied.reworkTasks }
         } catch (err) {
           reject('reqboard_accept_sheet 记录失败：' + ((err as Error).message ?? String(err)), (err as { code?: string }).code ?? 'REQBOARD_INVALID_INPUT')

@@ -237,6 +237,13 @@ export const ALL_TASK_PHASES: readonly TaskPhase[] = ['doc', 'ui', 'analysis', '
 export type TaskSide = 'frontend' | 'backend' | 'fullstack' | 'doc'
 export const ALL_TASK_SIDES: readonly TaskSide[] = ['frontend', 'backend', 'fullstack', 'doc']
 
+/**
+ * reqboard_submit 的提交类型（工具 kind 入参）。注意 'design' 与需求状态同名但**不是**状态，
+ * 不参与状态判定；定义放 shared 层是因为适配层（tools/http）禁止出现状态名字面量（layer-boundary 门禁）。
+ */
+export type SubmitKind = 'requirement' | 'plan' | 'verification' | 'archive' | 'design'
+export const SUBMIT_KINDS: readonly SubmitKind[] = ['requirement', 'plan', 'verification', 'archive', 'design']
+
 /** 该 side 默认是否需要联调（建卡未显式标 skipIntegration 时生效）。 */
 export function defaultNeedsIntegration(side: TaskSide): boolean {
   return side === 'frontend' || side === 'backend'

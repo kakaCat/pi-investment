@@ -90,9 +90,13 @@ describe('dsh-pmboard apply() 宿主接线（乙流程装配冒烟）', () => {
       'reqboard_ask_confirm',
       // CAPTURE：立项三问 pm 专有弹框（REQ-e3b6a0 t8）
       'reqboard_capture',
+      // RECEIPT：挂起确认回执（REQ-260924213231-b1c4 T-6 / FR-3）
+      'reqboard_confirm_receipt',
       'reqboard_create',
       'reqboard_decompose',
       'reqboard_move',
+      // BREAKPOINT：断点补写（REQ-260924213231-b1c4 T-9 / FR-6）
+      'reqboard_note_interruption',
       'reqboard_status',
       // SUBMIT：requirement_submit / plan_submit / verify_submit / archive_submit 合并（kind 分派）
       'reqboard_submit',
@@ -103,7 +107,7 @@ describe('dsh-pmboard apply() 宿主接线（乙流程装配冒烟）', () => {
       'reqboard_task_run',
       'reqboard_task_status',
     ])
-    expect(names).toHaveLength(13)
+    expect(names).toHaveLength(15)
   })
 
   it('注册看板路由：/dashboard/api/reqboard 前缀', () => {

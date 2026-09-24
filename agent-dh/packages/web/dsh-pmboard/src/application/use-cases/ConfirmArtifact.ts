@@ -12,6 +12,7 @@ import {
 } from '../../shared/protocol.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { fmt } from '../../domain/text/fmt.js'
+import { envelope } from '../internal/gate-feedback.js'
 import { artifactsToConfirm } from '../internal/artifact-gates.js'
 import { checkDesignDecompositionGate } from '../internal/content-gate-wiring.js'
 import {
@@ -44,10 +45,14 @@ export async function confirmArtifact(deps: UseCaseDeps, args: unknown, exec: an
       const check = deps.session.matchesRecentUserMessage(windowKey, evidence, 60 * 60 * 1000)
       if (check !== undefined) {
         if (!check.ok) {
+          // REQ-260924213231-b1c4 FR-2/I-9：文案走统一信封（what —— why。补齐：how），判定不动。
           reject(
-            'reqboard_confirm_artifact 未执行：文字确认核验失败——' + check.reason + '。'
-            + '确认必须系统可见证：① 用 reqboard_ask_confirm 弹框（免引证）；'
-            + '② evidence 引用用户最近真实消息原文；③ 用户看板一键确认',
+            envelope({
+              lead: 'reqboard_confirm_artifact 未执行：',
+              what: '文字确认证据「' + evidence.slice(0, 60) + '」',
+              why: '核验失败——' + check.reason + '（未命中该窗口真实用户消息）',
+              how: '引用用户最近真实消息原文重调 reqboard_ask_confirm(evidence=...)；或改走弹框路径 reqboard_ask_confirm（系统直接见证，免引证）；兜底由用户在看板一键确认',
+            }),
             'REQBOARD_EVIDENCE_FAKE',
           )
         }

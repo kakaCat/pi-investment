@@ -19,6 +19,7 @@ import { fmt } from '../../domain/text/fmt.js'
 import { LIMITS } from '../../domain/limits.js'
 import { expandSubtasks } from '../internal/lazy-expand.js'
 import { appendRevision } from '../internal/failure-handling.js'
+import { stampCheckpoint } from '../internal/interruption.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { applyTaskRollup } from '../internal/rollup.js'
 import { beginExecutionToken, captureSnapshot, endExecutionToken } from '../internal/token-usage.js'
@@ -147,6 +148,10 @@ export async function executeMoveTask(deps: UseCaseDeps, args: unknown, exec: an
           { now: nowTs, commentId: () => deps.ids.comment(), snapshot: () => captureSnapshot(deps, windowKey) },
           t.requirementId,
         )
+        // FR-6 写入器 A（T-9）：交棒即写 checkpoint，断点 = 「最后一步做完后的下一步」。
+        // rollup 可能已改需求状态，故在 rollup 之后据最新状态重算 pendingAction。
+        const reqForBp = ledger.requirements.find(x => x.id === t.requirementId)
+        if (reqForBp !== undefined) stampCheckpoint(reqForBp, nowTs, 'reqboard_task_move')
         return { tasks: [t, ...createdSubtasks], requirements: advanced }
       })
       const changed = (result.changed.tasks ?? [])[0]

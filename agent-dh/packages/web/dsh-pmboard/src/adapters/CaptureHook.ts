@@ -58,6 +58,7 @@ import {
 } from '../application/internal/injection-log.js'
 import { findStaleUnconfirmedArtifact } from '../domain/workflow/MilestoneSpec.js'
 import { captureDiag } from '../application/internal/diag-log.js'
+import { turnEndOutcome, type TurnEndOutcome } from '../application/internal/interruption.js'
 import {
   recordToolTrace,
   recordRecentUserMsg,
@@ -123,6 +124,13 @@ export interface CaptureHookDeps {
    * 可选（未注入 = 不触发链）。
    */
   onTurnEnd?: (windowKey: string, session: unknown) => void
+  /**
+   * 回合结束的断点信号（REQ-260924213231-b1c4 T-9 / FR-6）：读 `turn/end.data.reason`，
+   * 规范化后**只发信号**（沿用 D-17：监听器内不做会话写操作）——写台账由组合根放到
+   * 异步边界（setImmediate）执行。形态不认识 → 不调用（不猜、不误报）。
+   * 可选（未注入 = 不发信号）。
+   */
+  onTurnFinished?: (windowKey: string, outcome: TurnEndOutcome, session: unknown) => void
   /** 工具痕迹表（REQ-2e9473 t05）：hook 写入，done 凭证门（t06）读取。可选（未注入 = 关闭跟踪）。 */
   toolTrace?: Map<string, ToolTraceEntry[]>
   /** 最近用户消息缓冲（REQ-2e9473 t10）：hook 写入，confirm_artifact 文字确认核验读取。可选。 */
@@ -247,6 +255,11 @@ export function createSessionEventCaptureHook(deps: CaptureHookDeps): (session: 
       // REQ-e3b6a0 t7：无论有没有节点结算，都问一次「该窗口有没有待处理闸门」——
       // 闸门作答不一定伴随用户消息，故不能只靠上面的 settlement 分支。
       deps.onTurnEnd?.(windowKey, session)
+      // REQ-260924213231-b1c4 T-9 / FR-6（写入器 B）：回合异常收尾（aborted/error/
+      // interrupted）时补写断点原因；此处只发信号，写台账走组合根异步边界（D-17）。
+      // 形态不认识 → turnEndOutcome 返回 undefined → 不发信号（A 的 checkpoint 仍在）。
+      const outcome = turnEndOutcome((evt as { data?: unknown }).data)
+      if (outcome !== undefined) deps.onTurnFinished?.(windowKey, outcome, session)
       return
     }
 

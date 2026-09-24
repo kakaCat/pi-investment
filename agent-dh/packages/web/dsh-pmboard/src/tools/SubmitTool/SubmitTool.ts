@@ -3,7 +3,8 @@
  * 每个分支体只有一行用例调用（设计 §4.3「禁止大 if」）。
  *
  * kind → 用例：requirement/plan → SubmitArtifact；verification → SubmitVerification；
- * archive → SubmitArchive。返回体为四个用例返回键的并集（穷尽声明，绑定层不拒收）。
+ * archive → SubmitArchive；design → SubmitDesignArtifacts。返回体为五个用例返回键的并集
+ * （穷尽声明，绑定层不拒收）。
  *
  * @module dsh-pmboard/tools/SubmitTool
  */
@@ -13,14 +14,15 @@ import type { UseCaseDeps } from '../../application/ports.js'
 import { submitRequirementArtifact, submitPlanArtifact } from '../../application/use-cases/SubmitArtifact.js'
 import { submitVerification } from '../../application/use-cases/SubmitVerification.js'
 import { submitArchive } from '../../application/use-cases/SubmitArchive.js'
-import { normalizeText, ALL_TASK_PHASES, ALL_TASK_SIDES } from '../../shared/protocol.js'
+import { submitDesignArtifacts } from '../../application/use-cases/SubmitDesignArtifacts.js'
+import { normalizeText, ALL_TASK_PHASES, ALL_TASK_SIDES, SUBMIT_KINDS } from '../../shared/protocol.js'
 import { reject } from '../../application/internal/support.js'
 import { renderSmart } from '../shared.js'
 import { submitSummary } from '../render-summaries.js'
 import { SUBMIT_PROMPT } from './prompt.js'
 
-/** 四个 kind（分派表的键集合；错误消息与自检共用）。 */
-export const SUBMIT_KINDS = ['requirement', 'plan', 'verification', 'archive'] as const
+/** 五个 kind（分派表的键集合；错误消息与自检共用）——权威定义在 shared/protocol（适配层不写状态名字面量）。 */
+export { SUBMIT_KINDS }
 
 /** 分派表：kind → 用例（每项一个独立 use-case，禁止写成一个大 if）。 */
 const SUBMIT_DISPATCH: Readonly<Record<string, (deps: UseCaseDeps, args: unknown, exec: unknown) => Promise<unknown>>> = {
@@ -28,6 +30,7 @@ const SUBMIT_DISPATCH: Readonly<Record<string, (deps: UseCaseDeps, args: unknown
   plan: submitPlanArtifact,
   verification: submitVerification,
   archive: submitArchive,
+  design: submitDesignArtifacts,
 }
 
 export function defineSubmitTool(deps: UseCaseDeps) {
@@ -37,12 +40,12 @@ export function defineSubmitTool(deps: UseCaseDeps) {
     parameters: {
       kind: {
         type: 'string',
-        description: '提交类型：requirement=需求文档 / plan=拆分计划 / verification=验收材料 / archive=归档材料',
+        description: '提交类型：requirement=需求文档 / plan=拆分计划 / verification=验收材料 / archive=归档材料 / design=设计文档登记（扫 design/ 或单份）',
         required: true,
         enum: [...SUBMIT_KINDS],
       },
       requirement_id: { type: 'string', description: '需求 id（REQ-xxxxxx）；不传默认本窗口绑定的需求' },
-      path: { type: 'string', description: '文档路径（kind=requirement/plan）：工作区相对路径' },
+      path: { type: 'string', description: '文档路径（kind=requirement/plan/design）：工作区相对路径；design 缺省 = 扫 docs/requirements/<REQ>/design/*.md' },
       summary: { type: 'string', description: '摘要：requirement=一句话摘要；plan=目标+做法；verification=交付结论（≤2000 字符）' },
       change_note: { type: 'string', description: '变更原因（已确认/已批准后重交时必填）：改了什么/为什么，下游标"待同步"' },
       tasks: {
@@ -140,6 +143,24 @@ export function defineSubmitTool(deps: UseCaseDeps) {
             },
           },
           registered: { type: 'boolean', description: 'kind=requirement：false = 幂等命中（此前已登记）' },
+          design_docs: {
+            type: 'array',
+            description: 'kind=design：逐份登记态（磁盘 / 产物簿 / 确认章三源合成）',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                name: { type: 'string', description: '文件名（如 architecture.md）' },
+                path: { type: 'string', description: '工作区相对路径' },
+                on_disk: { type: 'boolean', description: '磁盘上是否真实存在' },
+                registered: { type: 'boolean', description: '产物簿是否有该条（kind=design）' },
+                confirmed: { type: 'boolean', description: '是否已落章（confirmedAt !== undefined）' },
+                exempted: { type: 'string', description: '有效豁免理由（front-matter design_exempt）' },
+                conditional: { type: 'string', description: '条件必交标记：frontend / backend' },
+              },
+            },
+          },
+          registered_count: { type: 'number', description: 'kind=design：本次新登记条数（幂等命中不计数）' },
           status: { type: 'string', description: '提交后的需求状态（accepting / archived 等）' },
           tasks_done: { type: 'number', description: 'kind=verification：已完成任务数' },
           tasks_total: { type: 'number', description: 'kind=verification：任务总数' },

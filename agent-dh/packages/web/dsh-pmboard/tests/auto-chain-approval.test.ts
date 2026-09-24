@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest'
 import { askConfirm } from '../src/application/use-cases/AskConfirm.js'
 import { DEFAULT_CONFIRM_OPTIONS } from '../src/domain/text/labels.js'
+import { pmHeader } from '../src/domain/text/pm-badge.js'
 import type { WorkflowRunner, WorkflowRunOutcome } from '../src/application/ports.js'
 import { makeHarness, req } from './application/harness.js'
 
@@ -84,7 +85,7 @@ describe('批准计划 → 零点击跑到 accepting（4.1 / 4.2 / 7.1）', () =
     const h = seed()
     await askConfirm(h.deps, { requirement_id: 'REQ-000001', target: 'plan', question: '批准拆分计划进入拆分？' }, exec)
     expect(h.questions.asked).toHaveLength(1)
-    expect(h.questions.asked[0]!.header).toBe('确认')
+    expect(h.questions.asked[0]!.header).toBe(pmHeader('确认'))
   })
 
   it('decomposition 产物由批准门自动落章（门合并留痕）', async () => {
