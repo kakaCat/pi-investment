@@ -234,3 +234,4 @@ agent-dh/packages/pages/dsh-pmboard/docs/requirements/
 
 # 工作日志纳入版本控制，作为项目历史归档（见 docs/DOCUMENT-MANAGEMENT-PLAN.md）
 # docs/work-logs/  # 已改为保留
+agent-os/agent-os.db
