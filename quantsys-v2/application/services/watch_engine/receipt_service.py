@@ -160,7 +160,27 @@ def render_receipt(todo: Any, *, kind: str, period: str,
             due_seg = '截止时间缺失'
         body = f'待办#{todo_id} {display} {level} · 归属 {account} · {due_seg}'
     elif kind == 'result':
-        body = f'待办#{todo_id} {display} {level} · 归属 {account} · 已收敛（{tag or "closed"}）'
+        # REQ-ad0a t5（FR-14）：结论/原因/后续意见三要素——close 时人填的处置结论
+        # （终态+动作）、原因（close_reason）、后续意见（ignored 的 NEXT 条件原文）。
+        terminal_text = {'handled': '已处置', 'ignored': '忽略', 'expired': '已过期'}.get(
+            tag, tag or 'closed')
+        action_text = {'trade': '已执行交易', 'rule_change': '已修规则'}.get(
+            str(action_kind or '').strip().lower(), '不动')
+        reason_text = str(close_reason or '').strip() or '未填原因'
+        result_lines = [
+            f'待办#{todo_id} {display} {level} · 归属 {account}',
+            f'结论：{terminal_text}（{action_text}）',
+            f'原因：{reason_text}',
+        ]
+        next_text = str(next_condition or '').strip()
+        if next_text:
+            result_lines.append(f'后续意见：NEXT {next_text}')
+        elif tag == 'ignored':
+            # ignored 按理必有 NEXT（close 校验兜底）；缺失如实标注（不臆造，R-013）
+            result_lines.append('后续意见：NEXT 条件缺失（ignored 必填，数据异常）')
+        else:
+            result_lines.append('后续意见：无')
+        body = '\n'.join(result_lines)
     else:
         body = f'待办#{todo_id} {display} {level} · 归属 {account}'
     if in_group:
@@ -214,13 +234,19 @@ class ReceiptService:
                            period=receipt_period(todo, state), channel=channel, name=name)
 
     def result(self, todo: Any, *, terminal: Optional[str] = None,
-               channel: Optional[str] = None, name: Optional[str] = None) -> Dict[str, Any]:
+               channel: Optional[str] = None, name: Optional[str] = None,
+               close_reason: Optional[str] = None,
+               next_condition: Optional[str] = None,
+               action_kind: Optional[str] = None) -> Dict[str, Any]:
         """处置后回执：待办收敛出终态（handled/ignored/expired）后调用（t12 在 close 后触发）。
 
-        name：标的名称（FR-13）。**不参与聚合**（FR-14：处置结论必须即时到达）。"""
+        name：标的名称（FR-13）；close_reason/next_condition/action_kind：close 时的
+        处置三要素（FR-14，渲染进卡片）。**不参与聚合**（处置结论必须即时到达）。"""
         tag = str(terminal or 'closed').strip().lower()
         return self._issue(todo, kind='result',
-                           period=receipt_period(todo, tag), channel=channel, name=name)
+                           period=receipt_period(todo, tag), channel=channel, name=name,
+                           close_reason=close_reason, next_condition=next_condition,
+                           action_kind=action_kind)
 
     def timeout(self, todo: Any, *, channel: Optional[str] = None,
                 name: Optional[str] = None) -> Dict[str, Any]:
@@ -233,7 +259,10 @@ class ReceiptService:
     # ── 幂等 + 发送 ─────────────────────────────────────────
 
     def _issue(self, todo: Any, *, kind: str, period: str,
-               channel: Optional[str] = None, name: Optional[str] = None) -> Dict[str, Any]:
+               channel: Optional[str] = None, name: Optional[str] = None,
+               close_reason: Optional[str] = None,
+               next_condition: Optional[str] = None,
+               action_kind: Optional[str] = None) -> Dict[str, Any]:
         """幂等落一条回执：exists → 发送 → record。sender 失败不抛，仓储失败抛。
 
         顺序说明：**先查后发再落库**。查命中即整段跳过（含发送）——这是"只发一次"的
@@ -261,6 +290,9 @@ class ReceiptService:
         # 否则保持即时投递（result/suppressed 与聚合轮外的直调行为不变）。
         grouped = kind_value in AGGREGATE_KINDS and self._group_open
         message = render_receipt(todo, kind=kind_value, period=period, name=name,
+                                 close_reason=close_reason,
+                                 next_condition=next_condition,
+                                 action_kind=action_kind,
                                  in_group=grouped)
         if grouped:
             self._group_buffer.setdefault(kind_value, []).append({

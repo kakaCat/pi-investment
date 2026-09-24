@@ -40,6 +40,52 @@ TEST_SYMBOL = 'T5WATCH.SZ'
 TEST_RULE_ID = 9990001
 
 
+# ── REQ-ad0a t5：close 处置结论回执的外发拦截 ──────────────────────────────
+# close 路由已接真实回执链（watch_loop_wiring.build_receipt_service → Agent OS/飞书）。
+# 路由测试只验证「receipt 字段被真实填充」，绝不真发飞书：统一替换为内存 fake。
+class _FakeReceiptRepo:
+    def __init__(self):
+        self.rows = []
+
+    def record(self, todo_id, kind, channel=None, delivery_status=None,
+               message_id=None, payload_digest=''):
+        row = dict(todo_id=todo_id, kind=kind, channel=channel,
+                   delivery_status=delivery_status, message_id=message_id,
+                   payload_digest=payload_digest)
+        self.rows.append(row)
+        return row
+
+    def list_by_todo(self, todo_id):
+        return [r for r in self.rows if r['todo_id'] == todo_id]
+
+    def exists(self, todo_id, kind, payload_digest=''):
+        return any(r['todo_id'] == todo_id and r['kind'] == kind
+                   and r['payload_digest'] == payload_digest for r in self.rows)
+
+
+#: 本模块 close 触发的回执发送载荷（fixture 每个用例前清空）
+RECEIPT_SENT = []
+
+
+@pytest.fixture(autouse=True)
+def _capture_receipt_sends(monkeypatch):
+    """拦 close 回执的真实外发（Agent OS/飞书）与名称解析 DB 依赖。"""
+    from types import SimpleNamespace
+
+    from application.services.watch_engine import watch_loop_wiring as wiring
+    from application.services.watch_engine.receipt_service import ReceiptService
+    RECEIPT_SENT.clear()
+    monkeypatch.setattr(
+        wiring, 'build_receipt_service',
+        lambda: ReceiptService(_FakeReceiptRepo(), sender=RECEIPT_SENT.append))
+    monkeypatch.setattr(
+        wiring, 'build_name_resolver',
+        lambda: SimpleNamespace(
+            resolve_batch=lambda symbols: {
+                str(s).split('.')[0].strip(): '测试名' for s in symbols}))
+    yield
+
+
 #: 迁移文件（t1）：本模块的表结构**唯一事实源**，不另抄一份 DDL
 _MIGRATION_FILE = (Path(__file__).resolve().parents[2]
                    / 'infrastructure' / 'persistence' / 'migrations'
@@ -330,7 +376,13 @@ def test_close_200_handled(client, todo_table, make_todo):
     assert data['todo']['terminal'] == 'handled'
     assert data['todo']['closed_at'] is not None
     assert data['todo']['close_reason'] == '已按预案处置'
-    assert data['receipt'] is None            # 回执属 t6，t5 不伪造
+    # REQ-ad0a t5（FR-14）：close 收敛即发处置结论回执，receipt 字段真实填充
+    receipt = data['receipt']
+    assert receipt is not None and receipt['kind'] == 'result'
+    assert receipt['sent'] is True
+    assert '结论：已处置' in receipt['message']
+    assert '原因：已按预案处置' in receipt['message']
+    assert len(RECEIPT_SENT) == 1             # 发送被拦截捕获（未真发飞书）
     fresh = _fresh(todo.id)
     assert fresh.terminal == 'handled'
     assert fresh.closed_at is not None

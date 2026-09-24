@@ -56,10 +56,16 @@ _L3_LEVELS = (P0, P1)
 class TodoService:
     """待办落库 / 认领 / 关闭的编排服务（无状态，仓储由构造注入）"""
 
-    def __init__(self, repo: IWatchTodoRepository, policy: Any = None):
+    def __init__(self, repo: IWatchTodoRepository, policy: Any = None, *,
+                 receipt_service: Any = None, name_resolver: Any = None):
         self._repo = repo
         #: WatchDeliveryPolicy（可注入，缺省由 route_owner 用默认策略）——不缓存账户映射内容
         self._policy = policy
+        # REQ-ad0a t5（FR-14）：处置结论回执（可选）。未注入 = 行为与改前一致
+        # （close 只收敛不发回执）；注入后 close_and_receipt 在收敛成功时发三要素卡。
+        self._receipt_service = receipt_service
+        #: StockNameResolver（可选，FR-13）：close 单条解析标的名称，缺失 → 名称缺失标注
+        self._name_resolver = name_resolver
 
     # ── 创建 ────────────────────────────────────────────────
 
@@ -158,6 +164,52 @@ class TodoService:
         logger.info('盯盘待办已收敛', todo_id=todo_id, terminal=terminal_value,
                     action_kind=action, decision_audit_id=audit_id, closed_by=closed_by)
         return closed
+
+    def close_and_receipt(self, todo_id: int, terminal: str, *,
+                          close_reason: Optional[str] = None,
+                          next_condition: Optional[str] = None,
+                          action_kind: Optional[str] = None,
+                          decision_audit_id: Optional[str] = None,
+                          closed_by: Optional[str] = None,
+                          now: Any = None) -> Any:
+        """收敛 + 处置结论回执（REQ-260924104605-ad0a t5，FR-14）。
+
+        返回 (todo, receipt_outcome|None)。receipt_service 未注入时等价 close()、
+        outcome 为 None（**行为与改前完全一致**，验收锚点）。回执发送/落库异常
+        不拖垮已成功的收敛：响亮记日志、outcome=None——收敛是闭环主线，回执是通知，
+        通知失败绝不能让一次已经生效的处置看起来失败。
+        重复 close 在 close() 的已终态校验处抛 WatchTodoAlreadyClosed（409），
+        根本不会走到回执——重复处置不重复发送。
+        """
+        closed = self.close(todo_id, terminal, close_reason=close_reason,
+                            next_condition=next_condition, action_kind=action_kind,
+                            decision_audit_id=decision_audit_id, closed_by=closed_by,
+                            now=now)
+        if self._receipt_service is None:
+            return closed, None
+        try:
+            outcome = self._receipt_service.result(
+                closed, terminal=str(terminal or '').strip().lower() or None,
+                name=self._resolve_name(closed),
+                close_reason=close_reason, next_condition=next_condition,
+                action_kind=action_kind)
+        except Exception as e:  # noqa: BLE001 - 回执异常不拖垮已成功的收敛
+            logger.error('处置结论回执失败（收敛已生效，回执丢失记日志）',
+                         todo_id=todo_id, error=str(e))
+            outcome = None
+        return closed, outcome
+
+    def _resolve_name(self, todo: Any) -> Optional[str]:
+        """单条标的名称解析（FR-13）；未接线/异常 → None（渲染层如实标名称缺失）。"""
+        if self._name_resolver is None:
+            return None
+        try:
+            symbol = str(getattr(todo, 'symbol', '') or '')
+            names = self._name_resolver.resolve_batch([symbol]) or {}
+            return names.get(symbol.split('.')[0].strip())
+        except Exception as e:  # noqa: BLE001 - 解析失败降级名称缺失，不打断收敛
+            logger.error('close 回执名称解析异常（降级名称缺失）', error=str(e))
+            return None
 
     # ── 读取（透传）────────────────────────────────────────
 
