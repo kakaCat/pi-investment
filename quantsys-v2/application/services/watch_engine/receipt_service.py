@@ -39,8 +39,14 @@ DELIVERY_FAILED = 'failed'
 DELIVERY_LOG_ONLY = 'log_only'
 
 #: 回执逻辑频道码（与 notification 渠道路由同口径：high→alerts / normal→reports）
+#: ⚠️ legacy（FR-1 分群后）：alerts/reports 已不代表真实落点——投递按 route_channel
+#: 的盯盘频道码走；这两个常量仅保留给旧测试与 urgency 语义参考，勿再用于落库标签。
 CHANNEL_ALERTS = 'alerts'
 CHANNEL_REPORTS = 'reports'
+
+#: 盯盘频道码（FR-1 的 10 个逻辑频道之二；真实路由由 Agent OS 渠道表决定）
+CHANNEL_RISK_STOP = 'risk_stop'
+CHANNEL_WATCH_SYMBOL = 'watch_symbol'
 
 #: 发送方签名：sender(payload: dict) -> None。payload 携带 todo_id/kind/channel/level/
 #: symbol/message/period，供 t12 用 NotificationFacade 按级别选模板（P0 红卡等）。
@@ -61,6 +67,20 @@ def resolve_channel(level: Any, kind: Any) -> str:
     if str(kind or '').strip().lower() == 'timeout':
         return CHANNEL_ALERTS
     return CHANNEL_ALERTS if str(level or '').strip().upper() == 'P0' else CHANNEL_REPORTS
+
+
+def route_channel(level: Any, kind: Any) -> str:
+    """回执真实投递的盯盘频道码（REQ-260924104605-ad0a t7 联调修复，纯函数）。
+
+    timeout（超时=升级给你本人）与 P0 → risk_stop；其余 → watch_symbol。
+    与 watch_channels.send_watch_receipt 的 os_channel 推导同规则——落库的
+    channel 标签即真实路由；FR-1 分群后旧的 alerts/reports 标签与落点漂移
+    （记录写 reports、实际落盯盘群），会让运维按记录误判投递群。
+    """
+    lv = str(level or '').strip().upper()
+    if str(kind or '').strip().lower() == 'timeout' or lv == 'P0':
+        return CHANNEL_RISK_STOP
+    return CHANNEL_WATCH_SYMBOL
 
 
 def payload_digest(kind: Any, todo_id: Any, period: Any) -> str:
@@ -275,7 +295,9 @@ class ReceiptService:
             raise ValueError(f'未知回执类型 kind={kind!r}（允许 {list(RECEIPT_KINDS)}）')
         todo_id = int(getattr(todo, 'id'))
         digest = payload_digest(kind_value, todo_id, period)
-        ch = str(channel or '').strip() or resolve_channel(getattr(todo, 'level', None), kind_value)
+        # REQ-ad0a t7：落库标签 = 真实投递路由（route_channel），不再采信调用方
+        # 传入或 resolve_channel 的旧 alerts/reports 标签（分群后与落点漂移）。
+        ch = route_channel(getattr(todo, 'level', None), kind_value)
 
         if self._repo.exists(todo_id, kind_value, digest):
             logger.info('回执已存在，幂等跳过（不重发）', todo_id=todo_id, kind=kind_value,
@@ -372,7 +394,7 @@ class ReceiptService:
             batch_id = 'batch:%s:%s' % (kind_value, datetime.now().strftime('%Y%m%d%H%M'))
             has_p0 = any(str(it.get('level') or '').strip().upper() == 'P0' for it in items)
             high = (kind_value == 'timeout') or has_p0
-            ch = CHANNEL_ALERTS if high else CHANNEL_REPORTS
+            ch = CHANNEL_RISK_STOP if high else CHANNEL_WATCH_SYMBOL
             card = render_group_card(kind_value, items)
             payload = {
                 'kind': kind_value, 'channel': ch, 'message': card,

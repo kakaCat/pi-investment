@@ -73,7 +73,9 @@ def send_watch_receipt(payload: Dict[str, Any]) -> bool:
     title = '📋 盯盘回执 · %s' % _KIND_LABELS.get(kind, kind or '-')
     # FR-12：频道码不外露（内部字段不进用户视野）
     content = message or "(无正文)"
-    urgency = 'high' if (kind == 'timeout' or channel == 'alerts' or level == 'P0') else 'normal'
+    # urgency 只看语义字段（timeout/P0 高优）；不再依赖 payload.channel 旧标签
+    # （REQ-ad0a t7 起落库标签已改为真实盯盘频道码 risk_stop/watch_symbol）
+    urgency = 'high' if (kind == 'timeout' or level == 'P0') else 'normal'
     ok = get_notification_facade().send_watch_receipt(
         title=title, content=content, os_channel=os_channel, urgency=urgency)
     if not ok:

@@ -98,6 +98,16 @@ def test_close_handled_sends_three_element_card():
     assert '归属 agent_virtual' in card
 
 
+def test_result_receipt_channel_label_is_real_route():
+    """REQ-ad0a t7：落库 channel 标签 = 真实投递路由（result → watch_symbol 盯盘频道），
+    不再是 FR-1 分群前与 reports 群挂钩的旧标签（联调发现记录与落点漂移）。"""
+    sent = []
+    svc, _ = _service([_todo(41)], sent)
+    todo, outcome = svc.close_and_receipt(41, 'handled', close_reason='核对无误')
+    assert outcome['channel'] == 'watch_symbol'
+    assert sent[0]['channel'] == 'watch_symbol'
+
+
 def test_close_ignored_card_contains_next_condition_verbatim():
     sent = []
     svc, _ = _service([_todo()], sent, names={'601888': '中国中免'})

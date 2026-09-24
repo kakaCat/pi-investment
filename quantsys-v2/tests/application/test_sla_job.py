@@ -259,7 +259,9 @@ def test_l3_overdue_writes_timeout_and_bumps_escalate_count():
     assert repo.rows[4].flow_state == 'L3'          # 不改变终态/流转态
     assert repo.rows[4].escalate_count == 3         # upgrade 计数 +1
     assert receipts.rows[0]['kind'] == 'timeout'
-    assert receipts.rows[0]['channel'] == CHANNEL_ALERTS
+    # REQ-ad0a t7：落库标签 = 真实投递路由（timeout → risk_stop 盯盘频道），
+    # 不再是 FR-1 分群前与 alerts 群挂钩的旧标签
+    assert receipts.rows[0]['channel'] == 'risk_stop'
     assert stats['alerts'] == 1 and '超时' in sent[0]['message']
 
 
