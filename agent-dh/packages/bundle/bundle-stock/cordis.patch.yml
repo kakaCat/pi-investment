@@ -67,3 +67,13 @@
         startupScript: adapters/inbound/fastapi_app/main.py
         activateScript: activate-py313.sh
         logFile: logs/launchd-stdout.log
+
+    # 账户持仓看板（GUI 双半：host /dashboard/api/holdings + client 侧栏入口/中心栏视图）
+    - id: dashboard-holdings
+      name: '@pi-investment/dashboard-holdings'
+      config: {}
+
+    # 双线执行确认看板（host /dashboard/api/board + client 视图）
+    - id: dashboard-execution
+      name: '@pi-investment/dashboard-execution'
+      config: {}

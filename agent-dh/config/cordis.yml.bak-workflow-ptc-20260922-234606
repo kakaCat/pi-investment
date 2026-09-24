@@ -113,11 +113,7 @@
   disabled: false
 - id: plan-mode
   disabled: false
-# 2026-09-22 修复（REQ-260922213356-4a45 排查）：`workflow-worker-thread` 是 dsh 0.1.5
-# 遗留的失效行（0.1.6-alpha.2 的 base/web-app patch 与 dsh 包依赖里都没有该 id），
-# 结果是 workflowEngine 服务从未被提供 → reqboard 自动链恒报 engine_unavailable。
-# 引擎真身 = @deepseek-ai/dsh-workflow-ptc（被 web-app bundle 默认 disabled: true）。
-- id: workflow-ptc
+- id: workflow-worker-thread
   disabled: false
 - id: agent-instructions
   disabled: false

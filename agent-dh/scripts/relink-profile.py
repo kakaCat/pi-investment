@@ -363,8 +363,11 @@ def main():
             print(f"  跳过 {name}: 仓库目标不存在 {target}")
             failed.append(name)
             continue
-        # 注意: ln -sfn 对已存在目录不会替换，必须先移走再建链接
-        shutil.move(installed, os.path.join(backup, name.replace("/", "__")))
+        # 注意: ln -sfn 对已存在目录不会替换，必须先移走再建链接；
+        # 但状态为 missing 的条目本就不存在，move 会抛 FileNotFoundError
+        # （2026-09-22 修：profile 声明 link: 依赖但尚未安装时命中此路径）
+        if os.path.lexists(installed):
+            shutil.move(installed, os.path.join(backup, name.replace("/", "__")))
         os.makedirs(os.path.dirname(installed), exist_ok=True)
         os.symlink(os.path.relpath(target, os.path.dirname(installed)), installed)
         ok = os.path.isdir(installed) and os.path.realpath(installed) == os.path.realpath(target)

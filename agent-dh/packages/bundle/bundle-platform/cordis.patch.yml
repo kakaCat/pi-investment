@@ -40,3 +40,8 @@
         healthCheckUrl: http://localhost:8080/health
         startCommand: ./bin/agent-os serve
         logDir: logs
+
+    # 公告板（host /dashboard/api/bulletin/posts + client 侧栏顶部入口/中心栏视图，RFC 013）
+    - id: dashboard-bulletin
+      name: '@pi-investment/dashboard-bulletin'
+      config: {}

@@ -53,3 +53,8 @@
         port: 13080
         agentId: investor
         maxRestartsPerHour: 10
+
+    # 自主进化看板（host /dashboard/api/genome + client 视图：段状态/候选/gate 谱系）
+    - id: dashboard-genome
+      name: '@pi-investment/dashboard-genome'
+      config: {}
