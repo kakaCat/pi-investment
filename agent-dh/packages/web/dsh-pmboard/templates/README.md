@@ -13,10 +13,10 @@ stage 与代码 StageKey 逐字一致，零翻译层。
 ```
 templates/
 ├── brainstorming/        需求分析（**只有 feature 经过此节点**）
-│   └── requirement.feature.md  D1 需求说明（feature）
+│   └── feature.md  D1 需求说明（feature）
 ├── design/               设计（feature / bug / refactor 经过）
-│   ├── requirement.bug.md      bug 的需求文档（免需求分析门，复现定位并入设计节点写）
-│   ├── requirement.refactor.md refactor 的需求文档（现状+目标态并入设计）
+│   ├── (bug/refactor/chore/doc/spike 无独立需求文档，直接进入设计)
+│   ├── 
 │   ├── architecture.md         D2 架构（feature / refactor；TL;DR/总览图/方案对比/错误处理/上线回滚）
 │   ├── data-model.md           D3 数据模型（feature）
 │   ├── interfaces.md           D4 接口（feature）
@@ -29,11 +29,11 @@ templates/
 ├── decomposing/          拆分（feature / bug / refactor 经过）
 │   └── decomposition.md        D10 拆分计划（任务表 + 跨文档覆盖对照）
 ├── implementing/         实施（全类型经过）
-│   ├── requirement.spike.md    spike 的研究报告（研究即实施，首个启用节点）
-│   ├── requirement.doc.md      doc 的文档需求（写作即实施，首个启用节点）
-│   ├── requirement.chore.md    chore 的完成判据（首个启用节点）
+
+
+│   ├── 
 │   ├── task-card.md            D11 任务卡（每任务一份 → tasks/<taskId>.md）
-│   ├── review-report.md        D12 评审报告（→ reviews/）
+│   ├── review.md        D12 评审报告（→ reviews/）
 │   └── test-evidence.md        D13 测试证据（→ tests/）
 ├── accepting/            验收
 │   └── verification.md         D14 验收材料（除 spike 外全类型）
@@ -58,9 +58,9 @@ templates/
 
 | 类型 | 模板 | 节点 | 什么时候不交 |
 |---|---|---|---|
-| feature | brainstorming/requirement.feature.md | brainstorming | 类型不是 feature |
-| bug | design/requirement.bug.md | design | 类型不是 bug |
-| refactor | design/requirement.refactor.md | design | 类型不是 refactor |
+| feature | brainstorming/feature.md | brainstorming | 类型不是 feature |
+| bug | brainstorming/bug.md | design | 类型不是 bug |
+| refactor | brainstorming/refactor.md | design | 类型不是 refactor |
 | spike | implementing/requirement.spike.md | implementing | 类型不是 spike |
 | doc | implementing/requirement.doc.md | implementing | 类型不是 doc |
 | chore | implementing/requirement.chore.md | implementing | 类型不是 chore |
@@ -85,7 +85,7 @@ templates/
 |---|---|---|---|
 | decomposition.md | feature / bug / refactor | 进入拆分节点必交（拆分门）；覆盖对照不齐不许批准 | spike/doc/chore 流程无拆分节点，不交 |
 | task-card.md | 全类型 | 每落一张任务卡交一份 → tasks/<id>.md | 无任务不交 |
-| review-report.md | 全类型 | 发生评审时（自评/交叉/验收评审）→ reviews/ | 无评审环节的小改不交 |
+| review.md | 全类型 | 发生评审时（自评/交叉/验收评审）→ reviews/ | 无评审环节的小改不交 |
 | test-evidence.md | feature / bug / refactor / chore | 有可执行行为变化（命令+输出证据）→ tests/ | doc/spike 纯文档/纯研究不交 |
 
 ### 验收与归档文档
@@ -110,7 +110,7 @@ templates/
 
 | 类型 | 首个启用节点 | 落盘 |
 |---|---|---|
-| feature | brainstorming | brainstorming/requirement.feature.md → requirement.md |
+| feature | brainstorming | brainstorming/feature.md → requirement.md |
 | bug / refactor | design（免需求分析） | design/requirement.<类型>.md → requirement.md |
 | spike / doc / chore | implementing（研究/写作即实施） | implementing/requirement.<类型>.md → requirement.md |
 
@@ -130,7 +130,7 @@ templates/
 
 | 立项类型 | 模板文件 | 类型专属节（门禁必填） | 条款前缀 |
 |---|---|---|---|
-| feature | requirement.feature.md（brainstorming/）| 改动位置 / 改动对比 / 产品定义 / 用户与角色（用户分析表）/ **核心场景** / 业务流程(可选) / 功能点（清单表·含配图列）/ 功能点明细 / 数据指标(可选) / **非功能需求** / 风险评估 / 迭代计划 | FR-x |
+| feature | feature.md（brainstorming/）| 改动位置 / 改动对比 / 产品定义 / 用户与角色（用户分析表）/ **核心场景** / 业务流程(可选) / 功能点（清单表·含配图列）/ 功能点明细 / 数据指标(可选) / **非功能需求** / 风险评估 / 迭代计划 | FR-x |
 | refactor | requirement.refactor.md（design/）| 改动位置/ 改动对比 / 现状 / 目标结构 / 行为不变式 | RF-x |
 | bug | requirement.bug.md（design/）| 改动位置/ 改动对比 / 复现步骤 / 根因 / 回归 | BUG-x |
 | spike | requirement.spike.md（implementing/）| 待答问题 / 数据与方法 / 结论 | SP-x |

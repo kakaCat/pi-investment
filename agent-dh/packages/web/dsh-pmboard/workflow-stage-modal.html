@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>流程节点弹框 - 重新设计</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      width: 90%;
+      max-width: 900px;
+      max-height: 90vh;
+      overflow: hidden;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .modal-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 24px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 24px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .modal-title svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    .close-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.05);
+    }
+
+    .modal-body {
+      padding: 32px;
+      overflow-y: auto;
+      max-height: calc(90vh - 140px);
+    }
+
+    .workflow-timeline {
+      position: relative;
+      padding-left: 40px;
+    }
+
+    .timeline-line {
+      position: absolute;
+      left: 19px;
+      top: 30px;
+      bottom: 30px;
+      width: 2px;
+      background: linear-gradient(180deg, #e0e7ff 0%, #c7d2fe 100%);
+    }
+
+    .stage-item {
+      position: relative;
+      margin-bottom: 28px;
+      opacity: 0;
+      animation: fadeInUp 0.5s ease-out forwards;
+    }
+
+    .stage-item:nth-child(1) { animation-delay: 0.1s; }
+    .stage-item:nth-child(2) { animation-delay: 0.15s; }
+    .stage-item:nth-child(3) { animation-delay: 0.2s; }
+    .stage-item:nth-child(4) { animation-delay: 0.25s; }
+    .stage-item:nth-child(5) { animation-delay: 0.3s; }
+    .stage-item:nth-child(6) { animation-delay: 0.35s; }
+    .stage-item:nth-child(7) { animation-delay: 0.4s; }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .stage-card {
+      background: white;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    .stage-card:hover {
+      border-color: var(--stage-color);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      transform: translateX(8px);
+    }
+
+    .stage-card.active {
+      border-color: var(--stage-color);
+      background: linear-gradient(135deg, white 0%, var(--stage-color-light) 100%);
+      box-shadow: 0 4px 16px var(--stage-shadow);
+    }
+
+    .stage-dot {
+      position: absolute;
+      left: -30px;
+      top: 24px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--stage-color);
+      border: 4px solid white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      z-index: 1;
+      transition: all 0.3s;
+    }
+
+    .stage-card:hover .stage-dot {
+      transform: scale(1.3);
+      box-shadow: 0 4px 12px var(--stage-shadow);
+    }
+
+    .stage-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .stage-label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stage-order {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--stage-color);
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .stage-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .stage-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: var(--stage-color-light);
+      color: var(--stage-color);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .stage-description {
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-left: 44px;
+    }
+
+    .stage-meta {
+      display: flex;
+      gap: 16px;
+      margin-top: 12px;
+      margin-left: 44px;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    .meta-item svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .modal-footer {
+      padding: 20px 32px;
+      background: #f9fafb;
+      border-top: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-info {
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    .footer-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #4b5563;
+    }
+
+    .btn-secondary:hover {
+      background: #d1d5db;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      transform: translateY(-2px);
+    }
+
+    /* 各阶段颜色变量 */
+    .stage-0 { --stage-color: #9aa4b2; --stage-color-light: rgba(154, 164, 178, 0.1); --stage-shadow: rgba(154, 164, 178, 0.3); }
+    .stage-1 { --stage-color: #f0a020; --stage-color-light: rgba(240, 160, 32, 0.1); --stage-shadow: rgba(240, 160, 32, 0.3); }
+    .stage-2 { --stage-color: #c2255c; --stage-color-light: rgba(194, 37, 92, 0.1); --stage-shadow: rgba(194, 37, 92, 0.3); }
+    .stage-3 { --stage-color: #8e44ad; --stage-color-light: rgba(142, 68, 173, 0.1); --stage-shadow: rgba(142, 68, 173, 0.3); }
+    .stage-4 { --stage-color: #4a7dff; --stage-color-light: rgba(74, 125, 255, 0.1); --stage-shadow: rgba(74, 125, 255, 0.3); }
+    .stage-5 { --stage-color: #17a2b8; --stage-color-light: rgba(23, 162, 184, 0.1); --stage-shadow: rgba(23, 162, 184, 0.3); }
+    .stage-6 { --stage-color: #28a745; --stage-color-light: rgba(40, 167, 69, 0.1); --stage-shadow: rgba(40, 167, 69, 0.3); }
+  </style>
+</head>
+<body>
+  <div class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          </svg>
+          <span>需求流程节点</span>
+        </div>
+        <button class="close-btn" onclick="closeModal()">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="workflow-timeline">
+          <div class="timeline-line"></div>
+          
+          <!-- 立项 -->
+          <div class="stage-item">
+            <div class="stage-card stage-0 active" onclick="selectStage(0)">
+              <div class="stage-dot"></div>
+              <div class="stage-header">
+                <div class="stage-label">
+                  <div class="stage-order">1</div>
+                  <div class="stage-name">立项</div>
+                </div>
+                <div class="stage-badge">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" width="12" height="12">
+                    <circle cx="8" cy="8" r="8"/>
+                  </svg>
+                  Draft
+                </div>
+              </div>
+              <div class="stage-description">
+                创建需求卡片，填写标题和初步描述。需求进入需求池等待分析。
+              </div>
+              <div class="stage-meta">
+                <div class="meta-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>预计 0.5h</span>
+                </div>
+                <div class="meta-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <span>产品/开发</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 需求分析 -->
+          <div class="stage-item">
+            <div class="stage-card stage-1" onclick="selectStage(1)">
+              <div class="stage-dot"></div>
+              <div class="stage-header">
+                <div class="stage-label">
+                  <div class="stage-order">2</div>
+                  <div class="stage-name">需求分析</div>
+                </div>
+                <div class="stage-badge">Brainstorming</div>
+              </div>
+              <div class="stage-description">
+                详细分析需求背景、目标用户、核心价值。输出需求文档（背景、目标、范围、约束）。
+              </div>
+              <div class="stage-meta">
+                <div class="meta-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>预计 2-4h</span>
+                </div>
+                <div class="meta-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>需求文档</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 设计 -->
+          <div class="stage-item">
+            <div class="stage-card stage-2" onclick="selectStage(2)">
+              <div class="stage-dot"></div>
+              <div class="stage-header">
+                <div class="stage-label">
+                  <div class="stage-order">3</div>
+                  <div class="stage-name">设计</div>
+                </div>
+                <div class="stage-badge">Design</div>
+              </div>
+              <div class="stage-description">
+                技术方案设计、架构设计、接口设计。输出设计文档和技术方案评审。
+              </div>
+              <div class="stage-meta">
+                <div class="meta-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>预计 4-8h</span>
+                </div>
+                <div class="meta-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                  </svg>
+                  <span>设计文档</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 拆分 -->
+          <div class="stage-item">
+            <div class="stage-card stage-3" onclick="selectStage(3)">
+              <div class="stage-dot"></div>
+              <div class="stage-header">
+                <div class="stage-label">
+                  <div class="stage-order">4</div>
+                  <div class="stage-name">拆分</div>
+                </div>
+                <div class="stage-badge">Decomposing</div>
+              </div>
+              <div class="stage-description">
+                将需求拆分为可执行的任务卡片。定义任务依赖关系、验收标准和工作量估算。
+              </div>
+              <div class="stage-meta">
+                <div class="meta-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>预计 1-2h</span>
+                </div>
+                <div class="meta-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <span>任务清单</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 实施 -->
+          <div class="stage-item">
+            <div class="stage-card stage-4" onclick="selectStage(4)">
+              <div class="stage-dot"></div>
+              <div class="stage-header">
+                <div class="stage-label">
+                  <div class="stage-order">5</div>
+                  <div class="stage-name">实施</div>
+                </div>
+                <div class="stage-badge">Implementing</div>
+              </div>
+              <div class="stage-description">
+                开发团队执行任务卡片。包括编码、自测、代码审查、集成测试。
+              </div>
+              <div class="stage-meta">
+                <div class="meta-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>根据任务数</span>
+                </div>
+                <div class="meta-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                  </svg>
+                  <span>代码交付</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 验收 -->
+          <div class="stage-item">
+            <div class="stage-card stage-5" onclick="selectStage(5)">
+              <div class="stage-dot"></div>
+              <div class="stage-header">
+                <div class="stage-label">
+                  <div class="stage-order">6</div>
+                  <div class="stage-name">验收</div>
+                </div>
+                <div class="stage-badge">Accepting</div>
+              </div>
+              <div class="stage-description">
+                验证需求是否满足预期。进行功能测试、性能测试、用户验收测试（UAT）。
+              </div>
+              <div class="stage-meta">
+                <div class="meta-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>预计 1-2h</span>
+                </div>
+                <div class="meta-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>验收报告</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 归档 -->
+          <div class="stage-item">
+            <div class="stage-card stage-6" onclick="selectStage(6)">
+              <div class="stage-dot"></div>
+              <div class="stage-header">
+                <div class="stage-label">
+                  <div class="stage-order">7</div>
+                  <div class="stage-name">归档</div>
+                </div>
+                <div class="stage-badge">Archived</div>
+              </div>
+              <div class="stage-description">
+                整理需求文档、代码、测试报告。沉淀经验教训，更新项目知识库。
+              </div>
+              <div class="stage-meta">
+                <div class="meta-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>预计 0.5h</span>
+                </div>
+                <div class="meta-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                  <span>归档完成</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="footer-info">
+          共 7 个阶段 · 预计总时长：9-18 小时
+        </div>
+        <div class="footer-actions">
+          <button class="btn btn-secondary" onclick="closeModal()">关闭</button>
+          <button class="btn btn-primary" onclick="confirmSelection()">确认选择</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let selectedStage = 0;
+
+    function selectStage(stageIndex) {
+      // 移除所有 active 状态
+      document.querySelectorAll('.stage-card').forEach(card => {
+        card.classList.remove('active');
+      });
+      
+      // 添加 active 到选中的卡片
+      const cards = document.querySelectorAll('.stage-card');
+      if (cards[stageIndex]) {
+        cards[stageIndex].classList.add('active');
+        selectedStage = stageIndex;
+      }
+    }
+
+    function closeModal() {
+      const overlay = document.querySelector('.modal-overlay');
+      overlay.style.animation = 'fadeOut 0.2s ease-out';
+      setTimeout(() => {
+        alert('弹框已关闭');
+      }, 200);
+    }
+
+    function confirmSelection() {
+      const stages = ['立项', '需求分析', '设计', '拆分', '实施', '验收', '归档'];
+      alert(`已选择阶段：${stages[selectedStage]}`);
+    }
+
+    // 添加淡出动画
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes fadeOut {
+        to {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>

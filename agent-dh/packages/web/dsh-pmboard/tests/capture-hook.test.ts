@@ -106,12 +106,10 @@ describe('工具痕迹跟踪（REQ-2e9473 t05）', () => {
 })
 
 describe('shouldCaptureWindow', () => {
-  it('unbound 且无 pending → true；bound / hasPending → false', () => {
+  it('unbound → true；bound → false', () => {
     expect(shouldCaptureWindow(emptyLedger(), W)).toBe(true)
     const bound: ReqboardLedger = { ...emptyLedger(), requirements: [{ id: 'REQ-1', sourceSessionId: W, status: 'implementing' } as never] }
     expect(shouldCaptureWindow(bound, W)).toBe(false)
-    const pending: ReqboardLedger = { ...emptyLedger(), triages: [{ id: 'tri-1', sessionId: W, status: 'pending' } as never] }
-    expect(shouldCaptureWindow(pending, W)).toBe(false)
   })
 })
 
@@ -170,14 +168,7 @@ describe('createSessionEventCaptureHook', () => {
     const h = createSessionEventCaptureHook(d.deps)
     h({ id: W }, textMsg('帮我写个工具'))
     expect(d.pending.size).toBe(0)
-    expect(d.logs.some(l => l.includes('bound or has pending'))).toBe(true)
-  })
-  it('窗口已有 pending 建议卡 → 不登记（不重复 nag）', () => {
-    const d = deps()
-    d.setLedger({ ...emptyLedger(), triages: [{ id: 'tri-1', sessionId: W, status: 'pending' } as never] })
-    const h = createSessionEventCaptureHook(d.deps)
-    h({ id: W }, textMsg('帮我写个工具'))
-    expect(d.pending.size).toBe(0)
+    expect(d.logs.some(l => l.includes('bound — no capture needed'))).toBe(true)
   })
   it('同窗口新消息覆盖旧条目（只跟踪最新）', () => {
     const d = deps()

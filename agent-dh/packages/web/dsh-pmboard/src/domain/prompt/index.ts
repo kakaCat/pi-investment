@@ -102,3 +102,6 @@ export function resolveStagePrompt(
   if (warn !== undefined) reasons.push(warn)
   return reasons.length === 0 ? resolved : { ...resolved, difficultyReasons: reasons }
 }
+
+export type { WorktreeEvent, WorktreeEventContext } from './worktree-events.js'
+export { WORKTREE_EVENT_TEMPLATES, renderWorktreePrompt } from './worktree-events.js'

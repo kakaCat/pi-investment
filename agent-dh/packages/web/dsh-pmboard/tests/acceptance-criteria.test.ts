@@ -425,7 +425,8 @@ describe('验收 7：缺产物拦截 + 产物链追溯', () => {
     // 顺序：requirement → plan → decomposition → task_detail → verification → archive
     const reqIdx = html.indexOf('requirement.md')
     const planIdx = html.indexOf('plan.md')
-    const taskIdx = html.indexOf('任务卡×')
+    // REQ-260922182638-0777 FR-5：任务卡不再折叠「×N」，逐张列出（无任务清单匹配时降级「任务卡（t-xxx）」）
+    const taskIdx = html.indexOf('任务卡（t-aaa001）')
     expect(reqIdx).toBeGreaterThan(-1)
     expect(planIdx).toBeGreaterThan(reqIdx)
     expect(taskIdx).toBeGreaterThan(planIdx)

@@ -35,6 +35,8 @@ export interface GateChainDeps {
   plugin: string;
   /** H2 压缩开关（= 节点隔离开关求值结果，调用侧单点求值后传入）。 */
   compactionEnabled: boolean;
+  /** 模板地址注入（REQ-260922213356-4a45 T-3）：绝对模板根 + 开关；缺省不注入。 */
+  address?: { templateRoot?: string; enabled: boolean };
   /** 轮次边界判定（注入 projections 探测结果；判不出时调用侧已保守返回 false）。 */
   idle: (session: unknown) => boolean;
 }
@@ -59,7 +61,11 @@ export function assembleGatePostChain(deps: GateChainDeps): ReturnType<typeof cr
         }),
         trace: deps.isolationTrace,
       }),
-      createH3InjectHandler({ repo: deps.store, injectionLog: deps.injectionLog }),
+      createH3InjectHandler({
+        repo: deps.store,
+        injectionLog: deps.injectionLog,
+        ...(deps.address === undefined ? {} : { templateRoot: deps.address.templateRoot, addressSectionEnabled: deps.address.enabled }),
+      }),
       createH4ResumeHandler({ delivery: deps.deliverer, plugin: deps.plugin }),
       createH5AuditHandler({ repo: deps.store, now: deps.now, newCommentId: () => gateIds.comment() }),
     ],
@@ -79,6 +85,8 @@ export interface CaptureGuidanceDeps {
   injectionLog: InjectionLogFile;
   logger: { info: (m: string) => void };
   plugin: string;
+  /** 模板地址注入（T-3）：绝对模板根 + 开关；缺省不注入。 */
+  address?: { templateRoot?: string; enabled: boolean };
   /** 捕获引导段名（systemPrompt 全局唯一）与放置序位（identity 5 / genome 10-40 之后）。 */
   sectionName: string;
   sectionOrder: number;
@@ -88,7 +96,7 @@ export interface CaptureGuidanceDeps {
 
 /**
  * 捕获引导段（B：按窗口条件注入）：为每个 agent 窗口的 systemPrompt 组装求值，
- * 仅 unbound 且无遗留 pending 建议卡的窗口返回引导文本，其余返回 ''（renderPrompt
+ * 仅 unbound 的窗口返回引导文本，其余返回 ''（renderPrompt
  * 滤空段 → 零噪音）。text 为函数式：每次组装读取 store.snapshot()（同步）判定当前窗口状态。
  */
 export function registerCaptureGuidance(ctx: Context, deps: CaptureGuidanceDeps): void {
@@ -112,7 +120,7 @@ export function registerCaptureGuidance(ctx: Context, deps: CaptureGuidanceDeps)
             const sectionText = captureSectionText(deps.store.snapshot(), assembleContext, pending);
             if (sectionText.length > 0) return sectionText;
             // 已绑定窗口：注入「推进纪律」（状态由窗口自己维护，不必等人点按钮）
-            return boundSectionText(deps.store.snapshot(), assembleContext, deps.injectionLog);
+            return boundSectionText(deps.store.snapshot(), assembleContext, deps.injectionLog, deps.address);
           },
         }));
       }, deps.plugin + ': capture');

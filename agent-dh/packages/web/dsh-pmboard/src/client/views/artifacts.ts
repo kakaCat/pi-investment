@@ -9,22 +9,13 @@ import type { ArtifactKind, StageArtifact, StageKey } from '../../shared/protoco
 import { ARTIFACT_CONFIRM_GATES, REQ_TRANSITIONS, STAGE_ARTIFACT_REQUIREMENTS, confirmGateKindFor, flowProfileFor, fmtTokens } from '../../shared/protocol.ts'
 import { CATEGORY_LABELS, NO_ARCHIVED, PHASE_LABELS, STATUS_LABELS, fmtDur, fmtTime, isTerminal, progress, renderSessionChip, renderWindowChip } from '../render/dom-utils.ts'
 import { eventsOf } from './timeline.ts'
+import { artifactKindLabel } from '../../shared/artifact-labels.ts'
 import { progressText, renderAutoBadge, renderAutoControls, subtaskProgress } from '../render/subtask-view.ts'
 import { archiveChip, verifyChip } from './verification.ts'
 
 /* ------------------------------------------------------------------ 产物 chips（五道人工确认门，REQ-31e11f t7） */
 
-/** 产物种类中文标签（与 stage-panel.ts 保持一致；部分映射，调用方 ?? kind 兜底）。 */
-export const ARTIFACT_KIND_LABELS: Partial<Record<ArtifactKind, string>> = {
-  requirement: '需求文档',
-  design: '设计文档',
-  plan: '拆分计划（旧版）',
-  decomposition: '拆分计划',
-  task_detail: '任务卡',
-  verification: '验收材料',
-  archive: '归档材料',
-}
-
+// REQ-260922182638-0777：种类中文名唯一事实源 = shared/artifact-labels.ts（本文件不再建本地映射表）
 /**
  * 计算需求在当前分类流程下，各确认门的产物状态。
  * 返回每个门的 { kind, status: 'confirmed'|'pending'|'missing', artifact? }。
@@ -75,7 +66,7 @@ export function renderArtifactChips(req: RequirementRecord): string {
   const gates = computeGateStatuses(req)
   if (gates.length === 0) return ''
   const chips = gates.map(g => {
-    const label = ARTIFACT_KIND_LABELS[g.kind] ?? g.kind
+    const label = artifactKindLabel(g.kind)
     if (g.status === 'confirmed') {
       return '<span class="dsh-pm-artifact-chip confirmed" title="' + esc(label) + '已确认">✓ ' + esc(label) + '</span>'
     }
@@ -104,7 +95,7 @@ export function renderConfirmButton(req: RequirementRecord): string {
   }
   const artifact = (req.artifacts ?? []).find(a => a.kind === kind)
   if (artifact === undefined || artifact.confirmedAt !== undefined) return ''
-  const label = ARTIFACT_KIND_LABELS[kind] ?? kind
+  const label = artifactKindLabel(kind)
   return '<button type="button" class="dsh-pm-btn sm primary dsh-pm-confirm-artifact" data-action="confirm-artifact" data-id="' + esc(req.id) + '" data-kind="' + esc(kind) + '" title="一键确认' + esc(label) + '，放行下一阶段">确认产物</button>'
 }
 

@@ -14,20 +14,23 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { JsonLedgerRepository as ReqboardStore } from '../adapters/JsonLedgerRepository.js'
 import { newCommentId, newRequirementId, newTaskId } from '../shared/protocol.js'
 import type { InjectionLogReadPort } from '../application/internal/injection-log.js'
+import type { IsolationLogReadPort } from '../application/internal/isolation-trace.js'
 import type { RouterCtx } from './routers/shared.js'
 import { createRequirementsRouter } from './routers/requirements.js'
 import { createTasksRouter } from './routers/tasks.js'
 import { createStagesRouter } from './routers/stages.js'
 import { createVerdictsRouter } from './routers/verdicts.js'
 import { createArtifactsRouter } from './routers/artifacts.js'
-import { createTriageRouter } from './routers/triage.js'
 import { createInjectionRouter } from './routers/injection.js'
+import { createIsolationRouter } from './routers/isolation.js'
 
 export interface ReqboardRouteDeps {
   store: ReqboardStore
   now: () => number
   /** 注入留痕**只读**端口（REQ-422af1 t11）：看板「本次注入了什么」的数据源；缺省则接口返回空清单。 */
   injectionLog?: InjectionLogReadPort
+  /** 节点隔离留痕只读端口（REQ-260923134706-e72f t2）：看板「执行流程→上下文管理」数据源；缺省则接口返回空清单。 */
+  isolationLog?: IsolationLogReadPort
   /** 系统提示词装配服务提供者（REQ-a33899 t5）：读时折算固定系统提示词成本；缺省 → unavailable。 */
   systemPrompt?: () => unknown
   /** Token 快照提供者（REQ-b545fe t6）：HTTP 任务操作（body.sessionId）可结算快照；缺省 → 无快照。 */
@@ -128,6 +131,7 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
     deps: {
       ...(deps.cwd !== undefined ? { cwd: deps.cwd } : {}),
       ...(deps.injectionLog !== undefined ? { injectionLog: deps.injectionLog } : {}),
+      ...(deps.isolationLog !== undefined ? { isolationLog: deps.isolationLog } : {}),
       ...(deps.systemPrompt !== undefined ? { systemPrompt: deps.systemPrompt } : {}),
       ...(deps.tokenSnapshot !== undefined ? { tokenSnapshot: deps.tokenSnapshot } : {}),
       ...(deps.docs !== undefined ? { docs: deps.docs } : {}),
@@ -149,8 +153,8 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
   const stages = createStagesRouter(ctx)
   const verdicts = createVerdictsRouter(ctx)
   const artifacts = createArtifactsRouter(ctx)
-  const triage = createTriageRouter(ctx)
   const injection = createInjectionRouter(ctx)
+  const isolation = createIsolationRouter(ctx)
 
   // -- 分发 ----------------------------------------------------------------
 
@@ -165,6 +169,8 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       if (method === 'GET' && sub === 'health') return ok(res, { status: 'ok' })
       // 注入留痕只读回查（REQ-422af1 t11）：看板「本次注入了什么」的唯一数据源
       if (method === 'GET' && sub === 'injection-log') return await injection.handleInjectionLog(res, url)
+      // 节点隔离留痕只读回查（REQ-260923134706-e72f t2）：看板「执行流程→上下文管理」的唯一数据源
+      if (method === 'GET' && sub === 'isolation-log') return await isolation.handleIsolationLog(res, url)
       if (method === 'GET' && sub === 'file') {
         const p = url.searchParams.get('path') ?? ''
         return await artifacts.handleFileRead(res, p)
@@ -226,11 +232,6 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       if (method === 'POST' && sub === 'comment') return await requirements.handleComment(req, res)
       // 文档可打开性批量解析（REQ-b63a7d t4）：前端一次请求替代逐条预检
       if (method === 'POST' && sub === 'docs/resolve') return await artifacts.handleDocsResolve(req, res)
-
-      if (method === 'GET' && sub === 'triage') return await triage.handleTriageList(res)
-      if (method === 'POST' && sub === 'triage/confirm') return await triage.handleTriageConfirm(req, res)
-      if (method === 'POST' && sub === 'triage/rebind') return await triage.handleTriageRebind(req, res)
-      if (method === 'POST' && sub === 'triage/reject') return await triage.handleTriageReject(req, res)
 
       json(res, 404, { success: false, error: `未知路由：${method} ${url.pathname}`, code: 'not_found' })
     } catch (err) {

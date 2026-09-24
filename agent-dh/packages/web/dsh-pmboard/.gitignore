@@ -3,3 +3,6 @@ dist/
 lib/
 *.log
 .DS_Store
+
+# 本地开发/取证产物（公开镜像不发布）
+scripts/.probe/

@@ -9,6 +9,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { JsonLedgerRepository } from '../../adapters/JsonLedgerRepository.js'
 import type { InjectionLogReadPort } from '../../application/internal/injection-log.js'
+import type { IsolationLogReadPort } from '../../application/internal/isolation-trace.js'
 import type { DocRepository } from '../../application/ports.js'
 
 export interface RouterCtx {
@@ -22,6 +23,8 @@ export interface RouterCtx {
   deps: {
     cwd?: string
     injectionLog?: InjectionLogReadPort
+    /** 节点隔离留痕只读端口（REQ-260923134706-e72f t2：看板「执行流程→上下文管理」数据源；缺省 → available=false）。 */
+    isolationLog?: IsolationLogReadPort
     systemPrompt?: () => unknown
     tokenSnapshot?: (windowKey: string) => import('../../shared/protocol.js').TokenSnapshot | undefined
     /** 文档仓储（REQ-308b9a AC-7.7：看板裁决后回填 verification.md；缺省 → 跳过）。 */

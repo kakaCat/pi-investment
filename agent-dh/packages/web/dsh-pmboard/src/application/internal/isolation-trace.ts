@@ -62,3 +62,20 @@ function isRange(raw: unknown): boolean {
   return typeof r.start === 'number' && Number.isFinite(r.start)
     && typeof r.end === 'number' && Number.isFinite(r.end)
 }
+
+/**
+ * 留痕的**只读**端口（REQ-260923134706-e72f t2，与 InjectionLogReadPort 同款纪律）：
+ * 看板只读回查「节点隔离留痕」，不引入任何写操作——读侧与写侧在类型上分开。
+ */
+export interface IsolationLogReadPort {
+  /** 只读全量（缺文件 → []；损坏 → 抛错，由调用方决定是否降级）。 */
+  readAll(): Promise<IsolationTraceEntry[]>
+}
+
+/** 只读查询：取最近 k 条（写入顺序，旧→新）。k 非法 → 响亮抛错。 */
+export function queryIsolationTrace(entries: readonly IsolationTraceEntry[], k: number): IsolationTraceEntry[] {
+  if (!Number.isInteger(k) || k < 0) {
+    throw new Error(fmt('isolation-trace 查询条数必须是非负整数，收到 {k}', { k }))
+  }
+  return entries.slice(Math.max(0, entries.length - k))
+}

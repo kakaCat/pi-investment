@@ -3,13 +3,14 @@
  * 折叠行：提交<种类> · REQ-xxx（+结果态）；展开：摘要、证据清单。
  * @module dsh-pmboard/client/toolviews/rows
  */
-import { strOf, numOf, firstLine, resultText, isSettled, cnLabel, SUBMIT_KIND, type CardSummarize } from '../shared.ts'
+import { strOf, numOf, firstLine, resultText, isSettled, type CardSummarize } from '../shared.ts'
+import { artifactKindLabel } from '../../../shared/artifact-labels.ts'
 import type { BizCard } from '../biz-row.ts'
 
 export const submitSummarize: CardSummarize = (args, result, block) => {
   const kind = strOf(args, 'kind')
   if (kind === undefined) return null
-  const kindCn = cnLabel(SUBMIT_KIND, kind) ?? kind
+  const kindCn = artifactKindLabel(kind)
   const reqId = strOf(args, 'requirement_id') ?? strOf(result, 'requirement_id')
   const err = isSettled(block) && block.isError === true
   if (err) {

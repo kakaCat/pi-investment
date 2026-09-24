@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>需求节点详情弹框（Alpine.js）</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+
+    :root {
+      --color-draft: #9aa4b2;
+      --color-brainstorming: #f0a020;
+      --color-design: #c2255c;
+      --color-decomposing: #8e44ad;
+      --color-implementing: #4a7dff;
+      --color-accepting: #17a2b8;
+      --color-archived: #28a745;
+      
+      --bg-surface: #ffffff;
+      --bg-subtle: #f8f9fa;
+      --border-light: #e5e7eb;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --text-tertiary: #9ca3af;
+    }
+
+    /* 演示容器 */
+    .demo-wrapper {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .demo-controls {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .demo-controls h3 {
+      font-size: 16px;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+
+    .stage-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .stage-btn {
+      padding: 10px 16px;
+      border: 2px solid var(--border-light);
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .stage-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .stage-btn[data-stage="draft"] { border-color: var(--color-draft); color: var(--color-draft); }
+    .stage-btn[data-stage="brainstorming"] { border-color: var(--color-brainstorming); color: var(--color-brainstorming); }
+    .stage-btn[data-stage="design"] { border-color: var(--color-design); color: var(--color-design); }
+    .stage-btn[data-stage="decomposing"] { border-color: var(--color-decomposing); color: var(--color-decomposing); }
+    .stage-btn[data-stage="implementing"] { border-color: var(--color-implementing); color: var(--color-implementing); }
+    .stage-btn[data-stage="accepting"] { border-color: var(--color-accepting); color: var(--color-accepting); }
+    .stage-btn[data-stage="archived"] { border-color: var(--color-archived); color: var(--color-archived); }
+
+    /* 弹框遮罩 */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* 弹框容器 */
+    .modal-container {
+      width: 90%;
+      max-width: 800px;
+      max-height: 88vh;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* 节点头部 */
+    .stage-header {
+      padding: 20px 24px;
+      background: linear-gradient(135deg, var(--stage-color) 0%, var(--stage-color-dark) 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-radius: 12px 12px 0 0;
+    }
+
+    .stage-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stage-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .stage-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .stage-time {
+      font-size: 12px;
+      opacity: 0.9;
+      font-family: ui-monospace, monospace;
+    }
+
+    .close-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      transition: all 0.2s;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.1);
+    }
+
+    /* 内容区 */
+    .stage-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    .stage-body::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .stage-body::-webkit-scrollbar-track {
+      background: var(--bg-subtle);
+    }
+
+    .stage-body::-webkit-scrollbar-thumb {
+      background: var(--border-light);
+      border-radius: 4px;
+    }
+
+    .stage-body::-webkit-scrollbar-thumb:hover {
+      background: var(--text-tertiary);
+    }
+
+    /* 基础信息区 */
+    .section {
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .info-item {
+      margin-bottom: 12px;
+    }
+
+    .info-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .info-value {
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .info-value.large {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .info-value.description {
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--bg-subtle);
+      color: var(--text-secondary);
+    }
+
+    .tag.category {
+      background: rgba(74, 125, 255, 0.1);
+      color: var(--color-implementing);
+    }
+
+    /* 文档链接 */
+    .doc-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .doc-item {
+      padding: 10px 14px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .doc-item:hover {
+      background: #e8f0fe;
+      border-color: var(--color-implementing);
+      transform: translateX(4px);
+    }
+
+    .doc-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .doc-name {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text-primary);
+      font-family: ui-monospace, monospace;
+    }
+
+    .doc-arrow {
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+    /* DAG 层级 */
+    .dag-summary {
+      padding: 16px;
+      background: var(--bg-subtle);
+      border-radius: 8px;
+      border-left: 3px solid var(--color-decomposing);
+    }
+
+    .dag-layer {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .dag-layer:last-child {
+      margin-bottom: 0;
+    }
+
+    .dag-total {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-light);
+    }
+
+    /* 统计卡片 */
+    .stats-bar {
+      display: flex;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--bg-subtle);
+      border-radius: 8px;
+    }
+
+    .stat-item {
+      flex: 1;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* 验收统计 */
+    .acceptance-stats {
+      display: flex;
+      gap: 16px;
+      padding: 12px 16px;
+      background: var(--bg-subtle);
+      border-radius: 8px;
+    }
+
+    .acceptance-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .acceptance-icon {
+      font-size: 16px;
+    }
+
+    .acceptance-text {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    /* 归档信息 */
+    .archive-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      background: rgba(40, 167, 69, 0.1);
+      border: 1px solid rgba(40, 167, 69, 0.3);
+      border-radius: 8px;
+      color: var(--color-archived);
+      font-weight: 500;
+      font-size: 13px;
+    }
+
+    .conclusion-box {
+      padding: 12px 16px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #92400e;
+      font-style: italic;
+    }
+
+    /* 执行流程折叠 */
+    .execution-flow {
+      margin-top: 24px;
+      border-top: 2px solid var(--border-light);
+      padding-top: 16px;
+    }
+
+    .flow-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      padding: 10px 12px;
+      background: var(--bg-subtle);
+      border-radius: 8px;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .flow-toggle:hover {
+      background: #e5e7eb;
+    }
+
+    .flow-toggle-icon {
+      font-size: 14px;
+      color: var(--text-secondary);
+      transition: transform 0.2s;
+    }
+
+    .flow-toggle.expanded .flow-toggle-icon {
+      transform: rotate(90deg);
+    }
+
+    .flow-toggle-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .flow-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+
+    .flow-content.expanded {
+      max-height: 2000px;
+    }
+
+    .flow-content-inner {
+      padding: 16px 0;
+    }
+
+    .flow-section {
+      margin-bottom: 20px;
+    }
+
+    .flow-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .flow-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .flow-item {
+      padding: 8px 12px;
+      background: var(--bg-subtle);
+      border-left: 3px solid var(--border-light);
+      border-radius: 4px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .flow-item.action::before {
+      content: '✓';
+      color: var(--color-archived);
+      margin-right: 8px;
+      font-weight: 600;
+    }
+
+    .prompt-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      color: var(--color-implementing);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .prompt-link:hover {
+      background: #e8f0fe;
+      border-color: var(--color-implementing);
+    }
+
+    /* 底部操作栏 */
+    .stage-footer {
+      padding: 16px 24px;
+      background: var(--bg-subtle);
+      border-top: 1px solid var(--border-light);
+      display: flex;
+      gap: 12px;
+      border-radius: 0 0 12px 12px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary {
+      background: white;
+      color: var(--text-primary);
+      border: 1px solid var(--border-light);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-subtle);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      transform: translateY(-2px);
+    }
+
+    /* 颜色变量注入 */
+    .modal-container[data-stage="draft"] {
+      --stage-color: var(--color-draft);
+      --stage-color-dark: #7a8694;
+    }
+    .modal-container[data-stage="brainstorming"] {
+      --stage-color: var(--color-brainstorming);
+      --stage-color-dark: #d98f1c;
+    }
+    .modal-container[data-stage="design"] {
+      --stage-color: var(--color-design);
+      --stage-color-dark: #a01d4a;
+    }
+    .modal-container[data-stage="decomposing"] {
+      --stage-color: var(--color-decomposing);
+      --stage-color-dark: #6c3483;
+    }
+    .modal-container[data-stage="implementing"] {
+      --stage-color: var(--color-implementing);
+      --stage-color-dark: #3a63e6;
+    }
+    .modal-container[data-stage="accepting"] {
+      --stage-color: var(--color-accepting);
+      --stage-color-dark: #138496;
+    }
+    .modal-container[data-stage="archived"] {
+      --stage-color: var(--color-archived);
+      --stage-color-dark: #218838;
+    }
+  
+    /* Workflow 面板（流程图 / 列表） */
+    .pane-caption {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      margin: 12px 0 8px;
+    }
+
+    .workflow-pane {
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .doc-list.is-limited {
+      max-height: 168px;
+      overflow-y: auto;
+    }
+
+    .dag-layers { display: flex; flex-direction: column; gap: 8px; }
+
+    .dag-layer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+    .dag-layer-label {
+      flex: 0 0 28px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-tertiary);
+      font-family: ui-monospace, monospace;
+    }
+
+    .dag-node {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: ui-monospace, monospace;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .dag-node.done { background: rgba(40, 167, 69, .12); color: #1e7e34; border-color: rgba(40, 167, 69, .3); }
+    .dag-node.in_progress { background: rgba(74, 125, 255, .12); color: #2c5bd9; border-color: rgba(74, 125, 255, .35); }
+    .dag-node.todo { background: var(--bg-subtle); color: var(--text-tertiary); border-color: var(--border); }
+    .dag-node:hover { filter: brightness(.95); }
+
+    .task-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+    .task-table th {
+      text-align: left;
+      padding: 8px;
+      font-weight: 600;
+      color: var(--text-tertiary);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+    }
+
+    .task-table td { padding: 8px; border-bottom: 1px solid var(--border-subtle, var(--border)); }
+
+    .task-table tr:hover td { background: var(--bg-subtle); }
+
+    .tt-status { font-size: 11px; }
+    .tt-status.done { color: #1e7e34; }
+    .tt-status.in_progress { color: #2c5bd9; }
+    .tt-status.todo { color: var(--text-tertiary); }
+
+    .tt-link { color: #4a7dff; cursor: pointer; }
+
+    /* 统计单行 */
+    .stats-line {
+      font-size: 13px;
+      color: var(--text-secondary);
+      padding: 10px 12px;
+      background: var(--bg-subtle);
+      border-radius: 6px;
+      font-family: ui-monospace, monospace;
+    }
+
+    .stats-line b { color: var(--text-primary); font-weight: 600; }
+
+    /* Workflow 切换按钮 */
+    .workflow-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 8px 16px;
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      background: white;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      background: var(--bg-subtle);
+      border-color: var(--text-tertiary);
+    }
+
+    .tab-btn.active {
+      background: var(--color-implementing);
+      color: white;
+      border-color: var(--color-implementing);
+    }
+
+    .workflow-placeholder {
+      padding: 32px 16px;
+      background: var(--bg-subtle);
+      border: 1px dashed var(--border-light);
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    /* DAG 层级任务列表 */
+    .dag-layer-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-left: 12px;
+    }
+
+    .task-link {
+      padding: 8px 12px;
+      background: white;
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      color: var(--text-primary);
+      text-decoration: none;
+      font-size: 13px;
+      font-family: ui-monospace, monospace;
+      transition: all 0.2s;
+      display: block;
+    }
+
+    .task-link:hover {
+      background: #e8f0fe;
+      border-color: var(--color-implementing);
+      transform: translateX(4px);
+    }
+
+    /* 任务泳道（6列看板） */
+    .task-columns {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .task-column {
+      background: var(--bg-secondary);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      min-height: 200px;
+    }
+
+    .column-header {
+      padding: 8px 12px;
+      background: var(--bg-tertiary);
+      border-radius: 6px 6px 0 0;
+      font-weight: 500;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .column-count {
+      display: inline-block;
+      min-width: 20px;
+      height: 20px;
+      line-height: 20px;
+      text-align: center;
+      background: var(--color-primary);
+      color: white;
+      border-radius: 10px;
+      font-size: 11px;
+      padding: 0 6px;
+    }
+
+    .column-body {
+      flex: 1;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      max-height: 240px;
+    }
+
+    .task-card {
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .task-card:hover {
+      border-color: var(--color-primary);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transform: translateY(-1px);
+    }
+
+    .task-card-title {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+
+    .task-card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .task-phase {
+      padding: 2px 6px;
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+    }
+
+    .task-id {
+      font-family: monospace;
+      color: var(--text-tertiary);
+    }
+
+  
+
+/* ===== Alpine 页面外壳 ===== */
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f6f8; margin: 0; padding: 40px 20px; }
+.demo-controls { max-width: 1200px; margin: 0 auto 24px; text-align: center; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.stage-btn { padding: 10px 18px; background: #4f46e5; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.stage-btn:hover { background: #4338ca; }
+/* ===== 统计栏补充（v2 缺） ===== */
+.stats-item { flex: 1; background: #f7f8fa; padding: 10px 12px; border-radius: 6px; text-align: center; }
+.stats-label { display: block; font-size: 12px; color: #8a94a6; margin-bottom: 4px; }
+.stats-value { display: block; font-size: 22px; font-weight: 600; color: #1f2733; }
+.stats-value.done { color: #059669; }
+.stats-value.run { color: #4f46e5; }
+.stats-value.todo { color: #8a94a6; }
+/* ===== 6 列泳道 ===== */
+.task-columns { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 12px; }
+.task-columns .task-column { background: #f7f8fa; border-radius: 6px; display: flex; flex-direction: column; min-height: 160px; }
+.column-header { padding: 8px 10px; background: #eceef2; border-radius: 6px 6px 0 0; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.column-count { min-width: 18px; height: 18px; line-height: 18px; text-align: center; background: #4f46e5; color: #fff; border-radius: 9px; font-size: 11px; padding: 0 5px; }
+.column-body { padding: 8px; display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; }
+.task-card { background: #fff; border: 1px solid #e3e6ec; border-radius: 4px; padding: 7px 9px; cursor: pointer; }
+.task-card:hover { border-color: #4f46e5; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+.task-card-title { font-size: 12px; line-height: 1.35; color: #1f2733; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.task-card-meta { display: flex; justify-content: space-between; font-size: 11px; color: #8a94a6; }
+.task-phase { background: #eceef2; border-radius: 3px; padding: 1px 5px; }
+.task-id { font-family: ui-monospace, monospace; color: #a3abb8; }
+.info-item.is-inline { display: flex; align-items: baseline; gap: 10px; }
+.info-item.is-inline > .info-label { flex: 0 0 auto; min-width: 96px; margin-bottom: 0; white-space: nowrap; }
+.info-item.is-inline > .info-value { flex: 1 1 auto; min-width: 0; }
+.info-item.is-inline > div:not(.info-label) { flex: 1 1 auto; min-width: 0; }
+
+/* ====== Apple 风格皮肤 ====== */
+:root { --ap-text: #1d1d1f; --ap-text2: #6e6e73; --ap-text3: #86868b; --ap-line: rgba(0,0,0,.08); --ap-bg: #f5f5f7; --ap-blue: #0071e3; }
+body { font-family: -apple-system, BlinkMacSystemFont, SF Pro Text, PingFang SC, Helvetica Neue, Arial, sans-serif; background: var(--ap-bg); color: var(--ap-text); -webkit-font-smoothing: antialiased; }
+.demo-controls { gap: 10px; margin-bottom: 28px; }
+.stage-btn { background: #fff; color: var(--ap-text); border: 1px solid var(--ap-line); border-radius: 980px; padding: 9px 16px; font-size: 13.5px; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.04); transition: all .2s; }
+.stage-btn:hover { background: #fbfbfd; border-color: rgba(0,0,0,.16); transform: none; }
+.modal-overlay { background: rgba(0,0,0,.32); backdrop-filter: blur(18px) saturate(180%); -webkit-backdrop-filter: blur(18px) saturate(180%); }
+.modal-container { max-width: 980px; border-radius: 20px; border: none; box-shadow: 0 24px 80px rgba(0,0,0,.24); background: #fff; overflow: hidden; }
+.stage-header { padding: 22px 26px 16px; border-bottom: 1px solid var(--ap-line); }
+.stage-icon { width: 34px; height: 34px; border-radius: 10px; background: rgba(0,113,227,.1); color: var(--ap-blue); font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.stage-title { font-size: 21px; font-weight: 600; letter-spacing: -.02em; color: var(--ap-text); }
+.stage-time { font-size: 12.5px; color: var(--ap-text3); }
+.close-btn { width: 30px; height: 30px; border-radius: 50%; background: var(--ap-bg); color: var(--ap-text2); border: none; font-size: 17px; line-height: 1; }
+.close-btn:hover { background: #e8e8ed; color: var(--ap-text); }
+.stage-body { padding: 22px 26px 24px; }
+.stage-footer { padding: 14px 26px; border-top: 1px solid var(--ap-line); background: #fbfbfd; }
+.btn { border: none; border-radius: 980px; padding: 9px 18px; font-size: 13.5px; font-weight: 500; cursor: pointer; }
+.btn-primary { background: var(--ap-blue); color: #fff; }
+.btn-primary:hover { background: #0077ed; }
+.btn-secondary { background: var(--ap-bg); color: var(--ap-text); }
+.btn-secondary:hover { background: #e8e8ed; }
+.section-title { font-size: 15px; font-weight: 600; letter-spacing: -.01em; color: var(--ap-text); margin-bottom: 12px; }
+.pane-caption { font-size: 12px; color: var(--ap-text3); margin: 0 0 10px; }
+.info-label { font-size: 13px; color: var(--ap-text2); }
+.info-value { font-size: 14px; color: var(--ap-text); }
+.info-value.large { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.tag.category { background: rgba(0,113,227,.1); color: var(--ap-blue); border-radius: 980px; padding: 3px 10px; font-size: 12px; font-weight: 500; }
+.doc-list { display: block; background: #fff; border: 1px solid var(--ap-line); border-radius: 12px; overflow: hidden; padding: 0; gap: 0; }
+.doc-item { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--ap-line); background: #fff; text-decoration: none; }
+.doc-item:last-child { border-bottom: none; }
+.doc-item:hover { background: #fafafa; }
+.doc-name { font-size: 13.5px; color: var(--ap-text); flex: 1; }
+.doc-arrow { color: #c7c7cc; }
+.execution-flow { margin-top: 16px; border-top: none; padding-top: 0; }
+.flow-toggle { background: var(--ap-bg); border-radius: 12px; padding: 11px 14px; transition: background .2s; }
+.flow-toggle:hover { background: #ebebf0; }
+.flow-toggle-text { text-transform: none; letter-spacing: -.01em; font-size: 14px; font-weight: 600; color: var(--ap-text); }
+.flow-toggle-icon { color: var(--ap-text3); font-size: 13px; }
+.flow-content-inner { padding: 14px 4px 2px; }
+.flow-section-title { font-size: 12.5px; font-weight: 600; color: var(--ap-text); letter-spacing: .01em; }
+.flow-item { background: var(--ap-bg); border-left: none; border-radius: 8px; padding: 8px 11px; font-size: 12.5px; color: var(--ap-text2); margin-bottom: 5px; }
+.prompt-link { color: var(--ap-blue); font-size: 13px; text-decoration: none; }
+.prompt-link:hover { text-decoration: underline; }
+.stats-bar { gap: 10px; }
+.stats-item { background: var(--ap-bg); border-radius: 14px; padding: 13px 8px; border: none; }
+.stats-label { font-size: 11.5px; color: var(--ap-text3); letter-spacing: .02em; margin-bottom: 5px; }
+.stats-value { font-size: 24px; font-weight: 600; letter-spacing: -.02em; color: var(--ap-text); }
+.stats-value.done { color: #34c759; }
+.stats-value.run { color: var(--ap-blue); }
+.stats-value.todo { color: var(--ap-text3); }
+.workflow-tabs { display: inline-flex; background: var(--ap-bg); border-radius: 980px; padding: 3px; gap: 2px; margin: 0 0 12px; }
+.tab-btn { background: transparent; border: none; border-radius: 980px; padding: 6px 16px; font-size: 13px; font-weight: 500; color: var(--ap-text2); transition: all .18s; }
+.tab-btn.active { background: #fff; color: var(--ap-text); box-shadow: 0 1px 4px rgba(0,0,0,.14); }
+.dag-layers { gap: 10px; }
+.dag-layer-label { color: var(--ap-text3); font-size: 11px; letter-spacing: .04em; font-family: inherit; }
+.dag-node { background: var(--ap-bg); border: none; border-radius: 980px; padding: 5px 11px; font-size: 12px; font-family: inherit; color: var(--ap-text); transition: background .18s; }
+.dag-node:hover { background: #e8e8ed; box-shadow: none; transform: none; }
+.dag-node.done { background: rgba(52,199,89,.14); color: #248a3d; border: none; }
+.task-columns { gap: 12px; }
+.task-columns .task-column { background: var(--ap-bg); border-radius: 14px; }
+.column-header { background: transparent; padding: 12px 12px 6px; font-size: 12.5px; font-weight: 600; color: var(--ap-text2); letter-spacing: .01em; }
+.column-count { background: rgba(0,0,0,.06); color: var(--ap-text2); border-radius: 980px; }
+.column-body { padding: 4px 8px 10px; gap: 6px; }
+.task-card { background: #fff; border: none; border-radius: 9px; padding: 8px 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.task-card:hover { border: none; box-shadow: 0 3px 10px rgba(0,0,0,.13); transform: none; }
+.task-card-title { font-size: 12px; font-weight: 500; color: var(--ap-text); letter-spacing: -.005em; }
+.workflow-pane { max-height: 340px; }
+/* ====== 会话顶部流程图（与插件 dsh-pm-flow-* 一致）====== */
+:root { --dsw-border: rgba(0,0,0,.10); --dsw-bg-secondary: #f5f5f7; --dsw-hover: #ebebf0; --dsw-text-secondary: #6e6e73; --dsw-text-primary: #1d1d1f; --dsw-bg: #fff; --pm-line: var(--dsw-border, rgba(128,128,128,.18)); --pm-line-strong: rgba(128,128,128,.28); --pm-bg-soft: var(--dsw-bg-secondary, rgba(128,128,128,.06)); --pm-c-implementing: #4a7dff; --pm-c-done: #28a745; --pm-c-archived: #6c757d; }
+.dsh-pm-cprog-inline { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--dsw-border); border-radius: 12px; background: var(--dsw-bg-secondary); padding: 6px 12px; cursor: pointer; transition: all .2s ease; }
+.dsh-pm-cprog-inline:hover { background: var(--dsw-hover); border-color: rgba(74,125,255,.4); box-shadow: 0 2px 8px rgba(74,125,255,.1); }
+.dsh-pm-cprog-inline-count { font-size: 11px; color: var(--dsw-text-secondary); font-variant-numeric: tabular-nums; font-weight: 500; padding-left: 6px; border-left: 1px solid var(--dsw-border); }
+.dsh-pm-flow { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding: 2px 0; }
+.dsh-pm-flow-node { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 58px; cursor: pointer; transition: transform .2s ease; }
+.dsh-pm-flow-node:hover { transform: translateY(-2px); }
+.dsh-pm-flow-dot { width: 22px; height: 22px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; box-sizing: border-box; background: var(--pm-bg-soft); color: var(--dsw-text-secondary); border: 1px solid var(--pm-line); transition: background .2s ease, box-shadow .2s ease, transform .2s ease; }
+.dsh-pm-flow-node[data-state="pending"] .dsh-pm-flow-dot { background: transparent; border: 1px solid var(--pm-line-strong); color: var(--dsw-text-secondary); }
+.dsh-pm-flow-node[data-state="done"] .dsh-pm-flow-dot { background: var(--pm-c-done); border-color: var(--pm-c-done); color: #fff; }
+.dsh-pm-flow-node[data-state="current"] .dsh-pm-flow-dot { background: var(--pm-c-implementing); border-color: var(--pm-c-implementing); color: #fff; box-shadow: 0 0 0 3px rgba(74,125,255,.25); }
+.dsh-pm-flow-node[data-selected="true"] .dsh-pm-flow-dot { box-shadow: 0 0 0 3px rgba(74,125,255,.3); transform: scale(1.08); }
+.dsh-pm-flow-node[data-selected="true"] .dsh-pm-flow-label { font-weight: 700; color: #2f5fd0; }
+.dsh-pm-flow-label { font-size: 10px; color: var(--dsw-text-secondary); white-space: nowrap; transition: color .2s ease, opacity .2s ease; }
+.dsh-pm-flow-node[data-state="pending"] .dsh-pm-flow-label { opacity: .75; }
+.dsh-pm-flow-node[data-state="done"] .dsh-pm-flow-label { color: #1e7e34; }
+.dsh-pm-flow-node[data-state="current"] .dsh-pm-flow-label { color: #2f5fd0; font-weight: 600; }
+.dsh-pm-flow-link { width: 16px; height: 2px; border-radius: 1px; margin-top: 10px; flex: none; background: rgba(128,128,128,.22); }
+.dsh-pm-flow-link[data-state="done"] { background: rgba(40,167,69,.6); }
+.dsh-pm-flow-meta { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.dsh-pm-flow-token { font-size: 10px; color: var(--dsw-text-primary); font-variant-numeric: tabular-nums; }
+/* 顶部流程节点条容器（按钮排已由流程节点设计取代）*/
+.demo-flowbar { display: flex; justify-content: center; margin-bottom: 26px; }
+/* ====== 节点面板顶部（与插件 .dsh-pm-sn-head 一致）====== */
+.dsh-pm-sn-head { display: flex; align-items: baseline; gap: 6px; padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid var(--pm-line, rgba(128,128,128,.12)); }
+.dsh-pm-sn-glyph { flex: 0 0 14px; text-align: center; font-size: 12px; }
+.dsh-pm-sn-glyph[data-state="done"] { color: #28a745; }
+.dsh-pm-sn-glyph[data-state="current"] { color: #4a7dff; }
+.dsh-pm-sn-glyph[data-state="pending"] { color: #ccc; }
+.dsh-pm-sn-glyph[data-state="skipped"] { color: #ccc; }
+.dsh-pm-sn-title { font-weight: 600; font-size: 13px; }
+.dsh-pm-sn-time { margin-left: auto; font-size: 11px; color: var(--dsw-text-secondary, #aaa); font-variant-numeric: tabular-nums; }
+/* 弹框顶部已由节点面板头承载，头部只留关闭按钮 */
+.stage-header.is-slim { padding: 12px 16px 0; border-bottom: none; justify-content: flex-end; }
+/* 弹框顶部：需求名称（立项名称）*/
+.dsh-pm-req-name { font-size: 17px; font-weight: 600; letter-spacing: -.01em; color: #1d1d1f; margin: 0 0 10px; }
+/* 需求编号：短号 + 胶囊，长号自动截断 */
+.dsh-pm-req-id { display: inline-block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; font-weight: 500; color: #6e6e73; background: #f5f5f7; border-radius: 5px; padding: 2px 7px; margin-right: 8px; letter-spacing: 0; }
+/* 节点状态胶囊（配色沿用插件流程节点四态）*/
+.dsh-pm-sn-state { flex: none; align-self: center; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 980px; background: #f5f5f7; color: #6e6e73; }
+.dsh-pm-sn-state[data-state="done"] { background: rgba(40,167,69,.12); color: #1e7e34; }
+.dsh-pm-sn-state[data-state="current"] { background: rgba(74,125,255,.12); color: #2f5fd0; }
+.dsh-pm-sn-state[data-state="pending"] { background: #f5f5f7; color: #6e6e73; }
+/* 泳道：改为上下排列（每组一行，组内卡片自适应铺开）*/
+.task-columns { display: flex; flex-direction: column; gap: 10px; }
+.task-columns .task-column { width: 100%; min-height: 0; }
+.task-columns .column-header { padding: 10px 14px 8px; }
+.task-columns .column-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; padding: 0 12px 12px; max-height: none; overflow: visible; }
+.workflow-pane[data-pane="list"] { max-height: none; overflow: visible; }
+/* 泳道 v3：分组竖排 + 组内单行横向滚动（卡片固定宽度，高度恒定）*/
+.task-columns { display: flex; flex-direction: column; gap: 10px; }
+.task-columns .task-column { width: 100%; min-height: 0; }
+.task-columns .column-header { padding: 10px 14px 6px; }
+.task-columns .column-body { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: flex-start; gap: 8px; overflow-x: auto; overflow-y: hidden; padding: 0 12px 10px; max-height: none; }
+.task-columns .task-card { flex: 0 0 200px; width: 200px; box-sizing: border-box; }
+.task-columns .column-body::-webkit-scrollbar { height: 6px; }
+.task-columns .column-body::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); border-radius: 3px; }
+.task-columns .column-body::-webkit-scrollbar-track { background: transparent; }
+/* 修复：column-body 是 flex 子项，曾被压到 12px 导致卡片被裁切 */
+.task-columns .column-body { flex: none; min-height: auto; }
+.task-columns .task-column { min-height: auto; }
+/* 泳道 v4：分组两列网格 + 组内两列卡片（压高度，卡片不压缩）*/
+.task-columns { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 10px; align-items: start; }
+.task-columns .task-column { width: auto; }
+.task-columns .column-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; overflow: visible; padding: 0 10px 10px; flex: none; }
+.task-columns .task-card { width: auto; flex: none; }
+.task-columns .column-header { padding: 9px 12px 5px; }
+/* 关键修复：清掉 .task-columns 遗留的 max-height:320 + 内滚（它比内容矮，导致末组被裁）*/
+.task-columns { max-height: none; overflow: visible; margin-top: 12px; }
+/* 泳道 v5：去盒子，改「状态分组清单」+ 状态色点 */
+.task-columns { display: flex; flex-direction: column; gap: 0; max-height: none; overflow: visible; }
+.task-columns .task-column { background: transparent; border-radius: 0; width: 100%; min-height: auto; }
+.task-columns .column-header { background: transparent; padding: 8px 2px 6px; font-size: 12px; font-weight: 600; color: #6e6e73; border-bottom: 1px solid rgba(0,0,0,.06); display: flex; align-items: center; gap: 7px; letter-spacing: .01em; }
+.task-columns .column-header::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #c7c7cc; flex: none; }
+.task-columns .task-column[data-col="in_progress"] .column-header::before { background: #4a7dff; }
+.task-columns .task-column[data-col="integrating"] .column-header::before { background: #8e44ad; }
+.task-columns .task-column[data-col="testing"] .column-header::before { background: #f0a020; }
+.task-columns .task-column[data-col="in_review"] .column-header::before { background: #c2255c; }
+.task-columns .task-column[data-col="done"] .column-header::before { background: #34c759; }
+.task-columns .column-count { background: rgba(0,0,0,.05); color: #86868b; font-weight: 500; }
+.task-columns .column-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; padding: 8px 0 14px; background: transparent; }
+.task-columns .task-card { border: 1px solid rgba(0,0,0,.07); box-shadow: none; }
+.task-columns .task-card:hover { border-color: rgba(0,0,0,.16); box-shadow: none; }
+/* 泳道 v6：左侧标签竖栏 + 同一条道内卡片向右铺（横向泳道）*/
+.task-columns { display: flex; flex-direction: column; gap: 0; max-height: none; overflow: visible; }
+.task-columns .task-column { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 12px; padding: 7px 0; border-bottom: 1px solid rgba(0,0,0,.05); background: transparent; border-radius: 0; width: auto; }
+.task-columns .task-column:last-child { border-bottom: none; }
+.task-columns .column-header { padding: 0; border: none; background: transparent; font-size: 11.5px; font-weight: 600; color: #6e6e73; display: flex; align-items: center; gap: 6px; justify-content: flex-start; }
+.task-columns .column-body { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 6px; overflow-x: auto; overflow-y: hidden; padding: 0 0 2px; background: transparent; }
+.task-columns .task-card { flex: 0 0 178px; width: 178px; padding: 7px 9px; }
+.task-columns .task-card-title { -webkit-line-clamp: 1; }
+.task-columns .column-body::-webkit-scrollbar { height: 4px; }
+.task-columns .column-body::-webkit-scrollbar-thumb { background: rgba(0,0,0,.14); border-radius: 2px; }
+.task-columns .column-body::-webkit-scrollbar-track { background: transparent; }
+/* 弹框方式对齐插件：锚定在流程条下方的下拉面板（无遮罩、不居中、细边小圆角）*/
+.demo-flowbar { position: relative; }
+.modal-overlay { position: absolute; top: calc(100% + 8px); right: 0; bottom: auto; left: auto; width: auto; height: auto; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; z-index: 60; }
+.modal-overlay.active { display: block; }
+.modal-container { position: relative; width: min(880px, calc(100vw - 48px)); max-width: none; max-height: 68vh; overflow-y: auto; background: #fff; border: 1px solid rgba(0,0,0,.12); border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.18); padding: 12px 14px; display: block; }
+.modal-container .stage-body { padding: 0; }
+.modal-container .close-btn { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border-radius: 50%; background: #f5f5f7; color: #6e6e73; border: none; font-size: 15px; line-height: 1; z-index: 3; }
+/* 让容器宽度=流程条宽度，面板右边缘才能对齐条右边缘（插件同款锚点）*/
+.demo-flowbar { display: block; width: fit-content; margin: 0 auto 26px; position: relative; }
+.modal-container { width: min(760px, calc(100vw - 48px)); }
+.modal-container { box-sizing: border-box; width: min(720px, calc(100vw - 130px)); }
+  </style>
+</head>
+<body>
+<div x-data="app()">
+  <div class="demo-flowbar">
+  <div class='dsh-pm-cprog-inline' title='点击节点查看详情'><div class='dsh-pm-flow'><div class='dsh-pm-flow-node' data-state='done' data-action='open-stage' data-stage='draft'><span class='dsh-pm-flow-dot'>✓</span><div class='dsh-pm-flow-meta'><span class='dsh-pm-flow-label'>立项</span><span class='dsh-pm-flow-token'>3.2k</span></div></div><div class='dsh-pm-flow-link' data-state='done'></div><div class='dsh-pm-flow-node' data-state='done' data-action='open-stage' data-stage='brainstorming'><span class='dsh-pm-flow-dot'>✓</span><div class='dsh-pm-flow-meta'><span class='dsh-pm-flow-label'>需求分析</span><span class='dsh-pm-flow-token'>8.6k</span></div></div><div class='dsh-pm-flow-link' data-state='done'></div><div class='dsh-pm-flow-node' data-state='done' data-action='open-stage' data-stage='design'><span class='dsh-pm-flow-dot'>✓</span><div class='dsh-pm-flow-meta'><span class='dsh-pm-flow-label'>设计</span><span class='dsh-pm-flow-token'>12.4k</span></div></div><div class='dsh-pm-flow-link' data-state='done'></div><div class='dsh-pm-flow-node' data-state='done' data-action='open-stage' data-stage='decomposing'><span class='dsh-pm-flow-dot'>✓</span><div class='dsh-pm-flow-meta'><span class='dsh-pm-flow-label'>拆分</span><span class='dsh-pm-flow-token'>6.1k</span></div></div><div class='dsh-pm-flow-link' data-state='done'></div><div class='dsh-pm-flow-node' data-state='current' data-action='open-stage' data-stage='implementing'><span class='dsh-pm-flow-dot'>●</span><div class='dsh-pm-flow-meta'><span class='dsh-pm-flow-label'>实施</span><span class='dsh-pm-flow-token'>18.7k</span></div></div><div class='dsh-pm-flow-link' data-state='pending'></div><div class='dsh-pm-flow-node' data-state='pending' data-action='open-stage' data-stage='accepting'><span class='dsh-pm-flow-dot'>6</span><div class='dsh-pm-flow-meta'><span class='dsh-pm-flow-label'>验收</span></div></div><div class='dsh-pm-flow-link' data-state='pending'></div><div class='dsh-pm-flow-node' data-state='pending' data-action='open-stage' data-stage='archived'><span class='dsh-pm-flow-dot'>7</span><div class='dsh-pm-flow-meta'><span class='dsh-pm-flow-label'>归档</span></div></div></div><span class='dsh-pm-cprog-inline-count'>7/12</span></div>
+  <div class="modal-overlay" :class="{ active: showModal }">
+    <div class="modal-container">
+      <button class="close-btn" @click="close()">×</button>
+      <div class="stage-body" x-html="bodyHtml"></div>
+    </div>
+  </div>
+  </div>
+
+</div>
+
+<script>
+function renderDag(tasks) {
+  const depth = {};
+  const calc = (id) => {
+    if (depth[id] !== undefined) return depth[id];
+    const t = tasks.find(x => x.id === id);
+    if (!t || !t.dependsOn || !t.dependsOn.length) { depth[id] = 0; return 0; }
+    depth[id] = 1 + Math.max.apply(null, t.dependsOn.map(calc));
+    return depth[id];
+  };
+  tasks.forEach(t => calc(t.id));
+  const layers = {};
+  tasks.forEach(t => { const d = depth[t.id]; (layers[d] = layers[d] || []).push(t); });
+  const max = Math.max.apply(null, Object.keys(layers).map(Number));
+  let h = '<div class="dag-layers">';
+  for (var i = 0; i <= max; i++) {
+    h += '<div class="dag-layer"><span class="dag-layer-label">L' + i + '</span>';
+    h += (layers[i] || []).map(t =>
+      '<span class="dag-node ' + (t.status === 'done' ? 'done' : '') + '" ' +
+      'data-action="open-doc" data-path="docs/requirements/REQ-260922133113-ebc5/tasks/' + t.id + '.md">' +
+      t.id + ' ' + t.title + '</span>').join('');
+    h += '</div>';
+  }
+  return h + '</div>';
+}
+
+function renderKanban(tasks) {
+  const cols = [
+    ['todo', '待办'], ['in_progress', '研发'], ['integrating', '联调'],
+    ['testing', '测试'], ['in_review', 'Review'], ['done', '完成']
+  ];
+  const phase = { doc: '📝 文档', ui: '🎨 UI', analysis: '🔍 分析', implement: '⚙️ 实现',
+                  test: '🧪 测试', testing: '🧪 测试', review: '👁️ 审查', merge: '🔀 合并' };
+  let h = '<div class="task-columns">';
+  cols.forEach(function (c) {
+    const inCol = tasks.filter(t => t.status === c[0]);
+    h += '<div class="task-column" data-col="' + c[0] + '">';
+    h += '<div class="column-header">' + c[1] + ' <span class="column-count">' + inCol.length + '</span></div>';
+    h += '<div class="column-body">';
+    h += inCol.map(t =>
+      '<div class="task-card" data-action="open-doc" data-path="docs/requirements/REQ-260922133113-ebc5/tasks/' + t.id + '.md">' +
+      t.title + '</div>').join('');
+    h += '</div></div>';
+  });
+  return h + '</div>';
+}
+
+function toggleFlow(el) {
+  el.classList.toggle('expanded');
+  var c = el.nextElementSibling;
+  if (c) c.classList.toggle('expanded');
+}
+
+function switchWorkflowView(btn, view) {
+  var wrap = btn.parentElement;
+  var btns = wrap.querySelectorAll('.tab-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('active', btns[i].getAttribute('data-view') === view);
+  }
+  var host = wrap.parentElement;
+  var panes = host.querySelectorAll('.workflow-pane');
+  for (var j = 0; j < panes.length; j++) {
+    panes[j].style.display = panes[j].getAttribute('data-pane') === view ? '' : 'none';
+  }
+}
+
+document.addEventListener('click', function (e) {
+  var el = e.target.closest ? e.target.closest('[data-action]') : null;
+  if (!el) return;
+  var action = el.getAttribute('data-action');
+  if (action === 'open-stage') {
+    var _d = window.Alpine && Alpine.$data(document.querySelector('[x-data]'));
+    if (_d) _d.open(el.getAttribute('data-stage'));
+    return;
+  }
+  var path = el.getAttribute('data-path') || el.getAttribute('data-task');
+  alert('📄 打开文档\n\n' + path + '\n\n（真实插件会在侧边栏打开）');
+  e.preventDefault();
+});
+
+function renderHead(stage) {
+  var H = {
+    draft: ['已立项', '', 'done', '3 小时前'],
+    brainstorming: ['已分析', '2 条评论', 'done', '3 小时前'],
+    design: ['已设计', '计划已批准', 'done', '2 小时前'],
+    decomposing: ['已拆分', '12 个任务', 'done', '1 小时前'],
+    implementing: ['实施中', '7/12 完成 · 剩 5 个 · 进行中 t-5d2f87', 'current', '12 分钟前'],
+    accepting: ['待验收', '待人工审核', 'pending', '1 小时前'],
+    archived: ['已归档', '', 'done', '2026-09-22 18:30']
+  };
+  var it = H[stage] || ['', '', 'pending', ''];
+  var chip = '<span class="dsh-pm-sn-state" data-state="' + it[2] + '">' + it[0] + '</span>';
+  var title = it[1] ? '<span class="dsh-pm-sn-title">' + it[1] + '</span>' : '';
+  var t = it[3] ? '<span class="dsh-pm-sn-time">' + it[3] + '</span>' : '';
+  return '<div class="dsh-pm-req-name"><span class="dsh-pm-req-id">REQ-ebc5</span>插件 bundle 化</div>' +
+         '<div class="dsh-pm-sn-head">' + chip + title + t + '</div>';
+}
+
+document.addEventListener('click', function (e) {
+  var panel = document.querySelector('.modal-overlay');
+  var bar = document.querySelector('.dsh-pm-cprog-inline');
+  if (!panel || !panel.classList.contains('active')) return;
+  if (panel.contains(e.target)) return;
+  if (bar && bar.contains(e.target)) return;
+  var d = window.Alpine && Alpine.$data(document.querySelector('[x-data]'));
+  if (d) d.close();
+});
+
+function app() {
+  return {
+    showModal: false,
+    currentStage: 'implementing',
+    stageInfo: {"draft":{"number":"1","name":"立项","time":"2026-09-22 13:25"},"brainstorming":{"number":"2","name":"需求分析","time":"2026-09-22 14:30"},"design":{"number":"3","name":"设计","time":"2026-09-22 16:30"},"decomposing":{"number":"4","name":"拆分","time":"3 小时前"},"implementing":{"number":"5","name":"实施","time":"2 小时前"},"accepting":{"number":"6","name":"验收","time":"1 小时前"},"archived":{"number":"7","name":"归档","time":"2026-09-22 18:30"}},
+    stageContent: {"draft":"\n          <div class=\"execution-flow\">\n            <div class=\"flow-toggle expanded\" onclick=\"toggleFlow(this)\">\n              <span class=\"flow-toggle-icon\">&#8250;</span>\n              <span class=\"flow-toggle-text\">ℹ️ 基础信息</span>\n            </div>\n            <div class=\"flow-content expanded\"><div class=\"flow-content-inner\">\n\n            \n            \n            \n            <div class=\"info-item\">\n              <div class=\"info-label\">📝 需求描述</div>\n              <div class=\"info-value description\">实现插件按业务域分组加载，提升模块化程度。将 21 行投资插件按业务域拆分为 3 个 bundle 包（bundle-stock、bundle-evolution、bundle-platform），接入 DSH 插件管理页，用户可按业务卡开关插件。\n\n设计目标：\n- 降低插件间耦合，提升可维护性\n- 支持按需加载，优化启动性能\n- 提供统一的插件管理界面</div>\n            </div>\n            \n            <div class=\"info-item\">\n              <div class=\"info-label\">🏷️ 分类</div>\n              <div><span class=\"tag category\">feature</span></div>\n            </div>\n            <div class=\"info-item\"><div class=\"info-label\">📂 文档位置</div><div class=\"info-value\"><a class=\"prompt-link\" href=\"#\" onclick=\"alert('打开需求目录 docs/requirements/REQ-ebc5/'); return false;\">docs/requirements/REQ-ebc5/</a></div></div>\n\n            \n            <div class=\"info-item\">\n              <div class=\"info-label\">👤 来源窗口</div>\n              <div class=\"info-value\">w-abc123</div>\n            </div>\n            \n            <div class=\"info-item\">\n              <div class=\"info-label\">📅 创建时间</div>\n              <div class=\"info-value\">2026-09-22 13:25</div>\n            </div>\n          \n            </div></div>\n          </div>\n\n          <div class=\"execution-flow\">\n            <div class=\"flow-toggle\" onclick=\"toggleFlow(this)\">\n              <span class=\"flow-toggle-icon\">&#8250;</span>\n              <span class=\"flow-toggle-text\">🔄 执行流程</span>\n            </div>\n            <div class=\"flow-content\">\n              <div class=\"flow-content-inner\">\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">📝 提示词注入</div>\n                  <a class=\"prompt-link\" href=\"#\" onclick=\"alert('在侧边栏打开 CaptureTool/prompt.ts'); return false;\">\n                    查看立项提示词 (CaptureTool)\n                  </a>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">👤 用户选择（立项四问）</div>\n                  <div class=\"flow-item\">需求名称：插件 bundle 化</div>\n                  <div class=\"flow-item\">需求类型：feature</div>\n                  <div class=\"flow-item\">提示词难度：standard</div>\n                  <div class=\"flow-item\">文档位置：docs/requirements/REQ-ebc5/</div>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">⚙️ 执行动作</div>\n                  <div class=\"flow-item action\">弹框立项四问</div>\n                  <div class=\"flow-item action\">创建需求记录</div>\n                  <div class=\"flow-item action\">绑定窗口 w-abc123</div>\n                  <div class=\"flow-item action\">生成需求 ID：REQ-ebc5</div>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">🗜️ 上下文管理</div>\n                  <div class=\"flow-item\">压缩策略：保留需求摘要</div>\n                  <div class=\"flow-item\">保留内容：需求标题、分类、来源</div>\n                  <div class=\"flow-item\">下阶段注入：需求分析提示词 + requirement.md 模版</div>\n                </div>\n              </div>\n            </div>\n          </div>\n        ","brainstorming":"\n          <div class=\"execution-flow\">\n            <div class=\"flow-toggle expanded\" onclick=\"toggleFlow(this)\">\n              <span class=\"flow-toggle-icon\">&#8250;</span>\n              <span class=\"flow-toggle-text\">ℹ️ 基础信息</span>\n            </div>\n            <div class=\"flow-content expanded\"><div class=\"flow-content-inner\">\n\n            \n            <div class=\"doc-list\">\n              <a class=\"doc-item\" href=\"#\" onclick=\"alert('打开 requirement.md'); return false;\">\n                <span class=\"doc-icon\">📄</span>\n                <span class=\"doc-name\">需求文档：requirement.md</span>\n                <span class=\"doc-arrow\">→</span>\n              </a>\n              \n              <a class=\"doc-item\" href=\"#\" onclick=\"alert('打开 discussion.md'); return false;\">\n                <span class=\"doc-icon\">💬</span>\n                <span class=\"doc-name\">讨论记录：discussion.md</span>\n                <span class=\"doc-arrow\">→</span>\n              </a>\n            </div>\n          \n            </div></div>\n          </div>\n\n          <div class=\"execution-flow\">\n            <div class=\"flow-toggle\" onclick=\"toggleFlow(this)\">\n              <span class=\"flow-toggle-icon\">&#8250;</span>\n              <span class=\"flow-toggle-text\">🔄 执行流程</span>\n            </div>\n            <div class=\"flow-content\">\n              <div class=\"flow-content-inner\">\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">📝 提示词注入</div>\n                  <a class=\"prompt-link\" href=\"#\" onclick=\"alert('在侧边栏打开 SubmitTool/prompt.ts (kind=requirement)'); return false;\">\n                    查看需求分析提示词 (SubmitTool)\n                  </a>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">⚙️ 执行动作</div>\n                  <div class=\"flow-item action\">编写 requirement.md</div>\n                  <div class=\"flow-item action\">提交产物 (reqboard_submit kind=requirement)</div>\n                  <div class=\"flow-item action\">等待人工确认</div>\n                  <div class=\"flow-item action\">确认后推进到设计阶段</div>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">🗜️ 上下文管理</div>\n                  <div class=\"flow-item\">压缩策略：保留需求文档、关键讨论</div>\n                  <div class=\"flow-item\">保留内容：需求背景、目标、范围、约束</div>\n                  <div class=\"flow-item\">下阶段注入：设计阶段提示词 + design/ 模版</div>\n                </div>\n              </div>\n            </div>\n          </div>\n        ","design":"\n          <div class=\"execution-flow\">\n            <div class=\"flow-toggle expanded\" onclick=\"toggleFlow(this)\">\n              <span class=\"flow-toggle-icon\">&#8250;</span>\n              <span class=\"flow-toggle-text\">ℹ️ 基础信息</span>\n            </div>\n            <div class=\"flow-content expanded\"><div class=\"flow-content-inner\">\n\n            \n            <div class=\"info-label\" style=\"margin-bottom: 8px;\">📚 设计文档</div>\n            <div class=\"doc-list\">\n              <a class=\"doc-item\" href=\"#\" onclick=\"alert('打开 architecture.md'); return false;\">\n                <span class=\"doc-icon\">📄</span>\n                <span class=\"doc-name\">architecture.md</span>\n                <span class=\"doc-arrow\">→</span>\n              </a>\n              \n              <a class=\"doc-item\" href=\"#\" onclick=\"alert('打开 interfaces.md'); return false;\">\n                <span class=\"doc-icon\">📄</span>\n                <span class=\"doc-name\">interfaces.md</span>\n                <span class=\"doc-arrow\">→</span>\n              </a>\n              \n              <a class=\"doc-item\" href=\"#\" onclick=\"alert('打开 test-cases.md'); return false;\">\n                <span class=\"doc-icon\">📄</span>\n                <span class=\"doc-name\">test-cases.md</span>\n                <span class=\"doc-arrow\">→</span>\n              </a>\n            </div>\n          \n            </div></div>\n          </div>\n\n          <div class=\"execution-flow\">\n            <div class=\"flow-toggle\" onclick=\"toggleFlow(this)\">\n              <span class=\"flow-toggle-icon\">&#8250;</span>\n              <span class=\"flow-toggle-text\">🔄 执行流程</span>\n            </div>\n            <div class=\"flow-content\">\n              <div class=\"flow-content-inner\">\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">📝 提示词注入</div>\n                  <a class=\"prompt-link\" href=\"#\" onclick=\"alert('在侧边栏打开 SubmitTool/prompt.ts (kind=plan)'); return false;\">\n                    查看设计提示词 (SubmitTool)\n                  </a>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">⚙️ 执行动作</div>\n                  <div class=\"flow-item action\">编写设计文档（3份）</div>\n                  <div class=\"flow-item action\">编写拆分计划 decomposition.md</div>\n                  <div class=\"flow-item action\">提交计划 (reqboard_submit kind=plan)</div>\n                  <div class=\"flow-item action\">等待人工批准</div>\n                  <div class=\"flow-item action\">批准后推进到拆分阶段</div>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">🗜️ 上下文管理</div>\n                  <div class=\"flow-item\">压缩策略：保留设计文档链接、拆分计划</div>\n                  <div class=\"flow-item\">保留内容：技术方案、任务清单</div>\n                  <div class=\"flow-item\">下阶段注入：拆分阶段提示词 + tasks/ 模版</div>\n                </div>\n              </div>\n            </div>\n          </div>\n        ","decomposing":"\n          <div class=\"execution-flow\">\n            <div class=\"flow-toggle expanded\" onclick=\"toggleFlow(this)\">\n              <span class=\"flow-toggle-icon\">&#8250;</span>\n              <span class=\"flow-toggle-text\">ℹ️ 基础信息</span>\n            </div>\n            <div class=\"flow-content expanded\"><div class=\"flow-content-inner\">\n\n            \n            <div class=\"doc-list\" style=\"margin-bottom: 16px;\">\n              <a class=\"doc-item\" href=\"#\" onclick=\"alert('打开 decomposition.md'); return false;\">\n                <span class=\"doc-icon\">📄</span>\n                <span class=\"doc-name\">拆分计划：decomposition.md</span>\n                <span class=\"doc-arrow\">→</span>\n              </a>\n            </div>\n\n            <div class=\"section-title\">📊 DAG 层级</div><div class=\"workflow-pane\" data-pane=\"flow\"><div class=\"pane-caption\">🔀 任务依赖关系（按最长依赖链分层，节点可点击进任务详情）</div><!--DAG--></div>\n          \n            </div></div>\n          </div>\n\n          <div class=\"execution-flow\">\n            <div class=\"flow-toggle\" onclick=\"toggleFlow(this)\">\n              <span class=\"flow-toggle-icon\">&#8250;</span>\n              <span class=\"flow-toggle-text\">🔄 执行流程</span>\n            </div>\n            <div class=\"flow-content\">\n              <div class=\"flow-content-inner\">\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">📝 提示词注入</div>\n                  <a class=\"prompt-link\" href=\"#\" onclick=\"alert('在侧边栏打开 DecomposeTool/prompt.ts'); return false;\">\n                    查看拆分提示词 (DecomposeTool)\n                  </a>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">⚙️ 执行动作</div>\n                  <div class=\"flow-item action\">读取已批准计划</div>\n                  <div class=\"flow-item action\">生成任务卡骨架（12个）</div>\n                  <div class=\"flow-item action\">写入 docs/requirements/REQ-ebc5/tasks/</div>\n                  <div class=\"flow-item action\">任务出现在看板</div>\n                  <div class=\"flow-item action\">推进到实施阶段</div>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">🗜️ 上下文管理</div>\n                  <div class=\"flow-item\">压缩策略：保留任务清单、依赖关系</div>\n                  <div class=\"flow-item\">保留内容：DAG 层级、任务概要</div>\n                  <div class=\"flow-item\">下阶段注入：实施阶段提示词 + 任务执行参考</div>\n                </div>\n              </div>\n            </div>\n          </div>\n        ","implementing":"\n          \n\n            <div class=\"workflow-tabs\" style=\"margin-top: 16px;\">\n              <button type=\"button\" class=\"tab-btn active\" data-view=\"flow\" onclick=\"switchWorkflowView(this, 'flow')\">流程图</button>\n              <button type=\"button\" class=\"tab-btn\" data-view=\"list\" onclick=\"switchWorkflowView(this, 'list')\">泳道</button>\n            </div>\n\n            <div class=\"workflow-pane\" data-pane=\"flow\">\n              <div class=\"pane-caption\">🔀 任务依赖关系（按最长依赖链分层，节点可点击进任务详情）</div>\n              <!--DAG-->\n            </div>\n\n            <div class=\"workflow-pane\" data-pane=\"list\" style=\"display: none;\">\n              <div class=\"pane-caption\">按状态分列 · 点击卡片打开任务文档</div>\n              <!--KANBAN-->\n            </div>\n          \n\n          <div class=\"execution-flow\">\n            <div class=\"flow-toggle\" onclick=\"toggleFlow(this)\">\n              <span class=\"flow-toggle-icon\">&#8250;</span>\n              <span class=\"flow-toggle-text\">🔄 执行流程</span>\n            </div>\n            <div class=\"flow-content\">\n              <div class=\"flow-content-inner\">\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">📝 提示词注入</div>\n                  <a class=\"prompt-link\" href=\"#\" onclick=\"alert('在侧边栏打开 TaskReportTool/prompt.ts'); return false;\">\n                    查看任务提示词 (TaskReportTool)\n                  </a>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">⚙️ 执行动作（每个任务）</div>\n                  <div class=\"flow-item action\">开始任务 (reqboard_task_move)</div>\n                  <div class=\"flow-item action\">执行实施工作</div>\n                  <div class=\"flow-item action\">完成汇报 (reqboard_task_report)</div>\n                  <div class=\"flow-item action\">标记完成</div>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">🗜️ 上下文管理</div>\n                  <div class=\"flow-item\">压缩策略：每完成一个任务，压缩执行日志</div>\n                  <div class=\"flow-item\">保留内容：任务卡文档、关键输出</div>\n                  <div class=\"flow-item\">全部完成后注入：\n                    <a class=\"prompt-link\" href=\"#\" onclick=\"alert('查看验收阶段提示词'); return false;\" style=\"margin-left: 8px;\">验收阶段提示词</a>\n                    <a class=\"prompt-link\" href=\"#\" onclick=\"alert('查看 verification 参考'); return false;\" style=\"margin-left: 4px;\">verification 参考</a>\n                  </div>\n                </div>\n              </div>\n            </div>\n          </div>\n        ","accepting":"\n          <div class=\"execution-flow\">\n            <div class=\"flow-toggle expanded\" onclick=\"toggleFlow(this)\">\n              <span class=\"flow-toggle-icon\">&#8250;</span>\n              <span class=\"flow-toggle-text\">ℹ️ 基础信息</span>\n            </div>\n            <div class=\"flow-content expanded\"><div class=\"flow-content-inner\">\n\n            \n            <div class=\"doc-list\" style=\"margin-bottom: 16px;\">\n              <a class=\"doc-item\" href=\"#\" onclick=\"alert('打开 verification.md'); return false;\">\n                <span class=\"doc-icon\">📄</span>\n                <span class=\"doc-name\">验收材料：verification.md</span>\n                <span class=\"doc-arrow\">→</span>\n              </a>\n            </div>\n\n            <div class=\"info-label\" style=\"margin-bottom: 8px;\">📋 验收单 v2</div>\n            <div class=\"acceptance-stats\">\n              <div class=\"acceptance-item\">\n                <span class=\"acceptance-icon\">📊</span>\n                <span class=\"acceptance-text\">共 18 项</span>\n              </div>\n              <div class=\"acceptance-item\">\n                <span class=\"acceptance-icon\" style=\"color: var(--color-archived);\">✅</span>\n                <span class=\"acceptance-text\">通过 15</span>\n              </div>\n              <div class=\"acceptance-item\">\n                <span class=\"acceptance-icon\" style=\"color: #dc3545;\">❌</span>\n                <span class=\"acceptance-text\">不通过 2</span>\n              </div>\n              <div class=\"acceptance-item\">\n                <span class=\"acceptance-icon\" style=\"color: var(--text-tertiary);\">⏳</span>\n                <span class=\"acceptance-text\">待裁决 1</span>\n              </div>\n            </div>\n          \n            </div></div>\n          </div>\n\n          <div class=\"execution-flow\">\n            <div class=\"flow-toggle\" onclick=\"toggleFlow(this)\">\n              <span class=\"flow-toggle-icon\">&#8250;</span>\n              <span class=\"flow-toggle-text\">🔄 执行流程</span>\n            </div>\n            <div class=\"flow-content\">\n              <div class=\"flow-content-inner\">\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">📝 提示词注入</div>\n                  <a class=\"prompt-link\" href=\"#\" onclick=\"alert('在侧边栏打开提示词'); return false;\">\n                    查看验收提示词 (SubmitTool + AcceptSheetTool)\n                  </a>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">⚙️ 执行动作</div>\n                  <div class=\"flow-item action\">提交验收材料 (reqboard_submit kind=verification)</div>\n                  <div class=\"flow-item action\">生成验收单（18项）</div>\n                  <div class=\"flow-item action\">逐项裁决 (reqboard_accept_sheet)</div>\n                  <div class=\"flow-item action\">2项不通过，返工处理</div>\n                  <div class=\"flow-item action\">修复后重新裁决</div>\n                  <div class=\"flow-item action\">全部通过后推进到归档</div>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">🗜️ 上下文管理</div>\n                  <div class=\"flow-item\">压缩策略：保留验收结论、关键证据</div>\n                  <div class=\"flow-item\">保留内容：验收单通过率、不通过原因</div>\n                  <div class=\"flow-item\">下阶段注入：归档阶段提示词 + archive 参考</div>\n                </div>\n              </div>\n            </div>\n          </div>\n        ","archived":"\n          <div class=\"execution-flow\">\n            <div class=\"flow-toggle expanded\" onclick=\"toggleFlow(this)\">\n              <span class=\"flow-toggle-icon\">&#8250;</span>\n              <span class=\"flow-toggle-text\">ℹ️ 基础信息</span>\n            </div>\n            <div class=\"flow-content expanded\"><div class=\"flow-content-inner\">\n\n            \n            <div style=\"margin-bottom: 16px;\">\n              <span class=\"archive-badge\">\n                ✅ 已归档 · 2026-09-22 18:30\n              </span>\n            </div>\n\n            <div class=\"info-label\" style=\"margin-bottom: 8px;\">📚 归档文档</div>\n            <div class=\"doc-list\" style=\"margin-bottom: 16px;\">\n              <a class=\"doc-item\" href=\"#\" onclick=\"alert('打开文档'); return false;\">\n                <span class=\"doc-icon\">📄</span>\n                <span class=\"doc-name\">requirement.md</span>\n                <span class=\"doc-arrow\">→</span>\n              </a>\n              <a class=\"doc-item\" href=\"#\" onclick=\"alert('打开文档'); return false;\">\n                <span class=\"doc-icon\">📁</span>\n                <span class=\"doc-name\">design/</span>\n                <span class=\"doc-arrow\">→</span>\n              </a>\n              <a class=\"doc-item\" href=\"#\" onclick=\"alert('打开文档'); return false;\">\n                <span class=\"doc-icon\">📄</span>\n                <span class=\"doc-name\">decomposition.md</span>\n                <span class=\"doc-arrow\">→</span>\n              </a>\n              <a class=\"doc-item\" href=\"#\" onclick=\"alert('打开文档'); return false;\">\n                <span class=\"doc-icon\">📄</span>\n                <span class=\"doc-name\">verification.md</span>\n                <span class=\"doc-arrow\">→</span>\n              </a>\n              <a class=\"doc-item\" href=\"#\" onclick=\"alert('打开文档'); return false;\">\n                <span class=\"doc-icon\">📄</span>\n                <span class=\"doc-name\">retro.md</span>\n                <span class=\"doc-arrow\">→</span>\n              </a>\n            </div>\n\n            <div class=\"info-label\" style=\"margin-bottom: 8px;\">🔗 合并到项目</div>\n            <div class=\"doc-list\" style=\"margin-bottom: 16px;\">\n              <a class=\"doc-item\" href=\"#\" onclick=\"alert('打开文档'); return false;\">\n                <span class=\"doc-icon\">📄</span>\n                <span class=\"doc-name\">docs/architecture/bundle-system.md</span>\n                <span class=\"doc-arrow\">→</span>\n              </a>\n              <a class=\"doc-item\" href=\"#\" onclick=\"alert('打开文档'); return false;\">\n                <span class=\"doc-icon\">📄</span>\n                <span class=\"doc-name\">docs/guides/plugin-development.md</span>\n                <span class=\"doc-arrow\">→</span>\n              </a>\n            </div>\n\n            <div class=\"info-label\" style=\"margin-bottom: 8px;\">💡 一句话结论</div>\n            <div class=\"conclusion-box\">\n              \"实现了插件 bundle 化，提升了模块化程度\"\n            </div>\n          \n            </div></div>\n          </div>\n\n          <div class=\"execution-flow\">\n            <div class=\"flow-toggle\" onclick=\"toggleFlow(this)\">\n              <span class=\"flow-toggle-icon\">&#8250;</span>\n              <span class=\"flow-toggle-text\">🔄 执行流程</span>\n            </div>\n            <div class=\"flow-content\">\n              <div class=\"flow-content-inner\">\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">📝 提示词注入</div>\n                  <a class=\"prompt-link\" href=\"#\" onclick=\"alert('在侧边栏打开 SubmitTool/prompt.ts (kind=archive)'); return false;\">\n                    查看归档提示词 (SubmitTool)\n                  </a>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">⚙️ 执行动作</div>\n                  <div class=\"flow-item action\">整理需求目录文档</div>\n                  <div class=\"flow-item action\">提交归档材料 (reqboard_submit kind=archive)</div>\n                  <div class=\"flow-item action\">合并到项目文档（2个）</div>\n                  <div class=\"flow-item action\">更新项目说明书</div>\n                  <div class=\"flow-item action\">写入归档索引</div>\n                </div>\n\n                <div class=\"flow-section\">\n                  <div class=\"flow-section-title\">🗜️ 上下文管理</div>\n                  <div class=\"flow-item\">压缩策略：完全压缩（归档完成）</div>\n                  <div class=\"flow-item\">保留内容：归档索引、一句话结论</div>\n                  <div class=\"flow-item\">下阶段注入：无（流程结束）</div>\n                </div>\n              </div>\n            </div>\n          </div>\n        "},
+    taskData: [{"id":"t-8f4a23","title":"创建 bundle 包结构","status":"done","phase":"implement","dependsOn":[]},{"id":"t-7b3c89","title":"迁移插件配置","status":"done","phase":"implement","dependsOn":["t-8f4a23"]},{"id":"t-2a8e53","title":"实现 bundle 加载逻辑","status":"done","phase":"implement","dependsOn":["t-8f4a23"]},{"id":"t-9d2e47","title":"更新 profile 注册","status":"done","phase":"implement","dependsOn":["t-7b3c89","t-2a8e53"]},{"id":"t-4c1f92","title":"修改插件管理页显示","status":"done","phase":"implement","dependsOn":["t-7b3c89","t-2a8e53"]},{"id":"t-6e5d18","title":"补充单测","status":"done","phase":"testing","dependsOn":["t-7b3c89","t-2a8e53"]},{"id":"t-3f7a65","title":"编写文档","status":"done","phase":"doc","dependsOn":["t-9d2e47","t-4c1f92","t-6e5d18"]},{"id":"t-1b9c44","title":"集成验证","status":"done","phase":"testing","dependsOn":["t-9d2e47","t-4c1f92","t-6e5d18"]},{"id":"t-5d2f87","title":"性能优化","status":"integrating","phase":"implement","dependsOn":["t-3f7a65","t-1b9c44"]},{"id":"t-0a7d59","title":"边界测试","status":"testing","phase":"testing","dependsOn":["t-3f7a65","t-1b9c44"]},{"id":"t-8c3e21","title":"上线准备","status":"in_review","phase":"review","dependsOn":["t-5d2f87","t-0a7d59"]},{"id":"t-9f4b62","title":"灰度发布","status":"todo","phase":"merge","dependsOn":["t-8c3e21"]}],
+    get info() { return this.stageInfo[this.currentStage] || {}; },
+    get bodyHtml() {
+      var h = this.stageContent[this.currentStage] || '';
+      if (h.indexOf('<!--DAG-->') !== -1) h = h.replace('<!--DAG-->', renderDag(this.taskData));
+      if (h.indexOf('<!--KANBAN-->') !== -1) h = h.replace('<!--KANBAN-->', renderKanban(this.taskData));
+      return renderHead(this.currentStage) + h;
+    },
+    open: function (stage) { this.currentStage = stage; this.showModal = true; },
+    close: function () { this.showModal = false; }
+  };
+}
+</script>
+</body>
+</html>

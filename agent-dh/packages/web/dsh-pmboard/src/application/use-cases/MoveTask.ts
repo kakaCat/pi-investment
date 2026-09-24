@@ -5,6 +5,7 @@
  *
  * @module dsh-pmboard/application/use-cases/MoveTask
  */
+import { deliverWorktreeNotice } from '../internal/worktree-notice.js'
 import type { UseCaseDeps } from '../ports.js'
 import {
   ALL_TASK_STATUSES,
@@ -169,6 +170,15 @@ export async function executeMoveTask(deps: UseCaseDeps, args: unknown, exec: an
             doc_path: 'docs/requirements/' + changed.requirementId + '/tasks/' + changed.id + '.md',
           }
         : undefined
+      // REQ-260923222557-d3b0 FR-2：子任务完成 → worktree 提交检查点提示（事件型注入；
+      // 投递失败只留痕，绝不阻断转移）。
+      if (changed.status === 'done') {
+        deliverWorktreeNotice(deps, windowKey, 'task_done', {
+          requirementId: changed.requirementId,
+          taskId: changed.id,
+          taskTitle: changed.title,
+        })
+      }
       return {
         success: true,
         task_id: changed.id,

@@ -41,8 +41,6 @@ export function defineStatusTool(deps: UseCaseDeps) {
               },
             },
           },
-          has_pending: { type: 'boolean', description: '本窗口是否已有遗留待确认建议卡（旧流程 triage）' },
-          pending_triage_id: { type: 'string', description: '最近遗留 pending triage id（无则空串）' },
           next_actions: {
             type: 'array',
             description: '本窗口可自行推进的目标状态（agent 合法转移；取消/归档为人工闸门不在此列）',

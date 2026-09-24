@@ -167,6 +167,8 @@ export function createStagesRouter(ctx: RouterCtx) {
         description: target.description,
         status: target.status,
         category: target.category ?? null,
+        // REQ-260923134706-e72f t3 / FR-2：立项四问之一的提示词难度透传给会话流程面板（老记录无字段 → null）
+        promptDifficulty: target.promptDifficulty ?? null,
         blocked: target.blocked,
         paused: target.paused === true,
         sourceSessionId: target.sourceSessionId ?? null,

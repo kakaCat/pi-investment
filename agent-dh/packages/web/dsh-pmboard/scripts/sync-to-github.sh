@@ -32,13 +32,25 @@ if [ ! -d "$MIRROR/.git" ]; then
   exit 1
 fi
 
-EXCLUDES=(--exclude node_modules --exclude dist --exclude lib --exclude .DS_Store --exclude .git --exclude '*.log')
+# 只发布项目本体（源码/测试/脚本/模板/包元数据/README/LICENSE/CHANGELOG）。
+# 以下为本地开发产物或内部材料，不进公开仓库（镜像 kakaCat/dsh-pmboard 是 public）：
+EXCLUDES=(
+  --exclude node_modules --exclude dist --exclude lib
+  --exclude .DS_Store --exclude .git --exclude '*.log'
+  --exclude 'scripts/.probe'            # 本地取证脚本/截图（含本地 cookie 脚本），仅本机用
+  --exclude 'CONFLICT-REPORT.md'        # 内部事故复盘报告
+  --exclude 'FIX-REPORT.md'             # 内部修复记录
+  --exclude '*redesign.html'            # 设计探索稿（非交付物）
+  --exclude 'stage-modals-*.html'       # 同上（stage-modals-alpine 为源码注释引用的设计基线，仍在源目录保留）
+  --exclude 'workflow-stage-modal.html'
+  --exclude '[[]^' --exclude '[]]*'     # shell glob 事故留下的空文件，勿发布
+)
 
 echo "==> 源:      $SRC"
 echo "==> 镜像:    $MIRROR"
 
 if [ "$DRY_RUN" = "1" ]; then
-  rsync -ain --delete "${EXCLUDES[@]}" "$SRC" "$MIRROR/" | head -50
+  rsync -ain --delete --stats "${EXCLUDES[@]}" "$SRC" "$MIRROR/" | head -200
   exit 0
 fi
 

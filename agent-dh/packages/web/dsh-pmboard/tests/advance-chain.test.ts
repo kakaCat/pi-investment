@@ -108,6 +108,21 @@ describe('事件链自动驱动（4.1 主用例）', () => {
     expect(h.repo.ledger.tasks.find(t => t.id === 't-s2')!.status).toBe('done')
   })
 
+  it('4.8 exec 透传：run 的 parent = 调用者 agent（design/architecture §3 parent: exec.agent）', async () => {
+    const h = seed()
+    const parents: unknown[] = []
+    h.deps.workflow = {
+      async start(input: unknown): Promise<WorkflowRunOutcome> {
+        parents.push((input as { parent?: unknown }).parent)
+        return { ok: true, value: { ok: true, output: JSON.stringify({ filesChanged: [FILE], completed: ['子卡完成'], evidence: ['vitest 绿'] }) } }
+      },
+    }
+    const exec = { agent: { id: 'session-w-001' }, signal: undefined }
+    await advanceRequirement(h.deps, 'REQ-000001', exec)
+    expect(parents.length).toBeGreaterThan(0)
+    expect(parents.every(p => p === exec.agent)).toBe(true)
+  })
+
   it('5.2 失败即暂停：子卡 run 失败 → autoRun=false，不执行后续卡', async () => {
     const h = seed({ runner: new FakeRunner(2) })
     const out = await advanceRequirement(h.deps, 'REQ-000001')

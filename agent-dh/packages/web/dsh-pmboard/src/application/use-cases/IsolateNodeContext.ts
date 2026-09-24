@@ -41,6 +41,7 @@
  */
 import type { Clock, DocRepository, ReqboardRepository } from '../ports.js'
 import { openRequirementsFor } from '../internal/window.js'
+import { isInProgressTask } from '../../domain/status/Predicates.js'
 import {
   buildNodeInputPackage,
   newWindowInstruction,
@@ -164,6 +165,8 @@ export interface IsolateNodeContextDeps {
   isolation?: NodeIsolationPort
   /** 留痕端口；未注入 = 只在结果体里留痕。 */
   trace?: IsolationTracePort
+  /** 模板根绝对路径（T-5）；缺省 = 输入包不追加地址小节（逐字节兼容）。 */
+  templateRoot?: string
 }
 
 function pickRequirement(
@@ -190,6 +193,10 @@ export async function isolateNodeContext(
 ): Promise<IsolateNodeContextResult> {
   const stage = request.stage
   const requirement = pickRequirement(deps.repo, request.windowKey, request.requirementId)
+  // T-5：实施节点把当前任务卡带进输入包（与系统段/H3 同一份上游必读）。
+  const currentTask = requirement === undefined
+    ? undefined
+    : deps.repo.snapshot().tasks.find(t => t.requirementId === requirement.id && isInProgressTask(t))
   const docPath = requirementDocPath(requirement)
   const docText = docPath.length > 0 ? await safeReadDoc(deps.docs, docPath) : ''
   const pkg = buildNodeInputPackage({
@@ -200,6 +207,8 @@ export async function isolateNodeContext(
     ...(requirement === undefined ? {} : { requirement }),
     requirementDoc: docText,
     requirementDocPath: docPath,
+    ...(deps.templateRoot === undefined ? {} : { templateRoot: deps.templateRoot }),
+    ...(currentTask === undefined ? {} : { currentTask: { id: currentTask.id, title: currentTask.title, cardDoc: currentTask.cardDoc } }),
   })
 
   const base = {

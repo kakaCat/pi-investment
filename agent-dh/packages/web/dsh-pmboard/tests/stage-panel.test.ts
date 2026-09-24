@@ -427,23 +427,27 @@ describe('追溯链', () => {
     expect(html).toContain('dsh-pm-trace-arrow')
     const reqIdx = html.indexOf('requirement.md')
     const planIdx = html.indexOf('plan.md')
-    const taskIdx = html.indexOf('任务卡×')
+    // REQ-260922182638-0777 FR-5：任务卡不再折叠「×N」，逐张列出（无任务清单可匹配时降级「任务卡（t-xxx）」）
+    const taskIdx = html.indexOf('任务卡（t-1）')
     expect(reqIdx).toBeGreaterThan(-1)
     expect(planIdx).toBeGreaterThan(reqIdx)
     expect(taskIdx).toBeGreaterThan(planIdx)
+    expect(html).not.toContain('任务卡×')
   })
 
-  it('同类多份（design）：显示各自文件名，不再四份全叫「设计文档」（2026-09-21 用户反馈）', () => {
+  it('同类多份（design）：显示各自中文文档名（FR-4 文件名中文化），不再四份全叫「设计文档」', () => {
     // 设计节点的交付物是一整套文档 → 同一 kind 下多条产物记录
     const names = ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md']
+    const cnNames = ['架构文档', '数据模型', '接口文档', '测试用例']
     const artifacts = names.map(name =>
       makeArtifact({ kind: 'design', stage: 'design', path: 'docs/requirements/REQ-test/design/' + name }))
     const html = renderStagePanel(makeStageDetail({ stage: 'design', artifacts, body: {} as never }))
-    // 每份文档显示自己的名字（按钮文字 = 文件名），点开仍是自己的路径
-    // （REQ-260922012924-2e29 FR-4：按钮新增 title=绝对路径属性，断言按 data-path 与标签分别匹配）
-    for (const name of names) {
-      expect(html).toContain('data-path="docs/requirements/REQ-test/design/' + name + '"')
-      expect(html).toContain('>' + name + '</button>')
+    // REQ-260922182638-0777 FR-4：按钮文字 = 中文文档名，不再裸显英文文件名；
+    // 完整路径仍在 data-path / title（排查线索不丢）
+    for (let i = 0; i < names.length; i++) {
+      expect(html).toContain('data-path="docs/requirements/REQ-test/design/' + names[i] + '"')
+      expect(html).toContain('>' + cnNames[i] + '</button>')
+      expect(html).not.toContain('>' + names[i] + '</button>')
     }
     // 同一个词不再重复出现（此前 trace chain 上 4 个按钮全渲染成「设计文档」）
     expect(html).not.toContain('>设计文档<')
@@ -459,6 +463,55 @@ describe('追溯链', () => {
     expect(html).toContain('>拆分计划（旧版）</button>')
     expect(html).toContain('data-kind="decomposition"')
     expect(html).toContain('>拆分计划</button>')
+  })
+
+  // TC-006（REQ-260922182638-0777 / FR-4、FR-5）
+  it('TC-006a：任务卡逐张展开且带任务名称（artifact.path ↔ cardDoc 匹配取 StageTaskRef.title）', () => {
+    const artifacts = [
+      makeArtifact({ kind: 'task_detail', stage: 'implementing', path: 'docs/requirements/REQ-test/tasks/t-aaa001.md' }),
+      makeArtifact({ kind: 'task_detail', stage: 'implementing', path: 'docs/requirements/REQ-test/tasks/t-bbb002.md' }),
+    ]
+    const body = {
+      tasks: [
+        makeTask({ id: 't-aaa001', title: '实现映射模块', cardDoc: 'docs/requirements/REQ-test/tasks/t-aaa001.md' }),
+        makeTask({ id: 't-bbb002', title: '收敛引用点', cardDoc: 'docs/requirements/REQ-test/tasks/t-bbb002.md' }),
+      ],
+      byWindow: {},
+    } as never
+    const html = renderStagePanel(makeStageDetail({ stage: 'implementing', artifacts, body }))
+    // 逐张列出、各带任务名称与各卡路径（不再折叠）
+    expect(html).toContain('>任务卡 · 实现映射模块</button>')
+    expect(html).toContain('>任务卡 · 收敛引用点</button>')
+    expect(html).toContain('data-path="docs/requirements/REQ-test/tasks/t-aaa001.md"')
+    expect(html).toContain('data-path="docs/requirements/REQ-test/tasks/t-bbb002.md"')
+    expect(html).not.toContain('任务卡×')
+  })
+
+  it('TC-006b：任务卡名称匹配不到时降级「任务卡（t-xxx）」编号形态', () => {
+    const artifacts = [
+      makeArtifact({ kind: 'task_detail', stage: 'implementing', path: 'docs/requirements/REQ-test/tasks/t-zzz999.md' }),
+    ]
+    const body = { tasks: [makeTask({ id: 't-aaa001', title: '别的任务', cardDoc: 'docs/requirements/REQ-test/tasks/t-aaa001.md' })], byWindow: {} } as never
+    const html = renderStagePanel(makeStageDetail({ stage: 'implementing', artifacts, body }))
+    expect(html).toContain('>任务卡（t-zzz999）</button>')
+    expect(html).not.toContain('任务卡 · 别的任务')
+    expect(html).not.toContain('任务卡×')
+  })
+
+  it('TC-006c：未知设计文件名中文兜底（「设计文档（foo.md）」），tooltip 保留完整路径', () => {
+    const artifacts = [
+      makeArtifact({ kind: 'design', stage: 'design', path: 'docs/requirements/REQ-test/design/foo.md' }),
+    ]
+    const html = renderStagePanel(makeStageDetail({ stage: 'design', artifacts, body: {} as never }))
+    expect(html).toContain('>设计文档（foo.md）</button>')
+    expect(html).toContain('data-path="docs/requirements/REQ-test/design/foo.md"')
+  })
+
+  it('TC-006d：缺失必备产物红字「（缺失）」行为保留', () => {
+    // design 节点的必备产物 = design；一件都没交 → 红字「设计文档（缺失）」
+    const html = renderStagePanel(makeStageDetail({ stage: 'design', artifacts: [], body: {} as never }))
+    expect(html).toContain('is-missing')
+    expect(html).toContain('设计文档（缺失）')
   })
 })
 
@@ -482,12 +535,42 @@ describe('stageHeadSummary 面板头一句话', () => {
     expect(text).toBe('1/3 完成 · 剩 2 个 · 进行中 t-bbb002')
   })
 
-  it('design：已批准/待批准/被退回/待提交', () => {
+  it('design 旧管线兼容（有 plan）：计划待批准/已批准/被退回', () => {
     const mk = (plan: unknown) => stageHeadSummary(makeStageDetail({ stage: 'design', body: { plan } as never }))
-    expect(mk(undefined)).toBe('待提交计划')
     expect(mk({ tasks: [], submittedAt: 1 })).toBe('计划待批准')
     expect(mk({ tasks: [], submittedAt: 1, approvedAt: 2 })).toBe('计划已批准')
     expect(mk({ tasks: [], submittedAt: 1, rejectedAt: 2 })).toBe('计划被退回')
+  })
+
+  it('design 现管线（无 plan）：按设计文档交付/确认取词（FR-8 · TC-1/TC-3）', () => {
+    const names = ['architecture.md', 'data-model.md', 'interfaces.md', 'test-cases.md', 'use-cases.md']
+    const body = (submittedCount: number) => ({
+      category: 'feature',
+      designDocs: names.map((n, i) => ({ name: n, path: 'docs/requirements/REQ-test/design/' + n, submitted: i < submittedCount })),
+    }) as never
+    // 2/5 已交 → 「设计文档 2/5 已交」
+    expect(stageHeadSummary(makeStageDetail({ stage: 'design', body: body(2) }))).toBe('设计文档 2/5 已交')
+    // 交齐但未人工确认 → 待确认
+    expect(stageHeadSummary(makeStageDetail({ stage: 'design', body: body(5) }))).toBe('待确认设计文档')
+    // 交齐且 design 产物全部 confirmedAt → 设计已确认
+    const artifacts = names.map(n => makeArtifact({ kind: 'design', stage: 'design', path: 'docs/requirements/REQ-test/design/' + n, confirmedAt: 1693000200000 }))
+    expect(stageHeadSummary(makeStageDetail({ stage: 'design', body: body(5), artifacts }))).toBe('设计已确认')
+    // 新管线需求也有 PlanRecord（拆分阶段产生），但设计文档已交且无 design 阶段 plan 产物
+    // → 不得回落到计划文案（线上实测：本需求曾显示「计划已批准」）
+    const withPlan = { category: 'feature', plan: { summary: 's', path: 'p', tasks: [], submittedAt: 1, approvedAt: 2 }, designDocs: names.map((n, i) => ({ name: n, path: 'docs/requirements/REQ-test/design/' + n, submitted: i < 5 })) } as never
+    const arts = names.map(n => makeArtifact({ kind: 'design', stage: 'design', path: 'docs/requirements/REQ-test/design/' + n, confirmedAt: 1 }))
+    expect(stageHeadSummary(makeStageDetail({ stage: 'design', body: withPlan, artifacts: arts }))).toBe('设计已确认')
+    // 旧管线的识别锚点：设计阶段确有 plan 产物 → 计划文案优先
+    const legacyArt = [makeArtifact({ kind: 'plan', stage: 'design', path: 'docs/requirements/REQ-test/plan.md' })]
+    expect(stageHeadSummary(makeStageDetail({ stage: 'design', body: withPlan, artifacts: legacyArt }))).toBe('计划已批准')
+    // 清单缺席 → 待提交设计文档
+    expect(stageHeadSummary(makeStageDetail({ stage: 'design', body: { category: 'feature' } as never }))).toBe('待提交设计文档')
+    // 已豁免的文档不计入分母
+    const withExempt = { category: 'feature', designDocs: [
+      { name: 'architecture.md', path: 'docs/requirements/REQ-test/design/architecture.md', submitted: true },
+      { name: 'data-model.md', path: 'docs/requirements/REQ-test/design/data-model.md', submitted: false, exempted: '本需求不涉及数据层' },
+    ] } as never
+    expect(stageHeadSummary(makeStageDetail({ stage: 'design', body: withExempt }))).toBe('待确认设计文档')
   })
 
   it('accepting：待提交/待审核/通过/返工', () => {

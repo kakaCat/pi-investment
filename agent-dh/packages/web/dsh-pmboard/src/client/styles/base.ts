@@ -334,24 +334,6 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-comment-form { display: flex; gap: 8px; margin-top: 8px; }
 .dsh-pm-comment-form .dsh-pm-input { flex: 1; }
 
-/* ---- 待归类 ---- */
-.dsh-pm-triage-panel { display: flex; flex-direction: column; gap: 10px; padding: 16px 24px; height: 100%; overflow-y: auto; }
-.dsh-pm-triage {
-  border: 1px solid var(--dsw-border, rgba(128,128,128,.15));
-  border-radius: 8px; padding: 12px 14px;
-  display: flex; flex-direction: column; gap: 8px;
-}
-.dsh-pm-triage-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.dsh-pm-session-id { font-size: 11px; font-family: ui-monospace, monospace; color: var(--dsw-text-secondary, #999); }
-.dsh-pm-triage-score { font-size: 11px; padding: 1px 8px; border-radius: 4px; background: rgba(74,125,255,.12); color: #4a7dff; }
-.dsh-pm-triage-suggest { font-size: 12px; color: var(--dsw-text-primary, #444); }
-.dsh-pm-triage-text { font-size: 13px; color: var(--dsw-text-secondary, #555); white-space: pre-wrap; }
-.dsh-pm-triage-edit { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
-.dsh-pm-triage-edit .dsh-pm-input[data-role="triage-title"] { flex: 1 1 220px; }
-.dsh-pm-triage-edit .dsh-pm-input[data-role="triage-category"] { flex: 0 0 auto; }
-.dsh-pm-triage-actions { display: flex; gap: 8px; }
-.dsh-pm-rebind-host { display: flex; gap: 8px; margin-top: 8px; }
-
 /* ---- 验收 / 归档区块 ---- */
 .dsh-pm-block {
   border: 1px solid var(--dsw-border, rgba(128,128,128,.15)); border-radius: 8px;

@@ -10,7 +10,7 @@
  */
 import { isOpenRequirement } from '../../domain/status/Predicates.js'
 import type { LedgerView } from '../ports.js'
-import type { RequirementRecord, TriageRecord } from '../../shared/protocol.js'
+import type { RequirementRecord } from '../../shared/protocol.js'
 
 /** 只读台账视图：直接取 ports 的 LedgerView 投影（此前 Pick<ReqboardLedger,...> 要求可变数组，
  *  与 repo.snapshot()/read() 返回的只读视图不兼容——收敛为同一类型，消除两套口径）。 */
@@ -39,18 +39,6 @@ export function isWindowBound(ledger: View, windowKey: string): boolean {
     }
   }
   return false
-}
-
-/** 该窗口是否已有**遗留** pending 建议卡（旧流程 triage 产物）。 */
-export function hasPendingSuggestion(ledger: View, windowKey: string): boolean {
-  return ledger.triages.some(t => t.sessionId === windowKey && t.status === 'pending')
-}
-
-/** 该窗口最近的**遗留** pending 建议卡（旧流程 triage 产物；供 reqboard_status 展示）。 */
-export function pendingSuggestionFor(ledger: View, windowKey: string): TriageRecord | undefined {
-  return ledger.triages
-    .filter(t => t.sessionId === windowKey && t.status === 'pending')
-    .sort((a, b) => b.createdAt - a.createdAt)[0]
 }
 
 /** 该窗口进行中的需求（简要投影，供引导文本与 reqboard_status 使用）。 */
@@ -82,9 +70,9 @@ export function draftRequirementsFor(ledger: View, windowKey: string): Requireme
   return openRequirementsFor(ledger, windowKey).filter(r => r.status === 'draft')
 }
 
-/** 该窗口是否「需要走一次立项捕获」：unbound 且无遗留 pending 建议卡（旧流程 triage 产物）。 */
+/** 该窗口是否「需要走一次立项捕获」：unbound 即需要。 */
 export function shouldCaptureWindow(ledger: View, windowKey: string): boolean {
-  return !isWindowBound(ledger, windowKey) && !hasPendingSuggestion(ledger, windowKey)
+  return !isWindowBound(ledger, windowKey)
 }
 
 // ---------------------------------------------------------------------------

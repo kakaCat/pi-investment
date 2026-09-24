@@ -183,6 +183,10 @@ describe('reqboard_decompose 边界', () => {
     // "计划任务表正确落库"（语义不变），只是值随门禁要求一起升级。
     expect(ledger.tasks.map(t => t.acceptance)).toEqual(['npx vitest run tests/reqboard.test.ts 全绿', 'npx vitest run tests/client-view.test.ts 全绿'])
     expect(ledger.tasks[0].statusHistory?.[0]?.by.kind).toBe('agent')
+    // cardDoc 随落库写死（REQ-260923134706-e72f 断链修复）：任务卡文档路径 = docs/requirements/<REQ>/tasks/<id>.md
+    for (const t of ledger.tasks) {
+      expect(t.cardDoc).toBe('docs/requirements/' + t.requirementId + '/tasks/' + t.id + '.md')
+    }
     // 2026-09-21：拆分计划在拆分阶段提交，decompose 不再承担 design>decomposing 推进
     expect(ledger.requirements[0].status).toBe('decomposing')
     expect(ledger.requirements[0].statusHistory?.map(e => e.status)).toEqual(['draft'])

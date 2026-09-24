@@ -39,6 +39,8 @@ import { esc } from './html.js'
 import { displayDocPath } from './open-doc.ts'
 import { CATEGORY_DELTAS, COMMON_ROOT_SECTIONS } from '../application/internal/category-doc-sets.js'
 import { fmt } from '../domain/text/fmt.js'
+import { artifactKindLabel, docFileLabel, taskCardLabel } from '../shared/artifact-labels.js'
+import type { StageTaskRef } from '../shared/protocol.js'
 
 // ---------------------------------------------------------------------------
 // 常量
@@ -56,17 +58,8 @@ export const STAGE_LABELS: Record<MainStageKey, string> = {
   archived: '归档',
 }
 
-/** 产物种类中文标签。部分映射：notes/task_output 无专属中文名（调用方 ?? kind 兜底）。 */
-const ARTIFACT_KIND_LABELS: Partial<Record<ArtifactKind, string>> = {
-  requirement: '需求文档',
-  design: '设计文档',
-  plan: '拆分计划（旧版）', // 2026-09-21：plan 退役，拆分计划由 decomposition 承载
-  decomposition: '拆分计划',
-  task_detail: '任务卡',
-  verification: '验收材料',
-  archive: '归档材料',
-}
-
+// REQ-260922182638-0777：产物种类/文件名中文名唯一事实源 = shared/artifact-labels.ts
+// （本文件不再建本地映射表；未知值由共享函数中文兜底，不写 ?? kind）
 /**
  * 「同类多份」产物种类：同一个节点下会有**多条同 kind 的产物记录**，每条是一份独立文档。
  *
@@ -82,14 +75,34 @@ const MULTI_DOC_KINDS: ReadonlySet<ArtifactKind> = new Set<ArtifactKind>(['desig
  *
  * - 单份产物（requirement / plan / decomposition / verification / archive）→ 种类中文名
  *   （人认的是「这一步交了没」）；
- * - 同类多份（design）→ **文件名**（architecture.md…），否则同节点多份文档全同名。
- *   口径与看板「文档记录」区块一致（collectReqDocs 也是取 basename）。
+ * - 同类多份（design）→ **中文文档名**（架构文档 / 接口文档…，REQ-260922182638-0777 FR-4：
+ *   不再裸显 architecture.md 等英文文件名；完整路径仍在 tooltip，排查线索不丢）。
+ *   未知文件名由 docFileLabel 中文兜底（「设计文档（foo.md）」）。
  */
 function traceNodeLabel(kind: ArtifactKind, path: string): string {
-  const kindLabel = ARTIFACT_KIND_LABELS[kind] ?? kind
-  if (!MULTI_DOC_KINDS.has(kind)) return kindLabel
-  const base = path.split('/').pop() ?? ''
-  return base.length > 0 ? base : kindLabel
+  if (!MULTI_DOC_KINDS.has(kind)) return artifactKindLabel(kind)
+  return docFileLabel(path, kind)
+}
+
+/** 路径归一（去前导 ./）：artifact.path 与 StageTaskRef.cardDoc 精确匹配前的对齐。 */
+function normDocPath(p: string): string {
+  return (p ?? '').replace(/^\.\//, '')
+}
+
+/**
+ * 从节点 payload 的任务清单建 cardDoc → 任务名称 映射（decompose/implement 节点体均有 tasks）。
+ * 用于追溯链任务卡逐张展开时取任务名（FR-5）；payload 无任务清单时返回空映射（降级编号形态）。
+ */
+function taskTitleByCardDoc(payload: StageDetail): Map<string, string> {
+  const map = new Map<string, string>()
+  const tasks = (payload.body as { tasks?: StageTaskRef[] } | undefined)?.tasks
+  if (!Array.isArray(tasks)) return map
+  for (const t of tasks) {
+    if (typeof t?.cardDoc === 'string' && t.cardDoc.length > 0 && typeof t?.title === 'string' && t.title.length > 0) {
+      map.set(normDocPath(t.cardDoc), t.title)
+    }
+  }
+  return map
 }
 
 /** 追溯链顺序（requirement → design → plan → decomposition → task_detail → verification → archive）。 */
@@ -558,18 +571,22 @@ function renderTraceChain(payload: StageDetail): string {
   for (const kind of TRACE_CHAIN_ORDER) {
     const list = byKind.get(kind)
     if (!list || list.length === 0) continue
-    const kindLabel = ARTIFACT_KIND_LABELS[kind] ?? kind
     if (kind === 'task_detail') {
-      // 任务卡汇总显示（逐个列太长，且任务列表里已有链接）
-      chainItems.push(
-        '<span class="dsh-pm-trace-node" data-kind="' + esc(kind) + '">' +
-          '<span class="dsh-pm-sn-dim">' + esc(kindLabel) + '×' + list.length + '</span>' +
-        '</span>'
-      )
+      // REQ-260922182638-0777 FR-5：任务卡不再折叠「×N」——逐张列出且带任务名称
+      // （名称经 artifact.path ↔ StageTaskRef.cardDoc 精确匹配；匹配不到降级「任务卡（t-xxx）」）
+      const titles = taskTitleByCardDoc(payload)
+      for (const artifact of list) {
+        const label = taskCardLabel(artifact.path, titles.get(normDocPath(artifact.path)))
+        chainItems.push(
+          '<span class="dsh-pm-trace-node" data-kind="' + esc(kind) + '">' +
+            '<button type="button" class="dsh-pm-sn-doc dsh-pm-trace-path" data-action="open-doc" data-path="' + esc(artifact.path) + '" title="' + esc(displayDocPath(artifact.path)) + '">' + esc(label) + '</button>' +
+          '</span>'
+        )
+      }
       continue
     }
     for (const artifact of list) {
-      // 同类多份（design）用文件名区分，否则同节点四份文档全叫「设计文档」
+      // 同类多份（design）用中文文档名区分（FR-4），否则同节点多份文档全叫「设计文档」
       const label = traceNodeLabel(kind, artifact.path)
       chainItems.push(
         '<span class="dsh-pm-trace-node" data-kind="' + esc(kind) + '">' +
@@ -583,7 +600,7 @@ function renderTraceChain(payload: StageDetail): string {
   const registeredKinds = new Set(artifacts.map(a => a.kind))
   for (const kind of required) {
     if (!registeredKinds.has(kind)) {
-      const kindLabel = ARTIFACT_KIND_LABELS[kind] ?? kind
+      const kindLabel = artifactKindLabel(kind)
       chainItems.push('<span class="dsh-pm-trace-node is-missing" data-kind="' + esc(kind) + '">' +
         '<span class="dsh-pm-sn-doc is-missing">' + esc(kindLabel) + '（缺失）</span></span>')
     }
@@ -615,10 +632,26 @@ export function stageHeadSummary(payload: StageDetail): string | undefined {
     }
     case 'design': {
       const b = (payload as Extract<StageDetail, { stage: 'design' }>).body
-      if (!b.plan) return '待提交计划'
-      if (b.plan.approvedAt !== undefined) return '计划已批准'
-      if (b.plan.rejectedAt !== undefined) return '计划被退回'
-      return '计划待批准'
+      // 旧管线存量兼容（2026-09-21 前：设计阶段交计划）：以"设计阶段确有 plan 产物"或
+      // "有计划但一份设计文档都没交"识别；新管线需求的 PlanRecord 是拆分阶段才产生的，
+      // 不能拿 req.plan 是否存在当判据（否则新需求也永远显示计划文案——线上实测踩到）
+      const designPlanArtifact = (payload.artifacts ?? []).some(a => a.kind === 'plan' && a.stage === 'design')
+      const submittedDesign = (b.designDocs ?? []).some(d => d.submitted)
+      if (b.plan && (designPlanArtifact || !submittedDesign)) {
+        if (b.plan.approvedAt !== undefined) return '计划已批准'
+        if (b.plan.rejectedAt !== undefined) return '计划被退回'
+        return '计划待批准'
+      }
+      // 现管线（2026-09-21 起设计阶段只写设计文档）：按逐份交付 / 人工确认取词（FR-8）
+      const docs = (b.designDocs ?? []).filter(d => d.exempted === undefined)
+      if (docs.length > 0) {
+        const submitted = docs.filter(d => d.submitted).length
+        if (submitted < docs.length) return fmt('设计文档 {n}/{N} 已交', { n: submitted, N: docs.length })
+        const designArts = (payload.artifacts ?? []).filter(a => a.kind === 'design')
+        const confirmed = designArts.length > 0 && designArts.every(a => a.confirmedAt !== undefined)
+        return confirmed ? '设计已确认' : '待确认设计文档'
+      }
+      return '待提交设计文档'
     }
     case 'decomposing': {
       const b = (payload as Extract<StageDetail, { stage: 'decomposing' }>).body

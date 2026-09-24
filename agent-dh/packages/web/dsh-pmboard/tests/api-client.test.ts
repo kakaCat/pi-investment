@@ -33,13 +33,6 @@ describe('client api unwrap（真实 Promise<Response> 语义）', () => {
     expect(Array.isArray(state.requirements)).toBe(true)
   })
 
-  it('fetchTriage 解析 pending 列表', async () => {
-    mockFetchOnce(200, { success: true, data: { pending: [{ triageId: 't1' }] } })
-    const { fetchTriage } = await import('../src/client/api.js')
-    const triage = await fetchTriage()
-    expect(triage.pending).toHaveLength(1)
-  })
-
   it('HTTP 非 200 抛出 HTTP <status>（而非 HTTP undefined）', async () => {
     mockFetchOnce(503, { success: false })
     const { fetchState } = await import('../src/client/api.js')

@@ -186,6 +186,7 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
       }
 
       const nowTs = deps.clock.now()
+      const reqDir = 'docs/requirements/' + target.id
       try {
         const result = await deps.repo.mutate('task-created', (ledger) => {
           const req = ledger.requirements.find(r => r.id === target.id)
@@ -203,6 +204,9 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
               id,
               requirementId: req.id,
               title: d.title,
+              // cardDoc 随落库写死（REQ-260923134706-e72f 实测断链修复：此前只生成文档+登记产物，
+              // 没写这个字段，面板「（无任务卡）」不可点）；读路径另有产物回填兼容存量（QueryStageDetail.withCardDoc）
+              cardDoc: reqDir + '/tasks/' + id + '.md',
               description: d.description,
               phase: d.phase as TaskRecord['phase'],
               side: d.side as TaskRecord['side'],
@@ -272,7 +276,6 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
           })
         }
         // ── 产物登记（REQ-31e11f t4）：decomposition + 每任务 task_detail ──
-        const reqDir = 'docs/requirements/' + target.id
         const decompPath = reqDir + '/decomposition.md'
         // 生成 decomposition.md（计划任务表 ↔ 落库任务 id 对照）
         const decompContent = [

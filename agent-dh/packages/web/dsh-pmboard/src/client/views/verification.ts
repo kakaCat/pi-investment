@@ -9,23 +9,18 @@ import type { StageKey } from '../../shared/protocol.ts'
 import { ALL_STAGE_KEYS } from '../../shared/protocol.ts'
 import { fmtTime } from '../render/dom-utils.ts'
 import { displayDocPath } from '../open-doc.ts'
+import { KIND_ICONS, KIND_LABELS, artifactKindLabel } from '../../shared/artifact-labels.ts'
 
 /* ------------------------------------------------------------------ 文档记录 */
 
-/** 文档类型 → 图标 + 标签（需求详情页「文档」区块用） */
-export const DOC_KIND_META: Record<string, { icon: string; label: string }> = {
-  requirement: { icon: '📄', label: '需求文档' },
-  ui: { icon: '🎨', label: 'UI 文档' },
-  proposal: { icon: '📐', label: '设计文档' },
-  plan: { icon: '📝', label: '拆分计划（旧版）' },
-  decomposition: { icon: '🧩', label: '拆分计划' },
-  design: { icon: '📐', label: '设计文档' },
-  task_detail: { icon: '🗂️', label: '任务卡' },
-  verification: { icon: '✅', label: '验收材料' },
-  archive: { icon: '📦', label: '归档材料' },
-  retro: { icon: '🔁', label: '复盘' },
-  notes: { icon: '📒', label: '其他' },
-}
+/**
+ * 文档类型 → 图标 + 标签（需求详情页「文档」区块用）。
+ * REQ-260922182638-0777：导出形状保留（兼容既有引用），取值改由唯一事实源
+ * shared/artifact-labels.ts 的 KIND_LABELS / KIND_ICONS 供给，禁止再写本地文案。
+ */
+export const DOC_KIND_META: Record<string, { icon: string; label: string }> = Object.fromEntries(
+  Object.entries(KIND_LABELS).map(([kind, label]) => [kind, { icon: KIND_ICONS[kind] ?? '📒', label }]),
+)
 
 /** 产物 stage 的流水线序（未知/缺省排在最后，不改变其余相对顺序）。 */
 export function stageRankOf(stage: StageKey | string | undefined): number {
@@ -172,7 +167,7 @@ export function renderArchiveSection(req: RequirementRecord): string {
   const actions = req.status === 'done' && a.archivedAt === undefined
     ? '<span class="dsh-pm-hint">请在详情头「本阶段操作」条点「归档」</span>'
     : ''
-  const docs = a.docs.map(d => '<li><span class="dsh-pm-doc-kind">' + esc(ARCHIVE_DOC_KIND_LABELS[d.kind] ?? d.kind) + '</span> <code>' + esc(d.path) + '</code></li>').join('')
+  const docs = a.docs.map(d => '<li><span class="dsh-pm-doc-kind">' + esc(artifactKindLabel(d.kind)) + '</span> <code>' + esc(d.path) + '</code></li>').join('')
   const merged = a.mergedInto.map(m => '<li><code>' + esc(m) + '</code></li>').join('')
   return '<div class="dsh-pm-block">'
     + '<div class="dsh-pm-block-head">' + state
@@ -186,10 +181,7 @@ export function renderArchiveSection(req: RequirementRecord): string {
     + '</div>'
 }
 
-export const ARCHIVE_DOC_KIND_LABELS: Record<string, string> = {
-  requirement: '需求说明', plan: '拆分计划', verification: '验收材料', retro: '复盘', notes: '其他',
-}
-
+// REQ-260922182638-0777：归档区本地中文表已删除（曾把 requirement 译作「需求说明」，已漂移）——归档清单统一用 artifactKindLabel，requirement 显示「需求文档」。
 /** 说明书更新点（金字塔 L1/L2）：归档让项目认知怎么长上去的。 */
 export function renderManualUpdates(a: ArchiveRecord): string {
   const updates = a.manualUpdates ?? []

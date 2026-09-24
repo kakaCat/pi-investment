@@ -9,7 +9,7 @@
  * @module dsh-pmboard/client/view
  */
 export { LANE_STATUSES, NO_ARCHIVED, buildEmpty, buildError } from './render/dom-utils.ts'
-export { toReqCards, buildBoard, LIST_PAGE_SIZES, LIST_PAGE_SIZE_DEFAULT, defaultListDirFor, buildListView, buildTriage } from './views/board.ts'
+export { toReqCards, buildBoard, LIST_PAGE_SIZES, LIST_PAGE_SIZE_DEFAULT, defaultListDirFor, buildListView } from './views/board.ts'
 export { buildReqDetail } from './views/stage-detail.ts'
 export { buildTaskDetail } from './views/stage-panel.ts'
 export { buildTasksPage } from './views/timeline.ts'

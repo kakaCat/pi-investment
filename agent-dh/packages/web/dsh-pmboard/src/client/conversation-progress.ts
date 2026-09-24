@@ -14,12 +14,13 @@
  * @module dsh-pmboard/client/conversation-progress
  */
 import { createElement as h, useState, useEffect, useRef, type ReactNode } from 'react'
-import { OPEN_EVENT } from './footer-action.ts'
 import { openDocInSidebar } from './open-doc.ts'
-import { renderStageNode } from './stage-panel.ts'
-import { fetchStageOverview } from './api.ts'
+import { renderNodePanel } from './node-panel.ts'
+import { fetchStageOverview, fetchInjectionInfo, fetchIsolationLog } from './api.ts'
 import type { StageOverview, StageKey } from '../shared/protocol.ts'
 import { CATEGORY_FLOW_PROFILES, fmtTokens } from '../shared/protocol.ts'
+import type { InjectionInfoEntry } from './injection-info.ts'
+import type { IsolationLogEntry } from './node-panel-process.ts'
 
 const BASE = '/dashboard/api/reqboard'
 
@@ -48,6 +49,8 @@ interface ProgressPayload {
   requirement?: {
     id?: string; title?: string; description?: string; status?: string
     category?: string | null; blocked?: boolean; paused?: boolean
+    /** REQ-260923134706-e72f / FR-2：立项四问之一的提示词难度（老记录无字段 → null，面板省略该行） */
+    promptDifficulty?: string | null
     sourceSessionId?: string | null; updatedAt?: number
   }
   progress?: { total?: number; done?: number; active?: number; percentage?: number; byStatus?: Record<string, number> }
@@ -107,6 +110,9 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
   const [stageOverview, setStageOverview] = useState<StageOverview | null>(null)
   const [stageOverviewLoading, setStageOverviewLoading] = useState<boolean>(false)
   const [stageOverviewErr, setStageOverviewErr] = useState<string>('')
+  // REQ-260923134706-e72f t6：执行流程折叠的注入/隔离留痕（随面板打开拉取，失败静默空态）
+  const [injection, setInjection] = useState<InjectionInfoEntry[]>([])
+  const [isolation, setIsolation] = useState<IsolationLogEntry[]>([])
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const lastSid = useRef<string | undefined>(undefined)
 
@@ -172,6 +178,45 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
       .finally(() => { if (alive) setStageOverviewLoading(false) })
     return () => { alive = false }
   }, [detailOpen, reqIdForStage, reqUpdatedAt])
+
+  // REQ-260923134706-e72f t6：面板打开时拉取该需求来源窗口的注入/隔离留痕，
+  // 供「执行流程」折叠做 规定 vs 实际 对照（无留痕 → 空态，不红不打扰）。
+  const reqSourceSid = data?.requirement?.sourceSessionId
+  useEffect(() => {
+    if (!detailOpen || reqIdForStage === undefined) { setInjection([]); setIsolation([]); return }
+    let alive = true
+    // 注入/隔离留痕的 windowKey = 完整会话 id（实测 injection-log/isolation-log 均存 session-xxx 全码），
+    // 不是 w- 短码——直接用 sourceSessionId 过滤，windowCodeFromSessionId 会失配返回空。
+    const windowKey = typeof reqSourceSid === 'string' && reqSourceSid.length > 0 ? reqSourceSid : undefined
+    fetchInjectionInfo(windowKey, 20)
+      .then((r) => { if (alive) setInjection(r.available === false ? [] : r.entries) })
+      .catch(() => { if (alive) setInjection([]) })
+    fetchIsolationLog(windowKey, 20)
+      .then((r) => { if (alive) setIsolation(r.available === false ? [] : r.entries) })
+      .catch(() => { if (alive) setIsolation([]) })
+    return () => { alive = false }
+  }, [detailOpen, reqIdForStage, reqSourceSid])
+
+  // REQ-260923134706-e72f t6：实施节点 [流程图][泳道] tab 切换（注入 HTML 内的委托监听）。
+  useEffect(() => {
+    const onClick = (ev: MouseEvent): void => {
+      const t = (ev.target as HTMLElement).closest('[data-action="np-switch-view"]') as HTMLElement | null
+      if (t === null) return
+      ev.preventDefault()
+      ev.stopPropagation()
+      const panel = t.closest('.dsh-pm-np')
+      if (panel === null) return
+      const view = t.getAttribute('data-view')
+      for (const tab of Array.from(panel.querySelectorAll<HTMLElement>('.dsh-pm-np-tab'))) {
+        tab.classList.toggle('is-active', tab.getAttribute('data-view') === view)
+      }
+      for (const pane of Array.from(panel.querySelectorAll<HTMLElement>('.dsh-pm-np-pane'))) {
+        pane.hidden = pane.getAttribute('data-pane') !== view
+      }
+    }
+    document.addEventListener('click', onClick)
+    return () => document.removeEventListener('click', onClick)
+  }, [])
 
   // 产物文档链接（注入 HTML 里的 data-action="open-doc"）→ 官方右侧栏打开全文（REQ-ff20ca t5）。
   // 挂 document 级（wrapRef 在 detailOpen 切换时被 React 重建，挂它上面 listener 会丢）。
@@ -262,37 +307,40 @@ export function RequirementProgressAction(props: RequirementProgressProps): Reac
 
   if (!detailOpen) return h('div', { className: 'dsh-pm-cprog', ref: wrapRef }, flowChart)
 
-  // ---- 详情面板：单节点工作记录（v4：点哪个节点只看哪个，纯文字监控）----
-  const panel = h('div', { key: 'panel', className: 'dsh-pm-cprog-detail-panel' }, [
-    h('div', { key: 'h', className: 'dsh-pm-cprog-panel-head' }, [
-      h('span', { key: 't', className: 'dsh-pm-cprog-panel-title' }, `${req.id ?? ''} · ${title}`),
-      h('span', { key: 's', className: 'dsh-pm-status-badge', 'data-status': status }, STATUS_LABEL[status] ?? status),
-    ]),
-    closed
-      ? h('div', { key: 'closed', className: 'dsh-pm-cprog-panel-note' },
-          '本会话已无进行中需求 —— 以上是最近关联的需求（已完成/已归档），可作为「这个会话做了什么」的回顾。')
-      : null,
-    h('div', { key: 'ov', className: 'dsh-pm-cprog-sec' }, [
-      stageOverviewLoading && stageOverview === null ? h('div', { key: 'ld', className: 'dsh-pm-cprog-empty' }, '详情加载中…')
-        : stageOverviewErr.length > 0 && stageOverview === null ? h('div', { key: 'er', className: 'dsh-pm-cprog-empty' }, '详情暂不可用：' + stageOverviewErr)
-          : stageOverview !== null ? h('div', { key: 'ovr', className: 'dsh-pm-cprog-stage-detail', dangerouslySetInnerHTML: { __html: renderStageNode(stageOverview, (selectedStage ?? stageOverview.currentStage) as StageKey) } })
-            : h('div', { key: 'ne', className: 'dsh-pm-cprog-empty' }, '暂无详情'),
-    ]),
-    h('div', { key: 'ft', className: 'dsh-pm-cprog-foot' }, [
-      h('button', {
-        key: 'open', type: 'button', className: 'dsh-pm-btn sm',
-        onClick: () => { window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { open: true } })) },
-      }, '打开项目看板'),
-      h('button', {
-        key: 'open-req', type: 'button', className: 'dsh-pm-btn sm primary',
-        onClick: () => { window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { open: true, req: req.id } })) },
-      }, '打开需求看板'),
-      h('button', {
-        key: 'rf', type: 'button', className: 'dsh-pm-btn sm',
-        onClick: () => { setDetailOpen(false); setSelectedStage(null) },
-      }, '收起'),
-    ]),
-  ])
+  // ---- 详情面板（REQ-260923134706-e72f t6：node-panel 渲染器，苹果风，无遮罩/无底部按钮）----
+  const closePanel = (): void => { setDetailOpen(false); setSelectedStage(null) }
+  const panelChildren: ReactNode[] = [
+    // × 关闭按钮（右上角，取代原「收起」）
+    h('button', { key: 'x', type: 'button', className: 'dsh-pm-np-close', 'aria-label': '关闭', onClick: closePanel }, '×'),
+  ]
+  if (closed) {
+    panelChildren.push(
+      h('div', { key: 'closed', className: 'dsh-pm-cprog-panel-note' },
+        '本会话已无进行中需求 —— 以上是最近关联的需求（已完成/已归档），可作为「这个会话做了什么」的回顾。'),
+    )
+  }
+  if (stageOverviewLoading && stageOverview === null) {
+    panelChildren.push(h('div', { key: 'ld', className: 'dsh-pm-cprog-empty' }, '详情加载中…'))
+  } else if (stageOverviewErr.length > 0 && stageOverview === null) {
+    panelChildren.push(h('div', { key: 'er', className: 'dsh-pm-cprog-empty' }, `详情暂不可用：${stageOverviewErr}`))
+  } else if (stageOverview !== null) {
+    panelChildren.push(h('div', {
+      key: 'ovr',
+      className: 'dsh-pm-cprog-stage-detail',
+      dangerouslySetInnerHTML: {
+        __html: renderNodePanel({
+          overview: stageOverview,
+          stage: (selectedStage ?? stageOverview.currentStage) as StageKey,
+          requirement: { id: req.id ?? '', title, promptDifficulty: req.promptDifficulty ?? null, category: req.category ?? undefined },
+          injection,
+          isolation,
+        }),
+      },
+    }))
+  } else {
+    panelChildren.push(h('div', { key: 'ne', className: 'dsh-pm-cprog-empty' }, '暂无详情'))
+  }
+  const panel = h('div', { key: 'panel', className: 'dsh-pm-cprog-detail-panel' }, panelChildren)
 
   return h('div', { className: 'dsh-pm-cprog', ref: wrapRef }, [flowChart, panel])
 }

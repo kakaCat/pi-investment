@@ -4,9 +4,10 @@
  *
  * @module dsh-pmboard/client/api
  */
-import type { BoardState, TriageList } from './types.ts'
+import type { BoardState } from './types.ts'
 import type { RequirementMarksView, RequirementTokenView, StageDetail, StageOverview } from '../shared/protocol.ts'
 import type { InjectionInfoResponse } from './injection-info.ts'
+import type { IsolationLogEntry } from './node-panel-process.ts'
 
 const BASE = '/dashboard/api/reqboard'
 const TIMEOUT_MS = 8000
@@ -37,7 +38,6 @@ const post = <T>(path: string, body: unknown): Promise<T> =>
 // -- 查询 -----------------------------------------------------------------
 
 export const fetchState = (): Promise<BoardState> => get<BoardState>(BASE + '/')
-export const fetchTriage = (): Promise<TriageList> => get<TriageList>(BASE + '/triage')
 
 /**
  * 自动链控制面（REQ-4842fe FR-12 / t-3be71b）：人从看板暂停/继续。
@@ -54,6 +54,21 @@ export function fetchInjectionInfo(windowKey: string | undefined, k = 20): Promi
   const qs = new URLSearchParams({ k: String(k) })
   if (windowKey !== undefined && windowKey.length > 0) qs.set('window', windowKey)
   return get<InjectionInfoResponse>(BASE + '/injection-log?' + qs.toString())
+}
+
+/** 隔离留痕只读回查（REQ-260923134706-e72f t2/t6）：会话流程面板「执行流程→上下文管理」数据源。 */
+export interface IsolationLogResponse {
+  entries: IsolationLogEntry[]
+  total: number
+  available: boolean
+  window: string | null
+}
+
+/** 窗口隔离留痕（node-isolation-log）：端口缺省/文件损坏 → available=false（空态不红）。 */
+export function fetchIsolationLog(windowKey: string | undefined, k = 20): Promise<IsolationLogResponse> {
+  const qs = new URLSearchParams({ k: String(k) })
+  if (windowKey !== undefined && windowKey.length > 0) qs.set('window', windowKey)
+  return get<IsolationLogResponse>(BASE + '/isolation-log?' + qs.toString())
 }
 
 // -- 需求操作 -------------------------------------------------------------
@@ -185,28 +200,6 @@ export function updateTask(input: Record<string, unknown>): Promise<unknown> {
 
 export function addComment(input: { target: 'req' | 'task'; id: string; body: string; actor?: string }): Promise<unknown> {
   return post(BASE + '/comment', input)
-}
-
-// -- 待归类操作 -----------------------------------------------------------
-
-export function triageConfirm(input: {
-  triageId: string
-  action: 'create_req' | 'bind_req'
-  targetId?: string
-  /** create_req 人工编辑覆盖（可编辑建议卡） */
-  title?: string
-  category?: string
-  description?: string
-}): Promise<unknown> {
-  return post(BASE + '/triage/confirm', input)
-}
-
-export function triageRebind(input: { triageId: string; targetId: string }): Promise<unknown> {
-  return post(BASE + '/triage/rebind', input)
-}
-
-export function triageReject(input: { triageId: string }): Promise<unknown> {
-  return post(BASE + '/triage/reject', input)
 }
 
 // -- SSE ------------------------------------------------------------------

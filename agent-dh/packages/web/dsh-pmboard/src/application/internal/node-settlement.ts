@@ -91,6 +91,8 @@ export interface NodeSettlementDeps {
   warn?: (message: string) => void
   /** 用例执行器（默认 isolateNodeContext）；测试可换替身做异常路径。 */
   run?: (deps: IsolateNodeContextDeps, request: IsolateNodeContextRequest) => Promise<IsolateNodeContextResult>
+  /** 模板地址注入（T-5）：绝对模板根 + 开关；缺省 = 输入包不追加地址小节。 */
+  address?: { templateRoot?: string; enabled?: boolean }
 }
 
 export interface NodeSettlementDispatcher {
@@ -157,6 +159,7 @@ export function createNodeSettlementDispatcher(deps: NodeSettlementDeps): NodeSe
         clock: deps.clock,
         ...(isolation === undefined ? {} : { isolation }),
         ...(deps.trace === undefined ? {} : { trace: deps.trace }),
+        ...(deps.address?.enabled === false || deps.address?.templateRoot === undefined ? {} : { templateRoot: deps.address.templateRoot }),
       }
       const request: IsolateNodeContextRequest = {
         windowKey: settle.windowKey,

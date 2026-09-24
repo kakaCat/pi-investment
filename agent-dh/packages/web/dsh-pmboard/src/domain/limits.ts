@@ -45,8 +45,13 @@ export const LIMITS = {
   /** 工具超时（毫秒）：读类 / 写入类 / 需人弹框类。 */
   timeoutReadMs: 15_000,
   timeoutWriteMs: 30_000,
-  timeoutInteractiveMs: 600_000,
-  timeoutSheetMs: 900_000,
+  /**
+   * 需人弹框类超时（2026-09-23 用户裁定：统一 1 小时）——此前的 10 分钟对
+   * 「人离开一会儿再回来确认」的场景太短，REQ-260923222557-d3b0 FR-5/FR-6。
+   */
+  timeoutInteractiveMs: 3_600_000,
+  /** 验收单分批弹框超时（同上：用户裁定 1 小时），FR-5。 */
+  timeoutSheetMs: 3_600_000,
 } as const
 
 /** 单文件行数上限（尺寸门禁用；与 tests/size-budget.test.ts 同源）。 */

@@ -200,6 +200,30 @@ describe('assembleStageDetail：7 节点装配', () => {
     expect(detail.body.planTasks).toHaveLength(1)
   })
 
+  it('cardDoc 回填（REQ-e72f 断链修复）：任务记录缺 cardDoc 时从 task_detail 产物按约定路径找回（decomposing + implementing）', () => {
+    // 存量数据形态：2026-09-24 前 decompose 只登记 task_detail 产物、不写 TaskRecord.cardDoc
+    const task = makeTask({})
+    const req = makeReq({
+      artifacts: [{
+        stage: 'implementing', kind: 'task_detail',
+        path: 'docs/requirements/REQ-a1b2c3/tasks/t-111111.md',
+        registeredAt: 1300, registeredBy: HUMAN,
+      }],
+    })
+    const d1 = assembleStageDetail(req, { tasks: [task] }, 'decomposing')
+    if (d1.stage !== 'decomposing') throw new Error('narrow')
+    expect(d1.body.tasks[0]?.cardDoc).toBe('docs/requirements/REQ-a1b2c3/tasks/t-111111.md')
+    const d2 = assembleStageDetail(req, { tasks: [task] }, 'implementing')
+    if (d2.stage !== 'implementing') throw new Error('narrow')
+    expect(d2.body.tasks[0]?.cardDoc).toBe('docs/requirements/REQ-a1b2c3/tasks/t-111111.md')
+  })
+
+  it('cardDoc 回填不臆造：无对应 task_detail 产物时保持缺失（空态诚实）', () => {
+    const detail = assembleStageDetail(makeReq(), { tasks: [makeTask({})] }, 'implementing')
+    if (detail.stage !== 'implementing') throw new Error('narrow')
+    expect(detail.body.tasks[0]?.cardDoc).toBeUndefined()
+  })
+
   it('implementing.body：tasks 带 executions/claimedBy，byWindow 按窗口码分组', () => {
     const sessionId = 'session-abcdef12-3456-7890-abcd-ef1234567890'
     const task = makeTask({

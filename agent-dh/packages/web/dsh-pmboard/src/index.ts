@@ -12,6 +12,8 @@
 import { Context } from '@deepseek-ai/cordis';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { resolveAddressInjection } from './adapters/TemplateRoot.js';
 import { JsonLedgerRepository as ReqboardStore } from './adapters/JsonLedgerRepository.js';
 import { createReqboardHandler } from './http/routes.js';
 import { draftRequirementsFor } from './application/internal/window.js';
@@ -75,6 +77,10 @@ interface PluginConfig {
    * 行为完全等同改造前（design/migration.md §3）。显式配置优先于环境变量。
    */
   nodeIsolation?: boolean;
+  /** 模板根绝对路径（REQ-260922213356-4a45 T-3）；缺省按包根 templates 解析。 */
+  templateRoot?: string;
+  /** 地址段开关（T-3；默认 true；false = 完全回退到改造前注入行为）。 */
+  addressSectionEnabled?: boolean;
 }
 
 export function dshHomePath(config: PluginConfig | undefined, file: string): string {
@@ -205,6 +211,8 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   //   isolation → NodeIsolationAdapter（surface 原语 + tool 配对边界检查，t9）
   //   trace     → IsolationTraceFile（state/node-isolation-log.json，ring buffer 原子写）
   const nodeIsolation = nodeIsolationEnabled(config);
+  // REQ-260922213356-4a45 T-3：模板地址注入——绝对模板根（配置优先，否则包根 ../templates）+ 开关。
+  const address = resolveAddressInjection(config, path.dirname(fileURLToPath(import.meta.url)), (m) => logger.warn(m));
   const docs = new FileDocRepository();
   const clock = new SystemClock();
   const isolationTrace = new IsolationTraceFile(
@@ -226,6 +234,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     repo: store,
     docs,
     clock,
+    address,
     // 纪律①「先落盘再遗弃」：先把写队列排空（read 走同一条串行队列）再取持久化 revision
     // （JsonLedgerRepository 在 persistAtomic 成功后才 bump，故 revision 即"已落盘"证据指针）。
     persistArtifacts: async () => {
@@ -261,12 +270,14 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     store, docs, clock, now, isolationTrace, injectionLog, deliverer, logger, plugin: name,
     compactionEnabled: nodeIsolationEnabled(config),
     idle: (session: unknown) => turnBoundaryIdle(projectionsSvc, session),
+    address,
   });
 
   const captureHookDeps: CaptureHookDeps = {
     snapshot: () => store.snapshot(),
     pending: pendingCapture,
     now,
+    address,
     // R1 接手推进：已绑定窗口出现直接人类消息 = 该窗口仍在推进其需求 → 其 draft 需求
     // 自动进评审（人工闸门仍在：方案确认/拆分确认/验收均为人工，代码级不可越过）。
     onBoundWindowActivity: (windowKey) => {
@@ -321,7 +332,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
 
   // 捕获引导段装配（按窗口条件注入）：抽到 ./gate-wiring.js（REQ-f0579a t5 尺寸门禁）。
   registerCaptureGuidance(ctx, {
-    disposers, store, pendingCapture, injectionLog, logger, plugin: name,
+    disposers, store, pendingCapture, injectionLog, logger, plugin: name, address,
     sectionName: CAPTURE_SECTION, sectionOrder: CAPTURE_SECTION_ORDER,
     onSystemPrompt: (svc) => { systemPromptSvc = svc; },
   });
@@ -344,6 +355,8 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     questions: new GateAwareQuestions(new UserQuestionsAdapter(() => userQuestionsSvc), gateChain, { now }),
     rejections: captureRejections,
     workflow: new WorkflowEngineRunner(() => workflowEngineSvc as never),
+    // REQ-260923222557-d3b0 FR-2/FR-3：事件型 worktree 提示词复用同一投递实现。
+    delivery: deliverer,
     alert: createFailureAlert({ log: (m) => logger.error(m), deliver: (wk, text) => { deliverer.deliver(wk, { text }); }, windowFor: (id) => store.snapshot().requirements.find((x) => x.id === id)?.sourceSessionId }),
   };
 
@@ -389,6 +402,8 @@ export function apply(ctx: Context, config?: PluginConfig): void {
             now,
             docs,
             injectionLog,
+            // REQ-260923134706-e72f t2：isolationTrace 只读进路由（看板「执行流程→上下文管理」数据源），不能写。
+            isolationLog: isolationTrace,
             // REQ-e3b6a0 t9 / FR-9：看板「确认产物」纳入切面——确认即推进 + 链侧投递（H2 需要会话句柄）。
             gateChain,
             agents: () => agentsSvc as { get?: (id: string) => unknown } | undefined,
@@ -403,7 +418,7 @@ export function apply(ctx: Context, config?: PluginConfig): void {
           }),
         });
       }, name + ': api');
-      logger.info('routes registered: /dashboard/api/reqboard/* (state/events/req/task/triage CRUD + 人工确认立项)');
+      logger.info('routes registered: /dashboard/api/reqboard/* (state/events/req/task CRUD + 人工确认立项)');
     },
   );
 

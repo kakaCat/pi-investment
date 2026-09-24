@@ -135,13 +135,8 @@ export const TASK_MOVE_TO: Readonly<Record<string, string>> = {
   canceled: '取消',
 }
 
-export const SUBMIT_KIND: Readonly<Record<string, string>> = {
-  requirement: '需求文档',
-  plan: '拆分计划（旧版）', // 与 stage-panel ARTIFACT_KIND_LABELS 一致：plan 退役，拆分计划由 decomposition 承载
-  verification: '验收材料',
-  archive: '归档材料',
-}
-
+// REQ-260922182638-0777：产物种类中文表已收敛至唯一事实源 shared/artifact-labels.ts（artifactKindLabel）——
+// design/decomposition/task_detail 等种类中文名由共享表自动补齐，本文件不再建本地映射表。
 export const AUDIT_ACTION: Readonly<Record<string, string>> = {
   record: '留痕',
   evaluate: '评估',

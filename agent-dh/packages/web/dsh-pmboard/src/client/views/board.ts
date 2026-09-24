@@ -6,7 +6,7 @@
  */
 import { esc } from '../html.js'
 import { renderPagination } from '../render/pagination.js'
-import type { BoardState, ReqCard, TriageRecord } from '../types.ts'
+import type { BoardState, ReqCard } from '../types.ts'
 import { CATEGORY_LABELS, LANE_STATUSES, NO_ARCHIVED, STATUS_LABELS, fmtTime, sessionChipHtml, windowCodeFromSessionId } from '../render/dom-utils.ts'
 import { cardActions, renderReqCard } from './artifacts.ts'
 import { fmtTokens } from '../../shared/protocol.ts'
@@ -291,56 +291,3 @@ export function renderListCard(card: ReqCard, _now: number, archived: ReadonlySe
       </tr>`
 }
 
-/* ------------------------------------------------------------------ 待归类区 */
-
-export function buildTriage(triages: TriageRecord[], state: BoardState): string {
-  const pending = triages.filter(t => t.status === 'pending')
-  const openReqs = state.requirements.filter(r => r.status !== 'archived' && r.status !== 'canceled')
-
-  const rows = pending.map(t => {
-    const isCreate = t.suggestedAction === 'create_req' && !t.suggestedTargetId
-    const suggestion = t.suggestedTargetId
-      ? `${t.suggestedAction === 'bind_req' ? '绑定需求' : t.suggestedAction === 'bind_task' ? '绑定任务' : '新建需求'} ${esc(t.suggestedTargetId)}`
-      : (t.suggestedAction === 'create_req'
-        ? `新建需求${t.suggestedCategory ? ` · ${CATEGORY_LABELS[t.suggestedCategory] ?? t.suggestedCategory}` : ''}`
-        : '')
-    // 乙流程人工门：确认前可编辑 1) 需求名称 2) 需求分类（预填 agent 提议值）
-    const editBlock = isCreate ? `
-        <div class="dsh-pm-triage-edit">
-          <input type="text" class="dsh-pm-input" data-role="triage-title" value="${esc(t.suggestedTitle ?? t.firstMessageText.slice(0, 120))}" placeholder="需求名称（可编辑）" />
-          <select class="dsh-pm-input" data-role="triage-category">
-            ${Object.entries(CATEGORY_LABELS).map(([v, l]) => `<option value="${v}" ${v === (t.suggestedCategory ?? 'feature') ? 'selected' : ''}>${l}</option>`).join('')}
-          </select>
-        </div>` : ''
-    return `
-      <div class="dsh-pm-triage" data-triage="${esc(t.id)}">
-        <div class="dsh-pm-triage-head">
-          <span class="dsh-pm-session-id">${esc(t.sessionId.slice(0, 16))}…</span>
-          <span class="dsh-pm-triage-score">分 ${t.score}</span>
-          <span class="dsh-pm-triage-suggest">${suggestion}</span>
-        </div>
-        <div class="dsh-pm-triage-text">${esc(t.firstMessageText.slice(0, 200))}${t.firstMessageText.length > 200 ? '…' : ''}</div>
-        ${editBlock}
-        <div class="dsh-pm-triage-actions">
-          <button type="button" class="dsh-pm-btn primary" data-action="triage-confirm" data-triage="${esc(t.id)}">确认</button>
-          ${isCreate ? '' : `<button type="button" class="dsh-pm-btn" data-action="triage-rebind" data-triage="${esc(t.id)}">改绑</button>`}
-          <button type="button" class="dsh-pm-btn" data-action="triage-reject" data-triage="${esc(t.id)}">拒绝</button>
-        </div>
-      </div>`
-  }).join('')
-
-  return `
-    <div class="dsh-pm-triage-panel">
-      <div class="dsh-pm-detail-head">
-        <span class="dsh-pm-title-sm">待归类（${pending.length}）</span>
-        <span class="dsh-pm-hint">新会话自动捕获，确认后进入流水线</span>
-      </div>
-      ${rows || '<div class="dsh-pm-empty">暂无待归类会话</div>'}
-      <div class="dsh-pm-rebind-host" style="display:none">
-        <select class="dsh-pm-input" data-role="rebind-select">
-          ${openReqs.map(r => `<option value="${esc(r.id)}">${esc(r.id)} ${esc(r.title.slice(0, 30))}</option>`).join('')}
-        </select>
-        <button type="button" class="dsh-pm-btn primary" data-action="triage-rebind-confirm">确认改绑</button>
-      </div>
-    </div>`
-}

@@ -5,6 +5,7 @@
  *
  * @module dsh-pmboard/application/use-cases/AcceptSheet
  */
+import { deliverWorktreeNotice } from '../internal/worktree-notice.js'
 import type { UseCaseDeps } from '../ports.js'
 import {
   normalizeText,
@@ -114,6 +115,10 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
           reject('reqboard_accept_sheet 归档失败：' + ((err as Error).message ?? String(err)), (err as { code?: string }).code ?? 'REQBOARD_STORE_INCONSISTENT')
         })
         const movedReq = (moved.changed.requirements ?? [])[0]
+        // REQ-260923222557-d3b0 FR-3：归档 → worktree 合并清理提示（事件型注入，失败不阻断）
+        if (movedReq !== undefined) {
+          deliverWorktreeNotice(deps, windowKey, 'archived', { requirementId: movedReq.id })
+        }
         return {
           success: true, recorded: 0, pending: 0, passed, failed: 0,
           archived: true, status: movedReq?.status ?? 'archived',

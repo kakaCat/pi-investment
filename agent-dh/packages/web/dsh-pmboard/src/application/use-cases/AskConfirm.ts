@@ -67,6 +67,21 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
         reject('reqboard_ask_confirm 未执行：需求 ' + explicitId + ' 不是本窗口绑定的进行中需求', 'REQBOARD_NOT_BOUND_TO_WINDOW')
       }
 
+      // T-7（FR-9/FR-11）：目标产物已确认（或计划已批准）→ 直接返回，**不再弹框**。
+      // 同一产物不重复打扰；弹框只在该节点闸门出现一次。
+      const kindArts = (targetReq.artifacts ?? []).filter(a => a.kind === kindRaw)
+      const alreadyConfirmed = targetKind === 'artifact'
+        ? kindArts.length > 0 && kindArts.every(a => a.confirmedAt !== undefined)
+        : targetReq.plan?.approvedAt !== undefined
+      if (alreadyConfirmed) {
+        return {
+          success: true, confirmed: true, advanced: false, requirement_id: targetReq.id,
+          note: targetKind === 'artifact'
+            ? '产物 ' + kindRaw + ' 已确认，未重复弹框（FR-9/FR-11）'
+            : '拆分计划已批准，未重复弹框（FR-9/FR-11）',
+        } as never
+      }
+
       // ── 弹框（userQuestions 服务接缝，经 UserQuestionPort）────────────────
       if (!deps.questions.available()) {
         return {

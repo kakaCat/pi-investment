@@ -1,8 +1,8 @@
 /**
- * capture.ts 窗口捕获判定单测（B 方案：仅 unbound 且无 pending 的窗口注入引导）。
+ * capture.ts 窗口捕获判定单测（B 方案：仅 unbound 的窗口注入引导）。
  * 覆盖：windowKeyFromContext（agent.id 优先 / scope 兜底 / 缺失返回 undefined）、
- * isWindowBound（sourceSessionId 直挂 / triage 锚点两路）、hasPendingSuggestion、
- * captureSectionText 分支（bound → '' / hasPending → '' / unbound → 引导文本）+ pending
+ * isWindowBound（sourceSessionId 直挂 / triage 锚点两路）、
+ * captureSectionText 分支（bound → '' / unbound → 引导文本）+ pending
  * 第三参注入分支（确定性消息 hook 命中 → 引用消息原文的针对性立项提示）。
  */
 import { describe, it, expect } from 'vitest'
@@ -15,8 +15,6 @@ import {
 import {
   windowKeyFromContext,
   isWindowBound,
-  hasPendingSuggestion,
-  pendingSuggestionFor,
   openRequirementsFor,
 } from '../src/application/internal/window.js'
 import { emptyLedger, type ReqboardLedger, type RequirementRecord, type TriageRecord } from '../src/shared/protocol.js'
@@ -82,24 +80,6 @@ describe('isWindowBound', () => {
   })
 })
 
-describe('hasPendingSuggestion / pendingSuggestionFor', () => {
-  it('本窗口有 pending 卡 → true；非 pending / 其他窗口不算', () => {
-    const l: ReqboardLedger = {
-      ...emptyLedger(),
-      triages: [
-        tri({ sessionId: W, status: 'pending', createdAt: 100 }),
-        tri({ sessionId: 'session-other', status: 'pending' }),
-        tri({ sessionId: W, status: 'confirmed' }),
-      ],
-    }
-    expect(hasPendingSuggestion(l, W)).toBe(true)
-    expect(hasPendingSuggestion(l, 'session-other')).toBe(true)
-    expect(hasPendingSuggestion(l, 'session-nobody')).toBe(false)
-    expect(pendingSuggestionFor(l, W)?.createdAt).toBe(100)
-    expect(pendingSuggestionFor(l, 'session-nobody')).toBeUndefined()
-  })
-})
-
 describe('captureSectionText 三分支', () => {
   it('无 windowKey → 空', () => {
     expect(captureSectionText(emptyLedger(), undefined)).toBe('')
@@ -109,11 +89,7 @@ describe('captureSectionText 三分支', () => {
     const l: ReqboardLedger = { ...emptyLedger(), requirements: [req({ sourceSessionId: W, status: 'implementing' })] }
     expect(captureSectionText(l, { agent: { id: W } })).toBe('')
   })
-  it('已有 pending 卡 → 空（不重复 nag）', () => {
-    const l: ReqboardLedger = { ...emptyLedger(), triages: [tri({ sessionId: W, status: 'pending' })] }
-    expect(captureSectionText(l, { agent: { id: W } })).toBe('')
-  })
-  it('unbound 且无 pending → 引导文本（含工具名、不含 {{变量}}）', () => {
+  it('unbound → 引导文本（含工具名、不含 {{变量}}）', () => {
     const text = captureSectionText(emptyLedger(), { agent: { id: W } })
     expect(text.length).toBeGreaterThan(0)
     expect(text).toContain('reqboard_capture') // pm 专有立项弹框载体
@@ -145,10 +121,6 @@ describe('captureSectionText pending 注入（确定性消息 hook 命中）', (
   })
   it('bound 优先于 pending 注入 → 空', () => {
     const l: ReqboardLedger = { ...emptyLedger(), requirements: [req({ sourceSessionId: W, status: 'implementing' })] }
-    expect(captureSectionText(l, { agent: { id: W } }, { windowKey: W, text: msg, capturedAt: 1 })).toBe('')
-  })
-  it('hasPending 优先于 pending 注入 → 空（不重复 nag）', () => {
-    const l: ReqboardLedger = { ...emptyLedger(), triages: [tri({ sessionId: W, status: 'pending' })] }
     expect(captureSectionText(l, { agent: { id: W } }, { windowKey: W, text: msg, capturedAt: 1 })).toBe('')
   })
   it('pending 文本为空 → 静态引导（不注入空引用）', () => {

@@ -1,18 +1,18 @@
 /**
  * 项目看板 board-mount —— 生命周期委托 ./board-shell；
- * 页面保留视图状态机（board / req-detail / task-detail / triage）、
+ * 页面保留视图状态机（board / req-detail / task-detail）、
  * fetch/render、事件委派、SSE 订阅与会话跳转。
  *
  * @module dsh-pmboard/client/board-mount
  */
-import type { BoardState, RequirementRecord, TriageRecord } from './types.ts'
+import type { BoardState, RequirementRecord } from './types.ts'
 import {
   PANEL_NAME,
   ACTIVE_ATTR,
   OTHER_ACTIVE_ATTRS,
 } from './dom.ts'
 import {
-  buildBoard, buildEmpty, buildError, buildReqDetail, buildTaskDetail, buildTasksPage, buildTriage,
+  buildBoard, buildEmpty, buildError, buildReqDetail, buildTaskDetail, buildTasksPage,
   defaultListDirFor, LIST_PAGE_SIZE_DEFAULT, LIST_PAGE_SIZES,
   type BoardViewKind, type ListSortDir, type ListSortKey, type ListViewOpts,
 } from './view.ts'
@@ -120,7 +120,6 @@ type ViewMode =
   | { kind: 'req'; reqId: string }
   | { kind: 'task'; taskId: string }
   | { kind: 'tasks' }
-  | { kind: 'triage' }
 
 export interface BoardController {
   openBoard(): void
@@ -162,7 +161,6 @@ export function createBoardController(): BoardController {
 
 export function mountBoard(controller: BoardController): () => void {
   let state: BoardState | undefined
-  let triages: TriageRecord[] = []
   let mode: ViewMode = { kind: 'board' }
   // 看板视图种类（泳道 / 列表）——纯前端偏好，不入台账；切换即重绘
   let boardView: BoardViewKind = readViewPref()
@@ -247,9 +245,6 @@ export function mountBoard(controller: BoardController): () => void {
       case 'tasks':
         viewEl.innerHTML = buildTasksPage(state)
         break
-      case 'triage':
-        viewEl.innerHTML = buildTriage(triages, state)
-        break
     }
   }
 
@@ -257,11 +252,10 @@ export function mountBoard(controller: BoardController): () => void {
 
   const fetchAll = async (): Promise<void> => {
     try {
-      const [s, t] = await Promise.all([api.fetchState(), api.fetchTriage()])
+      const s = await api.fetchState()
       state = s
       // FR-4：缓存服务端工作区根——open-doc 打开与显示文档统一走绝对路径（与查看会话工作区解耦）
       setDocWorkspaceContext(s.workspaceRoot, s.homeDir)
-      triages = t.pending
       render()
     } catch (err) {
       if (viewEl !== undefined) viewEl.innerHTML = buildError(String(err))
@@ -567,52 +561,6 @@ export function mountBoard(controller: BoardController): () => void {
           .rejectPlan({ id: reqId, reason: reason.trim() || '（未填理由）' })
           .then(() => fetchAll())
           .catch(e => window.alert(String(e)))
-        return
-      }
-      case 'triage-confirm': {
-        const triageId = el.dataset.triage
-        if (!triageId) return
-        // 按建议动作确认：有 targetId 走 bind_req，否则 create_req
-        const tri = triages.find(t => t.id === triageId)
-        if (tri?.suggestedAction === 'bind_req' && tri.suggestedTargetId) {
-          void api.triageConfirm({ triageId, action: 'bind_req', targetId: tri.suggestedTargetId }).then(() => fetchAll()).catch(e => window.alert(String(e)))
-        } else {
-          // 乙流程人工门：create_req 前读取可编辑卡上的 名称/分类（人工可改，空则不覆盖）
-          const card = el.closest<HTMLElement>('.dsh-pm-triage')
-          const title = card?.querySelector<HTMLInputElement>('[data-role="triage-title"]')?.value.trim()
-          const category = card?.querySelector<HTMLSelectElement>('[data-role="triage-category"]')?.value
-          void api.triageConfirm({
-            triageId,
-            action: 'create_req',
-            ...(title ? { title } : {}),
-            ...(category ? { category } : {}),
-          }).then(() => fetchAll()).catch(e => window.alert(String(e)))
-        }
-        return
-      }
-      case 'triage-rebind': {
-        // 显示改绑宿主（select 已在 triage 视图内）
-        const host = viewEl?.querySelector<HTMLElement>('.dsh-pm-rebind-host')
-        if (host) {
-          host.style.display = 'flex'
-          host.dataset.triage = el.dataset.triage ?? ''
-        }
-        return
-      }
-      case 'triage-rebind-confirm': {
-        const host = viewEl?.querySelector<HTMLElement>('.dsh-pm-rebind-host')
-        const triageId = host?.dataset.triage
-        const select = host?.querySelector<HTMLSelectElement>('[data-role="rebind-select"]')
-        if (triageId && select?.value) {
-          void api.triageRebind({ triageId, targetId: select.value }).then(() => fetchAll()).catch(e => window.alert(String(e)))
-        }
-        return
-      }
-      case 'triage-reject': {
-        const triageId = el.dataset.triage
-        if (triageId) {
-          void api.triageReject({ triageId }).then(() => fetchAll()).catch(e => window.alert(String(e)))
-        }
         return
       }
     }

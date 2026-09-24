@@ -1270,7 +1270,7 @@ export function assertSubtaskInvariants(
 // ---------------------------------------------------------------------------
 // Triage（遗留：旧流程「会话捕获待归类建议卡，人工在看板确认」；新流程 2026-09 起
 // 改为创建即立项——reqboard_capture 三问弹框作答即确认并直接建 REQ，不再产生
-// pending triage。存量 triage 记录保留供回溯，路由仍兼容其 confirm/reject/rebind。）
+// pending triage。存量 triage 记录保留只读兼容（REQ-260922182505-0924：路由/面板已删，本类型与台账字段冻结不动）。）
 // ---------------------------------------------------------------------------
 
 export type TriageStatus = 'pending' | 'confirmed' | 'rejected'

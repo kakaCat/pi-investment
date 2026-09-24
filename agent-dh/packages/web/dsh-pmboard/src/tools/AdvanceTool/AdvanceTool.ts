@@ -68,7 +68,8 @@ export function defineAdvanceTool(deps: UseCaseDeps) {
           return { requirements: [req] }
         })
       }
-      const out = await advanceRequirement(deps, task.requirementId)
+      // exec 一路透传到叶子（引擎 parent=exec.agent）；缺了它 workflow-ptc 读 parent.session 会抛错。
+      const out = await advanceRequirement(deps, task.requirementId, exec)
       const after = deps.repo.snapshot()
       const executed = [...out.steps].reverse().find((s) => s.subtaskId !== undefined)
       const progress = progressOf(after, task.requirementId)

@@ -1,14 +1,14 @@
 /**
  * 项目看板 client 视图纯函数单测 —— 数据 → innerHTML 的渲染正确性。
- * 覆盖：泳道看板 / 需求详情（DAG + 任务列 + 闸门）/ 任务详情 / 待归类 / 空态错误。
+ * 覆盖：泳道看板 / 需求详情（DAG + 任务列 + 闸门）/ 任务详情 / 空态错误。
  * 渲染函数零 DOM 依赖（纯字符串），Node 环境直接跑。
  */
 import { describe, it, expect } from 'vitest'
 import {
-  buildBoard, buildReqDetail, buildTaskDetail, buildTasksPage, buildTriage, buildEmpty, buildError,
+  buildBoard, buildReqDetail, buildTaskDetail, buildTasksPage, buildEmpty, buildError,
   toReqCards, LANE_STATUSES,
 } from '../src/client/view.ts'
-import type { BoardState, RequirementRecord, RequirementStatus, TaskRecord, TriageRecord } from '../src/client/types.ts'
+import type { BoardState, RequirementRecord, RequirementStatus, TaskRecord } from '../src/client/types.ts'
 
 // -- 测试数据构造 ---------------------------------------------------------
 
@@ -40,15 +40,6 @@ function makeTask(over: Partial<TaskRecord> = {}): TaskRecord {
 
 function makeState(over: Partial<BoardState> = {}): BoardState {
   return { revision: 1, requirements: [], tasks: [], ready: {}, ...over }
-}
-
-function makeTriage(over: Partial<TriageRecord> = {}): TriageRecord {
-  return {
-    id: rid('tri'), sessionId: 'session-abc', firstMessageText: '消息',
-    suggestedAction: 'create_req', score: 75, status: 'pending',
-    createdAt: 1700000000000, comments: [],
-    ...over,
-  }
 }
 
 // -- 泳道看板 -------------------------------------------------------------
@@ -225,78 +216,6 @@ describe('buildTaskDetail', () => {
     const task = makeTask({ id: 't-000001' })
     const html = buildTaskDetail(task, undefined)
     expect(html).toContain('data-action="add-comment" data-target="task" data-id="t-000001"')
-  })
-})
-
-// -- 待归类 ---------------------------------------------------------------
-
-describe('buildTriage', () => {
-  it('renders pending triage rows with action buttons', () => {
-    const tri = makeTriage({ id: 'tri-000001', suggestedAction: 'bind_req', suggestedTargetId: 'REQ-000001', score: 88 })
-    const html = buildTriage([tri], makeState())
-    expect(html).toContain('tri-000001')
-    expect(html).toContain('绑定需求 REQ-000001')
-    expect(html).toContain('data-action="triage-confirm"')
-    expect(html).toContain('data-action="triage-rebind"')
-    expect(html).toContain('data-action="triage-reject"')
-    expect(html).toContain('分 88')
-  })
-
-  it('excludes resolved triage from pending list', () => {
-    const pending = makeTriage({ id: 'tri-000001', status: 'pending' })
-    const resolved = makeTriage({ id: 'tri-000002', status: 'confirmed' })
-    const html = buildTriage([pending, resolved], makeState())
-    expect(html).toContain('tri-000001')
-    expect(html).not.toContain('tri-000002')
-  })
-
-  it('renders rebind select with open requirements', () => {
-    const tri = makeTriage({ id: 'tri-000001' })
-    const req = makeReq({ id: 'REQ-000001', status: 'implementing', title: '开放需求' })
-    const archived = makeReq({ id: 'REQ-000002', status: 'archived' })
-    const html = buildTriage([tri], makeState({ requirements: [req, archived] }))
-    expect(html).toContain('data-role="rebind-select"')
-    expect(html).toContain('REQ-000001')
-    expect(html).not.toContain('REQ-000002')
-  })
-
-  it('renders editable title/category prefill on agent-proposed create_req card', () => {
-    const tri = makeTriage({
-      id: 'tri-000009',
-      suggestedAction: 'create_req',
-      suggestedTitle: 'Agent 提议的标题',
-      suggestedCategory: 'refactor',
-      score: 100,
-    })
-    const html = buildTriage([tri], makeState())
-    expect(html).toContain('data-role="triage-title"')
-    expect(html).toContain('value="Agent 提议的标题"')
-    expect(html).toContain('data-role="triage-category"')
-    // 分类 select 预填 refactor（selected）
-    expect(html).toContain('<option value="refactor" selected>重构</option>')
-    // create_req 卡不渲染「改绑」按钮（无绑定目标）
-    expect(html).not.toContain('data-action="triage-rebind"')
-  })
-
-  it('create_req card without structured suggestion falls back to first message as title', () => {
-    const tri = makeTriage({ id: 'tri-000010', suggestedAction: 'create_req', firstMessageText: '原始消息文本' })
-    const html = buildTriage([tri], makeState())
-    expect(html).toContain('value="原始消息文本"')
-    expect(html).toContain('<option value="feature" selected>功能</option>')
-  })
-
-  it('bind_req card keeps rebind action and no editable title input', () => {
-    const tri = makeTriage({ id: 'tri-000011', suggestedAction: 'bind_req', suggestedTargetId: 'REQ-000001' })
-    const html = buildTriage([tri], makeState())
-    expect(html).not.toContain('data-role="triage-title"')
-    expect(html).toContain('data-action="triage-rebind"')
-  })
-
-  it('escapes HTML in first message', () => {
-    const tri = makeTriage({ id: 'tri-000001', firstMessageText: '<b>bold</b>' })
-    const html = buildTriage([tri], makeState())
-    expect(html).not.toContain('<b>')
-    expect(html).toContain('&lt;b&gt;')
   })
 })
 
@@ -625,7 +544,8 @@ describe('验收区与归档区', () => {
     const ready = makeReq({ status: 'done', archive })
     const detail = buildReqDetail(ready, [], T0 + HOUR)
     expect(detail).toContain('agent-dh/docs/requirements/REQ-abc123')
-    expect(detail).toContain('需求说明')
+    // REQ-260922182638-0777 FR-2：归档清单 requirement 由漂移的「需求说明」统一为「需求文档」
+    expect(detail).toContain('需求文档')
     expect(detail).toContain('agent-dh/docs/architecture/requirement-board.md')
     expect(detail).toContain('索引条目：需求看板加时间线与计划模式')
     expect(detail).toContain('data-action="archive-req"')

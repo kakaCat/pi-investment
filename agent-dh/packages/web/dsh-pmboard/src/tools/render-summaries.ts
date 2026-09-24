@@ -9,6 +9,7 @@
  */
 
 import { fmt } from '../domain/text/fmt.js'
+import { artifactKindLabel } from '../shared/artifact-labels.js'
 
 type V = Record<string, unknown>
 const asObj = (v: unknown): V | undefined =>
@@ -21,10 +22,8 @@ const MOVE_TO: Readonly<Record<string, string>> = {
   in_progress: '开工', testing: '送测', integrating: '联调', in_review: '送审',
   done: '完工', todo: '退回', canceled: '取消',
 }
-const SUBMIT_KIND_CN: Readonly<Record<string, string>> = {
-  requirement: '需求文档', plan: '拆分计划', verification: '验收材料', archive: '归档材料',
-}
-
+// REQ-260922182638-0777：提交种类中文表已收敛至唯一事实源 shared/artifact-labels.ts（artifactKindLabel）——
+// plan 统一为「拆分计划（旧版）」（旧表译「拆分计划」，术语漂移消除）。
 /** reqboard_task_move：✅ t-xxx 完工（in_review → done） */
 export function taskMoveSummary(v: unknown): string {
   const e = err(v); if (e !== undefined) return e
@@ -47,7 +46,7 @@ export function submitSummary(v: unknown): string {
   const status = s(o.status) ?? s(o.plan_status)
   const kind = s(o.artifact && typeof o.artifact === 'object' ? (o.artifact as V).kind : undefined)
   const tc = n(o.task_count)
-  return `📄 ${reqId} 提交${kind !== undefined ? SUBMIT_KIND_CN[kind] ?? kind : '产物'}${status !== undefined ? ` → ${status}` : ''}${tc !== undefined ? `（${tc} 个任务）` : ''}`
+  return `📄 ${reqId} 提交${kind !== undefined ? artifactKindLabel(kind) : '产物'}${status !== undefined ? ` → ${status}` : ''}${tc !== undefined ? `（${tc} 个任务）` : ''}`
 }
 
 /** reqboard_status：📊 看板：1 个进行中需求（REQ-x implementing） */

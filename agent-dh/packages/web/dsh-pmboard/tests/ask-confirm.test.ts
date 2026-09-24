@@ -4,9 +4,10 @@
  * （服务缺失 / DELEGATED_CALLER）→ fallback=board；target=plan 批准+推进。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import { defineAskConfirmTool, defineMoveTool } from './helpers/tool-deps.js'
 import { LIMITS } from '../src/domain/limits.js'
@@ -172,5 +173,32 @@ describe('T-E3: 弹框题干长度纪律（REQ-308b9a t5 / AC-7.6）', () => {
     await run(tool, { target: 'artifact', kind: 'requirement', question: '很长的题干'.repeat(100) })
     expect(seen).toHaveLength(1)
     expect(seen[0].length).toBeLessThanOrEqual(LIMITS.popupQuestionMax)
+  })
+})
+
+describe('T-7: 确认门纪律与防重弹（REQ-260922213356-4a45 FR-9/FR-11）', () => {
+  it('同一产物已确认 → 不再弹框（弹框端口调用 0 次）', async () => {
+    await seed('brainstorming')
+    const first = await run(makeTool('yes'), ARGS)
+    expect(first.confirmed).toBe(true)
+    let asked = 0
+    const deps = {
+      store,
+      now: () => Date.now(),
+      userQuestions: () => ({ ask: async () => { asked += 1; return { answers: [] } } }),
+    } as never
+    const tool = defineAskConfirmTool(deps) as never as { execute: (a: unknown, e: unknown) => Promise<any> }
+    const out = await run(tool, ARGS)
+    expect(asked).toBe(0)
+    expect(out.confirmed).toBe(true)
+    expect(String(out.note)).toContain('已确认')
+  })
+
+  it('iron-rules 含三条确认纪律（先答后确认 / 文字确认走 evidence / 同产物不重复弹框）', () => {
+    const p = fileURLToPath(new URL('../src/domain/prompt/fragments/common/iron-rules.md', import.meta.url))
+    const text = readFileSync(p, 'utf8')
+    expect(text).toContain('确认门对话优先')
+    expect(text).toContain('文字确认走 evidence')
+    expect(text).toContain('同一产物不重复弹框')
   })
 })

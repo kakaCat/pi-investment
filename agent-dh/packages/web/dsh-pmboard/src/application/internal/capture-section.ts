@@ -24,7 +24,6 @@ import { isInProgressTask } from '../../domain/status/Predicates.js'
 import {
   windowKeyFromContext,
   isWindowBound,
-  hasPendingSuggestion,
   openRequirementsFor,
 } from './window.js'
 
@@ -63,10 +62,6 @@ export function captureSectionText(
   }
   if (isWindowBound(ledger, windowKey)) {
     captureDiag(`reqboard-capture [NODE-5]: captureSectionText returns '' (reason: windowBound=true, windowKey=${windowKey.slice(0, 16)})`);
-    return '';
-  }
-  if (hasPendingSuggestion(ledger, windowKey)) {
-    captureDiag(`reqboard-capture [NODE-5]: captureSectionText returns '' (reason: hasPendingSuggestion=true, windowKey=${windowKey.slice(0, 16)})`);
     return '';
   }
   if (pending && pending.windowKey === windowKey && pending.text.trim().length > 0) {

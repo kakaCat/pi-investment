@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>流程节点详情 - 简约重设计</title>
+  <style>
+    :root {
+      --color-implementing: #4a7dff;
+      --color-done: #28a745;
+      --color-pending: #9ca3af;
+      --color-failed: #dc3545;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f8f9fa;
+      --border-light: #e5e7eb;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --text-tertiary: #9ca3af;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f7fa;
+      padding: 40px 20px;
+      line-height: 1.5;
+      color: var(--text-primary);
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: var(--bg-surface);
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    /* ========== 节点头部 ========== */
+    .stage-header {
+      padding: 24px 32px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+      border-bottom: 3px solid var(--color-implementing);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .stage-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stage-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--color-implementing);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .stage-time {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-family: ui-monospace, monospace;
+    }
+
+    /* ========== 内容区 ========== */
+    .stage-body {
+      padding: 32px;
+    }
+
+    .section {
+      margin-bottom: 32px;
+    }
+
+    .section:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::before {
+      content: '';
+      width: 3px;
+      height: 14px;
+      background: var(--color-implementing);
+      border-radius: 2px;
+    }
+
+    /* ========== 产物文档 ========== */
+    .docs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .doc-item {
+      padding: 12px 16px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .doc-item:hover {
+      background: #e8f0fe;
+      border-color: var(--color-implementing);
+      transform: translateY(-2px);
+    }
+
+    .doc-icon {
+      width: 32px;
+      height: 32px;
+      background: white;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .doc-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .doc-label {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      font-weight: 500;
+    }
+
+    .doc-name {
+      font-size: 13px;
+      color: var(--text-primary);
+      font-family: ui-monospace, monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ========== Workflow 可视化 ========== */
+    .workflow-view {
+      background: var(--bg-subtle);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .workflow-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--border-light);
+    }
+
+    .workflow-tab {
+      padding: 8px 16px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+
+    .workflow-tab.active {
+      color: var(--color-implementing);
+      border-bottom-color: var(--color-implementing);
+    }
+
+    .workflow-tab:hover:not(.active) {
+      color: var(--text-primary);
+    }
+
+    /* DAG 流程图视图 */
+    .workflow-dag {
+      display: none;
+    }
+
+    .workflow-dag.active {
+      display: block;
+    }
+
+    .dag-layer {
+      margin-bottom: 24px;
+    }
+
+    .dag-layer-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dag-layer-label::before {
+      content: '';
+      width: 24px;
+      height: 2px;
+      background: var(--border-light);
+    }
+
+    .dag-tasks {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .dag-task {
+      min-width: 180px;
+      padding: 12px 16px;
+      background: white;
+      border: 2px solid var(--border-light);
+      border-radius: 8px;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .dag-task:hover {
+      border-color: var(--color-implementing);
+      box-shadow: 0 2px 8px rgba(74, 125, 255, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .dag-task[data-status="done"] {
+      border-color: var(--color-done);
+      background: rgba(40, 167, 69, 0.05);
+    }
+
+    .dag-task[data-status="in_progress"] {
+      border-color: var(--color-implementing);
+      background: rgba(74, 125, 255, 0.05);
+      box-shadow: 0 0 0 3px rgba(74, 125, 255, 0.1);
+    }
+
+    .dag-task-id {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      font-family: ui-monospace, monospace;
+      margin-bottom: 4px;
+    }
+
+    .dag-task-title {
+      font-size: 13px;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .dag-task-status {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-pending);
+    }
+
+    .dag-task[data-status="done"] .status-dot {
+      background: var(--color-done);
+    }
+
+    .dag-task[data-status="in_progress"] .status-dot {
+      background: var(--color-implementing);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* 列表视图 */
+    .workflow-list {
+      display: none;
+    }
+
+    .workflow-list.active {
+      display: block;
+    }
+
+    .task-group {
+      margin-bottom: 20px;
+    }
+
+    .task-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .task-group-header {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .task-group-count {
+      background: var(--border-light);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-item {
+      padding: 14px 16px;
+      background: white;
+      border: 1px solid var(--border-light);
+      border-left: 3px solid var(--color-pending);
+      border-radius: 6px;
+      display: grid;
+      grid-template-columns: 24px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .task-item:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transform: translateX(4px);
+    }
+
+    .task-item[data-status="done"] {
+      border-left-color: var(--color-done);
+      opacity: 0.7;
+    }
+
+    .task-item[data-status="in_progress"] {
+      border-left-color: var(--color-implementing);
+      background: rgba(74, 125, 255, 0.02);
+    }
+
+    .task-item[data-status="failed"] {
+      border-left-color: var(--color-failed);
+    }
+
+    .task-status-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--bg-subtle);
+      color: var(--text-tertiary);
+    }
+
+    .task-item[data-status="done"] .task-status-icon {
+      background: rgba(40, 167, 69, 0.15);
+      color: var(--color-done);
+    }
+
+    .task-item[data-status="in_progress"] .task-status-icon {
+      background: rgba(74, 125, 255, 0.15);
+      color: var(--color-implementing);
+    }
+
+    .task-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .task-title {
+      font-size: 13px;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .task-meta {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: ui-monospace, monospace;
+    }
+
+    .task-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .task-tag {
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--bg-subtle);
+      color: var(--text-secondary);
+    }
+
+    .task-item[data-status="in_progress"] .task-tag {
+      background: rgba(74, 125, 255, 0.1);
+      color: var(--color-implementing);
+    }
+
+    /* ========== 统计卡片 ========== */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+      padding: 20px;
+      background: var(--bg-subtle);
+      border-radius: 8px;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* ========== 空状态 ========== */
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--text-tertiary);
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.3;
+    }
+
+    .empty-text {
+      font-size: 14px;
+    }
+
+    /* ========== 响应式 ========== */
+    @media (max-width: 768px) {
+      .stage-body {
+        padding: 24px 20px;
+      }
+
+      .docs-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .dag-tasks {
+        flex-direction: column;
+      }
+
+      .dag-task {
+        min-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 节点头部 -->
+    <div class="stage-header">
+      <div class="stage-title">
+        <div class="stage-icon">5</div>
+        <span>实施 · 开发执行</span>
+      </div>
+      <div class="stage-time">最近更新：2 小时前</div>
+    </div>
+
+    <!-- 内容区 -->
+    <div class="stage-body">
+      
+      <!-- 1. 产物文档 -->
+      <div class="section">
+        <div class="section-title">📄 关联文档</div>
+        <div class="docs-grid">
+          <a href="#" class="doc-item" data-action="open-doc" data-path="docs/requirements/REQ-ebc5/requirement.md">
+            <div class="doc-icon">📋</div>
+            <div class="doc-info">
+              <div class="doc-label">需求文档</div>
+              <div class="doc-name">requirement.md</div>
+            </div>
+          </a>
+          
+          <a href="#" class="doc-item" data-action="open-doc" data-path="docs/requirements/REQ-ebc5/design/architecture.md">
+            <div class="doc-icon">🏗️</div>
+            <div class="doc-info">
+              <div class="doc-label">架构设计</div>
+              <div class="doc-name">architecture.md</div>
+            </div>
+          </a>
+          
+          <a href="#" class="doc-item" data-action="open-doc" data-path="docs/requirements/REQ-ebc5/decomposition.md">
+            <div class="doc-icon">📊</div>
+            <div class="doc-info">
+              <div class="doc-label">拆分计划</div>
+              <div class="doc-name">decomposition.md</div>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- 2. 执行统计 -->
+      <div class="section">
+        <div class="section-title">📈 执行进度</div>
+        <div class="stats">
+          <div class="stat-item">
+            <div class="stat-value">12</div>
+            <div class="stat-label">总任务数</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" style="color: var(--color-done);">7</div>
+            <div class="stat-label">已完成</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" style="color: var(--color-implementing);">2</div>
+            <div class="stat-label">进行中</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" style="color: var(--text-tertiary);">3</div>
+            <div class="stat-label">待开始</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Workflow 可视化 -->
+      <div class="section">
+        <div class="section-title">🔄 执行流程</div>
+        
+        <div class="workflow-view">
+          <!-- 视图切换 -->
+          <div class="workflow-tabs">
+            <button class="workflow-tab active" onclick="switchView('dag')">流程图</button>
+            <button class="workflow-tab" onclick="switchView('list')">任务列表</button>
+          </div>
+
+          <!-- DAG 流程图视图 -->
+          <div class="workflow-dag active">
+            <div class="dag-layer">
+              <div class="dag-layer-label">第 1 层 · 无依赖</div>
+              <div class="dag-tasks">
+                <div class="dag-task" data-status="done" onclick="alert('查看任务详情')">
+                  <div class="dag-task-id">t-8f4a23</div>
+                  <div class="dag-task-title">创建 bundle 包结构</div>
+                  <div class="dag-task-status">
+                    <span class="status-dot"></span>
+                    <span>已完成 · w-c8cae280</span>
+                  </div>
+                </div>
+                
+                <div class="dag-task" data-status="done">
+                  <div class="dag-task-id">t-3b9d71</div>
+                  <div class="dag-task-title">编写 patch 配置</div>
+                  <div class="dag-task-status">
+                    <span class="status-dot"></span>
+                    <span>已完成 · w-c8cae280</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dag-layer">
+              <div class="dag-layer-label">第 2 层 · 3 个可并行</div>
+              <div class="dag-tasks">
+                <div class="dag-task" data-status="done">
+                  <div class="dag-task-id">t-7b3c89</div>
+                  <div class="dag-task-title">迁移投资插件配置</div>
+                  <div class="dag-task-status">
+                    <span class="status-dot"></span>
+                    <span>已完成 · w-c8cae280</span>
+                  </div>
+                </div>
+                
+                <div class="dag-task" data-status="in_progress">
+                  <div class="dag-task-id">t-9d2e47</div>
+                  <div class="dag-task-title">更新 profile 注册清单</div>
+                  <div class="dag-task-status">
+                    <span class="status-dot"></span>
+                    <span>进行中 · 1 小时前开始</span>
+                  </div>
+                </div>
+                
+                <div class="dag-task" data-status="in_progress">
+                  <div class="dag-task-id">t-2a8e53</div>
+                  <div class="dag-task-title">实现 bundle 加载逻辑</div>
+                  <div class="dag-task-status">
+                    <span class="status-dot"></span>
+                    <span>进行中 · 2 小时前开始</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dag-layer">
+              <div class="dag-layer-label">第 3 层</div>
+              <div class="dag-tasks">
+                <div class="dag-task" data-status="pending">
+                  <div class="dag-task-id">t-5a8f12</div>
+                  <div class="dag-task-title">测试插件管理页显示</div>
+                  <div class="dag-task-status">
+                    <span class="status-dot"></span>
+                    <span>待开始</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 列表视图 -->
+          <div class="workflow-list">
+            <div class="task-group">
+              <div class="task-group-header">
+                进行中
+                <span class="task-group-count">2</span>
+              </div>
+              <div class="task-list">
+                <div class="task-item" data-status="in_progress">
+                  <div class="task-status-icon">◐</div>
+                  <div class="task-content">
+                    <div class="task-title">更新 profile 注册清单</div>
+                    <div class="task-meta">t-9d2e47 · w-c8cae280 · 1 小时前开始</div>
+                  </div>
+                  <div class="task-actions">
+                    <span class="task-tag">开发中</span>
+                  </div>
+                </div>
+                
+                <div class="task-item" data-status="in_progress">
+                  <div class="task-status-icon">◐</div>
+                  <div class="task-content">
+                    <div class="task-title">实现 bundle 加载逻辑</div>
+                    <div class="task-meta">t-2a8e53 · w-c8cae280 · 2 小时前开始</div>
+                  </div>
+                  <div class="task-actions">
+                    <span class="task-tag">开发中</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-header">
+                已完成
+                <span class="task-group-count">7</span>
+              </div>
+              <div class="task-list">
+                <div class="task-item" data-status="done">
+                  <div class="task-status-icon">✓</div>
+                  <div class="task-content">
+                    <div class="task-title">创建 bundle 包结构</div>
+                    <div class="task-meta">t-8f4a23 · w-c8cae280 · 09-22 14:30 完成</div>
+                  </div>
+                </div>
+                
+                <div class="task-item" data-status="done">
+                  <div class="task-status-icon">✓</div>
+                  <div class="task-content">
+                    <div class="task-title">迁移投资插件配置</div>
+                    <div class="task-meta">t-7b3c89 · w-c8cae280 · 09-22 16:45 完成</div>
+                  </div>
+                </div>
+                
+                <!-- 更多已完成任务... -->
+              </div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-header">
+                待开始
+                <span class="task-group-count">3</span>
+              </div>
+              <div class="task-list">
+                <div class="task-item" data-status="pending">
+                  <div class="task-status-icon">○</div>
+                  <div class="task-content">
+                    <div class="task-title">测试插件管理页显示</div>
+                    <div class="task-meta">t-5a8f12 · 待开始</div>
+                  </div>
+                  <div class="task-actions">
+                    <span class="task-tag">待开始</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function switchView(view) {
+      // 切换标签
+      document.querySelectorAll('.workflow-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      event.target.classList.add('active');
+
+      // 切换视图
+      document.querySelectorAll('.workflow-dag, .workflow-list').forEach(el => {
+        el.classList.remove('active');
+      });
+      document.querySelector('.workflow-' + view).classList.add('active');
+    }
+  </script>
+</body>
+</html>

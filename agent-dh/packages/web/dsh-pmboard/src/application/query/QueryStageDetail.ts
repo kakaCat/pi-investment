@@ -192,7 +192,7 @@ class DecomposeStageAssembler extends StageDetailAssembler {
     )?.path
     return {
       ...(decompositionDoc !== undefined ? { decompositionDoc } : {}),
-      tasks: tasks.map(t => toStageTaskRef(t)),
+      tasks: tasks.map(t => withCardDoc(toStageTaskRef(t), t, req)),
       planTasks: req.plan?.tasks ?? [],
     }
   }
@@ -207,7 +207,7 @@ class ImplementStageAssembler extends StageDetailAssembler {
   ): ImplementStageBody {
     const tasks = ledger.tasks
       .filter(t => t.requirementId === req.id)
-      .map(t => toStageTaskExecution(t))
+      .map(t => withCardDoc(toStageTaskExecution(t), t, req))
     const byWindow: Record<string, string[]> = {}
     for (const t of tasks) {
       // 任务归属窗口：claimedBy（执行窗口）优先；否则按执行记录里的 sessionId 归组；
@@ -263,6 +263,19 @@ class ArchiveStageAssembler extends StageDetailAssembler {
 // ---------------------------------------------------------------------------
 // TaskRecord → StageTaskRef / StageTaskExecution 映射
 // ---------------------------------------------------------------------------
+
+/**
+ * cardDoc 回填（REQ-260923134706-e72f 实测断链修复）：2026-09-24 之前 decompose 只生成
+ * 任务卡文档 + 登记 task_detail 产物，没把 cardDoc 写到任务记录上——查询层透传拿不到，
+ * 面板显示「（无任务卡）」不可点。这里读路径兼容：任务记录缺 cardDoc 时，从已登记的
+ * task_detail 产物按约定路径 /tasks/<id>.md 找回；找不到则保持缺失（空态诚实，不臆造）。
+ */
+function withCardDoc<T extends StageTaskRef>(ref: T, t: TaskRecord, req: RequirementRecord): T {
+  if (ref.cardDoc !== undefined) return ref
+  const suffix = '/tasks/' + t.id + '.md'
+  const doc = (req.artifacts ?? []).find(a => a.kind === 'task_detail' && a.path.endsWith(suffix))?.path
+  return doc === undefined ? ref : { ...ref, cardDoc: doc }
+}
 
 function toStageTaskRef(t: TaskRecord): StageTaskRef {
   return {

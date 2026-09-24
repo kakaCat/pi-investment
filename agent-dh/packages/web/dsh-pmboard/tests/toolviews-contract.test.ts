@@ -5,10 +5,11 @@
 import { describe, it, expect } from 'vitest'
 import {
   parseArgs, resultText, resultJson, firstLine,
-  TASK_MOVE_TO, SUBMIT_KIND, AUDIT_ACTION, WATCH_ACTION, TRADE_ACTION,
+  TASK_MOVE_TO, AUDIT_ACTION, WATCH_ACTION, TRADE_ACTION,
   cnLabel, fallbackModel, isSettled,
   type ToolBlock, type SettledBlock,
 } from '../src/client/toolviews/shared.ts'
+import { artifactKindLabel } from '../src/shared/artifact-labels.js'
 import { renderSmart, renderJson } from '../src/tools/shared.js'
 
 describe('parseArgs（FR-4 不 throw 契约）', () => {
@@ -58,8 +59,14 @@ describe('中文映射表（FR-2 覆盖）', () => {
       expect(TASK_MOVE_TO[to], '缺映射: ' + to).toBeTruthy()
     }
   })
-  it('submit 4 类 / audit 2 类 / watch 4 类 / trade 2 类', () => {
-    expect(Object.keys(SUBMIT_KIND)).toHaveLength(4)
+  it('submit 4 类（收敛至唯一事实源，design/decomposition/task_detail 自动补齐）/ audit 2 类 / watch 4 类 / trade 2 类', () => {
+    // REQ-260922182638-0777：submit 种类中文名唯一事实源 = shared/artifact-labels.ts
+    for (const [kind, label] of [
+      ['requirement', '需求文档'], ['plan', '拆分计划（旧版）'], ['verification', '验收材料'], ['archive', '归档材料'],
+      ['design', '设计文档'], ['decomposition', '拆分计划'], ['task_detail', '任务卡'],
+    ] as const) {
+      expect(artifactKindLabel(kind), '缺映射: ' + kind).toBe(label)
+    }
     expect(Object.keys(AUDIT_ACTION)).toHaveLength(2)
     expect(Object.keys(WATCH_ACTION)).toHaveLength(4)
     expect(Object.keys(TRADE_ACTION)).toHaveLength(2)

@@ -72,6 +72,33 @@ describe('会话框流程节点 /session/:id/progress', () => {
     expect(res.payload.data.requirement?.id ?? res.payload.data.requirementId).toBe(id)
   })
 
+  // TC-10（REQ-260923134706-e72f / FR-2）：progress 透出立项四问之一的 promptDifficulty
+  it('有 promptDifficulty 的记录透出值，老记录透出 null', async () => {
+    const handler = createReqboardHandler({ store, now: () => Date.now() })
+    // 有难度的记录
+    const withDiff = 'REQ-withdiff-01'
+    await store.mutate('seed', (l) => {
+      l.requirements.push({
+        id: withDiff, title: '带难度', description: '', category: 'feature', status: 'implementing',
+        promptDifficulty: 'advanced', blocked: false, comments: [], version: 1, createdAt: 1, updatedAt: 1,
+        createdBy: { kind: 'human' }, updatedBy: { kind: 'human' },
+        statusHistory: [{ status: 'implementing', at: 1, by: { kind: 'human' } }],
+        sourceSessionId: 'SID-withdiff',
+      } as unknown as RequirementRecord)
+      return { requirements: [] }
+    })
+    let res = await get(handler, '/session/SID-withdiff/progress')
+    expect(res.statusCode).toBe(200)
+    expect(res.payload.data.requirement.promptDifficulty).toBe('advanced')
+
+    // 老记录（无 promptDifficulty 字段）→ null
+    const legacyId = await seed('implementing', 'SID-legacy')
+    res = await get(handler, '/session/SID-legacy/progress')
+    expect(res.statusCode).toBe(200)
+    expect(res.payload.data.requirement.id).toBe(legacyId)
+    expect(res.payload.data.requirement.promptDifficulty).toBe(null)
+  })
+
   it('无关联需求的会话 → 200 且 hasRequirement=false（不报错、不 500）', async () => {
     const handler = createReqboardHandler({ store, now: () => Date.now() })
     const res = await get(handler, '/session/no-such-session/progress')

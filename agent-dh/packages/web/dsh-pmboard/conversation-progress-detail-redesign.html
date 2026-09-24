@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>流程节点详情面板 - 重新设计</title>
+  <style>
+    :root {
+      --pm-c-draft: #9aa4b2;
+      --pm-c-brainstorming: #f0a020;
+      --pm-c-design: #c2255c;
+      --pm-c-decomposing: #8e44ad;
+      --pm-c-implementing: #4a7dff;
+      --pm-c-accepting: #17a2b8;
+      --pm-c-done: #28a745;
+      --pm-radius: 8px;
+      --pm-radius-sm: 6px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f7fa;
+      padding: 20px;
+      line-height: 1.6;
+    }
+
+    /* 模拟会话界面 */
+    .demo-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    /* 模拟顶部工具栏 */
+    .demo-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 16px 24px;
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .demo-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    /* 流程进度条（内联） */
+    .dsh-pm-cprog-inline {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex: 1;
+    }
+
+    .dsh-pm-cprog-inline:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    .dsh-pm-flow {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .dsh-pm-flow-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .dsh-pm-flow-node:hover {
+      transform: scale(1.1);
+    }
+
+    .dsh-pm-flow-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.3);
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .dsh-pm-flow-node[data-state="done"] .dsh-pm-flow-dot {
+      background: rgba(40, 167, 69, 0.9);
+      border-color: #28a745;
+    }
+
+    .dsh-pm-flow-node[data-state="current"] .dsh-pm-flow-dot {
+      background: white;
+      color: #667eea;
+      border-color: white;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+    }
+
+    .dsh-pm-flow-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .dsh-pm-flow-label {
+      font-size: 10px;
+      color: white;
+      opacity: 0.9;
+      white-space: nowrap;
+    }
+
+    .dsh-pm-flow-token {
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.7);
+      font-family: ui-monospace, monospace;
+    }
+
+    .dsh-pm-flow-link {
+      width: 16px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .dsh-pm-flow-link[data-state="done"] {
+      background: rgba(40, 167, 69, 0.6);
+    }
+
+    .dsh-pm-cprog-inline-count {
+      font-size: 13px;
+      font-weight: 600;
+      color: white;
+      padding: 4px 12px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+    }
+
+    /* 详情面板 */
+    .dsh-pm-cprog-detail-panel {
+      background: white;
+      border-radius: 0 0 12px 12px;
+      max-height: 600px;
+      overflow-y: auto;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .dsh-pm-cprog-panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      border-bottom: 1px solid #e5e7eb;
+      background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    }
+
+    .dsh-pm-cprog-panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .dsh-pm-status-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .dsh-pm-status-badge[data-status="implementing"] {
+      background: rgba(74, 125, 255, 0.1);
+      color: var(--pm-c-implementing);
+    }
+
+    /* 阶段详情内容 */
+    .dsh-pm-cprog-sec {
+      padding: 24px;
+    }
+
+    .dsh-pm-stage-panel {
+      border-radius: var(--pm-radius);
+      overflow: hidden;
+    }
+
+    /* 节点头部 */
+    .dsh-pm-sn-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+      border-bottom: 3px solid;
+      margin-bottom: 20px;
+    }
+
+    .dsh-pm-stage-panel[data-stage="draft"] .dsh-pm-sn-head { border-bottom-color: var(--pm-c-draft); }
+    .dsh-pm-stage-panel[data-stage="brainstorming"] .dsh-pm-sn-head { border-bottom-color: var(--pm-c-brainstorming); }
+    .dsh-pm-stage-panel[data-stage="design"] .dsh-pm-sn-head { border-bottom-color: var(--pm-c-design); }
+    .dsh-pm-stage-panel[data-stage="decomposing"] .dsh-pm-sn-head { border-bottom-color: var(--pm-c-decomposing); }
+    .dsh-pm-stage-panel[data-stage="implementing"] .dsh-pm-sn-head { border-bottom-color: var(--pm-c-implementing); }
+    .dsh-pm-stage-panel[data-stage="accepting"] .dsh-pm-sn-head { border-bottom-color: var(--pm-c-accepting); }
+    .dsh-pm-stage-panel[data-stage="archived"] .dsh-pm-sn-head { border-bottom-color: var(--pm-c-done); }
+
+    .dsh-pm-sn-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dsh-pm-sn-title::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .dsh-pm-sn-time {
+      font-size: 13px;
+      color: #6b7280;
+      font-family: ui-monospace, monospace;
+    }
+
+    /* 追溯链 */
+    .dsh-pm-trace-chain {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 12px 16px;
+      margin: 0 20px 20px;
+      border-radius: var(--pm-radius);
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+    }
+
+    .dsh-pm-trace-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .dsh-pm-trace-node {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 16px;
+      background: white;
+      border: 1px solid #e5e7eb;
+    }
+
+    .dsh-pm-trace-label {
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .dsh-pm-trace-path {
+      font-size: 11px;
+      font-family: ui-monospace, monospace;
+      color: #4a7dff;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .dsh-pm-trace-path:hover {
+      text-decoration: underline;
+    }
+
+    .dsh-pm-trace-arrow {
+      color: #d1d5db;
+      font-weight: 600;
+    }
+
+    /* 节点内容区 */
+    .dsh-pm-sn-body {
+      padding: 0 20px 20px;
+    }
+
+    /* 任务列表 */
+    .dsh-pm-task-exec-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .dsh-pm-task-exec {
+      display: grid;
+      grid-template-columns: 80px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-left: 4px solid var(--pm-c-implementing);
+      border-radius: var(--pm-radius-sm);
+      transition: all 0.2s;
+    }
+
+    .dsh-pm-task-exec:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transform: translateX(4px);
+    }
+
+    .dsh-pm-task-exec[data-status="done"] {
+      border-left-color: var(--pm-c-done);
+      opacity: 0.7;
+    }
+
+    .dsh-pm-task-ref-id {
+      font-size: 11px;
+      font-family: ui-monospace, monospace;
+      color: #9ca3af;
+      font-weight: 500;
+    }
+
+    .dsh-pm-task-ref-title {
+      color: #1f2937;
+      font-size: 13px;
+    }
+
+    .dsh-pm-task-ref-status {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      background: rgba(74, 125, 255, 0.1);
+      color: var(--pm-c-implementing);
+      font-weight: 500;
+    }
+
+    /* 时间线 */
+    .dsh-pm-timeline-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 20px;
+      padding: 16px;
+      background: #f9fafb;
+      border-radius: var(--pm-radius);
+    }
+
+    .dsh-pm-timeline-item {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 8px 12px;
+      background: white;
+      border-left: 3px solid #e5e7eb;
+      border-radius: var(--pm-radius-sm);
+      font-size: 13px;
+    }
+
+    .dsh-pm-timeline-item:first-child {
+      border-left-color: var(--pm-c-implementing);
+    }
+
+    .dsh-pm-timeline-time {
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      color: #6b7280;
+      min-width: 100px;
+    }
+
+    .dsh-pm-timeline-actor {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(107, 114, 128, 0.1);
+      color: #4b5563;
+      font-weight: 500;
+    }
+
+    .dsh-pm-timeline-reason {
+      color: #374151;
+      flex: 1;
+    }
+
+    /* 底部操作栏 */
+    .dsh-pm-cprog-foot {
+      display: flex;
+      gap: 12px;
+      padding: 16px 24px;
+      background: #f9fafb;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .dsh-pm-btn {
+      padding: 8px 16px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: white;
+      color: #374151;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .dsh-pm-btn:hover {
+      background: #f3f4f6;
+      border-color: #d1d5db;
+    }
+
+    .dsh-pm-btn.primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+    }
+
+    .dsh-pm-btn.primary:hover {
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      transform: translateY(-2px);
+    }
+
+    /* 空状态 */
+    .dsh-pm-cprog-empty {
+      padding: 40px 20px;
+      text-align: center;
+      color: #9ca3af;
+      font-size: 14px;
+    }
+
+    /* 滚动条美化 */
+    .dsh-pm-cprog-detail-panel::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .dsh-pm-cprog-detail-panel::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+
+    .dsh-pm-cprog-detail-panel::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+
+    .dsh-pm-cprog-detail-panel::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <!-- 模拟顶部工具栏 -->
+    <div class="demo-header">
+      <div class="demo-title">会话 w-abc123</div>
+      
+      <!-- 流程进度条（点击展开详情） -->
+      <div class="dsh-pm-cprog-inline" onclick="toggleDetail()" title="REQ-260922133113-ebc5《插件 bundle 化》实施中 · 点击节点查看详情">
+        <div class="dsh-pm-flow">
+          <div class="dsh-pm-flow-node" data-state="done">
+            <div class="dsh-pm-flow-dot">✓</div>
+            <div class="dsh-pm-flow-meta">
+              <span class="dsh-pm-flow-label">立项</span>
+              <span class="dsh-pm-flow-token">2.3k</span>
+            </div>
+          </div>
+          <div class="dsh-pm-flow-link" data-state="done"></div>
+          
+          <div class="dsh-pm-flow-node" data-state="done">
+            <div class="dsh-pm-flow-dot">✓</div>
+            <div class="dsh-pm-flow-meta">
+              <span class="dsh-pm-flow-label">需求分析</span>
+              <span class="dsh-pm-flow-token">18.5k</span>
+            </div>
+          </div>
+          <div class="dsh-pm-flow-link" data-state="done"></div>
+          
+          <div class="dsh-pm-flow-node" data-state="done">
+            <div class="dsh-pm-flow-dot">✓</div>
+            <div class="dsh-pm-flow-meta">
+              <span class="dsh-pm-flow-label">设计</span>
+              <span class="dsh-pm-flow-token">32.1k</span>
+            </div>
+          </div>
+          <div class="dsh-pm-flow-link" data-state="done"></div>
+          
+          <div class="dsh-pm-flow-node" data-state="done">
+            <div class="dsh-pm-flow-dot">✓</div>
+            <div class="dsh-pm-flow-meta">
+              <span class="dsh-pm-flow-label">拆分</span>
+              <span class="dsh-pm-flow-token">5.7k</span>
+            </div>
+          </div>
+          <div class="dsh-pm-flow-link" data-state="done"></div>
+          
+          <div class="dsh-pm-flow-node" data-state="current">
+            <div class="dsh-pm-flow-dot">●</div>
+            <div class="dsh-pm-flow-meta">
+              <span class="dsh-pm-flow-label">实施</span>
+              <span class="dsh-pm-flow-token">—</span>
+            </div>
+          </div>
+          <div class="dsh-pm-flow-link" data-state="pending"></div>
+          
+          <div class="dsh-pm-flow-node" data-state="pending">
+            <div class="dsh-pm-flow-dot">6</div>
+            <div class="dsh-pm-flow-meta">
+              <span class="dsh-pm-flow-label">验收</span>
+            </div>
+          </div>
+          <div class="dsh-pm-flow-link" data-state="pending"></div>
+          
+          <div class="dsh-pm-flow-node" data-state="pending">
+            <div class="dsh-pm-flow-dot">7</div>
+            <div class="dsh-pm-flow-meta">
+              <span class="dsh-pm-flow-label">归档</span>
+            </div>
+          </div>
+        </div>
+        <span class="dsh-pm-cprog-inline-count">3/12</span>
+      </div>
+    </div>
+
+    <!-- 详情面板 -->
+    <div class="dsh-pm-cprog-detail-panel" id="detailPanel" style="display: none;">
+      <div class="dsh-pm-cprog-panel-head">
+        <span class="dsh-pm-cprog-panel-title">REQ-260922133113-ebc5 · 插件 bundle 化</span>
+        <span class="dsh-pm-status-badge" data-status="implementing">实施中</span>
+      </div>
+
+      <div class="dsh-pm-cprog-sec">
+        <div class="dsh-pm-stage-panel" data-stage="implementing" data-state="current">
+          <div class="dsh-pm-sn-head">
+            <span class="dsh-pm-sn-title">实施 · 开发团队执行任务</span>
+            <span class="dsh-pm-sn-time">2 小时前</span>
+          </div>
+
+          <!-- 追溯链 -->
+          <div class="dsh-pm-trace-chain">
+            <span class="dsh-pm-trace-title">产物追溯</span>
+            <div class="dsh-pm-trace-node">
+              <span class="dsh-pm-trace-label">需求</span>
+              <a href="#" class="dsh-pm-trace-path" data-action="open-doc" data-path="docs/requirements/REQ-ebc5/requirement.md">requirement.md</a>
+            </div>
+            <span class="dsh-pm-trace-arrow">→</span>
+            <div class="dsh-pm-trace-node">
+              <span class="dsh-pm-trace-label">设计</span>
+              <a href="#" class="dsh-pm-trace-path" data-action="open-doc" data-path="docs/requirements/REQ-ebc5/design/architecture.md">architecture.md</a>
+            </div>
+            <span class="dsh-pm-trace-arrow">→</span>
+            <div class="dsh-pm-trace-node">
+              <span class="dsh-pm-trace-label">拆分</span>
+              <a href="#" class="dsh-pm-trace-path" data-action="open-doc" data-path="docs/requirements/REQ-ebc5/decomposition.md">decomposition.md</a>
+            </div>
+          </div>
+
+          <!-- 任务列表 -->
+          <div class="dsh-pm-sn-body">
+            <ul class="dsh-pm-task-exec-list">
+              <li class="dsh-pm-task-exec" data-status="done">
+                <span class="dsh-pm-task-ref-id">t-8f4a23</span>
+                <span class="dsh-pm-task-ref-title">创建 bundle-stock 包结构</span>
+                <span class="dsh-pm-task-ref-status">2026-09-22 14:30 完成</span>
+              </li>
+              <li class="dsh-pm-task-exec" data-status="done">
+                <span class="dsh-pm-task-ref-id">t-7b3c89</span>
+                <span class="dsh-pm-task-ref-title">迁移投资插件配置到 bundle patch</span>
+                <span class="dsh-pm-task-ref-status">2026-09-22 16:45 完成</span>
+              </li>
+              <li class="dsh-pm-task-exec" data-status="in_progress">
+                <span class="dsh-pm-task-ref-id">t-9d2e47</span>
+                <span class="dsh-pm-task-ref-title">更新 profile 注册清单</span>
+                <span class="dsh-pm-task-ref-status">开发中（1 小时前开始）</span>
+              </li>
+              <li class="dsh-pm-task-exec" data-status="todo">
+                <span class="dsh-pm-task-ref-id">t-5a8f12</span>
+                <span class="dsh-pm-task-ref-title">测试插件管理页显示</span>
+                <span class="dsh-pm-task-ref-status">待开始</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- 时间线 -->
+          <ul class="dsh-pm-timeline-list">
+            <li class="dsh-pm-timeline-item">
+              <span class="dsh-pm-timeline-time">09-22 21:33</span>
+              <span class="dsh-pm-timeline-actor">w-c8cae280</span>
+              <span class="dsh-pm-timeline-reason">开始实施任务 t-9d2e47</span>
+            </li>
+            <li class="dsh-pm-timeline-item">
+              <span class="dsh-pm-timeline-time">09-22 16:45</span>
+              <span class="dsh-pm-timeline-actor">w-c8cae280</span>
+              <span class="dsh-pm-timeline-reason">完成任务 t-7b3c89</span>
+            </li>
+            <li class="dsh-pm-timeline-item">
+              <span class="dsh-pm-timeline-time">09-22 14:30</span>
+              <span class="dsh-pm-timeline-actor">w-c8cae280</span>
+              <span class="dsh-pm-timeline-reason">完成任务 t-8f4a23</span>
+            </li>
+            <li class="dsh-pm-timeline-item">
+              <span class="dsh-pm-timeline-time">09-22 13:25</span>
+              <span class="dsh-pm-timeline-actor">系统</span>
+              <span class="dsh-pm-timeline-reason">进入实施阶段</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="dsh-pm-cprog-foot">
+        <button class="dsh-pm-btn" onclick="alert('打开项目看板')">打开项目看板</button>
+        <button class="dsh-pm-btn primary" onclick="alert('打开需求看板')">打开需求看板</button>
+        <button class="dsh-pm-btn" onclick="toggleDetail()">收起</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleDetail() {
+      const panel = document.getElementById('detailPanel');
+      if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+      } else {
+        panel.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>

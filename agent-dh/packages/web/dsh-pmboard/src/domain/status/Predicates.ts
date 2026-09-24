@@ -95,18 +95,6 @@ export function isRollbackOrCancel(to: string): boolean {
   return to === 'canceled' || to === 'todo'
 }
 
-// ── 待归类（TriageStatus）──────────────────────────────────────────────────
-
-/** 是否待处理。 */
-export function isPendingTriage(t: HasStatus): boolean {
-  return t.status === 'pending'
-}
-
-/** 是否已处理（确认或拒绝）。 */
-export function isResolvedTriage(t: HasStatus): boolean {
-  return t.status !== 'pending'
-}
-
 // ── 验收单项（VerificationItem.status）────────────────────────────────────
 
 /** 单项是否通过。 */

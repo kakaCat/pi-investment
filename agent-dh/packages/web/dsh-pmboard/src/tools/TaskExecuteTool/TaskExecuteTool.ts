@@ -48,7 +48,7 @@ export function defineTaskExecuteTool(deps: UseCaseDeps) {
       if (!bound.some((r) => r.id === task.requirementId)) {
         return { success: false, task_id: task.id, status: 'error', error: '任务不属于本窗口绑定的需求' }
       }
-      const out = await advanceRequirement(deps, task.requirementId)
+      const out = await advanceRequirement(deps, task.requirementId, exec)
       return { success: true, task_id: task.id, status: out.stopped, stopped: out.stopped }
     },
   } as any)

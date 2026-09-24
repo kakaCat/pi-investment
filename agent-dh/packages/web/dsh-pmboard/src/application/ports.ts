@@ -262,4 +262,9 @@ export interface UseCaseDeps {
   workflow?: WorkflowRunner
   /** 失败告警通道（缺省 = 只留痕不告警，由组合根决定）。 */
   alert?: FailureAlertPort
+  /**
+   * 窗口投递端口（REQ-260923222557-d3b0 FR-2/FR-3）：事件型 worktree 提示词
+   * （子任务完成 / 需求归档）经此投给窗口。缺省 = 不投递；**投递失败绝不阻断状态转移**。
+   */
+  delivery?: AgentDeliveryPort
 }

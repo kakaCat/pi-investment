@@ -13,7 +13,7 @@ import type { LedgerView, UseCaseDeps } from '../ports.js'
 import { questionCardFor } from '../../domain/gate/GateCatalog.js'
 import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'
 import { artifactNotifyText } from './artifact-gates.js'
-import { isWindowBound, openRequirementsFor, pendingSuggestionFor } from './window.js'
+import { isWindowBound, openRequirementsFor } from './window.js'
 import {
   isSubtask,
   recordStatus,
@@ -22,7 +22,6 @@ import {
   type RequirementRecord,
   type StageArtifact,
   type TaskRecord,
-  type TriageRecord,
 } from '../../shared/protocol.js'
 import { captureSnapshot } from './token-usage.js'
 import { checkParentSubtasksDone, checkSubtaskEvidence } from './subtask-evidence.js'
@@ -207,11 +206,6 @@ export function workspacePathCandidates(evidence: readonly string[]): string[] {
  */
 export function gateQuestionCard(gateKind: string | undefined, from: string, to: string): string {
   return questionCardFor(gateKind, from, to)
-}
-
-/** 本窗口最近一条遗留 pending triage（旧流程产物；无则 undefined）。 */
-export function findPending(ledger: LedgerView, windowKey: string): TriageRecord | undefined {
-  return pendingSuggestionFor(ledger, windowKey)
 }
 
 /**

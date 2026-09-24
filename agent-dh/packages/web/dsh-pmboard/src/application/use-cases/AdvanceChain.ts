@@ -177,8 +177,15 @@ async function finalizeParent(deps: UseCaseDeps, parentId: string, startedAt: nu
   }
 }
 
-async function runSubtaskStep(deps: UseCaseDeps, parentId: string, subtaskId: string, startedAt: number): Promise<AdvanceStep> {
-  const r = await executeSubtask(deps, { subtaskId, windowKey: 'system' })
+async function runSubtaskStep(deps: UseCaseDeps, parentId: string, subtaskId: string, startedAt: number, exec?: unknown): Promise<AdvanceStep> {
+  // REQ-4842fe design/architecture §3：`parent: exec.agent`——调用者 agent 必须一路透传到引擎，
+  // 否则 workflow-ptc 读 request.parent.session 直接抛错（start_failed）。缺 exec 时保持原样，
+  // 由引擎显式失败（不静默成功）。
+  const r = await executeSubtask(deps, {
+    subtaskId,
+    windowKey: 'system',
+    ...(exec !== undefined ? { exec } : {}),
+  })
   return stepOf(
     'RUN_SUBTASK',
     r.ok ? 'ok' : 'failed',
@@ -199,10 +206,10 @@ async function rollupStep(deps: UseCaseDeps, requirementId: string, startedAt: n
   return stepOf('ROLLUP', ok ? 'ok' : 'noop', ok ? '需求已全部任务完成，滚进验收' : '暂不可 rollup', startedAt, deps.clock.now())
 }
 
-async function runSelection(deps: UseCaseDeps, requirementId: string, sel: AdvanceSelection, startedAt: number): Promise<AdvanceStep> {
+async function runSelection(deps: UseCaseDeps, requirementId: string, sel: AdvanceSelection, startedAt: number, exec?: unknown): Promise<AdvanceStep> {
   if (sel.event === 'OPEN_PARENT' && sel.parentId !== undefined) return openParent(deps, requirementId, sel.parentId, startedAt)
   if (sel.event === 'FINALIZE_PARENT' && sel.parentId !== undefined) return finalizeParent(deps, sel.parentId, startedAt)
-  if (sel.event === 'RUN_SUBTASK' && sel.subtaskId !== undefined) return runSubtaskStep(deps, sel.parentId ?? '', sel.subtaskId, startedAt)
+  if (sel.event === 'RUN_SUBTASK' && sel.subtaskId !== undefined) return runSubtaskStep(deps, sel.parentId ?? '', sel.subtaskId, startedAt, exec)
   if (sel.event === 'ROLLUP') return rollupStep(deps, requirementId, startedAt)
   return stepOf('PAUSE', 'skipped', '无对应事件实现', startedAt, deps.clock.now())
 }
@@ -211,7 +218,7 @@ async function runSelection(deps: UseCaseDeps, requirementId: string, sel: Advan
  * 推进一个需求：循环执行事件直到 ROLLUP / PAUSE / 无事可做 / 步数上限。
  * 重复调用安全（幂等）：已完成的步不会重做。
  */
-export async function advanceRequirement(deps: UseCaseDeps, requirementId: string): Promise<AdvanceOutcome> {
+export async function advanceRequirement(deps: UseCaseDeps, requirementId: string, exec?: unknown): Promise<AdvanceOutcome> {
   if (inflight.has(requirementId)) return { requirementId, steps: [], stopped: 'locked' }
   const snapshot0 = deps.repo.snapshot()
   const req0 = snapshot0.requirements.find((r) => r.id === requirementId)
@@ -266,7 +273,7 @@ export async function advanceRequirement(deps: UseCaseDeps, requirementId: strin
       }
 
       const startedAt = deps.clock.now()
-      const step = await runSelection(deps, requirementId, sel, startedAt)
+      const step = await runSelection(deps, requirementId, sel, startedAt, exec)
       steps.push(step)
       await appendHistory(deps, requirementId, {
         at: deps.clock.now(),

@@ -39,7 +39,7 @@
  * @module dsh-pmboard/adapters/CaptureHook
  */
 
-import type { ReqboardLedger, StageKey } from '../shared/protocol.js'
+import type { ReqboardLedger, StageKey, RequirementRecord } from '../shared/protocol.js'
 import { stageEnabledFor } from '../shared/protocol.js'
 import { isIgnoredSession, extractUserMessageText, cleanUserMessageText } from './SessionMessageFilter.js'
 import {
@@ -50,6 +50,8 @@ import {
 import type { PendingCaptureMessage } from '../application/internal/capture-section.js'
 import type { NodeSettlement } from '../application/internal/node-settlement.js'
 import { resolveStagePrompt, isPromptStage } from '../domain/prompt/index.js'
+import { augmentResolvedPrompt } from '../application/internal/injection-address.js'
+import { isInProgressTask } from '../domain/status/Predicates.js'
 import {
   injectionLogInputFromResolved,
   type InjectionLogPort,
@@ -72,6 +74,30 @@ export interface CaptureHookLogger {
 
 // 工具痕迹逻辑（ToolTraceEntry / TOOL_TRACE_CAP / recordToolTrace / toolActivitySince）在
 // adapters/SessionProbeAdapter.ts（t5），顶部导入并在下方判定链中直接使用。
+
+/** T-3 地址段增强：开关关/根缺失/渲染异常 → 原样返回（与其它注入点同一纯函数）。 */
+function withAddressSection(
+  resolved: ReturnType<typeof resolveStagePrompt>,
+  deps: CaptureHookDeps,
+  ledger: ReqboardLedger,
+  requirement: RequirementRecord,
+  stage: string,
+): ReturnType<typeof resolveStagePrompt> {
+  const address = deps.address
+  if (address === undefined || address.enabled === false || address.templateRoot === undefined) return resolved
+  const currentTask = ledger.tasks.find(t => t.requirementId === requirement.id && isInProgressTask(t))
+  try {
+    return augmentResolvedPrompt(resolved, {
+      stage,
+      category: requirement.category,
+      requirement,
+      ...(currentTask === undefined ? {} : { currentTask: { id: currentTask.id, title: currentTask.title, cardDoc: currentTask.cardDoc } }),
+      templateRoot: address.templateRoot,
+    })
+  } catch {
+    return resolved
+  }
+}
 
 export interface CaptureHookDeps {
   /** 台账快照（同步读取；判定窗口 unbound / pending 状态）。 */
@@ -103,6 +129,8 @@ export interface CaptureHookDeps {
   recentUserMsgs?: Map<string, RecentUserMsg[]>
   /** 注入留痕端口（REQ-422af1 t6）：状态转移注入后调用 record。可选（未注入 = 不留痕）。 */
   injectionLog?: InjectionLogPort
+  /** 模板地址注入（REQ-260922213356-4a45 T-3）：绝对模板根 + 开关；缺省不注入。 */
+  address?: { templateRoot?: string; enabled?: boolean }
   /**
    * 节点结算回调（REQ-422af1 t10）：绑定窗口的**回合结束**（turn/end）且该回合登记过
    * 「可注入节点结算」时发信号，并携带会话句柄（隔离端口由组合根按会话构造）。
@@ -256,9 +284,9 @@ export function createSessionEventCaptureHook(deps: CaptureHookDeps): (session: 
       recordRecentUserMsg(deps.recentUserMsgs, windowKey, text, now())
     }
 
-    // 窗口条件：unbound && 无遗留 pending → 需要立项捕获（确定性判定，语义判断留给 LLM）。
+    // 窗口条件：unbound → 需要立项捕获（确定性判定，语义判断留给 LLM）。
     if (!shouldCaptureWindow(snapshot(), windowKey)) {
-      debug(`reqboard-capture: window ${windowKey.slice(0, 16)} bound or has pending — no capture needed`)
+      debug(`reqboard-capture: window ${windowKey.slice(0, 16)} bound — no capture needed`)
       // 已绑定窗口 + 直接人类消息 = 该窗口仍在实际推进其需求 → 通知接手推进（R1）
       const ledger = snapshot()
       if (isWindowBound(ledger, windowKey)) {
@@ -275,7 +303,9 @@ export function createSessionEventCaptureHook(deps: CaptureHookDeps): (session: 
           // draft/done/canceled 不是可注入节点（types.ts）：先过闸，避免只捞到 ⑤ 铁律而误触发注入。
           if (isPromptStage(stage) && stageEnabledFor(stageReq.category, stage as StageKey)) {
             // INV-1：与 capture-section 同一取词入口（resolveStagePrompt）。
-            const resolved = resolveStagePrompt({ stage, category: stageReq.category })
+            const located = resolveStagePrompt({ stage, category: stageReq.category })
+            // T-3：与 capture-section/H3/输入包同源折入地址段（第四处注入点）。
+            const resolved = withAddressSection(located, deps, ledger, stageReq, stage)
             if (resolved.text.length > 0) {
               deps.onStagePrompt?.(windowKey, resolved.text)
               // INV-6：注入即留痕（与 capture-section 同一组装入口）。

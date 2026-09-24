@@ -5,6 +5,9 @@
  * 拆分期改动面重叠即拒；运行期 mtime 跨卡覆盖判失败。
  */
 import { describe, it, expect } from 'vitest'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { executeMoveTask } from '../src/application/use-cases/MoveTask.js'
 import { advanceRequirement } from '../src/application/use-cases/AdvanceChain.js'
 import { executeSubtask } from '../src/application/use-cases/ExecuteTask.js'
@@ -114,5 +117,31 @@ describe('运行期跨卡覆盖兜底（6.5）', () => {
     const r = await executeSubtask(h.deps, { subtaskId: 't-b1', windowKey: 'session-w-001' })
     expect(r.ok).toBe(false)
     expect(r.code).toBe('REQBOARD_CROSS_CARD')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// TC-8 超时契约（REQ-260923222557-d3b0 FR-5）
+// ---------------------------------------------------------------------------
+
+function walkTs(dir: string, acc: string[] = []): string[] {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name)
+    if (e.isDirectory()) walkTs(p, acc)
+    else if (e.name.endsWith('.ts')) acc.push(p)
+  }
+  return acc
+}
+
+describe('TC-8 超时契约：人机回路不再 10 分钟超时（FR-5）', () => {
+  it('交互确认与验收单超时均为 1 小时，且全 src 无旧 600s/900s 硬编码残留', () => {
+    expect(LIMITS.timeoutInteractiveMs).toBe(3_600_000)
+    expect(LIMITS.timeoutSheetMs).toBe(3_600_000)
+    const files = walkTs(fileURLToPath(new URL('../src', import.meta.url)))
+    // 扫描器自检：目录失效/被裁剪时不能静默假绿
+    expect(files.length).toBeGreaterThan(50)
+    // \b 保证 3_600_000 不算残留（下划线是词字符，_600_000 前无词边界）
+    const offenders = files.filter(f => /\b(600_000|900_000)\b/.test(readFileSync(f, 'utf8')))
+    expect(offenders).toEqual([])
   })
 })
