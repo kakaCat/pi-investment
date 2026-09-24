@@ -64,10 +64,10 @@ def _todo(**over):
 
 
 def test_render_receipt_old_call_compatible():
-    """旧调用形态（无新参数）行为不变。"""
+    """旧调用形态（无新参数）仍渲染（REQ-ad0a t4 后文案为时间人性化一行形态）。"""
     text = render_receipt(_todo(), kind='timeout', period='L3|')
     assert '待办#32' in text
-    assert '超时未处置' in text
+    assert '[超时]' in text
 
 
 def test_render_receipt_name_first_display():

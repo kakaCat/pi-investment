@@ -404,8 +404,12 @@ def test_counts_aggregate_multiple_todos():
     assert stats['promoted'] == 2        # L1→L2、L2→L3
     assert stats['escalated'] == 2
     assert stats['timeout'] == 1         # L3 升级给用户
-    assert stats['alerts'] == 3
-    assert len(sent) == 3
+    assert stats['alerts'] == 3          # 按条数计（聚合卡内 3 条都送达）
+    # REQ-ad0a t4（FR-8）：一 kind 一卡——2 条 escalate 合 1 卡 + 1 条 timeout 1 卡
+    assert len(sent) == 2
+    assert stats['group_cards'] == 2
+    escalate_card = [p for p in sent if p['kind'] == 'escalate'][0]
+    assert escalate_card['message'].count('待办#') == 2     # 2 条晋升合成一张卡
 
 
 def test_job_passes_now_and_limit_to_repo():

@@ -87,14 +87,23 @@ def build_self_heal_service(todo_service: Optional[Any] = None) -> Any:
         todo_service if todo_service is not None else build_todo_service())
 
 
-def build_sla_job(todo_repo: Optional[Any] = None, receipt_service: Optional[Any] = None) -> Any:
+def build_name_resolver() -> Any:
+    """标的名解析（REQ-ad0a t4，FR-13）：回执/聚合卡一轮一次批量联查 quant.stocks"""
+    from adapters.outbound.repositories.stock_name_resolver import PgStockNameResolver
+    return PgStockNameResolver()
+
+
+def build_sla_job(todo_repo: Optional[Any] = None, receipt_service: Optional[Any] = None,
+                  name_resolver: Optional[Any] = None) -> Any:
     """到期巡检 job（唯一收敛权威，architecture §4）。
 
     WatchSlaJob 在 inbound 层（adapters/inbound/fastapi_app/watch_sla_job.py），
     本函数被 inbound 的定时任务与 application 的 factory 共用；为不引入
     application→inbound 的反向依赖，这里用惰性 import（运行时才解析）。
+    name_resolver 显式传 None 时缺省构建真实实现（要关名称解析须传假实现/在测试注入）。
     """
     from adapters.inbound.fastapi_app.watch_sla_job import WatchSlaJob
     return WatchSlaJob(
         todo_repo if todo_repo is not None else build_todo_repo(),
-        receipt_service=receipt_service if receipt_service is not None else build_receipt_service())
+        receipt_service=receipt_service if receipt_service is not None else build_receipt_service(),
+        name_resolver=name_resolver if name_resolver is not None else build_name_resolver())
