@@ -72,6 +72,12 @@ class SchedulerSettings(BaseSettings):
     # 导致 AgentChannel 恒失败、策略里的「OS 优先」从未生效；Agent OS 实际监听 8080。
     agent_os_enabled: bool = Field(default=True, alias="AGENT_OS_ENABLED")
     agent_os_url: str = Field(default="http://localhost:8080", alias="AGENT_OS_URL")
+    # REQ-ad0a t7 修复（2026-09-24 联调发现）：agent_os_enabled 是**调度权归属**开关
+    # （ADR-002：false=v2 APScheduler 接管业务任务），却被 notification_factory 复用为
+    # 「是否注册 AgentChannel」——导致 ADR-002 生效期间通知的「agent 优先」链路整体静默
+    # 失效（send_with_fallback 找不到 agent 渠道直接降级，无日志）。两个语义拆两个开关：
+    # 本开关只管通知投递渠道的注册（默认 True；显式 false 才关通知投递）。
+    agent_os_notify_enabled: bool = Field(default=True, alias="AGENT_OS_NOTIFY_ENABLED")
 
     model_config = SettingsConfigDict(
         env_file=".env",
