@@ -388,24 +388,8 @@ export function apply(ctx: Context, config?: PluginConfig): void {
     },
   );
 
-  // Client 资产注册（DSH client bundle 加载系统）
-  ;(ctx as unknown as { inject?: (services: string[], cb: (clientCtx: any) => void) => void }).inject?.(
-    ['clientModules'],
-    (clientCtx: { effect?: (fn: () => void, label?: string) => void; clientModules?: any }) => {
-      clientCtx.effect?.(() => {
-        if (clientCtx.clientModules && typeof clientCtx.clientModules.register === 'function') {
-          clientCtx.clientModules.register({
-            id: name + '-client',
-            package: name,
-            entry: './client',
-          });
-          logger.info('client module registered: dsh-pmboard/client');
-        } else {
-          logger.warn('clientModules service unavailable, client UI will not load');
-        }
-      }, name + ': client');
-    },
-  );
+  // Client 资产：纯声明式（package.json dsh.client + exports["./client"] → lib/client.js），
+  // 宿主 dsh-client-modules 自动扫描已启用 Loader 条目组合启动图，无需逐插件接线。
 
   // 看板 REST/SSE API（经 webServer 惰性注入，注册即生效）
   ;(ctx as unknown as { inject?: (services: string[], cb: (webCtx: any) => void) => void }).inject?.(
