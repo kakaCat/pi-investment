@@ -35,7 +35,8 @@
     "verify:client": "node scripts/verify-client-build.mjs",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "prepublishOnly": "pnpm build && pnpm typecheck"
+    "prepublishOnly": "pnpm build && pnpm typecheck",
+    "prepare": "pnpm build"
   },
   "dependencies": {
     "@deepseek-ai/dsh-tools": "0.1.6-alpha.2"
