@@ -1,0 +1,127 @@
+src/tools/StatusTool/StatusTool.ts:44:          has_pending: { type: 'boolean', description: '本窗口是否已有遗留待确认建议卡（旧流程 triage）' },
+src/tools/StatusTool/StatusTool.ts:45:          pending_triage_id: { type: 'string', description: '最近遗留 pending triage id（无则空串）' },
+src/shared/protocol.ts:997:  triages: TriageRecord[]
+src/shared/protocol.ts:1006:  return { schemaVersion: REQBOARD_SCHEMA_VERSION, revision: 0, requirements: [], tasks: [], triages: [] }
+src/shared/protocol.ts:1273:// pending triage。存量 triage 记录保留供回溯，路由仍兼容其 confirm/reject/rebind。）
+src/adapters/CaptureHook.ts:7: *      遗留 pending 建议卡；旧 pending 建议卡仅旧流程 triage 会残留，新流程不再产生）；
+src/adapters/CaptureHook.ts:13: *  - legacy（禁例，已不再装配）：turn/start 无条件建空 triage + 每条 user/message
+src/adapters/JsonLedgerRepository.ts:31:    | 'triage-created' | 'triage-updated'
+src/adapters/JsonLedgerRepository.ts:35:  triages: readonly TriageRecord[]
+src/adapters/JsonLedgerRepository.ts:47:  return typeof o.revision === 'number' && Array.isArray(o.requirements) && Array.isArray(o.tasks) && Array.isArray(o.triages ?? [])
+src/adapters/JsonLedgerRepository.ts:96:        const triages = Array.isArray(parsed.triages) ? (parsed.triages as unknown[]).filter((entry) => {
+src/adapters/JsonLedgerRepository.ts:98:          if (!ok) console.warn('[reqboard] dropping implausible triage on load:', (entry as { id?: unknown })?.id)
+src/adapters/JsonLedgerRepository.ts:104:        this.ledger = { schemaVersion: REQBOARD_SCHEMA_VERSION, revision: parsed.revision, requirements, tasks, triages }
+src/adapters/JsonLedgerRepository.ts:154:    mutator: (ledger: ReqboardLedger) => { requirements?: RequirementRecord[]; tasks?: TaskRecord[]; triages?: TriageRecord[] } | undefined,
+src/adapters/JsonLedgerRepository.ts:155:  ): Promise<{ ledger: ReqboardLedger; revision: number; changed: { requirements: readonly RequirementRecord[]; tasks: readonly TaskRecord[]; triages: readonly TriageRecord[] } }> {
+src/adapters/JsonLedgerRepository.ts:164:          changed: { requirements: [] as const, tasks: [] as const, triages: [] as const },
+src/adapters/JsonLedgerRepository.ts:175:        triages: changed.triages ?? [],
+src/adapters/JsonLedgerRepository.ts:186:          triages: (changed.triages ?? []).map(t => deepFreeze(structuredClone(t))),
+src/adapters/JsonLedgerRepository.ts:210:        triages: this.ledger.triages,
+src/adapters/SessionMessageFilter.ts:45: * 若整段都是噪声返回空串（调用方应跳过分类，不建 triage 不立项）。
+src/http/routers/triage.ts:28:      pending: ledger.triages.filter(t => isPendingTriage(t)),
+src/http/routers/triage.ts:29:      resolved: ledger.triages.filter(t => isResolvedTriage(t)).slice(-50),
+src/http/routers/triage.ts:35:    const triageId = normalizeText(body.triageId, 'triageId', 64)
+src/http/routers/triage.ts:58:        const tri = ledger.triages.find(t => t.id === triageId && isPendingTriage(t)) ?? notFound(`待归类 ${triageId}`)
+src/http/routers/triage.ts:72:        return { requirements: [req], triages: [tri] }
+src/http/routers/triage.ts:80:    const preTri = pre.triages.find(t => t.id === triageId && isPendingTriage(t))
+src/http/routers/triage.ts:87:        const tri = ledger.triages.find(t => t.id === triageId && isPendingTriage(t)) ?? notFound(`待归类 ${triageId}`)
+src/http/routers/triage.ts:105:        return { requirements: [req], triages: [tri] }
+src/http/routers/triage.ts:113:      const tri = ledger.triages.find(t => t.id === triageId && isPendingTriage(t)) ?? notFound(`待归类 ${triageId}`)
+src/http/routers/triage.ts:152:      return { requirements: [req], triages: [tri] }
+src/http/routers/triage.ts:157:  /** 取消该 triage 名下仍为草稿的自动立项卡（reject/改绑时清场，避免孤儿草稿）。 */
+src/http/routers/triage.ts:170:          body: `[人工] 未采纳自动立项草稿，取消（triage ${tri.id}）`,
+src/http/routers/triage.ts:182:    const triageId = normalizeText(body.triageId, 'triageId', 64)
+src/http/routers/triage.ts:188:      const tri = ledger.triages.find(t => t.id === triageId && isPendingTriage(t)) ?? notFound(`待归类 ${triageId}`)
+src/http/routers/triage.ts:195:      return { requirements: cancelled, triages: [tri] }
+src/http/routers/triage.ts:197:    ok(res, result.changed.triages[0])
+src/http/routers/triage.ts:202:    const triageId = normalizeText(body.triageId, 'triageId', 64)
+src/http/routers/triage.ts:207:      const tri = ledger.triages.find(t => t.id === triageId && isPendingTriage(t)) ?? notFound(`待归类 ${triageId}`)
+src/http/routers/triage.ts:213:      return { requirements: cancelled, triages: [tri] }
+src/http/routers/triage.ts:215:    ok(res, result.changed.triages[0])
+src/http/routes.ts:23:import { createTriageRouter } from './routers/triage.js'
+src/http/routes.ts:152:  const triage = createTriageRouter(ctx)
+src/http/routes.ts:230:      if (method === 'GET' && sub === 'triage') return await triage.handleTriageList(res)
+src/http/routes.ts:231:      if (method === 'POST' && sub === 'triage/confirm') return await triage.handleTriageConfirm(req, res)
+src/http/routes.ts:232:      if (method === 'POST' && sub === 'triage/rebind') return await triage.handleTriageRebind(req, res)
+src/http/routes.ts:233:      if (method === 'POST' && sub === 'triage/reject') return await triage.handleTriageReject(req, res)
+src/index.ts:247:  // unbound 且无遗留 pending 建议卡（旧流程 triage 产物）→ 登记「待捕获消息」到
+src/index.ts:406:      logger.info('routes registered: /dashboard/api/reqboard/* (state/events/req/task/triage CRUD + 人工确认立项)');
+src/application/internal/window.ts:17:type View = Pick<LedgerView, 'requirements' | 'triages'>
+src/application/internal/window.ts:26: *  2. 该窗口某条 triage 已确认（bind_req/create_req）且其 resultRequirementId(s)
+src/application/internal/window.ts:31:  for (const tri of ledger.triages) {
+src/application/internal/window.ts:44:/** 该窗口是否已有**遗留** pending 建议卡（旧流程 triage 产物）。 */
+src/application/internal/window.ts:46:  return ledger.triages.some(t => t.sessionId === windowKey && t.status === 'pending')
+src/application/internal/window.ts:49:/** 该窗口最近的**遗留** pending 建议卡（旧流程 triage 产物；供 reqboard_status 展示）。 */
+src/application/internal/window.ts:51:  return ledger.triages
+src/application/internal/window.ts:60:  for (const tri of ledger.triages) {
+src/application/internal/window.ts:85:/** 该窗口是否「需要走一次立项捕获」：unbound 且无遗留 pending 建议卡（旧流程 triage 产物）。 */
+src/application/internal/support.ts:212:/** 本窗口最近一条遗留 pending triage（旧流程产物；无则 undefined）。 */
+src/application/internal/rollup.ts:45:  return { requirements: ledger.requirements, tasks: ledger.tasks, triages: ledger.triages }
+src/application/internal/rollup.ts:113: * triage 锚点）的需求——人工建卡、且从未被窗口接手的仍留在立项。
+src/application/ports.ts:23:  readonly triages: readonly TriageRecord[]
+src/application/query/QueryState.ts:54:        pending_triage_id: pending?.id ?? '',
+src/domain/workflow/RollupSpec.ts:61:  readonly triages: readonly RollupTriageLike[]
+src/domain/workflow/RollupSpec.ts:90: * triage 锚点）的需求——人工建卡、且从未被窗口接手的仍留在立项。
+src/domain/workflow/RollupSpec.ts:97:  for (const t of view.triages) {
+src/client/api.ts:40:export const fetchTriage = (): Promise<TriageList> => get<TriageList>(BASE + '/triage')
+src/client/api.ts:192:export function triageConfirm(input: {
+src/client/api.ts:193:  triageId: string
+src/client/api.ts:201:  return post(BASE + '/triage/confirm', input)
+src/client/api.ts:204:export function triageRebind(input: { triageId: string; targetId: string }): Promise<unknown> {
+src/client/api.ts:205:  return post(BASE + '/triage/rebind', input)
+src/client/api.ts:208:export function triageReject(input: { triageId: string }): Promise<unknown> {
+src/client/api.ts:209:  return post(BASE + '/triage/reject', input)
+src/client/types.ts:235:// -- 待归类（triage）-------------------------------------------------------
+src/client/styles/base.ts:338:.dsh-pm-triage-panel { display: flex; flex-direction: column; gap: 10px; padding: 16px 24px; height: 100%; overflow-y: auto; }
+src/client/styles/base.ts:339:.dsh-pm-triage {
+src/client/styles/base.ts:344:.dsh-pm-triage-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+src/client/styles/base.ts:346:.dsh-pm-triage-score { font-size: 11px; padding: 1px 8px; border-radius: 4px; background: rgba(74,125,255,.12); color: #4a7dff; }
+src/client/styles/base.ts:347:.dsh-pm-triage-suggest { font-size: 12px; color: var(--dsw-text-primary, #444); }
+src/client/styles/base.ts:348:.dsh-pm-triage-text { font-size: 13px; color: var(--dsw-text-secondary, #555); white-space: pre-wrap; }
+src/client/styles/base.ts:349:.dsh-pm-triage-edit { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+src/client/styles/base.ts:350:.dsh-pm-triage-edit .dsh-pm-input[data-role="triage-title"] { flex: 1 1 220px; }
+src/client/styles/base.ts:351:.dsh-pm-triage-edit .dsh-pm-input[data-role="triage-category"] { flex: 0 0 auto; }
+src/client/styles/base.ts:352:.dsh-pm-triage-actions { display: flex; gap: 8px; }
+src/client/board-mount.ts:3: * 页面保留视图状态机（board / req-detail / task-detail / triage）、
+src/client/board-mount.ts:123:  | { kind: 'triage' }
+src/client/board-mount.ts:165:  let triages: TriageRecord[] = []
+src/client/board-mount.ts:250:      case 'triage':
+src/client/board-mount.ts:251:        viewEl.innerHTML = buildTriage(triages, state)
+src/client/board-mount.ts:264:      triages = t.pending
+src/client/board-mount.ts:572:      case 'triage-confirm': {
+src/client/board-mount.ts:573:        const triageId = el.dataset.triage
+src/client/board-mount.ts:574:        if (!triageId) return
+src/client/board-mount.ts:576:        const tri = triages.find(t => t.id === triageId)
+src/client/board-mount.ts:578:          void api.triageConfirm({ triageId, action: 'bind_req', targetId: tri.suggestedTargetId }).then(() => fetchAll()).catch(e => window.alert(String(e)))
+src/client/board-mount.ts:581:          const card = el.closest<HTMLElement>('.dsh-pm-triage')
+src/client/board-mount.ts:582:          const title = card?.querySelector<HTMLInputElement>('[data-role="triage-title"]')?.value.trim()
+src/client/board-mount.ts:583:          const category = card?.querySelector<HTMLSelectElement>('[data-role="triage-category"]')?.value
+src/client/board-mount.ts:584:          void api.triageConfirm({
+src/client/board-mount.ts:585:            triageId,
+src/client/board-mount.ts:593:      case 'triage-rebind': {
+src/client/board-mount.ts:594:        // 显示改绑宿主（select 已在 triage 视图内）
+src/client/board-mount.ts:598:          host.dataset.triage = el.dataset.triage ?? ''
+src/client/board-mount.ts:602:      case 'triage-rebind-confirm': {
+src/client/board-mount.ts:604:        const triageId = host?.dataset.triage
+src/client/board-mount.ts:606:        if (triageId && select?.value) {
+src/client/board-mount.ts:607:          void api.triageRebind({ triageId, targetId: select.value }).then(() => fetchAll()).catch(e => window.alert(String(e)))
+src/client/board-mount.ts:611:      case 'triage-reject': {
+src/client/board-mount.ts:612:        const triageId = el.dataset.triage
+src/client/board-mount.ts:613:        if (triageId) {
+src/client/board-mount.ts:614:          void api.triageReject({ triageId }).then(() => fetchAll()).catch(e => window.alert(String(e)))
+src/client/views/board.ts:296:export function buildTriage(triages: TriageRecord[], state: BoardState): string {
+src/client/views/board.ts:297:  const pending = triages.filter(t => t.status === 'pending')
+src/client/views/board.ts:309:        <div class="dsh-pm-triage-edit">
+src/client/views/board.ts:310:          <input type="text" class="dsh-pm-input" data-role="triage-title" value="${esc(t.suggestedTitle ?? t.firstMessageText.slice(0, 120))}" placeholder="需求名称（可编辑）" />
+src/client/views/board.ts:311:          <select class="dsh-pm-input" data-role="triage-category">
+src/client/views/board.ts:316:      <div class="dsh-pm-triage" data-triage="${esc(t.id)}">
+src/client/views/board.ts:317:        <div class="dsh-pm-triage-head">
+src/client/views/board.ts:319:          <span class="dsh-pm-triage-score">分 ${t.score}</span>
+src/client/views/board.ts:320:          <span class="dsh-pm-triage-suggest">${suggestion}</span>
+src/client/views/board.ts:322:        <div class="dsh-pm-triage-text">${esc(t.firstMessageText.slice(0, 200))}${t.firstMessageText.length > 200 ? '…' : ''}</div>
+src/client/views/board.ts:324:        <div class="dsh-pm-triage-actions">
+src/client/views/board.ts:325:          <button type="button" class="dsh-pm-btn primary" data-action="triage-confirm" data-triage="${esc(t.id)}">确认</button>
+src/client/views/board.ts:326:          ${isCreate ? '' : `<button type="button" class="dsh-pm-btn" data-action="triage-rebind" data-triage="${esc(t.id)}">改绑</button>`}
+src/client/views/board.ts:327:          <button type="button" class="dsh-pm-btn" data-action="triage-reject" data-triage="${esc(t.id)}">拒绝</button>
+src/client/views/board.ts:333:    <div class="dsh-pm-triage-panel">
+src/client/views/board.ts:343:        <button type="button" class="dsh-pm-btn primary" data-action="triage-rebind-confirm">确认改绑</button>

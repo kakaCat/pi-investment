@@ -132,12 +132,14 @@ tags: [wiki, index, home, agent-dh]
 - ✅ [RFC-013 公告板页面](rfcs/013-bulletin-board-page.md)
 - ✅ P1 [页面插件契约](architecture/page-plugin-contract.md) —— 两半分工、产物与交付证据、接口信封、安全默认
 - ✅ [需求节点详情系统](architecture/reqboard-stage-detail.md) —— 节点点开看工作记录：StageDetail 契约 + 模板模式双端 + 产物闸门 + 追溯链 + 接力任务卡 + markdown 弹窗纪律（REQ-31e11f）
+- ✅ [节点详情面板（锚定式 node-panel）](architecture/reqboard-node-panel.md) —— 点节点就地展开（无遮罩/无底栏）：基础信息按节点给、「执行流程」做规定 vs 实际对照（提示词注入 / 执行动作 / 上下文管理）、实施节点 DAG·泳道双视图；含防漂移纪律与边界（REQ-260923134706-e72f）
 - ✅ [需求看板的 Token 消耗（过程消耗 + 提示词成本）](architecture/reqboard-token-usage.md) —— 每个流程节点/任务的 token 从哪来、怎么算；固定系统提示词与注入提示词的成本；缺失语义与自检命令（REQ-a33899）
 - ✅ [web-liveness 页面自愈](../../agent-dh/packages/pages/web-liveness/README.md) —— 重启后已开标签页自动刷新（`/plugins/events` 的 graph.rev vs `__DSH_BOOT__.rev`）
 
 ### 卷 8 · 需求流水线与归档（本 wiki 的供料线）
 
 - ✅ [RFC 014 需求看板](rfcs/014-requirement-board.md)
+- ✅ **P0** [项目看板代码流程与实施流程（架构设计 + 10 张流程图）](architecture/pmboard-code-flow.md) —— 双半 × 四层架构、工具→用例→端口→台账调用链、七节点五道人工门状态机、骨牌式自动实施链（AdvanceChain）、闸门后置链；附「文档/注释与代码漂移」读数发现（[HTML 版](architecture/pmboard-code-flow.html)）
 - ✅ [需求归档规范](architecture/requirement-archive.md)
 - ✅ [需求归档索引](requirements/INDEX.md)
 - ✅ P0 [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) —— 全流程表 + 各阶段硬要求 + 错误码处置
@@ -211,12 +213,14 @@ tags: [wiki, index, home, agent-dh]
 <!-- AUTO:recent BEGIN -->
 | 日期 | 页面 | 一句话 |
 |---|---|---|
+| 2026-09-24 | [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) | 一个需求从冒出来到归档，具体敲哪些工具、卡在哪、错了怎么办。 |
+| 2026-09-24 | [全站页面索引（机器可读入口）](INDEX.md) | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 |
+| 2026-09-23 | [节点详情面板（锚定式 node-panel）](architecture/reqboard-node-panel.md) | 会话流程条节点点开后的就地面板：锚定在流程条下方右侧、无遮罩无底栏；「基础信息」按节点给该看的，「执行流程」把该阶段提示词的纪律与真实台账做规定 vs 实际对照；实施节点改 DAG·泳道双视… |
+| 2026-09-23 | [六立项类型的流程差异（reqboard）](architecture/reqboard-category-flows.md) | feature/bug/refactor/spike/doc/chore 六类需求各自走什么节点、过哪些门、哪里生效哪里是缺口——以代码为准的实测记录。 |
+| 2026-09-21 | [需求节点详情系统（stage-detail）](architecture/reqboard-stage-detail.md) | 会话框流程条节点点开看详情：StageDetail 契约 + 模板模式双端装配 + 分类流程档案 + 产物闸门 + 追溯链 + 接力任务卡 + 前端工作记录渲染器；含子任务层与自动链控制面（… |
 | 2026-09-20 | [闸门确认后置链（切面 + 责任链）](architecture/gate-post-chain.md) | 人工闸门被作答之后机器自动做什么：唯一点 join point、两相执行 H1..H5、短路/降级/幂等不变量、新加一道门要改哪里。 |
-| 2026-09-20 | [全站页面索引（机器可读入口）](INDEX.md) | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 |
-| 2026-09-19 | [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) | 一个需求从冒出来到归档，具体敲哪些工具、卡在哪、错了怎么办。 |
 | 2026-09-18 | [需求看板的 Token 消耗（过程消耗 + 提示词成本）](architecture/reqboard-token-usage.md) | 看板怎么记录与展示「每个流程节点/每个任务」的 token 消耗，以及固定系统提示词与 reqboard 注入提示词的成本；含缺失语义与自检命令。 |
-| 2026-09-17 | [需求节点详情系统（stage-detail）](architecture/reqboard-stage-detail.md) | 会话框流程条节点点开看详情：StageDetail 契约 + 模板模式双端装配 + 分类流程档案 + 产物闸门 + 追溯链 + 接力任务卡 + 前端工作记录渲染器。 |
-| 2026-09-16 | [@pi-investment/web-liveness · 页面自愈（重启后标签页不再变砖）](../packages/pages/web-liveness/README.md) | 监听框架免鉴权的 /plugins/events SSE，发现服务端换过进程就自动刷新已打开的标签页。 |
+| 2026-09-16 | [@pi-investment/web-liveness · 页面自愈（重启后标签页不再变砖）](../packages/web/web-liveness/README.md) | 监听框架免鉴权的 /plugins/events SSE，发现服务端换过进程就自动刷新已打开的标签页。 |
 | 2026-09-16 | [页面插件契约](architecture/page-plugin-contract.md) | 做一个 DSH 页面插件（GUI）要满足哪些契约；改动怎么生效。 |
 | 2026-09-15 | [故障排查手册（症状 → 根因 → 处置）](guides/troubleshooting.md) | 遇到这些症状，先看哪里、大概率是什么、怎么修。 |
 | 2026-09-14 | [工作日志索引（L3 证据档案）](work-logs/README.md) | 某个时间点「当时做了什么、为什么这么做、结论是什么」。按月份倒序列出全部工作日志。 |
@@ -224,8 +228,6 @@ tags: [wiki, index, home, agent-dh]
 | 2026-09-14 | [RFC 010 Phase 1 - Window-OS Lifecycle Management](rfcs/RFC-010-README.md) | RFC 010 Phase 1：多窗口协同（窗口注册、角色化派单、窗口间消息、心跳容错）。 |
 | 2026-09-14 | [P1-3: 判断结果自动对账系统 DDD 重构设计](rfcs/013-decision-evaluation-ddd-refactor.md) | RFC 013：决策评估 DDD 重构（decision_audit 评估引擎 + agent_decisions 表）。 |
 | 2026-09-14 | [RFC 013：公告板页面（dashboard-bulletin）](rfcs/013-bulletin-board-page.md) | RFC 013：公告板页面插件设计（双半插件，与 board_* 工具同源）。 |
-| 2026-09-14 | [RFC 011：工具 Web 自定义卡片（Tool Web Cards）统一实现规范](rfcs/011-tool-web-cards.md) | RFC 011：工具调用在 GUI 里的 Web 卡片展示（草案）。 |
-| 2026-09-14 | [RFC 009：盯盘推送双通道方案（direct 直推 / agent 判断分流）](rfcs/009-watch-push-dual-channel.md) | RFC 009：盯盘推送双通道设计（草案）。 |
 
 > 自动生成（`docs_index.py`）：按 front-matter 的 updated 倒序取前 15 页。
 <!-- AUTO:recent END -->

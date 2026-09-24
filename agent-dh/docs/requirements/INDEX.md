@@ -3,7 +3,7 @@ id: requirements-index
 title: 需求档案索引（L3 证据档案）
 type: index
 status: living
-updated: 2026-09-20
+updated: 2026-09-24
 owners: [agent-dh]
 tags: [reqboard, archive, index, l3]
 ---
@@ -22,6 +22,8 @@ tags: [reqboard, archive, index, l3]
 | REQ-31e11f | 会话框流程条 8 节点可点开看工作记录：StageDetail 契约+模板模式双端+产物闸门+追溯链+接力任务卡+markdown 弹窗；与看板同源同渲染器 | feature | 2026-09-17 | [REQ-31e11f](REQ-31e11f/) | [architecture/reqboard-stage-detail.md](../architecture/reqboard-stage-detail.md)、[README 卷 7](../README.md) |
 | REQ-d3e61a | 需求→任务卡「不丢字/看得懂/验得了」：拆分覆盖门禁+统一编号串联+需求侧接收标记（文档面与看板面双红）+验收三方一致性；文档标准从纸面规范落成插件门禁（六类文档+分类文档集+RTM） | feature | 2026-09-18 | [REQ-d3e61a](REQ-d3e61a/) | [architecture/documentation-standard.md](../architecture/documentation-standard.md)、[标准化接入指引](../architecture/documentation-standard-integration-guide.md)、[README 卷 8](../README.md) |
 | REQ-81aabd | 需求流水线阶段键 `planning` 全仓改名 `design`（中文「设计」），设计阶段新增四份设计文档「已交/未交」建模（只展示、不改任何闸门）；台账 schemaVersion 6→7 停机迁移 | feature | 2026-09-19 | [REQ-81aabd](REQ-81aabd/) | [architecture/workflow-stages.md](../architecture/workflow-stages.md)、[guides/reqboard-workflow.md](../guides/reqboard-workflow.md) |
+| REQ-260923134706-e72f | pmboard 节点详情弹框重做成锚定式面板：点节点就地展开（无遮罩/无底栏），基础信息按节点给、「执行流程」把阶段提示词纪律与真实台账做规定 vs 实际对照（新增 isolation-log 只读端点），实施节点 DAG·泳道双视图；顺带修掉 brainstorming 模板与门禁的定义行矛盾（新增 template-clause-gate 防漂移单测） | feature | 2026-09-23 | [REQ-260923134706-e72f](REQ-260923134706-e72f/) | [architecture/reqboard-node-panel.md](../architecture/reqboard-node-panel.md)、[README 卷 7](../README.md) |
+| REQ-260923222557-d3b0 | 节点提示词注入 worktree 规范（implementing 档 + 子任务完成/归档两条事件）+ 弹框超时统一 1 小时（原 10/15 分钟）+ 面板三处口径修正（设计头部取词、文档行可点/未交占位、未到达节点「未开始」） | feature | 2026-09-24 | [REQ-260923222557-d3b0](REQ-260923222557-d3b0/) | [guides/reqboard-workflow.md](../guides/reqboard-workflow.md)、[architecture/pmboard-ui-glossary.md](../architecture/pmboard-ui-glossary.md) |
 
 ## 进行中（计划已提交 / 实施中，未归档）
 

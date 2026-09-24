@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>dsh-pmboard 代码流程与实施流程 · 架构设计</title>
+<style>
+:root{--bg:#0f1420;--panel:#161d2c;--line:#26314a;--fg:#dfe6f3;--mut:#93a0bb;--acc:#5b8cff;--grn:#3ecf8e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.75 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 28px 80px}
+h1{font-size:26px;border-bottom:2px solid var(--acc);padding-bottom:12px}
+h2{font-size:20px;margin-top:44px;border-left:4px solid var(--acc);padding-left:10px}
+h3{font-size:16px;color:#c6d2ec;margin-top:28px}
+a{color:var(--acc)}
+code{background:#1d2639;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:13px}
+pre{background:#111726;border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto}
+pre code{background:none;border:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:#1b2436}
+tr:nth-child(even) td{background:#141b29}
+blockquote{border-left:3px solid var(--grn);margin:16px 0;padding:6px 16px;background:#141d2b;color:#c6d2ec}
+.diagram{background:#111726;border:1px solid var(--line);border-radius:10px;padding:14px;margin:18px 0;overflow:auto}
+.diagram pre.mermaid{background:none;border:none;padding:0;margin:0;text-align:center}
+.toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:22px 0}
+.toc ol{margin:8px 0 0;padding-left:22px}.toc li{margin:3px 0}
+.fallback{display:none;background:#3a2418;border:1px solid #7a4a22;color:#ffcf9a;padding:8px 12px;border-radius:8px;margin-bottom:14px;font-size:13px}
+</style></head>
+<body><div class="wrap">
+<div class="fallback" id="mmdfb">⚠️ Mermaid CDN 未加载：下方每张图以源码文本显示（Markdown 版见同目录 pmboard-code-flow.md）。</div>
+<nav class="toc"><b>目录</b><ol><li><a href="#s1一句话">1. 一句话</a></li><li><a href="#s2总体架构双半四层">2. 总体架构：双半 × 四层</a></li><li><a href="#s3代码流程">3. 代码流程</a></li><li><a href="#s4实施流程需求生命周期">4. 实施流程：需求生命周期</a></li><li><a href="#s5自动实施链骨牌式推进AdvanceChain">5. 自动实施链：骨牌式推进（AdvanceChain）</a></li><li><a href="#s6任务卡与子卡一次子卡执行怎么落地">6. 任务卡与子卡：一次子卡执行怎么落地</a></li><li><a href="#s7闸门后置链人点完弹框之后机器做什么">7. 闸门后置链：人点完弹框之后机器做什么</a></li><li><a href="#s8立项捕获管线capture">8. 立项捕获管线（capture）</a></li><li><a href="#s9数据落盘与运行时文件">9. 数据落盘与运行时文件</a></li><li><a href="#s10实施流程的完整时序一个feature需求的端到端">10. 实施流程的完整时序（一个 feature 需求的端到端）</a></li><li><a href="#s11读数发现文档注释与代码的漂移建议同步非本页结论">11. 读数发现：文档/注释与代码的漂移（建议同步，非本页结论）</a></li><li><a href="#s12代码地图复核用">12. 代码地图（复核用）</a></li><li><a href="#s相关页面">相关页面</a></li></ol></nav>
+<h1>项目看板（dsh-pmboard）代码流程与实施流程设计</h1>
+<blockquote>
+<p><strong>本页是什么</strong>：架构说明（长期有效）。把 <code>agent-dh/packages/web/dsh-pmboard</code> 的
+<strong>代码流程</strong>（一次调用怎么从工具走到台账落盘）与<strong>实施流程</strong>（一个需求怎么从立项走到归档）
+画成图，并给出模块清单、契约与不变量。</p>
+<p><strong>事实时点与来源</strong>（R-013）：2026-09-23 对该包 <strong>源码实读</strong>——<code>src/</code> 12 个一级目录、
+13 个 Agent 工具、6 个 HTTP 资源路由、1 个客户端 bundle。文中每条结论都可用「代码地图」
+一节的文件定位复核；与既有文档冲突处单列在「§11 读数发现」。</p>
+<p><strong>与既有文档的关系</strong>：流程语义的事实源仍是
+<a href="./workflow-stages.md">workflow-stages.md</a>（七节点/六要素）与
+<a href="./gate-post-chain.md">gate-post-chain.md</a>（闸门后置链）；本页是<strong>代码视角的全景图</strong>，
+把散在多个 REQ 文档里的「怎么实现」收成一张图。</p>
+</blockquote>
+<hr>
+<h2 id="s1一句话">1. 一句话</h2>
+<p>dsh-pmboard 是一个 <strong>DSH 双半插件</strong>（host + client）：host 半把「需求流水线」实现成
+<strong>两级状态机 + 五道人工门 + 一条骨牌式自动实施链</strong>，client 半把它渲染成<strong>泳道看板 + 节点详情 + 逐项验收弹框</strong>。</p>
+<p>三条设计原则（README 与代码一致）：</p>
+<ol>
+<li><strong>创建即立项</strong>：没有待归类/建议卡中间态，弹框作答即 <code>draft</code>；</li>
+<li><strong>人工闸门在关键节点</strong>：立项三问 / 需求文档确认 / 设计文档确认 / 拆分计划批准 / 逐项验收 —— 代码级仅人可越；</li>
+<li><strong>一切决策留痕</strong>：台账 <code>dsh-reqboard.json</code>（两级状态机）+ 文档 <code>docs/requirements/&lt;REQ&gt;/</code> + 运行时 ring buffer 日志。</li>
+</ol>
+<hr>
+<h2 id="s2总体架构双半四层">2. 总体架构：双半 × 四层</h2>
+<p><div class="diagram"><pre class="mermaid">flowchart TB
+  subgraph CLIENT["client 半（Web GUI，src/client/*）"]
+    C1["index.ts&lt;br/&gt;侧栏入口 + 会话标题进度条注册"]
+    C2["board-mount.ts&lt;br/&gt;BoardController（视图编排）"]
+    C3["views/ 泳道·时间线·节点详情·验收单"]
+    C4["api.ts&lt;br/&gt;REST + EventSource(SSE)"]
+    C5["toolviews/ 业务工具卡片（reqboard_* 定制渲染）"]
+  end
+
+  subgraph HOST["host 半（Node，src/index.ts apply(ctx)）"]
+    subgraph L4["L4 工具面 · src/tools（13 个）"]
+      T1["capture / create / status / move / submit&lt;br/&gt;ask_confirm / accept_sheet / decompose"]
+      T2["task_move / task_execute / task_run&lt;br/&gt;task_status / task_report"]
+    end
+    subgraph L3["L3 协议薄层 · src/http"]
+      R0["routes.ts：组合根 + 错误→状态码唯一映射"]
+      R1["routers/: stages·requirements·tasks·verdicts·artifacts·injection"]
+    end
+    subgraph L2["L2 用例层 · src/application"]
+      U1["use-cases/ 18 个用例"]
+      U2["gate/ 闸门后置链（Phase A/B）"]
+      U3["internal/ 35 个接线与门禁"]
+      U4["query/ 只读投影（StageDetail / Token / Marks）"]
+      U5["ports.ts 端口契约（只 import type）"]
+    end
+    subgraph L1["L1 纯领域 · src/domain（禁 import node: 与 @deepseek-ai/*）"]
+      D1["requirement/ + task/ 两级状态机"]
+      D2["gate/GateCatalog 五门唯一事实源"]
+      D3["artifact/ 产物规约 · workflow/ 派生规约"]
+      D4["prompt/ 提示词分片路由（126 分片 + 6 门禁）"]
+      D5["limits.ts 具名上限 · text/ 文案单点"]
+    end
+    subgraph L0["L0 适配器 · src/adapters（端口的唯一实现）"]
+      A1["JsonLedgerRepository&lt;br/&gt;load-once + 原子写台账"]
+      A2["FileDocRepository&lt;br/&gt;docs/ 产物读写真源"]
+      A3["CaptureHook · SessionProbeAdapter"]
+      A4["WorkflowEngineRunner · AgentDeliverer&lt;br/&gt;UserQuestionsAdapter · GateAwareQuestions"]
+    end
+  end
+
+  CLIENT -- "GET /dashboard/api/reqboard/*（REST+SSE）" --&gt; L3
+  AGENT["Agent / LLM"] -- "reqboard_* 工具调用" --&gt; L4
+  L4 --&gt; L2
+  L3 --&gt; L2
+  L2 --&gt; L1
+  U5 -. "依赖倒置：用例只认端口" .-&gt; L0
+  L0 --&gt; L1</pre></div></p>
+<p><strong>依赖方向铁律</strong>（<code>tests/layer-boundary.test.ts</code> 静态扫描强制）：<code>tools/http/adapters → application → domain</code>，
+<strong>只许向内</strong>。两个可机械核验的推论：</p>
+<ul>
+<li><code>domain/</code> 里出现 <code>node:</code> 或 <code>@deepseek-ai/*</code> 的 import = 测试变红；时间/随机数一律由 <code>Clock</code>/<code>IdFactory</code> 端口注入；</li>
+<li>状态字面量（<code>&#39;done&#39;</code> 之类）不允许出现在 <code>http/routers/</code> 与 <code>tools/</code> 壳里，一律引用 <code>domain/</code> 常量或谓词函数。</li>
+</ul>
+<hr>
+<h2 id="s3代码流程">3. 代码流程</h2>
+<h3>3.1 一次 Agent 工具调用的完整路径（写路径）</h3>
+<p><div class="diagram"><pre class="mermaid">sequenceDiagram
+  autonumber
+  participant AG as Agent(LLM)
+  participant TOOL as 工具壳 src/tools/*Tool
+  participant SP as SessionProbeAdapter
+  participant UC as 用例 src/application/use-cases
+  participant DM as 纯领域 src/domain
+  participant REPO as JsonLedgerRepository
+  participant DOC as FileDocRepository
+  participant Q as UserQuestionsAdapter
+
+  AG-&gt;&gt;TOOL: reqboard_xxx(args, exec)
+  TOOL-&gt;&gt;SP: windowKey(exec) + requireLiveDriver/requireDirectHuman
+  Note over SP: 非活窗口 → caller_not_live&lt;br/&gt;子代理通道 → delegated_caller
+  TOOL-&gt;&gt;UC: 调用用例（deps 由组合根注入）
+  UC-&gt;&gt;REPO: read()/snapshot() 取只读视图
+  UC-&gt;&gt;DM: 断言状态转移 / 门 / 产物 / 内容门禁
+  alt 需要人工裁决
+    UC-&gt;&gt;Q: questions.ask(..., { gate: 'G1'..'G4' })
+    Q--&gt;&gt;UC: 选定标签（人作答）
+    Q-&gt;&gt;Q: GateAwareQuestions 装饰器&lt;br/&gt;enqueue(ctx) = Phase A 登记
+  end
+  UC-&gt;&gt;REPO: mutate(reason, fn) —— 写操作唯一入口
+  Note over REPO: 回调内改内存 → 成功后 revision+1&lt;br/&gt;persistAtomic(tmp+fsync+rename)
+  UC-&gt;&gt;DOC: write 产物 / stat 凭证 / list 目录
+  UC--&gt;&gt;TOOL: 结构化结果（success/error + code）
+  TOOL--&gt;&gt;AG: 文本或 JSON（含下一步指引）</pre></div></p>
+<p><strong>关键实现约定</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>约定</th>
+<th>代码位置</th>
+<th>为什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>写操作唯一入口 <code>mutate(reason, fn)</code>，<code>reason</code> 必填</td>
+<td><code>adapters/JsonLedgerRepository.ts</code></td>
+<td>审计 + 串行化；回调返回 <code>undefined</code> = 无变化，<strong>不 bump revision</strong>（幂等可断言）</td>
+</tr>
+<tr>
+<td>读路径<strong>零 legacy 兼容</strong>（<code>reviewing→brainstorming</code> 等归一在迁移脚本做）</td>
+<td>同上</td>
+<td>双入口会静默绕过单点状态机</td>
+</tr>
+<tr>
+<td>错误 → HTTP 状态码<strong>只有一处映射</strong> <code>fail()</code></td>
+<td><code>http/routes.ts</code></td>
+<td>human_gate/system_gate → 403；invalid_* / missing_artifact → 400；not_found → 404</td>
+</tr>
+<tr>
+<td>工具壳不做状态判断，只做参数校验 + 调用用例</td>
+<td><code>src/tools/**</code></td>
+<td><code>tests/tools-dispatch.test.ts</code> 禁止壳里出现 <code>status ===</code></td>
+</tr>
+<tr>
+<td>弹框通道不可用时返回 <code>{success:false, fallback:&#39;board&#39;}</code></td>
+<td>各交互用例</td>
+<td><strong>不伪造&quot;已确认&quot;</strong>，改走看板等效通道</td>
+</tr>
+</tbody></table>
+<h3>3.2 一次看板读请求（SSE 推送）</h3>
+<p><div class="diagram"><pre class="mermaid">flowchart LR
+  B["浏览器&lt;br/&gt;board-mount.ts"] --&gt;|"GET /state"| S["stages.handleState"]
+  B --&gt;|"GET /events（SSE）"| E["store.subscribe(change)&lt;br/&gt;event: kind / data: {revision, kind}"]
+  B --&gt;|"GET /requirements/:id/stages · /stage/:stage"| Q["application/query/&lt;br/&gt;QueryStageDetail 等只读投影"]
+  B --&gt;|"POST /req/* /task/*"| W["routers/*&lt;br/&gt;（人工动作入口）"]
+  E -. "revision 变化 → fetchAll()" .-&gt; B
+  Q --&gt; B
+  W --&gt; B</pre></div></p>
+<p><strong>客户端契约纪律</strong>（见 <a href="./page-plugin-contract.md">page-plugin-contract.md</a>）：
+client bundle 的裸 npm 依赖必须 <code>noExternal</code> 打进去（DSH shell 的 module-loader 只种子 <code>react/react-dom/@deepseek-ai/*</code>），
+产物经 <code>scripts/verify-client-build.mjs</code> 校验——含 <code>WRAP_SENTINEL</code> 哨兵，<strong>禁止对 bundle 做逐行字符串变换</strong>（2026-09-16 事故铁律）。</p>
+<hr>
+<h2 id="s4实施流程需求生命周期">4. 实施流程：需求生命周期</h2>
+<h3>4.1 七节点 + 五道人工门</h3>
+<p><div class="diagram"><pre class="mermaid">flowchart LR
+  DRAFT["① 立项&lt;br/&gt;draft"] --&gt;|"R1 接手推进（system）&lt;br/&gt;窗口出现直接人类消息"| BS["② 需求分析&lt;br/&gt;brainstorming"]
+  BS --&gt;|"G1 确认需求文档（人）&lt;br/&gt;产物 requirement.md"| DESIGN["③ 设计&lt;br/&gt;design"]
+  DESIGN --&gt;|"G2 确认设计文档&lt;br/&gt;产物 design/*.md"| DEC["④ 拆分&lt;br/&gt;decomposing"]
+  DEC --&gt;|"G3 批准拆分计划（人）&lt;br/&gt;→ 落库任务卡并开跑"| IMPL["⑤ 实施&lt;br/&gt;implementing"]
+  IMPL --&gt;|"R2 全部任务 done（system）"| ACC["⑥ 验收&lt;br/&gt;accepting"]
+  ACC --&gt;|"G4 验收通过（人，验收单）"| ARCH["⑦ 归档&lt;br/&gt;archived"]
+  DESIGN -. "R3 计划落库产生任务" .-&gt; DEC
+  IMPL -. "人工退回·重新描述需求" .-&gt; DESIGN
+  DRAFT --&gt; CANCEL["canceled"]
+  IMPL --&gt; CANCEL
+  ACC --&gt; CANCEL
+  CANCEL -. "归档" .-&gt; ARCH</pre></div></p>
+<ul>
+<li><strong>门 G0～G4 的唯一事实源</strong> = <code>domain/gate/GateCatalog.ts</code>（旧的三处 <code>ADVANCE_MAP</code>/<code>ARTIFACT_CONFIRM_GATES</code>/文案表已收敛到此，<code>RequirementStatus</code> 与它<strong>各存一份 + 测试锁相等</strong>，避免值环）。</li>
+<li><strong><code>done</code> 是 legacy</strong>：REQ-9f4a44 起验收通过<strong>直达 <code>archived</code></strong>，<code>done</code> 只用于老台账读取，不在流程图节点里。</li>
+<li><strong>&quot;拆分计划待批&quot;不是独立状态</strong>：它是 <code>design</code> 的子状态（<code>plan.approvedAt</code> 未写），看板用卡面 chip 表达。</li>
+</ul>
+<h3>4.2 谁有权推进：actor 三态</h3>
+<p><div class="diagram"><pre class="mermaid">flowchart TB
+  A["发起者 actor"] --&gt; H["human"]
+  A --&gt; G["agent"]
+  A --&gt; S["system（rollup）"]
+  H --&gt;|"任意合法转移"| OK["通过"]
+  G --&gt;|"仅非 HUMAN_ONLY 的合法转移"| OK
+  G --&gt;|"命中 HUMAN_ONLY"| REJ["403 human_gate"]
+  S --&gt;|"仅出现在 SYSTEM_REQ_TRANSITIONS 白名单"| OK
+  S --&gt;|"白名单之外（含全部人工门）"| REJ2["system_gate"]</pre></div></p>
+<p><code>SYSTEM_REQ_TRANSITIONS</code> 白名单<strong>只有三条</strong>：<code>draft&gt;brainstorming</code>（接手）、<code>design&gt;decomposing</code>（计划落库）、<code>implementing&gt;accepting</code>（全部任务完成）。
+2026-09-14 五门裁定后 <code>decomposing&gt;implementing</code> 已从白名单移除 —— <strong>自动推进在任何情况下都不可能越过人工门</strong>。</p>
+<h3>4.3 各阶段产物与出口门（读取自代码）</h3>
+<table>
+<thead>
+<tr>
+<th>节点</th>
+<th>必备产物 <code>STAGE_ARTIFACT_REQUIREMENTS</code></th>
+<th>出口门 <code>GATE_CATALOG</code></th>
+<th>门的 <code>humanOnly</code></th>
+<th>自动推进</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>draft</td>
+<td>—</td>
+<td>G0 立项门（三问弹框）</td>
+<td>false</td>
+<td><code>draft&gt;brainstorming</code>（R1，system）</td>
+</tr>
+<tr>
+<td>brainstorming</td>
+<td><code>requirement</code></td>
+<td><strong>G1 确认需求文档</strong></td>
+<td><strong>true</strong></td>
+<td>无（等人）</td>
+</tr>
+<tr>
+<td>design</td>
+<td><code>design</code>（<code>design/*.md</code>）</td>
+<td>G2 确认设计文档</td>
+<td>false（但产物须人确认）</td>
+<td><code>design&gt;decomposing</code>（R3，system）</td>
+</tr>
+<tr>
+<td>decomposing</td>
+<td><code>decomposition</code> + 任务卡</td>
+<td><strong>G3 批准拆分计划</strong></td>
+<td><strong>true</strong></td>
+<td>无（等人）</td>
+</tr>
+<tr>
+<td>implementing</td>
+<td><code>task_detail</code>（每任务一份 <code>tasks/t-xxx.md</code>）</td>
+<td>无门（凭证门管 done）</td>
+<td>—</td>
+<td><code>implementing&gt;accepting</code>（R2，system）</td>
+</tr>
+<tr>
+<td>accepting</td>
+<td><code>verification</code>（版本化验收单）</td>
+<td><strong>G4 验收通过</strong></td>
+<td><strong>true</strong></td>
+<td>无（等人）</td>
+</tr>
+<tr>
+<td>archived</td>
+<td><code>archive</code></td>
+<td>材料齐（代码级必填校验）</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>口径提示</strong>：G2/G3 在 2026-09-21 用户裁定后<strong>分了家</strong>——设计阶段只写设计文档，
+拆分计划归拆分阶段。§11 记录了旧文档仍按&quot;设计出口=批准 plan&quot;叙述的漂移。</p>
+</blockquote>
+<hr>
+<h2 id="s5自动实施链骨牌式推进AdvanceChain">5. 自动实施链：骨牌式推进（AdvanceChain）</h2>
+<p><strong>机制一句话</strong>：不是&quot;传送带一直转&quot;，而是&quot;推倒第一张骨牌，它自己撞倒下一张&quot; ——
+每完成一步自动触发下一步，直到 <code>ROLLUP</code>（需求进验收）或 <code>PAUSE</code>（失败/停滞/人工关闭）。</p>
+<p><div class="diagram"><pre class="mermaid">flowchart TD
+  START(["advanceRequirement(reqId)"]) --&gt; GUARD{"autoRun === true ?&lt;br/&gt;非终态 ?&lt;br/&gt;非 in-flight / lockAt stale ?"}
+  GUARD -- 否 --&gt; STOP0["stopped:&lt;br/&gt;not_autorun / terminal / locked"]
+  GUARD -- 是 --&gt; SEL{"selectAdvanceEvent()&lt;br/&gt;只读台账选下一步"}
+
+  SEL -- "有 todo 父卡" --&gt; E1["OPEN_PARENT&lt;br/&gt;父卡 → in_progress&lt;br/&gt;+ expandSubtasks 落子卡链"]
+  SEL -- "子卡 todo 且依赖已就绪" --&gt; E2["RUN_SUBTASK&lt;br/&gt;一次 workflow run"]
+  SEL -- "父卡子卡全 done" --&gt; E3["FINALIZE_PARENT&lt;br/&gt;汇总 filesChanged → 父卡 done"]
+  SEL -- "全部未取消任务 done" --&gt; E4["ROLLUP&lt;br/&gt;implementing → accepting"]
+  SEL -- "无可推进事件" --&gt; E5["noopStreak++&lt;br/&gt;≥5 次 → PAUSE stagnation"]
+
+  E1 --&gt; SEL
+  E3 --&gt; SEL
+  E4 --&gt; STOP1(["stopped: rollup"])
+  E5 --&gt; STOP2(["stopped: paused"])
+
+  E2 --&gt; EV{"凭证门 assertDoneEvidence&lt;br/&gt;+ 跨卡覆盖检测"}
+  EV -- 通过 --&gt; E2D["子卡 → done"]
+  E2D --&gt; SEL
+  EV -- 失败 --&gt; FAIL["子卡退回 todo&lt;br/&gt;attempt+1 + revisions(rollback)&lt;br/&gt;autoRun=false + 告警 + PAUSE"]</pre></div></p>
+<p><strong>事件与限额</strong>（<code>domain/limits.ts</code> + <code>AdvanceChain.ts</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>值</th>
+<th>语义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>advanceMaxStepsPerCall</code></td>
+<td>20</td>
+<td>单次调用最多推进 20 步（防一条链占死事件循环）</td>
+</tr>
+<tr>
+<td><code>advanceMaxParallelParents</code></td>
+<td>3</td>
+<td>同时 <code>in_progress</code> 的父卡上限</td>
+</tr>
+<tr>
+<td><code>advanceNoopBreaker</code></td>
+<td>5</td>
+<td>连续 5 次 noop → 判依赖死锁，暂停并置 <code>autoRun=false</code></td>
+</tr>
+<tr>
+<td><code>advanceLockStaleMs</code></td>
+<td>15 min</td>
+<td>台账侧单飞锁失效阈值（进程崩溃后可接管）</td>
+</tr>
+<tr>
+<td>幂等键</td>
+<td>台账状态</td>
+<td>选择依据全部来自台账，重复触发只会 noop</td>
+</tr>
+</tbody></table>
+<p><strong>四性</strong>（设计要求）：小（一次一事件）/ 幂等 / 可中断（不触发下一步即停）/ 留痕（<code>req.advance.history</code> + <code>docs/requirements/&lt;REQ&gt;/advance-log.md</code>）。
+<strong>失败语义</strong>：失败<strong>不自动重试</strong>——子卡退回 todo、<code>attempt+1</code>、写 <code>revisions(kind=rollback)</code>、暂停链、发一次告警，等人三选处置（重跑 / 退回上游重述 / 取消）。
+<strong>崩溃恢复</strong>：<code>scheduleStartupScan</code> 在插件启动时对 <code>autoRun=true</code> 且未到终态的需求续跑（<code>scanAndResume</code>）。</p>
+<hr>
+<h2 id="s6任务卡与子卡一次子卡执行怎么落地">6. 任务卡与子卡：一次子卡执行怎么落地</h2>
+<p><div class="diagram"><pre class="mermaid">flowchart LR
+  P["父卡（任务卡，人可读三要素）&lt;br/&gt;在做什么 / 解决什么问题 / 得到什么结果"] --&gt; EXP["lazy-expand&lt;br/&gt;按类型展开子卡链"]
+  EXP --&gt; S1["子卡① dev"]
+  S1 --&gt; S2["子卡② integrate"]
+  S2 --&gt; S3["子卡③ review"]
+  S3 --&gt; S4["子卡④ test"]
+  S4 --&gt; FIN["FINALIZE_PARENT"]
+  S1 -. "dependsOn 链内前一张" .-&gt; S2</pre></div></p>
+<p><strong>卡类型 → 子卡链</strong>（<code>domain/task/SubtaskTemplate.ts</code>，数据化配置 = 加一行；未映射回退 <code>dev→review</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>子卡链序</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>feature / refactor</td>
+<td>dev → integrate → review → test</td>
+</tr>
+<tr>
+<td>bug</td>
+<td>repro → fix → review → regress</td>
+</tr>
+<tr>
+<td>doc / chore</td>
+<td>dev → review</td>
+</tr>
+<tr>
+<td>spike</td>
+<td>probe → review</td>
+</tr>
+<tr>
+<td>research / analysis</td>
+<td>collect → analyze → review</td>
+</tr>
+<tr>
+<td>data</td>
+<td>prepare → run → verify → review</td>
+</tr>
+<tr>
+<td>ops</td>
+<td>change → dryrun → apply → verify → review</td>
+</tr>
+</tbody></table>
+<p><strong>子卡执行的宿主/叶子边界</strong>：叶子（真正干活）在 <code>workflowEngine</code> 的 worker-thread 子代理里，
+<strong>枝干（状态/凭证/台账）必须留在宿主</strong>——脚本运行在 <code>node:vm</code>，只注入 5 个 hook
+（<code>agent/parallel/pipeline/phase/log</code>），没有 <code>ctx</code>、不能调工具、读不到台账。
+<code>application/internal/workflow-script.ts</code> 在<strong>生成阶段</strong>做静态契约门禁（禁 <code>ctx</code>/<code>subagent</code>/<code>require</code>/<code>process</code>/<code>eval</code> 等），
+契约错了在生成时就抛 <code>workflow_script_contract</code>，不带着错脚本去跑。</p>
+<p><strong>凭证门（done 不是自报）</strong>：<code>assertDoneEvidence</code> 校验汇报 / 真实工具动作 / 非批量关闭 / 构建新鲜度；
+<code>detectCrossCardOverwrite</code> 用产出文件 mtime 落在另一张在跑父卡窗口内来抓<strong>跨卡覆盖</strong>。</p>
+<hr>
+<h2 id="s7闸门后置链人点完弹框之后机器做什么">7. 闸门后置链：人点完弹框之后机器做什么</h2>
+<p><strong>唯一点 join point</strong>：<code>adapters/GateAwareQuestions.ts</code> 包装所有 <code>questions.ask(..., {gate})</code> ——
+带 <code>gate</code> 的弹框自动获得后置链，<strong>新增弹框入口零成本获得能力</strong>。</p>
+<p><div class="diagram"><pre class="mermaid">flowchart LR
+  subgraph PA["Phase A（agent 回合内，内联）"]
+    A1["人作答"] --&gt; A2["GateAwareQuestions.enqueue(ctx)&lt;br/&gt;只登记，不执行 handler、不碰会话"]
+  end
+  subgraph PB["Phase B（agent 空闲后的异步边界）"]
+    B0["runPending(windowKey, session)"] --&gt; H1["H1 advance&lt;br/&gt;推进落库"]
+    H1 --&gt; H2["H2 compact&lt;br/&gt;上下文压缩"]
+    H2 --&gt; H3["H3 inject&lt;br/&gt;阶段纪律注入"]
+    H3 --&gt; H4["H4 resume&lt;br/&gt;唤醒续跑"]
+    H4 --&gt; H5["H5 audit&lt;br/&gt;留痕"]
+  end
+  A2 -. "onTurnEnd / onNodeSettled" .-&gt; B0</pre></div></p>
+<p><strong>四条纪律</strong>（<code>GatePostChain.ts</code> 契约）：</p>
+<ol>
+<li><strong>有序</strong>：严格按 <code>HANDLER_ORDER</code> 执行，乱序传入也被纠正；</li>
+<li><strong>可短路</strong>：<code>skip</code> / <code>degraded</code> <strong>都不阻断</strong>后续 handler（H2 跳过时 H3 仍要注入）；</li>
+<li><strong>可降级</strong>：任一 handler 抛错就地转 <code>degraded</code> 计票，<strong>永不冒泡</strong>、不回滚 H1 已落库的裁决；</li>
+<li><strong>幂等</strong>：按 <code>(windowKey, gate, decidedAt)</code> 去重（ring 容量有界），重复信号记 <code>deduped</code> 不重跑。</li>
+</ol>
+<p><strong>为什么必须拆两相</strong>：弹框作答发生在 agent 回合内，而 H2 的 surface 整段替换要求 <code>idle()</code>，
+且会话 <code>append</code> 拒绝&quot;发布中重入&quot;。链的开关与节点隔离同源（默认关；关时 <code>executed</code> 恒为 0，可断言）。</p>
+<hr>
+<h2 id="s8立项捕获管线capture">8. 立项捕获管线（capture）</h2>
+<p><div class="diagram"><pre class="mermaid">sequenceDiagram
+  autonumber
+  participant U as 用户消息
+  participant HK as CaptureHook（session/event）
+  participant SEC as systemPrompt 段 reqboard:capture
+  participant LLM as Agent(LLM)
+  participant CAP as reqboard_capture
+  participant UC as CaptureRequirement 用例
+
+  U-&gt;&gt;HK: user/message 到达（direct human）
+  HK-&gt;&gt;HK: 窗口 unbound 且无遗留 pending ?&lt;br/&gt;→ 登记 pendingCapture（含消息原文）
+  SEC-&gt;&gt;LLM: 每回合组装时命中 pendingCapture → 注入立项引导（引用原文）
+  LLM-&gt;&gt;CAP: 立项弹框（名称 / 类型 / 难度）
+  CAP-&gt;&gt;UC: 作答 = 立项门
+  UC-&gt;&gt;UC: 建 REQ（status=draft）+ 绑定窗口 sourceSessionId
+  Note over UC: 用户在弹框选「不需要立项」→ 写&lt;br/&gt;state/capture-rejections.json（拒绝留痕）&lt;br/&gt;同窗口 30 分钟内不重弹（拒绝粘滞）</pre></div></p>
+<p><strong>为什么是确定性 hook + LLM 判定</strong>：hook 只保证&quot;消息到达必触发&quot;，立项与否留给 LLM + 人（弹框作答即确认）。
+<strong>拒绝粘滞</strong>（REQ-260922012924-2e29 FR-5）解决的是&quot;调用超时/中断后答复丢失 → 盲目重弹&quot;，用户刚拒绝过就不再弹。</p>
+<hr>
+<h2 id="s9数据落盘与运行时文件">9. 数据落盘与运行时文件</h2>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>载体</th>
+<th>写入方</th>
+<th>语义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>&lt;DSH_HOME&gt;/dsh-reqboard.json</code></td>
+<td>JSON 台账</td>
+<td><code>JsonLedgerRepository</code></td>
+<td><strong>两级状态机唯一事实源</strong>（requirements + tasks + triages），load-once + 原子写</td>
+</tr>
+<tr>
+<td><code>docs/requirements/&lt;REQ&gt;/</code></td>
+<td>Markdown 文档</td>
+<td><code>FileDocRepository</code></td>
+<td>产物：requirement.md / design/<em>.md / decomposition.md / tasks/</em>.md / verification.md / archive.md</td>
+</tr>
+<tr>
+<td><code>state/prompt-injection-log.json</code></td>
+<td>ring 500</td>
+<td><code>InjectionLogFile</code></td>
+<td>每次注入的十字段留痕（stage/routeKey/charCount…），看板只读回查</td>
+</tr>
+<tr>
+<td><code>state/node-isolation-log.json</code></td>
+<td>ring</td>
+<td><code>IsolationTraceFile</code></td>
+<td>节点隔离留痕（默认关时零写入）</td>
+</tr>
+<tr>
+<td><code>state/capture-rejections.json</code></td>
+<td>ring</td>
+<td><code>CaptureRejectionFile</code></td>
+<td>立项拒绝留痕（拒绝粘滞的依据）</td>
+</tr>
+<tr>
+<td><code>state/reqboard-capture-diag.log</code></td>
+<td>文件日志</td>
+<td><code>diag-log.ts</code></td>
+<td>捕获链路诊断（stdout 可能进死管道，文件才是可靠观测面）</td>
+</tr>
+</tbody></table>
+<p><strong>迁移纪律（硬约束）</strong>：台账是 load-once + 每次 mutate 全量重写，且<strong>没有 reload API</strong> ——
+进程存活期间在外部改台账文件，会被内存旧快照在下次写入时静默覆盖。故迁移只能夹在
+「进程已停、新进程未起」的窗口内（见 <code>scripts/migrate-ledger.ts</code> 编排）。</p>
+<hr>
+<h2 id="s10实施流程的完整时序一个feature需求的端到端">10. 实施流程的完整时序（一个 feature 需求的端到端）</h2>
+<p><div class="diagram"><pre class="mermaid">sequenceDiagram
+  autonumber
+  actor HUM as 人
+  participant AG as Agent
+  participant REQ as 台账 dsh-reqboard.json
+  participant DOC as docs/requirements/REQ/
+  participant CH as 自动实施链
+
+  HUM-&gt;&gt;AG: 提出需求
+  AG-&gt;&gt;AG: reqboard_capture 三问弹框
+  HUM--&gt;&gt;AG: 作答（名称/类型/难度）
+  AG-&gt;&gt;REQ: 建 REQ（draft + 绑窗口）
+  Note over REQ: R1 接手推进 → brainstorming
+  AG-&gt;&gt;DOC: 写 requirement.md
+  AG-&gt;&gt;HUM: reqboard_ask_confirm（G1 需求文档确认）
+  HUM--&gt;&gt;AG: 确认 → design
+  AG-&gt;&gt;DOC: 写 design/*.md
+  AG-&gt;&gt;HUM: reqboard_ask_confirm（G2 设计文档确认）
+  HUM--&gt;&gt;AG: 确认 → decomposing
+  AG-&gt;&gt;DOC: 写 decomposition.md（含任务表）
+  AG-&gt;&gt;HUM: reqboard_ask_confirm（G3 批准拆分计划）
+  HUM--&gt;&gt;AG: 批准
+  AG-&gt;&gt;REQ: reqboard_decompose 落任务卡（自动拆分 + 开跑）
+  loop 骨牌推进
+    CH-&gt;&gt;CH: OPEN_PARENT → RUN_SUBTASK → FINALIZE_PARENT
+  end
+  CH-&gt;&gt;REQ: ROLLUP → accepting
+  AG-&gt;&gt;DOC: reqboard_submit(verification) 生成逐项验收单
+  AG-&gt;&gt;HUM: reqboard_accept_sheet 逐项弹框（G4）
+  HUM--&gt;&gt;AG: 逐项通过 → 最终确认
+  AG-&gt;&gt;REQ: accepting → archived
+  AG-&gt;&gt;DOC: reqboard_submit(archive) 归档材料 + merged_into 真实写入</pre></div></p>
+<hr>
+<h2 id="s11读数发现文档注释与代码的漂移建议同步非本页结论">11. 读数发现：文档/注释与代码的漂移（建议同步，非本页结论）</h2>
+<p>实读时发现 4 处「文档说的和代码做的不一致」。列在这里便于同步，均给出两侧证据：</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>位置</th>
+<th>文档/注释说</th>
+<th>代码实际</th>
+<th>影响</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><a href="./workflow-stages.md">workflow-stages.md</a> §1/§3</td>
+<td><code>STAGE_ARTIFACT_REQUIREMENTS.design = [&#39;plan&#39;]</code>、<code>ARTIFACT_CONFIRM_GATES[&#39;design&gt;decomposing&#39;] = &#39;plan&#39;</code>、设计出口=批准计划</td>
+<td><code>ArtifactSpec.ts</code>：<code>design: [&#39;design&#39;]</code>；<code>GateCatalog.ts</code>：G2 <code>design→decomposing</code> 要 <code>design</code>，G3 <code>decomposing→implementing</code> 要 <code>decomposition</code></td>
+<td>读者会以为设计阶段该交 plan.md</td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="./workflow-stages.md">workflow-stages.md</a> §6</td>
+<td>「REQ-a8d582 FR-2 起裁决不再自动打回、不再自动建返工卡」</td>
+<td><code>application/internal/verdicts.ts</code> L137-143：failed 时<strong>同笔 mutate 内</strong>自动回退 implementing + 物化返工卡（REQ-308b9a FR-8）；<code>AcceptSheet.ts</code> 返回 <code>rework_tasks</code></td>
+<td>验收返工语义两说</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>src/application/internal/verdicts.ts</code> 头注释 L5</td>
+<td>「逐项 passed/failed → <strong>只写验收单</strong>」</td>
+<td>同文件 L137 起实现自动回退 + 返工卡</td>
+<td>同文件内注释与实现矛盾（最易误导）</td>
+</tr>
+<tr>
+<td>4</td>
+<td>插件 <a href="../../packages/web/dsh-pmboard/README.md">README.md</a></td>
+<td>标题「提供的工具（<strong>13</strong> 个）」，表内 <strong>12</strong> 行</td>
+<td><code>src/index.ts</code> 注册 13 个（表漏 <code>reqboard_task_run</code>）；<code>src/tools/index.ts</code> 头注释仍写「13 → 9 收敛」但导出 13 个</td>
+<td>工具面清单不完整</td>
+</tr>
+</tbody></table>
+<p>另有一类<strong>路径漂移</strong>：多处文档仍写 <code>packages/pages/dsh-pmboard/...</code>（如 workflow-stages.md 的
+引用规范段），而 RFC 015 结构对齐后实际路径是 <code>packages/web/dsh-pmboard/...</code>；
+<code>workflow-stages.md</code> 指向的 <code>src/constants/workflow.ts</code> 在现代码里也不存在（对应物是 <code>src/client/workflow-constants.ts</code>）。</p>
+<blockquote>
+<p>处理建议（不在本页擅自改文档）：漂移 1/2/3 属<strong>流程语义</strong>，按 workflow-stages.md 自己的
+「变更流程」节先改事实源再同步代码/文档——但这三处是<strong>代码先动、文档没跟上</strong>，故应反向同步文档；
+漂移 4 是包内 README 漏行，补一行即可。</p>
+</blockquote>
+<hr>
+<h2 id="s12代码地图复核用">12. 代码地图（复核用）</h2>
+<table>
+<thead>
+<tr>
+<th>关注点</th>
+<th>入口文件</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>插件装配 / 组合根</td>
+<td><code>src/index.ts</code>（<code>apply()</code>：注入 agents / sessionProjections / userQuestions / workflowEngine / webServer / tools）</td>
+</tr>
+<tr>
+<td>端口契约</td>
+<td><code>src/application/ports.ts</code></td>
+</tr>
+<tr>
+<td>需求状态机</td>
+<td><code>src/domain/requirement/RequirementStatus.ts</code></td>
+</tr>
+<tr>
+<td>任务状态机（含 parent/subtask/legacy 三角色）</td>
+<td><code>src/domain/task/TaskStatus.ts</code></td>
+</tr>
+<tr>
+<td>五道门唯一事实源</td>
+<td><code>src/domain/gate/GateCatalog.ts</code></td>
+</tr>
+<tr>
+<td>产物规约</td>
+<td><code>src/domain/artifact/ArtifactSpec.ts</code></td>
+</tr>
+<tr>
+<td>派生推进规约 R1/R2/R3</td>
+<td><code>src/domain/workflow/RollupSpec.ts</code> → <code>src/application/internal/rollup.ts</code></td>
+</tr>
+<tr>
+<td>骨牌推进执行器</td>
+<td><code>src/application/use-cases/AdvanceChain.ts</code></td>
+</tr>
+<tr>
+<td>子卡执行</td>
+<td><code>src/application/use-cases/ExecuteTask.ts</code> + <code>src/application/internal/workflow-script.ts</code></td>
+</tr>
+<tr>
+<td>拆分与幂等守卫</td>
+<td><code>src/application/use-cases/Decompose.ts</code> + <code>src/domain/workflow/DecomposeSpec.ts</code></td>
+</tr>
+<tr>
+<td>验收单</td>
+<td><code>src/application/use-cases/AcceptSheet.ts</code> + <code>src/domain/workflow/AcceptanceSheetSpec.ts</code></td>
+</tr>
+<tr>
+<td>闸门后置链</td>
+<td><code>src/application/gate/GatePostChain.ts</code> + <code>handlers/h1..h5</code></td>
+</tr>
+<tr>
+<td>捕获 hook</td>
+<td><code>src/adapters/CaptureHook.ts</code> + <code>src/application/internal/capture-section.ts</code></td>
+</tr>
+<tr>
+<td>台账仓储</td>
+<td><code>src/adapters/JsonLedgerRepository.ts</code></td>
+</tr>
+<tr>
+<td>HTTP 面</td>
+<td><code>src/http/routes.ts</code> + <code>src/http/routers/*</code></td>
+</tr>
+<tr>
+<td>工具壳</td>
+<td><code>src/tools/&lt;Name&gt;Tool/&lt;Name&gt;Tool.ts</code></td>
+</tr>
+<tr>
+<td>客户端</td>
+<td><code>src/client/index.ts</code> → <code>board-mount.ts</code> → <code>views/*</code></td>
+</tr>
+<tr>
+<td>层边界/尺寸/文案门禁</td>
+<td><code>tests/layer-boundary.test.ts</code>、<code>tests/size-budget.test.ts</code>、<code>tests/message-hygiene.test.ts</code></td>
+</tr>
+</tbody></table>
+<p><strong>规模</strong>（<code>wc -l</code> 实读，2026-09-23）：<code>src/domain</code> ≈ 2.9k 行、<code>src/application</code> ≈ 10.4k、
+<code>src/adapters</code> ≈ 2.1k、<code>src/client</code> ≈ 9.2k、<code>src/http</code> ≈ 1.5k、<code>src/shared/protocol.ts</code> 1.57k。
+单文件上限 <code>MAX_FILE_LINES = 400</code>（尺寸门禁强制拆文件）。</p>
+<hr>
+<h2 id="s相关页面">相关页面</h2>
+<ul>
+<li><a href="../guides/reqboard-workflow.md">需求看板实操（从立项到归档）</a></li>
+<li><a href="./gate-post-chain.md">闸门确认后置链</a></li>
+<li><a href="./workflow-stages.md">流程节点定义</a></li>
+<li><a href="./reqboard-category-flows.md">六立项类型的流程差异</a></li>
+<li><a href="../rfcs/014-requirement-board.md">RFC 014 需求看板</a></li>
+<li><a href="./page-plugin-contract.md">页面插件契约</a></li>
+</ul>
+
+</div>
+<script type="module">
+try{
+  const m = await import('https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs');
+  m.default.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose', flowchart: { htmlLabels: true, curve: 'basis' } });
+  await m.default.run({ nodes: document.querySelectorAll('pre.mermaid') });
+}catch(e){ document.getElementById('mmdfb').style.display='block'; }
+</script>
+</body></html>

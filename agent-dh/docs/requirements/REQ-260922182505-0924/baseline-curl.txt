@@ -1,0 +1,4 @@
+# curl http://127.0.0.1:13080/dashboard/api/reqboard/triage
+# time: 2026-09-22T12:09:19.409Z
+200
+{"success":true,"data":{"pending":[],"resolved":[{"id":"tri-64d58c","sessionId":"session-1cee2467-95f9-46ec-9cd8-8577932e7060","firstMessageText":"Current runtime context. This snapshot supersedes earlier runtime-context snapshots.\n\nCurrent DSH file policy: danger-full-access. The DSH file sandbox

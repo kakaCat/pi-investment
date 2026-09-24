@@ -1,0 +1,91 @@
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 全流程一览接口 /requirements/:id/stages > 一次返回全部 7 节点 StageDetail + currentStage，顺序同 ALL_STAGE_KEYS
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 全流程一览接口 /requirements/:id/stages > 分类跳过节点在一览里 enabled=false（不报错）
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 全流程一览接口 /requirements/:id/stages > 需求不存在 → 404
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 10：四道人工确认门 > ARTIFACT_CONFIRM_GATES 表恰好包含 4 道门
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 10：四道人工确认门 > 门 accepting>archived：产物未确认 → 转移被拒
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 10：四道人工确认门 > 门 accepting>archived：产物确认后 → 转移成功
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 10：四道人工确认门 > 门 brainstorming>design：产物未确认 → 转移被拒
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 10：四道人工确认门 > 门 brainstorming>design：产物确认后 → 转移成功
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 10：四道人工确认门 > 门 decomposing>implementing：产物未确认 → 转移被拒
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 10：四道人工确认门 > 门 decomposing>implementing：产物确认后 → 转移成功
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 10：四道人工确认门 > 门 design>decomposing：产物未确认 → 转移被拒
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 10：四道人工确认门 > 门 design>decomposing：产物确认后 → 转移成功
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 12：分类差异化流程 > CATEGORY_FLOW_PROFILES 6 类分类档案齐备
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 12：分类差异化流程 > bug 免需求分析门：confirmGates 不含 brainstorming>design
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 12：分类差异化流程 > bug 分类跳过 brainstorming 阶段（stageEnabledFor=false）
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 12：分类差异化流程 > confirmGateKindFor 对分类未启用的门返回 undefined
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 12：分类差异化流程 > flowProfileFor 对非法分类兜底 feature
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 12：分类差异化流程 > spike/doc/chore 最简流程：只有验收归档一门
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 12：分类差异化流程 > stageEnabledFor 对未知 stage 返回 false
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 1：7 节点点击均展示对应内容 > 7 节点 StageDetail 各自返回差异化 body（非空、stage 匹配）
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 1：7 节点点击均展示对应内容 > 7 节点 stage-panel 渲染各自产出非空 HTML（含节点专属 CSS 类）
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 2：实施节点按窗口分组 > implementing StageDetail.byWindow 按窗口码分组（含 subagent 会话 id）
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 3：验收+归档节点内容 > accepting body 含 VerificationRecord（证据 + 人工结论 + 审核意见）
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 3：验收+归档节点内容 > archived body 含 ArchiveRecord（目录/文档清单/合并去向/索引/说明书更新点）
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 4：老台账兼容加载（历史字段透传，不做破坏性读改写） > 带历史预留字段（projectId/parentId）的记录正常加载，字段原样透传
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 4：老台账兼容加载（历史字段透传，不做破坏性读改写） > 老台账（无 projectId/parentId）正常加载，字段为 undefined
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 5：双端共享同一 StageDetail 契约 > StageDetail 判别联合的 7 个 stage 值与 ALL_STAGE_KEYS 一致
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 5：双端共享同一 StageDetail 契约 > host assembleStageDetail 返回的 shape 与 client renderStagePanel 消费的 shape 一致
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 6：产物链接 + 缺产物标红 > GET /file?path= 拒绝目录穿越（../etc/passwd → 403）
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 6：产物链接 + 缺产物标红 > GET /file?path= 读取产物全文（文档超链接可点击展开全文的后端支撑）
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 6：产物链接 + 缺产物标红 > 产物渲染为可点击链接（data-action="open-doc" + data-path）
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 6：产物链接 + 缺产物标红 > 缺产物节点显示红色标记
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 7：缺产物拦截 + 产物链追溯 > 产物链从 implementing 可向上追溯到 requirement（trace chain 顺序）
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 7：缺产物拦截 + 产物链追溯 > 新需求缺产物推进被代码级拦截（missing_artifact）
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 8：task_report 汇报 = 实施产物文档 > task_report 后 StageDetail.implementing 含 task_detail 产物（可追溯）
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 9：阶段提示词注入 > capture-hook onStagePrompt 在 bound 窗口收到消息时触发
+FAIL  packages/web/dsh-pmboard/tests/acceptance-criteria.test.ts > 验收 9：阶段提示词注入 > capture.ts boundSectionText 按当前阶段注入对应提示词
+FAIL  packages/web/dsh-pmboard/tests/application/repository.test.ts > SystemClock / RandomIdFactory > RandomIdFactory：前缀与 6 位 hex 格式（与 protocol new*Id 同形）
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > human-only confirm 路由 > agent actor 不能确认产物
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > human-only confirm 路由 > 确认不存在的 kind → 400
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > t8 补充：五门两级校验（全量） > accepting>archived：产物存在但未确认 → artifact_not_confirmed
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > t8 补充：五门两级校验（全量） > accepting>archived：非 legacy 缺 verification 产物 → missing_artifact
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > t8 补充：五门两级校验（全量） > bug 分类：decomposing>implementing 门仍生效（4 门之一）
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > t8 补充：五门两级校验（全量） > decomposing>implementing：产物存在但未确认 → artifact_not_confirmed
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > t8 补充：五门两级校验（全量） > decomposing>implementing：产物确认后 → 放行
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > t8 补充：五门两级校验（全量） > decomposing>implementing：非 legacy 缺 decomposition 产物 → missing_artifact
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > t8 补充：五门两级校验（全量） > refactor 分类：免需求分析门（brainstorming>design 直接放行）
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 五门两级校验 > artifact_not_confirmed：产物存在但未确认时转移被拒
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 五门两级校验 > bug 分类免 requirement 门：brainstorming → design 直接放行
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 五门两级校验 > design → decomposing：确认门 + 文档集完整性门两层（2026-09-21 裁定 + REQ-2d1c74 FR-2）
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 五门两级校验 > missing_artifact：产物缺失时转移被拒
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 五门两级校验 > 存量需求（artifacts 为空数组）不硬拦
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 五门两级校验 > 存量需求（无 artifacts 字段）不硬拦
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 五门两级校验 > 确认后放行：artifact/confirm 后转移成功
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 产物登记钩子 > archive_submit 成功时登记 kind=archive 产物
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 产物登记钩子 > decompose 成功时自动生成 decomposition.md + 任务卡骨架
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 产物登记钩子 > plan_submit 幂等：重复提交不重复登记
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 产物登记钩子 > plan_submit 成功时登记 kind=decomposition 产物（stage=decomposing；2026-09-21 裁定）
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 产物登记钩子 > verify_submit 成功时自动生成 verification.md 并登记
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 分类过滤 > chore 分类免 brainstorming 门：直接放行
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 分类过滤 > feature 全流水线 5 门：brainstorming>design 需要 requirement 产物确认
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 分类过滤 > spike 分类免 brainstorming 门：直接放行
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 取消需求豁免产物闸门（*>canceled 是放弃路径，不进闸） > brainstorming 有未确认 requirement 产物：→ canceled 同样放行（确认门一并豁免）
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 取消需求豁免产物闸门（*>canceled 是放弃路径，不进闸） > decomposing 缺 decomposition 产物：→ canceled 放行；同现场 → implementing 仍硬拦
+FAIL  packages/web/dsh-pmboard/tests/artifact-gates.test.ts > 取消需求豁免产物闸门（*>canceled 是放弃路径，不进闸） > 豁免不放松人工闸门：agent actor 调 → canceled 仍被拒
+FAIL  packages/web/dsh-pmboard/tests/client-view.test.ts > buildBoard > excludes archived and canceled from lanes, shows in archived bar
+FAIL  packages/web/dsh-pmboard/tests/e2e-triad-gate.test.ts > 全链路：需求文档 → 计划批准 → 拆分 → 出口门禁 > 卡被改坏（删掉一节）→ 出口门禁拦下 task_card_incomplete
+FAIL  packages/web/dsh-pmboard/tests/e2e-triad-gate.test.ts > 全链路：需求文档 → 计划批准 → 拆分 → 出口门禁 > 骨架产出的卡直接过出口门禁（需求 → 计划 → 拆分 → 推进 implementing）
+FAIL  packages/web/dsh-pmboard/tests/handoff.test.ts > 接力实测：handoff 契约——新窗口不读历史对话即可续作 > 完整链路：A 拆 → A 做 t1 → B 读卡做 t2 → B 汇报 → 产物链完整
+FAIL  packages/web/dsh-pmboard/tests/handoff.test.ts > 接力实测：task_report 追加后文件仍结构化 > 多次汇报后文件仍结构化（段落递增，骨架不丢）
+FAIL  packages/web/dsh-pmboard/tests/handoff.test.ts > 接力实测：task_report 追加后文件仍结构化 > 窗口 A 汇报后，任务卡仍保持 markdown 结构（## 节标题不被破坏）
+FAIL  packages/web/dsh-pmboard/tests/handoff.test.ts > 接力实测：task_report 追加后文件仍结构化 > 窗口 B 可推进任务（task_move 绑定新 sessionId）+ 汇报
+FAIL  packages/web/dsh-pmboard/tests/handoff.test.ts > 接力实测：task_report 追加后文件仍结构化 > 窗口 B 读任务卡 + 产物链可定位上游产出（追溯链完整）
+FAIL  packages/web/dsh-pmboard/tests/handoff.test.ts > 接力实测：任务卡自足（新窗口零会话历史可续作） > PlanTask.executorHint 协议级字段存在（类型契约）
+FAIL  packages/web/dsh-pmboard/tests/handoff.test.ts > 接力实测：任务卡自足（新窗口零会话历史可续作） > StageDetail.decomposing 暴露 dependsOn 依赖链（handoff 数据锚点）
+FAIL  packages/web/dsh-pmboard/tests/handoff.test.ts > 接力实测：任务卡自足（新窗口零会话历史可续作） > 下游任务卡含上游产出摘要（dependsSummary 反映依赖链）
+FAIL  packages/web/dsh-pmboard/tests/handoff.test.ts > 接力实测：任务卡自足（新窗口零会话历史可续作） > 任务卡骨架含业务三要素/上游摘要/executorHint——新窗口不读历史即可开工
+FAIL  packages/web/dsh-pmboard/tests/layer-boundary.test.ts > 层边界：依赖方向（architecture.md §2） > application/ 不得 import 禁止项（application 只依赖 domain 与 shared 的**类型**；一切 I/O 走端口）
+FAIL  packages/web/dsh-pmboard/tests/size-budget.test.ts > 尺寸门禁（REQ-47939a A2：宿主单文件 ≤400 行） > src 下所有 .ts 单文件 ≤ 400 行（白名单见 WHITELIST，逐条带理由）
+FAIL  packages/web/dsh-pmboard/tests/task-report.test.ts > reqboard_task_report 幂等 > 同 task_id 重复汇报：追加新段落，artifact 不重复登记
+FAIL  packages/web/dsh-pmboard/tests/task-report.test.ts > reqboard_task_report 汇报落盘 + 登记 > tasks/ 子目录递归创建（旧需求无该目录）
+FAIL  packages/web/dsh-pmboard/tests/task-report.test.ts > reqboard_task_report 汇报落盘 + 登记 > 可选字段缺省（completed/files_changed/next_step 不传）不报错
+FAIL  packages/web/dsh-pmboard/tests/task-report.test.ts > reqboard_task_report 汇报落盘 + 登记 > 首次汇报：写骨架头 + 追加汇报段 + 登记 task_detail 产物 + 评论留痕
+FAIL  packages/web/dsh-pmboard/tests/task-report.test.ts > reqboard_task_report 越权拒绝 > summary 为空 → REQBOARD_INVALID_INPUT
+FAIL  packages/web/dsh-pmboard/tests/task-report.test.ts > reqboard_task_report 越权拒绝 > 任务不存在 → REQBOARD_TASK_NOT_FOUND
+FAIL  packages/web/dsh-pmboard/tests/task-report.test.ts > reqboard_task_report 越权拒绝 > 任务属于他窗口需求 → REQBOARD_NOT_BOUND_TO_WINDOW
+FAIL  packages/web/dsh-pmboard/tests/triad-gate.test.ts > 端到端：门真的挂上了（reqboard_move / reqboard_task_move） > 单卡结单：三节齐备 → 放行
+FAIL  packages/web/dsh-pmboard/tests/triad-gate.test.ts > 端到端：门真的挂上了（reqboard_move / reqboard_task_move） > 单卡结单：卡缺三要素 → 拒绝 task_card_incomplete
+FAIL  packages/web/dsh-pmboard/tests/triad-gate.test.ts > 端到端：门真的挂上了（reqboard_move / reqboard_task_move） > 拆分出口：三节齐备 → 放行
+FAIL  packages/web/dsh-pmboard/tests/triad-gate.test.ts > 端到端：门真的挂上了（reqboard_move / reqboard_task_move） > 拆分出口：卡文件不存在 → 不判（放行）
+FAIL  packages/web/dsh-pmboard/tests/triad-gate.test.ts > 端到端：门真的挂上了（reqboard_move / reqboard_task_move） > 拆分出口：卡缺三要素 → 拒绝 task_card_incomplete，且消息含卡 id 与节名

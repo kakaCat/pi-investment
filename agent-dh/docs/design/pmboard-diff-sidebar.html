@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pmboard 任务卡 · diff 在右侧栏（样张）</title>
+<style>
+  :root{
+    --add-bg:#e6ffed; --add-fg:#22863a; --add-mark:#28a745;
+    --del-bg:#ffeef0; --del-fg:#b31d28; --del-mark:#dc3545;
+    --bd:#e3e6ea; --fg:#1f2328; --fg2:#656d76; --bg:#f6f7f9; --card:#fff;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  .shell{display:flex;height:100vh;overflow:hidden}
+  .main{flex:1 1 auto;min-width:0;overflow:auto;padding:20px 18px 40px}
+  .side{flex:0 0 50%;max-width:780px;min-width:400px;background:#fff;border-left:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
+  .kicker{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg2)}
+  h1{font-size:17px;margin:4px 0 6px}
+  .meta{font-size:12px;color:var(--fg2)}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:10px;margin:14px 0;overflow:hidden}
+  .card-title{padding:10px 14px;border-bottom:1px solid var(--bd);font-weight:600;font-size:12px;color:var(--fg2);background:#fbfcfd}
+  .toolbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bd);flex-wrap:wrap}
+  .toolbar .title{font-weight:600}
+  .stat-add{color:var(--add-mark);font-weight:600;font-variant-numeric:tabular-nums}
+  .stat-del{color:var(--del-mark);font-weight:600;font-variant-numeric:tabular-nums}
+  .spacer{flex:1}
+  ul.files{list-style:none;margin:0;padding:0}
+  .frow{display:grid;grid-template-columns:14px 1fr auto auto;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid #f0f2f4;cursor:pointer}
+  .frow:hover{background:#fafbfc}
+  .frow.active{background:#eef4ff;box-shadow:inset 2px 0 0 #4a7dff}
+  .caret{color:var(--fg2);font-size:9px}
+  .badge{display:inline-block;width:14px;text-align:center;border-radius:3px;font:600 10px/14px var(--mono);color:#fff}
+  .badge.M{background:#f0a020}.badge.A{background:#28a745}.badge.D{background:#dc3545}.badge.R{background:#4a7dff}
+  .path{font-family:var(--mono);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .path .dir{color:var(--fg2)}
+  .counts{display:flex;gap:6px;align-items:center;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums}
+  .counts .meta{font-weight:400}
+  .openbtn{border:1px solid var(--bd);background:#fff;border-radius:5px;padding:1px 6px;font-size:11px;color:var(--fg2);cursor:pointer}
+  .legend{display:flex;gap:16px;padding:8px 14px;font-size:11px;color:var(--fg2);background:#fbfcfd;flex-wrap:wrap}
+  .anno{display:inline-block;background:#4a7dff;color:#fff;border-radius:50%;width:15px;height:15px;font:600 10px/15px var(--mono);text-align:center;margin-right:5px}
+  .side-head{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--bd);background:#fff}
+  .side-title{font-weight:600;font-size:12px;white-space:nowrap}
+  .side-addr{font-family:var(--mono);font-size:10.5px;color:var(--fg2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .xbtn{border:0;background:transparent;color:var(--fg2);cursor:pointer;font-size:14px;line-height:1}
+  .side-tools{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--bd);background:#fbfcfd;flex-wrap:wrap}
+  .picker{border:1px solid var(--bd);background:#fff;border-radius:6px;padding:3px 8px;font-family:var(--mono);font-size:11.5px;color:var(--fg);cursor:pointer;max-width:52%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .seg{display:inline-flex;border:1px solid var(--bd);border-radius:6px;overflow:hidden}
+  .seg-btn{border:0;background:#fff;padding:3px 9px;font-size:12px;color:var(--fg2);cursor:pointer}
+  .seg-btn.active{background:#eef2f7;color:var(--fg);font-weight:600}
+  .ghost{border:1px solid var(--bd);background:#fff;border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer;color:var(--fg2)}
+  .menu{position:absolute;z-index:30;background:#fff;border:1px solid var(--bd);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.14);min-width:420px;max-width:88vw;overflow:hidden;display:none}
+  .menu .mi{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:6px 10px;font-family:var(--mono);font-size:11.5px;cursor:pointer}
+  .menu .mi:hover{background:#f5f7fa}
+  .menu .mi.sel{background:#eef4ff}
+  .side-body{flex:1 1 auto;overflow:auto;background:#fbfcfd}
+  .patch{border-bottom:1px solid var(--bd)}
+  .hunk-head{font-family:var(--mono);font-size:11px;color:#8250df;background:#f1f0ff;padding:3px 10px;border-top:1px solid #ece9ff;border-bottom:1px solid #ece9ff;white-space:pre;overflow-x:auto}
+  .dl{display:flex;font-family:var(--mono);font-size:11.5px;line-height:1.55;white-space:pre}
+  .dl .ln{width:40px;flex:0 0 40px;text-align:right;padding:0 6px;color:#8c959f;background:#f6f8fa;border-right:1px solid #eaeef2;user-select:none}
+  .dl .mk{width:14px;flex:0 0 14px;text-align:center;color:#8c959f}
+  .dl .cd{padding:0 8px;flex:1 1 auto;overflow-x:auto}
+  .dl.ctx{background:#fff}
+  .dl.add{background:var(--add-bg);color:var(--add-fg)} .dl.add .mk{color:var(--add-mark)}
+  .dl.del{background:var(--del-bg);color:var(--del-fg)} .dl.del .mk{color:var(--del-mark)}
+  .split{display:flex}.split>.col{flex:1 1 50%;min-width:0;border-right:1px solid var(--bd)}.split>.col:last-child{border-right:0}
+  .wrap .dl{white-space:pre-wrap}.wrap .dl .cd{overflow-x:visible}
+  .empty{padding:24px 16px;color:var(--fg2);font-size:12px}
+  pre.prov{margin:0;padding:12px 14px;font-family:var(--mono);font-size:11.5px;line-height:1.75;color:#3b4249;white-space:pre-wrap;background:#fbfcfd}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(12px);background:#1f2328;color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;opacity:0;pointer-events:none;transition:.18s;max-width:80vw}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="main">
+    <div class="kicker">pmboard · 任务卡 · 实施节点</div>
+    <h1>t-f0dcf2 打通 diff 数据层</h1>
+    <div class="meta">需求 REQ-XXXXXX · <b>implementing</b> · 窗口 session-bbfc9a7a · 数据源 <b>ctx.workspaceChanges</b>（按 turn 快照）</div>
+
+    <section class="card">
+      <div class="toolbar">
+        <span class="title">📁 修改文件</span>
+        <span id="totals" class="meta"></span>
+        <span class="spacer"></span>
+        <button class="ghost" id="refresh">刷新</button>
+      </div>
+      <ul class="files" id="files"></ul>
+      <div class="legend">
+        <span><span class="anno">1</span>点任一行 = 在<b>右侧栏</b>打开该文件的对比（卡片内不再铺 diff）</span>
+        <span><span class="anno">2</span>右侧栏是官方 <b>changes-review</b> 视图，按 index 深链定位</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">调用链（就是这三行把 diff 送到右侧栏）</div>
+      <pre class="prov">src/client/open-doc.ts 已有：ctx.sidebarRight.openResource(address, options)
+
+// 新增（等价于官方 openChangesReview 的做法）
+const coords = { sessionId: task.claimedBy, seq: S, turn: T }
+sidebarRight.openResource(
+  'dsh-resource://changes-review/session/' + encodeURIComponent(coords.sessionId) + '/' + seq + '/' + turn,
+  { params: { index: fileIndex } },        // ← 深链到第 index 个文件
+)
+
+// 坐标来源：claimedBy(sessionId) → 该会话 workspace/changes 事件 (seq,turn) → summary.files[index]
+// 官方实现见 ui-deliverables/src/client/index.ts：openChangesReview(coordinates, index)</pre>
+    </section>
+
+    <section class="card">
+      <div class="card-title">这一版的取舍</div>
+      <pre class="prov">✅ 0 渲染成本：diff 视图、文件切换下拉、分栏/换行、本机打开、binary/oversized/coarse 降级，全部由官方 ReviewTab 提供
+✅ 卡片保持紧凑：只放「文件名 + 计数 + 状态」，不占阅读宽度
+✅ 深链可定位：openResource(address, { params: { index } }) —— 官方 0.1.6 的 ReviewTab 已支持 navigatedIndex(params)
+⚠ 粒度是「一个 turn 一个 tab」：任务跨多轮时要么开多个 tab，要么在卡片里按轮次分组、每行带「第 N 轮」
+⚠ 依赖侧栏资源已注册：changes-review 由 @deepseek-ai/dsh-client-ui-deliverables 以 builtin 注册（我们无需自注册）</pre>
+    </section>
+  </div>
+
+  <aside class="side">
+    <div class="side-head">
+      <span class="side-title" id="sbTitle">turn 4 的改动</span>
+      <span class="side-addr" id="sbAddr"></span>
+      <button class="xbtn" id="sbClose" title="关闭">&times;</button>
+    </div>
+    <div class="side-tools">
+      <button class="picker" id="picker">&#9660; <span id="picked"></span></button>
+      <span class="spacer"></span>
+      <div class="seg">
+        <button class="seg-btn active" data-split="0">统一</button>
+        <button class="seg-btn" data-split="1">分栏</button>
+      </div>
+      <div class="seg">
+        <button class="seg-btn active" data-changed="0">全上下文</button>
+        <button class="seg-btn" data-changed="1">仅变更行</button>
+      </div>
+      <button class="ghost" data-wrap-btn="0" id="wrapBtn">换行</button>
+      <button class="ghost" id="nativeBtn">在本机打开</button>
+    </div>
+    <div class="side-body" id="sbBody"></div>
+  </aside>
+</div>
+<div class="menu" id="menu"></div>
+<div class="toast" id="toast"></div>
+<script>
+var FILES = [{"path":"packages/web/dsh-pmboard/src/application/internal/support.ts","status":"M","added":1,"deleted":7,"patch":"diff --git a/packages/web/dsh-pmboard/src/application/internal/support.ts b/packages/web/dsh-pmboard/src/application/internal/support.ts\nindex 0a0ffc0d..ef2e5aca 100644\n--- a/packages/web/dsh-pmboard/src/application/internal/support.ts\n+++ b/packages/web/dsh-pmboard/src/application/internal/support.ts\n@@ -13,7 +13,7 @@ import type { LedgerView, UseCaseDeps } from '../ports.js'\n import { questionCardFor } from '../../domain/gate/GateCatalog.js'\n import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'\n import { artifactNotifyText } from './artifact-gates.js'\n-import { isWindowBound, openRequirementsFor, pendingSuggestionFor } from './window.js'\n+import { isWindowBound, openRequirementsFor } from './window.js'\n import {\n   isSubtask,\n   recordStatus,\n@@ -22,7 +22,6 @@ import {\n   type RequirementRecord,\n   type StageArtifact,\n   type TaskRecord,\n-  type TriageRecord,\n } from '../../shared/protocol.js'\n import { captureSnapshot } from './token-usage.js'\n import { checkParentSubtasksDone, checkSubtaskEvidence } from './subtask-evidence.js'\n@@ -209,11 +208,6 @@ export function gateQuestionCard(gateKind: string | undefined, from: string, to:\n   return questionCardFor(gateKind, from, to)\n }\n \n-/** 本窗口最近一条遗留 pending triage（旧流程产物；无则 undefined）。 */\n-export function findPending(ledger: LedgerView, windowKey: string): TriageRecord | undefined {\n-  return pendingSuggestionFor(ledger, windowKey)\n-}\n-\n /**\n  * 直接立项写入：store.mutate('requirement-created') push RequirementRecord\n  * （status='draft'，sourceSessionId=windowKey，actor={kind:'human'}——弹框作答\n"},{"path":"packages/web/dsh-pmboard/src/client/view.ts","status":"M","added":1,"deleted":1,"patch":"diff --git a/packages/web/dsh-pmboard/src/client/view.ts b/packages/web/dsh-pmboard/src/client/view.ts\nindex 31862857..8a6f4f72 100644\n--- a/packages/web/dsh-pmboard/src/client/view.ts\n+++ b/packages/web/dsh-pmboard/src/client/view.ts\n@@ -9,7 +9,7 @@\n  * @module dsh-pmboard/client/view\n  */\n export { LANE_STATUSES, NO_ARCHIVED, buildEmpty, buildError } from './render/dom-utils.ts'\n-export { toReqCards, buildBoard, LIST_PAGE_SIZES, LIST_PAGE_SIZE_DEFAULT, defaultListDirFor, buildListView, buildTriage } from './views/board.ts'\n+export { toReqCards, buildBoard, LIST_PAGE_SIZES, LIST_PAGE_SIZE_DEFAULT, defaultListDirFor, buildListView } from './views/board.ts'\n export { buildReqDetail } from './views/stage-detail.ts'\n export { buildTaskDetail } from './views/stage-panel.ts'\n export { buildTasksPage } from './views/timeline.ts'\n"},{"path":"packages/web/dsh-pmboard/src/adapters/CaptureHook.ts","status":"M","added":2,"deleted":2,"patch":"diff --git a/packages/web/dsh-pmboard/src/adapters/CaptureHook.ts b/packages/web/dsh-pmboard/src/adapters/CaptureHook.ts\nindex 9072df82..7a3b7e95 100644\n--- a/packages/web/dsh-pmboard/src/adapters/CaptureHook.ts\n+++ b/packages/web/dsh-pmboard/src/adapters/CaptureHook.ts\n@@ -256,9 +256,9 @@ export function createSessionEventCaptureHook(deps: CaptureHookDeps): (session:\n       recordRecentUserMsg(deps.recentUserMsgs, windowKey, text, now())\n     }\n \n-    // 窗口条件：unbound && 无遗留 pending → 需要立项捕获（确定性判定，语义判断留给 LLM）。\n+    // 窗口条件：unbound → 需要立项捕获（确定性判定，语义判断留给 LLM）。\n     if (!shouldCaptureWindow(snapshot(), windowKey)) {\n-      debug(`reqboard-capture: window ${windowKey.slice(0, 16)} bound or has pending — no capture needed`)\n+      debug(`reqboard-capture: window ${windowKey.slice(0, 16)} bound — no capture needed`)\n       // 已绑定窗口 + 直接人类消息 = 该窗口仍在实际推进其需求 → 通知接手推进（R1）\n       const ledger = snapshot()\n       if (isWindowBound(ledger, windowKey)) {\n"},{"path":"packages/web/dsh-pmboard/templates/design/architecture.md","status":"M","added":257,"deleted":79,"patch":null,"truncated":true}];
+var state = { sel: 0, split: false, changed: false, wrap: false };
+var MENU = document.getElementById('menu');
+var BODY = document.getElementById('sbBody');
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function parsePatch(patch){
+  if (!patch) return [];
+  var lines = patch.split('\n'), hunks = [], cur = null;
+  for (var i=0;i<lines.length;i++){
+    var l = lines[i];
+    if (l.indexOf('diff --git ')===0 || l.indexOf('index ')===0) continue;
+    if (l.indexOf('--- ')===0 || l.indexOf('+++ ')===0) continue;
+    if (l.length===0) continue;
+    if (l.indexOf('@@')===0){
+      var m = /^@@ -([0-9]+)(?:,([0-9]+))? \+([0-9]+)(?:,([0-9]+))? @@/.exec(l);
+      if (!m) continue;
+      cur = { head:l, oldNo:parseInt(m[1],10), newNo:parseInt(m[3],10), rows:[] };
+      hunks.push(cur); continue;
+    }
+    if (cur===null) continue;
+    if (l.charAt(0)==='\\') continue;
+    var t='ctx';
+    if (l.charAt(0)==='+') t='add'; else if (l.charAt(0)==='-') t='del'; else if (l.charAt(0)!==' ') continue;
+    var row = { type:t, text:l.slice(1), oldNo:null, newNo:null };
+    if (t==='ctx'){ row.oldNo=cur.oldNo++; row.newNo=cur.newNo++; }
+    else if (t==='del'){ row.oldNo=cur.oldNo++; } else { row.newNo=cur.newNo++; }
+    cur.rows.push(row);
+  }
+  return hunks;
+}
+function mark(r){ return r.type==='add' ? '+' : (r.type==='del' ? '-' : ' '); }
+function body(r){ return r.text.length ? esc(r.text) : '&nbsp;'; }
+function rowHtml(r){
+  var o = r.oldNo==null?'':r.oldNo, n = r.newNo==null?'':r.newNo;
+  return '<div class="dl '+r.type+'"><span class="ln">'+o+'</span><span class="ln">'+n+'</span><span class="mk">'+mark(r)+'</span><span class="cd">'+body(r)+'</span></div>';
+}
+function cellHtml(r, side){
+  if (r==null) return '<div class="dl empty"><span class="ln"></span><span class="mk"> </span><span class="cd"></span></div>';
+  var no = side==='left' ? (r.oldNo==null?'':r.oldNo) : (r.newNo==null?'':r.newNo);
+  return '<div class="dl '+r.type+'"><span class="ln">'+no+'</span><span class="mk">'+mark(r)+'</span><span class="cd">'+body(r)+'</span></div>';
+}
+function unifiedHtml(hunks, changedOnly){
+  var out='';
+  for (var i=0;i<hunks.length;i++){
+    var h=hunks[i]; out += '<div class="hunk-head">'+esc(h.head)+'</div>';
+    for (var j=0;j<h.rows.length;j++){
+      var r=h.rows[j]; if (changedOnly && r.type==='ctx') continue;
+      out += rowHtml(r);
+    }
+  }
+  return out;
+}
+function splitHtml(hunks, changedOnly){
+  var out='';
+  for (var i=0;i<hunks.length;i++){
+    var h=hunks[i]; out += '<div class="hunk-head">'+esc(h.head)+'</div>';
+    var rows=h.rows.slice(), k=0;
+    while (k<rows.length){
+      var r=rows[k];
+      if (r.type==='ctx'){
+        if (!changedOnly) out += '<div class="split"><div class="col">'+cellHtml(r,'left')+'</div><div class="col">'+cellHtml(r,'right')+'</div></div>';
+        k++; continue;
+      }
+      var dels=[], adds=[];
+      while (k<rows.length && rows[k].type==='del'){ dels.push(rows[k]); k++; }
+      while (k<rows.length && rows[k].type==='add'){ adds.push(rows[k]); k++; }
+      var n=Math.max(dels.length, adds.length);
+      for (var q=0;q<n;q++){
+        out += '<div class="split"><div class="col">'+cellHtml(dels[q]||null,'left')+'</div><div class="col">'+cellHtml(adds[q]||null,'right')+'</div></div>';
+      }
+    }
+  }
+  return out;
+}
+var SEQ = 1163, TURN = 4, SID = 'session-bbfc9a7a-f272-44ee-8d8f-7f212f89fa34';
+function addr(){ return 'dsh-resource://changes-review/session/' + SID + '/' + SEQ + '/' + TURN; }
+function shortName(p){ var i = p.lastIndexOf('/'); return i>=0 ? p.slice(i+1) : p; }
+function renderList(){
+  var el = document.getElementById('files'), html='', a=0, d=0;
+  for (var i=0;i<FILES.length;i++){
+    var f = FILES[i]; a += f.added; d += f.deleted;
+    var dir='', base=f.path, idx=f.path.lastIndexOf('/');
+    if (idx>=0){ dir=f.path.slice(0,idx+1); base=f.path.slice(idx+1); }
+    var counts = '<span class="stat-add">+'+f.added+'</span><span class="stat-del">-'+f.deleted+'</span>';
+    if (f.truncated) counts += '<span class="meta">已截断</span>';
+    html += '<li><div class="frow'+(state.sel===i?' active':'')+'" data-i="'+i+'">'
+      + '<span class="caret">&#9654;</span>'
+      + '<span class="path"><span class="badge '+f.status+'">'+f.status+'</span> <span class="dir">'+esc(dir)+'</span>'+esc(base)+'</span>'
+      + '<span class="counts">'+counts+'</span>'
+      + '<span class="meta" style="font-size:10.5px">t'+TURN+'</span>'
+      + '</div></li>';
+  }
+  el.innerHTML = html;
+  document.getElementById('totals').innerHTML = FILES.length + ' 个文件 <span class="stat-add">+' + a + '</span> <span class="stat-del">-' + d + '</span>';
+}
+function renderSide(){
+  var f = FILES[state.sel];
+  document.getElementById('sbAddr').textContent = addr() + '   params { index: ' + state.sel + ' }';
+  document.getElementById('sbTitle').textContent = 'turn ' + TURN + ' 的改动';
+  document.getElementById('picked').textContent = shortName(f.path);
+  BODY.className = 'side-body' + (state.wrap ? ' wrap' : '');
+  if (f.truncated){
+    BODY.innerHTML = '<div class="empty">该文件超过渲染阈值：官方视图在此显示「'+(f.oversized===true?'oversized':'truncated')+'」状态，只给统计，不给行。</div>';
+    return;
+  }
+  var hunks = parsePatch(f.patch);
+  BODY.innerHTML = '<div class="patch">' + (state.split ? splitHtml(hunks, state.changed) : unifiedHtml(hunks, state.changed)) + '</div>';
+}
+function render(){ renderList(); renderSide(); }
+var toastEl = document.getElementById('toast'), toastTimer=null;
+function toast(msg){ toastEl.textContent=msg; toastEl.classList.add('on'); clearTimeout(toastTimer); toastTimer=setTimeout(function(){toastEl.classList.remove('on');},2800); }
+document.getElementById('files').addEventListener('click', function(e){
+  var row = e.target.closest ? e.target.closest('.frow') : null;
+  if (!row) return;
+  state.sel = parseInt(row.getAttribute('data-i'), 10);
+  render();
+  toast('sidebarRight.openResource(' + addr() + ', { params: { index: ' + state.sel + ' } })');
+});
+document.getElementById('picker').addEventListener('click', function(e){
+  e.stopPropagation();
+  var html = '';
+  for (var i=0;i<FILES.length;i++){
+    var f = FILES[i];
+    html += '<div class="mi'+(state.sel===i?' sel':'')+'" data-m="'+i+'"><span>'+esc(f.display || f.path)+'</span><span class="counts"><span class="stat-add">+'+f.added+'</span><span class="stat-del">-'+f.deleted+'</span></span></div>';
+  }
+  MENU.innerHTML = html;
+  var r = document.getElementById('picker').getBoundingClientRect();
+  MENU.style.display='block'; MENU.style.top=(r.bottom+4)+'px'; MENU.style.left=r.left+'px';
+});
+MENU.addEventListener('click', function(e){
+  var mi = e.target.closest ? e.target.closest('[data-m]') : null;
+  if (!mi) return;
+  state.sel = parseInt(mi.getAttribute('data-m'),10);
+  MENU.style.display='none';
+  render();
+});
+document.addEventListener('click', function(){ MENU.style.display='none'; });
+function bindSeg(attr, key, asBool){
+  var btns = document.querySelectorAll('[data-'+attr+']');
+  for (var i=0;i<btns.length;i++){
+    (function(b){
+      b.addEventListener('click', function(){
+        var v = b.getAttribute('data-'+attr);
+        state[key] = asBool ? (v==='1') : v;
+        for (var j=0;j<btns.length;j++) btns[j].classList.toggle('active', btns[j]===b);
+        renderSide();
+      });
+    })(btns[i]);
+  }
+}
+bindSeg('split','split',true);
+bindSeg('changed','changed',true);
+document.getElementById('wrapBtn').addEventListener('click', function(){
+  state.wrap = !state.wrap;
+  this.classList.toggle('active', state.wrap);
+  this.style.background = state.wrap ? '#eef2f7' : '#fff';
+  this.style.fontWeight = state.wrap ? '600' : '400';
+  renderSide();
+});
+document.getElementById('nativeBtn').addEventListener('click', function(){
+  toast('/api/changes.open?sessionId=…&seq=' + SEQ + '&index=' + state.sel + '  → 交给本机编辑器打开');
+});
+document.getElementById('sbClose').addEventListener('click', function(){
+  toast('侧栏 tab 关闭（下一次点文件行会重新打开）');
+});
+document.getElementById('refresh').addEventListener('click', function(){
+  toast('重新读取 ctx.workspaceChanges.diff()（本样张为静态数据）');
+  render();
+});
+render();
+
+</script>
+</body>
+</html>

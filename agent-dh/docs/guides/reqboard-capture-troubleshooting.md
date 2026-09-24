@@ -25,9 +25,9 @@ tail -f agent-dh/.dsh-data/state/reqboard-capture-diag.log
 | EARLY | apply() 开头 | `apply function STARTED` | 无此行 = 插件未加载（查 cordis 配置） |
 | NODE-1 | Hook 订阅 | `Hook subscription SUCCESS (unsubscribe=function)` | FAILED = `ctx.on` 未注册成功 |
 | NODE-2 | user/message 到达 | `user/message event ARRIVED (windowKey=...)` | 无此行 = 事件未派发（或消息没真发出去——查 sessions 目录是否有写入） |
-| NODE-3 | pendingCapture 填充 | `pendingCapture SET (size=N, text.length=M)` | 无此行 = 窗口 bound / 有遗留 pending / 消息被清洗为空 / 非 direct-human |
+| NODE-3 | pendingCapture 填充 | `pendingCapture SET (size=N, text.length=M)` | 无此行 = 窗口 bound / 消息被清洗为空 / 非 direct-human |
 | NODE-4 | systemPrompt 组装 | `systemPrompt assemble (windowKey=..., pending=EXISTS/NONE)` | windowKey=undefined = 上下文提取失败 |
-| NODE-5 | 提示词生成 | `DYNAMIC PROMPT (text.length≈1179)` / `STATIC GUIDANCE (620)` / `'' (reason=...)` | 返回空串看 reason：windowBound / hasPendingSuggestion / windowKey=undefined |
+| NODE-5 | 提示词生成 | `DYNAMIC PROMPT (text.length≈1179)` / `STATIC GUIDANCE (620)` / `'' (reason=...)` | 返回空串看 reason：windowBound / windowKey=undefined |
 
 ## 常见误判
 
@@ -82,3 +82,20 @@ Q4 选 docs/rfcs/ 等非默认位置时，路径推导（H2 输入包、阶段�
 G0 立项门在 requirement.md 未落盘时 skip(doc_not_ready) 不压（保护立项上下文）；
 后续阶段门（文档已落盘）在轮次边界真压缩并留痕 `state/node-isolation-log.json`。
 回滚：配置改回 false + 重启（30 秒可逆）。
+
+## triage 兼容层已删除（2026-09-24，REQ-260922182505-0924）
+
+以下现象**不是 bug，是预期行为**（旧 M2 流程的兼容层已全删）：
+
+- `GET/POST /dashboard/api/reqboard/triage*` 四个端点返回 404 `not_found`；
+- 看板没有"待归类"面板（buildTriage / fetchTriage / triage CSS 已删）；
+- `reqboard_status` 不再返回 `has_pending` / `pending_triage_id` 字段；
+- 拒绝码 `REQBOARD_PENDING_TRIAGE` 不再可能出现；
+- 捕获引导只查"窗口是否 bound"，不再查遗留 pending 建议卡。
+
+台账 `triages` 字段与 `TriageRecord` 类型**冻结保留只读**（存量 2 条 resolved 记录
+照常加载，migration v4 fixture 测试是锁定证据）；`isWindowBound` 的 triage 锚点
+判定保留（历史 confirmed 记录仍是窗口→需求绑定的数据锚点）。
+
+防回归：机制退役时删除清单 = 实现本体 + 路由/面板兼容层 + 前置检查判定，
+三类一起列；排查"某检查为什么永不触发"时先查它检查的对象还在不在生产。

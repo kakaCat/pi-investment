@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REQ-260922182638-0777 原型 · 统一追溯链逻辑：全链路展示中文化</title>
+<style>
+  :root {
+    --ink: #1f2329; --dim: #8a9199; --link: #2f6fed; --warn: #d83931;
+    --ok: #1f9d55; --pending: #c77400; --line: #e5e7eb; --bg-soft: #f6f7f9;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; margin: 0; padding: 24px; color: var(--ink); background: #fff; font-size: 14px; line-height: 1.6; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 28px 0 8px; padding-bottom: 6px; border-bottom: 2px solid var(--ink); }
+  h3 { font-size: 14px; margin: 16px 0 6px; }
+  .meta { color: var(--dim); font-size: 13px; margin-bottom: 16px; }
+  .note { background: var(--bg-soft); border-left: 3px solid var(--link); padding: 8px 12px; margin: 12px 0; font-size: 13px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }
+  .panel { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .panel.before { background: #fff8f6; border-color: #f3d2cd; }
+  .panel.after { background: #f6fdf8; border-color: #c3e6cd; }
+  .tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; margin-bottom: 8px; }
+  .tag.before { background: #fbe4e2; color: var(--warn); }
+  .tag.after { background: #dcf2e3; color: var(--ok); }
+  .diff { background: #fff3c4; padding: 0 2px; border-radius: 2px; }
+  code { background: var(--bg-soft); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  ul { margin: 6px 0; padding-left: 20px; }
+  li { margin: 3px 0; }
+  .dim { color: var(--dim); }
+  .warn { color: var(--warn); }
+  .link { color: var(--link); }
+
+  /* ---- 模拟看板组件样式（对齐 dsh-pmboard 纯文字排版） ---- */
+  .trace { font-size: 13px; }
+  .trace .sep { color: var(--dim); margin: 0 4px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  .chip { font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); }
+  .chip.confirmed { color: var(--ok); border-color: #b7e2c6; background: #f2fbf5; }
+  .chip.pending { color: var(--pending); border-color: #f0d9ab; background: #fffaf0; cursor: pointer; }
+  .chip.missing { color: var(--warn); border-color: #f3c1bd; background: #fff5f4; }
+  .doc-list { list-style: none; padding-left: 0; }
+  .doc-list li { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
+  .doc-label { white-space: nowrap; }
+  .doc-path { color: var(--link); font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; }
+  .toolrow { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin: 6px 0; background: #fff; font-size: 13px; }
+  .toolrow .head { display: flex; gap: 8px; align-items: baseline; }
+  .toolrow .ico { width: 18px; }
+  .archive-kind { color: var(--dim); margin-right: 6px; }
+  table.map { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+  table.map th, table.map td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; }
+  table.map th { background: var(--bg-soft); }
+</style>
+</head>
+<body>
+
+<h1>统一追溯链逻辑：全链路展示中文化 · UI 原型</h1>
+<div class="meta">REQ-260922182638-0777 · feature / simple · 窗口 w-89aa3b25 · 2026-09-22 · v3（用户补充：任务卡带任务名称）</div>
+
+<div class="note">
+  <b>原型怎么用</b>：本需求只改「显示名取值」，不改布局与交互。下面 5 个区块各给「改造前 / 改造后」对照，
+  <span class="diff">黄色底纹</span> = 本次会发生变化的像素级差异。v2 新增两个确认点：
+  <b>① 追溯链/文档记录不再裸显 architecture.md 这类英文文件名（改中文文档名）；② 任务卡逐张列出且带任务名称，不再折叠成「任务卡×N」</b>。
+</div>
+
+<h2>统一映射表 · 第一层：产物种类 kind → 中文名（唯一事实源，改造后各处共用）</h2>
+<table class="map">
+  <tr><th>kind（枚举）</th><th>统一中文名</th><th>备注</th></tr>
+  <tr><td><code>requirement</code></td><td>需求文档</td><td>归档清单原为「需求说明」→ 统一为此</td></tr>
+  <tr><td><code>design</code></td><td>设计文档</td><td>多份产物逐份显示「文件名层中文名」（见下表）</td></tr>
+  <tr><td><code>plan</code></td><td>拆分计划（旧版）</td><td>plan 退役，由 decomposition 承载</td></tr>
+  <tr><td><code>decomposition</code></td><td>拆分计划</td><td></td></tr>
+  <tr><td><code>task_detail</code></td><td>任务卡</td><td>追溯链逐张列出「任务卡 · 任务名称」（v3，不再 ×N 折叠）</td></tr>
+  <tr><td><code>verification</code></td><td>验收材料</td><td></td></tr>
+  <tr><td><code>archive</code></td><td>归档材料</td><td></td></tr>
+  <tr><td><code>（未知 kind）</code></td><td>产物（原枚举值）</td><td>兜底：中文引导 + 原文附注，不再裸显英文</td></tr>
+</table>
+
+<h2>统一映射表 · 第二层：节点文档文件名 → 中文名（v2 新增）</h2>
+<table class="map">
+  <tr><th>文件名</th><th>统一中文名</th><th>备注</th></tr>
+  <tr><td><code>requirement.md</code></td><td>需求文档</td><td></td></tr>
+  <tr><td><code>design/architecture.md</code></td><td>架构文档</td><td>用户点名：不再裸显 architecture.md</td></tr>
+  <tr><td><code>design/data-model.md</code></td><td>数据模型</td><td></td></tr>
+  <tr><td><code>design/interfaces.md</code></td><td>接口文档</td><td>用户点名：不再裸显 interfaces.md</td></tr>
+  <tr><td><code>design/test-cases.md</code></td><td>测试用例</td><td></td></tr>
+  <tr><td><code>design/migration.md</code></td><td>迁移方案</td><td>refactor 类设计文档</td></tr>
+  <tr><td><code>decomposition.md</code></td><td>拆分计划</td><td></td></tr>
+  <tr><td><code>tasks/&lt;taskId&gt;.md</code></td><td>任务卡 · 任务名称</td><td>逐张列出；名称取 StageTaskRef.title，匹配不到降级「任务卡（taskId）」</td></tr>
+  <tr><td><code>（未知文件名）</code></td><td>&lt;kind中文&gt;（文件名）</td><td>兜底：中文引导 + 原文附注，排查线索不丢</td></tr>
+</table>
+
+<h2>§1 节点追溯链（stage-panel.ts）</h2>
+<p class="dim">位置：阶段详情面板底部「产物追溯链」一行。v2 规则：单份产物显示种类名；design 同类多份显示<b>文件名层中文名</b>；任务卡<b>逐张展开</b>。</p>
+<div class="pair">
+  <div class="panel before">
+    <span class="tag before">改造前</span>
+    <div class="trace">
+      追溯链：<span class="link">需求文档</span><span class="sep">→</span><span class="link diff">architecture.md</span><span class="sep">→</span><span class="link diff">interfaces.md</span><span class="sep">→</span><span class="link">拆分计划</span><span class="sep">→</span><span class="dim diff">任务卡×2</span><span class="sep">→</span><span class="diff">new_proposal</span>
+    </div>
+    <ul>
+      <li>design 多份<span class="warn">裸显英文文件名</span>（architecture.md / interfaces.md）；</li>
+      <li>任务卡<span class="warn">折叠成「任务卡×2」</span>，看不到每张三卡；</li>
+      <li>未知 kind（如 <code>new_proposal</code>）<span class="warn">裸显英文枚举</span>。</li>
+    </ul>
+  </div>
+  <div class="panel after">
+    <span class="tag after">改造后</span>
+    <div class="trace">
+      追溯链：<span class="link">需求文档</span><span class="sep">→</span><span class="link diff">架构文档</span><span class="sep">→</span><span class="link diff">接口文档</span><span class="sep">→</span><span class="link">拆分计划</span><span class="sep">→</span><span class="link diff">任务卡 · 新增映射模块</span><span class="sep">→</span><span class="link diff">任务卡 · 收敛四处引用</span><span class="sep">→</span><span class="diff">产物（new_proposal）</span>
+    </div>
+    <ul>
+      <li>design 每份文档显示<b>中文文档名</b>（架构文档 / 接口文档），tooltip 仍带完整路径；</li>
+      <li>任务卡<b>逐张列出且带任务名称</b>（任务卡 · 新增映射模块），一眼知道每张卡干什么；</li>
+      <li>未知 kind → <b>产物（原枚举值）</b>。</li>
+    </ul>
+  </div>
+</div>
+
+<h2>§2 📁 文档记录区（views/verification.ts · DOC_KIND_META）</h2>
+<p class="dim">位置：需求详情页「文档」区块，label = 种类可读名 · 文档中文名；路径列保留真实文件名（排查线索）。</p>
+<div class="pair">
+  <div class="panel before">
+    <span class="tag before">改造前</span>
+    <ul class="doc-list">
+      <li><span>📄</span><span class="doc-label">需求文档 · requirement.md</span><span class="doc-path">docs/requirements/REQ-xxx/requirement.md</span></li>
+      <li><span>📐</span><span class="doc-label">设计文档 · <span class="diff">architecture.md</span></span><span class="doc-path">…/design/architecture.md</span></li>
+      <li><span class="diff">📒</span><span class="doc-label"><span class="diff">extras_review · review.html</span></span><span class="doc-path">…/review.html</span></li>
+    </ul>
+    <ul><li>DOC_KIND_META 与追溯链表<b>各自维护</b>已漂移；文件名位裸显英文；未知 kind 图标 📒 + <span class="warn">裸显英文</span>。</li></ul>
+  </div>
+  <div class="panel after">
+    <span class="tag after">改造后</span>
+    <ul class="doc-list">
+      <li><span>📄</span><span class="doc-label">需求文档</span><span class="doc-path">docs/requirements/REQ-xxx/requirement.md</span></li>
+      <li><span>📐</span><span class="doc-label">设计文档 · <span class="diff">架构文档</span></span><span class="doc-path">…/design/architecture.md</span></li>
+      <li><span class="diff">📒</span><span class="doc-label"><span class="diff">产物（extras_review） · review.html</span></span><span class="doc-path">…/review.html</span></li>
+    </ul>
+    <ul><li>中文名来自<b>同一映射模块的两层函数</b>；格式不变仅取值收敛；路径列仍显示真实文件名。图标归属不变。</li></ul>
+  </div>
+</div>
+
+<h2>§3 产物确认 chips（views/artifacts.ts）</h2>
+<p class="dim">位置：泳道卡面五道确认门 chips（✓ 已确认 / ⏳ 待确认 / ✗ 缺失）。</p>
+<div class="pair">
+  <div class="panel before">
+    <span class="tag before">改造前</span>
+    <div class="chips">
+      <span class="chip confirmed">✓ 需求文档</span>
+      <span class="chip pending">⏳ 设计文档</span>
+      <span class="chip missing">✗ <span class="diff">verification</span></span>
+    </div>
+    <ul><li>映射表与追溯链<b>同名重复定义</b>（ARTIFACT_KIND_LABELS 写两遍）；未知 kind chip <span class="warn">裸显英文</span>。</li></ul>
+  </div>
+  <div class="panel after">
+    <span class="tag after">改造后</span>
+    <div class="chips">
+      <span class="chip confirmed">✓ 需求文档</span>
+      <span class="chip pending">⏳ 设计文档</span>
+      <span class="chip missing">✗ <span class="diff">验收材料</span></span>
+      <span class="chip missing">✗ <span class="diff">产物（mystery_kind）</span></span>
+    </div>
+    <ul>
+      <li>已知 kind（verification）正常显示「验收材料」——chips 取值走唯一映射，与追溯链逐字一致；</li>
+      <li>未知 kind 同样「产物（xxx）」兜底，<b>不再裸显英文</b>。</li>
+    </ul>
+  </div>
+</div>
+
+<h2>§4 工具回执行（toolviews/shared.ts · SUBMIT_KIND）</h2>
+<p class="dim">位置：会话流里 reqboard_submit 工具卡片的折叠行摘要。</p>
+<div class="pair">
+  <div class="panel before">
+    <span class="tag before">改造前</span>
+    <div class="toolrow"><div class="head"><span class="ico">📋</span><span>提交 <span class="diff">design</span> 产物 · architecture.md</span></div></div>
+    <div class="toolrow"><div class="head"><span class="ico">📋</span><span>提交 <span class="diff">task_detail</span> 产物 · t-1a2b3c.md</span></div></div>
+    <ul><li>SUBMIT_KIND 只有 4 项，<b>缺 design / decomposition / task_detail</b> → 回执直接显示<span class="warn">英文枚举</span>。</li></ul>
+  </div>
+  <div class="panel after">
+    <span class="tag after">改造后</span>
+    <div class="toolrow"><div class="head"><span class="ico">📋</span><span>提交 <span class="diff">设计文档</span> · <span class="diff">架构文档</span></span></div></div>
+    <div class="toolrow"><div class="head"><span class="ico">📋</span><span>提交 <span class="diff">任务卡</span> · t-1a2b3c.md</span></div></div>
+    <ul><li>kind 映射补齐并收敛到唯一事实源；文件名位同走第二层映射（architecture.md → 架构文档），回执不再出现英文枚举/裸文件名。</li></ul>
+  </div>
+</div>
+
+<h2>§5 归档清单（views/verification.ts · ARCHIVE_DOC_KIND_LABELS）</h2>
+<p class="dim">位置：需求详情页「归档」区块的需求目录文档清单。</p>
+<div class="pair">
+  <div class="panel before">
+    <span class="tag before">改造前</span>
+    <ul class="doc-list">
+      <li><span class="archive-kind diff">需求说明</span><code>requirement.md</code></li>
+      <li><span class="archive-kind">拆分计划</span><code>decomposition.md</code></li>
+      <li><span class="archive-kind">验收材料</span><code>verification.md</code></li>
+    </ul>
+    <ul><li>同一 kind=requirement，这里叫「<span class="diff">需求说明</span>」，其余三处叫「需求文档」——术语漂移实锤。</li></ul>
+  </div>
+  <div class="panel after">
+    <span class="tag after">改造后</span>
+    <ul class="doc-list">
+      <li><span class="archive-kind diff">需求文档</span><code>requirement.md</code></li>
+      <li><span class="archive-kind">拆分计划</span><code>decomposition.md</code></li>
+      <li><span class="archive-kind">验收材料</span><code>verification.md</code></li>
+    </ul>
+    <ul><li>统一为「需求文档」，与其他区块逐字一致。</li></ul>
+  </div>
+</div>
+
+<h2>验收核对清单（对着原型逐项看）</h2>
+<ul>
+  <li>☐ §1–§5 五处对照中，<b>黄色底纹处</b>即全部差异像素；其余像素（布局/图标/颜色/交互）零变化；</li>
+  <li>☐ 浏览器打开任一进行中需求详情页：追溯链 / 📁 文档记录 / 产物 chips / 工具回执 <b>均无英文枚举原文、无裸英文文件名主标签</b>；</li>
+  <li>☐ 追溯链 design 多份显示「架构文档 / 接口文档 / …」（不再是 architecture.md / interfaces.md），tooltip 仍带完整路径；</li>
+  <li>☐ 追溯链任务卡<b>逐张列出且带任务名称</b>（「任务卡 · ×××」× 实际张数），不再出现「任务卡×N」折叠；</li>
+  <li>☐ 归档清单 requirement 显示「需求文档」（不再是「需求说明」）；</li>
+  <li>☐ 人为构造未知 kind（如改测试数据塞 <code>mystery_kind</code>）→ 显示「产物（mystery_kind）」；未知文件名 → 「设计文档（foo.md）」；</li>
+  <li>☐ <code>grep -rn "需求文档" agent-dh/packages/web/dsh-pmboard/src</code> 映射定义只剩一处。</li>
+</ul>
+
+<div class="note">
+  <b>不变项（防误读）</b>：ArtifactKind 枚举、reqboard_submit 契约、ArtifactSync/syncReqArtifacts 同步逻辑、图标归属、chips 颜色语义、
+  「种类名 · 文档名」两段式格式、缺失产物红字「（缺失）」——全部不变。本原型只锁定「显示名取值」与「任务卡折叠→展开」两个变量。
+</div>
+
+</body>
+</html>

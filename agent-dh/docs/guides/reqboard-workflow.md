@@ -3,7 +3,7 @@ id: guide-reqboard-workflow
 title: 需求看板实操（从立项到归档）
 type: guide
 status: living
-updated: 2026-09-19
+updated: 2026-09-24
 owners: [w-1cee2467]
 tags: [guide, reqboard, workflow]
 ---
@@ -70,6 +70,27 @@ tags: [guide, reqboard, workflow]
 | `design_contains_decomposition` | 设计文档里检出任务表/拆分计划特征 | 把该内容挪到拆分阶段（decomposition.md）后再确认 |
 | `REQBOARD_ARTIFACT_NOT_OPENABLE` / `REQBOARD_FILE_MISSING` | 登记产物路径是伪路径/越界/没落盘 | 先落盘再登记；路径写工作区相对形态（别用 brace/..`） |
 | `invalid_transition` / `invalid_dag` / `invalid_input` / `human_gate` | 路由层同义错误 | 同上；`invalid_dag` 检查依赖是否成环 / 悬空 |
+
+## 节点提示词里的 worktree 规范与弹框超时（REQ-260923222557-d3b0）
+
+**这节回答**：多个窗口并行时怎么不互相踩 Git，以及"等我想清楚再点确认"还会不会被超时打断。
+
+- **worktree 规范随节点提示词下发**（只注入规范文本，不硬编码、不强制执行 git 命令——由 agent 按实际情况判断）：
+  - `implementing` 节点：路由提示词里多一段 Worktree 规范——创建
+    `git worktree add .worktrees/REQ-<号>/ -b feature/REQ-<号>`、子任务完成在 worktree 内 commit 一次作检查点、
+    归档时合并回主线并 `git worktree remove` 清理；
+  - **子任务完成**（`reqboard_task_move` → `done`）与**需求归档**（`accepting` → `archived`）两个时点走
+    "事件型提示词"（`src/domain/prompt/worktree-events.ts`）：把 `{id}` / `{task_id}` / `{task_title}`
+    替换后注入，前者提醒"该 commit 检查点"、后者提醒"合并并删除 worktree"；
+  - 注入**尽力而为**：投递失败不阻断状态转移（故障注入用例锁定）。
+- **弹框超时统一 1 小时**（2026-09-23 用户裁定）：`src/domain/limits.ts` 的 `timeoutInteractiveMs` /
+  `timeoutSheetMs` 由 10 分钟 / 15 分钟改为 `3_600_000`；五个"需人弹框"工具
+  （`reqboard_ask_confirm` / `reqboard_capture` / `reqboard_task_execute` / `reqboard_task_run` /
+  `reqboard_accept_sheet`）全部引用该常量，无硬编码字面量。
+  ⚠️ **例外**：PTC（`run_code`）模式的单次预算（默认 120000ms、上限 600000ms）**覆盖嵌套工具等待**，
+  所以 PTC 窗口里弹框最多等 10 分钟——"给用户 1 小时"的前提是**原生工具调用**的窗口。
+- 怎么复核：`npx vitest run tests/concurrency-limits.test.ts`（常量锁定 + 旧值扫描）、
+  `npx vitest run tests/worktree-injection.test.ts`（两条事件注入路径 + 投递失败仍转移）。
 
 ## 依据
 
