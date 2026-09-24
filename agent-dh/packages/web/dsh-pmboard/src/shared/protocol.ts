@@ -423,6 +423,31 @@ export interface DesignDocStatus {
   exempted?: string
 }
 
+/**
+ * 设计文档逐份登记态（T-3，REQ-260924213231-b1c4 / I-1/I-2 / FR-1）。
+ *
+ * 与 `DesignDocStatus`（已交/未交，设计节点展示用）的区别：本投影把**磁盘 / 产物簿 / 确认章**
+ * 三源合成一行，供 `reqboard_submit(kind=design)` 返回体与 `reqboard_status` 逐份上报——
+ * 让 agent 不打开看板也能读出「未登记（磁盘有、产物簿无） / 待确认（已登记未落章） / 已落章」。
+ * 派生投影，**不落盘**：每次查询按目录扫描 + `RequirementRecord.artifacts` 现算。
+ */
+export interface DesignDocRegistration {
+  /** 文件名（如 architecture.md） */
+  name: string
+  /** 工作区相对路径（如 docs/requirements/REQ-x/design/architecture.md） */
+  path: string
+  /** 磁盘上是否真实存在（目录扫描结果） */
+  on_disk: boolean
+  /** 产物簿是否有该条（stage=design 且 kind=design 且 path 命中） */
+  registered: boolean
+  /** 是否已落章（`StageArtifact.confirmedAt !== undefined`） */
+  confirmed: boolean
+  /** 有效豁免理由（requirement.md front-matter design_exempt） */
+  exempted?: string
+  /** 条件必交标记（仅声明了对应端侧时必交） */
+  conditional?: 'frontend' | 'backend'
+}
+
 export interface DesignStageBody { plan?: PlanRecord; category?: RequirementCategory; designDocs?: DesignDocStatus[] }
 export interface DecomposeStageBody { decompositionDoc?: string; tasks: StageTaskRef[]; planTasks: PlanTask[] }
 export interface ImplementStageBody {
@@ -803,6 +828,61 @@ export interface AdvanceState {
   pausedReason?: string
 }
 
+/**
+ * 断点记录（T-1，REQ-260924213231-b1c4 / FR-6 / I-8）。
+ *
+ * 同一需求只保留**一个**对象（后写覆盖前写），避免「两份真相」。写入源三选一：
+ *   A 交棒用例尾部 `stampCheckpoint`（reason="checkpoint"；stage/pendingAction 两字段未变则**不写**）
+ *   B `CaptureHook` 的 `turn/end`（reason="error:<code>:<message>" / "aborted:<cause>" / "interrupted"）
+ *   B′ `reqboard_note_interruption(reason)` 工具兜底
+ * 字段缺失（存量记录）= 无断点：续跑输入包不渲染「## 断点」节，逐字节保持旧输出。
+ */
+export interface InterruptionRecord {
+  /** 中断/检查点时间戳（ms） */
+  at: number
+  /** 中断原因原文；交棒检查点写 "checkpoint" */
+  reason: string
+  /** 断点时的流水线阶段（RequirementStatus 之一） */
+  stage: string
+  /** 未完成动作（下一步工具命令），如 `reqboard_ask_confirm(target=artifact, kind=design)` */
+  pendingAction: string
+  /** 最后成功调用的工具名（可缺省） */
+  tool?: string
+}
+
+/** 挂起确认的后台作答结果（T-4；`reqboard_confirm_receipt` 与后台落章回填用）。 */
+export interface PendingConfirmationOutcome {
+  confirmed: boolean
+  advanced: boolean
+  userChoice?: string
+  userFeedback?: string
+}
+
+/**
+ * 挂起确认（T-4，REQ-260924213231-b1c4 / FR-3 / I-3/I-4）——**内存**态，不落盘。
+ *
+ * 产生：`reqboard_ask_confirm` 超过宽限窗口仍未作答（返回 `pending:true` + `ticket`，**不判失败**）；
+ * 消费：人作答后由后台落章 + 推进，agent 凭 `ticket` 调 `reqboard_confirm_receipt` 取回执
+ * （缺 ticket 时回退读台账 `confirmedAt`，以台账为准）。
+ */
+export interface PendingConfirmation {
+  /** 前缀 `pc-` + 随机 id，全局唯一 */
+  ticket: string
+  /** 归属窗口（回执不可跨窗口取用） */
+  windowKey: string
+  requirementId: string
+  /** 与 ask_confirm 同语义 */
+  target: 'artifact' | 'plan'
+  /** target=artifact 时的产物种类 */
+  kind?: ArtifactKind
+  createdAt: number
+  /** 后台作答后回填（缺省 = 尚未作答） */
+  outcome?: PendingConfirmationOutcome
+}
+
+/** 挂起确认 ticket 前缀（T-4 契约）：实现生成 ticket 时必须以此为前缀。 */
+export const PENDING_CONFIRM_TICKET_PREFIX = 'pc-'
+
 export interface RequirementRecord {
   id: string // REQ-xxxxxx
   title: string
@@ -858,6 +938,11 @@ export interface RequirementRecord {
    * 下游重交（plan_submit/decompose）后销标；未销标时推进/验收给出警告。
    */
   docSyncPending?: DocSyncPending[]
+  /**
+   * 断点（T-1，REQ-260924213231-b1c4 FR-6）：当前阶段 + 未完成动作 + 中断原因。
+   * 缺省 = 无断点（存量记录读出即旧行为，续跑输入包逐字节不变）。
+   */
+  interruption?: InterruptionRecord
   /** 验收材料（agent 提交）+ 人工审核结论 */
   verification?: VerificationRecord
   /** 覆盖式通过留痕（REQ-a8d582 FR-4）：缺省 = 无覆盖 */

@@ -10,7 +10,16 @@
  * 本任务（t1）只立接口，不提供实现——实现由 t5 落地。
  */
 
-import type { ReqboardLedger, RequirementRecord, TaskRecord, TriageRecord, TokenSnapshot } from '../shared/protocol.js'
+import type {
+  ArtifactKind,
+  PendingConfirmation,
+  PendingConfirmationOutcome,
+  ReqboardLedger,
+  RequirementRecord,
+  TaskRecord,
+  TriageRecord,
+  TokenSnapshot,
+} from '../shared/protocol.js'
 import type { ConfirmContext, GateId } from '../domain/gate/GateSpec.js'
 import type { ChainRunSummary } from './gate/GatePostChain.js'
 
@@ -244,6 +253,29 @@ export interface CaptureRejectionPort {
   readAll(): Promise<readonly CaptureRejection[]>
 }
 
+/**
+ * 挂起确认端口（T-4，REQ-260924213231-b1c4 / FR-3 / I-3/I-4）。
+ *
+ * 唯一实现 = `adapters/PendingConfirmRegistry.ts`（内存 ticket → 状态；窗口绑定 + 过期判定）。
+ * 为什么要有端口：ask_confirm / confirm_receipt 用例只依赖契约，内存注册表与过期规则留在 adapter；
+ * `UseCaseDeps.pendingConfirms === undefined`（缺省）= 未装配非阻塞能力 → 弹框保持旧的阻塞语义。
+ *
+ * 三个方法都**不抛**：未知 ticket / 窗口不符 / 已过期一律返回 undefined，由用例降级读台账。
+ */
+export interface PendingConfirmPort {
+  /** 登记一次挂起确认并返回 ticket（前缀 `pc-`；id 与时间由实现负责）。 */
+  register(input: {
+    windowKey: string
+    requirementId: string
+    target: 'artifact' | 'plan'
+    kind?: ArtifactKind
+  }): PendingConfirmation
+  /** 按 ticket 取（窗口不符或已过期 → undefined）。 */
+  get(ticket: string, windowKey: string): PendingConfirmation | undefined
+  /** 回填后台作答结果（未知 ticket → undefined；幂等）。 */
+  settle(ticket: string, outcome: PendingConfirmationOutcome): PendingConfirmation | undefined
+}
+
 export interface UseCaseDeps {
   repo: ReqboardRepository
   docs: DocRepository
@@ -267,4 +299,9 @@ export interface UseCaseDeps {
    * （子任务完成 / 需求归档）经此投给窗口。缺省 = 不投递；**投递失败绝不阻断状态转移**。
    */
   delivery?: AgentDeliveryPort
+  /**
+   * 挂起确认注册表（REQ-260924213231-b1c4 FR-3）。缺省 = 未装配非阻塞能力 →
+   * 弹框保持旧的阻塞语义（宽限内作答与原返回体逐字一致）。
+   */
+  pendingConfirms?: PendingConfirmPort
 }
