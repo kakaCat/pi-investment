@@ -50,13 +50,17 @@ class WatchSlaJob:
     """到期巡检编排（无状态；仓储与回执服务由构造注入）"""
 
     def __init__(self, todo_repo: Any, receipt_service: Optional[ReceiptService] = None, *,
-                 receipt_repo: Any = None, sender: Any = None, limit: int = DEFAULT_LIMIT):
+                 receipt_repo: Any = None, sender: Any = None, limit: int = DEFAULT_LIMIT,
+                 name_resolver: Any = None):
         self._todo_repo = todo_repo
         if receipt_service is None:
             receipt_service = ReceiptService(receipt_repo or _default_receipt_repo(),
                                              sender=sender)
         self._receipts = receipt_service
         self._limit = limit
+        # REQ-ad0a t4（FR-13）：标的名解析端口（StockNameResolver）。一轮一次批量联查
+        # （替代逐条 N+1）；缺省 None = 不解析（回执如实标「名称缺失」，不臆造）。
+        self._name_resolver = name_resolver
 
     # ── 主循环 ──────────────────────────────────────────────
 
@@ -75,6 +79,7 @@ class WatchSlaJob:
             'errors': 0,           # 单条处理异常条数
             'degraded': False,     # 扫描失败（整轮降级，不抛）
             'degraded_reason': None,
+            'group_cards': 0,      # 聚合卡张数（REQ-ad0a t4：一 kind 一卡）
         }
 
         try:
@@ -86,37 +91,72 @@ class WatchSlaJob:
             return stats
 
         stats['scanned'] = len(overdue)
-        for todo in overdue:
+
+        # REQ-ad0a t4（FR-13）：一轮一次批量解析标的名称（替代逐条 N+1）；
+        # 解析失败 → 全 None 降级（回执标「名称缺失」），不打断巡检。
+        names: Dict[str, Any] = {}
+        if self._name_resolver is not None and overdue:
             try:
-                self._process_one(todo, at, stats)
-            except Exception as e:  # noqa: BLE001 - 单条异常不中断整轮
+                names = self._name_resolver.resolve_batch(
+                    [getattr(todo, 'symbol', '') for todo in overdue]) or {}
+            except Exception as e:  # noqa: BLE001 - 端口约定不抛，这里再兜一层
+                logger.error('标的名批量解析异常（降级为名称缺失）', error=str(e))
+                names = {}
+
+        # REQ-ad0a t4（FR-8）：开启聚合轮——本轮 escalate/timeout 入组，循环结束后
+        # flush_grouped 按 kind 各发一张聚合卡并逐条落库；即使中途出错也在 finally 收尾。
+        self._receipts.begin_group()
+        try:
+            for todo in overdue:
+                try:
+                    self._process_one(todo, at, stats, names)
+                except Exception as e:  # noqa: BLE001 - 单条异常不中断整轮
+                    stats['errors'] += 1
+                    logger.error('到期巡检单条失败（记错继续，不中断整轮）',
+                                 todo_id=getattr(todo, 'id', None), error=str(e))
+        finally:
+            try:
+                flush = self._receipts.flush_grouped()
+                stats['group_cards'] = len(flush)
+                # 聚合卡送达 → 按条数补记 alerts（grouped 回执在入组时 sent=False）
+                stats['alerts'] += sum(v['count'] for v in flush.values() if v.get('sent'))
+            except Exception as e:  # noqa: BLE001 - 收尾失败记错不抛（仓储失败会向上抛到此处）
                 stats['errors'] += 1
-                logger.error('到期巡检单条失败（记错继续，不中断整轮）',
-                             todo_id=getattr(todo, 'id', None), error=str(e))
+                logger.error('聚合回执收尾失败（记错不中断）', error=str(e))
 
         logger.info('到期巡检完成',
                     **{k: stats[k] for k in ('scanned', 'promoted', 'escalated', 'timeout',
-                                             'alerts', 'duplicates', 'skipped', 'errors')})
+                                             'alerts', 'duplicates', 'skipped', 'errors',
+                                             'group_cards')})
         return stats
 
     # ── 单条编排 ────────────────────────────────────────────
 
-    def _process_one(self, todo: Any, now: datetime, stats: Dict[str, Any]) -> None:
+    @staticmethod
+    def _name_of(todo: Any, names: Dict[str, Any]) -> Any:
+        """从批量解析结果取名称（键 = 规范化 6 位码，与 StockNameResolver 同口径）。"""
+        symbol = str(getattr(todo, 'symbol', '') or '').split('.')[0].strip()
+        return names.get(symbol)
+
+    def _process_one(self, todo: Any, now: datetime, stats: Dict[str, Any],
+                     names: Optional[Dict[str, Any]] = None) -> None:
         """按流转态决定动作：L1→L2、L2→L3、L3 超时升级给用户。"""
+        names = names or {}
         state = str(getattr(todo, 'flow_state', '') or '').strip().upper()
         if state == 'L1':
-            self._promote(todo, 'L2', now, stats)
+            self._promote(todo, 'L2', now, stats, names)
         elif state == 'L2':
-            self._promote(todo, 'L3', now, stats)
+            self._promote(todo, 'L3', now, stats, names)
         elif state == 'L3':
-            self._escalate_to_user(todo, now, stats)
+            self._escalate_to_user(todo, now, stats, names)
         else:
             # 未知状态不臆造晋升（也不静默当"已收敛"）：计入 skipped 并留日志
             stats['skipped'] += 1
             logger.warning('到期巡检遇到未知流转态，跳过（不臆造晋升）',
                            todo_id=getattr(todo, 'id', None), flow_state=state)
 
-    def _promote(self, todo: Any, to_state: str, now: datetime, stats: Dict[str, Any]) -> None:
+    def _promote(self, todo: Any, to_state: str, now: datetime, stats: Dict[str, Any],
+                 names: Optional[Dict[str, Any]] = None) -> None:
         """晋升一级并写升级即回执。仓储返回 None = 已收敛/并发抢先 → 不改不发。"""
         todo_id = getattr(todo, 'id')
         updated = self._todo_repo.promote(todo_id, to_state, now=now)
@@ -126,17 +166,19 @@ class WatchSlaJob:
                         to_state=to_state)
             return
         stats['promoted'] += 1
-        outcome = self._receipts.escalate(updated, to_state=to_state)
+        outcome = self._receipts.escalate(updated, to_state=to_state,
+                                          name=self._name_of(todo, names or {}))
         self._tally(outcome, stats, 'escalated')
 
-    def _escalate_to_user(self, todo: Any, now: datetime, stats: Dict[str, Any]) -> None:
+    def _escalate_to_user(self, todo: Any, now: datetime, stats: Dict[str, Any],
+                          names: Optional[Dict[str, Any]] = None) -> None:
         """L3 仍超时：写 timeout 回执（不改变终态）并把 escalate_count +1。
 
         幂等：同一 due 周期只升级一次——第二次巡检回执 exists 命中即整段跳过
         （既不重发、也不重复累加计数）。
         """
         todo_id = getattr(todo, 'id')
-        outcome = self._receipts.timeout(todo)
+        outcome = self._receipts.timeout(todo, name=self._name_of(todo, names or {}))
         if not outcome.get('issued'):
             stats['duplicates'] += 1
             return

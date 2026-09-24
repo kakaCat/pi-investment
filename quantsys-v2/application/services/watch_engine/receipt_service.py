@@ -21,7 +21,8 @@ sender 抛错也不打断巡检：如实记 delivery_status=failed 并返回 sen
 """
 import hashlib
 import json
-from typing import Any, Callable, Dict, Optional
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional
 
 import structlog
 
@@ -44,6 +45,11 @@ CHANNEL_REPORTS = 'reports'
 #: 发送方签名：sender(payload: dict) -> None。payload 携带 todo_id/kind/channel/level/
 #: symbol/message/period，供 t12 用 NotificationFacade 按级别选模板（P0 红卡等）。
 Sender = Callable[[Dict[str, Any]], None]
+
+#: 聚合投递的回执类型（REQ-260924104605-ad0a t4，FR-8）：巡检一轮（begin_group →
+#: flush_grouped）内同 kind 合成**一张卡**；result/suppressed 不在其列——处置结论
+#: 必须即时到达（FR-14），不参与聚合。
+AGGREGATE_KINDS = ('escalate', 'timeout')
 
 
 def resolve_channel(level: Any, kind: Any) -> str:
@@ -88,28 +94,117 @@ def receipt_period(todo: Any, tag: Any = '') -> str:
     return f'{str(tag or "")}|{due_text}'
 
 
-def render_receipt(todo: Any, *, kind: str, period: str) -> str:
+def _fmt_due(due: Any) -> str:
+    """截止时间（无微秒）：'MM-DD HH:MM'；缺失/非时间 → ''（FR-11：不再 ISO 微秒）。"""
+    if hasattr(due, 'strftime'):
+        return due.strftime('%m-%d %H:%M')
+    return ''
+
+
+def _humanize_overdue(due: Any, now: Optional[datetime] = None) -> Optional[str]:
+    """已超时时长人性化：'2h14m' / '47m'；未超时或无法计算 → None（FR-11）。"""
+    if not hasattr(due, 'isoformat'):
+        return None
+    try:
+        at = now or (datetime.now(due.tzinfo) if getattr(due, 'tzinfo', None)
+                     else datetime.now())
+        seconds = int((at - due).total_seconds())
+    except (TypeError, ValueError):
+        return None
+    if seconds <= 0:
+        return None
+    hours, minutes = divmod(seconds // 60, 60)
+    return f'{hours}h{minutes}m' if hours else f'{minutes}m'
+
+
+def render_receipt(todo: Any, *, kind: str, period: str,
+                   name: Optional[str] = None,
+                   close_reason: Optional[str] = None,
+                   next_condition: Optional[str] = None,
+                   action_kind: Optional[str] = None,
+                   now: Optional[datetime] = None,
+                   in_group: bool = False) -> str:
     """回执文案（纯函数，只认结构化字段，禁止在调用点拼串）
 
-    形态对齐 R4「首行一眼看到标的 + 该干什么」：回执不是通知，而是**台账条目**，
-    故带上待办号/流转态/级别/账户与 due 周期，便于人工与 agent 双向追溯。
+    REQ-ad0a t4（FR-11/FR-13）：
+      · 时间人性化、**无微秒**（已超时 2h14m（截止 09-24 10:00）），due 只出现一次；
+      · 「周期 period」不再外露（period 只用于 digest 幂等键，不是给用户看的）；
+      · 名称在前「名称（代码）」，缺失如实降级「（名称缺失）」（R-013 不臆造）；
+      · in_group=True 时返回**无 [类型] 前缀的一行形态**（聚合卡逐行拼接用）；
+      · close_reason/next_condition/action_kind 由 t5 的 result 三要素文案消费。
     """
     todo_id = getattr(todo, 'id', None)
     symbol = getattr(todo, 'symbol', None) or '(未知标的)'
+    name_text = str(name or '').strip()
+    display = (f'{name_text}（{symbol}）' if name_text
+               else (f'{symbol}（名称缺失）' if symbol != '(未知标的)' else symbol))
     level = getattr(todo, 'level', None) or '--'
     flow = getattr(todo, 'flow_state', None) or '--'
-    account = getattr(todo, 'account', None) or '(无归属)'
+    account = getattr(todo, 'account', None) or '通用观察'
     due = getattr(todo, 'due_at', None)
-    due_text = due.isoformat() if hasattr(due, 'isoformat') else str(due or '')
+    due_text = _fmt_due(due)
+    tag = str(period or '').split('|')[0].strip()
+
     if kind == 'escalate':
-        head = f'[升级即] 待办#{todo_id} {symbol} {level} 已从 {flow} 晋升'
+        target = tag or flow
+        body = f'待办#{todo_id} {display} {level} · 归属 {account} · 晋升至 {target}'
+        if due_text:
+            body += f'（截止 {due_text}）'
     elif kind == 'timeout':
-        head = f'[超时] 待办#{todo_id} {symbol} {level} 超时未处置，升级给你本人'
+        overdue = _humanize_overdue(due, now)
+        if overdue:
+            due_seg = f'已超时 {overdue}（截止 {due_text}）' if due_text else f'已超时 {overdue}'
+        elif due_text:
+            due_seg = f'截止 {due_text}'
+        else:
+            due_seg = '截止时间缺失'
+        body = f'待办#{todo_id} {display} {level} · 归属 {account} · {due_seg}'
     elif kind == 'result':
-        head = f'[处置后] 待办#{todo_id} {symbol} {level} 已出处置结论'
+        # REQ-ad0a t5（FR-14）：结论/原因/后续意见三要素——close 时人填的处置结论
+        # （终态+动作）、原因（close_reason）、后续意见（ignored 的 NEXT 条件原文）。
+        terminal_text = {'handled': '已处置', 'ignored': '忽略', 'expired': '已过期'}.get(
+            tag, tag or 'closed')
+        action_text = {'trade': '已执行交易', 'rule_change': '已修规则'}.get(
+            str(action_kind or '').strip().lower(), '不动')
+        reason_text = str(close_reason or '').strip() or '未填原因'
+        result_lines = [
+            f'待办#{todo_id} {display} {level} · 归属 {account}',
+            f'结论：{terminal_text}（{action_text}）',
+            f'原因：{reason_text}',
+        ]
+        next_text = str(next_condition or '').strip()
+        if next_text:
+            result_lines.append(f'后续意见：NEXT {next_text}')
+        elif tag == 'ignored':
+            # ignored 按理必有 NEXT（close 校验兜底）；缺失如实标注（不臆造，R-013）
+            result_lines.append('后续意见：NEXT 条件缺失（ignored 必填，数据异常）')
+        else:
+            result_lines.append('后续意见：无')
+        body = '\n'.join(result_lines)
     else:
-        head = f'[回执] 待办#{todo_id} {symbol} {level}'
-    return (f'{head} | 账户 {account} | due {due_text} | 周期 {period}')
+        body = f'待办#{todo_id} {display} {level} · 归属 {account}'
+    if in_group:
+        return body
+    label = {'escalate': '升级即', 'timeout': '超时', 'result': '处置后'}.get(kind, '回执')
+    return f'[{label}] {body}'
+
+
+def render_group_card(kind: Any, items: List[Dict[str, Any]]) -> str:
+    """聚合卡正文（纯函数）：标题行 + 每行一条回执（FR-8「一周期一卡」）。
+
+    items 为 flush_grouped 缓冲的条目（message 已是 in_group 一行形态）。
+    """
+    n = len(items)
+    kind_value = str(kind or '').strip().lower()
+    if kind_value == 'timeout':
+        head = f'⏰ 超时回执 ｜ {n} 项待办超时未处置（请逐项勾选或回复「处置 #待办号」）'
+    elif kind_value == 'escalate':
+        head = f'🔺 升级即回执 ｜ {n} 项待办已按 SLA 机械晋升'
+    else:
+        head = f'📋 盯盘回执 ｜ {n} 条'
+    lines = [head]
+    lines.extend(f'- {it["message"]}' for it in items)
+    return '\n'.join(lines)
 
 
 class ReceiptService:
@@ -122,31 +217,52 @@ class ReceiptService:
         self._repo = repo
         #: 缺省 None = log-only（真实通道接线归 t12），**不得**在服务内自建飞书通道
         self._sender = sender
+        # REQ-ad0a t4（FR-8）聚合投递状态：begin_group 开启一轮 → escalate/timeout
+        # 入组不投递 → flush_grouped 按 kind 各发一张聚合卡并逐条落库。
+        self._group_open = False
+        self._group_buffer: Dict[str, List[Dict[str, Any]]] = {}
 
     # ── 三段回执 ────────────────────────────────────────────
 
-    def escalate(self, todo: Any, *, to_state: str, channel: Optional[str] = None) -> Dict[str, Any]:
-        """升级即回执：待办按 SLA 到期被机械晋升（L1→L2 / L2→L3）时调用。"""
+    def escalate(self, todo: Any, *, to_state: str, channel: Optional[str] = None,
+                 name: Optional[str] = None) -> Dict[str, Any]:
+        """升级即回执：待办按 SLA 到期被机械晋升（L1→L2 / L2→L3）时调用。
+
+        name：标的名称（巡检一轮一次批量解析后逐条注入，FR-13）。"""
         state = str(to_state or '').strip().upper()
         return self._issue(todo, kind='escalate',
-                           period=receipt_period(todo, state), channel=channel)
+                           period=receipt_period(todo, state), channel=channel, name=name)
 
     def result(self, todo: Any, *, terminal: Optional[str] = None,
-               channel: Optional[str] = None) -> Dict[str, Any]:
-        """处置后回执：待办收敛出终态（handled/ignored/expired）后调用（t12 在 close 后触发）。"""
+               channel: Optional[str] = None, name: Optional[str] = None,
+               close_reason: Optional[str] = None,
+               next_condition: Optional[str] = None,
+               action_kind: Optional[str] = None) -> Dict[str, Any]:
+        """处置后回执：待办收敛出终态（handled/ignored/expired）后调用（t12 在 close 后触发）。
+
+        name：标的名称（FR-13）；close_reason/next_condition/action_kind：close 时的
+        处置三要素（FR-14，渲染进卡片）。**不参与聚合**（处置结论必须即时到达）。"""
         tag = str(terminal or 'closed').strip().lower()
         return self._issue(todo, kind='result',
-                           period=receipt_period(todo, tag), channel=channel)
+                           period=receipt_period(todo, tag), channel=channel, name=name,
+                           close_reason=close_reason, next_condition=next_condition,
+                           action_kind=action_kind)
 
-    def timeout(self, todo: Any, *, channel: Optional[str] = None) -> Dict[str, Any]:
-        """超时回执：已在 L3 仍超时未收敛 → 升级给你本人（不改变终态，等处置）。"""
+    def timeout(self, todo: Any, *, channel: Optional[str] = None,
+                name: Optional[str] = None) -> Dict[str, Any]:
+        """超时回执：已在 L3 仍超时未收敛 → 升级给你本人（不改变终态，等处置）。
+
+        name：标的名称（FR-13）。"""
         return self._issue(todo, kind='timeout',
-                           period=receipt_period(todo, ''), channel=channel)
+                           period=receipt_period(todo, ''), channel=channel, name=name)
 
     # ── 幂等 + 发送 ─────────────────────────────────────────
 
     def _issue(self, todo: Any, *, kind: str, period: str,
-               channel: Optional[str] = None) -> Dict[str, Any]:
+               channel: Optional[str] = None, name: Optional[str] = None,
+               close_reason: Optional[str] = None,
+               next_condition: Optional[str] = None,
+               action_kind: Optional[str] = None) -> Dict[str, Any]:
         """幂等落一条回执：exists → 发送 → record。sender 失败不抛，仓储失败抛。
 
         顺序说明：**先查后发再落库**。查命中即整段跳过（含发送）——这是"只发一次"的
@@ -170,8 +286,28 @@ class ReceiptService:
                 'digest': digest, 'message': None, 'receipt': None,
             }
 
-        message = render_receipt(todo, kind=kind_value, period=period)
-        delivery, sent = self._deliver(todo_id, kind_value, ch, message, period)
+        # REQ-ad0a t4（FR-8）：聚合轮开启且属聚合类型 → 入组（flush 时投递+落库）；
+        # 否则保持即时投递（result/suppressed 与聚合轮外的直调行为不变）。
+        grouped = kind_value in AGGREGATE_KINDS and self._group_open
+        message = render_receipt(todo, kind=kind_value, period=period, name=name,
+                                 close_reason=close_reason,
+                                 next_condition=next_condition,
+                                 action_kind=action_kind,
+                                 in_group=grouped)
+        if grouped:
+            self._group_buffer.setdefault(kind_value, []).append({
+                'todo_id': todo_id, 'channel': ch, 'period': period,
+                'digest': digest, 'message': message,
+                'level': getattr(todo, 'level', None),
+            })
+            logger.info('回执已入聚合组（flush 时投递并落库）', todo_id=todo_id,
+                        kind=kind_value, digest=digest)
+            return {
+                'issued': True, 'duplicate': False, 'sent': False, 'kind': kind_value,
+                'todo_id': todo_id, 'channel': ch, 'delivery_status': None,
+                'digest': digest, 'message': message, 'receipt': None, 'grouped': True,
+            }
+        delivery, sent = self._deliver(todo_id, kind_value, ch, message, period, todo=todo)
 
         receipt = self._repo.record(todo_id, kind_value, channel=ch,
                                     delivery_status=delivery, message_id=None,
@@ -185,7 +321,8 @@ class ReceiptService:
         }
 
     def _deliver(self, todo_id: int, kind: str, channel: str,
-                 message: str, period: str) -> (str, bool):
+                 message: str, period: str,
+                 todo: Any = None) -> (str, bool):
         """发送回执：返回 (delivery_status, sent)。任何 sender 异常都不得抛出。"""
         if self._sender is None:
             # 诚实边界：未接线只记日志，delivery_status 记为 log_only（不是 sent）
@@ -195,6 +332,8 @@ class ReceiptService:
         payload = {
             'todo_id': todo_id, 'kind': kind, 'channel': channel,
             'period': period, 'message': message,
+            # REQ-ad0a t3（FR-3）：级别随载荷下发（P0 → risk_stop 频道）
+            'level': getattr(todo, 'level', None),
         }
         try:
             self._sender(payload)
@@ -203,3 +342,63 @@ class ReceiptService:
                          kind=kind, channel=channel, error=str(e))
             return DELIVERY_FAILED, False
         return DELIVERY_SENT, True
+
+    # ── 聚合投递（REQ-260924104605-ad0a t4，FR-8）───────────────────────────
+
+    def begin_group(self) -> None:
+        """开启一轮聚合投递（巡检 run_once 扫描成功后调用）。
+
+        开启期间 escalate/timeout 回执只入组、不投递不落库；收尾**必须**调
+        flush_grouped（聚合卡投递 + 逐条落库）。result/suppressed 不受影响
+        （即时投递）。重复开启幂等（缓冲保留）。
+        """
+        self._group_open = True
+
+    def flush_grouped(self) -> Dict[str, Dict[str, Any]]:
+        """收尾聚合轮：按 kind 各发一张聚合卡，并逐条落库（不重不漏）。
+
+        空组 = no-op；sender 抛错 = 整组记 failed（不吞错、不中断巡检）；
+        sender 未接线 = 整组 log_only（诚实边界，不假装已发）。
+        去重键仍是 per-todo 的 payload_digest（digest 语义不变），聚合只发生在
+        **投递层**——同周期重复巡检在 _issue 的 exists 处即整段跳过（含入组）。
+        返回 {kind: {count, sent, delivery_status, batch_id}} 供调用方合并统计。
+        """
+        self._group_open = False
+        summary: Dict[str, Dict[str, Any]] = {}
+        for kind_value in list(self._group_buffer.keys()):
+            items = self._group_buffer.pop(kind_value)
+            if not items:
+                continue
+            batch_id = 'batch:%s:%s' % (kind_value, datetime.now().strftime('%Y%m%d%H%M'))
+            has_p0 = any(str(it.get('level') or '').strip().upper() == 'P0' for it in items)
+            high = (kind_value == 'timeout') or has_p0
+            ch = CHANNEL_ALERTS if high else CHANNEL_REPORTS
+            card = render_group_card(kind_value, items)
+            payload = {
+                'kind': kind_value, 'channel': ch, 'message': card,
+                # t3 的 watch_channels：显式 os_channel 优先（timeout/P0 → risk_stop）
+                'os_channel': 'risk_stop' if high else 'watch_symbol',
+                'batch_id': batch_id, 'items': len(items),
+                'level': 'P0' if has_p0 else None,
+            }
+            if self._sender is None:
+                logger.warning('聚合回执未接线（log-only，未送达）',
+                               kind=kind_value, count=len(items))
+                delivery, sent = DELIVERY_LOG_ONLY, False
+            else:
+                try:
+                    self._sender(payload)
+                    delivery, sent = DELIVERY_SENT, True
+                except Exception as e:  # noqa: BLE001 - sender 失败不抛，整组记 failed
+                    logger.error('聚合回执发送失败（整组记 failed）',
+                                 kind=kind_value, count=len(items), error=str(e))
+                    delivery, sent = DELIVERY_FAILED, False
+            for it in items:
+                self._repo.record(it['todo_id'], kind_value, channel=ch,
+                                  delivery_status=delivery, message_id=batch_id,
+                                  payload_digest=it['digest'])
+            logger.info('聚合回执已落库', kind=kind_value, count=len(items),
+                        delivery_status=delivery, batch_id=batch_id)
+            summary[kind_value] = {'count': len(items), 'sent': sent,
+                                   'delivery_status': delivery, 'batch_id': batch_id}
+        return summary

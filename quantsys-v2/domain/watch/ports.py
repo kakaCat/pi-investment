@@ -367,6 +367,25 @@ class IWatchReceiptRepository(ABC):
         pass
 
 
+# ── 标的名解析（REQ-260924104605-ad0a t1，2026-09-24）────────────────────────
+class StockNameResolver(ABC):
+    """标的名解析端口：symbol → 名称**批量**解析（quant.stocks 只读联查）。
+
+    为什么批量：SLA 巡检一轮可能有几十条到期待办，逐条打 DB 是 N+1；
+    渲染方（回执/聚合卡）在渲染前一次性 resolve_batch，注入各条目。
+
+    降级纪律（R-013）：未命中返回 None——调用方如实降级为「代码（名称缺失）」，
+    **绝不臆造名称**；实现侧查询异常也不许抛进巡检主循环（返回全 None）。
+    实现放 adapters/outbound/repositories（ADR-001：SQL 只在适配器层）。
+    """
+
+    @abstractmethod
+    def resolve_batch(self, symbols: List[str]) -> Dict[str, Optional[str]]:
+        """批量解析名称。键 = 规范化后的 6 位 symbol（输入可带 .SH/.SZ 后缀）；
+        未命中值为 None。查询异常 → 返回全 None（记日志），不抛错。"""
+        pass
+
+
 # ── 盯盘规则自愈（REQ-c9f899 R6 / t8，2026-09-18）────────────────────────────
 #: 规则变更动作全集（= domain/watch/services/noise_policy.CHANGE_KINDS；此处只作文档引用，
 #: 不 import 以免端口模块对具体策略模块产生依赖）。

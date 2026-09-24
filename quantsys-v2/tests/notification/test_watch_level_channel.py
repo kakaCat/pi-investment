@@ -30,8 +30,10 @@ def test_level_payload_renders_p0_card():
         context="按宪法第 4 条清仓"))
     content = _content(payload)
     first = content.split(chr(10))[0]
-    assert "所有人" in first                      # P0 必须 @ 用户
-    assert "601600" in first and "26.57" in first and "立即止损" in first
+    assert "所有人" in first                      # P0 必须 @ 用户（REQ-ad0a FR-5）
+    # REQ-ad0a t2：P0 首行=@所有人，标的/现价/动作在意图骨架内
+    assert "601600" in content and "26.57" in content and "立即止损" in content
+    assert "🛑 止损盯盘｜中铝国际（601600）" in content
     assert payload["card"]["header"]["template"] == "red"
 
 

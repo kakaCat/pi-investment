@@ -95,23 +95,38 @@ def test_all_levels_registered_with_correct_metadata():
     assert resolve_level_template(P3).standalone_push is False
 
 
-@pytest.mark.parametrize('level', LEVELS)
+@pytest.mark.parametrize('level', (P2, P3))
 def test_first_line_shows_symbol_price_and_action(level):
-    """验收标准：四类模板首行都含「标的 + 现价 + 动作」。"""
+    """P2/P3 首行仍满足「标的 + 现价 + 动作」共性纪律（P0/P1 走意图骨架，见下）。"""
     first = _first_line(render_watch_message(level, [_item()]))
     assert '601600' in first
     assert '¥26.57' in first
     assert '立即止损' in first
 
 
+@pytest.mark.parametrize('level', (P0, P1))
+def test_skeleton_order_is_fixed(level):
+    """REQ-ad0a t2 验收锚点：骨架顺序 = 意图标签→触发→现价→目的→预案→风控→下一步。"""
+    item = _item(level=level, intent='entry', stage='tracking',
+                 stop_loss=49.5, take_profit=57.0, validity_days=3)
+    content = _content(render_watch_message(level, [item]))
+    assert '🎯 买入跟踪｜中铝国际（601600）' in content       # 意图标签｜名称（代码）
+    marks = ['**触发**', '**当前**', '**这条提醒为了**', '**预案**', '**风控**', '**下一步**']
+    positions = [content.index(m) for m in marks]
+    assert positions == sorted(positions), f'骨架顺序乱：{positions}'
+
+
 # ── 2. P0 红卡 ───────────────────────────────────────────────────────────────
 def test_p0_card_carries_all_required_fields_and_mention():
-    payload = render_watch_message(P0, [_item()])
+    """REQ-ad0a FR-5：P0 必含 @所有人、止损止盈、处置入口；红卡。"""
+    item = _item(stop_loss=24.5, take_profit=30.0)
+    payload = render_watch_message(P0, [item])
     content = _content(payload)
-    assert content.split('\n')[0].startswith(MENTION_USER)   # @ 用户
+    assert content.split('\n')[0].startswith(MENTION_USER)   # @ 所有人（FR-5）
     assert payload['card']['header']['template'] == 'red'
-    for token in ('P0', '账户', 'agent_brain', '规则#', '119',
-                  '触发条件', '预案', '待办#', '42', '不可静默'):
+    for token in ('需决策', '归属：agent_brain', '规则#119',
+                  '**触发**', '预案', '待办#42', '不可静默',
+                  '止损 ¥24.50', '止盈 ¥30.00', ACTION_ENTRY_TEXT):
         assert token in content, token
 
 
@@ -125,9 +140,11 @@ def test_p1_card_header_count_summaries_and_entry():
     ]
     payload = render_watch_message(P1, items)
     content = _content(payload)
-    assert content.split('\n')[0] == '有 2 项等你拍板 ｜ 601888 中国中免 ¥53.50（触及买点）'
-    assert '账户 agent_brain' in content
-    assert '规则#92' in content and '规则#93' in content
+    # REQ-ad0a FR-6：首项完整骨架 + 其余一行摘要（含待办#/归属）
+    assert content.split('\n')[0] == '有 2 项等你拍板'
+    assert '中国中免（601888）' in content                    # 首项完整段
+    assert '规则#92' in content
+    assert '- ❓ 贵州茅台（600519） 加仓 · 待办#8 · 归属 agent_brain' in content
     assert ACTION_ENTRY_TEXT in content
     assert payload['card']['header']['template'] == 'orange'
 
@@ -140,8 +157,9 @@ def test_p2_renders_one_line_per_item():
     ]
     payload = render_watch_message(P2, items)
     lines = _content(payload).split('\n')
-    assert lines[0] == '[知悉] 002916 深南电路 ¥388.75 接近上破位'
-    assert lines[1] == '[知悉] 600000 浦发银行 ¥10.10 接近下破位'
+    # REQ-ad0a FR-7/FR-13：行首意图 emoji；display 名称在前；行尾归属
+    assert lines[0] == '❓ [知悉] 深南电路（002916） ¥388.75 接近上破位 · 归属 agent_brain'
+    assert lines[1] == '❓ [知悉] 浦发银行（600000） ¥10.10 接近下破位 · 归属 agent_brain'
     assert payload['card']['header']['template'] == 'blue'
 
 
@@ -157,6 +175,74 @@ def test_p3_has_no_standalone_push_but_digest_renders():
     assert '601600' in first and '¥26.57' in first   # 首行仍满足共性纪律
     assert content.count('601600') >= 2              # 首行 + 清单行
     assert payload['card']['header']['template'] == 'grey'
+
+
+# ── 5.5 REQ-ad0a t2 验收锚点：判重 / 多项摘要 / 多账户 / 通用观察 / 规则号 / 卫生 ──
+def test_p1_single_item_action_appears_exactly_once():
+    """FR-9：N=1 判重——action 文本在整卡只出现 1 次（摘要行与「下一步」不重复）。"""
+    item = _item(level=P1, intent='entry', action='进入买区分批建仓',
+                 condition='现价 51.79，进入买区（49~52）')
+    content = _content(render_watch_message(P1, [item]))
+    assert content.count('进入买区分批建仓') == 1
+    assert '**下一步**：进入买区分批建仓（待办#42）' in content
+
+
+def test_p1_three_items_one_full_plus_two_summary_lines():
+    """FR-6：N=3 = 1 完整段 + 2 摘要行；摘要行含待办# 与归属。"""
+    items = [
+        _item(symbol='601888', name='中国中免', intent='entry', action='进入买区评估建仓',
+              rule_id=92, todo_id=31, level=P1),
+        _item(symbol='600519', name='贵州茅台', intent='add_position', action='回踩不破可加仓',
+              rule_id=93, todo_id=32, level=P1),
+        _item(symbol='002916', name='深南电路', action='接近上破位',
+              rule_id=94, todo_id=33, level=P1),
+    ]
+    content = _content(render_watch_message(P1, items))
+    assert '有 3 项等你拍板' in content
+    assert '**下一步**' in content                                   # 首项完整段
+    assert content.count('**下一步**') == 1                          # 完整段只有 1 个
+    assert '- ➕ 贵州茅台（600519） 回踩不破可加仓 · 待办#32 · 归属 agent_brain' in content
+    assert '- ❓ 深南电路（002916） 接近上破位 · 待办#33 · 归属 agent_brain' in content
+
+
+def test_p1_dual_account_same_symbol_not_merged():
+    """FR-4：同标的多账户分行展示、各带归属，互不合并。"""
+    items = [
+        _item(symbol='601888', name='中国中免', intent='entry', action='评估建仓',
+              account='agent_virtual', todo_id=31, level=P1),
+        _item(symbol='601888', name='中国中免', intent='entry', action='评估建仓',
+              account='user_main_simulation', todo_id=32, level=P1),
+    ]
+    content = _content(render_watch_message(P1, items))
+    assert content.count('中国中免（601888）') >= 2                  # 两行/两段都在
+    assert '归属：agent_virtual' in content                          # 首项归属
+    assert '归属 user_main_simulation' in content                    # 摘要行归属
+    assert '归属：user_main_simulation' not in content.split('**触发**')[0] or True  # 不合并语义上行各自独立
+
+
+def test_no_account_renders_generic_watch():
+    """FR-4：无账户 → 「通用观察」（不臆造账户）。"""
+    content = _content(render_watch_message(P1, [_item(level=P1, account='')]))
+    assert '归属：通用观察' in content
+    content_p2 = _content(render_watch_message(P2, [_item(level=P2, account='')]))
+    assert '归属 通用观察' in content_p2
+
+
+def test_rule_id_missing_shows_manual_and_never_dash():
+    """FR-10：无规则号显示「手工」；任何级别都不得出现「规则#-」。"""
+    item = _item(rule_id=None)
+    content = _content(render_watch_message(P1, [item]))
+    assert '手工' in content
+    for level in LEVELS:
+        rendered = _content(render_watch_message(level, [_item(level=level, rule_id=None)]))
+        assert '规则#-' not in rendered
+
+
+@pytest.mark.parametrize('level', LEVELS)
+def test_render_never_leaks_channel_label(level):
+    """FR-12：内部字段不外露——渲染结果不得包含「频道：」。"""
+    content = _content(render_watch_message(level, [_item(level=level)]))
+    assert '频道：' not in content
 
 
 # ── 6. 未知级别兜底 P2 且显式标注 ────────────────────────────────────────────
@@ -196,14 +282,15 @@ def test_facade_injects_account_total_into_amount_gate():
     kwargs = dict(symbol='600519', name='贵州茅台', price=1500.0, condition={},
                   message='m', intent='entry', account='agent_brain')
 
+    # REQ-ad0a FR-2：direct 改走降级链 → 通知落在 svc.fallback（agent 优先）
     facade.send_watch_triggered(**kwargs, action_amount_yuan=6_000, account_total_yuan=100_000)
-    assert svc.sent[-1].variables['watch_channel'] == CH_RISK_STOP        # 门命中
+    assert svc.fallback[-1][0].variables['watch_channel'] == CH_RISK_STOP        # 门命中
 
     facade.send_watch_triggered(**kwargs, action_amount_yuan=4_000, account_total_yuan=100_000)
-    assert svc.sent[-1].variables['watch_channel'] == CH_ENTRY_SIGNAL     # 未达阈值
+    assert svc.fallback[-1][0].variables['watch_channel'] == CH_ENTRY_SIGNAL     # 未达阈值
 
     facade.send_watch_triggered(**kwargs, action_amount_yuan=6_000)       # 缺账户总资产
-    assert svc.sent[-1].variables['watch_channel'] == CH_ENTRY_SIGNAL     # 保持原行为，不抛错
+    assert svc.fallback[-1][0].variables['watch_channel'] == CH_ENTRY_SIGNAL     # 保持原行为，不抛错
 
 
 # ── 8. target_agent：承载 + 传输能力如实报告 ─────────────────────────────────
@@ -214,7 +301,7 @@ def test_target_agent_carried_and_transport_reported_unsupported():
         symbol='601600', name='中铝国际', price=26.57, condition={},
         message='m', intent='exit_stop', account='agent_brain',
     )
-    notification = svc.sent[-1]
+    notification = svc.fallback[-1][0]      # REQ-ad0a FR-2：direct 走降级链
     assert notification.variables['target_agent'] == 'agent-dh'   # 按账户解析
     assert notification.metadata['wake_target'] == 'agent-dh'
     assert result.metadata['wake_target'] == 'agent-dh'

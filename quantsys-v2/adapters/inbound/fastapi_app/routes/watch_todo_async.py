@@ -65,8 +65,17 @@ def _bad_request(message: str) -> JSONResponse:
 
 
 def _service() -> TodoService:
-    """服务工厂（单测/route 测试可替换；无状态，故每次请求新建亦安全）"""
-    return TodoService(WatchTodoRepository())
+    """服务工厂（单测/route 测试可替换；无状态，故每次请求新建亦安全）
+
+    REQ-ad0a t5（FR-14）：close 的处置结论回执在此接线——receipt_service 走
+    watch_loop_wiring 唯一装配点（sender=send_watch_receipt，Agent 优先/飞书降级）；
+    name_resolver 供回执卡显示「名称（代码）」。测试拦发送：patch
+    watch_loop_wiring.build_receipt_service 即可，无需动本工厂。
+    """
+    from application.services.watch_engine import watch_loop_wiring as _wiring
+    return TodoService(WatchTodoRepository(),
+                       receipt_service=_wiring.build_receipt_service(),
+                       name_resolver=_wiring.build_name_resolver())
 
 
 def _limit_of(limit) -> int:
@@ -122,20 +131,37 @@ def close_todo(todo_id: int, payload: Dict[str, Any] = Body(default_factory=dict
     """收敛待办：终态校验见 TodoService.close（400/404/409）"""
     data = payload or {}
     try:
-        todo = _service().close(
-            todo_id,
-            data.get('terminal'),
-            close_reason=data.get('close_reason'),
-            next_condition=data.get('next_condition'),
-            action_kind=data.get('action_kind'),
-            decision_audit_id=data.get('decision_audit_id'),
-            closed_by=data.get('closed_by'),
-        )
+        svc = _service()
+        # REQ-ad0a t5（FR-14）：收敛成功即发处置结论回执（结论/原因/后续意见三要素卡）。
+        # 老 fake 服务（无 close_and_receipt）退化为纯 close，receipt=None——兼容既有测试桩。
+        close_fn = getattr(svc, 'close_and_receipt', None)
+        if callable(close_fn):
+            todo, receipt_outcome = close_fn(
+                todo_id,
+                data.get('terminal'),
+                close_reason=data.get('close_reason'),
+                next_condition=data.get('next_condition'),
+                action_kind=data.get('action_kind'),
+                decision_audit_id=data.get('decision_audit_id'),
+                closed_by=data.get('closed_by'),
+            )
+        else:
+            todo = svc.close(
+                todo_id,
+                data.get('terminal'),
+                close_reason=data.get('close_reason'),
+                next_condition=data.get('next_condition'),
+                action_kind=data.get('action_kind'),
+                decision_audit_id=data.get('decision_audit_id'),
+                closed_by=data.get('closed_by'),
+            )
+            receipt_outcome = None
     except WatchTodoError as e:
         return _err(e.code, e.message)
     except Exception as e:  # noqa: BLE001
         return JSONResponse({'success': False, 'error': 'internal_error',
                              'message': f'关闭失败: {e}'}, status_code=500)
-    # interfaces §1.1 的响应为 { todo, receipt }：回执由 t6 的 ReceiptService 产生，
-    # t5 阶段先给 todo，receipt 留待接入后填充（不伪造空回执）。
-    return {'success': True, 'data': {'todo': todo_to_dict(todo), 'receipt': None}}
+    # interfaces §1.1 的响应为 { todo, receipt }：receipt 为 ReceiptService.result 的
+    # 结构化 outcome（kind/sent/delivery_status/digest/message…）；回执异常时 None
+    # （收敛本身已生效，日志响亮留痕），不伪造空回执。
+    return {'success': True, 'data': {'todo': todo_to_dict(todo), 'receipt': receipt_outcome}}

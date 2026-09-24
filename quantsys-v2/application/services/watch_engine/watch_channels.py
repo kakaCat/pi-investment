@@ -10,12 +10,11 @@ log-only，告警只在日志里、人看不到（§6 待接线项 6/10）。
     统计 sent；ReceiptService 用 sender 是否抛错 决定 delivery_status=sent/failed。
     若这里吞掉失败返回 False，回执会被记成 sent（假成功），心跳会把失败当成已送达。
 
-诚实边界（channel 路由）：facade.send_card 走 NotificationService → 渠道（feishu），
-而 FeishuChannel 忽略 os_channel / 逻辑频道码（只有 AgentChannel 把 os_channel
-转发给 Agent OS 网关）。因此 alerts/reports 的物理群区分在本路径上不被支持：
-本模块把频道码写进卡片正文与优先级（timeout/P0 → urgency=high），但不假装已按群路由。
-需要真按群路由时走 AgentChannel（agent_os_enabled）或给 FeishuChannel 加频道 webhook——
-属后续接线，见 t12 汇报的偏差项。
+路由（REQ-260924104605-ad0a t3，FR-3）：回执/告警经 facade.send_watch_receipt 携带
+os_channel（逻辑频道码）——timeout/P0 → risk_stop，其余 → watch_symbol；AgentChannel
+把它转发给 Agent OS 网关，按 notification_channels 表投递到盯盘群（FR-1 已配置
+10 个盯盘频道指向专用 webhook）；Agent OS 不可达时降级直飞书兜底（不丢消息）。
+卡片正文**不再外露频道码**（FR-12：「频道：」属内部字段）。
 """
 from typing import Any, Dict
 
@@ -44,28 +43,39 @@ def send_watch_alert(text: str) -> bool:
     title, _, body = raw.partition("|")
     title = (title.strip() or "【盯盘引擎】告警")
     content = (body.strip() or title)
-    ok = get_notification_facade().send_card(title=title, content=content, urgency='high')
+    ok = get_notification_facade().send_watch_receipt(
+        title=title, content=content, os_channel='watch_symbol', urgency='high')
     if not ok:
-        raise RuntimeError('飞书 send_card 返回 False（盯盘告警未送达）')
+        raise RuntimeError('盯盘告警未送达（agent→feishu 双路失败）')
     return True
 
 
 def send_watch_receipt(payload: Dict[str, Any]) -> bool:
     """三段回执的真实投递（供 ReceiptService 的 sender 参数）。
 
-    payload 由 ReceiptService._deliver 构造：todo_id/kind/channel/period/message。
-    频道（alerts/reports）决定强提醒程度；失败抛错 → delivery_status=failed（如实）。
+    payload 由 ReceiptService._deliver 构造：todo_id/kind/channel/period/message/level。
+    REQ-ad0a t3（FR-3）：os_channel 逻辑频道码直透 AgentChannel ——
+    timeout/P0 → risk_stop（盯盘群内高优位），其余 → watch_symbol；
+    失败抛错 → delivery_status=failed（如实）。
     """
     from application.notification import get_notification_facade
 
     data = payload or {}
     kind = str(data.get('kind') or '').strip().lower()
+    level = str(data.get('level') or '').strip().upper()
     channel = str(data.get('channel') or '').strip()
     message = str(data.get('message') or '').strip()
+    # 聚合卡（t4 flush_grouped）以 items 多条传入：os_channel 由调用方显式给出
+    os_channel = str(data.get('os_channel') or '').strip()
+    if not os_channel:
+        os_channel = ('risk_stop' if (kind == 'timeout' or level == 'P0')
+                      else 'watch_symbol')
     title = '📋 盯盘回执 · %s' % _KIND_LABELS.get(kind, kind or '-')
-    content = "**频道**：%s\n%s" % (channel or "-", message or "(无正文)")
-    urgency = 'high' if channel == 'alerts' else 'normal'
-    ok = get_notification_facade().send_card(title=title, content=content, urgency=urgency)
+    # FR-12：频道码不外露（内部字段不进用户视野）
+    content = message or "(无正文)"
+    urgency = 'high' if (kind == 'timeout' or channel == 'alerts' or level == 'P0') else 'normal'
+    ok = get_notification_facade().send_watch_receipt(
+        title=title, content=content, os_channel=os_channel, urgency=urgency)
     if not ok:
-        raise RuntimeError('飞书 send_card 返回 False（盯盘回执未送达）')
+        raise RuntimeError('盯盘回执未送达（agent→feishu 双路失败）')
     return True
