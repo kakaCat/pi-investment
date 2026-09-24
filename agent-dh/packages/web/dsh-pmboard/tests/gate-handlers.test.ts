@@ -103,6 +103,25 @@ describe('H4 唤醒（D5 分流）', () => {
     expect(d.sent[0]!.text).toContain('补边界')
   })
 
+  it('无 from 的闸门（G0 立项门）负分支 → 不编造"节点仍在 X"（REQ-260924002956-f37c BUG-2）', async () => {
+    const d = deliverySpy()
+    const handler = createH4ResumeHandler({ delivery: d.port })
+    // G0 没有 from（尚未绑定需求）：负分支只能说"未通过"，没有"当前节点"可言
+    const c = ctx({ gate: 'G0', from: undefined, to: 'brainstorming', requirementId: undefined, verdict: 'negative', answers: [{ id: 'name', selected: ['✖️ 不需要立项'] }] })
+    await handler.run({ ctx: c, scratch: {} })
+    expect(d.sent).toHaveLength(1)
+    expect(d.sent[0]!.text).toContain('待改进')
+    expect(d.sent[0]!.text).not.toContain('节点仍在')
+  })
+
+  it('有 from 的闸门负分支仍印"节点仍在 {from}"（防把 H4 改反）', async () => {
+    const d = deliverySpy()
+    const handler = createH4ResumeHandler({ delivery: d.port })
+    await handler.run({ ctx: ctx({ verdict: 'negative', from: 'design', to: 'decomposing' }), scratch: {} })
+    expect(d.sent).toHaveLength(1)
+    expect(d.sent[0]!.text).toContain('节点仍在 design')
+  })
+
   it('投递失败 → degraded: not_delivered（不抛）', async () => {
     const d = deliverySpy()
     d.fail = '窗口不在线'

@@ -24,13 +24,21 @@ const W = 'session-capture-1'
 let dir: string
 let store: ReqboardStore
 
-/** 假弹框服务：记录收到的问题，按给定作答返回（'abort' → 抛 ASK_ABORTED）。 */
+/**
+ * 假弹框服务：记录收到的问题，按给定作答返回（'abort' → 抛 ASK_ABORTED）。
+ *
+ * REQ-260924002956-f37c t1：`seen.calls` 逐段记录每次 ask 的题目，`seen.questions` **跨段累计**
+ * ——"四问"口径对"一次 ask 四问"与"两段 ask（1+3）"两种实现都成立（肯定路径合计仍是 4 问），
+ * 而 `seen.calls` 让"拒绝路径只发一段"变成可断言的事实。
+ */
 function makeSvc(answers: readonly AskAnswer[] | 'abort') {
-  const seen: { questions: unknown[] } = { questions: [] }
+  const seen: { questions: unknown[]; calls: Array<Array<{ id?: string }>> } = { questions: [], calls: [] }
   return {
     seen,
     ask: async (req: { questions?: unknown[] }) => {
-      seen.questions = req.questions ?? []
+      const qs = (req.questions ?? []) as Array<{ id?: string }>
+      seen.calls.push(qs)
+      seen.questions.push(...qs)
       if (answers === 'abort') throw Object.assign(new Error('aborted'), { code: 'ASK_ABORTED' })
       return { answers: [...answers] }
     },
@@ -175,6 +183,21 @@ describe('reqboard_capture · 一次调用一把梭（AC-7.2）', () => {
     const svc = makeSvc(FOUR)
     await expect(run(makeTool({ svc }), {})).rejects.toMatchObject({ code: 'REQBOARD_WINDOW_BOUND' })
     expect(svc.seen.questions).toHaveLength(0) // 弹框根本没发生
+  })
+})
+
+describe('reqboard_capture · 拒绝即终端（REQ-260924002956-f37c BUG-1）', () => {
+  it('选「✖️ 不需要立项」→ 只发一段 ask，第二段问题（类型/难度/文档位置）从未下发', async () => {
+    const svc = makeSvc([{ id: 'name', selected: ['✖️ 不需要立项'] }])
+    const rejections = { record: () => {}, readAll: async () => [] }
+    const out = await run(makeTool({ svc, rejections }), {})
+
+    expect(out.success).toBe(false)
+    expect(out.requirement_id).toBe('')
+    // 只发一段：后续问题根本没有机会被问到（BUG-1 的现象就是"还继续问类型"）
+    expect(svc.seen.calls).toHaveLength(1)
+    expect(svc.seen.questions.map(q => (q as { id?: string }).id)).toEqual(['name'])
+    expect(store.snapshot().requirements).toHaveLength(0)
   })
 })
 

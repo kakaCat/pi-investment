@@ -18,7 +18,7 @@
  *
  * @module dsh-pmboard/application/use-cases/CaptureRequirement
  */
-import type { AskAnswer, CaptureRejection, UseCaseDeps } from '../ports.js'
+import type { AskAnswer, AskQuestion, CaptureRejection, UseCaseDeps } from '../ports.js'
 import { canReqTransition, normalizeText, normalizeTitle } from '../../shared/protocol.js'
 import { LIMITS } from '../../domain/limits.js'
 import { fmt } from '../../domain/text/fmt.js'
@@ -26,14 +26,14 @@ import { captureSnapshot, transitionRequirement } from '../internal/token-usage.
 import { openRequirementsFor } from '../internal/window.js'
 import { recentCaptureRejection } from '../internal/capture-rejections.js'
 import {
-  buildCaptureQuestions,
+  buildCaptureIntentQuestions,
+  buildCaptureDetailQuestions,
   mapCaptureAnswers,
   type CaptureMapping,
 } from '../internal/capture-mapping.js'
 import {
   agentIdFromExec,
   createRequirementDirect,
-  findPending,
   reject,
   requireDirectHuman,
   requireLiveDriver,
@@ -100,10 +100,6 @@ export async function captureRequirement(deps: UseCaseDeps, args: unknown, exec:
   if (openRequirementsFor(ledger, windowKey).length > 0) {
     reject('reqboard_capture 未执行：本窗口已绑定进行中需求，勿重复立项', 'REQBOARD_WINDOW_BOUND')
   }
-  if (findPending(ledger, windowKey) !== undefined) {
-    reject('reqboard_capture 未执行：本窗口还有遗留待确认建议卡，请先在看板处理或忽略', 'REQBOARD_PENDING_TRIAGE')
-  }
-
   // ①.5 拒绝粘滞（REQ-260922012924-2e29 FR-5）：同窗口 30 分钟内已在弹框选择"不需要立项"
   // → 不再弹框。场景：上次 capture 调用超时/中断，用户答复随死掉的调用丢失，agent 不知
   // 已拒绝而重弹（2026-09-21 现场：用户点"不立项"后需求仍被创建推进）。留痕读失败/损坏
@@ -129,38 +125,63 @@ export async function captureRequirement(deps: UseCaseDeps, args: unknown, exec:
       note: '弹框通道不可用（userQuestions 服务缺失）：本次未立项。可稍后重试 reqboard_capture，或请用户直接给出名称/类型/难度/文档位置后调 reqboard_create 立项。',
     })
   }
-  let answers: readonly AskAnswer[]
-  try {
-    answers = await deps.questions.ask(buildCaptureQuestions(titleOptions), {
-      ...(exec?.agent !== undefined ? { agent: exec.agent } : {}),
-      signal: (exec as { signal?: unknown } | undefined)?.signal,
-      gate: 'G0',
-    })
-  } catch (err) {
-    const code = (err as { code?: string }).code ?? ''
-    if (code === 'DELEGATED_CALLER' || code === 'CALLER_NOT_LIVE') {
-      return notCreated(undefined, {
-        fallback: 'board',
-        note: '当前调用方无弹框权限（subagent / 非活窗口）：本次未立项。请顶层窗口在直接人工回合重试，或由用户直接给出名称/类型/难度/文档位置后调 reqboard_create。',
+  /**
+   * 一次弹框（两段共用）——失败语义与改造前逐字一致：
+   * 无弹框权限 → fallback=board；用户取消/暂离 → 中性未立项。
+   *
+   * 失败回执写进 `failure` 并返回 undefined：**不新增返回对象键**——本文件的每个 return 分支
+   * 都要经 tests/output-contract 的静态扫描（按 defineCaptureTool 声明的响应键校验），
+   * 自造的 `{ ok, out }` 包装会被判成未声明字段。
+   */
+  let failure: Record<string, unknown> | undefined
+  const askOrFail = async (
+    questions: readonly AskQuestion[],
+    gate?: 'G0',
+  ): Promise<readonly AskAnswer[] | undefined> => {
+    try {
+      return await deps.questions.ask(questions, {
+        ...(exec?.agent !== undefined ? { agent: exec.agent } : {}),
+        signal: (exec as { signal?: unknown } | undefined)?.signal,
+        ...(gate === undefined ? {} : { gate }),
       })
+    } catch (err) {
+      const code = (err as { code?: string }).code ?? ''
+      failure = code === 'DELEGATED_CALLER' || code === 'CALLER_NOT_LIVE'
+        ? notCreated(undefined, {
+          fallback: 'board',
+          note: '当前调用方无弹框权限（subagent / 非活窗口）：本次未立项。请顶层窗口在直接人工回合重试，或由用户直接给出名称/类型/难度/文档位置后调 reqboard_create。',
+        })
+        : notCreated(undefined, {
+          note: '用户未作答（取消 / 暂离）：本次未立项。稍后可重新发起 reqboard_capture。',
+        })
+      return undefined
     }
-    return notCreated(undefined, {
-      note: '用户未作答（取消 / 暂离）：本次未立项。稍后可重新发起 reqboard_capture。',
-    })
   }
 
-  // ③ 映射（缺项回落默认并记 defaults_used；名称为空 → 响亮失败）
-  const mapped = mapCaptureAnswers(answers)
-  
-  // ③.5 检测拒绝立项（FR-5：落盘留痕，让超时/中断后的重试能看见"用户刚拒绝过"）
-  if (mapped.rejected) {
+  // ② 第一段：立项意愿 + 需求名称（含终止项「✖️ 不需要立项」）。**不带 gate**——拒绝不是一次
+  // 闸门作答；若在这里声明 G0，用户拒绝后链会把它当"未通过"向窗口回发告警（REQ-260924002956-f37c BUG-2）。
+  const first = await askOrFail(buildCaptureIntentQuestions(titleOptions))
+  if (first === undefined) return failure as Record<string, unknown>
+
+  // ②.5 拒绝即终端（BUG-1）：命中终止项 → 写留痕 + 立即返回，**不发起第二段**
+  //（不再追问类型/难度/文档位置；回执也不再带未作答三问的 defaults_used）。
+  const intent = mapCaptureAnswers(first)
+  if (intent.rejected) {
     try {
       deps.rejections?.record({ windowKey, at: deps.clock.now() })
     } catch { /* 留痕失败不阻断「未立项」返回——留痕是增强不是门槛 */ }
-    return notCreated(mapped, {
+    return notCreated(undefined, {
       note: '用户选择不立项：本次未创建需求（已留痕，30 分钟内本窗口不再弹立项框）。如后续需要立项，请用户明确告知后重新发起 reqboard_capture。',
     })
   }
+
+  // ③ 第二段：类型 / 难度 / 文档位置。**G0 登记在这里**——肯定分支才是一次闸门作答，
+  // H1 在回合结束以台账实时状态校验（draft→brainstorming 已发生 = affirmative）。
+  const rest = await askOrFail(buildCaptureDetailQuestions(), 'G0')
+  if (rest === undefined) return failure as Record<string, unknown>
+
+  // ③.5 映射（缺项回落默认并记 defaults_used；名称为空 → 响亮失败）
+  const mapped = mapCaptureAnswers([...first, ...rest])
   
   if (mapped.title.length === 0) {
     return notCreated(mapped, {

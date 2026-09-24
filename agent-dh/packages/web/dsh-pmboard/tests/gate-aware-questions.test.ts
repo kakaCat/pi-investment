@@ -14,8 +14,10 @@ import { makeHarness, req } from './application/harness.js'
 import { GateAwareQuestions } from '../src/adapters/GateAwareQuestions.js'
 import { createGatePostChain } from '../src/application/gate/GatePostChain.js'
 import { createPendingGateStore } from '../src/application/gate/PendingGate.js'
+import { createH4ResumeHandler } from '../src/application/gate/handlers/h4-resume.js'
 import { askConfirm } from '../src/application/use-cases/AskConfirm.js'
 import { acceptSheet } from '../src/application/use-cases/AcceptSheet.js'
+import { captureRequirement } from '../src/application/use-cases/CaptureRequirement.js'
 import { DEFAULT_CONFIRM_OPTIONS, ACCEPT_ITEM_OPTIONS, FINAL_PASS_LABEL } from '../src/domain/text/labels.js'
 import type { AskAnswer, AskQuestion, UserQuestionPort } from '../src/application/ports.js'
 
@@ -151,5 +153,65 @@ describe('三条 pm 弹框路径各触发一次链', () => {
     expect(seenOpts.map(o => o.gate)).toEqual(['G4', 'G4'])
     expect(chain.stats().enqueued).toBe(2)
     expect(pending.peek(W)!.gate).toBe('G4')
+  })
+})
+
+describe('立项拒绝路径不进链（REQ-260924002956-f37c BUG-2）', () => {
+  it('选「✖️ 不需要立项」→ G0 入队 0 次，且 Phase B 不投递任何消息', async () => {
+    const h = makeHarness({})
+    const { port } = queueUI([[{ id: 'name', selected: ['✖️ 不需要立项'] }]])
+    const pending = createPendingGateStore()
+    const sent: string[] = []
+    const chain = createGatePostChain({
+      handlers: [createH4ResumeHandler({
+        delivery: {
+          deliver: (_w: string, m: { text: string }) => { sent.push(m.text); return { delivered: true } },
+        },
+      })],
+      enabled: true,
+      pending,
+    })
+    h.deps.questions = new GateAwareQuestions(port, chain)
+    h.deps.rejections = { record: () => {}, readAll: async () => [] }
+
+    const out = await captureRequirement(h.deps, {}, { agent: { id: W } })
+    expect(out.success).toBe(false)
+    // 拒绝不是"闸门作答"：不入队、不给窗口发"闸门待改进"
+    expect(chain.stats().enqueued).toBe(0)
+    expect(pending.size()).toBe(0)
+    await chain.runPending(W, {})
+    expect(sent).toEqual([])
+  })
+
+  it('肯定路径对照：两段合计 4 问，且 G0 恰好入队 1 次（防"修反"）', async () => {
+    const h = makeHarness({})
+    const askedIds: string[] = []
+    const gateSeen: Array<string | undefined> = []
+    const batches: AskAnswer[][] = [
+      [{ id: 'name', selected: ['修个 bug'] }],
+      [
+        { id: 'category', selected: ['bug'] },
+        { id: 'difficulty', selected: ['standard'] },
+        { id: 'doc_location', selected: ['docs/requirements/<REQ>/'] },
+      ],
+    ]
+    const port: UserQuestionPort = {
+      available: () => true,
+      ask: async (q: readonly AskQuestion[], opts: { gate?: string }) => {
+        gateSeen.push(opts.gate)
+        askedIds.push(...q.map(x => x.id))
+        return batches.shift() ?? []
+      },
+    }
+    const { chain, pending } = chainWithStore()
+    h.deps.questions = new GateAwareQuestions(port, chain)
+    h.deps.rejections = { record: () => {}, readAll: async () => [] }
+
+    const out = await captureRequirement(h.deps, {}, { agent: { id: W } })
+    expect(out.success).toBe(true)
+    expect(askedIds).toEqual(['name', 'category', 'difficulty', 'doc_location'])
+    expect(gateSeen).toEqual([undefined, 'G0']) // 第一段不带 gate；G0 只登记在肯定分支
+    expect(chain.stats().enqueued).toBe(1)
+    expect(pending.peek(W)!.gate).toBe('G0')
   })
 })

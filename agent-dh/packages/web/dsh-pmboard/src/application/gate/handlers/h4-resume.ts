@@ -37,15 +37,24 @@ export function createH4ResumeHandler(deps: H4ResumeDeps): GateHandler {
     name: 'h4-resume',
     async run({ ctx, scratch }: ChainInput): Promise<HandlerOutcome> {
       try {
+        // REQ-260924002956-f37c BUG-2：无 from 的门（G0 立项门）没有"当前节点"可言——
+        // 不能把 to 当现状印成"节点仍在 brainstorming"（那是目标态，不是现状）。
         const head = ctx.verdict === 'affirmative'
           ? fmt('【闸门确认】{gate} 已确认，节点推进到 {to}。', { gate: ctx.gate, to: ctx.to })
-          : fmt('【闸门待改进】{gate} 未通过，节点仍在 {from}。', { gate: ctx.gate, from: ctx.from ?? ctx.to })
+          : ctx.from === undefined
+            ? fmt('【闸门待改进】{gate} 未通过。', { gate: ctx.gate })
+            : fmt('【闸门待改进】{gate} 未通过，节点仍在 {from}。', { gate: ctx.gate, from: ctx.from })
         const answerLine = describeAnswers(ctx)
         const prompt = scratch?.promptText
         const includePrompt = scratch?.compacted !== true && prompt !== undefined && prompt.length > 0
-        const promptBlock = includePrompt
-          ? fmt('\n\n按以下阶段纪律继续：\n\n{p}', { p: prompt })
-          : '\n\n阶段纪律已随节点输入包一并给出，按其继续。'
+        // T-4（FR-10）：非肯定答复**不附任何纪律块**（只发作答摘要 + 用户意见）；
+        // 肯定分支行为不变（防"修反"）。
+        const negative = ctx.verdict !== 'affirmative'
+        const promptBlock = negative
+          ? ''
+          : includePrompt
+            ? fmt('\n\n按以下阶段纪律继续：\n\n{p}', { p: prompt })
+            : '\n\n阶段纪律已随节点输入包一并给出，按其继续。'
         const text = fmt('{head}\n{answers}{block}', { head, answers: answerLine, block: promptBlock })
         const result = deps.delivery.deliver(ctx.windowKey, {
           text,

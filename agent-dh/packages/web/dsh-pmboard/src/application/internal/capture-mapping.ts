@@ -71,14 +71,18 @@ export const CATEGORY_ZH: Readonly<Record<RequirementCategory, string>> = {
   chore: '杂项（维护性小改）',
 }
 
-/** 四问题目（选项顺序即推荐顺序：首个 = 推荐位）。 */
-export function buildCaptureQuestions(titleOptions: readonly string[]): AskQuestion[] {
+/**
+ * 第 1 段：立项意愿 + 需求名称（选项顺序即推荐顺序：首个 = 推荐位）。
+ * **「✖️ 不需要立项」在这一段就必须能被消费**——它决定要不要再问第二段
+ * （REQ-260924002956-f37c BUG-1：拒绝语义原本只是第 1 问的一个选项，弹框只好一路问完）。
+ */
+export function buildCaptureIntentQuestions(titleOptions: readonly string[]): AskQuestion[] {
   // 需求名称选项：拒绝选项 + 用户候选
   const nameOptions = [
     // 特殊选项：拒绝立项（放在首位）
-    { 
-      label: `${REJECT_PREFIX} 不需要立项`, 
-      description: '⚠️ 选择此项将取消本次立项' 
+    {
+      label: `${REJECT_PREFIX} 不需要立项`,
+      description: '⚠️ 选择此项将取消本次立项'
     },
     // 用户提供的候选名称
     ...titleOptions
@@ -87,16 +91,22 @@ export function buildCaptureQuestions(titleOptions: readonly string[]): AskQuest
       .slice(0, 3)
       .map((label, i) => ({ label, ...(i === 0 ? { description: '推荐' } : {}) })),
   ]
-  
+
   return [
     {
       id: CAPTURE_QUESTION_IDS.name,
       header: '需求名称',
-      question: titleOptions.length > 0 
-        ? '需求名称（可选候选、自定义输入，或选择"不需要立项"）' 
+      question: titleOptions.length > 0
+        ? '需求名称（可选候选、自定义输入，或选择"不需要立项"）'
         : '需求名称（自定义输入，或选择"不需要立项"）',
       options: nameOptions,
     },
+  ]
+}
+
+/** 第 2 段：立项明细（类型 / 难度 / 文档位置）。只在第一段未拒绝时下发。 */
+export function buildCaptureDetailQuestions(): AskQuestion[] {
+  return [
     {
       id: CAPTURE_QUESTION_IDS.category,
       header: '需求类型',
@@ -127,6 +137,14 @@ export function buildCaptureQuestions(titleOptions: readonly string[]): AskQuest
   ]
 }
 
+/**
+ * 兼容导出：一次四问（= 两段拼接，内容与顺序逐字一致）。
+ * 保留它让既有调用点/测试继续用"四问"口径，不必感知分段实现。
+ */
+export function buildCaptureQuestions(titleOptions: readonly string[]): AskQuestion[] {
+  return [...buildCaptureIntentQuestions(titleOptions), ...buildCaptureDetailQuestions()]
+}
+
 /** 四问作答 → 创建参数的映射结果（defaultsUsed = 走了默认值的问项 id，回执里如实说明）。 */
 export interface CaptureMapping {
   title: string
@@ -144,7 +162,7 @@ export interface CaptureMapping {
 }
 
 /** 单问取值：自定义输入优先，否则取首个选项。 */
-function pickAnswer(answers: readonly AskAnswer[], id: string): string {
+export function pickAnswer(answers: readonly AskAnswer[], id: string): string {
   const answer = answers.find(a => a.id === id)
   const custom = (answer?.custom ?? '').trim()
   if (custom.length > 0) return custom
