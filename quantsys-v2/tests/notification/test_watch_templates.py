@@ -125,7 +125,8 @@ def test_p1_card_header_count_summaries_and_entry():
     ]
     payload = render_watch_message(P1, items)
     content = _content(payload)
-    assert content.split('\n')[0] == '有 2 项等你拍板 ｜ 601888 中国中免 ¥53.50（触及买点）'
+    # REQ-260924104605-ad0a FR-13：display 改「名称（代码）」名称在前
+    assert content.split('\n')[0] == '有 2 项等你拍板 ｜ 中国中免（601888） ¥53.50（触及买点）'
     assert '账户 agent_brain' in content
     assert '规则#92' in content and '规则#93' in content
     assert ACTION_ENTRY_TEXT in content
@@ -140,8 +141,9 @@ def test_p2_renders_one_line_per_item():
     ]
     payload = render_watch_message(P2, items)
     lines = _content(payload).split('\n')
-    assert lines[0] == '[知悉] 002916 深南电路 ¥388.75 接近上破位'
-    assert lines[1] == '[知悉] 600000 浦发银行 ¥10.10 接近下破位'
+    # REQ-260924104605-ad0a FR-13：display 改「名称（代码）」名称在前
+    assert lines[0] == '[知悉] 深南电路（002916） ¥388.75 接近上破位'
+    assert lines[1] == '[知悉] 浦发银行（600000） ¥10.10 接近下破位'
     assert payload['card']['header']['template'] == 'blue'
 
 

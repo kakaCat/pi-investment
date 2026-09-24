@@ -88,27 +88,41 @@ def receipt_period(todo: Any, tag: Any = '') -> str:
     return f'{str(tag or "")}|{due_text}'
 
 
-def render_receipt(todo: Any, *, kind: str, period: str) -> str:
+def render_receipt(todo: Any, *, kind: str, period: str,
+                   name: Optional[str] = None,
+                   close_reason: Optional[str] = None,
+                   next_condition: Optional[str] = None,
+                   action_kind: Optional[str] = None) -> str:
     """回执文案（纯函数，只认结构化字段，禁止在调用点拼串）
 
     形态对齐 R4「首行一眼看到标的 + 该干什么」：回执不是通知，而是**台账条目**，
     故带上待办号/流转态/级别/账户与 due 周期，便于人工与 agent 双向追溯。
+
+    REQ-260924104605-ad0a t1 契约扩展（全部 keyword-only、默认 None，旧调用兼容）：
+      name           标的名称——提供时渲染为「名称（代码）」（FR-13）；缺失如实
+                     降级「代码（名称缺失）」，绝不臆造（R-013）；
+      close_reason   处置原因（t5 的 result 三要素文案使用）；
+      next_condition 后续处理意见 / NEXT 条件（t5 使用；ignored 必填由 I4 保证）；
+      action_kind    处置动作类型（t5 使用）。
     """
     todo_id = getattr(todo, 'id', None)
     symbol = getattr(todo, 'symbol', None) or '(未知标的)'
+    name_text = str(name or '').strip()
+    display = (f'{name_text}（{symbol}）' if name_text
+               else (f'{symbol}（名称缺失）' if symbol != '(未知标的)' else symbol))
     level = getattr(todo, 'level', None) or '--'
     flow = getattr(todo, 'flow_state', None) or '--'
     account = getattr(todo, 'account', None) or '(无归属)'
     due = getattr(todo, 'due_at', None)
     due_text = due.isoformat() if hasattr(due, 'isoformat') else str(due or '')
     if kind == 'escalate':
-        head = f'[升级即] 待办#{todo_id} {symbol} {level} 已从 {flow} 晋升'
+        head = f'[升级即] 待办#{todo_id} {display} {level} 已从 {flow} 晋升'
     elif kind == 'timeout':
-        head = f'[超时] 待办#{todo_id} {symbol} {level} 超时未处置，升级给你本人'
+        head = f'[超时] 待办#{todo_id} {display} {level} 超时未处置，升级给你本人'
     elif kind == 'result':
-        head = f'[处置后] 待办#{todo_id} {symbol} {level} 已出处置结论'
+        head = f'[处置后] 待办#{todo_id} {display} {level} 已出处置结论'
     else:
-        head = f'[回执] 待办#{todo_id} {symbol} {level}'
+        head = f'[回执] 待办#{todo_id} {display} {level}'
     return (f'{head} | 账户 {account} | due {due_text} | 周期 {period}')
 
 

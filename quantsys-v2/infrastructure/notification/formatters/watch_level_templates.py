@@ -68,12 +68,22 @@ class WatchCardItem:
     change_pct: Optional[float] = None
     pnl_pct: Optional[float] = None
     occurred_at: Optional[datetime] = None  # 触发时刻（聚合器分桶用）
+    # ── REQ-260924104605-ad0a t1：意图驱动骨架扩展字段（可选；缺失=模板隐藏该行，绝不臆造）──
+    intent: str = ''                     # 规则意图（entry/trend_observe/exit_stop/...）
+    stage: str = ''                      # 生命周期阶段（tracking/holding/...）
+    purpose: str = ''                    # 「这条提醒为了」（intent 驱动的目的句）
+    plan_full: str = ''                  # 预案全文（含评分依据，P0/P1 完整卡用）
+    stop_loss: Optional[float] = None    # 止损价
+    take_profit: Optional[float] = None  # 止盈价
+    validity_days: Optional[int] = None  # 有效期（天）
+    source: str = ''                     # 来源（如 opportunity_scan 自动创建）
 
     @property
     def display(self) -> str:
-        """「600519 贵州茅台」；无名称时只给代码。"""
+        """「贵州茅台（600519）」名称在前（REQ-260924104605-ad0a FR-13）；
+        无名称时如实降级为「600519（名称缺失）」——绝不臆造名称（R-013）。"""
         name = str(self.name or '').strip()
-        return f'{self.symbol} {name}'.strip() if name else str(self.symbol)
+        return f'{name}（{self.symbol}）' if name else f'{self.symbol}（名称缺失）'
 
     @property
     def price_text(self) -> str:
