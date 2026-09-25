@@ -3,7 +3,7 @@ id: requirements-index
 title: 需求档案索引（L3 证据档案）
 type: index
 status: living
-updated: 2026-09-24
+updated: 2026-09-25
 owners: [agent-dh]
 tags: [reqboard, archive, index, l3]
 ---
@@ -16,6 +16,7 @@ tags: [reqboard, archive, index, l3]
 
 | REQ id | 一句话结论 | 类型 | 归档日期 | 需求目录 | 合并去向 |
 |---|---|---|---|---|---|
+| REQ-260924213231-b1c4 | 修 REQ 流水线设计阶段死锁：登记入口工具化（reqboard_submit kind=design 幂等 + 逐份登记态投影）、G2 闸门按病因分化文案并统一拒绝信封、弹框非阻塞+回执、零参调用、提示词写明登记命令、断点续跑、立项降级不丢文档位置、pm 弹框来源标志 | feature | 2026-09-25 | [REQ-260924213231-b1c4](REQ-260924213231-b1c4/) | [architecture/reqboard-design-stage.md](../architecture/reqboard-design-stage.md)、[guides/reqboard-workflow.md](../guides/reqboard-workflow.md) |
 | REQ-e3b6a0 | 闸门确认后置链：五道人工闸门统一织入 H1..H5（推进→压缩→注入→唤醒→留痕）+ pm 专有立项弹框 reqboard_capture + 立项提示硬化 | feature | 2026-09-20 | [REQ-e3b6a0](REQ-e3b6a0/) | [architecture/gate-post-chain.md](../architecture/gate-post-chain.md) |
 | REQ-6f39b5 | 项目看板三视图重构：详情页 4Tab+8态进度点、泳道 6 列、列表表格化；流程节点唯一事实源 workflow-stages.md | refactor | 2026-09-17 | [REQ-6f39b5](REQ-6f39b5/) | [architecture/workflow-stages.md](../architecture/workflow-stages.md) |
 | REQ-283168 | 看板双视图+会话进度条因 stash 未 pop 被覆盖丢失，已从 stash 恢复入库；防回归进排查手册§E | bug | 2026-09-15 | [REQ-283168](REQ-283168/) | [guides/troubleshooting.md](../guides/troubleshooting.md) |

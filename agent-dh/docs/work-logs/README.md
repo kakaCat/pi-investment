@@ -19,9 +19,9 @@ tags: [worklog, index, l3]
 - **提炼**：结论一旦合并进 L2，就在日志 fm 里填 `distilled_into: docs/...`——**待提炼队列 = 没填这个字段的**；队列才是要干的活，其余不必读。
 
 <!-- AUTO:ledger BEGIN -->
-合计 **104** 篇。**提炼去向**（`distilled_into`）为空的都在「待提炼队列」里——那才是要干的活，其余不必读。
+合计 **105** 篇。**提炼去向**（`distilled_into`）为空的都在「待提炼队列」里——那才是要干的活，其余不必读。
 
-### 2026-09（59 篇）
+### 2026-09（60 篇）
 
 | 日期 | 日志 | 提炼去向 |
 |---|---|---|
@@ -66,6 +66,7 @@ tags: [worklog, index, l3]
 | — | [requirement-progress-implementation.md](2026-09/requirement-progress-implementation.md) | ⏳ 待提炼 |
 | — | [reqboard-pipeline-simplify.md](2026-09/reqboard-pipeline-simplify.md) | ⏳ 待提炼 |
 | — | [req-f0579a-pmboard-audit-fixes.md](2026-09/req-f0579a-pmboard-audit-fixes.md) | ⏳ 待提炼 |
+| — | [req-2cd3-tank-execution-postmortem.md](2026-09/req-2cd3-tank-execution-postmortem.md) | ⏳ 待提炼 |
 | — | [position-plan-20260919.md](2026-09/position-plan-20260919.md) | ⏳ 待提炼 |
 | — | [stage-naming-final.md](2026-09/stage-naming-final.md) | ⏳ 待提炼 |
 | — | [requirement-validation-improvement-summary.md](2026-09/requirement-validation-improvement-summary.md) | ⏳ 待提炼 |

@@ -3,7 +3,7 @@ id: docs-index
 title: 全站页面索引（机器可读入口）
 type: index
 status: living
-updated: 2026-09-24
+updated: 2026-09-25
 owners: [agent-dh]
 tags: [index, wiki]
 ---
@@ -19,7 +19,7 @@ tags: [index, wiki]
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
 | [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-09-24 |
-| [agent-dh Wiki（归档文档首页 / 大纲）](README.md) | manual | living | agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。 | 2026-09-13 |
+| [agent-dh Wiki（归档文档首页 / 大纲）](README.md) | manual | living | agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。 | 2026-09-25 |
 | [🎊 Agent-DH v0.1.1 发布说明](RELEASE-NOTES-v0.1.1.md) | doc | living | v0.1.1（2026-08-18）发布说明：稳定性与可靠性改进清单（历史版本记录）。 | 2026-09-14 |
 | [workflow-ptc-fix.md](troubleshooting/workflow-ptc-fix.md) | — | — | PM 插件 (dsh-pmboard) 的自动任务执行链依赖 workflow-ptc 服务，但当前运行时 ctx.workflowEngine 服务不可用，导致所有子卡执行失败： | — |
 | [工作日志索引（L3 证据档案）](work-logs/README.md) | index | living | 某个时间点「当时做了什么、为什么这么做、结论是什么」。按月份倒序列出全部工作日志。 | 2026-09-14 |
@@ -97,7 +97,7 @@ tags: [index, wiki]
 | [订单 API 使用指南](guides/order-api-guide.md) | guide | living | 两套订单 API 的区别与正确用法（新 API 优先，2026-08-25）。 | 2026-09-14 |
 | [quantsys-v2 能力诚实评估：真能解决问题吗？](guides/quantsys-v2-capability-assessment.md) | guide | living | v2 后端能力诚实评估：哪些真能用、哪些是「接口通但链路死」（2026-09-02 全链路实测）。 | 2026-09-14 |
 | [reqboard-capture-troubleshooting.md](guides/reqboard-capture-troubleshooting.md) | — | — | ⚠️ 不要只依赖 stdout/控制台日志（REQ-f6307c 的核心教训）。stdout 在以下情形全部蒸发： | — |
-| [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) | guide | living | 一个需求从冒出来到归档，具体敲哪些工具、卡在哪、错了怎么办。 | 2026-09-24 |
+| [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) | guide | living | 一个需求从冒出来到归档，具体敲哪些工具、卡在哪、错了怎么办。 | 2026-09-25 |
 | [重启防丢 Session 操作手册（Restart Session Safety Runbook）](guides/restart-session-safety.md) | guide | living | 重启（含 self_restart）后会话历史为什么不丢、怎么保证——附 PID 与源码级证据。 | 2026-09-14 |
 | [定时巡检清单（有问题才打扰）](guides/routine-checks.md) | guide | living | 哪些检查该定期跑、跑什么命令、什么算有问题、出了问题找谁。 | 2026-09-13 |
 | [技能装载机制（Skill Loading）——排障实录与标准流程](guides/skill-loading.md) | guide | living | 技能为什么看不见：两个 dsh home + skill registry 分层，以及正确的装载姿势。 | 2026-09-14 |

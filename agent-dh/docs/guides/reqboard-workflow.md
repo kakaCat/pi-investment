@@ -3,7 +3,7 @@ id: guide-reqboard-workflow
 title: 需求看板实操（从立项到归档）
 type: guide
 status: living
-updated: 2026-09-24
+updated: 2026-09-25
 owners: [w-1cee2467]
 tags: [guide, reqboard, workflow]
 ---
@@ -91,6 +91,24 @@ tags: [guide, reqboard, workflow]
   所以 PTC 窗口里弹框最多等 10 分钟——"给用户 1 小时"的前提是**原生工具调用**的窗口。
 - 怎么复核：`npx vitest run tests/concurrency-limits.test.ts`（常量锁定 + 旧值扫描）、
   `npx vitest run tests/worktree-injection.test.ts`（两条事件注入路径 + 投递失败仍转移）。
+
+## 弹框非阻塞、零参调用、断点续跑与立项降级（REQ-260924213231-b1c4）
+
+一次实测事故（设计阶段被 G2 拦 20 分钟、弹框 120s 超时、零参调用被拒）收口出的五处工具面修复：
+
+- **弹框超宽限不再判失败**：`reqboard_ask_confirm` 超宽限返回 `{success:true, confirmed:false, pending:true, ticket:"pc-…"}`；
+  人作答后（后台落章 + 推进）用 `reqboard_confirm_receipt(ticket)` 取回执；未知/过期 ticket → `REQBOARD_UNKNOWN_TICKET`；
+  未装配挂起确认端口 = 旧的阻塞语义（兼容）。**注意 PTC 窗口仍受调用方 10 分钟预算约束**（见上一节）。
+- **零参工具可直接调**：`tools.reqboard_status()` 等价 `{}`。载体是根 `package.json` 的 `pnpm.patchedDependencies`
+  → `patches/@deepseek-ai__dsh-ptc-runtime-node@0.1.6-alpha.2.patch`（单行 `value: (args = {})`）。
+- **断点可续跑**：交棒工具写 `RequirementRecord.interruption`（`reason="checkpoint"`），回合异常结束按 `turn/end`
+  的真实原因补写；下一次节点输入包带「## 断点」节。**字段缺省 = 整节不渲染**，存量需求输出逐字不变。
+- **立项降级路径不丢「文档位置」**：`reqboard_create` 增 `doc_location`；不传则回落 `docs/requirements/<REQ>/`
+  并在返回体与台账留痕 `defaults_used`（与弹框路径对等）。
+- **pm 弹框带来源标志**：pm 侧构造的问题 header 统一前缀，人**不读正文**也能分辨是不是 pm 在问；
+  宿主原生 `ask_user_question` 不变。
+
+怎么复核：`cd packages/web/dsh-pmboard && npx vitest run ask-confirm-pending zero-arg-binding interruption-checkpoint create-doc-location pm-question-badge`。
 
 ## 依据
 

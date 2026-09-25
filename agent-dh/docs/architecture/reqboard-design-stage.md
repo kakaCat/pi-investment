@@ -75,8 +75,32 @@ design_exempt: "豁免理由（如：纯文档修订，无用例）"
 
 参见：`design/heavy/overrides.md` 的语言强度按层指令。
 
+## 登记入口与逐份登记态（REQ-260924213231-b1c4）
+
+设计文档**不因落盘自动成为产物**：自动发现只发生在看板渲染路径。agent 侧的唯一登记入口是
+`reqboard_submit(kind=design)`——缺省扫 `design/` 全目录、**幂等**（同 path 已登记不重计），
+返回 `design_docs[]`（逐份 `on_disk` / `registered` / `confirmed`）与 `registered_count`。
+`reqboard_status` 同样返回 `design_docs[]`：不打开看板也能读出「未登记 / 待确认 / 已落章」三态。
+
+**不要猜 kind**：设计文档只认 `design`；`requirement` / `plan` / `verification` / `archive`
+各对应别的阶段产物，传错会被工具枚举挡下（这就是旧版本里 agent 连撞三次枚举的根因）。
+
+## G2 闸门拒绝信封（REQ-260924213231-b1c4）
+
+同一道门原先把两种病因说成同一句「未确认」，agent 只能盲试到系统自己补登。现在按病因分化，
+并各给**唯一可行下一步**：
+
+| 病因 | 文案锚点 | 下一步 |
+|---|---|---|
+| 未登记（磁盘有、产物簿无此条） | 「未登记」 | `reqboard_submit(kind=design)` |
+| 待确认（已登记但无确认章） | 「待确认」 | `reqboard_ask_confirm(target=artifact, kind=design)` |
+
+所有内容闸门的拒绝消息统一为 `<工具> 未执行：<what> —— <why>。补齐：<how>`：`what` 是具体文件
+或编号、`how` 是可复制的下一步；`code` 与 `gaps` 结构不变，**只改文案**（旧消费方读结构不受影响）。
+
 ## 历史演进
 
+- **2026-09-25 REQ-260924213231-b1c4**：登记入口工具化（`reqboard_submit(kind=design)` + 逐份登记态投影）、G2 闸门按病因分化文案并统一拒绝信封、设计提示词写明登记命令与触发者（并明说「不要猜 kind」）
 - **2026-09-21 REQ-2d1c74**：设计文档集扩展（use-cases + 端侧条件）、完整性前移到 G2、拆分内容硬门禁、产物可打开性校验
 - **2026-09-17 前**：设计阶段允许包含拆分计划（已废弃）
 

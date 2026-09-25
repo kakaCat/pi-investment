@@ -4,7 +4,7 @@ title: agent-dh Wiki（归档文档首页 / 大纲）
 summary: agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。
 type: manual
 status: living
-updated: 2026-09-13
+updated: 2026-09-25
 owners: [w-1cee2467]
 tags: [wiki, index, home, agent-dh]
 ---
@@ -142,7 +142,8 @@ tags: [wiki, index, home, agent-dh]
 - ✅ **P0** [项目看板代码流程与实施流程（架构设计 + 10 张流程图）](architecture/pmboard-code-flow.md) —— 双半 × 四层架构、工具→用例→端口→台账调用链、七节点五道人工门状态机、骨牌式自动实施链（AdvanceChain）、闸门后置链；附「文档/注释与代码漂移」读数发现（[HTML 版](architecture/pmboard-code-flow.html)）
 - ✅ [需求归档规范](architecture/requirement-archive.md)
 - ✅ [需求归档索引](requirements/INDEX.md)
-- ✅ P0 [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) —— 全流程表 + 各阶段硬要求 + 错误码处置
+- ✅ P0 [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) —— 全流程表 + 各阶段硬要求 + 错误码处置（2026-09-25 补：弹框非阻塞+回执、零参调用、断点续跑、立项降级文档位置、pm 弹框来源标志）
+- ✅ [设计阶段规范（文档集 / 登记入口 / G2 闸门文案）](architecture/reqboard-design-stage.md) —— 设计产物登记只有 `reqboard_submit(kind=design)` 一条路（幂等 + 逐份登记态）；被闸门拦下时「未登记 / 待确认」两种病因两种话（REQ-260924213231-b1c4）
 - ✅ [闸门确认后置链（切面 + 责任链）](architecture/gate-post-chain.md) —— 人点完弹框后机器自动做什么：唯一点 join point、两相执行 H1..H5、新加一道门要改哪里（REQ-e3b6a0）
 - ✅ [六立项类型的流程差异](architecture/reqboard-category-flows.md) —— 六类各走什么节点/过哪些门；分类感知在表现层全生效、转移层三缺口（跳级转移不存在/人工门走全局表/反向不拦）
 - ✅ **P0** [文档标准：六类文档各写什么](architecture/documentation-standard.md) —— 五层文档链（做什么/怎么做/分几步/照着做/一致吗）；
@@ -213,7 +214,8 @@ tags: [wiki, index, home, agent-dh]
 <!-- AUTO:recent BEGIN -->
 | 日期 | 页面 | 一句话 |
 |---|---|---|
-| 2026-09-24 | [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) | 一个需求从冒出来到归档，具体敲哪些工具、卡在哪、错了怎么办。 |
+| 2026-09-25 | [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) | 一个需求从冒出来到归档，具体敲哪些工具、卡在哪、错了怎么办。 |
+| 2026-09-25 | [agent-dh Wiki（归档文档首页 / 大纲）](README.md) | agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。 |
 | 2026-09-24 | [全站页面索引（机器可读入口）](INDEX.md) | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 |
 | 2026-09-23 | [节点详情面板（锚定式 node-panel）](architecture/reqboard-node-panel.md) | 会话流程条节点点开后的就地面板：锚定在流程条下方右侧、无遮罩无底栏；「基础信息」按节点给该看的，「执行流程」把该阶段提示词的纪律与真实台账做规定 vs 实际对照；实施节点改 DAG·泳道双视… |
 | 2026-09-23 | [六立项类型的流程差异（reqboard）](architecture/reqboard-category-flows.md) | feature/bug/refactor/spike/doc/chore 六类需求各自走什么节点、过哪些门、哪里生效哪里是缺口——以代码为准的实测记录。 |
@@ -227,7 +229,6 @@ tags: [wiki, index, home, agent-dh]
 | 2026-09-14 | [构建与发版规范（改了不等于生效）](standards/build-and-release.md) | 改完代码怎么让它真正生效；哪些"看起来部署了"其实没有。 |
 | 2026-09-14 | [RFC 010 Phase 1 - Window-OS Lifecycle Management](rfcs/RFC-010-README.md) | RFC 010 Phase 1：多窗口协同（窗口注册、角色化派单、窗口间消息、心跳容错）。 |
 | 2026-09-14 | [P1-3: 判断结果自动对账系统 DDD 重构设计](rfcs/013-decision-evaluation-ddd-refactor.md) | RFC 013：决策评估 DDD 重构（decision_audit 评估引擎 + agent_decisions 表）。 |
-| 2026-09-14 | [RFC 013：公告板页面（dashboard-bulletin）](rfcs/013-bulletin-board-page.md) | RFC 013：公告板页面插件设计（双半插件，与 board_* 工具同源）。 |
 
 > 自动生成（`docs_index.py`）：按 front-matter 的 updated 倒序取前 15 页。
 <!-- AUTO:recent END -->
