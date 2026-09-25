@@ -120,6 +120,15 @@ export async function executeMoveRequirement(deps: UseCaseDeps, args: unknown, e
         }
       }
 
+      // ── REQ-260925212722-96e7 FR-8：Dive armed 检查 ──────────────────────
+      // Dive 模式 armed 时，禁止手动推进到 implementing（自动流程接管）
+      if (to === 'implementing' && target.dive?.activation === 'armed') {
+        reject(
+          `reqboard_move 未执行：需求 ${target.id} 的 Dive 自动流程已启用，不允许手动推进到 implementing。若需手动操作，请先调用 reqboard_clear_pause() 解除锁定。`,
+          'REQBOARD_DIVE_ARMED'
+        )
+      }
+
       // 验收门禁：accepting → archived（检查所有 FR 的 acceptance_status）
       if (from === 'accepting' && to === 'archived') {
         const acceptanceGate = await acceptanceGateCheck(target, deps.repo.workspaceRoot)
