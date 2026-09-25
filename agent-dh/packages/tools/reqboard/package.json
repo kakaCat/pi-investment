@@ -1,0 +1,22 @@
+{
+  "name": "@pi-investment/reqboard",
+  "version": "0.1.0",
+  "description": "Requirements board RTM (Requirements Traceability Matrix) utilities",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./rtm/*": {
+      "import": "./src/rtm/*.ts",
+      "types": "./src/rtm/*.ts"
+    },
+    "./types/*": {
+      "import": "./src/types/*.ts",
+      "types": "./src/types/*.ts"
+    }
+  },
+  "dependencies": {}
+}

@@ -28,6 +28,7 @@ import { stampCheckpoint } from '../internal/interruption.js'
 import { syncRequirementMarks } from './SyncRequirementMarks.js'
 import { assertClauseCoverageGate, requirementRefsOf } from '../internal/content-gate-wiring.js'
 import { reject, agentIdFromExec, requireLiveDriver } from '../internal/support.js'
+import { generateRTMData } from '../internal/rtm-integration.js'
 
 export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
       const windowKey = agentIdFromExec(deps, exec)
@@ -376,11 +377,28 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
           }
           stampCheckpoint(r, nowTs, 'reqboard_decompose'); return { requirements: [r] }
         })
+        // RTM 集成：生成 task_coverage 和覆盖度统计（REQ-260925172227-2d61 FR-1）
+        let rtmData: Awaited<ReturnType<typeof generateRTMData>> | undefined
+        try {
+          rtmData = await generateRTMData(reqDir, created)
+        } catch (rtmErr) {
+          // RTM 生成失败不阻断拆分，但记录警告
+          console.warn('[Decompose] RTM 集成失败:', rtmErr)
+        }
         return {
           success: true,
           requirement_id: target.id,
           requirement_status: req?.status ?? target.status,
           created,
+          ...(rtmData !== undefined
+            ? {
+                task_coverage: rtmData.task_coverage,
+                coverage_check: rtmData.coverage_check,
+                ...(rtmData.coverage_check.unreceived_clauses.length > 0
+                  ? { warning: '⚠️ 部分 FR 未被任务覆盖：' + rtmData.coverage_check.unreceived_clauses.join(', ') + '（覆盖率 ' + rtmData.coverage_check.coverage_rate + '%）' }
+                  : {}),
+              }
+            : {}),
           ...(thinCards.length > 0
             ? {
                 thin_cards: thinCards,
