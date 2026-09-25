@@ -58,6 +58,7 @@ import { WorkflowEngineRunner } from './adapters/WorkflowEngineRunner.js';
 import { createFailureAlert } from './adapters/FailureAlert.js';
 import { scheduleStartupScan } from './application/internal/startup-scan.js';
 import type { UseCaseDeps } from './application/ports.js';
+import ReqboardDiveManager from './application/dive/ReqboardDiveManager.js';
 
 export const name = 'dsh-pmboard';
 
@@ -103,6 +104,11 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   // 急加载：fresh boot 时让首个 GET /state 见到台账而非空板（load 永不抛——损坏即隔离）
   void store.load();
   const now = () => Date.now()
+  
+  // REQ-260925212722-96e7: Dive 模式管理器实例化
+  const diveManager = new ReqboardDiveManager(ctx);
+  logger.info('ReqboardDiveManager initialized');
+  
   // 注入留痕（REQ-422af1 t6，INV-6）：<dshHome>/state/prompt-injection-log.json（ring buffer 500 条，原子写）。
   const injectionLog = new InjectionLogFile(
     dshHomePath(config, INJECTION_LOG_REL),
