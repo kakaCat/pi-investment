@@ -51,6 +51,17 @@ export async function executeMoveTask(deps: UseCaseDeps, args: unknown, exec: an
       const from = task.status
       // 角色决定转移表：子卡/父卡收紧三态；存量卡沿用五段（REQ-4842fe t6）。
       const role = taskRoleIn(snapshot.tasks, task)
+      
+      // ── REQ-260925212722-96e7 FR-8：Dive armed + 父子卡检查 ──────────────
+      // Dive 模式 armed 且任务是子卡时，禁止手动推进（自动流程接管）
+      const requirement = snapshot.requirements.find(r => r.id === task.requirementId)
+      if (requirement?.dive?.activation === 'armed' && task.parentId) {
+        reject(
+          `reqboard_task_move 未执行：需求 ${task.requirementId} 的 Dive 自动流程已启用，且任务 ${taskId} 是子任务（parentId=${task.parentId}），不允许手动推进。请在父卡上使用 reqboard_task_run() 自动执行。`,
+          'REQBOARD_DIVE_ARMED'
+        )
+      }
+      
       try {
         assertTaskTransition(from, to as TaskRecord['status'], 'agent', role)
       } catch (err) {
