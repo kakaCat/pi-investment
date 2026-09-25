@@ -68,7 +68,7 @@ export const STAGE_CONFIGS: Readonly<Record<RequirementStatus, StageConfig>> = {
   // 验收阶段：需要人工验收
   accepting: {
     requiresConfirmation: true,
-    autoExecute: false,
+    autoExecute: true,
     maxRounds: 5,
     description: '验收阶段，需人工验收'
   },
