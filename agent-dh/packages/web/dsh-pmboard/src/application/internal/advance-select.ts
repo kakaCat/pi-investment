@@ -8,6 +8,7 @@
  * @module dsh-pmboard/application/internal/advance-select
  */
 import type { AdvanceEvent, TaskRecord } from '../../shared/protocol.js'
+import { identifyOrphans } from './orphan-collector.js'
 
 export interface AdvanceView {
   readonly tasks: readonly TaskRecord[]
@@ -58,6 +59,21 @@ export function selectAdvanceEvent(view: AdvanceView, requirementId: string, max
     if (parent.status !== 'in_progress') continue
     const ready = subtasksOf(view, parent.id).find((s) => s.status === 'todo' && depsDone(view, s))
     if (ready !== undefined) return { event: 'RUN_SUBTASK', parentId: parent.id, subtaskId: ready.id }
+  }
+  // 2.5) REQ-260925110957-552d: resume 分支 - 孤儿回收
+  // 识别 in_progress 但无活跃执行的子卡（孤儿），将其重新加入候选
+  for (const parent of parents) {
+    if (parent.status !== 'in_progress') continue
+    const subs = subtasksOf(view, parent.id)
+    // 调用 identifyOrphans 识别孤儿（传入空 activeJobIds，因为选择器是纯函数）
+    const orphanResult = identifyOrphans(subs, new Set<string>())
+    if (orphanResult.orphanIds.length > 0) {
+      // 找到第一个孤儿卡，返回 RUN_SUBTASK 事件（会触发 attempt+1）
+      const orphan = subs.find((s) => orphanResult.orphanIds.includes(s.id))
+      if (orphan !== undefined) {
+        return { event: 'RUN_SUBTASK', parentId: parent.id, subtaskId: orphan.id }
+      }
+    }
   }
   // 3) 开父卡：ready 且并发未超限
   const active = parents.filter((p) => p.status === 'in_progress').length
