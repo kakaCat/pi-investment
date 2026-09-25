@@ -1,256 +1,215 @@
-# Dive 模式使用指南
+# Dive Armed 模式使用指南
 
-**需求**: REQ-260925212722-96e7  
+**需求**: REQ-260925234037-1503  
 **更新**: 2026-09-25
 
-## 什么是 Dive 模式？
+## 什么是 Dive Armed 模式？
 
-Dive 模式是项目看板的自动流程控制机制，让需求能够自动完成从立项到归档的完整流程，减少人工干预。
+Dive Armed 是项目看板的**唯一工作方式**，实现需求从立项到归档的全自动流程控制。
+
+## 核心理念
+
+**Dive Armed = 自动驾驶**
+
+- 需求创建后自动推进，无需人工输入"继续"
+- 门禁点自动检查，通过后自动进入下一阶段
+- 任务自动执行，完成后自动推进
+- Agent 自主决策，人只在关键点确认
 
 ## 快速开始
 
 ### 1. 创建需求
 
 ```typescript
-// 创建需求时设置 dive.activation = 'armed'
-const req = await reqboard_create({
+// Dive Armed 是默认模式
+const req = await tools.reqboard_create({
   title: "实现新功能",
   category: "feature",
-  summary: "功能描述...",
-  // dive 会自动初始化为 armed
-})
+  summary: "功能描述..."
+});
+// dive.activation 自动为 'armed'
 ```
 
-### 2. 自动推进
+### 2. 自动推进流程
 
-需求创建后，DiveManager 会自动：
-1. 监听回合结束
-2. 检查需求状态
-3. 自动调用 agent 续跑
-4. 推进到下一阶段
+需求创建后，系统自动：
+1. Agent 分析需求 → 写需求文档
+2. 通过设计门禁 → 自动进入拆分
+3. 批准拆分计划 → 自动落库任务
+4. 任务逐个执行 → 自动推进状态
+5. 全部完成 → 自动提交验收
+6. 验收通过 → 自动归档
 
-**不需要人工输入"继续"！**
+**全程无需人工催促！**
 
-### 3. 门禁检查
+### 3. 人工介入点
 
-流程中会遇到三个门禁：
+虽然是自动模式，但关键决策仍需人确认：
 
-#### 设计门禁 (design → decomposing)
-- **要求**: 所有功能点的 `design_refs` 已填写
-- **示例**: `FR-1 design_refs: [architecture.md, api-design.md]`
+#### 必须确认的门禁
+- **计划批准**: 拆分计划需人审批（防止错误拆分）
+- **设计确认**: 重大设计需人确认（可选）
+- **验收通过**: 最终交付需人验收
 
-#### 拆分门禁 (decomposing → implementing)
-- **要求**: 所有功能点的 `task_refs` 已覆盖
-- **示例**: `FR-1 task_refs: [t-abc123, t-def456]`
-
-#### 验收门禁 (accepting → archived)
-- **要求**: 所有功能点的 `acceptance_status = passed`
-- **示例**: `FR-1 acceptance_status: passed`
-
-### 4. 手动干预（当需要时）
-
-如果需要手动操作，使用 `reqboard_clear_pause`：
+#### Break Glass（紧急情况）
+当自动流程卡住时，使用 `reqboard_clear_pause`：
 
 ```typescript
-// 解除 armed 锁定
-await reqboard_clear_pause({
+// 解除锁定，允许手动操作
+await tools.reqboard_clear_pause({
   requirement_id: "REQ-xxxxxx"
-})
+});
 
-// 现在可以手动操作
-await reqboard_decompose({ ... })
-await reqboard_move({ to: "implementing" })
-await reqboard_task_move({ ... })
+// 现在可以手动干预
+await tools.reqboard_move({ to: "design" });
 ```
 
-## 工作流程
+**注意**: 这是紧急操作，正常流程不应使用。
 
-### 完整流程图
+## 完整工作流
 
 ```
-立项 (draft)
-    ↓ 手动推进
-需求分析 (brainstorming)
-    ↓ 写需求文档
-设计 (design)
-    ↓ 【设计门禁】检查 design_refs
-拆分 (decomposing)
-    ↓ 【拆分门禁】检查 task_refs
-实施 (implementing)
-    ↓ 完成任务
-验收 (accepting)
-    ↓ 【验收门禁】检查 acceptance_status
-归档 (archived)
+draft (立项)
+  ↓ 自动
+brainstorming (需求分析)
+  ↓ Agent 写需求文档
+  ↓ 【确认门】需求文档确认
+design (设计)
+  ↓ Agent 写设计文档
+  ↓ 【设计门禁】design_refs 覆盖检查
+  ↓ 【确认门】设计确认（可选）
+decomposing (拆分)
+  ↓ Agent 写拆分计划
+  ↓ 【确认门】计划批准（必须）
+  ↓ 自动落库任务
+implementing (实施)
+  ↓ Agent 逐个执行任务
+  ↓ 自动推进任务状态
+accepting (验收)
+  ↓ Agent 提交验收材料
+  ↓ 【确认门】验收通过（必须）
+  ↓ 自动归档（accepting.autoExecute = true）
+archived (已归档)
 ```
 
-### 阶段说明
+## 阶段详解
 
-#### 需求分析 (brainstorming)
-- **目标**: 理解需求，定义功能点
-- **产出**: `requirement.md` (包含 FR 列表)
-- **示例**: 
-  ```markdown
-  ## 功能需求
-  
-  - FR-1: 用户登录功能
-  - FR-2: 密码重置功能
-  ```
+### brainstorming (需求分析)
+**Agent 自主**: 分析需求，提取功能点  
+**产出**: `requirement.md` 包含 FR 列表  
+**人工**: 确认需求文档
 
-#### 设计 (design)
-- **目标**: 设计架构、接口、数据模型
-- **产出**: 设计文档 (在 `design/` 目录下)
-- **门禁**: 每个 FR 必须有 `design_refs`
+### design (设计)
+**Agent 自主**: 设计架构、接口、数据模型  
+**产出**: `design/` 目录下的设计文档  
+**门禁**: 所有 FR 的 design_refs 已填写  
+**人工**: 确认设计（可选）
 
-#### 拆分 (decomposing)
-- **目标**: 把设计拆成可执行的任务
-- **产出**: `decomposition.md` (拆分计划)
-- **门禁**: 每个 FR 必须有 `task_refs`
+### decomposing (拆分)
+**Agent 自主**: 写拆分计划，定义任务依赖  
+**产出**: `decomposition.md` + 任务表  
+**门禁**: 所有 FR 的 task_refs 已覆盖  
+**人工**: **必须批准计划**
 
-#### 实施 (implementing)
-- **目标**: 完成所有任务
-- **自动**: 任务全部 done 后自动进入验收
+### implementing (实施)
+**Agent 自主**: 按依赖顺序执行任务  
+**自动**: 任务完成后推进状态 (todo → in_progress → testing → done)  
+**人工**: 无需介入（除非 break glass）
 
-#### 验收 (accepting)
-- **目标**: 验证所有功能点
-- **门禁**: 每个 FR 的 `acceptance_status` 必须是 `passed`
+### accepting (验收)
+**Agent 自主**: 提交验收材料  
+**门禁**: 所有 FR 的 acceptance_status = passed  
+**人工**: **必须验收通过**  
+**自动**: 验收通过后自动归档
 
-#### 归档 (archived)
-- **目标**: 整理文档，合并到项目手册
-- **产出**: 归档材料
+## 工具使用频率
 
-## 常见问题
+### 高频工具（日常使用）
+- `reqboard_status` - 查看需求状态
+- `reqboard_task_run` - 执行任务（Dive Armed 核心）
+- `reqboard_ask_confirm` - 确认门禁点
 
-### Q: 如何停止自动续跑？
+### 低频工具（特殊场景）
+- `reqboard_clear_pause` - Break glass 紧急操作
+- `reqboard_submit` - 提交产物（通常自动）
+- `reqboard_task_report` - 任务汇报（通常自动）
 
-A: 有两种方式：
-1. **达到回合数限制**: 系统自动暂停
-2. **手动暂停**: 使用 `reqboard_clear_pause`
-
-### Q: 门禁阻塞了怎么办？
-
-A: 
-1. 查看错误信息，了解哪些 FR 未通过
-2. 补充缺失的内容（设计文档、任务、验收状态）
-3. 重新推进
-
-### Q: 可以手动推进吗？
-
-A: 
-- **armed 状态下**: 不可以，会被拒绝
-- **解锁后**: 可以，使用 `reqboard_clear_pause` 解锁
-
-### Q: 如何查看 dive 状态？
-
-A: 使用 `reqboard_status`：
-
-```typescript
-const status = await reqboard_status()
-// 查看 status.open_requirements[0].dive
-```
-
-### Q: 回合数限制是多少？
-
-A: 根据阶段不同：
-- brainstorming: 10 回合
-- design: 10 回合
-- decomposing: 5 回合
-- implementing: 20 回合
-- accepting: 10 回合
+### 已废弃工具（请勿使用）
+- ~~`reqboard_decompose`~~ - 已删除，由 Dive Armed 自动处理
+- ~~`reqboard_move`~~ - 已删除，由 Dive Armed 自动推进
+- ~~`reqboard_task_move`~~ - 已删除，由 Dive Armed 自动推进
 
 ## 最佳实践
 
-### 1. 清晰的功能点定义
+### ✅ 推荐做法
 
-在需求分析阶段，把功能点定义清楚：
+1. **信任自动流程**: 让 Agent 自主完成大部分工作
+2. **关键点把关**: 计划批准和验收通过时仔细检查
+3. **及时响应确认**: Agent 请求确认时尽快处理
+4. **合理拆分任务**: 计划批准前确保任务粒度合适
 
-```markdown
-- FR-1: 用户登录功能
-  - 支持用户名/密码登录
-  - 支持第三方登录（微信、支付宝）
-  - 登录失败后显示错误提示
-```
+### ❌ 避免做法
 
-### 2. 完整的设计文档
-
-每个 FR 都应该有对应的设计文档：
-
-```markdown
-## FR-1: 用户登录功能
-
-### 架构设计
-- 前端：LoginPage 组件
-- 后端：/api/auth/login 接口
-- 数据库：users 表
-
-### 接口设计
-POST /api/auth/login
-Request: { username, password }
-Response: { token, user }
-```
-
-### 3. 任务覆盖所有功能点
-
-拆分时确保每个 FR 都有任务覆盖：
-
-```markdown
-## 任务清单
-
-- t-abc123: 实现登录 UI (FR-1)
-- t-def456: 实现登录 API (FR-1)
-- t-ghi789: 实现第三方登录 (FR-1)
-```
-
-### 4. 及时验收
-
-完成任务后，及时更新 FR 的验收状态：
-
-```markdown
-- FR-1: 用户登录功能
-  - acceptance_status: passed
-  - acceptance_evidence: 测试通过，截图见 assets/
-```
+1. **频繁 clear_pause**: 这表明流程设计有问题
+2. **跳过确认门**: 关键决策必须人工把关
+3. **过度干预**: 不要在自动流程中频繁手动操作
+4. **忽略门禁**: 门禁失败说明有问题，不要强行跳过
 
 ## 故障排查
 
-### 问题: 自动续跑不工作
+### 流程卡住不动
+**现象**: Agent 一直不推进  
+**排查**: 
+1. `reqboard_status` 查看当前状态
+2. 检查是否在等待人工确认
+3. 查看 Agent 日志是否有错误
 
-**原因**: 
-- DiveManager 未初始化
-- agents 服务不可用
-- dive.activation 不是 'armed'
-
-**解决**:
-1. 检查 DiveManager 是否注册
-2. 检查 agents 服务状态
-3. 使用 `reqboard_status` 查看 dive 状态
-
-### 问题: 门禁总是阻塞
-
-**原因**: 
-- FR 定义不完整
-- design_refs / task_refs 未填写
-- acceptance_status 未更新
-
+### 门禁检查失败
+**现象**: design_refs / task_refs 覆盖不全  
 **解决**:
 1. 检查需求文档中的 FR 列表
-2. 确保每个 FR 有对应的 design_refs / task_refs
-3. 完成任务后更新 acceptance_status
+2. 确认所有 FR 都有对应的 refs
+3. 更新文档后重新提交
 
-### 问题: 手动操作被拒绝
+### 任务执行失败
+**现象**: 任务状态卡在 in_progress  
+**排查**:
+1. 查看任务日志
+2. 检查任务验收标准是否明确
+3. 必要时 clear_pause 后手动完成
 
-**原因**: 
-- dive.activation 是 'armed'
+## 配置说明
 
-**解决**:
+### accepting 自动归档
+
 ```typescript
-// 先解锁
-await reqboard_clear_pause({ requirement_id: "REQ-xxxxxx" })
-
-// 再手动操作
-await reqboard_decompose({ ... })
+// packages/web/dsh-pmboard/src/application/dive/stage-configs.ts
+accepting: {
+  requiresConfirmation: true,
+  autoExecute: true,  // 验收通过后自动归档
+  maxRounds: 5,
+  description: '验收阶段，需人工验收'
+}
 ```
 
-## 参考
+### Dive Armed 默认开启
 
-- 架构文档: `docs/architecture/reqboard-dive-mode.md`
-- 需求文档: `docs/requirements/REQ-260925212722-96e7/`
+```typescript
+// reqboard_create / reqboard_capture 自动设置
+dive: {
+  activation: 'armed',  // 默认模式
+  phase: 'brainstorming',
+  roundsCompleted: 0
+}
+```
+
+## 总结
+
+Dive Armed 是项目看板的**唯一工作方式**：
+
+- ✅ 自动推进流程
+- ✅ 关键点人工把关
+- ✅ 减少重复劳动
+- ✅ 提高交付效率
+
+不再需要手动调用 decompose/move/task_move，让 Agent 自主完成整个流程！
