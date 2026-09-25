@@ -24,6 +24,7 @@ import {
   agentIdFromExec,
   requireLiveDriver,
 } from '../internal/support.js'
+import { checkAcceptanceGate } from '../internal/accept-sheet-rtm-integration.js'
 
 export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
       const windowKey = agentIdFromExec(deps, exec)
@@ -232,6 +233,9 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
         const fin2 = await finalizeIfAllPassed(s?.items.filter(i => i.status === 'passed').length ?? 0, 0)
         if (fin2 !== undefined) return fin2 as never
       }
+      // RTM 集成：检查验收门禁（REQ-260925172227-2d61 FR-3）
+      const rtmResult = checkAcceptanceGate(s)
+      
       return {
         success: true,
         requirement_id: targetReq.id,
@@ -242,6 +246,8 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
         failed,
         // REQ-308b9a FR-8：裁决含 failed 时返回真实生成的返工卡 id 列表。
         rework_tasks: reworkIds,
+        gate_status: rtmResult.gate_check.gate_status,
+        archived: rtmResult.should_archive,
         note: failed > 0
           ? '有 ' + failed + ' 项不通过：已自动回退实施并生成 ' + reworkIds.length + ' 张返工卡（REQ-308b9a FR-8）'
           : (pending > 0
