@@ -1079,7 +1079,7 @@ export interface TaskRecord {
 // 迁移后文件里写的就是 5，常量必须与之一致，否则 load 会把 5 报告成 4、并在下一次写盘时把
 // 版本回退（迁移成果被静默抹掉）。⚠️ 运行时**不自动迁移**（见 design/migration.md §5）：
 // v4 台账仍可载入（字段缺失处按可选处理），迁移由人工跑 scripts/migrate-ledger.ts 完成。
-export const REQBOARD_SCHEMA_VERSION = 7
+export const REQBOARD_SCHEMA_VERSION = 8
 
 export interface ReqboardLedger {
   schemaVersion: number
