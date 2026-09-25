@@ -22,6 +22,7 @@ import { stampCheckpoint } from '../internal/interruption.js'
 import { assertArtifactGates } from '../internal/artifact-gates.js'
 import { checkDesignCompletenessGate } from '../internal/content-gate-wiring.js'
 import { gateForTransition } from '../../domain/gate/GateCatalog.js'
+import { designGateCheck, taskCoverageGateCheck, acceptanceGateCheck } from '../gate/index.js'
 import {
   reject,
   agentIdFromExec,
@@ -99,6 +100,31 @@ export async function executeMoveRequirement(deps: UseCaseDeps, args: unknown, e
         const completeness = await checkDesignCompletenessGate(deps.docs, target)
         if (completeness !== undefined) {
           reject('reqboard_move 未执行：' + completeness.message, completeness.code)
+        }
+      }
+
+      // ── REQ-260925212722-96e7 FR-4/5/6：RTM 门禁检查（设计/拆分/验收）──
+      // 设计门禁：design → decomposing（检查所有 FR 的 design_refs）
+      if (from === 'design' && to === 'decomposing') {
+        const designGate = await designGateCheck(target, deps.repo.workspaceRoot)
+        if (!designGate.passed) {
+          reject(`reqboard_move 未执行：${designGate.message}`, designGate.code || 'REQBOARD_DESIGN_GATE_FAILED')
+        }
+      }
+
+      // 拆分门禁：decomposing → implementing（检查所有 FR 的 task_refs）
+      if (from === 'decomposing' && to === 'implementing') {
+        const taskCoverageGate = await taskCoverageGateCheck(target, deps.repo.workspaceRoot)
+        if (!taskCoverageGate.passed) {
+          reject(`reqboard_move 未执行：${taskCoverageGate.message}`, taskCoverageGate.code || 'REQBOARD_TASK_COVERAGE_GATE_FAILED')
+        }
+      }
+
+      // 验收门禁：accepting → archived（检查所有 FR 的 acceptance_status）
+      if (from === 'accepting' && to === 'archived') {
+        const acceptanceGate = await acceptanceGateCheck(target, deps.repo.workspaceRoot)
+        if (!acceptanceGate.passed) {
+          reject(`reqboard_move 未执行：${acceptanceGate.message}`, acceptanceGate.code || 'REQBOARD_ACCEPTANCE_GATE_FAILED')
         }
       }
 
