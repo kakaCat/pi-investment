@@ -15,7 +15,7 @@ import { advanceTargetFor, gateForTransition } from '../../domain/gate/GateCatal
 import { checkDesignCompletenessGate, checkDesignDecompositionGate } from './content-gate-wiring.js'
 import { artifactsToConfirm, type GateFailure } from './artifact-gates.js'
 import { captureSnapshot, transitionRequirement } from './token-usage.js'
-import { executeDecompose } from '../use-cases/Decompose.js'
+// import { executeDecompose } from '../use-cases/Decompose.js' // 已改用 deps.jobs.start（REQ-260925212722-96e7 t-003dc5）
 import { advanceRequirement } from '../use-cases/AdvanceChain.js'
 import { stampCheckpoint } from './interruption.js'
 import { reject } from './support.js'
@@ -220,8 +220,18 @@ export async function applyConfirmDecision(
         req.updatedAt = nowTs
         return { requirements: [req] }
       })
-      const dec = await executeDecompose(deps, { requirement_id: d.requirementId, reason: '批准拆分计划后自动拆分（门合并）' }, exec) as { created?: unknown[] }
-      const createdCount = Array.isArray(dec?.created) ? dec.created.length : 0
+      // 改用 jobs.start 启动后台 job，避免需要 live driver（REQ-260925212722-96e7 t-003dc5）
+      const jobId = await deps.jobs.start({
+        kind: 'reqboard_decompose',
+        label: '批准拆分计划后自动拆分',
+        payload: {
+          requirement_id: d.requirementId,
+          reason: '批准拆分计划后自动拆分（门合并）',
+          autoRun: true // 标记为自动开跑
+        }
+      })
+      // 注意：此处无法立即获取 createdCount，但后续 advanceRequirement 会处理
+      const createdCount = 0 // 占位，实际任务数由后台 job 创建
       await deps.repo.mutate('requirement-moved', (ledger) => {
         const req = ledger.requirements.find(x => x.id === d.requirementId)
         if (req === undefined || req.status !== 'decomposing') return undefined
