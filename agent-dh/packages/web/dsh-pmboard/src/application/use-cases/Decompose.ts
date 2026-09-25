@@ -51,6 +51,16 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
           'REQBOARD_NOT_BOUND_TO_WINDOW',
         )
       }
+      
+      // ── REQ-260925212722-96e7 FR-8：Dive armed 检查 ──────────────────────
+      // Dive 模式 armed 时，禁止手动调用拆分工具（自动流程接管）
+      if (target.dive?.activation === 'armed') {
+        reject(
+          'reqboard_decompose 未执行：需求 ' + target.id + ' 的 Dive 自动流程已启用，不允许手动拆分。若需手动操作，请先调用 reqboard_clear_pause() 解除锁定。',
+          'REQBOARD_DIVE_ARMED'
+        )
+      }
+      
       if (target.status === 'draft') {
         reject('reqboard_decompose 未执行：需求还在立项态，先 reqboard_move 到 brainstorming（方案确认后）再拆', 'REQBOARD_BAD_STATUS')
       }
