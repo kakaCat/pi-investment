@@ -68,31 +68,39 @@ export function defineAdvanceTool(deps: UseCaseDeps) {
           return { requirements: [req] }
         })
       }
-      // exec 一路透传到叶子（引擎 parent=exec.agent）；缺了它 workflow-ptc 读 parent.session 会抛错。
+      // REQ-260925110957-552d: advanceRequirement 已改为投递式，立即返回
       const out = await advanceRequirement(deps, task.requirementId, exec)
+      
+      // 检查是否成功投递
+      if (out.dispatched === false) {
+        return {
+          success: false,
+          task_id: task.id,
+          requirement_id: task.requirementId,
+          status: 'error',
+          error: out.reason ?? '投递失败',
+          code: out.reason?.includes('jobs') ? 'DSH_JOBS_UNAVAILABLE' : 'REQBOARD_DISPATCH_FAILED'
+        }
+      }
+      
+      // 投递成功：立即返回（不等执行完成）
       const after = deps.repo.snapshot()
-      const executed = [...out.steps].reverse().find((s) => s.subtaskId !== undefined)
       const progress = progressOf(after, task.requirementId)
       const sel = selectAdvanceEvent({ tasks: after.tasks }, task.requirementId, LIMITS.advanceMaxParallelParents)
-      const nextReady = sel !== undefined && sel.event === 'RUN_SUBTASK'
-        ? { id: sel.subtaskId, stageKind: after.tasks.find((t) => t.id === sel.subtaskId)?.stageKind ?? '' }
-        : null
-      const subtaskExecuted = executed === undefined
-        ? null
-        : {
-            id: executed.subtaskId,
-            stageKind: after.tasks.find((t) => t.id === executed.subtaskId)?.stageKind ?? '',
-            status: after.tasks.find((t) => t.id === executed.subtaskId)?.status ?? '',
-          }
+      const running = after.tasks.filter((t) => t.requirementId === task.requirementId && t.status === 'in_progress' && t.parentId !== undefined).map((t) => t.id)
+      const nextReady = sel !== undefined && sel.event === 'RUN_SUBTASK' ? [sel.subtaskId ?? ''] : []
+      
       return {
         success: true,
         task_id: task.id,
-        subtask_executed: subtaskExecuted,
+        requirement_id: task.requirementId,
+        status: 'dispatched',
+        job_id: out.job_id,
+        run_id: out.run_id,
+        running,
         next_ready: nextReady,
         chain: { done: progress.subtasksDone, total: progress.subtasksTotal },
-        blocked: out.stopped === 'paused' ? { subtaskId: executed?.subtaskId ?? '', reason: executed?.detail ?? '' } : null,
         parent_status: after.tasks.find((t) => t.id === task.id)?.status ?? '',
-        stopped: out.stopped,
       }
     },
   } as any)
