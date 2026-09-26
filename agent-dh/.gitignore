@@ -32,3 +32,4 @@ CLAUDE.md
 # 换台机器/重新克隆即消失，且被已入库页面（RELEASE-NOTES、TOOLS_INVENTORY 等）链接成死链。
 # 更深层的 .gitignore 规则优先级更高，故在本文件反选回来。
 !docs/**
+tank-battle-game/
