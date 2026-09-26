@@ -80,10 +80,27 @@ export interface SubtaskScriptInput {
  */
 export function generateSubtaskScript(input: SubtaskScriptInput): string {
   const prompt = typeof input.prompt === 'string' ? input.prompt : ''
+  // REQ-260925110957-552d: 生成的脚本使用 agent(prompt, {schema})
+  const schema = {
+    type: 'object',
+    properties: {
+      filesChanged: {
+        type: 'array',
+        items: { type: 'string' },
+        description: '改动的文件路径列表（相对工作区路径）'
+      },
+      summary: {
+        type: 'string',
+        description: '执行摘要：做了什么、完成了哪些项'
+      }
+    },
+    required: ['filesChanged', 'summary'],
+    additionalProperties: false
+  }
   const script = [
     'phase("执行");',
     'log(' + JSON.stringify(fmt('子卡 {kind} 开工：{label}', { kind: input.stageKind, label: input.stageLabel })) + ');',
-    'const out = await agent(' + JSON.stringify(prompt) + ');',
+    'const out = await agent(' + JSON.stringify(prompt) + ', { schema: ' + JSON.stringify(schema) + ' });',
     'return { ok: out !== null, output: out };',
   ].join('\n')
   assertScriptContract(script)

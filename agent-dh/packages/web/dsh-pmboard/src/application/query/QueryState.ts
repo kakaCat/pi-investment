@@ -17,6 +17,7 @@ import {
 import { parseDocument, extractClauseDefinitions, extractSkippedClauses } from '../internal/content-gates.js'
 import { collectTaskRefs, clauseReceiveStatus } from '../internal/content-gate-wiring.js'
 import { designDocRegistrationOf } from '../internal/design-docs.js'
+import { generateStatusRTM } from '../internal/status-rtm-integration.js'
 
 export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): Promise<unknown> {
       const windowKey = agentIdFromExec(deps, exec)
@@ -48,6 +49,20 @@ export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): 
           }
         }
       }
+      // RTM 集成：生成 FR 覆盖度和验收进度（REQ-260925172227-2d61 FR-4）
+      let rtmData: ReturnType<typeof generateStatusRTM> | undefined
+      if (open.length > 0) {
+        try {
+          const boundReq = open[0]
+          const reqDir = 'docs/requirements/' + boundReq.id
+          const reqTasks = ledger.tasks.filter(t => t.requirementId === boundReq.id && t.status !== 'canceled')
+          const verificationSheet = boundReq.verification?.sheet
+          rtmData = generateStatusRTM(reqDir, reqTasks, verificationSheet)
+        } catch (rtmErr) {
+          console.warn('[QueryState] RTM 集成失败:', rtmErr)
+        }
+      }
+      
       return {
         window_key: windowKey,
         bound: open.length > 0,
@@ -57,6 +72,14 @@ export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): 
         clause_receive_status,
         unreceived_clauses: unreceived,
         design_docs,
+        ...(rtmData !== undefined
+          ? {
+              fr_coverage: rtmData.fr_coverage,
+              ...(rtmData.fr_acceptance_progress !== undefined
+                ? { fr_acceptance_progress: rtmData.fr_acceptance_progress }
+                : {}),
+            }
+          : {}),
         note:
           open.length > 0
             ? `本窗口已绑定进行中需求（当前 ${open[0].status}）：里程碑处用 reqboard_move 自行推进（${agentNextActions(open[0].status).join(' / ') || '无可推进项'}），勿重复立项`

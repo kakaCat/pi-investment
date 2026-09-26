@@ -16,6 +16,7 @@ import { generateSubtaskScript } from '../internal/workflow-script.js'
 import { assertDoneEvidence } from '../internal/support.js'
 import { detectCrossCardOverwrite } from '../internal/cross-card.js'
 import { isSubtask, recordStatus, type TaskRecord } from '../../shared/protocol.js'
+import { executeWithSchema, type SubtaskOutputSchema, createEmptySubtaskOutput } from '../../adapters/WorkflowSchemaAdapter.js'
 
 /** 子代理产出的结构化摘要（filesChanged / 完成项 / 证据）。 */
 export interface SubtaskOutput {
@@ -121,22 +122,6 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
   if (task.status === 'canceled') return fail(task.id, '子卡已取消', 'REQBOARD_SUBTASK_GATE', base)
 
   const actor = { kind: 'system' as const }
-  const claimAt = deps.clock.now()
-  await deps.repo.mutate('subtask-started', (ledger) => {
-    const t = ledger.tasks.find((x) => x.id === task.id)
-    if (t === undefined) return undefined
-    if (t.status === 'done' || t.status === 'in_progress') return undefined
-    t.status = 'in_progress'
-    t.version += 1
-    t.updatedAt = claimAt
-    t.updatedBy = actor
-    t.claimedAt = claimAt
-    t.claimedBy = input.windowKey
-    t.executions.push({ id: deps.ids.execution(), sessionId: input.windowKey, trigger: 'auto', startedAt: claimAt, outcome: 'running' })
-    recordStatus(t, 'in_progress', claimAt, actor)
-    return { tasks: [t] }
-  })
-
   const label = stageLabel(task.stageKind as never)
   let script: string
   try {
@@ -149,26 +134,62 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
     return fail(task.id, (err as Error).message, (err as { code?: string }).code ?? 'workflow_script_contract', base)
   }
 
-  let outcome: WorkflowRunOutcome
+  // REQ-260925110957-552d: 使用 schema 强制结构化产出
+  let schemaOutput: SubtaskOutputSchema
+  let outcome: { ok: boolean; reason?: string }
+  
   if (deps.workflow === undefined) {
     outcome = { ok: false, reason: 'engine_unavailable' }
+    schemaOutput = createEmptySubtaskOutput('engine_unavailable')
   } else {
     try {
-      outcome = await deps.workflow.start({
-        script,
-        meta: { name: 'reqboard-subtask-' + String(task.stageKind ?? 'x'), description: fmt('子卡执行：{title}', { title: task.title }) },
-        args: { subtaskId: task.id, parentId: parent.id, stageKind: String(task.stageKind ?? '') },
-        parent: (input.exec as { agent?: unknown } | undefined)?.agent,
-        signal: (input.exec as { signal?: AbortSignal } | undefined)?.signal,
-      })
+      // 构造 schema 定义
+      const schema = {
+        type: 'object',
+        properties: {
+          filesChanged: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '改动的文件路径列表（相对工作区路径）'
+          },
+          summary: {
+            type: 'string',
+            description: '执行摘要：做了什么、完成了哪些项'
+          }
+        },
+        required: ['filesChanged', 'summary'],
+        additionalProperties: false
+      }
+      
+      // 使用 executeWithSchema 调用引擎
+      const workflowAdapter = {
+        agent: async (prompt: string, options?: { schema?: any }) => {
+          return await deps.workflow!.start({
+            script,
+            meta: { name: 'reqboard-subtask-' + String(task.stageKind ?? 'x'), description: fmt('子卡执行：{title}', { title: task.title }) },
+            args: { subtaskId: task.id, parentId: parent.id, stageKind: String(task.stageKind ?? ''), schema: options?.schema },
+            parent: (input.exec as { agent?: unknown } | undefined)?.agent,
+            signal: (input.exec as { signal?: AbortSignal } | undefined)?.signal,
+          })
+        }
+      }
+      
+      schemaOutput = await executeWithSchema(workflowAdapter, buildSubtaskPrompt(parent, task, label), schema)
+      outcome = { ok: true }
     } catch (err) {
       outcome = { ok: false, reason: fmt('run 异常：{m}', { m: String((err as Error).message ?? err) }) }
+      schemaOutput = createEmptySubtaskOutput(outcome.reason)
     }
   }
 
-  const outputValue = (outcome.value as { output?: unknown } | undefined)?.output ?? outcome.value
-  const parsed = outcome.ok ? parseSubtaskOutput(outputValue) : { filesChanged: [], completed: [], evidence: [], raw: '' }
-  const valueNonEmpty = isNonEmptyValue(outputValue)
+  // REQ-260925110957-552d: 使用 schema 产出（filesChanged 必定存在）
+  const parsed = {
+    filesChanged: schemaOutput.filesChanged,
+    completed: [schemaOutput.summary],
+    evidence: [] as string[],
+    raw: JSON.stringify(schemaOutput)
+  }
+  const valueNonEmpty = schemaOutput.summary.length > 0 || schemaOutput.filesChanged.length > 0
   const ranAt = deps.clock.now()
 
   // REQ-4842fe t9/FR-10 次防线：产出文件的 mtime 落在另一张在跑父卡的执行窗口内 → 判跨卡覆盖。
@@ -194,9 +215,27 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
     }
   }
 
+  // REQ-260925110957-552d: 执行成功后才写 in_progress + lastRun + lastReport
   await deps.repo.mutate('subtask-ran', (ledger) => {
     const t = ledger.tasks.find((x) => x.id === task.id)
     if (t === undefined) return undefined
+    
+    // 先执行后认领：执行成功才写 in_progress
+    if (t.status === 'todo') {
+      t.status = 'in_progress'
+      t.claimedAt = ranAt
+      t.claimedBy = input.windowKey
+      t.executions.push({ 
+        id: deps.ids.execution(), 
+        sessionId: input.windowKey, 
+        trigger: 'auto', 
+        startedAt: ranAt, 
+        outcome: outcome.ok ? 'running' : 'failed',
+        ...(outcome.ok ? {} : { endedAt: ranAt, error: outcome.reason ?? '' })
+      })
+      recordStatus(t, 'in_progress', ranAt, actor)
+    }
+    
     t.lastRun = { at: ranAt, ok: outcome.ok, stopReason: outcome.ok ? 'completed' : (outcome.reason ?? 'error'), valueNonEmpty, ...(outcome.ok ? {} : { reason: outcome.reason ?? '' }) }
     if (parsed.raw.length > 0 || parsed.filesChanged.length > 0 || parsed.completed.length > 0 || parsed.evidence.length > 0) {
       t.lastReport = {

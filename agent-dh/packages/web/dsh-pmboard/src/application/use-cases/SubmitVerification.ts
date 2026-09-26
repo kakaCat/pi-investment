@@ -36,6 +36,7 @@ import {
   rollupBlockersOf,
   workspacePathCandidates,
 } from '../internal/support.js'
+import { generateAcceptanceTracking } from '../internal/submit-rtm-integration.js'
 
 export async function submitVerification(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
       const windowKey = agentIdFromExec(deps, exec)
@@ -271,6 +272,15 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
       const finishNote = blockers === undefined
         ? '验收材料已提交。下一步：调 reqboard_ask_confirm（target=artifact, kind=verification）弹框请人逐项审核（看板「验收通过/退回」同样是有效通道）'
         : fmt('验收材料已提交，但需求因 {n} 个未完成任务停在 implementing——见 warning/blockers', { n: blockers.length })
+      // RTM 集成：生成 acceptance_tracking（REQ-260925172227-2d61 FR-2）
+      let rtmData: ReturnType<typeof generateAcceptanceTracking> | undefined
+      try {
+        const prevTracking = reqNow?.verification?.sheet?.rtmTracking
+        rtmData = generateAcceptanceTracking(reqDir, prevTracking)
+      } catch (rtmErr) {
+        // RTM 生成失败不阻断提交，但记录警告
+        console.warn('[SubmitVerification] RTM 集成失败:', rtmErr)
+      }
       return {
         success: true,
         requirement_id: changed.id,
@@ -280,6 +290,12 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
         sheet_version: reqNow?.verification?.sheet?.version ?? 0,
         sheet_items: reqNow?.verification?.sheet?.items.length ?? 0,
         ...(reqNow?.verification?.sheet?.reworkOnly === true ? { rework_only: true } : {}),
+        ...(rtmData !== undefined
+          ? {
+              acceptance_tracking_count: rtmData.acceptance_tracking_count,
+              ...(rtmData.is_rework ? { rework_only: true } : {}),
+            }
+          : {}),
         ...(reqNow !== undefined && (reqNow.docSyncPending ?? []).length > 0
           ? { doc_sync_pending: reqNow.docSyncPending, doc_sync_warning: docSyncSummary(reqNow) }
           : {}),

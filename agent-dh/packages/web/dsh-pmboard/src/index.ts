@@ -24,9 +24,6 @@ import {
   defineCreateTool,
   defineCaptureTool,
   defineStatusTool,
-  defineMoveTool,
-  defineDecomposeTool,
-  defineTaskMoveTool,
   defineTaskExecuteTool,
   defineAdvanceTool,
   defineTaskStatusTool,
@@ -36,6 +33,7 @@ import {
   defineConfirmReceiptTool,
   defineAcceptSheetTool,
   defineNoteInterruptionTool,
+  defineClearPauseTool,
 } from './tools/index.js';
 import { FileDocRepository } from './adapters/FileDocRepository.js'
 import { InjectionLogFile } from './adapters/InjectionLogFile.js'
@@ -58,6 +56,7 @@ import { WorkflowEngineRunner } from './adapters/WorkflowEngineRunner.js';
 import { createFailureAlert } from './adapters/FailureAlert.js';
 import { scheduleStartupScan } from './application/internal/startup-scan.js';
 import type { UseCaseDeps } from './application/ports.js';
+import ReqboardDiveManager from './application/dive/ReqboardDiveManager.js';
 
 export const name = 'dsh-pmboard';
 
@@ -103,6 +102,11 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   // 急加载：fresh boot 时让首个 GET /state 见到台账而非空板（load 永不抛——损坏即隔离）
   void store.load();
   const now = () => Date.now()
+  
+  // REQ-260925212722-96e7: Dive 模式管理器实例化
+  const diveManager = new ReqboardDiveManager(ctx);
+  logger.info('ReqboardDiveManager initialized');
+  
   // 注入留痕（REQ-422af1 t6，INV-6）：<dshHome>/state/prompt-injection-log.json（ring buffer 500 条，原子写）。
   const injectionLog = new InjectionLogFile(
     dshHomePath(config, INJECTION_LOG_REL),
@@ -291,9 +295,6 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         disposers.push(toolsCtx.tools.register(defineCreateTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineCaptureTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineStatusTool(useCaseDeps)));
-        disposers.push(toolsCtx.tools.register(defineMoveTool(useCaseDeps)));
-        disposers.push(toolsCtx.tools.register(defineDecomposeTool(useCaseDeps)));
-        disposers.push(toolsCtx.tools.register(defineTaskMoveTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineTaskReportTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineSubmitTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineAskConfirmTool(useCaseDeps)));
@@ -304,10 +305,11 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         disposers.push(toolsCtx.tools.register(defineTaskStatusTool(useCaseDeps)));
         // REQ-260924213231-b1c4 T-9（FR-6 / I-8）：断点显式兜底（B′ 入口）。
         disposers.push(toolsCtx.tools.register(defineNoteInterruptionTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineClearPauseTool(useCaseDeps)));
       }, name + ': tools');
       logger.info(
-        'agent tools registered (15): reqboard_create / reqboard_capture / reqboard_status / reqboard_move / reqboard_decompose / reqboard_task_move / reqboard_task_run / reqboard_task_execute / reqboard_task_status / '
-        + 'reqboard_task_report / reqboard_submit(kind) / reqboard_ask_confirm / reqboard_confirm_receipt / reqboard_accept_sheet / reqboard_note_interruption',
+        'agent tools registered (13): reqboard_create / reqboard_capture / reqboard_status / reqboard_task_run / reqboard_task_execute / reqboard_task_status / '
+        + 'reqboard_task_report / reqboard_submit(kind) / reqboard_ask_confirm / reqboard_confirm_receipt / reqboard_accept_sheet / reqboard_note_interruption / reqboard_clear_pause',
       );
     },
   );

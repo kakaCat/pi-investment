@@ -890,6 +890,35 @@ export interface PendingConfirmation {
 /** 挂起确认 ticket 前缀（T-4 契约）：实现生成 ticket 时必须以此为前缀。 */
 export const PENDING_CONFIRM_TICKET_PREFIX = 'pc-'
 
+/**
+ * Dive 模式状态（REQ-260925212722-96e7）：需求自动续跑与阶段控制。
+ *
+ * Dive 模式让需求在 implementing 阶段自动执行任务，无需人工输入"继续"。
+ * 借鉴 DSH Goal 的 phase + activation 模式，但独立实现以适配需求流水线的多阶段特性。
+ */
+export interface RequirementDive {
+  /** 当前所处阶段（与 RequirementStatus 对应） */
+  phase: 'brainstorming' | 'design' | 'decomposing' | 'implementing' | 'accepting'
+  
+  /** 激活状态：armed=自动续跑启用，disarmed=手动模式 */
+  activation: 'armed' | 'disarmed'
+  
+  /** 当前阶段已执行的回合数 */
+  roundsInStage: number
+  
+  /** 每阶段最大回合数限制（防止无限循环） */
+  maxRoundsPerStage: number
+  
+  /** 当前子阶段（如 implementing 中的具体任务） */
+  currentStage?: string
+  
+  /** 暂停原因（阻塞时记录，clear_pause 清除） */
+  pausedReason?: string
+  
+  /** 最后活跃时间（Unix 时间戳 ms） */
+  lastActiveAt?: number
+}
+
 export interface RequirementRecord {
   id: string // REQ-xxxxxx
   title: string
@@ -914,6 +943,8 @@ export interface RequirementRecord {
   autoRun?: boolean
   /** 推进事件运行状态（单飞锁 + 事件历史 + 停滞计数；缺省 = 未跑过自动链） */
   advance?: AdvanceState
+  /** Dive 模式状态（REQ-260925212722-96e7）：需求自动续跑与阶段控制。缺省 = 未启用 Dive 模式（手动模式） */
+  dive?: RequirementDive
   /** 评审共创会话 */
   reviewSessionId?: string
   /** 立项来源窗口（自动立项时写入；人工建卡不填）——窗口↔需求 n:n 的需求侧锚点 */
@@ -1079,7 +1110,7 @@ export interface TaskRecord {
 // 迁移后文件里写的就是 5，常量必须与之一致，否则 load 会把 5 报告成 4、并在下一次写盘时把
 // 版本回退（迁移成果被静默抹掉）。⚠️ 运行时**不自动迁移**（见 design/migration.md §5）：
 // v4 台账仍可载入（字段缺失处按可选处理），迁移由人工跑 scripts/migrate-ledger.ts 完成。
-export const REQBOARD_SCHEMA_VERSION = 7
+export const REQBOARD_SCHEMA_VERSION = 8
 
 export interface ReqboardLedger {
   schemaVersion: number

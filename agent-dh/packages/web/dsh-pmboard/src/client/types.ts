@@ -154,6 +154,14 @@ export interface RequirementRecord {
     noopStreak?: number
     failureStreak?: number
     pausedReason?: string
+    /** 当前运行 ID（后台任务标识） */
+    runId?: string
+    /** 当前正在执行的子卡 ID */
+    currentSubtaskId?: string
+    /** 当前步骤索引（checkpoint） */
+    stepIndex?: number
+    /** 最后心跳时间（ms timestamp） */
+    heartbeatAt?: number
   }
   reviewSessionId?: string
   /** 立项来源窗口（agent 会话 id，如 session-<uuid>；人工建卡不填）——窗口↔需求关联锚点 */
@@ -216,6 +224,8 @@ export interface TaskRecord {
   stageKind?: StageKind
   /** 失败重跑次数（缺省 0） */
   attempt?: number
+  /** 计划改动的文件路径列表（写集；用于并行调度冲突检测） */
+  filesPlanned?: string[]
   status: TaskStatus
   blocked: boolean
   blockedReason?: string

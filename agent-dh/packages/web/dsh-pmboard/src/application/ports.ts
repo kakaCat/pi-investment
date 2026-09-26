@@ -276,6 +276,47 @@ export interface PendingConfirmPort {
   settle(ticket: string, outcome: PendingConfirmationOutcome): PendingConfirmation | undefined
 }
 
+
+// ---------------------------------------------------------------------------
+// 后台任务端口（REQ-260925110957-552d / FR-1）：实施链异步化
+// ---------------------------------------------------------------------------
+
+/** Job 启动参数 */
+export interface JobStartSpec {
+  /** Job 类型标识 */
+  kind: string
+  /** Job 标签（用于日志） */
+  label: string
+  /** Job 归属（调用方 agent） */
+  owner?: unknown
+  /** Job 执行函数 */
+  run: (signal: AbortSignal) => Promise<void>
+}
+
+/** Job 状态快照 */
+export interface JobSnapshot {
+  id: string
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'killed'
+  startedAt?: number
+  finishedAt?: number
+  error?: string
+}
+
+/**
+ * 后台任务端口（REQ-260925110957-552d t2）。
+ * 
+ * 唯一实现 = `adapters/DshJobsAdapter.ts`（桥接 ctx.jobs.start/get）。
+ * 缺省 = 后台任务系统不可用 → advanceRequirement 显式返回 {dispatched:false, reason:'jobs_unavailable'}。
+ */
+export interface JobsPort {
+  /** 启动后台任务，返回 Job ID（同步返回，不等执行完成） */
+  start(spec: JobStartSpec): Promise<string>
+  /** 查询 Job 状态快照（不存在返回 null） */
+  get(jobId: string): Promise<JobSnapshot | null>
+  /** 检查是否可用 */
+  available(): boolean
+}
+
 export interface UseCaseDeps {
   repo: ReqboardRepository
   docs: DocRepository
@@ -304,4 +345,9 @@ export interface UseCaseDeps {
    * 弹框保持旧的阻塞语义（宽限内作答与原返回体逐字一致）。
    */
   pendingConfirms?: PendingConfirmPort
+  /**
+   * 后台任务端口（REQ-260925110957-552d FR-1）。缺省 = 后台任务系统不可用 →
+   * advanceRequirement 显式返回 {dispatched:false, reason:'jobs_unavailable'}。
+   */
+  jobs?: JobsPort
 }

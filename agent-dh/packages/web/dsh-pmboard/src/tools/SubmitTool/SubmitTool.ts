@@ -167,6 +167,7 @@ export function defineSubmitTool(deps: UseCaseDeps) {
           sheet_version: { type: 'number', description: 'kind=verification：验收单版本（v1/v2…）' },
           sheet_items: { type: 'number', description: 'kind=verification：本轮验收项数' },
           rework_only: { type: 'boolean', description: 'kind=verification：本轮是否只含上版未过项（返工续验）' },
+          acceptance_tracking_count: { type: 'number', description: 'kind=verification：验收追踪条目数' },
           doc_sync_pending: {
             type: 'array',
             description: '待同步的下游文档（重交下游产物后销标）',

@@ -61,6 +61,10 @@ export const LIMITS = {
   timeoutInteractiveMs: 3_600_000,
   /** 验收单分批弹框超时（同上：用户裁定 1 小时），FR-5。 */
   timeoutSheetMs: 3_600_000,
+  /** 孤儿回收超时阈值（毫秒）：子卡 in_progress 且无心跳超此时长 → 判定为孤儿，可被重新选中执行。 */
+  orphanTimeoutMs: 3 * 60_000,
+  /** 后台执行器心跳间隔（毫秒）：实施链运行时每隔此时长更新一次心跳，防止被误判为孤儿。 */
+  heartbeatIntervalMs: 30_000,
 } as const
 
 /** 单文件行数上限（尺寸门禁用；与 tests/size-budget.test.ts 同源）。 */

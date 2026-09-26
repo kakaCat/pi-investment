@@ -52,6 +52,16 @@ export interface AdvanceOutcome {
   requirementId: string
   steps: AdvanceStep[]
   stopped: AdvanceStop
+  /** 是否成功投递（REQ-260925110957-552d FR-1） */
+  dispatched?: boolean
+  /** Job ID（dispatched=true 时） */
+  job_id?: string
+  /** Run ID（dispatched=true 时） */
+  run_id?: string
+  /** 拒绝原因（dispatched=false 时） */
+  reason?: string
+  /** 已有的 run ID（幂等检查时） */
+  existing_run_id?: string
 }
 
 /** 进程内单飞（同需求同时只允许一个事件在跑）。 */
@@ -215,140 +225,218 @@ async function runSelection(deps: UseCaseDeps, requirementId: string, sel: Advan
 }
 
 /**
- * 推进一个需求：循环执行事件直到 ROLLUP / PAUSE / 无事可做 / 步数上限。
- * 重复调用安全（幂等）：已完成的步不会重做。
+ * 投递需求实施链（REQ-260925110957-552d FR-1）：认领 + 注册后台任务 + 立即返回。
+ * 
+ * 改造前：同步循环 20 步（占用调用方预算）。
+ * 改造后：投递即返回（链在后台 ctx.jobs 中执行）。
  */
 export async function advanceRequirement(deps: UseCaseDeps, requirementId: string, exec?: unknown): Promise<AdvanceOutcome> {
-  if (inflight.has(requirementId)) return { requirementId, steps: [], stopped: 'locked' }
+  // 1. 依赖检查：显式失败（不静默降级）
+  if (deps.jobs === undefined || !deps.jobs.available()) {
+    return { 
+      requirementId, 
+      steps: [], 
+      stopped: 'not_found' as AdvanceStop,
+      dispatched: false,
+      reason: '后台任务系统不可用（deps.jobs unavailable）'
+    }
+  }
+
+  // 2. 前置校验
+  if (inflight.has(requirementId)) {
+    return { requirementId, steps: [], stopped: 'locked' }
+  }
+  
   const snapshot0 = deps.repo.snapshot()
   const req0 = snapshot0.requirements.find((r) => r.id === requirementId)
-  if (req0 === undefined) return { requirementId, steps: [], stopped: 'not_found' }
-  if (req0.autoRun !== true) return { requirementId, steps: [], stopped: 'not_autorun' }
-  if (TERMINAL_REQ.has(req0.status)) return { requirementId, steps: [], stopped: 'terminal' }
+  if (req0 === undefined) {
+    return { requirementId, steps: [], stopped: 'not_found' }
+  }
+  if (req0.autoRun !== true) {
+    return { requirementId, steps: [], stopped: 'not_autorun' }
+  }
+  if (TERMINAL_REQ.has(req0.status)) {
+    return { requirementId, steps: [], stopped: 'terminal' }
+  }
+
   const now0 = deps.clock.now()
   if (req0.advance?.lockAt !== undefined && now0 - req0.advance.lockAt < LIMITS.advanceLockStaleMs) {
     return { requirementId, steps: [], stopped: 'locked' }
   }
 
-  inflight.add(requirementId)
-  const steps: AdvanceStep[] = []
-  let stopped: AdvanceStop = 'max_steps'
-  try {
-    // 单飞锁（台账侧）：只在真要跑事件时写；纯终态 noop 不落盘（重复触发 revision 不变）。
-    await deps.repo.mutate('advance-lock', (ledger) => {
-      const req = ledger.requirements.find((r) => r.id === requirementId)
-      if (req === undefined) return undefined
-      const adv = (req.advance ??= {})
-      adv.lockAt = now0
-      return { requirements: [req] }
-    })
-
-    for (let i = 0; i < LIMITS.advanceMaxStepsPerCall; i += 1) {
-      const snap = deps.repo.snapshot()
-      const req = snap.requirements.find((r) => r.id === requirementId)
-      if (req === undefined) { stopped = 'not_found'; break }
-      if (req.autoRun !== true) { stopped = 'not_autorun'; break }
-      if (TERMINAL_REQ.has(req.status)) { stopped = 'terminal'; break }
-
-      const sel = selectAdvanceEvent({ tasks: snap.tasks }, requirementId, LIMITS.advanceMaxParallelParents)
-      if (sel === undefined) {
-        if (!hasOpenWork({ tasks: snap.tasks }, requirementId)) { stopped = 'noop'; break }
-        const streak = (req.advance?.noopStreak ?? 0) + 1
-        if (streak >= LIMITS.advanceNoopBreaker) {
-          await pauseRequirement(deps, requirementId, 'stagnation', fmt('连续 {n} 次无可推进事件（疑似依赖死锁）', { n: streak }))
-          steps.push(stepOf('PAUSE', 'skipped', fmt('停滞熔断：连续 {n} 次 noop', { n: streak }), deps.clock.now(), deps.clock.now()))
-          stopped = 'paused'
-          break
-        }
-        await deps.repo.mutate('advance-noop', (ledger) => {
-          const r2 = ledger.requirements.find((r) => r.id === requirementId)
-          if (r2 === undefined) return undefined
-          const adv = (r2.advance ??= {})
-          adv.noopStreak = streak
-          return { requirements: [r2] }
-        })
-        steps.push(stepOf('PAUSE', 'noop', fmt('无可推进事件（第 {n} 次）', { n: streak }), deps.clock.now(), deps.clock.now()))
-        stopped = 'noop'
-        break
-      }
-
-      const startedAt = deps.clock.now()
-      const step = await runSelection(deps, requirementId, sel, startedAt, exec)
-      steps.push(step)
-      await appendHistory(deps, requirementId, {
-        at: deps.clock.now(),
-        requirementId,
-        event: step.event,
-        ...(step.parentId !== undefined ? { parentId: step.parentId } : {}),
-        ...(step.subtaskId !== undefined ? { subtaskId: step.subtaskId } : {}),
-        outcome: step.outcome,
-        durationMs: step.durationMs,
-        detail: step.detail,
-      })
-      if (step.outcome === 'ok') {
-        await deps.repo.mutate('advance-progress', (ledger) => {
-          const r2 = ledger.requirements.find((r) => r.id === requirementId)
-          if (r2 === undefined) return undefined
-          const adv = (r2.advance ??= {})
-          if (adv.noopStreak === undefined || adv.noopStreak === 0) return undefined
-          adv.noopStreak = 0
-          return { requirements: [r2] }
-        })
-      }
-      if (step.event === 'PAUSE') { stopped = 'paused'; break }
-      if (step.event === 'ROLLUP') { stopped = 'rollup'; break }
-      if (step.outcome === 'failed') {
-        // REQ-4842fe t8/FR-7：失败**不自动重试**——子卡退回 todo + attempt+1 + revisions(rollback)
-        // + 失败评论；随后暂停自动链并发出高优告警，等人三选处置。
-        const failure = classifyFailure({ ok: false, reason: step.detail })
-        if (step.subtaskId !== undefined) {
-          const subId = step.subtaskId
-          await deps.repo.mutate('subtask-rollback', (ledger) => {
-            const changed = rollbackSubtask(ledger, subId, deps.clock.now(), deps.ids, failure)
-            if (!changed) return undefined
-            const t = ledger.tasks.find((x) => x.id === subId)
-            return t === undefined ? undefined : { tasks: [t] }
-          })
-        }
-        await pauseRequirement(deps, requirementId, 'fail', step.detail)
-        steps.push(stepOf('PAUSE', 'skipped', step.detail, deps.clock.now(), deps.clock.now()))
-        try {
-          deps.alert?.alert({
-            requirementId,
-            title: fmt('【实施链暂停】{req}', { req: requirementId }),
-            content: fmt(
-              '卡住位置：父卡 {parent} / 子卡 {sub}\n失败原因：[{category}] {detail}\n已做处理：子卡退回待办、autoRun 已置 false、链停在实施态未进验收\n可选处置：重跑该卡 / 退回上游重新描述需求 / 取消',
-              { parent: step.parentId ?? '-', sub: step.subtaskId ?? '-', category: failure.category, detail: failure.reason },
-            ),
-          })
-        } catch { /* 告警失败不阻断暂停语义 */ }
-        stopped = 'paused'
-        break
-      }
+  // 3. 幂等检查：是否已有 active run
+  if (req0.advance?.runId !== undefined) {
+    return {
+      requirementId,
+      steps: [],
+      stopped: 'locked',
+      dispatched: false,
+      reason: `该需求已有 run 在跑（runId=${req0.advance.runId}）`,
+      existing_run_id: req0.advance.runId
     }
-  } finally {
-    try {
-      await deps.repo.mutate('advance-unlock', (ledger) => {
-        const req = ledger.requirements.find((r) => r.id === requirementId)
-        if (req?.advance === undefined) return undefined
-        req.advance.lockAt = undefined
-        return { requirements: [req] }
-      })
-    } catch { /* 解锁失败由 stale 接管 */ }
-    inflight.delete(requirementId)
   }
-  return { requirementId, steps, stopped }
+
+  // 4. 生成 runId 并认领
+  const runId = `run-${deps.clock.now()}-${Math.random().toString(36).slice(2, 9)}`
+  
+  await deps.repo.mutate('advance-claim', (ledger) => {
+    const req = ledger.requirements.find((r) => r.id === requirementId)
+    if (req === undefined) return undefined
+    const adv = (req.advance ??= {})
+    adv.lockAt = now0
+    adv.runId = runId
+    return { requirements: [req] }
+  })
+
+  // 5. 投递后台任务
+  let jobId: string
+  try {
+    jobId = await deps.jobs.start({
+      kind: 'reqboard',
+      label: `REQ ${requirementId}`,
+      owner: (exec as { agent?: unknown })?.agent,
+      run: async (signal: AbortSignal) => {
+        // 后台循环：复用原有的选择→执行→记录逻辑
+        inflight.add(requirementId)
+        const steps: AdvanceStep[] = []
+        let stopped: AdvanceStop = 'max_steps'
+        
+        try {
+          for (let i = 0; i < LIMITS.advanceMaxStepsPerCall; i += 1) {
+            if (signal.aborted) {
+              stopped = 'paused'
+              break
+            }
+            
+            const snap = deps.repo.snapshot()
+            const req = snap.requirements.find((r) => r.id === requirementId)
+            if (req === undefined) { stopped = 'not_found'; break }
+            if (req.autoRun !== true) { stopped = 'not_autorun'; break }
+            if (TERMINAL_REQ.has(req.status)) { stopped = 'terminal'; break }
+
+            const sel = selectAdvanceEvent({ tasks: snap.tasks }, requirementId, LIMITS.advanceMaxParallelParents)
+            if (sel === undefined) {
+              if (!hasOpenWork({ tasks: snap.tasks }, requirementId)) { stopped = 'noop'; break }
+              const streak = (req.advance?.noopStreak ?? 0) + 1
+              if (streak >= LIMITS.advanceNoopBreaker) {
+                await pauseRequirement(deps, requirementId, 'stagnation', fmt('连续 {n} 次无可推进事件（疑似依赖死锁）', { n: streak }))
+                steps.push(stepOf('PAUSE', 'skipped', fmt('停滞熔断：连续 {n} 次 noop', { n: streak }), deps.clock.now(), deps.clock.now()))
+                stopped = 'paused'
+                break
+              }
+              await deps.repo.mutate('advance-noop', (ledger) => {
+                const r2 = ledger.requirements.find((r) => r.id === requirementId)
+                if (r2 === undefined) return undefined
+                const adv = (r2.advance ??= {})
+                adv.noopStreak = streak
+                return { requirements: [r2] }
+              })
+              steps.push(stepOf('PAUSE', 'noop', fmt('无可推进事件（第 {n} 次）', { n: streak }), deps.clock.now(), deps.clock.now()))
+              stopped = 'noop'
+              break
+            }
+
+            const startedAt = deps.clock.now()
+            const step = await runSelection(deps, requirementId, sel, startedAt, exec)
+            steps.push(step)
+            await appendHistory(deps, requirementId, {
+              at: deps.clock.now(),
+              requirementId,
+              event: step.event,
+              ...(step.parentId !== undefined ? { parentId: step.parentId } : {}),
+              ...(step.subtaskId !== undefined ? { subtaskId: step.subtaskId } : {}),
+              outcome: step.outcome,
+              durationMs: step.durationMs,
+              detail: step.detail,
+            })
+            if (step.outcome === 'ok') {
+              await deps.repo.mutate('advance-progress', (ledger) => {
+                const r2 = ledger.requirements.find((r) => r.id === requirementId)
+                if (r2 === undefined) return undefined
+                const adv = (r2.advance ??= {})
+                if (adv.noopStreak === undefined || adv.noopStreak === 0) return undefined
+                adv.noopStreak = 0
+                return { requirements: [r2] }
+              })
+            }
+            if (step.event === 'PAUSE') { stopped = 'paused'; break }
+            if (step.event === 'ROLLUP') { stopped = 'rollup'; break }
+            if (step.outcome === 'failed') {
+              const failure = classifyFailure({ ok: false, reason: step.detail })
+              if (step.subtaskId !== undefined) {
+                const subId = step.subtaskId
+                await deps.repo.mutate('subtask-rollback', (ledger) => {
+                  const changed = rollbackSubtask(ledger, subId, deps.clock.now(), deps.ids, failure)
+                  if (!changed) return undefined
+                  const t = ledger.tasks.find((x) => x.id === subId)
+                  return t === undefined ? undefined : { tasks: [t] }
+                })
+              }
+              await pauseRequirement(deps, requirementId, 'fail', step.detail)
+              steps.push(stepOf('PAUSE', 'skipped', step.detail, deps.clock.now(), deps.clock.now()))
+              try {
+                deps.alert?.alert({
+                  requirementId,
+                  title: fmt('【实施链暂停】{req}', { req: requirementId }),
+                  content: fmt(
+                    '卡住位置：父卡 {parent} / 子卡 {sub}\n失败原因：[{category}] {detail}\n已做处理：子卡退回待办、autoRun 已置 false、链停在实施态未进验收\n可选处置：重跑该卡 / 退回上游重新描述需求 / 取消',
+                    { parent: step.parentId ?? '-', sub: step.subtaskId ?? '-', category: failure.category, detail: failure.reason },
+                  ),
+                })
+              } catch { /* 告警失败不阻断暂停语义 */ }
+              stopped = 'paused'
+              break
+            }
+          }
+        } finally {
+          try {
+            await deps.repo.mutate('advance-unlock', (ledger) => {
+              const req = ledger.requirements.find((r) => r.id === requirementId)
+              if (req?.advance === undefined) return undefined
+              req.advance.lockAt = undefined
+              req.advance.runId = undefined
+              return { requirements: [req] }
+            })
+          } catch { /* 解锁失败由 stale 接管 */ }
+          inflight.delete(requirementId)
+        }
+      }
+    })
+  } catch (err) {
+    // ctx.jobs.start 抛错 = 前置校验失败
+    return {
+      requirementId,
+      steps: [],
+      stopped: 'not_found' as AdvanceStop,
+      dispatched: false,
+      reason: `投递失败：${(err as Error).message}`
+    }
+  }
+
+  // 6. 成功：立即返回
+  return {
+    requirementId,
+    steps: [],
+    stopped: 'noop' as AdvanceStop,
+    dispatched: true,
+    job_id: jobId,
+    run_id: runId
+  }
 }
 
-/** 启动恢复扫描（崩溃不丢链）：autoRun=true 且未到验收态的需求 → 续跑下一个事件。 */
-export async function scanAndResume(deps: UseCaseDeps): Promise<AdvanceOutcome[]> {
+/** 
+ * 启动恢复扫描（崩溃不丢链）：autoRun=true 且未到验收态的需求 → 续跑下一个事件。
+ * 
+ * REQ-260925110957-552d：补充 exec 参数透传给 advanceRequirement（解决 parent undefined 问题）。
+ */
+export async function scanAndResume(deps: UseCaseDeps, exec?: unknown): Promise<AdvanceOutcome[]> {
   const snapshot = deps.repo.snapshot()
   const candidates = snapshot.requirements.filter(
     (r: RequirementRecord) => r.autoRun === true && !TERMINAL_REQ.has(r.status),
   )
   const out: AdvanceOutcome[] = []
   for (const req of candidates) {
-    out.push(await advanceRequirement(deps, req.id))
+    out.push(await advanceRequirement(deps, req.id, exec))
   }
   return out
 }
