@@ -69,7 +69,7 @@ flowchart TB
     subgraph L0["L0 适配器 · src/adapters（端口的唯一实现）"]
       A1["JsonLedgerRepository<br/>load-once + 原子写台账"]
       A2["FileDocRepository<br/>docs/ 产物读写真源"]
-      A3["CaptureHook · SessionProbeAdapter"]
+      A3["Dive 会话驱动器 · SessionProbeAdapter"]
       A4["WorkflowEngineRunner · AgentDeliverer<br/>UserQuestionsAdapter · GateAwareQuestions"]
     end
   end
@@ -330,7 +330,7 @@ flowchart LR
 sequenceDiagram
   autonumber
   participant U as 用户消息
-  participant HK as CaptureHook（session/event）
+  participant HK as Dive 会话驱动器（session/event）
   participant SEC as systemPrompt 段 reqboard:capture
   participant LLM as Agent(LLM)
   participant CAP as reqboard_capture
@@ -443,7 +443,7 @@ sequenceDiagram
 | 拆分与幂等守卫 | `src/application/use-cases/Decompose.ts` + `src/domain/workflow/DecomposeSpec.ts` |
 | 验收单 | `src/application/use-cases/AcceptSheet.ts` + `src/domain/workflow/AcceptanceSheetSpec.ts` |
 | 闸门后置链 | `src/application/gate/GatePostChain.ts` + `handlers/h1..h5` |
-| 捕获 hook | `src/adapters/CaptureHook.ts` + `src/application/internal/capture-section.ts` |
+| 会话驱动器（原「捕获 hook」） | `src/application/dive/session-driver.ts`（2026-09-26 由 `adapters/CaptureHook.ts` 迁入，订阅由 ReqboardDiveManager 持有） + `src/application/internal/capture-section.ts`（立项引导节） |
 | 台账仓储 | `src/adapters/JsonLedgerRepository.ts` |
 | HTTP 面 | `src/http/routes.ts` + `src/http/routers/*` |
 | 工具壳 | `src/tools/<Name>Tool/<Name>Tool.ts` |

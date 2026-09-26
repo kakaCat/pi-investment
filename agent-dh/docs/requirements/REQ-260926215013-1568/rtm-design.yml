@@ -1,0 +1,421 @@
+metadata:
+  stage: design
+  requirement_id: REQ-260926215013-1568
+  generated_at: 2026-09-26T14:52:43.877Z
+  version: 1
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-26T14:52:43.877Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: pre-step 竞态栅栏
+      source: requirement.md
+      line: 63
+    - id: FR-2
+      title: inbox 竞争让位（competingQueued）
+      source: requirement.md
+      line: 66
+    - id: FR-3
+      title: 耐久检查点
+      source: requirement.md
+      line: 69
+    - id: FR-4
+      title: 驱动串行化与合并触发
+      source: requirement.md
+      line: 72
+    - id: FR-5
+      title: teardown fail-closed
+      source: requirement.md
+      line: 75
+    - id: FR-6
+      title: 续跑驱动点改为整 agent 空闲
+      source: requirement.md
+      line: 78
+    - id: FR-7
+      title: reservation → admission 回合计数
+      source: requirement.md
+      line: 81
+    - id: FR-8
+      title: 回合上限终态阻塞
+      source: requirement.md
+      line: 84
+    - id: FR-9
+      title: 异常收尾（max-tokens / aborted / 取消）
+      source: requirement.md
+      line: 87
+    - id: FR-10
+      title: 回合消息带 source 标识 + 内容不变量
+      source: requirement.md
+      line: 92
+    - id: FR-11
+      title: 可观测与失败响亮
+      source: requirement.md
+      line: 95
+outputs:
+  design_sections:
+    - ref: design/architecture.md#目标与范围
+      title: 目标与范围 «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+        - FR-10
+        - FR-11
+      file: design/architecture.md
+      section: 目标与范围
+    - ref: design/architecture.md#现状与偏差
+      title: 现状与偏差 «
+      serves:
+        - FR-2
+        - FR-3
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 现状与偏差
+    - ref: design/architecture.md#组件与依赖方向
+      title: 组件与依赖方向 «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+        - FR-10
+        - FR-11
+      file: design/architecture.md
+      section: 组件与依赖方向
+    - ref: design/architecture.md#驱动状态机与事件流
+      title: 驱动状态机与事件流 «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-9
+        - FR-10
+      file: design/architecture.md
+      section: 驱动状态机与事件流
+    - ref: design/architecture.md#五条纪律落点
+      title: 五条纪律落点 «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 五条纪律落点
+    - ref: design/architecture.md#不改什么-边界
+      title: 不改什么 / 边界 «
+      serves:
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 不改什么-边界
+    - ref: design/architecture.md#迁移与兼容
+      title: 迁移与兼容 «
+      serves:
+        - FR-5
+        - FR-8
+        - FR-11
+      file: design/architecture.md
+      section: 迁移与兼容
+    - ref: design/architecture.md#风险与缓解
+      title: 风险与缓解 «
+      serves:
+        - FR-1
+        - FR-4
+        - FR-5
+      file: design/architecture.md
+      section: 风险与缓解
+    - ref: design/data-model.md#RequirementDive-契约变更
+      title: RequirementDive 契约变更 «
+      serves:
+        - FR-6
+        - FR-7
+        - FR-8
+        - FR-9
+      file: design/data-model.md
+      section: RequirementDive-契约变更
+    - ref: design/data-model.md#回合消息来源契约
+      title: 回合消息来源契约 «
+      serves:
+        - FR-10
+      file: design/data-model.md
+      section: 回合消息来源契约
+    - ref: design/data-model.md#内存驱动状态契约
+      title: 内存驱动状态契约 «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-7
+        - FR-9
+      file: design/data-model.md
+      section: 内存驱动状态契约
+    - ref: design/data-model.md#回合号与计数不变量
+      title: 回合号与计数不变量 «
+      serves:
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 回合号与计数不变量
+    - ref: design/data-model.md#台账写入reasons
+      title: 台账写入（reasons） «
+      serves:
+        - FR-5
+        - FR-7
+        - FR-8
+        - FR-9
+      file: design/data-model.md
+      section: 台账写入reasons
+    - ref: design/data-model.md#迁移与兼容
+      title: 迁移与兼容 «
+      serves:
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 迁移与兼容
+    - ref: design/interfaces.md#DiveRoundPorts应用层端口
+      title: DiveRoundPorts（应用层端口） «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-9
+      file: design/interfaces.md
+      section: DiveRoundPorts应用层端口
+    - ref: design/interfaces.md#DiveRoundDriver状态机入口
+      title: DiveRoundDriver（状态机入口） «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-9
+        - FR-11
+      file: design/interfaces.md
+      section: DiveRoundDriver状态机入口
+    - ref: design/interfaces.md#pre-step-决策契约
+      title: pre-step 决策契约 «
+      serves:
+        - FR-1
+        - FR-10
+      file: design/interfaces.md
+      section: pre-step-决策契约
+    - ref: design/interfaces.md#ReqboardDiveManager订阅持有者
+      title: ReqboardDiveManager（订阅持有者） «
+      serves:
+        - FR-5
+        - FR-6
+        - FR-9
+      file: design/interfaces.md
+      section: ReqboardDiveManager订阅持有者
+    - ref: design/interfaces.md#AgentDeliveryPort-扩展
+      title: AgentDeliveryPort 扩展 «
+      serves:
+        - FR-10
+      file: design/interfaces.md
+      section: AgentDeliveryPort-扩展
+    - ref: design/interfaces.md#失败形态与留痕FR-11-契约
+      title: 失败形态与留痕（FR-11 契约） «
+      serves:
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-8
+        - FR-11
+      file: design/interfaces.md
+      section: 失败形态与留痕FR-11-契约
+    - ref: design/use-cases.md#角色与前提
+      title: 角色与前提 «
+      serves:
+        - FR-6
+      file: design/use-cases.md
+      section: 角色与前提
+    - ref: design/use-cases.md#UC-1-空闲续跑主路径
+      title: UC-1 空闲续跑（主路径） «
+      serves:
+        - FR-6
+        - FR-7
+      file: design/use-cases.md
+      section: UC-1-空闲续跑主路径
+    - ref: design/use-cases.md#UC-2-人类插话让位
+      title: UC-2 人类插话让位 «
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-2-人类插话让位
+    - ref: design/use-cases.md#UC-3-陈旧伪造回合被拒
+      title: UC-3 陈旧/伪造回合被拒 «
+      serves:
+        - FR-1
+        - FR-10
+      file: design/use-cases.md
+      section: UC-3-陈旧伪造回合被拒
+    - ref: design/use-cases.md#UC-4-回合耗尽终态
+      title: UC-4 回合耗尽终态 «
+      serves:
+        - FR-8
+      file: design/use-cases.md
+      section: UC-4-回合耗尽终态
+    - ref: design/use-cases.md#UC-5-异常收尾与插件卸载
+      title: UC-5 异常收尾与插件卸载 «
+      serves:
+        - FR-5
+        - FR-9
+      file: design/use-cases.md
+      section: UC-5-异常收尾与插件卸载
+    - ref: design/use-cases.md#什么时候仍会跑-不会跑
+      title: 什么时候仍会跑 / 不会跑 «
+      serves:
+        - FR-6
+      file: design/use-cases.md
+      section: 什么时候仍会跑-不会跑
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#目标与范围
+      - design/architecture.md#组件与依赖方向
+      - design/architecture.md#驱动状态机与事件流
+      - design/architecture.md#五条纪律落点
+      - design/architecture.md#风险与缓解
+      - design/data-model.md#内存驱动状态契约
+      - design/interfaces.md#DiveRoundPorts应用层端口
+      - design/interfaces.md#DiveRoundDriver状态机入口
+      - design/interfaces.md#pre-step-决策契约
+      - design/use-cases.md#UC-3-陈旧伪造回合被拒
+    FR-2:
+      - design/architecture.md#目标与范围
+      - design/architecture.md#现状与偏差
+      - design/architecture.md#组件与依赖方向
+      - design/architecture.md#驱动状态机与事件流
+      - design/architecture.md#五条纪律落点
+      - design/data-model.md#内存驱动状态契约
+      - design/interfaces.md#DiveRoundPorts应用层端口
+      - design/interfaces.md#DiveRoundDriver状态机入口
+      - design/use-cases.md#UC-2-人类插话让位
+    FR-3:
+      - design/architecture.md#目标与范围
+      - design/architecture.md#现状与偏差
+      - design/architecture.md#组件与依赖方向
+      - design/architecture.md#驱动状态机与事件流
+      - design/architecture.md#五条纪律落点
+      - design/data-model.md#内存驱动状态契约
+      - design/interfaces.md#DiveRoundPorts应用层端口
+      - design/interfaces.md#DiveRoundDriver状态机入口
+      - design/interfaces.md#失败形态与留痕FR-11-契约
+    FR-4:
+      - design/architecture.md#目标与范围
+      - design/architecture.md#组件与依赖方向
+      - design/architecture.md#驱动状态机与事件流
+      - design/architecture.md#五条纪律落点
+      - design/architecture.md#风险与缓解
+      - design/data-model.md#内存驱动状态契约
+      - design/interfaces.md#DiveRoundPorts应用层端口
+      - design/interfaces.md#失败形态与留痕FR-11-契约
+    FR-5:
+      - design/architecture.md#目标与范围
+      - design/architecture.md#组件与依赖方向
+      - design/architecture.md#驱动状态机与事件流
+      - design/architecture.md#五条纪律落点
+      - design/architecture.md#迁移与兼容
+      - design/architecture.md#风险与缓解
+      - design/data-model.md#内存驱动状态契约
+      - design/data-model.md#台账写入reasons
+      - design/interfaces.md#DiveRoundPorts应用层端口
+      - design/interfaces.md#DiveRoundDriver状态机入口
+      - design/interfaces.md#ReqboardDiveManager订阅持有者
+      - design/interfaces.md#失败形态与留痕FR-11-契约
+      - design/use-cases.md#UC-5-异常收尾与插件卸载
+    FR-6:
+      - design/architecture.md#目标与范围
+      - design/architecture.md#现状与偏差
+      - design/architecture.md#组件与依赖方向
+      - design/architecture.md#驱动状态机与事件流
+      - design/architecture.md#不改什么-边界
+      - design/data-model.md#RequirementDive-契约变更
+      - design/interfaces.md#DiveRoundDriver状态机入口
+      - design/interfaces.md#ReqboardDiveManager订阅持有者
+      - design/use-cases.md#角色与前提
+      - design/use-cases.md#UC-1-空闲续跑主路径
+      - design/use-cases.md#什么时候仍会跑-不会跑
+    FR-7:
+      - design/architecture.md#目标与范围
+      - design/architecture.md#现状与偏差
+      - design/architecture.md#组件与依赖方向
+      - design/architecture.md#驱动状态机与事件流
+      - design/architecture.md#不改什么-边界
+      - design/data-model.md#RequirementDive-契约变更
+      - design/data-model.md#内存驱动状态契约
+      - design/data-model.md#回合号与计数不变量
+      - design/data-model.md#台账写入reasons
+      - design/data-model.md#迁移与兼容
+      - design/interfaces.md#DiveRoundDriver状态机入口
+      - design/use-cases.md#UC-1-空闲续跑主路径
+    FR-8:
+      - design/architecture.md#目标与范围
+      - design/architecture.md#现状与偏差
+      - design/architecture.md#组件与依赖方向
+      - design/architecture.md#不改什么-边界
+      - design/architecture.md#迁移与兼容
+      - design/data-model.md#RequirementDive-契约变更
+      - design/data-model.md#回合号与计数不变量
+      - design/data-model.md#台账写入reasons
+      - design/data-model.md#迁移与兼容
+      - design/interfaces.md#失败形态与留痕FR-11-契约
+      - design/use-cases.md#UC-4-回合耗尽终态
+    FR-9:
+      - design/architecture.md#目标与范围
+      - design/architecture.md#组件与依赖方向
+      - design/architecture.md#驱动状态机与事件流
+      - design/data-model.md#RequirementDive-契约变更
+      - design/data-model.md#内存驱动状态契约
+      - design/data-model.md#台账写入reasons
+      - design/interfaces.md#DiveRoundPorts应用层端口
+      - design/interfaces.md#DiveRoundDriver状态机入口
+      - design/interfaces.md#ReqboardDiveManager订阅持有者
+      - design/use-cases.md#UC-5-异常收尾与插件卸载
+    FR-10:
+      - design/architecture.md#目标与范围
+      - design/architecture.md#组件与依赖方向
+      - design/architecture.md#驱动状态机与事件流
+      - design/data-model.md#回合消息来源契约
+      - design/interfaces.md#pre-step-决策契约
+      - design/interfaces.md#AgentDeliveryPort-扩展
+      - design/use-cases.md#UC-3-陈旧伪造回合被拒
+    FR-11:
+      - design/architecture.md#目标与范围
+      - design/architecture.md#组件与依赖方向
+      - design/architecture.md#迁移与兼容
+      - design/interfaces.md#DiveRoundDriver状态机入口
+      - design/interfaces.md#失败形态与留痕FR-11-契约
+coverage:
+  design:
+    total: 11
+    covered: 11
+    uncovered: []
+    rate: 100
+    total_frs: 11
+    covered_frs: 11

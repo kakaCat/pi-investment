@@ -78,3 +78,28 @@ describe('AgentDeliverer：投递形状与三态', () => {
     expect(sent[0]!.source!.plugin).toBe('dsh-pmboard-board')
   })
 })
+
+describe('AgentDeliverer：Dive 回合消息（T-3 / FR-10）', () => {
+  it('createRoundMessage → 带 source:{kind:dive,requirementId,revision,round} 且不投递', () => {
+    const deliverer = new AgentDeliverer(() => undefined, opts)
+    const built = deliverer.createRoundMessage({ requirementId: 'REQ-t', revision: 7, round: 2, text: '继续' })
+    expect(built.messageId).toBe(ID)
+    expect(built.message).toMatchObject({
+      id: ID, role: 'user', content: [{ type: 'text', text: '继续' }],
+      source: { kind: 'dive', requirementId: 'REQ-t', revision: 7, round: 2 },
+    })
+  })
+
+  it('deliverMessage → 原样投递（保留 source）；离线/不可得 → delivered=false 且不抛', () => {
+    const sent: unknown[] = []
+    const agent = { followup(m: unknown) { sent.push(m) } }
+    const deliverer = new AgentDeliverer(registryOf(agent), opts)
+    const built = deliverer.createRoundMessage({ requirementId: 'REQ-t', revision: 1, round: 1, text: 'r' })
+    expect(deliverer.deliverMessage('w', built.message).delivered).toBe(true)
+    expect(sent[0]).toBe(built.message)
+    const offline = new AgentDeliverer(() => undefined, opts)
+    const r = offline.deliverMessage('w', built.message)
+    expect(r.delivered).toBe(false)
+    expect(r.reason).toContain('agents 服务不可得')
+  })
+})

@@ -1,0 +1,59 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-260926215013-1568
+  generated_at: 2026-09-26T14:52:43.874Z
+  version: 1
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-26T14:52:43.874Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: pre-step 竞态栅栏
+      source: requirement.md
+      line: 63
+    - id: FR-2
+      title: inbox 竞争让位（competingQueued）
+      source: requirement.md
+      line: 66
+    - id: FR-3
+      title: 耐久检查点
+      source: requirement.md
+      line: 69
+    - id: FR-4
+      title: 驱动串行化与合并触发
+      source: requirement.md
+      line: 72
+    - id: FR-5
+      title: teardown fail-closed
+      source: requirement.md
+      line: 75
+    - id: FR-6
+      title: 续跑驱动点改为整 agent 空闲
+      source: requirement.md
+      line: 78
+    - id: FR-7
+      title: reservation → admission 回合计数
+      source: requirement.md
+      line: 81
+    - id: FR-8
+      title: 回合上限终态阻塞
+      source: requirement.md
+      line: 84
+    - id: FR-9
+      title: 异常收尾（max-tokens / aborted / 取消）
+      source: requirement.md
+      line: 87
+    - id: FR-10
+      title: 回合消息带 source 标识 + 内容不变量
+      source: requirement.md
+      line: 92
+    - id: FR-11
+      title: 可观测与失败响亮
+      source: requirement.md
+      line: 95
+status:
+  artifacts:
+    - kind: requirement
+      path: docs/requirements/REQ-260926215013-1568/requirement.md
+      confirmed: true
+      confirmed_at: 2026-09-26T13:51:09.694Z

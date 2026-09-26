@@ -9,16 +9,19 @@
  * 而 pmboard 两处历史写法 `agents.followup(id, msg)` 把 registry 当 agent 用——typeof 守卫恒 false，
  * 于是"状态转移注入"与"产物超时 30 分钟催办"自诞生起从未投递过（同一根因的三个受害者）。
  *
- * 为什么不 import `createUserMessage`：本包的依赖树**解析不到** `@deepseek-ai/dsh-llm`
- * （`NodeIsolationAdapter` 文件头记过同一坑）。而该 helper 的实现是
- * `deepFreeze(structuredClone({ ...input, role: "user", id: brandString(randomUUID()) }))`——
- * 结构复刻完全等价，且让 vitest 树不必解析框架包。消息 id 由注入的工厂生成（测试可固定）。
+ * 为什么不 import `createUserMessage`：本包的依赖树**解析不到** `@deepseek-ai/dsh-llm`。
+ * 而该 helper 的实现是 `deepFreeze(structuredClone({ ...input, role: "user", id: brandString(randomUUID()) }))`——
+ * 结构复刻完全等价。消息 id 由注入的工厂生成（测试可固定）。
+ *
+ * 2026-09-26（REQ-260926215013-1568 T-3）：新增 `createRoundMessage` / `deliverMessage`——
+ * Dive 续跑回合消息带机器可识别的 `source:{kind:'dive',requirementId,revision,round}`（FR-10）。
+ * 驱动必须先构造（拿 messageId 登记预留）再投递，故构造与投递拆成两步，共用同一套三态守卫。
  *
  * @module dsh-pmboard/adapters/AgentDeliverer
  */
 import { randomUUID } from 'node:crypto'
 import { fmt } from '../domain/text/fmt.js'
-import type { AgentDeliveryPort, DeliveryResult } from '../application/ports.js'
+import type { DeliveryResult, DiveRoundDeliveryPort } from '../application/ports.js'
 
 interface AgentsLike { get?: (id: string) => unknown }
 interface AgentLike { followup?: (message: unknown) => void }
@@ -35,7 +38,7 @@ function reasonOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-export class AgentDeliverer implements AgentDeliveryPort {
+export class AgentDeliverer implements DiveRoundDeliveryPort {
   private readonly resolveAgents: () => unknown
   private readonly idFactory: () => string
   private readonly plugin: string
@@ -46,8 +49,35 @@ export class AgentDeliverer implements AgentDeliveryPort {
     this.plugin = options.plugin ?? 'dsh-pmboard'
   }
 
-  /** 三态全判、**永不抛**（调用方是结算点/HTTP 路由，异常冒泡会打断流水线）。 */
+  /** plugin 来源的普通投递（状态转移注入 / 催办 / H4 唤醒）。 */
   deliver(windowKey: string, message: { text: string; plugin?: string }): DeliveryResult {
+    return this.publish(windowKey, {
+      id: this.idFactory(),
+      role: 'user',
+      content: [{ type: 'text', text: message.text }],
+      source: { kind: 'plugin', plugin: message.plugin ?? this.plugin },
+    })
+  }
+
+  /** 构造（**不投递**）一条 Dive 回合消息；驱动据此先登记预留再投递。 */
+  createRoundMessage(input: { requirementId: string; revision: number; round: number; text: string }): { message: unknown; messageId: string } {
+    const messageId = this.idFactory()
+    const message = {
+      id: messageId,
+      role: 'user',
+      content: [{ type: 'text', text: input.text }],
+      source: { kind: 'dive', requirementId: input.requirementId, revision: input.revision, round: input.round },
+    }
+    return { message, messageId }
+  }
+
+  /** 投递一条已构造消息（保留其 source）；与 deliver 同一套守卫。 */
+  deliverMessage(windowKey: string, message: unknown): DeliveryResult {
+    return this.publish(windowKey, message)
+  }
+
+  /** 三态全判、**永不抛**（调用方是结算点/HTTP 路由/驱动链，异常冒泡会打断流水线）。 */
+  private publish(windowKey: string, payload: unknown): DeliveryResult {
     const agents = this.resolveAgents() as AgentsLike | undefined
     if (typeof agents?.get !== "function") {
       return { delivered: false, reason: 'agents 服务不可得（未装配 ctx.agents）' }
@@ -64,12 +94,6 @@ export class AgentDeliverer implements AgentDeliveryPort {
     const followup = (agent as AgentLike).followup
     if (typeof followup !== "function") {
       return { delivered: false, reason: 'agent 无 followup 投递能力' }
-    }
-    const payload = {
-      id: this.idFactory(),
-      role: 'user',
-      content: [{ type: 'text', text: message.text }],
-      source: { kind: 'plugin', plugin: message.plugin ?? this.plugin },
     }
     try {
       followup.call(agent, payload)

@@ -156,3 +156,66 @@ describe('闸门后置链框架', () => {
     expect(order).toEqual(['h1-advance'])
   })
 })
+
+describe('轮次边界门（三态）：明确 busy → 延后且**不消费**待处理闸门（2026-09-26）', () => {
+  function harness(idle: () => 'idle' | 'busy' | 'unknown', maxBusyDefers?: number) {
+    const order: string[] = []
+    const handlers: GateHandler[] = [
+      spy('h1-advance', order), spy('h2-compact', order), spy('h3-inject', order),
+      spy('h4-resume', order), spy('h5-audit', order),
+    ]
+    const pending = createPendingGateStore()
+    const chain = createGatePostChain({
+      handlers, enabled: true, pending, idleState: idle,
+      ...(maxBusyDefers === undefined ? {} : { maxBusyDefers }),
+    })
+    return { chain, order, pending }
+  }
+
+  it('busy → ran=false / agent_busy_deferred、handler 一个没跑、**待办仍在**', async () => {
+    const h = harness(() => 'busy')
+    h.chain.enqueue(ctx())
+    const s = await h.chain.runPending('w-test')
+    expect(s.ran).toBe(false)
+    expect(s.reason).toBe('agent_busy_deferred')
+    expect(h.order).toEqual([])
+    expect(h.pending.peek('w-test')).toBeDefined()
+    expect(h.chain.stats().deferred).toBe(1)
+  })
+
+  it('busy 转 idle → 同一待办照常执行（延后真的会重试）', async () => {
+    let state: 'idle' | 'busy' | 'unknown' = 'busy'
+    const h = harness(() => state)
+    h.chain.enqueue(ctx())
+    expect((await h.chain.runPending('w-test')).reason).toBe('agent_busy_deferred')
+    state = 'idle'
+    const s = await h.chain.runPending('w-test')
+    expect(s.ran).toBe(true)
+    expect(h.order).toEqual([...HANDLER_ORDER])
+    expect(h.pending.peek('w-test')).toBeUndefined()
+  })
+
+  it('unknown（无 session / 无投影）→ 照常执行，不回归', async () => {
+    const h = harness(() => 'unknown')
+    h.chain.enqueue(ctx())
+    expect((await h.chain.runPending('w-test')).ran).toBe(true)
+  })
+
+  it('未注入 idleState → 与改造前逐字一致（照常执行）', async () => {
+    const order: string[] = []
+    const chain = createGatePostChain({ handlers: [spy('h1-advance', order)], enabled: true })
+    chain.enqueue(ctx())
+    expect((await chain.runPending('w-test')).ran).toBe(true)
+    expect(chain.stats().deferred).toBe(0)
+  })
+
+  it('连续 busy 超上限 → 兜底执行（不永久滞留）', async () => {
+    const h = harness(() => 'busy', 2)
+    h.chain.enqueue(ctx())
+    await h.chain.runPending('w-test')
+    await h.chain.runPending('w-test')
+    const s = await h.chain.runPending('w-test')
+    expect(s.ran).toBe(true)
+    expect(h.order.length).toBeGreaterThan(0)
+  })
+})

@@ -129,9 +129,14 @@ export function consistencyGaps(rows: readonly ConsistencyRow[]): string[] {
 /**
  * 从 decomposition.md 的 RTM 覆盖表读「任务 ↔ 根编号」绑定（T-3 起由 decompose 自动生成）。
  * 为什么从这里读：TaskRecord 不存该绑定，而 RTM 表本就是这个绑定的规范载体（标准 §三）。
+ * 
+ * REQ-260926205654-163a：增加对任务定义中 serves 声明的识别（避免 LLM 手写 requirement_refs 字段时出错）。
+ * 双源合并：① RTM 表格（原有）+ ② 任务定义段落中的 **serves: FR-1, FR-2** 或 **requirement_refs**: [...]
  */
 export function taskRefsFromDecomposition(doc: ParsedDoc): ConsistencyTaskLike[] {
   const byId = new Map<string, { roots: Set<string>; title: string }>()
+  
+  // ── 数据源 1：RTM 表格（原有逻辑，保持不变） ──────────────────────
   for (const t of doc.tables) {
     const iRoot = t.header.findIndex(h => h.includes('根编号') || h.includes('需求条款') || h.includes('需求编号'))
     const iTask = t.header.findIndex(h => h.includes('任务') && (h.includes('编号') || h.includes('id') || h.includes('ID')))
@@ -151,6 +156,47 @@ export function taskRefsFromDecomposition(doc: ParsedDoc): ConsistencyTaskLike[]
       byId.set(taskId, cur)
     }
   }
+  
+  // ── 数据源 2：任务定义段落中的 serves 声明（REQ-260926205654-163a 新增） ──
+  // 识别模式：
+  //   **key**: t1
+  //   **serves: FR-1, FR-2**  或  **requirement_refs**: ["FR-1", "FR-2"]
+  // 在 key 定义后的 10 行内查找 serves/requirement_refs 声明
+  
+  const lines = doc.bodyLines
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    
+    // 识别 **key**: t1
+    const keyMatch = line.match(/^\*\*key\*\*\s*[:：]\s*([a-z0-9_-]+)/i)
+    if (!keyMatch) continue
+    
+    const taskKey = keyMatch[1]
+    
+    // 在接下来的 10 行内查找 serves 或 requirement_refs
+    for (let j = i + 1; j < Math.min(i + 11, lines.length); j++) {
+      const nextLine = lines[j]
+      
+      // 识别 **serves: FR-1, FR-2** 或 **requirement_refs**: ["FR-1"]
+      const servesMatch = nextLine.match(/^\*\*(?:serves|requirement_refs)\*\*\s*[:：]\s*(.+)$/i)
+      if (servesMatch) {
+        // 使用 collectIds 提取所有 FR/BUG/RF/SP/DOC/CH 编号
+        const allIds = collectIds(servesMatch[1])
+        const rootIds = allIds.filter(isRootKind)
+        
+        if (rootIds.length > 0) {
+          const cur = byId.get(taskKey) ?? { roots: new Set<string>(), title: '' }
+          for (const id of rootIds) cur.roots.add(id)
+          byId.set(taskKey, cur)
+        }
+        break
+      }
+      
+      // 遇到下一个任务定义则停止搜索
+      if (/^\*\*key\*\*\s*[:：]/i.test(nextLine)) break
+    }
+  }
+  
   return [...byId.entries()].map(([id, v]) => ({
     id,
     requirement_refs: [...v.roots].sort(),
@@ -246,4 +292,190 @@ export function clauseReceiveStatus(
 /** 未被接收的条款（红）——调用方据此显眼提示。 */
 export function unreceivedClauses(status: readonly ClauseReceiveStatus[]): string[] {
   return status.filter(s => s.state === 'unreceived').map(s => s.clause)
+}
+
+// ---------------------------------------------------------------------------
+// 设计章节追溯（需求追溯性改进 - 2026-09-26）
+// ---------------------------------------------------------------------------
+
+/**
+ * 设计章节信息
+ */
+export interface DesignSection {
+  /** 文件路径（如 design/architecture.md） */
+  file: string
+  /** 章节编号（如 "1.1", "2.3"） */
+  section: string
+  /** 标题层级（1-6，对应 # 的个数） */
+  headingLevel: number
+  /** 章节标题（不含编号） */
+  title: string
+  /** 服务的需求条款（如 ["FR-1", "FR-2"]） */
+  serves: string[]
+  /** 章节完整内容（到下一个同级标题为止） */
+  content: string
+}
+
+/**
+ * 从设计文档提取所有标注了 serves 的章节
+ * 
+ * 支持两种标注格式：
+ * 1. 行内反引号：## 1. Title `serves: FR-1, FR-2`
+ * 2. HTML 注释：## 1. Title <!-- serves: FR-1 -->
+ * 
+ * @param designDocContent 设计文档内容
+ * @param filePath 文件路径（用于返回值）
+ * @returns 提取的章节列表
+ */
+export function extractDesignSections(designDocContent: string, filePath: string): DesignSection[] {
+  const lines = designDocContent.split('\n')
+  const sections: DesignSection[] = []
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    
+    // 匹配标题行
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/)
+    if (!headingMatch) continue
+    
+    const level = headingMatch[1].length
+    const titlePart = headingMatch[2]
+    
+    // 提取 serves 标注（支持两种格式）
+    let serves: string[] = []
+    
+    // 格式1：反引号 `serves: FR-1, FR-2`
+    const backticksMatch = titlePart.match(/`serves:\s*([^`]+)`/)
+    if (backticksMatch) {
+      serves = backticksMatch[1].split(/[,，]\s*/).map(s => s.trim()).filter(s => s.length > 0)
+    } else {
+      // 格式2：HTML 注释 <!-- serves: FR-1 -->
+      const commentMatch = titlePart.match(/<!--\s*serves:\s*([^-]+)\s*-->/)
+      if (commentMatch) {
+        serves = commentMatch[1].split(/[,，]\s*/).map(s => s.trim()).filter(s => s.length > 0)
+      }
+    }
+    
+    if (serves.length === 0) continue
+    
+    // 提取章节编号和标题
+    const cleanTitle = titlePart
+      .replace(/`serves:[^`]+`/, '')
+      .replace(/<!--\s*serves:[^-]+-->/, '')
+      .trim()
+    
+    const numberMatch = cleanTitle.match(/^(\d+(?:\.\d+)*)\s+/)
+    const sectionNum = numberMatch ? numberMatch[1] : ''
+    const title = cleanTitle.replace(/^\d+(?:\.\d+)*\s+/, '').trim()
+    
+    // 提取章节内容（到下一个同级或更高级标题）
+    let contentEnd = i + 1
+    const nextHeadingPattern = new RegExp(`^#{1,${level}}\\s+`)
+    while (contentEnd < lines.length && !nextHeadingPattern.test(lines[contentEnd])) {
+      contentEnd++
+    }
+    const content = lines.slice(i + 1, contentEnd).join('\n')
+    
+    sections.push({
+      file: filePath,
+      section: sectionNum,
+      headingLevel: level,
+      title,
+      serves,
+      content
+    })
+  }
+  
+  return sections
+}
+
+/**
+ * 从多个设计文档提取所有章节
+ * 
+ * @param docs DocsReader 实例
+ * @param designDir 设计文档目录（如 docs/requirements/REQ-xxx/design）
+ * @returns 所有设计章节
+ */
+export function extractAllDesignSections(docs: DocsReader, designDir: string): DesignSection[] {
+  const allSections: DesignSection[] = []
+  
+  // 列出设计目录下的所有 .md 文件
+  const entries = docs.list?.(designDir) ?? []
+  const designFiles = entries
+    .filter(e => e.isFile !== false && (e.name ?? '').endsWith('.md'))
+    .map(e => e.name ?? '')
+    .filter(n => n.length > 0)
+  
+  // 逐个文件提取章节
+  for (const fileName of designFiles) {
+    const filePath = `${designDir}/${fileName}`
+    const content = docs.read?.(filePath)
+    if (!content) continue
+    
+    const sections = extractDesignSections(content, filePath)
+    allSections.push(...sections)
+  }
+  
+  return allSections
+}
+
+/**
+ * 根据需求条款查找对应的设计章节
+ * 
+ * @param sections 所有设计章节
+ * @param frRefs 需求条款列表（如 ["FR-1", "FR-2"]）
+ * @returns 服务这些条款的设计章节
+ */
+export function findDesignSectionsForFRs(
+  sections: readonly DesignSection[],
+  frRefs: readonly string[]
+): DesignSection[] {
+  return sections.filter(s =>
+    s.serves.some(fr => frRefs.includes(fr))
+  )
+}
+
+/**
+ * 检查设计覆盖度：所有 FR 是否都有设计章节
+ * 
+ * @param frList 所有需求条款
+ * @param sections 所有设计章节
+ * @returns 未被设计覆盖的 FR
+ */
+export function checkDesignCoverage(
+  frList: readonly string[],
+  sections: readonly DesignSection[]
+): string[] {
+  const coveredFRs = new Set<string>()
+  for (const section of sections) {
+    for (const fr of section.serves) {
+      coveredFRs.add(fr)
+    }
+  }
+  
+  return frList.filter(fr => !coveredFRs.has(fr))
+}
+
+/**
+ * 检查实施覆盖度：所有设计章节是否都有任务实现
+ * 
+ * @param sections 所有设计章节
+ * @param taskDesignRefs 任务的设计落点引用（如 ["design/architecture#1.1"]）
+ * @returns 未被任务实现的设计章节引用
+ */
+export function checkImplementationCoverage(
+  sections: readonly DesignSection[],
+  taskDesignRefs: readonly string[]
+): string[] {
+  const gaps: string[] = []
+  
+  for (const section of sections) {
+    const sectionRef = `${section.file}#${section.section}`
+    const implemented = taskDesignRefs.some(ref => ref === sectionRef)
+    if (!implemented) {
+      gaps.push(sectionRef)
+    }
+  }
+  
+  return gaps
 }

@@ -183,6 +183,28 @@ export interface AgentDeliveryPort {
 }
 
 /**
+ * Dive 回合投递端口（REQ-260926215013-1568 T-3）：在 `AgentDeliveryPort` 之上增「回合消息」能力。
+ *
+ * 刻意独立成**子类型**而不是直接扩 `AgentDeliveryPort`：既有实现与测试大量只提供 `deliver`，
+ * 直接扩父接口会同时打红它们（T-1 的验收是"tsc 错误数不高于基线"）。唯一实现 =
+ * `adapters/AgentDeliverer.ts`（T-3 落地）；回合驱动只依赖本端口。
+ */
+export interface DiveRoundDeliveryPort extends AgentDeliveryPort {
+  /**
+   * 构造（**不投递**）一条 Dive 回合消息：带 `source:{kind:'dive',requirementId,revision,round}`。
+   * 返回消息与身份——驱动需要在 `followup` 之前登记预留（messageId 是 user/message 认领锚点）。
+   */
+  createRoundMessage(input: {
+    requirementId: string
+    revision: number
+    round: number
+    text: string
+  }): { message: unknown; messageId: string }
+  /** 投递一条已构造消息（保留既有 source）；永不抛，失败以 delivered=false + reason 返回。 */
+  deliverMessage(windowKey: string, message: unknown): DeliveryResult
+}
+
+/**
  * 闸门后置链端口（REQ-e3b6a0 t3 / FR-2）：Phase A `enqueue` 登记、Phase B `runPending` 执行。
  * 实现 = `application/gate/GatePostChain.ts`（组合根装配）；本端口让用例与适配器只见契约。
  */

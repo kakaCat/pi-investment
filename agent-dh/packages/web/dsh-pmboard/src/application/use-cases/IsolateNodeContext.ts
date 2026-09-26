@@ -47,6 +47,7 @@ import {
   newWindowInstruction,
   requirementDocPath,
 } from '../internal/node-input-package.js'
+import { assembleNodeInput } from '../../../../../tools/reqboard/src/dive/node-input.js'
 import type { Category, Difficulty, PromptStage } from '../../domain/prompt/index.js'
 import { fmt } from '../../domain/text/fmt.js'
 import type { RequirementRecord } from '../../shared/protocol.js'
@@ -169,6 +170,27 @@ export interface IsolateNodeContextDeps {
   templateRoot?: string
 }
 
+/**
+ * FR-8：读当前节点的 RTM 追溯快照，供输入包注入。
+ * 只有**拿到真实数据**才返回——文件缺失/全空/异常一律 undefined，
+ * 保证没有 RTM 的需求输入包逐字节保持旧形态（RTM 是增强层，缺失不降级成噪声）。
+ */
+function safeRtmSnapshot(
+  deps: IsolateNodeContextDeps,
+  stage: PromptStage,
+  reqId: string,
+): ReturnType<typeof assembleNodeInput> | undefined {
+  try {
+    const snap = assembleNodeInput(deps.docs.workspaceRoot(), stage, reqId, 'full')
+    const hasData =
+      snap.status !== undefined || snap.inputs !== undefined || snap.outputs !== undefined
+      || snap.traceability !== undefined || snap.coverage !== undefined
+    return hasData ? snap : undefined
+  } catch {
+    return undefined
+  }
+}
+
 function pickRequirement(
   repo: ReqboardRepository,
   windowKey: string,
@@ -199,6 +221,8 @@ export async function isolateNodeContext(
     : deps.repo.snapshot().tasks.find(t => t.requirementId === requirement.id && isInProgressTask(t))
   const docPath = requirementDocPath(requirement)
   const docText = docPath.length > 0 ? await safeReadDoc(deps.docs, docPath) : ''
+  // FR-8：RTM 追溯快照注入输入包（无数据 → 不注入，旧输出逐字节不变）。
+  const rtm = requirement === undefined ? undefined : safeRtmSnapshot(deps, stage, requirement.id)
   const pkg = buildNodeInputPackage({
     stage,
     ...(request.difficulty === undefined ? {} : { difficulty: request.difficulty }),
@@ -209,6 +233,7 @@ export async function isolateNodeContext(
     requirementDocPath: docPath,
     ...(deps.templateRoot === undefined ? {} : { templateRoot: deps.templateRoot }),
     ...(currentTask === undefined ? {} : { currentTask: { id: currentTask.id, title: currentTask.title, cardDoc: currentTask.cardDoc } }),
+    ...(rtm === undefined ? {} : { rtm }),
   })
 
   const base = {

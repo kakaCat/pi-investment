@@ -5,11 +5,16 @@ import { describe, it, expect } from 'vitest'
 import { checkDecomposeIdempotency } from '../../src/domain/workflow/DecomposeSpec.js'
 
 describe('checkDecomposeIdempotency', () => {
-  it('implementing / accepting（已越过拆分）→ 拒绝', () => {
+  it('implementing / accepting 且「已有任务」→ 拒绝（幽灵任务防线不变）', () => {
     for (const status of ['implementing', 'accepting'] as const) {
-      const v = checkDecomposeIdempotency(status, [])
+      const v = checkDecomposeIdempotency(status, [{ id: 't-abc123', title: '改代码', status: 'todo' }])
       expect(v).toMatchObject({ ok: false, code: 'REQBOARD_ALREADY_DECOMPOSED' })
-      if (!v.ok) expect(v.reason).toContain('需求已处于 ' + status)
+    }
+  })
+
+  it('implementing / accepting 且 0 任务 → 放行（2026-09-26：自动拆分失败的死锁恢复）', () => {
+    for (const status of ['implementing', 'accepting'] as const) {
+      expect(checkDecomposeIdempotency(status, []), status).toEqual({ ok: true })
     }
   })
 

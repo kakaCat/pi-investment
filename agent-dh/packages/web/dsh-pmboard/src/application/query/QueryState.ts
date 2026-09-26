@@ -15,9 +15,10 @@ import {
   projectRequirement,
 } from '../internal/support.js'
 import { parseDocument, extractClauseDefinitions, extractSkippedClauses } from '../internal/content-gates.js'
-import { collectTaskRefs, clauseReceiveStatus } from '../internal/content-gate-wiring.js'
+import { collectTaskRefs, clauseReceiveStatus, checkFullTraceability } from '../internal/content-gate-wiring.js'
 import { designDocRegistrationOf } from '../internal/design-docs.js'
 import { generateStatusRTM } from '../internal/status-rtm-integration.js'
+import { checkRTMHealth } from '../internal/rtm-health.js'
 
 export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): Promise<unknown> {
       const windowKey = agentIdFromExec(deps, exec)
@@ -63,6 +64,67 @@ export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): 
         }
       }
       
+      // RTM 健康检查（修复：yaml 生成失败，下一次校验时提醒）
+      let rtm_health: unknown | undefined
+      if (open.length > 0) {
+        try {
+          const boundReq = open[0]
+          const workspaceRoot = deps.docs.workspaceRoot()
+          const stateDir = workspaceRoot + '/.dsh-data/state'
+          rtm_health = checkRTMHealth(workspaceRoot, stateDir, boundReq)
+        } catch (healthErr) {
+          console.warn('[QueryState] RTM 健康检查失败:', healthErr)
+        }
+      }
+      
+      // 三级追溯链统计（2026-09-26 追溯性改进）
+      let traceability_chain: unknown | undefined
+      if (open.length > 0) {
+        try {
+          const boundReq = open[0]
+          const reqTasks = ledger.tasks.filter(t => t.requirementId === boundReq.id && t.status !== 'canceled')
+          const coverage = await checkFullTraceability(deps.docs, boundReq, reqTasks)
+          
+          traceability_chain = {
+            design_coverage: {
+              total: coverage.designCoverage.total,
+              covered: coverage.designCoverage.covered,
+              coverage_rate: coverage.designCoverage.total > 0 
+                ? Math.round((coverage.designCoverage.covered / coverage.designCoverage.total) * 100) 
+                : 100,
+              gaps: coverage.designCoverage.gaps,
+              status: coverage.designCoverage.gaps.length === 0 ? 'complete' : 'incomplete'
+            },
+            implementation_coverage: {
+              total: coverage.implementationCoverage.total,
+              covered: coverage.implementationCoverage.covered,
+              coverage_rate: coverage.implementationCoverage.total > 0
+                ? Math.round((coverage.implementationCoverage.covered / coverage.implementationCoverage.total) * 100)
+                : 100,
+              gaps: coverage.implementationCoverage.gaps,
+              status: coverage.implementationCoverage.gaps.length === 0 ? 'complete' : 'incomplete'
+            },
+            test_coverage: {
+              total: coverage.testCoverage.total,
+              tested: coverage.testCoverage.tested,
+              coverage_rate: coverage.testCoverage.total > 0
+                ? Math.round((coverage.testCoverage.tested / coverage.testCoverage.total) * 100)
+                : 0,
+              gaps: coverage.testCoverage.gaps,
+              status: coverage.testCoverage.tested === coverage.testCoverage.total ? 'complete' : 'incomplete'
+            },
+            overall_status: 
+              coverage.designCoverage.gaps.length === 0 &&
+              coverage.implementationCoverage.gaps.length === 0 &&
+              coverage.testCoverage.tested === coverage.testCoverage.total
+                ? 'complete'
+                : 'incomplete'
+          }
+        } catch (traceErr) {
+          console.warn('[QueryState] 追溯链统计失败:', traceErr)
+        }
+      }
+      
       return {
         window_key: windowKey,
         bound: open.length > 0,
@@ -79,6 +141,12 @@ export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): 
                 ? { fr_acceptance_progress: rtmData.fr_acceptance_progress }
                 : {}),
             }
+          : {}),
+        ...(traceability_chain !== undefined
+          ? { traceability_chain }
+          : {}),
+        ...(rtm_health !== undefined
+          ? { rtm_health }
           : {}),
         note:
           open.length > 0

@@ -54,6 +54,8 @@ export interface ReqboardRouteDeps {
    * 缺省 → 只置开关并在响应里如实说明（不伪造"已续跑"）。
    */
   advance?: (requirementId: string) => Promise<{ steps: number; stopped: string }>
+  /** 应用层用例依赖（2026-09-26）：看板「拆分」入口直接调用 executeDecompose。 */
+  applicationDeps?: import('../application/ports.js').UseCaseDeps
 }
 
 function json(res: ServerResponse, status: number, body: unknown): void {
@@ -138,6 +140,7 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       ...(deps.gateChain !== undefined ? { gateChain: deps.gateChain } : {}),
       ...(deps.agents !== undefined ? { agents: deps.agents } : {}),
       ...(deps.advance !== undefined ? { advance: deps.advance } : {}),
+      ...(deps.applicationDeps !== undefined ? { applicationDeps: deps.applicationDeps } : {}),
     },
     ids,
     mintId,
@@ -225,6 +228,8 @@ export function createReqboardHandler(deps: ReqboardRouteDeps) {
       if (method === 'POST' && sub === 'req/plan/reject') return await requirements.handlePlanDecision(req, res, false)
       // 自动链控制面（REQ-4842fe t-3be71b）：暂停/继续；继续即触发一次推进事件
       if (method === 'POST' && sub === 'req/autorun') return await requirements.handleAutoRun(req, res)
+      // 看板「拆分」入口（2026-09-26 恢复）：批准计划后落库任务卡（自动拆分路径未装配时的恢复口）
+      if (method === 'POST' && sub === 'req/decompose') return await requirements.handleReqDecompose(req, res)
       if (method === 'POST' && sub === 'req/artifact/confirm') return await requirements.handleArtifactConfirm(req, res)
       if (method === 'POST' && sub === 'task/create') return await tasks.handleTaskCreate(req, res)
       if (method === 'POST' && sub === 'task/move') return await tasks.handleTaskMove(req, res)

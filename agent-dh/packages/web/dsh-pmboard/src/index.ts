@@ -19,7 +19,7 @@ import { applyPickupReconcile, applyTaskRollup } from './application/internal/ro
 import { advanceRequirement } from './application/use-cases/AdvanceChain.js';
 import { newCommentId } from './shared/protocol.js';
 import { dshHomePath, nodeIsolationEnabled, type PluginConfig } from './plugin-config.js';
-import { createCaptureRuntime, assembleCaptureHook } from './wiring/pm-capture-root.js';
+import { createCaptureRuntime, assembleDiveSessionDriver } from './wiring/pm-capture-root.js';
 import {
   defineCreateTool,
   defineCaptureTool,
@@ -28,6 +28,7 @@ import {
   defineAdvanceTool,
   defineTaskStatusTool,
   defineTaskReportTool,
+  defineDecomposeTool,
   defineSubmitTool,
   defineAskConfirmTool,
   defineConfirmReceiptTool,
@@ -57,6 +58,8 @@ import { createFailureAlert } from './adapters/FailureAlert.js';
 import { scheduleStartupScan } from './application/internal/startup-scan.js';
 import type { UseCaseDeps } from './application/ports.js';
 import ReqboardDiveManager from './application/dive/ReqboardDiveManager.js';
+import { renderDiveRoundText } from './application/dive/round-state.js';
+import type { DiveRoundPorts } from './application/dive/round-driver.js';
 
 export const name = 'dsh-pmboard';
 
@@ -79,16 +82,33 @@ export { dshHomePath, nodeIsolationEnabled };
  * 宁可跳过也不猜（响亮失败优于静默猜测）。
  */
 function turnBoundaryIdle(projectionsSvc: unknown, session: unknown): boolean {
+  return turnBoundaryIdleState(projectionsSvc, session) === 'idle';
+}
+
+/**
+ * 轮次边界**三态**判定（2026-09-26）——给闸门链的"无 open turn"门用。
+ *
+ * 与 turnBoundaryIdle 同源，但把"判不出"和"明确忙"分开：
+ *   idle    = openTurnStartSeq === null（无 open turn，可安全做 surface 替换与唤醒）
+ *   busy    = 有 open turn（活动轮次：替换会被硬拒 D-15；唤醒会与 LLM 打架；H2 会 skip）
+ *   unknown = 投影/服务不可得（无 agent-loop、测试环境、看板通道无 session）或探测抛错
+ *
+ * 为什么必须分开：H2 的口径是"判不出就跳过"（保守），而**链**不能这样——
+ * 看板确认通道与测试环境都判不出，拿 false 当整链门会把它们全堵死。
+ * 所以链只在**明确 busy** 时延后（且不消费待处理闸门，留给下个边界重试）。
+ */
+function turnBoundaryIdleState(projectionsSvc: unknown, session: unknown): 'idle' | 'busy' | 'unknown' {
   const projections = projectionsSvc as {
     stateOf?: (s: unknown, kind: string) => { openTurnStartSeq?: unknown } | undefined
   } | undefined;
-  if (typeof projections?.stateOf !== 'function') return false;
+  if (typeof projections?.stateOf !== 'function') return 'unknown';
+  if (session === undefined || session === null) return 'unknown';
   try {
     const boundary = projections.stateOf(session, 'turnBoundary');
-    if (boundary === undefined) return false;
-    return boundary.openTurnStartSeq === null;
+    if (boundary === undefined) return 'unknown';
+    return boundary.openTurnStartSeq === null ? 'idle' : 'busy';
   } catch {
-    return false;
+    return 'unknown';
   }
 }
 
@@ -103,9 +123,29 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   void store.load();
   const now = () => Date.now()
   
-  // REQ-260925212722-96e7: Dive 模式管理器实例化
-  const diveManager = new ReqboardDiveManager(ctx);
-  logger.info('ReqboardDiveManager initialized');
+  // Dive 服务实例化已下移到 createCaptureRuntime 之后（T-5：round 半的投递端口 = deliverer）。
+  
+  // 桥接 store 订阅到 Cordis 事件系统（优化：支持 Dive 事件驱动续跑）
+  store.subscribe((change) => {
+    // 发出 Cordis 事件，供 Dive 管理器监听
+    if (change.kind === 'requirement-moved' && change.requirements.length > 0) {
+      // 为每个变更的需求发出事件
+      for (const req of change.requirements) {
+        // 从状态历史推断 from → to（如果有历史记录）
+        const history = req.statusHistory ?? []
+        const lastTwo = history.slice(-2)
+        const from = lastTwo.length >= 2 ? lastTwo[0].status : req.status
+        const to = req.status
+        
+        ctx.emit('reqboard/requirement-moved', {
+          requirementId: req.id,
+          from,
+          to,
+        })
+      }
+    }
+  })
+  logger.info('Store subscription bridge initialized (Cordis events enabled)')
   
   // 注入留痕（REQ-422af1 t6，INV-6）：<dshHome>/state/prompt-injection-log.json（ring buffer 500 条，原子写）。
   const injectionLog = new InjectionLogFile(
@@ -227,29 +267,68 @@ export function apply(ctx: Context, config?: PluginConfig): void {
   const disposers: Array<() => void> = [];
 
   // 捕获根运行时（REQ-260924213231-b1c4 T-12：三张共享表 + 唯一投递实现抽到
-  // ./wiring/pm-capture-root.js，组合根只留装配顺序；hook 装配见下方 assembleCaptureHook）。
+  // ./wiring/pm-capture-root.js，组合根只留装配顺序；driver 装配见下方 assembleDiveSessionDriver）。
   const { pendingCapture, toolTrace, recentUserMsgs, deliverer } = createCaptureRuntime({
     plugin: name,
     getAgents: () => agentsSvc,
   });
+
+  // ── Dive 服务（REQ-260926215013-1568 T-5）：订阅持有者 + round 端口提供者 ──────────
+  // 必须在 createCaptureRuntime 之后（round 半的投递端口 = deliverer）；agentsSvc 经闭包惰性读取。
+  const diveRoundPorts: DiveRoundPorts = {
+    repo: store,
+    agents: {
+      get: (id: string) => (agentsSvc as { get?: (id: string) => unknown } | undefined)?.get?.(id),
+      withoutInitiator: <T,>(op: () => T): T => {
+        const a = agentsSvc as { withoutInitiator?: <U>(f: () => U) => U } | undefined
+        return typeof a?.withoutInitiator === 'function' ? a.withoutInitiator(op) : op()
+      },
+    },
+    // 插件 fiber 处于 ACTIVE(2) 才算可驱动；读不到（测试/降级）→ 放行，避免静默停摆。
+    fiberActive: () => {
+      const state = (ctx as unknown as { fiber?: { state?: number } }).fiber?.state
+      return state === undefined ? true : state === 2
+    },
+    delivery: deliverer,
+    cancel: (agent, cause) => (agent as { cancel?: (c: string) => void } | undefined)?.cancel?.(cause),
+    whenIdle: (agent) => {
+      const p = (agent as { whenIdle?: () => Promise<void> } | undefined)?.whenIdle?.()
+      return p === undefined ? Promise.resolve() : p
+    },
+    // FR-3 耐久检查点：兑现台账写队列排空（与 persistArtifacts 同口径）。
+    checkpoint: async () => { await store.read(() => undefined) },
+    renderRoundText: renderDiveRoundText,
+    now,
+    logger: { info: (m) => logger.info(m), debug: (m) => logger.debug(m), warn: (m, e) => logger.warn(m, e) },
+  }
+  const diveManager = new ReqboardDiveManager(ctx, diveRoundPorts)
+  logger.info('ReqboardDiveManager initialized (round 半已接线)')
+  disposers.push(() => { void diveManager.teardown() })
 
   // 闸门后置链装配（REQ-e3b6a0）：抽到 ./gate-wiring.js（REQ-f0579a t5 尺寸门禁）。
   const gateChain = assembleGatePostChain({
     store, docs, clock, now, isolationTrace, injectionLog, deliverer, logger, plugin: name,
     compactionEnabled: nodeIsolationEnabled(config),
     idle: (session: unknown) => turnBoundaryIdle(projectionsSvc, session),
+    // 三态门（2026-09-26）：明确 busy → 链延后且不消费待处理闸门（修"静默丢压缩"）
+    idleState: (session: unknown) => turnBoundaryIdleState(projectionsSvc, session),
     address,
   });
 
-  // 确定性消息捕获 hook 装配（订阅 session/event）：抽到 ./wiring/pm-capture-root.js
-  // （REQ-260924213231-b1c4 T-12 尺寸门禁；回调链、注释与节点-1 诊断日志随代码搬）。
-  // useCaseDeps 尚未构造 → 以惰性 getter 传入（hook 只在 turn/end 异步边界取用）。
-  const unsubscribeSessionEvents = assembleCaptureHook({
-    ctx, store, runtime: { pendingCapture, toolTrace, recentUserMsgs, deliverer },
+  // Dive 会话驱动器装配（原 CaptureHook，2026-09-26 废弃并迁入 application/dive）：
+  // 抽到 ./wiring/pm-capture-root.js；**两路订阅都由 Dive 服务持有**：
+  //   · session/event（采集/簿记）→ attachSessionDriver
+  //   · agent/status === idle（驱动点，对齐 dsh-goal-round-driver）→ attachAgentStatus
+  // useCaseDeps 尚未构造 → 以惰性 getter 传入（driver 只在异步边界取用）。
+  const unsubscribeSessionEvents = assembleDiveSessionDriver({
+    store, runtime: { pendingCapture, toolTrace, recentUserMsgs, deliverer },
     now, address, injectionLog, gateChain,
     onNodeSettled: (settle, session) => settlement.onSettle(settle, session),
     useCaseDeps: () => useCaseDeps,
     logger, plugin: name,
+    round: diveManager.roundDriver(),
+    attachSessionDriver: (handler) => diveManager.attachSessionDriver(handler),
+    attachAgentStatus: (handler) => diveManager.attachAgentStatus(handler),
   });
   if (unsubscribeSessionEvents) disposers.push(unsubscribeSessionEvents);
 
@@ -296,6 +375,8 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         disposers.push(toolsCtx.tools.register(defineCaptureTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineStatusTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineTaskReportTool(useCaseDeps)));
+        // 恢复：批准计划后的拆分落库入口（自动拆分路径缺 JobsPort，见 DecomposeTool 文件头）
+        disposers.push(toolsCtx.tools.register(defineDecomposeTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineSubmitTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineAskConfirmTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineConfirmReceiptTool(useCaseDeps)));
@@ -344,6 +425,8 @@ export function apply(ctx: Context, config?: PluginConfig): void {
                 return undefined;
               }
             }, advance: (reqId: string) => advanceRequirement(useCaseDeps, reqId).then(o => ({ steps: o.steps.length, stopped: o.stopped as string })),
+            // 看板「拆分」入口（2026-09-26）：批准计划后的落库恢复通道（自动拆分缺 JobsPort）。
+            applicationDeps: useCaseDeps,
           }),
         });
       }, name + ': api');

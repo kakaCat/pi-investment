@@ -5,33 +5,49 @@
 
 ## 在做什么
 
-（一句话 + 改哪些文件）
+{{TASK_DESCRIPTION}}
 
 ## 解决什么问题
 
-（业务问题——开工前必填，不许留"未填写"）
+**实现设计方案**：{{DESIGN_REFERENCE}}
+
+**需求背景**：{{REQUIREMENT_BACKGROUND}}
+
+**设计方案摘要**：
+{{DESIGN_SUMMARY}}
+
+**预期影响**：
+{{EXPECTED_IMPACT}}
 
 ## 范围
 
-- 阶段：doc / ui / analysis / implement / test / review / merge
-- 端侧：frontend / backend / fullstack / doc
-- 需求条款：FR-x（requirement_refs）
-- 设计落点：（I-x / S-x / P-x / C-x / T-x / UC-x / M-x——继承拆分任务表的「落点」列：本卡改哪个编号对象、在哪个文件）
-- 覆盖用例：（TC-x——本卡由哪几条用例验证；完成后测试证据回填这些用例的执行结果）
+- 阶段：{{TASK_PHASE}}
+- 端侧：{{TASK_SIDE}}
+- 需求条款：{{REQUIREMENT_REFS}}
+- 设计落点：{{DESIGN_SERVES}}
+- 覆盖用例：{{TEST_CASES}}
 
 ## 得到什么结果
 
-（验收标准：可证伪——跑什么、看到什么算过）
+{{ACCEPTANCE_CRITERIA}}
+
+## 实施方案（implementation）
+
+{{IMPLEMENTATION_PLAN}}
+
+## 上游产出摘要（dependsSummary）
+
+{{DEPENDS_SUMMARY}}
 
 ## 风险与回退
 
 | 风险 | 回退动作 |
 |---|---|
-| （做砸了会怎样） | （怎么回到改前：git revert 本卡 commit / 关开关 / 恢复备份——写死，失败时不用现场想） |
+| {{RISKS}} | {{ROLLBACK_ACTIONS}} |
 
-## 依赖
+## 执行方式提示（executorHint）
 
-（前置任务 id 与标题）
+{{EXECUTOR_HINT}}
 
 ---
 <!-- 以下由 reqboard_task_report 追加：完成项 / 改动文件 / 下一步 -->

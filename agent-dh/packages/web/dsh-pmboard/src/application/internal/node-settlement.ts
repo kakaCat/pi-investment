@@ -107,7 +107,7 @@ function defaultSchedule(task: () => void): void {
 }
 
 /**
- * 组装结算 → 隔离分发器。调用方（组合根）只需把 onSettle 接到 CaptureHook 的
+ * 组装结算 → 隔离分发器。调用方（组合根）只需把 onSettle 接到 Dive 会话驱动器的
  * onNodeSettled；其余（开关、时机、失败处理、留痕）都在这里。
  */
 export function createNodeSettlementDispatcher(deps: NodeSettlementDeps): NodeSettlementDispatcher {

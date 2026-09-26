@@ -59,21 +59,30 @@ export function createH3InjectHandler(deps: H3InjectDeps): GateHandler {
   return {
     name: 'h3-inject',
     async run({ ctx, scratch }: ChainInput): Promise<HandlerOutcome> {
+      /**
+       * 未产出提示词时**如实登记原因**再返回原 outcome。
+       * H4 据此区分"真给了"（compacted）与"什么都没给"（本函数所有 skip/degraded），
+       * 不再一律宣称「阶段纪律已随节点输入包一并给出」。
+       */
+      const miss = (outcome: Extract<HandlerOutcome, { kind: 'skip' | 'degraded' }>): HandlerOutcome => {
+        if (scratch !== undefined) scratch.promptSkipped = { code: outcome.code, reason: outcome.reason }
+        return outcome
+      }
       try {
         if (!isPromptStage(ctx.to)) {
-          return { kind: 'skip', code: 'not_prompt_stage', reason: fmt('阶段 {to} 无纪律提示词可注入', { to: ctx.to }) }
+          return miss({ kind: 'skip', code: 'not_prompt_stage', reason: fmt('阶段 {to} 无纪律提示词可注入', { to: ctx.to }) })
         }
         const requirement = pickGateRequirement(deps.repo, ctx)
         if (requirement === undefined) {
-          return { kind: 'skip', code: 'no_requirement', reason: '本窗口无可归属需求，取词缺少需求实质' }
+          return miss({ kind: 'skip', code: 'no_requirement', reason: '本窗口无可归属需求，取词缺少需求实质' })
         }
         if (!stageEnabledFor(requirement.category, ctx.to)) {
-          return { kind: 'skip', code: 'stage_disabled', reason: fmt('分类 {c} 的档案跳过阶段 {to}，不注入', { c: requirement.category ?? '（未标）', to: ctx.to }) }
+          return miss({ kind: 'skip', code: 'stage_disabled', reason: fmt('分类 {c} 的档案跳过阶段 {to}，不注入', { c: requirement.category ?? '（未标）', to: ctx.to }) })
         }
         // T-4（FR-10）：非肯定答复不注入「作答后所处阶段」的纪律——否则改一版反而收到下一节点的
         // 推进纪律（本轮实测缺陷）。verdict 缺省（H1 未跑到/异常）按保守的 negative 处理。
         if (ctx.verdict !== 'affirmative') {
-          return { kind: 'skip', code: 'negative_verdict', reason: '非肯定答复：不注入下一节点纪律（FR-10）' }
+          return miss({ kind: 'skip', code: 'negative_verdict', reason: '非肯定答复：不注入下一节点纪律（FR-10）' })
         }
         const declared = difficultyFromDeclaredPrompt(requirement.promptDifficulty)
         const located = resolve({
@@ -83,7 +92,7 @@ export function createH3InjectHandler(deps: H3InjectDeps): GateHandler {
           ...(declared === undefined ? {} : { declaredDifficulty: declared }),
         })
         if (located.text.length === 0) {
-          return { kind: 'degraded', code: 'empty_prompt', reason: '取词结果为空（分片库缺该阶段）' }
+          return miss({ kind: 'degraded', code: 'empty_prompt', reason: '取词结果为空（分片库缺该阶段）' })
         }
         const resolved = withAddress(located, deps, requirement, ctx.to)
         deps.injectionLog?.record(injectionLogInputFromResolved(resolved, ctx.windowKey))

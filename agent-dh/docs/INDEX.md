@@ -3,7 +3,7 @@ id: docs-index
 title: 全站页面索引（机器可读入口）
 type: index
 status: living
-updated: 2026-09-25
+updated: 2026-09-26
 owners: [agent-dh]
 tags: [index, wiki]
 ---
@@ -18,13 +18,13 @@ tags: [index, wiki]
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
-| [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-09-24 |
+| [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-09-26 |
 | [agent-dh Wiki（归档文档首页 / 大纲）](README.md) | manual | living | agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。 | 2026-09-25 |
 | [🎊 Agent-DH v0.1.1 发布说明](RELEASE-NOTES-v0.1.1.md) | doc | living | v0.1.1（2026-08-18）发布说明：稳定性与可靠性改进清单（历史版本记录）。 | 2026-09-14 |
 | [workflow-ptc-fix.md](troubleshooting/workflow-ptc-fix.md) | — | — | PM 插件 (dsh-pmboard) 的自动任务执行链依赖 workflow-ptc 服务，但当前运行时 ctx.workflowEngine 服务不可用，导致所有子卡执行失败： | — |
 | [工作日志索引（L3 证据档案）](work-logs/README.md) | index | living | 某个时间点「当时做了什么、为什么这么做、结论是什么」。按月份倒序列出全部工作日志。 | 2026-09-14 |
 
-### 架构与生命周期 · `docs/architecture`（31 页）
+### 架构与生命周期 · `docs/architecture`（32 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
@@ -52,6 +52,7 @@ tags: [index, wiki]
 | [pmboard-ui-glossary.md](architecture/pmboard-ui-glossary.md) | — | — | 下拉条目状态徽标用词（刻意与泳道不同，2026-09-21 用户裁定保留）：实施中 / 待验收 / 完成；其余与泳道一致。 | — |
 | [六立项类型的流程差异（reqboard）](architecture/reqboard-category-flows.md) | architecture | living | feature/bug/refactor/spike/doc/chore 六类需求各自走什么节点、过哪些门、哪里生效哪里是缺口——以代码为准的实测记录。 | 2026-09-23 |
 | [reqboard-design-stage.md](architecture/reqboard-design-stage.md) | — | — | 根据 REQ-2d1c74 扩展，feature 需求的设计阶段必须交付以下文档： | — |
+| [reqboard-dive-mode.md](architecture/reqboard-dive-mode.md) | — | — | Dive 模式是项目看板（reqboard）的自动流程控制机制，实现需求从立项到归档的自动化推进，减少人工干预，提高执行效率。 | — |
 | [reqboard-doc-path-contract.md](architecture/reqboard-doc-path-contract.md) | — | — | 登记产物/文档路径时必须归一，历史遗留的下列写法由归一层在读取时兜底： | — |
 | [节点详情面板（锚定式 node-panel）](architecture/reqboard-node-panel.md) | architecture | living | 会话流程条节点点开后的就地面板：锚定在流程条下方右侧、无遮罩无底栏；「基础信息」按节点给该看的，「执行流程」把该阶段提示词的纪律与真实台账做规定 vs 实际对照；实施节点改 DAG·泳道双视… | 2026-09-23 |
 | [需求节点详情系统（stage-detail）](architecture/reqboard-stage-detail.md) | architecture | living | 会话框流程条节点点开看详情：StageDetail 契约 + 模板模式双端装配 + 分类流程档案 + 产物闸门 + 追溯链 + 接力任务卡 + 前端工作记录渲染器；含子任务层与自动链控制面（… | 2026-09-21 |
@@ -81,7 +82,7 @@ tags: [index, wiki]
 | [工具审计清单](protocols/tool-audit.md) | protocol | living | 怎么查一个工具"说到的"是不是"做到的"（定期抽查 / 接手陌生插件时用）。 | 2026-09-13 |
 | [交易执行协议（Trade Execution Protocol）](protocols/trade-execution-protocol.md) | protocol | living | 交易打标协议 v1.0：每笔交易如何带 genome_version / rules_used 进经验库。 | 2026-09-14 |
 
-### 指南（怎么做 / 怎么排障） · `docs/guides`（23 页）
+### 指南（怎么做 / 怎么排障） · `docs/guides`（26 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
@@ -89,6 +90,7 @@ tags: [index, wiki]
 | [Agent-DH 快速开始指南](guides/QUICKSTART.md) | guide | living | 5 分钟把 agent-dh 跑起来：前置依赖、启动步骤、验证方法。 | 2026-09-13 |
 | [Agent-DH 启动指南](guides/STARTUP.md) | guide | living | 运行目录与 profile 现状（DSH_HOME=.dsh-data）、启停与 launchd，含 GUI 401 根因与迁移/布局合并的坑。 | 2026-09-14 |
 | [Agent-DH 使用指南](guides/USAGE-GUIDE.md) | guide | living | v0.1.1 时代的使用说明：可用性状态与日常操作入口（历史，部分已被新规范取代）。 | 2026-09-14 |
+| [dive-mode-usage.md](guides/dive-mode-usage.md) | — | — | Dive Armed 是项目看板的唯一工作方式，实现需求从立项到归档的全自动流程控制。 | — |
 | [事件查询最佳实践（P1-4）](guides/event-query-best-practices.md) | guide | living | 事件查询最佳实践：盘前用两个事件工具查什么、怎么查、别踩什么坑。 | 2026-09-14 |
 | [事件查询统一指南（P1-4）](guides/event-query-guide.md) | guide | living | 两个事件查询工具怎么选、字段怎么读（统一指南）。 | 2026-09-13 |
 | [git-worktree-workflow-simple.md](guides/git-worktree-workflow-simple.md) | — | — | 就这么简单：立项建 worktree → 开发中随时 commit → 完成后合并删除 | — |
@@ -100,6 +102,8 @@ tags: [index, wiki]
 | [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) | guide | living | 一个需求从冒出来到归档，具体敲哪些工具、卡在哪、错了怎么办。 | 2026-09-25 |
 | [重启防丢 Session 操作手册（Restart Session Safety Runbook）](guides/restart-session-safety.md) | guide | living | 重启（含 self_restart）后会话历史为什么不丢、怎么保证——附 PID 与源码级证据。 | 2026-09-14 |
 | [定时巡检清单（有问题才打扰）](guides/routine-checks.md) | guide | living | 哪些检查该定期跑、跑什么命令、什么算有问题、出了问题找谁。 | 2026-09-13 |
+| [RTM YAML 追溯基础设施使用指南](guides/rtm-usage.md) | guide | living | 需求追溯的预构建索引：7 个 YAML 文件长什么样、在哪 7 个时刻自动更新、Dive 模式怎么 2ms 读它做决策、节点输入包怎么注入与压缩。 | 2026-09-26 |
+| [rtm-user-guide.md](guides/rtm-user-guide.md) | — | — | FR 文件必须放在需求目录下的 functional-requirements/ 子目录中： | — |
 | [技能装载机制（Skill Loading）——排障实录与标准流程](guides/skill-loading.md) | guide | living | 技能为什么看不见：两个 dsh home + skill registry 分层，以及正确的装载姿势。 | 2026-09-14 |
 | [task-execution-migration.md](guides/task-execution-migration.md) | — | — | 本指南说明如何从旧的任务执行方式迁移到基于 DSH Workflow 的新系统。 | — |
 | [工具 render 人话首行约定（renderSmart）](guides/tool-render-human-summary.md) | — | — | 工具的 output.render 返回文本必须是： | — |
@@ -151,18 +155,35 @@ tags: [index, wiki]
 |---|---|---|---|---|
 | [事件查询使用示例（P1-4）](examples/event-query-examples.md) | doc | living | 事件查询两个工具的实战示例（盘前例行、个股排雷等）。 | 2026-09-14 |
 
-### 包内入口页（怎么用这个包） · `packages`（118 页）
+### 包内入口页（怎么用这个包） · `packages`（136 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
 | [@pi-investment/core-tool-tool](../packages/core/core-tool/README.md) | package | living | core-tool 规范包：只定义三段式工具接口规范，不含具体实现。 | 2026-08-30 |
 | [@pi-investment/learning](../packages/tools/learning/README.md) | package | living | learning 插件：经验追踪 / 模式挖掘 / 知识蒸馏 / 规则转正（RFC 003 落地）。 | 2026-08-20 |
 | [@pi-investment/dashboard-bulletin（公告板页面，RFC 013）](../packages/web/bulletin/README.md) | package | living | 公告板页面包（双半插件）：与 board_post/board_read 工具同源的看板。 | 2026-09-05 |
+| [BOARD-VS-NODE-PANEL.md](../packages/web/dsh-pmboard/BOARD-VS-NODE-PANEL.md) | — | — | 会话节点的「追溯」Tab 读取 RTM： | — |
 | [CHANGELOG-req-id-timestamp.md](../packages/web/dsh-pmboard/CHANGELOG-req-id-timestamp.md) | — | — | 将需求ID格式从 REQ-xxxxxx (6位随机hex) 升级为 REQ-YYMMDDHHmmss-xxxx (时间戳+4位随机hex)，提升可读性和可追溯性。 | — |
 | [CHANGELOG.md](../packages/web/dsh-pmboard/CHANGELOG.md) | — | — | All notable changes to this project will be documented in this file. | — |
 | [CONFLICT-REPORT.md](../packages/web/dsh-pmboard/CONFLICT-REPORT.md) | — | — | 发现 6 种需求类型 存在模板与门禁规则不一致的问题。 | — |
+| [CURRENT-VS-RTM-COMPARISON.md](../packages/web/dsh-pmboard/CURRENT-VS-RTM-COMPARISON.md) | — | — | 1. 数据集中化：从分散到集中 | — |
+| [DATA-LAYER-ANALYSIS.md](../packages/web/dsh-pmboard/DATA-LAYER-ANALYSIS.md) | — | — | 1. 从需求记录提取各阶段产物 | — |
 | [FIX-REPORT.md](../packages/web/dsh-pmboard/FIX-REPORT.md) | — | — | 根据你的决策，已完成以下修改： | — |
+| [IMPLEMENTATION-SUMMARY.md](../packages/web/dsh-pmboard/IMPLEMENTATION-SUMMARY.md) | — | — | ✅ 阶段1：设计章节解析（content-trace.ts） | — |
+| [PER-STAGE-RTM-ANALYSIS.md](../packages/web/dsh-pmboard/PER-STAGE-RTM-ANALYSIS.md) | — | — | ✅ 简单 | — |
 | [README.md](../packages/web/dsh-pmboard/README.md) | — | — | 把「用户在对话里提出一个想法」到「需求立项 → 评审 → 拆分 → 实施 → 验收 → 归档」的完整生命周期， | — |
+| [RTM-CORE-DATA-DESIGN.md](../packages/web/dsh-pmboard/RTM-CORE-DATA-DESIGN.md) | — | — | 之前设计的 RTM 包含了太多细节： | — |
+| [RTM-IMPLEMENTATION-FLOWCHART.md](../packages/web/dsh-pmboard/RTM-IMPLEMENTATION-FLOWCHART.md) | — | — | — | — |
+| [RTM-LIFECYCLE-DESIGN.md](../packages/web/dsh-pmboard/RTM-LIFECYCLE-DESIGN.md) | — | — | ❌ 误解：RTM YAML 在批准计划时才生成 | — |
+| [RTM-SPLIT-ANALYSIS.md](../packages/web/dsh-pmboard/RTM-SPLIT-ANALYSIS.md) | — | — | 1. 更新频率不同 | — |
+| [RTM-TIMING-CORRECTION.md](../packages/web/dsh-pmboard/RTM-TIMING-CORRECTION.md) | — | — | 1. 数据一致性 | — |
+| [RTM-UPDATE-STRATEGY.md](../packages/web/dsh-pmboard/RTM-UPDATE-STRATEGY.md) | — | — | 1. 新增内容 → 增量更新（保留旧数据） | — |
+| [RTM-WITH-NODE-STATUS.md](../packages/web/dsh-pmboard/RTM-WITH-NODE-STATUS.md) | — | — | RTM 是需求内部流程的记录本，必须记录： | — |
+| [RTM-YAML-SESSION-NODE-INTEGRATION.md](../packages/web/dsh-pmboard/RTM-YAML-SESSION-NODE-INTEGRATION.md) | — | — | 这是显示在会话右侧面板的需求流程节点详情，包含： | — |
+| [RTM-YAML-UI-INTEGRATION.md](../packages/web/dsh-pmboard/RTM-YAML-UI-INTEGRATION.md) | — | — | 1. 追溯链可视化（垂直瀑布式） | — |
+| [SESSION-FLOW-VS-RTM-COMPARISON.md](../packages/web/dsh-pmboard/SESSION-FLOW-VS-RTM-COMPARISON.md) | — | — | — | — |
+| [STAGE-OVERVIEW-WRITE-STRATEGY.md](../packages/web/dsh-pmboard/STAGE-OVERVIEW-WRITE-STRATEGY.md) | — | — | 1. ❌ StageOverview 从来不写入 | — |
+| [WORKFLOW-IN-RTM-ANALYSIS.md](../packages/web/dsh-pmboard/WORKFLOW-IN-RTM-ANALYSIS.md) | — | — | 1. Workflow 是执行细节，不是追溯关系 | — |
 | [bug.md](../packages/web/dsh-pmboard/src/domain/prompt/fragments/accepting/bug.md) | — | — | — | — |
 | [chore.md](../packages/web/dsh-pmboard/src/domain/prompt/fragments/accepting/chore.md) | — | — | — | — |
 | [doc.md](../packages/web/dsh-pmboard/src/domain/prompt/fragments/accepting/doc.md) | — | — | — | — |
@@ -235,6 +256,7 @@ tags: [index, wiki]
 | [SKILL.md](../packages/web/dsh-pmboard/src/domain/prompt/vendor/superpowers/writing-plans/SKILL.md) | — | — | Write comprehensive implementation plans assuming the engineer has zero context for our codebas… | — |
 | [SKILL.md](../packages/web/dsh-pmboard/src/domain/prompt/vendor/superpowers/writing-skills/SKILL.md) | — | — | You write test cases (pressure scenarios with subagents), watch them fail (baseline behavior), … | — |
 | [README.md](../packages/web/dsh-pmboard/templates/README.md) | — | — | 生成器映射规则就一行：templates/<stage>/<doc>.md → 需求目录 docs/requirements/<REQ>/…， | — |
+| [TEMPLATE-IMPROVEMENTS.md](../packages/web/dsh-pmboard/templates/TEMPLATE-IMPROVEMENTS.md) | — | — | 建立完整的四级追溯链，确保每一层都明确声明"我在服务/实现上一层的哪些条款"： | — |
 | [verification.md](../packages/web/dsh-pmboard/templates/accepting/verification.md) | — | — | （本节由窗口根据 requirement.md 功能点表 + decomposition.md 覆盖对照生成： | — |
 | [index.md](../packages/web/dsh-pmboard/templates/archived/index.md) | — | — | — | — |
 | [retro.md](../packages/web/dsh-pmboard/templates/archived/retro.md) | — | — | — | — |
@@ -246,13 +268,13 @@ tags: [index, wiki]
 | ["{{TITLE}}"](../packages/web/dsh-pmboard/templates/brainstorming/spike.md) | — | brainstorming | （为什么现在要做：用户原话用 > 引用块 / 线上现象 / 数据证据。标注来源与时点。 | — |
 | [notes.md](../packages/web/dsh-pmboard/templates/common/notes.md) | — | — | — | — |
 | [decomposition.md](../packages/web/dsh-pmboard/templates/decomposing/decomposition.md) | — | — | （覆盖对照靠编号跨文档拉齐；引用必须能在对方文档里查到——查不到 = 悬空引用，等同于没写。） | — |
-| [architecture.md](../packages/web/dsh-pmboard/templates/design/architecture.md) | — | — | （3 句以内：做什么、怎么做、为什么这么做——评审者 20 秒读完） | — |
+| [architecture.md](../packages/web/dsh-pmboard/templates/design/architecture.md) | — | — | （只写真实改动的字段/类型/表结构——没改就写「无变更」，别凑字数。） | — |
 | [backend.md](../packages/web/dsh-pmboard/templates/design/backend.md) | — | — | 1. 触发事件：什么事件触发这个流程（用户操作/定时任务/钩子） | — |
-| [data-model.md](../packages/web/dsh-pmboard/templates/design/data-model.md) | — | — | （ASCII ER 图：实体 + 关系基数，一眼看清谁连谁。） | — |
+| [data-model.md](../packages/web/dsh-pmboard/templates/design/data-model.md) | — | — | — | — |
 | [frontend.md](../packages/web/dsh-pmboard/templates/design/frontend.md) | — | — | （可视化原型：prototypes/<name>.html（由 prototype.html 模板生成，每功能点一个锚点区块）； | — |
-| [interfaces.md](../packages/web/dsh-pmboard/templates/design/interfaces.md) | — | — | （编号 I-x——拆分计划的覆盖对照按它引用；改本表后回查 decomposition.md 覆盖对照。） | — |
+| [interfaces.md](../packages/web/dsh-pmboard/templates/design/interfaces.md) | — | — | — | — |
 | [migration.md](../packages/web/dsh-pmboard/templates/design/migration.md) | — | — | （逐步可执行：每步给验证命令，给失败时的回滚动作。编号 M-x：用例/故障注入引用步骤时用。） | — |
-| [test-cases.md](../packages/web/dsh-pmboard/templates/design/test-cases.md) | — | — | （每条功能点 × 测试类型：哪些层要测，空格 = 该层不测，写理由。） | — |
+| [test-cases.md](../packages/web/dsh-pmboard/templates/design/test-cases.md) | — | — | — | — |
 | [use-cases.md](../packages/web/dsh-pmboard/templates/design/use-cases.md) | — | — | （编号 UC-x：test-cases「被测对象」、任务卡「设计落点」引用场景时用。） | — |
 | [architecture.example.md](../packages/web/dsh-pmboard/templates/examples/architecture.example.md) | — | — | — | — |
 | [backend.example.md](../packages/web/dsh-pmboard/templates/examples/backend.example.md) | — | — | 1. 拼接查询 key：将 stage 和 category 用点号连接，如 "brainstorming.feature" | — |
@@ -267,7 +289,7 @@ tags: [index, wiki]
 | [test-cases.example.md](../packages/web/dsh-pmboard/templates/examples/test-cases.example.md) | — | — | （说明：FR-6 的设计对象为 —（CI 脚本，无运行时 S-x）；TC-7 的被测对象写为 check-templates.mjs。） | — |
 | [use-cases.example.md](../packages/web/dsh-pmboard/templates/examples/use-cases.example.md) | — | — | 1. PM 在项目看板点击左上角"新建需求"按钮 → 系统弹出需求创建表单 | — |
 | [review.md](../packages/web/dsh-pmboard/templates/implementing/review.md) | — | — | （打回项的修订记录；复审结论。验收评审须留利益相关方确认记录。） | — |
-| [task-card.md](../packages/web/dsh-pmboard/templates/implementing/task-card.md) | — | — | （一句话 + 改哪些文件） | — |
+| [task-card.md](../packages/web/dsh-pmboard/templates/implementing/task-card.md) | — | — | {{TASK_DESCRIPTION}} | — |
 | [test-evidence.md](../packages/web/dsh-pmboard/templates/implementing/test-evidence.md) | — | — | （分支 / commit / 依赖版本——没有环境的「跑通了」不可复现。） | — |
 | [@pi-investment/dashboard-execution](../packages/web/execution/README.md) | package | living | 双线执行确认看板包：v2/os 健康 + 调度任务 + 检查点与时间轴。 | 2026-09-04 |
 | [@pi-investment/dashboard-genome · 自主进化看板](../packages/web/genome/README.md) | package | living | 自主进化看板包：基因组目录、候选状态与进化链路的可视化。 | 2026-09-13 |

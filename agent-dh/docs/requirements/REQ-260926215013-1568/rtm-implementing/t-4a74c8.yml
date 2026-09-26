@@ -1,0 +1,33 @@
+task:
+  id: t-4a74c8
+  title: 投递适配：回合消息带机器可识别的来源标识
+  status: done
+  implements: ""
+  serves: []
+  depends_on:
+    - t-aa2ec9
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260926215013-1568
+    TASK_ID: t-4a74c8
+    TASK_TITLE: 投递适配：回合消息带机器可识别的来源标识
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-26T14:39:57.442Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260926215013-1568
+  generated_at: 2026-09-26T14:39:57.163Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-26T14:39:57.550Z

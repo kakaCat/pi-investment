@@ -38,6 +38,7 @@ import {
   requireDirectHuman,
   requireLiveDriver,
 } from '../internal/support.js'
+import { syncRTMYaml } from '../internal/rtm-yaml.js'
 
 /** 未立项的统一回执（success=false；绝不伪造 requirement_id）。 */
 function notCreated(
@@ -201,6 +202,13 @@ export async function captureRequirement(deps: UseCaseDeps, args: unknown, exec:
 
   // ⑤ 原子推进 brainstorming（G0 的 to）
   const advanced = await advanceDraftToBrainstorming(deps, req.id, windowKey)
+
+  // ⑥ RTM 触发点 1（REQ-260926140539-457b FR-2）：**窗口已绑定**（createRequirementDirect 已写
+  // sourceSessionId）+ 阶段已落定 → 生成 rtm-lifecycle.yml，并带上绑定窗口（source_session）。
+  // 为什么放在推进之后：current_stage 直接取自台账，先写会立刻过期（FR-3 一致性优先）；
+  // 失败不阻断立项（syncRTMYaml 内部吞异常并结构化返回，FR-9）。
+  syncRTMYaml(deps, req.id, 'create')
+
   return {
     success: true,
     requirement_id: req.id,

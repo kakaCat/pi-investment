@@ -88,7 +88,7 @@ blockquote{border-left:3px solid var(--grn);margin:16px 0;padding:6px 16px;backg
     subgraph L0["L0 适配器 · src/adapters（端口的唯一实现）"]
       A1["JsonLedgerRepository&lt;br/&gt;load-once + 原子写台账"]
       A2["FileDocRepository&lt;br/&gt;docs/ 产物读写真源"]
-      A3["CaptureHook · SessionProbeAdapter"]
+      A3["Dive 会话驱动器 · SessionProbeAdapter"]
       A4["WorkflowEngineRunner · AgentDeliverer&lt;br/&gt;UserQuestionsAdapter · GateAwareQuestions"]
     end
   end
@@ -427,7 +427,7 @@ client bundle 的裸 npm 依赖必须 <code>noExternal</code> 打进去（DSH sh
 <p><div class="diagram"><pre class="mermaid">sequenceDiagram
   autonumber
   participant U as 用户消息
-  participant HK as CaptureHook（session/event）
+  participant HK as Dive 会话驱动器（session/event）
   participant SEC as systemPrompt 段 reqboard:capture
   participant LLM as Agent(LLM)
   participant CAP as reqboard_capture
@@ -636,7 +636,7 @@ client bundle 的裸 npm 依赖必须 <code>noExternal</code> 打进去（DSH sh
 </tr>
 <tr>
 <td>捕获 hook</td>
-<td><code>src/adapters/CaptureHook.ts</code> + <code>src/application/internal/capture-section.ts</code></td>
+<td><code>src/application/dive/session-driver.ts</code>（2026-09-26 由 <code>adapters/CaptureHook.ts</code> 迁入，订阅由 ReqboardDiveManager 持有） + <code>src/application/internal/capture-section.ts</code>（立项引导节）</td>
 </tr>
 <tr>
 <td>台账仓储</td>

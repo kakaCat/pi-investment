@@ -26,6 +26,7 @@ import { applyTaskRollup } from '../../application/internal/rollup.js'
 import { endsExecutionSegment, isRollbackOrCancel, startsExecutionSegment } from '../../domain/status/Predicates.js'
 import { INITIAL_TASK_STATUS } from '../../domain/task/TaskStatus.js'
 import type { RouterCtx } from './shared.js'
+import { syncRTMYamlWithSnapshot } from '../../application/internal/rtm-yaml.js'
 
 export function createTasksRouter(ctx: RouterCtx) {
   const { store, now, ids, mintId, ok, readBody, notFound } = ctx
@@ -117,6 +118,14 @@ export function createTasksRouter(ctx: RouterCtx) {
       )
       return { tasks: [task], requirements: advanced }
     })
+    const movedTask = result.changed.tasks[0]
+    if (movedTask !== undefined) {
+      // RTM 触发点 6（REQ-260926140539-457b FR-2）：任务状态变更 → rtm-implementing 同步
+      const rtmRoot = ctx.deps.docs?.workspaceRoot() ?? ctx.deps.cwd
+      if (rtmRoot !== undefined) {
+        syncRTMYamlWithSnapshot(rtmRoot, store.snapshot(), movedTask.requirementId, 'task:status', { taskId: movedTask.id })
+      }
+    }
     ok(res, result.changed.tasks[0])
   }
 

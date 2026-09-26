@@ -1,0 +1,379 @@
+metadata:
+  stage: design
+  requirement_id: REQ-260926205654-163a
+  generated_at: 2026-09-26T14:24:42.779Z
+  version: 2
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-26T14:55:12.791Z
+inputs:
+  requirements:
+    - id: FR-1
+      title: 生成4位年份时间戳
+      source: requirement.md
+      line: 56
+    - id: FR-2
+      title: 新需求编号使用新格式
+      source: requirement.md
+      line: 72
+    - id: FR-3
+      title: 向后兼容旧编号
+      source: requirement.md
+      line: 85
+outputs:
+  design_sections:
+    - ref: design/architecture.md#架构变更
+      title: 架构变更 «
+      serves:
+        - FR-1
+        - FR-2
+      file: design/architecture.md
+      section: 架构变更
+    - ref: design/architecture.md#受影响的模块
+      title: 受影响的模块 «
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 受影响的模块
+    - ref: design/architecture.md#兼容性
+      title: 兼容性 «
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 兼容性
+    - ref: design/data-model.md#数据模型变更
+      title: 数据模型变更 «
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 数据模型变更
+    - ref: design/data-model.md#数据存储
+      title: 数据存储 «
+      serves:
+        - FR-2
+        - FR-3
+      file: design/data-model.md
+      section: 数据存储
+    - ref: design/data-model.md#数据兼容性
+      title: 数据兼容性 «
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 数据兼容性
+    - ref: design/data-model.md#数据验证
+      title: 数据验证 «
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: 数据验证
+    - ref: design/implementation.md#目标
+      title: 目标 «
+      serves:
+        - FR-1
+        - FR-2
+      file: design/implementation.md
+      section: 目标
+    - ref: design/implementation.md#设计方案
+      title: 设计方案 «
+      serves:
+        - FR-1
+        - FR-2
+      file: design/implementation.md
+      section: 设计方案
+    - ref: design/implementation.md#文件与函数定位
+      title: 文件与函数定位 «
+      serves:
+        - FR-1
+      file: design/implementation.md
+      section: 文件与函数定位
+    - ref: design/implementation.md#代码改动
+      title: 代码改动 «
+      serves:
+        - FR-1
+        - FR-2
+      file: design/implementation.md
+      section: 代码改动
+    - ref: design/implementation.md#接口契约
+      title: 接口契约 «
+      serves:
+        - FR-2
+      file: design/implementation.md
+      section: 接口契约
+    - ref: design/implementation.md#函数签名不变
+      title: 函数签名（不变） «
+      serves:
+        - FR-1
+      file: design/implementation.md
+      section: 函数签名不变
+    - ref: design/implementation.md#调用方不受影响
+      title: 调用方不受影响 «
+      serves:
+        - FR-2
+        - FR-3
+      file: design/implementation.md
+      section: 调用方不受影响
+    - ref: design/implementation.md#影响范围分析
+      title: 影响范围分析 «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/implementation.md
+      section: 影响范围分析
+    - ref: design/implementation.md#直接影响
+      title: 直接影响 «
+      serves:
+        - FR-2
+      file: design/implementation.md
+      section: 直接影响
+    - ref: design/implementation.md#不影响
+      title: 不影响 «
+      serves:
+        - FR-3
+      file: design/implementation.md
+      section: 不影响
+    - ref: design/implementation.md#数据兼容性
+      title: 数据兼容性 «
+      serves:
+        - FR-3
+        - FR-4
+      file: design/implementation.md
+      section: 数据兼容性
+    - ref: design/implementation.md#验收口径
+      title: 验收口径 «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/implementation.md
+      section: 验收口径
+    - ref: design/implementation.md#验收命令
+      title: 验收命令 «
+      serves:
+        - FR-2
+      file: design/implementation.md
+      section: 验收命令
+    - ref: design/implementation.md#期望输出
+      title: 期望输出 «
+      serves:
+        - FR-2
+        - FR-5
+      file: design/implementation.md
+      section: 期望输出
+    - ref: design/implementation.md#测试策略
+      title: 测试策略 «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/implementation.md
+      section: 测试策略
+    - ref: design/implementation.md#单元测试可选
+      title: 单元测试（可选） «
+      serves:
+        - FR-1
+        - FR-2
+      file: design/implementation.md
+      section: 单元测试可选
+    - ref: design/implementation.md#集成测试
+      title: 集成测试 «
+      serves:
+        - FR-2
+        - FR-3
+      file: design/implementation.md
+      section: 集成测试
+    - ref: design/implementation.md#回归测试
+      title: 回归测试 «
+      serves:
+        - FR-3
+        - FR-6
+      file: design/implementation.md
+      section: 回归测试
+    - ref: design/implementation.md#风险与缓解
+      title: 风险与缓解 «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/implementation.md
+      section: 风险与缓解
+    - ref: design/implementation.md#风险评估
+      title: 风险评估 «
+      serves:
+        - FR-2
+        - FR-3
+      file: design/implementation.md
+      section: 风险评估
+    - ref: design/implementation.md#2100
+      title: 年后的兼容性 «
+      serves:
+        - FR-2
+      file: design/implementation.md
+      section: "2100"
+    - ref: design/implementation.md#回滚方案
+      title: 回滚方案 «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-7
+      file: design/implementation.md
+      section: 回滚方案
+    - ref: design/implementation.md#总结
+      title: 总结 «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/implementation.md
+      section: 总结
+    - ref: design/implementation.md#变更内容
+      title: 变更内容 «
+      serves:
+        - FR-1
+      file: design/implementation.md
+      section: 变更内容
+    - ref: design/implementation.md#预期效果
+      title: 预期效果 «
+      serves:
+        - FR-2
+        - FR-3
+      file: design/implementation.md
+      section: 预期效果
+    - ref: design/implementation.md#下一步
+      title: 下一步 «
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-8
+      file: design/implementation.md
+      section: 下一步
+    - ref: design/interfaces.md#公共接口
+      title: 公共接口 «
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: 公共接口
+    - ref: design/interfaces.md#newRequirementId
+      title: newRequirementId() «
+      serves:
+        - FR-2
+      file: design/interfaces.md
+      section: newRequirementId
+    - ref: design/interfaces.md#私有接口
+      title: 私有接口 «
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: 私有接口
+    - ref: design/interfaces.md#formatTimestamp
+      title: formatTimestamp() «
+      serves:
+        - FR-1
+      file: design/interfaces.md
+      section: formatTimestamp
+    - ref: design/use-cases.md#UC-1-Agent-创建需求
+      title: "UC-1: Agent 创建需求 «"
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-1-Agent-创建需求
+    - ref: design/use-cases.md#UC-2-人工用户创建需求
+      title: "UC-2: 人工用户创建需求 «"
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-2-人工用户创建需求
+    - ref: design/use-cases.md#UC-3-访问旧需求兼容场景
+      title: "UC-3: 访问旧需求（兼容场景） «"
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-3-访问旧需求兼容场景
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#架构变更
+      - design/architecture.md#受影响的模块
+      - design/implementation.md#目标
+      - design/implementation.md#设计方案
+      - design/implementation.md#文件与函数定位
+      - design/implementation.md#代码改动
+      - design/implementation.md#函数签名不变
+      - design/implementation.md#影响范围分析
+      - design/implementation.md#验收口径
+      - design/implementation.md#测试策略
+      - design/implementation.md#单元测试可选
+      - design/implementation.md#风险与缓解
+      - design/implementation.md#回滚方案
+      - design/implementation.md#总结
+      - design/implementation.md#变更内容
+      - design/implementation.md#下一步
+      - design/interfaces.md#私有接口
+      - design/interfaces.md#formatTimestamp
+    FR-2:
+      - design/architecture.md#架构变更
+      - design/data-model.md#数据存储
+      - design/data-model.md#数据验证
+      - design/implementation.md#目标
+      - design/implementation.md#设计方案
+      - design/implementation.md#代码改动
+      - design/implementation.md#接口契约
+      - design/implementation.md#调用方不受影响
+      - design/implementation.md#影响范围分析
+      - design/implementation.md#直接影响
+      - design/implementation.md#验收口径
+      - design/implementation.md#验收命令
+      - design/implementation.md#期望输出
+      - design/implementation.md#测试策略
+      - design/implementation.md#单元测试可选
+      - design/implementation.md#集成测试
+      - design/implementation.md#风险与缓解
+      - design/implementation.md#风险评估
+      - design/implementation.md#2100
+      - design/implementation.md#回滚方案
+      - design/implementation.md#总结
+      - design/implementation.md#预期效果
+      - design/implementation.md#下一步
+      - design/interfaces.md#公共接口
+      - design/interfaces.md#newRequirementId
+      - design/use-cases.md#UC-1-Agent-创建需求
+      - design/use-cases.md#UC-2-人工用户创建需求
+    FR-3:
+      - design/architecture.md#兼容性
+      - design/data-model.md#数据模型变更
+      - design/data-model.md#数据存储
+      - design/data-model.md#数据兼容性
+      - design/implementation.md#调用方不受影响
+      - design/implementation.md#影响范围分析
+      - design/implementation.md#不影响
+      - design/implementation.md#数据兼容性
+      - design/implementation.md#验收口径
+      - design/implementation.md#测试策略
+      - design/implementation.md#集成测试
+      - design/implementation.md#回归测试
+      - design/implementation.md#风险与缓解
+      - design/implementation.md#风险评估
+      - design/implementation.md#回滚方案
+      - design/implementation.md#总结
+      - design/implementation.md#预期效果
+      - design/implementation.md#下一步
+      - design/use-cases.md#UC-3-访问旧需求兼容场景
+    FR-4:
+      - design/implementation.md#数据兼容性
+    FR-5:
+      - design/implementation.md#期望输出
+    FR-6:
+      - design/implementation.md#回归测试
+    FR-7:
+      - design/implementation.md#回滚方案
+    FR-8:
+      - design/implementation.md#下一步
+coverage:
+  design:
+    total: 3
+    covered: 3
+    uncovered: []
+    rate: 100
+    total_frs: 3
+    covered_frs: 3

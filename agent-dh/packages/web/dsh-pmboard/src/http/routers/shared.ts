@@ -41,6 +41,11 @@ export interface RouterCtx {
      * 缺省 → 只置开关并如实说明（不伪造"已续跑"）。
      */
     advance?: (requirementId: string) => Promise<{ steps: number; stopped: string }>
+    /**
+     * 应用层用例依赖（2026-09-26）：看板「拆分」入口需要直接调用 executeDecompose
+     * （自动拆分路径缺 JobsPort，工具面又未暴露 reqboard_decompose）。缺省 → 该入口显式失败。
+     */
+    applicationDeps?: import('../../application/ports.js').UseCaseDeps
   }
   ids: { requirement: () => string; task: () => string; comment: () => string }
   mintId: (kind: 'requirement' | 'task') => Promise<string>

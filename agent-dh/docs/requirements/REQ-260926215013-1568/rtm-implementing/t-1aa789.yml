@@ -1,0 +1,34 @@
+task:
+  id: t-1aa789
+  title: Dive 服务接线：订阅收归服务、requirement-moved 不再直接续跑
+  status: done
+  implements: ""
+  serves: []
+  depends_on:
+    - t-4a74c8
+    - t-cab4a2
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260926215013-1568
+    TASK_ID: t-1aa789
+    TASK_TITLE: Dive 服务接线：订阅收归服务、requirement-moved 不再直接续跑
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-26T14:47:07.744Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260926215013-1568
+  generated_at: 2026-09-26T14:47:07.451Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-26T14:47:07.855Z

@@ -1,5 +1,5 @@
 import { scanFRDirectory } from './fr-parser.js';
-import type { TaskCoverage, AcceptanceTracking, FRMetadata, RTMData } from '../types/rtm.js';
+import type { TaskCoverage, AcceptanceTracking, FRMetadata } from '../types/rtm.js';
 
 /**
  * RTM 管理器

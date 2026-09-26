@@ -13,6 +13,7 @@ import { createH1AdvanceHandler } from '../src/application/gate/handlers/h1-adva
 import { createH4ResumeHandler } from '../src/application/gate/handlers/h4-resume.js'
 import { createH5AuditHandler } from '../src/application/gate/handlers/h5-audit.js'
 import type { ConfirmContext } from '../src/domain/gate/GateSpec.js'
+import { STAGE_CHAIN } from '../src/domain/prompt/chain.js'
 import type { ChainScratch } from '../src/application/gate/GatePostChain.js'
 import type { AgentDeliveryPort, DeliveryResult } from '../src/application/ports.js'
 
@@ -128,6 +129,53 @@ describe('H4 唤醒（D5 分流）', () => {
     const handler = createH4ResumeHandler({ delivery: d.port })
     const outcome = await handler.run({ ctx: ctx({ verdict: 'affirmative' }), scratch: {} })
     expect(outcome).toMatchObject({ kind: 'degraded', code: 'not_delivered' })
+  })
+
+  // ── 2026-09-26 修正：① 开工令（缺 kickoff）② 空唤醒假话 ──────────────────
+  it('缺陷①修正：肯定分支必带「进入本阶段的第一步」（与 STAGE_CHAIN.entry 同源）', async () => {
+    const d = deliverySpy()
+    const handler = createH4ResumeHandler({ delivery: d.port })
+    const scratch: ChainScratch = { promptText: '【design 阶段纪律】不变量A' }
+    await handler.run({ ctx: ctx({ verdict: 'affirmative', to: 'design' }), scratch })
+    expect(d.sent[0]!.text).toContain('进入本阶段的第一步')
+    expect(d.sent[0]!.text).toContain(STAGE_CHAIN.design.entry)
+  })
+
+  it('缺陷①修正：压缩过（只说"纪律在输入包里"）时也要带第一步，否则唤醒仍是空的', async () => {
+    const d = deliverySpy()
+    const handler = createH4ResumeHandler({ delivery: d.port })
+    const c = ctx({ verdict: 'affirmative', to: 'brainstorming' })
+    await handler.run({ ctx: c, scratch: { compacted: true } })
+    expect(d.sent[0]!.text).toContain(STAGE_CHAIN.brainstorming.entry)
+    expect(d.sent[0]!.text).toContain('阶段纪律已随节点输入包一并给出')
+  })
+
+  it('缺陷①修正：非肯定分支不附开工令（改一版不该收到下一节点的开工令）', async () => {
+    const d = deliverySpy()
+    const handler = createH4ResumeHandler({ delivery: d.port })
+    await handler.run({ ctx: ctx({ verdict: 'negative' }), scratch: { promptText: '【design 阶段纪律】不变量A' } })
+    expect(d.sent[0]!.text).not.toContain('进入本阶段的第一步')
+  })
+
+  it('缺陷②修正：没压缩也没取到词 → 如实说明，不再谎称"已随节点输入包给出"', async () => {
+    const d = deliverySpy()
+    const handler = createH4ResumeHandler({ delivery: d.port })
+    const c = ctx({ verdict: 'affirmative', gate: 'G0', from: undefined, to: 'brainstorming', requirementId: undefined })
+    await handler.run({ ctx: c, scratch: { promptSkipped: { code: 'stage_disabled', reason: '分类 bug 的档案跳过阶段 brainstorming，不注入' } } })
+    const text = d.sent[0]!.text
+    expect(text).not.toContain('阶段纪律已随节点输入包一并给出')
+    expect(text).toContain('stage_disabled')
+    expect(text).toContain('分类 bug 的档案跳过阶段 brainstorming')
+    expect(text).toContain(STAGE_CHAIN.brainstorming.entry)
+  })
+
+  it('缺陷②修正：连 skip 原因都没有（scratch 空）也不谎称已给出', async () => {
+    const d = deliverySpy()
+    const handler = createH4ResumeHandler({ delivery: d.port })
+    await handler.run({ ctx: ctx({ verdict: 'affirmative', to: 'design' }), scratch: {} })
+    const text = d.sent[0]!.text
+    expect(text).not.toContain('阶段纪律已随节点输入包一并给出')
+    expect(text).toContain('取词未产出')
   })
 })
 

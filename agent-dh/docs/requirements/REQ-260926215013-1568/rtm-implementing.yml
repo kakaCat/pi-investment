@@ -1,0 +1,52 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-260926215013-1568
+  generated_at: 2026-09-26T14:34:49.322Z
+  version: 34
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 7
+  last_updated: 2026-09-26T14:51:15.026Z
+inputs:
+  tasks:
+    - id: t-aa2ec9
+      title: 契约定死：回合来源、相位值域与驱动状态纯判定
+      status: done
+    - id: t-0ddfb1
+      title: 回合状态机：空闲才起轮、准入才计数、上限写终态
+      status: done
+    - id: t-4a74c8
+      title: 投递适配：回合消息带机器可识别的来源标识
+      status: done
+    - id: t-cab4a2
+      title: 会话驱动器组合：一拍内的定序与原采集行为不变（含向后兼容）
+      status: done
+    - id: t-1aa789
+      title: Dive 服务接线：订阅收归服务、requirement-moved 不再直接续跑
+      status: done
+    - id: t-620dc0
+      title: 对齐验收：11 个 FR 的可证伪单测
+      status: done
+    - id: t-2b3e57
+      title: 迁移与兼容核查 + 回归发版
+      status: done
+status:
+  tasks_total: 7
+  tasks_done: 7
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-aa2ec9
+    status: done
+  - id: t-0ddfb1
+    status: done
+  - id: t-4a74c8
+    status: done
+  - id: t-cab4a2
+    status: done
+  - id: t-1aa789
+    status: done
+  - id: t-620dc0
+    status: done
+  - id: t-2b3e57
+    status: done

@@ -6,6 +6,7 @@
  * @module dsh-pmboard/application/use-cases/SubmitVerification
  */
 import type { UseCaseDeps } from '../ports.js'
+import { coverageGateOf, syncRTMYaml } from '../internal/rtm-yaml.js'
 import { fmt } from '../../domain/text/fmt.js'
 import {
   normalizeText,
@@ -154,6 +155,19 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
         ? []
         : consistencyGaps(buildConsistencyRows(await collectNumberedItems(deps.docs, target), taskRefs))
 
+      // ── 门禁预检（FR-2 触发点 7 / FR-5）：测试覆盖度必须 ≥80% 才允许提交验收 ──
+      // 读 tests/*.md + design/test-cases.md + tasks/*.md 的 covers: 标注；无数据时不拦截（FR-9）。
+      // 存量/直种需求（无 requirement.md / artifacts 为空）豁免——同上口径。
+      const verifyGateProbe = isLegacyForDocs ? undefined : syncRTMYaml(deps, target.id, 'submit:verification')
+      const testGate = coverageGateOf('accepting', verifyGateProbe)
+      if (testGate !== undefined && !testGate.passed) {
+        reject(
+          'reqboard_verify_submit 被测试覆盖度门禁拒绝：' + (testGate.message ?? '测试覆盖度不足')
+            + '。请在测试文档里用 `covers: t-xxx` 标注补上缺失任务的测试后重新提交。',
+          'REQBOARD_TESTING_COVERAGE_GATE',
+        )
+      }
+
       const nowTs = deps.clock.now()
       const result = await deps.repo.mutate('requirement-updated', (ledger) => {
         const req = ledger.requirements.find(r => r.id === target.id)
@@ -281,6 +295,8 @@ export async function submitVerification(deps: UseCaseDeps, args: unknown, exec:
         // RTM 生成失败不阻断提交，但记录警告
         console.warn('[SubmitVerification] RTM 集成失败:', rtmErr)
       }
+      // RTM 触发点 7：提交验收材料 → rtm-accepting.yml（测试覆盖度）
+      syncRTMYaml(deps, changed.id, 'submit:verification')
       return {
         success: true,
         requirement_id: changed.id,

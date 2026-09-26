@@ -22,10 +22,12 @@ import { assertArtifactGates, artifactsToConfirm, type GateFailure } from '../..
 import { checkDesignCompletenessGate, checkDesignDecompositionGate } from '../../application/internal/content-gate-wiring.js'
 import { isDesignArtifactKind } from '../../domain/artifact/ArtifactSpec.js'
 import { transitionRequirement } from '../../application/internal/token-usage.js'
+import { executeDecompose } from '../../application/use-cases/Decompose.js'
 import { INITIAL_REQ_STATUS, canReqTransition } from '../../domain/requirement/RequirementStatus.js'
 import { gateForTransition, gateFromStage } from '../../domain/gate/GateCatalog.js'
 import { fmt } from '../../domain/text/fmt.js'
 import type { RouterCtx } from './shared.js'
+import { syncRTMYamlWithSnapshot } from '../../application/internal/rtm-yaml.js'
 
 export function createRequirementsRouter(ctx: RouterCtx) {
   const { store, now, ids, mintId, ok, readBody, badInput, notFound } = ctx
@@ -180,6 +182,11 @@ export function createRequirementsRouter(ctx: RouterCtx) {
       r.updatedBy = { kind: 'human' }
       return { requirements: [r] }
     })
+    if (approve) {
+      // RTM 触发点 5（REQ-260926140539-457b FR-2）：看板批准计划 → rtm-decomposing.yml + rtm-implementing.yml
+      const rtmRoot = ctx.deps.docs?.workspaceRoot() ?? ctx.deps.cwd
+      if (rtmRoot !== undefined) syncRTMYamlWithSnapshot(rtmRoot, store.snapshot(), id, 'confirm:plan')
+    }
     ok(res, result.changed.requirements[0])
   }
 
@@ -228,6 +235,11 @@ export function createRequirementsRouter(ctx: RouterCtx) {
       return { requirements: [r] }
     })
     const confirmed = result.changed.requirements[0] as RequirementRecord
+    // RTM 触发点 3（REQ-260926140539-457b FR-2）：看板一键确认产物 → 对应 RTM 落章
+    {
+      const rtmRoot = ctx.deps.docs?.workspaceRoot() ?? ctx.deps.cwd
+      if (rtmRoot !== undefined) syncRTMYamlWithSnapshot(rtmRoot, store.snapshot(), id, 'confirm:artifact')
+    }
 
     // ── 确认即推进 + 链侧投递（REQ-e3b6a0 t9 / FR-9）────────────────────────
     // 两者都以「绑定窗口在线」为前提：窗口不在线就只落章，并如实说明——不伪造推进成功。
@@ -382,5 +394,47 @@ export function createRequirementsRouter(ctx: RouterCtx) {
     ok(res, { ...final, ...(advanceNote === undefined ? {} : { advanceNote }) })
   }
 
-  return { handleReqCreate, handleReqMove, handleReqUpdate, handlePlanDecision, handleArtifactConfirm, handleComment, handleAutoRun }
+  /**
+   * POST /dashboard/api/reqboard/req/decompose
+   * 看板「拆分」入口（2026-09-26 恢复）：把**已批准**的拆分计划落库为任务卡 DAG。
+   * 背景：批准计划时的门合并自动拆分依赖 `deps.jobs`（JobsPort 未装配）→ 需求被推进到
+   * implementing 但 0 任务卡；工具面也不再暴露 reqboard_decompose。本入口是恢复通道。
+   * 前置：需求已绑定窗口且窗口在线（拆分 = 该窗口在继续推进其需求，走 live driver 认证）。
+   */
+  async function handleReqDecompose(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await readBody(req)
+    const id = normalizeText(body.id, 'id', 64)
+    const target = store.snapshot().requirements.find(r => r.id === id) ?? notFound('需求 ' + id)
+    const app = ctx.deps.applicationDeps
+    if (app === undefined) {
+      throw Object.assign(new Error('拆分入口未装配：applicationDeps 缺失（组合根未传用例依赖）'), { code: 'invalid_input' })
+    }
+    const windowKey = target.sourceSessionId
+    const agent = onlineAgent(windowKey)
+    if (agent === undefined) {
+      throw Object.assign(
+        new Error('拆分被拒：绑定窗口 ' + (windowKey ?? '(无)') + ' 不在线——拆分需要 live driver，请回会话触发'),
+        { code: 'invalid_input' },
+      )
+    }
+    // 看板触发没有"当前发起回合"（currentInitiator 为空），故只保留窗口身份解析，
+    // 豁免 live-driver 的回合校验——"窗口在线"的判据已由上面的 onlineAgent 保证。
+    // 工具路径（窗口 agent 在回合内调用）仍走完整校验；本豁免只作用于看板恢复入口。
+    const probe = app.session as unknown as {
+      windowKey: (exec: unknown) => string
+      requireLiveDriver: (exec: unknown) => void
+    }
+    const boardDeps = {
+      ...app,
+      session: {
+        ...(app.session as object),
+        windowKey: (exec: unknown) => probe.windowKey(exec),
+        requireLiveDriver: () => undefined,
+      },
+    } as typeof app
+    const result = await executeDecompose(boardDeps, { requirement_id: id }, { agent }) as Record<string, unknown>
+    ok(res, result)
+  }
+
+  return { handleReqCreate, handleReqMove, handleReqUpdate, handlePlanDecision, handleArtifactConfirm, handleComment, handleAutoRun, handleReqDecompose }
 }

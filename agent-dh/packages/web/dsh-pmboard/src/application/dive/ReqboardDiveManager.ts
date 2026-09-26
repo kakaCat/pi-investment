@@ -1,132 +1,78 @@
 /**
- * Dive 模式管理器（REQ-260925212722-96e7）
+ * Dive 模式服务（REQ-260926215013-1568 T-5 · serves: FR-5, FR-6, FR-9）。
  *
- * 负责 Dive 模式的核心逻辑：
- * - 检查需求是否处于 Dive 模式（armed && active）
- * - 检查回合数限制（roundsInStage < maxRoundsPerStage）
- * - 发起续跑（调用 ctx.agents.get(agentId).followup()）
+ * 职责收窄为**订阅持有者 + 端口提供者**：
+ *   · 持有全部宿主订阅——session/event 与 agent/status（由组合根经 attach* 装配）、
+ *     agent/pre-step、agent/inbox/*、agent/error、agent/disposed、reqboard/requirement-moved；
+ *   · 后七个委托给 round 半（round-driver），本服务不自己判定续跑；
+ *   · 暴露 roundDriver() 供 session-driver 在 idle 拍定序，暴露 teardown() 供组合根收尾。
+ *
+ * 为什么不再由状态事件直投：旧实现挂 requirement-moved 即投递，会打断正在跑的回合；现改为
+ * **只置检查标志并请求一次驱动**，起轮时点由 round 半在整 agent 空闲时判定（对齐 Goal driver）。
  *
  * @module dsh-pmboard/application/dive/ReqboardDiveManager
  */
-
 import { Context, Service } from '@deepseek-ai/cordis'
-import { getStageConfig } from './stage-configs.js'
-import type { RequirementRecord, RequirementStatus } from '../../shared/protocol.js'
+import type { DiveRoundDriver, DiveRoundPorts } from './round-driver.js'
+import { createDiveRoundDriver } from './round-driver.js'
+import { wireDiveRoundSubscriptions } from './round-subscriptions.js'
 
 export default class ReqboardDiveManager extends Service {
   static inject = ['agents', 'reqboard']
 
-  constructor(ctx: Context) {
+  private readonly round: DiveRoundDriver
+  private readonly unsubscribeRound: () => void
+
+  constructor(ctx: Context, ports: DiveRoundPorts) {
     super(ctx, 'dive-manager')
+    const logger = this.ctx.logger('dive-manager')
+    this.round = createDiveRoundDriver(ports)
+    this.unsubscribeRound = wireDiveRoundSubscriptions(this.ctx as never, this.round, {
+      debug: (m) => logger.debug(m),
+      warn: (m, e) => logger.warn(m, e),
+    })
+    logger.info('Dive 服务已装配：session/event + agent/status 两路 + 回合事件七路（pre-step/inbox/error/disposed/requirement-moved）')
   }
 
   /**
-   * 检查并继续 Dive 模式执行
+   * 订阅会话事件（session/event）——**Dive 是该订阅的持有者**（采集/簿记路）。
    *
-   * @param agentId Agent ID
-   * @param requirementId 需求 ID（可选，不传则检查该 agent 的所有进行中需求）
-   * @returns 是否发起了续跑
+   * 用户裁定（2026-09-26）：CaptureHook 废弃，会话驱动能力归 Dive。driver 只提供处理函数，
+   * 订阅生命周期由本服务负责（谁拥有会话事件在调用方看得见，不藏在装配函数里）。
+   * 宿主不提供 ctx.on → 返回 undefined（调用方按"订阅未成立"留痕）。
    */
-  async checkAndContinue(agentId: string, requirementId?: string): Promise<boolean> {
-    try {
-      // 1. 获取需求
-      const requirement = await this.getActiveRequirement(requirementId)
-      if (!requirement) {
-        this.ctx.logger('dive-manager').debug(`No active requirement found for agent ${agentId}`)
-        return false
-      }
-
-      // 2. 检查是否处于 Dive 模式
-      if (!this.isArmed(requirement)) {
-        this.ctx.logger('dive-manager').debug(`Requirement ${requirement.id} is not armed`)
-        return false
-      }
-
-      // 3. 检查是否处于 active 阶段
-      if (!this.isActive(requirement)) {
-        this.ctx.logger('dive-manager').debug(`Requirement ${requirement.id} is not active (phase: ${requirement.dive?.phase})`)
-        return false
-      }
-
-      // 4. 检查回合数限制
-      if (!this.canContinue(requirement)) {
-        this.ctx.logger('dive-manager').warn(`Requirement ${requirement.id} reached max rounds limit`)
-        // 达到回合数限制，暂停 Dive 模式
-        await this.pauseDive(requirement.id, 'max_rounds_reached')
-        return false
-      }
-
-      // 5. 发起续跑
-      const agent = this.ctx.agents.get(agentId)
-      if (!agent) {
-        this.ctx.logger('dive-manager').error(`Agent ${agentId} not found`)
-        return false
-      }
-
-      await agent.followup(`继续执行需求 ${requirement.id}（Dive 模式，第 ${(requirement.dive?.roundsInStage || 0) + 1} 回合）`)
-      
-      // 6. 更新回合数
-      await this.incrementRound(requirement.id)
-      
-      this.ctx.logger('dive-manager').info(`Dive mode continued for requirement ${requirement.id}`)
-      return true
-    } catch (error) {
-      this.ctx.logger('dive-manager').error(`Failed to check and continue: ${error}`)
-      return false
+  attachSessionDriver(handler: (session: unknown, event: unknown) => void): (() => void) | undefined {
+    const ctx = this.ctx as unknown as {
+      on?: (event: string, listener: (session: unknown, event: unknown) => void) => (() => void) | void
     }
+    return ctx.on?.('session/event', handler) ?? undefined
   }
 
   /**
-   * 检查需求是否 armed（开启 Dive 模式）
+   * 订阅 agent 状态（agent/status）——**Dive 是该驱动点的持有者**。
+   *
+   * 对齐 `@deepseek-ai/dsh-goal-round-driver`（用户裁定 2026-09-26）：Goal 的 round driver 把
+   * `agent/status === 'idle'`（整 agent 空闲）当唯一驱动点，session/event 只做簿记；
+   * 本服务同款持有该订阅，driver 只提供处理函数。宿主不提供 ctx.on → 返回 undefined。
    */
-  private isArmed(requirement: RequirementRecord): boolean {
-    return requirement.dive?.armed === true
+  attachAgentStatus(
+    handler: (agent: unknown, status: unknown) => void,
+  ): (() => void) | undefined {
+    const ctx = this.ctx as unknown as {
+      on?: (
+        event: string,
+        listener: (payload: { agent?: unknown; status?: unknown }) => void,
+      ) => (() => void) | void
+    }
+    return ctx.on?.('agent/status', (payload) => handler(payload?.agent, payload?.status)) ?? undefined
   }
 
-  /**
-   * 检查需求是否处于 active 阶段
-   */
-  private isActive(requirement: RequirementRecord): boolean {
-    return requirement.dive?.phase === 'active'
-  }
+  /** round 半句柄：session-driver 在 idle 拍定序用；组合根登记 teardown 用。 */
+  roundDriver(): DiveRoundDriver { return this.round }
 
-  /**
-   * 检查是否可以继续（未达到回合数限制）
-   */
-  private canContinue(requirement: RequirementRecord): boolean {
-    const dive = requirement.dive
-    if (!dive) return false
-
-    const stageConfig = getStageConfig(requirement.status)
-    const roundsInStage = dive.roundsInStage || 0
-    const maxRounds = stageConfig.maxRounds
-
-    return roundsInStage < maxRounds
-  }
-
-  /**
-   * 获取活跃的需求
-   */
-  private async getActiveRequirement(requirementId?: string): Promise<RequirementRecord | null> {
-    // TODO: 从 reqboard 服务获取需求
-    // 这里需要访问 reqboard 的数据存储
-    // 暂时返回 null，待集成时实现
-    return null
-  }
-
-  /**
-   * 暂停 Dive 模式
-   */
-  private async pauseDive(requirementId: string, reason: string): Promise<void> {
-    // TODO: 更新需求的 dive.phase 为 'paused'
-    this.ctx.logger('dive-manager').info(`Pausing dive for requirement ${requirementId}: ${reason}`)
-  }
-
-  /**
-   * 增加回合数
-   */
-  private async incrementRound(requirementId: string): Promise<void> {
-    // TODO: 增加 dive.roundsInStage
-    this.ctx.logger('dive-manager').debug(`Incrementing round for requirement ${requirementId}`)
+  /** 卸载/停用：先解绑回合事件，再 fail-closed 收尾（关准入 → 解除武装 → 取消在飞 → 等静默）。 */
+  async teardown(): Promise<void> {
+    try { this.unsubscribeRound() } catch { /* 解绑失败不抛 */ }
+    await this.round.teardown()
   }
 }

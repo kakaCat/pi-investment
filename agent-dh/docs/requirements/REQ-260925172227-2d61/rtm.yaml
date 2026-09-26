@@ -1,0 +1,167 @@
+# RTM (Requirements Traceability Matrix)
+# 需求追踪矩阵 - 机器可读的执行标准
+
+version: "1.0"
+requirement_id: "REQ-260925172227-2d61"
+generated_at: "2026-09-25T00:00:00Z"
+
+# ============================================
+# 功能需求清单
+# ============================================
+functional_requirements:
+  - id: FR-1
+    file: functional-requirements/FR-1-task-card-validation.md
+    title: 任务卡包含实施方案与可证伪验收标准
+    priority: P0
+    acceptance_criteria:
+      - id: FR-1-A1
+        description: 提交包含完整字段的任务时成功落库
+        verification: "调用 reqboard_decompose(tasks=[{key:'t1', implementation:'...', acceptance:'...'}])，返回 success=true"
+      
+      - id: FR-1-A2
+        description: 提交缺少 implementation 的任务时返回明确错误
+        verification: "调用 reqboard_decompose(tasks=[{key:'t1', acceptance:'...'}])，返回错误 REQBOARD_INVALID_INPUT: Task t1 missing implementation"
+      
+      - id: FR-1-A3
+        description: 提交缺少 acceptance 的任务时返回明确错误
+        verification: "调用 reqboard_decompose(tasks=[{key:'t1', implementation:'...'}])，返回错误 REQBOARD_INVALID_INPUT: Task t1 missing acceptance"
+      
+      - id: FR-1-A4
+        description: 错误信息包含任务 key
+        verification: "检查错误信息格式，必须包含 Task {key}"
+
+  - id: FR-2
+    file: functional-requirements/FR-2-verification-sheet-generation.md
+    title: 验收单正确生成
+    priority: P0
+    depends_on: [FR-1]
+    acceptance_criteria:
+      - id: FR-2-A1
+        description: 成功生成验收单
+        verification: "调用 reqboard_submit(kind='verification', summary='...', evidence=[...])，返回 success=true, sheet_items>0"
+      
+      - id: FR-2-A2
+        description: 需求状态变更为 accepting
+        verification: "生成验收单后，调用 reqboard_status()，返回 status='accepting'"
+      
+      - id: FR-2-A3
+        description: 每个验收项包含任务信息和证据
+        verification: "检查 verification_sheet.items[0]，包含 task_id, task_title, acceptance, evidence, status='pending'"
+      
+      - id: FR-2-A4
+        description: 续验时只包含上版未通过项
+        verification: "有返工卡时再次提交，返回 rework_only=true，且 sheet_items 只含上版 failed 项"
+
+  - id: FR-3
+    file: functional-requirements/FR-3-acceptance-review.md
+    title: 验收弹框逐项审核并记录裁决
+    priority: P0
+    depends_on: [FR-2]
+    acceptance_criteria:
+      - id: FR-3-A1
+        description: 弹框成功展示待验项
+        verification: "调用 reqboard_accept_sheet()，返回 recorded>0"
+      
+      - id: FR-3-A2
+        description: 裁决结果正确写入数据库
+        verification: "选通过后，检查 verification_sheet.items[0].status='passed'"
+      
+      - id: FR-3-A3
+        description: 返回信息包含统计数据
+        verification: "返回包含 recorded, pending, passed, failed"
+      
+      - id: FR-3-A4
+        description: 全部通过时自动归档
+        verification: "最后一批全选通过，返回 archived=true, status='archived'"
+
+  - id: FR-4
+    file: functional-requirements/FR-4-rework-handling.md
+    title: 返工卡正确生成与处理
+    priority: P0
+    depends_on: [FR-3]
+    acceptance_criteria:
+      - id: FR-4-A1
+        description: 验收未通过时自动生成返工卡
+        verification: "验收选改进，返回 rework_tasks.length>0"
+      
+      - id: FR-4-A2
+        description: reqboard_status 能查询到返工卡
+        verification: "调用 reqboard_status()，返回 rework_tasks 包含 task_id, reason"
+      
+      - id: FR-4-A3
+        description: 续验时只包含返工项
+        verification: "返工后再次提交验收，返回 rework_only=true, sheet_items 只含上版 failed 项"
+      
+      - id: FR-4-A4
+        description: 返工解决后标记 resolved
+        verification: "续验通过后，rework_tasks[].resolved=true"
+
+  - id: FR-5
+    file: functional-requirements/FR-5-auto-archiving.md
+    title: 验收通过后自动归档
+    priority: P0
+    depends_on: [FR-3]
+    acceptance_criteria:
+      - id: FR-5-A1
+        description: 全部项通过时自动归档
+        verification: "最后一批全选通过，返回 archived=true"
+      
+      - id: FR-5-A2
+        description: 需求状态变更为 archived
+        verification: "自动归档后，调用 reqboard_status()，返回 status='archived'"
+      
+      - id: FR-5-A3
+        description: 归档操作有审计记录
+        verification: "检查需求 comments，包含验收通过，自动归档记录"
+      
+      - id: FR-5-A4
+        description: 人工可取消归档
+        verification: "在看板点取消归档，需求回到 accepting 状态"
+
+# ============================================
+# 任务-需求追踪（由 reqboard_decompose 填充）
+# ============================================
+task_coverage:
+  # 示例：任务落库时填充
+  # - task_id: t-xxx
+  #   task_key: t1
+  #   task_title: 实现任务卡校验逻辑
+  #   covers_frs: [FR-1]
+  #   covers_acceptance: [FR-1-A1, FR-1-A2, FR-1-A3, FR-1-A4]
+
+# ============================================
+# 验收追踪（由 reqboard_submit 填充）
+# ============================================
+acceptance_tracking:
+  # 示例：验收单生成时填充
+  # - acceptance_id: FR-1-A1
+  #   status: pending  # pending/passed/failed
+  #   evidence: "执行 npm test -- decompose.test.ts，输出：PASS 4/4"
+  #   judged_at: null
+  #   judged_by: null
+  #   user_feedback: null
+
+# ============================================
+# 覆盖检查规则（由 reqboard_decompose 校验）
+# ============================================
+coverage_rules:
+  - rule: all_frs_covered
+    description: 所有功能需求必须被至少一个任务接收
+    check: "每个 FR 的 id 必须出现在至少一个 task_coverage.covers_frs 中"
+  
+  - rule: all_acceptance_covered
+    description: 所有验收标准必须有对应的验收项
+    check: "每个 FR-*-A* 必须出现在 acceptance_tracking 中"
+  
+  - rule: file_exists
+    description: 功能需求文件必须存在
+    check: "每个 FR 的 file 路径必须指向存在的文件"
+
+# ============================================
+# 验收门禁（由 reqboard_accept_sheet 执行）
+# ============================================
+acceptance_gate:
+  pass_condition: "所有 acceptance_tracking 的 status 必须为 passed"
+  fail_action: "生成 rework_tasks，要求 Agent 处理返工"
+  auto_archive: true
+  archive_condition: "pass_condition 满足时自动调用 reqboard_move(to='archived')"

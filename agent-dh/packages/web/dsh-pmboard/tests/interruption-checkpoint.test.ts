@@ -18,7 +18,7 @@ import { executeMoveRequirement } from '../src/application/use-cases/MoveRequire
 import { noteInterruption, noteInterruptionForWindow } from '../src/application/use-cases/NoteInterruption.js'
 import { nextActionFor, turnEndOutcome } from '../src/application/internal/interruption.js'
 import { buildNodeInputPackage } from '../src/application/internal/node-input-package.js'
-import { createSessionEventCaptureHook, type CaptureHookDeps } from '../src/adapters/CaptureHook.js'
+import { createDiveSessionDriver, type DiveSessionDriverDeps } from '../src/application/dive/session-driver.js'
 import { defineNoteInterruptionTool } from '../src/tools/NoteInterruptionTool/NoteInterruptionTool.js'
 import type { ReqboardLedger, RequirementRecord } from '../src/shared/protocol.js'
 
@@ -114,10 +114,10 @@ describe('断点常驻 · 写入器 B（turn/end 异常原因补新）', () => {
     expect(r.interruption!.tool).toBe('turn/end')
   })
 
-  it('CaptureHook turn/end（error）→ onTurnFinished 只发信号；非异常形态不发', async () => {
+  it('DiveSessionDriver turn/end（error）→ onTurnFinished 只发信号；非异常形态不发', async () => {
     const h = makeHarness({ requirements: [req({ status: 'implementing' })] })
     const signals: { wk: string; reason: string; abnormal: boolean }[] = []
-    const hookDeps: CaptureHookDeps = {
+    const hookDeps: DiveSessionDriverDeps = {
       // 内存仓库的 snapshot() 是只读视图；hook 只读，形状等价（类型上补一层显式转换）
       snapshot: () => h.repo.snapshot() as unknown as ReqboardLedger,
       pending: new Map(),
@@ -126,7 +126,7 @@ describe('断点常驻 · 写入器 B（turn/end 异常原因补新）', () => {
       onTurnEnd: () => {},
       logger: { info: () => {}, debug: () => {} },
     }
-    const hook = createSessionEventCaptureHook(hookDeps)
+    const hook = createDiveSessionDriver(hookDeps)
     // 形态可识别 → 无论是否异常都发信号（信号里带 abnormal，由组合根的 abnormal 守卫决定写不写）
     hook({ id: W }, { type: 'turn/end', data: { turn: 1, reason: { kind: 'completed' } } })
     expect(signals).toEqual([{ wk: W, reason: 'completed', abnormal: false }])

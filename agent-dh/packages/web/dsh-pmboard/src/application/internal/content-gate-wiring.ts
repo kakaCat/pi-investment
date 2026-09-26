@@ -390,3 +390,163 @@ export async function checkNumberChainGate(docs: DocsReader, req: RequirementRec
     },
   }
 }
+
+// ---------------------------------------------------------------------------
+// 三级追溯覆盖度检查（需求追溯性改进 - 2026-09-26）
+// ---------------------------------------------------------------------------
+
+/**
+ * 三级追溯覆盖度统计
+ */
+export interface TraceabilityCoverage {
+  /** Level 1: 需求 ← 设计 */
+  designCoverage: {
+    total: number           // FR 总数
+    covered: number         // 有设计的 FR 数
+    gaps: string[]          // 未被设计覆盖的 FR
+  }
+  
+  /** Level 2: 设计 ← 任务 */
+  implementationCoverage: {
+    total: number           // 设计章节总数
+    covered: number         // 有任务实现的章节数
+    gaps: string[]          // 未被任务实现的设计章节
+  }
+  
+  /** Level 3: 任务 ← 测试 */
+  testCoverage: {
+    total: number           // 任务总数
+    tested: number          // 有测试的任务数
+    gaps: string[]          // 未被测试覆盖的任务
+  }
+}
+
+/**
+ * 导出设计章节相关函数（从 content-trace.ts）
+ */
+export {
+  extractDesignSections,
+  extractAllDesignSections,
+  findDesignSectionsForFRs,
+  checkDesignCoverage,
+  checkImplementationCoverage,
+} from './content-trace.js'
+export type { DesignSection } from './content-trace.js'
+
+/**
+ * 完整的三级追溯覆盖度检查
+ * 
+ * @param docs 文档读取器
+ * @param req 需求记录
+ * @param tasks 任务列表
+ * @returns 三级覆盖度统计
+ */
+export async function checkFullTraceability(
+  docs: DocsReader,
+  req: RequirementRecord,
+  tasks: readonly unknown[]
+): Promise<TraceabilityCoverage> {
+  const requirementPath = `docs/requirements/${req.id}/requirement.md`
+  const designDir = `docs/requirements/${req.id}/design`
+  
+  // 提取需求条款
+  const requirementDoc = docs.read?.(requirementPath)
+  const frList = requirementDoc ? extractClauseDefinitions(parseDocument(requirementDoc)) : []
+  
+  // 提取设计章节
+  const { extractAllDesignSections, checkDesignCoverage, checkImplementationCoverage } = 
+    await import('./content-trace.js')
+  const designSections = extractAllDesignSections(docs, designDir)
+  
+  // Level 1: 需求 ← 设计
+  const designGaps = checkDesignCoverage(frList, designSections)
+  
+  // Level 2: 设计 ← 任务
+  const taskDesignRefs: string[] = []
+  for (const task of tasks) {
+    if (typeof task === 'object' && task !== null) {
+      const t = task as Record<string, unknown>
+      const designServes = t['design_serves'] ?? t['designServes']
+      if (typeof designServes === 'string') {
+        taskDesignRefs.push(...designServes.split(/[,，]\s*/).map(s => s.trim()))
+      } else if (Array.isArray(designServes)) {
+        taskDesignRefs.push(...designServes.filter((x): x is string => typeof x === 'string'))
+      }
+    }
+  }
+  const implGaps = checkImplementationCoverage(designSections, taskDesignRefs)
+  
+  // Level 3: 任务 ← 测试
+  // TODO: 需要从测试文档提取 covers 标注
+  const testGaps: string[] = []
+  
+  return {
+    designCoverage: {
+      total: frList.length,
+      covered: frList.length - designGaps.length,
+      gaps: designGaps
+    },
+    implementationCoverage: {
+      total: designSections.length,
+      covered: designSections.length - implGaps.length,
+      gaps: implGaps
+    },
+    testCoverage: {
+      total: tasks.length,
+      tested: 0,  // TODO: 实现测试覆盖度统计
+      gaps: testGaps
+    }
+  }
+}
+
+/**
+ * 三级覆盖度门禁（可选，用于验收阶段）
+ * 
+ * @param docs 文档读取器
+ * @param req 需求记录
+ * @param tasks 任务列表
+ * @returns 门禁失败信息（如果有缺口）
+ */
+export async function assertFullTraceabilityGate(
+  docs: DocsReader,
+  req: RequirementRecord,
+  tasks: readonly unknown[]
+): Promise<GateFailure | undefined> {
+  const coverage = await checkFullTraceability(docs, req, tasks)
+  
+  const errors: string[] = []
+  
+  // 检查设计覆盖度
+  if (coverage.designCoverage.gaps.length > 0) {
+    errors.push(
+      `设计缺失：需求条款 ${coverage.designCoverage.gaps.join('、')} 没有对应的设计章节`
+    )
+  }
+  
+  // 检查实施覆盖度
+  if (coverage.implementationCoverage.gaps.length > 0) {
+    errors.push(
+      `实施缺失：设计章节 ${coverage.implementationCoverage.gaps.slice(0, 5).join('、')} ` +
+      (coverage.implementationCoverage.gaps.length > 5 
+        ? `等 ${coverage.implementationCoverage.gaps.length} 个章节没有任务实现`
+        : '没有任务实现')
+    )
+  }
+  
+  // 检查测试覆盖度（可选，暂不强制）
+  // if (coverage.testCoverage.gaps.length > 0) {
+  //   errors.push(`测试缺失：${coverage.testCoverage.gaps.length} 个任务没有测试覆盖`)
+  // }
+  
+  if (errors.length === 0) return undefined
+  
+  return {
+    code: 'traceability_incomplete',
+    message: errors.join('；'),
+    gaps: [
+      ...coverage.designCoverage.gaps,
+      ...coverage.implementationCoverage.gaps,
+      ...coverage.testCoverage.gaps
+    ]
+  }
+}

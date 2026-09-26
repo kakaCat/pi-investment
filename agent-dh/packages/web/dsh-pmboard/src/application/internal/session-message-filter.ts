@@ -5,12 +5,13 @@
  * ——它们自 2026-09 起不再被装配（src/index.ts 注释："M2 的自动分类 LLM（SessionSyncService）
  * 自 2026-09 起不再装配（修正 #1/#3：无第二 LLM、人在 loop）"），非测试引用为零。
  *
- * 为什么在 adapters：三个函数都服务于**会话事件 hook** 的输入处理（CaptureHook 判定链的
- * 第 2/4 步），是会话 I/O 边界上的纯文本/元数据规整——与 SessionProbeAdapter 同层。
+ * 为什么在 application/internal：它们是**纯函数**（零 I/O、零框架依赖），服务的是会话事件
+ * 驱动的输入处理（Dive 会话驱动器的第 2/4 步）。2026-09-26 由 adapters/ 迁入：驱动器本体已归
+ * `application/dive/`，纯函数必须同层，否则 application 层要反向 import adapters（层边界门禁）。
  *
  * 搬迁口径：函数体逐字保持（含噪声块正则与判据清单），行为零改动。
  *
- * @module dsh-pmboard/adapters/SessionMessageFilter
+ * @module dsh-pmboard/application/internal/session-message-filter
  */
 
 // ---------------------------------------------------------------------------

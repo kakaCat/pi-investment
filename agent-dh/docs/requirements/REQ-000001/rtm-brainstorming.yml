@@ -1,0 +1,15 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-000001
+  generated_at: 2026-09-26T10:30:17.499Z
+  version: 32
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-26T15:16:24.542Z
+outputs:
+  requirements: []
+status:
+  artifacts:
+    - kind: requirement
+      path: docs/requirements/REQ-000001/requirement.md
+      confirmed: true
+      confirmed_at: 1970-01-01T00:16:40.000Z

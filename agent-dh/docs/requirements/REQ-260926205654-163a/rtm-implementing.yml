@@ -1,0 +1,32 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-260926205654-163a
+  generated_at: 2026-09-26T15:05:22.394Z
+  version: 3
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 3
+  last_updated: 2026-09-26T15:05:39.404Z
+inputs:
+  tasks:
+    - id: t-d55e32
+      title: 修改 formatTimestamp 函数
+      status: todo
+    - id: t-f19a59
+      title: 验证新需求编号格式
+      status: todo
+    - id: t-cff196
+      title: 验证旧需求兼容性
+      status: todo
+status:
+  tasks_total: 3
+  tasks_done: 0
+  tasks_in_progress: 0
+  tasks_todo: 3
+tasks:
+  - id: t-d55e32
+    status: todo
+  - id: t-f19a59
+    status: todo
+  - id: t-cff196
+    status: todo

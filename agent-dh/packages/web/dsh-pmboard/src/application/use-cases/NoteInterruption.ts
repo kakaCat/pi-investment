@@ -4,7 +4,7 @@
  * 两个入口共用一个核心：
  *   · B′ 工具入口 `reqboard_note_interruption(reason)`（`noteInterruption`）：窗口绑定校验
  *     + 显式拒绝（reason 空 / 本窗口无绑定需求）；
- *   · B  事件入口（`noteInterruptionForWindow`）：`CaptureHook` 的 `turn/end` 经组合根
+ *   · B  事件入口（`noteInterruptionForWindow`）：`Dive 会话驱动器`（原 CaptureHook）的 `turn/end` 经组合根
  *     异步边界调用——此时没有 exec、也不该因"窗口无绑定需求"抛错（只静默跳过）。
  *
  * 写入语义（design/interfaces.md I-8）：同一需求只保留一个 `interruption` 对象，

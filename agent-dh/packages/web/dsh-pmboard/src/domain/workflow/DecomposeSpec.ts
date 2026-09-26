@@ -27,18 +27,20 @@ export type DecomposeVerdict =
   | { ok: true }
   | { ok: false; code: 'REQBOARD_ALREADY_DECOMPOSED'; reason: string }
 
-/** 拆分幂等守卫：返回拒绝原因（ok=false）或放行（ok=true）。 */
+/**
+ * 拆分幂等守卫：返回拒绝原因（ok=false）或放行（ok=true）。
+ *
+ * 判据（2026-09-26 修正）：**唯一拒绝条件是「已有未取消任务」**。
+ * 原第二条「状态已越过拆分（implementing/accepting）→ 一律拒绝」在**自动拆分失败**的
+ * 既定形态下造成死锁：需求被推进到 implementing，但一条任务卡都没落库——既不能重拆
+ * （本守卫拒），也不能退回上游（implementing→design 的产物门要求 task_detail 产物）。
+ * 这与本守卫自己的注释一致：幽灵任务的唯一判据是「已有任务」；状态不再单独作为拒绝判据。
+ * `_status` 形参保留以兼容既有调用点与类型契约。
+ */
 export function checkDecomposeIdempotency(
-  status: RequirementStatus,
+  _status: RequirementStatus,
   existingTasks: readonly ExistingTaskLike[],
 ): DecomposeVerdict {
-  if (status === 'implementing' || status === 'accepting') {
-    return {
-      ok: false,
-      code: 'REQBOARD_ALREADY_DECOMPOSED',
-      reason: fmt('需求已处于 {status}（拆分已完成），重复拆分会产生重复任务。要调整任务请逐任务修改，或人工取消后重拆', { status }),
-    }
-  }
   if (existingTasks.length > 0) {
     const list = existingTasks.map(t => t.id + ' ' + t.title + '（' + t.status + '）').join('；')
     return {

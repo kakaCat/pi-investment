@@ -1,0 +1,100 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-260926215013-1568
+  generated_at: 2026-09-26T14:52:19.125Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-26T14:52:26.767Z
+inputs:
+  tasks:
+    - id: t-aa2ec9
+      title: 契约定死：回合来源、相位值域与驱动状态纯判定
+      status: done
+    - id: t-0ddfb1
+      title: 回合状态机：空闲才起轮、准入才计数、上限写终态
+      status: done
+    - id: t-4a74c8
+      title: 投递适配：回合消息带机器可识别的来源标识
+      status: done
+    - id: t-cab4a2
+      title: 会话驱动器组合：一拍内的定序与原采集行为不变（含向后兼容）
+      status: done
+    - id: t-1aa789
+      title: Dive 服务接线：订阅收归服务、requirement-moved 不再直接续跑
+      status: done
+    - id: t-620dc0
+      title: 对齐验收：11 个 FR 的可证伪单测
+      status: done
+    - id: t-2b3e57
+      title: 迁移与兼容核查 + 回归发版
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: 2. 测试报告
+      covers:
+        - t-620dc0
+        - t-cab4a2
+        - t-aa2ec9
+        - t-0ddfb1
+        - t-4a74c8
+        - t-1aa789
+        - t-2b3e57
+      validates: []
+      source: verification.md
+    - id: TC-2
+      title: 任务覆盖标注（covers · 供覆盖度门禁）
+      covers:
+        - t-aa2ec9
+        - t-0ddfb1
+        - t-4a74c8
+        - t-cab4a2
+        - t-1aa789
+        - t-620dc0
+        - t-2b3e57
+      validates: []
+      source: tests/alignment-evidence.md
+traceability:
+  task_to_tests:
+    t-aa2ec9:
+      - TC-1
+      - TC-2
+    t-0ddfb1:
+      - TC-1
+      - TC-2
+    t-4a74c8:
+      - TC-1
+      - TC-2
+    t-cab4a2:
+      - TC-1
+      - TC-2
+    t-1aa789:
+      - TC-1
+      - TC-2
+    t-620dc0:
+      - TC-1
+      - TC-2
+    t-2b3e57:
+      - TC-1
+      - TC-2
+  fr_to_tests:
+    FR-1: []
+    FR-2: []
+    FR-3: []
+    FR-4: []
+    FR-5: []
+    FR-6: []
+    FR-7: []
+    FR-8: []
+    FR-9: []
+    FR-10: []
+    FR-11: []
+coverage:
+  testing:
+    total: 7
+    covered: 7
+    uncovered: []
+    rate: 100
+    total_tasks: 7
+    tested_tasks: 7
+    untested: []

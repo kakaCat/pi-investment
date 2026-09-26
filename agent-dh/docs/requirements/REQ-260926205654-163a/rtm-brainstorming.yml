@@ -1,0 +1,27 @@
+metadata:
+  stage: brainstorming
+  requirement_id: REQ-260926205654-163a
+  generated_at: 2026-09-26T14:24:42.772Z
+  version: 2
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-26T14:55:12.779Z
+outputs:
+  requirements:
+    - id: FR-1
+      title: 生成4位年份时间戳
+      source: requirement.md
+      line: 56
+    - id: FR-2
+      title: 新需求编号使用新格式
+      source: requirement.md
+      line: 72
+    - id: FR-3
+      title: 向后兼容旧编号
+      source: requirement.md
+      line: 85
+status:
+  artifacts:
+    - kind: requirement
+      path: docs/requirements/REQ-260926205654-163a/requirement.md
+      confirmed: true
+      confirmed_at: 2026-09-26T12:58:36.639Z

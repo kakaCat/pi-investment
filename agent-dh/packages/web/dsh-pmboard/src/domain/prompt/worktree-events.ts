@@ -3,7 +3,7 @@
  *
  * 为什么不是节点路由分片：task_done / archived 不是 stage，走不到 resolveStagePrompt 的
  * 回退链；它们是**任务推进/状态转移事件**，故以常量 + 纯变量替换函数承载，由
- * CaptureHook 在事件发生时经既有 onStagePrompt 通道投递（与里程碑提醒同通道）。
+ * Dive 会话驱动器在事件发生时经既有 onStagePrompt 通道投递（与里程碑提醒同通道）。
  *
  * 变量契约：{id} = 台账需求 id（**含 REQ- 前缀**，如 REQ-260923222557-d3b0），模板不再自带
  * REQ- 前缀（避免 REQ-REQ- 双前缀）；{task_id}/{task_title} 为任务上下文。

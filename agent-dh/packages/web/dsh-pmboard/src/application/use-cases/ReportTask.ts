@@ -6,6 +6,7 @@
  * @module dsh-pmboard/application/use-cases/ReportTask
  */
 import type { UseCaseDeps } from '../ports.js'
+import { inferWorkflowPhase, syncRTMYaml } from '../internal/rtm-yaml.js'
 import {
   normalizeText,
   type StageArtifact,
@@ -177,6 +178,12 @@ export async function executeReportTask(deps: UseCaseDeps, args: unknown, exec: 
       if (changed === undefined) reject('reqboard_task_report 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
       // 产物已登记 = 同 path 的 artifact 存在（不管是本次登记还是 decompose 时已登记）
       const artifactRegistered = changed.artifacts?.some(x => x.path === artifact.path) ?? false
+
+      // RTM 触发点 6（REQ-260926140539-457b FR-11）：汇报即推进任务详情的 workflow 子阶段
+      syncRTMYaml(deps, req.id, 'task:report', {
+        taskId: task.id,
+        updates: { workflow: [{ phase: inferWorkflowPhase(summary), status: 'done' }] },
+      })
 
       return {
         success: true,

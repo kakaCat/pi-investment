@@ -36,6 +36,10 @@ export function defineAcceptSheetTool(deps: UseCaseDeps) {
           passed: { type: 'number' },
           failed: { type: 'number' },
           rework_tasks: { type: 'array', items: { type: 'string' } },
+          // REQ-260925172227-2d61：用例在「本批已记录」路径回 gate_status（RTM 验收门禁），
+          // 此前漏声明 + additionalProperties:false → 宿主以 invalid output 拒收整条返回值
+          // （弹框与裁决已落库，agent 却拿不到结果）。声明后与用例返回体一致。
+          gate_status: { type: 'string', description: 'RTM 验收门禁状态：passed/blocked/pending' },
           archived: { type: 'boolean', description: 'true = 全通过并已验收通过归档' },
           status: { type: 'string', description: '确认后的需求状态（archived 等）' },
           fallback: { type: 'string', description: 'board = 弹框不可用，请走看板勾选' },

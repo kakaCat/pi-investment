@@ -10,6 +10,7 @@
  * @module dsh-pmboard/application/use-cases/CreateRequirement
  */
 import type { UseCaseDeps } from '../ports.js'
+import { syncRTMYaml } from '../internal/rtm-yaml.js'
 import {
   asReqCategory,
   normalizeText,
@@ -44,6 +45,8 @@ export async function executeCreateRequirement(deps: UseCaseDeps, args: unknown,
         promptDifficulty,
         docBasePath: doc.docBasePath,
       })
+      // RTM 触发点 1（REQ-260926140539-457b FR-2）：立项即落 rtm-lifecycle.yml 骨架（失败不阻断立项）
+      syncRTMYaml(deps, req.id, 'create')
       const defaultsUsed = doc.usedDefault ? [CAPTURE_QUESTION_IDS.doc_location] : []
       return {
         success: true,

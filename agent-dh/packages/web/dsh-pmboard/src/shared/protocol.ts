@@ -840,7 +840,7 @@ export interface AdvanceState {
  *
  * 同一需求只保留**一个**对象（后写覆盖前写），避免「两份真相」。写入源三选一：
  *   A 交棒用例尾部 `stampCheckpoint`（reason="checkpoint"；stage/pendingAction 两字段未变则**不写**）
- *   B `CaptureHook` 的 `turn/end`（reason="error:<code>:<message>" / "aborted:<cause>" / "interrupted"）
+ *   B `Dive 会话驱动器`（原 CaptureHook）的 `turn/end`（reason="error:<code>:<message>" / "aborted:<cause>" / "interrupted"）
  *   B′ `reqboard_note_interruption(reason)` 工具兜底
  * 字段缺失（存量记录）= 无断点：续跑输入包不渲染「## 断点」节，逐字节保持旧输出。
  */
@@ -897,17 +897,17 @@ export const PENDING_CONFIRM_TICKET_PREFIX = 'pc-'
  * 借鉴 DSH Goal 的 phase + activation 模式，但独立实现以适配需求流水线的多阶段特性。
  */
 export interface RequirementDive {
-  /** 当前所处阶段（与 RequirementStatus 对应） */
-  phase: 'brainstorming' | 'design' | 'decomposing' | 'implementing' | 'accepting'
+  /** 执行相位：idle=空闲；active=可自动续跑；paused=终态暂停（如回合耗尽 round-limit）。 */
+  phase: 'idle' | 'active' | 'paused'
   
   /** 激活状态：armed=自动续跑启用，disarmed=手动模式 */
   activation: 'armed' | 'disarmed'
   
-  /** 当前阶段已执行的回合数 */
+  /** 当前阶段已执行的回合数（仅「真正进入 history 的回合」才 +1） */
   roundsInStage: number
   
-  /** 每阶段最大回合数限制（防止无限循环） */
-  maxRoundsPerStage: number
+  /** 每阶段最大回合数限制（历史字段；上限权威来源是 stage-configs 的 maxRounds） */
+  maxRoundsPerStage?: number
   
   /** 当前子阶段（如 implementing 中的具体任务） */
   currentStage?: string
@@ -917,6 +917,34 @@ export interface RequirementDive {
   
   /** 最后活跃时间（Unix 时间戳 ms） */
   lastActiveAt?: number
+}
+
+/**
+ * Dive 自动续跑回合消息的来源标识（REQ-260926215013-1568 FR-10）——机器可识别，是
+ * pre-step 不变量守卫的锚点：只有 `source` 逐字段相等**且**内容与登记逐字相等的回合消息
+ * 才被认领；任何不一致者被拒并留痕（防旧 revision 的回合混入）。
+ *
+ * 刻意只做**包内结构类型**（不扩展 @deepseek-ai/dsh-llm 的 MessageSourceMap）：
+ * 本包依赖树解析不到 dsh-llm，且 application 层禁 @deepseek-ai/* import（层边界门禁）。
+ */
+export interface DiveRoundSource {
+  kind: 'dive'
+  /** 归属需求 */
+  requirementId: string
+  /** 预留时的需求 revision（乐观锁栅栏） */
+  revision: number
+  /** 预留的回合号 = roundsInStage + 1（严格 > 0） */
+  round: number
+}
+
+/** 判定任意 source 是否为 Dive 回合来源（非对象 / kind 不符 / round 非正数 → false）。 */
+export function isDiveRoundSource(source: unknown): source is DiveRoundSource {
+  if (typeof source !== 'object' || source === null) return false
+  const s = source as { kind?: unknown; requirementId?: unknown; revision?: unknown; round?: unknown }
+  return s.kind === 'dive'
+    && typeof s.requirementId === 'string' && s.requirementId.length > 0
+    && typeof s.revision === 'number' && Number.isFinite(s.revision)
+    && typeof s.round === 'number' && Number.isFinite(s.round) && s.round > 0
 }
 
 export interface RequirementRecord {
@@ -1085,6 +1113,8 @@ export interface TaskRecord {
   executorHint?: ExecutorHint
   /** 自足任务卡文档（decompose 生成骨架，task_report 追加汇报；同 StageTaskRef.cardDoc） */
   cardDoc?: string
+  /** 需求条款引用（RTM 覆盖度追踪：该任务实现/测试了哪些需求编号，如 ["FR-1", "FR-2"]） */
+  requirementRefs?: string[]
   skipIntegration?: boolean
   status: TaskStatus
   blocked: boolean
@@ -1133,15 +1163,16 @@ export function emptyLedger(): ReqboardLedger {
 // ID 生成（需求ID含时间戳，其他ID保持随机hex格式）
 // ---------------------------------------------------------------------------
 
-/** 格式化时间戳为 YYMMDDHHmmss（精确到秒）。 */
+/** 格式化时间戳为 YYMMDDHHmmss（2位年份，精确到秒）。 */
 function formatTimestamp(date: Date = new Date()): string {
-  const yy = date.getFullYear().toString().slice(-2)
+  const YY = date.getFullYear().toString().slice(-2)
   const MM = (date.getMonth() + 1).toString().padStart(2, '0')
   const DD = date.getDate().toString().padStart(2, '0')
   const HH = date.getHours().toString().padStart(2, '0')
   const mm = date.getMinutes().toString().padStart(2, '0')
   const ss = date.getSeconds().toString().padStart(2, '0')
-  return `${yy}${MM}${DD}${HH}${mm}${ss}`
+
+  return `${YY}${MM}${DD}${HH}${mm}${ss}`
 }
 
 export function newRequirementId(rand: () => number = Math.random): string {

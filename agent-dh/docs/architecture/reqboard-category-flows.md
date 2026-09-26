@@ -42,7 +42,7 @@ tags: [reqboard, category, flow, gates, l2]
 
 | 消费点 | 代码位置 | 效果 |
 |---|---|---|
-| 提示词注入 | application/internal/capture-section.ts:152、adapters/CaptureHook.ts:276、application/gate/handlers/h3-inject.ts:46 | 禁用节点不注入阶段提示词 |
+| 提示词注入 | application/internal/capture-section.ts:152、application/dive/session-driver.ts:314（原 adapters/CaptureHook.ts）、application/gate/handlers/h3-inject.ts:46 | 禁用节点不注入阶段提示词 |
 | 产物门禁 | application/internal/artifact-gates.ts（flowProfileFor / confirmGateKindFor） | 禁用节点无产物要求；确认门按类型过滤 |
 | 看板展示 | application/query/QueryStageDetail.ts:106 | 跳过节点标灰"本分类跳过"，不算缺失 |
 | 归档文档规则 | domain/artifact/ArtifactSpec.ts ARCHIVE_DOC_RULES | 按类型定必填归档文档（如 retro 仅 bug/refactor/spike） |

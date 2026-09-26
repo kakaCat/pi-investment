@@ -6,6 +6,7 @@
  * @module dsh-pmboard/application/use-cases/SubmitArtifact
  */
 import type { UseCaseDeps } from '../ports.js'
+import { syncRTMYaml } from '../internal/rtm-yaml.js'
 import {
   normalizePlanTasks,
   normalizeText,
@@ -140,6 +141,8 @@ export async function submitRequirementArtifact(deps: UseCaseDeps, args: unknown
       if (changed === undefined) reject('reqboard_requirement_submit 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
       const registered = !alreadyRegistered
       if (registered) notifyArtifactRegistered(deps, changed.id, artifact)
+      // RTM 触发点 2：提交需求文档 → rtm-brainstorming.yml
+      syncRTMYaml(deps, changed.id, 'submit:requirement')
       return {
         success: true,
         requirement_id: changed.id,

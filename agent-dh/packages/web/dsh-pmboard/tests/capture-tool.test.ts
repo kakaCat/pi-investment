@@ -6,7 +6,7 @@
  * 用户取消 → 中性失败；名称为空 → 响亮失败；窗口已绑定 → 拒绝（白弹一次框是最贵的浪费）。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
@@ -47,12 +47,13 @@ function makeSvc(answers: readonly AskAnswer[] | 'abort') {
 
 const NOW = 1_700_000_000_000
 
-function makeTool(opts: { svc?: unknown; rejections?: unknown } = {}) {
+function makeTool(opts: { svc?: unknown; rejections?: unknown; workspaceRoot?: string } = {}) {
   const deps = {
     store,
     now: () => NOW,
     ...(opts.svc !== undefined ? { userQuestions: () => opts.svc } : {}),
     ...(opts.rejections !== undefined ? { rejections: opts.rejections } : {}),
+    ...(opts.workspaceRoot !== undefined ? { workspaceRoot: opts.workspaceRoot } : {}),
   } as never
   return defineCaptureTool(deps) as never as { execute: (a: unknown, e: unknown) => Promise<any> }
 }
@@ -126,7 +127,7 @@ describe('reqboard_capture · 四问口径', () => {
 describe('reqboard_capture · 一次调用一把梭（AC-7.2）', () => {
   it('四问同批弹出 → 创建即立项 → 绑定本窗口 → 推进 brainstorming', async () => {
     const svc = makeSvc(FOUR)
-    const out = await run(makeTool({ svc }), { title_options: ['候选名称'] })
+    const out = await run(makeTool({ svc, workspaceRoot: dir }), { title_options: ['候选名称'] })
     // 四问同批
     expect(svc.seen.questions).toHaveLength(4)
     expect((svc.seen.questions as { id?: string }[]).map(q => q.id)).toEqual(['name', 'category', 'difficulty', 'doc_location'])
@@ -141,6 +142,18 @@ describe('reqboard_capture · 一次调用一把梭（AC-7.2）', () => {
     expect(req.status).toBe('brainstorming')
     expect(req.category).toBe('bug')
     expect(req.promptDifficulty).toBe('advanced')
+    // RTM 触发点 1：**窗口绑定之后**生成 rtm-lifecycle.yml，并把绑定窗口写进快照
+    const lcPath = join(dir, 'docs', 'requirements', out.requirement_id, 'rtm-lifecycle.yml')
+    expect(existsSync(lcPath)).toBe(true)
+    const lcText = readFileSync(lcPath, 'utf-8')
+    expect(lcText).toContain('source_session: ' + W)
+    expect(lcText).toContain('current_stage: brainstorming')
+    // 绝对路径自定位（读快照的一方不必先知道工作区根）
+    expect(lcText).toContain('dir: ' + join(dir, 'docs', 'requirements', out.requirement_id))
+    expect(lcText).toContain('file_path: ' + lcPath)
+    // 节点清单 + 计数：本需求是 bug（档案跳过 brainstorming）→ 6 个节点
+    expect(lcText).toContain('stage_count: 6')
+    expect(lcText).toContain('stage_list:')
   })
 
   it('用户自定义名称优先（选项在场也不用它）', async () => {

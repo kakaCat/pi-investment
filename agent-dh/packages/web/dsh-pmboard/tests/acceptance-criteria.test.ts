@@ -504,8 +504,8 @@ describe('验收 9：阶段提示词注入', () => {
     expect(text).toContain('brainstorming')
   })
 
-  it('capture-hook onStagePrompt 在 bound 窗口收到消息时触发', async () => {
-    const { createSessionEventCaptureHook } = await import('../src/adapters/CaptureHook.js')
+  it('dive session driver onStagePrompt 在 bound 窗口 idle 时触发（采集 user/message，驱动 idle）', async () => {
+    const { createDiveSessionDriver } = await import('../src/application/dive/session-driver.js')
     // REQ-d3e61a FR-16：取词唯一入口 = resolveStagePrompt（旧的 STAGE_PROMPTS 常量表已下线）
     const { resolveStagePrompt } = await import('../src/domain/prompt/index.js')
     const prompts: string[] = []
@@ -515,7 +515,7 @@ describe('验收 9：阶段提示词注入', () => {
       category: 'feature', sourceSessionId: W, comments: [], version: 1, createdAt: 1, updatedAt: 1,
       createdBy: { kind: 'human' }, updatedBy: { kind: 'human' },
     })
-    const hook = createSessionEventCaptureHook({
+    const hook = createDiveSessionDriver({
       snapshot: () => ledger,
       pending: new Map(),
       now: () => 1000,
@@ -523,6 +523,9 @@ describe('验收 9：阶段提示词注入', () => {
       logger: { info: () => {}, debug: () => {} },
     })
     hook({ id: W }, { type: 'user/message', data: { content: [{ type: 'text', text: '继续' }], source: { kind: 'user' } } })
+    // 采集点不扇出（旧触发点错误即在此）：注入等判定/动作全部推迟到 agent 空闲那一拍
+    expect(prompts).toHaveLength(0)
+    hook.onAgentStatus({ id: W, session: { id: W } }, 'idle')
     expect(prompts).toHaveLength(1)
     expect(prompts[0]).toBe(resolveStagePrompt({
       stage: 'implementing', category: 'feature', requirement: { title: 't', description: '' },

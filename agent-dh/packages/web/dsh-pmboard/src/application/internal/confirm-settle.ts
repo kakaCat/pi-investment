@@ -26,6 +26,8 @@ export const CONFIRM_ADVANCE_REASON = '确认弹框后自动推进（reqboard_as
 export const PLAN_MERGE_ADVANCE_REASON = '批准拆分计划后自动进入实施（拆分确认门已并入批准门）'
 
 /** 一次已作答的确认请求（同步与后台共用同一入参形状）。 */
+import { syncRTMYaml } from './rtm-yaml.js'
+
 export interface ConfirmDecision {
   requirementId: string
   windowKey: string
@@ -146,6 +148,9 @@ export async function applyConfirmDecision(
   })
 
   // ── 推进（可选，限白名单转移）───────────────────────────────────────
+  // RTM 触发点 3/5：确认落章后同步 RTM（ask_confirm 弹框与看板确认都走这里）
+  syncRTMYaml(deps, d.requirementId, targetKind === 'artifact' ? 'confirm:artifact' : 'confirm:plan')
+
   const from = deps.repo.snapshot().requirements.find(r => r.id === d.requirementId)?.status ?? before.status
   const to = advanceTargetFor(from)
   let advanced = false
@@ -220,18 +225,11 @@ export async function applyConfirmDecision(
         req.updatedAt = nowTs
         return { requirements: [req] }
       })
-      // 改用 jobs.start 启动后台 job，避免需要 live driver（REQ-260925212722-96e7 t-003dc5）
-      const jobId = await deps.jobs.start({
-        kind: 'reqboard_decompose',
-        label: '批准拆分计划后自动拆分',
-        payload: {
-          requirement_id: d.requirementId,
-          reason: '批准拆分计划后自动拆分（门合并）',
-          autoRun: true // 标记为自动开跑
-        }
-      })
-      // 注意：此处无法立即获取 createdCount，但后续 advanceRequirement 会处理
-      const createdCount = 0 // 占位，实际任务数由后台 job 创建
+      
+      // 优化：移除 deps.jobs 依赖，改为 Dive 续跑模式（事件驱动，毫秒级响应）
+      // 批准计划后只推进状态，Dive 管理器监听 'requirement-moved' 事件立即触发续跑
+      // Agent 续跑时检测到 implementing + 无任务 → 自动执行 reqboard_decompose
+      const createdCount = 0 // 任务将由 Dive 续跑时创建
       await deps.repo.mutate('requirement-moved', (ledger) => {
         const req = ledger.requirements.find(x => x.id === d.requirementId)
         if (req === undefined || req.status !== 'decomposing') return undefined
@@ -251,12 +249,8 @@ export async function applyConfirmDecision(
         return { requirements: [req] }
       })
       advanced = true
-      const chain = await advanceRequirement(deps, d.requirementId)
-      autoNote = fmt('；已自动拆分 {n} 张任务卡并开跑（推进 {steps} 步，停止于 {stop}）', {
-        n: createdCount,
-        steps: chain.steps.length,
-        stop: chain.stopped,
-      })
+      // 注：任务拆分和执行由 Dive 管理器通过 'requirement-moved' 事件自动触发
+      autoNote = '；已推进到 implementing，Dive 管理器将自动触发任务拆分和执行'
     } catch (err) {
       const errMsg = String((err as Error).message ?? err)
       autoNote = fmt('；自动拆分/开跑失败（计划已批准，可手动调 reqboard_decompose 重试）：{msg}', {

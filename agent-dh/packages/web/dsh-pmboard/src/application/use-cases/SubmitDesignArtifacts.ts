@@ -16,6 +16,7 @@
  * @module dsh-pmboard/application/use-cases/SubmitDesignArtifacts
  */
 import type { UseCaseDeps } from '../ports.js'
+import { coverageGateOf, syncRTMYaml } from '../internal/rtm-yaml.js'
 import { normalizeText, type StageArtifact } from '../../shared/protocol.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { registerArtifact } from '../internal/artifact-gates.js'
@@ -81,6 +82,23 @@ export async function submitDesignArtifacts(deps: UseCaseDeps, args: unknown, ex
     }
   }
 
+  // ── 门禁预检（FR-2 触发点 4 / FR-5）：设计覆盖度必须 100% 才允许登记 ──────────
+  // 先按**磁盘上已落盘**的设计文档生成 rtm-design.yml 并校验；未过门禁 → 当场拒绝且不登记
+  // （避免"产物登记了、但追溯不全"的半截状态）。RTM 无覆盖度数据时不拦截（FR-9 降级）。
+  // 存量/直种需求（artifacts 为空）豁免新门禁——与本仓既有口径一致（见 SubmitVerification 的 isLegacyForDocs）。
+  const isLegacyForRtmGate = (target.artifacts ?? []).length === 0
+  const gateProbe = candidates.length > 0 && !isLegacyForRtmGate
+    ? syncRTMYaml(deps, target.id, 'submit:design')
+    : undefined
+  const designGate = coverageGateOf('design', gateProbe)
+  if (designGate !== undefined && !designGate.passed) {
+    reject(
+      'reqboard_submit(kind=design) 被覆盖度门禁拒绝：' + (designGate.message ?? '设计覆盖度不足')
+        + '。请在缺少设计的 FR 对应设计章节补上 `serves: FR-x` 标注后重新提交。',
+      'REQBOARD_DESIGN_COVERAGE_GATE',
+    )
+  }
+
   // ── 一次 mutate 登记全部新条目（幂等：同 stage+kind+path 已存在 → registerArtifact 返回 false）──
   // 登记前记下已有 design 路径：本次新增 = candidates − priorDesignPaths（与 registerArtifact 返回 true 等价）。
   const priorDesignPaths = new Set(
@@ -119,6 +137,9 @@ export async function submitDesignArtifacts(deps: UseCaseDeps, args: unknown, ex
   const anyOnDisk = designDocs.some(d => d.on_disk)
   const registeredCount = added.length
   const ok = anyOnDisk || registeredCount > 0
+  // RTM 触发点 4：提交设计文档 → rtm-design.yml（含 fr_to_design 与设计覆盖度）
+  // 门禁预检已经生成过一次时不再重复生成。
+  if (ok && gateProbe === undefined) syncRTMYaml(deps, target.id, 'submit:design')
   return {
     success: ok,
     requirement_id: target.id,

@@ -1,6 +1,6 @@
 /**
  * 会话消息过滤单测（REQ-47939a t9）——覆盖从 host/classifier.ts 与 host/session-sync.ts 迁入
- * adapters/SessionMessageFilter.ts 的三个**仍在运行时被调用**的函数。
+ * application/internal/session-message-filter.ts 的三个**仍在运行时被调用**的函数。
  *
  * 为什么补这组：t9 删「M2 自动分类」死代码时，同步删除了 tests/reqboard.test.ts 的 4 个 describe
  * （11 例，断言的是自 2026-09 起不再装配的机制——见该文件顶部的删除记录）。其中断言的是
@@ -12,7 +12,7 @@ import {
   cleanUserMessageText,
   extractUserMessageText,
   isIgnoredSession,
-} from '../../src/adapters/SessionMessageFilter.js'
+} from '../../src/application/internal/session-message-filter.js'
 
 describe('cleanUserMessageText：剥掉系统注入块，保留真实对话', () => {
   it('非字符串输入 → 空串（不抛）', () => {

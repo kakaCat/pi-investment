@@ -39,6 +39,12 @@ export interface GateChainDeps {
   address?: { templateRoot?: string; enabled: boolean };
   /** 轮次边界判定（注入 projections 探测结果；判不出时调用侧已保守返回 false）。 */
   idle: (session: unknown) => boolean;
+  /**
+   * 轮次边界**三态**判定（2026-09-26）：链的"无 open turn"门用它——
+   * 明确 busy 才延后且不消费，unknown（无 session/无投影/看板通道/测试）放行。
+   * 与 idle 同源：idle === (idleState(state) === 'idle')。
+   */
+  idleState: (session: unknown) => 'idle' | 'busy' | 'unknown';
 }
 
 /** 装配闸门后置链（REQ-e3b6a0）：Phase A 由装饰器登记，Phase B 在 turn/end 的异步边界执行。 */
@@ -70,6 +76,7 @@ export function assembleGatePostChain(deps: GateChainDeps): ReturnType<typeof cr
       createH5AuditHandler({ repo: deps.store, now: deps.now, newCommentId: () => gateIds.comment() }),
     ],
     warn: (message) => deps.logger.warn(message),
+    idleState: (session) => deps.idleState(session),
   });
   deps.logger.info(
     'reqboard 闸门后置链已装配（H1 校验 → H2 压缩 → H3 注入 → H4 唤醒 → H5 审计）；'

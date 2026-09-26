@@ -353,8 +353,8 @@ heavy 档**主 skill 全文不裁**（裁正文等于把 heavy 降回"要点版"
 ### 8 注入点与本路由的关系
 
 注入点只有两处，**都调 `resolveStagePrompt()`**（INV-1 单点化）：
-`packages/pages/dsh-pmboard/src/application/internal/capture-section.ts`（每回合 systemPrompt 组装）
-与 `packages/pages/dsh-pmboard/src/adapters/CaptureHook.ts`（状态转移后即时注入）；
+`packages/web/dsh-pmboard/src/application/internal/capture-section.ts`（每回合 systemPrompt 组装）
+与 `packages/web/dsh-pmboard/src/application/dive/session-driver.ts`（原 `adapters/CaptureHook.ts`，状态转移后即时注入）；
 `STAGE_PROMPTS` / `stagePromptFor` 直取写法已**物理删除**（双入口会绕过路由），
 现仅保留键类型与常量（`packages/pages/dsh-pmboard/src/domain/stage/StagePromptSpec.ts`）。
 每次注入按十字段留痕到**运行时文件** `<dshHome>/state/prompt-injection-log.json`（ring buffer 保留最近 500 条、

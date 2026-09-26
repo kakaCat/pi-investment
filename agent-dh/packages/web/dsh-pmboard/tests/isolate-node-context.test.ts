@@ -23,7 +23,7 @@ import {
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createSessionEventCaptureHook, type CaptureHookDeps } from '../src/adapters/CaptureHook.js'
+import { createDiveSessionDriver, type DiveSessionDriver, type DiveSessionDriverDeps } from '../src/application/dive/session-driver.js'
 import { IsolationTraceFile } from '../src/adapters/IsolationTraceFile.js'
 import {
   ISOLATION_TRACE_FIELDS,
@@ -128,6 +128,7 @@ describe('T24 节点输入包内容（INV-9）', () => {
       expect(pkg.text, '缺字段 ' + field).toContain(field)
     }
     expect(pkg.text).toContain(STAGE_CHAIN.implementing.label)                 // 下一步（链声明）
+    expect(pkg.text).toContain(STAGE_CHAIN.implementing.entry)                 // 进入本阶段的第一步（kickoff，与 H4 同源）
     expect(pkg.text).toContain('docs/requirements/REQ-422af1/plan.md')         // 上游结论（已确认）
     expect(pkg.text).toContain('docs/requirements/REQ-422af1/tasks/t-1.md')    // 未决问题（未确认）
     expect(pkg.resolved.routeKey).toBe('implementing/light/feature')
@@ -472,16 +473,20 @@ function userEvent(text: string): unknown {
 function turnEndEvent(): unknown {
   return { type: 'turn/end', data: { turn: 1, reason: 'success' } }
 }
+/** 驱动点：整 agent 空闲（对齐 dsh-goal-round-driver）——判定/动作都在这一拍。 */
+function idleDrive(hook: DiveSessionDriver): void {
+  hook.onAgentStatus({ id: WINDOW, session: { id: WINDOW } }, 'idle')
+}
 
 interface T10Wiring {
-  hook: (session: unknown, event: unknown) => void
+  hook: DiveSessionDriver
   dispatcher: NodeSettlementDispatcher
   trace: TraceRecorder
   warns: string[]
   prompts: string[]
 }
 
-/** 组装与 index.ts 同形状的接线：CaptureHook → onNodeSettled → 隔离分发器。 */
+/** 组装与 index.ts 同形状的接线：DiveSessionDriver → onNodeSettled → 隔离分发器。 */
 function wireT10(over: {
   enabled: boolean
   isolationFor?: NodeSettlementDeps['isolationFor']
@@ -507,7 +512,7 @@ function wireT10(over: {
     ...(over.schedule === undefined ? {} : { schedule: over.schedule }),
     ...(over.run === undefined ? {} : { run: over.run }),
   })
-  const deps: CaptureHookDeps = {
+  const deps: DiveSessionDriverDeps = {
     snapshot: () => ledger,
     pending: new Map(),
     now: () => 1000,
@@ -515,7 +520,7 @@ function wireT10(over: {
     onNodeSettled: (settle, session) => { dispatcher.onSettle(settle, session) },
     logger: { info: () => {}, debug: () => {} },
   }
-  return { hook: createSessionEventCaptureHook(deps), dispatcher, trace, warns, prompts }
+  return { hook: createDiveSessionDriver(deps), dispatcher, trace, warns, prompts }
 }
 
 describe('t10 §1 开关 NODE_ISOLATION（默认关）', () => {
@@ -543,6 +548,7 @@ describe('t10 §2 关（默认）：隔离代码路径执行 0 次，既有行�
     })
     w.hook({ id: WINDOW }, userEvent('继续推进'))
     w.hook({ id: WINDOW }, turnEndEvent())
+    idleDrive(w.hook)
     await settleAsync()
     expect(w.dispatcher.stats()).toEqual({ scheduled: 0, executed: 0, replaced: 0, failed: 0 })
     expect(isolationForCalls).toBe(0)      // 隔离端口一次都没构造
@@ -565,6 +571,7 @@ describe('t10 §2 关（默认）：隔离代码路径执行 0 次，既有行�
     expect(() => {
       w.hook({ id: WINDOW }, userEvent('继续推进'))
       w.hook({ id: WINDOW }, turnEndEvent())
+    idleDrive(w.hook)
     }).not.toThrow()
     await settleAsync()
     expect(calls).toBe(0)
@@ -585,6 +592,7 @@ describe('t10 §3 开：一次节点结算 → 1 次执行 + 留痕完整（rout
     expect(w.dispatcher.stats().executed).toBe(0)   // 派发内未执行（D-17）
     expect(w.trace.entries).toHaveLength(0)
     w.hook({ id: WINDOW }, turnEndEvent())
+    idleDrive(w.hook)
     expect(w.dispatcher.stats().executed).toBe(0)   // turn/end 派发内仍未执行
     await settleAsync()
     expect(w.dispatcher.stats()).toEqual({ scheduled: 1, executed: 1, replaced: 1, failed: 0 })
@@ -613,6 +621,7 @@ describe('t10 §3 开：一次节点结算 → 1 次执行 + 留痕完整（rout
     })
     w.hook({ id: WINDOW }, userEvent('继续推进'))
     w.hook({ id: WINDOW }, turnEndEvent())
+    idleDrive(w.hook)
     expect(queued).toHaveLength(1)      // 交给边界，而非同步执行
     expect(w.dispatcher.stats()).toEqual({ scheduled: 1, executed: 0, replaced: 0, failed: 0 })
     expect(fake.calls).toEqual([])
@@ -630,6 +639,7 @@ describe('t10 §3 开：一次节点结算 → 1 次执行 + 留痕完整（rout
     for (let i = 0; i < 3; i += 1) {
       w.hook({ id: WINDOW }, userEvent('继续推进'))
       w.hook({ id: WINDOW }, turnEndEvent())
+    idleDrive(w.hook)
       await settleAsync()
     }
     expect(w.dispatcher.stats()).toEqual({ scheduled: 1, executed: 1, replaced: 1, failed: 0 })
@@ -645,6 +655,7 @@ describe('t10 §4 失败只告警不中断流水线（两种模式）', () => {
     expect(() => {
       w.hook({ id: WINDOW }, userEvent('继续推进'))
       w.hook({ id: WINDOW }, turnEndEvent())
+    idleDrive(w.hook)
     }).not.toThrow()
     await settleAsync()
     expect(w.dispatcher.stats()).toEqual({ scheduled: 1, executed: 1, replaced: 0, failed: 0 })
@@ -666,6 +677,7 @@ describe('t10 §4 失败只告警不中断流水线（两种模式）', () => {
     expect(() => {
       w.hook({ id: WINDOW }, userEvent('继续推进'))
       w.hook({ id: WINDOW }, turnEndEvent())
+    idleDrive(w.hook)
     }).not.toThrow()
     await settleAsync()
     expect(w.dispatcher.stats()).toEqual({ scheduled: 1, executed: 1, replaced: 0, failed: 1 })
@@ -684,6 +696,7 @@ describe('t10 §4 失败只告警不中断流水线（两种模式）', () => {
     })
     w.hook({ id: WINDOW }, userEvent('继续推进'))
     w.hook({ id: WINDOW }, turnEndEvent())
+    idleDrive(w.hook)
     await settleAsync()
     expect(w.dispatcher.stats().failed).toBe(1)
     expect(w.prompts).toHaveLength(1)

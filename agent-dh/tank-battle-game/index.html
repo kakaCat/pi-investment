@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>坦克大作战</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: Arial, sans-serif;
+        }
+
+        #gameContainer {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        #gameCanvas {
+            border: 3px solid #fff;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            background: #000;
+        }
+
+        #gameInfo {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-around;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .info-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 8px;
+        }
+
+        #controls {
+            margin-top: 15px;
+            color: white;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        #controls p {
+            margin: 5px 0;
+        }
+
+        #gameOver {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        #gameOver h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #ff6b6b;
+        }
+
+        #gameOver button {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 18px;
+            background: #4ecdc4;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #gameOver button:hover {
+            background: #45b7aa;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1>🎮 坦克大作战 🎮</h1>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="gameInfo">
+            <div class="info-item">生命: <span id="lives">3</span></div>
+            <div class="info-item">得分: <span id="score">0</span></div>
+            <div class="info-item">关卡: <span id="level">1</span></div>
+        </div>
+        <div id="controls">
+            <p>⬆️ W / ↑ - 向上移动</p>
+            <p>⬇️ S / ↓ - 向下移动</p>
+            <p>⬅️ A / ← - 向左移动</p>
+            <p>➡️ D / → - 向右移动</p>
+            <p>🎯 空格 - 发射子弹</p>
+            <p>⏸️ P - 暂停游戏</p>
+        </div>
+    </div>
+
+    <div id="gameOver">
+        <h2>游戏结束！</h2>
+        <p id="finalScore" style="font-size: 24px; margin: 10px 0;"></p>
+        <button onclick="location.reload()">重新开始</button>
+    </div>
+
+    <script src="src/game.js"></script>
+</body>
+</html>

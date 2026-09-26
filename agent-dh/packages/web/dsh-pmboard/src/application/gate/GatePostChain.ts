@@ -54,6 +54,13 @@ export interface ChainScratch {
   promptText?: string
   /** H2 是否真的做了整段替换（true = 提示词已在输入包里，H4 只发摘要）。 */
   compacted?: boolean
+  /**
+   * H3 未能产出提示词时的**如实原因**（stage_disabled / empty_prompt …）。
+   * 为什么需要：H4 此前在"没压缩、也没取到词"时仍发「阶段纪律已随节点输入包一并给出」，
+   * 那是一句假话（实测：bug/spike/refactor 的 G0 都是 h3-inject=skip，h4 却说已给出）。
+   * H3 把原因写到此处，H4 才能说实话。
+   */
+  promptSkipped?: { code: string; reason: string }
   /** 已执行步骤（链逐步追加，H5 据此写链级审计）。 */
   steps?: ChainStepResult[]
 }
@@ -82,7 +89,7 @@ export interface ChainRunSummary {
   readonly gate?: ConfirmContext['gate']
   /** 本轮是否真的执行了链。 */
   readonly ran: boolean
-  /** 未执行的原因：disabled / no-pending / duplicate。 */
+  /** 未执行的原因：disabled / no-pending / duplicate / agent_busy_deferred。 */
   readonly reason?: string
   readonly steps: readonly ChainStepResult[]
   /** 其中 degraded 的步数（skip 不计）。 */
@@ -101,6 +108,8 @@ export interface GateChainStats {
   disabled: number
   /** handler 抛错（被就地降级）次数 */
   handlerThrew: number
+  /** 因"仍有 open turn"而**延后且未消费**待处理闸门的次数（下个轮次边界会重试）。 */
+  deferred: number
 }
 
 /** 组合根与调用方消费的端口形状（ports.ts 的 GatePostChainPort 与之同形）。 */
@@ -124,6 +133,20 @@ export interface GatePostChainDeps {
   warn?: (message: string) => void
   /** 幂等去重表容量（默认 500，与注入留痕同口径）。 */
   dedupeCap?: number
+  /**
+   * 轮次边界**三态**判定（2026-09-26，修"静默丢压缩"）：
+   *   idle    → 照常执行；
+   *   busy    → **明确仍有 open turn**：不消费待处理闸门，延后到下一个边界重试；
+   *   unknown → 判不出（看板通道无 session / 测试环境无投影）→ 照常执行（不回归）。
+   * 缺省 = 不判定（等价 unknown，行为与改造前逐字一致）。
+   *
+   * 为什么必须有这道门：链的 Phase B 挂在 turn/end + setImmediate，而"回合结束到真正执行"
+   * 之间可能又开了一个新回合。照跑有两个后果：① 唤醒/压缩与 LLM 当前回合打架；
+   * ② H2 遇 agent_busy 会 skip，而 pending.take() + 去重键已经生效 → **这一轮永久丢失**。
+   */
+  idleState?: (session: unknown) => 'idle' | 'busy' | 'unknown'
+  /** busy 连续延后上限（默认 3）：超过则兜底执行（H2 自会跳过），避免闸门永久滞留。 */
+  maxBusyDefers?: number
 }
 
 const DEFAULT_DEDUPE_CAP = 500
@@ -136,9 +159,12 @@ export function createGatePostChain(deps: GatePostChainDeps): GateChainPort & { 
   const pending = deps.pending ?? createPendingGateStore()
   const warn = deps.warn ?? ((): void => {})
   const cap = deps.dedupeCap ?? DEFAULT_DEDUPE_CAP
+  const maxBusyDefers = deps.maxBusyDefers ?? 3
+  // 每窗口的连续延后次数（busy 门专用；idle 或兜底执行时清零）
+  const deferCounts = new Map<string, number>()
   // 插入序 = 时间序：超容量丢最旧（ring 语义，避免无界增长）
   const seen = new Map<string, true>()
-  const counters: GateChainStats = { enqueued: 0, executed: 0, deduped: 0, disabled: 0, handlerThrew: 0 }
+  const counters: GateChainStats = { enqueued: 0, executed: 0, deduped: 0, disabled: 0, handlerThrew: 0, deferred: 0 }
 
   const ordered = [...deps.handlers]
     .filter((h, i, all) => all.findIndex(x => x.name === h.name) === i)
@@ -171,6 +197,22 @@ export function createGatePostChain(deps: GatePostChainDeps): GateChainPort & { 
         counters.disabled += 1
         return { windowKey, ran: false, reason: 'disabled', steps: [], degraded: 0 }
       }
+      // ── 轮次边界门（2026-09-26）：**明确**仍有 open turn → 延后且**不消费** ──────────
+      // 不消费是关键：take() 一取走 + 去重键一登记，这次机会就永远没了（H2 遇忙只会 skip）。
+      const idleState = deps.idleState?.(session) ?? 'unknown'
+      if (idleState === 'busy') {
+        const n = (deferCounts.get(windowKey) ?? 0) + 1
+        if (n <= maxBusyDefers) {
+          deferCounts.set(windowKey, n)
+          counters.deferred += 1
+          safeWarn(fmt('闸门链延后（第 {n} 次）：agent 忙碌（open turn），{w} 的待处理闸门留到下一个轮次边界重试', { n, w: windowKey }))
+          return { windowKey, ran: false, reason: 'agent_busy_deferred', steps: [], degraded: 0 }
+        }
+        deferCounts.delete(windowKey)
+        safeWarn(fmt('闸门链兜底执行：agent 连续 {n} 次忙碌仍未空闲，为避免闸门永久滞留改为照跑（H2 会自行跳过压缩）', { n }))
+      }
+      if (idleState === 'idle') deferCounts.delete(windowKey)
+
       const ctx = pending.take(windowKey)
       if (ctx === undefined) {
         return { windowKey, ran: false, reason: 'no-pending', steps: [], degraded: 0 }

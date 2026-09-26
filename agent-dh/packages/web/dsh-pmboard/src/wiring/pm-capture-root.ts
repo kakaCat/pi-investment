@@ -4,11 +4,11 @@
  * 依赖方向与 index.ts 相同（adapters + application 均可引用）。
  *
  * 内容：三张共享表（待捕获候选 / 工具痕迹 / 最近用户消息）+ 唯一投递实现（AgentDeliverer）
- * 的构造，以及确定性消息捕获 hook 的装配（订阅 session/event）。
+ * 的构造，以及 Dive 会话驱动器的装配（**订阅由 Dive 服务持有**）。
  */
-import type { Context } from '@deepseek-ai/cordis';
 import { AgentDeliverer } from '../adapters/AgentDeliverer.js';
-import { createSessionEventCaptureHook, type CaptureHookDeps } from '../adapters/CaptureHook.js';
+import { createDiveSessionDriver, type DiveSessionDriverDeps } from '../application/dive/session-driver.js'
+import type { DiveRoundDriver } from '../application/dive/round-driver.js';
 import type { ToolTraceEntry, RecentUserMsg } from '../adapters/SessionProbeAdapter.js';
 import type { JsonLedgerRepository } from '../adapters/JsonLedgerRepository.js';
 import type { InjectionLogFile } from '../adapters/InjectionLogFile.js';
@@ -54,8 +54,7 @@ export function createCaptureRuntime(deps: CaptureRuntimeDeps): CaptureRuntime {
   return { pendingCapture, toolTrace, recentUserMsgs, deliverer };
 }
 
-export interface CaptureHookAssemblyDeps {
-  ctx: Context;
+export interface DiveDriverAssemblyDeps {
   store: JsonLedgerRepository;
   runtime: CaptureRuntime;
   now: () => number;
@@ -64,7 +63,7 @@ export interface CaptureHookAssemblyDeps {
   injectionLog: InjectionLogFile;
   gateChain: GateChainPort;
   /** 节点结算信号入口（隔离端口由组合根按会话构造）。 */
-  onNodeSettled: NonNullable<CaptureHookDeps['onNodeSettled']>;
+  onNodeSettled: NonNullable<DiveSessionDriverDeps['onNodeSettled']>;
   /**
    * 用例依赖**惰性**读取：组合根在 hook 装配之后才建 useCaseDeps，而该依赖只在
    * turn/end 的异步边界被取用（与原闭包直引 useCaseDeps 的时序语义逐字等价）。
@@ -76,21 +75,40 @@ export interface CaptureHookAssemblyDeps {
     warn: (m: string, err?: unknown) => void;
   };
   plugin: string;
+  /**
+   * 会话事件订阅的**持有者**（Dive 服务）：driver 只提供处理函数，订阅生命周期归 Dive。
+   * 为什么不让装配函数直接 ctx.on：用户裁定"CaptureHook 废弃、能力归 Dive"——
+   * 谁拥有会话事件这件事要在调用方看得见，而不是藏在装配函数里。
+   */
+  attachSessionDriver: (handler: (session: unknown, event: unknown) => void) => (() => void) | undefined;
+  /**
+   * **驱动点**订阅的持有人（Dive 服务）：`agent/status` —— 整 agent 空闲（idle）时跑批。
+   * 对齐 `@deepseek-ai/dsh-goal-round-driver`（lib/index.js:213 用 agent/status 作唯一驱动点，
+   * session/event 只做簿记）。谁拥有这条订阅要在调用方看得见，不藏在装配函数里。
+   */
+  attachAgentStatus: (handler: (agent: unknown, status: unknown) => void) => (() => void) | undefined;
+  /**
+   * round 半句柄（REQ-260926215013-1568 T-5）：idle 拍定序 + session/event 回合簿记经它。
+   * 缺省 = 纯采集/簿记（与改动前逐字一致，向后兼容）。
+   */
+  round?: DiveRoundDriver;
 }
 
 /**
- * ── 确定性消息捕获 hook（用户裁定 #2/#3）─────────────────────────────
- * 订阅 session/event：用户消息到达（user/message，direct human）→ 若该窗口
- * unbound 且无遗留 pending 建议卡（旧流程 triage 产物）→ 登记「待捕获消息」到
- * pendingCapture；turn/end 清除（该回合 LLM 已消费本次立项评估）。capture section
- * 组装时同引用读取并注入针对性立项提示——hook 只保证确定性触发，立项判定与内容
- * 留给 LLM + 人工（reqboard_capture 三问弹框作答 = 确认，同一次调用内直接建 REQ）。
+ * ── Dive 会话驱动器（用户裁定 #2/#3；原 CaptureHook，2026-09-26 迁入 application/dive）─────────────────────────────
+ * **采集点对齐 DSH Goal round driver**（用户裁定 2026-09-26）：两路订阅，各司其职。
+ *   · session/event（采集/簿记）：user/message 落证据缓冲 + 本回合直接人类消息；
+ *     tool/call 落工具痕迹；turn/end 做闸门链 Phase B 与断点补写。
+ *   · agent/status === idle（**驱动点**）：整 agent 空闲时跑批——unbound 窗口登记
+ *     「待捕获消息」到 pendingCapture（下一回合 capture section 取词组装时注入针对性立项
+ *     提示）、bound 窗口做接手推进 / 阶段纪律注入 / 节点结算 / 里程碑催办。
+ * 立项判定与内容仍留给 LLM + 人工（reqboard_capture 三问弹框作答 = 确认，同一次调用内直接建 REQ）。
  *
- * 返回解除订阅函数（订阅未成立时 undefined），由调用方登记进 disposers。
+ * 返回解除两路订阅的合并函数（两路都没成立时 undefined），由调用方登记进 disposers。
  */
-export function assembleCaptureHook(deps: CaptureHookAssemblyDeps): (() => void) | undefined {
+export function assembleDiveSessionDriver(deps: DiveDriverAssemblyDeps): (() => void) | undefined {
   const { pendingCapture, toolTrace, recentUserMsgs, deliverer } = deps.runtime;
-  const captureHookDeps: CaptureHookDeps = {
+  const driverDeps: DiveSessionDriverDeps = {
     snapshot: () => deps.store.snapshot(),
     pending: pendingCapture,
     now: deps.now,
@@ -147,15 +165,41 @@ export function assembleCaptureHook(deps: CaptureHookAssemblyDeps): (() => void)
       });
     },
     logger: { info: (m) => deps.logger.info(m), debug: (m) => deps.logger.debug(m) },
+    ...(deps.round !== undefined ? { round: deps.round } : {}),
   };
-  const captureHandler = createSessionEventCaptureHook(captureHookDeps);
-  const sessionEventCtx = deps.ctx as unknown as {
-    on?: (event: string, listener: (session: unknown, event: unknown) => void) => (() => void) | void;
-  };
-  const unsubscribeSessionEvents = sessionEventCtx.on?.('session/event', captureHandler);
+  const driver = createDiveSessionDriver(driverDeps);
+  // Dive 服务持有两路订阅（driver 只提供处理函数）——"谁拥有会话事件与驱动点"归 Dive，
+  // 不藏在装配函数里。采集（session/event）与驱动（agent/status idle）各一路。
+  const unsubscribeSessionEvents = deps.attachSessionDriver((session, event) => driver(session, event));
+  const unsubscribeAgentStatus = deps.attachAgentStatus((agent, status) => driver.onAgentStatus(agent, status));
+  const attached = unsubscribeSessionEvents !== undefined || unsubscribeAgentStatus !== undefined;
   // 【诊断日志-节点1】Hook 订阅状态（文件双写，防 stdout 死管道）
-  captureDiag(`reqboard-capture [NODE-1]: Hook subscription ${unsubscribeSessionEvents ? 'SUCCESS' : 'FAILED'} (unsubscribe=${typeof unsubscribeSessionEvents})`);
-  deps.logger.info(`reqboard-capture [NODE-1]: Hook subscription ${unsubscribeSessionEvents ? 'SUCCESS' : 'FAILED'} (unsubscribe=${typeof unsubscribeSessionEvents})`);
-  deps.logger.info('reqboard capture hook registered: session/event user/message → 登记待立项评估（unbound 窗口）');
-  return unsubscribeSessionEvents ?? undefined;
+  captureDiag(
+    `reqboard-capture [NODE-1]: Hook subscription session/event=${unsubscribeSessionEvents ? 'SUCCESS' : 'FAILED'} agent/status=${unsubscribeAgentStatus ? 'SUCCESS' : 'FAILED'}`,
+  );
+  deps.logger.info(
+    `reqboard-capture [NODE-1]: Hook subscription session/event=${unsubscribeSessionEvents ? 'SUCCESS' : 'FAILED'} agent/status=${unsubscribeAgentStatus ? 'SUCCESS' : 'FAILED'}`,
+  );
+  deps.logger.info('reqboard dive session driver registered: session/event 采集 + agent/status(idle) 驱动');
+  // 【失败要响亮】两路订阅是整套事件驱动的总开关：采集路挂不上 = 证据缓冲/工具痕迹断源；
+  // 驱动路挂不上 = 立项登记 / 接手推进 / 阶段纪律注入 / 节点结算 / 里程碑催办全静默停摆。
+  // 此前只有一行 info 级 FAILED（可选链 + 不抛）——界面看起来一切正常，没人会知道。
+  if (!attached) {
+    deps.logger.warn(
+      'reqboard dive session driver 订阅未成立（session/event 与 agent/status 均无监听）：'
+      + '立项引导、待立项登记、阶段纪律注入、节点结算、里程碑催办、闸门链 Phase B、断点补写全部不会发生——'
+      + '请检查宿主是否提供 ctx.on，或 attachSessionDriver / attachAgentStatus 端口是否装配。',
+    );
+  } else if (unsubscribeSessionEvents === undefined || unsubscribeAgentStatus === undefined) {
+    deps.logger.warn(
+      `reqboard dive session driver 仅装配了一路订阅（session/event=${unsubscribeSessionEvents ? 'ok' : 'MISSING'}, `
+      + `agent/status=${unsubscribeAgentStatus ? 'ok' : 'MISSING'}）：缺驱动路则采集到的人类消息永不驱动，`
+      + '缺采集路则证据缓冲/工具痕迹断源——请检查 attachSessionDriver / attachAgentStatus 端口。',
+    );
+  }
+  if (!attached) return undefined;
+  return () => {
+    unsubscribeSessionEvents?.();
+    unsubscribeAgentStatus?.();
+  };
 }
