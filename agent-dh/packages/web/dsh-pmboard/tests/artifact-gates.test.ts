@@ -11,6 +11,7 @@
  *   - human-only confirm 路由。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { taskStoreAt } from './queue/route-deps.js'
 import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -48,7 +49,7 @@ beforeEach(() => {
   verifyTool = defineVerifySubmitTool(deps) as never
   archiveTool = defineArchiveSubmitTool(deps) as never
   // REQ-2d1c74 FR-2：G2 完整性闸门要求 docs 端口（缺省 = fail-closed 拦截），看板侧必须接
-  handler = createReqboardHandler({ store, now: () => Date.now(), docs: new FileDocRepository({ workspaceRoot: dir }) })
+  handler = createReqboardHandler({ taskStore: taskStoreAt(dir), store, now: () => Date.now(), docs: new FileDocRepository({ workspaceRoot: dir }) })
   // REQ-2d1c74 FR-5：plan_submit 起要求提交路径真实落盘（chdir 后 stub 落进本测试临时目录）。
   // decomposition.md 不在此落桩——decompose 用例要验证它由拆分动作**生成**。
   stubDocFile('docs/requirements/REQ-abc123/plan.md')

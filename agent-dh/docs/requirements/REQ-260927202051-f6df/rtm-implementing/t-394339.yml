@@ -1,7 +1,7 @@
 task:
   id: t-394339
   title: 实现队列数据校验 V-1~V-6
-  status: todo
+  status: done
   implements: ""
   serves: []
   depends_on:
@@ -26,8 +26,8 @@ metadata:
   stage: implementing
   requirement_id: REQ-260927202051-f6df
   generated_at: 2026-09-27T13:21:00.171Z
-  version: 2
+  version: 7
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 1
-  last_updated: 2026-09-27T13:21:00.172Z
+  last_updated: 2026-09-27T13:58:40.247Z

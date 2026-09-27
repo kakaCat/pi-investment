@@ -12,6 +12,7 @@
  *   异常流 绝对路径 / 含 .. → REQBOARD_INVALID_INPUT，且不写台账（不静默改路径）。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { taskStoreAt } from './queue/route-deps.js'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -40,6 +41,8 @@ afterEach(() => { rmSync(root, { recursive: true, force: true }) })
 /** 真适配器构造 UseCaseDeps（工具壳吃 application 端口）；无 agents/sessionProjections → 认证降级放行。 */
 const deps = (): any => ({
   repo: store,
+
+  taskStore: taskStoreAt(root),
   docs: new FileDocRepository({ workspaceRoot: root }),
   clock: new SystemClock(),
   ids: new RandomIdFactory(),

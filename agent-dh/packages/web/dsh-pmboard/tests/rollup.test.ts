@@ -31,8 +31,20 @@ function task(reqId: string, over: Partial<TaskRecord> = {}): TaskRecord {
   } as TaskRecord
 }
 
-function ledger(over: Partial<ReqboardLedger> = {}): ReqboardLedger {
-  return { ...emptyLedger(), ...over }
+/**
+ * 测试夹具：**台账 + 任务集显式配对**。
+ *
+ * REQ-260927202051-f6df：v9 台账不再有 `tasks` 字段（任务唯一存储 = 队列）。本文件是
+ * `applyTaskRollup` / `applyPickupAdvance` 的**纯函数单测**（无 harness、无 IO），故任务集
+ * 由夹具**显式携带**并由调用点作为第 2 参传入 —— 这是本用例构造的**真实任务集**
+ * （带明确的 done/canceled/todo 状态），**不是 `[]`**：给 `[]` 会让 `planRollup` 的 R2 判定
+ * （"该需求全部未取消任务 done → accepting"）退化成"零任务"而漏判，拿到假绿。
+ */
+type Fixture = ReqboardLedger & { tasks: readonly TaskRecord[] }
+
+function ledger(over: Partial<ReqboardLedger> & { tasks?: readonly TaskRecord[] } = {}): Fixture {
+  const { tasks = [], ...rest } = over
+  return { ...emptyLedger(), ...rest, tasks } as Fixture
 }
 
 const ctx = { now: 2_000, commentId: () => rid('c') }
@@ -72,7 +84,7 @@ describe('applyTaskRollup（R2 实施完成 → 验收）', () => {
   it('implementing 且全部任务 done → accepting', () => {
     const r = req({ status: 'implementing' })
     const l = ledger({ requirements: [r], tasks: [task(r.id, { status: 'done' }), task(r.id, { status: 'done' })] })
-    const advanced = applyTaskRollup(l, ctx)
+    const advanced = applyTaskRollup(l, l.tasks, ctx)
     expect(advanced).toHaveLength(1)
     expect(l.requirements[0].status).toBe('accepting')
     expect(l.requirements[0].comments.at(-1)?.body).toContain('全部 2 个实施任务已完成')
@@ -81,7 +93,7 @@ describe('applyTaskRollup（R2 实施完成 → 验收）', () => {
   it('仍有未完成任务 → 不动', () => {
     const r = req({ status: 'implementing' })
     const l = ledger({ requirements: [r], tasks: [task(r.id, { status: 'done' }), task(r.id, { status: 'testing' })] })
-    expect(applyTaskRollup(l, ctx)).toHaveLength(0)
+    expect(applyTaskRollup(l, l.tasks, ctx)).toHaveLength(0)
     expect(l.requirements[0].status).toBe('implementing')
   })
 
@@ -91,20 +103,20 @@ describe('applyTaskRollup（R2 实施完成 → 验收）', () => {
       requirements: [r],
       tasks: [task(r.id, { status: 'done' }), task(r.id, { status: 'canceled' })],
     })
-    expect(applyTaskRollup(l, ctx)).toHaveLength(1)
+    expect(applyTaskRollup(l, l.tasks, ctx)).toHaveLength(1)
     expect(l.requirements[0].comments.at(-1)?.body).toContain('全部 1 个实施任务已完成')
   })
 
   it('无任务 → 不动（0 任务不算完成）', () => {
     const r = req({ status: 'implementing' })
     const l = ledger({ requirements: [r] })
-    expect(applyTaskRollup(l, ctx)).toHaveLength(0)
+    expect(applyTaskRollup(l, l.tasks, ctx)).toHaveLength(0)
   })
 
   it('派生链 R3：design（计划已批）+ 有任务 → 推进到 decomposing 后停等人工确认拆分清单（2026-09-14 五门裁定，R4 移除）', () => {
     const r = req({ status: 'design' })
     const l = ledger({ requirements: [r], tasks: [task(r.id, { status: 'done' })] })
-    const advanced = applyTaskRollup(l, ctx)
+    const advanced = applyTaskRollup(l, l.tasks, ctx)
     expect(advanced).toHaveLength(1) // 同一需求只上报一次（避免 change 载荷重复）
     // 五门裁定：decomposing>implementing 入人工门，rollup 不再自动越过 → 停在拆分态
     expect(l.requirements[0].status).toBe('decomposing')
@@ -117,7 +129,7 @@ describe('applyTaskRollup（R2 实施完成 → 验收）', () => {
   it('派生链 R2：implementing + 全部任务 done → accepting（人确认拆分清单后由任务事实推进）', () => {
     const r = req({ status: 'implementing' })
     const l = ledger({ requirements: [r], tasks: [task(r.id, { status: 'done' })] })
-    const advanced = applyTaskRollup(l, ctx)
+    const advanced = applyTaskRollup(l, l.tasks, ctx)
     expect(advanced).toHaveLength(1)
     expect(l.requirements[0].status).toBe('accepting')
     const trail = l.requirements[0].comments.filter(c => c.body.includes('[自动推进]')).map(c => c.body)
@@ -127,7 +139,7 @@ describe('applyTaskRollup（R2 实施完成 → 验收）', () => {
   it('R3：design + 任务全为 todo → 停在 decomposing（未开工不进执行）', () => {
     const r = req({ status: 'design' })
     const l = ledger({ requirements: [r], tasks: [task(r.id, { status: 'todo' })] })
-    expect(applyTaskRollup(l, ctx).map(a => a.status)).toEqual(['decomposing'])
+    expect(applyTaskRollup(l, l.tasks, ctx).map(a => a.status)).toEqual(['decomposing'])
     expect(l.requirements[0].status).toBe('decomposing')
   })
 
@@ -135,7 +147,7 @@ describe('applyTaskRollup（R2 实施完成 → 验收）', () => {
     for (const status of ['brainstorming', 'design', 'decomposing', 'implementing'] as const) {
       const r = req({ status })
       const l = ledger({ requirements: [r] })
-      expect(applyTaskRollup(l, ctx)).toHaveLength(0)
+      expect(applyTaskRollup(l, l.tasks, ctx)).toHaveLength(0)
       expect(l.requirements[0].status).toBe(status)
     }
   })
@@ -147,7 +159,7 @@ describe('applyTaskRollup（R2 实施完成 → 验收）', () => {
       requirements: [a, b],
       tasks: [task(a.id, { status: 'done' }), task(b.id, { status: 'done' })],
     })
-    const advanced = applyTaskRollup(l, ctx, b.id)
+    const advanced = applyTaskRollup(l, l.tasks, ctx, b.id)
     expect(advanced).toHaveLength(1)
     expect(advanced[0].id).toBe(b.id)
     expect(l.requirements.find(r => r.id === a.id)!.status).toBe('implementing')

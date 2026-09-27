@@ -2,11 +2,11 @@ metadata:
   stage: implementing
   requirement_id: REQ-260927202051-f6df
   generated_at: 2026-09-27T12:54:40.514Z
-  version: 18
+  version: 86
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 25
-  last_updated: 2026-09-27T13:32:12.607Z
+  last_updated: 2026-09-27T14:16:46.456Z
 inputs:
   tasks:
     - id: t-87f0da
@@ -17,43 +17,43 @@ inputs:
       status: in_progress
     - id: t-394339
       title: 实现队列数据校验 V-1~V-6
-      status: todo
+      status: done
     - id: t-e96a0c
       title: 实现队列仓储与原子写入
-      status: todo
+      status: done
     - id: t-bc1ba6
       title: 实现 TaskStore 端口与队列实现
-      status: todo
+      status: done
     - id: t-2417da
       title: 台账 schema v9：移除 tasks
-      status: todo
+      status: done
     - id: t-66797c
       title: 读方改造 A：看板与 HTTP 路由
-      status: todo
+      status: done
     - id: t-0c7f17
       title: 读方改造 B：执行工具
-      status: todo
+      status: done
     - id: t-860900
       title: 读方改造 C：用例层
-      status: todo
+      status: done
     - id: t-8d4af7
       title: 读方改造 D：门禁、查询与 Dive
-      status: todo
+      status: done
     - id: t-05925b
       title: 接线 Decompose：任务写入队列
-      status: todo
+      status: done
     - id: t-fa3e16
       title: 接线 ExecuteTask/MoveTask：读队列与顺序契约
-      status: todo
+      status: done
     - id: t-faf303
       title: 实现 v8→v9 迁移变换与 CLI
-      status: todo
+      status: done
     - id: t-03254f
       title: 迁移安全：白名单、幂等与 orphan
-      status: todo
+      status: done
     - id: t-dfc245
       title: 迁移契约比对：587 条零字段丢失
-      status: todo
+      status: done
     - id: t-e77b06
       title: 看板实测回归（真实打开页面）
       status: todo
@@ -86,40 +86,40 @@ inputs:
       status: todo
 status:
   tasks_total: 25
-  tasks_done: 5
+  tasks_done: 18
   tasks_in_progress: 1
-  tasks_todo: 19
+  tasks_todo: 6
 tasks:
   - id: t-87f0da
     status: done
   - id: t-0e7fac
     status: in_progress
   - id: t-394339
-    status: todo
+    status: done
   - id: t-e96a0c
-    status: todo
+    status: done
   - id: t-bc1ba6
-    status: todo
+    status: done
   - id: t-2417da
-    status: todo
+    status: done
   - id: t-66797c
-    status: todo
+    status: done
   - id: t-0c7f17
-    status: todo
+    status: done
   - id: t-860900
-    status: todo
+    status: done
   - id: t-8d4af7
-    status: todo
+    status: done
   - id: t-05925b
-    status: todo
+    status: done
   - id: t-fa3e16
-    status: todo
+    status: done
   - id: t-faf303
-    status: todo
+    status: done
   - id: t-03254f
-    status: todo
+    status: done
   - id: t-dfc245
-    status: todo
+    status: done
   - id: t-e77b06
     status: todo
   - id: t-d1aa0f

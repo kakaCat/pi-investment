@@ -5,6 +5,7 @@
  * 非 design kind 维持首份落章（历史语义）；成组确认后 G2 放行（UC-4 全路径）。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { taskStoreAt } from './queue/route-deps.js'
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -110,7 +111,7 @@ describe('成组确认（三通道同语义：全部 design 产物一次落章�
 
   it('通道③ 看板一键：5 份全部落 confirmedAt 且自动推进', async () => {
     await seed()
-    const handler = createReqboardHandler({
+    const handler = createReqboardHandler({ taskStore: taskStoreAt(dir),
       store, now: () => 1000,
       docs: new FileDocRepository({ workspaceRoot: dir }),
       agents: () => ({ get: () => ({ id: W, session: {} }) }),

@@ -1,6 +1,6 @@
 task:
-  id: t-860900
-  title: 读方改造 C：用例层
+  id: t-66797c
+  title: 读方改造 A：看板与 HTTP 路由
   status: done
   implements: ""
   serves: []
@@ -10,8 +10,8 @@ task:
   side: backend
   workflow_params:
     REQ_ID: REQ-260927202051-f6df
-    TASK_ID: t-860900
-    TASK_TITLE: 读方改造 C：用例层
+    TASK_ID: t-66797c
+    TASK_TITLE: 读方改造 A：看板与 HTTP 路由
     DESIGN_FILES: ""
     TEST_PATTERN: rtm
     SIDE: backend
@@ -21,16 +21,16 @@ task:
   workflow:
     - phase: implement
       status: done
-      started_at: 2026-09-27T14:04:09.021Z
-      completed_at: 2026-09-27T14:05:27.444Z
-    - phase: test
+      started_at: 2026-09-27T14:12:37.319Z
+      completed_at: 2026-09-27T14:13:56.431Z
+    - phase: ui
       status: done
 metadata:
   stage: implementing
   requirement_id: REQ-260927202051-f6df
-  generated_at: 2026-09-27T13:31:06.785Z
+  generated_at: 2026-09-27T14:12:34.311Z
   version: 7
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 2
-  last_updated: 2026-09-27T14:05:27.444Z
+  last_updated: 2026-09-27T14:13:56.432Z

@@ -179,6 +179,8 @@ cd /Users/yunpeng/pi-investment/agent-dh && ./scripts/start.sh        # ⑥ 起�
 | 4 | `AgentDeliveryPort.deliver` | 开工前存在（`58c77a95` 命中 1），现已被清空 ⇒ `worktree-notice` 的投递链断裂 |
 | 5 | `worktree-notice` | `deliverWorktreeNotice` 函数体**只有 `return false`**（27 行桩）⇒ 投递永不发生（`worktree-injection` 2 条红） |
 | 6 | `requirement_status` 字段 | 是 `reqboard_decompose` 的返回字段（`Decompose.ts:210`），`TaskMoveTool`/`MoveTask` 在 `58c77a95` 与现在**都 0 命中**；**且 `client/toolviews/rows/task-move.ts:63` 也在读这个无人产出的字段** |
+| 7 | `reqboard_run_status` 的 `snapshot.runId` | 无 active run 时 `QueryRunStatus.ts:72` 发 `null`，而 schema 声明 `type:'string'` ⇒ **值级**校验失败，把「当前没有链在跑」转译成硬错误 `value.snapshot.runId must be a string`。**旧测试还把它固化了**（`expect(snapshot.runId).toBeNull()`），且只测 `execute()` 返回值、**从不拿返回值去过工具自己的输出 schema**。已修（不是 string 的键整体省略）+ 补输出契约闸门（见 §九·9.4） |
+| 8 | `DecomposeTool` 的 `queue_file`/`tasks_created` | t11 给拆分返回体加了这两个字段却未在 `output.schema` 声明 ⇒ 未声明字段会被绑定层拒收（值算出来了、调用方只看到 invalid output）。由 `output-contract` 静态扫描抓出，已补声明 |
 
 ### 8.2 模式二：**批准计划后实施链不会自动开跑**（生产缺口）
 `confirm-settle.ts` 只设 `autoRun = true`；`deps.jobs.start` **只剩一条注释**；`StartSubtaskChain.ts`（唯一会启动作业的用例）

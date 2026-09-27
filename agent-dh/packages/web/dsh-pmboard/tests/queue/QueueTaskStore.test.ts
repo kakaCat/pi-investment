@@ -193,6 +193,44 @@ describe('TaskStore mutate（TC-4.3 / TC-4.4 / TC-4.5 / TC-4.8）', () => {
     expect(changes).toEqual([])
   })
 
+  it('**纯删除必须写盘**（回归：曾因 changed.length===0 提前返回而静默不生效）', async () => {
+    await store.createMany(REQ_A, [taskOf('t-000001'), taskOf('t-000002')])
+    const path = repo.pathOf(REQ_A)
+    const beforeSeq = (await stat(path)).mtimeMs
+    const changes: TaskChange[] = []
+    store.subscribe((c) => changes.push(c))
+
+    // 删光：回调只做删除（返回空数组）——这正是曾经被静默吞掉的形状
+    const removed = await store.mutate(REQ_A, () => [])
+
+    // ① 文件真的变了（内容为空队列；mtime 前进）
+    const onDisk = JSON.parse(await readFile(path, 'utf8')) as { tasks: unknown[] }
+    expect(onDisk.tasks).toEqual([])
+    expect((await stat(path)).mtimeMs).toBeGreaterThanOrEqual(beforeSeq)
+    // ② 读路径立即反映
+    expect(await store.listByRequirement(REQ_A)).toEqual([])
+    // ③ 订阅者收到 task-removed，且变更集**非空**（否则订阅者无法失效缓存）
+    expect(changes).toHaveLength(1)
+    expect(changes[0]!.kind).toBe('task-removed')
+    expect(changes[0]!.tasks.map((t) => t.id).sort()).toEqual(['t-000001', 't-000002'])
+    // ④ 返回值如实给出被删卡的末态
+    expect(removed.map((t) => t.id).sort()).toEqual(['t-000001', 't-000002'])
+    expect(Object.keys(removed[0]!)).not.toContain('layer')
+  })
+
+  it('部分删除：只删一张也写盘（保留者在，删除者消失）', async () => {
+    await store.createMany(REQ_A, [taskOf('t-000001'), taskOf('t-000002')])
+    const changes: TaskChange[] = []
+    store.subscribe((c) => changes.push(c))
+
+    await store.mutate(REQ_A, (tasks) => tasks.filter((t) => t.id !== 't-000002'))
+
+    expect((await store.listByRequirement(REQ_A)).map((t) => t.id)).toEqual(['t-000001'])
+    expect(changes).toHaveLength(1)
+    expect(changes[0]!.kind).toBe('task-removed')
+    expect(changes[0]!.tasks.map((t) => t.id)).toEqual(['t-000002'])
+  })
+
   it('mutate 回调没改出差异：不白写一次盘（mtime 不变）', async () => {
     await store.createMany(REQ_A, [taskOf('t-000001')])
     const path = repo.pathOf(REQ_A)

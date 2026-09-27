@@ -12,6 +12,7 @@
  * advanced=true 且台账 confirmedAt 已写。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { taskStoreAt } from './queue/route-deps.js'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -45,6 +46,8 @@ function makeDeps(ask: AskFn, opts: { pending?: boolean; delivery?: AgentDeliver
   const now = (): number => Date.now()
   const deps = {
     repo: store,
+
+    taskStore: taskStoreAt(dir),
     docs: new FileDocRepository({ workspaceRoot: dir }),
     clock: { now },
     ids: new RandomIdFactory(),

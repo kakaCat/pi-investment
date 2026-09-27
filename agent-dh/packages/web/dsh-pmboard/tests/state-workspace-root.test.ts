@@ -9,6 +9,7 @@
  * @module dsh-pmboard/tests/state-workspace-root
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { taskStoreAt } from './queue/route-deps.js'
 import { EventEmitter } from 'node:events'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -49,7 +50,7 @@ afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 describe('state 端点暴露 workspaceRoot/homeDir（FR-4）', () => {
   it('显式 cwd → workspaceRoot 等于它；homeDir 为绝对路径', async () => {
     const ws = join(dir, 'fake-workspace')
-    const handler = createReqboardHandler({ store, now: () => Date.now(), cwd: ws })
+    const handler = createReqboardHandler({ taskStore: taskStoreAt(dir), store, now: () => Date.now(), cwd: ws })
     const res = fakeRes()
     await handler(fakeReq('/dashboard/api/reqboard/state'), res)
     expect(res.statusCode).toBe(200)
@@ -59,7 +60,7 @@ describe('state 端点暴露 workspaceRoot/homeDir（FR-4）', () => {
   })
 
   it('未传 cwd → workspaceRoot 回落 process.cwd()', async () => {
-    const handler = createReqboardHandler({ store, now: () => Date.now() })
+    const handler = createReqboardHandler({ taskStore: taskStoreAt(dir), store, now: () => Date.now() })
     const res = fakeRes()
     await handler(fakeReq('/dashboard/api/reqboard/state'), res)
     expect(res.payload.data.workspaceRoot).toBe(process.cwd())

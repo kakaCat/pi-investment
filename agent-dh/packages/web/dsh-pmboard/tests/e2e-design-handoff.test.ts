@@ -17,6 +17,7 @@
  * consistency.test.ts 等）与本文件同批跑绿。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { taskStoreAt } from './queue/route-deps.js'
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -117,6 +118,8 @@ function makeTools(selected: string[] = [AFFIRM]) {
   const { svc, asked } = makeQuestions(selected)
   const deps: UseCaseDeps = {
     repo: store,
+
+    taskStore: taskStoreAt(root),
     docs: new FileDocRepository({ workspaceRoot: root }),
     clock: new SystemClock(),
     ids: new RandomIdFactory(),

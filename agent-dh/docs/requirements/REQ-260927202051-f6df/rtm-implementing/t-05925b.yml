@@ -1,7 +1,7 @@
 task:
   id: t-05925b
   title: 接线 Decompose：任务写入队列
-  status: todo
+  status: done
   implements: ""
   serves: []
   depends_on:
@@ -27,8 +27,8 @@ metadata:
   stage: implementing
   requirement_id: REQ-260927202051-f6df
   generated_at: 2026-09-27T13:31:06.956Z
-  version: 2
+  version: 7
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 1
-  last_updated: 2026-09-27T13:31:06.957Z
+  last_updated: 2026-09-27T14:06:50.131Z

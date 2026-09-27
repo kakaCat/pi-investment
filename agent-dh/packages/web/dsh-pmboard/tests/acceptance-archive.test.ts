@@ -10,6 +10,7 @@
  *   - 归档只能人点，归档后写入 archivePath 与时间线。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { taskStoreAt } from './queue/route-deps.js'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
@@ -37,7 +38,7 @@ beforeEach(() => {
   const deps = { store, now: () => Date.now() } as never
   verifyTool = defineVerifySubmitTool(deps) as never
   archiveTool = defineArchiveSubmitTool(deps) as never
-  handler = createReqboardHandler({ store, now: () => Date.now() })
+  handler = createReqboardHandler({ taskStore: taskStoreAt(dir), store, now: () => Date.now() })
   // REQ-2d1c74 FR-5：archive 目录与清单内文档须真实落盘（agent-dh/ 前缀为仓库根相对形态）
   for (const p of ['requirement.md', 'plan.md', 'verification.md']) stubDocFile('agent-dh/docs/requirements/REQ-abc123/' + p)
 })

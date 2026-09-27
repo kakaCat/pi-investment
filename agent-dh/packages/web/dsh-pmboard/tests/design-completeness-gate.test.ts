@@ -9,6 +9,7 @@
  *  - sides/design_exempt front-matter 策略参与①（UC-2）；assertArtifactGates 成组判定（UC-4）。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { taskStoreAt } from './queue/route-deps.js'
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -103,7 +104,7 @@ function fakeRes(): any {
 }
 
 function board() {
-  return createReqboardHandler({
+  return createReqboardHandler({ taskStore: taskStoreAt(dir),
     store,
     now: () => 1000,
     docs: new FileDocRepository({ workspaceRoot: dir }),

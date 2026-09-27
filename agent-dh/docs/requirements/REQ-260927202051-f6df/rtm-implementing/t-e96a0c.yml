@@ -1,7 +1,7 @@
 task:
   id: t-e96a0c
   title: 实现队列仓储与原子写入
-  status: todo
+  status: done
   implements: ""
   serves: []
   depends_on:
@@ -19,18 +19,20 @@ task:
     SIDE: backend
     PHASE: implement
   workflow_total: 2
-  workflow_done: 1
+  workflow_done: 2
   workflow:
     - phase: implement
-      status: pending
+      status: done
+      started_at: 2026-09-27T13:59:16.769Z
+      completed_at: 2026-09-27T14:01:03.294Z
     - phase: review
       status: done
 metadata:
   stage: implementing
   requirement_id: REQ-260927202051-f6df
   generated_at: 2026-09-27T13:21:07.933Z
-  version: 2
+  version: 7
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 2
-  last_updated: 2026-09-27T13:21:07.934Z
+  last_updated: 2026-09-27T14:01:03.294Z

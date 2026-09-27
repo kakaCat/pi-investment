@@ -10,6 +10,7 @@
  *  - 登记后 G2 不再报 missing_artifact（登记入口确实被闸门读到）。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { taskStoreAt } from './queue/route-deps.js'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -41,6 +42,8 @@ afterEach(() => { rmSync(root, { recursive: true, force: true }) })
 const depsWith = () =>
   ({
     repo: store,
+
+    taskStore: taskStoreAt(root),
     docs: new FileDocRepository({ workspaceRoot: root }),
     clock: new SystemClock(),
     ids: new RandomIdFactory(),

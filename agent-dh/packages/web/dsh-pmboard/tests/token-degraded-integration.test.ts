@@ -14,6 +14,7 @@
  * 口径不变：byStage / executions / totals 装配逻辑与对外形状（degraded 仍是 boolean）均未改。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { taskStoreAt } from './queue/route-deps.js'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
@@ -117,12 +118,26 @@ const CASES: readonly Case[] = [
 
 function buildLedger(): ReqboardLedger {
   return {
-    schemaVersion: 7,
+    // v9：台账无 tasks 通道；schemaVersion 必须为 9（否则新的 reader 会撞迁移门）
+    schemaVersion: 9,
     revision: 1,
     requirements: CASES.map(c => makeReq(c.id, c.history, c.tokenUsage)),
-    tasks: CASES.flatMap(c => c.execs.map((e, i) => task(`t-${c.id.slice(4, 10)}-${i}`, c.id, [e]))),
     triages: [],
   } as ReqboardLedger
+}
+
+/**
+ * v9：执行记录随任务落**队列**。
+ * 原判据 = "ledger.tasks 里带 executions 的卡"；新判据 = "队列里同一张卡的同一条执行"——
+ * 每条执行仍是同一个 `task(...)` 构造（`tokenUsage` 形状未动），只是存储位置换了。
+ */
+function seedQueueTasks(root: string): Promise<unknown> {
+  const store = taskStoreAt(root)
+  return Promise.all(
+    CASES.filter(c => c.execs.length > 0).map(c =>
+      store.createMany(c.id, c.execs.map((e, i) => task(`t-${c.id.slice(4, 10)}-${i}`, c.id, [e]))),
+    ),
+  )
 }
 
 let dir: string
@@ -133,7 +148,8 @@ beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-token-degraded-'))
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
   await store.replaceAll('seed-degraded', buildLedger())
-  handler = createReqboardHandler({ store, now: () => Date.now() })
+  await seedQueueTasks(dir)
+  handler = createReqboardHandler({ taskStore: taskStoreAt(dir), store, now: () => Date.now() })
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 

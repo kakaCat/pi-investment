@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { taskStoreAt } from './queue/route-deps.js'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
@@ -115,7 +116,7 @@ async function get(handler: any, url: string) {
 
 describe('REQ-a33899 t5 · 接口接线', () => {
   it('无 systemPrompt 服务 → systemPrompt.source=unavailable（不猜数字）', async () => {
-    const handler = createReqboardHandler({ store, now: () => Date.now() })
+    const handler = createReqboardHandler({ taskStore: taskStoreAt(dir), store, now: () => Date.now() })
     const res = await get(handler, '/requirements/REQ-abc123/token')
     expect(res.statusCode).toBe(200)
     expect(res.payload.data.systemPrompt.source).toBe('unavailable')
@@ -123,7 +124,7 @@ describe('REQ-a33899 t5 · 接口接线', () => {
   })
 
   it('有 systemPrompt + 注入留痕端口 → 两块成本就位', async () => {
-    const handler = createReqboardHandler({
+    const handler = createReqboardHandler({ taskStore: taskStoreAt(dir),
       store,
       now: () => Date.now(),
       systemPrompt: () => ({ assemble: async () => ({ sections: [{ name: 'genome:rules', text: 'abcd' }], contexts: [], tools: [] }) }),

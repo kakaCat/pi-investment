@@ -17,7 +17,7 @@ const B = (n: number): TokenBuckets => ({ uncachedInputTokens: n, outputTokens: 
 const snap = (n: number, sessionId: string = W): TokenSnapshot => ({ sessionId, at: 1000 + n, totals: B(n), source: 'projection' })
 
 describe('REQ-260927121324-abde t4 · rollup 的写时快照', () => {
-  it('有会话：派生推进结算离开节点进 byStage，新事件带快照', () => {
+  it('有会话：派生推进结算离开节点进 byStage，新事件带快照', async () => {
     const h = makeHarness({
       requirements: [req({
         status: 'implementing',
@@ -27,7 +27,9 @@ describe('REQ-260927121324-abde t4 · rollup 的写时快照', () => {
     })
     h.session.tokenSnapshot = snap(5)
 
-    const advanced = applyTaskRollup(h.repo.ledger, {
+    // 新签名 `applyTaskRollup(ledger, tasks, ctx, onlyReqId?)`：任务取自 harness 的**真实**
+    // QueueTaskStore（`await h.tasksOf(reqId)`），不是 `[]`/`undefined`。
+    const advanced = applyTaskRollup(h.repo.ledger, await h.tasksOf('REQ-000001'), {
       now: 10,
       commentId: () => 'c-1',
       snapshot: snapshotProviderFor(h.deps, W),

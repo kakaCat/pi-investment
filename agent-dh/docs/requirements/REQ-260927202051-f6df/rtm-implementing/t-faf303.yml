@@ -1,7 +1,7 @@
 task:
   id: t-faf303
   title: 实现 v8→v9 迁移变换与 CLI
-  status: todo
+  status: done
   implements: ""
   serves: []
   depends_on:
@@ -27,8 +27,8 @@ metadata:
   stage: implementing
   requirement_id: REQ-260927202051-f6df
   generated_at: 2026-09-27T13:25:16.919Z
-  version: 2
+  version: 7
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 1
-  last_updated: 2026-09-27T13:25:16.919Z
+  last_updated: 2026-09-27T14:09:38.218Z

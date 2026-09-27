@@ -220,16 +220,24 @@ export class QueueTaskStore implements TaskStore {
         const prev = before.get(t.id)
         return prev === undefined || !sameTask(prev, t)
       })
-      if (changed.length === 0) return [] // 回调没真的改出差异：不白写（mtime 不变）
+      // ⚠️ 删除必须**先于**"无变更"判定（2026-09-27 实测缺陷修复）：
+      // 被删掉的任务不出现在 `next.tasks` 里，原来只用 `changed.length === 0` 判"没改"，
+      // 于是 `mutate(reqId, () => [])` 这类**纯删除**会提前返回、**静默不写盘**，
+      // 且 `kind: 'task-removed'` 变成永远走不到的死分支。
+      // 判据改为"**集合与内容都没变**才提前返回"：新增/改动（changed）或删除（removed）任一非空都算变更。
+      const removed = [...before.keys()].filter((id) => !after.has(id))
+      if (changed.length === 0 && removed.length === 0) return [] // 真没改：不白写（mtime 不变）
 
       await this.repo.save(requirementId, next)
       this.commit(requirementId, next)
 
       const created = changed.filter((t) => !before.has(t.id))
-      const removed = [...before.keys()].filter((id) => !after.has(id))
       const kind: TaskChange['kind'] =
         created.length > 0 ? 'task-created' : removed.length > 0 ? 'task-removed' : changed.some((t) => before.get(t.id)?.status !== t.status) ? 'task-moved' : 'task-updated'
-      const records = changed.map(toRecord)
+      // 返回值 = 本次真正改动的任务：新增/内容变化者（`next` 侧）+ **被删除者**（`before` 末态）。
+      // 删除没有"after 态"，返回被删卡的末态是唯一能如实表达"这几位变了"的形状；
+      // 同时保证 `TaskChange.tasks` 在删除场景也**非空**（订阅者据此失效缓存/刷新看板）。
+      const records = [...changed, ...removed.map((id) => before.get(id)!)] .map(toRecord)
       this.notify({ requirementId, kind, tasks: records, revision: this.revisions.get(requirementId) ?? 0 })
       return records
     })

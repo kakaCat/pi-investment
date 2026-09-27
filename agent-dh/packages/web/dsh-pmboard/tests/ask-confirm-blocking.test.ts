@@ -11,6 +11,7 @@
  *   · TC-10 重新发起覆盖旧记录（旧记录 settle 为未确认）。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { taskStoreAt } from './queue/route-deps.js'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -44,6 +45,8 @@ function makeDeps(ask: AskFn): UseCaseDeps & { pendingConfirms: PendingConfirmRe
   const now = (): number => Date.now()
   const deps = {
     repo: store,
+
+    taskStore: taskStoreAt(dir),
     docs: new FileDocRepository({ workspaceRoot: dir }),
     clock: { now },
     ids: new RandomIdFactory(),

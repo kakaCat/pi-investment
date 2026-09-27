@@ -1,7 +1,7 @@
 task:
   id: t-fa3e16
   title: 接线 ExecuteTask/MoveTask：读队列与顺序契约
-  status: todo
+  status: done
   implements: ""
   serves: []
   depends_on:
@@ -26,8 +26,8 @@ metadata:
   stage: implementing
   requirement_id: REQ-260927202051-f6df
   generated_at: 2026-09-27T13:32:12.604Z
-  version: 2
+  version: 7
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 1
-  last_updated: 2026-09-27T13:32:12.605Z
+  last_updated: 2026-09-27T14:08:13.454Z

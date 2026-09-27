@@ -9,6 +9,7 @@
  * 覆盖：绑定需求的会话返回进度口径；无关会话返回 hasRequirement=false；已完成需求不再被选中。
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { taskStoreAt } from './queue/route-deps.js'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
@@ -63,7 +64,7 @@ async function seed(status: string, sessionId: string | undefined): Promise<stri
 
 describe('会话框流程节点 /session/:id/progress', () => {
   it('绑定进行中需求的会话 → 200 且返回需求与进度口径（回归：曾因符号未定义 500）', async () => {
-    const handler = createReqboardHandler({ store, now: () => Date.now() })
+    const handler = createReqboardHandler({ taskStore: taskStoreAt(dir), store, now: () => Date.now() })
     const id = await seed('implementing', SID)
     const res = await get(handler, '/session/' + SID + '/progress')
     expect(res.statusCode, JSON.stringify(res.payload)).toBe(200)
@@ -74,7 +75,7 @@ describe('会话框流程节点 /session/:id/progress', () => {
 
   // TC-10（REQ-260923134706-e72f / FR-2）：progress 透出立项四问之一的 promptDifficulty
   it('有 promptDifficulty 的记录透出值，老记录透出 null', async () => {
-    const handler = createReqboardHandler({ store, now: () => Date.now() })
+    const handler = createReqboardHandler({ taskStore: taskStoreAt(dir), store, now: () => Date.now() })
     // 有难度的记录
     const withDiff = 'REQ-withdiff-01'
     await store.mutate('seed', (l) => {
@@ -100,14 +101,14 @@ describe('会话框流程节点 /session/:id/progress', () => {
   })
 
   it('无关联需求的会话 → 200 且 hasRequirement=false（不报错、不 500）', async () => {
-    const handler = createReqboardHandler({ store, now: () => Date.now() })
+    const handler = createReqboardHandler({ taskStore: taskStoreAt(dir), store, now: () => Date.now() })
     const res = await get(handler, '/session/no-such-session/progress')
     expect(res.statusCode, JSON.stringify(res.payload)).toBe(200)
     expect(res.payload.data.hasRequirement).toBe(false)
   })
 
   it('已完成/已归档需求不会被选为"进行中"节点（isOpenRequirement 判据）', async () => {
-    const handler = createReqboardHandler({ store, now: () => Date.now() })
+    const handler = createReqboardHandler({ taskStore: taskStoreAt(dir), store, now: () => Date.now() })
     await seed('done', SID)
     const res = await get(handler, '/session/' + SID + '/progress')
     expect(res.statusCode).toBe(200)

@@ -1,7 +1,7 @@
 task:
   id: t-dfc245
   title: 迁移契约比对：587 条零字段丢失
-  status: todo
+  status: done
   implements: ""
   serves: []
   depends_on:
@@ -17,18 +17,20 @@ task:
     SIDE: backend
     PHASE: test
   workflow_total: 2
-  workflow_done: 1
+  workflow_done: 2
   workflow:
     - phase: test
-      status: pending
+      status: done
+      started_at: 2026-09-27T14:11:02.571Z
+      completed_at: 2026-09-27T14:12:23.405Z
     - phase: review
       status: done
 metadata:
   stage: implementing
   requirement_id: REQ-260927202051-f6df
   generated_at: 2026-09-27T13:25:17.210Z
-  version: 2
+  version: 7
   generated_by: dsh-pmboard
   detail_dir: rtm-implementing/
   detail_count: 2
-  last_updated: 2026-09-27T13:25:17.211Z
+  last_updated: 2026-09-27T14:12:23.405Z
