@@ -21,6 +21,8 @@ tags: [manual, l1, overview]
 
 | 日期 | 更新点 | 来源 |
 |---|---|---|
+| 2026-09-27 | **任务卡从台账迁到按需求分片的队列文件**：`docs/requirements/<REQ>/queue.json` 成为任务的**唯一存储**（内含完整任务卡 + DAG 层级与 ready 队列），台账瘦身为 schemaVersion 9（只留需求 / 分诊 / 迁移留痕）；拆分、执行、状态流转三处都改以队列为准。迁移脚本带 `--dry-run / --apply / --verify / --rollback` 四态、白名单校验与幂等；**投产必须停机执行**（否则内存态旧快照会覆盖迁移成果）。交付证据与已知缺口见 [verification-evidence.md](../../agent-dh/docs/requirements/REQ-260927202051-f6df/verification-evidence.md) | REQ-260927202051-f6df |
+| 2026-09-27 | **确认门弹框改为真正阻塞**：`reqboard_ask_confirm` 缺省等到作答/取消/中止才返回（删除 30s 到点自动放行，「弹框出现＝agent 正在等」）；只有显式 `inline_grace_ms` 才走非阻塞逃生舱；阻塞期登记挂起 ticket 并被停手守卫拦住写路径，中止留可查记录（`reqboard_status.pending_confirms`）。等待语义与流程图见 agent-dh/docs/architecture/reqboard-pipeline-flow.md | REQ-260927123256-196b |
 | 2026-09-27 | **拆分→实施这一段不再静默**：批准拆分计划的**同一次调用内**同步落库任务卡（落库失败不推进、写 pausedReason + 告警）；「计划有卡、台账 0 卡」推进到实施被代码级拒绝并给修复指引；`reqboard_decompose` 返回体契约修正（task_coverage 为数组）；任务状态变更同时刷新实施覆盖度（rtm-decomposing）；agent 侧补齐 `reqboard_move` / `reqboard_task_move` 与任务级收敛点（非法流转被拒且零副作用）；`reqboard_status` 返回体 lossless；确认门挂起期间同窗口写路径代码级拒绝（REQBOARD_CONFIRM_PENDING）；Dive 采集半不再直投会话（投递白名单，阶段纪律只走 system prompt）。节点流程图见 agent-dh/docs/architecture/reqboard-pipeline-flow.md | REQ-260927100007-b8ba |
 | 2026-09-24 | **盯盘通知改版上线**：10 个盯盘频道码经 Agent OS 渠道表分群到专用盯盘群（alerts/reports/trading 原群不动，换群/回滚只改渠道表零代码）；触发 L1 直发 agent 优先、Agent OS 不可达降级直飞书不丢消息且 metadata 如实标注降级原因；超时/升级回执同周期聚合一张卡、close 即时发处置结论三要素卡（结论/原因/后续意见）；回执落库标签对齐真实路由码；通知渠道注册与 ADR-002 调度旗解耦（AGENT_OS_NOTIFY_ENABLED）。持久认知见 docs/guides/watch-notification-routing.md | REQ-260924104605-ad0a |
 | 2026-09-22 | **看板产物用词收敛唯一事实源**：产物种类/节点文档文件名中文名集中到 `artifact-labels.ts`，追溯链与文档区不再裸显 architecture.md、任务卡不再折叠「任务卡×N」（改逐张带任务名）；六处本地映射表删除，新增种类/文件名未配中文名由单测拦截 | REQ-260922182638-0777 |
@@ -57,6 +59,7 @@ PI Investment 是一个**由 AI agent 自主运行的投资系统**：agent 在�
 | 需求看板（reqboard） | 需求 → 任务两级流水线：立项 → 需求分析 → 技术设计 → 拆分 → 实施 → 验收 → 归档（7 态，REQ-9f4a44 起验收通过直归档，无 done 中转） | [workflow-stages.md](../../agent-dh/docs/architecture/workflow-stages.md)（唯一事实源）、[RFC 014](../../agent-dh/docs/rfcs/014-requirement-board.md) |
 | **提示词加载路由** | 状态机选中哪个节点，就注入哪份阶段提示词（**节点即选择器，无需 skill 匹配**；披露 = 按节点注入）：按 `stage/difficulty/category` 解析、5 级回退（难度优先于类型）、单次注入 ≤ 24000 字符 | [workflow-stages.md「提示词加载路由」](../../agent-dh/docs/architecture/workflow-stages.md) |
 | 计划模式（plan mode） | 拆分前置闸门：先写实施计划（含任务表）、人批准、才能落库任务卡 | [RFC 014 §5b](../../agent-dh/docs/rfcs/014-requirement-board.md) |
+| **任务队列（queue.json）** | 任务卡的**唯一存储**：按需求分片的 `docs/requirements/<REQ>/queue.json`（完整任务卡 + DAG 层级 layers/edges + ready 队列）；台账只留需求/分诊/迁移留痕。读方一律经 `TaskStore` 端口，**不直读文件**；任务入口在装配缺失时必须显式失败，不得静默返回空任务集 | REQ-260927202051-f6df 交付证据（[verification-evidence.md](../../agent-dh/docs/requirements/REQ-260927202051-f6df/verification-evidence.md)） |
 | 基因组（genome） | agent 的宪法/原则/规则/教训四段提示词，可进化、有版本与验证门 | [agent-dh/CLAUDE.md](../../agent-dh/CLAUDE.md) |
 | 文档金字塔 | L1 说明书 / L2 领域篇 / L3 证据档案；归档让认知自下而上生长 | [DOCUMENT-MANAGEMENT-PLAN.md](../DOCUMENT-MANAGEMENT-PLAN.md) |
 | **多源 provider 框架** | quantsys-v2 取数的**唯一入口**：`_try_providers()` 做故障转移/熔断/健康排序，并返回 `source/attempted_sources/empty_sources` 诚实标记；「空结果≠故障」 | `quantsys-v2/adapters/outbound/datasources/manager.py` |
