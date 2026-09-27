@@ -7,6 +7,7 @@
  */
 import type { UseCaseDeps } from '../ports.js'
 import { syncRTMYaml } from '../internal/rtm-yaml.js'
+import { taskStoreOf } from './queue-access.js'
 import {
   normalizePlanTasks,
   normalizeText,
@@ -142,7 +143,7 @@ export async function submitRequirementArtifact(deps: UseCaseDeps, args: unknown
       const registered = !alreadyRegistered
       if (registered) notifyArtifactRegistered(deps, changed.id, artifact)
       // RTM 触发点 2：提交需求文档 → rtm-brainstorming.yml
-      syncRTMYaml(deps, changed.id, 'submit:requirement')
+      syncRTMYaml(deps, await taskStoreOf(deps).listByRequirement(changed.id), changed.id, 'submit:requirement')
       return {
         success: true,
         requirement_id: changed.id,

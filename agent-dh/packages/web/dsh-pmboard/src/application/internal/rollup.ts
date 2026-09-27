@@ -21,6 +21,7 @@ import {
   type ReqboardLedger,
   type RequirementRecord,
   type RequirementStatus,
+  type TaskRecord,
   type TokenSnapshot,
 } from '../../shared/protocol.js'
 import { transitionRequirement } from './token-usage.js'
@@ -40,9 +41,19 @@ export interface RollupContext {
   snapshot?: (req: RequirementRecord) => TokenSnapshot | undefined
 }
 
-/** 台账 → 决策所需的最小只读投影（RollupSpec 不依赖完整记录类型）。 */
-function viewOf(ledger: ReqboardLedger): RollupView {
-  return { requirements: ledger.requirements, tasks: ledger.tasks, triages: ledger.triages }
+/** 台账 + 队列任务 → 决策所需的最小只读投影（RollupSpec 不依赖完整记录类型）。 */
+function viewOf(ledger: ReqboardLedger, tasks: readonly TaskRecord[]): RollupView {
+  return { requirements: ledger.requirements, tasks, triages: ledger.triages }
+}
+
+/**
+ * pickup 路径（R1/R0）专用视图：RollupSpec 的 `planPickupAdvance` / `planPickupReconcile`
+ * **只读 requirements/triages**（见 RollupSpec.ts:74-124，无 `activeTasksOf` 调用），
+ * 故任务侧给空数组即可——签名因而保持不变，`src/index.ts` / `wiring/pm-capture-root.ts`
+ * 的调用点零改动（REQ-260927202051-f6df t9，D6 已与 reader-http 互认）。
+ */
+function pickupViewOf(ledger: ReqboardLedger): RollupView {
+  return { requirements: ledger.requirements, tasks: [], triages: ledger.triages }
 }
 
 /** 就地推进一条需求状态并留痕（调用方须已确认转移合法）。 */
@@ -99,7 +110,7 @@ export function applyPickupAdvance(
   reqId: string,
   ctx: RollupContext,
 ): RequirementRecord | undefined {
-  const move = planPickupAdvance(viewOf(ledger), reqId)
+  const move = planPickupAdvance(pickupViewOf(ledger), reqId)
   if (move === undefined) return undefined
   const req = ledger.requirements.find(r => r.id === move.reqId)
   if (req === undefined || req.status !== move.from) return undefined
@@ -113,7 +124,7 @@ export function applyPickupAdvance(
  * triage 锚点）的需求——人工建卡、且从未被窗口接手的仍留在立项。
  */
 export function applyPickupReconcile(ledger: ReqboardLedger, ctx: RollupContext): RequirementRecord[] {
-  return applyMoves(ledger, planPickupReconcile(viewOf(ledger)), ctx)
+  return applyMoves(ledger, planPickupReconcile(pickupViewOf(ledger)), ctx)
 }
 
 /**
@@ -124,11 +135,15 @@ export function applyPickupReconcile(ledger: ReqboardLedger, ctx: RollupContext)
  * （拆分清单须人确认），R4 自动推进移除——需求停在拆分态等人确认，不再随任务开工自动推进。
  * 一次调用内循环至稳定（上限 3 步/需求），使「拆分+全部完成」这类跨越在一次 rollup 内收敛。
  * 返回被推进的需求列表（同一需求只上报一次；逐步留痕在 comments 里）。
+ *
+ * REQ-260927202051-f6df t9（D6）：`tasks` 为**新增第 2 参**——任务已迁出台账（v9 无 `tasks` 键），
+ * 调用方从 `TaskStore` 取（`taskStore.mutate` 回调的 `tasks` / `await taskStore.listByRequirement(reqId)`）。
  */
 export function applyTaskRollup(
   ledger: ReqboardLedger,
+  tasks: readonly TaskRecord[],
   ctx: RollupContext,
   onlyReqId?: string,
 ): RequirementRecord[] {
-  return applyMoves(ledger, planRollup(viewOf(ledger), onlyReqId), ctx)
+  return applyMoves(ledger, planRollup(viewOf(ledger, tasks), onlyReqId), ctx)
 }

@@ -19,6 +19,7 @@ import { openRequirementsFor } from '../internal/window.js'
 import { normalizeText } from '../../shared/protocol.js'
 import { checkAcceptance } from '../../domain/task/Acceptability.js'
 import { fmt } from '../../domain/text/fmt.js'
+import { taskStoreOf } from './queue-access.js'
 
 /** 从 args 里读可选的 acceptance（未传 / 空串 → undefined，表示"不改"）。 */
 export function requestedAcceptance(args: unknown): string | undefined {
@@ -50,21 +51,23 @@ export async function amendTaskAcceptanceIfRequested(
 
   const snapshot = deps.repo.snapshot()
   const bound = openRequirementsFor(snapshot, windowKey)
-  const task = snapshot.tasks.find(t => t.id === taskId)
+  const store = taskStoreOf(deps)
+  const task = await store.get(taskId)
   if (task === undefined) reject(fmt('reqboard_task_move 未执行：任务 {id} 不存在', { id: taskId }), 'REQBOARD_TASK_NOT_FOUND')
   if (!bound.some(r => r.id === task.requirementId)) {
     reject(fmt('reqboard_task_move 未执行：任务 {id} 不属于本窗口绑定的需求', { id: taskId }), 'REQBOARD_NOT_BOUND_TO_WINDOW')
   }
 
   const nowTs = deps.clock.now()
-  const result = await deps.repo.mutate('task-amended', (ledger) => {
-    const t = ledger.tasks.find(x => x.id === taskId)
+  // 任务写经 TaskStore（台账 v9 无 tasks 键）；本用例只动任务，无需求侧写入。
+  const changed = await store.mutate(task.requirementId, (tasks) => {
+    const t = tasks.find(x => x.id === taskId)
     if (t === undefined) return undefined
     t.acceptance = next
     t.updatedAt = nowTs
-    return { tasks: [t] }
+    return tasks
   })
-  if (result.changed.tasks === undefined || result.changed.tasks.length === 0) {
+  if (changed.length === 0) {
     reject('reqboard_task_move 写入失败：修订验收标准后台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
   }
 

@@ -1,5 +1,5 @@
 /**
- * 计划任务落库编排（REQ-260927100007-b8ba t4 / FR-1）——「把已批准计划的任务表写成台账任务卡」
+ * 计划任务落库编排（REQ-260927100007-b8ba t4 / FR-1）——「把已批准计划的任务表写成任务卡」
  * 的**唯一实现**。
  *
  * 为什么要抽出来：同一段落库编排原先只存在于 reqboard_decompose 用例里，而「批准拆分计划」这条
@@ -9,6 +9,12 @@
  *
  * 职责边界：本模块只做「计划任务表 → 任务卡 DAG（含任务卡文档 / decomposition.md / 产物登记 /
  * RTM 覆盖度）」。计划是否已批准、条款覆盖门禁、薄卡检测等**准入判定**留在调用方。
+ *
+ * REQ-260927202051-f6df t11（FR-1）：任务不再写台账（v9 无 `tasks` 键），改为
+ * **① 先 `taskStore.createMany` 写 queue.json → ② 后 `repo.mutate` 写需求侧**。
+ * 两条调用路径（`Decompose.ts:189` 与 `confirm-settle.ts:276`）共用本函数，故都自动覆盖；
+ * 幂等由 `createMany`（已存在 id 跳过、不写盘）保证——重复拆分不会改写已执行中的卡，
+ * 且第二次调用的 queue.json mtime 不变（t11 的幂等判据）。
  *
  * @module dsh-pmboard/application/internal/plan-landing
  */
@@ -26,6 +32,7 @@ import { captureSnapshot } from './token-usage.js'
 import { registerArtifact } from './artifact-gates.js'
 import { stampCheckpoint } from './interruption.js'
 import { syncRequirementMarks } from '../use-cases/SyncRequirementMarks.js'
+import { taskStoreOf } from '../use-cases/queue-access.js'
 import { generateRTMData } from './rtm-integration.js'
 
 /** 待落库的任务草稿（来自已批准计划或显式 tasks 创作）。 */
@@ -63,72 +70,99 @@ export interface LandPlanTasksInput {
 export interface LandPlanTasksResult {
   created: LandedTaskRef[]
   requirement: RequirementRecord | undefined
+  /**
+   * 本次**真正新增**的任务 id（幂等跳过的不计）。
+   * t11 判据：重复调用时本数组为空 + queue.json mtime 不变。
+   */
+  createdIds: string[]
   rtm?: Awaited<ReturnType<typeof generateRTMData>>
 }
 
 /**
- * 把任务草稿写进台账（+ 生成任务卡文档 / decomposition.md / 登记产物 / 刷新需求接收标记 / RTM）。
+ * 把任务草稿写进队列（+ 生成任务卡文档 / decomposition.md / 登记产物 / 刷新需求接收标记 / RTM）。
  * 任一步抛错即向上抛——调用方据此决定「不推进 + 响亮地失败」。
  */
 export async function landPlanTasks(deps: UseCaseDeps, input: LandPlanTasksInput): Promise<LandPlanTasksResult> {
   const { requirementId, windowKey, nowTs, draft, refsByKey } = input
+  const store = taskStoreOf(deps)
 
-  const result = await deps.repo.mutate('task-created', (ledger) => {
+  const req0 = deps.repo.snapshot().requirements.find(r => r.id === requirementId)
+  if (req0 === undefined) {
+    return { created: [], requirement: undefined, createdIds: [] }
+  }
+
+  // 队列既有任务（幂等去重 + 环检测的完整图输入）。
+  const existing = await store.listByRequirement(requirementId)
+  const used = new Set(existing.map(t => t.id))
+  const idByKey = new Map<string, string>()
+  const keyById = new Map<string, string>()
+  const records: TaskRecord[] = []
+  for (const d of draft) {
+    let id = deps.ids.task()
+    for (let guard = 0; guard < 50 && used.has(id); guard++) id = deps.ids.task()
+    used.add(id)
+    idByKey.set(d.key, id)
+    keyById.set(id, d.key)
+    const reqDir = 'docs/requirements/' + requirementId
+    const record: TaskRecord = {
+      id,
+      requirementId,
+      title: d.title,
+      // cardDoc 随落库写死（REQ-260923134706-e72f 实测断链修复：此前只生成文档+登记产物，
+      // 没写这个字段，面板「（无任务卡）」不可点）；读路径另有产物回填兼容存量（QueryStageDetail.withCardDoc）
+      cardDoc: reqDir + '/tasks/' + id + '.md',
+      description: d.description,
+      phase: d.phase as TaskRecord['phase'],
+      side: d.side as TaskRecord['side'],
+      dependsOn: d.dependsOn.map(dep => idByKey.get(dep) ?? dep),
+      scope: asScope({}),
+      acceptance: d.acceptance,
+      implementation: d.implementation,
+      context: d.context,
+      // 从 refsByKey Map 中获取该任务的 requirement_refs（REQ-260925172227-2d61 RTM 覆盖度追踪）
+      requirementRefs: refsByKey.get(d.key) ?? [],
+      status: 'todo',
+      blocked: false,
+      executions: [],
+      statusHistory: [],
+      comments: [],
+      version: 1,
+      createdAt: nowTs,
+      updatedAt: nowTs,
+      createdBy: { kind: 'agent', sessionId: windowKey },
+      updatedBy: { kind: 'agent', sessionId: windowKey },
+    }
+    recordStatus(record, 'todo', nowTs, { kind: 'agent', sessionId: windowKey }, '拆分落库（reqboard_decompose）')
+    records.push(record)
+  }
+  // 环检测的图 = 队列既有 + 本次新增（dependsOn 已在上面解析为真实 id）。
+  assertDagAcyclic([...existing, ...records], requirementId)
+
+  // ── ① 任务写（**先**）：queue.json（幂等：已存在 id 跳过；全已存在则不写盘 → mtime 不变）──────
+  const createdRaw = await store.createMany(requirementId, records)
+  const created: LandedTaskRef[] = createdRaw.map(t => ({
+    key: keyById.get(t.id) ?? '',
+    id: t.id,
+    title: t.title,
+    depends_on: [...t.dependsOn],
+  }))
+  // rollup 的输入任务集 = 队列事实（既有 + 本次新增），在 repo.mutate 之前取好（回调是同步契约）。
+  const allTasks = await store.listByRequirement(requirementId)
+
+  // ── ② 需求写（**后**）：评论 / 销标 / rollup —— 不含任何任务字段 ─────────────────────
+  const result = await deps.repo.mutate('requirement-updated', (ledger) => {
     const req = ledger.requirements.find(r => r.id === requirementId)
     if (req === undefined) return undefined
-    const used = new Set(ledger.tasks.map(t => t.id))
-    const idByKey = new Map<string, string>()
-    const records: TaskRecord[] = []
-    const commentLines: string[] = []
-    for (const d of draft) {
-      let id = deps.ids.task()
-      for (let guard = 0; guard < 50 && used.has(id); guard++) id = deps.ids.task()
-      used.add(id)
-      idByKey.set(d.key, id)
-      const reqDir = 'docs/requirements/' + req.id
-      const record: TaskRecord = {
-        id,
-        requirementId: req.id,
-        title: d.title,
-        // cardDoc 随落库写死（REQ-260923134706-e72f 实测断链修复：此前只生成文档+登记产物，
-        // 没写这个字段，面板「（无任务卡）」不可点）；读路径另有产物回填兼容存量（QueryStageDetail.withCardDoc）
-        cardDoc: reqDir + '/tasks/' + id + '.md',
-        description: d.description,
-        phase: d.phase as TaskRecord['phase'],
-        side: d.side as TaskRecord['side'],
-        dependsOn: d.dependsOn.map(dep => idByKey.get(dep) ?? dep),
-        scope: asScope({}),
-        acceptance: d.acceptance,
-        implementation: d.implementation,
-        context: d.context,
-        // 从 refsByKey Map 中获取该任务的 requirement_refs（REQ-260925172227-2d61 RTM 覆盖度追踪）
-        requirementRefs: refsByKey.get(d.key) ?? [],
-        status: 'todo',
-        blocked: false,
-        executions: [],
-        statusHistory: [],
-        comments: [],
-        version: 1,
-        createdAt: nowTs,
-        updatedAt: nowTs,
-        createdBy: { kind: 'agent', sessionId: windowKey },
-        updatedBy: { kind: 'agent', sessionId: windowKey },
-      }
-      recordStatus(record, 'todo', nowTs, { kind: 'agent', sessionId: windowKey }, '拆分落库（reqboard_decompose）')
-      records.push(record)
-    }
-    assertDagAcyclic([...ledger.tasks, ...records], req.id)
-    ledger.tasks.push(...records)
     // 销标（REQ-2e9473 t19/W8）：拆分重做即完成 decomposition 同步（规则在 DocSyncSpec.ts）
     clearDocSync(req, 'decomposition')
-    for (const r of records) {
-      const deps = r.dependsOn.length > 0 ? '（依赖 ' + r.dependsOn.join(', ') + '）' : ''
-      commentLines.push('- ' + r.id + ' ' + r.title + deps)
-    }
+    const commentLines = createdRaw.map(r => {
+      const dep = r.dependsOn.length > 0 ? '（依赖 ' + r.dependsOn.join(', ') + '）' : ''
+      return '- ' + r.id + ' ' + r.title + dep
+    })
     req.comments.push({
       id: deps.ids.comment(),
       body:
-        '[拆分] 按已批准的拆分计划落库 ' + records.length + ' 个任务'
+        '[拆分] 按已批准的拆分计划落库 ' + createdRaw.length + ' 个任务'
         + (req.plan !== undefined ? '（计划 ' + req.plan.path + '，批准于 ' + new Date(req.plan.approvedAt ?? 0).toISOString() + '）' : '')
         + '：\n' + commentLines.join('\n')
         + '\n（窗口 ' + windowKey + '）',
@@ -140,18 +174,14 @@ export async function landPlanTasks(deps: UseCaseDeps, input: LandPlanTasksInput
     req.updatedBy = { kind: 'agent', sessionId: windowKey }
     const advanced = applyTaskRollup(
       ledger,
+      allTasks,
       { now: nowTs, commentId: () => deps.ids.comment(), snapshot: () => captureSnapshot(deps, windowKey) },
       req.id,
     )
-    return { tasks: records, requirements: [req, ...advanced] }
+    return { requirements: [req, ...advanced] }
   })
   const req = (result.changed.requirements ?? [])[0]
-  const created: LandedTaskRef[] = (result.changed.tasks ?? []).map((t, i) => ({
-    key: draft[i]?.key ?? '',
-    id: t.id,
-    title: t.title,
-    depends_on: [...t.dependsOn],
-  }))
+
   // 调用 DSH todo_write 工具，注册任务到 DSH 任务系统（REQ-327bdf t-f0e869）。
   // 为什么放在 mutate **之后**：repo.mutate 的回调是同步契约（返回 LedgerChange），在里面 await
   // 会让整个模块无法被 esbuild/vite 解析。可用性守卫：exec.tools 只在真实 DSH 会话里存在。
@@ -175,7 +205,7 @@ export async function landPlanTasks(deps: UseCaseDeps, input: LandPlanTasksInput
     '| 根编号 | 计划 key | 任务 id | 标题 | 状态 |',
     '|--------|---------|--------|------|------|',
     ...created.flatMap(c => {
-      const t = (result.changed.tasks ?? []).find(x => x.id === c.id)!
+      const t = createdRaw.find(x => x.id === c.id)!
       const refs = refsByKey.get(c.key) ?? []
       const cells = refs.length > 0 ? refs : ['—（未声明接收任何条款）']
       return cells.map(r => '| ' + r + ' | ' + c.key + ' | ' + c.id + ' | ' + t.title + ' | ' + t.status + ' |')
@@ -186,7 +216,7 @@ export async function landPlanTasks(deps: UseCaseDeps, input: LandPlanTasksInput
     '| 计划 key | 任务 id | 标题 | 阶段 | 端侧 | 依赖 | 验收标准 |',
     '|---------|--------|------|------|------|------|---------|',
     ...created.map(c => {
-      const t = (result.changed.tasks ?? []).find(x => x.id === c.id)!
+      const t = createdRaw.find(x => x.id === c.id)!
       return '| ' + c.key + ' | ' + c.id + ' | ' + t.title + ' | ' + t.phase + ' | ' + t.side + ' | ' + (c.depends_on.join(', ') || '-') + ' | ' + (t.acceptance || '-') + ' |'
     }),
     '',
@@ -197,11 +227,11 @@ export async function landPlanTasks(deps: UseCaseDeps, input: LandPlanTasksInput
   }
   // 生成每任务自足任务卡骨架
   for (const c of created) {
-    const t = (result.changed.tasks ?? []).find(x => x.id === c.id)!
+    const t = createdRaw.find(x => x.id === c.id)!
     const taskPath = reqDir + '/tasks/' + c.id + '.md'
     if (!docs.exists(taskPath)) {
       const depTitles = c.depends_on.map(depId => {
-        const dep = (result.changed.tasks ?? []).find(x => x.id === depId)
+        const dep = createdRaw.find(x => x.id === depId)
         return dep ? dep.title : depId
       })
       // 三要素节（在做什么 / 解决什么问题 / 得到什么结果）是**契约**，不是排版：
@@ -243,9 +273,8 @@ export async function landPlanTasks(deps: UseCaseDeps, input: LandPlanTasksInput
   // 需求文档同步逐条接收状态（T-5 / FR-3）：拆分那次就把「谁接了哪条」落到文档上。
   // 回写失败不阻断拆分（文档是留痕面）。
   try {
-    const snap = deps.repo.snapshot()
-    const r0 = snap.requirements.find(x => x.id === requirementId)
-    if (r0 !== undefined) await syncRequirementMarks(deps, r0, snap.tasks)
+    const r0 = deps.repo.snapshot().requirements.find(x => x.id === requirementId)
+    if (r0 !== undefined) await syncRequirementMarks(deps, r0, allTasks)
   } catch {
     /* 回写失败不阻断拆分 */
   }
@@ -273,5 +302,10 @@ export async function landPlanTasks(deps: UseCaseDeps, input: LandPlanTasksInput
   } catch (rtmErr) {
     console.warn('[plan-landing] RTM 集成失败:', rtmErr)
   }
-  return { created, requirement: req, ...(rtm !== undefined ? { rtm } : {}) }
+  return {
+    created,
+    requirement: req,
+    createdIds: created.map(c => c.id),
+    ...(rtm !== undefined ? { rtm } : {}),
+  }
 }

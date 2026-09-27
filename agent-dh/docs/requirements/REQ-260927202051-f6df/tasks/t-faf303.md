@@ -25,3 +25,30 @@
 
 ## 执行方式提示（executorHint）
 优先新窗口或 subagent 执行；按本卡自足执行，不读会话历史
+## 汇报 1（2026-09-27T13:25:16.820Z，窗口 session-3936d77f-2391-4042-8305-9b0fb5e9d2b8）
+
+迁移工具落地：一条命令就能把台账里几百张任务卡按需求分片写进各自的队列文件，并且严格保证「先把所有队列写好、再动台账」——顺序反了会产生「台账已清空、队列还没生成」的双向丢失。另带三种安全态：只看不动的预演、核对无差异的校验、以及逐字节还原的回滚；还加了一道守卫，服务正在运行时拒绝执行，防止内存里的旧数据把新文件覆盖回去。
+
+### 完成项
+
+- migrateV8toV9 纯变换（structuredClone + 整对象展开 `{...task, layer}`，不重列字段）
+- CLI 四态 --dry-run / --apply / --verify / --rollback 全部可用
+- --verify 用「最近备份重放变换」与磁盘逐份比对（归一 generated_at/updated_at 与 migrations[].at）
+- --rollback 逐字节还原备份，并按 manifest sha256 精确清理本次生成的队列（运行期被改过的文件保留不删）
+- D-1~D-9 顺序打点：queueFilesWrittenBeforeLedger=true；lastIndexOf(D-7) < indexOf(D-8) < indexOf(D-9)
+- 格式保真：compact 台账迁移后仍 compact（7.9MB 单行不重排）
+- 新增服务运行守卫：state/server.pid 存活时拒绝 --apply/--rollback（防 DSH 内存态 v8 覆盖 v9），--force 才放行
+- 真实副本实测（rev=5773 / 7,905,194 bytes / 612 tasks / 82 req）：dry-run md5 不变、0 个 queue.json；apply 后 schemaVersion=9、'tasks' in ledger===false、migrations 末条 {8,9}、台账 7,905,194→4,825,231 bytes；verify exit 0（51 份全过）；rollback 逐字节等于备份、tasks 恢复 612
+- 上游接线：*Local 过渡实现全部删除，改为 import topology/validateQueue，并有断言 v9Defaults.validate === validateQueueFile 防第二套语义回流
+
+### 改动文件
+
+- `packages/web/dsh-pmboard/scripts/migrate-ledger.ts`
+- `packages/web/dsh-pmboard/tests/migrate-ledger-v8v9.test.ts`
+- `packages/web/dsh-pmboard/tests/migrate-contract.test.ts`
+
+### 下一步
+
+t-03254f 迁移安全：白名单、幂等与 orphan
+
+---

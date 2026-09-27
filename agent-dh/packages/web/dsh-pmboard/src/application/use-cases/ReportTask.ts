@@ -13,12 +13,15 @@ import {
 } from '../../shared/protocol.js'
 import { normalizeArtifactPath } from '../../domain/artifact/ArtifactPath.js'
 import { openRequirementsFor } from '../internal/window.js'
-import { captureSnapshot, endExecutionToken } from '../internal/token-usage.js'
+// FR-11 路线 A：团队 Worker 的合法写回路径（授权取自 live TeamService，不取用户输入）。
+import { ownsTeamTask } from '../internal/team-dispatch.js'
+import { captureSnapshot, refreshRunningExecution } from '../internal/token-usage.js'
 import {
   reject,
   agentIdFromExec,
   requireLiveDriver,
 } from '../internal/support.js'
+import { taskStoreOf } from './queue-access.js'
 
 export async function executeReportTask(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
       const windowKey = agentIdFromExec(deps, exec)
@@ -44,12 +47,17 @@ export async function executeReportTask(deps: UseCaseDeps, args: unknown, exec: 
 
       // ── 越权校验（与 task_move 同款）：任务必须属于本窗口绑定的需求 ──────────
       const snapshot = deps.repo.snapshot()
-      const task = snapshot.tasks.find(t => t.id === taskId)
+      const store = taskStoreOf(deps)
+      const task = await store.get(taskId)
       if (task === undefined) {
         reject('reqboard_task_report 未执行：任务 ' + taskId + ' 不存在', 'REQBOARD_TASK_NOT_FOUND')
       }
+      // 越权校验两条合法路径：① 本窗口绑定的需求；② **团队 Worker 汇报它自己认领的卡**
+      // （FR-11 路线 A：Worker 是独立会话，窗口码天然不等于 sourceSessionId，没有②则链第二张卡必停）。
       const bound = openRequirementsFor(snapshot, windowKey)
-      if (!bound.some(r => r.id === task.requirementId)) {
+      const viaTeam = deps.teams !== undefined && deps.teams.available()
+        && ownsTeamTask(deps.teams, (exec as { agent?: unknown } | undefined)?.agent, windowKey, task.teamTaskId)
+      if (!bound.some(r => r.id === task.requirementId) && !viaTeam) {
         reject(
           'reqboard_task_report 未执行：任务 ' + taskId + ' 不属于本窗口绑定的需求',
           'REQBOARD_NOT_BOUND_TO_WINDOW',
@@ -121,22 +129,24 @@ export async function executeReportTask(deps: UseCaseDeps, args: unknown, exec: 
       }
       // REQ-a33899：汇报即刷新本次执行的 token 进度（中途检查点；完工时由 task_move 覆盖终值）。
       const snap = captureSnapshot(deps, windowKey)
+      // ① 任务写（**顺序契约：任务先、需求后**，REQ-260927202051-f6df t9）——lastReport 是 done
+      //    凭证门的证据源，落队列（台账 v9 已无 tasks 键）。
+      await store.mutate(req.id, (tasks) => {
+        // done 凭证门证据源（REQ-2e9473 t06）：汇报即结构化留痕到任务记录
+        const tk = tasks.find(x => x.id === task.id)
+        if (tk === undefined) return undefined
+        tk.lastReport = { at: nowTs, reportIndex, filesChanged: [...filesChanged], completed: [...completed] }
+        tk.version += 1
+        tk.updatedAt = nowTs
+        // 中途刷新唯一入口（REQ-260927121324-abde FR-5）：刷新最近一条同会话 running 的
+        // end/delta，**不改 outcome**（仍在跑）——完工终值由 task_move 的收尾覆盖。
+        refreshRunningExecution(tk, snap, windowKey)
+        return tasks
+      })
+      // ② 需求写（产物登记 + 改动文件上浮 + 评论）——不含任何任务字段。
       const result = await deps.repo.mutate('requirement-updated', (ledger) => {
         const r = ledger.requirements.find(x => x.id === req.id)
         if (r === undefined) return undefined
-        // done 凭证门证据源（REQ-2e9473 t06）：汇报即结构化留痕到任务记录
-        const tk = ledger.tasks.find(x => x.id === task.id)
-        if (tk !== undefined) {
-          tk.lastReport = { at: nowTs, reportIndex, filesChanged: [...filesChanged], completed: [...completed] }
-          tk.version += 1
-          tk.updatedAt = nowTs
-          for (let i = tk.executions.length - 1; i >= 0; i -= 1) {
-            const e = tk.executions[i]!
-            if (e.outcome !== 'running' || e.sessionId !== windowKey) continue
-            endExecutionToken(e, snap)
-            break
-          }
-        }
         r.artifacts ??= []
         const already = r.artifacts.some(x => x.path === artifact.path && x.kind === artifact.kind)
         if (!already) r.artifacts.push(artifact)
@@ -172,7 +182,7 @@ export async function executeReportTask(deps: UseCaseDeps, args: unknown, exec: 
         r.version += 1
         r.updatedAt = nowTs
         r.updatedBy = { kind: 'agent', sessionId: windowKey }
-        return { requirements: [r], ...(tk !== undefined ? { tasks: [tk] } : {}) }
+        return { requirements: [r] }
       })
       const changed = (result.changed.requirements ?? [])[0]
       if (changed === undefined) reject('reqboard_task_report 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
@@ -180,7 +190,8 @@ export async function executeReportTask(deps: UseCaseDeps, args: unknown, exec: 
       const artifactRegistered = changed.artifacts?.some(x => x.path === artifact.path) ?? false
 
       // RTM 触发点 6（REQ-260926140539-457b FR-11）：汇报即推进任务详情的 workflow 子阶段
-      syncRTMYaml(deps, req.id, 'task:report', {
+      // D4：tasks 作为第 2 参传入（RTM 的任务视图已随 v9 改读队列）。
+      syncRTMYaml(deps, await store.listByRequirement(req.id), req.id, 'task:report', {
         taskId: task.id,
         updates: { workflow: [{ phase: inferWorkflowPhase(summary), status: 'done' }] },
       })

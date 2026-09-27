@@ -1,0 +1,33 @@
+task:
+  id: t-fa3e16
+  title: 接线 ExecuteTask/MoveTask：读队列与顺序契约
+  status: todo
+  implements: ""
+  serves: []
+  depends_on:
+    - t-05925b
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927202051-f6df
+    TASK_ID: t-fa3e16
+    TASK_TITLE: 接线 ExecuteTask/MoveTask：读队列与顺序契约
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-27T13:32:12.604Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927202051-f6df
+  generated_at: 2026-09-27T13:32:12.604Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-27T13:32:12.605Z

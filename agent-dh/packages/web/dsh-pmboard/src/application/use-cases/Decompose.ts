@@ -19,6 +19,7 @@ import { describeConflicts, findWorkSurfaceConflicts } from '../internal/conflic
 import { assertClauseCoverageGate, requirementRefsOf } from '../internal/content-gate-wiring.js'
 import { reject, agentIdFromExec, requireLiveDriver } from '../internal/support.js'
 import { landPlanTasks } from '../internal/plan-landing.js'
+import { taskStoreOf } from './queue-access.js'
 
 export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
       const windowKey = agentIdFromExec(deps, exec)
@@ -67,7 +68,8 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
       // 路径必然先到 decomposing 再调 decompose → 被自己的守卫拒死，审批流水线自锁。
       // 正解：幽灵任务的唯一判据是"已有任务"（防线②），状态只用于区分"是否已越过拆分"。
       // 两道防线的判定在 domain/workflow/DecomposeSpec.ts（REQ-47939a t3）。
-      const existingTasks = snapshot.tasks.filter(t => t.requirementId === target.id && t.status !== 'canceled')
+      // 任务已迁出台账（v9）：幂等守卫的"已有任务"判据改读队列。
+      const existingTasks = (await taskStoreOf(deps).listByRequirement(target.id)).filter(t => t.status !== 'canceled')
       const idempotency = checkDecomposeIdempotency(target.status, existingTasks)
       if (!idempotency.ok) {
         reject('reqboard_decompose 未执行：' + idempotency.reason, idempotency.code)
@@ -196,10 +198,18 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
         })
         const created = landed.created
         const rtmData = landed.rtm
+        // t11（REQ-260927202051-f6df FR-1）：拆分后任务落在哪份队列文件——返回体必须给出**非空**
+        // `queue_file`，否则调用方无从得知"台账没长东西，那卡去哪了"。
+        // 路径口径与 `repositories/QueueRepository.queueRelativePath` **同口径**（`docs/requirements/
+        // <REQ>/queue.json`）。这里不 import 那个常量：application 层禁止依赖基础设施层
+        // （tests/layer-boundary.test.ts 机械门禁），故按文档约定就地拼。
+        const queueFile = 'docs/requirements/' + target.id + '/queue.json'
         return {
           success: true,
           requirement_id: target.id,
           requirement_status: landed.requirement?.status ?? target.status,
+          queue_file: queueFile,
+          tasks_created: landed.createdIds.length,
           created,
           ...(rtmData !== undefined
             ? {

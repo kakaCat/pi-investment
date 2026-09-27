@@ -1,0 +1,33 @@
+task:
+  id: t-bc1ba6
+  title: 实现 TaskStore 端口与队列实现
+  status: todo
+  implements: ""
+  serves: []
+  depends_on:
+    - t-e96a0c
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927202051-f6df
+    TASK_ID: t-bc1ba6
+    TASK_TITLE: 实现 TaskStore 端口与队列实现
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-27T13:21:08.100Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927202051-f6df
+  generated_at: 2026-09-27T13:21:08.100Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-27T13:21:08.101Z

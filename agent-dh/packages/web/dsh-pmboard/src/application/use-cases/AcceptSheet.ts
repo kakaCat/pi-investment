@@ -25,6 +25,7 @@ import {
   requireLiveDriver,
 } from '../internal/support.js'
 import { checkAcceptanceGate } from '../internal/accept-sheet-rtm-integration.js'
+import { taskStoreOf } from './queue-access.js'
 
 export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
       const windowKey = agentIdFromExec(deps, exec)
@@ -205,29 +206,56 @@ export async function acceptSheet(deps: UseCaseDeps, args: unknown, exec: any): 
       }
 
       const nowTs = deps.clock.now()
+      const store = taskStoreOf(deps)
+      const verdictTasks = await store.listByRequirement(targetReq.id)
+      // ── 两存储的顺序契约（REQ-260927202051-f6df t9，D6 已与 reader-http 互认）──
+      // reader-http 的 applyVerdicts 已裂变为"只读 tasks + 返回 reworkTasks（不再 push 台账）"，
+      // 于是分三步：① 在**台账草稿**上算裁决（纯计算，不落盘）；② **先**把返工卡写进队列
+      // （taskStore.createMany）；③ **后**把算好的需求记录整条替换进台账（repo.mutate）。
+      // 反序会出现"返工卡已建、需求态未落"的悬空——故顺序是硬纪律，不是风格。
+      const draftLedger = {
+        schemaVersion: snapshot.schemaVersion,
+        revision: snapshot.revision,
+        requirements: snapshot.requirements.map(r => structuredClone(r)),
+        triages: snapshot.triages.map(t => structuredClone(t)),
+      }
+      const fromStatusBefore = targetReq.status
+      let applied: ReturnType<typeof applyVerdicts>
+      try {
+        applied = applyVerdicts(
+          draftLedger, verdictTasks, targetReq.id, sheet.version, verdicts,
+          { kind: 'human', sessionId: windowKey }, nowTs, () => deps.ids.comment(),
+          captureSnapshot(deps, windowKey), // REQ-b545fe t5: 传快照供打回路径结算
+        )
+      } catch (err) {
+        reject('reqboard_accept_sheet 记录失败：' + ((err as Error).message ?? String(err)), (err as { code?: string }).code ?? 'REQBOARD_INVALID_INPUT')
+      }
+      // FR-6 写入器 A（T-9）：裁决落库即写 checkpoint（挂起续验的下一步 = 再调本工具）
+      stampCheckpoint(applied.requirement, nowTs, 'reqboard_accept_sheet')
+      // ① 任务写（先）：返工卡物化到队列；幂等键 = 任务 id。
+      if (applied.reworkTasks.length > 0) {
+        await store.createMany(targetReq.id, applied.reworkTasks)
+      }
+      // ② 需求写（后）：把算好的需求记录整条替换（防并发漂移：状态与验收单版本须仍是计算时的）。
       const result = await deps.repo.mutate('requirement-updated', (ledger) => {
-        try {
-          const applied = applyVerdicts(
-            ledger, targetReq.id, sheet.version, verdicts,
-            { kind: 'human', sessionId: windowKey }, nowTs, () => deps.ids.comment(),
-            captureSnapshot(deps, windowKey), // REQ-b545fe t5: 传快照供打回路径结算
-          )
-          // FR-6 写入器 A（T-9）：裁决落库即写 checkpoint（挂起续验的下一步 = 再调本工具）
-          stampCheckpoint(applied.requirement, nowTs, 'reqboard_accept_sheet')
-          return { requirements: [applied.requirement], tasks: applied.reworkTasks }
-        } catch (err) {
-          reject('reqboard_accept_sheet 记录失败：' + ((err as Error).message ?? String(err)), (err as { code?: string }).code ?? 'REQBOARD_INVALID_INPUT')
+        const idx = ledger.requirements.findIndex(r => r.id === targetReq.id)
+        if (idx < 0) return undefined
+        const cur = ledger.requirements[idx]
+        if (cur === undefined || cur.status !== fromStatusBefore || cur.verification?.sheet?.version !== sheet.version) {
+          reject('reqboard_accept_sheet 记录失败：需求状态/验收单版本在计算期间发生变化，请重试', 'REQBOARD_STORE_INCONSISTENT')
         }
+        ledger.requirements[idx] = applied.requirement
+        return { requirements: [applied.requirement] }
       })
       const changed = (result.changed.requirements ?? [])[0]
       if (changed === undefined) reject('reqboard_accept_sheet 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
       // REQ-308b9a FR-7 / AC-7.7：裁决落库后回填 verification.md 的验收结果表。
-      await rewriteVerificationDoc({ repo: deps.repo, docs: deps.docs }, targetReq.id)
+      await rewriteVerificationDoc({ repo: deps.repo, docs: deps.docs }, targetReq.id, await store.listByRequirement(targetReq.id))
       const after = deps.repo.snapshot().requirements.find(r => r.id === targetReq.id)
       const s = after?.verification?.sheet
       const pending = s?.items.filter(i => i.status === 'pending').length ?? 0
       const failed = s?.items.filter(i => i.status === 'failed').length ?? 0
-      const reworkIds = (result.changed.tasks ?? []).map(t => t.id)
+      const reworkIds = applied.reworkTasks.map(t => t.id)
       // 本批记录后若已全过 → 直接接着弹最终「验收通过并归档」确认（闭环）
       if (pending === 0 && failed === 0 && reworkIds.length === 0) {
         const fin2 = await finalizeIfAllPassed(s?.items.filter(i => i.status === 'passed').length ?? 0, 0)

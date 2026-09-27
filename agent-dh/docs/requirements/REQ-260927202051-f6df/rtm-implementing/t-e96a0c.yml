@@ -1,0 +1,36 @@
+task:
+  id: t-e96a0c
+  title: 实现队列仓储与原子写入
+  status: todo
+  implements: ""
+  serves: []
+  depends_on:
+    - t-87f0da
+    - t-0e7fac
+    - t-394339
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927202051-f6df
+    TASK_ID: t-e96a0c
+    TASK_TITLE: 实现队列仓储与原子写入
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 2
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: pending
+    - phase: review
+      status: done
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927202051-f6df
+  generated_at: 2026-09-27T13:21:07.933Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 2
+  last_updated: 2026-09-27T13:21:07.934Z

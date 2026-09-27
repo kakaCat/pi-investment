@@ -11,12 +11,25 @@
  */
 import type { UseCaseDeps } from '../ports.js'
 import { fmt } from '../../domain/text/fmt.js'
-import { stageLabel } from '../../domain/task/SubtaskTemplate.js'
+import { stageLabel, STAGE_EVIDENCE_KIND, type StageKind } from '../../domain/task/SubtaskTemplate.js'
 import { generateSubtaskScript } from '../internal/workflow-script.js'
+// FR-11 路线 A：团队执行驱动（团队服务可用时优先于 workflow）。
+import { runSubtaskViaTeam } from './SubtaskTeamRun.js'
+// D14（REQ-260927123256-196b 的模块，此前**未接线**）：看板「继续」/启动恢复入口无 exec.agent 时
+// 按绑定窗口兜底解析在线 agent；解不到给可读原因。它同时是团队分支的前置（TeamService 要 live caller）。
+import { ensureAgentHandle } from '../internal/agent-handle.js'
 import { assertDoneEvidence } from '../internal/support.js'
+import { normalizeArtifactPath } from '../../domain/artifact/ArtifactPath.js'
 import { detectCrossCardOverwrite } from '../internal/cross-card.js'
 import { isSubtask, type TaskRecord } from '../../shared/protocol.js'
 import { transitionTask } from '../internal/task-transition.js'
+import {
+  closeExecutions,
+  openExecution,
+  safeWindowKey,
+  snapshotForWindow,
+} from '../internal/token-usage.js'
+import { taskStoreOf, readyTasksOf } from './queue-access.js'
 
 /** 子代理产出的结构化摘要（filesChanged / 完成项 / 证据）。 */
 export interface SubtaskOutput {
@@ -64,8 +77,32 @@ export function isNonEmptyValue(v: unknown): boolean {
   return true
 }
 
-/** 子卡提示词：含父卡实施方案 + 本卡验收标准 + 产出 JSON 约定。 */
-export function buildSubtaskPrompt(parent: TaskRecord, subtask: TaskRecord, label: string): string {
+/**
+ * 子卡提示词：含父卡实施方案 + 本卡验收标准 + 产出 JSON 约定。
+ *
+ * REQ-260927121324-abde 附带修复（路径口径）：凭证门（assertDoneEvidence → deps.docs.stat）
+ * 一律按**仓库根**（deps.docs.workspaceRoot()）解析文件，而子代理跑在自己的会话工作区里，
+ * 容易按当前目录报短路径（如 src/...）——于是真实存在的文件被判"不存在"，子卡恒不过门。
+ * 这里把仓库根绝对路径写进提示词，要求 filesChanged 用仓库根相对路径（或绝对路径）。
+ */
+export function buildSubtaskPrompt(parent: TaskRecord, subtask: TaskRecord, label: string, workspaceRoot?: string): string {
+  const root = typeof workspaceRoot === 'string' && workspaceRoot.length > 0 ? workspaceRoot : undefined
+  const wsBase = root === undefined ? undefined : root.replace(/\\/g, '/').replace(/\/+$/, '').split('/').filter((s) => s.length > 0).pop()
+  const forbidGitRoot = wsBase === undefined ? '' : '；**更禁止**以 `' + wsBase + '/` 开头——那是 git 根、比工作区根多一层（本仓实测 `' + wsBase + '/packages/...` 被判"文件不存在"）'
+  const pathContract = root === undefined
+    ? ''
+    : `
+【路径口径（凭证门按工作区根解析，写错会被判"文件不存在"）】filesChanged 一律写**相对工作区根**的路径，工作区根 = ${root}。例如 packages/web/dsh-pmboard/src/application/use-cases/ExecuteTask.ts；**禁止**写相对你当前目录的短路径（如 src/application/use-cases/ExecuteTask.ts）${forbidGitRoot}。拿不准前缀就直接给以 ${root} 开头的绝对路径。
+`
+  // REQ-260927144541-0481 根因修复（integrate 反复被凭证门退回）：把**凭证门的证据形态**
+  // 提前写进工作要求。此前提示词只说'给结论/给文件'，Worker 不知道本阶段的证据形态——
+  // integrate（写入族）交了一份只含 completed 的联调结论，被 checkSubtaskEvidence 判
+  // '汇报未给出改动文件' 退回、链暂停；同一张卡重跑仍复现（出现多次，非偶发）。
+  // 这里只**如实转述门的要求**，不改判定逻辑（decomposition §1.3 边界）。
+  const stageKey = String(subtask.stageKind ?? '') as StageKind
+  const evidenceRule = STAGE_EVIDENCE_KIND[stageKey] === 'verdict'
+    ? '【本阶段凭证形态】结论族：本阶段产出是判断/输出（复核意见、测试输出、联调结论），把结论写进 completed 即算完工，不要为凑 filesChanged 编造改动文件。'
+    : '【本阶段凭证形态】写入族：本阶段完工必须有落盘产出（代码改动 / 联调记录 / 测试用例等），并把真实存在的路径写进 filesChanged——只交结论会被凭证门退回（REQBOARD_SUBTASK_GATE），链会就此停下。'
   return `你是实施子代理，只完成这一张子卡的工作，做完即止（不要扩大范围）。
 
 【父卡】${parent.title}
@@ -78,9 +115,10 @@ ${parent.implementation ?? '（父卡未写实施方案）'}
 
 【父卡需求背景】
 ${parent.context || '（无）'}
-
+${evidenceRule}
+${pathContract}
 【产出要求】完成后**只输出一个 JSON 对象**，不要额外解释：
-{"filesChanged":["相对工作区路径", ...],"completed":["完成项", ...],"evidence":["命令与输出摘要", ...]}`
+{"filesChanged":["相对仓库根路径（或以仓库根开头的绝对路径）", ...],"completed":["完成项", ...],"evidence":["命令与输出摘要", ...]}`
 }
 
 export interface ExecuteSubtaskInput {
@@ -111,25 +149,44 @@ function fail(subtaskId: string, reason: string, code: string, extra: Partial<Ex
  */
 export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInput): Promise<ExecuteSubtaskResult> {
   const snap = deps.repo.snapshot()
-  const task = snap.tasks.find((t) => t.id === input.subtaskId)
+  const store = taskStoreOf(deps)
+  // UC-2（REQ-260927202051-f6df FR-2）：子卡与父卡一律从**队列**取（台账 v9 已无 tasks）。
+  const task = await store.get(input.subtaskId)
   if (task === undefined) return fail(input.subtaskId, fmt('子卡不存在：{id}', { id: input.subtaskId }), 'REQBOARD_TASK_NOT_FOUND')
   if (!isSubtask(task)) return fail(task.id, fmt('{id} 不是子卡（无 parentId）', { id: task.id }), 'REQBOARD_NOT_SUBTASK')
-  const parent = snap.tasks.find((t) => t.id === task.parentId)
+  const parent = task.parentId === undefined ? undefined : await store.get(task.parentId)
   if (parent === undefined) {
     return fail(task.id, fmt('子卡 {id} 的父卡 {p} 不存在', { id: task.id, p: String(task.parentId) }), 'REQBOARD_SUBTASK_GATE')
   }
+  // 队列就绪视图（TC-9.2）：父卡字段取自队列之后，日志显式打印 ready 列表（诊断链卡住的唯一线索）。
+  const queueTasks = await store.listByRequirement(task.requirementId)
+  const ready = readyTasksOf(queueTasks)
+  console.log('Queue ready tasks: ' + (ready.length > 0 ? ready.map((t) => t.id).join(', ') : '[]') + ' (requirement ' + task.requirementId + ')')
   const base = { subtaskId: task.id, parentId: parent.id, stageKind: task.stageKind }
   if (task.status === 'done') return { ok: true, ...base, filesChanged: task.lastReport?.filesChanged ?? [], reason: 'already_done' }
   if (task.status === 'canceled') return fail(task.id, '子卡已取消', 'REQBOARD_SUBTASK_GATE', base)
 
+  // D14 接线：三条入口（工具/看板/启动恢复）在此统一拿 agent 句柄；解不到就**可读地失败**，
+  // 不让引擎的 TypeError（reading 'session'）当结论。团队分支与 workflow 分支共用它。
+  const handle = ensureAgentHandle(deps, parent.id, task.id, input.exec, queueTasks)
+  if (!handle.ok) return fail(task.id, handle.reason, 'REQBOARD_SUBTASK_GATE', base)
+  const runExec = handle.exec
+
+  // 自动链子卡会话码（REQ-260927121324-abde FR-4）：safeWindowKey 解析（'system' / 缺 agent → undefined），
+  // 解析不到退回该需求的绑定窗口（sourceSessionId），再无 → 诚实不写快照（缺失 ≠ 0，禁止编造）。
+  const req = snap.requirements.find((r) => r.id === task.requirementId)
+  const sessionKey = safeWindowKey(deps, input.exec) ?? req?.sourceSessionId
+
   const actor = { kind: 'system' as const }
   const label = stageLabel(task.stageKind as never)
+  // 提示词只算一次：workflow 分支拼进脚本，团队分支作为 team task 描述（含台账子卡 id）。
+  const prompt = buildSubtaskPrompt(parent, task, label, deps.docs.workspaceRoot())
   let script: string
   try {
     script = generateSubtaskScript({
       stageKind: String(task.stageKind ?? ''),
       stageLabel: label,
-      prompt: buildSubtaskPrompt(parent, task, label),
+      prompt,
     })
   } catch (err) {
     return fail(task.id, (err as Error).message, (err as { code?: string }).code ?? 'workflow_script_contract', base)
@@ -140,7 +197,25 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
   // schema 仍随 args 透传给引擎，用于约束子代理的产出形状。
   let rawOutput: unknown = undefined
   let outcome: { ok: boolean; reason?: string }
-  if (deps.workflow === undefined) {
+  // REQ-260927121324-abde 附带修复：子卡「开工时刻」必须取在 workflow 开工之前。
+  // 此前 ranAt 在 run 结束后才取（REQ-260927100007-b8ba「先执行后认领」改造的回归），
+  // claimedAt（凭证门 since）恒晚于子代理写文件的 mtime → 子卡凭证门永远不过、链必停。
+  const startedAt = deps.clock.now()
+  // FR-11 路线 A（REQ-260926140539-457b）：团队执行优先——caller 是 live agent 且服务可用时，
+  // 把这张子卡派给团队 Worker（持久、可观测）；Worker 经 reqboard_task_report 写台账，链把产出
+  // 读回来合成为 workflow 同款形状 → 下游（解析/跨卡/落账/凭证门）逐字复用。服务不可用 → 旧路径。
+  const teamCaller = (runExec as { agent?: unknown } | undefined)?.agent
+  if (deps.teams !== undefined && deps.teams.available() && teamCaller !== undefined) {
+    const viaTeam = await runSubtaskViaTeam(deps, {
+      task, parent, caller: teamCaller, prompt,
+      // 一次性建全队任务时，为同队其它子卡现算工作要求（避免 SubtaskTeamRun 反向 import 本文件）。
+      promptFor: (t) => buildSubtaskPrompt(parent, t, stageLabel(t.stageKind as never), deps.docs.workspaceRoot()),
+    })
+    outcome = viaTeam.ok ? { ok: true } : { ok: false, reason: viaTeam.reason }
+    rawOutput = viaTeam.ok
+      ? JSON.stringify({ filesChanged: [...viaTeam.filesChanged], summary: viaTeam.summary })
+      : undefined
+  } else if (deps.workflow === undefined) {
     outcome = { ok: false, reason: 'engine_unavailable' }
   } else {
     try {
@@ -165,8 +240,8 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
         script,
         meta: { name: 'reqboard-subtask-' + String(task.stageKind ?? 'x'), description: fmt('子卡执行：{title}', { title: task.title }) },
         args: { subtaskId: task.id, parentId: parent.id, stageKind: String(task.stageKind ?? ''), schema },
-        parent: (input.exec as { agent?: unknown } | undefined)?.agent,
-        signal: (input.exec as { signal?: AbortSignal } | undefined)?.signal,
+        parent: (runExec as { agent?: unknown } | undefined)?.agent,
+        signal: (runExec as { signal?: AbortSignal } | undefined)?.signal,
       })
       if (started.ok) {
         outcome = { ok: true }
@@ -179,14 +254,26 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
     }
   }
 
-  const parsed = parseSubtaskOutput(rawOutput)
+  const parsedRaw = parseSubtaskOutput(rawOutput)
+  // 路径归一（REQ-260927121324-abde 附带修复）：子代理产出可能带仓库根目录名前缀
+  // （如 agent-dh/packages/...）或绝对路径，而凭证门按 deps.docs.workspaceRoot() 解析——
+  // 不归一就会把真实存在的文件判成「不存在」，子卡恒不过门、链必停。这里统一收敛成
+  // 工作区相对路径再落 lastReport 与跨卡判定。
+  const wsRoot = deps.docs.workspaceRoot()
+  const parsed: SubtaskOutput = {
+    ...parsedRaw,
+    filesChanged: parsedRaw.filesChanged
+      .map((f) => normalizeArtifactPath(f, wsRoot))
+      .filter((r) => r.form === 'workspace' && r.path.length > 0)
+      .map((r) => r.path),
+  }
   const valueNonEmpty = parsed.raw.trim().length > 0 || parsed.filesChanged.length > 0 || parsed.completed.length > 0
   const ranAt = deps.clock.now()
 
   // REQ-4842fe t9/FR-10 次防线：产出文件的 mtime 落在另一张在跑父卡的执行窗口内 → 判跨卡覆盖。
   if (outcome.ok && parsed.filesChanged.length > 0) {
     const conflict = detectCrossCardOverwrite(
-      snap.tasks,
+      queueTasks,
       parent.id,
       parsed.filesChanged,
       (f) => deps.docs.stat(f)?.mtimeMs,
@@ -207,8 +294,9 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
   }
 
   // REQ-260925110957-552d: 执行成功后才写 in_progress + lastRun + lastReport
-  await deps.repo.mutate('subtask-ran', (ledger) => {
-    const t = ledger.tasks.find((x) => x.id === task.id)
+  // 任务写经 TaskStore（台账 v9 无 tasks 键）；本步只改任务，需求侧无写入。
+  await store.mutate(task.requirementId, (tasks) => {
+    const t = tasks.find((x) => x.id === task.id)
     if (t === undefined) return undefined
     
     // 先执行后认领：执行成功才写 in_progress（经唯一收敛点，校验 + 状态事件一步到位）
@@ -217,16 +305,21 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
     if (t.status === 'todo') {
       transitionTask(t, 'in_progress', { at: ranAt, actor, role: isSubtask(t) ? 'subtask' : 'legacy' })
       transitioned = true
-      t.claimedAt = ranAt
+      t.claimedAt = startedAt
       t.claimedBy = input.windowKey
-      t.executions.push({ 
-        id: deps.ids.execution(), 
-        sessionId: input.windowKey, 
-        trigger: 'auto', 
-        startedAt: ranAt, 
-        outcome: outcome.ok ? 'running' : 'failed',
-        ...(outcome.ok ? {} : { endedAt: ranAt, error: outcome.reason ?? '' })
-      })
+      // 执行快照唯一写入口（FR-4）：开工落记录 + 写 start 快照；
+      // born-failed（outcome=failed）由助手内部不写 start，直接以终止记录落账。
+      openExecution(
+        t,
+        {
+          id: deps.ids.execution(),
+          trigger: 'auto',
+          at: startedAt,
+          ...(sessionKey !== undefined ? { sessionId: sessionKey } : {}),
+          ...(outcome.ok ? {} : { outcome: 'failed' as const, error: outcome.reason ?? '' }),
+        },
+        snapshotForWindow(deps, sessionKey),
+      )
     }
     
     t.lastRun = { at: ranAt, ok: outcome.ok, stopReason: outcome.ok ? 'completed' : (outcome.reason ?? 'error'), valueNonEmpty, ...(outcome.ok ? {} : { reason: outcome.reason ?? '' }) }
@@ -243,37 +336,49 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
       t.updatedAt = ranAt
       t.updatedBy = actor
     }
-    return { tasks: [t] }
+    return tasks
   })
 
   try {
     const doneAt = deps.clock.now()
-    await deps.repo.mutate('subtask-completed', (ledger) => {
-      const t = ledger.tasks.find((x) => x.id === task.id)
+    await store.mutate(task.requirementId, (tasks) => {
+      const t = tasks.find((x) => x.id === task.id)
       if (t === undefined) return undefined
-      assertDoneEvidence(deps, input.windowKey, t, ledger)
+      // D4：assertDoneEvidence 新签名 (deps, windowKey, task, ledger, tasks)。
+      assertDoneEvidence(deps, input.windowKey, t, deps.repo.snapshot(), tasks)
       transitionTask(t, 'done', { at: doneAt, actor, role: isSubtask(t) ? 'subtask' : 'legacy' })
-      for (const e of t.executions) {
-        if (e.outcome === 'running') { e.endedAt = doneAt; e.outcome = 'succeeded' }
-      }
-      return { tasks: [t] }
+      // 收尾唯一入口（FR-5）：闭合全部 running 并写 end/delta（快照在完工时刻新取，非开工旧值）。
+      closeExecutions(t, { at: doneAt, outcome: 'succeeded' }, snapshotForWindow(deps, sessionKey))
+      return tasks
     })
     return { ok: true, ...base, filesChanged: parsed.filesChanged }
   } catch (err) {
     const code = (err as { code?: string }).code ?? 'REQBOARD_SUBTASK_GATE'
     const reason = (err as Error).message ?? String(err)
     const failedAt = deps.clock.now()
-    await deps.repo.mutate('subtask-failed', (ledger) => {
-      const t = ledger.tasks.find((x) => x.id === task.id)
+    await store.mutate(task.requirementId, (tasks) => {
+      const t = tasks.find((x) => x.id === task.id)
       if (t === undefined) return undefined
-      for (const e of t.executions) {
-        if (e.outcome === 'running') { e.endedAt = failedAt; e.outcome = 'failed'; e.error = reason }
-      }
+      // 收尾唯一入口（FR-5）：失败同样闭合 running 并写 end/delta（error 一并落账）。
+      closeExecutions(t, { at: failedAt, outcome: 'failed', error: reason }, snapshotForWindow(deps, sessionKey))
       t.version += 1
       t.updatedAt = failedAt
       t.updatedBy = actor
-      return { tasks: [t] }
+      return tasks
     })
+    // FR-11 路线 A：凭证门拒了这张卡，但团队任务已 completed —— 必须**重开**（reopen），
+    // 否则 Worker 不会再碰它，下一轮链又读到 completed → 空转死循环（门白拒）。
+    if (deps.teams !== undefined && deps.teams.available() && teamCaller !== undefined) {
+      const linked = (await store.get(task.id))?.teamTaskId
+      if (linked !== undefined) {
+        try {
+          const cur = deps.teams.getTask(teamCaller, linked)
+          await deps.teams.updateTask(teamCaller, { taskId: linked, expectedRevision: cur.revision, action: 'reopen' })
+        } catch {
+          // best-effort：重开失败不改变已定失败结果——链仍会 rollback + pause + 告警，不会静默。
+        }
+      }
+    }
     return fail(task.id, reason, code, base)
   }
 }

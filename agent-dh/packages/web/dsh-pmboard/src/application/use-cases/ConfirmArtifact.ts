@@ -7,6 +7,7 @@
  */
 import type { UseCaseDeps } from '../ports.js'
 import { coverageGateOf, syncRTMYaml } from '../internal/rtm-yaml.js'
+import { taskStoreOf } from './queue-access.js'
 import {
   ALL_ARTIFACT_KINDS,
   normalizeText,
@@ -95,7 +96,7 @@ export async function confirmArtifact(deps: UseCaseDeps, args: unknown, exec: an
       // 只有在任务已先落库的流程下才真正执法。这一数据流限制见验收文档"已知缺口"。
       // 存量/直种需求（artifacts 为空）豁免——与本仓既有口径一致。
       if (targetKind === 'plan' && (targetReq.artifacts ?? []).length > 0) {
-        const planGateProbe = syncRTMYaml(deps, targetReq.id, 'confirm:plan')
+        const planGateProbe = syncRTMYaml(deps, await taskStoreOf(deps).listByRequirement(targetReq.id), targetReq.id, 'confirm:plan')
         const implGate = coverageGateOf('decomposing', planGateProbe)
         if (implGate !== undefined && !implGate.passed) {
           reject(
@@ -164,7 +165,7 @@ export async function confirmArtifact(deps: UseCaseDeps, args: unknown, exec: an
       const changed = (result.changed.requirements ?? [])[0]
       if (changed === undefined) reject('reqboard_confirm_artifact 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
       // RTM 触发点 3/5：确认产物 / 批准计划 → 对应 RTM 落章
-      syncRTMYaml(deps, changed.id, targetKind === 'artifact' ? 'confirm:artifact' : 'confirm:plan')
+      syncRTMYaml(deps, await taskStoreOf(deps).listByRequirement(changed.id), changed.id, targetKind === 'artifact' ? 'confirm:artifact' : 'confirm:plan')
 
       // ── FR-13（REQ-260927100007-b8ba）：落章后**必须能推进** ────────────────────
       // 事故：证据路径只落章，返回 note 指向未注册的 `reqboard_move`；而弹框路径因

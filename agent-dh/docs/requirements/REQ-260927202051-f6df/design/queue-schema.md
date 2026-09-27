@@ -123,7 +123,7 @@
       "context": "…",
       "status": "todo",
       "executions": [],
-      "statusHistory": [{ "to": "todo", "at": 1759000000000, "by": { "kind": "agent" } }],
+      "statusHistory": [{ "status": "todo", "at": 1759000000000, "by": { "kind": "agent" } }],
       "comments": [],
       "version": 1,
       "createdAt": 1759000000000,

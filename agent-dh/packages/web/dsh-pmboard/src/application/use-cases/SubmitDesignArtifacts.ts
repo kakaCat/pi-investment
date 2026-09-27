@@ -17,6 +17,7 @@
  */
 import type { UseCaseDeps } from '../ports.js'
 import { coverageGateOf, syncRTMYaml } from '../internal/rtm-yaml.js'
+import { taskStoreOf } from './queue-access.js'
 import { normalizeText, type StageArtifact } from '../../shared/protocol.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { registerArtifact } from '../internal/artifact-gates.js'
@@ -88,7 +89,7 @@ export async function submitDesignArtifacts(deps: UseCaseDeps, args: unknown, ex
   // 存量/直种需求（artifacts 为空）豁免新门禁——与本仓既有口径一致（见 SubmitVerification 的 isLegacyForDocs）。
   const isLegacyForRtmGate = (target.artifacts ?? []).length === 0
   const gateProbe = candidates.length > 0 && !isLegacyForRtmGate
-    ? syncRTMYaml(deps, target.id, 'submit:design')
+    ? syncRTMYaml(deps, await taskStoreOf(deps).listByRequirement(target.id), target.id, 'submit:design')
     : undefined
   const designGate = coverageGateOf('design', gateProbe)
   if (designGate !== undefined && !designGate.passed) {
@@ -139,7 +140,7 @@ export async function submitDesignArtifacts(deps: UseCaseDeps, args: unknown, ex
   const ok = anyOnDisk || registeredCount > 0
   // RTM 触发点 4：提交设计文档 → rtm-design.yml（含 fr_to_design 与设计覆盖度）
   // 门禁预检已经生成过一次时不再重复生成。
-  if (ok && gateProbe === undefined) syncRTMYaml(deps, target.id, 'submit:design')
+  if (ok && gateProbe === undefined) syncRTMYaml(deps, await taskStoreOf(deps).listByRequirement(target.id), target.id, 'submit:design')
   return {
     success: ok,
     requirement_id: target.id,

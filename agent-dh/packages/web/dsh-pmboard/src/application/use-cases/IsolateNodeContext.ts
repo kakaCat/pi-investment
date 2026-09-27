@@ -39,7 +39,7 @@
  *
  * @module dsh-pmboard/application/use-cases/IsolateNodeContext
  */
-import type { Clock, DocRepository, ReqboardRepository } from '../ports.js'
+import type { Clock, DocRepository, ReqboardRepository, TaskStore } from '../ports.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { isInProgressTask } from '../../domain/status/Predicates.js'
 import {
@@ -162,6 +162,12 @@ export interface IsolateNodeContextDeps {
   repo: ReqboardRepository
   docs: DocRepository
   clock: Clock
+  /**
+   * 任务队列端口（REQ-260927202051-f6df t9）：台账 v9 起任务不在 `LedgerView`，
+   * 取"当前在制任务卡"必须经它。**必填**（D11 口径：可选 + 运行期兜底 = 把装配漏洞
+   * 从编译期挪到运行期）。
+   */
+  taskStore: TaskStore
   /** 触达能力端口；未注入 = 触达不到（走 D-12 ②）。 */
   isolation?: NodeIsolationPort
   /** 留痕端口；未注入 = 只在结果体里留痕。 */
@@ -216,9 +222,10 @@ export async function isolateNodeContext(
   const stage = request.stage
   const requirement = pickRequirement(deps.repo, request.windowKey, request.requirementId)
   // T-5：实施节点把当前任务卡带进输入包（与系统段/H3 同一份上游必读）。
+  // 任务已迁出台账（v9）：经 TaskStore 取该需求任务，再就地筛"在制"。
   const currentTask = requirement === undefined
     ? undefined
-    : deps.repo.snapshot().tasks.find(t => t.requirementId === requirement.id && isInProgressTask(t))
+    : (await deps.taskStore.listByRequirement(requirement.id)).find(t => isInProgressTask(t))
   const docPath = requirementDocPath(requirement)
   const docText = docPath.length > 0 ? await safeReadDoc(deps.docs, docPath) : ''
   // FR-8：RTM 追溯快照注入输入包（无数据 → 不注入，旧输出逐字节不变）。

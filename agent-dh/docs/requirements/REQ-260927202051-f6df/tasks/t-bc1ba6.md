@@ -23,3 +23,27 @@
 
 ## 执行方式提示（executorHint）
 优先新窗口或 subagent 执行；按本卡自足执行，不读会话历史
+## 汇报 1（2026-09-27T13:21:07.986Z，窗口 session-3936d77f-2391-4042-8305-9b0fb5e9d2b8）
+
+任务第一次有了唯一入口：所有读方只从这一处取任务，出口自动剥掉队列内部才需要的 layer 字段，读方代码一行都不用改；因此首页/看板拿到的响应不会多出内部字段。状态改动写回队列时会顺带重算执行批次并广播变更事件，下游任务自动解锁；同一需求内任务顺序被保住。
+
+### 完成项
+
+- src/application/ports.ts：新增 TaskStore 端口（I-1）+ QueueMutateContext + TaskChange；UseCaseDeps 加可选 taskStore?
+- src/repositories/QueueTaskStore.ts：懒加载缓存、写路径强制重读文件（不信任缓存）、派生视图唯一来源=topology、进程内按需求 revision、subscribe 广播
+- D3 落地：get/listByRequirement/listAll/mutate/createMany 出口一律 structuredClone 后 delete layer，返回 TaskRecord；readQueue 才带 layer
+- D2 落地：listAll() = listRequirementIds()（已排序）依次拼接，即 requirementId 字典序 + 组内文件顺序（排序键写在 ports.ts:118 注释）
+- tests/queue/QueueTaskStore.test.ts 23 用例：5 任务 layer=0/1/2 + 三层分组 + edges + ready；重复 id 幂等且全已存在时 mtime 与内容均不变；mutate done 解锁下游 + updated_at 刷新；QUEUE_NOT_FOUND；校验失败后文件 md5 完全一致；写后 get 立即可读；subscribe kind=task-moved；零读盘构造
+- Lead 独立复核：23/23 通过；D2/D3 落盘确认
+
+### 改动文件
+
+- `packages/web/dsh-pmboard/src/repositories/QueueTaskStore.ts`
+- `packages/web/dsh-pmboard/src/application/ports.ts`
+- `packages/web/dsh-pmboard/tests/queue/QueueTaskStore.test.ts`
+
+### 下一步
+
+t-2417da 台账 schema v9：移除 tasks
+
+---

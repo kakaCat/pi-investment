@@ -27,6 +27,7 @@ export const PLAN_MERGE_ADVANCE_REASON = '批准拆分计划后自动进入实�
 
 /** 一次已作答的确认请求（同步与后台共用同一入参形状）。 */
 import { syncRTMYaml } from './rtm-yaml.js'
+import { taskStoreOf } from '../use-cases/queue-access.js'
 
 export interface ConfirmDecision {
   requirementId: string
@@ -149,7 +150,8 @@ export async function applyConfirmDecision(
 
   // ── 推进（可选，限白名单转移）───────────────────────────────────────
   // RTM 触发点 3/5：确认落章后同步 RTM（ask_confirm 弹框与看板确认都走这里）
-  syncRTMYaml(deps, d.requirementId, targetKind === 'artifact' ? 'confirm:artifact' : 'confirm:plan')
+  // D4：syncRTMYaml 第 2 参 tasks（RTM 的任务视图随 v9 改读队列）。
+  syncRTMYaml(deps, await taskStoreOf(deps).listByRequirement(d.requirementId), d.requirementId, targetKind === 'artifact' ? 'confirm:artifact' : 'confirm:plan')
 
   const from = deps.repo.snapshot().requirements.find(r => r.id === d.requirementId)?.status ?? before.status
   const to = advanceTargetFor(from)
@@ -262,6 +264,18 @@ export async function applyConfirmDecision(
         refsByKey.set(key, requirementRefsOf(raw))
       }
       const tools = (exec as { tools?: { todo_write?: (a: unknown) => Promise<unknown> } } | undefined)?.tools
+      // 幂等（死锁修复配套）：G3 重弹框确认时任务卡通常已落库——不得重复拆分，
+      // 直接抛给下方 catch 的"已落库 → 仍推进"路径进入实施（不产生幽灵卡）。
+      // 任务已迁出台账（v9）：判据改读队列。
+      const alreadyLanded = (await taskStoreOf(deps).listByRequirement(d.requirementId)).filter(
+        (t) => t.status !== 'canceled',
+      )
+      if (alreadyLanded.length > 0) {
+        throw Object.assign(
+          new Error(fmt('该需求已落库 {n} 个未取消任务，跳过重复拆分（幂等）', { n: alreadyLanded.length })),
+          { code: 'REQBOARD_ALREADY_DECOMPOSED' },
+        )
+      }
       const landed = await landPlanTasks(deps, {
         requirementId: d.requirementId,
         windowKey: d.windowKey,
@@ -279,6 +293,7 @@ export async function applyConfirmDecision(
           at: nowTs,
           actor: { kind: 'human', sessionId: d.windowKey },
           reason: PLAN_MERGE_ADVANCE_REASON,
+          snap: captureSnapshot(deps, d.windowKey),
         })
         req.autoRun = true
         req.comments.push({
@@ -294,7 +309,7 @@ export async function applyConfirmDecision(
       autoNote = fmt('；已同步落库 {n} 张任务卡并推进到 implementing', { n: createdCount })
     } catch (err) {
       const errMsg = String((err as Error).message ?? err)
-      const taskCount = deps.repo.snapshot().tasks.filter(t => t.requirementId === d.requirementId && t.status !== 'canceled').length
+      const taskCount = (await taskStoreOf(deps).listByRequirement(d.requirementId)).filter(t => t.status !== 'canceled').length
       if (taskCount > 0) {
         // 落库已生效（后续文档/RTM 步骤失败）——仍推进，避免「卡已落、状态卡在拆分」的半迁移态
         try {
@@ -305,6 +320,7 @@ export async function applyConfirmDecision(
               at: nowTs,
               actor: { kind: 'human', sessionId: d.windowKey },
               reason: PLAN_MERGE_ADVANCE_REASON,
+              snap: captureSnapshot(deps, d.windowKey),
             })
             req.autoRun = true
             req.comments.push({

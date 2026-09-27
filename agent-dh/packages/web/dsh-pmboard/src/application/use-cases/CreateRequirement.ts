@@ -11,6 +11,7 @@
  */
 import type { UseCaseDeps } from '../ports.js'
 import { syncRTMYaml } from '../internal/rtm-yaml.js'
+import { taskStoreOf } from './queue-access.js'
 import {
   asReqCategory,
   normalizeText,
@@ -46,7 +47,7 @@ export async function executeCreateRequirement(deps: UseCaseDeps, args: unknown,
         docBasePath: doc.docBasePath,
       })
       // RTM 触发点 1（REQ-260926140539-457b FR-2）：立项即落 rtm-lifecycle.yml 骨架（失败不阻断立项）
-      syncRTMYaml(deps, req.id, 'create')
+      syncRTMYaml(deps, await taskStoreOf(deps).listByRequirement(req.id), req.id, 'create')
       const defaultsUsed = doc.usedDefault ? [CAPTURE_QUESTION_IDS.doc_location] : []
       return {
         success: true,

@@ -26,3 +26,29 @@
 
 ## 执行方式提示（executorHint）
 优先新窗口或 subagent 执行；按本卡自足执行，不读会话历史
+## 汇报 1（2026-09-27T13:25:17.117Z，窗口 session-3936d77f-2391-4042-8305-9b0fb5e9d2b8）
+
+迁移的「零丢失」拿到了可复核的证明：612 张任务卡逐张按 id 与源台账比对——每个字段、18 个可选字段里的每一个、依赖关系、各需求条数、状态分布，全部一模一样；所有比对数字都由源台账现场计算，没有任何写死的计数，因此下次台账再长也不会让这道证明变红。另外，有一条任务的归属需求目录已被归档删除，迁移会为它重建最小目录并迁进去（而不是隔离丢弃），且回滚时会把新建目录一起删掉。
+
+### 完成项
+
+- TC-7.1~7.5 全部数据驱动，无任何硬编码计数（裁决 D7）
+- 逐条按 id 配对 deepEqual（queueTask 去 layer 与源 task），不是按下标
+- 键集相等断言 + 18 个可选字段逐一点名（含原文档漏列的 executorHint/cardDoc/requirementRefs/skipIntegration/blockedReason/claimedBy/claimedAt）
+- 分组守恒：源按 requirementId 现算 → 各 queue.json 条数逐一相等
+- dependsOn 条数守恒 + 全部可解析；状态分布由源现算逐一相等；每份 queue.json 的 requirement_id 与目录一致
+- 合成穷举断言：37 字段源 → 38 键目标，差集仅 {layer}，且源没有的键不得凭空出现
+- D10 建目录护栏落地：仅当 requirementId 在 ledger.requirements 中真实存在才建（写成 MIGRATION_INVARIANT 断言）；报告新增 createdDirs；manifest 记录；--rollback 删除本次新建目录
+- 真实副本实测：51 份 queue.json（含新建 REQ-48d896，9 任务）/ 迁移 612 / orphan 0 / skipped 0 / unmigrated=0
+- 验收命令：npx vitest run tests/migrate-ledger-v8v9.test.ts tests/migrate-contract.test.ts tests/migration.test.ts → 3 files / 39 passed
+
+### 改动文件
+
+- `packages/web/dsh-pmboard/scripts/migrate-ledger.ts`
+- `packages/web/dsh-pmboard/tests/migrate-contract.test.ts`
+
+### 下一步
+
+等 Lead 投产指令（先备份 + 校验脚本 + 回滚预案）；同时等 tests/ledger-v6-token.test.ts 的归属裁定
+
+---

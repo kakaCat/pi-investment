@@ -35,6 +35,14 @@ import {
   type TaskRecord,
 } from '../../shared/protocol.js'
 import { transitionTask } from '../internal/task-transition.js'
+import {
+  closeExecutions,
+  openExecution,
+  safeWindowKey,
+  snapshotForWindow,
+  snapshotProviderFor,
+} from '../internal/token-usage.js'
+import { taskStoreOf } from './queue-access.js'
 
 export type AdvanceStop =
   | 'rollup' | 'paused' | 'noop' | 'terminal' | 'not_autorun' | 'not_found' | 'max_steps' | 'locked'
@@ -124,37 +132,62 @@ async function pauseRequirement(deps: UseCaseDeps, requirementId: string, reason
   })
 }
 
-async function openParent(deps: UseCaseDeps, requirementId: string, parentId: string, startedAt: number): Promise<AdvanceStep> {
+async function openParent(deps: UseCaseDeps, requirementId: string, parentId: string, startedAt: number, exec?: unknown): Promise<AdvanceStep> {
   const now = deps.clock.now()
+  const store = taskStoreOf(deps)
+  // 需求侧只读（台账仍在）：req 供 autoRun/sourceSessionId；任务一律走队列（v9 无 tasks）。
+  const req = deps.repo.snapshot().requirements.find((r) => r.id === requirementId)
   let created: TaskRecord[] = []
-  const result = await deps.repo.mutate('advance-open-parent', (ledger) => {
-    const req = ledger.requirements.find((r) => r.id === requirementId)
-    const parent = ledger.tasks.find((t) => t.id === parentId)
+  // 顺序契约（REQ-260927202051-f6df t9）：任务写经 TaskStore，本函数**不动需求**（comments 等由
+  // advance-history 单独写），故不存在任务/需求交错。
+  const changed = await store.mutate(requirementId, (tasks) => {
+    const parent = tasks.find((t) => t.id === parentId)
     if (req === undefined || parent === undefined || parent.status !== 'todo') return undefined
-    const active = ledger.tasks.filter(
-      (t) => t.requirementId === requirementId && t.parentId === undefined && t.status === 'in_progress',
+    const active = tasks.filter(
+      (t) => t.parentId === undefined && t.status === 'in_progress',
     ).length
     if (active >= LIMITS.advanceMaxParallelParents) return undefined
     transitionTask(parent, 'in_progress', { at: now, actor: { kind: 'system' }, role: 'parent' })
     parent.claimedAt = now
     parent.claimedBy = 'system'
-    parent.executions.push({ id: deps.ids.execution(), trigger: 'auto', startedAt: now, outcome: 'running' })
-    created = expandSubtasks(ledger, parent, req, now, deps.ids)
-    return { tasks: [parent, ...created] }
+    // 执行快照唯一写入口（REQ-260927121324-abde FR-4）：开工落记录 + 写 start 快照。
+    // 自动链父卡会话码 = safeWindowKey(deps, exec) ?? req.sourceSessionId；解析不到（system /
+    // 无 agent）→ 诚实不写快照（缺失 ≠ 0，禁止编造 token 归属）。
+    const sessionKey = safeWindowKey(deps, exec) ?? req.sourceSessionId
+    openExecution(
+      parent,
+      {
+        id: deps.ids.execution(),
+        trigger: 'auto',
+        at: now,
+        ...(sessionKey !== undefined ? { sessionId: sessionKey } : {}),
+      },
+      snapshotForWindow(deps, sessionKey),
+    )
+    // 懒展开（reader-http 已裂变）：只返回新建子卡、不落库 → 由本回调 append 进 draft。
+    created = expandSubtasks(tasks, parent, req, now, deps.ids)
+    // TaskRecord → QueueTask：layer 为派生占位，落盘前由 TaskStore.recompute 重算。
+    if (created.length > 0) tasks.push(...created.map(c => ({ ...c, layer: 0 })))
+    return tasks
   })
-  if ((result.changed.tasks ?? []).length === 0) {
+  if (changed.length === 0) {
     return stepOf('OPEN_PARENT', 'noop', fmt('父卡 {id} 不可开工（已在跑/已达并发上限）', { id: parentId }), startedAt, deps.clock.now(), { parentId })
   }
   return stepOf('OPEN_PARENT', 'ok', fmt('父卡 {id} 自动开工并落子卡 {n} 张', { id: parentId, n: created.length }), startedAt, deps.clock.now(), { parentId })
 }
 
-async function finalizeParent(deps: UseCaseDeps, parentId: string, startedAt: number): Promise<AdvanceStep> {
+async function finalizeParent(deps: UseCaseDeps, parentId: string, startedAt: number, exec?: unknown): Promise<AdvanceStep> {
   const now = deps.clock.now()
+  const store = taskStoreOf(deps)
+  const parent0 = await store.get(parentId)
+  const parentReq = parent0 === undefined
+    ? undefined
+    : deps.repo.snapshot().requirements.find((r) => r.id === parent0.requirementId)
   try {
-    const result = await deps.repo.mutate('advance-finalize-parent', (ledger) => {
-      const parent = ledger.tasks.find((t) => t.id === parentId)
+    const changed = await store.mutate(parent0?.requirementId ?? '', (tasks) => {
+      const parent = tasks.find((t) => t.id === parentId)
       if (parent === undefined || parent.status !== 'in_progress') return undefined
-      const subs = subtasksOf({ tasks: ledger.tasks }, parent.id)
+      const subs = subtasksOf({ tasks }, parent.id)
       if (subs.length === 0 || !subs.every((s) => s.status === 'done' || s.status === 'canceled')) return undefined
       const files = [...new Set(subs.flatMap((s) => s.lastReport?.filesChanged ?? []))]
       const completed = [...new Set(subs.flatMap((s) => s.lastReport?.completed ?? []))]
@@ -164,14 +197,16 @@ async function finalizeParent(deps: UseCaseDeps, parentId: string, startedAt: nu
         filesChanged: files,
         completed: completed.length > 0 ? completed : [fmt('子卡 {n} 张全部完成', { n: subs.length })],
       }
-      assertDoneEvidence(deps, 'system', parent, ledger)
+      // D4：assertDoneEvidence 新签名 (deps, windowKey, task, ledger, tasks)。
+      assertDoneEvidence(deps, 'system', parent, deps.repo.snapshot(), tasks)
       transitionTask(parent, 'done', { at: now, actor: { kind: 'system' }, role: 'parent' })
-      for (const e of parent.executions) {
-        if (e.outcome === 'running') { e.endedAt = now; e.outcome = 'succeeded' }
-      }
-      return { tasks: [parent] }
+      // 收尾唯一入口（REQ-260927121324-abde FR-5）：闭合全部 running 并写 end/delta（快照在收尾
+      // 时刻新取，非开工旧值）；会话码解析同 openParent，无会话只闭合记录、不写 token 字段。
+      const sessionKey = safeWindowKey(deps, exec) ?? parentReq?.sourceSessionId
+      closeExecutions(parent, { at: now, outcome: 'succeeded' }, snapshotForWindow(deps, sessionKey))
+      return tasks
     })
-    if ((result.changed.tasks ?? []).length === 0) {
+    if (changed.length === 0) {
       return stepOf('FINALIZE_PARENT', 'noop', fmt('父卡 {id} 尚不可收尾', { id: parentId }), startedAt, deps.clock.now(), { parentId })
     }
     return stepOf('FINALIZE_PARENT', 'ok', fmt('父卡 {id} 汇总子卡产出并收尾', { id: parentId }), startedAt, deps.clock.now(), { parentId })
@@ -199,10 +234,19 @@ async function runSubtaskStep(deps: UseCaseDeps, parentId: string, subtaskId: st
   )
 }
 
-async function rollupStep(deps: UseCaseDeps, requirementId: string, startedAt: number): Promise<AdvanceStep> {
+async function rollupStep(deps: UseCaseDeps, requirementId: string, startedAt: number, exec?: unknown): Promise<AdvanceStep> {
   const now = deps.clock.now()
+  // D6：rollup 的输入任务改从队列取（台账 v9 无 tasks）；repo.mutate 只写需求（顺序契约的"后"）。
+  const rollupTasks = await taskStoreOf(deps).listByRequirement(requirementId)
   const result = await deps.repo.mutate('advance-rollup', (ledger) => {
-    const advanced = applyTaskRollup(ledger, { now, commentId: () => deps.ids.comment() }, requirementId)
+    // 派生推进快照提供者（REQ-260927121324-abde FR-6）：显式窗口码 safeWindowKey(deps, exec)
+    // 优先，退回 req.sourceSessionId；都无 → 诚实不传（与启动对账同一口径）。
+    const advanced = applyTaskRollup(
+      ledger,
+      rollupTasks,
+      { now, commentId: () => deps.ids.comment(), snapshot: snapshotProviderFor(deps, safeWindowKey(deps, exec)) },
+      requirementId,
+    )
     return advanced.length > 0 ? { requirements: advanced } : undefined
   })
   const ok = (result.changed.requirements ?? []).length > 0
@@ -210,10 +254,10 @@ async function rollupStep(deps: UseCaseDeps, requirementId: string, startedAt: n
 }
 
 async function runSelection(deps: UseCaseDeps, requirementId: string, sel: AdvanceSelection, startedAt: number, exec?: unknown): Promise<AdvanceStep> {
-  if (sel.event === 'OPEN_PARENT' && sel.parentId !== undefined) return openParent(deps, requirementId, sel.parentId, startedAt)
-  if (sel.event === 'FINALIZE_PARENT' && sel.parentId !== undefined) return finalizeParent(deps, sel.parentId, startedAt)
+  if (sel.event === 'OPEN_PARENT' && sel.parentId !== undefined) return openParent(deps, requirementId, sel.parentId, startedAt, exec)
+  if (sel.event === 'FINALIZE_PARENT' && sel.parentId !== undefined) return finalizeParent(deps, sel.parentId, startedAt, exec)
   if (sel.event === 'RUN_SUBTASK' && sel.subtaskId !== undefined) return runSubtaskStep(deps, sel.parentId ?? '', sel.subtaskId, startedAt, exec)
-  if (sel.event === 'ROLLUP') return rollupStep(deps, requirementId, startedAt)
+  if (sel.event === 'ROLLUP') return rollupStep(deps, requirementId, startedAt, exec)
   return stepOf('PAUSE', 'skipped', '无对应事件实现', startedAt, deps.clock.now())
 }
 
@@ -244,9 +288,11 @@ async function driveChain(
       if (req.autoRun !== true) { stopped = 'not_autorun'; break }
       if (TERMINAL_REQ.has(req.status)) { stopped = 'terminal'; break }
 
-      const sel = selectAdvanceEvent({ tasks: snap.tasks }, requirementId, LIMITS.advanceMaxParallelParents)
+      // 任务已迁出台账（v9）：每轮迭代按需求取一次队列任务（事件选择的唯一输入）。
+      const queueTasks = await taskStoreOf(deps).listByRequirement(requirementId)
+      const sel = selectAdvanceEvent({ tasks: queueTasks }, requirementId, LIMITS.advanceMaxParallelParents)
       if (sel === undefined) {
-        if (!hasOpenWork({ tasks: snap.tasks }, requirementId)) { stopped = 'noop'; break }
+        if (!hasOpenWork({ tasks: queueTasks }, requirementId)) { stopped = 'noop'; break }
         const streak = (req.advance?.noopStreak ?? 0) + 1
         if (streak >= LIMITS.advanceNoopBreaker) {
           await pauseRequirement(deps, requirementId, 'stagnation', fmt('连续 {n} 次无可推进事件（疑似依赖死锁）', { n: streak }))
@@ -295,11 +341,9 @@ async function driveChain(
         const failure = classifyFailure({ ok: false, reason: step.detail })
         if (step.subtaskId !== undefined) {
           const subId = step.subtaskId
-          await deps.repo.mutate('subtask-rollback', (ledger) => {
-            const changed = rollbackSubtask(ledger, subId, deps.clock.now(), deps.ids, failure)
-            if (!changed) return undefined
-            const t = ledger.tasks.find((x) => x.id === subId)
-            return t === undefined ? undefined : { tasks: [t] }
+          await taskStoreOf(deps).mutate(requirementId, (tasks) => {
+            const changed = rollbackSubtask(tasks, subId, deps.clock.now(), deps.ids, failure)
+            return changed ? tasks : undefined
           })
         }
         await pauseRequirement(deps, requirementId, 'fail', step.detail)
@@ -405,8 +449,8 @@ export async function advanceRequirement(deps: UseCaseDeps, requirementId: strin
       kind: 'reqboard',
       label: `REQ ${requirementId}`,
       owner: (exec as { agent?: unknown })?.agent,
-      run: async (signal: AbortSignal) => {
-        await driveChain(deps, requirementId, exec, () => signal.aborted)
+      run: async (signal?: AbortSignal) => {
+        await driveChain(deps, requirementId, exec, () => signal?.aborted ?? false)
       },
     })
   } catch (err) {
@@ -453,13 +497,18 @@ export function inflightRequirements(): string[] {
   return [...inflight]
 }
 
-/** 需求进度口径（FR-12 看板进度）：父卡 done/总、子卡 done/总。 */
+/**
+ * 需求进度口径（FR-12 看板进度）：父卡 done/总、子卡 done/总。
+ *
+ * 入参改名为 `view`（REQ-260927202051-f6df t12）：任务已不在台账，这里收的是**队列任务视图**
+ * `{ tasks }`。改名同时消除 TC-8.12 静态门禁对"台账取任务"字样的误报——语义上也更诚实。
+ */
 export function progressOf(
-  ledger: { tasks: readonly TaskRecord[] },
+  view: { tasks: readonly TaskRecord[] },
   requirementId: string,
 ): { parentsDone: number; parentsTotal: number; subtasksDone: number; subtasksTotal: number } {
-  const parents = ledger.tasks.filter((t) => t.requirementId === requirementId && t.parentId === undefined && t.status !== 'canceled')
-  const subs = ledger.tasks.filter((t) => t.requirementId === requirementId && t.parentId !== undefined && t.status !== 'canceled')
+  const parents = view.tasks.filter((t) => t.requirementId === requirementId && t.parentId === undefined && t.status !== 'canceled')
+  const subs = view.tasks.filter((t) => t.requirementId === requirementId && t.parentId !== undefined && t.status !== 'canceled')
   return {
     parentsDone: parents.filter((p) => p.status === 'done').length,
     parentsTotal: parents.length,

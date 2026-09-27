@@ -15,6 +15,7 @@ import { taskCompletenessGap } from '../internal/task-completeness.js'
 import { captureSnapshot, transitionRequirement } from '../internal/token-usage.js'
 import { reject, agentIdFromExec, requireLiveDriver, mapAgentError } from '../internal/support.js'
 import { fmt } from '../../domain/text/fmt.js'
+import { taskStoreOf } from './queue-access.js'
 
 export async function executeMoveRequirement(deps: UseCaseDeps, args: unknown, exec: unknown): Promise<unknown> {
   const windowKey = agentIdFromExec(deps, exec)
@@ -33,10 +34,15 @@ export async function executeMoveRequirement(deps: UseCaseDeps, args: unknown, e
   }
   const from = req0.status
 
+  // 任务已迁出台账（v9）：完整性判据的任务集从 TaskStore 取一次，预检与 mutate 内复查共用同一份
+  // 快照（mutate 回调是同步契约，不能在回调里 await；并发漂移由需求侧 from 复查兜底）。
+  const store = taskStoreOf(deps)
+  const reqTasks = await store.listByRequirement(req0.id)
+
   // 只读预检（拒绝次序与会话侧一致：先产物闸门，后任务完整性）
   const preGate = assertArtifactGates(req0, from, to)
   if (preGate !== undefined) reject(fmt('reqboard_move 未执行：{msg}', { msg: preGate.message }), preGate.code)
-  const preGap = taskCompletenessGap(req0, snap.tasks, to)
+  const preGap = taskCompletenessGap(req0, reqTasks, to)
   if (preGap !== undefined) reject(fmt('reqboard_move 未执行：{msg}', { msg: preGap }), 'REQBOARD_TASK_INCOMPLETE')
 
   const actor = { kind: 'agent' as const, sessionId: windowKey }
@@ -47,7 +53,7 @@ export async function executeMoveRequirement(deps: UseCaseDeps, args: unknown, e
     // mutate 内复查（防并发漂移）
     const gate = assertArtifactGates(req, req.status, to)
     if (gate !== undefined) throw Object.assign(new Error(gate.message), { code: gate.code })
-    const gap = taskCompletenessGap(req, ledger.tasks, to)
+    const gap = taskCompletenessGap(req, reqTasks, to)
     if (gap !== undefined) throw Object.assign(new Error(gap), { code: 'REQBOARD_TASK_INCOMPLETE' })
     const at = deps.clock.now()
     // 收敛点：human_gate / invalid_transition / system_gate 在此抛错 → mutate 回滚，状态不变

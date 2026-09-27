@@ -1,0 +1,33 @@
+task:
+  id: t-03254f
+  title: 迁移安全：白名单、幂等与 orphan
+  status: todo
+  implements: ""
+  serves: []
+  depends_on:
+    - t-faf303
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927202051-f6df
+    TASK_ID: t-03254f
+    TASK_TITLE: 迁移安全：白名单、幂等与 orphan
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-27T13:25:17.068Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927202051-f6df
+  generated_at: 2026-09-27T13:25:17.068Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-27T13:25:17.068Z
