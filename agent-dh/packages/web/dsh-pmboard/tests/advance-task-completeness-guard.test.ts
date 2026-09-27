@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest'
 import { taskCompletenessGap } from '../src/application/internal/task-completeness.js'
 import { executeMoveRequirement } from '../src/application/use-cases/MoveRequirement.js'
 import { makeHarness, req, task } from './application/harness.js'
-import type { RequirementRecord, TaskRecord } from '../src/shared/protocol.js'
+import type { RequirementRecord } from '../src/shared/protocol.js'
 
 const planOf = (n: number) => ({
   path: 'docs/requirements/REQ-000001/decomposition.md',

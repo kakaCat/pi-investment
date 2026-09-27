@@ -15,10 +15,13 @@ import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { JsonQueueRepository } from '../src/repositories/QueueRepository.js'
+import { QueueTaskStore } from '../src/repositories/QueueTaskStore.js'
 import { createReqboardHandler } from '../src/http/routes.js'
 import {
   emptyBuckets,
   type ReqboardLedger,
+  type TaskRecord,
   type TokenBuckets,
   type TokenSnapshot,
 } from '../src/shared/protocol.js'
@@ -29,10 +32,13 @@ const snap = (n: number, sessionId: string = W): TokenSnapshot => ({ sessionId, 
 
 let dir: string
 let store: ReqboardStore
+let taskStore: QueueTaskStore
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-task-move-snap-'))
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
+  // 任务唯一存储 = 队列（REQ-260927202051-f6df：v9 台账已无 tasks 通道）
+  taskStore = new QueueTaskStore({ repo: new JsonQueueRepository({ workspaceRoot: dir }), now: () => 100 })
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 
@@ -43,7 +49,7 @@ afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
  */
 function ledger(withSnapshot: boolean): ReqboardLedger {
   return {
-    schemaVersion: 7,
+    schemaVersion: 9,
     revision: 1,
     requirements: [{
       id: 'REQ-tm1234', title: '看板流转', description: '', category: 'feature', status: 'implementing',
@@ -55,14 +61,22 @@ function ledger(withSnapshot: boolean): ReqboardLedger {
       }],
       ...(withSnapshot ? { tokenUsage: { byStage: { implementing: B(2) }, totals: B(2), updatedAt: 1 } } : {}),
     }],
-    tasks: [{
-      id: 't-tm0001', requirementId: 'REQ-tm1234', title: '任务', description: '', phase: 'implement', side: 'backend',
-      dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance: 'a', context: '', status: 'todo',
-      blocked: false, executions: [], comments: [], version: 1, createdAt: 1, updatedAt: 1,
-      createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W }, statusHistory: [],
-    }],
     triages: [],
   } as unknown as ReqboardLedger
+}
+
+/** 待开始任务（落**队列**，v9 台账无 tasks 通道）。 */
+const TASK = {
+  id: 't-tm0001', requirementId: 'REQ-tm1234', title: '任务', description: '', phase: 'implement', side: 'backend',
+  dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance: 'a', context: '', status: 'todo',
+  blocked: false, executions: [], comments: [], version: 1, createdAt: 1, updatedAt: 1,
+  createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W }, statusHistory: [],
+} as unknown as TaskRecord
+
+/** 播种看板：v9 台账（仅需求）+ 队列任务（任务唯一存储）。 */
+async function seedBoard(withSnapshot: boolean): Promise<void> {
+  await store.replaceAll('seed', ledger(withSnapshot))
+  await taskStore.createMany('REQ-tm1234', [TASK])
 }
 
 function fakeReq(body: unknown, url: string): any {
@@ -101,13 +115,13 @@ async function get(handler: any, url: string) {
 
 describe('REQ-260927121324-abde t4 · 看板 task/move 的写时快照', () => {
   it('带 sessionId：开工写 start、完工写 end/delta，读路径无缺口', async () => {
-    await store.replaceAll('seed', ledger(true))
+    await seedBoard(true)
     let current = snap(2)
-    const handler = createReqboardHandler({ store, now: () => 100, tokenSnapshot: (k: string) => (k === W ? current : undefined) })
+    const handler = createReqboardHandler({ store, taskStore, now: () => 100, tokenSnapshot: (k: string) => (k === W ? current : undefined) })
 
     const open = await post(handler, '/task/move', { id: 't-tm0001', to: 'in_progress', sessionId: W })
     expect(open.statusCode).toBe(200)
-    let task = store.snapshot().tasks[0]!
+    let task = (await taskStore.listByRequirement('REQ-tm1234'))[0]!
     expect(task.executions).toHaveLength(1)
     expect(task.executions[0]!.tokenUsage!.start!.totals).toEqual(B(2))
     expect(task.executions[0]!.tokenUsage!.delta).toBeUndefined()
@@ -115,7 +129,7 @@ describe('REQ-260927121324-abde t4 · 看板 task/move 的写时快照', () => {
     current = snap(5)
     const close = await post(handler, '/task/move', { id: 't-tm0001', to: 'testing', sessionId: W })
     expect(close.statusCode).toBe(200)
-    task = store.snapshot().tasks[0]!
+    task = (await taskStore.listByRequirement('REQ-tm1234'))[0]!
     const exec = task.executions[0]!
     expect(exec.outcome).toBe('succeeded')
     expect(exec.endedAt).toBeDefined()
@@ -128,13 +142,13 @@ describe('REQ-260927121324-abde t4 · 看板 task/move 的写时快照', () => {
   })
 
   it('无 sessionId：不写任何 token 字段，读路径如实 degraded（缺失不用 0 冒充）', async () => {
-    await store.replaceAll('seed', ledger(false))
+    await seedBoard(false)
     // 快照源其实可得——但只要请求没带会话，就不该去猜属于谁
-    const handler = createReqboardHandler({ store, now: () => 100, tokenSnapshot: () => snap(9) })
+    const handler = createReqboardHandler({ store, taskStore, now: () => 100, tokenSnapshot: () => snap(9) })
 
     await post(handler, '/task/move', { id: 't-tm0001', to: 'in_progress' })
     await post(handler, '/task/move', { id: 't-tm0001', to: 'testing' })
-    const task = store.snapshot().tasks[0]!
+    const task = (await taskStore.listByRequirement('REQ-tm1234'))[0]!
     expect(task.executions).toHaveLength(0)
     expect(task.executions.some(e => e.tokenUsage !== undefined)).toBe(false)
 

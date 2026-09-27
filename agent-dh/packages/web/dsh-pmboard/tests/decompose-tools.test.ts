@@ -261,7 +261,7 @@ describe('实施卡透传与开工送达（REQ-2e9473 t04）', () => {
     await seed('decomposing')
     await planAndApprove()
     const out = await run(decompose, {})
-    const ledger = store.snapshot()
+    // v9：任务断言一律从队列取（台账已无 tasks 通道）
     const queueTasks = await queueTasksOf(deps, REQ_ID)
     expect(queueTasks.map(t => t.implementation)).toEqual(['protocol.ts 加字段 + 单测验证', 'view.ts 加 buildGantt() 渲染'])
     expect(out.thin_cards).toBeUndefined()

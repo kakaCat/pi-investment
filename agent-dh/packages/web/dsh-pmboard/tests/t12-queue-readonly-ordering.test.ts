@@ -24,7 +24,7 @@ import { advanceRequirement } from '../src/application/use-cases/AdvanceChain.js
 import { JsonQueueRepository, queueRelativePath } from '../src/repositories/QueueRepository.js'
 import { QueueTaskStore } from '../src/repositories/QueueTaskStore.js'
 import type { JobsPort } from '../src/application/ports.js'
-import type { AdvanceRecord, TaskRecord } from '../src/shared/protocol.js'
+import type { TaskRecord } from '../src/shared/protocol.js'
 
 const REQ_ID = 'REQ-000001'
 const WINDOW = 'session-w-001'
@@ -150,7 +150,7 @@ describe('t12 · task_run（投递式）前后队列 md5 相同（只读）', ()
     const h = makeHarness({
       requirements: [req({
         status: 'implementing', sourceSessionId: WINDOW, createdAt: 1, autoRun: true,
-        advance: {} as AdvanceRecord,
+        advance: {} as never,
       })],
     })
     h.deps.taskStore = q.store

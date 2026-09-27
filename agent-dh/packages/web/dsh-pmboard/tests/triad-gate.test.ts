@@ -13,7 +13,7 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
-import { defineMoveTool, defineTaskMoveTool, defineTaskReportTool } from './helpers/tool-deps.js'
+import { defineMoveTool, defineTaskMoveTool, defineTaskReportTool, seedQueueTasks, type ReqboardToolDeps } from './helpers/tool-deps.js'
 import { recordToolTrace, type ToolTraceEntry } from '../src/adapters/SessionProbeAdapter.js'
 import {
   taskCardTriadGaps,
@@ -98,6 +98,8 @@ describe('端到端：门真的挂上了（reqboard_move / reqboard_task_move）
   let move: { execute: (a: unknown, e: unknown) => Promise<any> }
   let taskMove: { execute: (a: unknown, e: unknown) => Promise<any> }
   let report: { execute: (a: unknown, e: unknown) => Promise<any> }
+  /** 提到 describe 作用域：`seedTask` 播种队列任务需要同一个 `deps`（`taskStoreOf` 按对象身份记忆化）。 */
+  let deps: ReqboardToolDeps
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'pmboard-triad-'))
@@ -105,7 +107,7 @@ describe('端到端：门真的挂上了（reqboard_move / reqboard_task_move）
     process.chdir(dir)
     store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
     trace = new Map()
-    const deps = { store, now: () => Date.now(), toolTrace: trace, doneThrottleMs: 0 }
+    deps = { store, now: () => Date.now(), toolTrace: trace, doneThrottleMs: 0 }
     move = defineMoveTool(deps) as never
     taskMove = defineTaskMoveTool(deps) as never
     report = defineTaskReportTool(deps) as never
@@ -146,7 +148,8 @@ describe('端到端：门真的挂上了（reqboard_move / reqboard_task_move）
       version: 1, createdAt: 1, updatedAt: 1,
       createdBy: { kind: 'human' }, updatedBy: { kind: 'human' },
     } as unknown as TaskRecord
-    await store.mutate('task-created', (l) => { (l.tasks as unknown[]).push(t); return { tasks: [t] } })
+    // 任务落**队列**（REQ-260927202051-f6df：v9 台账已无 tasks 通道，`ledger.tasks.push` 已非法）
+    await seedQueueTasks(deps, REQ, [t])
   }
 
   it('拆分出口：卡缺三要素 → 拒绝 task_card_incomplete，且消息含卡 id 与节名', async () => {

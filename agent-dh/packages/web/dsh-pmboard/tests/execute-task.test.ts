@@ -29,10 +29,10 @@ const okRun = (payload: unknown): WorkflowRunOutcome => ({ ok: true, value: { ok
 function seed() {
   const h = makeHarness()
   h.repo.ledger.requirements = [req({ id: 'REQ-000001', status: 'implementing' })]
-  h.repo.ledger.tasks = [
+  h.seedTasks('REQ-000001', [
     task({ id: 't-p', requirementId: 'REQ-000001', status: 'in_progress', claimedAt: h.clock.t, title: '父卡' }),
     task({ id: 't-s', requirementId: 'REQ-000001', status: 'todo', parentId: 't-p', stageKind: 'dev' as never, title: '研发', acceptance: '改动落盘并跑通测试' }),
-  ]
+  ])
   return h
 }
 
@@ -46,7 +46,7 @@ describe('子卡闭环（3.4 凭证三项）', () => {
     h.deps.workflow = new FakeRunner(okRun(JSON.stringify({ filesChanged: [SRC], completed: ['改完状态机'], evidence: ['vitest 绿'] })))
     const r = await executeSubtask(h.deps, { subtaskId: 't-s', windowKey: 'session-w-001' })
     expect(r.ok).toBe(true)
-    const t = h.repo.ledger.tasks.find(x => x.id === 't-s')!
+    const t = (await h.tasksOf('REQ-000001')).find(x => x.id === 't-s')!
     expect(t.status).toBe('done')
     expect(t.lastRun?.ok).toBe(true)
     expect(t.lastRun?.stopReason).toBe('completed')
@@ -60,8 +60,8 @@ describe('子卡闭环（3.4 凭证三项）', () => {
     h.deps.workflow = new FakeRunner({ ok: false, reason: 'error: child failed' })
     const r = await executeSubtask(h.deps, { subtaskId: 't-s', windowKey: 'session-w-001' })
     expect(r.ok).toBe(false)
-    expect(h.repo.ledger.tasks.find(x => x.id === 't-s')!.status).not.toBe('done')
-    expect(h.repo.ledger.tasks.find(x => x.id === 't-s')!.lastRun?.ok).toBe(false)
+    expect((await h.tasksOf('REQ-000001')).find(x => x.id === 't-s')!.status).not.toBe('done')
+    expect((await h.tasksOf('REQ-000001')).find(x => x.id === 't-s')!.lastRun?.ok).toBe(false)
   })
 
   it('② 文件证据不过（mtime 早于链出身）→ 子卡不 done', async () => {
@@ -70,15 +70,15 @@ describe('子卡闭环（3.4 凭证三项）', () => {
     // 任何文件都"新鲜"，故此例显式钉住链出身，保持原断言（早于基准的交付仍被拒）非空转。
     const birth = h.clock.t - 5_000
     h.repo.ledger.requirements[0]!.createdAt = birth
-    h.repo.ledger.tasks.find(x => x.id === 't-p')!.createdAt = birth
-    h.repo.ledger.tasks.find(x => x.id === 't-s')!.createdAt = birth
+    await h.setTaskFields('t-p', { createdAt: birth })
+    await h.setTaskFields('t-s', { createdAt: birth })
     h.docs.put(SRC, 'x', birth - 5_000)
     h.docs.put(CLIENT, 'x')
     h.deps.workflow = new FakeRunner(okRun(JSON.stringify({ filesChanged: [SRC], completed: ['改完'] })))
     const r = await executeSubtask(h.deps, { subtaskId: 't-s', windowKey: 'session-w-001' })
     expect(r.ok).toBe(false)
     expect(r.code).toBe('REQBOARD_SUBTASK_GATE')
-    expect(h.repo.ledger.tasks.find(x => x.id === 't-s')!.status).not.toBe('done')
+    expect((await h.tasksOf('REQ-000001')).find(x => x.id === 't-s')!.status).not.toBe('done')
   })
 
   it('D17 回归：交付落在父卡窗口内、却早于子卡本次 run 起点 → 子卡仍可 done', async () => {
@@ -87,13 +87,13 @@ describe('子卡闭环（3.4 凭证三项）', () => {
     // 但早于子卡本次 run 起点（startedAt = clock.t）。
     // 旧口径 since=子卡 claimedAt(=clock.t) → 判「mtime 早于开工」恒不过门（D17 实测）。
     // 新口径 since=父卡 claimedAt(=clock.t-5000) → 交付在链窗口内，过门。
-    h.repo.ledger.tasks.find(x => x.id === 't-p')!.claimedAt = h.clock.t - 5_000
+    await h.setTaskFields('t-p', { claimedAt: h.clock.t - 5_000 })
     h.docs.put(SRC, 'x', h.clock.t - 1_000)
     h.docs.put(CLIENT, 'x') // pages 源改动需配套构建产物（构建新鲜度分支）
     h.deps.workflow = new FakeRunner(okRun(JSON.stringify({ filesChanged: [SRC], completed: ['改完'] })))
     const r = await executeSubtask(h.deps, { subtaskId: 't-s', windowKey: 'session-w-001' })
     expect(r.ok).toBe(true)
-    expect(h.repo.ledger.tasks.find(x => x.id === 't-s')!.status).toBe('done')
+    expect((await h.tasksOf('REQ-000001')).find(x => x.id === 't-s')!.status).toBe('done')
   })
 
   it('① 汇报无改动文件（子代理只回文本）→ 子卡不 done（不猜文件）', async () => {
@@ -102,7 +102,7 @@ describe('子卡闭环（3.4 凭证三项）', () => {
     const r = await executeSubtask(h.deps, { subtaskId: 't-s', windowKey: 'session-w-001' })
     expect(r.ok).toBe(false)
     expect(r.code).toBe('REQBOARD_SUBTASK_GATE')
-    expect(h.repo.ledger.tasks.find(x => x.id === 't-s')!.status).not.toBe('done')
+    expect((await h.tasksOf('REQ-000001')).find(x => x.id === 't-s')!.status).not.toBe('done')
   })
 
   it('3.6 页面插件构建新鲜度：改了 src 但 client.js 陈旧 → 凭证不过', async () => {
@@ -125,7 +125,7 @@ describe('子卡闭环（3.4 凭证三项）', () => {
 
   it('幂等：已 done 的子卡重入直接返回 ok（不重复执行）', async () => {
     const h = seed()
-    h.repo.ledger.tasks.find(x => x.id === 't-s')!.status = 'done'
+    await h.setTaskFields('t-s', { status: 'done' })
     const runner = new FakeRunner(okRun('{}'))
     h.deps.workflow = runner
     const r = await executeSubtask(h.deps, { subtaskId: 't-s', windowKey: 'session-w-001' })
@@ -138,21 +138,22 @@ describe('父卡收尾门（3.5 / INV-5）', () => {
   it('存在未 done 子卡 → 父卡 done 被拒（REQBOARD_SUBTASK_GATE）', async () => {
     const h = seed()
     h.docs.put('src/x.ts', 'x')
-    h.repo.ledger.tasks.find(x => x.id === 't-p')!.lastReport = { at: h.clock.t, reportIndex: 1, filesChanged: ['src/x.ts'], completed: ['父卡完成'] }
+    await h.setTaskFields('t-p', { lastReport: { at: h.clock.t, reportIndex: 1, filesChanged: ['src/x.ts'], completed: ['父卡完成'] } })
     let code: string | undefined
     try {
       await executeMoveTask(h.deps, { task_id: 't-p', to: 'done' }, exec)
     } catch (err) { code = (err as { code?: string }).code }
     expect(code).toBe('REQBOARD_SUBTASK_GATE')
-    expect(h.repo.ledger.tasks.find(x => x.id === 't-p')!.status).not.toBe('done')
+    expect((await h.tasksOf('REQ-000001')).find(x => x.id === 't-p')!.status).not.toBe('done')
   })
 
   it('全部子卡 done → 父卡可通过（四重校验照旧）', async () => {
     const h = seed()
     h.docs.put('src/x.ts', 'x')
-    const p = h.repo.ledger.tasks.find(x => x.id === 't-p')!
-    p.lastReport = { at: h.clock.t, reportIndex: 1, filesChanged: ['src/x.ts'], completed: ['父卡完成'] }
-    h.repo.ledger.tasks.find(x => x.id === 't-s')!.status = 'done'
+    const p = (await h.tasksOf('REQ-000001')).find(x => x.id === 't-p')!
+    expect(p.status).toBe('in_progress') // 前置锚：确实读到了父卡（否则下面的写是空转）
+    await h.setTaskFields('t-p', { lastReport: { at: h.clock.t, reportIndex: 1, filesChanged: ['src/x.ts'], completed: ['父卡完成'] } })
+    await h.setTaskFields('t-s', { status: 'done' })
     const r = await executeMoveTask(h.deps, { task_id: 't-p', to: 'done' }, exec) as { to?: string }
     expect(r.to).toBe('done')
   })
@@ -184,18 +185,18 @@ describe('产出解析与空值判定（防"看起来在工作"）', () => {
  */
 describe('D17 修复：L1 基准单调化（链出身） + L2 证据形态分流', () => {
   /** 把「链出身」拉早到 birth，并把会漂移的 claimedAt 全部推到 run 起点（模拟重跑）。 */
-  function pinChainBirth(h: ReturnType<typeof seed>, birth: number): void {
+  async function pinChainBirth(h: ReturnType<typeof seed>, birth: number): Promise<void> {
     h.repo.ledger.requirements[0]!.createdAt = birth
-    const p = h.repo.ledger.tasks.find(x => x.id === 't-p')!
-    p.createdAt = birth
-    p.claimedAt = h.clock.t // 漂移源：重跑把它推到本次 run 起点
-    h.repo.ledger.tasks.find(x => x.id === 't-s')!.createdAt = birth
+    // 任务字段改动一律走真实写路径（v9：任务在队列，台账无 tasks）
+    // claimedAt = 漂移源：重跑把它推到本次 run 起点
+    await h.setTaskFields('t-p', { createdAt: birth, claimedAt: h.clock.t })
+    await h.setTaskFields('t-s', { createdAt: birth })
   }
 
   it('L1：文件早于子卡本次 run 起点、但 ≥ 链出身 → 子卡 done', async () => {
     const h = seed()
     const birth = h.clock.t - 8_000
-    pinChainBirth(h, birth)
+    await pinChainBirth(h, birth)
     // 交付落在链窗口内（birth + 1000），但早于子卡本次 run 起点（clock.t）。
     // 旧口径 since=父卡 claimedAt(=clock.t) 必拒；新口径 since=链出身(=birth) 应放行。
     h.docs.put(SRC, 'x', birth + 1_000)
@@ -203,32 +204,32 @@ describe('D17 修复：L1 基准单调化（链出身） + L2 证据形态分流
     h.deps.workflow = new FakeRunner(okRun(JSON.stringify({ filesChanged: [SRC], completed: ['改完'] })))
     const r = await executeSubtask(h.deps, { subtaskId: 't-s', windowKey: 'session-w-001' })
     expect(r.ok).toBe(true)
-    expect(h.repo.ledger.tasks.find(x => x.id === 't-s')!.status).toBe('done')
+    expect((await h.tasksOf('REQ-000001')).find(x => x.id === 't-s')!.status).toBe('done')
   })
 
   it('L1 反例：文件早于链出身 → 仍拒（窗口有界，不是无脑放行）', async () => {
     const h = seed()
     const birth = h.clock.t - 8_000
-    pinChainBirth(h, birth)
+    await pinChainBirth(h, birth)
     h.docs.put(SRC, 'x', birth - 1_000)
     h.docs.put(CLIENT, 'x', h.clock.t)
     h.deps.workflow = new FakeRunner(okRun(JSON.stringify({ filesChanged: [SRC], completed: ['改完'] })))
     const r = await executeSubtask(h.deps, { subtaskId: 't-s', windowKey: 'session-w-001' })
     expect(r.ok).toBe(false)
     expect(r.code).toBe('REQBOARD_SUBTASK_GATE')
-    expect(h.repo.ledger.tasks.find(x => x.id === 't-s')!.status).not.toBe('done')
+    expect((await h.tasksOf('REQ-000001')).find(x => x.id === 't-s')!.status).not.toBe('done')
   })
 
   it('L2 结论族：review filesChanged=[] 且 completed 非空 → 子卡 done（天然无 diff）', async () => {
     const h = seed()
-    h.repo.ledger.tasks.find(x => x.id === 't-s')!.stageKind = 'review'
+    await h.setTaskFields('t-s', { stageKind: 'review' })
     h.deps.workflow = new FakeRunner(okRun(JSON.stringify({
       completed: ['逐条复核完毕：设计与实现无偏离'],
       evidence: ['无 diff（本轮只做判断）'],
     })))
     const r = await executeSubtask(h.deps, { subtaskId: 't-s', windowKey: 'session-w-001' })
     expect(r.ok).toBe(true)
-    const t = h.repo.ledger.tasks.find(x => x.id === 't-s')!
+    const t = (await h.tasksOf('REQ-000001')).find(x => x.id === 't-s')!
     expect(t.status).toBe('done')
     expect(t.lastReport?.filesChanged).toEqual([])
     expect(t.lastReport?.completed.length).toBeGreaterThan(0)

@@ -18,24 +18,35 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { JsonQueueRepository } from '../src/repositories/QueueRepository.js'
+import { QueueTaskStore } from '../src/repositories/QueueTaskStore.js'
 import { createReqboardHandler } from '../src/http/routes.js'
 import { buildSheet } from '../src/domain/workflow/AcceptanceSheetSpec.js'
-import type { RequirementRecord, VerificationSheet } from '../src/shared/protocol.js'
+import type { RequirementRecord, TaskRecord, VerificationSheet } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
 let dir: string
 let store: ReqboardStore
+let taskStore: QueueTaskStore
 let handler: ReturnType<typeof createReqboardHandler>
+/** 验收相关需求的 id（夹具固定用它；队列读取都要带它）。 */
+const REQ = 'REQ-vd1234'
+/** 读队列任务（v9：任务唯一存储 = 队列）。 */
+const queueTasks = () => taskStore.listByRequirement(REQ)
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-verdicts-'))
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
-  handler = createReqboardHandler({ store, now: () => Date.now() })
+  // 任务唯一存储 = 队列（REQ-260927202051-f6df：v9 台账已无 tasks 通道）
+  taskStore = new QueueTaskStore({ repo: new JsonQueueRepository({ workspaceRoot: dir }), now: () => Date.now() })
+  handler = createReqboardHandler({ store, taskStore, now: () => Date.now() })
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 
 /** 播种一条"验收态 + 已生成验收单"的需求（2 个任务 → 3 个验收项）。 */
 async function seedAcceptingWithSheet(): Promise<void> {
+  // mutate 回调是同步契约，`createMany` 异步 → 任务必须在回调外写队列
+  const seededTasks: TaskRecord[] = []
   await store.mutate('seed', (l) => {
     const r = {
       id: 'REQ-vd1234', title: '看板需求', description: '', status: 'implementing', category: 'feature',
@@ -50,14 +61,15 @@ async function seedAcceptingWithSheet(): Promise<void> {
       statusHistory: [], createdAt: 1, updatedAt: 1,
       createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
     })
-    l.tasks.push(mk('t-vd0001', '任务一', '单测绿') as never, mk('t-vd0002', '任务二', '截图可见') as never)
+    seededTasks.push(mk('t-vd0001', '任务一', '单测绿') as unknown as TaskRecord, mk('t-vd0002', '任务二', '截图可见') as unknown as TaskRecord)
     return { requirements: [r] }
   })
+  await taskStore.createMany(REQ, seededTasks)
   await store.mutate('seed-sheet', (l) => {
     const r = l.requirements[0]
     const built = buildSheet({
       sheetHistoryLength: 0,
-      tasks: l.tasks.filter(t => t.requirementId === r.id).map(t => ({ id: t.id, title: t.title, acceptance: t.acceptance })),
+      tasks: seededTasks.filter(t => t.requirementId === r.id).map(t => ({ id: t.id, title: t.title, acceptance: t.acceptance })),
       evidence: ['npx vitest run 全绿'],
       generatedAt: 1,
       generatedBy: { kind: 'agent', sessionId: W },
@@ -109,6 +121,7 @@ describe('验收单逐项裁决（t14 / REQ-a8d582 FR-2）', () => {
   it('T-I1: 有未过项 → 自动回退 implementing + 按未过项建返工卡（REQ-308b9a FR-8，AC-8.1/8.2）', async () => {
     await seedAcceptingWithSheet()
     const before = store.snapshot()
+    const beforeTaskCount = (await queueTasks()).length   // 返工卡「+1」的基线
     const sheet = before.requirements[0].verification!.sheet!
     const target = sheet.items.find(i => i.source.kind === 'task' && i.source.taskId === 't-vd0002')!
     const res = await post('/req/verdicts', {
@@ -123,8 +136,9 @@ describe('验收单逐项裁决（t14 / REQ-a8d582 FR-2）', () => {
     expect(res.payload.data.rework_tasks).toHaveLength(1)
     const snap = store.snapshot()
     expect(snap.requirements[0].status).toBe('implementing')
-    expect(snap.tasks).toHaveLength(before.tasks.length + 1)
-    const rework = snap.tasks[snap.tasks.length - 1]!
+    expect(await queueTasks()).toHaveLength(beforeTaskCount + 1)
+    const allTasks = await queueTasks()
+    const rework = allTasks[allTasks.length - 1]!
     expect(rework.title).toMatch(/返工/)
     expect(rework.implementation).toMatch(/截图不清晰/)
     expect(rework.status).toBe('todo')
@@ -158,7 +172,7 @@ describe('验收单逐项裁决（t14 / REQ-a8d582 FR-2）', () => {
     expect(res.statusCode).toBe(200)
     const snap = store.snapshot()
     expect(snap.requirements[0].status).toBe('accepting')
-    expect(snap.tasks).toHaveLength(before.tasks.length)
+    expect(await queueTasks()).toHaveLength(2)
     expect(snap.requirements[0].verification!.sheet!.items.find(i => i.id === sheet.items[0].id)!.status).toBe('not_verifiable')
   })
 
@@ -166,15 +180,16 @@ describe('验收单逐项裁决（t14 / REQ-a8d582 FR-2）', () => {
     await seedAcceptingWithSheet()
     const before = store.snapshot()
     const sheet = before.requirements[0].verification!.sheet!
+    const vdTasks = await queueTasks()   // 回调外先取（mutate 回调是同步契约）
     await expect(store.mutate('fault-inject', (l) => {
-      applyVerdicts(l, l.requirements[0].id, sheet.version,
+      applyVerdicts(l, vdTasks, l.requirements[0].id, sheet.version,
         [{ itemId: sheet.items[0].id, status: 'failed', opinion: '注入失败' }],
         { kind: 'human' }, Date.now(), () => 'c-fault')
       throw new Error('fault injection')
     })).rejects.toThrow('fault injection')
     const after = store.snapshot()
     expect(after.requirements[0].status).toBe('accepting')
-    expect(after.tasks).toHaveLength(before.tasks.length)
+    expect(await queueTasks()).toHaveLength(2)
   })
 
   it('退回返工端点：需求已因自动回退离开验收态 → 幂等拒绝、不重复建卡', async () => {
@@ -188,11 +203,11 @@ describe('验收单逐项裁决（t14 / REQ-a8d582 FR-2）', () => {
     })
     const afterAuto = store.snapshot()
     expect(afterAuto.requirements[0].status).toBe('implementing')
-    const cards = afterAuto.tasks.length
+    const cards = (await queueTasks()).length
     // 再走「退回返工」端点 → 已不在验收态，被拒绝，不二次建卡
     const res = await post('/req/verify/rework', { id: 'REQ-vd1234', note: '再来一次' })
     expect(res.payload.success).toBe(false)
-    expect(store.snapshot().tasks).toHaveLength(cards)
+    expect(await queueTasks()).toHaveLength(cards)
   })
 
   it('部分裁决（仍有待验项）→ 挂起，状态不变', async () => {
@@ -210,7 +225,7 @@ describe('验收单逐项裁决（t14 / REQ-a8d582 FR-2）', () => {
   it('T-I9: 裁决后回填 verification.md 的验收结果表（AC-7.7/7.8）', async () => {
     await seedAcceptingWithSheet()
     const docs = new FakeDocs(() => Date.now())
-    const handler2 = createReqboardHandler({ store, now: () => Date.now(), docs: docs as never })
+    const handler2 = createReqboardHandler({ store, taskStore, now: () => Date.now(), docs: docs as never })
     const sheet = store.snapshot().requirements[0].verification!.sheet!
     const res = fakeRes()
     await handler2(

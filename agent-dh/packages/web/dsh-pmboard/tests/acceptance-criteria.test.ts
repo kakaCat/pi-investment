@@ -24,6 +24,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { JsonQueueRepository } from '../src/repositories/QueueRepository.js'
+import { QueueTaskStore } from '../src/repositories/QueueTaskStore.js'
 import { FileDocRepository } from '../src/adapters/FileDocRepository.js'
 import { createReqboardHandler } from '../src/http/routes.js'
 import { assembleStageDetail } from '../src/application/query/index.js'
@@ -54,6 +56,9 @@ let dir: string
 let prevCwd: string
 let store: ReqboardStore
 let handler: ReturnType<typeof createReqboardHandler>
+let taskStore: QueueTaskStore
+/** 队列任务读取（v9：任务唯一存储 = 队列；夹具需求固定为 REQ-acc001）。 */
+const queueTasksOf = () => taskStore.listByRequirement('REQ-acc001')
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-acc-'))
@@ -61,7 +66,9 @@ beforeEach(() => {
   process.chdir(dir)
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
   // REQ-2d1c74 FR-2：G2 完整性闸门需要 docs 端口（非 legacy 时缺省 = fail-closed）
-  handler = createReqboardHandler({ store, now: () => Date.now(), docs: new FileDocRepository({ workspaceRoot: dir }) })
+  // 任务唯一存储 = 队列（REQ-260927202051-f6df：v9 台账已无 tasks 通道）
+  taskStore = new QueueTaskStore({ repo: new JsonQueueRepository({ workspaceRoot: dir }), now: () => Date.now() })
+  handler = createReqboardHandler({ store, taskStore, now: () => Date.now(), docs: new FileDocRepository({ workspaceRoot: dir }) })
 })
 afterEach(() => {
   process.chdir(prevCwd)
@@ -190,8 +197,9 @@ describe('验收 2：实施节点按窗口分组', () => {
     await seed('implementing')
     const sessionA = 'session-aaaa1111-2222-3333-4444-555555555555'
     const sessionB = 'subagent-xyz' // subagent 会话 id
-    await store.mutate('task-created', (l) => {
-      l.tasks.push(
+    const seededTasks: Array<Record<string, unknown>> = []
+    await store.mutate('task-created', (_l) => {
+      seededTasks.push(
         {
           id: 't-win001', requirementId: 'REQ-acc001', title: '任务A', description: '',
           phase: 'implement', side: 'backend', dependsOn: [],
@@ -211,12 +219,13 @@ describe('验收 2：实施节点按窗口分组', () => {
           createdBy: { kind: 'human' }, updatedBy: { kind: 'human' },
         },
       )
-      return { tasks: [...l.tasks] }
+      return undefined
     })
+    await taskStore.createMany('REQ-acc001', seededTasks as never)
 
     const ledger = store.snapshot()
     const req = ledger.requirements[0]
-    const detail = assembleStageDetail(req, { tasks: ledger.tasks }, 'implementing')
+    const detail = assembleStageDetail(req, { tasks: await queueTasksOf() }, 'implementing')
     if (detail.stage !== 'implementing') throw new Error('narrow')
 
     // byWindow 包含两个窗口码
@@ -274,7 +283,10 @@ describe('验收 4：老台账兼容加载（历史字段透传，不做破坏�
   it('带历史预留字段（projectId/parentId）的记录正常加载，字段原样透传', async () => {
     const file = join(dir, 'dsh-reqboard.json')
     const ledgerWithReserved = {
-      schemaVersion: 4, revision: 1,
+      // REQ-260927202051-f6df FR-6：v9 起 `schemaVersion<9` 的台账**被拒绝**（避免静默丢任务）。
+      // 本用例的主题是「遗留字段 projectId/parentId 不被读改写」→ 改用 v9 台账承载同样两个遗留键，
+      // 后半段断言（字段原样透传）保持不变。
+      schemaVersion: 9, revision: 1,
       requirements: [{
         id: 'REQ-acc001', title: '预留字段测试', description: '', status: 'implementing', blocked: false,
         category: 'feature', projectId: 'proj-001', parentId: 'REQ-parent',
@@ -296,7 +308,8 @@ describe('验收 4：老台账兼容加载（历史字段透传，不做破坏�
   it('老台账（无 projectId/parentId）正常加载，字段为 undefined', async () => {
     const file = join(dir, 'dsh-reqboard.json')
     const legacyLedger = {
-      schemaVersion: 2, revision: 1,
+      // 同上：版本号不再是本用例的主题，升到 v9 以通过 FR-6 的迁移前拒绝门。
+      schemaVersion: 9, revision: 1,
       requirements: [{
         id: 'REQ-acc001', title: '老需求', description: '', status: 'draft', blocked: false,
         comments: [], version: 1, createdAt: 1, updatedAt: 1,
@@ -311,8 +324,14 @@ describe('验收 4：老台账兼容加载（历史字段透传，不做破坏�
     const legacy = loaded as { projectId?: unknown; parentId?: unknown }
     expect(legacy.projectId).toBeUndefined()
     expect(legacy.parentId).toBeUndefined()
-    // schemaVersion 升级到当前契约版本（REQ-81aabd：4 → 5 → 6 → 7）
-    expect(freshStore.snapshot().schemaVersion).toBe(7)
+    // ⚠️ **语义变更（REQ-260927202051-f6df FR-6）**：
+    //   原判据 `expect(schemaVersion).toBe(7)` ——「老台账加载后被**自动升级**到当前契约版本」。
+    //   在 v9 下**不再成立**：v8→v9 引入了「读到 `schemaVersion<9` 的台账**拒绝启动**并提示先跑
+    //   迁移脚本」的读兼容硬约束。理由：自动升级会把台账里的 `tasks` 静默抹掉（587 条任务凭空消失），
+    //   故必须拒绝。⇒ 本用例的主题（遗留字段 projectId/parentId 为 undefined）改用 **v9 夹具**承载，
+    //   版本号断言随之改为当前契约版本 9；「pre-v9 被拒绝」由迁移链专项测试覆盖
+    //   （`tests/migrate-ledger-v8v9.test.ts`，task-14 属主）。
+    expect(freshStore.snapshot().schemaVersion).toBe(9)
   })
 })
 
@@ -440,9 +459,12 @@ describe('验收 7：缺产物拦截 + 产物链追溯', () => {
 describe('验收 8：task_report 汇报 = 实施产物文档', () => {
   it('task_report 后 StageDetail.implementing 含 task_detail 产物（可追溯）', async () => {
     await seed('decomposing')
-    const reportTool = defineTaskReportTool({ store, now: () => Date.now() } as never)
-    const planTool = definePlanSubmitTool({ store, now: () => Date.now() } as never)
-    const decomposeTool = defineDecomposeTool({ store, now: () => Date.now() } as never)
+    // **同一个 deps 对象**（显式带上 taskStore）：`taskStoreOf` 按对象身份记忆化——
+    // 三个工具各传一个对象字面量会各得一个 store，出现"拆分写 A、汇报读 B"的假红。
+    const deps = { store, taskStore, now: () => Date.now() } as never
+    const reportTool = defineTaskReportTool(deps)
+    const planTool = definePlanSubmitTool(deps)
+    const decomposeTool = defineDecomposeTool(deps)
 
     // 走完整链路：提交计划 → 批准 → 拆分 → 汇报
     // REQ-2d1c74 FR-5：plan_submit 起要求提交路径真实落盘（本文件 chdir 到临时目录）
@@ -473,7 +495,7 @@ describe('验收 8：task_report 汇报 = 实施产物文档', () => {
     })
     const ledger = store.snapshot()
     const req = ledger.requirements[0]
-    const detail = assembleStageDetail(req, { tasks: ledger.tasks }, 'implementing')
+    const detail = assembleStageDetail(req, { tasks: await queueTasksOf() }, 'implementing')
     if (detail.stage !== 'implementing') throw new Error('narrow')
     const taskArtifact = detail.artifacts.find(a => a.kind === 'task_detail')
     expect(taskArtifact).toBeDefined()
@@ -496,7 +518,10 @@ describe('验收 9：阶段提示词注入', () => {
       category: 'feature', sourceSessionId: W, comments: [], version: 1, createdAt: 1, updatedAt: 1,
       createdBy: { kind: 'human' }, updatedBy: { kind: 'human' },
     })
-    const text = boundSectionText(l, { agent: { id: W } })
+    // 新签名 `(ledger, tasks, context, injectionLog?)`：本用例是纯函数级夹具（无队列）→ 传
+    // `undefined` = 三态第一态「任务尚未加载」→ 段内**整体略过**任务块（不谎报"没有任务"）。
+    // 该需求 status=brainstorming，本就不会渲染任务块，故对断言零影响。
+    const text = boundSectionText(l, undefined, { agent: { id: W } })
     expect(text).toContain(resolveStagePrompt({
       stage: 'brainstorming', category: 'feature', requirement: { title: 't', description: '' },
     }).text)
@@ -517,6 +542,8 @@ describe('验收 9：阶段提示词注入', () => {
       createdBy: { kind: 'human' }, updatedBy: { kind: 'human' },
     })
     const hook = createDiveSessionDriver({
+      // 任务队列端口（REQ-260927202051-f6df）：DiveSessionDriverDeps.taskStore 为**必填**（D11 口径）
+      taskStore: new QueueTaskStore({ repo: new JsonQueueRepository({ workspaceRoot: dir }), now: () => 1000 }),
       snapshot: () => ledger,
       pending: new Map(),
       now: () => 1000,

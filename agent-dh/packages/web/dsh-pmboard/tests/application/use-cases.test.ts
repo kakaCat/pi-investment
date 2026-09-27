@@ -145,7 +145,10 @@ describe('t6 · Decompose', () => {
     const out: any = await executeDecompose(h.deps, {}, EXEC)
     expect(out.success).toBe(true)
     expect(out.created).toHaveLength(1)
-    expect(h.repo.ledger.tasks).toHaveLength(1)
+    // 任务落**队列**（v9）：台账已无 tasks；本用例顺带断言拆分返回体给出的 queue_file 真实存在。
+    expect(await h.tasksOf('REQ-000001')).toHaveLength(1)
+    expect(h.queueExists('REQ-000001')).toBe(true)
+    expect(out.queue_file).toBe('docs/requirements/REQ-000001/queue.json')
     expect(h.docs.exists('docs/requirements/REQ-000001/decomposition.md')).toBe(true)
     expect(h.docs.exists('docs/requirements/REQ-000001/tasks/' + out.created[0].id + '.md')).toBe(true)
   })

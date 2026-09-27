@@ -12,19 +12,24 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { JsonQueueRepository } from '../src/repositories/QueueRepository.js'
+import { QueueTaskStore } from '../src/repositories/QueueTaskStore.js'
 import { createReqboardHandler } from '../src/http/routes.js'
 import { buildSheet } from '../src/domain/workflow/AcceptanceSheetSpec.js'
-import type { RequirementRecord, VerificationSheet } from '../src/shared/protocol.js'
+import type { RequirementRecord, TaskRecord, VerificationSheet } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
 let dir: string
 let store: ReqboardStore
+let taskStore: QueueTaskStore
 let handler: ReturnType<typeof createReqboardHandler>
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-override-'))
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
-  handler = createReqboardHandler({ store, now: () => Date.now() })
+  // 任务唯一存储 = 队列（REQ-260927202051-f6df：v9 台账已无 tasks 通道）
+  taskStore = new QueueTaskStore({ repo: new JsonQueueRepository({ workspaceRoot: dir }), now: () => Date.now() })
+  handler = createReqboardHandler({ store, taskStore, now: () => Date.now() })
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 
@@ -38,6 +43,8 @@ function baseReq(id: string): RequirementRecord {
 
 /** 播种验收态需求 + 一张验收单；failFirst=true 时把第一个任务项判为不通过。 */
 async function seed(id: string, opts: { sheet: boolean; failFirst?: boolean }): Promise<void> {
+  // mutate 回调是**同步契约**，`createMany` 是异步的 → 任务必须在回调外写队列。
+  let taskToSeed: TaskRecord | undefined
   await store.mutate('seed', (l) => {
     const r = baseReq(id)
     l.requirements.push(r)
@@ -49,7 +56,8 @@ async function seed(id: string, opts: { sheet: boolean; failFirst?: boolean }): 
       createdAt: 1, updatedAt: 1,
       createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
     }
-    l.tasks.push(task as never)
+    // 任务**不写台账**（v9 无 tasks 通道）→ 记下来，mutate 之后经 `createMany` 落队列
+    taskToSeed = task as unknown as TaskRecord
     const built = buildSheet({
       sheetHistoryLength: 0,
       tasks: [{ id: task.id, title: task.title, acceptance: task.acceptance }],
@@ -76,6 +84,8 @@ async function seed(id: string, opts: { sheet: boolean; failFirst?: boolean }): 
     }
     return { requirements: [r] }
   })
+  // ① 先写任务（队列）——回调外，`createMany` 幂等
+  if (taskToSeed !== undefined) await taskStore.createMany(id, [taskToSeed])
 }
 
 function fakeReq(body: unknown, url: string): any {

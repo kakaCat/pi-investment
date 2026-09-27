@@ -13,9 +13,11 @@ import { EventEmitter } from 'node:events'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { JsonQueueRepository } from '../src/repositories/QueueRepository.js'
+import { QueueTaskStore } from '../src/repositories/QueueTaskStore.js'
 import { createReqboardHandler } from '../src/http/routes.js'
 import { buildSheet } from '../src/domain/workflow/AcceptanceSheetSpec.js'
-import type { RequirementRecord, TokenBuckets, TokenSnapshot, VerificationSheet } from '../src/shared/protocol.js'
+import type { RequirementRecord, TaskRecord, TokenBuckets, TokenSnapshot, VerificationSheet } from '../src/shared/protocol.js'
 
 const W = 'session-w-001'
 const B = (n: number): TokenBuckets => ({ uncachedInputTokens: n, outputTokens: n * 2, cacheReadTokens: n * 10, cacheWriteTokens: 0 })
@@ -23,15 +25,20 @@ const snap = (n: number, sessionId: string = W): TokenSnapshot => ({ sessionId, 
 
 let dir: string
 let store: ReqboardStore
+let taskStore: QueueTaskStore
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-accept-verdicts-snap-'))
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
+  // 任务唯一存储 = 队列（REQ-260927202051-f6df：v9 台账已无 tasks 通道）
+  taskStore = new QueueTaskStore({ repo: new JsonQueueRepository({ workspaceRoot: dir }), now: () => 100 })
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 
 /** 播种「验收态 + 进入 accepting 时的会话快照 + 已生成验收单」。 */
 async function seed(): Promise<void> {
+  // 任务**不写台账**（v9 无 tasks 通道）；mutate 回调是同步契约，`createMany` 异步 → 回调外写队列。
+  const seededTasks: TaskRecord[] = []
   await store.mutate('seed', (l) => {
     const r = {
       id: 'REQ-av1234', title: '验收快照', description: '', status: 'accepting', category: 'feature',
@@ -47,14 +54,16 @@ async function seed(): Promise<void> {
       statusHistory: [], createdAt: 1, updatedAt: 1,
       createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
     })
-    l.tasks.push(mk('t-av0001', '任务一', '单测绿') as never, mk('t-av0002', '任务二', '截图可见') as never)
+    seededTasks.push(mk('t-av0001', '任务一', '单测绿') as unknown as TaskRecord, mk('t-av0002', '任务二', '截图可见') as unknown as TaskRecord)
     return { requirements: [r] }
   })
+  // ① 先写任务（队列）——回调外，`createMany` 幂等
+  await taskStore.createMany('REQ-av1234', seededTasks)
   await store.mutate('seed-sheet', (l) => {
     const r = l.requirements[0]!
     const built = buildSheet({
       sheetHistoryLength: 0,
-      tasks: l.tasks.filter(t => t.requirementId === r.id).map(t => ({ id: t.id, title: t.title, acceptance: t.acceptance })),
+      tasks: seededTasks.filter(t => t.requirementId === r.id).map(t => ({ id: t.id, title: t.title, acceptance: t.acceptance })),
       evidence: ['npx vitest run 全绿'],
       generatedAt: 1,
       generatedBy: { kind: 'agent', sessionId: W },
@@ -92,7 +101,7 @@ async function post(handler: any, url: string, body: unknown) {
 describe('REQ-260927121324-abde t4 · 逐项 failed 自动回退事件带快照', () => {
   it('有未过项 → 自动回退事件带写时快照，离开 accepting 的差值进 byStage', async () => {
     await seed()
-    const handler = createReqboardHandler({ store, now: () => 100, tokenSnapshot: (k: string) => (k === W ? snap(5) : undefined) })
+    const handler = createReqboardHandler({ store, taskStore, now: () => 100, tokenSnapshot: (k: string) => (k === W ? snap(5) : undefined) })
     const sheet = store.snapshot().requirements[0]!.verification!.sheet!
 
     const res = await post(handler, '/req/verdicts', {

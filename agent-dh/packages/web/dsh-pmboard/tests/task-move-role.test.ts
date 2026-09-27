@@ -15,12 +15,12 @@ const run = (t: unknown, args: unknown): Promise<Record<string, any>> =>
 
 /** 父卡（名下有一张子卡 → role=parent）+ 一张子卡。 */
 function seedParent() {
-  const h = makeHarness()
-  h.repo.ledger.requirements = [req({ status: 'implementing' })]
-  h.repo.ledger.tasks = [
+  // 任务落**队列**（REQ-260927202051-f6df：v9 台账已无 tasks 通道）
+  const h = makeHarness({ tasks: [
     task({ id: 't-p', requirementId: 'REQ-000001', status: 'in_progress', title: '父卡' }),
     task({ id: 't-s', requirementId: 'REQ-000001', parentId: 't-p', stageKind: 'dev' as never, status: 'todo' }),
-  ]
+  ] })
+  h.repo.ledger.requirements = [req({ status: 'implementing' })]
   return h
 }
 
@@ -33,8 +33,8 @@ describe('reqboard_task_move（FR-5）', () => {
     expect(msg).toContain('父卡')
     expect(msg).toContain('合法边')
     expect(msg).toContain('in_progress→in_review')
-    // 零副作用：状态未变
-    expect(h.repo.ledger.tasks.find((x) => x.id === 't-p')!.status).toBe('in_progress')
+    // 零副作用：状态未变（任务从**队列**读，v9 台账已无 tasks）
+    expect((await h.tasksOf('REQ-000001')).find((x) => x.id === 't-p')!.status).toBe('in_progress')
   })
 
   it('子卡的角色与合法边也被说清（子卡不进联调/测试/复核）', async () => {
@@ -46,9 +46,8 @@ describe('reqboard_task_move（FR-5）', () => {
   })
 
   it('TC-11 只传 acceptance → 台账更新 + 卡文档同步 + 状态不变', async () => {
-    const h = makeHarness()
+    const h = makeHarness({ tasks: [task({ id: 't-a', requirementId: 'REQ-000001', status: 'todo', acceptance: '功能正常' })] })
     h.repo.ledger.requirements = [req({ status: 'implementing' })]
-    h.repo.ledger.tasks = [task({ id: 't-a', requirementId: 'REQ-000001', status: 'todo', acceptance: '功能正常' })]
     const card = 'docs/requirements/REQ-000001/tasks/t-a.md'
     h.docs.put(card, ['# t-a', '', '## 在做什么', 'x', '', '## 得到什么结果', '', '功能正常', '', '## 下一步', 'y', ''].join('\n'))
 
@@ -57,8 +56,9 @@ describe('reqboard_task_move（FR-5）', () => {
       acceptance: '命令：node_modules/.bin/vitest run tests/a.test.ts → 看到 1 passed',
     })
     expect(out.success).toBe(true)
-    expect(h.repo.ledger.tasks[0]!.acceptance).toContain('vitest run')
-    expect(h.repo.ledger.tasks[0]!.status).toBe('todo')
+    const queueTasks = await h.tasksOf('REQ-000001')
+    expect(queueTasks[0]!.acceptance).toContain('vitest run')
+    expect(queueTasks[0]!.status).toBe('todo')
     const doc = await h.docs.read(card)
     expect(doc).toContain('vitest run')
     expect(doc).not.toContain('功能正常')
@@ -72,9 +72,8 @@ describe('reqboard_task_move（FR-5）', () => {
   })
 
   it('acceptance 是空话 → REQBOARD_INVALID_INPUT（沿用计划期门槛）', async () => {
-    const h = makeHarness()
+    const h = makeHarness({ tasks: [task({ id: 't-a', requirementId: 'REQ-000001', status: 'todo' })] })
     h.repo.ledger.requirements = [req({ status: 'implementing' })]
-    h.repo.ledger.tasks = [task({ id: 't-a', requirementId: 'REQ-000001', status: 'todo' })]
     const err = await run(defineTaskMoveTool(h.deps), { task_id: 't-a', acceptance: '功能正常' }).catch((e: Error) => e)
     expect(String((err as Error).message ?? err)).toContain('REQBOARD_INVALID_INPUT')
   })

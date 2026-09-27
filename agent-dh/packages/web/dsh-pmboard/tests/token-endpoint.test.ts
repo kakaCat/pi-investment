@@ -5,15 +5,18 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import { createReqboardHandler } from '../src/http/routes.js'
+import { JsonQueueRepository } from '../src/repositories/QueueRepository.js'
+import { QueueTaskStore } from '../src/repositories/QueueTaskStore.js'
 import { assembleRequirementToken } from '../src/application/query/QueryRequirementToken.js'
-import { emptyBuckets, type ReqboardLedger, type TokenBuckets } from '../src/shared/protocol.js'
+import { emptyBuckets, type ReqboardLedger, type TaskRecord, type TokenBuckets } from '../src/shared/protocol.js'
 
 const B = (n: number): TokenBuckets => ({ uncachedInputTokens: n, outputTokens: n * 2, cacheReadTokens: n * 10, cacheWriteTokens: 0 })
 const snap = (n: number) => ({ sessionId: 'session-w-001', at: n, totals: B(n), source: 'projection' as const })
 
 function seededLedger(): ReqboardLedger {
   return {
-    schemaVersion: 7,
+    // v9：台账只留 requirements/triages（任务见下方 SEED_TASK，落队列）
+    schemaVersion: 9,
     revision: 1,
     requirements: [{
       id: 'REQ-abc123', title: 'Token 需求', description: 'd', category: 'feature', status: 'implementing',
@@ -25,27 +28,36 @@ function seededLedger(): ReqboardLedger {
       ],
       tokenUsage: { byStage: { draft: B(3), implementing: B(7) }, totals: B(10), updatedAt: 9 },
     }],
-    tasks: [{
-      id: 't-abc123', requirementId: 'REQ-abc123', title: '任务甲', description: 'd', phase: 'implement', side: 'backend',
-      dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance: 'a', context: '', status: 'in_progress',
-      blocked: false, executions: [{
-        id: 'e-abc123', sessionId: 'session-w-001', trigger: 'manual', startedAt: 1, endedAt: 2, outcome: 'succeeded',
-        tokenUsage: { start: snap(2), end: snap(5), delta: B(3) },
-      }],
-      comments: [], version: 1, createdAt: 1, updatedAt: 1,
-      createdBy: { kind: 'agent', sessionId: 'session-w-001' }, updatedBy: { kind: 'agent', sessionId: 'session-w-001' },
-      statusHistory: [],
-    }],
     triages: [],
   }
 }
 
+/** 任务甲（落**队列**；带一条已闭合的执行记录与 start/end/delta 快照）。 */
+function seedTask(): TaskRecord {
+  return {
+    id: 't-abc123', requirementId: 'REQ-abc123', title: '任务甲', description: 'd', phase: 'implement', side: 'backend',
+    dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance: 'a', context: '', status: 'in_progress',
+    blocked: false, executions: [{
+      id: 'e-abc123', sessionId: 'session-w-001', trigger: 'manual', startedAt: 1, endedAt: 2, outcome: 'succeeded',
+      tokenUsage: { start: snap(2), end: snap(5), delta: B(3) },
+    }],
+    comments: [], version: 1, createdAt: 1, updatedAt: 1,
+    createdBy: { kind: 'agent', sessionId: 'session-w-001' }, updatedBy: { kind: 'agent', sessionId: 'session-w-001' },
+    statusHistory: [],
+  } as unknown as TaskRecord
+}
+
 let dir: string
 let store: ReqboardStore
+let taskStore: QueueTaskStore
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-token-'))
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
+  // 任务唯一存储 = 队列（REQ-260927202051-f6df：v9 台账已无 tasks 通道）
+  taskStore = new QueueTaskStore({ repo: new JsonQueueRepository({ workspaceRoot: dir }), now: () => Date.now() })
   await store.replaceAll('seed', seededLedger())
+  // 任务落**队列**（v9：任务唯一存储 = 队列；token 读路径的执行记录来自队列任务）
+  await taskStore.createMany('REQ-abc123', [seedTask()])
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 
@@ -72,7 +84,7 @@ async function get(handler: any, url: string) {
 
 describe('REQ-a33899 t4 · assembleRequirementToken 投影', () => {
   it('节点有快照 → buckets 就位；无快照 → undefined（不是 0）；执行挂在 implementing', () => {
-    const view = assembleRequirementToken(seededLedger().requirements[0]!, { tasks: seededLedger().tasks })
+    const view = assembleRequirementToken(seededLedger().requirements[0]!, { tasks: [seedTask()] })
     const byKey = Object.fromEntries(view.byStage.map(s => [s.stage, s]))
     expect(byKey.draft!.buckets).toEqual(B(3))
     expect(byKey.implementing!.buckets).toEqual(B(7))
@@ -95,7 +107,7 @@ describe('REQ-a33899 t4 · assembleRequirementToken 投影', () => {
 
 describe('REQ-a33899 t4 · HTTP 接口', () => {
   it('GET /requirements/:id/token → 200 返回 byStage + executions', async () => {
-    const handler = createReqboardHandler({ store, now: () => Date.now() })
+    const handler = createReqboardHandler({ store, taskStore, now: () => Date.now() })
     const res = await get(handler, '/requirements/REQ-abc123/token')
     expect(res.statusCode).toBe(200)
     expect(res.payload.success).toBe(true)
@@ -106,21 +118,21 @@ describe('REQ-a33899 t4 · HTTP 接口', () => {
   })
 
   it('GET /requirements/:id/token 不存在 → 404 not_found', async () => {
-    const handler = createReqboardHandler({ store, now: () => Date.now() })
+    const handler = createReqboardHandler({ store, taskStore, now: () => Date.now() })
     const res = await get(handler, '/requirements/REQ-ffffff/token')
     expect(res.statusCode).toBe(404)
     expect(res.payload.code).toBe('not_found')
   })
 
   it('GET /state 带 tokenTotals（无快照的需求不出现该键）', async () => {
-    const handler = createReqboardHandler({ store, now: () => Date.now() })
+    const handler = createReqboardHandler({ store, taskStore, now: () => Date.now() })
     const res = await get(handler, '/state')
     expect(res.statusCode).toBe(200)
     expect(res.payload.data.tokenTotals['REQ-abc123']).toBe(130) // B(10) 三桶和 = 13×10
   })
 
   it('GET /session/:sid/progress 的 nodes 带每节点 tokens（无快照则省略）', async () => {
-    const handler = createReqboardHandler({ store, now: () => Date.now() })
+    const handler = createReqboardHandler({ store, taskStore, now: () => Date.now() })
     const res = await get(handler, '/session/session-w-001/progress')
     expect(res.statusCode).toBe(200)
     const nodes = res.payload.data.nodes
@@ -146,9 +158,9 @@ describe('REQ-260927121324-abde t-49d8d4 · 快照缺失与不可得同等降级
   it('执行记录缺 start/end → degraded=true', () => {
     const seed = seededLedger()
     const r = seed.requirements[0]!
-    const t = seed.tasks[0]!
+    const t = seedTask()
     t.executions = [{ id: 'e-bare', sessionId: 'session-w-001', trigger: 'manual', startedAt: 1, endedAt: 2, outcome: 'succeeded' }]
-    const view = assembleRequirementToken(r, { tasks: seed.tasks })
+    const view = assembleRequirementToken(r, { tasks: [t] })
     expect(view.degraded).toBe(true)
   })
 })

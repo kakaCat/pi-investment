@@ -19,22 +19,27 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
+import { JsonQueueRepository } from '../src/repositories/QueueRepository.js'
+import { QueueTaskStore } from '../src/repositories/QueueTaskStore.js'
 import { createReqboardHandler } from '../src/http/routes.js'
 import { buildSheet } from '../src/domain/workflow/AcceptanceSheetSpec.js'
 import { buildReqDetail } from '../src/client/view.ts'
 import { verifyConfirmCopy } from '../src/client/board-mount.ts'
-import type { RequirementRecord } from '../src/shared/protocol.js'
+import type { RequirementRecord, TaskRecord } from '../src/shared/protocol.js'
 import type { RequirementRecord as ClientRequirementRecord } from '../src/client/types.ts'
 
 const W = 'session-abc-123'
 let dir: string
 let store: ReqboardStore
+let taskStore: QueueTaskStore
 let handler: ReturnType<typeof createReqboardHandler>
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-e2e-override-'))
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
-  handler = createReqboardHandler({ store, now: () => Date.now() })
+  // 任务唯一存储 = 队列（REQ-260927202051-f6df：v9 台账已无 tasks 通道）
+  taskStore = new QueueTaskStore({ repo: new JsonQueueRepository({ workspaceRoot: dir }), now: () => Date.now() })
+  handler = createReqboardHandler({ store, taskStore, now: () => Date.now() })
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 
@@ -62,6 +67,8 @@ async function post(url: string, body: unknown) {
 
 /** 播种"实施完成 + 已交验收材料"的需求（1 个任务 → 2 个验收项）。 */
 async function seedDelivered(): Promise<void> {
+  // mutate 回调是**同步契约**，`createMany` 是异步的 → 任务必须在回调外写队列（v9 无 tasks 通道）。
+  let taskToSeed: TaskRecord | undefined
   await store.mutate('seed', (l) => {
     const r = {
       id: 'REQ-e2e001', title: '验收通过二次确认', description: '', status: 'implementing', category: 'feature',
@@ -76,7 +83,8 @@ async function seedDelivered(): Promise<void> {
       createdAt: 1, updatedAt: 1,
       createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
     }
-    l.tasks.push(task as never)
+    // 任务**不写台账**（v9 无 tasks 通道）→ 记下来，mutate 之后经 `createMany` 落队列
+    taskToSeed = task as unknown as TaskRecord
     const built = buildSheet({
       sheetHistoryLength: 0,
       tasks: [{ id: task.id, title: task.title, acceptance: task.acceptance }],
@@ -91,6 +99,8 @@ async function seedDelivered(): Promise<void> {
     }
     return { requirements: [r] }
   })
+  // ① 先写任务（队列）——回调外，`createMany` 幂等
+  if (taskToSeed !== undefined) await taskStore.createMany(taskToSeed.requirementId, [taskToSeed])
 }
 
 describe('端到端：从验收单裁决到覆盖通过归档（TC-9）', () => {
@@ -106,7 +116,8 @@ describe('端到端：从验收单裁决到覆盖通过归档（TC-9）', () => 
     })
     expect(v.statusCode).toBe(200)
     expect(store.snapshot().requirements[0]!.status).toBe('implementing')
-    const reworkTasks = store.snapshot().tasks.filter(t => t.requirementId === 'REQ-e2e001' && t.id !== 't-e2e001')
+    // 返工卡从**队列**读（REQ-260927202051-f6df：v9 台账已无 tasks）
+    const reworkTasks = (await taskStore.listByRequirement('REQ-e2e001')).filter(t => t.id !== 't-e2e001')
     expect(reworkTasks.length).toBe(1)
 
     // ①b 模拟执行窗口完成返工并重新提交验收：回到验收态（验收单裁决结果持久——不通过 1 / 未裁决 1）

@@ -21,6 +21,8 @@ import {
   defineTaskMoveTool,
   defineTaskReportTool,
   stubDocFile,
+  taskStoreOf,
+  type ReqboardToolDeps,
 } from './helpers/tool-deps.js'
 import { assembleStageDetail } from '../src/application/query/index.js'
 import type { RequirementRecord, RequirementStatus } from '../src/shared/protocol.js'
@@ -31,6 +33,10 @@ const WINDOW_B = 'session-bbbb6666-7777-8888-9999-000000000000'
 let dir: string
 let prevCwd: string
 let store: ReqboardStore
+/** 提到 describe 作用域：StageDetail 装配要读**队列**任务（v9 台账已无 tasks）。 */
+let deps: ReqboardToolDeps
+/** 队列任务读取（`assembleStageDetail` 的 `{ tasks }` 入参来源）。 */
+const queueTasksOf = (reqId: string) => taskStoreOf(deps).listByRequirement(reqId)
 let planTool: { execute: (a: unknown, e: unknown) => Promise<any> }
 let decompose: { execute: (a: unknown, e: unknown) => Promise<any> }
 let taskMove: { execute: (a: unknown, e: unknown) => Promise<any> }
@@ -41,7 +47,7 @@ beforeEach(() => {
   prevCwd = process.cwd()
   process.chdir(dir)
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
-  const deps = { store, now: () => Date.now() } as never
+  deps = { store, now: () => Date.now() } as never
   planTool = definePlanSubmitTool(deps) as never
   decompose = defineDecomposeTool(deps) as never
   taskMove = defineTaskMoveTool(deps) as never
@@ -137,7 +143,7 @@ describe('接力实测：任务卡自足（新窗口零会话历史可续作）'
     const ledger = store.snapshot()
     const req = ledger.requirements[0]
 
-    const detail = assembleStageDetail(req, { tasks: ledger.tasks }, 'decomposing')
+    const detail = assembleStageDetail(req, { tasks: await queueTasksOf(req.id) }, 'decomposing')
     if (detail.stage !== 'decomposing') throw new Error('narrow')
     expect(detail.body.tasks).toHaveLength(3)
 
@@ -209,7 +215,7 @@ describe('接力实测：task_report 追加后文件仍结构化', () => {
     // 窗口 B 从 StageDetail 读产物链（requirement → plan → decomposition → task_detail）
     const ledger = store.snapshot()
     const req = ledger.requirements[0]
-    const detail = assembleStageDetail(req, { tasks: ledger.tasks }, 'implementing')
+    const detail = assembleStageDetail(req, { tasks: await queueTasksOf(req.id) }, 'implementing')
     if (detail.stage !== 'implementing') throw new Error('narrow')
 
     // 产物链包含 task_detail（t1 的汇报产物）
@@ -240,7 +246,7 @@ describe('接力实测：task_report 追加后文件仍结构化', () => {
     expect(started.success).toBe(true)
 
     // 验证 claimedBy = 窗口 B
-    const task = store.snapshot().tasks.find(t => t.id === t2)!
+    const task = (await taskStoreOf(deps).get(t2))!
     expect(task.claimedBy).toBe(WINDOW_B)
 
     // 窗口 B 汇报
@@ -294,7 +300,7 @@ describe('接力实测：handoff 契约——新窗口不读历史对话即可�
     // B 读 StageDetail.implementing 拿到产物链和任务列表
     const ledgerBefore = store.snapshot()
     const reqBefore = ledgerBefore.requirements[0]
-    const detail = assembleStageDetail(reqBefore, { tasks: ledgerBefore.tasks }, 'implementing')
+    const detail = assembleStageDetail(reqBefore, { tasks: await queueTasksOf(reqBefore.id) }, 'implementing')
     if (detail.stage !== 'implementing') throw new Error('narrow')
 
     // B 从 detail 找到 t2（cardDoc 路径由任务 id 推导：tasks/<task_id>.md）
@@ -332,7 +338,7 @@ describe('接力实测：handoff 契约——新窗口不读历史对话即可�
     // ── 验证产物链完整：从 implementing StageDetail 可追溯到全部产物 ──
     const ledgerAfter = store.snapshot()
     const reqAfter = ledgerAfter.requirements[0]
-    const finalDetail = assembleStageDetail(reqAfter, { tasks: ledgerAfter.tasks }, 'implementing')
+    const finalDetail = assembleStageDetail(reqAfter, { tasks: await queueTasksOf(reqAfter.id) }, 'implementing')
     if (finalDetail.stage !== 'implementing') throw new Error('narrow')
 
     // implementing 阶段的产物：task_detail（t1/t2 的汇报产物）

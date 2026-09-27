@@ -33,14 +33,15 @@ function req(id: string): RequirementRecord {
 }
 
 describe('JsonLedgerRepository：加载 / 写 / 订阅', () => {
-  it('缺文件 → 空台账（schemaVersion=7, revision=0），不抛', async () => {
+  it('缺文件 → 空台账（schemaVersion=9, revision=0），不抛', async () => {
     const repo = new JsonLedgerRepository({ file })
     await repo.load()
     const snap = repo.snapshot()
     expect(snap.requirements).toEqual([])
     expect(snap.revision).toBe(0)
-    // C1：契约版本常量 4 → 5 → 6 → 7（常量必须与迁移后文件一致，否则写盘会把版本回退）
-    expect(snap.schemaVersion).toBe(7)
+    // C1：契约版本常量 4 → 5 → 6 → 7 → 8 → **9**（REQ-260927202051-f6df t6：台账去 tasks）。
+    // 常量必须与迁移后文件一致，否则写盘会把版本回退。
+    expect(snap.schemaVersion).toBe(9)
   })
 
   it('mutate：写盘 + bump revision + 通知订阅者；返回的 changed 含触动的记录', async () => {
@@ -87,10 +88,12 @@ describe('JsonLedgerRepository：加载 / 写 / 订阅', () => {
     await repo.mutate('requirement-created', (l) => { l.requirements.push(req('REQ-abc123')); return { requirements: [l.requirements[0]] } })
     const seen: string[] = []
     repo.subscribe((c) => seen.push(c.kind))
-    const next = { schemaVersion: 5, revision: 870, requirements: [req('REQ-aaaaaa')], tasks: [], triages: [] }
+    // v9：台账**无 tasks 键**；且 replaceAll 会先 load —— 目标台账必须是 v9，
+    // 否则会撞迁移门（LEDGER_REQUIRES_MIGRATION，t6 起的既定契约）。
+    const next = { schemaVersion: 9, revision: 870, requirements: [req('REQ-aaaaaa')], triages: [] }
     await repo.replaceAll('migration', next as never)
     expect(seen).toEqual(['ledger-replaced'])
-    expect(repo.snapshot().schemaVersion).toBe(5)
+    expect(repo.snapshot().schemaVersion).toBe(9)
     expect(repo.snapshot().requirements.map(r => r.id)).toEqual(['REQ-aaaaaa'])
     expect(readdirSync(dir).some(n => n.startsWith('ledger.json.backup-'))).toBe(true)
     const re = new JsonLedgerRepository({ file })

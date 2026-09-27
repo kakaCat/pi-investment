@@ -7,8 +7,8 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
-import { defineVerifySubmitTool, queueTasksOf, seedQueueTasks, type ReqboardToolDeps } from './helpers/tool-deps.js'
-import type { RequirementRecord, VerificationItem } from '../src/shared/protocol.js'
+import { defineVerifySubmitTool, seedQueueTasks, type ReqboardToolDeps } from './helpers/tool-deps.js'
+import type { RequirementRecord, TaskRecord, VerificationItem } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
 const REQ_ID = 'REQ-abc123'
@@ -37,7 +37,7 @@ async function seedWithTasks(): Promise<void> {
   } as unknown as RequirementRecord
   await store.mutate('seed', (l) => { l.requirements.push(r); return { requirements: [r] } })
   // v9：任务唯一存储 = 队列（台账不再有 tasks 通道）。同一个 deps → 同一 store，工具才看得见。
-  const mk = (id: string, title: string, acceptance: string) => ({
+  const mk = (id: string, title: string, acceptance: string): TaskRecord => ({
     id, requirementId: REQ_ID, title, description: '', phase: 'implement' as const, side: 'backend' as const,
     dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance, context: '',
     status: 'done' as const, blocked: false, executions: [], comments: [], version: 1,

@@ -39,7 +39,7 @@ function logSink() {
 describe('H3 注入：时序与内容（AC-4.1）', () => {
   it('G1 确认（brainstorming→design）后注入 design 档，且不含 brainstorming 档', async () => {
     const h = seeded()
-    const handler = createH3InjectHandler({ repo: h.repo, docs: h.docs, clock: h.clock } as never)
+    const handler = createH3InjectHandler({ repo: h.repo, taskStore: h.taskStore, docs: h.docs, clock: h.clock } as never)
     const scratch: ChainScratch = {}
     const outcome = await handler.run({ ctx: ctx(), session: {}, scratch })
     expect(outcome).toEqual({ kind: 'continue' })
@@ -56,7 +56,7 @@ describe('H3 注入：时序与内容（AC-4.1）', () => {
 
   it('取词阶段由 ctx.to 决定（to=decomposing 时取 decomposing 档）', async () => {
     const h = seeded()
-    const handler = createH3InjectHandler({ repo: h.repo } as never)
+    const handler = createH3InjectHandler({ repo: h.repo, taskStore: h.taskStore } as never)
     const scratch: ChainScratch = {}
     await handler.run({ ctx: ctx({ to: 'decomposing' }), scratch })
     const expected = resolveStagePrompt({ stage: 'decomposing', category: 'feature', requirement: { title: '需求', description: 'd' } })
@@ -66,7 +66,7 @@ describe('H3 注入：时序与内容（AC-4.1）', () => {
   it('按 INV-6 写注入留痕（十字段与取词结果一致）', async () => {
     const h = seeded()
     const sink = logSink()
-    const handler = createH3InjectHandler({ repo: h.repo, injectionLog: sink.port } as never)
+    const handler = createH3InjectHandler({ repo: h.repo, taskStore: h.taskStore, injectionLog: sink.port } as never)
     await handler.run({ ctx: ctx(), scratch: {} })
     expect(sink.entries).toHaveLength(1)
     const e = sink.entries[0]!
@@ -81,21 +81,21 @@ describe('H3 注入：时序与内容（AC-4.1）', () => {
 describe('H3 注入：条件不满足 → skip（AC-4.2）', () => {
   it('to 不是可注入阶段（draft）→ not_prompt_stage', async () => {
     const h = seeded()
-    const handler = createH3InjectHandler({ repo: h.repo } as never)
+    const handler = createH3InjectHandler({ repo: h.repo, taskStore: h.taskStore } as never)
     const outcome = await handler.run({ ctx: ctx({ to: 'draft' }), scratch: {} })
     expect(outcome).toMatchObject({ kind: 'skip', code: 'not_prompt_stage' })
   })
 
   it('无归属需求 → no_requirement', async () => {
     const h = makeHarness({ requirements: [] })
-    const handler = createH3InjectHandler({ repo: h.repo } as never)
+    const handler = createH3InjectHandler({ repo: h.repo, taskStore: h.taskStore } as never)
     const outcome = await handler.run({ ctx: ctx(), scratch: {} })
     expect(outcome).toMatchObject({ kind: 'skip', code: 'no_requirement' })
   })
 
   it('分类档案跳过该阶段（bug 不走 brainstorming）→ stage_disabled', async () => {
     const h = seeded({ category: 'bug' })
-    const handler = createH3InjectHandler({ repo: h.repo } as never)
+    const handler = createH3InjectHandler({ repo: h.repo, taskStore: h.taskStore } as never)
     const outcome = await handler.run({ ctx: ctx({ to: 'brainstorming' }), scratch: {} })
     expect(outcome).toMatchObject({ kind: 'skip', code: 'stage_disabled' })
   })
@@ -108,14 +108,14 @@ describe('H3 注入：失败态 → degraded 与难度透传', () => {
 
   it('取词结果为空 → degraded: empty_prompt', async () => {
     const h = seeded()
-    const handler = createH3InjectHandler({ repo: h.repo, resolve: () => resolved('') } as never)
+    const handler = createH3InjectHandler({ repo: h.repo, taskStore: h.taskStore, resolve: () => resolved('') } as never)
     const outcome = await handler.run({ ctx: ctx(), scratch: {} })
     expect(outcome).toMatchObject({ kind: 'degraded', code: 'empty_prompt' })
   })
 
   it('取词入口抛错 → degraded: h3_threw（不冒泡）', async () => {
     const h = seeded()
-    const handler = createH3InjectHandler({ repo: h.repo, resolve: () => { throw new Error('prompt lib down') } } as never)
+    const handler = createH3InjectHandler({ repo: h.repo, taskStore: h.taskStore, resolve: () => { throw new Error('prompt lib down') } } as never)
     const outcome = await handler.run({ ctx: ctx(), scratch: {} })
     expect(outcome).toMatchObject({ kind: 'degraded', code: 'h3_threw' })
     expect(JSON.stringify(outcome)).toContain('prompt lib down')
@@ -126,24 +126,24 @@ describe('H3 注入：失败态 → degraded 与难度透传', () => {
     const spyResolve = (r: { declaredDifficulty?: string }) => { seen.push(r.declaredDifficulty); return resolved('T') }
 
     const hExpert = seeded({ promptDifficulty: 'expert' })
-    const h1 = createH3InjectHandler({ repo: hExpert.repo, resolve: spyResolve } as never)
+    const h1 = createH3InjectHandler({ repo: hExpert.repo, taskStore: hExpert.taskStore, resolve: spyResolve } as never)
     await h1.run({ ctx: ctx(), scratch: {} })
     expect(seen[0]).toBe('heavy')
 
     const hSimple = seeded({ promptDifficulty: 'simple' })
-    const h2 = createH3InjectHandler({ repo: hSimple.repo, resolve: spyResolve } as never)
+    const h2 = createH3InjectHandler({ repo: hSimple.repo, taskStore: hSimple.taskStore, resolve: spyResolve } as never)
     await h2.run({ ctx: ctx(), scratch: {} })
     expect(seen[1]).toBe('light')
 
     const hNone = seeded()
-    const h3 = createH3InjectHandler({ repo: hNone.repo, resolve: spyResolve } as never)
+    const h3 = createH3InjectHandler({ repo: hNone.repo, taskStore: hNone.taskStore, resolve: spyResolve } as never)
     await h3.run({ ctx: ctx(), scratch: {} })
     expect(seen[2]).toBeUndefined()
   })
 
   it('未提供 scratch 时不抛（单跑 handler 的兼容路径）', async () => {
     const h = seeded()
-    const handler = createH3InjectHandler({ repo: h.repo } as never)
+    const handler = createH3InjectHandler({ repo: h.repo, taskStore: h.taskStore } as never)
     await expect(handler.run({ ctx: ctx() })).resolves.toEqual({ kind: 'continue' })
   })
 })
