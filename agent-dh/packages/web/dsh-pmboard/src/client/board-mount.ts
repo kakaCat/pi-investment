@@ -25,6 +25,7 @@ import { renderStageNode } from './stage-panel.ts'
 import { hasInjectionWindow, renderInjectionInfo } from './injection-info.ts'
 import { renderTokenPlaceholder, renderTokenTab } from './token-info.ts'
 import { renderMarksBlock, renderMarksPlaceholder } from './marks-info.ts'
+import { updateTraceabilityView } from './traceability-handler.js'
 import type { StageOverview, StageKey } from '../shared/protocol.ts'
 
 const POLL_MS = 20000
@@ -349,6 +350,18 @@ export function mountBoard(controller: BoardController): () => void {
         if (tabName === 'token') {
           const reqId = (tabsContainer as HTMLElement).dataset.detailReq
           if (reqId !== undefined && reqId.length > 0) void loadTokenTab(reqId)
+        }
+        // REQ-260926140539-457b FR-6：Traceability tab 首次切到时加载追溯数据
+        // 修复：原实现引用 currentReqDetail（全仓无此变量）→ 客户端 ReferenceError，
+        // 且 tsdown 不做类型检查，该缺陷已被打进产物。改用真实存在的来源：
+        // reqId 取自详情容器的 data-detail-req，节点优先 activeStage、回落到需求主状态。
+        if (tabName === 'traceability') {
+          const reqId = (tabsContainer as HTMLElement).dataset.detailReq
+          const stage = activeStage
+            ?? (reqId !== undefined ? state?.requirements.find(r => r.id === reqId)?.status : undefined)
+          if (reqId !== undefined && reqId.length > 0 && stage !== undefined && stage.length > 0) {
+            void loadTraceabilityBlock(reqId, stage)
+          }
         }
         return
       }
@@ -702,6 +715,40 @@ export function mountBoard(controller: BoardController): () => void {
       container.innerHTML = renderMarksPlaceholder('接收状态暂不可用（接口失败或需求不存在）')
     } finally {
       marksInFlight = undefined
+    }
+  }
+
+  /**
+   * 加载「🔗 追溯关系」（REQ-260926140539-457b FR-6）：从 stageDetail.body 提取追溯数据，
+   * 渲染到 #dsh-pm-traceability-container，并初始化双向绑定交互。
+   */
+  let traceabilityLoadedFor: string | undefined
+  const loadTraceabilityBlock = async (reqId: string, stage: string): Promise<void> => {
+    const container = document.getElementById('dsh-pm-traceability-container')
+    if (container === null) return
+    const cacheKey = `${reqId}:${stage}`
+    if (traceabilityLoadedFor === cacheKey) return
+    
+    try {
+      // 重新获取 stage detail 数据（包含追溯信息）
+      const res = await fetch(`/dashboard/api/reqboard/requirements/${encodeURIComponent(reqId)}/stage/${encodeURIComponent(stage)}`, {
+        signal: AbortSignal.timeout(8000),
+      })
+      if (!res.ok) {
+        container.innerHTML = '<div class="dsh-pm-traceability-empty"><div class="dsh-pm-empty-text">追溯数据加载失败（HTTP ' + res.status + '）</div></div>'
+        return
+      }
+      const stageDetail = await res.json()
+      
+      // 使用 updateTraceabilityView 渲染追溯数据
+      const detailContainer = document.querySelector('.dsh-pm-req-detail')
+      if (detailContainer && stageDetail) {
+        updateTraceabilityView(stageDetail, detailContainer as HTMLElement)
+        traceabilityLoadedFor = cacheKey
+      }
+    } catch (err) {
+      console.warn('[pmboard] 追溯数据加载失败:', err)
+      container.innerHTML = '<div class="dsh-pm-traceability-empty"><div class="dsh-pm-empty-text">追溯数据加载失败</div></div>'
     }
   }
 

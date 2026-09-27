@@ -13,9 +13,10 @@ import { renderInjectionInfo } from '../injection-info.ts'
 import { renderSubtaskChain, subtaskChain } from '../render/subtask-view.ts'
 import { renderTokenPlaceholder } from '../token-info.ts'
 import { renderMarksPlaceholder } from '../marks-info.ts'
+import { renderTraceabilityView } from './traceability-view.js'
 
 // ---------------------------------------------------------------------------
-// 需求详情页：8 态进度点 + 4 Tab 分组（REQ-6f39b5）
+// 需求详情页：8 态进度点 + 6 Tab 分组（REQ-6f39b5）
 // ---------------------------------------------------------------------------
 
 /**
@@ -42,7 +43,7 @@ export function buildProgressDots(currentStatus: RequirementStatus): string {
 }
 
 /**
- * 渲染 4 个 Tab 按钮
+ * 渲染 6 个 Tab 按钮
  * @returns Tab 导航 HTML
  */
 export function buildTabs(): string {
@@ -52,12 +53,13 @@ export function buildTabs(): string {
       <button type="button" class="dsh-pm-tab" data-action="switch-tab" data-tab="execution">⚙️ 执行</button>
       <button type="button" class="dsh-pm-tab" data-action="switch-tab" data-tab="timeline">📅 时间线</button>
       <button type="button" class="dsh-pm-tab" data-action="switch-tab" data-tab="archive">📦 归档</button>
+      <button type="button" class="dsh-pm-tab" data-action="switch-tab" data-tab="traceability">🔗 追溯</button>
       <button type="button" class="dsh-pm-tab" data-action="switch-tab" data-tab="token">🪙 Token</button>
     </div>`
 }
 
 /**
- * 渲染 4 个 Tab 内容区（REQ-6f39b5）。
+ * 渲染 6 个 Tab 内容区（REQ-6f39b5）。
  * 内容映射（对照原型 prototype.html，原折叠区全部迁移，禁止功能丢失）：
  * - 概览：需求描述(markdown) + 文档记录 + 当前阶段详情(动态加载)
  * - 执行：进度条 + 任务看板(+任务按钮) + DAG + 甘特图 + 拆分计划
@@ -134,6 +136,12 @@ export function buildTabContents(
           <div id="dsh-pm-marks-container">${renderMarksPlaceholder('加载中…')}</div>
         </div>
       </div>
+    </div>
+
+    
+    <!-- 🔗 追溯 Tab（REQ-260926140539-457b FR-6）：双向绑定的追溯关系可视化 -->
+    <div class="dsh-pm-tab-content" data-tab-content="traceability">
+      <div id="dsh-pm-traceability-container">${renderTraceabilityView()}</div>
     </div>
 
     <!-- 🪙 Token Tab（REQ-a33899 t6）：按需求看 token 去向 + 固定/注入提示词成本 -->

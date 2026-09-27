@@ -14,6 +14,7 @@ import { TOKEN_CSS } from './styles/token.ts'
 import { MARKS_CSS } from './styles/marks.ts'
 import { SUBTASK_CSS } from './styles/subtask.ts'
 import { NODE_PANEL_CSS } from './styles/node-panel.ts'
+import { TRACEABILITY_CSS } from './styles/traceability.ts'
 
 const CSS_TAG = 'dsh-pmboard/styles.css'
 
@@ -22,7 +23,8 @@ const CSS_TAG = 'dsh-pmboard/styles.css'
 // REQ-d3e61a T-5：MARKS_CSS 追加在末尾（纯新增区段，不改既有选择器）
 // REQ-4842fe t-3be71b：SUBTASK_CSS 追加在末尾（纯新增区段，不改既有选择器）
 // REQ-260923134706-e72f t5：NODE_PANEL_CSS 追加在末尾（纯新增区段，不改既有选择器）
-const CSS = BASE_CSS + DETAIL_CSS + FILES_CSS + BOARD_CSS + PANEL_CSS + TOKEN_CSS + MARKS_CSS + SUBTASK_CSS + NODE_PANEL_CSS
+// REQ-260926140539-457b FR-6：TRACEABILITY_CSS 追加在末尾（纯新增区段，不改既有选择器）
+const CSS = BASE_CSS + DETAIL_CSS + FILES_CSS + BOARD_CSS + PANEL_CSS + TOKEN_CSS + MARKS_CSS + SUBTASK_CSS + NODE_PANEL_CSS + TRACEABILITY_CSS
 
 export function injectStyles(): void {
   if (typeof document === 'undefined') return
