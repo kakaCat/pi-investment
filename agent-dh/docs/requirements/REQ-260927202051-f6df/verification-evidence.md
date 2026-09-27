@@ -235,19 +235,44 @@ cd /Users/yunpeng/pi-investment/agent-dh && ./scripts/start.sh        # ⑥ 起�
 （纯删除写盘 / 部分删除），并**保留"真没改就不白写"的否命题用例**（防修过头丢掉优化）。
 > **可复用的判据**：「有一支分支永远走不到」本身就是缺陷信号，值得单独扫。
 
-### 11.2 新增产品级缺口（**性质比前 8 处更重**）
-> **agent 可用 `reqboard_move`（工具）绕过看板 G2 闸门**：`design → decomposing` 走**工具路径**
-> **不做设计文档集完整性校验**，只有看板 `req/move` / 弹框 / 确认路径才拦。
+### 11.2 新增缺口：工具路径不跑**内容态**闸门（口径精确化，勿再传播"可绕过"）
+> **`reqboard_move` 有 4 道校验，缺的是第 5 道**。原表述"agent 可以绕过看板 G2 闸门"**过重**，已改为此口径。
 
-- 这是第 **9** 处"声明与实现不符"（测试 header 自称"四条转移路径全拒"，实际只有 **3** 条接线）。
-- **与前 8 处的区别**：前 8 处是"功能没生效"；**这一处是"闸门能被绕过"** —— 人本该拦下的地方，agent 能自己走过去。
-- **证据**：`MoveRequirement.ts` / `MoveTool.ts` / `artifact-gates.ts` 在基线 `58c77a95` 与现在**都 0 命中**
-  `checkDesignCompletenessGate` / `design_doc_incomplete`；闸门只挂在 `internal/design-gates.ts`(1) 与
-  `http/routers/requirements.ts`(2)。**对照实验**：同一测试文件的路径②③④（弹框/看板）全 PASS
-  ⇒ **闸门本身正常，只是工具路径没接它**。
-- **修它 = 加行为**（需在 `MoveRequirement` 引入 async 的 `checkDesignCompletenessGate(deps.docs, req)`，
-  位置建议在 `assertArtifactGates` **之后**、`taskCompletenessGap` **之前**，工具侧码统一
-  `design_doc_incomplete`）⇒ **超出本需求边界，已建议单独立项（高优先级）**。
+**`reqboard_move` 实际执行的 4 道（`MoveRequirement.ts:29-65`）**：
+| # | 闸门 | 拦什么 |
+|---|---|---|
+| 1 | 绑定门（`:29-34`） | 本窗口必须绑定该需求 |
+| 2 | **产物门（两级）**（`:43-44`，mutate 内 `:54-55` 复查） | 第一级 **产物存在**：`requiredKindsFor(category, from)` 每一项都在 `req.artifacts` 里**登记**过；第二级 **人工确认**：该门产物**成组确认**（任一未确认即拒）。豁免 `to='canceled'` 与存量需求 |
+| 3 | 任务完整性门（`:45-46`/`:56-57`） | 仅 `to='implementing'`：计划有卡却 0 张落库 |
+| 4 | 状态机门（`:60-65`） | 合法转移表 + **人工闸门**（如 `decomposing→implementing`）+ 并发复查 `req.status === from`，失败即 mutate 回滚 |
+
+**缺的第 5 道 = 内容态闸门**（`checkDesignCompletenessGate(deps.docs, req)`，`internal/design-gates.ts:138`）：
+**读磁盘**核对文档集是否齐（如缺 `use-cases.md`）、front-matter 的 `sides` 是否交齐、`design_exempt` 理由是否为空。
+只挂在 4 处：`http/routers/requirements.ts:43`（看板路由）、`AskConfirm.ts:107`（弹框）、`ConfirmArtifact.ts:191`（产物确认 G2）、`confirm-settle.ts:168`（计划批准即落库）。
+
+**⇒ 准确的影响面（比"可绕过"窄得多）**：
+- 工具路径**仍拦得住**「产物没登记」与「登记了没人确认」；
+- 拦不住的是「**产物已登记/已确认，但磁盘文档集本身不齐或不合策略**」；
+- 而正常流程里 G2 的内容态闸门在**登记与确认那一刻已经跑过** ⇒ 真实缺口窗口是
+  **①「登记/确认之后磁盘内容又被改动」**，以及 **②「是否存在不经内容态即可登记设计产物的路径」**。
+- **② 已验证（2026-09-27 深夜，Lead 亲查）—— 结论：缺口是"窄"，不是"可绕过"**：
+  枚举三条登记/盖章路径后确认，**内容态校验并不缺失、只是不在 move 路径上**：
+  | 路径 | 跑的内容态校验（都读磁盘） |
+  |---|---|
+  | `SubmitArtifact`（登记需求/其他产物） | `checkRequirementDocFormatGate` + `checkNumberChainGate` + `checkDesignServesGate` + `assertArtifactOpenable` |
+  | `SubmitDesignArtifacts`（登记设计文档） | `designDocPolicyOf` / `designDocRegistration`（`sides` / `missingCategoryDocs` 策略**在登记时即施加**）+ `assertArtifactOpenable` |
+  | `AskConfirm:107` / `ConfirmArtifact:191`(G2) | **`checkDesignCompletenessGate`**（盖章那一刻跑完整度校验） |
+  | `reqboard_move` | 仅**登记态**（已登记 + 已成组确认），**不复核磁盘** |
+  ⇒ 因为"移动"的前提是"已登记 **且** 已确认"，而**确认那一步跑了内容态闸门**，
+  故**不存在常规的"不经内容态即可登记并盖章"路径**。
+  **真实缺口收窄为一句话**：**工具路径在"移动"时不复核磁盘内容** ——
+  即"确认之后磁盘文档又被改动/删掉"时，工具路径察觉不到，看板路径会察觉。
+  严重性从"闸门可被绕过"下调为"**移动路径缺少一次磁盘复核**"（建议单独立项，优先级**中**而非高）。
+- **证据（已验证部分）**：`MoveRequirement.ts` / `MoveTool.ts` / `artifact-gates.ts` 在基线
+  `58c77a95` 与现在**都 0 命中** `checkDesignCompletenessGate`；**对照实验**：同一测试文件的
+  路径②③④（弹框/看板）全 PASS ⇒ **闸门本身正常，是工具路径没接它**。
+- **修它 = 加行为**（需在 `MoveRequirement` 引入 async 的内容态检查，位置建议在
+  `assertArtifactGates` **之后**、`taskCompletenessGap` **之前**）⇒ **超出本需求边界，建议单独立项**。
 
 ### 11.3 新增方法论：与 commit 比对的判据，**空输出要当报警**
 queue-core 曾用「`git diff --stat 58c77a95 -- <文件>` = 空」判定 7 条红为"预存"，**证据是错的**：
