@@ -6,7 +6,7 @@
  *
  * @module dsh-pmboard/application/dive/idle-capture-actions
  */
-import type { ReqboardLedger, RequirementRecord } from '../../shared/protocol.js'
+import type { ReqboardLedger, RequirementRecord, TaskRecord } from '../../shared/protocol.js'
 import { resolveStagePrompt } from '../../domain/prompt/index.js'
 import { augmentResolvedPrompt } from '../internal/injection-address.js'
 import { isInProgressTask } from '../../domain/status/Predicates.js'
@@ -16,16 +16,22 @@ import { openRequirementsFor } from '../internal/window.js'
 /** 里程碑提醒阈值（REQ-2e9473 t09/W1.5）：产物登记超过此时长未确认 → 主动提醒弹框。 */
 export const MILESTONE_REMINDER_MS = 30 * 60 * 1000
 
-/** T-3 地址段增强：开关关/根缺失/渲染异常 → 原样返回（与其它注入点同一纯函数）。 */
+/** T-3 地址段增强：开关关/根缺失/渲染异常 → 原样返回（与其它注入点同一纯函数）。
+ *
+ * @param tasks 队列任务快照（REQ-260927202051-f6df）。**三态**：`undefined` = 尚未加载 →
+ *   不注入 currentTask（**不谎报**"没有在制任务"）；`[]` / 非空 = 已加载。
+ *   **本函数保持同步**——调用方 `driveIdle` 是同步函数，快照由调用方以同步缓存传入。
+ */
 export function addressSectionFor(
   resolved: ReturnType<typeof resolveStagePrompt>,
   address: { templateRoot?: string; enabled?: boolean } | undefined,
-  ledger: ReqboardLedger,
+  tasks: readonly TaskRecord[] | undefined,
   requirement: RequirementRecord,
   stage: string,
 ): ReturnType<typeof resolveStagePrompt> {
   if (address === undefined || address.enabled === false || address.templateRoot === undefined) return resolved
-  const currentTask = ledger.tasks.find(t => t.requirementId === requirement.id && isInProgressTask(t))
+  if (tasks === undefined) return resolved
+  const currentTask = tasks.find(t => t.requirementId === requirement.id && isInProgressTask(t))
   try {
     // 注：与 h3-inject 同一形态（同一共用类型 AddressSectionInput 目前与实际 render 入参
     // 不一致，属基线 tsc 噪音，见 domain/template/render.ts:39/44 与 h3-inject.ts:45）。

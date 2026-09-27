@@ -43,11 +43,23 @@ import {
 import { designDocStatus, designDocPolicyOf, EMPTY_DESIGN_DOC_POLICY } from '../internal/design-docs.js'
 import { assembleTraceability, contextOf, type AssembleStageOptions } from '../../stage-overview/assembler.js'
 import type { DesignDocPolicy } from '../internal/category-doc-sets.js'
-import type { LedgerView, UseCaseDeps } from '../ports.js'
-/** 装配器上下文：需求 + 台账（取任务/时间线切片用）+ 可选设计文档策略（REQ-2d1c74，host 侧读 front-matter 注入）+ 工作区根路径（REQ-260926140539-457b，读 RTM）。 */
+import type { UseCaseDeps } from '../ports.js'
+
+/**
+ * 任务视图（REQ-260927202051-f6df）：装配器只需要任务数组。
+ *
+ * 原为 `Pick<TasksView, 'tasks'>` —— 任务在 schema v9 后不再存台账，`LedgerView.tasks` 已移除，
+ * 任务唯一来源是队列（TaskStore）。此处独立成最小形状：调用方（HTTP 路由）先
+ * `await taskStore.listByRequirement(id)` 再以 `{ tasks }` 传入，**装配器保持同步、不碰 IO**。
+ */
+export interface TasksView {
+  readonly tasks: readonly TaskRecord[]
+}
+
+/** 装配器上下文：需求 + 任务视图（取任务/时间线切片用）+ 可选设计文档策略（REQ-2d1c74，host 侧读 front-matter 注入）+ 工作区根路径（REQ-260926140539-457b，读 RTM）。 */
 export interface AssembleContext {
   req: RequirementRecord
-  ledger: Pick<LedgerView, 'tasks'>
+  ledger: TasksView
   /** REQ-2d1c74：设计文档策略（host 侧读 requirement.md front-matter 注入）。 */
   designDocPolicy?: DesignDocPolicy
   /** REQ-260926140539-457b：工作区根路径（用于读取 RTM 追溯数据）。 */
@@ -80,7 +92,7 @@ abstract class StageDetailAssembler {
   /** 可变步：各节点装配器实现，产出 StageDetail 判别联合对应 body 成员。 */
   protected abstract buildBody(
     req: RequirementRecord,
-    ledger: Pick<LedgerView, 'tasks'>,
+    ledger: Pick<TasksView, 'tasks'>,
     ctx: AssembleContext,
   ): StageDetail['body']
 }
@@ -158,7 +170,7 @@ class BrainstormStageAssembler extends StageDetailAssembler {
  *  + 设计文档逐份交付状态（REQ-81aabd FR-2：已交/未交，纯展示，不影响推进条件）。 */
 class DesignStageAssembler extends StageDetailAssembler {
   readonly stage = 'design' as const
-  protected buildBody(req: RequirementRecord, _ledger: Pick<LedgerView, 'tasks'>, ctx: AssembleContext): DesignStageBody {
+  protected buildBody(req: RequirementRecord, _ledger: Pick<TasksView, 'tasks'>, ctx: AssembleContext): DesignStageBody {
     // REQ-2d1c74 FR-1/FR-2：投影带条件必交徽标与豁免理由——策略由 host 侧读 requirement.md
     // front-matter 注入（designDocPolicyOf），缺省空策略时行为与扩展前一致。
     // REQ-260926140539-457b：集成 RTM 追溯数据
@@ -177,10 +189,10 @@ class DecomposeStageAssembler extends StageDetailAssembler {
   readonly stage = 'decomposing' as const
   protected buildBody(
     req: RequirementRecord,
-    ledger: Pick<LedgerView, 'tasks'>,
+    view: Pick<TasksView, 'tasks'>,
     ctx: AssembleContext,
   ): DecomposeStageBody {
-    const tasks = ledger.tasks.filter(t => t.requirementId === req.id)
+    const tasks = view.tasks.filter(t => t.requirementId === req.id)
     const decompositionDoc = (req.artifacts ?? []).find(
       a => a.stage === 'decomposing' && a.kind === 'decomposition',
     )?.path
@@ -200,10 +212,10 @@ class ImplementStageAssembler extends StageDetailAssembler {
   readonly stage = 'implementing' as const
   protected buildBody(
     req: RequirementRecord,
-    ledger: Pick<LedgerView, 'tasks'>,
+    view: Pick<TasksView, 'tasks'>,
     ctx: AssembleContext,
   ): ImplementStageBody {
-    const tasks = ledger.tasks
+    const tasks = view.tasks
       .filter(t => t.requirementId === req.id)
       .map(t => withCardDoc(toStageTaskExecution(t), t, req))
     const byWindow: Record<string, string[]> = {}
@@ -233,7 +245,7 @@ class ImplementStageAssembler extends StageDetailAssembler {
 /** 验收：验收材料 + 人工 pass/rework 结论。 */
 class AcceptStageAssembler extends StageDetailAssembler {
   readonly stage = 'accepting' as const
-  protected buildBody(req: RequirementRecord, _ledger: Pick<LedgerView, 'tasks'>, ctx: AssembleContext): AcceptStageBody {
+  protected buildBody(req: RequirementRecord, _ledger: Pick<TasksView, 'tasks'>, ctx: AssembleContext): AcceptStageBody {
     // REQ-260926140539-457b：集成 RTM 追溯数据
     const traceability = ctx.workspaceRoot ? assembleTraceability(ctx.workspaceRoot, req.id) : undefined;
     return {
@@ -322,7 +334,7 @@ const ASSEMBLERS: Readonly<Record<StageKey, StageDetailAssembler>> = {
  */
 export function assembleStageDetail(
   req: RequirementRecord | undefined,
-  ledger: Pick<LedgerView, 'tasks'>,
+  ledger: Pick<TasksView, 'tasks'>,
   stage: StageKey,
   opts?: AssembleStageOptions,
 ): StageDetail {
@@ -337,7 +349,7 @@ export function assembleStageDetail(
  */
 export function assembleStageOverview(
   req: RequirementRecord | undefined,
-  ledger: Pick<LedgerView, 'tasks'>,
+  ledger: Pick<TasksView, 'tasks'>,
   opts?: AssembleStageOptions,
 ): StageOverview {
   if (req === undefined) {
@@ -367,5 +379,8 @@ export async function queryStageDetail(
   const req = snapshot.requirements.find(r => r.id === requirementId)
   // REQ-2d1c74：host 侧读 requirement.md front-matter 注入设计文档策略（client 不碰 fs）
   const policy = req === undefined ? undefined : await designDocPolicyOf(deps.docs, req)
-  return assembleStageDetail(req, snapshot, stage, { ...(policy !== undefined ? { designDocPolicy: policy } : {}) })
+  // 任务来自队列（REQ-260927202051-f6df）：v9 台账已无 tasks。
+  // taskStore 缺省（未装配）→ 空任务视图——与端口文档「缺省=未装配，调用方显式降级」一致。
+  const tasks = deps.taskStore !== undefined ? await deps.taskStore.listByRequirement(requirementId) : []
+  return assembleStageDetail(req, { tasks }, stage, { ...(policy !== undefined ? { designDocPolicy: policy } : {}) })
 }

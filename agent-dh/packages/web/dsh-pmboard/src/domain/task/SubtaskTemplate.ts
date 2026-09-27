@@ -99,6 +99,39 @@ export const STAGE_ACCEPTANCE: Readonly<Record<StageKind, string>> = {
   apply: '变更已生效：给出可复核的验证命令与输出',
 }
 
+/**
+ * 阶段证据形态（子卡完工凭证 L2，D17 结构性死路收口）——**与 STAGE_KINDS 同处的唯一事实源**。
+ *
+ * 为什么要分流：子卡完工凭证原先把「有 filesChanged 且文件新鲜」当**唯一**证据形态，而
+ * review / test / verify 这类阶段天然不产 diff（它们产出的是**结论**：复核意见、测试输出）→
+ * 100% 死在凭证门、链必停（D17 实测）。证据形态按阶段分两类：
+ *   'file'    = 写入族：必须落盘——filesChanged 非空且至少一个文件真实存在、mtime ≥ 链出身；
+ *   'verdict' = 结论族：天然无 diff——完工结论（completed）非空即放行。
+ *
+ * 新增 stageKind 必须在 STAGE_KINDS 与本表**同时**登记（Record<StageKind,…> 让漏登记成为类型错误）；
+ * 未登记的阶段在凭证门按写入族从严处理（保守方向：拒绝 > 误放）。
+ */
+export const STAGE_EVIDENCE_KIND: Readonly<Record<StageKind, 'file' | 'verdict'>> = {
+  // 写入族：必须留下落盘改动
+  dev: 'file',
+  integrate: 'file',
+  repro: 'file',
+  fix: 'file',
+  prepare: 'file',
+  run: 'file',
+  change: 'file',
+  apply: 'file',
+  // 结论族：产出是判断/输出，天然无 diff
+  review: 'verdict',
+  test: 'verdict',
+  regress: 'verdict',
+  probe: 'verdict',
+  collect: 'verdict',
+  analyze: 'verdict',
+  verify: 'verdict',
+  dryrun: 'verdict',
+}
+
 /** 阶段中文名（未知 stageKind 回退为原值，避免渲染崩）。 */
 export function stageLabel(kind: StageKind): string {
   return STAGE_LABELS[kind] ?? kind

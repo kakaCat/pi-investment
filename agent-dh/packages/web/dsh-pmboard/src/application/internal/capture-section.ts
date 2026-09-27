@@ -10,7 +10,7 @@
  *
  * @module dsh-pmboard/application/internal/capture-section
  */
-import type { ReqboardLedger } from '../../shared/protocol.js'
+import type { ReqboardLedger, TaskRecord } from '../../shared/protocol.js'
 import { captureDiag } from './diag-log.js'
 import { stageEnabledFor } from '../../shared/protocol.js'
 import type { StageKey } from '../../domain/requirement/RequirementStatus.js'
@@ -82,9 +82,20 @@ export function captureSectionText(
  * 自己名下有需求、更不知道可以推进状态 → 需求建卡后只能等人点按钮（用户反馈
  * 「agent 自己不能推进吗，还需要用户手动推进」）。本段把「状态由窗口自己维护」
  * 变成提示词里的明确纪律，窗口在里程碑处主动调 reqboard_move。
+ *
+ * @param tasks 队列任务快照（REQ-260927202051-f6df）。**三态**（Lead D17 硬要求）：
+ *   - `undefined` = 任务**尚未加载**（缓存首帧）→ 略过"当前任务"块，**不**断言"没有任务"；
+ *   - `[]` = 已加载且该需求确无在制任务（同样略过，不产生错误文字）；
+ *   - 非空 = 正常渲染。
+ *
+ * **本函数必须保持同步**：它服务于 system-prompt section 的 `text` provider，而 DSH 的
+ * `SectionSpec.text` 类型是 `string | ((context) => string)`（**同步，不能 await**，实测
+ * `@deepseek-ai/dsh-system-prompt/lib/types/index.d.ts:60`）。故任务由调用方以**同步可得
+ * 的缓存快照**传入（见 `gate-wiring.ts` 里 `taskStore.subscribe` 维护的缓存）。
  */
 export function boundSectionText(
   ledger: ReqboardLedger,
+  tasks: readonly TaskRecord[] | undefined,
   context: unknown,
   injectionLog?: InjectionLogPort,
 ): string {
@@ -103,8 +114,11 @@ export function boundSectionText(
   
   // ========== implementing 阶段注入当前任务执行指引 ==========
   const implementingReq = open.find(isImplementing)
-  if (implementingReq) {
-    const inProgressTasks = ledger.tasks.filter(
+  // 三态契约（Lead D17 硬要求）：`tasks === undefined` = 队列任务**尚未加载**（缓存首帧）→
+  // **整体略过**本块。绝不能把它当成"当前没有任务"来渲染 —— 那是**错误断言**（未加载 ≠ 已加载且为空）。
+  // `[]` = 已加载且确无任务（略过即可，同样不产生错误文字）。
+  if (implementingReq && tasks !== undefined) {
+    const inProgressTasks = tasks.filter(
       t => t.requirementId === implementingReq.id && isInProgressTask(t)
     )
     
@@ -171,7 +185,8 @@ export function boundSectionText(
     '',
     '设计阶段（2026-09-21 用户裁定：只写设计文档，不写计划）：',
     '- 把设计写进 docs/requirements/<REQ>/design/ 目录（按类型模板：架构/接口/数据模型等）；',
-    '- 写完调 reqboard_ask_confirm（target=artifact, kind=design）弹框请人确认设计——确认后进入拆分；',
+    '- 写完先调 reqboard_submit(kind=design) 登记设计文档（缺省扫全目录，也可指定单份 path）；',
+    '- 登记后调 reqboard_ask_confirm（target=artifact, kind=design）弹框请人确认设计——确认后进入拆分；',
     '',
     '拆分阶段（拆分计划在这里写 · 唯一需要人点头的地方）：',
     '- 把设计落成拆分计划 → reqboard_submit(kind=plan)（path = docs/requirements/<REQ>/decomposition.md，',
@@ -193,14 +208,16 @@ export function boundSectionText(
     '- 只有「取消需求/归档/取消任务」必须人操作（agent 调用会被代码级拒绝）。',
     '- 推进时用 reason 写清做了什么（进需求留痕，供复盘与验收）。',
     '',
-    '验收（人工审核，别自己判过）：',
-    '- 交付完成 → reqboard_submit(kind=verification)（summary = 交付结论；evidence = 可复核的证据：',
-    '  命令+输出摘要 / 报告路径 / 截图路径），需求进入验收态等人审核；',
-    '- 「验收通过」只有人能点；被退回 → 按人的意见返工后再提交。',
+    '验收阶段（人工审核，agent 不自己判过）：',
+    '- 交付完成 → reqboard_submit(kind=verification) 提交验收材料',
+    '  （summary = 交付结论；evidence = 可复核证据：命令+输出摘要/报告路径/截图路径）；',
+    '- 提交后需求进入 accepting 态，等待人工逐项验收（看板验收单页面）；',
+    '- 验收通过 → 准备归档材料；被退回 → 按人的意见返工后重新提交验收。',
     '',
-    '归档（先备材料，人再点）：',
-    '- 需求完成后 → reqboard_submit(kind=archive)（需求目录 docs/requirements/REQ-xxxxxx、',
-    '  目录内文档清单、合并去向 merged_into、一句话索引条目）；',
+    '归档阶段（先提交材料，人工归档）：',
+    '- 验收通过后 → reqboard_submit(kind=archive) 提交归档材料',
+    '  （需求目录、目录内文档清单、合并去向 merged_into、一句话索引条目）；',
+    '- 提交后在看板归档页面等待人工最终归档确认。',
     '- 合并去向与必填文档按需求类型限定（feature→architecture/guides，bug→known-issues，',
     '  spike→research，refactor→architecture/work-logs，chore→work-logs），规范见',
     '  agent-dh/docs/architecture/requirement-archive.md；缺项会被代码级拒绝；',

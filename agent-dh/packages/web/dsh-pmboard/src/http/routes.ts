@@ -12,6 +12,7 @@
  */
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { JsonLedgerRepository as ReqboardStore } from '../adapters/JsonLedgerRepository.js'
+import type { TaskStore } from '../application/ports.js'
 import { newCommentId, newRequirementId, newTaskId } from '../shared/protocol.js'
 import type { InjectionLogReadPort } from '../application/internal/injection-log.js'
 import type { IsolationLogReadPort } from '../application/internal/isolation-trace.js'
@@ -26,6 +27,14 @@ import { createIsolationRouter } from './routers/isolation.js'
 
 export interface ReqboardRouteDeps {
   store: ReqboardStore
+  /**
+   * 任务存储（队列）端口（REQ-260927202051-f6df I-1）——**必填**。
+   *
+   * 与 `LedgerView` 刻意不留 `tasks` 字段同一道理：可选字段 + 运行期兜底会把"装配漏了"
+   * 从编译期挪到运行期（还得恰好走到那个分支才发现）。schema v9 后任务不在台账，
+   * 缺它则看板任务页/甘特全空 —— 故这里用编译期必填，漏装配直接编译不过。
+   */
+  taskStore: TaskStore
   now: () => number
   /** 注入留痕**只读**端口（REQ-422af1 t11）：看板「本次注入了什么」的数据源；缺省则接口返回空清单。 */
   injectionLog?: InjectionLogReadPort
@@ -107,28 +116,38 @@ async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> 
 
 export function createReqboardHandler(deps: ReqboardRouteDeps) {
   const { store, now } = deps
+  // 必填（编译期保证，见 ReqboardRouteDeps.taskStore 注释）：schema v9 后任务不再存台账。
+  const taskStore = deps.taskStore
   const ids = {
     requirement: deps.ids?.requirement ?? (() => newRequirementId()),
     task: deps.ids?.task ?? (() => newTaskId()),
     comment: deps.ids?.comment ?? (() => newCommentId()),
   }
 
-  /** 生成不与现有台账冲突的 id。 */
+  /**
+   * 生成不与现有记录冲突的 id。
+   * 需求 id 查台账；**任务 id 查队列**（REQ-260927202051-f6df：task 已不在台账 tasks 里）。
+   */
   async function mintId(kind: 'requirement' | 'task'): Promise<string> {
-    return store.read(ledger => {
-      for (let i = 0; i < 20; i++) {
-        const id = kind === 'requirement' ? ids.requirement() : ids.task()
-        const clash = kind === 'requirement'
-          ? ledger.requirements.some(r => r.id === id)
-          : ledger.tasks.some(t => t.id === id)
-        if (!clash) return id
-      }
-      throw new Error('id 生成冲突过多')
-    })
+    if (kind === 'requirement') {
+      return store.read(ledger => {
+        for (let i = 0; i < 20; i++) {
+          const id = ids.requirement()
+          if (!ledger.requirements.some(r => r.id === id)) return id
+        }
+        throw new Error('id 生成冲突过多')
+      })
+    }
+    for (let i = 0; i < 20; i++) {
+      const id = ids.task()
+      if ((await taskStore.get(id)) === undefined) return id
+    }
+    throw new Error('id 生成冲突过多')
   }
 
   const ctx: RouterCtx = {
     store,
+    taskStore,
     now,
     deps: {
       ...(deps.cwd !== undefined ? { cwd: deps.cwd } : {}),

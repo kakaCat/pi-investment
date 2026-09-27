@@ -30,7 +30,7 @@ import type { RouterCtx } from './shared.js'
 import { syncRTMYamlWithSnapshot } from '../../application/internal/rtm-yaml.js'
 
 export function createRequirementsRouter(ctx: RouterCtx) {
-  const { store, now, ids, mintId, ok, readBody, badInput, notFound } = ctx
+  const { store, taskStore, now, ids, mintId, ok, readBody, badInput, notFound } = ctx
 
   /** G2 文档集完整性闸门的看板侧调用（REQ-2d1c74 FR-2）。docs 未装配 → fail-closed（"端口没接"不是绕过口）。 */
   async function g2CompletenessFailure(req: RequirementRecord, gateKind: GateFailure['kind']): Promise<GateFailure | undefined> {
@@ -87,6 +87,8 @@ export function createRequirementsRouter(ctx: RouterCtx) {
     const to = asReqStatus(body.to)
     const actor = asActor(body.actor ?? 'human')
     const reason = normalizeText(body.reason, 'reason', 500)
+    // REQ-260927121324-abde FR-1：请求体可选 sessionId（看板侧无会话 → 诚实不传快照）
+    const sessionId = normalizeText(body.sessionId, 'sessionId', 128) || undefined
     // mutate 前只读两级校验（REQ-2d1c74 FR-2：与 MoveRequirement 同次序——先产物闸门、后 G2 完整性门；
     // 预检让两条门的拒绝次序与会话侧一致，mutate 内的复查保留防并发漂移）。
     const current = store.snapshot().requirements.find(r => r.id === id)
@@ -108,11 +110,16 @@ export function createRequirementsRouter(ctx: RouterCtx) {
         throw Object.assign(new Error(gate.message), { code: gate.code })
       }
 
-      req.status = to
-      req.version += 1
-      req.updatedAt = now()
-      req.updatedBy = { kind: actor }
-      recordStatus(req, to, req.updatedAt, { kind: actor }, reason || undefined)
+      // REQ-260927121324-abde FR-1：五连写收敛到唯一迁移助手（结算离开节点 + 迁移 + 事件带快照）。
+      // 会话码优先级：请求体可选 sessionId → 需求的 sourceSessionId；都没有 → 诚实不传（不伪造）。
+      const sid = sessionId ?? req.sourceSessionId
+      const snap = sid !== undefined ? ctx.deps.tokenSnapshot?.(sid) : undefined
+      transitionRequirement(req, to, {
+        at: now(),
+        actor: { kind: actor, ...(sid !== undefined ? { sessionId: sid } : {}) },
+        reason,
+        ...(snap !== undefined ? { snap } : {}),
+      })
       if (reason) {
         req.comments.push({ id: ids.comment(), body: `[状态] ${req.status} ← 转移说明：${reason}`, createdAt: now(), createdBy: { kind: actor } })
       }
@@ -185,7 +192,11 @@ export function createRequirementsRouter(ctx: RouterCtx) {
     if (approve) {
       // RTM 触发点 5（REQ-260926140539-457b FR-2）：看板批准计划 → rtm-decomposing.yml + rtm-implementing.yml
       const rtmRoot = ctx.deps.docs?.workspaceRoot() ?? ctx.deps.cwd
-      if (rtmRoot !== undefined) syncRTMYamlWithSnapshot(rtmRoot, store.snapshot(), id, 'confirm:plan')
+      if (rtmRoot !== undefined) {
+        // 任务来自队列（REQ-260927202051-f6df：RTM 的 tasksOf 读队列任务，v9 台账已无 tasks）
+        const rtmTasks = await taskStore.listByRequirement(id)
+        syncRTMYamlWithSnapshot(rtmRoot, store.snapshot(), rtmTasks, id, 'confirm:plan')
+      }
     }
     ok(res, result.changed.requirements[0])
   }
@@ -238,7 +249,11 @@ export function createRequirementsRouter(ctx: RouterCtx) {
     // RTM 触发点 3（REQ-260926140539-457b FR-2）：看板一键确认产物 → 对应 RTM 落章
     {
       const rtmRoot = ctx.deps.docs?.workspaceRoot() ?? ctx.deps.cwd
-      if (rtmRoot !== undefined) syncRTMYamlWithSnapshot(rtmRoot, store.snapshot(), id, 'confirm:artifact')
+      if (rtmRoot !== undefined) {
+        // 任务来自队列（同 RTM 触发点 5）
+        const rtmTasks = await taskStore.listByRequirement(id)
+        syncRTMYamlWithSnapshot(rtmRoot, store.snapshot(), rtmTasks, id, 'confirm:artifact')
+      }
     }
 
     // ── 确认即推进 + 链侧投递（REQ-e3b6a0 t9 / FR-9）────────────────────────
@@ -264,13 +279,16 @@ export function createRequirementsRouter(ctx: RouterCtx) {
         ok(res, { ...confirmed, advanced: false, delivered: false, gate_failure: g2Failure, note: '已落章，但 design → decomposing 未推进：' + g2Failure.message })
         return
       }
+      // REQ-260927121324-abde FR-2：确认即推进带写时快照，actor 带会话 id（窗口码 = sourceSessionId）
+      const confirmSnap = windowKey !== undefined && windowKey.length > 0 ? ctx.deps.tokenSnapshot?.(windowKey) : undefined
       await store.mutate('requirement-moved', (ledger) => {
         const r = ledger.requirements.find(x => x.id === id) ?? notFound(fmt('需求 {id}', { id }))
         if (r.status !== gate.from) return undefined // 并发下已推进过 → 幂等，不重复推进
         transitionRequirement(r, gate.to, {
           at: now(),
-          actor: { kind: 'human' },
+          actor: { kind: 'human', ...(windowKey !== undefined ? { sessionId: windowKey } : {}) },
           reason: fmt('看板确认即推进（{from} → {to}）', { from: gate.from, to: gate.to }),
+          ...(confirmSnap !== undefined ? { snap: confirmSnap } : {}),
         })
         r.comments.push({
           id: ids.comment(),
@@ -322,22 +340,28 @@ export function createRequirementsRouter(ctx: RouterCtx) {
       createdBy: { kind: actor },
     }
     if (comment.body.length === 0) throw Object.assign(new Error('评论不能为空'), { code: 'invalid_input' })
+    // 任务评论写**队列**（REQ-260927202051-f6df：任务不在台账、LedgerChange.tasks 已移除）。
+    if (target === 'task') {
+      const existing = await taskStore.get(id)
+      if (existing === undefined) return notFound(`任务 ${id}`)
+      const changed = await taskStore.mutate(existing.requirementId, (tasks) => {
+        const t = tasks.find(x => x.id === id)
+        if (t === undefined) return undefined
+        t.comments.push(comment)
+        t.updatedAt = now()
+        return tasks
+      })
+      ok(res, { comment, target: changed[0]?.id ?? existing.id })
+      return
+    }
+    if (target !== 'req') throw Object.assign(new Error('target 必须是 req/task'), { code: 'invalid_input' })
     const result = await store.mutate('comment-added', (ledger) => {
-      if (target === 'req') {
-        const req = ledger.requirements.find(r => r.id === id) ?? notFound(`需求 ${id}`)
-        req.comments.push(comment)
-        req.updatedAt = now()
-        return { requirements: [req] }
-      }
-      if (target === 'task') {
-        const task = ledger.tasks.find(t => t.id === id) ?? notFound(`任务 ${id}`)
-        task.comments.push(comment)
-        task.updatedAt = now()
-        return { tasks: [task] }
-      }
-      throw Object.assign(new Error('target 必须是 req/task'), { code: 'invalid_input' })
+      const req = ledger.requirements.find(r => r.id === id) ?? notFound(`需求 ${id}`)
+      req.comments.push(comment)
+      req.updatedAt = now()
+      return { requirements: [req] }
     })
-    ok(res, { comment, target: result.changed.requirements[0]?.id ?? result.changed.tasks[0]?.id })
+    ok(res, { comment, target: result.changed.requirements[0]?.id })
   }
 
   /**

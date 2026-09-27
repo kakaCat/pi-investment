@@ -25,3 +25,4 @@ export { defineNoteInterruptionTool, NOTE_INTERRUPTION_PROMPT } from './NoteInte
 export { defineClearPauseTool } from './ClearPauseTool/index.js'
 export { defineMoveTool } from './MoveTool/index.js'
 export { defineTaskMoveTool } from './TaskMoveTool/index.js'
+export { defineTaskTreeTool } from './TaskTreeTool/index.js'

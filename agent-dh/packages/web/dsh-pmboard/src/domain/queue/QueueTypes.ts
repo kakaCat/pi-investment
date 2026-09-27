@@ -8,7 +8,7 @@
  *
  * 1. **QueueTask 必须完整包含 TaskRecord 的全部字段**——本文件用 `extends TaskRecord`
  *    而非重新罗列字段，就是为了让"少一个字段"在**编译期**就不可能发生。
- *    理由（architecture.md 决策 1）：读方改造要把 36 处 `ledger.tasks` 换成队列，
+ *    理由（architecture.md 决策 1）：读方改造要把 36 处**台账任务通道**的读点换成队列，
  *    若队列只存裁剪投影，每个读方都得回别处补齐 20+ 个字段（acceptance / implementation /
  *    lastRun / revisions / executions …），回归面反而放大。少迁一个字段的后果不是报错而是
  *    **静默失效**：例如缺 `lastRun` 会让子卡完工凭证门永远判不通过、缺 `lastReport`

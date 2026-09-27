@@ -8,6 +8,7 @@
 import type { UseCaseDeps } from '../ports.js'
 import {
   agentNextActions,
+  type TaskRecord,
 } from '../../shared/protocol.js'
 import { openRequirementsFor } from '../internal/window.js'
 import {
@@ -19,11 +20,38 @@ import { collectTaskRefs, clauseReceiveStatus, checkFullTraceability } from '../
 import { designDocRegistrationOf } from '../internal/design-docs.js'
 import { generateStatusRTM } from '../internal/status-rtm-integration.js'
 import { checkRTMHealth } from '../internal/rtm-health.js'
+// REQ-260927123256-196b FR-4 / I-2：挂起确认投影（判定与守卫同源，避免两处口径漂移）。
+import {
+  PENDING_CONFIRM_BLOCKED_TOOLS,
+  PENDING_CONFIRM_RECOVERY,
+  livePendingConfirm,
+} from '../internal/pending-guard.js'
 
 export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): Promise<unknown> {
       const windowKey = agentIdFromExec(deps, exec)
       const ledger = await deps.repo.read((l) => l)
       const open = openRequirementsFor(ledger, windowKey)
+      /**
+       * 队列任务读取（REQ-260927202051-f6df）：v9 台账已无 `tasks`，任务唯一来源 = TaskStore。
+       * `taskStore` 缺省（未装配）→ 空数组（端口文档语义：调用方显式降级，不抛）。
+       */
+      const tasksOf = async (reqId: string): Promise<readonly TaskRecord[]> =>
+        deps.taskStore !== undefined ? deps.taskStore.listByRequirement(reqId) : []
+      // 挂起确认投影（REQ-260927123256-196b FR-4 / I-2）：本窗口**仍然有意义**的未作答确认
+      // （已 settle / 已过期 / 台账已落章的陈旧记录不列）——agent 不打开弹框也能看出「在等谁」。
+      const livePending = livePendingConfirm(deps, windowKey)
+      const pending_confirms = livePending === undefined
+        ? []
+        : [{
+            ticket: livePending.ticket,
+            requirement_id: livePending.requirementId,
+            target: livePending.target,
+            ...(livePending.kind === undefined ? {} : { kind: livePending.kind }),
+            created_at: livePending.createdAt,
+            interrupted: livePending.interruptedAt !== undefined,
+            blocked_tools: [...PENDING_CONFIRM_BLOCKED_TOOLS],
+            recovery: PENDING_CONFIRM_RECOVERY,
+          }]
       // 需求侧接收标记（FR-3 / T-5）：逐条功能点显示"谁接了 / 还没人接"。
       // R9 的形态就是"未被接收"，必须在**每次 status 调用**里显眼可见，而不是靠人记得去查。
       let clause_receive_status: unknown[] = []
@@ -42,7 +70,7 @@ export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): 
             const status = clauseReceiveStatus(
               roots,
               await collectTaskRefs(deps.docs, boundReq),
-              ledger.tasks,
+              await tasksOf(boundReq.id),
               extractSkippedClauses(doc),
             )
             clause_receive_status = status
@@ -56,7 +84,7 @@ export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): 
         try {
           const boundReq = open[0]
           const reqDir = 'docs/requirements/' + boundReq.id
-          const reqTasks = ledger.tasks.filter(t => t.requirementId === boundReq.id && t.status !== 'canceled')
+          const reqTasks = (await tasksOf(boundReq.id)).filter(t => t.status !== 'canceled')
           const verificationSheet = boundReq.verification?.sheet
           rtmData = generateStatusRTM(reqDir, reqTasks, verificationSheet)
         } catch (rtmErr) {
@@ -82,7 +110,7 @@ export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): 
       if (open.length > 0) {
         try {
           const boundReq = open[0]
-          const reqTasks = ledger.tasks.filter(t => t.requirementId === boundReq.id && t.status !== 'canceled')
+          const reqTasks = (await tasksOf(boundReq.id)).filter(t => t.status !== 'canceled')
           const coverage = await checkFullTraceability(deps.docs, boundReq, reqTasks)
           
           traceability_chain = {
@@ -134,6 +162,7 @@ export async function queryState(deps: UseCaseDeps, _args: unknown, exec: any): 
         clause_receive_status,
         unreceived_clauses: unreceived,
         design_docs,
+        pending_confirms,
         ...(rtmData !== undefined
           ? {
               fr_coverage: rtmData.fr_coverage,

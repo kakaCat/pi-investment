@@ -18,7 +18,7 @@
 import { fmt } from '../../../domain/text/fmt.js'
 import { isPromptStage } from '../../../domain/prompt/index.js'
 import type { ConfirmContext } from '../../../domain/gate/GateSpec.js'
-import type { Clock, DocRepository, ReqboardRepository } from '../../ports.js'
+import type { Clock, DocRepository, ReqboardRepository, TaskStore } from '../../ports.js'
 import { requirementDocPath } from '../../internal/node-input-package.js'
 import { pickGateRequirement, reasonOf, safeReadDoc } from './shared.js'
 import {
@@ -35,6 +35,11 @@ export interface H2CompactDeps {
   repo: ReqboardRepository
   docs: DocRepository
   clock: Clock
+  /**
+   * 任务队列端口（REQ-260927202051-f6df）：`IsolateNodeContextDeps.taskStore` 为**必填**，
+   * v9 台账已无 `tasks`，取"当前在制任务卡"必须经它。
+   */
+  taskStore: TaskStore
   /**
    * 压缩开关（D1：链默认开、**压缩默认关**——surface 替换是高风险动作，先验证「不压缩也能自动续跑」）。
    * false → 直接 skip(compaction_disabled)，不进 isolateNodeContext。
@@ -82,6 +87,7 @@ export function createH2CompactHandler(deps: H2CompactDeps): GateHandler {
           repo: deps.repo,
           docs: deps.docs,
           clock: deps.clock,
+          taskStore: deps.taskStore,
           ...(isolation === undefined ? {} : { isolation }),
           ...(deps.trace === undefined ? {} : { trace: deps.trace }),
         }

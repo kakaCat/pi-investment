@@ -14,11 +14,12 @@ import type { JsonLedgerRepository } from '../adapters/JsonLedgerRepository.js';
 import type { InjectionLogFile } from '../adapters/InjectionLogFile.js';
 import type { AddressInjection } from '../adapters/TemplateRoot.js';
 import type { GateChainPort } from '../application/gate/GatePostChain.js';
-import type { GatePromptPort, UseCaseDeps } from '../application/ports.js';
+import type { GatePromptPort, TaskStore, UseCaseDeps } from '../application/ports.js';
 import { gatePromptExhaustedComment } from '../application/dive/gate-prompt.js';
 import { draftRequirementsFor } from '../application/internal/window.js';
 import { isDrivableRequirement } from '../application/dive/round-state.js';
 import { applyPickupAdvance } from '../application/internal/rollup.js';
+import { snapshotProviderFor } from '../application/internal/token-usage.js';
 import { newCommentId, type RequirementRecord } from '../shared/protocol.js';
 import { captureDiag } from '../application/internal/diag-log.js';
 import { noteInterruptionForWindow } from '../application/use-cases/NoteInterruption.js';
@@ -71,6 +72,11 @@ export interface DiveDriverAssemblyDeps {
    * turn/end 的异步边界被取用（与原闭包直引 useCaseDeps 的时序语义逐字等价）。
    */
   useCaseDeps: () => UseCaseDeps;
+  /**
+   * 任务队列端口（REQ-260927202051-f6df）：驱动注入「当前任务」需从队列取（v9 台账已无 tasks）。
+   * 直接传**实例**（非 `useCaseDeps()`——那个 getter 约定只在异步边界调用，而本函数是构造期）。
+   */
+  taskStore: TaskStore;
   logger: {
     info: (m: string) => void;
     debug: (m: string) => void;
@@ -120,6 +126,9 @@ export function assembleDiveSessionDriver(deps: DiveDriverAssemblyDeps): (() => 
   const { pendingCapture, toolTrace, recentUserMsgs } = deps.runtime;
   const driverDeps: DiveSessionDriverDeps = {
     snapshot: () => deps.store.snapshot(),
+    // 任务队列端口（REQ-260927202051-f6df）：v9 台账已无 tasks，注入「当前任务」需从队列取。
+    // 直接传实例（**不**走 `useCaseDeps()`——那个 getter 约定只在异步边界调用，此处是构造期）。
+    taskStore: deps.taskStore,
     pending: pendingCapture,
     now: deps.now,
     address: deps.address,
@@ -129,8 +138,11 @@ export function assembleDiveSessionDriver(deps: DiveDriverAssemblyDeps): (() => 
       const drafts = draftRequirementsFor(deps.store.snapshot(), windowKey);
       if (drafts.length === 0) return;
       void deps.store.mutate('requirement-moved', (ledger) => {
+        // FR-6：接手推进属派生推进，带写时快照提供者（显式窗口码优先，退回 req.sourceSessionId，
+        // 都无 → 诚实不写，不伪造）。windowKey 即本窗口（onBoundWindowActivity 的参数）。
+        const snapshot = snapshotProviderFor(deps.useCaseDeps(), windowKey);
         const advanced = drafts
-          .map((d) => applyPickupAdvance(ledger, d.id, { now: deps.now(), commentId: () => newCommentId() }))
+          .map((d) => applyPickupAdvance(ledger, d.id, { now: deps.now(), commentId: () => newCommentId(), snapshot }))
           .filter((r): r is RequirementRecord => r !== undefined);
         return advanced.length > 0 ? { requirements: advanced } : undefined;
       }).catch((err) => deps.logger.warn('reqboard rollup (pickup advance) failed:', err));

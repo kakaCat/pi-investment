@@ -18,6 +18,7 @@ import type { AskAnswer, UseCaseDeps } from '../ports.js'
 import {
   ALL_ARTIFACT_KINDS,
   normalizeText,
+  type ArtifactKind,
 } from '../../shared/protocol.js'
 import { DEFAULT_CONFIRM_OPTIONS } from '../../domain/text/labels.js'
 import { clip, fmt } from '../../domain/text/fmt.js'
@@ -29,6 +30,7 @@ import type { GateFailure } from '../internal/artifact-gates.js'
 import { openRequirementsFor } from '../internal/window.js'
 import { applyConfirmDecision, recordDeclinedConfirmation } from '../internal/confirm-settle.js'
 import {
+  outcomeOf,
   raceAsk,
   suspendConfirm,
   type ConfirmSubmitted,
@@ -90,7 +92,14 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
       const alreadyConfirmed = targetKind === 'artifact'
         ? kindArts.length > 0 && kindArts.every(a => a.confirmedAt !== undefined)
         : targetReq.plan?.approvedAt !== undefined
-      if (alreadyConfirmed) {
+      // 死锁修复（2026-09-27 用户裁定「需要弹框的必须出现弹框来确认」）：计划已批准但 G3
+      // 闸门**未推进**（自动拆分失败后手动补拆、或落库收尾报错）→ 产物章已落、状态仍停在
+      // decomposing。此时早返回会把节点锁死（agent 无法越人工门），并把唯一出口逼成"文字证据"
+      // 旁路。故该情形不得早返回，继续走弹框；确认后由 settle 幂等推进（不重复落卡）。
+      const planAwaitingAdvance = targetKind === 'plan'
+        && targetReq.plan?.approvedAt !== undefined
+        && targetReq.status === 'decomposing'
+      if (alreadyConfirmed && !planAwaitingAdvance) {
         // REQ-260924213231-b1c4 FR-2：早返回不再与 move 的 G2 文案打架——先跑一遍完整性闸门，
         // 把「仍有 N 份未登记」如实带回（落章保留；本路径本就不推进，只报缺口，不弹框）。
         let earlyGate: GateFailure | undefined
@@ -140,23 +149,57 @@ export async function askConfirm(deps: UseCaseDeps, args: unknown, exec: any): P
         ...(gateId === undefined ? {} : { gate: gateId }),
       })
 
-      // 未装配挂起确认注册表 = 非阻塞能力关闭 → **旧阻塞语义逐字一致**（兼容性矩阵）。
-      if (deps.pendingConfirms === undefined) {
+      // ── 等待语义（REQ-260927123256-196b FR-1 / FR-3 / I-1）────────────────
+      // 缺省 = **阻塞**：await ask 直到作答 / 取消 / 中止；只有显式正数 inline_grace_ms 才启用
+      // 「宽限赛跑 → 超时挂起」逃生舱（非阻塞必须显式声明，缺省不再 30s 自动放行）。
+      const port = deps.pendingConfirms
+      if (graceRaw !== undefined && port === undefined) {
+        reject(
+          fmt('reqboard_ask_confirm 未执行：显式 inline_grace_ms（{g}）需要挂起确认能力，本实例未装配'
+            + '（pendingConfirms 缺省）——不传宽限即缺省阻塞等待，或修复装配（REQBOARD_NONBLOCK_UNAVAILABLE）',
+            { g: String(graceRaw) }),
+          'REQBOARD_NONBLOCK_UNAVAILABLE',
+        )
+      }
+      // 进入等待前：先 settle 本窗口旧的未作答记录（重新发起 = 覆盖旧记录），再登记本次 ticket。
+      // 登记与阻塞/非阻塞无关（I-4）：停手守卫据此在**整个等待期**生效。
+      let ticket: string | undefined
+      if (port !== undefined) {
+        for (let stale = port.pendingForWindow(windowKey); stale !== undefined; stale = port.pendingForWindow(windowKey)) {
+          port.settle(stale.ticket, { confirmed: false, advanced: false })
+        }
+        ticket = port.register({
+          windowKey,
+          requirementId: targetReq.id,
+          target: targetKind as 'artifact' | 'plan',
+          ...(targetKind === 'artifact' ? { kind: kindRaw as ArtifactKind } : {}),
+        }).ticket
+      }
+
+      // ① 缺省阻塞：等到作答 / 取消 / 中止（FR-1；返回体恢复旧同步语义，无 pending/ticket）
+      if (graceRaw === undefined) {
         let answers: readonly AskAnswer[]
         try {
           answers = await ask
         } catch (err) {
-          return degradedAnswer(err) as never
+          return handleAskFailure(deps, exec, err, ticket, targetReq.id) as never
         }
-        return settleAnswers(deps, exec, answers, submitted)
+        const body = await settleAnswers(deps, exec, answers, submitted)
+        if (port !== undefined && ticket !== undefined) port.settle(ticket, outcomeOf(body))
+        return body
       }
 
-      // 宽限赛跑：宽限内作答 = 同步落章；超宽限 = 登记 ticket 立即返回（不判失败）。
-      const graceMs = typeof graceRaw === 'number' ? graceRaw : LIMITS.confirmInlineGraceMs
-      const raced = await raceAsk(ask, graceMs)
-      if (raced.kind === 'answered') return settleAnswers(deps, exec, raced.answers, submitted)
-      if (raced.kind === 'rejected') return degradedAnswer(raced.err) as never
-      return suspendConfirm(deps, ask, submitted, (answers) => settleAnswers(deps, exec, answers, submitted)) as never
+      // ② 显式正数宽限：宽限赛跑；宽限内作答 = 同步落章；超宽限 = 挂起 ticket 立即返回（FR-3）
+      const raced = await raceAsk(ask, graceRaw as number)
+      if (raced.kind === 'answered') {
+        const body = await settleAnswers(deps, exec, raced.answers, submitted)
+        if (port !== undefined && ticket !== undefined) port.settle(ticket, outcomeOf(body))
+        return body
+      }
+      if (raced.kind === 'rejected') {
+        return handleAskFailure(deps, exec, raced.err, ticket, targetReq.id) as never
+      }
+      return suspendConfirm(deps, ask, submitted, ticket!, (answers) => settleAnswers(deps, exec, answers, submitted)) as never
     }
 
 /**
@@ -174,6 +217,58 @@ function degradedAnswer(err: unknown): Record<string, unknown> {
   return {
     success: false, confirmed: false, advanced: false,
     note: '用户未作答（取消/暂离）：节点未推进。稍后可重新发起 reqboard_ask_confirm',
+  }
+}
+
+/**
+ * 弹框在等待/赛跑期间失败或中止的统一处置（REQ-260927123256-196b FR-4 / I-1）：
+ *   · `ASK_ABORTED` 或 `exec.signal.aborted` → **响亮留痕**：`markInterrupted(ticket)`
+ *     （守卫继续拦，直到人作答或显式解除），返回 `pending:true + ticket + interrupted:true`；
+ *   · 其余（`ASK_CANCELLED` 用户取消 / `DELEGATED_CALLER` 等降级）→ `settle`（守卫放行）后
+ *     走**与改造前逐字一致**的 `degradedAnswer`。
+ *
+ * 未装配注册表时没有可留痕的 ticket（仅测试/旧装配形态）：中止按中性降级返回——
+ * 绝不把一次中止静默伪装成「已确认」或「成功」。
+ */
+function handleAskFailure(
+  deps: UseCaseDeps,
+  exec: unknown,
+  err: unknown,
+  ticket: string | undefined,
+  requirementId: string,
+): unknown {
+  const port = deps.pendingConfirms
+  const code = (err as { code?: string }).code ?? ''
+  const aborted = code === 'ASK_ABORTED'
+    || (exec as { signal?: { aborted?: boolean } } | undefined)?.signal?.aborted === true
+  if (aborted && port !== undefined && ticket !== undefined) {
+    port.markInterrupted(ticket)
+    return interruptedBody(ticket, requirementId)
+  }
+  if (port !== undefined && ticket !== undefined) port.settle(ticket, { confirmed: false, advanced: false })
+  return degradedAnswer(err)
+}
+
+/**
+ * 阻塞等待被中止的返回体（I-1 中止分支）：`pending:true + ticket + interrupted:true`。
+ * note 必含两条恢复命令（取回执 / 看板确认）与「收到作答前不得产出下游产物」。
+ */
+function interruptedBody(ticket: string, requirementId: string): Record<string, unknown> {
+  return {
+    success: false,
+    confirmed: false,
+    advanced: false,
+    pending: true,
+    ticket,
+    requirement_id: requirementId,
+    interrupted: true,
+    note: fmt(
+      '本次确认等待已被中止（弹框可能已消失），已留下可查的挂起记录（ticket={t}）。'
+      + '**收到作答前不得产出下游产物**（本窗口 reqboard_submit / reqboard_decompose / reqboard_move / '
+      + 'reqboard_task_move 会被代码级拒绝）。恢复路径：① 调 reqboard_confirm_receipt(ticket="{t}") 取回执；'
+      + '② 到项目看板点确认按钮；③ 重新发起 reqboard_ask_confirm 覆盖旧记录。',
+      { t: ticket },
+    ),
   }
 }
 

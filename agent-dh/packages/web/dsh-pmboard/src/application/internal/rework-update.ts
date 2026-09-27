@@ -7,22 +7,25 @@
  * @module dsh-pmboard/application/internal/rework-update
  */
 import { fmt } from '../../domain/text/fmt.js'
-import type { PlanTask, ReqboardLedger, TaskRecord } from '../../shared/protocol.js'
+import type { PlanTask, TaskRecord } from '../../shared/protocol.js'
 import { appendRevision } from './failure-handling.js'
 
 /**
  * 按计划任务表就地更新匹配的父卡（匹配键 = 标题：decompose 落库时标题取自计划）。
  * 返回被更新的卡（卡数不变——只更新、不新增）。
+ *
+ * @param tasks 队列任务（REQ-260927202051-f6df：`LedgerView.tasks` 随 v9 移除）——就地改入参，
+ *              调用方在 `taskStore.mutate` 回调内 `return tasks` 落盘。
  */
 export function applyReworkUpdate(
-  ledger: ReqboardLedger,
+  tasks: readonly TaskRecord[],
   requirementId: string,
   planTasks: readonly PlanTask[],
   now: number,
 ): TaskRecord[] {
   const updated: TaskRecord[] = []
   for (const plan of planTasks) {
-    const card = ledger.tasks.find(
+    const card = tasks.find(
       (t) => t.requirementId === requirementId && t.parentId === undefined && t.status !== 'canceled' && t.title === plan.title,
     )
     if (card === undefined) continue // 新增的计划任务由 decompose 负责落卡；这里只管"更新旧卡"

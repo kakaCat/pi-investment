@@ -39,8 +39,12 @@ export interface QueryParams {
   getRequirement: () => Promise<RequirementRecord>
   /** 获取任务列表 */
   getTasks: () => Promise<TaskRecord[]>
-  /** DSH jobs 适配器（可选，用于测试注入） */
-  dshJobsAdapter?: DshJobsAdapter
+  /**
+   * Job 查询适配器（可选）：调用方注入优先（测试 / 宿主 JobsPort），
+   * 缺省才尝试 DshJobsAdapter(globalThis)——且仅当宿主真的暴露 ctx.jobs。
+   * 收紧为结构性接口，避免调用方为了构造 DshJobsAdapter（私有字段 → 名义类型）而绕远路。
+   */
+  dshJobsAdapter?: { getJob(jobId: string): Promise<{ status: string } | null> }
 }
 
 /**
@@ -73,14 +77,14 @@ export async function queryRunStatus(params: QueryParams): Promise<RunStatus> {
     }
   }
   
-  // 有 checkpoint，查询 job 状态
-  const adapter = params.dshJobsAdapter || new DshJobsAdapter(globalThis as any)
-  
+  // 有 checkpoint，查询 job 状态。适配器可能取不到（宿主未暴露 ctx.jobs）——
+  // 取不到时如实报 not_found，绝不把「查不到」伪装成运行中，也绝不因此让整个查询抛错。
   let jobStatus: 'running' | 'completed' | 'failed' | 'not_found' = 'not_found'
-  
+
   try {
-    const jobSnapshot = await adapter.getJob(checkpoint.runId)
-    
+    const adapter = resolveJobsAdapter(params)
+    const jobSnapshot = adapter === undefined ? null : await adapter.getJob(checkpoint.runId)
+
     if (jobSnapshot) {
       switch (jobSnapshot.status) {
         case 'running':
@@ -124,6 +128,19 @@ export async function queryRunStatus(params: QueryParams): Promise<RunStatus> {
     ...(pauseReason !== undefined ? { pauseReason } : {}),
     autoRun: jobStatus === 'running'
   }
+}
+
+/**
+ * 解析 Job 查询适配器：调用方注入优先；否则仅当宿主真的暴露 ctx.jobs 时才构造。
+ * 直接 new DshJobsAdapter(globalThis) 会在构造器抛 DshJobsUnavailable（globalThis 上没有 jobs），
+ * 必须挡在这里——否则一次 run_status 查询整体失败（2026-09-27 实测根因）。
+ */
+function resolveJobsAdapter(
+  params: QueryParams,
+): { getJob(jobId: string): Promise<{ status: string } | null> } | undefined {
+  if (params.dshJobsAdapter !== undefined) return params.dshJobsAdapter
+  if (!DshJobsAdapter.isAvailable(globalThis as unknown as Record<string, unknown>)) return undefined
+  return new DshJobsAdapter(globalThis as any)
 }
 
 /**

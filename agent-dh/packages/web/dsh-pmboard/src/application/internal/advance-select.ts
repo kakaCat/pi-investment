@@ -9,6 +9,7 @@
  */
 import type { AdvanceEvent, TaskRecord } from '../../shared/protocol.js'
 import { identifyOrphans } from './orphan-collector.js'
+import { isInProgressTask } from '../../domain/status/Predicates.js'
 
 export interface AdvanceView {
   readonly tasks: readonly TaskRecord[]
@@ -28,6 +29,14 @@ export function topLevelTasks(view: AdvanceView, requirementId: string): TaskRec
 /** 同需求全部非取消子卡。 */
 export function openSubtasks(view: AdvanceView, requirementId: string): TaskRecord[] {
   return view.tasks.filter((t) => t.requirementId === requirementId && t.parentId !== undefined && t.status !== 'canceled')
+}
+
+/**
+ * 当前正在跑的子卡 id（REQ-260927144541-0481 FR-1）——工具壳不得写状态字面量（layer-boundary 门禁），
+ * "哪些子卡在跑"是选择器语义，与其它选择判定同处归口。
+ */
+export function runningSubtaskIds(view: AdvanceView, requirementId: string): string[] {
+  return openSubtasks(view, requirementId).filter((t) => isInProgressTask(t)).map((t) => t.id)
 }
 
 function depsDone(view: AdvanceView, task: TaskRecord): boolean {

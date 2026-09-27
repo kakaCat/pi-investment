@@ -9,7 +9,7 @@
  */
 import { fmt } from '../../domain/text/fmt.js'
 import type { IdFactory } from '../ports.js'
-import type { ReqboardLedger, TaskRecord } from '../../shared/protocol.js'
+import type { TaskRecord } from '../../shared/protocol.js'
 import { transitionTask } from './task-transition.js'
 
 export type FailureCategory = 'no_output' | 'run_failed' | 'gate_failed' | 'engine_unavailable' | 'unknown'
@@ -31,15 +31,18 @@ export function classifyFailure(result: { ok: boolean; reason?: string; code?: s
 /**
  * 子卡失败回退（in_progress → todo）+ attempt+1 + revisions(rollback) + 失败评论。
  * 返回是否真的回退了（幂等：非 in_progress 状态不改）。
+ *
+ * @param tasks 队列任务**可变草稿**（REQ-260927202051-f6df D4：`LedgerView.tasks` 随 v9 移除）——
+ *              本函数**就地改入参**，调用方在 `taskStore.mutate` 回调内 `return tasks` 落盘。
  */
 export function rollbackSubtask(
-  ledger: ReqboardLedger,
+  tasks: readonly TaskRecord[],
   subtaskId: string,
   now: number,
   ids: IdFactory,
   failure: FailureClass,
 ): boolean {
-  const t = ledger.tasks.find((x) => x.id === subtaskId)
+  const t = tasks.find((x) => x.id === subtaskId)
   if (t === undefined || t.status !== 'in_progress') return false
   const attempt = t.attempt ?? 0
   // 收敛点：失败退回也是状态转移，必须在唯一入口校验 + 记事件（此前直接赋值绕过了校验）

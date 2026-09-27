@@ -255,11 +255,15 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-dag-layer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .dsh-pm-dag-layer-label { font-size: 11px; color: var(--dsw-text-secondary, #999); width: 24px; flex: none; font-weight: 600; font-family: ui-monospace, monospace; }
 .dsh-pm-dag-node {
-  font-size: 12px; padding: 4px 10px; border-radius: 6px;
+  font-size: 12px; padding: 6px 10px; border-radius: 6px;
   border: 1px solid var(--dsw-border, rgba(128,128,128,.25));
   background: var(--dsw-bg-primary, #fff);
   cursor: pointer; color: var(--dsw-text-primary, #333);
+  display: flex; flex-direction: column; gap: 4px;
 }
+.dsh-pm-dag-node-id { font-family: ui-monospace, monospace; font-size: 10px; color: var(--dsw-text-secondary, #999); }
+.dsh-pm-dag-node-title { font-size: 12px; font-weight: 500; }
+.dsh-pm-dag-node-tags { display: flex; gap: 4px; flex-wrap: wrap; }
 .dsh-pm-dag-node:hover { border-color: var(--dsw-accent, #4a7dff); }
 .dsh-pm-dag-node[data-status="done"] { background: rgba(40,167,69,.1); border-color: rgba(40,167,69,.4); }
 .dsh-pm-dag-node[data-status="in_progress"] { background: rgba(74,125,255,.1); border-color: rgba(74,125,255,.4); }
@@ -301,6 +305,11 @@ html[data-dsh-pm-active] .dsh-pm-view { display: flex; }
 .dsh-pm-task-title { font-size: 12px; color: var(--dsw-text-primary, #333); }
 .dsh-pm-task-meta { display: flex; align-items: center; gap: 6px; }
 .dsh-pm-phase { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(128,128,128,.1); color: var(--dsw-text-secondary, #777); }
+.dsh-pm-side { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(74,125,255,.1); color: rgba(74,125,255,1); font-weight: 500; }
+.dsh-pm-side[data-side="backend"] { background: rgba(139,92,246,.1); color: rgba(139,92,246,1); }
+.dsh-pm-side[data-side="frontend"] { background: rgba(236,72,153,.1); color: rgba(236,72,153,1); }
+.dsh-pm-side[data-side="fullstack"] { background: rgba(34,197,94,.1); color: rgba(34,197,94,1); }
+.dsh-pm-side[data-side="doc"] { background: rgba(251,146,60,.1); color: rgba(251,146,60,1); }
 
 /* ---- 任务详情 ---- */
 .dsh-pm-taskdetail { display: flex; flex-direction: column; height: 100%; overflow-y: auto; padding: 16px 24px; gap: 16px; }

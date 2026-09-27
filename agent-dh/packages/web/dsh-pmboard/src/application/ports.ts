@@ -21,24 +21,35 @@ import type {
   TokenSnapshot,
 } from '../shared/protocol.js'
 import type { ConfirmContext, GateId } from '../domain/gate/GateSpec.js'
+import type { QueueFile, QueueTask } from '../domain/queue/QueueTypes.js'
 import type { ChainRunSummary } from './gate/GatePostChain.js'
 
-/** 只读台账视图（用例读路径的输入）。 */
+/**
+ * 只读台账视图（用例读路径的输入）。
+ *
+ * REQ-260927202051-f6df t6：`tasks` 已**移除**（台账 v9 不再持有任务卡）。
+ * 需要任务请用 `TaskStore`（`taskStore.listByRequirement` / `get` / `listAll`）。
+ * 这里**故意不留** `tasks` 字段：留着它会让读方编译通过却永远读到空数组——
+ * "看板静默空白"正是本需求要根治的最坏结果，宁可让类型检查当场报错。
+ */
 export interface LedgerView {
   readonly schemaVersion: number
   readonly revision: number
   readonly requirements: readonly RequirementRecord[]
-  readonly tasks: readonly TaskRecord[]
   readonly triages: readonly TriageRecord[]
 }
 
 /** 可写台账（仅在 mutate 回调内可见；写操作必须经 ReqboardRepository.mutate 单点）。 */
 export type MutableLedger = ReqboardLedger
 
-/** 一次 mutate 的变更集：只有这两个键（据此与"工具响应"区分，见 output-contract 扫描口径）。 */
+/**
+ * 一次 mutate 的变更集：只有这两个键。
+ *
+ * t6：`tasks` 通道**移除**——任务变更不再经台账通知，改由 `TaskStore.subscribe` 广播。
+ */
 export interface LedgerChange {
   requirements?: readonly RequirementRecord[]
-  tasks?: readonly TaskRecord[]
+  triages?: readonly TriageRecord[]
 }
 
 /** 一次 mutate 的结果。 */
@@ -62,6 +73,87 @@ export interface ReqboardRepository {
   replaceAll(reason: string, next: MutableLedger): Promise<void>
 }
 
+// ---------------------------------------------------------------------------
+// 任务存储端口（REQ-260927202051-f6df · I-1 / FR-1, FR-2, FR-3）：代码级"队列"
+// ---------------------------------------------------------------------------
+
+/**
+ * 一次任务变更的通知（供 SSE / 缓存失效）。
+ *
+ * `revision` 是**进程内**的按需求单调计数（队列文件本身没有 revision 字段：
+ * `QueueFile` 的 schema 里没有它，我们不擅自加字段）。因此它只可用于"这次和上次比有没有变"，
+ * **不得**当作跨进程/跨重启的可比版本号，也不得用于 CAS——那需要给 QueueFile 加字段（契约变更）。
+ */
+export interface TaskChange {
+  requirementId: string
+  kind: 'task-created' | 'task-updated' | 'task-moved' | 'task-removed'
+  tasks: readonly TaskRecord[]
+  revision: number
+}
+
+/** mutate 回调拿到的上下文。 */
+export interface QueueMutateContext {
+  /**
+   * 重算派生视图（edges / layers / ready）并写回草稿。
+   *
+   * 这是给回调的**可选**便利方法：`TaskStore.mutate` 在回调返回后会**再算一遍**
+   * （派生字段绝不允许陈旧），所以回调里调不调都不影响最终落盘内容。
+   */
+  recompute: () => void
+  /** 当前时间（毫秒）；时间由外部注入，保证测试可复现。 */
+  now: () => number
+}
+
+/**
+ * TaskStore 端口（I-1）——**所有读方唯一的任务入口**，不得绕过它直接读 queue.json。
+ *
+ * 三条出口契约（读方按此写代码）：
+ * 1. **出口即剥离 `layer`**：`layer` 是队列文件的派生字段（DAG 层级），不属于 `TaskRecord`。
+ *    凡从本端口取"任务"的方法（get / listByRequirement / listAll / mutate / createMany）
+ *    返回的对象**不含 `layer` 键**；需要 DAG 视图（含 layer）用 `readQueue`。
+ *    这样"层字段泄漏进 /state 响应"从根上不可能发生——收敛在端口一处。
+ * 2. **不抛"不存在"**：`listByRequirement` 无队列返回 `[]`、`get` 无此任务返回 `undefined`、
+ *    `readQueue` 无队列返回 `undefined`。只有**写**操作在无队列时抛 `QUEUE_NOT_FOUND`。
+ * 3. 返回值是**脱离缓存的副本**（改它不会污染 store）。
+ */
+export interface TaskStore {
+  /** 取单个任务（不存在返回 undefined）。 */
+  get(taskId: string): Promise<TaskRecord | undefined>
+  /** 取某需求的全部任务（无队列文件 → 空数组，不是错误）；顺序 = 队列文件内顺序。 */
+  listByRequirement(requirementId: string): Promise<readonly TaskRecord[]>
+  /**
+   * 取**全部**需求的任务（看板首屏 `/state` 用；避免路由层遍历 82 个需求各读一次文件）。
+   *
+   * **顺序契约（稳定，D2）**：先按 `requirementId` **字典序升序**分组，组内保持队列文件内的
+   * 任务顺序。即 `listAll()` = 对 `listRequirementIds().sort()` 依次拼接 `listByRequirement()`。
+   * 之所以强调"稳定"：调用方（看板/回归断言）会比对两次输出的**逐字节相等**，
+   * 顺序只要依赖文件系统 readdir 的返回次序就会偶发不等。
+   */
+  listAll(): Promise<readonly TaskRecord[]>
+  /** 取某需求的队列文件全量（**含** DAG 派生视图 layer/edges/layers/ready）；无文件 → undefined。 */
+  readQueue(requirementId: string): Promise<QueueFile | undefined>
+  /**
+   * 在需求维度上变更任务（原子写；返回**改动过的**任务）。
+   *
+   * `fn` 返回 `undefined` = 无变更（不写盘、不 bump revision、不广播）。
+   * 目标需求无 queue.json → 抛 `QUEUE_NOT_FOUND`（写操作不隐式建空档）。
+   * 校验失败 → 抛 `QUEUE_VALIDATION_FAILED`，文件保持上次有效内容。
+   */
+  mutate(
+    requirementId: string,
+    fn: (tasks: QueueTask[], ctx: QueueMutateContext) => QueueTask[] | undefined,
+  ): Promise<readonly TaskRecord[]>
+  /**
+   * 批量写入（拆分落库用；**幂等**：已存在的 id 跳过不覆盖）。返回**实际新增**的任务。
+   *
+   * 与 `mutate` 的关键差异：目标需求没有队列文件时**允许新建**（拆分本来就是队列的诞生时刻）。
+   * 全部 id 都已存在时不写盘（文件 mtime 不变）——这是"重复调用幂等"的可观测判据。
+   */
+  createMany(requirementId: string, tasks: readonly TaskRecord[]): Promise<readonly TaskRecord[]>
+  /** 订阅任务变更（供 SSE / 缓存失效）；返回退订函数。 */
+  subscribe(fn: (change: TaskChange) => void): () => void
+}
+
 /** 目录项（文件系统扫描的最小投影）。 */
 export interface DocEntry {
   readonly name: string
@@ -69,8 +161,6 @@ export interface DocEntry {
   readonly mtimeMs: number
   readonly size: number
 }
-
-/** 文档仓储端口——产物落盘/读取/存在性校验的唯一入口（t5 实现）。 */
 export interface DocRepository {
   /** 相对工作区路径是否存在（evidence 存在性、构建新鲜度都靠它）。 */
   exists(relPath: string): boolean
@@ -196,11 +286,11 @@ export interface DeliveryResult {
 }
 
 /**
- * 会话投递端口（REQ-e3b6a0 t4 / FR-5）：H4 唤醒与看板通道共用。
- * 唯一实现 = `adapters/AgentDeliverer.ts`（形状纪律写在那里）。
+ * 会话投递端口（已废弃 deliver 方法）：现仅作为 DiveRoundDeliveryPort 的父接口。
+ * 实际使用的是子接口 DiveRoundDeliveryPort（Dive 专用投递）。
  */
 export interface AgentDeliveryPort {
-  deliver(windowKey: string, message: { text: string; plugin?: string }): DeliveryResult
+  // deliver() 已删除，所有需求都在Dive模式下运行
 }
 
 /**
@@ -270,6 +360,90 @@ export interface WorkflowRunner {
   start(input: WorkflowStartInput): Promise<WorkflowRunOutcome>
 }
 
+// ---------------------------------------------------------------------------
+// 团队执行端口（FR-11 路线 A / REQ-260926140539-457b + REQ-260927144541-0481）：
+// 子卡实施段改走 DSH 原生 Agent Teams（ctx.agentTeams = TeamService）
+// ---------------------------------------------------------------------------
+
+/** 共享任务视图（TeamTaskView 投影；application 层不得 import @deepseek-ai/*）。 */
+export interface TeamTaskViewLike {
+  id: string
+  revision: number
+  subject: string
+  description: string
+  status: 'pending' | 'in_progress' | 'completed' | 'deleted'
+  blockedBy: readonly string[]
+  writeScopes: readonly string[]
+  ownerName?: string
+  ready: boolean
+  writeScopeWarnings: readonly string[]
+}
+
+/** 团队成员视图（TeamMemberView 投影）。 */
+export interface TeamMemberViewLike {
+  id: string
+  name: string
+  role: 'lead' | 'teammate'
+  status: 'running' | 'idle' | 'inactive' | 'provisioning' | 'failed'
+  description?: string
+  diagnostics: readonly string[]
+}
+
+/** 起一个持久 Worker（teammate）的入参。 */
+export interface SpawnWorkerInput {
+  name: string
+  description: string
+  /** 明文提示词；adapter 负责转成引擎要的 ContentBlock[]。 */
+  prompt: string
+  context?: 'fresh' | 'fork'
+  signal?: AbortSignal
+}
+
+/** 建一张共享任务的入参（原生 DAG = blockedBy；写范围 = writeScopes）。 */
+export interface TeamTaskCreateInput {
+  subject: string
+  description: string
+  blockedBy?: readonly string[]
+  writeScopes?: readonly string[]
+}
+
+/** CAS 转移入参（FR-11 的 expected_revision 防冲突）。 */
+export interface TeamTaskUpdateInput {
+  taskId: string
+  expectedRevision: number
+  action: 'claim' | 'release' | 'edit' | 'set_dependencies' | 'complete' | 'reopen' | 'reassign' | 'delete'
+  owner?: string
+}
+
+/**
+ * AgentTeamsPort（FR-11 路线 A）——唯一实现 = adapters/AgentTeamsAdapter.ts，桥接 `ctx.agentTeams`。
+ *
+ * 为什么要有这个端口：application/domain 层禁止 import 运行时 `@deepseek-ai/*`（layer-boundary
+ * 门禁），而团队执行必须触达 TeamService——端口把"起 Worker / 建任务 / CAS / 等变更"收敛成方法，
+ * 服务类型只在 adapter 内出现。`caller` = live Agent 句柄（透传，adapter 内桥接），
+ * 与 WorkflowStartInput.parent 同款处理。
+ */
+export interface AgentTeamsPort {
+  /** 服务是否可用（未装配 → false；调用方走兼容路径，不静默成功）。 */
+  available(): boolean
+  spawnWorker(caller: unknown, input: SpawnWorkerInput): Promise<TeamMemberViewLike>
+  listMembers(caller: unknown): readonly TeamMemberViewLike[]
+  createTask(caller: unknown, input: TeamTaskCreateInput): Promise<TeamTaskViewLike>
+  listTasks(caller: unknown): readonly TeamTaskViewLike[]
+  getTask(caller: unknown, taskId: string): TeamTaskViewLike
+  updateTask(caller: unknown, input: TeamTaskUpdateInput): Promise<TeamTaskViewLike>
+  /** 等下一个团队域变更（事件驱动，零轮询）。timedOut=true 表示窗口内无变更。 */
+  waitForChange(caller: unknown, timeoutMs: number, signal?: AbortSignal): Promise<{ timedOut: boolean }>
+  /** 中断一个 teammate 的当前回合（保留其待处理收件箱）。 */
+  interrupt(caller: unknown, targetName: string): { previousStatus: string }
+  /**
+   * 给一个**已存在**的 teammate 投递消息（inactive 的会被唤醒——teammate 是 durable/continuable 的）。
+   * 为什么必须有它：TeamService 的 teammate 名字**唯一且不可复用**（实测：同名重起被拒
+   * `teammate name "…" was already used in this Team`），所以"成员已存在但 inactive"时只能唤醒，不能重起。
+   */
+  sendMessage(caller: unknown, input: { target: string; content: string }): Promise<{ messageId: string; status: string }>
+}
+
 /**
  * 实施链失败处置端口（REQ-4842fe FR-13）：**唯一人工交互面 = 会话内弹框**（三选一）；
  * 不另做告警通道、**不发飞书**、不接通知面（2026-09-21 用户裁定，见 requirement §8 #17）；
@@ -303,7 +477,7 @@ export interface CaptureRejectionPort {
  * 为什么要有端口：ask_confirm / confirm_receipt 用例只依赖契约，内存注册表与过期规则留在 adapter；
  * `UseCaseDeps.pendingConfirms === undefined`（缺省）= 未装配非阻塞能力 → 弹框保持旧的阻塞语义。
  *
- * 三个方法都**不抛**：未知 ticket / 窗口不符 / 已过期一律返回 undefined，由用例降级读台账。
+ * 各方法都**不抛**：未知 ticket / 窗口不符 / 已过期一律返回 undefined，由用例降级读台账。
  */
 export interface PendingConfirmPort {
   /** 登记一次挂起确认并返回 ticket（前缀 `pc-`；id 与时间由实现负责）。 */
@@ -319,6 +493,11 @@ export interface PendingConfirmPort {
   settle(ticket: string, outcome: PendingConfirmationOutcome): PendingConfirmation | undefined
   /** 本窗口**未作答**的挂起确认（FR-9 停手守卫）；没有则 undefined。 */
   pendingForWindow(windowKey: string): PendingConfirmation | undefined
+  /**
+   * 标记「阻塞等待期间被中止」（REQ-260927123256-196b FR-4）：只写首次 `interruptedAt`（幂等），
+   * 未知 ticket → undefined（不抛）。中止记录以 `interruptedAt` 为过期基准，再获一个完整 TTL。
+   */
+  markInterrupted(ticket: string): PendingConfirmation | undefined
 }
 
 
@@ -369,6 +548,12 @@ export interface UseCaseDeps {
   ids: IdFactory
   session: SessionProbe
   questions: UserQuestionPort
+  /**
+   * 任务存储（队列）端口（REQ-260927202051-f6df I-1）。**缺省 = 未装配**：
+   * 用例在读任务时必须显式判空并走"队列不可用"的明确失败/降级路径，
+   * 不得假装成功（与 `workflow` / `teams` / `jobs` 的缺省语义一致）。
+   */
+  taskStore?: TaskStore
   /** done 批量关闭节流窗口（毫秒，默认 60000；测试可注入 0 关闭）。 */
   doneThrottleMs?: number
   /** 立项拒绝留痕（FR-5；缺省 = 无粘滞，行为与 FR-5 前一致）。 */
@@ -378,13 +563,14 @@ export interface UseCaseDeps {
    * （ok:false, reason=engine_unavailable），绝不静默成功。
    */
   workflow?: WorkflowRunner
+  /**
+   * 团队执行端口（FR-11 路线 A / REQ-260926140539-457b）：子卡实施段改走 DSH 原生 Agent Teams。
+   * 缺省 = 服务不可用 → 调用方退回 workflow 兼容路径（不静默成功）。
+   */
+  teams?: AgentTeamsPort
   /** 失败告警通道（缺省 = 只留痕不告警，由组合根决定）。 */
   alert?: FailureAlertPort
   /**
-   * 窗口投递端口（REQ-260923222557-d3b0 FR-2/FR-3）：事件型 worktree 提示词
-   * （子任务完成 / 需求归档）经此投给窗口。缺省 = 不投递；**投递失败绝不阻断状态转移**。
-   */
-  delivery?: AgentDeliveryPort
   /**
    * 挂起确认注册表（REQ-260924213231-b1c4 FR-3）。缺省 = 未装配非阻塞能力 →
    * 弹框保持旧的阻塞语义（宽限内作答与原返回体逐字一致）。
@@ -395,4 +581,10 @@ export interface UseCaseDeps {
    * advanceRequirement 显式返回 {dispatched:false, reason:'jobs_unavailable'}。
    */
   jobs?: JobsPort
+  /**
+   * 在线 agent 查询（D14 修复）：子卡派发需要 agent 句柄（引擎读 request.parent.session），
+   * 而看板「继续」/启动恢复这两条入口没有调用窗口的 exec。runSubtaskStep 据此按父卡所属
+   * 需求的绑定窗口兜底解析；解不到则**响亮失败**（不再抛引擎 TypeError）。缺省 = 视为不在线。
+   */
+  agents?: () => { get?: (id: string) => unknown } | undefined
 }

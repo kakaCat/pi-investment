@@ -1,55 +1,31 @@
 /**
- * TaskExecuteTool 薄壳（REQ-4842fe t10）：原「6 阶段 workflow 工具」路径已**下线**。
+ * TaskExecuteTool（REQ-260927144541-0481 FR-1 / design I-2）——reqboard_task_execute，**兼容别名**。
  *
- * 为什么下线：它依赖被禁用的 ctx.tools.workflow，且生成的脚本用了引擎不存在的 ctx.subagent
- * （design/workflow-engine-contract §4 两条真实踩坑）。唯一执行入口现在是 reqboard_task_run
- * （AdvanceTool → AdvanceChain → ctx.workflowEngine）。
+ * 历史：原「6 阶段 workflow 工具」路径已下线（它依赖被禁用的 ctx.tools.workflow，且生成的脚本
+ * 用了引擎不存在的 ctx.subagent——design/workflow-engine-contract §4 两条真实踩坑）。此后本工具
+ * 虽自称"兼容别名"，实际却**另跑一套**：不写 autoRun、不返回 run_id、返回体也不同形（P4）——
+ * 调用方按名字选工具会踩坑，"等价"只写在注释里。
  *
- * 本工具保留为**兼容别名**：语义等价于 reqboard_task_run，不再依赖任何被禁工具、不再生成脚本。
+ * 现改为**真委托**：直接复用 reqboard_task_run 的同一 factory 产物（同 parameters / 同 output /
+ * 同 execute），只换工具名与描述——autoRun 副作用与 job_id/run_id 因此天然一致，不存在第二套实现。
+ * 保留工具名而不是删除：删除会让存量调用方硬断（decision D-1 选 A）。
+ *
+ * 注意：不写 `return { … }` 响应字面量——output-contract 的静态扫描会把工具返回体的顶层键
+ * 当作**协议响应键**校验，而这种包装返回的是"工具对象"、不是响应体（新建对象只会制造假阳性）。
  *
  * @module dsh-pmboard/tools/TaskExecuteTool
  */
-import { defineTool } from '@deepseek-ai/dsh-tools'
-import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
-import { advanceRequirement } from '../../application/use-cases/AdvanceChain.js'
-import { openRequirementsFor } from '../../application/internal/window.js'
-import { renderSmart } from '../shared.js'
-import { taskExecuteSummary } from '../render-summaries.js'
+import { defineAdvanceTool } from '../AdvanceTool/AdvanceTool.js'
 
+const ALIAS_DESCRIPTION = [
+  '【已弃用：等价 reqboard_task_run，请改用后者】推进本窗口需求下的自动实施链',
+  '（投递式，立即返回）：投递后台任务执行当前 ready 的一张子卡。参数给 task_id（父卡）或 requirement_id；',
+  '⚠️ 调用即写 req.autoRun=true（开启自动链）；投递≠完成，查询运行态用 reqboard_run_status。',
+].join('')
+
+/** 已弃用的兼容别名：参数、返回体、autoRun 副作用与 reqboard_task_run 逐字一致。 */
 export function defineTaskExecuteTool(deps: UseCaseDeps) {
-  return defineTool({
-    name: 'reqboard_task_execute',
-    description: '【兼容别名，等价 reqboard_task_run】推进任务的自动实施链（父卡开工/子卡执行/收尾/rollup）。',
-    parameters: {
-      task_id: { type: 'string', description: '父卡 id（t-xxxxxx）', required: true },
-    },
-    output: {
-      schema: {
-        type: 'object',
-        additionalProperties: true,
-        properties: {
-          success: { type: 'boolean' },
-          task_id: { type: 'string' },
-          status: { type: 'string' },
-          stopped: { type: 'string' },
-          error: { type: 'string' },
-        },
-      },
-      render: renderSmart(taskExecuteSummary),
-    },
-    timeoutMs: LIMITS.timeoutInteractiveMs,
-    async execute(args: { task_id: string }, exec: unknown): Promise<Record<string, unknown>> {
-      const windowKey = deps.session.windowKey(exec)
-      const snap = deps.repo.snapshot()
-      const task = snap.tasks.find((t) => t.id === args.task_id)
-      if (task === undefined) return { success: false, task_id: args.task_id, status: 'error', error: '任务不存在：' + args.task_id }
-      const bound = openRequirementsFor(snap, windowKey)
-      if (!bound.some((r) => r.id === task.requirementId)) {
-        return { success: false, task_id: task.id, status: 'error', error: '任务不属于本窗口绑定的需求' }
-      }
-      const out = await advanceRequirement(deps, task.requirementId, exec)
-      return { success: true, task_id: task.id, status: out.stopped, stopped: out.stopped }
-    },
-  } as any)
+  const impl = defineAdvanceTool(deps) as unknown as Record<string, unknown>
+  return Object.assign({}, impl, { name: 'reqboard_task_execute', description: ALIAS_DESCRIPTION })
 }

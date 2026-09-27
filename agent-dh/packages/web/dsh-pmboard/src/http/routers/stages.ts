@@ -34,19 +34,23 @@ import { fmt } from '../../domain/text/fmt.js'
 import type { RouterCtx } from './shared.js'
 
 export function createStagesRouter(ctx: RouterCtx) {
-  const { store, ok, deps } = ctx
+  const { store, taskStore, ok, deps } = ctx
 
   async function handleState(res: ServerResponse): Promise<void> {
     // 产物自动发现（REQ-2e9473 t11/W4）：渲染前同步需求目录，落盘即产物
     await syncAllReqArtifacts(store, deps.cwd).catch(() => { /* 扫描失败不阻断看板 */ })
     const ledger = await store.read(l => l)
+    // 任务来自队列（REQ-260927202051-f6df）：listAll() 顺序 = requirementId 字典序分组 + 组内队列顺序（D2/D8）。
+    const tasks = await taskStore.listAll()
     ok(res, {
       revision: ledger.revision,
       requirements: ledger.requirements,
-      tasks: ledger.tasks.map(t => ({ ...t })),
-      // 派生视图：每个需求的 ready 任务（client 调度提示用）
+      tasks: tasks.map(t => ({ ...t })),
+      // 派生视图：每个需求的 ready 任务（client 调度提示用）。
+      // 仍用 readyTasks(队列任务, rId)：**按任务数组顺序**输出 —— 需求内顺序必须保住（R-3/D8），
+      // 故不用队列文件的 `ready` 字段（其顺序由 computeReady 决定，不保证一致）。
       ready: Object.fromEntries(
-        ledger.requirements.map(r => [r.id, readyTasks(ledger.tasks, r.id).map(t => t.id)]),
+        ledger.requirements.map(r => [r.id, readyTasks(tasks, r.id).map(t => t.id)]),
       ),
       // REQ-a33899：需求卡面累计 token。**无快照的需求不出现该键**（缺失 ≠ 0）。
       tokenTotals: Object.fromEntries(
@@ -69,14 +73,32 @@ export function createStagesRouter(ctx: RouterCtx) {
       Connection: 'keep-alive',
     })
     res.write(': connected\n\n')
-    const unsubscribe = store.subscribe((change) => {
+    /**
+     * 双通道发出（REQ-260927202051-f6df D15）：
+     *  - **命名帧**（`event: <kind>` + `data:`）：既有契约，供 `addEventListener(kind)` 消费；
+     *  - **无名帧**（只有 `data:`）：SSE 规范规定命名事件**不触发 `onmessage`**，而
+     *    `client/api.ts` 用的正是 `es.onmessage` ⇒ 只发命名帧时看板收不到推送（此前实际靠
+     *    board-mount 的 20s 轮询兜底，看起来正常）。补无名帧让实时刷新真正生效。
+     *    帧格式与字段（revision/kind）均未变，故对既有消费者零影响（最多多一次幂等 refetch）。
+     */
+    const emit = (kind: string, revision: number): void => {
       try {
-        res.write(`event: ${change.kind}\n`)
-        res.write(`data: ${JSON.stringify({ revision: change.revision, kind: change.kind })}\n\n`)
+        const payload = JSON.stringify({ revision, kind })
+        res.write(`event: ${kind}\n`)
+        res.write(`data: ${payload}\n\n`)
+        res.write(`data: ${payload}\n\n`)
       } catch { /* client gone */ }
-    })
+    }
+    // 两路订阅：台账（需求/分诊/评论）+ 队列（任务）。
+    // schema v9 后任务不再经台账 ⇒ 只订台账会让任务状态变更不再推送（看板实时刷新静默失灵）。
+    const unsubscribeLedger = store.subscribe((change) => { emit(change.kind, change.revision) })
+    const unsubscribeTasks = taskStore.subscribe((change) => { emit(change.kind, change.revision) })
     const heartbeat = setInterval(() => { try { res.write(': hb\n\n') } catch { /* gone */ } }, 25_000)
-    req.on('close', () => { clearInterval(heartbeat); unsubscribe() })
+    req.on('close', () => {
+      clearInterval(heartbeat)
+      unsubscribeLedger()
+      unsubscribeTasks()
+    })
   }
 
   /**
@@ -86,13 +108,15 @@ export function createStagesRouter(ctx: RouterCtx) {
    */
   async function handleRequirementsSummary(res: ServerResponse): Promise<void> {
     const ledger = await store.read(l => l)
+    // 任务来自队列（一次取全量后按需求分组，顺序 = 组内队列顺序，需求内相对顺序保住）。
+    const allTasks = await taskStore.listAll()
     const rank: Record<string, number> = {
       implementing: 0, accepting: 1, decomposing: 2, design: 3, brainstorming: 4, draft: 5, done: 6,
     }
     const summaries = ledger.requirements
       .filter(r => isActiveRequirement(r))
       .map(req => {
-        const tasks = ledger.tasks.filter(t => t.requirementId === req.id)
+        const tasks = allTasks.filter(t => t.requirementId === req.id)
         const done = countDoneTasks(tasks)
         const active = countUnfinishedTasks(tasks)
         return {
@@ -129,12 +153,14 @@ export function createStagesRouter(ctx: RouterCtx) {
    */
   async function handleSessionProgress(res: ServerResponse, sessionId: string): Promise<void> {
     const ledger = await store.read(l => l)
+    // 任务来自队列：全量一次（锚点扫描需要跨需求按 executions[].sessionId 反查）。
+    const allTasks = await taskStore.listAll()
 
     // 该会话关联的全部需求 id（来源窗口 ∪ 任务执行会话）
     // 进行中判据取自 domain（此前这里引用未定义的 OPEN_STATUSES → 运行时 500）
     const isOpen = (s: string): boolean => isOpenRequirement({ status: s })
     const taskAnchoredIds = new Set<string>()
-    for (const t of ledger.tasks) {
+    for (const t of allTasks) {
       if (t.executions.some(e => e.sessionId === sessionId)) taskAnchoredIds.add(t.requirementId)
     }
     const anchored = ledger.requirements.filter(
@@ -150,7 +176,7 @@ export function createStagesRouter(ctx: RouterCtx) {
       return
     }
 
-    const tasks = ledger.tasks.filter(t => t.requirementId === target.id)
+    const tasks = allTasks.filter(t => t.requirementId === target.id)
     const done = countDoneTasks(tasks)
     const byStatus: Record<string, number> = {}
     for (const s of TASK_STATUS_ORDER) byStatus[s] = 0
@@ -218,8 +244,10 @@ export function createStagesRouter(ctx: RouterCtx) {
     const docs = new FileDocRepository(deps.cwd !== undefined ? { workspaceRoot: deps.cwd } : {})
     const target = (await store.read(l => l)).requirements.find(r => r.id === id)
     const policy = target === undefined ? undefined : await designDocPolicyOf(docs, target)
+    // 任务来自队列（装配器保持同步：先 await 取队列任务，再以 { tasks } 传入）。
+    const tasks = await taskStore.listByRequirement(id)
     const detail = await store.read(ledger =>
-      assembleStageDetail(ledger.requirements.find(r => r.id === id), { tasks: ledger.tasks }, stage, { 
+      assembleStageDetail(ledger.requirements.find(r => r.id === id), { tasks }, stage, { 
         ...(policy !== undefined ? { designDocPolicy: policy } : {}),
         // REQ-260926140539-457b FR-6：RTM 追溯数据必须读到工作区根。
         // deps.cwd 全仓无人设置（恒 undefined），原先"undefined 就不传"的条件展开 →
@@ -241,8 +269,10 @@ export function createStagesRouter(ctx: RouterCtx) {
     const docs = new FileDocRepository(deps.cwd !== undefined ? { workspaceRoot: deps.cwd } : {})
     const target = (await store.read(l => l)).requirements.find(r => r.id === id)
     const policy = target === undefined ? undefined : await designDocPolicyOf(docs, target)
+    // 任务来自队列（同 handleStageDetail：装配器保持同步）。
+    const tasks = await taskStore.listByRequirement(id)
     const overview = await store.read(ledger =>
-      assembleStageOverview(ledger.requirements.find(r => r.id === id), { tasks: ledger.tasks }, { 
+      assembleStageOverview(ledger.requirements.find(r => r.id === id), { tasks }, { 
         ...(policy !== undefined ? { designDocPolicy: policy } : {}),
         // REQ-260926140539-457b FR-6：RTM 追溯数据必须读到工作区根。
         // deps.cwd 全仓无人设置（恒 undefined），原先"undefined 就不传"的条件展开 →
@@ -276,14 +306,16 @@ export function createStagesRouter(ctx: RouterCtx) {
     if (req === undefined) {
       throw Object.assign(new Error(fmt('需求 {id}不存在', { id })), { code: 'not_found' })
     }
-    const view = assembleRequirementToken(req, { tasks: ledger.tasks })
+    // 任务来自队列（token 投影是同步纯函数：先 await 取任务再传入）。
+    const reqTasks = await taskStore.listByRequirement(id)
+    const view = assembleRequirementToken(req, { tasks: reqTasks })
     // REQ-a33899 t5：提示词成本（读时装配，不落台账）
     view.systemPrompt = await systemPromptCostOf(deps.systemPrompt)
     const entries = deps.injectionLog !== undefined ? await deps.injectionLog.readAll().catch(() => []) : []
     const windows = injectionWindowsOf([
       req.sourceSessionId,
       req.reviewSessionId,
-      ...ledger.tasks.filter(t => t.requirementId === req.id).flatMap(t => t.executions.map(e => e.sessionId)),
+      ...reqTasks.flatMap(t => t.executions.map(e => e.sessionId)),
     ])
     const injections = summarizeInjections(entries, windows)
     const totals = totalTokens(view.totals)
@@ -318,7 +350,9 @@ export function createStagesRouter(ctx: RouterCtx) {
     }
     // 路由层的 deps 只有 cwd（无 docs 端口，且不许出现状态字面量——过滤下沉到 application 层）
     const docs = new FileDocRepository(deps.cwd !== undefined ? { workspaceRoot: deps.cwd } : {})
-    ok(res, await assembleRequirementMarks({ docs }, req, ledger.tasks))
+    // 任务来自队列（需求侧接收标记按条款绑定任务）。
+    const reqTasks = await taskStore.listByRequirement(id)
+    ok(res, await assembleRequirementMarks({ docs }, req, reqTasks))
   }
 
   return { handleState, handleEvents, handleRequirementsSummary, handleSessionProgress, handleStageDetail, handleStageOverview, handleRequirementToken, handleRequirementMarks }

@@ -36,7 +36,7 @@
  * @module dsh-pmboard/application/dive/session-driver
  */
 
-import type { ReqboardLedger, StageKey } from '../../shared/protocol.js'
+import type { ReqboardLedger, StageKey, TaskRecord } from '../../shared/protocol.js'
 import { stageEnabledFor } from '../../shared/protocol.js'
 import { isIgnoredSession, extractUserMessageText, cleanUserMessageText } from '../internal/session-message-filter.js'
 import {
@@ -60,7 +60,7 @@ import {
 } from '../internal/session-buffers.js'
 import { addressSectionFor, milestoneReminderFor } from './idle-capture-actions.js'
 import { createGatePromptLoop, type GatePromptExhausted } from './gate-prompt.js'
-import type { GatePromptPort } from '../ports.js'
+import type { GatePromptPort, TaskStore } from '../ports.js'
 import type { DiveRoundDriver } from './round-driver.js'
 
 export interface DiveSessionDriverLogger {
@@ -72,6 +72,14 @@ export interface DiveSessionDriverLogger {
 export interface DiveSessionDriverDeps {
   /** 台账快照（同步读取；判定窗口 unbound / pending 状态）。 */
   snapshot: () => ReqboardLedger
+  /**
+   * 任务队列端口（REQ-260927202051-f6df）：v9 台账已无 `tasks`，注入「当前任务」需从队列取。
+   *
+   * `driveIdle` 是**同步**函数，而 `TaskStore` 是异步端口 —— 故驱动内维护一份**同步快照缓存**
+   * （每次 driveIdle 触发一次刷新，供**下一次**注入使用）。**最终一致、最多滞后一次触发**；
+   * 该快照只用于"给人看的任务指引"提示语，**不是门禁判据**（门禁读 `TaskStore` 实时值）。
+   */
+  taskStore: TaskStore
   /** 待捕获候选共享 Map（windowKey → 最新未消费消息；capture section 同引用读取）。 */
   pending: Map<string, PendingCaptureMessage>
   now: () => number
@@ -188,6 +196,24 @@ export function createDiveSessionDriver(deps: DiveSessionDriverDeps): DiveSessio
   const { snapshot, pending, now, logger } = deps
   const debug = (m: string) => logger?.debug?.(m)
 
+  /**
+   * 队列任务**同步缓存**（REQ-260927202051-f6df）——`driveIdle` 同步、`TaskStore` 异步。
+   *
+   * 刷新时机：每次 `driveIdle` 触发时刷一次，供**下一次**注入读取 ⇒ **最多滞后一次触发**
+   * （此处接受：该快照只渲染"当前任务执行中"这种给人看的指引文字，不是门禁判据）。
+   * 三态：`undefined` = 尚未加载 → 注入函数**整体略过**该块（不谎报"没有在制任务"）。
+   * 刷新失败**保留上次快照**并留痕（一次抖动不得清空提示）。**不订阅**：本驱动是同步消费 +
+   * 无 dispose 钩子，订阅会留下无人回收的监听；按需刷新已足够（滞后一次触发）。
+   */
+  let tasksSnapshot: readonly TaskRecord[] | undefined
+  const refreshTasks = (): void => {
+    void deps.taskStore.listAll().then((tasks) => {
+      tasksSnapshot = tasks
+    }).catch((err) => {
+      logger?.info('reqboard drive：队列任务快照刷新失败（保留上次快照，最多滞后一次触发）: ' + String(err))
+    })
+  }
+
   // 里程碑提醒去重（t09）：每产物只提醒一次（确认后 stage/confirmedAt 变化自然失效）。
   const remindedAt = new Map<string, number>()
 
@@ -207,6 +233,8 @@ export function createDiveSessionDriver(deps: DiveSessionDriverDeps): DiveSessio
    * 采集留、判定/动作走——证据缓冲与工具痕迹仍留在各自事件的采集点。
    */
   function driveIdle(windowKey: string, session: unknown): void {
+    // 先刷新队列任务快照（供**本次**注入读取；首帧仍为 undefined → 注入函数略过任务块，不谎报）。
+    refreshTasks()
     const human = roundHuman.get(windowKey)
     if (human !== undefined) roundHuman.delete(windowKey)
 
@@ -241,7 +269,7 @@ export function createDiveSessionDriver(deps: DiveSessionDriverDeps): DiveSessio
           // INV-1：与 capture-section 同一取词入口（resolveStagePrompt）。
           const located = resolveStagePrompt({ stage, category: stageReq.category })
           // T-3：与 capture-section/H3/输入包同源折入地址段（第四处注入点）。
-          const resolved = addressSectionFor(located, deps.address, ledger, stageReq, stage)
+          const resolved = addressSectionFor(located, deps.address, tasksSnapshot, stageReq, stage)
           if (resolved.text.length > 0) {
             // FR-11（REQ-260927100007-b8ba）：采集半**不再投递**阶段纪律——纪律已在每次请求的
             // system prompt（application/internal/capture-section.ts），此处投递纯属冗余，

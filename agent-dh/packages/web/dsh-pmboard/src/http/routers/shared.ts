@@ -10,10 +10,17 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { JsonLedgerRepository } from '../../adapters/JsonLedgerRepository.js'
 import type { InjectionLogReadPort } from '../../application/internal/injection-log.js'
 import type { IsolationLogReadPort } from '../../application/internal/isolation-trace.js'
-import type { DocRepository } from '../../application/ports.js'
+import type { DocRepository, TaskStore } from '../../application/ports.js'
 
 export interface RouterCtx {
   store: JsonLedgerRepository
+  /**
+   * 任务存储（队列）端口（REQ-260927202051-f6df I-1）——路由读任务的**唯一**入口。
+   *
+   * **必填**（不是可选）：路由层没有"队列不可用"的降级语义——任务数据就是看板全部内容，
+   * 缺装配 = 组合根 bug，必须响亮失败（在 createReqboardHandler 内显式断言，不静默返回半成品）。
+   */
+  taskStore: TaskStore
   now: () => number
   /**
    * 路由可选依赖：cwd=产物扫描根；injectionLog=注入留痕**只读**端口（看板信息块用）；

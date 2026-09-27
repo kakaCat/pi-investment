@@ -19,6 +19,7 @@ import { describeConflicts, findWorkSurfaceConflicts } from '../internal/conflic
 import { assertClauseCoverageGate, requirementRefsOf } from '../internal/content-gate-wiring.js'
 import { reject, agentIdFromExec, requireLiveDriver } from '../internal/support.js'
 import { landPlanTasks } from '../internal/plan-landing.js'
+import { queueRelativePath } from '../../domain/queue/queuePath.js'
 import { taskStoreOf } from './queue-access.js'
 
 export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
@@ -200,10 +201,9 @@ export async function executeDecompose(deps: UseCaseDeps, args: unknown, exec: a
         const rtmData = landed.rtm
         // t11（REQ-260927202051-f6df FR-1）：拆分后任务落在哪份队列文件——返回体必须给出**非空**
         // `queue_file`，否则调用方无从得知"台账没长东西，那卡去哪了"。
-        // 路径口径与 `repositories/QueueRepository.queueRelativePath` **同口径**（`docs/requirements/
-        // <REQ>/queue.json`）。这里不 import 那个常量：application 层禁止依赖基础设施层
-        // （tests/layer-boundary.test.ts 机械门禁），故按文档约定就地拼。
-        const queueFile = 'docs/requirements/' + target.id + '/queue.json'
+        // 路径口径的**单一事实源在 domain**（`domain/queue/queuePath.ts`，零 import，application 可直接用）；
+        // 基础设施层的 `QueueRepository.queueRelativePath` 只是它的再导出，两份实现复活即契约测试红。
+        const queueFile = queueRelativePath(target.id)
         return {
           success: true,
           requirement_id: target.id,

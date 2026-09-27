@@ -485,6 +485,28 @@ t7 必须扩接口，而**注入点在组合根 `src/http/routes.ts:130` 的 `ct
 
 ---
 
+## 7.1 落地完成记录（reader-http，2026-09-27）
+
+**指标（真实命令输出）**：`grep -rn 'ledger\.tasks\|snapshot()\.tasks\|changed\.tasks' src/` → **0**（开工前 92）；
+`npx tsc --noEmit` → 755 → **661**；**本写域 task 相关类型错误 = 0**。
+
+**落地清单（三卡 src 侧）**
+- **t-66797c**：`http/routes.ts`（`ReqboardRouteDeps.taskStore` 必填 + `mintId` 改查队列）、`http/routers/shared.ts`（`RouterCtx.taskStore` 必填）、`routers/{stages,tasks,requirements,verdicts}.ts`、`index.ts`（构造 `JsonQueueRepository`+`QueueTaskStore`、注入 `useCaseDeps`/handler、`applyTaskRollup` 补 `listAll()` 第 2 参、`workspaceRoot` 提为唯一事实源）。
+- **t-0c7f17**：`tools/{AdvanceTool,RunStatusTool,TaskStatusTool}`（`TaskReportTool` 经用例，无需改）。
+- **t-8d4af7**：`internal/{support,agent-handle,failure-handling,lazy-expand,rework-update,verdicts,verification-doc-writer,rtm-yaml,capture-section,node-settlement}`、`query/{QueryState,QueryStageDetail,QueryStageOverview,QueryRequirementToken}`、`dive/{session-driver,idle-capture-actions}`、`gate/handlers/{h3-inject,h2-compact}`、`gate-wiring.ts`（D17 同步缓存+三态+失败留痕）。
+
+**两个「字符陷阱」教训（写进验收材料）**
+1. **TC-8.12 的 grep 是字面匹配**：注释里写 `` `ledger.tasks` `` 也会被计入 —— 一度 12 处残留**全是注释**。注释统一改用 `LedgerView.tasks`。
+2. **形参名会触发假红**：`QueryStageDetail`/`QueryRequirementToken` 读队列任务的形参原名为 `ledger`，`ledger.tasks` 字面量会假红 → 改名为 `view`。
+   > 纪律：0 必须是「代码+注释都干净」的 0，**不得靠注释换个词绕过**。
+
+**未闭环（移交）**
+- `src/wiring/pm-capture-root.ts:122`：`DiveSessionDriverDeps.taskStore`（必填）需一行注入 `deps.useCaseDeps().taskStore` —— 该文件不在本写域，已报 Lead。
+- D14 的 21 个测试文件（B 桶 5 + C 桶 11 + 路由/HTTP）待 queue-core 的逐行改法清单；`tests/application/harness.ts` 属 queue-core，不碰。
+- 「迁移前快照 vs 迁移后响应」逐字节证据（TC-8.1~8.7 + D8 a~e）待补。
+
+---
+
 ## 8. 两处例外与移交说明（给 Lead）
 
 - **台账通道**：本窗口未绑定该需求，`reqboard_task_move` / `reqboard_task_report` 对 teammate 返回 `REQBOARD_NO_BOUND_REQ`；

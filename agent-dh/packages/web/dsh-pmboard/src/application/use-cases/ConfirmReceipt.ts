@@ -26,6 +26,7 @@ import {
   CONFIRM_ADVANCE_REASON,
   PLAN_MERGE_ADVANCE_REASON,
 } from '../internal/confirm-settle.js'
+import { targetConfirmedInLedger } from '../internal/pending-guard.js'
 import { reject, agentIdFromExec, requireLiveDriver } from '../internal/support.js'
 
 export async function confirmReceipt(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
@@ -52,12 +53,12 @@ export async function confirmReceipt(deps: UseCaseDeps, args: unknown, exec: any
     reject('reqboard_confirm_receipt 未执行：需求 ' + rec.requirementId + ' 不在台账中', 'REQBOARD_STORE_INCONSISTENT')
   }
 
-  const confirmed = confirmedInLedger(req, rec)
+  const confirmed = targetConfirmedInLedger(req, rec)
   const adv = advanceFromHistory(req, rec.createdAt)
   const outcome = rec.outcome
   // 推进事实以「回填的 outcome」优先；尚未回填时以台账 statusHistory 还原（两处同源，不冲突）。
   const advanced = outcome?.advanced ?? adv.advanced
-  const note = receiptNote(confirmed, advanced, adv, outcome)
+  const note = receiptNote(confirmed, advanced, adv, outcome, rec.interruptedAt !== undefined)
 
   return {
     success: true,
@@ -70,13 +71,6 @@ export async function confirmReceipt(deps: UseCaseDeps, args: unknown, exec: any
     ...(outcome?.userFeedback !== undefined ? { user_feedback: outcome.userFeedback } : {}),
     note,
   }
-}
-
-/** 台账事实：target=plan 看计划批准章；target=artifact 看该 kind 全部产物是否成组落章。 */
-function confirmedInLedger(req: RequirementRecord, rec: PendingConfirmation): boolean {
-  if (rec.target === 'plan') return req.plan?.approvedAt !== undefined
-  const arts = (req.artifacts ?? []).filter(a => a.kind === rec.kind)
-  return arts.length > 0 && arts.every(a => a.confirmedAt !== undefined)
 }
 
 /**
@@ -98,18 +92,28 @@ function advanceFromHistory(
   return { from: req.status, to: req.status, advanced: false }
 }
 
-/** 一句话说清回执结论（人话；不猜、不粉饰）。 */
+/**
+ * 一句话说清回执结论（人话；不猜、不粉饰）。
+ *
+ * `interrupted`（记录带 interruptedAt）：仅在**尚未作答**时改文案——「等待被中止、弹框可能已消失」，
+ * 给出看板确认 / 重新发起两条路。已作答或台账已落章时仍按既有口径（以台账为准）。
+ */
 function receiptNote(
   confirmed: boolean,
   advanced: boolean,
   adv: { from: string; to: string },
   outcome: PendingConfirmation['outcome'],
+  interrupted: boolean,
 ): string {
   if (confirmed && advanced) {
     return fmt('回执：已确认并推进 {from} → {to}（以台账为准）', { from: adv.from, to: adv.to })
   }
   if (confirmed) {
     return '回执：已确认（未推进；推进被闸门拦下或当前状态无可自动推进的下一阶段）——以台账 confirmedAt 为准'
+  }
+  if (outcome === undefined && interrupted) {
+    return '回执：本次等待已被中止（弹框可能已消失）——尚未作答。请用户走项目看板点确认按钮，'
+      + '或重新发起 reqboard_ask_confirm；收到作答前不得产出下游产物'
   }
   if (outcome !== undefined) {
     const choice = outcome.userChoice ?? '（未选）'

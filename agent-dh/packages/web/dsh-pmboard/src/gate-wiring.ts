@@ -22,6 +22,8 @@ import type { AgentDeliverer } from './adapters/AgentDeliverer.js';
 import { captureSectionText, boundSectionText } from './application/internal/capture-section.js';
 import { windowKeyFromContext } from './application/internal/window.js';
 import { captureDiag } from './application/internal/diag-log.js';
+import type { TaskStore } from './application/ports.js';
+import type { TaskRecord } from './shared/protocol.js';
 
 export interface GateChainDeps {
   store: JsonLedgerRepository;
@@ -31,6 +33,11 @@ export interface GateChainDeps {
   isolationTrace: IsolationTraceFile;
   injectionLog: InjectionLogFile;
   deliverer: AgentDeliverer;
+  /**
+   * 任务队列端口（REQ-260927202051-f6df）：H2 压缩的节点隔离要读"当前在制任务卡"，
+   * 而 v9 台账已无 `tasks`（`IsolateNodeContextDeps.taskStore` 为**必填**）。
+   */
+  taskStore: TaskStore;
   logger: { info: (m: string) => void; warn: (m: string, err?: unknown) => void };
   plugin: string;
   /** H2 压缩开关（= 节点隔离开关求值结果，调用侧单点求值后传入）。 */
@@ -60,6 +67,7 @@ export function assembleGatePostChain(deps: GateChainDeps): ReturnType<typeof cr
         repo: deps.store,
         docs: deps.docs,
         clock: deps.clock,
+        taskStore: deps.taskStore,
         compactionEnabled: deps.compactionEnabled,
         isolationFor: (session) => new NodeIsolationAdapter(session, {
           idle: () => deps.idle(session),
@@ -69,10 +77,12 @@ export function assembleGatePostChain(deps: GateChainDeps): ReturnType<typeof cr
       }),
       createH3InjectHandler({
         repo: deps.store,
+        // H3 的地址段要"当前在制任务卡"（v9 台账无 tasks）——run() 是 async，直接 await。
+        taskStore: deps.taskStore,
         injectionLog: deps.injectionLog,
         ...(deps.address === undefined ? {} : { templateRoot: deps.address.templateRoot, addressSectionEnabled: deps.address.enabled }),
       }),
-      createH4ResumeHandler({ delivery: deps.deliverer, plugin: deps.plugin }),
+      createH4ResumeHandler({}),
       createH5AuditHandler({ repo: deps.store, now: deps.now, newCommentId: () => gateIds.comment() }),
     ],
     warn: (message) => deps.logger.warn(message),
@@ -90,7 +100,12 @@ export interface CaptureGuidanceDeps {
   store: JsonLedgerRepository;
   pendingCapture: Map<string, { windowKey: string; text: string; capturedAt: number }>;
   injectionLog: InjectionLogFile;
-  logger: { info: (m: string) => void };
+  /**
+   * 任务队列端口（REQ-260927202051-f6df D17）：本段需要"队列任务快照"才能渲染
+   * 「当前任务执行中」。因 section.text 是**同步**的，这里用它维护一份同步缓存。
+   */
+  taskStore: TaskStore;
+  logger: { info: (m: string) => void; warn: (m: string, err?: unknown) => void };
   plugin: string;
   /** 模板地址注入（T-3）：绝对模板根 + 开关；缺省不注入。 */
   address?: { templateRoot?: string; enabled: boolean };
@@ -112,6 +127,36 @@ export function registerCaptureGuidance(ctx: Context, deps: CaptureGuidanceDeps)
     (spCtx: { effect?: (fn: () => void, label?: string) => void; systemPrompt?: any }) => {
       deps.onSystemPrompt(spCtx.systemPrompt);
       spCtx.effect?.(() => {
+        /**
+         * 队列任务**同步缓存**（REQ-260927202051-f6df D17）。
+         *
+         * **为什么需要缓存**：本段服务于 system-prompt section 的 `text` provider，而 DSH 的
+         * `SectionSpec.text` 类型是 `string | ((context) => string)` —— **同步，不能 await**
+         * （实测 `@deepseek-ai/dsh-system-prompt/lib/types/index.d.ts:60`）；而任务存储在
+         * `TaskStore`（异步端口）。故这里维护一份同步可得快照：注册时拉一次 +
+         * `taskStore.subscribe` 每次任务变更再刷新。
+         *
+         * **最终一致，最多滞后一次事件** —— 此处**接受**该滞后：快照只用于"给人看的提示词指引"
+         * （「当前任务执行中」那一段），**不是门禁判据**；门禁读的是 TaskStore 的实时值，
+         * 不受本缓存影响。将来若有人怀疑这是脏读，请先读这条推理链。
+         *
+         * **三态**（`tasksSnapshot === undefined` = 尚未加载）：调用方必须区分
+         * 「未加载」（整体略过任务块，**不谎报**"没有任务"）与「已加载且为空」。
+         * **刷新失败保留上一次快照**并告警 —— 一次抖动不得把提示词段清空。
+         */
+        let tasksSnapshot: readonly TaskRecord[] | undefined
+        const refreshTasks = (): void => {
+          void deps.taskStore.listAll().then((tasks) => {
+            tasksSnapshot = tasks
+          }).catch((err) => {
+            deps.logger.warn(
+              'reqboard 捕获引导段：队列任务快照刷新失败（保留上次快照；提示词段最多滞后一次事件）',
+              err,
+            )
+          })
+        }
+        refreshTasks()
+        deps.disposers.push(deps.taskStore.subscribe(() => { refreshTasks() }))
         deps.disposers.push(spCtx.systemPrompt.section({
           name: deps.sectionName,
           order: deps.sectionOrder,
@@ -126,8 +171,9 @@ export function registerCaptureGuidance(ctx: Context, deps: CaptureGuidanceDeps)
             captureDiag(`reqboard-capture [NODE-4]: systemPrompt assemble (windowKey=${windowKey ? windowKey.slice(0, 16) : 'undefined'}, pending=${pending !== undefined ? 'EXISTS' : 'NONE'}, pendingCapture.size=${deps.pendingCapture.size})`);
             const sectionText = captureSectionText(deps.store.snapshot(), assembleContext, pending);
             if (sectionText.length > 0) return sectionText;
-            // 已绑定窗口：注入「推进纪律」（状态由窗口自己维护，不必等人点按钮）
-            return boundSectionText(deps.store.snapshot(), assembleContext, deps.injectionLog, deps.address);
+            // 已绑定窗口：注入「推进纪律」（状态由窗口自己维护，不必等人点按钮）。
+            // 任务快照以**同步缓存**传入（`undefined` = 尚未加载 → 段内整体略过任务块）。
+            return boundSectionText(deps.store.snapshot(), tasksSnapshot, assembleContext, deps.injectionLog);
           },
         }));
       }, deps.plugin + ': capture');

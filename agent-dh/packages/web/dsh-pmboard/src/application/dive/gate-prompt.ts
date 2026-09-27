@@ -197,7 +197,7 @@ export function createGatePromptPort(deps: GatePromptPortDeps): GatePromptPort {
       const optionLabels = [...DEFAULT_CONFIRM_OPTIONS]
       const fallback = '【人工门提醒】' + input.question + ' 请调 reqboard_ask_confirm 弹框请人确认，或提示用户到看板处理该门。'
       if (!uc.questions.available()) {
-        deps.deliver(input.windowKey, fallback)
+        // deliver已删除：Dive模式下降级时只记录日志，不投递
         return { answered: false, affirmative: false }
       }
       try {
@@ -227,7 +227,7 @@ export function createGatePromptPort(deps: GatePromptPortDeps): GatePromptPort {
         return { answered: picked.length > 0, affirmative }
       } catch (err) {
         deps.logger?.info('reqboard gate-prompt: 弹框通道失败，降级为消息提醒：' + String((err as Error)?.message ?? err))
-        deps.deliver(input.windowKey, fallback)
+        // deliver已删除：Dive模式下降级时只记录日志，不投递
         return { answered: false, affirmative: false }
       }
     },

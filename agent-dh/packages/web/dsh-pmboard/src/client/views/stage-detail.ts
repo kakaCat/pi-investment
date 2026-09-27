@@ -326,10 +326,19 @@ export function buildDag(tasks: TaskRecord[]): string {
   return `<div class="dsh-pm-dag"><div class="dsh-pm-dag-title">🔀 任务依赖关系</div><div class="dsh-pm-dag-layers">` + layers.map((layer, i) => `
     <div class="dsh-pm-dag-layer">
       <span class="dsh-pm-dag-layer-label">L${i}</span>
-      ${layer.map(t => `
+      ${layer.map(t => {
+        const phaseLabel = PHASE_LABELS[t.phase] ?? t.phase
+        const sideLabel = t.side ?? ''
+        return `
         <span class="dsh-pm-dag-node" data-status="${t.status}" data-action="open-task" data-task="${esc(t.id)}" title="${esc(t.title)}">
-          ${esc(t.id)} ${esc(t.title.slice(0, 20))}${t.title.length > 20 ? '…' : ''}
-        </span>`).join('')}
+          <span class="dsh-pm-dag-node-id">${esc(t.id)}</span>
+          <span class="dsh-pm-dag-node-title">${esc(t.title.slice(0, 20))}${t.title.length > 20 ? '…' : ''}</span>
+          <span class="dsh-pm-dag-node-tags">
+            <span class="dsh-pm-phase" data-phase="${t.phase}">${esc(phaseLabel)}</span>
+            <span class="dsh-pm-side" data-side="${t.side}">${esc(sideLabel)}</span>
+          </span>
+        </span>`
+      }).join('')}
     </div>`).join('') + `</div></div>`
 }
 

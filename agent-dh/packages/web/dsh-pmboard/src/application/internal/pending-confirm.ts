@@ -18,7 +18,7 @@
  * @module dsh-pmboard/application/internal/pending-confirm
  */
 import type { AskAnswer, UseCaseDeps } from '../ports.js'
-import type { ArtifactKind, PendingConfirmationOutcome } from '../../shared/protocol.js'
+import type { PendingConfirmationOutcome } from '../../shared/protocol.js'
 import { fmt } from '../../domain/text/fmt.js'
 
 /** 一次已投递的确认请求（同步作答与后台续跑共用同一形状）。 */
@@ -61,7 +61,7 @@ export function raceAsk(ask: Promise<readonly AskAnswer[]>, graceMs: number): Pr
 type SettledBody = Record<string, unknown>
 
 /** 响应体 → 回执 outcome（confirmed/advanced 取严格 true；用户选择/意见可选）。 */
-function outcomeOf(body: SettledBody): PendingConfirmationOutcome {
+export function outcomeOf(body: SettledBody): PendingConfirmationOutcome {
   const userChoice = body.user_choice
   const userFeedback = body.user_feedback
   return {
@@ -73,8 +73,12 @@ function outcomeOf(body: SettledBody): PendingConfirmationOutcome {
 }
 
 /**
- * 超宽限：登记挂起 ticket 并**立即返回**（success=true、confirmed=false、pending=true——
- * 不判失败），同时把「作答到达 → 落章/留痕 → 回填回执 → 唤醒窗口」挂到 ask 的后台续跑上。
+ * 超宽限：**立即返回**（success=true、confirmed=false、pending=true——不判失败），同时把
+ * 「作答到达 → 落章/留痕 → 回填回执 → 唤醒窗口」挂到 ask 的后台续跑上。
+ *
+ * 登记（register）已由 AskConfirm 在**进入等待前**完成（REQ-260927123256-196b t2 / I-4：
+ * 阻塞与非阻塞共用同一条登记入口），本函数只消费既有 ticket，不二次登记——否则一个确认会
+ * 留下两条记录，守卫与回执各看一条。
  *
  * `settle` 由 AskConfirm 注入（同步/后台共用同一实现，见 internal/confirm-settle.ts）。
  */
@@ -82,15 +86,10 @@ export function suspendConfirm(
   deps: UseCaseDeps,
   ask: Promise<readonly AskAnswer[]>,
   s: ConfirmSubmitted,
+  ticket: string,
   settle: (answers: readonly AskAnswer[]) => Promise<SettledBody>,
 ): unknown {
   const port = deps.pendingConfirms!
-  const ticket = port.register({
-    windowKey: s.windowKey,
-    requirementId: s.requirementId,
-    target: s.target,
-    ...(s.target === 'artifact' ? { kind: s.kind as ArtifactKind } : {}),
-  }).ticket
 
   void ask.then(
     (answers) => {
@@ -118,7 +117,7 @@ export function suspendConfirm(
   }
 }
 
-/** 唤醒窗口（AgentDeliveryPort）：告知作答已落地与取回执的唯一命令；投递失败不阻断后台落章。 */
+/** 唤醒窗口：告知作答已落地与取回执的唯一命令。Dive模式下通过事件驱动，无需投递。 */
 function wake(deps: UseCaseDeps, windowKey: string, ticket: string, body: SettledBody): void {
   const text = body.confirmed === true
     ? fmt('用户已在确认弹框作答（ticket {t}）：已落章{adv}。请调 reqboard_confirm_receipt(ticket="{t}") 取回执', {
@@ -126,5 +125,5 @@ function wake(deps: UseCaseDeps, windowKey: string, ticket: string, body: Settle
         adv: body.advanced === true ? '并推进' : '（未推进）',
       })
     : fmt('用户已在确认弹框作答（ticket {t}）：未确认，节点未推进。按用户意见处理后可重新发起确认', { t: ticket })
-  deps.delivery?.deliver(windowKey, { text })
+  // deliver已删除：Dive模式下唤醒由roundDriver处理
 }

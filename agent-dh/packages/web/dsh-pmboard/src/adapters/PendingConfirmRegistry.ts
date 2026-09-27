@@ -7,9 +7,11 @@
  *
  * 语义：
  *  - ticket 前缀固定 `pc-`（PENDING_CONFIRM_TICKET_PREFIX），全局唯一；
- *  - `get` 只认**本窗口**且未过期（createdAt + ttl，缺省 LIMITS.confirmEvidenceWindowMs）的记录；
+ *  - `get` 只认**本窗口**且未过期（(interruptedAt ?? createdAt) + ttl，缺省 LIMITS.confirmEvidenceWindowMs）的记录；
  *  - `settle` 回填后台作答结果，**幂等**（重复回填保留首次结果）；
- *  - 三个方法都**不抛**（未知/跨窗口/过期一律 undefined，由用例降级）。
+ *  - `markInterrupted` 标记「阻塞等待期间被中止」，**幂等**（只写首次 interruptedAt）——中止记录
+ *    以 interruptedAt 为过期基准，再获一个完整 TTL（REQ-260927123256-196b FR-4）；
+ *  - 各方法都**不抛**（未知/跨窗口/过期一律 undefined，由用例降级）。
  *
  * @module dsh-pmboard/adapters/PendingConfirmRegistry
  */
@@ -67,7 +69,7 @@ export class PendingConfirmRegistry implements PendingConfirmPort {
     const found = this.records.get(ticket)
     if (found === undefined) return undefined
     if (found.windowKey !== windowKey) return undefined
-    if (this.now() - found.createdAt > this.ttlMs) return undefined
+    if (this.expired(found)) return undefined
     return this.copy(found)
   }
 
@@ -83,10 +85,27 @@ export class PendingConfirmRegistry implements PendingConfirmPort {
     for (const record of this.records.values()) {
       if (record.windowKey !== windowKey) continue
       if (record.outcome !== undefined) continue
-      if (this.now() - record.createdAt > this.ttlMs) continue
+      if (this.expired(record)) continue
       return this.copy(record)
     }
     return undefined
+  }
+
+  /**
+   * 标记「阻塞等待期间被中止」（REQ-260927123256-196b FR-4）：幂等，只写首次 interruptedAt；
+   * 未知 ticket → undefined（不抛）。中止记录据此再获一个完整 TTL（见 expired）。
+   */
+  markInterrupted(ticket: string): PendingConfirmation | undefined {
+    const found = this.records.get(ticket)
+    if (found === undefined) return undefined
+    if (found.interruptedAt === undefined) found.interruptedAt = this.now()
+    return this.copy(found)
+  }
+
+  /** 过期判定单点：基准 = (interruptedAt ?? createdAt)——中止记录不因登记时间早而提前失效。 */
+  private expired(record: PendingConfirmation): boolean {
+    const base = record.interruptedAt ?? record.createdAt
+    return this.now() - base > this.ttlMs
   }
 
   /** 对外一律给副本：调用方拿不到内部引用，也改不动注册表。 */

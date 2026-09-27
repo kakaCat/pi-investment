@@ -23,14 +23,19 @@
 import { readFile, readdir, rename } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import { persistAtomic } from '../adapters/JsonLedgerRepository.js'
+import { REQUIREMENTS_DIR, QUEUE_FILENAME, queueRelativePath } from '../domain/queue/queuePath.js'
 import type { QueueFile } from '../domain/queue/QueueTypes.js'
 import { validateQueueFile } from '../domain/queue/validateQueue.js'
 
-/** 队列文件名（需求目录内）。 */
-export const QUEUE_FILENAME = 'queue.json'
-
-/** 需求目录相对路径前缀（与 `docs/requirements/<REQ>/` 约定一致）。 */
-export const REQUIREMENTS_DIR = 'docs/requirements'
+/**
+ * 路径与文件名常量的**单一事实源在 domain**（`src/domain/queue/queuePath.ts`）。
+ *
+ * 这里只做**再导出**：既有调用方（`tests/queue/*`、迁移脚本等从本模块 import 的历史写法）
+ * 继续可用，但**实现只有一份**——application 层（`Decompose` 返回体的 `queue_file`）直接
+ * import domain 那份，不再就地拼字符串。
+ * （REQ-260927202051-f6df · Lead 裁决「单一事实源，不留两份路径拼法」）
+ */
+export { REQUIREMENTS_DIR, QUEUE_FILENAME, queueRelativePath }
 
 /** 队列相关错误码（design/interfaces.md「错误码」）。 */
 export const QUEUE_ERROR = {
@@ -49,11 +54,6 @@ export const QUEUE_ERROR = {
 /** 构造带 `code` 的错误（本仓约定：`Object.assign(new Error(msg), { code })`）。 */
 function codedError(code: string, message: string, extra: Record<string, unknown> = {}): Error {
   return Object.assign(new Error(message), { code, ...extra })
-}
-
-/** `docs/requirements/<REQ>/queue.json`（工作区相对路径，与平台无关的分隔符统一为 `/`）。 */
-export function queueRelativePath(requirementId: string): string {
-  return `${REQUIREMENTS_DIR}/${requirementId}/${QUEUE_FILENAME}`
 }
 
 export interface QueueRepositoryOptions {

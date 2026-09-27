@@ -13,6 +13,8 @@ import type { LedgerView, UseCaseDeps } from '../ports.js'
 import { questionCardFor } from '../../domain/gate/GateCatalog.js'
 import { checkDoneEvidence, findRecentAgentDoneTask } from '../../domain/workflow/DoneEvidenceSpec.js'
 import { artifactNotifyText } from './artifact-gates.js'
+// REQ-260927123256-196b FR-2/FR-4：挂起判定单点（未作答 且 台账未落章才拦）——守卫与回执共用。
+import { livePendingConfirm, pendingConfirmRejectMessage } from './pending-guard.js'
 import { isWindowBound, openRequirementsFor } from './window.js'
 import {
   isSubtask,
@@ -25,6 +27,7 @@ import {
 } from '../../shared/protocol.js'
 import { captureSnapshot } from './token-usage.js'
 import { checkParentSubtasksDone, checkSubtaskEvidence } from './subtask-evidence.js'
+import { reportFileMtime } from './report-path.js'
 // REQ-260924213231-b1c4 FR-7：降级路径（reqboard_create）复用弹框路径的文档位置缺省口径（单一事实源）。
 import { CAPTURE_DEFAULTS } from './capture-mapping.js'
 import { LIMITS } from '../../domain/limits.js'
@@ -75,12 +78,14 @@ export function notifyArtifactRegistered(
  * REQ-6f39b5 事故 B 的教训：幽灵任务卡死 rollup 时静默无提示，agent 与用户都看不见。
  */
 export function rollupBlockersOf(
-  ledger: LedgerView,
+  _ledger: LedgerView,
+  tasks: readonly TaskRecord[],
   reqId: string,
   reqStatus: string,
 ): { id: string; title: string; status: string }[] | undefined {
   if (reqStatus !== 'implementing') return undefined
-  const open = ledger.tasks.filter(t => t.requirementId === reqId && t.status !== 'canceled' && t.status !== 'done')
+  // 队列任务（REQ-260927202051-f6df D4：`LedgerView.tasks` 随 v9 移除，任务由调用方从队列传入）
+  const open = tasks.filter(t => t.requirementId === reqId && t.status !== 'canceled' && t.status !== 'done')
   if (open.length === 0) return undefined
   return open.map(t => ({ id: t.id, title: t.title, status: t.status }))
 }
@@ -109,11 +114,18 @@ function pagesBuildEvidence(
   }
 }
 
+/**
+ * done 凭证门（REQ-2e9473 t06/W2，事故 C/D 的硬门）：转 done 前的四重校验。
+ *
+ * @param tasks 队列任务（REQ-260927202051-f6df D4：`LedgerView.tasks` 随 v9 移除）。
+ *              `ledger` 只用于取需求记录（`ledger.requirements`）。
+ */
 export function assertDoneEvidence(
   deps: UseCaseDeps,
   windowKey: string,
   task: TaskRecord,
   ledger: LedgerView,
+  tasks: readonly TaskRecord[],
 ): void {
   // 规则（四重校验与拒绝文案）在 domain/workflow/DoneEvidenceSpec.ts（REQ-47939a t3）；
   // 这里只负责取副作用证据（工具痕迹 / 文件 stat / 构建新鲜度）再交给纯判定。
@@ -128,11 +140,21 @@ export function assertDoneEvidence(
     // 子卡 run 之前就已完成（轻档手工交付）——此时拿「子卡本次 run 起点」当新鲜度基准，必然把
     // 已存在的交付判成「无改动」。实测 t-c42bc0：run.ok=true、13 个上报文件全部存在，但 mtime
     // 14:55–15:04 早于 run 起点 15:25:48 → 子卡恒不过门、链必停。
-    // 基准回归文档原意「**链**自己认领之后改过的文件」：链认领的是父卡，故基准取**父卡执行窗口
-    // 起点**（父卡 claimedAt，缺省父卡 createdAt），再退回子卡自身起点。窗口仍是有界的时间段，
-    // 且要求上报文件必须真实存在——只把「谁的窗口」修对，不放弃文件系统证据。
-    const parentTask = ledger.tasks.find((t) => t.id === task.parentId)
-    const chainSince = parentTask?.claimedAt ?? parentTask?.createdAt ?? since
+    // 第一版修法取「父卡 claimedAt（缺省 createdAt）」——**基准仍会漂移**：claimedAt 由 ExecuteTask
+    // 在每次重跑/重入时重写，链越跑基准越靠后，同一份交付会被前后两次判成不同结论。
+    // 故基准改取**不可变出身**（requirement / 父卡 / 子卡 createdAt 的最小值，见下），窗口单调不后退；
+    // 上报文件仍必须真实存在（写入族）——只把「谁的窗口」修对，不放弃文件系统证据。
+    const parentTask = tasks.find((t) => t.id === task.parentId)
+    // L1 基准单调化（D17 病根）：claimedAt 会被 ExecuteTask 在**每次重跑/重入时重写**——
+    // 拿它当"链窗口起点"，基准就随重跑向后漂移，已存在的交付被判「无改动」。改取**不可变出身**：
+    // 需求 / 父卡 / 子卡三者 createdAt 的最小值（缺省 Infinity，三者全缺才退回 since）。
+    const requirement = ledger.requirements.find((r) => r.id === task.requirementId)
+    const chainSinceRaw = Math.min(
+      requirement?.createdAt ?? Infinity,
+      parentTask?.createdAt ?? Infinity,
+      task.createdAt ?? Infinity,
+    )
+    const chainSince = Number.isFinite(chainSinceRaw) ? chainSinceRaw : since
     const subPagesSrc = filesChangedEarly.filter((f) => /^packages\/pages\/[^/]+\/src\//.test(f))
     const build = pagesBuildEvidence(deps, subPagesSrc)
     const verdictSub = checkSubtaskEvidence({
@@ -141,7 +163,10 @@ export function assertDoneEvidence(
       reportCompleted: rep?.completed ?? [],
       run: task.lastRun,
       since: chainSince,
-      fileMtimes: Object.fromEntries(filesChangedEarly.map((f) => [f, deps.docs.stat(f)?.mtimeMs])),
+      // L2 证据形态分流：阶段决定该收文件证据还是结论证据（STAGE_EVIDENCE_KIND）。
+      ...(task.stageKind !== undefined ? { stageKind: task.stageKind } : {}),
+      // D15：路径归一——容忍子代理写相对 git 根的 `agent-dh/…` 前缀（工作区根已是 agent-dh）。
+      fileMtimes: Object.fromEntries(filesChangedEarly.map((f) => [f, reportFileMtime(deps, f)])),
       pagesSrcFiles: subPagesSrc,
       ...build,
     })
@@ -150,7 +175,7 @@ export function assertDoneEvidence(
   }
 
   // REQ-4842fe t5：父卡收尾门（INV-5）——存在未 done 子卡时父卡不得 done。
-  const subs = subtasksOf(ledger.tasks as readonly TaskRecord[], task.id)
+  const subs = subtasksOf(tasks, task.id)
   if (subs.length > 0) {
     const verdictParent = checkParentSubtasksDone(subs)
     if (!verdictParent.ok) reject(verdictParent.reason, verdictParent.code)
@@ -160,12 +185,12 @@ export function assertDoneEvidence(
   const hasTraceWork = activity > 0
   const filesChanged = rep?.filesChanged ?? []
   const fileEvidence = filesChanged.some((f) => {
-    const st = deps.docs.stat(f)
-    return st !== undefined && st.mtimeMs >= since
+    const m = reportFileMtime(deps, f)
+    return m !== undefined && m >= since
   })
   const nowTs = deps.clock.now()
   const recentDoneTask = findRecentAgentDoneTask(
-    ledger.tasks, task.id, task.requirementId, nowTs, deps.doneThrottleMs ?? 60_000,
+    tasks, task.id, task.requirementId, nowTs, deps.doneThrottleMs ?? 60_000,
   )
   // ④ 页面插件构建新鲜度（事故 D）
   const pagesSrc = filesChanged.filter(f => /^packages\/pages\/[^/]+\/src\//.test(f))
@@ -342,21 +367,20 @@ export function mapAgentError(err: unknown): never {
 }
 
 /**
- * 确认门挂起期间的**同窗口停手守卫**（REQ-260927100007-b8ba FR-9）。
+ * 确认门挂起期间的**同窗口停手守卫**（REQ-260927100007-b8ba FR-9；REQ-260927123256-196b FR-2/FR-4）。
  *
- * 弹框走非阻塞投递：宽限超时即返回 {pending:true, ticket}（见 internal/pending-confirm.ts），
- * **不拦 agent loop**——这是为修「弹框超时把回合打死」而刻意设计的。但它没有配套的停手守卫时，
- * 窗口会在等作答期间继续产出下游产物（实测事故）。故写路径工具入口一律先过这里：
- * 命中挂起 → 代码级拒绝 REQBOARD_CONFIRM_PENDING，并给出取回执的两条可用路径。
+ * 缺省阻塞路径在**进入等待前**就登记 ticket（见 use-cases/AskConfirm.ts），守卫因此在整个等待期
+ * 生效：写路径工具入口一律先过这里，命中挂起 → 代码级拒绝 REQBOARD_CONFIRM_PENDING，并给出
+ * 三条恢复路径（取回执 / 看板确认 / 重新发起覆盖）。
+ *
+ * 判定单点在 `internal/pending-guard.ts` 的 `livePendingConfirm`：台账已落章（人走看板/证据通道
+ * 作答）时放行——否则「人已确认但挂起记录未 settle」的陈旧记录会把窗口锁死。
  * （reqboard_status / reqboard_confirm_receipt 刻意不过此守卫——否则人无法解除挂起。）
+ *
+ * serves: FR-2 / FR-4（REQ-260927123256-196b t3）；判定口径见 pending-guard.livePendingConfirm。
  */
 export function assertNoPendingConfirm(deps: UseCaseDeps, windowKey: string): void {
-  const p = deps.pendingConfirms?.pendingForWindow(windowKey)
+  const p = livePendingConfirm(deps, windowKey)
   if (p === undefined) return
-  reject(
-    '本窗口有一个**待作答**的确认门（ticket=' + p.ticket + '，需求 ' + p.requirementId + '）——'
-    + '收到作答前不得产出下游产物。解除挂起：① 调 reqboard_confirm_receipt(ticket="' + p.ticket + '") 取回执；'
-    + '② 或在项目看板点确认按钮。reqboard_status 与 reqboard_confirm_receipt 仍可调用。',
-    'REQBOARD_CONFIRM_PENDING',
-  )
+  reject(pendingConfirmRejectMessage(p), 'REQBOARD_CONFIRM_PENDING')
 }

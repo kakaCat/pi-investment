@@ -139,9 +139,13 @@ describe('TaskStore mutate（TC-4.3 / TC-4.4 / TC-4.5 / TC-4.8）', () => {
     expect(before!.ready).toEqual(['t-000001'])
 
     const changed = await store.mutate(REQ_A, (tasks) =>
-      tasks.map((t) =>
+      tasks.map((t): QueueTask =>
         t.id === 't-000001'
-          ? { ...t, status: 'done' as const, statusHistory: [...(t.statusHistory ?? []), { to: 'done' as const, at: now(), by: t.updatedBy }] }
+          ? {
+              ...t,
+              status: 'done' as const,
+              statusHistory: [...(t.statusHistory ?? []), { status: 'done' as const, at: now(), by: t.updatedBy }],
+            }
           : t,
       ),
     )

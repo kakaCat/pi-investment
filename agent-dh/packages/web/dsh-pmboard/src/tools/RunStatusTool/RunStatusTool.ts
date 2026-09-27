@@ -9,6 +9,7 @@
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
+import type { RequirementRecord, TaskRecord } from '../../client/types.js'
 import { queryRunStatus } from '../../application/use-cases/QueryRunStatus.js'
 import { openRequirementsFor } from '../../application/internal/window.js'
 import { RUN_STATUS_PROMPT } from './prompt.js'
@@ -62,7 +63,8 @@ export function defineRunStatusTool(deps: UseCaseDeps) {
       },
       render: renderSmart(summarize),
     },
-    timeoutMs: LIMITS.timeoutInteractiveMs,
+    // REQ-260927144541-0481 FR-6：查询式工具不得挂 1 小时交互超时——那种超时只服务需要人作答的弹框类。
+    timeoutMs: LIMITS.timeoutReadMs,
     async execute(args: { requirement_id?: string; run_id?: string }, exec: unknown): Promise<Record<string, unknown>> {
       const windowKey = deps.session.windowKey(exec)
       const snap = deps.repo.snapshot()
@@ -93,13 +95,39 @@ export function defineRunStatusTool(deps: UseCaseDeps) {
         return { success: false, error: '无法确定目标需求' }
       }
       
-      // 2. 查询运行状态
-      const status = await queryRunStatus(deps, requirementId, exec)
-      
+      // 2. 查询运行状态（QueryRunStatus 用例契约为单个 QueryParams 对象；此前误传
+      //    (deps, requirementId, exec)，运行期 getRequirement 为 undefined →
+      //    "getRequirement is not a function"（2026-09-27 实测））
+      // 宿主 JobsPort 可得时注入 job 查询（jobStatus 才能反映真实后台任务）；缺失则用例如实报 not_found。
+      const jobs = deps.jobs
+      const dshJobsAdapter = jobs !== undefined && jobs.available()
+        ? { getJob: (id: string): Promise<{ status: string } | null> => jobs.get(id) }
+        : undefined
+      const status = await queryRunStatus({
+        requirementId,
+        getRequirement: async () => {
+          const rec = deps.repo.snapshot().requirements.find(r => r.id === requirementId)
+          if (rec === undefined) {
+            throw Object.assign(new Error('需求不存在：' + requirementId), { code: 'REQBOARD_REQUIREMENT_NOT_FOUND' })
+          }
+          return rec as unknown as RequirementRecord
+        },
+        getTasks: async () => {
+          // 任务来自队列（REQ-260927202051-f6df）：v9 台账已无 tasks。
+          const store = deps.taskStore
+          if (store === undefined) {
+            // 未装配 = 组合根配置错误：**显式失败**，不谎报"没有任务"（端口缺省语义）。
+            throw new Error('reqboard_run_status：任务存储（TaskStore）未装配，无法读取任务')
+          }
+          return (await store.listByRequirement(requirementId)) as unknown as TaskRecord[]
+        },
+        ...(dshJobsAdapter !== undefined ? { dshJobsAdapter } : {}),
+      })
+
       return {
         success: true,
         requirement_id: requirementId,
-        ...(status.runId !== undefined ? { run_id: status.runId } : {}),
+        ...(typeof status.runId === 'string' ? { run_id: status.runId } : {}),
         snapshot: status
       }
     }

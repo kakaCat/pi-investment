@@ -5,13 +5,16 @@
  * 子代理在**别的会话**——该检查对子卡恒不成立。子卡改用与窗口无关的三项 + 保留
  * 页面插件构建新鲜度：
  *   ① 子卡 report 非空（调度器从 run 产出生成，含 filesChanged / 完成项）；
- *   ② filesChanged 至少一个文件真实存在且 mtime ≥ 子卡开工时刻（文件系统证据）；
+ *   ② **证据形态分流**（见 STAGE_EVIDENCE_KIND）：写入族 = filesChanged 至少一个文件真实存在
+ *      且 mtime ≥ **链出身**（requirement/父卡/子卡 createdAt 最小值，非会漂移的 claimedAt）；
+ *      结论族（review/test/verify/…） = 天然无 diff，完工结论非空即放行；
  *   ③ run 的 stopReason=completed 且产出经 realm 物化非空。
  * **豁免**：本窗口工具活动、60 秒批量关闭节流（这两条是为人工窗口防刷设计的）。
  *
  * @module dsh-pmboard/application/internal/subtask-evidence
  */
 import { fmt } from '../../domain/text/fmt.js'
+import { STAGE_EVIDENCE_KIND, type StageKind } from '../../domain/task/SubtaskTemplate.js'
 
 /** run 证据投影（台账 TaskRecord.lastRun 的形状）。 */
 export interface SubtaskRunView {
@@ -26,8 +29,13 @@ export interface SubtaskEvidenceInput {
   reportFilesChanged: readonly string[]
   reportCompleted: readonly string[]
   run: SubtaskRunView | undefined
-  /** 子卡开工时刻（claimedAt；缺省 createdAt） */
+  /**
+   * 证据新鲜度基准 = **链出身**（requirement/父卡/子卡 createdAt 的最小值，见 support.assertDoneEvidence）。
+   * 不再是会随重跑漂移的 claimedAt（L1 基准单调化）。
+   */
   since: number
+  /** 子卡阶段（受控 StageKind）；缺省按写入族从严（见 STAGE_EVIDENCE_KIND） */
+  stageKind?: StageKind
   /** 汇报文件的 mtime（不存在的文件为 undefined） */
   fileMtimes: Readonly<Record<string, number | undefined>>
   /** 汇报里涉及的页面插件源文件（packages/pages 下 src，构建新鲜度检查用） */
@@ -59,15 +67,26 @@ export function checkSubtaskEvidence(input: SubtaskEvidenceInput): EvidenceVerdi
   if (!input.hasReport || (input.reportFilesChanged.length === 0 && input.reportCompleted.length === 0)) {
     return gate(fmt('子卡凭证不过：缺少完工汇报（filesChanged/completed 至少一项非空）', {}))
   }
+  // L2 证据形态分流（D17）：写入族必须有落盘改动；结论族（review/test/verify/…）天然无 diff，
+  // 完工结论非空即放行。此前"无 filesChanged 一律拒"让结论族 100% 死、链必停。
+  const evidenceKind = input.stageKind === undefined
+    ? 'file' // 阶段未知 → 按写入族从严
+    : STAGE_EVIDENCE_KIND[input.stageKind] ?? 'file'
   if (input.reportFilesChanged.length === 0) {
-    return gate(fmt('子卡凭证不过：汇报未给出改动文件（缺少文件系统证据）', {}))
-  }
-  const fresh = input.reportFilesChanged.some((f) => {
-    const m = input.fileMtimes[f]
-    return m !== undefined && m >= input.since
-  })
-  if (!fresh) {
-    return gate(fmt('子卡凭证不过：改动文件不存在或 mtime 早于开工时刻 {since}', { since: input.since }))
+    if (evidenceKind !== 'verdict') {
+      return gate(fmt('子卡凭证不过：阶段 {stage} 属写入族，汇报未给出改动文件（缺少文件系统证据）', {
+        stage: String(input.stageKind ?? ''),
+      }))
+    }
+    // 结论族：前面已保证 filesChanged/completed 至少其一非空，这里 completed 必非空 → 放行。
+  } else {
+    const fresh = input.reportFilesChanged.some((f) => {
+      const m = input.fileMtimes[f]
+      return m !== undefined && m >= input.since
+    })
+    if (!fresh) {
+      return gate(fmt('子卡凭证不过：改动文件不存在或 mtime 早于链出身 {since}', { since: input.since }))
+    }
   }
   if (input.pagesSrcFiles.length > 0) {
     if (!input.clientBuildExists) {

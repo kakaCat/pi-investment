@@ -36,7 +36,7 @@ export function defineAskConfirmTool(deps: UseCaseDeps) {
       },
       advance: { type: 'boolean', description: '确认后是否自动推进到下一阶段（默认 true）' },
       evidence: { type: 'string', description: '文字证据路径：用户在 ask_user_question 中的确认答复原文（必填于该路径，须命中真实用户消息）' },
-      inline_grace_ms: { type: 'number', description: '非阻塞宽限窗口（毫秒；缺省取配置 LIMITS.confirmInlineGraceMs）——超宽限即返回 pending=true + ticket，不判失败' },
+      inline_grace_ms: { type: 'number', description: '非阻塞宽限窗口（毫秒）：缺省不传 = 阻塞等待（等到作答/取消/中止才返回，与原生 ask_user_question 一致）；显式传正数 = 主动放弃阻塞，超时即返回 pending=true + ticket、loop 继续跑（后果自负）' },
     },
     output: {
       schema: {
@@ -58,6 +58,7 @@ export function defineAskConfirmTool(deps: UseCaseDeps) {
           user_feedback: { type: 'string', description: '弹框路径（非肯定项）：用户输入的修改意见或反馈' },
           pending: { type: 'boolean', description: 'REQ-260924213231-b1c4 FR-3：超宽限挂起（弹框已投递、人未作答）——不判失败，凭 ticket 取回执' },
           ticket: { type: 'string', description: 'FR-3：挂起确认标识（pc-…），回执 reqboard_confirm_receipt(ticket) 的入参' },
+          interrupted: { type: 'boolean', description: 'REQ-260927123256-196b FR-4：阻塞等待被中止（deadline/取消）——已留可查挂起记录，凭 ticket 取回执' },
           gate_failure: {
             type: 'object',
             description: 'REQ-2d1c74 FR-2：G2 文档集完整性闸门未过（落章保留、推进被拦）时的结构化缺口（code/gaps/message）',

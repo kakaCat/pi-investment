@@ -75,6 +75,29 @@ export function defineStatusTool(deps: UseCaseDeps) {
               additionalProperties: true,
             },
           },
+          pending_confirms: {
+            type: 'array',
+            description:
+              '本窗口仍然有意义的未作答确认（REQ-260927123256-196b FR-4）：已 settle / 已过期 / 台账已落章的陈旧记录不列；非空即表示 agent 正阻塞等待作答，写路径会被 REQBOARD_CONFIRM_PENDING 拦住',
+            items: {
+              type: 'object',
+              additionalProperties: true,
+              properties: {
+                ticket: { type: 'string', description: '挂起确认标识（pc-…）' },
+                requirement_id: { type: 'string', description: '目标需求 id' },
+                target: { type: 'string', description: 'artifact | plan' },
+                kind: { type: 'string', description: 'target=artifact 时的产物种类' },
+                created_at: { type: 'number', description: '登记时间戳（ms）' },
+                interrupted: { type: 'boolean', description: '是否被中止（阻塞期间 deadline/取消）' },
+                blocked_tools: {
+                  type: 'array',
+                  description: '被停手守卫拦住的写路径名单',
+                  items: { type: 'string' },
+                },
+                recovery: { type: 'string', description: '一句话恢复指引（取回执 / 看板确认）' },
+              },
+            },
+          },
           fr_coverage: {
             type: 'object',
             description: 'FR 覆盖度统计（REQ-260925172227-2d61）',

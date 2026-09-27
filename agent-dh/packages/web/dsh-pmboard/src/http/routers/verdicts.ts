@@ -18,7 +18,9 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
   assertReqTransition,
   normalizeText,
-  recordStatus,
+  type RequirementRecord,
+  type ReqboardLedger,
+  type TaskRecord,
 } from '../../shared/protocol.js'
 import {
   countFailedItems, countPassedItems, countPendingItems, isAccepting, isAcceptingStage,
@@ -26,11 +28,12 @@ import {
 } from '../../domain/status/Predicates.js'
 import { ACCEPTED_REQ_STATUS, REWORK_REQ_STATUS } from '../../domain/requirement/RequirementStatus.js'
 import { applyVerdicts, materializeReworkFromSheet } from '../../application/internal/verdicts.js'
+import { transitionRequirement } from '../../application/internal/token-usage.js'
 import { rewriteVerificationDoc } from '../../application/internal/verification-doc-writer.js'
 import type { RouterCtx } from './shared.js'
 
 export function createVerdictsRouter(ctx: RouterCtx) {
-  const { store, now, ids, ok, readBody, badInput, notFound } = ctx
+  const { store, taskStore, now, ids, ok, readBody, badInput, notFound } = ctx
 
   /**
    * 验收人工审核（仅人）：pass → archived（验收通过即归档），rework → implementing（必须写意见）。
@@ -45,7 +48,21 @@ export function createVerdictsRouter(ctx: RouterCtx) {
     const note = normalizeText(body.note, 'note', 1000)
     const confirmOverride = normalizeText(body.confirm_override, 'confirm_override', 1000)
     if (!pass && note.length === 0) badInput('退回返工必须写清意见（note）')
-    const result = await store.mutate('requirement-moved', (ledger) => {
+    // ── 两存储顺序契约（REQ-260927202051-f6df / design/interfaces I-11）：**任务先、需求后** ──
+    // 先在台账**草稿**上把整段逻辑算完（纯计算、不落盘）→ 拿到返工卡 → createMany（任务）
+    // → 再整条替换需求记录（需求）。反序会出现"返工卡已建、需求态未落"的悬空态。
+    const snapshot = store.snapshot()
+    const draft: ReqboardLedger = {
+      schemaVersion: snapshot.schemaVersion,
+      revision: snapshot.revision,
+      requirements: snapshot.requirements.map(x => structuredClone(x)),
+      triages: snapshot.triages.map(x => structuredClone(x)),
+    }
+    const statusBefore = (draft.requirements.find(x => x.id === id) ?? notFound("需求 " + id)).status
+    // 队列任务先取（返工卡 id 冲突检测与"未过项"判定需要它）。
+    const queueTasks = await taskStore.listByRequirement(id)
+    // 纯计算（原 mutate 回调体逐字保留，只是不再落盘）：在草稿上完成校验与全部就地改写。
+    const compute = (ledger: ReqboardLedger): { updated: RequirementRecord; reworkTasks: TaskRecord[] } => {
       const r = ledger.requirements.find(x => x.id === id) ?? notFound("需求 " + id)
       if (!isAccepting(r)) badInput("需求 " + id + " 当前处于 " + r.status + "，不在验收态（先提交验收）")
 
@@ -86,7 +103,7 @@ export function createVerdictsRouter(ctx: RouterCtx) {
         }
       }
       // REQ-a8d582 FR-2：返工任务跟着"退回返工"这个**人的动作**走（原先在裁决时就自动生成）。
-      const reworkTasks = pass ? [] : materializeReworkFromSheet(ledger, r.id, { kind: 'human' }, now())
+      const reworkTasks = pass ? [] : materializeReworkFromSheet(ledger, queueTasks, r.id, { kind: 'human' }, now())
       if (v !== undefined) {
         v.reviewedAt = now()
         v.reviewedBy = { kind: 'human' }
@@ -103,13 +120,18 @@ export function createVerdictsRouter(ctx: RouterCtx) {
           noMaterials,
         }
       }
-      r.status = to
-      r.version += 1
-      r.updatedAt = now()
-      r.updatedBy = { kind: 'human' }
-      recordStatus(r, to, r.updatedAt, { kind: 'human' }, pass
-        ? (unqualified ? '人工验收通过（带覆盖：' + confirmOverride + '）' : '人工验收通过')
-        : '人工验收退回返工：' + note)
+      // REQ-260927121324-abde FR-1：五连写收敛到唯一迁移助手；会话码取需求绑定的
+      // sourceSessionId，取不到则诚实不传快照（不伪造写时快照）。
+      const verifySid = r.sourceSessionId
+      const verifySnap = verifySid !== undefined && verifySid.length > 0 ? ctx.deps.tokenSnapshot?.(verifySid) : undefined
+      transitionRequirement(r, to, {
+        at: now(),
+        actor: { kind: 'human', ...(verifySid !== undefined && verifySid.length > 0 ? { sessionId: verifySid } : {}) },
+        reason: pass
+          ? (unqualified ? '人工验收通过（带覆盖：' + confirmOverride + '）' : '人工验收通过')
+          : '人工验收退回返工：' + note,
+        ...(verifySnap !== undefined ? { snap: verifySnap } : {}),
+      })
       r.comments.push({
         id: ids.comment(),
         body: pass
@@ -122,9 +144,22 @@ export function createVerdictsRouter(ctx: RouterCtx) {
         createdAt: now(),
         createdBy: { kind: 'human' },
       })
-      return { requirements: [r], tasks: reworkTasks }
+      return { updated: r, reworkTasks }
+    }
+    const { updated, reworkTasks } = compute(draft)
+    // ① 任务写（**先**）：返工卡物化到队列（幂等键 = 任务 id；重复调用不覆盖）
+    if (reworkTasks.length > 0) await taskStore.createMany(id, reworkTasks)
+    // ② 需求写（**后**）：整条替换（防并发漂移：状态须仍是计算时的）
+    await store.mutate('requirement-moved', (ledger) => {
+      const idx = ledger.requirements.findIndex(x => x.id === id)
+      if (idx < 0) return undefined
+      if (ledger.requirements[idx]?.status !== statusBefore) {
+        throw Object.assign(new Error('需求 ' + id + ' 状态在计算期间发生变化，请重试'), { code: 'store_inconsistent' })
+      }
+      ledger.requirements[idx] = updated
+      return { requirements: [updated] }
     })
-    ok(res, result.changed.requirements[0])
+    ok(res, updated)
   }
 
   /**
@@ -154,7 +189,19 @@ export function createVerdictsRouter(ctx: RouterCtx) {
       return { itemId, status, opinion }
     })
     const nowTs = now()
-    const result = await store.mutate('requirement-updated', (ledger) => {
+    // ── 两存储顺序契约（REQ-260927202051-f6df / design/interfaces I-11）：**任务先、需求后** ──
+    // 同 handleVerifyDecision：先在台账草稿上算完 → 返工卡写队列 → 需求记录写台账。
+    const snapshot = store.snapshot()
+    const draft: ReqboardLedger = {
+      schemaVersion: snapshot.schemaVersion,
+      revision: snapshot.revision,
+      requirements: snapshot.requirements.map(x => structuredClone(x)),
+      triages: snapshot.triages.map(x => structuredClone(x)),
+    }
+    const statusBefore = (draft.requirements.find(x => x.id === id) ?? notFound('需求 ' + id)).status
+    // 队列任务先取（applyVerdicts 需要它做 id 冲突检测与"未过项"判定）。
+    const queueTasks = await taskStore.listByRequirement(id)
+    const compute = (ledger: ReqboardLedger): { updated: RequirementRecord; reworkTasks: TaskRecord[] } => {
       const r = ledger.requirements.find(x => x.id === id) ?? notFound('需求 ' + id)
       if (!isVerifiableStage(r)) {
         badInput('需求 ' + id + ' 当前处于 ' + r.status + '，不在验收/返工态（先提交验收单）')
@@ -167,14 +214,34 @@ export function createVerdictsRouter(ctx: RouterCtx) {
       // 此前这里**内联实现了一遍**与 application/internal/verdicts.ts 相同的逻辑，
       // 而后者文件头却写着"路由与会话工具共用的单一实现"——两处必然漂移。
       // 现统一委托 applyVerdicts：逐项裁决 + failed 自动回退实施（FR-8）+ 物化返工卡。
+      // REQ-260927121324-abde FR-3：failed 自动回退要结算离开 accepting 节点的快照；
+      // 会话码取需求 sourceSessionId，取不到则诚实不传（undefined → 不写快照）。
+      const verdictSid = r.sourceSessionId
+      const verdictSnap = verdictSid !== undefined && verdictSid.length > 0 ? ctx.deps.tokenSnapshot?.(verdictSid) : undefined
       const applied = applyVerdicts(
-        ledger, r.id, version, verdicts as never, { kind: 'human' }, nowTs, () => ids.comment(),
+        ledger, queueTasks, r.id, version, verdicts as never, { kind: 'human' }, nowTs, () => ids.comment(), verdictSnap,
       )
-      return { requirements: [applied.requirement], tasks: applied.reworkTasks }
+      return { updated: applied.requirement, reworkTasks: applied.reworkTasks }
+    }
+    const { updated: r, reworkTasks } = compute(draft)
+    // ① 任务写（**先**）：返工卡物化到队列（幂等键 = 任务 id；重复调用不覆盖）
+    if (reworkTasks.length > 0) await taskStore.createMany(id, reworkTasks)
+    // ② 需求写（**后**）：整条替换（防并发漂移：状态须仍是计算时的）
+    await store.mutate('requirement-updated', (ledger) => {
+      const idx = ledger.requirements.findIndex(x => x.id === id)
+      if (idx < 0) return undefined
+      if (ledger.requirements[idx]?.status !== statusBefore) {
+        throw Object.assign(new Error('需求 ' + id + ' 状态在计算期间发生变化，请重试'), { code: 'store_inconsistent' })
+      }
+      ledger.requirements[idx] = r
+      return { requirements: [r] }
     })
-    const r = result.changed.requirements[0]
-    // REQ-308b9a FR-7 / AC-7.7：看板裁决后回填 verification.md 的验收结果表（有 docs 端口才写）。
-    await rewriteVerificationDoc({ repo: store, ...(ctx.deps.docs !== undefined ? { docs: ctx.deps.docs } : {}) }, r.id)
+    // REQ-308b9a FR-7 / AC-7.7：看板裁决后回填 verification.md 的验收结果表（有 docs 端口才写；任务从队列取）。
+    await rewriteVerificationDoc(
+      { repo: store, ...(ctx.deps.docs !== undefined ? { docs: ctx.deps.docs } : {}) },
+      r.id,
+      await taskStore.listByRequirement(r.id),
+    )
     const sheet = r.verification?.sheet
     const failed = sheet === undefined ? 0 : countFailedItems(sheet.items)
     const pending = sheet === undefined ? 0 : countPendingItems(sheet.items)
@@ -186,9 +253,9 @@ export function createVerdictsRouter(ctx: RouterCtx) {
       passed: sheet === undefined ? 0 : countPassedItems(sheet.items),
       failed,
       // REQ-308b9a FR-8：裁决含 failed 时返回真实生成的返工卡 id 列表。
-      rework_tasks: (result.changed.tasks ?? []).map(t => t.id),
+      rework_tasks: reworkTasks.map(t => t.id),
       note: failed > 0
-        ? '有 ' + failed + ' 项不通过：已自动回退实施并生成 ' + (result.changed.tasks ?? []).length + ' 张返工任务'
+        ? '有 ' + failed + ' 项不通过：已自动回退实施并生成 ' + reworkTasks.length + ' 张返工任务'
         : ((sheet !== undefined && isFullyDecidedItems(sheet.items))
             ? '全部已裁决 → 请点「验收通过」归档（人工门）'
             : '裁决已记录（挂起中，可稍后从断点续验）'),

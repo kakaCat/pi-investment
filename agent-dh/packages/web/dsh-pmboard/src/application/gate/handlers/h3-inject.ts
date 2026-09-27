@@ -15,8 +15,8 @@ import { fmt } from '../../../domain/text/fmt.js'
 import { isPromptStage, resolveStagePrompt, type ResolvedPrompt, type StagePromptRequest } from '../../../domain/prompt/index.js'
 import { difficultyFromDeclaredPrompt } from '../../../domain/prompt/difficulty-mapping.js'
 import { stageEnabledFor } from '../../../shared/protocol.js'
-import type { RequirementRecord } from '../../../shared/protocol.js'
-import type { ReqboardRepository } from '../../ports.js'
+import type { RequirementRecord, TaskRecord } from '../../../shared/protocol.js'
+import type { ReqboardRepository, TaskStore } from '../../ports.js'
 import { injectionLogInputFromResolved, type InjectionLogPort } from '../../internal/injection-log.js'
 import { augmentResolvedPrompt } from '../../internal/injection-address.js'
 import { isInProgressTask } from '../../../domain/status/Predicates.js'
@@ -25,6 +25,11 @@ import { pickGateRequirement, reasonOf } from './shared.js'
 
 export interface H3InjectDeps {
   repo: ReqboardRepository
+  /**
+   * 任务队列端口（REQ-260927202051-f6df）：地址段需要"当前在制任务卡"，v9 台账已无 `tasks`。
+   * `run()` 是 async，故此处直接 await（无需同步缓存——与 capture-section 的 section provider 不同）。
+   */
+  taskStore: TaskStore
   /** 注入留痕端口（INV-6）；未注入 = 不留痕（结果仍可从 scratch 断言）。 */
   injectionLog?: InjectionLogPort
   /** 取词入口（INV-1）；测试可换替身。 */
@@ -36,9 +41,16 @@ export interface H3InjectDeps {
 }
 
 /** 地址段增强（T-3）：开关关/根缺失 → 原样返回；渲染异常 → 原样返回（沿用既有降级留痕，不静默破坏）。 */
-function withAddress(resolved: ResolvedPrompt, deps: H3InjectDeps, requirement: RequirementRecord, stage: StagePromptRequest['stage']): ResolvedPrompt {
+function withAddress(
+  resolved: ResolvedPrompt,
+  deps: H3InjectDeps,
+  requirement: RequirementRecord,
+  stage: StagePromptRequest['stage'],
+  tasks: readonly TaskRecord[],
+): ResolvedPrompt {
   if (deps.addressSectionEnabled === false || deps.templateRoot === undefined) return resolved
-  const currentTask = deps.repo.snapshot().tasks.find(t => t.requirementId === requirement.id && isInProgressTask(t))
+  // 队列任务（REQ-260927202051-f6df：`LedgerView.tasks` 随 v9 移除）——由 async 的 run() 预取后传入。
+  const currentTask = tasks.find(t => t.requirementId === requirement.id && isInProgressTask(t))
   try {
     return augmentResolvedPrompt(resolved, {
       stage,
@@ -94,7 +106,7 @@ export function createH3InjectHandler(deps: H3InjectDeps): GateHandler {
         if (located.text.length === 0) {
           return miss({ kind: 'degraded', code: 'empty_prompt', reason: '取词结果为空（分片库缺该阶段）' })
         }
-        const resolved = withAddress(located, deps, requirement, ctx.to)
+        const resolved = withAddress(located, deps, requirement, ctx.to, await deps.taskStore.listByRequirement(requirement.id))
         deps.injectionLog?.record(injectionLogInputFromResolved(resolved, ctx.windowKey))
         if (scratch !== undefined) scratch.promptText = resolved.text
         return { kind: 'continue' }

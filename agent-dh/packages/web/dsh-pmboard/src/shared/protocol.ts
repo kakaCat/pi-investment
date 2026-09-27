@@ -815,7 +815,7 @@ export function normalizePlanTasks(raw: unknown): PlanTask[] {
       ...(description.length > 0 ? { description } : {}),
       phase: o.phase === undefined ? 'implement' : asTaskPhase(o.phase),
       side: o.side === undefined ? 'fullstack' : asTaskSide(o.side),
-      dependsOn: asDependsOn(o.dependsOn ?? o.depends_on),
+      dependsOn: asDependsOn(o.dependsOn ?? o.depends_on ?? o['依赖']),
       ...(acceptance.length > 0 ? { acceptance } : {}),
       ...(implementation.length > 0 ? { implementation } : {}),
       ...(executorHint !== undefined ? { executorHint } : {}),
@@ -955,6 +955,11 @@ export interface PendingConfirmation {
   /** target=artifact 时的产物种类 */
   kind?: ArtifactKind
   createdAt: number
+  /**
+   * 阻塞等待期间被中止（ASK_ABORTED / signal.aborted）的留痕时间（REQ-260927123256-196b FR-4）。
+   * 缺省 = 未被中止。写首次即定（幂等）；也是过期基准——中止记录再获一个完整 TTL。
+   */
+  interruptedAt?: number
   /** 后台作答后回填（缺省 = 尚未作答） */
   outcome?: PendingConfirmationOutcome
 }
@@ -1181,6 +1186,12 @@ export interface TaskRecord {
    * 汇报即留痕——转 done 前必须存在且 filesChanged/completed 至少其一非空。
    */
   lastReport?: TaskReportSummary
+  // ── FR-11 路线 A（REQ-260926140539-457b）：团队执行映射（可缺省 = 走 workflow 兼容路径） ──
+  /**
+   * 该子卡在 DSH Agent Teams 共享任务板上的 team task id（team task id ↔ 子卡 id 的持久映射）。
+   * 有值 = 该卡已派给团队 Worker；链靠它把"任务板 completed"对回这张卡。
+   */
+  teamTaskId?: string
   /** 执行方式提示（decompose 从 PlanTask 透传） */
   executorHint?: ExecutorHint
   /** 自足任务卡文档（decompose 生成骨架，task_report 追加汇报；同 StageTaskRef.cardDoc） */
@@ -1212,13 +1223,21 @@ export interface TaskRecord {
 // 迁移后文件里写的就是 5，常量必须与之一致，否则 load 会把 5 报告成 4、并在下一次写盘时把
 // 版本回退（迁移成果被静默抹掉）。⚠️ 运行时**不自动迁移**（见 design/migration.md §5）：
 // v4 台账仍可载入（字段缺失处按可选处理），迁移由人工跑 scripts/migrate-ledger.ts 完成。
-export const REQBOARD_SCHEMA_VERSION = 8
+//
+// REQ-260927202051-f6df t6：8 → **9**，并把 `tasks` 从台账**移除**（任务迁往
+// `docs/requirements/<REQ>/queue.json`，读方端口 = TaskStore）。
+// ⚠️ 这一次不是"再升一个号"那么轻：**读兼容从"宽容"翻转为"拒绝"**——v8（含 tasks）台账
+// 会被运行时**拒绝加载**并抛 `LEDGER_REQUIRES_MIGRATION`。理由见 design/architecture.md：
+// 静默丢弃 600+ 条任务、看板直接空白是最坏结果；宁可启动失败并指向迁移脚本。
+// 因此 v9 与读方改造（t7~t10）必须**同批上线**，中间不得发版（v9 台账 + 旧读方 = 界面空白）。
+export const REQBOARD_SCHEMA_VERSION = 9
 
 export interface ReqboardLedger {
   schemaVersion: number
   revision: number
   requirements: RequirementRecord[]
-  tasks: TaskRecord[]
+  // REQ-260927202051-f6df t6：`tasks: TaskRecord[]` 已移除（schemaVersion 9）。
+  // 任务卡的唯一存储 = 各需求的 queue.json；台账只留 requirements / triages。
   triages: TriageRecord[]
   /**
    * 迁移留痕（C2，REQ-47939a t10）：这份台账何时被谁升到过哪个版本。
@@ -1228,7 +1247,7 @@ export interface ReqboardLedger {
 }
 
 export function emptyLedger(): ReqboardLedger {
-  return { schemaVersion: REQBOARD_SCHEMA_VERSION, revision: 0, requirements: [], tasks: [], triages: [] }
+  return { schemaVersion: REQBOARD_SCHEMA_VERSION, revision: 0, requirements: [], triages: [] }
 }
 
 // ---------------------------------------------------------------------------

@@ -18,7 +18,6 @@ import {
 import type { IdFactory } from '../ports.js'
 import {
   recordStatus,
-  type ReqboardLedger,
   type RequirementRecord,
   type TaskRecord,
 } from '../../shared/protocol.js'
@@ -49,18 +48,21 @@ function childImplementation(parent: TaskRecord, label: string, acceptance: stri
 }
 
 /**
- * 落子卡链（调用方须在 mutate 事务内调用；不 push 到 ledger 之外）。
- * 返回新建的子卡（已有子卡 / 自身是子卡 → 返回空数组，幂等）。
+ * 造子卡链（**只返回新建子卡，不落库**）。
+ *
+ * REQ-260927202051-f6df D4：任务已不在台账（v9 无 `tasks` 键），故本函数收**队列任务**作幂等判据，
+ * 返回新建的子卡由调用方 append 进 `taskStore.mutate` 的草稿并 `return tasks` 落盘。
+ * 幂等：已有子卡 / 自身是子卡 → 返回空数组。
  */
 export function expandSubtasks(
-  ledger: ReqboardLedger,
+  tasks: readonly TaskRecord[],
   parent: TaskRecord,
   requirement: Pick<RequirementRecord, 'category'> | undefined,
   now: number,
   ids: IdFactory,
 ): TaskRecord[] {
   if (parent.parentId !== undefined) return []
-  if (ledger.tasks.some((t) => t.parentId === parent.id)) return []
+  if (tasks.some((t) => t.parentId === parent.id)) return []
   const stages = resolveSubtaskStages(parent, requirement)
   const specs = buildSubtaskSpecs(stages)
   const actor = { kind: 'system' as const }
@@ -99,7 +101,7 @@ export function expandSubtasks(
       statusHistory: [],
     }
     recordStatus(child, 'todo', now, actor)
-    ledger.tasks.push(child)
+    // 不 push：任务由调用方经 taskStore.mutate 落队列（REQ-260927202051-f6df）
     created.push(child)
   }
   return created

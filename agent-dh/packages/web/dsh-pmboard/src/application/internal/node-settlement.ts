@@ -19,7 +19,7 @@
  *
  * @module dsh-pmboard/application/internal/node-settlement
  */
-import type { Clock, DocRepository, ReqboardRepository } from '../ports.js'
+import type { Clock, DocRepository, ReqboardRepository, TaskStore } from '../ports.js'
 import { fmt } from '../../domain/text/fmt.js'
 import type { Category, Difficulty, PromptStage } from '../../domain/prompt/index.js'
 import {
@@ -85,6 +85,11 @@ export interface NodeSettlementDeps {
   repo: ReqboardRepository
   docs: DocRepository
   clock: Clock
+  /**
+   * 任务队列端口（REQ-260927202051-f6df）：台账 v9 起任务不在 `LedgerView`，
+   * `isolateNodeContext` 取"当前在制任务卡"必须经它。**必填**（同 `IsolateNodeContextDeps.taskStore`）。
+   */
+  taskStore: TaskStore
   /** 异步边界调度（默认 setImmediate）；注入替身可做调用顺序断言。 */
   schedule?: (task: () => void) => void
   /** 只告警不中断：所有非成功路径与异常都经这里（组合根接 logger.warn）。 */
@@ -157,6 +162,7 @@ export function createNodeSettlementDispatcher(deps: NodeSettlementDeps): NodeSe
         repo: deps.repo,
         docs: deps.docs,
         clock: deps.clock,
+        taskStore: deps.taskStore,
         ...(isolation === undefined ? {} : { isolation }),
         ...(deps.trace === undefined ? {} : { trace: deps.trace }),
         ...(deps.address?.enabled === false || deps.address?.templateRoot === undefined ? {} : { templateRoot: deps.address.templateRoot }),

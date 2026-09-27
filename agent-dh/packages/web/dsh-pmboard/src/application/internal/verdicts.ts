@@ -50,16 +50,21 @@ export class VerdictError extends Error {
   }
 }
 
-/** 返工规格 → 落库任务记录（id 冲突重试；状态事件与时间戳由 host 负责）。 */
+/**
+ * 返工规格 → 任务记录（id 冲突重试；状态事件与时间戳在此写）。
+ *
+ * **不落库**（REQ-260927202051-f6df）：任务已不在台账，调用方拿到返回的 TaskRecord 后
+ * 经 `taskStore.createMany(reqId, …)` 落队列。`tasks` 只用于 id 冲突检测。
+ */
 function materializeReworkTask(
-  ledger: ReqboardLedger,
+  tasks: readonly TaskRecord[],
   reqId: string,
   spec: ReworkTaskSpec,
   actor: ActorRef,
   nowTs: number,
 ): TaskRecord {
   let tid = newTaskId()
-  for (let g = 0; g < 50 && ledger.tasks.some(t => t.id === tid); g++) tid = newTaskId()
+  for (let g = 0; g < 50 && tasks.some(t => t.id === tid); g++) tid = newTaskId()
   const task: TaskRecord = {
     id: tid,
     requirementId: reqId,
@@ -83,17 +88,22 @@ function materializeReworkTask(
     updatedBy: actor,
   }
   recordStatus(task, 'todo', nowTs, actor, '验收不通过 → 自动生成返工任务（W6）')
-  ledger.tasks.push(task)
   return task
 }
 
 /**
- * 在 mutate 内应用逐项裁决（就地修改 ledger）。
+ * 应用逐项裁决（**纯函数式：不落库**，只就地改台账需求记录并返回待落库的返工卡）。
+ *
+ * @param tasks 队列任务（REQ-260927202051-f6df：`LedgerView.tasks` 已随 schema v9 移除）——
+ *              只读输入，用于 id 冲突检测与验收项→任务的判定；**本函数不写它**。
  * @param actor 裁决人（看板=human / 会话弹框=human+sessionId）
  * @param commentId 评论 id 生成器
+ * @returns `reworkTasks` = 新 TaskRecord[]（**调用方负责落库**：`taskStore.createMany` **先**、
+ *          `repo.mutate` 写需求态 **后**——顺序契约见 design/interfaces.md I-11）
  */
 export function applyVerdicts(
   ledger: ReqboardLedger,
+  tasks: readonly TaskRecord[],
   reqId: string,
   version: number,
   verdicts: readonly VerdictInput[],
@@ -124,7 +134,7 @@ export function applyVerdicts(
   }
   let applied: ReturnType<typeof applySheetVerdicts>
   try {
-    applied = applySheetVerdicts(sheet, verdicts, actor, nowTs, ledger.tasks)
+    applied = applySheetVerdicts(sheet, verdicts, actor, nowTs, tasks)
   } catch (err) {
     if (hasErrorCode(err, REQBOARD_ERROR_CODES.invalidInput)) {
       // 保持既有传输码 opinion_required（工具层据此回执）；消息文案不变。
@@ -137,7 +147,7 @@ export function applyVerdicts(
   // 出现 failed → **同笔 mutate 内**自动回退实施 + 物化返工卡；不再等人点「退回返工」。
   // 原子性（AC-8.3）：物化或状态迁移抛错 → 整笔 mutate 回滚，不出现"状态改了卡没建"。
   const reworkTasks: TaskRecord[] = applied.failed > 0
-    ? materializeReworkFromSheet(ledger, reqId, actor, nowTs)
+    ? materializeReworkFromSheet(ledger, tasks, reqId, actor, nowTs)
     : []
   if (applied.failed > 0 && r.status !== REWORK_REQ_STATUS) {
     transitionRequirement(r, REWORK_REQ_STATUS, {
@@ -177,6 +187,7 @@ export function applyVerdicts(
  */
 export function materializeReworkFromSheet(
   ledger: ReqboardLedger,
+  tasks: readonly TaskRecord[],
   reqId: string,
   actor: ActorRef,
   nowTs: number,
@@ -184,5 +195,5 @@ export function materializeReworkFromSheet(
   const r = ledger.requirements.find(x => x.id === reqId)
   const sheet = r?.verification?.sheet
   if (r === undefined || sheet === undefined) return []
-  return reworkSpecsFor(sheet, ledger.tasks).map(spec => materializeReworkTask(ledger, r.id, spec, actor, nowTs))
+  return reworkSpecsFor(sheet, tasks).map(spec => materializeReworkTask(tasks, r.id, spec, actor, nowTs))
 }

@@ -32,7 +32,7 @@
  * （复用 `adapters/JsonLedgerRepository.persistAtomic`）；③ 逐**路径**白名单校验，白名单外即中止且不落盘；
  * ④ 幂等（已是现行版本则 --apply 无操作）；⑤ v9 额外为"未被迁入任何队列的任务"写隔离文件（防静默丢失）。
  */
-import { copyFileSync, existsSync, readFileSync, readdirSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, readFileSync, readdirSync, renameSync, rmdirSync, mkdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { basename, dirname, join, resolve } from 'node:path'
 import { persistAtomic } from '../src/adapters/JsonLedgerRepository.js'
@@ -201,112 +201,18 @@ export function checkV9Whitelist(paths: string[]): { ok: string[]; bad: string[]
 // 拓扑 / 校验：直接用 t2/t3 的唯一实现（见文件头 import）
 // ---------------------------------------------------------------------------
 
-/** Kahn 入度分层；有环抛 Error（message 含 CIRCULAR）。空输入返回 `[]`（不抛错）。同层保持输入序。 */
-export function computeLayersLocal(tasks: readonly any[]): QueueLayer[] {
-  const ids = tasks.map((t) => t.id)
-  const idSet = new Set(ids)
-  const indeg = new Map<string, number>(ids.map((id) => [id, 0]))
-  const dependents = new Map<string, string[]>(ids.map((id) => [id, []]))
-  for (const t of tasks) {
-    for (const d of depsOf(t)) {
-      if (!idSet.has(d)) continue
-      indeg.set(t.id, (indeg.get(t.id) ?? 0) + 1)
-      dependents.get(d)!.push(t.id)
-    }
-  }
-  const layers: QueueLayer[] = []
-  let current = ids.filter((id) => (indeg.get(id) ?? 0) === 0)
-  let processed = 0
-  let layer = 0
-  while (current.length > 0) {
-    layers.push({ layer, tasks: [...current] })
-    const next: string[] = []
-    for (const id of current) {
-      processed += 1
-      for (const nx of dependents.get(id) ?? []) {
-        const v = (indeg.get(nx) ?? 0) - 1
-        indeg.set(nx, v)
-        if (v === 0) next.push(nx)
-      }
-    }
-    current = next
-    layer += 1
-  }
-  if (processed !== ids.length) {
-    const cyclic = ids.filter((id) => (indeg.get(id) ?? 0) > 0)
-    throw new Error('CIRCULAR_DEPENDENCY: 检出环依赖（涉及 ' + cyclic.length + ' 个任务：' + cyclic.slice(0, 8).join(',') + '）')
-  }
-  return layers
-}
-
-/** ready = 自身 `todo` 且依赖全部 `done`（V-5 的唯一推导口径）。 */
-export function computeReadyLocal(tasks: readonly any[]): string[] {
-  const byId = new Map(tasks.map((t) => [t.id, t]))
-  return tasks.filter((t) => t.status === 'todo' && depsOf(t).every((d) => byId.get(d)?.status === 'done')).map((t) => t.id)
-}
-
-/** V-1~V-6 校验；**永不抛错**（失败只填 issues）。 */
-export function validateQueueFileLocal(file: any): ValidationResult {
-  const issues: { rule: any; message: string; path?: string }[] = []
-  const push = (rule: any, message: string, path?: string) => { issues.push(path === undefined ? { rule, message } : { rule, message, path }) }
-  try {
-    // V-1 必填字段完整性
-    if (typeof file?.version !== 'number') push('V-1', 'version 缺失或非 number', 'version')
-    if (typeof file?.requirement_id !== 'string' || file.requirement_id.length === 0) push('V-1', 'requirement_id 缺失或非 string', 'requirement_id')
-    if (typeof file?.schemaVersion !== 'number') push('V-1', 'schemaVersion 缺失或非 number', 'schemaVersion')
-    if (typeof file?.generated_at !== 'string') push('V-1', 'generated_at 缺失或非 string', 'generated_at')
-    if (file?.updated_at !== undefined && typeof file.updated_at !== 'string') push('V-1', 'updated_at 非 string', 'updated_at')
-    for (const k of ['tasks', 'edges', 'layers', 'ready']) if (!Array.isArray(file?.[k])) push('V-1', k + ' 缺失或非数组', k)
-    if (!Array.isArray(file?.tasks) || !Array.isArray(file?.edges) || !Array.isArray(file?.layers) || !Array.isArray(file?.ready)) {
-      return { passed: false, issues } // 结构已坏，后续规则无意义（且不得抛错）
-    }
-    const tasks: any[] = file.tasks
-    const ids = new Set<string>()
-    const byId = new Map<string, any>()
-    tasks.forEach((t, i) => {
-      const id = t?.id
-      if (typeof id !== 'string' || id.length === 0) { push('V-2', 'tasks[' + i + '].id 缺失或非 string', 'tasks[' + i + '].id'); return }
-      if (ids.has(id)) push('V-2', '任务 id 重复：' + id, 'tasks[' + i + '].id')
-      ids.add(id)
-      byId.set(id, t)
-    })
-    tasks.forEach((t, i) => {
-      if (t?.requirementId !== file.requirement_id) push('V-3', 'task.requirementId≠queue.requirement_id（跨需求串档）：' + String(t?.requirementId), 'tasks[' + i + '].requirementId')
-      depsOf(t).forEach((d, j) => { if (!ids.has(d)) push('V-3', 'dependsOn 引用不存在的任务：' + d, 'tasks[' + i + '].dependsOn[' + j + ']') })
-    })
-    file.edges.forEach((e: any, i: number) => { if (!ids.has(e?.from) || !ids.has(e?.to)) push('V-3', 'edge 引用不存在的任务', 'edges[' + i + ']') })
-    file.layers.forEach((l: any, i: number) => { for (const id of l?.tasks ?? []) if (!ids.has(id)) push('V-3', 'layers 引用不存在的任务：' + id, 'layers[' + i + ']') })
-    file.ready.forEach((id: string, i: number) => { if (!ids.has(id)) push('V-3', 'ready 引用不存在的任务：' + id, 'ready[' + i + ']') })
-    // V-4 层级一致性
-    tasks.forEach((t, i) => {
-      if (typeof t?.layer !== 'number' || t.layer < 0) { push('V-4', 'layer 缺失或为负', 'tasks[' + i + '].layer'); return }
-      if (t.layer === 0 && depsOf(t).length > 0) push('V-4', 'layer=0 的任务不得有依赖', 'tasks[' + i + '].layer')
-      for (const d of depsOf(t)) {
-        const dep = byId.get(d)
-        if (dep !== undefined && typeof dep.layer === 'number' && t.layer <= dep.layer) push('V-4', 'layer(' + t.layer + ') 不大于依赖 ' + d + '.layer(' + dep.layer + ')', 'tasks[' + i + '].layer')
-      }
-    })
-    // V-5 ready 双向一致性
-    const readySet = new Set<string>(file.ready.filter((x: unknown): x is string => typeof x === 'string'))
-    for (const t of tasks) {
-      const depsDone = depsOf(t).every((d) => byId.get(d)?.status === 'done')
-      if (readySet.has(t.id) && !depsDone) push('V-5', '假就绪：依赖未全 done 却进 ready：' + t.id, 'ready')
-      if (t?.status === 'todo' && !readySet.has(t.id) && depsDone) push('V-5', '漏就绪：依赖已全 done 却不在 ready：' + t.id, 'ready')
-    }
-    // V-6 无环性
-    try { computeLayersLocal(tasks) } catch (e) { push('V-6', (e as Error).message) }
-  } catch (e) {
-    push('V-1', '校验过程内部异常（已降级为 issue，不抛错）：' + (e as Error).message)
-  }
-  return { passed: issues.length === 0, issues }
-}
-
-/** 迁移默认依赖的拓扑/校验实现（接线 t2/t3 后改这里即可全量切换）。 */
+/** 迁移默认依赖的拓扑/校验实现 = t2/t3 的唯一实现（禁止在此另写一份）。 */
 export const v9Defaults = {
-  computeLayers: computeLayersLocal,
-  computeEdges: computeEdgesLocal,
-  computeReady: computeReadyLocal,
-  validate: validateQueueFileLocal as (file: any) => ValidationResult,
+  computeLayers: computeLayers as (tasks: readonly any[]) => QueueLayer[],
+  computeEdges: computeEdges as (tasks: readonly any[]) => QueueEdge[],
+  computeReady: computeReady as (tasks: readonly any[]) => string[],
+  validate: validateQueueFile as (file: any) => ValidationResult,
+}
+
+/** 该需求在后续步骤（拓扑/校验）失败时**不得建目录**：从待建目录列表撤销（避免留下空目录）。 */
+function createDirRollback(list: V9CreatedDir[], requirementId: string): void {
+  const i = list.findIndex((d) => d.requirementId === requirementId)
+  if (i >= 0) list.splice(i, 1)
 }
 
 // ---------------------------------------------------------------------------
@@ -322,9 +228,21 @@ export interface V9Orphan {
 export interface V9QueueOutput {
   requirementId: string
   file: QueueFile
+  /** queue.json 的落盘路径 */
   path: string
+  /** 需求目录（queue.json 的父目录） */
+  dir: string
+  /** true = 该目录不存在，需由 --apply 创建（**仅当需求记录真实存在**；真 orphan 不会走到这里） */
+  createDir: boolean
   /** 序列化后的文件内容（与落盘字节一致，便于契约比对与 sha256） */
   json: string
+}
+
+/** 为"需求记录存在、但目录缺失"的需求新建的目录（Lead D10 裁决选项 b；进报告 + manifest 以便回滚清除）。 */
+export interface V9CreatedDir {
+  requirementId: string
+  dir: string
+  taskCount: number
 }
 
 export interface V9Skipped {
@@ -340,6 +258,8 @@ export interface V9Report {
   groupedTasks: number
   requirementsWithTasks: number
   orphanTasks: V9Orphan[]
+  /** 为"需求存在但目录缺失"的需求新建的目录（逐条：为谁建、迁了几条） */
+  createdDirs: V9CreatedDir[]
   skipped: V9Skipped[]
   whitelist: { ok: string[]; bad: string[] }
   alreadyV9: boolean
@@ -416,7 +336,7 @@ export function migrateV8toV9(ledger: any, now: number, opts: V9Options): V9Resu
       changes: {},
       report: {
         sourceVersion, totalTasks: rawTasks.length, migratedTasks: 0, groupedTasks: 0,
-        requirementsWithTasks: 0, orphanTasks: [], skipped: [], whitelist: { ok: [], bad: [] }, alreadyV9: true,
+        requirementsWithTasks: 0, orphanTasks: [], createdDirs: [], skipped: [], whitelist: { ok: [], bad: [] }, alreadyV9: true,
       },
       unmigrated: [],
       events: [{ seq: 1, phase: 'D-1', detail: '已是 v9（schemaVersion=' + sourceVersion + '）：无操作' }],
@@ -447,6 +367,7 @@ export function migrateV8toV9(ledger: any, now: number, opts: V9Options): V9Resu
   // D-4 构造 QueueFile（含 layer）；D-5 拓扑；D-6 校验
   const queues: V9QueueOutput[] = []
   const skipped: V9Skipped[] = []
+  const createdDirs: V9CreatedDir[] = []
   for (const [rid, ts] of groups) {
     const taskIds = ts.map((t) => String(t.id))
     let dir = ''
@@ -456,11 +377,16 @@ export function migrateV8toV9(ledger: any, now: number, opts: V9Options): V9Resu
       bump('V9_skipped_requirement', rid)
       continue
     }
-    if (dir.length === 0 || !dirExists(dir)) {
-      skipped.push({ requirementId: rid, reason: '需求目录不存在（不隐式建目录，任务隔离保留）：' + dir, taskIds })
-      unmigrated.push({ reason: 'missing-requirement-dir', requirementId: rid, tasks: ts })
-      bump('V9_skipped_missing_dir', rid)
-      continue
+    // 目录缺失（归档流程删过目录）→ 建目录迁入（Lead D10）。护栏：只允许"需求记录真实存在"者建目录。
+    // 真 orphan（requirementId 缺失 / 指向不存在需求）在 D-3 已被剔除，永远到不了这里；
+    // 若到得了，说明分组前置条件被破坏 → 响亮失败，而不是悄悄隔离（隔离=把设计定义之外的丢失当合规）。
+    const dirMissing = dir.length === 0 || !dirExists(dir)
+    if (dirMissing && !reqIds.has(rid)) {
+      throw new Error('MIGRATION_INVARIANT: 目录缺失但需求记录不存在，禁止为其建目录（真 orphan 必须走隔离）：' + rid)
+    }
+    if (dirMissing) {
+      createdDirs.push({ requirementId: rid, dir, taskCount: ts.length })
+      bump('V9_dir_created', rid + '(' + ts.length + ' 任务)')
     }
     // 拓扑分层（环 → 该需求中止，不写半成品）
     let layers: QueueLayer[]
@@ -470,6 +396,7 @@ export function migrateV8toV9(ledger: any, now: number, opts: V9Options): V9Resu
       skipped.push({ requirementId: rid, reason: 'CIRCULAR：' + (e as Error).message, taskIds })
       unmigrated.push({ reason: 'circular-dependency', requirementId: rid, tasks: ts })
       bump('V9_skipped_circular', rid)
+      createDirRollback(createdDirs, rid)
       continue
     }
     const layerOf = new Map<string, number>()
@@ -491,14 +418,15 @@ export function migrateV8toV9(ledger: any, now: number, opts: V9Options): V9Resu
       skipped.push({ requirementId: rid, reason: 'QUEUE_VALIDATION_FAILED（' + v.issues.length + ' 项）：' + msg, taskIds })
       unmigrated.push({ reason: 'queue-validation-failed', requirementId: rid, tasks: ts })
       bump('V9_skipped_validation', rid)
+      createDirRollback(createdDirs, rid)
       continue
     }
     const json = JSON.stringify(file, null, 2)
-    queues.push({ requirementId: rid, file, path: join(dir, 'queue.json'), json })
+    queues.push({ requirementId: rid, file, path: join(dir, 'queue.json'), dir, createDir: dirMissing, json })
     bump('V9_tasks_sharded', rid + ':' + queueTasks.length)
   }
   ev('D-4', '构造 QueueFile：' + queues.length + ' 份（schemaVersion=9，QueueTask=TaskRecord+layer）')
-  ev('D-5', '拓扑分层 + 求 ready：成功 ' + queues.length + ' 个；环/缺目录/校验失败跳过 ' + skipped.length + ' 个需求')
+  ev('D-5', '拓扑分层 + 求 ready：成功 ' + queues.length + ' 个；环/校验失败跳过 ' + skipped.length + ' 个需求；新建目录 ' + createdDirs.length + ' 个')
   ev('D-6', '校验 V-1~V-6：通过 ' + queues.length + ' 份')
 
   // D-8（纯变换部分）台账变换：删 tasks / schemaVersion=9 / migrations 追加留痕
@@ -521,6 +449,7 @@ export function migrateV8toV9(ledger: any, now: number, opts: V9Options): V9Resu
     groupedTasks: [...groups.values()].reduce((s, a) => s + a.length, 0),
     requirementsWithTasks: groups.size,
     orphanTasks: orphans,
+    createdDirs,
     skipped,
     whitelist: { ok, bad },
     alreadyV9: false,
@@ -671,6 +600,7 @@ export async function runV9(opts: RunV9Options): Promise<V9RunOutcome> {
   log('分组：' + result.report.requirementsWithTasks + ' 个需求有任务；orphan ' + result.report.orphanTasks.length + ' 条（不迁移）')
   log('队列文件：' + result.queues.length + ' 个' + (mode === 'dry-run' ? '（计划）' : ''))
   for (const s of result.report.skipped) log('⚠️ 跳过需求 ' + s.requirementId + '：' + s.reason)
+  for (const d of result.report.createdDirs) log('🆕 新建目录 ' + d.requirementId + ' → ' + d.dir + '（' + d.taskCount + ' 任务）')
   log('白名单：' + ok.length + ' 条命中 / 白名单外 ' + bad.length + ' 条')
 
   const events: V9OrderEvent[] = []
@@ -710,15 +640,21 @@ export async function runV9(opts: RunV9Options): Promise<V9RunOutcome> {
   push('D-5', '拓扑分层 + 求 ready')
   push('D-6', '校验 V-1~V-6：通过 ' + result.queues.length + ' 份；跳过 ' + result.report.skipped.length + ' 个需求')
 
-  // D-7 写队列（**先**）
+  // D-7 写队列（**先**）。目录缺失且需求记录真实存在的，先建目录（Lead D10 裁决 (b)）
   const queueHashes: { path: string; sha256: string }[] = []
+  const createdDirs: string[] = []
   for (const q of result.queues) {
+    if (q.createDir) {
+      mkdirSync(q.dir, { recursive: true })
+      createdDirs.push(q.dir)
+      push('D-7', '建目录 ' + q.dir + '（需求记录真实存在、目录此前缺失——Lead D10 b）')
+    }
     await persist(q.path, q.json)
     const sha = sha256(q.json)
     queueHashes.push({ path: q.path, sha256: sha })
     push('D-7', '写队列 ' + q.path + '（' + q.file.tasks.length + ' 任务, sha256=' + sha.slice(0, 12) + '…）')
   }
-  push('D-7', '全部 ' + result.queues.length + '/' + result.queues.length + ' 份 queue.json 已落盘')
+  push('D-7', '全部 ' + result.queues.length + '/' + result.queues.length + ' 份 queue.json 已落盘' + (createdDirs.length > 0 ? '；新建目录 ' + createdDirs.length + ' 个' : ''))
 
   // 未被任何队列接收的任务 → 隔离保留（v9 移除 tasks 后防静默丢失）
   let unmigratedPath: string | undefined
@@ -738,7 +674,7 @@ export async function runV9(opts: RunV9Options): Promise<V9RunOutcome> {
   await persist(manifestPath, JSON.stringify({
     at: now, by: 'migrate-ledger.ts', from: LEDGER_V8, to: LEDGER_V9,
     ledger: resolve(file), backup: backupPath, unmigrated: unmigratedPath,
-    ledgerPreSha256: preSha, queues: queueHashes,
+    ledgerPreSha256: preSha, queues: queueHashes, createdDirs,
   }, null, 2))
   push('D-7', '写迁移清单 → ' + manifestPath)
 
@@ -850,6 +786,8 @@ export interface RollbackOutcome {
   backupPath?: string
   restored: boolean
   removed: string[]
+  /** 本次为缺失目录新建、回滚时已清空的目录 */
+  removedDirs: string[]
   kept: string[]
 }
 
@@ -862,18 +800,19 @@ export async function rollbackV9(opts: { file: string; now: number; persist?: (p
   const persist = opts.persist ?? persistAtomic
   const lines: string[] = []
   const removed: string[] = []
+  const removedDirs: string[] = []
   const kept: string[] = []
 
   // 与 --apply 同一条前置纪律：服务在跑时回滚同样会被内存态覆盖
   if (opts.force !== true && (opts.isServiceRunning ?? defaultServiceRunningCheck)(file)) {
     lines.push('❌ 检测到服务正在运行（<ledgerDir>/state/server.pid 存活）——拒绝执行 --rollback。请先停机，确认可控时用 --force。')
-    return { code: 1, lines, restored: false, removed, kept }
+    return { code: 1, lines, restored: false, removed, removedDirs, kept }
   }
 
   const backups = listBackups(file)
   if (backups.length === 0) {
     lines.push('❌ 未找到备份（' + file + '.backup-*），无法回滚')
-    return { code: 1, lines, restored: false, removed, kept }
+    return { code: 1, lines, restored: false, removed, removedDirs, kept }
   }
   const backup = backups[0]!
   lines.push('── v8 → v9 回滚（--rollback）──')
@@ -884,11 +823,11 @@ export async function rollbackV9(opts: { file: string; now: number; persist?: (p
   let backupText: string
   try { backupText = readFileSync(backup, 'utf8'); raw = JSON.parse(backupText) } catch (e) {
     lines.push('❌ 备份不是合法 JSON，拒绝回滚：' + (e as Error).message)
-    return { code: 1, lines, backupPath: backup, restored: false, removed, kept }
+    return { code: 1, lines, backupPath: backup, restored: false, removed, removedDirs, kept }
   }
   if (!Array.isArray(raw.tasks) || typeof raw.schemaVersion !== 'number' || raw.schemaVersion >= LEDGER_V9) {
     lines.push('❌ 备份不是"迁移前 v8"状态（schemaVersion=' + raw.schemaVersion + '，tasks=' + (Array.isArray(raw.tasks) ? raw.tasks.length : 'N/A') + '），拒绝回滚')
-    return { code: 1, lines, backupPath: backup, restored: false, removed, kept }
+    return { code: 1, lines, backupPath: backup, restored: false, removed, removedDirs, kept }
   }
 
   // 迁移清单 → 精确清理本次生成的队列
@@ -909,6 +848,13 @@ export async function rollbackV9(opts: { file: string; now: number; persist?: (p
     for (const extra of [meta.unmigrated]) {
       if (typeof extra === 'string' && existsSync(extra)) { unlinkSync(extra); removed.push(extra) }
     }
+    // 删掉本次为缺失目录新建的目录（否则回滚不干净：v8 台账里的任务又回到"没有家"的状态）
+    for (const dir of Array.isArray(meta.createdDirs) ? meta.createdDirs : []) {
+      try {
+        if (readdirSync(dir).length === 0) { rmdirSync(dir); removedDirs.push(dir) }
+        else kept.push(dir + '（非空，未删）')
+      } catch { /* 目录已不存在 */ }
+    }
     unlinkSync(manifest)
     removed.push(manifest)
     lines.push('清理清单：' + manifest)
@@ -921,9 +867,10 @@ export async function rollbackV9(opts: { file: string; now: number; persist?: (p
   const byteExact = readFileSync(file, 'utf8') === backupText
   lines.push('✅ 台账已还原：schemaVersion=' + after.schemaVersion + '，tasks=' + (Array.isArray(after.tasks) ? after.tasks.length : 'N/A') + ' 条，逐字节等于备份=' + byteExact)
   lines.push('   删除本次生成的队列文件 ' + removed.length + ' 个；保留 ' + kept.length + ' 个')
+  if (removedDirs.length > 0) lines.push('   删除本次新建的目录 ' + removedDirs.length + ' 个：' + removedDirs.join(', '))
   for (const k of kept) lines.push('   ⚠️ 保留 ' + k)
   lines.push(okRestore ? '✅ 回滚完成（--verify 应报 schemaVersion=8 未迁移）' : '❌ 还原后台账结构异常，请人工检查')
-  return { code: okRestore ? 0 : 1, lines, backupPath: backup, restored: okRestore, removed, kept }
+  return { code: okRestore ? 0 : 1, lines, backupPath: backup, restored: okRestore, removed, removedDirs, kept }
 }
 
 function readLedger(file: string): any {

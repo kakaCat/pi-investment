@@ -17,5 +17,8 @@ export async function queryStageOverview(
 ): Promise<StageOverview> {
   const snapshot = deps.repo.snapshot()
   const req = snapshot.requirements.find(r => r.id === requirementId)
-  return assembleStageOverview(req, snapshot)
+  // 任务来自队列（REQ-260927202051-f6df）：v9 台账已无 tasks。
+  // taskStore 缺省（未装配）→ 空任务视图——与端口文档「缺省=未装配，调用方显式降级」一致。
+  const tasks = deps.taskStore !== undefined ? await deps.taskStore.listByRequirement(requirementId) : []
+  return assembleStageOverview(req, { tasks })
 }

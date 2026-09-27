@@ -9,18 +9,28 @@
  * @module dsh-pmboard/application/internal/verification-doc-writer
  */
 import type { DocRepository, LedgerView } from '../ports.js'
+import type { TaskRecord } from '../../shared/protocol.js'
 import { renderVerificationDoc } from '../../domain/workflow/VerificationDoc.js'
 import { checkDocCompleteness } from '../../domain/workflow/DocCompleteness.js'
 
 export interface VerificationDocPorts {
-  /** 台账仓储（只读快照） */
+  /** 台账仓储（只读快照；只用来取需求记录与验收单） */
   repo: { snapshot(): LedgerView }
   /** 缺省 → 跳过（不阻断） */
   docs?: DocRepository
 }
 
-/** 重写 docs/requirements/<reqId>/verification.md；返回是否真的写了。 */
-export async function rewriteVerificationDoc(ports: VerificationDocPorts, reqId: string): Promise<boolean> {
+/**
+ * 重写 docs/requirements/<reqId>/verification.md；返回是否真的写了。
+ *
+ * @param tasks 队列任务（REQ-260927202051-f6df：`LedgerView.tasks` 已随 schema v9 移除）——
+ *              调用方 `await taskStore.listByRequirement(reqId)` 传入；本函数保持**同步取数**语义。
+ */
+export async function rewriteVerificationDoc(
+  ports: VerificationDocPorts,
+  reqId: string,
+  tasks: readonly TaskRecord[],
+): Promise<boolean> {
   const docs = ports.docs
   if (docs === undefined) return false
   const snap = ports.repo.snapshot()
@@ -35,8 +45,8 @@ export async function rewriteVerificationDoc(ports: VerificationDocPorts, reqId:
   const files = new Set<string>([
     ...collect(''), ...collect('design'), ...collect('tasks'), ...collect('reviews'), ...collect('tests'),
   ])
-  const tasks = snap.tasks.filter(t => t.requirementId === reqId && t.status !== 'canceled')
-  const taskById = new Map(tasks.map(t => [t.id, t]))
+  const mine = tasks.filter(t => t.requirementId === reqId && t.status !== 'canceled')
+  const taskById = new Map(mine.map(t => [t.id, t]))
   const items = sheet.items.map(it => {
     const src = it.source
     const t = src.kind === 'task' ? taskById.get(src.taskId) : undefined
@@ -61,7 +71,7 @@ export async function rewriteVerificationDoc(ports: VerificationDocPorts, reqId:
     sheetVersion: sheet.version,
     items: items as never,
     testReport: req.verification?.evidence ?? [],
-    docCheck: checkDocCompleteness({ files, taskIds: tasks.map(t => t.id) }),
+    docCheck: checkDocCompleteness({ files, taskIds: mine.map(t => t.id) }),
   }))
   return true
 }

@@ -34,10 +34,13 @@ export interface RtmYamlPayload {
 /**
  * 台账只读快照的形状（JsonLedgerRepository.snapshot() 返回的 LedgerView 是 readonly 数组，
  * 这里按只读接收，避免为了类型而复制一份）。
+ *
+ * **不含 `tasks`**（REQ-260927202051-f6df）：schema v9 后任务不再存台账，任务由调用方从队列
+ * （TaskStore）取好后**显式传入**。刻意不留该字段，避免"留着 → 编译通过却永远读到空数组"
+ * （那会让 RTM 覆盖度静默为空，而没有任何报错）。
  */
 export interface RTMLedgerSnapshot {
   requirements: readonly RequirementRecord[]
-  tasks: readonly TaskRecord[]
 }
 
 /** 台账任务 → RTM 任务投影。 */
@@ -49,11 +52,19 @@ function toTaskLike(t: TaskRecord): RTMTaskLike {
     phase: t.phase,
     side: t.side,
     depends_on: [...t.dependsOn],
+    // 修复：台账 implementation → RTM implements（字段名不同）
+    implements: t.implementation,
+    // 修复：台账 requirementRefs → RTM serves
+    serves: t.requirementRefs,
   }
 }
 
-/** 用台账快照搭一个只读 LedgerReader（RTM 只读台账，不反向写）。 */
-function ledgerReaderOf(snap: RTMLedgerSnapshot): LedgerReader {
+/**
+ * 用台账快照 + 队列任务搭一个只读 LedgerReader（RTM 只读，不反向写）。
+ *
+ * @param tasks 队列任务（`TaskStore.listByRequirement/listAll` 取；RTM 的 `tasksOf` 读它）
+ */
+function ledgerReaderOf(snap: RTMLedgerSnapshot, tasks: readonly TaskRecord[]): LedgerReader {
   return {
     requirement: id => {
       const r = snap.requirements.find(x => x.id === id)
@@ -80,7 +91,7 @@ function ledgerReaderOf(snap: RTMLedgerSnapshot): LedgerReader {
         })),
       }
     },
-    tasksOf: reqId => snap.tasks.filter(t => t.requirementId === reqId).map(toTaskLike),
+    tasksOf: reqId => tasks.filter(t => t.requirementId === reqId).map(toTaskLike),
   }
 }
 
@@ -121,6 +132,7 @@ export function coverageGateOf(
  */
 export function syncRTMYaml(
   deps: UseCaseDeps,
+  tasks: readonly TaskRecord[],
   reqId: string,
   trigger: RTMTrigger,
   payload?: RtmYamlPayload,
@@ -129,7 +141,7 @@ export function syncRTMYaml(
   // 此前它们在 try 之外求值，docs/repo 端口缺失时会在进 try 之前抛出去（实测：不注入
   // docs 的工具用例会炸），与"RTM 是增强层"的承诺相反。
   try {
-    return syncRTMYamlWithSnapshot(deps.docs.workspaceRoot(), deps.repo.snapshot(), reqId, trigger, payload)
+    return syncRTMYamlWithSnapshot(deps.docs.workspaceRoot(), deps.repo.snapshot(), tasks, reqId, trigger, payload)
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
     console.warn('[rtm-yaml] ' + trigger + ' ' + reqId + ' 取工作区根/台账快照失败（已忽略，不影响主流程）:', err)
@@ -150,6 +162,7 @@ export function syncRTMYaml(
 export function syncRTMYamlWithSnapshot(
   workspaceRoot: string,
   snapshot: RTMLedgerSnapshot,
+  tasks: readonly TaskRecord[],
   reqId: string,
   trigger: RTMTrigger,
   payload?: RtmYamlPayload,
@@ -157,7 +170,7 @@ export function syncRTMYamlWithSnapshot(
   try {
     const generator = new RTMGenerator({
       workspaceRoot,
-      ledger: ledgerReaderOf(snapshot),
+      ledger: ledgerReaderOf(snapshot, tasks),
       generatedBy: 'dsh-pmboard',
       // "这个需求有多少个节点"：取分类流程档案（单一事实源在 shared/protocol）；
       // archived 按 RTM 口径归一到 done（stageOfStatus 是同一归一函数的单点）。
