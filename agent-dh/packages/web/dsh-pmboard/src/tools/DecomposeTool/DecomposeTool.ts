@@ -50,6 +50,12 @@ export function defineDecomposeTool(deps: UseCaseDeps) {
           thin_cards: { type: 'array', items: { type: 'string' } },
           warning: { type: 'string' },
           note: { type: 'string' },
+          // REQ-260927202051-f6df t11：拆分落库改为「先 createMany 写 queue.json、再 repo.mutate 写需求侧」，
+          // 返回体随之新增这两个字段。**必须在此声明**——本仓两道门都会拦未声明字段：
+          // ① output-contract 静态扫描（每个 return 分支的顶层键 ⊆ schema 声明）；
+          // ② 值级校验（未声明键会被判 returned invalid output）。
+          queue_file: { type: 'string', description: '本次拆分写入的队列文件路径（docs/requirements/<REQ>/queue.json）' },
+          tasks_created: { type: 'number', description: '本次真正新增的任务数（幂等跳过的不计）' },
         },
       },
       render: renderSmart(decomposeSummary),

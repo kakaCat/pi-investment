@@ -18,6 +18,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { JsonLedgerRepository } from '../src/adapters/JsonLedgerRepository.js'
+// REQ-260927202051-f6df（v9）：任务改由 TaskStore 提供，工具壳在缺端口时按端口语义**显式失败**
+// （不再静默返回空任务集）。故本测试的 deps 必须装配真实 TaskStore，否则 verify_submit / ask_confirm
+// 的成功路径会因「任务队列端口未装配」而红——那不是被测工具的缺陷，是夹具欠装配。
+import { JsonQueueRepository } from '../src/repositories/QueueRepository.js'
+import { QueueTaskStore } from '../src/repositories/QueueTaskStore.js'
 import { FileDocRepository } from '../src/adapters/FileDocRepository.js'
 import { SystemClock } from '../src/adapters/SystemClock.js'
 import { RandomIdFactory } from '../src/adapters/RandomIdFactory.js'
@@ -56,6 +61,8 @@ const depsWith = (extra: { userQuestions?: unknown } = {}) =>
     session: new SessionProbeAdapter({}),
     questions: new UserQuestionsAdapter(() => extra.userQuestions),
     doneThrottleMs: 0,
+    // v9：真实队列仓储 + 真实 TaskStore（不造 mock 端口），工作区根与 docs 同根。
+    taskStore: new QueueTaskStore({ repo: new JsonQueueRepository({ workspaceRoot: root }) }),
   }) as never
 const run = (tool: any, args: unknown) => tool.execute(args, { agent: { id: W } })
 

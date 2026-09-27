@@ -47,15 +47,15 @@ export function defineRunStatusTool(deps: UseCaseDeps) {
             description: '运行状态快照',
             additionalProperties: true,
             properties: {
-              runId: { type: 'string', description: '运行 ID（无 active run 时为 null）' },
+              runId: { type: 'string', description: '运行 ID；**无 active run 时该键整体省略**（不发 null——本仓 DSL 不支持 null 联合类型）' },
               stepIndex: { type: 'number', description: '当前步骤索引' },
               currentSubtaskId: { type: 'string', description: '当前正在执行的子卡 ID' },
               nextReady: { type: 'array', description: '下一批 ready 的任务 ID 列表', items: { type: 'string' } },
               jobStatus: { type: 'string', description: 'Job 状态：running/completed/failed/not_found' },
               pauseReason: { type: 'string', description: '暂停原因（如果已暂停）' },
               autoRun: { type: 'boolean', description: '是否自动运行' },
-              status: { type: 'string', description: '无 active run 时的状态（terminated）' },
-              reason: { type: 'string', description: '无 active run 时的原因' },
+              status: { type: 'string', description: '（保留）无 active run 的状态；**当前生产路径不产出该键**' },
+              reason: { type: 'string', description: '（保留）无 active run 的原因；**当前生产路径不产出该键**' },
             },
           },
           error: { type: 'string' },
@@ -124,11 +124,20 @@ export function defineRunStatusTool(deps: UseCaseDeps) {
         ...(dshJobsAdapter !== undefined ? { dshJobsAdapter } : {}),
       })
 
+      // ⚠️ 不要把 status 原样透传：无 active run 时 `queryRunStatus` 给出的是 `runId: null`
+      // （QueryRunStatus.ts:72），而本工具 schema 把 runId 声明为 `type: 'string'`
+      // ⇒ 值级类型校验失败，会把「当前没有链在跑」这个**正常事实**转译成硬错误
+      // 「value.snapshot.runId must be a string」（与"诚实降级被 schema 边界消灭"同类缺陷）。
+      // 口径与上面顶层 run_id 一致：**不是 string 就整个键省略**，不发 null
+      //（本仓 DSL 只允许 type/properties/additionalProperties，表达不了 `string | null`）。
+      const snapshot: Record<string, unknown> = { ...status }
+      if (typeof snapshot.runId !== 'string') delete snapshot.runId
+
       return {
         success: true,
         requirement_id: requirementId,
         ...(typeof status.runId === 'string' ? { run_id: status.runId } : {}),
-        snapshot: status
+        snapshot,
       }
     }
   } as any)
