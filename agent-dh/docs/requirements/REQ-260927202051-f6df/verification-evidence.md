@@ -59,7 +59,7 @@ generated: 2026-09-27
 | 指标 | 开工前 | 现算 | 命令 |
 |---|---|---|---|
 | `src/` 三模式残留 | **92 处 / 55 文件** | **0** | `grep -rn 'ledger\.tasks\|snapshot()\.tasks\|changed\.tasks' src/ \| wc -l` |
-| 全仓 tsc 错误条数 | **164**（开工基线） | **244**（实测 2026-09-27 22:0x） | `npx tsc --noEmit 2>&1 \| grep -c 'error TS'` |
+| 全仓 tsc 错误条数 | **164**（开工基线） | **235**（实测 2026-09-27 21:5x，`/tmp/tsc-final.txt`） | `npx tsc --noEmit 2>&1 \| grep -c 'error TS'` |
 | `src/` 中带本次改造签名的错误 | — | **0** | 按签名归因（下同） |
 | 核心测试套 | — | **12 files / 137 passed** | `npx vitest run tests/queue/ tests/read-sites-equivalence.test.ts tests/t9-… tests/t11-… tests/t12-…` |
 | `pnpm build` | — | **退出码 0** | `pnpm build` |
@@ -69,9 +69,11 @@ generated: 2026-09-27
 不是基线；基线永远是 **164**。另：`npx tsc --noEmit | wc -l` 数**行数**（多行错误有续行），
 与 `grep -c 'error TS'`（**条数**）会差 30%+，两个数混用会得出相反结论。
 
-**剩余 244 条的定性**：按**错误签名**归因（不是按目录前缀）——
-`Property 'tasks' does not exist` / `taskStore' is missing` / `applyTaskRollup` / `no properties in common` 只剩 **4 条**
-（`tests/token-endpoint.test.ts` 3、`tests/capture-hook.test.ts` 1，收尾中）；其余为**预存错误**
+**剩余 235 条的定性**：按**错误签名**归因（不是按目录前缀）——
+`Property 'tasks' does not exist` / `taskStore' is missing` / `applyTaskRollup` / `no properties in common` 只剩 **1 条**，
+且它是 `src/tools/ClearPauseTool/ClearPauseTool.ts` 的**预存**错误（开工前基线 Top-10 里就有它的
+`render missing` / `ToolRunContext.session`；`58c77a95` 亦有）
+⇒ **本需求对 `src/` 的类型错误贡献 = 0**。其余为**预存错误**
 （`AcceptanceTracking` 不匹配、`Checkpoint.createdAt`、`Promise<string>` 传同步参、`RequirementCategory | undefined`、
 未使用变量等）。其中 `src/application/use-cases/ClearPause.ts` 的 6 条与**开工第一分钟原始基线 Top-10 逐条吻合**。
 

@@ -66,16 +66,51 @@ const depsWith = (extra: { userQuestions?: unknown } = {}) =>
   }) as never
 const run = (tool: any, args: unknown) => tool.execute(args, { agent: { id: W } })
 
+/** 工具声明的输出 schema（兼容两种挂载形状）。 */
+function outputSchema(tool: any): any {
+  return tool?.output?.schema ?? tool?.schema?.output?.schema ?? {}
+}
 /** 工具声明的输出字段集合。 */
 function declaredKeys(tool: any): Set<string> {
-  const props = tool?.output?.schema?.properties ?? tool?.schema?.output?.schema?.properties ?? {}
-  return new Set(Object.keys(props))
+  return new Set(Object.keys(outputSchema(tool)?.properties ?? {}))
 }
-/** 断言返回体的键都被声明（未声明 → DSH 绑定层会拒收）。 */
+/**
+ * 断言返回体 (a) 键都被声明（未声明 → DSH 绑定层会拒收），(b) 已声明键的**值符合声明类型**。
+ *
+ * (b) 是 2026-09-27 事故后补的闸门：`reqboard_run_status` 在无 active run 时
+ * `snapshot.runId` 发的是 `null`，而 schema 声明 `type:'string'` ⇒ **值级**校验失败，
+ * 把「当前没有链在跑」这个正常事实转译成硬错误 `value.snapshot.runId must be a string`。
+ * 原测试只断言键**是否声明**、**不校验值**，所以它从这道门底下溜了过去。
+ *
+ * 口径：本仓 DSL 只允许 type/properties/additionalProperties，表达不了 `string | null`，
+ * 故**降级路径必须整体省略该键，而不是发 null**（`runId` 已按此修）。
+ */
 function assertKeysDeclared(tool: any, value: Record<string, unknown>, label: string): void {
-  const declared = declaredKeys(tool)
-  for (const k of Object.keys(value)) {
-    expect(declared.has(k), label + ' 返回字段未在 output.schema 声明：' + k).toBe(true)
+  assertConformsToSchema(outputSchema(tool), value, label, label)
+}
+
+function assertConformsToSchema(schema: any, value: any, label: string, path: string): void {
+  const properties = (schema?.properties ?? {}) as Record<string, any>
+  const declared = new Set(Object.keys(properties))
+  const obj = (value ?? {}) as Record<string, unknown>
+  for (const k of Object.keys(obj)) {
+    expect(declared.has(k), `${label} 返回字段未在 output.schema 声明：${path}.${k}`).toBe(true)
+  }
+  for (const [k, spec] of Object.entries(properties)) {
+    // 键**整体省略**是合法形状（降级路径该有的样子）；值为 `undefined` 亦等价于省略——
+    // JSON 序列化会丢掉 undefined，绑定层根本看不到该键。**只有 `null` 会被保留并撞上类型校验**
+    // （本次事故正是 null：value.snapshot.runId must be a string）。
+    if (!(k in obj) || obj[k] === undefined) continue
+    const v = obj[k]
+    const t = spec?.type
+    if (t === 'string' || t === 'number' || t === 'boolean') {
+      // 不允许 null：DSH 绑定层按声明类型做值级校验，null 会被判 invalid output。
+      expect(typeof v, `${label} 字段类型不符：${path}.${k} 声明为 ${t}，实际 ${JSON.stringify(v)}`).toBe(t)
+    } else if (t === 'array') {
+      expect(Array.isArray(v), `${label} 字段类型不符：${path}.${k} 应声明为数组，实际 ${JSON.stringify(v)}`).toBe(true)
+    } else if (t === 'object') {
+      assertConformsToSchema(spec, v, label, `${path}.${k}`)
+    }
   }
 }
 
