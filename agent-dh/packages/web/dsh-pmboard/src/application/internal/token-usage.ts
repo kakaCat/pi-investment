@@ -10,6 +10,7 @@
  * @module dsh-pmboard/application/internal/token-usage
  */
 import type { UseCaseDeps } from '../ports.js'
+import { assertReqTransition } from '../../domain/requirement/RequirementStatus.js'
 import {
   addBuckets,
   emptyBuckets,
@@ -116,6 +117,13 @@ export interface TransitionOpts {
   reason?: string
   /** 快照（可选；不传 = 调用方无会话上下文 → 不结算不带快照） */
   snap?: TokenSnapshot
+  /**
+   * 逃生舱（默认 false = 校验收紧）：跳过状态机校验。
+   *
+   * **只允许"不表示业务流转"的写入使用**——如迁移脚本把历史记录归一到规范状态。
+   * 任何业务路径都不得设置它：那正是"非法状态变换"的入口（见下方 transitionRequirement 注释）。
+   */
+  allowIllegalTransition?: boolean
 }
 
 /**
@@ -133,6 +141,16 @@ export function transitionRequirement(
   to: RequirementStatus,
   opts: TransitionOpts,
 ): void {
+  const from = req.status as RequirementStatus
+  // 0. 状态机校验（纵深防御，2026-09-27 补）：**收敛点必须自己拦**，不能寄望每个调用方
+  //    都记得校验。此前本函数直接 `req.status = to` 无任何校验，于是：
+  //    事故——confirm-settle 的"批准计划"分支漏了 canReqTransition，而本函数也不校验，
+  //    需求便在**计划未落库（台账 0 任务）**的情况下直接进入 implementing，
+  //    导致 DAG / 泳道 / 实施覆盖度全空且**零告警**，静默停滞数日。
+  //    现在无论哪个调用方漏检，非法/越权流转都会在此抛错。
+  if (opts.allowIllegalTransition !== true) {
+    assertReqTransition(from, to, opts.actor.kind)
+  }
   // 1. 结算离开节点：快照可得 + entrySnapshotFor 成功 → 累加到 byStage + 更新 totals
   if (opts.snap !== undefined) {
     accumulateStageDelta(req, req.status as StageKey, opts.snap)
