@@ -268,6 +268,23 @@ cd /Users/yunpeng/pi-investment/agent-dh && ./scripts/start.sh        # ⑥ 起�
   **真实缺口收窄为一句话**：**工具路径在"移动"时不复核磁盘内容** ——
   即"确认之后磁盘文档又被改动/删掉"时，工具路径察觉不到，看板路径会察觉。
   严重性从"闸门可被绕过"下调为"**移动路径缺少一次磁盘复核**"（建议单独立项，优先级**中**而非高）。
+
+- **③ 再精确一层（Lead 追问"reqboard_move 一定走人工确认吗"后补）—— 这里有两件常被混为一谈的事**：
+  | 闸门 | 转移 | 需确认产物 | `humanOnly`（状态机是否只许人发起） |
+  |---|---|---|---|
+  | G1 | `brainstorming → design` | `requirement` | **true** ⇒ agent 调 move 直接吃 `REQBOARD_HUMAN_GATE` |
+  | **G2** | **`design → decomposing`** | `design` | **false** ⇒ **agent 推得动** |
+  | G3 | `decomposing → implementing` | `decomposition` | **true** |
+  | G4 | `accepting → archived` | `verification` | **true** |
+
+  ⇒ **"人工确认"（产物要有 `confirmedAt` 章）≠ "人工专有"（状态机只许人发起）**：
+  前者只要求"有章就放行，不管谁推的"；后者由状态机拦。
+  **确认门还按分类开关**（`CATEGORY_FLOW_PROFILES.confirmGates`）：`feature` 全 4 门；`bug`/`refactor` 3 门；
+  **`spike`/`doc`/`chore` 只有 `accepting>archived`** ⇒ 它们 `draft→implementing` **完全不需要人工确认**。
+  另有两条豁免：`to='canceled'`（放弃路径）、**`isLegacy`**（需求无 `artifacts` ⇒ 两级都不硬拦）。
+  **最终口径**：凡是**设计完整度闸门相关**的分类（`feature`/`bug`/`refactor`——只有它们有 design 阶段），
+  **都在 `design>decomposing` 上有确认门**，确认流程会跑内容态校验；缺口只剩"确认之后、move 之前
+  磁盘内容被改动"。`spike`/`doc`/`chore` 无 design 阶段 ⇒ 与该闸门无关，不算缺口。
 - **证据（已验证部分）**：`MoveRequirement.ts` / `MoveTool.ts` / `artifact-gates.ts` 在基线
   `58c77a95` 与现在**都 0 命中** `checkDesignCompletenessGate`；**对照实验**：同一测试文件的
   路径②③④（弹框/看板）全 PASS ⇒ **闸门本身正常，是工具路径没接它**。
