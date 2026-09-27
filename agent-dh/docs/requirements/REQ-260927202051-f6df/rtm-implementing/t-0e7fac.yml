@@ -1,0 +1,33 @@
+task:
+  id: t-0e7fac
+  title: 实现 DAG 拓扑分层与派生视图
+  status: in_progress
+  implements: ""
+  serves: []
+  depends_on:
+    - t-87f0da
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927202051-f6df
+    TASK_ID: t-0e7fac
+    TASK_TITLE: 实现 DAG 拓扑分层与派生视图
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-27T13:13:27.851Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927202051-f6df
+  generated_at: 2026-09-27T13:13:27.850Z
+  version: 2
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-27T13:13:27.851Z

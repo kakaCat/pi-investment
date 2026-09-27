@@ -1,0 +1,946 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-260927202051-f6df
+  generated_at: 2026-09-27T12:54:40.510Z
+  version: 8
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-27T13:13:27.867Z
+inputs:
+  requirements: []
+  design_sections:
+    - ref: design/architecture.md#目标与总体方案
+      title: 目标与总体方案 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 目标与总体方案
+    - ref: design/architecture.md#关键决策
+      title: 关键决策 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 关键决策
+    - ref: design/architecture.md#决策-1queuejson-存完整-TaskRecord而非裁剪投影
+      title: 决策 1：queue.json 存**完整** TaskRecord，而非裁剪投影 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 决策-1queuejson-存完整-TaskRecord而非裁剪投影
+    - ref: design/architecture.md#决策-2以-TaskStore-端口作为队列的代码入口而非让读方直接读文件
+      title: 决策 2：以 `TaskStore` 端口作为"队列"的代码入口，而非让读方直接读文件 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 决策-2以-TaskStore-端口作为队列的代码入口而非让读方直接读文件
+    - ref: design/architecture.md#决策-3被否方案仅把队列当持久化后端内存快照仍聚合全部-tasks
+      title: 决策 3（被否方案）：仅把队列当持久化后端、内存快照仍聚合全部 tasks `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 决策-3被否方案仅把队列当持久化后端内存快照仍聚合全部-tasks
+    - ref: design/architecture.md#模块改动地图
+      title: 模块改动地图 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 模块改动地图
+    - ref: design/architecture.md#任务存储所有权
+      title: 任务存储所有权 `
+      serves:
+        - FR-1
+        - FR-6
+      file: design/architecture.md
+      section: 任务存储所有权
+    - ref: design/architecture.md#台账-schema-v8v9
+      title: 台账 schema v8→v9 `
+      serves:
+        - FR-6
+      file: design/architecture.md
+      section: 台账-schema-v8v9
+    - ref: design/architecture.md#读方改造边界
+      title: 读方改造边界 `
+      serves:
+        - FR-8
+      file: design/architecture.md
+      section: 读方改造边界
+    - ref: design/architecture.md#一致性模型
+      title: 一致性模型 `
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 一致性模型
+    - ref: design/architecture.md#错误处理策略
+      title: 错误处理策略 `
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: 错误处理策略
+    - ref: design/architecture.md#回滚设计
+      title: 回滚设计 `
+      serves:
+        - FR-7
+      file: design/architecture.md
+      section: 回滚设计
+    - ref: design/architecture.md#性能考量
+      title: 性能考量 `
+      serves:
+        - FR-4
+      file: design/architecture.md
+      section: 性能考量
+    - ref: design/architecture.md#目录结构
+      title: 目录结构 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 目录结构
+    - ref: design/architecture.md#依赖关系
+      title: 依赖关系 `
+      serves:
+        - FR-1
+      file: design/architecture.md
+      section: 依赖关系
+    - ref: design/architecture.md#测试策略
+      title: 测试策略 `
+      serves:
+        - FR-5
+      file: design/architecture.md
+      section: 测试策略
+    - ref: design/architecture.md#变更历史
+      title: 变更历史 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/architecture.md
+      section: 变更历史
+    - ref: design/data-model.md#核心实体QueueFile
+      title: 核心实体：QueueFile `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 核心实体QueueFile
+    - ref: design/data-model.md#与旧设计的差异重要
+      title: 与旧设计的差异（重要） `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 与旧设计的差异重要
+    - ref: design/data-model.md#子实体
+      title: 子实体 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 子实体
+    - ref: design/data-model.md#QueueTask-TaskRecord-layer
+      title: QueueTask = TaskRecord + layer `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: QueueTask-TaskRecord-layer
+    - ref: design/data-model.md#QueueEdge-QueueLayer
+      title: QueueEdge / QueueLayer `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: QueueEdge-QueueLayer
+    - ref: design/data-model.md#实体关系
+      title: 实体关系 `
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: 实体关系
+    - ref: design/data-model.md#台账-schema-v8-v9-数据契约
+      title: 台账 schema v8 → v9 数据契约 `
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: 台账-schema-v8-v9-数据契约
+    - ref: design/data-model.md#变更后的-ReqboardLedger
+      title: 变更后的 ReqboardLedger `
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: 变更后的-ReqboardLedger
+    - ref: design/data-model.md#已迁移数据的回溯字段
+      title: 已迁移数据的回溯字段 `
+      serves:
+        - FR-6
+      file: design/data-model.md
+      section: 已迁移数据的回溯字段
+    - ref: design/data-model.md#数据约束校验规则-V-1-V-6
+      title: 数据约束（校验规则 V-1 ~ V-6） `
+      serves:
+        - FR-5
+      file: design/data-model.md
+      section: 数据约束校验规则-V-1-V-6
+    - ref: design/data-model.md#数据生命周期
+      title: 数据生命周期 `
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 数据生命周期
+    - ref: design/data-model.md#生成拆分时
+      title: 生成（拆分时） `
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 生成拆分时
+    - ref: design/data-model.md#更新状态推进时
+      title: 更新（状态推进时） `
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 更新状态推进时
+    - ref: design/data-model.md#迁移一次性
+      title: 迁移（一次性） `
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 迁移一次性
+    - ref: design/data-model.md#删除
+      title: 删除 `
+      serves:
+        - FR-3
+      file: design/data-model.md
+      section: 删除
+    - ref: design/data-model.md#存储与版本
+      title: 存储与版本 `
+      serves:
+        - FR-4
+      file: design/data-model.md
+      section: 存储与版本
+    - ref: design/data-model.md#变更历史
+      title: 变更历史 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: 变更历史
+    - ref: design/interfaces.md#TaskStore-端口代码级队列
+      title: TaskStore 端口（代码级"队列"） `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: TaskStore-端口代码级队列
+    - ref: design/interfaces.md#I-1-TaskStore
+      title: I-1 TaskStore `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: I-1-TaskStore
+    - ref: design/interfaces.md#I-2-QueueRepository文件层
+      title: I-2 QueueRepository（文件层） `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: I-2-QueueRepository文件层
+    - ref: design/interfaces.md#I-3-topology-纯函数
+      title: I-3 topology 纯函数 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: I-3-topology-纯函数
+    - ref: design/interfaces.md#I-4-validateQueueFileV-1-V-6
+      title: I-4 validateQueueFile（V-1 ~ V-6） `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/interfaces.md
+      section: I-4-validateQueueFileV-1-V-6
+    - ref: design/interfaces.md#台账改造接口
+      title: 台账改造接口 `
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: 台账改造接口
+    - ref: design/interfaces.md#I-5-ReqboardLedger去-tasks
+      title: I-5 ReqboardLedger（去 tasks） `
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: I-5-ReqboardLedger去-tasks
+    - ref: design/interfaces.md#I-6-JsonLedgerRepository去-tasks
+      title: I-6 JsonLedgerRepository（去 tasks） `
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: I-6-JsonLedgerRepository去-tasks
+    - ref: design/interfaces.md#I-7-LedgerChange去-tasks
+      title: I-7 LedgerChange（去 tasks） `
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: I-7-LedgerChange去-tasks
+    - ref: design/interfaces.md#迁移脚本接口
+      title: 迁移脚本接口 `
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: 迁移脚本接口
+    - ref: design/interfaces.md#I-8-migrate-ledgerts追加-v8-v9
+      title: I-8 migrate-ledger.ts（追加 v8 → v9） `
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: I-8-migrate-ledgerts追加-v8-v9
+    - ref: design/interfaces.md#工具与用例接线点
+      title: 工具与用例接线点 `
+      serves:
+        - FR-1
+        - FR-8
+      file: design/interfaces.md
+      section: 工具与用例接线点
+    - ref: design/interfaces.md#错误码
+      title: 错误码 `
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: 错误码
+    - ref: design/interfaces.md#变更历史
+      title: 变更历史 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/interfaces.md
+      section: 变更历史
+    - ref: design/migration.md#迁移范围与前置条件
+      title: 迁移范围与前置条件 `
+      serves:
+        - FR-7
+      file: design/migration.md
+      section: 迁移范围与前置条件
+    - ref: design/migration.md#迁移步骤D-1-D-9
+      title: 迁移步骤（D-1 ~ D-9） `
+      serves:
+        - FR-7
+      file: design/migration.md
+      section: 迁移步骤D-1-D-9
+    - ref: design/migration.md#数据变换规则
+      title: 数据变换规则 `
+      serves:
+        - FR-7
+      file: design/migration.md
+      section: 数据变换规则
+    - ref: design/migration.md#兼容性处理
+      title: 兼容性处理 `
+      serves:
+        - FR-6
+      file: design/migration.md
+      section: 兼容性处理
+    - ref: design/migration.md#回滚设计
+      title: 回滚设计 `
+      serves:
+        - FR-7
+      file: design/migration.md
+      section: 回滚设计
+    - ref: design/migration.md#风险与缓解
+      title: 风险与缓解 `
+      serves:
+        - FR-7
+      file: design/migration.md
+      section: 风险与缓解
+    - ref: design/migration.md#验证矩阵
+      title: 验证矩阵 `
+      serves:
+        - FR-7
+      file: design/migration.md
+      section: 验证矩阵
+    - ref: design/migration.md#变更历史
+      title: 变更历史 `
+      serves:
+        - FR-7
+      file: design/migration.md
+      section: 变更历史
+    - ref: design/queue-schema.md#1
+      title: 目标（可证伪） `
+      serves:
+        - FR-1
+        - FR-5
+      file: design/queue-schema.md
+      section: "1"
+    - ref: design/queue-schema.md#2
+      title: 字段清单 `
+      serves:
+        - FR-1
+        - FR-5
+      file: design/queue-schema.md
+      section: "2"
+    - ref: design/queue-schema.md#2.1
+      title: QueueFile 顶层 `
+      serves:
+        - FR-1
+      file: design/queue-schema.md
+      section: "2.1"
+    - ref: design/queue-schema.md#2.2
+      title: QueueTask（= TaskRecord + layer） `
+      serves:
+        - FR-1
+      file: design/queue-schema.md
+      section: "2.2"
+    - ref: design/queue-schema.md#2.3
+      title: QueueEdge / QueueLayer `
+      serves:
+        - FR-1
+      file: design/queue-schema.md
+      section: "2.3"
+    - ref: design/queue-schema.md#3
+      title: JSON 示例 `
+      serves:
+        - FR-1
+      file: design/queue-schema.md
+      section: "3"
+    - ref: design/queue-schema.md#4
+      title: 原子写入契约 `
+      serves:
+        - FR-4
+      file: design/queue-schema.md
+      section: "4"
+    - ref: design/queue-schema.md#5
+      title: 兼容与版本 `
+      serves:
+        - FR-5
+      file: design/queue-schema.md
+      section: "5"
+    - ref: design/queue-schema.md#6
+      title: 错误处理 `
+      serves:
+        - FR-4
+      file: design/queue-schema.md
+      section: "6"
+    - ref: design/queue-schema.md#7
+      title: 安全与并发 `
+      serves:
+        - FR-4
+      file: design/queue-schema.md
+      section: "7"
+    - ref: design/queue-schema.md#8
+      title: 变更历史 `
+      serves:
+        - FR-1
+        - FR-4
+        - FR-5
+        - FR-7
+      file: design/queue-schema.md
+      section: "8"
+    - ref: design/use-cases.md#场景总览
+      title: 场景总览 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: 场景总览
+    - ref: design/use-cases.md#UC-1拆分需求生成队列
+      title: UC-1：拆分需求生成队列 `
+      serves:
+        - FR-1
+      file: design/use-cases.md
+      section: UC-1拆分需求生成队列
+    - ref: design/use-cases.md#UC-2执行任务从队列取父卡
+      title: UC-2：执行任务从队列取父卡 `
+      serves:
+        - FR-2
+      file: design/use-cases.md
+      section: UC-2执行任务从队列取父卡
+    - ref: design/use-cases.md#UC-3状态推进在队列实现并解锁下游
+      title: UC-3：状态推进在队列实现并解锁下游 `
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-3状态推进在队列实现并解锁下游
+    - ref: design/use-cases.md#UC-4多窗口并发拆分推进
+      title: UC-4：多窗口并发拆分/推进 `
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-4多窗口并发拆分推进
+    - ref: design/use-cases.md#UC-5队列文件损坏容错
+      title: UC-5：队列文件损坏容错 `
+      serves:
+        - FR-4
+      file: design/use-cases.md
+      section: UC-5队列文件损坏容错
+    - ref: design/use-cases.md#UC-6看板查看任务与甘特迁移后不回归
+      title: UC-6：看板查看任务与甘特（迁移后不回归） `
+      serves:
+        - FR-8
+      file: design/use-cases.md
+      section: UC-6看板查看任务与甘特迁移后不回归
+    - ref: design/use-cases.md#UC-7队列数据自动校验
+      title: UC-7：队列数据自动校验 `
+      serves:
+        - FR-5
+      file: design/use-cases.md
+      section: UC-7队列数据自动校验
+    - ref: design/use-cases.md#UC-8存量任务一次性迁移v8v9
+      title: UC-8：存量任务一次性迁移（v8→v9） `
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: UC-8存量任务一次性迁移v8v9
+    - ref: design/use-cases.md#UC-9迁移回滚
+      title: UC-9：迁移回滚 `
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: UC-9迁移回滚
+    - ref: design/use-cases.md#用例优先级
+      title: 用例优先级 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 用例优先级
+    - ref: design/use-cases.md#用例覆盖的功能点
+      title: 用例覆盖的功能点 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 用例覆盖的功能点
+    - ref: design/use-cases.md#校验规则的单一事实源
+      title: 校验规则的单一事实源 `
+      serves:
+        - FR-5
+      file: design/use-cases.md
+      section: 校验规则的单一事实源
+    - ref: design/use-cases.md#变更历史
+      title: 变更历史 `
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: 变更历史
+outputs:
+  tasks:
+    - id: t-87f0da
+      title: 定义队列类型与任务契约
+      implements: ""
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-0e7fac
+      title: 实现 DAG 拓扑分层与派生视图
+      implements: ""
+      serves: []
+      depends_on:
+        - t-87f0da
+      phase: implement
+      side: backend
+    - id: t-394339
+      title: 实现队列数据校验 V-1~V-6
+      implements: ""
+      serves: []
+      depends_on:
+        - t-87f0da
+      phase: implement
+      side: backend
+    - id: t-e96a0c
+      title: 实现队列仓储与原子写入
+      implements: ""
+      serves: []
+      depends_on:
+        - t-87f0da
+        - t-0e7fac
+        - t-394339
+      phase: implement
+      side: backend
+    - id: t-bc1ba6
+      title: 实现 TaskStore 端口与队列实现
+      implements: ""
+      serves: []
+      depends_on:
+        - t-e96a0c
+      phase: implement
+      side: backend
+    - id: t-2417da
+      title: 台账 schema v9：移除 tasks
+      implements: ""
+      serves: []
+      depends_on:
+        - t-bc1ba6
+      phase: implement
+      side: backend
+    - id: t-66797c
+      title: 读方改造 A：看板与 HTTP 路由
+      implements: ""
+      serves: []
+      depends_on:
+        - t-2417da
+      phase: implement
+      side: backend
+    - id: t-0c7f17
+      title: 读方改造 B：执行工具
+      implements: ""
+      serves: []
+      depends_on:
+        - t-2417da
+      phase: implement
+      side: backend
+    - id: t-860900
+      title: 读方改造 C：用例层
+      implements: ""
+      serves: []
+      depends_on:
+        - t-2417da
+      phase: implement
+      side: backend
+    - id: t-8d4af7
+      title: 读方改造 D：门禁、查询与 Dive
+      implements: ""
+      serves: []
+      depends_on:
+        - t-2417da
+      phase: implement
+      side: backend
+    - id: t-05925b
+      title: 接线 Decompose：任务写入队列
+      implements: ""
+      serves: []
+      depends_on:
+        - t-bc1ba6
+        - t-2417da
+      phase: implement
+      side: backend
+    - id: t-fa3e16
+      title: 接线 ExecuteTask/MoveTask：读队列与顺序契约
+      implements: ""
+      serves: []
+      depends_on:
+        - t-05925b
+      phase: implement
+      side: backend
+    - id: t-faf303
+      title: 实现 v8→v9 迁移变换与 CLI
+      implements: ""
+      serves: []
+      depends_on:
+        - t-e96a0c
+        - t-2417da
+      phase: implement
+      side: backend
+    - id: t-03254f
+      title: 迁移安全：白名单、幂等与 orphan
+      implements: ""
+      serves: []
+      depends_on:
+        - t-faf303
+      phase: implement
+      side: backend
+    - id: t-dfc245
+      title: 迁移契约比对：587 条零字段丢失
+      implements: ""
+      serves: []
+      depends_on:
+        - t-03254f
+      phase: test
+      side: backend
+    - id: t-e77b06
+      title: 看板实测回归（真实打开页面）
+      implements: ""
+      serves: []
+      depends_on:
+        - t-66797c
+        - t-0c7f17
+        - t-860900
+        - t-8d4af7
+        - t-fa3e16
+        - t-03254f
+      phase: test
+      side: backend
+    - id: t-d1aa0f
+      title: 端到端验收与文档同步
+      implements: ""
+      serves: []
+      depends_on:
+        - t-dfc245
+        - t-e77b06
+      phase: test
+      side: doc
+    - id: t-796a50
+      title: 定义队列类型与任务契约·研发
+      implements: ""
+      serves: []
+      depends_on: []
+      phase: implement
+      side: backend
+    - id: t-b34b32
+      title: 定义队列类型与任务契约·联调
+      implements: ""
+      serves: []
+      depends_on:
+        - t-796a50
+      phase: implement
+      side: backend
+    - id: t-43e512
+      title: 定义队列类型与任务契约·复核
+      implements: ""
+      serves: []
+      depends_on:
+        - t-b34b32
+      phase: implement
+      side: backend
+    - id: t-c6026b
+      title: 定义队列类型与任务契约·测试
+      implements: ""
+      serves: []
+      depends_on:
+        - t-43e512
+      phase: implement
+      side: backend
+    - id: t-5be8c6
+      title: 实现 DAG 拓扑分层与派生视图·研发
+      implements: ""
+      serves: []
+      depends_on:
+        - t-87f0da
+      phase: implement
+      side: backend
+    - id: t-315ea1
+      title: 实现 DAG 拓扑分层与派生视图·联调
+      implements: ""
+      serves: []
+      depends_on:
+        - t-5be8c6
+      phase: implement
+      side: backend
+    - id: t-1e2054
+      title: 实现 DAG 拓扑分层与派生视图·复核
+      implements: ""
+      serves: []
+      depends_on:
+        - t-315ea1
+      phase: implement
+      side: backend
+    - id: t-a21eb3
+      title: 实现 DAG 拓扑分层与派生视图·测试
+      implements: ""
+      serves: []
+      depends_on:
+        - t-1e2054
+      phase: implement
+      side: backend
+traceability:
+  design_to_tasks:
+    design/architecture.md#目标与总体方案: []
+    design/architecture.md#关键决策: []
+    design/architecture.md#决策-1queuejson-存完整-TaskRecord而非裁剪投影: []
+    design/architecture.md#决策-2以-TaskStore-端口作为队列的代码入口而非让读方直接读文件: []
+    design/architecture.md#决策-3被否方案仅把队列当持久化后端内存快照仍聚合全部-tasks: []
+    design/architecture.md#模块改动地图: []
+    design/architecture.md#任务存储所有权: []
+    design/architecture.md#台账-schema-v8v9: []
+    design/architecture.md#读方改造边界: []
+    design/architecture.md#一致性模型: []
+    design/architecture.md#错误处理策略: []
+    design/architecture.md#回滚设计: []
+    design/architecture.md#性能考量: []
+    design/architecture.md#目录结构: []
+    design/architecture.md#依赖关系: []
+    design/architecture.md#测试策略: []
+    design/architecture.md#变更历史: []
+    design/data-model.md#核心实体QueueFile: []
+    design/data-model.md#与旧设计的差异重要: []
+    design/data-model.md#子实体: []
+    design/data-model.md#QueueTask-TaskRecord-layer: []
+    design/data-model.md#QueueEdge-QueueLayer: []
+    design/data-model.md#实体关系: []
+    design/data-model.md#台账-schema-v8-v9-数据契约: []
+    design/data-model.md#变更后的-ReqboardLedger: []
+    design/data-model.md#已迁移数据的回溯字段: []
+    design/data-model.md#数据约束校验规则-V-1-V-6: []
+    design/data-model.md#数据生命周期: []
+    design/data-model.md#生成拆分时: []
+    design/data-model.md#更新状态推进时: []
+    design/data-model.md#迁移一次性: []
+    design/data-model.md#删除: []
+    design/data-model.md#存储与版本: []
+    design/data-model.md#变更历史: []
+    design/interfaces.md#TaskStore-端口代码级队列: []
+    design/interfaces.md#I-1-TaskStore: []
+    design/interfaces.md#I-2-QueueRepository文件层: []
+    design/interfaces.md#I-3-topology-纯函数: []
+    design/interfaces.md#I-4-validateQueueFileV-1-V-6: []
+    design/interfaces.md#台账改造接口: []
+    design/interfaces.md#I-5-ReqboardLedger去-tasks: []
+    design/interfaces.md#I-6-JsonLedgerRepository去-tasks: []
+    design/interfaces.md#I-7-LedgerChange去-tasks: []
+    design/interfaces.md#迁移脚本接口: []
+    design/interfaces.md#I-8-migrate-ledgerts追加-v8-v9: []
+    design/interfaces.md#工具与用例接线点: []
+    design/interfaces.md#错误码: []
+    design/interfaces.md#变更历史: []
+    design/migration.md#迁移范围与前置条件: []
+    design/migration.md#迁移步骤D-1-D-9: []
+    design/migration.md#数据变换规则: []
+    design/migration.md#兼容性处理: []
+    design/migration.md#回滚设计: []
+    design/migration.md#风险与缓解: []
+    design/migration.md#验证矩阵: []
+    design/migration.md#变更历史: []
+    design/queue-schema.md#1: []
+    design/queue-schema.md#2: []
+    design/queue-schema.md#2.1: []
+    design/queue-schema.md#2.2: []
+    design/queue-schema.md#2.3: []
+    design/queue-schema.md#3: []
+    design/queue-schema.md#4: []
+    design/queue-schema.md#5: []
+    design/queue-schema.md#6: []
+    design/queue-schema.md#7: []
+    design/queue-schema.md#8: []
+    design/use-cases.md#场景总览: []
+    design/use-cases.md#UC-1拆分需求生成队列: []
+    design/use-cases.md#UC-2执行任务从队列取父卡: []
+    design/use-cases.md#UC-3状态推进在队列实现并解锁下游: []
+    design/use-cases.md#UC-4多窗口并发拆分推进: []
+    design/use-cases.md#UC-5队列文件损坏容错: []
+    design/use-cases.md#UC-6看板查看任务与甘特迁移后不回归: []
+    design/use-cases.md#UC-7队列数据自动校验: []
+    design/use-cases.md#UC-8存量任务一次性迁移v8v9: []
+    design/use-cases.md#UC-9迁移回滚: []
+    design/use-cases.md#用例优先级: []
+    design/use-cases.md#用例覆盖的功能点: []
+    design/use-cases.md#校验规则的单一事实源: []
+    design/use-cases.md#变更历史: []
+  fr_to_tasks:
+    FR-1: []
+    FR-6: []
+    FR-8: []
+    FR-3: []
+    FR-4: []
+    FR-7: []
+    FR-5: []
+    FR-2: []
+coverage:
+  implementation:
+    total: 81
+    covered: 0
+    uncovered:
+      - design/architecture.md#目标与总体方案
+      - design/architecture.md#关键决策
+      - design/architecture.md#决策-1queuejson-存完整-TaskRecord而非裁剪投影
+      - design/architecture.md#决策-2以-TaskStore-端口作为队列的代码入口而非让读方直接读文件
+      - design/architecture.md#决策-3被否方案仅把队列当持久化后端内存快照仍聚合全部-tasks
+      - design/architecture.md#模块改动地图
+      - design/architecture.md#任务存储所有权
+      - design/architecture.md#台账-schema-v8v9
+      - design/architecture.md#读方改造边界
+      - design/architecture.md#一致性模型
+      - design/architecture.md#错误处理策略
+      - design/architecture.md#回滚设计
+      - design/architecture.md#性能考量
+      - design/architecture.md#目录结构
+      - design/architecture.md#依赖关系
+      - design/architecture.md#测试策略
+      - design/architecture.md#变更历史
+      - design/data-model.md#核心实体QueueFile
+      - design/data-model.md#与旧设计的差异重要
+      - design/data-model.md#子实体
+      - design/data-model.md#QueueTask-TaskRecord-layer
+      - design/data-model.md#QueueEdge-QueueLayer
+      - design/data-model.md#实体关系
+      - design/data-model.md#台账-schema-v8-v9-数据契约
+      - design/data-model.md#变更后的-ReqboardLedger
+      - design/data-model.md#已迁移数据的回溯字段
+      - design/data-model.md#数据约束校验规则-V-1-V-6
+      - design/data-model.md#数据生命周期
+      - design/data-model.md#生成拆分时
+      - design/data-model.md#更新状态推进时
+      - design/data-model.md#迁移一次性
+      - design/data-model.md#删除
+      - design/data-model.md#存储与版本
+      - design/data-model.md#变更历史
+      - design/interfaces.md#TaskStore-端口代码级队列
+      - design/interfaces.md#I-1-TaskStore
+      - design/interfaces.md#I-2-QueueRepository文件层
+      - design/interfaces.md#I-3-topology-纯函数
+      - design/interfaces.md#I-4-validateQueueFileV-1-V-6
+      - design/interfaces.md#台账改造接口
+      - design/interfaces.md#I-5-ReqboardLedger去-tasks
+      - design/interfaces.md#I-6-JsonLedgerRepository去-tasks
+      - design/interfaces.md#I-7-LedgerChange去-tasks
+      - design/interfaces.md#迁移脚本接口
+      - design/interfaces.md#I-8-migrate-ledgerts追加-v8-v9
+      - design/interfaces.md#工具与用例接线点
+      - design/interfaces.md#错误码
+      - design/interfaces.md#变更历史
+      - design/migration.md#迁移范围与前置条件
+      - design/migration.md#迁移步骤D-1-D-9
+      - design/migration.md#数据变换规则
+      - design/migration.md#兼容性处理
+      - design/migration.md#回滚设计
+      - design/migration.md#风险与缓解
+      - design/migration.md#验证矩阵
+      - design/migration.md#变更历史
+      - design/queue-schema.md#1
+      - design/queue-schema.md#2
+      - design/queue-schema.md#2.1
+      - design/queue-schema.md#2.2
+      - design/queue-schema.md#2.3
+      - design/queue-schema.md#3
+      - design/queue-schema.md#4
+      - design/queue-schema.md#5
+      - design/queue-schema.md#6
+      - design/queue-schema.md#7
+      - design/queue-schema.md#8
+      - design/use-cases.md#场景总览
+      - design/use-cases.md#UC-1拆分需求生成队列
+      - design/use-cases.md#UC-2执行任务从队列取父卡
+      - design/use-cases.md#UC-3状态推进在队列实现并解锁下游
+      - design/use-cases.md#UC-4多窗口并发拆分推进
+      - design/use-cases.md#UC-5队列文件损坏容错
+      - design/use-cases.md#UC-6看板查看任务与甘特迁移后不回归
+      - design/use-cases.md#UC-7队列数据自动校验
+      - design/use-cases.md#UC-8存量任务一次性迁移v8v9
+      - design/use-cases.md#UC-9迁移回滚
+      - design/use-cases.md#用例优先级
+      - design/use-cases.md#用例覆盖的功能点
+      - design/use-cases.md#校验规则的单一事实源
+      - design/use-cases.md#变更历史
+    rate: 0
+    total_designs: 81
+    covered_designs: 0

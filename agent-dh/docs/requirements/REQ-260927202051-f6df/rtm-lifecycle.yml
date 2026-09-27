@@ -1,0 +1,91 @@
+requirement:
+  id: REQ-260927202051-f6df
+  title: 实现 DAG 任务队列机制（拆分时生成 queue.json）
+  category: feature
+  created_at: 2026-09-27T12:20:51.444Z
+  source_session: session-3936d77f-2391-4042-8305-9b0fb5e9d2b8
+  dir: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260927202051-f6df
+lifecycle:
+  current_stage: decomposing
+  stage_count: 7
+  stage_list:
+    - draft
+    - brainstorming
+    - design
+    - decomposing
+    - implementing
+    - accepting
+    - done
+  stages:
+    - stage: draft
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T12:20:51.444Z
+      completed_at: 2026-09-27T12:54:40.347Z
+    - stage: brainstorming
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T12:20:51.444Z
+      completed_at: 2026-09-27T12:54:40.347Z
+      artifacts:
+        - kind: requirement
+          path: docs/requirements/REQ-260927202051-f6df/requirement.md
+          confirmed_at: 2026-09-27T12:49:02.798Z
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-brainstorming.yml
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-lifecycle.yml
+    - stage: design
+      status: completed
+      enabled: true
+      entered_at: 2026-09-27T12:20:51.444Z
+      completed_at: 2026-09-27T12:54:40.347Z
+      artifacts:
+        - kind: design
+          path: docs/requirements/REQ-260927202051-f6df/design/queue-schema.md
+          confirmed_at: 2026-09-27T12:51:39.884Z
+        - kind: notes
+          path: docs/requirements/REQ-260927202051-f6df/rtm-design.yml
+        - kind: design
+          path: docs/requirements/REQ-260927202051-f6df/design/architecture.md
+          confirmed_at: 2026-09-27T12:51:39.884Z
+        - kind: design
+          path: docs/requirements/REQ-260927202051-f6df/design/data-model.md
+          confirmed_at: 2026-09-27T12:51:39.884Z
+        - kind: design
+          path: docs/requirements/REQ-260927202051-f6df/design/interfaces.md
+          confirmed_at: 2026-09-27T12:51:39.884Z
+        - kind: design
+          path: docs/requirements/REQ-260927202051-f6df/design/test-cases.md
+          confirmed_at: 2026-09-27T12:51:39.884Z
+        - kind: design
+          path: docs/requirements/REQ-260927202051-f6df/design/use-cases.md
+          confirmed_at: 2026-09-27T12:51:39.884Z
+        - kind: design
+          path: docs/requirements/REQ-260927202051-f6df/design/migration.md
+          confirmed_at: 2026-09-27T12:51:39.884Z
+    - stage: decomposing
+      status: in_progress
+      enabled: true
+      entered_at: 2026-09-27T12:20:51.444Z
+      artifacts:
+        - kind: decomposition
+          path: docs/requirements/REQ-260927202051-f6df/decomposition.md
+    - stage: implementing
+      status: pending
+      enabled: true
+    - stage: accepting
+      status: pending
+      enabled: true
+    - stage: done
+      status: pending
+      enabled: true
+metadata:
+  stage: lifecycle
+  requirement_id: REQ-260927202051-f6df
+  generated_at: 2026-09-27T12:20:51.672Z
+  version: 15
+  generated_by: dsh-pmboard
+  rtm_version: "1.0"
+  file_path: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-260927202051-f6df/rtm-lifecycle.yml
+  last_updated: 2026-09-27T12:54:40.517Z
