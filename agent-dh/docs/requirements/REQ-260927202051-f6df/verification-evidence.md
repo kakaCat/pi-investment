@@ -223,3 +223,64 @@ cd /Users/yunpeng/pi-investment/agent-dh && ./scripts/start.sh        # ⑥ 起�
 **按错误签名归因（不按目录前缀）：`src/` 中带本次改造签名（`Property 'tasks' does not exist` /
 `taskStore' is missing` / `applyTaskRollup`）的错误 = 0。** 其余 `src/` 错误均为**预存**
 （`ClearPause` 6 条与开工第一分钟原始基线 Top-10 逐条吻合）。
+
+---
+
+## 十一、施工期新增（2026-09-27 深夜）：缺陷修复与新增方法论
+
+### 11.1 修掉一个**我们自己的**交付物缺陷（静默不生效）
+`QueueTaskStore.mutate` 的"无变更"判定只从 `next.tasks` 里筛 `changed`，而被删除的任务不在 `next` 里
+⇒ **纯删除时 `changed.length === 0` → 提前 `return []` → 静默不写盘**，且 `kind: 'task-removed'` 成为
+**永远走不到的死分支**。已修（先算 `removed`，只有"集合与内容都没变"才早退），补 2 条单测
+（纯删除写盘 / 部分删除），并**保留"真没改就不白写"的否命题用例**（防修过头丢掉优化）。
+> **可复用的判据**：「有一支分支永远走不到」本身就是缺陷信号，值得单独扫。
+
+### 11.2 新增产品级缺口（**性质比前 8 处更重**）
+> **agent 可用 `reqboard_move`（工具）绕过看板 G2 闸门**：`design → decomposing` 走**工具路径**
+> **不做设计文档集完整性校验**，只有看板 `req/move` / 弹框 / 确认路径才拦。
+
+- 这是第 **9** 处"声明与实现不符"（测试 header 自称"四条转移路径全拒"，实际只有 **3** 条接线）。
+- **与前 8 处的区别**：前 8 处是"功能没生效"；**这一处是"闸门能被绕过"** —— 人本该拦下的地方，agent 能自己走过去。
+- **证据**：`MoveRequirement.ts` / `MoveTool.ts` / `artifact-gates.ts` 在基线 `58c77a95` 与现在**都 0 命中**
+  `checkDesignCompletenessGate` / `design_doc_incomplete`；闸门只挂在 `internal/design-gates.ts`(1) 与
+  `http/routers/requirements.ts`(2)。**对照实验**：同一测试文件的路径②③④（弹框/看板）全 PASS
+  ⇒ **闸门本身正常，只是工具路径没接它**。
+- **修它 = 加行为**（需在 `MoveRequirement` 引入 async 的 `checkDesignCompletenessGate(deps.docs, req)`，
+  位置建议在 `assertArtifactGates` **之后**、`taskCompletenessGap` **之前**，工具侧码统一
+  `design_doc_incomplete`）⇒ **超出本需求边界，已建议单独立项（高优先级）**。
+
+### 11.3 新增方法论：与 commit 比对的判据，**空输出要当报警**
+queue-core 曾用「`git diff --stat 58c77a95 -- <文件>` = 空」判定 7 条红为"预存"，**证据是错的**：
+它在 `cwd=agent-dh` 下却用了 `agent-dh/packages/...` 前缀 ⇒ 拼成 `agent-dh/agent-dh/packages/...`
+⇒ **匹配不到任何文件 ⇒ 空输出**。正确输出显示 `support.ts`(+72) 与 `MoveRequirement.ts`(+10) 自基线起都改过。
+⇒ **规则**：① 比对类判据**必须在仓库根跑**，并把**命令原文**写进汇报；② **空输出要当成报警**
+（路径错 / ref 错 / cwd 错的典型症状），**不能当作"无差异"**；③ 该结论已由提出者**主动撤回**，
+7 条红改由改过相关文件的属主用正确基准重判（结论仍为预存，但**证据换成了对的**）。
+
+### 11.4 新增方法论：闸门类错误，用**类型**把它变成编译错误
+`rollup.test.ts` 原夹具是 `ReqboardLedger & { tasks?: … }`，于是 `applyTaskRollup(l, ctx)` 这种
+"把 ctx 当 tasks"的错**只能靠运行期发现**（字面 grep 门禁抓不到参数错位 —— 它不含 `.tasks` 字面量）。
+改成 `type Fixture = ReqboardLedger & { tasks: readonly TaskRecord[] }` 后，同一错误**在编译期就报错**。
+⇒ **当某类错误动态测不到时，用类型把它变成编译错误，而不是加更多断言。**
+
+### 11.5 全量失败分类最终账（2544 用例）
+`npx vitest run` 全量：**45 文件 / 139 用例失败**。逐类定性后：
+
+| 类 | 数量 | 处置 |
+|---|---|---|
+| 夹具缺 `taskStore`（v9 回归） | ≈40 | task-19 修：15 文件 → **12 文件全绿**，tsc **235 → 196 下降** |
+| `applyTaskRollup` 老签名调用点 | 10 | task-20 修：**18/18 全绿** |
+| `design-completeness-gate` / `e2e-design-handoff` | 7 | task-21 判 **预存**（正确基准 + 对照实验举证），**不硬改** |
+| 外部线（`AgentDeliveryPort.deliver` 被清空 / H4 no-op） | ≈20 | 登记不修（与 `worktree-injection` 同源） |
+| `triad-gate` / `e2e-triad-gate` / `doc-sync`（三要素门未接线） | ≈9 | 登记不修（另立需求） |
+| `RandomIdFactory` 正则等预存红 | 少量 | 登记不修 |
+
+**⇒ 本需求引入且未修的红 = 0**；无"未定"项。
+
+### 11.6 输出契约闸门补强（本次事故的根治手段）
+`output-contract.test.ts` 原断言只查「返回键是否在 `output.schema` 声明」，**不校验值** ——
+所以 `reqboard_run_status` 的 `snapshot.runId: null` 撞 `type:'string'` 这件事从这道门底下溜了过去。
+现改为**递归校验**：声明为 `string/number/boolean` 的键，**一旦出现就必须是该类型**。
+口径精化（重要）：**`undefined` 与 `null` 在 JSON 里行为不同** —— `undefined` 会被丢弃
+（绑定层看不到该键，等价于键省略）；**只有 `null` 会被保留并撞类型校验**，故闸门只拦 `null`。
+`run-status-tool.test.ts` 另加了**故障注入**证明闸门非恒真（塞 `runId:null` 必被拦下，键省略则放行）。
