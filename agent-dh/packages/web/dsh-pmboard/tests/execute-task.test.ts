@@ -5,8 +5,10 @@
  * 改了页面插件源码但 client 产物未更新 → 凭证不过。
  */
 import { describe, it, expect } from 'vitest'
-import { executeSubtask, parseSubtaskOutput, isNonEmptyValue } from '../src/application/use-cases/ExecuteTask.js'
+import { executeSubtask, parseSubtaskOutput, isNonEmptyValue, buildSubtaskPrompt } from '../src/application/use-cases/ExecuteTask.js'
 import { executeMoveTask } from '../src/application/use-cases/MoveTask.js'
+import { checkSubtaskEvidence } from '../src/application/internal/subtask-evidence.js'
+import { STAGE_EVIDENCE_KIND, STAGE_KINDS } from '../src/domain/task/SubtaskTemplate.js'
 import type { WorkflowRunner, WorkflowRunOutcome } from '../src/application/ports.js'
 import { makeHarness, task, req } from './application/harness.js'
 
@@ -62,9 +64,15 @@ describe('子卡闭环（3.4 凭证三项）', () => {
     expect(h.repo.ledger.tasks.find(x => x.id === 't-s')!.lastRun?.ok).toBe(false)
   })
 
-  it('② 文件证据不过（mtime 早于开工）→ 子卡不 done', async () => {
+  it('② 文件证据不过（mtime 早于链出身）→ 子卡不 done', async () => {
     const h = seed()
-    h.docs.put(SRC, 'x', h.clock.t - 10_000)
+    // L1 基准单调化后「开工」= 链出身（createdAt 最小值）。harness 默认 createdAt=1 会让
+    // 任何文件都"新鲜"，故此例显式钉住链出身，保持原断言（早于基准的交付仍被拒）非空转。
+    const birth = h.clock.t - 5_000
+    h.repo.ledger.requirements[0]!.createdAt = birth
+    h.repo.ledger.tasks.find(x => x.id === 't-p')!.createdAt = birth
+    h.repo.ledger.tasks.find(x => x.id === 't-s')!.createdAt = birth
+    h.docs.put(SRC, 'x', birth - 5_000)
     h.docs.put(CLIENT, 'x')
     h.deps.workflow = new FakeRunner(okRun(JSON.stringify({ filesChanged: [SRC], completed: ['改完'] })))
     const r = await executeSubtask(h.deps, { subtaskId: 't-s', windowKey: 'session-w-001' })
@@ -164,5 +172,127 @@ describe('产出解析与空值判定（防"看起来在工作"）', () => {
     expect(isNonEmptyValue({})).toBe(false)
     expect(isNonEmptyValue([])).toBe(false)
     expect(isNonEmptyValue({ ok: true })).toBe(true)
+  })
+})
+
+/**
+ * D17 凭证门修复（L1 基准单调化 + L2 证据形态分流）。
+ *
+ * 病根：①链窗口基准取父卡 claimedAt——ExecuteTask 每次重跑都重写它，基准随重跑向后漂移，
+ * 同一份交付前后判成不同结论；②凭证门只认「有 filesChanged 且文件新鲜」，而 review/test/verify
+ * 天然不产 diff → 结论族子卡 100% 死在凭证门、链必停。
+ */
+describe('D17 修复：L1 基准单调化（链出身） + L2 证据形态分流', () => {
+  /** 把「链出身」拉早到 birth，并把会漂移的 claimedAt 全部推到 run 起点（模拟重跑）。 */
+  function pinChainBirth(h: ReturnType<typeof seed>, birth: number): void {
+    h.repo.ledger.requirements[0]!.createdAt = birth
+    const p = h.repo.ledger.tasks.find(x => x.id === 't-p')!
+    p.createdAt = birth
+    p.claimedAt = h.clock.t // 漂移源：重跑把它推到本次 run 起点
+    h.repo.ledger.tasks.find(x => x.id === 't-s')!.createdAt = birth
+  }
+
+  it('L1：文件早于子卡本次 run 起点、但 ≥ 链出身 → 子卡 done', async () => {
+    const h = seed()
+    const birth = h.clock.t - 8_000
+    pinChainBirth(h, birth)
+    // 交付落在链窗口内（birth + 1000），但早于子卡本次 run 起点（clock.t）。
+    // 旧口径 since=父卡 claimedAt(=clock.t) 必拒；新口径 since=链出身(=birth) 应放行。
+    h.docs.put(SRC, 'x', birth + 1_000)
+    h.docs.put(CLIENT, 'x', h.clock.t)
+    h.deps.workflow = new FakeRunner(okRun(JSON.stringify({ filesChanged: [SRC], completed: ['改完'] })))
+    const r = await executeSubtask(h.deps, { subtaskId: 't-s', windowKey: 'session-w-001' })
+    expect(r.ok).toBe(true)
+    expect(h.repo.ledger.tasks.find(x => x.id === 't-s')!.status).toBe('done')
+  })
+
+  it('L1 反例：文件早于链出身 → 仍拒（窗口有界，不是无脑放行）', async () => {
+    const h = seed()
+    const birth = h.clock.t - 8_000
+    pinChainBirth(h, birth)
+    h.docs.put(SRC, 'x', birth - 1_000)
+    h.docs.put(CLIENT, 'x', h.clock.t)
+    h.deps.workflow = new FakeRunner(okRun(JSON.stringify({ filesChanged: [SRC], completed: ['改完'] })))
+    const r = await executeSubtask(h.deps, { subtaskId: 't-s', windowKey: 'session-w-001' })
+    expect(r.ok).toBe(false)
+    expect(r.code).toBe('REQBOARD_SUBTASK_GATE')
+    expect(h.repo.ledger.tasks.find(x => x.id === 't-s')!.status).not.toBe('done')
+  })
+
+  it('L2 结论族：review filesChanged=[] 且 completed 非空 → 子卡 done（天然无 diff）', async () => {
+    const h = seed()
+    h.repo.ledger.tasks.find(x => x.id === 't-s')!.stageKind = 'review'
+    h.deps.workflow = new FakeRunner(okRun(JSON.stringify({
+      completed: ['逐条复核完毕：设计与实现无偏离'],
+      evidence: ['无 diff（本轮只做判断）'],
+    })))
+    const r = await executeSubtask(h.deps, { subtaskId: 't-s', windowKey: 'session-w-001' })
+    expect(r.ok).toBe(true)
+    const t = h.repo.ledger.tasks.find(x => x.id === 't-s')!
+    expect(t.status).toBe('done')
+    expect(t.lastReport?.filesChanged).toEqual([])
+    expect(t.lastReport?.completed.length).toBeGreaterThan(0)
+  })
+
+  it('L2 结论族但无结论：review filesChanged=[] 且 completed=[] → 拒', () => {
+    const verdict = checkSubtaskEvidence({
+      hasReport: true,
+      reportFilesChanged: [],
+      reportCompleted: [],
+      run: { ok: true, stopReason: 'completed', valueNonEmpty: true },
+      since: 1,
+      stageKind: 'review',
+      fileMtimes: {},
+      pagesSrcFiles: [],
+      clientBuildExists: false,
+      clientBuildMtime: 0,
+      newestPagesSrcMtime: 0,
+    })
+    expect(verdict.ok).toBe(false)
+    if (!verdict.ok) {
+      expect(verdict.code).toBe('REQBOARD_SUBTASK_GATE')
+      expect(verdict.reason).toContain('缺少完工汇报')
+    }
+  })
+
+  it('L2 写入族边界：dev filesChanged=[] 即便有结论也拒（没落盘=没干活）', () => {
+    const verdict = checkSubtaskEvidence({
+      hasReport: true,
+      reportFilesChanged: [],
+      reportCompleted: ['我改完了，功能正常'],
+      run: { ok: true, stopReason: 'completed', valueNonEmpty: true },
+      since: 1,
+      stageKind: 'dev',
+      fileMtimes: {},
+      pagesSrcFiles: [],
+      clientBuildExists: false,
+      clientBuildMtime: 0,
+      newestPagesSrcMtime: 0,
+    })
+    expect(verdict.ok).toBe(false)
+    if (!verdict.ok) expect(verdict.code).toBe('REQBOARD_SUBTASK_GATE')
+  })
+
+  it('STAGE_EVIDENCE_KIND 与 STAGE_KINDS 全量对齐（新增阶段漏登记即缺口）', () => {
+    expect(Object.keys(STAGE_EVIDENCE_KIND).sort()).toEqual([...STAGE_KINDS].sort())
+    for (const k of STAGE_KINDS) expect(['file', 'verdict']).toContain(STAGE_EVIDENCE_KIND[k])
+    // 结论族口径（D17 收口）：这些阶段天然无 diff
+    for (const k of ['review', 'test', 'regress', 'verify', 'analyze', 'probe', 'collect', 'dryrun'] as const) {
+      expect(STAGE_EVIDENCE_KIND[k]).toBe('verdict')
+    }
+  })
+
+  // REQ-260927144541-0481 根因修复：凭证门的证据形态必须**提前写进工作要求**——
+  // 否则 integrate（写入族）Worker 只交联调结论、被门退回，同一张卡重跑仍复现。
+  it('buildSubtaskPrompt 如实转述本阶段凭证形态（写入族要产出 / 结论族要判断）', () => {
+    const parent = task({ id: 't-p', requirementId: 'REQ-000001', status: 'in_progress', title: '父卡' })
+    const writeStage = task({ id: 't-s1', requirementId: 'REQ-000001', status: 'todo', parentId: 't-p', stageKind: 'integrate' as never, title: '联调', acceptance: '联调通过' })
+    const verdictStage = task({ id: 't-s2', requirementId: 'REQ-000001', status: 'todo', parentId: 't-p', stageKind: 'review' as never, title: '复核', acceptance: '逐条结论' })
+    const writePrompt = buildSubtaskPrompt(parent, writeStage, '联调')
+    const verdictPrompt = buildSubtaskPrompt(parent, verdictStage, '复核')
+    expect(writePrompt).toContain('写入族')
+    expect(writePrompt).toContain('REQBOARD_SUBTASK_GATE')
+    expect(verdictPrompt).toContain('结论族')
+    expect(verdictPrompt).not.toContain('写入族')
   })
 })

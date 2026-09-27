@@ -120,6 +120,9 @@ describe('断点常驻 · 写入器 B（turn/end 异常原因补新）', () => {
     const hookDeps: DiveSessionDriverDeps = {
       // 内存仓库的 snapshot() 是只读视图；hook 只读，形状等价（类型上补一层显式转换）
       snapshot: () => h.repo.snapshot() as unknown as ReqboardLedger,
+      // v9：driver 结算节点要读队列任务（DiveSessionDriverDeps.taskStore 为必填）——
+      // 用**同一个** harness 的 store，否则"driver 读 A、断言读 B"。
+      taskStore: h.taskStore,
       pending: new Map(),
       now: () => 1000,
       onTurnFinished: (wk, outcome) => signals.push({ wk, reason: outcome.reason, abnormal: outcome.abnormal }),

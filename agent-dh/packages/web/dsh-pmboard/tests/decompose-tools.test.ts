@@ -13,11 +13,13 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
-import { definePlanSubmitTool, defineDecomposeTool, defineTaskMoveTool, defineVerifySubmitTool, defineTaskReportTool, stubDocFile } from './helpers/tool-deps.js'
+import { definePlanSubmitTool, defineDecomposeTool, defineTaskMoveTool, defineVerifySubmitTool, defineTaskReportTool, queueTasksOf, stubDocFile, type ReqboardToolDeps } from './helpers/tool-deps.js'
 import { recordToolTrace, type ToolTraceEntry } from '../src/adapters/SessionProbeAdapter.js'
 import type { RequirementRecord, RequirementStatus } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
+/** 本文件通篇只操作这一个需求；任务断言一律从**队列**取（v9：台账无 tasks 通道）。 */
+const REQ_ID = 'REQ-abc123'
 let dir: string
 let store: ReqboardStore
 let planTool: { execute: (a: unknown, e: unknown) => Promise<any> }
@@ -26,12 +28,14 @@ let taskMove: { execute: (a: unknown, e: unknown) => Promise<any> }
 let verifySubmit: { execute: (a: unknown, e: unknown) => Promise<any> }
 let reportTool: { execute: (a: unknown, e: unknown) => Promise<any> }
 let trace: Map<string, ToolTraceEntry[]>
+/** 同一个 deps 对象配全部工具 + 任务断言（tool-deps 按 deps 记忆化 TaskStore）。 */
+let deps: ReqboardToolDeps
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-decompose-'))
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
   trace = new Map()
-  const deps = { store, now: () => Date.now(), toolTrace: trace, doneThrottleMs: 60_000 }
+  deps = { store, now: () => Date.now(), toolTrace: trace, doneThrottleMs: 60_000 }
   depsRef = deps
   planTool = definePlanSubmitTool(deps) as never
   decompose = defineDecomposeTool(deps) as never
@@ -88,7 +92,7 @@ describe('reqboard_decompose 边界', () => {
     await seed('draft')
     await expect(run(planTool, { path: 'p.md', summary: 's', tasks: TWO_TASKS })).rejects.toThrow(/REQBOARD_BAD_STATUS/)
     await expect(run(decompose, {})).rejects.toThrow(/REQBOARD_BAD_STATUS/) // 先是状态闸，再是计划闸
-    expect(store.snapshot().tasks).toHaveLength(0)
+    expect(await queueTasksOf(deps, REQ_ID)).toHaveLength(0)
   })
 
   it('越权：不能拆别的窗口的需求', async () => {
@@ -96,14 +100,14 @@ describe('reqboard_decompose 边界', () => {
     await planAndApprove()
     await expect(run(decompose, {}, 'session-other')).rejects.toThrow(/REQBOARD_NO_BOUND_REQ/)
     await expect(run(decompose, { requirement_id: 'REQ-ffffff' })).rejects.toThrow(/REQBOARD_NOT_BOUND_TO_WINDOW/)
-    expect(store.snapshot().tasks).toHaveLength(0)
+    expect(await queueTasksOf(deps, REQ_ID)).toHaveLength(0)
   })
 
   it('传与批准计划不一致的 tasks → 拒绝且不写库', async () => {
     await seed('decomposing')
     await planAndApprove()
     await expect(run(decompose, { tasks: [{ key: 'x', title: '计划外' }] })).rejects.toThrow(/REQBOARD_PLAN_MISMATCH/)
-    expect(store.snapshot().tasks).toHaveLength(0)
+    expect(await queueTasksOf(deps, REQ_ID)).toHaveLength(0)
   })
 
   it('幂等守卫（REQ-2e9473 t01）：重复拆分被拒且任务数不变（事故 B 故障注入）', async () => {
@@ -114,7 +118,7 @@ describe('reqboard_decompose 边界', () => {
     // 第一次拆分后需求已被 rollup 推进到 decomposing → 第二次拆分撞状态守卫
     await expect(run(decompose, {})).rejects.toThrow(/REQBOARD_ALREADY_DECOMPOSED/)
     // 台账任务数不变：不产生幽灵任务
-    expect(store.snapshot().tasks).toHaveLength(2)
+    expect(await queueTasksOf(deps, REQ_ID)).toHaveLength(2)
   })
 
   it('幂等守卫：状态停在 design 但已有未取消任务时，拒绝并返回已有清单', async () => {
@@ -129,7 +133,7 @@ describe('reqboard_decompose 边界', () => {
     })
     await expect(run(decompose, {})).rejects.toThrow(/REQBOARD_ALREADY_DECOMPOSED/)
     await expect(run(decompose, {})).rejects.toThrow(/禁止重复拆分/)
-    expect(store.snapshot().tasks).toHaveLength(2)
+    expect(await queueTasksOf(deps, REQ_ID)).toHaveLength(2)
   })
 
   it('回归（2026-09-17）：批准计划后自动进入 decomposing 且尚无任务 —— 必须允许拆分', async () => {
@@ -149,10 +153,10 @@ describe('reqboard_decompose 边界', () => {
       ],
     })
     expect(out.created).toHaveLength(2)
-    expect(store.snapshot().tasks).toHaveLength(2)
+    expect(await queueTasksOf(deps, REQ_ID)).toHaveLength(2)
     // 拆完后重复拆分仍被拒（防线②）：无幽灵任务
     await expect(run(decompose, { tasks: [{ key: 't1', title: 'x' }] })).rejects.toThrow(/REQBOARD_ALREADY_DECOMPOSED/)
-    expect(store.snapshot().tasks).toHaveLength(2)
+    expect(await queueTasksOf(deps, REQ_ID)).toHaveLength(2)
   })
 
   it('幂等守卫：implementing/accepting 状态一律拒绝重复拆分', async () => {
@@ -167,7 +171,7 @@ describe('reqboard_decompose 边界', () => {
       // 清理本条 seed，避免互相影响
       await store.mutate('cleanup', (l) => { l.requirements.length = 0; return { requirements: [] } })
     }
-    expect(store.snapshot().tasks).toHaveLength(0)
+    expect(await queueTasksOf(deps, REQ_ID)).toHaveLength(0)
   })
 
   it('按计划落库：key 映射成真实 id、依赖成链、任务验收标准来自计划', async () => {
@@ -179,12 +183,13 @@ describe('reqboard_decompose 边界', () => {
     expect(out.created[1].depends_on).toEqual([out.created[0].id])
     expect(out.requirement_status).toBe('decomposing')
     const ledger = store.snapshot()
+    const queueTasks = await queueTasksOf(deps, REQ_ID)
     // 迁移（REQ-d3e61a T-9）：占位验收标准换成**可照着验**的真实标准——本断言验的是
     // "计划任务表正确落库"（语义不变），只是值随门禁要求一起升级。
-    expect(ledger.tasks.map(t => t.acceptance)).toEqual(['npx vitest run tests/reqboard.test.ts 全绿', 'npx vitest run tests/client-view.test.ts 全绿'])
-    expect(ledger.tasks[0].statusHistory?.[0]?.by.kind).toBe('agent')
+    expect(queueTasks.map(t => t.acceptance)).toEqual(['npx vitest run tests/reqboard.test.ts 全绿', 'npx vitest run tests/client-view.test.ts 全绿'])
+    expect(queueTasks[0].statusHistory?.[0]?.by.kind).toBe('agent')
     // cardDoc 随落库写死（REQ-260923134706-e72f 断链修复）：任务卡文档路径 = docs/requirements/<REQ>/tasks/<id>.md
-    for (const t of ledger.tasks) {
+    for (const t of queueTasks) {
       expect(t.cardDoc).toBe('docs/requirements/' + t.requirementId + '/tasks/' + t.id + '.md')
     }
     // 2026-09-21：拆分计划在拆分阶段提交，decompose 不再承担 design>decomposing 推进
@@ -257,7 +262,8 @@ describe('实施卡透传与开工送达（REQ-2e9473 t04）', () => {
     await planAndApprove()
     const out = await run(decompose, {})
     const ledger = store.snapshot()
-    expect(ledger.tasks.map(t => t.implementation)).toEqual(['protocol.ts 加字段 + 单测验证', 'view.ts 加 buildGantt() 渲染'])
+    const queueTasks = await queueTasksOf(deps, REQ_ID)
+    expect(queueTasks.map(t => t.implementation)).toEqual(['protocol.ts 加字段 + 单测验证', 'view.ts 加 buildGantt() 渲染'])
     expect(out.thin_cards).toBeUndefined()
   })
 
@@ -369,7 +375,7 @@ describe('done 凭证门（REQ-2e9473 t06/W2，事故 C/D 故障注入）', () =
   it('无汇报 → REQBOARD_NO_REPORT（25ms 速通拦截）', async () => {
     const id = await taskInReview()
     await expect(run(taskMove, { task_id: id, to: 'done' })).rejects.toThrow(/REQBOARD_NO_REPORT/)
-    expect(store.snapshot().tasks[0].status).toBe('in_review')
+    expect((await queueTasksOf(deps, REQ_ID))[0].status).toBe('in_review')
   })
 
   it('汇报证据为空（completed/files_changed 都空）→ REQBOARD_NO_REPORT', async () => {
@@ -441,7 +447,7 @@ describe('reqboard_task_move 边界', () => {
     // 2026-09-14 五门裁定：任务开工不再自动 decomposing>implementing（拆分清单须人确认），
     // 需求停在拆分态；模拟人确认拆分清单后推进到 implementing，再验证 R2 rollup。
     expect(start.requirement_status).toBe('decomposing')
-    let t = store.snapshot().tasks.find(x => x.id === a)!
+    let t = (await queueTasksOf(deps, REQ_ID)).find(x => x.id === a)!
     expect(t.executions).toHaveLength(1)
     expect(t.executions[0].outcome).toBe('running')
     expect(t.claimedBy).toBe(W)
@@ -449,7 +455,7 @@ describe('reqboard_task_move 边界', () => {
     depsRef.doneThrottleMs = 0 // 本用例验执行段结算不验节流
     for (const to of ['testing', 'in_review']) await run(taskMove, { task_id: a, to })
     await honestClose(a)
-    t = store.snapshot().tasks.find(x => x.id === a)!
+    t = (await queueTasksOf(deps, REQ_ID)).find(x => x.id === a)!
     expect(t.executions[0].endedAt).toBeDefined()
     expect(t.executions[0].outcome).toBe('succeeded')
     expect(t.statusHistory?.map(e => e.status)).toEqual(['todo', 'in_progress', 'testing', 'in_review', 'done'])

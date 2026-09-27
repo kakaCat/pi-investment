@@ -37,20 +37,22 @@ function planSeed() {
       submittedBy: { kind: 'agent', sessionId: 'session-w-001' },
     },
   })]
-  h.repo.ledger.tasks = []
+  // 任务不在此 seed（v9 口径，B-4/B-5）："无任务" = **没有队列文件**，由各用例显式断言，
+  // 不静默省略——失败路径尤其要断言 `queueExists === false`（比"读到 0 条"更强，见 t-e96a0c 验收）。
   h.questions.answers = [{ selected: [DEFAULT_CONFIRM_OPTIONS[0] as string] }]
   return h
 }
 
 describe('批准计划 → 同步落库任务卡（FR-1/FR-2）', () => {
-  it('成功路径：同一调用返回时台账任务数 = 计划卡数，且进入 implementing', async () => {
+  it('成功路径：同一调用返回时队列任务数 = 计划卡数，且进入 implementing', async () => {
     const h = planSeed()
+    expect(h.queueExists('REQ-000001')).toBe(false) // 前置锚：从"无队列"开始（否则下面的 2 张卡可能是旧的）
     const out = await askConfirm(h.deps, { requirement_id: 'REQ-000001', target: 'plan', question: '批准？' }, exec) as { confirmed?: boolean }
     expect(out.confirmed).toBe(true)
     const r = h.repo.ledger.requirements[0]!
     expect(r.status).toBe('implementing')
     expect(r.autoRun).toBe(true)
-    const tasks = h.repo.ledger.tasks.filter(t => t.requirementId === 'REQ-000001')
+    const tasks = await h.tasksOf('REQ-000001')
     expect(tasks).toHaveLength(2)
     const t1 = tasks.find(t => t.title === '实现子卡层')!
     const t2 = tasks.find(t => t.title === '接线')!
@@ -69,7 +71,10 @@ describe('批准计划 → 同步落库任务卡（FR-1/FR-2）', () => {
     const r = h.repo.ledger.requirements[0]!
     expect(r.status).toBe('decomposing')
     expect(r.autoRun).toBeUndefined()
-    expect(h.repo.ledger.tasks.filter(t => t.requirementId === 'REQ-000001')).toHaveLength(0)
+    // B-4：失败路径断言**更强的那个** —— 队列文件根本不存在（"校验失败不落盘"）。
+    // 只断言"读到 0 条"会把"文件存在但校验不过"混进来（QueueRepository.load 两种情况都返回 undefined）。
+    expect(h.queueExists('REQ-000001')).toBe(false)
+    expect(await h.tasksOf('REQ-000001')).toHaveLength(0)
     expect(String(r.advance?.pausedReason ?? '')).toContain('auto_decompose_failed')
     expect(r.comments.some(c => c.body.includes('自动开跑失败'))).toBe(true)
     expect(alerts).toHaveLength(1)

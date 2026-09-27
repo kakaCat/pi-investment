@@ -8,13 +8,37 @@
  * 走**真实入口**（executeDecompose / submitVerification）+ harness 的假 docs/仓，
  * 断言**可观察终态**（拒绝与否、验收单里有没有那一项），而不是"函数被调用过"。
  */
-import { describe, expect, it } from 'vitest'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
 import { makeHarness, req, task } from './application/harness.js'
 import { executeDecompose } from '../src/application/use-cases/Decompose.js'
 import { submitVerification } from '../src/application/use-cases/SubmitVerification.js'
 
 const EXEC = { agent: { id: 'session-w-001' } }
 const doc = (...lines: string[]) => lines.join('\n')
+
+/**
+ * RTM 生成器**读真实文件系统**（`tools/reqboard/src/rtm/context.ts` 用 existsSync/readFileSync），
+ * 而 harness 的 docs 是内存假件 —— 于是"任务数"（来自队列，可见）与"已覆盖数"（来自磁盘，
+ * 结构性为 0）不匹配，`submit:verification` 的测试覆盖度门禁必然拒绝。
+ *
+ * v9 之前该门禁恒被**静默跳过**（任务不可见 → total=0）；任务改队列后 total>0，门禁真正生效。
+ * 故这里给用例接一个**真实临时工作区**，把测试文档按真实布局落盘——不是关掉门禁、不是放宽断言。
+ */
+function realWorkspace(files: Record<string, string>): string {
+  const root = mkdtempSync(join(tmpdir(), 'dg-e2e-'))
+  tmpRoots.push(root)
+  for (const [rel, content] of Object.entries(files)) {
+    const p = join(root, 'docs/requirements/REQ-000001', rel)
+    mkdirSync(dirname(p), { recursive: true })
+    writeFileSync(p, content)
+  }
+  return root
+}
+const tmpRoots: string[] = []
+afterEach(() => { for (const r of tmpRoots.splice(0)) rmSync(r, { recursive: true, force: true }) })
 
 const REQ_MD = doc(
   '# 需求', '',
@@ -62,8 +86,11 @@ describe('E2E① 需求 → 拆分 → 缺条款 → 被拦 → 补卡 → 通�
         { key: 'T-2', title: '三段可追溯', acceptance: 'npx vitest run b 通过', implementation: '改 b.ts', requirement_refs: [] },
       ],
     }, EXEC)).rejects.toThrow(/FR-4/)
-    // 终态：台账里没有落库任务（拒绝不留副作用）
-    expect(hh.repo.ledger.tasks).toHaveLength(0)
+    // 终态：队列里没有落库任务（拒绝不留副作用）。
+    // B-4 口径：`queueExists === false` 是最强断言（"文件不存在"），比"读到 0 条"更强——
+    // 同样也覆盖"文件存在但校验不过"这一被 load() 吞掉的形态。
+    expect(hh.queueExists('REQ-000001')).toBe(false)
+    expect(await hh.tasksOf('REQ-000001')).toHaveLength(0)
   })
 
   it('补卡：给 T-2 补上 FR-4 → **拆分通过**并落库', async () => {
@@ -75,7 +102,7 @@ describe('E2E① 需求 → 拆分 → 缺条款 → 被拦 → 补卡 → 通�
       ],
     }, EXEC)
     expect(out.success).toBe(true)
-    expect(hh.repo.ledger.tasks).toHaveLength(2)
+    expect(await hh.tasksOf('REQ-000001')).toHaveLength(2)
     // 终态②：RTM 覆盖表随拆分一起生成（任务↔条款绑定从此可查）
     const decomp = hh.docs.files.get('docs/requirements/REQ-000001/decomposition.md')?.content ?? ''
     expect(decomp, decomp).toContain('RTM 覆盖对照表')
@@ -110,11 +137,12 @@ describe('E2E② 交付 → 三方一致性验收单', () => {
     ],
   })
 
-  const seedTasks = (hh: any) => {
-    hh.repo.ledger.tasks.push(
+  // 任务落**队列**（v9）：`addTasks` 走真实写路径（幂等 + 校验 + 派生视图重算），故 helper 变 async。
+  const seedTasks = async (hh: any) => {
+    await hh.addTasks('REQ-000001', [
       task({ id: 't-aaa111', status: 'done', acceptance: 'npx vitest run tests/a.test.ts 通过', lastReport: { at: 1, reportIndex: 1, filesChanged: [], completed: ['npx vitest run tests/a.test.ts 3 passed'] } }),
       task({ id: 't-bbb222', status: 'done', acceptance: 'npx vitest run tests/b.test.ts 通过', lastReport: { at: 1, reportIndex: 1, filesChanged: [], completed: ['npx vitest run tests/b.test.ts 2 passed'] } }),
-    )
+    ])
   }
   /** RTM：只有 T-1 接了 FR-1；FR-4 无人接 → 三方比对必报"实施缺失" */
   const RTM_GAP = doc(
@@ -141,17 +169,26 @@ describe('E2E② 交付 → 三方一致性验收单', () => {
     hh.docs.put('docs/requirements/REQ-000001/design/test-cases.md', doc('# 测试用例'))
     hh.docs.put('docs/requirements/REQ-000001/reviews/review-1.md', doc('# 评审'))
     hh.docs.put('docs/requirements/REQ-000001/tests/unit.log', doc('3 passed'))
+    // 测试用例必须显式声明 covers:（REQ-260927202051-f6df 语义变更）：任务数据源改队列后，
+    // RTM `submit:verification` 的**测试覆盖度门禁 ≥80%** 从"恒为 0（静默跳过）"变为**可见**——
+    // 此前夹具从未声明覆盖，只是因为门禁看不到任务才没被拦。这里补上真实声明，而不是关掉门禁。
+    hh.docs.put('docs/requirements/REQ-000001/tests/unit-cases.md',
+      doc('# TC-1 覆盖两张任务卡', '', 'covers: t-aaa111 t-bbb222'))
     hh.docs.put('docs/requirements/REQ-000001/tasks/t-aaa111.md', doc('# 任务卡 t-aaa111'))
     hh.docs.put('docs/requirements/REQ-000001/tasks/t-bbb222.md', doc('# 任务卡 t-bbb222'))
   }
 
   it('需求有编号、**无设计**（FR-4 无设计章节）、**无实施**（RTM 里 FR-4 无卡）→ 验收单出现「三方一致性」缺口项', async () => {
     const hh = makeHarness({ requirements: [verifyingReq()], tasks: [] })
-    seedTasks(hh)
+    await seedTasks(hh)
     hh.docs.put('docs/requirements/REQ-000001/requirement.md', REQ_MD)
     hh.docs.put('docs/requirements/REQ-000001/decomposition.md', RTM_GAP)
     hh.docs.put('docs/requirements/REQ-000001/design/architecture.md', DESIGN)
     seedNineDocs(hh)
+    // 覆盖度门禁读真实 fs（见 realWorkspace 注释）：接一个临时工作区并落真实的测试文档声明。
+    hh.docs.workspaceRoot = () => realWorkspace({
+      'tests/unit-cases.md': doc('# TC-1 覆盖两张任务卡', '', 'covers: t-aaa111 t-bbb222'),
+    })
     const out: any = await submitVerification(hh.deps, { summary: '交付完成', evidence: ['npx vitest run 全绿'] }, EXEC)
     expect(out.success).toBe(true)
     const sheet = hh.repo.ledger.requirements[0].verification?.sheet
@@ -163,11 +200,14 @@ describe('E2E② 交付 → 三方一致性验收单', () => {
 
   it('补齐后（设计+实施都到位）→ 验收单**不再**出现缺口项（证明该项是活的，不是常驻噪声）', async () => {
     const hh = makeHarness({ requirements: [verifyingReq()], tasks: [] })
-    seedTasks(hh)
+    await seedTasks(hh)
     hh.docs.put('docs/requirements/REQ-000001/requirement.md', REQ_MD)
     hh.docs.put('docs/requirements/REQ-000001/decomposition.md', RTM_OK)
     hh.docs.put('docs/requirements/REQ-000001/design/architecture.md', DESIGN)
     seedNineDocs(hh)
+    hh.docs.workspaceRoot = () => realWorkspace({
+      'tests/unit-cases.md': doc('# TC-1 覆盖两张任务卡', '', 'covers: t-aaa111 t-bbb222'),
+    })
     const out: any = await submitVerification(hh.deps, { summary: '交付完成', evidence: ['npx vitest run 全绿'] }, EXEC)
     expect(out.success).toBe(true)
     const sheet = hh.repo.ledger.requirements[0].verification?.sheet
@@ -180,10 +220,10 @@ describe('T-I7/T-I8: 验收前置 9 类文档门（REQ-308b9a FR-7 / AC-7.5）',
     status: 'implementing',
     artifacts: [{ stage: 'design', kind: 'plan', path: 'docs/requirements/REQ-000001/plan.md' }],
   })
-  const seedTask = (hh: any) => {
-    hh.repo.ledger.tasks.push(
+  const seedTask = async (hh: any) => {
+    await hh.addTasks('REQ-000001', [
       task({ id: 't-aaa111', status: 'done', acceptance: 'npx vitest run tests/a.test.ts 通过', lastReport: { at: 1, reportIndex: 1, filesChanged: [], completed: ['3 passed'] } }),
-    )
+    ])
   }
   /** 9 类文档逐项（缺哪条由测试删除）。 */
   const NINE: [string, string][] = [
@@ -203,11 +243,14 @@ describe('T-I7/T-I8: 验收前置 9 类文档门（REQ-308b9a FR-7 / AC-7.5）',
       hh.docs.put('docs/requirements/REQ-000001/' + rel, content)
     }
     hh.docs.put('docs/requirements/REQ-000001/tasks/t-aaa111.md', '# 任务卡')
+    // 同上：覆盖度门禁现在看得到任务，须显式声明 covers（不是放宽断言，是补上真实缺失的声明）。
+    hh.docs.put('docs/requirements/REQ-000001/tests/unit-cases.md',
+      doc('# TC-1 覆盖任务卡', '', 'covers: t-aaa111'))
   }
 
   it('T-I7: 缺 design/interfaces.md → 提交被拒且点名该文件（AC-7.5）', async () => {
     const hh = makeHarness({ requirements: [rq()], tasks: [] })
-    seedTask(hh)
+    await seedTask(hh)
     putNine(hh, 'design/interfaces.md')
     await expect(
       submitVerification(hh.deps, { summary: '交付完成', evidence: ['npx vitest run 全绿'] }, EXEC),
@@ -216,8 +259,11 @@ describe('T-I7/T-I8: 验收前置 9 类文档门（REQ-308b9a FR-7 / AC-7.5）',
 
   it('T-I8: 9 类齐 → 生成结构化 verification.md（四段齐全，AC-7.1）', async () => {
     const hh = makeHarness({ requirements: [rq()], tasks: [] })
-    seedTask(hh)
+    await seedTask(hh)
     putNine(hh)
+    hh.docs.workspaceRoot = () => realWorkspace({
+      'tests/unit-cases.md': doc('# TC-1 覆盖任务卡', '', 'covers: t-aaa111'),
+    })
     const out: any = await submitVerification(hh.deps, { summary: '交付完成', evidence: ['npx vitest run 全绿'] }, EXEC)
     expect(out.success).toBe(true)
     const md = hh.docs.files.get('docs/requirements/REQ-000001/verification.md')?.content ?? ''

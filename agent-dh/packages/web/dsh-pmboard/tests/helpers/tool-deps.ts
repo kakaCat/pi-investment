@@ -20,8 +20,11 @@ import { SessionProbeAdapter } from '../../src/adapters/SessionProbeAdapter.js'
 import { FileDocRepository } from '../../src/adapters/FileDocRepository.js'
 import { RandomIdFactory } from '../../src/adapters/RandomIdFactory.js'
 import { UserQuestionsAdapter } from '../../src/adapters/UserQuestionsAdapter.js'
-import type { UseCaseDeps } from '../../src/application/ports.js'
+import type { TaskStore, UseCaseDeps } from '../../src/application/ports.js'
 import type { JsonLedgerRepository } from '../../src/adapters/JsonLedgerRepository.js'
+import type { TaskRecord } from '../../src/shared/protocol.js'
+import { InMemoryQueueRepository } from '../application/harness.js'
+import { QueueTaskStore } from '../../src/repositories/QueueTaskStore.js'
 import {
   defineCreateTool as createTool,
   defineCaptureTool as captureTool,
@@ -64,6 +67,54 @@ export interface ReqboardToolDeps {
   rejections?: UseCaseDeps['rejections']
   /** 挂起确认注册表（FR-9 停手守卫用；缺失 = 无挂起）。 */
   pendingConfirms?: UseCaseDeps['pendingConfirms']
+  /**
+   * 任务队列端口（REQ-260927202051-f6df v9）。
+   *
+   * 不传 = 由本夹具**自动装配**真实 `QueueTaskStore`（内存 `InMemoryQueueRepository` 底座，
+   * 见 `taskStoreOf`）——**同一 `deps` 对象恒得同一实例**（WeakMap 记忆化）。
+   * 想在同一个 `deps` 上换 store（或断言队列文件落点），显式传自己的实现即可。
+   */
+  taskStore?: TaskStore
+}
+
+/**
+ * 同一 `deps` 对象 → 同一 `TaskStore`（WeakMap 记忆化）。
+ *
+ * ## 为什么必须记忆化（Lead 裁定，硬要求）
+ *
+ * 现有测试的用法是：**同一个 `deps` 对象**分别喂给多个工厂
+ * （`definePlanSubmitTool(deps)` / `defineDecomposeTool(deps)` / `defineVerifySubmitTool(deps)` …），
+ * 而每个工厂内部都会调一次 `toUseCaseDeps(deps)`。若每次现 new 一个 store，就会出现
+ * **"工具读 A store、断言读 B store"** 的假红——现象是真 bug 的样子，根因却在夹具，
+ * 是最贵的一类排查。记忆化把这条不变量钉死（并有夹具测试显式断言）。
+ *
+ * ## 为什么是内存底座而不是文件
+ *
+ * 每个 `it` 都有自己的 `deps` 对象 → 天然"每测试一份队列"，**不会跨测试串档**
+ * （file 底座若共用 workspaceRoot，同 id 需求会互相污染）。而且夹具不落盘，
+ * 与 `tests/application/harness.ts` 是**同一套装配口径**（这正是 D14 修正案把
+ * "夹具装配类"收给单一属主的原因）。
+ */
+const taskStores = new WeakMap<ReqboardToolDeps, TaskStore>()
+
+/** 取（或惰性装配）本次 `deps` 的任务队列端口。 */
+export function taskStoreOf(deps: ReqboardToolDeps): TaskStore {
+  if (deps.taskStore !== undefined) return deps.taskStore
+  const existing = taskStores.get(deps)
+  if (existing !== undefined) return existing
+  const store = new QueueTaskStore({ repo: new InMemoryQueueRepository(), now: deps.now })
+  taskStores.set(deps, store)
+  return store
+}
+
+/** 便捷播种：把任务写进本次 `deps` 的队列（async，走真实 `createMany`；幂等）。 */
+export function seedQueueTasks(deps: ReqboardToolDeps, requirementId: string, tasks: readonly TaskRecord[]): Promise<readonly TaskRecord[]> {
+  return taskStoreOf(deps).createMany(requirementId, tasks)
+}
+
+/** 便捷读取：本次 `deps` 队列里某需求的任务（已剥 layer）。 */
+export function queueTasksOf(deps: ReqboardToolDeps, requirementId: string): Promise<readonly TaskRecord[]> {
+  return taskStoreOf(deps).listByRequirement(requirementId)
 }
 
 /**
@@ -109,12 +160,15 @@ export function stubDocFile(relPath: string, root?: string, content = '# 占位�
   writeFileSync(abs, content)
 }
 
-/** 旧 deps → 用例依赖（适配器即 t5 落地的端口实现）。 */
-function toUseCaseDeps(deps: ReqboardToolDeps): UseCaseDeps {
+/** 旧 deps → 用例依赖（适配器即 t5 落地的端口实现）。导出供夹具测试断言装配口径。 */
+export function toUseCaseDeps(deps: ReqboardToolDeps): UseCaseDeps {
   // 注意：doneThrottleMs 用 getter 活读——既有测试在工具构造后才把节流改成 0
   // （tests/decompose-tools.test.ts:329/439），快照会改变行为。
   const uc: UseCaseDeps = {
     repo: deps.store,
+    // v9：任务唯一存储 = 队列。**必须**用记忆化版本（同一 deps → 同一 store），
+    // 否则多工厂各建一个 store，"工具读 A、断言读 B"的假红必现。
+    taskStore: taskStoreOf(deps),
     docs: new FileDocRepository({ workspaceRoot: resolveWorkspaceRoot(deps.workspaceRoot) }),
     clock: { now: deps.now },
     ids: new RandomIdFactory(),

@@ -56,10 +56,13 @@ describe('taskCompletenessGap（FR-3 判定）', () => {
 })
 
 describe('executeMoveRequirement：decomposing→implementing 被守卫拦下（FR-3）', () => {
-  it('计划有卡、台账 0 卡 → REQBOARD_TASK_INCOMPLETE，且需求状态不变', async () => {
+  it('计划有卡、队列 0 卡 → REQBOARD_TASK_INCOMPLETE，且需求状态不变', async () => {
     const h = makeHarness()
     h.repo.ledger.requirements = [liveReq({ plan: planOf(2) })]
-    h.repo.ledger.tasks = []
+    // B-5（Lead 裁定）：不许静默删掉"此刻没有任务"这条保证 —— 换成显式前置断言（更强、且意图可见）。
+    // v9 口径：任务只在队列；"0 卡" = 该需求没有队列文件（不 seed 即无队列）。
+    expect(h.queueExists('REQ-000001')).toBe(false)
+    expect(await h.tasksOf('REQ-000001')).toHaveLength(0)
     let code: string | undefined
     try {
       await executeMoveRequirement(h.deps, { to: 'implementing' }, { agent: { id: 'session-w-001' } })

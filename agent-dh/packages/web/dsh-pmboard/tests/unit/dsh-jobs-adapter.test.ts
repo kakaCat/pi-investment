@@ -179,4 +179,66 @@ describe('DshJobsAdapter', () => {
     expect(DshJobsAdapter.isAvailable(unavailableCtx2)).toBe(false)
     expect(DshJobsAdapter.isAvailable(unavailableCtx3)).toBe(false)
   })
+
+  // REQ-260927144541-0481 根因修复：装配层要求的 JobsPort 形状（start/get/available）。
+  // 此前本类只有 startJob/getJob —— 组合根拿不到这个形状，deps.jobs 恒 undefined，
+  // 实施链因此退化为同步循环（调用被阻塞数分钟，且回执谎报『投递失败』）。
+  it('JobsPort.start：透传 kind/label/owner，run 包装成 DSH 生产者钩子', async () => {
+    // 关键回归：DSH 的 JobStart.run 必须**同步返回 JobHooks**（注册表调 hooks.cancel.bind(hooks)）。
+    // 旧实现把 async 执行函数直接当 run 传 → run() 返回 Promise → hooks.cancel 为 undefined →
+    // TypeError（Cannot read properties of undefined (reading 'bind')）→ 线上投递恒失败。
+    // 旧用例只断言"参数被透传"（mock 从不调用 run()），因此漏掉了这条真实契约。
+    let captured: any
+    const ctx = { jobs: { start: vi.fn((spec: any) => { captured = spec; return 'job-9' }), get: vi.fn() } }
+    const adapter = new DshJobsAdapter(ctx)
+    const owner = { id: 'agent-1' }
+    let observedSignal: AbortSignal | undefined
+    const run = async (signal: AbortSignal) => { observedSignal = signal }
+    const jobId = await adapter.start({ kind: 'reqboard', label: 'REQ-x', owner, run })
+    expect(jobId).toBe('job-9')
+    expect(captured.kind).toBe('reqboard')
+    expect(captured.label).toBe('REQ-x')
+    expect(captured.owner).toBe(owner)
+
+    // 契约：run() 同步返回 { cancel, done }，且 done 可结算（不得 reject）。
+    const hooks = captured.run()
+    expect(typeof hooks.cancel).toBe('function')
+    expect(hooks.done).toBeInstanceOf(Promise)
+    await expect(hooks.done).resolves.toEqual({ status: 'completed' })
+    expect(observedSignal?.aborted).toBe(false)
+  })
+
+  it('JobsPort.start：执行函数抛错 → done 结算为 failed（不 reject）', async () => {
+    let captured: any
+    const ctx = { jobs: { start: vi.fn((spec: any) => { captured = spec; return 'job-1' }), get: vi.fn() } }
+    const adapter = new DshJobsAdapter(ctx)
+    await adapter.start({ kind: 'reqboard', label: 'REQ-y', run: async () => { throw new Error('boom') } })
+    const hooks = captured.run()
+    await expect(hooks.done).resolves.toEqual({ status: 'failed', detail: 'boom' })
+  })
+
+  it('JobsPort.start：cancel 同步触发 AbortSignal（幂等）', async () => {
+    let captured: any
+    const ctx = { jobs: { start: vi.fn((spec: any) => { captured = spec; return 'job-2' }), get: vi.fn() } }
+    const adapter = new DshJobsAdapter(ctx)
+    let signal: AbortSignal | undefined
+    const run = (s: AbortSignal) => new Promise<void>((resolve) => { signal = s; s.addEventListener('abort', () => resolve()) })
+    await adapter.start({ kind: 'reqboard', label: 'REQ-z', run })
+    const hooks = captured.run()
+    hooks.cancel()
+    hooks.cancel() // 幂等：重复取消不得抛错
+    await hooks.done
+    expect(signal?.aborted).toBe(true)
+  })
+
+  it('JobsPort.get：复用状态映射（job 不存在 → null）', async () => {
+    const ctx = { jobs: { start: vi.fn(), get: vi.fn().mockResolvedValue(undefined) } }
+    const adapter = new DshJobsAdapter(ctx)
+    expect(await adapter.get('job-x')).toBeNull()
+  })
+
+  it('JobsPort.available：能构造即可用（advanceRequirement 据此选投递/同步路径）', () => {
+    const ctx = { jobs: { start: vi.fn(), get: vi.fn() } }
+    expect(new DshJobsAdapter(ctx).available()).toBe(true)
+  })
 })

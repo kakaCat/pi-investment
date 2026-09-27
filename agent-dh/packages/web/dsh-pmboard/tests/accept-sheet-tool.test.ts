@@ -7,12 +7,19 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
-import { defineVerifySubmitTool, defineAcceptSheetTool } from './helpers/tool-deps.js'
+import { defineVerifySubmitTool, defineAcceptSheetTool, queueTasksOf, seedQueueTasks, type ReqboardToolDeps } from './helpers/tool-deps.js'
 import type { RequirementRecord } from '../src/shared/protocol.js'
 
 const W = 'session-as-001'
+const REQ_ID = 'REQ-as0001'
 let dir: string
 let store: ReqboardStore
+/**
+ * **同一个 deps 对象**配所有工具（tool-deps 按 deps 记忆化 TaskStore）：
+ * 每个工厂各建一个 deps 就会各得一个队列，"工具读 A、断言读 B"的假红必现。
+ * 弹框通道按用例切换 → 直接改 `deps.userQuestions`（工厂内部是惰性读取 `() => deps.userQuestions?.()`）。
+ */
+let deps: ReqboardToolDeps
 
 /**
  * 假弹框：answers 为批次队列（每次 ask 消费一批）；'delegated'/'abort' 为异常路径。
@@ -28,35 +35,30 @@ function sheetTool(answers: any[] | any[][] | 'delegated' | 'abort' | undefined)
     const batch = queue.shift() ?? []
     return { answers: batch }
   }
-  const deps = {
-    store, now: () => Date.now(),
-    ...(answers !== undefined ? { userQuestions: () => ({ ask }) } : {}),
-  } as never
+  if (answers !== undefined) deps.userQuestions = () => ({ ask })
+  else delete deps.userQuestions
   return defineAcceptSheetTool(deps) as never as { execute: (a: unknown, e: unknown) => Promise<any> }
 }
-const verifyTool = () => defineVerifySubmitTool({ store, now: () => Date.now() } as never) as never as { execute: (a: unknown, e: unknown) => Promise<any> }
+const verifyTool = () => defineVerifySubmitTool(deps) as never as { execute: (a: unknown, e: unknown) => Promise<any> }
 const run = (tool: any, args: unknown) => tool.execute(args, { agent: { id: W } })
 
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-sheettool-'))
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
+  deps = { store, now: () => Date.now() }
   const r = {
     id: 'REQ-as0001', title: '验收弹框', description: '', status: 'implementing', category: 'feature',
     blocked: false, sourceSessionId: W, comments: [], version: 1, createdAt: 1, updatedAt: 1,
     createdBy: { kind: 'human' }, updatedBy: { kind: 'human' }, statusHistory: [],
   } as unknown as RequirementRecord
-  await store.mutate('seed', (l) => {
-    l.requirements.push(r)
-    for (let i = 1; i <= 3; i++) {
-      l.tasks.push({
-        id: 't-as000' + i, requirementId: r.id, title: '任务' + i, description: '', phase: 'implement', side: 'backend',
-        dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance: '验收标准 ' + i, implementation: '改 x' + i,
-        context: '', status: 'done', blocked: false, executions: [], comments: [], version: 1,
-        createdAt: 1, updatedAt: 1, createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
-      } as never)
-    }
-    return { requirements: [r] }
-  })
+  await store.mutate('seed', (l) => { l.requirements.push(r); return { requirements: [r] } })
+  // v9：任务唯一存储 = 队列（台账不再有 tasks 通道）
+  await seedQueueTasks(deps, REQ_ID, Array.from({ length: 3 }, (_, i) => ({
+    id: 't-as000' + (i + 1), requirementId: REQ_ID, title: '任务' + (i + 1), description: '', phase: 'implement' as const, side: 'backend' as const,
+    dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance: '验收标准 ' + (i + 1), implementation: '改 x' + (i + 1),
+    context: '', status: 'done' as const, blocked: false, executions: [], comments: [], version: 1,
+    createdAt: 1, updatedAt: 1, createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
+  })))
   await run(verifyTool(), { summary: '交付', evidence: ['npx vitest run 全绿'] })
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
@@ -88,7 +90,7 @@ describe('reqboard_accept_sheet', () => {
     expect(out.rework_tasks).toHaveLength(2)
     const snap = store.snapshot()
     expect(snap.requirements[0].status).toBe('implementing')
-    expect(snap.tasks).toHaveLength(5) // 原有 3 张 + 2 张返工卡
+    expect(await queueTasksOf(deps, REQ_ID)).toHaveLength(5) // 原有 3 张 + 2 张返工卡（v9：从队列读）
     expect(out.note).toMatch(/自动回退/)
     // 验收项裁决留痕
     const item = sheetOf().items.find(i => i.id === ids[1])!

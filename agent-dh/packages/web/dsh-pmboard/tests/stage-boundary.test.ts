@@ -7,19 +7,22 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
-import { definePlanSubmitTool, defineDecomposeTool, stubDocFile } from './helpers/tool-deps.js'
+import { definePlanSubmitTool, defineDecomposeTool, queueTasksOf, stubDocFile, type ReqboardToolDeps } from './helpers/tool-deps.js'
 import type { RequirementRecord } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
+const REQ_ID = 'REQ-w7test'
 let dir: string
 let store: ReqboardStore
+/** 同一个 deps 对象配两个工具（tool-deps 按 deps 记忆化 TaskStore）。 */
+let deps: ReqboardToolDeps
 let planTool: { execute: (a: unknown, e: unknown) => Promise<any> }
 let decompose: { execute: (a: unknown, e: unknown) => Promise<any> }
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-boundary-'))
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
-  const deps = { store, now: () => Date.now() } as never
+  deps = { store, now: () => Date.now() }
   planTool = definePlanSubmitTool(deps) as never
   decompose = defineDecomposeTool(deps) as never
   // REQ-2d1c74 FR-5：plan_submit 起要求提交路径真实落盘
@@ -71,7 +74,7 @@ describe('W7 阶段产物边界（t17）', () => {
       return { requirements: [r] }
     })
     await expect(run(decompose, {})).rejects.toThrow(/REQBOARD_TASKS_REQUIRED/)
-    expect(store.snapshot().tasks).toHaveLength(0)
+    expect(await queueTasksOf(deps, REQ_ID)).toHaveLength(0) // v9：任务唯一存储 = 队列
   })
 
   it('空任务表计划 + 创作型 tasks → 落库成功（含实施卡，需求进拆分态）', async () => {
@@ -86,7 +89,7 @@ describe('W7 阶段产物边界（t17）', () => {
     const out = await run(decompose, { tasks: CREATIVE })
     expect(out.created).toHaveLength(2)
     expect(out.requirement_status).toBe('decomposing')
-    const tasks = store.snapshot().tasks
+    const tasks = await queueTasksOf(deps, REQ_ID)
     expect(tasks.map(t => t.implementation)).toEqual(['protocol.ts 加字段并单测', 'view.ts 加渲染'])
     expect(tasks[1].dependsOn).toEqual([tasks[0].id])
   })
@@ -101,13 +104,13 @@ describe('W7 阶段产物边界（t17）', () => {
       return { requirements: [r] }
     })
     await expect(run(decompose, { tasks: [{ key: 'a', title: 'x', acceptance: '单测绿' }] })).rejects.toThrow(/缺实施方案/)
-    expect(store.snapshot().tasks).toHaveLength(0)
+    expect(await queueTasksOf(deps, REQ_ID)).toHaveLength(0)
   })
 
   it('计划未批准 → 落库被拒（故障注入）', async () => {
     await seed()
     await run(planTool, { path: 'p.md', summary: '设计' })
     await expect(run(decompose, { tasks: CREATIVE })).rejects.toThrow(/REQBOARD_PLAN_NOT_APPROVED/)
-    expect(store.snapshot().tasks).toHaveLength(0)
+    expect(await queueTasksOf(deps, REQ_ID)).toHaveLength(0)
   })
 })

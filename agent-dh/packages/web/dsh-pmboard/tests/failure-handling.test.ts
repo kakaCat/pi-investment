@@ -11,6 +11,7 @@ import { openFailurePopup, handleFailureChoice, FAILURE_CHOICE_LABELS } from '..
 import { applyReworkUpdate } from '../src/application/internal/rework-update.js'
 import { planTask } from './helpers/plan-task.js'
 import type { WorkflowRunner, WorkflowRunOutcome, FailureAlertPort } from '../src/application/ports.js'
+import type { TaskRecord } from '../src/shared/protocol.js'
 import { makeHarness, task, req } from './application/harness.js'
 
 const FILE = 'src/domain/x.ts'
@@ -30,7 +31,7 @@ function seed(runner: WorkflowRunner) {
   const h = makeHarness()
   h.docs.put(FILE, 'x')
   h.repo.ledger.requirements = [req({ id: 'REQ-000001', status: 'implementing', category: 'feature', autoRun: true, sourceSessionId: 'session-w-001' })]
-  h.repo.ledger.tasks = [task({ id: 't-p', requirementId: 'REQ-000001', status: 'todo', title: '父卡' })]
+  h.seedTasks('REQ-000001', [task({ id: 't-p', requirementId: 'REQ-000001', status: 'todo', title: '父卡' })])
   h.deps.workflow = runner
   const alerts: Array<{ requirementId: string; title: string; content: string }> = []
   const port: FailureAlertPort = { alert: (i) => { alerts.push(i) } }
@@ -44,7 +45,7 @@ describe('失败暂停与回退（5.1/5.2/5.5）', () => {
     const { h, alerts } = seed(runner)
     const out = await advanceRequirement(h.deps, 'REQ-000001')
     expect(out.stopped).toBe('paused')
-    const rolled = h.repo.ledger.tasks.find(t => t.parentId === 't-p' && (t.attempt ?? 0) > 0)!
+    const rolled = (await h.tasksOf('REQ-000001')).find(t => t.parentId === 't-p' && (t.attempt ?? 0) > 0)!
     expect(rolled).toBeDefined()
     expect(rolled.status).toBe('todo')
     expect(rolled.attempt).toBe(1)
@@ -70,7 +71,7 @@ describe('失败暂停与回退（5.1/5.2/5.5）', () => {
   it('5.6 自动链不产生 done→in_progress 转移', async () => {
     const { h } = seed(new FlakyRunner(-1))
     await advanceRequirement(h.deps, 'REQ-000001')
-    for (const t of h.repo.ledger.tasks) {
+    for (const t of await h.tasksOf('REQ-000001')) {
       const hist = (t.statusHistory ?? []).map(x => x.status)
       const di = hist.indexOf('done')
       expect(di === -1 || !hist.slice(di + 1).includes('in_progress'), t.id).toBe(true)
@@ -119,16 +120,23 @@ describe('返工就地更新（5.4/5.5）', () => {
   it('重批准计划后：卡数不变、受影响父卡字段被更新且有 revisions(update)', async () => {
     const h = makeHarness()
     h.repo.ledger.requirements = [req({ id: 'REQ-000001', status: 'design', category: 'feature' })]
-    h.repo.ledger.tasks = [
+    await h.setTasks('REQ-000001', [
       task({ id: 't-p', requirementId: 'REQ-000001', title: '父卡', acceptance: '旧验收', description: '旧描述', status: 'in_progress' }),
-    ]
-    const before = h.repo.ledger.tasks.length
-    const updated = applyReworkUpdate(h.repo.ledger, 'REQ-000001', [
-      planTask({ key: 't1', title: '父卡', acceptance: '新验收（可跑：vitest 绿）', description: '新描述', implementation: '改 y.ts', phase: 'implement', side: 'backend' }),
-    ], h.clock.t)
-    expect(h.repo.ledger.tasks.length).toBe(before)
+    ])
+    const before = (await h.tasksOf('REQ-000001')).length
+    // C-1（D4 签名裂变）：`applyReworkUpdate(tasks, requirementId, planTasks, now)` —— 就地改**队列任务**
+    // 并返回被更新的卡；调用方（本用例模拟生产写路径）在 `taskStore.mutate` 回调内 `return tasks` 落盘。
+    let updated: TaskRecord[] = []
+    await h.taskStore.mutate('REQ-000001', (tasks) => {
+      updated = applyReworkUpdate(tasks, 'REQ-000001', [
+        planTask({ key: 't1', title: '父卡', acceptance: '新验收（可跑：vitest 绿）', description: '新描述', implementation: '改 y.ts', phase: 'implement', side: 'backend' }),
+      ], h.clock.t)
+      return tasks
+    })
+    const after = await h.tasksOf('REQ-000001')
+    expect(after.length).toBe(before)
     expect(updated).toHaveLength(1)
-    const card = h.repo.ledger.tasks[0]!
+    const card = after[0]!
     expect(card.acceptance).toBe('新验收（可跑：vitest 绿）')
     expect(card.revisions?.map(r => r.kind)).toEqual(['update'])
     expect(card.revisions?.[0]?.changes).toContain('acceptance')

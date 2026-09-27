@@ -20,13 +20,14 @@ import { fileURLToPath } from 'node:url'
 import {
   LEDGER_V8,
   LEDGER_V9,
-  computeLayersLocal,
-  computeReadyLocal,
   defaultServiceRunningCheck,
   migrateV8toV9,
   rollbackV9,
   runV9,
+  v9Defaults,
 } from '../scripts/migrate-ledger.js'
+import { computeLayers as canonicalComputeLayers, computeEdges as canonicalComputeEdges, computeReady as canonicalComputeReady } from '../src/domain/queue/topology.js'
+import { validateQueueFile as canonicalValidateQueueFile } from '../src/domain/queue/validateQueue.js'
 
 const PKG_ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const NOW = 1_760_000_000_000
@@ -46,6 +47,8 @@ function mkTask(over: Record<string, unknown> = {}): any {
     phase: 'implement',
     side: 'backend',
     scope: { apis: [], tables: [], files: [] },
+    /** V-1 任务级必填（19 字段）之一——canonical validateQueueFile 会点名校验 */
+    dependsOn: [],
     acceptance: 'A',
     context: 'C',
     status: 'todo',
@@ -186,20 +189,51 @@ describe('v8→v9 纯变换（migrateV8toV9）', () => {
     expect(r.unmigrated.some((u) => u.reason === 'circular-dependency' && u.tasks.length === 2)).toBe(true)
   })
 
-  it('缺需求目录：不隐式建目录，任务隔离保留（design 兼容性表）', () => {
+  it('缺需求目录但需求记录存在：**建目录迁入**（Lead D10 裁决 b），不再隔离', () => {
     const tasks = [mkTask({ id: 't-w', requirementId: 'REQ-nodir' })]
     const r = migrateV8toV9(mkLedger(tasks, [mkReq('REQ-nodir')]), NOW, { requirementDirOf: requirementDirOf(join(tmp, 'ws')), dirExists: () => false })
-    expect(r.queues).toEqual([])
-    expect(r.report.skipped[0]!.reason).toContain('需求目录不存在')
-    expect(r.unmigrated[0]).toMatchObject({ reason: 'missing-requirement-dir', requirementId: 'REQ-nodir' })
+    expect(r.queues).toHaveLength(1)
+    expect(r.queues[0]!.createDir).toBe(true)
+    expect(r.report.createdDirs).toEqual([
+      { requirementId: 'REQ-nodir', dir: join(tmp, 'ws', 'docs', 'requirements', 'REQ-nodir'), taskCount: 1 },
+    ])
+    expect(r.report.skipped).toEqual([])
+    // Lead D9 验收⑥：未迁移必须为 0（设计定义之外的丢失不得当合规）
+    expect(r.unmigrated).toEqual([])
   })
 
-  it('computeLayersLocal 空输入不抛错；有环 message 含 CIRCULAR', () => {
-    expect(computeLayersLocal([])).toEqual([])
-    expect(computeReadyLocal([])).toEqual([])
-    expect(() => computeLayersLocal([
+  it('真 orphan 永不建目录：requirementId 不存在 → 隔离，且 createdDirs 为空', () => {
+    const tasks = [mkTask({ id: 't-ghost', requirementId: 'REQ-zzzzzz' })]
+    const r = migrateV8toV9(mkLedger(tasks), NOW, { requirementDirOf: requirementDirOf(join(tmp, 'ws')), dirExists: () => false })
+    expect(r.queues).toEqual([])
+    expect(r.report.createdDirs).toEqual([])
+    expect(r.report.orphanTasks).toEqual([{ taskId: 't-ghost', requirementId: 'REQ-zzzzzz', reason: 'unknown-requirement' }])
+    expect(r.unmigrated.flatMap((u) => u.tasks.map((t: any) => t.id))).toEqual(['t-ghost'])
+  })
+
+  it('拓扑/校验用 t2/t3 的唯一实现（不留第二套语义）', () => {
+    expect(v9Defaults.computeLayers).toBe(canonicalComputeLayers)
+    expect(v9Defaults.computeEdges).toBe(canonicalComputeEdges)
+    expect(v9Defaults.computeReady).toBe(canonicalComputeReady)
+    expect(v9Defaults.validate).toBe(canonicalValidateQueueFile)
+  })
+
+  it('canonical 拓扑：空输入不抛错；有环 message 含 CIRCULAR', () => {
+    expect(canonicalComputeLayers([])).toEqual([])
+    expect(canonicalComputeReady([])).toEqual([])
+    expect(() => canonicalComputeLayers([
       mkTask({ id: 'a', dependsOn: ['b'] }), mkTask({ id: 'b', dependsOn: ['a'] }),
     ])).toThrow(/CIRCULAR/)
+  })
+
+  it('环依赖需求即使目录缺失也不得留下待建目录（createDirRollback：不为失败需求建空目录）', () => {
+    const tasks = [
+      mkTask({ id: 't-c1', requirementId: 'REQ-cycle', dependsOn: ['t-c2'] }),
+      mkTask({ id: 't-c2', requirementId: 'REQ-cycle', dependsOn: ['t-c1'] }),
+    ]
+    const r = migrateV8toV9(mkLedger(tasks, [mkReq('REQ-cycle')]), NOW, { requirementDirOf: requirementDirOf(join(tmp, 'ws')), dirExists: () => false })
+    expect(r.report.createdDirs).toEqual([])
+    expect(r.report.skipped).toHaveLength(1)
   })
 })
 
@@ -337,6 +371,27 @@ describe('v8→v9 CLI：dry-run / apply / verify / rollback', () => {
     const o = await rollbackV9({ file, now: NOW + 1 })
     expect(o.code).toBe(0)
     expect(readFileSync(file, 'utf8')).toBe(compact)
+  })
+
+  it('目录缺失（需求记录存在）：apply 建目录并迁入，rollback 删掉本次新建的目录', async () => {
+    const { file, root } = setupWorkspace(tinyLedger(), []) // 不预建任何需求目录
+    const dir = join(root, 'docs', 'requirements', 'REQ-aaaaaa')
+    expect(existsSync(dir)).toBe(false)
+
+    const o = await runV9({ file, mode: 'apply', ledger: JSON.parse(readFileSync(file, 'utf8')), requirementDirOf: requirementDirOf(root), now: NOW })
+    expect(o.code).toBe(0)
+    expect(existsSync(join(dir, 'queue.json'))).toBe(true)
+    expect(o.report!.createdDirs).toEqual([{ requirementId: 'REQ-aaaaaa', dir, taskCount: 2 }])
+    expect(o.report!.skipped).toEqual([])
+    // manifest 留痕（回滚依据）
+    const manifest = JSON.parse(readFileSync(o.manifestPath!, 'utf8'))
+    expect(manifest.createdDirs).toEqual([dir])
+
+    const rb = await rollbackV9({ file, now: NOW + 1 })
+    expect(rb.code).toBe(0)
+    expect(rb.removedDirs).toContain(dir)
+    expect(existsSync(dir)).toBe(false)
+    expect(JSON.parse(readFileSync(file, 'utf8')).schemaVersion).toBe(LEDGER_V8)
   })
 
   it('rollback 边界：无备份时拒绝且不写台账', async () => {

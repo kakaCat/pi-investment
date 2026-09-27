@@ -31,16 +31,16 @@ describe('父卡并发上限（6.1）', () => {
   it('第 4 张父卡开工被拒（REQBOARD_PARENT_LIMIT）', async () => {
     const h = makeHarness()
     h.repo.ledger.requirements = [req({ id: 'REQ-000001', status: 'implementing', category: 'feature', autoRun: true })]
-    h.repo.ledger.tasks = [
+    await h.setTasks('REQ-000001', [
       task({ id: 't-p1', requirementId: 'REQ-000001', status: 'in_progress', title: 'p1' }),
       task({ id: 't-p2', requirementId: 'REQ-000001', status: 'in_progress', title: 'p2' }),
       task({ id: 't-p3', requirementId: 'REQ-000001', status: 'in_progress', title: 'p3' }),
       task({ id: 't-p4', requirementId: 'REQ-000001', status: 'todo', title: 'p4' }),
-    ]
+    ])
     let code: string | undefined
     try { await executeMoveTask(h.deps, { task_id: 't-p4', to: 'in_progress' }, exec) } catch (err) { code = (err as { code?: string }).code }
     expect(code).toBe('REQBOARD_PARENT_LIMIT')
-    expect(h.repo.ledger.tasks.find(t => t.id === 't-p4')!.status).toBe('todo')
+    expect((await h.tasksOf('REQ-000001')).find(t => t.id === 't-p4')!.status).toBe('todo')
     expect(LIMITS.advanceMaxParallelParents).toBe(3)
   })
 })
@@ -50,15 +50,17 @@ describe('父卡层并行（6.2）', () => {
     const h = makeHarness()
     h.docs.put(FILE, 'x')
     h.repo.ledger.requirements = [req({ id: 'REQ-000001', status: 'implementing', category: 'doc', autoRun: true })]
-    h.repo.ledger.tasks = [
+    await h.setTasks('REQ-000001', [
       task({ id: 't-a', requirementId: 'REQ-000001', status: 'todo', title: 'A' }),
       task({ id: 't-b', requirementId: 'REQ-000001', status: 'todo', title: 'B' }),
-    ]
+    ])
     h.deps.workflow = new OkRunner()
     const out = await advanceRequirement(h.deps, 'REQ-000001')
     expect(out.stopped).toBe('rollup')
-    expect(h.repo.ledger.tasks.find(t => t.id === 't-a')!.status).toBe('done')
-    expect(h.repo.ledger.tasks.find(t => t.id === 't-b')!.status).toBe('done')
+    const doneTasks = await h.tasksOf('REQ-000001')
+    expect(doneTasks.filter(t => t.parentId === undefined)).toHaveLength(2)
+    expect(doneTasks.find(t => t.id === 't-a')!.status).toBe('done')
+    expect(doneTasks.find(t => t.id === 't-b')!.status).toBe('done')
     expect(h.repo.ledger.requirements[0]!.status).toBe('accepting')
   })
 })
@@ -107,12 +109,12 @@ describe('运行期跨卡覆盖兜底（6.5）', () => {
     const h = makeHarness()
     h.docs.put(FILE, 'x')
     h.repo.ledger.requirements = [req({ id: 'REQ-000001', status: 'implementing', category: 'feature', autoRun: true })]
-    h.repo.ledger.tasks = [
+    await h.setTasks('REQ-000001', [
       task({ id: 't-a', requirementId: 'REQ-000001', status: 'in_progress', title: 'A', claimedAt: h.clock.t }),
       task({ id: 't-a1', requirementId: 'REQ-000001', status: 'in_progress', parentId: 't-a', stageKind: 'dev' as never, executions: [{ id: 'e1', trigger: 'auto', startedAt: h.clock.t, outcome: 'running' }] } as never),
       task({ id: 't-b', requirementId: 'REQ-000001', status: 'in_progress', title: 'B', claimedAt: h.clock.t }),
       task({ id: 't-b1', requirementId: 'REQ-000001', status: 'todo', parentId: 't-b', stageKind: 'dev' as never }),
-    ]
+    ])
     h.deps.workflow = new OkRunner()
     const r = await executeSubtask(h.deps, { subtaskId: 't-b1', windowKey: 'session-w-001' })
     expect(r.ok).toBe(false)

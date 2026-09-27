@@ -132,9 +132,12 @@ function topLevelKeys(body: string): string[] {
           while (j < body.length && /\s/.test(body[j]!)) j++
           if (body[j] === '(') {
             const close = matchPair(body, j, '(', ')')
-            const re = /\{([^{}]*)\}/g
-            let mm: RegExpExecArray | null
-            while ((mm = re.exec(body.slice(j + 1, close))) !== null) keys.push(...topLevelKeys(mm[1]!))
+            // 2026-09-27（REQ-260927144541-0481 FR-7）：原实现用 /\{([^{}]*)\}/ 只认**内部无花括号**
+            // 的对象组，于是 `...(cond ? { run: { ok } } : {})` 里的 run 被整块漏掉——门禁"看得见才拦得住"，
+            // 静默漏键就是下一次线上 invalid output。改为逐个**平衡**花括号取顶层键。
+            for (const [s, e] of balancedLiterals(body.slice(j + 1, close))) {
+              keys.push(...topLevelKeys(body.slice(j + 1 + s + 1, j + 1 + e)))
+            }
             i = close + 1
           } else {
             i += 3
@@ -233,6 +236,34 @@ function returnKeys(src: string): string[] {
   return keys
 }
 
+/**
+ * 片段里所有**平衡**的对象字面量区间（[开括号下标, 闭括号下标]）。
+ * 为什么不用正则：正则数不清嵌套层数——`{ run: { ok: true } }` 这种形状会被 [^{}]* 整块漏掉。
+ */
+function balancedLiterals(src: string): [number, number][] {
+  const out: [number, number][] = []
+  let i = 0
+  while (i < src.length) {
+    const c = src[i]!
+    if (c === '/' && src[i + 1] === '/') { while (i < src.length && src[i] !== '\n') i++; continue }
+    if (c === '/' && src[i + 1] === '*') { i += 2; while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) i++; i += 2; continue }
+    if (c === "'" || c === '"' || c === '`') {
+      const q = c; i++
+      while (i < src.length && src[i] !== q) { if (src[i] === '\\') i++; i++ }
+      i++
+      continue
+    }
+    if (c === '{') {
+      const end = matchBrace(src, i)
+      out.push([i, end])
+      i = end + 1
+      continue
+    }
+    i++
+  }
+  return out
+}
+
 describe('输出契约：返回字段 ⊆ output.schema 声明', () => {
   it('archive_submit（含 unlisted_files 警告路径）', async () => {
     await seed('archived')
@@ -305,6 +336,54 @@ describe('输出契约：返回字段 ⊆ output.schema 声明', () => {
   })
 })
 
+/**
+ * 故障注入（REQ-260927144541-0481 FR-7 / design test-cases TC-4）：**只测成功路径等于没测**——
+ * 这里直接给扫描器喂一段"新增未声明返回键"的源码，检验它真的能抓到（抓不到 = 门禁形同虚设）。
+ */
+describe('输出契约·故障注入：注入未声明返回键时门禁必红', () => {
+  it('临时给工具加一个未声明返回键 → 扫描器抓到、差集非空', () => {
+    const declared = declaredKeys({ output: { schema: { properties: { success: { type: 'boolean' } } } } })
+    const keys = returnKeys('async execute() { return { success: true, totally_undeclared: 1 } }')
+    const missing = [...new Set(keys)].filter(k => !declared.has(k))
+    expect(keys).toContain('success')
+    expect(missing).toEqual(['totally_undeclared'])
+  })
+
+  it('嵌套对象的条件展开也要被抓到（run/report/workflow 这类形状）', () => {
+    const keys = returnKeys('fn() { return { success: true, ...(r !== undefined ? { run: { ok: true } } : {}) } }')
+    expect(keys).toContain('run')
+  })
+
+  /**
+   * TC-4 的真实形态：给**某工具**临时加未声明返回键 → 该工具在 output-contract 里变红。
+   * 为什么必须用真实工具源：合成字符串只证明"扫描器认识花括号"，证明不了"这个工具真被门禁看着"。
+   * 这里取真实 TaskTree 用例源 + 真实 defineTaskTreeTool 的 output.schema，走与静态扫描同一条管线
+   * （returnKeys → declaredKeys → 差集）。注入落在**临时副本**上，跑完即删，绝不写真实工作区——
+   * 本仓是多窗口共享的脏工作树，测试里改真源文件=给别人埋雷。
+   */
+  it('给真实工具源临时加未声明返回键 → 真实声明集下差集非空（在临时副本上验证）', () => {
+    const ROOT = fileURLToPath(new URL('../src', import.meta.url))
+    const rel = 'application/use-cases/TaskTree.ts'
+    const original = readFileSync(join(ROOT, rel), 'utf8')
+    if (!original.includes('return {')) throw new Error('注入前提不成立：' + rel + ' 无可注入的响应字面量')
+    const dir = mkdtempSync(join(tmpdir(), 'pmboard-gate-fault-'))
+    try {
+      writeFileSync(
+        join(dir, 'TaskTree.ts'),
+        original.replace('return {', 'return {\n      gate_fault_injected_undeclared: 1,'),
+      )
+      // 反向自检：原件不含该键，说明后面观察到的差异确实来自这次注入
+      expect(returnKeys(original)).not.toContain('gate_fault_injected_undeclared')
+      const keys = returnKeys(readFileSync(join(dir, 'TaskTree.ts'), 'utf8'))
+      const declared = declaredKeys((toolModules as any).defineTaskTreeTool({} as never))
+      const missing = [...new Set(keys)].filter(k => !declared.has(k))
+      expect(missing, '注入未声明键后门禁竟然没抓到——门禁形同虚设').toContain('gate_fault_injected_undeclared')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
 /** 递归列出目录下全部 .ts（扫描器覆盖全部工具文件，而非只读一个文件）。 */
 function listTs(dir: string): string[] {
   if (!existsSync(dir)) return []
@@ -345,10 +424,18 @@ const RESPONSE_SOURCES: Record<string, string[]> = {
   Capture: ['application/use-cases/CaptureRequirement.ts'],
   // REQ-4842fe t10：事件链对外入口（响应体在工具文件内组装，同 TaskExecute 口径）
   Advance: ['tools/AdvanceTool/AdvanceTool.ts'],
-  // REQ-f0579a t4：任务执行/状态两工具暂无独立用例层（响应体在工具文件内），映射指向自身——
+  // REQ-260927144541-0481 FR-1：task_execute 改为**真委托**（同一 factory），已无自有返回分支——
+  // 响应体与声明都在 AdvanceTool，映射随之指向那里（否则该源扫到 0 个键，门禁形同失效）。
+  TaskExecute: ['tools/AdvanceTool/AdvanceTool.ts'],
+  // REQ-f0579a t4：任务状态工具暂无独立用例层（响应体在工具文件内），映射指向自身——
   // 后续若抽出用例（t8 收敛方向），把此处改成 application/use-cases/* 路径即可。
-  TaskExecute: ['tools/TaskExecuteTool/TaskExecuteTool.ts'],
   TaskStatus: ['tools/TaskStatusTool/TaskStatusTool.ts'],
+  // REQ-260927144541-0481 FR-3：新增只读父子结构视图（响应体在 TaskTree 用例，含绑定/错误分支）
+  TaskTree: ['application/use-cases/TaskTree.ts'],
+  // REQ-260927144541-0481 FR-7（全工具覆盖）：既有两工具此前**缺映射**，扫描器根本看不到它们——
+  // 门禁"绿灯"只是因为它没看。补上映射即纳入全工具检查（返回键均在各自 schema 中）。
+  RunStatus: ['tools/RunStatusTool/RunStatusTool.ts'],
+  ClearPause: ['application/use-cases/ClearPause.ts'],
 }
 
 describe('输出契约·静态扫描：每个工具的全部 return 分支键都必须已声明', () => {

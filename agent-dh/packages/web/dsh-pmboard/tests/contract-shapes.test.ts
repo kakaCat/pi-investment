@@ -97,6 +97,7 @@ describe('T-4 挂起确认（FR-3 / I-3 I-4）', () => {
       target: 'artifact' | 'plan'
       kind?: ArtifactKind
       createdAt: number
+      interruptedAt?: number
       outcome?: PendingConfirmationOutcome
     }>()
   })
@@ -112,15 +113,16 @@ describe('T-4 挂起确认（FR-3 / I-3 I-4）', () => {
     }>()
   })
 
-  it('端口面只有 register/get/settle；UseCaseDeps 允许缺省（未装配 = 旧阻塞语义）', () => {
+  it('端口面为 register/get/settle/pendingForWindow/markInterrupted；UseCaseDeps 允许缺省（未装配=非阻塞不可用）', () => {
     const fake: PendingConfirmPort = {
       register: () => PENDING,
       get: () => undefined,
       settle: () => undefined,
       pendingForWindow: () => undefined,
+      markInterrupted: () => undefined,
     }
-    expect(Object.keys(fake).sort()).toEqual(['get', 'pendingForWindow', 'register', 'settle'])
-    expectTypeOf<keyof PendingConfirmPort>().toEqualTypeOf<'register' | 'get' | 'settle' | 'pendingForWindow'>()
+    expect(Object.keys(fake).sort()).toEqual(['get', 'markInterrupted', 'pendingForWindow', 'register', 'settle'])
+    expectTypeOf<keyof PendingConfirmPort>().toEqualTypeOf<'register' | 'get' | 'settle' | 'pendingForWindow' | 'markInterrupted'>()
     expectTypeOf<UseCaseDeps['pendingConfirms']>().toEqualTypeOf<PendingConfirmPort | undefined>()
   })
 })

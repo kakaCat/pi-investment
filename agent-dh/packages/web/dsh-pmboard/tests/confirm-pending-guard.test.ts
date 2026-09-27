@@ -57,9 +57,11 @@ describe('确认门挂起期间的停手守卫（FR-9）', () => {
     expect(out.window_key).toBe(W)
   })
 
-  it('assertNoPendingConfirm 直测：无挂起/跨窗口/已作答放行；本窗口未作答抛错且信息含两条取回执路径', () => {
+  it('assertNoPendingConfirm 直测：无挂起/跨窗口/已作答放行；本窗口未作答抛错且信息含三条恢复路径', () => {
+    const { store } = makeDeps()
     const registry = new PendingConfirmRegistry({ now: () => 100 })
-    const deps = { pendingConfirms: registry } as unknown as UseCaseDeps
+    // 判定单点 livePendingConfirm 需读台账（有无落章）——测试同样给 repo，口径与运行态一致。
+    const deps = { pendingConfirms: registry, repo: store } as unknown as UseCaseDeps
     assertNoPendingConfirm(deps, W)
     const rec = registry.register({ windowKey: W, requirementId: 'REQ-x', target: 'plan' })
     assertNoPendingConfirm(deps, 'session-other')
@@ -71,8 +73,18 @@ describe('确认门挂起期间的停手守卫（FR-9）', () => {
       expect(e.code).toBe('REQBOARD_CONFIRM_PENDING')
       expect(e.message).toContain('reqboard_confirm_receipt(ticket="' + rec.ticket + '")')
       expect(e.message).toContain('收到作答前不得产出下游产物')
+      expect(e.message).toContain('看板')
+      expect(e.message).toContain('reqboard_ask_confirm')
     }
     registry.settle(rec.ticket, { confirmed: true, advanced: true })
     assertNoPendingConfirm(deps, W)
+  })
+
+  it('TC-9 台账已落章（人走看板/证据通道作答）→ 守卫放行，不死锁', () => {
+    const { ledger, store, registry } = makeDeps()
+    ledger.requirements.push({ id: 'REQ-x', plan: { approvedAt: 1 } })
+    registry.register({ windowKey: W, requirementId: 'REQ-x', target: 'plan' })
+    const deps = { pendingConfirms: registry, repo: store } as unknown as UseCaseDeps
+    expect(() => assertNoPendingConfirm(deps, W)).not.toThrow()
   })
 })

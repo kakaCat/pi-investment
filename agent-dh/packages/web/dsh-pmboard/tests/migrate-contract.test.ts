@@ -190,6 +190,12 @@ describe('TC-7.1/7.3/7.4/7.5 真实台账数据驱动比对（零字段丢失）
     const unmigratedTotal = r.unmigrated.reduce((s, u) => s + u.tasks.length, 0)
     expect(r.report.migratedTasks + unmigratedTotal, '任务守恒（' + dataPoint + '）').toBe(sourceTasks.length)
 
+    // Lead D9 验收⑥：未迁移只允许是**真 orphan**（requirementId 缺失 / 指向不存在需求）；
+    // "需求存在但目录缺失"必须建目录迁入（本用例 dirExists 恒真，故 createdDirs 为空）。
+    const expectedOrphans = sourceTasks.filter((t) => typeof t.requirementId !== 'string' || !reqIds.has(t.requirementId)).length
+    expect(unmigratedTotal, '未迁移任务数必须等于真 orphan 数（设计定义之外的丢失不得当合规）').toBe(expectedOrphans)
+    expect(r.report.createdDirs).toEqual([])
+
     // ── TC-7.1：逐条（按 id 配对，不按下标）去 layer 后 deepEqual
     const gotById = new Map<string, any>()
     for (const q of r.queues) for (const t of q.file.tasks as any[]) gotById.set(t.id, t)

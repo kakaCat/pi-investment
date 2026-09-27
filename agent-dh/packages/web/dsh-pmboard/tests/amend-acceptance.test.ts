@@ -28,7 +28,10 @@ describe('amendTaskAcceptanceIfRequested', () => {
   it('不传 acceptance → 返回 undefined（既有 task_move 调用完全不受影响）', async () => {
     const h = seed()
     expect(await amendTaskAcceptanceIfRequested(h.deps, { task_id: 't-000001' }, EXEC)).toBeUndefined()
-    expect(h.repo.ledger.tasks[0].acceptance).not.toBe('跑 npx vitest run 全绿')
+    // B-3 前置锚：否定式断言必须先在"确实读到 1 张卡"的前提下才成立（否则读不到=假绿）
+    const tasks = await h.tasksOf('REQ-000001')
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0]!.acceptance).not.toBe('跑 npx vitest run 全绿')
   })
 
   it('传弱标准（"确认可用"）→ 拒绝，且台账不变（空话不能换成更弱的标准）', async () => {
@@ -36,15 +39,19 @@ describe('amendTaskAcceptanceIfRequested', () => {
     await expect(
       amendTaskAcceptanceIfRequested(h.deps, { task_id: 't-000001', acceptance: '确认可用' }, EXEC),
     ).rejects.toThrow()
-    expect(h.repo.ledger.tasks[0].acceptance).not.toBe('确认可用')
+    const tasks = await h.tasksOf('REQ-000001')
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0]!.acceptance).not.toBe('确认可用')
   })
 
-  it('传可操作标准 → 台账更新并返回新文本', async () => {
+  it('传可操作标准 → 队列更新并返回新文本', async () => {
     const h = seed()
     const next = '跑 npx vitest run tests/x.test.ts → 3 passed'
     const out = await amendTaskAcceptanceIfRequested(h.deps, { task_id: 't-000001', acceptance: next }, EXEC)
     expect(out).toBe(next)
-    expect(h.repo.ledger.tasks[0].acceptance).toBe(next)
+    const tasks = await h.tasksOf('REQ-000001')
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0]!.acceptance).toBe(next)
   })
 
   it('旧卡（改名前的 ## 验收标准）仍能整段替换——存量不重写也要能改', async () => {
@@ -73,14 +80,16 @@ describe('amendTaskAcceptanceIfRequested', () => {
     expect(text).toContain('## 下一步')
   })
 
-  it('卡上两个标题都没有 → 台账照改、文档不硬造（无该段不是错误）', async () => {
+  it('卡上两个标题都没有 → 队列照改、文档不硬造（无该段不是错误）', async () => {
     const h = seed()
     const docPath = 'docs/requirements/REQ-000001/tasks/t-000001.md'
     const original = '# t-000001\n\n## 范围\n\n- 阶段：implement\n'
     await h.docs.write(docPath, original)
     const next = '跑 npx vitest run tests/x.test.ts → 3 passed'
     await amendTaskAcceptanceIfRequested(h.deps, { task_id: 't-000001', acceptance: next }, EXEC)
-    expect(h.repo.ledger.tasks[0].acceptance).toBe(next)
+    const tasks = await h.tasksOf('REQ-000001')
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0]!.acceptance).toBe(next)
     expect(await h.docs.read(docPath)).toBe(original)
   })
 

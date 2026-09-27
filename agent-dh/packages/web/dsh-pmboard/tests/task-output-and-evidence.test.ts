@@ -10,6 +10,7 @@ import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedge
 import {
   defineTaskReportTool, defineVerifySubmitTool, defineArchiveSubmitTool,
 } from './helpers/tool-deps.js'
+import { seedQueueTasks, type ReqboardToolDeps } from './helpers/tool-deps.js'
 import { type ToolTraceEntry } from '../src/adapters/SessionProbeAdapter.js'
 import type { RequirementRecord, RequirementStatus } from '../src/shared/protocol.js'
 
@@ -20,12 +21,14 @@ let report: { execute: (a: unknown, e: unknown) => Promise<any> }
 let verify: { execute: (a: unknown, e: unknown) => Promise<any> }
 let archive: { execute: (a: unknown, e: unknown) => Promise<any> }
 let trace: Map<string, ToolTraceEntry[]>
+/** 同一个 deps 对象贯穿"播种 / 工具"（tool-deps 按 deps 记忆化 TaskStore）。 */
+let deps: ReqboardToolDeps
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-t12-'))
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
   trace = new Map()
-  const deps = { store, now: () => Date.now(), toolTrace: trace, doneThrottleMs: 0, workspaceRoot: dir } as never
+  deps = { store, now: () => Date.now(), toolTrace: trace, doneThrottleMs: 0, workspaceRoot: dir }
   report = defineTaskReportTool(deps) as never
   verify = defineVerifySubmitTool(deps) as never
   archive = defineArchiveSubmitTool(deps) as never
@@ -47,17 +50,14 @@ describe('任务文件上浮（t12）', () => {
   it('task_report 的 files_changed 自动登记为需求级 task_output 产物', async () => {
     await seed()
     // 落一个真实任务（task_report 前置：任务存在且属于本窗口需求）
-    await store.mutate('task-created', (l) => {
-      const t = {
-        id: 't-abc123', requirementId: 'REQ-t12test', title: '改文件', description: '',
-        phase: 'implement', side: 'backend', dependsOn: [], scope: { apis: [], tables: [], files: [] },
-        acceptance: '单测绿', context: '', status: 'in_progress', blocked: false,
-        executions: [], comments: [], version: 1, createdAt: 1, updatedAt: 1,
-        createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
-      }
-      l.tasks.push(t as never)
-      return { tasks: [t as never] }
-    })
+    // v9：任务唯一存储 = 队列（台账不再有 tasks 通道）
+    await seedQueueTasks(deps, 'REQ-t12test', [{
+      id: 't-abc123', requirementId: 'REQ-t12test', title: '改文件', description: '',
+      phase: 'implement', side: 'backend', dependsOn: [], scope: { apis: [], tables: [], files: [] },
+      acceptance: '单测绿', context: '', status: 'in_progress', blocked: false,
+      executions: [], comments: [], version: 1, createdAt: 1, updatedAt: 1,
+      createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
+    }])
     await run(report, {
       task_id: 't-abc123', summary: '改了文件', completed: ['x'],
       files_changed: ['packages/pages/dsh-pmboard/src/tools/StatusTool/StatusTool.ts', 'docs/a.md'],

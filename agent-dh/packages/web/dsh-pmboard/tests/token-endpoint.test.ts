@@ -131,3 +131,24 @@ describe('REQ-a33899 t4 · HTTP 接口', () => {
     expect(design.tokens).toBeUndefined()
   })
 })
+
+describe('REQ-260927121324-abde t-49d8d4 · 快照缺失与不可得同等降级', () => {
+  it('状态事件缺 tokenSnapshot → degraded=true', () => {
+    const base = seededLedger().requirements[0]!
+    const r = {
+      ...base,
+      statusHistory: [{ status: 'implementing', at: 5, by: { kind: 'agent' as const, sessionId: 'session-w-001' } }],
+    }
+    const view = assembleRequirementToken(r, { tasks: [] })
+    expect(view.degraded).toBe(true)
+  })
+
+  it('执行记录缺 start/end → degraded=true', () => {
+    const seed = seededLedger()
+    const r = seed.requirements[0]!
+    const t = seed.tasks[0]!
+    t.executions = [{ id: 'e-bare', sessionId: 'session-w-001', trigger: 'manual', startedAt: 1, endedAt: 2, outcome: 'succeeded' }]
+    const view = assembleRequirementToken(r, { tasks: seed.tasks })
+    expect(view.degraded).toBe(true)
+  })
+})

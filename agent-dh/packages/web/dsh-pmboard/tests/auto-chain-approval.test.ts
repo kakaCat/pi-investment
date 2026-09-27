@@ -46,7 +46,7 @@ function seed() {
       submittedBy: { kind: 'agent', sessionId: 'session-w-001' },
     },
   })]
-  h.repo.ledger.tasks = []
+  // 任务不 seed（v9 / B-5）："此刻没有任务"= 没有队列文件，由各用例显式断言（不静默省略）。
   h.deps.workflow = new OkRunner()
   h.questions.answers = [{ selected: [DEFAULT_CONFIRM_OPTIONS[0] as string] }]
   return h
@@ -65,9 +65,10 @@ describe('批准计划 → 零点击跑到 accepting（4.1 / 4.2 / 7.1）', () =
     expect(requirement.autoRun).toBe(true)
 
     // 拆分落库：父卡 + 子卡（feature = dev→integrate→review→test）
-    const parents = h.repo.ledger.tasks.filter(t => t.parentId === undefined)
+    const justTasks = await h.tasksOf('REQ-000001')
+    const parents = justTasks.filter(t => t.parentId === undefined)
     expect(parents).toHaveLength(1)
-    const subs = h.repo.ledger.tasks.filter(t => t.parentId === parents[0]!.id)
+    const subs = justTasks.filter(t => t.parentId === parents[0]!.id)
     expect(subs.map(s => s.stageKind)).toEqual(['dev', 'integrate', 'review', 'test'])
     expect(subs.every(s => s.status === 'done')).toBe(true)
     expect(parents[0]!.status).toBe('done')
@@ -143,7 +144,8 @@ describe('REQ-84bea5：断链修复回归测试', () => {
         submittedBy: { kind: 'agent', sessionId: 'session-w-001' },
       },
     })]
-    h.repo.ledger.tasks = []
+    // 任务不 seed（v9 / B-5）：本用例要证明的是"从无任务开始批准也能落库"，由下方断言保证。
+    expect(h.queueExists('REQ-000002')).toBe(false)
     h.deps.workflow = new OkRunner()
     h.questions.answers = [{ selected: [DEFAULT_CONFIRM_OPTIONS[0] as string] }]
     

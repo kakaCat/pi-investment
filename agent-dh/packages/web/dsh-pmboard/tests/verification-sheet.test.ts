@@ -7,18 +7,25 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
-import { defineVerifySubmitTool } from './helpers/tool-deps.js'
+import { defineVerifySubmitTool, queueTasksOf, seedQueueTasks, type ReqboardToolDeps } from './helpers/tool-deps.js'
 import type { RequirementRecord, VerificationItem } from '../src/shared/protocol.js'
 
 const W = 'session-abc-123'
+const REQ_ID = 'REQ-abc123'
 let dir: string
 let store: ReqboardStore
 let verify: { execute: (a: unknown, e: unknown) => Promise<any> }
+/**
+ * **同一个 deps 对象**贯穿"播种 / 工具 / 断言"：tool-deps 按 deps 对象记忆化 TaskStore，
+ * 每换一次 deps 就换一个队列 —— 三处不共用同一个对象就会出现"工具读 A、断言读 B"的假红。
+ */
+let deps: ReqboardToolDeps
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'pmboard-sheet-'))
   store = new ReqboardStore({ file: join(dir, 'dsh-reqboard.json') })
-  verify = defineVerifySubmitTool({ store, now: () => Date.now() } as never) as never
+  deps = { store, now: () => Date.now() }
+  verify = defineVerifySubmitTool(deps) as never
 })
 afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 
@@ -28,18 +35,19 @@ async function seedWithTasks(): Promise<void> {
     blocked: false, sourceSessionId: W, comments: [], version: 1, createdAt: 1, updatedAt: 1,
     createdBy: { kind: 'human' }, updatedBy: { kind: 'human' }, statusHistory: [],
   } as unknown as RequirementRecord
-  await store.mutate('seed', (l) => {
-    l.requirements.push(r)
-    const mk = (id: string, title: string, acceptance: string) => ({
-      id, requirementId: r.id, title, description: '', phase: 'implement', side: 'backend',
-      dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance, context: '',
-      status: 'done', blocked: false, executions: [], comments: [], version: 1,
-      createdAt: 1, updatedAt: 1, createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
-    })
-    // 迁移（REQ-d3e61a T-9）：本文件不引用这两段文本，只求能满足"验收项可照着验"的门禁。
-    l.tasks.push(mk('t-aaaaaa', '任务一', 'npx vitest run tests/reqboard.test.ts 全绿') as never, mk('t-bbbbbb', '任务二', 'npx vitest run tests/client-view.test.ts 全绿') as never)
-    return { requirements: [r] }
+  await store.mutate('seed', (l) => { l.requirements.push(r); return { requirements: [r] } })
+  // v9：任务唯一存储 = 队列（台账不再有 tasks 通道）。同一个 deps → 同一 store，工具才看得见。
+  const mk = (id: string, title: string, acceptance: string) => ({
+    id, requirementId: REQ_ID, title, description: '', phase: 'implement' as const, side: 'backend' as const,
+    dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance, context: '',
+    status: 'done' as const, blocked: false, executions: [], comments: [], version: 1,
+    createdAt: 1, updatedAt: 1, createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
   })
+  // 迁移（REQ-d3e61a T-9）：本文件不引用这两段文本，只求能满足"验收项可照着验"的门禁。
+  await seedQueueTasks(deps, REQ_ID, [
+    mk('t-aaaaaa', '任务一', 'npx vitest run tests/reqboard.test.ts 全绿'),
+    mk('t-bbbbbb', '任务二', 'npx vitest run tests/client-view.test.ts 全绿'),
+  ])
 }
 const run = (args: unknown) => verify.execute(args, { agent: { id: W } })
 

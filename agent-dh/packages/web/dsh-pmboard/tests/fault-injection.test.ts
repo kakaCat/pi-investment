@@ -16,7 +16,7 @@ import { join } from 'node:path'
 import { JsonLedgerRepository as ReqboardStore } from '../src/adapters/JsonLedgerRepository.js'
 import {
   definePlanSubmitTool, defineDecomposeTool, defineTaskMoveTool, defineTaskReportTool,
-  defineAskConfirmTool, stubDocFile,
+  defineAskConfirmTool, queueTasksOf, seedQueueTasks, stubDocFile, type ReqboardToolDeps,
 } from './helpers/tool-deps.js'
 import { syncReqArtifacts, reqDirRel } from '../src/adapters/ArtifactSync.js'
 import { recordToolTrace, type ToolTraceEntry } from '../src/adapters/SessionProbeAdapter.js'
@@ -27,12 +27,14 @@ let root: string
 let store: ReqboardStore
 let planTool: any, decompose: any, taskMove: any, report: any
 let trace: Map<string, ToolTraceEntry[]>
+/** 同一个 deps 对象配全部工具 + 播种 + 断言（tool-deps 按 deps 记忆化 TaskStore）。 */
+let deps: ReqboardToolDeps
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'pmboard-faultinj-'))
   store = new ReqboardStore({ file: join(root, 'dsh-reqboard.json') })
   trace = new Map()
-  const deps = { store, now: () => Date.now(), toolTrace: trace, doneThrottleMs: 60_000, workspaceRoot: root } as never
+  deps = { store, now: () => Date.now(), toolTrace: trace, doneThrottleMs: 60_000, workspaceRoot: root }
   planTool = definePlanSubmitTool(deps)
   decompose = defineDecomposeTool(deps)
   taskMove = defineTaskMoveTool(deps)
@@ -99,23 +101,20 @@ describe('B 重复拆分 → 幂等守卫（任务数不变）', () => {
     await approvePlan()
     await run(decompose, {})
     await expect(run(decompose, {})).rejects.toThrow(/REQBOARD_ALREADY_DECOMPOSED/)
-    expect(store.snapshot().tasks).toHaveLength(2)
+    expect(await queueTasksOf(deps, REQ)).toHaveLength(2) // v9：任务唯一存储 = 队列
   })
 })
 
 describe('C 25ms 速通假完成 → done 凭证门', () => {
   it('无汇报直接 done → REQBOARD_NO_REPORT', async () => {
     await seed('implementing')
-    await store.mutate('task', (l) => {
-      l.tasks.push({
-        id: 't-fi0001', requirementId: REQ, title: '任务A', description: '', phase: 'implement', side: 'backend',
-        dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance: '单测绿', context: '',
-        status: 'in_progress', blocked: false, executions: [], comments: [], version: 1,
-        createdAt: 1, updatedAt: 1, createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
-        claimedBy: W, claimedAt: 1,
-      } as never)
-      return { tasks: [l.tasks[l.tasks.length - 1]] }
-    })
+    await seedQueueTasks(deps, REQ, [{
+      id: 't-fi0001', requirementId: REQ, title: '任务A', description: '', phase: 'implement', side: 'backend',
+      dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance: '单测绿', context: '',
+      status: 'in_progress', blocked: false, executions: [], comments: [], version: 1,
+      createdAt: 1, updatedAt: 1, createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
+      claimedBy: W, claimedAt: 1,
+    }])
     await run(taskMove, { task_id: 't-fi0001', to: 'testing' })
     await run(taskMove, { task_id: 't-fi0001', to: 'in_review' })
     await expect(run(taskMove, { task_id: 't-fi0001', to: 'done' })).rejects.toThrow(/REQBOARD_NO_REPORT/)
@@ -125,16 +124,13 @@ describe('C 25ms 速通假完成 → done 凭证门', () => {
 describe('D 改了源码没构建 → STALE_BUILD', () => {
   it('页面插件文件已改但未构建 → done 被拒', async () => {
     await seed('implementing')
-    await store.mutate('task', (l) => {
-      l.tasks.push({
-        id: 't-fi0002', requirementId: REQ, title: '页面改', description: '', phase: 'implement', side: 'frontend',
-        dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance: '截图可见', implementation: 'view.ts',
-        context: '', status: 'in_progress', blocked: false, executions: [], comments: [], version: 1,
-        createdAt: 1, updatedAt: 1, createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
-        claimedBy: W, claimedAt: 1,
-      } as never)
-      return { tasks: [l.tasks[l.tasks.length - 1]] }
-    })
+    await seedQueueTasks(deps, REQ, [{
+      id: 't-fi0002', requirementId: REQ, title: '页面改', description: '', phase: 'implement', side: 'frontend',
+      dependsOn: [], scope: { apis: [], tables: [], files: [] }, acceptance: '截图可见', implementation: 'view.ts',
+      context: '', status: 'in_progress', blocked: false, executions: [], comments: [], version: 1,
+      createdAt: 1, updatedAt: 1, createdBy: { kind: 'agent', sessionId: W }, updatedBy: { kind: 'agent', sessionId: W },
+      claimedBy: W, claimedAt: 1,
+    }])
     recordToolTrace(trace, W, 'edit', Date.now())
     await run(report, {
       task_id: 't-fi0002', summary: '改了页面插件', completed: ['view.ts 已改'],

@@ -4,7 +4,8 @@
  *
  * 覆盖 design/test-cases.md：TC-5（超宽限挂起，不判失败）/ TC-6（宽限内作答=旧语义）/
  * TC-7（后台落章 + 回执以台账为准）/ TC-8（未知 ticket → REQBOARD_UNKNOWN_TICKET）/
- * TC-20（已确认不重复弹框）；并锁「未装配注册表 = 旧阻塞语义」这条兼容性矩阵。
+ * TC-20（已确认不重复弹框）；并锁新语义（REQ-260927123256-196b FR-3）：**显式宽限才是非阻塞逃生舱**
+ * ——缺省阻塞不在此文件（见 ask-confirm-blocking.test.ts），且「显式宽限但未装配注册表」显式拒绝。
  *
  * 断言口径（任务卡 acceptance）：questions.ask 永不 resolve + 宽限 20ms → 返回 pending=true
  * 且 ticket 非空、不抛错；作答后 reqboard_confirm_receipt(ticket) 返回 confirmed=true,
@@ -129,22 +130,26 @@ describe('T-6 弹框非阻塞投递（FR-3 / I-3）', () => {
     expect(first().artifacts![0].confirmedAt).toBeUndefined()
   })
 
-  it('未装配注册表 = 旧阻塞语义：inline_grace_ms 不生效，等作答才返回', async () => {
+  it('TC-5 未装配注册表 + 显式正数宽限 → REQBOARD_NONBLOCK_UNAVAILABLE（不静默回落为阻塞）', async () => {
     await seed()
     const slow: AskFn = async () => {
       await new Promise((r) => setTimeout(r, 30))
       return { answers: [{ id: 'confirm', selected: [AFFIRM] }] }
     }
     const tool = defineAskConfirmTool(makeDeps(slow)) as any // 不装配 pendingConfirms
-    const out = await tool.execute({ ...ARGS, inline_grace_ms: 1 }, exec)
-    expect(out.confirmed).toBe(true)
-    expect(out.pending).toBeUndefined()
+    await expect(tool.execute({ ...ARGS, inline_grace_ms: 20 }, exec))
+      .rejects.toMatchObject({ code: 'REQBOARD_NONBLOCK_UNAVAILABLE' })
   })
 
-  it('inline_grace_ms 非法 → REQBOARD_INVALID_INPUT（不静默回落）', async () => {
+  it('TC-3 inline_grace_ms 非法：0 / -1 → REQBOARD_INVALID_INPUT；"20"（非数）被 schema 绑定层显式拒绝', async () => {
     await seed()
     const tool = defineAskConfirmTool(makeDeps(async () => ({ answers: [] }), { pending: true })) as any
-    await expect(tool.execute({ ...ARGS, inline_grace_ms: -1 }, exec)).rejects.toMatchObject({ code: 'REQBOARD_INVALID_INPUT' })
+    for (const bad of [0, -1]) {
+      await expect(tool.execute({ ...ARGS, inline_grace_ms: bad }, exec))
+        .rejects.toMatchObject({ code: 'REQBOARD_INVALID_INPUT' })
+    }
+    // 非数在参数 schema（type: 'number'）即被拒——同样是「显式拒绝、不静默回落」，只是发生在更外层。
+    await expect(tool.execute({ ...ARGS, inline_grace_ms: '20' }, exec)).rejects.toThrow()
   })
 })
 

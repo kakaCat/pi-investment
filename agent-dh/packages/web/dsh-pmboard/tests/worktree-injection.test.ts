@@ -28,16 +28,19 @@ function spyDelivery(throwOnDeliver = false) {
 }
 
 /** 造一张可完工的任务（doc 证据 + 已汇报，满足 done 凭证门）。 */
-function doneReadySeed() {
+async function doneReadySeed() {
   const h = makeHarness({ requirements: [req({ status: 'implementing' })], tasks: [task({ status: 'in_review' })] })
   h.docs.put('src/x.ts', 'x')
-  h.repo.ledger.tasks[0]!.lastReport = { at: h.clock.t, reportIndex: 1, filesChanged: ['src/x.ts'], completed: ['干完了'] }
+  // 任务落队列（v9）：字段改动必须走真实写路径（重算派生视图 + 校验），故本 helper 变 async。
+  await h.setTaskFields('t-000001', {
+    lastReport: { at: h.clock.t, reportIndex: 1, filesChanged: ['src/x.ts'], completed: ['干完了'] },
+  })
   return h
 }
 
 describe('FR-2 子任务完成 → worktree 提交提示', () => {
   it('task → done 投递一次，文本含 commit 命令与任务标题', async () => {
-    const h = doneReadySeed()
+    const h = await doneReadySeed()
     const spy = spyDelivery()
     h.deps.delivery = spy.port
     const out: any = await executeMoveTask(h.deps, { task_id: 't-000001', to: 'done' }, EXEC)
@@ -50,16 +53,18 @@ describe('FR-2 子任务完成 → worktree 提交提示', () => {
   })
 
   it('故障注入：投递抛错 → 转移仍成功（不阻断）', async () => {
-    const h = doneReadySeed()
+    const h = await doneReadySeed()
     const spy = spyDelivery(true)
     h.deps.delivery = spy.port
     const out: any = await executeMoveTask(h.deps, { task_id: 't-000001', to: 'done' }, EXEC)
     expect(out.to).toBe('done')
-    expect(h.repo.ledger.tasks[0]!.status).toBe('done')
+    const tasks = await h.tasksOf('REQ-000001')
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0]!.status).toBe('done')
   })
 
   it('未装配投递端口 → 转移仍成功（缺省 = 不投递）', async () => {
-    const h = doneReadySeed()
+    const h = await doneReadySeed()
     const out: any = await executeMoveTask(h.deps, { task_id: 't-000001', to: 'done' }, EXEC)
     expect(out.to).toBe('done')
   })

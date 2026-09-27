@@ -115,6 +115,8 @@ function scenario(opts: { artifactConfirmed: boolean; behavior: RecordingQuestio
     : undefined
   const driver = createDiveSessionDriver({
     snapshot: () => h.repo.ledger,
+    // v9：driver 结算节点要读队列任务（DiveSessionDriverDeps.taskStore 为必填）
+    taskStore: h.taskStore,
     pending: new Map(),
     now: () => h.clock.t,
     ...(port === undefined ? {} : { gatePrompt: port }),

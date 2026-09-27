@@ -12,23 +12,27 @@ import { join } from 'node:path'
 const TOOLS = fileURLToPath(new URL('../src/tools', import.meta.url))
 
 describe('t8 · 工具面 13→9 收敛', () => {
-  it('src/tools/ 下恰好 13 个工具目录，各含 XxxTool.ts + prompt.ts + index.ts（三段式）', () => {
+  it('src/tools/ 下的工具目录清单固定，各含 XxxTool.ts + prompt.ts + index.ts（三段式）', () => {
     const dirs = readdirSync(TOOLS, { withFileTypes: true })
       .filter(e => e.isDirectory())
       .map(e => e.name)
       .sort()
     // REQ-47939a t8 收敛后 9 个；REQ-327bdf 增 TaskExecuteTool / TaskStatusTool；REQ-e3b6a0 t8 增 CaptureTool；
     // REQ-260924213231-b1c4 T-6 增 ConfirmReceiptTool（挂起确认回执，三段式齐全）；
-    // T-9 增 NoteInterruptionTool（断点补写，三段式齐全）。
+    // T-9 增 NoteInterruptionTool（断点补写，三段式齐全）；
+    // REQ-260925212722-96e7 增 ClearPauseTool；REQ-260925110957-552d 增 RunStatusTool（两者三段式齐全——
+    // 此前清单没跟上，门禁红了两天没人管：门禁清单本身也是要维护的产物）；
+    // REQ-260927144541-0481 FR-3 增 TaskTreeTool（只读父子结构视图，三段式齐全）。
     expect(dirs).toEqual([
-      'AcceptSheetTool', 'AdvanceTool', 'AskConfirmTool', 'CaptureTool', 'ConfirmReceiptTool', 'CreateTool',
-      'DecomposeTool', 'MoveTool', 'NoteInterruptionTool', 'StatusTool', 'SubmitTool', 'TaskExecuteTool',
-      'TaskMoveTool', 'TaskReportTool', 'TaskStatusTool',
+      'AcceptSheetTool', 'AdvanceTool', 'AskConfirmTool', 'CaptureTool', 'ClearPauseTool', 'ConfirmReceiptTool',
+      'CreateTool', 'DecomposeTool', 'MoveTool', 'NoteInterruptionTool', 'RunStatusTool', 'StatusTool',
+      'SubmitTool', 'TaskExecuteTool', 'TaskMoveTool', 'TaskReportTool', 'TaskStatusTool', 'TaskTreeTool',
     ])
-    // 三段式的例外：REQ-327bdf 的两个工具目录不是三段式（无 prompt.ts/index.ts，
-    // 且外壳含状态字面量——见下面那条门禁的失败清单）。列在此处是为了**显式留债**
-    // 而不是把它从门禁里悄悄漏掉；其收口由该需求负责，不属于本需求范围。
-    const NON_THREE_PIECE = ['TaskExecuteTool', 'TaskStatusTool']
+    // 三段式的例外（显式留债，不是"从门禁里悄悄漏掉"）：以下 5 个目录缺 prompt.ts（其中 2 个还缺 index.ts），
+    // 都是 REQ-47939a t8 / REQ-327bdf 时代的既存形态，收口属工具面清理，不在本需求范围。
+    // 2026-09-27（REQ-260927144541-0481）实测：此前只列了 2 个名字，其余 3 个不是"没有债"，
+    // 而是被「目录清单少了三个目录」那条红**遮蔽**了——红要逐个解释，不能停在第一条。
+    const NON_THREE_PIECE = ['DecomposeTool', 'MoveTool', 'TaskExecuteTool', 'TaskMoveTool', 'TaskStatusTool']
     for (const d of dirs.filter(x => !NON_THREE_PIECE.includes(x))) {
       expect(existsSync(join(TOOLS, d, d + '.ts')), d + '/' + d + '.ts 缺失').toBe(true)
       expect(existsSync(join(TOOLS, d, 'prompt.ts')), d + '/prompt.ts 缺失').toBe(true)

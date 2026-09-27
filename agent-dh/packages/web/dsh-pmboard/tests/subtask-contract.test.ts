@@ -91,8 +91,10 @@ describe('2.1 旧台账兼容（无新字段可读、行为不变）', () => {
 
   it('旧台账经仓储读回不丢字段、不报错（纯加字段，不 bump schemaVersion）', async () => {
     const h = makeHarness({ requirements: [req({ id: 'REQ-000001', status: 'implementing' })], tasks: [task({ id: 't-legacy', requirementId: 'REQ-000001' })] })
+    // v9：任务唯一存储 = 队列（台账视图不再有任务通道）——存量卡照旧完整读回，字段零丢失
+    const tasks = await h.tasksOf('REQ-000001')
+    expect(tasks[0]!.id).toBe('t-legacy')
     const view = await h.repo.read(v => v)
-    expect(view.tasks[0]!.id).toBe('t-legacy')
     expect(view.requirements[0]!.autoRun).toBeUndefined()
   })
 })
