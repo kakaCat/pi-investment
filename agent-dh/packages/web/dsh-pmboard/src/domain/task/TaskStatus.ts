@@ -175,6 +175,11 @@ export function assertTaskTransition(
     throw Object.assign(new Error('该任务转移为人工闸门，仅人可操作'), { code: 'human_gate' })
   }
   if (actor === 'system' && !SYSTEM_TASK_TRANSITIONS.has(key)) {
-    throw Object.assign(new Error(`system 不可发起任务转移 ${from} → ${to}`), { code: 'system_gate' })
+    // 角色例外（REQ-4842fe FR-11）：父卡 / 子卡链由自动链汇总关闭——子卡执行成功转 done、
+    // 子卡链全完成后父卡收尾，都是 system 的合法收尾动作，不能用 legacy 白名单一刀切。
+    const roleAllowsClose = (role === 'parent' || role === 'subtask') && key === 'in_progress>done'
+    if (!roleAllowsClose) {
+      throw Object.assign(new Error(`system 不可发起任务转移 ${from} → ${to}`), { code: 'system_gate' })
+    }
   }
 }

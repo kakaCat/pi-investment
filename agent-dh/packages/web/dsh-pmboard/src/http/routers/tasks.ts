@@ -9,7 +9,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
   assertDagAcyclic,
-  assertTaskTransition,
   asActor,
   asDependsOn,
   asScope,
@@ -23,6 +22,7 @@ import {
   type TaskRecord,
 } from '../../shared/protocol.js'
 import { applyTaskRollup } from '../../application/internal/rollup.js'
+import { transitionTask } from '../../application/internal/task-transition.js'
 import { endsExecutionSegment, isRollbackOrCancel, startsExecutionSegment } from '../../domain/status/Predicates.js'
 import { INITIAL_TASK_STATUS } from '../../domain/task/TaskStatus.js'
 import type { RouterCtx } from './shared.js'
@@ -78,11 +78,12 @@ export function createTasksRouter(ctx: RouterCtx) {
     const sessionId = normalizeText(body.sessionId, 'sessionId', 128) || undefined
     const result = await store.mutate('task-moved', (ledger) => {
       const task = ledger.tasks.find(t => t.id === id) ?? notFound(`任务 ${id}`)
-      assertTaskTransition(task.status, to, actor)
-      task.status = to
-      task.version += 1
-      task.updatedAt = now()
-      task.updatedBy = { kind: actor, ...(sessionId ? { sessionId } : {}) }
+      // 收敛点：校验 + 状态 + 事件一步到位（原为直接赋值，只有本路由校验过）
+      transitionTask(task, to, {
+        at: now(),
+        actor: { kind: actor, ...(sessionId ? { sessionId } : {}) },
+        ...(reason ? { reason } : {}),
+      })
       if (startsExecutionSegment(to) && sessionId) {
         task.claimedBy = sessionId
         task.claimedAt = now()
@@ -101,7 +102,6 @@ export function createTasksRouter(ctx: RouterCtx) {
           }
         }
       }
-      recordStatus(task, to, task.updatedAt, { kind: actor, ...(sessionId ? { sessionId } : {}) }, reason || undefined)
       if (reason) {
         task.comments.push({ id: ids.comment(), body: `[状态] → ${to}：${reason}`, createdAt: now(), createdBy: { kind: actor } })
       }

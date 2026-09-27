@@ -895,6 +895,8 @@ export interface AdvanceRecord {
 export interface AdvanceState {
   /** 单飞锁持有时间；超过 stale 阈值视为持有者已死，可被接管 */
   lockAt?: number
+  /** 单飞锁持有者的 run id（REQ-260925110957-552d 投递模型的幂等键） */
+  runId?: string
   /** 事件历史（append-only） */
   history?: AdvanceRecord[]
   /** 连续 noop 计数（达阈值触发停滞熔断） */

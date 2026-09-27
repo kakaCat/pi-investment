@@ -62,6 +62,8 @@ export interface ReqboardToolDeps {
   recentUserMsgs?: Map<string, RecentUserMsg[]>
   /** 立项拒绝留痕端口（REQ-260922012924-2e29 FR-5；缺失 = 无粘滞，与 FR-5 前行为一致）。 */
   rejections?: UseCaseDeps['rejections']
+  /** 挂起确认注册表（FR-9 停手守卫用；缺失 = 无挂起）。 */
+  pendingConfirms?: UseCaseDeps['pendingConfirms']
 }
 
 /**
@@ -125,6 +127,7 @@ function toUseCaseDeps(deps: ReqboardToolDeps): UseCaseDeps {
     }),
     questions: new UserQuestionsAdapter(() => deps.userQuestions?.()),
     ...(deps.rejections !== undefined ? { rejections: deps.rejections } : {}),
+    ...(deps.pendingConfirms !== undefined ? { pendingConfirms: deps.pendingConfirms } : {}),
   }
   Object.defineProperty(uc, 'doneThrottleMs', { get: () => deps.doneThrottleMs, enumerable: true, configurable: true })
   return uc

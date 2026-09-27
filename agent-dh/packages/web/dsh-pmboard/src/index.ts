@@ -35,6 +35,9 @@ import {
   defineAcceptSheetTool,
   defineNoteInterruptionTool,
   defineClearPauseTool,
+  defineMoveTool,
+  defineTaskMoveTool,
+  defineRunStatusTool,
 } from './tools/index.js';
 import { FileDocRepository } from './adapters/FileDocRepository.js'
 import { InjectionLogFile } from './adapters/InjectionLogFile.js'
@@ -387,10 +390,14 @@ export function apply(ctx: Context, config?: PluginConfig): void {
         // REQ-260924213231-b1c4 T-9（FR-6 / I-8）：断点显式兜底（B′ 入口）。
         disposers.push(toolsCtx.tools.register(defineNoteInterruptionTool(useCaseDeps)));
         disposers.push(toolsCtx.tools.register(defineClearPauseTool(useCaseDeps)));
+        // REQ-260927100007-b8ba FR-7：补回 agent 侧流转工具（此前仅在 HTTP 层，agent 调不动）
+        disposers.push(toolsCtx.tools.register(defineMoveTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineTaskMoveTool(useCaseDeps)));
+        disposers.push(toolsCtx.tools.register(defineRunStatusTool(useCaseDeps)));
       }, name + ': tools');
       logger.info(
         'agent tools registered (13): reqboard_create / reqboard_capture / reqboard_status / reqboard_task_run / reqboard_task_execute / reqboard_task_status / '
-        + 'reqboard_task_report / reqboard_submit(kind) / reqboard_ask_confirm / reqboard_confirm_receipt / reqboard_accept_sheet / reqboard_note_interruption / reqboard_clear_pause',
+        + 'reqboard_task_report / reqboard_submit(kind) / reqboard_ask_confirm / reqboard_confirm_receipt / reqboard_accept_sheet / reqboard_note_interruption / reqboard_clear_pause / reqboard_move / reqboard_task_move',
       );
     },
   );

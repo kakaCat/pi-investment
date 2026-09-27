@@ -78,6 +78,17 @@ export class PendingConfirmRegistry implements PendingConfirmPort {
     return this.copy(found)
   }
 
+  /** FR-9：本窗口是否存在**未作答**的挂起确认（已作答 / 已过期 / 跨窗口都不算）。 */
+  pendingForWindow(windowKey: string): PendingConfirmation | undefined {
+    for (const record of this.records.values()) {
+      if (record.windowKey !== windowKey) continue
+      if (record.outcome !== undefined) continue
+      if (this.now() - record.createdAt > this.ttlMs) continue
+      return this.copy(record)
+    }
+    return undefined
+  }
+
   /** 对外一律给副本：调用方拿不到内部引用，也改不动注册表。 */
   private copy(record: PendingConfirmation): PendingConfirmation {
     return {

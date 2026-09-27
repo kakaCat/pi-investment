@@ -105,6 +105,16 @@ describe('触发点 6 · 任务状态 / 子阶段汇报 (t15/t16)', () => {
     expect(detail?.task.workflow[0]?.completed_at).toBeTruthy()
   })
 
+  it('FR-6：task:status 刷新集合含 rtm-decomposing.yml，并重算实施覆盖度', () => {
+    const { f, gen } = setup()
+    run(gen, 'confirm:plan', f.reqId)
+    const res = run(gen, 'task:status', f.reqId, { taskId: 't-0001' })
+    expect(res.ok).toBe(true)
+    expect(res.files).toContain('rtm-decomposing.yml')
+    expect(existsSync(join(f.reqDir, 'rtm-decomposing.yml'))).toBe(true)
+    expect(res.coverage).toBeDefined()
+  })
+
   it('缺 taskId → 结构化失败，不抛异常', () => {
     const { f, gen } = setup()
     const res = run(gen, 'task:status', f.reqId)
@@ -121,6 +131,44 @@ describe('触发点 7 · 提交验收材料 (t13)', () => {
     const acc = readRTM<RTMAccepting>(join(f.reqDir, 'rtm-accepting.yml'))
     expect(acc?.coverage.testing.rate).toBe(40)
     expect(acc?.traceability.task_to_tests['t-0001']).toEqual(['TC-1'])
+  })
+})
+
+describe('触发点 bind · 窗口绑定投影刷新 (t12 / FR-12)', () => {
+  it("bind → 刷新集合恰为 ['rtm-lifecycle.yml']，其余 RTM 文件不产生", () => {
+    const { f, gen } = setup()
+    const res = run(gen, 'bind', f.reqId)
+    expect(res.ok).toBe(true)
+    expect(res.files).toEqual(['rtm-lifecycle.yml'])
+    expect(res.coverage).toBeUndefined()
+    expect(readRTM<RTMLifecycle>(join(f.reqDir, 'rtm-lifecycle.yml'))?.requirement.source_session).toBe('session-fixture-1')
+    // "只有那一个文件"：其余节点的 RTM 文件不得因 bind 落盘。
+    for (const other of ['rtm-brainstorming.yml', 'rtm-design.yml', 'rtm-decomposing.yml', 'rtm-implementing.yml', 'rtm-accepting.yml']) {
+      expect(existsSync(join(f.reqDir, other))).toBe(false)
+    }
+  })
+
+  it('先建后绑：create 后改写台账绑定窗口 → bind 让 source_session 随之更新', () => {
+    const { f, gen } = setup()
+    run(gen, 'create', f.reqId)
+    expect(readRTM<RTMLifecycle>(join(f.reqDir, 'rtm-lifecycle.yml'))?.requirement.source_session).toBe('session-fixture-1')
+    // 绑定关系变更（窗口侧接手 → 台账 sourceSessionId 改写）：未刷新前快照仍是旧窗口。
+    f.patchRequirement({ sourceSessionId: 'session-fixture-2' })
+    const res = run(gen, 'bind', f.reqId)
+    expect(res.ok).toBe(true)
+    expect(res.files).toEqual(['rtm-lifecycle.yml'])
+    const lc = readRTM<RTMLifecycle>(join(f.reqDir, 'rtm-lifecycle.yml'))
+    expect(lc?.requirement.source_session).toBe('session-fixture-2')
+    expect(lc?.metadata.version).toBe(2) // 覆盖写：版本递增，不是另建一份
+    expect(lc?.lifecycle.current_stage).toBe('draft')
+  })
+
+  it('未绑定窗口（sourceSessionId 为空）→ bind 不伪造 source_session', () => {
+    const { f, gen } = setup()
+    f.patchRequirement({ sourceSessionId: '' })
+    expect(run(gen, 'bind', f.reqId).ok).toBe(true)
+    const lc = readRTM<RTMLifecycle>(join(f.reqDir, 'rtm-lifecycle.yml'))
+    expect(lc?.requirement.source_session).toBeUndefined()
   })
 })
 

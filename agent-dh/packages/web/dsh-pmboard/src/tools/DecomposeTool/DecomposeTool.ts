@@ -15,6 +15,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import { LIMITS } from '../../domain/limits.js'
 import type { UseCaseDeps } from '../../application/ports.js'
 import { executeDecompose } from '../../application/use-cases/Decompose.js'
+import { assertNoPendingConfirm } from '../../application/internal/support.js'
 import { renderSmart } from '../shared.js'
 import { decomposeSummary } from '../render-summaries.js'
 
@@ -42,7 +43,9 @@ export function defineDecomposeTool(deps: UseCaseDeps) {
           requirement_id: { type: 'string' },
           requirement_status: { type: 'string' },
           created: { type: 'array', items: { type: 'object', additionalProperties: true } },
-          task_coverage: { type: 'object', additionalProperties: true },
+          // FR-5（REQ-260927100007-b8ba）：运行时值是**数组**（generateRTMData 返回 taskCoverage 数组），
+          // 声明成 object 会让每次成功 decompose 都被判 returned invalid output。
+          task_coverage: { type: 'array', items: { type: 'object', additionalProperties: true } },
           coverage_check: { type: 'object', additionalProperties: true },
           thin_cards: { type: 'array', items: { type: 'string' } },
           warning: { type: 'string' },
@@ -53,6 +56,7 @@ export function defineDecomposeTool(deps: UseCaseDeps) {
     },
     timeoutMs: LIMITS.timeoutWriteMs,
     async execute(args: unknown, exec: unknown): Promise<Record<string, unknown>> {
+      assertNoPendingConfirm(deps, deps.session.windowKey(exec))
       return await executeDecompose(deps, args, exec) as Record<string, unknown>
     },
   } as any)

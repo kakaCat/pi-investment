@@ -117,9 +117,10 @@ describe('T-4 挂起确认（FR-3 / I-3 I-4）', () => {
       register: () => PENDING,
       get: () => undefined,
       settle: () => undefined,
+      pendingForWindow: () => undefined,
     }
-    expect(Object.keys(fake).sort()).toEqual(['get', 'register', 'settle'])
-    expectTypeOf<keyof PendingConfirmPort>().toEqualTypeOf<'register' | 'get' | 'settle'>()
+    expect(Object.keys(fake).sort()).toEqual(['get', 'pendingForWindow', 'register', 'settle'])
+    expectTypeOf<keyof PendingConfirmPort>().toEqualTypeOf<'register' | 'get' | 'settle' | 'pendingForWindow'>()
     expectTypeOf<UseCaseDeps['pendingConfirms']>().toEqualTypeOf<PendingConfirmPort | undefined>()
   })
 })

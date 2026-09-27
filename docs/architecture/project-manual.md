@@ -21,6 +21,7 @@ tags: [manual, l1, overview]
 
 | 日期 | 更新点 | 来源 |
 |---|---|---|
+| 2026-09-27 | **拆分→实施这一段不再静默**：批准拆分计划的**同一次调用内**同步落库任务卡（落库失败不推进、写 pausedReason + 告警）；「计划有卡、台账 0 卡」推进到实施被代码级拒绝并给修复指引；`reqboard_decompose` 返回体契约修正（task_coverage 为数组）；任务状态变更同时刷新实施覆盖度（rtm-decomposing）；agent 侧补齐 `reqboard_move` / `reqboard_task_move` 与任务级收敛点（非法流转被拒且零副作用）；`reqboard_status` 返回体 lossless；确认门挂起期间同窗口写路径代码级拒绝（REQBOARD_CONFIRM_PENDING）；Dive 采集半不再直投会话（投递白名单，阶段纪律只走 system prompt）。节点流程图见 agent-dh/docs/architecture/reqboard-pipeline-flow.md | REQ-260927100007-b8ba |
 | 2026-09-24 | **盯盘通知改版上线**：10 个盯盘频道码经 Agent OS 渠道表分群到专用盯盘群（alerts/reports/trading 原群不动，换群/回滚只改渠道表零代码）；触发 L1 直发 agent 优先、Agent OS 不可达降级直飞书不丢消息且 metadata 如实标注降级原因；超时/升级回执同周期聚合一张卡、close 即时发处置结论三要素卡（结论/原因/后续意见）；回执落库标签对齐真实路由码；通知渠道注册与 ADR-002 调度旗解耦（AGENT_OS_NOTIFY_ENABLED）。持久认知见 docs/guides/watch-notification-routing.md | REQ-260924104605-ad0a |
 | 2026-09-22 | **看板产物用词收敛唯一事实源**：产物种类/节点文档文件名中文名集中到 `artifact-labels.ts`，追溯链与文档区不再裸显 architecture.md、任务卡不再折叠「任务卡×N」（改逐张带任务名）；六处本地映射表删除，新增种类/文件名未配中文名由单测拦截 | REQ-260922182638-0777 |
 | 2026-09-22 | **reqboard 立项链路五处收口**：四问口径测试同步；Q4 文档位置（docBasePath）真正被路径推导消费；节点压缩开关开启（nodeIsolation，G0 门文档未落盘仍跳过保护）；文档路径绝对化（看板任何工作区会话可打开文档，排障见 guides/reqboard-capture-troubleshooting.md）；立项拒绝粘滞（点"不立项"留痕，30 分钟内不重弹） | REQ-260922012924-2e29 |

@@ -9,14 +9,14 @@
  *
  * @module dsh-pmboard/application/use-cases/ExecuteTask
  */
-import type { UseCaseDeps, WorkflowRunOutcome } from '../ports.js'
+import type { UseCaseDeps } from '../ports.js'
 import { fmt } from '../../domain/text/fmt.js'
 import { stageLabel } from '../../domain/task/SubtaskTemplate.js'
 import { generateSubtaskScript } from '../internal/workflow-script.js'
 import { assertDoneEvidence } from '../internal/support.js'
 import { detectCrossCardOverwrite } from '../internal/cross-card.js'
-import { isSubtask, recordStatus, type TaskRecord } from '../../shared/protocol.js'
-import { executeWithSchema, type SubtaskOutputSchema, createEmptySubtaskOutput } from '../../adapters/WorkflowSchemaAdapter.js'
+import { isSubtask, type TaskRecord } from '../../shared/protocol.js'
+import { transitionTask } from '../internal/task-transition.js'
 
 /** 子代理产出的结构化摘要（filesChanged / 完成项 / 证据）。 */
 export interface SubtaskOutput {
@@ -44,7 +44,8 @@ export function parseSubtaskOutput(output: unknown): SubtaskOutput {
     const o = obj as Record<string, unknown>
     return {
       filesChanged: asStringArray(o.filesChanged),
-      completed: asStringArray(o.completed ?? o.done),
+      // schema 契约用 summary，旧 JSON 契约用 completed/done——两者都认，避免"产出形状对了却被判空"。
+      completed: asStringArray(o.completed ?? o.done ?? (typeof o.summary === 'string' ? [o.summary] : undefined)),
       evidence: asStringArray(o.evidence),
       raw: typeof output === 'string' ? output : JSON.stringify(output),
     }
@@ -134,13 +135,13 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
     return fail(task.id, (err as Error).message, (err as { code?: string }).code ?? 'workflow_script_contract', base)
   }
 
-  // REQ-260925110957-552d: 使用 schema 强制结构化产出
-  let schemaOutput: SubtaskOutputSchema
+  // run 产出解包（REQ-260927100007-b8ba t-8bce7d）：WorkflowRunOutcome 是 {ok, value:{output}} **两层信封**，
+  // 产出本身按既有 JSON 契约解析。此前误把信封当产出对象用，filesChanged 恒 undefined → 子卡必崩。
+  // schema 仍随 args 透传给引擎，用于约束子代理的产出形状。
+  let rawOutput: unknown = undefined
   let outcome: { ok: boolean; reason?: string }
-  
   if (deps.workflow === undefined) {
     outcome = { ok: false, reason: 'engine_unavailable' }
-    schemaOutput = createEmptySubtaskOutput('engine_unavailable')
   } else {
     try {
       // 构造 schema 定义
@@ -160,36 +161,26 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
         required: ['filesChanged', 'summary'],
         additionalProperties: false
       }
-      
-      // 使用 executeWithSchema 调用引擎
-      const workflowAdapter = {
-        agent: async (prompt: string, options?: { schema?: any }) => {
-          return await deps.workflow!.start({
-            script,
-            meta: { name: 'reqboard-subtask-' + String(task.stageKind ?? 'x'), description: fmt('子卡执行：{title}', { title: task.title }) },
-            args: { subtaskId: task.id, parentId: parent.id, stageKind: String(task.stageKind ?? ''), schema: options?.schema },
-            parent: (input.exec as { agent?: unknown } | undefined)?.agent,
-            signal: (input.exec as { signal?: AbortSignal } | undefined)?.signal,
-          })
-        }
+      const started = await deps.workflow.start({
+        script,
+        meta: { name: 'reqboard-subtask-' + String(task.stageKind ?? 'x'), description: fmt('子卡执行：{title}', { title: task.title }) },
+        args: { subtaskId: task.id, parentId: parent.id, stageKind: String(task.stageKind ?? ''), schema },
+        parent: (input.exec as { agent?: unknown } | undefined)?.agent,
+        signal: (input.exec as { signal?: AbortSignal } | undefined)?.signal,
+      })
+      if (started.ok) {
+        outcome = { ok: true }
+        rawOutput = (started.value as { output?: unknown } | undefined)?.output
+      } else {
+        outcome = { ok: false, reason: started.reason }
       }
-      
-      schemaOutput = await executeWithSchema(workflowAdapter, buildSubtaskPrompt(parent, task, label), schema)
-      outcome = { ok: true }
     } catch (err) {
       outcome = { ok: false, reason: fmt('run 异常：{m}', { m: String((err as Error).message ?? err) }) }
-      schemaOutput = createEmptySubtaskOutput(outcome.reason)
     }
   }
 
-  // REQ-260925110957-552d: 使用 schema 产出（filesChanged 必定存在）
-  const parsed = {
-    filesChanged: schemaOutput.filesChanged,
-    completed: [schemaOutput.summary],
-    evidence: [] as string[],
-    raw: JSON.stringify(schemaOutput)
-  }
-  const valueNonEmpty = schemaOutput.summary.length > 0 || schemaOutput.filesChanged.length > 0
+  const parsed = parseSubtaskOutput(rawOutput)
+  const valueNonEmpty = parsed.raw.trim().length > 0 || parsed.filesChanged.length > 0 || parsed.completed.length > 0
   const ranAt = deps.clock.now()
 
   // REQ-4842fe t9/FR-10 次防线：产出文件的 mtime 落在另一张在跑父卡的执行窗口内 → 判跨卡覆盖。
@@ -220,9 +211,12 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
     const t = ledger.tasks.find((x) => x.id === task.id)
     if (t === undefined) return undefined
     
-    // 先执行后认领：执行成功才写 in_progress
+    // 先执行后认领：执行成功才写 in_progress（经唯一收敛点，校验 + 状态事件一步到位）
+    // 收敛点已 bump version/updatedAt/updatedBy；下面的 t.version++ 只在未发生转移时补
+    let transitioned = false
     if (t.status === 'todo') {
-      t.status = 'in_progress'
+      transitionTask(t, 'in_progress', { at: ranAt, actor, role: isSubtask(t) ? 'subtask' : 'legacy' })
+      transitioned = true
       t.claimedAt = ranAt
       t.claimedBy = input.windowKey
       t.executions.push({ 
@@ -233,7 +227,6 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
         outcome: outcome.ok ? 'running' : 'failed',
         ...(outcome.ok ? {} : { endedAt: ranAt, error: outcome.reason ?? '' })
       })
-      recordStatus(t, 'in_progress', ranAt, actor)
     }
     
     t.lastRun = { at: ranAt, ok: outcome.ok, stopReason: outcome.ok ? 'completed' : (outcome.reason ?? 'error'), valueNonEmpty, ...(outcome.ok ? {} : { reason: outcome.reason ?? '' }) }
@@ -245,9 +238,11 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
         completed: parsed.completed.length > 0 ? parsed.completed : [parsed.raw.slice(0, 200)],
       }
     }
-    t.version += 1
-    t.updatedAt = ranAt
-    t.updatedBy = actor
+    if (!transitioned) {
+      t.version += 1
+      t.updatedAt = ranAt
+      t.updatedBy = actor
+    }
     return { tasks: [t] }
   })
 
@@ -257,14 +252,10 @@ export async function executeSubtask(deps: UseCaseDeps, input: ExecuteSubtaskInp
       const t = ledger.tasks.find((x) => x.id === task.id)
       if (t === undefined) return undefined
       assertDoneEvidence(deps, input.windowKey, t, ledger)
-      t.status = 'done'
-      t.version += 1
-      t.updatedAt = doneAt
-      t.updatedBy = actor
+      transitionTask(t, 'done', { at: doneAt, actor, role: isSubtask(t) ? 'subtask' : 'legacy' })
       for (const e of t.executions) {
         if (e.outcome === 'running') { e.endedAt = doneAt; e.outcome = 'succeeded' }
       }
-      recordStatus(t, 'done', doneAt, actor)
       return { tasks: [t] }
     })
     return { ok: true, ...base, filesChanged: parsed.filesChanged }

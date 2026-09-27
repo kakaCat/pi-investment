@@ -1,0 +1,138 @@
+metadata:
+  stage: accepting
+  requirement_id: REQ-260927100007-b8ba
+  generated_at: 2026-09-27T03:55:43.524Z
+  version: 3
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-27T03:56:08.939Z
+inputs:
+  tasks:
+    - id: t-4b7697
+      title: 抽任务级收敛点并统一四处写入点
+      status: done
+    - id: t-9785bb
+      title: 补 agent 侧需求/任务流转工具
+      status: done
+    - id: t-8bce7d
+      title: 补齐 MoveTask 契约（现有测试即契约）
+      status: done
+    - id: t-29a9b8
+      title: 批准计划即同步落库并响亮化失败
+      status: done
+    - id: t-4ed3cc
+      title: 阶段推进加任务完整性守卫
+      status: done
+    - id: t-4de551
+      title: 修正条款门禁失败提示与计划提交提示
+      status: done
+    - id: t-722397
+      title: 修 reqboard_decompose 返回体契约
+      status: done
+    - id: t-15d2d8
+      title: RTM 刷新集合补 rtm-decomposing
+      status: done
+    - id: t-4f717c
+      title: 确认门挂起期间的停手守卫
+      status: done
+    - id: t-92c999
+      title: 修 reqboard_status 返回体 lossless
+      status: done
+    - id: t-d73cec
+      title: Dive 采集半停止直投 + 投递白名单
+      status: done
+    - id: t-2c852b
+      title: RTM 窗口绑定投影可更新且有消费者
+      status: done
+    - id: t-0fad87
+      title: 证据路径确认后同调用内推进（已实现，补回归）
+      status: done
+    - id: t-08fcc2
+      title: Dive 在人工门主动弹框（有边界重弹）
+      status: done
+    - id: t-52999b
+      title: 修 apply-wiring 装配 stub 与期望集合
+      status: done
+    - id: t-a1ecaa
+      title: 同步文档：流程图 / 白名单 / 手册
+      status: done
+outputs:
+  test_cases:
+    - id: TC-1
+      title: T9 · 任务覆盖标注（covers）
+      covers:
+        - t-4b7697
+        - t-9785bb
+        - t-8bce7d
+        - t-29a9b8
+        - t-4ed3cc
+        - t-4de551
+        - t-722397
+        - t-15d2d8
+        - t-4f717c
+        - t-92c999
+        - t-d73cec
+        - t-2c852b
+        - t-0fad87
+        - t-08fcc2
+        - t-52999b
+        - t-a1ecaa
+      validates: []
+      source: tests/verification-evidence.md
+traceability:
+  task_to_tests:
+    t-4b7697:
+      - TC-1
+    t-9785bb:
+      - TC-1
+    t-8bce7d:
+      - TC-1
+    t-29a9b8:
+      - TC-1
+    t-4ed3cc:
+      - TC-1
+    t-4de551:
+      - TC-1
+    t-722397:
+      - TC-1
+    t-15d2d8:
+      - TC-1
+    t-4f717c:
+      - TC-1
+    t-92c999:
+      - TC-1
+    t-d73cec:
+      - TC-1
+    t-2c852b:
+      - TC-1
+    t-0fad87:
+      - TC-1
+    t-08fcc2:
+      - TC-1
+    t-52999b:
+      - TC-1
+    t-a1ecaa:
+      - TC-1
+  fr_to_tests:
+    FR-1: []
+    FR-2: []
+    FR-3: []
+    FR-8: []
+    FR-13: []
+    FR-11: []
+    FR-6: []
+    FR-12: []
+    FR-9: []
+    FR-14: []
+    FR-5: []
+    FR-7: []
+    FR-4: []
+    FR-10: []
+coverage:
+  testing:
+    total: 16
+    covered: 16
+    uncovered: []
+    rate: 100
+    total_tasks: 16
+    tested_tasks: 16
+    untested: []

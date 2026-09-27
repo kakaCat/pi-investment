@@ -10,6 +10,7 @@
 import { fmt } from '../../domain/text/fmt.js'
 import type { IdFactory } from '../ports.js'
 import type { ReqboardLedger, TaskRecord } from '../../shared/protocol.js'
+import { transitionTask } from './task-transition.js'
 
 export type FailureCategory = 'no_output' | 'run_failed' | 'gate_failed' | 'engine_unavailable' | 'unknown'
 
@@ -41,11 +42,14 @@ export function rollbackSubtask(
   const t = ledger.tasks.find((x) => x.id === subtaskId)
   if (t === undefined || t.status !== 'in_progress') return false
   const attempt = t.attempt ?? 0
-  t.status = 'todo'
+  // 收敛点：失败退回也是状态转移，必须在唯一入口校验 + 记事件（此前直接赋值绕过了校验）
+  transitionTask(t, 'todo', {
+    at: now,
+    actor: { kind: 'system' },
+    role: 'subtask',
+    reason: fmt('子卡失败退回（{category}）', { category: failure.category }),
+  })
   t.attempt = attempt + 1
-  t.version += 1
-  t.updatedAt = now
-  t.updatedBy = { kind: 'system' }
   delete t.claimedAt
   delete t.claimedBy
   t.revisions = [

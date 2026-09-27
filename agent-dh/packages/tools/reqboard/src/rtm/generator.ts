@@ -70,6 +70,7 @@ export type RTMTrigger =
   | 'confirm:plan'
   | 'task:status'
   | 'task:report'
+  | 'bind'
   | 'submit:verification'
 
 /** 触发结果（失败也必须结构化返回，禁止静默）。 */
@@ -99,7 +100,11 @@ function filesForTrigger(trigger: RTMTrigger): string[] {
       return ['rtm-decomposing.yml', 'rtm-implementing.yml', 'rtm-lifecycle.yml']
     case 'task:status':
     case 'task:report':
-      return ['rtm-implementing.yml', 'rtm-implementing/<task>.yml']
+      // FR-6（REQ-260927100007-b8ba）：任务落库/状态变化后，实施覆盖度（rtm-decomposing）也要随之刷新
+      return ['rtm-decomposing.yml', 'rtm-implementing.yml', 'rtm-implementing/<task>.yml']
+    case 'bind':
+      // FR-12（REQ-260927100007-b8ba）：窗口绑定建立/变更 → 只刷新生命周期快照的窗口投影
+      return ['rtm-lifecycle.yml']
     case 'submit:verification':
       return ['rtm-accepting.yml', 'rtm-lifecycle.yml']
     default:
@@ -161,6 +166,13 @@ export function runRTMTrigger(
           ? { ...supplied, status: ledgerStatus }
           : supplied
         generator.updateTaskStatus(reqId, taskId, updates)
+        // FR-6：同步重算实施覆盖度（未接收 / 已接收随任务状态变化）
+        coverage = generator.generateDecomposing(reqId)?.coverage?.implementation
+        break
+      }
+      case 'bind': {
+        // 绑定刷新：重读台账（含最新 sourceSessionId）重写生命周期快照，不做别的节点。
+        generator.generateLifecycle(reqId)
         break
       }
       case 'submit:verification': {

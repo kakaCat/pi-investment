@@ -483,7 +483,10 @@ interface T10Wiring {
   dispatcher: NodeSettlementDispatcher
   trace: TraceRecorder
   warns: string[]
+  /** FR-11：采集半零投递——该数组必须始终为空（onStagePrompt 不再被调用）。 */
   prompts: string[]
+  /** 注入留痕照旧（INV-6）：FR-11 只是不投递，不是不记录。 */
+  records: Array<{ fragmentIds: string[] }>
 }
 
 /** 组装与 index.ts 同形状的接线：DiveSessionDriver → onNodeSettled → 隔离分发器。 */
@@ -499,6 +502,7 @@ function wireT10(over: {
   const trace = new TraceRecorder()
   const warns: string[] = []
   const prompts: string[] = []
+  const records: Array<{ fragmentIds: string[] }> = []
   const ledger = boundLedger()
   const dispatcher = createNodeSettlementDispatcher({
     enabled: over.enabled,
@@ -517,10 +521,11 @@ function wireT10(over: {
     pending: new Map(),
     now: () => 1000,
     onStagePrompt: (_k, prompt) => { prompts.push(prompt) },
+    injectionLog: { record: (entry) => { records.push(entry) } },
     onNodeSettled: (settle, session) => { dispatcher.onSettle(settle, session) },
     logger: { info: () => {}, debug: () => {} },
   }
-  return { hook: createDiveSessionDriver(deps), dispatcher, trace, warns, prompts }
+  return { hook: createDiveSessionDriver(deps), dispatcher, trace, warns, prompts, records }
 }
 
 describe('t10 §1 开关 NODE_ISOLATION（默认关）', () => {
@@ -555,8 +560,9 @@ describe('t10 §2 关（默认）：隔离代码路径执行 0 次，既有行�
     expect(fake.calls).toEqual([])         // 隔离端口一次都没被碰
     expect(w.trace.entries).toEqual([])    // 无留痕
     expect(w.warns).toEqual([])            // 无告警（不是"失败后才不报"）
-    expect(w.prompts).toHaveLength(1)      // 既有行为不变：状态转移阶段提示词注入照旧
-    expect(w.prompts[0]).toContain('下一步：accepting')
+    expect(w.prompts).toHaveLength(0)      // FR-11：采集半零投递（旧契约 1 次 → 新契约 0 次）
+    expect(w.records).toHaveLength(1)      // 但注入留痕照旧（INV-6）
+    expect(w.records[0].fragmentIds.length).toBeGreaterThan(0)
   })
 
   it('关：即使注入的隔离端口会抛（框架拒绝），也一次都不会被碰——流水线照常推进且无异常', async () => {
@@ -576,7 +582,8 @@ describe('t10 §2 关（默认）：隔离代码路径执行 0 次，既有行�
     await settleAsync()
     expect(calls).toBe(0)
     expect(w.dispatcher.stats().executed).toBe(0)
-    expect(w.prompts).toHaveLength(1)      // 流水线状态仍推进
+    expect(w.prompts).toHaveLength(0)      // FR-11：采集半零投递
+    expect(w.records).toHaveLength(1)      // 流水线状态仍推进（留痕照旧）
   })
 })
 
@@ -607,7 +614,8 @@ describe('t10 §3 开：一次节点结算 → 1 次执行 + 留痕完整（rout
     const derived = JSON.stringify(s.deriveMessages())
     expect(derived).not.toContain(OLD_MARKER)        // 旧上下文真被遗弃
     expect(derived).toContain('routeKey=implementing/light/feature')
-    expect(w.prompts).toHaveLength(1)                // 既有注入行为未受影响
+    expect(w.prompts).toHaveLength(0)                // FR-11：采集半零投递
+    expect(w.records).toHaveLength(1)                // 既有注入留痕行为未受影响（INV-6）
   })
 
   it('异步边界：onSettle 返回前隔离动作不执行（只交给边界），边界运行后才执行', async () => {
@@ -664,7 +672,8 @@ describe('t10 §4 失败只告警不中断流水线（两种模式）', () => {
     expect(w.trace.entries[0]!.code).toBe('framework_rejected')
     expect(w.warns).toHaveLength(1)
     expect(w.warns[0]).toContain('节点隔离未替换')
-    expect(w.prompts).toHaveLength(1)     // 流水线状态仍推进
+    expect(w.prompts).toHaveLength(0)     // FR-11：采集半零投递
+    expect(w.records).toHaveLength(1)     // 流水线状态仍推进（留痕照旧）
   })
 
   it('开：用例自身抛错 → failed 计数 + 告警，绝不冒泡到结算点', async () => {
@@ -683,7 +692,8 @@ describe('t10 §4 失败只告警不中断流水线（两种模式）', () => {
     expect(w.dispatcher.stats()).toEqual({ scheduled: 1, executed: 1, replaced: 0, failed: 1 })
     expect(w.warns).toHaveLength(1)
     expect(w.warns[0]).toContain('节点隔离执行异常')
-    expect(w.prompts).toHaveLength(1)
+    expect(w.prompts).toHaveLength(0)     // FR-11：采集半零投递
+    expect(w.records).toHaveLength(1)     // 留痕照旧
   })
 
   it('开：告警通道自身抛错也不冒泡（无未捕获异常/未处理 rejection）', async () => {
@@ -699,7 +709,8 @@ describe('t10 §4 失败只告警不中断流水线（两种模式）', () => {
     idleDrive(w.hook)
     await settleAsync()
     expect(w.dispatcher.stats().failed).toBe(1)
-    expect(w.prompts).toHaveLength(1)
+    expect(w.prompts).toHaveLength(0)     // FR-11：采集半零投递
+    expect(w.records).toHaveLength(1)     // 留痕照旧
   })
 })
 

@@ -298,8 +298,37 @@ describe('R1 接手推进信号（onBoundWindowActivity）', () => {
   })
 })
 
-describe('REQ-31e11f t5：onStagePrompt 阶段提示词注入', () => {
-  it('bound 窗口 idle → 触发 onStagePrompt（带当前阶段提示词）', async () => {
+describe('REQ-260927100007-b8ba FR-11：采集半零投递（阶段纪律不再直投会话）', () => {
+  it('bound 窗口 idle → **零投递**（onStagePrompt 不再被调用），但注入留痕照旧', async () => {
+    const d = deps()
+    const prompts: string[] = []
+    const records: Array<{ windowKey: string; stage: string; fragmentIds: string[] }> = []
+    const h = createDiveSessionDriver({
+      ...d.deps,
+      onStagePrompt: (_key, prompt) => prompts.push(prompt),
+      injectionLog: { record: (entry) => records.push(entry) },
+    })
+    d.setLedger({
+      ...emptyLedger(),
+      requirements: [{ id: 'REQ-1', sourceSessionId: W, status: 'implementing', category: 'feature' } as never],
+    })
+    h({ id: W }, textMsg('继续推进'))
+    idle(h)
+    // 新契约（旧契约 = 1 次 onStagePrompt，会额外起一轮"只有纪律、没有提问"的 agent loop）。
+    expect(prompts).toHaveLength(0)
+    // 留痕不丢：仍与唯一取词入口 resolveStagePrompt 同源（INV-6）。
+    const { resolveStagePrompt } = await import('../src/domain/prompt/index.js')
+    const expected = resolveStagePrompt({
+      stage: 'implementing', category: 'feature', requirement: { title: undefined, description: undefined },
+    })
+    expect(expected.text.length).toBeGreaterThan(0)
+    expect(records).toHaveLength(1)
+    expect(records[0].windowKey).toBe(W)
+    expect(records[0].stage).toBe('implementing')
+    expect(records[0].fragmentIds).toEqual(expected.fragmentIds)
+  })
+
+  it('同阶段连续两条直接人类消息 → 仍零投递（不产生额外 agent 轮次）', () => {
     const d = deps()
     const prompts: string[] = []
     const h = createDiveSessionDriver({
@@ -310,25 +339,21 @@ describe('REQ-31e11f t5：onStagePrompt 阶段提示词注入', () => {
       ...emptyLedger(),
       requirements: [{ id: 'REQ-1', sourceSessionId: W, status: 'implementing', category: 'feature' } as never],
     })
-    h({ id: W }, textMsg('继续推进'))
+    h({ id: W }, textMsg('第一条'))
     idle(h)
-    expect(prompts).toHaveLength(1)
-    // 断言与唯一取词入口同源（旧的 STAGE_PROMPTS 常量表/旧分片名已下线）：
-    // 注入的就是 resolveStagePrompt 按当前阶段+类型+需求实质算出来的那段文本。
-    const { resolveStagePrompt } = await import('../src/domain/prompt/index.js')
-    const expected = resolveStagePrompt({
-      stage: 'implementing', category: 'feature', requirement: { title: undefined, description: undefined },
-    })
-    expect(prompts[0]).toContain(expected.text)
-    expect(expected.text.length).toBeGreaterThan(0)
+    h({ id: W }, textMsg('第二条'))
+    idle(h)
+    expect(prompts).toHaveLength(0)
   })
 
-  it('分类跳过的阶段不触发 onStagePrompt', async () => {
+  it('分类跳过的阶段：零投递且不留痕', () => {
     const d = deps()
     const prompts: string[] = []
+    const records: unknown[] = []
     const h = createDiveSessionDriver({
       ...d.deps,
       onStagePrompt: (_key, prompt) => prompts.push(prompt),
+      injectionLog: { record: (entry) => records.push(entry) },
     })
     // bug 分类：无 brainstorming 阶段
     d.setLedger({
@@ -337,11 +362,12 @@ describe('REQ-31e11f t5：onStagePrompt 阶段提示词注入', () => {
     })
     h({ id: W }, textMsg('开始'))
     idle(h)
-    // draft 阶段无对应提示词（STAGE_PROMPTS 无 draft 键）→ 不触发
+    // draft 阶段无对应提示词（STAGE_PROMPTS 无 draft 键）→ 不投递、不留痕
     expect(prompts).toHaveLength(0)
+    expect(records).toHaveLength(0)
   })
 
-  it('未注入 onStagePrompt 回调 → 不抛错（可选依赖）', async () => {
+  it('未注入 onStagePrompt / injectionLog 回调 → 不抛错（可选依赖）', () => {
     const d = deps()
     const h = createDiveSessionDriver(d.deps)
     d.setLedger({
@@ -353,129 +379,103 @@ describe('REQ-31e11f t5：onStagePrompt 阶段提示词注入', () => {
   })
 })
 
-describe('里程碑超时提醒（REQ-2e9473 t09）', () => {
-  it('产物登记 >30min 未确认 → 注入提醒，含 reqboard_ask_confirm 调用指引', () => {
+interface MilestoneNotice {
+  windowKey: string
+  requirementId: string
+  artifactKey: string
+  text: string
+}
+
+/** 陈旧未确认产物台账（组装一次，多个用例共用形状）。 */
+function staleArtifactLedger(testNow: number, artifact: Record<string, unknown>): never {
+  return {
+    ...emptyLedger(),
+    requirements: [{
+      id: 'REQ-abc', title: 'test', description: '', sourceSessionId: W, status: 'brainstorming', category: 'feature',
+      blocked: false, comments: [], version: 1, createdAt: 1, updatedAt: testNow,
+      createdBy: { kind: 'human' }, updatedBy: { kind: 'human' }, statusHistory: [],
+      artifacts: [artifact],
+    }],
+  } as never
+}
+
+describe('REQ-260927100007-b8ba FR-11：里程碑催办登记（采集半只登记、不投递）', () => {
+  const stale = (testNow: number): Record<string, unknown> =>
+    ({ stage: 'brainstorming', kind: 'requirement', path: 'r.md', registeredAt: testNow - 31 * 60 * 1000 })
+
+  it('产物登记 >30min 未确认 → 登记催办（零投递），含 reqboard_ask_confirm 调用指引', () => {
+    const notices: MilestoneNotice[] = []
     const injected: string[] = []
     const d = deps()
     const testNow = 2000000000000 // 固定时间避免 deps.now() 为 1000 导致负数
     d.deps.now = () => testNow
+    d.deps.onMilestoneNotice = (n) => { notices.push(n) }
+    // 旧投递通道：即便注入也不得被碰（采集半零投递是 FR-11 的核心契约）。
     d.deps.onStagePrompt = (_w, text) => { injected.push(text) }
     const h = createDiveSessionDriver(d.deps)
-    d.setLedger({
-      ...emptyLedger(),
-      requirements: [{
-        id: 'REQ-abc',
-        title: 'test',
-        description: '',
-        sourceSessionId: W,
-        status: 'brainstorming',
-        category: 'feature',
-        blocked: false,
-        comments: [],
-        version: 1,
-        createdAt: 1,
-        updatedAt: testNow,
-        createdBy: { kind: 'human' },
-        updatedBy: { kind: 'human' },
-        statusHistory: [],
-        artifacts: [{ stage: 'brainstorming', kind: 'requirement', path: 'r.md', registeredAt: testNow - 31 * 60 * 1000 }],
-      } as never],
-    })
+    d.setLedger(staleArtifactLedger(testNow, stale(testNow)))
     h({ id: W }, textMsg('继续'))
     idle(h)
-    expect(injected.some(t => t.includes('里程碑提醒'))).toBe(true)
-    expect(injected.some(t => t.includes('reqboard_ask_confirm'))).toBe(true)
-    expect(injected.some(t => t.includes('kind=requirement'))).toBe(true)
+    expect(injected).toHaveLength(0)
+    expect(notices).toHaveLength(1)
+    expect(notices[0].requirementId).toBe('REQ-abc')
+    expect(notices[0].artifactKey).toBe('REQ-abc:requirement')
+    expect(notices[0].windowKey).toBe(W)
+    expect(notices[0].text).toContain('里程碑提醒')
+    expect(notices[0].text).toContain('reqboard_ask_confirm')
+    expect(notices[0].text).toContain('kind=requirement')
   })
 
-  it('每产物只提醒一次：第二次 idle 不重复注入', () => {
-    const injected: string[] = []
+  it('每产物只登记一次：第二次 idle 不重复登记', () => {
+    const notices: MilestoneNotice[] = []
     const d = deps()
     const testNow = 2000000000000
     d.deps.now = () => testNow
-    d.deps.onStagePrompt = (_w, text) => { injected.push(text) }
+    d.deps.onMilestoneNotice = (n) => { notices.push(n) }
     const h = createDiveSessionDriver(d.deps)
-    d.setLedger({
-      ...emptyLedger(),
-      requirements: [{
-        id: 'REQ-abc', title: 'test', description: '', sourceSessionId: W, status: 'brainstorming', category: 'feature',
-        blocked: false, comments: [], version: 1, createdAt: 1, updatedAt: testNow,
-        createdBy: { kind: 'human' }, updatedBy: { kind: 'human' }, statusHistory: [],
-        artifacts: [{ stage: 'brainstorming', kind: 'requirement', path: 'r.md', registeredAt: testNow - 31 * 60 * 1000 }],
-      } as never],
-    })
+    d.setLedger(staleArtifactLedger(testNow, stale(testNow)))
     h({ id: W }, textMsg('继续'))
     idle(h)
-    const count1 = injected.filter(t => t.includes('里程碑提醒')).length
     h({ id: W }, textMsg('再来'))
     idle(h)
-    const count2 = injected.filter(t => t.includes('里程碑提醒')).length
-    expect(count1).toBe(1)
-    expect(count2).toBe(1)
+    expect(notices).toHaveLength(1)
   })
 
-  it('产物已确认 → 不提醒', () => {
-    const injected: string[] = []
+  it('产物已确认 → 不登记', () => {
+    const notices: MilestoneNotice[] = []
     const d = deps()
     const testNow = 2000000000000
     d.deps.now = () => testNow
-    d.deps.onStagePrompt = (_w, text) => { injected.push(text) }
+    d.deps.onMilestoneNotice = (n) => { notices.push(n) }
     const h = createDiveSessionDriver(d.deps)
-    d.setLedger({
-      ...emptyLedger(),
-      requirements: [{
-        id: 'REQ-abc', title: 'test', description: '', sourceSessionId: W, status: 'brainstorming', category: 'feature',
-        blocked: false, comments: [], version: 1, createdAt: 1, updatedAt: testNow,
-        createdBy: { kind: 'human' }, updatedBy: { kind: 'human' }, statusHistory: [],
-        artifacts: [{
-          stage: 'brainstorming', kind: 'requirement', path: 'r.md',
-          registeredAt: testNow - 31 * 60 * 1000, confirmedAt: testNow,
-        }],
-      } as never],
-    })
+    d.setLedger(staleArtifactLedger(testNow, { ...stale(testNow), confirmedAt: testNow }))
     h({ id: W }, textMsg('继续'))
     idle(h)
-    expect(injected.some(t => t.includes('里程碑提醒'))).toBe(false)
+    expect(notices).toHaveLength(0)
   })
 
-  it('产物新鲜（<30min）→ 不提醒', () => {
-    const injected: string[] = []
+  it('产物新鲜（<30min）→ 不登记', () => {
+    const notices: MilestoneNotice[] = []
     const d = deps()
     const testNow = 2000000000000
     d.deps.now = () => testNow
-    d.deps.onStagePrompt = (_w, text) => { injected.push(text) }
+    d.deps.onMilestoneNotice = (n) => { notices.push(n) }
     const h = createDiveSessionDriver(d.deps)
-    d.setLedger({
-      ...emptyLedger(),
-      requirements: [{
-        id: 'REQ-abc', title: 'test', description: '', sourceSessionId: W, status: 'brainstorming', category: 'feature',
-        blocked: false, comments: [], version: 1, createdAt: 1, updatedAt: testNow,
-        createdBy: { kind: 'human' }, updatedBy: { kind: 'human' }, statusHistory: [],
-        artifacts: [{ stage: 'brainstorming', kind: 'requirement', path: 'r.md', registeredAt: testNow - 10 * 60 * 1000 }],
-      } as never],
-    })
+    d.setLedger(staleArtifactLedger(testNow, { stage: 'brainstorming', kind: 'requirement', path: 'r.md', registeredAt: testNow - 10 * 60 * 1000 }))
     h({ id: W }, textMsg('继续'))
     idle(h)
-    expect(injected.some(t => t.includes('里程碑提醒'))).toBe(false)
+    expect(notices).toHaveLength(0)
   })
 
-  it('时间型催办不依赖本回合是否有消息：无消息的 idle 也会提醒', () => {
-    const injected: string[] = []
+  it('时间型催办不依赖本回合是否有消息：无消息的 idle 也会登记', () => {
+    const notices: MilestoneNotice[] = []
     const d = deps()
     const testNow = 2000000000000
     d.deps.now = () => testNow
-    d.deps.onStagePrompt = (_w, text) => { injected.push(text) }
+    d.deps.onMilestoneNotice = (n) => { notices.push(n) }
     const h = createDiveSessionDriver(d.deps)
-    d.setLedger({
-      ...emptyLedger(),
-      requirements: [{
-        id: 'REQ-abc', title: 'test', description: '', sourceSessionId: W, status: 'brainstorming', category: 'feature',
-        blocked: false, comments: [], version: 1, createdAt: 1, updatedAt: testNow,
-        createdBy: { kind: 'human' }, updatedBy: { kind: 'human' }, statusHistory: [],
-        artifacts: [{ stage: 'brainstorming', kind: 'requirement', path: 'r.md', registeredAt: testNow - 31 * 60 * 1000 }],
-      } as never],
-    })
+    d.setLedger(staleArtifactLedger(testNow, stale(testNow)))
     idle(h)
-    expect(injected.some(t => t.includes('里程碑提醒'))).toBe(true)
+    expect(notices).toHaveLength(1)
   })
 })

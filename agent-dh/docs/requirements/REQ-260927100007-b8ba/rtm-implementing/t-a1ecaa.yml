@@ -1,0 +1,44 @@
+task:
+  id: t-a1ecaa
+  title: 同步文档：流程图 / 白名单 / 手册
+  status: done
+  implements: ""
+  serves: []
+  depends_on:
+    - t-d73cec
+    - t-2c852b
+  phase: doc
+  side: doc
+  workflow_params:
+    REQ_ID: REQ-260927100007-b8ba
+    TASK_ID: t-a1ecaa
+    TASK_TITLE: 同步文档：流程图 / 白名单 / 手册
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: doc
+    PHASE: doc
+  workflow_total: 4
+  workflow_done: 4
+  workflow:
+    - phase: doc
+      status: done
+      completed_at: 2026-09-27T03:46:00.804Z
+    - phase: implement
+      status: done
+      started_at: 2026-09-27T03:54:22.217Z
+      completed_at: 2026-09-27T03:54:22.462Z
+    - phase: test
+      status: done
+      completed_at: 2026-09-27T03:54:22.462Z
+    - phase: commit
+      status: done
+      completed_at: 2026-09-27T03:54:22.462Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927100007-b8ba
+  generated_at: 2026-09-27T03:46:00.803Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 4
+  last_updated: 2026-09-27T03:54:22.462Z

@@ -133,13 +133,27 @@ export function consistencyGaps(rows: readonly ConsistencyRow[]): string[] {
  * REQ-260926205654-163a：增加对任务定义中 serves 声明的识别（避免 LLM 手写 requirement_refs 字段时出错）。
  * 双源合并：① RTM 表格（原有）+ ② 任务定义段落中的 **serves: FR-1, FR-2** 或 **requirement_refs**: [...]
  */
+/**
+ * 从表格单元格里提取**计划键**（如 t4 / T-1）：人手写的覆盖对照表用计划键而非台账 id。
+ * 根编号（FR-x）不算任务键；中文占位（如「落库后回填」）自然被正则滤掉。
+ */
+function planKeysIn(cell: string): string[] {
+  return cell
+    .split(/[，,、\s|]+/)
+    .map(s => s.trim().replace(/^[（(]+|[）)]+$/g, ''))
+    .filter(s => /^[A-Za-z][A-Za-z0-9_-]{0,39}$/.test(s) && !isRootKind(s))
+}
+
 export function taskRefsFromDecomposition(doc: ParsedDoc): ConsistencyTaskLike[] {
   const byId = new Map<string, { roots: Set<string>; title: string }>()
   
   // ── 数据源 1：RTM 表格（原有逻辑，保持不变） ──────────────────────
   for (const t of doc.tables) {
     const iRoot = t.header.findIndex(h => h.includes('根编号') || h.includes('需求条款') || h.includes('需求编号'))
-    const iTask = t.header.findIndex(h => h.includes('任务') && (h.includes('编号') || h.includes('id') || h.includes('ID')))
+    // FR-4（REQ-260927100007-b8ba）：任务列**放宽**到只要表头含「任务」——机器生成的 §1 表用
+    // 「任务 id」，人手写的覆盖对照表用「接收任务」。此前要求「任务 + 编号/id」，导致计划文档里
+    // 那张唯一的 FR↔计划 key 对照表整张读不到，覆盖门禁的「双源」退化成单源（实测：硬拦正常计划）。
+    const iTask = t.header.findIndex(h => h.includes('任务'))
     if (iRoot < 0 || iTask < 0) continue
     // 标题列可有可无：机器生成的 RTM 用「任务 id」，人手写的计划表用「任务编号 + 任务标题」
     const iTitle = t.header.findIndex(h => h.includes('标题'))
@@ -147,13 +161,20 @@ export function taskRefsFromDecomposition(doc: ParsedDoc): ConsistencyTaskLike[]
       const rootCell = (row[iRoot] ?? '').trim()
       if (rootCell.length === 0 || rootCell.startsWith('—')) continue
       const root = collectIds(rootCell).find(isRootKind)
-      const taskId = collectIds(row[iTask] ?? '')[0]
-      if (root === undefined || taskId === undefined) continue
+      if (root === undefined) continue
+      // 任务标识优先认台账 id（t-aaaaaa）；认不出时回落到**计划键**（t4 / T-1）——落库前文档里
+      // 只可能是计划键。两种都不认才跳过（宁可不判，也不把外来编号误判成"未接收"）。
+      const taskCell = (row[iTask] ?? '').trim()
+      const ledgerIds = collectIds(taskCell)
+      const taskIds = ledgerIds.length > 0 ? [ledgerIds[0]] : planKeysIn(taskCell)
+      if (taskIds.length === 0) continue
       const title = iTitle >= 0 ? (row[iTitle] ?? '').trim().replace(/\*\*/g, '') : ''
-      const cur = byId.get(taskId) ?? { roots: new Set<string>(), title }
-      cur.roots.add(root)
-      if (cur.title.length === 0) cur.title = title
-      byId.set(taskId, cur)
+      for (const taskId of taskIds) {
+        const cur = byId.get(taskId) ?? { roots: new Set<string>(), title }
+        cur.roots.add(root)
+        if (cur.title.length === 0) cur.title = title
+        byId.set(taskId, cur)
+      }
     }
   }
   

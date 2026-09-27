@@ -167,6 +167,27 @@ export interface AskAnswer {
   custom?: string
 }
 
+/**
+ * 受信内部**人工门弹框**端口（REQ-260927100007-b8ba FR-14 / design I-10）。与工具层的
+ * `questions.ask` 分开：工具层要过 `requireLiveDriver`（`agent.status === 'running'`），
+ * 而 Dive 跑在 idle。**仅 Dive 调用**、只发起弹框——肯定项仍由 `actor=human` 走
+ * `transitionRequirement`（人工门强度不变）。通道不可用 → `{answered:false}` + 降级投递；
+ * 实现须**永不抛**。幂等/防刷屏由调用方按 (需求, 门, 产物指纹) 保证。
+ */
+export interface GatePromptPort {
+  prompt(input: {
+    windowKey: string
+    requirementId: string
+    /** 人工门 id（G1..G4）。 */
+    gate: string
+    /** 确认产物（artifact）/ 推进确认（plan）。 */
+    kind: 'artifact' | 'plan'
+    /** kind='artifact' 时必填：要确认的产物 kind。 */
+    artifactKind?: string
+    question: string
+  }): Promise<{ answered: boolean; affirmative: boolean }>
+}
+
 /** 用例的依赖集合（组合根构造后注入；用例不得自行 new 实现）。 */
 /** 投递结果：三态都要可判（在线 / 离线 / 抛错），且**永不抛**。 */
 export interface DeliveryResult {
@@ -296,6 +317,8 @@ export interface PendingConfirmPort {
   get(ticket: string, windowKey: string): PendingConfirmation | undefined
   /** 回填后台作答结果（未知 ticket → undefined；幂等）。 */
   settle(ticket: string, outcome: PendingConfirmationOutcome): PendingConfirmation | undefined
+  /** 本窗口**未作答**的挂起确认（FR-9 停手守卫）；没有则 undefined。 */
+  pendingForWindow(windowKey: string): PendingConfirmation | undefined
 }
 
 

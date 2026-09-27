@@ -182,15 +182,22 @@ export function checkRTMHealth(
   const records = readFailures(stateDir)
   const lastFailure = records.find(r => r.requirement_id === req.id)
   
+  // FR-10（REQ-260927100007-b8ba）：无失败记录时**省略**该键，不能写 last_failure: undefined——
+  // 那是 own property，JSON.stringify 会静默丢掉，但 PTC 绑定层的 lossless 校验会拦下，
+  // 使已绑定窗口的 reqboard_status **必然**报 returned invalid output（实测现状）。
   return {
     healthy: missing.length === 0,
     missing_files: missing,
-    last_failure: lastFailure ? {
-      trigger: lastFailure.trigger,
-      error: lastFailure.error,
-      timestamp: lastFailure.timestamp,
-      attempts: lastFailure.attempts,
-    } : undefined,
+    ...(lastFailure !== undefined
+      ? {
+          last_failure: {
+            trigger: lastFailure.trigger,
+            error: lastFailure.error,
+            timestamp: lastFailure.timestamp,
+            attempts: lastFailure.attempts,
+          },
+        }
+      : {}),
     retry_available: missing.length > 0 && (!lastFailure || lastFailure.attempts < 3),
   }
 }

@@ -209,8 +209,9 @@ export interface RTMLifecycle {
     created_at: string
     /**
      * 立项绑定窗口（台账 `sourceSessionId` 的投影）——"窗口↔需求"的需求侧锚点。
-     * 为什么放进本文件：Dive 模式唤醒要知道**把消息投给哪个窗口**，绑定窗口必须与
-     * 节点状态一起出现在同一份快照里（否则还要回头查台账）。缺省 = 未绑定窗口。
+     * **当前无生产读取方**（如实声明，REQ-260927100007-b8ba FR-12）：Dive 的投递目标取自
+     * 台账（round-driver.ts 的 `requirementById(id)?.sourceSessionId`），不读本字段；
+     * 本字段仅供人查（看板/文件自查），绑定变更由 `bind` 触发点刷新。缺省 = 未绑定窗口。
      */
     source_session?: string
     /**

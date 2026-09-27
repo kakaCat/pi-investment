@@ -59,6 +59,8 @@ import {
   type ToolTraceEntry,
 } from '../internal/session-buffers.js'
 import { addressSectionFor, milestoneReminderFor } from './idle-capture-actions.js'
+import { createGatePromptLoop, type GatePromptExhausted } from './gate-prompt.js'
+import type { GatePromptPort } from '../ports.js'
 import type { DiveRoundDriver } from './round-driver.js'
 
 export interface DiveSessionDriverLogger {
@@ -79,10 +81,26 @@ export interface DiveSessionDriverDeps {
    */
   onBoundWindowActivity?: (windowKey: string, text: string) => void
   /**
-   * 阶段提示词注入回调（REQ-31e11f t5）：需求状态转移后，向绑定会话注入新阶段的
-   * STAGE_PROMPTS 纪律提示词。可选（未注入 = 关闭该注入）。
+   * 阶段提示词注入回调（REQ-31e11f t5）。
+   *
+   * @deprecated REQ-260927100007-b8ba FR-11 起**驱动体不再调用**：阶段纪律本就注入在
+   * 每次请求的 system prompt（`application/internal/capture-section.ts`），这里的投递是纯冗余，
+   * 且经 `agent.followup()` 会额外起一轮「只有纪律、没有提问」的 agent loop（FR-11 实测根因）。
+   * 字段保留仅为类型/测试兼容；进会话只能走 round 半的 `createRoundMessage`。
    */
   onStagePrompt?: (windowKey: string, prompt: string) => void
+  /**
+   * 里程碑催办**登记**回调（REQ-260927100007-b8ba FR-11）：采集半只采集/登记、**不投递会话**。
+   * 组合根据此在 armed+active 时转 round 半 `queueReminder`（由 round 半经预留→投递→准入投递），
+   * 其余（全仓现状 0 armed）只写台账 comment（不静默）。
+   * 可选（未注入 = 不登记）。
+   */
+  onMilestoneNotice?: (input: {
+    windowKey: string
+    requirementId: string
+    artifactKey: string
+    text: string
+  }) => void
   /**
    * 回合结束回调（REQ-e3b6a0 t7）：**闸门后置链 Phase B 的唯一时机**。
    *
@@ -121,6 +139,10 @@ export interface DiveSessionDriverDeps {
    * 可选（未注入 = 纯采集/簿记，行为与改动前逐字一致——旧调用方与脚本不受影响）。
    */
   round?: DiveRoundDriver
+  /** FR-14 受信人工门弹框端口（design I-10）；未注入 = 行为与改动前逐字一致（零新投递）。 */
+  gatePrompt?: GatePromptPort
+  /** FR-14 弹框到上限时的一次性回调（组合根据此写台账 comment，响亮不静默）。 */
+  onGatePromptExhausted?: (info: GatePromptExhausted) => void
   logger?: DiveSessionDriverLogger
 }
 
@@ -172,6 +194,11 @@ export function createDiveSessionDriver(deps: DiveSessionDriverDeps): DiveSessio
   // 已结算节点去重键 = 窗口:节点——同一节点只结算一次，否则每次空闲都会重复遗弃一次上下文。
   const settledNodes = new Set<string>()
 
+  // FR-14：人工门主动弹框。**未装配端口 → undefined → 各处零行为**（与改动前逐字一致）。
+  const gatePromptLoop = deps.gatePrompt === undefined ? undefined : createGatePromptLoop({
+    prompt: deps.gatePrompt, now, onExhausted: deps.onGatePromptExhausted, logger,
+  })
+
   // 本回合采集到的「直接人类消息」（user/message 落，agent idle 消费）。
   const roundHuman = new Map<string, PendingCaptureMessage>()
 
@@ -216,7 +243,10 @@ export function createDiveSessionDriver(deps: DiveSessionDriverDeps): DiveSessio
           // T-3：与 capture-section/H3/输入包同源折入地址段（第四处注入点）。
           const resolved = addressSectionFor(located, deps.address, ledger, stageReq, stage)
           if (resolved.text.length > 0) {
-            deps.onStagePrompt?.(windowKey, resolved.text)
+            // FR-11（REQ-260927100007-b8ba）：采集半**不再投递**阶段纪律——纪律已在每次请求的
+            // system prompt（application/internal/capture-section.ts），此处投递纯属冗余，
+            // 且经 agent.followup 会额外起一轮 agent loop。只留痕 + 发节点结算信号；
+            // 凡"进会话"的投递只能走 round 半的 createRoundMessage（见投递白名单）。
             // INV-6：注入即留痕（与 capture-section 同一组装入口）。
             deps.injectionLog?.record(injectionLogInputFromResolved(resolved, windowKey))
             // REQ-422af1 t10：idle = 上一回合的轮次边界 → 立即发节点结算信号（隔离在异步边界执行）。
@@ -240,9 +270,20 @@ export function createDiveSessionDriver(deps: DiveSessionDriverDeps): DiveSessio
     const reminder = milestoneReminderFor(ledger, windowKey, now())
     if (reminder !== undefined && !remindedAt.has(reminder.artifactKey)) {
       remindedAt.set(reminder.artifactKey, now())
-      deps.onStagePrompt?.(windowKey, reminder.text)
-      debug('reqboard-capture: milestone reminder injected → ' + reminder.artifactKey)
+      // FR-11：采集半只**登记**、不投递会话——armed+active 由组合根转 round 半 queueReminder，
+      // 其余只写台账 comment（见 wiring/pm-capture-root.ts 的投递白名单）。
+      deps.onMilestoneNotice?.({
+        windowKey,
+        requirementId: reminder.requirementId,
+        artifactKey: reminder.artifactKey,
+        text: reminder.text,
+      })
+      debug('reqboard-capture: milestone reminder registered → ' + reminder.artifactKey)
     }
+
+    // ── FR-14：人工门主动弹框（受信内部入口；仅装配了端口时）。门状态判定 + 有边界重弹见
+    // ./gate-prompt.js；弹框与"落章/推进"都走端口（D-17：本拍不 await、不做会话写）。
+    gatePromptLoop?.tick(windowKey, stageReq)
   }
 
   /** session/event 簿记入口：只采集/只收尾，不做任何「判定 + 动作」扇出。 */

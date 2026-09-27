@@ -1,0 +1,33 @@
+task:
+  id: t-29a9b8
+  title: 批准计划即同步落库并响亮化失败
+  status: done
+  implements: ""
+  serves: []
+  depends_on:
+    - t-4b7697
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927100007-b8ba
+    TASK_ID: t-29a9b8
+    TASK_TITLE: 批准计划即同步落库并响亮化失败
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-27T03:22:14.322Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927100007-b8ba
+  generated_at: 2026-09-27T03:22:14.321Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-27T03:54:18.572Z

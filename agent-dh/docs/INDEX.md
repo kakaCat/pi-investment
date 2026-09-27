@@ -3,7 +3,7 @@ id: docs-index
 title: 全站页面索引（机器可读入口）
 type: index
 status: living
-updated: 2026-09-26
+updated: 2026-09-27
 owners: [agent-dh]
 tags: [index, wiki]
 ---
@@ -14,17 +14,19 @@ tags: [index, wiki]
 
 > 本页由 `python3 agent-dh/scripts/docs_index.py` 生成，**勿手改**；改了页面后跑一次生成，`--check` 会校验是否过期。日志明细见 [工作日志索引](work-logs/README.md)，需求档案见 [需求档案索引](requirements/INDEX.md)。
 
-### 入口与发布说明 · `docs`（5 页）
+### 入口与发布说明 · `docs`（7 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
-| [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-09-26 |
+| [全站页面索引（机器可读入口）](INDEX.md) | index | living | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 | 2026-09-27 |
 | [agent-dh Wiki（归档文档首页 / 大纲）](README.md) | manual | living | agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。 | 2026-09-25 |
 | [🎊 Agent-DH v0.1.1 发布说明](RELEASE-NOTES-v0.1.1.md) | doc | living | v0.1.1（2026-08-18）发布说明：稳定性与可靠性改进清单（历史版本记录）。 | 2026-09-14 |
+| [optimization-remove-deps-jobs.md](optimization-remove-deps-jobs.md) | — | — | 1. deps.jobs.start() 是为了解决 "Agent 回合已结束" 的问题 | — |
+| [rtm-health-check.md](rtm-health-check.md) | — | — | 之前 RTM（Requirements Traceability Matrix，需求追溯矩阵）生成失败时只打印 console.warn，没有明显的错误提示，导致： | — |
 | [workflow-ptc-fix.md](troubleshooting/workflow-ptc-fix.md) | — | — | PM 插件 (dsh-pmboard) 的自动任务执行链依赖 workflow-ptc 服务，但当前运行时 ctx.workflowEngine 服务不可用，导致所有子卡执行失败： | — |
 | [工作日志索引（L3 证据档案）](work-logs/README.md) | index | living | 某个时间点「当时做了什么、为什么这么做、结论是什么」。按月份倒序列出全部工作日志。 | 2026-09-14 |
 
-### 架构与生命周期 · `docs/architecture`（32 页）
+### 架构与生命周期 · `docs/architecture`（34 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
@@ -55,9 +57,11 @@ tags: [index, wiki]
 | [reqboard-dive-mode.md](architecture/reqboard-dive-mode.md) | — | — | Dive 模式是项目看板（reqboard）的自动流程控制机制，实现需求从立项到归档的自动化推进，减少人工干预，提高执行效率。 | — |
 | [reqboard-doc-path-contract.md](architecture/reqboard-doc-path-contract.md) | — | — | 登记产物/文档路径时必须归一，历史遗留的下列写法由归一层在读取时兜底： | — |
 | [节点详情面板（锚定式 node-panel）](architecture/reqboard-node-panel.md) | architecture | living | 会话流程条节点点开后的就地面板：锚定在流程条下方右侧、无遮罩无底栏；「基础信息」按节点给该看的，「执行流程」把该阶段提示词的纪律与真实台账做规定 vs 实际对照；实施节点改 DAG·泳道双视… | 2026-09-23 |
+| [需求流水线节点流程图（RTM 生成点 · 人工门 · Dive 参与点）](architecture/reqboard-pipeline-flow.md) | architecture | living | draft→archived 七节点的实际动作、RTM 产出文件、五道人工门与 Dive 两半参与点的 ASCII 流程图；附投递白名单与缺陷落点 D1–D13（含修复状态）。 | 2026-09-27 |
 | [需求节点详情系统（stage-detail）](architecture/reqboard-stage-detail.md) | architecture | living | 会话框流程条节点点开看详情：StageDetail 契约 + 模板模式双端装配 + 分类流程档案 + 产物闸门 + 追溯链 + 接力任务卡 + 前端工作记录渲染器；含子任务层与自动链控制面（… | 2026-09-21 |
 | [需求看板的 Token 消耗（过程消耗 + 提示词成本）](architecture/reqboard-token-usage.md) | architecture | living | 看板怎么记录与展示「每个流程节点/每个任务」的 token 消耗，以及固定系统提示词与 reqboard 注入提示词的成本；含缺失语义与自检命令。 | 2026-09-18 |
 | [需求归档规范（reqboard 执行细则）](architecture/requirement-archive.md) | architecture | living | 需求归档执行细则：归档要备哪些材料、合并去向怎么定、代码在哪校验。 | 2026-09-13 |
+| [RTM 追溯基础设施](architecture/rtm-infrastructure.md) | architecture | living | RTM 是什么、7 个文件与三级追溯链长什么样、代码在哪，以及"改了 src 不生效"和"工作区根被静默丢弃"两个必知运维坑。 | 2026-09-27 |
 | [self_restart 工具行为说明](architecture/self-restart-behavior.md) | architecture | living | self_restart 工具的行为说明与失败排查（状态文件、门控、常见误判）。 | 2026-09-14 |
 | [workflow-stages.md](architecture/workflow-stages.md) | — | — | （STAGE_ARTIFACT_REQUIREMENTS.design = ['plan']、ARTIFACT_CONFIRM_GATES['design>decomposing'] = '… | — |
 
@@ -82,7 +86,7 @@ tags: [index, wiki]
 | [工具审计清单](protocols/tool-audit.md) | protocol | living | 怎么查一个工具"说到的"是不是"做到的"（定期抽查 / 接手陌生插件时用）。 | 2026-09-13 |
 | [交易执行协议（Trade Execution Protocol）](protocols/trade-execution-protocol.md) | protocol | living | 交易打标协议 v1.0：每笔交易如何带 genome_version / rules_used 进经验库。 | 2026-09-14 |
 
-### 指南（怎么做 / 怎么排障） · `docs/guides`（26 页）
+### 指南（怎么做 / 怎么排障） · `docs/guides`（27 页）
 
 | 页 | type | status | 一句话 | 更新 |
 |---|---|---|---|---|
@@ -102,6 +106,7 @@ tags: [index, wiki]
 | [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) | guide | living | 一个需求从冒出来到归档，具体敲哪些工具、卡在哪、错了怎么办。 | 2026-09-25 |
 | [重启防丢 Session 操作手册（Restart Session Safety Runbook）](guides/restart-session-safety.md) | guide | living | 重启（含 self_restart）后会话历史为什么不丢、怎么保证——附 PID 与源码级证据。 | 2026-09-14 |
 | [定时巡检清单（有问题才打扰）](guides/routine-checks.md) | guide | living | 哪些检查该定期跑、跑什么命令、什么算有问题、出了问题找谁。 | 2026-09-13 |
+| [RTM 追溯使用指南](guides/rtm-usage-guide.md) | guide | living | 怎么写 serves/implements/covers 标注让追溯链长出来、在哪看、覆盖度怎么算，以及"追溯空白/DAG 无数据"的排查顺序。 | 2026-09-27 |
 | [RTM YAML 追溯基础设施使用指南](guides/rtm-usage.md) | guide | living | 需求追溯的预构建索引：7 个 YAML 文件长什么样、在哪 7 个时刻自动更新、Dive 模式怎么 2ms 读它做决策、节点输入包怎么注入与压缩。 | 2026-09-26 |
 | [rtm-user-guide.md](guides/rtm-user-guide.md) | — | — | FR 文件必须放在需求目录下的 functional-requirements/ 子目录中： | — |
 | [技能装载机制（Skill Loading）——排障实录与标准流程](guides/skill-loading.md) | guide | living | 技能为什么看不见：两个 dsh home + skill registry 分层，以及正确的装载姿势。 | 2026-09-14 |

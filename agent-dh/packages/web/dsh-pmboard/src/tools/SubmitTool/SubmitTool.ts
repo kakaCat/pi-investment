@@ -16,7 +16,7 @@ import { submitVerification } from '../../application/use-cases/SubmitVerificati
 import { submitArchive } from '../../application/use-cases/SubmitArchive.js'
 import { submitDesignArtifacts } from '../../application/use-cases/SubmitDesignArtifacts.js'
 import { normalizeText, ALL_TASK_PHASES, ALL_TASK_SIDES, SUBMIT_KINDS } from '../../shared/protocol.js'
-import { reject } from '../../application/internal/support.js'
+import { reject, assertNoPendingConfirm } from '../../application/internal/support.js'
 import { renderSmart } from '../shared.js'
 import { submitSummary } from '../render-summaries.js'
 import { SUBMIT_PROMPT } from './prompt.js'
@@ -204,6 +204,8 @@ export function defineSubmitTool(deps: UseCaseDeps) {
     },
     timeoutMs: LIMITS.timeoutWriteMs,
     execute: async (args: unknown, exec: ToolRunContext) => {
+      // FR-9：本窗口有未作答的挂起确认时，写路径一律停手
+      assertNoPendingConfirm(deps, deps.session.windowKey(exec))
       const kind = normalizeText(((args ?? {}) as { kind?: unknown }).kind, 'kind', 32)
       const run = SUBMIT_DISPATCH[kind]
       if (run === undefined) {

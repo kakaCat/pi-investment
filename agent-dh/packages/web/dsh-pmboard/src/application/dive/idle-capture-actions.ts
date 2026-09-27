@@ -50,7 +50,7 @@ export function milestoneReminderFor(
   ledger: ReqboardLedger,
   windowKey: string,
   now: number,
-): { text: string; artifactKey: string } | undefined {
+): { text: string; artifactKey: string; requirementId: string } | undefined {
   const open = openRequirementsFor(ledger, windowKey)
   const req = [...open].sort((a, b) => b.updatedAt - a.updatedAt)[0]
   if (req === undefined) return undefined
@@ -59,6 +59,7 @@ export function milestoneReminderFor(
   if (stale === undefined) return undefined
   const minutes = Math.round((now - stale.registeredAt) / 60000)
   return {
+    requirementId: req.id,
     artifactKey: req.id + ':' + stale.kind,
     text: '【里程碑提醒】产物 kind=' + stale.kind + '（' + stale.path + '）已登记 ' + minutes + ' 分钟未确认。'
       + '请立即调 reqboard_ask_confirm（target=artifact, kind=' + stale.kind + '）弹框请人确认——'

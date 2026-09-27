@@ -214,4 +214,26 @@ describe('T-6 对齐验收（11 FR）', () => {
       expect(all, marker).toContain(marker)
     }
   })
+
+  it('TC-12 FR-11：里程碑催办经 round 半投递（armed+active）——source.kind=dive、roundsInStage 递增', async () => {
+    const h = harness()
+    h.driver.queueReminder('REQ-t', '【里程碑提醒】产物 kind=requirement 已登记 31 分钟未确认。')
+    await h.driver.whenQuiet()
+    expect(h.delivered.length).toBe(1)
+    const msg = h.delivered[0] as { id: string; content: Array<{ text: string }>; source: { kind: string } }
+    expect(msg.source.kind).toBe('dive')
+    // 起轮正文被催办原文替换（不再走 renderRoundText）。
+    expect(msg.content[0].text).toContain('里程碑提醒')
+    expect(h.ledger.requirements[0]!.dive!.roundsInStage).toBe(0)
+    h.driver.onSessionEvent({ id: 'agent-1' }, { type: 'user/message', data: { id: msg.id } })
+    await h.driver.whenQuiet()
+    expect(h.ledger.requirements[0]!.dive!.roundsInStage).toBe(1)
+  })
+
+  it('TC-13 FR-11：非 armed+active 时 queueReminder 不投递（③：需求根本到不了 drive）', async () => {
+    const h = harness({ req: makeReq({ dive: { phase: 'idle', activation: 'disarmed', roundsInStage: 0 } as never }) })
+    h.driver.queueReminder('REQ-t', '【里程碑提醒】产物 kind=requirement 已登记 31 分钟未确认。')
+    await h.driver.whenQuiet()
+    expect(h.delivered.length).toBe(0)
+  })
 })

@@ -317,3 +317,37 @@ export function projectRequirement(r: RequirementRecord): { id: string; title: s
     category: r.category ?? '',
   }
 }
+
+
+/**
+ * 用例边界错误码映射（REQ-260927100007-b8ba FR-7）：domain 状态机抛的是领域码
+ * （human_gate / system_gate），而 agent 侧工具的传输契约是 REQBOARD_HUMAN_GATE —— 在用例
+ * 边界统一映射一次；工具壳与看板 HTTP 路由各自保持既有码不变（看板仍读 human_gate）。
+ */
+export function mapAgentError(err: unknown): never {
+  if ((err as { code?: unknown } | null | undefined)?.code === 'human_gate') {
+    const message = (err as Error).message ?? '该转移是人工闸门，仅人可操作'
+    throw Object.assign(new Error(message + '（REQBOARD_HUMAN_GATE）'), { code: 'REQBOARD_HUMAN_GATE' })
+  }
+  throw err
+}
+
+/**
+ * 确认门挂起期间的**同窗口停手守卫**（REQ-260927100007-b8ba FR-9）。
+ *
+ * 弹框走非阻塞投递：宽限超时即返回 {pending:true, ticket}（见 internal/pending-confirm.ts），
+ * **不拦 agent loop**——这是为修「弹框超时把回合打死」而刻意设计的。但它没有配套的停手守卫时，
+ * 窗口会在等作答期间继续产出下游产物（实测事故）。故写路径工具入口一律先过这里：
+ * 命中挂起 → 代码级拒绝 REQBOARD_CONFIRM_PENDING，并给出取回执的两条可用路径。
+ * （reqboard_status / reqboard_confirm_receipt 刻意不过此守卫——否则人无法解除挂起。）
+ */
+export function assertNoPendingConfirm(deps: UseCaseDeps, windowKey: string): void {
+  const p = deps.pendingConfirms?.pendingForWindow(windowKey)
+  if (p === undefined) return
+  reject(
+    '本窗口有一个**待作答**的确认门（ticket=' + p.ticket + '，需求 ' + p.requirementId + '）——'
+    + '收到作答前不得产出下游产物。解除挂起：① 调 reqboard_confirm_receipt(ticket="' + p.ticket + '") 取回执；'
+    + '② 或在项目看板点确认按钮。reqboard_status 与 reqboard_confirm_receipt 仍可调用。',
+    'REQBOARD_CONFIRM_PENDING',
+  )
+}

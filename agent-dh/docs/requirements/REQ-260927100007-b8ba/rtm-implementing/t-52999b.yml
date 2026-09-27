@@ -1,0 +1,33 @@
+task:
+  id: t-52999b
+  title: 修 apply-wiring 装配 stub 与期望集合
+  status: done
+  implements: ""
+  serves: []
+  depends_on:
+    - t-9785bb
+  phase: test
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927100007-b8ba
+    TASK_ID: t-52999b
+    TASK_TITLE: 修 apply-wiring 装配 stub 与期望集合
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: test
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: test
+      status: done
+      completed_at: 2026-09-27T03:29:32.684Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927100007-b8ba
+  generated_at: 2026-09-27T03:29:32.683Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-27T03:54:22.136Z

@@ -92,4 +92,33 @@ describe('confirm_artifact 文字确认核验', () => {
     expect(out.evidence_verified).toBeUndefined()
     expect(out.note).toMatch(/核验未启用/)
   })
+
+  // REQ-260927100007-b8ba FR-13（D12）：事故——证据路径只落章不推进，返回 note 指向未注册的
+  // reqboard_move；弹框路径又因"产物已确认"早返回 → 门放行了、节点却永远停在原地。
+  it('FR-13：证据确认后**同一调用内**推进（brainstorming → design）', async () => {
+    await seed()
+    recordRecentUserMsg(buf, W, '开始推进到设计吧', nowTs - 60_000)
+    const out = await run(makeTool(), ARGS('开始推进到设计吧'))
+    expect(out.success).toBe(true)
+    expect(out.advanced).toBe(true)
+    expect(store.snapshot().requirements[0].status).toBe('design')
+  })
+
+  it('FR-13：门已满足但未被确认的 kind 与门不符 → 如实说明不推进（不静默）', async () => {
+    await seed()
+    // 追加一个非门禁 kind（notes）产物：确认它时 G1（要求 requirement）与之不匹配 → 不推进
+    await store.mutate('req-updated', (l) => {
+      l.requirements[0].artifacts = [
+        { stage: 'brainstorming', kind: 'requirement', path: 'r.md', registeredAt: 1 },
+        { stage: 'brainstorming', kind: 'notes', path: 'n.md', registeredAt: 1 },
+      ] as never
+      return { requirements: [l.requirements[0]] }
+    })
+    recordRecentUserMsg(buf, W, '开始推进到设计吧', nowTs - 60_000)
+    const out = await run(makeTool(), { target: 'artifact', kind: 'notes', evidence: '开始推进到设计吧' })
+    expect(out.success).toBe(true)
+    expect(out.advanced).toBe(false)
+    expect(String(out.note)).toMatch(/未推进/)
+    expect(store.snapshot().requirements[0].status).toBe('brainstorming')
+  })
 })

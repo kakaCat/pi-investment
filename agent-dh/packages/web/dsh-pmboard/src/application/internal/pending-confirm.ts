@@ -111,8 +111,10 @@ export function suspendConfirm(
     pending: true,
     ticket,
     requirement_id: s.requirementId,
-    note: '弹框已投递，超宽限仍未作答：已登记挂起确认（不判失败）。人作答后会后台自动落章/推进；'
-      + '请稍后调 reqboard_confirm_receipt(ticket="' + ticket + '") 取回执，或调 reqboard_status 读确认态',
+    note: '弹框已投递，超宽限仍未作答：已登记挂起确认（不判失败）。**收到作答前不得产出下游产物**——'
+      + '同窗口的 reqboard_submit / reqboard_decompose / reqboard_move / reqboard_task_move 会被代码级拒绝'
+      + '（REQBOARD_CONFIRM_PENDING）。人作答后由后台自动落章/推进；'
+      + '请调 reqboard_confirm_receipt(ticket="' + ticket + '") 取回执，或调 reqboard_status 读确认态',
   }
 }
 

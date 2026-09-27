@@ -48,6 +48,12 @@ export interface DiveRoundDriver {
   onAgentDisposed(agent: unknown): void
   onRequirementMoved(requirementId: string): void
   onSessionEvent(session: unknown, event: unknown): void
+  /**
+   * 登记一条**待投递的里程碑催办**（REQ-260927100007-b8ba FR-11）：采集半不直投，改由调用方
+   * （组合根，仅在 armed+active 时）登记；下一次可驱动的 idle 拍把它当作回合消息正文投递，
+   * 走的仍是 requestDrive → drive → createRoundMessage → 预留→投递→准入（不绕过任何纪律）。
+   */
+  queueReminder(requirementId: string, text: string): void
   requestDrive(agent: unknown): void
   teardown(): Promise<void>
   whenQuiet(): Promise<void>
@@ -57,6 +63,11 @@ export function createDiveRoundDriver(ports: DiveRoundPorts): DiveRoundDriver {
   const log = ports.logger
   const states = new Map<unknown, DriverState>()
   const writes = new Set<Promise<unknown>>()
+  /**
+   * 待投递的里程碑催办（FR-11）：requirementId → 提醒正文。
+   * 采集半只登记、不投递；round 半在 armed+active 的下一次可驱动 idle 拍消费它作为回合消息正文。
+   */
+  const pendingReminders = new Map<string, string>()
   /** teardown 后全局关闭准入（状态表会被清空，故不能只靠 per-state stopping）。 */
   let stopped = false
 
@@ -207,7 +218,10 @@ export function createDiveRoundDriver(ports: DiveRoundPorts): DiveRoundDriver {
     req = bound()
     if (!isDrivableRequirement(req)) return
     const round = (req!.dive?.roundsInStage ?? 0) + 1
-    const text = ports.renderRoundText({ requirementId: req!.id, round, status: req!.status })
+    // FR-11：待投递的里程碑催办优先作为本回合正文（消费一次）；否则用常规续跑文案。
+    const reminder = pendingReminders.get(req!.id)
+    if (reminder !== undefined) pendingReminders.delete(req!.id)
+    const text = reminder ?? ports.renderRoundText({ requirementId: req!.id, round, status: req!.status })
     const built = ports.delivery.createRoundMessage({ requirementId: req!.id, revision: req!.version, round, text })
     state.attempt = {
       requirementId: req!.id, revision: req!.version, round, messageId: built.messageId,
@@ -216,6 +230,8 @@ export function createDiveRoundDriver(ports: DiveRoundPorts): DiveRoundDriver {
     const res = ports.delivery.deliverMessage(id, built.message)
     if (res.delivered) { log.info('dive: 起轮 queued（需求=' + req!.id + '，第 ' + round + '/' + limit + ' 回合，窗口=' + id + '）'); return }
     state.attempt = undefined
+    // 未投出的催办不静默丢：放回待投递表，重新武装后仍可投递。
+    if (reminder !== undefined) pendingReminders.set(req!.id, reminder)
     log.warn('dive: 回合投递失败 → 解除武装（需求=' + req!.id + '）：' + (res.reason ?? '未知原因'))
     disarm(state, 'queue-failed')
   }
@@ -364,6 +380,24 @@ export function createDiveRoundDriver(ports: DiveRoundPorts): DiveRoundDriver {
         return { kind: 'reject' }
       }
       return { ...decision, startsRequestSeries: true }
+    },
+
+    queueReminder(requirementId, text) {
+      if (stopped) return
+      pendingReminders.set(requirementId, text)
+      // 经既有端口解析投递目标（与 onRequirementMoved 同口径：台账 sourceSessionId → agents.get）。
+      const windowId = requirementById(requirementId)?.sourceSessionId
+      if (windowId === undefined) {
+        log.warn('dive: 里程碑催办已登记但需求无绑定会话（需求=' + requirementId + '）——待绑定后由 requestDrive 投递')
+        return
+      }
+      const agent = ports.agents.get(windowId)
+      if (agent === undefined) {
+        log.warn('dive: 里程碑催办已登记但窗口不在线（需求=' + requirementId + '，窗口=' + windowId + '）')
+        return
+      }
+      log.info('dive: 里程碑催办已登记，由 round 半在 armed+active 时投递（需求=' + requirementId + '）')
+      requestDrive(stateFor(agent))
     },
 
     requestDrive(agent) { requestDrive(stateFor(agent)) },

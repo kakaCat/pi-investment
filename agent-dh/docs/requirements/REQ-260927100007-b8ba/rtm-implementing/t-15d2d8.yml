@@ -1,0 +1,32 @@
+task:
+  id: t-15d2d8
+  title: RTM 刷新集合补 rtm-decomposing
+  status: done
+  implements: ""
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927100007-b8ba
+    TASK_ID: t-15d2d8
+    TASK_TITLE: RTM 刷新集合补 rtm-decomposing
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-27T03:29:32.461Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927100007-b8ba
+  generated_at: 2026-09-27T03:29:32.460Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-27T03:54:19.879Z

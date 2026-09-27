@@ -1,0 +1,32 @@
+task:
+  id: t-d73cec
+  title: Dive 采集半停止直投 + 投递白名单
+  status: done
+  implements: ""
+  serves: []
+  depends_on: []
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927100007-b8ba
+    TASK_ID: t-d73cec
+    TASK_TITLE: Dive 采集半停止直投 + 投递白名单
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-27T03:45:55.946Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927100007-b8ba
+  generated_at: 2026-09-27T03:45:55.946Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-27T03:54:20.844Z

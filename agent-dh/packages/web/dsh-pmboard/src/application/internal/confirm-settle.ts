@@ -12,11 +12,11 @@ import type { UseCaseDeps } from '../ports.js'
 import { canReqTransition } from '../../shared/protocol.js'
 import { fmt } from '../../domain/text/fmt.js'
 import { advanceTargetFor, gateForTransition } from '../../domain/gate/GateCatalog.js'
-import { checkDesignCompletenessGate, checkDesignDecompositionGate } from './content-gate-wiring.js'
+import { checkDesignCompletenessGate, checkDesignDecompositionGate, assertClauseCoverageGate, requirementRefsOf } from './content-gate-wiring.js'
+import { landPlanTasks } from './plan-landing.js'
 import { artifactsToConfirm, type GateFailure } from './artifact-gates.js'
 import { captureSnapshot, transitionRequirement } from './token-usage.js'
 // import { executeDecompose } from '../use-cases/Decompose.js' // 已改用 deps.jobs.start（REQ-260925212722-96e7 t-003dc5）
-import { advanceRequirement } from '../use-cases/AdvanceChain.js'
 import { stampCheckpoint } from './interruption.js'
 import { reject } from './support.js'
 
@@ -204,32 +204,74 @@ export async function applyConfirmDecision(
   //   reqboard_decompose + 确认 decomposition 产物，退化为门合并前的两步流程。）
   let autoNote = ''
   if (targetKind === 'plan' && from === 'decomposing') {
-    try {
-      await deps.repo.mutate('decomposition-confirmed-by-plan', (ledger) => {
-        const req = ledger.requirements.find(x => x.id === d.requirementId)
-        if (req === undefined) return undefined
-        const art = (req.artifacts ?? []).find(x => x.kind === 'decomposition')
-        if (art !== undefined) {
-          art.confirmedAt = nowTs
-          art.confirmedBy = { kind: 'human', sessionId: d.windowKey }
-          art.confirmedVia = 'session'
-          art.confirmedEvidence = evidence
-        }
-        req.comments.push({
-          id: deps.ids.comment(),
-          body: fmt('[门合并] 批准拆分计划：decomposition 产物自动落章（不再单独弹「确认拆分清单」）', {}),
-          createdAt: nowTs,
-          createdBy: { kind: 'human', sessionId: d.windowKey },
-        })
-        req.version += 1
-        req.updatedAt = nowTs
-        return { requirements: [req] }
+    // ── 门合并第一步：decomposition 产物落章（拆分清单不再单独弹「确认」）───────────
+    await deps.repo.mutate('decomposition-confirmed-by-plan', (ledger) => {
+      const req = ledger.requirements.find(x => x.id === d.requirementId)
+      if (req === undefined) return undefined
+      const art = (req.artifacts ?? []).find(x => x.kind === 'decomposition')
+      if (art !== undefined) {
+        art.confirmedAt = nowTs
+        art.confirmedBy = { kind: 'human', sessionId: d.windowKey }
+        art.confirmedVia = 'session'
+        art.confirmedEvidence = evidence
+      }
+      req.comments.push({
+        id: deps.ids.comment(),
+        body: fmt('[门合并] 批准拆分计划：decomposition 产物自动落章（不再单独弹「确认拆分清单」）', {}),
+        createdAt: nowTs,
+        createdBy: { kind: 'human', sessionId: d.windowKey },
       })
-      
-      // 优化：移除 deps.jobs 依赖，改为 Dive 续跑模式（事件驱动，毫秒级响应）
-      // 批准计划后只推进状态，Dive 管理器监听 'requirement-moved' 事件立即触发续跑
-      // Agent 续跑时检测到 implementing + 无任务 → 自动执行 reqboard_decompose
-      const createdCount = 0 // 任务将由 Dive 续跑时创建
+      req.version += 1
+      req.updatedAt = nowTs
+      return { requirements: [req] }
+    })
+
+    // ── 门合并第二步：**同步落库任务卡**（REQ-260927100007-b8ba FR-1）────────────
+    // 旧实现把落库委托给 Dive 续跑（createdCount=0），而实际需求 dive=null、全仓无人 armed →
+    // 委托从未被触发：台账 0 任务、看板拆分节点 DAG 空白、实施覆盖度为 0，且零告警静默数日
+    // （这正是用户实测报的「拆分确认没有 DAG 层级展示」）。
+    // 现改为：批准的同一次调用内先落库、落库成功才推进；任一步失败 → 不推进 + 响亮留痕。
+    try {
+      const fresh = deps.repo.snapshot().requirements.find(x => x.id === d.requirementId)
+      const planTasks = fresh?.plan?.tasks ?? []
+      const rawTaskInputs = planTasks as readonly unknown[]
+      // 条款覆盖门禁：与 reqboard_decompose 同一道门。decomposition.md 的覆盖对照表是其第二数据源，
+      // 计划文档写了「FR-N ↔ 计划 key」即放行；没写则拒绝（避免落出一批无需求落点的卡）。
+      if (fresh !== undefined) {
+        const coverageFailure = await assertClauseCoverageGate(deps.docs, fresh, rawTaskInputs)
+        if (coverageFailure !== undefined) {
+          throw Object.assign(new Error(coverageFailure.message), { code: coverageFailure.code })
+        }
+      }
+      const draft = planTasks.map(t => ({
+        key: t.key,
+        title: t.title,
+        description: t.description ?? '',
+        phase: t.phase ?? 'implement',
+        side: t.side ?? 'fullstack',
+        acceptance: t.acceptance ?? '',
+        implementation: t.implementation ?? '',
+        context: '',
+        dependsOn: [...(t.dependsOn ?? [])],
+      }))
+      const refsByKey = new Map<string, string[]>()
+      for (const raw of rawTaskInputs) {
+        const o = (typeof raw === 'object' && raw !== null ? raw : {}) as { key?: unknown }
+        const key = typeof o.key === 'string' ? o.key : ''
+        if (key.length === 0) continue
+        refsByKey.set(key, requirementRefsOf(raw))
+      }
+      const tools = (exec as { tools?: { todo_write?: (a: unknown) => Promise<unknown> } } | undefined)?.tools
+      const landed = await landPlanTasks(deps, {
+        requirementId: d.requirementId,
+        windowKey: d.windowKey,
+        nowTs,
+        draft,
+        refsByKey,
+        tools,
+      })
+      const createdCount = landed.created.length
+      // 落库成功的同一调用内推进到实施（原子：要么真的落库并推进，要么响亮地失败）
       await deps.repo.mutate('requirement-moved', (ledger) => {
         const req = ledger.requirements.find(x => x.id === d.requirementId)
         if (req === undefined || req.status !== 'decomposing') return undefined
@@ -241,7 +283,7 @@ export async function applyConfirmDecision(
         req.autoRun = true
         req.comments.push({
           id: deps.ids.comment(),
-          body: fmt('[自动开跑] 批准拆分计划 → 自动拆分 {n} 张卡 → 自动进入实施（autoRun=true），触发首个推进事件', { n: createdCount }),
+          body: fmt('[自动开跑] 批准拆分计划 → 自动拆分 {n} 张卡并落库 → 自动进入实施（autoRun=true）', { n: createdCount }),
           createdAt: nowTs,
           createdBy: { kind: 'human', sessionId: d.windowKey },
         })
@@ -249,45 +291,64 @@ export async function applyConfirmDecision(
         return { requirements: [req] }
       })
       advanced = true
-      // 注：任务拆分和执行由 Dive 管理器通过 'requirement-moved' 事件自动触发
-      autoNote = '；已推进到 implementing，Dive 管理器将自动触发任务拆分和执行'
+      autoNote = fmt('；已同步落库 {n} 张任务卡并推进到 implementing', { n: createdCount })
     } catch (err) {
       const errMsg = String((err as Error).message ?? err)
-      autoNote = fmt('；自动拆分/开跑失败（计划已批准，可手动调 reqboard_decompose 重试）：{msg}', {
-        msg: errMsg,
-      })
-
-      // FR-2（REQ-84bea5）：失败响亮化——评论+告警+标记
-      await deps.repo.mutate('auto-run-failed', (ledger) => {
-        const req = ledger.requirements.find(x => x.id === d.requirementId)
-        if (req === undefined) return undefined
-
-        // 写系统评论（含恢复指引）
-        req.comments.push({
-          id: deps.ids.comment(),
-          body: fmt(
-            '[自动开跑失败] {reason}。\n\n恢复路径：修复后手动调用 reqboard_decompose(requirement_id="{reqId}")，或在看板点「拆分」按钮。',
-            { reason: errMsg, reqId: d.requirementId },
-          ),
-          createdAt: nowTs,
-          createdBy: { kind: 'system' },
+      const taskCount = deps.repo.snapshot().tasks.filter(t => t.requirementId === d.requirementId && t.status !== 'canceled').length
+      if (taskCount > 0) {
+        // 落库已生效（后续文档/RTM 步骤失败）——仍推进，避免「卡已落、状态卡在拆分」的半迁移态
+        try {
+          await deps.repo.mutate('requirement-moved', (ledger) => {
+            const req = ledger.requirements.find(x => x.id === d.requirementId)
+            if (req === undefined || req.status !== 'decomposing') return undefined
+            transitionRequirement(req, 'implementing', {
+              at: nowTs,
+              actor: { kind: 'human', sessionId: d.windowKey },
+              reason: PLAN_MERGE_ADVANCE_REASON,
+            })
+            req.autoRun = true
+            req.comments.push({
+              id: deps.ids.comment(),
+              body: fmt('[自动开跑] 批准拆分计划 → 已落库 {n} 张卡（收尾步骤报错：{msg}）→ 自动进入实施', { n: taskCount, msg: errMsg }),
+              createdAt: nowTs,
+              createdBy: { kind: 'human', sessionId: d.windowKey },
+            })
+            return { requirements: [req] }
+          })
+          advanced = true
+          autoNote = fmt('；已落库 {n} 张任务卡并推进到 implementing（收尾步骤报错：{msg}）', { n: taskCount, msg: errMsg })
+        } catch (err2) {
+          autoNote = fmt('；落库收尾与推进均失败：{msg}', { msg: String((err2 as Error).message ?? err2) })
+        }
+      } else {
+        autoNote = fmt('；自动拆分/开跑失败（计划已批准，可手动调 reqboard_decompose 重试）：{msg}', {
+          msg: errMsg,
         })
-
-        // 标记 advance.pausedReason
-        if (req.advance === undefined) req.advance = {}
-        req.advance.pausedReason = 'auto_decompose_failed: ' + errMsg
-
-        req.version += 1
-        req.updatedAt = nowTs
-        return { requirements: [req] }
-      })
-
-      // 调用 deps.alert 发高优告警
-      deps.alert?.alert({
-        requirementId: d.requirementId,
-        title: '自动开跑失败',
-        content: fmt('需求 {id} 批准计划后自动拆分/开跑失败：{msg}', { id: d.requirementId, msg: errMsg }),
-      })
+        // FR-2：失败响亮化——系统评论（含恢复指引）+ advance.pausedReason + 高优告警；**不推进**
+        await deps.repo.mutate('auto-run-failed', (ledger) => {
+          const req = ledger.requirements.find(x => x.id === d.requirementId)
+          if (req === undefined) return undefined
+          req.comments.push({
+            id: deps.ids.comment(),
+            body: fmt(
+              '[自动开跑失败] {reason}。\n\n恢复路径：修复后手动调用 reqboard_decompose(requirement_id="{reqId}")，或在看板点「拆分」按钮。',
+              { reason: errMsg, reqId: d.requirementId },
+            ),
+            createdAt: nowTs,
+            createdBy: { kind: 'system' },
+          })
+          if (req.advance === undefined) req.advance = {}
+          req.advance.pausedReason = 'auto_decompose_failed: ' + errMsg
+          req.version += 1
+          req.updatedAt = nowTs
+          return { requirements: [req] }
+        })
+        deps.alert?.alert({
+          requirementId: d.requirementId,
+          title: '自动开跑失败',
+          content: fmt('需求 {id} 批准计划后自动拆分/开跑失败：{msg}', { id: d.requirementId, msg: errMsg }),
+        })
+      }
     }
   }
 

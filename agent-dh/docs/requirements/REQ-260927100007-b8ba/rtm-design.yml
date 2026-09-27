@@ -1,0 +1,318 @@
+metadata:
+  stage: design
+  requirement_id: REQ-260927100007-b8ba
+  generated_at: 2026-09-27T02:52:44.853Z
+  version: 7
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-27T03:13:38.144Z
+inputs:
+  requirements: []
+outputs:
+  design_sections:
+    - ref: design/architecture.md#1
+      title: 共同根因与总原则 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-8
+        - FR-13
+      file: design/architecture.md
+      section: "1"
+    - ref: design/architecture.md#2
+      title: 需求级：落章与推进必须原子 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-13
+      file: design/architecture.md
+      section: "2"
+    - ref: design/architecture.md#3
+      title: 需求级：阶段推进的任务完整性守卫 <!--
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: "3"
+    - ref: design/architecture.md#4
+      title: 任务级收敛点 transitionTask <!--
+      serves:
+        - FR-8
+      file: design/architecture.md
+      section: "4"
+    - ref: design/architecture.md#5
+      title: Dive 两半与投递白名单 <!--
+      serves:
+        - FR-11
+      file: design/architecture.md
+      section: "5"
+    - ref: design/architecture.md#6
+      title: RTM 触发点与刷新集合 <!--
+      serves:
+        - FR-6
+        - FR-12
+      file: design/architecture.md
+      section: "6"
+    - ref: design/architecture.md#7
+      title: 终态与响亮化 <!--
+      serves:
+        - FR-2
+        - FR-9
+        - FR-13
+      file: design/architecture.md
+      section: "7"
+    - ref: design/architecture.md#8
+      title: Dive 在人工门主动弹框 <!--
+      serves:
+        - FR-14
+      file: design/architecture.md
+      section: "8"
+    - ref: design/data-model.md#1
+      title: 不变量 <!--
+      serves:
+        - FR-1
+        - FR-5
+        - FR-8
+        - FR-13
+      file: design/data-model.md
+      section: "1"
+    - ref: design/data-model.md#2
+      title: 需求侧既有字段 <!--
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+        - FR-13
+      file: design/data-model.md
+      section: "2"
+    - ref: design/data-model.md#3
+      title: 任务侧既有字段与收敛点写入语义 <!--
+      serves:
+        - FR-7
+        - FR-8
+      file: design/data-model.md
+      section: "3"
+    - ref: design/data-model.md#4
+      title: RTM 投影字段 <!--
+      serves:
+        - FR-6
+        - FR-12
+      file: design/data-model.md
+      section: "4"
+    - ref: design/data-model.md#5
+      title: 兼容与回滚 <!--
+      serves:
+        - FR-4
+        - FR-12
+      file: design/data-model.md
+      section: "5"
+    - ref: design/interfaces.md#I-1-transitionTask任务级收敛点
+      title: I-1 transitionTask（任务级收敛点） <!--
+      serves:
+        - FR-8
+      file: design/interfaces.md
+      section: I-1-transitionTask任务级收敛点
+    - ref: design/interfaces.md#签名
+      title: 签名 <!--
+      serves:
+        - FR-8
+      file: design/interfaces.md
+      section: 签名
+    - ref: design/interfaces.md#输入输出与错误语义
+      title: 输入输出与错误语义 <!--
+      serves:
+        - FR-8
+      file: design/interfaces.md
+      section: 输入输出与错误语义
+    - ref: design/interfaces.md#I-2-reqboardtaskmove
+      title: I-2 reqboard_task_move <!--
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: I-2-reqboardtaskmove
+    - ref: design/interfaces.md#I-3-reqboardmove
+      title: I-3 reqboard_move <!--
+      serves:
+        - FR-7
+        - FR-13
+      file: design/interfaces.md
+      section: I-3-reqboardmove
+    - ref: design/interfaces.md#I-4-reqboarddecompose-返回体契约
+      title: I-4 reqboard_decompose 返回体契约 <!--
+      serves:
+        - FR-5
+      file: design/interfaces.md
+      section: I-4-reqboarddecompose-返回体契约
+    - ref: design/interfaces.md#I-5-阶段推进守卫的错误契约
+      title: I-5 阶段推进守卫的错误契约 <!--
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: I-5-阶段推进守卫的错误契约
+    - ref: design/interfaces.md#I-6-RTM-触发点与刷新集合
+      title: I-6 RTM 触发点与刷新集合 <!--
+      serves:
+        - FR-6
+        - FR-12
+      file: design/interfaces.md
+      section: I-6-RTM-触发点与刷新集合
+    - ref: design/interfaces.md#I-7-文字证据路径的推进
+      title: I-7 文字证据路径的推进 <!--
+      serves:
+        - FR-13
+      file: design/interfaces.md
+      section: I-7-文字证据路径的推进
+    - ref: design/interfaces.md#I-8-确认门挂起守卫
+      title: I-8 确认门挂起守卫 <!--
+      serves:
+        - FR-9
+      file: design/interfaces.md
+      section: I-8-确认门挂起守卫
+    - ref: design/interfaces.md#I-9-reqboardstatus-返回体-lossless
+      title: I-9 reqboard_status 返回体 lossless <!--
+      serves:
+        - FR-10
+      file: design/interfaces.md
+      section: I-9-reqboardstatus-返回体-lossless
+    - ref: design/interfaces.md#I-10-Dive-人工门弹框受信内部入口
+      title: I-10 Dive 人工门弹框（受信内部入口） <!--
+      serves:
+        - FR-14
+      file: design/interfaces.md
+      section: I-10-Dive-人工门弹框受信内部入口
+    - ref: design/use-cases.md#UC-1-人批准计划含同步落库
+      title: "UC-1: 人批准计划（含同步落库） <!--"
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/use-cases.md
+      section: UC-1-人批准计划含同步落库
+    - ref: design/use-cases.md#UC-2-计划有卡而台账-0-卡时被拦
+      title: "UC-2: 计划有卡而台账 0 卡时被拦 <!--"
+      serves:
+        - FR-3
+      file: design/use-cases.md
+      section: UC-2-计划有卡而台账-0-卡时被拦
+    - ref: design/use-cases.md#UC-3-恢复路径真的可用
+      title: "UC-3: 恢复路径真的可用 <!--"
+      serves:
+        - FR-4
+        - FR-5
+      file: design/use-cases.md
+      section: UC-3-恢复路径真的可用
+    - ref: design/use-cases.md#UC-4-agent-自主推进任务链
+      title: "UC-4: agent 自主推进任务链 <!--"
+      serves:
+        - FR-6
+        - FR-7
+        - FR-8
+      file: design/use-cases.md
+      section: UC-4-agent-自主推进任务链
+    - ref: design/use-cases.md#UC-5-确认门挂起期间不产出下游产物
+      title: "UC-5: 确认门挂起期间不产出下游产物 <!--"
+      serves:
+        - FR-9
+        - FR-10
+      file: design/use-cases.md
+      section: UC-5-确认门挂起期间不产出下游产物
+    - ref: design/use-cases.md#UC-6-Dive-按设计投递
+      title: "UC-6: Dive 按设计投递 <!--"
+      serves:
+        - FR-11
+      file: design/use-cases.md
+      section: UC-6-Dive-按设计投递
+    - ref: design/use-cases.md#UC-7-绑定窗口后-RTM-随之更新
+      title: "UC-7: 绑定窗口后 RTM 随之更新 <!--"
+      serves:
+        - FR-12
+      file: design/use-cases.md
+      section: UC-7-绑定窗口后-RTM-随之更新
+    - ref: design/use-cases.md#UC-8-文字证据确认后立即推进
+      title: "UC-8: 文字证据确认后立即推进 <!--"
+      serves:
+        - FR-13
+      file: design/use-cases.md
+      section: UC-8-文字证据确认后立即推进
+traceability:
+  fr_to_design:
+    FR-1:
+      - design/architecture.md#1
+      - design/architecture.md#2
+      - design/data-model.md#1
+      - design/data-model.md#2
+      - design/use-cases.md#UC-1-人批准计划含同步落库
+    FR-2:
+      - design/architecture.md#1
+      - design/architecture.md#2
+      - design/architecture.md#7
+      - design/data-model.md#2
+      - design/use-cases.md#UC-1-人批准计划含同步落库
+    FR-3:
+      - design/architecture.md#1
+      - design/architecture.md#3
+      - design/data-model.md#2
+      - design/interfaces.md#I-5-阶段推进守卫的错误契约
+      - design/use-cases.md#UC-1-人批准计划含同步落库
+      - design/use-cases.md#UC-2-计划有卡而台账-0-卡时被拦
+    FR-8:
+      - design/architecture.md#1
+      - design/architecture.md#4
+      - design/data-model.md#1
+      - design/data-model.md#3
+      - design/interfaces.md#I-1-transitionTask任务级收敛点
+      - design/interfaces.md#签名
+      - design/interfaces.md#输入输出与错误语义
+      - design/use-cases.md#UC-4-agent-自主推进任务链
+    FR-13:
+      - design/architecture.md#1
+      - design/architecture.md#2
+      - design/architecture.md#7
+      - design/data-model.md#1
+      - design/data-model.md#2
+      - design/interfaces.md#I-3-reqboardmove
+      - design/interfaces.md#I-7-文字证据路径的推进
+      - design/use-cases.md#UC-8-文字证据确认后立即推进
+    FR-11:
+      - design/architecture.md#5
+      - design/use-cases.md#UC-6-Dive-按设计投递
+    FR-6:
+      - design/architecture.md#6
+      - design/data-model.md#4
+      - design/interfaces.md#I-6-RTM-触发点与刷新集合
+      - design/use-cases.md#UC-4-agent-自主推进任务链
+    FR-12:
+      - design/architecture.md#6
+      - design/data-model.md#4
+      - design/data-model.md#5
+      - design/interfaces.md#I-6-RTM-触发点与刷新集合
+      - design/use-cases.md#UC-7-绑定窗口后-RTM-随之更新
+    FR-9:
+      - design/architecture.md#7
+      - design/interfaces.md#I-8-确认门挂起守卫
+      - design/use-cases.md#UC-5-确认门挂起期间不产出下游产物
+    FR-14:
+      - design/architecture.md#8
+      - design/interfaces.md#I-10-Dive-人工门弹框受信内部入口
+    FR-5:
+      - design/data-model.md#1
+      - design/interfaces.md#I-4-reqboarddecompose-返回体契约
+      - design/use-cases.md#UC-3-恢复路径真的可用
+    FR-7:
+      - design/data-model.md#3
+      - design/interfaces.md#I-2-reqboardtaskmove
+      - design/interfaces.md#I-3-reqboardmove
+      - design/use-cases.md#UC-4-agent-自主推进任务链
+    FR-4:
+      - design/data-model.md#5
+      - design/use-cases.md#UC-3-恢复路径真的可用
+    FR-10:
+      - design/interfaces.md#I-9-reqboardstatus-返回体-lossless
+      - design/use-cases.md#UC-5-确认门挂起期间不产出下游产物
+coverage:
+  design:
+    total: 0
+    covered: 0
+    uncovered: []
+    rate: 100
+    total_frs: 0
+    covered_frs: 0

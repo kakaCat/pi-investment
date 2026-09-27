@@ -209,6 +209,17 @@ export async function captureRequirement(deps: UseCaseDeps, args: unknown, exec:
   // 失败不阻断立项（syncRTMYaml 内部吞异常并结构化返回，FR-9）。
   syncRTMYaml(deps, req.id, 'create')
 
+  // ⑥.5 RTM 触发点 bind（REQ-260927100007-b8ba FR-12）：reqboard_capture 是当前
+  // "triage 确认（suggestedAction=create_req）"的等价动作——createRequirementDirect 已把
+  // 窗口绑定写进台账（sourceSessionId）。这里再用 bind 触发点刷一次**窗口投影**，
+  // 让 rtm-lifecycle.yml 的 requirement.source_session 始终与台账一致（含绑定关系变更）。
+  // 失败不阻断立项（syncRTMYaml 内部吞异常并结构化返回；此处 try/catch 兜底，FR-9）。
+  try {
+    syncRTMYaml(deps, req.id, 'bind')
+  } catch {
+    // RTM 是增强层：失败绝不影响立项回执。
+  }
+
   return {
     success: true,
     requirement_id: req.id,

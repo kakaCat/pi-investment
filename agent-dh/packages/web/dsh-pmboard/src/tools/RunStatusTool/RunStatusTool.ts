@@ -12,58 +12,55 @@ import type { UseCaseDeps } from '../../application/ports.js'
 import { queryRunStatus } from '../../application/use-cases/QueryRunStatus.js'
 import { openRequirementsFor } from '../../application/internal/window.js'
 import { RUN_STATUS_PROMPT } from './prompt.js'
+import { renderSmart } from '../shared.js'
+
+/** 一句话摘要（renderSmart 用）。 */
+function summarize(v: unknown): string {
+  const o = (v ?? {}) as Record<string, unknown>
+  if (o.success !== true) return '运行态查询未成功：' + String(o.error ?? '')
+  const snap = (o.snapshot ?? {}) as Record<string, unknown>
+  return '实施链运行态：' + String(o.requirement_id ?? '') + ' · jobStatus=' + String(snap.jobStatus ?? '') + ' · step=' + String(snap.stepIndex ?? '')
+}
 
 export function defineRunStatusTool(deps: UseCaseDeps) {
   return defineTool({
     name: 'reqboard_run_status',
     description: RUN_STATUS_PROMPT,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        requirement_id: {
-          type: 'string',
-          description: '需求 ID（REQ-xxxxxx）；不传则默认本窗口绑定的需求'
-        },
-        run_id: {
-          type: 'string',
-          description: '运行 ID（run-xxx）；传入则直接按 run_id 查询'
-        }
-      },
-      additionalProperties: false
+    // 2026-09-27（REQ-260927100007-b8ba t2/t15）：改用本仓统一的 DSL（parameters + output.render）。
+    // 原 inputSchema/outputSchema 是旧式 JSON Schema 写法（含 enum/required），dsh-tools 的 defineTool
+    // 在 output 缺失时直接读 output.render 崩溃——把它注册进工具面会让插件装配失败。
+    parameters: {
+      requirement_id: { type: 'string', description: '需求 ID（REQ-xxxxxx）；不传则默认本窗口绑定的需求' },
+      run_id: { type: 'string', description: '运行 ID（run-xxx）；传入则直接按 run_id 查询' },
     },
-    outputSchema: {
-      type: 'object',
-      required: ['success'],
-      properties: {
-        success: { type: 'boolean' },
-        requirement_id: { type: 'string' },
-        run_id: { type: 'string' },
-        snapshot: {
-          type: 'object',
-          description: '运行状态快照',
-          properties: {
-            runId: { type: 'string', description: '运行 ID（无 active run 时为 null）' },
-            stepIndex: { type: 'number', description: '当前步骤索引' },
-            currentSubtaskId: { type: 'string', description: '当前正在执行的子卡 ID' },
-            nextReady: {
-              type: 'array',
-              description: '下一批 ready 的任务 ID 列表',
-              items: { type: 'string' }
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: true,
+        properties: {
+          success: { type: 'boolean' },
+          requirement_id: { type: 'string' },
+          run_id: { type: 'string' },
+          snapshot: {
+            type: 'object',
+            description: '运行状态快照',
+            additionalProperties: true,
+            properties: {
+              runId: { type: 'string', description: '运行 ID（无 active run 时为 null）' },
+              stepIndex: { type: 'number', description: '当前步骤索引' },
+              currentSubtaskId: { type: 'string', description: '当前正在执行的子卡 ID' },
+              nextReady: { type: 'array', description: '下一批 ready 的任务 ID 列表', items: { type: 'string' } },
+              jobStatus: { type: 'string', description: 'Job 状态：running/completed/failed/not_found' },
+              pauseReason: { type: 'string', description: '暂停原因（如果已暂停）' },
+              autoRun: { type: 'boolean', description: '是否自动运行' },
+              status: { type: 'string', description: '无 active run 时的状态（terminated）' },
+              reason: { type: 'string', description: '无 active run 时的原因' },
             },
-            jobStatus: {
-              type: 'string',
-              enum: ['running', 'completed', 'failed', 'not_found'],
-              description: 'Job 状态'
-            },
-            pauseReason: { type: 'string', description: '暂停原因（如果已暂停）' },
-            autoRun: { type: 'boolean', description: '是否自动运行' },
-            status: { type: 'string', description: '无 active run 时的状态（terminated）' },
-            reason: { type: 'string', description: '无 active run 时的原因' }
-          }
+          },
+          error: { type: 'string' },
         },
-        error: { type: 'string' }
       },
-      additionalProperties: false
+      render: renderSmart(summarize),
     },
     timeoutMs: LIMITS.timeoutInteractiveMs,
     async execute(args: { requirement_id?: string; run_id?: string }, exec: unknown): Promise<Record<string, unknown>> {
@@ -102,7 +99,7 @@ export function defineRunStatusTool(deps: UseCaseDeps) {
       return {
         success: true,
         requirement_id: requirementId,
-        run_id: status.runId ?? undefined,
+        ...(status.runId !== undefined ? { run_id: status.runId } : {}),
         snapshot: status
       }
     }

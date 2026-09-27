@@ -1,0 +1,97 @@
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927100007-b8ba
+  generated_at: 2026-09-27T03:14:55.630Z
+  version: 81
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 16
+  last_updated: 2026-09-27T03:54:22.464Z
+inputs:
+  tasks:
+    - id: t-4b7697
+      title: 抽任务级收敛点并统一四处写入点
+      status: done
+    - id: t-9785bb
+      title: 补 agent 侧需求/任务流转工具
+      status: done
+    - id: t-8bce7d
+      title: 补齐 MoveTask 契约（现有测试即契约）
+      status: done
+    - id: t-29a9b8
+      title: 批准计划即同步落库并响亮化失败
+      status: done
+    - id: t-4ed3cc
+      title: 阶段推进加任务完整性守卫
+      status: done
+    - id: t-4de551
+      title: 修正条款门禁失败提示与计划提交提示
+      status: done
+    - id: t-722397
+      title: 修 reqboard_decompose 返回体契约
+      status: done
+    - id: t-15d2d8
+      title: RTM 刷新集合补 rtm-decomposing
+      status: done
+    - id: t-4f717c
+      title: 确认门挂起期间的停手守卫
+      status: done
+    - id: t-92c999
+      title: 修 reqboard_status 返回体 lossless
+      status: done
+    - id: t-d73cec
+      title: Dive 采集半停止直投 + 投递白名单
+      status: done
+    - id: t-2c852b
+      title: RTM 窗口绑定投影可更新且有消费者
+      status: done
+    - id: t-0fad87
+      title: 证据路径确认后同调用内推进（已实现，补回归）
+      status: done
+    - id: t-08fcc2
+      title: Dive 在人工门主动弹框（有边界重弹）
+      status: done
+    - id: t-52999b
+      title: 修 apply-wiring 装配 stub 与期望集合
+      status: done
+    - id: t-a1ecaa
+      title: 同步文档：流程图 / 白名单 / 手册
+      status: done
+status:
+  tasks_total: 16
+  tasks_done: 16
+  tasks_in_progress: 0
+  tasks_todo: 0
+tasks:
+  - id: t-4b7697
+    status: done
+  - id: t-9785bb
+    status: done
+  - id: t-8bce7d
+    status: done
+  - id: t-29a9b8
+    status: done
+  - id: t-4ed3cc
+    status: done
+  - id: t-4de551
+    status: done
+  - id: t-722397
+    status: done
+  - id: t-15d2d8
+    status: done
+  - id: t-4f717c
+    status: done
+  - id: t-92c999
+    status: done
+  - id: t-d73cec
+    status: done
+  - id: t-2c852b
+    status: done
+  - id: t-0fad87
+    status: done
+  - id: t-08fcc2
+    status: done
+  - id: t-52999b
+    status: done
+  - id: t-a1ecaa
+    status: done

@@ -1,0 +1,33 @@
+task:
+  id: t-4f717c
+  title: 确认门挂起期间的停手守卫
+  status: done
+  implements: ""
+  serves: []
+  depends_on:
+    - t-9785bb
+  phase: implement
+  side: backend
+  workflow_params:
+    REQ_ID: REQ-260927100007-b8ba
+    TASK_ID: t-4f717c
+    TASK_TITLE: 确认门挂起期间的停手守卫
+    DESIGN_FILES: ""
+    TEST_PATTERN: rtm
+    SIDE: backend
+    PHASE: implement
+  workflow_total: 1
+  workflow_done: 1
+  workflow:
+    - phase: implement
+      status: done
+      completed_at: 2026-09-27T03:29:32.561Z
+metadata:
+  stage: implementing
+  requirement_id: REQ-260927100007-b8ba
+  generated_at: 2026-09-27T03:29:32.561Z
+  version: 6
+  generated_by: dsh-pmboard
+  detail_dir: rtm-implementing/
+  detail_count: 1
+  last_updated: 2026-09-27T03:54:20.207Z

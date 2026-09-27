@@ -102,7 +102,11 @@ export async function assertClauseCoverageGate(
       lead: 'reqboard_decompose 未执行：',
       what: fmt('需求条款 {list}', { list: gaps.join('、') }),
       why: '既没有被任何任务卡接收、也没有标「本轮不做」',
-      how: '给对应任务卡加 requirement_refs=["FR-#"]；确需本轮不做的，在该条款旁显式写明「本轮不做」并给出理由，然后重调 reqboard_decompose',
+      how: '恢复路径二选一（都真的能用）：① 在计划文档 ' + decompositionPath + ' 的覆盖对照表补「FR-N ↔ 计划 key」行'
+        + '（表头含「需求条款」与「接收任务」两列即被门禁读取，形如 | FR-1 | … | t4 |）；'
+        + '② 显式调 reqboard_decompose(requirement_id="' + req.id + '", tasks=[{key:"t1",title:"…",implementation:"…",acceptance:"…",requirement_refs:["FR-1"]}, …])，'
+        + '其中 key 必须与已批准计划一致。确需本轮不做的条款，在需求文档该条旁显式写明「本轮不做」并给出理由。'
+        + '注意：不要给任务卡加 requirement_refs——落库前根本没有任务卡可加。',
     }),
   }
 }

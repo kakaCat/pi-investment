@@ -126,4 +126,35 @@ describe('assertClauseCoverageGate（TC-009）', () => {
     const r = await assertClauseCoverageGate(fakeDocs({ [PATH]: REQ_BODY }), live, [])
     expect(r?.gaps).toEqual(['FR-1', 'FR-4', 'FR-7'])
   })
+
+  // FR-4（REQ-260927100007-b8ba）：计划任务对象不携带 requirement_refs 是常态（PlanTask 无该字段），
+  // 覆盖必须能从 decomposition.md 的「覆盖对照表」读到——否则门禁的「双源」退化成单源，硬拦正常计划。
+  const DEC_PATH = 'docs/requirements/REQ-t/decomposition.md'
+  const DEC_COVERAGE = doc(
+    '## 覆盖对照',
+    '',
+    '| 需求条款 | 接口（interfaces） | 落点 | 测试用例 | 接收任务 | 完整性 |',
+    '|---|---|---|---|---|---|',
+    '| FR-1 | I-1 | a.ts | TC-1 | t1 | ✅ |',
+    '| FR-4 | I-1 | b.ts | TC-2 | t1 | ✅ |',
+    '| FR-7 | I-2 | c.ts | TC-3 | t2, t3 | ✅ |',
+  )
+
+  it('FR-4 路径①：任务对象无 refs，但 decomposition.md 覆盖对照表写了 FR↔计划 key → 放行', async () => {
+    const r = await assertClauseCoverageGate(
+      fakeDocs({ [PATH]: REQ_BODY, [DEC_PATH]: DEC_COVERAGE }),
+      live,
+      [{ key: 't1' }, { key: 't2' }, { key: 't3' }],
+    )
+    expect(r).toBeUndefined()
+  })
+
+  it('FR-4：拒绝信息的 how 给出两条**真的能用**的路径（含参数示例），不再指路不可执行的操作', async () => {
+    const r = await assertClauseCoverageGate(fakeDocs({ [PATH]: REQ_BODY }), live, [])
+    expect(r?.message).toContain('覆盖对照表')
+    expect(r?.message).toContain('接收任务')
+    expect(r?.message).toContain('reqboard_decompose(requirement_id=')
+    expect(r?.message).toContain('requirement_refs')
+    expect(r?.message).toContain('落库前根本没有任务卡可加')
+  })
 })

@@ -114,13 +114,14 @@ export async function queryRunStatus(params: QueryParams): Promise<RunStatus> {
     }
   }
   
+  // FR-10 同口径：undefined 值属性会被 PTC lossless 校验拦下——有条件才展开
   return {
     runId: checkpoint.runId,
     stepIndex: checkpoint.stepIndex || 0,
-    currentSubtaskId: checkpoint.currentSubtaskId,
+    ...(checkpoint.currentSubtaskId !== undefined ? { currentSubtaskId: checkpoint.currentSubtaskId } : {}),
     nextReady,
     jobStatus,
-    pauseReason,
+    ...(pauseReason !== undefined ? { pauseReason } : {}),
     autoRun: jobStatus === 'running'
   }
 }

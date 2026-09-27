@@ -504,11 +504,12 @@ describe('验收 9：阶段提示词注入', () => {
     expect(text).toContain('brainstorming')
   })
 
-  it('dive session driver onStagePrompt 在 bound 窗口 idle 时触发（采集 user/message，驱动 idle）', async () => {
+  it('dive session driver 采集半在 bound 窗口 idle 时零投递（FR-11），但注入留痕照旧', async () => {
     const { createDiveSessionDriver } = await import('../src/application/dive/session-driver.js')
     // REQ-d3e61a FR-16：取词唯一入口 = resolveStagePrompt（旧的 STAGE_PROMPTS 常量表已下线）
     const { resolveStagePrompt } = await import('../src/domain/prompt/index.js')
     const prompts: string[] = []
+    const records: Array<{ fragmentIds: string[] }> = []
     const ledger = emptyLedger()
     ledger.requirements.push({
       id: 'REQ-acc001', title: 't', description: '', status: 'implementing', blocked: false,
@@ -520,16 +521,20 @@ describe('验收 9：阶段提示词注入', () => {
       pending: new Map(),
       now: () => 1000,
       onStagePrompt: (_key, prompt) => prompts.push(prompt),
+      injectionLog: { record: (entry) => records.push(entry) },
       logger: { info: () => {}, debug: () => {} },
     })
     hook({ id: W }, { type: 'user/message', data: { content: [{ type: 'text', text: '继续' }], source: { kind: 'user' } } })
-    // 采集点不扇出（旧触发点错误即在此）：注入等判定/动作全部推迟到 agent 空闲那一拍
+    // 采集点不扇出（旧触发点错误即在此）：判定/动作全部推迟到 agent 空闲那一拍
     expect(prompts).toHaveLength(0)
     hook.onAgentStatus({ id: W, session: { id: W } }, 'idle')
-    expect(prompts).toHaveLength(1)
-    expect(prompts[0]).toBe(resolveStagePrompt({
+    // FR-11 新契约：采集半**零投递**（旧契约 = 1 次 onStagePrompt，会经 agent.followup 额外起一轮）。
+    expect(prompts).toHaveLength(0)
+    // 留痕不丢：仍与唯一取词入口同源（INV-6）。
+    expect(records).toHaveLength(1)
+    expect(records[0].fragmentIds).toEqual(resolveStagePrompt({
       stage: 'implementing', category: 'feature', requirement: { title: 't', description: '' },
-    }).text)
+    }).fragmentIds)
   })
 })
 

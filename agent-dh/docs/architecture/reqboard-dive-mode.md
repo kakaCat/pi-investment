@@ -161,6 +161,40 @@ Dive 的两半驱动器已按 `@deepseek-ai/dsh-goal-round-driver` 的机制重�
 
 **运行注意**：插件运行时加载 `packages/web/dsh-pmboard/dist/index.mjs`，改动须 `pnpm build` + 重启才生效。
 
+## 投递白名单（2026-09-27 补 · REQ-260927100007-b8ba FR-11）
+
+> **为什么补这一节**：本设计此前**从未规定**「阶段纪律注入」与「里程碑催办」这两条投递归谁。
+> 实现于是各走各的——两者都走 `AgentDeliverer.deliver()` 的通用 plugin 路径，
+> **绕开了 round 半**的 armed+active / 预留 / 准入计数 / `source.kind='dive'` 全套纪律。
+> **设计有缺口 → 实现必然漂移**，这就是"一条人类消息换来两轮 agent loop"的来源。
+
+### 偏差（2026-09-27 实测）
+
+| # | 设计说 | 实现是 | 位置 |
+|---|---|---|---|
+| G1 | 进会话只能走 round 半、`source.kind='dive'` | `onStagePrompt` 走通用 plugin 投递（`kind:'plugin'`），不预留、不计数、不校验 | `session-driver.ts:219` → `pm-capture-root.ts:133` → `AgentDeliverer.ts:53-60` |
+| G2 | 起轮条件 = `armed + active` | 触发条件是"本回合有直接人类消息"，与 armed/active/**阶段是否变化**全无关 | `session-driver.ts:206` |
+| G3 | 采集半不投递 | 采集半在 idle **直接投递两条**：阶段纪律（`:219`）与里程碑催办（`:243`） | `session-driver.ts:219 / 243` |
+
+### 白名单（目标状态）
+
+| 投递方 | 通道 | 约束 |
+|---|---|---|
+| round 半续跑 | `createRoundMessage` → `source.kind='dive'` | **唯一合法的"起轮"通道**；必须 armed+active+idle+无竞争，走预留→投递→准入 |
+| 阶段纪律（采集半） | ~~`deliver()`~~ → **不投递** | 纪律已在每次请求的 system prompt（`capture-section.ts:140-163`）；保留 `injectionLog.record` 与 R1 接手推进 |
+| 里程碑催办（采集半） | 登记待催办 + `requestDrive` | 由 round 半在 armed+active 时作为回合消息投递；非 armed 只写台账 comment（不静默） |
+| pending-confirm wake | `deliver()` | **保留**：人作答后的交接 |
+| 闸门链 H4 resume | `deliver()` | **保留**：人点头后的唤醒 |
+| 失败告警 FailureAlert | `deliver()` | **保留**：响亮化 |
+
+> **不变量（不得违反）**：采集/簿记与"人点头后的必要收尾/交接/记录"**不得**加 `if (!armed) return`
+> —— 全仓至今 0 个需求开过 armed，一旦被门控，流水线立刻停摆。
+
+**配套**：`onNodeSettled`（`:226`）走"只发信号 + 异步边界 append"，与设计②同型，保留；
+但其 `append('user/message', 输入包)` 需按本节显式归类（建议归"人点头后的记录"豁免项）。
+
+**节点流程图**：[reqboard-pipeline-flow.md](reqboard-pipeline-flow.md) —— 含本次三处活体复现时间线与缺陷落点 D1–D13（附修复状态）。
+
 ## 参考
 
 - 需求文档: `docs/requirements/REQ-260925212722-96e7/`

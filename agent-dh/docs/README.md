@@ -140,6 +140,7 @@ tags: [wiki, index, home, agent-dh]
 
 - ✅ [RFC 014 需求看板](rfcs/014-requirement-board.md)
 - ✅ **P0** [项目看板代码流程与实施流程（架构设计 + 10 张流程图）](architecture/pmboard-code-flow.md) —— 双半 × 四层架构、工具→用例→端口→台账调用链、七节点五道人工门状态机、骨牌式自动实施链（AdvanceChain）、闸门后置链；附「文档/注释与代码漂移」读数发现（[HTML 版](architecture/pmboard-code-flow.html)）
+- ✅ **P0** [需求流水线节点流程图（RTM 生成点 · 人工门 · Dive 参与点）](architecture/reqboard-pipeline-flow.md) —— 七节点实际动作 / RTM 产出 / 五道人工门 / Dive 两半参与点的 ASCII 流程图；含投递白名单与缺陷落点 D1–D11（REQ-260927100007-b8ba）
 - ✅ [RTM YAML 追溯基础设施使用指南](guides/rtm-usage.md) —— 追溯关系的预构建索引：7 个 YAML 文件、7 个自动更新触发点、Dive 模式 2ms 读法与节点输入包压缩（REQ-260926140539-457b）
 - ✅ [需求归档规范](architecture/requirement-archive.md)
 - ✅ [需求归档索引](requirements/INDEX.md)
@@ -215,8 +216,11 @@ tags: [wiki, index, home, agent-dh]
 <!-- AUTO:recent BEGIN -->
 | 日期 | 页面 | 一句话 |
 |---|---|---|
+| 2026-09-27 | [RTM 追溯使用指南](guides/rtm-usage-guide.md) | 怎么写 serves/implements/covers 标注让追溯链长出来、在哪看、覆盖度怎么算，以及"追溯空白/DAG 无数据"的排查顺序。 |
+| 2026-09-27 | [RTM 追溯基础设施](architecture/rtm-infrastructure.md) | RTM 是什么、7 个文件与三级追溯链长什么样、代码在哪，以及"改了 src 不生效"和"工作区根被静默丢弃"两个必知运维坑。 |
+| 2026-09-27 | [需求流水线节点流程图（RTM 生成点 · 人工门 · Dive 参与点）](architecture/reqboard-pipeline-flow.md) | draft→archived 七节点的实际动作、RTM 产出文件、五道人工门与 Dive 两半参与点的 ASCII 流程图；附投递白名单与缺陷落点 D1–D13（含修复状态）。 |
+| 2026-09-27 | [全站页面索引（机器可读入口）](INDEX.md) | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 |
 | 2026-09-26 | [RTM YAML 追溯基础设施使用指南](guides/rtm-usage.md) | 需求追溯的预构建索引：7 个 YAML 文件长什么样、在哪 7 个时刻自动更新、Dive 模式怎么 2ms 读它做决策、节点输入包怎么注入与压缩。 |
-| 2026-09-26 | [全站页面索引（机器可读入口）](INDEX.md) | 这个 wiki 有哪些页、每页讲什么（一句话）——先读这张表，再决定打开哪页。 |
 | 2026-09-25 | [需求看板实操（从立项到归档）](guides/reqboard-workflow.md) | 一个需求从冒出来到归档，具体敲哪些工具、卡在哪、错了怎么办。 |
 | 2026-09-25 | [agent-dh Wiki（归档文档首页 / 大纲）](README.md) | agent-dh 的 wiki 首页：10 卷大纲 + 从哪开始读 + 待写页——每个新会话先看这页。 |
 | 2026-09-23 | [节点详情面板（锚定式 node-panel）](architecture/reqboard-node-panel.md) | 会话流程条节点点开后的就地面板：锚定在流程条下方右侧、无遮罩无底栏；「基础信息」按节点给该看的，「执行流程」把该阶段提示词的纪律与真实台账做规定 vs 实际对照；实施节点改 DAG·泳道双视… |
@@ -227,9 +231,6 @@ tags: [wiki, index, home, agent-dh]
 | 2026-09-16 | [@pi-investment/web-liveness · 页面自愈（重启后标签页不再变砖）](../packages/web/web-liveness/README.md) | 监听框架免鉴权的 /plugins/events SSE，发现服务端换过进程就自动刷新已打开的标签页。 |
 | 2026-09-16 | [页面插件契约](architecture/page-plugin-contract.md) | 做一个 DSH 页面插件（GUI）要满足哪些契约；改动怎么生效。 |
 | 2026-09-15 | [故障排查手册（症状 → 根因 → 处置）](guides/troubleshooting.md) | 遇到这些症状，先看哪里、大概率是什么、怎么修。 |
-| 2026-09-14 | [工作日志索引（L3 证据档案）](work-logs/README.md) | 某个时间点「当时做了什么、为什么这么做、结论是什么」。按月份倒序列出全部工作日志。 |
-| 2026-09-14 | [构建与发版规范（改了不等于生效）](standards/build-and-release.md) | 改完代码怎么让它真正生效；哪些"看起来部署了"其实没有。 |
-| 2026-09-14 | [RFC 010 Phase 1 - Window-OS Lifecycle Management](rfcs/RFC-010-README.md) | RFC 010 Phase 1：多窗口协同（窗口注册、角色化派单、窗口间消息、心跳容错）。 |
 
 > 自动生成（`docs_index.py`）：按 front-matter 的 updated 倒序取前 15 页。
 <!-- AUTO:recent END -->

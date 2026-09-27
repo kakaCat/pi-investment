@@ -14,8 +14,10 @@ import type { JsonLedgerRepository } from '../adapters/JsonLedgerRepository.js';
 import type { InjectionLogFile } from '../adapters/InjectionLogFile.js';
 import type { AddressInjection } from '../adapters/TemplateRoot.js';
 import type { GateChainPort } from '../application/gate/GatePostChain.js';
-import type { UseCaseDeps } from '../application/ports.js';
+import type { GatePromptPort, UseCaseDeps } from '../application/ports.js';
+import { gatePromptExhaustedComment } from '../application/dive/gate-prompt.js';
 import { draftRequirementsFor } from '../application/internal/window.js';
+import { isDrivableRequirement } from '../application/dive/round-state.js';
 import { applyPickupAdvance } from '../application/internal/rollup.js';
 import { newCommentId, type RequirementRecord } from '../shared/protocol.js';
 import { captureDiag } from '../application/internal/diag-log.js';
@@ -92,6 +94,14 @@ export interface DiveDriverAssemblyDeps {
    * 缺省 = 纯采集/簿记（与改动前逐字一致，向后兼容）。
    */
   round?: DiveRoundDriver;
+  /**
+   * **FR-14 受信人工门弹框端口**（design I-10）：**只在有弹框通道处装配**——组合根须同时具备
+   * ① `userQuestions` 服务（`UseCaseDeps.questions.available()`）与 ② 一条活窗口的 agent
+   * 句柄（`questions.ask` 的 `agent` 参数）才注入。参考实现 =
+   * `application/dive/gate-prompt.ts` 的 `createGatePromptPort`（由调用方按需组装）。
+   * **缺省 = Dive 行为与 FR-14 之前逐字一致**（不弹框、不留痕、零新投递）。
+   */
+  gatePrompt?: GatePromptPort;
 }
 
 /**
@@ -107,7 +117,7 @@ export interface DiveDriverAssemblyDeps {
  * 返回解除两路订阅的合并函数（两路都没成立时 undefined），由调用方登记进 disposers。
  */
 export function assembleDiveSessionDriver(deps: DiveDriverAssemblyDeps): (() => void) | undefined {
-  const { pendingCapture, toolTrace, recentUserMsgs, deliverer } = deps.runtime;
+  const { pendingCapture, toolTrace, recentUserMsgs } = deps.runtime;
   const driverDeps: DiveSessionDriverDeps = {
     snapshot: () => deps.store.snapshot(),
     pending: pendingCapture,
@@ -125,17 +135,54 @@ export function assembleDiveSessionDriver(deps: DiveDriverAssemblyDeps): (() => 
         return advanced.length > 0 ? { requirements: advanced } : undefined;
       }).catch((err) => deps.logger.warn('reqboard rollup (pickup advance) failed:', err));
     },
-    // REQ-31e11f t5 + REQ-e3b6a0 t4：状态转移纪律与产物催办文案向绑定会话投递。
-    // 投递形状统一走 AgentDeliverer（唯一实现）——此前 `agents.followup(id, msg)` 把
-    // AgentRegistry 当 Agent 用，typeof 守卫恒 false，于是"状态转移注入"与"30 分钟催办"
-    // 自诞生起从未投递过（同一根因的另两个受害者）。
-    onStagePrompt: (windowKey, prompt) => {
-      const result = deliverer.deliver(windowKey, { text: prompt });
-      if (result.delivered) {
-        deps.logger.debug(`reqboard stage-prompt injected → ${windowKey.slice(0, 16)}`);
-      } else {
-        deps.logger.warn(`reqboard stage-prompt 未投递（${windowKey.slice(0, 16)}）：${result.reason ?? '未知原因'}`);
+    // ── 投递白名单（REQ-260927100007-b8ba FR-11）────────────────────────────────────
+    // 通用 plugin 投递路径 `deliverer.deliver()`（→ agent.followup，**会新起一轮 agent loop**）
+    // 只允许"人点头后的收尾/交接/唤醒"三项：
+    //   1. pending-confirm wake（application/internal/pending-confirm.ts）
+    //   2. 闸门链 H4 resume（application/gate/handlers/h4-resume.ts）
+    //   3. 失败告警 FailureAlert（adapters/FailureAlert.ts）
+    //   4. FR-14 人工门弹框的**降级**投递（gate-prompt.ts：弹框通道不可用时保留"提醒 agent"）
+    //      —— 仅当组合根注入了 gatePrompt 才可能出现；采集半的零投递纪律不受影响。
+    // 其余一切"进会话"的投递必须走 round 半的 `createRoundMessage`（source.kind='dive'，带
+    // armed+active / 预留 / 准入计数 / 内容不变量）。据此：
+    //   · **阶段纪律**不再投递——它本就在每次请求的 system prompt（capture-section.ts），
+    //     旧的 onStagePrompt 投递是纯冗余且会额外起轮（FR-11 实测根因），故不再提供该 dep；
+    //   · **里程碑催办**只在此登记——armed+active 转 round 半 queueReminder，其余只写 comment。
+    onMilestoneNotice: (input) => {
+      const req = deps.store.snapshot().requirements.find((r) => r.id === input.requirementId)
+      if (req === undefined) {
+        deps.logger.warn(`reqboard milestone notice 无法登记：需求不存在（${input.requirementId}）`)
+        return
       }
+      if (isDrivableRequirement(req)) {
+        if (deps.round === undefined) {
+          // 未接线不得静默丢（armed+active 的催办必须经 round 半投递）。
+          deps.logger.warn(
+            `reqboard milestone notice 未投递：round 半未装配（需求=${input.requirementId}，产物=${input.artifactKey}）`,
+          )
+          return
+        }
+        deps.round.queueReminder(input.requirementId, input.text)
+        return
+      }
+      // 非 armed+active（全仓现状：0 个需求开过 armed）：只写台账 comment，绝不投递会话——
+      // 留下"催办到期"与可用的下一步，不静默。
+      void deps.store.mutate('dive-milestone-comment', (ledger) => {
+        const r = ledger.requirements.find((x) => x.id === input.requirementId)
+        if (r === undefined) return undefined
+        r.comments.push({
+          id: newCommentId(),
+          body: '[里程碑催办] ' + input.text
+            + ' 当前需求未 armed+active（dive.activation=' + (r.dive?.activation ?? 'undefined')
+            + '，phase=' + (r.dive?.phase ?? 'undefined') + '）→ 本轮不投递会话。'
+            + '下一步：人工调 reqboard_ask_confirm 弹框请人确认，或需求 armed 后由 round 半投递。',
+          createdAt: deps.now(),
+          createdBy: { kind: 'system' },
+        })
+        r.version += 1
+        r.updatedAt = deps.now()
+        return { requirements: [r] }
+      }).catch((err) => deps.logger.warn('reqboard milestone comment 写失败：', err))
     },
     toolTrace,
     recentUserMsgs,
@@ -164,8 +211,26 @@ export function assembleDiveSessionDriver(deps: DiveDriverAssemblyDeps): (() => 
         });
       });
     },
+    // FR-14：弹框到上限 → 写台账 comment（响亮，不静默；此后停手不再重弹）。
+    onGatePromptExhausted: (info) => {
+      void deps.store.mutate('dive-gate-prompt-exhausted', (ledger) => {
+        const r = ledger.requirements.find((x) => x.id === info.requirementId);
+        if (r === undefined) return undefined;
+        r.comments.push({
+          id: newCommentId(),
+          body: gatePromptExhaustedComment(info),
+          createdAt: deps.now(),
+          createdBy: { kind: 'system' },
+        });
+        r.version += 1;
+        r.updatedAt = deps.now();
+        return { requirements: [r] };
+      }).catch((err) => deps.logger.warn('reqboard gate-prompt exhausted comment 写失败：', err));
+    },
     logger: { info: (m) => deps.logger.info(m), debug: (m) => deps.logger.debug(m) },
     ...(deps.round !== undefined ? { round: deps.round } : {}),
+    // FR-14：受信人工门弹框端口**按注入装配**（缺省 = 零行为，见 DiveDriverAssemblyDeps.gatePrompt）。
+    ...(deps.gatePrompt !== undefined ? { gatePrompt: deps.gatePrompt } : {}),
   };
   const driver = createDiveSessionDriver(driverDeps);
   // Dive 服务持有两路订阅（driver 只提供处理函数）——"谁拥有会话事件与驱动点"归 Dive，

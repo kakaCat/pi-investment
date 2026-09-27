@@ -15,7 +15,10 @@ import { openRequirementsFor } from '../internal/window.js'
 import { fmt } from '../../domain/text/fmt.js'
 import { envelope } from '../internal/gate-feedback.js'
 import { artifactsToConfirm } from '../internal/artifact-gates.js'
-import { checkDesignDecompositionGate } from '../internal/content-gate-wiring.js'
+import { checkDesignCompletenessGate, checkDesignDecompositionGate } from '../internal/content-gate-wiring.js'
+import { advanceTargetFor, gateFromStage } from '../../domain/gate/GateCatalog.js'
+import { canReqTransition } from '../../domain/requirement/RequirementStatus.js'
+import { captureSnapshot, transitionRequirement } from '../internal/token-usage.js'
 import {
   reject,
   agentIdFromExec,
@@ -25,7 +28,7 @@ import {
 export async function confirmArtifact(deps: UseCaseDeps, args: unknown, exec: any): Promise<unknown> {
       const windowKey = agentIdFromExec(deps, exec)
       requireLiveDriver(deps, exec)
-      const a = (args ?? {}) as { requirement_id?: unknown; target?: unknown; kind?: unknown; evidence?: unknown }
+      const a = (args ?? {}) as { requirement_id?: unknown; target?: unknown; kind?: unknown; evidence?: unknown; advance?: unknown }
       const explicitId = normalizeText(a.requirement_id, 'requirement_id', 64)
       const targetKind = normalizeText(a.target, 'target', 32)
       const kindRaw = normalizeText(a.kind, 'kind', 64)
@@ -162,16 +165,69 @@ export async function confirmArtifact(deps: UseCaseDeps, args: unknown, exec: an
       if (changed === undefined) reject('reqboard_confirm_artifact 写入失败：台账状态异常', 'REQBOARD_STORE_INCONSISTENT')
       // RTM 触发点 3/5：确认产物 / 批准计划 → 对应 RTM 落章
       syncRTMYaml(deps, changed.id, targetKind === 'artifact' ? 'confirm:artifact' : 'confirm:plan')
+
+      // ── FR-13（REQ-260927100007-b8ba）：落章后**必须能推进** ────────────────────
+      // 事故：证据路径只落章，返回 note 指向未注册的 `reqboard_move`；而弹框路径因
+      // "产物已确认"早返回 → 门放行了、节点却永远停在原地（静默死锁）。
+      // 现在与看板/弹框四路径同语义：落章后按 `advanceTargetFor(from)` 推进，
+      // 且**护栏要求被确认的 kind 正是该门要求的 kind**（防"再点一次 = 连跳两格"）。
+      // 说明：本块只处理 artifact；plan 的"落章 + 落库 + 进实施"门合并在 confirm-settle（弹框路径），
+      // 其落库修复见 FR-1，未落实前不得在此单推进计划。
+      let advanced = false
+      let advanceNote = ''
+      if (a.advance !== false && targetKind === 'artifact') {
+        const gate = gateFromStage(changed.status)
+        const gateMatches = gate !== undefined && gate.requiredKind === kindRaw
+        const to = advanceTargetFor(changed.status)
+        if (!gateMatches) {
+          advanceNote = fmt('；未推进：kind={kind} 与当前门要求的产物不符', { kind: kindRaw })
+        } else if (to === undefined) {
+          advanceNote = fmt('；未推进：当前状态 {s} 无可自动推进的下一阶段', { s: changed.status })
+        } else if (!canReqTransition(changed.status as never, to as never)) {
+          advanceNote = fmt('；未推进：{from} → {to} 不在状态表内', { from: changed.status, to })
+        } else {
+          let gateFailure: { message: string } | undefined
+          if (gate.id === 'G2') gateFailure = await checkDesignCompletenessGate(deps.docs, changed)
+          if (gateFailure !== undefined) {
+            advanceNote = '；' + gateFailure.message
+          } else {
+            try {
+              await deps.repo.mutate('requirement-moved', (ledger) => {
+                const req = ledger.requirements.find(r => r.id === changed.id)
+                if (req === undefined || req.status !== changed.status) return undefined
+                transitionRequirement(req, to as never, {
+                  at: deps.clock.now(),
+                  actor: { kind: 'human', sessionId: windowKey },
+                  reason: fmt('会话确认产物（kind={kind}，evidence 已核验）即推进', { kind: kindRaw }),
+                  snap: captureSnapshot(deps, windowKey),
+                })
+                req.comments.push({
+                  id: deps.ids.comment(),
+                  body: fmt('[自动推进] {from} → {to}：会话确认产物（kind={kind}，evidence 已核验）', { from: changed.status, to, kind: kindRaw }),
+                  createdAt: deps.clock.now(),
+                  createdBy: { kind: 'human', sessionId: windowKey },
+                })
+                return { requirements: [req] }
+              })
+              advanced = true
+            } catch (err) {
+              advanceNote = '；推进失败：' + ((err as Error).message ?? String(err))
+            }
+          }
+        }
+      }
       return {
         success: true,
         requirement_id: changed.id,
         target: targetKind,
         kind: targetKind === 'artifact' ? kindRaw : '',
         via: 'session',
+        advanced,
         ...(evidenceVerified === true ? { evidence_verified: true } : {}),
         note: (targetKind === 'artifact'
           ? '产物已确认（via=session），对应门已放行'
           : '计划已批准（via=session），可用 reqboard_move 推进到 decomposing')
+          + (advanced ? '；已推进' : '') + advanceNote
           + (evidenceVerified === true ? '；文字确认已核验（命中真实用户消息）' : '；⚠️ 文字确认核验未启用（recentUserMsgs 未注入）——建议改用 reqboard_ask_confirm'),
       }
     }
