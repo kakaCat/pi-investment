@@ -225,7 +225,8 @@ export function safeWindowKey(deps: UseCaseDeps, exec?: unknown): string | undef
 
 /**
  * 派生推进的快照提供者（FR-6）：优先显式窗口码，退回 `req.sourceSessionId`；都无 → undefined。
- * 供 `applyTaskRollup(ledger, { snapshot: snapshotProviderFor(deps, windowKey) }, ...)` 使用。
+ * 供 `applyTaskRollup(ledger, tasks, { snapshot: snapshotProviderFor(deps, windowKey) }, ...)` 使用
+ * （REQ-260927202051-f6df D6：`tasks` 为第 2 参；v9 起任务来自 TaskStore，不再取台账 `tasks`）。
  */
 export function snapshotProviderFor(
   deps: UseCaseDeps,
