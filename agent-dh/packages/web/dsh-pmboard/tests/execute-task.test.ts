@@ -73,6 +73,21 @@ describe('子卡闭环（3.4 凭证三项）', () => {
     expect(h.repo.ledger.tasks.find(x => x.id === 't-s')!.status).not.toBe('done')
   })
 
+  it('D17 回归：交付落在父卡窗口内、却早于子卡本次 run 起点 → 子卡仍可 done', async () => {
+    const h = seed()
+    // 父卡（链）窗口起点 = clock.t - 5000；交付文件落在窗口内（clock.t - 1000），
+    // 但早于子卡本次 run 起点（startedAt = clock.t）。
+    // 旧口径 since=子卡 claimedAt(=clock.t) → 判「mtime 早于开工」恒不过门（D17 实测）。
+    // 新口径 since=父卡 claimedAt(=clock.t-5000) → 交付在链窗口内，过门。
+    h.repo.ledger.tasks.find(x => x.id === 't-p')!.claimedAt = h.clock.t - 5_000
+    h.docs.put(SRC, 'x', h.clock.t - 1_000)
+    h.docs.put(CLIENT, 'x') // pages 源改动需配套构建产物（构建新鲜度分支）
+    h.deps.workflow = new FakeRunner(okRun(JSON.stringify({ filesChanged: [SRC], completed: ['改完'] })))
+    const r = await executeSubtask(h.deps, { subtaskId: 't-s', windowKey: 'session-w-001' })
+    expect(r.ok).toBe(true)
+    expect(h.repo.ledger.tasks.find(x => x.id === 't-s')!.status).toBe('done')
+  })
+
   it('① 汇报无改动文件（子代理只回文本）→ 子卡不 done（不猜文件）', async () => {
     const h = seed()
     h.deps.workflow = new FakeRunner(okRun('我做完了，功能正常'))

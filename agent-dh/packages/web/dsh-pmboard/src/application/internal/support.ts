@@ -124,6 +124,15 @@ export function assertDoneEvidence(
   // REQ-4842fe t5：子卡走**新口径**（三项 + 构建新鲜度），豁免窗口活动与 60s 节流——
   // 干活的子代理在别的会话，"本窗口工具活动"对子卡恒不成立。
   if (isSubtask(task)) {
+    // REQ-260927144541-0481（D17 结构性死路收口）：子卡是**父卡这条链**的一个阶段，交付可能在
+    // 子卡 run 之前就已完成（轻档手工交付）——此时拿「子卡本次 run 起点」当新鲜度基准，必然把
+    // 已存在的交付判成「无改动」。实测 t-c42bc0：run.ok=true、13 个上报文件全部存在，但 mtime
+    // 14:55–15:04 早于 run 起点 15:25:48 → 子卡恒不过门、链必停。
+    // 基准回归文档原意「**链**自己认领之后改过的文件」：链认领的是父卡，故基准取**父卡执行窗口
+    // 起点**（父卡 claimedAt，缺省父卡 createdAt），再退回子卡自身起点。窗口仍是有界的时间段，
+    // 且要求上报文件必须真实存在——只把「谁的窗口」修对，不放弃文件系统证据。
+    const parentTask = ledger.tasks.find((t) => t.id === task.parentId)
+    const chainSince = parentTask?.claimedAt ?? parentTask?.createdAt ?? since
     const subPagesSrc = filesChangedEarly.filter((f) => /^packages\/pages\/[^/]+\/src\//.test(f))
     const build = pagesBuildEvidence(deps, subPagesSrc)
     const verdictSub = checkSubtaskEvidence({
@@ -131,7 +140,7 @@ export function assertDoneEvidence(
       reportFilesChanged: filesChangedEarly,
       reportCompleted: rep?.completed ?? [],
       run: task.lastRun,
-      since,
+      since: chainSince,
       fileMtimes: Object.fromEntries(filesChangedEarly.map((f) => [f, deps.docs.stat(f)?.mtimeMs])),
       pagesSrcFiles: subPagesSrc,
       ...build,
