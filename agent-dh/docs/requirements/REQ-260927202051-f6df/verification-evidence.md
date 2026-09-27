@@ -326,3 +326,42 @@ queue-core 曾用「`git diff --stat 58c77a95 -- <文件>` = 空」判定 7 条�
 口径精化（重要）：**`undefined` 与 `null` 在 JSON 里行为不同** —— `undefined` 会被丢弃
 （绑定层看不到该键，等价于键省略）；**只有 `null` 会被保留并撞类型校验**，故闸门只拦 `null`。
 `run-status-tool.test.ts` 另加了**故障注入**证明闸门非恒真（塞 `runId:null` 必被拦下，键省略则放行）。
+
+---
+
+## 十二、已修复问题清单（截至 2026-09-27 22:49，均已进 `dist`）
+
+### 12.1 本需求范围内（v9 队列迁移）的修复
+| # | 问题 | 修法 | 验证 |
+|---|---|---|---|
+| 1 | 队列类型契约缺 `layer` 之外的约束兜底 | `QueueTask extends TaskRecord`（编译期锁死字段不裁） | 类型级断言 + **故障注入** TS2344 |
+| 2 | `computeLayers` 对畸形输入 `[null,42,'x']` 抛错（校验路径不允许 throw） | 加运行时形状守卫 + 2 条回归测试 | topology 15 → **17 passed** |
+| 3 | `mutate` 对**纯删除**静默不写盘，`kind:'task-removed'` 是死分支 | 先算 `removed`，只有"集合与内容都没变"才早退 | **25 passed**（含纯删除/部分删除/不白写三条） |
+| 4 | `LEDGER_REQUIRES_MIGRATION` 被 `load()` 自己的 catch 吞掉（退化成静默空台账） | 迁移判定移出 try；throw 前不置 `loaded` | ledger-v9 **16 passed** |
+| 5 | `QueueTaskStore` 出口泄漏 `layer` 进 `/state` 响应 | 出口 `structuredClone` + `delete layer`（收敛一处） | D3 断言 + 等价性 a-2 |
+| 6 | `applyTaskRollup` 新增 `tasks` 参数后，`src/index.ts` 启动对账仍是老签名（**上线即崩**） | 补第 2 参为 `await taskStore.listAll()`（全量，对齐 R2 判定语义） | tsc + 启动路径 |
+| 7 | `handleEvents` 仍订阅台账 → 任务搬家后**看板实时刷新静默失灵** | 双订阅（台账 + 任务各一路 emit） | t7 验收 + t16 待实测 |
+| 8 | 提示词段 `text` provider 是**同步**接口 vs 异步 `TaskStore` | 同步快照 + subscribe 刷新；**三态**（未加载/空/有值），未加载时略过任务块 | D17 三条硬化 |
+| 9 | `boundSectionText` 加 `tasks` 后 6 处调用点参数错位 | 按新签名改正 | 6 → 0 类型错 |
+| 10 | 台账任务数是活数，文档写死 587/465 会让契约测试恒红 | 全链改「存量全量、条数现算」 | migrate-contract（数据驱动） |
+| 11 | `grep '"tasks"'` 锚点假绿（单行 compact + `requirements[].plan.tasks` 恒在） | 改 `has('tasks')` 语义判据 | 迁移报告 |
+| 12 | 「迁移前后 `/state` 逐字节相等」不可达成（跨需求全局序不可复现） | D8 分层判据 a~e + **负向固化** | equivalence **8 passed** |
+| 13 | `DecomposeTool` 加了 `queue_file`/`tasks_created` 却未在 `output.schema` 声明（**契约违反**） | 补声明（string / number） | output-contract 静态扫描 |
+| 14 | **`reqboard_run_status` 无 active run 时 `snapshot.runId:null` 撞 `type:'string'`** → 硬错误 `must be a string` | 不是 string 的键**整体省略**（与顶层 `run_id` 同口径） | run-status-tool 6 passed（含故障注入） |
+| 15 | 旧测试把这个 bug **固化了**（`expect(snapshot.runId).toBeNull()`），且**从不拿返回值过自己的 schema** | 改正断言 + 补 `assertConformsToSchema` 闸门（递归值级校验） | output-contract **27 passed** |
+| 16 | prompt/schema 声称 `status:'terminated'`/`reason`（**从未被产出**） | 按真身改正 | 文档一致性 |
+| 17 | `token-usage.ts` JSDoc 仍是 `applyTaskRollup` 老签名形状 | 改正注释 | 全仓扫该类形状 |
+| 18 | 夹具装配类：15 个测试文件缺 `taskStore`（≈40 用例） | 新增 `tests/queue/route-deps.ts`（真实 TaskStore）+ 15 文件补装配 | 12 文件全绿，tsc **235→196** |
+| 19 | `applyTaskRollup` 老签名调用点（rollup 两文件 / 10 用例） | 改正 + **类型化夹具**把参数错位变成编译错 | **18 passed** |
+
+### 12.2 交付面（**必须记住，否则修复不会生效**）
+- `dsh-pmboard` 的 `main` / `exports` 指向 **`./dist/index.mjs`** ⇒ **运行时加载打包产物，不是 TS 源码**。
+  改源码后**必须 `pnpm build`**，光重启无效（本轮已重新打包并**校验产物符号**，不只看出厂码）。
+- **本次打包结果**：`dist/index.mjs` 1,248,930 B（22:49）；`lib/client.js` 302,659 B，
+  `[verify-client] OK bundle=302659 bytes, 关键符号齐全, styles.ts 括号配对`。
+- **⚠️ 因此脆弱窗口确认存在**：`dist` 现已是 v9 读方 + 迁移门；而活台账仍是 v8
+  ⇒ **下一次重启会加载新 dist 并拒绝 v8 台账 → 看板失效**。
+  ⇒ **重启必须与「停机 → 迁移 → 起服务」同一个窗口完成**（runbook 见 §七）。
+- **自我更正（记入教训）**：此前把"运行时加载方式"判断为"tsx 直载 TS 源码、改源码重启即生效"，
+  **机制说错了**。纪律：判断"某改动是否已在运行实例生效"，必须取**线上证据**
+  （`main`/`exports` 字段、产物符号、进程实际行为），不能靠框架推断。
