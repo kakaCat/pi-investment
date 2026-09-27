@@ -147,7 +147,26 @@ export class JsonLedgerRepository {
       // statusHistory 反推回填已移出运行时（domain/legacy/LegacyStatus.ts 只给迁移脚本用）。
       // 台账由 v4→v5 迁移一次性固化（scripts/migrate-ledger.ts）；此处只做结构可信度过滤。
       // t6：tasks 不再解析（v9 台账无该字段；带 tasks 的旧台账已在上面被拒）。
-      this.ledger = { schemaVersion: REQBOARD_SCHEMA_VERSION, revision: parsed.revision, requirements, triages }
+      // t6 修复（2026-09-27 实测，验收项②阻塞）：`migrations` 迁移留痕必须**原样带过**。
+      // 此前本行只重建 4 个字段 ⇒ 迁移脚本写进台账的 {8→9} 留痕会在**新进程的第一次写入就被静默抹掉**
+      // （落盘的是整个 draft，所以只要 load 丢了，写一次就永久丢；实测：迁移后台账 migrations=null，
+      //  而 manifest 里的留痕还在 —— 两条路必须有至少一条能把留痕留在台账里）。
+      // 属**预存缺陷**（开工前本文件 migrations 命中即为 0），但会直接卡住本需求验收项②，故一并修。
+      const migrations = Array.isArray(parsed.migrations)
+        ? (parsed.migrations as unknown[]).filter(
+            (m): m is { from: number; to: number; at: number; by: string } =>
+              typeof m === 'object' && m !== null
+              && typeof (m as { from?: unknown }).from === 'number'
+              && typeof (m as { to?: unknown }).to === 'number',
+          )
+        : undefined
+      this.ledger = {
+        schemaVersion: REQBOARD_SCHEMA_VERSION,
+        revision: parsed.revision,
+        requirements,
+        triages,
+        ...(migrations !== undefined ? { migrations } : {}),
+      }
     }
     this.loaded = true
   }
