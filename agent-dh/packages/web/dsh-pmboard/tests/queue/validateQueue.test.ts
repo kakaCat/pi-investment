@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { hasIssue, validateQueueFile } from '../../src/domain/queue/validateQueue.js'
 import type { QueueFile, ValidationIssue, ValidationRule } from '../../src/domain/queue/QueueTypes.js'
-import { REQ, clone, mkTask, queueOf } from './fixtures.js'
+import { REQ, clone, mkTask, queueOf, rawQueue } from './fixtures.js'
 
 const ALL_RULES: readonly ValidationRule[] = ['V-1', 'V-2', 'V-3', 'V-4', 'V-5', 'V-6']
 
@@ -55,8 +55,8 @@ function badSamples(): { name: string; file: QueueFile; rule: ValidationRule }[]
   const v5b = queueOf(REQ, [mkTask('t-000001', { status: 'done' }), mkTask('t-000002', { dependsOn: ['t-000001'] })], {})
   v5b.ready = []
 
-  // V-6：三任务成环
-  const v6 = queueOf(REQ, [
+  // V-6：三任务成环（用 rawQueue 绕过分层——环样本在 computeLayers 那一步就抛错）
+  const v6 = rawQueue(REQ, [
     mkTask('t-000001', { dependsOn: ['t-000003'] }),
     mkTask('t-000002', { dependsOn: ['t-000001'] }),
     mkTask('t-000003', { dependsOn: ['t-000002'] }),
@@ -123,7 +123,7 @@ describe('validateQueueFile 反例逐条（TC-2.1~TC-2.8）', () => {
   })
 
   it('TC-2.2 V-2 标识唯一性', () => {
-    const result = validateQueueFile(clone(validQueue()).tasks.length > 0 ? queueOf(REQ, [mkTask('t-000001'), mkTask('t-000001')]) : validQueue())
+    const result = validateQueueFile(queueOf(REQ, [mkTask('t-000001'), mkTask('t-000001')]))
 
     expect(result.passed).toBe(false)
     expect(hasIssue(result, 'V-2')).toBe(true)

@@ -188,3 +188,14 @@
     （本仓 `vitest.config.ts` 的 include 限定 `tests/**/*.test.ts`，原路径不可执行；未改配置）。
   · 字段口径更正：`design/queue-schema.md` §2.2 表 5 处与 `protocol.ts:TaskRecord` 不符，已修正
     （详见该文勘误段）；权威 = `TaskRecord` 37 字段（19 必填 + 18 可选）+ `layer`。
+  · 台账计数改为「存量全量、条数现算」（立项 587/465/556-7-24 → 实测 612/488/561-8-43，
+    revision 5764）；**任何验收锚点禁止写死计数**。
+  · **D8 等价性判据分层（取代"整个响应逐字节相等"）**：实测跨需求全局数组顺序**不可复现** ——
+    2 个需求的任务在全局数组中被切断、612 条仅 106 个不同 `createdAt` 且非严格递增、
+    `(createdAt,id)` 排序无法还原原序。故 TC-8.1~8.7 改为：a) 任务级逐字节（按 id 配对 + 键集相等
+    + 不含 layer）b) **需求内**相对顺序一致（实测天然可保）c) 计数等于源台账现算 d) 响应其余字段仍逐字节相等
+    e) 不要求跨需求全局顺序。否决"给 QueueTask 加持久化序号"方案：会打破 t1 编译期锁死的
+    「多余键恰为 {layer}」不变量。真回归判据移到 t16 看板实测。
+  · 接口追加：`TaskStore.listAll()`（D2，全量 + 顺序稳定）；**TaskStore 出口剥离 `layer`**（D3）。
+  · 写域裁决：`internal/{plan-landing,confirm-settle,rollup}.ts` 由 t10 让给 t9/t11（见上）；
+    `src/http/routes.ts`（RouterCtx 注入点 + mintId）划归 t7。

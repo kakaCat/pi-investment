@@ -13,7 +13,10 @@
 - 端侧：backend
 
 ## 得到什么结果
-① `npx vitest run scripts/__tests__/migrate-contract.test.ts` 全绿；② 逐字段深比对断言 queue.tasks[i] 去 layer 后 deepEqual 源 ledger.tasks[i]（TC-7.1）；③ 点名断言 lastRun/lastReport/revisions/statusHistory/executions/parentId/stageKind/implementation/context 均已迁移（TC-7.2）；④ 465 条 dependsOn 断言全部可解析（TC-7.3）；⑤ 状态分布断言为 done 556 / in_progress 7 / todo 24（TC-7.4）；⑥ 每份 queue.json 的 requirement_id 断言与其目录一致（TC-7.5）。
+
+① 逐字段深比对：`queue.tasks[i]` 去 `layer` 后与源 `ledger.tasks` 按 **id 配对** `deepEqual`（不是按下标）；② **键集相等**断言 —— 覆盖全部 18 个可选字段，含 `executorHint`/`cardDoc`/`requirementRefs`/`skipIntegration`/`blockedReason`/`claimedBy`/`claimedAt` 共 7 个原设计文档漏列字段（TC-7.2）；③ 全部 `dependsOn` 可解析（TC-7.3，条数**由源台账现算**，不写死）；④ 状态分布**迁移前后逐一相等**（分布由源台账现算）（TC-7.4）；⑤ 每份 queue.json 的 `requirement_id` 与所在目录一致（TC-7.5）；⑥ 覆盖计数、条数一律由源台账现算并注明数据时点与来源，**禁止任何硬编码计数**（裁决 D7）。
+
+※ 测试文件路径修订：原定 `scripts/__tests__/migrate-contract.test.ts` 不被 vitest 收集（`vitest.config.ts` include = `tests/**/*.test.ts`，实测 "No test files found"），实施落在 `tests/migrate-contract.test.ts`，验收命令相应为 `npx vitest run tests/migrate-contract.test.ts`；未改 vitest 配置。
 
 ## 实施方案（implementation）
 写迁移契约测试（scripts/__tests__/migrate-contract.test.ts）：对真实台账副本跑迁移，逐字段深比对源 ledger.tasks 与目标 queue.tasks（去掉 layer）；点名断言关键字段未丢（少迁 lastRun 会让子卡完工凭证门静默失效）；全量断言 465 条 dependsOn 在目标队列内可解析；断言状态分布与需求归属一致。

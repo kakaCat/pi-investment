@@ -37,7 +37,7 @@ grep -rn 'ledger\.tasks\|snapshot()\.tasks\|changed\.tasks\|\.tasks' \
 
 > **写域裁定（2026-09-27 Lead 变更，见 §3.0）**：S-31~S-39、S-51~S-53、S-66 共 **13 条已划归 reader-uc（task-13）**。
 > **reader-http 实际负责 = 77 − 13 = 64 条**（A 47 / B 6 / C 5 / D 3 / E 3）。
-> 下表 77 行**保持全量不减**（这是只读调研的完整性证据），每行「类」列后以 `→UC` 标注归属。
+> 下表 77 行**保持全量不减**（这是只读调研的完整性证据）；归属划分以 **§3.0 的 13 条列表**为准。
 
 > **类 E 的重要意义**：宽模式 grep 把 `req.plan?.tasks` 一并命中。若按字面「见 `.tasks` 就改」，
 > 这 4 处会被误改成队列读取 → `requirements.ts:182` 的「已批准计划 N 个任务」恒为 0、
@@ -61,6 +61,9 @@ grep -rn 'ledger\.tasks\|snapshot()\.tasks\|changed\.tasks\|\.tasks' \
 ---
 
 ## 1. 站点全表（S-01 – S-77）
+
+> **计数复核口径**：主表 `^| S-` 行 = **77**，编号 S-01..S-77 **唯一**（`grep -o '^| S-[0-9]\+' | sort -u | wc -l` = 77）。
+> 其他小节（§3.0 / §4）会**复用同一批 S-xx 编号做交叉引用**，故全文 S-xx 行出现次数 > 77 属预期。
 
 | # | 站点（文件:行号） | 当前取值表达式 | 消费语义 | 目标调用 | 类 |
 |---|---|---|---|---|---|
@@ -235,8 +238,8 @@ src/application/gate/handlers/h3-inject.ts:41 | deps.repo.snapshot().tasks.find(
 | # | 风险 | 命中站点 | 纪律 |
 |---|---|---|---|
 | R-1 | **`layer` 字段泄漏（最高）**：`QueueTask = TaskRecord & { layer }`；把队列任务对象直接返回/展开，响应会**多一个 `layer` 键** | S-06（`{...t}`）、S-20、S-23（原样返回 task 对象）；S-19/S-29/S-03 只取字段故安全 | 出口处剥离 `layer`（`const { layer: _l, ...task } = t`）。**更优解：让 TaskStore 对外返回 `TaskRecord`（内部剥离 layer），把剥离收敛在端口边界一处** |
-| R-2 | **`/state` 全量任务数组顺序**：迁移前是台账单数组的**插入顺序**（跨需求交错）；迁移后逐需求读 queue.json 再拼接 → 全局顺序必变 | S-06、S-09 | 需 lead 裁定（见 §3.1）：TaskStore 加 `listAll()` + 稳定排序（`createdAt asc, id asc`）；或明确接受顺序变化并重新基线（与 TC-8.1「与迁移前一致」冲突，须显式改口径） |
-| R-3 | **`ready` 顺序**：`readyTasks(tasks, rId)`（`shared/protocol.ts:1393`）按 tasks 数组顺序输出；队列 `ready` 由 `computeReady` 输出，**顺序未必一致** | S-07 | 改造后**继续用 `readyTasks(队列任务, rId)`**，不要直接用 `queue.ready`——否则 `/state.ready[*]` 数组顺序变化 |
+| R-2 | **`/state` 全量任务数组顺序（已裁定 D8）**：台账 `tasks` 是**全局插入顺序**（跨需求交错）；`listAll()` 实测顺序 = **`requirementId` 字典序升序分组 + 组内队列顺序**（`ports.ts:117-121`）。两者**结构上不可能复现**（Lead 实测：612 条仅 106 个不同 `createdAt` 且非严格递增，`(createdAt,id)` 也无法还原原序） | S-06、S-09 | **D8 口径已改**（见下方「D8 修订后的验收口径」）；**不再要求整个响应逐字节相等** |
+| R-3 | **`ready` 顺序**：`readyTasks(tasks, rId)`（`shared/protocol.ts:1393`）按 tasks 数组顺序输出；队列 `ready` 由 `computeReady` 输出，**顺序未必一致** | S-07 | 改造后**继续用 `readyTasks(队列任务, rId)`**，不要直接用 `queue.ready`——否则 `/state.ready[*]` 数组顺序变化（D8 下：需求内顺序仍须逐字节一致） |
 | R-4 | **每需求内 `tasks` 数组元素顺序**：若 `listByRequirement` 按 `layer`/拓扑序返回，会改变每需求内任务顺序 | S-08、S-10、S-11、S-12、S-13、S-14、S-71、S-73 | **`listByRequirement` 必须按队列文件 `tasks` 原始数组顺序返回**；迁移写 `queue.tasks` 时按台账源顺序（**不得拓扑重排**，`layers` 仅派生视图） |
 | R-5 | **读回补默认值**：若 QueueTaskStore 读回时补 `statusHistory: []` 之类默认值，会**新增键**导致 JSON 不等 | 全部 A 类 | 读回**只做 V-1 校验，不补字段**；`undefined` 与「键不存在」在 `JSON.stringify` 下等价，不得改写为显式值 |
 | R-6 | **写响应回读丢失**：`LedgerChange.tasks` 移除后若忘记回传，`rework_tasks` 变 `[]`、`target` 变 `undefined` | S-03、S-04、S-05、S-19、S-20、S-23、S-34~S-38 | 一律用 `taskStore.createMany`/`mutate` 的**返回值**填充，不得回落到 `?? []` 静默兜底 |
@@ -244,6 +247,30 @@ src/application/gate/handlers/h3-inject.ts:41 | deps.repo.snapshot().tasks.find(
 | R-8 | **`verification.md` / RTM YAML 文本**：这两处是落盘文本产物，字段缺失会体现在 diff 而非 JSON | S-47（`verification.md`）、S-44（`rtm-implementing.yml`） | 迁移后重生成并 diff 前后文件（`docs/requirements/<REQ>/verification.md`、`rtm-implementing/*.yml`） |
 
 **基线快照建议（t7/t8 执行时）**：对 S-06（`GET /state`）、S-11/S-12（stage/stages）、S-13（token）、S-15（marks）、S-25~S-29（4 个工具的 execute 返回）在**迁移前**先落一份 JSON 快照到 `tmp-diag/`，迁移后逐字节 diff。
+
+### D8 修订后的验收口径（2026-09-27 Lead 裁定，**以此为准**）
+
+> 原「整个响应逐字节相等」在按需求分片后**结构上不可复现**（全局跨需求数组次序丢失），故 t-66797c / t-0c7f17 的
+> `acceptance` 已由 Lead 通过台账改写为 a~e 五条。**开工时以卡片 `acceptance` 为准**：
+
+| 项 | 要求 |
+|---|---|
+| a | **任务级逐字节**：按 `id` 配对，**键集相等**且值相等，**不含 `layer`** |
+| b | **需求内相对顺序一致**（queue-core 实测同需求内索引天然递增 → 用 `listByRequirement` 组内顺序，**严禁自己再排序**，如按 id / createdAt 重排） |
+| c | **计数 = 源台账现算值**（`tasksTotal` / `rework_tasks.length` 等） |
+| d | **响应其余字段逐字节相等**（`requirements` / `verdicts` / `byWindow` 等） |
+| e | **不要求**跨需求全局数组顺序 |
+
+**对 R 表的连带修订**：
+- **R-2**：S-06 按 a~e 验，不再要求整响应逐字节；S-09 只做 Set 归集、**不受顺序影响**。
+- **R-3 升级为硬约束（D8 点名）**：需求内顺序必须保住 → `listByRequirement` 组内文件顺序 **直接用，不排序**；
+  `ready` 仍用 `readyTasks(队列任务, rId)` 保序。
+- **R-4 全效**：`listByRequirement` 顺序 = 队列文件内顺序，与台账源顺序一致（迁移须按源顺序写 `queue.tasks`）。
+- **⚠️ 额外纪律（D8 补充）**：**`layer` 只能用 `readQueue()` 取**（队列文件视图，**带 layer**）；
+  任何进入响应的任务对象必须来自 `get`/`listByRequirement`/`listAll`/`mutate`/`createMany`（端口视图，**已剥离 layer**）。
+  走 `readQueue()` 再扩散任务对象 → **必然不等**。
+- **R-6（§3.6 订阅）已升级为 t-66797c 验收⑤**（`handleEvents` 必须切 `taskStore.subscribe`）。
+- **R-1 已由 D3 根治**（TaskStore 出口 `structuredClone` + `delete layer`）→ 读方**无需**手工剥离。
 
 ---
 
@@ -285,32 +312,56 @@ Lead 裁定（实测「计划落点写错」）：从 `src/application/internal/
 > `verdicts.ts:179-182` 调 `applyVerdicts` → `applySheetVerdicts`）。**t7 开工前必须与 reader-uc 对齐
 > `applyTaskRollup` 的新签名**，否则编译不过。此点同 §3.5。
 
-### 3.1 TaskStore 端口缺「全量列举」
+### 3.1 TaskStore 端口缺「全量列举」 → **已裁定 D2 并落盘（2026-09-27）**
 
-S-06（`/state.tasks`，看板首屏）、S-09（会话进度锚点）需要**跨全部需求**的任务集合。
-design/interfaces.md I-1 的 TaskStore 只有 `get` / `listByRequirement` / `readQueue` / `mutate` / `createMany` / `subscribe`，
-**没有 `listAll()`**（architecture.md 明确「启动不预读全部 82 个需求」，但 `handleState` 是**显式全量**请求，
-按需加载全部仍不可避免）。**缺口：**
-- (a) 给 TaskStore 增 `listAll(): Promise<readonly TaskRecord[]>`（走 cache，逐需求懒加载）并规定稳定排序；或
-- (b) 由 t7 在路由层遍历需求 id 逐个 `listByRequirement` 拼接（82 次调用，需自带排序与缓存）。
-> 该端口属 **queue-core 写域（`src/application/ports.ts`）**，我不得改。请 lead 决定 (a)/(b) 并同步 task-9。
+**裁定**：TaskStore 增 `listAll()`（不用"路由层遍历 82 需求拼接"）。
 
-### 3.2 S-24 落在写域之外
+**实测落盘签名**（`src/application/ports.ts:109-145`，queue-core 已实现；本卡只读复核）：
 
-`src/http/routes.ts:123`（`mintId` 任务 id 去重）在 grep 范围 `src/http/` 内、也在 t7 验收的
+| 方法 | 签名 | 出口契约 |
+|---|---|---|
+| `get` | `(taskId: string) => Promise<TaskRecord \| undefined>` | 不存在 → `undefined` |
+| `listByRequirement` | `(requirementId: string) => Promise<readonly TaskRecord[]>` | 无队列 → `[]`；**顺序 = 队列文件内顺序**（满足 R-4） |
+| `listAll` | `() => Promise<readonly TaskRecord[]>` | **顺序 = requirementId 字典序升序分组，组内保持队列文件顺序** |
+| `readQueue` | `(requirementId: string) => Promise<QueueFile \| undefined>` | 含 `layer/edges/layers/ready`；无文件 → `undefined` |
+| `mutate` | `(requirementId, fn) => Promise<readonly TaskRecord[]>` | 返回**改动过的**任务；无队列 → 抛 `QUEUE_NOT_FOUND` |
+| `createMany` | `(requirementId, tasks) => Promise<readonly TaskRecord[]>` | 返回**实际新增**；已存在 id 跳过不覆盖；允许建档 |
+| `subscribe` | `(fn: (change: TaskChange) => void) => () => void` | SSE / 缓存失效 |
+
+**D3 已落盘**：`ports.ts:100-104` 明文「出口即剥离 `layer`」——`get`/`listByRequirement`/`listAll`/`mutate`/`createMany` 返回的对象**不含 `layer` 键**，需 DAG 视图用 `readQueue`。→ **R-1 层泄漏在端口层根除**，读方无需再手工剥离。
+
+**D4 落盘**：`UseCaseDeps.taskStore?: TaskStore`（`ports.ts:546`）——**可选**，缺省=未装配，调用方须显式判空并走明确降级路径（不得假装成功）。
+
+**⚠️ D2 的顺序契约与 TC-8.1 冲突（新增，需 Lead 裁定 · 见 §2 R-2）**：
+`listAll()` = requirementId 字典序分组 → 与**台账 `tasks` 的全局插入顺序不同**。
+故 S-06（`/state.tasks`）迁移前后**不可能逐字节相等**。详见 R-2 的修订。
+
+> **原缺口描述（已由 D2 关闭，仅留痕）**：S-06（`/state.tasks`，看板首屏）、S-09（会话进度锚点）需要跨全部需求的
+> 任务集合；原 I-1 只有 `get` / `listByRequirement` / `readQueue` / `mutate` / `createMany` / `subscribe`，
+> 无 `listAll()`。备选 (b)「路由层遍历 82 需求拼接」被否（每次首屏读 82 个文件 = 性能倒退）。
+> 端口属 queue-core 写域，本卡只读复核。
+
+### 3.2 S-24 落在写域之外 → **已裁定 D1：`src/http/routes.ts` 归 reader-http**
+
+原问题：`src/http/routes.ts:123`（`mintId` 任务 id 去重）在 grep 范围 `src/http/` 内、也在 t7 验收的
 「grep 无 `ledger.tasks`」口径内，但 **t7 文件清单只列 `src/http/routers/{stages,tasks,requirements,verdicts}.ts`**，
 task-12 写域也只写 `src/http/routers`。**`src/http/routes.ts` 无人认领** → 不改则 (1) 建卡 id 不再查重（可能撞 id）
 (2) TC-8.12 全仓残留静态检查无法归零。
-> 请 lead 裁定：扩 task-12 写域到 `src/http/routes.ts`（含组合根装配 `taskStore` 注入 RouterCtx），或另派卡。
+> **裁定（D1）**：`src/http/routes.ts` 归 reader-http（已核对不在任何其他成员写域内）。
+> t7 一并改 `routes.ts:123`（`mintId` 任务 id 去重 → 经 taskStore 查询）与 `routes.ts:130` 的 RouterCtx 注入。
 
-### 3.3 `RouterCtx` 缺 `taskStore`（与 3.2 同批）
+### 3.3 `RouterCtx` 缺 `taskStore`（与 3.2 同批 · D1 已解锁）★
 
 `src/http/routers/shared.ts:16` 的 `RouterCtx.store: JsonLedgerRepository`，无 `taskStore`。
-t7 必须扩接口，而**注入点在组合根 `src/http/routes.ts:130` 的 `ctx` 构造**（= 3.2 的写域外文件）。两者必须同批改，否则 t7 改完路由无法编译。
+t7 必须扩接口，而**注入点在组合根 `src/http/routes.ts:130` 的 `ctx` 构造**（D1 已把该文件判给我）。
+两者同批改，否则 t7 改完路由无法编译。
+> 建议 `RouterCtx.taskStore` 设为**必填**（路由层无"队列不可用"降级语义——与 `UseCaseDeps.taskStore?: TaskStore` 的可选语义不同，后者缺省=未装配须显式降级）。
 
-### 3.4 `UseCaseDeps` 缺 `taskStore`
+### 3.4 `UseCaseDeps` 缺 `taskStore` → **已落盘（queue-core，本卡已复核）**
 
-`src/application/ports.ts:454` 的 `UseCaseDeps` 无 `taskStore` → S-25、S-26、S-28、S-29、S-44、S-47、S-52、S-53、S-59、S-60 全部依赖它。属 **task-9 写域**，落地后自动解锁。
+`src/application/ports.ts:546` 现有 `taskStore?: TaskStore`（**可选**，缺省=未装配 → 调用方须显式判空并走明确降级路径）。
+→ S-25、S-26、S-28、S-29、S-44、S-47、S-52、S-53、S-59、S-60 全部解锁。
+> t8 工具壳注意：`deps.taskStore` 可能是 `undefined`，须显式失败/降级，**不得假装成功**（对齐 `jobs`/`workflow`/`teams` 的缺省语义）。
 
 ### 3.5 跨写域签名裂变（本人不得单方改）
 
@@ -325,12 +376,12 @@ t7 必须扩接口，而**注入点在组合根 `src/http/routes.ts:130` 的 `ct
 | `verification-doc-writer.rewriteVerificationDoc(ports, reqId)` | S-47 | `use-cases/AcceptSheet.ts:225` |
 | `agent-handle.ensureAgentHandle(deps, parentId, subtaskId, exec)`（同步） | S-59 | `use-cases/{AdvanceChain,ExecuteTask}.ts` 等 |
 
-> **建议方案（请 lead 与 reader-uc 确认）**：给这些函数**加 `tasks` 入参**而非改用异步 taskStore——
+> **裁定（D4，采纳本方案）**：给这些函数**加 `tasks` 入参**而非改用异步 taskStore——
 > 由调用方（use-cases）负责 `await taskStore.listByRequirement(...)` 后传入。
 > 这样「本写域函数保持同步」+「异步只发生在路由/工具/用例边界」，裂变面最小。
-> 若改成 `taskStore` 注入，则 use-cases 内 `repo.mutate` 回调的同步契约会被打破（见 §4 头条）。
+> 已同步 reader-uc。**我改这些签名前须与 reader-uc 对齐，避免双向编译红。**
 
-### 3.6 `handleState` 的 SSE 事件源（不在 77 命中内，但同批必改）
+### 3.6 `handleState` 的 SSE 事件源（不在 77 命中内）→ **已裁定 D5，升级为 t-66797c 验收⑤** ★
 
 `src/http/routers/stages.ts:65-80` 的 `handleEvents` 订阅的是 `store.subscribe`（台账 revision）。
 迁移后**任务变更不再经台账** → 看板实时刷新（任务状态变化）会静默失灵。
@@ -423,3 +474,21 @@ t7 必须扩接口，而**注入点在组合根 `src/http/routes.ts:130` 的 `ct
 ## 7. 变更历史
 
 - 2026-09-27 - 初始产出（task-10，reader-http / w-3936d77f）：77 站点全表（A54/B11/C5/D3/E4）+ 字节相等风险 R-1~R-8 + async 改造点 + 6 项契约缺口。
+- 2026-09-27 - **写域裁定回写**（Lead 变更）：`plan-landing.ts` / `confirm-settle.ts` / `rollup.ts` 划归 reader-uc（task-13）；
+  新增 §3.0（13 条转出站点 + 对 t7 编译面的连带影响），计数口径改为「reader-http 64 条」，77 行全表不减。
+- 2026-09-27 - **D1–D6 裁决回写 + 端口落盘复核**：§3.1 记录 TaskStore 实测签名（含 `listAll()` 顺序契约）与 D3 出口剥离 layer；
+  §3.2/§3.3 记 D1（`src/http/routes.ts` 归本卡）；§3.4 记 `UseCaseDeps.taskStore` 已落盘（可选语义）；§3.5 记 D4 采纳；
+  **R-2 升级为「已实测确认的 TC-8.1 口径冲突」**——`listAll()` 顺序 = reqId 字典序分组 ≠ 台账全局插入顺序，待 Lead 裁定口径。
+- 2026-09-27 - **D8 裁定回写（Lead）**：新增「D8 修订后的验收口径（a~e 五条，以卡片 acceptance 为准）」，
+  R-2 改按 a~e 验、R-3 升级为硬约束（需求内顺序不得自排序）、补「`layer` 只能经 readQueue 取」（R-4 补充纪律）；
+  §3.6 标记为 t-66797c 验收⑤；§3.2/§3.3 标记 D1 已解锁（writeScopes 已由 Lead 修回含 `src/application/internal` 与 `src/http/routes.ts`）。
+
+---
+
+## 8. 两处例外与移交说明（给 Lead）
+
+- **台账通道**：本窗口未绑定该需求，`reqboard_task_move` / `reqboard_task_report` 对 teammate 返回 `REQBOARD_NO_BOUND_REQ`；
+  本卡完成后由 send_message 向 Lead 报卡号 + summary + completed + files_changed + 验收命令与输出，由 Lead 转写台账。**不自行调 reqboard 写工具、不自行 git add/commit。**
+- **本清单内的「真正写入点」复核结论**：`src/http/`、`src/tools/` 内**只有读方**（`tasks.ts:87` 的 `ledger.tasks.push(record)` 是路由的人工建卡写，经 `repo.mutate('task-created')`，S-17）；
+  真正决定"任务能否落库"的写路径在 `src/application/internal/plan-landing.ts:121`（已随 §3.0 划归 reader-uc）。
+  **除此之外未发现第三处直接写 `ledger.tasks` 的落点**（`verdicts.ts:86`、`lazy-expand.ts:102` 是返工卡/子卡写，均在本写域且已在表内）。

@@ -60,20 +60,24 @@ export function computeEdges(tasks: readonly QueueTask[]): QueueEdge[] {
  * 有环（含自依赖）抛 `Error`，`message` 含 `CIRCULAR`、`code` 为 `CIRCULAR_DEPENDENCY`。
  */
 export function computeLayers(tasks: readonly QueueTask[]): QueueLayer[] {
-  const total = tasks.length
+  // 入口防御（**实测踩到过**）：本函数的输入可能是 `JSON.parse` 的产物，条目里混着
+  // null/数字/字符串（畸形队列文件）。此时 `task.id` 会抛 `Cannot read properties of null`
+  // ——校验路径不允许任何 throw（V-1 要负责报"任务必须是对象"），所以先只收任务对象。
+  const nodes = (tasks as readonly unknown[]).filter(isTaskLike) as readonly QueueTask[]
+  const total = nodes.length
   if (total === 0) return []
 
   // 以**下标**为主键而非 id：V-2 未通过（id 重复）时也要能算出结果并让校验去报错，
   // 用 Map<id, ...> 会把重复 id 静默合并、把"两个任务"算成"一个"。
   const indexOf = new Map<string, number>()
-  tasks.forEach((task, i) => {
+  nodes.forEach((task, i) => {
     if (!indexOf.has(task.id)) indexOf.set(task.id, i)
   })
 
   const inDegree = new Array<number>(total).fill(0)
   const dependents: number[][] = Array.from({ length: total }, () => [])
-  tasks.forEach((task, i) => {
-    for (const dep of task.dependsOn ?? []) {
+  nodes.forEach((task, i) => {
+    for (const dep of Array.isArray(task.dependsOn) ? task.dependsOn : []) {
       const j = indexOf.get(dep)
       if (j === undefined) continue // 悬空依赖：忽略（见文件头说明）
       inDegree[i] += 1
@@ -89,7 +93,7 @@ export function computeLayers(tasks: readonly QueueTask[]): QueueLayer[] {
   while (wave.length > 0) {
     const current = wave
     wave = []
-    layers.push({ layer: layers.length, tasks: current.map((i) => tasks[i]!.id) })
+    layers.push({ layer: layers.length, tasks: current.map((i) => nodes[i]!.id) })
     for (const i of current) {
       processed += 1
       for (const k of dependents[i]!) {
@@ -100,7 +104,7 @@ export function computeLayers(tasks: readonly QueueTask[]): QueueLayer[] {
   }
 
   if (processed < total) {
-    const stuck = tasks.filter((_, i) => inDegree[i]! > 0).map((t) => t.id)
+    const stuck = nodes.filter((_, i) => inDegree[i]! > 0).map((t) => t.id)
     const error = new Error(
       `CIRCULAR dependency detected in queue: 以下任务因依赖成环无法分层 [${stuck.join(', ')}]`,
     ) as Error & { code?: string }
@@ -126,13 +130,31 @@ export function computeLayers(tasks: readonly QueueTask[]): QueueLayer[] {
  */
 export function computeReady(tasks: readonly QueueTask[]): string[] {
   const byId = new Map<string, QueueTask>()
-  for (const task of tasks) if (!byId.has(task.id)) byId.set(task.id, task)
+  for (const task of tasks) {
+    if (!isTaskLike(task)) continue
+    if (!byId.has(task.id)) byId.set(task.id, task)
+  }
 
   const ready: string[] = []
   for (const task of tasks) {
+    if (!isTaskLike(task)) continue
     if (task.status !== 'todo') continue
-    const unlocked = (task.dependsOn ?? []).every((dep) => byId.get(dep)?.status === 'done')
+    const deps = Array.isArray(task.dependsOn) ? task.dependsOn : []
+    const unlocked = deps.every((dep) => byId.get(dep)?.status === 'done')
     if (unlocked) ready.push(task.id)
   }
   return ready
+}
+
+/**
+ * 运行时形状守卫：只认"看起来像任务对象"的条目（非 null 的对象）。
+ *
+ * 存在的理由不是洁癖，而是**实测**：`computeLayers` 曾对 `tasks: [null, 42, 'x']`
+ * 这样的畸形输入抛 `Cannot read properties of null (reading 'id')`，
+ * 而校验路径（V-1 负责报"任务必须是对象"）**不允许任何 throw**。
+ * 守卫放在推导函数里而非只放在校验里，是因为推导函数是公开 API，
+ * 任何调用方（含未来的迁移脚本）都可能喂进 JSON 原始数据。
+ */
+function isTaskLike(value: unknown): boolean {
+  return value !== null && typeof value === 'object'
 }

@@ -126,6 +126,29 @@ describe('topology.computeLayers（TC-1.1~TC-1.4）', () => {
     const tasks = [mk('t-000001', { dependsOn: ['t-999999'] })]
     expect(computeLayers(tasks)).toEqual([{ layer: 0, tasks: ['t-000001'] }])
   })
+
+  it('畸形条目（null / 数字 / 字符串）只跳过不抛错 —— 回归：曾抛 Cannot read properties of null', () => {
+    const junk = [null, 42, 'x'] as unknown as QueueTask[]
+
+    expect(() => computeLayers(junk)).not.toThrow()
+    expect(computeLayers(junk)).toEqual([])
+    expect(computeReady(junk)).toEqual([])
+    expect(computeEdges(junk)).toEqual([])
+
+    // 混在合法任务里也不影响正常分层（校验路径的 V-1 负责报"任务必须是对象"）
+    const mixed = [mk('t-000001'), null, mk('t-000002', { dependsOn: ['t-000001'] })] as unknown as QueueTask[]
+    expect(computeLayers(mixed)).toEqual([
+      { layer: 0, tasks: ['t-000001'] },
+      { layer: 1, tasks: ['t-000002'] },
+    ])
+  })
+
+  it('dependsOn 非数组（畸形 JSON）不影响推导，不抛错', () => {
+    const broken = [{ ...mk('t-000001'), dependsOn: 't-xxx' } as unknown as QueueTask]
+
+    expect(() => computeLayers(broken)).not.toThrow()
+    expect(computeEdges(broken)).toEqual([])
+  })
 })
 
 describe('topology.computeEdges', () => {

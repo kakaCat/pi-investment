@@ -88,3 +88,29 @@ export function queueOf(
 export function clone<T>(value: T): T {
   return structuredClone(value)
 }
+
+/**
+ * 构造一份**不重算派生视图**的队列文件——专供"故意非法"的样本。
+ *
+ * 为什么需要它：`queueOf` 会调 `computeLayers`，而环依赖样本在分层那一步就抛错了，
+ * 根本构造不出来（"构造非法数据时先被合法化逻辑拦下"）。所以成环样本必须绕过重算，
+ * 手工给出 edges/layers/ready——这也更贴近真实场景：非法文件是**外部**产生的，
+ * 不由本仓的推导函数生成。
+ */
+export function rawQueue(
+  requirementId: string,
+  tasks: readonly QueueTask[],
+  overrides: Partial<QueueFile> = {},
+): QueueFile {
+  return {
+    version: 1,
+    requirement_id: requirementId,
+    schemaVersion: 9,
+    generated_at: '2026-09-27T22:00:00.000Z',
+    tasks: [...tasks],
+    edges: computeEdges(tasks),
+    layers: [],
+    ready: [],
+    ...overrides,
+  }
+}
