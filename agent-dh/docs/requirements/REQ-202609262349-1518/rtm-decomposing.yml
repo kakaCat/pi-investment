@@ -1,0 +1,671 @@
+metadata:
+  stage: decomposing
+  requirement_id: REQ-202609262349-1518
+  generated_at: 2026-09-26T16:29:23.498Z
+  version: 2
+  generated_by: dsh-pmboard
+  last_updated: 2026-09-27T01:34:27.518Z
+inputs:
+  requirements: []
+  design_sections:
+    - ref: design/architecture.md#整体架构
+      title: 整体架构（
+      serves:
+        - FR-1
+        - FR-3
+      file: design/architecture.md
+      section: 整体架构
+    - ref: design/architecture.md#模块划分
+      title: 模块划分（
+      serves:
+        - FR-3
+        - FR-4
+        - FR-5
+        - FR-6
+        - FR-7
+      file: design/architecture.md
+      section: 模块划分
+    - ref: design/architecture.md#数据流
+      title: 数据流（
+      serves:
+        - FR-3
+      file: design/architecture.md
+      section: 数据流
+    - ref: design/architecture.md#改动文件清单
+      title: 改动文件清单（
+      serves:
+        - FR-1
+        - FR-2
+        - FR-3
+      file: design/architecture.md
+      section: 改动文件清单
+    - ref: design/coverage-gate.md#CoverageCalculator-实现
+      title: CoverageCalculator 实现（
+      serves:
+        - FR-6
+      file: design/coverage-gate.md
+      section: CoverageCalculator-实现
+    - ref: design/coverage-gate.md#CoverageGate-实现
+      title: CoverageGate 实现（
+      serves:
+        - FR-7
+      file: design/coverage-gate.md
+      section: CoverageGate-实现
+    - ref: design/data-model.md#台账数据模型
+      title: 台账数据模型（
+      serves:
+        - FR-2
+      file: design/data-model.md
+      section: 台账数据模型
+    - ref: design/data-model.md#RTM-文件数据模型
+      title: RTM 文件数据模型（
+      serves:
+        - FR-1
+      file: design/data-model.md
+      section: RTM-文件数据模型
+    - ref: design/data-model.md#TypeScript-类型定义
+      title: TypeScript 类型定义（
+      serves:
+        - FR-1
+        - FR-2
+      file: design/data-model.md
+      section: TypeScript-类型定义
+    - ref: design/interfaces.md#RTMGenerator-接口
+      title: RTMGenerator 接口（
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: RTMGenerator-接口
+    - ref: design/interfaces.md#DocumentParser-接口
+      title: DocumentParser 接口（
+      serves:
+        - FR-4
+      file: design/interfaces.md
+      section: DocumentParser-接口
+    - ref: design/interfaces.md#TraceabilityBuilder-接口
+      title: TraceabilityBuilder 接口（
+      serves:
+        - FR-5
+      file: design/interfaces.md
+      section: TraceabilityBuilder-接口
+    - ref: design/interfaces.md#CoverageCalculator-接口
+      title: CoverageCalculator 接口（
+      serves:
+        - FR-6
+      file: design/interfaces.md
+      section: CoverageCalculator-接口
+    - ref: design/interfaces.md#CoverageGate-接口
+      title: CoverageGate 接口（
+      serves:
+        - FR-7
+      file: design/interfaces.md
+      section: CoverageGate-接口
+    - ref: design/interfaces.md#RTMReader-接口
+      title: RTMReader 接口（
+      serves:
+        - FR-8
+      file: design/interfaces.md
+      section: RTMReader-接口
+    - ref: design/interfaces.md#RTMWriter-接口
+      title: RTMWriter 接口（
+      serves:
+        - FR-3
+      file: design/interfaces.md
+      section: RTMWriter-接口
+    - ref: design/ledger-schema.md#需求对象新增字段
+      title: 需求对象新增字段（
+      serves:
+        - FR-2
+      file: design/ledger-schema.md
+      section: 需求对象新增字段
+    - ref: design/ledger-schema.md#任务对象新增字段
+      title: 任务对象新增字段（
+      serves:
+        - FR-2
+      file: design/ledger-schema.md
+      section: 任务对象新增字段
+    - ref: design/ledger-schema.md#schemaVersion-升级
+      title: schemaVersion 升级（
+      serves:
+        - FR-2
+      file: design/ledger-schema.md
+      section: schemaVersion-升级
+    - ref: design/ledger-schema.md#向后兼容设计
+      title: 向后兼容设计（
+      serves:
+        - FR-2
+      file: design/ledger-schema.md
+      section: 向后兼容设计
+    - ref: design/ledger-schema.md#数据迁移脚本
+      title: 数据迁移脚本（
+      serves:
+        - FR-9
+      file: design/ledger-schema.md
+      section: 数据迁移脚本
+    - ref: design/ledger-schema.md#回滚方案
+      title: 回滚方案（
+      serves:
+        - FR-9
+      file: design/ledger-schema.md
+      section: 回滚方案
+    - ref: design/rtm-file-structure.md#通用结构
+      title: 通用结构（
+      serves:
+        - FR-1
+      file: design/rtm-file-structure.md
+      section: 通用结构
+    - ref: design/rtm-file-structure.md#rtm-lifecycleyml
+      title: rtm-lifecycle.yml（
+      serves:
+        - FR-1
+      file: design/rtm-file-structure.md
+      section: rtm-lifecycleyml
+    - ref: design/rtm-file-structure.md#rtm-brainstormingyml
+      title: rtm-brainstorming.yml（
+      serves:
+        - FR-1
+      file: design/rtm-file-structure.md
+      section: rtm-brainstormingyml
+    - ref: design/rtm-file-structure.md#rtm-designyml
+      title: rtm-design.yml（
+      serves:
+        - FR-1
+      file: design/rtm-file-structure.md
+      section: rtm-designyml
+    - ref: design/rtm-file-structure.md#rtm-decomposingyml
+      title: rtm-decomposing.yml（
+      serves:
+        - FR-1
+      file: design/rtm-file-structure.md
+      section: rtm-decomposingyml
+    - ref: design/rtm-file-structure.md#rtm-implementingyml汇总文件
+      title: rtm-implementing.yml（汇总文件）（
+      serves:
+        - FR-1
+      file: design/rtm-file-structure.md
+      section: rtm-implementingyml汇总文件
+    - ref: design/rtm-file-structure.md#rtm-implementingt-354ea0yml任务详情
+      title: rtm-implementing/t-354ea0.yml（任务详情）（
+      serves:
+        - FR-1
+      file: design/rtm-file-structure.md
+      section: rtm-implementingt-354ea0yml任务详情
+    - ref: design/rtm-file-structure.md#rtm-acceptingyml
+      title: rtm-accepting.yml（
+      serves:
+        - FR-1
+      file: design/rtm-file-structure.md
+      section: rtm-acceptingyml
+    - ref: design/rtm-file-structure.md#文件组织
+      title: 文件组织（
+      serves:
+        - FR-1
+      file: design/rtm-file-structure.md
+      section: 文件组织
+    - ref: design/rtm-generation.md#7
+      title: 个触发点集成（
+      serves:
+        - FR-3
+      file: design/rtm-generation.md
+      section: "7"
+    - ref: design/rtm-generation.md#RTMGenerator-实现
+      title: RTMGenerator 实现（
+      serves:
+        - FR-3
+      file: design/rtm-generation.md
+      section: RTMGenerator-实现
+    - ref: design/rtm-generation.md#集成示例
+      title: 集成示例（
+      serves:
+        - FR-3
+      file: design/rtm-generation.md
+      section: 集成示例
+    - ref: design/traceability-engine.md#DocumentParser-实现
+      title: DocumentParser 实现（
+      serves:
+        - FR-4
+      file: design/traceability-engine.md
+      section: DocumentParser-实现
+    - ref: design/traceability-engine.md#TraceabilityBuilder-实现
+      title: TraceabilityBuilder 实现（
+      serves:
+        - FR-5
+      file: design/traceability-engine.md
+      section: TraceabilityBuilder-实现
+    - ref: design/use-cases.md#场景1Dive-模式快速读取节点状态
+      title: 场景1：Dive 模式快速读取节点状态（
+      serves:
+        - FR-8
+      file: design/use-cases.md
+      section: 场景1Dive-模式快速读取节点状态
+    - ref: design/use-cases.md#场景2用户查看完整追溯链
+      title: 场景2：用户查看完整追溯链（
+      serves:
+        - FR-5
+      file: design/use-cases.md
+      section: 场景2用户查看完整追溯链
+    - ref: design/use-cases.md#场景3提交设计时覆盖度门禁检查
+      title: 场景3：提交设计时覆盖度门禁检查（
+      serves:
+        - FR-7
+      file: design/use-cases.md
+      section: 场景3提交设计时覆盖度门禁检查
+    - ref: design/use-cases.md#场景4数据迁移
+      title: 场景4：数据迁移（
+      serves:
+        - FR-9
+      file: design/use-cases.md
+      section: 场景4数据迁移
+outputs:
+  tasks:
+    - id: t-9d53f4
+      title: 扩展台账数据模型
+      implements: ""
+      serves:
+        - FR-1
+        - FR-2
+      depends_on: []
+      phase: doc
+      side: backend
+    - id: t-3067d0
+      title: 台账数据迁移
+      implements: ""
+      serves:
+        - FR-2
+        - FR-9
+      depends_on:
+        - t-9d53f4
+      phase: implement
+      side: backend
+    - id: t-799c20
+      title: 文档标注解析器
+      implements: ""
+      serves:
+        - FR-4
+      depends_on:
+        - t-9d53f4
+      phase: implement
+      side: backend
+    - id: t-51e360
+      title: 追溯关系构建器
+      implements: ""
+      serves:
+        - FR-5
+      depends_on:
+        - t-799c20
+      phase: implement
+      side: backend
+    - id: t-09dcfc
+      title: 覆盖度计算器
+      implements: ""
+      serves:
+        - FR-6
+      depends_on:
+        - t-51e360
+      phase: implement
+      side: backend
+    - id: t-0de514
+      title: 覆盖度门禁
+      implements: ""
+      serves:
+        - FR-7
+      depends_on:
+        - t-09dcfc
+      phase: implement
+      side: backend
+    - id: t-8a2918
+      title: decomposing 阶段 RTM 生成
+      implements: ""
+      serves:
+        - FR-1
+        - FR-3
+      depends_on:
+        - t-51e360
+        - t-09dcfc
+      phase: implement
+      side: backend
+    - id: t-052ac0
+      title: implementing 阶段 RTM 生成
+      implements: ""
+      serves:
+        - FR-1
+        - FR-3
+      depends_on:
+        - t-8a2918
+      phase: implement
+      side: backend
+    - id: t-7d6e13
+      title: accepting 阶段 RTM 生成
+      implements: ""
+      serves:
+        - FR-1
+        - FR-3
+      depends_on:
+        - t-052ac0
+        - t-799c20
+      phase: implement
+      side: backend
+    - id: t-bbf915
+      title: RTM 快速读取接口
+      implements: ""
+      serves:
+        - FR-8
+      depends_on:
+        - t-9d53f4
+      phase: implement
+      side: backend
+    - id: t-67e3e4
+      title: StatusTool 集成覆盖度
+      implements: ""
+      serves:
+        - FR-6
+        - FR-8
+      depends_on:
+        - t-bbf915
+      phase: implement
+      side: backend
+    - id: t-8eee40
+      title: 端到端测试
+      implements: ""
+      serves:
+        - FR-3
+        - FR-5
+        - FR-6
+        - FR-7
+      depends_on:
+        - t-8a2918
+        - t-052ac0
+        - t-7d6e13
+        - t-67e3e4
+      phase: test
+      side: fullstack
+    - id: t-91f04c
+      title: 性能测试
+      implements: ""
+      serves:
+        - FR-8
+      depends_on:
+        - t-bbf915
+      phase: test
+      side: backend
+    - id: t-dbad8b
+      title: 文档更新
+      implements: ""
+      serves:
+        - FR-1
+        - FR-8
+      depends_on:
+        - t-8eee40
+        - t-91f04c
+      phase: doc
+      side: doc
+traceability:
+  design_to_tasks:
+    design/architecture.md#整体架构:
+      - t-9d53f4
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-8eee40
+      - t-dbad8b
+    design/architecture.md#模块划分:
+      - t-799c20
+      - t-51e360
+      - t-09dcfc
+      - t-0de514
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-67e3e4
+      - t-8eee40
+    design/architecture.md#数据流:
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-8eee40
+    design/architecture.md#改动文件清单:
+      - t-9d53f4
+      - t-3067d0
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-8eee40
+      - t-dbad8b
+    design/coverage-gate.md#CoverageCalculator-实现:
+      - t-09dcfc
+      - t-67e3e4
+      - t-8eee40
+    design/coverage-gate.md#CoverageGate-实现:
+      - t-0de514
+      - t-8eee40
+    design/data-model.md#台账数据模型:
+      - t-9d53f4
+      - t-3067d0
+    design/data-model.md#RTM-文件数据模型:
+      - t-9d53f4
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-dbad8b
+    design/data-model.md#TypeScript-类型定义:
+      - t-9d53f4
+      - t-3067d0
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-dbad8b
+    design/interfaces.md#RTMGenerator-接口:
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-8eee40
+    design/interfaces.md#DocumentParser-接口:
+      - t-799c20
+    design/interfaces.md#TraceabilityBuilder-接口:
+      - t-51e360
+      - t-8eee40
+    design/interfaces.md#CoverageCalculator-接口:
+      - t-09dcfc
+      - t-67e3e4
+      - t-8eee40
+    design/interfaces.md#CoverageGate-接口:
+      - t-0de514
+      - t-8eee40
+    design/interfaces.md#RTMReader-接口:
+      - t-bbf915
+      - t-67e3e4
+      - t-91f04c
+      - t-dbad8b
+    design/interfaces.md#RTMWriter-接口:
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-8eee40
+    design/ledger-schema.md#需求对象新增字段:
+      - t-9d53f4
+      - t-3067d0
+    design/ledger-schema.md#任务对象新增字段:
+      - t-9d53f4
+      - t-3067d0
+    design/ledger-schema.md#schemaVersion-升级:
+      - t-9d53f4
+      - t-3067d0
+    design/ledger-schema.md#向后兼容设计:
+      - t-9d53f4
+      - t-3067d0
+    design/ledger-schema.md#数据迁移脚本:
+      - t-3067d0
+    design/ledger-schema.md#回滚方案:
+      - t-3067d0
+    design/rtm-file-structure.md#通用结构:
+      - t-9d53f4
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-dbad8b
+    design/rtm-file-structure.md#rtm-lifecycleyml:
+      - t-9d53f4
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-dbad8b
+    design/rtm-file-structure.md#rtm-brainstormingyml:
+      - t-9d53f4
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-dbad8b
+    design/rtm-file-structure.md#rtm-designyml:
+      - t-9d53f4
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-dbad8b
+    design/rtm-file-structure.md#rtm-decomposingyml:
+      - t-9d53f4
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-dbad8b
+    design/rtm-file-structure.md#rtm-implementingyml汇总文件:
+      - t-9d53f4
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-dbad8b
+    design/rtm-file-structure.md#rtm-implementingt-354ea0yml任务详情:
+      - t-9d53f4
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-dbad8b
+    design/rtm-file-structure.md#rtm-acceptingyml:
+      - t-9d53f4
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-dbad8b
+    design/rtm-file-structure.md#文件组织:
+      - t-9d53f4
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-dbad8b
+    design/rtm-generation.md#7:
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-8eee40
+    design/rtm-generation.md#RTMGenerator-实现:
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-8eee40
+    design/rtm-generation.md#集成示例:
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-8eee40
+    design/traceability-engine.md#DocumentParser-实现:
+      - t-799c20
+    design/traceability-engine.md#TraceabilityBuilder-实现:
+      - t-51e360
+      - t-8eee40
+    design/use-cases.md#场景1Dive-模式快速读取节点状态:
+      - t-bbf915
+      - t-67e3e4
+      - t-91f04c
+      - t-dbad8b
+    design/use-cases.md#场景2用户查看完整追溯链:
+      - t-51e360
+      - t-8eee40
+    design/use-cases.md#场景3提交设计时覆盖度门禁检查:
+      - t-0de514
+      - t-8eee40
+    design/use-cases.md#场景4数据迁移:
+      - t-3067d0
+  fr_to_tasks:
+    FR-1:
+      - t-9d53f4
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-8eee40
+      - t-dbad8b
+      - t-3067d0
+    FR-3:
+      - t-9d53f4
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-8eee40
+      - t-dbad8b
+      - t-799c20
+      - t-51e360
+      - t-09dcfc
+      - t-0de514
+      - t-67e3e4
+      - t-3067d0
+    FR-4:
+      - t-799c20
+      - t-51e360
+      - t-09dcfc
+      - t-0de514
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-67e3e4
+      - t-8eee40
+    FR-5:
+      - t-799c20
+      - t-51e360
+      - t-09dcfc
+      - t-0de514
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-67e3e4
+      - t-8eee40
+    FR-6:
+      - t-799c20
+      - t-51e360
+      - t-09dcfc
+      - t-0de514
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-67e3e4
+      - t-8eee40
+    FR-7:
+      - t-799c20
+      - t-51e360
+      - t-09dcfc
+      - t-0de514
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-67e3e4
+      - t-8eee40
+    FR-2:
+      - t-9d53f4
+      - t-3067d0
+      - t-8a2918
+      - t-052ac0
+      - t-7d6e13
+      - t-8eee40
+      - t-dbad8b
+    FR-8:
+      - t-bbf915
+      - t-67e3e4
+      - t-91f04c
+      - t-dbad8b
+    FR-9:
+      - t-3067d0
+coverage:
+  implementation:
+    total: 40
+    covered: 40
+    uncovered: []
+    rate: 100
+    total_designs: 40
+    covered_designs: 40

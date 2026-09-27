@@ -455,14 +455,84 @@ export interface DesignDocRegistration {
   conditional?: 'frontend' | 'backend'
 }
 
-export interface DesignStageBody { plan?: PlanRecord; category?: RequirementCategory; designDocs?: DesignDocStatus[] }
-export interface DecomposeStageBody { decompositionDoc?: string; tasks: StageTaskRef[]; planTasks: PlanTask[] }
+// ── 追溯与覆盖度投影（REQ-260926140539-457b FR-6） ─────────────────────────
+// 数据源是 canonical RTM YAML（tools/reqboard/src/rtm 产出），由 host 侧
+// stage-overview/assembler.assembleTraceability() 读盘后挂到节点 body 上，供看板
+// 「🔗 追溯」Tab 渲染。**全部可选**：RTM 缺失时字段不出现，前端按"无追溯数据"降级
+// （FR-9：RTM 是增强层，不得因其缺失而打断详情渲染）。
+
+/** 三级追溯链投影（fr→设计→任务→测试，含跨级推导）。 */
+export interface TraceabilityProjection {
+  /** FR → 设计章节 */
+  fr_to_design?: Record<string, string[]>
+  /** 设计章节 → 任务 */
+  design_to_tasks?: Record<string, string[]>
+  /** FR → 任务（跨级） */
+  fr_to_tasks?: Record<string, string[]>
+  /** 任务 → 测试用例 */
+  task_to_tests?: Record<string, string[]>
+  /** FR → 测试用例（跨级） */
+  fr_to_tests?: Record<string, string[]>
+}
+
+/** 设计覆盖度（有设计章节服务的 FR / FR 总数）。 */
+export interface DesignCoverageProjection {
+  total: number
+  covered: number
+  uncovered: string[]
+  /** 百分比（0-100），不是 0-1 小数。 */
+  rate: number
+  total_frs?: number
+  covered_frs?: number
+}
+
+/** 实施覆盖度（有任务实现的设计章节 / 设计章节总数）。 */
+export interface ImplementationCoverageProjection {
+  total: number
+  covered: number
+  uncovered: string[]
+  rate: number
+  total_designs?: number
+  covered_designs?: number
+}
+
+/** 测试覆盖度（有测试用例覆盖的任务 / 任务总数）。 */
+export interface TestingCoverageProjection {
+  rate: number
+  total?: number
+  covered?: number
+  uncovered?: string[]
+  total_tasks?: number
+  tested_tasks?: number
+  untested?: string[]
+}
+
+export interface DesignStageBody {
+  plan?: PlanRecord
+  category?: RequirementCategory
+  designDocs?: DesignDocStatus[]
+  traceability?: TraceabilityProjection
+  coverage?: DesignCoverageProjection
+}
+export interface DecomposeStageBody {
+  decompositionDoc?: string
+  tasks: StageTaskRef[]
+  planTasks: PlanTask[]
+  traceability?: TraceabilityProjection
+  coverage?: ImplementationCoverageProjection
+}
 export interface ImplementStageBody {
   tasks: StageTaskExecution[]
   /** 窗口码 → 任务 id 列表（上下文分担可见化） */
   byWindow: Record<string, string[]>
+  traceability?: TraceabilityProjection
+  coverage?: ImplementationCoverageProjection
 }
-export interface AcceptStageBody { verification?: VerificationRecord }
+export interface AcceptStageBody {
+  verification?: VerificationRecord
+  traceability?: TraceabilityProjection
+  coverage?: TestingCoverageProjection
+}
 export interface DoneStageBody { completedAt?: number; verificationDecision?: 'pass' | 'rework' }
 export interface ArchiveStageBody { archive?: ArchiveRecord }
 

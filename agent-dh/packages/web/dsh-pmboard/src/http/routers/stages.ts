@@ -219,7 +219,14 @@ export function createStagesRouter(ctx: RouterCtx) {
     const target = (await store.read(l => l)).requirements.find(r => r.id === id)
     const policy = target === undefined ? undefined : await designDocPolicyOf(docs, target)
     const detail = await store.read(ledger =>
-      assembleStageDetail(ledger.requirements.find(r => r.id === id), { tasks: ledger.tasks }, stage, { ...(policy !== undefined ? { designDocPolicy: policy } : {}) }),
+      assembleStageDetail(ledger.requirements.find(r => r.id === id), { tasks: ledger.tasks }, stage, { 
+        ...(policy !== undefined ? { designDocPolicy: policy } : {}),
+        // REQ-260926140539-457b FR-6：RTM 追溯数据必须读到工作区根。
+        // deps.cwd 全仓无人设置（恒 undefined），原先"undefined 就不传"的条件展开 →
+        // ctx.workspaceRoot 恒为 undefined → 追溯数据永不出现。此处与 handleState 同口径回落
+        // 到 process.cwd()（实测 = /Users/yunpeng/pi-investment/agent-dh，RTM 所在处）。
+        workspaceRoot: deps.cwd ?? process.cwd(),
+      }),
     )
     ok(res, detail)
   }
@@ -235,7 +242,14 @@ export function createStagesRouter(ctx: RouterCtx) {
     const target = (await store.read(l => l)).requirements.find(r => r.id === id)
     const policy = target === undefined ? undefined : await designDocPolicyOf(docs, target)
     const overview = await store.read(ledger =>
-      assembleStageOverview(ledger.requirements.find(r => r.id === id), { tasks: ledger.tasks }, { ...(policy !== undefined ? { designDocPolicy: policy } : {}) }),
+      assembleStageOverview(ledger.requirements.find(r => r.id === id), { tasks: ledger.tasks }, { 
+        ...(policy !== undefined ? { designDocPolicy: policy } : {}),
+        // REQ-260926140539-457b FR-6：RTM 追溯数据必须读到工作区根。
+        // deps.cwd 全仓无人设置（恒 undefined），原先"undefined 就不传"的条件展开 →
+        // ctx.workspaceRoot 恒为 undefined → 追溯数据永不出现。此处与 handleState 同口径回落
+        // 到 process.cwd()（实测 = /Users/yunpeng/pi-investment/agent-dh，RTM 所在处）。
+        workspaceRoot: deps.cwd ?? process.cwd(),
+      }),
     )
     ok(res, overview)
   }

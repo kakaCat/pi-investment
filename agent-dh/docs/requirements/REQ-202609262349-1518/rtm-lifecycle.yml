@@ -1,0 +1,211 @@
+requirement:
+  id: REQ-202609262349-1518
+  title: RTM YAML 追溯基础设施完整实现
+  category: feature
+  created_at: 2026-09-26T15:49:30.227Z
+  source_session: session-9f2c6c84-0d41-41b8-b4ce-2d1c7e50bf32
+  dir: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-202609262349-1518
+lifecycle:
+  current_stage: implementing
+  stage_count: 7
+  stage_list:
+    - draft
+    - brainstorming
+    - design
+    - decomposing
+    - implementing
+    - accepting
+    - done
+  stages:
+    - stage: draft
+      status: completed
+      enabled: true
+      entered_at: 2026-09-26T15:49:30.227Z
+      completed_at: 2026-09-27T01:36:07.162Z
+    - stage: brainstorming
+      status: completed
+      enabled: true
+      entered_at: 2026-09-26T15:49:30.227Z
+      completed_at: 2026-09-27T01:36:07.162Z
+      artifacts:
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-lifecycle.yml
+          confirmed_at: 2026-09-27T00:36:21.921Z
+        - kind: requirement
+          path: docs/requirements/REQ-202609262349-1518/requirement.md
+          confirmed_at: 2026-09-26T16:00:30.602Z
+    - stage: design
+      status: completed
+      enabled: true
+      entered_at: 2026-09-26T15:49:30.227Z
+      completed_at: 2026-09-27T01:36:07.162Z
+      artifacts:
+        - kind: design
+          path: docs/requirements/REQ-202609262349-1518/design/architecture.md
+          confirmed_at: 2026-09-26T16:08:04.300Z
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-brainstorming.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-design.yml
+        - kind: design
+          path: docs/requirements/REQ-202609262349-1518/design/rtm-file-structure.md
+          confirmed_at: 2026-09-26T16:08:04.300Z
+        - kind: design
+          path: docs/requirements/REQ-202609262349-1518/design/coverage-gate.md
+          confirmed_at: 2026-09-26T16:08:04.300Z
+        - kind: design
+          path: docs/requirements/REQ-202609262349-1518/design/ledger-schema.md
+          confirmed_at: 2026-09-26T16:08:04.300Z
+        - kind: design
+          path: docs/requirements/REQ-202609262349-1518/design/rtm-generation.md
+          confirmed_at: 2026-09-26T16:08:04.300Z
+        - kind: design
+          path: docs/requirements/REQ-202609262349-1518/design/traceability-engine.md
+          confirmed_at: 2026-09-26T16:08:04.300Z
+        - kind: design
+          path: docs/requirements/REQ-202609262349-1518/design/data-model.md
+          confirmed_at: 2026-09-26T16:08:04.300Z
+        - kind: design
+          path: docs/requirements/REQ-202609262349-1518/design/interfaces.md
+          confirmed_at: 2026-09-26T16:08:04.300Z
+        - kind: design
+          path: docs/requirements/REQ-202609262349-1518/design/test-cases.md
+          confirmed_at: 2026-09-26T16:08:04.300Z
+        - kind: design
+          path: docs/requirements/REQ-202609262349-1518/design/use-cases.md
+          confirmed_at: 2026-09-26T16:08:04.300Z
+    - stage: decomposing
+      status: completed
+      enabled: true
+      entered_at: 2026-09-26T15:49:30.227Z
+      completed_at: 2026-09-27T01:36:07.162Z
+      artifacts:
+        - kind: decomposition
+          path: docs/requirements/REQ-202609262349-1518/decomposition.md
+          confirmed_at: 2026-09-26T16:29:23.361Z
+    - stage: implementing
+      status: in_progress
+      enabled: true
+      entered_at: 2026-09-26T15:49:30.227Z
+      artifacts:
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-decomposing.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/reviews/phase1-review.md
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-accepting.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/tests/acceptance-criteria.md
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/tests/test-execution.md
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/tests/unit-tests.md
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/reviews/rtm-verification-review.md
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/tests/rtm-test-evidence.md
+        - kind: task_detail
+          path: docs/requirements/REQ-202609262349-1518/tasks/t-9d53f4.md
+        - kind: task_detail
+          path: docs/requirements/REQ-202609262349-1518/tasks/t-3067d0.md
+        - kind: task_detail
+          path: docs/requirements/REQ-202609262349-1518/tasks/t-799c20.md
+        - kind: task_detail
+          path: docs/requirements/REQ-202609262349-1518/tasks/t-51e360.md
+        - kind: task_detail
+          path: docs/requirements/REQ-202609262349-1518/tasks/t-09dcfc.md
+        - kind: task_detail
+          path: docs/requirements/REQ-202609262349-1518/tasks/t-0de514.md
+        - kind: task_detail
+          path: docs/requirements/REQ-202609262349-1518/tasks/t-8a2918.md
+        - kind: task_detail
+          path: docs/requirements/REQ-202609262349-1518/tasks/t-052ac0.md
+        - kind: task_detail
+          path: docs/requirements/REQ-202609262349-1518/tasks/t-7d6e13.md
+        - kind: task_detail
+          path: docs/requirements/REQ-202609262349-1518/tasks/t-bbf915.md
+        - kind: task_detail
+          path: docs/requirements/REQ-202609262349-1518/tasks/t-67e3e4.md
+        - kind: task_detail
+          path: docs/requirements/REQ-202609262349-1518/tasks/t-8eee40.md
+        - kind: task_detail
+          path: docs/requirements/REQ-202609262349-1518/tasks/t-91f04c.md
+        - kind: task_detail
+          path: docs/requirements/REQ-202609262349-1518/tasks/t-dbad8b.md
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing/t-052ac0.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing/t-09dcfc.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing/t-0de514.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing/t-3067d0.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing/t-51e360.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing/t-67e3e4.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing/t-799c20.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing/t-7d6e13.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing/t-8a2918.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing/t-8eee40.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing/t-91f04c.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing/t-9d53f4.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing/t-bbf915.yml
+        - kind: notes
+          path: docs/requirements/REQ-202609262349-1518/rtm-implementing/t-dbad8b.yml
+        - kind: task_output
+          path: packages/tools/reqboard/src/rtm/types.ts
+        - kind: task_output
+          path: packages/tools/reqboard/src/rtm/parser.ts
+        - kind: task_output
+          path: packages/tools/reqboard/src/rtm/traceability-builder.ts
+        - kind: task_output
+          path: packages/tools/reqboard/src/rtm/coverage-calculator.ts
+        - kind: task_output
+          path: packages/tools/reqboard/src/rtm/validator.ts
+        - kind: task_output
+          path: packages/tools/reqboard/src/rtm/decomposing-generator.ts
+        - kind: task_output
+          path: packages/tools/reqboard/src/rtm/implementing-generator.ts
+        - kind: task_output
+          path: packages/tools/reqboard/src/rtm/accepting-generator.ts
+        - kind: task_output
+          path: packages/tools/reqboard/src/rtm/file-io.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/src/tools/StatusTool/StatusTool.ts
+        - kind: task_output
+          path: packages/web/dsh-pmboard/tests/traceability-handler.test.ts
+        - kind: task_output
+          path: packages/tools/reqboard/tests/rtm/file-io.test.ts
+        - kind: task_output
+          path: docs/architecture/rtm-infrastructure.md
+        - kind: task_output
+          path: docs/guides/rtm-usage-guide.md
+    - stage: accepting
+      status: pending
+      enabled: true
+      artifacts:
+        - kind: verification
+          path: docs/requirements/REQ-202609262349-1518/verification.md
+          confirmed_at: 2026-09-27T00:41:51.108Z
+    - stage: done
+      status: pending
+      enabled: true
+metadata:
+  stage: lifecycle
+  requirement_id: REQ-202609262349-1518
+  generated_at: 2026-09-26T15:49:30.436Z
+  version: 19
+  generated_by: dsh-pmboard
+  rtm_version: "1.0"
+  file_path: /Users/yunpeng/pi-investment/agent-dh/docs/requirements/REQ-202609262349-1518/rtm-lifecycle.yml
+  last_updated: 2026-09-27T01:40:15.588Z

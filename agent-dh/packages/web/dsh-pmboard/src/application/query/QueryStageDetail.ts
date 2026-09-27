@@ -41,17 +41,18 @@ import {
   type TaskRecord,
 } from '../../shared/protocol.js'
 import { designDocStatus, designDocPolicyOf, EMPTY_DESIGN_DOC_POLICY } from '../internal/design-docs.js'
+import { assembleTraceability, contextOf, type AssembleStageOptions } from '../../stage-overview/assembler.js'
 import type { DesignDocPolicy } from '../internal/category-doc-sets.js'
 import type { LedgerView, UseCaseDeps } from '../ports.js'
-
-/** 装配器上下文：需求 + 台账（取任务/时间线切片用）+ 可选设计文档策略（REQ-2d1c74，host 侧读 front-matter 注入）。 */
+/** 装配器上下文：需求 + 台账（取任务/时间线切片用）+ 可选设计文档策略（REQ-2d1c74，host 侧读 front-matter 注入）+ 工作区根路径（REQ-260926140539-457b，读 RTM）。 */
 export interface AssembleContext {
   req: RequirementRecord
   ledger: Pick<LedgerView, 'tasks'>
-  /** 设计文档集策略（sides/design_exempt）；缺省 = 空策略（只有必交、无豁免） */
+  /** REQ-2d1c74：设计文档策略（host 侧读 requirement.md front-matter 注入）。 */
   designDocPolicy?: DesignDocPolicy
+  /** REQ-260926140539-457b：工作区根路径（用于读取 RTM 追溯数据）。 */
+  workspaceRoot?: string
 }
-
 /**
  * 模板基类：固定 assemble 骨架，buildBody 为可变步。
  *
@@ -60,7 +61,6 @@ export interface AssembleContext {
  */
 abstract class StageDetailAssembler {
   abstract readonly stage: StageKey
-
   assemble(ctx: AssembleContext): StageDetail {
     const { req, ledger } = ctx
     const enabled = stageEnabledFor(req.category, this.stage)
@@ -77,7 +77,6 @@ abstract class StageDetailAssembler {
     const body = enabled ? this.buildBody(req, ledger, ctx) : ({} as never)
     return { ...base, body } as StageDetail
   }
-
   /** 可变步：各节点装配器实现，产出 StageDetail 判别联合对应 body 成员。 */
   protected abstract buildBody(
     req: RequirementRecord,
@@ -85,16 +84,13 @@ abstract class StageDetailAssembler {
     ctx: AssembleContext,
   ): StageDetail['body']
 }
-
 // ---------------------------------------------------------------------------
 // 产物 / 时间线 / 确认门（骨架共用步）
 // ---------------------------------------------------------------------------
-
 /** 该 stage 已登记的产物（按登记时间升序）。 */
 function artifactsForStage(req: RequirementRecord, stage: StageKey): StageArtifact[] {
   return (req.artifacts ?? []).filter(a => a.stage === stage)
 }
-
 /**
  * pendingConfirmation：该 stage 是某道 ARTIFACT_CONFIRM_GATES 的源头（from 端）且
  * 对应 kind 的产物存在但未 confirmedAt。
@@ -114,12 +110,10 @@ function pendingConfirmationFor(req: RequirementRecord, stage: StageKey): boolea
   }
   return false
 }
-
 /** 该 stage 的状态事件切片（谁在何时为何进入该阶段；含 inferred 标注）。 */
 function timelineForStage(req: RequirementRecord, stage: StageKey): StatusEvent[] {
   return (req.statusHistory ?? []).filter(e => e.status === stage)
 }
-
 /** 操作者标注辅助：把 ActorRef 转成可读字符串（human/agent:sessionId/system）。 */
 function actorLabel(by: { kind: string; sessionId?: string } | undefined): string | undefined {
   if (by === undefined) return undefined
@@ -128,11 +122,9 @@ function actorLabel(by: { kind: string; sessionId?: string } | undefined): strin
   }
   return by.kind
 }
-
 // ---------------------------------------------------------------------------
 // 8 节点装配器
 // ---------------------------------------------------------------------------
-
 /** 立项：需求卡（标题/分类/描述）+ 立项窗口 + 时间。 */
 class DraftStageAssembler extends StageDetailAssembler {
   readonly stage = 'draft' as const
@@ -148,7 +140,6 @@ class DraftStageAssembler extends StageDetailAssembler {
     }
   }
 }
-
 /** 需求分析：需求文档（路径）+ 共创会话 + 评论留痕。 */
 class BrainstormStageAssembler extends StageDetailAssembler {
   readonly stage = 'brainstorming' as const
@@ -163,7 +154,6 @@ class BrainstormStageAssembler extends StageDetailAssembler {
     }
   }
 }
-
 /** 设计：计划文档（路径）+ 完整 PlanRecord（含任务表与批准/退回留痕）+ 分类（文档集要求）
  *  + 设计文档逐份交付状态（REQ-81aabd FR-2：已交/未交，纯展示，不影响推进条件）。 */
 class DesignStageAssembler extends StageDetailAssembler {
@@ -171,39 +161,47 @@ class DesignStageAssembler extends StageDetailAssembler {
   protected buildBody(req: RequirementRecord, _ledger: Pick<LedgerView, 'tasks'>, ctx: AssembleContext): DesignStageBody {
     // REQ-2d1c74 FR-1/FR-2：投影带条件必交徽标与豁免理由——策略由 host 侧读 requirement.md
     // front-matter 注入（designDocPolicyOf），缺省空策略时行为与扩展前一致。
+    // REQ-260926140539-457b：集成 RTM 追溯数据
+    const traceability = ctx.workspaceRoot ? assembleTraceability(ctx.workspaceRoot, req.id) : undefined;
     return {
       ...(req.plan !== undefined ? { plan: req.plan } : {}),
       ...(req.category !== undefined ? { category: req.category } : {}),
       ...(req.category !== undefined ? { designDocs: designDocStatus(req, req.category, ctx.designDocPolicy ?? EMPTY_DESIGN_DOC_POLICY) } : {}),
+      ...(traceability?.traceability ? { traceability: traceability.traceability } : {}),
+      ...(traceability?.coverage?.design ? { coverage: traceability.coverage.design } : {}),
     }
   }
 }
-
 /** 拆分：拆分文档 + 落库任务 DAG + 与计划任务表对照。 */
 class DecomposeStageAssembler extends StageDetailAssembler {
   readonly stage = 'decomposing' as const
   protected buildBody(
     req: RequirementRecord,
     ledger: Pick<LedgerView, 'tasks'>,
+    ctx: AssembleContext,
   ): DecomposeStageBody {
     const tasks = ledger.tasks.filter(t => t.requirementId === req.id)
     const decompositionDoc = (req.artifacts ?? []).find(
       a => a.stage === 'decomposing' && a.kind === 'decomposition',
     )?.path
+    // FR-6：追溯数据。此前只写了下方展开、漏了本行声明（TS2304 + 运行时 ReferenceError）
+    const traceability = ctx.workspaceRoot ? assembleTraceability(ctx.workspaceRoot, req.id) : undefined
     return {
       ...(decompositionDoc !== undefined ? { decompositionDoc } : {}),
       tasks: tasks.map(t => withCardDoc(toStageTaskRef(t), t, req)),
       planTasks: req.plan?.tasks ?? [],
+      ...(traceability?.traceability ? { traceability: traceability.traceability } : {}),
+      ...(traceability?.coverage?.implementation ? { coverage: traceability.coverage.implementation } : {}),
     }
   }
 }
-
 /** 实施：每任务执行记录（窗口码/claimedBy/executions）+ 按窗口分组。 */
 class ImplementStageAssembler extends StageDetailAssembler {
   readonly stage = 'implementing' as const
   protected buildBody(
     req: RequirementRecord,
     ledger: Pick<LedgerView, 'tasks'>,
+    ctx: AssembleContext,
   ): ImplementStageBody {
     const tasks = ledger.tasks
       .filter(t => t.requirementId === req.id)
@@ -222,20 +220,29 @@ class ImplementStageAssembler extends StageDetailAssembler {
         ;(byWindow[w] ??= []).push(t.id)
       }
     }
-    return { tasks, byWindow }
-  }
-}
-
-/** 验收：验收材料 + 人工 pass/rework 结论。 */
-class AcceptStageAssembler extends StageDetailAssembler {
-  readonly stage = 'accepting' as const
-  protected buildBody(req: RequirementRecord): AcceptStageBody {
+    // FR-6：实施节点同样挂追溯链与实施覆盖度（此前整段缺失，ctx 声明了却未使用）
+    const traceability = ctx.workspaceRoot ? assembleTraceability(ctx.workspaceRoot, req.id) : undefined
     return {
-      ...(req.verification !== undefined ? { verification: req.verification } : {}),
+      tasks,
+      byWindow,
+      ...(traceability?.traceability ? { traceability: traceability.traceability } : {}),
+      ...(traceability?.coverage?.implementation ? { coverage: traceability.coverage.implementation } : {}),
     }
   }
 }
-
+/** 验收：验收材料 + 人工 pass/rework 结论。 */
+class AcceptStageAssembler extends StageDetailAssembler {
+  readonly stage = 'accepting' as const
+  protected buildBody(req: RequirementRecord, _ledger: Pick<LedgerView, 'tasks'>, ctx: AssembleContext): AcceptStageBody {
+    // REQ-260926140539-457b：集成 RTM 追溯数据
+    const traceability = ctx.workspaceRoot ? assembleTraceability(ctx.workspaceRoot, req.id) : undefined;
+    return {
+      ...(req.verification !== undefined ? { verification: req.verification } : {}),
+      ...(traceability?.traceability ? { traceability: traceability.traceability } : {}),
+      ...(traceability?.coverage?.testing ? { coverage: traceability.coverage.testing } : {}),
+    }
+  }
+}
 /** 完成：里程碑时间 + 验收结论摘要。 */
 class DoneStageAssembler extends StageDetailAssembler {
   readonly stage = 'done' as const
@@ -249,7 +256,6 @@ class DoneStageAssembler extends StageDetailAssembler {
     }
   }
 }
-
 /** 归档：归档材料（目录/文档清单/合并去向/索引/说明书更新点/归档人）。 */
 class ArchiveStageAssembler extends StageDetailAssembler {
   readonly stage = 'archived' as const
@@ -259,11 +265,9 @@ class ArchiveStageAssembler extends StageDetailAssembler {
     }
   }
 }
-
 // ---------------------------------------------------------------------------
 // TaskRecord → StageTaskRef / StageTaskExecution 映射
 // ---------------------------------------------------------------------------
-
 /**
  * cardDoc 回填（REQ-260923134706-e72f 实测断链修复）：2026-09-24 之前 decompose 只生成
  * 任务卡文档 + 登记 task_detail 产物，没把 cardDoc 写到任务记录上——查询层透传拿不到，
@@ -276,7 +280,6 @@ function withCardDoc<T extends StageTaskRef>(ref: T, t: TaskRecord, req: Require
   const doc = (req.artifacts ?? []).find(a => a.kind === 'task_detail' && a.path.endsWith(suffix))?.path
   return doc === undefined ? ref : { ...ref, cardDoc: doc }
 }
-
 function toStageTaskRef(t: TaskRecord): StageTaskRef {
   return {
     id: t.id,
@@ -291,7 +294,6 @@ function toStageTaskRef(t: TaskRecord): StageTaskRef {
     ...(t.executorHint !== undefined ? { executorHint: t.executorHint } : {}),
   }
 }
-
 function toStageTaskExecution(t: TaskRecord): StageTaskExecution {
   return {
     ...toStageTaskRef(t),
@@ -299,11 +301,9 @@ function toStageTaskExecution(t: TaskRecord): StageTaskExecution {
     executions: t.executions,
   }
 }
-
 // ---------------------------------------------------------------------------
 // 装配器注册表 + 入口
 // ---------------------------------------------------------------------------
-
 const ASSEMBLERS: Readonly<Record<StageKey, StageDetailAssembler>> = {
   draft: new DraftStageAssembler(),
   brainstorming: new BrainstormStageAssembler(),
@@ -314,7 +314,6 @@ const ASSEMBLERS: Readonly<Record<StageKey, StageDetailAssembler>> = {
   done: new DoneStageAssembler(),
   archived: new ArchiveStageAssembler(),
 }
-
 /**
  * 装配某需求的某节点详情（模板入口）。
  *
@@ -325,14 +324,13 @@ export function assembleStageDetail(
   req: RequirementRecord | undefined,
   ledger: Pick<LedgerView, 'tasks'>,
   stage: StageKey,
-  opts?: { designDocPolicy?: DesignDocPolicy },
+  opts?: AssembleStageOptions,
 ): StageDetail {
   if (req === undefined) {
     throw Object.assign(new Error('需求不存在'), { code: 'not_found' })
   }
-  return ASSEMBLERS[stage].assemble({ req, ledger, ...(opts?.designDocPolicy !== undefined ? { designDocPolicy: opts.designDocPolicy } : {}) })
+  return ASSEMBLERS[stage].assemble(contextOf(req, ledger, opts))
 }
-
 /**
  * 装配某需求的全流程一览（REQ-31e11f 节点详情重设计：一次看全）。
  * 按 ALL_STAGE_KEYS 顺序装配全部节点（含分类跳过节点），供监控时间线一次渲染。
@@ -340,12 +338,12 @@ export function assembleStageDetail(
 export function assembleStageOverview(
   req: RequirementRecord | undefined,
   ledger: Pick<LedgerView, 'tasks'>,
-  opts?: { designDocPolicy?: DesignDocPolicy },
+  opts?: AssembleStageOptions,
 ): StageOverview {
   if (req === undefined) {
     throw Object.assign(new Error('需求不存在'), { code: 'not_found' })
   }
-  const ctx: AssembleContext = { req, ledger, ...(opts?.designDocPolicy !== undefined ? { designDocPolicy: opts.designDocPolicy } : {}) }
+  const ctx: AssembleContext = contextOf(req, ledger, opts)
   return {
     requirementId: req.id,
     category: req.category,
@@ -353,15 +351,12 @@ export function assembleStageOverview(
     stages: ALL_STAGE_KEYS.map(stage => ASSEMBLERS[stage].assemble(ctx)),
   }
 }
-
 // re-export（路由/测试直接用本模块即可拿到全套类型与工具）
 export { actorLabel }
 export type { PlanTask, StageArtifact, StageDetail, StageKey, StatusEvent }
-
 // ---------------------------------------------------------------------------
 // 查询投影入口（REQ-47939a t6）——只读台账，不产生任何副作用
 // ---------------------------------------------------------------------------
-
 /** 某需求某节点详情（需求不存在 → 抛 not_found，与 assembleStageDetail 同语义）。 */
 export async function queryStageDetail(
   deps: UseCaseDeps,
