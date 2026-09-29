@@ -22,7 +22,7 @@ export interface Banner {
 const TEXT = {
   offline: '服务重启中，正在自动重连…… 此期间发送的消息可能发不出去，请稍候',
   stalePending: '服务已重启（代码可能已更新），你停手后页面会自动刷新',
-  staleManual: '服务已重启，页面需要刷新才能用上新版本（反复出现请按 Cmd+Shift+R 硬刷新）',
+  staleManual: '服务已重启，当前页面的登录已失效。请重新运行 ./scripts/url.sh 获取新链接，或关闭此标签页',
 } as const
 
 /**

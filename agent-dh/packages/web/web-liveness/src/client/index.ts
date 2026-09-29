@@ -128,9 +128,24 @@ export function apply(ctx: { logger?: (name: string) => { info(msg: string): voi
       banner.render(next, options)
     }
 
-    /** 真正刷新（唯一的 location.reload 出口）。 */
+    /** 真正刷新（唯一的 location.reload 出口）。
+     *
+     * 重启后 token 已失效，刷新会导致鉴权失败。
+     * 解决：禁用自动刷新，只显示横幅提示用户获取新链接。
+     */
     function reload(): void {
       writeReloadMark(Date.now())
+      // 检测到 URL 中有 token 参数 = dsh web 的 token 鉴权模式
+      // 重启后 token 已失效，刷新会 401，所以禁用自动刷新，只显示提示
+      const url = new URL(window.location.href)
+      if (url.searchParams.has('token')) {
+        log.warn(`${LOG} 检测到服务重启但使用 token 鉴权，禁用自动刷新以避免 401`)
+        // 标记为已阻止，阻止后续刷新尝试
+        reloadBlocked = true
+        setPhase('stale')
+        return
+      }
+      // 无 token 参数 = 可能是其他鉴权方式，普通刷新
       window.location.reload()
     }
 
