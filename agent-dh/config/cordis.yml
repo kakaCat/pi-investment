@@ -186,3 +186,26 @@
         provider: deepseek-official
         model: deepseek-v4-flash
         cwd: !!js process.cwd()
+# ========== Agent Teams 关闭（2026-09-27 用户裁定） ==========
+# 用户要求关闭 Agent Teams。生效后 pmboard 实施链的子卡执行走 workflow 兜底路径
+# （packages/web/dsh-pmboard/src/application/use-cases/ExecuteTask.ts:218 分支），
+# 不再 spawn 持久 Worker（无 reqboard-<父卡id> teammate、无 team_report_missing 白干）。
+# 三行一起关（缺一不可）：
+#   agent-team       = TeamService 服务本体（关掉后 AgentTeamsAdapter.available()=false）
+#   tool-agent-team  = 模型侧工具（spawn_teammate / send_message / team_task_*），服务没了必空悬
+#   ui-agent-team    = 看板团队面板
+# 恢复：把 disabled 改回 false（或整段删除 = 回落 bundle 原值 = 开启）。
+# 原「实施链 Worker 名额」覆盖（maxMembers: 16，防第 8 条父卡 TEAM_MEMBER_LIMIT 撞墙）
+# 随本段停用，值保留在下面，恢复 Agent Teams 时一并生效。
+- id: agent-team
+  disabled: true
+  config:
+    maxMembers: 16
+    maxTasks: 256
+    maxPendingMessagesPerMember: 64
+    maxMessageBytes: 65536
+    disposalTimeoutMs: 5000
+- id: tool-agent-team
+  disabled: true
+- id: ui-agent-team
+  disabled: true
