@@ -35,6 +35,16 @@
     "impact": "quant.strategy_stock_matching 的 800 行（100% 悬空引用 best_strategy_id，指向已删策略）已永久丢失。该表本已被判为废弃派生表、且内容本身是悬空数据，故业务影响近似为零——但『drop_after_backup 策略被执行成 drop_without_backup』是流程性缺陷，必须留档。",
     "known_irreversible": true,
     "policy_note": "本项为「策略执行偏离」而非「策略错误」：delete_policy=drop_after_backup 与 backup_table 声明保持原样，不因丢失而删除备份声明——删掉声明会让探针静默跳过，等于用抹掉证据的方式消灭告警（见 CLAUDE.md 教训『破坏性动作绝不静默』），故探针会继续每周报此 fail 直至人工裁决。"
+   },
+   "recurrence": {
+    "reported_weeks": 2,
+    "first_detected_at": "2026-09-20T20:45:09",
+    "last_reported_at": "2026-09-27T20:45:09",
+    "re_verified_at": "2026-09-27T21:0x",
+    "re_verified_by": "data-hygiene-weekly (agent task 3c9fb67b, window investor-session-b97fbb16-9bc3-4efb-8107-ad11b1a41b9a, 2026-09-27)",
+    "re_verified_evidence": "psql/information_schema 实测：quant schema 无任何 strategy_stock_matching% 表、无任何 %backup% 表；契约声明的 backup_table 仍不存在 → backup_loss.known_irreversible 结论不变，无新信息",
+    "disposition": "无可处置动作：表已 drop，备份不可恢复（无源可重建）；按本条 policy_note 不删备份声明（删声明＝抹掉证据并让探针静默跳过）",
+    "awaiting": "人工裁决——或接受并标注（保留每周 fail 作为流程债留档），或由人明确关闭该项告警；agent 不自行关闭"
    }
   },
   {
