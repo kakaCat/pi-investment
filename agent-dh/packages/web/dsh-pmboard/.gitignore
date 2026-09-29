@@ -6,3 +6,7 @@ lib/
 
 # 本地开发/取证产物（公开镜像不发布）
 scripts/.probe/
+
+# 发布仓库独立安装时的本地 store（pnpm-lock.yaml/pnpm-workspace.yaml 是镜像专属文件，
+# 见 scripts/sync-to-github.sh 文件头「两类例外」）
+.pnpm-store/
